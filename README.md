@@ -12,6 +12,20 @@ A CLI tool for analyzing Claude Code usage from local JSONL files.
 
 Inspired by [this article](https://note.com/milliondev/n/n1d018da2d769) about tracking Claude Code usage costs.
 
+## What is `ccusage` (by NotebookLM)
+<details>
+ <summary>Podcact</summary>
+
+# English
+https://github.com/user-attachments/assets/7a00f2f3-82a7-41b6-a8da-e04b76b5e35a
+
+
+# 日本語
+https://github.com/user-attachments/assets/db09fc06-bf57-4d37-9b06-514851bcc1d0
+
+</details>
+
+
 ## Motivation
 
 Claude Code's Max plan offers unlimited usage - but wouldn't it be interesting to know how much you'd be paying if you were on a pay-per-use plan? 
