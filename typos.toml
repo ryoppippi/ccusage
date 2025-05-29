@@ -1,0 +1,15 @@
+[default]
+locale = 'en-us'
+extend-ignore-re = [
+  "(?s)(#|//)\\s*spellchecker:off.*?\\n\\s*(#|//)\\s*spellchecker:on",
+  "(?s)<!--\\s*spellchecker:off.*?\\n\\s*spellchecker:on\\s*-->",
+  "(?Rm)^.*#\\s*spellchecker:disable-line$",
+  "(?m)^.*<!--\\s*spellchecker:disable-line\\s*-->\\n.*$"
+]
+[default.extend-words]
+color = "color"
+[files]
+extend-exclude = [
+  "node_modules",
+  "biome.json"
+]
