@@ -1,5 +1,6 @@
 import type { Args } from "gunshi";
 import * as v from "valibot";
+import { getDefaultClaudePath } from "./data-loader";
 import { dateSchema } from "./types";
 
 const parseDateArg = (value: string): string => {
@@ -26,7 +27,8 @@ export const sharedArgs = {
 	path: {
 		type: "string",
 		short: "p",
-		description: "Custom path to Claude data directory (default: ~/.claude)",
+		description: "Custom path to Claude data directory",
+		default: getDefaultClaudePath(),
 	},
 	json: {
 		type: "boolean",

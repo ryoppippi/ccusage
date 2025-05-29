@@ -4,6 +4,8 @@ import path from "node:path";
 import { glob } from "tinyglobby";
 import * as v from "valibot";
 
+export const getDefaultClaudePath = () => path.join(homedir(), ".claude");
+
 export const UsageDataSchema = v.object({
 	timestamp: v.string(),
 	message: v.object({
@@ -57,9 +59,8 @@ export interface LoadOptions extends DateFilter {
 export async function loadUsageData(
 	options?: LoadOptions,
 ): Promise<DailyUsage[]> {
-	const claudeDir = options?.claudePath
-		? path.join(options.claudePath, "projects")
-		: path.join(homedir(), ".claude", "projects");
+	const claudePath = options?.claudePath ?? getDefaultClaudePath();
+	const claudeDir = path.join(claudePath, "projects");
 	const files = await glob(["**/*.jsonl"], {
 		cwd: claudeDir,
 		absolute: true,
@@ -129,9 +130,8 @@ export async function loadUsageData(
 export async function loadSessionData(
 	options?: LoadOptions,
 ): Promise<SessionUsage[]> {
-	const claudeDir = options?.claudePath
-		? path.join(options.claudePath, "projects")
-		: path.join(homedir(), ".claude", "projects");
+	const claudePath = options?.claudePath ?? getDefaultClaudePath();
+	const claudeDir = path.join(claudePath, "projects");
 	const files = await glob(["**/*.jsonl"], {
 		cwd: claudeDir,
 		absolute: true,
