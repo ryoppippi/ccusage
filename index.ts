@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 
 import process from "node:process";
-import { cli, define } from "gunshi";
+import { cli } from "gunshi";
 import { dailyCommand } from "./commands/daily.ts";
 import { sessionCommand } from "./commands/session.ts";
 import { description, name, version } from "./package.json";
@@ -18,4 +18,5 @@ await cli(process.argv.slice(2), mainCommand, {
 	version,
 	description,
 	subCommands,
+	usageSilent: true,
 });

@@ -2,7 +2,7 @@ import Table from "cli-table3";
 import { define } from "gunshi";
 import pc from "picocolors";
 import { type LoadOptions, loadSessionData } from "../data-loader.ts";
-import { logger } from "../logger.ts";
+import { log, logger } from "../logger.ts";
 import { formatCurrency, formatNumber } from "../utils.ts";
 
 export const sessionCommand = define({
@@ -24,6 +24,11 @@ export const sessionCommand = define({
 			short: "p",
 			description: "Custom path to Claude data directory (default: ~/.claude)",
 		},
+		json: {
+			type: "boolean",
+			short: "j",
+			description: "Output in JSON format",
+		},
 	},
 	async run(ctx) {
 		const options: LoadOptions = {
@@ -34,7 +39,11 @@ export const sessionCommand = define({
 		const sessionData = await loadSessionData(options);
 
 		if (sessionData.length === 0) {
-			logger.warn("No Claude usage data found.");
+			if (ctx.values.json) {
+				log(JSON.stringify([]));
+			} else {
+				logger.warn("No Claude usage data found.");
+			}
 			process.exit(0);
 		}
 
@@ -48,67 +57,89 @@ export const sessionCommand = define({
 			{ inputTokens: 0, outputTokens: 0, totalCost: 0 },
 		);
 
-		// Print header
-		logger.box("Claude Code Token Usage Report - By Session");
+		if (ctx.values.json) {
+			// Output JSON format
+			const jsonOutput = {
+				sessions: sessionData.map((data) => ({
+					projectPath: data.projectPath,
+					sessionId: data.sessionId,
+					inputTokens: data.inputTokens,
+					outputTokens: data.outputTokens,
+					totalTokens: data.inputTokens + data.outputTokens,
+					totalCost: data.totalCost,
+					lastActivity: data.lastActivity,
+				})),
+				totals: {
+					inputTokens: totals.inputTokens,
+					outputTokens: totals.outputTokens,
+					totalTokens: totals.inputTokens + totals.outputTokens,
+					totalCost: totals.totalCost,
+				},
+			};
+			log(JSON.stringify(jsonOutput, null, 2));
+		} else {
+			// Print header
+			logger.box("Claude Code Token Usage Report - By Session");
 
-		// Create table
-		const table = new Table({
-			head: [
-				"Project / Session",
-				"Input Tokens",
-				"Output Tokens",
-				"Total Tokens",
-				"Cost (USD)",
-				"Last Activity",
-			],
-			style: {
-				head: ["cyan"],
-			},
-			colAligns: ["left", "right", "right", "right", "right", "left"],
-		});
+			// Create table
+			const table = new Table({
+				head: [
+					"Project / Session",
+					"Input Tokens",
+					"Output Tokens",
+					"Total Tokens",
+					"Cost (USD)",
+					"Last Activity",
+				],
+				style: {
+					head: ["cyan"],
+				},
+				colAligns: ["left", "right", "right", "right", "right", "left"],
+			});
 
-		// Add session data
-		for (const data of sessionData) {
-			const projectDisplay =
-				data.projectPath.length > 40
-					? `...${data.projectPath.slice(-37)}`
-					: data.projectPath;
-			const sessionDisplay =
-				data.sessionId.length > 20
-					? `${data.sessionId.slice(0, 17)}...`
-					: data.sessionId;
+			// Add session data
+			for (const data of sessionData) {
+				const projectDisplay =
+					data.projectPath.length > 40
+						? `...${data.projectPath.slice(-37)}`
+						: data.projectPath;
+				const sessionDisplay =
+					data.sessionId.length > 20
+						? `${data.sessionId.slice(0, 17)}...`
+						: data.sessionId;
 
+				table.push([
+					`${projectDisplay}\n  └─ ${sessionDisplay}`,
+					formatNumber(data.inputTokens),
+					formatNumber(data.outputTokens),
+					formatNumber(data.inputTokens + data.outputTokens),
+					formatCurrency(data.totalCost),
+					data.lastActivity,
+				]);
+			}
+
+			// Add separator
 			table.push([
-				`${projectDisplay}\n  └─ ${sessionDisplay}`,
-				formatNumber(data.inputTokens),
-				formatNumber(data.outputTokens),
-				formatNumber(data.inputTokens + data.outputTokens),
-				formatCurrency(data.totalCost),
-				data.lastActivity,
+				"─".repeat(40),
+				"─".repeat(12),
+				"─".repeat(12),
+				"─".repeat(12),
+				"─".repeat(10),
+				"─".repeat(12),
 			]);
+
+			// Add totals
+			table.push([
+				pc.yellow("Total"),
+				pc.yellow(formatNumber(totals.inputTokens)),
+				pc.yellow(formatNumber(totals.outputTokens)),
+				pc.yellow(formatNumber(totals.inputTokens + totals.outputTokens)),
+				pc.yellow(formatCurrency(totals.totalCost)),
+				"",
+			]);
+
+			// biome-ignore lint/suspicious/noConsole: <explanation>
+			console.log(table.toString());
 		}
-
-		// Add separator
-		table.push([
-			"─".repeat(40),
-			"─".repeat(12),
-			"─".repeat(12),
-			"─".repeat(12),
-			"─".repeat(10),
-			"─".repeat(12),
-		]);
-
-		// Add totals
-		table.push([
-			pc.yellow("Total"),
-			pc.yellow(formatNumber(totals.inputTokens)),
-			pc.yellow(formatNumber(totals.outputTokens)),
-			pc.yellow(formatNumber(totals.inputTokens + totals.outputTokens)),
-			pc.yellow(formatCurrency(totals.totalCost)),
-			"",
-		]);
-
-		// biome-ignore lint/suspicious/noConsole: <explanation>
-		console.log(table.toString());
 	},
 });
