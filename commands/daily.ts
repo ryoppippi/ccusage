@@ -3,37 +3,14 @@ import Table from "cli-table3";
 import { define } from "gunshi";
 import pc from "picocolors";
 import { type LoadOptions, loadUsageData } from "../data-loader.ts";
-import { parseDateArg } from "../date-validation.ts";
 import { log, logger } from "../logger.ts";
+import { sharedArgs } from "../shared-args.ts";
 import { formatCurrency, formatNumber } from "../utils.ts";
 
 export const dailyCommand = define({
 	name: "daily",
 	description: "Show usage report grouped by date",
-	args: {
-		since: {
-			type: "custom",
-			short: "s",
-			description: "Filter from date (YYYYMMDD format)",
-			parse: parseDateArg,
-		},
-		until: {
-			type: "custom",
-			short: "u",
-			description: "Filter until date (YYYYMMDD format)",
-			parse: parseDateArg,
-		},
-		path: {
-			type: "string",
-			short: "p",
-			description: "Custom path to Claude data directory (default: ~/.claude)",
-		},
-		json: {
-			type: "boolean",
-			short: "j",
-			description: "Output in JSON format",
-		},
-	},
+	args: sharedArgs,
 	async run(ctx) {
 		const options: LoadOptions = {
 			since: ctx.values.since,
