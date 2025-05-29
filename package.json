@@ -1,6 +1,17 @@
 {
-	"name": "claude-code-tools",
+	"name": "claude-code-usage",
 	"version": "0.1.0",
+	"author": "ryoppippi <ryoppippi.el@gmail.com> (https://github.com/ryoppippi)",
+	"license": "MIT",
+	"funding": "https://github.com/ryoppippi/claude-code-usage?sponsor=1",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/ryoppippi/claude-code-tools.git"
+	},
+	"bugs": {
+		"url": "https://github.com/ryoppippi/claude-code-tools/issues"
+	},
+	"homepage": "https://github.com/ryoppippi/claude-code-tools#readme",
 	"devDependencies": {
 		"@biomejs/biome": "^1.9.4",
 		"@types/bun": "^1.2.15",
@@ -20,7 +31,7 @@
 		"valibot": "^1.1.0"
 	},
 	"bin": "./dist/index.js",
-	"description": "Tools for working with Claude code",
+	"description": "Usage analysis tool for Claude Code",
 	"lint-staged": {
 		"*": ["biome check --write --no-errors-on-unmatched "]
 	},

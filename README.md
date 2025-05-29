@@ -1,12 +1,12 @@
-# claude-code-tools
+# claude-code-usage
 
-[![npm version](https://badge.fury.io/js/claude-code-tools.svg)](https://www.npmjs.com/package/claude-code-tools)
+[![npm version](https://badge.fury.io/js/claude-code-usage.svg)](https://www.npmjs.com/package/claude-code-usage)
 
 <div align="center">
   <img src="./docs/screenshot.png">
 </div>
 
-A CLI tool for analyzing Claude Code usage and costs from local JSONL files.
+A CLI tool for analyzing Claude Code usage from local JSONL files.
 
 Inspired by [this article](https://note.com/milliondev/n/n1d018da2d769) about tracking Claude Code usage costs.
 
@@ -28,31 +28,31 @@ Run directly without installation:
 
 ```bash
 # Using npx
-npx claude-code-tools@latest report daily
+npx claude-code-usage@latest report daily
 
 # Using bunx
-bunx claude-code-tools report daily
+bunx claude-code-usage report daily
 ```
 
 ### Local Installation
 
 ```bash
 # Install globally with npm
-npm install -g claude-code-tools
+npm install -g claude-code-usage
 
 # Install globally with bun
-bun install -g claude-code-tools
+bun install -g claude-code-usage
 
 # Then run
-claude-code-tools report daily
+claude-code-usage report daily
 ```
 
 ### Development Setup
 
 ```bash
 # Clone the repository
-git clone https://github.com/ryoppippi/claude-code-tools.git
-cd claude-code-tools
+git clone https://github.com/ryoppippi/claude-code-usage.git
+cd claude-code-usage
 
 # Install dependencies
 bun install
@@ -69,18 +69,18 @@ Shows token usage and costs aggregated by date:
 
 ```bash
 # Show all daily usage
-claude-code-tools report daily
-# or: npx claude-code-tools@latest report daily
-# or: bunx claude-code-tools report daily
+claude-code-usage report daily
+# or: npx claude-code-usage@latest report daily
+# or: bunx claude-code-usage report daily
 
 # Filter by date range
-claude-code-tools report daily --since 20250525 --until 20250530
+claude-code-usage report daily --since 20250525 --until 20250530
 
 # Use custom Claude data directory
-claude-code-tools report daily --path /custom/path/to/.claude
+claude-code-usage report daily --path /custom/path/to/.claude
 
 # Output in JSON format
-claude-code-tools report daily --json
+claude-code-usage report daily --json
 ```
 
 ### Session Report
@@ -89,16 +89,16 @@ Shows usage grouped by conversation sessions, sorted by cost:
 
 ```bash
 # Show all sessions
-claude-code-tools report session
+claude-code-usage report session
 
 # Filter sessions by last activity date
-claude-code-tools report session --since 20250525
+claude-code-usage report session --since 20250525
 
 # Combine filters
-claude-code-tools report session --since 20250525 --until 20250530 --path /custom/path
+claude-code-usage report session --since 20250525 --until 20250530 --path /custom/path
 
 # Output in JSON format
-claude-code-tools report session --json
+claude-code-usage report session --json
 ```
 
 ### Options
@@ -177,7 +177,7 @@ bun run format
 ## Project Structure
 
 ```
-claude-code-tools/
+claude-code-usage/
 ├── commands/
 │   ├── daily.ts      # Daily report command
 │   └── session.ts    # Session report command
