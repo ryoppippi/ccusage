@@ -15,14 +15,6 @@ export class CostCalculator {
 		this.modelPrices = modelPrices;
 	}
 
-	static async fromFile(
-		filePath = "./model_prices.json",
-	): Promise<CostCalculator> {
-		const file = Bun.file(filePath);
-		const data = (await file.json()) as LiteLLMModelPrices;
-		return new CostCalculator(data);
-	}
-
 	static async fromUrl(
 		url = "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json",
 	): Promise<CostCalculator> {

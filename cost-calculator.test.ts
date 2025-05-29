@@ -6,7 +6,7 @@ describe("CostCalculator", () => {
 
 	beforeAll(async () => {
 		// Use local file for tests to avoid network dependency
-		calculator = await CostCalculator.fromFile("./model_prices.json");
+		calculator = await CostCalculator.fromUrl();
 	});
 
 	test("should fetch pricing data from URL", async () => {
