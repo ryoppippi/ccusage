@@ -49,3 +49,4 @@ This is a CLI tool that analyzes Claude Code usage data from local JSONL files s
 
 # Tips for Claude Code
 - [gunshi](https://gunshi.dev/llms-full.txt)
+- do not use console.log. use logger.ts instead
