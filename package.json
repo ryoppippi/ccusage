@@ -1,17 +1,38 @@
 {
 	"name": "ccusage",
 	"version": "0.1.4",
-	"author": "ryoppippi <ryoppippi.el@gmail.com> (https://github.com/ryoppippi)",
-	"license": "MIT",
-	"funding": "https://github.com/ryoppippi/ccusage?sponsor=1",
+	"description": "Usage analysis tool for Claude Code",
+	"homepage": "https://github.com/ryoppippi/ccusage#readme",
+	"bugs": {
+		"url": "https://github.com/ryoppippi/ccusage/issues"
+	},
 	"repository": {
 		"type": "git",
 		"url": "git+https://github.com/ryoppippi/ccusage.git"
 	},
-	"bugs": {
-		"url": "https://github.com/ryoppippi/ccusage/issues"
+	"funding": "https://github.com/ryoppippi/ccusage?sponsor=1",
+	"license": "MIT",
+	"author": "ryoppippi <ryoppippi.el@gmail.com> (https://github.com/ryoppippi)",
+	"type": "module",
+	"bin": "./dist/index.js",
+	"files": ["dist", "docs"],
+	"scripts": {
+		"build": "tsdown ./index.ts --publint --unused",
+		"format": "biome check --write .",
+		"lint": "biome check .",
+		"prepack": "bun run build && clean-pkg-json",
+		"prepare": "simple-git-hooks",
+		"release": "bun lint && bun typecheck && bun test && bun run build && bumpp && npm publish --access public",
+		"report": "bun run index.ts",
+		"test": "bun test",
+		"typecheck": "tsc --noEmit"
 	},
-	"homepage": "https://github.com/ryoppippi/ccusage#readme",
+	"simple-git-hooks": {
+		"pre-commit": "bun lint-staged"
+	},
+	"lint-staged": {
+		"*": ["biome check --write --no-errors-on-unmatched "]
+	},
 	"devDependencies": {
 		"@biomejs/biome": "^1.9.4",
 		"@types/bun": "^1.2.15",
@@ -30,26 +51,5 @@
 		"unplugin-unused": "^0.4.4",
 		"valibot": "^1.1.0"
 	},
-	"bin": "./dist/index.js",
-	"description": "Usage analysis tool for Claude Code",
-	"lint-staged": {
-		"*": ["biome check --write --no-errors-on-unmatched "]
-	},
-	"scripts": {
-		"build": "tsdown ./index.ts --publint --unused",
-		"report": "bun run index.ts",
-		"lint": "biome check .",
-		"format": "biome check --write .",
-		"typecheck": "tsc --noEmit",
-		"prepare": "simple-git-hooks",
-		"test": "bun test",
-		"prepack": "bun run build && clean-pkg-json",
-		"release": "bun lint && bun typecheck && bun test && bun run build && bumpp && npm publish --access public"
-	},
-	"simple-git-hooks": {
-		"pre-commit": "bun lint-staged"
-	},
-	"trustedDependencies": ["@biomejs/biome", "simple-git-hooks"],
-	"type": "module",
-	"files": ["dist", "docs"]
+	"trustedDependencies": ["@biomejs/biome", "simple-git-hooks"]
 }
