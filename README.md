@@ -161,6 +161,12 @@ MIT
 
 [@ryoppippi](https://github.com/ryoppippi)
 
+## Inspiration
+
+This tool was inspired by [this excellent article](https://note.com/milliondev/n/n1d018da2d769) by [@milliondev](https://note.com/milliondev) about tracking Claude Code usage costs. The article demonstrates how to analyze Claude Code's local JSONL files using DuckDB to understand token usage patterns and costs.
+
+While the original approach uses DuckDB for analysis, this tool provides a more accessible CLI interface with the same core functionality - analyzing the same JSONL files that Claude Code stores locally to give you insights into your usage patterns and costs.
+
 ## Acknowledgments
 
-This tool was inspired by [this article](https://note.com/milliondev/n/n1d018da2d769) about tracking Claude Code usage with DuckDB.
+Thanks to [@milliondev](https://note.com/milliondev) for the original concept and approach to Claude Code usage analysis.
