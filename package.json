@@ -1,7 +1,6 @@
 {
 	"name": "claude-code-tools",
 	"version": "0.0.0",
-	"module": "index.ts",
 	"devDependencies": {
 		"@biomejs/biome": "^1.9.4",
 		"@types/bun": "^1.2.15",
@@ -40,5 +39,6 @@
 		"pre-commit": "bun lint-staged"
 	},
 	"trustedDependencies": ["@biomejs/biome", "simple-git-hooks"],
-	"type": "module"
+	"type": "module",
+	"files": ["dist"]
 }
