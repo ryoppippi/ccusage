@@ -1,12 +1,16 @@
+import * as v from "valibot";
 import type { LiteLLMModelPrices, ModelSpec } from "./types";
+import { LiteLLMModelPricesSchema } from "./types";
 
-interface CostCalculation {
-	inputTokens: number;
-	outputTokens: number;
-	inputCost: number;
-	outputCost: number;
-	totalCost: number;
-}
+const CostCalculationSchema = v.object({
+	inputTokens: v.number(),
+	outputTokens: v.number(),
+	inputCost: v.number(),
+	outputCost: v.number(),
+	totalCost: v.number(),
+});
+
+type CostCalculation = v.InferOutput<typeof CostCalculationSchema>;
 
 export class CostCalculator {
 	private modelPrices: LiteLLMModelPrices;
@@ -22,8 +26,9 @@ export class CostCalculator {
 		if (!response.ok) {
 			throw new Error(`Failed to fetch pricing data: ${response.statusText}`);
 		}
-		const data = (await response.json()) as LiteLLMModelPrices;
-		return new CostCalculator(data);
+		const json = await response.json();
+		const result = v.parse(LiteLLMModelPricesSchema, json);
+		return new CostCalculator(result);
 	}
 
 	calculateCost(
@@ -35,6 +40,10 @@ export class CostCalculator {
 
 		if (!modelSpec) {
 			throw new Error(`Model "${modelName}" not found in pricing data`);
+		}
+
+		if (!modelSpec.input_cost_per_token || !modelSpec.output_cost_per_token) {
+			throw new Error(`Model "${modelName}" missing cost data`);
 		}
 
 		const inputCost = inputTokens * modelSpec.input_cost_per_token;

@@ -5,9 +5,9 @@
       "name": "claude-code-tools",
       "devDependencies": {
         "@biomejs/biome": "^1.9.4",
-        "@types/bun": "latest",
-        "@types/node": "^22.15.24",
+        "@types/bun": "^1.2.15",
         "bumpp": "^10.1.1",
+        "clean-pkg-json": "^1.3.0",
         "cli-table3": "^0.6.5",
         "consola": "^3.4.2",
         "gunshi": "^0.25.0",
@@ -19,6 +19,7 @@
         "tsdown": "^0.12.3",
         "typescript": "^5",
         "unplugin-unused": "^0.4.4",
+        "valibot": "^1.1.0",
       },
     },
   },
@@ -148,6 +149,8 @@
     "chokidar": ["chokidar@4.0.3", "", { "dependencies": { "readdirp": "^4.0.1" } }, "sha512-Qgzu8kfBvo+cA4962jnP1KkS6Dop5NS6g7R5LFYJr4b8Ub94PPQXUksCw9PvXoeXPRRddRNC5C1JQUR2SMGtnA=="],
 
     "citty": ["citty@0.1.6", "", { "dependencies": { "consola": "^3.2.3" } }, "sha512-tskPPKEs8D2KPafUypv2gxwJP8h/OaJmC82QQGGDQcHvXX43xF2VDACcJVmZ0EuSxkpO9Kc4MlrA3q0+FG58AQ=="],
+
+    "clean-pkg-json": ["clean-pkg-json@1.3.0", "", { "bin": { "clean-pkg-json": "dist/index.js" } }, "sha512-EsOnQbKkrmCTIHCYODpIZ4FS1kP8UqX9fEji5SAA2OhG4K+Z/xuXON53hJdSBroVIpxddrUtR/dbh+QF5Aq7Vw=="],
 
     "cli-cursor": ["cli-cursor@5.0.0", "", { "dependencies": { "restore-cursor": "^5.0.0" } }, "sha512-aCj4O5wKyszjMmDT4tZj93kxyydN/K5zPWSCe6/0AV/AA1pqe5ZBIw0a2ZfPQV7lL5/yb5HsUreJ6UFAF1tEQw=="],
 
@@ -332,6 +335,8 @@
     "unplugin-unused": ["unplugin-unused@0.4.4", "", { "dependencies": { "js-tokens": "^9.0.1", "picocolors": "^1.1.1", "pkg-types": "^2.1.0", "unplugin": "^2.2.2", "unplugin-utils": "^0.2.4" } }, "sha512-UrXdGkPb9BRuqIpXj254Auz+kZhAMJ9q9xj9nVqGB3O9Hgc+WnIijkZLVut2IWct/aiO6ZhBCsYha1vlcKYn5A=="],
 
     "unplugin-utils": ["unplugin-utils@0.2.4", "", { "dependencies": { "pathe": "^2.0.2", "picomatch": "^4.0.2" } }, "sha512-8U/MtpkPkkk3Atewj1+RcKIjb5WBimZ/WSLhhR3w6SsIj8XJuKTacSP8g+2JhfSGw0Cb125Y+2zA/IzJZDVbhA=="],
+
+    "valibot": ["valibot@1.1.0", "", { "peerDependencies": { "typescript": ">=5" }, "optionalPeers": ["typescript"] }, "sha512-Nk8lX30Qhu+9txPYTwM0cFlWLdPFsFr6LblzqIySfbZph9+BFsAHsNvHOymEviUepeIW6KFHzpX8TKhbptBXXw=="],
 
     "webpack-virtual-modules": ["webpack-virtual-modules@0.6.2", "", {}, "sha512-66/V2i5hQanC51vBQKPH4aI8NMAcBW59FVBs+rC7eGHupMyfn34q7rZIE+ETlJ+XTevqfUhVVBgSUNSW2flEUQ=="],
 

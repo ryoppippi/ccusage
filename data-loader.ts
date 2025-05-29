@@ -2,33 +2,40 @@ import { readFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import path from "node:path";
 import { glob } from "tinyglobby";
+import * as v from "valibot";
 
-export interface UsageData {
-	timestamp: string;
-	message: {
-		usage: {
-			input_tokens: number;
-			output_tokens: number;
-		};
-	};
-	costUSD: number;
-}
+export const UsageDataSchema = v.object({
+	timestamp: v.string(),
+	message: v.object({
+		usage: v.object({
+			input_tokens: v.number(),
+			output_tokens: v.number(),
+		}),
+	}),
+	costUSD: v.number(),
+});
 
-export interface DailyUsage {
-	date: string;
-	inputTokens: number;
-	outputTokens: number;
-	totalCost: number;
-}
+export type UsageData = v.InferOutput<typeof UsageDataSchema>;
 
-export interface SessionUsage {
-	sessionId: string;
-	projectPath: string;
-	inputTokens: number;
-	outputTokens: number;
-	totalCost: number;
-	lastActivity: string;
-}
+export const DailyUsageSchema = v.object({
+	date: v.string(),
+	inputTokens: v.number(),
+	outputTokens: v.number(),
+	totalCost: v.number(),
+});
+
+export type DailyUsage = v.InferOutput<typeof DailyUsageSchema>;
+
+export const SessionUsageSchema = v.object({
+	sessionId: v.string(),
+	projectPath: v.string(),
+	inputTokens: v.number(),
+	outputTokens: v.number(),
+	totalCost: v.number(),
+	lastActivity: v.string(),
+});
+
+export type SessionUsage = v.InferOutput<typeof SessionUsageSchema>;
 
 export const formatDate = (dateStr: string): string => {
 	const date = new Date(dateStr);
@@ -74,10 +81,12 @@ export async function loadUsageData(
 
 		for (const line of lines) {
 			try {
-				const data = JSON.parse(line) as UsageData;
-				if (!data.timestamp || !data.message?.usage) {
+				const parsed = JSON.parse(line);
+				const result = v.safeParse(UsageDataSchema, parsed);
+				if (!result.success) {
 					continue;
 				}
+				const data = result.output;
 
 				const date = formatDate(data.timestamp);
 				const existing = dailyMap.get(date) || {
@@ -154,10 +163,12 @@ export async function loadSessionData(
 
 		for (const line of lines) {
 			try {
-				const data = JSON.parse(line) as UsageData;
-				if (!data.timestamp || !data.message?.usage) {
+				const parsed = JSON.parse(line);
+				const result = v.safeParse(UsageDataSchema, parsed);
+				if (!result.success) {
 					continue;
 				}
+				const data = result.output;
 
 				const key = `${projectPath}/${sessionId}`;
 				const existing = sessionMap.get(key) || {
