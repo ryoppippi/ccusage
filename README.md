@@ -22,6 +22,33 @@ Inspired by [this article](https://note.com/milliondev/n/n1d018da2d769) about tr
 
 ## Installation
 
+### Quick Start (Recommended)
+
+Run directly without installation:
+
+```bash
+# Using npx
+npx claude-code-tools@latest report daily
+
+# Using bunx
+bunx claude-code-tools report daily
+```
+
+### Local Installation
+
+```bash
+# Install globally with npm
+npm install -g claude-code-tools
+
+# Install globally with bun
+bun install -g claude-code-tools
+
+# Then run
+claude-code-tools report daily
+```
+
+### Development Setup
+
 ```bash
 # Clone the repository
 git clone https://github.com/ryoppippi/claude-code-tools.git
@@ -42,16 +69,18 @@ Shows token usage and costs aggregated by date:
 
 ```bash
 # Show all daily usage
-bun run report daily
+claude-code-tools report daily
+# or: npx claude-code-tools@latest report daily
+# or: bunx claude-code-tools report daily
 
 # Filter by date range
-bun run report daily --since 20250525 --until 20250530
+claude-code-tools report daily --since 20250525 --until 20250530
 
 # Use custom Claude data directory
-bun run report daily --path /custom/path/to/.claude
+claude-code-tools report daily --path /custom/path/to/.claude
 
 # Output in JSON format
-bun run report daily --json
+claude-code-tools report daily --json
 ```
 
 ### Session Report
@@ -60,16 +89,16 @@ Shows usage grouped by conversation sessions, sorted by cost:
 
 ```bash
 # Show all sessions
-bun run report session
+claude-code-tools report session
 
 # Filter sessions by last activity date
-bun run report session --since 20250525
+claude-code-tools report session --since 20250525
 
 # Combine filters
-bun run report session --since 20250525 --until 20250530 --path /custom/path
+claude-code-tools report session --since 20250525 --until 20250530 --path /custom/path
 
 # Output in JSON format
-bun run report session --json
+claude-code-tools report session --json
 ```
 
 ### Options
