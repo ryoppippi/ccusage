@@ -108,7 +108,7 @@ export const dailyCommand = define({
 
 			// Add separator
 			table.push([
-				"─".repeat(16),
+				"─".repeat(12),
 				"─".repeat(12),
 				"─".repeat(12),
 				"─".repeat(12),
