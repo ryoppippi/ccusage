@@ -30,10 +30,10 @@ Run directly without installation:
 
 ```bash
 # Using npx
-npx ccusage@latest report daily
+npx ccusage@latest daily
 
 # Using bunx
-bunx ccusage report daily
+bunx ccusage daily
 ```
 
 ### Local Installation
@@ -46,7 +46,7 @@ npm install -g ccusage
 bun install -g ccusage
 
 # Then run
-ccusage report daily
+ccusage daily
 ```
 
 ### Development Setup
@@ -71,18 +71,18 @@ Shows token usage and costs aggregated by date:
 
 ```bash
 # Show all daily usage
-ccusage report daily
-# or: npx ccusage@latest report daily
-# or: bunx ccusage report daily
+ccusage daily
+# or: npx ccusage@latest daily
+# or: bunx ccusage daily
 
 # Filter by date range
-ccusage report daily --since 20250525 --until 20250530
+ccusage daily --since 20250525 --until 20250530
 
 # Use custom Claude data directory
-ccusage report daily --path /custom/path/to/.claude
+ccusage daily --path /custom/path/to/.claude
 
 # Output in JSON format
-ccusage report daily --json
+ccusage daily --json
 ```
 
 ### Session Report
@@ -91,16 +91,16 @@ Shows usage grouped by conversation sessions, sorted by cost:
 
 ```bash
 # Show all sessions
-ccusage report session
+ccusage session
 
 # Filter sessions by last activity date
-ccusage report session --since 20250525
+ccusage session --since 20250525
 
 # Combine filters
-ccusage report session --since 20250525 --until 20250530 --path /custom/path
+ccusage session --since 20250525 --until 20250530 --path /custom/path
 
 # Output in JSON format
-ccusage report session --json
+ccusage session --json
 ```
 
 ### Options
