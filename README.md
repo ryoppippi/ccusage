@@ -1,5 +1,7 @@
 # claude-code-tools
 
+[![npm version](https://badge.fury.io/js/claude-code-tools.svg)](https://www.npmjs.com/package/claude-code-tools)
+
 <div align="center">
   <img src="./docs/screenshot.png">
 </div>
