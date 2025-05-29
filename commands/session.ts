@@ -1,3 +1,4 @@
+import process from "node:process";
 import Table from "cli-table3";
 import { define } from "gunshi";
 import pc from "picocolors";
@@ -84,7 +85,8 @@ export const sessionCommand = define({
 			// Create table
 			const table = new Table({
 				head: [
-					"Project / Session",
+					"Project",
+					"Session",
 					"Input Tokens",
 					"Output Tokens",
 					"Total Tokens",
@@ -94,22 +96,23 @@ export const sessionCommand = define({
 				style: {
 					head: ["cyan"],
 				},
-				colAligns: ["left", "right", "right", "right", "right", "left"],
+				colAligns: ["left", "left", "right", "right", "right", "right", "left"],
 			});
 
 			// Add session data
 			for (const data of sessionData) {
 				const projectDisplay =
-					data.projectPath.length > 40
-						? `...${data.projectPath.slice(-37)}`
+					data.projectPath.length > 20
+						? `...${data.projectPath.slice(-17)}`
 						: data.projectPath;
 				const sessionDisplay =
-					data.sessionId.length > 20
-						? `${data.sessionId.slice(0, 17)}...`
+					data.sessionId.length > 30
+						? `...${data.sessionId.slice(-27)}`
 						: data.sessionId;
 
 				table.push([
-					`${projectDisplay}\n  └─ ${sessionDisplay}`,
+					projectDisplay,
+					sessionDisplay,
 					formatNumber(data.inputTokens),
 					formatNumber(data.outputTokens),
 					formatNumber(data.inputTokens + data.outputTokens),
@@ -120,17 +123,19 @@ export const sessionCommand = define({
 
 			// Add separator
 			table.push([
-				"─".repeat(40),
-				"─".repeat(12),
-				"─".repeat(12),
-				"─".repeat(12),
-				"─".repeat(10),
-				"─".repeat(12),
+				"─".repeat(20), // For Project
+				"─".repeat(30), // For Session
+				"─".repeat(12), // For Input Tokens
+				"─".repeat(12), // For Output Tokens
+				"─".repeat(12), // For Total Tokens
+				"─".repeat(10), // For Cost
+				"─".repeat(12), // For Last Activity
 			]);
 
 			// Add totals
 			table.push([
 				pc.yellow("Total"),
+				"", // Empty for Session column in totals
 				pc.yellow(formatNumber(totals.inputTokens)),
 				pc.yellow(formatNumber(totals.outputTokens)),
 				pc.yellow(formatNumber(totals.inputTokens + totals.outputTokens)),
