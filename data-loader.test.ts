@@ -51,9 +51,8 @@ describe("loadUsageData", () => {
 
 	test("returns empty array when no files found", async () => {
 		const mockGlob = mock(() => Promise.resolve([]));
-		(glob as unknown as typeof import("bun:test").Mock).mockImplementation(
-			mockGlob,
-		);
+		// biome-ignore lint/suspicious/noExplicitAny: mocking external library
+		(glob as any).mockImplementation(mockGlob);
 
 		const result = await loadUsageData();
 		expect(result).toEqual([]);
@@ -65,9 +64,8 @@ describe("loadUsageData", () => {
 
 	test("uses custom claude path when provided", async () => {
 		const mockGlob = mock(() => Promise.resolve([]));
-		(glob as unknown as typeof import("bun:test").Mock).mockImplementation(
-			mockGlob,
-		);
+		// biome-ignore lint/suspicious/noExplicitAny: mocking external library
+		(glob as any).mockImplementation(mockGlob);
 
 		await loadUsageData({ claudePath: "/custom/path" });
 		expect(mockGlob).toHaveBeenCalledWith(["**/*.jsonl"], {
@@ -80,9 +78,8 @@ describe("loadUsageData", () => {
 		const mockGlob = mock(() =>
 			Promise.resolve(["/test/file1.jsonl", "/test/file2.jsonl"]),
 		);
-		(glob as unknown as typeof import("bun:test").Mock).mockImplementation(
-			mockGlob,
-		);
+		// biome-ignore lint/suspicious/noExplicitAny: mocking external library
+		(glob as any).mockImplementation(mockGlob);
 
 		const mockData1: UsageData[] = [
 			{
@@ -120,9 +117,8 @@ describe("loadUsageData", () => {
 				mockData2.map((d) => JSON.stringify(d)).join("\n"),
 			);
 		});
-		(readFile as unknown as typeof import("bun:test").Mock).mockImplementation(
-			mockReadFile,
-		);
+		// biome-ignore lint/suspicious/noExplicitAny: mocking external library
+		(readFile as any).mockImplementation(mockReadFile);
 
 		const result = await loadUsageData();
 
@@ -150,9 +146,8 @@ describe("loadUsageData", () => {
 
 	test("filters by date range", async () => {
 		const mockGlob = mock(() => Promise.resolve(["/test/file.jsonl"]));
-		(glob as unknown as typeof import("bun:test").Mock).mockImplementation(
-			mockGlob,
-		);
+		// biome-ignore lint/suspicious/noExplicitAny: mocking external library
+		(glob as any).mockImplementation(mockGlob);
 
 		const mockData: UsageData[] = [
 			{
@@ -175,9 +170,8 @@ describe("loadUsageData", () => {
 		const mockReadFile = mock(() =>
 			Promise.resolve(mockData.map((d) => JSON.stringify(d)).join("\n")),
 		);
-		(readFile as unknown as typeof import("bun:test").Mock).mockImplementation(
-			mockReadFile,
-		);
+		// biome-ignore lint/suspicious/noExplicitAny: mocking external library
+		(readFile as any).mockImplementation(mockReadFile);
 
 		const result = await loadUsageData({
 			since: "20240110",
@@ -190,9 +184,8 @@ describe("loadUsageData", () => {
 
 	test("handles invalid JSON lines gracefully", async () => {
 		const mockGlob = mock(() => Promise.resolve(["/test/file.jsonl"]));
-		(glob as unknown as typeof import("bun:test").Mock).mockImplementation(
-			mockGlob,
-		);
+		// biome-ignore lint/suspicious/noExplicitAny: mocking external library
+		(glob as any).mockImplementation(mockGlob);
 
 		const mockContent = `{"timestamp": "2024-01-01T00:00:00Z", "message": {"usage": {"input_tokens": 100, "output_tokens": 50}}, "costUSD": 0.01}
 invalid json line
@@ -200,9 +193,8 @@ invalid json line
 `;
 
 		const mockReadFile = mock(() => Promise.resolve(mockContent));
-		(readFile as unknown as typeof import("bun:test").Mock).mockImplementation(
-			mockReadFile,
-		);
+		// biome-ignore lint/suspicious/noExplicitAny: mocking external library
+		(readFile as any).mockImplementation(mockReadFile);
 
 		const result = await loadUsageData();
 		expect(result).toHaveLength(2);
@@ -210,9 +202,8 @@ invalid json line
 
 	test("skips data without required fields", async () => {
 		const mockGlob = mock(() => Promise.resolve(["/test/file.jsonl"]));
-		(glob as unknown as typeof import("bun:test").Mock).mockImplementation(
-			mockGlob,
-		);
+		// biome-ignore lint/suspicious/noExplicitAny: mocking external library
+		(glob as any).mockImplementation(mockGlob);
 
 		const mockContent = `{"timestamp": "2024-01-01T00:00:00Z", "message": {"usage": {"input_tokens": 100, "output_tokens": 50}}, "costUSD": 0.01}
 {"timestamp": "2024-01-02T00:00:00Z"}
@@ -221,9 +212,8 @@ invalid json line
 `;
 
 		const mockReadFile = mock(() => Promise.resolve(mockContent));
-		(readFile as unknown as typeof import("bun:test").Mock).mockImplementation(
-			mockReadFile,
-		);
+		// biome-ignore lint/suspicious/noExplicitAny: mocking external library
+		(readFile as any).mockImplementation(mockReadFile);
 
 		const result = await loadUsageData();
 		expect(result).toHaveLength(1);
@@ -238,9 +228,8 @@ describe("loadSessionData", () => {
 
 	test("returns empty array when no files found", async () => {
 		const mockGlob = mock(() => Promise.resolve([]));
-		(glob as unknown as typeof import("bun:test").Mock).mockImplementation(
-			mockGlob,
-		);
+		// biome-ignore lint/suspicious/noExplicitAny: mocking external library
+		(glob as any).mockImplementation(mockGlob);
 
 		const result = await loadSessionData();
 		expect(result).toEqual([]);
@@ -260,9 +249,8 @@ describe("loadSessionData", () => {
 				path.join(basePath, "project2", "session456", "chat.jsonl"),
 			]),
 		);
-		(glob as unknown as typeof import("bun:test").Mock).mockImplementation(
-			mockGlob,
-		);
+		// biome-ignore lint/suspicious/noExplicitAny: mocking external library
+		(glob as any).mockImplementation(mockGlob);
 
 		const mockData: UsageData = {
 			timestamp: "2024-01-01T00:00:00Z",
@@ -271,9 +259,8 @@ describe("loadSessionData", () => {
 		};
 
 		const mockReadFile = mock(() => Promise.resolve(JSON.stringify(mockData)));
-		(readFile as unknown as typeof import("bun:test").Mock).mockImplementation(
-			mockReadFile,
-		);
+		// biome-ignore lint/suspicious/noExplicitAny: mocking external library
+		(readFile as any).mockImplementation(mockReadFile);
 
 		const result = await loadSessionData();
 
@@ -291,9 +278,8 @@ describe("loadSessionData", () => {
 				path.join(basePath, "project1", "session123", "chat.jsonl"),
 			]),
 		);
-		(glob as unknown as typeof import("bun:test").Mock).mockImplementation(
-			mockGlob,
-		);
+		// biome-ignore lint/suspicious/noExplicitAny: mocking external library
+		(glob as any).mockImplementation(mockGlob);
 
 		const mockData: UsageData[] = [
 			{
@@ -316,9 +302,8 @@ describe("loadSessionData", () => {
 		const mockReadFile = mock(() =>
 			Promise.resolve(mockData.map((d) => JSON.stringify(d)).join("\n")),
 		);
-		(readFile as unknown as typeof import("bun:test").Mock).mockImplementation(
-			mockReadFile,
-		);
+		// biome-ignore lint/suspicious/noExplicitAny: mocking external library
+		(readFile as any).mockImplementation(mockReadFile);
 
 		const result = await loadSessionData();
 
@@ -342,9 +327,8 @@ describe("loadSessionData", () => {
 				path.join(basePath, "project3", "session3", "chat.jsonl"),
 			]),
 		);
-		(glob as unknown as typeof import("bun:test").Mock).mockImplementation(
-			mockGlob,
-		);
+		// biome-ignore lint/suspicious/noExplicitAny: mocking external library
+		(glob as any).mockImplementation(mockGlob);
 
 		const mockReadFile = mock((file: string) => {
 			if (file.includes("session1")) {
@@ -373,9 +357,8 @@ describe("loadSessionData", () => {
 				}),
 			);
 		});
-		(readFile as unknown as typeof import("bun:test").Mock).mockImplementation(
-			mockReadFile,
-		);
+		// biome-ignore lint/suspicious/noExplicitAny: mocking external library
+		(readFile as any).mockImplementation(mockReadFile);
 
 		const result = await loadSessionData();
 
@@ -393,9 +376,8 @@ describe("loadSessionData", () => {
 				path.join(basePath, "project2", "session2", "chat.jsonl"),
 			]),
 		);
-		(glob as unknown as typeof import("bun:test").Mock).mockImplementation(
-			mockGlob,
-		);
+		// biome-ignore lint/suspicious/noExplicitAny: mocking external library
+		(glob as any).mockImplementation(mockGlob);
 
 		const mockReadFile = mock((file: string) => {
 			if (file.includes("session1")) {
@@ -415,9 +397,8 @@ describe("loadSessionData", () => {
 				}),
 			);
 		});
-		(readFile as unknown as typeof import("bun:test").Mock).mockImplementation(
-			mockReadFile,
-		);
+		// biome-ignore lint/suspicious/noExplicitAny: mocking external library
+		(readFile as any).mockImplementation(mockReadFile);
 
 		const result = await loadSessionData({
 			since: "20240110",
