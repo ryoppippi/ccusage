@@ -5,7 +5,7 @@
 [![npm version](https://badge.fury.io/js/ccusage.svg)](https://www.npmjs.com/package/ccusage)
 
 <div align="center">
-  <img src="./docs/screenshot.png">
+  <img src="https://github.com/ryoppippi/ccusage/blob/main/docs/screenshot.png?raw=true">
 </div>
 
 A CLI tool for analyzing Claude Code usage from local JSONL files.

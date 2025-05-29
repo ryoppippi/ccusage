@@ -15,7 +15,7 @@
 	"author": "ryoppippi <ryoppippi.el@gmail.com> (https://github.com/ryoppippi)",
 	"type": "module",
 	"bin": "./dist/index.js",
-	"files": ["dist", "docs"],
+	"files": ["dist"],
 	"scripts": {
 		"build": "tsdown ./index.ts --publint --unused",
 		"format": "biome check --write .",
