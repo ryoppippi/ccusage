@@ -1,5 +1,9 @@
 # claude-code-tools
 
+<div align="center">
+  <img src="./docs/screenshot.png">
+</div>
+
 A CLI tool for analyzing Claude Code usage and costs from local JSONL files.
 
 Inspired by [this article](https://note.com/milliondev/n/n1d018da2d769) about tracking Claude Code usage costs.

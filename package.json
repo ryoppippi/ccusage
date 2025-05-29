@@ -40,5 +40,5 @@
 	},
 	"trustedDependencies": ["@biomejs/biome", "simple-git-hooks"],
 	"type": "module",
-	"files": ["dist"]
+	"files": ["dist", "docs"]
 }
