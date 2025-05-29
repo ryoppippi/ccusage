@@ -1,6 +1,8 @@
-# claude-code-usage
+# ccusage
 
-[![npm version](https://badge.fury.io/js/claude-code-usage.svg)](https://www.npmjs.com/package/claude-code-usage)
+> **ccusage(claude-code-usage)**
+
+[![npm version](https://badge.fury.io/js/ccusage.svg)](https://www.npmjs.com/package/ccusage)
 
 <div align="center">
   <img src="./docs/screenshot.png">
@@ -28,31 +30,31 @@ Run directly without installation:
 
 ```bash
 # Using npx
-npx claude-code-usage@latest report daily
+npx ccusage@latest report daily
 
 # Using bunx
-bunx claude-code-usage report daily
+bunx ccusage report daily
 ```
 
 ### Local Installation
 
 ```bash
 # Install globally with npm
-npm install -g claude-code-usage
+npm install -g ccusage
 
 # Install globally with bun
-bun install -g claude-code-usage
+bun install -g ccusage
 
 # Then run
-claude-code-usage report daily
+ccusage report daily
 ```
 
 ### Development Setup
 
 ```bash
 # Clone the repository
-git clone https://github.com/ryoppippi/claude-code-usage.git
-cd claude-code-usage
+git clone https://github.com/ryoppippi/ccusage.git
+cd ccusage
 
 # Install dependencies
 bun install
@@ -69,18 +71,18 @@ Shows token usage and costs aggregated by date:
 
 ```bash
 # Show all daily usage
-claude-code-usage report daily
-# or: npx claude-code-usage@latest report daily
-# or: bunx claude-code-usage report daily
+ccusage report daily
+# or: npx ccusage@latest report daily
+# or: bunx ccusage report daily
 
 # Filter by date range
-claude-code-usage report daily --since 20250525 --until 20250530
+ccusage report daily --since 20250525 --until 20250530
 
 # Use custom Claude data directory
-claude-code-usage report daily --path /custom/path/to/.claude
+ccusage report daily --path /custom/path/to/.claude
 
 # Output in JSON format
-claude-code-usage report daily --json
+ccusage report daily --json
 ```
 
 ### Session Report
@@ -89,16 +91,16 @@ Shows usage grouped by conversation sessions, sorted by cost:
 
 ```bash
 # Show all sessions
-claude-code-usage report session
+ccusage report session
 
 # Filter sessions by last activity date
-claude-code-usage report session --since 20250525
+ccusage report session --since 20250525
 
 # Combine filters
-claude-code-usage report session --since 20250525 --until 20250530 --path /custom/path
+ccusage report session --since 20250525 --until 20250530 --path /custom/path
 
 # Output in JSON format
-claude-code-usage report session --json
+ccusage report session --json
 ```
 
 ### Options
@@ -177,7 +179,7 @@ bun run format
 ## Project Structure
 
 ```
-claude-code-usage/
+ccusage/
 ├── commands/
 │   ├── daily.ts      # Daily report command
 │   └── session.ts    # Session report command

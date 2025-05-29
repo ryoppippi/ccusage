@@ -1,17 +1,17 @@
 {
-	"name": "claude-code-usage",
+	"name": "ccusage",
 	"version": "0.1.1",
 	"author": "ryoppippi <ryoppippi.el@gmail.com> (https://github.com/ryoppippi)",
 	"license": "MIT",
-	"funding": "https://github.com/ryoppippi/claude-code-usage?sponsor=1",
+	"funding": "https://github.com/ryoppippi/ccusage?sponsor=1",
 	"repository": {
 		"type": "git",
-		"url": "git+https://github.com/ryoppippi/claude-code-tools.git"
+		"url": "git+https://github.com/ryoppippi/ccusage.git"
 	},
 	"bugs": {
-		"url": "https://github.com/ryoppippi/claude-code-tools/issues"
+		"url": "https://github.com/ryoppippi/ccusage/issues"
 	},
-	"homepage": "https://github.com/ryoppippi/claude-code-tools#readme",
+	"homepage": "https://github.com/ryoppippi/ccusage#readme",
 	"devDependencies": {
 		"@biomejs/biome": "^1.9.4",
 		"@types/bun": "^1.2.15",
