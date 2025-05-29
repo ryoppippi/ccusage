@@ -33,7 +33,7 @@
 		"prepare": "simple-git-hooks",
 		"test": "bun test",
 		"prepack": "bun run build && clean-pkg-json",
-		"release": "bun lint && bun typecheck && bun test && bun run build && bumpp"
+		"release": "bun lint && bun typecheck && bun test && bun run build && bumpp && npm publish --access public"
 	},
 	"simple-git-hooks": {
 		"pre-commit": "bun lint-staged"
