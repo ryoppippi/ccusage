@@ -1,5 +1,14 @@
 import type { Args } from "gunshi";
-import { parseDateArg } from "./date-validation.ts";
+import * as v from "valibot";
+import { dateSchema } from "./types";
+
+const parseDateArg = (value: string): string => {
+	const result = v.safeParse(dateSchema, value);
+	if (!result.success) {
+		throw new TypeError(result.issues[0].message);
+	}
+	return result.output;
+};
 
 export const sharedArgs = {
 	since: {
