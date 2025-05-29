@@ -11,17 +11,9 @@ const subCommands = new Map();
 subCommands.set("daily", dailyCommand);
 subCommands.set("session", sessionCommand);
 
-// Default command shows daily report
-const command = define({
-	description: "Claude Code usage report tool",
-	async run(ctx) {
-		// Show help when no subcommand is provided
-		// The CLI will automatically show available subcommands
-		return;
-	},
-});
+const mainCommand = dailyCommand;
 
-await cli(process.argv.slice(2), command, {
+await cli(process.argv.slice(2), mainCommand, {
 	name,
 	version,
 	description,
