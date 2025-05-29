@@ -99,16 +99,17 @@ export const sessionCommand = define({
 				colAligns: ["left", "left", "right", "right", "right", "right", "left"],
 			});
 
-			// Add session data
+			let maxProjectLength = 0;
+			let maxSessionLength = 0;
 			for (const data of sessionData) {
 				const projectDisplay =
 					data.projectPath.length > 20
 						? `...${data.projectPath.slice(-17)}`
 						: data.projectPath;
-				const sessionDisplay =
-					data.sessionId.length > 30
-						? `...${data.sessionId.slice(-27)}`
-						: data.sessionId;
+				const sessionDisplay = data.sessionId.split("-").slice(-2).join("-"); // Display last two parts of session ID
+
+				maxProjectLength = Math.max(maxProjectLength, projectDisplay.length);
+				maxSessionLength = Math.max(maxSessionLength, sessionDisplay.length);
 
 				table.push([
 					projectDisplay,
@@ -123,8 +124,8 @@ export const sessionCommand = define({
 
 			// Add separator
 			table.push([
-				"─".repeat(20), // For Project
-				"─".repeat(30), // For Session
+				"─".repeat(maxProjectLength), // For Project
+				"─".repeat(maxSessionLength), // For Session
 				"─".repeat(12), // For Input Tokens
 				"─".repeat(12), // For Output Tokens
 				"─".repeat(12), // For Total Tokens
