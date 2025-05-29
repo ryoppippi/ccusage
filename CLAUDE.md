@@ -17,6 +17,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 **Development Usage:**
 - `bun run report daily` - Show daily usage report
 - `bun run report session` - Show session-based usage report
+- `bun run report daily --json` - Show daily usage report in JSON format
+- `bun run report session --json` - Show session usage report in JSON format
 - `bun run index.ts` - Direct execution for development
 
 ## Architecture Overview
@@ -28,6 +30,10 @@ This is a CLI tool that analyzes Claude Code usage data from local JSONL files s
 2. **Cost Calculation** (`cost-calculator.ts`) - Handles token-to-cost conversions using LiteLLM pricing data
 3. **Command Execution** (`commands/`) - CLI subcommands that orchestrate data loading and presentation
 4. **CLI Entry** (`index.ts`) - Gunshi-based CLI setup with subcommand routing
+
+**Output Formats:**
+- Table format (default): Pretty-printed tables with colors for terminal display
+- JSON format (`--json`): Structured JSON output for programmatic consumption
 
 **Key Data Structures:**
 - Raw usage data is parsed from JSONL with timestamp, token counts, and pre-calculated costs

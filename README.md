@@ -11,6 +11,7 @@ Inspired by [this article](https://note.com/milliondev/n/n1d018da2d769) about tr
 - 📅 **Date Filtering**: Filter reports by date range using `--since` and `--until`
 - 📁 **Custom Path**: Support for custom Claude data directory locations
 - 🎨 **Beautiful Output**: Colorful table-formatted display
+- 📄 **JSON Output**: Export data in structured JSON format with `--json`
 - 💰 **Cost Tracking**: Shows costs in USD for each day/session
 
 ## Installation
@@ -42,6 +43,9 @@ bun run report daily --since 20250525 --until 20250530
 
 # Use custom Claude data directory
 bun run report daily --path /custom/path/to/.claude
+
+# Output in JSON format
+bun run report daily --json
 ```
 
 ### Session Report
@@ -57,6 +61,9 @@ bun run report session --since 20250525
 
 # Combine filters
 bun run report session --since 20250525 --until 20250530 --path /custom/path
+
+# Output in JSON format
+bun run report session --json
 ```
 
 ### Options
@@ -66,6 +73,7 @@ All commands support the following options:
 - `-s, --since <date>`: Filter from date (YYYYMMDD format)
 - `-u, --until <date>`: Filter until date (YYYYMMDD format)  
 - `-p, --path <path>`: Custom path to Claude data directory (default: `~/.claude`)
+- `-j, --json`: Output results in JSON format instead of table
 - `-h, --help`: Display help message
 - `-v, --version`: Display version
 
