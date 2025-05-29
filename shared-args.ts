@@ -32,5 +32,6 @@ export const sharedArgs = {
 		type: "boolean",
 		short: "j",
 		description: "Output in JSON format",
+		default: false,
 	},
 } as const satisfies Args;
