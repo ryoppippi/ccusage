@@ -46,3 +46,6 @@ This is a CLI tool that analyzes Claude Code usage data from local JSONL files s
 - No console.log allowed except where explicitly disabled with biome-ignore
 - Error handling: silently skips malformed JSONL lines during parsing
 - File paths always use Node.js path utilities for cross-platform compatibility
+
+# Tips for Claude Code
+- [gunshi](https://gunshi.dev/llms-full.txt)
