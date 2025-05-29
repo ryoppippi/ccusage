@@ -1,6 +1,6 @@
 {
 	"name": "claude-code-tools",
-	"version": "0.0.0",
+	"version": "0.1.0",
 	"devDependencies": {
 		"@biomejs/biome": "^1.9.4",
 		"@types/bun": "^1.2.15",
