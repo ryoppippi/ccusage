@@ -1,6 +1,6 @@
 {
 	"name": "claude-code-usage",
-	"version": "0.1.0",
+	"version": "0.1.1",
 	"author": "ryoppippi <ryoppippi.el@gmail.com> (https://github.com/ryoppippi)",
 	"license": "MIT",
 	"funding": "https://github.com/ryoppippi/claude-code-usage?sponsor=1",
