@@ -8,7 +8,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `bun test` - Run all tests
 - `bun run lint` - Lint code with Biome
 - `bun run format` - Format code with Biome (writes changes)
-- `bun typecheck` - Type check with TypeScript (note: script name has typo "typecheek")
+- `bun typecheck` - Type check with TypeScript
 
 **Build and Release:**
 - `bun run build` - Build distribution files with tsdown
@@ -42,7 +42,7 @@ This is a CLI tool that analyzes Claude Code usage data from local JSONL files s
 
 **External Dependencies:**
 - Uses LiteLLM model pricing data for cost calculations (JSON format in `model_prices.json`)
-- Supports JST timezone conversion for date formatting
+- Uses local timezone for date formatting
 - CLI built with `gunshi` framework, tables with `cli-table3`
 
 ## Code Style Notes
@@ -56,3 +56,9 @@ This is a CLI tool that analyzes Claude Code usage data from local JSONL files s
 # Tips for Claude Code
 - [gunshi](https://gunshi.dev/llms-full.txt)
 - do not use console.log. use logger.ts instead
+
+# important-instruction-reminders
+Do what has been asked; nothing more, nothing less.
+NEVER create files unless they're absolutely necessary for achieving your goal.
+ALWAYS prefer editing an existing file to creating a new one.
+NEVER proactively create documentation files (*.md) or README files. Only create documentation files if explicitly requested by the User.
