@@ -1,6 +1,6 @@
 {
 	"name": "ccusage",
-	"version": "0.1.8",
+	"version": "0.1.9",
 	"description": "Usage analysis tool for Claude Code",
 	"homepage": "https://github.com/ryoppippi/ccusage#readme",
 	"bugs": {
