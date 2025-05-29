@@ -36,10 +36,10 @@ Run directly without installation:
 
 ```bash
 # Using npx
-npx ccusage@latest daily
+npx ccusage@latest
 
 # Using bunx
-bunx ccusage daily
+bunx ccusage
 ```
 
 ### Local Installation
@@ -78,6 +78,7 @@ Shows token usage and costs aggregated by date:
 ```bash
 # Show all daily usage
 ccusage daily
+# or: ccusage
 # or: npx ccusage@latest daily
 # or: bunx ccusage daily
 
@@ -90,6 +91,8 @@ ccusage daily --path /custom/path/to/.claude
 # Output in JSON format
 ccusage daily --json
 ```
+
+`ccusage` is an alias for `ccusage daily`, so you can run it without specifying the subcommand.
 
 ### Session Report
 
