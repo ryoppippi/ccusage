@@ -46,11 +46,11 @@ describe("CostCalculator", () => {
 
 	test("should get model info", () => {
 		const models = calculator.listModels();
-		if (models.length > 0) {
-			const modelInfo = calculator.getModelInfo(models[0]);
-			expect(modelInfo).toBeDefined();
-			expect(typeof modelInfo?.input_cost_per_token).toBe("number");
-			expect(typeof modelInfo?.output_cost_per_token).toBe("number");
-		}
+		const model = models.at(0);
+		expect(model).toBeString();
+		const modelInfo = calculator.getModelInfo(model as string);
+		expect(modelInfo).toBeDefined();
+		expect(typeof modelInfo?.input_cost_per_token).toBe("number");
+		expect(typeof modelInfo?.output_cost_per_token).toBe("number");
 	});
 });
