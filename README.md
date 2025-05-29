@@ -12,6 +12,12 @@ A CLI tool for analyzing Claude Code usage from local JSONL files.
 
 Inspired by [this article](https://note.com/milliondev/n/n1d018da2d769) about tracking Claude Code usage costs.
 
+## Motivation
+
+Claude Code's Max plan offers unlimited usage - but wouldn't it be interesting to know how much you'd be paying if you were on a pay-per-use plan? 
+
+This tool helps you understand the value you're getting from your subscription by calculating the equivalent costs of your actual usage. See how much you're saving and enjoy that satisfying feeling of getting great value! 😊
+
 ## Features
 
 - 📊 **Daily Report**: View token usage and costs aggregated by date
