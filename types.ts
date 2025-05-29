@@ -34,3 +34,8 @@ export type ModelSpec = v.InferOutput<typeof ModelSpecSchema>;
 export const LiteLLMModelPricesSchema = v.record(v.string(), ModelSpecSchema);
 
 export type LiteLLMModelPrices = v.InferOutput<typeof LiteLLMModelPricesSchema>;
+
+export const dateSchema = v.pipe(
+	v.string(),
+	v.regex(/^\d{8}$/, "Date must be in YYYYMMDD format"),
+);

@@ -3,6 +3,7 @@ import Table from "cli-table3";
 import { define } from "gunshi";
 import pc from "picocolors";
 import { type LoadOptions, loadUsageData } from "../data-loader.ts";
+import { parseDateArg } from "../date-validation.ts";
 import { log, logger } from "../logger.ts";
 import { formatCurrency, formatNumber } from "../utils.ts";
 
@@ -11,14 +12,16 @@ export const dailyCommand = define({
 	description: "Show usage report grouped by date",
 	args: {
 		since: {
-			type: "string",
+			type: "custom",
 			short: "s",
 			description: "Filter from date (YYYYMMDD format)",
+			parse: parseDateArg,
 		},
 		until: {
-			type: "string",
+			type: "custom",
 			short: "u",
 			description: "Filter until date (YYYYMMDD format)",
+			parse: parseDateArg,
 		},
 		path: {
 			type: "string",
