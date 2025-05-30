@@ -34,34 +34,52 @@ describe("formatNumber", () => {
 
 describe("formatCurrency", () => {
 	test("formats positive amounts", () => {
-		expect(formatCurrency(10)).toBe("$10.00");
-		expect(formatCurrency(100.5)).toBe("$100.50");
-		expect(formatCurrency(1234.56)).toBe("$1234.56");
+		expect(formatCurrency(10, "USD")).toBe("$10.00");
+		expect(formatCurrency(100.5, "USD")).toBe("$100.50");
+		expect(formatCurrency(1234.56, "USD")).toBe("$1,234.56");
 	});
 
 	test("formats zero", () => {
-		expect(formatCurrency(0)).toBe("$0.00");
+		expect(formatCurrency(0, "USD")).toBe("$0.00");
 	});
 
 	test("formats negative amounts", () => {
-		expect(formatCurrency(-10)).toBe("$-10.00");
-		expect(formatCurrency(-100.5)).toBe("$-100.50");
+		expect(formatCurrency(-10, "USD")).toBe("$-10.00");
+		expect(formatCurrency(-100.5, "USD")).toBe("$-100.50");
 	});
 
 	test("rounds to two decimal places", () => {
-		expect(formatCurrency(10.999)).toBe("$11.00");
-		expect(formatCurrency(10.994)).toBe("$10.99");
-		expect(formatCurrency(10.995)).toBe("$10.99"); // JavaScript's toFixed uses banker's rounding
+		expect(formatCurrency(10.999, "USD")).toBe("$11.00");
+		expect(formatCurrency(10.994, "USD")).toBe("$10.99");
+		expect(formatCurrency(10.995, "USD")).toBe("$11.00"); // toLocaleString rounds differently than toFixed
 	});
 
 	test("handles small decimal values", () => {
-		expect(formatCurrency(0.01)).toBe("$0.01");
-		expect(formatCurrency(0.001)).toBe("$0.00");
-		expect(formatCurrency(0.009)).toBe("$0.01");
+		expect(formatCurrency(0.01, "USD")).toBe("$0.01");
+		expect(formatCurrency(0.001, "USD")).toBe("$0.00");
+		expect(formatCurrency(0.009, "USD")).toBe("$0.01");
 	});
 
 	test("handles large numbers", () => {
-		expect(formatCurrency(1000000)).toBe("$1000000.00");
-		expect(formatCurrency(9999999.99)).toBe("$9999999.99");
+		expect(formatCurrency(1000000, "USD")).toBe("$1,000,000.00");
+		expect(formatCurrency(9999999.99, "USD")).toBe("$9,999,999.99");
+	});
+
+	test("formats JPY currency with conversion", () => {
+		// 1 USD = 150 JPY
+		expect(formatCurrency(10, "JPY")).toBe("¥1,500");
+		expect(formatCurrency(100.5, "JPY")).toBe("¥15,075");
+		expect(formatCurrency(1234.56, "JPY")).toBe("¥185,184");
+	});
+
+	test("formats JPY with no decimals", () => {
+		expect(formatCurrency(0.01, "JPY")).toBe("¥2"); // 0.01 * 150 = 1.5, rounds to 2
+		expect(formatCurrency(0.001, "JPY")).toBe("¥0"); // 0.001 * 150 = 0.15, rounds to 0
+		expect(formatCurrency(0.009, "JPY")).toBe("¥1"); // 0.009 * 150 = 1.35, rounds to 1
+	});
+
+	test("handles negative JPY amounts", () => {
+		expect(formatCurrency(-10, "JPY")).toBe("¥-1,500");
+		expect(formatCurrency(-100.5, "JPY")).toBe("¥-15,075");
 	});
 });

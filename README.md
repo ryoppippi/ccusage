@@ -40,7 +40,8 @@ This tool helps you understand the value you're getting from your subscription b
 - 📁 **Custom Path**: Support for custom Claude data directory locations
 - 🎨 **Beautiful Output**: Colorful table-formatted display
 - 📄 **JSON Output**: Export data in structured JSON format with `--json`
-- 💰 **Cost Tracking**: Shows costs in USD for each day/session
+- 💰 **Cost Tracking**: Shows costs in USD or JPY for each day/session
+- 💱 **Currency Support**: Switch between USD and JPY display (1 USD = 150 JPY)
 - 🔄 **Cache Token Support**: Tracks and displays cache creation and cache read tokens separately
 
 ## Limitations
@@ -108,6 +109,9 @@ ccusage daily --since 20250525 --until 20250530
 # Use custom Claude data directory
 ccusage daily --path /custom/path/to/.claude
 
+# Display costs in Japanese Yen
+ccusage daily --currency JPY
+
 # Output in JSON format
 ccusage daily --json
 ```
@@ -128,6 +132,9 @@ ccusage session --since 20250525
 # Combine filters
 ccusage session --since 20250525 --until 20250530 --path /custom/path
 
+# Display costs in Japanese Yen
+ccusage session --currency JPY
+
 # Output in JSON format
 ccusage session --json
 ```
@@ -139,6 +146,7 @@ All commands support the following options:
 - `-s, --since <date>`: Filter from date (YYYYMMDD format)
 - `-u, --until <date>`: Filter until date (YYYYMMDD format)  
 - `-p, --path <path>`: Custom path to Claude data directory (default: `~/.claude`)
+- `-c, --currency <currency>`: Display currency - USD or JPY (default: USD, persists across sessions)
 - `-j, --json`: Output results in JSON format instead of table
 - `-h, --help`: Display help message
 - `-v, --version`: Display version
@@ -182,6 +190,20 @@ All commands support the following options:
 │ Total       │            │ 11,174 │ 720,445 │          768 │      1,792 │      734,179 │    $336.68 │               │
 └─────────────┴────────────┴────────┴─────────┴──────────────┴────────────┴──────────────┴────────────┴───────────────┘
 ```
+
+## Currency Configuration
+
+The tool supports displaying costs in either USD (default) or JPY (Japanese Yen):
+
+- **USD**: Default currency, shows costs with `$` symbol and 2 decimal places
+- **JPY**: Japanese Yen, shows costs with `¥` symbol and no decimal places (rounded to whole numbers)
+- **Conversion Rate**: Fixed at 1 USD = 150 JPY
+
+Your currency preference is saved and persists across sessions. Once you set `--currency JPY`, all future reports will display in JPY until you explicitly change it back to USD.
+
+Configuration is stored in:
+- macOS/Linux: `~/.config/ccusage/config.json`
+- Windows: `%APPDATA%\ccusage\config.json`
 
 ## Requirements
 - Claude Code usage history files (`~/.claude/projects/**/*.jsonl`)
