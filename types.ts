@@ -7,6 +7,8 @@ export const ModelSpecSchema = v.object({
 	input_cost_per_token: v.optional(v.number()),
 	output_cost_per_token: v.optional(v.number()),
 	output_cost_per_reasoning_token: v.optional(v.number()),
+	cache_creation_input_token_cost: v.optional(v.number()),
+	cache_read_input_token_cost: v.optional(v.number()),
 	litellm_provider: v.optional(v.string()),
 	mode: v.optional(v.string()),
 	supports_function_calling: v.optional(v.boolean()),
