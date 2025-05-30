@@ -185,36 +185,6 @@ All commands support the following options:
 ## Requirements
 - Claude Code usage history files (`~/.claude/projects/**/*.jsonl`)
 
-## Development
-
-```bash
-# Run tests
-bun test
-
-# Type check
-bun run typecheck
-
-# Lint
-bun run lint
-
-# Format code
-bun run format
-```
-
-## Project Structure
-
-```
-ccusage/
-├── commands/
-│   ├── daily.ts      # Daily report command
-│   └── session.ts    # Session report command
-├── data-loader.ts    # JSONL data loading logic
-├── index.ts          # CLI entry point
-├── logger.ts         # Logger configuration
-├── utils.ts          # Shared utilities
-└── package.json
-```
-
 ## License
 
 MIT
