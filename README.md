@@ -3,6 +3,7 @@
 > **ccusage(claude-code-usage)**
 
 [![npm version](https://badge.fury.io/js/ccusage.svg)](https://www.npmjs.com/package/ccusage)
+[![NPM Downloads](https://img.shields.io/npm/dy/ccusage)](https://www.npmjs.com/package/ccusage)
 
 <div align="center">
   <img src="https://github.com/ryoppippi/ccusage/blob/main/docs/screenshot.png?raw=true">
