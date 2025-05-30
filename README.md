@@ -183,8 +183,6 @@ All commands support the following options:
 ```
 
 ## Requirements
-
-- [Bun](https://bun.sh) runtime
 - Claude Code usage history files (`~/.claude/projects/**/*.jsonl`)
 
 ## Development
