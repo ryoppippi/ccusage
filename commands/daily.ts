@@ -33,9 +33,17 @@ export const dailyCommand = define({
 			(acc, data) => ({
 				inputTokens: acc.inputTokens + data.inputTokens,
 				outputTokens: acc.outputTokens + data.outputTokens,
+				cacheCreationTokens: acc.cacheCreationTokens + data.cacheCreationTokens,
+				cacheReadTokens: acc.cacheReadTokens + data.cacheReadTokens,
 				totalCost: acc.totalCost + data.totalCost,
 			}),
-			{ inputTokens: 0, outputTokens: 0, totalCost: 0 },
+			{
+				inputTokens: 0,
+				outputTokens: 0,
+				cacheCreationTokens: 0,
+				cacheReadTokens: 0,
+				totalCost: 0,
+			},
 		);
 
 		if (ctx.values.json) {
@@ -45,13 +53,25 @@ export const dailyCommand = define({
 					date: data.date,
 					inputTokens: data.inputTokens,
 					outputTokens: data.outputTokens,
-					totalTokens: data.inputTokens + data.outputTokens,
+					cacheCreationTokens: data.cacheCreationTokens,
+					cacheReadTokens: data.cacheReadTokens,
+					totalTokens:
+						data.inputTokens +
+						data.outputTokens +
+						data.cacheCreationTokens +
+						data.cacheReadTokens,
 					totalCost: data.totalCost,
 				})),
 				totals: {
 					inputTokens: totals.inputTokens,
 					outputTokens: totals.outputTokens,
-					totalTokens: totals.inputTokens + totals.outputTokens,
+					cacheCreationTokens: totals.cacheCreationTokens,
+					cacheReadTokens: totals.cacheReadTokens,
+					totalTokens:
+						totals.inputTokens +
+						totals.outputTokens +
+						totals.cacheCreationTokens +
+						totals.cacheReadTokens,
 					totalCost: totals.totalCost,
 				},
 			};
@@ -64,15 +84,25 @@ export const dailyCommand = define({
 			const table = new Table({
 				head: [
 					"Date",
-					"Input Tokens",
-					"Output Tokens",
+					"Input",
+					"Output",
+					"Cache Create",
+					"Cache Read",
 					"Total Tokens",
 					"Cost (USD)",
 				],
 				style: {
 					head: ["cyan"],
 				},
-				colAligns: ["left", "right", "right", "right", "right"],
+				colAligns: [
+					"left",
+					"right",
+					"right",
+					"right",
+					"right",
+					"right",
+					"right",
+				],
 			});
 
 			// Add daily data
@@ -81,13 +111,22 @@ export const dailyCommand = define({
 					data.date,
 					formatNumber(data.inputTokens),
 					formatNumber(data.outputTokens),
-					formatNumber(data.inputTokens + data.outputTokens),
+					formatNumber(data.cacheCreationTokens),
+					formatNumber(data.cacheReadTokens),
+					formatNumber(
+						data.inputTokens +
+							data.outputTokens +
+							data.cacheCreationTokens +
+							data.cacheReadTokens,
+					),
 					formatCurrency(data.totalCost),
 				]);
 			}
 
 			// Add separator
 			table.push([
+				"─".repeat(12),
+				"─".repeat(12),
 				"─".repeat(12),
 				"─".repeat(12),
 				"─".repeat(12),
@@ -100,7 +139,16 @@ export const dailyCommand = define({
 				pc.yellow("Total"),
 				pc.yellow(formatNumber(totals.inputTokens)),
 				pc.yellow(formatNumber(totals.outputTokens)),
-				pc.yellow(formatNumber(totals.inputTokens + totals.outputTokens)),
+				pc.yellow(formatNumber(totals.cacheCreationTokens)),
+				pc.yellow(formatNumber(totals.cacheReadTokens)),
+				pc.yellow(
+					formatNumber(
+						totals.inputTokens +
+							totals.outputTokens +
+							totals.cacheCreationTokens +
+							totals.cacheReadTokens,
+					),
+				),
 				pc.yellow(formatCurrency(totals.totalCost)),
 			]);
 
