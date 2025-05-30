@@ -1,5 +1,6 @@
 import type { Args } from "gunshi";
 import * as v from "valibot";
+import { type Currency, getCurrency, setCurrency } from "./config";
 import { getDefaultClaudePath } from "./data-loader";
 import { dateSchema } from "./types";
 
@@ -9,6 +10,15 @@ const parseDateArg = (value: string): string => {
 		throw new TypeError(result.issues[0].message);
 	}
 	return result.output;
+};
+
+const parseCurrencyArg = (value: string): Currency => {
+	const upperValue = value.toUpperCase() as Currency;
+	if (upperValue !== "USD" && upperValue !== "JPY") {
+		throw new TypeError(`Invalid currency: ${value}. Must be USD or JPY.`);
+	}
+	setCurrency(upperValue);
+	return upperValue;
 };
 
 export const sharedArgs = {
@@ -35,5 +45,12 @@ export const sharedArgs = {
 		short: "j",
 		description: "Output in JSON format",
 		default: false,
+	},
+	currency: {
+		type: "custom",
+		short: "c",
+		description: "Display currency (USD or JPY)",
+		parse: parseCurrencyArg,
+		default: getCurrency(),
 	},
 } as const satisfies Args;

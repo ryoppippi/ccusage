@@ -7,6 +7,7 @@ import {
 	createTotalsObject,
 	getTotalTokens,
 } from "../calculate-cost.ts";
+import { getCurrencyLabel } from "../currency.ts";
 import { type LoadOptions, loadUsageData } from "../data-loader.ts";
 import { log, logger } from "../logger.ts";
 import { sharedArgs } from "../shared-args.ts";
@@ -17,6 +18,7 @@ export const dailyCommand = define({
 	description: "Show usage report grouped by date",
 	args: sharedArgs,
 	async run(ctx) {
+		const currency = ctx.values.currency;
 		const options: LoadOptions = {
 			since: ctx.values.since,
 			until: ctx.values.until,
@@ -64,7 +66,7 @@ export const dailyCommand = define({
 					"Cache Create",
 					"Cache Read",
 					"Total Tokens",
-					"Cost (USD)",
+					getCurrencyLabel(currency),
 				],
 				style: {
 					head: ["cyan"],
@@ -89,7 +91,7 @@ export const dailyCommand = define({
 					formatNumber(data.cacheCreationTokens),
 					formatNumber(data.cacheReadTokens),
 					formatNumber(getTotalTokens(data)),
-					formatCurrency(data.totalCost),
+					formatCurrency(data.totalCost, currency),
 				]);
 			}
 
@@ -112,7 +114,7 @@ export const dailyCommand = define({
 				pc.yellow(formatNumber(totals.cacheCreationTokens)),
 				pc.yellow(formatNumber(totals.cacheReadTokens)),
 				pc.yellow(formatNumber(getTotalTokens(totals))),
-				pc.yellow(formatCurrency(totals.totalCost)),
+				pc.yellow(formatCurrency(totals.totalCost, currency)),
 			]);
 
 			// biome-ignore lint/suspicious/noConsole: <explanation>

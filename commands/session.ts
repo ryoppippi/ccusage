@@ -7,6 +7,7 @@ import {
 	createTotalsObject,
 	getTotalTokens,
 } from "../calculate-cost.ts";
+import { getCurrencyLabel } from "../currency.ts";
 import { type LoadOptions, loadSessionData } from "../data-loader.ts";
 import { log, logger } from "../logger.ts";
 import { sharedArgs } from "../shared-args.ts";
@@ -17,6 +18,7 @@ export const sessionCommand = define({
 	description: "Show usage report grouped by conversation session",
 	args: sharedArgs,
 	async run(ctx) {
+		const currency = ctx.values.currency;
 		const options: LoadOptions = {
 			since: ctx.values.since,
 			until: ctx.values.until,
@@ -67,7 +69,7 @@ export const sessionCommand = define({
 					"Cache Create",
 					"Cache Read",
 					"Total Tokens",
-					"Cost (USD)",
+					getCurrencyLabel(currency),
 					"Last Activity",
 				],
 				style: {
@@ -106,7 +108,7 @@ export const sessionCommand = define({
 					formatNumber(data.cacheCreationTokens),
 					formatNumber(data.cacheReadTokens),
 					formatNumber(getTotalTokens(data)),
-					formatCurrency(data.totalCost),
+					formatCurrency(data.totalCost, currency),
 					data.lastActivity,
 				]);
 			}
@@ -133,7 +135,7 @@ export const sessionCommand = define({
 				pc.yellow(formatNumber(totals.cacheCreationTokens)),
 				pc.yellow(formatNumber(totals.cacheReadTokens)),
 				pc.yellow(formatNumber(getTotalTokens(totals))),
-				pc.yellow(formatCurrency(totals.totalCost)),
+				pc.yellow(formatCurrency(totals.totalCost, currency)),
 				"",
 			]);
 
