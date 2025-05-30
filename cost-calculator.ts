@@ -5,8 +5,12 @@ import { LiteLLMModelPricesSchema } from "./types";
 const CostCalculationSchema = v.object({
 	inputTokens: v.number(),
 	outputTokens: v.number(),
+	cacheCreationTokens: v.number(),
+	cacheReadTokens: v.number(),
 	inputCost: v.number(),
 	outputCost: v.number(),
+	cacheCreationCost: v.number(),
+	cacheReadCost: v.number(),
 	totalCost: v.number(),
 });
 
@@ -35,6 +39,8 @@ export class CostCalculator {
 		modelName: string,
 		inputTokens: number,
 		outputTokens = 0,
+		cacheCreationTokens = 0,
+		cacheReadTokens = 0,
 	): CostCalculation {
 		const modelSpec = this.modelPrices[modelName];
 
@@ -48,13 +54,24 @@ export class CostCalculator {
 
 		const inputCost = inputTokens * modelSpec.input_cost_per_token;
 		const outputCost = outputTokens * modelSpec.output_cost_per_token;
-		const totalCost = inputCost + outputCost;
+		const cacheCreationCost =
+			cacheCreationTokens *
+			(modelSpec.cache_creation_input_token_cost ||
+				modelSpec.input_cost_per_token);
+		const cacheReadCost =
+			cacheReadTokens * (modelSpec.cache_read_input_token_cost || 0);
+		const totalCost =
+			inputCost + outputCost + cacheCreationCost + cacheReadCost;
 
 		return {
 			inputTokens,
 			outputTokens,
+			cacheCreationTokens,
+			cacheReadTokens,
 			inputCost,
 			outputCost,
+			cacheCreationCost,
+			cacheReadCost,
 			totalCost,
 		};
 	}
