@@ -41,3 +41,18 @@ export const dateSchema = v.pipe(
 	v.string(),
 	v.regex(/^\d{8}$/, "Date must be in YYYYMMDD format"),
 );
+
+export interface TokenTotals {
+	inputTokens: number;
+	outputTokens: number;
+	cacheCreationTokens: number;
+	cacheReadTokens: number;
+	totalCost: number;
+}
+
+export interface TokenData {
+	inputTokens: number;
+	outputTokens: number;
+	cacheCreationTokens: number;
+	cacheReadTokens: number;
+}

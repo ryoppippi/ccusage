@@ -1,41 +1,12 @@
-import { beforeAll, describe, expect, test } from "bun:test";
-import { CostCalculator } from "./cost-calculator";
+import { describe, expect, test } from "bun:test";
+import {
+	calculateTotals,
+	createTotalsObject,
+	getTotalTokens,
+} from "./calculate-cost.ts";
 import type { DailyUsage, SessionUsage } from "./data-loader";
 
-describe("CostCalculator", () => {
-	let calculator: CostCalculator;
-
-	beforeAll(async () => {
-		// Use local file for tests to avoid network dependency
-		calculator = await CostCalculator.fromUrl();
-	});
-
-	test("should fetch pricing data from URL", async () => {
-		const onlineCalculator = await CostCalculator.fromUrl();
-		const models = onlineCalculator.listModels();
-		expect(models.length).toBeGreaterThan(0);
-	});
-
-	test("should search models", () => {
-		const gptModels = calculator.searchModels("gpt");
-		expect(gptModels.length).toBeGreaterThan(0);
-		expect(
-			gptModels.every((model) => model.toLowerCase().includes("gpt")),
-		).toBe(true);
-	});
-
-	test("should get model info", () => {
-		const models = calculator.listModels();
-		const model = models.at(0);
-		expect(model).toBeString();
-		const modelInfo = calculator.getModelInfo(model as string);
-		expect(modelInfo).toBeDefined();
-		expect(typeof modelInfo?.input_cost_per_token).toBe("number");
-		expect(typeof modelInfo?.output_cost_per_token).toBe("number");
-	});
-});
-
-describe("CostCalculator - Aggregation utilities", () => {
+describe("Token aggregation utilities", () => {
 	test("calculateTotals should aggregate daily usage data", () => {
 		const dailyData: DailyUsage[] = [
 			{
@@ -56,7 +27,7 @@ describe("CostCalculator - Aggregation utilities", () => {
 			},
 		];
 
-		const totals = CostCalculator.calculateTotals(dailyData);
+		const totals = calculateTotals(dailyData);
 		expect(totals.inputTokens).toBe(300);
 		expect(totals.outputTokens).toBe(150);
 		expect(totals.cacheCreationTokens).toBe(75);
@@ -88,7 +59,7 @@ describe("CostCalculator - Aggregation utilities", () => {
 			},
 		];
 
-		const totals = CostCalculator.calculateTotals(sessionData);
+		const totals = calculateTotals(sessionData);
 		expect(totals.inputTokens).toBe(300);
 		expect(totals.outputTokens).toBe(150);
 		expect(totals.cacheCreationTokens).toBe(75);
@@ -104,7 +75,7 @@ describe("CostCalculator - Aggregation utilities", () => {
 			cacheReadTokens: 10,
 		};
 
-		const total = CostCalculator.getTotalTokens(tokens);
+		const total = getTotalTokens(tokens);
 		expect(total).toBe(185);
 	});
 
@@ -116,7 +87,7 @@ describe("CostCalculator - Aggregation utilities", () => {
 			cacheReadTokens: 0,
 		};
 
-		const total = CostCalculator.getTotalTokens(tokens);
+		const total = getTotalTokens(tokens);
 		expect(total).toBe(0);
 	});
 
@@ -129,7 +100,7 @@ describe("CostCalculator - Aggregation utilities", () => {
 			totalCost: 0.01,
 		};
 
-		const totalsObject = CostCalculator.createTotalsObject(totals);
+		const totalsObject = createTotalsObject(totals);
 		expect(totalsObject).toEqual({
 			inputTokens: 100,
 			outputTokens: 50,
@@ -141,7 +112,7 @@ describe("CostCalculator - Aggregation utilities", () => {
 	});
 
 	test("calculateTotals should handle empty array", () => {
-		const totals = CostCalculator.calculateTotals([]);
+		const totals = calculateTotals([]);
 		expect(totals).toEqual({
 			inputTokens: 0,
 			outputTokens: 0,

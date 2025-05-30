@@ -26,8 +26,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 This is a CLI tool that analyzes Claude Code usage data from local JSONL files stored in `~/.claude/projects/`. The architecture follows a clear separation of concerns:
 
 **Core Data Flow:**
-1. **Data Loading** (`data-loader.ts`) - Parses JSONL files from Claude's local storage
-2. **Cost Calculation** (`cost-calculator.ts`) - Handles token-to-cost conversions using LiteLLM pricing data
+1. **Data Loading** (`data-loader.ts`) - Parses JSONL files from Claude's local storage, including pre-calculated costs
+2. **Token Aggregation** (`calculate-cost.ts`) - Utility functions for aggregating token counts and costs
 3. **Command Execution** (`commands/`) - CLI subcommands that orchestrate data loading and presentation
 4. **CLI Entry** (`index.ts`) - Gunshi-based CLI setup with subcommand routing
 
@@ -41,7 +41,6 @@ This is a CLI tool that analyzes Claude Code usage data from local JSONL files s
 - Sessions are identified by directory structure: `projects/{project}/{session}/{file}.jsonl`
 
 **External Dependencies:**
-- Uses LiteLLM model pricing data for cost calculations (JSON format in `model_prices.json`)
 - Uses local timezone for date formatting
 - CLI built with `gunshi` framework, tables with `cli-table3`
 

@@ -2,7 +2,11 @@ import process from "node:process";
 import Table from "cli-table3";
 import { define } from "gunshi";
 import pc from "picocolors";
-import { CostCalculator } from "../cost-calculator.ts";
+import {
+	calculateTotals,
+	createTotalsObject,
+	getTotalTokens,
+} from "../calculate-cost.ts";
 import { type LoadOptions, loadUsageData } from "../data-loader.ts";
 import { log, logger } from "../logger.ts";
 import { sharedArgs } from "../shared-args.ts";
@@ -30,7 +34,7 @@ export const dailyCommand = define({
 		}
 
 		// Calculate totals
-		const totals = CostCalculator.calculateTotals(dailyData);
+		const totals = calculateTotals(dailyData);
 
 		if (ctx.values.json) {
 			// Output JSON format
@@ -41,10 +45,10 @@ export const dailyCommand = define({
 					outputTokens: data.outputTokens,
 					cacheCreationTokens: data.cacheCreationTokens,
 					cacheReadTokens: data.cacheReadTokens,
-					totalTokens: CostCalculator.getTotalTokens(data),
+					totalTokens: getTotalTokens(data),
 					totalCost: data.totalCost,
 				})),
-				totals: CostCalculator.createTotalsObject(totals),
+				totals: createTotalsObject(totals),
 			};
 			log(JSON.stringify(jsonOutput, null, 2));
 		} else {
@@ -84,7 +88,7 @@ export const dailyCommand = define({
 					formatNumber(data.outputTokens),
 					formatNumber(data.cacheCreationTokens),
 					formatNumber(data.cacheReadTokens),
-					formatNumber(CostCalculator.getTotalTokens(data)),
+					formatNumber(getTotalTokens(data)),
 					formatCurrency(data.totalCost),
 				]);
 			}
@@ -107,7 +111,7 @@ export const dailyCommand = define({
 				pc.yellow(formatNumber(totals.outputTokens)),
 				pc.yellow(formatNumber(totals.cacheCreationTokens)),
 				pc.yellow(formatNumber(totals.cacheReadTokens)),
-				pc.yellow(formatNumber(CostCalculator.getTotalTokens(totals))),
+				pc.yellow(formatNumber(getTotalTokens(totals))),
 				pc.yellow(formatCurrency(totals.totalCost)),
 			]);
 
