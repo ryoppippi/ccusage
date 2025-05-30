@@ -12,6 +12,8 @@ export const UsageDataSchema = v.object({
 		usage: v.object({
 			input_tokens: v.number(),
 			output_tokens: v.number(),
+			cache_creation_input_tokens: v.optional(v.number()),
+			cache_read_input_tokens: v.optional(v.number()),
 		}),
 	}),
 	costUSD: v.number(),
@@ -23,6 +25,8 @@ export const DailyUsageSchema = v.object({
 	date: v.string(),
 	inputTokens: v.number(),
 	outputTokens: v.number(),
+	cacheCreationTokens: v.number(),
+	cacheReadTokens: v.number(),
 	totalCost: v.number(),
 });
 
@@ -33,6 +37,8 @@ export const SessionUsageSchema = v.object({
 	projectPath: v.string(),
 	inputTokens: v.number(),
 	outputTokens: v.number(),
+	cacheCreationTokens: v.number(),
+	cacheReadTokens: v.number(),
 	totalCost: v.number(),
 	lastActivity: v.string(),
 });
@@ -93,11 +99,17 @@ export async function loadUsageData(
 					date,
 					inputTokens: 0,
 					outputTokens: 0,
+					cacheCreationTokens: 0,
+					cacheReadTokens: 0,
 					totalCost: 0,
 				};
 
 				existing.inputTokens += data.message.usage.input_tokens || 0;
 				existing.outputTokens += data.message.usage.output_tokens || 0;
+				existing.cacheCreationTokens +=
+					data.message.usage.cache_creation_input_tokens || 0;
+				existing.cacheReadTokens +=
+					data.message.usage.cache_read_input_tokens || 0;
 				existing.totalCost += data.costUSD || 0;
 
 				dailyMap.set(date, existing);
@@ -175,12 +187,18 @@ export async function loadSessionData(
 					projectPath: projectPath || "Unknown Project",
 					inputTokens: 0,
 					outputTokens: 0,
+					cacheCreationTokens: 0,
+					cacheReadTokens: 0,
 					totalCost: 0,
 					lastActivity: "",
 				};
 
 				existing.inputTokens += data.message.usage.input_tokens || 0;
 				existing.outputTokens += data.message.usage.output_tokens || 0;
+				existing.cacheCreationTokens +=
+					data.message.usage.cache_creation_input_tokens || 0;
+				existing.cacheReadTokens +=
+					data.message.usage.cache_read_input_tokens || 0;
 				existing.totalCost += data.costUSD || 0;
 
 				// Keep track of the latest timestamp

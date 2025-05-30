@@ -127,18 +127,75 @@ describe("loadUsageData", () => {
 			date: "2024-01-03",
 			inputTokens: 300,
 			outputTokens: 150,
+			cacheCreationTokens: 0,
+			cacheReadTokens: 0,
 			totalCost: 0.03,
 		});
 		expect(result[1]).toEqual({
 			date: "2024-01-02",
 			inputTokens: 150,
 			outputTokens: 75,
+			cacheCreationTokens: 0,
+			cacheReadTokens: 0,
 			totalCost: 0.015,
 		});
 		expect(result[2]).toEqual({
 			date: "2024-01-01",
 			inputTokens: 300, // 100 + 200
 			outputTokens: 150, // 50 + 100
+			cacheCreationTokens: 0,
+			cacheReadTokens: 0,
+			totalCost: 0.03, // 0.01 + 0.02
+		});
+	});
+
+	test("aggregates cache tokens correctly", async () => {
+		const mockGlob = mock(() => Promise.resolve(["/test/file.jsonl"]));
+		// biome-ignore lint/suspicious/noExplicitAny: mocking external library
+		(glob as any).mockImplementation(mockGlob);
+
+		const mockData: UsageData[] = [
+			{
+				timestamp: "2024-01-01T00:00:00Z",
+				message: {
+					usage: {
+						input_tokens: 100,
+						output_tokens: 50,
+						cache_creation_input_tokens: 200,
+						cache_read_input_tokens: 300,
+					},
+				},
+				costUSD: 0.01,
+			},
+			{
+				timestamp: "2024-01-01T12:00:00Z",
+				message: {
+					usage: {
+						input_tokens: 200,
+						output_tokens: 100,
+						cache_creation_input_tokens: 150,
+						cache_read_input_tokens: 250,
+					},
+				},
+				costUSD: 0.02,
+			},
+		];
+
+		const mockReadFile = mock(() =>
+			Promise.resolve(mockData.map((d) => JSON.stringify(d)).join("\n")),
+		);
+		// biome-ignore lint/suspicious/noExplicitAny: mocking external library
+		(readFile as any).mockImplementation(mockReadFile);
+
+		const result = await loadUsageData();
+
+		expect(result).toHaveLength(1);
+		expect(result[0]).toEqual({
+			date: "2024-01-01",
+			inputTokens: 300, // 100 + 200
+			outputTokens: 150, // 50 + 100
+			cacheCreationTokens: 350, // 200 + 150
+			cacheReadTokens: 550, // 300 + 250
 			totalCost: 0.03, // 0.01 + 0.02
 		});
 	});
@@ -312,6 +369,8 @@ describe("loadSessionData", () => {
 			projectPath: "project1",
 			inputTokens: 450, // 100 + 200 + 150
 			outputTokens: 225, // 50 + 100 + 75
+			cacheCreationTokens: 0,
+			cacheReadTokens: 0,
 			totalCost: 0.045, // 0.01 + 0.02 + 0.015
 			lastActivity: "2024-01-02",
 		});
