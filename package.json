@@ -36,6 +36,7 @@
 	"devDependencies": {
 		"@biomejs/biome": "^1.9.4",
 		"@types/bun": "^1.2.15",
+		"@types/conf": "^3.0.3",
 		"bumpp": "^10.1.1",
 		"clean-pkg-json": "^1.3.0",
 		"cli-table3": "^0.6.5",
@@ -51,5 +52,8 @@
 		"unplugin-unused": "^0.4.4",
 		"valibot": "^1.1.0"
 	},
-	"trustedDependencies": ["@biomejs/biome", "simple-git-hooks"]
+	"trustedDependencies": ["@biomejs/biome", "simple-git-hooks"],
+	"dependencies": {
+		"conf": "^13.1.0"
+	}
 }
