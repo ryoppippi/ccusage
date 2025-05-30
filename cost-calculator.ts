@@ -1,4 +1,5 @@
 import * as v from "valibot";
+import type { DailyUsage, SessionUsage } from "./data-loader";
 import type { LiteLLMModelPrices, ModelSpec } from "./types";
 import { LiteLLMModelPricesSchema } from "./types";
 
@@ -15,6 +16,21 @@ const CostCalculationSchema = v.object({
 });
 
 type CostCalculation = v.InferOutput<typeof CostCalculationSchema>;
+
+export interface TokenTotals {
+	inputTokens: number;
+	outputTokens: number;
+	cacheCreationTokens: number;
+	cacheReadTokens: number;
+	totalCost: number;
+}
+
+export interface TokenData {
+	inputTokens: number;
+	outputTokens: number;
+	cacheCreationTokens: number;
+	cacheReadTokens: number;
+}
 
 export class CostCalculator {
 	private modelPrices: LiteLLMModelPrices;
@@ -88,5 +104,45 @@ export class CostCalculator {
 		return this.listModels().filter((model) =>
 			model.toLowerCase().includes(query.toLowerCase()),
 		);
+	}
+
+	// Static utility methods for aggregating usage data
+	static calculateTotals(data: Array<DailyUsage | SessionUsage>): TokenTotals {
+		return data.reduce(
+			(acc, item) => ({
+				inputTokens: acc.inputTokens + item.inputTokens,
+				outputTokens: acc.outputTokens + item.outputTokens,
+				cacheCreationTokens: acc.cacheCreationTokens + item.cacheCreationTokens,
+				cacheReadTokens: acc.cacheReadTokens + item.cacheReadTokens,
+				totalCost: acc.totalCost + item.totalCost,
+			}),
+			{
+				inputTokens: 0,
+				outputTokens: 0,
+				cacheCreationTokens: 0,
+				cacheReadTokens: 0,
+				totalCost: 0,
+			},
+		);
+	}
+
+	static getTotalTokens(tokens: TokenData): number {
+		return (
+			tokens.inputTokens +
+			tokens.outputTokens +
+			tokens.cacheCreationTokens +
+			tokens.cacheReadTokens
+		);
+	}
+
+	static createTotalsObject(totals: TokenTotals) {
+		return {
+			inputTokens: totals.inputTokens,
+			outputTokens: totals.outputTokens,
+			cacheCreationTokens: totals.cacheCreationTokens,
+			cacheReadTokens: totals.cacheReadTokens,
+			totalTokens: CostCalculator.getTotalTokens(totals),
+			totalCost: totals.totalCost,
+		};
 	}
 }

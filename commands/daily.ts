@@ -2,6 +2,7 @@ import process from "node:process";
 import Table from "cli-table3";
 import { define } from "gunshi";
 import pc from "picocolors";
+import { CostCalculator } from "../cost-calculator.ts";
 import { type LoadOptions, loadUsageData } from "../data-loader.ts";
 import { log, logger } from "../logger.ts";
 import { sharedArgs } from "../shared-args.ts";
@@ -29,22 +30,7 @@ export const dailyCommand = define({
 		}
 
 		// Calculate totals
-		const totals = dailyData.reduce(
-			(acc, data) => ({
-				inputTokens: acc.inputTokens + data.inputTokens,
-				outputTokens: acc.outputTokens + data.outputTokens,
-				cacheCreationTokens: acc.cacheCreationTokens + data.cacheCreationTokens,
-				cacheReadTokens: acc.cacheReadTokens + data.cacheReadTokens,
-				totalCost: acc.totalCost + data.totalCost,
-			}),
-			{
-				inputTokens: 0,
-				outputTokens: 0,
-				cacheCreationTokens: 0,
-				cacheReadTokens: 0,
-				totalCost: 0,
-			},
-		);
+		const totals = CostCalculator.calculateTotals(dailyData);
 
 		if (ctx.values.json) {
 			// Output JSON format
@@ -55,25 +41,10 @@ export const dailyCommand = define({
 					outputTokens: data.outputTokens,
 					cacheCreationTokens: data.cacheCreationTokens,
 					cacheReadTokens: data.cacheReadTokens,
-					totalTokens:
-						data.inputTokens +
-						data.outputTokens +
-						data.cacheCreationTokens +
-						data.cacheReadTokens,
+					totalTokens: CostCalculator.getTotalTokens(data),
 					totalCost: data.totalCost,
 				})),
-				totals: {
-					inputTokens: totals.inputTokens,
-					outputTokens: totals.outputTokens,
-					cacheCreationTokens: totals.cacheCreationTokens,
-					cacheReadTokens: totals.cacheReadTokens,
-					totalTokens:
-						totals.inputTokens +
-						totals.outputTokens +
-						totals.cacheCreationTokens +
-						totals.cacheReadTokens,
-					totalCost: totals.totalCost,
-				},
+				totals: CostCalculator.createTotalsObject(totals),
 			};
 			log(JSON.stringify(jsonOutput, null, 2));
 		} else {
@@ -113,12 +84,7 @@ export const dailyCommand = define({
 					formatNumber(data.outputTokens),
 					formatNumber(data.cacheCreationTokens),
 					formatNumber(data.cacheReadTokens),
-					formatNumber(
-						data.inputTokens +
-							data.outputTokens +
-							data.cacheCreationTokens +
-							data.cacheReadTokens,
-					),
+					formatNumber(CostCalculator.getTotalTokens(data)),
 					formatCurrency(data.totalCost),
 				]);
 			}
@@ -141,14 +107,7 @@ export const dailyCommand = define({
 				pc.yellow(formatNumber(totals.outputTokens)),
 				pc.yellow(formatNumber(totals.cacheCreationTokens)),
 				pc.yellow(formatNumber(totals.cacheReadTokens)),
-				pc.yellow(
-					formatNumber(
-						totals.inputTokens +
-							totals.outputTokens +
-							totals.cacheCreationTokens +
-							totals.cacheReadTokens,
-					),
-				),
+				pc.yellow(formatNumber(CostCalculator.getTotalTokens(totals))),
 				pc.yellow(formatCurrency(totals.totalCost)),
 			]);
 
