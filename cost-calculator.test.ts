@@ -15,19 +15,46 @@ describe("CostCalculator", () => {
 		expect(models.length).toBeGreaterThan(0);
 	});
 
-	test("should calculate cost for a model", () => {
-		// Using gpt-4o as an example (assuming it exists in the data)
+	test("should calculate cost for a opus-4 model", () => {
+		// Using opus-4 model as an example
+		// https://www.anthropic.com/pricing
 		const models = calculator.listModels();
-		const testModel = models.find((m) => m.includes("gpt-4")) || models[0];
+		const testModel = models.find((m) => m.includes("claude-opus-4-20250514"));
 
-		if (testModel) {
-			const cost = calculator.calculateCost(testModel, 1000, 500);
+		expect(testModel).toBeDefined();
 
-			expect(cost.inputTokens).toBe(1000);
-			expect(cost.outputTokens).toBe(500);
-			expect(cost.totalCost).toBeGreaterThanOrEqual(0);
-			expect(cost.inputCost + cost.outputCost).toBe(cost.totalCost);
-		}
+		const cost = calculator.calculateCost(
+			testModel as string,
+			/* millions of tokens */ 1_000_000,
+			/* millions of output tokens */ 1_000_000,
+		);
+
+		expect(cost.inputTokens).toBe(1_000_000);
+		expect(cost.outputTokens).toBe(1_000_000);
+		expect(cost.inputCost).toEqual(15);
+		expect(cost.outputCost).toEqual(75);
+	});
+
+	test("should calculate cost for a sonnet-4 model", () => {
+		// Using sonnet-4 model as an example
+		// https://www.anthropic.com/pricing
+		const models = calculator.listModels();
+		const testModel = models.find((m) =>
+			m.includes("claude-sonnet-4-20250514"),
+		);
+
+		expect(testModel).toBeDefined();
+
+		const cost = calculator.calculateCost(
+			testModel as string,
+			/* millions of tokens */ 1_000_000,
+			/* millions of output tokens */ 1_000_000,
+		);
+
+		expect(cost.inputTokens).toBe(1_000_000);
+		expect(cost.outputTokens).toBe(1_000_000);
+		expect(cost.inputCost).toEqual(3);
+		expect(cost.outputCost).toEqual(15);
 	});
 
 	test("should throw error for unknown model", () => {
