@@ -12,7 +12,7 @@
 	},
 	"funding": "https://github.com/ryoppippi/ccusage?sponsor=1",
 	"license": "MIT",
-	"author": "ryoppippi <ryoppippi.el@gmail.com> (https://github.com/ryoppippi)",
+	"author": "ryoppippi",
 	"type": "module",
 	"bin": "./dist/index.js",
 	"files": ["dist"],
