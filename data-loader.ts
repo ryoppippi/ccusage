@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import path from "node:path";
+import { sort } from "fast-sort";
 import { glob } from "tinyglobby";
 import * as v from "valibot";
 
@@ -132,11 +133,7 @@ export async function loadUsageData(
 	}
 
 	// Sort by date descending
-	return results.sort((a, b) => {
-		const dateA = new Date(a.date);
-		const dateB = new Date(b.date);
-		return dateB.getTime() - dateA.getTime();
-	});
+	return sort(results).desc((item) => new Date(item.date).getTime());
 }
 
 export async function loadSessionData(
@@ -227,7 +224,5 @@ export async function loadSessionData(
 	}
 
 	// Sort by total cost descending
-	return results.sort((a, b) => {
-		return b.totalCost - a.totalCost;
-	});
+	return sort(results).desc((item) => item.totalCost);
 }
