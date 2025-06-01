@@ -14,10 +14,19 @@
 	"license": "MIT",
 	"author": "ryoppippi",
 	"type": "module",
+	"exports": {
+		".": "./dist/index.js",
+		"./calculate-cost": "./dist/calculate-cost.js",
+		"./data-loader": "./dist/data-loader.js",
+		"./package.json": "./package.json"
+	},
+	"main": "./dist/index.js",
+	"module": "./dist/index.js",
+	"types": "./dist/index.d.ts",
 	"bin": "./dist/index.js",
 	"files": ["dist"],
 	"scripts": {
-		"build": "tsdown ./index.ts --publint --unused",
+		"build": "bun -b tsdown",
 		"format": "biome check --write .",
 		"lint": "biome check .",
 		"prepack": "bun run build && clean-pkg-json",
@@ -46,6 +55,7 @@
 		"picocolors": "^1.1.1",
 		"publint": "^0.3.12",
 		"simple-git-hooks": "^2.12.1",
+		"sort-package-json": "^3.2.1",
 		"tinyglobby": "^0.2.14",
 		"tsdown": "^0.12.3",
 		"typescript": "^5",
