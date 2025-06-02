@@ -62,13 +62,5 @@
 		"unplugin-unused": "^0.4.4",
 		"valibot": "^1.1.0"
 	},
-	"peerDependencies": {
-		"valibot": "^1.1.0"
-	},
-	"peerDependenciesMeta": {
-		"valibot": {
-			"optional": true
-		}
-	},
 	"trustedDependencies": ["@biomejs/biome", "simple-git-hooks"]
 }
