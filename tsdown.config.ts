@@ -7,7 +7,9 @@ export default defineConfig({
 	format: "esm",
 	clean: true,
 	sourcemap: false,
-	dts: true,
+	dts: {
+		resolve: ["valibot"],
+	},
 	publint: true,
 	unused: true,
 	exports: true,
