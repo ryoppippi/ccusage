@@ -23,6 +23,12 @@
         "unplugin-unused": "^0.4.4",
         "valibot": "^1.1.0",
       },
+      "peerDependencies": {
+        "valibot": "^1.1.0",
+      },
+      "optionalPeers": [
+        "valibot",
+      ],
     },
   },
   "trustedDependencies": [
