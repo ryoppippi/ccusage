@@ -10,6 +10,8 @@ import {
 	fetchModelPricing,
 	getModelPricing,
 } from "./pricing-fetcher.ts";
+
+const MATCH_THRESHOLD_PERCENT = 0.1;
 interface Discrepancy {
 	file: string;
 	timestamp: string;
@@ -130,8 +132,8 @@ export async function detectMismatches(
 							};
 							versionStat.total++;
 
-							// Consider it a match if within 0.1% difference (to account for floating point)
-							if (percentDiff < 0.1) {
+							// Consider it a match if within the defined threshold (to account for floating point)
+							if (percentDiff < MATCH_THRESHOLD_PERCENT) {
 								versionStat.matches++;
 							} else {
 								versionStat.mismatches++;
