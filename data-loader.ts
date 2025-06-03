@@ -64,6 +64,42 @@ export const formatDate = (dateStr: string): string => {
 	return `${year}-${month}-${day}`;
 };
 
+export const calculateCostForEntry = (
+	data: UsageData,
+	mode: CostMode,
+	modelPricing: Record<string, ModelPricing>,
+): number => {
+	if (mode === "display") {
+		// Always use costUSD, even if undefined
+		return data.costUSD ?? 0;
+	}
+
+	if (mode === "calculate") {
+		// Always calculate from tokens
+		if (data.message.model) {
+			const pricing = getModelPricing(data.message.model, modelPricing);
+			if (pricing) {
+				return calculateCostFromTokens(data.message.usage, pricing);
+			}
+		}
+		return 0;
+	}
+
+	// Auto mode: use costUSD if available, otherwise calculate
+	if (data.costUSD !== undefined) {
+		return data.costUSD;
+	}
+
+	if (data.message.model) {
+		const pricing = getModelPricing(data.message.model, modelPricing);
+		if (pricing) {
+			return calculateCostFromTokens(data.message.usage, pricing);
+		}
+	}
+
+	return 0;
+};
+
 export interface DateFilter {
 	since?: string; // YYYYMMDD format
 	until?: string; // YYYYMMDD format
@@ -128,30 +164,7 @@ export async function loadUsageData(
 					data.message.usage.cache_read_input_tokens ?? 0;
 
 				// Calculate cost based on mode
-				let cost = 0;
-
-				if (mode === "display") {
-					// Always use costUSD, even if undefined
-					cost = data.costUSD ?? 0;
-				} else if (mode === "calculate") {
-					// Always calculate from tokens
-					if (data.message.model) {
-						const pricing = getModelPricing(data.message.model, modelPricing);
-						if (pricing) {
-							cost = calculateCostFromTokens(data.message.usage, pricing);
-						}
-					}
-				} else {
-					// Auto mode: use costUSD if available, otherwise calculate
-					if (data.costUSD !== undefined) {
-						cost = data.costUSD;
-					} else if (data.message.model) {
-						const pricing = getModelPricing(data.message.model, modelPricing);
-						if (pricing) {
-							cost = calculateCostFromTokens(data.message.usage, pricing);
-						}
-					}
-				}
+				const cost = calculateCostForEntry(data, mode, modelPricing);
 				existing.totalCost += cost;
 
 				dailyMap.set(date, existing);
@@ -248,30 +261,7 @@ export async function loadSessionData(
 					data.message.usage.cache_read_input_tokens ?? 0;
 
 				// Calculate cost based on mode
-				let cost = 0;
-
-				if (mode === "display") {
-					// Always use costUSD, even if undefined
-					cost = data.costUSD ?? 0;
-				} else if (mode === "calculate") {
-					// Always calculate from tokens
-					if (data.message.model) {
-						const pricing = getModelPricing(data.message.model, modelPricing);
-						if (pricing) {
-							cost = calculateCostFromTokens(data.message.usage, pricing);
-						}
-					}
-				} else {
-					// Auto mode: use costUSD if available, otherwise calculate
-					if (data.costUSD !== undefined) {
-						cost = data.costUSD;
-					} else if (data.message.model) {
-						const pricing = getModelPricing(data.message.model, modelPricing);
-						if (pricing) {
-							cost = calculateCostFromTokens(data.message.usage, pricing);
-						}
-					}
-				}
+				const cost = calculateCostForEntry(data, mode, modelPricing);
 				existing.totalCost += cost;
 
 				// Keep track of the latest timestamp

@@ -3,11 +3,16 @@ import path from "node:path";
 import { createFixture } from "fs-fixture";
 import {
 	type UsageData,
+	calculateCostForEntry,
 	formatDate,
 	loadSessionData,
 	loadUsageData,
 } from "./data-loader.ts";
-import { clearPricingCache } from "./pricing-fetcher.ts";
+import {
+	clearPricingCache,
+	fetchModelPricing,
+	getModelPricing,
+} from "./pricing-fetcher.ts";
 
 describe("formatDate", () => {
 	test("formats UTC timestamp to local date", () => {
@@ -1104,6 +1109,214 @@ describe("data-loader cost calculation with real pricing", () => {
 
 			expect(results).toHaveLength(1);
 			expect(results[0]?.totalCost).toBe(0.05);
+		});
+	});
+});
+
+describe("calculateCostForEntry", () => {
+	const mockUsageData: UsageData = {
+		timestamp: "2024-01-01T10:00:00Z",
+		message: {
+			usage: {
+				input_tokens: 1000,
+				output_tokens: 500,
+				cache_creation_input_tokens: 200,
+				cache_read_input_tokens: 100,
+			},
+			model: "claude-sonnet-4-20250514",
+		},
+		costUSD: 0.05,
+	};
+
+	beforeEach(() => {
+		clearPricingCache();
+	});
+
+	describe("display mode", () => {
+		test("should return costUSD when available", () => {
+			const result = calculateCostForEntry(mockUsageData, "display", {});
+			expect(result).toBe(0.05);
+		});
+
+		test("should return 0 when costUSD is undefined", () => {
+			const dataWithoutCost = { ...mockUsageData };
+			dataWithoutCost.costUSD = undefined;
+
+			const result = calculateCostForEntry(dataWithoutCost, "display", {});
+			expect(result).toBe(0);
+		});
+
+		test("should not use model pricing in display mode", () => {
+			// Even with model pricing available, should use costUSD
+			const result = calculateCostForEntry(mockUsageData, "display", {});
+			expect(result).toBe(0.05);
+		});
+	});
+
+	describe("calculate mode", () => {
+		test("should calculate cost from tokens when model pricing available", async () => {
+			const realPricing = await fetchModelPricing();
+
+			// Use the exact same structure as working integration tests
+			const testData: UsageData = {
+				timestamp: "2024-01-01T10:00:00Z",
+				message: {
+					usage: {
+						input_tokens: 1000,
+						output_tokens: 500,
+					},
+					model: "claude-sonnet-4-20250514",
+				},
+			};
+
+			const result = calculateCostForEntry(testData, "calculate", realPricing);
+
+			// Should calculate some cost > 0 when model pricing is available
+			expect(result).toBeGreaterThan(0);
+		});
+
+		test("should ignore costUSD in calculate mode", async () => {
+			const realPricing = await fetchModelPricing();
+			const dataWithHighCost = { ...mockUsageData, costUSD: 99.99 };
+			const result = calculateCostForEntry(
+				dataWithHighCost,
+				"calculate",
+				realPricing,
+			);
+
+			// Should calculate from tokens, not use costUSD
+			expect(result).toBeGreaterThan(0);
+			expect(result).toBeLessThan(1); // Much less than 99.99
+		});
+
+		test("should return 0 when model not available", () => {
+			const dataWithoutModel = { ...mockUsageData };
+			dataWithoutModel.message.model = undefined;
+
+			const result = calculateCostForEntry(dataWithoutModel, "calculate", {});
+			expect(result).toBe(0);
+		});
+
+		test("should return 0 when model pricing not found", () => {
+			const dataWithUnknownModel = {
+				...mockUsageData,
+				message: { ...mockUsageData.message, model: "unknown-model" },
+			};
+
+			const result = calculateCostForEntry(
+				dataWithUnknownModel,
+				"calculate",
+				{},
+			);
+			expect(result).toBe(0);
+		});
+
+		test("should handle missing cache tokens", async () => {
+			const realPricing = await fetchModelPricing();
+			const dataWithoutCacheTokens: UsageData = {
+				timestamp: "2024-01-01T10:00:00Z",
+				message: {
+					usage: {
+						input_tokens: 1000,
+						output_tokens: 500,
+					},
+					model: "claude-sonnet-4-20250514",
+				},
+			};
+
+			const result = calculateCostForEntry(
+				dataWithoutCacheTokens,
+				"calculate",
+				realPricing,
+			);
+
+			// Should calculate some cost > 0 when model pricing is available
+			expect(result).toBeGreaterThan(0);
+		});
+	});
+
+	describe("auto mode", () => {
+		test("should use costUSD when available", () => {
+			const result = calculateCostForEntry(mockUsageData, "auto", {});
+			expect(result).toBe(0.05);
+		});
+
+		test("should calculate from tokens when costUSD undefined", async () => {
+			const realPricing = await fetchModelPricing();
+			const dataWithoutCost: UsageData = {
+				timestamp: "2024-01-01T10:00:00Z",
+				message: {
+					usage: {
+						input_tokens: 1000,
+						output_tokens: 500,
+					},
+					model: "claude-sonnet-4-20250514",
+				},
+			};
+
+			const result = calculateCostForEntry(
+				dataWithoutCost,
+				"auto",
+				realPricing,
+			);
+			expect(result).toBeGreaterThan(0);
+		});
+
+		test("should return 0 when no costUSD and no model", () => {
+			const dataWithoutCostOrModel = { ...mockUsageData };
+			dataWithoutCostOrModel.costUSD = undefined;
+			dataWithoutCostOrModel.message.model = undefined;
+
+			const result = calculateCostForEntry(dataWithoutCostOrModel, "auto", {});
+			expect(result).toBe(0);
+		});
+
+		test("should return 0 when no costUSD and model pricing not found", () => {
+			const dataWithoutCost = { ...mockUsageData };
+			dataWithoutCost.costUSD = undefined;
+
+			const result = calculateCostForEntry(dataWithoutCost, "auto", {});
+			expect(result).toBe(0);
+		});
+
+		test("should prefer costUSD over calculation even when both available", async () => {
+			const realPricing = await fetchModelPricing();
+			// Both costUSD and model pricing available, should use costUSD
+			const result = calculateCostForEntry(mockUsageData, "auto", realPricing);
+			expect(result).toBe(0.05);
+		});
+	});
+
+	describe("edge cases", () => {
+		test("should handle zero token counts", () => {
+			const dataWithZeroTokens = {
+				...mockUsageData,
+				message: {
+					...mockUsageData.message,
+					usage: {
+						input_tokens: 0,
+						output_tokens: 0,
+						cache_creation_input_tokens: 0,
+						cache_read_input_tokens: 0,
+					},
+				},
+			};
+			dataWithZeroTokens.costUSD = undefined;
+
+			const result = calculateCostForEntry(dataWithZeroTokens, "calculate", {});
+			expect(result).toBe(0);
+		});
+
+		test("should handle costUSD of 0", () => {
+			const dataWithZeroCost = { ...mockUsageData, costUSD: 0 };
+			const result = calculateCostForEntry(dataWithZeroCost, "display", {});
+			expect(result).toBe(0);
+		});
+
+		test("should handle negative costUSD", () => {
+			const dataWithNegativeCost = { ...mockUsageData, costUSD: -0.01 };
+			const result = calculateCostForEntry(dataWithNegativeCost, "display", {});
+			expect(result).toBe(-0.01);
 		});
 	});
 });
