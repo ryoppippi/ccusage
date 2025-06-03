@@ -19,7 +19,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `bun run report session` - Show session-based usage report
 - `bun run report daily --json` - Show daily usage report in JSON format
 - `bun run report session --json` - Show session usage report in JSON format
+- `bun run report daily --mode <mode>` - Control cost calculation mode (auto/calculate/display)
+- `bun run report session --mode <mode>` - Control cost calculation mode (auto/calculate/display)
 - `bun run index.ts` - Direct execution for development
+
+**Cost Calculation Modes:**
+- `auto` (default) - Use pre-calculated costUSD when available, otherwise calculate from tokens
+- `calculate` - Always calculate costs from token counts using model pricing, ignore costUSD
+- `display` - Always use pre-calculated costUSD values, show 0 for missing costs
 
 ## Architecture Overview
 

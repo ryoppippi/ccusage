@@ -113,6 +113,11 @@ ccusage daily --path /custom/path/to/.claude
 
 # Output in JSON format
 ccusage daily --json
+
+# Control cost calculation mode
+ccusage daily --mode auto       # Use costUSD when available, calculate otherwise (default)
+ccusage daily --mode calculate  # Always calculate costs from tokens
+ccusage daily --mode display    # Always show pre-calculated costUSD values
 ```
 
 `ccusage` is an alias for `ccusage daily`, so you can run it without specifying the subcommand.
@@ -133,6 +138,11 @@ ccusage session --since 20250525 --until 20250530 --path /custom/path
 
 # Output in JSON format
 ccusage session --json
+
+# Control cost calculation mode
+ccusage session --mode auto       # Use costUSD when available, calculate otherwise (default)
+ccusage session --mode calculate  # Always calculate costs from tokens
+ccusage session --mode display    # Always show pre-calculated costUSD values
 ```
 
 ### Options
@@ -143,8 +153,15 @@ All commands support the following options:
 - `-u, --until <date>`: Filter until date (YYYYMMDD format)  
 - `-p, --path <path>`: Custom path to Claude data directory (default: `~/.claude`)
 - `-j, --json`: Output results in JSON format instead of table
+- `-m, --mode <mode>`: Cost calculation mode: `auto` (default), `calculate`, or `display`
 - `-h, --help`: Display help message
 - `-v, --version`: Display version
+
+#### Cost Calculation Modes
+
+- **`auto`** (default): Uses pre-calculated `costUSD` values when available, falls back to calculating costs from token counts using model pricing
+- **`calculate`**: Always calculates costs from token counts using model pricing, ignores any pre-calculated `costUSD` values
+- **`display`**: Always uses pre-calculated `costUSD` values only, shows $0.00 for entries without pre-calculated costs
 
 ## Output Example
 
