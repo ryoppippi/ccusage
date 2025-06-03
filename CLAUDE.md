@@ -50,6 +50,7 @@ This is a CLI tool that analyzes Claude Code usage data from local JSONL files s
 **External Dependencies:**
 - Uses local timezone for date formatting
 - CLI built with `gunshi` framework, tables with `cli-table3`
+- **LiteLLM Integration**: Cost calculations depend on LiteLLM's pricing database for model pricing data
 
 ## Code Style Notes
 
@@ -58,6 +59,30 @@ This is a CLI tool that analyzes Claude Code usage data from local JSONL files s
 - No console.log allowed except where explicitly disabled with biome-ignore
 - Error handling: silently skips malformed JSONL lines during parsing
 - File paths always use Node.js path utilities for cross-platform compatibility
+
+## Claude Models and Testing
+
+**Supported Claude 4 Models (as of 2025):**
+- `claude-sonnet-4-20250514` - Latest Claude 4 Sonnet model
+- `claude-opus-4-20250514` - Latest Claude 4 Opus model
+
+**Model Naming Convention:**
+- Pattern: `claude-{model-type}-{generation}-{date}`
+- Example: `claude-sonnet-4-20250514` (NOT `claude-4-sonnet-20250514`)
+- The generation number comes AFTER the model type
+
+**Testing Guidelines:**
+- All test files must use current Claude 4 models, not outdated Claude 3 models
+- Test coverage should include both Sonnet and Opus models for comprehensive validation
+- Model names in tests must exactly match LiteLLM's pricing database entries
+- When adding new model tests, verify the model exists in LiteLLM before implementation
+- Tests depend on real pricing data from LiteLLM - failures may indicate model availability issues
+
+**LiteLLM Integration Notes:**
+- Cost calculations require exact model name matches with LiteLLM's database
+- Test failures often indicate model names don't exist in LiteLLM's pricing data
+- Future model updates require checking LiteLLM compatibility first
+- The application cannot calculate costs for models not supported by LiteLLM
 
 # Tips for Claude Code
 - [gunshi](https://gunshi.dev/llms-full.txt)
