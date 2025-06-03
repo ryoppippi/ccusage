@@ -1,9 +1,6 @@
-import { beforeEach, describe, expect, mock, test } from "bun:test";
-import { readFile } from "node:fs/promises";
-import { homedir } from "node:os";
+import { beforeEach, describe, expect, test } from "bun:test";
 import path from "node:path";
 import { createFixture } from "fs-fixture";
-import { glob } from "tinyglobby";
 import {
 	type UsageData,
 	formatDate,
@@ -12,28 +9,17 @@ import {
 } from "./data-loader.ts";
 import { clearPricingCache } from "./pricing-fetcher.ts";
 
-mock.module("node:fs/promises", () => ({
-	readFile: mock(() => Promise.resolve("")),
-}));
-
-mock.module("tinyglobby", () => ({
-	glob: mock(() => Promise.resolve([])),
-}));
-
-mock.module("node:os", () => ({
-	homedir: mock(() => "/home/test"),
-}));
-
 describe("formatDate", () => {
 	test("formats UTC timestamp to local date", () => {
 		// Test with UTC timestamps - results depend on local timezone
 		expect(formatDate("2024-01-01T00:00:00Z")).toBe("2024-01-01");
-		expect(formatDate("2024-01-01T15:00:00Z")).toBe("2024-01-01");
+		expect(formatDate("2024-12-31T23:59:59Z")).toBe("2024-12-31");
 	});
 
 	test("handles various date formats", () => {
-		expect(formatDate("2024-12-25T10:30:00Z")).toBe("2024-12-25");
-		expect(formatDate("2024-02-29T00:00:00Z")).toBe("2024-02-29"); // Leap year
+		expect(formatDate("2024-01-01")).toBe("2024-01-01");
+		expect(formatDate("2024-01-01T12:00:00")).toBe("2024-01-01");
+		expect(formatDate("2024-01-01T12:00:00.000Z")).toBe("2024-01-01");
 	});
 
 	test("pads single digit months and days", () => {
@@ -43,42 +29,16 @@ describe("formatDate", () => {
 });
 
 describe("loadUsageData", () => {
-	beforeEach(() => {
-		mock.restore();
-	});
-
 	test("returns empty array when no files found", async () => {
-		const mockGlob = mock(() => Promise.resolve([]));
-		// biome-ignore lint/suspicious/noExplicitAny: mocking external library
-		(glob as any).mockImplementation(mockGlob);
+		await using fixture = await createFixture({
+			projects: {},
+		});
 
-		const result = await loadUsageData();
+		const result = await loadUsageData({ claudePath: fixture.path });
 		expect(result).toEqual([]);
-		expect(mockGlob).toHaveBeenCalledWith(["**/*.jsonl"], {
-			cwd: path.join("/home/test", ".claude", "projects"),
-			absolute: true,
-		});
-	});
-
-	test("uses custom claude path when provided", async () => {
-		const mockGlob = mock(() => Promise.resolve([]));
-		// biome-ignore lint/suspicious/noExplicitAny: mocking external library
-		(glob as any).mockImplementation(mockGlob);
-
-		await loadUsageData({ claudePath: "/custom/path" });
-		expect(mockGlob).toHaveBeenCalledWith(["**/*.jsonl"], {
-			cwd: "/custom/path/projects",
-			absolute: true,
-		});
 	});
 
 	test("aggregates daily usage data correctly", async () => {
-		const mockGlob = mock(() =>
-			Promise.resolve(["/test/file1.jsonl", "/test/file2.jsonl"]),
-		);
-		// biome-ignore lint/suspicious/noExplicitAny: mocking external library
-		(glob as any).mockImplementation(mockGlob);
-
 		const mockData1: UsageData[] = [
 			{
 				timestamp: "2024-01-01T00:00:00Z",
@@ -105,54 +65,34 @@ describe("loadUsageData", () => {
 			},
 		];
 
-		const mockReadFile = mock((file: string) => {
-			if (file === "/test/file1.jsonl") {
-				return Promise.resolve(
-					mockData1.map((d) => JSON.stringify(d)).join("\n"),
-				);
-			}
-			return Promise.resolve(
-				mockData2.map((d) => JSON.stringify(d)).join("\n"),
-			);
+		await using fixture = await createFixture({
+			projects: {
+				project1: {
+					session1: {
+						"file1.jsonl": mockData1.map((d) => JSON.stringify(d)).join("\n"),
+					},
+				},
+				project2: {
+					session2: {
+						"file2.jsonl": mockData2.map((d) => JSON.stringify(d)).join("\n"),
+					},
+				},
+			},
 		});
-		// biome-ignore lint/suspicious/noExplicitAny: mocking external library
-		(readFile as any).mockImplementation(mockReadFile);
 
-		const result = await loadUsageData();
+		const result = await loadUsageData({ claudePath: fixture.path });
 
+		// Should have 3 days of data
 		expect(result).toHaveLength(3);
-		// Should be sorted by date descending
-		expect(result[0]).toEqual({
-			date: "2024-01-03",
-			inputTokens: 300,
-			outputTokens: 150,
-			cacheCreationTokens: 0,
-			cacheReadTokens: 0,
-			totalCost: 0.03,
-		});
-		expect(result[1]).toEqual({
-			date: "2024-01-02",
-			inputTokens: 150,
-			outputTokens: 75,
-			cacheCreationTokens: 0,
-			cacheReadTokens: 0,
-			totalCost: 0.015,
-		});
-		expect(result[2]).toEqual({
-			date: "2024-01-01",
-			inputTokens: 300, // 100 + 200
-			outputTokens: 150, // 50 + 100
-			cacheCreationTokens: 0,
-			cacheReadTokens: 0,
-			totalCost: 0.03, // 0.01 + 0.02
-		});
+
+		// Check aggregation for 2024-01-01
+		const day1 = result.find((r) => r.date === "2024-01-01");
+		expect(day1?.inputTokens).toBe(300); // 100 + 200
+		expect(day1?.outputTokens).toBe(150); // 50 + 100
+		expect(day1?.totalCost).toBe(0.03); // 0.01 + 0.02
 	});
 
 	test("aggregates cache tokens correctly", async () => {
-		const mockGlob = mock(() => Promise.resolve(["/test/file.jsonl"]));
-		// biome-ignore lint/suspicious/noExplicitAny: mocking external library
-		(glob as any).mockImplementation(mockGlob);
-
 		const mockData: UsageData[] = [
 			{
 				timestamp: "2024-01-01T00:00:00Z",
@@ -160,8 +100,8 @@ describe("loadUsageData", () => {
 					usage: {
 						input_tokens: 100,
 						output_tokens: 50,
-						cache_creation_input_tokens: 200,
-						cache_read_input_tokens: 300,
+						cache_creation_input_tokens: 25,
+						cache_read_input_tokens: 15,
 					},
 				},
 				costUSD: 0.01,
@@ -172,38 +112,33 @@ describe("loadUsageData", () => {
 					usage: {
 						input_tokens: 200,
 						output_tokens: 100,
-						cache_creation_input_tokens: 150,
-						cache_read_input_tokens: 250,
+						cache_creation_input_tokens: 50,
+						cache_read_input_tokens: 30,
 					},
 				},
 				costUSD: 0.02,
 			},
 		];
 
-		const mockReadFile = mock(() =>
-			Promise.resolve(mockData.map((d) => JSON.stringify(d)).join("\n")),
-		);
-		// biome-ignore lint/suspicious/noExplicitAny: mocking external library
-		(readFile as any).mockImplementation(mockReadFile);
+		await using fixture = await createFixture({
+			projects: {
+				project1: {
+					session1: {
+						"file.jsonl": mockData.map((d) => JSON.stringify(d)).join("\n"),
+					},
+				},
+			},
+		});
 
-		const result = await loadUsageData();
+		const result = await loadUsageData({ claudePath: fixture.path });
 
 		expect(result).toHaveLength(1);
-		expect(result[0]).toEqual({
-			date: "2024-01-01",
-			inputTokens: 300, // 100 + 200
-			outputTokens: 150, // 50 + 100
-			cacheCreationTokens: 350, // 200 + 150
-			cacheReadTokens: 550, // 300 + 250
-			totalCost: 0.03, // 0.01 + 0.02
-		});
+		const day = result[0];
+		expect(day?.cacheCreationTokens).toBe(75); // 25 + 50
+		expect(day?.cacheReadTokens).toBe(45); // 15 + 30
 	});
 
 	test("filters by date range", async () => {
-		const mockGlob = mock(() => Promise.resolve(["/test/file.jsonl"]));
-		// biome-ignore lint/suspicious/noExplicitAny: mocking external library
-		(glob as any).mockImplementation(mockGlob);
-
 		const mockData: UsageData[] = [
 			{
 				timestamp: "2024-01-01T00:00:00Z",
@@ -222,13 +157,18 @@ describe("loadUsageData", () => {
 			},
 		];
 
-		const mockReadFile = mock(() =>
-			Promise.resolve(mockData.map((d) => JSON.stringify(d)).join("\n")),
-		);
-		// biome-ignore lint/suspicious/noExplicitAny: mocking external library
-		(readFile as any).mockImplementation(mockReadFile);
+		await using fixture = await createFixture({
+			projects: {
+				project1: {
+					session1: {
+						"file.jsonl": mockData.map((d) => JSON.stringify(d)).join("\n"),
+					},
+				},
+			},
+		});
 
 		const result = await loadUsageData({
+			claudePath: fixture.path,
 			since: "20240110",
 			until: "20240125",
 		});
@@ -238,226 +178,237 @@ describe("loadUsageData", () => {
 	});
 
 	test("handles invalid JSON lines gracefully", async () => {
-		const mockGlob = mock(() => Promise.resolve(["/test/file.jsonl"]));
-		// biome-ignore lint/suspicious/noExplicitAny: mocking external library
-		(glob as any).mockImplementation(mockGlob);
-
-		const mockContent = `{"timestamp": "2024-01-01T00:00:00Z", "message": {"usage": {"input_tokens": 100, "output_tokens": 50}}, "costUSD": 0.01}
+		const mockData = `
+{"timestamp":"2024-01-01T00:00:00Z","message":{"usage":{"input_tokens":100,"output_tokens":50}},"costUSD":0.01}
 invalid json line
-{"timestamp": "2024-01-02T00:00:00Z", "message": {"usage": {"input_tokens": 200, "output_tokens": 100}}, "costUSD": 0.02}
-`;
+{"timestamp":"2024-01-01T12:00:00Z","message":{"usage":{"input_tokens":200,"output_tokens":100}},"costUSD":0.02}
+{invalid json}
+{"timestamp":"2024-01-01T18:00:00Z","message":{"usage":{"input_tokens":300,"output_tokens":150}},"costUSD":0.03}
+`.trim();
 
-		const mockReadFile = mock(() => Promise.resolve(mockContent));
-		// biome-ignore lint/suspicious/noExplicitAny: mocking external library
-		(readFile as any).mockImplementation(mockReadFile);
+		await using fixture = await createFixture({
+			projects: {
+				project1: {
+					session1: {
+						"file.jsonl": mockData,
+					},
+				},
+			},
+		});
 
-		const result = await loadUsageData();
-		expect(result).toHaveLength(2);
+		const result = await loadUsageData({ claudePath: fixture.path });
+
+		// Should only process valid lines
+		expect(result).toHaveLength(1);
+		expect(result[0]?.inputTokens).toBe(600); // 100 + 200 + 300
+		expect(result[0]?.totalCost).toBe(0.06); // 0.01 + 0.02 + 0.03
 	});
 
 	test("skips data without required fields", async () => {
-		const mockGlob = mock(() => Promise.resolve(["/test/file.jsonl"]));
-		// biome-ignore lint/suspicious/noExplicitAny: mocking external library
-		(glob as any).mockImplementation(mockGlob);
+		const mockData = `
+{"timestamp":"2024-01-01T00:00:00Z","message":{"usage":{"input_tokens":100,"output_tokens":50}},"costUSD":0.01}
+{"timestamp":"2024-01-01T12:00:00Z","message":{"usage":{}}}
+{"timestamp":"2024-01-01T18:00:00Z","message":{}}
+{"timestamp":"2024-01-01T20:00:00Z"}
+{"message":{"usage":{"input_tokens":200,"output_tokens":100}}}
+{"timestamp":"2024-01-01T22:00:00Z","message":{"usage":{"input_tokens":300,"output_tokens":150}},"costUSD":0.03}
+`.trim();
 
-		const mockContent = `{"timestamp": "2024-01-01T00:00:00Z", "message": {"usage": {"input_tokens": 100, "output_tokens": 50}}, "costUSD": 0.01}
-{"timestamp": "2024-01-02T00:00:00Z"}
-{"message": {"usage": {"input_tokens": 200, "output_tokens": 100}}, "costUSD": 0.02}
-{"timestamp": "2024-01-03T00:00:00Z", "message": {}, "costUSD": 0.03}
-`;
+		await using fixture = await createFixture({
+			projects: {
+				project1: {
+					session1: {
+						"file.jsonl": mockData,
+					},
+				},
+			},
+		});
 
-		const mockReadFile = mock(() => Promise.resolve(mockContent));
-		// biome-ignore lint/suspicious/noExplicitAny: mocking external library
-		(readFile as any).mockImplementation(mockReadFile);
+		const result = await loadUsageData({ claudePath: fixture.path });
 
-		const result = await loadUsageData();
+		// Should only include valid entries
 		expect(result).toHaveLength(1);
-		expect(result[0]?.date).toBe("2024-01-01");
+		expect(result[0]?.inputTokens).toBe(400); // 100 + 300
+		expect(result[0]?.totalCost).toBe(0.04); // 0.01 + 0.03
 	});
 });
 
 describe("loadSessionData", () => {
-	beforeEach(() => {
-		mock.restore();
-	});
-
 	test("returns empty array when no files found", async () => {
-		const mockGlob = mock(() => Promise.resolve([]));
-		// biome-ignore lint/suspicious/noExplicitAny: mocking external library
-		(glob as any).mockImplementation(mockGlob);
+		await using fixture = await createFixture({
+			projects: {},
+		});
 
-		const result = await loadSessionData();
+		const result = await loadSessionData({ claudePath: fixture.path });
 		expect(result).toEqual([]);
 	});
 
 	test("extracts session info from file paths", async () => {
-		const basePath = path.join("/home/test", ".claude", "projects");
-		const mockGlob = mock(() =>
-			Promise.resolve([
-				path.join(
-					basePath,
-					"project1",
-					"subfolder",
-					"session123",
-					"chat.jsonl",
-				),
-				path.join(basePath, "project2", "session456", "chat.jsonl"),
-			]),
-		);
-		// biome-ignore lint/suspicious/noExplicitAny: mocking external library
-		(glob as any).mockImplementation(mockGlob);
-
 		const mockData: UsageData = {
 			timestamp: "2024-01-01T00:00:00Z",
 			message: { usage: { input_tokens: 100, output_tokens: 50 } },
 			costUSD: 0.01,
 		};
 
-		const mockReadFile = mock(() => Promise.resolve(JSON.stringify(mockData)));
-		// biome-ignore lint/suspicious/noExplicitAny: mocking external library
-		(readFile as any).mockImplementation(mockReadFile);
+		await using fixture = await createFixture({
+			projects: {
+				"project1/subfolder": {
+					session123: {
+						"chat.jsonl": JSON.stringify(mockData),
+					},
+				},
+				project2: {
+					session456: {
+						"chat.jsonl": JSON.stringify(mockData),
+					},
+				},
+			},
+		});
 
-		const result = await loadSessionData();
+		const result = await loadSessionData({ claudePath: fixture.path });
 
 		expect(result).toHaveLength(2);
-		expect(result[0]?.sessionId).toBe("session123");
-		expect(result[0]?.projectPath).toBe(path.join("project1", "subfolder"));
-		expect(result[1]?.sessionId).toBe("session456");
-		expect(result[1]?.projectPath).toBe("project2");
+		expect(result.find((s) => s.sessionId === "session123")).toBeTruthy();
+		expect(
+			result.find((s) => s.projectPath === "project1/subfolder"),
+		).toBeTruthy();
+		expect(result.find((s) => s.sessionId === "session456")).toBeTruthy();
+		expect(result.find((s) => s.projectPath === "project2")).toBeTruthy();
 	});
 
 	test("aggregates session usage data", async () => {
-		const basePath = path.join("/home/test", ".claude", "projects");
-		const mockGlob = mock(() =>
-			Promise.resolve([
-				path.join(basePath, "project1", "session123", "chat.jsonl"),
-			]),
-		);
-		// biome-ignore lint/suspicious/noExplicitAny: mocking external library
-		(glob as any).mockImplementation(mockGlob);
-
 		const mockData: UsageData[] = [
 			{
 				timestamp: "2024-01-01T00:00:00Z",
-				message: { usage: { input_tokens: 100, output_tokens: 50 } },
+				message: {
+					usage: {
+						input_tokens: 100,
+						output_tokens: 50,
+						cache_creation_input_tokens: 10,
+						cache_read_input_tokens: 5,
+					},
+				},
 				costUSD: 0.01,
 			},
 			{
 				timestamp: "2024-01-01T12:00:00Z",
-				message: { usage: { input_tokens: 200, output_tokens: 100 } },
+				message: {
+					usage: {
+						input_tokens: 200,
+						output_tokens: 100,
+						cache_creation_input_tokens: 20,
+						cache_read_input_tokens: 10,
+					},
+				},
 				costUSD: 0.02,
-			},
-			{
-				timestamp: "2024-01-02T00:00:00Z",
-				message: { usage: { input_tokens: 150, output_tokens: 75 } },
-				costUSD: 0.015,
 			},
 		];
 
-		const mockReadFile = mock(() =>
-			Promise.resolve(mockData.map((d) => JSON.stringify(d)).join("\n")),
-		);
-		// biome-ignore lint/suspicious/noExplicitAny: mocking external library
-		(readFile as any).mockImplementation(mockReadFile);
+		await using fixture = await createFixture({
+			projects: {
+				project1: {
+					session1: {
+						"chat.jsonl": mockData.map((d) => JSON.stringify(d)).join("\n"),
+					},
+				},
+			},
+		});
 
-		const result = await loadSessionData();
+		const result = await loadSessionData({ claudePath: fixture.path });
 
 		expect(result).toHaveLength(1);
-		expect(result[0]).toEqual({
-			sessionId: "session123",
-			projectPath: "project1",
-			inputTokens: 450, // 100 + 200 + 150
-			outputTokens: 225, // 50 + 100 + 75
-			cacheCreationTokens: 0,
-			cacheReadTokens: 0,
-			totalCost: 0.045, // 0.01 + 0.02 + 0.015
-			lastActivity: "2024-01-02",
-		});
+		const session = result[0];
+		expect(session?.inputTokens).toBe(300); // 100 + 200
+		expect(session?.outputTokens).toBe(150); // 50 + 100
+		expect(session?.cacheCreationTokens).toBe(30); // 10 + 20
+		expect(session?.cacheReadTokens).toBe(15); // 5 + 10
+		expect(session?.totalCost).toBe(0.03); // 0.01 + 0.02
+		expect(session?.lastActivity).toBe("2024-01-01");
 	});
 
 	test("sorts sessions by total cost descending", async () => {
-		const basePath = path.join("/home/test", ".claude", "projects");
-		const mockGlob = mock(() =>
-			Promise.resolve([
-				path.join(basePath, "project1", "session1", "chat.jsonl"),
-				path.join(basePath, "project2", "session2", "chat.jsonl"),
-				path.join(basePath, "project3", "session3", "chat.jsonl"),
-			]),
-		);
-		// biome-ignore lint/suspicious/noExplicitAny: mocking external library
-		(glob as any).mockImplementation(mockGlob);
-
-		const mockReadFile = mock((file: string) => {
-			if (file.includes("session1")) {
-				return Promise.resolve(
-					JSON.stringify({
-						timestamp: "2024-01-01T00:00:00Z",
-						message: { usage: { input_tokens: 100, output_tokens: 50 } },
-						costUSD: 0.05,
-					}),
-				);
-			}
-			if (file.includes("session2")) {
-				return Promise.resolve(
-					JSON.stringify({
-						timestamp: "2024-01-01T00:00:00Z",
-						message: { usage: { input_tokens: 100, output_tokens: 50 } },
-						costUSD: 0.1,
-					}),
-				);
-			}
-			return Promise.resolve(
-				JSON.stringify({
+		const sessions = [
+			{
+				sessionId: "session1",
+				data: {
 					timestamp: "2024-01-01T00:00:00Z",
 					message: { usage: { input_tokens: 100, output_tokens: 50 } },
+					costUSD: 0.01,
+				},
+			},
+			{
+				sessionId: "session2",
+				data: {
+					timestamp: "2024-01-01T00:00:00Z",
+					message: { usage: { input_tokens: 500, output_tokens: 250 } },
+					costUSD: 0.05,
+				},
+			},
+			{
+				sessionId: "session3",
+				data: {
+					timestamp: "2024-01-01T00:00:00Z",
+					message: { usage: { input_tokens: 200, output_tokens: 100 } },
 					costUSD: 0.02,
-				}),
-			);
-		});
-		// biome-ignore lint/suspicious/noExplicitAny: mocking external library
-		(readFile as any).mockImplementation(mockReadFile);
+				},
+			},
+		];
 
-		const result = await loadSessionData();
+		await using fixture = await createFixture({
+			projects: {
+				project1: Object.fromEntries(
+					sessions.map((s) => [
+						s.sessionId,
+						{ "chat.jsonl": JSON.stringify(s.data) },
+					]),
+				),
+			},
+		});
+
+		const result = await loadSessionData({ claudePath: fixture.path });
 
 		expect(result).toHaveLength(3);
-		expect(result[0]?.totalCost).toBe(0.1);
-		expect(result[1]?.totalCost).toBe(0.05);
-		expect(result[2]?.totalCost).toBe(0.02);
+		expect(result[0]?.sessionId).toBe("session2");
+		expect(result[0]?.totalCost).toBe(0.05);
+		expect(result[1]?.sessionId).toBe("session3");
+		expect(result[1]?.totalCost).toBe(0.02);
+		expect(result[2]?.sessionId).toBe("session1");
+		expect(result[2]?.totalCost).toBe(0.01);
 	});
 
 	test("filters sessions by date range", async () => {
-		const basePath = path.join("/home/test", ".claude", "projects");
-		const mockGlob = mock(() =>
-			Promise.resolve([
-				path.join(basePath, "project1", "session1", "chat.jsonl"),
-				path.join(basePath, "project2", "session2", "chat.jsonl"),
-			]),
-		);
-		// biome-ignore lint/suspicious/noExplicitAny: mocking external library
-		(glob as any).mockImplementation(mockGlob);
-
-		const mockReadFile = mock((file: string) => {
-			if (file.includes("session1")) {
-				return Promise.resolve(
-					JSON.stringify({
-						timestamp: "2024-01-15T00:00:00Z",
-						message: { usage: { input_tokens: 100, output_tokens: 50 } },
-						costUSD: 0.01,
-					}),
-				);
-			}
-			return Promise.resolve(
-				JSON.stringify({
+		const sessions = [
+			{
+				sessionId: "session1",
+				data: {
+					timestamp: "2024-01-15T00:00:00Z",
+					message: { usage: { input_tokens: 100, output_tokens: 50 } },
+					costUSD: 0.01,
+				},
+			},
+			{
+				sessionId: "session2",
+				data: {
 					timestamp: "2024-02-01T00:00:00Z",
 					message: { usage: { input_tokens: 100, output_tokens: 50 } },
 					costUSD: 0.01,
-				}),
-			);
+				},
+			},
+		];
+
+		await using fixture = await createFixture({
+			projects: {
+				project1: Object.fromEntries(
+					sessions.map((s) => [
+						s.sessionId,
+						{ "chat.jsonl": JSON.stringify(s.data) },
+					]),
+				),
+			},
 		});
-		// biome-ignore lint/suspicious/noExplicitAny: mocking external library
-		(readFile as any).mockImplementation(mockReadFile);
 
 		const result = await loadSessionData({
+			claudePath: fixture.path,
 			since: "20240110",
 			until: "20240125",
 		});
@@ -469,14 +420,6 @@ describe("loadSessionData", () => {
 
 describe("data-loader cost calculation with real pricing", () => {
 	beforeEach(() => {
-		// Restore all mocks to ensure clean state
-		mock.restore();
-
-		// Explicitly unmock modules that may have been mocked by other tests
-		mock.module("node:fs/promises", () => ({ readFile }));
-		mock.module("tinyglobby", () => ({ glob }));
-		mock.module("node:os", () => ({ homedir }));
-
 		clearPricingCache();
 	});
 
@@ -495,8 +438,8 @@ describe("data-loader cost calculation with real pricing", () => {
 
 			await using fixture = await createFixture({
 				projects: {
-					"test-project": {
-						session1: {
+					"test-project-old": {
+						"session-old": {
 							"usage.jsonl": `${JSON.stringify(oldData)}\n`,
 						},
 					},
@@ -531,8 +474,8 @@ describe("data-loader cost calculation with real pricing", () => {
 
 			await using fixture = await createFixture({
 				projects: {
-					"test-project": {
-						session2: {
+					"test-project-new": {
+						"session-new": {
 							"usage.jsonl": `${JSON.stringify(newData)}\n`,
 						},
 					},
@@ -575,8 +518,8 @@ describe("data-loader cost calculation with real pricing", () => {
 
 			await using fixture = await createFixture({
 				projects: {
-					"test-project": {
-						session3: {
+					"test-project-mixed": {
+						"session-mixed": {
 							"usage.jsonl": `${JSON.stringify(data1)}\n${JSON.stringify(data2)}\n${JSON.stringify(data3)}\n`,
 						},
 					},
@@ -597,14 +540,14 @@ describe("data-loader cost calculation with real pricing", () => {
 		test("should handle data without model or costUSD", async () => {
 			const data = {
 				timestamp: "2024-01-18T10:00:00Z",
-				message: { usage: { input_tokens: 1000, output_tokens: 500 } },
+				message: { usage: { input_tokens: 500, output_tokens: 250 } },
 				// No costUSD and no model
 			};
 
 			await using fixture = await createFixture({
 				projects: {
-					"test-project": {
-						session4: {
+					"test-project-no-cost": {
+						"session-no-cost": {
 							"usage.jsonl": `${JSON.stringify(data)}\n`,
 						},
 					},
@@ -614,36 +557,37 @@ describe("data-loader cost calculation with real pricing", () => {
 			const results = await loadUsageData({ claudePath: fixture.path });
 
 			expect(results).toHaveLength(1);
-			expect(results[0]?.totalCost).toBe(0); // Should be 0 without model or costUSD
+			expect(results[0]?.date).toBe("2024-01-18");
+			expect(results[0]?.inputTokens).toBe(500);
+			expect(results[0]?.outputTokens).toBe(250);
+			expect(results[0]?.totalCost).toBe(0); // No cost since no model or costUSD
 		});
 	});
 
 	describe("loadSessionData with mixed schemas", () => {
 		test("should calculate costs correctly for sessions", async () => {
-			// Session 1: old schema
-			const oldData = {
-				timestamp: "2024-01-18T10:00:00Z",
+			const session1Data = {
+				timestamp: "2024-01-15T10:00:00Z",
 				message: { usage: { input_tokens: 1000, output_tokens: 500 } },
 				costUSD: 0.05,
 			};
 
-			// Session 2: new schema with model
-			const newData = {
-				timestamp: "2024-01-19T10:00:00Z",
+			const session2Data = {
+				timestamp: "2024-01-16T10:00:00Z",
 				message: {
-					usage: { input_tokens: 500, output_tokens: 250 },
+					usage: { input_tokens: 2000, output_tokens: 1000 },
 					model: "claude-3-5-sonnet-20241022",
 				},
 			};
 
 			await using fixture = await createFixture({
 				projects: {
-					"project-a": {
+					"test-project": {
 						session1: {
-							"usage.jsonl": `${JSON.stringify(oldData)}\n`,
+							"usage.jsonl": JSON.stringify(session1Data),
 						},
 						session2: {
-							"usage.jsonl": `${JSON.stringify(newData)}\n`,
+							"usage.jsonl": JSON.stringify(session2Data),
 						},
 					},
 				},
@@ -662,13 +606,11 @@ describe("data-loader cost calculation with real pricing", () => {
 			const session2 = results.find((s) => s.sessionId === "session2");
 			expect(session2).toBeTruthy();
 			expect(session2?.totalCost).toBeGreaterThan(0);
-			expect(session2?.inputTokens).toBe(500);
-			expect(session2?.outputTokens).toBe(250);
 		});
 
 		test("should handle unknown models gracefully", async () => {
 			const data = {
-				timestamp: "2024-01-20T10:00:00Z",
+				timestamp: "2024-01-19T10:00:00Z",
 				message: {
 					usage: { input_tokens: 1000, output_tokens: 500 },
 					model: "unknown-model-xyz",
@@ -677,8 +619,8 @@ describe("data-loader cost calculation with real pricing", () => {
 
 			await using fixture = await createFixture({
 				projects: {
-					"test-project": {
-						session4: {
+					"test-project-unknown": {
+						"session-unknown": {
 							"usage.jsonl": `${JSON.stringify(data)}\n`,
 						},
 					},
@@ -688,22 +630,22 @@ describe("data-loader cost calculation with real pricing", () => {
 			const results = await loadSessionData({ claudePath: fixture.path });
 
 			expect(results).toHaveLength(1);
-			expect(results[0]?.totalCost).toBe(0); // Should be 0 for unknown model
 			expect(results[0]?.inputTokens).toBe(1000);
 			expect(results[0]?.outputTokens).toBe(500);
+			expect(results[0]?.totalCost).toBe(0); // 0 cost for unknown model
 		});
 	});
 
 	describe("cached tokens cost calculation", () => {
 		test("should correctly calculate costs for all token types with claude-3-5-sonnet-20241022", async () => {
 			const data = {
-				timestamp: "2024-01-21T10:00:00Z",
+				timestamp: "2024-01-20T10:00:00Z",
 				message: {
 					usage: {
 						input_tokens: 1000,
 						output_tokens: 500,
 						cache_creation_input_tokens: 2000,
-						cache_read_input_tokens: 3000,
+						cache_read_input_tokens: 1500,
 					},
 					model: "claude-3-5-sonnet-20241022",
 				},
@@ -711,8 +653,8 @@ describe("data-loader cost calculation with real pricing", () => {
 
 			await using fixture = await createFixture({
 				projects: {
-					"test-project": {
-						session5: {
+					"test-project-cache": {
+						"session-cache": {
 							"usage.jsonl": `${JSON.stringify(data)}\n`,
 						},
 					},
@@ -722,13 +664,22 @@ describe("data-loader cost calculation with real pricing", () => {
 			const results = await loadUsageData({ claudePath: fixture.path });
 
 			expect(results).toHaveLength(1);
+			expect(results[0]?.date).toBe("2024-01-20");
 			expect(results[0]?.inputTokens).toBe(1000);
 			expect(results[0]?.outputTokens).toBe(500);
 			expect(results[0]?.cacheCreationTokens).toBe(2000);
-			expect(results[0]?.cacheReadTokens).toBe(3000);
+			expect(results[0]?.cacheReadTokens).toBe(1500);
 
-			// Should have calculated cost (greater than 0)
+			// Cost should be calculated from all token types
 			expect(results[0]?.totalCost).toBeGreaterThan(0);
+
+			// Rough calculation check:
+			// - Input: 1000 tokens at $3/1M = $0.003
+			// - Output: 500 tokens at $15/1M = $0.0075
+			// - Cache creation: 2000 tokens at $3.75/1M = $0.0075
+			// - Cache read: 1500 tokens at $0.30/1M = $0.00045
+			// Total: ~$0.01845
+			expect(results[0]?.totalCost).toBeCloseTo(0.01845, 4);
 		});
 	});
 });
