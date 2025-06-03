@@ -76,6 +76,9 @@ bunx ccusage
 
 # Using pnpm
 pnpm dlx ccusage
+
+# Using Deno with security flags
+deno run -RE -S='homedir' -N='raw.githubusercontent.com:443' npm:ccusage@latest
 ```
 
 ### Local Installation
