@@ -43,4 +43,21 @@ export const sharedArgs = {
 			"Cost calculation mode: auto (use costUSD if exists, otherwise calculate), calculate (always calculate), display (always use costUSD)",
 		default: "auto",
 	},
+	debug: {
+		type: "boolean",
+		short: "d",
+		description: "Show pricing mismatch information for debugging",
+		default: false,
+	},
+	debugSamples: {
+		type: "number",
+		description:
+			"Number of sample discrepancies to show in debug output (default: 5)",
+		default: 5,
+	},
 } as const satisfies Args;
+
+export const sharedCommandConfig = {
+	args: sharedArgs,
+	toKebab: true,
+} as const;

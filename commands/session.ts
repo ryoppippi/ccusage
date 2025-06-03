@@ -8,15 +8,16 @@ import {
 	getTotalTokens,
 } from "../calculate-cost.ts";
 import { type LoadOptions, loadSessionData } from "../data-loader.ts";
+import { detectMismatches, printMismatchReport } from "../debug.ts";
 import { log, logger } from "../logger.ts";
-import { sharedArgs } from "../shared-args.ts";
+import { sharedCommandConfig } from "../shared-args.ts";
 import type { CostMode } from "../types.ts";
 import { formatCurrency, formatNumber } from "../utils.ts";
 
 export const sessionCommand = define({
 	name: "session",
 	description: "Show usage report grouped by conversation session",
-	args: sharedArgs,
+	...sharedCommandConfig,
 	async run(ctx) {
 		const options: LoadOptions = {
 			since: ctx.values.since,
@@ -37,6 +38,12 @@ export const sessionCommand = define({
 
 		// Calculate totals
 		const totals = calculateTotals(sessionData);
+
+		// Show debug information if requested
+		if (ctx.values.debug && !ctx.values.json) {
+			const mismatchStats = await detectMismatches(ctx.values.path);
+			printMismatchReport(mismatchStats, ctx.values.debugSamples);
+		}
 
 		if (ctx.values.json) {
 			// Output JSON format
