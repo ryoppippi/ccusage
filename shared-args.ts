@@ -2,6 +2,7 @@ import type { Args } from "gunshi";
 import * as v from "valibot";
 import { getDefaultClaudePath } from "./data-loader";
 import { CostModes, dateSchema } from "./types";
+import type { CostMode } from "./types";
 
 const parseDateArg = (value: string): string => {
 	const result = v.safeParse(dateSchema, value);
@@ -37,11 +38,12 @@ export const sharedArgs = {
 		default: false,
 	},
 	mode: {
-		type: "string",
+		type: "enum",
 		short: "m",
 		description:
 			"Cost calculation mode: auto (use costUSD if exists, otherwise calculate), calculate (always calculate), display (always use costUSD)",
-		default: "auto",
+		default: "auto" as const satisfies CostMode,
+		choices: CostModes,
 	},
 	debug: {
 		type: "boolean",
