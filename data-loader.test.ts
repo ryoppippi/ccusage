@@ -508,9 +508,9 @@ describe("data-loader cost calculation with real pricing", () => {
 			expect(results[0]?.totalCost).toBe(0.05);
 		});
 
-		test("should calculate cost for new schema with claude-3-5-sonnet-20241022", async () => {
+		test("should calculate cost for new schema with claude-sonnet-4-20250514", async () => {
 			// Use a well-known Claude model
-			const modelName = "claude-3-5-sonnet-20241022";
+			const modelName = "claude-sonnet-4-20250514";
 
 			const newData = {
 				timestamp: "2024-01-16T10:00:00Z",
@@ -548,6 +548,46 @@ describe("data-loader cost calculation with real pricing", () => {
 			expect(results[0]?.totalCost).toBeGreaterThan(0);
 		});
 
+		test("should calculate cost for new schema with claude-opus-4-20250514", async () => {
+			// Use Claude 4 Opus model
+			const modelName = "claude-opus-4-20250514";
+
+			const newData = {
+				timestamp: "2024-01-16T10:00:00Z",
+				message: {
+					usage: {
+						input_tokens: 1000,
+						output_tokens: 500,
+						cache_creation_input_tokens: 200,
+						cache_read_input_tokens: 300,
+					},
+					model: modelName,
+				},
+			};
+
+			await using fixture = await createFixture({
+				projects: {
+					"test-project-opus": {
+						"session-opus": {
+							"usage.jsonl": `${JSON.stringify(newData)}\n`,
+						},
+					},
+				},
+			});
+
+			const results = await loadUsageData({ claudePath: fixture.path });
+
+			expect(results).toHaveLength(1);
+			expect(results[0]?.date).toBe("2024-01-16");
+			expect(results[0]?.inputTokens).toBe(1000);
+			expect(results[0]?.outputTokens).toBe(500);
+			expect(results[0]?.cacheCreationTokens).toBe(200);
+			expect(results[0]?.cacheReadTokens).toBe(300);
+
+			// Should have calculated some cost
+			expect(results[0]?.totalCost).toBeGreaterThan(0);
+		});
+
 		test("should handle mixed data in same file", async () => {
 			const data1 = {
 				timestamp: "2024-01-17T10:00:00Z",
@@ -559,7 +599,7 @@ describe("data-loader cost calculation with real pricing", () => {
 				timestamp: "2024-01-17T11:00:00Z",
 				message: {
 					usage: { input_tokens: 200, output_tokens: 100 },
-					model: "claude-3-5-sonnet-20241022",
+					model: "claude-sonnet-4-20250514",
 				},
 			};
 
@@ -628,7 +668,7 @@ describe("data-loader cost calculation with real pricing", () => {
 				timestamp: "2024-01-16T10:00:00Z",
 				message: {
 					usage: { input_tokens: 2000, output_tokens: 1000 },
-					model: "claude-3-5-sonnet-20241022",
+					model: "claude-sonnet-4-20250514",
 				},
 			};
 
@@ -689,7 +729,7 @@ describe("data-loader cost calculation with real pricing", () => {
 	});
 
 	describe("cached tokens cost calculation", () => {
-		test("should correctly calculate costs for all token types with claude-3-5-sonnet-20241022", async () => {
+		test("should correctly calculate costs for all token types with claude-sonnet-4-20250514", async () => {
 			const data = {
 				timestamp: "2024-01-20T10:00:00Z",
 				message: {
@@ -699,7 +739,7 @@ describe("data-loader cost calculation with real pricing", () => {
 						cache_creation_input_tokens: 2000,
 						cache_read_input_tokens: 1500,
 					},
-					model: "claude-3-5-sonnet-20241022",
+					model: "claude-sonnet-4-20250514",
 				},
 			};
 
@@ -725,148 +765,185 @@ describe("data-loader cost calculation with real pricing", () => {
 			// Should have calculated cost including cache tokens
 			expect(results[0]?.totalCost).toBeGreaterThan(0);
 		});
-	});
-});
 
-describe("cost mode functionality", () => {
-	beforeEach(() => {
-		clearPricingCache();
-	});
+		test("should correctly calculate costs for all token types with claude-opus-4-20250514", async () => {
+			const data = {
+				timestamp: "2024-01-20T10:00:00Z",
+				message: {
+					usage: {
+						input_tokens: 1000,
+						output_tokens: 500,
+						cache_creation_input_tokens: 2000,
+						cache_read_input_tokens: 1500,
+					},
+					model: "claude-opus-4-20250514",
+				},
+			};
 
-	test("auto mode: uses costUSD when available, calculates otherwise", async () => {
-		const data1 = {
-			timestamp: "2024-01-01T10:00:00Z",
-			message: { usage: { input_tokens: 1000, output_tokens: 500 } },
-			costUSD: 0.05,
-		};
-
-		const data2 = {
-			timestamp: "2024-01-01T11:00:00Z",
-			message: {
-				usage: { input_tokens: 2000, output_tokens: 1000 },
-				model: "claude-3-5-sonnet-20241022",
-			},
-		};
-
-		await using fixture = await createFixture({
-			projects: {
-				"test-project": {
-					session: {
-						"usage.jsonl": `${JSON.stringify(data1)}\n${JSON.stringify(data2)}\n`,
+			await using fixture = await createFixture({
+				projects: {
+					"test-project-opus-cache": {
+						"session-opus-cache": {
+							"usage.jsonl": `${JSON.stringify(data)}\n`,
+						},
 					},
 				},
-			},
-		});
+			});
 
-		const results = await loadUsageData({
-			claudePath: fixture.path,
-			mode: "auto",
-		});
+			const results = await loadUsageData({ claudePath: fixture.path });
 
-		expect(results).toHaveLength(1);
-		expect(results[0]?.totalCost).toBeGreaterThan(0.05); // Should include both costs
+			expect(results).toHaveLength(1);
+			expect(results[0]?.date).toBe("2024-01-20");
+			expect(results[0]?.inputTokens).toBe(1000);
+			expect(results[0]?.outputTokens).toBe(500);
+			expect(results[0]?.cacheCreationTokens).toBe(2000);
+			expect(results[0]?.cacheReadTokens).toBe(1500);
+
+			// Should have calculated cost including cache tokens
+			expect(results[0]?.totalCost).toBeGreaterThan(0);
+		});
 	});
 
-	test("calculate mode: always calculates from tokens, ignores costUSD", async () => {
-		const data = {
-			timestamp: "2024-01-01T10:00:00Z",
-			message: {
-				usage: { input_tokens: 1000, output_tokens: 500 },
-				model: "claude-3-5-sonnet-20241022",
-			},
-			costUSD: 99.99, // This should be ignored
-		};
+	describe("cost mode functionality", () => {
+		beforeEach(() => {
+			clearPricingCache();
+		});
 
-		await using fixture = await createFixture({
-			projects: {
-				"test-project": {
-					session: {
-						"usage.jsonl": JSON.stringify(data),
+		test("auto mode: uses costUSD when available, calculates otherwise", async () => {
+			const data1 = {
+				timestamp: "2024-01-01T10:00:00Z",
+				message: { usage: { input_tokens: 1000, output_tokens: 500 } },
+				costUSD: 0.05,
+			};
+
+			const data2 = {
+				timestamp: "2024-01-01T11:00:00Z",
+				message: {
+					usage: { input_tokens: 2000, output_tokens: 1000 },
+					model: "claude-sonnet-4-20250514",
+				},
+			};
+
+			await using fixture = await createFixture({
+				projects: {
+					"test-project": {
+						session: {
+							"usage.jsonl": `${JSON.stringify(data1)}\n${JSON.stringify(data2)}\n`,
+						},
 					},
 				},
-			},
+			});
+
+			const results = await loadUsageData({
+				claudePath: fixture.path,
+				mode: "auto",
+			});
+
+			expect(results).toHaveLength(1);
+			expect(results[0]?.totalCost).toBeGreaterThan(0.05); // Should include both costs
 		});
 
-		const results = await loadUsageData({
-			claudePath: fixture.path,
-			mode: "calculate",
-		});
+		test("calculate mode: always calculates from tokens, ignores costUSD", async () => {
+			const data = {
+				timestamp: "2024-01-01T10:00:00Z",
+				message: {
+					usage: { input_tokens: 1000, output_tokens: 500 },
+					model: "claude-sonnet-4-20250514",
+				},
+				costUSD: 99.99, // This should be ignored
+			};
 
-		expect(results).toHaveLength(1);
-		expect(results[0]?.totalCost).toBeGreaterThan(0);
-		expect(results[0]?.totalCost).toBeLessThan(1); // Much less than 99.99
-	});
-
-	test("display mode: always uses costUSD, even if undefined", async () => {
-		const data1 = {
-			timestamp: "2024-01-01T10:00:00Z",
-			message: {
-				usage: { input_tokens: 1000, output_tokens: 500 },
-				model: "claude-3-5-sonnet-20241022",
-			},
-			costUSD: 0.05,
-		};
-
-		const data2 = {
-			timestamp: "2024-01-01T11:00:00Z",
-			message: {
-				usage: { input_tokens: 2000, output_tokens: 1000 },
-				model: "claude-3-5-sonnet-20241022",
-			},
-			// No costUSD - should result in 0 cost
-		};
-
-		await using fixture = await createFixture({
-			projects: {
-				"test-project": {
-					session: {
-						"usage.jsonl": `${JSON.stringify(data1)}\n${JSON.stringify(data2)}\n`,
+			await using fixture = await createFixture({
+				projects: {
+					"test-project": {
+						session: {
+							"usage.jsonl": JSON.stringify(data),
+						},
 					},
 				},
-			},
+			});
+
+			const results = await loadUsageData({
+				claudePath: fixture.path,
+				mode: "calculate",
+			});
+
+			expect(results).toHaveLength(1);
+			expect(results[0]?.totalCost).toBeGreaterThan(0);
+			expect(results[0]?.totalCost).toBeLessThan(1); // Much less than 99.99
 		});
 
-		const results = await loadUsageData({
-			claudePath: fixture.path,
-			mode: "display",
-		});
+		test("display mode: always uses costUSD, even if undefined", async () => {
+			const data1 = {
+				timestamp: "2024-01-01T10:00:00Z",
+				message: {
+					usage: { input_tokens: 1000, output_tokens: 500 },
+					model: "claude-sonnet-4-20250514",
+				},
+				costUSD: 0.05,
+			};
 
-		expect(results).toHaveLength(1);
-		expect(results[0]?.totalCost).toBe(0.05); // Only the costUSD from data1
-	});
+			const data2 = {
+				timestamp: "2024-01-01T11:00:00Z",
+				message: {
+					usage: { input_tokens: 2000, output_tokens: 1000 },
+					model: "claude-sonnet-4-20250514",
+				},
+				// No costUSD - should result in 0 cost
+			};
 
-	test("mode works with session data", async () => {
-		const sessionData = {
-			timestamp: "2024-01-01T10:00:00Z",
-			message: {
-				usage: { input_tokens: 1000, output_tokens: 500 },
-				model: "claude-3-5-sonnet-20241022",
-			},
-			costUSD: 99.99,
-		};
-
-		await using fixture = await createFixture({
-			projects: {
-				"test-project": {
-					session1: {
-						"usage.jsonl": JSON.stringify(sessionData),
+			await using fixture = await createFixture({
+				projects: {
+					"test-project": {
+						session: {
+							"usage.jsonl": `${JSON.stringify(data1)}\n${JSON.stringify(data2)}\n`,
+						},
 					},
 				},
-			},
+			});
+
+			const results = await loadUsageData({
+				claudePath: fixture.path,
+				mode: "display",
+			});
+
+			expect(results).toHaveLength(1);
+			expect(results[0]?.totalCost).toBe(0.05); // Only the costUSD from data1
 		});
 
-		// Test calculate mode
-		const calculateResults = await loadSessionData({
-			claudePath: fixture.path,
-			mode: "calculate",
-		});
-		expect(calculateResults[0]?.totalCost).toBeLessThan(1);
+		test("mode works with session data", async () => {
+			const sessionData = {
+				timestamp: "2024-01-01T10:00:00Z",
+				message: {
+					usage: { input_tokens: 1000, output_tokens: 500 },
+					model: "claude-sonnet-4-20250514",
+				},
+				costUSD: 99.99,
+			};
 
-		// Test display mode
-		const displayResults = await loadSessionData({
-			claudePath: fixture.path,
-			mode: "display",
+			await using fixture = await createFixture({
+				projects: {
+					"test-project": {
+						session1: {
+							"usage.jsonl": JSON.stringify(sessionData),
+						},
+					},
+				},
+			});
+
+			// Test calculate mode
+			const calculateResults = await loadSessionData({
+				claudePath: fixture.path,
+				mode: "calculate",
+			});
+			expect(calculateResults[0]?.totalCost).toBeLessThan(1);
+
+			// Test display mode
+			const displayResults = await loadSessionData({
+				claudePath: fixture.path,
+				mode: "display",
+			});
+			expect(displayResults[0]?.totalCost).toBe(99.99);
 		});
-		expect(displayResults[0]?.totalCost).toBe(99.99);
 	});
 });

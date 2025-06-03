@@ -16,7 +16,7 @@ describe("debug.ts", () => {
 					costUSD: 0.00015, // 50 * 0.000003 = 0.00015 (matches calculated)
 					version: "1.0.0",
 					message: {
-						model: "claude-3-5-sonnet-20241022",
+						model: "claude-sonnet-4-20250514",
 						usage: {
 							input_tokens: 50,
 							output_tokens: 0,
@@ -41,7 +41,7 @@ describe("debug.ts", () => {
 					costUSD: 0.1, // Significantly different from calculated cost
 					version: "1.0.0",
 					message: {
-						model: "claude-3-5-sonnet-20241022",
+						model: "claude-sonnet-4-20250514",
 						usage: {
 							input_tokens: 50,
 							output_tokens: 10,
@@ -61,7 +61,7 @@ describe("debug.ts", () => {
 			const discrepancy = stats.discrepancies[0];
 			expect(discrepancy).toBeDefined();
 			expect(discrepancy?.file).toBe("test.jsonl");
-			expect(discrepancy?.model).toBe("claude-3-5-sonnet-20241022");
+			expect(discrepancy?.model).toBe("claude-sonnet-4-20250514");
 			expect(discrepancy?.originalCost).toBe(0.1);
 			expect(discrepancy?.percentDiff).toBeGreaterThan(0.1);
 		});
@@ -73,7 +73,7 @@ describe("debug.ts", () => {
 						timestamp: "2024-01-01T12:00:00Z",
 						// No costUSD
 						message: {
-							model: "claude-3-5-sonnet-20241022",
+							model: "claude-sonnet-4-20250514",
 							usage: { input_tokens: 50, output_tokens: 10 },
 						},
 					}),
@@ -121,7 +121,7 @@ describe("debug.ts", () => {
 						timestamp: "2024-01-01T12:00:00Z",
 						costUSD: 0.001,
 						message: {
-							model: "claude-3-5-sonnet-20241022",
+							model: "claude-sonnet-4-20250514",
 							usage: { input_tokens: 50, output_tokens: 10 },
 						},
 					}),
@@ -130,7 +130,7 @@ describe("debug.ts", () => {
 						timestamp: "2024-01-02T12:00:00Z",
 						costUSD: 0.002,
 						message: {
-							model: "claude-3-haiku-20240307",
+							model: "claude-opus-4-20250514",
 							usage: { input_tokens: 100, output_tokens: 20 },
 						},
 					}),
@@ -142,6 +142,37 @@ describe("debug.ts", () => {
 			expect(stats.totalEntries).toBe(2); // Only valid entries counted
 		});
 
+		it("should detect mismatches for claude-opus-4-20250514", async () => {
+			await using fixture = await createFixture({
+				"opus-test.jsonl": JSON.stringify({
+					timestamp: "2024-01-01T12:00:00Z",
+					costUSD: 0.5, // Significantly different from calculated cost
+					version: "1.0.0",
+					message: {
+						model: "claude-opus-4-20250514",
+						usage: {
+							input_tokens: 100,
+							output_tokens: 50,
+						},
+					},
+				}),
+			});
+
+			const stats = await detectMismatches(fixture.path);
+
+			expect(stats.totalEntries).toBe(1);
+			expect(stats.entriesWithBoth).toBe(1);
+			expect(stats.mismatches).toBe(1);
+			expect(stats.discrepancies).toHaveLength(1);
+
+			const discrepancy = stats.discrepancies[0];
+			expect(discrepancy).toBeDefined();
+			expect(discrepancy?.file).toBe("opus-test.jsonl");
+			expect(discrepancy?.model).toBe("claude-opus-4-20250514");
+			expect(discrepancy?.originalCost).toBe(0.5);
+			expect(discrepancy?.percentDiff).toBeGreaterThan(0.1);
+		});
+
 		it("should track model statistics", async () => {
 			await using fixture = await createFixture({
 				"test.jsonl": [
@@ -149,7 +180,7 @@ describe("debug.ts", () => {
 						timestamp: "2024-01-01T12:00:00Z",
 						costUSD: 0.00015, // 50 * 0.000003 = 0.00015 (matches)
 						message: {
-							model: "claude-3-5-sonnet-20241022",
+							model: "claude-sonnet-4-20250514",
 							usage: { input_tokens: 50, output_tokens: 0 },
 						},
 					}),
@@ -157,7 +188,7 @@ describe("debug.ts", () => {
 						timestamp: "2024-01-02T12:00:00Z",
 						costUSD: 0.001, // Mismatch with calculated cost (0.0003)
 						message: {
-							model: "claude-3-5-sonnet-20241022",
+							model: "claude-sonnet-4-20250514",
 							usage: { input_tokens: 50, output_tokens: 10 },
 						},
 					}),
@@ -166,8 +197,8 @@ describe("debug.ts", () => {
 
 			const stats = await detectMismatches(fixture.path);
 
-			expect(stats.modelStats.has("claude-3-5-sonnet-20241022")).toBe(true);
-			const modelStat = stats.modelStats.get("claude-3-5-sonnet-20241022");
+			expect(stats.modelStats.has("claude-sonnet-4-20250514")).toBe(true);
+			const modelStat = stats.modelStats.get("claude-sonnet-4-20250514");
 			expect(modelStat).toBeDefined();
 			expect(modelStat?.total).toBe(2);
 			expect(modelStat?.matches).toBe(1);
@@ -182,7 +213,7 @@ describe("debug.ts", () => {
 						costUSD: 0.00015, // 50 * 0.000003 = 0.00015 (matches)
 						version: "1.0.0",
 						message: {
-							model: "claude-3-5-sonnet-20241022",
+							model: "claude-sonnet-4-20250514",
 							usage: { input_tokens: 50, output_tokens: 0 },
 						},
 					}),
@@ -191,7 +222,7 @@ describe("debug.ts", () => {
 						costUSD: 0.001, // Mismatch with calculated cost (0.0003)
 						version: "1.0.0",
 						message: {
-							model: "claude-3-5-sonnet-20241022",
+							model: "claude-sonnet-4-20250514",
 							usage: { input_tokens: 50, output_tokens: 10 },
 						},
 					}),
@@ -227,7 +258,7 @@ describe("debug.ts", () => {
 
 		it("should work with complex stats without errors", () => {
 			const modelStats = new Map();
-			modelStats.set("claude-3-5-sonnet-20241022", {
+			modelStats.set("claude-sonnet-4-20250514", {
 				total: 10,
 				matches: 8,
 				mismatches: 2,
@@ -246,7 +277,7 @@ describe("debug.ts", () => {
 				{
 					file: "test1.jsonl",
 					timestamp: "2024-01-01T12:00:00Z",
-					model: "claude-3-5-sonnet-20241022",
+					model: "claude-sonnet-4-20250514",
 					originalCost: 0.001,
 					calculatedCost: 0.0015,
 					difference: 0.0005,
@@ -273,7 +304,7 @@ describe("debug.ts", () => {
 				{
 					file: "test.jsonl",
 					timestamp: "2024-01-01T12:00:00Z",
-					model: "claude-3-5-sonnet-20241022",
+					model: "claude-sonnet-4-20250514",
 					originalCost: 0.001,
 					calculatedCost: 0.0015,
 					difference: 0.0005,

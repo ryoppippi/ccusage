@@ -49,10 +49,7 @@ describe("pricing-fetcher", () => {
 			const realPricing = await fetchModelPricing();
 
 			// Test with a known Claude model from LiteLLM
-			const pricing = getModelPricing(
-				"claude-3-5-sonnet-20241022",
-				realPricing,
-			);
+			const pricing = getModelPricing("claude-sonnet-4-20250514", realPricing);
 			expect(pricing).toBeTruthy();
 		});
 
@@ -60,7 +57,7 @@ describe("pricing-fetcher", () => {
 			const realPricing = await fetchModelPricing();
 
 			// Test partial matching
-			const pricing = getModelPricing("claude-3-5-sonnet", realPricing);
+			const pricing = getModelPricing("claude-sonnet-4", realPricing);
 			expect(pricing).toBeTruthy();
 		});
 
@@ -69,10 +66,10 @@ describe("pricing-fetcher", () => {
 
 			// First check if anthropic prefixed version exists
 			const anthropicPricing =
-				realPricing["anthropic/claude-3-5-sonnet-20241022"];
+				realPricing["anthropic/claude-sonnet-4-20250514"];
 			if (anthropicPricing) {
 				const pricing = getModelPricing(
-					"claude-3-5-sonnet-20241022",
+					"claude-sonnet-4-20250514",
 					realPricing,
 				);
 				expect(pricing).toBeTruthy();
@@ -91,9 +88,9 @@ describe("pricing-fetcher", () => {
 	});
 
 	describe("calculateCostFromTokens", () => {
-		it("should calculate cost for claude-3-5-sonnet-20241022", async () => {
+		it("should calculate cost for claude-sonnet-4-20250514", async () => {
 			const realPricing = await fetchModelPricing();
-			const modelName = "claude-3-5-sonnet-20241022";
+			const modelName = "claude-sonnet-4-20250514";
 			const pricing = realPricing[modelName];
 
 			// This model should exist in LiteLLM
@@ -102,7 +99,7 @@ describe("pricing-fetcher", () => {
 			expect(pricing?.output_cost_per_token).toBeTruthy();
 
 			if (!pricing) {
-				throw new Error("Expected pricing for claude-3-5-sonnet-20241022");
+				throw new Error("Expected pricing for claude-sonnet-4-20250514");
 			}
 
 			const cost = calculateCostFromTokens(
@@ -116,9 +113,67 @@ describe("pricing-fetcher", () => {
 			expect(cost).toBeGreaterThan(0);
 		});
 
-		it("should calculate cost including cache tokens for claude-3-5-sonnet-20241022", async () => {
+		it("should calculate cost including cache tokens for claude-sonnet-4-20250514", async () => {
 			const realPricing = await fetchModelPricing();
-			const modelName = "claude-3-5-sonnet-20241022";
+			const modelName = "claude-sonnet-4-20250514";
+			const pricing = realPricing[modelName];
+
+			// Skip if cache pricing not available
+			if (
+				!pricing?.cache_creation_input_token_cost ||
+				!pricing?.cache_read_input_token_cost
+			) {
+				return;
+			}
+
+			const cost = calculateCostFromTokens(
+				{
+					input_tokens: 1000,
+					output_tokens: 500,
+					cache_creation_input_tokens: 200,
+					cache_read_input_tokens: 300,
+				},
+				pricing,
+			);
+
+			const expectedCost =
+				1000 * (pricing.input_cost_per_token ?? 0) +
+				500 * (pricing.output_cost_per_token ?? 0) +
+				200 * pricing.cache_creation_input_token_cost +
+				300 * pricing.cache_read_input_token_cost;
+
+			expect(cost).toBeCloseTo(expectedCost);
+			expect(cost).toBeGreaterThan(0);
+		});
+
+		it("should calculate cost for claude-opus-4-20250514", async () => {
+			const realPricing = await fetchModelPricing();
+			const modelName = "claude-opus-4-20250514";
+			const pricing = realPricing[modelName];
+
+			// This model should exist in LiteLLM
+			expect(pricing).toBeTruthy();
+			expect(pricing?.input_cost_per_token).toBeTruthy();
+			expect(pricing?.output_cost_per_token).toBeTruthy();
+
+			if (!pricing) {
+				throw new Error("Expected pricing for claude-opus-4-20250514");
+			}
+
+			const cost = calculateCostFromTokens(
+				{
+					input_tokens: 1000,
+					output_tokens: 500,
+				},
+				pricing,
+			);
+
+			expect(cost).toBeGreaterThan(0);
+		});
+
+		it("should calculate cost including cache tokens for claude-opus-4-20250514", async () => {
+			const realPricing = await fetchModelPricing();
+			const modelName = "claude-opus-4-20250514";
 			const pricing = realPricing[modelName];
 
 			// Skip if cache pricing not available
