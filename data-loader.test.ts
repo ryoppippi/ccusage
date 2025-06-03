@@ -946,4 +946,164 @@ describe("data-loader cost calculation with real pricing", () => {
 			expect(displayResults[0]?.totalCost).toBe(99.99);
 		});
 	});
+
+	describe("pricing data fetching optimization", () => {
+		beforeEach(() => {
+			clearPricingCache();
+		});
+
+		test("should not require model pricing when mode is display", async () => {
+			const data = {
+				timestamp: "2024-01-01T10:00:00Z",
+				message: {
+					usage: { input_tokens: 1000, output_tokens: 500 },
+					model: "claude-sonnet-4-20250514",
+				},
+				costUSD: 0.05,
+			};
+
+			await using fixture = await createFixture({
+				projects: {
+					"test-project": {
+						session: {
+							"usage.jsonl": JSON.stringify(data),
+						},
+					},
+				},
+			});
+
+			// In display mode, only pre-calculated costUSD should be used
+			const results = await loadUsageData({
+				claudePath: fixture.path,
+				mode: "display",
+			});
+
+			expect(results).toHaveLength(1);
+			expect(results[0]?.totalCost).toBe(0.05);
+		});
+
+		test("should fetch pricing data when mode is calculate", async () => {
+			const data = {
+				timestamp: "2024-01-01T10:00:00Z",
+				message: {
+					usage: { input_tokens: 1000, output_tokens: 500 },
+					model: "claude-sonnet-4-20250514",
+				},
+				costUSD: 0.05,
+			};
+
+			await using fixture = await createFixture({
+				projects: {
+					"test-project": {
+						session: {
+							"usage.jsonl": JSON.stringify(data),
+						},
+					},
+				},
+			});
+
+			// This should fetch pricing data (will call real fetch)
+			const results = await loadUsageData({
+				claudePath: fixture.path,
+				mode: "calculate",
+			});
+
+			expect(results).toHaveLength(1);
+			expect(results[0]?.totalCost).toBeGreaterThan(0);
+			expect(results[0]?.totalCost).not.toBe(0.05); // Should calculate, not use costUSD
+		});
+
+		test("should fetch pricing data when mode is auto", async () => {
+			const data = {
+				timestamp: "2024-01-01T10:00:00Z",
+				message: {
+					usage: { input_tokens: 1000, output_tokens: 500 },
+					model: "claude-sonnet-4-20250514",
+				},
+				// No costUSD, so auto mode will need to calculate
+			};
+
+			await using fixture = await createFixture({
+				projects: {
+					"test-project": {
+						session: {
+							"usage.jsonl": JSON.stringify(data),
+						},
+					},
+				},
+			});
+
+			// This should fetch pricing data (will call real fetch)
+			const results = await loadUsageData({
+				claudePath: fixture.path,
+				mode: "auto",
+			});
+
+			expect(results).toHaveLength(1);
+			expect(results[0]?.totalCost).toBeGreaterThan(0);
+		});
+
+		test("session data should not require model pricing when mode is display", async () => {
+			const data = {
+				timestamp: "2024-01-01T10:00:00Z",
+				message: {
+					usage: { input_tokens: 1000, output_tokens: 500 },
+					model: "claude-sonnet-4-20250514",
+				},
+				costUSD: 0.05,
+			};
+
+			await using fixture = await createFixture({
+				projects: {
+					"test-project": {
+						session: {
+							"usage.jsonl": JSON.stringify(data),
+						},
+					},
+				},
+			});
+
+			// In display mode, only pre-calculated costUSD should be used
+			const results = await loadSessionData({
+				claudePath: fixture.path,
+				mode: "display",
+			});
+
+			expect(results).toHaveLength(1);
+			expect(results[0]?.totalCost).toBe(0.05);
+		});
+
+		test("display mode should work without network access", async () => {
+			const data = {
+				timestamp: "2024-01-01T10:00:00Z",
+				message: {
+					usage: { input_tokens: 1000, output_tokens: 500 },
+					model: "some-unknown-model",
+				},
+				costUSD: 0.05,
+			};
+
+			await using fixture = await createFixture({
+				projects: {
+					"test-project": {
+						session: {
+							"usage.jsonl": JSON.stringify(data),
+						},
+					},
+				},
+			});
+
+			// This test verifies that display mode doesn't try to fetch pricing
+			// by using an unknown model that would cause pricing lookup to fail
+			// if it were attempted. Since we're in display mode, it should just
+			// use the costUSD value.
+			const results = await loadUsageData({
+				claudePath: fixture.path,
+				mode: "display",
+			});
+
+			expect(results).toHaveLength(1);
+			expect(results[0]?.totalCost).toBe(0.05);
+		});
+	});
 });

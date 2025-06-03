@@ -88,8 +88,9 @@ export async function loadUsageData(
 		return [];
 	}
 
-	// Fetch pricing data for cost calculation
-	const modelPricing = await fetchModelPricing();
+	// Fetch pricing data for cost calculation only when needed
+	const mode = options?.mode || "auto";
+	const modelPricing = mode === "display" ? {} : await fetchModelPricing();
 
 	const dailyMap = new Map<string, DailyUsage>();
 
@@ -128,7 +129,6 @@ export async function loadUsageData(
 
 				// Calculate cost based on mode
 				let cost = 0;
-				const mode = options?.mode || "auto";
 
 				if (mode === "display") {
 					// Always use costUSD, even if undefined
@@ -191,8 +191,9 @@ export async function loadSessionData(
 		return [];
 	}
 
-	// Fetch pricing data for cost calculation
-	const modelPricing = await fetchModelPricing();
+	// Fetch pricing data for cost calculation only when needed
+	const mode = options?.mode || "auto";
+	const modelPricing = mode === "display" ? {} : await fetchModelPricing();
 
 	const sessionMap = new Map<
 		string,
@@ -248,7 +249,6 @@ export async function loadSessionData(
 
 				// Calculate cost based on mode
 				let cost = 0;
-				const mode = options?.mode || "auto";
 
 				if (mode === "display") {
 					// Always use costUSD, even if undefined
