@@ -164,6 +164,8 @@ All commands support the following options:
 - `-p, --path <path>`: Custom path to Claude data directory (default: `~/.claude`)
 - `-j, --json`: Output results in JSON format instead of table
 - `-m, --mode <mode>`: Cost calculation mode: `auto` (default), `calculate`, or `display`
+- `-d, --debug`: Show pricing mismatch information for debugging
+- `--debug-samples <number>`: Number of sample discrepancies to show in debug output (default: 5)
 - `-h, --help`: Display help message
 - `-v, --version`: Display version
 
