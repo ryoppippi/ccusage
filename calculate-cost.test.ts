@@ -46,6 +46,7 @@ describe("Token aggregation utilities", () => {
 				cacheReadTokens: 10,
 				totalCost: 0.01,
 				lastActivity: "2024-01-01",
+				versions: ["1.0.3"],
 			},
 			{
 				sessionId: "session-2",
@@ -56,6 +57,7 @@ describe("Token aggregation utilities", () => {
 				cacheReadTokens: 20,
 				totalCost: 0.02,
 				lastActivity: "2024-01-02",
+				versions: ["1.0.3", "1.0.4"],
 			},
 		];
 

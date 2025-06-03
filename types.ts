@@ -56,3 +56,6 @@ export interface TokenData {
 	cacheCreationTokens: number;
 	cacheReadTokens: number;
 }
+
+export const CostModes = ["auto", "calculate", "display"] as const;
+export type CostMode = (typeof CostModes)[number];

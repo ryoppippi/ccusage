@@ -8,19 +8,21 @@ import {
 	getTotalTokens,
 } from "../calculate-cost.ts";
 import { type LoadOptions, loadUsageData } from "../data-loader.ts";
+import { detectMismatches, printMismatchReport } from "../debug.ts";
 import { log, logger } from "../logger.ts";
-import { sharedArgs } from "../shared-args.ts";
+import { sharedCommandConfig } from "../shared-args.ts";
 import { formatCurrency, formatNumber } from "../utils.ts";
 
 export const dailyCommand = define({
 	name: "daily",
 	description: "Show usage report grouped by date",
-	args: sharedArgs,
+	...sharedCommandConfig,
 	async run(ctx) {
 		const options: LoadOptions = {
 			since: ctx.values.since,
 			until: ctx.values.until,
 			claudePath: ctx.values.path,
+			mode: ctx.values.mode,
 		};
 		const dailyData = await loadUsageData(options);
 
@@ -35,6 +37,12 @@ export const dailyCommand = define({
 
 		// Calculate totals
 		const totals = calculateTotals(dailyData);
+
+		// Show debug information if requested
+		if (ctx.values.debug && !ctx.values.json) {
+			const mismatchStats = await detectMismatches(ctx.values.path);
+			printMismatchReport(mismatchStats, ctx.values.debugSamples);
+		}
 
 		if (ctx.values.json) {
 			// Output JSON format

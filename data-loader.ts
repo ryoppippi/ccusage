@@ -4,11 +4,19 @@ import path from "node:path";
 import { sort } from "fast-sort";
 import { glob } from "tinyglobby";
 import * as v from "valibot";
+import {
+	type ModelPricing,
+	calculateCostFromTokens,
+	fetchModelPricing,
+	getModelPricing,
+} from "./pricing-fetcher.ts";
+import type { CostMode } from "./types.ts";
 
 export const getDefaultClaudePath = () => path.join(homedir(), ".claude");
 
 export const UsageDataSchema = v.object({
 	timestamp: v.string(),
+	version: v.optional(v.string()), // Claude Code version
 	message: v.object({
 		usage: v.object({
 			input_tokens: v.number(),
@@ -16,8 +24,9 @@ export const UsageDataSchema = v.object({
 			cache_creation_input_tokens: v.optional(v.number()),
 			cache_read_input_tokens: v.optional(v.number()),
 		}),
+		model: v.optional(v.string()), // Model is inside message object
 	}),
-	costUSD: v.number(),
+	costUSD: v.optional(v.number()), // Made optional for new schema
 });
 
 export type UsageData = v.InferOutput<typeof UsageDataSchema>;
@@ -42,6 +51,7 @@ export const SessionUsageSchema = v.object({
 	cacheReadTokens: v.number(),
 	totalCost: v.number(),
 	lastActivity: v.string(),
+	versions: v.array(v.string()), // List of unique versions used in this session
 });
 
 export type SessionUsage = v.InferOutput<typeof SessionUsageSchema>;
@@ -54,6 +64,42 @@ export const formatDate = (dateStr: string): string => {
 	return `${year}-${month}-${day}`;
 };
 
+export const calculateCostForEntry = (
+	data: UsageData,
+	mode: CostMode,
+	modelPricing: Record<string, ModelPricing>,
+): number => {
+	if (mode === "display") {
+		// Always use costUSD, even if undefined
+		return data.costUSD ?? 0;
+	}
+
+	if (mode === "calculate") {
+		// Always calculate from tokens
+		if (data.message.model) {
+			const pricing = getModelPricing(data.message.model, modelPricing);
+			if (pricing) {
+				return calculateCostFromTokens(data.message.usage, pricing);
+			}
+		}
+		return 0;
+	}
+
+	// Auto mode: use costUSD if available, otherwise calculate
+	if (data.costUSD !== undefined) {
+		return data.costUSD;
+	}
+
+	if (data.message.model) {
+		const pricing = getModelPricing(data.message.model, modelPricing);
+		if (pricing) {
+			return calculateCostFromTokens(data.message.usage, pricing);
+		}
+	}
+
+	return 0;
+};
+
 export interface DateFilter {
 	since?: string; // YYYYMMDD format
 	until?: string; // YYYYMMDD format
@@ -61,6 +107,7 @@ export interface DateFilter {
 
 export interface LoadOptions extends DateFilter {
 	claudePath?: string; // Custom path to Claude data directory
+	mode?: CostMode; // Cost calculation mode
 }
 
 export async function loadUsageData(
@@ -76,6 +123,10 @@ export async function loadUsageData(
 	if (files.length === 0) {
 		return [];
 	}
+
+	// Fetch pricing data for cost calculation only when needed
+	const mode = options?.mode || "auto";
+	const modelPricing = mode === "display" ? {} : await fetchModelPricing();
 
 	const dailyMap = new Map<string, DailyUsage>();
 
@@ -105,13 +156,16 @@ export async function loadUsageData(
 					totalCost: 0,
 				};
 
-				existing.inputTokens += data.message.usage.input_tokens || 0;
-				existing.outputTokens += data.message.usage.output_tokens || 0;
+				existing.inputTokens += data.message.usage.input_tokens ?? 0;
+				existing.outputTokens += data.message.usage.output_tokens ?? 0;
 				existing.cacheCreationTokens +=
-					data.message.usage.cache_creation_input_tokens || 0;
+					data.message.usage.cache_creation_input_tokens ?? 0;
 				existing.cacheReadTokens +=
-					data.message.usage.cache_read_input_tokens || 0;
-				existing.totalCost += data.costUSD || 0;
+					data.message.usage.cache_read_input_tokens ?? 0;
+
+				// Calculate cost based on mode
+				const cost = calculateCostForEntry(data, mode, modelPricing);
+				existing.totalCost += cost;
 
 				dailyMap.set(date, existing);
 			} catch (e) {
@@ -150,7 +204,14 @@ export async function loadSessionData(
 		return [];
 	}
 
-	const sessionMap = new Map<string, SessionUsage>();
+	// Fetch pricing data for cost calculation only when needed
+	const mode = options?.mode || "auto";
+	const modelPricing = mode === "display" ? {} : await fetchModelPricing();
+
+	const sessionMap = new Map<
+		string,
+		SessionUsage & { versionSet: Set<string> }
+	>();
 
 	for (const file of files) {
 		// Extract session info from file path
@@ -188,20 +249,30 @@ export async function loadSessionData(
 					cacheReadTokens: 0,
 					totalCost: 0,
 					lastActivity: "",
+					versions: [],
+					versionSet: new Set<string>(),
 				};
 
-				existing.inputTokens += data.message.usage.input_tokens || 0;
-				existing.outputTokens += data.message.usage.output_tokens || 0;
+				existing.inputTokens += data.message.usage.input_tokens ?? 0;
+				existing.outputTokens += data.message.usage.output_tokens ?? 0;
 				existing.cacheCreationTokens +=
-					data.message.usage.cache_creation_input_tokens || 0;
+					data.message.usage.cache_creation_input_tokens ?? 0;
 				existing.cacheReadTokens +=
-					data.message.usage.cache_read_input_tokens || 0;
-				existing.totalCost += data.costUSD || 0;
+					data.message.usage.cache_read_input_tokens ?? 0;
+
+				// Calculate cost based on mode
+				const cost = calculateCostForEntry(data, mode, modelPricing);
+				existing.totalCost += cost;
 
 				// Keep track of the latest timestamp
 				if (data.timestamp > lastTimestamp) {
 					lastTimestamp = data.timestamp;
 					existing.lastActivity = formatDate(data.timestamp);
+				}
+
+				// Collect version information
+				if (data.version) {
+					existing.versionSet.add(data.version);
 				}
 
 				sessionMap.set(key, existing);
@@ -212,7 +283,14 @@ export async function loadSessionData(
 	}
 
 	// Convert map to array and filter by date range
-	let results = Array.from(sessionMap.values());
+	let results = Array.from(sessionMap.values()).map((session) => {
+		// Convert Set to sorted array and remove temporary versionSet property
+		const { versionSet, ...sessionData } = session;
+		return {
+			...sessionData,
+			versions: Array.from(versionSet).sort(),
+		};
+	});
 
 	if (options?.since || options?.until) {
 		results = results.filter((session) => {
@@ -223,6 +301,6 @@ export async function loadSessionData(
 		});
 	}
 
-	// Sort by total cost descending
-	return sort(results).desc((item) => item.totalCost);
+	// Sort by last activity descending
+	return sort(results).desc((item) => new Date(item.lastActivity).getTime());
 }
