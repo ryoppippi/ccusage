@@ -10,6 +10,7 @@ import {
 	fetchModelPricing,
 	getModelPricing,
 } from "./pricing-fetcher.ts";
+import type { CostMode } from "./types.ts";
 
 export const getDefaultClaudePath = () => path.join(homedir(), ".claude");
 
@@ -70,6 +71,7 @@ export interface DateFilter {
 
 export interface LoadOptions extends DateFilter {
 	claudePath?: string; // Custom path to Claude data directory
+	mode?: CostMode; // Cost calculation mode
 }
 
 export async function loadUsageData(
@@ -124,14 +126,30 @@ export async function loadUsageData(
 				existing.cacheReadTokens +=
 					data.message.usage.cache_read_input_tokens ?? 0;
 
-				// Calculate cost: use costUSD if available, otherwise calculate from tokens
+				// Calculate cost based on mode
 				let cost = 0;
-				if (data.costUSD !== undefined) {
-					cost = data.costUSD;
-				} else if (data.message.model) {
-					const pricing = getModelPricing(data.message.model, modelPricing);
-					if (pricing) {
-						cost = calculateCostFromTokens(data.message.usage, pricing);
+				const mode = options?.mode || "auto";
+
+				if (mode === "display") {
+					// Always use costUSD, even if undefined
+					cost = data.costUSD ?? 0;
+				} else if (mode === "calculate") {
+					// Always calculate from tokens
+					if (data.message.model) {
+						const pricing = getModelPricing(data.message.model, modelPricing);
+						if (pricing) {
+							cost = calculateCostFromTokens(data.message.usage, pricing);
+						}
+					}
+				} else {
+					// Auto mode: use costUSD if available, otherwise calculate
+					if (data.costUSD !== undefined) {
+						cost = data.costUSD;
+					} else if (data.message.model) {
+						const pricing = getModelPricing(data.message.model, modelPricing);
+						if (pricing) {
+							cost = calculateCostFromTokens(data.message.usage, pricing);
+						}
 					}
 				}
 				existing.totalCost += cost;
@@ -228,14 +246,30 @@ export async function loadSessionData(
 				existing.cacheReadTokens +=
 					data.message.usage.cache_read_input_tokens ?? 0;
 
-				// Calculate cost: use costUSD if available, otherwise calculate from tokens
+				// Calculate cost based on mode
 				let cost = 0;
-				if (data.costUSD !== undefined) {
-					cost = data.costUSD;
-				} else if (data.message.model) {
-					const pricing = getModelPricing(data.message.model, modelPricing);
-					if (pricing) {
-						cost = calculateCostFromTokens(data.message.usage, pricing);
+				const mode = options?.mode || "auto";
+
+				if (mode === "display") {
+					// Always use costUSD, even if undefined
+					cost = data.costUSD ?? 0;
+				} else if (mode === "calculate") {
+					// Always calculate from tokens
+					if (data.message.model) {
+						const pricing = getModelPricing(data.message.model, modelPricing);
+						if (pricing) {
+							cost = calculateCostFromTokens(data.message.usage, pricing);
+						}
+					}
+				} else {
+					// Auto mode: use costUSD if available, otherwise calculate
+					if (data.costUSD !== undefined) {
+						cost = data.costUSD;
+					} else if (data.message.model) {
+						const pricing = getModelPricing(data.message.model, modelPricing);
+						if (pricing) {
+							cost = calculateCostFromTokens(data.message.usage, pricing);
+						}
 					}
 				}
 				existing.totalCost += cost;
@@ -277,6 +311,6 @@ export async function loadSessionData(
 		});
 	}
 
-	// Sort by total cost descending
-	return sort(results).desc((item) => item.totalCost);
+	// Sort by last activity descending
+	return sort(results).desc((item) => new Date(item.lastActivity).getTime());
 }

@@ -10,6 +10,7 @@ import {
 import { type LoadOptions, loadUsageData } from "../data-loader.ts";
 import { log, logger } from "../logger.ts";
 import { sharedArgs } from "../shared-args.ts";
+import type { CostMode } from "../types.ts";
 import { formatCurrency, formatNumber } from "../utils.ts";
 
 export const dailyCommand = define({
@@ -21,6 +22,7 @@ export const dailyCommand = define({
 			since: ctx.values.since,
 			until: ctx.values.until,
 			claudePath: ctx.values.path,
+			mode: ctx.values.mode as CostMode,
 		};
 		const dailyData = await loadUsageData(options);
 
