@@ -38,7 +38,7 @@
 		"prepack": "bun run build && clean-pkg-json",
 		"prepare": "simple-git-hooks",
 		"release": "bun lint && bun typecheck && bun test && bun run build && bumpp",
-		"report": "bun run index.ts",
+		"start": "bun run ./src/index.ts",
 		"test": "bun test",
 		"typecheck": "tsc --noEmit"
 	},
