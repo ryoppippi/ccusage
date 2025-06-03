@@ -18,6 +18,10 @@ export const dailyCommand = define({
 	description: "Show usage report grouped by date",
 	...sharedCommandConfig,
 	async run(ctx) {
+		if (ctx.values.json) {
+			logger.level = 0;
+		}
+
 		const options: LoadOptions = {
 			since: ctx.values.since,
 			until: ctx.values.until,
@@ -123,8 +127,7 @@ export const dailyCommand = define({
 				pc.yellow(formatCurrency(totals.totalCost)),
 			]);
 
-			// biome-ignore lint/suspicious/noConsole: <explanation>
-			console.log(table.toString());
+			log(table.toString());
 		}
 	},
 });

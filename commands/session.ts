@@ -18,6 +18,10 @@ export const sessionCommand = define({
 	description: "Show usage report grouped by conversation session",
 	...sharedCommandConfig,
 	async run(ctx) {
+		if (ctx.values.json) {
+			logger.level = 0;
+		}
+
 		const options: LoadOptions = {
 			since: ctx.values.since,
 			until: ctx.values.until,
@@ -145,8 +149,7 @@ export const sessionCommand = define({
 				"",
 			]);
 
-			// biome-ignore lint/suspicious/noConsole: <explanation>
-			console.log(table.toString());
+			log(table.toString());
 		}
 	},
 });

@@ -28,7 +28,7 @@ export async function fetchModelPricing(): Promise<
 	}
 
 	try {
-		logger.info("Fetching latest model pricing from LiteLLM...");
+		logger.warn("Fetching latest model pricing from LiteLLM...");
 		const response = await fetch(LITELLM_PRICING_URL);
 		if (!response.ok) {
 			throw new Error(`Failed to fetch pricing data: ${response.statusText}`);
