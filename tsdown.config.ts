@@ -2,7 +2,7 @@ import { $ } from "bun";
 import { defineConfig } from "tsdown";
 
 export default defineConfig({
-	entry: ["./index.ts", "./data-loader.ts", "./calculate-cost.ts"],
+	entry: ["./src/*.ts", "!./src/**/*.test.ts"],
 	outDir: "dist",
 	format: "esm",
 	clean: true,

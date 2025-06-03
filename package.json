@@ -18,6 +18,12 @@
 		".": "./dist/index.js",
 		"./calculate-cost": "./dist/calculate-cost.js",
 		"./data-loader": "./dist/data-loader.js",
+		"./debug": "./dist/debug.js",
+		"./logger": "./dist/logger.js",
+		"./pricing-fetcher": "./dist/pricing-fetcher.js",
+		"./shared-args": "./dist/shared-args.js",
+		"./types": "./dist/types.js",
+		"./utils": "./dist/utils.js",
 		"./package.json": "./package.json"
 	},
 	"main": "./dist/index.js",

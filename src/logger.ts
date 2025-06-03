@@ -1,6 +1,6 @@
 import { type ConsolaInstance, consola } from "consola";
 
-import { name } from "./package.json";
+import { name } from "../package.json";
 
 export const logger: ConsolaInstance = consola.withTag(name);
 

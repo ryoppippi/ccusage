@@ -2,9 +2,9 @@
 
 import process from "node:process";
 import { cli } from "gunshi";
+import { description, name, version } from "../package.json";
 import { dailyCommand } from "./commands/daily.ts";
 import { sessionCommand } from "./commands/session.ts";
-import { description, name, version } from "./package.json";
 
 // Create subcommands map
 const subCommands = new Map();
