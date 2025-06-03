@@ -31,7 +31,7 @@
 		"lint": "biome check .",
 		"prepack": "bun run build && clean-pkg-json",
 		"prepare": "simple-git-hooks",
-		"release": "bun lint && bun typecheck && bun test && bun run build && bumpp && npm publish --access public && git checkout -- package.json",
+		"release": "bun lint && bun typecheck && bun test && bun run build && bumpp",
 		"report": "bun run index.ts",
 		"test": "bun test",
 		"typecheck": "tsc --noEmit"
