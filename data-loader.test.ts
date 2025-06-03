@@ -1,18 +1,17 @@
-import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
+import { beforeEach, describe, expect, mock, test } from "bun:test";
 import { readFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import path from "node:path";
+import { createFixture } from "fs-fixture";
 import { glob } from "tinyglobby";
 import {
-	type DailyUsage,
-	type SessionUsage,
 	type UsageData,
 	formatDate,
 	loadSessionData,
 	loadUsageData,
 } from "./data-loader.ts";
+import { clearPricingCache } from "./pricing-fetcher.ts";
 
-// Mock the external dependencies
 mock.module("node:fs/promises", () => ({
 	readFile: mock(() => Promise.resolve("")),
 }));
@@ -465,5 +464,271 @@ describe("loadSessionData", () => {
 
 		expect(result).toHaveLength(1);
 		expect(result[0]?.lastActivity).toBe("2024-01-15");
+	});
+});
+
+describe("data-loader cost calculation with real pricing", () => {
+	beforeEach(() => {
+		// Restore all mocks to ensure clean state
+		mock.restore();
+
+		// Explicitly unmock modules that may have been mocked by other tests
+		mock.module("node:fs/promises", () => ({ readFile }));
+		mock.module("tinyglobby", () => ({ glob }));
+		mock.module("node:os", () => ({ homedir }));
+
+		clearPricingCache();
+	});
+
+	describe("loadUsageData with mixed schemas", () => {
+		test("should handle old schema with costUSD", async () => {
+			const oldData = {
+				timestamp: "2024-01-15T10:00:00Z",
+				message: {
+					usage: {
+						input_tokens: 1000,
+						output_tokens: 500,
+					},
+				},
+				costUSD: 0.05, // Pre-calculated cost
+			};
+
+			await using fixture = await createFixture({
+				projects: {
+					"test-project": {
+						session1: {
+							"usage.jsonl": `${JSON.stringify(oldData)}\n`,
+						},
+					},
+				},
+			});
+
+			const results = await loadUsageData({ claudePath: fixture.path });
+
+			expect(results).toHaveLength(1);
+			expect(results[0]?.date).toBe("2024-01-15");
+			expect(results[0]?.inputTokens).toBe(1000);
+			expect(results[0]?.outputTokens).toBe(500);
+			expect(results[0]?.totalCost).toBe(0.05);
+		});
+
+		test("should calculate cost for new schema with claude-3-5-sonnet-20241022", async () => {
+			// Use a well-known Claude model
+			const modelName = "claude-3-5-sonnet-20241022";
+
+			const newData = {
+				timestamp: "2024-01-16T10:00:00Z",
+				message: {
+					usage: {
+						input_tokens: 1000,
+						output_tokens: 500,
+						cache_creation_input_tokens: 200,
+						cache_read_input_tokens: 300,
+					},
+					model: modelName,
+				},
+			};
+
+			await using fixture = await createFixture({
+				projects: {
+					"test-project": {
+						session2: {
+							"usage.jsonl": `${JSON.stringify(newData)}\n`,
+						},
+					},
+				},
+			});
+
+			const results = await loadUsageData({ claudePath: fixture.path });
+
+			expect(results).toHaveLength(1);
+			expect(results[0]?.date).toBe("2024-01-16");
+			expect(results[0]?.inputTokens).toBe(1000);
+			expect(results[0]?.outputTokens).toBe(500);
+			expect(results[0]?.cacheCreationTokens).toBe(200);
+			expect(results[0]?.cacheReadTokens).toBe(300);
+
+			// Should have calculated some cost
+			expect(results[0]?.totalCost).toBeGreaterThan(0);
+		});
+
+		test("should handle mixed data in same file", async () => {
+			const data1 = {
+				timestamp: "2024-01-17T10:00:00Z",
+				message: { usage: { input_tokens: 100, output_tokens: 50 } },
+				costUSD: 0.01,
+			};
+
+			const data2 = {
+				timestamp: "2024-01-17T11:00:00Z",
+				message: {
+					usage: { input_tokens: 200, output_tokens: 100 },
+					model: "claude-3-5-sonnet-20241022",
+				},
+			};
+
+			const data3 = {
+				timestamp: "2024-01-17T12:00:00Z",
+				message: { usage: { input_tokens: 300, output_tokens: 150 } },
+				// No costUSD and no model - should be 0 cost
+			};
+
+			await using fixture = await createFixture({
+				projects: {
+					"test-project": {
+						session3: {
+							"usage.jsonl": `${JSON.stringify(data1)}\n${JSON.stringify(data2)}\n${JSON.stringify(data3)}\n`,
+						},
+					},
+				},
+			});
+
+			const results = await loadUsageData({ claudePath: fixture.path });
+
+			expect(results).toHaveLength(1);
+			expect(results[0]?.date).toBe("2024-01-17");
+			expect(results[0]?.inputTokens).toBe(600); // 100 + 200 + 300
+			expect(results[0]?.outputTokens).toBe(300); // 50 + 100 + 150
+
+			// Total cost should be at least the pre-calculated cost from data1
+			expect(results[0]?.totalCost).toBeGreaterThanOrEqual(0.01);
+		});
+
+		test("should handle data without model or costUSD", async () => {
+			const data = {
+				timestamp: "2024-01-18T10:00:00Z",
+				message: { usage: { input_tokens: 1000, output_tokens: 500 } },
+				// No costUSD and no model
+			};
+
+			await using fixture = await createFixture({
+				projects: {
+					"test-project": {
+						session4: {
+							"usage.jsonl": `${JSON.stringify(data)}\n`,
+						},
+					},
+				},
+			});
+
+			const results = await loadUsageData({ claudePath: fixture.path });
+
+			expect(results).toHaveLength(1);
+			expect(results[0]?.totalCost).toBe(0); // Should be 0 without model or costUSD
+		});
+	});
+
+	describe("loadSessionData with mixed schemas", () => {
+		test("should calculate costs correctly for sessions", async () => {
+			// Session 1: old schema
+			const oldData = {
+				timestamp: "2024-01-18T10:00:00Z",
+				message: { usage: { input_tokens: 1000, output_tokens: 500 } },
+				costUSD: 0.05,
+			};
+
+			// Session 2: new schema with model
+			const newData = {
+				timestamp: "2024-01-19T10:00:00Z",
+				message: {
+					usage: { input_tokens: 500, output_tokens: 250 },
+					model: "claude-3-5-sonnet-20241022",
+				},
+			};
+
+			await using fixture = await createFixture({
+				projects: {
+					"project-a": {
+						session1: {
+							"usage.jsonl": `${JSON.stringify(oldData)}\n`,
+						},
+						session2: {
+							"usage.jsonl": `${JSON.stringify(newData)}\n`,
+						},
+					},
+				},
+			});
+
+			const results = await loadSessionData({ claudePath: fixture.path });
+
+			expect(results).toHaveLength(2);
+
+			// Check session 1
+			const session1 = results.find((s) => s.sessionId === "session1");
+			expect(session1).toBeTruthy();
+			expect(session1?.totalCost).toBe(0.05);
+
+			// Check session 2
+			const session2 = results.find((s) => s.sessionId === "session2");
+			expect(session2).toBeTruthy();
+			expect(session2?.totalCost).toBeGreaterThan(0);
+			expect(session2?.inputTokens).toBe(500);
+			expect(session2?.outputTokens).toBe(250);
+		});
+
+		test("should handle unknown models gracefully", async () => {
+			const data = {
+				timestamp: "2024-01-20T10:00:00Z",
+				message: {
+					usage: { input_tokens: 1000, output_tokens: 500 },
+					model: "unknown-model-xyz",
+				},
+			};
+
+			await using fixture = await createFixture({
+				projects: {
+					"test-project": {
+						session4: {
+							"usage.jsonl": `${JSON.stringify(data)}\n`,
+						},
+					},
+				},
+			});
+
+			const results = await loadSessionData({ claudePath: fixture.path });
+
+			expect(results).toHaveLength(1);
+			expect(results[0]?.totalCost).toBe(0); // Should be 0 for unknown model
+			expect(results[0]?.inputTokens).toBe(1000);
+			expect(results[0]?.outputTokens).toBe(500);
+		});
+	});
+
+	describe("cached tokens cost calculation", () => {
+		test("should correctly calculate costs for all token types with claude-3-5-sonnet-20241022", async () => {
+			const data = {
+				timestamp: "2024-01-21T10:00:00Z",
+				message: {
+					usage: {
+						input_tokens: 1000,
+						output_tokens: 500,
+						cache_creation_input_tokens: 2000,
+						cache_read_input_tokens: 3000,
+					},
+					model: "claude-3-5-sonnet-20241022",
+				},
+			};
+
+			await using fixture = await createFixture({
+				projects: {
+					"test-project": {
+						session5: {
+							"usage.jsonl": `${JSON.stringify(data)}\n`,
+						},
+					},
+				},
+			});
+
+			const results = await loadUsageData({ claudePath: fixture.path });
+
+			expect(results).toHaveLength(1);
+			expect(results[0]?.inputTokens).toBe(1000);
+			expect(results[0]?.outputTokens).toBe(500);
+			expect(results[0]?.cacheCreationTokens).toBe(2000);
+			expect(results[0]?.cacheReadTokens).toBe(3000);
+
+			// Should have calculated cost (greater than 0)
+			expect(results[0]?.totalCost).toBeGreaterThan(0);
+		});
 	});
 });

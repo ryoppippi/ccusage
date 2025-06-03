@@ -11,6 +11,7 @@
         "cli-table3": "^0.6.5",
         "consola": "^3.4.2",
         "fast-sort": "^3.4.1",
+        "fs-fixture": "^2.7.1",
         "gunshi": "^0.25.0",
         "lint-staged": "^15.5.0",
         "picocolors": "^1.1.1",
@@ -205,6 +206,8 @@
     "fdir": ["fdir@6.4.5", "", { "peerDependencies": { "picomatch": "^3 || ^4" }, "optionalPeers": ["picomatch"] }, "sha512-4BG7puHpVsIYxZUbiUE3RqGloLaSSwzYie5jvasC4LWuBWzZawynvYouhjbQKw2JuIGYdm0DzIxl8iVidKlUEw=="],
 
     "fill-range": ["fill-range@7.1.1", "", { "dependencies": { "to-regex-range": "^5.0.1" } }, "sha512-YsGpe3WHLK8ZYi4tWDg2Jy3ebRz2rXowDxnld4bkQB00cc/1Zw9AWnC0i9ztDJitivtQvaI9KaLyKrc+hBW0yg=="],
+
+    "fs-fixture": ["fs-fixture@2.7.1", "", {}, "sha512-fh9PEM+vCFvO8zPztFRW0c8kcG67AfDZ1aMfMO9i2dKFd2WpeNtmZyTDjfmB7AyPRWDPo+NcBj5Ng2llTS7SFA=="],
 
     "get-east-asian-width": ["get-east-asian-width@1.3.0", "", {}, "sha512-vpeMIQKxczTD/0s2CdEWHcb0eeJe6TFjxb+J5xgX7hScxqrGuyjmv4c1D4A/gelKfyox0gJJwIHF+fLjeaM8kQ=="],
 

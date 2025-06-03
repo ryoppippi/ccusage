@@ -50,6 +50,7 @@
 		"cli-table3": "^0.6.5",
 		"consola": "^3.4.2",
 		"fast-sort": "^3.4.1",
+		"fs-fixture": "^2.7.1",
 		"gunshi": "^0.25.0",
 		"lint-staged": "^15.5.0",
 		"picocolors": "^1.1.1",
