@@ -15,6 +15,7 @@ export const getDefaultClaudePath = () => path.join(homedir(), ".claude");
 
 export const UsageDataSchema = v.object({
 	timestamp: v.string(),
+	version: v.optional(v.string()), // Claude Code version
 	message: v.object({
 		usage: v.object({
 			input_tokens: v.number(),
@@ -49,6 +50,7 @@ export const SessionUsageSchema = v.object({
 	cacheReadTokens: v.number(),
 	totalCost: v.number(),
 	lastActivity: v.string(),
+	versions: v.array(v.string()), // List of unique versions used in this session
 });
 
 export type SessionUsage = v.InferOutput<typeof SessionUsageSchema>;
@@ -174,7 +176,10 @@ export async function loadSessionData(
 	// Fetch pricing data for cost calculation
 	const modelPricing = await fetchModelPricing();
 
-	const sessionMap = new Map<string, SessionUsage>();
+	const sessionMap = new Map<
+		string,
+		SessionUsage & { versionSet: Set<string> }
+	>();
 
 	for (const file of files) {
 		// Extract session info from file path
@@ -212,6 +217,8 @@ export async function loadSessionData(
 					cacheReadTokens: 0,
 					totalCost: 0,
 					lastActivity: "",
+					versions: [],
+					versionSet: new Set<string>(),
 				};
 
 				existing.inputTokens += data.message.usage.input_tokens ?? 0;
@@ -239,6 +246,11 @@ export async function loadSessionData(
 					existing.lastActivity = formatDate(data.timestamp);
 				}
 
+				// Collect version information
+				if (data.version) {
+					existing.versionSet.add(data.version);
+				}
+
 				sessionMap.set(key, existing);
 			} catch (e) {
 				// Skip invalid JSON lines
@@ -247,7 +259,14 @@ export async function loadSessionData(
 	}
 
 	// Convert map to array and filter by date range
-	let results = Array.from(sessionMap.values());
+	let results = Array.from(sessionMap.values()).map((session) => {
+		// Convert Set to sorted array and remove temporary versionSet property
+		const { versionSet, ...sessionData } = session;
+		return {
+			...sessionData,
+			versions: Array.from(versionSet).sort(),
+		};
+	});
 
 	if (options?.since || options?.until) {
 		results = results.filter((session) => {
