@@ -4,6 +4,12 @@ import path from "node:path";
 import { sort } from "fast-sort";
 import { glob } from "tinyglobby";
 import * as v from "valibot";
+import {
+	type ModelPricing,
+	calculateCostFromTokens,
+	fetchModelPricing,
+	getModelPricing,
+} from "./pricing-fetcher.ts";
 
 export const getDefaultClaudePath = () => path.join(homedir(), ".claude");
 
@@ -16,8 +22,9 @@ export const UsageDataSchema = v.object({
 			cache_creation_input_tokens: v.optional(v.number()),
 			cache_read_input_tokens: v.optional(v.number()),
 		}),
+		model: v.optional(v.string()), // Model is inside message object
 	}),
-	costUSD: v.number(),
+	costUSD: v.optional(v.number()), // Made optional for new schema
 });
 
 export type UsageData = v.InferOutput<typeof UsageDataSchema>;
@@ -77,6 +84,9 @@ export async function loadUsageData(
 		return [];
 	}
 
+	// Fetch pricing data for cost calculation
+	const modelPricing = await fetchModelPricing();
+
 	const dailyMap = new Map<string, DailyUsage>();
 
 	for (const file of files) {
@@ -105,13 +115,24 @@ export async function loadUsageData(
 					totalCost: 0,
 				};
 
-				existing.inputTokens += data.message.usage.input_tokens || 0;
-				existing.outputTokens += data.message.usage.output_tokens || 0;
+				existing.inputTokens += data.message.usage.input_tokens ?? 0;
+				existing.outputTokens += data.message.usage.output_tokens ?? 0;
 				existing.cacheCreationTokens +=
-					data.message.usage.cache_creation_input_tokens || 0;
+					data.message.usage.cache_creation_input_tokens ?? 0;
 				existing.cacheReadTokens +=
-					data.message.usage.cache_read_input_tokens || 0;
-				existing.totalCost += data.costUSD || 0;
+					data.message.usage.cache_read_input_tokens ?? 0;
+
+				// Calculate cost: use costUSD if available, otherwise calculate from tokens
+				let cost = 0;
+				if (data.costUSD !== undefined) {
+					cost = data.costUSD;
+				} else if (data.message.model) {
+					const pricing = getModelPricing(data.message.model, modelPricing);
+					if (pricing) {
+						cost = calculateCostFromTokens(data.message.usage, pricing);
+					}
+				}
+				existing.totalCost += cost;
 
 				dailyMap.set(date, existing);
 			} catch (e) {
@@ -149,6 +170,9 @@ export async function loadSessionData(
 	if (files.length === 0) {
 		return [];
 	}
+
+	// Fetch pricing data for cost calculation
+	const modelPricing = await fetchModelPricing();
 
 	const sessionMap = new Map<string, SessionUsage>();
 
@@ -190,13 +214,24 @@ export async function loadSessionData(
 					lastActivity: "",
 				};
 
-				existing.inputTokens += data.message.usage.input_tokens || 0;
-				existing.outputTokens += data.message.usage.output_tokens || 0;
+				existing.inputTokens += data.message.usage.input_tokens ?? 0;
+				existing.outputTokens += data.message.usage.output_tokens ?? 0;
 				existing.cacheCreationTokens +=
-					data.message.usage.cache_creation_input_tokens || 0;
+					data.message.usage.cache_creation_input_tokens ?? 0;
 				existing.cacheReadTokens +=
-					data.message.usage.cache_read_input_tokens || 0;
-				existing.totalCost += data.costUSD || 0;
+					data.message.usage.cache_read_input_tokens ?? 0;
+
+				// Calculate cost: use costUSD if available, otherwise calculate from tokens
+				let cost = 0;
+				if (data.costUSD !== undefined) {
+					cost = data.costUSD;
+				} else if (data.message.model) {
+					const pricing = getModelPricing(data.message.model, modelPricing);
+					if (pricing) {
+						cost = calculateCostFromTokens(data.message.usage, pricing);
+					}
+				}
+				existing.totalCost += cost;
 
 				// Keep track of the latest timestamp
 				if (data.timestamp > lastTimestamp) {
