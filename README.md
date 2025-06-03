@@ -73,6 +73,9 @@ npx ccusage@latest
 
 # Using bunx
 bunx ccusage
+
+# Using pnpm
+pnpm dlx ccusage
 ```
 
 ### Local Installation
