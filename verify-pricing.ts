@@ -50,7 +50,31 @@ const modelStats = new Map<
 	}
 >();
 
+// Track session versions
+const sessionVersions = new Map<string, Set<string>>();
+
+// Track version statistics
+const versionStats = new Map<
+	string,
+	{
+		total: number;
+		matches: number;
+		mismatches: number;
+		avgPercentDiff: number;
+	}
+>();
+
+// Track session mismatches by version
+const sessionMismatchesByVersion = new Map<string, Map<string, { total: number; mismatches: number }>>();
+
 for (const file of files) {
+	// Extract session info from file path
+	const relativePath = path.relative(claudeDir, file);
+	const parts = relativePath.split(path.sep);
+	const sessionId = parts[parts.length - 2];
+	const projectPath = parts.slice(0, -2).join(path.sep);
+	const sessionKey = `${projectPath}/${sessionId}`;
+
 	const content = await readFile(file, "utf-8");
 	const lines = content
 		.trim()
@@ -66,6 +90,14 @@ for (const file of files) {
 
 			const data = result.output;
 			totalEntries++;
+
+			// Collect version information for this session
+			if (data.version) {
+				if (!sessionVersions.has(sessionKey)) {
+					sessionVersions.set(sessionKey, new Set<string>());
+				}
+				sessionVersions.get(sessionKey)!.add(data.version);
+			}
 
 			// Check if we have both costUSD and model
 			if (
@@ -95,6 +127,43 @@ for (const file of files) {
 						avgPercentDiff: 0,
 					};
 					stats.total++;
+
+					// Update version statistics if version is available
+					if (data.version) {
+						const vStats = versionStats.get(data.version) || {
+							total: 0,
+							matches: 0,
+							mismatches: 0,
+							avgPercentDiff: 0,
+						};
+						vStats.total++;
+
+						// Track session-level stats for this version
+						if (!sessionMismatchesByVersion.has(data.version)) {
+							sessionMismatchesByVersion.set(data.version, new Map());
+						}
+						const sessionStatsMap = sessionMismatchesByVersion.get(data.version)!;
+						
+						if (!sessionStatsMap.has(sessionKey)) {
+							sessionStatsMap.set(sessionKey, { total: 0, mismatches: 0 });
+						}
+						const sessionStats = sessionStatsMap.get(sessionKey)!;
+						sessionStats.total++;
+
+						// Consider it a match if within 0.1% difference (to account for floating point)
+						if (percentDiff < 0.1) {
+							vStats.matches++;
+						} else {
+							vStats.mismatches++;
+							sessionStats.mismatches++;
+						}
+
+						// Update average percent difference for version
+						vStats.avgPercentDiff =
+							(vStats.avgPercentDiff * (vStats.total - 1) + percentDiff) /
+							vStats.total;
+						versionStats.set(data.version, vStats);
+					}
 
 					// Consider it a match if within 0.1% difference (to account for floating point)
 					if (percentDiff < 0.1) {
@@ -161,6 +230,26 @@ for (const [model, stats] of sortedModels) {
 	console.log();
 }
 
+// Show version statistics
+console.log("\n=== Version Statistics ===\n");
+const sortedVersions = Array.from(versionStats.entries()).sort(
+	(a, b) => a[0].localeCompare(b[0]),
+);
+
+for (const [version, stats] of sortedVersions) {
+	const matchRate = (stats.matches / stats.total) * 100;
+	console.log(`${version}:`);
+	console.log(`  Total entries: ${stats.total.toLocaleString()}`);
+	console.log(
+		`  Matches: ${stats.matches.toLocaleString()} (${matchRate.toFixed(1)}%)`,
+	);
+	console.log(`  Mismatches: ${stats.mismatches.toLocaleString()}`);
+	if (stats.mismatches > 0) {
+		console.log(`  Avg % difference: ${stats.avgPercentDiff.toFixed(1)}%`);
+	}
+	console.log();
+}
+
 // Show sample discrepancies (limit to 20)
 if (discrepancies.length > 0) {
 	console.log("\n=== Sample Discrepancies (first 20) ===\n");
@@ -201,4 +290,54 @@ for (const [ratio, count] of sortedPatterns) {
 	console.log(
 		`  ${ratio.toFixed(1)}x: ${count} occurrences (${percentage.toFixed(1)}%)`,
 	);
+}
+
+// Show session mismatch rates by version
+if (sessionMismatchesByVersion.size > 0) {
+	console.log("\n=== Session Mismatch Rates by Version ===\n");
+	const sortedVersions = Array.from(sessionMismatchesByVersion.entries()).sort(
+		(a, b) => a[0].localeCompare(b[0]),
+	);
+
+	for (const [version, sessionMap] of sortedVersions) {
+		console.log(`Version ${version}:`);
+		
+		// Calculate sessions with mismatches
+		const sessionsWithMismatches = Array.from(sessionMap.entries())
+			.filter(([_, stats]) => stats.mismatches > 0);
+		
+		console.log(`  Sessions with mismatches: ${sessionsWithMismatches.length} out of ${sessionMap.size}`);
+		
+		// Show sessions with highest mismatch rates
+		const sessionMismatchRates = sessionsWithMismatches
+			.map(([session, stats]) => ({
+				session,
+				mismatchRate: (stats.mismatches / stats.total) * 100,
+				mismatches: stats.mismatches,
+				total: stats.total
+			}))
+			.sort((a, b) => b.mismatchRate - a.mismatchRate);
+		
+		if (sessionMismatchRates.length > 0) {
+			console.log("  Top sessions with mismatches:");
+			const topSessions = sessionMismatchRates.slice(0, 5);
+			for (const { session, mismatchRate, mismatches, total } of topSessions) {
+				console.log(`    ${session}: ${mismatchRate.toFixed(1)}% (${mismatches}/${total})`);
+			}
+		}
+		console.log();
+	}
+}
+
+// Show session versions
+if (sessionVersions.size > 0) {
+	console.log("\n=== Session Versions ===\n");
+	const sortedSessions = Array.from(sessionVersions.entries()).sort(
+		(a, b) => a[0].localeCompare(b[0]),
+	);
+
+	for (const [sessionPath, versions] of sortedSessions) {
+		const versionList = Array.from(versions).sort().join(", ");
+		console.log(`${sessionPath}: ${versionList}`);
+	}
 }
