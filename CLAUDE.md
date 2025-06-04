@@ -85,7 +85,7 @@ This is a CLI tool that analyzes Claude Code usage data from local JSONL files s
 - The application cannot calculate costs for models not supported by LiteLLM
 
 # Tips for Claude Code
-- [gunshi](https://gunshi.dev/llms-full.txt)
+- [gunshi](https://gunshi.dev/llms.txt)
 - do not use console.log. use logger.ts instead
 
 # important-instruction-reminders
