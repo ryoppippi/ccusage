@@ -181,6 +181,68 @@ All commands support the following options:
 - **`calculate`**: Always calculates costs from token counts using model pricing, ignores any pre-calculated `costUSD` values
 - **`display`**: Always uses pre-calculated `costUSD` values only, shows $0.00 for entries without pre-calculated costs
 
+### MCP (Model Context Protocol) Support
+
+Exposes usage data through Model Context Protocol for integration with other tools:
+
+```bash
+# Start MCP server with stdio transport (for local integration)
+ccusage mcp
+
+# Start MCP server with HTTP stream transport (for remote access)
+ccusage mcp --type http --port 8080
+
+# Control cost calculation mode
+ccusage mcp --mode calculate
+```
+
+The MCP server supports both **stdio** and **HTTP stream** transports:
+- **stdio** (default): Best for local integration where the client directly spawns the process
+- **HTTP stream**: Best for remote access when you need to call the server from another machine or network location
+
+Available MCP tools:
+- `daily`: Returns daily usage reports (accepts `since`, `until`, `mode` parameters)
+- `session`: Returns session usage reports (accepts `since`, `until`, `mode` parameters)
+
+#### Claude Desktop Configuration Example
+
+<div align="center">
+  <img src="https://github.com/ryoppippi/ccusage/blob/main/docs/mcp-claude-desktop.avif?raw=true">
+</div>
+
+To use ccusage MCP with Claude Desktop, add this to your Claude Desktop configuration file:
+
+**macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`  
+**Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
+
+```json
+{
+  "mcpServers": {
+    "ccusage": {
+      "command": "npx",
+      "args": ["ccusage@latest", "mcp"],
+      "env": {}
+    }
+  }
+}
+```
+
+Or if you have ccusage installed globally:
+
+```json
+{
+  "mcpServers": {
+    "ccusage": {
+      "command": "ccusage",
+      "args": ["mcp"],
+      "env": {}
+    }
+  }
+}
+```
+
+After adding this configuration, restart Claude Desktop. You'll then be able to use the ccusage tools within Claude to analyze your usage data.
+
 ## Output Example
 
 ### Daily Report
