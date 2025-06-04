@@ -1,4 +1,3 @@
-import { $ } from "bun";
 import { defineConfig } from "tsdown";
 
 export default defineConfig({
@@ -13,9 +12,4 @@ export default defineConfig({
 	publint: true,
 	unused: true,
 	exports: true,
-	hooks: {
-		"build:done": async () => {
-			await $`bun x sort-package-json`;
-		},
-	},
 });

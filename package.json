@@ -32,7 +32,7 @@
 	"bin": "./dist/index.js",
 	"files": ["dist"],
 	"scripts": {
-		"build": "bun -b tsdown",
+		"build": "tsdown && sort-package-json",
 		"format": "biome check --write .",
 		"lint": "biome check .",
 		"prepack": "bun run build && clean-pkg-json",
