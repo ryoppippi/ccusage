@@ -1,5 +1,6 @@
 import type { DailyUsage, SessionUsage } from "./data-loader";
-import type { TokenData, TokenTotals } from "./types";
+import type { TokenData, TokenTotals, Currency } from "./types";
+import { currencyService } from "./currency.js";
 
 export function calculateTotals(
 	data: Array<DailyUsage | SessionUsage>,
@@ -39,5 +40,29 @@ export function createTotalsObject(totals: TokenTotals) {
 		cacheReadTokens: totals.cacheReadTokens,
 		totalTokens: getTotalTokens(totals),
 		totalCost: totals.totalCost,
+	};
+}
+
+export async function convertCostToCurrency(
+	usdCost: number,
+	targetCurrency: Currency,
+): Promise<number> {
+	return await currencyService.convertFromUSD(usdCost, targetCurrency);
+}
+
+export async function createTotalsObjectWithCurrency(
+	totals: TokenTotals,
+	currency: Currency,
+) {
+	const convertedCost = await convertCostToCurrency(totals.totalCost, currency);
+	
+	return {
+		inputTokens: totals.inputTokens,
+		outputTokens: totals.outputTokens,
+		cacheCreationTokens: totals.cacheCreationTokens,
+		cacheReadTokens: totals.cacheReadTokens,
+		totalTokens: getTotalTokens(totals),
+		totalCost: convertedCost,
+		currency,
 	};
 }

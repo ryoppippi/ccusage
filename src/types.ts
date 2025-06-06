@@ -59,3 +59,15 @@ export interface TokenData {
 
 export const CostModes = ["auto", "calculate", "display"] as const;
 export type CostMode = (typeof CostModes)[number];
+
+export const SupportedCurrencies = [
+	"USD", "EUR", "GBP", "JPY", "CAD", "AUD", "CHF", "CNY", "INR", "IDR", 
+	"SGD", "HKD", "KRW", "MXN", "BRL", "ZAR", "SEK", "NOK", "DKK", "PLN"
+] as const;
+export type Currency = (typeof SupportedCurrencies)[number];
+
+export interface ExchangeRate {
+	currency: Currency;
+	rate: number;
+	timestamp: number;
+}

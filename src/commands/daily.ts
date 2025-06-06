@@ -5,13 +5,17 @@ import pc from "picocolors";
 import {
 	calculateTotals,
 	createTotalsObject,
+	createTotalsObjectWithCurrency,
 	getTotalTokens,
+	convertCostToCurrency,
 } from "../calculate-cost.ts";
 import { type LoadOptions, loadUsageData } from "../data-loader.ts";
 import { detectMismatches, printMismatchReport } from "../debug.ts";
 import { log, logger } from "../logger.ts";
 import { sharedCommandConfig } from "../shared-args.ts";
 import { formatCurrency, formatNumber } from "../utils.ts";
+import { CurrencyService } from "../currency.js";
+import type { Currency } from "../types.js";
 
 export const dailyCommand = define({
 	name: "daily",
@@ -50,17 +54,22 @@ export const dailyCommand = define({
 
 		if (ctx.values.json) {
 			// Output JSON format
-			const jsonOutput = {
-				daily: dailyData.map((data) => ({
+			const dailyWithCurrency = await Promise.all(
+				dailyData.map(async (data) => ({
 					date: data.date,
 					inputTokens: data.inputTokens,
 					outputTokens: data.outputTokens,
 					cacheCreationTokens: data.cacheCreationTokens,
 					cacheReadTokens: data.cacheReadTokens,
 					totalTokens: getTotalTokens(data),
-					totalCost: data.totalCost,
+					totalCost: await convertCostToCurrency(data.totalCost, ctx.values.currency),
+					currency: ctx.values.currency,
 				})),
-				totals: createTotalsObject(totals),
+			);
+			const totalsWithCurrency = await createTotalsObjectWithCurrency(totals, ctx.values.currency);
+			const jsonOutput = {
+				daily: dailyWithCurrency,
+				totals: totalsWithCurrency,
 			};
 			log(JSON.stringify(jsonOutput, null, 2));
 		} else {
@@ -68,6 +77,7 @@ export const dailyCommand = define({
 			logger.box("Claude Code Token Usage Report - Daily");
 
 			// Create table
+			const currencyLabel = ctx.values.currency === "USD" ? "Cost (USD)" : `Cost (${ctx.values.currency})`;
 			const table = new Table({
 				head: [
 					"Date",
@@ -76,7 +86,7 @@ export const dailyCommand = define({
 					"Cache Create",
 					"Cache Read",
 					"Total Tokens",
-					"Cost (USD)",
+					currencyLabel,
 				],
 				style: {
 					head: ["cyan"],
@@ -94,6 +104,7 @@ export const dailyCommand = define({
 
 			// Add daily data
 			for (const data of dailyData) {
+				const convertedCost = await convertCostToCurrency(data.totalCost, ctx.values.currency);
 				table.push([
 					data.date,
 					formatNumber(data.inputTokens),
@@ -101,7 +112,7 @@ export const dailyCommand = define({
 					formatNumber(data.cacheCreationTokens),
 					formatNumber(data.cacheReadTokens),
 					formatNumber(getTotalTokens(data)),
-					formatCurrency(data.totalCost),
+					CurrencyService.formatAmount(convertedCost, ctx.values.currency),
 				]);
 			}
 
@@ -117,6 +128,7 @@ export const dailyCommand = define({
 			]);
 
 			// Add totals
+			const convertedTotalCost = await convertCostToCurrency(totals.totalCost, ctx.values.currency);
 			table.push([
 				pc.yellow("Total"),
 				pc.yellow(formatNumber(totals.inputTokens)),
@@ -124,7 +136,7 @@ export const dailyCommand = define({
 				pc.yellow(formatNumber(totals.cacheCreationTokens)),
 				pc.yellow(formatNumber(totals.cacheReadTokens)),
 				pc.yellow(formatNumber(getTotalTokens(totals))),
-				pc.yellow(formatCurrency(totals.totalCost)),
+				pc.yellow(CurrencyService.formatAmount(convertedTotalCost, ctx.values.currency)),
 			]);
 
 			log(table.toString());

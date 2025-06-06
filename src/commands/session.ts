@@ -5,13 +5,17 @@ import pc from "picocolors";
 import {
 	calculateTotals,
 	createTotalsObject,
+	createTotalsObjectWithCurrency,
 	getTotalTokens,
+	convertCostToCurrency,
 } from "../calculate-cost.ts";
 import { type LoadOptions, loadSessionData } from "../data-loader.ts";
 import { detectMismatches, printMismatchReport } from "../debug.ts";
 import { log, logger } from "../logger.ts";
 import { sharedCommandConfig } from "../shared-args.ts";
 import { formatCurrency, formatNumber } from "../utils.ts";
+import { CurrencyService } from "../currency.js";
+import type { Currency } from "../types.js";
 
 export const sessionCommand = define({
 	name: "session",
@@ -50,8 +54,8 @@ export const sessionCommand = define({
 
 		if (ctx.values.json) {
 			// Output JSON format
-			const jsonOutput = {
-				sessions: sessionData.map((data) => ({
+			const sessionsWithCurrency = await Promise.all(
+				sessionData.map(async (data) => ({
 					projectPath: data.projectPath,
 					sessionId: data.sessionId,
 					inputTokens: data.inputTokens,
@@ -59,10 +63,15 @@ export const sessionCommand = define({
 					cacheCreationTokens: data.cacheCreationTokens,
 					cacheReadTokens: data.cacheReadTokens,
 					totalTokens: getTotalTokens(data),
-					totalCost: data.totalCost,
+					totalCost: await convertCostToCurrency(data.totalCost, ctx.values.currency),
+					currency: ctx.values.currency,
 					lastActivity: data.lastActivity,
 				})),
-				totals: createTotalsObject(totals),
+			);
+			const totalsWithCurrency = await createTotalsObjectWithCurrency(totals, ctx.values.currency);
+			const jsonOutput = {
+				sessions: sessionsWithCurrency,
+				totals: totalsWithCurrency,
 			};
 			log(JSON.stringify(jsonOutput, null, 2));
 		} else {
@@ -70,6 +79,7 @@ export const sessionCommand = define({
 			logger.box("Claude Code Token Usage Report - By Session");
 
 			// Create table
+			const currencyLabel = ctx.values.currency === "USD" ? "Cost (USD)" : `Cost (${ctx.values.currency})`;
 			const table = new Table({
 				head: [
 					"Project",
@@ -79,7 +89,7 @@ export const sessionCommand = define({
 					"Cache Create",
 					"Cache Read",
 					"Total Tokens",
-					"Cost (USD)",
+					currencyLabel,
 					"Last Activity",
 				],
 				style: {
@@ -110,6 +120,7 @@ export const sessionCommand = define({
 				maxProjectLength = Math.max(maxProjectLength, projectDisplay.length);
 				maxSessionLength = Math.max(maxSessionLength, sessionDisplay.length);
 
+				const convertedCost = await convertCostToCurrency(data.totalCost, ctx.values.currency);
 				table.push([
 					projectDisplay,
 					sessionDisplay,
@@ -118,7 +129,7 @@ export const sessionCommand = define({
 					formatNumber(data.cacheCreationTokens),
 					formatNumber(data.cacheReadTokens),
 					formatNumber(getTotalTokens(data)),
-					formatCurrency(data.totalCost),
+					CurrencyService.formatAmount(convertedCost, ctx.values.currency),
 					data.lastActivity,
 				]);
 			}
@@ -137,6 +148,7 @@ export const sessionCommand = define({
 			]);
 
 			// Add totals
+			const convertedTotalCost = await convertCostToCurrency(totals.totalCost, ctx.values.currency);
 			table.push([
 				pc.yellow("Total"),
 				"", // Empty for Session column in totals
@@ -145,7 +157,7 @@ export const sessionCommand = define({
 				pc.yellow(formatNumber(totals.cacheCreationTokens)),
 				pc.yellow(formatNumber(totals.cacheReadTokens)),
 				pc.yellow(formatNumber(getTotalTokens(totals))),
-				pc.yellow(formatCurrency(totals.totalCost)),
+				pc.yellow(CurrencyService.formatAmount(convertedTotalCost, ctx.values.currency)),
 				"",
 			]);
 

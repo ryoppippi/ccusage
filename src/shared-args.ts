@@ -1,8 +1,8 @@
 import type { Args } from "gunshi";
 import * as v from "valibot";
 import { getDefaultClaudePath } from "./data-loader";
-import { CostModes, dateSchema } from "./types";
-import type { CostMode } from "./types";
+import { CostModes, dateSchema, SupportedCurrencies } from "./types";
+import type { CostMode, Currency } from "./types";
 
 const parseDateArg = (value: string): string => {
 	const result = v.safeParse(dateSchema, value);
@@ -56,6 +56,13 @@ export const sharedArgs = {
 		description:
 			"Number of sample discrepancies to show in debug output (default: 5)",
 		default: 5,
+	},
+	currency: {
+		type: "enum",
+		short: "c",
+		description: "Display costs in specified currency (default: USD)",
+		default: "USD" as const satisfies Currency,
+		choices: SupportedCurrencies,
 	},
 } as const satisfies Args;
 
