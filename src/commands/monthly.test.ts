@@ -110,4 +110,23 @@ describe("monthly aggregation", () => {
 
 		expect(sorted).toEqual(["2024-03", "2024-02", "2024-01", "2023-12"]);
 	});
+
+	test("sorts months in ascending order", () => {
+		const months = ["2024-01", "2024-03", "2024-02", "2023-12"];
+		const sorted = months.sort((a, b) => a.localeCompare(b));
+
+		expect(sorted).toEqual(["2023-12", "2024-01", "2024-02", "2024-03"]);
+	});
+
+	test("handles year boundaries correctly in sorting", () => {
+		const months = ["2024-01", "2023-12", "2024-02", "2023-11"];
+
+		// Descending order
+		const descSorted = months.sort((a, b) => b.localeCompare(a));
+		expect(descSorted).toEqual(["2024-02", "2024-01", "2023-12", "2023-11"]);
+
+		// Ascending order
+		const ascSorted = months.sort((a, b) => a.localeCompare(b));
+		expect(ascSorted).toEqual(["2023-11", "2023-12", "2024-01", "2024-02"]);
+	});
 });

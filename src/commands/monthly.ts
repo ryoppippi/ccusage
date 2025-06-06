@@ -23,7 +23,10 @@ interface MonthlyUsage {
 	totalCost: number;
 }
 
-const aggregateByMonth = (dailyData: DailyUsage[]): MonthlyUsage[] => {
+const aggregateByMonth = (
+	dailyData: DailyUsage[],
+	sortOrder: "desc" | "asc" = "desc",
+): MonthlyUsage[] => {
 	const monthlyMap = new Map<string, MonthlyUsage>();
 
 	for (const data of dailyData) {
@@ -48,10 +51,11 @@ const aggregateByMonth = (dailyData: DailyUsage[]): MonthlyUsage[] => {
 		monthlyMap.set(month, existing);
 	}
 
-	// Convert to array and sort by month descending
-	return Array.from(monthlyMap.values()).sort((a, b) =>
-		b.month.localeCompare(a.month),
-	);
+	// Convert to array and sort by month based on sortOrder
+	const monthlyArray = Array.from(monthlyMap.values());
+	return sortOrder === "desc"
+		? monthlyArray.sort((a, b) => b.month.localeCompare(a.month))
+		: monthlyArray.sort((a, b) => a.month.localeCompare(b.month));
 };
 
 export const monthlyCommand = define({
@@ -68,6 +72,7 @@ export const monthlyCommand = define({
 			until: ctx.values.until,
 			claudePath: ctx.values.path,
 			mode: ctx.values.mode,
+			dateSort: ctx.values.dateSort,
 		};
 		const dailyData = await loadUsageData(options);
 
@@ -80,8 +85,8 @@ export const monthlyCommand = define({
 			process.exit(0);
 		}
 
-		// Aggregate daily data by month
-		const monthlyData = aggregateByMonth(dailyData);
+		// Aggregate daily data by month with the same sort order
+		const monthlyData = aggregateByMonth(dailyData, ctx.values.dateSort);
 
 		// Calculate totals
 		const totals = monthlyData.reduce(
