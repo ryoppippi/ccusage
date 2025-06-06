@@ -140,6 +140,13 @@ export class CurrencyService {
 			return `${symbol}${Math.round(amount).toLocaleString()}`;
 		}
 		
+		if (currency === "IDR") {
+			// Indonesian Rupiah: Use dots as thousand separators, no decimal places for whole amounts
+			const rounded = Math.round(amount);
+			const formatted = rounded.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+			return `${symbol}${formatted}`;
+		}
+		
 		return `${symbol}${amount.toFixed(2)}`;
 	}
 }

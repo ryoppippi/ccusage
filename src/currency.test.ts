@@ -92,9 +92,15 @@ describe("CurrencyService", () => {
 	describe("formatAmount", () => {
 		it("should format amounts correctly", () => {
 			expect(CurrencyService.formatAmount(10.5, "USD")).toBe("$10.50");
-			expect(CurrencyService.formatAmount(15000, "IDR")).toBe("Rp15,000.00");
 			expect(CurrencyService.formatAmount(100, "JPY")).toBe("¥100");
 			expect(CurrencyService.formatAmount(1500, "KRW")).toBe("₩1,500");
+		});
+
+		it("should format IDR with dot separators and no decimals", () => {
+			expect(CurrencyService.formatAmount(15000, "IDR")).toBe("Rp15.000");
+			expect(CurrencyService.formatAmount(1000000, "IDR")).toBe("Rp1.000.000");
+			expect(CurrencyService.formatAmount(123456789, "IDR")).toBe("Rp123.456.789");
+			expect(CurrencyService.formatAmount(500, "IDR")).toBe("Rp500");
 		});
 	});
 });
