@@ -38,12 +38,13 @@ This tool helps you understand the value you're getting from your subscription b
 ## Features
 
 - 📊 **Daily Report**: View token usage and costs aggregated by date
+- 📅 **Monthly Report**: View token usage and costs aggregated by month
 - 💬 **Session Report**: View usage grouped by conversation sessions
 - 📅 **Date Filtering**: Filter reports by date range using `--since` and `--until`
 - 📁 **Custom Path**: Support for custom Claude data directory locations
 - 🎨 **Beautiful Output**: Colorful table-formatted display
 - 📄 **JSON Output**: Export data in structured JSON format with `--json`
-- 💰 **Cost Tracking**: Shows costs in USD for each day/session
+- 💰 **Cost Tracking**: Shows costs in USD for each day/month/session
 - 🔄 **Cache Token Support**: Tracks and displays cache creation and cache read tokens separately
 
 ## Important Disclaimer
@@ -137,6 +138,29 @@ ccusage daily --mode display    # Always show pre-calculated costUSD values
 ```
 
 `ccusage` is an alias for `ccusage daily`, so you can run it without specifying the subcommand.
+
+### Monthly Report
+
+Shows token usage and costs aggregated by month:
+
+```bash
+# Show all monthly usage
+ccusage monthly
+
+# Filter by date range
+ccusage monthly --since 20250101 --until 20250531
+
+# Use custom Claude data directory
+ccusage monthly --path /custom/path/to/.claude
+
+# Output in JSON format
+ccusage monthly --json
+
+# Control cost calculation mode
+ccusage monthly --mode auto       # Use costUSD when available, calculate otherwise (default)
+ccusage monthly --mode calculate  # Always calculate costs from tokens
+ccusage monthly --mode display    # Always show pre-calculated costUSD values
+```
 
 ### Session Report
 
