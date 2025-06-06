@@ -16,10 +16,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Development Usage:**
 - `bun run start daily` - Show daily usage report
+- `bun run start monthly` - Show monthly usage report  
 - `bun run start session` - Show session-based usage report
 - `bun run start daily --json` - Show daily usage report in JSON format
+- `bun run start monthly --json` - Show monthly usage report in JSON format
 - `bun run start session --json` - Show session usage report in JSON format
 - `bun run start daily --mode <mode>` - Control cost calculation mode (auto/calculate/display)
+- `bun run start monthly --mode <mode>` - Control cost calculation mode (auto/calculate/display)
 - `bun run start session --mode <mode>` - Control cost calculation mode (auto/calculate/display)
 - `bun run ./src/index.ts` - Direct execution for development
 
@@ -44,7 +47,7 @@ This is a CLI tool that analyzes Claude Code usage data from local JSONL files s
 
 **Key Data Structures:**
 - Raw usage data is parsed from JSONL with timestamp, token counts, and pre-calculated costs
-- Data is aggregated into either daily summaries or session summaries
+- Data is aggregated into daily summaries, monthly summaries, or session summaries
 - Sessions are identified by directory structure: `projects/{project}/{session}/{file}.jsonl`
 
 **External Dependencies:**
