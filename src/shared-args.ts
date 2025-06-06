@@ -57,6 +57,14 @@ export const sharedArgs = {
 			"Number of sample discrepancies to show in debug output (default: 5)",
 		default: 5,
 	},
+	dateSort: {
+		type: "enum",
+		short: "ds",
+		description:
+			"Sort order for dates: desc (newest first) or asc (oldest first)",
+		default: "desc" as const,
+		choices: ["desc", "asc"] as const,
+	},
 } as const satisfies Args;
 
 export const sharedCommandConfig = {

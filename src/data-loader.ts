@@ -108,6 +108,7 @@ export interface DateFilter {
 export interface LoadOptions extends DateFilter {
 	claudePath?: string; // Custom path to Claude data directory
 	mode?: CostMode; // Cost calculation mode
+	dateSort?: "desc" | "asc"; // Sort order for dates
 }
 
 export async function loadUsageData(
@@ -186,8 +187,11 @@ export async function loadUsageData(
 		});
 	}
 
-	// Sort by date descending
-	return sort(results).desc((item) => new Date(item.date).getTime());
+	// Sort by date based on dateSort option (default to descending)
+	const sortOrder = options?.dateSort || "desc";
+	return sortOrder === "desc"
+		? sort(results).desc((item) => new Date(item.date).getTime())
+		: sort(results).asc((item) => new Date(item.date).getTime());
 }
 
 export async function loadSessionData(

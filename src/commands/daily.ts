@@ -27,6 +27,7 @@ export const dailyCommand = define({
 			until: ctx.values.until,
 			claudePath: ctx.values.path,
 			mode: ctx.values.mode,
+			dateSort: ctx.values.dateSort,
 		};
 		const dailyData = await loadUsageData(options);
 
