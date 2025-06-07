@@ -32,7 +32,10 @@ export const UsageDataSchema = v.object({
 export type UsageData = v.InferOutput<typeof UsageDataSchema>;
 
 export const DailyUsageSchema = v.object({
-	date: v.string(),
+	date: v.pipe(
+		v.string(),
+		v.regex(/^\d{4}-\d{2}-\d{2}$/), // YYYY-MM-DD format
+	),
 	inputTokens: v.number(),
 	outputTokens: v.number(),
 	cacheCreationTokens: v.number(),
@@ -57,7 +60,10 @@ export const SessionUsageSchema = v.object({
 export type SessionUsage = v.InferOutput<typeof SessionUsageSchema>;
 
 export const MonthlyUsageSchema = v.object({
-	month: v.string(), // YYYY-MM format
+	month: v.pipe(
+		v.string(),
+		v.regex(/^\d{4}-\d{2}$/), // YYYY-MM format
+	),
 	inputTokens: v.number(),
 	outputTokens: v.number(),
 	cacheCreationTokens: v.number(),
