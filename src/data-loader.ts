@@ -146,7 +146,8 @@ export async function loadDailyUsageData(
 	const mode = options?.mode || "auto";
 	const modelPricing = mode === "display" ? {} : await fetchModelPricing();
 
-	const dailyMap = new Map<string, DailyUsage>();
+	// Collect all valid data entries first
+	const allEntries: { data: UsageData; date: string; cost: number }[] = [];
 
 	for (const file of files) {
 		const content = await readFile(file, "utf-8");
@@ -165,35 +166,49 @@ export async function loadDailyUsageData(
 				const data = result.output;
 
 				const date = formatDate(data.timestamp);
-				const existing = dailyMap.get(date) || {
-					date,
-					inputTokens: 0,
-					outputTokens: 0,
-					cacheCreationTokens: 0,
-					cacheReadTokens: 0,
-					totalCost: 0,
-				};
-
-				existing.inputTokens += data.message.usage.input_tokens ?? 0;
-				existing.outputTokens += data.message.usage.output_tokens ?? 0;
-				existing.cacheCreationTokens +=
-					data.message.usage.cache_creation_input_tokens ?? 0;
-				existing.cacheReadTokens +=
-					data.message.usage.cache_read_input_tokens ?? 0;
-
-				// Calculate cost based on mode
 				const cost = calculateCostForEntry(data, mode, modelPricing);
-				existing.totalCost += cost;
 
-				dailyMap.set(date, existing);
+				allEntries.push({ data, date, cost });
 			} catch (e) {
 				// Skip invalid JSON lines
 			}
 		}
 	}
 
-	// Convert map to array and filter by date range
-	let results = Array.from(dailyMap.values());
+	// Group by date using Object.groupBy
+	const groupedByDate = Object.groupBy(allEntries, (entry) => entry.date);
+
+	// Aggregate each group
+	let results = Object.entries(groupedByDate)
+		.map(([date, entries]) => {
+			if (!entries) return null;
+
+			return entries.reduce(
+				(acc, entry) => ({
+					date,
+					inputTokens:
+						acc.inputTokens + (entry.data.message.usage.input_tokens ?? 0),
+					outputTokens:
+						acc.outputTokens + (entry.data.message.usage.output_tokens ?? 0),
+					cacheCreationTokens:
+						acc.cacheCreationTokens +
+						(entry.data.message.usage.cache_creation_input_tokens ?? 0),
+					cacheReadTokens:
+						acc.cacheReadTokens +
+						(entry.data.message.usage.cache_read_input_tokens ?? 0),
+					totalCost: acc.totalCost + entry.cost,
+				}),
+				{
+					date,
+					inputTokens: 0,
+					outputTokens: 0,
+					cacheCreationTokens: 0,
+					cacheReadTokens: 0,
+					totalCost: 0,
+				},
+			);
+		})
+		.filter((item): item is DailyUsage => item !== null);
 
 	if (options?.since || options?.until) {
 		results = results.filter((data) => {
@@ -230,10 +245,15 @@ export async function loadSessionData(
 	const mode = options?.mode || "auto";
 	const modelPricing = mode === "display" ? {} : await fetchModelPricing();
 
-	const sessionMap = new Map<
-		string,
-		SessionUsage & { versionSet: Set<string> }
-	>();
+	// Collect all valid data entries with session info first
+	const allEntries: Array<{
+		data: UsageData;
+		sessionKey: string;
+		sessionId: string;
+		projectPath: string;
+		cost: number;
+		timestamp: string;
+	}> = [];
 
 	for (const file of files) {
 		// Extract session info from file path
@@ -241,16 +261,15 @@ export async function loadSessionData(
 		const parts = relativePath.split(path.sep);
 
 		// Session ID is the directory name containing the JSONL file
-		const sessionId = parts[parts.length - 2];
+		const sessionId = parts[parts.length - 2] || "unknown";
 		// Project path is everything before the session ID
-		const projectPath = parts.slice(0, -2).join(path.sep);
+		const projectPath = parts.slice(0, -2).join(path.sep) || "Unknown Project";
 
 		const content = await readFile(file, "utf-8");
 		const lines = content
 			.trim()
 			.split("\n")
 			.filter((line) => line.length > 0);
-		let lastTimestamp = "";
 
 		for (const line of lines) {
 			try {
@@ -261,58 +280,84 @@ export async function loadSessionData(
 				}
 				const data = result.output;
 
-				const key = `${projectPath}/${sessionId}`;
-				const existing = sessionMap.get(key) || {
-					sessionId: sessionId || "unknown",
-					projectPath: projectPath || "Unknown Project",
-					inputTokens: 0,
-					outputTokens: 0,
-					cacheCreationTokens: 0,
-					cacheReadTokens: 0,
-					totalCost: 0,
-					lastActivity: "",
-					versions: [],
-					versionSet: new Set<string>(),
-				};
-
-				existing.inputTokens += data.message.usage.input_tokens ?? 0;
-				existing.outputTokens += data.message.usage.output_tokens ?? 0;
-				existing.cacheCreationTokens +=
-					data.message.usage.cache_creation_input_tokens ?? 0;
-				existing.cacheReadTokens +=
-					data.message.usage.cache_read_input_tokens ?? 0;
-
-				// Calculate cost based on mode
+				const sessionKey = `${projectPath}/${sessionId}`;
 				const cost = calculateCostForEntry(data, mode, modelPricing);
-				existing.totalCost += cost;
 
-				// Keep track of the latest timestamp
-				if (data.timestamp > lastTimestamp) {
-					lastTimestamp = data.timestamp;
-					existing.lastActivity = formatDate(data.timestamp);
-				}
-
-				// Collect version information
-				if (data.version) {
-					existing.versionSet.add(data.version);
-				}
-
-				sessionMap.set(key, existing);
+				allEntries.push({
+					data,
+					sessionKey,
+					sessionId,
+					projectPath,
+					cost,
+					timestamp: data.timestamp,
+				});
 			} catch (e) {
 				// Skip invalid JSON lines
 			}
 		}
 	}
 
-	// Convert map to array and filter by date range
-	let results = Array.from(sessionMap.values()).map((session) => {
-		// Convert Set to sorted array and remove temporary versionSet property
-		const { versionSet, ...sessionData } = session;
-		return {
-			...sessionData,
-			versions: Array.from(versionSet).sort(),
-		};
-	});
+	// Group by session using Object.groupBy
+	const groupedBySessions = Object.groupBy(
+		allEntries,
+		(entry) => entry.sessionKey,
+	);
+
+	// Aggregate each session group
+	let results = Object.entries(groupedBySessions)
+		.map(([_, entries]) => {
+			if (entries == null) {
+				return undefined;
+			}
+
+			// Find the latest timestamp for lastActivity
+			const latestEntry = entries.reduce((latest, current) =>
+				current.timestamp > latest.timestamp ? current : latest,
+			);
+
+			// Collect all unique versions
+			const versionSet = new Set<string>();
+			for (const entry of entries) {
+				if (entry.data.version) {
+					versionSet.add(entry.data.version);
+				}
+			}
+
+			// Aggregate totals
+			const aggregated = entries.reduce(
+				(acc, entry) => ({
+					sessionId: latestEntry.sessionId,
+					projectPath: latestEntry.projectPath,
+					inputTokens:
+						acc.inputTokens + (entry.data.message.usage.input_tokens ?? 0),
+					outputTokens:
+						acc.outputTokens + (entry.data.message.usage.output_tokens ?? 0),
+					cacheCreationTokens:
+						acc.cacheCreationTokens +
+						(entry.data.message.usage.cache_creation_input_tokens ?? 0),
+					cacheReadTokens:
+						acc.cacheReadTokens +
+						(entry.data.message.usage.cache_read_input_tokens ?? 0),
+					totalCost: acc.totalCost + entry.cost,
+					lastActivity: formatDate(latestEntry.timestamp),
+					versions: Array.from(versionSet).sort(),
+				}),
+				{
+					sessionId: latestEntry.sessionId,
+					projectPath: latestEntry.projectPath,
+					inputTokens: 0,
+					outputTokens: 0,
+					cacheCreationTokens: 0,
+					cacheReadTokens: 0,
+					totalCost: 0,
+					lastActivity: formatDate(latestEntry.timestamp),
+					versions: Array.from(versionSet).sort(),
+				},
+			);
+
+			return aggregated;
+		})
+		.filter((item): item is SessionUsage => item !== null);
 
 	if (options?.since || options?.until) {
 		results = results.filter((session) => {
@@ -336,32 +381,39 @@ export async function loadMonthlyUsageData(
 ): Promise<MonthlyUsage[]> {
 	const dailyData = await loadDailyUsageData(options);
 
-	const monthlyMap = new Map<string, MonthlyUsage>();
+	// Group daily data by month using Object.groupBy
+	const groupedByMonth = Object.groupBy(dailyData, (data) =>
+		data.date.substring(0, 7),
+	);
 
-	for (const data of dailyData) {
-		// Extract YYYY-MM from YYYY-MM-DD
-		const month = data.date.substring(0, 7);
+	// Aggregate each month group
+	const monthlyArray = Object.entries(groupedByMonth)
+		.map(([month, dailyEntries]) => {
+			if (!dailyEntries) return null;
 
-		const existing = monthlyMap.get(month) || {
-			month,
-			inputTokens: 0,
-			outputTokens: 0,
-			cacheCreationTokens: 0,
-			cacheReadTokens: 0,
-			totalCost: 0,
-		};
+			return dailyEntries.reduce(
+				(acc, data) => ({
+					month,
+					inputTokens: acc.inputTokens + data.inputTokens,
+					outputTokens: acc.outputTokens + data.outputTokens,
+					cacheCreationTokens:
+						acc.cacheCreationTokens + data.cacheCreationTokens,
+					cacheReadTokens: acc.cacheReadTokens + data.cacheReadTokens,
+					totalCost: acc.totalCost + data.totalCost,
+				}),
+				{
+					month,
+					inputTokens: 0,
+					outputTokens: 0,
+					cacheCreationTokens: 0,
+					cacheReadTokens: 0,
+					totalCost: 0,
+				},
+			);
+		})
+		.filter((item): item is MonthlyUsage => item !== null);
 
-		existing.inputTokens += data.inputTokens;
-		existing.outputTokens += data.outputTokens;
-		existing.cacheCreationTokens += data.cacheCreationTokens;
-		existing.cacheReadTokens += data.cacheReadTokens;
-		existing.totalCost += data.totalCost;
-
-		monthlyMap.set(month, existing);
-	}
-
-	// Convert to array and sort by month based on sortOrder
-	const monthlyArray = Array.from(monthlyMap.values());
+	// Sort by month based on sortOrder
 	const sortOrder = options?.order || "desc";
 	const sortedMonthly = sort(monthlyArray);
 	return sortOrder === "desc"
