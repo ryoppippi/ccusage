@@ -59,3 +59,6 @@ export interface TokenData {
 
 export const CostModes = ["auto", "calculate", "display"] as const;
 export type CostMode = (typeof CostModes)[number];
+
+export const SortOrders = ["desc", "asc"] as const;
+export type SortOrder = (typeof SortOrders)[number];

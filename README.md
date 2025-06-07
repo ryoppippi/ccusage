@@ -135,6 +135,10 @@ ccusage daily --json
 ccusage daily --mode auto       # Use costUSD when available, calculate otherwise (default)
 ccusage daily --mode calculate  # Always calculate costs from tokens
 ccusage daily --mode display    # Always show pre-calculated costUSD values
+
+# Control sort order
+ccusage daily --order asc       # Show oldest dates first
+ccusage daily --order desc      # Show newest dates first (default)
 ```
 
 `ccusage` is an alias for `ccusage daily`, so you can run it without specifying the subcommand.
@@ -160,6 +164,10 @@ ccusage monthly --json
 ccusage monthly --mode auto       # Use costUSD when available, calculate otherwise (default)
 ccusage monthly --mode calculate  # Always calculate costs from tokens
 ccusage monthly --mode display    # Always show pre-calculated costUSD values
+
+# Control sort order
+ccusage monthly --order asc       # Show oldest months first
+ccusage monthly --order desc      # Show newest months first (default)
 ```
 
 ### Session Report
@@ -183,6 +191,10 @@ ccusage session --json
 ccusage session --mode auto       # Use costUSD when available, calculate otherwise (default)
 ccusage session --mode calculate  # Always calculate costs from tokens
 ccusage session --mode display    # Always show pre-calculated costUSD values
+
+# Control sort order
+ccusage session --order asc       # Show oldest sessions first
+ccusage session --order desc      # Show newest sessions first (default)
 ```
 
 ### Options
@@ -194,6 +206,7 @@ All commands support the following options:
 - `-p, --path <path>`: Custom path to Claude data directory (default: `~/.claude`)
 - `-j, --json`: Output results in JSON format instead of table
 - `-m, --mode <mode>`: Cost calculation mode: `auto` (default), `calculate`, or `display`
+- `-o, --order <order>`: Sort order: `desc` (newest first, default) or `asc` (oldest first).
 - `-d, --debug`: Show pricing mismatch information for debugging
 - `--debug-samples <number>`: Number of sample discrepancies to show in debug output (default: 5)
 - `-h, --help`: Display help message

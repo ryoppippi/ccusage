@@ -1,8 +1,8 @@
 import type { Args } from "gunshi";
 import * as v from "valibot";
 import { getDefaultClaudePath } from "./data-loader";
-import { CostModes, dateSchema } from "./types";
-import type { CostMode } from "./types";
+import { CostModes, SortOrders, dateSchema } from "./types";
+import type { CostMode, SortOrder } from "./types";
 
 const parseDateArg = (value: string): string => {
 	const result = v.safeParse(dateSchema, value);
@@ -56,6 +56,13 @@ export const sharedArgs = {
 		description:
 			"Number of sample discrepancies to show in debug output (default: 5)",
 		default: 5,
+	},
+	order: {
+		type: "enum",
+		short: "o",
+		description: "Sort order: desc (newest first) or asc (oldest first)",
+		default: "desc" as const satisfies SortOrder,
+		choices: SortOrders,
 	},
 } as const satisfies Args;
 

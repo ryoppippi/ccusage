@@ -27,6 +27,7 @@ export const monthlyCommand = define({
 			until: ctx.values.until,
 			claudePath: ctx.values.path,
 			mode: ctx.values.mode,
+			order: ctx.values.order,
 		};
 		const monthlyData = await loadMonthlyUsageData(options);
 
