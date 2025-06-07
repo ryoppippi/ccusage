@@ -5,8 +5,9 @@ import {
 	type UsageData,
 	calculateCostForEntry,
 	formatDate,
+	loadDailyUsageData,
+	loadMonthlyUsageData,
 	loadSessionData,
-	loadUsageData,
 } from "./data-loader.ts";
 import {
 	clearPricingCache,
@@ -33,13 +34,13 @@ describe("formatDate", () => {
 	});
 });
 
-describe("loadUsageData", () => {
+describe("loadDailyUsageData", () => {
 	test("returns empty array when no files found", async () => {
 		await using fixture = await createFixture({
 			projects: {},
 		});
 
-		const result = await loadUsageData({ claudePath: fixture.path });
+		const result = await loadDailyUsageData({ claudePath: fixture.path });
 		expect(result).toEqual([]);
 	});
 
@@ -76,7 +77,7 @@ describe("loadUsageData", () => {
 			},
 		});
 
-		const result = await loadUsageData({ claudePath: fixture.path });
+		const result = await loadDailyUsageData({ claudePath: fixture.path });
 
 		expect(result).toHaveLength(1);
 		expect(result[0]?.date).toBe("2024-01-01");
@@ -109,7 +110,7 @@ describe("loadUsageData", () => {
 			},
 		});
 
-		const result = await loadUsageData({ claudePath: fixture.path });
+		const result = await loadDailyUsageData({ claudePath: fixture.path });
 
 		expect(result[0]?.cacheCreationTokens).toBe(25);
 		expect(result[0]?.cacheReadTokens).toBe(10);
@@ -144,7 +145,7 @@ describe("loadUsageData", () => {
 			},
 		});
 
-		const result = await loadUsageData({
+		const result = await loadDailyUsageData({
 			claudePath: fixture.path,
 			since: "20240110",
 			until: "20240125",
@@ -184,7 +185,7 @@ describe("loadUsageData", () => {
 			},
 		});
 
-		const result = await loadUsageData({ claudePath: fixture.path });
+		const result = await loadDailyUsageData({ claudePath: fixture.path });
 
 		expect(result[0]?.date).toBe("2024-01-31");
 		expect(result[1]?.date).toBe("2024-01-15");
@@ -210,7 +211,7 @@ invalid json line
 			},
 		});
 
-		const result = await loadUsageData({ claudePath: fixture.path });
+		const result = await loadDailyUsageData({ claudePath: fixture.path });
 
 		// Should only process valid lines
 		expect(result).toHaveLength(1);
@@ -238,12 +239,237 @@ invalid json line
 			},
 		});
 
-		const result = await loadUsageData({ claudePath: fixture.path });
+		const result = await loadDailyUsageData({ claudePath: fixture.path });
 
 		// Should only include valid entries
 		expect(result).toHaveLength(1);
 		expect(result[0]?.inputTokens).toBe(400); // 100 + 300
 		expect(result[0]?.totalCost).toBe(0.04); // 0.01 + 0.03
+	});
+});
+
+describe("loadMonthlyUsageData", () => {
+	test("aggregates daily data by month correctly", async () => {
+		const mockData: UsageData[] = [
+			{
+				timestamp: "2024-01-01T00:00:00Z",
+				message: { usage: { input_tokens: 100, output_tokens: 50 } },
+				costUSD: 0.01,
+			},
+			{
+				timestamp: "2024-01-15T00:00:00Z",
+				message: { usage: { input_tokens: 200, output_tokens: 100 } },
+				costUSD: 0.02,
+			},
+			{
+				timestamp: "2024-02-01T00:00:00Z",
+				message: { usage: { input_tokens: 150, output_tokens: 75 } },
+				costUSD: 0.015,
+			},
+		];
+
+		await using fixture = await createFixture({
+			projects: {
+				project1: {
+					session1: {
+						"file.jsonl": mockData.map((d) => JSON.stringify(d)).join("\n"),
+					},
+				},
+			},
+		});
+
+		const result = await loadMonthlyUsageData({ claudePath: fixture.path });
+
+		// Should be sorted by month descending (2024-02 first)
+		expect(result).toHaveLength(2);
+		expect(result[0]).toEqual({
+			month: "2024-02",
+			inputTokens: 150,
+			outputTokens: 75,
+			cacheCreationTokens: 0,
+			cacheReadTokens: 0,
+			totalCost: 0.015,
+		});
+		expect(result[1]).toEqual({
+			month: "2024-01",
+			inputTokens: 300,
+			outputTokens: 150,
+			cacheCreationTokens: 0,
+			cacheReadTokens: 0,
+			totalCost: 0.03,
+		});
+	});
+
+	test("handles empty data", async () => {
+		await using fixture = await createFixture({
+			projects: {},
+		});
+
+		const result = await loadMonthlyUsageData({ claudePath: fixture.path });
+		expect(result).toEqual([]);
+	});
+
+	test("handles single month data", async () => {
+		const mockData: UsageData[] = [
+			{
+				timestamp: "2024-01-01T00:00:00Z",
+				message: { usage: { input_tokens: 100, output_tokens: 50 } },
+				costUSD: 0.01,
+			},
+			{
+				timestamp: "2024-01-31T00:00:00Z",
+				message: { usage: { input_tokens: 200, output_tokens: 100 } },
+				costUSD: 0.02,
+			},
+		];
+
+		await using fixture = await createFixture({
+			projects: {
+				project1: {
+					session1: {
+						"file.jsonl": mockData.map((d) => JSON.stringify(d)).join("\n"),
+					},
+				},
+			},
+		});
+
+		const result = await loadMonthlyUsageData({ claudePath: fixture.path });
+
+		expect(result).toHaveLength(1);
+		expect(result[0]).toEqual({
+			month: "2024-01",
+			inputTokens: 300,
+			outputTokens: 150,
+			cacheCreationTokens: 0,
+			cacheReadTokens: 0,
+			totalCost: 0.03,
+		});
+	});
+
+	test("sorts months in descending order", async () => {
+		const mockData: UsageData[] = [
+			{
+				timestamp: "2024-01-01T00:00:00Z",
+				message: { usage: { input_tokens: 100, output_tokens: 50 } },
+				costUSD: 0.01,
+			},
+			{
+				timestamp: "2024-03-01T00:00:00Z",
+				message: { usage: { input_tokens: 100, output_tokens: 50 } },
+				costUSD: 0.01,
+			},
+			{
+				timestamp: "2024-02-01T00:00:00Z",
+				message: { usage: { input_tokens: 100, output_tokens: 50 } },
+				costUSD: 0.01,
+			},
+			{
+				timestamp: "2023-12-01T00:00:00Z",
+				message: { usage: { input_tokens: 100, output_tokens: 50 } },
+				costUSD: 0.01,
+			},
+		];
+
+		await using fixture = await createFixture({
+			projects: {
+				project1: {
+					session1: {
+						"file.jsonl": mockData.map((d) => JSON.stringify(d)).join("\n"),
+					},
+				},
+			},
+		});
+
+		const result = await loadMonthlyUsageData({ claudePath: fixture.path });
+		const months = result.map((r) => r.month);
+
+		expect(months).toEqual(["2024-03", "2024-02", "2024-01", "2023-12"]);
+	});
+
+	test("respects date filters", async () => {
+		const mockData: UsageData[] = [
+			{
+				timestamp: "2024-01-01T00:00:00Z",
+				message: { usage: { input_tokens: 100, output_tokens: 50 } },
+				costUSD: 0.01,
+			},
+			{
+				timestamp: "2024-02-15T00:00:00Z",
+				message: { usage: { input_tokens: 200, output_tokens: 100 } },
+				costUSD: 0.02,
+			},
+			{
+				timestamp: "2024-03-01T00:00:00Z",
+				message: { usage: { input_tokens: 150, output_tokens: 75 } },
+				costUSD: 0.015,
+			},
+		];
+
+		await using fixture = await createFixture({
+			projects: {
+				project1: {
+					session1: {
+						"file.jsonl": mockData.map((d) => JSON.stringify(d)).join("\n"),
+					},
+				},
+			},
+		});
+
+		const result = await loadMonthlyUsageData({
+			claudePath: fixture.path,
+			since: "20240110",
+			until: "20240225",
+		});
+
+		// Should only include February data
+		expect(result).toHaveLength(1);
+		expect(result[0]?.month).toBe("2024-02");
+		expect(result[0]?.inputTokens).toBe(200);
+	});
+
+	test("handles cache tokens correctly", async () => {
+		const mockData: UsageData[] = [
+			{
+				timestamp: "2024-01-01T00:00:00Z",
+				message: {
+					usage: {
+						input_tokens: 100,
+						output_tokens: 50,
+						cache_creation_input_tokens: 25,
+						cache_read_input_tokens: 10,
+					},
+				},
+				costUSD: 0.01,
+			},
+			{
+				timestamp: "2024-01-15T00:00:00Z",
+				message: {
+					usage: {
+						input_tokens: 200,
+						output_tokens: 100,
+						cache_creation_input_tokens: 50,
+						cache_read_input_tokens: 20,
+					},
+				},
+				costUSD: 0.02,
+			},
+		];
+
+		await using fixture = await createFixture({
+			projects: {
+				project1: {
+					session1: {
+						"file.jsonl": mockData.map((d) => JSON.stringify(d)).join("\n"),
+					},
+				},
+			},
+		});
+
+		const result = await loadMonthlyUsageData({ claudePath: fixture.path });
+
+		expect(result).toHaveLength(1);
+		expect(result[0]?.cacheCreationTokens).toBe(75); // 25 + 50
+		expect(result[0]?.cacheReadTokens).toBe(30); // 10 + 20
 	});
 });
 
@@ -481,7 +707,7 @@ describe("data-loader cost calculation with real pricing", () => {
 		clearPricingCache();
 	});
 
-	describe("loadUsageData with mixed schemas", () => {
+	describe("loadDailyUsageData with mixed schemas", () => {
 		test("should handle old schema with costUSD", async () => {
 			const oldData = {
 				timestamp: "2024-01-15T10:00:00Z",
@@ -504,7 +730,7 @@ describe("data-loader cost calculation with real pricing", () => {
 				},
 			});
 
-			const results = await loadUsageData({ claudePath: fixture.path });
+			const results = await loadDailyUsageData({ claudePath: fixture.path });
 
 			expect(results).toHaveLength(1);
 			expect(results[0]?.date).toBe("2024-01-15");
@@ -540,7 +766,7 @@ describe("data-loader cost calculation with real pricing", () => {
 				},
 			});
 
-			const results = await loadUsageData({ claudePath: fixture.path });
+			const results = await loadDailyUsageData({ claudePath: fixture.path });
 
 			expect(results).toHaveLength(1);
 			expect(results[0]?.date).toBe("2024-01-16");
@@ -580,7 +806,7 @@ describe("data-loader cost calculation with real pricing", () => {
 				},
 			});
 
-			const results = await loadUsageData({ claudePath: fixture.path });
+			const results = await loadDailyUsageData({ claudePath: fixture.path });
 
 			expect(results).toHaveLength(1);
 			expect(results[0]?.date).toBe("2024-01-16");
@@ -624,7 +850,7 @@ describe("data-loader cost calculation with real pricing", () => {
 				},
 			});
 
-			const results = await loadUsageData({ claudePath: fixture.path });
+			const results = await loadDailyUsageData({ claudePath: fixture.path });
 
 			expect(results).toHaveLength(1);
 			expect(results[0]?.date).toBe("2024-01-17");
@@ -652,7 +878,7 @@ describe("data-loader cost calculation with real pricing", () => {
 				},
 			});
 
-			const results = await loadUsageData({ claudePath: fixture.path });
+			const results = await loadDailyUsageData({ claudePath: fixture.path });
 
 			expect(results).toHaveLength(1);
 			expect(results[0]?.inputTokens).toBe(500);
@@ -758,7 +984,7 @@ describe("data-loader cost calculation with real pricing", () => {
 				},
 			});
 
-			const results = await loadUsageData({ claudePath: fixture.path });
+			const results = await loadDailyUsageData({ claudePath: fixture.path });
 
 			expect(results).toHaveLength(1);
 			expect(results[0]?.date).toBe("2024-01-20");
@@ -795,7 +1021,7 @@ describe("data-loader cost calculation with real pricing", () => {
 				},
 			});
 
-			const results = await loadUsageData({ claudePath: fixture.path });
+			const results = await loadDailyUsageData({ claudePath: fixture.path });
 
 			expect(results).toHaveLength(1);
 			expect(results[0]?.date).toBe("2024-01-20");
@@ -839,7 +1065,7 @@ describe("data-loader cost calculation with real pricing", () => {
 				},
 			});
 
-			const results = await loadUsageData({
+			const results = await loadDailyUsageData({
 				claudePath: fixture.path,
 				mode: "auto",
 			});
@@ -868,7 +1094,7 @@ describe("data-loader cost calculation with real pricing", () => {
 				},
 			});
 
-			const results = await loadUsageData({
+			const results = await loadDailyUsageData({
 				claudePath: fixture.path,
 				mode: "calculate",
 			});
@@ -907,7 +1133,7 @@ describe("data-loader cost calculation with real pricing", () => {
 				},
 			});
 
-			const results = await loadUsageData({
+			const results = await loadDailyUsageData({
 				claudePath: fixture.path,
 				mode: "display",
 			});
@@ -978,7 +1204,7 @@ describe("data-loader cost calculation with real pricing", () => {
 			});
 
 			// In display mode, only pre-calculated costUSD should be used
-			const results = await loadUsageData({
+			const results = await loadDailyUsageData({
 				claudePath: fixture.path,
 				mode: "display",
 			});
@@ -1008,7 +1234,7 @@ describe("data-loader cost calculation with real pricing", () => {
 			});
 
 			// This should fetch pricing data (will call real fetch)
-			const results = await loadUsageData({
+			const results = await loadDailyUsageData({
 				claudePath: fixture.path,
 				mode: "calculate",
 			});
@@ -1039,7 +1265,7 @@ describe("data-loader cost calculation with real pricing", () => {
 			});
 
 			// This should fetch pricing data (will call real fetch)
-			const results = await loadUsageData({
+			const results = await loadDailyUsageData({
 				claudePath: fixture.path,
 				mode: "auto",
 			});
@@ -1102,7 +1328,7 @@ describe("data-loader cost calculation with real pricing", () => {
 			// by using an unknown model that would cause pricing lookup to fail
 			// if it were attempted. Since we're in display mode, it should just
 			// use the costUSD value.
-			const results = await loadUsageData({
+			const results = await loadDailyUsageData({
 				claudePath: fixture.path,
 				mode: "display",
 			});

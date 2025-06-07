@@ -1,8 +1,8 @@
-import type { DailyUsage, SessionUsage } from "./data-loader";
+import type { DailyUsage, MonthlyUsage, SessionUsage } from "./data-loader";
 import type { TokenData, TokenTotals } from "./types";
 
 export function calculateTotals(
-	data: Array<DailyUsage | SessionUsage>,
+	data: Array<DailyUsage | MonthlyUsage | SessionUsage>,
 ): TokenTotals {
 	return data.reduce(
 		(acc, item) => ({

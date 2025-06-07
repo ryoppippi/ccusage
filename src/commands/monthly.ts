@@ -7,15 +7,15 @@ import {
 	createTotalsObject,
 	getTotalTokens,
 } from "../calculate-cost.ts";
-import { type LoadOptions, loadDailyUsageData } from "../data-loader.ts";
+import { type LoadOptions, loadMonthlyUsageData } from "../data-loader.ts";
 import { detectMismatches, printMismatchReport } from "../debug.ts";
 import { log, logger } from "../logger.ts";
 import { sharedCommandConfig } from "../shared-args.ts";
 import { formatCurrency, formatNumber } from "../utils.ts";
 
-export const dailyCommand = define({
-	name: "daily",
-	description: "Show usage report grouped by date",
+export const monthlyCommand = define({
+	name: "monthly",
+	description: "Show usage report grouped by month",
 	...sharedCommandConfig,
 	async run(ctx) {
 		if (ctx.values.json) {
@@ -28,11 +28,22 @@ export const dailyCommand = define({
 			claudePath: ctx.values.path,
 			mode: ctx.values.mode,
 		};
-		const dailyData = await loadDailyUsageData(options);
+		const monthlyData = await loadMonthlyUsageData(options);
 
-		if (dailyData.length === 0) {
+		if (monthlyData.length === 0) {
 			if (ctx.values.json) {
-				log(JSON.stringify([]));
+				const emptyOutput = {
+					monthly: [],
+					totals: {
+						inputTokens: 0,
+						outputTokens: 0,
+						cacheCreationTokens: 0,
+						cacheReadTokens: 0,
+						totalTokens: 0,
+						totalCost: 0,
+					},
+				};
+				log(JSON.stringify(emptyOutput, null, 2));
 			} else {
 				logger.warn("No Claude usage data found.");
 			}
@@ -40,7 +51,7 @@ export const dailyCommand = define({
 		}
 
 		// Calculate totals
-		const totals = calculateTotals(dailyData);
+		const totals = calculateTotals(monthlyData);
 
 		// Show debug information if requested
 		if (ctx.values.debug && !ctx.values.json) {
@@ -51,8 +62,8 @@ export const dailyCommand = define({
 		if (ctx.values.json) {
 			// Output JSON format
 			const jsonOutput = {
-				daily: dailyData.map((data) => ({
-					date: data.date,
+				monthly: monthlyData.map((data) => ({
+					month: data.month,
 					inputTokens: data.inputTokens,
 					outputTokens: data.outputTokens,
 					cacheCreationTokens: data.cacheCreationTokens,
@@ -65,12 +76,12 @@ export const dailyCommand = define({
 			log(JSON.stringify(jsonOutput, null, 2));
 		} else {
 			// Print header
-			logger.box("Claude Code Token Usage Report - Daily");
+			logger.box("Claude Code Token Usage Report - Monthly");
 
 			// Create table
 			const table = new Table({
 				head: [
-					"Date",
+					"Month",
 					"Input",
 					"Output",
 					"Cache Create",
@@ -92,10 +103,10 @@ export const dailyCommand = define({
 				],
 			});
 
-			// Add daily data
-			for (const data of dailyData) {
+			// Add monthly data
+			for (const data of monthlyData) {
 				table.push([
-					data.date,
+					data.month,
 					formatNumber(data.inputTokens),
 					formatNumber(data.outputTokens),
 					formatNumber(data.cacheCreationTokens),
