@@ -14,7 +14,7 @@ import { log, logger } from "../logger.ts";
 import { sharedCommandConfig } from "../shared-args.ts";
 import { formatCurrency, formatNumber } from "../utils.ts";
 
-interface MonthlyUsage {
+export interface MonthlyUsage {
 	month: string; // YYYY-MM format
 	inputTokens: number;
 	outputTokens: number;
@@ -95,22 +95,7 @@ export const monthlyCommand = define({
 		const monthlyData = aggregateByMonth(dailyData);
 
 		// Calculate totals
-		const totals = monthlyData.reduce(
-			(acc, item) => ({
-				inputTokens: acc.inputTokens + item.inputTokens,
-				outputTokens: acc.outputTokens + item.outputTokens,
-				cacheCreationTokens: acc.cacheCreationTokens + item.cacheCreationTokens,
-				cacheReadTokens: acc.cacheReadTokens + item.cacheReadTokens,
-				totalCost: acc.totalCost + item.totalCost,
-			}),
-			{
-				inputTokens: 0,
-				outputTokens: 0,
-				cacheCreationTokens: 0,
-				cacheReadTokens: 0,
-				totalCost: 0,
-			},
-		);
+		const totals = calculateTotals(monthlyData);
 
 		// Show debug information if requested
 		if (ctx.values.debug && !ctx.values.json) {
