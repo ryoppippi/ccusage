@@ -22,14 +22,13 @@ export const monthlyCommand = define({
 			logger.level = 0;
 		}
 
-		const options: LoadOptions = {
+		const monthlyData = await loadMonthlyUsageData({
 			since: ctx.values.since,
 			until: ctx.values.until,
 			claudePath: ctx.values.path,
 			mode: ctx.values.mode,
 			order: ctx.values.order,
-		};
-		const monthlyData = await loadMonthlyUsageData(options);
+		});
 
 		if (monthlyData.length === 0) {
 			if (ctx.values.json) {

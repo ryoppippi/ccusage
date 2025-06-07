@@ -22,14 +22,13 @@ export const dailyCommand = define({
 			logger.level = 0;
 		}
 
-		const options: LoadOptions = {
+		const dailyData = await loadDailyUsageData({
 			since: ctx.values.since,
 			until: ctx.values.until,
 			claudePath: ctx.values.path,
 			mode: ctx.values.mode,
 			order: ctx.values.order,
-		};
-		const dailyData = await loadDailyUsageData(options);
+		});
 
 		if (dailyData.length === 0) {
 			if (ctx.values.json) {

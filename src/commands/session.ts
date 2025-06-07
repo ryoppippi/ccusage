@@ -22,14 +22,13 @@ export const sessionCommand = define({
 			logger.level = 0;
 		}
 
-		const options: LoadOptions = {
+		const sessionData = await loadSessionData({
 			since: ctx.values.since,
 			until: ctx.values.until,
 			claudePath: ctx.values.path,
 			mode: ctx.values.mode,
 			order: ctx.values.order,
-		};
-		const sessionData = await loadSessionData(options);
+		});
 
 		if (sessionData.length === 0) {
 			if (ctx.values.json) {
