@@ -1,5 +1,4 @@
-import type { MonthlyUsage } from "./commands/monthly";
-import type { DailyUsage, SessionUsage } from "./data-loader";
+import type { DailyUsage, MonthlyUsage, SessionUsage } from "./data-loader";
 import type { TokenData, TokenTotals } from "./types";
 
 export function calculateTotals(

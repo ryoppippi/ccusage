@@ -56,6 +56,17 @@ export const SessionUsageSchema = v.object({
 
 export type SessionUsage = v.InferOutput<typeof SessionUsageSchema>;
 
+export const MonthlyUsageSchema = v.object({
+	month: v.string(), // YYYY-MM format
+	inputTokens: v.number(),
+	outputTokens: v.number(),
+	cacheCreationTokens: v.number(),
+	cacheReadTokens: v.number(),
+	totalCost: v.number(),
+});
+
+export type MonthlyUsage = v.InferOutput<typeof MonthlyUsageSchema>;
+
 export const formatDate = (dateStr: string): string => {
 	const date = new Date(dateStr);
 	const year = date.getFullYear();
@@ -303,4 +314,39 @@ export async function loadSessionData(
 
 	// Sort by last activity descending
 	return sort(results).desc((item) => new Date(item.lastActivity).getTime());
+}
+
+export async function loadMonthlyUsageData(
+	options?: LoadOptions,
+): Promise<MonthlyUsage[]> {
+	const dailyData = await loadDailyUsageData(options);
+
+	const monthlyMap = new Map<string, MonthlyUsage>();
+
+	for (const data of dailyData) {
+		// Extract YYYY-MM from YYYY-MM-DD
+		const month = data.date.substring(0, 7);
+
+		const existing = monthlyMap.get(month) || {
+			month,
+			inputTokens: 0,
+			outputTokens: 0,
+			cacheCreationTokens: 0,
+			cacheReadTokens: 0,
+			totalCost: 0,
+		};
+
+		existing.inputTokens += data.inputTokens;
+		existing.outputTokens += data.outputTokens;
+		existing.cacheCreationTokens += data.cacheCreationTokens;
+		existing.cacheReadTokens += data.cacheReadTokens;
+		existing.totalCost += data.totalCost;
+
+		monthlyMap.set(month, existing);
+	}
+
+	// Convert to array and sort by month descending
+	return Array.from(monthlyMap.values()).sort((a, b) =>
+		b.month.localeCompare(a.month),
+	);
 }

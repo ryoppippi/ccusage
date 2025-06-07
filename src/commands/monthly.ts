@@ -7,52 +7,11 @@ import {
 	createTotalsObject,
 	getTotalTokens,
 } from "../calculate-cost.ts";
-import { type LoadOptions, loadDailyUsageData } from "../data-loader.ts";
-import type { DailyUsage } from "../data-loader.ts";
+import { type LoadOptions, loadMonthlyUsageData } from "../data-loader.ts";
 import { detectMismatches, printMismatchReport } from "../debug.ts";
 import { log, logger } from "../logger.ts";
 import { sharedCommandConfig } from "../shared-args.ts";
 import { formatCurrency, formatNumber } from "../utils.ts";
-
-export interface MonthlyUsage {
-	month: string; // YYYY-MM format
-	inputTokens: number;
-	outputTokens: number;
-	cacheCreationTokens: number;
-	cacheReadTokens: number;
-	totalCost: number;
-}
-
-export const aggregateByMonth = (dailyData: DailyUsage[]): MonthlyUsage[] => {
-	const monthlyMap = new Map<string, MonthlyUsage>();
-
-	for (const data of dailyData) {
-		// Extract YYYY-MM from YYYY-MM-DD
-		const month = data.date.substring(0, 7);
-
-		const existing = monthlyMap.get(month) || {
-			month,
-			inputTokens: 0,
-			outputTokens: 0,
-			cacheCreationTokens: 0,
-			cacheReadTokens: 0,
-			totalCost: 0,
-		};
-
-		existing.inputTokens += data.inputTokens;
-		existing.outputTokens += data.outputTokens;
-		existing.cacheCreationTokens += data.cacheCreationTokens;
-		existing.cacheReadTokens += data.cacheReadTokens;
-		existing.totalCost += data.totalCost;
-
-		monthlyMap.set(month, existing);
-	}
-
-	// Convert to array and sort by month descending
-	return Array.from(monthlyMap.values()).sort((a, b) =>
-		b.month.localeCompare(a.month),
-	);
-};
 
 export const monthlyCommand = define({
 	name: "monthly",
@@ -69,9 +28,9 @@ export const monthlyCommand = define({
 			claudePath: ctx.values.path,
 			mode: ctx.values.mode,
 		};
-		const dailyData = await loadDailyUsageData(options);
+		const monthlyData = await loadMonthlyUsageData(options);
 
-		if (dailyData.length === 0) {
+		if (monthlyData.length === 0) {
 			if (ctx.values.json) {
 				const emptyOutput = {
 					monthly: [],
@@ -90,9 +49,6 @@ export const monthlyCommand = define({
 			}
 			process.exit(0);
 		}
-
-		// Aggregate daily data by month
-		const monthlyData = aggregateByMonth(dailyData);
 
 		// Calculate totals
 		const totals = calculateTotals(monthlyData);
