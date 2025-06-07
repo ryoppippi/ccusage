@@ -25,8 +25,10 @@ export const UsageDataSchema = v.object({
 			cache_read_input_tokens: v.optional(v.number()),
 		}),
 		model: v.optional(v.string()), // Model is inside message object
+		id: v.optional(v.string()), // Message ID for deduplication
 	}),
 	costUSD: v.optional(v.number()), // Made optional for new schema
+	requestId: v.optional(v.string()), // Request ID for deduplication
 });
 
 export type UsageData = v.InferOutput<typeof UsageDataSchema>;
@@ -79,6 +81,21 @@ export const formatDate = (dateStr: string): string => {
 	const month = String(date.getMonth() + 1).padStart(2, "0");
 	const day = String(date.getDate()).padStart(2, "0");
 	return `${year}-${month}-${day}`;
+};
+
+/**
+ * Create a unique identifier for deduplication using message ID and request ID
+ */
+export const createUniqueHash = (data: UsageData): string | null => {
+	const messageId = data.message.id;
+	const requestId = data.requestId;
+
+	if (!messageId || !requestId) {
+		return null;
+	}
+
+	// Create a hash using a simple concatenation (could use crypto.createHash if needed)
+	return `${messageId}:${requestId}`;
 };
 
 export const calculateCostForEntry = (
@@ -148,6 +165,7 @@ export async function loadDailyUsageData(
 
 	// Collect all valid data entries first
 	const allEntries: { data: UsageData; date: string; cost: number }[] = [];
+	const processedRequests = new Set<string>(); // Track processed message+request combinations
 
 	for (const file of files) {
 		const content = await readFile(file, "utf-8");
@@ -164,6 +182,18 @@ export async function loadDailyUsageData(
 					continue;
 				}
 				const data = result.output;
+
+				// Check for duplicate message + request ID combination
+				const uniqueHash = createUniqueHash(data);
+				if (uniqueHash && processedRequests.has(uniqueHash)) {
+					// Skip duplicate message
+					continue;
+				}
+
+				// Mark this combination as processed
+				if (uniqueHash) {
+					processedRequests.add(uniqueHash);
+				}
 
 				const date = formatDate(data.timestamp);
 				const cost = calculateCostForEntry(data, mode, modelPricing);
@@ -256,6 +286,7 @@ export async function loadSessionData(
 		cost: number;
 		timestamp: string;
 	}> = [];
+	const processedRequests = new Set<string>(); // Track processed message+request combinations
 
 	for (const file of files) {
 		// Extract session info from file path
@@ -282,7 +313,21 @@ export async function loadSessionData(
 				}
 				const data = result.output;
 
+				// Check for duplicate message + request ID combination
+				const uniqueHash = createUniqueHash(data);
+				if (uniqueHash && processedRequests.has(uniqueHash)) {
+					// Skip duplicate message
+					continue;
+				}
+
+				// Mark this combination as processed
+				if (uniqueHash) {
+					processedRequests.add(uniqueHash);
+				}
+
 				const sessionKey = `${projectPath}/${sessionId}`;
+
+				// Calculate cost based on mode
 				const cost = calculateCostForEntry(data, mode, modelPricing);
 
 				allEntries.push({

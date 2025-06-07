@@ -4,6 +4,7 @@ import { createFixture } from "fs-fixture";
 import {
 	type UsageData,
 	calculateCostForEntry,
+	createUniqueHash,
 	formatDate,
 	loadDailyUsageData,
 	loadMonthlyUsageData,
@@ -31,6 +32,304 @@ describe("formatDate", () => {
 	test("pads single digit months and days", () => {
 		expect(formatDate("2024-01-05T00:00:00Z")).toBe("2024-01-05");
 		expect(formatDate("2024-10-01T00:00:00Z")).toBe("2024-10-01");
+	});
+});
+
+describe("createUniqueHash", () => {
+	test("creates hash when both message ID and request ID are present", () => {
+		const data: UsageData = {
+			timestamp: "2024-01-01T00:00:00Z",
+			message: {
+				usage: { input_tokens: 100, output_tokens: 50 },
+				id: "msg123",
+			},
+			requestId: "req456",
+		};
+
+		const hash = createUniqueHash(data);
+		expect(hash).toBe("msg123:req456");
+	});
+
+	test("returns null when message ID is missing", () => {
+		const data: UsageData = {
+			timestamp: "2024-01-01T00:00:00Z",
+			message: {
+				usage: { input_tokens: 100, output_tokens: 50 },
+			},
+			requestId: "req456",
+		};
+
+		const hash = createUniqueHash(data);
+		expect(hash).toBeNull();
+	});
+
+	test("returns null when request ID is missing", () => {
+		const data: UsageData = {
+			timestamp: "2024-01-01T00:00:00Z",
+			message: {
+				usage: { input_tokens: 100, output_tokens: 50 },
+				id: "msg123",
+			},
+		};
+
+		const hash = createUniqueHash(data);
+		expect(hash).toBeNull();
+	});
+
+	test("returns null when both IDs are missing", () => {
+		const data: UsageData = {
+			timestamp: "2024-01-01T00:00:00Z",
+			message: {
+				usage: { input_tokens: 100, output_tokens: 50 },
+			},
+		};
+
+		const hash = createUniqueHash(data);
+		expect(hash).toBeNull();
+	});
+});
+
+describe("deduplication functionality", () => {
+	describe("loadDailyUsageData with deduplication", () => {
+		test("should skip duplicate message+request ID combinations", async () => {
+			const originalData = {
+				timestamp: "2024-01-01T00:00:00Z",
+				message: {
+					usage: { input_tokens: 100, output_tokens: 50 },
+					id: "msg123",
+				},
+				requestId: "req456",
+				costUSD: 0.01,
+			};
+
+			const duplicateData = {
+				timestamp: "2024-01-01T01:00:00Z", // Different timestamp
+				message: {
+					usage: { input_tokens: 200, output_tokens: 100 }, // Different token counts
+					id: "msg123", // Same message ID
+				},
+				requestId: "req456", // Same request ID
+				costUSD: 0.02, // Different cost
+			};
+
+			const differentData = {
+				timestamp: "2024-01-01T02:00:00Z",
+				message: {
+					usage: { input_tokens: 300, output_tokens: 150 },
+					id: "msg789", // Different message ID
+				},
+				requestId: "req456", // Same request ID but different message ID
+				costUSD: 0.03,
+			};
+
+			await using fixture = await createFixture({
+				projects: {
+					project1: {
+						session1: {
+							"original.jsonl": JSON.stringify(originalData),
+						},
+						session2: {
+							"duplicate.jsonl": JSON.stringify(duplicateData),
+							"different.jsonl": JSON.stringify(differentData),
+						},
+					},
+				},
+			});
+
+			const result = await loadDailyUsageData({ claudePath: fixture.path });
+
+			expect(result).toHaveLength(1);
+			expect(result[0]?.date).toBe("2024-01-01");
+			// Should only include original and different data, not duplicate
+			expect(result[0]?.inputTokens).toBe(400); // 100 + 300 (not 200 from duplicate)
+			expect(result[0]?.outputTokens).toBe(200); // 50 + 150 (not 100 from duplicate)
+			expect(result[0]?.totalCost).toBe(0.04); // 0.01 + 0.03 (not 0.02 from duplicate)
+		});
+
+		test("should process entries without message ID and request ID normally", async () => {
+			const dataWithIds = {
+				timestamp: "2024-01-01T00:00:00Z",
+				message: {
+					usage: { input_tokens: 100, output_tokens: 50 },
+					id: "msg123",
+				},
+				requestId: "req456",
+				costUSD: 0.01,
+			};
+
+			const dataWithoutIds = {
+				timestamp: "2024-01-01T01:00:00Z",
+				message: {
+					usage: { input_tokens: 200, output_tokens: 100 },
+				},
+				costUSD: 0.02,
+			};
+
+			await using fixture = await createFixture({
+				projects: {
+					project1: {
+						session1: {
+							"usage.jsonl": `${JSON.stringify(dataWithIds)}\n${JSON.stringify(dataWithoutIds)}`,
+						},
+					},
+				},
+			});
+
+			const result = await loadDailyUsageData({ claudePath: fixture.path });
+
+			expect(result).toHaveLength(1);
+			expect(result[0]?.inputTokens).toBe(300); // Both entries should be processed
+			expect(result[0]?.outputTokens).toBe(150);
+			expect(result[0]?.totalCost).toBe(0.03);
+		});
+
+		test("should allow same message ID with different request IDs", async () => {
+			const data1 = {
+				timestamp: "2024-01-01T00:00:00Z",
+				message: {
+					usage: { input_tokens: 100, output_tokens: 50 },
+					id: "msg123", // Same message ID
+				},
+				requestId: "req456", // Different request ID
+				costUSD: 0.01,
+			};
+
+			const data2 = {
+				timestamp: "2024-01-01T01:00:00Z",
+				message: {
+					usage: { input_tokens: 200, output_tokens: 100 },
+					id: "msg123", // Same message ID
+				},
+				requestId: "req789", // Different request ID
+				costUSD: 0.02,
+			};
+
+			await using fixture = await createFixture({
+				projects: {
+					project1: {
+						session1: {
+							"usage.jsonl": `${JSON.stringify(data1)}\n${JSON.stringify(data2)}`,
+						},
+					},
+				},
+			});
+
+			const result = await loadDailyUsageData({ claudePath: fixture.path });
+
+			expect(result).toHaveLength(1);
+			expect(result[0]?.inputTokens).toBe(300); // Both should be processed (different combinations)
+			expect(result[0]?.outputTokens).toBe(150);
+			expect(result[0]?.totalCost).toBe(0.03);
+		});
+	});
+
+	describe("loadSessionData with deduplication", () => {
+		test("should skip duplicate message+request ID combinations across sessions", async () => {
+			const originalData = {
+				timestamp: "2024-01-01T00:00:00Z",
+				message: {
+					usage: { input_tokens: 100, output_tokens: 50 },
+					id: "msg123",
+				},
+				requestId: "req456",
+				costUSD: 0.01,
+			};
+
+			const duplicateData = {
+				timestamp: "2024-01-01T01:00:00Z",
+				message: {
+					usage: { input_tokens: 200, output_tokens: 100 },
+					id: "msg123", // Same message ID
+				},
+				requestId: "req456", // Same request ID
+				costUSD: 0.02,
+			};
+
+			await using fixture = await createFixture({
+				projects: {
+					project1: {
+						session1: {
+							"original.jsonl": JSON.stringify(originalData),
+						},
+						session2: {
+							"duplicate.jsonl": JSON.stringify(duplicateData),
+						},
+					},
+				},
+			});
+
+			const result = await loadSessionData({ claudePath: fixture.path });
+
+			expect(result).toHaveLength(2); // Two sessions
+
+			// Find the sessions
+			const session1 = result.find((s) => s.sessionId === "session1");
+			const session2 = result.find((s) => s.sessionId === "session2");
+
+			expect(session1).toBeTruthy();
+			expect(session2).toBeTruthy();
+
+			// Only original data should be counted
+			expect(session1?.inputTokens).toBe(100);
+			expect(session1?.outputTokens).toBe(50);
+			expect(session1?.totalCost).toBe(0.01);
+
+			// Duplicate should be skipped, so session2 should have zero usage
+			expect(session2?.inputTokens).toBe(0);
+			expect(session2?.outputTokens).toBe(0);
+			expect(session2?.totalCost).toBe(0);
+		});
+
+		test("should properly handle deduplication within same session", async () => {
+			const originalData = {
+				timestamp: "2024-01-01T00:00:00Z",
+				message: {
+					usage: { input_tokens: 100, output_tokens: 50 },
+					id: "msg123",
+				},
+				requestId: "req456",
+				costUSD: 0.01,
+			};
+
+			const duplicateData = {
+				timestamp: "2024-01-01T01:00:00Z",
+				message: {
+					usage: { input_tokens: 200, output_tokens: 100 },
+					id: "msg123", // Same message ID
+				},
+				requestId: "req456", // Same request ID
+				costUSD: 0.02,
+			};
+
+			const uniqueData = {
+				timestamp: "2024-01-01T02:00:00Z",
+				message: {
+					usage: { input_tokens: 300, output_tokens: 150 },
+					id: "msg789", // Different message ID
+				},
+				requestId: "req456", // Same request ID but different message
+				costUSD: 0.03,
+			};
+
+			await using fixture = await createFixture({
+				projects: {
+					project1: {
+						session1: {
+							"usage.jsonl": `${JSON.stringify(originalData)}\n${JSON.stringify(duplicateData)}\n${JSON.stringify(uniqueData)}`,
+						},
+					},
+				},
+			});
+
+			const result = await loadSessionData({ claudePath: fixture.path });
+
+			expect(result).toHaveLength(1);
+			expect(result[0]?.sessionId).toBe("session1");
+			// Should only include original and unique data, not duplicate
+			expect(result[0]?.inputTokens).toBe(400); // 100 + 300 (not 200 from duplicate)
+			expect(result[0]?.outputTokens).toBe(200); // 50 + 150 (not 100 from duplicate)
+			expect(result[0]?.totalCost).toBe(0.04); // 0.01 + 0.03 (not 0.02 from duplicate)
+		});
 	});
 });
 
