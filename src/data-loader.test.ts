@@ -5,8 +5,8 @@ import {
 	type UsageData,
 	calculateCostForEntry,
 	formatDate,
+	loadDailyUsageData,
 	loadSessionData,
-	loadUsageData,
 } from "./data-loader.ts";
 import {
 	clearPricingCache,
@@ -33,13 +33,13 @@ describe("formatDate", () => {
 	});
 });
 
-describe("loadUsageData", () => {
+describe("loadDailyUsageData", () => {
 	test("returns empty array when no files found", async () => {
 		await using fixture = await createFixture({
 			projects: {},
 		});
 
-		const result = await loadUsageData({ claudePath: fixture.path });
+		const result = await loadDailyUsageData({ claudePath: fixture.path });
 		expect(result).toEqual([]);
 	});
 
@@ -76,7 +76,7 @@ describe("loadUsageData", () => {
 			},
 		});
 
-		const result = await loadUsageData({ claudePath: fixture.path });
+		const result = await loadDailyUsageData({ claudePath: fixture.path });
 
 		expect(result).toHaveLength(1);
 		expect(result[0]?.date).toBe("2024-01-01");
@@ -109,7 +109,7 @@ describe("loadUsageData", () => {
 			},
 		});
 
-		const result = await loadUsageData({ claudePath: fixture.path });
+		const result = await loadDailyUsageData({ claudePath: fixture.path });
 
 		expect(result[0]?.cacheCreationTokens).toBe(25);
 		expect(result[0]?.cacheReadTokens).toBe(10);
@@ -144,7 +144,7 @@ describe("loadUsageData", () => {
 			},
 		});
 
-		const result = await loadUsageData({
+		const result = await loadDailyUsageData({
 			claudePath: fixture.path,
 			since: "20240110",
 			until: "20240125",
@@ -184,7 +184,7 @@ describe("loadUsageData", () => {
 			},
 		});
 
-		const result = await loadUsageData({ claudePath: fixture.path });
+		const result = await loadDailyUsageData({ claudePath: fixture.path });
 
 		expect(result[0]?.date).toBe("2024-01-31");
 		expect(result[1]?.date).toBe("2024-01-15");
@@ -210,7 +210,7 @@ invalid json line
 			},
 		});
 
-		const result = await loadUsageData({ claudePath: fixture.path });
+		const result = await loadDailyUsageData({ claudePath: fixture.path });
 
 		// Should only process valid lines
 		expect(result).toHaveLength(1);
@@ -238,7 +238,7 @@ invalid json line
 			},
 		});
 
-		const result = await loadUsageData({ claudePath: fixture.path });
+		const result = await loadDailyUsageData({ claudePath: fixture.path });
 
 		// Should only include valid entries
 		expect(result).toHaveLength(1);
@@ -481,7 +481,7 @@ describe("data-loader cost calculation with real pricing", () => {
 		clearPricingCache();
 	});
 
-	describe("loadUsageData with mixed schemas", () => {
+	describe("loadDailyUsageData with mixed schemas", () => {
 		test("should handle old schema with costUSD", async () => {
 			const oldData = {
 				timestamp: "2024-01-15T10:00:00Z",
@@ -504,7 +504,7 @@ describe("data-loader cost calculation with real pricing", () => {
 				},
 			});
 
-			const results = await loadUsageData({ claudePath: fixture.path });
+			const results = await loadDailyUsageData({ claudePath: fixture.path });
 
 			expect(results).toHaveLength(1);
 			expect(results[0]?.date).toBe("2024-01-15");
@@ -540,7 +540,7 @@ describe("data-loader cost calculation with real pricing", () => {
 				},
 			});
 
-			const results = await loadUsageData({ claudePath: fixture.path });
+			const results = await loadDailyUsageData({ claudePath: fixture.path });
 
 			expect(results).toHaveLength(1);
 			expect(results[0]?.date).toBe("2024-01-16");
@@ -580,7 +580,7 @@ describe("data-loader cost calculation with real pricing", () => {
 				},
 			});
 
-			const results = await loadUsageData({ claudePath: fixture.path });
+			const results = await loadDailyUsageData({ claudePath: fixture.path });
 
 			expect(results).toHaveLength(1);
 			expect(results[0]?.date).toBe("2024-01-16");
@@ -624,7 +624,7 @@ describe("data-loader cost calculation with real pricing", () => {
 				},
 			});
 
-			const results = await loadUsageData({ claudePath: fixture.path });
+			const results = await loadDailyUsageData({ claudePath: fixture.path });
 
 			expect(results).toHaveLength(1);
 			expect(results[0]?.date).toBe("2024-01-17");
@@ -652,7 +652,7 @@ describe("data-loader cost calculation with real pricing", () => {
 				},
 			});
 
-			const results = await loadUsageData({ claudePath: fixture.path });
+			const results = await loadDailyUsageData({ claudePath: fixture.path });
 
 			expect(results).toHaveLength(1);
 			expect(results[0]?.inputTokens).toBe(500);
@@ -758,7 +758,7 @@ describe("data-loader cost calculation with real pricing", () => {
 				},
 			});
 
-			const results = await loadUsageData({ claudePath: fixture.path });
+			const results = await loadDailyUsageData({ claudePath: fixture.path });
 
 			expect(results).toHaveLength(1);
 			expect(results[0]?.date).toBe("2024-01-20");
@@ -795,7 +795,7 @@ describe("data-loader cost calculation with real pricing", () => {
 				},
 			});
 
-			const results = await loadUsageData({ claudePath: fixture.path });
+			const results = await loadDailyUsageData({ claudePath: fixture.path });
 
 			expect(results).toHaveLength(1);
 			expect(results[0]?.date).toBe("2024-01-20");
@@ -839,7 +839,7 @@ describe("data-loader cost calculation with real pricing", () => {
 				},
 			});
 
-			const results = await loadUsageData({
+			const results = await loadDailyUsageData({
 				claudePath: fixture.path,
 				mode: "auto",
 			});
@@ -868,7 +868,7 @@ describe("data-loader cost calculation with real pricing", () => {
 				},
 			});
 
-			const results = await loadUsageData({
+			const results = await loadDailyUsageData({
 				claudePath: fixture.path,
 				mode: "calculate",
 			});
@@ -907,7 +907,7 @@ describe("data-loader cost calculation with real pricing", () => {
 				},
 			});
 
-			const results = await loadUsageData({
+			const results = await loadDailyUsageData({
 				claudePath: fixture.path,
 				mode: "display",
 			});
@@ -978,7 +978,7 @@ describe("data-loader cost calculation with real pricing", () => {
 			});
 
 			// In display mode, only pre-calculated costUSD should be used
-			const results = await loadUsageData({
+			const results = await loadDailyUsageData({
 				claudePath: fixture.path,
 				mode: "display",
 			});
@@ -1008,7 +1008,7 @@ describe("data-loader cost calculation with real pricing", () => {
 			});
 
 			// This should fetch pricing data (will call real fetch)
-			const results = await loadUsageData({
+			const results = await loadDailyUsageData({
 				claudePath: fixture.path,
 				mode: "calculate",
 			});
@@ -1039,7 +1039,7 @@ describe("data-loader cost calculation with real pricing", () => {
 			});
 
 			// This should fetch pricing data (will call real fetch)
-			const results = await loadUsageData({
+			const results = await loadDailyUsageData({
 				claudePath: fixture.path,
 				mode: "auto",
 			});
@@ -1102,7 +1102,7 @@ describe("data-loader cost calculation with real pricing", () => {
 			// by using an unknown model that would cause pricing lookup to fail
 			// if it were attempted. Since we're in display mode, it should just
 			// use the costUSD value.
-			const results = await loadUsageData({
+			const results = await loadDailyUsageData({
 				claudePath: fixture.path,
 				mode: "display",
 			});

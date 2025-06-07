@@ -110,7 +110,7 @@ export interface LoadOptions extends DateFilter {
 	mode?: CostMode; // Cost calculation mode
 }
 
-export async function loadUsageData(
+export async function loadDailyUsageData(
 	options?: LoadOptions,
 ): Promise<DailyUsage[]> {
 	const claudePath = options?.claudePath ?? getDefaultClaudePath();

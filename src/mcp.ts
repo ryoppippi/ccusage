@@ -5,8 +5,8 @@ import { CostModes, dateSchema } from "./types";
 
 import {
 	getDefaultClaudePath,
+	loadDailyUsageData,
 	loadSessionData,
-	loadUsageData,
 } from "./data-loader";
 import type { LoadOptions } from "./data-loader";
 import type { CostMode } from "./types";
@@ -59,7 +59,7 @@ export function createMcpServer({
 		description: "Show usage report grouped by date",
 		parameters: parametersSchema,
 		execute: async (args) => {
-			const dailyData = await loadUsageData({ ...args, claudePath });
+			const dailyData = await loadDailyUsageData({ ...args, claudePath });
 			return JSON.stringify(dailyData);
 		},
 	});
