@@ -23,7 +23,7 @@ interface MonthlyUsage {
 	totalCost: number;
 }
 
-const aggregateByMonth = (dailyData: DailyUsage[]): MonthlyUsage[] => {
+export const aggregateByMonth = (dailyData: DailyUsage[]): MonthlyUsage[] => {
 	const monthlyMap = new Map<string, MonthlyUsage>();
 
 	for (const data of dailyData) {
@@ -73,7 +73,18 @@ export const monthlyCommand = define({
 
 		if (dailyData.length === 0) {
 			if (ctx.values.json) {
-				log(JSON.stringify([]));
+				const emptyOutput = {
+					monthly: [],
+					totals: {
+						inputTokens: 0,
+						outputTokens: 0,
+						cacheCreationTokens: 0,
+						cacheReadTokens: 0,
+						totalTokens: 0,
+						totalCost: 0,
+					},
+				};
+				log(JSON.stringify(emptyOutput, null, 2));
 			} else {
 				logger.warn("No Claude usage data found.");
 			}

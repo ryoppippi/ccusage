@@ -1,10 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import type { DailyUsage } from "../data-loader.ts";
+import { aggregateByMonth } from "./monthly.ts";
 
-// Import the aggregateByMonth function from monthly.ts
-// Since it's not exported, we'll test the overall command behavior instead
-
-describe("monthly aggregation", () => {
+describe("aggregateByMonth", () => {
 	test("aggregates daily data by month correctly", () => {
 		const dailyData: DailyUsage[] = [
 			{
@@ -33,40 +31,34 @@ describe("monthly aggregation", () => {
 			},
 		];
 
-		// Expected monthly aggregation
-		const expected = [
-			{
-				month: "2024-02",
-				inputTokens: 150,
-				outputTokens: 75,
-				cacheCreationTokens: 15,
-				cacheReadTokens: 7,
-				totalCost: 0.015,
-			},
-			{
-				month: "2024-01",
-				inputTokens: 300,
-				outputTokens: 150,
-				cacheCreationTokens: 30,
-				cacheReadTokens: 15,
-				totalCost: 0.03,
-			},
-		];
+		// Test the actual aggregateByMonth function
+		const result = aggregateByMonth(dailyData);
 
-		// Since we can't directly test the private aggregateByMonth function,
-		// we verify the expected behavior through the command output
-		// This is a placeholder for integration tests
-		expect(expected).toBeDefined();
-		expect(expected[0]?.month).toBe("2024-02");
-		expect(expected[1]?.month).toBe("2024-01");
-		expect(expected[1]?.inputTokens).toBe(300);
+		// Should be sorted by month descending (2024-02 first)
+		expect(result).toHaveLength(2);
+		expect(result[0]).toEqual({
+			month: "2024-02",
+			inputTokens: 150,
+			outputTokens: 75,
+			cacheCreationTokens: 15,
+			cacheReadTokens: 7,
+			totalCost: 0.015,
+		});
+		expect(result[1]).toEqual({
+			month: "2024-01",
+			inputTokens: 300,
+			outputTokens: 150,
+			cacheCreationTokens: 30,
+			cacheReadTokens: 15,
+			totalCost: 0.03,
+		});
 	});
 
 	test("handles empty data", () => {
 		const dailyData: DailyUsage[] = [];
-		const expected: DailyUsage[] = [];
+		const result = aggregateByMonth(dailyData);
 
-		expect(expected).toEqual([]);
+		expect(result).toEqual([]);
 	});
 
 	test("handles single month data", () => {
@@ -89,25 +81,58 @@ describe("monthly aggregation", () => {
 			},
 		];
 
-		const expected = [
-			{
-				month: "2024-01",
-				inputTokens: 300,
-				outputTokens: 150,
-				cacheCreationTokens: 30,
-				cacheReadTokens: 15,
-				totalCost: 0.03,
-			},
-		];
+		const result = aggregateByMonth(dailyData);
 
-		expect(expected[0]?.month).toBe("2024-01");
-		expect(expected[0]?.inputTokens).toBe(300);
+		expect(result).toHaveLength(1);
+		expect(result[0]).toEqual({
+			month: "2024-01",
+			inputTokens: 300,
+			outputTokens: 150,
+			cacheCreationTokens: 30,
+			cacheReadTokens: 15,
+			totalCost: 0.03,
+		});
 	});
 
 	test("sorts months in descending order", () => {
-		const months = ["2024-01", "2024-03", "2024-02", "2023-12"];
-		const sorted = months.sort((a, b) => b.localeCompare(a));
+		const dailyData: DailyUsage[] = [
+			{
+				date: "2024-01-01",
+				inputTokens: 100,
+				outputTokens: 50,
+				cacheCreationTokens: 10,
+				cacheReadTokens: 5,
+				totalCost: 0.01,
+			},
+			{
+				date: "2024-03-01",
+				inputTokens: 100,
+				outputTokens: 50,
+				cacheCreationTokens: 10,
+				cacheReadTokens: 5,
+				totalCost: 0.01,
+			},
+			{
+				date: "2024-02-01",
+				inputTokens: 100,
+				outputTokens: 50,
+				cacheCreationTokens: 10,
+				cacheReadTokens: 5,
+				totalCost: 0.01,
+			},
+			{
+				date: "2023-12-01",
+				inputTokens: 100,
+				outputTokens: 50,
+				cacheCreationTokens: 10,
+				cacheReadTokens: 5,
+				totalCost: 0.01,
+			},
+		];
 
-		expect(sorted).toEqual(["2024-03", "2024-02", "2024-01", "2023-12"]);
+		const result = aggregateByMonth(dailyData);
+		const months = result.map((r) => r.month);
+
+		expect(months).toEqual(["2024-03", "2024-02", "2024-01", "2023-12"]);
 	});
 });
