@@ -10,7 +10,7 @@ import {
 	fetchModelPricing,
 	getModelPricing,
 } from "./pricing-fetcher.ts";
-import type { CostMode } from "./types.ts";
+import type { CostMode, SortOrder } from "./types.ts";
 
 export const getDefaultClaudePath = () => path.join(homedir(), ".claude");
 
@@ -125,7 +125,7 @@ export interface DateFilter {
 export interface LoadOptions extends DateFilter {
 	claudePath?: string; // Custom path to Claude data directory
 	mode?: CostMode; // Cost calculation mode
-	order?: "desc" | "asc"; // Sort order for dates
+	order?: SortOrder; // Sort order for dates
 }
 
 export async function loadDailyUsageData(
