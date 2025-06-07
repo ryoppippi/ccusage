@@ -125,6 +125,7 @@ export interface DateFilter {
 export interface LoadOptions extends DateFilter {
 	claudePath?: string; // Custom path to Claude data directory
 	mode?: CostMode; // Cost calculation mode
+	order?: "desc" | "asc"; // Sort order for dates
 }
 
 export async function loadDailyUsageData(
@@ -203,8 +204,12 @@ export async function loadDailyUsageData(
 		});
 	}
 
-	// Sort by date descending
-	return sort(results).desc((item) => new Date(item.date).getTime());
+	// Sort by date based on order option (default to descending)
+	const sortOrder = options?.order || "desc";
+	const sortedResults = sort(results);
+	return sortOrder === "desc"
+		? sortedResults.desc((item) => new Date(item.date).getTime())
+		: sortedResults.asc((item) => new Date(item.date).getTime());
 }
 
 export async function loadSessionData(
@@ -351,8 +356,11 @@ export async function loadMonthlyUsageData(
 		monthlyMap.set(month, existing);
 	}
 
-	// Convert to array and sort by month descending
-	return Array.from(monthlyMap.values()).sort((a, b) =>
-		b.month.localeCompare(a.month),
-	);
+	// Convert to array and sort by month based on sortOrder
+	const monthlyArray = Array.from(monthlyMap.values());
+	const sortOrder = options?.order || "desc";
+	const sortedMonthly = sort(monthlyArray);
+	return sortOrder === "desc"
+		? sortedMonthly.desc((item) => item.month)
+		: sortedMonthly.asc((item) => item.month);
 }

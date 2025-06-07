@@ -156,7 +156,7 @@ describe("loadDailyUsageData", () => {
 		expect(result[0]?.inputTokens).toBe(200);
 	});
 
-	test("sorts by date descending", async () => {
+	test("sorts by date descending by default", async () => {
 		const mockData: UsageData[] = [
 			{
 				timestamp: "2024-01-15T00:00:00Z",
@@ -187,6 +187,86 @@ describe("loadDailyUsageData", () => {
 
 		const result = await loadDailyUsageData({ claudePath: fixture.path });
 
+		expect(result[0]?.date).toBe("2024-01-31");
+		expect(result[1]?.date).toBe("2024-01-15");
+		expect(result[2]?.date).toBe("2024-01-01");
+	});
+
+	test("sorts by date ascending when order is 'asc'", async () => {
+		const mockData: UsageData[] = [
+			{
+				timestamp: "2024-01-15T00:00:00Z",
+				message: { usage: { input_tokens: 200, output_tokens: 100 } },
+				costUSD: 0.02,
+			},
+			{
+				timestamp: "2024-01-01T00:00:00Z",
+				message: { usage: { input_tokens: 100, output_tokens: 50 } },
+				costUSD: 0.01,
+			},
+			{
+				timestamp: "2024-01-31T00:00:00Z",
+				message: { usage: { input_tokens: 300, output_tokens: 150 } },
+				costUSD: 0.03,
+			},
+		];
+
+		await using fixture = await createFixture({
+			projects: {
+				project1: {
+					session1: {
+						"usage.jsonl": mockData.map((d) => JSON.stringify(d)).join("\n"),
+					},
+				},
+			},
+		});
+
+		const result = await loadDailyUsageData({
+			claudePath: fixture.path,
+			order: "asc",
+		});
+
+		expect(result).toHaveLength(3);
+		expect(result[0]?.date).toBe("2024-01-01");
+		expect(result[1]?.date).toBe("2024-01-15");
+		expect(result[2]?.date).toBe("2024-01-31");
+	});
+
+	test("sorts by date descending when order is 'desc'", async () => {
+		const mockData: UsageData[] = [
+			{
+				timestamp: "2024-01-15T00:00:00Z",
+				message: { usage: { input_tokens: 200, output_tokens: 100 } },
+				costUSD: 0.02,
+			},
+			{
+				timestamp: "2024-01-01T00:00:00Z",
+				message: { usage: { input_tokens: 100, output_tokens: 50 } },
+				costUSD: 0.01,
+			},
+			{
+				timestamp: "2024-01-31T00:00:00Z",
+				message: { usage: { input_tokens: 300, output_tokens: 150 } },
+				costUSD: 0.03,
+			},
+		];
+
+		await using fixture = await createFixture({
+			projects: {
+				project1: {
+					session1: {
+						"usage.jsonl": mockData.map((d) => JSON.stringify(d)).join("\n"),
+					},
+				},
+			},
+		});
+
+		const result = await loadDailyUsageData({
+			claudePath: fixture.path,
+			order: "desc",
+		});
+
+		expect(result).toHaveLength(3);
 		expect(result[0]?.date).toBe("2024-01-31");
 		expect(result[1]?.date).toBe("2024-01-15");
 		expect(result[2]?.date).toBe("2024-01-01");
@@ -384,6 +464,100 @@ describe("loadMonthlyUsageData", () => {
 		const months = result.map((r) => r.month);
 
 		expect(months).toEqual(["2024-03", "2024-02", "2024-01", "2023-12"]);
+	});
+
+	test("sorts months in ascending order when order is 'asc'", async () => {
+		const mockData: UsageData[] = [
+			{
+				timestamp: "2024-01-01T00:00:00Z",
+				message: { usage: { input_tokens: 100, output_tokens: 50 } },
+				costUSD: 0.01,
+			},
+			{
+				timestamp: "2024-03-01T00:00:00Z",
+				message: { usage: { input_tokens: 100, output_tokens: 50 } },
+				costUSD: 0.01,
+			},
+			{
+				timestamp: "2024-02-01T00:00:00Z",
+				message: { usage: { input_tokens: 100, output_tokens: 50 } },
+				costUSD: 0.01,
+			},
+			{
+				timestamp: "2023-12-01T00:00:00Z",
+				message: { usage: { input_tokens: 100, output_tokens: 50 } },
+				costUSD: 0.01,
+			},
+		];
+
+		await using fixture = await createFixture({
+			projects: {
+				project1: {
+					session1: {
+						"file.jsonl": mockData.map((d) => JSON.stringify(d)).join("\n"),
+					},
+				},
+			},
+		});
+
+		const result = await loadMonthlyUsageData({
+			claudePath: fixture.path,
+			order: "asc",
+		});
+		const months = result.map((r) => r.month);
+
+		expect(months).toEqual(["2023-12", "2024-01", "2024-02", "2024-03"]);
+	});
+
+	test("handles year boundaries correctly in sorting", async () => {
+		const mockData: UsageData[] = [
+			{
+				timestamp: "2024-01-01T00:00:00Z",
+				message: { usage: { input_tokens: 100, output_tokens: 50 } },
+				costUSD: 0.01,
+			},
+			{
+				timestamp: "2023-12-01T00:00:00Z",
+				message: { usage: { input_tokens: 100, output_tokens: 50 } },
+				costUSD: 0.01,
+			},
+			{
+				timestamp: "2024-02-01T00:00:00Z",
+				message: { usage: { input_tokens: 100, output_tokens: 50 } },
+				costUSD: 0.01,
+			},
+			{
+				timestamp: "2023-11-01T00:00:00Z",
+				message: { usage: { input_tokens: 100, output_tokens: 50 } },
+				costUSD: 0.01,
+			},
+		];
+
+		await using fixture = await createFixture({
+			projects: {
+				project1: {
+					session1: {
+						"file.jsonl": mockData.map((d) => JSON.stringify(d)).join("\n"),
+					},
+				},
+			},
+		});
+
+		// Descending order (default)
+		const descResult = await loadMonthlyUsageData({
+			claudePath: fixture.path,
+			order: "desc",
+		});
+		const descMonths = descResult.map((r) => r.month);
+		expect(descMonths).toEqual(["2024-02", "2024-01", "2023-12", "2023-11"]);
+
+		// Ascending order
+		const ascResult = await loadMonthlyUsageData({
+			claudePath: fixture.path,
+			order: "asc",
+		});
+		const ascMonths = ascResult.map((r) => r.month);
+		expect(ascMonths).toEqual(["2023-11", "2023-12", "2024-01", "2024-02"]);
 	});
 
 	test("respects date filters", async () => {
