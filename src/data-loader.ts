@@ -323,8 +323,12 @@ export async function loadSessionData(
 		});
 	}
 
-	// Sort by last activity descending
-	return sort(results).desc((item) => new Date(item.lastActivity).getTime());
+	// Sort by last activity based on order option (default to descending)
+	const sortOrder = options?.order || "desc";
+	const sortedResults = sort(results);
+	return sortOrder === "desc"
+		? sortedResults.desc((item) => new Date(item.lastActivity).getTime())
+		: sortedResults.asc((item) => new Date(item.lastActivity).getTime());
 }
 
 export async function loadMonthlyUsageData(

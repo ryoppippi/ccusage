@@ -826,6 +826,104 @@ describe("loadSessionData", () => {
 		expect(result[2]?.sessionId).toBe("session2");
 	});
 
+	test("sorts by last activity ascending when order is 'asc'", async () => {
+		const sessions = [
+			{
+				sessionId: "session1",
+				data: {
+					timestamp: "2024-01-15T00:00:00Z",
+					message: { usage: { input_tokens: 100, output_tokens: 50 } },
+					costUSD: 0.01,
+				},
+			},
+			{
+				sessionId: "session2",
+				data: {
+					timestamp: "2024-01-01T00:00:00Z",
+					message: { usage: { input_tokens: 100, output_tokens: 50 } },
+					costUSD: 0.01,
+				},
+			},
+			{
+				sessionId: "session3",
+				data: {
+					timestamp: "2024-01-31T00:00:00Z",
+					message: { usage: { input_tokens: 100, output_tokens: 50 } },
+					costUSD: 0.01,
+				},
+			},
+		];
+
+		await using fixture = await createFixture({
+			projects: {
+				project1: Object.fromEntries(
+					sessions.map((s) => [
+						s.sessionId,
+						{ "chat.jsonl": JSON.stringify(s.data) },
+					]),
+				),
+			},
+		});
+
+		const result = await loadSessionData({
+			claudePath: fixture.path,
+			order: "asc",
+		});
+
+		expect(result[0]?.sessionId).toBe("session2"); // oldest first
+		expect(result[1]?.sessionId).toBe("session1");
+		expect(result[2]?.sessionId).toBe("session3"); // newest last
+	});
+
+	test("sorts by last activity descending when order is 'desc'", async () => {
+		const sessions = [
+			{
+				sessionId: "session1",
+				data: {
+					timestamp: "2024-01-15T00:00:00Z",
+					message: { usage: { input_tokens: 100, output_tokens: 50 } },
+					costUSD: 0.01,
+				},
+			},
+			{
+				sessionId: "session2",
+				data: {
+					timestamp: "2024-01-01T00:00:00Z",
+					message: { usage: { input_tokens: 100, output_tokens: 50 } },
+					costUSD: 0.01,
+				},
+			},
+			{
+				sessionId: "session3",
+				data: {
+					timestamp: "2024-01-31T00:00:00Z",
+					message: { usage: { input_tokens: 100, output_tokens: 50 } },
+					costUSD: 0.01,
+				},
+			},
+		];
+
+		await using fixture = await createFixture({
+			projects: {
+				project1: Object.fromEntries(
+					sessions.map((s) => [
+						s.sessionId,
+						{ "chat.jsonl": JSON.stringify(s.data) },
+					]),
+				),
+			},
+		});
+
+		const result = await loadSessionData({
+			claudePath: fixture.path,
+			order: "desc",
+		});
+
+		expect(result[0]?.sessionId).toBe("session3"); // newest first (same as default)
+		expect(result[1]?.sessionId).toBe("session1");
+		expect(result[2]?.sessionId).toBe("session2"); // oldest last
+	});
+
 	test("filters by date range based on last activity", async () => {
 		const sessions = [
 			{

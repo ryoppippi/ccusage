@@ -60,8 +60,7 @@ export const sharedArgs = {
 	order: {
 		type: "enum",
 		short: "o",
-		description:
-			"Sort order for dates: desc (newest first) or asc (oldest first)",
+		description: "Sort order: desc (newest first) or asc (oldest first)",
 		default: "desc" as const satisfies SortOrder,
 		choices: SortOrders,
 	},
