@@ -61,7 +61,7 @@ export const sharedArgs = {
 		type: "enum",
 		short: "o",
 		description: "Sort order: desc (newest first) or asc (oldest first)",
-		default: "desc" as const satisfies SortOrder,
+		default: "asc" as const satisfies SortOrder,
 		choices: SortOrders,
 	},
 } as const satisfies Args;
