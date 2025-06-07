@@ -179,9 +179,11 @@ export async function loadDailyUsageData(
 	const groupedByDate = Object.groupBy(allEntries, (entry) => entry.date);
 
 	// Aggregate each group
-	let results = Object.entries(groupedByDate)
+	const results = Object.entries(groupedByDate)
 		.map(([date, entries]) => {
-			if (!entries) return null;
+			if (entries == null) {
+				return undefined;
+			}
 
 			return entries.reduce(
 				(acc, entry) => ({
@@ -208,16 +210,16 @@ export async function loadDailyUsageData(
 				},
 			);
 		})
-		.filter((item): item is DailyUsage => item !== null);
-
-	if (options?.since || options?.until) {
-		results = results.filter((data) => {
-			const dateStr = data.date.replace(/-/g, ""); // Convert to YYYYMMDD
-			if (options.since && dateStr < options.since) return false;
-			if (options.until && dateStr > options.until) return false;
+		.filter((item) => item != null)
+		.filter((item) => {
+			// Filter by date range if specified
+			if (options?.since || options?.until) {
+				const dateStr = item.date.replace(/-/g, ""); // Convert to YYYYMMDD
+				if (options.since && dateStr < options.since) return false;
+				if (options.until && dateStr > options.until) return false;
+			}
 			return true;
 		});
-	}
 
 	// Sort by date based on order option (default to descending)
 	const sortOrder = options?.order || "desc";
@@ -304,7 +306,7 @@ export async function loadSessionData(
 	);
 
 	// Aggregate each session group
-	let results = Object.entries(groupedBySessions)
+	const results = Object.entries(groupedBySessions)
 		.map(([_, entries]) => {
 			if (entries == null) {
 				return undefined;
@@ -357,16 +359,16 @@ export async function loadSessionData(
 
 			return aggregated;
 		})
-		.filter((item): item is SessionUsage => item !== null);
-
-	if (options?.since || options?.until) {
-		results = results.filter((session) => {
-			const dateStr = session.lastActivity.replace(/-/g, ""); // Convert to YYYYMMDD
-			if (options.since && dateStr < options.since) return false;
-			if (options.until && dateStr > options.until) return false;
+		.filter((item) => item != null)
+		.filter((item) => {
+			// Filter by date range if specified
+			if (options?.since || options?.until) {
+				const dateStr = item.lastActivity.replace(/-/g, ""); // Convert to YYYYMMDD
+				if (options.since && dateStr < options.since) return false;
+				if (options.until && dateStr > options.until) return false;
+			}
 			return true;
 		});
-	}
 
 	// Sort by last activity based on order option (default to descending)
 	const sortOrder = options?.order || "desc";
@@ -389,7 +391,9 @@ export async function loadMonthlyUsageData(
 	// Aggregate each month group
 	const monthlyArray = Object.entries(groupedByMonth)
 		.map(([month, dailyEntries]) => {
-			if (!dailyEntries) return null;
+			if (dailyEntries == null) {
+				return undefined;
+			}
 
 			return dailyEntries.reduce(
 				(acc, data) => ({
@@ -411,7 +415,7 @@ export async function loadMonthlyUsageData(
 				},
 			);
 		})
-		.filter((item): item is MonthlyUsage => item !== null);
+		.filter((item) => item != null);
 
 	// Sort by month based on sortOrder
 	const sortOrder = options?.order || "desc";
