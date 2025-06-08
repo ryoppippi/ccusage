@@ -42,21 +42,6 @@ export const dateSchema = v.pipe(
 	v.regex(/^\d{8}$/, 'Date must be in YYYYMMDD format'),
 );
 
-export type TokenData = {
-	inputTokens: number;
-	outputTokens: number;
-	cacheCreationTokens: number;
-	cacheReadTokens: number;
-};
-
-export type TokenTotals = TokenData & {
-	totalCost: number;
-};
-
-export type TotalsObject = TokenTotals & {
-	totalTokens: number;
-};
-
 export const CostModes = ['auto', 'calculate', 'display'] as const;
 export type CostMode = (typeof CostModes)[number];
 
