@@ -1,5 +1,5 @@
 import type { DailyUsage, MonthlyUsage, SessionUsage } from './data-loader';
-import type { TokenData, TokenTotals } from './types';
+import type { TokenData, TokenTotals, TotalsObject } from './types';
 
 export function calculateTotals(
 	data: Array<DailyUsage | MonthlyUsage | SessionUsage>,
@@ -31,14 +31,7 @@ export function getTotalTokens(tokens: TokenData): number {
 	);
 }
 
-export function createTotalsObject(totals: TokenTotals): {
-	inputTokens: number;
-	outputTokens: number;
-	cacheCreationTokens: number;
-	cacheReadTokens: number;
-	totalTokens: number;
-	totalCost: number;
-} {
+export function createTotalsObject(totals: TokenTotals): TotalsObject {
 	return {
 		inputTokens: totals.inputTokens,
 		outputTokens: totals.outputTokens,
