@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { formatCurrency, formatNumber } from './utils.ts';
+import { formatCurrency, formatNumber } from './utils.internal.ts';
 
 describe('formatNumber', () => {
 	test('formats positive numbers with comma separators', () => {
