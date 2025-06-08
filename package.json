@@ -59,7 +59,7 @@
 		"fastmcp": "^2.2.1",
 		"fs-fixture": "^2.7.1",
 		"gunshi": "^0.26.3",
-		"lint-staged": "^15.5.0",
+		"lint-staged": "^15.5.2",
 		"picocolors": "^1.1.1",
 		"publint": "^0.3.12",
 		"simple-git-hooks": "^2.12.1",
