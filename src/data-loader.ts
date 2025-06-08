@@ -103,7 +103,7 @@ export const calculateCostForEntry = (
 	}
 
 	// Auto mode: use costUSD if available, otherwise calculate
-	if (data.costUSD !== undefined) {
+	if (data.costUSD != null) {
 		return data.costUSD;
 	}
 
