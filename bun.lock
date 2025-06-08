@@ -21,7 +21,7 @@
         "lint-staged": "^15.5.2",
         "picocolors": "^1.1.1",
         "publint": "^0.3.12",
-        "simple-git-hooks": "^2.12.1",
+        "simple-git-hooks": "^2.13.0",
         "sort-package-json": "^3.2.1",
         "tinyglobby": "^0.2.14",
         "tsdown": "^0.12.7",
