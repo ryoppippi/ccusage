@@ -1,16 +1,16 @@
-import { describe, expect, test } from "bun:test";
+import type { DailyUsage, SessionUsage } from './data-loader';
+import { describe, expect, test } from 'bun:test';
 import {
 	calculateTotals,
 	createTotalsObject,
 	getTotalTokens,
-} from "./calculate-cost.ts";
-import type { DailyUsage, SessionUsage } from "./data-loader";
+} from './calculate-cost.ts';
 
-describe("Token aggregation utilities", () => {
-	test("calculateTotals should aggregate daily usage data", () => {
+describe('Token aggregation utilities', () => {
+	test('calculateTotals should aggregate daily usage data', () => {
 		const dailyData: DailyUsage[] = [
 			{
-				date: "2024-01-01",
+				date: '2024-01-01',
 				inputTokens: 100,
 				outputTokens: 50,
 				cacheCreationTokens: 25,
@@ -18,7 +18,7 @@ describe("Token aggregation utilities", () => {
 				totalCost: 0.01,
 			},
 			{
-				date: "2024-01-02",
+				date: '2024-01-02',
 				inputTokens: 200,
 				outputTokens: 100,
 				cacheCreationTokens: 50,
@@ -35,29 +35,29 @@ describe("Token aggregation utilities", () => {
 		expect(totals.totalCost).toBeCloseTo(0.03);
 	});
 
-	test("calculateTotals should aggregate session usage data", () => {
+	test('calculateTotals should aggregate session usage data', () => {
 		const sessionData: SessionUsage[] = [
 			{
-				sessionId: "session-1",
-				projectPath: "project/path",
+				sessionId: 'session-1',
+				projectPath: 'project/path',
 				inputTokens: 100,
 				outputTokens: 50,
 				cacheCreationTokens: 25,
 				cacheReadTokens: 10,
 				totalCost: 0.01,
-				lastActivity: "2024-01-01",
-				versions: ["1.0.3"],
+				lastActivity: '2024-01-01',
+				versions: ['1.0.3'],
 			},
 			{
-				sessionId: "session-2",
-				projectPath: "project/path",
+				sessionId: 'session-2',
+				projectPath: 'project/path',
 				inputTokens: 200,
 				outputTokens: 100,
 				cacheCreationTokens: 50,
 				cacheReadTokens: 20,
 				totalCost: 0.02,
-				lastActivity: "2024-01-02",
-				versions: ["1.0.3", "1.0.4"],
+				lastActivity: '2024-01-02',
+				versions: ['1.0.3', '1.0.4'],
 			},
 		];
 
@@ -69,7 +69,7 @@ describe("Token aggregation utilities", () => {
 		expect(totals.totalCost).toBeCloseTo(0.03);
 	});
 
-	test("getTotalTokens should sum all token types", () => {
+	test('getTotalTokens should sum all token types', () => {
 		const tokens = {
 			inputTokens: 100,
 			outputTokens: 50,
@@ -81,7 +81,7 @@ describe("Token aggregation utilities", () => {
 		expect(total).toBe(185);
 	});
 
-	test("getTotalTokens should handle zero values", () => {
+	test('getTotalTokens should handle zero values', () => {
 		const tokens = {
 			inputTokens: 0,
 			outputTokens: 0,
@@ -93,7 +93,7 @@ describe("Token aggregation utilities", () => {
 		expect(total).toBe(0);
 	});
 
-	test("createTotalsObject should create complete totals object", () => {
+	test('createTotalsObject should create complete totals object', () => {
 		const totals = {
 			inputTokens: 100,
 			outputTokens: 50,
@@ -113,7 +113,7 @@ describe("Token aggregation utilities", () => {
 		});
 	});
 
-	test("calculateTotals should handle empty array", () => {
+	test('calculateTotals should handle empty array', () => {
 		const totals = calculateTotals([]);
 		expect(totals).toEqual({
 			inputTokens: 0,

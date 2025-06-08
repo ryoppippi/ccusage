@@ -1,41 +1,39 @@
-import { beforeEach, describe, expect, test } from "bun:test";
-import path from "node:path";
-import { createFixture } from "fs-fixture";
+import { beforeEach, describe, expect, test } from 'bun:test';
+import { createFixture } from 'fs-fixture';
 import {
-	type UsageData,
 	calculateCostForEntry,
 	formatDate,
 	loadDailyUsageData,
 	loadMonthlyUsageData,
 	loadSessionData,
-} from "./data-loader.ts";
+	type UsageData,
+} from './data-loader.ts';
 import {
 	clearPricingCache,
 	fetchModelPricing,
-	getModelPricing,
-} from "./pricing-fetcher.ts";
+} from './pricing-fetcher.ts';
 
-describe("formatDate", () => {
-	test("formats UTC timestamp to local date", () => {
+describe('formatDate', () => {
+	test('formats UTC timestamp to local date', () => {
 		// Test with UTC timestamps - results depend on local timezone
-		expect(formatDate("2024-01-01T00:00:00Z")).toBe("2024-01-01");
-		expect(formatDate("2024-12-31T23:59:59Z")).toBe("2024-12-31");
+		expect(formatDate('2024-01-01T00:00:00Z')).toBe('2024-01-01');
+		expect(formatDate('2024-12-31T23:59:59Z')).toBe('2024-12-31');
 	});
 
-	test("handles various date formats", () => {
-		expect(formatDate("2024-01-01")).toBe("2024-01-01");
-		expect(formatDate("2024-01-01T12:00:00")).toBe("2024-01-01");
-		expect(formatDate("2024-01-01T12:00:00.000Z")).toBe("2024-01-01");
+	test('handles various date formats', () => {
+		expect(formatDate('2024-01-01')).toBe('2024-01-01');
+		expect(formatDate('2024-01-01T12:00:00')).toBe('2024-01-01');
+		expect(formatDate('2024-01-01T12:00:00.000Z')).toBe('2024-01-01');
 	});
 
-	test("pads single digit months and days", () => {
-		expect(formatDate("2024-01-05T00:00:00Z")).toBe("2024-01-05");
-		expect(formatDate("2024-10-01T00:00:00Z")).toBe("2024-10-01");
+	test('pads single digit months and days', () => {
+		expect(formatDate('2024-01-05T00:00:00Z')).toBe('2024-01-05');
+		expect(formatDate('2024-10-01T00:00:00Z')).toBe('2024-10-01');
 	});
 });
 
-describe("loadDailyUsageData", () => {
-	test("returns empty array when no files found", async () => {
+describe('loadDailyUsageData', () => {
+	test('returns empty array when no files found', async () => {
 		await using fixture = await createFixture({
 			projects: {},
 		});
@@ -44,22 +42,22 @@ describe("loadDailyUsageData", () => {
 		expect(result).toEqual([]);
 	});
 
-	test("aggregates daily usage data correctly", async () => {
+	test('aggregates daily usage data correctly', async () => {
 		const mockData1: UsageData[] = [
 			{
-				timestamp: "2024-01-01T00:00:00Z",
+				timestamp: '2024-01-01T00:00:00Z',
 				message: { usage: { input_tokens: 100, output_tokens: 50 } },
 				costUSD: 0.01,
 			},
 			{
-				timestamp: "2024-01-01T12:00:00Z",
+				timestamp: '2024-01-01T12:00:00Z',
 				message: { usage: { input_tokens: 200, output_tokens: 100 } },
 				costUSD: 0.02,
 			},
 		];
 
 		const mockData2: UsageData = {
-			timestamp: "2024-01-01T18:00:00Z",
+			timestamp: '2024-01-01T18:00:00Z',
 			message: { usage: { input_tokens: 300, output_tokens: 150 } },
 			costUSD: 0.03,
 		};
@@ -68,10 +66,10 @@ describe("loadDailyUsageData", () => {
 			projects: {
 				project1: {
 					session1: {
-						"file1.jsonl": mockData1.map((d) => JSON.stringify(d)).join("\n"),
+						'file1.jsonl': mockData1.map(d => JSON.stringify(d)).join('\n'),
 					},
 					session2: {
-						"file2.jsonl": JSON.stringify(mockData2),
+						'file2.jsonl': JSON.stringify(mockData2),
 					},
 				},
 			},
@@ -80,15 +78,15 @@ describe("loadDailyUsageData", () => {
 		const result = await loadDailyUsageData({ claudePath: fixture.path });
 
 		expect(result).toHaveLength(1);
-		expect(result[0]?.date).toBe("2024-01-01");
+		expect(result[0]?.date).toBe('2024-01-01');
 		expect(result[0]?.inputTokens).toBe(600); // 100 + 200 + 300
 		expect(result[0]?.outputTokens).toBe(300); // 50 + 100 + 150
 		expect(result[0]?.totalCost).toBe(0.06); // 0.01 + 0.02 + 0.03
 	});
 
-	test("handles cache tokens", async () => {
+	test('handles cache tokens', async () => {
 		const mockData: UsageData = {
-			timestamp: "2024-01-01T00:00:00Z",
+			timestamp: '2024-01-01T00:00:00Z',
 			message: {
 				usage: {
 					input_tokens: 100,
@@ -104,7 +102,7 @@ describe("loadDailyUsageData", () => {
 			projects: {
 				project1: {
 					session1: {
-						"file.jsonl": JSON.stringify(mockData),
+						'file.jsonl': JSON.stringify(mockData),
 					},
 				},
 			},
@@ -116,20 +114,20 @@ describe("loadDailyUsageData", () => {
 		expect(result[0]?.cacheReadTokens).toBe(10);
 	});
 
-	test("filters by date range", async () => {
+	test('filters by date range', async () => {
 		const mockData: UsageData[] = [
 			{
-				timestamp: "2024-01-01T00:00:00Z",
+				timestamp: '2024-01-01T00:00:00Z',
 				message: { usage: { input_tokens: 100, output_tokens: 50 } },
 				costUSD: 0.01,
 			},
 			{
-				timestamp: "2024-01-15T00:00:00Z",
+				timestamp: '2024-01-15T00:00:00Z',
 				message: { usage: { input_tokens: 200, output_tokens: 100 } },
 				costUSD: 0.02,
 			},
 			{
-				timestamp: "2024-01-31T00:00:00Z",
+				timestamp: '2024-01-31T00:00:00Z',
 				message: { usage: { input_tokens: 300, output_tokens: 150 } },
 				costUSD: 0.03,
 			},
@@ -139,7 +137,7 @@ describe("loadDailyUsageData", () => {
 			projects: {
 				project1: {
 					session1: {
-						"file.jsonl": mockData.map((d) => JSON.stringify(d)).join("\n"),
+						'file.jsonl': mockData.map(d => JSON.stringify(d)).join('\n'),
 					},
 				},
 			},
@@ -147,29 +145,29 @@ describe("loadDailyUsageData", () => {
 
 		const result = await loadDailyUsageData({
 			claudePath: fixture.path,
-			since: "20240110",
-			until: "20240125",
+			since: '20240110',
+			until: '20240125',
 		});
 
 		expect(result).toHaveLength(1);
-		expect(result[0]?.date).toBe("2024-01-15");
+		expect(result[0]?.date).toBe('2024-01-15');
 		expect(result[0]?.inputTokens).toBe(200);
 	});
 
-	test("sorts by date descending by default", async () => {
+	test('sorts by date descending by default', async () => {
 		const mockData: UsageData[] = [
 			{
-				timestamp: "2024-01-15T00:00:00Z",
+				timestamp: '2024-01-15T00:00:00Z',
 				message: { usage: { input_tokens: 200, output_tokens: 100 } },
 				costUSD: 0.02,
 			},
 			{
-				timestamp: "2024-01-01T00:00:00Z",
+				timestamp: '2024-01-01T00:00:00Z',
 				message: { usage: { input_tokens: 100, output_tokens: 50 } },
 				costUSD: 0.01,
 			},
 			{
-				timestamp: "2024-01-31T00:00:00Z",
+				timestamp: '2024-01-31T00:00:00Z',
 				message: { usage: { input_tokens: 300, output_tokens: 150 } },
 				costUSD: 0.03,
 			},
@@ -179,7 +177,7 @@ describe("loadDailyUsageData", () => {
 			projects: {
 				project1: {
 					session1: {
-						"file.jsonl": mockData.map((d) => JSON.stringify(d)).join("\n"),
+						'file.jsonl': mockData.map(d => JSON.stringify(d)).join('\n'),
 					},
 				},
 			},
@@ -187,25 +185,25 @@ describe("loadDailyUsageData", () => {
 
 		const result = await loadDailyUsageData({ claudePath: fixture.path });
 
-		expect(result[0]?.date).toBe("2024-01-31");
-		expect(result[1]?.date).toBe("2024-01-15");
-		expect(result[2]?.date).toBe("2024-01-01");
+		expect(result[0]?.date).toBe('2024-01-31');
+		expect(result[1]?.date).toBe('2024-01-15');
+		expect(result[2]?.date).toBe('2024-01-01');
 	});
 
-	test("sorts by date ascending when order is 'asc'", async () => {
+	test('sorts by date ascending when order is \'asc\'', async () => {
 		const mockData: UsageData[] = [
 			{
-				timestamp: "2024-01-15T00:00:00Z",
+				timestamp: '2024-01-15T00:00:00Z',
 				message: { usage: { input_tokens: 200, output_tokens: 100 } },
 				costUSD: 0.02,
 			},
 			{
-				timestamp: "2024-01-01T00:00:00Z",
+				timestamp: '2024-01-01T00:00:00Z',
 				message: { usage: { input_tokens: 100, output_tokens: 50 } },
 				costUSD: 0.01,
 			},
 			{
-				timestamp: "2024-01-31T00:00:00Z",
+				timestamp: '2024-01-31T00:00:00Z',
 				message: { usage: { input_tokens: 300, output_tokens: 150 } },
 				costUSD: 0.03,
 			},
@@ -215,7 +213,7 @@ describe("loadDailyUsageData", () => {
 			projects: {
 				project1: {
 					session1: {
-						"usage.jsonl": mockData.map((d) => JSON.stringify(d)).join("\n"),
+						'usage.jsonl': mockData.map(d => JSON.stringify(d)).join('\n'),
 					},
 				},
 			},
@@ -223,29 +221,29 @@ describe("loadDailyUsageData", () => {
 
 		const result = await loadDailyUsageData({
 			claudePath: fixture.path,
-			order: "asc",
+			order: 'asc',
 		});
 
 		expect(result).toHaveLength(3);
-		expect(result[0]?.date).toBe("2024-01-01");
-		expect(result[1]?.date).toBe("2024-01-15");
-		expect(result[2]?.date).toBe("2024-01-31");
+		expect(result[0]?.date).toBe('2024-01-01');
+		expect(result[1]?.date).toBe('2024-01-15');
+		expect(result[2]?.date).toBe('2024-01-31');
 	});
 
-	test("sorts by date descending when order is 'desc'", async () => {
+	test('sorts by date descending when order is \'desc\'', async () => {
 		const mockData: UsageData[] = [
 			{
-				timestamp: "2024-01-15T00:00:00Z",
+				timestamp: '2024-01-15T00:00:00Z',
 				message: { usage: { input_tokens: 200, output_tokens: 100 } },
 				costUSD: 0.02,
 			},
 			{
-				timestamp: "2024-01-01T00:00:00Z",
+				timestamp: '2024-01-01T00:00:00Z',
 				message: { usage: { input_tokens: 100, output_tokens: 50 } },
 				costUSD: 0.01,
 			},
 			{
-				timestamp: "2024-01-31T00:00:00Z",
+				timestamp: '2024-01-31T00:00:00Z',
 				message: { usage: { input_tokens: 300, output_tokens: 150 } },
 				costUSD: 0.03,
 			},
@@ -255,7 +253,7 @@ describe("loadDailyUsageData", () => {
 			projects: {
 				project1: {
 					session1: {
-						"usage.jsonl": mockData.map((d) => JSON.stringify(d)).join("\n"),
+						'usage.jsonl': mockData.map(d => JSON.stringify(d)).join('\n'),
 					},
 				},
 			},
@@ -263,16 +261,16 @@ describe("loadDailyUsageData", () => {
 
 		const result = await loadDailyUsageData({
 			claudePath: fixture.path,
-			order: "desc",
+			order: 'desc',
 		});
 
 		expect(result).toHaveLength(3);
-		expect(result[0]?.date).toBe("2024-01-31");
-		expect(result[1]?.date).toBe("2024-01-15");
-		expect(result[2]?.date).toBe("2024-01-01");
+		expect(result[0]?.date).toBe('2024-01-31');
+		expect(result[1]?.date).toBe('2024-01-15');
+		expect(result[2]?.date).toBe('2024-01-01');
 	});
 
-	test("handles invalid JSON lines gracefully", async () => {
+	test('handles invalid JSON lines gracefully', async () => {
 		const mockData = `
 {"timestamp":"2024-01-01T00:00:00Z","message":{"usage":{"input_tokens":100,"output_tokens":50}},"costUSD":0.01}
 invalid json line
@@ -285,7 +283,7 @@ invalid json line
 			projects: {
 				project1: {
 					session1: {
-						"file.jsonl": mockData,
+						'file.jsonl': mockData,
 					},
 				},
 			},
@@ -299,7 +297,7 @@ invalid json line
 		expect(result[0]?.totalCost).toBe(0.06); // 0.01 + 0.02 + 0.03
 	});
 
-	test("skips data without required fields", async () => {
+	test('skips data without required fields', async () => {
 		const mockData = `
 {"timestamp":"2024-01-01T00:00:00Z","message":{"usage":{"input_tokens":100,"output_tokens":50}},"costUSD":0.01}
 {"timestamp":"2024-01-01T12:00:00Z","message":{"usage":{}}}
@@ -313,7 +311,7 @@ invalid json line
 			projects: {
 				project1: {
 					session1: {
-						"file.jsonl": mockData,
+						'file.jsonl': mockData,
 					},
 				},
 			},
@@ -328,21 +326,21 @@ invalid json line
 	});
 });
 
-describe("loadMonthlyUsageData", () => {
-	test("aggregates daily data by month correctly", async () => {
+describe('loadMonthlyUsageData', () => {
+	test('aggregates daily data by month correctly', async () => {
 		const mockData: UsageData[] = [
 			{
-				timestamp: "2024-01-01T00:00:00Z",
+				timestamp: '2024-01-01T00:00:00Z',
 				message: { usage: { input_tokens: 100, output_tokens: 50 } },
 				costUSD: 0.01,
 			},
 			{
-				timestamp: "2024-01-15T00:00:00Z",
+				timestamp: '2024-01-15T00:00:00Z',
 				message: { usage: { input_tokens: 200, output_tokens: 100 } },
 				costUSD: 0.02,
 			},
 			{
-				timestamp: "2024-02-01T00:00:00Z",
+				timestamp: '2024-02-01T00:00:00Z',
 				message: { usage: { input_tokens: 150, output_tokens: 75 } },
 				costUSD: 0.015,
 			},
@@ -352,7 +350,7 @@ describe("loadMonthlyUsageData", () => {
 			projects: {
 				project1: {
 					session1: {
-						"file.jsonl": mockData.map((d) => JSON.stringify(d)).join("\n"),
+						'file.jsonl': mockData.map(d => JSON.stringify(d)).join('\n'),
 					},
 				},
 			},
@@ -363,7 +361,7 @@ describe("loadMonthlyUsageData", () => {
 		// Should be sorted by month descending (2024-02 first)
 		expect(result).toHaveLength(2);
 		expect(result[0]).toEqual({
-			month: "2024-02",
+			month: '2024-02',
 			inputTokens: 150,
 			outputTokens: 75,
 			cacheCreationTokens: 0,
@@ -371,7 +369,7 @@ describe("loadMonthlyUsageData", () => {
 			totalCost: 0.015,
 		});
 		expect(result[1]).toEqual({
-			month: "2024-01",
+			month: '2024-01',
 			inputTokens: 300,
 			outputTokens: 150,
 			cacheCreationTokens: 0,
@@ -380,7 +378,7 @@ describe("loadMonthlyUsageData", () => {
 		});
 	});
 
-	test("handles empty data", async () => {
+	test('handles empty data', async () => {
 		await using fixture = await createFixture({
 			projects: {},
 		});
@@ -389,15 +387,15 @@ describe("loadMonthlyUsageData", () => {
 		expect(result).toEqual([]);
 	});
 
-	test("handles single month data", async () => {
+	test('handles single month data', async () => {
 		const mockData: UsageData[] = [
 			{
-				timestamp: "2024-01-01T00:00:00Z",
+				timestamp: '2024-01-01T00:00:00Z',
 				message: { usage: { input_tokens: 100, output_tokens: 50 } },
 				costUSD: 0.01,
 			},
 			{
-				timestamp: "2024-01-31T00:00:00Z",
+				timestamp: '2024-01-31T00:00:00Z',
 				message: { usage: { input_tokens: 200, output_tokens: 100 } },
 				costUSD: 0.02,
 			},
@@ -407,7 +405,7 @@ describe("loadMonthlyUsageData", () => {
 			projects: {
 				project1: {
 					session1: {
-						"file.jsonl": mockData.map((d) => JSON.stringify(d)).join("\n"),
+						'file.jsonl': mockData.map(d => JSON.stringify(d)).join('\n'),
 					},
 				},
 			},
@@ -417,7 +415,7 @@ describe("loadMonthlyUsageData", () => {
 
 		expect(result).toHaveLength(1);
 		expect(result[0]).toEqual({
-			month: "2024-01",
+			month: '2024-01',
 			inputTokens: 300,
 			outputTokens: 150,
 			cacheCreationTokens: 0,
@@ -426,25 +424,25 @@ describe("loadMonthlyUsageData", () => {
 		});
 	});
 
-	test("sorts months in descending order", async () => {
+	test('sorts months in descending order', async () => {
 		const mockData: UsageData[] = [
 			{
-				timestamp: "2024-01-01T00:00:00Z",
+				timestamp: '2024-01-01T00:00:00Z',
 				message: { usage: { input_tokens: 100, output_tokens: 50 } },
 				costUSD: 0.01,
 			},
 			{
-				timestamp: "2024-03-01T00:00:00Z",
+				timestamp: '2024-03-01T00:00:00Z',
 				message: { usage: { input_tokens: 100, output_tokens: 50 } },
 				costUSD: 0.01,
 			},
 			{
-				timestamp: "2024-02-01T00:00:00Z",
+				timestamp: '2024-02-01T00:00:00Z',
 				message: { usage: { input_tokens: 100, output_tokens: 50 } },
 				costUSD: 0.01,
 			},
 			{
-				timestamp: "2023-12-01T00:00:00Z",
+				timestamp: '2023-12-01T00:00:00Z',
 				message: { usage: { input_tokens: 100, output_tokens: 50 } },
 				costUSD: 0.01,
 			},
@@ -454,37 +452,37 @@ describe("loadMonthlyUsageData", () => {
 			projects: {
 				project1: {
 					session1: {
-						"file.jsonl": mockData.map((d) => JSON.stringify(d)).join("\n"),
+						'file.jsonl': mockData.map(d => JSON.stringify(d)).join('\n'),
 					},
 				},
 			},
 		});
 
 		const result = await loadMonthlyUsageData({ claudePath: fixture.path });
-		const months = result.map((r) => r.month);
+		const months = result.map(r => r.month);
 
-		expect(months).toEqual(["2024-03", "2024-02", "2024-01", "2023-12"]);
+		expect(months).toEqual(['2024-03', '2024-02', '2024-01', '2023-12']);
 	});
 
-	test("sorts months in ascending order when order is 'asc'", async () => {
+	test('sorts months in ascending order when order is \'asc\'', async () => {
 		const mockData: UsageData[] = [
 			{
-				timestamp: "2024-01-01T00:00:00Z",
+				timestamp: '2024-01-01T00:00:00Z',
 				message: { usage: { input_tokens: 100, output_tokens: 50 } },
 				costUSD: 0.01,
 			},
 			{
-				timestamp: "2024-03-01T00:00:00Z",
+				timestamp: '2024-03-01T00:00:00Z',
 				message: { usage: { input_tokens: 100, output_tokens: 50 } },
 				costUSD: 0.01,
 			},
 			{
-				timestamp: "2024-02-01T00:00:00Z",
+				timestamp: '2024-02-01T00:00:00Z',
 				message: { usage: { input_tokens: 100, output_tokens: 50 } },
 				costUSD: 0.01,
 			},
 			{
-				timestamp: "2023-12-01T00:00:00Z",
+				timestamp: '2023-12-01T00:00:00Z',
 				message: { usage: { input_tokens: 100, output_tokens: 50 } },
 				costUSD: 0.01,
 			},
@@ -494,7 +492,7 @@ describe("loadMonthlyUsageData", () => {
 			projects: {
 				project1: {
 					session1: {
-						"file.jsonl": mockData.map((d) => JSON.stringify(d)).join("\n"),
+						'file.jsonl': mockData.map(d => JSON.stringify(d)).join('\n'),
 					},
 				},
 			},
@@ -502,32 +500,32 @@ describe("loadMonthlyUsageData", () => {
 
 		const result = await loadMonthlyUsageData({
 			claudePath: fixture.path,
-			order: "asc",
+			order: 'asc',
 		});
-		const months = result.map((r) => r.month);
+		const months = result.map(r => r.month);
 
-		expect(months).toEqual(["2023-12", "2024-01", "2024-02", "2024-03"]);
+		expect(months).toEqual(['2023-12', '2024-01', '2024-02', '2024-03']);
 	});
 
-	test("handles year boundaries correctly in sorting", async () => {
+	test('handles year boundaries correctly in sorting', async () => {
 		const mockData: UsageData[] = [
 			{
-				timestamp: "2024-01-01T00:00:00Z",
+				timestamp: '2024-01-01T00:00:00Z',
 				message: { usage: { input_tokens: 100, output_tokens: 50 } },
 				costUSD: 0.01,
 			},
 			{
-				timestamp: "2023-12-01T00:00:00Z",
+				timestamp: '2023-12-01T00:00:00Z',
 				message: { usage: { input_tokens: 100, output_tokens: 50 } },
 				costUSD: 0.01,
 			},
 			{
-				timestamp: "2024-02-01T00:00:00Z",
+				timestamp: '2024-02-01T00:00:00Z',
 				message: { usage: { input_tokens: 100, output_tokens: 50 } },
 				costUSD: 0.01,
 			},
 			{
-				timestamp: "2023-11-01T00:00:00Z",
+				timestamp: '2023-11-01T00:00:00Z',
 				message: { usage: { input_tokens: 100, output_tokens: 50 } },
 				costUSD: 0.01,
 			},
@@ -537,7 +535,7 @@ describe("loadMonthlyUsageData", () => {
 			projects: {
 				project1: {
 					session1: {
-						"file.jsonl": mockData.map((d) => JSON.stringify(d)).join("\n"),
+						'file.jsonl': mockData.map(d => JSON.stringify(d)).join('\n'),
 					},
 				},
 			},
@@ -546,34 +544,34 @@ describe("loadMonthlyUsageData", () => {
 		// Descending order (default)
 		const descResult = await loadMonthlyUsageData({
 			claudePath: fixture.path,
-			order: "desc",
+			order: 'desc',
 		});
-		const descMonths = descResult.map((r) => r.month);
-		expect(descMonths).toEqual(["2024-02", "2024-01", "2023-12", "2023-11"]);
+		const descMonths = descResult.map(r => r.month);
+		expect(descMonths).toEqual(['2024-02', '2024-01', '2023-12', '2023-11']);
 
 		// Ascending order
 		const ascResult = await loadMonthlyUsageData({
 			claudePath: fixture.path,
-			order: "asc",
+			order: 'asc',
 		});
-		const ascMonths = ascResult.map((r) => r.month);
-		expect(ascMonths).toEqual(["2023-11", "2023-12", "2024-01", "2024-02"]);
+		const ascMonths = ascResult.map(r => r.month);
+		expect(ascMonths).toEqual(['2023-11', '2023-12', '2024-01', '2024-02']);
 	});
 
-	test("respects date filters", async () => {
+	test('respects date filters', async () => {
 		const mockData: UsageData[] = [
 			{
-				timestamp: "2024-01-01T00:00:00Z",
+				timestamp: '2024-01-01T00:00:00Z',
 				message: { usage: { input_tokens: 100, output_tokens: 50 } },
 				costUSD: 0.01,
 			},
 			{
-				timestamp: "2024-02-15T00:00:00Z",
+				timestamp: '2024-02-15T00:00:00Z',
 				message: { usage: { input_tokens: 200, output_tokens: 100 } },
 				costUSD: 0.02,
 			},
 			{
-				timestamp: "2024-03-01T00:00:00Z",
+				timestamp: '2024-03-01T00:00:00Z',
 				message: { usage: { input_tokens: 150, output_tokens: 75 } },
 				costUSD: 0.015,
 			},
@@ -583,7 +581,7 @@ describe("loadMonthlyUsageData", () => {
 			projects: {
 				project1: {
 					session1: {
-						"file.jsonl": mockData.map((d) => JSON.stringify(d)).join("\n"),
+						'file.jsonl': mockData.map(d => JSON.stringify(d)).join('\n'),
 					},
 				},
 			},
@@ -591,20 +589,20 @@ describe("loadMonthlyUsageData", () => {
 
 		const result = await loadMonthlyUsageData({
 			claudePath: fixture.path,
-			since: "20240110",
-			until: "20240225",
+			since: '20240110',
+			until: '20240225',
 		});
 
 		// Should only include February data
 		expect(result).toHaveLength(1);
-		expect(result[0]?.month).toBe("2024-02");
+		expect(result[0]?.month).toBe('2024-02');
 		expect(result[0]?.inputTokens).toBe(200);
 	});
 
-	test("handles cache tokens correctly", async () => {
+	test('handles cache tokens correctly', async () => {
 		const mockData: UsageData[] = [
 			{
-				timestamp: "2024-01-01T00:00:00Z",
+				timestamp: '2024-01-01T00:00:00Z',
 				message: {
 					usage: {
 						input_tokens: 100,
@@ -616,7 +614,7 @@ describe("loadMonthlyUsageData", () => {
 				costUSD: 0.01,
 			},
 			{
-				timestamp: "2024-01-15T00:00:00Z",
+				timestamp: '2024-01-15T00:00:00Z',
 				message: {
 					usage: {
 						input_tokens: 200,
@@ -633,7 +631,7 @@ describe("loadMonthlyUsageData", () => {
 			projects: {
 				project1: {
 					session1: {
-						"file.jsonl": mockData.map((d) => JSON.stringify(d)).join("\n"),
+						'file.jsonl': mockData.map(d => JSON.stringify(d)).join('\n'),
 					},
 				},
 			},
@@ -647,8 +645,8 @@ describe("loadMonthlyUsageData", () => {
 	});
 });
 
-describe("loadSessionData", () => {
-	test("returns empty array when no files found", async () => {
+describe('loadSessionData', () => {
+	test('returns empty array when no files found', async () => {
 		await using fixture = await createFixture({
 			projects: {},
 		});
@@ -657,23 +655,23 @@ describe("loadSessionData", () => {
 		expect(result).toEqual([]);
 	});
 
-	test("extracts session info from file paths", async () => {
+	test('extracts session info from file paths', async () => {
 		const mockData: UsageData = {
-			timestamp: "2024-01-01T00:00:00Z",
+			timestamp: '2024-01-01T00:00:00Z',
 			message: { usage: { input_tokens: 100, output_tokens: 50 } },
 			costUSD: 0.01,
 		};
 
 		await using fixture = await createFixture({
 			projects: {
-				"project1/subfolder": {
+				'project1/subfolder': {
 					session123: {
-						"chat.jsonl": JSON.stringify(mockData),
+						'chat.jsonl': JSON.stringify(mockData),
 					},
 				},
-				project2: {
+				'project2': {
 					session456: {
-						"chat.jsonl": JSON.stringify(mockData),
+						'chat.jsonl': JSON.stringify(mockData),
 					},
 				},
 			},
@@ -682,18 +680,18 @@ describe("loadSessionData", () => {
 		const result = await loadSessionData({ claudePath: fixture.path });
 
 		expect(result).toHaveLength(2);
-		expect(result.find((s) => s.sessionId === "session123")).toBeTruthy();
+		expect(result.find(s => s.sessionId === 'session123')).toBeTruthy();
 		expect(
-			result.find((s) => s.projectPath === "project1/subfolder"),
+			result.find(s => s.projectPath === 'project1/subfolder'),
 		).toBeTruthy();
-		expect(result.find((s) => s.sessionId === "session456")).toBeTruthy();
-		expect(result.find((s) => s.projectPath === "project2")).toBeTruthy();
+		expect(result.find(s => s.sessionId === 'session456')).toBeTruthy();
+		expect(result.find(s => s.projectPath === 'project2')).toBeTruthy();
 	});
 
-	test("aggregates session usage data", async () => {
+	test('aggregates session usage data', async () => {
 		const mockData: UsageData[] = [
 			{
-				timestamp: "2024-01-01T00:00:00Z",
+				timestamp: '2024-01-01T00:00:00Z',
 				message: {
 					usage: {
 						input_tokens: 100,
@@ -705,7 +703,7 @@ describe("loadSessionData", () => {
 				costUSD: 0.01,
 			},
 			{
-				timestamp: "2024-01-01T12:00:00Z",
+				timestamp: '2024-01-01T12:00:00Z',
 				message: {
 					usage: {
 						input_tokens: 200,
@@ -722,7 +720,7 @@ describe("loadSessionData", () => {
 			projects: {
 				project1: {
 					session1: {
-						"chat.jsonl": mockData.map((d) => JSON.stringify(d)).join("\n"),
+						'chat.jsonl': mockData.map(d => JSON.stringify(d)).join('\n'),
 					},
 				},
 			},
@@ -732,34 +730,34 @@ describe("loadSessionData", () => {
 
 		expect(result).toHaveLength(1);
 		const session = result[0];
-		expect(session?.sessionId).toBe("session1");
-		expect(session?.projectPath).toBe("project1");
+		expect(session?.sessionId).toBe('session1');
+		expect(session?.projectPath).toBe('project1');
 		expect(session?.inputTokens).toBe(300); // 100 + 200
 		expect(session?.outputTokens).toBe(150); // 50 + 100
 		expect(session?.cacheCreationTokens).toBe(30); // 10 + 20
 		expect(session?.cacheReadTokens).toBe(15); // 5 + 10
 		expect(session?.totalCost).toBe(0.03); // 0.01 + 0.02
-		expect(session?.lastActivity).toBe("2024-01-01");
+		expect(session?.lastActivity).toBe('2024-01-01');
 	});
 
-	test("tracks versions", async () => {
+	test('tracks versions', async () => {
 		const mockData: UsageData[] = [
 			{
-				timestamp: "2024-01-01T00:00:00Z",
+				timestamp: '2024-01-01T00:00:00Z',
 				message: { usage: { input_tokens: 100, output_tokens: 50 } },
-				version: "1.0.0",
+				version: '1.0.0',
 				costUSD: 0.01,
 			},
 			{
-				timestamp: "2024-01-01T12:00:00Z",
+				timestamp: '2024-01-01T12:00:00Z',
 				message: { usage: { input_tokens: 200, output_tokens: 100 } },
-				version: "1.1.0",
+				version: '1.1.0',
 				costUSD: 0.02,
 			},
 			{
-				timestamp: "2024-01-01T18:00:00Z",
+				timestamp: '2024-01-01T18:00:00Z',
 				message: { usage: { input_tokens: 300, output_tokens: 150 } },
-				version: "1.0.0", // Duplicate version
+				version: '1.0.0', // Duplicate version
 				costUSD: 0.03,
 			},
 		];
@@ -768,7 +766,7 @@ describe("loadSessionData", () => {
 			projects: {
 				project1: {
 					session1: {
-						"chat.jsonl": mockData.map((d) => JSON.stringify(d)).join("\n"),
+						'chat.jsonl': mockData.map(d => JSON.stringify(d)).join('\n'),
 					},
 				},
 			},
@@ -777,31 +775,31 @@ describe("loadSessionData", () => {
 		const result = await loadSessionData({ claudePath: fixture.path });
 
 		const session = result[0];
-		expect(session?.versions).toEqual(["1.0.0", "1.1.0"]); // Sorted and unique
+		expect(session?.versions).toEqual(['1.0.0', '1.1.0']); // Sorted and unique
 	});
 
-	test("sorts by last activity descending", async () => {
+	test('sorts by last activity descending', async () => {
 		const sessions = [
 			{
-				sessionId: "session1",
+				sessionId: 'session1',
 				data: {
-					timestamp: "2024-01-15T00:00:00Z",
+					timestamp: '2024-01-15T00:00:00Z',
 					message: { usage: { input_tokens: 100, output_tokens: 50 } },
 					costUSD: 0.01,
 				},
 			},
 			{
-				sessionId: "session2",
+				sessionId: 'session2',
 				data: {
-					timestamp: "2024-01-01T00:00:00Z",
+					timestamp: '2024-01-01T00:00:00Z',
 					message: { usage: { input_tokens: 100, output_tokens: 50 } },
 					costUSD: 0.01,
 				},
 			},
 			{
-				sessionId: "session3",
+				sessionId: 'session3',
 				data: {
-					timestamp: "2024-01-31T00:00:00Z",
+					timestamp: '2024-01-31T00:00:00Z',
 					message: { usage: { input_tokens: 100, output_tokens: 50 } },
 					costUSD: 0.01,
 				},
@@ -811,9 +809,9 @@ describe("loadSessionData", () => {
 		await using fixture = await createFixture({
 			projects: {
 				project1: Object.fromEntries(
-					sessions.map((s) => [
+					sessions.map(s => [
 						s.sessionId,
-						{ "chat.jsonl": JSON.stringify(s.data) },
+						{ 'chat.jsonl': JSON.stringify(s.data) },
 					]),
 				),
 			},
@@ -821,33 +819,33 @@ describe("loadSessionData", () => {
 
 		const result = await loadSessionData({ claudePath: fixture.path });
 
-		expect(result[0]?.sessionId).toBe("session3");
-		expect(result[1]?.sessionId).toBe("session1");
-		expect(result[2]?.sessionId).toBe("session2");
+		expect(result[0]?.sessionId).toBe('session3');
+		expect(result[1]?.sessionId).toBe('session1');
+		expect(result[2]?.sessionId).toBe('session2');
 	});
 
-	test("sorts by last activity ascending when order is 'asc'", async () => {
+	test('sorts by last activity ascending when order is \'asc\'', async () => {
 		const sessions = [
 			{
-				sessionId: "session1",
+				sessionId: 'session1',
 				data: {
-					timestamp: "2024-01-15T00:00:00Z",
+					timestamp: '2024-01-15T00:00:00Z',
 					message: { usage: { input_tokens: 100, output_tokens: 50 } },
 					costUSD: 0.01,
 				},
 			},
 			{
-				sessionId: "session2",
+				sessionId: 'session2',
 				data: {
-					timestamp: "2024-01-01T00:00:00Z",
+					timestamp: '2024-01-01T00:00:00Z',
 					message: { usage: { input_tokens: 100, output_tokens: 50 } },
 					costUSD: 0.01,
 				},
 			},
 			{
-				sessionId: "session3",
+				sessionId: 'session3',
 				data: {
-					timestamp: "2024-01-31T00:00:00Z",
+					timestamp: '2024-01-31T00:00:00Z',
 					message: { usage: { input_tokens: 100, output_tokens: 50 } },
 					costUSD: 0.01,
 				},
@@ -857,9 +855,9 @@ describe("loadSessionData", () => {
 		await using fixture = await createFixture({
 			projects: {
 				project1: Object.fromEntries(
-					sessions.map((s) => [
+					sessions.map(s => [
 						s.sessionId,
-						{ "chat.jsonl": JSON.stringify(s.data) },
+						{ 'chat.jsonl': JSON.stringify(s.data) },
 					]),
 				),
 			},
@@ -867,36 +865,36 @@ describe("loadSessionData", () => {
 
 		const result = await loadSessionData({
 			claudePath: fixture.path,
-			order: "asc",
+			order: 'asc',
 		});
 
-		expect(result[0]?.sessionId).toBe("session2"); // oldest first
-		expect(result[1]?.sessionId).toBe("session1");
-		expect(result[2]?.sessionId).toBe("session3"); // newest last
+		expect(result[0]?.sessionId).toBe('session2'); // oldest first
+		expect(result[1]?.sessionId).toBe('session1');
+		expect(result[2]?.sessionId).toBe('session3'); // newest last
 	});
 
-	test("sorts by last activity descending when order is 'desc'", async () => {
+	test('sorts by last activity descending when order is \'desc\'', async () => {
 		const sessions = [
 			{
-				sessionId: "session1",
+				sessionId: 'session1',
 				data: {
-					timestamp: "2024-01-15T00:00:00Z",
+					timestamp: '2024-01-15T00:00:00Z',
 					message: { usage: { input_tokens: 100, output_tokens: 50 } },
 					costUSD: 0.01,
 				},
 			},
 			{
-				sessionId: "session2",
+				sessionId: 'session2',
 				data: {
-					timestamp: "2024-01-01T00:00:00Z",
+					timestamp: '2024-01-01T00:00:00Z',
 					message: { usage: { input_tokens: 100, output_tokens: 50 } },
 					costUSD: 0.01,
 				},
 			},
 			{
-				sessionId: "session3",
+				sessionId: 'session3',
 				data: {
-					timestamp: "2024-01-31T00:00:00Z",
+					timestamp: '2024-01-31T00:00:00Z',
 					message: { usage: { input_tokens: 100, output_tokens: 50 } },
 					costUSD: 0.01,
 				},
@@ -906,9 +904,9 @@ describe("loadSessionData", () => {
 		await using fixture = await createFixture({
 			projects: {
 				project1: Object.fromEntries(
-					sessions.map((s) => [
+					sessions.map(s => [
 						s.sessionId,
-						{ "chat.jsonl": JSON.stringify(s.data) },
+						{ 'chat.jsonl': JSON.stringify(s.data) },
 					]),
 				),
 			},
@@ -916,36 +914,36 @@ describe("loadSessionData", () => {
 
 		const result = await loadSessionData({
 			claudePath: fixture.path,
-			order: "desc",
+			order: 'desc',
 		});
 
-		expect(result[0]?.sessionId).toBe("session3"); // newest first (same as default)
-		expect(result[1]?.sessionId).toBe("session1");
-		expect(result[2]?.sessionId).toBe("session2"); // oldest last
+		expect(result[0]?.sessionId).toBe('session3'); // newest first (same as default)
+		expect(result[1]?.sessionId).toBe('session1');
+		expect(result[2]?.sessionId).toBe('session2'); // oldest last
 	});
 
-	test("filters by date range based on last activity", async () => {
+	test('filters by date range based on last activity', async () => {
 		const sessions = [
 			{
-				sessionId: "session1",
+				sessionId: 'session1',
 				data: {
-					timestamp: "2024-01-01T00:00:00Z",
+					timestamp: '2024-01-01T00:00:00Z',
 					message: { usage: { input_tokens: 100, output_tokens: 50 } },
 					costUSD: 0.01,
 				},
 			},
 			{
-				sessionId: "session2",
+				sessionId: 'session2',
 				data: {
-					timestamp: "2024-01-15T00:00:00Z",
+					timestamp: '2024-01-15T00:00:00Z',
 					message: { usage: { input_tokens: 100, output_tokens: 50 } },
 					costUSD: 0.01,
 				},
 			},
 			{
-				sessionId: "session3",
+				sessionId: 'session3',
 				data: {
-					timestamp: "2024-01-31T00:00:00Z",
+					timestamp: '2024-01-31T00:00:00Z',
 					message: { usage: { input_tokens: 100, output_tokens: 50 } },
 					costUSD: 0.01,
 				},
@@ -955,9 +953,9 @@ describe("loadSessionData", () => {
 		await using fixture = await createFixture({
 			projects: {
 				project1: Object.fromEntries(
-					sessions.map((s) => [
+					sessions.map(s => [
 						s.sessionId,
-						{ "chat.jsonl": JSON.stringify(s.data) },
+						{ 'chat.jsonl': JSON.stringify(s.data) },
 					]),
 				),
 			},
@@ -965,24 +963,24 @@ describe("loadSessionData", () => {
 
 		const result = await loadSessionData({
 			claudePath: fixture.path,
-			since: "20240110",
-			until: "20240125",
+			since: '20240110',
+			until: '20240125',
 		});
 
 		expect(result).toHaveLength(1);
-		expect(result[0]?.lastActivity).toBe("2024-01-15");
+		expect(result[0]?.lastActivity).toBe('2024-01-15');
 	});
 });
 
-describe("data-loader cost calculation with real pricing", () => {
+describe('data-loader cost calculation with real pricing', () => {
 	beforeEach(() => {
 		clearPricingCache();
 	});
 
-	describe("loadDailyUsageData with mixed schemas", () => {
-		test("should handle old schema with costUSD", async () => {
+	describe('loadDailyUsageData with mixed schemas', () => {
+		test('should handle old schema with costUSD', async () => {
 			const oldData = {
-				timestamp: "2024-01-15T10:00:00Z",
+				timestamp: '2024-01-15T10:00:00Z',
 				message: {
 					usage: {
 						input_tokens: 1000,
@@ -994,9 +992,9 @@ describe("data-loader cost calculation with real pricing", () => {
 
 			await using fixture = await createFixture({
 				projects: {
-					"test-project-old": {
-						"session-old": {
-							"usage.jsonl": `${JSON.stringify(oldData)}\n`,
+					'test-project-old': {
+						'session-old': {
+							'usage.jsonl': `${JSON.stringify(oldData)}\n`,
 						},
 					},
 				},
@@ -1005,18 +1003,18 @@ describe("data-loader cost calculation with real pricing", () => {
 			const results = await loadDailyUsageData({ claudePath: fixture.path });
 
 			expect(results).toHaveLength(1);
-			expect(results[0]?.date).toBe("2024-01-15");
+			expect(results[0]?.date).toBe('2024-01-15');
 			expect(results[0]?.inputTokens).toBe(1000);
 			expect(results[0]?.outputTokens).toBe(500);
 			expect(results[0]?.totalCost).toBe(0.05);
 		});
 
-		test("should calculate cost for new schema with claude-sonnet-4-20250514", async () => {
+		test('should calculate cost for new schema with claude-sonnet-4-20250514', async () => {
 			// Use a well-known Claude model
-			const modelName = "claude-sonnet-4-20250514";
+			const modelName = 'claude-sonnet-4-20250514';
 
 			const newData = {
-				timestamp: "2024-01-16T10:00:00Z",
+				timestamp: '2024-01-16T10:00:00Z',
 				message: {
 					usage: {
 						input_tokens: 1000,
@@ -1030,9 +1028,9 @@ describe("data-loader cost calculation with real pricing", () => {
 
 			await using fixture = await createFixture({
 				projects: {
-					"test-project-new": {
-						"session-new": {
-							"usage.jsonl": `${JSON.stringify(newData)}\n`,
+					'test-project-new': {
+						'session-new': {
+							'usage.jsonl': `${JSON.stringify(newData)}\n`,
 						},
 					},
 				},
@@ -1041,7 +1039,7 @@ describe("data-loader cost calculation with real pricing", () => {
 			const results = await loadDailyUsageData({ claudePath: fixture.path });
 
 			expect(results).toHaveLength(1);
-			expect(results[0]?.date).toBe("2024-01-16");
+			expect(results[0]?.date).toBe('2024-01-16');
 			expect(results[0]?.inputTokens).toBe(1000);
 			expect(results[0]?.outputTokens).toBe(500);
 			expect(results[0]?.cacheCreationTokens).toBe(200);
@@ -1051,12 +1049,12 @@ describe("data-loader cost calculation with real pricing", () => {
 			expect(results[0]?.totalCost).toBeGreaterThan(0);
 		});
 
-		test("should calculate cost for new schema with claude-opus-4-20250514", async () => {
+		test('should calculate cost for new schema with claude-opus-4-20250514', async () => {
 			// Use Claude 4 Opus model
-			const modelName = "claude-opus-4-20250514";
+			const modelName = 'claude-opus-4-20250514';
 
 			const newData = {
-				timestamp: "2024-01-16T10:00:00Z",
+				timestamp: '2024-01-16T10:00:00Z',
 				message: {
 					usage: {
 						input_tokens: 1000,
@@ -1070,9 +1068,9 @@ describe("data-loader cost calculation with real pricing", () => {
 
 			await using fixture = await createFixture({
 				projects: {
-					"test-project-opus": {
-						"session-opus": {
-							"usage.jsonl": `${JSON.stringify(newData)}\n`,
+					'test-project-opus': {
+						'session-opus': {
+							'usage.jsonl': `${JSON.stringify(newData)}\n`,
 						},
 					},
 				},
@@ -1081,7 +1079,7 @@ describe("data-loader cost calculation with real pricing", () => {
 			const results = await loadDailyUsageData({ claudePath: fixture.path });
 
 			expect(results).toHaveLength(1);
-			expect(results[0]?.date).toBe("2024-01-16");
+			expect(results[0]?.date).toBe('2024-01-16');
 			expect(results[0]?.inputTokens).toBe(1000);
 			expect(results[0]?.outputTokens).toBe(500);
 			expect(results[0]?.cacheCreationTokens).toBe(200);
@@ -1091,32 +1089,32 @@ describe("data-loader cost calculation with real pricing", () => {
 			expect(results[0]?.totalCost).toBeGreaterThan(0);
 		});
 
-		test("should handle mixed data in same file", async () => {
+		test('should handle mixed data in same file', async () => {
 			const data1 = {
-				timestamp: "2024-01-17T10:00:00Z",
+				timestamp: '2024-01-17T10:00:00Z',
 				message: { usage: { input_tokens: 100, output_tokens: 50 } },
 				costUSD: 0.01,
 			};
 
 			const data2 = {
-				timestamp: "2024-01-17T11:00:00Z",
+				timestamp: '2024-01-17T11:00:00Z',
 				message: {
 					usage: { input_tokens: 200, output_tokens: 100 },
-					model: "claude-sonnet-4-20250514",
+					model: 'claude-sonnet-4-20250514',
 				},
 			};
 
 			const data3 = {
-				timestamp: "2024-01-17T12:00:00Z",
+				timestamp: '2024-01-17T12:00:00Z',
 				message: { usage: { input_tokens: 300, output_tokens: 150 } },
 				// No costUSD and no model - should be 0 cost
 			};
 
 			await using fixture = await createFixture({
 				projects: {
-					"test-project-mixed": {
-						"session-mixed": {
-							"usage.jsonl": `${JSON.stringify(data1)}\n${JSON.stringify(data2)}\n${JSON.stringify(data3)}\n`,
+					'test-project-mixed': {
+						'session-mixed': {
+							'usage.jsonl': `${JSON.stringify(data1)}\n${JSON.stringify(data2)}\n${JSON.stringify(data3)}\n`,
 						},
 					},
 				},
@@ -1125,7 +1123,7 @@ describe("data-loader cost calculation with real pricing", () => {
 			const results = await loadDailyUsageData({ claudePath: fixture.path });
 
 			expect(results).toHaveLength(1);
-			expect(results[0]?.date).toBe("2024-01-17");
+			expect(results[0]?.date).toBe('2024-01-17');
 			expect(results[0]?.inputTokens).toBe(600); // 100 + 200 + 300
 			expect(results[0]?.outputTokens).toBe(300); // 50 + 100 + 150
 
@@ -1133,18 +1131,18 @@ describe("data-loader cost calculation with real pricing", () => {
 			expect(results[0]?.totalCost).toBeGreaterThanOrEqual(0.01);
 		});
 
-		test("should handle data without model or costUSD", async () => {
+		test('should handle data without model or costUSD', async () => {
 			const data = {
-				timestamp: "2024-01-18T10:00:00Z",
+				timestamp: '2024-01-18T10:00:00Z',
 				message: { usage: { input_tokens: 500, output_tokens: 250 } },
 				// No costUSD and no model
 			};
 
 			await using fixture = await createFixture({
 				projects: {
-					"test-project-no-cost": {
-						"session-no-cost": {
-							"usage.jsonl": `${JSON.stringify(data)}\n`,
+					'test-project-no-cost': {
+						'session-no-cost': {
+							'usage.jsonl': `${JSON.stringify(data)}\n`,
 						},
 					},
 				},
@@ -1159,30 +1157,30 @@ describe("data-loader cost calculation with real pricing", () => {
 		});
 	});
 
-	describe("loadSessionData with mixed schemas", () => {
-		test("should handle mixed cost sources in different sessions", async () => {
+	describe('loadSessionData with mixed schemas', () => {
+		test('should handle mixed cost sources in different sessions', async () => {
 			const session1Data = {
-				timestamp: "2024-01-15T10:00:00Z",
+				timestamp: '2024-01-15T10:00:00Z',
 				message: { usage: { input_tokens: 1000, output_tokens: 500 } },
 				costUSD: 0.05,
 			};
 
 			const session2Data = {
-				timestamp: "2024-01-16T10:00:00Z",
+				timestamp: '2024-01-16T10:00:00Z',
 				message: {
 					usage: { input_tokens: 2000, output_tokens: 1000 },
-					model: "claude-sonnet-4-20250514",
+					model: 'claude-sonnet-4-20250514',
 				},
 			};
 
 			await using fixture = await createFixture({
 				projects: {
-					"test-project": {
+					'test-project': {
 						session1: {
-							"usage.jsonl": JSON.stringify(session1Data),
+							'usage.jsonl': JSON.stringify(session1Data),
 						},
 						session2: {
-							"usage.jsonl": JSON.stringify(session2Data),
+							'usage.jsonl': JSON.stringify(session2Data),
 						},
 					},
 				},
@@ -1193,30 +1191,30 @@ describe("data-loader cost calculation with real pricing", () => {
 			expect(results).toHaveLength(2);
 
 			// Check session 1
-			const session1 = results.find((s) => s.sessionId === "session1");
+			const session1 = results.find(s => s.sessionId === 'session1');
 			expect(session1).toBeTruthy();
 			expect(session1?.totalCost).toBe(0.05);
 
 			// Check session 2
-			const session2 = results.find((s) => s.sessionId === "session2");
+			const session2 = results.find(s => s.sessionId === 'session2');
 			expect(session2).toBeTruthy();
 			expect(session2?.totalCost).toBeGreaterThan(0);
 		});
 
-		test("should handle unknown models gracefully", async () => {
+		test('should handle unknown models gracefully', async () => {
 			const data = {
-				timestamp: "2024-01-19T10:00:00Z",
+				timestamp: '2024-01-19T10:00:00Z',
 				message: {
 					usage: { input_tokens: 1000, output_tokens: 500 },
-					model: "unknown-model-xyz",
+					model: 'unknown-model-xyz',
 				},
 			};
 
 			await using fixture = await createFixture({
 				projects: {
-					"test-project-unknown": {
-						"session-unknown": {
-							"usage.jsonl": `${JSON.stringify(data)}\n`,
+					'test-project-unknown': {
+						'session-unknown': {
+							'usage.jsonl': `${JSON.stringify(data)}\n`,
 						},
 					},
 				},
@@ -1231,10 +1229,10 @@ describe("data-loader cost calculation with real pricing", () => {
 		});
 	});
 
-	describe("cached tokens cost calculation", () => {
-		test("should correctly calculate costs for all token types with claude-sonnet-4-20250514", async () => {
+	describe('cached tokens cost calculation', () => {
+		test('should correctly calculate costs for all token types with claude-sonnet-4-20250514', async () => {
 			const data = {
-				timestamp: "2024-01-20T10:00:00Z",
+				timestamp: '2024-01-20T10:00:00Z',
 				message: {
 					usage: {
 						input_tokens: 1000,
@@ -1242,15 +1240,15 @@ describe("data-loader cost calculation with real pricing", () => {
 						cache_creation_input_tokens: 2000,
 						cache_read_input_tokens: 1500,
 					},
-					model: "claude-sonnet-4-20250514",
+					model: 'claude-sonnet-4-20250514',
 				},
 			};
 
 			await using fixture = await createFixture({
 				projects: {
-					"test-project-cache": {
-						"session-cache": {
-							"usage.jsonl": `${JSON.stringify(data)}\n`,
+					'test-project-cache': {
+						'session-cache': {
+							'usage.jsonl': `${JSON.stringify(data)}\n`,
 						},
 					},
 				},
@@ -1259,7 +1257,7 @@ describe("data-loader cost calculation with real pricing", () => {
 			const results = await loadDailyUsageData({ claudePath: fixture.path });
 
 			expect(results).toHaveLength(1);
-			expect(results[0]?.date).toBe("2024-01-20");
+			expect(results[0]?.date).toBe('2024-01-20');
 			expect(results[0]?.inputTokens).toBe(1000);
 			expect(results[0]?.outputTokens).toBe(500);
 			expect(results[0]?.cacheCreationTokens).toBe(2000);
@@ -1269,9 +1267,9 @@ describe("data-loader cost calculation with real pricing", () => {
 			expect(results[0]?.totalCost).toBeGreaterThan(0);
 		});
 
-		test("should correctly calculate costs for all token types with claude-opus-4-20250514", async () => {
+		test('should correctly calculate costs for all token types with claude-opus-4-20250514', async () => {
 			const data = {
-				timestamp: "2024-01-20T10:00:00Z",
+				timestamp: '2024-01-20T10:00:00Z',
 				message: {
 					usage: {
 						input_tokens: 1000,
@@ -1279,15 +1277,15 @@ describe("data-loader cost calculation with real pricing", () => {
 						cache_creation_input_tokens: 2000,
 						cache_read_input_tokens: 1500,
 					},
-					model: "claude-opus-4-20250514",
+					model: 'claude-opus-4-20250514',
 				},
 			};
 
 			await using fixture = await createFixture({
 				projects: {
-					"test-project-opus-cache": {
-						"session-opus-cache": {
-							"usage.jsonl": `${JSON.stringify(data)}\n`,
+					'test-project-opus-cache': {
+						'session-opus-cache': {
+							'usage.jsonl': `${JSON.stringify(data)}\n`,
 						},
 					},
 				},
@@ -1296,7 +1294,7 @@ describe("data-loader cost calculation with real pricing", () => {
 			const results = await loadDailyUsageData({ claudePath: fixture.path });
 
 			expect(results).toHaveLength(1);
-			expect(results[0]?.date).toBe("2024-01-20");
+			expect(results[0]?.date).toBe('2024-01-20');
 			expect(results[0]?.inputTokens).toBe(1000);
 			expect(results[0]?.outputTokens).toBe(500);
 			expect(results[0]?.cacheCreationTokens).toBe(2000);
@@ -1307,31 +1305,31 @@ describe("data-loader cost calculation with real pricing", () => {
 		});
 	});
 
-	describe("cost mode functionality", () => {
+	describe('cost mode functionality', () => {
 		beforeEach(() => {
 			clearPricingCache();
 		});
 
-		test("auto mode: uses costUSD when available, calculates otherwise", async () => {
+		test('auto mode: uses costUSD when available, calculates otherwise', async () => {
 			const data1 = {
-				timestamp: "2024-01-01T10:00:00Z",
+				timestamp: '2024-01-01T10:00:00Z',
 				message: { usage: { input_tokens: 1000, output_tokens: 500 } },
 				costUSD: 0.05,
 			};
 
 			const data2 = {
-				timestamp: "2024-01-01T11:00:00Z",
+				timestamp: '2024-01-01T11:00:00Z',
 				message: {
 					usage: { input_tokens: 2000, output_tokens: 1000 },
-					model: "claude-sonnet-4-20250514",
+					model: 'claude-sonnet-4-20250514',
 				},
 			};
 
 			await using fixture = await createFixture({
 				projects: {
-					"test-project": {
+					'test-project': {
 						session: {
-							"usage.jsonl": `${JSON.stringify(data1)}\n${JSON.stringify(data2)}\n`,
+							'usage.jsonl': `${JSON.stringify(data1)}\n${JSON.stringify(data2)}\n`,
 						},
 					},
 				},
@@ -1339,28 +1337,28 @@ describe("data-loader cost calculation with real pricing", () => {
 
 			const results = await loadDailyUsageData({
 				claudePath: fixture.path,
-				mode: "auto",
+				mode: 'auto',
 			});
 
 			expect(results).toHaveLength(1);
 			expect(results[0]?.totalCost).toBeGreaterThan(0.05); // Should include both costs
 		});
 
-		test("calculate mode: always calculates from tokens, ignores costUSD", async () => {
+		test('calculate mode: always calculates from tokens, ignores costUSD', async () => {
 			const data = {
-				timestamp: "2024-01-01T10:00:00Z",
+				timestamp: '2024-01-01T10:00:00Z',
 				message: {
 					usage: { input_tokens: 1000, output_tokens: 500 },
-					model: "claude-sonnet-4-20250514",
+					model: 'claude-sonnet-4-20250514',
 				},
 				costUSD: 99.99, // This should be ignored
 			};
 
 			await using fixture = await createFixture({
 				projects: {
-					"test-project": {
+					'test-project': {
 						session: {
-							"usage.jsonl": JSON.stringify(data),
+							'usage.jsonl': JSON.stringify(data),
 						},
 					},
 				},
@@ -1368,7 +1366,7 @@ describe("data-loader cost calculation with real pricing", () => {
 
 			const results = await loadDailyUsageData({
 				claudePath: fixture.path,
-				mode: "calculate",
+				mode: 'calculate',
 			});
 
 			expect(results).toHaveLength(1);
@@ -1376,30 +1374,30 @@ describe("data-loader cost calculation with real pricing", () => {
 			expect(results[0]?.totalCost).toBeLessThan(1); // Much less than 99.99
 		});
 
-		test("display mode: always uses costUSD, even if undefined", async () => {
+		test('display mode: always uses costUSD, even if undefined', async () => {
 			const data1 = {
-				timestamp: "2024-01-01T10:00:00Z",
+				timestamp: '2024-01-01T10:00:00Z',
 				message: {
 					usage: { input_tokens: 1000, output_tokens: 500 },
-					model: "claude-sonnet-4-20250514",
+					model: 'claude-sonnet-4-20250514',
 				},
 				costUSD: 0.05,
 			};
 
 			const data2 = {
-				timestamp: "2024-01-01T11:00:00Z",
+				timestamp: '2024-01-01T11:00:00Z',
 				message: {
 					usage: { input_tokens: 2000, output_tokens: 1000 },
-					model: "claude-sonnet-4-20250514",
+					model: 'claude-sonnet-4-20250514',
 				},
 				// No costUSD - should result in 0 cost
 			};
 
 			await using fixture = await createFixture({
 				projects: {
-					"test-project": {
+					'test-project': {
 						session: {
-							"usage.jsonl": `${JSON.stringify(data1)}\n${JSON.stringify(data2)}\n`,
+							'usage.jsonl': `${JSON.stringify(data1)}\n${JSON.stringify(data2)}\n`,
 						},
 					},
 				},
@@ -1407,28 +1405,28 @@ describe("data-loader cost calculation with real pricing", () => {
 
 			const results = await loadDailyUsageData({
 				claudePath: fixture.path,
-				mode: "display",
+				mode: 'display',
 			});
 
 			expect(results).toHaveLength(1);
 			expect(results[0]?.totalCost).toBe(0.05); // Only the costUSD from data1
 		});
 
-		test("mode works with session data", async () => {
+		test('mode works with session data', async () => {
 			const sessionData = {
-				timestamp: "2024-01-01T10:00:00Z",
+				timestamp: '2024-01-01T10:00:00Z',
 				message: {
 					usage: { input_tokens: 1000, output_tokens: 500 },
-					model: "claude-sonnet-4-20250514",
+					model: 'claude-sonnet-4-20250514',
 				},
 				costUSD: 99.99,
 			};
 
 			await using fixture = await createFixture({
 				projects: {
-					"test-project": {
+					'test-project': {
 						session1: {
-							"usage.jsonl": JSON.stringify(sessionData),
+							'usage.jsonl': JSON.stringify(sessionData),
 						},
 					},
 				},
@@ -1437,39 +1435,39 @@ describe("data-loader cost calculation with real pricing", () => {
 			// Test calculate mode
 			const calculateResults = await loadSessionData({
 				claudePath: fixture.path,
-				mode: "calculate",
+				mode: 'calculate',
 			});
 			expect(calculateResults[0]?.totalCost).toBeLessThan(1);
 
 			// Test display mode
 			const displayResults = await loadSessionData({
 				claudePath: fixture.path,
-				mode: "display",
+				mode: 'display',
 			});
 			expect(displayResults[0]?.totalCost).toBe(99.99);
 		});
 	});
 
-	describe("pricing data fetching optimization", () => {
+	describe('pricing data fetching optimization', () => {
 		beforeEach(() => {
 			clearPricingCache();
 		});
 
-		test("should not require model pricing when mode is display", async () => {
+		test('should not require model pricing when mode is display', async () => {
 			const data = {
-				timestamp: "2024-01-01T10:00:00Z",
+				timestamp: '2024-01-01T10:00:00Z',
 				message: {
 					usage: { input_tokens: 1000, output_tokens: 500 },
-					model: "claude-sonnet-4-20250514",
+					model: 'claude-sonnet-4-20250514',
 				},
 				costUSD: 0.05,
 			};
 
 			await using fixture = await createFixture({
 				projects: {
-					"test-project": {
+					'test-project': {
 						session: {
-							"usage.jsonl": JSON.stringify(data),
+							'usage.jsonl': JSON.stringify(data),
 						},
 					},
 				},
@@ -1478,28 +1476,28 @@ describe("data-loader cost calculation with real pricing", () => {
 			// In display mode, only pre-calculated costUSD should be used
 			const results = await loadDailyUsageData({
 				claudePath: fixture.path,
-				mode: "display",
+				mode: 'display',
 			});
 
 			expect(results).toHaveLength(1);
 			expect(results[0]?.totalCost).toBe(0.05);
 		});
 
-		test("should fetch pricing data when mode is calculate", async () => {
+		test('should fetch pricing data when mode is calculate', async () => {
 			const data = {
-				timestamp: "2024-01-01T10:00:00Z",
+				timestamp: '2024-01-01T10:00:00Z',
 				message: {
 					usage: { input_tokens: 1000, output_tokens: 500 },
-					model: "claude-sonnet-4-20250514",
+					model: 'claude-sonnet-4-20250514',
 				},
 				costUSD: 0.05,
 			};
 
 			await using fixture = await createFixture({
 				projects: {
-					"test-project": {
+					'test-project': {
 						session: {
-							"usage.jsonl": JSON.stringify(data),
+							'usage.jsonl': JSON.stringify(data),
 						},
 					},
 				},
@@ -1508,7 +1506,7 @@ describe("data-loader cost calculation with real pricing", () => {
 			// This should fetch pricing data (will call real fetch)
 			const results = await loadDailyUsageData({
 				claudePath: fixture.path,
-				mode: "calculate",
+				mode: 'calculate',
 			});
 
 			expect(results).toHaveLength(1);
@@ -1516,21 +1514,21 @@ describe("data-loader cost calculation with real pricing", () => {
 			expect(results[0]?.totalCost).not.toBe(0.05); // Should calculate, not use costUSD
 		});
 
-		test("should fetch pricing data when mode is auto", async () => {
+		test('should fetch pricing data when mode is auto', async () => {
 			const data = {
-				timestamp: "2024-01-01T10:00:00Z",
+				timestamp: '2024-01-01T10:00:00Z',
 				message: {
 					usage: { input_tokens: 1000, output_tokens: 500 },
-					model: "claude-sonnet-4-20250514",
+					model: 'claude-sonnet-4-20250514',
 				},
 				// No costUSD, so auto mode will need to calculate
 			};
 
 			await using fixture = await createFixture({
 				projects: {
-					"test-project": {
+					'test-project': {
 						session: {
-							"usage.jsonl": JSON.stringify(data),
+							'usage.jsonl': JSON.stringify(data),
 						},
 					},
 				},
@@ -1539,28 +1537,28 @@ describe("data-loader cost calculation with real pricing", () => {
 			// This should fetch pricing data (will call real fetch)
 			const results = await loadDailyUsageData({
 				claudePath: fixture.path,
-				mode: "auto",
+				mode: 'auto',
 			});
 
 			expect(results).toHaveLength(1);
 			expect(results[0]?.totalCost).toBeGreaterThan(0);
 		});
 
-		test("session data should not require model pricing when mode is display", async () => {
+		test('session data should not require model pricing when mode is display', async () => {
 			const data = {
-				timestamp: "2024-01-01T10:00:00Z",
+				timestamp: '2024-01-01T10:00:00Z',
 				message: {
 					usage: { input_tokens: 1000, output_tokens: 500 },
-					model: "claude-sonnet-4-20250514",
+					model: 'claude-sonnet-4-20250514',
 				},
 				costUSD: 0.05,
 			};
 
 			await using fixture = await createFixture({
 				projects: {
-					"test-project": {
+					'test-project': {
 						session: {
-							"usage.jsonl": JSON.stringify(data),
+							'usage.jsonl': JSON.stringify(data),
 						},
 					},
 				},
@@ -1569,28 +1567,28 @@ describe("data-loader cost calculation with real pricing", () => {
 			// In display mode, only pre-calculated costUSD should be used
 			const results = await loadSessionData({
 				claudePath: fixture.path,
-				mode: "display",
+				mode: 'display',
 			});
 
 			expect(results).toHaveLength(1);
 			expect(results[0]?.totalCost).toBe(0.05);
 		});
 
-		test("display mode should work without network access", async () => {
+		test('display mode should work without network access', async () => {
 			const data = {
-				timestamp: "2024-01-01T10:00:00Z",
+				timestamp: '2024-01-01T10:00:00Z',
 				message: {
 					usage: { input_tokens: 1000, output_tokens: 500 },
-					model: "some-unknown-model",
+					model: 'some-unknown-model',
 				},
 				costUSD: 0.05,
 			};
 
 			await using fixture = await createFixture({
 				projects: {
-					"test-project": {
+					'test-project': {
 						session: {
-							"usage.jsonl": JSON.stringify(data),
+							'usage.jsonl': JSON.stringify(data),
 						},
 					},
 				},
@@ -1602,7 +1600,7 @@ describe("data-loader cost calculation with real pricing", () => {
 			// use the costUSD value.
 			const results = await loadDailyUsageData({
 				claudePath: fixture.path,
-				mode: "display",
+				mode: 'display',
 			});
 
 			expect(results).toHaveLength(1);
@@ -1611,9 +1609,9 @@ describe("data-loader cost calculation with real pricing", () => {
 	});
 });
 
-describe("calculateCostForEntry", () => {
+describe('calculateCostForEntry', () => {
 	const mockUsageData: UsageData = {
-		timestamp: "2024-01-01T10:00:00Z",
+		timestamp: '2024-01-01T10:00:00Z',
 		message: {
 			usage: {
 				input_tokens: 1000,
@@ -1621,7 +1619,7 @@ describe("calculateCostForEntry", () => {
 				cache_creation_input_tokens: 200,
 				cache_read_input_tokens: 100,
 			},
-			model: "claude-sonnet-4-20250514",
+			model: 'claude-sonnet-4-20250514',
 		},
 		costUSD: 0.05,
 	};
@@ -1630,55 +1628,55 @@ describe("calculateCostForEntry", () => {
 		clearPricingCache();
 	});
 
-	describe("display mode", () => {
-		test("should return costUSD when available", () => {
-			const result = calculateCostForEntry(mockUsageData, "display", {});
+	describe('display mode', () => {
+		test('should return costUSD when available', () => {
+			const result = calculateCostForEntry(mockUsageData, 'display', {});
 			expect(result).toBe(0.05);
 		});
 
-		test("should return 0 when costUSD is undefined", () => {
+		test('should return 0 when costUSD is undefined', () => {
 			const dataWithoutCost = { ...mockUsageData };
 			dataWithoutCost.costUSD = undefined;
 
-			const result = calculateCostForEntry(dataWithoutCost, "display", {});
+			const result = calculateCostForEntry(dataWithoutCost, 'display', {});
 			expect(result).toBe(0);
 		});
 
-		test("should not use model pricing in display mode", () => {
+		test('should not use model pricing in display mode', () => {
 			// Even with model pricing available, should use costUSD
-			const result = calculateCostForEntry(mockUsageData, "display", {});
+			const result = calculateCostForEntry(mockUsageData, 'display', {});
 			expect(result).toBe(0.05);
 		});
 	});
 
-	describe("calculate mode", () => {
-		test("should calculate cost from tokens when model pricing available", async () => {
+	describe('calculate mode', () => {
+		test('should calculate cost from tokens when model pricing available', async () => {
 			const realPricing = await fetchModelPricing();
 
 			// Use the exact same structure as working integration tests
 			const testData: UsageData = {
-				timestamp: "2024-01-01T10:00:00Z",
+				timestamp: '2024-01-01T10:00:00Z',
 				message: {
 					usage: {
 						input_tokens: 1000,
 						output_tokens: 500,
 					},
-					model: "claude-sonnet-4-20250514",
+					model: 'claude-sonnet-4-20250514',
 				},
 			};
 
-			const result = calculateCostForEntry(testData, "calculate", realPricing);
+			const result = calculateCostForEntry(testData, 'calculate', realPricing);
 
 			// Should calculate some cost > 0 when model pricing is available
 			expect(result).toBeGreaterThan(0);
 		});
 
-		test("should ignore costUSD in calculate mode", async () => {
+		test('should ignore costUSD in calculate mode', async () => {
 			const realPricing = await fetchModelPricing();
 			const dataWithHighCost = { ...mockUsageData, costUSD: 99.99 };
 			const result = calculateCostForEntry(
 				dataWithHighCost,
-				"calculate",
+				'calculate',
 				realPricing,
 			);
 
@@ -1687,44 +1685,44 @@ describe("calculateCostForEntry", () => {
 			expect(result).toBeLessThan(1); // Much less than 99.99
 		});
 
-		test("should return 0 when model not available", () => {
+		test('should return 0 when model not available', () => {
 			const dataWithoutModel = { ...mockUsageData };
 			dataWithoutModel.message.model = undefined;
 
-			const result = calculateCostForEntry(dataWithoutModel, "calculate", {});
+			const result = calculateCostForEntry(dataWithoutModel, 'calculate', {});
 			expect(result).toBe(0);
 		});
 
-		test("should return 0 when model pricing not found", () => {
+		test('should return 0 when model pricing not found', () => {
 			const dataWithUnknownModel = {
 				...mockUsageData,
-				message: { ...mockUsageData.message, model: "unknown-model" },
+				message: { ...mockUsageData.message, model: 'unknown-model' },
 			};
 
 			const result = calculateCostForEntry(
 				dataWithUnknownModel,
-				"calculate",
+				'calculate',
 				{},
 			);
 			expect(result).toBe(0);
 		});
 
-		test("should handle missing cache tokens", async () => {
+		test('should handle missing cache tokens', async () => {
 			const realPricing = await fetchModelPricing();
 			const dataWithoutCacheTokens: UsageData = {
-				timestamp: "2024-01-01T10:00:00Z",
+				timestamp: '2024-01-01T10:00:00Z',
 				message: {
 					usage: {
 						input_tokens: 1000,
 						output_tokens: 500,
 					},
-					model: "claude-sonnet-4-20250514",
+					model: 'claude-sonnet-4-20250514',
 				},
 			};
 
 			const result = calculateCostForEntry(
 				dataWithoutCacheTokens,
-				"calculate",
+				'calculate',
 				realPricing,
 			);
 
@@ -1733,60 +1731,60 @@ describe("calculateCostForEntry", () => {
 		});
 	});
 
-	describe("auto mode", () => {
-		test("should use costUSD when available", () => {
-			const result = calculateCostForEntry(mockUsageData, "auto", {});
+	describe('auto mode', () => {
+		test('should use costUSD when available', () => {
+			const result = calculateCostForEntry(mockUsageData, 'auto', {});
 			expect(result).toBe(0.05);
 		});
 
-		test("should calculate from tokens when costUSD undefined", async () => {
+		test('should calculate from tokens when costUSD undefined', async () => {
 			const realPricing = await fetchModelPricing();
 			const dataWithoutCost: UsageData = {
-				timestamp: "2024-01-01T10:00:00Z",
+				timestamp: '2024-01-01T10:00:00Z',
 				message: {
 					usage: {
 						input_tokens: 1000,
 						output_tokens: 500,
 					},
-					model: "claude-sonnet-4-20250514",
+					model: 'claude-sonnet-4-20250514',
 				},
 			};
 
 			const result = calculateCostForEntry(
 				dataWithoutCost,
-				"auto",
+				'auto',
 				realPricing,
 			);
 			expect(result).toBeGreaterThan(0);
 		});
 
-		test("should return 0 when no costUSD and no model", () => {
+		test('should return 0 when no costUSD and no model', () => {
 			const dataWithoutCostOrModel = { ...mockUsageData };
 			dataWithoutCostOrModel.costUSD = undefined;
 			dataWithoutCostOrModel.message.model = undefined;
 
-			const result = calculateCostForEntry(dataWithoutCostOrModel, "auto", {});
+			const result = calculateCostForEntry(dataWithoutCostOrModel, 'auto', {});
 			expect(result).toBe(0);
 		});
 
-		test("should return 0 when no costUSD and model pricing not found", () => {
+		test('should return 0 when no costUSD and model pricing not found', () => {
 			const dataWithoutCost = { ...mockUsageData };
 			dataWithoutCost.costUSD = undefined;
 
-			const result = calculateCostForEntry(dataWithoutCost, "auto", {});
+			const result = calculateCostForEntry(dataWithoutCost, 'auto', {});
 			expect(result).toBe(0);
 		});
 
-		test("should prefer costUSD over calculation even when both available", async () => {
+		test('should prefer costUSD over calculation even when both available', async () => {
 			const realPricing = await fetchModelPricing();
 			// Both costUSD and model pricing available, should use costUSD
-			const result = calculateCostForEntry(mockUsageData, "auto", realPricing);
+			const result = calculateCostForEntry(mockUsageData, 'auto', realPricing);
 			expect(result).toBe(0.05);
 		});
 	});
 
-	describe("edge cases", () => {
-		test("should handle zero token counts", () => {
+	describe('edge cases', () => {
+		test('should handle zero token counts', () => {
 			const dataWithZeroTokens = {
 				...mockUsageData,
 				message: {
@@ -1801,19 +1799,19 @@ describe("calculateCostForEntry", () => {
 			};
 			dataWithZeroTokens.costUSD = undefined;
 
-			const result = calculateCostForEntry(dataWithZeroTokens, "calculate", {});
+			const result = calculateCostForEntry(dataWithZeroTokens, 'calculate', {});
 			expect(result).toBe(0);
 		});
 
-		test("should handle costUSD of 0", () => {
+		test('should handle costUSD of 0', () => {
 			const dataWithZeroCost = { ...mockUsageData, costUSD: 0 };
-			const result = calculateCostForEntry(dataWithZeroCost, "display", {});
+			const result = calculateCostForEntry(dataWithZeroCost, 'display', {});
 			expect(result).toBe(0);
 		});
 
-		test("should handle negative costUSD", () => {
+		test('should handle negative costUSD', () => {
 			const dataWithNegativeCost = { ...mockUsageData, costUSD: -0.01 };
-			const result = calculateCostForEntry(dataWithNegativeCost, "display", {});
+			const result = calculateCostForEntry(dataWithNegativeCost, 'display', {});
 			expect(result).toBe(-0.01);
 		});
 	});

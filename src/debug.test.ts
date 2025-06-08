@@ -1,22 +1,22 @@
-import { beforeEach, describe, expect, it } from "bun:test";
-import { createFixture } from "fs-fixture";
-import { detectMismatches, printMismatchReport } from "./debug.ts";
-import { clearPricingCache } from "./pricing-fetcher.ts";
+import { beforeEach, describe, expect, it } from 'bun:test';
+import { createFixture } from 'fs-fixture';
+import { detectMismatches, printMismatchReport } from './debug.ts';
+import { clearPricingCache } from './pricing-fetcher.ts';
 
-describe("debug.ts", () => {
+describe('debug.ts', () => {
 	beforeEach(() => {
 		clearPricingCache();
 	});
 
-	describe("detectMismatches", () => {
-		it("should detect no mismatches when costs match", async () => {
+	describe('detectMismatches', () => {
+		it('should detect no mismatches when costs match', async () => {
 			await using fixture = await createFixture({
-				"test.jsonl": JSON.stringify({
-					timestamp: "2024-01-01T12:00:00Z",
+				'test.jsonl': JSON.stringify({
+					timestamp: '2024-01-01T12:00:00Z',
 					costUSD: 0.00015, // 50 * 0.000003 = 0.00015 (matches calculated)
-					version: "1.0.0",
+					version: '1.0.0',
 					message: {
-						model: "claude-sonnet-4-20250514",
+						model: 'claude-sonnet-4-20250514',
 						usage: {
 							input_tokens: 50,
 							output_tokens: 0,
@@ -34,14 +34,14 @@ describe("debug.ts", () => {
 			expect(stats.discrepancies).toHaveLength(0);
 		});
 
-		it("should detect mismatches when costs differ significantly", async () => {
+		it('should detect mismatches when costs differ significantly', async () => {
 			await using fixture = await createFixture({
-				"test.jsonl": JSON.stringify({
-					timestamp: "2024-01-01T12:00:00Z",
+				'test.jsonl': JSON.stringify({
+					timestamp: '2024-01-01T12:00:00Z',
 					costUSD: 0.1, // Significantly different from calculated cost
-					version: "1.0.0",
+					version: '1.0.0',
 					message: {
-						model: "claude-sonnet-4-20250514",
+						model: 'claude-sonnet-4-20250514',
 						usage: {
 							input_tokens: 50,
 							output_tokens: 10,
@@ -60,32 +60,32 @@ describe("debug.ts", () => {
 
 			const discrepancy = stats.discrepancies[0];
 			expect(discrepancy).toBeDefined();
-			expect(discrepancy?.file).toBe("test.jsonl");
-			expect(discrepancy?.model).toBe("claude-sonnet-4-20250514");
+			expect(discrepancy?.file).toBe('test.jsonl');
+			expect(discrepancy?.model).toBe('claude-sonnet-4-20250514');
 			expect(discrepancy?.originalCost).toBe(0.1);
 			expect(discrepancy?.percentDiff).toBeGreaterThan(0.1);
 		});
 
-		it("should handle entries without costUSD or model", async () => {
+		it('should handle entries without costUSD or model', async () => {
 			await using fixture = await createFixture({
-				"test.jsonl": [
+				'test.jsonl': [
 					JSON.stringify({
-						timestamp: "2024-01-01T12:00:00Z",
+						timestamp: '2024-01-01T12:00:00Z',
 						// No costUSD
 						message: {
-							model: "claude-sonnet-4-20250514",
+							model: 'claude-sonnet-4-20250514',
 							usage: { input_tokens: 50, output_tokens: 10 },
 						},
 					}),
 					JSON.stringify({
-						timestamp: "2024-01-01T12:00:00Z",
+						timestamp: '2024-01-01T12:00:00Z',
 						costUSD: 0.001,
 						message: {
 							// No model
 							usage: { input_tokens: 50, output_tokens: 10 },
 						},
 					}),
-				].join("\n"),
+				].join('\n'),
 			});
 
 			const stats = await detectMismatches(fixture.path);
@@ -96,13 +96,13 @@ describe("debug.ts", () => {
 			expect(stats.mismatches).toBe(0);
 		});
 
-		it("should skip synthetic models", async () => {
+		it('should skip synthetic models', async () => {
 			await using fixture = await createFixture({
-				"test.jsonl": JSON.stringify({
-					timestamp: "2024-01-01T12:00:00Z",
+				'test.jsonl': JSON.stringify({
+					timestamp: '2024-01-01T12:00:00Z',
 					costUSD: 0.001,
 					message: {
-						model: "<synthetic>",
+						model: '<synthetic>',
 						usage: { input_tokens: 50, output_tokens: 10 },
 					},
 				}),
@@ -114,27 +114,27 @@ describe("debug.ts", () => {
 			expect(stats.entriesWithBoth).toBe(0);
 		});
 
-		it("should skip invalid JSON lines", async () => {
+		it('should skip invalid JSON lines', async () => {
 			await using fixture = await createFixture({
-				"test.jsonl": [
+				'test.jsonl': [
 					JSON.stringify({
-						timestamp: "2024-01-01T12:00:00Z",
+						timestamp: '2024-01-01T12:00:00Z',
 						costUSD: 0.001,
 						message: {
-							model: "claude-sonnet-4-20250514",
+							model: 'claude-sonnet-4-20250514',
 							usage: { input_tokens: 50, output_tokens: 10 },
 						},
 					}),
-					"invalid json line",
+					'invalid json line',
 					JSON.stringify({
-						timestamp: "2024-01-02T12:00:00Z",
+						timestamp: '2024-01-02T12:00:00Z',
 						costUSD: 0.002,
 						message: {
-							model: "claude-opus-4-20250514",
+							model: 'claude-opus-4-20250514',
 							usage: { input_tokens: 100, output_tokens: 20 },
 						},
 					}),
-				].join("\n"),
+				].join('\n'),
 			});
 
 			const stats = await detectMismatches(fixture.path);
@@ -142,14 +142,14 @@ describe("debug.ts", () => {
 			expect(stats.totalEntries).toBe(2); // Only valid entries counted
 		});
 
-		it("should detect mismatches for claude-opus-4-20250514", async () => {
+		it('should detect mismatches for claude-opus-4-20250514', async () => {
 			await using fixture = await createFixture({
-				"opus-test.jsonl": JSON.stringify({
-					timestamp: "2024-01-01T12:00:00Z",
+				'opus-test.jsonl': JSON.stringify({
+					timestamp: '2024-01-01T12:00:00Z',
 					costUSD: 0.5, // Significantly different from calculated cost
-					version: "1.0.0",
+					version: '1.0.0',
 					message: {
-						model: "claude-opus-4-20250514",
+						model: 'claude-opus-4-20250514',
 						usage: {
 							input_tokens: 100,
 							output_tokens: 50,
@@ -167,72 +167,72 @@ describe("debug.ts", () => {
 
 			const discrepancy = stats.discrepancies[0];
 			expect(discrepancy).toBeDefined();
-			expect(discrepancy?.file).toBe("opus-test.jsonl");
-			expect(discrepancy?.model).toBe("claude-opus-4-20250514");
+			expect(discrepancy?.file).toBe('opus-test.jsonl');
+			expect(discrepancy?.model).toBe('claude-opus-4-20250514');
 			expect(discrepancy?.originalCost).toBe(0.5);
 			expect(discrepancy?.percentDiff).toBeGreaterThan(0.1);
 		});
 
-		it("should track model statistics", async () => {
+		it('should track model statistics', async () => {
 			await using fixture = await createFixture({
-				"test.jsonl": [
+				'test.jsonl': [
 					JSON.stringify({
-						timestamp: "2024-01-01T12:00:00Z",
+						timestamp: '2024-01-01T12:00:00Z',
 						costUSD: 0.00015, // 50 * 0.000003 = 0.00015 (matches)
 						message: {
-							model: "claude-sonnet-4-20250514",
+							model: 'claude-sonnet-4-20250514',
 							usage: { input_tokens: 50, output_tokens: 0 },
 						},
 					}),
 					JSON.stringify({
-						timestamp: "2024-01-02T12:00:00Z",
+						timestamp: '2024-01-02T12:00:00Z',
 						costUSD: 0.001, // Mismatch with calculated cost (0.0003)
 						message: {
-							model: "claude-sonnet-4-20250514",
+							model: 'claude-sonnet-4-20250514',
 							usage: { input_tokens: 50, output_tokens: 10 },
 						},
 					}),
-				].join("\n"),
+				].join('\n'),
 			});
 
 			const stats = await detectMismatches(fixture.path);
 
-			expect(stats.modelStats.has("claude-sonnet-4-20250514")).toBe(true);
-			const modelStat = stats.modelStats.get("claude-sonnet-4-20250514");
+			expect(stats.modelStats.has('claude-sonnet-4-20250514')).toBe(true);
+			const modelStat = stats.modelStats.get('claude-sonnet-4-20250514');
 			expect(modelStat).toBeDefined();
 			expect(modelStat?.total).toBe(2);
 			expect(modelStat?.matches).toBe(1);
 			expect(modelStat?.mismatches).toBe(1);
 		});
 
-		it("should track version statistics", async () => {
+		it('should track version statistics', async () => {
 			await using fixture = await createFixture({
-				"test.jsonl": [
+				'test.jsonl': [
 					JSON.stringify({
-						timestamp: "2024-01-01T12:00:00Z",
+						timestamp: '2024-01-01T12:00:00Z',
 						costUSD: 0.00015, // 50 * 0.000003 = 0.00015 (matches)
-						version: "1.0.0",
+						version: '1.0.0',
 						message: {
-							model: "claude-sonnet-4-20250514",
+							model: 'claude-sonnet-4-20250514',
 							usage: { input_tokens: 50, output_tokens: 0 },
 						},
 					}),
 					JSON.stringify({
-						timestamp: "2024-01-02T12:00:00Z",
+						timestamp: '2024-01-02T12:00:00Z',
 						costUSD: 0.001, // Mismatch with calculated cost (0.0003)
-						version: "1.0.0",
+						version: '1.0.0',
 						message: {
-							model: "claude-sonnet-4-20250514",
+							model: 'claude-sonnet-4-20250514',
 							usage: { input_tokens: 50, output_tokens: 10 },
 						},
 					}),
-				].join("\n"),
+				].join('\n'),
 			});
 
 			const stats = await detectMismatches(fixture.path);
 
-			expect(stats.versionStats.has("1.0.0")).toBe(true);
-			const versionStat = stats.versionStats.get("1.0.0");
+			expect(stats.versionStats.has('1.0.0')).toBe(true);
+			const versionStat = stats.versionStats.get('1.0.0');
 			expect(versionStat).toBeDefined();
 			expect(versionStat?.total).toBe(2);
 			expect(versionStat?.matches).toBe(1);
@@ -240,8 +240,8 @@ describe("debug.ts", () => {
 		});
 	});
 
-	describe("printMismatchReport", () => {
-		it("should work without errors for basic cases", () => {
+	describe('printMismatchReport', () => {
+		it('should work without errors for basic cases', () => {
 			// Since we can't easily mock logger in Bun test, just verify the function runs without errors
 			const stats = {
 				totalEntries: 10,
@@ -256,9 +256,9 @@ describe("debug.ts", () => {
 			expect(() => printMismatchReport(stats)).not.toThrow();
 		});
 
-		it("should work with complex stats without errors", () => {
+		it('should work with complex stats without errors', () => {
 			const modelStats = new Map();
-			modelStats.set("claude-sonnet-4-20250514", {
+			modelStats.set('claude-sonnet-4-20250514', {
 				total: 10,
 				matches: 8,
 				mismatches: 2,
@@ -266,7 +266,7 @@ describe("debug.ts", () => {
 			});
 
 			const versionStats = new Map();
-			versionStats.set("1.0.0", {
+			versionStats.set('1.0.0', {
 				total: 10,
 				matches: 8,
 				mismatches: 2,
@@ -275,9 +275,9 @@ describe("debug.ts", () => {
 
 			const discrepancies = [
 				{
-					file: "test1.jsonl",
-					timestamp: "2024-01-01T12:00:00Z",
-					model: "claude-sonnet-4-20250514",
+					file: 'test1.jsonl',
+					timestamp: '2024-01-01T12:00:00Z',
+					model: 'claude-sonnet-4-20250514',
 					originalCost: 0.001,
 					calculatedCost: 0.0015,
 					difference: 0.0005,
@@ -299,12 +299,12 @@ describe("debug.ts", () => {
 			expect(() => printMismatchReport(stats)).not.toThrow();
 		});
 
-		it("should work with sample count limit", () => {
+		it('should work with sample count limit', () => {
 			const discrepancies = [
 				{
-					file: "test.jsonl",
-					timestamp: "2024-01-01T12:00:00Z",
-					model: "claude-sonnet-4-20250514",
+					file: 'test.jsonl',
+					timestamp: '2024-01-01T12:00:00Z',
+					model: 'claude-sonnet-4-20250514',
 					originalCost: 0.001,
 					calculatedCost: 0.0015,
 					difference: 0.0005,
