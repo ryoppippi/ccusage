@@ -1,7 +1,7 @@
 import { define } from 'gunshi';
 import { logger } from '../logger.ts';
 import { createMcpServer } from '../mcp.ts';
-import { sharedArgs } from '../shared-args.ts';
+import { sharedArgs } from '../shared-args.internal.ts';
 
 export const mcpCommand = define({
 	name: 'mcp',

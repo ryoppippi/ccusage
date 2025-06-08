@@ -10,7 +10,7 @@ import {
 import { loadDailyUsageData } from '../data-loader.ts';
 import { detectMismatches, printMismatchReport } from '../debug.ts';
 import { log, logger } from '../logger.ts';
-import { sharedCommandConfig } from '../shared-args.ts';
+import { sharedCommandConfig } from '../shared-args.internal.ts';
 import { formatCurrency, formatNumber } from '../utils.ts';
 
 export const dailyCommand = define({

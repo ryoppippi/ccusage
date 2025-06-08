@@ -1,5 +1,5 @@
 import type { LoadOptions } from './data-loader';
-import type { CostMode } from './types.internal';
+import type { CostMode } from './types.internal.ts';
 import { FastMCP } from 'fastmcp';
 import * as v from 'valibot';
 
@@ -9,7 +9,7 @@ import {
 	loadDailyUsageData,
 	loadSessionData,
 } from './data-loader';
-import { CostModes, dateSchema } from './types.internal';
+import { CostModes, dateSchema } from './types.internal.ts';
 
 const sinceSchema = v.pipe(
 	dateSchema,

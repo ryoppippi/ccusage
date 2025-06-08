@@ -1,4 +1,4 @@
-import type { CostMode, SortOrder } from './types.internal';
+import type { CostMode, SortOrder } from './types.internal.ts';
 import { readFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import path from 'node:path';
