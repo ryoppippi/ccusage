@@ -34,7 +34,7 @@
 		"dist"
 	],
 	"scripts": {
-		"build": "tsdown && sort-package-json",
+		"build": "tsdown",
 		"format": "bun run lint --fix",
 		"lint": "eslint --cache .",
 		"prepack": "bun run build && clean-pkg-json",
@@ -75,6 +75,9 @@
 	"lint-staged": {
 		"*": [
 			"eslint --cache --fix"
+		],
+		"package.json": [
+			"sort-package-json"
 		]
 	},
 	"trustedDependencies": [
