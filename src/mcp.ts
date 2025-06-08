@@ -1,28 +1,28 @@
-import { FastMCP } from "fastmcp";
-import * as v from "valibot";
-import { name, version } from "../package.json";
-import { CostModes, dateSchema } from "./types";
+import type { LoadOptions } from './data-loader';
+import type { CostMode } from './types';
+import { FastMCP } from 'fastmcp';
+import * as v from 'valibot';
 
+import { name, version } from '../package.json';
 import {
 	getDefaultClaudePath,
 	loadDailyUsageData,
 	loadSessionData,
-} from "./data-loader";
-import type { LoadOptions } from "./data-loader";
-import type { CostMode } from "./types";
+} from './data-loader';
+import { CostModes, dateSchema } from './types';
 
 const sinceSchema = v.pipe(
 	dateSchema,
-	v.description("Filter from date (YYYYMMDD format)"),
+	v.description('Filter from date (YYYYMMDD format)'),
 );
 
 const untilSchema = v.pipe(
 	dateSchema,
-	v.description("Filter until date (YYYYMMDD format)"),
+	v.description('Filter until date (YYYYMMDD format)'),
 );
 const modeSchema = v.optional(
 	v.pipe(
-		v.union(CostModes.map((m) => v.literal(m))),
+		v.union(CostModes.map(m => v.literal(m))),
 		v.description(
 			`
 Cost calculation mode: auto (use costUSD if exists, otherwise calculate), calculate (always calculate), display (always use costUSD)
@@ -35,7 +35,7 @@ default: auto
 const parametersSchema = v.object({
 	since: v.optional(sinceSchema),
 	until: v.optional(untilSchema),
-	mode: v.optional(modeSchema, () => "auto" as const satisfies CostMode),
+	mode: v.optional(modeSchema, () => 'auto' as const satisfies CostMode),
 });
 
 /** Default options for the MCP server */
@@ -55,8 +55,8 @@ export function createMcpServer({
 	});
 
 	server.addTool({
-		name: "daily",
-		description: "Show usage report grouped by date",
+		name: 'daily',
+		description: 'Show usage report grouped by date',
 		parameters: parametersSchema,
 		execute: async (args) => {
 			const dailyData = await loadDailyUsageData({ ...args, claudePath });
@@ -65,8 +65,8 @@ export function createMcpServer({
 	});
 
 	server.addTool({
-		name: "session",
-		description: "Show usage report grouped by conversation session",
+		name: 'session',
+		description: 'Show usage report grouped by conversation session',
 		parameters: parametersSchema,
 		execute: async (args) => {
 			const sessionData = await loadSessionData({ ...args, claudePath });

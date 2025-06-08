@@ -1,4 +1,4 @@
-import * as v from "valibot";
+import * as v from 'valibot';
 
 export const ModelSpecSchema = v.object({
 	max_tokens: v.optional(v.union([v.number(), v.string()])),
@@ -39,26 +39,11 @@ export type LiteLLMModelPrices = v.InferOutput<typeof LiteLLMModelPricesSchema>;
 
 export const dateSchema = v.pipe(
 	v.string(),
-	v.regex(/^\d{8}$/, "Date must be in YYYYMMDD format"),
+	v.regex(/^\d{8}$/, 'Date must be in YYYYMMDD format'),
 );
 
-export interface TokenTotals {
-	inputTokens: number;
-	outputTokens: number;
-	cacheCreationTokens: number;
-	cacheReadTokens: number;
-	totalCost: number;
-}
-
-export interface TokenData {
-	inputTokens: number;
-	outputTokens: number;
-	cacheCreationTokens: number;
-	cacheReadTokens: number;
-}
-
-export const CostModes = ["auto", "calculate", "display"] as const;
+export const CostModes = ['auto', 'calculate', 'display'] as const;
 export type CostMode = (typeof CostModes)[number];
 
-export const SortOrders = ["desc", "asc"] as const;
+export const SortOrders = ['desc', 'asc'] as const;
 export type SortOrder = (typeof SortOrders)[number];

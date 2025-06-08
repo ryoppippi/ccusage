@@ -1,3 +1,3 @@
 #!/usr/bin/env node
 
-import "./commands/index.ts";
+import './commands/index.ts';

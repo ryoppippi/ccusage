@@ -1,5 +1,5 @@
-import * as v from "valibot";
-import { logger } from "./logger.ts";
+import * as v from 'valibot';
+import { logger } from './logger.ts';
 
 const ModelPricingSchema = v.object({
 	input_cost_per_token: v.optional(v.number()),
@@ -10,25 +10,25 @@ const ModelPricingSchema = v.object({
 
 export type ModelPricing = v.InferOutput<typeof ModelPricingSchema>;
 
-const LITELLM_PRICING_URL =
-	"https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json";
+const LITELLM_PRICING_URL
+	= 'https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json';
 
 let cachedPricing: Record<string, ModelPricing> | null = null;
 
 // Export for testing purposes
-export function clearPricingCache() {
+export function clearPricingCache(): void {
 	cachedPricing = null;
 }
 
 export async function fetchModelPricing(): Promise<
 	Record<string, ModelPricing>
 > {
-	if (cachedPricing) {
+	if (cachedPricing != null) {
 		return cachedPricing;
 	}
 
 	try {
-		logger.warn("Fetching latest model pricing from LiteLLM...");
+		logger.warn('Fetching latest model pricing from LiteLLM...');
 		const response = await fetch(LITELLM_PRICING_URL);
 		if (!response.ok) {
 			throw new Error(`Failed to fetch pricing data: ${response.statusText}`);
@@ -40,11 +40,12 @@ export async function fetchModelPricing(): Promise<
 		for (const [modelName, modelData] of Object.entries(
 			data as Record<string, unknown>,
 		)) {
-			if (typeof modelData === "object" && modelData !== null) {
+			if (typeof modelData === 'object' && modelData !== null) {
 				try {
 					const parsed = v.parse(ModelPricingSchema, modelData);
 					pricing[modelName] = parsed;
-				} catch {
+				}
+				catch {
 					// Skip models that don't match our schema
 				}
 			}
@@ -53,9 +54,10 @@ export async function fetchModelPricing(): Promise<
 		cachedPricing = pricing;
 		logger.info(`Loaded pricing for ${Object.keys(pricing).length} models`);
 		return pricing;
-	} catch (error) {
-		logger.error("Failed to fetch model pricing:", error);
-		throw new Error("Could not fetch model pricing data");
+	}
+	catch (error) {
+		logger.error('Failed to fetch model pricing:', error);
+		throw new Error('Could not fetch model pricing data');
 	}
 }
 
@@ -64,7 +66,7 @@ export function getModelPricing(
 	pricing: Record<string, ModelPricing>,
 ): ModelPricing | null {
 	// Direct match
-	if (pricing[modelName]) {
+	if (pricing[modelName] != null) {
 		return pricing[modelName];
 	}
 
@@ -78,7 +80,7 @@ export function getModelPricing(
 	];
 
 	for (const variant of variations) {
-		if (pricing[variant]) {
+		if (pricing[variant] != null) {
 			return pricing[variant];
 		}
 	}
@@ -87,8 +89,8 @@ export function getModelPricing(
 	const lowerModel = modelName.toLowerCase();
 	for (const [key, value] of Object.entries(pricing)) {
 		if (
-			key.toLowerCase().includes(lowerModel) ||
-			lowerModel.includes(key.toLowerCase())
+			key.toLowerCase().includes(lowerModel)
+			|| lowerModel.includes(key.toLowerCase())
 		) {
 			return value;
 		}
@@ -109,29 +111,29 @@ export function calculateCostFromTokens(
 	let cost = 0;
 
 	// Input tokens cost
-	if (pricing.input_cost_per_token) {
+	if (pricing.input_cost_per_token != null) {
 		cost += tokens.input_tokens * pricing.input_cost_per_token;
 	}
 
 	// Output tokens cost
-	if (pricing.output_cost_per_token) {
+	if (pricing.output_cost_per_token != null) {
 		cost += tokens.output_tokens * pricing.output_cost_per_token;
 	}
 
 	// Cache creation tokens cost
 	if (
-		tokens.cache_creation_input_tokens &&
-		pricing.cache_creation_input_token_cost
+		tokens.cache_creation_input_tokens != null
+		&& pricing.cache_creation_input_token_cost != null
 	) {
-		cost +=
-			tokens.cache_creation_input_tokens *
-			pricing.cache_creation_input_token_cost;
+		cost
+			+= tokens.cache_creation_input_tokens
+				* pricing.cache_creation_input_token_cost;
 	}
 
 	// Cache read tokens cost
-	if (tokens.cache_read_input_tokens && pricing.cache_read_input_token_cost) {
-		cost +=
-			tokens.cache_read_input_tokens * pricing.cache_read_input_token_cost;
+	if (tokens.cache_read_input_tokens != null && pricing.cache_read_input_token_cost != null) {
+		cost
+			+= tokens.cache_read_input_tokens * pricing.cache_read_input_token_cost;
 	}
 
 	return cost;

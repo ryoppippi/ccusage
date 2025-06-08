@@ -6,8 +6,10 @@ extend-ignore-re = [
   "(?Rm)^.*#\\s*spellchecker:disable-line$",
   "(?m)^.*<!--\\s*spellchecker:disable-line\\s*-->\\n.*$"
 ]
+
 [default.extend-words]
 color = "color"
+
 [files]
 extend-exclude = [
   "node_modules",

@@ -1,13 +1,13 @@
-import { defineConfig } from "tsdown";
+import { defineConfig } from 'tsdown';
 
 export default defineConfig({
-	entry: ["./src/*.ts", "!./src/**/*.test.ts"],
-	outDir: "dist",
-	format: "esm",
+	entry: ['./src/*.ts', '!./src/**/*.test.ts'],
+	outDir: 'dist',
+	format: 'esm',
 	clean: true,
 	sourcemap: false,
 	dts: {
-		resolve: ["valibot"],
+		resolve: ['valibot'],
 	},
 	publint: true,
 	unused: true,

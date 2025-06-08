@@ -1,21 +1,21 @@
-import process from "node:process";
-import Table from "cli-table3";
-import { define } from "gunshi";
-import pc from "picocolors";
+import process from 'node:process';
+import Table from 'cli-table3';
+import { define } from 'gunshi';
+import pc from 'picocolors';
 import {
 	calculateTotals,
 	createTotalsObject,
 	getTotalTokens,
-} from "../calculate-cost.ts";
-import { type LoadOptions, loadMonthlyUsageData } from "../data-loader.ts";
-import { detectMismatches, printMismatchReport } from "../debug.ts";
-import { log, logger } from "../logger.ts";
-import { sharedCommandConfig } from "../shared-args.ts";
-import { formatCurrency, formatNumber } from "../utils.ts";
+} from '../calculate-cost.ts';
+import { loadMonthlyUsageData } from '../data-loader.ts';
+import { detectMismatches, printMismatchReport } from '../debug.ts';
+import { log, logger } from '../logger.ts';
+import { sharedCommandConfig } from '../shared-args.ts';
+import { formatCurrency, formatNumber } from '../utils.ts';
 
 export const monthlyCommand = define({
-	name: "monthly",
-	description: "Show usage report grouped by month",
+	name: 'monthly',
+	description: 'Show usage report grouped by month',
 	...sharedCommandConfig,
 	async run(ctx) {
 		if (ctx.values.json) {
@@ -44,8 +44,9 @@ export const monthlyCommand = define({
 					},
 				};
 				log(JSON.stringify(emptyOutput, null, 2));
-			} else {
-				logger.warn("No Claude usage data found.");
+			}
+			else {
+				logger.warn('No Claude usage data found.');
 			}
 			process.exit(0);
 		}
@@ -62,7 +63,7 @@ export const monthlyCommand = define({
 		if (ctx.values.json) {
 			// Output JSON format
 			const jsonOutput = {
-				monthly: monthlyData.map((data) => ({
+				monthly: monthlyData.map(data => ({
 					month: data.month,
 					inputTokens: data.inputTokens,
 					outputTokens: data.outputTokens,
@@ -74,32 +75,33 @@ export const monthlyCommand = define({
 				totals: createTotalsObject(totals),
 			};
 			log(JSON.stringify(jsonOutput, null, 2));
-		} else {
+		}
+		else {
 			// Print header
-			logger.box("Claude Code Token Usage Report - Monthly");
+			logger.box('Claude Code Token Usage Report - Monthly');
 
 			// Create table
 			const table = new Table({
 				head: [
-					"Month",
-					"Input",
-					"Output",
-					"Cache Create",
-					"Cache Read",
-					"Total Tokens",
-					"Cost (USD)",
+					'Month',
+					'Input',
+					'Output',
+					'Cache Create',
+					'Cache Read',
+					'Total Tokens',
+					'Cost (USD)',
 				],
 				style: {
-					head: ["cyan"],
+					head: ['cyan'],
 				},
 				colAligns: [
-					"left",
-					"right",
-					"right",
-					"right",
-					"right",
-					"right",
-					"right",
+					'left',
+					'right',
+					'right',
+					'right',
+					'right',
+					'right',
+					'right',
 				],
 			});
 
@@ -118,18 +120,18 @@ export const monthlyCommand = define({
 
 			// Add separator
 			table.push([
-				"─".repeat(12),
-				"─".repeat(12),
-				"─".repeat(12),
-				"─".repeat(12),
-				"─".repeat(12),
-				"─".repeat(12),
-				"─".repeat(10),
+				'─'.repeat(12),
+				'─'.repeat(12),
+				'─'.repeat(12),
+				'─'.repeat(12),
+				'─'.repeat(12),
+				'─'.repeat(12),
+				'─'.repeat(10),
 			]);
 
 			// Add totals
 			table.push([
-				pc.yellow("Total"),
+				pc.yellow('Total'),
 				pc.yellow(formatNumber(totals.inputTokens)),
 				pc.yellow(formatNumber(totals.outputTokens)),
 				pc.yellow(formatNumber(totals.cacheCreationTokens)),

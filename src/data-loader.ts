@@ -1,18 +1,20 @@
-import { readFile } from "node:fs/promises";
-import { homedir } from "node:os";
-import path from "node:path";
-import { sort } from "fast-sort";
-import { glob } from "tinyglobby";
-import * as v from "valibot";
+import type { CostMode, SortOrder } from './types.ts';
+import { readFile } from 'node:fs/promises';
+import { homedir } from 'node:os';
+import path from 'node:path';
+import { sort } from 'fast-sort';
+import { glob } from 'tinyglobby';
+import * as v from 'valibot';
 import {
-	type ModelPricing,
 	calculateCostFromTokens,
 	fetchModelPricing,
 	getModelPricing,
-} from "./pricing-fetcher.ts";
-import type { CostMode, SortOrder } from "./types.ts";
+	type ModelPricing,
+} from './pricing-fetcher.ts';
 
-export const getDefaultClaudePath = () => path.join(homedir(), ".claude");
+export function getDefaultClaudePath(): string {
+	return path.join(homedir(), '.claude');
+}
 
 export const UsageDataSchema = v.object({
 	timestamp: v.string(),
@@ -73,29 +75,25 @@ export const MonthlyUsageSchema = v.object({
 
 export type MonthlyUsage = v.InferOutput<typeof MonthlyUsageSchema>;
 
-export const formatDate = (dateStr: string): string => {
+export function formatDate(dateStr: string): string {
 	const date = new Date(dateStr);
 	const year = date.getFullYear();
-	const month = String(date.getMonth() + 1).padStart(2, "0");
-	const day = String(date.getDate()).padStart(2, "0");
+	const month = String(date.getMonth() + 1).padStart(2, '0');
+	const day = String(date.getDate()).padStart(2, '0');
 	return `${year}-${month}-${day}`;
-};
+}
 
-export const calculateCostForEntry = (
-	data: UsageData,
-	mode: CostMode,
-	modelPricing: Record<string, ModelPricing>,
-): number => {
-	if (mode === "display") {
+export function calculateCostForEntry(data: UsageData,	mode: CostMode,	modelPricing: Record<string, ModelPricing>): number {
+	if (mode === 'display') {
 		// Always use costUSD, even if undefined
 		return data.costUSD ?? 0;
 	}
 
-	if (mode === "calculate") {
+	if (mode === 'calculate') {
 		// Always calculate from tokens
-		if (data.message.model) {
+		if (data.message.model != null) {
 			const pricing = getModelPricing(data.message.model, modelPricing);
-			if (pricing) {
+			if (pricing != null) {
 				return calculateCostFromTokens(data.message.usage, pricing);
 			}
 		}
@@ -107,33 +105,33 @@ export const calculateCostForEntry = (
 		return data.costUSD;
 	}
 
-	if (data.message.model) {
+	if (data.message.model != null) {
 		const pricing = getModelPricing(data.message.model, modelPricing);
-		if (pricing) {
+		if (pricing != null) {
 			return calculateCostFromTokens(data.message.usage, pricing);
 		}
 	}
 
 	return 0;
-};
-
-export interface DateFilter {
-	since?: string; // YYYYMMDD format
-	until?: string; // YYYYMMDD format
 }
 
-export interface LoadOptions extends DateFilter {
+export type DateFilter = {
+	since?: string; // YYYYMMDD format
+	until?: string; // YYYYMMDD format
+};
+
+export type LoadOptions = {
 	claudePath?: string; // Custom path to Claude data directory
 	mode?: CostMode; // Cost calculation mode
 	order?: SortOrder; // Sort order for dates
-}
+} & DateFilter;
 
 export async function loadDailyUsageData(
 	options?: LoadOptions,
 ): Promise<DailyUsage[]> {
 	const claudePath = options?.claudePath ?? getDefaultClaudePath();
-	const claudeDir = path.join(claudePath, "projects");
-	const files = await glob(["**/*.jsonl"], {
+	const claudeDir = path.join(claudePath, 'projects');
+	const files = await glob(['**/*.jsonl'], {
 		cwd: claudeDir,
 		absolute: true,
 	});
@@ -143,22 +141,22 @@ export async function loadDailyUsageData(
 	}
 
 	// Fetch pricing data for cost calculation only when needed
-	const mode = options?.mode || "auto";
-	const modelPricing = mode === "display" ? {} : await fetchModelPricing();
+	const mode = options?.mode ?? 'auto';
+	const modelPricing = mode === 'display' ? {} : await fetchModelPricing();
 
 	// Collect all valid data entries first
 	const allEntries: { data: UsageData; date: string; cost: number }[] = [];
 
 	for (const file of files) {
-		const content = await readFile(file, "utf-8");
+		const content = await readFile(file, 'utf-8');
 		const lines = content
 			.trim()
-			.split("\n")
-			.filter((line) => line.length > 0);
+			.split('\n')
+			.filter(line => line.length > 0);
 
 		for (const line of lines) {
 			try {
-				const parsed = JSON.parse(line);
+				const parsed = JSON.parse(line) as unknown;
 				const result = v.safeParse(UsageDataSchema, parsed);
 				if (!result.success) {
 					continue;
@@ -169,14 +167,15 @@ export async function loadDailyUsageData(
 				const cost = calculateCostForEntry(data, mode, modelPricing);
 
 				allEntries.push({ data, date, cost });
-			} catch (e) {
+			}
+			catch {
 				// Skip invalid JSON lines
 			}
 		}
 	}
 
 	// Group by date using Object.groupBy
-	const groupedByDate = Object.groupBy(allEntries, (entry) => entry.date);
+	const groupedByDate = Object.groupBy(allEntries, entry => entry.date);
 
 	// Aggregate each group
 	const results = Object.entries(groupedByDate)
@@ -193,11 +192,11 @@ export async function loadDailyUsageData(
 					outputTokens:
 						acc.outputTokens + (entry.data.message.usage.output_tokens ?? 0),
 					cacheCreationTokens:
-						acc.cacheCreationTokens +
-						(entry.data.message.usage.cache_creation_input_tokens ?? 0),
+						acc.cacheCreationTokens
+						+ (entry.data.message.usage.cache_creation_input_tokens ?? 0),
 					cacheReadTokens:
-						acc.cacheReadTokens +
-						(entry.data.message.usage.cache_read_input_tokens ?? 0),
+						acc.cacheReadTokens
+						+ (entry.data.message.usage.cache_read_input_tokens ?? 0),
 					totalCost: acc.totalCost + entry.cost,
 				}),
 				{
@@ -210,31 +209,35 @@ export async function loadDailyUsageData(
 				},
 			);
 		})
-		.filter((item) => item != null)
+		.filter(item => item != null)
 		.filter((item) => {
 			// Filter by date range if specified
-			if (options?.since || options?.until) {
-				const dateStr = item.date.replace(/-/g, ""); // Convert to YYYYMMDD
-				if (options.since && dateStr < options.since) return false;
-				if (options.until && dateStr > options.until) return false;
+			if (options?.since != null || options?.until != null) {
+				const dateStr = item.date.replace(/-/g, ''); // Convert to YYYYMMDD
+				if (options.since != null && dateStr < options.since) {
+					return false;
+				}
+				if (options.until != null && dateStr > options.until) {
+					return false;
+				}
 			}
 			return true;
 		});
 
 	// Sort by date based on order option (default to descending)
-	const sortOrder = options?.order || "desc";
+	const sortOrder = options?.order ?? 'desc';
 	const sortedResults = sort(results);
-	return sortOrder === "desc"
-		? sortedResults.desc((item) => new Date(item.date).getTime())
-		: sortedResults.asc((item) => new Date(item.date).getTime());
+	return sortOrder === 'desc'
+		? sortedResults.desc(item => new Date(item.date).getTime())
+		: sortedResults.asc(item => new Date(item.date).getTime());
 }
 
 export async function loadSessionData(
 	options?: LoadOptions,
 ): Promise<SessionUsage[]> {
 	const claudePath = options?.claudePath ?? getDefaultClaudePath();
-	const claudeDir = path.join(claudePath, "projects");
-	const files = await glob(["**/*.jsonl"], {
+	const claudeDir = path.join(claudePath, 'projects');
+	const files = await glob(['**/*.jsonl'], {
 		cwd: claudeDir,
 		absolute: true,
 	});
@@ -244,8 +247,8 @@ export async function loadSessionData(
 	}
 
 	// Fetch pricing data for cost calculation only when needed
-	const mode = options?.mode || "auto";
-	const modelPricing = mode === "display" ? {} : await fetchModelPricing();
+	const mode = options?.mode ?? 'auto';
+	const modelPricing = mode === 'display' ? {} : await fetchModelPricing();
 
 	// Collect all valid data entries with session info first
 	const allEntries: Array<{
@@ -263,19 +266,20 @@ export async function loadSessionData(
 		const parts = relativePath.split(path.sep);
 
 		// Session ID is the directory name containing the JSONL file
-		const sessionId = parts[parts.length - 2] || "unknown";
+		const sessionId = parts[parts.length - 2] ?? 'unknown';
 		// Project path is everything before the session ID
-		const projectPath = parts.slice(0, -2).join(path.sep) || "Unknown Project";
+		const joinedPath = parts.slice(0, -2).join(path.sep);
+		const projectPath = joinedPath.length > 0 ? joinedPath : 'Unknown Project';
 
-		const content = await readFile(file, "utf-8");
+		const content = await readFile(file, 'utf-8');
 		const lines = content
 			.trim()
-			.split("\n")
-			.filter((line) => line.length > 0);
+			.split('\n')
+			.filter(line => line.length > 0);
 
 		for (const line of lines) {
 			try {
-				const parsed = JSON.parse(line);
+				const parsed = JSON.parse(line) as unknown;
 				const result = v.safeParse(UsageDataSchema, parsed);
 				if (!result.success) {
 					continue;
@@ -293,7 +297,8 @@ export async function loadSessionData(
 					cost,
 					timestamp: data.timestamp,
 				});
-			} catch (e) {
+			}
+			catch {
 				// Skip invalid JSON lines
 			}
 		}
@@ -302,7 +307,7 @@ export async function loadSessionData(
 	// Group by session using Object.groupBy
 	const groupedBySessions = Object.groupBy(
 		allEntries,
-		(entry) => entry.sessionKey,
+		entry => entry.sessionKey,
 	);
 
 	// Aggregate each session group
@@ -320,7 +325,7 @@ export async function loadSessionData(
 			// Collect all unique versions
 			const versionSet = new Set<string>();
 			for (const entry of entries) {
-				if (entry.data.version) {
+				if (entry.data.version != null) {
 					versionSet.add(entry.data.version);
 				}
 			}
@@ -335,11 +340,11 @@ export async function loadSessionData(
 					outputTokens:
 						acc.outputTokens + (entry.data.message.usage.output_tokens ?? 0),
 					cacheCreationTokens:
-						acc.cacheCreationTokens +
-						(entry.data.message.usage.cache_creation_input_tokens ?? 0),
+						acc.cacheCreationTokens
+						+ (entry.data.message.usage.cache_creation_input_tokens ?? 0),
 					cacheReadTokens:
-						acc.cacheReadTokens +
-						(entry.data.message.usage.cache_read_input_tokens ?? 0),
+						acc.cacheReadTokens
+						+ (entry.data.message.usage.cache_read_input_tokens ?? 0),
 					totalCost: acc.totalCost + entry.cost,
 					lastActivity: formatDate(latestEntry.timestamp),
 					versions: Array.from(versionSet).sort(),
@@ -359,23 +364,27 @@ export async function loadSessionData(
 
 			return aggregated;
 		})
-		.filter((item) => item != null)
+		.filter(item => item != null)
 		.filter((item) => {
 			// Filter by date range if specified
-			if (options?.since || options?.until) {
-				const dateStr = item.lastActivity.replace(/-/g, ""); // Convert to YYYYMMDD
-				if (options.since && dateStr < options.since) return false;
-				if (options.until && dateStr > options.until) return false;
+			if (options?.since != null || options?.until != null) {
+				const dateStr = item.lastActivity.replace(/-/g, ''); // Convert to YYYYMMDD
+				if (options.since != null && dateStr < options.since) {
+					return false;
+				}
+				if (options.until != null && dateStr > options.until) {
+					return false;
+				}
 			}
 			return true;
 		});
 
 	// Sort by last activity based on order option (default to descending)
-	const sortOrder = options?.order || "desc";
+	const sortOrder = options?.order ?? 'desc';
 	const sortedResults = sort(results);
-	return sortOrder === "desc"
-		? sortedResults.desc((item) => new Date(item.lastActivity).getTime())
-		: sortedResults.asc((item) => new Date(item.lastActivity).getTime());
+	return sortOrder === 'desc'
+		? sortedResults.desc(item => new Date(item.lastActivity).getTime())
+		: sortedResults.asc(item => new Date(item.lastActivity).getTime());
 }
 
 export async function loadMonthlyUsageData(
@@ -384,9 +393,8 @@ export async function loadMonthlyUsageData(
 	const dailyData = await loadDailyUsageData(options);
 
 	// Group daily data by month using Object.groupBy
-	const groupedByMonth = Object.groupBy(dailyData, (data) =>
-		data.date.substring(0, 7),
-	);
+	const groupedByMonth = Object.groupBy(dailyData, data =>
+		data.date.substring(0, 7));
 
 	// Aggregate each month group
 	const monthlyArray = Object.entries(groupedByMonth)
@@ -415,12 +423,12 @@ export async function loadMonthlyUsageData(
 				},
 			);
 		})
-		.filter((item) => item != null);
+		.filter(item => item != null);
 
 	// Sort by month based on sortOrder
-	const sortOrder = options?.order || "desc";
+	const sortOrder = options?.order ?? 'desc';
 	const sortedMonthly = sort(monthlyArray);
-	return sortOrder === "desc"
-		? sortedMonthly.desc((item) => item.month)
-		: sortedMonthly.asc((item) => item.month);
+	return sortOrder === 'desc'
+		? sortedMonthly.desc(item => item.month)
+		: sortedMonthly.asc(item => item.month);
 }
