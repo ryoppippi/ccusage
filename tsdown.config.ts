@@ -3,9 +3,7 @@ import { defineConfig } from 'tsdown';
 export default defineConfig({
 	entry: [
 		'./src/*.ts',
-		'!./src/types.ts',
-		'!./src/shared-args.ts',
-		'!./src/**/*.test.ts',
+		'!./src/**/*.{test,internal}.ts',
 	],
 	outDir: 'dist',
 	format: 'esm',
