@@ -14,6 +14,16 @@ jobs:
         with:
           bun-version: latest
       - run: bun install --frozen-lockfile
+
+      # Cache ESLint cache
+      - name: Cache ESLint
+        uses: actions/cache@6849a6489940f00c2f30c0fb92c6274307ccb58a # v4.1.2
+        with:
+          path: .eslintcache
+          key: ${{ runner.os }}-eslint-${{ hashFiles('**/eslint.config.js', '**/package.json', '**/bun.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-eslint-
+
       - run: bun lint
       - run: bun typecheck
       - run: bun test
