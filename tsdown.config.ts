@@ -1,7 +1,11 @@
 import { defineConfig } from 'tsdown';
 
 export default defineConfig({
-	entry: ['./src/*.ts', '!./src/**/*.test.ts'],
+	entry: [
+		'./src/*.ts',
+		'!./src/types.ts',
+		'!./src/**/*.test.ts',
+	],
 	outDir: 'dist',
 	format: 'esm',
 	clean: true,
