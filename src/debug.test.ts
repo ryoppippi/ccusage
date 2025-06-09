@@ -1,13 +1,8 @@
-import { beforeEach, describe, expect, it } from 'bun:test';
+import { describe, expect, it } from 'bun:test';
 import { createFixture } from 'fs-fixture';
 import { detectMismatches, printMismatchReport } from './debug.ts';
-import { clearPricingCache } from './pricing-fetcher.ts';
 
 describe('debug.ts', () => {
-	beforeEach(() => {
-		clearPricingCache();
-	});
-
 	describe('detectMismatches', () => {
 		it('should detect no mismatches when costs match', async () => {
 			await using fixture = await createFixture({
