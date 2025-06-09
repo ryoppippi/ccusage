@@ -166,6 +166,8 @@ export async function loadDailyUsageData(
 				const data = result.output;
 
 				const date = formatDate(data.timestamp);
+				// If fetcher is available, calculate cost based on mode and tokens
+				// If fetcher is null, use pre-calculated costUSD or default to 0
 				const cost = fetcher != null
 					? await calculateCostForEntry(data, mode, fetcher)
 					: data.costUSD ?? 0;
