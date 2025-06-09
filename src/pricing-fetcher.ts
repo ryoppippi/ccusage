@@ -45,13 +45,11 @@ export class PricingFetcher implements Disposable {
 				data as Record<string, unknown>,
 			)) {
 				if (typeof modelData === 'object' && modelData !== null) {
-					try {
-						const parsed = v.parse(ModelPricingSchema, modelData);
-						pricing.set(modelName, parsed);
+					const parsed = v.safeParse(ModelPricingSchema, modelData);
+					if (parsed.success) {
+						pricing.set(modelName, parsed.output);
 					}
-					catch {
-						// Skip models that don't match our schema
-					}
+					// Skip models that don't match our schema
 				}
 			}
 
