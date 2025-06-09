@@ -2,6 +2,7 @@ import type { CostMode, SortOrder } from './types.internal.ts';
 import { readFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import path from 'node:path';
+import { unreachable } from '@core/errorutil';
 import { sort } from 'fast-sort';
 import { glob } from 'tinyglobby';
 import * as v from 'valibot';
@@ -100,19 +101,23 @@ export function calculateCostForEntry(data: UsageData,	mode: CostMode,	modelPric
 		return 0;
 	}
 
+	if (mode === 'auto') {
 	// Auto mode: use costUSD if available, otherwise calculate
-	if (data.costUSD != null) {
-		return data.costUSD;
-	}
-
-	if (data.message.model != null) {
-		const pricing = getModelPricing(data.message.model, modelPricing);
-		if (pricing != null) {
-			return calculateCostFromTokens(data.message.usage, pricing);
+		if (data.costUSD != null) {
+			return data.costUSD;
 		}
+
+		if (data.message.model != null) {
+			const pricing = getModelPricing(data.message.model, modelPricing);
+			if (pricing != null) {
+				return calculateCostFromTokens(data.message.usage, pricing);
+			}
+		}
+
+		return 0;
 	}
 
-	return 0;
+	unreachable(mode);
 }
 
 export type DateFilter = {
@@ -227,9 +232,14 @@ export async function loadDailyUsageData(
 	// Sort by date based on order option (default to descending)
 	const sortOrder = options?.order ?? 'desc';
 	const sortedResults = sort(results);
-	return sortOrder === 'desc'
-		? sortedResults.desc(item => new Date(item.date).getTime())
-		: sortedResults.asc(item => new Date(item.date).getTime());
+	switch (sortOrder) {
+		case 'desc':
+			return sortedResults.desc(item => new Date(item.date).getTime());
+		case 'asc':
+			return sortedResults.asc(item => new Date(item.date).getTime());
+		default:
+			unreachable(sortOrder);
+	}
 }
 
 export async function loadSessionData(
