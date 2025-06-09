@@ -1,87 +1,101 @@
-import { beforeEach, describe, expect, it } from 'bun:test';
+import { describe, expect, it } from 'bun:test';
 import {
-	calculateCostFromTokens,
-	clearPricingCache,
-	fetchModelPricing,
-	getModelPricing,
 	type ModelPricing,
+	PricingFetcher,
 } from './pricing-fetcher.ts';
 
 describe('pricing-fetcher', () => {
-	beforeEach(() => {
-		clearPricingCache();
+	describe('PricingFetcher class', () => {
+		it('should support using statement for automatic cleanup', async () => {
+			let fetcherDisposed = false;
+
+			class TestPricingFetcher extends PricingFetcher {
+				override [Symbol.dispose](): void {
+					super[Symbol.dispose]();
+					fetcherDisposed = true;
+				}
+			}
+
+			{
+				using fetcher = new TestPricingFetcher();
+				const pricing = await fetcher.fetchModelPricing();
+				expect(pricing.size).toBeGreaterThan(0);
+			}
+
+			expect(fetcherDisposed).toBe(true);
+		});
+
+		it('should calculate costs directly with model name', async () => {
+			using fetcher = new PricingFetcher();
+
+			const cost = await fetcher.calculateCostFromTokens(
+				{
+					input_tokens: 1000,
+					output_tokens: 500,
+				},
+				'claude-sonnet-4-20250514',
+			);
+
+			expect(cost).toBeGreaterThan(0);
+		});
 	});
 
 	describe('fetchModelPricing', () => {
 		it('should fetch and parse pricing data from LiteLLM', async () => {
-			const pricing = await fetchModelPricing();
+			using fetcher = new PricingFetcher();
+			const pricing = await fetcher.fetchModelPricing();
 
 			// Should have pricing data
-			expect(Object.keys(pricing).length).toBeGreaterThan(0);
+			expect(pricing.size).toBeGreaterThan(0);
 
 			// Check for Claude models
-			const claudeModels = Object.keys(pricing).filter(model =>
+			const claudeModels = Array.from(pricing.keys()).filter(model =>
 				model.toLowerCase().includes('claude'),
 			);
 			expect(claudeModels.length).toBeGreaterThan(0);
 		});
 
 		it('should cache pricing data', async () => {
+			using fetcher = new PricingFetcher();
 			// First call should fetch from network
-			const firstResult = await fetchModelPricing();
-			const firstKeys = Object.keys(firstResult);
+			const firstResult = await fetcher.fetchModelPricing();
+			const firstKeys = Array.from(firstResult.keys());
 
 			// Second call should use cache (and be instant)
 			const startTime = Date.now();
-			const secondResult = await fetchModelPricing();
+			const secondResult = await fetcher.fetchModelPricing();
 			const endTime = Date.now();
 
 			// Should be very fast (< 5ms) if cached
 			expect(endTime - startTime).toBeLessThan(5);
 
 			// Should have same data
-			expect(Object.keys(secondResult)).toEqual(firstKeys);
+			expect(Array.from(secondResult.keys())).toEqual(firstKeys);
 		});
 	});
 
 	describe('getModelPricing', () => {
 		it('should find models by exact match', async () => {
-			const realPricing = await fetchModelPricing();
+			using fetcher = new PricingFetcher();
 
 			// Test with a known Claude model from LiteLLM
-			const pricing = getModelPricing('claude-sonnet-4-20250514', realPricing);
+			const pricing = await fetcher.getModelPricing('claude-sonnet-4-20250514');
 			expect(pricing).not.toBeNull();
 		});
 
 		it('should find models with partial matches', async () => {
-			const realPricing = await fetchModelPricing();
+			using fetcher = new PricingFetcher();
 
 			// Test partial matching
-			const pricing = getModelPricing('claude-sonnet-4', realPricing);
+			const pricing = await fetcher.getModelPricing('claude-sonnet-4');
 			expect(pricing).not.toBeNull();
 		});
 
-		it('should find models with provider prefix', async () => {
-			const realPricing = await fetchModelPricing();
-
-			// First check if anthropic prefixed version exists
-			const anthropicPricing
-				= realPricing['anthropic/claude-sonnet-4-20250514'];
-			if (anthropicPricing != null) {
-				const pricing = getModelPricing(
-					'claude-sonnet-4-20250514',
-					realPricing,
-				);
-				expect(pricing).not.toBeNull();
-			}
-		});
-
 		it('should return null for unknown models', async () => {
-			const realPricing = await fetchModelPricing();
+			using fetcher = new PricingFetcher();
 
-			const pricing = getModelPricing(
+			const pricing = await fetcher.getModelPricing(
 				'definitely-not-a-real-model-xyz',
-				realPricing,
 			);
 			expect(pricing).toBeNull();
 		});
@@ -89,9 +103,9 @@ describe('pricing-fetcher', () => {
 
 	describe('calculateCostFromTokens', () => {
 		it('should calculate cost for claude-sonnet-4-20250514', async () => {
-			const realPricing = await fetchModelPricing();
+			using fetcher = new PricingFetcher();
 			const modelName = 'claude-sonnet-4-20250514';
-			const pricing = realPricing[modelName];
+			const pricing = await fetcher.getModelPricing(modelName);
 
 			// This model should exist in LiteLLM
 			expect(pricing).not.toBeNull();
@@ -102,7 +116,7 @@ describe('pricing-fetcher', () => {
 				throw new Error('Expected pricing for claude-sonnet-4-20250514');
 			}
 
-			const cost = calculateCostFromTokens(
+			const cost = fetcher.calculateCostFromPricing(
 				{
 					input_tokens: 1000,
 					output_tokens: 500,
@@ -114,9 +128,9 @@ describe('pricing-fetcher', () => {
 		});
 
 		it('should calculate cost including cache tokens for claude-sonnet-4-20250514', async () => {
-			const realPricing = await fetchModelPricing();
+			using fetcher = new PricingFetcher();
 			const modelName = 'claude-sonnet-4-20250514';
-			const pricing = realPricing[modelName];
+			const pricing = await fetcher.getModelPricing(modelName);
 
 			// Skip if cache pricing not available
 			if (
@@ -126,7 +140,7 @@ describe('pricing-fetcher', () => {
 				return;
 			}
 
-			const cost = calculateCostFromTokens(
+			const cost = fetcher.calculateCostFromPricing(
 				{
 					input_tokens: 1000,
 					output_tokens: 500,
@@ -147,9 +161,9 @@ describe('pricing-fetcher', () => {
 		});
 
 		it('should calculate cost for claude-opus-4-20250514', async () => {
-			const realPricing = await fetchModelPricing();
+			using fetcher = new PricingFetcher();
 			const modelName = 'claude-opus-4-20250514';
-			const pricing = realPricing[modelName];
+			const pricing = await fetcher.getModelPricing(modelName);
 
 			// This model should exist in LiteLLM
 			expect(pricing).not.toBeNull();
@@ -160,7 +174,7 @@ describe('pricing-fetcher', () => {
 				throw new Error('Expected pricing for claude-opus-4-20250514');
 			}
 
-			const cost = calculateCostFromTokens(
+			const cost = fetcher.calculateCostFromPricing(
 				{
 					input_tokens: 1000,
 					output_tokens: 500,
@@ -172,9 +186,9 @@ describe('pricing-fetcher', () => {
 		});
 
 		it('should calculate cost including cache tokens for claude-opus-4-20250514', async () => {
-			const realPricing = await fetchModelPricing();
+			using fetcher = new PricingFetcher();
 			const modelName = 'claude-opus-4-20250514';
-			const pricing = realPricing[modelName];
+			const pricing = await fetcher.getModelPricing(modelName);
 
 			// Skip if cache pricing not available
 			if (
@@ -184,7 +198,7 @@ describe('pricing-fetcher', () => {
 				return;
 			}
 
-			const cost = calculateCostFromTokens(
+			const cost = fetcher.calculateCostFromPricing(
 				{
 					input_tokens: 1000,
 					output_tokens: 500,
@@ -205,12 +219,13 @@ describe('pricing-fetcher', () => {
 		});
 
 		it('should handle missing pricing fields', () => {
+			using fetcher = new PricingFetcher();
 			const partialPricing: ModelPricing = {
 				input_cost_per_token: 0.00001,
 				// output_cost_per_token is missing
 			};
 
-			const cost = calculateCostFromTokens(
+			const cost = fetcher.calculateCostFromPricing(
 				{
 					input_tokens: 1000,
 					output_tokens: 500,
@@ -223,9 +238,10 @@ describe('pricing-fetcher', () => {
 		});
 
 		it('should return 0 for empty pricing', () => {
+			using fetcher = new PricingFetcher();
 			const emptyPricing: ModelPricing = {};
 
-			const cost = calculateCostFromTokens(
+			const cost = fetcher.calculateCostFromPricing(
 				{
 					input_tokens: 1000,
 					output_tokens: 500,

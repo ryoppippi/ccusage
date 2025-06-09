@@ -7,10 +7,7 @@ import { sort } from 'fast-sort';
 import { glob } from 'tinyglobby';
 import * as v from 'valibot';
 import {
-	calculateCostFromTokens,
-	fetchModelPricing,
-	getModelPricing,
-	type ModelPricing,
+	PricingFetcher,
 } from './pricing-fetcher.ts';
 
 export function getDefaultClaudePath(): string {
@@ -84,7 +81,11 @@ export function formatDate(dateStr: string): string {
 	return `${year}-${month}-${day}`;
 }
 
-export function calculateCostForEntry(data: UsageData,	mode: CostMode,	modelPricing: Record<string, ModelPricing>): number {
+export async function calculateCostForEntry(
+	data: UsageData,
+	mode: CostMode,
+	fetcher: PricingFetcher,
+): Promise<number> {
 	if (mode === 'display') {
 		// Always use costUSD, even if undefined
 		return data.costUSD ?? 0;
@@ -93,25 +94,19 @@ export function calculateCostForEntry(data: UsageData,	mode: CostMode,	modelPric
 	if (mode === 'calculate') {
 		// Always calculate from tokens
 		if (data.message.model != null) {
-			const pricing = getModelPricing(data.message.model, modelPricing);
-			if (pricing != null) {
-				return calculateCostFromTokens(data.message.usage, pricing);
-			}
+			return fetcher.calculateCostFromTokens(data.message.usage, data.message.model);
 		}
 		return 0;
 	}
 
 	if (mode === 'auto') {
-	// Auto mode: use costUSD if available, otherwise calculate
+		// Auto mode: use costUSD if available, otherwise calculate
 		if (data.costUSD != null) {
 			return data.costUSD;
 		}
 
 		if (data.message.model != null) {
-			const pricing = getModelPricing(data.message.model, modelPricing);
-			if (pricing != null) {
-				return calculateCostFromTokens(data.message.usage, pricing);
-			}
+			return fetcher.calculateCostFromTokens(data.message.usage, data.message.model);
 		}
 
 		return 0;
@@ -147,7 +142,9 @@ export async function loadDailyUsageData(
 
 	// Fetch pricing data for cost calculation only when needed
 	const mode = options?.mode ?? 'auto';
-	const modelPricing = mode === 'display' ? {} : await fetchModelPricing();
+
+	// Use PricingFetcher with using statement for automatic cleanup
+	using fetcher = mode === 'display' ? null : new PricingFetcher();
 
 	// Collect all valid data entries first
 	const allEntries: { data: UsageData; date: string; cost: number }[] = [];
@@ -169,7 +166,11 @@ export async function loadDailyUsageData(
 				const data = result.output;
 
 				const date = formatDate(data.timestamp);
-				const cost = calculateCostForEntry(data, mode, modelPricing);
+				// If fetcher is available, calculate cost based on mode and tokens
+				// If fetcher is null, use pre-calculated costUSD or default to 0
+				const cost = fetcher != null
+					? await calculateCostForEntry(data, mode, fetcher)
+					: data.costUSD ?? 0;
 
 				allEntries.push({ data, date, cost });
 			}
@@ -258,7 +259,9 @@ export async function loadSessionData(
 
 	// Fetch pricing data for cost calculation only when needed
 	const mode = options?.mode ?? 'auto';
-	const modelPricing = mode === 'display' ? {} : await fetchModelPricing();
+
+	// Use PricingFetcher with using statement for automatic cleanup
+	using fetcher = mode === 'display' ? null : new PricingFetcher();
 
 	// Collect all valid data entries with session info first
 	const allEntries: Array<{
@@ -297,7 +300,9 @@ export async function loadSessionData(
 				const data = result.output;
 
 				const sessionKey = `${projectPath}/${sessionId}`;
-				const cost = calculateCostForEntry(data, mode, modelPricing);
+				const cost = fetcher != null
+					? await calculateCostForEntry(data, mode, fetcher)
+					: data.costUSD ?? 0;
 
 				allEntries.push({
 					data,
