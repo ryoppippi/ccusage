@@ -328,6 +328,7 @@ After adding this configuration, restart Claude Desktop. You'll then be able to 
 
 ## Requirements
 
+- Node.js 21.0.0 or higher, or Bun 1.0.20 or higher
 - Claude Code usage history files (`~/.claude/projects/**/*.jsonl`)
 
 ## License
