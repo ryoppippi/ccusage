@@ -12,7 +12,7 @@ export default defineConfig({
 	clean: true,
 	sourcemap: false,
 	dts: {
-		resolve: ['valibot'],
+		resolve: ['valibot', 'type-fest'],
 	},
 	publint: true,
 	unused: true,
