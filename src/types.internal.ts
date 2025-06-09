@@ -1,3 +1,4 @@
+import type { TupleToUnion } from 'type-fest';
 import * as v from 'valibot';
 
 export const dateSchema = v.pipe(
@@ -6,7 +7,7 @@ export const dateSchema = v.pipe(
 );
 
 export const CostModes = ['auto', 'calculate', 'display'] as const;
-export type CostMode = (typeof CostModes)[number];
+export type CostMode = TupleToUnion<typeof CostModes>;
 
 export const SortOrders = ['desc', 'asc'] as const;
-export type SortOrder = (typeof SortOrders)[number];
+export type SortOrder = TupleToUnion<typeof SortOrders>;
