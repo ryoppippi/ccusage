@@ -364,6 +364,15 @@ describe('loadMonthlyUsageData', () => {
 			cacheCreationTokens: 0,
 			cacheReadTokens: 0,
 			totalCost: 0.015,
+			modelsUsed: [],
+			modelBreakdowns: [{
+				modelName: 'unknown',
+				inputTokens: 150,
+				outputTokens: 75,
+				cacheCreationTokens: 0,
+				cacheReadTokens: 0,
+				cost: 0.015,
+			}],
 		});
 		expect(result[1]).toEqual({
 			month: '2024-01',
@@ -372,6 +381,15 @@ describe('loadMonthlyUsageData', () => {
 			cacheCreationTokens: 0,
 			cacheReadTokens: 0,
 			totalCost: 0.03,
+			modelsUsed: [],
+			modelBreakdowns: [{
+				modelName: 'unknown',
+				inputTokens: 300,
+				outputTokens: 150,
+				cacheCreationTokens: 0,
+				cacheReadTokens: 0,
+				cost: 0.03,
+			}],
 		});
 	});
 
@@ -418,6 +436,15 @@ describe('loadMonthlyUsageData', () => {
 			cacheCreationTokens: 0,
 			cacheReadTokens: 0,
 			totalCost: 0.03,
+			modelsUsed: [],
+			modelBreakdowns: [{
+				modelName: 'unknown',
+				inputTokens: 300,
+				outputTokens: 150,
+				cacheCreationTokens: 0,
+				cacheReadTokens: 0,
+				cost: 0.03,
+			}],
 		});
 	});
 

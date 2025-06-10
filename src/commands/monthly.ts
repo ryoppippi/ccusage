@@ -11,7 +11,7 @@ import { loadMonthlyUsageData } from '../data-loader.ts';
 import { detectMismatches, printMismatchReport } from '../debug.ts';
 import { log, logger } from '../logger.ts';
 import { sharedCommandConfig } from '../shared-args.internal.ts';
-import { formatCurrency, formatNumber } from '../utils.internal.ts';
+import { formatCurrency, formatModelName, formatModelsDisplay, formatNumber } from '../utils.internal.ts';
 
 export const monthlyCommand = define({
 	name: 'monthly',
@@ -71,6 +71,8 @@ export const monthlyCommand = define({
 					cacheReadTokens: data.cacheReadTokens,
 					totalTokens: getTotalTokens(data),
 					totalCost: data.totalCost,
+					modelsUsed: data.modelsUsed,
+					modelBreakdowns: data.modelBreakdowns,
 				})),
 				totals: createTotalsObject(totals),
 			};
@@ -84,6 +86,7 @@ export const monthlyCommand = define({
 			const table = new Table({
 				head: [
 					'Month',
+					'Models',
 					'Input',
 					'Output',
 					'Cache Create',
@@ -96,6 +99,7 @@ export const monthlyCommand = define({
 				},
 				colAligns: [
 					'left',
+					'left',
 					'right',
 					'right',
 					'right',
@@ -107,8 +111,10 @@ export const monthlyCommand = define({
 
 			// Add monthly data
 			for (const data of monthlyData) {
+				// Main row
 				table.push([
 					data.month,
+					formatModelsDisplay(data.modelsUsed),
 					formatNumber(data.inputTokens),
 					formatNumber(data.outputTokens),
 					formatNumber(data.cacheCreationTokens),
@@ -116,10 +122,25 @@ export const monthlyCommand = define({
 					formatNumber(getTotalTokens(data)),
 					formatCurrency(data.totalCost),
 				]);
+
+				// Add model breakdown rows
+				for (const breakdown of data.modelBreakdowns) {
+					table.push([
+						`  └─ ${formatModelName(breakdown.modelName)}`,
+						'',
+						pc.gray(formatNumber(breakdown.inputTokens)),
+						pc.gray(formatNumber(breakdown.outputTokens)),
+						pc.gray(formatNumber(breakdown.cacheCreationTokens)),
+						pc.gray(formatNumber(breakdown.cacheReadTokens)),
+						pc.gray(formatNumber(breakdown.inputTokens + breakdown.outputTokens + breakdown.cacheCreationTokens + breakdown.cacheReadTokens)),
+						pc.gray(formatCurrency(breakdown.cost)),
+					]);
+				}
 			}
 
 			// Add separator
 			table.push([
+				'─'.repeat(12),
 				'─'.repeat(12),
 				'─'.repeat(12),
 				'─'.repeat(12),
@@ -132,6 +153,7 @@ export const monthlyCommand = define({
 			// Add totals
 			table.push([
 				pc.yellow('Total'),
+				'', // Empty for Models column in totals
 				pc.yellow(formatNumber(totals.inputTokens)),
 				pc.yellow(formatNumber(totals.outputTokens)),
 				pc.yellow(formatNumber(totals.cacheCreationTokens)),

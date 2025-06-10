@@ -25,3 +25,21 @@ export function groupBy<T, K extends PropertyKey>(
 		{} as Record<K, T[] | undefined>,
 	);
 }
+
+export function formatModelName(modelName: string): string {
+	// Extract model type from full model name
+	// e.g., "claude-sonnet-4-20250514" -> "sonnet-4"
+	// e.g., "claude-opus-4-20250514" -> "opus-4"
+	const match = modelName.match(/claude-(\w+)-(\d+)-\d+/);
+	if (match != null) {
+		return `${match[1]}-${match[2]}`;
+	}
+	// Return original if pattern doesn't match
+	return modelName;
+}
+
+export function formatModelsDisplay(models: string[]): string {
+	// Format array of models for display
+	const uniqueModels = [...new Set(models.map(formatModelName))];
+	return uniqueModels.sort().join(', ');
+}
