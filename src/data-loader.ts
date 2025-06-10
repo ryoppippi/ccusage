@@ -9,6 +9,7 @@ import * as v from 'valibot';
 import {
 	PricingFetcher,
 } from './pricing-fetcher.ts';
+import { groupBy } from './utils.internal.ts';
 
 export function getDefaultClaudePath(): string {
 	return path.join(homedir(), '.claude');
@@ -181,7 +182,7 @@ export async function loadDailyUsageData(
 	}
 
 	// Group by date using Object.groupBy
-	const groupedByDate = Object.groupBy(allEntries, entry => entry.date);
+	const groupedByDate = groupBy(allEntries, entry => entry.date);
 
 	// Aggregate each group
 	const results = Object.entries(groupedByDate)
@@ -320,7 +321,7 @@ export async function loadSessionData(
 	}
 
 	// Group by session using Object.groupBy
-	const groupedBySessions = Object.groupBy(
+	const groupedBySessions = groupBy(
 		allEntries,
 		entry => entry.sessionKey,
 	);
@@ -408,7 +409,7 @@ export async function loadMonthlyUsageData(
 	const dailyData = await loadDailyUsageData(options);
 
 	// Group daily data by month using Object.groupBy
-	const groupedByMonth = Object.groupBy(dailyData, data =>
+	const groupedByMonth = groupBy(dailyData, data =>
 		data.date.substring(0, 7));
 
 	// Aggregate each month group
