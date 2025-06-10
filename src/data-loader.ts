@@ -9,6 +9,7 @@ import * as v from 'valibot';
 import { logger } from './logger.ts';
 import {
 	PricingFetcher,
+	PricingSourceError,
 } from './pricing-fetcher.ts';
 import { groupBy } from './utils.internal.ts';
 
@@ -256,6 +257,8 @@ export type LoadOptions = {
 	claudePath?: string; // Custom path to Claude data directory
 	mode?: CostMode; // Cost calculation mode
 	order?: SortOrder; // Sort order for dates
+	fetch?: string; // Custom URL or local file path for model pricing data
+	pricingFetcher?: PricingFetcher; // Reuse existing PricingFetcher instance
 } & DateFilter;
 
 export async function loadDailyUsageData(
@@ -278,8 +281,21 @@ export async function loadDailyUsageData(
 	// Fetch pricing data for cost calculation only when needed
 	const mode = options?.mode ?? 'auto';
 
-	// Use PricingFetcher with using statement for automatic cleanup
-	using fetcher = mode === 'display' ? null : new PricingFetcher();
+	// Use provided PricingFetcher or create new one with using statement for automatic cleanup
+	using fetcher = mode === 'display' ? undefined : (options?.pricingFetcher ?? new PricingFetcher(options?.fetch));
+
+	// Fail fast for custom pricing sources if needed
+	if (fetcher != null && options?.fetch != null) {
+		try {
+			await fetcher.fetchModelPricing();
+		}
+		catch (error) {
+			if (error instanceof PricingSourceError) {
+				throw error; // Re-throw to fail fast
+			}
+			// For other errors, continue with zero costs
+		}
+	}
 
 	// Track processed message+request combinations for deduplication
 	const processedHashes = new Set<string>();
@@ -318,9 +334,23 @@ export async function loadDailyUsageData(
 				const date = formatDate(data.timestamp);
 				// If fetcher is available, calculate cost based on mode and tokens
 				// If fetcher is null, use pre-calculated costUSD or default to 0
-				const cost = fetcher != null
-					? await calculateCostForEntry(data, mode, fetcher)
-					: data.costUSD ?? 0;
+				let cost = 0;
+				if (fetcher != null) {
+					try {
+						cost = await calculateCostForEntry(data, mode, fetcher);
+					}
+					catch (error) {
+						// Re-throw PricingSourceError to fail gracefully on custom source errors
+						if (error instanceof PricingSourceError) {
+							throw error;
+						}
+						// If cost calculation fails for other reasons, use 0 cost but continue processing
+						cost = 0;
+					}
+				}
+				else {
+					cost = data.costUSD ?? 0;
+				}
 
 				allEntries.push({ data, date, cost, model: data.message.model });
 			}
@@ -452,8 +482,21 @@ export async function loadSessionData(
 	// Fetch pricing data for cost calculation only when needed
 	const mode = options?.mode ?? 'auto';
 
-	// Use PricingFetcher with using statement for automatic cleanup
-	using fetcher = mode === 'display' ? null : new PricingFetcher();
+	// Use provided PricingFetcher or create new one with using statement for automatic cleanup
+	using fetcher = mode === 'display' ? undefined : (options?.pricingFetcher ?? new PricingFetcher(options?.fetch));
+
+	// Fail fast for custom pricing sources if needed
+	if (fetcher != null && options?.fetch != null) {
+		try {
+			await fetcher.fetchModelPricing();
+		}
+		catch (error) {
+			if (error instanceof PricingSourceError) {
+				throw error; // Re-throw to fail fast
+			}
+			// For other errors, continue with zero costs
+		}
+	}
 
 	// Track processed message+request combinations for deduplication
 	const processedHashes = new Set<string>();
@@ -508,9 +551,23 @@ export async function loadSessionData(
 				}
 
 				const sessionKey = `${projectPath}/${sessionId}`;
-				const cost = fetcher != null
-					? await calculateCostForEntry(data, mode, fetcher)
-					: data.costUSD ?? 0;
+				let cost = 0;
+				if (fetcher != null) {
+					try {
+						cost = await calculateCostForEntry(data, mode, fetcher);
+					}
+					catch (error) {
+						// Re-throw PricingSourceError to fail gracefully on custom source errors
+						if (error instanceof PricingSourceError) {
+							throw error;
+						}
+						// If cost calculation fails for other reasons, use 0 cost but continue processing
+						cost = 0;
+					}
+				}
+				else {
+					cost = data.costUSD ?? 0;
+				}
 
 				allEntries.push({
 					data,

@@ -10,6 +10,7 @@ import {
 import { loadMonthlyUsageData } from '../data-loader.ts';
 import { detectMismatches, printMismatchReport } from '../debug.ts';
 import { log, logger } from '../logger.ts';
+import { PricingFetcher } from '../pricing-fetcher.ts';
 import { sharedCommandConfig } from '../shared-args.internal.ts';
 import { formatCurrency, formatModelsDisplay, formatNumber, pushBreakdownRows } from '../utils.internal.ts';
 
@@ -22,12 +23,17 @@ export const monthlyCommand = define({
 			logger.level = 0;
 		}
 
+		// Create a single PricingFetcher instance to reuse across functions
+		using pricingFetcher = ctx.values.mode === 'display' ? undefined : new PricingFetcher(ctx.values.fetch);
+
 		const monthlyData = await loadMonthlyUsageData({
 			since: ctx.values.since,
 			until: ctx.values.until,
 			claudePath: ctx.values.path,
 			mode: ctx.values.mode,
 			order: ctx.values.order,
+			fetch: ctx.values.fetch,
+			pricingFetcher,
 		});
 
 		if (monthlyData.length === 0) {
@@ -56,7 +62,7 @@ export const monthlyCommand = define({
 
 		// Show debug information if requested
 		if (ctx.values.debug && !ctx.values.json) {
-			const mismatchStats = await detectMismatches(ctx.values.path);
+			const mismatchStats = await detectMismatches(ctx.values.path, ctx.values.fetch, pricingFetcher);
 			printMismatchReport(mismatchStats, ctx.values.debugSamples);
 		}
 
