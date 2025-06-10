@@ -9,6 +9,11 @@ export default defineConfig({
 	format: 'esm',
 	clean: true,
 	sourcemap: false,
+	external: [
+		// fastMCP
+		'sury',
+		'effect',
+	],
 	dts: {
 		resolve: ['valibot', 'type-fest'],
 	},
