@@ -11,7 +11,7 @@ import { loadSessionData } from '../data-loader.ts';
 import { detectMismatches, printMismatchReport } from '../debug.ts';
 import { log, logger } from '../logger.ts';
 import { sharedCommandConfig } from '../shared-args.internal.ts';
-import { formatCurrency, formatNumber } from '../utils.internal.ts';
+import { formatCurrency, formatModelName, formatModelsDisplay, formatNumber } from '../utils.internal.ts';
 
 export const sessionCommand = define({
 	name: 'session',
@@ -62,6 +62,8 @@ export const sessionCommand = define({
 					totalTokens: getTotalTokens(data),
 					totalCost: data.totalCost,
 					lastActivity: data.lastActivity,
+					modelsUsed: data.modelsUsed,
+					modelBreakdowns: data.modelBreakdowns,
 				})),
 				totals: createTotalsObject(totals),
 			};
@@ -76,6 +78,7 @@ export const sessionCommand = define({
 				head: [
 					'Project',
 					'Session',
+					'Models',
 					'Input',
 					'Output',
 					'Cache Create',
@@ -88,6 +91,7 @@ export const sessionCommand = define({
 					head: ['cyan'],
 				},
 				colAligns: [
+					'left',
 					'left',
 					'left',
 					'right',
@@ -112,9 +116,11 @@ export const sessionCommand = define({
 				maxProjectLength = Math.max(maxProjectLength, projectDisplay.length);
 				maxSessionLength = Math.max(maxSessionLength, sessionDisplay.length);
 
+				// Main row
 				table.push([
 					projectDisplay,
 					sessionDisplay,
+					formatModelsDisplay(data.modelsUsed),
 					formatNumber(data.inputTokens),
 					formatNumber(data.outputTokens),
 					formatNumber(data.cacheCreationTokens),
@@ -123,12 +129,29 @@ export const sessionCommand = define({
 					formatCurrency(data.totalCost),
 					data.lastActivity,
 				]);
+
+				// Add model breakdown rows
+				for (const breakdown of data.modelBreakdowns) {
+					table.push([
+						`  └─ ${formatModelName(breakdown.modelName)}`,
+						'',
+						'',
+						pc.gray(formatNumber(breakdown.inputTokens)),
+						pc.gray(formatNumber(breakdown.outputTokens)),
+						pc.gray(formatNumber(breakdown.cacheCreationTokens)),
+						pc.gray(formatNumber(breakdown.cacheReadTokens)),
+						pc.gray(formatNumber(breakdown.inputTokens + breakdown.outputTokens + breakdown.cacheCreationTokens + breakdown.cacheReadTokens)),
+						pc.gray(formatCurrency(breakdown.cost)),
+						'',
+					]);
+				}
 			}
 
 			// Add separator
 			table.push([
 				'─'.repeat(maxProjectLength), // For Project
 				'─'.repeat(maxSessionLength), // For Session
+				'─'.repeat(12), // For Models
 				'─'.repeat(12), // For Input Tokens
 				'─'.repeat(12), // For Output Tokens
 				'─'.repeat(12), // For Cache Create
@@ -142,6 +165,7 @@ export const sessionCommand = define({
 			table.push([
 				pc.yellow('Total'),
 				'', // Empty for Session column in totals
+				'', // Empty for Models column in totals
 				pc.yellow(formatNumber(totals.inputTokens)),
 				pc.yellow(formatNumber(totals.outputTokens)),
 				pc.yellow(formatNumber(totals.cacheCreationTokens)),
