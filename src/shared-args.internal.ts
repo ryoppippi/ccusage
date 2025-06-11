@@ -64,6 +64,12 @@ export const sharedArgs = {
 		default: 'asc' as const satisfies SortOrder,
 		choices: SortOrders,
 	},
+	breakdown: {
+		type: 'boolean',
+		short: 'b',
+		description: 'Show per-model cost breakdown',
+		default: false,
+	},
 } as const satisfies Args;
 
 export const sharedCommandConfig = {
