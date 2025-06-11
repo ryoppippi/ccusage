@@ -1,7 +1,7 @@
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { describe, expect, it } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
 import {
 	createUniqueHash,
 	getEarliestTimestamp,
@@ -65,8 +65,17 @@ describe('deduplication functionality', () => {
 	describe('getEarliestTimestamp', () => {
 		let tempDir: string;
 
-		it('should extract earliest timestamp from JSONL file', async () => {
+		beforeEach(async () => {
 			tempDir = await mkdtemp(path.join(tmpdir(), 'ccusage-test-'));
+		});
+
+		afterEach(async () => {
+			if (tempDir != null) {
+				await rm(tempDir, { recursive: true, force: true });
+			}
+		});
+
+		it('should extract earliest timestamp from JSONL file', async () => {
 			const testFile = path.join(tempDir, 'test.jsonl');
 
 			const content = [
@@ -79,12 +88,9 @@ describe('deduplication functionality', () => {
 
 			const timestamp = await getEarliestTimestamp(testFile);
 			expect(timestamp).toEqual(new Date('2025-01-10T10:00:00Z'));
-
-			await rm(tempDir, { recursive: true });
 		});
 
 		it('should handle files without timestamps', async () => {
-			tempDir = await mkdtemp(path.join(tmpdir(), 'ccusage-test-'));
 			const testFile = path.join(tempDir, 'test.jsonl');
 
 			const content = [
@@ -96,12 +102,9 @@ describe('deduplication functionality', () => {
 
 			const timestamp = await getEarliestTimestamp(testFile);
 			expect(timestamp).toBeNull();
-
-			await rm(tempDir, { recursive: true });
 		});
 
 		it('should skip invalid JSON lines', async () => {
-			tempDir = await mkdtemp(path.join(tmpdir(), 'ccusage-test-'));
 			const testFile = path.join(tempDir, 'test.jsonl');
 
 			const content = [
@@ -114,17 +117,23 @@ describe('deduplication functionality', () => {
 
 			const timestamp = await getEarliestTimestamp(testFile);
 			expect(timestamp).toEqual(new Date('2025-01-10T10:00:00Z'));
-
-			await rm(tempDir, { recursive: true });
 		});
 	});
 
 	describe('sortFilesByTimestamp', () => {
 		let tempDir: string;
 
-		it('should sort files by earliest timestamp', async () => {
+		beforeEach(async () => {
 			tempDir = await mkdtemp(path.join(tmpdir(), 'ccusage-test-'));
+		});
 
+		afterEach(async () => {
+			if (tempDir != null) {
+				await rm(tempDir, { recursive: true, force: true });
+			}
+		});
+
+		it('should sort files by earliest timestamp', async () => {
 			const file1 = path.join(tempDir, 'file1.jsonl');
 			const file2 = path.join(tempDir, 'file2.jsonl');
 			const file3 = path.join(tempDir, 'file3.jsonl');
@@ -141,13 +150,9 @@ describe('deduplication functionality', () => {
 			const sorted = await sortFilesByTimestamp([file1, file2, file3]);
 
 			expect(sorted).toEqual([file2, file3, file1]); // Chronological order
-
-			await rm(tempDir, { recursive: true });
 		});
 
 		it('should place files without timestamps at the end', async () => {
-			tempDir = await mkdtemp(path.join(tmpdir(), 'ccusage-test-'));
-
 			const file1 = path.join(tempDir, 'file1.jsonl');
 			const file2 = path.join(tempDir, 'file2.jsonl');
 			const file3 = path.join(tempDir, 'file3.jsonl');
@@ -159,8 +164,6 @@ describe('deduplication functionality', () => {
 			const sorted = await sortFilesByTimestamp([file1, file2, file3]);
 
 			expect(sorted).toEqual([file3, file1, file2]); // file2 without timestamp goes to end
-
-			await rm(tempDir, { recursive: true });
 		});
 	});
 
