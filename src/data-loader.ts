@@ -1,4 +1,4 @@
-import type { CostMode, SessionWindow, SessionWindowStats, SortOrder } from './types.internal.ts';
+import type { CostMode, CurrentSessionInfo, SessionWindow, SessionWindowStats, SortOrder } from './types.internal.ts';
 import { readFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import path from 'node:path';
@@ -476,6 +476,56 @@ function isWithinSessionWindow(timestamp: string, windowStart: Date): boolean {
 	return messageTime >= windowStart && messageTime < windowEnd;
 }
 
+/**
+ * Calculate current session time remaining information
+ */
+function calculateCurrentSessionInfo(allWindows: SessionWindow[]): CurrentSessionInfo {
+	if (allWindows.length === 0) {
+		return {
+			hasActiveSession: false,
+			timeRemainingMs: 0,
+			timeRemainingFormatted: 'No active session',
+		};
+	}
+
+	// Find the most recent window (by start time)
+	const mostRecentWindow = allWindows.reduce((latest, current) =>
+		new Date(current.startTime) > new Date(latest.startTime) ? current : latest,
+	);
+
+	const now = new Date();
+	const sessionStart = new Date(mostRecentWindow.startTime);
+	const sessionEnd = new Date(sessionStart.getTime() + 5 * 60 * 60 * 1000); // Add 5 hours
+
+	// Check if the session is still active (within 5 hours)
+	if (now < sessionEnd) {
+		const timeRemainingMs = sessionEnd.getTime() - now.getTime();
+		const hours = Math.floor(timeRemainingMs / (1000 * 60 * 60));
+		const minutes = Math.floor((timeRemainingMs % (1000 * 60 * 60)) / (1000 * 60));
+
+		let timeRemainingFormatted: string;
+		if (hours > 0) {
+			timeRemainingFormatted = `${hours}h ${minutes}m`;
+		}
+		else {
+			timeRemainingFormatted = `${minutes}m`;
+		}
+
+		return {
+			hasActiveSession: true,
+			timeRemainingMs,
+			timeRemainingFormatted,
+			activeWindow: mostRecentWindow,
+		};
+	}
+
+	return {
+		hasActiveSession: false,
+		timeRemainingMs: 0,
+		timeRemainingFormatted: 'No active session',
+	};
+}
+
 export async function loadSessionWindowData(
 	options?: LoadOptions,
 ): Promise<SessionWindowStats[]> {
@@ -661,6 +711,9 @@ export async function loadSessionWindowData(
 				tokens: acc.tokens + window.inputTokens + window.outputTokens,
 			}), { cost: 0, tokens: 0 });
 
+			// Calculate current session info for this month's windows
+			const currentSessionInfo = calculateCurrentSessionInfo(windows);
+
 			return {
 				month,
 				totalSessions,
@@ -671,6 +724,7 @@ export async function loadSessionWindowData(
 				averageCostPerSession: totalSessions > 0 ? totals.cost / totalSessions : 0,
 				averageTokensPerSession: totalSessions > 0 ? totals.tokens / totalSessions : 0,
 				windows: sort(windows)[options?.order === 'asc' ? 'asc' : 'desc'](w => new Date(w.startTime).getTime()),
+				currentSession: currentSessionInfo,
 			};
 		})
 		.filter(item => item != null);

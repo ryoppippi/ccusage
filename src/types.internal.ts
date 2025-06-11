@@ -27,6 +27,15 @@ export const SessionWindowSchema = v.object({
 
 export type SessionWindow = v.InferOutput<typeof SessionWindowSchema>;
 
+export const CurrentSessionInfoSchema = v.object({
+	hasActiveSession: v.boolean(),
+	timeRemainingMs: v.number(),
+	timeRemainingFormatted: v.string(),
+	activeWindow: v.optional(SessionWindowSchema),
+});
+
+export type CurrentSessionInfo = v.InferOutput<typeof CurrentSessionInfoSchema>;
+
 export const SessionWindowStatsSchema = v.object({
 	month: v.pipe(
 		v.string(),
@@ -40,6 +49,7 @@ export const SessionWindowStatsSchema = v.object({
 	averageCostPerSession: v.number(),
 	averageTokensPerSession: v.number(),
 	windows: v.array(SessionWindowSchema),
+	currentSession: v.optional(CurrentSessionInfoSchema),
 });
 
 export type SessionWindowStats = v.InferOutput<typeof SessionWindowStatsSchema>;

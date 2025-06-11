@@ -46,6 +46,7 @@ export const sessionsCommand = define({
 					totalTokens: monthStats.totalTokens,
 					averageCostPerSession: monthStats.averageCostPerSession,
 					averageTokensPerSession: monthStats.averageTokensPerSession,
+					currentSession: monthStats.currentSession,
 					windows: monthStats.windows.map(window => ({
 						windowId: window.windowId,
 						startTime: window.startTime,
@@ -85,6 +86,12 @@ export const sessionsCommand = define({
 				}
 				else {
 					logger.success(`${monthStats.remainingSessions} sessions remaining`);
+				}
+
+				// Show current session time remaining if available
+				if (monthStats.currentSession?.hasActiveSession === true) {
+					const timeColor = monthStats.currentSession.timeRemainingMs < 30 * 60 * 1000 ? 'yellow' : 'cyan'; // Yellow if less than 30 minutes
+					logger.info(`🕒 Current session: ${pc[timeColor](monthStats.currentSession.timeRemainingFormatted)} remaining`);
 				}
 
 				// Monthly summary table
