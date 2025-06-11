@@ -11,7 +11,7 @@ import { loadDailyUsageData } from '../data-loader.ts';
 import { detectMismatches, printMismatchReport } from '../debug.ts';
 import { log, logger } from '../logger.ts';
 import { sharedCommandConfig } from '../shared-args.internal.ts';
-import { formatCurrency, formatModelName, formatModelsDisplay, formatNumber } from '../utils.internal.ts';
+import { formatCurrency, formatModelsDisplay, formatNumber, pushBreakdownRows } from '../utils.internal.ts';
 
 export const dailyCommand = define({
 	name: 'daily',
@@ -114,18 +114,7 @@ export const dailyCommand = define({
 
 				// Add model breakdown rows if flag is set
 				if (ctx.values.breakdown) {
-					for (const breakdown of data.modelBreakdowns) {
-						table.push([
-							`  └─ ${formatModelName(breakdown.modelName)}`,
-							'',
-							pc.gray(formatNumber(breakdown.inputTokens)),
-							pc.gray(formatNumber(breakdown.outputTokens)),
-							pc.gray(formatNumber(breakdown.cacheCreationTokens)),
-							pc.gray(formatNumber(breakdown.cacheReadTokens)),
-							pc.gray(formatNumber(breakdown.inputTokens + breakdown.outputTokens + breakdown.cacheCreationTokens + breakdown.cacheReadTokens)),
-							pc.gray(formatCurrency(breakdown.cost)),
-						]);
-					}
+					pushBreakdownRows(table, data.modelBreakdowns);
 				}
 			}
 
