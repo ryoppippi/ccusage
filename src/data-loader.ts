@@ -6,6 +6,7 @@ import { unreachable } from '@core/errorutil';
 import { sort } from 'fast-sort';
 import { glob } from 'tinyglobby';
 import * as v from 'valibot';
+import { logger } from './logger.ts';
 import {
 	PricingFetcher,
 } from './pricing-fetcher.ts';
@@ -151,7 +152,10 @@ export async function getEarliestTimestamp(filePath: string): Promise<Date | nul
 
 		return earliestDate;
 	}
-	catch {
+	catch (error) {
+		// Log file access errors for diagnostics, but continue processing
+		// This ensures files without timestamps or with access issues are sorted to the end
+		logger.debug(`Failed to get earliest timestamp for ${filePath}:`, error);
 		return null;
 	}
 }
