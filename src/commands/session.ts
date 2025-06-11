@@ -53,7 +53,6 @@ export const sessionCommand = define({
 			// Output JSON format
 			const jsonOutput = {
 				sessions: sessionData.map(data => ({
-					projectPath: data.projectPath,
 					sessionId: data.sessionId,
 					inputTokens: data.inputTokens,
 					outputTokens: data.outputTokens,
@@ -76,7 +75,6 @@ export const sessionCommand = define({
 			// Create table
 			const table = new Table({
 				head: [
-					'Project',
 					'Session',
 					'Models',
 					'Input',
@@ -93,7 +91,6 @@ export const sessionCommand = define({
 				colAligns: [
 					'left',
 					'left',
-					'left',
 					'right',
 					'right',
 					'right',
@@ -104,21 +101,14 @@ export const sessionCommand = define({
 				],
 			});
 
-			let maxProjectLength = 0;
 			let maxSessionLength = 0;
 			for (const data of sessionData) {
-				const projectDisplay
-					= data.projectPath.length > 20
-						? `...${data.projectPath.slice(-17)}`
-						: data.projectPath;
 				const sessionDisplay = data.sessionId.split('-').slice(-2).join('-'); // Display last two parts of session ID
 
-				maxProjectLength = Math.max(maxProjectLength, projectDisplay.length);
 				maxSessionLength = Math.max(maxSessionLength, sessionDisplay.length);
 
 				// Main row
 				table.push([
-					projectDisplay,
 					sessionDisplay,
 					formatModelsDisplay(data.modelsUsed),
 					formatNumber(data.inputTokens),
@@ -132,14 +122,13 @@ export const sessionCommand = define({
 
 				// Add model breakdown rows if flag is set
 				if (ctx.values.breakdown) {
-					// Session has 2 extra columns before data and 1 trailing column
-					pushBreakdownRows(table, data.modelBreakdowns, 2, 1);
+					// Session has 1 extra column before data and 1 trailing column
+					pushBreakdownRows(table, data.modelBreakdowns, 1, 1);
 				}
 			}
 
 			// Add separator
 			table.push([
-				'─'.repeat(maxProjectLength), // For Project
 				'─'.repeat(maxSessionLength), // For Session
 				'─'.repeat(12), // For Models
 				'─'.repeat(12), // For Input Tokens
@@ -154,7 +143,6 @@ export const sessionCommand = define({
 			// Add totals
 			table.push([
 				pc.yellow('Total'),
-				'', // Empty for Session column in totals
 				'', // Empty for Models column in totals
 				pc.yellow(formatNumber(totals.inputTokens)),
 				pc.yellow(formatNumber(totals.outputTokens)),
