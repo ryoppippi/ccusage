@@ -41,6 +41,7 @@ This tool helps you understand the value you're getting from your subscription b
 - 📊 **Daily Report**: View token usage and costs aggregated by date
 - 📅 **Monthly Report**: View token usage and costs aggregated by month
 - 💬 **Session Report**: View usage grouped by conversation sessions
+- ⏱️ **Session Windows**: Track Claude Max plan 5-hour session windows and monitor 50-session monthly limit
 - 📅 **Date Filtering**: Filter reports by date range using `--since` and `--until`
 - 📁 **Custom Path**: Support for custom Claude data directory locations
 - 🎨 **Beautiful Output**: Colorful table-formatted display
@@ -199,6 +200,38 @@ ccusage session --order asc       # Show oldest sessions first
 ccusage session --order desc      # Show newest sessions first (default)
 ```
 
+### Session Windows Report (Claude Max Plan)
+
+Shows usage grouped by 5-hour session windows with session limit tracking:
+
+```bash
+# Show session window usage and limits
+ccusage sessions
+
+# Filter by date range
+ccusage sessions --since 20250101 --until 20250131
+
+# Output in JSON format
+ccusage sessions --json
+
+# Control cost calculation mode
+ccusage sessions --mode auto       # Use costUSD when available, calculate otherwise (default)
+ccusage sessions --mode calculate  # Always calculate costs from tokens
+ccusage sessions --mode display    # Always show pre-calculated costUSD values
+
+# Control sort order
+ccusage sessions --order asc       # Show oldest months first
+ccusage sessions --order desc      # Show newest months first (default)
+```
+
+**Key Features:**
+
+- **5-Hour Windows**: Groups usage into 5-hour windows as per Claude Max plan structure
+- **Session Limit Tracking**: Shows sessions used vs 50-session monthly limit
+- **Utilization Monitoring**: Displays percentage utilization and remaining sessions
+- **Smart Alerts**: Color-coded warnings when approaching session limits
+- **Per-Window Details**: Shows duration, message count, conversation count, and costs for each window
+
 ### Options
 
 All commands support the following options:
@@ -244,6 +277,7 @@ Available MCP tools:
 
 - `daily`: Returns daily usage reports (accepts `since`, `until`, `mode` parameters)
 - `session`: Returns session usage reports (accepts `since`, `until`, `mode` parameters)
+- `sessions`: Returns session window reports with limit tracking (accepts `since`, `until`, `mode` parameters)
 
 #### Claude Desktop Configuration Example
 
@@ -324,6 +358,39 @@ After adding this configuration, restart Claude Desktop. You'll then be able to 
 ├─────────────┼────────────┼────────┼─────────┼──────────────┼────────────┼──────────────┼────────────┼───────────────┤
 │ Total       │            │ 11,174 │ 720,445 │          768 │      1,792 │      734,179 │    $336.68 │               │
 └─────────────┴────────────┴────────┴─────────┴──────────────┴────────────┴──────────────┴────────────┴───────────────┘
+```
+
+### Session Windows Report
+
+```
+╭─────────────────────────────────────────────────────╮
+│                                                     │
+│  Claude Code Session Usage Report (5-Hour Windows)  │
+│                                                     │
+╰─────────────────────────────────────────────────────╯
+
+2025-06 - 26 sessions used (52.0% of 50 limit)
+✔ 24 sessions remaining
+
+┌────────────────────┬─────────────┐
+│ Metric             │       Value │
+├────────────────────┼─────────────┤
+│ Total Cost         │     $703.47 │
+├────────────────────┼─────────────┤
+│ Total Tokens       │   3,634,689 │
+├────────────────────┼─────────────┤
+│ Avg Cost/Session   │      $27.06 │
+├────────────────────┼─────────────┤
+│ Avg Tokens/Session │ 139,795.731 │
+└────────────────────┴─────────────┘
+
+┌──────────────────┬──────────┬──────────┬────────┬─────────┬─────────┬───────────┬─────────────┬──────────────┬────────────┐
+│ Window Start     │ Duration │ Messages │ Convos │   Input │  Output │   Cache C │     Cache R │ Total Tokens │ Cost (USD) │
+├──────────────────┼──────────┼──────────┼────────┼─────────┼─────────┼───────────┼─────────────┼──────────────┼────────────┤
+│ 6/3/2025, 2:32:2 │ 27m      │       24 │      1 │      70 │   4,013 │   135,688 │   1,861,833 │    2,001,604 │      $5.64 │
+├──────────────────┼──────────┼──────────┼────────┼─────────┼─────────┼───────────┼─────────────┼──────────────┼────────────┤
+│ 6/3/2025, 3:18:1 │ 3h 32m   │      245 │      7 │  15,270 │  80,869 │ 1,855,899 │  25,035,030 │   26,987,068 │     $20.85 │
+└──────────────────┴──────────┴──────────┴────────┴─────────┴─────────┴───────────┴─────────────┴──────────────┴────────────┘
 ```
 
 ## Requirements

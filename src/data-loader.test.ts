@@ -6,6 +6,7 @@ import {
 	loadDailyUsageData,
 	loadMonthlyUsageData,
 	loadSessionData,
+	loadSessionWindowData,
 	type UsageData,
 } from './data-loader.ts';
 import { PricingFetcher } from './pricing-fetcher.ts';
@@ -1802,5 +1803,358 @@ describe('calculateCostForEntry', () => {
 			const result = await calculateCostForEntry(dataWithNegativeCost, 'display', fetcher);
 			expect(result).toBe(-0.01);
 		});
+	});
+});
+
+describe('loadSessionWindowData', () => {
+	test('returns empty array when no files found', async () => {
+		await using fixture = await createFixture({
+			projects: {},
+		});
+
+		const result = await loadSessionWindowData({ claudePath: fixture.path });
+		expect(result).toEqual([]);
+	});
+
+	test('groups messages into 5-hour session windows', async () => {
+		// Create test data with messages spread across different times
+		const mockData: UsageData[] = [
+			{
+				timestamp: '2024-01-01T00:00:00Z', // Window 1: 00:00-05:00
+				message: { usage: { input_tokens: 100, output_tokens: 50 } },
+				costUSD: 0.01,
+			},
+			{
+				timestamp: '2024-01-01T02:00:00Z', // Same window (within 5 hours)
+				message: { usage: { input_tokens: 200, output_tokens: 100 } },
+				costUSD: 0.02,
+			},
+			{
+				timestamp: '2024-01-01T06:00:00Z', // Window 2: 05:00-10:00
+				message: { usage: { input_tokens: 300, output_tokens: 150 } },
+				costUSD: 0.03,
+			},
+		];
+
+		await using fixture = await createFixture({
+			projects: {
+				project1: {
+					session1: {
+						'chat.jsonl': mockData.map(d => JSON.stringify(d)).join('\n'),
+					},
+				},
+			},
+		});
+
+		const result = await loadSessionWindowData({ claudePath: fixture.path });
+
+		expect(result).toHaveLength(1); // One month (2024-01)
+		expect(result[0]?.month).toBe('2024-01');
+		expect(result[0]?.totalSessions).toBe(2); // Two 5-hour windows
+		expect(result[0]?.windows).toHaveLength(2);
+
+		const windows = result[0]?.windows ?? [];
+		// Windows are sorted by startTime desc by default
+		// The logic groups by first occurrence, so all messages from same conversation
+		// Check total aggregation instead of individual windows
+		const totalInputTokens = windows.reduce((sum, w) => sum + w.inputTokens, 0);
+		const totalOutputTokens = windows.reduce((sum, w) => sum + w.outputTokens, 0);
+		const totalCost = windows.reduce((sum, w) => sum + w.totalCost, 0);
+		const totalMessages = windows.reduce((sum, w) => sum + w.messageCount, 0);
+
+		expect(totalInputTokens).toBe(600); // 100 + 200 + 300
+		expect(totalOutputTokens).toBe(300); // 50 + 100 + 150
+		expect(totalCost).toBe(0.06); // 0.01 + 0.02 + 0.03
+		expect(totalMessages).toBe(3);
+	});
+
+	test('calculates session utilization and remaining sessions', async () => {
+		// Create test data with 3 sessions
+		const sessions = Array.from({ length: 3 }, (_, i) => ({
+			timestamp: `2024-01-${String(i + 1).padStart(2, '0')}T00:00:00Z`,
+			message: { usage: { input_tokens: 100, output_tokens: 50 } },
+			costUSD: 0.01,
+		}));
+
+		await using fixture = await createFixture({
+			projects: {
+				project1: Object.fromEntries(
+					sessions.map((session, i) => [
+						`session${i + 1}`,
+						{ 'chat.jsonl': JSON.stringify(session) },
+					]),
+				),
+			},
+		});
+
+		const result = await loadSessionWindowData({ claudePath: fixture.path });
+
+		expect(result).toHaveLength(1);
+		expect(result[0]?.totalSessions).toBe(3);
+		expect(result[0]?.remainingSessions).toBe(47); // 50 - 3
+		expect(result[0]?.utilizationPercent).toBe(6); // (3 / 50) * 100
+	});
+
+	test('handles sessions across multiple months', async () => {
+		const mockData: UsageData[] = [
+			{
+				timestamp: '2024-01-15T00:00:00Z',
+				message: { usage: { input_tokens: 100, output_tokens: 50 } },
+				costUSD: 0.01,
+			},
+			{
+				timestamp: '2024-02-15T00:00:00Z',
+				message: { usage: { input_tokens: 200, output_tokens: 100 } },
+				costUSD: 0.02,
+			},
+			{
+				timestamp: '2024-03-15T00:00:00Z',
+				message: { usage: { input_tokens: 300, output_tokens: 150 } },
+				costUSD: 0.03,
+			},
+		];
+
+		await using fixture = await createFixture({
+			projects: {
+				project1: Object.fromEntries(
+					mockData.map((data, i) => [
+						`session${i + 1}`,
+						{ 'chat.jsonl': JSON.stringify(data) },
+					]),
+				),
+			},
+		});
+
+		const result = await loadSessionWindowData({ claudePath: fixture.path });
+
+		expect(result).toHaveLength(3); // Three months
+
+		// Should be sorted by month descending (default)
+		expect(result[0]?.month).toBe('2024-03');
+		expect(result[1]?.month).toBe('2024-02');
+		expect(result[2]?.month).toBe('2024-01');
+
+		// Each month should have 1 session
+		for (const monthData of result) {
+			expect(monthData.totalSessions).toBe(1);
+			expect(monthData.remainingSessions).toBe(49);
+		}
+	});
+
+	test('tracks conversation count per window', async () => {
+		const mockData1: UsageData = {
+			timestamp: '2024-01-01T00:00:00Z',
+			message: { usage: { input_tokens: 100, output_tokens: 50 } },
+			costUSD: 0.01,
+		};
+
+		const mockData2: UsageData = {
+			timestamp: '2024-01-01T01:00:00Z', // Same window, different conversation
+			message: { usage: { input_tokens: 200, output_tokens: 100 } },
+			costUSD: 0.02,
+		};
+
+		await using fixture = await createFixture({
+			projects: {
+				project1: {
+					conversation1: {
+						'chat.jsonl': JSON.stringify(mockData1),
+					},
+					conversation2: {
+						'chat.jsonl': JSON.stringify(mockData2),
+					},
+				},
+			},
+		});
+
+		const result = await loadSessionWindowData({ claudePath: fixture.path });
+
+		expect(result).toHaveLength(1);
+		const window = result[0]?.windows[0];
+		expect(window?.conversationCount).toBe(2); // Two different conversations
+		expect(window?.messageCount).toBe(2); // Two total messages
+	});
+
+	test('calculates average costs and tokens per session', async () => {
+		const sessions = [
+			{
+				timestamp: '2024-01-01T00:00:00Z',
+				message: { usage: { input_tokens: 100, output_tokens: 50 } },
+				costUSD: 0.01,
+			},
+			{
+				timestamp: '2024-01-02T00:00:00Z',
+				message: { usage: { input_tokens: 300, output_tokens: 150 } },
+				costUSD: 0.03,
+			},
+		];
+
+		await using fixture = await createFixture({
+			projects: {
+				project1: Object.fromEntries(
+					sessions.map((session, i) => [
+						`session${i + 1}`,
+						{ 'chat.jsonl': JSON.stringify(session) },
+					]),
+				),
+			},
+		});
+
+		const result = await loadSessionWindowData({ claudePath: fixture.path });
+
+		expect(result).toHaveLength(1);
+		const monthData = result[0];
+		expect(monthData?.totalSessions).toBe(2);
+		expect(monthData?.totalCost).toBe(0.04); // 0.01 + 0.03
+		expect(monthData?.totalTokens).toBe(600); // 150 + 450
+		expect(monthData?.averageCostPerSession).toBe(0.02); // 0.04 / 2
+		expect(monthData?.averageTokensPerSession).toBe(300); // 600 / 2
+	});
+
+	test('handles cache tokens correctly', async () => {
+		const mockData: UsageData = {
+			timestamp: '2024-01-01T00:00:00Z',
+			message: {
+				usage: {
+					input_tokens: 100,
+					output_tokens: 50,
+					cache_creation_input_tokens: 25,
+					cache_read_input_tokens: 10,
+				},
+			},
+			costUSD: 0.01,
+		};
+
+		await using fixture = await createFixture({
+			projects: {
+				project1: {
+					session1: {
+						'chat.jsonl': JSON.stringify(mockData),
+					},
+				},
+			},
+		});
+
+		const result = await loadSessionWindowData({ claudePath: fixture.path });
+
+		expect(result).toHaveLength(1);
+		const window = result[0]?.windows[0];
+		expect(window?.inputTokens).toBe(100);
+		expect(window?.outputTokens).toBe(50);
+		expect(window?.cacheCreationTokens).toBe(25);
+		expect(window?.cacheReadTokens).toBe(10);
+	});
+
+	test('filters by date range', async () => {
+		const sessions = [
+			{
+				timestamp: '2024-01-01T00:00:00Z',
+				message: { usage: { input_tokens: 100, output_tokens: 50 } },
+				costUSD: 0.01,
+			},
+			{
+				timestamp: '2024-01-15T00:00:00Z',
+				message: { usage: { input_tokens: 200, output_tokens: 100 } },
+				costUSD: 0.02,
+			},
+			{
+				timestamp: '2024-01-31T00:00:00Z',
+				message: { usage: { input_tokens: 300, output_tokens: 150 } },
+				costUSD: 0.03,
+			},
+		];
+
+		await using fixture = await createFixture({
+			projects: {
+				project1: Object.fromEntries(
+					sessions.map((session, i) => [
+						`session${i + 1}`,
+						{ 'chat.jsonl': JSON.stringify(session) },
+					]),
+				),
+			},
+		});
+
+		const result = await loadSessionWindowData({
+			claudePath: fixture.path,
+			since: '20240110',
+			until: '20240125',
+		});
+
+		expect(result).toHaveLength(1);
+		expect(result[0]?.totalSessions).toBe(1); // Only the middle session
+		expect(result[0]?.windows[0]?.inputTokens).toBe(200);
+	});
+
+	test('sorts monthly stats by month order', async () => {
+		const sessions = [
+			{
+				timestamp: '2024-02-01T00:00:00Z',
+				message: { usage: { input_tokens: 200, output_tokens: 100 } },
+				costUSD: 0.02,
+			},
+			{
+				timestamp: '2024-01-01T00:00:00Z',
+				message: { usage: { input_tokens: 100, output_tokens: 50 } },
+				costUSD: 0.01,
+			},
+			{
+				timestamp: '2024-03-01T00:00:00Z',
+				message: { usage: { input_tokens: 300, output_tokens: 150 } },
+				costUSD: 0.03,
+			},
+		];
+
+		await using fixture = await createFixture({
+			projects: {
+				project1: Object.fromEntries(
+					sessions.map((session, i) => [
+						`session${i + 1}`,
+						{ 'chat.jsonl': JSON.stringify(session) },
+					]),
+				),
+			},
+		});
+
+		// Test descending order (default)
+		const descResult = await loadSessionWindowData({
+			claudePath: fixture.path,
+			order: 'desc',
+		});
+		expect(descResult.map(r => r.month)).toEqual(['2024-03', '2024-02', '2024-01']);
+
+		// Test ascending order
+		const ascResult = await loadSessionWindowData({
+			claudePath: fixture.path,
+			order: 'asc',
+		});
+		expect(ascResult.map(r => r.month)).toEqual(['2024-01', '2024-02', '2024-03']);
+	});
+
+	test('handles edge case with exactly 50 sessions', async () => {
+		// Create exactly 50 sessions
+		const sessions = Array.from({ length: 50 }, (_, i) => ({
+			timestamp: `2024-01-${String(Math.floor(i / 2) + 1).padStart(2, '0')}T${String((i % 2) * 12).padStart(2, '0')}:00:00Z`,
+			message: { usage: { input_tokens: 100, output_tokens: 50 } },
+			costUSD: 0.01,
+		}));
+
+		await using fixture = await createFixture({
+			projects: {
+				project1: Object.fromEntries(
+					sessions.map((session, i) => [
+						`session${i + 1}`,
+						{ 'chat.jsonl': JSON.stringify(session) },
+					]),
+				),
+			},
+		});
+
+		const result = await loadSessionWindowData({ claudePath: fixture.path });
+
+		expect(result).toHaveLength(1);
+		expect(result[0]?.totalSessions).toBe(50);
+		expect(result[0]?.remainingSessions).toBe(0); // Exactly at limit
+		expect(result[0]?.utilizationPercent).toBe(100); // 100% utilization
 	});
 });

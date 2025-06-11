@@ -5,12 +5,14 @@ import { dailyCommand } from './daily.ts';
 import { mcpCommand } from './mcp.ts';
 import { monthlyCommand } from './monthly.ts';
 import { sessionCommand } from './session.ts';
+import { sessionsCommand } from './sessions.ts';
 
 // Create subcommands map
 const subCommands = new Map();
 subCommands.set('daily', dailyCommand);
 subCommands.set('monthly', monthlyCommand);
 subCommands.set('session', sessionCommand);
+subCommands.set('sessions', sessionsCommand);
 subCommands.set('mcp', mcpCommand);
 
 const mainCommand = dailyCommand;

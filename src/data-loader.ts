@@ -1,4 +1,4 @@
-import type { CostMode, SortOrder } from './types.internal.ts';
+import type { CostMode, SessionWindow, SessionWindowStats, SortOrder } from './types.internal.ts';
 import { readFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import path from 'node:path';
@@ -447,4 +447,238 @@ export async function loadMonthlyUsageData(
 	return sortOrder === 'desc'
 		? sortedMonthly.desc(item => item.month)
 		: sortedMonthly.asc(item => item.month);
+}
+
+/**
+ * Get the 5-hour window ID for a given timestamp
+ * Claude Max plan sessions are 5-hour windows starting from first message
+ */
+function getSessionWindowId(timestamp: string): string {
+	const date = new Date(timestamp);
+	const year = date.getFullYear();
+	const month = String(date.getMonth() + 1).padStart(2, '0');
+	const day = String(date.getDate()).padStart(2, '0');
+
+	// Calculate which 5-hour window this timestamp falls into
+	const hour = date.getHours();
+	const windowStartHour = Math.floor(hour / 5) * 5;
+	const windowStartHourStr = String(windowStartHour).padStart(2, '0');
+
+	return `${year}-${month}-${day}-${windowStartHourStr}`;
+}
+
+/**
+ * Check if a timestamp falls within a 5-hour window starting from windowStart
+ */
+function isWithinSessionWindow(timestamp: string, windowStart: Date): boolean {
+	const messageTime = new Date(timestamp);
+	const windowEnd = new Date(windowStart.getTime() + 5 * 60 * 60 * 1000); // Add 5 hours
+	return messageTime >= windowStart && messageTime < windowEnd;
+}
+
+export async function loadSessionWindowData(
+	options?: LoadOptions,
+): Promise<SessionWindowStats[]> {
+	const claudePath = options?.claudePath ?? getDefaultClaudePath();
+	const claudeDir = path.join(claudePath, 'projects');
+	const files = await glob(['**/*.jsonl'], {
+		cwd: claudeDir,
+		absolute: true,
+	});
+
+	if (files.length === 0) {
+		return [];
+	}
+
+	// Fetch pricing data for cost calculation only when needed
+	const mode = options?.mode ?? 'auto';
+
+	// Use PricingFetcher with using statement for automatic cleanup
+	using fetcher = mode === 'display' ? null : new PricingFetcher();
+
+	// Collect all valid data entries with session window info
+	const allEntries: Array<{
+		data: UsageData;
+		timestamp: Date;
+		cost: number;
+		conversationId: string; // Unique conversation identifier
+	}> = [];
+
+	for (const file of files) {
+		// Extract conversation ID from file path for counting unique conversations
+		const relativePath = path.relative(claudeDir, file);
+		const conversationId = relativePath.replace(/\.jsonl$/, '');
+
+		const content = await readFile(file, 'utf-8');
+		const lines = content
+			.trim()
+			.split('\n')
+			.filter(line => line.length > 0);
+
+		for (const line of lines) {
+			try {
+				const parsed = JSON.parse(line) as unknown;
+				const result = v.safeParse(UsageDataSchema, parsed);
+				if (!result.success) {
+					continue;
+				}
+				const data = result.output;
+
+				const cost = fetcher != null
+					? await calculateCostForEntry(data, mode, fetcher)
+					: data.costUSD ?? 0;
+
+				allEntries.push({
+					data,
+					timestamp: new Date(data.timestamp),
+					cost,
+					conversationId,
+				});
+			}
+			catch {
+				// Skip invalid JSON lines
+			}
+		}
+	}
+
+	// Sort entries by timestamp to process sessions chronologically
+	const sortedEntries = sort(allEntries).asc(entry => entry.timestamp.getTime());
+
+	// Group messages into 5-hour session windows
+	const sessionWindows = new Map<string, {
+		windowId: string;
+		startTime: Date;
+		endTime: Date;
+		entries: typeof allEntries;
+		conversationIds: Set<string>;
+	}>();
+
+	for (const entry of sortedEntries) {
+		const windowId = getSessionWindowId(entry.data.timestamp);
+
+		// Check if this message should start a new session window or extend an existing one
+		let assignedWindow = sessionWindows.get(windowId);
+
+		// If no window exists for this time slot, create one
+		if (assignedWindow == null) {
+			assignedWindow = {
+				windowId,
+				startTime: entry.timestamp,
+				endTime: entry.timestamp,
+				entries: [],
+				conversationIds: new Set(),
+			};
+			sessionWindows.set(windowId, assignedWindow);
+		}
+
+		// Check if this message falls within the 5-hour window from the first message
+		if (isWithinSessionWindow(entry.data.timestamp, assignedWindow.startTime)) {
+			// Add to existing window
+			assignedWindow.entries.push(entry);
+			assignedWindow.conversationIds.add(entry.conversationId);
+			if (entry.timestamp > assignedWindow.endTime) {
+				assignedWindow.endTime = entry.timestamp;
+			}
+		}
+		else {
+			// This message starts a new session window
+			// Find the next available window slot
+			let newWindowStart = entry.timestamp;
+			let newWindowId = getSessionWindowId(entry.data.timestamp);
+
+			// Ensure we don't overlap with existing windows
+			while (sessionWindows.has(newWindowId)) {
+				newWindowStart = new Date(newWindowStart.getTime() + 5 * 60 * 60 * 1000);
+				newWindowId = getSessionWindowId(newWindowStart.toISOString());
+			}
+
+			const newWindow = {
+				windowId: newWindowId,
+				startTime: entry.timestamp,
+				endTime: entry.timestamp,
+				entries: [entry],
+				conversationIds: new Set([entry.conversationId]),
+			};
+			sessionWindows.set(newWindowId, newWindow);
+		}
+	}
+
+	// Convert session windows to SessionWindow objects and group by month
+	const processedWindows: SessionWindow[] = Array.from(sessionWindows.values()).map((window) => {
+		const totalTokens = window.entries.reduce((acc, entry) => ({
+			input: acc.input + (entry.data.message.usage.input_tokens ?? 0),
+			output: acc.output + (entry.data.message.usage.output_tokens ?? 0),
+			cacheCreation: acc.cacheCreation + (entry.data.message.usage.cache_creation_input_tokens ?? 0),
+			cacheRead: acc.cacheRead + (entry.data.message.usage.cache_read_input_tokens ?? 0),
+		}), { input: 0, output: 0, cacheCreation: 0, cacheRead: 0 });
+
+		const totalCost = window.entries.reduce((acc, entry) => acc + entry.cost, 0);
+
+		return {
+			windowId: window.windowId,
+			startTime: window.startTime.toISOString(),
+			endTime: window.endTime.toISOString(),
+			inputTokens: totalTokens.input,
+			outputTokens: totalTokens.output,
+			cacheCreationTokens: totalTokens.cacheCreation,
+			cacheReadTokens: totalTokens.cacheRead,
+			totalCost,
+			messageCount: window.entries.length,
+			conversationCount: window.conversationIds.size,
+		};
+	});
+
+	// Filter windows by date range if specified
+	const filteredWindows = processedWindows.filter((window) => {
+		if (options?.since != null || options?.until != null) {
+			const windowDate = window.startTime.substring(0, 10).replace(/-/g, ''); // YYYYMMDD
+			if (options.since != null && windowDate < options.since) {
+				return false;
+			}
+			if (options.until != null && windowDate > options.until) {
+				return false;
+			}
+		}
+		return true;
+	});
+
+	// Group windows by month
+	const groupedByMonth = groupBy(filteredWindows, window => window.startTime.substring(0, 7));
+
+	// Create monthly stats
+	const monthlyStats = Object.entries(groupedByMonth)
+		.map(([month, windows]) => {
+			if (windows == null) {
+				return undefined;
+			}
+
+			const totalSessions = windows.length;
+			const remainingSessions = Math.max(0, 50 - totalSessions);
+			const utilizationPercent = (totalSessions / 50) * 100;
+
+			const totals = windows.reduce((acc, window) => ({
+				cost: acc.cost + window.totalCost,
+				tokens: acc.tokens + window.inputTokens + window.outputTokens,
+			}), { cost: 0, tokens: 0 });
+
+			return {
+				month,
+				totalSessions,
+				remainingSessions,
+				utilizationPercent,
+				totalCost: totals.cost,
+				totalTokens: totals.tokens,
+				averageCostPerSession: totalSessions > 0 ? totals.cost / totalSessions : 0,
+				averageTokensPerSession: totalSessions > 0 ? totals.tokens / totalSessions : 0,
+				windows: sort(windows)[options?.order === 'asc' ? 'asc' : 'desc'](w => new Date(w.startTime).getTime()),
+			};
+		})
+		.filter(item => item != null);
+
+	// Sort monthly stats by month
+	const sortOrder = options?.order ?? 'desc';
+	const sortedStats = sort(monthlyStats);
+	return sortOrder === 'desc'
+		? sortedStats.desc(item => item.month)
+		: sortedStats.asc(item => item.month);
 }
