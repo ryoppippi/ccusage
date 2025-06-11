@@ -11,7 +11,7 @@ import { loadDailyUsageData } from '../data-loader.ts';
 import { detectMismatches, printMismatchReport } from '../debug.ts';
 import { log, logger } from '../logger.ts';
 import { sharedCommandConfig } from '../shared-args.internal.ts';
-import { formatCurrency, formatNumber } from '../utils.internal.ts';
+import { formatCurrency, formatModelsDisplay, formatNumber, pushBreakdownRows } from '../utils.internal.ts';
 
 export const dailyCommand = define({
 	name: 'daily',
@@ -60,6 +60,8 @@ export const dailyCommand = define({
 					cacheReadTokens: data.cacheReadTokens,
 					totalTokens: getTotalTokens(data),
 					totalCost: data.totalCost,
+					modelsUsed: data.modelsUsed,
+					modelBreakdowns: data.modelBreakdowns,
 				})),
 				totals: createTotalsObject(totals),
 			};
@@ -73,6 +75,7 @@ export const dailyCommand = define({
 			const table = new Table({
 				head: [
 					'Date',
+					'Models',
 					'Input',
 					'Output',
 					'Cache Create',
@@ -85,6 +88,7 @@ export const dailyCommand = define({
 				},
 				colAligns: [
 					'left',
+					'left',
 					'right',
 					'right',
 					'right',
@@ -96,8 +100,10 @@ export const dailyCommand = define({
 
 			// Add daily data
 			for (const data of dailyData) {
+				// Main row
 				table.push([
 					data.date,
+					formatModelsDisplay(data.modelsUsed),
 					formatNumber(data.inputTokens),
 					formatNumber(data.outputTokens),
 					formatNumber(data.cacheCreationTokens),
@@ -105,10 +111,16 @@ export const dailyCommand = define({
 					formatNumber(getTotalTokens(data)),
 					formatCurrency(data.totalCost),
 				]);
+
+				// Add model breakdown rows if flag is set
+				if (ctx.values.breakdown) {
+					pushBreakdownRows(table, data.modelBreakdowns);
+				}
 			}
 
 			// Add separator
 			table.push([
+				'─'.repeat(12),
 				'─'.repeat(12),
 				'─'.repeat(12),
 				'─'.repeat(12),
@@ -121,6 +133,7 @@ export const dailyCommand = define({
 			// Add totals
 			table.push([
 				pc.yellow('Total'),
+				'', // Empty for Models column in totals
 				pc.yellow(formatNumber(totals.inputTokens)),
 				pc.yellow(formatNumber(totals.outputTokens)),
 				pc.yellow(formatNumber(totals.cacheCreationTokens)),

@@ -16,6 +16,8 @@ describe('Token aggregation utilities', () => {
 				cacheCreationTokens: 25,
 				cacheReadTokens: 10,
 				totalCost: 0.01,
+				modelsUsed: ['claude-sonnet-4-20250514'],
+				modelBreakdowns: [],
 			},
 			{
 				date: '2024-01-02',
@@ -24,6 +26,8 @@ describe('Token aggregation utilities', () => {
 				cacheCreationTokens: 50,
 				cacheReadTokens: 20,
 				totalCost: 0.02,
+				modelsUsed: ['claude-opus-4-20250514'],
+				modelBreakdowns: [],
 			},
 		];
 
@@ -47,6 +51,8 @@ describe('Token aggregation utilities', () => {
 				totalCost: 0.01,
 				lastActivity: '2024-01-01',
 				versions: ['1.0.3'],
+				modelsUsed: ['claude-sonnet-4-20250514'],
+				modelBreakdowns: [],
 			},
 			{
 				sessionId: 'session-2',
@@ -58,6 +64,8 @@ describe('Token aggregation utilities', () => {
 				totalCost: 0.02,
 				lastActivity: '2024-01-02',
 				versions: ['1.0.3', '1.0.4'],
+				modelsUsed: ['claude-opus-4-20250514'],
+				modelBreakdowns: [],
 			},
 		];
 
