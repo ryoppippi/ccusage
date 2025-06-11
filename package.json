@@ -56,7 +56,7 @@
 		"eslint": "^9.28.0",
 		"eslint-plugin-format": "^1.0.1",
 		"fast-sort": "^3.4.1",
-		"fastmcp": "^2.2.2",
+		"fastmcp": "^2.2.4",
 		"fs-fixture": "^2.7.1",
 		"gunshi": "^0.26.3",
 		"lint-staged": "^16.1.0",
