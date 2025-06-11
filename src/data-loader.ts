@@ -26,8 +26,10 @@ export const UsageDataSchema = v.object({
 			cache_read_input_tokens: v.optional(v.number()),
 		}),
 		model: v.optional(v.string()), // Model is inside message object
+		id: v.optional(v.string()), // Message ID for deduplication
 	}),
 	costUSD: v.optional(v.number()), // Made optional for new schema
+	requestId: v.optional(v.string()), // Request ID for deduplication
 });
 
 export type UsageData = v.InferOutput<typeof UsageDataSchema>;
@@ -99,6 +101,91 @@ export function formatDate(dateStr: string): string {
 	return `${year}-${month}-${day}`;
 }
 
+/**
+ * Create a unique identifier for deduplication using message ID and request ID
+ */
+export function createUniqueHash(data: UsageData): string | null {
+	const messageId = data.message.id;
+	const requestId = data.requestId;
+
+	if (messageId == null || requestId == null) {
+		return null;
+	}
+
+	// Create a hash using simple concatenation
+	return `${messageId}:${requestId}`;
+}
+
+/**
+ * Extract the earliest timestamp from a JSONL file
+ * Scans through the file until it finds a valid timestamp
+ */
+export async function getEarliestTimestamp(filePath: string): Promise<Date | null> {
+	try {
+		const content = await readFile(filePath, 'utf-8');
+		const lines = content.trim().split('\n');
+
+		let earliestDate: Date | null = null;
+
+		for (const line of lines) {
+			if (line.trim() === '') {
+				continue;
+			}
+
+			try {
+				const json = JSON.parse(line) as Record<string, unknown>;
+				if (json.timestamp != null && typeof json.timestamp === 'string') {
+					const date = new Date(json.timestamp);
+					if (!Number.isNaN(date.getTime())) {
+						if (earliestDate == null || date < earliestDate) {
+							earliestDate = date;
+						}
+					}
+				}
+			}
+			catch {
+				// Skip invalid JSON lines
+				continue;
+			}
+		}
+
+		return earliestDate;
+	}
+	catch {
+		return null;
+	}
+}
+
+/**
+ * Sort files by their earliest timestamp
+ * Files without valid timestamps are placed at the end
+ */
+export async function sortFilesByTimestamp(files: string[]): Promise<string[]> {
+	const filesWithTimestamps = await Promise.all(
+		files.map(async file => ({
+			file,
+			timestamp: await getEarliestTimestamp(file),
+		})),
+	);
+
+	return filesWithTimestamps
+		.sort((a, b) => {
+			// Files without timestamps go to the end
+			if (a.timestamp == null && b.timestamp == null) {
+				return 0;
+			}
+			if (a.timestamp == null) {
+				return 1;
+			}
+			if (b.timestamp == null) {
+				return -1;
+			}
+			// Sort by timestamp (oldest first)
+			return a.timestamp.getTime() - b.timestamp.getTime();
+		})
+		.map(item => item.file);
+}
+
 export async function calculateCostForEntry(
 	data: UsageData,
 	mode: CostMode,
@@ -158,16 +245,22 @@ export async function loadDailyUsageData(
 		return [];
 	}
 
+	// Sort files by timestamp to ensure chronological processing
+	const sortedFiles = await sortFilesByTimestamp(files);
+
 	// Fetch pricing data for cost calculation only when needed
 	const mode = options?.mode ?? 'auto';
 
 	// Use PricingFetcher with using statement for automatic cleanup
 	using fetcher = mode === 'display' ? null : new PricingFetcher();
 
+	// Track processed message+request combinations for deduplication
+	const processedHashes = new Set<string>();
+
 	// Collect all valid data entries first
 	const allEntries: { data: UsageData; date: string; cost: number; model: string | undefined }[] = [];
 
-	for (const file of files) {
+	for (const file of sortedFiles) {
 		const content = await readFile(file, 'utf-8');
 		const lines = content
 			.trim()
@@ -182,6 +275,18 @@ export async function loadDailyUsageData(
 					continue;
 				}
 				const data = result.output;
+
+				// Check for duplicate message + request ID combination
+				const uniqueHash = createUniqueHash(data);
+				if (uniqueHash != null && processedHashes.has(uniqueHash)) {
+					// Skip duplicate message
+					continue;
+				}
+
+				// Mark this combination as processed
+				if (uniqueHash != null) {
+					processedHashes.add(uniqueHash);
+				}
 
 				const date = formatDate(data.timestamp);
 				// If fetcher is available, calculate cost based on mode and tokens
@@ -323,11 +428,17 @@ export async function loadSessionData(
 		return [];
 	}
 
+	// Sort files by timestamp to ensure chronological processing
+	const sortedFiles = await sortFilesByTimestamp(files);
+
 	// Fetch pricing data for cost calculation only when needed
 	const mode = options?.mode ?? 'auto';
 
 	// Use PricingFetcher with using statement for automatic cleanup
 	using fetcher = mode === 'display' ? null : new PricingFetcher();
+
+	// Track processed message+request combinations for deduplication
+	const processedHashes = new Set<string>();
 
 	// Collect all valid data entries with session info first
 	const allEntries: Array<{
@@ -340,7 +451,7 @@ export async function loadSessionData(
 		model: string | undefined;
 	}> = [];
 
-	for (const file of files) {
+	for (const file of sortedFiles) {
 		// Extract session info from file path
 		const relativePath = path.relative(claudeDir, file);
 		const parts = relativePath.split(path.sep);
@@ -365,6 +476,18 @@ export async function loadSessionData(
 					continue;
 				}
 				const data = result.output;
+
+				// Check for duplicate message + request ID combination
+				const uniqueHash = createUniqueHash(data);
+				if (uniqueHash != null && processedHashes.has(uniqueHash)) {
+					// Skip duplicate message
+					continue;
+				}
+
+				// Mark this combination as processed
+				if (uniqueHash != null) {
+					processedHashes.add(uniqueHash);
+				}
 
 				const sessionKey = `${projectPath}/${sessionId}`;
 				const cost = fetcher != null
