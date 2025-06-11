@@ -1,8 +1,12 @@
-import type { CostMode, CurrentSessionInfo, SessionWindow, SessionWindowStats, SortOrder } from './types.internal.ts';
+import type { CostMode, SortOrder } from './types.internal.ts';
 import { readFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import path from 'node:path';
-import { unreachable } from '@core/errorutil';
+
+function unreachable(x: never): never {
+	throw new Error(`Unreachable case: ${String(x)}`);
+}
+
 import { sort } from 'fast-sort';
 import { glob } from 'tinyglobby';
 import * as v from 'valibot';
@@ -14,6 +18,50 @@ import { groupBy } from './utils.internal.ts';
 export function getDefaultClaudePath(): string {
 	return path.join(homedir(), '.claude');
 }
+
+const SessionWindowSchema = v.object({
+	windowId: v.string(), // Format: YYYY-MM-DD-HH (start of 5-hour window)
+	startTime: v.string(), // ISO timestamp of first message in window
+	endTime: v.string(), // ISO timestamp of last message in window
+	inputTokens: v.number(),
+	outputTokens: v.number(),
+	cacheCreationTokens: v.number(),
+	cacheReadTokens: v.number(),
+	totalCost: v.number(),
+	messageCount: v.number(), // Number of messages in this window
+	conversationCount: v.number(), // Number of unique conversations in this window
+});
+
+type SessionWindow = v.InferOutput<typeof SessionWindowSchema>;
+
+const CurrentSessionInfoSchema = v.object({
+	hasActiveSession: v.boolean(),
+	timeRemainingMs: v.number(),
+	timeRemainingFormatted: v.string(),
+	activeWindow: v.optional(SessionWindowSchema),
+});
+
+type CurrentSessionInfo = v.InferOutput<typeof CurrentSessionInfoSchema>;
+
+// eslint-disable-next-line ts/no-unused-vars
+const _SessionWindowStatsSchema = v.object({
+	month: v.pipe(
+		v.string(),
+		v.regex(/^\d{4}-\d{2}$/), // YYYY-MM format
+	),
+	totalSessions: v.number(), // Total number of 5-hour windows with activity
+	remainingSessions: v.number(), // sessionLimit - totalSessions
+	utilizationPercent: v.number(), // (totalSessions / sessionLimit) * 100
+	sessionLimit: v.number(), // Plan-specific session limit (50 for Max plan, etc.)
+	totalCost: v.number(),
+	totalTokens: v.number(),
+	averageCostPerSession: v.number(),
+	averageTokensPerSession: v.number(),
+	windows: v.array(SessionWindowSchema),
+	currentSession: v.optional(CurrentSessionInfoSchema),
+});
+
+export type SessionWindowStats = v.InferOutput<typeof _SessionWindowStatsSchema>;
 
 export const UsageDataSchema = v.object({
 	timestamp: v.string(),
@@ -125,6 +173,8 @@ export type LoadOptions = {
 	claudePath?: string; // Custom path to Claude data directory
 	mode?: CostMode; // Cost calculation mode
 	order?: SortOrder; // Sort order for dates
+	sessionLimit?: number; // Monthly session limit
+	warningThreshold?: number; // Warning threshold for remaining sessions
 } & DateFilter;
 
 export async function loadDailyUsageData(
@@ -636,7 +686,12 @@ export async function loadSessionWindowData(
 			let newWindowStart = entry.timestamp;
 			let newWindowId = getSessionWindowId(entry.data.timestamp);
 
-			// Ensure we don't overlap with existing windows
+			// Ensure we don't overlap with existing windows. If a window already exists
+			// for the calculated time slot, shift to the next 5-hour window until we
+			// find an empty slot. This handles edge cases where multiple conversation
+			// windows might start very close in time, ensuring each gets its own window ID.
+			// Note: The resulting windowId might not directly correspond to the message's
+			// actual timestamp, but this maintains unique window identification.
 			while (sessionWindows.has(newWindowId)) {
 				newWindowStart = new Date(newWindowStart.getTime() + 5 * 60 * 60 * 1000);
 				newWindowId = getSessionWindowId(newWindowStart.toISOString());
@@ -703,8 +758,9 @@ export async function loadSessionWindowData(
 			}
 
 			const totalSessions = windows.length;
-			const remainingSessions = Math.max(0, 50 - totalSessions);
-			const utilizationPercent = (totalSessions / 50) * 100;
+			const sessionLimit = options?.sessionLimit ?? 50;
+			const remainingSessions = Math.max(0, sessionLimit - totalSessions);
+			const utilizationPercent = (totalSessions / sessionLimit) * 100;
 
 			const totals = windows.reduce((acc, window) => ({
 				cost: acc.cost + window.totalCost,
@@ -719,6 +775,7 @@ export async function loadSessionWindowData(
 				totalSessions,
 				remainingSessions,
 				utilizationPercent,
+				sessionLimit,
 				totalCost: totals.cost,
 				totalTokens: totals.tokens,
 				averageCostPerSession: totalSessions > 0 ? totals.cost / totalSessions : 0,

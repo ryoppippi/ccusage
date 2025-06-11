@@ -22,6 +22,8 @@ export const sessionsCommand = define({
 			claudePath: ctx.values.path,
 			mode: ctx.values.mode,
 			order: ctx.values.order,
+			sessionLimit: ctx.values.sessionLimit,
+			warningThreshold: ctx.values.warningThreshold,
 		});
 
 		if (sessionData.length === 0) {
@@ -42,6 +44,7 @@ export const sessionsCommand = define({
 					totalSessions: monthStats.totalSessions,
 					remainingSessions: monthStats.remainingSessions,
 					utilizationPercent: monthStats.utilizationPercent,
+					sessionLimit: monthStats.sessionLimit,
 					totalCost: monthStats.totalCost,
 					totalTokens: monthStats.totalTokens,
 					averageCostPerSession: monthStats.averageCostPerSession,
@@ -76,9 +79,9 @@ export const sessionsCommand = define({
 						? 'yellow'
 						: 'green';
 
-				logger.info(`\n${pc.bold(monthStats.month)} - ${pc[utilizationColor](`${monthStats.totalSessions} sessions used`)} (${pc[utilizationColor](`${monthStats.utilizationPercent.toFixed(1)}%`)} of 50 limit)`);
+				logger.info(`\n${pc.bold(monthStats.month)} - ${pc[utilizationColor](`${monthStats.totalSessions} sessions used`)} (${pc[utilizationColor](`${monthStats.utilizationPercent.toFixed(1)}%`)} of ${monthStats.sessionLimit} limit)`);
 
-				if (monthStats.remainingSessions <= 5 && monthStats.remainingSessions > 0) {
+				if (monthStats.remainingSessions <= ctx.values.warningThreshold && monthStats.remainingSessions > 0) {
 					logger.warn(`⚠️  Only ${monthStats.remainingSessions} sessions remaining this month!`);
 				}
 				else if (monthStats.remainingSessions === 0) {
@@ -94,24 +97,6 @@ export const sessionsCommand = define({
 					logger.info(`🕒 Current session: ${pc[timeColor](monthStats.currentSession.timeRemainingFormatted)} remaining`);
 				}
 
-				// Monthly summary table
-				const summaryTable = new Table({
-					head: ['Metric', 'Value'],
-					style: {
-						head: ['cyan'],
-					},
-					colAligns: ['left', 'right'],
-				});
-
-				summaryTable.push(
-					['Total Cost', formatCurrency(monthStats.totalCost)],
-					['Total Tokens', formatNumber(monthStats.totalTokens)],
-					['Avg Cost/Session', formatCurrency(monthStats.averageCostPerSession)],
-					['Avg Tokens/Session', formatNumber(monthStats.averageTokensPerSession)],
-				);
-
-				log(summaryTable.toString());
-
 				// Individual session windows table
 				if (monthStats.windows.length > 0) {
 					const windowsTable = new Table({
@@ -122,8 +107,8 @@ export const sessionsCommand = define({
 							'Convos',
 							'Input',
 							'Output',
-							'Cache C',
-							'Cache R',
+							'Cache Create',
+							'Cache Read',
 							'Total Tokens',
 							'Cost (USD)',
 						],
@@ -156,7 +141,7 @@ export const sessionsCommand = define({
 							+ window.cacheCreationTokens + window.cacheReadTokens;
 
 						windowsTable.push([
-							startTime.toLocaleString().substring(0, 16), // Remove seconds
+							startTime.toISOString().substring(0, 10), // YYYY-MM-DD format like daily
 							durationStr,
 							formatNumber(window.messageCount),
 							formatNumber(window.conversationCount),
@@ -168,6 +153,41 @@ export const sessionsCommand = define({
 							formatCurrency(window.totalCost),
 						]);
 					}
+
+					// Add separator and totals row (like daily command)
+					const monthTotalSessions = monthStats.windows.length;
+					const monthTotalCost = monthStats.totalCost;
+					const monthTotalTokens = monthStats.totalTokens;
+					const monthTotalInput = monthStats.windows.reduce((sum, w) => sum + w.inputTokens, 0);
+					const monthTotalOutput = monthStats.windows.reduce((sum, w) => sum + w.outputTokens, 0);
+					const monthTotalCacheCreate = monthStats.windows.reduce((sum, w) => sum + w.cacheCreationTokens, 0);
+					const monthTotalCacheRead = monthStats.windows.reduce((sum, w) => sum + w.cacheReadTokens, 0);
+
+					windowsTable.push([
+						'─'.repeat(10),
+						'─'.repeat(8),
+						'─'.repeat(8),
+						'─'.repeat(6),
+						'─'.repeat(7),
+						'─'.repeat(7),
+						'─'.repeat(12),
+						'─'.repeat(11),
+						'─'.repeat(12),
+						'─'.repeat(10),
+					]);
+
+					windowsTable.push([
+						pc.yellow('Total'),
+						pc.yellow(`${monthTotalSessions} windows`),
+						pc.yellow(''),
+						pc.yellow(''),
+						pc.yellow(formatNumber(monthTotalInput)),
+						pc.yellow(formatNumber(monthTotalOutput)),
+						pc.yellow(formatNumber(monthTotalCacheCreate)),
+						pc.yellow(formatNumber(monthTotalCacheRead)),
+						pc.yellow(formatNumber(monthTotalTokens)),
+						pc.yellow(formatCurrency(monthTotalCost)),
+					]);
 
 					log(windowsTable.toString());
 				}

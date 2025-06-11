@@ -61,8 +61,18 @@ export const sharedArgs = {
 		type: 'enum',
 		short: 'o',
 		description: 'Sort order: desc (newest first) or asc (oldest first)',
-		default: 'asc' as const satisfies SortOrder,
+		default: 'desc' as const satisfies SortOrder,
 		choices: SortOrders,
+	},
+	sessionLimit: {
+		type: 'number',
+		description: 'Monthly session limit (default: 50 for Max plan)',
+		default: 50,
+	},
+	warningThreshold: {
+		type: 'number',
+		description: 'Warning threshold for remaining sessions (default: 5)',
+		default: 5,
 	},
 } as const satisfies Args;
 
