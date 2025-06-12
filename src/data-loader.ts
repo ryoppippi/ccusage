@@ -631,12 +631,16 @@ export async function loadSessionData(
 			return true;
 		});
 
-	// Sort by last activity based on order option (default to descending)
 	const sortOrder = options?.order ?? 'desc';
 	const sortedResults = sort(results);
-	return sortOrder === 'desc'
-		? sortedResults.desc(item => new Date(item.lastActivity).getTime())
-		: sortedResults.asc(item => new Date(item.lastActivity).getTime());
+	switch (sortOrder) {
+		case 'desc':
+			return sortedResults.desc(item => new Date(item.lastActivity).getTime());
+		case 'asc':
+			return sortedResults.asc(item => new Date(item.lastActivity).getTime());
+		default:
+			unreachable(sortOrder);
+	}
 }
 
 export async function loadMonthlyUsageData(
@@ -738,7 +742,12 @@ export async function loadMonthlyUsageData(
 	// Sort by month based on sortOrder
 	const sortOrder = options?.order ?? 'desc';
 	const sortedMonthly = sort(monthlyArray);
-	return sortOrder === 'desc'
-		? sortedMonthly.desc(item => item.month)
-		: sortedMonthly.asc(item => item.month);
+	switch (sortOrder) {
+		case 'desc':
+			return sortedMonthly.desc(item => item.month);
+		case 'asc':
+			return sortedMonthly.asc(item => item.month);
+		default:
+			unreachable(sortOrder);
+	}
 }
