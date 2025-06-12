@@ -1,4 +1,5 @@
 import process from 'node:process';
+import { ProxyAgent } from 'undici';
 import * as v from 'valibot';
 import { logger } from './logger.ts';
 
@@ -39,8 +40,6 @@ export class PricingFetcher implements Disposable {
 
 		// Use undici's ProxyAgent for proper proxy support
 		try {
-			// eslint-disable-next-line ts/no-require-imports
-			const { ProxyAgent } = require('undici') as typeof import('undici');
 			const proxyAgent = new ProxyAgent(proxyUrl);
 
 			logger.info(`Fetching with proxy: ${proxyUrl}`);
