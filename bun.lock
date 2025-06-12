@@ -28,7 +28,7 @@
         "tinyglobby": "^0.2.14",
         "tsdown": "^0.12.7",
         "type-fest": "^4.41.0",
-        "unplugin-unused": "^0.5.0",
+        "unplugin-unused": "^0.5.1",
         "valibot": "^1.1.0",
       },
     },
