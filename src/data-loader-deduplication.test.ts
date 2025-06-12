@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
+import { describe, expect, it } from 'bun:test';
 import { createFixture } from 'fs-fixture';
 import {
 	createUniqueHash,
@@ -61,16 +61,6 @@ describe('deduplication functionality', () => {
 	});
 
 	describe('getEarliestTimestamp', () => {
-		let fixture: Awaited<ReturnType<typeof createFixture>>;
-
-		beforeEach(async () => {
-			fixture = await createFixture({});
-		});
-
-		afterEach(async () => {
-			await fixture.rm();
-		});
-
 		it('should extract earliest timestamp from JSONL file', async () => {
 			const content = [
 				JSON.stringify({ timestamp: '2025-01-15T12:00:00Z', message: { usage: {} } }),
@@ -78,7 +68,9 @@ describe('deduplication functionality', () => {
 				JSON.stringify({ timestamp: '2025-01-12T11:00:00Z', message: { usage: {} } }),
 			].join('\n');
 
-			await fixture.writeFile('test.jsonl', content);
+			await using fixture = await createFixture({
+				'test.jsonl': content,
+			});
 
 			const timestamp = await getEarliestTimestamp(fixture.getPath('test.jsonl'));
 			expect(timestamp).toEqual(new Date('2025-01-10T10:00:00Z'));
@@ -90,7 +82,9 @@ describe('deduplication functionality', () => {
 				JSON.stringify({ data: 'no timestamp' }),
 			].join('\n');
 
-			await fixture.writeFile('test.jsonl', content);
+			await using fixture = await createFixture({
+				'test.jsonl': content,
+			});
 
 			const timestamp = await getEarliestTimestamp(fixture.getPath('test.jsonl'));
 			expect(timestamp).toBeNull();
@@ -103,7 +97,9 @@ describe('deduplication functionality', () => {
 				'{ broken: json',
 			].join('\n');
 
-			await fixture.writeFile('test.jsonl', content);
+			await using fixture = await createFixture({
+				'test.jsonl': content,
+			});
 
 			const timestamp = await getEarliestTimestamp(fixture.getPath('test.jsonl'));
 			expect(timestamp).toEqual(new Date('2025-01-10T10:00:00Z'));
@@ -111,25 +107,12 @@ describe('deduplication functionality', () => {
 	});
 
 	describe('sortFilesByTimestamp', () => {
-		let fixture: Awaited<ReturnType<typeof createFixture>>;
-
-		beforeEach(async () => {
-			fixture = await createFixture({});
-		});
-
-		afterEach(async () => {
-			await fixture.rm();
-		});
-
 		it('should sort files by earliest timestamp', async () => {
-			// File 1: earliest timestamp 2025-01-15
-			await fixture.writeFile('file1.jsonl', JSON.stringify({ timestamp: '2025-01-15T10:00:00Z' }));
-
-			// File 2: earliest timestamp 2025-01-10
-			await fixture.writeFile('file2.jsonl', JSON.stringify({ timestamp: '2025-01-10T10:00:00Z' }));
-
-			// File 3: earliest timestamp 2025-01-12
-			await fixture.writeFile('file3.jsonl', JSON.stringify({ timestamp: '2025-01-12T10:00:00Z' }));
+			await using fixture = await createFixture({
+				'file1.jsonl': JSON.stringify({ timestamp: '2025-01-15T10:00:00Z' }),
+				'file2.jsonl': JSON.stringify({ timestamp: '2025-01-10T10:00:00Z' }),
+				'file3.jsonl': JSON.stringify({ timestamp: '2025-01-12T10:00:00Z' }),
+			});
 
 			const file1 = fixture.getPath('file1.jsonl');
 			const file2 = fixture.getPath('file2.jsonl');
@@ -141,9 +124,11 @@ describe('deduplication functionality', () => {
 		});
 
 		it('should place files without timestamps at the end', async () => {
-			await fixture.writeFile('file1.jsonl', JSON.stringify({ timestamp: '2025-01-15T10:00:00Z' }));
-			await fixture.writeFile('file2.jsonl', JSON.stringify({ no_timestamp: true }));
-			await fixture.writeFile('file3.jsonl', JSON.stringify({ timestamp: '2025-01-10T10:00:00Z' }));
+			await using fixture = await createFixture({
+				'file1.jsonl': JSON.stringify({ timestamp: '2025-01-15T10:00:00Z' }),
+				'file2.jsonl': JSON.stringify({ no_timestamp: true }),
+				'file3.jsonl': JSON.stringify({ timestamp: '2025-01-10T10:00:00Z' }),
+			});
 
 			const file1 = fixture.getPath('file1.jsonl');
 			const file2 = fixture.getPath('file2.jsonl');
@@ -156,16 +141,8 @@ describe('deduplication functionality', () => {
 	});
 
 	describe('loadDailyUsageData with deduplication', () => {
-		let fixture: Awaited<ReturnType<typeof createFixture>>;
-
-		afterEach(async () => {
-			if (fixture != null) {
-				await fixture.rm();
-			}
-		});
-
 		it('should deduplicate entries with same message and request IDs', async () => {
-			fixture = await createFixture({
+			await using fixture = await createFixture({
 				projects: {
 					project1: {
 						session1: {
@@ -213,7 +190,7 @@ describe('deduplication functionality', () => {
 		});
 
 		it('should process files in chronological order', async () => {
-			fixture = await createFixture({
+			await using fixture = await createFixture({
 				projects: {
 					'newer.jsonl': JSON.stringify({
 						timestamp: '2025-01-15T10:00:00Z',
@@ -256,16 +233,8 @@ describe('deduplication functionality', () => {
 	});
 
 	describe('loadSessionData with deduplication', () => {
-		let fixture: Awaited<ReturnType<typeof createFixture>>;
-
-		afterEach(async () => {
-			if (fixture != null) {
-				await fixture.rm();
-			}
-		});
-
 		it('should deduplicate entries across sessions', async () => {
-			fixture = await createFixture({
+			await using fixture = await createFixture({
 				projects: {
 					project1: {
 						session1: {
