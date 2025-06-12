@@ -103,6 +103,29 @@ export function formatDate(dateStr: string): string {
 }
 
 /**
+ * Generic function to sort items by date based on sort order
+ * @param items - Array of items to sort
+ * @param getDate - Function to extract date/timestamp from item
+ * @param order - Sort order (asc or desc)
+ * @returns Sorted array
+ */
+function sortByDate<T>(
+	items: T[],
+	getDate: (item: T) => string | Date,
+	order: SortOrder = 'desc',
+): T[] {
+	const sorted = sort(items);
+	switch (order) {
+		case 'desc':
+			return sorted.desc(item => new Date(getDate(item)).getTime());
+		case 'asc':
+			return sorted.asc(item => new Date(getDate(item)).getTime());
+		default:
+			unreachable(order);
+	}
+}
+
+/**
  * Create a unique identifier for deduplication using message ID and request ID
  */
 export function createUniqueHash(data: UsageData): string | null {
@@ -406,16 +429,7 @@ export async function loadDailyUsageData(
 		});
 
 	// Sort by date based on order option (default to descending)
-	const sortOrder = options?.order ?? 'desc';
-	const sortedResults = sort(results);
-	switch (sortOrder) {
-		case 'desc':
-			return sortedResults.desc(item => new Date(item.date).getTime());
-		case 'asc':
-			return sortedResults.asc(item => new Date(item.date).getTime());
-		default:
-			unreachable(sortOrder);
-	}
+	return sortByDate(results, item => item.date, options?.order);
 }
 
 export async function loadSessionData(
@@ -631,16 +645,7 @@ export async function loadSessionData(
 			return true;
 		});
 
-	const sortOrder = options?.order ?? 'desc';
-	const sortedResults = sort(results);
-	switch (sortOrder) {
-		case 'desc':
-			return sortedResults.desc(item => new Date(item.lastActivity).getTime());
-		case 'asc':
-			return sortedResults.asc(item => new Date(item.lastActivity).getTime());
-		default:
-			unreachable(sortOrder);
-	}
+	return sortByDate(results, item => item.lastActivity, options?.order);
 }
 
 export async function loadMonthlyUsageData(
@@ -740,14 +745,5 @@ export async function loadMonthlyUsageData(
 	}
 
 	// Sort by month based on sortOrder
-	const sortOrder = options?.order ?? 'desc';
-	const sortedMonthly = sort(monthlyArray);
-	switch (sortOrder) {
-		case 'desc':
-			return sortedMonthly.desc(item => item.month);
-		case 'asc':
-			return sortedMonthly.asc(item => item.month);
-		default:
-			unreachable(sortOrder);
-	}
+	return sortByDate(monthlyArray, item => `${item.month}-01`, options?.order);
 }
