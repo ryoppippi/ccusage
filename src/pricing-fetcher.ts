@@ -1,3 +1,4 @@
+import process from 'node:process';
 import * as v from 'valibot';
 import { logger } from './logger.ts';
 
@@ -26,6 +27,34 @@ export class PricingFetcher implements Disposable {
 		this.cachedPricing = null;
 	}
 
+	private createFetchOptions(): RequestInit {
+		// Check for proxy environment variables
+		const httpsProxy = process.env.HTTPS_PROXY ?? process.env.https_proxy ?? '';
+		const httpProxy = process.env.HTTP_PROXY ?? process.env.http_proxy ?? '';
+		const proxyUrl = httpsProxy.length > 0 ? httpsProxy : httpProxy;
+
+		if (proxyUrl.length === 0) {
+			return {};
+		}
+
+		// Use undici's ProxyAgent for proper proxy support
+		try {
+			// eslint-disable-next-line ts/no-require-imports
+			const { ProxyAgent } = require('undici') as typeof import('undici');
+			const proxyAgent = new ProxyAgent(proxyUrl);
+
+			logger.info(`Fetching with proxy: ${proxyUrl}`);
+
+			return {
+				dispatcher: proxyAgent as RequestInit['dispatcher'],
+			};
+		}
+		catch (error) {
+			logger.warn('Failed to create proxy agent, attempting direct connection:', error);
+			return {};
+		}
+	}
+
 	private async ensurePricingLoaded(): Promise<Map<string, ModelPricing>> {
 		if (this.cachedPricing != null) {
 			return this.cachedPricing;
@@ -33,7 +62,7 @@ export class PricingFetcher implements Disposable {
 
 		try {
 			logger.warn('Fetching latest model pricing from LiteLLM...');
-			const response = await fetch(LITELLM_PRICING_URL);
+			const response = await fetch(LITELLM_PRICING_URL, this.createFetchOptions());
 			if (!response.ok) {
 				throw new Error(`Failed to fetch pricing data: ${response.statusText}`);
 			}
