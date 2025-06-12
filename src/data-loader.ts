@@ -112,6 +112,13 @@ function aggregateByModel<T>(
 	getCost: (entry: T) => number,
 ): Map<string, TokenStats> {
 	const modelAggregates = new Map<string, TokenStats>();
+	const defaultStats: TokenStats = {
+		inputTokens: 0,
+		outputTokens: 0,
+		cacheCreationTokens: 0,
+		cacheReadTokens: 0,
+		cost: 0,
+	};
 
 	for (const entry of entries) {
 		const modelName = getModel(entry) ?? 'unknown';
@@ -123,13 +130,7 @@ function aggregateByModel<T>(
 		const usage = getUsage(entry);
 		const cost = getCost(entry);
 
-		const existing = modelAggregates.get(modelName) ?? {
-			inputTokens: 0,
-			outputTokens: 0,
-			cacheCreationTokens: 0,
-			cacheReadTokens: 0,
-			cost: 0,
-		};
+		const existing = modelAggregates.get(modelName) ?? defaultStats;
 
 		modelAggregates.set(modelName, {
 			inputTokens: existing.inputTokens + (usage.input_tokens ?? 0),
@@ -150,6 +151,13 @@ function aggregateModelBreakdowns(
 	breakdowns: ModelBreakdown[],
 ): Map<string, TokenStats> {
 	const modelAggregates = new Map<string, TokenStats>();
+	const defaultStats: TokenStats = {
+		inputTokens: 0,
+		outputTokens: 0,
+		cacheCreationTokens: 0,
+		cacheReadTokens: 0,
+		cost: 0,
+	};
 
 	for (const breakdown of breakdowns) {
 		// Skip synthetic model
@@ -157,13 +165,7 @@ function aggregateModelBreakdowns(
 			continue;
 		}
 
-		const existing = modelAggregates.get(breakdown.modelName) ?? {
-			inputTokens: 0,
-			outputTokens: 0,
-			cacheCreationTokens: 0,
-			cacheReadTokens: 0,
-			cost: 0,
-		};
+		const existing = modelAggregates.get(breakdown.modelName) ?? defaultStats;
 
 		modelAggregates.set(breakdown.modelName, {
 			inputTokens: existing.inputTokens + breakdown.inputTokens,
@@ -238,7 +240,7 @@ function filterByDateRange<T>(
 	}
 
 	return items.filter((item) => {
-		const dateStr = getDate(item).replace(/-/g, ''); // Convert to YYYYMMDD
+		const dateStr = getDate(item).substring(0, 10).replace(/-/g, ''); // Convert to YYYYMMDD
 		if (since != null && dateStr < since) {
 			return false;
 		}
@@ -629,15 +631,13 @@ export async function loadSessionData(
 
 				// Check for duplicate message + request ID combination
 				const uniqueHash = createUniqueHash(data);
-				if (uniqueHash != null && processedHashes.has(uniqueHash)) {
+				if (isDuplicateEntry(uniqueHash, processedHashes)) {
 					// Skip duplicate message
 					continue;
 				}
 
 				// Mark this combination as processed
-				if (uniqueHash != null) {
-					processedHashes.add(uniqueHash);
-				}
+				markAsProcessed(uniqueHash, processedHashes);
 
 				const sessionKey = `${projectPath}/${sessionId}`;
 				const cost = fetcher != null

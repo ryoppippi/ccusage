@@ -1,4 +1,4 @@
-import type { DailyUsage, MonthlyUsage, SessionUsage } from './data-loader';
+import type { DailyUsage, MonthlyUsage, SessionUsage } from './data-loader.ts';
 
 type TokenData = {
 	inputTokens: number;
