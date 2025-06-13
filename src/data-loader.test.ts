@@ -3,6 +3,7 @@ import { createFixture } from 'fs-fixture';
 import {
 	calculateCostForEntry,
 	formatDate,
+	getDefaultClaudePath,
 	loadDailyUsageData,
 	loadMonthlyUsageData,
 	loadSessionData,
@@ -26,6 +27,64 @@ describe('formatDate', () => {
 	test('pads single digit months and days', () => {
 		expect(formatDate('2024-01-05T00:00:00Z')).toBe('2024-01-05');
 		expect(formatDate('2024-10-01T00:00:00Z')).toBe('2024-10-01');
+	});
+});
+
+describe('getDefaultClaudePath', () => {
+	test('returns CLAUDE_CONFIG_DIR when environment variable is set', () => {
+		const originalEnv = process.env.CLAUDE_CONFIG_DIR;
+		const testPath = '/custom/claude/path';
+		
+		try {
+			process.env.CLAUDE_CONFIG_DIR = testPath;
+			expect(getDefaultClaudePath()).toBe(testPath);
+		} finally {
+			// Restore original value
+			if (originalEnv !== undefined) {
+				process.env.CLAUDE_CONFIG_DIR = originalEnv;
+			} else {
+				delete process.env.CLAUDE_CONFIG_DIR;
+			}
+		}
+	});
+
+	test('returns default path when CLAUDE_CONFIG_DIR is not set', () => {
+		const originalEnv = process.env.CLAUDE_CONFIG_DIR;
+		
+		try {
+			delete process.env.CLAUDE_CONFIG_DIR;
+			const result = getDefaultClaudePath();
+			expect(result).toContain('.claude');
+			expect(result).not.toBe('.claude'); // Should be full path with home directory
+		} finally {
+			// Restore original value
+			if (originalEnv !== undefined) {
+				process.env.CLAUDE_CONFIG_DIR = originalEnv;
+			}
+		}
+	});
+
+	test('returns default path when CLAUDE_CONFIG_DIR is empty or whitespace', () => {
+		const originalEnv = process.env.CLAUDE_CONFIG_DIR;
+		
+		try {
+			// Test empty string
+			process.env.CLAUDE_CONFIG_DIR = '';
+			let result = getDefaultClaudePath();
+			expect(result).toContain('.claude');
+			
+			// Test whitespace only
+			process.env.CLAUDE_CONFIG_DIR = '   ';
+			result = getDefaultClaudePath();
+			expect(result).toContain('.claude');
+		} finally {
+			// Restore original value
+			if (originalEnv !== undefined) {
+				process.env.CLAUDE_CONFIG_DIR = originalEnv;
+			} else {
+				delete process.env.CLAUDE_CONFIG_DIR;
+			}
+		}
 	});
 });
 

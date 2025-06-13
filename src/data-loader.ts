@@ -13,7 +13,8 @@ import {
 import { groupBy } from './utils.internal.ts';
 
 export function getDefaultClaudePath(): string {
-	return path.join(homedir(), '.claude');
+	const envPath = process.env.CLAUDE_CONFIG_DIR;
+	return envPath && envPath.trim() ? envPath : path.join(homedir(), '.claude');
 }
 
 export const UsageDataSchema = v.object({
