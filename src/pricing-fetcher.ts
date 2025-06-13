@@ -1,3 +1,4 @@
+import { readFile } from 'node:fs/promises';
 import * as v from 'valibot';
 import { logger } from './logger.ts';
 
@@ -10,13 +11,25 @@ const ModelPricingSchema = v.object({
 
 export type ModelPricing = v.InferOutput<typeof ModelPricingSchema>;
 
+export class PricingSourceError extends Error {
+	constructor(message: string) {
+		super(message);
+		this.name = 'PricingSourceError';
+	}
+}
+
 const LITELLM_PRICING_URL
 	= 'https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json';
 
 export class PricingFetcher implements Disposable {
 	private cachedPricing: Map<string, ModelPricing> | null = null;
+	private pricingSource: string;
+	private isCustomSource: boolean;
 
-	constructor() {}
+	constructor(pricingSource?: string) {
+		this.pricingSource = pricingSource ?? LITELLM_PRICING_URL;
+		this.isCustomSource = pricingSource != null;
+	}
 
 	[Symbol.dispose](): void {
 		this.clearCache();
@@ -32,13 +45,23 @@ export class PricingFetcher implements Disposable {
 		}
 
 		try {
-			logger.warn('Fetching latest model pricing from LiteLLM...');
-			const response = await fetch(LITELLM_PRICING_URL);
-			if (!response.ok) {
-				throw new Error(`Failed to fetch pricing data: ${response.statusText}`);
+			let data: unknown;
+			const isUrl = this.pricingSource.startsWith('https://');
+
+			if (isUrl) {
+				logger.warn(`Fetching model pricing from URL: ${this.pricingSource}`);
+				const response = await fetch(this.pricingSource);
+				if (!response.ok) {
+					throw new Error(`Failed to fetch pricing data: ${response.statusText}`);
+				}
+				data = await response.json();
+			}
+			else {
+				logger.warn(`Loading model pricing from local file: ${this.pricingSource}`);
+				const fileContent = await readFile(this.pricingSource, 'utf-8');
+				data = JSON.parse(fileContent) as unknown;
 			}
 
-			const data = await response.json();
 			const pricing = new Map<string, ModelPricing>();
 
 			for (const [modelName, modelData] of Object.entries(
@@ -54,12 +77,20 @@ export class PricingFetcher implements Disposable {
 			}
 
 			this.cachedPricing = pricing;
-			logger.info(`Loaded pricing for ${pricing.size} models`);
+			logger.info(`Loaded pricing for ${pricing.size} models from ${isUrl ? 'URL' : 'local file'}`);
 			return pricing;
 		}
 		catch (error) {
 			logger.error('Failed to fetch model pricing:', error);
-			throw new Error('Could not fetch model pricing data');
+
+			// For custom sources, throw the error to fail gracefully
+			if (this.isCustomSource) {
+				throw new PricingSourceError(`Failed to load custom pricing data from '${this.pricingSource}': ${error instanceof Error ? error.message : String(error)}`);
+			}
+
+			// For default LiteLLM URL, cache empty map to prevent retrying
+			this.cachedPricing = new Map<string, ModelPricing>();
+			return this.cachedPricing;
 		}
 	}
 

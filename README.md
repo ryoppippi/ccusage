@@ -221,6 +221,7 @@ All commands support the following options:
 - `-m, --mode <mode>`: Cost calculation mode: `auto` (default), `calculate`, or `display`
 - `-o, --order <order>`: Sort order: `desc` (newest first, default) or `asc` (oldest first).
 - `-b, --breakdown`: Show per-model cost breakdown (splits usage by Opus, Sonnet, etc.)
+- `-f, --fetch <source>`: Custom URL or local file path for model pricing data (supports HTTPS URLs and local filesystem paths)
 - `-d, --debug`: Show pricing mismatch information for debugging
 - `--debug-samples <number>`: Number of sample discrepancies to show in debug output (default: 5)
 - `-h, --help`: Display help message
@@ -231,6 +232,41 @@ All commands support the following options:
 - **`auto`** (default): Uses pre-calculated `costUSD` values when available, falls back to calculating costs from token counts using model pricing
 - **`calculate`**: Always calculates costs from token counts using model pricing, ignores any pre-calculated `costUSD` values
 - **`display`**: Always uses pre-calculated `costUSD` values only, shows $0.00 for entries without pre-calculated costs
+
+#### Custom Pricing Data Source
+
+The `--fetch` option allows you to specify a custom source for model pricing data instead of using the default LiteLLM pricing database:
+
+- **HTTPS URLs**: Use `--fetch https://example.com/pricing.json` to fetch pricing data from a remote endpoint
+- **Local files**: Use `--fetch /path/to/pricing.json` to load pricing data from a local JSON file
+
+The pricing data should be in the same format as LiteLLM's pricing database:
+
+```json
+{
+	"model-name": {
+		"input_cost_per_token": 0.00001,
+		"output_cost_per_token": 0.00003,
+		"cache_creation_input_token_cost": 0.000015,
+		"cache_read_input_token_cost": 0.0000015
+	}
+}
+```
+
+**Examples:**
+
+```bash
+# Use a custom pricing file
+ccusage daily --fetch ./custom-pricing.json --mode calculate
+
+# Fetch pricing from a custom URL
+ccusage session --fetch https://my-company.com/api/pricing --mode calculate
+
+# Works with all commands
+ccusage monthly --since 20240101 --fetch ./pricing.json
+```
+
+**Note:** The `--fetch` option only affects cost calculations when using `calculate` or `auto` modes. In `display` mode, only pre-calculated `costUSD` values are used.
 
 ### MCP (Model Context Protocol) Support
 

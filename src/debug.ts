@@ -52,6 +52,8 @@ type MismatchStats = {
 
 export async function detectMismatches(
 	claudePath?: string,
+	fetch?: string,
+	pricingFetcher?: PricingFetcher,
 ): Promise<MismatchStats> {
 	const claudeDir = claudePath ?? path.join(homedir(), '.claude', 'projects');
 	const files = await glob(['**/*.jsonl'], {
@@ -59,8 +61,8 @@ export async function detectMismatches(
 		absolute: true,
 	});
 
-	// Use PricingFetcher with using statement for automatic cleanup
-	using fetcher = new PricingFetcher();
+	// Use provided PricingFetcher or create new one with using statement for automatic cleanup
+	using fetcher = pricingFetcher ?? new PricingFetcher(fetch);
 
 	const stats: MismatchStats = {
 		totalEntries: 0,

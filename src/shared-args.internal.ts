@@ -70,6 +70,11 @@ export const sharedArgs = {
 		description: 'Show per-model cost breakdown',
 		default: false,
 	},
+	fetch: {
+		type: 'string',
+		short: 'f',
+		description: 'Custom URL or local file path for model pricing data (supports HTTPS URLs and local filesystem paths)',
+	},
 } as const satisfies Args;
 
 export const sharedCommandConfig = {
