@@ -9,6 +9,7 @@ type TokenData = {
 
 type TokenTotals = TokenData & {
 	totalCost: number;
+	totalCalls: number;
 };
 
 type TotalsObject = TokenTotals & {
@@ -25,6 +26,7 @@ export function calculateTotals(
 			cacheCreationTokens: acc.cacheCreationTokens + item.cacheCreationTokens,
 			cacheReadTokens: acc.cacheReadTokens + item.cacheReadTokens,
 			totalCost: acc.totalCost + item.totalCost,
+			totalCalls: acc.totalCalls + item.totalCalls,
 		}),
 		{
 			inputTokens: 0,
@@ -32,6 +34,7 @@ export function calculateTotals(
 			cacheCreationTokens: 0,
 			cacheReadTokens: 0,
 			totalCost: 0,
+			totalCalls: 0,
 		},
 	);
 }
@@ -53,5 +56,6 @@ export function createTotalsObject(totals: TokenTotals): TotalsObject {
 		cacheReadTokens: totals.cacheReadTokens,
 		totalTokens: getTotalTokens(totals),
 		totalCost: totals.totalCost,
+		totalCalls: totals.totalCalls,
 	};
 }

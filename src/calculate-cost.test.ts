@@ -16,6 +16,7 @@ describe('Token aggregation utilities', () => {
 				cacheCreationTokens: 25,
 				cacheReadTokens: 10,
 				totalCost: 0.01,
+				totalCalls: 5,
 				modelsUsed: ['claude-sonnet-4-20250514'],
 				modelBreakdowns: [],
 			},
@@ -26,6 +27,7 @@ describe('Token aggregation utilities', () => {
 				cacheCreationTokens: 50,
 				cacheReadTokens: 20,
 				totalCost: 0.02,
+				totalCalls: 3,
 				modelsUsed: ['claude-opus-4-20250514'],
 				modelBreakdowns: [],
 			},
@@ -37,6 +39,7 @@ describe('Token aggregation utilities', () => {
 		expect(totals.cacheCreationTokens).toBe(75);
 		expect(totals.cacheReadTokens).toBe(30);
 		expect(totals.totalCost).toBeCloseTo(0.03);
+		expect(totals.totalCalls).toBe(8);
 	});
 
 	test('calculateTotals should aggregate session usage data', () => {
@@ -49,6 +52,7 @@ describe('Token aggregation utilities', () => {
 				cacheCreationTokens: 25,
 				cacheReadTokens: 10,
 				totalCost: 0.01,
+				totalCalls: 5,
 				lastActivity: '2024-01-01',
 				versions: ['1.0.3'],
 				modelsUsed: ['claude-sonnet-4-20250514'],
@@ -62,6 +66,7 @@ describe('Token aggregation utilities', () => {
 				cacheCreationTokens: 50,
 				cacheReadTokens: 20,
 				totalCost: 0.02,
+				totalCalls: 3,
 				lastActivity: '2024-01-02',
 				versions: ['1.0.3', '1.0.4'],
 				modelsUsed: ['claude-opus-4-20250514'],
@@ -75,6 +80,7 @@ describe('Token aggregation utilities', () => {
 		expect(totals.cacheCreationTokens).toBe(75);
 		expect(totals.cacheReadTokens).toBe(30);
 		expect(totals.totalCost).toBeCloseTo(0.03);
+		expect(totals.totalCalls).toBe(8);
 	});
 
 	test('getTotalTokens should sum all token types', () => {
@@ -108,6 +114,7 @@ describe('Token aggregation utilities', () => {
 			cacheCreationTokens: 25,
 			cacheReadTokens: 10,
 			totalCost: 0.01,
+			totalCalls: 5,
 		};
 
 		const totalsObject = createTotalsObject(totals);
@@ -118,6 +125,7 @@ describe('Token aggregation utilities', () => {
 			cacheReadTokens: 10,
 			totalTokens: 185,
 			totalCost: 0.01,
+			totalCalls: 5,
 		});
 	});
 
@@ -129,6 +137,7 @@ describe('Token aggregation utilities', () => {
 			cacheCreationTokens: 0,
 			cacheReadTokens: 0,
 			totalCost: 0,
+			totalCalls: 0,
 		});
 	});
 });

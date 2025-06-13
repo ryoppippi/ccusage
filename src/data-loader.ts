@@ -42,6 +42,7 @@ export const ModelBreakdownSchema = v.object({
 	cacheCreationTokens: v.number(),
 	cacheReadTokens: v.number(),
 	cost: v.number(),
+	calls: v.number(),
 });
 
 export type ModelBreakdown = v.InferOutput<typeof ModelBreakdownSchema>;
@@ -56,6 +57,7 @@ export const DailyUsageSchema = v.object({
 	cacheCreationTokens: v.number(),
 	cacheReadTokens: v.number(),
 	totalCost: v.number(),
+	totalCalls: v.number(),
 	modelsUsed: v.array(v.string()),
 	modelBreakdowns: v.array(ModelBreakdownSchema),
 });
@@ -70,6 +72,7 @@ export const SessionUsageSchema = v.object({
 	cacheCreationTokens: v.number(),
 	cacheReadTokens: v.number(),
 	totalCost: v.number(),
+	totalCalls: v.number(),
 	lastActivity: v.string(),
 	versions: v.array(v.string()), // List of unique versions used in this session
 	modelsUsed: v.array(v.string()),
@@ -88,6 +91,7 @@ export const MonthlyUsageSchema = v.object({
 	cacheCreationTokens: v.number(),
 	cacheReadTokens: v.number(),
 	totalCost: v.number(),
+	totalCalls: v.number(),
 	modelsUsed: v.array(v.string()),
 	modelBreakdowns: v.array(ModelBreakdownSchema),
 });
@@ -347,6 +351,7 @@ export async function loadDailyUsageData(
 				cacheCreationTokens: number;
 				cacheReadTokens: number;
 				cost: number;
+				calls: number;
 			}>();
 
 			for (const entry of entries) {
@@ -361,6 +366,7 @@ export async function loadDailyUsageData(
 					cacheCreationTokens: 0,
 					cacheReadTokens: 0,
 					cost: 0,
+					calls: 0,
 				};
 
 				modelAggregates.set(modelName, {
@@ -369,6 +375,7 @@ export async function loadDailyUsageData(
 					cacheCreationTokens: existing.cacheCreationTokens + (entry.data.message.usage.cache_creation_input_tokens ?? 0),
 					cacheReadTokens: existing.cacheReadTokens + (entry.data.message.usage.cache_read_input_tokens ?? 0),
 					cost: existing.cost + entry.cost,
+					calls: existing.calls + 1,
 				});
 			}
 
@@ -394,6 +401,7 @@ export async function loadDailyUsageData(
 						acc.cacheReadTokens
 						+ (entry.data.message.usage.cache_read_input_tokens ?? 0),
 					totalCost: acc.totalCost + entry.cost,
+					totalCalls: acc.totalCalls + 1,
 				}),
 				{
 					inputTokens: 0,
@@ -401,6 +409,7 @@ export async function loadDailyUsageData(
 					cacheCreationTokens: 0,
 					cacheReadTokens: 0,
 					totalCost: 0,
+					totalCalls: 0,
 				},
 			);
 
@@ -561,6 +570,7 @@ export async function loadSessionData(
 				cacheCreationTokens: number;
 				cacheReadTokens: number;
 				cost: number;
+				calls: number;
 			}>();
 
 			for (const entry of entries) {
@@ -575,6 +585,7 @@ export async function loadSessionData(
 					cacheCreationTokens: 0,
 					cacheReadTokens: 0,
 					cost: 0,
+					calls: 0,
 				};
 
 				modelAggregates.set(modelName, {
@@ -583,6 +594,7 @@ export async function loadSessionData(
 					cacheCreationTokens: existing.cacheCreationTokens + (entry.data.message.usage.cache_creation_input_tokens ?? 0),
 					cacheReadTokens: existing.cacheReadTokens + (entry.data.message.usage.cache_read_input_tokens ?? 0),
 					cost: existing.cost + entry.cost,
+					calls: existing.calls + 1,
 				});
 			}
 
@@ -608,6 +620,7 @@ export async function loadSessionData(
 						acc.cacheReadTokens
 						+ (entry.data.message.usage.cache_read_input_tokens ?? 0),
 					totalCost: acc.totalCost + entry.cost,
+					totalCalls: acc.totalCalls + 1,
 				}),
 				{
 					inputTokens: 0,
@@ -615,6 +628,7 @@ export async function loadSessionData(
 					cacheCreationTokens: 0,
 					cacheReadTokens: 0,
 					totalCost: 0,
+					totalCalls: 0,
 				},
 			);
 
@@ -671,6 +685,7 @@ export async function loadMonthlyUsageData(
 			cacheCreationTokens: number;
 			cacheReadTokens: number;
 			cost: number;
+			calls: number;
 		}>();
 
 		for (const daily of dailyEntries) {
@@ -685,6 +700,7 @@ export async function loadMonthlyUsageData(
 					cacheCreationTokens: 0,
 					cacheReadTokens: 0,
 					cost: 0,
+					calls: 0,
 				};
 
 				modelAggregates.set(breakdown.modelName, {
@@ -693,6 +709,7 @@ export async function loadMonthlyUsageData(
 					cacheCreationTokens: existing.cacheCreationTokens + breakdown.cacheCreationTokens,
 					cacheReadTokens: existing.cacheReadTokens + breakdown.cacheReadTokens,
 					cost: existing.cost + breakdown.cost,
+					calls: existing.calls + breakdown.calls,
 				});
 			}
 		}
@@ -722,6 +739,7 @@ export async function loadMonthlyUsageData(
 		let totalCacheCreationTokens = 0;
 		let totalCacheReadTokens = 0;
 		let totalCost = 0;
+		let totalCalls = 0;
 
 		for (const daily of dailyEntries) {
 			totalInputTokens += daily.inputTokens;
@@ -729,6 +747,7 @@ export async function loadMonthlyUsageData(
 			totalCacheCreationTokens += daily.cacheCreationTokens;
 			totalCacheReadTokens += daily.cacheReadTokens;
 			totalCost += daily.totalCost;
+			totalCalls += daily.totalCalls;
 		}
 		const monthlyUsage: MonthlyUsage = {
 			month,
@@ -737,6 +756,7 @@ export async function loadMonthlyUsageData(
 			cacheCreationTokens: totalCacheCreationTokens,
 			cacheReadTokens: totalCacheReadTokens,
 			totalCost,
+			totalCalls,
 			modelsUsed: Array.from(modelsSet),
 			modelBreakdowns,
 		};
