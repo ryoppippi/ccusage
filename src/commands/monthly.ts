@@ -41,6 +41,7 @@ export const monthlyCommand = define({
 						cacheReadTokens: 0,
 						totalTokens: 0,
 						totalCost: 0,
+						totalCalls: 0,
 					},
 				};
 				log(JSON.stringify(emptyOutput, null, 2));
@@ -71,6 +72,7 @@ export const monthlyCommand = define({
 					cacheReadTokens: data.cacheReadTokens,
 					totalTokens: getTotalTokens(data),
 					totalCost: data.totalCost,
+					totalCalls: data.totalCalls,
 					modelsUsed: data.modelsUsed,
 					modelBreakdowns: data.modelBreakdowns,
 				})),
@@ -87,6 +89,7 @@ export const monthlyCommand = define({
 				head: [
 					'Month',
 					'Models',
+					'Calls',
 					'Input',
 					'Output',
 					'Cache Create',
@@ -106,6 +109,7 @@ export const monthlyCommand = define({
 					'right',
 					'right',
 					'right',
+					'right',
 				],
 			});
 
@@ -115,6 +119,7 @@ export const monthlyCommand = define({
 				table.push([
 					data.month,
 					formatModelsDisplay(data.modelsUsed),
+					formatNumber(data.totalCalls),
 					formatNumber(data.inputTokens),
 					formatNumber(data.outputTokens),
 					formatNumber(data.cacheCreationTokens),
@@ -138,6 +143,7 @@ export const monthlyCommand = define({
 				'─'.repeat(12),
 				'─'.repeat(12),
 				'─'.repeat(12),
+				'─'.repeat(12),
 				'─'.repeat(10),
 			]);
 
@@ -145,6 +151,7 @@ export const monthlyCommand = define({
 			table.push([
 				pc.yellow('Total'),
 				'', // Empty for Models column in totals
+				pc.yellow(formatNumber(totals.totalCalls)),
 				pc.yellow(formatNumber(totals.inputTokens)),
 				pc.yellow(formatNumber(totals.outputTokens)),
 				pc.yellow(formatNumber(totals.cacheCreationTokens)),

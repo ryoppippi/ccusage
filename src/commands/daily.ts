@@ -60,6 +60,7 @@ export const dailyCommand = define({
 					cacheReadTokens: data.cacheReadTokens,
 					totalTokens: getTotalTokens(data),
 					totalCost: data.totalCost,
+					totalCalls: data.totalCalls,
 					modelsUsed: data.modelsUsed,
 					modelBreakdowns: data.modelBreakdowns,
 				})),
@@ -76,6 +77,7 @@ export const dailyCommand = define({
 				head: [
 					'Date',
 					'Models',
+					'Calls',
 					'Input',
 					'Output',
 					'Cache Create',
@@ -95,6 +97,7 @@ export const dailyCommand = define({
 					'right',
 					'right',
 					'right',
+					'right',
 				],
 			});
 
@@ -104,6 +107,7 @@ export const dailyCommand = define({
 				table.push([
 					data.date,
 					formatModelsDisplay(data.modelsUsed),
+					formatNumber(data.totalCalls),
 					formatNumber(data.inputTokens),
 					formatNumber(data.outputTokens),
 					formatNumber(data.cacheCreationTokens),
@@ -127,6 +131,7 @@ export const dailyCommand = define({
 				'─'.repeat(12),
 				'─'.repeat(12),
 				'─'.repeat(12),
+				'─'.repeat(12),
 				'─'.repeat(10),
 			]);
 
@@ -134,6 +139,7 @@ export const dailyCommand = define({
 			table.push([
 				pc.yellow('Total'),
 				'', // Empty for Models column in totals
+				pc.yellow(formatNumber(totals.totalCalls)),
 				pc.yellow(formatNumber(totals.inputTokens)),
 				pc.yellow(formatNumber(totals.outputTokens)),
 				pc.yellow(formatNumber(totals.cacheCreationTokens)),

@@ -364,6 +364,7 @@ describe('loadMonthlyUsageData', () => {
 			cacheCreationTokens: 0,
 			cacheReadTokens: 0,
 			totalCost: 0.015,
+			totalCalls: 1,
 			modelsUsed: [],
 			modelBreakdowns: [{
 				modelName: 'unknown',
@@ -372,6 +373,7 @@ describe('loadMonthlyUsageData', () => {
 				cacheCreationTokens: 0,
 				cacheReadTokens: 0,
 				cost: 0.015,
+				calls: 1,
 			}],
 		});
 		expect(result[1]).toEqual({
@@ -381,6 +383,7 @@ describe('loadMonthlyUsageData', () => {
 			cacheCreationTokens: 0,
 			cacheReadTokens: 0,
 			totalCost: 0.03,
+			totalCalls: 2,
 			modelsUsed: [],
 			modelBreakdowns: [{
 				modelName: 'unknown',
@@ -389,6 +392,7 @@ describe('loadMonthlyUsageData', () => {
 				cacheCreationTokens: 0,
 				cacheReadTokens: 0,
 				cost: 0.03,
+				calls: 2,
 			}],
 		});
 	});
@@ -436,6 +440,7 @@ describe('loadMonthlyUsageData', () => {
 			cacheCreationTokens: 0,
 			cacheReadTokens: 0,
 			totalCost: 0.03,
+			totalCalls: 2,
 			modelsUsed: [],
 			modelBreakdowns: [{
 				modelName: 'unknown',
@@ -444,6 +449,7 @@ describe('loadMonthlyUsageData', () => {
 				cacheCreationTokens: 0,
 				cacheReadTokens: 0,
 				cost: 0.03,
+				calls: 2,
 			}],
 		});
 	});
