@@ -1,7 +1,7 @@
 import type { Args } from 'gunshi';
 import type { CostMode, SortOrder } from './types.internal.ts';
 import * as v from 'valibot';
-import { getDefaultClaudePath } from './data-loader';
+import { getDefaultClaudePath } from './data-loader.ts';
 import { CostModes, dateSchema, SortOrders } from './types.internal.ts';
 
 function parseDateArg(value: string): string {
