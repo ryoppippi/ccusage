@@ -34,15 +34,17 @@ describe('getDefaultClaudePath', () => {
 	test('returns CLAUDE_CONFIG_DIR when environment variable is set', () => {
 		const originalEnv = process.env.CLAUDE_CONFIG_DIR;
 		const testPath = '/custom/claude/path';
-		
+
 		try {
 			process.env.CLAUDE_CONFIG_DIR = testPath;
 			expect(getDefaultClaudePath()).toBe(testPath);
-		} finally {
+		}
+		finally {
 			// Restore original value
 			if (originalEnv !== undefined) {
 				process.env.CLAUDE_CONFIG_DIR = originalEnv;
-			} else {
+			}
+			else {
 				delete process.env.CLAUDE_CONFIG_DIR;
 			}
 		}
@@ -50,13 +52,14 @@ describe('getDefaultClaudePath', () => {
 
 	test('returns default path when CLAUDE_CONFIG_DIR is not set', () => {
 		const originalEnv = process.env.CLAUDE_CONFIG_DIR;
-		
+
 		try {
 			delete process.env.CLAUDE_CONFIG_DIR;
 			const result = getDefaultClaudePath();
 			expect(result).toContain('.claude');
 			expect(result).not.toBe('.claude'); // Should be full path with home directory
-		} finally {
+		}
+		finally {
 			// Restore original value
 			if (originalEnv !== undefined) {
 				process.env.CLAUDE_CONFIG_DIR = originalEnv;
@@ -66,22 +69,24 @@ describe('getDefaultClaudePath', () => {
 
 	test('returns default path when CLAUDE_CONFIG_DIR is empty or whitespace', () => {
 		const originalEnv = process.env.CLAUDE_CONFIG_DIR;
-		
+
 		try {
 			// Test empty string
 			process.env.CLAUDE_CONFIG_DIR = '';
 			let result = getDefaultClaudePath();
 			expect(result).toContain('.claude');
-			
+
 			// Test whitespace only
 			process.env.CLAUDE_CONFIG_DIR = '   ';
 			result = getDefaultClaudePath();
 			expect(result).toContain('.claude');
-		} finally {
+		}
+		finally {
 			// Restore original value
 			if (originalEnv !== undefined) {
 				process.env.CLAUDE_CONFIG_DIR = originalEnv;
-			} else {
+			}
+			else {
 				delete process.env.CLAUDE_CONFIG_DIR;
 			}
 		}
