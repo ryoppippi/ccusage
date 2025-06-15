@@ -18,7 +18,7 @@
         "eslint-plugin-format": "^1.0.1",
         "fast-sort": "^3.4.1",
         "fastmcp": "^2.2.4",
-        "fs-fixture": "^2.7.1",
+        "fs-fixture": "^2.8.0",
         "gunshi": "^0.26.3",
         "lint-staged": "^16.1.0",
         "picocolors": "^1.1.1",
@@ -547,7 +547,7 @@
 
     "fresh": ["fresh@2.0.0", "", {}, "sha512-Rx/WycZ60HOaqLKAi6cHRKKI7zxWbJ31MhntmtwMoaTeF7XFH9hhBp8vITaMidfljRQ6eYWCKkaTK+ykVJHP2A=="],
 
-    "fs-fixture": ["fs-fixture@2.7.1", "", {}, "sha512-fh9PEM+vCFvO8zPztFRW0c8kcG67AfDZ1aMfMO9i2dKFd2WpeNtmZyTDjfmB7AyPRWDPo+NcBj5Ng2llTS7SFA=="],
+    "fs-fixture": ["fs-fixture@2.8.0", "", {}, "sha512-n0snQy+9fir+ce1tClHBj+03fglCcYap2/n6XWQ/Z6YmYy42tztpjccwRcp1MOqs0fegDZPEHnRXipNlryVU7w=="],
 
     "function-bind": ["function-bind@1.1.2", "", {}, "sha512-7XHNxH7qX9xG5mIwxkhumTox/MIRNcOgDrxWsMt2pAr23WHp6MrRlN7FBSFpCpr+oVO0F744iUgR82nJMfG2SA=="],
 
