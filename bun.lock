@@ -3,6 +3,9 @@
   "workspaces": {
     "": {
       "name": "ccusage",
+      "dependencies": {
+        "undici": "^7.10.0",
+      },
       "devDependencies": {
         "@core/errorutil": "npm:@jsr/core__errorutil",
         "@oxc-project/runtime": "^0.72.3",
