@@ -2,6 +2,7 @@ import type { CostMode, SortOrder } from './types.internal.ts';
 import { readFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import path from 'node:path';
+import process from 'node:process';
 import { unreachable } from '@core/errorutil';
 import { sort } from 'fast-sort';
 import { glob } from 'tinyglobby';
@@ -13,7 +14,8 @@ import {
 import { groupBy } from './utils.internal.ts';
 
 export function getDefaultClaudePath(): string {
-	return path.join(homedir(), '.claude');
+	const envPath = process.env.CLAUDE_CONFIG_DIR;
+	return (envPath != null && envPath.trim() !== '') ? envPath : path.join(homedir(), '.claude');
 }
 
 export const UsageDataSchema = v.object({
