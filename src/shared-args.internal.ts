@@ -63,6 +63,13 @@ export const sharedArgs = {
 		description: 'Show per-model cost breakdown',
 		default: false,
 	},
+	offline: {
+		type: 'boolean',
+		negatable: true,
+		short: 'O',
+		description: 'Use cached data instead of fetching from API',
+		default: false,
+	},
 } as const satisfies Args;
 
 export const sharedCommandConfig = {
