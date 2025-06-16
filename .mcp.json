@@ -3,6 +3,16 @@
 		"context7": {
 			"type": "sse",
 			"url": "https://mcp.context7.com/sse"
+		},
+		"gunshi-doc": {
+			"command": "bun",
+			"args": [
+				"x",
+				"sitemcp",
+				"https://gunshi.dev/",
+				"--concurrency 10",
+				"--no-cache"
+			]
 		}
 	}
 }
