@@ -60,26 +60,14 @@ describe('getDefaultClaudePath', () => {
 		expect(getDefaultClaudePath()).toBe(fixture.path);
 	});
 
-	test('throws error when CLAUDE_CONFIG_DIR is not set and default path does not exist', () => {
+	test('returns default path when CLAUDE_CONFIG_DIR is not set', () => {
 		// Ensure CLAUDE_CONFIG_DIR is not set
 		delete process.env.CLAUDE_CONFIG_DIR;
 
-		// Test that it throws an error when default path doesn't exist
-		// This test only works in environments where ~/.claude doesn't exist (like CI)
-		// In local development, ~/.claude might exist, so we'll check both cases
-		const homeClaudePath = join(homedir(), '.claude');
-
-		try {
-			const actualPath = getDefaultClaudePath();
-			// If we get here, the directory exists
-			expect(actualPath).toBe(homeClaudePath);
-		}
-		catch (error) {
-			// If an error is thrown, it should be about the directory not existing
-			expect(error).toBeInstanceOf(Error);
-			expect((error as Error).message).toContain('Claude data directory does not exist');
-			expect((error as Error).message).toContain(homeClaudePath);
-		}
+		// Test that it returns the default path (which ends with .claude)
+		const actualPath = getDefaultClaudePath();
+		expect(actualPath).toMatch(/\.claude$/);
+		expect(actualPath).toContain(homedir());
 	});
 
 	test('returns default path with trimmed CLAUDE_CONFIG_DIR', async () => {

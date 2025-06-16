@@ -16,6 +16,8 @@ jobs:
       - run: bun install --frozen-lockfile
       - run: bun lint
       - run: bun typecheck
+      - name: Create default Claude directory for tests
+        run: mkdir -p $HOME/.claude
       - run: bun test
 
   npm-publish-dry-run-and-upload-pkg-pr-now:
