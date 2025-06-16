@@ -61,6 +61,7 @@
 		"fs-fixture": "^2.8.0",
 		"gunshi": "^0.26.3",
 		"lint-staged": "^16.1.0",
+		"path-type": "^6.0.0",
 		"picocolors": "^1.1.1",
 		"publint": "^0.3.12",
 		"simple-git-hooks": "^2.13.0",
