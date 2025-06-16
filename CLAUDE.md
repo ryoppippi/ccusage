@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 **Testing and Quality:**
 
 - `bun test` - Run all tests
-- `bun run lint` - Lint code with ESLint
+- Lint code using ESLint MCP server (available via Claude Code tools)
 - `bun run format` - Format code with ESLint (writes changes)
 - `bun typecheck` - Type check with TypeScript
 
@@ -63,6 +63,12 @@ This is a CLI tool that analyzes Claude Code usage data from local JSONL files s
 - CLI built with `gunshi` framework, tables with `cli-table3`
 - **LiteLLM Integration**: Cost calculations depend on LiteLLM's pricing database for model pricing data
 
+**MCP Servers Available:**
+
+- **ESLint MCP**: Lint TypeScript/JavaScript files directly through Claude Code tools
+- **Context7 MCP**: Look up documentation for libraries and frameworks
+- **Gunshi MCP**: Access gunshi.dev documentation and examples
+
 ## Code Style Notes
 
 - Uses ESLint for linting and formatting with tab indentation and double quotes
@@ -70,6 +76,16 @@ This is a CLI tool that analyzes Claude Code usage data from local JSONL files s
 - No console.log allowed except where explicitly disabled with eslint-disable
 - Error handling: silently skips malformed JSONL lines during parsing
 - File paths always use Node.js path utilities for cross-platform compatibility
+
+**Post-Code Change Workflow:**
+
+After making any code changes, ALWAYS run these commands in parallel:
+
+- `bun run format` - Auto-fix and format code with ESLint (includes linting)
+- `bun typecheck` - Type check with TypeScript
+- `bun test` - Run all tests
+
+This ensures code quality and catches issues immediately after changes.
 
 ## Claude Models and Testing
 
@@ -101,7 +117,8 @@ This is a CLI tool that analyzes Claude Code usage data from local JSONL files s
 
 # Tips for Claude Code
 
-- [gunshi](https://gunshi.dev/llms.txt)
+- [gunshi](https://gunshi.dev/llms.txt) - Documentation available via Gunshi MCP server
+- Context7 MCP server available for library documentation lookup
 - do not use console.log. use logger.ts instead
 
 # important-instruction-reminders
