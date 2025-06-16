@@ -1,0 +1,27 @@
+{
+	"mcpServers": {
+		"context7": {
+			"type": "sse",
+			"url": "https://mcp.context7.com/sse"
+		},
+		"gunshi-doc": {
+			"command": "bun",
+			"args": [
+				"x",
+				"sitemcp",
+				"https://gunshi.dev/",
+				"--concurrency 10",
+				"--no-cache"
+			]
+		},
+		"eslint-mcp": {
+			"type": "stdio",
+			"command": "bun",
+			"args": [
+				"x",
+				"@eslint/mcp@latest"
+			],
+			"env": {}
+		}
+	}
+}
