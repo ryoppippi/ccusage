@@ -1,8 +1,12 @@
-import { describe, expect, test } from 'bun:test';
+import { homedir } from 'node:os';
+import { join } from 'node:path';
+import process from 'node:process';
+import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { createFixture } from 'fs-fixture';
 import {
 	calculateCostForEntry,
 	formatDate,
+	getDefaultClaudePath,
 	loadDailyUsageData,
 	loadMonthlyUsageData,
 	loadSessionData,
@@ -26,6 +30,74 @@ describe('formatDate', () => {
 	test('pads single digit months and days', () => {
 		expect(formatDate('2024-01-05T00:00:00Z')).toBe('2024-01-05');
 		expect(formatDate('2024-10-01T00:00:00Z')).toBe('2024-10-01');
+	});
+});
+
+describe('getDefaultClaudePath', () => {
+	const originalEnv = process.env.CLAUDE_CONFIG_DIR;
+
+	beforeEach(() => {
+		// Clean up env var before each test
+		delete process.env.CLAUDE_CONFIG_DIR;
+	});
+
+	afterEach(() => {
+		// Restore original environment
+		if (originalEnv != null) {
+			process.env.CLAUDE_CONFIG_DIR = originalEnv;
+		}
+		else {
+			delete process.env.CLAUDE_CONFIG_DIR;
+		}
+	});
+
+	test('returns CLAUDE_CONFIG_DIR when environment variable is set', async () => {
+		await using fixture = await createFixture({
+			claude: {},
+		});
+		process.env.CLAUDE_CONFIG_DIR = fixture.path;
+
+		expect(getDefaultClaudePath()).toBe(fixture.path);
+	});
+
+	test('returns default path when CLAUDE_CONFIG_DIR is not set', () => {
+		// Ensure CLAUDE_CONFIG_DIR is not set
+		delete process.env.CLAUDE_CONFIG_DIR;
+
+		// Test that it returns the default path (which ends with .claude)
+		const actualPath = getDefaultClaudePath();
+		expect(actualPath).toMatch(/\.claude$/);
+		expect(actualPath).toContain(homedir());
+	});
+
+	test('returns default path with trimmed CLAUDE_CONFIG_DIR', async () => {
+		await using fixture = await createFixture({
+			claude: {},
+		});
+		// Test with extra spaces
+		process.env.CLAUDE_CONFIG_DIR = `  ${fixture.path}  `;
+
+		expect(getDefaultClaudePath()).toBe(fixture.path);
+	});
+
+	test('throws an error when CLAUDE_CONFIG_DIR is not a directory', async () => {
+		await using fixture = await createFixture();
+		process.env.CLAUDE_CONFIG_DIR = join(fixture.path, 'not-a-directory');
+
+		expect(() => getDefaultClaudePath()).toThrow(/Claude data directory does not exist/);
+	});
+
+	test('throws an error when CLAUDE_CONFIG_DIR does not exist', async () => {
+		process.env.CLAUDE_CONFIG_DIR = '/nonexistent/path/that/does/not/exist';
+
+		expect(() => getDefaultClaudePath()).toThrow(/Claude data directory does not exist/);
+	});
+
+	test('throws an error when default path does not exist', () => {
+		// Set to a non-existent path
+		process.env.CLAUDE_CONFIG_DIR = '/nonexistent/path/.claude';
+
+		expect(() => getDefaultClaudePath()).toThrow(/Claude data directory does not exist/);
 	});
 });
 
