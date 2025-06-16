@@ -13,6 +13,8 @@ import {
 } from './pricing-fetcher.ts';
 import { groupBy } from './utils.internal.ts';
 
+const DEFAULT_CLAUDE_CODE_PATH = path.join(homedir(), '.claude');
+
 export function getDefaultClaudePath(): string {
 	const envPath = process.env.CLAUDE_CONFIG_DIR;
 	return (envPath != null && envPath.trim() !== '') ? envPath : path.join(homedir(), '.claude');
