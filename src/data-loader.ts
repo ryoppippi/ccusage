@@ -5,6 +5,7 @@ import path from 'node:path';
 import process from 'node:process';
 import { unreachable } from '@core/errorutil';
 import { sort } from 'fast-sort';
+import { isDirectorySync } from 'path-type';
 import { glob } from 'tinyglobby';
 import * as v from 'valibot';
 import { logger } from './logger.ts';
@@ -15,9 +16,16 @@ import { groupBy } from './utils.internal.ts';
 
 const DEFAULT_CLAUDE_CODE_PATH = path.join(homedir(), '.claude');
 
+/**
+ * Default path for Claude data directory
+ * Uses environment variable CLAUDE_CONFIG_DIR if set, otherwise defaults to ~/.claude
+ */
 export function getDefaultClaudePath(): string {
-	const envPath = process.env.CLAUDE_CONFIG_DIR;
-	return (envPath != null && envPath.trim() !== '') ? envPath : path.join(homedir(), '.claude');
+	const envClaudeCodePath = process.env.CLAUDE_CONFIG_DIR?.trim() ?? '';
+	if (isDirectorySync(envClaudeCodePath)) {
+		return envClaudeCodePath;
+	}
+	return DEFAULT_CLAUDE_CODE_PATH;
 }
 
 export const UsageDataSchema = v.object({
