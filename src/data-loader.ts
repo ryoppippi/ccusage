@@ -21,11 +21,15 @@ const DEFAULT_CLAUDE_CODE_PATH = path.join(homedir(), '.claude');
  * Uses environment variable CLAUDE_CONFIG_DIR if set, otherwise defaults to ~/.claude
  */
 export function getDefaultClaudePath(): string {
-	const envClaudeCodePath = process.env.CLAUDE_CONFIG_DIR?.trim() ?? '';
-	if (isDirectorySync(envClaudeCodePath)) {
-		return envClaudeCodePath;
+	const envClaudeCodePath = process.env.CLAUDE_CONFIG_DIR?.trim() ?? DEFAULT_CLAUDE_CODE_PATH;
+	if (!isDirectorySync(envClaudeCodePath)) {
+		throw new Error(
+			` Claude data directory does not exist: ${envClaudeCodePath}. 
+Please set CLAUDE_CONFIG_DIR to a valid path, or ensure ${DEFAULT_CLAUDE_CODE_PATH} exists.
+			`.trim(),
+		);
 	}
-	return DEFAULT_CLAUDE_CODE_PATH;
+	return envClaudeCodePath;
 }
 
 export const UsageDataSchema = v.object({
