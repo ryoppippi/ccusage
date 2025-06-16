@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import path from 'node:path';
 import { unreachable } from '@core/errorutil';
+import { groupBy } from 'es-toolkit'; // TODO: after node20 is deprecated, switch to native Object.groupBy
 import { sort } from 'fast-sort';
 import { glob } from 'tinyglobby';
 import * as v from 'valibot';
@@ -10,7 +11,6 @@ import { logger } from './logger.ts';
 import {
 	PricingFetcher,
 } from './pricing-fetcher.ts';
-import { groupBy } from './utils.internal.ts';
 
 export function getDefaultClaudePath(): string {
 	return path.join(homedir(), '.claude');
