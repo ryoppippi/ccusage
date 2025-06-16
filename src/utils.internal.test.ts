@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { formatCurrency, formatNumber, groupBy } from './utils.internal.ts';
+import { formatCurrency, formatNumber } from './utils.internal.ts';
 
 describe('formatNumber', () => {
 	test('formats positive numbers with comma separators', () => {
@@ -63,36 +63,5 @@ describe('formatCurrency', () => {
 	test('handles large numbers', () => {
 		expect(formatCurrency(1000000)).toBe('$1000000.00');
 		expect(formatCurrency(9999999.99)).toBe('$9999999.99');
-	});
-});
-
-describe('groupBy', () => {
-	test('groups elements by key function', () => {
-		const data = [
-			{ type: 'fruit', name: 'apple' },
-			{ type: 'fruit', name: 'banana' },
-			{ type: 'vegetable', name: 'carrot' },
-		];
-
-		const result = groupBy(data, item => item.type);
-
-		expect(result.fruit).toEqual([
-			{ type: 'fruit', name: 'apple' },
-			{ type: 'fruit', name: 'banana' },
-		]);
-		expect(result.vegetable).toEqual([
-			{ type: 'vegetable', name: 'carrot' },
-		]);
-	});
-
-	test('handles empty array', () => {
-		const result = groupBy([], () => 'key');
-		expect(Object.keys(result)).toEqual([]);
-	});
-
-	test('handles single element', () => {
-		const data = [{ name: 'test' }];
-		const result = groupBy(data, () => 'single');
-		expect(result.single).toEqual([{ name: 'test' }]);
 	});
 });
