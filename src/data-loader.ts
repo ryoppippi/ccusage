@@ -13,6 +13,7 @@ import { logger } from './logger.ts';
 import {
 	PricingFetcher,
 } from './pricing-fetcher.ts';
+import { get5HourWindowId } from './utils.internal.ts';
 
 const DEFAULT_CLAUDE_CODE_PATH = path.join(homedir(), '.claude');
 
@@ -109,6 +110,37 @@ export const MonthlyUsageSchema = v.object({
 });
 
 export type MonthlyUsage = v.InferOutput<typeof MonthlyUsageSchema>;
+
+export const WindowUsageSchema = v.object({
+	windowId: v.string(), // YYYY-MM-DD-HH format
+	month: v.string(), // YYYY-MM format
+	startTimestamp: v.string(), // First message in window
+	endTimestamp: v.string(), // Last message in window
+	messageCount: v.number(),
+	sessionCount: v.number(), // Unique conversation sessions
+	inputTokens: v.number(),
+	outputTokens: v.number(),
+	cacheCreationTokens: v.number(),
+	cacheReadTokens: v.number(),
+	totalCost: v.number(),
+	duration: v.number(), // Duration in milliseconds
+	modelsUsed: v.array(v.string()),
+});
+
+export type WindowUsage = v.InferOutput<typeof WindowUsageSchema>;
+
+export const MonthlyWindowSummarySchema = v.object({
+	month: v.string(),
+	windowCount: v.number(),
+	sessionLimit: v.optional(v.number()),
+	remainingSessions: v.optional(v.number()),
+	utilizationPercent: v.optional(v.number()),
+	totalCost: v.number(),
+	totalTokens: v.number(),
+	windows: v.array(WindowUsageSchema),
+});
+
+export type MonthlyWindowSummary = v.InferOutput<typeof MonthlyWindowSummarySchema>;
 
 type TokenStats = {
 	inputTokens: number;
@@ -813,4 +845,129 @@ export async function loadMonthlyUsageData(
 
 	// Sort by month based on sortOrder
 	return sortByDate(monthlyArray, item => `${item.month}-01`, options?.order);
+}
+
+/**
+ * Calculate 5-hour window statistics from all entries
+ */
+export function calculateWindowStatistics(
+	allEntries: Array<{
+		data: UsageData;
+		timestamp: string;
+		cost: number;
+		sessionKey: string;
+		model: string | undefined;
+	}>,
+): Map<string, WindowUsage> {
+	const windowMap = new Map<string, WindowUsage>();
+
+	for (const entry of allEntries) {
+		const windowId = get5HourWindowId(entry.timestamp);
+		const month = entry.timestamp.substring(0, 7);
+
+		let window = windowMap.get(windowId);
+		if (window == null) {
+			window = {
+				windowId,
+				month,
+				startTimestamp: entry.timestamp,
+				endTimestamp: entry.timestamp,
+				messageCount: 0,
+				sessionCount: 0,
+				inputTokens: 0,
+				outputTokens: 0,
+				cacheCreationTokens: 0,
+				cacheReadTokens: 0,
+				totalCost: 0,
+				duration: 0,
+				modelsUsed: [],
+			};
+			windowMap.set(windowId, window);
+		}
+
+		// Update window statistics
+		window.messageCount++;
+		window.inputTokens += entry.data.message.usage.input_tokens ?? 0;
+		window.outputTokens += entry.data.message.usage.output_tokens ?? 0;
+		window.cacheCreationTokens += entry.data.message.usage.cache_creation_input_tokens ?? 0;
+		window.cacheReadTokens += entry.data.message.usage.cache_read_input_tokens ?? 0;
+		window.totalCost += entry.cost;
+
+		// Update timestamps
+		if (entry.timestamp < window.startTimestamp) {
+			window.startTimestamp = entry.timestamp;
+		}
+		if (entry.timestamp > window.endTimestamp) {
+			window.endTimestamp = entry.timestamp;
+		}
+
+		// Track models
+		if (entry.model != null && !window.modelsUsed.includes(entry.model)) {
+			window.modelsUsed.push(entry.model);
+		}
+	}
+
+	// Calculate durations and session counts
+	for (const [windowId, window] of windowMap) {
+		const start = new Date(window.startTimestamp);
+		const end = new Date(window.endTimestamp);
+		window.duration = end.getTime() - start.getTime();
+
+		// Count unique sessions in this window
+		const sessionsInWindow = new Set(
+			allEntries
+				.filter(e => get5HourWindowId(e.timestamp) === windowId)
+				.map(e => e.sessionKey),
+		);
+		window.sessionCount = sessionsInWindow.size;
+	}
+
+	return windowMap;
+}
+
+/**
+ * Group windows by month and calculate summaries
+ */
+export function groupWindowsByMonth(
+	windows: Map<string, WindowUsage>,
+	options?: { sessionLimit?: number },
+): MonthlyWindowSummary[] {
+	const monthlyMap = new Map<string, MonthlyWindowSummary>();
+
+	for (const window of windows.values()) {
+		let monthly = monthlyMap.get(window.month);
+		if (monthly == null) {
+			monthly = {
+				month: window.month,
+				windowCount: 0,
+				totalCost: 0,
+				totalTokens: 0,
+				windows: [],
+			};
+			monthlyMap.set(window.month, monthly);
+		}
+
+		monthly.windowCount++;
+		monthly.totalCost += window.totalCost;
+		monthly.totalTokens += window.inputTokens + window.outputTokens
+			+ window.cacheCreationTokens + window.cacheReadTokens;
+		monthly.windows.push(window);
+	}
+
+	// Apply session limits if provided
+	if (options?.sessionLimit != null) {
+		for (const monthly of monthlyMap.values()) {
+			monthly.sessionLimit = options.sessionLimit;
+			monthly.remainingSessions = Math.max(0, options.sessionLimit - monthly.windowCount);
+			monthly.utilizationPercent = (monthly.windowCount / options.sessionLimit) * 100;
+		}
+	}
+
+	// Sort windows within each month by windowId (chronological)
+	for (const monthly of monthlyMap.values()) {
+		monthly.windows.sort((a, b) => b.windowId.localeCompare(a.windowId));
+	}
+
+	return Array.from(monthlyMap.values())
+		.sort((a, b) => b.month.localeCompare(a.month));
 }

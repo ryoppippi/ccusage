@@ -21,6 +21,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `bun run start daily` - Show daily usage report
 - `bun run start monthly` - Show monthly usage report
 - `bun run start session` - Show session-based usage report
+- `bun run start session --windows` - Show 5-hour session window statistics
 - `bun run start daily --json` - Show daily usage report in JSON format
 - `bun run start monthly --json` - Show monthly usage report in JSON format
 - `bun run start session --json` - Show session usage report in JSON format
@@ -56,6 +57,8 @@ This is a CLI tool that analyzes Claude Code usage data from local JSONL files s
 - Raw usage data is parsed from JSONL with timestamp, token counts, and pre-calculated costs
 - Data is aggregated into daily summaries, monthly summaries, or session summaries
 - Sessions are identified by directory structure: `projects/{project}/{session}/{file}.jsonl`
+- 5-hour window tracking: Usage is grouped into UTC-based 5-hour windows (00:00, 05:00, 10:00, 15:00, 20:00)
+- Session limits: Monthly session usage is tracked and compared against plan limits (e.g., 50 for Max plan)
 
 **External Dependencies:**
 

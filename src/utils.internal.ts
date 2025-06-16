@@ -8,6 +8,17 @@ export function formatCurrency(amount: number): string {
 	return `$${amount.toFixed(2)}`;
 }
 
+export function formatDuration(milliseconds: number): string {
+	const totalMinutes = Math.floor(milliseconds / 60000);
+	const hours = Math.floor(totalMinutes / 60);
+	const minutes = totalMinutes % 60;
+
+	if (hours === 0) {
+		return `${minutes}m`;
+	}
+	return `${hours}h ${minutes}m`;
+}
+
 export function formatModelName(modelName: string): string {
 	// Extract model type from full model name
 	// e.g., "claude-sonnet-4-20250514" -> "sonnet-4"
@@ -26,6 +37,33 @@ export function formatModelsDisplay(models: string[]): string {
 	return uniqueModels.sort().join(', ');
 }
 
+// Window calculation utilities
+/**
+ * Calculate the 5-hour window ID for a given timestamp
+ * Windows start at: 00:00, 05:00, 10:00, 15:00, 20:00 UTC
+ */
+export function get5HourWindowId(timestamp: string): string {
+	const dt = new Date(timestamp);
+	const utcHour = dt.getUTCHours();
+	const windowStartHour = Math.floor(utcHour / 5) * 5;
+	const windowDate = dt.toISOString().split('T')[0];
+	return `${windowDate}-${windowStartHour.toString().padStart(2, '0')}`;
+}
+
+/**
+ * Get window start time for display
+ */
+export function getWindowStartTime(windowId: string): Date {
+	// windowId format: YYYY-MM-DD-HH
+	const parts = windowId.split('-');
+	const year = parts[0];
+	const month = parts[1];
+	const day = parts[2];
+	const hour = parts[3];
+	return new Date(`${year}-${month}-${day}T${hour}:00:00Z`);
+}
+
+// Complex display utilities
 /**
  * Pushes model breakdown rows to a table
  * @param table - The table to push rows to

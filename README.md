@@ -41,6 +41,7 @@ This tool helps you understand the value you're getting from your subscription b
 - 📊 **Daily Report**: View token usage and costs aggregated by date
 - 📅 **Monthly Report**: View token usage and costs aggregated by month
 - 💬 **Session Report**: View usage grouped by conversation sessions
+- ⏰ **5-Hour Window Tracking**: Track usage in Claude's 5-hour session windows with `--windows` flag
 - 🤖 **Model Tracking**: See which Claude models you're using (Opus, Sonnet, etc.)
 - 📊 **Model Breakdown**: View per-model cost breakdown with `--breakdown` flag
 - 📅 **Date Filtering**: Filter reports by date range using `--since` and `--until`
@@ -51,6 +52,7 @@ This tool helps you understand the value you're getting from your subscription b
 - 🔄 **Cache Token Support**: Tracks and displays cache creation and cache read tokens separately
 - 🌐 **Offline Mode**: Use pre-cached pricing data without network connectivity with `--offline` (Claude models only)
 - 📏 **Responsive Tables**: Automatic table width adjustment for narrow terminals with intelligent word wrapping
+- 🚨 **Session Limit Warnings**: Monitor your monthly session usage against plan limits
 
 ## Important Disclaimer
 
@@ -228,6 +230,10 @@ ccusage session --breakdown       # Show cost breakdown by model
 # Use offline mode (no network required)
 ccusage session --offline         # Use pre-cached pricing data
 ccusage session -O                # Short alias for --offline
+
+# Show 5-hour session window statistics
+ccusage session --windows         # Show usage grouped by 5-hour windows with monthly limits
+ccusage session --windows --session-limit 100  # Specify custom session limit (default: 50)
 ```
 
 ### Options
@@ -245,6 +251,13 @@ All commands support the following options:
 - `--debug-samples <number>`: Number of sample discrepancies to show in debug output (default: 5)
 - `-h, --help`: Display help message
 - `-v, --version`: Display version
+
+#### Session-specific Options
+
+The `session` command has additional options for 5-hour window tracking:
+
+- `-w, --windows`: Show 5-hour session window statistics instead of regular session report
+- `-l, --session-limit <number>`: Session limit for your plan (default: 50 for Claude Max plan)
 
 #### Cost Calculation Modes
 

@@ -5,13 +5,16 @@ import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { createFixture } from 'fs-fixture';
 import {
 	calculateCostForEntry,
+	calculateWindowStatistics,
 	formatDate,
 	formatDateCompact,
 	getDefaultClaudePath,
+	groupWindowsByMonth,
 	loadDailyUsageData,
 	loadMonthlyUsageData,
 	loadSessionData,
 	type UsageData,
+	type WindowUsage,
 } from './data-loader.ts';
 import { PricingFetcher } from './pricing-fetcher.ts';
 
@@ -1935,6 +1938,335 @@ describe('calculateCostForEntry', () => {
 
 			// Should return empty array or valid data without throwing
 			expect(Array.isArray(result)).toBe(true);
+		});
+	});
+});
+
+describe('window aggregation functions', () => {
+	describe('calculateWindowStatistics', () => {
+		test('should group messages into 5-hour windows', () => {
+			const entries = [
+				{
+					data: {
+						timestamp: '2025-06-16T00:30:00Z',
+						message: { usage: { input_tokens: 100, output_tokens: 50 } },
+					} as UsageData,
+					timestamp: '2025-06-16T00:30:00Z',
+					cost: 0.01,
+					sessionKey: 'project1/session1',
+					model: 'claude-sonnet-4-20250514' as const,
+				},
+				{
+					data: {
+						timestamp: '2025-06-16T04:30:00Z',
+						message: { usage: { input_tokens: 200, output_tokens: 100 } },
+					} as UsageData,
+					timestamp: '2025-06-16T04:30:00Z',
+					cost: 0.02,
+					sessionKey: 'project1/session1',
+					model: 'claude-sonnet-4-20250514' as const,
+				},
+				{
+					data: {
+						timestamp: '2025-06-16T05:30:00Z',
+						message: { usage: { input_tokens: 300, output_tokens: 150 } },
+					} as UsageData,
+					timestamp: '2025-06-16T05:30:00Z',
+					cost: 0.03,
+					sessionKey: 'project1/session2',
+					model: 'claude-sonnet-4-20250514' as const,
+				},
+			];
+
+			const windowMap = calculateWindowStatistics(entries);
+
+			// Should have 2 windows
+			expect(windowMap.size).toBe(2);
+
+			// Check window 00:00-05:00
+			const window1 = windowMap.get('2025-06-16-00');
+			expect(window1).toBeDefined();
+			expect(window1?.windowId).toBe('2025-06-16-00');
+			expect(window1?.messageCount).toBe(2);
+			expect(window1?.sessionCount).toBe(1); // Only session1
+			expect(window1?.inputTokens).toBe(300); // 100 + 200
+			expect(window1?.outputTokens).toBe(150); // 50 + 100
+			expect(window1?.totalCost).toBe(0.03); // 0.01 + 0.02
+
+			// Check window 05:00-10:00
+			const window2 = windowMap.get('2025-06-16-05');
+			expect(window2).toBeDefined();
+			expect(window2?.windowId).toBe('2025-06-16-05');
+			expect(window2?.messageCount).toBe(1);
+			expect(window2?.sessionCount).toBe(1); // Only session2
+			expect(window2?.inputTokens).toBe(300);
+			expect(window2?.outputTokens).toBe(150);
+			expect(window2?.totalCost).toBe(0.03);
+		});
+
+		test('should calculate correct window durations', () => {
+			const entries = [
+				{
+					data: {
+						timestamp: '2025-06-16T10:00:00Z',
+						message: { usage: { input_tokens: 100, output_tokens: 50 } },
+					} as UsageData,
+					timestamp: '2025-06-16T10:00:00Z',
+					cost: 0.01,
+					sessionKey: 'project1/session1',
+					model: undefined,
+				},
+				{
+					data: {
+						timestamp: '2025-06-16T14:59:59Z',
+						message: { usage: { input_tokens: 200, output_tokens: 100 } },
+					} as UsageData,
+					timestamp: '2025-06-16T14:59:59Z',
+					cost: 0.02,
+					sessionKey: 'project1/session1',
+					model: undefined,
+				},
+			];
+
+			const windowMap = calculateWindowStatistics(entries);
+			const window = windowMap.get('2025-06-16-10');
+
+			expect(window).toBeDefined();
+			expect(window?.startTimestamp).toBe('2025-06-16T10:00:00Z');
+			expect(window?.endTimestamp).toBe('2025-06-16T14:59:59Z');
+			expect(window?.duration).toBe(17999000); // 4h 59m 59s in milliseconds
+		});
+
+		test('should count unique sessions per window', () => {
+			const entries = [
+				{
+					data: {
+						timestamp: '2025-06-16T15:00:00Z',
+						message: { usage: { input_tokens: 100, output_tokens: 50 } },
+					} as UsageData,
+					timestamp: '2025-06-16T15:00:00Z',
+					cost: 0.01,
+					sessionKey: 'project1/session1',
+					model: 'claude-sonnet-4-20250514' as const,
+				},
+				{
+					data: {
+						timestamp: '2025-06-16T16:00:00Z',
+						message: { usage: { input_tokens: 200, output_tokens: 100 } },
+					} as UsageData,
+					timestamp: '2025-06-16T16:00:00Z',
+					cost: 0.02,
+					sessionKey: 'project2/session2',
+					model: 'claude-sonnet-4-20250514' as const,
+				},
+				{
+					data: {
+						timestamp: '2025-06-16T17:00:00Z',
+						message: { usage: { input_tokens: 300, output_tokens: 150 } },
+					} as UsageData,
+					timestamp: '2025-06-16T17:00:00Z',
+					cost: 0.03,
+					sessionKey: 'project1/session1',
+					model: 'claude-sonnet-4-20250514' as const,
+				},
+			];
+
+			const windowMap = calculateWindowStatistics(entries);
+			const window = windowMap.get('2025-06-16-15');
+
+			expect(window).toBeDefined();
+			expect(window?.sessionCount).toBe(2); // session1 and session2
+			expect(window?.messageCount).toBe(3);
+		});
+
+		test('should handle cache tokens correctly', () => {
+			const entries = [
+				{
+					data: {
+						timestamp: '2025-06-16T20:00:00Z',
+						message: {
+							usage: {
+								input_tokens: 100,
+								output_tokens: 50,
+								cache_creation_input_tokens: 25,
+								cache_read_input_tokens: 10,
+							},
+						},
+					} as UsageData,
+					timestamp: '2025-06-16T20:00:00Z',
+					cost: 0.01,
+					sessionKey: 'project1/session1',
+					model: 'claude-opus-4-20250514' as const,
+				},
+			];
+
+			const windowMap = calculateWindowStatistics(entries);
+			const window = windowMap.get('2025-06-16-20');
+
+			expect(window).toBeDefined();
+			expect(window?.cacheCreationTokens).toBe(25);
+			expect(window?.cacheReadTokens).toBe(10);
+		});
+	});
+
+	describe('groupWindowsByMonth', () => {
+		test('should group windows by month correctly', () => {
+			const windows = new Map([
+				['2025-06-16-00', {
+					windowId: '2025-06-16-00',
+					month: '2025-06',
+					startTimestamp: '2025-06-16T00:00:00Z',
+					endTimestamp: '2025-06-16T04:59:59Z',
+					messageCount: 10,
+					sessionCount: 2,
+					inputTokens: 1000,
+					outputTokens: 500,
+					cacheCreationTokens: 100,
+					cacheReadTokens: 50,
+					totalCost: 0.1,
+					duration: 17999000,
+					modelsUsed: ['claude-sonnet-4-20250514'],
+				}],
+				['2025-06-17-00', {
+					windowId: '2025-06-17-00',
+					month: '2025-06',
+					startTimestamp: '2025-06-17T00:00:00Z',
+					endTimestamp: '2025-06-17T02:00:00Z',
+					messageCount: 5,
+					sessionCount: 1,
+					inputTokens: 500,
+					outputTokens: 250,
+					cacheCreationTokens: 50,
+					cacheReadTokens: 25,
+					totalCost: 0.05,
+					duration: 7200000,
+					modelsUsed: ['claude-sonnet-4-20250514'],
+				}],
+				['2025-07-01-00', {
+					windowId: '2025-07-01-00',
+					month: '2025-07',
+					startTimestamp: '2025-07-01T00:00:00Z',
+					endTimestamp: '2025-07-01T01:00:00Z',
+					messageCount: 3,
+					sessionCount: 1,
+					inputTokens: 300,
+					outputTokens: 150,
+					cacheCreationTokens: 0,
+					cacheReadTokens: 0,
+					totalCost: 0.03,
+					duration: 3600000,
+					modelsUsed: ['claude-opus-4-20250514'],
+				}],
+			]);
+
+			const summaries = groupWindowsByMonth(windows);
+
+			expect(summaries).toHaveLength(2);
+
+			// Check July (should be first due to descending sort)
+			expect(summaries[0]?.month).toBe('2025-07');
+			expect(summaries[0]?.windowCount).toBe(1);
+			expect(summaries[0]?.totalCost).toBe(0.03);
+			expect(summaries[0]?.totalTokens).toBe(450); // 300 + 150
+
+			// Check June
+			expect(summaries[1]?.month).toBe('2025-06');
+			expect(summaries[1]?.windowCount).toBe(2);
+			expect(summaries[1]?.totalCost).toBeCloseTo(0.15, 10); // 0.1 + 0.05
+			expect(summaries[1]?.totalTokens).toBe(2475); // (1000+500+100+50) + (500+250+50+25)
+		});
+
+		test('should apply session limits correctly', () => {
+			const windows = new Map<string, WindowUsage>();
+			// Add 55 windows for June
+			for (let i = 0; i < 55; i++) {
+				const day = Math.floor(i / 5) + 1;
+				const hour = (i % 5) * 5;
+				const windowId = `2025-06-${day.toString().padStart(2, '0')}-${hour.toString().padStart(2, '0')}`;
+				windows.set(windowId, {
+					windowId,
+					month: '2025-06',
+					startTimestamp: `2025-06-${day.toString().padStart(2, '0')}T${hour.toString().padStart(2, '0')}:00:00Z`,
+					endTimestamp: `2025-06-${day.toString().padStart(2, '0')}T${hour.toString().padStart(2, '0')}:30:00Z`,
+					messageCount: 1,
+					sessionCount: 1,
+					inputTokens: 100,
+					outputTokens: 50,
+					cacheCreationTokens: 0,
+					cacheReadTokens: 0,
+					totalCost: 0.01,
+					duration: 1800000,
+					modelsUsed: ['claude-sonnet-4-20250514'],
+				});
+			}
+
+			const summaries = groupWindowsByMonth(windows, { sessionLimit: 50 });
+
+			expect(summaries).toHaveLength(1);
+			const summary = summaries[0];
+			expect(summary?.windowCount).toBe(55);
+			expect(summary?.sessionLimit).toBe(50);
+			expect(summary?.remainingSessions).toBe(0); // Max 0, not negative
+			expect(summary?.utilizationPercent).toBeCloseTo(110, 10); // 55/50 * 100
+		});
+
+		test('should sort windows within month by windowId descending', () => {
+			const windows = new Map([
+				['2025-06-01-00', {
+					windowId: '2025-06-01-00',
+					month: '2025-06',
+					startTimestamp: '2025-06-01T00:00:00Z',
+					endTimestamp: '2025-06-01T01:00:00Z',
+					messageCount: 1,
+					sessionCount: 1,
+					inputTokens: 100,
+					outputTokens: 50,
+					cacheCreationTokens: 0,
+					cacheReadTokens: 0,
+					totalCost: 0.01,
+					duration: 3600000,
+					modelsUsed: [],
+				}],
+				['2025-06-02-10', {
+					windowId: '2025-06-02-10',
+					month: '2025-06',
+					startTimestamp: '2025-06-02T10:00:00Z',
+					endTimestamp: '2025-06-02T11:00:00Z',
+					messageCount: 1,
+					sessionCount: 1,
+					inputTokens: 100,
+					outputTokens: 50,
+					cacheCreationTokens: 0,
+					cacheReadTokens: 0,
+					totalCost: 0.01,
+					duration: 3600000,
+					modelsUsed: [],
+				}],
+				['2025-06-01-20', {
+					windowId: '2025-06-01-20',
+					month: '2025-06',
+					startTimestamp: '2025-06-01T20:00:00Z',
+					endTimestamp: '2025-06-01T21:00:00Z',
+					messageCount: 1,
+					sessionCount: 1,
+					inputTokens: 100,
+					outputTokens: 50,
+					cacheCreationTokens: 0,
+					cacheReadTokens: 0,
+					totalCost: 0.01,
+					duration: 3600000,
+					modelsUsed: [],
+				}],
+			]);
+
+			const summaries = groupWindowsByMonth(windows);
+			const juneSummary = summaries[0];
+
+			expect(juneSummary?.windows).toHaveLength(3);
+			// Should be sorted by windowId descending (most recent first)
+			expect(juneSummary?.windows[0]?.windowId).toBe('2025-06-02-10');
+			expect(juneSummary?.windows[1]?.windowId).toBe('2025-06-01-20');
+			expect(juneSummary?.windows[2]?.windowId).toBe('2025-06-01-00');
 		});
 	});
 });
