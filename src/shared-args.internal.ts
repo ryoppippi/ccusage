@@ -1,6 +1,7 @@
 import type { Args } from 'gunshi';
 import type { CostMode, SortOrder } from './types.internal.ts';
 import * as v from 'valibot';
+import { getDefaultClaudePath } from './data-loader.ts';
 import { CostModes, dateSchema, SortOrders } from './types.internal.ts';
 
 function parseDateArg(value: string): string {
@@ -23,6 +24,12 @@ export const sharedArgs = {
 		short: 'u',
 		description: 'Filter until date (YYYYMMDD format)',
 		parse: parseDateArg,
+	},
+	path: {
+		type: 'string',
+		short: 'p',
+		description: 'Custom path to Claude data directory',
+		default: getDefaultClaudePath(),
 	},
 	json: {
 		type: 'boolean',
