@@ -23,7 +23,7 @@ export default defineConfig({
 	exports: true,
 	plugins: [
 		Macros({
-			include: ['src/index.ts'],
+			include: ['src/index.ts', 'src/pricing-fetcher.ts'],
 		}),
 	],
 });

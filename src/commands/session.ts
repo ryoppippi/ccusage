@@ -28,6 +28,7 @@ export const sessionCommand = define({
 			claudePath: getDefaultClaudePath(),
 			mode: ctx.values.mode,
 			order: ctx.values.order,
+			offline: ctx.values.offline,
 		});
 
 		if (sessionData.length === 0) {
