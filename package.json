@@ -44,7 +44,7 @@
 	},
 	"devDependencies": {
 		"@core/errorutil": "npm:@jsr/core__errorutil",
-		"@oxc-project/runtime": "^0.72.3",
+		"@oxc-project/runtime": "^0.73.0",
 		"@ryoppippi/eslint-config": "^0.3.7",
 		"@types/bun": "^1.2.16",
 		"@typescript/native-preview": "^7.0.0-dev.20250613.1",
