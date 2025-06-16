@@ -6,6 +6,7 @@ import { createFixture } from 'fs-fixture';
 import {
 	calculateCostForEntry,
 	formatDate,
+	formatDateCompact,
 	getDefaultClaudePath,
 	loadDailyUsageData,
 	loadMonthlyUsageData,
@@ -30,6 +31,24 @@ describe('formatDate', () => {
 	test('pads single digit months and days', () => {
 		expect(formatDate('2024-01-05T00:00:00Z')).toBe('2024-01-05');
 		expect(formatDate('2024-10-01T00:00:00Z')).toBe('2024-10-01');
+	});
+});
+
+describe('formatDateCompact', () => {
+	test('formats UTC timestamp to local date with line break', () => {
+		expect(formatDateCompact('2024-01-01T00:00:00Z')).toBe('2024\n01-01');
+	});
+
+	test('handles various date formats', () => {
+		expect(formatDateCompact('2024-12-31T23:59:59Z')).toBe('2024\n12-31');
+		expect(formatDateCompact('2024-01-01')).toBe('2024\n01-01');
+		expect(formatDateCompact('2024-01-01T12:00:00')).toBe('2024\n01-01');
+		expect(formatDateCompact('2024-01-01T12:00:00.000Z')).toBe('2024\n01-01');
+	});
+
+	test('pads single digit months and days', () => {
+		expect(formatDateCompact('2024-01-05T00:00:00Z')).toBe('2024\n01-05');
+		expect(formatDateCompact('2024-10-01T00:00:00Z')).toBe('2024\n10-01');
 	});
 });
 
