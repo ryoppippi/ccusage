@@ -2,15 +2,7 @@ import * as v from 'valibot';
 import { LITELLM_PRICING_URL } from './consts.internal.ts';
 import { logger } from './logger.ts';
 import { prefetchClaudePricing } from './macro.internal.ts' with { type: 'macro' };
-
-export const ModelPricingSchema = v.object({
-	input_cost_per_token: v.optional(v.number()),
-	output_cost_per_token: v.optional(v.number()),
-	cache_creation_input_token_cost: v.optional(v.number()),
-	cache_read_input_token_cost: v.optional(v.number()),
-});
-
-export type ModelPricing = v.InferOutput<typeof ModelPricingSchema>;
+import { type ModelPricing, ModelPricingSchema } from './types.internal.ts';
 
 export class PricingFetcher implements Disposable {
 	private cachedPricing: Map<string, ModelPricing> | null = null;

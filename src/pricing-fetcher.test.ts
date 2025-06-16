@@ -1,8 +1,7 @@
+import type { ModelPricing } from './types.internal.ts';
+
 import { describe, expect, it } from 'bun:test';
-import {
-	type ModelPricing,
-	PricingFetcher,
-} from './pricing-fetcher.ts';
+import { PricingFetcher } from './pricing-fetcher.ts';
 
 describe('pricing-fetcher', () => {
 	describe('PricingFetcher class', () => {

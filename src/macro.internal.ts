@@ -4,7 +4,7 @@
 
 import * as v from 'valibot';
 import { LITELLM_PRICING_URL } from './consts.internal.ts';
-import { type ModelPricing, ModelPricingSchema } from './pricing-fetcher.ts';
+import { type ModelPricing, ModelPricingSchema } from './types.internal.ts';
 
 /**
  * Prefetches the pricing data for Claude models from the LiteLLM API.
