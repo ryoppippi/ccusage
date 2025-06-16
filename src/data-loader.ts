@@ -883,8 +883,9 @@ export async function loadFiveHourBlockData(
 					version: data.version,
 				});
 			}
-			catch {
-				// Skip invalid JSON lines
+			catch (error) {
+				// Skip invalid JSON lines but log for debugging purposes
+				logger.debug(`Skipping invalid JSON line in 5-hour blocks: ${error instanceof Error ? error.message : String(error)}`);
 			}
 		}
 	}

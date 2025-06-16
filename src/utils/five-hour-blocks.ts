@@ -23,7 +23,7 @@ export type TokenCounts = {
 export type FiveHourBlock = {
 	id: string; // ISO string of block start time
 	startTime: Date;
-	endTime: Date; // startTime + 5 hours
+	endTime: Date; // startTime + 5 hours (for normal blocks) or gap end time (for gap blocks)
 	actualEndTime?: Date; // Last activity in block
 	isActive: boolean;
 	isGap?: boolean; // True if this is a gap block

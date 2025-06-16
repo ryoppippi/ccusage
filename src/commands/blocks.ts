@@ -50,6 +50,15 @@ function formatModels(models: string[]): string {
 	return `${models[0]} +${models.length - 1}`;
 }
 
+function parseTokenLimit(value: string | undefined, maxFromAll: number): number | undefined {
+	if (!value) { return undefined; }
+	if (value === 'max') {
+		return maxFromAll > 0 ? maxFromAll : undefined;
+	}
+	const limit = Number.parseInt(value, 10);
+	return Number.isNaN(limit) ? undefined : limit;
+}
+
 export const blocksCommand = define({
 	name: 'blocks',
 	description: 'Show usage report grouped by 5-hour billing blocks',
@@ -156,18 +165,7 @@ export const blocksCommand = define({
 						projection,
 						tokenLimitStatus: projection && ctx.values.tokenLimit
 							? (() => {
-									let limit: number | undefined;
-									if (ctx.values.tokenLimit === 'max') {
-										// Use the max calculated from ALL blocks before filtering
-										limit = maxTokensFromAll > 0 ? maxTokensFromAll : undefined;
-									}
-									else {
-										limit = Number.parseInt(ctx.values.tokenLimit, 10);
-										if (isNaN(limit)) {
-											limit = undefined;
-										}
-									}
-
+									const limit = parseTokenLimit(ctx.values.tokenLimit, maxTokensFromAll);
 									return limit
 										? {
 												limit,
@@ -229,18 +227,7 @@ export const blocksCommand = define({
 
 					if (ctx.values.tokenLimit) {
 						// Parse token limit
-						let limit: number | undefined;
-						if (ctx.values.tokenLimit === 'max') {
-							// Use the max calculated from ALL blocks before filtering
-							limit = maxTokensFromAll > 0 ? maxTokensFromAll : undefined;
-						}
-						else {
-							limit = Number.parseInt(ctx.values.tokenLimit, 10);
-							if (isNaN(limit)) {
-								limit = undefined;
-							}
-						}
-
+						const limit = parseTokenLimit(ctx.values.tokenLimit, maxTokensFromAll);
 						if (limit) {
 							const currentTokens = block.tokenCounts.inputTokens + block.tokenCounts.outputTokens;
 							const remainingTokens = Math.max(0, limit - currentTokens);
@@ -265,19 +252,7 @@ export const blocksCommand = define({
 				logger.box('Claude Code Token Usage Report - 5-Hour Blocks');
 
 				// Calculate token limit if "max" is specified
-				let actualTokenLimit: number | undefined;
-				if (ctx.values.tokenLimit) {
-					if (ctx.values.tokenLimit === 'max') {
-						// Use the max calculated from ALL blocks before filtering
-						actualTokenLimit = maxTokensFromAll > 0 ? maxTokensFromAll : undefined;
-					}
-					else {
-						actualTokenLimit = Number.parseInt(ctx.values.tokenLimit, 10);
-						if (isNaN(actualTokenLimit)) {
-							actualTokenLimit = undefined;
-						}
-					}
-				}
+				const actualTokenLimit = parseTokenLimit(ctx.values.tokenLimit, maxTokensFromAll);
 
 				const tableHeaders = ['Block Start', 'Duration/Status', 'Models', 'Tokens'];
 				const tableAligns: ('left' | 'right')[] = ['left', 'left', 'left', 'right'];

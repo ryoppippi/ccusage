@@ -257,7 +257,12 @@ The blocks report helps you understand Claude Code's 5-hour rolling session wind
 - Sessions start with your first message and last for 5 hours
 - Shows active blocks with time remaining and burn rate projections
 - Helps track if you're approaching token limits within a session
-- The `-t max` option automatically uses your highest previous session as the limit
+- The `-t max` option automatically uses your highest previous block as the limit
+
+#### Blocks-specific options:
+- `-t, --token-limit <number|max>`: Set token limit for quota warnings (use "max" for highest previous block)
+- `-a, --active`: Show only active block with detailed projections
+- `-r, --recent`: Show blocks from last 3 days (including active)
 
 ### Options
 
