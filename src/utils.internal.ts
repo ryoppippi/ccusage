@@ -29,12 +29,13 @@ export function formatModelsDisplay(models: string[]): string {
 /**
  * Pushes model breakdown rows to a table
  * @param table - The table to push rows to
+ * @param table.push - Method to add rows to the table
  * @param breakdowns - Array of model breakdowns
  * @param extraColumns - Number of extra empty columns before the data (default: 1 for models column)
  * @param trailingColumns - Number of extra empty columns after the data (default: 0)
  */
 export function pushBreakdownRows(
-	table: any[],
+	table: { push: (row: (string | number)[]) => void },
 	breakdowns: Array<{
 		modelName: string;
 		inputTokens: number;
@@ -47,7 +48,7 @@ export function pushBreakdownRows(
 	trailingColumns = 0,
 ): void {
 	for (const breakdown of breakdowns) {
-		const row: any[] = [`  └─ ${formatModelName(breakdown.modelName)}`];
+		const row: (string | number)[] = [`  └─ ${formatModelName(breakdown.modelName)}`];
 
 		// Add extra empty columns before data
 		for (let i = 0; i < extraColumns; i++) {

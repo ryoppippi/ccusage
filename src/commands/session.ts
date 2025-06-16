@@ -1,5 +1,4 @@
 import process from 'node:process';
-import Table from 'cli-table3';
 import { define } from 'gunshi';
 import pc from 'picocolors';
 import {
@@ -7,11 +6,12 @@ import {
 	createTotalsObject,
 	getTotalTokens,
 } from '../calculate-cost.ts';
-import { getDefaultClaudePath, loadSessionData } from '../data-loader.ts';
+import { formatDateCompact, getDefaultClaudePath, loadSessionData } from '../data-loader.ts';
 import { detectMismatches, printMismatchReport } from '../debug.ts';
 import { log, logger } from '../logger.ts';
 import { sharedCommandConfig } from '../shared-args.internal.ts';
 import { formatCurrency, formatModelsDisplay, formatNumber, pushBreakdownRows } from '../utils.internal.ts';
+import { ResponsiveTable } from '../utils.table.ts';
 
 export const sessionCommand = define({
 	name: 'session',
@@ -74,7 +74,7 @@ export const sessionCommand = define({
 			logger.box('Claude Code Token Usage Report - By Session');
 
 			// Create table
-			const table = new Table({
+			const table = new ResponsiveTable({
 				head: [
 					'Session',
 					'Models',
@@ -100,6 +100,7 @@ export const sessionCommand = define({
 					'right',
 					'left',
 				],
+				dateFormatter: formatDateCompact,
 			});
 
 			let maxSessionLength = 0;
@@ -128,17 +129,17 @@ export const sessionCommand = define({
 				}
 			}
 
-			// Add separator
+			// Add empty row for visual separation before totals
 			table.push([
-				'─'.repeat(maxSessionLength), // For Session
-				'─'.repeat(12), // For Models
-				'─'.repeat(12), // For Input Tokens
-				'─'.repeat(12), // For Output Tokens
-				'─'.repeat(12), // For Cache Create
-				'─'.repeat(12), // For Cache Read
-				'─'.repeat(12), // For Total Tokens
-				'─'.repeat(10), // For Cost
-				'─'.repeat(12), // For Last Activity
+				'',
+				'',
+				'',
+				'',
+				'',
+				'',
+				'',
+				'',
+				'',
 			]);
 
 			// Add totals
