@@ -1,7 +1,7 @@
 {
 	"name": "ccusage",
 	"type": "module",
-	"version": "0.8.0",
+	"version": "9.0.0",
 	"description": "Usage analysis tool for Claude Code",
 	"author": "ryoppippi",
 	"license": "MIT",
@@ -22,6 +22,7 @@
 		"./logger": "./dist/logger.js",
 		"./mcp": "./dist/mcp.js",
 		"./pricing-fetcher": "./dist/pricing-fetcher.js",
+		"./utils.table": "./dist/utils.table.js",
 		"./package.json": "./package.json"
 	},
 	"main": "./dist/index.js",
