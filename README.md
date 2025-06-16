@@ -228,7 +228,7 @@ All commands support the following options:
 
 - `-s, --since <date>`: Filter from date (YYYYMMDD format)
 - `-u, --until <date>`: Filter until date (YYYYMMDD format)
-- `-p, --path <path>`: Custom path to Claude data directory (default: `$CLAUDE_CONFIG_DIR` or `~/.claude`)
+- `--path <path>`: Custom path to Claude data directory (default: `$CLAUDE_CONFIG_DIR` or `~/.claude`)
 - `-j, --json`: Output results in JSON format instead of table
 - `-m, --mode <mode>`: Cost calculation mode: `auto` (default), `calculate`, or `display`
 - `-o, --order <order>`: Sort order: `desc` (newest first, default) or `asc` (oldest first).
