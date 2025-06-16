@@ -2,9 +2,11 @@ import type { CostMode, SortOrder } from './types.internal.ts';
 import { readFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import path from 'node:path';
+import process from 'node:process';
 import { unreachable } from '@core/errorutil';
 import { groupBy } from 'es-toolkit'; // TODO: after node20 is deprecated, switch to native Object.groupBy
 import { sort } from 'fast-sort';
+import { isDirectorySync } from 'path-type';
 import { glob } from 'tinyglobby';
 import * as v from 'valibot';
 import { logger } from './logger.ts';
@@ -12,8 +14,22 @@ import {
 	PricingFetcher,
 } from './pricing-fetcher.ts';
 
+const DEFAULT_CLAUDE_CODE_PATH = path.join(homedir(), '.claude');
+
+/**
+ * Default path for Claude data directory
+ * Uses environment variable CLAUDE_CONFIG_DIR if set, otherwise defaults to ~/.claude
+ */
 export function getDefaultClaudePath(): string {
-	return path.join(homedir(), '.claude');
+	const envClaudeCodePath = process.env.CLAUDE_CONFIG_DIR?.trim() ?? DEFAULT_CLAUDE_CODE_PATH;
+	if (!isDirectorySync(envClaudeCodePath)) {
+		throw new Error(
+			` Claude data directory does not exist: ${envClaudeCodePath}. 
+Please set CLAUDE_CONFIG_DIR to a valid path, or ensure ${DEFAULT_CLAUDE_CODE_PATH} exists.
+			`.trim(),
+		);
+	}
+	return envClaudeCodePath;
 }
 
 export const UsageDataSchema = v.object({

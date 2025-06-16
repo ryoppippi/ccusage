@@ -129,8 +129,9 @@ ccusage daily
 # Filter by date range
 ccusage daily --since 20250525 --until 20250530
 
-# Use custom Claude data directory
-ccusage daily --path /custom/path/to/.claude
+# Set CLAUDE_CONFIG_DIR environment variable for custom data directory
+export CLAUDE_CONFIG_DIR="/custom/path/to/.claude"
+ccusage daily
 
 # Output in JSON format
 ccusage daily --json
@@ -164,6 +165,10 @@ ccusage monthly --since 20250101 --until 20250531
 # Use custom Claude data directory
 ccusage monthly --path /custom/path/to/.claude
 
+# Or set CLAUDE_CONFIG_DIR environment variable
+export CLAUDE_CONFIG_DIR="/custom/path/to/.claude"
+ccusage monthly
+
 # Output in JSON format
 ccusage monthly --json
 
@@ -191,8 +196,9 @@ ccusage session
 # Filter sessions by last activity date
 ccusage session --since 20250525
 
-# Combine filters
-ccusage session --since 20250525 --until 20250530 --path /custom/path
+# Combine filters with environment variable
+export CLAUDE_CONFIG_DIR="/custom/path"
+ccusage session --since 20250525 --until 20250530
 
 # Output in JSON format
 ccusage session --json
@@ -216,7 +222,6 @@ All commands support the following options:
 
 - `-s, --since <date>`: Filter from date (YYYYMMDD format)
 - `-u, --until <date>`: Filter until date (YYYYMMDD format)
-- `-p, --path <path>`: Custom path to Claude data directory (default: `~/.claude`)
 - `-j, --json`: Output results in JSON format instead of table
 - `-m, --mode <mode>`: Cost calculation mode: `auto` (default), `calculate`, or `display`
 - `-o, --order <order>`: Sort order: `desc` (newest first, default) or `asc` (oldest first).
@@ -231,6 +236,21 @@ All commands support the following options:
 - **`auto`** (default): Uses pre-calculated `costUSD` values when available, falls back to calculating costs from token counts using model pricing
 - **`calculate`**: Always calculates costs from token counts using model pricing, ignores any pre-calculated `costUSD` values
 - **`display`**: Always uses pre-calculated `costUSD` values only, shows $0.00 for entries without pre-calculated costs
+
+#### Environment Variable Support
+
+The tool supports the `CLAUDE_CONFIG_DIR` environment variable to specify the Claude data directory:
+
+```bash
+# Set the environment variable to use a custom Claude directory
+export CLAUDE_CONFIG_DIR="/path/to/custom/claude/directory"
+ccusage daily
+
+# The environment variable determines the Claude data directory
+ccusage daily
+```
+
+The tool will use the path specified in the `CLAUDE_CONFIG_DIR` environment variable, or fall back to the default `~/.claude` directory if not set.
 
 ### MCP (Model Context Protocol) Support
 
