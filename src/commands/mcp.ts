@@ -1,5 +1,4 @@
 import { define } from 'gunshi';
-import { getDefaultClaudePath } from '../data-loader.ts';
 import { logger } from '../logger.ts';
 import { createMcpServer } from '../mcp.ts';
 import { sharedArgs } from '../shared-args.internal.ts';
@@ -8,6 +7,7 @@ export const mcpCommand = define({
 	name: 'mcp',
 	description: 'Show usage report for MCP',
 	args: {
+		path: sharedArgs.path,
 		mode: sharedArgs.mode,
 		type: {
 			type: 'enum',
@@ -23,14 +23,14 @@ export const mcpCommand = define({
 		},
 	},
 	async run(ctx) {
-		const { type, mode, port } = ctx.values;
+		const { type, mode, path, port } = ctx.values;
 		// disable info logging
 		if (type === 'stdio') {
 			logger.level = 0;
 		}
 
 		const server = createMcpServer({
-			claudePath: getDefaultClaudePath(),
+			claudePath: path,
 			mode,
 		});
 
