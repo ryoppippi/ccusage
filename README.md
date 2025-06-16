@@ -129,10 +129,7 @@ ccusage daily
 # Filter by date range
 ccusage daily --since 20250525 --until 20250530
 
-# Use custom Claude data directory
-ccusage daily --path /custom/path/to/.claude
-
-# Or set CLAUDE_CONFIG_DIR environment variable
+# Set CLAUDE_CONFIG_DIR environment variable for custom data directory
 export CLAUDE_CONFIG_DIR="/custom/path/to/.claude"
 ccusage daily
 
@@ -199,10 +196,7 @@ ccusage session
 # Filter sessions by last activity date
 ccusage session --since 20250525
 
-# Combine filters
-ccusage session --since 20250525 --until 20250530 --path /custom/path
-
-# Or use environment variable
+# Combine filters with environment variable
 export CLAUDE_CONFIG_DIR="/custom/path"
 ccusage session --since 20250525 --until 20250530
 
@@ -252,11 +246,11 @@ The tool supports the `CLAUDE_CONFIG_DIR` environment variable to specify the Cl
 export CLAUDE_CONFIG_DIR="/path/to/custom/claude/directory"
 ccusage daily
 
-# The --path option takes precedence over the environment variable
-ccusage daily --path "/different/path"
+# The environment variable determines the Claude data directory
+ccusage daily
 ```
 
-When both the environment variable and `--path` option are provided, the `--path` option takes precedence, ensuring backward compatibility.
+The tool will use the path specified in the `CLAUDE_CONFIG_DIR` environment variable, or fall back to the default `~/.claude` directory if not set.
 
 ### MCP (Model Context Protocol) Support
 
