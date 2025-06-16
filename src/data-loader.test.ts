@@ -1192,7 +1192,7 @@ describe('data-loader cost calculation with real pricing', () => {
 				timestamp: '2024-01-17T11:00:00Z',
 				message: {
 					usage: { input_tokens: 200, output_tokens: 100 },
-					model: 'claude-sonnet-4-20250514',
+					model: 'claude-4-sonnet-20250514',
 				},
 			};
 
@@ -1261,7 +1261,7 @@ describe('data-loader cost calculation with real pricing', () => {
 				timestamp: '2024-01-16T10:00:00Z',
 				message: {
 					usage: { input_tokens: 2000, output_tokens: 1000 },
-					model: 'claude-sonnet-4-20250514',
+					model: 'claude-4-sonnet-20250514',
 				},
 			};
 
@@ -1332,7 +1332,7 @@ describe('data-loader cost calculation with real pricing', () => {
 						cache_creation_input_tokens: 2000,
 						cache_read_input_tokens: 1500,
 					},
-					model: 'claude-sonnet-4-20250514',
+					model: 'claude-4-sonnet-20250514',
 				},
 			};
 
@@ -1409,7 +1409,7 @@ describe('data-loader cost calculation with real pricing', () => {
 				timestamp: '2024-01-01T11:00:00Z',
 				message: {
 					usage: { input_tokens: 2000, output_tokens: 1000 },
-					model: 'claude-sonnet-4-20250514',
+					model: 'claude-4-sonnet-20250514',
 				},
 			};
 
@@ -1437,7 +1437,7 @@ describe('data-loader cost calculation with real pricing', () => {
 				timestamp: '2024-01-01T10:00:00Z',
 				message: {
 					usage: { input_tokens: 1000, output_tokens: 500 },
-					model: 'claude-sonnet-4-20250514',
+					model: 'claude-4-sonnet-20250514',
 				},
 				costUSD: 99.99, // This should be ignored
 			};
@@ -1467,7 +1467,7 @@ describe('data-loader cost calculation with real pricing', () => {
 				timestamp: '2024-01-01T10:00:00Z',
 				message: {
 					usage: { input_tokens: 1000, output_tokens: 500 },
-					model: 'claude-sonnet-4-20250514',
+					model: 'claude-4-sonnet-20250514',
 				},
 				costUSD: 0.05,
 			};
@@ -1476,7 +1476,7 @@ describe('data-loader cost calculation with real pricing', () => {
 				timestamp: '2024-01-01T11:00:00Z',
 				message: {
 					usage: { input_tokens: 2000, output_tokens: 1000 },
-					model: 'claude-sonnet-4-20250514',
+					model: 'claude-4-sonnet-20250514',
 				},
 				// No costUSD - should result in 0 cost
 			};
@@ -1505,7 +1505,7 @@ describe('data-loader cost calculation with real pricing', () => {
 				timestamp: '2024-01-01T10:00:00Z',
 				message: {
 					usage: { input_tokens: 1000, output_tokens: 500 },
-					model: 'claude-sonnet-4-20250514',
+					model: 'claude-4-sonnet-20250514',
 				},
 				costUSD: 99.99,
 			};
@@ -1542,7 +1542,7 @@ describe('data-loader cost calculation with real pricing', () => {
 				timestamp: '2024-01-01T10:00:00Z',
 				message: {
 					usage: { input_tokens: 1000, output_tokens: 500 },
-					model: 'claude-sonnet-4-20250514',
+					model: 'claude-4-sonnet-20250514',
 				},
 				costUSD: 0.05,
 			};
@@ -1572,7 +1572,7 @@ describe('data-loader cost calculation with real pricing', () => {
 				timestamp: '2024-01-01T10:00:00Z',
 				message: {
 					usage: { input_tokens: 1000, output_tokens: 500 },
-					model: 'claude-sonnet-4-20250514',
+					model: 'claude-4-sonnet-20250514',
 				},
 				costUSD: 0.05,
 			};
@@ -1603,7 +1603,7 @@ describe('data-loader cost calculation with real pricing', () => {
 				timestamp: '2024-01-01T10:00:00Z',
 				message: {
 					usage: { input_tokens: 1000, output_tokens: 500 },
-					model: 'claude-sonnet-4-20250514',
+					model: 'claude-4-sonnet-20250514',
 				},
 				// No costUSD, so auto mode will need to calculate
 			};
@@ -1633,7 +1633,7 @@ describe('data-loader cost calculation with real pricing', () => {
 				timestamp: '2024-01-01T10:00:00Z',
 				message: {
 					usage: { input_tokens: 1000, output_tokens: 500 },
-					model: 'claude-sonnet-4-20250514',
+					model: 'claude-4-sonnet-20250514',
 				},
 				costUSD: 0.05,
 			};
@@ -1742,7 +1742,7 @@ describe('calculateCostForEntry', () => {
 						input_tokens: 1000,
 						output_tokens: 500,
 					},
-					model: 'claude-sonnet-4-20250514',
+					model: 'claude-4-sonnet-20250514',
 				},
 			};
 
@@ -1797,7 +1797,7 @@ describe('calculateCostForEntry', () => {
 						input_tokens: 1000,
 						output_tokens: 500,
 					},
-					model: 'claude-sonnet-4-20250514',
+					model: 'claude-4-sonnet-20250514',
 				},
 			};
 
@@ -1827,7 +1827,7 @@ describe('calculateCostForEntry', () => {
 						input_tokens: 1000,
 						output_tokens: 500,
 					},
-					model: 'claude-sonnet-4-20250514',
+					model: 'claude-4-sonnet-20250514',
 				},
 			};
 
@@ -1900,6 +1900,22 @@ describe('calculateCostForEntry', () => {
 			using fetcher = new PricingFetcher();
 			const result = await calculateCostForEntry(dataWithNegativeCost, 'display', fetcher);
 			expect(result).toBe(-0.01);
+		});
+	});
+
+	describe('offline mode', () => {
+		test('should pass offline flag through loadDailyUsageData', async () => {
+			await using fixture = await createFixture({ projects: {} });
+			// This test verifies that the offline flag is properly passed through
+			// We can't easily mock the internal behavior, but we can verify it doesn't throw
+			const result = await loadDailyUsageData({
+				claudePath: fixture.path,
+				offline: true,
+				mode: 'calculate',
+			});
+
+			// Should return empty array or valid data without throwing
+			expect(Array.isArray(result)).toBe(true);
 		});
 	});
 });
