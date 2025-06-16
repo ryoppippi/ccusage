@@ -27,7 +27,6 @@ export const sharedArgs = {
 	},
 	path: {
 		type: 'string',
-		short: 'p',
 		description: 'Custom path to Claude data directory',
 		default: getDefaultClaudePath(),
 	},
