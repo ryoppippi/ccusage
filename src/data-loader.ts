@@ -464,6 +464,7 @@ export type LoadOptions = {
 	claudePath?: string; // Custom path to Claude data directory
 	mode?: CostMode; // Cost calculation mode
 	order?: SortOrder; // Sort order for dates
+	offline?: boolean; // Use offline mode for pricing
 } & DateFilter;
 
 export async function loadDailyUsageData(
@@ -487,7 +488,7 @@ export async function loadDailyUsageData(
 	const mode = options?.mode ?? 'auto';
 
 	// Use PricingFetcher with using statement for automatic cleanup
-	using fetcher = mode === 'display' ? null : new PricingFetcher();
+	using fetcher = mode === 'display' ? null : new PricingFetcher(options?.offline);
 
 	// Track processed message+request combinations for deduplication
 	const processedHashes = new Set<string>();
@@ -603,7 +604,7 @@ export async function loadSessionData(
 	const mode = options?.mode ?? 'auto';
 
 	// Use PricingFetcher with using statement for automatic cleanup
-	using fetcher = mode === 'display' ? null : new PricingFetcher();
+	using fetcher = mode === 'display' ? null : new PricingFetcher(options?.offline);
 
 	// Track processed message+request combinations for deduplication
 	const processedHashes = new Set<string>();

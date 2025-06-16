@@ -28,6 +28,7 @@ export const dailyCommand = define({
 			claudePath: getDefaultClaudePath(),
 			mode: ctx.values.mode,
 			order: ctx.values.order,
+			offline: ctx.values.offline,
 		});
 
 		if (dailyData.length === 0) {

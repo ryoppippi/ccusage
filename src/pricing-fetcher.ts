@@ -1,22 +1,16 @@
 import * as v from 'valibot';
+import { LITELLM_PRICING_URL } from './consts.internal.ts';
 import { logger } from './logger.ts';
-
-const ModelPricingSchema = v.object({
-	input_cost_per_token: v.optional(v.number()),
-	output_cost_per_token: v.optional(v.number()),
-	cache_creation_input_token_cost: v.optional(v.number()),
-	cache_read_input_token_cost: v.optional(v.number()),
-});
-
-export type ModelPricing = v.InferOutput<typeof ModelPricingSchema>;
-
-const LITELLM_PRICING_URL
-	= 'https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json';
+import { prefetchClaudePricing } from './macro.internal.ts' with { type: 'macro' };
+import { type ModelPricing, ModelPricingSchema } from './types.internal.ts';
 
 export class PricingFetcher implements Disposable {
 	private cachedPricing: Map<string, ModelPricing> | null = null;
+	private readonly offline: boolean;
 
-	constructor() {}
+	constructor(offline = false) {
+		this.offline = offline;
+	}
 
 	[Symbol.dispose](): void {
 		this.clearCache();
@@ -29,6 +23,13 @@ export class PricingFetcher implements Disposable {
 	private async ensurePricingLoaded(): Promise<Map<string, ModelPricing>> {
 		if (this.cachedPricing != null) {
 			return this.cachedPricing;
+		}
+
+		// If we're in offline mode, return pre-fetched data
+		if (this.offline) {
+			const pricing = new Map(Object.entries(await prefetchClaudePricing()));
+			this.cachedPricing = pricing;
+			return pricing;
 		}
 
 		try {

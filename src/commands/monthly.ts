@@ -28,6 +28,7 @@ export const monthlyCommand = define({
 			claudePath: getDefaultClaudePath(),
 			mode: ctx.values.mode,
 			order: ctx.values.order,
+			offline: ctx.values.offline,
 		});
 
 		if (monthlyData.length === 0) {

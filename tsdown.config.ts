@@ -1,4 +1,5 @@
 import { defineConfig } from 'tsdown';
+import Macros from 'unplugin-macros/rolldown';
 
 export default defineConfig({
 	entry: [
@@ -20,4 +21,9 @@ export default defineConfig({
 	publint: true,
 	unused: true,
 	exports: true,
+	plugins: [
+		Macros({
+			include: ['src/index.ts', 'src/pricing-fetcher.ts'],
+		}),
+	],
 });
