@@ -13,6 +13,15 @@
 				"--concurrency 10",
 				"--no-cache"
 			]
+		},
+		"eslint-mcp": {
+			"type": "stdio",
+			"command": "bun",
+			"args": [
+				"x",
+				"@eslint/mcp@latest"
+			],
+			"env": {}
 		}
 	}
 }
