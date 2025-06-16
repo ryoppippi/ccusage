@@ -4,6 +4,7 @@ import { homedir } from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
 import { unreachable } from '@core/errorutil';
+import { groupBy } from 'es-toolkit'; // TODO: after node20 is deprecated, switch to native Object.groupBy
 import { sort } from 'fast-sort';
 import { isDirectorySync } from 'path-type';
 import { glob } from 'tinyglobby';
@@ -12,7 +13,6 @@ import { logger } from './logger.ts';
 import {
 	PricingFetcher,
 } from './pricing-fetcher.ts';
-import { groupBy } from './utils.internal.ts';
 
 const DEFAULT_CLAUDE_CODE_PATH = path.join(homedir(), '.claude');
 
@@ -109,6 +109,198 @@ export const MonthlyUsageSchema = v.object({
 });
 
 export type MonthlyUsage = v.InferOutput<typeof MonthlyUsageSchema>;
+
+type TokenStats = {
+	inputTokens: number;
+	outputTokens: number;
+	cacheCreationTokens: number;
+	cacheReadTokens: number;
+	cost: number;
+};
+
+/**
+ * Aggregates token counts and costs by model name
+ */
+function aggregateByModel<T>(
+	entries: T[],
+	getModel: (entry: T) => string | undefined,
+	getUsage: (entry: T) => UsageData['message']['usage'],
+	getCost: (entry: T) => number,
+): Map<string, TokenStats> {
+	const modelAggregates = new Map<string, TokenStats>();
+	const defaultStats: TokenStats = {
+		inputTokens: 0,
+		outputTokens: 0,
+		cacheCreationTokens: 0,
+		cacheReadTokens: 0,
+		cost: 0,
+	};
+
+	for (const entry of entries) {
+		const modelName = getModel(entry) ?? 'unknown';
+		// Skip synthetic model
+		if (modelName === '<synthetic>') {
+			continue;
+		}
+
+		const usage = getUsage(entry);
+		const cost = getCost(entry);
+
+		const existing = modelAggregates.get(modelName) ?? defaultStats;
+
+		modelAggregates.set(modelName, {
+			inputTokens: existing.inputTokens + (usage.input_tokens ?? 0),
+			outputTokens: existing.outputTokens + (usage.output_tokens ?? 0),
+			cacheCreationTokens: existing.cacheCreationTokens + (usage.cache_creation_input_tokens ?? 0),
+			cacheReadTokens: existing.cacheReadTokens + (usage.cache_read_input_tokens ?? 0),
+			cost: existing.cost + cost,
+		});
+	}
+
+	return modelAggregates;
+}
+
+/**
+ * Aggregates model breakdowns from multiple sources
+ */
+function aggregateModelBreakdowns(
+	breakdowns: ModelBreakdown[],
+): Map<string, TokenStats> {
+	const modelAggregates = new Map<string, TokenStats>();
+	const defaultStats: TokenStats = {
+		inputTokens: 0,
+		outputTokens: 0,
+		cacheCreationTokens: 0,
+		cacheReadTokens: 0,
+		cost: 0,
+	};
+
+	for (const breakdown of breakdowns) {
+		// Skip synthetic model
+		if (breakdown.modelName === '<synthetic>') {
+			continue;
+		}
+
+		const existing = modelAggregates.get(breakdown.modelName) ?? defaultStats;
+
+		modelAggregates.set(breakdown.modelName, {
+			inputTokens: existing.inputTokens + breakdown.inputTokens,
+			outputTokens: existing.outputTokens + breakdown.outputTokens,
+			cacheCreationTokens: existing.cacheCreationTokens + breakdown.cacheCreationTokens,
+			cacheReadTokens: existing.cacheReadTokens + breakdown.cacheReadTokens,
+			cost: existing.cost + breakdown.cost,
+		});
+	}
+
+	return modelAggregates;
+}
+
+/**
+ * Converts model aggregates to sorted model breakdowns
+ */
+function createModelBreakdowns(
+	modelAggregates: Map<string, TokenStats>,
+): ModelBreakdown[] {
+	return Array.from(modelAggregates.entries())
+		.map(([modelName, stats]) => ({
+			modelName,
+			...stats,
+		}))
+		.sort((a, b) => b.cost - a.cost); // Sort by cost descending
+}
+
+/**
+ * Calculates total token counts and costs from entries
+ */
+function calculateTotals<T>(
+	entries: T[],
+	getUsage: (entry: T) => UsageData['message']['usage'],
+	getCost: (entry: T) => number,
+): TokenStats & { totalCost: number } {
+	return entries.reduce(
+		(acc, entry) => {
+			const usage = getUsage(entry);
+			const cost = getCost(entry);
+
+			return {
+				inputTokens: acc.inputTokens + (usage.input_tokens ?? 0),
+				outputTokens: acc.outputTokens + (usage.output_tokens ?? 0),
+				cacheCreationTokens: acc.cacheCreationTokens + (usage.cache_creation_input_tokens ?? 0),
+				cacheReadTokens: acc.cacheReadTokens + (usage.cache_read_input_tokens ?? 0),
+				cost: acc.cost + cost,
+				totalCost: acc.totalCost + cost,
+			};
+		},
+		{
+			inputTokens: 0,
+			outputTokens: 0,
+			cacheCreationTokens: 0,
+			cacheReadTokens: 0,
+			cost: 0,
+			totalCost: 0,
+		},
+	);
+}
+
+/**
+ * Filters items by date range
+ */
+function filterByDateRange<T>(
+	items: T[],
+	getDate: (item: T) => string,
+	since?: string,
+	until?: string,
+): T[] {
+	if (since == null && until == null) {
+		return items;
+	}
+
+	return items.filter((item) => {
+		const dateStr = getDate(item).substring(0, 10).replace(/-/g, ''); // Convert to YYYYMMDD
+		if (since != null && dateStr < since) {
+			return false;
+		}
+		if (until != null && dateStr > until) {
+			return false;
+		}
+		return true;
+	});
+}
+
+/**
+ * Checks if an entry is a duplicate based on hash
+ */
+function isDuplicateEntry(
+	uniqueHash: string | null,
+	processedHashes: Set<string>,
+): boolean {
+	if (uniqueHash == null) {
+		return false;
+	}
+	return processedHashes.has(uniqueHash);
+}
+
+/**
+ * Marks an entry as processed
+ */
+function markAsProcessed(
+	uniqueHash: string | null,
+	processedHashes: Set<string>,
+): void {
+	if (uniqueHash != null) {
+		processedHashes.add(uniqueHash);
+	}
+}
+
+/**
+ * Extracts unique models from entries, excluding synthetic model
+ */
+function extractUniqueModels<T>(
+	entries: T[],
+	getModel: (entry: T) => string | undefined,
+): string[] {
+	return [...new Set(entries.map(getModel).filter((m): m is string => m != null && m !== '<synthetic>'))];
+}
 
 export function formatDate(dateStr: string): string {
 	const date = new Date(dateStr);
@@ -321,15 +513,13 @@ export async function loadDailyUsageData(
 
 				// Check for duplicate message + request ID combination
 				const uniqueHash = createUniqueHash(data);
-				if (uniqueHash != null && processedHashes.has(uniqueHash)) {
+				if (isDuplicateEntry(uniqueHash, processedHashes)) {
 					// Skip duplicate message
 					continue;
 				}
 
 				// Mark this combination as processed
-				if (uniqueHash != null) {
-					processedHashes.add(uniqueHash);
-				}
+				markAsProcessed(uniqueHash, processedHashes);
 
 				const date = formatDate(data.timestamp);
 				// If fetcher is available, calculate cost based on mode and tokens
@@ -357,70 +547,24 @@ export async function loadDailyUsageData(
 			}
 
 			// Aggregate by model first
-			const modelAggregates = new Map<string, {
-				inputTokens: number;
-				outputTokens: number;
-				cacheCreationTokens: number;
-				cacheReadTokens: number;
-				cost: number;
-			}>();
-
-			for (const entry of entries) {
-				const modelName = entry.model ?? 'unknown';
-				// Skip synthetic model
-				if (modelName === '<synthetic>') {
-					continue;
-				}
-				const existing = modelAggregates.get(modelName) ?? {
-					inputTokens: 0,
-					outputTokens: 0,
-					cacheCreationTokens: 0,
-					cacheReadTokens: 0,
-					cost: 0,
-				};
-
-				modelAggregates.set(modelName, {
-					inputTokens: existing.inputTokens + (entry.data.message.usage.input_tokens ?? 0),
-					outputTokens: existing.outputTokens + (entry.data.message.usage.output_tokens ?? 0),
-					cacheCreationTokens: existing.cacheCreationTokens + (entry.data.message.usage.cache_creation_input_tokens ?? 0),
-					cacheReadTokens: existing.cacheReadTokens + (entry.data.message.usage.cache_read_input_tokens ?? 0),
-					cost: existing.cost + entry.cost,
-				});
-			}
-
-			// Create model breakdowns
-			const modelBreakdowns: ModelBreakdown[] = Array.from(modelAggregates.entries())
-				.map(([modelName, stats]) => ({
-					modelName,
-					...stats,
-				}))
-				.sort((a, b) => b.cost - a.cost); // Sort by cost descending
-
-			// Calculate totals
-			const totals = entries.reduce(
-				(acc, entry) => ({
-					inputTokens:
-						acc.inputTokens + (entry.data.message.usage.input_tokens ?? 0),
-					outputTokens:
-						acc.outputTokens + (entry.data.message.usage.output_tokens ?? 0),
-					cacheCreationTokens:
-						acc.cacheCreationTokens
-						+ (entry.data.message.usage.cache_creation_input_tokens ?? 0),
-					cacheReadTokens:
-						acc.cacheReadTokens
-						+ (entry.data.message.usage.cache_read_input_tokens ?? 0),
-					totalCost: acc.totalCost + entry.cost,
-				}),
-				{
-					inputTokens: 0,
-					outputTokens: 0,
-					cacheCreationTokens: 0,
-					cacheReadTokens: 0,
-					totalCost: 0,
-				},
+			const modelAggregates = aggregateByModel(
+				entries,
+				entry => entry.model,
+				entry => entry.data.message.usage,
+				entry => entry.cost,
 			);
 
-			const modelsUsed = [...new Set(entries.map(e => e.model).filter((m): m is string => m != null && m !== '<synthetic>'))];
+			// Create model breakdowns
+			const modelBreakdowns = createModelBreakdowns(modelAggregates);
+
+			// Calculate totals
+			const totals = calculateTotals(
+				entries,
+				entry => entry.data.message.usage,
+				entry => entry.cost,
+			);
+
+			const modelsUsed = extractUniqueModels(entries, e => e.model);
 
 			return {
 				date,
@@ -429,23 +573,13 @@ export async function loadDailyUsageData(
 				modelBreakdowns,
 			};
 		})
-		.filter(item => item != null)
-		.filter((item) => {
-			// Filter by date range if specified
-			if (options?.since != null || options?.until != null) {
-				const dateStr = item.date.replace(/-/g, ''); // Convert to YYYYMMDD
-				if (options.since != null && dateStr < options.since) {
-					return false;
-				}
-				if (options.until != null && dateStr > options.until) {
-					return false;
-				}
-			}
-			return true;
-		});
+		.filter(item => item != null);
+
+	// Filter by date range if specified
+	const filtered = filterByDateRange(results, item => item.date, options?.since, options?.until);
 
 	// Sort by date based on order option (default to descending)
-	return sortByDate(results, item => item.date, options?.order);
+	return sortByDate(filtered, item => item.date, options?.order);
 }
 
 export async function loadSessionData(
@@ -513,15 +647,13 @@ export async function loadSessionData(
 
 				// Check for duplicate message + request ID combination
 				const uniqueHash = createUniqueHash(data);
-				if (uniqueHash != null && processedHashes.has(uniqueHash)) {
+				if (isDuplicateEntry(uniqueHash, processedHashes)) {
 					// Skip duplicate message
 					continue;
 				}
 
 				// Mark this combination as processed
-				if (uniqueHash != null) {
-					processedHashes.add(uniqueHash);
-				}
+				markAsProcessed(uniqueHash, processedHashes);
 
 				const sessionKey = `${projectPath}/${sessionId}`;
 				const cost = fetcher != null
@@ -571,70 +703,24 @@ export async function loadSessionData(
 			}
 
 			// Aggregate by model
-			const modelAggregates = new Map<string, {
-				inputTokens: number;
-				outputTokens: number;
-				cacheCreationTokens: number;
-				cacheReadTokens: number;
-				cost: number;
-			}>();
-
-			for (const entry of entries) {
-				const modelName = entry.model ?? 'unknown';
-				// Skip synthetic model
-				if (modelName === '<synthetic>') {
-					continue;
-				}
-				const existing = modelAggregates.get(modelName) ?? {
-					inputTokens: 0,
-					outputTokens: 0,
-					cacheCreationTokens: 0,
-					cacheReadTokens: 0,
-					cost: 0,
-				};
-
-				modelAggregates.set(modelName, {
-					inputTokens: existing.inputTokens + (entry.data.message.usage.input_tokens ?? 0),
-					outputTokens: existing.outputTokens + (entry.data.message.usage.output_tokens ?? 0),
-					cacheCreationTokens: existing.cacheCreationTokens + (entry.data.message.usage.cache_creation_input_tokens ?? 0),
-					cacheReadTokens: existing.cacheReadTokens + (entry.data.message.usage.cache_read_input_tokens ?? 0),
-					cost: existing.cost + entry.cost,
-				});
-			}
-
-			// Create model breakdowns
-			const modelBreakdowns: ModelBreakdown[] = Array.from(modelAggregates.entries())
-				.map(([modelName, stats]) => ({
-					modelName,
-					...stats,
-				}))
-				.sort((a, b) => b.cost - a.cost);
-
-			// Calculate totals
-			const totals = entries.reduce(
-				(acc, entry) => ({
-					inputTokens:
-						acc.inputTokens + (entry.data.message.usage.input_tokens ?? 0),
-					outputTokens:
-						acc.outputTokens + (entry.data.message.usage.output_tokens ?? 0),
-					cacheCreationTokens:
-						acc.cacheCreationTokens
-						+ (entry.data.message.usage.cache_creation_input_tokens ?? 0),
-					cacheReadTokens:
-						acc.cacheReadTokens
-						+ (entry.data.message.usage.cache_read_input_tokens ?? 0),
-					totalCost: acc.totalCost + entry.cost,
-				}),
-				{
-					inputTokens: 0,
-					outputTokens: 0,
-					cacheCreationTokens: 0,
-					cacheReadTokens: 0,
-					totalCost: 0,
-				},
+			const modelAggregates = aggregateByModel(
+				entries,
+				entry => entry.model,
+				entry => entry.data.message.usage,
+				entry => entry.cost,
 			);
 
-			const modelsUsed = [...new Set(entries.map(e => e.model).filter((m): m is string => m != null && m !== '<synthetic>'))];
+			// Create model breakdowns
+			const modelBreakdowns = createModelBreakdowns(modelAggregates);
+
+			// Calculate totals
+			const totals = calculateTotals(
+				entries,
+				entry => entry.data.message.usage,
+				entry => entry.cost,
+			);
+
+			const modelsUsed = extractUniqueModels(entries, e => e.model);
 
 			return {
 				sessionId: latestEntry.sessionId,
@@ -646,22 +732,12 @@ export async function loadSessionData(
 				modelBreakdowns,
 			};
 		})
-		.filter(item => item != null)
-		.filter((item) => {
-			// Filter by date range if specified
-			if (options?.since != null || options?.until != null) {
-				const dateStr = item.lastActivity.replace(/-/g, ''); // Convert to YYYYMMDD
-				if (options.since != null && dateStr < options.since) {
-					return false;
-				}
-				if (options.until != null && dateStr > options.until) {
-					return false;
-				}
-			}
-			return true;
-		});
+		.filter(item => item != null);
 
-	return sortByDate(results, item => item.lastActivity, options?.order);
+	// Filter by date range if specified
+	const filtered = filterByDateRange(results, item => item.lastActivity, options?.since, options?.until);
+
+	return sortByDate(filtered, item => item.lastActivity, options?.order);
 }
 
 export async function loadMonthlyUsageData(
@@ -681,45 +757,11 @@ export async function loadMonthlyUsageData(
 		}
 
 		// Aggregate model breakdowns across all days
-		const modelAggregates = new Map<string, {
-			inputTokens: number;
-			outputTokens: number;
-			cacheCreationTokens: number;
-			cacheReadTokens: number;
-			cost: number;
-		}>();
-
-		for (const daily of dailyEntries) {
-			for (const breakdown of daily.modelBreakdowns) {
-				// Skip synthetic model
-				if (breakdown.modelName === '<synthetic>') {
-					continue;
-				}
-				const existing = modelAggregates.get(breakdown.modelName) ?? {
-					inputTokens: 0,
-					outputTokens: 0,
-					cacheCreationTokens: 0,
-					cacheReadTokens: 0,
-					cost: 0,
-				};
-
-				modelAggregates.set(breakdown.modelName, {
-					inputTokens: existing.inputTokens + breakdown.inputTokens,
-					outputTokens: existing.outputTokens + breakdown.outputTokens,
-					cacheCreationTokens: existing.cacheCreationTokens + breakdown.cacheCreationTokens,
-					cacheReadTokens: existing.cacheReadTokens + breakdown.cacheReadTokens,
-					cost: existing.cost + breakdown.cost,
-				});
-			}
-		}
+		const allBreakdowns = dailyEntries.flatMap(daily => daily.modelBreakdowns);
+		const modelAggregates = aggregateModelBreakdowns(allBreakdowns);
 
 		// Create model breakdowns
-		const modelBreakdowns: ModelBreakdown[] = Array.from(modelAggregates.entries())
-			.map(([modelName, stats]) => ({
-				modelName,
-				...stats,
-			}))
-			.sort((a, b) => b.cost - a.cost);
+		const modelBreakdowns = createModelBreakdowns(modelAggregates);
 
 		// Collect unique models
 		const modelsSet = new Set<string>();
