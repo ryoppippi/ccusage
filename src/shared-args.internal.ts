@@ -67,7 +67,7 @@ export const sharedArgs = {
 		type: 'boolean',
 		negatable: true,
 		short: 'O',
-		description: 'Use cached data instead of fetching from API',
+		description: 'Use cached pricing data for Claude models instead of fetching from API',
 		default: false,
 	},
 } as const satisfies Args;
