@@ -230,6 +230,55 @@ ccusage session --offline         # Use pre-cached pricing data
 ccusage session -O                # Short alias for --offline
 ```
 
+### 5-Hour Blocks Report
+
+Shows usage grouped by Claude's 5-hour billing windows:
+
+```bash
+# Show all 5-hour blocks
+ccusage blocks
+
+# Show only the active block with detailed projections
+ccusage blocks --active
+
+# Show blocks from the last 3 days (including active)
+ccusage blocks --recent
+
+# Set a token limit to see if you'll exceed it
+ccusage blocks -t 500000
+
+# Use the highest previous block as the token limit
+ccusage blocks -t max
+
+# Combine options
+ccusage blocks --recent -t max
+
+# Output in JSON format
+ccusage blocks --json
+
+# Control cost calculation mode
+ccusage blocks --mode auto       # Use costUSD when available, calculate otherwise (default)
+ccusage blocks --mode calculate  # Always calculate costs from tokens
+ccusage blocks --mode display    # Always show pre-calculated costUSD values
+
+# Control sort order
+ccusage blocks --order asc       # Show oldest blocks first
+ccusage blocks --order desc      # Show newest blocks first (default)
+```
+
+The blocks report helps you understand Claude Code's 5-hour rolling session windows:
+
+- Sessions start with your first message and last for 5 hours
+- Shows active blocks with time remaining and burn rate projections
+- Helps track if you're approaching token limits within a session
+- The `-t max` option automatically uses your highest previous block as the limit
+
+#### Blocks-specific options:
+
+- `-t, --token-limit <number|max>`: Set token limit for quota warnings (use "max" for highest previous block)
+- `-a, --active`: Show only active block with detailed projections
+- `-r, --recent`: Show blocks from last 3 days (including active)
+
 ### Options
 
 All commands support the following options:

@@ -2,7 +2,7 @@ import process from 'node:process';
 import Table from 'cli-table3';
 import stringWidth from 'string-width';
 
-type TableRow = (string | number)[];
+type TableRow = (string | number | { content: string; hAlign?: 'left' | 'right' | 'center' })[];
 type TableOptions = {
 	head: string[];
 	colAligns?: ('left' | 'right' | 'center')[];
@@ -35,7 +35,12 @@ export class ResponsiveTable {
 
 		// Calculate actual content widths first (excluding separator rows)
 		const dataRows = this.rows.filter(row => !this.isSeparatorRow(row));
-		const allRows = [this.head.map(String), ...dataRows.map(row => row.map(String))];
+		const allRows = [this.head.map(String), ...dataRows.map(row => row.map((cell) => {
+			if (typeof cell === 'object' && cell != null && 'content' in cell) {
+				return String(cell.content);
+			}
+			return String(cell ?? '');
+		}))];
 		const contentWidths = this.head.map((_, colIndex) => {
 			const maxLength = Math.max(
 				...allRows.map(row => stringWidth(String(row[colIndex] ?? ''))),
@@ -146,10 +151,12 @@ export class ResponsiveTable {
 
 	private isSeparatorRow(row: TableRow): boolean {
 		// Check for both old-style separator rows (─) and new-style empty rows
-		return row.every(cell =>
-			typeof cell === 'string'
-			&& (cell === '' || /^─+$/.test(cell)),
-		);
+		return row.every((cell) => {
+			if (typeof cell === 'object' && cell != null && 'content' in cell) {
+				return cell.content === '' || /^─+$/.test(cell.content);
+			}
+			return typeof cell === 'string' && (cell === '' || /^─+$/.test(cell));
+		});
 	}
 
 	private isDateString(text: string): boolean {

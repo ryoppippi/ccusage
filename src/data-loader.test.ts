@@ -9,6 +9,7 @@ import {
 	formatDateCompact,
 	getDefaultClaudePath,
 	loadDailyUsageData,
+	loadFiveHourBlockData,
 	loadMonthlyUsageData,
 	loadSessionData,
 	type UsageData,
@@ -1936,5 +1937,318 @@ describe('calculateCostForEntry', () => {
 			// Should return empty array or valid data without throwing
 			expect(Array.isArray(result)).toBe(true);
 		});
+	});
+});
+
+describe('loadFiveHourBlockData', () => {
+	test('returns empty array when no files found', async () => {
+		await using fixture = await createFixture({ projects: {} });
+		const result = await loadFiveHourBlockData({ claudePath: fixture.path });
+		expect(result).toEqual([]);
+	});
+
+	test('loads and identifies five-hour blocks correctly', async () => {
+		const now = new Date('2024-01-01T10:00:00Z');
+		const laterTime = new Date(now.getTime() + 1 * 60 * 60 * 1000); // 1 hour later
+		const muchLaterTime = new Date(now.getTime() + 6 * 60 * 60 * 1000); // 6 hours later
+
+		await using fixture = await createFixture({
+			projects: {
+				project1: {
+					session1: {
+						'conversation1.jsonl': [
+							{
+								timestamp: now.toISOString(),
+								message: {
+									id: 'msg1',
+									usage: {
+										input_tokens: 1000,
+										output_tokens: 500,
+									},
+									model: 'claude-sonnet-4-20250514',
+								},
+								requestId: 'req1',
+								costUSD: 0.01,
+								version: '1.0.0',
+							},
+							{
+								timestamp: laterTime.toISOString(),
+								message: {
+									id: 'msg2',
+									usage: {
+										input_tokens: 2000,
+										output_tokens: 1000,
+									},
+									model: 'claude-sonnet-4-20250514',
+								},
+								requestId: 'req2',
+								costUSD: 0.02,
+								version: '1.0.0',
+							},
+							{
+								timestamp: muchLaterTime.toISOString(),
+								message: {
+									id: 'msg3',
+									usage: {
+										input_tokens: 1500,
+										output_tokens: 750,
+									},
+									model: 'claude-sonnet-4-20250514',
+								},
+								requestId: 'req3',
+								costUSD: 0.015,
+								version: '1.0.0',
+							},
+						].map(data => JSON.stringify(data)).join('\n'),
+					},
+				},
+			},
+		});
+
+		const result = await loadFiveHourBlockData({ claudePath: fixture.path });
+		expect(result.length).toBeGreaterThan(0); // Should have blocks
+		expect(result[0]?.entries).toHaveLength(1); // First block has one entry
+		// Total entries across all blocks should be 3
+		const totalEntries = result.reduce((sum, block) => sum + block.entries.length, 0);
+		expect(totalEntries).toBe(3);
+	});
+
+	test('handles cost calculation modes correctly', async () => {
+		const now = new Date('2024-01-01T10:00:00Z');
+
+		await using fixture = await createFixture({
+			projects: {
+				project1: {
+					session1: {
+						'conversation1.jsonl': JSON.stringify({
+							timestamp: now.toISOString(),
+							message: {
+								id: 'msg1',
+								usage: {
+									input_tokens: 1000,
+									output_tokens: 500,
+								},
+								model: 'claude-sonnet-4-20250514',
+							},
+							request: { id: 'req1' },
+							costUSD: 0.01,
+							version: '1.0.0',
+						}),
+					},
+				},
+			},
+		});
+
+		// Test display mode
+		const displayResult = await loadFiveHourBlockData({
+			claudePath: fixture.path,
+			mode: 'display',
+		});
+		expect(displayResult).toHaveLength(1);
+		expect(displayResult[0]?.costUSD).toBe(0.01);
+
+		// Test calculate mode
+		const calculateResult = await loadFiveHourBlockData({
+			claudePath: fixture.path,
+			mode: 'calculate',
+		});
+		expect(calculateResult).toHaveLength(1);
+		expect(calculateResult[0]?.costUSD).toBeGreaterThan(0);
+	});
+
+	test('filters by date range correctly', async () => {
+		const date1 = new Date('2024-01-01T10:00:00Z');
+		const date2 = new Date('2024-01-02T10:00:00Z');
+		const date3 = new Date('2024-01-03T10:00:00Z');
+
+		await using fixture = await createFixture({
+			projects: {
+				project1: {
+					session1: {
+						'conversation1.jsonl': [
+							{
+								timestamp: date1.toISOString(),
+								message: {
+									id: 'msg1',
+									usage: { input_tokens: 1000, output_tokens: 500 },
+									model: 'claude-sonnet-4-20250514',
+								},
+								requestId: 'req1',
+								costUSD: 0.01,
+								version: '1.0.0',
+							},
+							{
+								timestamp: date2.toISOString(),
+								message: {
+									id: 'msg2',
+									usage: { input_tokens: 2000, output_tokens: 1000 },
+									model: 'claude-sonnet-4-20250514',
+								},
+								requestId: 'req2',
+								costUSD: 0.02,
+								version: '1.0.0',
+							},
+							{
+								timestamp: date3.toISOString(),
+								message: {
+									id: 'msg3',
+									usage: { input_tokens: 1500, output_tokens: 750 },
+									model: 'claude-sonnet-4-20250514',
+								},
+								requestId: 'req3',
+								costUSD: 0.015,
+								version: '1.0.0',
+							},
+						].map(data => JSON.stringify(data)).join('\n'),
+					},
+				},
+			},
+		});
+
+		// Test filtering with since parameter
+		const sinceResult = await loadFiveHourBlockData({
+			claudePath: fixture.path,
+			since: '20240102',
+		});
+		expect(sinceResult.length).toBeGreaterThan(0);
+		expect(sinceResult.every(block => block.startTime >= date2)).toBe(true);
+
+		// Test filtering with until parameter
+		const untilResult = await loadFiveHourBlockData({
+			claudePath: fixture.path,
+			until: '20240102',
+		});
+		expect(untilResult.length).toBeGreaterThan(0);
+		// The filter uses formatDate which converts to YYYYMMDD format for comparison
+		expect(untilResult.every((block) => {
+			const blockDateStr = block.startTime.toISOString().slice(0, 10).replace(/-/g, '');
+			return blockDateStr <= '20240102';
+		})).toBe(true);
+	});
+
+	test('sorts blocks by order parameter', async () => {
+		const date1 = new Date('2024-01-01T10:00:00Z');
+		const date2 = new Date('2024-01-02T10:00:00Z');
+
+		await using fixture = await createFixture({
+			projects: {
+				project1: {
+					session1: {
+						'conversation1.jsonl': [
+							{
+								timestamp: date2.toISOString(),
+								message: {
+									id: 'msg2',
+									usage: { input_tokens: 2000, output_tokens: 1000 },
+									model: 'claude-sonnet-4-20250514',
+								},
+								requestId: 'req2',
+								costUSD: 0.02,
+								version: '1.0.0',
+							},
+							{
+								timestamp: date1.toISOString(),
+								message: {
+									id: 'msg1',
+									usage: { input_tokens: 1000, output_tokens: 500 },
+									model: 'claude-sonnet-4-20250514',
+								},
+								requestId: 'req1',
+								costUSD: 0.01,
+								version: '1.0.0',
+							},
+						].map(data => JSON.stringify(data)).join('\n'),
+					},
+				},
+			},
+		});
+
+		// Test ascending order
+		const ascResult = await loadFiveHourBlockData({
+			claudePath: fixture.path,
+			order: 'asc',
+		});
+		expect(ascResult[0]?.startTime).toEqual(date1);
+
+		// Test descending order
+		const descResult = await loadFiveHourBlockData({
+			claudePath: fixture.path,
+			order: 'desc',
+		});
+		expect(descResult[0]?.startTime).toEqual(date2);
+	});
+
+	test('handles deduplication correctly', async () => {
+		const now = new Date('2024-01-01T10:00:00Z');
+
+		await using fixture = await createFixture({
+			projects: {
+				project1: {
+					session1: {
+						'conversation1.jsonl': [
+							{
+								timestamp: now.toISOString(),
+								message: {
+									id: 'msg1',
+									usage: { input_tokens: 1000, output_tokens: 500 },
+									model: 'claude-sonnet-4-20250514',
+								},
+								requestId: 'req1',
+								costUSD: 0.01,
+								version: '1.0.0',
+							},
+							// Duplicate entry - should be filtered out
+							{
+								timestamp: now.toISOString(),
+								message: {
+									id: 'msg1',
+									usage: { input_tokens: 1000, output_tokens: 500 },
+									model: 'claude-sonnet-4-20250514',
+								},
+								requestId: 'req1',
+								costUSD: 0.01,
+								version: '1.0.0',
+							},
+						].map(data => JSON.stringify(data)).join('\n'),
+					},
+				},
+			},
+		});
+
+		const result = await loadFiveHourBlockData({ claudePath: fixture.path });
+		expect(result).toHaveLength(1);
+		expect(result[0]?.entries).toHaveLength(1); // Only one entry after deduplication
+	});
+
+	test('handles invalid JSON lines gracefully', async () => {
+		const now = new Date('2024-01-01T10:00:00Z');
+
+		await using fixture = await createFixture({
+			projects: {
+				project1: {
+					session1: {
+						'conversation1.jsonl': [
+							'invalid json line',
+							JSON.stringify({
+								timestamp: now.toISOString(),
+								message: {
+									id: 'msg1',
+									usage: { input_tokens: 1000, output_tokens: 500 },
+									model: 'claude-sonnet-4-20250514',
+								},
+								requestId: 'req1',
+								costUSD: 0.01,
+								version: '1.0.0',
+							}),
+							'another invalid line',
+						].join('\n'),
+					},
+				},
+			},
+		});
+
+		const result = await loadFiveHourBlockData({ claudePath: fixture.path });
+		expect(result).toHaveLength(1);
+		expect(result[0]?.entries).toHaveLength(1);
 	});
 });

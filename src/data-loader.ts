@@ -9,6 +9,11 @@ import { sort } from 'fast-sort';
 import { isDirectorySync } from 'path-type';
 import { glob } from 'tinyglobby';
 import * as v from 'valibot';
+import {
+	type FiveHourBlock,
+	identifyFiveHourBlocks,
+	type LoadedUsageEntry,
+} from './five-hour-blocks.internal.ts';
 import { logger } from './logger.ts';
 import {
 	PricingFetcher,
@@ -813,4 +818,104 @@ export async function loadMonthlyUsageData(
 
 	// Sort by month based on sortOrder
 	return sortByDate(monthlyArray, item => `${item.month}-01`, options?.order);
+}
+
+export async function loadFiveHourBlockData(
+	options?: LoadOptions,
+): Promise<FiveHourBlock[]> {
+	const claudePath = options?.claudePath ?? getDefaultClaudePath();
+	const claudeDir = path.join(claudePath, 'projects');
+	const files = await glob(['**/*.jsonl'], {
+		cwd: claudeDir,
+		absolute: true,
+	});
+
+	if (files.length === 0) {
+		return [];
+	}
+
+	// Sort files by timestamp to ensure chronological processing
+	const sortedFiles = await sortFilesByTimestamp(files);
+
+	// Fetch pricing data for cost calculation only when needed
+	const mode = options?.mode ?? 'auto';
+
+	// Use PricingFetcher with using statement for automatic cleanup
+	using fetcher = mode === 'display' ? null : new PricingFetcher();
+
+	// Track processed message+request combinations for deduplication
+	const processedHashes = new Set<string>();
+
+	// Collect all valid data entries first
+	const allEntries: LoadedUsageEntry[] = [];
+
+	for (const file of sortedFiles) {
+		const content = await readFile(file, 'utf-8');
+		const lines = content
+			.trim()
+			.split('\n')
+			.filter(line => line.length > 0);
+
+		for (const line of lines) {
+			try {
+				const parsed = JSON.parse(line) as unknown;
+				const result = v.safeParse(UsageDataSchema, parsed);
+				if (!result.success) {
+					continue;
+				}
+				const data = result.output;
+
+				// Check for duplicate message + request ID combination
+				const uniqueHash = createUniqueHash(data);
+				if (isDuplicateEntry(uniqueHash, processedHashes)) {
+					// Skip duplicate message
+					continue;
+				}
+
+				// Mark this combination as processed
+				markAsProcessed(uniqueHash, processedHashes);
+
+				const cost = fetcher != null
+					? await calculateCostForEntry(data, mode, fetcher)
+					: data.costUSD ?? 0;
+
+				allEntries.push({
+					timestamp: new Date(data.timestamp),
+					usage: {
+						inputTokens: data.message.usage.input_tokens,
+						outputTokens: data.message.usage.output_tokens,
+						cacheCreationInputTokens: data.message.usage.cache_creation_input_tokens ?? 0,
+						cacheReadInputTokens: data.message.usage.cache_read_input_tokens ?? 0,
+					},
+					costUSD: cost,
+					model: data.message.model ?? 'unknown',
+					version: data.version,
+				});
+			}
+			catch (error) {
+				// Skip invalid JSON lines but log for debugging purposes
+				logger.debug(`Skipping invalid JSON line in 5-hour blocks: ${error instanceof Error ? error.message : String(error)}`);
+			}
+		}
+	}
+
+	// Identify 5-hour blocks
+	const blocks = identifyFiveHourBlocks(allEntries);
+
+	// Filter by date range if specified
+	const filtered = (options?.since != null && options.since !== '') || (options?.until != null && options.until !== '')
+		? blocks.filter((block) => {
+				const blockDateStr = formatDate(block.startTime.toISOString()).replace(/-/g, '');
+				if (options.since != null && options.since !== '' && blockDateStr < options.since) {
+					return false;
+				}
+				if (options.until != null && options.until !== '' && blockDateStr > options.until) {
+					return false;
+				}
+				return true;
+			})
+		: blocks;
+
+	// Sort by start time based on order option
+	return sortByDate(filtered, block => block.startTime, options?.order);
 }

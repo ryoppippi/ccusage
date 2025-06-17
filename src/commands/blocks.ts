@@ -1,0 +1,406 @@
+import process from 'node:process';
+import { define } from 'gunshi';
+import pc from 'picocolors';
+import { getDefaultClaudePath, loadFiveHourBlockData } from '../data-loader.ts';
+import {
+	calculateBurnRate,
+	filterRecentBlocks,
+	type FiveHourBlock,
+	projectBlockUsage,
+} from '../five-hour-blocks.internal.ts';
+import { log, logger } from '../logger.ts';
+import { sharedCommandConfig } from '../shared-args.internal.ts';
+import { formatCurrency, formatModelsDisplay, formatNumber } from '../utils.internal.ts';
+import { ResponsiveTable } from '../utils.table.ts';
+
+// Constants for configurable values
+const RECENT_DAYS_DEFAULT = 3;
+const WARNING_THRESHOLD = 0.8;
+const COMPACT_WIDTH_THRESHOLD = 120;
+const DEFAULT_TERMINAL_WIDTH = 120;
+
+function formatBlockTime(block: FiveHourBlock, compact = false): string {
+	const start = compact
+		? block.startTime.toLocaleString(undefined, {
+				month: '2-digit',
+				day: '2-digit',
+				hour: '2-digit',
+				minute: '2-digit',
+			})
+		: block.startTime.toLocaleString();
+
+	if (block.isGap ?? false) {
+		const end = compact
+			? block.endTime.toLocaleString(undefined, {
+					hour: '2-digit',
+					minute: '2-digit',
+				})
+			: block.endTime.toLocaleString();
+		const duration = Math.round((block.endTime.getTime() - block.startTime.getTime()) / (1000 * 60 * 60));
+		return compact ? `${start}-${end}\n(${duration}h gap)` : `${start} - ${end} (${duration}h gap)`;
+	}
+
+	const duration = block.actualEndTime != null
+		? Math.round((block.actualEndTime.getTime() - block.startTime.getTime()) / (1000 * 60))
+		: 0;
+
+	if (block.isActive) {
+		const now = new Date();
+		const elapsed = Math.round((now.getTime() - block.startTime.getTime()) / (1000 * 60));
+		const remaining = Math.round((block.endTime.getTime() - now.getTime()) / (1000 * 60));
+		const elapsedHours = Math.floor(elapsed / 60);
+		const elapsedMins = elapsed % 60;
+		const remainingHours = Math.floor(remaining / 60);
+		const remainingMins = remaining % 60;
+
+		if (compact) {
+			return `${start}\n(${elapsedHours}h${elapsedMins}m/${remainingHours}h${remainingMins}m)`;
+		}
+		return `${start} (${elapsedHours}h ${elapsedMins}m elapsed, ${remainingHours}h ${remainingMins}m remaining)`;
+	}
+
+	const hours = Math.floor(duration / 60);
+	const mins = duration % 60;
+	if (compact) {
+		return hours > 0 ? `${start}\n(${hours}h${mins}m)` : `${start}\n(${mins}m)`;
+	}
+	if (hours > 0) {
+		return `${start} (${hours}h ${mins}m)`;
+	}
+	return `${start} (${mins}m)`;
+}
+
+function formatModels(models: string[], compact = false): string {
+	if (models.length === 0) {
+		return '-';
+	}
+	// Use abbreviated format like other commands
+	return compact ? formatModelsDisplay(models) : formatModelsDisplay(models);
+}
+
+function parseTokenLimit(value: string | undefined, maxFromAll: number): number | undefined {
+	if (value == null || value === '') {
+		return undefined;
+	}
+	if (value === 'max') {
+		return maxFromAll > 0 ? maxFromAll : undefined;
+	}
+	const limit = Number.parseInt(value, 10);
+	return Number.isNaN(limit) ? undefined : limit;
+}
+
+export const blocksCommand = define({
+	name: 'blocks',
+	description: 'Show usage report grouped by 5-hour billing blocks',
+	args: {
+		...sharedCommandConfig.args,
+		active: {
+			type: 'boolean',
+			short: 'a',
+			description: 'Show only active block with projections',
+			default: false,
+		},
+		recent: {
+			type: 'boolean',
+			short: 'r',
+			description: `Show blocks from last ${RECENT_DAYS_DEFAULT} days (including active)`,
+			default: false,
+		},
+		tokenLimit: {
+			type: 'string',
+			short: 't',
+			description: 'Token limit for quota warnings (e.g., 500000 or "max" for highest previous block)',
+		},
+	},
+	toKebab: true,
+	async run(ctx) {
+		if (ctx.values.json) {
+			logger.level = 0;
+		}
+
+		let blocks = await loadFiveHourBlockData({
+			since: ctx.values.since,
+			until: ctx.values.until,
+			claudePath: getDefaultClaudePath(),
+			mode: ctx.values.mode,
+			order: ctx.values.order,
+		});
+
+		if (blocks.length === 0) {
+			if (ctx.values.json) {
+				log(JSON.stringify({ blocks: [] }));
+			}
+			else {
+				logger.warn('No Claude usage data found.');
+			}
+			process.exit(0);
+		}
+
+		// Calculate max tokens from ALL blocks before applying filters
+		let maxTokensFromAll = 0;
+		if (ctx.values.tokenLimit === 'max') {
+			for (const block of blocks) {
+				if (!(block.isGap ?? false) && !block.isActive) {
+					const blockTokens = block.tokenCounts.inputTokens + block.tokenCounts.outputTokens;
+					if (blockTokens > maxTokensFromAll) {
+						maxTokensFromAll = blockTokens;
+					}
+				}
+			}
+			if (!ctx.values.json && maxTokensFromAll > 0) {
+				logger.info(`Using max tokens from previous sessions: ${formatNumber(maxTokensFromAll)}`);
+			}
+		}
+
+		// Apply filters
+		if (ctx.values.recent) {
+			blocks = filterRecentBlocks(blocks, RECENT_DAYS_DEFAULT);
+		}
+
+		if (ctx.values.active) {
+			blocks = blocks.filter((block: FiveHourBlock) => block.isActive);
+			if (blocks.length === 0) {
+				if (ctx.values.json) {
+					log(JSON.stringify({ blocks: [], message: 'No active block' }));
+				}
+				else {
+					logger.info('No active 5-hour block found.');
+				}
+				process.exit(0);
+			}
+		}
+
+		if (ctx.values.json) {
+			// JSON output
+			const jsonOutput = {
+				blocks: blocks.map((block: FiveHourBlock) => {
+					const burnRate = block.isActive ? calculateBurnRate(block) : null;
+					const projection = block.isActive ? projectBlockUsage(block) : null;
+
+					return {
+						id: block.id,
+						startTime: block.startTime.toISOString(),
+						endTime: block.endTime.toISOString(),
+						actualEndTime: block.actualEndTime != null ? block.actualEndTime.toISOString() : null,
+						isActive: block.isActive,
+						isGap: block.isGap ?? false,
+						entries: block.entries.length,
+						tokenCounts: block.tokenCounts,
+						totalTokens:
+							block.tokenCounts.inputTokens
+							+ block.tokenCounts.outputTokens,
+						costUSD: block.costUSD,
+						models: block.models,
+						burnRate,
+						projection,
+						tokenLimitStatus: projection != null && ctx.values.tokenLimit != null
+							? (() => {
+									const limit = parseTokenLimit(ctx.values.tokenLimit, maxTokensFromAll);
+									return limit != null
+										? {
+												limit,
+												projectedUsage: projection.totalTokens,
+												percentUsed: (projection.totalTokens / limit) * 100,
+												status: projection.totalTokens > limit
+													? 'exceeds'
+													: projection.totalTokens > limit * WARNING_THRESHOLD ? 'warning' : 'ok',
+											}
+										: undefined;
+								})()
+							: undefined,
+					};
+				}),
+			};
+
+			log(JSON.stringify(jsonOutput, null, 2));
+		}
+		else {
+			// Table output
+			if (ctx.values.active && blocks.length === 1) {
+				// Detailed active block view
+				const block = blocks[0] as FiveHourBlock;
+				if (block == null) {
+					logger.warn('No active block found.');
+					process.exit(0);
+				}
+				const burnRate = calculateBurnRate(block);
+				const projection = projectBlockUsage(block);
+
+				logger.box('Current 5-Hour Block Status');
+
+				const now = new Date();
+				const elapsed = Math.round(
+					(now.getTime() - block.startTime.getTime()) / (1000 * 60),
+				);
+				const remaining = Math.round(
+					(block.endTime.getTime() - now.getTime()) / (1000 * 60),
+				);
+
+				log(`Block Started: ${pc.cyan(block.startTime.toLocaleString())} (${pc.yellow(`${Math.floor(elapsed / 60)}h ${elapsed % 60}m`)} ago)`);
+				log(`Time Remaining: ${pc.green(`${Math.floor(remaining / 60)}h ${remaining % 60}m`)}\n`);
+
+				log(pc.bold('Current Usage:'));
+				log(`  Input Tokens:     ${formatNumber(block.tokenCounts.inputTokens)}`);
+				log(`  Output Tokens:    ${formatNumber(block.tokenCounts.outputTokens)}`);
+				log(`  Total Cost:       ${formatCurrency(block.costUSD)}\n`);
+
+				if (burnRate != null) {
+					log(pc.bold('Burn Rate:'));
+					log(`  Tokens/minute:    ${formatNumber(burnRate.tokensPerMinute)}`);
+					log(`  Cost/hour:        ${formatCurrency(burnRate.costPerHour)}\n`);
+				}
+
+				if (projection != null) {
+					log(pc.bold('Projected Usage (if current rate continues):'));
+					log(`  Total Tokens:     ${formatNumber(projection.totalTokens)}`);
+					log(`  Total Cost:       ${formatCurrency(projection.totalCost)}\n`);
+
+					if (ctx.values.tokenLimit != null) {
+						// Parse token limit
+						const limit = parseTokenLimit(ctx.values.tokenLimit, maxTokensFromAll);
+						if (limit != null && limit > 0) {
+							const currentTokens = block.tokenCounts.inputTokens + block.tokenCounts.outputTokens;
+							const remainingTokens = Math.max(0, limit - currentTokens);
+							const percentUsed = (projection.totalTokens / limit) * 100;
+							const status = percentUsed > 100
+								? pc.red('EXCEEDS LIMIT')
+								: percentUsed > WARNING_THRESHOLD * 100
+									? pc.yellow('WARNING')
+									: pc.green('OK');
+
+							log(pc.bold('Token Limit Status:'));
+							log(`  Limit:            ${formatNumber(limit)} tokens`);
+							log(`  Current Usage:    ${formatNumber(currentTokens)} (${((currentTokens / limit) * 100).toFixed(1)}%)`);
+							log(`  Remaining:        ${formatNumber(remainingTokens)} tokens`);
+							log(`  Projected Usage:  ${percentUsed.toFixed(1)}% ${status}`);
+						}
+					}
+				}
+			}
+			else {
+				// Table view for multiple blocks
+				logger.box('Claude Code Token Usage Report - 5-Hour Blocks');
+
+				// Calculate token limit if "max" is specified
+				const actualTokenLimit = parseTokenLimit(ctx.values.tokenLimit, maxTokensFromAll);
+
+				const tableHeaders = ['Block Start', 'Duration/Status', 'Models', 'Tokens'];
+				const tableAligns: ('left' | 'right' | 'center')[] = ['left', 'left', 'left', 'right'];
+
+				// Add % column if token limit is set
+				if (actualTokenLimit != null && actualTokenLimit > 0) {
+					tableHeaders.push('%');
+					tableAligns.push('right');
+				}
+
+				tableHeaders.push('Cost');
+				tableAligns.push('right');
+
+				const table = new ResponsiveTable({
+					head: tableHeaders,
+					style: { head: ['cyan'] },
+					colAligns: tableAligns,
+				});
+
+				// Detect if we need compact formatting
+				const terminalWidth = process.stdout.columns || DEFAULT_TERMINAL_WIDTH;
+				const useCompactFormat = terminalWidth < COMPACT_WIDTH_THRESHOLD;
+
+				for (const block of blocks) {
+					if (block.isGap ?? false) {
+						// Gap row
+						const gapRow = [
+							pc.gray(formatBlockTime(block, useCompactFormat)),
+							pc.gray('(inactive)'),
+							pc.gray('-'),
+							pc.gray('-'),
+						];
+						if (actualTokenLimit != null && actualTokenLimit > 0) {
+							gapRow.push(pc.gray('-'));
+						}
+						gapRow.push(pc.gray('-'));
+						table.push(gapRow);
+					}
+					else {
+						const totalTokens
+							= block.tokenCounts.inputTokens + block.tokenCounts.outputTokens;
+						const status = block.isActive ? pc.green('ACTIVE') : '';
+
+						const row = [
+							formatBlockTime(block, useCompactFormat),
+							status,
+							formatModels(block.models, useCompactFormat),
+							formatNumber(totalTokens),
+						];
+
+						// Add percentage if token limit is set
+						if (actualTokenLimit != null && actualTokenLimit > 0) {
+							const percentage = (totalTokens / actualTokenLimit) * 100;
+							const percentText = `${percentage.toFixed(1)}%`;
+							row.push(percentage > 100 ? pc.red(percentText) : percentText);
+						}
+
+						row.push(formatCurrency(block.costUSD));
+						table.push(row);
+
+						// Add REMAINING and PROJECTED rows for active blocks
+						if (block.isActive) {
+							// REMAINING row - only show if token limit is set
+							if (actualTokenLimit != null && actualTokenLimit > 0) {
+								const currentTokens = block.tokenCounts.inputTokens + block.tokenCounts.outputTokens;
+								const remainingTokens = Math.max(0, actualTokenLimit - currentTokens);
+								const remainingText = remainingTokens > 0
+									? formatNumber(remainingTokens)
+									: pc.red('0');
+
+								// Calculate remaining percentage (how much of limit is left)
+								const remainingPercent = ((actualTokenLimit - currentTokens) / actualTokenLimit) * 100;
+								const remainingPercentText = remainingPercent > 0
+									? `${remainingPercent.toFixed(1)}%`
+									: pc.red('0.0%');
+
+								const remainingRow = [
+									{ content: pc.gray(`(assuming ${formatNumber(actualTokenLimit)} token limit)`), hAlign: 'right' as const },
+									pc.blue('REMAINING'),
+									'',
+									remainingText,
+									remainingPercentText,
+									'', // No cost for remaining - it's about token limit, not cost
+								];
+								table.push(remainingRow);
+							}
+
+							// PROJECTED row
+							const projection = projectBlockUsage(block);
+							if (projection != null) {
+								const projectedTokens = formatNumber(projection.totalTokens);
+								const projectedText = actualTokenLimit != null && actualTokenLimit > 0 && projection.totalTokens > actualTokenLimit
+									? pc.red(projectedTokens)
+									: projectedTokens;
+
+								const projectedRow = [
+									{ content: pc.gray('(assuming current burn rate)'), hAlign: 'right' as const },
+									pc.yellow('PROJECTED'),
+									'',
+									projectedText,
+								];
+
+								// Add percentage if token limit is set
+								if (actualTokenLimit != null && actualTokenLimit > 0) {
+									const percentage = (projection.totalTokens / actualTokenLimit) * 100;
+									const percentText = `${percentage.toFixed(1)}%`;
+									projectedRow.push(percentText);
+								}
+
+								projectedRow.push(formatCurrency(projection.totalCost));
+								table.push(projectedRow);
+							}
+						}
+					}
+				}
+
+				log(table.toString());
+			}
+		}
+	},
+});
