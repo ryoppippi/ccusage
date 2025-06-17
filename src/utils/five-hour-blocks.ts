@@ -66,7 +66,7 @@ export function identifyFiveHourBlocks(entries: LoadedUsageEntry[]): FiveHourBlo
 		}
 		else {
 			const timeSinceBlockStart = entryTime.getTime() - currentBlockStart.getTime();
-			const lastEntry = currentBlockEntries[currentBlockEntries.length - 1];
+			const lastEntry = currentBlockEntries.at(-1);
 			if (lastEntry == null) {
 				continue;
 			}
