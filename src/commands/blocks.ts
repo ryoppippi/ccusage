@@ -11,8 +11,7 @@ import {
 	type SessionBlock,
 } from '../session-blocks.internal.ts';
 import { sharedCommandConfig } from '../shared-args.internal.ts';
-import { formatCurrency, formatModelsDisplay, formatNumber } from '../utils.internal.ts';
-import { ResponsiveTable } from '../utils.table.ts';
+import { formatCurrency, formatModelsDisplay, formatNumber, ResponsiveTable } from '../utils.internal.ts';
 
 /**
  * Default number of recent days to show in blocks view

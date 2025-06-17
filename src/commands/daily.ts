@@ -10,8 +10,7 @@ import { formatDateCompact, getDefaultClaudePath, loadDailyUsageData } from '../
 import { detectMismatches, printMismatchReport } from '../debug.ts';
 import { log, logger } from '../logger.ts';
 import { sharedCommandConfig } from '../shared-args.internal.ts';
-import { formatCurrency, formatModelsDisplay, formatNumber, pushBreakdownRows } from '../utils.internal.ts';
-import { ResponsiveTable } from '../utils.table.ts';
+import { formatCurrency, formatModelsDisplay, formatNumber, pushBreakdownRows, ResponsiveTable } from '../utils.internal.ts';
 
 export const dailyCommand = define({
 	name: 'daily',
