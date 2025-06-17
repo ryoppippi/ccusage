@@ -5,6 +5,7 @@ import { getDefaultClaudePath, loadSessionBlockData } from '../data-loader.ts';
 import { log, logger } from '../logger.ts';
 import {
 	calculateBurnRate,
+	DEFAULT_SESSION_DURATION_HOURS,
 	filterRecentBlocks,
 	projectBlockUsage,
 	type SessionBlock,
@@ -111,11 +112,23 @@ export const blocksCommand = define({
 			short: 't',
 			description: 'Token limit for quota warnings (e.g., 500000 or "max" for highest previous block)',
 		},
+		sessionLength: {
+			type: 'number',
+			short: 'l',
+			description: `Session block duration in hours (default: ${DEFAULT_SESSION_DURATION_HOURS})`,
+			default: DEFAULT_SESSION_DURATION_HOURS,
+		},
 	},
 	toKebab: true,
 	async run(ctx) {
 		if (ctx.values.json) {
 			logger.level = 0;
+		}
+
+		// Validate session length
+		if (ctx.values.sessionLength <= 0) {
+			logger.error('Session length must be a positive number');
+			process.exit(1);
 		}
 
 		let blocks = await loadSessionBlockData({
@@ -124,6 +137,7 @@ export const blocksCommand = define({
 			claudePath: getDefaultClaudePath(),
 			mode: ctx.values.mode,
 			order: ctx.values.order,
+			sessionDurationHours: ctx.values.sessionLength,
 		});
 
 		if (blocks.length === 0) {

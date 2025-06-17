@@ -1,4 +1,4 @@
-const SESSION_DURATION_MS = 5 * 60 * 60 * 1000;
+export const DEFAULT_SESSION_DURATION_HOURS = 5;
 const DEFAULT_RECENT_DAYS = 3;
 
 export type LoadedUsageEntry = {
@@ -45,11 +45,15 @@ export type ProjectedUsage = {
 	remainingMinutes: number;
 };
 
-export function identifySessionBlocks(entries: LoadedUsageEntry[]): SessionBlock[] {
+export function identifySessionBlocks(
+	entries: LoadedUsageEntry[],
+	sessionDurationHours = DEFAULT_SESSION_DURATION_HOURS,
+): SessionBlock[] {
 	if (entries.length === 0) {
 		return [];
 	}
 
+	const sessionDurationMs = sessionDurationHours * 60 * 60 * 1000;
 	const blocks: SessionBlock[] = [];
 	const sortedEntries = [...entries].sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
 
@@ -74,14 +78,14 @@ export function identifySessionBlocks(entries: LoadedUsageEntry[]): SessionBlock
 			const lastEntryTime = lastEntry.timestamp;
 			const timeSinceLastEntry = entryTime.getTime() - lastEntryTime.getTime();
 
-			if (timeSinceBlockStart > SESSION_DURATION_MS || timeSinceLastEntry > SESSION_DURATION_MS) {
+			if (timeSinceBlockStart > sessionDurationMs || timeSinceLastEntry > sessionDurationMs) {
 				// Close current block
-				const block = createBlock(currentBlockStart, currentBlockEntries, now);
+				const block = createBlock(currentBlockStart, currentBlockEntries, now, sessionDurationMs);
 				blocks.push(block);
 
 				// Add gap block if there's a significant gap
-				if (timeSinceLastEntry > SESSION_DURATION_MS) {
-					const gapBlock = createGapBlock(lastEntryTime, entryTime);
+				if (timeSinceLastEntry > sessionDurationMs) {
+					const gapBlock = createGapBlock(lastEntryTime, entryTime, sessionDurationMs);
 					if (gapBlock != null) {
 						blocks.push(gapBlock);
 					}
@@ -100,18 +104,18 @@ export function identifySessionBlocks(entries: LoadedUsageEntry[]): SessionBlock
 
 	// Close the last block
 	if (currentBlockStart != null && currentBlockEntries.length > 0) {
-		const block = createBlock(currentBlockStart, currentBlockEntries, now);
+		const block = createBlock(currentBlockStart, currentBlockEntries, now, sessionDurationMs);
 		blocks.push(block);
 	}
 
 	return blocks;
 }
 
-function createBlock(startTime: Date, entries: LoadedUsageEntry[], now: Date): SessionBlock {
-	const endTime = new Date(startTime.getTime() + SESSION_DURATION_MS);
+function createBlock(startTime: Date, entries: LoadedUsageEntry[], now: Date, sessionDurationMs: number): SessionBlock {
+	const endTime = new Date(startTime.getTime() + sessionDurationMs);
 	const lastEntry = entries[entries.length - 1];
 	const actualEndTime = lastEntry != null ? lastEntry.timestamp : startTime;
-	const isActive = now.getTime() - actualEndTime.getTime() < SESSION_DURATION_MS && now < endTime;
+	const isActive = now.getTime() - actualEndTime.getTime() < sessionDurationMs && now < endTime;
 
 	// Aggregate token counts
 	const tokenCounts: TokenCounts = {
@@ -146,14 +150,14 @@ function createBlock(startTime: Date, entries: LoadedUsageEntry[], now: Date): S
 	};
 }
 
-function createGapBlock(lastActivityTime: Date, nextActivityTime: Date): SessionBlock | null {
-	// Only create gap blocks for gaps longer than 5 hours
+function createGapBlock(lastActivityTime: Date, nextActivityTime: Date, sessionDurationMs: number): SessionBlock | null {
+	// Only create gap blocks for gaps longer than the session duration
 	const gapDuration = nextActivityTime.getTime() - lastActivityTime.getTime();
-	if (gapDuration <= SESSION_DURATION_MS) {
+	if (gapDuration <= sessionDurationMs) {
 		return null;
 	}
 
-	const gapStart = new Date(lastActivityTime.getTime() + SESSION_DURATION_MS);
+	const gapStart = new Date(lastActivityTime.getTime() + sessionDurationMs);
 	const gapEnd = nextActivityTime;
 
 	return {

@@ -478,6 +478,7 @@ export type LoadOptions = {
 	mode?: CostMode; // Cost calculation mode
 	order?: SortOrder; // Sort order for dates
 	offline?: boolean; // Use offline mode for pricing
+	sessionDurationHours?: number; // Session block duration in hours
 } & DateFilter;
 
 export async function loadDailyUsageData(
@@ -900,7 +901,7 @@ export async function loadSessionBlockData(
 	}
 
 	// Identify session blocks
-	const blocks = identifySessionBlocks(allEntries);
+	const blocks = identifySessionBlocks(allEntries, options?.sessionDurationHours);
 
 	// Filter by date range if specified
 	const filtered = (options?.since != null && options.since !== '') || (options?.until != null && options.until !== '')
