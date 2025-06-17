@@ -12,11 +12,6 @@ export default defineConfig({
 	sourcemap: false,
 	minify: 'dce-only',
 	treeshake: true,
-	external: [
-		// fastMCP
-		'sury',
-		'effect',
-	],
 	dts: {
 		tsgo: true,
 		resolve: ['valibot', 'type-fest'],
