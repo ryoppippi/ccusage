@@ -1,8 +1,11 @@
 import type { LoadOptions } from './data-loader.ts';
+import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { toFetchResponse, toReqRes } from 'fetch-to-node';
+import { createFixture } from 'fs-fixture';
 import { Hono } from 'hono';
 import { z } from 'zod';
 
@@ -201,4 +204,319 @@ export function createMcpHttpApp(options: LoadOptions = defaultOptions): Hono {
 	});
 
 	return app;
+}
+
+if (import.meta.vitest != null) {
+	describe('MCP Server', () => {
+		describe('createMcpServer', () => {
+			it('should create MCP server with default options', () => {
+				const server = createMcpServer();
+				expect(server).toBeDefined();
+			});
+
+			it('should create MCP server with custom options', () => {
+				const server = createMcpServer({ claudePath: '/custom/path' });
+				expect(server).toBeDefined();
+			});
+		});
+
+		describe('stdio transport', () => {
+			it('should connect via stdio transport and list tools', async () => {
+				await using fixture = await createFixture({
+					'projects/test-project/session1/usage.jsonl': JSON.stringify({
+						timestamp: '2024-01-01T12:00:00Z',
+						costUSD: 0.001,
+						version: '1.0.0',
+						message: {
+							model: 'claude-sonnet-4-20250514',
+							usage: { input_tokens: 50, output_tokens: 10 },
+						},
+					}),
+				});
+
+				const client = new Client({ name: 'test-client', version: '1.0.0' });
+				const server = createMcpServer({ claudePath: fixture.path });
+
+				const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+
+				await Promise.all([
+					client.connect(clientTransport),
+					server.connect(serverTransport),
+				]);
+
+				const result = await client.listTools();
+				expect(result.tools).toHaveLength(4);
+
+				const toolNames = result.tools.map(tool => tool.name);
+				expect(toolNames).toContain('daily');
+				expect(toolNames).toContain('session');
+				expect(toolNames).toContain('monthly');
+				expect(toolNames).toContain('blocks');
+
+				await client.close();
+				await server.close();
+			});
+
+			it('should call daily tool successfully', async () => {
+				await using fixture = await createFixture({
+					'projects/test-project/session1/usage.jsonl': JSON.stringify({
+						timestamp: '2024-01-01T12:00:00Z',
+						costUSD: 0.001,
+						version: '1.0.0',
+						message: {
+							model: 'claude-sonnet-4-20250514',
+							usage: { input_tokens: 50, output_tokens: 10 },
+						},
+					}),
+				});
+
+				const client = new Client({ name: 'test-client', version: '1.0.0' });
+				const server = createMcpServer({ claudePath: fixture.path });
+
+				const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+
+				await Promise.all([
+					client.connect(clientTransport),
+					server.connect(serverTransport),
+				]);
+
+				const result = await client.callTool({
+					name: 'daily',
+					arguments: { mode: 'auto' },
+				});
+
+				expect(result).toHaveProperty('content');
+				expect(Array.isArray(result.content)).toBe(true);
+				expect(result.content).toHaveLength(1);
+				// eslint-disable-next-line ts/no-unsafe-call, ts/no-unsafe-member-access
+				expect((result.content as any).at(0)).toHaveProperty('type', 'text');
+				// eslint-disable-next-line ts/no-unsafe-call, ts/no-unsafe-member-access
+				expect((result.content as any).at(0)).toHaveProperty('text');
+
+				// eslint-disable-next-line ts/no-unsafe-assignment, ts/no-unsafe-call, ts/no-unsafe-member-access
+				const data = JSON.parse((result.content as any).at(0).text as string);
+				expect(Array.isArray(data)).toBe(true);
+
+				await client.close();
+				await server.close();
+			});
+
+			it('should call session tool successfully', async () => {
+				await using fixture = await createFixture({
+					'projects/test-project/session1/usage.jsonl': JSON.stringify({
+						timestamp: '2024-01-01T12:00:00Z',
+						costUSD: 0.001,
+						version: '1.0.0',
+						message: {
+							model: 'claude-sonnet-4-20250514',
+							usage: { input_tokens: 50, output_tokens: 10 },
+						},
+					}),
+				});
+
+				const client = new Client({ name: 'test-client', version: '1.0.0' });
+				const server = createMcpServer({ claudePath: fixture.path });
+
+				const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+
+				await Promise.all([
+					client.connect(clientTransport),
+					server.connect(serverTransport),
+				]);
+
+				const result = await client.callTool({
+					name: 'session',
+					arguments: { mode: 'auto' },
+				});
+
+				expect(result).toHaveProperty('content');
+				expect(result.content).toHaveLength(1);
+				expect(result.content[0]).toHaveProperty('type', 'text');
+				expect(result.content[0]).toHaveProperty('text');
+
+				// eslint-disable-next-line ts/no-unsafe-assignment, ts/no-unsafe-member-access
+				const data = JSON.parse(result.content[0].text as string);
+				expect(Array.isArray(data)).toBe(true);
+
+				await client.close();
+				await server.close();
+			});
+
+			it('should call monthly tool successfully', async () => {
+				await using fixture = await createFixture({
+					'projects/test-project/session1/usage.jsonl': JSON.stringify({
+						timestamp: '2024-01-01T12:00:00Z',
+						costUSD: 0.001,
+						version: '1.0.0',
+						message: {
+							model: 'claude-sonnet-4-20250514',
+							usage: { input_tokens: 50, output_tokens: 10 },
+						},
+					}),
+				});
+
+				const client = new Client({ name: 'test-client', version: '1.0.0' });
+				const server = createMcpServer({ claudePath: fixture.path });
+
+				const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+
+				await Promise.all([
+					client.connect(clientTransport),
+					server.connect(serverTransport),
+				]);
+
+				const result = await client.callTool({
+					name: 'monthly',
+					arguments: { mode: 'auto' },
+				});
+
+				expect(result).toHaveProperty('content');
+				expect(result.content).toHaveLength(1);
+				expect(result.content[0]).toHaveProperty('type', 'text');
+				expect(result.content[0]).toHaveProperty('text');
+
+				// eslint-disable-next-line ts/no-unsafe-assignment, ts/no-unsafe-member-access
+				const data = JSON.parse(result.content[0].text as string);
+				expect(Array.isArray(data)).toBe(true);
+
+				await client.close();
+				await server.close();
+			});
+
+			it('should call blocks tool successfully', async () => {
+				await using fixture = await createFixture({
+					'projects/test-project/session1/usage.jsonl': JSON.stringify({
+						timestamp: '2024-01-01T12:00:00Z',
+						costUSD: 0.001,
+						version: '1.0.0',
+						message: {
+							model: 'claude-sonnet-4-20250514',
+							usage: { input_tokens: 50, output_tokens: 10 },
+						},
+					}),
+				});
+
+				const client = new Client({ name: 'test-client', version: '1.0.0' });
+				const server = createMcpServer({ claudePath: fixture.path });
+
+				const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+
+				await Promise.all([
+					client.connect(clientTransport),
+					server.connect(serverTransport),
+				]);
+
+				const result = await client.callTool({
+					name: 'blocks',
+					arguments: { mode: 'auto' },
+				});
+
+				expect(result).toHaveProperty('content');
+				expect(result.content).toHaveLength(1);
+				expect(result.content[0]).toHaveProperty('type', 'text');
+				expect(result.content[0]).toHaveProperty('text');
+
+				// eslint-disable-next-line ts/no-unsafe-assignment, ts/no-unsafe-member-access
+				const data = JSON.parse(result.content[0].text as string);
+				expect(Array.isArray(data)).toBe(true);
+
+				await client.close();
+				await server.close();
+			});
+		});
+
+		describe('HTTP transport', () => {
+			it('should create HTTP app', () => {
+				const app = createMcpHttpApp();
+				expect(app).toBeDefined();
+			});
+
+			it('should handle valid POST requests without 405 error', async () => {
+				await using fixture = await createFixture({
+					'projects/test-project/session1/usage.jsonl': JSON.stringify({
+						timestamp: '2024-01-01T12:00:00Z',
+						costUSD: 0.001,
+						version: '1.0.0',
+						message: {
+							model: 'claude-sonnet-4-20250514',
+							usage: { input_tokens: 50, output_tokens: 10 },
+						},
+					}),
+				});
+
+				const app = createMcpHttpApp({ claudePath: fixture.path });
+
+				// Test with a valid JSON POST request
+				const mcpRequest = {
+					jsonrpc: '2.0',
+					method: 'test',
+					id: 1,
+				};
+
+				const response = await app.request('/', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify(mcpRequest),
+				});
+
+				// Should not return method not allowed for POST requests
+				expect(response.status).not.toBe(405);
+			});
+
+			it('should return 405 for GET requests', async () => {
+				const app = createMcpHttpApp();
+
+				const response = await app.request('/', { method: 'GET' });
+
+				expect(response.status).toBe(405);
+				const data = await response.json();
+				expect(data).toMatchObject({
+					jsonrpc: '2.0',
+					error: {
+						code: -32000,
+						message: 'Method not allowed.',
+					},
+					id: null,
+				});
+			});
+
+			it('should return 405 for DELETE requests', async () => {
+				const app = createMcpHttpApp();
+
+				const response = await app.request('/', { method: 'DELETE' });
+
+				expect(response.status).toBe(405);
+				const data = await response.json();
+				expect(data).toMatchObject({
+					jsonrpc: '2.0',
+					error: {
+						code: -32000,
+						message: 'Method not allowed.',
+					},
+					id: null,
+				});
+			});
+
+			it('should handle invalid JSON in POST request', async () => {
+				const app = createMcpHttpApp();
+
+				const response = await app.request('/', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: 'invalid json',
+				});
+
+				expect(response.status).toBe(500);
+				const data = await response.json();
+				expect(data).toMatchObject({
+					jsonrpc: '2.0',
+					error: {
+						code: -32603,
+						message: 'Internal server error',
+					},
+					id: null,
+				});
+			});
+		});
+	});
 }

@@ -126,6 +126,11 @@ This ensures code quality and catches issues immediately after changes.
 
 **Testing Guidelines:**
 
+- **In-Source Testing Pattern**: This project uses in-source testing with `if (import.meta.vitest != null)` blocks
+- Tests are written directly in the same files as the source code, not in separate test files
+- Vitest globals (`describe`, `it`, `expect`) are available automatically without imports
+- Dynamic imports using `await import()` should only be used within test blocks to avoid tree-shaking issues
+- Mock data is created using `fs-fixture` with `createFixture()` for Claude data directory simulation
 - All test files must use current Claude 4 models, not outdated Claude 3 models
 - Test coverage should include both Sonnet and Opus models for comprehensive validation
 - Model names in tests must exactly match LiteLLM's pricing database entries
