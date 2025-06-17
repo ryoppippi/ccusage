@@ -1,3 +1,5 @@
+[![MseeP.ai Security Assessment Badge](https://mseep.net/pr/ryoppippi-ccusage-badge.png)](https://mseep.ai/app/ryoppippi-ccusage)
+
 # ccusage
 
 > **ccusage(claude-code-usage)**
