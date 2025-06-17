@@ -9,15 +9,15 @@ import { sort } from 'fast-sort';
 import { isDirectorySync } from 'path-type';
 import { glob } from 'tinyglobby';
 import * as v from 'valibot';
-import { logger } from './logger.ts';
-import {
-	PricingFetcher,
-} from './pricing-fetcher.ts';
 import {
 	type FiveHourBlock,
 	identifyFiveHourBlocks,
 	type LoadedUsageEntry,
-} from './utils/five-hour-blocks.ts';
+} from './five-hour-blocks.internal.ts';
+import { logger } from './logger.ts';
+import {
+	PricingFetcher,
+} from './pricing-fetcher.ts';
 
 const DEFAULT_CLAUDE_CODE_PATH = path.join(homedir(), '.claude');
 

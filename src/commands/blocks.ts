@@ -2,16 +2,16 @@ import process from 'node:process';
 import { define } from 'gunshi';
 import pc from 'picocolors';
 import { getDefaultClaudePath, loadFiveHourBlockData } from '../data-loader.ts';
-import { log, logger } from '../logger.ts';
-import { sharedCommandConfig } from '../shared-args.internal.ts';
-import { formatCurrency, formatModelsDisplay, formatNumber } from '../utils.internal.ts';
-import { ResponsiveTable } from '../utils.table.ts';
 import {
 	calculateBurnRate,
 	filterRecentBlocks,
 	type FiveHourBlock,
 	projectBlockUsage,
 } from '../five-hour-blocks.internal.ts';
+import { log, logger } from '../logger.ts';
+import { sharedCommandConfig } from '../shared-args.internal.ts';
+import { formatCurrency, formatModelsDisplay, formatNumber } from '../utils.internal.ts';
+import { ResponsiveTable } from '../utils.table.ts';
 
 function formatBlockTime(block: FiveHourBlock, compact = false): string {
 	const start = compact
@@ -152,7 +152,7 @@ export const blocksCommand = define({
 		}
 
 		if (ctx.values.active) {
-			blocks = blocks.filter(block => block.isActive);
+			blocks = blocks.filter((block: FiveHourBlock) => block.isActive);
 			if (blocks.length === 0) {
 				if (ctx.values.json) {
 					log(JSON.stringify({ blocks: [], message: 'No active block' }));
@@ -167,7 +167,7 @@ export const blocksCommand = define({
 		if (ctx.values.json) {
 			// JSON output
 			const jsonOutput = {
-				blocks: blocks.map((block) => {
+				blocks: blocks.map((block: FiveHourBlock) => {
 					const burnRate = block.isActive ? calculateBurnRate(block) : null;
 					const projection = block.isActive ? projectBlockUsage(block) : null;
 
@@ -212,7 +212,7 @@ export const blocksCommand = define({
 			// Table output
 			if (ctx.values.active && blocks.length === 1) {
 				// Detailed active block view
-				const block = blocks[0];
+				const block = blocks[0] as FiveHourBlock;
 				if (block == null) {
 					logger.warn('No active block found.');
 					process.exit(0);
