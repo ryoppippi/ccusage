@@ -466,6 +466,10 @@ This tool was inspired by [this excellent article](https://note.com/milliondev/n
 
 While the original approach uses DuckDB for analysis, this tool provides a more accessible CLI interface with the same core functionality - analyzing the same JSONL files that Claude Code stores locally to give you insights into your usage patterns and costs.
 
+## Related Projects
+
+some projects use `ccusage` internally and provide additional features:
+
 ## Acknowledgments
 
 Thanks to [@milliondev](https://note.com/milliondev) for the original concept and approach to Claude Code usage analysis.
