@@ -2,13 +2,13 @@ import process from 'node:process';
 import { define } from 'gunshi';
 import pc from 'picocolors';
 import { getDefaultClaudePath, loadFiveHourBlockData } from '../data-loader.ts';
+import { log, logger } from '../logger.ts';
 import {
 	calculateBurnRate,
 	filterRecentBlocks,
 	type FiveHourBlock,
 	projectBlockUsage,
-} from '../five-hour-blocks.internal.ts';
-import { log, logger } from '../logger.ts';
+} from '../session-blocks.internal.ts';
 import { sharedCommandConfig } from '../shared-args.internal.ts';
 import { formatCurrency, formatModelsDisplay, formatNumber } from '../utils.internal.ts';
 import { ResponsiveTable } from '../utils.table.ts';

@@ -6,7 +6,7 @@ import {
 	identifyFiveHourBlocks,
 	type LoadedUsageEntry,
 	projectBlockUsage,
-} from './five-hour-blocks.internal.ts';
+} from './session-blocks.internal.ts';
 
 const FIVE_HOURS_MS = 5 * 60 * 60 * 1000;
 
