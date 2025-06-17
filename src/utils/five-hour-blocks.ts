@@ -198,7 +198,7 @@ export function calculateBurnRate(block: FiveHourBlock): BurnRate | null {
 
 	return {
 		tokensPerMinute: Math.round(tokensPerMinute),
-		costPerHour: Math.round(costPerHour * 100) / 100,
+		costPerHour,
 	};
 }
 
