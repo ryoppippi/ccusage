@@ -6,12 +6,12 @@
       "devDependencies": {
         "@core/errorutil": "npm:@jsr/core__errorutil",
         "@hono/node-server": "^1.14.4",
-        "@modelcontextprotocol/sdk": "^1.1.0",
-        "@oxc-project/runtime": "^0.73.0",
+        "@modelcontextprotocol/sdk": "^1.12.3",
+        "@oxc-project/runtime": "^0.73.1",
         "@ryoppippi/eslint-config": "^0.3.7",
         "@types/bun": "^1.2.16",
-        "@typescript/native-preview": "^7.0.0-dev.20250614.1",
-        "bumpp": "^10.1.1",
+        "@typescript/native-preview": "^7.0.0-dev.20250617.1",
+        "bumpp": "^10.2.0",
         "clean-pkg-json": "^1.3.0",
         "cli-table3": "^0.6.5",
         "consola": "^3.4.2",
@@ -20,10 +20,10 @@
         "eslint-plugin-format": "^1.0.1",
         "fast-sort": "^3.4.1",
         "fetch-to-node": "^2.1.0",
-        "fs-fixture": "^2.8.0",
+        "fs-fixture": "^2.8.1",
         "gunshi": "^0.26.3",
-        "hono": "^4.6.17",
-        "lint-staged": "^16.1.1",
+        "hono": "^4.8.0",
+        "lint-staged": "^16.1.2",
         "path-type": "^6.0.0",
         "picocolors": "^1.1.1",
         "publint": "^0.3.12",
@@ -31,7 +31,7 @@
         "sort-package-json": "^3.2.1",
         "string-width": "^7.2.0",
         "tinyglobby": "^0.2.14",
-        "tsdown": "^0.12.7",
+        "tsdown": "^0.12.8",
         "type-fest": "^4.41.0",
         "unplugin-macros": "^0.17.0",
         "unplugin-unused": "^0.5.1",
@@ -613,7 +613,7 @@
 
     "hasown": ["hasown@2.0.2", "", { "dependencies": { "function-bind": "^1.1.2" } }, "sha512-0hJU9SCPvmMzIBdZFqNPXWa6dqh7WdH0cII9y+CyS8rG3nL48Bclra9HmKhVVUHyPWNH5Y7xDwAB7bfgSjkUMQ=="],
 
-    "hono": ["hono@4.7.11", "", {}, "sha512-rv0JMwC0KALbbmwJDEnxvQCeJh+xbS3KEWW5PC9cMJ08Ur9xgatI0HmtgYZfOdOSOeYsp5LO2cOhdI8cLEbDEQ=="],
+    "hono": ["hono@4.8.0", "", {}, "sha512-NoiHrqJxoe1MYXqW+/0/Q4NCizKj2Ivm4KmX8mOSBtw9UJ7KYaOGKkO7csIwO5UlZpfvVRdcgiMb0GGyjEjtcw=="],
 
     "hookable": ["hookable@5.5.3", "", {}, "sha512-Yc+BQe8SvoXH1643Qez1zqLRmbA5rCL+sSmk6TVos0LWVfNIB7PGncdlId77WzLGSIB5KaWgTaNTs2lNVEI6VQ=="],
 
