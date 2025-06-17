@@ -6,7 +6,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { toFetchResponse, toReqRes } from 'fetch-to-node';
 import { createFixture } from 'fs-fixture';
-import { Hono } from 'hono';
+import { Hono } from 'hono/tiny';
 import { z } from 'zod';
 
 import { name, version } from '../package.json';
