@@ -44,7 +44,7 @@ Please set CLAUDE_CONFIG_DIR to a valid path, or ensure ${DEFAULT_CLAUDE_CODE_PA
 /**
  * Valibot schema for validating Claude usage data from JSONL files
  */
-export const UsageDataSchema = v.object({
+export const usageDataSchema = v.object({
 	timestamp: v.string(),
 	version: v.optional(v.string()), // Claude Code version
 	message: v.object({
@@ -64,7 +64,7 @@ export const UsageDataSchema = v.object({
 /**
  * Type definition for Claude usage data entries from JSONL files
  */
-export type UsageData = v.InferOutput<typeof UsageDataSchema>;
+export type UsageData = v.InferOutput<typeof usageDataSchema>;
 
 /**
  * Valibot schema for model-specific usage breakdown data
@@ -586,7 +586,7 @@ export async function loadDailyUsageData(
 		for (const line of lines) {
 			try {
 				const parsed = JSON.parse(line) as unknown;
-				const result = v.safeParse(UsageDataSchema, parsed);
+				const result = v.safeParse(usageDataSchema, parsed);
 				if (!result.success) {
 					continue;
 				}
@@ -726,7 +726,7 @@ export async function loadSessionData(
 		for (const line of lines) {
 			try {
 				const parsed = JSON.parse(line) as unknown;
-				const result = v.safeParse(UsageDataSchema, parsed);
+				const result = v.safeParse(usageDataSchema, parsed);
 				if (!result.success) {
 					continue;
 				}
@@ -944,7 +944,7 @@ export async function loadSessionBlockData(
 		for (const line of lines) {
 			try {
 				const parsed = JSON.parse(line) as unknown;
-				const result = v.safeParse(UsageDataSchema, parsed);
+				const result = v.safeParse(usageDataSchema, parsed);
 				if (!result.success) {
 					continue;
 				}

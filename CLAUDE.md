@@ -95,6 +95,12 @@ This is a CLI tool that analyzes Claude Code usage data from local JSONL files s
 - Error handling: silently skips malformed JSONL lines during parsing
 - File paths always use Node.js path utilities for cross-platform compatibility
 
+**Naming Conventions:**
+
+- Variables: start with lowercase (camelCase) - e.g., `usageDataSchema`, `modelBreakdownSchema`
+- Types: start with uppercase (PascalCase) - e.g., `UsageData`, `ModelBreakdown`
+- Constants: can use UPPER_SNAKE_CASE - e.g., `DEFAULT_CLAUDE_CODE_PATH`
+
 **Post-Code Change Workflow:**
 
 After making any code changes, ALWAYS run these commands in parallel:
