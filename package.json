@@ -44,7 +44,7 @@
 	},
 	"devDependencies": {
 		"@core/errorutil": "npm:@jsr/core__errorutil",
-		"@hono/node-server": "^1.14.1",
+		"@hono/node-server": "^1.14.4",
 		"@modelcontextprotocol/sdk": "^1.1.0",
 		"@oxc-project/runtime": "^0.73.0",
 		"@ryoppippi/eslint-config": "^0.3.7",
