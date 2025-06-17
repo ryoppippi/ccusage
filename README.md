@@ -52,6 +52,7 @@ This tool helps you understand the value you're getting from your subscription b
 - 🔄 **Cache Token Support**: Tracks and displays cache creation and cache read tokens separately
 - 🌐 **Offline Mode**: Use pre-cached pricing data without network connectivity with `--offline` (Claude models only)
 - 📏 **Responsive Tables**: Automatic table width adjustment for narrow terminals with intelligent word wrapping
+- 🔌 **MCP Integration**: Built-in Model Context Protocol server for integration with other tools
 
 ## Important Disclaimer
 
