@@ -1,5 +1,4 @@
 import type { LoadOptions } from './data-loader.ts';
-import type { CostMode } from './types.internal.ts';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
@@ -25,6 +24,11 @@ const defaultOptions = {
 
 /**
  * Creates an MCP server with tools for showing usage reports.
+ * Registers tools for daily, session, monthly, and blocks usage data.
+ *
+ * @param options - Configuration options for the MCP server
+ * @param options.claudePath - Path to Claude's data directory
+ * @returns Configured MCP server instance with registered tools
  */
 export function createMcpServer({
 	claudePath,
@@ -33,40 +37,6 @@ export function createMcpServer({
 		name,
 		version,
 	});
-
-	const validateArgs = (args: unknown): { since?: string; until?: string; mode: CostMode } => {
-		const schema = z.object({
-			since: dateSchema.optional(),
-			until: dateSchema.optional(),
-			mode: z.enum(['auto', 'calculate', 'display']).default('auto').optional(),
-		});
-		const parsed = schema.parse(args);
-
-		// Ensure mode is always defined as CostMode
-		let mode: CostMode = 'auto';
-		if (parsed.mode === 'calculate') {
-			mode = 'calculate';
-		}
-		else if (parsed.mode === 'display') {
-			mode = 'display';
-		}
-
-		const result: { since?: string; until?: string; mode: CostMode } = {
-			mode,
-		};
-
-		const since = parsed.since;
-		if (since !== undefined) {
-			result.since = since;
-		}
-
-		const until = parsed.until;
-		if (until !== undefined) {
-			result.until = until;
-		}
-
-		return result;
-	};
 
 	// Define the schema for tool parameters
 	const parametersZodSchema = {
@@ -83,8 +53,7 @@ export function createMcpServer({
 			inputSchema: parametersZodSchema,
 		},
 		async (args) => {
-			const validatedArgs = validateArgs(args);
-			const dailyData = await loadDailyUsageData({ ...validatedArgs, claudePath });
+			const dailyData = await loadDailyUsageData({ ...args, claudePath });
 			return {
 				content: [
 					{
@@ -104,8 +73,7 @@ export function createMcpServer({
 			inputSchema: parametersZodSchema,
 		},
 		async (args) => {
-			const validatedArgs = validateArgs(args);
-			const sessionData = await loadSessionData({ ...validatedArgs, claudePath });
+			const sessionData = await loadSessionData({ ...args, claudePath });
 			return {
 				content: [
 					{
@@ -125,8 +93,7 @@ export function createMcpServer({
 			inputSchema: parametersZodSchema,
 		},
 		async (args) => {
-			const validatedArgs = validateArgs(args);
-			const monthlyData = await loadMonthlyUsageData({ ...validatedArgs, claudePath });
+			const monthlyData = await loadMonthlyUsageData({ ...args, claudePath });
 			return {
 				content: [
 					{
@@ -146,8 +113,7 @@ export function createMcpServer({
 			inputSchema: parametersZodSchema,
 		},
 		async (args) => {
-			const validatedArgs = validateArgs(args);
-			const blocksData = await loadSessionBlockData({ ...validatedArgs, claudePath });
+			const blocksData = await loadSessionBlockData({ ...args, claudePath });
 			return {
 				content: [
 					{
@@ -163,7 +129,10 @@ export function createMcpServer({
 }
 
 /**
- * Start the MCP server with stdio transport
+ * Start the MCP server with stdio transport.
+ * Used for traditional MCP client connections via standard input/output.
+ *
+ * @param server - The MCP server instance to start
  */
 export async function startMcpServerStdio(
 	server: McpServer,
@@ -173,7 +142,13 @@ export async function startMcpServerStdio(
 }
 
 /**
- * Create Hono app for MCP HTTP server
+ * Create Hono app for MCP HTTP server.
+ * Provides HTTP transport support for MCP protocol using Hono framework.
+ * Handles POST requests for MCP communication and returns appropriate errors for other methods.
+ *
+ * @param options - Configuration options for the MCP server
+ * @param options.claudePath - Path to Claude's data directory
+ * @returns Configured Hono application for HTTP MCP transport
  */
 export function createMcpHttpApp(options: LoadOptions = defaultOptions): Hono {
 	const app = new Hono();

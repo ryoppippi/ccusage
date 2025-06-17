@@ -11,7 +11,7 @@ import { CostModes, dateSchema, SortOrders } from './types.internal.ts';
 function parseDateArg(value: string): string {
 	const result = dateSchema.safeParse(value);
 	if (!result.success) {
-		throw new TypeError(result.error.issues[0]?.message);
+		throw new TypeError(result.error.issues[0]?.message ?? 'Invalid date format');
 	}
 	return result.data;
 }

@@ -5,9 +5,13 @@ import { logger } from '../logger.ts';
 import { createMcpHttpApp, createMcpServer, startMcpServerStdio } from '../mcp.ts';
 import { sharedArgs } from '../shared-args.internal.ts';
 
+/**
+ * MCP server command that supports both stdio and HTTP transports.
+ * Allows starting an MCP server for external integrations with usage reporting tools.
+ */
 export const mcpCommand = define({
 	name: 'mcp',
-	description: 'Show usage report for MCP',
+	description: 'Start MCP server with usage reporting tools',
 	args: {
 		mode: sharedArgs.mode,
 		type: {
