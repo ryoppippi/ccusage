@@ -223,7 +223,7 @@ export function formatCurrency(amount: number): string {
  * @param modelName - Full model name (e.g., "claude-sonnet-4-20250514")
  * @returns Shortened model name (e.g., "sonnet-4") or original if pattern doesn't match
  */
-export function formatModelName(modelName: string): string {
+function formatModelName(modelName: string): string {
 	// Extract model type from full model name
 	// e.g., "claude-sonnet-4-20250514" -> "sonnet-4"
 	// e.g., "claude-opus-4-20250514" -> "opus-4"

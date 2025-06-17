@@ -27,7 +27,7 @@ export type LoadedUsageEntry = {
 /**
  * Aggregated token counts for different token types
  */
-export type TokenCounts = {
+type TokenCounts = {
 	inputTokens: number;
 	outputTokens: number;
 	cacheCreationInputTokens: number;
@@ -53,7 +53,7 @@ export type SessionBlock = {
 /**
  * Represents usage burn rate calculations
  */
-export type BurnRate = {
+type BurnRate = {
 	tokensPerMinute: number;
 	costPerHour: number;
 };
@@ -61,7 +61,7 @@ export type BurnRate = {
 /**
  * Represents projected usage for remaining time in a session block
  */
-export type ProjectedUsage = {
+type ProjectedUsage = {
 	totalTokens: number;
 	totalCost: number;
 	remainingMinutes: number;
