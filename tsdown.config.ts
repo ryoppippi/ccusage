@@ -26,4 +26,7 @@ export default defineConfig({
 			include: ['src/index.ts', 'src/pricing-fetcher.ts'],
 		}),
 	],
+	define: {
+		'import.meta.vitest': 'undefined',
+	},
 });
