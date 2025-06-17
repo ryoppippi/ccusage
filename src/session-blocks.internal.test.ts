@@ -494,3 +494,141 @@ describe('filterRecentBlocks', () => {
 		expect(result).toHaveLength(0);
 	});
 });
+
+describe('identifySessionBlocks with configurable duration', () => {
+	test('creates single block for entries within custom 3-hour duration', () => {
+		const baseTime = new Date('2024-01-01T10:00:00Z');
+		const entries: LoadedUsageEntry[] = [
+			createMockEntry(baseTime),
+			createMockEntry(new Date(baseTime.getTime() + 60 * 60 * 1000)), // 1 hour later
+			createMockEntry(new Date(baseTime.getTime() + 2 * 60 * 60 * 1000)), // 2 hours later
+		];
+
+		const blocks = identifySessionBlocks(entries, 3);
+		expect(blocks).toHaveLength(1);
+		expect(blocks[0]?.startTime).toEqual(baseTime);
+		expect(blocks[0]?.entries).toHaveLength(3);
+		expect(blocks[0]?.endTime).toEqual(new Date(baseTime.getTime() + 3 * 60 * 60 * 1000));
+	});
+
+	test('creates multiple blocks with custom 2-hour duration', () => {
+		const baseTime = new Date('2024-01-01T10:00:00Z');
+		const entries: LoadedUsageEntry[] = [
+			createMockEntry(baseTime),
+			createMockEntry(new Date(baseTime.getTime() + 3 * 60 * 60 * 1000)), // 3 hours later (beyond 2h limit)
+		];
+
+		const blocks = identifySessionBlocks(entries, 2);
+		expect(blocks).toHaveLength(3); // first block, gap block, second block
+		expect(blocks[0]?.entries).toHaveLength(1);
+		expect(blocks[0]?.endTime).toEqual(new Date(baseTime.getTime() + 2 * 60 * 60 * 1000));
+		expect(blocks[1]?.isGap).toBe(true); // gap block
+		expect(blocks[2]?.entries).toHaveLength(1);
+	});
+
+	test('creates gap block with custom 1-hour duration', () => {
+		const baseTime = new Date('2024-01-01T10:00:00Z');
+		const entries: LoadedUsageEntry[] = [
+			createMockEntry(baseTime),
+			createMockEntry(new Date(baseTime.getTime() + 30 * 60 * 1000)), // 30 minutes later (within 1h)
+			createMockEntry(new Date(baseTime.getTime() + 2 * 60 * 60 * 1000)), // 2 hours later (beyond 1h)
+		];
+
+		const blocks = identifySessionBlocks(entries, 1);
+		expect(blocks).toHaveLength(3); // first block, gap block, second block
+		expect(blocks[0]?.entries).toHaveLength(2);
+		expect(blocks[1]?.isGap).toBe(true);
+		expect(blocks[2]?.entries).toHaveLength(1);
+	});
+
+	test('works with fractional hours (2.5 hours)', () => {
+		const baseTime = new Date('2024-01-01T10:00:00Z');
+		const entries: LoadedUsageEntry[] = [
+			createMockEntry(baseTime),
+			createMockEntry(new Date(baseTime.getTime() + 2 * 60 * 60 * 1000)), // 2 hours later (within 2.5h)
+			createMockEntry(new Date(baseTime.getTime() + 6 * 60 * 60 * 1000)), // 6 hours later (4 hours from last entry, beyond 2.5h)
+		];
+
+		const blocks = identifySessionBlocks(entries, 2.5);
+		expect(blocks).toHaveLength(3); // first block, gap block, second block
+		expect(blocks[0]?.entries).toHaveLength(2);
+		expect(blocks[0]?.endTime).toEqual(new Date(baseTime.getTime() + 2.5 * 60 * 60 * 1000));
+		expect(blocks[1]?.isGap).toBe(true);
+		expect(blocks[2]?.entries).toHaveLength(1);
+	});
+
+	test('works with very short duration (0.5 hours)', () => {
+		const baseTime = new Date('2024-01-01T10:00:00Z');
+		const entries: LoadedUsageEntry[] = [
+			createMockEntry(baseTime),
+			createMockEntry(new Date(baseTime.getTime() + 20 * 60 * 1000)), // 20 minutes later (within 0.5h)
+			createMockEntry(new Date(baseTime.getTime() + 80 * 60 * 1000)), // 80 minutes later (60 minutes from last entry, beyond 0.5h)
+		];
+
+		const blocks = identifySessionBlocks(entries, 0.5);
+		expect(blocks).toHaveLength(3); // first block, gap block, second block
+		expect(blocks[0]?.entries).toHaveLength(2);
+		expect(blocks[0]?.endTime).toEqual(new Date(baseTime.getTime() + 0.5 * 60 * 60 * 1000));
+		expect(blocks[1]?.isGap).toBe(true);
+		expect(blocks[2]?.entries).toHaveLength(1);
+	});
+
+	test('works with very long duration (24 hours)', () => {
+		const baseTime = new Date('2024-01-01T10:00:00Z');
+		const entries: LoadedUsageEntry[] = [
+			createMockEntry(baseTime),
+			createMockEntry(new Date(baseTime.getTime() + 12 * 60 * 60 * 1000)), // 12 hours later (within 24h)
+			createMockEntry(new Date(baseTime.getTime() + 20 * 60 * 60 * 1000)), // 20 hours later (within 24h)
+		];
+
+		const blocks = identifySessionBlocks(entries, 24);
+		expect(blocks).toHaveLength(1); // single block
+		expect(blocks[0]?.entries).toHaveLength(3);
+		expect(blocks[0]?.endTime).toEqual(new Date(baseTime.getTime() + 24 * 60 * 60 * 1000));
+	});
+
+	test('gap detection respects custom duration', () => {
+		const baseTime = new Date('2024-01-01T10:00:00Z');
+		const entries: LoadedUsageEntry[] = [
+			createMockEntry(baseTime),
+			createMockEntry(new Date(baseTime.getTime() + 1 * 60 * 60 * 1000)), // 1 hour later
+			createMockEntry(new Date(baseTime.getTime() + 5 * 60 * 60 * 1000)), // 5 hours later (4h from last entry, beyond 3h)
+		];
+
+		const blocks = identifySessionBlocks(entries, 3);
+		expect(blocks).toHaveLength(3); // first block, gap block, second block
+
+		// Gap block should start 3 hours after last activity in first block
+		const gapBlock = blocks[1];
+		expect(gapBlock?.isGap).toBe(true);
+		expect(gapBlock?.startTime).toEqual(new Date(baseTime.getTime() + 1 * 60 * 60 * 1000 + 3 * 60 * 60 * 1000)); // 1h + 3h
+		expect(gapBlock?.endTime).toEqual(new Date(baseTime.getTime() + 5 * 60 * 60 * 1000)); // 5h
+	});
+
+	test('no gap created when gap is exactly equal to session duration', () => {
+		const baseTime = new Date('2024-01-01T10:00:00Z');
+		const entries: LoadedUsageEntry[] = [
+			createMockEntry(baseTime),
+			createMockEntry(new Date(baseTime.getTime() + 2 * 60 * 60 * 1000)), // exactly 2 hours later (equal to session duration)
+		];
+
+		const blocks = identifySessionBlocks(entries, 2);
+		expect(blocks).toHaveLength(1); // single block (entries are exactly at session boundary)
+		expect(blocks[0]?.entries).toHaveLength(2);
+	});
+
+	test('defaults to 5 hours when no duration specified', () => {
+		const baseTime = new Date('2024-01-01T10:00:00Z');
+		const entries: LoadedUsageEntry[] = [
+			createMockEntry(baseTime),
+		];
+
+		const blocksDefault = identifySessionBlocks(entries);
+		const blocksExplicit = identifySessionBlocks(entries, 5);
+
+		expect(blocksDefault).toHaveLength(1);
+		expect(blocksExplicit).toHaveLength(1);
+		expect(blocksDefault[0]!.endTime).toEqual(blocksExplicit[0]!.endTime);
+		expect(blocksDefault[0]!.endTime).toEqual(new Date(baseTime.getTime() + 5 * 60 * 60 * 1000));
+	});
+});
