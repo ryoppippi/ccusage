@@ -91,7 +91,7 @@ function parseTokenLimit(value: string | undefined, maxFromAll: number): number 
 
 export const blocksCommand = define({
 	name: 'blocks',
-	description: 'Show usage report grouped by 5-hour billing blocks',
+	description: 'Show usage report grouped by session billing blocks',
 	args: {
 		...sharedCommandConfig.args,
 		active: {
@@ -164,7 +164,7 @@ export const blocksCommand = define({
 					log(JSON.stringify({ blocks: [], message: 'No active block' }));
 				}
 				else {
-					logger.info('No active 5-hour block found.');
+					logger.info('No active session block found.');
 				}
 				process.exit(0);
 			}
@@ -226,7 +226,7 @@ export const blocksCommand = define({
 				const burnRate = calculateBurnRate(block);
 				const projection = projectBlockUsage(block);
 
-				logger.box('Current 5-Hour Block Status');
+				logger.box('Current Session Block Status');
 
 				const now = new Date();
 				const elapsed = Math.round(
@@ -279,7 +279,7 @@ export const blocksCommand = define({
 			}
 			else {
 				// Table view for multiple blocks
-				logger.box('Claude Code Token Usage Report - 5-Hour Blocks');
+				logger.box('Claude Code Token Usage Report - Session Blocks');
 
 				// Calculate token limit if "max" is specified
 				const actualTokenLimit = parseTokenLimit(ctx.values.tokenLimit, maxTokensFromAll);
