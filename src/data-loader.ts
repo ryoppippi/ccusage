@@ -30,10 +30,15 @@ const DEFAULT_CLAUDE_CODE_PATH = path.join(homedir(), '.claude');
  * Uses environment variable CLAUDE_CONFIG_DIR if set, otherwise defaults to ~/.claude
  */
 export function getDefaultClaudePath(): string {
-	const envClaudeCodePath = process.env.CLAUDE_CONFIG_DIR?.trim() ?? DEFAULT_CLAUDE_CODE_PATH;
-	if (!isDirectorySync(envClaudeCodePath)) {
+	const envClaudeCodePath = (process.env.CLAUDE_CONFIG_DIR ?? '').trim();
+	if (envClaudeCodePath === '') {
+		return DEFAULT_CLAUDE_CODE_PATH;
+	}
+
+	const claudeCodeProjectsPath = path.join(envClaudeCodePath, 'projects');
+	if (!isDirectorySync(claudeCodeProjectsPath)) {
 		throw new Error(
-			` Claude data directory does not exist: ${envClaudeCodePath}. 
+			` Claude data directory does not exist: ${claudeCodeProjectsPath}. 
 Please set CLAUDE_CONFIG_DIR to a valid path, or ensure ${DEFAULT_CLAUDE_CODE_PATH} exists.
 			`.trim(),
 		);
@@ -1051,7 +1056,7 @@ if (import.meta.vitest != null) {
 
 		it('returns CLAUDE_CONFIG_DIR when environment variable is set', async () => {
 			await using fixture = await createFixture({
-				claude: {},
+				projects: {},
 			});
 
 			// Use vitest's environment variable stubbing
@@ -1073,7 +1078,7 @@ if (import.meta.vitest != null) {
 
 		it('returns default path with trimmed CLAUDE_CONFIG_DIR', async () => {
 			await using fixture = await createFixture({
-				claude: {},
+				projects: {},
 			});
 
 			// Test with extra spaces using vitest env stubbing
