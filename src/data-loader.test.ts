@@ -9,8 +9,8 @@ import {
 	formatDateCompact,
 	getDefaultClaudePath,
 	loadDailyUsageData,
-	loadFiveHourBlockData,
 	loadMonthlyUsageData,
+	loadSessionBlockData,
 	loadSessionData,
 	type UsageData,
 } from './data-loader.ts';
@@ -1940,10 +1940,10 @@ describe('calculateCostForEntry', () => {
 	});
 });
 
-describe('loadFiveHourBlockData', () => {
+describe('loadSessionBlockData', () => {
 	test('returns empty array when no files found', async () => {
 		await using fixture = await createFixture({ projects: {} });
-		const result = await loadFiveHourBlockData({ claudePath: fixture.path });
+		const result = await loadSessionBlockData({ claudePath: fixture.path });
 		expect(result).toEqual([]);
 	});
 
@@ -2005,7 +2005,7 @@ describe('loadFiveHourBlockData', () => {
 			},
 		});
 
-		const result = await loadFiveHourBlockData({ claudePath: fixture.path });
+		const result = await loadSessionBlockData({ claudePath: fixture.path });
 		expect(result.length).toBeGreaterThan(0); // Should have blocks
 		expect(result[0]?.entries).toHaveLength(1); // First block has one entry
 		// Total entries across all blocks should be 3
@@ -2040,7 +2040,7 @@ describe('loadFiveHourBlockData', () => {
 		});
 
 		// Test display mode
-		const displayResult = await loadFiveHourBlockData({
+		const displayResult = await loadSessionBlockData({
 			claudePath: fixture.path,
 			mode: 'display',
 		});
@@ -2048,7 +2048,7 @@ describe('loadFiveHourBlockData', () => {
 		expect(displayResult[0]?.costUSD).toBe(0.01);
 
 		// Test calculate mode
-		const calculateResult = await loadFiveHourBlockData({
+		const calculateResult = await loadSessionBlockData({
 			claudePath: fixture.path,
 			mode: 'calculate',
 		});
@@ -2106,7 +2106,7 @@ describe('loadFiveHourBlockData', () => {
 		});
 
 		// Test filtering with since parameter
-		const sinceResult = await loadFiveHourBlockData({
+		const sinceResult = await loadSessionBlockData({
 			claudePath: fixture.path,
 			since: '20240102',
 		});
@@ -2114,7 +2114,7 @@ describe('loadFiveHourBlockData', () => {
 		expect(sinceResult.every(block => block.startTime >= date2)).toBe(true);
 
 		// Test filtering with until parameter
-		const untilResult = await loadFiveHourBlockData({
+		const untilResult = await loadSessionBlockData({
 			claudePath: fixture.path,
 			until: '20240102',
 		});
@@ -2164,14 +2164,14 @@ describe('loadFiveHourBlockData', () => {
 		});
 
 		// Test ascending order
-		const ascResult = await loadFiveHourBlockData({
+		const ascResult = await loadSessionBlockData({
 			claudePath: fixture.path,
 			order: 'asc',
 		});
 		expect(ascResult[0]?.startTime).toEqual(date1);
 
 		// Test descending order
-		const descResult = await loadFiveHourBlockData({
+		const descResult = await loadSessionBlockData({
 			claudePath: fixture.path,
 			order: 'desc',
 		});
@@ -2215,7 +2215,7 @@ describe('loadFiveHourBlockData', () => {
 			},
 		});
 
-		const result = await loadFiveHourBlockData({ claudePath: fixture.path });
+		const result = await loadSessionBlockData({ claudePath: fixture.path });
 		expect(result).toHaveLength(1);
 		expect(result[0]?.entries).toHaveLength(1); // Only one entry after deduplication
 	});
@@ -2247,7 +2247,7 @@ describe('loadFiveHourBlockData', () => {
 			},
 		});
 
-		const result = await loadFiveHourBlockData({ claudePath: fixture.path });
+		const result = await loadSessionBlockData({ claudePath: fixture.path });
 		expect(result).toHaveLength(1);
 		expect(result[0]?.entries).toHaveLength(1);
 	});

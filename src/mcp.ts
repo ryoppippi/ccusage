@@ -7,8 +7,8 @@ import { name, version } from '../package.json';
 import {
 	getDefaultClaudePath,
 	loadDailyUsageData,
-	loadFiveHourBlockData,
 	loadMonthlyUsageData,
+	loadSessionBlockData,
 	loadSessionData,
 } from './data-loader.ts';
 import { CostModes, dateSchema } from './types.internal.ts';
@@ -88,10 +88,10 @@ export function createMcpServer({
 
 	server.addTool({
 		name: 'blocks',
-		description: 'Show usage report grouped by 5-hour billing blocks',
+		description: 'Show usage report grouped by session billing blocks',
 		parameters: parametersSchema,
 		execute: async (args) => {
-			const blocksData = await loadFiveHourBlockData({ ...args, claudePath });
+			const blocksData = await loadSessionBlockData({ ...args, claudePath });
 			return JSON.stringify(blocksData);
 		},
 	});

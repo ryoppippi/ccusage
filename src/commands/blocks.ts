@@ -1,14 +1,14 @@
 import process from 'node:process';
 import { define } from 'gunshi';
 import pc from 'picocolors';
-import { getDefaultClaudePath, loadFiveHourBlockData } from '../data-loader.ts';
+import { getDefaultClaudePath, loadSessionBlockData } from '../data-loader.ts';
+import { log, logger } from '../logger.ts';
 import {
 	calculateBurnRate,
 	filterRecentBlocks,
-	type FiveHourBlock,
 	projectBlockUsage,
-} from '../five-hour-blocks.internal.ts';
-import { log, logger } from '../logger.ts';
+	type SessionBlock,
+} from '../session-blocks.internal.ts';
 import { sharedCommandConfig } from '../shared-args.internal.ts';
 import { formatCurrency, formatModelsDisplay, formatNumber } from '../utils.internal.ts';
 import { ResponsiveTable } from '../utils.table.ts';
@@ -19,7 +19,7 @@ const WARNING_THRESHOLD = 0.8;
 const COMPACT_WIDTH_THRESHOLD = 120;
 const DEFAULT_TERMINAL_WIDTH = 120;
 
-function formatBlockTime(block: FiveHourBlock, compact = false): string {
+function formatBlockTime(block: SessionBlock, compact = false): string {
 	const start = compact
 		? block.startTime.toLocaleString(undefined, {
 				month: '2-digit',
@@ -91,7 +91,7 @@ function parseTokenLimit(value: string | undefined, maxFromAll: number): number 
 
 export const blocksCommand = define({
 	name: 'blocks',
-	description: 'Show usage report grouped by 5-hour billing blocks',
+	description: 'Show usage report grouped by session billing blocks',
 	args: {
 		...sharedCommandConfig.args,
 		active: {
@@ -118,7 +118,7 @@ export const blocksCommand = define({
 			logger.level = 0;
 		}
 
-		let blocks = await loadFiveHourBlockData({
+		let blocks = await loadSessionBlockData({
 			since: ctx.values.since,
 			until: ctx.values.until,
 			claudePath: getDefaultClaudePath(),
@@ -158,13 +158,13 @@ export const blocksCommand = define({
 		}
 
 		if (ctx.values.active) {
-			blocks = blocks.filter((block: FiveHourBlock) => block.isActive);
+			blocks = blocks.filter((block: SessionBlock) => block.isActive);
 			if (blocks.length === 0) {
 				if (ctx.values.json) {
 					log(JSON.stringify({ blocks: [], message: 'No active block' }));
 				}
 				else {
-					logger.info('No active 5-hour block found.');
+					logger.info('No active session block found.');
 				}
 				process.exit(0);
 			}
@@ -173,7 +173,7 @@ export const blocksCommand = define({
 		if (ctx.values.json) {
 			// JSON output
 			const jsonOutput = {
-				blocks: blocks.map((block: FiveHourBlock) => {
+				blocks: blocks.map((block: SessionBlock) => {
 					const burnRate = block.isActive ? calculateBurnRate(block) : null;
 					const projection = block.isActive ? projectBlockUsage(block) : null;
 
@@ -218,7 +218,7 @@ export const blocksCommand = define({
 			// Table output
 			if (ctx.values.active && blocks.length === 1) {
 				// Detailed active block view
-				const block = blocks[0] as FiveHourBlock;
+				const block = blocks[0] as SessionBlock;
 				if (block == null) {
 					logger.warn('No active block found.');
 					process.exit(0);
@@ -226,7 +226,7 @@ export const blocksCommand = define({
 				const burnRate = calculateBurnRate(block);
 				const projection = projectBlockUsage(block);
 
-				logger.box('Current 5-Hour Block Status');
+				logger.box('Current Session Block Status');
 
 				const now = new Date();
 				const elapsed = Math.round(
@@ -279,7 +279,7 @@ export const blocksCommand = define({
 			}
 			else {
 				// Table view for multiple blocks
-				logger.box('Claude Code Token Usage Report - 5-Hour Blocks');
+				logger.box('Claude Code Token Usage Report - Session Blocks');
 
 				// Calculate token limit if "max" is specified
 				const actualTokenLimit = parseTokenLimit(ctx.values.tokenLimit, maxTokensFromAll);

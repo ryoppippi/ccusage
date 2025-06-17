@@ -2,13 +2,13 @@ import { describe, expect, test } from 'bun:test';
 import {
 	calculateBurnRate,
 	filterRecentBlocks,
-	type FiveHourBlock,
-	identifyFiveHourBlocks,
+	identifySessionBlocks,
 	type LoadedUsageEntry,
 	projectBlockUsage,
-} from './five-hour-blocks.internal.ts';
+	type SessionBlock,
+} from './session-blocks.internal.ts';
 
-const FIVE_HOURS_MS = 5 * 60 * 60 * 1000;
+const SESSION_DURATION_MS = 5 * 60 * 60 * 1000;
 
 function createMockEntry(
 	timestamp: Date,
@@ -30,9 +30,9 @@ function createMockEntry(
 	};
 }
 
-describe('identifyFiveHourBlocks', () => {
+describe('identifySessionBlocks', () => {
 	test('returns empty array for empty entries', () => {
-		const result = identifyFiveHourBlocks([]);
+		const result = identifySessionBlocks([]);
 		expect(result).toEqual([]);
 	});
 
@@ -44,7 +44,7 @@ describe('identifyFiveHourBlocks', () => {
 			createMockEntry(new Date(baseTime.getTime() + 2 * 60 * 60 * 1000)), // 2 hours later
 		];
 
-		const blocks = identifyFiveHourBlocks(entries);
+		const blocks = identifySessionBlocks(entries);
 		expect(blocks).toHaveLength(1);
 		expect(blocks[0]?.startTime).toEqual(baseTime);
 		expect(blocks[0]?.entries).toHaveLength(3);
@@ -60,7 +60,7 @@ describe('identifyFiveHourBlocks', () => {
 			createMockEntry(new Date(baseTime.getTime() + 6 * 60 * 60 * 1000)), // 6 hours later
 		];
 
-		const blocks = identifyFiveHourBlocks(entries);
+		const blocks = identifySessionBlocks(entries);
 		expect(blocks).toHaveLength(3); // first block, gap block, second block
 		expect(blocks[0]?.entries).toHaveLength(1);
 		expect(blocks[1]?.isGap).toBe(true); // gap block
@@ -75,7 +75,7 @@ describe('identifyFiveHourBlocks', () => {
 			createMockEntry(new Date(baseTime.getTime() + 8 * 60 * 60 * 1000)), // 8 hours later
 		];
 
-		const blocks = identifyFiveHourBlocks(entries);
+		const blocks = identifySessionBlocks(entries);
 		expect(blocks).toHaveLength(3); // first block, gap block, second block
 		expect(blocks[0]?.entries).toHaveLength(2);
 		expect(blocks[1]?.isGap).toBe(true);
@@ -91,7 +91,7 @@ describe('identifyFiveHourBlocks', () => {
 			createMockEntry(new Date(baseTime.getTime() + 1 * 60 * 60 * 1000)), // 1 hour later
 		];
 
-		const blocks = identifyFiveHourBlocks(entries);
+		const blocks = identifySessionBlocks(entries);
 		expect(blocks).toHaveLength(1);
 		expect(blocks[0]?.entries[0]?.timestamp).toEqual(baseTime);
 		expect(blocks[0]?.entries[1]?.timestamp).toEqual(new Date(baseTime.getTime() + 1 * 60 * 60 * 1000));
@@ -105,7 +105,7 @@ describe('identifyFiveHourBlocks', () => {
 			createMockEntry(new Date(baseTime.getTime() + 60 * 60 * 1000), 2000, 1000, 'claude-opus-4-20250514'),
 		];
 
-		const blocks = identifyFiveHourBlocks(entries);
+		const blocks = identifySessionBlocks(entries);
 		expect(blocks).toHaveLength(1);
 		expect(blocks[0]?.models).toEqual(['claude-sonnet-4-20250514', 'claude-opus-4-20250514']);
 	});
@@ -117,7 +117,7 @@ describe('identifyFiveHourBlocks', () => {
 			{ ...createMockEntry(new Date(baseTime.getTime() + 60 * 60 * 1000)), costUSD: null },
 		];
 
-		const blocks = identifyFiveHourBlocks(entries);
+		const blocks = identifySessionBlocks(entries);
 		expect(blocks).toHaveLength(1);
 		expect(blocks[0]?.costUSD).toBe(0.01); // Only the first entry's cost
 	});
@@ -126,7 +126,7 @@ describe('identifyFiveHourBlocks', () => {
 		const baseTime = new Date('2024-01-01T10:00:00Z');
 		const entries: LoadedUsageEntry[] = [createMockEntry(baseTime)];
 
-		const blocks = identifyFiveHourBlocks(entries);
+		const blocks = identifySessionBlocks(entries);
 		expect(blocks[0]?.id).toBe(baseTime.toISOString());
 	});
 
@@ -134,8 +134,8 @@ describe('identifyFiveHourBlocks', () => {
 		const baseTime = new Date('2024-01-01T10:00:00Z');
 		const entries: LoadedUsageEntry[] = [createMockEntry(baseTime)];
 
-		const blocks = identifyFiveHourBlocks(entries);
-		expect(blocks[0]?.endTime).toEqual(new Date(baseTime.getTime() + FIVE_HOURS_MS));
+		const blocks = identifySessionBlocks(entries);
+		expect(blocks[0]?.endTime).toEqual(new Date(baseTime.getTime() + SESSION_DURATION_MS));
 	});
 
 	test('handles cache tokens correctly', () => {
@@ -152,7 +152,7 @@ describe('identifyFiveHourBlocks', () => {
 			model: 'claude-sonnet-4-20250514',
 		};
 
-		const blocks = identifyFiveHourBlocks([entry]);
+		const blocks = identifySessionBlocks([entry]);
 		expect(blocks[0]?.tokenCounts.cacheCreationInputTokens).toBe(100);
 		expect(blocks[0]?.tokenCounts.cacheReadInputTokens).toBe(200);
 	});
@@ -160,7 +160,7 @@ describe('identifyFiveHourBlocks', () => {
 
 describe('calculateBurnRate', () => {
 	test('returns null for empty entries', () => {
-		const block: FiveHourBlock = {
+		const block: SessionBlock = {
 			id: '2024-01-01T10:00:00.000Z',
 			startTime: new Date('2024-01-01T10:00:00Z'),
 			endTime: new Date('2024-01-01T15:00:00Z'),
@@ -181,7 +181,7 @@ describe('calculateBurnRate', () => {
 	});
 
 	test('returns null for gap blocks', () => {
-		const block: FiveHourBlock = {
+		const block: SessionBlock = {
 			id: 'gap-2024-01-01T10:00:00.000Z',
 			startTime: new Date('2024-01-01T10:00:00Z'),
 			endTime: new Date('2024-01-01T15:00:00Z'),
@@ -204,10 +204,10 @@ describe('calculateBurnRate', () => {
 
 	test('returns null when duration is zero or negative', () => {
 		const baseTime = new Date('2024-01-01T10:00:00Z');
-		const block: FiveHourBlock = {
+		const block: SessionBlock = {
 			id: baseTime.toISOString(),
 			startTime: baseTime,
-			endTime: new Date(baseTime.getTime() + FIVE_HOURS_MS),
+			endTime: new Date(baseTime.getTime() + SESSION_DURATION_MS),
 			isActive: true,
 			entries: [
 				createMockEntry(baseTime),
@@ -230,10 +230,10 @@ describe('calculateBurnRate', () => {
 	test('calculates burn rate correctly', () => {
 		const baseTime = new Date('2024-01-01T10:00:00Z');
 		const laterTime = new Date(baseTime.getTime() + 60 * 1000); // 1 minute later
-		const block: FiveHourBlock = {
+		const block: SessionBlock = {
 			id: baseTime.toISOString(),
 			startTime: baseTime,
-			endTime: new Date(baseTime.getTime() + FIVE_HOURS_MS),
+			endTime: new Date(baseTime.getTime() + SESSION_DURATION_MS),
 			isActive: true,
 			entries: [
 				createMockEntry(baseTime, 1000, 500, 'claude-sonnet-4-20250514', 0.01),
@@ -258,7 +258,7 @@ describe('calculateBurnRate', () => {
 
 describe('projectBlockUsage', () => {
 	test('returns null for inactive blocks', () => {
-		const block: FiveHourBlock = {
+		const block: SessionBlock = {
 			id: '2024-01-01T10:00:00.000Z',
 			startTime: new Date('2024-01-01T10:00:00Z'),
 			endTime: new Date('2024-01-01T15:00:00Z'),
@@ -279,7 +279,7 @@ describe('projectBlockUsage', () => {
 	});
 
 	test('returns null for gap blocks', () => {
-		const block: FiveHourBlock = {
+		const block: SessionBlock = {
 			id: 'gap-2024-01-01T10:00:00.000Z',
 			startTime: new Date('2024-01-01T10:00:00Z'),
 			endTime: new Date('2024-01-01T15:00:00Z'),
@@ -301,7 +301,7 @@ describe('projectBlockUsage', () => {
 	});
 
 	test('returns null when burn rate cannot be calculated', () => {
-		const block: FiveHourBlock = {
+		const block: SessionBlock = {
 			id: '2024-01-01T10:00:00.000Z',
 			startTime: new Date('2024-01-01T10:00:00Z'),
 			endTime: new Date('2024-01-01T15:00:00Z'),
@@ -324,10 +324,10 @@ describe('projectBlockUsage', () => {
 	test('projects usage correctly for active block', () => {
 		const now = new Date();
 		const startTime = new Date(now.getTime() - 60 * 60 * 1000); // 1 hour ago
-		const endTime = new Date(startTime.getTime() + FIVE_HOURS_MS);
+		const endTime = new Date(startTime.getTime() + SESSION_DURATION_MS);
 		const pastTime = new Date(startTime.getTime() + 30 * 60 * 1000); // 30 minutes after start
 
-		const block: FiveHourBlock = {
+		const block: SessionBlock = {
 			id: startTime.toISOString(),
 			startTime,
 			endTime,
@@ -360,11 +360,11 @@ describe('filterRecentBlocks', () => {
 		const recentTime = new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000); // 2 days ago
 		const oldTime = new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000); // 5 days ago
 
-		const blocks: FiveHourBlock[] = [
+		const blocks: SessionBlock[] = [
 			{
 				id: recentTime.toISOString(),
 				startTime: recentTime,
-				endTime: new Date(recentTime.getTime() + FIVE_HOURS_MS),
+				endTime: new Date(recentTime.getTime() + SESSION_DURATION_MS),
 				isActive: false,
 				entries: [],
 				tokenCounts: {
@@ -379,7 +379,7 @@ describe('filterRecentBlocks', () => {
 			{
 				id: oldTime.toISOString(),
 				startTime: oldTime,
-				endTime: new Date(oldTime.getTime() + FIVE_HOURS_MS),
+				endTime: new Date(oldTime.getTime() + SESSION_DURATION_MS),
 				isActive: false,
 				entries: [],
 				tokenCounts: {
@@ -402,11 +402,11 @@ describe('filterRecentBlocks', () => {
 		const now = new Date();
 		const oldTime = new Date(now.getTime() - 10 * 24 * 60 * 60 * 1000); // 10 days ago
 
-		const blocks: FiveHourBlock[] = [
+		const blocks: SessionBlock[] = [
 			{
 				id: oldTime.toISOString(),
 				startTime: oldTime,
-				endTime: new Date(oldTime.getTime() + FIVE_HOURS_MS),
+				endTime: new Date(oldTime.getTime() + SESSION_DURATION_MS),
 				isActive: true, // Active block
 				entries: [],
 				tokenCounts: {
@@ -430,11 +430,11 @@ describe('filterRecentBlocks', () => {
 		const withinCustomRange = new Date(now.getTime() - 4 * 24 * 60 * 60 * 1000); // 4 days ago
 		const outsideCustomRange = new Date(now.getTime() - 8 * 24 * 60 * 60 * 1000); // 8 days ago
 
-		const blocks: FiveHourBlock[] = [
+		const blocks: SessionBlock[] = [
 			{
 				id: withinCustomRange.toISOString(),
 				startTime: withinCustomRange,
-				endTime: new Date(withinCustomRange.getTime() + FIVE_HOURS_MS),
+				endTime: new Date(withinCustomRange.getTime() + SESSION_DURATION_MS),
 				isActive: false,
 				entries: [],
 				tokenCounts: {
@@ -449,7 +449,7 @@ describe('filterRecentBlocks', () => {
 			{
 				id: outsideCustomRange.toISOString(),
 				startTime: outsideCustomRange,
-				endTime: new Date(outsideCustomRange.getTime() + FIVE_HOURS_MS),
+				endTime: new Date(outsideCustomRange.getTime() + SESSION_DURATION_MS),
 				isActive: false,
 				entries: [],
 				tokenCounts: {
@@ -472,11 +472,11 @@ describe('filterRecentBlocks', () => {
 		const now = new Date();
 		const oldTime = new Date(now.getTime() - 10 * 24 * 60 * 60 * 1000); // 10 days ago
 
-		const blocks: FiveHourBlock[] = [
+		const blocks: SessionBlock[] = [
 			{
 				id: oldTime.toISOString(),
 				startTime: oldTime,
-				endTime: new Date(oldTime.getTime() + FIVE_HOURS_MS),
+				endTime: new Date(oldTime.getTime() + SESSION_DURATION_MS),
 				isActive: false,
 				entries: [],
 				tokenCounts: {
