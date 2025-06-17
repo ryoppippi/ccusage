@@ -1,4 +1,5 @@
 const FIVE_HOURS_MS = 5 * 60 * 60 * 1000;
+const DEFAULT_RECENT_DAYS = 3;
 
 export type LoadedUsageEntry = {
 	timestamp: Date;
@@ -230,7 +231,7 @@ export function projectBlockUsage(block: FiveHourBlock): ProjectedUsage | null {
 	};
 }
 
-export function filterRecentBlocks(blocks: FiveHourBlock[], days: number = 3): FiveHourBlock[] {
+export function filterRecentBlocks(blocks: FiveHourBlock[], days: number = DEFAULT_RECENT_DAYS): FiveHourBlock[] {
 	const now = new Date();
 	const cutoffTime = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
 

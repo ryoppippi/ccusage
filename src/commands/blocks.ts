@@ -13,6 +13,12 @@ import { sharedCommandConfig } from '../shared-args.internal.ts';
 import { formatCurrency, formatModelsDisplay, formatNumber } from '../utils.internal.ts';
 import { ResponsiveTable } from '../utils.table.ts';
 
+// Constants for configurable values
+const RECENT_DAYS_DEFAULT = 3;
+const WARNING_THRESHOLD = 0.8;
+const COMPACT_WIDTH_THRESHOLD = 120;
+const DEFAULT_TERMINAL_WIDTH = 120;
+
 function formatBlockTime(block: FiveHourBlock, compact = false): string {
 	const start = compact
 		? block.startTime.toLocaleString(undefined, {
@@ -97,7 +103,7 @@ export const blocksCommand = define({
 		recent: {
 			type: 'boolean',
 			short: 'r',
-			description: 'Show blocks from last 3 days (including active)',
+			description: `Show blocks from last ${RECENT_DAYS_DEFAULT} days (including active)`,
 			default: false,
 		},
 		tokenLimit: {
@@ -148,7 +154,7 @@ export const blocksCommand = define({
 
 		// Apply filters
 		if (ctx.values.recent) {
-			blocks = filterRecentBlocks(blocks, 3);
+			blocks = filterRecentBlocks(blocks, RECENT_DAYS_DEFAULT);
 		}
 
 		if (ctx.values.active) {
@@ -197,7 +203,7 @@ export const blocksCommand = define({
 												percentUsed: (projection.totalTokens / limit) * 100,
 												status: projection.totalTokens > limit
 													? 'exceeds'
-													: projection.totalTokens > limit * 0.8 ? 'warning' : 'ok',
+													: projection.totalTokens > limit * WARNING_THRESHOLD ? 'warning' : 'ok',
 											}
 										: undefined;
 								})()
@@ -258,7 +264,7 @@ export const blocksCommand = define({
 							const percentUsed = (projection.totalTokens / limit) * 100;
 							const status = percentUsed > 100
 								? pc.red('EXCEEDS LIMIT')
-								: percentUsed > 80
+								: percentUsed > WARNING_THRESHOLD * 100
 									? pc.yellow('WARNING')
 									: pc.green('OK');
 
@@ -297,8 +303,8 @@ export const blocksCommand = define({
 				});
 
 				// Detect if we need compact formatting
-				const terminalWidth = process.stdout.columns || 120;
-				const useCompactFormat = terminalWidth < 120;
+				const terminalWidth = process.stdout.columns || DEFAULT_TERMINAL_WIDTH;
+				const useCompactFormat = terminalWidth < COMPACT_WIDTH_THRESHOLD;
 
 				for (const block of blocks) {
 					if (block.isGap ?? false) {
