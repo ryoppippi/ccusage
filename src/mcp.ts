@@ -7,6 +7,8 @@ import { name, version } from '../package.json';
 import {
 	getDefaultClaudePath,
 	loadDailyUsageData,
+	loadFiveHourBlockData,
+	loadMonthlyUsageData,
 	loadSessionData,
 } from './data-loader.ts';
 import { CostModes, dateSchema } from './types.internal.ts';
@@ -71,6 +73,26 @@ export function createMcpServer({
 		execute: async (args) => {
 			const sessionData = await loadSessionData({ ...args, claudePath });
 			return JSON.stringify(sessionData);
+		},
+	});
+
+	server.addTool({
+		name: 'monthly',
+		description: 'Show usage report grouped by month',
+		parameters: parametersSchema,
+		execute: async (args) => {
+			const monthlyData = await loadMonthlyUsageData({ ...args, claudePath });
+			return JSON.stringify(monthlyData);
+		},
+	});
+
+	server.addTool({
+		name: 'blocks',
+		description: 'Show usage report grouped by 5-hour billing blocks',
+		parameters: parametersSchema,
+		execute: async (args) => {
+			const blocksData = await loadFiveHourBlockData({ ...args, claudePath });
+			return JSON.stringify(blocksData);
 		},
 	});
 

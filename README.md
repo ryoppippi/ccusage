@@ -41,6 +41,7 @@ This tool helps you understand the value you're getting from your subscription b
 - 📊 **Daily Report**: View token usage and costs aggregated by date
 - 📅 **Monthly Report**: View token usage and costs aggregated by month
 - 💬 **Session Report**: View usage grouped by conversation sessions
+- ⏰ **5-Hour Blocks Report**: Track usage within Claude's billing windows with active block monitoring
 - 🤖 **Model Tracking**: See which Claude models you're using (Opus, Sonnet, etc.)
 - 📊 **Model Breakdown**: View per-model cost breakdown with `--breakdown` flag
 - 📅 **Date Filtering**: Filter reports by date range using `--since` and `--until`
@@ -51,6 +52,7 @@ This tool helps you understand the value you're getting from your subscription b
 - 🔄 **Cache Token Support**: Tracks and displays cache creation and cache read tokens separately
 - 🌐 **Offline Mode**: Use pre-cached pricing data without network connectivity with `--offline` (Claude models only)
 - 📏 **Responsive Tables**: Automatic table width adjustment for narrow terminals with intelligent word wrapping
+- 🔌 **MCP Integration**: Built-in Model Context Protocol server for integration with other tools
 
 ## Important Disclaimer
 
@@ -340,6 +342,8 @@ Available MCP tools:
 
 - `daily`: Returns daily usage reports (accepts `since`, `until`, `mode` parameters)
 - `session`: Returns session usage reports (accepts `since`, `until`, `mode` parameters)
+- `monthly`: Returns monthly usage reports (accepts `since`, `until`, `mode` parameters)
+- `blocks`: Returns 5-hour billing blocks usage reports (accepts `since`, `until`, `mode` parameters)
 
 #### Claude Desktop Configuration Example
 
