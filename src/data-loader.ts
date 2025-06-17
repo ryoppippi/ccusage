@@ -14,9 +14,9 @@ import {
 	PricingFetcher,
 } from './pricing-fetcher.ts';
 import {
-	type FiveHourBlock,
-	identifyFiveHourBlocks,
+	identifySessionBlocks,
 	type LoadedUsageEntry,
+	type SessionBlock,
 } from './session-blocks.internal.ts';
 
 const DEFAULT_CLAUDE_CODE_PATH = path.join(homedir(), '.claude');
@@ -820,9 +820,9 @@ export async function loadMonthlyUsageData(
 	return sortByDate(monthlyArray, item => `${item.month}-01`, options?.order);
 }
 
-export async function loadFiveHourBlockData(
+export async function loadSessionBlockData(
 	options?: LoadOptions,
-): Promise<FiveHourBlock[]> {
+): Promise<SessionBlock[]> {
 	const claudePath = options?.claudePath ?? getDefaultClaudePath();
 	const claudeDir = path.join(claudePath, 'projects');
 	const files = await glob(['**/*.jsonl'], {
@@ -899,8 +899,8 @@ export async function loadFiveHourBlockData(
 		}
 	}
 
-	// Identify 5-hour blocks
-	const blocks = identifyFiveHourBlocks(allEntries);
+	// Identify session blocks
+	const blocks = identifySessionBlocks(allEntries);
 
 	// Filter by date range if specified
 	const filtered = (options?.since != null && options.since !== '') || (options?.until != null && options.until !== '')

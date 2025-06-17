@@ -1,13 +1,13 @@
 import process from 'node:process';
 import { define } from 'gunshi';
 import pc from 'picocolors';
-import { getDefaultClaudePath, loadFiveHourBlockData } from '../data-loader.ts';
+import { getDefaultClaudePath, loadSessionBlockData } from '../data-loader.ts';
 import { log, logger } from '../logger.ts';
 import {
 	calculateBurnRate,
 	filterRecentBlocks,
-	type FiveHourBlock,
 	projectBlockUsage,
+	type SessionBlock,
 } from '../session-blocks.internal.ts';
 import { sharedCommandConfig } from '../shared-args.internal.ts';
 import { formatCurrency, formatModelsDisplay, formatNumber } from '../utils.internal.ts';
@@ -19,7 +19,7 @@ const WARNING_THRESHOLD = 0.8;
 const COMPACT_WIDTH_THRESHOLD = 120;
 const DEFAULT_TERMINAL_WIDTH = 120;
 
-function formatBlockTime(block: FiveHourBlock, compact = false): string {
+function formatBlockTime(block: SessionBlock, compact = false): string {
 	const start = compact
 		? block.startTime.toLocaleString(undefined, {
 				month: '2-digit',
@@ -118,7 +118,7 @@ export const blocksCommand = define({
 			logger.level = 0;
 		}
 
-		let blocks = await loadFiveHourBlockData({
+		let blocks = await loadSessionBlockData({
 			since: ctx.values.since,
 			until: ctx.values.until,
 			claudePath: getDefaultClaudePath(),
@@ -158,7 +158,7 @@ export const blocksCommand = define({
 		}
 
 		if (ctx.values.active) {
-			blocks = blocks.filter((block: FiveHourBlock) => block.isActive);
+			blocks = blocks.filter((block: SessionBlock) => block.isActive);
 			if (blocks.length === 0) {
 				if (ctx.values.json) {
 					log(JSON.stringify({ blocks: [], message: 'No active block' }));
@@ -173,7 +173,7 @@ export const blocksCommand = define({
 		if (ctx.values.json) {
 			// JSON output
 			const jsonOutput = {
-				blocks: blocks.map((block: FiveHourBlock) => {
+				blocks: blocks.map((block: SessionBlock) => {
 					const burnRate = block.isActive ? calculateBurnRate(block) : null;
 					const projection = block.isActive ? projectBlockUsage(block) : null;
 
@@ -218,7 +218,7 @@ export const blocksCommand = define({
 			// Table output
 			if (ctx.values.active && blocks.length === 1) {
 				// Detailed active block view
-				const block = blocks[0] as FiveHourBlock;
+				const block = blocks[0] as SessionBlock;
 				if (block == null) {
 					logger.warn('No active block found.');
 					process.exit(0);
