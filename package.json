@@ -1,7 +1,7 @@
 {
 	"name": "ccusage",
 	"type": "module",
-	"version": "11.0.2",
+	"version": "12.0.0",
 	"description": "Usage analysis tool for Claude Code",
 	"author": "ryoppippi",
 	"license": "MIT",
