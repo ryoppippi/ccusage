@@ -35,10 +35,19 @@ export function getDefaultClaudePath(): string {
 		return DEFAULT_CLAUDE_CODE_PATH;
 	}
 
+	// First validate that the CLAUDE_CONFIG_DIR itself exists and is a directory
+	if (!isDirectorySync(envClaudeCodePath)) {
+		throw new Error(
+			`CLAUDE_CONFIG_DIR path is not a valid directory: ${envClaudeCodePath}. 
+Please set CLAUDE_CONFIG_DIR to a valid directory path, or ensure ${DEFAULT_CLAUDE_CODE_PATH} exists.
+			`.trim(),
+		);
+	}
+
 	const claudeCodeProjectsPath = path.join(envClaudeCodePath, 'projects');
 	if (!isDirectorySync(claudeCodeProjectsPath)) {
 		throw new Error(
-			` Claude data directory does not exist: ${claudeCodeProjectsPath}. 
+			`Claude data directory does not exist: ${claudeCodeProjectsPath}. 
 Please set CLAUDE_CONFIG_DIR to a valid path, or ensure ${DEFAULT_CLAUDE_CODE_PATH} exists.
 			`.trim(),
 		);
@@ -1093,20 +1102,20 @@ if (import.meta.vitest != null) {
 
 			vi.stubEnv('CLAUDE_CONFIG_DIR', nonExistentPath);
 
-			expect(() => getDefaultClaudePath()).toThrow(/Claude data directory does not exist/);
+			expect(() => getDefaultClaudePath()).toThrow(/CLAUDE_CONFIG_DIR path is not a valid directory/);
 		});
 
 		it('throws an error when CLAUDE_CONFIG_DIR does not exist', () => {
 			vi.stubEnv('CLAUDE_CONFIG_DIR', '/nonexistent/path/that/does/not/exist');
 
-			expect(() => getDefaultClaudePath()).toThrow(/Claude data directory does not exist/);
+			expect(() => getDefaultClaudePath()).toThrow(/CLAUDE_CONFIG_DIR path is not a valid directory/);
 		});
 
 		it('throws an error when default path does not exist', () => {
 		// Set to a non-existent path
 			vi.stubEnv('CLAUDE_CONFIG_DIR', '/nonexistent/path/.claude');
 
-			expect(() => getDefaultClaudePath()).toThrow(/Claude data directory does not exist/);
+			expect(() => getDefaultClaudePath()).toThrow(/CLAUDE_CONFIG_DIR path is not a valid directory/);
 		});
 	});
 
