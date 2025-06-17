@@ -16,6 +16,7 @@ export default defineConfig({
 		'effect',
 	],
 	dts: {
+		tsgo: true,
 		resolve: ['valibot', 'type-fest'],
 	},
 	publint: true,
