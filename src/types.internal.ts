@@ -35,7 +35,7 @@ export type SortOrder = TupleToUnion<typeof SortOrders>;
 /**
  * Valibot schema for model pricing information from LiteLLM
  */
-export const ModelPricingSchema = v.object({
+export const modelPricingSchema = v.object({
 	input_cost_per_token: v.optional(v.number()),
 	output_cost_per_token: v.optional(v.number()),
 	cache_creation_input_token_cost: v.optional(v.number()),
@@ -45,4 +45,4 @@ export const ModelPricingSchema = v.object({
 /**
  * Type definition for model pricing information
  */
-export type ModelPricing = v.InferOutput<typeof ModelPricingSchema>;
+export type ModelPricing = v.InferOutput<typeof modelPricingSchema>;

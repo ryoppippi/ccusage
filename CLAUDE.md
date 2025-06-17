@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Testing and Quality:**
 
-- `bun run test` - Run all tests (using vitest)
+- `bun run test` - Run all tests (using vitest via bun)
 - Lint code using ESLint MCP server (available via Claude Code tools)
 - `bun run format` - Format code with ESLint (writes changes)
 - `bun typecheck` - Type check with TypeScript
@@ -95,13 +95,19 @@ This is a CLI tool that analyzes Claude Code usage data from local JSONL files s
 - Error handling: silently skips malformed JSONL lines during parsing
 - File paths always use Node.js path utilities for cross-platform compatibility
 
+**Naming Conventions:**
+
+- Variables: start with lowercase (camelCase) - e.g., `usageDataSchema`, `modelBreakdownSchema`
+- Types: start with uppercase (PascalCase) - e.g., `UsageData`, `ModelBreakdown`
+- Constants: can use UPPER_SNAKE_CASE - e.g., `DEFAULT_CLAUDE_CODE_PATH`
+
 **Post-Code Change Workflow:**
 
 After making any code changes, ALWAYS run these commands in parallel:
 
 - `bun run format` - Auto-fix and format code with ESLint (includes linting)
 - `bun typecheck` - Type check with TypeScript
-- `bun test` - Run all tests
+- `bun run test` - Run all tests
 
 This ensures code quality and catches issues immediately after changes.
 

@@ -44,7 +44,7 @@ Please set CLAUDE_CONFIG_DIR to a valid path, or ensure ${DEFAULT_CLAUDE_CODE_PA
 /**
  * Valibot schema for validating Claude usage data from JSONL files
  */
-export const UsageDataSchema = v.object({
+export const usageDataSchema = v.object({
 	timestamp: v.string(),
 	version: v.optional(v.string()), // Claude Code version
 	message: v.object({
@@ -64,12 +64,12 @@ export const UsageDataSchema = v.object({
 /**
  * Type definition for Claude usage data entries from JSONL files
  */
-export type UsageData = v.InferOutput<typeof UsageDataSchema>;
+export type UsageData = v.InferOutput<typeof usageDataSchema>;
 
 /**
  * Valibot schema for model-specific usage breakdown data
  */
-export const ModelBreakdownSchema = v.object({
+export const modelBreakdownSchema = v.object({
 	modelName: v.string(),
 	inputTokens: v.number(),
 	outputTokens: v.number(),
@@ -81,12 +81,12 @@ export const ModelBreakdownSchema = v.object({
 /**
  * Type definition for model-specific usage breakdown
  */
-export type ModelBreakdown = v.InferOutput<typeof ModelBreakdownSchema>;
+export type ModelBreakdown = v.InferOutput<typeof modelBreakdownSchema>;
 
 /**
  * Valibot schema for daily usage aggregation data
  */
-export const DailyUsageSchema = v.object({
+export const dailyUsageSchema = v.object({
 	date: v.pipe(
 		v.string(),
 		v.regex(/^\d{4}-\d{2}-\d{2}$/), // YYYY-MM-DD format
@@ -97,18 +97,18 @@ export const DailyUsageSchema = v.object({
 	cacheReadTokens: v.number(),
 	totalCost: v.number(),
 	modelsUsed: v.array(v.string()),
-	modelBreakdowns: v.array(ModelBreakdownSchema),
+	modelBreakdowns: v.array(modelBreakdownSchema),
 });
 
 /**
  * Type definition for daily usage aggregation
  */
-export type DailyUsage = v.InferOutput<typeof DailyUsageSchema>;
+export type DailyUsage = v.InferOutput<typeof dailyUsageSchema>;
 
 /**
  * Valibot schema for session-based usage aggregation data
  */
-export const SessionUsageSchema = v.object({
+export const sessionUsageSchema = v.object({
 	sessionId: v.string(),
 	projectPath: v.string(),
 	inputTokens: v.number(),
@@ -119,18 +119,18 @@ export const SessionUsageSchema = v.object({
 	lastActivity: v.string(),
 	versions: v.array(v.string()), // List of unique versions used in this session
 	modelsUsed: v.array(v.string()),
-	modelBreakdowns: v.array(ModelBreakdownSchema),
+	modelBreakdowns: v.array(modelBreakdownSchema),
 });
 
 /**
  * Type definition for session-based usage aggregation
  */
-export type SessionUsage = v.InferOutput<typeof SessionUsageSchema>;
+export type SessionUsage = v.InferOutput<typeof sessionUsageSchema>;
 
 /**
  * Valibot schema for monthly usage aggregation data
  */
-export const MonthlyUsageSchema = v.object({
+export const monthlyUsageSchema = v.object({
 	month: v.pipe(
 		v.string(),
 		v.regex(/^\d{4}-\d{2}$/), // YYYY-MM format
@@ -141,13 +141,13 @@ export const MonthlyUsageSchema = v.object({
 	cacheReadTokens: v.number(),
 	totalCost: v.number(),
 	modelsUsed: v.array(v.string()),
-	modelBreakdowns: v.array(ModelBreakdownSchema),
+	modelBreakdowns: v.array(modelBreakdownSchema),
 });
 
 /**
  * Type definition for monthly usage aggregation
  */
-export type MonthlyUsage = v.InferOutput<typeof MonthlyUsageSchema>;
+export type MonthlyUsage = v.InferOutput<typeof monthlyUsageSchema>;
 
 /**
  * Internal type for aggregating token statistics and costs
@@ -586,7 +586,7 @@ export async function loadDailyUsageData(
 		for (const line of lines) {
 			try {
 				const parsed = JSON.parse(line) as unknown;
-				const result = v.safeParse(UsageDataSchema, parsed);
+				const result = v.safeParse(usageDataSchema, parsed);
 				if (!result.success) {
 					continue;
 				}
@@ -726,7 +726,7 @@ export async function loadSessionData(
 		for (const line of lines) {
 			try {
 				const parsed = JSON.parse(line) as unknown;
-				const result = v.safeParse(UsageDataSchema, parsed);
+				const result = v.safeParse(usageDataSchema, parsed);
 				if (!result.success) {
 					continue;
 				}
@@ -944,7 +944,7 @@ export async function loadSessionBlockData(
 		for (const line of lines) {
 			try {
 				const parsed = JSON.parse(line) as unknown;
-				const result = v.safeParse(UsageDataSchema, parsed);
+				const result = v.safeParse(usageDataSchema, parsed);
 				if (!result.success) {
 					continue;
 				}

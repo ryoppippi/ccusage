@@ -4,7 +4,7 @@ import path from 'node:path';
 import { createFixture } from 'fs-fixture';
 import { glob } from 'tinyglobby';
 import * as v from 'valibot';
-import { UsageDataSchema } from './data-loader.ts';
+import { usageDataSchema } from './data-loader.ts';
 import { logger } from './logger.ts';
 import { PricingFetcher } from './pricing-fetcher.ts';
 
@@ -98,7 +98,7 @@ export async function detectMismatches(
 		for (const line of lines) {
 			try {
 				const parsed = JSON.parse(line) as unknown;
-				const result = v.safeParse(UsageDataSchema, parsed);
+				const result = v.safeParse(usageDataSchema, parsed);
 
 				if (!result.success) {
 					continue;
