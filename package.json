@@ -76,6 +76,9 @@
 		"valibot": "^1.1.0",
 		"vitest": "^3.2.4"
 	},
+	"overrides": {
+		"vite": "npm:rolldown-vite@latest"
+	},
 	"simple-git-hooks": {
 		"pre-commit": "bun lint-staged"
 	},
