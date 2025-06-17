@@ -86,7 +86,7 @@ export type ModelBreakdown = v.InferOutput<typeof modelBreakdownSchema>;
 /**
  * Valibot schema for daily usage aggregation data
  */
-export const DailyUsageSchema = v.object({
+export const dailyUsageSchema = v.object({
 	date: v.pipe(
 		v.string(),
 		v.regex(/^\d{4}-\d{2}-\d{2}$/), // YYYY-MM-DD format
@@ -103,7 +103,7 @@ export const DailyUsageSchema = v.object({
 /**
  * Type definition for daily usage aggregation
  */
-export type DailyUsage = v.InferOutput<typeof DailyUsageSchema>;
+export type DailyUsage = v.InferOutput<typeof dailyUsageSchema>;
 
 /**
  * Valibot schema for session-based usage aggregation data
