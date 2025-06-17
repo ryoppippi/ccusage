@@ -30,10 +30,24 @@ const DEFAULT_CLAUDE_CODE_PATH = path.join(homedir(), '.claude');
  * Uses environment variable CLAUDE_CONFIG_DIR if set, otherwise defaults to ~/.claude
  */
 export function getDefaultClaudePath(): string {
-	const envClaudeCodePath = process.env.CLAUDE_CONFIG_DIR?.trim() ?? DEFAULT_CLAUDE_CODE_PATH;
+	const envClaudeCodePath = (process.env.CLAUDE_CONFIG_DIR ?? '').trim();
+	if (envClaudeCodePath === '') {
+		return DEFAULT_CLAUDE_CODE_PATH;
+	}
+
+	// First validate that the CLAUDE_CONFIG_DIR itself exists and is a directory
 	if (!isDirectorySync(envClaudeCodePath)) {
 		throw new Error(
-			` Claude data directory does not exist: ${envClaudeCodePath}. 
+			`CLAUDE_CONFIG_DIR path is not a valid directory: ${envClaudeCodePath}. 
+Please set CLAUDE_CONFIG_DIR to a valid directory path, or ensure ${DEFAULT_CLAUDE_CODE_PATH} exists.
+			`.trim(),
+		);
+	}
+
+	const claudeCodeProjectsPath = path.join(envClaudeCodePath, 'projects');
+	if (!isDirectorySync(claudeCodeProjectsPath)) {
+		throw new Error(
+			`Claude data directory does not exist: ${claudeCodeProjectsPath}. 
 Please set CLAUDE_CONFIG_DIR to a valid path, or ensure ${DEFAULT_CLAUDE_CODE_PATH} exists.
 			`.trim(),
 		);
@@ -1051,7 +1065,7 @@ if (import.meta.vitest != null) {
 
 		it('returns CLAUDE_CONFIG_DIR when environment variable is set', async () => {
 			await using fixture = await createFixture({
-				claude: {},
+				projects: {},
 			});
 
 			// Use vitest's environment variable stubbing
@@ -1073,7 +1087,7 @@ if (import.meta.vitest != null) {
 
 		it('returns default path with trimmed CLAUDE_CONFIG_DIR', async () => {
 			await using fixture = await createFixture({
-				claude: {},
+				projects: {},
 			});
 
 			// Test with extra spaces using vitest env stubbing
@@ -1088,20 +1102,20 @@ if (import.meta.vitest != null) {
 
 			vi.stubEnv('CLAUDE_CONFIG_DIR', nonExistentPath);
 
-			expect(() => getDefaultClaudePath()).toThrow(/Claude data directory does not exist/);
+			expect(() => getDefaultClaudePath()).toThrow(/CLAUDE_CONFIG_DIR path is not a valid directory/);
 		});
 
 		it('throws an error when CLAUDE_CONFIG_DIR does not exist', () => {
 			vi.stubEnv('CLAUDE_CONFIG_DIR', '/nonexistent/path/that/does/not/exist');
 
-			expect(() => getDefaultClaudePath()).toThrow(/Claude data directory does not exist/);
+			expect(() => getDefaultClaudePath()).toThrow(/CLAUDE_CONFIG_DIR path is not a valid directory/);
 		});
 
 		it('throws an error when default path does not exist', () => {
 		// Set to a non-existent path
 			vi.stubEnv('CLAUDE_CONFIG_DIR', '/nonexistent/path/.claude');
 
-			expect(() => getDefaultClaudePath()).toThrow(/Claude data directory does not exist/);
+			expect(() => getDefaultClaudePath()).toThrow(/CLAUDE_CONFIG_DIR path is not a valid directory/);
 		});
 	});
 
