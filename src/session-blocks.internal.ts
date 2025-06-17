@@ -21,7 +21,7 @@ export type TokenCounts = {
 	cacheReadInputTokens: number;
 };
 
-export type FiveHourBlock = {
+export type SessionBlock = {
 	id: string; // ISO string of block start time
 	startTime: Date;
 	endTime: Date; // startTime + 5 hours (for normal blocks) or gap end time (for gap blocks)
@@ -45,12 +45,12 @@ export type ProjectedUsage = {
 	remainingMinutes: number;
 };
 
-export function identifyFiveHourBlocks(entries: LoadedUsageEntry[]): FiveHourBlock[] {
+export function identifySessionBlocks(entries: LoadedUsageEntry[]): SessionBlock[] {
 	if (entries.length === 0) {
 		return [];
 	}
 
-	const blocks: FiveHourBlock[] = [];
+	const blocks: SessionBlock[] = [];
 	const sortedEntries = [...entries].sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
 
 	let currentBlockStart: Date | null = null;
@@ -107,7 +107,7 @@ export function identifyFiveHourBlocks(entries: LoadedUsageEntry[]): FiveHourBlo
 	return blocks;
 }
 
-function createBlock(startTime: Date, entries: LoadedUsageEntry[], now: Date): FiveHourBlock {
+function createBlock(startTime: Date, entries: LoadedUsageEntry[], now: Date): SessionBlock {
 	const endTime = new Date(startTime.getTime() + SESSION_DURATION_MS);
 	const lastEntry = entries[entries.length - 1];
 	const actualEndTime = lastEntry != null ? lastEntry.timestamp : startTime;
@@ -146,7 +146,7 @@ function createBlock(startTime: Date, entries: LoadedUsageEntry[], now: Date): F
 	};
 }
 
-function createGapBlock(lastActivityTime: Date, nextActivityTime: Date): FiveHourBlock | null {
+function createGapBlock(lastActivityTime: Date, nextActivityTime: Date): SessionBlock | null {
 	// Only create gap blocks for gaps longer than 5 hours
 	const gapDuration = nextActivityTime.getTime() - lastActivityTime.getTime();
 	if (gapDuration <= SESSION_DURATION_MS) {
@@ -174,7 +174,7 @@ function createGapBlock(lastActivityTime: Date, nextActivityTime: Date): FiveHou
 	};
 }
 
-export function calculateBurnRate(block: FiveHourBlock): BurnRate | null {
+export function calculateBurnRate(block: SessionBlock): BurnRate | null {
 	if (block.entries.length === 0 || (block.isGap ?? false)) {
 		return null;
 	}
@@ -203,7 +203,7 @@ export function calculateBurnRate(block: FiveHourBlock): BurnRate | null {
 	};
 }
 
-export function projectBlockUsage(block: FiveHourBlock): ProjectedUsage | null {
+export function projectBlockUsage(block: SessionBlock): ProjectedUsage | null {
 	if (!block.isActive || (block.isGap ?? false)) {
 		return null;
 	}
@@ -231,7 +231,7 @@ export function projectBlockUsage(block: FiveHourBlock): ProjectedUsage | null {
 	};
 }
 
-export function filterRecentBlocks(blocks: FiveHourBlock[], days: number = DEFAULT_RECENT_DAYS): FiveHourBlock[] {
+export function filterRecentBlocks(blocks: SessionBlock[], days: number = DEFAULT_RECENT_DAYS): SessionBlock[] {
 	const now = new Date();
 	const cutoffTime = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
 
