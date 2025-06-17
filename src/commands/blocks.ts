@@ -1,11 +1,11 @@
 import process from 'node:process';
-import Table from 'cli-table3';
 import { define } from 'gunshi';
 import pc from 'picocolors';
 import { getDefaultClaudePath, loadFiveHourBlockData } from '../data-loader.ts';
 import { log, logger } from '../logger.ts';
 import { sharedCommandConfig } from '../shared-args.internal.ts';
-import { formatCurrency, formatNumber } from '../utils.internal.ts';
+import { formatCurrency, formatModelsDisplay, formatNumber } from '../utils.internal.ts';
+import { ResponsiveTable } from '../utils.table.ts';
 import {
 	calculateBurnRate,
 	filterRecentBlocks,
@@ -13,12 +13,25 @@ import {
 	projectBlockUsage,
 } from '../utils/five-hour-blocks.ts';
 
-function formatBlockTime(block: FiveHourBlock): string {
-	const start = block.startTime.toLocaleString();
+function formatBlockTime(block: FiveHourBlock, compact = false): string {
+	const start = compact
+		? block.startTime.toLocaleString(undefined, {
+				month: '2-digit',
+				day: '2-digit',
+				hour: '2-digit',
+				minute: '2-digit',
+			})
+		: block.startTime.toLocaleString();
+
 	if (block.isGap ?? false) {
-		const end = block.endTime.toLocaleString();
+		const end = compact
+			? block.endTime.toLocaleString(undefined, {
+					hour: '2-digit',
+					minute: '2-digit',
+				})
+			: block.endTime.toLocaleString();
 		const duration = Math.round((block.endTime.getTime() - block.startTime.getTime()) / (1000 * 60 * 60));
-		return `${start} - ${end} (${duration}h gap)`;
+		return compact ? `${start}-${end}\n(${duration}h gap)` : `${start} - ${end} (${duration}h gap)`;
 	}
 
 	const duration = block.actualEndTime != null
@@ -33,26 +46,30 @@ function formatBlockTime(block: FiveHourBlock): string {
 		const elapsedMins = elapsed % 60;
 		const remainingHours = Math.floor(remaining / 60);
 		const remainingMins = remaining % 60;
+
+		if (compact) {
+			return `${start}\n(${elapsedHours}h${elapsedMins}m/${remainingHours}h${remainingMins}m)`;
+		}
 		return `${start} (${elapsedHours}h ${elapsedMins}m elapsed, ${remainingHours}h ${remainingMins}m remaining)`;
 	}
 
 	const hours = Math.floor(duration / 60);
 	const mins = duration % 60;
+	if (compact) {
+		return hours > 0 ? `${start}\n(${hours}h${mins}m)` : `${start}\n(${mins}m)`;
+	}
 	if (hours > 0) {
 		return `${start} (${hours}h ${mins}m)`;
 	}
 	return `${start} (${mins}m)`;
 }
 
-function formatModels(models: string[]): string {
+function formatModels(models: string[], compact = false): string {
 	if (models.length === 0) {
 		return '-';
 	}
-	if (models.length === 1) {
-		return models[0] ?? '-';
-	}
-	// Use comma separation instead of newlines to prevent table layout issues
-	return models.join(', ');
+	// Use abbreviated format like other commands
+	return compact ? formatModelsDisplay(models) : formatModelsDisplay(models);
 }
 
 function parseTokenLimit(value: string | undefined, maxFromAll: number): number | undefined {
@@ -262,7 +279,7 @@ export const blocksCommand = define({
 				const actualTokenLimit = parseTokenLimit(ctx.values.tokenLimit, maxTokensFromAll);
 
 				const tableHeaders = ['Block Start', 'Duration/Status', 'Models', 'Tokens'];
-				const tableAligns: ('left' | 'right')[] = ['left', 'left', 'left', 'right'];
+				const tableAligns: ('left' | 'right' | 'center')[] = ['left', 'left', 'left', 'right'];
 
 				// Add % column if token limit is set
 				if (actualTokenLimit != null && actualTokenLimit > 0) {
@@ -273,25 +290,29 @@ export const blocksCommand = define({
 				tableHeaders.push('Cost');
 				tableAligns.push('right');
 
-				const table = new Table({
+				const table = new ResponsiveTable({
 					head: tableHeaders,
 					style: { head: ['cyan'] },
 					colAligns: tableAligns,
 				});
 
+				// Detect if we need compact formatting
+				const terminalWidth = process.stdout.columns || 120;
+				const useCompactFormat = terminalWidth < 120;
+
 				for (const block of blocks) {
 					if (block.isGap ?? false) {
 						// Gap row
 						const gapRow = [
-							pc.gray(formatBlockTime(block)),
+							pc.gray(formatBlockTime(block, useCompactFormat)),
 							pc.gray('(inactive)'),
-							pc.gray('-'),
 							pc.gray('-'),
 							pc.gray('-'),
 						];
 						if (actualTokenLimit != null && actualTokenLimit > 0) {
 							gapRow.push(pc.gray('-'));
 						}
+						gapRow.push(pc.gray('-'));
 						table.push(gapRow);
 					}
 					else {
@@ -300,9 +321,9 @@ export const blocksCommand = define({
 						const status = block.isActive ? pc.green('ACTIVE') : '';
 
 						const row = [
-							formatBlockTime(block),
+							formatBlockTime(block, useCompactFormat),
 							status,
-							formatModels(block.models),
+							formatModels(block.models, useCompactFormat),
 							formatNumber(totalTokens),
 						];
 
