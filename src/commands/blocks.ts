@@ -14,12 +14,32 @@ import { sharedCommandConfig } from '../shared-args.internal.ts';
 import { formatCurrency, formatModelsDisplay, formatNumber } from '../utils.internal.ts';
 import { ResponsiveTable } from '../utils.table.ts';
 
-// Constants for configurable values
+/**
+ * Default number of recent days to show in blocks view
+ */
 const RECENT_DAYS_DEFAULT = 3;
+
+/**
+ * Threshold percentage for showing usage warnings (80%)
+ */
 const WARNING_THRESHOLD = 0.8;
+
+/**
+ * Terminal width threshold for switching to compact display mode
+ */
 const COMPACT_WIDTH_THRESHOLD = 120;
+
+/**
+ * Default terminal width when stdout.columns is not available
+ */
 const DEFAULT_TERMINAL_WIDTH = 120;
 
+/**
+ * Formats the time display for a session block
+ * @param block - Session block to format
+ * @param compact - Whether to use compact formatting for narrow terminals
+ * @returns Formatted time string with duration and status information
+ */
 function formatBlockTime(block: SessionBlock, compact = false): string {
 	const start = compact
 		? block.startTime.toLocaleString(undefined, {
@@ -71,6 +91,12 @@ function formatBlockTime(block: SessionBlock, compact = false): string {
 	return `${start} (${mins}m)`;
 }
 
+/**
+ * Formats the list of models used in a block for display
+ * @param models - Array of model names
+ * @param compact - Whether to use compact formatting (unused currently)
+ * @returns Formatted model names string
+ */
 function formatModels(models: string[], compact = false): string {
 	if (models.length === 0) {
 		return '-';
@@ -79,6 +105,12 @@ function formatModels(models: string[], compact = false): string {
 	return compact ? formatModelsDisplay(models) : formatModelsDisplay(models);
 }
 
+/**
+ * Parses token limit argument, supporting 'max' keyword
+ * @param value - Token limit string value
+ * @param maxFromAll - Maximum token count found in all blocks
+ * @returns Parsed token limit or undefined if invalid
+ */
 function parseTokenLimit(value: string | undefined, maxFromAll: number): number | undefined {
 	if (value == null || value === '') {
 		return undefined;
