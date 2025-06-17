@@ -1,7 +1,5 @@
 import { homedir } from 'node:os';
 import { join } from 'node:path';
-import process from 'node:process';
-import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { createFixture } from 'fs-fixture';
 import {
 	calculateCostForEntry,
@@ -17,72 +15,63 @@ import {
 import { PricingFetcher } from './pricing-fetcher.ts';
 
 describe('formatDate', () => {
-	test('formats UTC timestamp to local date', () => {
+	it('formats UTC timestamp to local date', () => {
 		// Test with UTC timestamps - results depend on local timezone
 		expect(formatDate('2024-01-01T00:00:00Z')).toBe('2024-01-01');
 		expect(formatDate('2024-12-31T23:59:59Z')).toBe('2024-12-31');
 	});
 
-	test('handles various date formats', () => {
+	it('handles various date formats', () => {
 		expect(formatDate('2024-01-01')).toBe('2024-01-01');
 		expect(formatDate('2024-01-01T12:00:00')).toBe('2024-01-01');
 		expect(formatDate('2024-01-01T12:00:00.000Z')).toBe('2024-01-01');
 	});
 
-	test('pads single digit months and days', () => {
+	it('pads single digit months and days', () => {
 		expect(formatDate('2024-01-05T00:00:00Z')).toBe('2024-01-05');
 		expect(formatDate('2024-10-01T00:00:00Z')).toBe('2024-10-01');
 	});
 });
 
 describe('formatDateCompact', () => {
-	test('formats UTC timestamp to local date with line break', () => {
+	it('formats UTC timestamp to local date with line break', () => {
 		expect(formatDateCompact('2024-01-01T00:00:00Z')).toBe('2024\n01-01');
 	});
 
-	test('handles various date formats', () => {
+	it('handles various date formats', () => {
 		expect(formatDateCompact('2024-12-31T23:59:59Z')).toBe('2024\n12-31');
 		expect(formatDateCompact('2024-01-01')).toBe('2024\n01-01');
 		expect(formatDateCompact('2024-01-01T12:00:00')).toBe('2024\n01-01');
 		expect(formatDateCompact('2024-01-01T12:00:00.000Z')).toBe('2024\n01-01');
 	});
 
-	test('pads single digit months and days', () => {
+	it('pads single digit months and days', () => {
 		expect(formatDateCompact('2024-01-05T00:00:00Z')).toBe('2024\n01-05');
 		expect(formatDateCompact('2024-10-01T00:00:00Z')).toBe('2024\n10-01');
 	});
 });
 
 describe('getDefaultClaudePath', () => {
-	const originalEnv = process.env.CLAUDE_CONFIG_DIR;
-
-	beforeEach(() => {
-		// Clean up env var before each test
-		delete process.env.CLAUDE_CONFIG_DIR;
-	});
-
 	afterEach(() => {
-		// Restore original environment
-		if (originalEnv != null) {
-			process.env.CLAUDE_CONFIG_DIR = originalEnv;
-		}
-		else {
-			delete process.env.CLAUDE_CONFIG_DIR;
-		}
+		// Clean up any environment variable mocks
+		vi.unstubAllEnvs();
 	});
 
-	test('returns CLAUDE_CONFIG_DIR when environment variable is set', async () => {
+	it('returns CLAUDE_CONFIG_DIR when environment variable is set', async () => {
 		await using fixture = await createFixture({
 			claude: {},
 		});
-		process.env.CLAUDE_CONFIG_DIR = fixture.path;
+
+		// Use vitest's environment variable stubbing
+		vi.stubEnv('CLAUDE_CONFIG_DIR', fixture.path);
 
 		expect(getDefaultClaudePath()).toBe(fixture.path);
 	});
 
-	test('returns default path when CLAUDE_CONFIG_DIR is not set', () => {
-		// Ensure CLAUDE_CONFIG_DIR is not set
-		delete process.env.CLAUDE_CONFIG_DIR;
+	it('returns default path when CLAUDE_CONFIG_DIR is not set', () => {
+		// Explicitly ensure the environment variable is not set
+		// Use undefined to indicate the env var should not be set
+		vi.stubEnv('CLAUDE_CONFIG_DIR', undefined as string | undefined);
 
 		// Test that it returns the default path (which ends with .claude)
 		const actualPath = getDefaultClaudePath();
@@ -90,39 +79,42 @@ describe('getDefaultClaudePath', () => {
 		expect(actualPath).toContain(homedir());
 	});
 
-	test('returns default path with trimmed CLAUDE_CONFIG_DIR', async () => {
+	it('returns default path with trimmed CLAUDE_CONFIG_DIR', async () => {
 		await using fixture = await createFixture({
 			claude: {},
 		});
-		// Test with extra spaces
-		process.env.CLAUDE_CONFIG_DIR = `  ${fixture.path}  `;
+
+		// Test with extra spaces using vitest env stubbing
+		vi.stubEnv('CLAUDE_CONFIG_DIR', `  ${fixture.path}  `);
 
 		expect(getDefaultClaudePath()).toBe(fixture.path);
 	});
 
-	test('throws an error when CLAUDE_CONFIG_DIR is not a directory', async () => {
+	it('throws an error when CLAUDE_CONFIG_DIR is not a directory', async () => {
 		await using fixture = await createFixture();
-		process.env.CLAUDE_CONFIG_DIR = join(fixture.path, 'not-a-directory');
+		const nonExistentPath = join(fixture.path, 'not-a-directory');
+
+		vi.stubEnv('CLAUDE_CONFIG_DIR', nonExistentPath);
 
 		expect(() => getDefaultClaudePath()).toThrow(/Claude data directory does not exist/);
 	});
 
-	test('throws an error when CLAUDE_CONFIG_DIR does not exist', async () => {
-		process.env.CLAUDE_CONFIG_DIR = '/nonexistent/path/that/does/not/exist';
+	it('throws an error when CLAUDE_CONFIG_DIR does not exist', () => {
+		vi.stubEnv('CLAUDE_CONFIG_DIR', '/nonexistent/path/that/does/not/exist');
 
 		expect(() => getDefaultClaudePath()).toThrow(/Claude data directory does not exist/);
 	});
 
-	test('throws an error when default path does not exist', () => {
+	it('throws an error when default path does not exist', () => {
 		// Set to a non-existent path
-		process.env.CLAUDE_CONFIG_DIR = '/nonexistent/path/.claude';
+		vi.stubEnv('CLAUDE_CONFIG_DIR', '/nonexistent/path/.claude');
 
 		expect(() => getDefaultClaudePath()).toThrow(/Claude data directory does not exist/);
 	});
 });
 
 describe('loadDailyUsageData', () => {
-	test('returns empty array when no files found', async () => {
+	it('returns empty array when no files found', async () => {
 		await using fixture = await createFixture({
 			projects: {},
 		});
@@ -131,7 +123,7 @@ describe('loadDailyUsageData', () => {
 		expect(result).toEqual([]);
 	});
 
-	test('aggregates daily usage data correctly', async () => {
+	it('aggregates daily usage data correctly', async () => {
 		const mockData1: UsageData[] = [
 			{
 				timestamp: '2024-01-01T00:00:00Z',
@@ -173,7 +165,7 @@ describe('loadDailyUsageData', () => {
 		expect(result[0]?.totalCost).toBe(0.06); // 0.01 + 0.02 + 0.03
 	});
 
-	test('handles cache tokens', async () => {
+	it('handles cache tokens', async () => {
 		const mockData: UsageData = {
 			timestamp: '2024-01-01T00:00:00Z',
 			message: {
@@ -203,7 +195,7 @@ describe('loadDailyUsageData', () => {
 		expect(result[0]?.cacheReadTokens).toBe(10);
 	});
 
-	test('filters by date range', async () => {
+	it('filters by date range', async () => {
 		const mockData: UsageData[] = [
 			{
 				timestamp: '2024-01-01T00:00:00Z',
@@ -243,7 +235,7 @@ describe('loadDailyUsageData', () => {
 		expect(result[0]?.inputTokens).toBe(200);
 	});
 
-	test('sorts by date descending by default', async () => {
+	it('sorts by date descending by default', async () => {
 		const mockData: UsageData[] = [
 			{
 				timestamp: '2024-01-15T00:00:00Z',
@@ -279,7 +271,7 @@ describe('loadDailyUsageData', () => {
 		expect(result[2]?.date).toBe('2024-01-01');
 	});
 
-	test('sorts by date ascending when order is \'asc\'', async () => {
+	it('sorts by date ascending when order is \'asc\'', async () => {
 		const mockData: UsageData[] = [
 			{
 				timestamp: '2024-01-15T00:00:00Z',
@@ -319,7 +311,7 @@ describe('loadDailyUsageData', () => {
 		expect(result[2]?.date).toBe('2024-01-31');
 	});
 
-	test('sorts by date descending when order is \'desc\'', async () => {
+	it('sorts by date descending when order is \'desc\'', async () => {
 		const mockData: UsageData[] = [
 			{
 				timestamp: '2024-01-15T00:00:00Z',
@@ -359,7 +351,7 @@ describe('loadDailyUsageData', () => {
 		expect(result[2]?.date).toBe('2024-01-01');
 	});
 
-	test('handles invalid JSON lines gracefully', async () => {
+	it('handles invalid JSON lines gracefully', async () => {
 		const mockData = `
 {"timestamp":"2024-01-01T00:00:00Z","message":{"usage":{"input_tokens":100,"output_tokens":50}},"costUSD":0.01}
 invalid json line
@@ -386,7 +378,7 @@ invalid json line
 		expect(result[0]?.totalCost).toBe(0.06); // 0.01 + 0.02 + 0.03
 	});
 
-	test('skips data without required fields', async () => {
+	it('skips data without required fields', async () => {
 		const mockData = `
 {"timestamp":"2024-01-01T00:00:00Z","message":{"usage":{"input_tokens":100,"output_tokens":50}},"costUSD":0.01}
 {"timestamp":"2024-01-01T12:00:00Z","message":{"usage":{}}}
@@ -416,7 +408,7 @@ invalid json line
 });
 
 describe('loadMonthlyUsageData', () => {
-	test('aggregates daily data by month correctly', async () => {
+	it('aggregates daily data by month correctly', async () => {
 		const mockData: UsageData[] = [
 			{
 				timestamp: '2024-01-01T00:00:00Z',
@@ -485,7 +477,7 @@ describe('loadMonthlyUsageData', () => {
 		});
 	});
 
-	test('handles empty data', async () => {
+	it('handles empty data', async () => {
 		await using fixture = await createFixture({
 			projects: {},
 		});
@@ -494,7 +486,7 @@ describe('loadMonthlyUsageData', () => {
 		expect(result).toEqual([]);
 	});
 
-	test('handles single month data', async () => {
+	it('handles single month data', async () => {
 		const mockData: UsageData[] = [
 			{
 				timestamp: '2024-01-01T00:00:00Z',
@@ -540,7 +532,7 @@ describe('loadMonthlyUsageData', () => {
 		});
 	});
 
-	test('sorts months in descending order', async () => {
+	it('sorts months in descending order', async () => {
 		const mockData: UsageData[] = [
 			{
 				timestamp: '2024-01-01T00:00:00Z',
@@ -580,7 +572,7 @@ describe('loadMonthlyUsageData', () => {
 		expect(months).toEqual(['2024-03', '2024-02', '2024-01', '2023-12']);
 	});
 
-	test('sorts months in ascending order when order is \'asc\'', async () => {
+	it('sorts months in ascending order when order is \'asc\'', async () => {
 		const mockData: UsageData[] = [
 			{
 				timestamp: '2024-01-01T00:00:00Z',
@@ -623,7 +615,7 @@ describe('loadMonthlyUsageData', () => {
 		expect(months).toEqual(['2023-12', '2024-01', '2024-02', '2024-03']);
 	});
 
-	test('handles year boundaries correctly in sorting', async () => {
+	it('handles year boundaries correctly in sorting', async () => {
 		const mockData: UsageData[] = [
 			{
 				timestamp: '2024-01-01T00:00:00Z',
@@ -674,7 +666,7 @@ describe('loadMonthlyUsageData', () => {
 		expect(ascMonths).toEqual(['2023-11', '2023-12', '2024-01', '2024-02']);
 	});
 
-	test('respects date filters', async () => {
+	it('respects date filters', async () => {
 		const mockData: UsageData[] = [
 			{
 				timestamp: '2024-01-01T00:00:00Z',
@@ -715,7 +707,7 @@ describe('loadMonthlyUsageData', () => {
 		expect(result[0]?.inputTokens).toBe(200);
 	});
 
-	test('handles cache tokens correctly', async () => {
+	it('handles cache tokens correctly', async () => {
 		const mockData: UsageData[] = [
 			{
 				timestamp: '2024-01-01T00:00:00Z',
@@ -762,7 +754,7 @@ describe('loadMonthlyUsageData', () => {
 });
 
 describe('loadSessionData', () => {
-	test('returns empty array when no files found', async () => {
+	it('returns empty array when no files found', async () => {
 		await using fixture = await createFixture({
 			projects: {},
 		});
@@ -771,7 +763,7 @@ describe('loadSessionData', () => {
 		expect(result).toEqual([]);
 	});
 
-	test('extracts session info from file paths', async () => {
+	it('extracts session info from file paths', async () => {
 		const mockData: UsageData = {
 			timestamp: '2024-01-01T00:00:00Z',
 			message: { usage: { input_tokens: 100, output_tokens: 50 } },
@@ -804,7 +796,7 @@ describe('loadSessionData', () => {
 		expect(result.find(s => s.projectPath === 'project2')).toBeTruthy();
 	});
 
-	test('aggregates session usage data', async () => {
+	it('aggregates session usage data', async () => {
 		const mockData: UsageData[] = [
 			{
 				timestamp: '2024-01-01T00:00:00Z',
@@ -856,7 +848,7 @@ describe('loadSessionData', () => {
 		expect(session?.lastActivity).toBe('2024-01-01');
 	});
 
-	test('tracks versions', async () => {
+	it('tracks versions', async () => {
 		const mockData: UsageData[] = [
 			{
 				timestamp: '2024-01-01T00:00:00Z',
@@ -894,7 +886,7 @@ describe('loadSessionData', () => {
 		expect(session?.versions).toEqual(['1.0.0', '1.1.0']); // Sorted and unique
 	});
 
-	test('sorts by last activity descending', async () => {
+	it('sorts by last activity descending', async () => {
 		const sessions = [
 			{
 				sessionId: 'session1',
@@ -940,7 +932,7 @@ describe('loadSessionData', () => {
 		expect(result[2]?.sessionId).toBe('session2');
 	});
 
-	test('sorts by last activity ascending when order is \'asc\'', async () => {
+	it('sorts by last activity ascending when order is \'asc\'', async () => {
 		const sessions = [
 			{
 				sessionId: 'session1',
@@ -989,7 +981,7 @@ describe('loadSessionData', () => {
 		expect(result[2]?.sessionId).toBe('session3'); // newest last
 	});
 
-	test('sorts by last activity descending when order is \'desc\'', async () => {
+	it('sorts by last activity descending when order is \'desc\'', async () => {
 		const sessions = [
 			{
 				sessionId: 'session1',
@@ -1038,7 +1030,7 @@ describe('loadSessionData', () => {
 		expect(result[2]?.sessionId).toBe('session2'); // oldest last
 	});
 
-	test('filters by date range based on last activity', async () => {
+	it('filters by date range based on last activity', async () => {
 		const sessions = [
 			{
 				sessionId: 'session1',
@@ -1090,7 +1082,7 @@ describe('loadSessionData', () => {
 
 describe('data-loader cost calculation with real pricing', () => {
 	describe('loadDailyUsageData with mixed schemas', () => {
-		test('should handle old schema with costUSD', async () => {
+		it('should handle old schema with costUSD', async () => {
 			const oldData = {
 				timestamp: '2024-01-15T10:00:00Z',
 				message: {
@@ -1121,7 +1113,7 @@ describe('data-loader cost calculation with real pricing', () => {
 			expect(results[0]?.totalCost).toBe(0.05);
 		});
 
-		test('should calculate cost for new schema with claude-sonnet-4-20250514', async () => {
+		it('should calculate cost for new schema with claude-sonnet-4-20250514', async () => {
 			// Use a well-known Claude model
 			const modelName = 'claude-sonnet-4-20250514';
 
@@ -1161,7 +1153,7 @@ describe('data-loader cost calculation with real pricing', () => {
 			expect(results[0]?.totalCost).toBeGreaterThan(0);
 		});
 
-		test('should calculate cost for new schema with claude-opus-4-20250514', async () => {
+		it('should calculate cost for new schema with claude-opus-4-20250514', async () => {
 			// Use Claude 4 Opus model
 			const modelName = 'claude-opus-4-20250514';
 
@@ -1201,7 +1193,7 @@ describe('data-loader cost calculation with real pricing', () => {
 			expect(results[0]?.totalCost).toBeGreaterThan(0);
 		});
 
-		test('should handle mixed data in same file', async () => {
+		it('should handle mixed data in same file', async () => {
 			const data1 = {
 				timestamp: '2024-01-17T10:00:00Z',
 				message: { usage: { input_tokens: 100, output_tokens: 50 } },
@@ -1243,7 +1235,7 @@ describe('data-loader cost calculation with real pricing', () => {
 			expect(results[0]?.totalCost).toBeGreaterThanOrEqual(0.01);
 		});
 
-		test('should handle data without model or costUSD', async () => {
+		it('should handle data without model or costUSD', async () => {
 			const data = {
 				timestamp: '2024-01-18T10:00:00Z',
 				message: { usage: { input_tokens: 500, output_tokens: 250 } },
@@ -1270,7 +1262,7 @@ describe('data-loader cost calculation with real pricing', () => {
 	});
 
 	describe('loadSessionData with mixed schemas', () => {
-		test('should handle mixed cost sources in different sessions', async () => {
+		it('should handle mixed cost sources in different sessions', async () => {
 			const session1Data = {
 				timestamp: '2024-01-15T10:00:00Z',
 				message: { usage: { input_tokens: 1000, output_tokens: 500 } },
@@ -1313,7 +1305,7 @@ describe('data-loader cost calculation with real pricing', () => {
 			expect(session2?.totalCost).toBeGreaterThan(0);
 		});
 
-		test('should handle unknown models gracefully', async () => {
+		it('should handle unknown models gracefully', async () => {
 			const data = {
 				timestamp: '2024-01-19T10:00:00Z',
 				message: {
@@ -1342,7 +1334,7 @@ describe('data-loader cost calculation with real pricing', () => {
 	});
 
 	describe('cached tokens cost calculation', () => {
-		test('should correctly calculate costs for all token types with claude-sonnet-4-20250514', async () => {
+		it('should correctly calculate costs for all token types with claude-sonnet-4-20250514', async () => {
 			const data = {
 				timestamp: '2024-01-20T10:00:00Z',
 				message: {
@@ -1379,7 +1371,7 @@ describe('data-loader cost calculation with real pricing', () => {
 			expect(results[0]?.totalCost).toBeGreaterThan(0);
 		});
 
-		test('should correctly calculate costs for all token types with claude-opus-4-20250514', async () => {
+		it('should correctly calculate costs for all token types with claude-opus-4-20250514', async () => {
 			const data = {
 				timestamp: '2024-01-20T10:00:00Z',
 				message: {
@@ -1418,7 +1410,7 @@ describe('data-loader cost calculation with real pricing', () => {
 	});
 
 	describe('cost mode functionality', () => {
-		test('auto mode: uses costUSD when available, calculates otherwise', async () => {
+		it('auto mode: uses costUSD when available, calculates otherwise', async () => {
 			const data1 = {
 				timestamp: '2024-01-01T10:00:00Z',
 				message: { usage: { input_tokens: 1000, output_tokens: 500 } },
@@ -1452,7 +1444,7 @@ describe('data-loader cost calculation with real pricing', () => {
 			expect(results[0]?.totalCost).toBeGreaterThan(0.05); // Should include both costs
 		});
 
-		test('calculate mode: always calculates from tokens, ignores costUSD', async () => {
+		it('calculate mode: always calculates from tokens, ignores costUSD', async () => {
 			const data = {
 				timestamp: '2024-01-01T10:00:00Z',
 				message: {
@@ -1482,7 +1474,7 @@ describe('data-loader cost calculation with real pricing', () => {
 			expect(results[0]?.totalCost).toBeLessThan(1); // Much less than 99.99
 		});
 
-		test('display mode: always uses costUSD, even if undefined', async () => {
+		it('display mode: always uses costUSD, even if undefined', async () => {
 			const data1 = {
 				timestamp: '2024-01-01T10:00:00Z',
 				message: {
@@ -1520,7 +1512,7 @@ describe('data-loader cost calculation with real pricing', () => {
 			expect(results[0]?.totalCost).toBe(0.05); // Only the costUSD from data1
 		});
 
-		test('mode works with session data', async () => {
+		it('mode works with session data', async () => {
 			const sessionData = {
 				timestamp: '2024-01-01T10:00:00Z',
 				message: {
@@ -1557,7 +1549,7 @@ describe('data-loader cost calculation with real pricing', () => {
 	});
 
 	describe('pricing data fetching optimization', () => {
-		test('should not require model pricing when mode is display', async () => {
+		it('should not require model pricing when mode is display', async () => {
 			const data = {
 				timestamp: '2024-01-01T10:00:00Z',
 				message: {
@@ -1587,7 +1579,7 @@ describe('data-loader cost calculation with real pricing', () => {
 			expect(results[0]?.totalCost).toBe(0.05);
 		});
 
-		test('should fetch pricing data when mode is calculate', async () => {
+		it('should fetch pricing data when mode is calculate', async () => {
 			const data = {
 				timestamp: '2024-01-01T10:00:00Z',
 				message: {
@@ -1618,7 +1610,7 @@ describe('data-loader cost calculation with real pricing', () => {
 			expect(results[0]?.totalCost).not.toBe(0.05); // Should calculate, not use costUSD
 		});
 
-		test('should fetch pricing data when mode is auto', async () => {
+		it('should fetch pricing data when mode is auto', async () => {
 			const data = {
 				timestamp: '2024-01-01T10:00:00Z',
 				message: {
@@ -1648,7 +1640,7 @@ describe('data-loader cost calculation with real pricing', () => {
 			expect(results[0]?.totalCost).toBeGreaterThan(0);
 		});
 
-		test('session data should not require model pricing when mode is display', async () => {
+		it('session data should not require model pricing when mode is display', async () => {
 			const data = {
 				timestamp: '2024-01-01T10:00:00Z',
 				message: {
@@ -1678,7 +1670,7 @@ describe('data-loader cost calculation with real pricing', () => {
 			expect(results[0]?.totalCost).toBe(0.05);
 		});
 
-		test('display mode should work without network access', async () => {
+		it('display mode should work without network access', async () => {
 			const data = {
 				timestamp: '2024-01-01T10:00:00Z',
 				message: {
@@ -1729,13 +1721,13 @@ describe('calculateCostForEntry', () => {
 	};
 
 	describe('display mode', () => {
-		test('should return costUSD when available', async () => {
+		it('should return costUSD when available', async () => {
 			using fetcher = new PricingFetcher();
 			const result = await calculateCostForEntry(mockUsageData, 'display', fetcher);
 			expect(result).toBe(0.05);
 		});
 
-		test('should return 0 when costUSD is undefined', async () => {
+		it('should return 0 when costUSD is undefined', async () => {
 			const dataWithoutCost = { ...mockUsageData };
 			dataWithoutCost.costUSD = undefined;
 
@@ -1744,7 +1736,7 @@ describe('calculateCostForEntry', () => {
 			expect(result).toBe(0);
 		});
 
-		test('should not use model pricing in display mode', async () => {
+		it('should not use model pricing in display mode', async () => {
 			// Even with model pricing available, should use costUSD
 			using fetcher = new PricingFetcher();
 			const result = await calculateCostForEntry(mockUsageData, 'display', fetcher);
@@ -1753,7 +1745,7 @@ describe('calculateCostForEntry', () => {
 	});
 
 	describe('calculate mode', () => {
-		test('should calculate cost from tokens when model pricing available', async () => {
+		it('should calculate cost from tokens when model pricing available', async () => {
 			// Use the exact same structure as working integration tests
 			const testData: UsageData = {
 				timestamp: '2024-01-01T10:00:00Z',
@@ -1772,7 +1764,7 @@ describe('calculateCostForEntry', () => {
 			expect(result).toBeGreaterThan(0);
 		});
 
-		test('should ignore costUSD in calculate mode', async () => {
+		it('should ignore costUSD in calculate mode', async () => {
 			using fetcher = new PricingFetcher();
 			const dataWithHighCost = { ...mockUsageData, costUSD: 99.99 };
 			const result = await calculateCostForEntry(
@@ -1785,7 +1777,7 @@ describe('calculateCostForEntry', () => {
 			expect(result).toBeLessThan(1); // Much less than 99.99
 		});
 
-		test('should return 0 when model not available', async () => {
+		it('should return 0 when model not available', async () => {
 			const dataWithoutModel = { ...mockUsageData };
 			dataWithoutModel.message.model = undefined;
 
@@ -1794,7 +1786,7 @@ describe('calculateCostForEntry', () => {
 			expect(result).toBe(0);
 		});
 
-		test('should return 0 when model pricing not found', async () => {
+		it('should return 0 when model pricing not found', async () => {
 			const dataWithUnknownModel = {
 				...mockUsageData,
 				message: { ...mockUsageData.message, model: 'unknown-model' },
@@ -1809,7 +1801,7 @@ describe('calculateCostForEntry', () => {
 			expect(result).toBe(0);
 		});
 
-		test('should handle missing cache tokens', async () => {
+		it('should handle missing cache tokens', async () => {
 			const dataWithoutCacheTokens: UsageData = {
 				timestamp: '2024-01-01T10:00:00Z',
 				message: {
@@ -1833,13 +1825,13 @@ describe('calculateCostForEntry', () => {
 	});
 
 	describe('auto mode', () => {
-		test('should use costUSD when available', async () => {
+		it('should use costUSD when available', async () => {
 			using fetcher = new PricingFetcher();
 			const result = await calculateCostForEntry(mockUsageData, 'auto', fetcher);
 			expect(result).toBe(0.05);
 		});
 
-		test('should calculate from tokens when costUSD undefined', async () => {
+		it('should calculate from tokens when costUSD undefined', async () => {
 			const dataWithoutCost: UsageData = {
 				timestamp: '2024-01-01T10:00:00Z',
 				message: {
@@ -1860,7 +1852,7 @@ describe('calculateCostForEntry', () => {
 			expect(result).toBeGreaterThan(0);
 		});
 
-		test('should return 0 when no costUSD and no model', async () => {
+		it('should return 0 when no costUSD and no model', async () => {
 			const dataWithoutCostOrModel = { ...mockUsageData };
 			dataWithoutCostOrModel.costUSD = undefined;
 			dataWithoutCostOrModel.message.model = undefined;
@@ -1870,7 +1862,7 @@ describe('calculateCostForEntry', () => {
 			expect(result).toBe(0);
 		});
 
-		test('should return 0 when no costUSD and model pricing not found', async () => {
+		it('should return 0 when no costUSD and model pricing not found', async () => {
 			const dataWithoutCost = { ...mockUsageData };
 			dataWithoutCost.costUSD = undefined;
 
@@ -1879,7 +1871,7 @@ describe('calculateCostForEntry', () => {
 			expect(result).toBe(0);
 		});
 
-		test('should prefer costUSD over calculation even when both available', async () => {
+		it('should prefer costUSD over calculation even when both available', async () => {
 			// Both costUSD and model pricing available, should use costUSD
 			using fetcher = new PricingFetcher();
 			const result = await calculateCostForEntry(mockUsageData, 'auto', fetcher);
@@ -1888,7 +1880,7 @@ describe('calculateCostForEntry', () => {
 	});
 
 	describe('edge cases', () => {
-		test('should handle zero token counts', async () => {
+		it('should handle zero token counts', async () => {
 			const dataWithZeroTokens = {
 				...mockUsageData,
 				message: {
@@ -1908,14 +1900,14 @@ describe('calculateCostForEntry', () => {
 			expect(result).toBe(0);
 		});
 
-		test('should handle costUSD of 0', async () => {
+		it('should handle costUSD of 0', async () => {
 			const dataWithZeroCost = { ...mockUsageData, costUSD: 0 };
 			using fetcher = new PricingFetcher();
 			const result = await calculateCostForEntry(dataWithZeroCost, 'display', fetcher);
 			expect(result).toBe(0);
 		});
 
-		test('should handle negative costUSD', async () => {
+		it('should handle negative costUSD', async () => {
 			const dataWithNegativeCost = { ...mockUsageData, costUSD: -0.01 };
 			using fetcher = new PricingFetcher();
 			const result = await calculateCostForEntry(dataWithNegativeCost, 'display', fetcher);
@@ -1924,7 +1916,7 @@ describe('calculateCostForEntry', () => {
 	});
 
 	describe('offline mode', () => {
-		test('should pass offline flag through loadDailyUsageData', async () => {
+		it('should pass offline flag through loadDailyUsageData', async () => {
 			await using fixture = await createFixture({ projects: {} });
 			// This test verifies that the offline flag is properly passed through
 			// We can't easily mock the internal behavior, but we can verify it doesn't throw
@@ -1941,13 +1933,13 @@ describe('calculateCostForEntry', () => {
 });
 
 describe('loadSessionBlockData', () => {
-	test('returns empty array when no files found', async () => {
+	it('returns empty array when no files found', async () => {
 		await using fixture = await createFixture({ projects: {} });
 		const result = await loadSessionBlockData({ claudePath: fixture.path });
 		expect(result).toEqual([]);
 	});
 
-	test('loads and identifies five-hour blocks correctly', async () => {
+	it('loads and identifies five-hour blocks correctly', async () => {
 		const now = new Date('2024-01-01T10:00:00Z');
 		const laterTime = new Date(now.getTime() + 1 * 60 * 60 * 1000); // 1 hour later
 		const muchLaterTime = new Date(now.getTime() + 6 * 60 * 60 * 1000); // 6 hours later
@@ -2013,7 +2005,7 @@ describe('loadSessionBlockData', () => {
 		expect(totalEntries).toBe(3);
 	});
 
-	test('handles cost calculation modes correctly', async () => {
+	it('handles cost calculation modes correctly', async () => {
 		const now = new Date('2024-01-01T10:00:00Z');
 
 		await using fixture = await createFixture({
@@ -2056,7 +2048,7 @@ describe('loadSessionBlockData', () => {
 		expect(calculateResult[0]?.costUSD).toBeGreaterThan(0);
 	});
 
-	test('filters by date range correctly', async () => {
+	it('filters by date range correctly', async () => {
 		const date1 = new Date('2024-01-01T10:00:00Z');
 		const date2 = new Date('2024-01-02T10:00:00Z');
 		const date3 = new Date('2024-01-03T10:00:00Z');
@@ -2126,7 +2118,7 @@ describe('loadSessionBlockData', () => {
 		})).toBe(true);
 	});
 
-	test('sorts blocks by order parameter', async () => {
+	it('sorts blocks by order parameter', async () => {
 		const date1 = new Date('2024-01-01T10:00:00Z');
 		const date2 = new Date('2024-01-02T10:00:00Z');
 
@@ -2178,7 +2170,7 @@ describe('loadSessionBlockData', () => {
 		expect(descResult[0]?.startTime).toEqual(date2);
 	});
 
-	test('handles deduplication correctly', async () => {
+	it('handles deduplication correctly', async () => {
 		const now = new Date('2024-01-01T10:00:00Z');
 
 		await using fixture = await createFixture({
@@ -2220,7 +2212,7 @@ describe('loadSessionBlockData', () => {
 		expect(result[0]?.entries).toHaveLength(1); // Only one entry after deduplication
 	});
 
-	test('handles invalid JSON lines gracefully', async () => {
+	it('handles invalid JSON lines gracefully', async () => {
 		const now = new Date('2024-01-01T10:00:00Z');
 
 		await using fixture = await createFixture({

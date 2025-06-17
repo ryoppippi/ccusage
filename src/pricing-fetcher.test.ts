@@ -1,10 +1,9 @@
 import type { ModelPricing } from './types.internal.ts';
 
-import { describe, expect, it } from 'bun:test';
 import { PricingFetcher } from './pricing-fetcher.ts';
 
 describe('pricing-fetcher', () => {
-	describe('PricingFetcher class', () => {
+	describe('pricingFetcher class', () => {
 		it('should support using statement for automatic cleanup', async () => {
 			let fetcherDisposed = false;
 

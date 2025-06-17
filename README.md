@@ -114,7 +114,7 @@ cd ccusage
 bun install
 
 # Run the tool
-bun run report [subcommand] [options]
+bun run start [subcommand] [options]
 ```
 
 ## Usage

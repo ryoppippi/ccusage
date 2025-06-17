@@ -38,9 +38,9 @@
 		"lint": "eslint --cache .",
 		"prepack": "bun run build && clean-pkg-json",
 		"prepare": "simple-git-hooks",
-		"release": "bun lint && bun typecheck && bun test && bun run build && bumpp",
+		"release": "bun lint && bun typecheck && vitest run && bun run build && bumpp",
 		"start": "bun run ./src/index.ts",
-		"test": "bun test",
+		"test": "vitest run",
 		"typecheck": "tsgo --noEmit"
 	},
 	"devDependencies": {
@@ -73,7 +73,11 @@
 		"type-fest": "^4.41.0",
 		"unplugin-macros": "^0.17.0",
 		"unplugin-unused": "^0.5.1",
-		"valibot": "^1.1.0"
+		"valibot": "^1.1.0",
+		"vitest": "^3.2.4"
+	},
+	"overrides": {
+		"vite": "npm:rolldown-vite@latest"
 	},
 	"simple-git-hooks": {
 		"pre-commit": "bun lint-staged"

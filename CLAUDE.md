@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Testing and Quality:**
 
-- `bun test` - Run all tests
+- `bun run test` - Run all tests (using vitest)
 - Lint code using ESLint MCP server (available via Claude Code tools)
 - `bun run format` - Format code with ESLint (writes changes)
 - `bun typecheck` - Type check with TypeScript

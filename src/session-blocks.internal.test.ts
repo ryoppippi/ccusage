@@ -1,4 +1,3 @@
-import { describe, expect, test } from 'bun:test';
 import {
 	calculateBurnRate,
 	filterRecentBlocks,
@@ -31,12 +30,12 @@ function createMockEntry(
 }
 
 describe('identifySessionBlocks', () => {
-	test('returns empty array for empty entries', () => {
+	it('returns empty array for empty entries', () => {
 		const result = identifySessionBlocks([]);
 		expect(result).toEqual([]);
 	});
 
-	test('creates single block for entries within 5 hours', () => {
+	it('creates single block for entries within 5 hours', () => {
 		const baseTime = new Date('2024-01-01T10:00:00Z');
 		const entries: LoadedUsageEntry[] = [
 			createMockEntry(baseTime),
@@ -53,7 +52,7 @@ describe('identifySessionBlocks', () => {
 		expect(blocks[0]?.costUSD).toBe(0.03);
 	});
 
-	test('creates multiple blocks when entries span more than 5 hours', () => {
+	it('creates multiple blocks when entries span more than 5 hours', () => {
 		const baseTime = new Date('2024-01-01T10:00:00Z');
 		const entries: LoadedUsageEntry[] = [
 			createMockEntry(baseTime),
@@ -67,7 +66,7 @@ describe('identifySessionBlocks', () => {
 		expect(blocks[2]?.entries).toHaveLength(1);
 	});
 
-	test('creates gap block when there is a gap longer than 5 hours', () => {
+	it('creates gap block when there is a gap longer than 5 hours', () => {
 		const baseTime = new Date('2024-01-01T10:00:00Z');
 		const entries: LoadedUsageEntry[] = [
 			createMockEntry(baseTime),
@@ -83,7 +82,7 @@ describe('identifySessionBlocks', () => {
 		expect(blocks[2]?.entries).toHaveLength(1);
 	});
 
-	test('sorts entries by timestamp before processing', () => {
+	it('sorts entries by timestamp before processing', () => {
 		const baseTime = new Date('2024-01-01T10:00:00Z');
 		const entries: LoadedUsageEntry[] = [
 			createMockEntry(new Date(baseTime.getTime() + 2 * 60 * 60 * 1000)), // 2 hours later
@@ -98,7 +97,7 @@ describe('identifySessionBlocks', () => {
 		expect(blocks[0]?.entries[2]?.timestamp).toEqual(new Date(baseTime.getTime() + 2 * 60 * 60 * 1000));
 	});
 
-	test('aggregates different models correctly', () => {
+	it('aggregates different models correctly', () => {
 		const baseTime = new Date('2024-01-01T10:00:00Z');
 		const entries: LoadedUsageEntry[] = [
 			createMockEntry(baseTime, 1000, 500, 'claude-sonnet-4-20250514'),
@@ -110,7 +109,7 @@ describe('identifySessionBlocks', () => {
 		expect(blocks[0]?.models).toEqual(['claude-sonnet-4-20250514', 'claude-opus-4-20250514']);
 	});
 
-	test('handles null costUSD correctly', () => {
+	it('handles null costUSD correctly', () => {
 		const baseTime = new Date('2024-01-01T10:00:00Z');
 		const entries: LoadedUsageEntry[] = [
 			createMockEntry(baseTime, 1000, 500, 'claude-sonnet-4-20250514', 0.01),
@@ -122,7 +121,7 @@ describe('identifySessionBlocks', () => {
 		expect(blocks[0]?.costUSD).toBe(0.01); // Only the first entry's cost
 	});
 
-	test('sets correct block ID as ISO string', () => {
+	it('sets correct block ID as ISO string', () => {
 		const baseTime = new Date('2024-01-01T10:00:00Z');
 		const entries: LoadedUsageEntry[] = [createMockEntry(baseTime)];
 
@@ -130,7 +129,7 @@ describe('identifySessionBlocks', () => {
 		expect(blocks[0]?.id).toBe(baseTime.toISOString());
 	});
 
-	test('sets correct endTime as startTime + 5 hours', () => {
+	it('sets correct endTime as startTime + 5 hours', () => {
 		const baseTime = new Date('2024-01-01T10:00:00Z');
 		const entries: LoadedUsageEntry[] = [createMockEntry(baseTime)];
 
@@ -138,7 +137,7 @@ describe('identifySessionBlocks', () => {
 		expect(blocks[0]?.endTime).toEqual(new Date(baseTime.getTime() + SESSION_DURATION_MS));
 	});
 
-	test('handles cache tokens correctly', () => {
+	it('handles cache tokens correctly', () => {
 		const baseTime = new Date('2024-01-01T10:00:00Z');
 		const entry: LoadedUsageEntry = {
 			timestamp: baseTime,
@@ -159,7 +158,7 @@ describe('identifySessionBlocks', () => {
 });
 
 describe('calculateBurnRate', () => {
-	test('returns null for empty entries', () => {
+	it('returns null for empty entries', () => {
 		const block: SessionBlock = {
 			id: '2024-01-01T10:00:00.000Z',
 			startTime: new Date('2024-01-01T10:00:00Z'),
@@ -180,7 +179,7 @@ describe('calculateBurnRate', () => {
 		expect(result).toBeNull();
 	});
 
-	test('returns null for gap blocks', () => {
+	it('returns null for gap blocks', () => {
 		const block: SessionBlock = {
 			id: 'gap-2024-01-01T10:00:00.000Z',
 			startTime: new Date('2024-01-01T10:00:00Z'),
@@ -202,7 +201,7 @@ describe('calculateBurnRate', () => {
 		expect(result).toBeNull();
 	});
 
-	test('returns null when duration is zero or negative', () => {
+	it('returns null when duration is zero or negative', () => {
 		const baseTime = new Date('2024-01-01T10:00:00Z');
 		const block: SessionBlock = {
 			id: baseTime.toISOString(),
@@ -227,7 +226,7 @@ describe('calculateBurnRate', () => {
 		expect(result).toBeNull();
 	});
 
-	test('calculates burn rate correctly', () => {
+	it('calculates burn rate correctly', () => {
 		const baseTime = new Date('2024-01-01T10:00:00Z');
 		const laterTime = new Date(baseTime.getTime() + 60 * 1000); // 1 minute later
 		const block: SessionBlock = {
@@ -257,7 +256,7 @@ describe('calculateBurnRate', () => {
 });
 
 describe('projectBlockUsage', () => {
-	test('returns null for inactive blocks', () => {
+	it('returns null for inactive blocks', () => {
 		const block: SessionBlock = {
 			id: '2024-01-01T10:00:00.000Z',
 			startTime: new Date('2024-01-01T10:00:00Z'),
@@ -278,7 +277,7 @@ describe('projectBlockUsage', () => {
 		expect(result).toBeNull();
 	});
 
-	test('returns null for gap blocks', () => {
+	it('returns null for gap blocks', () => {
 		const block: SessionBlock = {
 			id: 'gap-2024-01-01T10:00:00.000Z',
 			startTime: new Date('2024-01-01T10:00:00Z'),
@@ -300,7 +299,7 @@ describe('projectBlockUsage', () => {
 		expect(result).toBeNull();
 	});
 
-	test('returns null when burn rate cannot be calculated', () => {
+	it('returns null when burn rate cannot be calculated', () => {
 		const block: SessionBlock = {
 			id: '2024-01-01T10:00:00.000Z',
 			startTime: new Date('2024-01-01T10:00:00Z'),
@@ -321,7 +320,7 @@ describe('projectBlockUsage', () => {
 		expect(result).toBeNull();
 	});
 
-	test('projects usage correctly for active block', () => {
+	it('projects usage correctly for active block', () => {
 		const now = new Date();
 		const startTime = new Date(now.getTime() - 60 * 60 * 1000); // 1 hour ago
 		const endTime = new Date(startTime.getTime() + SESSION_DURATION_MS);
@@ -355,7 +354,7 @@ describe('projectBlockUsage', () => {
 });
 
 describe('filterRecentBlocks', () => {
-	test('filters blocks correctly with default 3 days', () => {
+	it('filters blocks correctly with default 3 days', () => {
 		const now = new Date();
 		const recentTime = new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000); // 2 days ago
 		const oldTime = new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000); // 5 days ago
@@ -398,7 +397,7 @@ describe('filterRecentBlocks', () => {
 		expect(result[0]?.startTime).toEqual(recentTime);
 	});
 
-	test('includes active blocks regardless of age', () => {
+	it('includes active blocks regardless of age', () => {
 		const now = new Date();
 		const oldTime = new Date(now.getTime() - 10 * 24 * 60 * 60 * 1000); // 10 days ago
 
@@ -425,7 +424,7 @@ describe('filterRecentBlocks', () => {
 		expect(result[0]?.isActive).toBe(true);
 	});
 
-	test('supports custom days parameter', () => {
+	it('supports custom days parameter', () => {
 		const now = new Date();
 		const withinCustomRange = new Date(now.getTime() - 4 * 24 * 60 * 60 * 1000); // 4 days ago
 		const outsideCustomRange = new Date(now.getTime() - 8 * 24 * 60 * 60 * 1000); // 8 days ago
@@ -468,7 +467,7 @@ describe('filterRecentBlocks', () => {
 		expect(result[0]?.startTime).toEqual(withinCustomRange);
 	});
 
-	test('returns empty array when no blocks match criteria', () => {
+	it('returns empty array when no blocks match criteria', () => {
 		const now = new Date();
 		const oldTime = new Date(now.getTime() - 10 * 24 * 60 * 60 * 1000); // 10 days ago
 
@@ -496,7 +495,7 @@ describe('filterRecentBlocks', () => {
 });
 
 describe('identifySessionBlocks with configurable duration', () => {
-	test('creates single block for entries within custom 3-hour duration', () => {
+	it('creates single block for entries within custom 3-hour duration', () => {
 		const baseTime = new Date('2024-01-01T10:00:00Z');
 		const entries: LoadedUsageEntry[] = [
 			createMockEntry(baseTime),
@@ -511,7 +510,7 @@ describe('identifySessionBlocks with configurable duration', () => {
 		expect(blocks[0]?.endTime).toEqual(new Date(baseTime.getTime() + 3 * 60 * 60 * 1000));
 	});
 
-	test('creates multiple blocks with custom 2-hour duration', () => {
+	it('creates multiple blocks with custom 2-hour duration', () => {
 		const baseTime = new Date('2024-01-01T10:00:00Z');
 		const entries: LoadedUsageEntry[] = [
 			createMockEntry(baseTime),
@@ -526,7 +525,7 @@ describe('identifySessionBlocks with configurable duration', () => {
 		expect(blocks[2]?.entries).toHaveLength(1);
 	});
 
-	test('creates gap block with custom 1-hour duration', () => {
+	it('creates gap block with custom 1-hour duration', () => {
 		const baseTime = new Date('2024-01-01T10:00:00Z');
 		const entries: LoadedUsageEntry[] = [
 			createMockEntry(baseTime),
@@ -541,7 +540,7 @@ describe('identifySessionBlocks with configurable duration', () => {
 		expect(blocks[2]?.entries).toHaveLength(1);
 	});
 
-	test('works with fractional hours (2.5 hours)', () => {
+	it('works with fractional hours (2.5 hours)', () => {
 		const baseTime = new Date('2024-01-01T10:00:00Z');
 		const entries: LoadedUsageEntry[] = [
 			createMockEntry(baseTime),
@@ -557,7 +556,7 @@ describe('identifySessionBlocks with configurable duration', () => {
 		expect(blocks[2]?.entries).toHaveLength(1);
 	});
 
-	test('works with very short duration (0.5 hours)', () => {
+	it('works with very short duration (0.5 hours)', () => {
 		const baseTime = new Date('2024-01-01T10:00:00Z');
 		const entries: LoadedUsageEntry[] = [
 			createMockEntry(baseTime),
@@ -573,7 +572,7 @@ describe('identifySessionBlocks with configurable duration', () => {
 		expect(blocks[2]?.entries).toHaveLength(1);
 	});
 
-	test('works with very long duration (24 hours)', () => {
+	it('works with very long duration (24 hours)', () => {
 		const baseTime = new Date('2024-01-01T10:00:00Z');
 		const entries: LoadedUsageEntry[] = [
 			createMockEntry(baseTime),
@@ -587,7 +586,7 @@ describe('identifySessionBlocks with configurable duration', () => {
 		expect(blocks[0]?.endTime).toEqual(new Date(baseTime.getTime() + 24 * 60 * 60 * 1000));
 	});
 
-	test('gap detection respects custom duration', () => {
+	it('gap detection respects custom duration', () => {
 		const baseTime = new Date('2024-01-01T10:00:00Z');
 		const entries: LoadedUsageEntry[] = [
 			createMockEntry(baseTime),
@@ -605,7 +604,7 @@ describe('identifySessionBlocks with configurable duration', () => {
 		expect(gapBlock?.endTime).toEqual(new Date(baseTime.getTime() + 5 * 60 * 60 * 1000)); // 5h
 	});
 
-	test('no gap created when gap is exactly equal to session duration', () => {
+	it('no gap created when gap is exactly equal to session duration', () => {
 		const baseTime = new Date('2024-01-01T10:00:00Z');
 		const entries: LoadedUsageEntry[] = [
 			createMockEntry(baseTime),
@@ -617,7 +616,7 @@ describe('identifySessionBlocks with configurable duration', () => {
 		expect(blocks[0]?.entries).toHaveLength(2);
 	});
 
-	test('defaults to 5 hours when no duration specified', () => {
+	it('defaults to 5 hours when no duration specified', () => {
 		const baseTime = new Date('2024-01-01T10:00:00Z');
 		const entries: LoadedUsageEntry[] = [
 			createMockEntry(baseTime),
