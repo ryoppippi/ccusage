@@ -21,13 +21,24 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `bun run start daily` - Show daily usage report
 - `bun run start monthly` - Show monthly usage report
 - `bun run start session` - Show session-based usage report
+- `bun run start blocks` - Show 5-hour billing blocks usage report
 - `bun run start daily --json` - Show daily usage report in JSON format
 - `bun run start monthly --json` - Show monthly usage report in JSON format
 - `bun run start session --json` - Show session usage report in JSON format
+- `bun run start blocks --json` - Show blocks usage report in JSON format
 - `bun run start daily --mode <mode>` - Control cost calculation mode (auto/calculate/display)
 - `bun run start monthly --mode <mode>` - Control cost calculation mode (auto/calculate/display)
 - `bun run start session --mode <mode>` - Control cost calculation mode (auto/calculate/display)
+- `bun run start blocks --mode <mode>` - Control cost calculation mode (auto/calculate/display)
+- `bun run start blocks --active` - Show only active block with projections
+- `bun run start blocks --recent` - Show blocks from last 3 days (including active)
+- `bun run start blocks --token-limit <limit>` - Token limit for quota warnings (number or "max")
 - `bun run ./src/index.ts` - Direct execution for development
+
+**MCP Server Usage:**
+
+- `bun run start mcp` - Start MCP server with stdio transport (default)
+- `bun run start mcp --type http --port 8080` - Start MCP server with HTTP transport
 
 **Cost Calculation Modes:**
 
@@ -54,8 +65,9 @@ This is a CLI tool that analyzes Claude Code usage data from local JSONL files s
 **Key Data Structures:**
 
 - Raw usage data is parsed from JSONL with timestamp, token counts, and pre-calculated costs
-- Data is aggregated into daily summaries, monthly summaries, or session summaries
+- Data is aggregated into daily summaries, monthly summaries, session summaries, or 5-hour billing blocks
 - Sessions are identified by directory structure: `projects/{project}/{session}/{file}.jsonl`
+- 5-hour blocks group usage data by Claude's billing cycles with active block tracking
 
 **External Dependencies:**
 
@@ -63,11 +75,17 @@ This is a CLI tool that analyzes Claude Code usage data from local JSONL files s
 - CLI built with `gunshi` framework, tables with `cli-table3`
 - **LiteLLM Integration**: Cost calculations depend on LiteLLM's pricing database for model pricing data
 
-**MCP Servers Available:**
+**MCP Integration:**
 
-- **ESLint MCP**: Lint TypeScript/JavaScript files directly through Claude Code tools
-- **Context7 MCP**: Look up documentation for libraries and frameworks
-- **Gunshi MCP**: Access gunshi.dev documentation and examples
+- **Built-in MCP Server**: Exposes usage data through MCP protocol with tools:
+  - `daily` - Daily usage reports
+  - `session` - Session-based usage reports
+  - `monthly` - Monthly usage reports
+  - `blocks` - 5-hour billing blocks usage reports
+- **External MCP Servers Available:**
+  - **ESLint MCP**: Lint TypeScript/JavaScript files directly through Claude Code tools
+  - **Context7 MCP**: Look up documentation for libraries and frameworks
+  - **Gunshi MCP**: Access gunshi.dev documentation and examples
 
 ## Code Style Notes
 
