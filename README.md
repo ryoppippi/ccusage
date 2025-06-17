@@ -342,6 +342,8 @@ Available MCP tools:
 
 - `daily`: Returns daily usage reports (accepts `since`, `until`, `mode` parameters)
 - `session`: Returns session usage reports (accepts `since`, `until`, `mode` parameters)
+- `monthly`: Returns monthly usage reports (accepts `since`, `until`, `mode` parameters)
+- `blocks`: Returns 5-hour billing blocks usage reports (accepts `since`, `until`, `mode` parameters)
 
 #### Claude Desktop Configuration Example
 
