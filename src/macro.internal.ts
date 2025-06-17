@@ -2,7 +2,6 @@
  * Prefetch claude data for the current user.
  */
 
-import * as v from 'valibot';
 import { LITELLM_PRICING_URL } from './consts.internal.ts';
 import { type ModelPricing, modelPricingSchema } from './types.internal.ts';
 
@@ -27,9 +26,9 @@ export async function prefetchClaudePricing(): Promise<Record<string, ModelPrici
 	// Cache all models that start with 'claude-'
 	for (const [modelName, modelData] of Object.entries(data)) {
 		if (modelName.startsWith('claude-') && modelData != null && typeof modelData === 'object') {
-			const parsed = v.safeParse(modelPricingSchema, modelData);
+			const parsed = modelPricingSchema.safeParse(modelData);
 			if (parsed.success) {
-				prefetchClaudeData[modelName] = parsed.output;
+				prefetchClaudeData[modelName] = parsed.data;
 			}
 		}
 	}
