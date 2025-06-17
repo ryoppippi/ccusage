@@ -3,6 +3,12 @@ import type { CostMode, SortOrder } from './types.internal.ts';
 import * as v from 'valibot';
 import { CostModes, dateSchema, SortOrders } from './types.internal.ts';
 
+/**
+ * Parses and validates a date argument in YYYYMMDD format
+ * @param value - Date string to parse
+ * @returns Validated date string
+ * @throws TypeError if date format is invalid
+ */
 function parseDateArg(value: string): string {
 	const result = v.safeParse(dateSchema, value);
 	if (!result.success) {
@@ -11,6 +17,9 @@ function parseDateArg(value: string): string {
 	return result.output;
 }
 
+/**
+ * Shared command line arguments used across multiple CLI commands
+ */
 export const sharedArgs = {
 	since: {
 		type: 'custom',
@@ -72,6 +81,9 @@ export const sharedArgs = {
 	},
 } as const satisfies Args;
 
+/**
+ * Shared command configuration for Gunshi CLI commands
+ */
 export const sharedCommandConfig = {
 	args: sharedArgs,
 	toKebab: true,

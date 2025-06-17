@@ -2,7 +2,13 @@ import process from 'node:process';
 import Table from 'cli-table3';
 import stringWidth from 'string-width';
 
+/**
+ * Table row data type supporting strings, numbers, and formatted cell objects
+ */
 type TableRow = (string | number | { content: string; hAlign?: 'left' | 'right' | 'center' })[];
+/**
+ * Configuration options for creating responsive tables
+ */
 type TableOptions = {
 	head: string[];
 	colAligns?: ('left' | 'right' | 'center')[];
@@ -12,6 +18,10 @@ type TableOptions = {
 	dateFormatter?: (dateStr: string) => string;
 };
 
+/**
+ * Responsive table class that adapts column widths based on terminal size
+ * Automatically adjusts formatting and layout for different screen sizes
+ */
 export class ResponsiveTable {
 	private head: string[];
 	private rows: TableRow[] = [];
@@ -19,6 +29,10 @@ export class ResponsiveTable {
 	private style?: { head?: string[] };
 	private dateFormatter?: (dateStr: string) => string;
 
+	/**
+	 * Creates a new responsive table instance
+	 * @param options - Table configuration options
+	 */
 	constructor(options: TableOptions) {
 		this.head = options.head;
 		this.colAligns = options.colAligns ?? Array.from({ length: this.head.length }, () => 'left');
@@ -26,10 +40,19 @@ export class ResponsiveTable {
 		this.dateFormatter = options.dateFormatter;
 	}
 
+	/**
+	 * Adds a row to the table
+	 * @param row - Row data to add
+	 */
 	push(row: TableRow): void {
 		this.rows.push(row);
 	}
 
+	/**
+	 * Renders the table as a formatted string
+	 * Automatically adjusts layout based on terminal width
+	 * @returns Formatted table string
+	 */
 	toString(): string {
 		const terminalWidth = process.stdout.columns || 120;
 
@@ -149,6 +172,11 @@ export class ResponsiveTable {
 		}
 	}
 
+	/**
+	 * Checks if a row is a separator row (contains only empty cells or dashes)
+	 * @param row - Row to check
+	 * @returns True if the row is a separator
+	 */
 	private isSeparatorRow(row: TableRow): boolean {
 		// Check for both old-style separator rows (─) and new-style empty rows
 		return row.every((cell) => {
@@ -159,6 +187,11 @@ export class ResponsiveTable {
 		});
 	}
 
+	/**
+	 * Checks if a string matches the YYYY-MM-DD date format
+	 * @param text - String to check
+	 * @returns True if the string is a valid date format
+	 */
 	private isDateString(text: string): boolean {
 		// Check if string matches date format YYYY-MM-DD
 		return /^\d{4}-\d{2}-\d{2}$/.test(text);

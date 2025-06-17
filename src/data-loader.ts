@@ -19,6 +19,9 @@ import {
 	type SessionBlock,
 } from './session-blocks.internal.ts';
 
+/**
+ * Default Claude data directory path (~/.claude)
+ */
 const DEFAULT_CLAUDE_CODE_PATH = path.join(homedir(), '.claude');
 
 /**
@@ -37,6 +40,9 @@ Please set CLAUDE_CONFIG_DIR to a valid path, or ensure ${DEFAULT_CLAUDE_CODE_PA
 	return envClaudeCodePath;
 }
 
+/**
+ * Valibot schema for validating Claude usage data from JSONL files
+ */
 export const UsageDataSchema = v.object({
 	timestamp: v.string(),
 	version: v.optional(v.string()), // Claude Code version
@@ -54,8 +60,14 @@ export const UsageDataSchema = v.object({
 	requestId: v.optional(v.string()), // Request ID for deduplication
 });
 
+/**
+ * Type definition for Claude usage data entries from JSONL files
+ */
 export type UsageData = v.InferOutput<typeof UsageDataSchema>;
 
+/**
+ * Valibot schema for model-specific usage breakdown data
+ */
 export const ModelBreakdownSchema = v.object({
 	modelName: v.string(),
 	inputTokens: v.number(),
@@ -65,8 +77,14 @@ export const ModelBreakdownSchema = v.object({
 	cost: v.number(),
 });
 
+/**
+ * Type definition for model-specific usage breakdown
+ */
 export type ModelBreakdown = v.InferOutput<typeof ModelBreakdownSchema>;
 
+/**
+ * Valibot schema for daily usage aggregation data
+ */
 export const DailyUsageSchema = v.object({
 	date: v.pipe(
 		v.string(),
@@ -81,8 +99,14 @@ export const DailyUsageSchema = v.object({
 	modelBreakdowns: v.array(ModelBreakdownSchema),
 });
 
+/**
+ * Type definition for daily usage aggregation
+ */
 export type DailyUsage = v.InferOutput<typeof DailyUsageSchema>;
 
+/**
+ * Valibot schema for session-based usage aggregation data
+ */
 export const SessionUsageSchema = v.object({
 	sessionId: v.string(),
 	projectPath: v.string(),
@@ -97,8 +121,14 @@ export const SessionUsageSchema = v.object({
 	modelBreakdowns: v.array(ModelBreakdownSchema),
 });
 
+/**
+ * Type definition for session-based usage aggregation
+ */
 export type SessionUsage = v.InferOutput<typeof SessionUsageSchema>;
 
+/**
+ * Valibot schema for monthly usage aggregation data
+ */
 export const MonthlyUsageSchema = v.object({
 	month: v.pipe(
 		v.string(),
@@ -113,8 +143,14 @@ export const MonthlyUsageSchema = v.object({
 	modelBreakdowns: v.array(ModelBreakdownSchema),
 });
 
+/**
+ * Type definition for monthly usage aggregation
+ */
 export type MonthlyUsage = v.InferOutput<typeof MonthlyUsageSchema>;
 
+/**
+ * Internal type for aggregating token statistics and costs
+ */
 type TokenStats = {
 	inputTokens: number;
 	outputTokens: number;
@@ -307,6 +343,11 @@ function extractUniqueModels<T>(
 	return [...new Set(entries.map(getModel).filter((m): m is string => m != null && m !== '<synthetic>'))];
 }
 
+/**
+ * Formats a date string to YYYY-MM-DD format
+ * @param dateStr - Input date string
+ * @returns Formatted date string in YYYY-MM-DD format
+ */
 export function formatDate(dateStr: string): string {
 	const date = new Date(dateStr);
 	const year = date.getFullYear();
@@ -315,6 +356,11 @@ export function formatDate(dateStr: string): string {
 	return `${year}-${month}-${day}`;
 }
 
+/**
+ * Formats a date string to compact format with year on first line and month-day on second
+ * @param dateStr - Input date string
+ * @returns Formatted date string with newline separator (YYYY\nMM-DD)
+ */
 export function formatDateCompact(dateStr: string): string {
 	const date = new Date(dateStr);
 	const year = date.getFullYear();
@@ -434,6 +480,13 @@ export async function sortFilesByTimestamp(files: string[]): Promise<string[]> {
 		.map(item => item.file);
 }
 
+/**
+ * Calculates cost for a single usage data entry based on the specified cost calculation mode
+ * @param data - Usage data entry
+ * @param mode - Cost calculation mode (auto, calculate, or display)
+ * @param fetcher - Pricing fetcher instance for calculating costs from tokens
+ * @returns Calculated cost in USD
+ */
 export async function calculateCostForEntry(
 	data: UsageData,
 	mode: CostMode,
@@ -468,11 +521,17 @@ export async function calculateCostForEntry(
 	unreachable(mode);
 }
 
+/**
+ * Date range filter for limiting usage data by date
+ */
 export type DateFilter = {
 	since?: string; // YYYYMMDD format
 	until?: string; // YYYYMMDD format
 };
 
+/**
+ * Configuration options for loading usage data
+ */
 export type LoadOptions = {
 	claudePath?: string; // Custom path to Claude data directory
 	mode?: CostMode; // Cost calculation mode
@@ -481,6 +540,12 @@ export type LoadOptions = {
 	sessionDurationHours?: number; // Session block duration in hours
 } & DateFilter;
 
+/**
+ * Loads and aggregates Claude usage data by day
+ * Processes all JSONL files in the Claude projects directory and groups usage by date
+ * @param options - Optional configuration for loading and filtering data
+ * @returns Array of daily usage summaries sorted by date
+ */
 export async function loadDailyUsageData(
 	options?: LoadOptions,
 ): Promise<DailyUsage[]> {
@@ -597,6 +662,12 @@ export async function loadDailyUsageData(
 	return sortByDate(filtered, item => item.date, options?.order);
 }
 
+/**
+ * Loads and aggregates Claude usage data by session
+ * Groups usage data by project path and session ID based on file structure
+ * @param options - Optional configuration for loading and filtering data
+ * @returns Array of session usage summaries sorted by last activity
+ */
 export async function loadSessionData(
 	options?: LoadOptions,
 ): Promise<SessionUsage[]> {
@@ -755,6 +826,12 @@ export async function loadSessionData(
 	return sortByDate(filtered, item => item.lastActivity, options?.order);
 }
 
+/**
+ * Loads and aggregates Claude usage data by month
+ * Uses daily usage data as the source and groups by month
+ * @param options - Optional configuration for loading and filtering data
+ * @returns Array of monthly usage summaries sorted by month
+ */
 export async function loadMonthlyUsageData(
 	options?: LoadOptions,
 ): Promise<MonthlyUsage[]> {
@@ -821,6 +898,12 @@ export async function loadMonthlyUsageData(
 	return sortByDate(monthlyArray, item => `${item.month}-01`, options?.order);
 }
 
+/**
+ * Loads usage data and organizes it into session blocks (typically 5-hour billing periods)
+ * Processes all usage data and groups it into time-based blocks for billing analysis
+ * @param options - Optional configuration including session duration and filtering
+ * @returns Array of session blocks with usage and cost information
+ */
 export async function loadSessionBlockData(
 	options?: LoadOptions,
 ): Promise<SessionBlock[]> {

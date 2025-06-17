@@ -1,6 +1,16 @@
+/**
+ * Default session duration in hours (Claude's billing block duration)
+ */
 export const DEFAULT_SESSION_DURATION_HOURS = 5;
+
+/**
+ * Default number of recent days to include when filtering blocks
+ */
 const DEFAULT_RECENT_DAYS = 3;
 
+/**
+ * Represents a single usage data entry loaded from JSONL files
+ */
 export type LoadedUsageEntry = {
 	timestamp: Date;
 	usage: {
@@ -14,6 +24,9 @@ export type LoadedUsageEntry = {
 	version?: string;
 };
 
+/**
+ * Aggregated token counts for different token types
+ */
 export type TokenCounts = {
 	inputTokens: number;
 	outputTokens: number;
@@ -21,6 +34,9 @@ export type TokenCounts = {
 	cacheReadInputTokens: number;
 };
 
+/**
+ * Represents a session block (typically 5-hour billing period) with usage data
+ */
 export type SessionBlock = {
 	id: string; // ISO string of block start time
 	startTime: Date;
@@ -34,17 +50,30 @@ export type SessionBlock = {
 	models: string[];
 };
 
+/**
+ * Represents usage burn rate calculations
+ */
 export type BurnRate = {
 	tokensPerMinute: number;
 	costPerHour: number;
 };
 
+/**
+ * Represents projected usage for remaining time in a session block
+ */
 export type ProjectedUsage = {
 	totalTokens: number;
 	totalCost: number;
 	remainingMinutes: number;
 };
 
+/**
+ * Identifies and creates session blocks from usage entries
+ * Groups entries into time-based blocks (typically 5-hour periods) with gap detection
+ * @param entries - Array of usage entries to process
+ * @param sessionDurationHours - Duration of each session block in hours
+ * @returns Array of session blocks with aggregated usage data
+ */
 export function identifySessionBlocks(
 	entries: LoadedUsageEntry[],
 	sessionDurationHours = DEFAULT_SESSION_DURATION_HOURS,
@@ -111,6 +140,14 @@ export function identifySessionBlocks(
 	return blocks;
 }
 
+/**
+ * Creates a session block from a start time and usage entries
+ * @param startTime - When the block started
+ * @param entries - Usage entries in this block
+ * @param now - Current time for active block detection
+ * @param sessionDurationMs - Session duration in milliseconds
+ * @returns Session block with aggregated data
+ */
 function createBlock(startTime: Date, entries: LoadedUsageEntry[], now: Date, sessionDurationMs: number): SessionBlock {
 	const endTime = new Date(startTime.getTime() + sessionDurationMs);
 	const lastEntry = entries[entries.length - 1];
@@ -150,6 +187,13 @@ function createBlock(startTime: Date, entries: LoadedUsageEntry[], now: Date, se
 	};
 }
 
+/**
+ * Creates a gap block representing periods with no activity
+ * @param lastActivityTime - Time of last activity before gap
+ * @param nextActivityTime - Time of next activity after gap
+ * @param sessionDurationMs - Session duration in milliseconds
+ * @returns Gap block or null if gap is too short
+ */
 function createGapBlock(lastActivityTime: Date, nextActivityTime: Date, sessionDurationMs: number): SessionBlock | null {
 	// Only create gap blocks for gaps longer than the session duration
 	const gapDuration = nextActivityTime.getTime() - lastActivityTime.getTime();
@@ -178,6 +222,11 @@ function createGapBlock(lastActivityTime: Date, nextActivityTime: Date, sessionD
 	};
 }
 
+/**
+ * Calculates the burn rate (tokens/minute and cost/hour) for a session block
+ * @param block - Session block to analyze
+ * @returns Burn rate calculations or null if block has no activity
+ */
 export function calculateBurnRate(block: SessionBlock): BurnRate | null {
 	if (block.entries.length === 0 || (block.isGap ?? false)) {
 		return null;
@@ -207,6 +256,11 @@ export function calculateBurnRate(block: SessionBlock): BurnRate | null {
 	};
 }
 
+/**
+ * Projects total usage for an active session block based on current burn rate
+ * @param block - Active session block to project
+ * @returns Projected usage totals or null if block is inactive or has no burn rate
+ */
 export function projectBlockUsage(block: SessionBlock): ProjectedUsage | null {
 	if (!block.isActive || (block.isGap ?? false)) {
 		return null;
@@ -235,6 +289,12 @@ export function projectBlockUsage(block: SessionBlock): ProjectedUsage | null {
 	};
 }
 
+/**
+ * Filters session blocks to include only recent ones and active blocks
+ * @param blocks - Array of session blocks to filter
+ * @param days - Number of recent days to include (default: 3)
+ * @returns Filtered array of recent or active blocks
+ */
 export function filterRecentBlocks(blocks: SessionBlock[], days: number = DEFAULT_RECENT_DAYS): SessionBlock[] {
 	const now = new Date();
 	const cutoffTime = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);

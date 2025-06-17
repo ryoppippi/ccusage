@@ -7,7 +7,13 @@ import { UsageDataSchema } from './data-loader.ts';
 import { logger } from './logger.ts';
 import { PricingFetcher } from './pricing-fetcher.ts';
 
+/**
+ * Threshold percentage for considering costs as matching (0.1% tolerance)
+ */
 const MATCH_THRESHOLD_PERCENT = 0.1;
+/**
+ * Represents a pricing discrepancy between original and calculated costs
+ */
 type Discrepancy = {
 	file: string;
 	timestamp: string;
@@ -24,6 +30,9 @@ type Discrepancy = {
 	};
 };
 
+/**
+ * Statistics about pricing mismatches across all usage data
+ */
 type MismatchStats = {
 	totalEntries: number;
 	entriesWithBoth: number;
@@ -50,6 +59,12 @@ type MismatchStats = {
 	>;
 };
 
+/**
+ * Analyzes usage data to detect pricing mismatches between stored and calculated costs
+ * Compares pre-calculated costUSD values with costs calculated from token usage
+ * @param claudePath - Optional path to Claude data directory
+ * @returns Statistics about pricing mismatches found
+ */
 export async function detectMismatches(
 	claudePath?: string,
 ): Promise<MismatchStats> {
@@ -181,6 +196,11 @@ export async function detectMismatches(
 	return stats;
 }
 
+/**
+ * Prints a detailed report of pricing mismatches to the console
+ * @param stats - Mismatch statistics to report
+ * @param sampleCount - Number of sample discrepancies to show (default: 5)
+ */
 export function printMismatchReport(
 	stats: MismatchStats,
 	sampleCount = 5,
