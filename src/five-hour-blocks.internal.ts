@@ -1,4 +1,4 @@
-const FIVE_HOURS_MS = 5 * 60 * 60 * 1000;
+const SESSION_DURATION_MS = 5 * 60 * 60 * 1000;
 const DEFAULT_RECENT_DAYS = 3;
 
 export type LoadedUsageEntry = {
@@ -74,13 +74,13 @@ export function identifyFiveHourBlocks(entries: LoadedUsageEntry[]): FiveHourBlo
 			const lastEntryTime = lastEntry.timestamp;
 			const timeSinceLastEntry = entryTime.getTime() - lastEntryTime.getTime();
 
-			if (timeSinceBlockStart > FIVE_HOURS_MS || timeSinceLastEntry > FIVE_HOURS_MS) {
+			if (timeSinceBlockStart > SESSION_DURATION_MS || timeSinceLastEntry > SESSION_DURATION_MS) {
 				// Close current block
 				const block = createBlock(currentBlockStart, currentBlockEntries, now);
 				blocks.push(block);
 
 				// Add gap block if there's a significant gap
-				if (timeSinceLastEntry > FIVE_HOURS_MS) {
+				if (timeSinceLastEntry > SESSION_DURATION_MS) {
 					const gapBlock = createGapBlock(lastEntryTime, entryTime);
 					if (gapBlock != null) {
 						blocks.push(gapBlock);
@@ -108,10 +108,10 @@ export function identifyFiveHourBlocks(entries: LoadedUsageEntry[]): FiveHourBlo
 }
 
 function createBlock(startTime: Date, entries: LoadedUsageEntry[], now: Date): FiveHourBlock {
-	const endTime = new Date(startTime.getTime() + FIVE_HOURS_MS);
+	const endTime = new Date(startTime.getTime() + SESSION_DURATION_MS);
 	const lastEntry = entries[entries.length - 1];
 	const actualEndTime = lastEntry != null ? lastEntry.timestamp : startTime;
-	const isActive = now.getTime() - actualEndTime.getTime() < FIVE_HOURS_MS && now < endTime;
+	const isActive = now.getTime() - actualEndTime.getTime() < SESSION_DURATION_MS && now < endTime;
 
 	// Aggregate token counts
 	const tokenCounts: TokenCounts = {
@@ -149,11 +149,11 @@ function createBlock(startTime: Date, entries: LoadedUsageEntry[], now: Date): F
 function createGapBlock(lastActivityTime: Date, nextActivityTime: Date): FiveHourBlock | null {
 	// Only create gap blocks for gaps longer than 5 hours
 	const gapDuration = nextActivityTime.getTime() - lastActivityTime.getTime();
-	if (gapDuration <= FIVE_HOURS_MS) {
+	if (gapDuration <= SESSION_DURATION_MS) {
 		return null;
 	}
 
-	const gapStart = new Date(lastActivityTime.getTime() + FIVE_HOURS_MS);
+	const gapStart = new Date(lastActivityTime.getTime() + SESSION_DURATION_MS);
 	const gapEnd = nextActivityTime;
 
 	return {
