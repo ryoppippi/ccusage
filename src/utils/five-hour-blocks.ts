@@ -197,7 +197,7 @@ export function calculateBurnRate(block: FiveHourBlock): BurnRate | null {
 	const costPerHour = (block.costUSD / durationMinutes) * 60;
 
 	return {
-		tokensPerMinute: Math.round(tokensPerMinute),
+		tokensPerMinute,
 		costPerHour,
 	};
 }
