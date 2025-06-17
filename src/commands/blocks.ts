@@ -226,7 +226,7 @@ export const blocksCommand = define({
 						id: block.id,
 						startTime: block.startTime.toISOString(),
 						endTime: block.endTime.toISOString(),
-						actualEndTime: block.actualEndTime != null ? block.actualEndTime.toISOString() : null,
+						actualEndTime: block.actualEndTime?.toISOString() ?? null,
 						isActive: block.isActive,
 						isGap: block.isGap ?? false,
 						entries: block.entries.length,

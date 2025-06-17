@@ -1,4 +1,3 @@
-import * as v from 'valibot';
 import { LITELLM_PRICING_URL } from './consts.internal.ts';
 import { logger } from './logger.ts';
 import { prefetchClaudePricing } from './macro.internal.ts' with { type: 'macro' };
@@ -64,9 +63,9 @@ export class PricingFetcher implements Disposable {
 				data as Record<string, unknown>,
 			)) {
 				if (typeof modelData === 'object' && modelData !== null) {
-					const parsed = v.safeParse(modelPricingSchema, modelData);
+					const parsed = modelPricingSchema.safeParse(modelData);
 					if (parsed.success) {
-						pricing.set(modelName, parsed.output);
+						pricing.set(modelName, parsed.data);
 					}
 					// Skip models that don't match our schema
 				}

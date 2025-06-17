@@ -1,13 +1,10 @@
 import type { TupleToUnion } from 'type-fest';
-import * as v from 'valibot';
+import { z } from 'zod';
 
 /**
- * Valibot schema for validating date strings in YYYYMMDD format
+ * Zod schema for validating date strings in YYYYMMDD format
  */
-export const dateSchema = v.pipe(
-	v.string(),
-	v.regex(/^\d{8}$/, 'Date must be in YYYYMMDD format'),
-);
+export const dateSchema = z.string().regex(/^\d{8}$/, 'Date must be in YYYYMMDD format');
 
 /**
  * Available cost calculation modes
@@ -33,16 +30,16 @@ export const SortOrders = ['desc', 'asc'] as const;
 export type SortOrder = TupleToUnion<typeof SortOrders>;
 
 /**
- * Valibot schema for model pricing information from LiteLLM
+ * Zod schema for model pricing information from LiteLLM
  */
-export const modelPricingSchema = v.object({
-	input_cost_per_token: v.optional(v.number()),
-	output_cost_per_token: v.optional(v.number()),
-	cache_creation_input_token_cost: v.optional(v.number()),
-	cache_read_input_token_cost: v.optional(v.number()),
+export const modelPricingSchema = z.object({
+	input_cost_per_token: z.number().optional(),
+	output_cost_per_token: z.number().optional(),
+	cache_creation_input_token_cost: z.number().optional(),
+	cache_read_input_token_cost: z.number().optional(),
 });
 
 /**
  * Type definition for model pricing information
  */
-export type ModelPricing = v.InferOutput<typeof modelPricingSchema>;
+export type ModelPricing = z.infer<typeof modelPricingSchema>;

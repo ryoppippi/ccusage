@@ -170,7 +170,7 @@ function createBlock(startTime: Date, entries: LoadedUsageEntry[], now: Date, se
 		tokenCounts.outputTokens += entry.usage.outputTokens;
 		tokenCounts.cacheCreationInputTokens += entry.usage.cacheCreationInputTokens;
 		tokenCounts.cacheReadInputTokens += entry.usage.cacheReadInputTokens;
-		costUSD += entry.costUSD != null ? entry.costUSD : 0;
+		costUSD += entry.costUSD ?? 0;
 		modelsSet.add(entry.model);
 	}
 

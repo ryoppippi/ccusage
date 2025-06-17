@@ -1,12 +1,17 @@
+import { serve } from '@hono/node-server';
 import { define } from 'gunshi';
 import { getDefaultClaudePath } from '../data-loader.ts';
 import { logger } from '../logger.ts';
-import { createMcpServer } from '../mcp.ts';
+import { createMcpHttpApp, createMcpServer, startMcpServerStdio } from '../mcp.ts';
 import { sharedArgs } from '../shared-args.internal.ts';
 
+/**
+ * MCP server command that supports both stdio and HTTP transports.
+ * Allows starting an MCP server for external integrations with usage reporting tools.
+ */
 export const mcpCommand = define({
 	name: 'mcp',
-	description: 'Show usage report for MCP',
+	description: 'Start MCP server with usage reporting tools',
 	args: {
 		mode: sharedArgs.mode,
 		type: {
@@ -24,20 +29,28 @@ export const mcpCommand = define({
 	},
 	async run(ctx) {
 		const { type, mode, port } = ctx.values;
-		// disable info logging
+		// disable info logging for stdio
 		if (type === 'stdio') {
 			logger.level = 0;
 		}
 
-		const server = createMcpServer({
+		const options = {
 			claudePath: getDefaultClaudePath(),
 			mode,
-		});
+		};
 
-		await server.start(
-			ctx.values.type === 'http'
-				? { transportType: 'httpStream', httpStream: { port } }
-				: { transportType: 'stdio' },
-		);
+		if (type === 'stdio') {
+			const server = createMcpServer(options);
+			await startMcpServerStdio(server);
+		}
+		else {
+			const app = createMcpHttpApp(options);
+			// Use the Hono app to handle requests
+			serve({
+				fetch: app.fetch,
+				port,
+			});
+			logger.info(`MCP server is running on http://localhost:${port}`);
+		}
 	},
 });
