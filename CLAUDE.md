@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Testing and Quality:**
 
-- `bun run test` - Run all tests (using vitest)
+- `bun run test` - Run all tests (using vitest via bun)
 - Lint code using ESLint MCP server (available via Claude Code tools)
 - `bun run format` - Format code with ESLint (writes changes)
 - `bun typecheck` - Type check with TypeScript
@@ -107,7 +107,7 @@ After making any code changes, ALWAYS run these commands in parallel:
 
 - `bun run format` - Auto-fix and format code with ESLint (includes linting)
 - `bun typecheck` - Type check with TypeScript
-- `bun test` - Run all tests
+- `bun run test` - Run all tests
 
 This ensures code quality and catches issues immediately after changes.
 
