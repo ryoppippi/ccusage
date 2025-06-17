@@ -2,7 +2,7 @@ import * as v from 'valibot';
 import { LITELLM_PRICING_URL } from './consts.internal.ts';
 import { logger } from './logger.ts';
 import { prefetchClaudePricing } from './macro.internal.ts' with { type: 'macro' };
-import { type ModelPricing, ModelPricingSchema } from './types.internal.ts';
+import { type ModelPricing, modelPricingSchema } from './types.internal.ts';
 
 /**
  * Fetches and caches model pricing information from LiteLLM
@@ -64,7 +64,7 @@ export class PricingFetcher implements Disposable {
 				data as Record<string, unknown>,
 			)) {
 				if (typeof modelData === 'object' && modelData !== null) {
-					const parsed = v.safeParse(ModelPricingSchema, modelData);
+					const parsed = v.safeParse(modelPricingSchema, modelData);
 					if (parsed.success) {
 						pricing.set(modelName, parsed.output);
 					}
