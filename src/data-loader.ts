@@ -108,7 +108,7 @@ export type DailyUsage = v.InferOutput<typeof dailyUsageSchema>;
 /**
  * Valibot schema for session-based usage aggregation data
  */
-export const SessionUsageSchema = v.object({
+export const sessionUsageSchema = v.object({
 	sessionId: v.string(),
 	projectPath: v.string(),
 	inputTokens: v.number(),
@@ -125,7 +125,7 @@ export const SessionUsageSchema = v.object({
 /**
  * Type definition for session-based usage aggregation
  */
-export type SessionUsage = v.InferOutput<typeof SessionUsageSchema>;
+export type SessionUsage = v.InferOutput<typeof sessionUsageSchema>;
 
 /**
  * Valibot schema for monthly usage aggregation data
