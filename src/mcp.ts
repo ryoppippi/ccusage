@@ -207,6 +207,7 @@ export function createMcpHttpApp(options: LoadOptions = defaultOptions): Hono {
 }
 
 if (import.meta.vitest != null) {
+	/* eslint-disable ts/no-unsafe-assignment, ts/no-unsafe-member-access, ts/no-unsafe-call */
 	describe('MCP Server', () => {
 		describe('createMcpServer', () => {
 			it('should create MCP server with default options', () => {
@@ -288,12 +289,11 @@ if (import.meta.vitest != null) {
 				expect(result).toHaveProperty('content');
 				expect(Array.isArray(result.content)).toBe(true);
 				expect(result.content).toHaveLength(1);
-				// eslint-disable-next-line ts/no-unsafe-call, ts/no-unsafe-member-access
+
 				expect((result.content as any).at(0)).toHaveProperty('type', 'text');
-				// eslint-disable-next-line ts/no-unsafe-call, ts/no-unsafe-member-access
+
 				expect((result.content as any).at(0)).toHaveProperty('text');
 
-				// eslint-disable-next-line ts/no-unsafe-assignment, ts/no-unsafe-call, ts/no-unsafe-member-access
 				const data = JSON.parse((result.content as any).at(0).text as string);
 				expect(Array.isArray(data)).toBe(true);
 
@@ -331,11 +331,10 @@ if (import.meta.vitest != null) {
 
 				expect(result).toHaveProperty('content');
 				expect(result.content).toHaveLength(1);
-				expect(result.content[0]).toHaveProperty('type', 'text');
-				expect(result.content[0]).toHaveProperty('text');
+				expect((result.content as any)[0]).toHaveProperty('type', 'text');
+				expect((result.content as any)[0]).toHaveProperty('text');
 
-				// eslint-disable-next-line ts/no-unsafe-assignment, ts/no-unsafe-member-access
-				const data = JSON.parse(result.content[0].text as string);
+				const data = JSON.parse((result.content as any)[0].text as string);
 				expect(Array.isArray(data)).toBe(true);
 
 				await client.close();
@@ -372,11 +371,10 @@ if (import.meta.vitest != null) {
 
 				expect(result).toHaveProperty('content');
 				expect(result.content).toHaveLength(1);
-				expect(result.content[0]).toHaveProperty('type', 'text');
-				expect(result.content[0]).toHaveProperty('text');
+				expect((result.content as any)[0]).toHaveProperty('type', 'text');
+				expect((result.content as any)[0]).toHaveProperty('text');
 
-				// eslint-disable-next-line ts/no-unsafe-assignment, ts/no-unsafe-member-access
-				const data = JSON.parse(result.content[0].text as string);
+				const data = JSON.parse((result.content as any)[0].text as string);
 				expect(Array.isArray(data)).toBe(true);
 
 				await client.close();
@@ -413,11 +411,10 @@ if (import.meta.vitest != null) {
 
 				expect(result).toHaveProperty('content');
 				expect(result.content).toHaveLength(1);
-				expect(result.content[0]).toHaveProperty('type', 'text');
-				expect(result.content[0]).toHaveProperty('text');
+				expect((result.content as any)[0]).toHaveProperty('type', 'text');
+				expect((result.content as any)[0]).toHaveProperty('text');
 
-				// eslint-disable-next-line ts/no-unsafe-assignment, ts/no-unsafe-member-access
-				const data = JSON.parse(result.content[0].text as string);
+				const data = JSON.parse((result.content as any)[0].text as string);
 				expect(Array.isArray(data)).toBe(true);
 
 				await client.close();
