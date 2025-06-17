@@ -1,6 +1,5 @@
 import { homedir } from 'node:os';
 import { join } from 'node:path';
-import process from 'node:process';
 import { createFixture } from 'fs-fixture';
 import {
 	calculateCostForEntry,
@@ -53,35 +52,26 @@ describe('formatDateCompact', () => {
 });
 
 describe('getDefaultClaudePath', () => {
-	const originalEnv = process.env.CLAUDE_CONFIG_DIR;
-
-	beforeEach(() => {
-		// Clean up env var before each test
-		delete process.env.CLAUDE_CONFIG_DIR;
-	});
-
 	afterEach(() => {
-		// Restore original environment
-		if (originalEnv != null) {
-			process.env.CLAUDE_CONFIG_DIR = originalEnv;
-		}
-		else {
-			delete process.env.CLAUDE_CONFIG_DIR;
-		}
+		// Clean up any environment variable mocks
+		vi.unstubAllEnvs();
 	});
 
 	it('returns CLAUDE_CONFIG_DIR when environment variable is set', async () => {
 		await using fixture = await createFixture({
 			claude: {},
 		});
-		process.env.CLAUDE_CONFIG_DIR = fixture.path;
+
+		// Use vitest's environment variable stubbing
+		vi.stubEnv('CLAUDE_CONFIG_DIR', fixture.path);
 
 		expect(getDefaultClaudePath()).toBe(fixture.path);
 	});
 
 	it('returns default path when CLAUDE_CONFIG_DIR is not set', () => {
-		// Ensure CLAUDE_CONFIG_DIR is not set
-		delete process.env.CLAUDE_CONFIG_DIR;
+		// Explicitly ensure the environment variable is not set
+		// Use undefined to indicate the env var should not be set
+		vi.stubEnv('CLAUDE_CONFIG_DIR', undefined as string | undefined);
 
 		// Test that it returns the default path (which ends with .claude)
 		const actualPath = getDefaultClaudePath();
@@ -93,28 +83,31 @@ describe('getDefaultClaudePath', () => {
 		await using fixture = await createFixture({
 			claude: {},
 		});
-		// Test with extra spaces
-		process.env.CLAUDE_CONFIG_DIR = `  ${fixture.path}  `;
+
+		// Test with extra spaces using vitest env stubbing
+		vi.stubEnv('CLAUDE_CONFIG_DIR', `  ${fixture.path}  `);
 
 		expect(getDefaultClaudePath()).toBe(fixture.path);
 	});
 
 	it('throws an error when CLAUDE_CONFIG_DIR is not a directory', async () => {
 		await using fixture = await createFixture();
-		process.env.CLAUDE_CONFIG_DIR = join(fixture.path, 'not-a-directory');
+		const nonExistentPath = join(fixture.path, 'not-a-directory');
+
+		vi.stubEnv('CLAUDE_CONFIG_DIR', nonExistentPath);
 
 		expect(() => getDefaultClaudePath()).toThrow(/Claude data directory does not exist/);
 	});
 
-	it('throws an error when CLAUDE_CONFIG_DIR does not exist', async () => {
-		process.env.CLAUDE_CONFIG_DIR = '/nonexistent/path/that/does/not/exist';
+	it('throws an error when CLAUDE_CONFIG_DIR does not exist', () => {
+		vi.stubEnv('CLAUDE_CONFIG_DIR', '/nonexistent/path/that/does/not/exist');
 
 		expect(() => getDefaultClaudePath()).toThrow(/Claude data directory does not exist/);
 	});
 
 	it('throws an error when default path does not exist', () => {
 		// Set to a non-existent path
-		process.env.CLAUDE_CONFIG_DIR = '/nonexistent/path/.claude';
+		vi.stubEnv('CLAUDE_CONFIG_DIR', '/nonexistent/path/.claude');
 
 		expect(() => getDefaultClaudePath()).toThrow(/Claude data directory does not exist/);
 	});
