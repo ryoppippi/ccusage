@@ -4,22 +4,40 @@ import { logger } from './logger.ts';
 import { prefetchClaudePricing } from './macro.internal.ts' with { type: 'macro' };
 import { type ModelPricing, ModelPricingSchema } from './types.internal.ts';
 
+/**
+ * Fetches and caches model pricing information from LiteLLM
+ * Implements Disposable pattern for automatic resource cleanup
+ */
 export class PricingFetcher implements Disposable {
 	private cachedPricing: Map<string, ModelPricing> | null = null;
 	private readonly offline: boolean;
 
+	/**
+	 * Creates a new PricingFetcher instance
+	 * @param offline - Whether to use pre-fetched pricing data instead of fetching from API
+	 */
 	constructor(offline = false) {
 		this.offline = offline;
 	}
 
+	/**
+	 * Implements Disposable interface for automatic cleanup
+	 */
 	[Symbol.dispose](): void {
 		this.clearCache();
 	}
 
+	/**
+	 * Clears the cached pricing data
+	 */
 	clearCache(): void {
 		this.cachedPricing = null;
 	}
 
+	/**
+	 * Ensures pricing data is loaded, either from cache or by fetching
+	 * @returns Map of model names to pricing information
+	 */
 	private async ensurePricingLoaded(): Promise<Map<string, ModelPricing>> {
 		if (this.cachedPricing != null) {
 			return this.cachedPricing;
@@ -64,10 +82,20 @@ export class PricingFetcher implements Disposable {
 		}
 	}
 
+	/**
+	 * Fetches all available model pricing data
+	 * @returns Map of model names to pricing information
+	 */
 	async fetchModelPricing(): Promise<Map<string, ModelPricing>> {
 		return this.ensurePricingLoaded();
 	}
 
+	/**
+	 * Gets pricing information for a specific model with fallback matching
+	 * Tries exact match first, then provider prefixes, then partial matches
+	 * @param modelName - Name of the model to get pricing for
+	 * @returns Model pricing information or null if not found
+	 */
 	async getModelPricing(
 		modelName: string,
 	): Promise<ModelPricing | null> {
@@ -108,6 +136,16 @@ export class PricingFetcher implements Disposable {
 		return null;
 	}
 
+	/**
+	 * Calculates the cost for given token usage and model
+	 * @param tokens - Token usage breakdown
+	 * @param tokens.input_tokens - Number of input tokens
+	 * @param tokens.output_tokens - Number of output tokens
+	 * @param tokens.cache_creation_input_tokens - Number of cache creation tokens
+	 * @param tokens.cache_read_input_tokens - Number of cache read tokens
+	 * @param modelName - Name of the model used
+	 * @returns Total cost in USD
+	 */
 	async calculateCostFromTokens(
 		tokens: {
 			input_tokens: number;
@@ -124,6 +162,16 @@ export class PricingFetcher implements Disposable {
 		return this.calculateCostFromPricing(tokens, pricing);
 	}
 
+	/**
+	 * Calculates cost from token usage and pricing information
+	 * @param tokens - Token usage breakdown
+	 * @param tokens.input_tokens - Number of input tokens
+	 * @param tokens.output_tokens - Number of output tokens
+	 * @param tokens.cache_creation_input_tokens - Number of cache creation tokens
+	 * @param tokens.cache_read_input_tokens - Number of cache read tokens
+	 * @param pricing - Model pricing rates
+	 * @returns Total cost in USD
+	 */
 	calculateCostFromPricing(
 		tokens: {
 			input_tokens: number;
