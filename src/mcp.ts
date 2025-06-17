@@ -1,6 +1,10 @@
 import type { LoadOptions } from './data-loader.ts';
 import type { CostMode } from './types.internal.ts';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
+import { toFetchResponse, toReqRes } from 'fetch-to-node';
+import { Hono } from 'hono';
 import { z } from 'zod';
 
 import { name, version } from '../package.json';
@@ -11,6 +15,7 @@ import {
 	loadSessionBlockData,
 	loadSessionData,
 } from './data-loader.ts';
+import { logger } from './logger.ts';
 import { dateSchema } from './types.internal.ts';
 
 /** Default options for the MCP server */
@@ -155,4 +160,70 @@ export function createMcpServer({
 	);
 
 	return server;
+}
+
+/**
+ * Start the MCP server with stdio transport
+ */
+export async function startMcpServerStdio(
+	server: McpServer,
+): Promise<void> {
+	const transport = new StdioServerTransport();
+	await server.connect(transport);
+}
+
+/**
+ * Create Hono app for MCP HTTP server
+ */
+export function createMcpHttpApp(options: LoadOptions = defaultOptions): Hono {
+	const app = new Hono();
+
+	app.post('/', async (c) => {
+		const { req, res } = toReqRes(c.req.raw);
+		const mcpServer = createMcpServer(options);
+		const transport = new StreamableHTTPServerTransport({
+			sessionIdGenerator: undefined, // Stateless mode
+		});
+
+		await mcpServer.connect(transport);
+		await transport.handleRequest(req, res, await c.req.json() as unknown);
+
+		res.on('close', () => {
+			transport.close().catch(() => {});
+			mcpServer.close().catch(() => {});
+		});
+
+		return toFetchResponse(res);
+	});
+
+	app.on(['GET', 'DELETE'], '/', (c) => {
+		return c.json(
+			{
+				jsonrpc: '2.0',
+				error: {
+					code: -32000,
+					message: 'Method not allowed.',
+				},
+				id: null,
+			},
+			405,
+		);
+	});
+
+	app.onError((e, c) => {
+		logger.error(e.message);
+		return c.json(
+			{
+				jsonrpc: '2.0',
+				error: {
+					code: -32603,
+					message: 'Internal server error',
+				},
+				id: null,
+			},
+			500,
+		);
+	});
+
+	return app;
 }

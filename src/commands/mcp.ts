@@ -1,8 +1,8 @@
-import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import { serve } from '@hono/node-server';
 import { define } from 'gunshi';
 import { getDefaultClaudePath } from '../data-loader.ts';
 import { logger } from '../logger.ts';
-import { createMcpServer } from '../mcp.ts';
+import { createMcpHttpApp, createMcpServer, startMcpServerStdio } from '../mcp.ts';
 import { sharedArgs } from '../shared-args.internal.ts';
 
 export const mcpCommand = define({
@@ -24,25 +24,29 @@ export const mcpCommand = define({
 		},
 	},
 	async run(ctx) {
-		const { type, mode } = ctx.values;
-		// disable info logging
+		const { type, mode, port } = ctx.values;
+		// disable info logging for stdio
 		if (type === 'stdio') {
 			logger.level = 0;
 		}
 
-		const server = createMcpServer({
+		const options = {
 			claudePath: getDefaultClaudePath(),
 			mode,
-		});
+		};
 
 		if (type === 'stdio') {
-			const transport = new StdioServerTransport();
-			await server.connect(transport);
+			const server = createMcpServer(options);
+			await startMcpServerStdio(server);
 		}
 		else {
-			// HTTP transport not directly supported by the basic MCP SDK
-			// Would need additional HTTP server implementation
-			throw new Error('HTTP transport is not currently supported with @modelcontextprotocol/sdk. Use stdio transport instead.');
+			const app = createMcpHttpApp(options);
+			// Use the Hono app to handle requests
+			serve({
+				fetch: app.fetch,
+				port,
+			});
+			logger.info(`MCP server is running on http://localhost:${port}`);
 		}
 	},
 });
