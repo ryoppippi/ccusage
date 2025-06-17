@@ -39,7 +39,7 @@
 		"prepare": "simple-git-hooks",
 		"release": "bun lint && bun typecheck && vitest run && bun run build && bumpp",
 		"start": "bun run ./src/index.ts",
-		"test": "vitest run",
+		"test": "vitest",
 		"typecheck": "tsgo --noEmit"
 	},
 	"devDependencies": {
