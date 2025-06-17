@@ -260,6 +260,7 @@ The blocks report helps you understand Claude Code's 5-hour rolling session wind
 - The `-t max` option automatically uses your highest previous block as the limit
 
 #### Blocks-specific options:
+
 - `-t, --token-limit <number|max>`: Set token limit for quota warnings (use "max" for highest previous block)
 - `-a, --active`: Show only active block with detailed projections
 - `-r, --recent`: Show blocks from last 3 days (including active)

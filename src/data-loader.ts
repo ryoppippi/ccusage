@@ -894,13 +894,13 @@ export async function loadFiveHourBlockData(
 	const blocks = identifyFiveHourBlocks(allEntries);
 
 	// Filter by date range if specified
-	const filtered = options?.since || options?.until
+	const filtered = (options?.since != null && options.since !== '') || (options?.until != null && options.until !== '')
 		? blocks.filter((block) => {
 				const blockDateStr = formatDate(block.startTime.toISOString()).replace(/-/g, '');
-				if (options.since && blockDateStr < options.since) {
+				if (options.since != null && options.since !== '' && blockDateStr < options.since) {
 					return false;
 				}
-				if (options.until && blockDateStr > options.until) {
+				if (options.until != null && options.until !== '' && blockDateStr > options.until) {
 					return false;
 				}
 				return true;

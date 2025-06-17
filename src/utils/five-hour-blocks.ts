@@ -45,7 +45,9 @@ export type ProjectedUsage = {
 };
 
 export function identifyFiveHourBlocks(entries: LoadedUsageEntry[]): FiveHourBlock[] {
-	if (entries.length === 0) { return []; }
+	if (entries.length === 0) {
+		return [];
+	}
 
 	const blocks: FiveHourBlock[] = [];
 	const sortedEntries = [...entries].sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
@@ -57,7 +59,7 @@ export function identifyFiveHourBlocks(entries: LoadedUsageEntry[]): FiveHourBlo
 	for (const entry of sortedEntries) {
 		const entryTime = entry.timestamp;
 
-		if (!currentBlockStart) {
+		if (currentBlockStart == null) {
 			// First entry - start a new block
 			currentBlockStart = entryTime;
 			currentBlockEntries = [entry];
@@ -65,7 +67,9 @@ export function identifyFiveHourBlocks(entries: LoadedUsageEntry[]): FiveHourBlo
 		else {
 			const timeSinceBlockStart = entryTime.getTime() - currentBlockStart.getTime();
 			const lastEntry = currentBlockEntries[currentBlockEntries.length - 1];
-			if (!lastEntry) { continue; }
+			if (lastEntry == null) {
+				continue;
+			}
 			const lastEntryTime = lastEntry.timestamp;
 			const timeSinceLastEntry = entryTime.getTime() - lastEntryTime.getTime();
 
@@ -77,7 +81,9 @@ export function identifyFiveHourBlocks(entries: LoadedUsageEntry[]): FiveHourBlo
 				// Add gap block if there's a significant gap
 				if (timeSinceLastEntry > FIVE_HOURS_MS) {
 					const gapBlock = createGapBlock(lastEntryTime, entryTime);
-					if (gapBlock) { blocks.push(gapBlock); }
+					if (gapBlock != null) {
+						blocks.push(gapBlock);
+					}
 				}
 
 				// Start new block
@@ -92,7 +98,7 @@ export function identifyFiveHourBlocks(entries: LoadedUsageEntry[]): FiveHourBlo
 	}
 
 	// Close the last block
-	if (currentBlockStart && currentBlockEntries.length > 0) {
+	if (currentBlockStart != null && currentBlockEntries.length > 0) {
 		const block = createBlock(currentBlockStart, currentBlockEntries, now);
 		blocks.push(block);
 	}
@@ -103,7 +109,7 @@ export function identifyFiveHourBlocks(entries: LoadedUsageEntry[]): FiveHourBlo
 function createBlock(startTime: Date, entries: LoadedUsageEntry[], now: Date): FiveHourBlock {
 	const endTime = new Date(startTime.getTime() + FIVE_HOURS_MS);
 	const lastEntry = entries[entries.length - 1];
-	const actualEndTime = lastEntry ? lastEntry.timestamp : startTime;
+	const actualEndTime = lastEntry != null ? lastEntry.timestamp : startTime;
 	const isActive = now.getTime() - actualEndTime.getTime() < FIVE_HOURS_MS && now < endTime;
 
 	// Aggregate token counts
@@ -122,7 +128,7 @@ function createBlock(startTime: Date, entries: LoadedUsageEntry[], now: Date): F
 		tokenCounts.outputTokens += entry.usage.outputTokens;
 		tokenCounts.cacheCreationInputTokens += entry.usage.cacheCreationInputTokens;
 		tokenCounts.cacheReadInputTokens += entry.usage.cacheReadInputTokens;
-		costUSD += entry.costUSD || 0;
+		costUSD += entry.costUSD != null ? entry.costUSD : 0;
 		modelsSet.add(entry.model);
 	}
 
@@ -142,7 +148,9 @@ function createBlock(startTime: Date, entries: LoadedUsageEntry[], now: Date): F
 function createGapBlock(lastActivityTime: Date, nextActivityTime: Date): FiveHourBlock | null {
 	// Only create gap blocks for gaps longer than 5 hours
 	const gapDuration = nextActivityTime.getTime() - lastActivityTime.getTime();
-	if (gapDuration <= FIVE_HOURS_MS) { return null; }
+	if (gapDuration <= FIVE_HOURS_MS) {
+		return null;
+	}
 
 	const gapStart = new Date(lastActivityTime.getTime() + FIVE_HOURS_MS);
 	const gapEnd = nextActivityTime;
@@ -166,17 +174,23 @@ function createGapBlock(lastActivityTime: Date, nextActivityTime: Date): FiveHou
 }
 
 export function calculateBurnRate(block: FiveHourBlock): BurnRate | null {
-	if (block.entries.length === 0 || block.isGap) { return null; }
+	if (block.entries.length === 0 || (block.isGap ?? false)) {
+		return null;
+	}
 
 	const firstEntryData = block.entries[0];
 	const lastEntryData = block.entries[block.entries.length - 1];
-	if (!firstEntryData || !lastEntryData) { return null; }
+	if (firstEntryData == null || lastEntryData == null) {
+		return null;
+	}
 
 	const firstEntry = firstEntryData.timestamp;
 	const lastEntry = lastEntryData.timestamp;
 	const durationMinutes = (lastEntry.getTime() - firstEntry.getTime()) / (1000 * 60);
 
-	if (durationMinutes === 0) { return null; }
+	if (durationMinutes === 0) {
+		return null;
+	}
 
 	const totalTokens = block.tokenCounts.inputTokens + block.tokenCounts.outputTokens;
 	const tokensPerMinute = totalTokens / durationMinutes;
@@ -189,10 +203,14 @@ export function calculateBurnRate(block: FiveHourBlock): BurnRate | null {
 }
 
 export function projectBlockUsage(block: FiveHourBlock): ProjectedUsage | null {
-	if (!block.isActive || block.isGap) { return null; }
+	if (!block.isActive || (block.isGap ?? false)) {
+		return null;
+	}
 
 	const burnRate = calculateBurnRate(block);
-	if (!burnRate) { return null; }
+	if (burnRate == null) {
+		return null;
+	}
 
 	const now = new Date();
 	const remainingTime = block.endTime.getTime() - now.getTime();

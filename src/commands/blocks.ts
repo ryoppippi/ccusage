@@ -15,13 +15,13 @@ import {
 
 function formatBlockTime(block: FiveHourBlock): string {
 	const start = block.startTime.toLocaleString();
-	if (block.isGap) {
+	if (block.isGap ?? false) {
 		const end = block.endTime.toLocaleString();
 		const duration = Math.round((block.endTime.getTime() - block.startTime.getTime()) / (1000 * 60 * 60));
 		return `${start} - ${end} (${duration}h gap)`;
 	}
 
-	const duration = block.actualEndTime
+	const duration = block.actualEndTime != null
 		? Math.round((block.actualEndTime.getTime() - block.startTime.getTime()) / (1000 * 60))
 		: 0;
 
@@ -45,13 +45,19 @@ function formatBlockTime(block: FiveHourBlock): string {
 }
 
 function formatModels(models: string[]): string {
-	if (models.length === 0) { return '-'; }
-	if (models.length === 1) { return models[0] ?? '-'; }
+	if (models.length === 0) {
+		return '-';
+	}
+	if (models.length === 1) {
+		return models[0] ?? '-';
+	}
 	return models.join('\n');
 }
 
 function parseTokenLimit(value: string | undefined, maxFromAll: number): number | undefined {
-	if (!value) { return undefined; }
+	if (value == null || value === '') {
+		return undefined;
+	}
 	if (value === 'max') {
 		return maxFromAll > 0 ? maxFromAll : undefined;
 	}
@@ -110,7 +116,7 @@ export const blocksCommand = define({
 		let maxTokensFromAll = 0;
 		if (ctx.values.tokenLimit === 'max') {
 			for (const block of blocks) {
-				if (!block.isGap && !block.isActive) {
+				if (!(block.isGap ?? false) && !block.isActive) {
 					const blockTokens = block.tokenCounts.inputTokens + block.tokenCounts.outputTokens;
 					if (blockTokens > maxTokensFromAll) {
 						maxTokensFromAll = blockTokens;
@@ -151,9 +157,9 @@ export const blocksCommand = define({
 						id: block.id,
 						startTime: block.startTime.toISOString(),
 						endTime: block.endTime.toISOString(),
-						actualEndTime: block.actualEndTime?.toISOString() || null,
+						actualEndTime: block.actualEndTime != null ? block.actualEndTime.toISOString() : null,
 						isActive: block.isActive,
-						isGap: block.isGap || false,
+						isGap: block.isGap ?? false,
 						entries: block.entries.length,
 						tokenCounts: block.tokenCounts,
 						totalTokens:
@@ -163,10 +169,10 @@ export const blocksCommand = define({
 						models: block.models,
 						burnRate,
 						projection,
-						tokenLimitStatus: projection && ctx.values.tokenLimit
+						tokenLimitStatus: projection != null && ctx.values.tokenLimit != null
 							? (() => {
 									const limit = parseTokenLimit(ctx.values.tokenLimit, maxTokensFromAll);
-									return limit
+									return limit != null
 										? {
 												limit,
 												projectedUsage: projection.totalTokens,
@@ -189,7 +195,7 @@ export const blocksCommand = define({
 			if (ctx.values.active && blocks.length === 1) {
 				// Detailed active block view
 				const block = blocks[0];
-				if (!block) {
+				if (block == null) {
 					logger.warn('No active block found.');
 					process.exit(0);
 				}
@@ -214,21 +220,21 @@ export const blocksCommand = define({
 				log(`  Output Tokens:    ${formatNumber(block.tokenCounts.outputTokens)}`);
 				log(`  Total Cost:       ${formatCurrency(block.costUSD)}\n`);
 
-				if (burnRate) {
+				if (burnRate != null) {
 					log(pc.bold('Burn Rate:'));
 					log(`  Tokens/minute:    ${formatNumber(burnRate.tokensPerMinute)}`);
 					log(`  Cost/hour:        ${formatCurrency(burnRate.costPerHour)}\n`);
 				}
 
-				if (projection) {
+				if (projection != null) {
 					log(pc.bold('Projected Usage (if current rate continues):'));
 					log(`  Total Tokens:     ${formatNumber(projection.totalTokens)}`);
 					log(`  Total Cost:       ${formatCurrency(projection.totalCost)}\n`);
 
-					if (ctx.values.tokenLimit) {
+					if (ctx.values.tokenLimit != null) {
 						// Parse token limit
 						const limit = parseTokenLimit(ctx.values.tokenLimit, maxTokensFromAll);
-						if (limit) {
+						if (limit != null && limit > 0) {
 							const currentTokens = block.tokenCounts.inputTokens + block.tokenCounts.outputTokens;
 							const remainingTokens = Math.max(0, limit - currentTokens);
 							const percentUsed = (projection.totalTokens / limit) * 100;
@@ -258,7 +264,7 @@ export const blocksCommand = define({
 				const tableAligns: ('left' | 'right')[] = ['left', 'left', 'left', 'right'];
 
 				// Add % column if token limit is set
-				if (actualTokenLimit) {
+				if (actualTokenLimit != null && actualTokenLimit > 0) {
 					tableHeaders.push('%');
 					tableAligns.push('right');
 				}
@@ -273,7 +279,7 @@ export const blocksCommand = define({
 				});
 
 				for (const block of blocks) {
-					if (block.isGap) {
+					if (block.isGap ?? false) {
 						// Gap row
 						const gapRow = [
 							pc.gray(formatBlockTime(block)),
@@ -281,7 +287,7 @@ export const blocksCommand = define({
 							pc.gray('-'),
 							pc.gray('-'),
 						];
-						if (actualTokenLimit) {
+						if (actualTokenLimit != null && actualTokenLimit > 0) {
 							gapRow.push(pc.gray('-'));
 						}
 						gapRow.push(pc.gray('-'));
@@ -300,7 +306,7 @@ export const blocksCommand = define({
 						];
 
 						// Add percentage if token limit is set
-						if (actualTokenLimit) {
+						if (actualTokenLimit != null && actualTokenLimit > 0) {
 							const percentage = (totalTokens / actualTokenLimit) * 100;
 							const percentText = `${percentage.toFixed(1)}%`;
 							row.push(percentage > 100 ? pc.red(percentText) : percentText);
@@ -312,7 +318,7 @@ export const blocksCommand = define({
 						// Add REMAINING and PROJECTED rows for active blocks
 						if (block.isActive) {
 							// REMAINING row - only show if token limit is set
-							if (actualTokenLimit) {
+							if (actualTokenLimit != null && actualTokenLimit > 0) {
 								const currentTokens = block.tokenCounts.inputTokens + block.tokenCounts.outputTokens;
 								const remainingTokens = Math.max(0, actualTokenLimit - currentTokens);
 								const remainingText = remainingTokens > 0
@@ -338,9 +344,9 @@ export const blocksCommand = define({
 
 							// PROJECTED row
 							const projection = projectBlockUsage(block);
-							if (projection) {
+							if (projection != null) {
 								const projectedTokens = formatNumber(projection.totalTokens);
-								const projectedText = actualTokenLimit && projection.totalTokens > actualTokenLimit
+								const projectedText = actualTokenLimit != null && actualTokenLimit > 0 && projection.totalTokens > actualTokenLimit
 									? pc.red(projectedTokens)
 									: projectedTokens;
 
@@ -352,7 +358,7 @@ export const blocksCommand = define({
 								];
 
 								// Add percentage if token limit is set
-								if (actualTokenLimit) {
+								if (actualTokenLimit != null && actualTokenLimit > 0) {
 									const percentage = (projection.totalTokens / actualTokenLimit) * 100;
 									const percentText = `${percentage.toFixed(1)}%`;
 									projectedRow.push(percentage > 100 ? pc.red(percentText) : percentText);
