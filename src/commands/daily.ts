@@ -1,5 +1,4 @@
 import process from 'node:process';
-import Table from 'cli-table3';
 import { define } from 'gunshi';
 import pc from 'picocolors';
 import {
@@ -7,11 +6,12 @@ import {
 	createTotalsObject,
 	getTotalTokens,
 } from '../calculate-cost.ts';
-import { getDefaultClaudePath, loadDailyUsageData } from '../data-loader.ts';
+import { formatDateCompact, getDefaultClaudePath, loadDailyUsageData } from '../data-loader.ts';
 import { detectMismatches, printMismatchReport } from '../debug.ts';
 import { log, logger } from '../logger.ts';
 import { sharedCommandConfig } from '../shared-args.internal.ts';
 import { formatCurrency, formatModelsDisplay, formatNumber, pushBreakdownRows } from '../utils.internal.ts';
+import { ResponsiveTable } from '../utils.table.ts';
 
 export const dailyCommand = define({
 	name: 'daily',
@@ -28,6 +28,7 @@ export const dailyCommand = define({
 			claudePath: getDefaultClaudePath(),
 			mode: ctx.values.mode,
 			order: ctx.values.order,
+			offline: ctx.values.offline,
 		});
 
 		if (dailyData.length === 0) {
@@ -72,7 +73,7 @@ export const dailyCommand = define({
 			logger.box('Claude Code Token Usage Report - Daily');
 
 			// Create table
-			const table = new Table({
+			const table = new ResponsiveTable({
 				head: [
 					'Date',
 					'Models',
@@ -96,6 +97,7 @@ export const dailyCommand = define({
 					'right',
 					'right',
 				],
+				dateFormatter: formatDateCompact,
 			});
 
 			// Add daily data
@@ -118,16 +120,16 @@ export const dailyCommand = define({
 				}
 			}
 
-			// Add separator
+			// Add empty row for visual separation before totals
 			table.push([
-				'─'.repeat(12),
-				'─'.repeat(12),
-				'─'.repeat(12),
-				'─'.repeat(12),
-				'─'.repeat(12),
-				'─'.repeat(12),
-				'─'.repeat(12),
-				'─'.repeat(10),
+				'',
+				'',
+				'',
+				'',
+				'',
+				'',
+				'',
+				'',
 			]);
 
 			// Add totals

@@ -1,8 +1,7 @@
+import type { ModelPricing } from './types.internal.ts';
+
 import { describe, expect, it } from 'bun:test';
-import {
-	type ModelPricing,
-	PricingFetcher,
-} from './pricing-fetcher.ts';
+import { PricingFetcher } from './pricing-fetcher.ts';
 
 describe('pricing-fetcher', () => {
 	describe('PricingFetcher class', () => {
@@ -33,7 +32,7 @@ describe('pricing-fetcher', () => {
 					input_tokens: 1000,
 					output_tokens: 500,
 				},
-				'claude-sonnet-4-20250514',
+				'claude-4-sonnet-20250514',
 			);
 
 			expect(cost).toBeGreaterThan(0);
@@ -104,7 +103,7 @@ describe('pricing-fetcher', () => {
 	describe('calculateCostFromTokens', () => {
 		it('should calculate cost for claude-sonnet-4-20250514', async () => {
 			using fetcher = new PricingFetcher();
-			const modelName = 'claude-sonnet-4-20250514';
+			const modelName = 'claude-4-sonnet-20250514';
 			const pricing = await fetcher.getModelPricing(modelName);
 
 			// This model should exist in LiteLLM
@@ -112,16 +111,12 @@ describe('pricing-fetcher', () => {
 			expect(pricing?.input_cost_per_token).not.toBeUndefined();
 			expect(pricing?.output_cost_per_token).not.toBeUndefined();
 
-			if (pricing == null) {
-				throw new Error('Expected pricing for claude-sonnet-4-20250514');
-			}
-
 			const cost = fetcher.calculateCostFromPricing(
 				{
 					input_tokens: 1000,
 					output_tokens: 500,
 				},
-				pricing,
+				pricing!,
 			);
 
 			expect(cost).toBeGreaterThan(0);
@@ -129,16 +124,8 @@ describe('pricing-fetcher', () => {
 
 		it('should calculate cost including cache tokens for claude-sonnet-4-20250514', async () => {
 			using fetcher = new PricingFetcher();
-			const modelName = 'claude-sonnet-4-20250514';
+			const modelName = 'claude-4-sonnet-20250514';
 			const pricing = await fetcher.getModelPricing(modelName);
-
-			// Skip if cache pricing not available
-			if (
-				pricing?.cache_creation_input_token_cost == null
-				|| pricing?.cache_read_input_token_cost == null
-			) {
-				return;
-			}
 
 			const cost = fetcher.calculateCostFromPricing(
 				{
@@ -147,14 +134,14 @@ describe('pricing-fetcher', () => {
 					cache_creation_input_tokens: 200,
 					cache_read_input_tokens: 300,
 				},
-				pricing,
+				pricing!,
 			);
 
 			const expectedCost
-				= 1000 * (pricing.input_cost_per_token ?? 0)
-					+ 500 * (pricing.output_cost_per_token ?? 0)
-					+ 200 * pricing.cache_creation_input_token_cost
-					+ 300 * pricing.cache_read_input_token_cost;
+				= 1000 * (pricing!.input_cost_per_token ?? 0)
+					+ 500 * (pricing!.output_cost_per_token ?? 0)
+					+ 200 * (pricing!.cache_creation_input_token_cost ?? 0)
+					+ 300 * (pricing!.cache_read_input_token_cost ?? 0);
 
 			expect(cost).toBeCloseTo(expectedCost);
 			expect(cost).toBeGreaterThan(0);
@@ -162,7 +149,7 @@ describe('pricing-fetcher', () => {
 
 		it('should calculate cost for claude-opus-4-20250514', async () => {
 			using fetcher = new PricingFetcher();
-			const modelName = 'claude-opus-4-20250514';
+			const modelName = 'claude-4-opus-20250514';
 			const pricing = await fetcher.getModelPricing(modelName);
 
 			// This model should exist in LiteLLM
@@ -170,16 +157,12 @@ describe('pricing-fetcher', () => {
 			expect(pricing?.input_cost_per_token).not.toBeUndefined();
 			expect(pricing?.output_cost_per_token).not.toBeUndefined();
 
-			if (pricing == null) {
-				throw new Error('Expected pricing for claude-opus-4-20250514');
-			}
-
 			const cost = fetcher.calculateCostFromPricing(
 				{
 					input_tokens: 1000,
 					output_tokens: 500,
 				},
-				pricing,
+				pricing!,
 			);
 
 			expect(cost).toBeGreaterThan(0);
@@ -187,16 +170,8 @@ describe('pricing-fetcher', () => {
 
 		it('should calculate cost including cache tokens for claude-opus-4-20250514', async () => {
 			using fetcher = new PricingFetcher();
-			const modelName = 'claude-opus-4-20250514';
+			const modelName = 'claude-4-opus-20250514';
 			const pricing = await fetcher.getModelPricing(modelName);
-
-			// Skip if cache pricing not available
-			if (
-				pricing?.cache_creation_input_token_cost == null
-				|| pricing?.cache_read_input_token_cost == null
-			) {
-				return;
-			}
 
 			const cost = fetcher.calculateCostFromPricing(
 				{
@@ -205,14 +180,14 @@ describe('pricing-fetcher', () => {
 					cache_creation_input_tokens: 200,
 					cache_read_input_tokens: 300,
 				},
-				pricing,
+				pricing!,
 			);
 
 			const expectedCost
-				= 1000 * (pricing.input_cost_per_token ?? 0)
-					+ 500 * (pricing.output_cost_per_token ?? 0)
-					+ 200 * pricing.cache_creation_input_token_cost
-					+ 300 * pricing.cache_read_input_token_cost;
+				= 1000 * (pricing!.input_cost_per_token ?? 0)
+					+ 500 * (pricing!.output_cost_per_token ?? 0)
+					+ 200 * (pricing!.cache_creation_input_token_cost ?? 0)
+					+ 300 * (pricing!.cache_read_input_token_cost ?? 0);
 
 			expect(cost).toBeCloseTo(expectedCost);
 			expect(cost).toBeGreaterThan(0);
@@ -250,6 +225,37 @@ describe('pricing-fetcher', () => {
 			);
 
 			expect(cost).toBe(0);
+		});
+	});
+
+	describe('offline mode', () => {
+		it('should use pre-fetched data in offline mode when available', async () => {
+			using fetcher = new PricingFetcher(true); // offline mode
+
+			const pricing = await fetcher.fetchModelPricing();
+
+			// Should have Claude models from pre-fetched data
+			expect(pricing.size).toBeGreaterThan(0);
+
+			// Should contain Claude models
+			const claudeModels = Array.from(pricing.keys()).filter(key =>
+				key.startsWith('claude-'),
+			);
+			expect(claudeModels.length).toBeGreaterThan(0);
+		});
+
+		it('should calculate costs in offline mode when data available', async () => {
+			using fetcher = new PricingFetcher(true); // offline mode
+
+			const cost = await fetcher.calculateCostFromTokens(
+				{
+					input_tokens: 1000,
+					output_tokens: 500,
+				},
+				'claude-4-sonnet-20250514',
+			);
+
+			expect(cost).toBeGreaterThan(0);
 		});
 	});
 });

@@ -1,7 +1,7 @@
 {
 	"name": "ccusage",
 	"type": "module",
-	"version": "0.8.0",
+	"version": "9.0.1",
 	"description": "Usage analysis tool for Claude Code",
 	"author": "ryoppippi",
 	"license": "MIT",
@@ -22,6 +22,7 @@
 		"./logger": "./dist/logger.js",
 		"./mcp": "./dist/mcp.js",
 		"./pricing-fetcher": "./dist/pricing-fetcher.js",
+		"./utils.table": "./dist/utils.table.js",
 		"./package.json": "./package.json"
 	},
 	"main": "./dist/index.js",
@@ -54,7 +55,7 @@
 		"cli-table3": "^0.6.5",
 		"consola": "^3.4.2",
 		"es-toolkit": "^1.39.3",
-		"eslint": "^9.28.0",
+		"eslint": "^9.29.0",
 		"eslint-plugin-format": "^1.0.1",
 		"fast-sort": "^3.4.1",
 		"fastmcp": "^2.2.4",
@@ -66,9 +67,11 @@
 		"publint": "^0.3.12",
 		"simple-git-hooks": "^2.13.0",
 		"sort-package-json": "^3.2.1",
+		"string-width": "^7.2.0",
 		"tinyglobby": "^0.2.14",
 		"tsdown": "^0.12.7",
 		"type-fest": "^4.41.0",
+		"unplugin-macros": "^0.17.0",
 		"unplugin-unused": "^0.5.1",
 		"valibot": "^1.1.0"
 	},

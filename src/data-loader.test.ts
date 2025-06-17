@@ -6,6 +6,7 @@ import { createFixture } from 'fs-fixture';
 import {
 	calculateCostForEntry,
 	formatDate,
+	formatDateCompact,
 	getDefaultClaudePath,
 	loadDailyUsageData,
 	loadMonthlyUsageData,
@@ -30,6 +31,24 @@ describe('formatDate', () => {
 	test('pads single digit months and days', () => {
 		expect(formatDate('2024-01-05T00:00:00Z')).toBe('2024-01-05');
 		expect(formatDate('2024-10-01T00:00:00Z')).toBe('2024-10-01');
+	});
+});
+
+describe('formatDateCompact', () => {
+	test('formats UTC timestamp to local date with line break', () => {
+		expect(formatDateCompact('2024-01-01T00:00:00Z')).toBe('2024\n01-01');
+	});
+
+	test('handles various date formats', () => {
+		expect(formatDateCompact('2024-12-31T23:59:59Z')).toBe('2024\n12-31');
+		expect(formatDateCompact('2024-01-01')).toBe('2024\n01-01');
+		expect(formatDateCompact('2024-01-01T12:00:00')).toBe('2024\n01-01');
+		expect(formatDateCompact('2024-01-01T12:00:00.000Z')).toBe('2024\n01-01');
+	});
+
+	test('pads single digit months and days', () => {
+		expect(formatDateCompact('2024-01-05T00:00:00Z')).toBe('2024\n01-05');
+		expect(formatDateCompact('2024-10-01T00:00:00Z')).toBe('2024\n10-01');
 	});
 });
 
@@ -1192,7 +1211,7 @@ describe('data-loader cost calculation with real pricing', () => {
 				timestamp: '2024-01-17T11:00:00Z',
 				message: {
 					usage: { input_tokens: 200, output_tokens: 100 },
-					model: 'claude-sonnet-4-20250514',
+					model: 'claude-4-sonnet-20250514',
 				},
 			};
 
@@ -1261,7 +1280,7 @@ describe('data-loader cost calculation with real pricing', () => {
 				timestamp: '2024-01-16T10:00:00Z',
 				message: {
 					usage: { input_tokens: 2000, output_tokens: 1000 },
-					model: 'claude-sonnet-4-20250514',
+					model: 'claude-4-sonnet-20250514',
 				},
 			};
 
@@ -1332,7 +1351,7 @@ describe('data-loader cost calculation with real pricing', () => {
 						cache_creation_input_tokens: 2000,
 						cache_read_input_tokens: 1500,
 					},
-					model: 'claude-sonnet-4-20250514',
+					model: 'claude-4-sonnet-20250514',
 				},
 			};
 
@@ -1409,7 +1428,7 @@ describe('data-loader cost calculation with real pricing', () => {
 				timestamp: '2024-01-01T11:00:00Z',
 				message: {
 					usage: { input_tokens: 2000, output_tokens: 1000 },
-					model: 'claude-sonnet-4-20250514',
+					model: 'claude-4-sonnet-20250514',
 				},
 			};
 
@@ -1437,7 +1456,7 @@ describe('data-loader cost calculation with real pricing', () => {
 				timestamp: '2024-01-01T10:00:00Z',
 				message: {
 					usage: { input_tokens: 1000, output_tokens: 500 },
-					model: 'claude-sonnet-4-20250514',
+					model: 'claude-4-sonnet-20250514',
 				},
 				costUSD: 99.99, // This should be ignored
 			};
@@ -1467,7 +1486,7 @@ describe('data-loader cost calculation with real pricing', () => {
 				timestamp: '2024-01-01T10:00:00Z',
 				message: {
 					usage: { input_tokens: 1000, output_tokens: 500 },
-					model: 'claude-sonnet-4-20250514',
+					model: 'claude-4-sonnet-20250514',
 				},
 				costUSD: 0.05,
 			};
@@ -1476,7 +1495,7 @@ describe('data-loader cost calculation with real pricing', () => {
 				timestamp: '2024-01-01T11:00:00Z',
 				message: {
 					usage: { input_tokens: 2000, output_tokens: 1000 },
-					model: 'claude-sonnet-4-20250514',
+					model: 'claude-4-sonnet-20250514',
 				},
 				// No costUSD - should result in 0 cost
 			};
@@ -1505,7 +1524,7 @@ describe('data-loader cost calculation with real pricing', () => {
 				timestamp: '2024-01-01T10:00:00Z',
 				message: {
 					usage: { input_tokens: 1000, output_tokens: 500 },
-					model: 'claude-sonnet-4-20250514',
+					model: 'claude-4-sonnet-20250514',
 				},
 				costUSD: 99.99,
 			};
@@ -1542,7 +1561,7 @@ describe('data-loader cost calculation with real pricing', () => {
 				timestamp: '2024-01-01T10:00:00Z',
 				message: {
 					usage: { input_tokens: 1000, output_tokens: 500 },
-					model: 'claude-sonnet-4-20250514',
+					model: 'claude-4-sonnet-20250514',
 				},
 				costUSD: 0.05,
 			};
@@ -1572,7 +1591,7 @@ describe('data-loader cost calculation with real pricing', () => {
 				timestamp: '2024-01-01T10:00:00Z',
 				message: {
 					usage: { input_tokens: 1000, output_tokens: 500 },
-					model: 'claude-sonnet-4-20250514',
+					model: 'claude-4-sonnet-20250514',
 				},
 				costUSD: 0.05,
 			};
@@ -1603,7 +1622,7 @@ describe('data-loader cost calculation with real pricing', () => {
 				timestamp: '2024-01-01T10:00:00Z',
 				message: {
 					usage: { input_tokens: 1000, output_tokens: 500 },
-					model: 'claude-sonnet-4-20250514',
+					model: 'claude-4-sonnet-20250514',
 				},
 				// No costUSD, so auto mode will need to calculate
 			};
@@ -1633,7 +1652,7 @@ describe('data-loader cost calculation with real pricing', () => {
 				timestamp: '2024-01-01T10:00:00Z',
 				message: {
 					usage: { input_tokens: 1000, output_tokens: 500 },
-					model: 'claude-sonnet-4-20250514',
+					model: 'claude-4-sonnet-20250514',
 				},
 				costUSD: 0.05,
 			};
@@ -1742,7 +1761,7 @@ describe('calculateCostForEntry', () => {
 						input_tokens: 1000,
 						output_tokens: 500,
 					},
-					model: 'claude-sonnet-4-20250514',
+					model: 'claude-4-sonnet-20250514',
 				},
 			};
 
@@ -1797,7 +1816,7 @@ describe('calculateCostForEntry', () => {
 						input_tokens: 1000,
 						output_tokens: 500,
 					},
-					model: 'claude-sonnet-4-20250514',
+					model: 'claude-4-sonnet-20250514',
 				},
 			};
 
@@ -1827,7 +1846,7 @@ describe('calculateCostForEntry', () => {
 						input_tokens: 1000,
 						output_tokens: 500,
 					},
-					model: 'claude-sonnet-4-20250514',
+					model: 'claude-4-sonnet-20250514',
 				},
 			};
 
@@ -1900,6 +1919,22 @@ describe('calculateCostForEntry', () => {
 			using fetcher = new PricingFetcher();
 			const result = await calculateCostForEntry(dataWithNegativeCost, 'display', fetcher);
 			expect(result).toBe(-0.01);
+		});
+	});
+
+	describe('offline mode', () => {
+		test('should pass offline flag through loadDailyUsageData', async () => {
+			await using fixture = await createFixture({ projects: {} });
+			// This test verifies that the offline flag is properly passed through
+			// We can't easily mock the internal behavior, but we can verify it doesn't throw
+			const result = await loadDailyUsageData({
+				claudePath: fixture.path,
+				offline: true,
+				mode: 'calculate',
+			});
+
+			// Should return empty array or valid data without throwing
+			expect(Array.isArray(result)).toBe(true);
 		});
 	});
 });

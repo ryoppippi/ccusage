@@ -11,3 +11,12 @@ export type CostMode = TupleToUnion<typeof CostModes>;
 
 export const SortOrders = ['desc', 'asc'] as const;
 export type SortOrder = TupleToUnion<typeof SortOrders>;
+
+export const ModelPricingSchema = v.object({
+	input_cost_per_token: v.optional(v.number()),
+	output_cost_per_token: v.optional(v.number()),
+	cache_creation_input_token_cost: v.optional(v.number()),
+	cache_read_input_token_cost: v.optional(v.number()),
+});
+
+export type ModelPricing = v.InferOutput<typeof ModelPricingSchema>;

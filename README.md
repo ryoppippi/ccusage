@@ -45,10 +45,12 @@ This tool helps you understand the value you're getting from your subscription b
 - 📊 **Model Breakdown**: View per-model cost breakdown with `--breakdown` flag
 - 📅 **Date Filtering**: Filter reports by date range using `--since` and `--until`
 - 📁 **Custom Path**: Support for custom Claude data directory locations
-- 🎨 **Beautiful Output**: Colorful table-formatted display
+- 🎨 **Beautiful Output**: Colorful table-formatted display with responsive width adjustment
 - 📄 **JSON Output**: Export data in structured JSON format with `--json`
 - 💰 **Cost Tracking**: Shows costs in USD for each day/month/session
 - 🔄 **Cache Token Support**: Tracks and displays cache creation and cache read tokens separately
+- 🌐 **Offline Mode**: Use pre-cached pricing data without network connectivity with `--offline` (Claude models only)
+- 📏 **Responsive Tables**: Automatic table width adjustment for narrow terminals with intelligent word wrapping
 
 ## Important Disclaimer
 
@@ -147,6 +149,10 @@ ccusage daily --order desc      # Show newest dates first (default)
 
 # Show per-model cost breakdown
 ccusage daily --breakdown       # Show cost breakdown by model (opus-4, sonnet-4, etc.)
+
+# Use offline mode (no network required)
+ccusage daily --offline         # Use pre-cached pricing data
+ccusage daily -O                # Short alias for --offline
 ```
 
 `ccusage` is an alias for `ccusage daily`, so you can run it without specifying the subcommand.
@@ -183,6 +189,10 @@ ccusage monthly --order desc      # Show newest months first (default)
 
 # Show per-model cost breakdown
 ccusage monthly --breakdown       # Show cost breakdown by model
+
+# Use offline mode (no network required)
+ccusage monthly --offline         # Use pre-cached pricing data
+ccusage monthly -O                # Short alias for --offline
 ```
 
 ### Session Report
@@ -214,6 +224,10 @@ ccusage session --order desc      # Show newest sessions first (default)
 
 # Show per-model cost breakdown
 ccusage session --breakdown       # Show cost breakdown by model
+
+# Use offline mode (no network required)
+ccusage session --offline         # Use pre-cached pricing data
+ccusage session -O                # Short alias for --offline
 ```
 
 ### 5-Hour Blocks Report
@@ -275,6 +289,7 @@ All commands support the following options:
 - `-m, --mode <mode>`: Cost calculation mode: `auto` (default), `calculate`, or `display`
 - `-o, --order <order>`: Sort order: `desc` (newest first, default) or `asc` (oldest first).
 - `-b, --breakdown`: Show per-model cost breakdown (splits usage by Opus, Sonnet, etc.)
+- `-O, --offline`: Use pre-cached pricing data for Claude models (no network connection required)
 - `-d, --debug`: Show pricing mismatch information for debugging
 - `--debug-samples <number>`: Number of sample discrepancies to show in debug output (default: 5)
 - `-h, --help`: Display help message

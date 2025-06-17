@@ -315,6 +315,14 @@ export function formatDate(dateStr: string): string {
 	return `${year}-${month}-${day}`;
 }
 
+export function formatDateCompact(dateStr: string): string {
+	const date = new Date(dateStr);
+	const year = date.getFullYear();
+	const month = String(date.getMonth() + 1).padStart(2, '0');
+	const day = String(date.getDate()).padStart(2, '0');
+	return `${year}\n${month}-${day}`;
+}
+
 /**
  * Generic function to sort items by date based on sort order
  * @param items - Array of items to sort
@@ -469,6 +477,7 @@ export type LoadOptions = {
 	claudePath?: string; // Custom path to Claude data directory
 	mode?: CostMode; // Cost calculation mode
 	order?: SortOrder; // Sort order for dates
+	offline?: boolean; // Use offline mode for pricing
 } & DateFilter;
 
 export async function loadDailyUsageData(
@@ -492,7 +501,7 @@ export async function loadDailyUsageData(
 	const mode = options?.mode ?? 'auto';
 
 	// Use PricingFetcher with using statement for automatic cleanup
-	using fetcher = mode === 'display' ? null : new PricingFetcher();
+	using fetcher = mode === 'display' ? null : new PricingFetcher(options?.offline);
 
 	// Track processed message+request combinations for deduplication
 	const processedHashes = new Set<string>();
@@ -608,7 +617,7 @@ export async function loadSessionData(
 	const mode = options?.mode ?? 'auto';
 
 	// Use PricingFetcher with using statement for automatic cleanup
-	using fetcher = mode === 'display' ? null : new PricingFetcher();
+	using fetcher = mode === 'display' ? null : new PricingFetcher(options?.offline);
 
 	// Track processed message+request combinations for deduplication
 	const processedHashes = new Set<string>();
