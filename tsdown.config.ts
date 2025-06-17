@@ -10,6 +10,8 @@ export default defineConfig({
 	format: 'esm',
 	clean: true,
 	sourcemap: false,
+	minify: 'dce-only',
+	treeshake: true,
 	external: [
 		// fastMCP
 		'sury',
