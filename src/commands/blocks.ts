@@ -47,7 +47,7 @@ function formatBlockTime(block: FiveHourBlock): string {
 function formatModels(models: string[]): string {
 	if (models.length === 0) { return '-'; }
 	if (models.length === 1) { return models[0] ?? '-'; }
-	return `${models[0]} +${models.length - 1}`;
+	return models.join('\n');
 }
 
 function parseTokenLimit(value: string | undefined, maxFromAll: number): number | undefined {
