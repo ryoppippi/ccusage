@@ -474,6 +474,14 @@ some projects use `ccusage` internally and provide additional features:
 
 Thanks to [@milliondev](https://note.com/milliondev) for the original concept and approach to Claude Code usage analysis.
 
+## Sponsors
+
+<p align="center">
+	<a href="https://github.com/sponsors/ryoppippi">
+		<img src="https://cdn.jsdelivr.net/gh/ryoppippi/sponsors/sponsors.svg">
+	</a>
+</p>
+
 ## Star History
 
 <a href="https://www.star-history.com/#ryoppippi/ccusage&Date">
