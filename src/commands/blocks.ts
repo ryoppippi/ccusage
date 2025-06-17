@@ -11,7 +11,7 @@ import {
 	filterRecentBlocks,
 	type FiveHourBlock,
 	projectBlockUsage,
-} from '../utils/five-hour-blocks.ts';
+} from '../five-hour-blocks.internal.ts';
 
 function formatBlockTime(block: FiveHourBlock, compact = false): string {
 	const start = compact
