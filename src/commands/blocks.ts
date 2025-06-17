@@ -51,7 +51,8 @@ function formatModels(models: string[]): string {
 	if (models.length === 1) {
 		return models[0] ?? '-';
 	}
-	return models.join('\n');
+	// Use comma separation instead of newlines to prevent table layout issues
+	return models.join(', ');
 }
 
 function parseTokenLimit(value: string | undefined, maxFromAll: number): number | undefined {
