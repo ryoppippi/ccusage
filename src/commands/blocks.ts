@@ -286,11 +286,11 @@ export const blocksCommand = define({
 							pc.gray('(inactive)'),
 							pc.gray('-'),
 							pc.gray('-'),
+							pc.gray('-'),
 						];
 						if (actualTokenLimit != null && actualTokenLimit > 0) {
 							gapRow.push(pc.gray('-'));
 						}
-						gapRow.push(pc.gray('-'));
 						table.push(gapRow);
 					}
 					else {
@@ -361,10 +361,7 @@ export const blocksCommand = define({
 								if (actualTokenLimit != null && actualTokenLimit > 0) {
 									const percentage = (projection.totalTokens / actualTokenLimit) * 100;
 									const percentText = `${percentage.toFixed(1)}%`;
-									projectedRow.push(percentage > 100 ? pc.red(percentText) : percentText);
-								}
-								else {
-									projectedRow.push(''); // Empty cell for percentage column
+									projectedRow.push(percentText);
 								}
 
 								projectedRow.push(formatCurrency(projection.totalCost));
