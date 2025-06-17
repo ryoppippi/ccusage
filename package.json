@@ -74,7 +74,7 @@
 		"unplugin-macros": "^0.17.0",
 		"unplugin-unused": "^0.5.1",
 		"valibot": "^1.1.0",
-		"vitest": "^2.1.12"
+		"vitest": "^3.2.4"
 	},
 	"simple-git-hooks": {
 		"pre-commit": "bun lint-staged"

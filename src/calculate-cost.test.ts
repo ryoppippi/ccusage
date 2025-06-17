@@ -1,13 +1,12 @@
 import type { DailyUsage, SessionUsage } from './data-loader';
-import { describe, expect, test } from 'bun:test';
 import {
 	calculateTotals,
 	createTotalsObject,
 	getTotalTokens,
 } from './calculate-cost.ts';
 
-describe('Token aggregation utilities', () => {
-	test('calculateTotals should aggregate daily usage data', () => {
+describe('token aggregation utilities', () => {
+	it('calculateTotals should aggregate daily usage data', () => {
 		const dailyData: DailyUsage[] = [
 			{
 				date: '2024-01-01',
@@ -39,7 +38,7 @@ describe('Token aggregation utilities', () => {
 		expect(totals.totalCost).toBeCloseTo(0.03);
 	});
 
-	test('calculateTotals should aggregate session usage data', () => {
+	it('calculateTotals should aggregate session usage data', () => {
 		const sessionData: SessionUsage[] = [
 			{
 				sessionId: 'session-1',
@@ -77,7 +76,7 @@ describe('Token aggregation utilities', () => {
 		expect(totals.totalCost).toBeCloseTo(0.03);
 	});
 
-	test('getTotalTokens should sum all token types', () => {
+	it('getTotalTokens should sum all token types', () => {
 		const tokens = {
 			inputTokens: 100,
 			outputTokens: 50,
@@ -89,7 +88,7 @@ describe('Token aggregation utilities', () => {
 		expect(total).toBe(185);
 	});
 
-	test('getTotalTokens should handle zero values', () => {
+	it('getTotalTokens should handle zero values', () => {
 		const tokens = {
 			inputTokens: 0,
 			outputTokens: 0,
@@ -101,7 +100,7 @@ describe('Token aggregation utilities', () => {
 		expect(total).toBe(0);
 	});
 
-	test('createTotalsObject should create complete totals object', () => {
+	it('createTotalsObject should create complete totals object', () => {
 		const totals = {
 			inputTokens: 100,
 			outputTokens: 50,
@@ -121,7 +120,7 @@ describe('Token aggregation utilities', () => {
 		});
 	});
 
-	test('calculateTotals should handle empty array', () => {
+	it('calculateTotals should handle empty array', () => {
 		const totals = calculateTotals([]);
 		expect(totals).toEqual({
 			inputTokens: 0,
