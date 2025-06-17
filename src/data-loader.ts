@@ -130,7 +130,7 @@ export type SessionUsage = v.InferOutput<typeof sessionUsageSchema>;
 /**
  * Valibot schema for monthly usage aggregation data
  */
-export const MonthlyUsageSchema = v.object({
+export const monthlyUsageSchema = v.object({
 	month: v.pipe(
 		v.string(),
 		v.regex(/^\d{4}-\d{2}$/), // YYYY-MM format
@@ -147,7 +147,7 @@ export const MonthlyUsageSchema = v.object({
 /**
  * Type definition for monthly usage aggregation
  */
-export type MonthlyUsage = v.InferOutput<typeof MonthlyUsageSchema>;
+export type MonthlyUsage = v.InferOutput<typeof monthlyUsageSchema>;
 
 /**
  * Internal type for aggregating token statistics and costs
