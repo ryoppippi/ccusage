@@ -69,7 +69,7 @@ export type UsageData = v.InferOutput<typeof usageDataSchema>;
 /**
  * Valibot schema for model-specific usage breakdown data
  */
-export const ModelBreakdownSchema = v.object({
+export const modelBreakdownSchema = v.object({
 	modelName: v.string(),
 	inputTokens: v.number(),
 	outputTokens: v.number(),
@@ -81,7 +81,7 @@ export const ModelBreakdownSchema = v.object({
 /**
  * Type definition for model-specific usage breakdown
  */
-export type ModelBreakdown = v.InferOutput<typeof ModelBreakdownSchema>;
+export type ModelBreakdown = v.InferOutput<typeof modelBreakdownSchema>;
 
 /**
  * Valibot schema for daily usage aggregation data
@@ -97,7 +97,7 @@ export const DailyUsageSchema = v.object({
 	cacheReadTokens: v.number(),
 	totalCost: v.number(),
 	modelsUsed: v.array(v.string()),
-	modelBreakdowns: v.array(ModelBreakdownSchema),
+	modelBreakdowns: v.array(modelBreakdownSchema),
 });
 
 /**
@@ -119,7 +119,7 @@ export const SessionUsageSchema = v.object({
 	lastActivity: v.string(),
 	versions: v.array(v.string()), // List of unique versions used in this session
 	modelsUsed: v.array(v.string()),
-	modelBreakdowns: v.array(ModelBreakdownSchema),
+	modelBreakdowns: v.array(modelBreakdownSchema),
 });
 
 /**
@@ -141,7 +141,7 @@ export const MonthlyUsageSchema = v.object({
 	cacheReadTokens: v.number(),
 	totalCost: v.number(),
 	modelsUsed: v.array(v.string()),
-	modelBreakdowns: v.array(ModelBreakdownSchema),
+	modelBreakdowns: v.array(modelBreakdownSchema),
 });
 
 /**
