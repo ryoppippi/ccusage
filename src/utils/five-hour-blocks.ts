@@ -188,7 +188,7 @@ export function calculateBurnRate(block: FiveHourBlock): BurnRate | null {
 	const lastEntry = lastEntryData.timestamp;
 	const durationMinutes = (lastEntry.getTime() - firstEntry.getTime()) / (1000 * 60);
 
-	if (durationMinutes === 0) {
+	if (durationMinutes <= 0) {
 		return null;
 	}
 
