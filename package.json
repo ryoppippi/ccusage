@@ -59,7 +59,6 @@
 		"eslint": "^9.29.0",
 		"eslint-plugin-format": "^1.0.1",
 		"fast-sort": "^3.4.1",
-		"fetch-to-node": "^2.1.0",
 		"fs-fixture": "^2.8.1",
 		"gunshi": "^0.26.3",
 		"hono": "^4.8.0",
