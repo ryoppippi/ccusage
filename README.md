@@ -1,7 +1,7 @@
 # ccusage
 
 <div align="center">
-  <img src="docs/logo.png" alt="ccusage logo" width="128" height="128">
+  <img src="docs/logo.png" alt="ccusage logo" width="256" height="256">
 </div>
 
 [![npm version](https://img.shields.io/npm/v/ccusage?color=yellow)](https://npmjs.com/package/ccusage)
