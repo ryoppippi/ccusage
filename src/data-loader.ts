@@ -1,4 +1,10 @@
-import type { CostMode, SortOrder } from './types.internal.ts';
+import type {
+	ActivityDate,
+	CostMode,
+	ModelName,
+	SortOrder,
+	Version,
+} from './types.internal.ts';
 import { readFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import path, { join } from 'node:path';
@@ -19,6 +25,27 @@ import {
 	type LoadedUsageEntry,
 	type SessionBlock,
 } from './session-blocks.internal.ts';
+import {
+	activityDateSchema,
+	createDailyDate,
+	createISOTimestamp,
+	createMessageId,
+	createModelName,
+	createMonthlyDate,
+	createProjectPath,
+	createRequestId,
+	createSessionId,
+	createVersion,
+	dailyDateSchema,
+	isoTimestampSchema,
+	messageIdSchema,
+	modelNameSchema,
+	monthlyDateSchema,
+	projectPathSchema,
+	requestIdSchema,
+	sessionIdSchema,
+	versionSchema,
+} from './types.internal.ts';
 
 /**
  * Default Claude data directory path (~/.claude)
@@ -59,8 +86,8 @@ Please set CLAUDE_CONFIG_DIR to a valid path, or ensure ${DEFAULT_CLAUDE_CODE_PA
  * Zod schema for validating Claude usage data from JSONL files
  */
 export const usageDataSchema = z.object({
-	timestamp: z.string(),
-	version: z.string().optional(), // Claude Code version
+	timestamp: isoTimestampSchema,
+	version: versionSchema.optional(), // Claude Code version
 	message: z.object({
 		usage: z.object({
 			input_tokens: z.number(),
@@ -68,11 +95,11 @@ export const usageDataSchema = z.object({
 			cache_creation_input_tokens: z.number().optional(),
 			cache_read_input_tokens: z.number().optional(),
 		}),
-		model: z.string().optional(), // Model is inside message object
-		id: z.string().optional(), // Message ID for deduplication
+		model: modelNameSchema.optional(), // Model is inside message object
+		id: messageIdSchema.optional(), // Message ID for deduplication
 	}),
 	costUSD: z.number().optional(), // Made optional for new schema
-	requestId: z.string().optional(), // Request ID for deduplication
+	requestId: requestIdSchema.optional(), // Request ID for deduplication
 });
 
 /**
@@ -84,7 +111,7 @@ export type UsageData = z.infer<typeof usageDataSchema>;
  * Zod schema for model-specific usage breakdown data
  */
 export const modelBreakdownSchema = z.object({
-	modelName: z.string(),
+	modelName: modelNameSchema,
 	inputTokens: z.number(),
 	outputTokens: z.number(),
 	cacheCreationTokens: z.number(),
@@ -101,13 +128,13 @@ export type ModelBreakdown = z.infer<typeof modelBreakdownSchema>;
  * Zod schema for daily usage aggregation data
  */
 export const dailyUsageSchema = z.object({
-	date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), // YYYY-MM-DD format
+	date: dailyDateSchema, // YYYY-MM-DD format
 	inputTokens: z.number(),
 	outputTokens: z.number(),
 	cacheCreationTokens: z.number(),
 	cacheReadTokens: z.number(),
 	totalCost: z.number(),
-	modelsUsed: z.array(z.string()),
+	modelsUsed: z.array(modelNameSchema),
 	modelBreakdowns: z.array(modelBreakdownSchema),
 });
 
@@ -120,16 +147,16 @@ export type DailyUsage = z.infer<typeof dailyUsageSchema>;
  * Zod schema for session-based usage aggregation data
  */
 export const sessionUsageSchema = z.object({
-	sessionId: z.string(),
-	projectPath: z.string(),
+	sessionId: sessionIdSchema,
+	projectPath: projectPathSchema,
 	inputTokens: z.number(),
 	outputTokens: z.number(),
 	cacheCreationTokens: z.number(),
 	cacheReadTokens: z.number(),
 	totalCost: z.number(),
-	lastActivity: z.string(),
-	versions: z.array(z.string()), // List of unique versions used in this session
-	modelsUsed: z.array(z.string()),
+	lastActivity: activityDateSchema,
+	versions: z.array(versionSchema), // List of unique versions used in this session
+	modelsUsed: z.array(modelNameSchema),
 	modelBreakdowns: z.array(modelBreakdownSchema),
 });
 
@@ -142,13 +169,13 @@ export type SessionUsage = z.infer<typeof sessionUsageSchema>;
  * Zod schema for monthly usage aggregation data
  */
 export const monthlyUsageSchema = z.object({
-	month: z.string().regex(/^\d{4}-\d{2}$/), // YYYY-MM format
+	month: monthlyDateSchema, // YYYY-MM format
 	inputTokens: z.number(),
 	outputTokens: z.number(),
 	cacheCreationTokens: z.number(),
 	cacheReadTokens: z.number(),
 	totalCost: z.number(),
-	modelsUsed: z.array(z.string()),
+	modelsUsed: z.array(modelNameSchema),
 	modelBreakdowns: z.array(modelBreakdownSchema),
 });
 
@@ -253,7 +280,7 @@ function createModelBreakdowns(
 ): ModelBreakdown[] {
 	return Array.from(modelAggregates.entries())
 		.map(([modelName, stats]) => ({
-			modelName,
+			modelName: modelName as ModelName,
 			...stats,
 		}))
 		.sort((a, b) => b.cost - a.cost); // Sort by cost descending
@@ -656,9 +683,9 @@ export async function loadDailyUsageData(
 			const modelsUsed = extractUniqueModels(entries, e => e.model);
 
 			return {
-				date,
+				date: createDailyDate(date),
 				...totals,
-				modelsUsed,
+				modelsUsed: modelsUsed as ModelName[],
 				modelBreakdowns,
 			};
 		})
@@ -818,12 +845,12 @@ export async function loadSessionData(
 			const modelsUsed = extractUniqueModels(entries, e => e.model);
 
 			return {
-				sessionId: latestEntry.sessionId,
-				projectPath: latestEntry.projectPath,
+				sessionId: createSessionId(latestEntry.sessionId),
+				projectPath: createProjectPath(latestEntry.projectPath),
 				...totals,
-				lastActivity: formatDate(latestEntry.timestamp),
-				versions: uniq(versions).sort(),
-				modelsUsed,
+				lastActivity: formatDate(latestEntry.timestamp) as ActivityDate,
+				versions: uniq(versions).sort() as Version[],
+				modelsUsed: modelsUsed as ModelName[],
 				modelBreakdowns,
 			};
 		})
@@ -890,13 +917,13 @@ export async function loadMonthlyUsageData(
 			totalCost += daily.totalCost;
 		}
 		const monthlyUsage: MonthlyUsage = {
-			month,
+			month: createMonthlyDate(month),
 			inputTokens: totalInputTokens,
 			outputTokens: totalOutputTokens,
 			cacheCreationTokens: totalCacheCreationTokens,
 			cacheReadTokens: totalCacheReadTokens,
 			totalCost,
-			modelsUsed: uniq(models),
+			modelsUsed: uniq(models) as ModelName[],
 			modelBreakdowns,
 		};
 
@@ -1126,19 +1153,19 @@ if (import.meta.vitest != null) {
 		it('aggregates daily usage data correctly', async () => {
 			const mockData1: UsageData[] = [
 				{
-					timestamp: '2024-01-01T00:00:00Z',
+					timestamp: createISOTimestamp('2024-01-01T00:00:00Z'),
 					message: { usage: { input_tokens: 100, output_tokens: 50 } },
 					costUSD: 0.01,
 				},
 				{
-					timestamp: '2024-01-01T12:00:00Z',
+					timestamp: createISOTimestamp('2024-01-01T12:00:00Z'),
 					message: { usage: { input_tokens: 200, output_tokens: 100 } },
 					costUSD: 0.02,
 				},
 			];
 
 			const mockData2: UsageData = {
-				timestamp: '2024-01-01T18:00:00Z',
+				timestamp: createISOTimestamp('2024-01-01T18:00:00Z'),
 				message: { usage: { input_tokens: 300, output_tokens: 150 } },
 				costUSD: 0.03,
 			};
@@ -1167,7 +1194,7 @@ if (import.meta.vitest != null) {
 
 		it('handles cache tokens', async () => {
 			const mockData: UsageData = {
-				timestamp: '2024-01-01T00:00:00Z',
+				timestamp: createISOTimestamp('2024-01-01T00:00:00Z'),
 				message: {
 					usage: {
 						input_tokens: 100,
@@ -1198,17 +1225,17 @@ if (import.meta.vitest != null) {
 		it('filters by date range', async () => {
 			const mockData: UsageData[] = [
 				{
-					timestamp: '2024-01-01T00:00:00Z',
+					timestamp: createISOTimestamp('2024-01-01T00:00:00Z'),
 					message: { usage: { input_tokens: 100, output_tokens: 50 } },
 					costUSD: 0.01,
 				},
 				{
-					timestamp: '2024-01-15T00:00:00Z',
+					timestamp: createISOTimestamp('2024-01-15T00:00:00Z'),
 					message: { usage: { input_tokens: 200, output_tokens: 100 } },
 					costUSD: 0.02,
 				},
 				{
-					timestamp: '2024-01-31T00:00:00Z',
+					timestamp: createISOTimestamp('2024-01-31T00:00:00Z'),
 					message: { usage: { input_tokens: 300, output_tokens: 150 } },
 					costUSD: 0.03,
 				},
@@ -1238,17 +1265,17 @@ if (import.meta.vitest != null) {
 		it('sorts by date descending by default', async () => {
 			const mockData: UsageData[] = [
 				{
-					timestamp: '2024-01-15T00:00:00Z',
+					timestamp: createISOTimestamp('2024-01-15T00:00:00Z'),
 					message: { usage: { input_tokens: 200, output_tokens: 100 } },
 					costUSD: 0.02,
 				},
 				{
-					timestamp: '2024-01-01T00:00:00Z',
+					timestamp: createISOTimestamp('2024-01-01T00:00:00Z'),
 					message: { usage: { input_tokens: 100, output_tokens: 50 } },
 					costUSD: 0.01,
 				},
 				{
-					timestamp: '2024-01-31T00:00:00Z',
+					timestamp: createISOTimestamp('2024-01-31T00:00:00Z'),
 					message: { usage: { input_tokens: 300, output_tokens: 150 } },
 					costUSD: 0.03,
 				},
@@ -1274,17 +1301,17 @@ if (import.meta.vitest != null) {
 		it('sorts by date ascending when order is \'asc\'', async () => {
 			const mockData: UsageData[] = [
 				{
-					timestamp: '2024-01-15T00:00:00Z',
+					timestamp: createISOTimestamp('2024-01-15T00:00:00Z'),
 					message: { usage: { input_tokens: 200, output_tokens: 100 } },
 					costUSD: 0.02,
 				},
 				{
-					timestamp: '2024-01-01T00:00:00Z',
+					timestamp: createISOTimestamp('2024-01-01T00:00:00Z'),
 					message: { usage: { input_tokens: 100, output_tokens: 50 } },
 					costUSD: 0.01,
 				},
 				{
-					timestamp: '2024-01-31T00:00:00Z',
+					timestamp: createISOTimestamp('2024-01-31T00:00:00Z'),
 					message: { usage: { input_tokens: 300, output_tokens: 150 } },
 					costUSD: 0.03,
 				},
@@ -1314,17 +1341,17 @@ if (import.meta.vitest != null) {
 		it('sorts by date descending when order is \'desc\'', async () => {
 			const mockData: UsageData[] = [
 				{
-					timestamp: '2024-01-15T00:00:00Z',
+					timestamp: createISOTimestamp('2024-01-15T00:00:00Z'),
 					message: { usage: { input_tokens: 200, output_tokens: 100 } },
 					costUSD: 0.02,
 				},
 				{
-					timestamp: '2024-01-01T00:00:00Z',
+					timestamp: createISOTimestamp('2024-01-01T00:00:00Z'),
 					message: { usage: { input_tokens: 100, output_tokens: 50 } },
 					costUSD: 0.01,
 				},
 				{
-					timestamp: '2024-01-31T00:00:00Z',
+					timestamp: createISOTimestamp('2024-01-31T00:00:00Z'),
 					message: { usage: { input_tokens: 300, output_tokens: 150 } },
 					costUSD: 0.03,
 				},
@@ -1411,17 +1438,17 @@ invalid json line
 		it('aggregates daily data by month correctly', async () => {
 			const mockData: UsageData[] = [
 				{
-					timestamp: '2024-01-01T00:00:00Z',
+					timestamp: createISOTimestamp('2024-01-01T00:00:00Z'),
 					message: { usage: { input_tokens: 100, output_tokens: 50 } },
 					costUSD: 0.01,
 				},
 				{
-					timestamp: '2024-01-15T00:00:00Z',
+					timestamp: createISOTimestamp('2024-01-15T00:00:00Z'),
 					message: { usage: { input_tokens: 200, output_tokens: 100 } },
 					costUSD: 0.02,
 				},
 				{
-					timestamp: '2024-02-01T00:00:00Z',
+					timestamp: createISOTimestamp('2024-02-01T00:00:00Z'),
 					message: { usage: { input_tokens: 150, output_tokens: 75 } },
 					costUSD: 0.015,
 				},
@@ -1489,12 +1516,12 @@ invalid json line
 		it('handles single month data', async () => {
 			const mockData: UsageData[] = [
 				{
-					timestamp: '2024-01-01T00:00:00Z',
+					timestamp: createISOTimestamp('2024-01-01T00:00:00Z'),
 					message: { usage: { input_tokens: 100, output_tokens: 50 } },
 					costUSD: 0.01,
 				},
 				{
-					timestamp: '2024-01-31T00:00:00Z',
+					timestamp: createISOTimestamp('2024-01-31T00:00:00Z'),
 					message: { usage: { input_tokens: 200, output_tokens: 100 } },
 					costUSD: 0.02,
 				},
@@ -1535,22 +1562,22 @@ invalid json line
 		it('sorts months in descending order', async () => {
 			const mockData: UsageData[] = [
 				{
-					timestamp: '2024-01-01T00:00:00Z',
+					timestamp: createISOTimestamp('2024-01-01T00:00:00Z'),
 					message: { usage: { input_tokens: 100, output_tokens: 50 } },
 					costUSD: 0.01,
 				},
 				{
-					timestamp: '2024-03-01T00:00:00Z',
+					timestamp: createISOTimestamp('2024-03-01T00:00:00Z'),
 					message: { usage: { input_tokens: 100, output_tokens: 50 } },
 					costUSD: 0.01,
 				},
 				{
-					timestamp: '2024-02-01T00:00:00Z',
+					timestamp: createISOTimestamp('2024-02-01T00:00:00Z'),
 					message: { usage: { input_tokens: 100, output_tokens: 50 } },
 					costUSD: 0.01,
 				},
 				{
-					timestamp: '2023-12-01T00:00:00Z',
+					timestamp: createISOTimestamp('2023-12-01T00:00:00Z'),
 					message: { usage: { input_tokens: 100, output_tokens: 50 } },
 					costUSD: 0.01,
 				},
@@ -1575,22 +1602,22 @@ invalid json line
 		it('sorts months in ascending order when order is \'asc\'', async () => {
 			const mockData: UsageData[] = [
 				{
-					timestamp: '2024-01-01T00:00:00Z',
+					timestamp: createISOTimestamp('2024-01-01T00:00:00Z'),
 					message: { usage: { input_tokens: 100, output_tokens: 50 } },
 					costUSD: 0.01,
 				},
 				{
-					timestamp: '2024-03-01T00:00:00Z',
+					timestamp: createISOTimestamp('2024-03-01T00:00:00Z'),
 					message: { usage: { input_tokens: 100, output_tokens: 50 } },
 					costUSD: 0.01,
 				},
 				{
-					timestamp: '2024-02-01T00:00:00Z',
+					timestamp: createISOTimestamp('2024-02-01T00:00:00Z'),
 					message: { usage: { input_tokens: 100, output_tokens: 50 } },
 					costUSD: 0.01,
 				},
 				{
-					timestamp: '2023-12-01T00:00:00Z',
+					timestamp: createISOTimestamp('2023-12-01T00:00:00Z'),
 					message: { usage: { input_tokens: 100, output_tokens: 50 } },
 					costUSD: 0.01,
 				},
@@ -1618,22 +1645,22 @@ invalid json line
 		it('handles year boundaries correctly in sorting', async () => {
 			const mockData: UsageData[] = [
 				{
-					timestamp: '2024-01-01T00:00:00Z',
+					timestamp: createISOTimestamp('2024-01-01T00:00:00Z'),
 					message: { usage: { input_tokens: 100, output_tokens: 50 } },
 					costUSD: 0.01,
 				},
 				{
-					timestamp: '2023-12-01T00:00:00Z',
+					timestamp: createISOTimestamp('2023-12-01T00:00:00Z'),
 					message: { usage: { input_tokens: 100, output_tokens: 50 } },
 					costUSD: 0.01,
 				},
 				{
-					timestamp: '2024-02-01T00:00:00Z',
+					timestamp: createISOTimestamp('2024-02-01T00:00:00Z'),
 					message: { usage: { input_tokens: 100, output_tokens: 50 } },
 					costUSD: 0.01,
 				},
 				{
-					timestamp: '2023-11-01T00:00:00Z',
+					timestamp: createISOTimestamp('2023-11-01T00:00:00Z'),
 					message: { usage: { input_tokens: 100, output_tokens: 50 } },
 					costUSD: 0.01,
 				},
@@ -1669,17 +1696,17 @@ invalid json line
 		it('respects date filters', async () => {
 			const mockData: UsageData[] = [
 				{
-					timestamp: '2024-01-01T00:00:00Z',
+					timestamp: createISOTimestamp('2024-01-01T00:00:00Z'),
 					message: { usage: { input_tokens: 100, output_tokens: 50 } },
 					costUSD: 0.01,
 				},
 				{
-					timestamp: '2024-02-15T00:00:00Z',
+					timestamp: createISOTimestamp('2024-02-15T00:00:00Z'),
 					message: { usage: { input_tokens: 200, output_tokens: 100 } },
 					costUSD: 0.02,
 				},
 				{
-					timestamp: '2024-03-01T00:00:00Z',
+					timestamp: createISOTimestamp('2024-03-01T00:00:00Z'),
 					message: { usage: { input_tokens: 150, output_tokens: 75 } },
 					costUSD: 0.015,
 				},
@@ -1710,7 +1737,7 @@ invalid json line
 		it('handles cache tokens correctly', async () => {
 			const mockData: UsageData[] = [
 				{
-					timestamp: '2024-01-01T00:00:00Z',
+					timestamp: createISOTimestamp('2024-01-01T00:00:00Z'),
 					message: {
 						usage: {
 							input_tokens: 100,
@@ -1722,7 +1749,7 @@ invalid json line
 					costUSD: 0.01,
 				},
 				{
-					timestamp: '2024-01-15T00:00:00Z',
+					timestamp: createISOTimestamp('2024-01-15T00:00:00Z'),
 					message: {
 						usage: {
 							input_tokens: 200,
@@ -1765,7 +1792,7 @@ invalid json line
 
 		it('extracts session info from file paths', async () => {
 			const mockData: UsageData = {
-				timestamp: '2024-01-01T00:00:00Z',
+				timestamp: createISOTimestamp('2024-01-01T00:00:00Z'),
 				message: { usage: { input_tokens: 100, output_tokens: 50 } },
 				costUSD: 0.01,
 			};
@@ -1799,7 +1826,7 @@ invalid json line
 		it('aggregates session usage data', async () => {
 			const mockData: UsageData[] = [
 				{
-					timestamp: '2024-01-01T00:00:00Z',
+					timestamp: createISOTimestamp('2024-01-01T00:00:00Z'),
 					message: {
 						usage: {
 							input_tokens: 100,
@@ -1811,7 +1838,7 @@ invalid json line
 					costUSD: 0.01,
 				},
 				{
-					timestamp: '2024-01-01T12:00:00Z',
+					timestamp: createISOTimestamp('2024-01-01T12:00:00Z'),
 					message: {
 						usage: {
 							input_tokens: 200,
@@ -1851,21 +1878,21 @@ invalid json line
 		it('tracks versions', async () => {
 			const mockData: UsageData[] = [
 				{
-					timestamp: '2024-01-01T00:00:00Z',
+					timestamp: createISOTimestamp('2024-01-01T00:00:00Z'),
 					message: { usage: { input_tokens: 100, output_tokens: 50 } },
-					version: '1.0.0',
+					version: createVersion('1.0.0'),
 					costUSD: 0.01,
 				},
 				{
-					timestamp: '2024-01-01T12:00:00Z',
+					timestamp: createISOTimestamp('2024-01-01T12:00:00Z'),
 					message: { usage: { input_tokens: 200, output_tokens: 100 } },
-					version: '1.1.0',
+					version: createVersion('1.1.0'),
 					costUSD: 0.02,
 				},
 				{
-					timestamp: '2024-01-01T18:00:00Z',
+					timestamp: createISOTimestamp('2024-01-01T18:00:00Z'),
 					message: { usage: { input_tokens: 300, output_tokens: 150 } },
-					version: '1.0.0', // Duplicate version
+					version: createVersion('1.0.0'), // Duplicate version
 					costUSD: 0.03,
 				},
 			];
@@ -1891,7 +1918,7 @@ invalid json line
 				{
 					sessionId: 'session1',
 					data: {
-						timestamp: '2024-01-15T00:00:00Z',
+						timestamp: createISOTimestamp('2024-01-15T00:00:00Z'),
 						message: { usage: { input_tokens: 100, output_tokens: 50 } },
 						costUSD: 0.01,
 					},
@@ -1899,7 +1926,7 @@ invalid json line
 				{
 					sessionId: 'session2',
 					data: {
-						timestamp: '2024-01-01T00:00:00Z',
+						timestamp: createISOTimestamp('2024-01-01T00:00:00Z'),
 						message: { usage: { input_tokens: 100, output_tokens: 50 } },
 						costUSD: 0.01,
 					},
@@ -1907,7 +1934,7 @@ invalid json line
 				{
 					sessionId: 'session3',
 					data: {
-						timestamp: '2024-01-31T00:00:00Z',
+						timestamp: createISOTimestamp('2024-01-31T00:00:00Z'),
 						message: { usage: { input_tokens: 100, output_tokens: 50 } },
 						costUSD: 0.01,
 					},
@@ -1937,7 +1964,7 @@ invalid json line
 				{
 					sessionId: 'session1',
 					data: {
-						timestamp: '2024-01-15T00:00:00Z',
+						timestamp: createISOTimestamp('2024-01-15T00:00:00Z'),
 						message: { usage: { input_tokens: 100, output_tokens: 50 } },
 						costUSD: 0.01,
 					},
@@ -1945,7 +1972,7 @@ invalid json line
 				{
 					sessionId: 'session2',
 					data: {
-						timestamp: '2024-01-01T00:00:00Z',
+						timestamp: createISOTimestamp('2024-01-01T00:00:00Z'),
 						message: { usage: { input_tokens: 100, output_tokens: 50 } },
 						costUSD: 0.01,
 					},
@@ -1953,7 +1980,7 @@ invalid json line
 				{
 					sessionId: 'session3',
 					data: {
-						timestamp: '2024-01-31T00:00:00Z',
+						timestamp: createISOTimestamp('2024-01-31T00:00:00Z'),
 						message: { usage: { input_tokens: 100, output_tokens: 50 } },
 						costUSD: 0.01,
 					},
@@ -1986,7 +2013,7 @@ invalid json line
 				{
 					sessionId: 'session1',
 					data: {
-						timestamp: '2024-01-15T00:00:00Z',
+						timestamp: createISOTimestamp('2024-01-15T00:00:00Z'),
 						message: { usage: { input_tokens: 100, output_tokens: 50 } },
 						costUSD: 0.01,
 					},
@@ -1994,7 +2021,7 @@ invalid json line
 				{
 					sessionId: 'session2',
 					data: {
-						timestamp: '2024-01-01T00:00:00Z',
+						timestamp: createISOTimestamp('2024-01-01T00:00:00Z'),
 						message: { usage: { input_tokens: 100, output_tokens: 50 } },
 						costUSD: 0.01,
 					},
@@ -2002,7 +2029,7 @@ invalid json line
 				{
 					sessionId: 'session3',
 					data: {
-						timestamp: '2024-01-31T00:00:00Z',
+						timestamp: createISOTimestamp('2024-01-31T00:00:00Z'),
 						message: { usage: { input_tokens: 100, output_tokens: 50 } },
 						costUSD: 0.01,
 					},
@@ -2035,7 +2062,7 @@ invalid json line
 				{
 					sessionId: 'session1',
 					data: {
-						timestamp: '2024-01-01T00:00:00Z',
+						timestamp: createISOTimestamp('2024-01-01T00:00:00Z'),
 						message: { usage: { input_tokens: 100, output_tokens: 50 } },
 						costUSD: 0.01,
 					},
@@ -2043,7 +2070,7 @@ invalid json line
 				{
 					sessionId: 'session2',
 					data: {
-						timestamp: '2024-01-15T00:00:00Z',
+						timestamp: createISOTimestamp('2024-01-15T00:00:00Z'),
 						message: { usage: { input_tokens: 100, output_tokens: 50 } },
 						costUSD: 0.01,
 					},
@@ -2051,7 +2078,7 @@ invalid json line
 				{
 					sessionId: 'session3',
 					data: {
-						timestamp: '2024-01-31T00:00:00Z',
+						timestamp: createISOTimestamp('2024-01-31T00:00:00Z'),
 						message: { usage: { input_tokens: 100, output_tokens: 50 } },
 						costUSD: 0.01,
 					},
@@ -2115,7 +2142,7 @@ invalid json line
 
 			it('should calculate cost for new schema with claude-sonnet-4-20250514', async () => {
 			// Use a well-known Claude model
-				const modelName = 'claude-sonnet-4-20250514';
+				const modelName = createModelName('claude-sonnet-4-20250514');
 
 				const newData = {
 					timestamp: '2024-01-16T10:00:00Z',
@@ -2155,7 +2182,7 @@ invalid json line
 
 			it('should calculate cost for new schema with claude-opus-4-20250514', async () => {
 			// Use Claude 4 Opus model
-				const modelName = 'claude-opus-4-20250514';
+				const modelName = createModelName('claude-opus-4-20250514');
 
 				const newData = {
 					timestamp: '2024-01-16T10:00:00Z',
@@ -2204,7 +2231,7 @@ invalid json line
 					timestamp: '2024-01-17T11:00:00Z',
 					message: {
 						usage: { input_tokens: 200, output_tokens: 100 },
-						model: 'claude-4-sonnet-20250514',
+						model: createModelName('claude-4-sonnet-20250514'),
 					},
 				};
 
@@ -2273,7 +2300,7 @@ invalid json line
 					timestamp: '2024-01-16T10:00:00Z',
 					message: {
 						usage: { input_tokens: 2000, output_tokens: 1000 },
-						model: 'claude-4-sonnet-20250514',
+						model: createModelName('claude-4-sonnet-20250514'),
 					},
 				};
 
@@ -2344,7 +2371,7 @@ invalid json line
 							cache_creation_input_tokens: 2000,
 							cache_read_input_tokens: 1500,
 						},
-						model: 'claude-4-sonnet-20250514',
+						model: createModelName('claude-4-sonnet-20250514'),
 					},
 				};
 
@@ -2381,7 +2408,7 @@ invalid json line
 							cache_creation_input_tokens: 2000,
 							cache_read_input_tokens: 1500,
 						},
-						model: 'claude-opus-4-20250514',
+						model: createModelName('claude-opus-4-20250514'),
 					},
 				};
 
@@ -2412,7 +2439,7 @@ invalid json line
 		describe('cost mode functionality', () => {
 			it('auto mode: uses costUSD when available, calculates otherwise', async () => {
 				const data1 = {
-					timestamp: '2024-01-01T10:00:00Z',
+					timestamp: createISOTimestamp('2024-01-01T10:00:00Z'),
 					message: { usage: { input_tokens: 1000, output_tokens: 500 } },
 					costUSD: 0.05,
 				};
@@ -2421,7 +2448,7 @@ invalid json line
 					timestamp: '2024-01-01T11:00:00Z',
 					message: {
 						usage: { input_tokens: 2000, output_tokens: 1000 },
-						model: 'claude-4-sonnet-20250514',
+						model: createModelName('claude-4-sonnet-20250514'),
 					},
 				};
 
@@ -2446,10 +2473,10 @@ invalid json line
 
 			it('calculate mode: always calculates from tokens, ignores costUSD', async () => {
 				const data = {
-					timestamp: '2024-01-01T10:00:00Z',
+					timestamp: createISOTimestamp('2024-01-01T10:00:00Z'),
 					message: {
 						usage: { input_tokens: 1000, output_tokens: 500 },
-						model: 'claude-4-sonnet-20250514',
+						model: createModelName('claude-4-sonnet-20250514'),
 					},
 					costUSD: 99.99, // This should be ignored
 				};
@@ -2476,10 +2503,10 @@ invalid json line
 
 			it('display mode: always uses costUSD, even if undefined', async () => {
 				const data1 = {
-					timestamp: '2024-01-01T10:00:00Z',
+					timestamp: createISOTimestamp('2024-01-01T10:00:00Z'),
 					message: {
 						usage: { input_tokens: 1000, output_tokens: 500 },
-						model: 'claude-4-sonnet-20250514',
+						model: createModelName('claude-4-sonnet-20250514'),
 					},
 					costUSD: 0.05,
 				};
@@ -2488,7 +2515,7 @@ invalid json line
 					timestamp: '2024-01-01T11:00:00Z',
 					message: {
 						usage: { input_tokens: 2000, output_tokens: 1000 },
-						model: 'claude-4-sonnet-20250514',
+						model: createModelName('claude-4-sonnet-20250514'),
 					},
 				// No costUSD - should result in 0 cost
 				};
@@ -2514,10 +2541,10 @@ invalid json line
 
 			it('mode works with session data', async () => {
 				const sessionData = {
-					timestamp: '2024-01-01T10:00:00Z',
+					timestamp: createISOTimestamp('2024-01-01T10:00:00Z'),
 					message: {
 						usage: { input_tokens: 1000, output_tokens: 500 },
-						model: 'claude-4-sonnet-20250514',
+						model: createModelName('claude-4-sonnet-20250514'),
 					},
 					costUSD: 99.99,
 				};
@@ -2551,10 +2578,10 @@ invalid json line
 		describe('pricing data fetching optimization', () => {
 			it('should not require model pricing when mode is display', async () => {
 				const data = {
-					timestamp: '2024-01-01T10:00:00Z',
+					timestamp: createISOTimestamp('2024-01-01T10:00:00Z'),
 					message: {
 						usage: { input_tokens: 1000, output_tokens: 500 },
-						model: 'claude-4-sonnet-20250514',
+						model: createModelName('claude-4-sonnet-20250514'),
 					},
 					costUSD: 0.05,
 				};
@@ -2581,10 +2608,10 @@ invalid json line
 
 			it('should fetch pricing data when mode is calculate', async () => {
 				const data = {
-					timestamp: '2024-01-01T10:00:00Z',
+					timestamp: createISOTimestamp('2024-01-01T10:00:00Z'),
 					message: {
 						usage: { input_tokens: 1000, output_tokens: 500 },
-						model: 'claude-4-sonnet-20250514',
+						model: createModelName('claude-4-sonnet-20250514'),
 					},
 					costUSD: 0.05,
 				};
@@ -2612,10 +2639,10 @@ invalid json line
 
 			it('should fetch pricing data when mode is auto', async () => {
 				const data = {
-					timestamp: '2024-01-01T10:00:00Z',
+					timestamp: createISOTimestamp('2024-01-01T10:00:00Z'),
 					message: {
 						usage: { input_tokens: 1000, output_tokens: 500 },
-						model: 'claude-4-sonnet-20250514',
+						model: createModelName('claude-4-sonnet-20250514'),
 					},
 				// No costUSD, so auto mode will need to calculate
 				};
@@ -2642,10 +2669,10 @@ invalid json line
 
 			it('session data should not require model pricing when mode is display', async () => {
 				const data = {
-					timestamp: '2024-01-01T10:00:00Z',
+					timestamp: createISOTimestamp('2024-01-01T10:00:00Z'),
 					message: {
 						usage: { input_tokens: 1000, output_tokens: 500 },
-						model: 'claude-4-sonnet-20250514',
+						model: createModelName('claude-4-sonnet-20250514'),
 					},
 					costUSD: 0.05,
 				};
@@ -2672,7 +2699,7 @@ invalid json line
 
 			it('display mode should work without network access', async () => {
 				const data = {
-					timestamp: '2024-01-01T10:00:00Z',
+					timestamp: createISOTimestamp('2024-01-01T10:00:00Z'),
 					message: {
 						usage: { input_tokens: 1000, output_tokens: 500 },
 						model: 'some-unknown-model',
@@ -2707,7 +2734,7 @@ invalid json line
 
 	describe('calculateCostForEntry', () => {
 		const mockUsageData: UsageData = {
-			timestamp: '2024-01-01T10:00:00Z',
+			timestamp: createISOTimestamp('2024-01-01T10:00:00Z'),
 			message: {
 				usage: {
 					input_tokens: 1000,
@@ -2715,7 +2742,7 @@ invalid json line
 					cache_creation_input_tokens: 200,
 					cache_read_input_tokens: 100,
 				},
-				model: 'claude-sonnet-4-20250514',
+				model: createModelName('claude-sonnet-4-20250514'),
 			},
 			costUSD: 0.05,
 		};
@@ -2748,13 +2775,13 @@ invalid json line
 			it('should calculate cost from tokens when model pricing available', async () => {
 			// Use the exact same structure as working integration tests
 				const testData: UsageData = {
-					timestamp: '2024-01-01T10:00:00Z',
+					timestamp: createISOTimestamp('2024-01-01T10:00:00Z'),
 					message: {
 						usage: {
 							input_tokens: 1000,
 							output_tokens: 500,
 						},
-						model: 'claude-4-sonnet-20250514',
+						model: createModelName('claude-4-sonnet-20250514'),
 					},
 				};
 
@@ -2789,7 +2816,7 @@ invalid json line
 			it('should return 0 when model pricing not found', async () => {
 				const dataWithUnknownModel = {
 					...mockUsageData,
-					message: { ...mockUsageData.message, model: 'unknown-model' },
+					message: { ...mockUsageData.message, model: createModelName('unknown-model') },
 				};
 
 				using fetcher = new PricingFetcher();
@@ -2803,13 +2830,13 @@ invalid json line
 
 			it('should handle missing cache tokens', async () => {
 				const dataWithoutCacheTokens: UsageData = {
-					timestamp: '2024-01-01T10:00:00Z',
+					timestamp: createISOTimestamp('2024-01-01T10:00:00Z'),
 					message: {
 						usage: {
 							input_tokens: 1000,
 							output_tokens: 500,
 						},
-						model: 'claude-4-sonnet-20250514',
+						model: createModelName('claude-4-sonnet-20250514'),
 					},
 				};
 
@@ -2833,13 +2860,13 @@ invalid json line
 
 			it('should calculate from tokens when costUSD undefined', async () => {
 				const dataWithoutCost: UsageData = {
-					timestamp: '2024-01-01T10:00:00Z',
+					timestamp: createISOTimestamp('2024-01-01T10:00:00Z'),
 					message: {
 						usage: {
 							input_tokens: 1000,
 							output_tokens: 500,
 						},
-						model: 'claude-4-sonnet-20250514',
+						model: createModelName('claude-4-sonnet-20250514'),
 					},
 				};
 
@@ -2957,11 +2984,11 @@ invalid json line
 											input_tokens: 1000,
 											output_tokens: 500,
 										},
-										model: 'claude-sonnet-4-20250514',
+										model: createModelName('claude-sonnet-4-20250514'),
 									},
 									requestId: 'req1',
 									costUSD: 0.01,
-									version: '1.0.0',
+									version: createVersion('1.0.0'),
 								},
 								{
 									timestamp: laterTime.toISOString(),
@@ -2971,11 +2998,11 @@ invalid json line
 											input_tokens: 2000,
 											output_tokens: 1000,
 										},
-										model: 'claude-sonnet-4-20250514',
+										model: createModelName('claude-sonnet-4-20250514'),
 									},
 									requestId: 'req2',
 									costUSD: 0.02,
-									version: '1.0.0',
+									version: createVersion('1.0.0'),
 								},
 								{
 									timestamp: muchLaterTime.toISOString(),
@@ -2985,11 +3012,11 @@ invalid json line
 											input_tokens: 1500,
 											output_tokens: 750,
 										},
-										model: 'claude-sonnet-4-20250514',
+										model: createModelName('claude-sonnet-4-20250514'),
 									},
 									requestId: 'req3',
 									costUSD: 0.015,
-									version: '1.0.0',
+									version: createVersion('1.0.0'),
 								},
 							].map(data => JSON.stringify(data)).join('\n'),
 						},
@@ -3020,11 +3047,11 @@ invalid json line
 										input_tokens: 1000,
 										output_tokens: 500,
 									},
-									model: 'claude-sonnet-4-20250514',
+									model: createModelName('claude-sonnet-4-20250514'),
 								},
 								request: { id: 'req1' },
 								costUSD: 0.01,
-								version: '1.0.0',
+								version: createVersion('1.0.0'),
 							}),
 						},
 					},
@@ -3063,33 +3090,33 @@ invalid json line
 									message: {
 										id: 'msg1',
 										usage: { input_tokens: 1000, output_tokens: 500 },
-										model: 'claude-sonnet-4-20250514',
+										model: createModelName('claude-sonnet-4-20250514'),
 									},
 									requestId: 'req1',
 									costUSD: 0.01,
-									version: '1.0.0',
+									version: createVersion('1.0.0'),
 								},
 								{
 									timestamp: date2.toISOString(),
 									message: {
 										id: 'msg2',
 										usage: { input_tokens: 2000, output_tokens: 1000 },
-										model: 'claude-sonnet-4-20250514',
+										model: createModelName('claude-sonnet-4-20250514'),
 									},
 									requestId: 'req2',
 									costUSD: 0.02,
-									version: '1.0.0',
+									version: createVersion('1.0.0'),
 								},
 								{
 									timestamp: date3.toISOString(),
 									message: {
 										id: 'msg3',
 										usage: { input_tokens: 1500, output_tokens: 750 },
-										model: 'claude-sonnet-4-20250514',
+										model: createModelName('claude-sonnet-4-20250514'),
 									},
 									requestId: 'req3',
 									costUSD: 0.015,
-									version: '1.0.0',
+									version: createVersion('1.0.0'),
 								},
 							].map(data => JSON.stringify(data)).join('\n'),
 						},
@@ -3132,22 +3159,22 @@ invalid json line
 									message: {
 										id: 'msg2',
 										usage: { input_tokens: 2000, output_tokens: 1000 },
-										model: 'claude-sonnet-4-20250514',
+										model: createModelName('claude-sonnet-4-20250514'),
 									},
 									requestId: 'req2',
 									costUSD: 0.02,
-									version: '1.0.0',
+									version: createVersion('1.0.0'),
 								},
 								{
 									timestamp: date1.toISOString(),
 									message: {
 										id: 'msg1',
 										usage: { input_tokens: 1000, output_tokens: 500 },
-										model: 'claude-sonnet-4-20250514',
+										model: createModelName('claude-sonnet-4-20250514'),
 									},
 									requestId: 'req1',
 									costUSD: 0.01,
-									version: '1.0.0',
+									version: createVersion('1.0.0'),
 								},
 							].map(data => JSON.stringify(data)).join('\n'),
 						},
@@ -3183,11 +3210,11 @@ invalid json line
 									message: {
 										id: 'msg1',
 										usage: { input_tokens: 1000, output_tokens: 500 },
-										model: 'claude-sonnet-4-20250514',
+										model: createModelName('claude-sonnet-4-20250514'),
 									},
 									requestId: 'req1',
 									costUSD: 0.01,
-									version: '1.0.0',
+									version: createVersion('1.0.0'),
 								},
 								// Duplicate entry - should be filtered out
 								{
@@ -3195,11 +3222,11 @@ invalid json line
 									message: {
 										id: 'msg1',
 										usage: { input_tokens: 1000, output_tokens: 500 },
-										model: 'claude-sonnet-4-20250514',
+										model: createModelName('claude-sonnet-4-20250514'),
 									},
 									requestId: 'req1',
 									costUSD: 0.01,
-									version: '1.0.0',
+									version: createVersion('1.0.0'),
 								},
 							].map(data => JSON.stringify(data)).join('\n'),
 						},
@@ -3226,11 +3253,11 @@ invalid json line
 									message: {
 										id: 'msg1',
 										usage: { input_tokens: 1000, output_tokens: 500 },
-										model: 'claude-sonnet-4-20250514',
+										model: createModelName('claude-sonnet-4-20250514'),
 									},
 									requestId: 'req1',
 									costUSD: 0.01,
-									version: '1.0.0',
+									version: createVersion('1.0.0'),
 								}),
 								'another invalid line',
 							].join('\n'),
@@ -3252,15 +3279,15 @@ if (import.meta.vitest != null) {
 		describe('createUniqueHash', () => {
 			it('should create hash from message id and request id', () => {
 				const data = {
-					timestamp: '2025-01-10T10:00:00Z',
+					timestamp: createISOTimestamp('2025-01-10T10:00:00Z'),
 					message: {
-						id: 'msg_123',
+						id: createMessageId('msg_123'),
 						usage: {
 							input_tokens: 100,
 							output_tokens: 50,
 						},
 					},
-					requestId: 'req_456',
+					requestId: createRequestId('req_456'),
 				};
 
 				const hash = createUniqueHash(data);
@@ -3269,14 +3296,14 @@ if (import.meta.vitest != null) {
 
 			it('should return null when message id is missing', () => {
 				const data = {
-					timestamp: '2025-01-10T10:00:00Z',
+					timestamp: createISOTimestamp('2025-01-10T10:00:00Z'),
 					message: {
 						usage: {
 							input_tokens: 100,
 							output_tokens: 50,
 						},
 					},
-					requestId: 'req_456',
+					requestId: createRequestId('req_456'),
 				};
 
 				const hash = createUniqueHash(data);
@@ -3285,9 +3312,9 @@ if (import.meta.vitest != null) {
 
 			it('should return null when request id is missing', () => {
 				const data = {
-					timestamp: '2025-01-10T10:00:00Z',
+					timestamp: createISOTimestamp('2025-01-10T10:00:00Z'),
 					message: {
-						id: 'msg_123',
+						id: createMessageId('msg_123'),
 						usage: {
 							input_tokens: 100,
 							output_tokens: 50,
