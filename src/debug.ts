@@ -3,14 +3,11 @@ import { homedir } from 'node:os';
 import path from 'node:path';
 import { createFixture } from 'fs-fixture';
 import { glob } from 'tinyglobby';
+import { DEBUG_MATCH_THRESHOLD_PERCENT } from './consts.internal.js';
 import { usageDataSchema } from './data-loader.ts';
 import { logger } from './logger.ts';
 import { PricingFetcher } from './pricing-fetcher.ts';
 
-/**
- * Threshold percentage for considering costs as matching (0.1% tolerance)
- */
-const MATCH_THRESHOLD_PERCENT = 0.1;
 /**
  * Represents a pricing discrepancy between original and calculated costs
  */
@@ -145,7 +142,7 @@ export async function detectMismatches(
 						versionStat.total++;
 
 						// Consider it a match if within the defined threshold (to account for floating point)
-						if (percentDiff < MATCH_THRESHOLD_PERCENT) {
+						if (percentDiff < DEBUG_MATCH_THRESHOLD_PERCENT) {
 							versionStat.matches++;
 						}
 						else {

@@ -1,7 +1,7 @@
 import process from 'node:process';
 import { define } from 'gunshi';
 import pc from 'picocolors';
-import { COMPACT_WIDTH_THRESHOLD, DEFAULT_RECENT_DAYS, DEFAULT_TERMINAL_WIDTH, WARNING_THRESHOLD } from '../consts.internal.js';
+import { BLOCKS_COMPACT_WIDTH_THRESHOLD, BLOCKS_DEFAULT_TERMINAL_WIDTH, BLOCKS_WARNING_THRESHOLD, DEFAULT_RECENT_DAYS } from '../consts.internal.js';
 import { getDefaultClaudePath, loadSessionBlockData } from '../data-loader.ts';
 import { log, logger } from '../logger.ts';
 import {
@@ -229,7 +229,7 @@ export const blocksCommand = define({
 												percentUsed: (projection.totalTokens / limit) * 100,
 												status: projection.totalTokens > limit
 													? 'exceeds'
-													: projection.totalTokens > limit * WARNING_THRESHOLD ? 'warning' : 'ok',
+													: projection.totalTokens > limit * BLOCKS_WARNING_THRESHOLD ? 'warning' : 'ok',
 											}
 										: undefined;
 								})()
@@ -290,7 +290,7 @@ export const blocksCommand = define({
 							const percentUsed = (projection.totalTokens / limit) * 100;
 							const status = percentUsed > 100
 								? pc.red('EXCEEDS LIMIT')
-								: percentUsed > WARNING_THRESHOLD * 100
+								: percentUsed > BLOCKS_WARNING_THRESHOLD * 100
 									? pc.yellow('WARNING')
 									: pc.green('OK');
 
@@ -329,8 +329,8 @@ export const blocksCommand = define({
 				});
 
 				// Detect if we need compact formatting
-				const terminalWidth = process.stdout.columns || DEFAULT_TERMINAL_WIDTH;
-				const useCompactFormat = terminalWidth < COMPACT_WIDTH_THRESHOLD;
+				const terminalWidth = process.stdout.columns || BLOCKS_DEFAULT_TERMINAL_WIDTH;
+				const useCompactFormat = terminalWidth < BLOCKS_COMPACT_WIDTH_THRESHOLD;
 
 				for (const block of blocks) {
 					if (block.isGap ?? false) {
