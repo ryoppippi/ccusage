@@ -1,7 +1,6 @@
-# ccusage
-
 <div align="center">
-  <img src="https://cdn.jsdelivr.net/gh/ryoppippi/ccusage@main/docs/logo.svg" alt="ccusage logo" width="256" height="256">
+  <img src="https://cdn.jsdelivr.net/gh/ryoppippi/ccusage@main/docs/logo.png" alt="ccusage logo" width="256" height="256">
+ <h1>ccusage</h1>
 </div>
 
 [![npm version](https://img.shields.io/npm/v/ccusage?color=yellow)](https://npmjs.com/package/ccusage)
@@ -27,11 +26,11 @@ Inspired by [this article](https://note.com/milliondev/n/n1d018da2d769) about tr
 
 # English
 
-https://github.com/user-attachments/assets/7a00f2f3-82a7-41b6-a8da-e04b76b5e35a
+<https://github.com/user-attachments/assets/7a00f2f3-82a7-41b6-a8da-e04b76b5e35a>
 
 # 日本語
 
-https://github.com/user-attachments/assets/db09fc06-bf57-4d37-9b06-514851bcc1d0
+<https://github.com/user-attachments/assets/db09fc06-bf57-4d37-9b06-514851bcc1d0>
 
 </details>
 
@@ -280,7 +279,7 @@ The blocks report helps you understand Claude Code's 5-hour rolling session wind
 - Helps track if you're approaching token limits within a session
 - The `-t max` option automatically uses your highest previous block as the limit
 
-#### Blocks-specific options:
+#### Blocks-specific options
 
 - `-t, --token-limit <number|max>`: Set token limit for quota warnings (use "max" for highest previous block)
 - `-a, --active`: Show only active block with detailed projections
@@ -509,9 +508,9 @@ Thanks to [@milliondev](https://note.com/milliondev) for the original concept an
 ## Sponsors
 
 <p align="center">
-	<a href="https://github.com/sponsors/ryoppippi">
-		<img src="https://cdn.jsdelivr.net/gh/ryoppippi/sponsors/sponsors.svg">
-	</a>
+ <a href="https://github.com/sponsors/ryoppippi">
+  <img src="https://cdn.jsdelivr.net/gh/ryoppippi/sponsors/sponsors.svg">
+ </a>
 </p>
 
 ## Star History
