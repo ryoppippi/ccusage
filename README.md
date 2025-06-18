@@ -19,7 +19,7 @@ Inspired by [this article](https://note.com/milliondev/n/n1d018da2d769) about tr
 ## What is `ccusage` (by NotebookLM)
 
 <details>
- <summary>Podcact</summary>
+ <summary>Podcast</summary>
 
 # English
 
