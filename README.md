@@ -471,6 +471,10 @@ While the original approach uses DuckDB for analysis, this tool provides a more 
 
 some projects use `ccusage` internally and provide additional features:
 
+### [claude-usage-tracker-for-mac](https://github.com/penicillin0/claude-usage-tracker-for-mac)
+
+MacOS menu bar app to visualize Claude Code usage costs by [@penicillin0](https://github.com/penicillin0).
+
 ## Acknowledgments
 
 Thanks to [@milliondev](https://note.com/milliondev) for the original concept and approach to Claude Code usage analysis.
