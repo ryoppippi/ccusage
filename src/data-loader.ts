@@ -16,7 +16,7 @@ import { createFixture } from 'fs-fixture';
 import { isDirectorySync } from 'path-type';
 import { glob } from 'tinyglobby';
 import { z } from 'zod';
-import { CLAUDE_PROJECTS_DIR_NAME, DEFAULT_CLAUDE_CODE_PATH, USAGE_DATA_GLOB_PATTERN } from './consts.internal.js';
+import { CLAUDE_PROJECTS_DIR_NAME, DEFAULT_CLAUDE_CODE_PATH, USAGE_DATA_GLOB_PATTERN, USER_HOME_DIR } from './consts.internal.js';
 import { logger } from './logger.ts';
 import {
 	PricingFetcher,
@@ -55,14 +55,14 @@ import {
 export function getDefaultClaudePath(): string {
 	const envClaudeCodePath = (process.env.CLAUDE_CONFIG_DIR ?? '').trim();
 	if (envClaudeCodePath === '') {
-		return path.join(homedir(), DEFAULT_CLAUDE_CODE_PATH);
+		return path.join(USER_HOME_DIR, DEFAULT_CLAUDE_CODE_PATH);
 	}
 
 	// First validate that the CLAUDE_CONFIG_DIR itself exists and is a directory
 	if (!isDirectorySync(envClaudeCodePath)) {
 		throw new Error(
 			`CLAUDE_CONFIG_DIR path is not a valid directory: ${envClaudeCodePath}. 
-Please set CLAUDE_CONFIG_DIR to a valid directory path, or ensure ${path.join(homedir(), DEFAULT_CLAUDE_CODE_PATH)} exists.
+Please set CLAUDE_CONFIG_DIR to a valid directory path, or ensure ${path.join(USER_HOME_DIR, DEFAULT_CLAUDE_CODE_PATH)} exists.
 			`.trim(),
 		);
 	}
@@ -71,7 +71,7 @@ Please set CLAUDE_CONFIG_DIR to a valid directory path, or ensure ${path.join(ho
 	if (!isDirectorySync(claudeCodeProjectsPath)) {
 		throw new Error(
 			`Claude data directory does not exist: ${claudeCodeProjectsPath}. 
-Please set CLAUDE_CONFIG_DIR to a valid path, or ensure ${path.join(homedir(), DEFAULT_CLAUDE_CODE_PATH)} exists.
+Please set CLAUDE_CONFIG_DIR to a valid path, or ensure ${path.join(USER_HOME_DIR, DEFAULT_CLAUDE_CODE_PATH)} exists.
 			`.trim(),
 		);
 	}

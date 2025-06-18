@@ -1,9 +1,8 @@
 import { readFile } from 'node:fs/promises';
-import { homedir } from 'node:os';
 import path from 'node:path';
 import { createFixture } from 'fs-fixture';
 import { glob } from 'tinyglobby';
-import { CLAUDE_PROJECTS_DIR_NAME, DEBUG_MATCH_THRESHOLD_PERCENT, DEFAULT_CLAUDE_CODE_PATH, USAGE_DATA_GLOB_PATTERN } from './consts.internal.js';
+import { CLAUDE_PROJECTS_DIR_NAME, DEBUG_MATCH_THRESHOLD_PERCENT, DEFAULT_CLAUDE_CODE_PATH, USAGE_DATA_GLOB_PATTERN, USER_HOME_DIR } from './consts.internal.js';
 import { usageDataSchema } from './data-loader.ts';
 import { logger } from './logger.ts';
 import { PricingFetcher } from './pricing-fetcher.ts';
@@ -65,7 +64,7 @@ type MismatchStats = {
 export async function detectMismatches(
 	claudePath?: string,
 ): Promise<MismatchStats> {
-	const claudeDir = claudePath ?? path.join(homedir(), DEFAULT_CLAUDE_CODE_PATH, CLAUDE_PROJECTS_DIR_NAME);
+	const claudeDir = claudePath ?? path.join(USER_HOME_DIR, DEFAULT_CLAUDE_CODE_PATH, CLAUDE_PROJECTS_DIR_NAME);
 	const files = await glob([USAGE_DATA_GLOB_PATTERN], {
 		cwd: claudeDir,
 		absolute: true,

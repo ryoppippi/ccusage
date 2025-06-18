@@ -1,3 +1,5 @@
+import { homedir } from 'node:os';
+
 /**
  * URL for LiteLLM's model pricing and context window data
  */
@@ -51,3 +53,15 @@ export const CLAUDE_PROJECTS_DIR_NAME = 'projects';
  * Used to recursively find all JSONL files in project directories
  */
 export const USAGE_DATA_GLOB_PATTERN = '**/*.jsonl';
+
+/**
+ * Default port for MCP server HTTP transport
+ * Used when no port is specified for MCP server communication
+ */
+export const MCP_DEFAULT_PORT = 8080;
+
+/**
+ * User's home directory path
+ * Centralized access to OS home directory for consistent path building
+ */
+export const USER_HOME_DIR = homedir();
