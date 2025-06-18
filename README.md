@@ -473,7 +473,7 @@ some projects use `ccusage` internally and provide additional features:
 
 ### [claude-usage-tracker-for-mac](https://github.com/penicillin0/claude-usage-tracker-for-mac)
 
-MacOS menu bar app to visualize Claude Code usage costs by [@penicillin0](https://github.com/penicillin0).
+macOS menu bar app to visualize Claude Code usage costs by [@penicillin0](https://github.com/penicillin0).
 
 ## Acknowledgments
 
