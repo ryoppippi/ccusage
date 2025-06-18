@@ -1,7 +1,7 @@
 import process from 'node:process';
 import { define } from 'gunshi';
 import pc from 'picocolors';
-import { DEFAULT_RECENT_DAYS } from '../consts.internal.js';
+import { COMPACT_WIDTH_THRESHOLD, DEFAULT_RECENT_DAYS, DEFAULT_TERMINAL_WIDTH, WARNING_THRESHOLD } from '../consts.internal.js';
 import { getDefaultClaudePath, loadSessionBlockData } from '../data-loader.ts';
 import { log, logger } from '../logger.ts';
 import {
@@ -13,21 +13,6 @@ import {
 } from '../session-blocks.internal.ts';
 import { sharedCommandConfig } from '../shared-args.internal.ts';
 import { formatCurrency, formatModelsDisplay, formatNumber, ResponsiveTable } from '../utils.internal.ts';
-
-/**
- * Threshold percentage for showing usage warnings (80%)
- */
-const WARNING_THRESHOLD = 0.8;
-
-/**
- * Terminal width threshold for switching to compact display mode
- */
-const COMPACT_WIDTH_THRESHOLD = 120;
-
-/**
- * Default terminal width when stdout.columns is not available
- */
-const DEFAULT_TERMINAL_WIDTH = 120;
 
 /**
  * Formats the time display for a session block
