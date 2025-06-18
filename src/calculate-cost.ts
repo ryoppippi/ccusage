@@ -1,4 +1,12 @@
 import type { DailyUsage, MonthlyUsage, SessionUsage } from './data-loader.ts';
+import {
+	createActivityDate,
+	createDailyDate,
+	createModelName,
+	createProjectPath,
+	createSessionId,
+	createVersion,
+} from './types.internal.ts';
 
 /**
  * Token usage data structure containing input, output, and cache token counts
@@ -85,23 +93,23 @@ if (import.meta.vitest != null) {
 		it('calculateTotals should aggregate daily usage data', () => {
 			const dailyData: DailyUsage[] = [
 				{
-					date: '2024-01-01',
+					date: createDailyDate('2024-01-01'),
 					inputTokens: 100,
 					outputTokens: 50,
 					cacheCreationTokens: 25,
 					cacheReadTokens: 10,
 					totalCost: 0.01,
-					modelsUsed: ['claude-sonnet-4-20250514'],
+					modelsUsed: [createModelName('claude-sonnet-4-20250514')],
 					modelBreakdowns: [],
 				},
 				{
-					date: '2024-01-02',
+					date: createDailyDate('2024-01-02'),
 					inputTokens: 200,
 					outputTokens: 100,
 					cacheCreationTokens: 50,
 					cacheReadTokens: 20,
 					totalCost: 0.02,
-					modelsUsed: ['claude-opus-4-20250514'],
+					modelsUsed: [createModelName('claude-opus-4-20250514')],
 					modelBreakdowns: [],
 				},
 			];
@@ -117,29 +125,29 @@ if (import.meta.vitest != null) {
 		it('calculateTotals should aggregate session usage data', () => {
 			const sessionData: SessionUsage[] = [
 				{
-					sessionId: 'session-1',
-					projectPath: 'project/path',
+					sessionId: createSessionId('session-1'),
+					projectPath: createProjectPath('project/path'),
 					inputTokens: 100,
 					outputTokens: 50,
 					cacheCreationTokens: 25,
 					cacheReadTokens: 10,
 					totalCost: 0.01,
-					lastActivity: '2024-01-01',
-					versions: ['1.0.3'],
-					modelsUsed: ['claude-sonnet-4-20250514'],
+					lastActivity: createActivityDate('2024-01-01'),
+					versions: [createVersion('1.0.3')],
+					modelsUsed: [createModelName('claude-sonnet-4-20250514')],
 					modelBreakdowns: [],
 				},
 				{
-					sessionId: 'session-2',
-					projectPath: 'project/path',
+					sessionId: createSessionId('session-2'),
+					projectPath: createProjectPath('project/path'),
 					inputTokens: 200,
 					outputTokens: 100,
 					cacheCreationTokens: 50,
 					cacheReadTokens: 20,
 					totalCost: 0.02,
-					lastActivity: '2024-01-02',
-					versions: ['1.0.3', '1.0.4'],
-					modelsUsed: ['claude-opus-4-20250514'],
+					lastActivity: createActivityDate('2024-01-02'),
+					versions: [createVersion('1.0.3'), createVersion('1.0.4')],
+					modelsUsed: [createModelName('claude-opus-4-20250514')],
 					modelBreakdowns: [],
 				},
 			];
