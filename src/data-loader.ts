@@ -16,6 +16,7 @@ import { createFixture } from 'fs-fixture';
 import { isDirectorySync } from 'path-type';
 import { glob } from 'tinyglobby';
 import { z } from 'zod';
+import { CLAUDE_PROJECTS_DIR_NAME, DEFAULT_CLAUDE_CODE_PATH, USAGE_DATA_GLOB_PATTERN } from './consts.internal.js';
 import { logger } from './logger.ts';
 import {
 	PricingFetcher,
@@ -48,34 +49,29 @@ import {
 } from './types.internal.ts';
 
 /**
- * Default Claude data directory path (~/.claude)
- */
-const DEFAULT_CLAUDE_CODE_PATH = path.join(homedir(), '.claude');
-
-/**
  * Default path for Claude data directory
  * Uses environment variable CLAUDE_CONFIG_DIR if set, otherwise defaults to ~/.claude
  */
 export function getDefaultClaudePath(): string {
 	const envClaudeCodePath = (process.env.CLAUDE_CONFIG_DIR ?? '').trim();
 	if (envClaudeCodePath === '') {
-		return DEFAULT_CLAUDE_CODE_PATH;
+		return path.join(homedir(), DEFAULT_CLAUDE_CODE_PATH);
 	}
 
 	// First validate that the CLAUDE_CONFIG_DIR itself exists and is a directory
 	if (!isDirectorySync(envClaudeCodePath)) {
 		throw new Error(
 			`CLAUDE_CONFIG_DIR path is not a valid directory: ${envClaudeCodePath}. 
-Please set CLAUDE_CONFIG_DIR to a valid directory path, or ensure ${DEFAULT_CLAUDE_CODE_PATH} exists.
+Please set CLAUDE_CONFIG_DIR to a valid directory path, or ensure ${path.join(homedir(), DEFAULT_CLAUDE_CODE_PATH)} exists.
 			`.trim(),
 		);
 	}
 
-	const claudeCodeProjectsPath = path.join(envClaudeCodePath, 'projects');
+	const claudeCodeProjectsPath = path.join(envClaudeCodePath, CLAUDE_PROJECTS_DIR_NAME);
 	if (!isDirectorySync(claudeCodeProjectsPath)) {
 		throw new Error(
 			`Claude data directory does not exist: ${claudeCodeProjectsPath}. 
-Please set CLAUDE_CONFIG_DIR to a valid path, or ensure ${DEFAULT_CLAUDE_CODE_PATH} exists.
+Please set CLAUDE_CONFIG_DIR to a valid path, or ensure ${path.join(homedir(), DEFAULT_CLAUDE_CODE_PATH)} exists.
 			`.trim(),
 		);
 	}
@@ -586,8 +582,8 @@ export async function loadDailyUsageData(
 	options?: LoadOptions,
 ): Promise<DailyUsage[]> {
 	const claudePath = options?.claudePath ?? getDefaultClaudePath();
-	const claudeDir = path.join(claudePath, 'projects');
-	const files = await glob(['**/*.jsonl'], {
+	const claudeDir = path.join(claudePath, CLAUDE_PROJECTS_DIR_NAME);
+	const files = await glob([USAGE_DATA_GLOB_PATTERN], {
 		cwd: claudeDir,
 		absolute: true,
 	});
@@ -708,8 +704,8 @@ export async function loadSessionData(
 	options?: LoadOptions,
 ): Promise<SessionUsage[]> {
 	const claudePath = options?.claudePath ?? getDefaultClaudePath();
-	const claudeDir = path.join(claudePath, 'projects');
-	const files = await glob(['**/*.jsonl'], {
+	const claudeDir = path.join(claudePath, CLAUDE_PROJECTS_DIR_NAME);
+	const files = await glob([USAGE_DATA_GLOB_PATTERN], {
 		cwd: claudeDir,
 		absolute: true,
 	});
@@ -944,8 +940,8 @@ export async function loadSessionBlockData(
 	options?: LoadOptions,
 ): Promise<SessionBlock[]> {
 	const claudePath = options?.claudePath ?? getDefaultClaudePath();
-	const claudeDir = path.join(claudePath, 'projects');
-	const files = await glob(['**/*.jsonl'], {
+	const claudeDir = path.join(claudePath, CLAUDE_PROJECTS_DIR_NAME);
+	const files = await glob([USAGE_DATA_GLOB_PATTERN], {
 		cwd: claudeDir,
 		absolute: true,
 	});

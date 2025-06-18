@@ -33,3 +33,21 @@ export const BLOCKS_DEFAULT_TERMINAL_WIDTH = 120;
  * Used in debug cost validation to allow for minor calculation differences
  */
 export const DEBUG_MATCH_THRESHOLD_PERCENT = 0.1;
+
+/**
+ * Default Claude data directory path (~/.claude)
+ * Used as base path for loading usage data from JSONL files
+ */
+export const DEFAULT_CLAUDE_CODE_PATH = '.claude';
+
+/**
+ * Claude projects directory name within the data directory
+ * Contains subdirectories for each project with usage data
+ */
+export const CLAUDE_PROJECTS_DIR_NAME = 'projects';
+
+/**
+ * JSONL file glob pattern for finding usage data files
+ * Used to recursively find all JSONL files in project directories
+ */
+export const USAGE_DATA_GLOB_PATTERN = '**/*.jsonl';
