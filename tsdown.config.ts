@@ -15,7 +15,7 @@ export default defineConfig({
 	treeshake: true,
 	dts: {
 		tsgo: true,
-		resolve: ['valibot', 'type-fest'],
+		resolve: ['type-fest'],
 	},
 	publint: true,
 	unused: true,
