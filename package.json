@@ -66,6 +66,7 @@
 		"path-type": "^6.0.0",
 		"picocolors": "^1.1.1",
 		"publint": "^0.3.12",
+		"rollup-plugin-node-externals": "^8.0.1",
 		"simple-git-hooks": "^2.13.0",
 		"sort-package-json": "^3.2.1",
 		"string-width": "^7.2.0",
