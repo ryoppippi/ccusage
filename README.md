@@ -395,7 +395,7 @@ bun run mcp
 # or: npm run mcp
 
 # Test specific MCP server command directly
-npx @modelcontextprotocol/inspector ccusage mcp
+bunx @modelcontextprotocol/inspector bunx ccusage mcp
 ```
 
 The MCP Inspector provides a web-based interface to:
