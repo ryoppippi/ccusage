@@ -1,5 +1,9 @@
 # ccusage
 
+<div align="center">
+  <img src="docs/logo.png" alt="ccusage logo" width="128" height="128">
+</div>
+
 > **ccusage(claude-code-usage)**
 
 [![npm version](https://img.shields.io/npm/v/ccusage?color=yellow)](https://npmjs.com/package/ccusage)
@@ -476,6 +480,10 @@ With `--breakdown` flag:
 ## License
 
 MIT
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+The logo and brand assets are also licensed under the MIT License. Created by [@nyatinte](https://github.com/nyatinte).
 
 ## Author
 
