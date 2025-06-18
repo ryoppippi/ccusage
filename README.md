@@ -1,7 +1,7 @@
 # ccusage
 
 <div align="center">
-  <img src="docs/logo.png" alt="ccusage logo" width="256" height="256">
+  <img src="https://cdn.jsdelivr.net/gh/ryoppippi/ccusage@main/docs/logo.png" alt="ccusage logo" width="256" height="256">
 </div>
 
 [![npm version](https://img.shields.io/npm/v/ccusage?color=yellow)](https://npmjs.com/package/ccusage)
@@ -11,7 +11,7 @@
 [![Mentioned in Awesome Claude Code](https://awesome.re/mentioned-badge.svg)](https://github.com/hesreallyhim/awesome-claude-code)
 
 <div align="center">
-  <img src="https://github.com/ryoppippi/ccusage/blob/main/docs/screenshot.png?raw=true">
+  <img src="https://cdn.jsdelivr.net/gh/ryoppippi/ccusage@main/docs/screenshot.png">
 </div>
 
 > **ccusage(claude-code-usage)**
@@ -353,7 +353,7 @@ Available MCP tools:
 #### Claude Desktop Configuration Example
 
 <div align="center">
-  <img src="https://github.com/ryoppippi/ccusage/blob/main/docs/mcp-claude-desktop.avif?raw=true">
+  <img src="https://cdn.jsdelivr.net/gh/ryoppippi/ccusage@main/docs/mcp-claude-desktop.avif">
 </div>
 
 To use ccusage MCP with Claude Desktop, add this to your Claude Desktop configuration file:
