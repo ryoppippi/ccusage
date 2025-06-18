@@ -385,6 +385,26 @@ Or if you have ccusage installed globally:
 
 After adding this configuration, restart Claude Desktop. You'll then be able to use the ccusage tools within Claude to analyze your usage data.
 
+#### Testing MCP Server
+
+You can test the MCP server interactively using the MCP Inspector:
+
+```bash
+# Test the MCP server with interactive web UI
+bun run mcp
+# or: npm run mcp
+
+# Test specific MCP server command directly
+npx @modelcontextprotocol/inspector ccusage mcp
+```
+
+The MCP Inspector provides a web-based interface to:
+
+- Test individual MCP tools (daily, monthly, session, blocks)
+- Inspect tool schemas and parameters
+- Debug server responses
+- Export server configurations
+
 ## Output Example
 
 ### Daily Report
