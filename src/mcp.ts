@@ -407,6 +407,375 @@ if (import.meta.vitest != null) {
 					id: null,
 				});
 			});
+
+			it('should handle MCP initialize request', async () => {
+				await using fixture = await createFixture({
+					'projects/test-project/session1/usage.jsonl': JSON.stringify({
+						timestamp: '2024-01-01T12:00:00Z',
+						costUSD: 0.001,
+						version: '1.0.0',
+						message: {
+							model: 'claude-sonnet-4-20250514',
+							usage: { input_tokens: 50, output_tokens: 10 },
+						},
+					}),
+				});
+
+				const app = createMcpHttpApp({ claudePath: fixture.path });
+
+				const response = await app.request('/', {
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json',
+						'Accept': 'application/json, text/event-stream',
+					},
+					body: JSON.stringify({
+						jsonrpc: '2.0',
+						method: 'initialize',
+						params: {
+							protocolVersion: '1.0.0',
+							capabilities: {},
+							clientInfo: { name: 'test-client', version: '1.0.0' },
+						},
+						id: 1,
+					}),
+				});
+
+				expect(response.status).toBe(200);
+				expect(response.headers.get('content-type')).toBe('text/event-stream');
+
+				const text = await response.text();
+				expect(text).toContain('event: message');
+				expect(text).toContain('data: ');
+
+				// Extract the JSON data from the SSE response
+				const dataLine = text.split('\n').find(line => line.startsWith('data: '));
+				expect(dataLine).toBeDefined();
+				const data = JSON.parse(dataLine!.replace('data: ', ''));
+
+				expect(data.jsonrpc).toBe('2.0');
+				expect(data.id).toBe(1);
+				expect(data.result).toHaveProperty('protocolVersion');
+				expect(data.result).toHaveProperty('capabilities');
+				expect(data.result.serverInfo).toEqual({ name, version });
+			});
+
+			it('should handle MCP callTool request for daily tool', async () => {
+				await using fixture = await createFixture({
+					'projects/test-project/session1/usage.jsonl': JSON.stringify({
+						timestamp: '2024-01-01T12:00:00Z',
+						costUSD: 0.001,
+						version: '1.0.0',
+						message: {
+							model: 'claude-sonnet-4-20250514',
+							usage: { input_tokens: 50, output_tokens: 10 },
+						},
+					}),
+				});
+
+				const app = createMcpHttpApp({ claudePath: fixture.path });
+
+				// First initialize
+				await app.request('/', {
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json',
+						'Accept': 'application/json, text/event-stream',
+					},
+					body: JSON.stringify({
+						jsonrpc: '2.0',
+						method: 'initialize',
+						params: {
+							protocolVersion: '1.0.0',
+							capabilities: {},
+							clientInfo: { name: 'test-client', version: '1.0.0' },
+						},
+						id: 1,
+					}),
+				});
+
+				// Then call tool
+				const response = await app.request('/', {
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json',
+						'Accept': 'application/json, text/event-stream',
+					},
+					body: JSON.stringify({
+						jsonrpc: '2.0',
+						method: 'tools/call',
+						params: {
+							name: 'daily',
+							arguments: { mode: 'auto' },
+						},
+						id: 2,
+					}),
+				});
+
+				expect(response.status).toBe(200);
+				const text = await response.text();
+
+				expect(text).toContain('event: message');
+				expect(text).toContain('data: ');
+
+				// Extract the JSON data from the SSE response
+				const dataLine = text.split('\n').find(line => line.startsWith('data: '));
+				expect(dataLine).toBeDefined();
+				const data = JSON.parse(dataLine!.replace('data: ', ''));
+
+				expect(data.jsonrpc).toBe('2.0');
+				expect(data.id).toBe(2);
+				expect(data.result).toHaveProperty('content');
+				expect(Array.isArray(data.result.content)).toBe(true);
+			});
+		});
+
+		describe('error handling', () => {
+			it('should handle tool call with invalid arguments', async () => {
+				await using fixture = await createFixture({
+					'projects/test-project/session1/usage.jsonl': JSON.stringify({
+						timestamp: '2024-01-01T12:00:00Z',
+						costUSD: 0.001,
+						version: '1.0.0',
+						message: {
+							model: 'claude-sonnet-4-20250514',
+							usage: { input_tokens: 50, output_tokens: 10 },
+						},
+					}),
+				});
+
+				const client = new Client({ name: 'test-client', version: '1.0.0' });
+				const server = createMcpServer({ claudePath: fixture.path });
+
+				const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+
+				await Promise.all([
+					client.connect(clientTransport),
+					server.connect(serverTransport),
+				]);
+
+				// Test with invalid mode enum value
+				await expect(client.callTool({
+					name: 'daily',
+					arguments: { mode: 'invalid_mode' },
+				})).rejects.toThrow('Invalid enum value');
+
+				await client.close();
+				await server.close();
+			});
+
+			it('should handle tool call with invalid date format', async () => {
+				await using fixture = await createFixture({
+					'projects/test-project/session1/usage.jsonl': JSON.stringify({
+						timestamp: '2024-01-01T12:00:00Z',
+						costUSD: 0.001,
+						version: '1.0.0',
+						message: {
+							model: 'claude-sonnet-4-20250514',
+							usage: { input_tokens: 50, output_tokens: 10 },
+						},
+					}),
+				});
+
+				const client = new Client({ name: 'test-client', version: '1.0.0' });
+				const server = createMcpServer({ claudePath: fixture.path });
+
+				const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+
+				await Promise.all([
+					client.connect(clientTransport),
+					server.connect(serverTransport),
+				]);
+
+				// Test with invalid date format
+				await expect(client.callTool({
+					name: 'daily',
+					arguments: { since: 'not-a-date', until: '2024-invalid' },
+				})).rejects.toThrow('Date must be in YYYYMMDD format');
+
+				await client.close();
+				await server.close();
+			});
+
+			it('should handle tool call with unknown tool name', async () => {
+				await using fixture = await createFixture({
+					'projects/test-project/session1/usage.jsonl': JSON.stringify({
+						timestamp: '2024-01-01T12:00:00Z',
+						costUSD: 0.001,
+						version: '1.0.0',
+						message: {
+							model: 'claude-sonnet-4-20250514',
+							usage: { input_tokens: 50, output_tokens: 10 },
+						},
+					}),
+				});
+
+				const client = new Client({ name: 'test-client', version: '1.0.0' });
+				const server = createMcpServer({ claudePath: fixture.path });
+
+				const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+
+				await Promise.all([
+					client.connect(clientTransport),
+					server.connect(serverTransport),
+				]);
+
+				// Test with unknown tool name
+				await expect(client.callTool({
+					name: 'unknown-tool',
+					arguments: {},
+				})).rejects.toThrow('Tool unknown-tool not found');
+
+				await client.close();
+				await server.close();
+			});
+		});
+
+		describe('edge cases', () => {
+			it('should handle empty data directory', async () => {
+				await using fixture = await createFixture({
+					'projects/.keep': '',
+				});
+
+				const client = new Client({ name: 'test-client', version: '1.0.0' });
+				const server = createMcpServer({ claudePath: fixture.path });
+
+				const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+
+				await Promise.all([
+					client.connect(clientTransport),
+					server.connect(serverTransport),
+				]);
+
+				const result = await client.callTool({
+					name: 'daily',
+					arguments: { mode: 'auto' },
+				});
+
+				expect(result).toHaveProperty('content');
+				expect(Array.isArray(result.content)).toBe(true);
+				expect(result.content).toHaveLength(1);
+				expect((result.content as any)[0]).toHaveProperty('type', 'text');
+
+				const data = JSON.parse((result.content as any)[0].text as string);
+				expect(Array.isArray(data)).toBe(true);
+				expect(data).toHaveLength(0);
+
+				await client.close();
+				await server.close();
+			});
+
+			it('should handle malformed JSONL files', async () => {
+				await using fixture = await createFixture({
+					'projects/test-project/session1/usage.jsonl': 'invalid json\n{"valid": "json"}',
+				});
+
+				const client = new Client({ name: 'test-client', version: '1.0.0' });
+				const server = createMcpServer({ claudePath: fixture.path });
+
+				const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+
+				await Promise.all([
+					client.connect(clientTransport),
+					server.connect(serverTransport),
+				]);
+
+				const result = await client.callTool({
+					name: 'daily',
+					arguments: { mode: 'auto' },
+				});
+
+				expect(result).toHaveProperty('content');
+				expect(Array.isArray(result.content)).toBe(true);
+				expect(result.content).toHaveLength(1);
+
+				const data = JSON.parse((result.content as any)[0].text as string);
+				expect(Array.isArray(data)).toBe(true);
+				// Should still return data, as malformed lines are silently skipped
+				expect(data).toHaveLength(0);
+
+				await client.close();
+				await server.close();
+			});
+
+			it('should handle missing Claude directory', async () => {
+				const client = new Client({ name: 'test-client', version: '1.0.0' });
+				const server = createMcpServer({ claudePath: '/nonexistent/path' });
+
+				const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+
+				await Promise.all([
+					client.connect(clientTransport),
+					server.connect(serverTransport),
+				]);
+
+				const result = await client.callTool({
+					name: 'daily',
+					arguments: { mode: 'auto' },
+				});
+
+				expect(result).toHaveProperty('content');
+				expect(Array.isArray(result.content)).toBe(true);
+				expect(result.content).toHaveLength(1);
+
+				const data = JSON.parse((result.content as any)[0].text as string);
+				expect(Array.isArray(data)).toBe(true);
+				expect(data).toHaveLength(0);
+
+				await client.close();
+				await server.close();
+			});
+
+			it('should handle concurrent tool calls', async () => {
+				await using fixture = await createFixture({
+					'projects/test-project/session1/usage.jsonl': JSON.stringify({
+						timestamp: '2024-01-01T12:00:00Z',
+						costUSD: 0.001,
+						version: '1.0.0',
+						message: {
+							model: 'claude-sonnet-4-20250514',
+							usage: { input_tokens: 50, output_tokens: 10 },
+						},
+					}),
+				});
+
+				const client = new Client({ name: 'test-client', version: '1.0.0' });
+				const server = createMcpServer({ claudePath: fixture.path });
+
+				const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+
+				await Promise.all([
+					client.connect(clientTransport),
+					server.connect(serverTransport),
+				]);
+
+				// Call multiple tools concurrently
+				const [dailyResult, sessionResult, monthlyResult, blocksResult] = await Promise.all([
+					client.callTool({ name: 'daily', arguments: { mode: 'auto' } }),
+					client.callTool({ name: 'session', arguments: { mode: 'auto' } }),
+					client.callTool({ name: 'monthly', arguments: { mode: 'auto' } }),
+					client.callTool({ name: 'blocks', arguments: { mode: 'auto' } }),
+				]);
+
+				expect(dailyResult).toHaveProperty('content');
+				expect(sessionResult).toHaveProperty('content');
+				expect(monthlyResult).toHaveProperty('content');
+				expect(blocksResult).toHaveProperty('content');
+
+				// Verify all responses are valid JSON arrays
+				const dailyData = JSON.parse((dailyResult.content as any)[0].text as string);
+				const sessionData = JSON.parse((sessionResult.content as any)[0].text as string);
+				const monthlyData = JSON.parse((monthlyResult.content as any)[0].text as string);
+				const blocksData = JSON.parse((blocksResult.content as any)[0].text as string);
+
+				expect(Array.isArray(dailyData)).toBe(true);
+				expect(Array.isArray(sessionData)).toBe(true);
+				expect(Array.isArray(monthlyData)).toBe(true);
+				expect(Array.isArray(blocksData)).toBe(true);
+
+				await client.close();
+				await server.close();
+			});
 		});
 	});
 }
