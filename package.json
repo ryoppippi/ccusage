@@ -44,6 +44,7 @@
 	},
 	"devDependencies": {
 		"@core/errorutil": "npm:@jsr/core__errorutil",
+		"@hono/mcp": "^0.1.0",
 		"@hono/node-server": "^1.14.4",
 		"@modelcontextprotocol/sdk": "^1.12.3",
 		"@oxc-project/runtime": "^0.73.1",

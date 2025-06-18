@@ -1,10 +1,9 @@
 import type { LoadOptions } from './data-loader.ts';
+import { StreamableHTTPTransport } from '@hono/mcp';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
-import { toFetchResponse, toReqRes } from 'fetch-to-node';
 import { createFixture } from 'fs-fixture';
 import { Hono } from 'hono/tiny';
 import { z } from 'zod';
@@ -17,7 +16,6 @@ import {
 	loadSessionBlockData,
 	loadSessionData,
 } from './data-loader.ts';
-import { logger } from './logger.ts';
 import { dateSchema } from './types.internal.ts';
 
 /** Default options for the MCP server */
@@ -156,51 +154,12 @@ export async function startMcpServerStdio(
 export function createMcpHttpApp(options: LoadOptions = defaultOptions): Hono {
 	const app = new Hono();
 
-	app.post('/', async (c) => {
-		const { req, res } = toReqRes(c.req.raw);
-		const mcpServer = createMcpServer(options);
-		const transport = new StreamableHTTPServerTransport({
-			sessionIdGenerator: undefined, // Stateless mode
-		});
+	const mcpServer = createMcpServer(options);
 
+	app.all('/', async (c) => {
+		const transport = new StreamableHTTPTransport();
 		await mcpServer.connect(transport);
-		await transport.handleRequest(req, res, await c.req.json() as unknown);
-
-		res.on('close', () => {
-			transport.close().catch(() => {});
-			mcpServer.close().catch(() => {});
-		});
-
-		return toFetchResponse(res);
-	});
-
-	app.on(['GET', 'DELETE'], '/', (c) => {
-		return c.json(
-			{
-				jsonrpc: '2.0',
-				error: {
-					code: -32000,
-					message: 'Method not allowed.',
-				},
-				id: null,
-			},
-			405,
-		);
-	});
-
-	app.onError((e, c) => {
-		logger.error(e.message);
-		return c.json(
-			{
-				jsonrpc: '2.0',
-				error: {
-					code: -32603,
-					message: 'Internal server error',
-				},
-				id: null,
-			},
-			500,
-		);
+		return transport.handleRequest(c);
 	});
 
 	return app;
@@ -428,72 +387,6 @@ if (import.meta.vitest != null) {
 				expect(app).toBeDefined();
 			});
 
-			it('should handle valid POST requests without 405 error', async () => {
-				await using fixture = await createFixture({
-					'projects/test-project/session1/usage.jsonl': JSON.stringify({
-						timestamp: '2024-01-01T12:00:00Z',
-						costUSD: 0.001,
-						version: '1.0.0',
-						message: {
-							model: 'claude-sonnet-4-20250514',
-							usage: { input_tokens: 50, output_tokens: 10 },
-						},
-					}),
-				});
-
-				const app = createMcpHttpApp({ claudePath: fixture.path });
-
-				// Test with a valid JSON POST request
-				const mcpRequest = {
-					jsonrpc: '2.0',
-					method: 'test',
-					id: 1,
-				};
-
-				const response = await app.request('/', {
-					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify(mcpRequest),
-				});
-
-				// Should not return method not allowed for POST requests
-				expect(response.status).not.toBe(405);
-			});
-
-			it('should return 405 for GET requests', async () => {
-				const app = createMcpHttpApp();
-
-				const response = await app.request('/', { method: 'GET' });
-
-				expect(response.status).toBe(405);
-				const data = await response.json();
-				expect(data).toMatchObject({
-					jsonrpc: '2.0',
-					error: {
-						code: -32000,
-						message: 'Method not allowed.',
-					},
-					id: null,
-				});
-			});
-
-			it('should return 405 for DELETE requests', async () => {
-				const app = createMcpHttpApp();
-
-				const response = await app.request('/', { method: 'DELETE' });
-
-				expect(response.status).toBe(405);
-				const data = await response.json();
-				expect(data).toMatchObject({
-					jsonrpc: '2.0',
-					error: {
-						code: -32000,
-						message: 'Method not allowed.',
-					},
-					id: null,
-				});
-			});
-
 			it('should handle invalid JSON in POST request', async () => {
 				const app = createMcpHttpApp();
 
@@ -503,13 +396,13 @@ if (import.meta.vitest != null) {
 					body: 'invalid json',
 				});
 
-				expect(response.status).toBe(500);
+				expect(response.status).toBe(406);
 				const data = await response.json();
 				expect(data).toMatchObject({
 					jsonrpc: '2.0',
 					error: {
-						code: -32603,
-						message: 'Internal server error',
+						code: -32000,
+						message: 'Not Acceptable: Client must accept both application/json and text/event-stream',
 					},
 					id: null,
 				});

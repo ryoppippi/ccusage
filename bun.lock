@@ -5,6 +5,7 @@
       "name": "ccusage",
       "devDependencies": {
         "@core/errorutil": "npm:@jsr/core__errorutil",
+        "@hono/mcp": "^0.1.0",
         "@hono/node-server": "^1.14.4",
         "@modelcontextprotocol/sdk": "^1.12.3",
         "@oxc-project/runtime": "^0.73.1",
@@ -106,6 +107,8 @@
     "@eslint/object-schema": ["@eslint/object-schema@2.1.6", "", {}, "sha512-RBMg5FRL0I0gs51M/guSAj5/e14VQ4tpZnQNWwuDT66P14I43ItmPfIZRhO9fUVIPOAQXU47atlywZ/czoqFPA=="],
 
     "@eslint/plugin-kit": ["@eslint/plugin-kit@0.3.2", "", { "dependencies": { "@eslint/core": "^0.15.0", "levn": "^0.4.1" } }, "sha512-4SaFZCNfJqvk/kenHpI8xvN42DMaoycy4PzKc5otHxRswww1kAt82OlBuwRVLofCACCTZEcla2Ydxv8scMXaTg=="],
+
+    "@hono/mcp": ["@hono/mcp@0.1.0", "", { "peerDependencies": { "@modelcontextprotocol/sdk": "^1.12.0", "hono": "*" } }, "sha512-IELNnKF5tjbUm+wthfToZrNxZIjs1RWLiwCx8N+m8xfJcL6hfcpj/21Gsw8HL88lbnCh191mbFwYvXnx856QZg=="],
 
     "@hono/node-server": ["@hono/node-server@1.14.4", "", { "peerDependencies": { "hono": "^4" } }, "sha512-DnxpshhYewr2q9ZN8ez/M5mmc3sucr8CT1sIgIy1bkeUXut9XWDkqHoFHRhWIQgkYnKpVRxunyhK7WzpJeJ6qQ=="],
 
