@@ -1,14 +1,10 @@
 import { uniq } from 'es-toolkit';
+import { DEFAULT_RECENT_DAYS } from './consts.internal.js';
 
 /**
  * Default session duration in hours (Claude's billing block duration)
  */
 export const DEFAULT_SESSION_DURATION_HOURS = 5;
-
-/**
- * Default number of recent days to include when filtering blocks
- */
-const DEFAULT_RECENT_DAYS = 3;
 
 /**
  * Represents a single usage data entry loaded from JSONL files

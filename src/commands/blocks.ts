@@ -1,6 +1,7 @@
 import process from 'node:process';
 import { define } from 'gunshi';
 import pc from 'picocolors';
+import { DEFAULT_RECENT_DAYS } from '../consts.internal.js';
 import { getDefaultClaudePath, loadSessionBlockData } from '../data-loader.ts';
 import { log, logger } from '../logger.ts';
 import {
@@ -12,11 +13,6 @@ import {
 } from '../session-blocks.internal.ts';
 import { sharedCommandConfig } from '../shared-args.internal.ts';
 import { formatCurrency, formatModelsDisplay, formatNumber, ResponsiveTable } from '../utils.internal.ts';
-
-/**
- * Default number of recent days to show in blocks view
- */
-const RECENT_DAYS_DEFAULT = 3;
 
 /**
  * Threshold percentage for showing usage warnings (80%)
@@ -135,7 +131,7 @@ export const blocksCommand = define({
 		recent: {
 			type: 'boolean',
 			short: 'r',
-			description: `Show blocks from last ${RECENT_DAYS_DEFAULT} days (including active)`,
+			description: `Show blocks from last ${DEFAULT_RECENT_DAYS} days (including active)`,
 			default: false,
 		},
 		tokenLimit: {
@@ -199,7 +195,7 @@ export const blocksCommand = define({
 
 		// Apply filters
 		if (ctx.values.recent) {
-			blocks = filterRecentBlocks(blocks, RECENT_DAYS_DEFAULT);
+			blocks = filterRecentBlocks(blocks, DEFAULT_RECENT_DAYS);
 		}
 
 		if (ctx.values.active) {
