@@ -1,3 +1,5 @@
+import { uniq } from 'es-toolkit';
+
 /**
  * Default session duration in hours (Claude's billing block duration)
  */
@@ -163,7 +165,7 @@ function createBlock(startTime: Date, entries: LoadedUsageEntry[], now: Date, se
 	};
 
 	let costUSD = 0;
-	const modelsSet = new Set<string>();
+	const models: string[] = [];
 
 	for (const entry of entries) {
 		tokenCounts.inputTokens += entry.usage.inputTokens;
@@ -171,7 +173,7 @@ function createBlock(startTime: Date, entries: LoadedUsageEntry[], now: Date, se
 		tokenCounts.cacheCreationInputTokens += entry.usage.cacheCreationInputTokens;
 		tokenCounts.cacheReadInputTokens += entry.usage.cacheReadInputTokens;
 		costUSD += entry.costUSD ?? 0;
-		modelsSet.add(entry.model);
+		models.push(entry.model);
 	}
 
 	return {
@@ -183,7 +185,7 @@ function createBlock(startTime: Date, entries: LoadedUsageEntry[], now: Date, se
 		entries,
 		tokenCounts,
 		costUSD,
-		models: Array.from(modelsSet),
+		models: uniq(models),
 	};
 }
 

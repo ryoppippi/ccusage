@@ -1,5 +1,6 @@
 import process from 'node:process';
 import Table from 'cli-table3';
+import { uniq } from 'es-toolkit';
 import pc from 'picocolors';
 import stringWidth from 'string-width';
 
@@ -243,7 +244,7 @@ function formatModelName(modelName: string): string {
  */
 export function formatModelsDisplay(models: string[]): string {
 	// Format array of models for display
-	const uniqueModels = [...new Set(models.map(formatModelName))];
+	const uniqueModels = uniq(models.map(formatModelName));
 	return uniqueModels.sort().join(', ');
 }
 

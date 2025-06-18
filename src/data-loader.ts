@@ -4,7 +4,7 @@ import { homedir } from 'node:os';
 import path, { join } from 'node:path';
 import process from 'node:process';
 import { unreachable } from '@core/errorutil';
-import { groupBy } from 'es-toolkit'; // TODO: after node20 is deprecated, switch to native Object.groupBy
+import { groupBy, uniq } from 'es-toolkit'; // TODO: after node20 is deprecated, switch to native Object.groupBy
 import { sort } from 'fast-sort';
 import { createFixture } from 'fs-fixture';
 import { isDirectorySync } from 'path-type';
@@ -349,7 +349,7 @@ function extractUniqueModels<T>(
 	entries: T[],
 	getModel: (entry: T) => string | undefined,
 ): string[] {
-	return [...new Set(entries.map(getModel).filter((m): m is string => m != null && m !== '<synthetic>'))];
+	return uniq(entries.map(getModel).filter((m): m is string => m != null && m !== '<synthetic>'));
 }
 
 /**
@@ -790,10 +790,10 @@ export async function loadSessionData(
 			);
 
 			// Collect all unique versions
-			const versionSet = new Set<string>();
+			const versions: string[] = [];
 			for (const entry of entries) {
 				if (entry.data.version != null) {
-					versionSet.add(entry.data.version);
+					versions.push(entry.data.version);
 				}
 			}
 
@@ -822,7 +822,7 @@ export async function loadSessionData(
 				projectPath: latestEntry.projectPath,
 				...totals,
 				lastActivity: formatDate(latestEntry.timestamp),
-				versions: Array.from(versionSet).sort(),
+				versions: uniq(versions).sort(),
 				modelsUsed,
 				modelBreakdowns,
 			};
@@ -865,12 +865,12 @@ export async function loadMonthlyUsageData(
 		const modelBreakdowns = createModelBreakdowns(modelAggregates);
 
 		// Collect unique models
-		const modelsSet = new Set<string>();
+		const models: string[] = [];
 		for (const data of dailyEntries) {
 			for (const model of data.modelsUsed) {
 				// Skip synthetic model
 				if (model !== '<synthetic>') {
-					modelsSet.add(model);
+					models.push(model);
 				}
 			}
 		}
@@ -896,7 +896,7 @@ export async function loadMonthlyUsageData(
 			cacheCreationTokens: totalCacheCreationTokens,
 			cacheReadTokens: totalCacheReadTokens,
 			totalCost,
-			modelsUsed: Array.from(modelsSet),
+			modelsUsed: uniq(models),
 			modelBreakdowns,
 		};
 
