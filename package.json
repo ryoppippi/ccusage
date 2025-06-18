@@ -35,6 +35,7 @@
 		"build": "tsdown",
 		"format": "bun run lint --fix",
 		"lint": "eslint --cache .",
+		"mcp": "bunx @modelcontextprotocol/inspector bun run start mcp",
 		"prepack": "bun run build && clean-pkg-json",
 		"prepare": "simple-git-hooks",
 		"release": "bun lint && bun typecheck && vitest run && bun run build && bumpp",
