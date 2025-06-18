@@ -1,16 +1,12 @@
 import { readFile } from 'node:fs/promises';
-import { homedir } from 'node:os';
 import path from 'node:path';
 import { createFixture } from 'fs-fixture';
 import { glob } from 'tinyglobby';
+import { CLAUDE_PROJECTS_DIR_NAME, DEBUG_MATCH_THRESHOLD_PERCENT, DEFAULT_CLAUDE_CODE_PATH, USAGE_DATA_GLOB_PATTERN, USER_HOME_DIR } from './consts.internal.js';
 import { usageDataSchema } from './data-loader.ts';
 import { logger } from './logger.ts';
 import { PricingFetcher } from './pricing-fetcher.ts';
 
-/**
- * Threshold percentage for considering costs as matching (0.1% tolerance)
- */
-const MATCH_THRESHOLD_PERCENT = 0.1;
 /**
  * Represents a pricing discrepancy between original and calculated costs
  */
@@ -68,8 +64,8 @@ type MismatchStats = {
 export async function detectMismatches(
 	claudePath?: string,
 ): Promise<MismatchStats> {
-	const claudeDir = claudePath ?? path.join(homedir(), '.claude', 'projects');
-	const files = await glob(['**/*.jsonl'], {
+	const claudeDir = claudePath ?? path.join(USER_HOME_DIR, DEFAULT_CLAUDE_CODE_PATH, CLAUDE_PROJECTS_DIR_NAME);
+	const files = await glob([USAGE_DATA_GLOB_PATTERN], {
 		cwd: claudeDir,
 		absolute: true,
 	});
@@ -145,7 +141,7 @@ export async function detectMismatches(
 						versionStat.total++;
 
 						// Consider it a match if within the defined threshold (to account for floating point)
-						if (percentDiff < MATCH_THRESHOLD_PERCENT) {
+						if (percentDiff < DEBUG_MATCH_THRESHOLD_PERCENT) {
 							versionStat.matches++;
 						}
 						else {

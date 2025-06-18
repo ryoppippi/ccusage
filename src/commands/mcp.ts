@@ -1,5 +1,6 @@
 import { serve } from '@hono/node-server';
 import { define } from 'gunshi';
+import { MCP_DEFAULT_PORT } from '../consts.internal.js';
 import { getDefaultClaudePath } from '../data-loader.ts';
 import { logger } from '../logger.ts';
 import { createMcpHttpApp, createMcpServer, startMcpServerStdio } from '../mcp.ts';
@@ -23,8 +24,8 @@ export const mcpCommand = define({
 		},
 		port: {
 			type: 'number',
-			description: 'Port for HTTP transport (default: 8080)',
-			default: 8080,
+			description: `Port for HTTP transport (default: ${MCP_DEFAULT_PORT})`,
+			default: MCP_DEFAULT_PORT,
 		},
 	},
 	async run(ctx) {

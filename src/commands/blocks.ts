@@ -1,6 +1,7 @@
 import process from 'node:process';
 import { define } from 'gunshi';
 import pc from 'picocolors';
+import { BLOCKS_COMPACT_WIDTH_THRESHOLD, BLOCKS_DEFAULT_TERMINAL_WIDTH, BLOCKS_WARNING_THRESHOLD, DEFAULT_RECENT_DAYS } from '../consts.internal.js';
 import { getDefaultClaudePath, loadSessionBlockData } from '../data-loader.ts';
 import { log, logger } from '../logger.ts';
 import {
@@ -12,26 +13,6 @@ import {
 } from '../session-blocks.internal.ts';
 import { sharedCommandConfig } from '../shared-args.internal.ts';
 import { formatCurrency, formatModelsDisplay, formatNumber, ResponsiveTable } from '../utils.internal.ts';
-
-/**
- * Default number of recent days to show in blocks view
- */
-const RECENT_DAYS_DEFAULT = 3;
-
-/**
- * Threshold percentage for showing usage warnings (80%)
- */
-const WARNING_THRESHOLD = 0.8;
-
-/**
- * Terminal width threshold for switching to compact display mode
- */
-const COMPACT_WIDTH_THRESHOLD = 120;
-
-/**
- * Default terminal width when stdout.columns is not available
- */
-const DEFAULT_TERMINAL_WIDTH = 120;
 
 /**
  * Formats the time display for a session block
@@ -135,7 +116,7 @@ export const blocksCommand = define({
 		recent: {
 			type: 'boolean',
 			short: 'r',
-			description: `Show blocks from last ${RECENT_DAYS_DEFAULT} days (including active)`,
+			description: `Show blocks from last ${DEFAULT_RECENT_DAYS} days (including active)`,
 			default: false,
 		},
 		tokenLimit: {
@@ -199,7 +180,7 @@ export const blocksCommand = define({
 
 		// Apply filters
 		if (ctx.values.recent) {
-			blocks = filterRecentBlocks(blocks, RECENT_DAYS_DEFAULT);
+			blocks = filterRecentBlocks(blocks, DEFAULT_RECENT_DAYS);
 		}
 
 		if (ctx.values.active) {
@@ -248,7 +229,7 @@ export const blocksCommand = define({
 												percentUsed: (projection.totalTokens / limit) * 100,
 												status: projection.totalTokens > limit
 													? 'exceeds'
-													: projection.totalTokens > limit * WARNING_THRESHOLD ? 'warning' : 'ok',
+													: projection.totalTokens > limit * BLOCKS_WARNING_THRESHOLD ? 'warning' : 'ok',
 											}
 										: undefined;
 								})()
@@ -309,7 +290,7 @@ export const blocksCommand = define({
 							const percentUsed = (projection.totalTokens / limit) * 100;
 							const status = percentUsed > 100
 								? pc.red('EXCEEDS LIMIT')
-								: percentUsed > WARNING_THRESHOLD * 100
+								: percentUsed > BLOCKS_WARNING_THRESHOLD * 100
 									? pc.yellow('WARNING')
 									: pc.green('OK');
 
@@ -348,8 +329,8 @@ export const blocksCommand = define({
 				});
 
 				// Detect if we need compact formatting
-				const terminalWidth = process.stdout.columns || DEFAULT_TERMINAL_WIDTH;
-				const useCompactFormat = terminalWidth < COMPACT_WIDTH_THRESHOLD;
+				const terminalWidth = process.stdout.columns || BLOCKS_DEFAULT_TERMINAL_WIDTH;
+				const useCompactFormat = terminalWidth < BLOCKS_COMPACT_WIDTH_THRESHOLD;
 
 				for (const block of blocks) {
 					if (block.isGap ?? false) {
