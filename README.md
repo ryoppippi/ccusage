@@ -1,6 +1,8 @@
 # ccusage
 
-> **ccusage(claude-code-usage)**
+<div align="center">
+  <img src="docs/logo.png" alt="ccusage logo" width="256" height="256">
+</div>
 
 [![npm version](https://img.shields.io/npm/v/ccusage?color=yellow)](https://npmjs.com/package/ccusage)
 [![NPM Downloads](https://img.shields.io/npm/dy/ccusage)](https://tanstack.com/stats/npm?packageGroups=%5B%7B%22packages%22:%5B%7B%22name%22:%22ccusage%22%7D%5D%7D%5D&range=30-days&transform=none&binType=daily&showDataMode=all&height=400)
@@ -11,6 +13,8 @@
 <div align="center">
   <img src="https://github.com/ryoppippi/ccusage/blob/main/docs/screenshot.png?raw=true">
 </div>
+
+> **ccusage(claude-code-usage)**
 
 A CLI tool for analyzing Claude Code usage from local JSONL files.
 
@@ -476,6 +480,10 @@ With `--breakdown` flag:
 ## License
 
 MIT
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+The logo and brand assets are also licensed under the MIT License. Created by [@nyatinte](https://github.com/nyatinte).
 
 ## Author
 
