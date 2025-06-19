@@ -232,6 +232,12 @@ function formatModelName(modelName: string): string {
 	if (match != null) {
 		return `${match[1]}-${match[2]}`;
 	}
+	// Support old format: claude-3-7-sonnet-20250219 -> sonnet-3-7
+	// Support old format: claude-3-5-haiku-20241022 -> haiku-3-5
+	const oldFormatMatch = modelName.match(/claude-(\d+)-(\d+)-(\w+)-\d+/);
+	if (oldFormatMatch != null) {
+		return `${oldFormatMatch[3]}-${oldFormatMatch[1]}-${oldFormatMatch[2]}`;
+	}
 	// Return original if pattern doesn't match
 	return modelName;
 }
