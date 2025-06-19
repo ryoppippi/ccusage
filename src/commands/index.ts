@@ -6,6 +6,7 @@ import { dailyCommand } from './daily.ts';
 import { mcpCommand } from './mcp.ts';
 import { monthlyCommand } from './monthly.ts';
 import { sessionCommand } from './session.ts';
+import { watchCommand } from './watch.ts';
 
 /**
  * Map of available CLI subcommands
@@ -15,6 +16,7 @@ subCommands.set('daily', dailyCommand);
 subCommands.set('monthly', monthlyCommand);
 subCommands.set('session', sessionCommand);
 subCommands.set('blocks', blocksCommand);
+subCommands.set('watch', watchCommand);
 subCommands.set('mcp', mcpCommand);
 
 /**
