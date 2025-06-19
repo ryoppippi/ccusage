@@ -502,6 +502,8 @@ some projects use `ccusage` internally and provide additional features:
 
 - [claude-usage-tracker-for-mac](https://github.com/penicillin0/claude-usage-tracker-for-mac) – macOS menu bar app to visualize Claude Code usage costs by [@penicillin0](https://github.com/penicillin0).
 - [ccusage Raycast Extension](https://www.raycast.com/nyatinte/ccusage) – Raycast extension to view Claude Code usage reports in Raycast by [@nyatinte](https://github.com/nyatinte).
+- [claude-code-usage-monitor](https://github.com/Maciek-roboblog/Claude-Code-Usage-Monitor) - A real-time terminal-based tool for monitoring Claude Code token usage. It displays live token consumption, burn rate, and depletion predictions, with session-aware analytics, visual progress bars, and support for multiple subscription plans by [@Maciek-roboblog](https://github.com/Maciek-roboblog) 
+
 
 ## Acknowledgments
 
