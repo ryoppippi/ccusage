@@ -511,10 +511,9 @@ function getNextUpdateInterval(hasChanges: boolean, inactivityDuration: number):
 /**
  * Calculates burn rate analysis for different time periods
  * @param block - Current session block
- * @param _allBlocks - All blocks for historical comparison
  * @returns Burn rate analysis object
  */
-function calculateBurnRateAnalysis(block: SessionBlock, _allBlocks: SessionBlock[]): BurnRateAnalysis {
+function calculateBurnRateAnalysis(block: SessionBlock): BurnRateAnalysis {
 	const now = new Date();
 	const oneHourAgo = new Date(now.getTime() - TIME_CONSTANTS.ONE_HOUR_MS);
 	const tenMinutesAgo = new Date(now.getTime() - TIME_CONSTANTS.TEN_MINUTES_MS);
@@ -593,7 +592,7 @@ function displayActiveBlock(block: SessionBlock, allBlocks: SessionBlock[], opti
 
 	const burnRate = calculateBurnRate(block);
 	const projection = projectBlockUsage(block);
-	const burnRateAnalysis = calculateBurnRateAnalysis(block, allBlocks);
+	const burnRateAnalysis = calculateBurnRateAnalysis(block);
 
 	const currentTokens = block.tokenCounts.inputTokens + block.tokenCounts.outputTokens;
 
