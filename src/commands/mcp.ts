@@ -4,7 +4,7 @@ import { MCP_DEFAULT_PORT } from '../consts.internal.js';
 import { getDefaultClaudePath } from '../data-loader.ts';
 import { logger } from '../logger.ts';
 import { createMcpHttpApp, createMcpServer, startMcpServerStdio } from '../mcp.ts';
-import { sharedArgs } from '../shared-args.internal.ts';
+import { sharedArgs } from '../_shared-args.ts';
 
 /**
  * MCP server command that supports both stdio and HTTP transports.

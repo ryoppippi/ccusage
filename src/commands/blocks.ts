@@ -11,7 +11,7 @@ import {
 	projectBlockUsage,
 	type SessionBlock,
 } from '../session-blocks.internal.ts';
-import { sharedCommandConfig } from '../shared-args.internal.ts';
+import { sharedCommandConfig } from '../_shared-args.ts';
 import { formatCurrency, formatModelsDisplay, formatNumber, ResponsiveTable } from '../utils.internal.ts';
 
 /**
