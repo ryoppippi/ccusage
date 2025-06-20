@@ -11,7 +11,7 @@ import {
 } from '../_session-blocks.ts';
 import { sharedCommandConfig } from '../_shared-args.ts';
 import { formatCurrency, formatModelsDisplayMultiline, formatNumber, ResponsiveTable } from '../_utils.ts';
-import { getDefaultClaudePath, loadSessionBlockData } from '../data-loader.ts';
+import { loadSessionBlockData } from '../data-loader.ts';
 import { log, logger } from '../logger.ts';
 
 /**
@@ -145,7 +145,6 @@ export const blocksCommand = define({
 		let blocks = await loadSessionBlockData({
 			since: ctx.values.since,
 			until: ctx.values.until,
-			claudePath: getDefaultClaudePath(),
 			mode: ctx.values.mode,
 			order: ctx.values.order,
 			offline: ctx.values.offline,
