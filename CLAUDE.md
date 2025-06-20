@@ -46,13 +46,26 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `calculate` - Always calculate costs from token counts using model pricing, ignore costUSD
 - `display` - Always use pre-calculated costUSD values, show 0 for missing costs
 
+**Multiple Claude Data Directories:**
+
+This tool supports multiple Claude data directories to handle different Claude Code installations:
+
+- **Default Behavior**: Automatically searches both `~/.config/claude/projects/` (new default) and `~/.claude/projects/` (old default)
+- **Environment Variable**: Set `CLAUDE_CONFIG_DIR` to specify custom path(s)
+  - Single path: `export CLAUDE_CONFIG_DIR="/path/to/claude"`
+  - Multiple paths: `export CLAUDE_CONFIG_DIR="/path/to/claude1,/path/to/claude2"`
+- **Data Aggregation**: Usage data from all valid directories is automatically combined
+- **Backward Compatibility**: Existing configurations continue to work without changes
+
+This addresses the breaking change in Claude Code where logs moved from `~/.claude` to `~/.config/claude`.
+
 ## Architecture Overview
 
-This is a CLI tool that analyzes Claude Code usage data from local JSONL files stored in `~/.claude/projects/`. The architecture follows a clear separation of concerns:
+This is a CLI tool that analyzes Claude Code usage data from local JSONL files stored in Claude data directories (supports both `~/.claude/projects/` and `~/.config/claude/projects/`). The architecture follows a clear separation of concerns:
 
 **Core Data Flow:**
 
-1. **Data Loading** (`data-loader.ts`) - Parses JSONL files from Claude's local storage, including pre-calculated costs
+1. **Data Loading** (`data-loader.ts`) - Parses JSONL files from multiple Claude data directories, including pre-calculated costs
 2. **Token Aggregation** (`calculate-cost.ts`) - Utility functions for aggregating token counts and costs
 3. **Command Execution** (`commands/`) - CLI subcommands that orchestrate data loading and presentation
 4. **CLI Entry** (`index.ts`) - Gunshi-based CLI setup with subcommand routing
@@ -94,6 +107,7 @@ This is a CLI tool that analyzes Claude Code usage data from local JSONL files s
 - No console.log allowed except where explicitly disabled with eslint-disable
 - Error handling: silently skips malformed JSONL lines during parsing
 - File paths always use Node.js path utilities for cross-platform compatibility
+- **Import conventions**: Use `.ts` extensions for local file imports (e.g., `import { foo } from './utils.ts'`)
 
 **Naming Conventions:**
 

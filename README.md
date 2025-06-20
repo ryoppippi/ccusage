@@ -123,6 +123,31 @@ bun install
 bun run start [subcommand] [options]
 ```
 
+## Configuration
+
+### Claude Data Directory Support
+
+ccusage automatically detects and aggregates usage data from multiple Claude Code installation directories:
+
+- **`~/.config/claude/projects/`** - New default location (Claude Code v1.0.30+)
+- **`~/.claude/projects/`** - Legacy location (pre-v1.0.30)
+
+> **Note**: The directory change from `~/.claude` to `~/.config/claude` in Claude Code v1.0.30 was an undocumented breaking change. ccusage handles both locations automatically to ensure compatibility across different Claude Code versions.
+
+### Custom Paths
+
+You can specify custom Claude data directories using the `CLAUDE_CONFIG_DIR` environment variable:
+
+```bash
+# Single custom path
+export CLAUDE_CONFIG_DIR="/path/to/your/claude/data"
+
+# Multiple paths (comma-separated)
+export CLAUDE_CONFIG_DIR="/path/to/claude1,/path/to/claude2"
+```
+
+When `CLAUDE_CONFIG_DIR` is set, ccusage will use those paths instead of the default locations.
+
 ## Usage
 
 ### Daily Report (Default)
@@ -502,8 +527,6 @@ some projects use `ccusage` internally and provide additional features:
 
 - [claude-usage-tracker-for-mac](https://github.com/penicillin0/claude-usage-tracker-for-mac) – macOS menu bar app to visualize Claude Code usage costs by [@penicillin0](https://github.com/penicillin0).
 - [ccusage Raycast Extension](https://www.raycast.com/nyatinte/ccusage) – Raycast extension to view Claude Code usage reports in Raycast by [@nyatinte](https://github.com/nyatinte).
-- [claude-code-usage-monitor](https://github.com/Maciek-roboblog/Claude-Code-Usage-Monitor) – A real-time terminal-based tool for monitoring Claude Code token usage. It displays live token consumption, burn rate, and depletion predictions, with session-aware analytics, visual progress bars, and support for multiple subscription plans by [@Maciek-roboblog](https://github.com/Maciek-roboblog).
-- [ClaudeCode_Dashboard](https://github.com/m-sigepon/ClaudeCode_Dashboard) – Web dashboard to visualize Claude Code usage with charts and USD/JPY conversion by [@m-sigepon](https://github.com/m-sigepon).
 
 ## Acknowledgments
 
