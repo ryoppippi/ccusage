@@ -219,11 +219,17 @@ export function formatCurrency(amount: number): string {
 }
 
 /**
- * Formats time duration in hours and minutes
+ * Formats time duration in hours, minutes, and optionally seconds
  * @param minutes - Duration in minutes
- * @returns Formatted time string (e.g., "1h 30m" or "45m")
+ * @param seconds - Optional seconds for durations less than 1 minute
+ * @returns Formatted time string (e.g., "1h 30m", "45m", or "30s")
  */
-export function formatDuration(minutes: number): string {
+export function formatDuration(minutes: number, seconds?: number): string {
+	// If less than 1 minute and seconds provided, show seconds
+	if (minutes < 1 && seconds != null) {
+		return `${seconds}s`;
+	}
+
 	const hours = Math.floor(minutes / 60);
 	const mins = minutes % 60;
 	if (hours > 0) {
@@ -344,6 +350,19 @@ if (import.meta.vitest != null) {
 			expect(formatDuration(1)).toBe('1m');
 			expect(formatDuration(60)).toBe('1h 0m');
 			expect(formatDuration(61)).toBe('1h 1m');
+		});
+
+		it('formats seconds when duration is less than 1 minute', () => {
+			expect(formatDuration(0, 30)).toBe('30s');
+			expect(formatDuration(0, 0)).toBe('0s');
+			expect(formatDuration(0, 59)).toBe('59s');
+			expect(formatDuration(0, 45)).toBe('45s');
+		});
+
+		it('ignores seconds when duration is 1 minute or more', () => {
+			expect(formatDuration(1, 30)).toBe('1m');
+			expect(formatDuration(60, 45)).toBe('1h 0m');
+			expect(formatDuration(90, 15)).toBe('1h 30m');
 		});
 	});
 

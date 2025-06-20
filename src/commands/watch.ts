@@ -249,11 +249,9 @@ function createCleanupHandler(
 		const sessionEndTime = new Date();
 		const durationMs = sessionEndTime.getTime() - sessionStartTime.getTime();
 		const durationMinutes = Math.floor(durationMs / (1000 * 60));
-		const durationSeconds = Math.floor((durationMs % (1000 * 60)) / 1000);
+		const durationSeconds = Math.floor(durationMs / 1000);
 
-		const durationText = durationMinutes > 0
-			? `${durationMinutes}m ${durationSeconds}s`
-			: `${durationSeconds}s`;
+		const durationText = formatDuration(durationMinutes, durationSeconds);
 
 		// Calculate tokens and cost used during this session
 		let tokensUsed = 0;
