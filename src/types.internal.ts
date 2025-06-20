@@ -126,3 +126,22 @@ export const modelPricingSchema = z.object({
  * Type definition for model pricing information
  */
 export type ModelPricing = z.infer<typeof modelPricingSchema>;
+
+/**
+ * Available Claude model types for categorization
+ */
+export const ModelTypes = ['opus', 'sonnet', 'haiku'] as const;
+
+/**
+ * Union type for Claude model types
+ */
+export type ModelType = TupleToUnion<typeof ModelTypes>;
+
+/**
+ * Display options for watch mode and other commands
+ */
+export type DisplayOptions = {
+	showTokens: boolean;
+	showCost: boolean;
+	showPeriod: boolean;
+};

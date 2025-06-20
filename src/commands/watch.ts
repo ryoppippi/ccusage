@@ -1,3 +1,4 @@
+import type { DisplayOptions, ModelType } from '../types.internal.ts';
 import process from 'node:process';
 import Table from 'cli-table3';
 import { define } from 'gunshi';
@@ -26,15 +27,6 @@ type BlockState = {
 };
 
 /**
- * Display options for watch mode
- */
-type DisplayOptions = {
-	showPeriod: boolean;
-	showTokens: boolean;
-	showCost: boolean;
-};
-
-/**
  * Represents burn rate calculations for different time periods
  */
 type BurnRateAnalysis = {
@@ -42,11 +34,6 @@ type BurnRateAnalysis = {
 	oneHour: { input: number | null; output: number | null; cacheCreate: number | null; cacheRead: number | null };
 	tenMinutes: { input: number | null; output: number | null; cacheCreate: number | null; cacheRead: number | null };
 };
-
-/**
- * Model types for categorization
- */
-type ModelType = 'opus' | 'sonnet' | 'haiku';
 
 /**
  * Constants for progress bars and timing
