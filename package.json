@@ -44,6 +44,7 @@
 		"typecheck": "tsgo --noEmit"
 	},
 	"devDependencies": {
+		"@antfu/utils": "^9.2.0",
 		"@core/errorutil": "npm:@jsr/core__errorutil",
 		"@hono/mcp": "^0.1.0",
 		"@hono/node-server": "^1.14.4",
