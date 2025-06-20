@@ -17,10 +17,6 @@ import { isDirectorySync } from 'path-type';
 import { glob } from 'tinyglobby';
 import { z } from 'zod';
 import { CLAUDE_PROJECTS_DIR_NAME, DEFAULT_CLAUDE_CODE_PATH, USAGE_DATA_GLOB_PATTERN, USER_HOME_DIR } from './_consts.js';
-import { logger } from './logger.ts';
-import {
-	PricingFetcher,
-} from './pricing-fetcher.ts';
 import {
 	identifySessionBlocks,
 	type LoadedUsageEntry,
@@ -47,6 +43,10 @@ import {
 	sessionIdSchema,
 	versionSchema,
 } from './_types.ts';
+import { logger } from './logger.ts';
+import {
+	PricingFetcher,
+} from './pricing-fetcher.ts';
 
 /**
  * Default path for Claude data directory
