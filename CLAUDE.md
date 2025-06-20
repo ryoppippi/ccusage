@@ -116,6 +116,14 @@ This is a CLI tool that analyzes Claude Code usage data from local JSONL files s
 - Constants: can use UPPER_SNAKE_CASE - e.g., `DEFAULT_CLAUDE_CODE_PATH`
 - Internal files: use underscore prefix - e.g., `_types.ts`, `_utils.ts`, `_consts.ts`
 
+**Export Rules:**
+
+- **IMPORTANT**: Only export constants, functions, and types that are actually used by other modules
+- Internal/private constants that are only used within the same file should NOT be exported
+- Always check if a constant is used elsewhere before making it `export const` vs just `const`
+- This follows the principle of minimizing the public API surface area
+- Dependencies should always be added as `devDependencies` unless explicitly requested otherwise
+
 **Post-Code Change Workflow:**
 
 After making any code changes, ALWAYS run these commands in parallel:
