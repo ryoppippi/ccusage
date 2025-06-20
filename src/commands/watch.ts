@@ -811,6 +811,146 @@ function setupKeyboardHandling(
 	process.on('SIGINT', cleanup);
 }
 
+/**
+ * Tracks session start values for summary calculations
+ */
+type SessionTracker = {
+	startTokens: number;
+	startCost: number;
+	setStartValues: (tokens: number, cost: number) => void;
+};
+
+/**
+ * Creates a session tracker to manage session start values
+ * @returns Session tracker object
+ */
+function createSessionTracker(): SessionTracker {
+	let startTokens = 0;
+	let startCost = 0;
+
+	return {
+		get startTokens() {
+			return startTokens;
+		},
+		get startCost() {
+			return startCost;
+		},
+		setStartValues(tokens: number, cost: number) {
+			if (startTokens === 0 && startCost === 0) {
+				startTokens = tokens;
+				startCost = cost;
+			}
+		},
+	};
+}
+
+/**
+ * Configuration for the update display function
+ */
+type UpdateDisplayConfig = {
+	since?: string;
+	until?: string;
+	mode: 'auto' | 'calculate' | 'display';
+	order?: 'asc' | 'desc';
+	sessionLength?: number;
+};
+
+/**
+ * State management for the update display function
+ */
+type UpdateDisplayState = {
+	previousState: { current: BlockState | null };
+	currentInterval: { current: number };
+	lastChangeTime: { current: Date };
+	sessionTracker: SessionTracker;
+	activeBlockForSummary: { current: SessionBlock | null };
+};
+
+/**
+ * Creates the main update display function
+ * @param config - Configuration for data loading
+ * @param state - State management objects
+ * @param displayOptions - Display options that can be toggled
+ * @returns Update display function
+ */
+function createUpdateDisplay(
+	config: UpdateDisplayConfig,
+	state: UpdateDisplayState,
+	displayOptions: DisplayOptions,
+): () => Promise<void> {
+	return async (): Promise<void> => {
+		try {
+			// Load active block
+			const blocks = await loadSessionBlockData({
+				since: config.since,
+				until: config.until,
+				claudePath: getDefaultClaudePath(),
+				mode: config.mode,
+				order: config.order,
+				sessionDurationHours: config.sessionLength,
+			});
+
+			const activeBlocks = blocks.filter((block: SessionBlock) => block.isActive);
+
+			if (activeBlocks.length === 0) {
+				clearScreen();
+				log(pc.yellow('ℹ No active session block found.'));
+				log('');
+				log(`${new Date().toLocaleTimeString()} | Exit (Esc)`);
+				return;
+			}
+
+			const activeBlock = activeBlocks[0];
+			if (activeBlock == null) {
+				return;
+			}
+
+			// Track the active block for session summary
+			state.activeBlockForSummary.current = activeBlock;
+
+			// Initialize session start values if this is the first update
+			const currentTokens = activeBlock.tokenCounts.inputTokens + activeBlock.tokenCounts.outputTokens;
+			state.sessionTracker.setStartValues(currentTokens, activeBlock.costUSD);
+
+			// Create current state
+			const burnRate = calculateBurnRate(activeBlock);
+			const now = new Date();
+			const currentState: BlockState = {
+				tokenCount: currentTokens,
+				costUSD: activeBlock.costUSD,
+				burnRate: burnRate?.tokensPerMinute ?? null,
+				lastUpdate: now,
+				lastChangeTime: state.lastChangeTime.current,
+			};
+
+			// Check for changes and update timing
+			const hasChanges = hasSignificantChanges(currentState, state.previousState.current);
+			if (hasChanges) {
+				state.lastChangeTime.current = now;
+				currentState.lastChangeTime = state.lastChangeTime.current;
+			}
+
+			// Update interval based on inactivity
+			const inactivityDuration = now.getTime() - state.lastChangeTime.current.getTime();
+			state.currentInterval.current = getNextUpdateInterval(hasChanges, inactivityDuration);
+
+			// Clear screen and display
+			clearScreen();
+			displayActiveBlock(activeBlock, blocks, displayOptions);
+
+			// Update previous state
+			state.previousState.current = currentState;
+		}
+		catch (error) {
+			clearScreen();
+			log(pc.red('Error loading usage data:'));
+			log(pc.gray(`   ${error instanceof Error ? error.message : String(error)}`));
+			log('');
+			log(`${new Date().toLocaleTimeString()} | Exit (Esc)`);
+		}
+	};
+}
+
 export const watchCommand = define({
 	name: 'watch',
 	description: 'Watch active session block usage with real-time updates and progress bars',
@@ -837,93 +977,32 @@ export const watchCommand = define({
 			process.exit(1);
 		}
 
-		let previousState: BlockState | null = null;
-		let currentInterval = UPDATE_INTERVALS.FAST;
+		// Setup state management
 		const intervalId = { current: null as NodeJS.Timeout | null };
-		let lastChangeTime = new Date();
 		const displayOptions: DisplayOptions = { showPeriod: false, showTokens: false, showCost: false };
-
-		// Track start time and initial values for session summary
 		const sessionStartTime = new Date();
-		let sessionStartTokens = 0;
-		let sessionStartCost = 0;
-		const activeBlockForSummary = { current: null as SessionBlock | null };
+		const sessionTracker = createSessionTracker();
 
-		// Main update function
-		const updateDisplay = async (): Promise<void> => {
-			try {
-				// Load active block
-				const blocks = await loadSessionBlockData({
-					since: ctx.values.since,
-					until: ctx.values.until,
-					claudePath: getDefaultClaudePath(),
-					mode,
-					order: ctx.values.order,
-					sessionDurationHours: ctx.values.sessionLength,
-				});
-
-				const activeBlocks = blocks.filter((block: SessionBlock) => block.isActive);
-
-				if (activeBlocks.length === 0) {
-					clearScreen();
-					log(pc.yellow('ℹ No active session block found.'));
-					log('');
-					log(`${new Date().toLocaleTimeString()} | Exit (Esc)`);
-					return;
-				}
-
-				const activeBlock = activeBlocks[0];
-				if (activeBlock == null) {
-					return;
-				}
-
-				// Track the active block for session summary
-				activeBlockForSummary.current = activeBlock;
-
-				// Initialize session start values if this is the first update
-				if (sessionStartTokens === 0 && sessionStartCost === 0) {
-					sessionStartTokens = activeBlock.tokenCounts.inputTokens + activeBlock.tokenCounts.outputTokens;
-					sessionStartCost = activeBlock.costUSD;
-				}
-
-				// Create current state
-				const currentTokens = activeBlock.tokenCounts.inputTokens + activeBlock.tokenCounts.outputTokens;
-				const burnRate = calculateBurnRate(activeBlock);
-				const now = new Date();
-				const currentState: BlockState = {
-					tokenCount: currentTokens,
-					costUSD: activeBlock.costUSD,
-					burnRate: burnRate?.tokensPerMinute ?? null,
-					lastUpdate: now,
-					lastChangeTime,
-				};
-
-				// Check for changes and update timing
-				const hasChanges = hasSignificantChanges(currentState, previousState);
-				if (hasChanges) {
-					lastChangeTime = now;
-					currentState.lastChangeTime = lastChangeTime;
-				}
-
-				// Update interval based on inactivity
-				const inactivityDuration = now.getTime() - lastChangeTime.getTime();
-				currentInterval = getNextUpdateInterval(hasChanges, inactivityDuration);
-
-				// Clear screen and display
-				clearScreen();
-				displayActiveBlock(activeBlock, blocks, displayOptions);
-
-				// Update previous state
-				previousState = currentState;
-			}
-			catch (error) {
-				clearScreen();
-				log(pc.red('Error loading usage data:'));
-				log(pc.gray(`   ${error instanceof Error ? error.message : String(error)}`));
-				log('');
-				log(`${new Date().toLocaleTimeString()} | Exit (Esc)`);
-			}
+		// State for update display function
+		const state: UpdateDisplayState = {
+			previousState: { current: null },
+			currentInterval: { current: UPDATE_INTERVALS.FAST },
+			lastChangeTime: { current: new Date() },
+			sessionTracker,
+			activeBlockForSummary: { current: null },
 		};
+
+		// Configuration for update display function
+		const config: UpdateDisplayConfig = {
+			since: ctx.values.since,
+			until: ctx.values.until,
+			mode,
+			order: ctx.values.order,
+			sessionLength: ctx.values.sessionLength,
+		};
+
+		// Create update display function
+		const updateDisplay = createUpdateDisplay(config, state, displayOptions);
 
 		// Initial display
 		await updateDisplay();
@@ -936,7 +1015,7 @@ export const watchCommand = define({
 				}).catch((error) => {
 					console.error('Update display error:', error);
 				});
-			}, currentInterval);
+			}, state.currentInterval.current);
 		};
 
 		scheduleNext();
@@ -945,9 +1024,9 @@ export const watchCommand = define({
 		const cleanup = createCleanupHandler(
 			intervalId,
 			sessionStartTime,
-			sessionStartTokens,
-			sessionStartCost,
-			activeBlockForSummary,
+			sessionTracker.startTokens,
+			sessionTracker.startCost,
+			state.activeBlockForSummary,
 		);
 
 		setupKeyboardHandling(displayOptions, updateDisplay, cleanup);
