@@ -1,13 +1,11 @@
 import type { DisplayOptions } from '../types.internal.ts';
 import process from 'node:process';
-import Table from 'cli-table3';
 import { define } from 'gunshi';
 import pc from 'picocolors';
 import { getDefaultClaudePath, loadSessionBlockData } from '../data-loader.ts';
 import { log, logger } from '../logger.ts';
 import { calculateModelBreakdown, createProgressBar, displayCostProgressBar } from '../progress-bar.internal.ts';
 import {
-	type BurnRateAnalysis,
 	calculateBurnRate,
 	calculateBurnRateAnalysis,
 	DEFAULT_SESSION_DURATION_HOURS,
@@ -17,7 +15,7 @@ import {
 } from '../session-blocks.internal.ts';
 import { createSessionTracker, type SessionTracker } from '../session-tracker.internal.ts';
 import { sharedCommandConfig } from '../shared-args.internal.ts';
-import { displayCostTable, displayTokensTable } from '../table-display.internal.ts';
+import { displayCostTable, displayPeriodTable, displayTokensTable } from '../table-display.internal.ts';
 import { clearScreen, formatCurrency, formatDuration, formatNumber } from '../utils.internal.ts';
 
 /**
@@ -43,29 +41,6 @@ const TIME_WARNING_THRESHOLDS = {
 	CRITICAL: 30, // Red warning when 30 minutes or less remaining
 	WARNING: 60, // Yellow warning when 1 hour or less remaining
 };
-
-/**
- * Displays period burn rate table if enabled
- */
-function displayPeriodTable(burnRateAnalysis: BurnRateAnalysis): void {
-	const table = new Table({
-		head: ['Period', 'Input t/min', 'Output t/min', 'Cache Create t/min', 'Cache Read t/min'],
-		style: { head: ['cyan'] },
-		colAligns: ['left', 'right', 'right', 'right', 'right'],
-	});
-
-	const formatRate = (rate: number | null): string => {
-		return rate != null ? formatNumber(Math.round(rate)) : 'N/A';
-	};
-
-	table.push(
-		['Block', formatRate(burnRateAnalysis.block.input), formatRate(burnRateAnalysis.block.output), formatRate(burnRateAnalysis.block.cacheCreate), formatRate(burnRateAnalysis.block.cacheRead)],
-		['1 Hour', formatRate(burnRateAnalysis.oneHour.input), formatRate(burnRateAnalysis.oneHour.output), formatRate(burnRateAnalysis.oneHour.cacheCreate), formatRate(burnRateAnalysis.oneHour.cacheRead)],
-		['10 Minutes', formatRate(burnRateAnalysis.tenMinutes.input), formatRate(burnRateAnalysis.tenMinutes.output), formatRate(burnRateAnalysis.tenMinutes.cacheCreate), formatRate(burnRateAnalysis.tenMinutes.cacheRead)],
-	);
-
-	log(table.toString());
-}
 
 /**
  * Updates intervals in milliseconds for adaptive updating
@@ -230,7 +205,7 @@ function displayActiveBlock(block: SessionBlock, allBlocks: SessionBlock[], opti
 
 	if (options.showPeriod) {
 		log('');
-		displayPeriodTable(burnRateAnalysis);
+		log(displayPeriodTable(burnRateAnalysis));
 	}
 	log('');
 

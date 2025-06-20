@@ -1,4 +1,5 @@
-import type { SessionBlock } from './session-blocks.internal.ts';
+import type { BurnRateAnalysis, SessionBlock } from './session-blocks.internal.ts';
+import Table from 'cli-table3';
 import pc from 'picocolors';
 import { formatCurrency, formatModelsDisplay, formatNumber, ResponsiveTable } from './utils.internal.ts';
 
@@ -201,5 +202,36 @@ export function displayTokensTable(block: SessionBlock): string {
  */
 export function displayCostTable(block: SessionBlock): string {
 	const table = createCostTable(block);
+	return table.toString();
+}
+
+/**
+ * Creates a period burn rate table
+ */
+export function createPeriodTable(burnRateAnalysis: BurnRateAnalysis): Table.Table {
+	const table = new Table({
+		head: ['Period', 'Input t/min', 'Output t/min', 'Cache Create t/min', 'Cache Read t/min'],
+		style: { head: ['cyan'] },
+		colAligns: ['left', 'right', 'right', 'right', 'right'],
+	});
+
+	const formatRate = (rate: number | null): string => {
+		return rate != null ? formatNumber(Math.round(rate)) : 'N/A';
+	};
+
+	table.push(
+		['Block', formatRate(burnRateAnalysis.block.input), formatRate(burnRateAnalysis.block.output), formatRate(burnRateAnalysis.block.cacheCreate), formatRate(burnRateAnalysis.block.cacheRead)],
+		['1 Hour', formatRate(burnRateAnalysis.oneHour.input), formatRate(burnRateAnalysis.oneHour.output), formatRate(burnRateAnalysis.oneHour.cacheCreate), formatRate(burnRateAnalysis.oneHour.cacheRead)],
+		['10 Minutes', formatRate(burnRateAnalysis.tenMinutes.input), formatRate(burnRateAnalysis.tenMinutes.output), formatRate(burnRateAnalysis.tenMinutes.cacheCreate), formatRate(burnRateAnalysis.tenMinutes.cacheRead)],
+	);
+
+	return table;
+}
+
+/**
+ * Displays period burn rate table
+ */
+export function displayPeriodTable(burnRateAnalysis: BurnRateAnalysis): string {
+	const table = createPeriodTable(burnRateAnalysis);
 	return table.toString();
 }
