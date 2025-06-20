@@ -1,6 +1,6 @@
 import { serve } from '@hono/node-server';
 import { define } from 'gunshi';
-import { MCP_DEFAULT_PORT } from '../consts.internal.js';
+import { MCP_DEFAULT_PORT } from '../_consts.js';
 import { getDefaultClaudePath } from '../data-loader.ts';
 import { logger } from '../logger.ts';
 import { createMcpHttpApp, createMcpServer, startMcpServerStdio } from '../mcp.ts';
