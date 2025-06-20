@@ -16,7 +16,8 @@ import {
 	TIME_CONSTANTS,
 } from '../session-blocks.internal.ts';
 import { sharedCommandConfig } from '../shared-args.internal.ts';
-import { clearScreen, formatCurrency, formatDuration, formatModelsDisplay, formatNumber } from '../utils.internal.ts';
+import { displayCostTable, displayTokensTable } from '../table-display.internal.ts';
+import { clearScreen, formatCurrency, formatDuration, formatNumber } from '../utils.internal.ts';
 
 /**
  * Represents the current state of the active block for change detection
@@ -41,149 +42,6 @@ const TIME_WARNING_THRESHOLDS = {
 	CRITICAL: 30, // Red warning when 30 minutes or less remaining
 	WARNING: 60, // Yellow warning when 1 hour or less remaining
 };
-
-/**
- * Displays tokens breakdown table if enabled
- */
-function displayTokensTable(block: SessionBlock): void {
-	const table = new Table({
-		head: ['Tokens', 'Input', 'Output', 'Cache Create', 'Cache Read', 'Total'],
-		style: { head: ['cyan'] },
-		colAligns: ['left', 'right', 'right', 'right', 'right', 'right'],
-	});
-
-	// Calculate token breakdown by actual model name
-	const modelBreakdown = new Map<string, { input: number; output: number; cacheCreate: number; cacheRead: number }>();
-
-	for (const entry of block.entries) {
-		const modelName = entry.model;
-
-		const current = modelBreakdown.get(modelName) ?? { input: 0, output: 0, cacheCreate: 0, cacheRead: 0 };
-		modelBreakdown.set(modelName, {
-			input: current.input + entry.usage.inputTokens,
-			output: current.output + entry.usage.outputTokens,
-			cacheCreate: current.cacheCreate + entry.usage.cacheCreationInputTokens,
-			cacheRead: current.cacheRead + entry.usage.cacheReadInputTokens,
-		});
-	}
-
-	// Add rows for each model that has usage
-	let totalInput = 0;
-	let totalOutput = 0;
-	let totalCacheCreate = 0;
-	let totalCacheRead = 0;
-
-	// Sort models by name for consistent display
-	const sortedModels = Array.from(modelBreakdown.entries()).sort(([a], [b]) => a.localeCompare(b));
-
-	for (const [modelName, tokens] of sortedModels) {
-		if (tokens.input > 0 || tokens.output > 0 || tokens.cacheCreate > 0 || tokens.cacheRead > 0) {
-			const total = tokens.input + tokens.output + tokens.cacheCreate + tokens.cacheRead;
-			const displayName = formatModelsDisplay([modelName]);
-			table.push([
-				displayName,
-				formatNumber(tokens.input),
-				formatNumber(tokens.output),
-				formatNumber(tokens.cacheCreate),
-				formatNumber(tokens.cacheRead),
-				formatNumber(total),
-			]);
-			totalInput += tokens.input;
-			totalOutput += tokens.output;
-			totalCacheCreate += tokens.cacheCreate;
-			totalCacheRead += tokens.cacheRead;
-		}
-	}
-
-	// Add total row
-	if (modelBreakdown.size > 1) {
-		table.push([
-			pc.bold('Total'),
-			pc.bold(formatNumber(totalInput)),
-			pc.bold(formatNumber(totalOutput)),
-			pc.bold(formatNumber(totalCacheCreate)),
-			pc.bold(formatNumber(totalCacheRead)),
-			pc.bold(formatNumber(totalInput + totalOutput + totalCacheCreate + totalCacheRead)),
-		]);
-	}
-
-	log(table.toString());
-}
-
-/**
- * Displays cost breakdown table if enabled
- */
-function displayCostTable(block: SessionBlock): void {
-	const table = new Table({
-		head: ['Cost', 'Input', 'Output', 'Cache Create', 'Cache Read', 'Total'],
-		style: { head: ['cyan'] },
-		colAligns: ['left', 'right', 'right', 'right', 'right', 'right'],
-	});
-
-	// Calculate cost breakdown by actual model name
-	const modelCostBreakdown = new Map<string, { input: number; output: number; cacheCreate: number; cacheRead: number }>();
-
-	for (const entry of block.entries) {
-		const modelName = entry.model;
-
-		const current = modelCostBreakdown.get(modelName) ?? { input: 0, output: 0, cacheCreate: 0, cacheRead: 0 };
-
-		// Calculate individual cost components
-		// We need to estimate the cost breakdown since we only have total costUSD
-		const totalTokens = entry.usage.inputTokens + entry.usage.outputTokens + entry.usage.cacheCreationInputTokens + entry.usage.cacheReadInputTokens;
-		if (totalTokens > 0 && entry.costUSD != null && entry.costUSD > 0) {
-			const costPerToken = entry.costUSD / totalTokens;
-			modelCostBreakdown.set(modelName, {
-				input: current.input + (entry.usage.inputTokens * costPerToken),
-				output: current.output + (entry.usage.outputTokens * costPerToken),
-				cacheCreate: current.cacheCreate + (entry.usage.cacheCreationInputTokens * costPerToken),
-				cacheRead: current.cacheRead + (entry.usage.cacheReadInputTokens * costPerToken),
-			});
-		}
-	}
-
-	// Add rows for each model that has usage
-	let totalInputCost = 0;
-	let totalOutputCost = 0;
-	let totalCacheCreateCost = 0;
-	let totalCacheReadCost = 0;
-
-	// Sort models by name for consistent display
-	const sortedModels = Array.from(modelCostBreakdown.entries()).sort(([a], [b]) => a.localeCompare(b));
-
-	for (const [modelName, costs] of sortedModels) {
-		const totalCost = costs.input + costs.output + costs.cacheCreate + costs.cacheRead;
-		if (totalCost > 0) {
-			const displayName = formatModelsDisplay([modelName]);
-			table.push([
-				displayName,
-				formatCurrency(costs.input),
-				formatCurrency(costs.output),
-				formatCurrency(costs.cacheCreate),
-				formatCurrency(costs.cacheRead),
-				formatCurrency(totalCost),
-			]);
-			totalInputCost += costs.input;
-			totalOutputCost += costs.output;
-			totalCacheCreateCost += costs.cacheCreate;
-			totalCacheReadCost += costs.cacheRead;
-		}
-	}
-
-	// Add total row
-	if (modelCostBreakdown.size > 1) {
-		table.push([
-			pc.bold('Total'),
-			pc.bold(formatCurrency(totalInputCost)),
-			pc.bold(formatCurrency(totalOutputCost)),
-			pc.bold(formatCurrency(totalCacheCreateCost)),
-			pc.bold(formatCurrency(totalCacheReadCost)),
-			pc.bold(formatCurrency(totalInputCost + totalOutputCost + totalCacheCreateCost + totalCacheReadCost)),
-		]);
-	}
-
-	log(table.toString());
-}
 
 /**
  * Displays period burn rate table if enabled
@@ -361,12 +219,12 @@ function displayActiveBlock(block: SessionBlock, allBlocks: SessionBlock[], opti
 	// Show optional tables based on display options
 	if (options.showTokens) {
 		log('');
-		displayTokensTable(block);
+		log(displayTokensTable(block));
 	}
 
 	if (options.showCost) {
 		log('');
-		displayCostTable(block);
+		log(displayCostTable(block));
 	}
 
 	if (options.showPeriod) {
