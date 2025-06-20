@@ -43,6 +43,18 @@ export const DEBUG_MATCH_THRESHOLD_PERCENT = 0.1;
 export const DEFAULT_CLAUDE_CODE_PATH = '.claude';
 
 /**
+ * Additional default Claude data directory path (~/.config/claude)
+ * Used as secondary path for loading usage data from JSONL files
+ */
+export const DEFAULT_CLAUDE_CONFIG_PATH = '.config/claude';
+
+/**
+ * Environment variable for specifying multiple Claude data directories
+ * Supports comma-separated paths for multiple locations
+ */
+export const CLAUDE_CONFIG_DIR_ENV = 'CLAUDE_CONFIG_DIR';
+
+/**
  * Claude projects directory name within the data directory
  * Contains subdirectories for each project with usage data
  */
