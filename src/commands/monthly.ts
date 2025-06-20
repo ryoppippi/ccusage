@@ -2,7 +2,7 @@ import process from 'node:process';
 import { define } from 'gunshi';
 import pc from 'picocolors';
 import { sharedCommandConfig } from '../_shared-args.ts';
-import { formatCurrency, formatModelsDisplay, formatNumber, pushBreakdownRows, ResponsiveTable } from '../_utils.ts';
+import { formatCurrency, formatModelsDisplayMultiline, formatNumber, pushBreakdownRows, ResponsiveTable } from '../_utils.ts';
 import {
 	calculateTotals,
 	createTotalsObject,
@@ -82,7 +82,7 @@ export const monthlyCommand = define({
 			// Print header
 			logger.box('Claude Code Token Usage Report - Monthly');
 
-			// Create table
+			// Create table with compact mode support
 			const table = new ResponsiveTable({
 				head: [
 					'Month',
@@ -108,6 +108,21 @@ export const monthlyCommand = define({
 					'right',
 				],
 				dateFormatter: formatDateCompact,
+				compactHead: [
+					'Month',
+					'Models',
+					'Input',
+					'Output',
+					'Cost (USD)',
+				],
+				compactColAligns: [
+					'left',
+					'left',
+					'right',
+					'right',
+					'right',
+				],
+				compactThreshold: 100,
 			});
 
 			// Add monthly data
@@ -115,7 +130,7 @@ export const monthlyCommand = define({
 				// Main row
 				table.push([
 					data.month,
-					formatModelsDisplay(data.modelsUsed),
+					formatModelsDisplayMultiline(data.modelsUsed),
 					formatNumber(data.inputTokens),
 					formatNumber(data.outputTokens),
 					formatNumber(data.cacheCreationTokens),
@@ -155,6 +170,12 @@ export const monthlyCommand = define({
 			]);
 
 			log(table.toString());
+
+			// Show guidance message if in compact mode
+			if (table.isCompactMode()) {
+				logger.info('\nRunning in Compact Mode');
+				logger.info('Expand terminal width to see cache metrics and total tokens');
+			}
 		}
 	},
 });

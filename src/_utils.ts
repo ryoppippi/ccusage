@@ -18,6 +18,9 @@ type TableOptions = {
 		head?: string[];
 	};
 	dateFormatter?: (dateStr: string) => string;
+	compactHead?: string[];
+	compactColAligns?: ('left' | 'right' | 'center')[];
+	compactThreshold?: number;
 };
 
 /**
@@ -30,6 +33,10 @@ export class ResponsiveTable {
 	private colAligns: ('left' | 'right' | 'center')[];
 	private style?: { head?: string[] };
 	private dateFormatter?: (dateStr: string) => string;
+	private compactHead?: string[];
+	private compactColAligns?: ('left' | 'right' | 'center')[];
+	private compactThreshold: number;
+	private compactMode = false;
 
 	/**
 	 * Creates a new responsive table instance
@@ -40,6 +47,9 @@ export class ResponsiveTable {
 		this.colAligns = options.colAligns ?? Array.from({ length: this.head.length }, () => 'left');
 		this.style = options.style;
 		this.dateFormatter = options.dateFormatter;
+		this.compactHead = options.compactHead;
+		this.compactColAligns = options.compactColAligns;
+		this.compactThreshold = options.compactThreshold ?? 100;
 	}
 
 	/**
@@ -51,22 +61,87 @@ export class ResponsiveTable {
 	}
 
 	/**
+	 * Filters a row to compact mode columns
+	 * @param row - Row to filter
+	 * @param compactIndices - Indices of columns to keep in compact mode
+	 * @returns Filtered row
+	 */
+	private filterRowToCompact(row: TableRow, compactIndices: number[]): TableRow {
+		return compactIndices.map(index => row[index] ?? '');
+	}
+
+	/**
+	 * Gets the current table head and col aligns based on compact mode
+	 * @returns Current head and colAligns arrays
+	 */
+	private getCurrentTableConfig(): { head: string[]; colAligns: ('left' | 'right' | 'center')[] } {
+		if (this.compactMode && this.compactHead != null && this.compactColAligns != null) {
+			return { head: this.compactHead, colAligns: this.compactColAligns };
+		}
+		return { head: this.head, colAligns: this.colAligns };
+	}
+
+	/**
+	 * Gets indices mapping from full table to compact table
+	 * @returns Array of column indices to keep in compact mode
+	 */
+	private getCompactIndices(): number[] {
+		if (this.compactHead == null || !this.compactMode) {
+			return Array.from({ length: this.head.length }, (_, i) => i);
+		}
+
+		// Map compact headers to original indices
+		return this.compactHead.map((compactHeader) => {
+			const index = this.head.indexOf(compactHeader);
+			if (index < 0) {
+				// Log warning for debugging configuration issues
+				console.warn(`Warning: Compact header "${compactHeader}" not found in table headers [${this.head.join(', ')}]. Using first column as fallback.`);
+				return 0; // fallback to first column if not found
+			}
+			return index;
+		});
+	}
+
+	/**
+	 * Returns whether the table is currently in compact mode
+	 * @returns True if compact mode is active
+	 */
+	isCompactMode(): boolean {
+		return this.compactMode;
+	}
+
+	/**
 	 * Renders the table as a formatted string
 	 * Automatically adjusts layout based on terminal width
 	 * @returns Formatted table string
 	 */
 	toString(): string {
-		const terminalWidth = process.stdout.columns || 120;
+		// Check environment variable first, then process.stdout.columns, then default
+		const terminalWidth = Number.parseInt(process.env.COLUMNS ?? '', 10) || process.stdout.columns || 120;
+
+		// Determine if we should use compact mode
+		this.compactMode = terminalWidth < this.compactThreshold && this.compactHead != null;
+
+		// Get current table configuration
+		const { head, colAligns } = this.getCurrentTableConfig();
+		const compactIndices = this.getCompactIndices();
 
 		// Calculate actual content widths first (excluding separator rows)
 		const dataRows = this.rows.filter(row => !this.isSeparatorRow(row));
-		const allRows = [this.head.map(String), ...dataRows.map(row => row.map((cell) => {
+
+		// Filter rows to compact mode if needed
+		const processedDataRows = this.compactMode
+			? dataRows.map(row => this.filterRowToCompact(row, compactIndices))
+			: dataRows;
+
+		const allRows = [head.map(String), ...processedDataRows.map(row => row.map((cell) => {
 			if (typeof cell === 'object' && cell != null && 'content' in cell) {
 				return String(cell.content);
 			}
 			return String(cell ?? '');
 		}))];
-		const contentWidths = this.head.map((_, colIndex) => {
+
+		const contentWidths = head.map((_, colIndex) => {
 			const maxLength = Math.max(
 				...allRows.map(row => stringWidth(String(row[colIndex] ?? ''))),
 			);
@@ -74,13 +149,13 @@ export class ResponsiveTable {
 		});
 
 		// Calculate table overhead
-		const numColumns = this.head.length;
+		const numColumns = head.length;
 		const tableOverhead = 3 * numColumns + 1; // borders and separators
 		const availableWidth = terminalWidth - tableOverhead;
 
 		// Always use content-based widths with generous padding for numeric columns
 		const columnWidths = contentWidths.map((width, index) => {
-			const align = this.colAligns[index];
+			const align = colAligns[index];
 			// For numeric columns, ensure generous width to prevent truncation
 			if (align === 'right') {
 				return Math.max(width + 3, 11); // At least 11 chars for numbers, +3 padding
@@ -99,7 +174,7 @@ export class ResponsiveTable {
 			// Apply responsive resizing and use compact date format if available
 			const scaleFactor = availableWidth / columnWidths.reduce((sum, width) => sum + width, 0);
 			const adjustedWidths = columnWidths.map((width, index) => {
-				const align = this.colAligns[index];
+				const align = colAligns[index];
 				let adjustedWidth = Math.floor(width * scaleFactor);
 
 				// Apply minimum widths based on column type
@@ -120,9 +195,9 @@ export class ResponsiveTable {
 			});
 
 			const table = new Table({
-				head: this.head,
+				head,
 				style: this.style,
-				colAligns: this.colAligns,
+				colAligns,
 				colWidths: adjustedWidths,
 				wordWrap: true,
 				wrapOnWordBoundary: true,
@@ -136,12 +211,18 @@ export class ResponsiveTable {
 				}
 				else {
 					// Use compact date format for first column if dateFormatter available
-					const processedRow = row.map((cell, index) => {
+					let processedRow = row.map((cell, index) => {
 						if (index === 0 && this.dateFormatter != null && typeof cell === 'string' && this.isDateString(cell)) {
 							return this.dateFormatter(cell);
 						}
 						return cell;
 					});
+
+					// Filter to compact columns if in compact mode
+					if (this.compactMode) {
+						processedRow = this.filterRowToCompact(processedRow, compactIndices);
+					}
+
 					table.push(processedRow);
 				}
 			}
@@ -151,9 +232,9 @@ export class ResponsiveTable {
 		else {
 			// Use generous column widths with normal date format
 			const table = new Table({
-				head: this.head,
+				head,
 				style: this.style,
-				colAligns: this.colAligns,
+				colAligns,
 				colWidths: columnWidths,
 				wordWrap: true,
 				wrapOnWordBoundary: true,
@@ -166,7 +247,11 @@ export class ResponsiveTable {
 					continue;
 				}
 				else {
-					table.push(row);
+					// Filter to compact columns if in compact mode
+					const processedRow = this.compactMode
+						? this.filterRowToCompact(row, compactIndices)
+						: row;
+					table.push(processedRow);
 				}
 			}
 
@@ -249,6 +334,18 @@ export function formatModelsDisplay(models: string[]): string {
 }
 
 /**
+ * Formats an array of model names for display with each model on a new line
+ * Removes duplicates and sorts alphabetically
+ * @param models - Array of model names
+ * @returns Formatted string with unique, sorted model names as a bulleted list
+ */
+export function formatModelsDisplayMultiline(models: string[]): string {
+	// Format array of models for display with newlines and bullet points
+	const uniqueModels = uniq(models.map(formatModelName));
+	return uniqueModels.sort().map(model => `- ${model}`).join('\n');
+}
+
+/**
  * Pushes model breakdown rows to a table
  * @param table - The table to push rows to
  * @param table.push - Method to add rows to the table
@@ -300,6 +397,323 @@ export function pushBreakdownRows(
 }
 
 if (import.meta.vitest != null) {
+	describe('ResponsiveTable', () => {
+		describe('compact mode behavior', () => {
+			it('should activate compact mode when terminal width is below threshold', () => {
+				const table = new ResponsiveTable({
+					head: ['Date', 'Model', 'Input', 'Output', 'Cost'],
+					compactHead: ['Date', 'Model', 'Cost'],
+					compactThreshold: 100,
+				});
+
+				// Mock process.env.COLUMNS to simulate narrow terminal
+				const originalColumns = process.env.COLUMNS;
+				process.env.COLUMNS = '80';
+
+				table.push(['2024-01-01', 'sonnet-4', '1000', '500', '$1.50']);
+				table.toString(); // This triggers compact mode calculation
+
+				expect(table.isCompactMode()).toBe(true);
+
+				// Restore original value
+				process.env.COLUMNS = originalColumns;
+			});
+
+			it('should not activate compact mode when terminal width is above threshold', () => {
+				const table = new ResponsiveTable({
+					head: ['Date', 'Model', 'Input', 'Output', 'Cost'],
+					compactHead: ['Date', 'Model', 'Cost'],
+					compactThreshold: 100,
+				});
+
+				// Mock process.env.COLUMNS to simulate wide terminal
+				const originalColumns = process.env.COLUMNS;
+				process.env.COLUMNS = '120';
+
+				table.push(['2024-01-01', 'sonnet-4', '1000', '500', '$1.50']);
+				table.toString(); // This triggers compact mode calculation
+
+				expect(table.isCompactMode()).toBe(false);
+
+				// Restore original value
+				process.env.COLUMNS = originalColumns;
+			});
+
+			it('should not activate compact mode when compactHead is not provided', () => {
+				const table = new ResponsiveTable({
+					head: ['Date', 'Model', 'Input', 'Output', 'Cost'],
+					compactThreshold: 100,
+				});
+
+				// Mock process.env.COLUMNS to simulate narrow terminal
+				const originalColumns = process.env.COLUMNS;
+				process.env.COLUMNS = '80';
+
+				table.push(['2024-01-01', 'sonnet-4', '1000', '500', '$1.50']);
+				table.toString(); // This triggers compact mode calculation
+
+				expect(table.isCompactMode()).toBe(false);
+
+				// Restore original value
+				process.env.COLUMNS = originalColumns;
+			});
+		});
+
+		describe('getCurrentTableConfig', () => {
+			it('should return compact config when in compact mode', () => {
+				const table = new ResponsiveTable({
+					head: ['Date', 'Model', 'Input', 'Output', 'Cost'],
+					colAligns: ['left', 'left', 'right', 'right', 'right'],
+					compactHead: ['Date', 'Model', 'Cost'],
+					compactColAligns: ['left', 'left', 'right'],
+					compactThreshold: 100,
+				});
+
+				// Mock process.env.COLUMNS to simulate narrow terminal
+				const originalColumns = process.env.COLUMNS;
+				process.env.COLUMNS = '80';
+
+				table.push(['2024-01-01', 'sonnet-4', '1000', '500', '$1.50']);
+				table.toString(); // This triggers compact mode calculation
+
+				// Access private method for testing
+				// eslint-disable-next-line ts/no-unsafe-assignment, ts/no-unsafe-call, ts/no-unsafe-member-access
+				const config = (table as any).getCurrentTableConfig();
+				// eslint-disable-next-line ts/no-unsafe-member-access
+				expect(config.head).toEqual(['Date', 'Model', 'Cost']);
+				// eslint-disable-next-line ts/no-unsafe-member-access
+				expect(config.colAligns).toEqual(['left', 'left', 'right']);
+
+				// Restore original value
+				process.env.COLUMNS = originalColumns;
+			});
+
+			it('should return normal config when not in compact mode', () => {
+				const table = new ResponsiveTable({
+					head: ['Date', 'Model', 'Input', 'Output', 'Cost'],
+					colAligns: ['left', 'left', 'right', 'right', 'right'],
+					compactHead: ['Date', 'Model', 'Cost'],
+					compactColAligns: ['left', 'left', 'right'],
+					compactThreshold: 100,
+				});
+
+				// Mock process.env.COLUMNS to simulate wide terminal
+				const originalColumns = process.env.COLUMNS;
+				process.env.COLUMNS = '120';
+
+				table.push(['2024-01-01', 'sonnet-4', '1000', '500', '$1.50']);
+				table.toString(); // This triggers compact mode calculation
+
+				// Access private method for testing
+				// eslint-disable-next-line ts/no-unsafe-assignment, ts/no-unsafe-call, ts/no-unsafe-member-access
+				const config = (table as any).getCurrentTableConfig();
+				// eslint-disable-next-line ts/no-unsafe-member-access
+				expect(config.head).toEqual(['Date', 'Model', 'Input', 'Output', 'Cost']);
+				// eslint-disable-next-line ts/no-unsafe-member-access
+				expect(config.colAligns).toEqual(['left', 'left', 'right', 'right', 'right']);
+
+				// Restore original value
+				process.env.COLUMNS = originalColumns;
+			});
+		});
+
+		describe('getCompactIndices', () => {
+			it('should return correct indices for existing compact headers', () => {
+				const table = new ResponsiveTable({
+					head: ['Date', 'Model', 'Input', 'Output', 'Cost'],
+					compactHead: ['Date', 'Model', 'Cost'],
+					compactThreshold: 100,
+				});
+
+				// Mock process.env.COLUMNS to simulate narrow terminal
+				const originalColumns = process.env.COLUMNS;
+				process.env.COLUMNS = '80';
+
+				table.push(['2024-01-01', 'sonnet-4', '1000', '500', '$1.50']);
+				table.toString(); // This triggers compact mode calculation
+
+				// Access private method for testing
+				// eslint-disable-next-line ts/no-unsafe-assignment, ts/no-unsafe-call, ts/no-unsafe-member-access
+				const indices = (table as any).getCompactIndices();
+				expect(indices).toEqual([0, 1, 4]); // Date (0), Model (1), Cost (4)
+
+				// Restore original value
+				process.env.COLUMNS = originalColumns;
+			});
+
+			it('should fallback to first column for non-existent headers and log warning', () => {
+				const table = new ResponsiveTable({
+					head: ['Date', 'Model', 'Input', 'Output', 'Cost'],
+					compactHead: ['Date', 'NonExistent', 'Cost'],
+					compactThreshold: 100,
+				});
+
+				// Mock console.warn to capture warning
+				const originalWarn = console.warn;
+				const mockWarn = vi.fn();
+				console.warn = mockWarn;
+
+				// Mock process.env.COLUMNS to simulate narrow terminal
+				const originalColumns = process.env.COLUMNS;
+				process.env.COLUMNS = '80';
+
+				table.push(['2024-01-01', 'sonnet-4', '1000', '500', '$1.50']);
+				table.toString(); // This triggers compact mode calculation
+
+				// Access private method for testing
+				// eslint-disable-next-line ts/no-unsafe-assignment, ts/no-unsafe-call, ts/no-unsafe-member-access
+				const indices = (table as any).getCompactIndices();
+				expect(indices).toEqual([0, 0, 4]); // Date (0), fallback to first (0), Cost (4)
+
+				// Verify warning was logged
+				expect(mockWarn).toHaveBeenCalledWith(
+					'Warning: Compact header "NonExistent" not found in table headers [Date, Model, Input, Output, Cost]. Using first column as fallback.',
+				);
+
+				// Restore original values
+				console.warn = originalWarn;
+				process.env.COLUMNS = originalColumns;
+			});
+
+			it('should return all indices when not in compact mode', () => {
+				const table = new ResponsiveTable({
+					head: ['Date', 'Model', 'Input', 'Output', 'Cost'],
+					compactHead: ['Date', 'Model', 'Cost'],
+					compactThreshold: 100,
+				});
+
+				// Mock process.env.COLUMNS to simulate wide terminal
+				const originalColumns = process.env.COLUMNS;
+				process.env.COLUMNS = '120';
+
+				table.push(['2024-01-01', 'sonnet-4', '1000', '500', '$1.50']);
+				table.toString(); // This triggers compact mode calculation
+
+				// Access private method for testing
+				// eslint-disable-next-line ts/no-unsafe-assignment, ts/no-unsafe-call, ts/no-unsafe-member-access
+				const indices = (table as any).getCompactIndices();
+				expect(indices).toEqual([0, 1, 2, 3, 4]); // All columns
+
+				// Restore original value
+				process.env.COLUMNS = originalColumns;
+			});
+
+			it('should return all indices when compactHead is null', () => {
+				const table = new ResponsiveTable({
+					head: ['Date', 'Model', 'Input', 'Output', 'Cost'],
+					compactThreshold: 100,
+				});
+
+				// Access private method for testing
+				// eslint-disable-next-line ts/no-unsafe-assignment, ts/no-unsafe-call, ts/no-unsafe-member-access
+				const indices = (table as any).getCompactIndices();
+				expect(indices).toEqual([0, 1, 2, 3, 4]); // All columns
+			});
+		});
+
+		describe('toString with mocked terminal widths', () => {
+			it('should filter columns in compact mode', () => {
+				const table = new ResponsiveTable({
+					head: ['Date', 'Model', 'Input', 'Output', 'Cost'],
+					compactHead: ['Date', 'Cost'],
+					compactThreshold: 100,
+				});
+
+				// Mock process.env.COLUMNS to simulate narrow terminal
+				const originalColumns = process.env.COLUMNS;
+				process.env.COLUMNS = '80';
+
+				table.push(['2024-01-01', 'sonnet-4', '1000', '500', '$1.50']);
+				const output = table.toString();
+
+				// Should be in compact mode
+				expect(table.isCompactMode()).toBe(true);
+				// Should contain compact headers
+				expect(output).toContain('Date');
+				expect(output).toContain('Cost');
+
+				// Restore original value
+				process.env.COLUMNS = originalColumns;
+			});
+
+			it('should show all columns in normal mode', () => {
+				const table = new ResponsiveTable({
+					head: ['Date', 'Model', 'Input', 'Output', 'Cost'],
+					compactHead: ['Date', 'Cost'],
+					compactThreshold: 100,
+				});
+
+				// Mock process.env.COLUMNS to simulate wide terminal
+				const originalColumns = process.env.COLUMNS;
+				process.env.COLUMNS = '150';
+
+				table.push(['2024-01-01', 'sonnet-4', '1000', '500', '$1.50']);
+				const output = table.toString();
+
+				// Should contain all headers
+				expect(output).toContain('Date');
+				expect(output).toContain('Model');
+				expect(output).toContain('Input');
+				expect(output).toContain('Output');
+				expect(output).toContain('Cost');
+
+				// Restore original value
+				process.env.COLUMNS = originalColumns;
+			});
+
+			it('should handle process.stdout.columns fallback when COLUMNS env var is not set', () => {
+				const table = new ResponsiveTable({
+					head: ['Date', 'Model', 'Input', 'Output', 'Cost'],
+					compactHead: ['Date', 'Cost'],
+					compactThreshold: 100,
+				});
+
+				// Mock process.env.COLUMNS and process.stdout.columns
+				const originalColumns = process.env.COLUMNS;
+				const originalStdoutColumns = process.stdout.columns;
+
+				process.env.COLUMNS = undefined;
+				// eslint-disable-next-line ts/no-unsafe-member-access
+				(process.stdout as any).columns = 80;
+
+				table.push(['2024-01-01', 'sonnet-4', '1000', '500', '$1.50']);
+				table.toString();
+
+				expect(table.isCompactMode()).toBe(true);
+
+				// Restore original values
+				process.env.COLUMNS = originalColumns;
+				process.stdout.columns = originalStdoutColumns;
+			});
+
+			it('should use default width when both COLUMNS and process.stdout.columns are unavailable', () => {
+				const table = new ResponsiveTable({
+					head: ['Date', 'Model', 'Input', 'Output', 'Cost'],
+					compactHead: ['Date', 'Cost'],
+					compactThreshold: 100,
+				});
+
+				// Mock process.env.COLUMNS and process.stdout.columns
+				const originalColumns = process.env.COLUMNS;
+				const originalStdoutColumns = process.stdout.columns;
+
+				process.env.COLUMNS = undefined;
+				// eslint-disable-next-line ts/no-unsafe-member-access
+				(process.stdout as any).columns = undefined;
+
+				table.push(['2024-01-01', 'sonnet-4', '1000', '500', '$1.50']);
+				table.toString();
+
+				// Default width is 120, which is above threshold of 100
+				expect(table.isCompactMode()).toBe(false);
+
+				// Restore original values
+				process.env.COLUMNS = originalColumns;
+				process.stdout.columns = originalStdoutColumns;
+			});
+		});
+	});
+
 	describe('formatNumber', () => {
 		it('formats positive numbers with comma separators', () => {
 			expect(formatNumber(1000)).toBe('1,000');
@@ -362,6 +776,31 @@ if (import.meta.vitest != null) {
 		it('handles large numbers', () => {
 			expect(formatCurrency(1000000)).toBe('$1000000.00');
 			expect(formatCurrency(9999999.99)).toBe('$9999999.99');
+		});
+	});
+
+	describe('formatModelsDisplayMultiline', () => {
+		it('formats single model with bullet point', () => {
+			expect(formatModelsDisplayMultiline(['claude-sonnet-4-20250514'])).toBe('- sonnet-4');
+		});
+
+		it('formats multiple models with newlines and bullet points', () => {
+			const models = ['claude-sonnet-4-20250514', 'claude-opus-4-20250514'];
+			expect(formatModelsDisplayMultiline(models)).toBe('- opus-4\n- sonnet-4');
+		});
+
+		it('removes duplicates and sorts with bullet points', () => {
+			const models = ['claude-sonnet-4-20250514', 'claude-opus-4-20250514', 'claude-sonnet-4-20250514'];
+			expect(formatModelsDisplayMultiline(models)).toBe('- opus-4\n- sonnet-4');
+		});
+
+		it('handles empty array', () => {
+			expect(formatModelsDisplayMultiline([])).toBe('');
+		});
+
+		it('handles models that do not match pattern with bullet points', () => {
+			const models = ['custom-model', 'claude-sonnet-4-20250514'];
+			expect(formatModelsDisplayMultiline(models)).toBe('- custom-model\n- sonnet-4');
 		});
 	});
 }
