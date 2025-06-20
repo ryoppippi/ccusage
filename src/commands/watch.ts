@@ -12,7 +12,7 @@ import {
 	type SessionBlock,
 } from '../session-blocks.internal.ts';
 import { sharedCommandConfig } from '../shared-args.internal.ts';
-import { formatCurrency, formatModelsDisplay, formatNumber } from '../utils.internal.ts';
+import { clearScreen, formatCurrency, formatDuration, formatModelsDisplay, formatNumber } from '../utils.internal.ts';
 
 /**
  * Represents the current state of the active block for change detection
@@ -442,27 +442,6 @@ function createProgressBar(
 }
 
 /**
- * Clears the terminal and moves cursor to top
- */
-function clearScreen(): void {
-	process.stdout.write('\x1B[2J\x1B[0f');
-}
-
-/**
- * Formats time duration in hours and minutes
- * @param minutes - Duration in minutes
- * @returns Formatted time string
- */
-function formatDuration(minutes: number): string {
-	const hours = Math.floor(minutes / 60);
-	const mins = minutes % 60;
-	if (hours > 0) {
-		return `${hours}h ${mins}m`;
-	}
-	return `${mins}m`;
-}
-
-/**
  * Compares two block states to detect changes
  * @param current - Current block state
  * @param previous - Previous block state
@@ -734,13 +713,9 @@ function createCleanupHandler(
 		const durationMinutes = Math.floor(durationMs / (1000 * 60));
 		const durationSeconds = Math.floor((durationMs % (1000 * 60)) / 1000);
 
-		let durationText = '';
-		if (durationMinutes > 0) {
-			durationText = `${durationMinutes}m ${durationSeconds}s`;
-		}
-		else {
-			durationText = `${durationSeconds}s`;
-		}
+		const durationText = durationMinutes > 0
+			? `${durationMinutes}m ${durationSeconds}s`
+			: `${durationSeconds}s`;
 
 		// Calculate tokens and cost used during this session
 		let tokensUsed = 0;
@@ -799,7 +774,7 @@ function setupKeyboardHandling(
 		}
 
 		if (needsUpdate) {
-			updateDisplay().catch((error) => {
+			updateDisplay().catch((error: unknown) => {
 				console.error('Update display error:', error);
 			});
 		}
@@ -1012,7 +987,7 @@ export const watchCommand = define({
 			intervalId.current = setTimeout(() => {
 				updateDisplay().then(() => {
 					scheduleNext();
-				}).catch((error) => {
+				}).catch((error: unknown) => {
 					console.error('Update display error:', error);
 				});
 			}, state.currentInterval.current);

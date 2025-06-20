@@ -219,6 +219,27 @@ export function formatCurrency(amount: number): string {
 }
 
 /**
+ * Formats time duration in hours and minutes
+ * @param minutes - Duration in minutes
+ * @returns Formatted time string (e.g., "1h 30m" or "45m")
+ */
+export function formatDuration(minutes: number): string {
+	const hours = Math.floor(minutes / 60);
+	const mins = minutes % 60;
+	if (hours > 0) {
+		return `${hours}h ${mins}m`;
+	}
+	return `${mins}m`;
+}
+
+/**
+ * Clears the terminal screen and moves cursor to top
+ */
+export function clearScreen(): void {
+	process.stdout.write('\x1B[2J\x1B[0f');
+}
+
+/**
  * Formats Claude model names into a shorter, more readable format
  * Extracts model type and generation from full model name
  * @param modelName - Full model name (e.g., "claude-sonnet-4-20250514")
@@ -306,6 +327,32 @@ export function pushBreakdownRows(
 }
 
 if (import.meta.vitest != null) {
+	describe('formatDuration', () => {
+		it('formats duration with hours and minutes', () => {
+			expect(formatDuration(90)).toBe('1h 30m');
+			expect(formatDuration(120)).toBe('2h 0m');
+			expect(formatDuration(65)).toBe('1h 5m');
+		});
+
+		it('formats duration with only minutes when less than an hour', () => {
+			expect(formatDuration(30)).toBe('30m');
+			expect(formatDuration(0)).toBe('0m');
+			expect(formatDuration(59)).toBe('59m');
+		});
+
+		it('handles edge cases', () => {
+			expect(formatDuration(1)).toBe('1m');
+			expect(formatDuration(60)).toBe('1h 0m');
+			expect(formatDuration(61)).toBe('1h 1m');
+		});
+	});
+
+	describe('clearScreen', () => {
+		it('should be a function', () => {
+			expect(typeof clearScreen).toBe('function');
+		});
+	});
+
 	describe('formatNumber', () => {
 		it('formats positive numbers with comma separators', () => {
 			expect(formatNumber(1000)).toBe('1,000');
