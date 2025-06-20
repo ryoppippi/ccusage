@@ -25,7 +25,7 @@ import {
 	identifySessionBlocks,
 	type LoadedUsageEntry,
 	type SessionBlock,
-} from './session-blocks.internal.ts';
+} from './_session-blocks.ts';
 import {
 	activityDateSchema,
 	createDailyDate,

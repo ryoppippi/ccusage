@@ -10,7 +10,7 @@ import {
 	filterRecentBlocks,
 	projectBlockUsage,
 	type SessionBlock,
-} from '../session-blocks.internal.ts';
+} from '../_session-blocks.ts';
 import { sharedCommandConfig } from '../_shared-args.ts';
 import { formatCurrency, formatModelsDisplay, formatNumber, ResponsiveTable } from '../utils.internal.ts';
 
