@@ -41,7 +41,13 @@ export const DEBUG_MATCH_THRESHOLD_PERCENT = 0.1;
  * User's home directory path
  * Centralized access to OS home directory for consistent path building
  */
-export const USER_HOME_DIR = homedir();
+export const USER_HOME_DIR: string = homedir();
+
+/**
+ * XDG config directory path
+ * Uses XDG_CONFIG_HOME if set, otherwise falls back to ~/.config
+ */
+const XDG_CONFIG_DIR: string = xdgConfig ?? `${USER_HOME_DIR}/.config`;
 
 /**
  * Default Claude data directory path (~/.claude)
@@ -53,7 +59,7 @@ export const DEFAULT_CLAUDE_CODE_PATH = '.claude';
  * Default Claude data directory path using XDG config directory
  * Uses XDG_CONFIG_HOME if set, otherwise falls back to ~/.config/claude
  */
-export const DEFAULT_CLAUDE_CONFIG_PATH = `${xdgConfig ?? `${USER_HOME_DIR}/.config`}/claude`;
+export const DEFAULT_CLAUDE_CONFIG_PATH = `${XDG_CONFIG_DIR}/claude`;
 
 /**
  * Environment variable for specifying multiple Claude data directories
@@ -78,9 +84,3 @@ export const USAGE_DATA_GLOB_PATTERN = '**/*.jsonl';
  * Used when no port is specified for MCP server communication
  */
 export const MCP_DEFAULT_PORT = 8080;
-
-/**
- * XDG config directory path
- * Uses XDG_CONFIG_HOME if set, otherwise falls back to ~/.config
- */
-export const XDG_CONFIG_DIR = xdgConfig ?? `${USER_HOME_DIR}/.config`;
