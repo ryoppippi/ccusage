@@ -6,11 +6,14 @@ import pc from 'picocolors';
 import { getDefaultClaudePath, loadSessionBlockData } from '../data-loader.ts';
 import { log, logger } from '../logger.ts';
 import {
+	type BurnRateAnalysis,
 	calculateBurnRate,
+	calculateBurnRateAnalysis,
 	DEFAULT_SESSION_DURATION_HOURS,
 	type LoadedUsageEntry,
 	projectBlockUsage,
 	type SessionBlock,
+	TIME_CONSTANTS,
 } from '../session-blocks.internal.ts';
 import { sharedCommandConfig } from '../shared-args.internal.ts';
 import { clearScreen, formatCurrency, formatDuration, formatModelsDisplay, formatNumber } from '../utils.internal.ts';
@@ -24,15 +27,6 @@ type BlockState = {
 	burnRate: number | null;
 	lastUpdate: Date;
 	lastChangeTime: Date;
-};
-
-/**
- * Represents burn rate calculations for different time periods
- */
-type BurnRateAnalysis = {
-	block: { input: number | null; output: number | null; cacheCreate: number | null; cacheRead: number | null };
-	oneHour: { input: number | null; output: number | null; cacheCreate: number | null; cacheRead: number | null };
-	tenMinutes: { input: number | null; output: number | null; cacheCreate: number | null; cacheRead: number | null };
 };
 
 /**
@@ -377,15 +371,6 @@ function displayPeriodTable(burnRateAnalysis: BurnRateAnalysis): void {
 }
 
 /**
- * Time constants for intervals
- */
-const TIME_CONSTANTS = {
-	FIVE_MINUTES_MS: 5 * 60 * 1000,
-	TEN_MINUTES_MS: 10 * 60 * 1000,
-	ONE_HOUR_MS: 60 * 60 * 1000,
-};
-
-/**
  * Updates intervals in milliseconds for adaptive updating
  */
 const UPDATE_INTERVALS = {
@@ -472,78 +457,6 @@ function getNextUpdateInterval(hasChanges: boolean, inactivityDuration: number):
 	}
 
 	return UPDATE_INTERVALS.SLOW;
-}
-
-/**
- * Calculates burn rate analysis for different time periods
- * @param block - Current session block
- * @returns Burn rate analysis object
- */
-function calculateBurnRateAnalysis(block: SessionBlock): BurnRateAnalysis {
-	const now = new Date();
-	const oneHourAgo = new Date(now.getTime() - TIME_CONSTANTS.ONE_HOUR_MS);
-	const tenMinutesAgo = new Date(now.getTime() - TIME_CONSTANTS.TEN_MINUTES_MS);
-
-	// Get entries from different time periods
-	const lastHourEntries = block.entries.filter(entry => entry.timestamp >= oneHourAgo);
-	const lastTenMinutesEntries = block.entries.filter(entry => entry.timestamp >= tenMinutesAgo);
-
-	// Calculate burn rates for different periods
-	const oneHourRate = calculatePeriodBurnRate(lastHourEntries);
-	const tenMinutesRate = calculatePeriodBurnRate(lastTenMinutesEntries);
-
-	// Calculate block rate from all entries
-	const blockRate = calculatePeriodBurnRate(block.entries);
-
-	return {
-		block: blockRate,
-		oneHour: oneHourRate,
-		tenMinutes: tenMinutesRate,
-	};
-}
-
-/**
- * Calculates burn rate for a specific set of entries
- * @param entries - Usage entries to analyze
- * @returns Burn rate in tokens per minute for input, output, cache create, and cache read separately
- */
-function calculatePeriodBurnRate(entries: LoadedUsageEntry[]): { input: number | null; output: number | null; cacheCreate: number | null; cacheRead: number | null } {
-	const nullResult = { input: null, output: null, cacheCreate: null, cacheRead: null };
-
-	if (entries.length === 0) {
-		return nullResult;
-	}
-
-	// Sort entries by timestamp to ensure correct order
-	const sortedEntries = [...entries].sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
-
-	if (sortedEntries.length < 2) {
-		return nullResult;
-	}
-
-	const firstEntry = sortedEntries[0];
-	const lastEntry = sortedEntries[sortedEntries.length - 1];
-	if (firstEntry == null || lastEntry == null) {
-		return nullResult;
-	}
-
-	const durationMinutes = (lastEntry.timestamp.getTime() - firstEntry.timestamp.getTime()) / (1000 * 60);
-	if (durationMinutes <= 0) {
-		return nullResult;
-	}
-
-	// Calculate total tokens used in this period
-	const totalInputTokens = sortedEntries.reduce((sum, entry) => sum + entry.usage.inputTokens, 0);
-	const totalOutputTokens = sortedEntries.reduce((sum, entry) => sum + entry.usage.outputTokens, 0);
-	const totalCacheCreateTokens = sortedEntries.reduce((sum, entry) => sum + entry.usage.cacheCreationInputTokens, 0);
-	const totalCacheReadTokens = sortedEntries.reduce((sum, entry) => sum + entry.usage.cacheReadInputTokens, 0);
-
-	return {
-		input: totalInputTokens / durationMinutes,
-		output: totalOutputTokens / durationMinutes,
-		cacheCreate: totalCacheCreateTokens / durationMinutes,
-		cacheRead: totalCacheReadTokens / durationMinutes,
-	};
 }
 
 /**
