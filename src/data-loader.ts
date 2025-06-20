@@ -4,7 +4,7 @@ import type {
 	ModelName,
 	SortOrder,
 	Version,
-} from './types.internal.ts';
+} from './_types.ts';
 import { readFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import path, { join } from 'node:path';
@@ -46,7 +46,7 @@ import {
 	requestIdSchema,
 	sessionIdSchema,
 	versionSchema,
-} from './types.internal.ts';
+} from './_types.ts';
 
 /**
  * Default path for Claude data directory

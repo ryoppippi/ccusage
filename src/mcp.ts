@@ -16,7 +16,7 @@ import {
 	loadSessionBlockData,
 	loadSessionData,
 } from './data-loader.ts';
-import { dateSchema } from './types.internal.ts';
+import { dateSchema } from './_types.ts';
 
 /** Default options for the MCP server */
 const defaultOptions = {

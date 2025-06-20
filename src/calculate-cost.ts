@@ -6,7 +6,7 @@ import {
 	createProjectPath,
 	createSessionId,
 	createVersion,
-} from './types.internal.ts';
+} from './_types.ts';
 
 /**
  * Token usage data structure containing input, output, and cache token counts
