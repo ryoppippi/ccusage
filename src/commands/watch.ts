@@ -15,6 +15,7 @@ import {
 	type SessionBlock,
 	TIME_CONSTANTS,
 } from '../session-blocks.internal.ts';
+import { createSessionTracker, type SessionTracker } from '../session-tracker.internal.ts';
 import { sharedCommandConfig } from '../shared-args.internal.ts';
 import { displayCostTable, displayTokensTable } from '../table-display.internal.ts';
 import { clearScreen, formatCurrency, formatDuration, formatNumber } from '../utils.internal.ts';
@@ -346,39 +347,6 @@ function setupKeyboardHandling(
 
 	// Handle Ctrl+C gracefully (fallback)
 	process.on('SIGINT', cleanup);
-}
-
-/**
- * Tracks session start values for summary calculations
- */
-type SessionTracker = {
-	startTokens: number;
-	startCost: number;
-	setStartValues: (tokens: number, cost: number) => void;
-};
-
-/**
- * Creates a session tracker to manage session start values
- * @returns Session tracker object
- */
-function createSessionTracker(): SessionTracker {
-	let startTokens = 0;
-	let startCost = 0;
-
-	return {
-		get startTokens() {
-			return startTokens;
-		},
-		get startCost() {
-			return startCost;
-		},
-		setStartValues(tokens: number, cost: number) {
-			if (startTokens === 0 && startCost === 0) {
-				startTokens = tokens;
-				startCost = cost;
-			}
-		},
-	};
 }
 
 /**
