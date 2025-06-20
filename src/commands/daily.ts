@@ -2,7 +2,7 @@ import process from 'node:process';
 import { define } from 'gunshi';
 import pc from 'picocolors';
 import { sharedCommandConfig } from '../_shared-args.ts';
-import { formatCurrency, formatModelsDisplay, formatNumber, pushBreakdownRows, ResponsiveTable } from '../_utils.ts';
+import { formatCurrency, formatModelsDisplayMultiline, formatNumber, pushBreakdownRows, ResponsiveTable } from '../_utils.ts';
 import {
 	calculateTotals,
 	createTotalsObject,
@@ -71,7 +71,7 @@ export const dailyCommand = define({
 			// Print header
 			logger.box('Claude Code Token Usage Report - Daily');
 
-			// Create table
+			// Create table with compact mode support
 			const table = new ResponsiveTable({
 				head: [
 					'Date',
@@ -97,6 +97,21 @@ export const dailyCommand = define({
 					'right',
 				],
 				dateFormatter: formatDateCompact,
+				compactHead: [
+					'Date',
+					'Models',
+					'Input',
+					'Output',
+					'Cost (USD)',
+				],
+				compactColAligns: [
+					'left',
+					'left',
+					'right',
+					'right',
+					'right',
+				],
+				compactThreshold: 100,
 			});
 
 			// Add daily data
@@ -104,7 +119,7 @@ export const dailyCommand = define({
 				// Main row
 				table.push([
 					data.date,
-					formatModelsDisplay(data.modelsUsed),
+					formatModelsDisplayMultiline(data.modelsUsed),
 					formatNumber(data.inputTokens),
 					formatNumber(data.outputTokens),
 					formatNumber(data.cacheCreationTokens),
@@ -144,6 +159,12 @@ export const dailyCommand = define({
 			]);
 
 			log(table.toString());
+
+			// Show guidance message if in compact mode
+			if (table.isCompactMode()) {
+				logger.info('\nRunning in Compact Mode');
+				logger.info('Expand terminal width to see cache metrics and total tokens');
+			}
 		}
 	},
 });

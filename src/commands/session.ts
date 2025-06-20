@@ -2,7 +2,7 @@ import process from 'node:process';
 import { define } from 'gunshi';
 import pc from 'picocolors';
 import { sharedCommandConfig } from '../_shared-args.ts';
-import { formatCurrency, formatModelsDisplay, formatNumber, pushBreakdownRows, ResponsiveTable } from '../_utils.ts';
+import { formatCurrency, formatModelsDisplayMultiline, formatNumber, pushBreakdownRows, ResponsiveTable } from '../_utils.ts';
 import {
 	calculateTotals,
 	createTotalsObject,
@@ -72,7 +72,7 @@ export const sessionCommand = define({
 			// Print header
 			logger.box('Claude Code Token Usage Report - By Session');
 
-			// Create table
+			// Create table with compact mode support
 			const table = new ResponsiveTable({
 				head: [
 					'Session',
@@ -100,6 +100,23 @@ export const sessionCommand = define({
 					'left',
 				],
 				dateFormatter: formatDateCompact,
+				compactHead: [
+					'Session',
+					'Models',
+					'Input',
+					'Output',
+					'Cost (USD)',
+					'Last Activity',
+				],
+				compactColAligns: [
+					'left',
+					'left',
+					'right',
+					'right',
+					'right',
+					'left',
+				],
+				compactThreshold: 100,
 			});
 
 			let maxSessionLength = 0;
@@ -111,7 +128,7 @@ export const sessionCommand = define({
 				// Main row
 				table.push([
 					sessionDisplay,
-					formatModelsDisplay(data.modelsUsed),
+					formatModelsDisplayMultiline(data.modelsUsed),
 					formatNumber(data.inputTokens),
 					formatNumber(data.outputTokens),
 					formatNumber(data.cacheCreationTokens),
@@ -155,6 +172,12 @@ export const sessionCommand = define({
 			]);
 
 			log(table.toString());
+
+			// Show guidance message if in compact mode
+			if (table.isCompactMode()) {
+				logger.info('\nRunning in Compact Mode');
+				logger.info('Expand terminal width to see cache metrics and total tokens');
+			}
 		}
 	},
 });
