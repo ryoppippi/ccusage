@@ -5,8 +5,8 @@ import Macros from 'unplugin-macros/rolldown';
 export default defineConfig({
 	entry: [
 		'./src/*.ts',
-		'!./src/**/*.test.ts',
-		'!./src/_*.ts',
+		'!./src/**/*.test.ts', // Exclude test files
+		'!./src/_*.ts', // Exclude internal files with underscore prefix
 	],
 	outDir: 'dist',
 	format: 'esm',
