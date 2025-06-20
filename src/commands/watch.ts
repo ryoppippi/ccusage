@@ -702,6 +702,115 @@ function displayActiveBlock(block: SessionBlock, allBlocks: SessionBlock[], opti
 	log(`${currentTime} | Tokens (T) | Cost (C) | Period (P) | Exit (Esc)`);
 }
 
+/**
+ * Creates a cleanup handler function for the watch command
+ * @param intervalId - Reference object containing the timer interval ID to clear
+ * @param intervalId.current - The actual timer interval ID
+ * @param sessionStartTime - When the session started
+ * @param sessionStartTokens - Initial token count
+ * @param sessionStartCost - Initial cost
+ * @param activeBlockForSummary - Reference to active block for summary
+ * @param activeBlockForSummary.current - The actual active block
+ * @returns Cleanup function
+ */
+function createCleanupHandler(
+	intervalId: { current: NodeJS.Timeout | null },
+	sessionStartTime: Date,
+	sessionStartTokens: number,
+	sessionStartCost: number,
+	activeBlockForSummary: { current: SessionBlock | null },
+): () => void {
+	return (): void => {
+		if (intervalId.current != null) {
+			clearTimeout(intervalId.current);
+		}
+		process.stdin.setRawMode(false);
+		process.stdin.pause();
+		clearScreen();
+
+		// Calculate session duration
+		const sessionEndTime = new Date();
+		const durationMs = sessionEndTime.getTime() - sessionStartTime.getTime();
+		const durationMinutes = Math.floor(durationMs / (1000 * 60));
+		const durationSeconds = Math.floor((durationMs % (1000 * 60)) / 1000);
+
+		let durationText = '';
+		if (durationMinutes > 0) {
+			durationText = `${durationMinutes}m ${durationSeconds}s`;
+		}
+		else {
+			durationText = `${durationSeconds}s`;
+		}
+
+		// Calculate tokens and cost used during this session
+		let tokensUsed = 0;
+		let costUsed = 0;
+
+		if (activeBlockForSummary.current != null) {
+			const currentTokens = activeBlockForSummary.current.tokenCounts.inputTokens + activeBlockForSummary.current.tokenCounts.outputTokens;
+			tokensUsed = currentTokens - sessionStartTokens;
+			costUsed = activeBlockForSummary.current.costUSD - sessionStartCost;
+		}
+
+		log(pc.cyan(`Duration: ${durationText} | Tokens: ${formatNumber(tokensUsed)} | Cost: ${formatCurrency(costUsed)}`));
+		process.exit(0);
+	};
+}
+
+/**
+ * Sets up keyboard input handling for the watch command
+ * @param displayOptions - Display options that can be toggled
+ * @param updateDisplay - Function to call when display needs updating
+ * @param cleanup - Cleanup function to call on exit
+ */
+function setupKeyboardHandling(
+	displayOptions: DisplayOptions,
+	updateDisplay: () => Promise<void>,
+	cleanup: () => void,
+): void {
+	// Setup keyboard input handling
+	process.stdin.setRawMode(true);
+	process.stdin.resume();
+	process.stdin.setEncoding('utf8');
+
+	// Handle keyboard input
+	const handleKeyPress = (key: string): void => {
+		// Exit keys
+		if (key === '\u001B' || key === '\u0003') { // ESC or Ctrl+C
+			cleanup();
+			return;
+		}
+
+		// Toggle display options
+		const keyLower = key.toLowerCase();
+		let needsUpdate = false;
+
+		if (keyLower === 'p') {
+			displayOptions.showPeriod = !displayOptions.showPeriod;
+			needsUpdate = true;
+		}
+		else if (keyLower === 't') {
+			displayOptions.showTokens = !displayOptions.showTokens;
+			needsUpdate = true;
+		}
+		else if (keyLower === 'c') {
+			displayOptions.showCost = !displayOptions.showCost;
+			needsUpdate = true;
+		}
+
+		if (needsUpdate) {
+			updateDisplay().catch((error) => {
+				console.error('Update display error:', error);
+			});
+		}
+	};
+
+	process.stdin.on('data', handleKeyPress);
+
+	// Handle Ctrl+C gracefully (fallback)
+	process.on('SIGINT', cleanup);
+}
+
 export const watchCommand = define({
 	name: 'watch',
 	description: 'Watch active session block usage with real-time updates and progress bars',
@@ -730,7 +839,7 @@ export const watchCommand = define({
 
 		let previousState: BlockState | null = null;
 		let currentInterval = UPDATE_INTERVALS.FAST;
-		let intervalId: NodeJS.Timeout;
+		const intervalId = { current: null as NodeJS.Timeout | null };
 		let lastChangeTime = new Date();
 		const displayOptions: DisplayOptions = { showPeriod: false, showTokens: false, showCost: false };
 
@@ -738,7 +847,7 @@ export const watchCommand = define({
 		const sessionStartTime = new Date();
 		let sessionStartTokens = 0;
 		let sessionStartCost = 0;
-		let activeBlockForSummary: SessionBlock | null = null;
+		const activeBlockForSummary = { current: null as SessionBlock | null };
 
 		// Main update function
 		const updateDisplay = async (): Promise<void> => {
@@ -769,7 +878,7 @@ export const watchCommand = define({
 				}
 
 				// Track the active block for session summary
-				activeBlockForSummary = activeBlock;
+				activeBlockForSummary.current = activeBlock;
 
 				// Initialize session start values if this is the first update
 				if (sessionStartTokens === 0 && sessionStartCost === 0) {
@@ -821,7 +930,7 @@ export const watchCommand = define({
 
 		// Setup interval with adaptive timing
 		const scheduleNext = (): void => {
-			intervalId = setTimeout(() => {
+			intervalId.current = setTimeout(() => {
 				updateDisplay().then(() => {
 					scheduleNext();
 				}).catch((error) => {
@@ -832,80 +941,15 @@ export const watchCommand = define({
 
 		scheduleNext();
 
-		// Setup keyboard input handling
-		process.stdin.setRawMode(true);
-		process.stdin.resume();
-		process.stdin.setEncoding('utf8');
+		// Create cleanup handler and setup keyboard handling
+		const cleanup = createCleanupHandler(
+			intervalId,
+			sessionStartTime,
+			sessionStartTokens,
+			sessionStartCost,
+			activeBlockForSummary,
+		);
 
-		const cleanup = (): void => {
-			clearTimeout(intervalId);
-			process.stdin.setRawMode(false);
-			process.stdin.pause();
-			clearScreen();
-
-			// Calculate session duration
-			const sessionEndTime = new Date();
-			const durationMs = sessionEndTime.getTime() - sessionStartTime.getTime();
-			const durationMinutes = Math.floor(durationMs / (1000 * 60));
-			const durationSeconds = Math.floor((durationMs % (1000 * 60)) / 1000);
-
-			let durationText = '';
-			if (durationMinutes > 0) {
-				durationText = `${durationMinutes}m ${durationSeconds}s`;
-			}
-			else {
-				durationText = `${durationSeconds}s`;
-			}
-
-			// Calculate tokens and cost used during this session
-			let tokensUsed = 0;
-			let costUsed = 0;
-
-			if (activeBlockForSummary != null) {
-				const currentTokens = activeBlockForSummary.tokenCounts.inputTokens + activeBlockForSummary.tokenCounts.outputTokens;
-				tokensUsed = currentTokens - sessionStartTokens;
-				costUsed = activeBlockForSummary.costUSD - sessionStartCost;
-			}
-
-			log(pc.cyan(`Duration: ${durationText} | Tokens: ${formatNumber(tokensUsed)} | Cost: ${formatCurrency(costUsed)}`));
-			process.exit(0);
-		};
-
-		// Handle keyboard input
-		const handleKeyPress = (key: string): void => {
-			// Exit keys
-			if (key === '\u001B' || key === '\u0003') { // ESC or Ctrl+C
-				cleanup();
-				return;
-			}
-
-			// Toggle display options
-			const keyLower = key.toLowerCase();
-			let needsUpdate = false;
-
-			if (keyLower === 'p') {
-				displayOptions.showPeriod = !displayOptions.showPeriod;
-				needsUpdate = true;
-			}
-			else if (keyLower === 't') {
-				displayOptions.showTokens = !displayOptions.showTokens;
-				needsUpdate = true;
-			}
-			else if (keyLower === 'c') {
-				displayOptions.showCost = !displayOptions.showCost;
-				needsUpdate = true;
-			}
-
-			if (needsUpdate) {
-				updateDisplay().catch((error) => {
-					console.error('Update display error:', error);
-				});
-			}
-		};
-
-		process.stdin.on('data', handleKeyPress);
-
-		// Handle Ctrl+C gracefully (fallback)
-		process.on('SIGINT', cleanup);
+		setupKeyboardHandling(displayOptions, updateDisplay, cleanup);
 	},
 });
