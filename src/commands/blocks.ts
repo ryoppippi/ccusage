@@ -12,7 +12,7 @@ import {
 	type SessionBlock,
 } from '../_session-blocks.ts';
 import { sharedCommandConfig } from '../_shared-args.ts';
-import { formatCurrency, formatModelsDisplay, formatNumber, ResponsiveTable } from '../utils.internal.ts';
+import { formatCurrency, formatModelsDisplay, formatNumber, ResponsiveTable } from '../_utils.ts';
 
 /**
  * Formats the time display for a session block
