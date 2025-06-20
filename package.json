@@ -78,6 +78,7 @@
 		"unplugin-macros": "^0.17.0",
 		"unplugin-unused": "^0.5.1",
 		"vitest": "^3.2.4",
+		"xdg-basedir": "^5.1.0",
 		"zod": "^3.25.67"
 	},
 	"overrides": {
