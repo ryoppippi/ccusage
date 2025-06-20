@@ -9,6 +9,7 @@ import { Hono } from 'hono/tiny';
 import { z } from 'zod';
 
 import { name, version } from '../package.json';
+import { dateSchema } from './_types.ts';
 import {
 	getDefaultClaudePath,
 	loadDailyUsageData,
@@ -16,7 +17,6 @@ import {
 	loadSessionBlockData,
 	loadSessionData,
 } from './data-loader.ts';
-import { dateSchema } from './types.internal.ts';
 
 /** Default options for the MCP server */
 const defaultOptions = {

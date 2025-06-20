@@ -1,10 +1,10 @@
 import { serve } from '@hono/node-server';
 import { define } from 'gunshi';
-import { MCP_DEFAULT_PORT } from '../consts.internal.js';
+import { MCP_DEFAULT_PORT } from '../_consts.js';
+import { sharedArgs } from '../_shared-args.ts';
 import { getDefaultClaudePath } from '../data-loader.ts';
 import { logger } from '../logger.ts';
 import { createMcpHttpApp, createMcpServer, startMcpServerStdio } from '../mcp.ts';
-import { sharedArgs } from '../shared-args.internal.ts';
 
 /**
  * MCP server command that supports both stdio and HTTP transports.

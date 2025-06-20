@@ -1,18 +1,18 @@
 import process from 'node:process';
 import { define } from 'gunshi';
 import pc from 'picocolors';
-import { BLOCKS_COMPACT_WIDTH_THRESHOLD, BLOCKS_DEFAULT_TERMINAL_WIDTH, BLOCKS_WARNING_THRESHOLD, DEFAULT_RECENT_DAYS } from '../consts.internal.js';
-import { getDefaultClaudePath, loadSessionBlockData } from '../data-loader.ts';
-import { log, logger } from '../logger.ts';
+import { BLOCKS_COMPACT_WIDTH_THRESHOLD, BLOCKS_DEFAULT_TERMINAL_WIDTH, BLOCKS_WARNING_THRESHOLD, DEFAULT_RECENT_DAYS } from '../_consts.js';
 import {
 	calculateBurnRate,
 	DEFAULT_SESSION_DURATION_HOURS,
 	filterRecentBlocks,
 	projectBlockUsage,
 	type SessionBlock,
-} from '../session-blocks.internal.ts';
-import { sharedCommandConfig } from '../shared-args.internal.ts';
-import { formatCurrency, formatModelsDisplay, formatNumber, ResponsiveTable } from '../utils.internal.ts';
+} from '../_session-blocks.ts';
+import { sharedCommandConfig } from '../_shared-args.ts';
+import { formatCurrency, formatModelsDisplay, formatNumber, ResponsiveTable } from '../_utils.ts';
+import { getDefaultClaudePath, loadSessionBlockData } from '../data-loader.ts';
+import { log, logger } from '../logger.ts';
 
 /**
  * Formats the time display for a session block

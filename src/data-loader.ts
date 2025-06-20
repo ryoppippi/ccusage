@@ -4,7 +4,7 @@ import type {
 	ModelName,
 	SortOrder,
 	Version,
-} from './types.internal.ts';
+} from './_types.ts';
 import { readFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import path, { join } from 'node:path';
@@ -16,16 +16,12 @@ import { createFixture } from 'fs-fixture';
 import { isDirectorySync } from 'path-type';
 import { glob } from 'tinyglobby';
 import { z } from 'zod';
-import { CLAUDE_PROJECTS_DIR_NAME, DEFAULT_CLAUDE_CODE_PATH, USAGE_DATA_GLOB_PATTERN, USER_HOME_DIR } from './consts.internal.js';
-import { logger } from './logger.ts';
-import {
-	PricingFetcher,
-} from './pricing-fetcher.ts';
+import { CLAUDE_PROJECTS_DIR_NAME, DEFAULT_CLAUDE_CODE_PATH, USAGE_DATA_GLOB_PATTERN, USER_HOME_DIR } from './_consts.js';
 import {
 	identifySessionBlocks,
 	type LoadedUsageEntry,
 	type SessionBlock,
-} from './session-blocks.internal.ts';
+} from './_session-blocks.ts';
 import {
 	activityDateSchema,
 	createDailyDate,
@@ -46,7 +42,11 @@ import {
 	requestIdSchema,
 	sessionIdSchema,
 	versionSchema,
-} from './types.internal.ts';
+} from './_types.ts';
+import { logger } from './logger.ts';
+import {
+	PricingFetcher,
+} from './pricing-fetcher.ts';
 
 /**
  * Default path for Claude data directory

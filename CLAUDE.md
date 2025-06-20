@@ -100,6 +100,7 @@ This is a CLI tool that analyzes Claude Code usage data from local JSONL files s
 - Variables: start with lowercase (camelCase) - e.g., `usageDataSchema`, `modelBreakdownSchema`
 - Types: start with uppercase (PascalCase) - e.g., `UsageData`, `ModelBreakdown`
 - Constants: can use UPPER_SNAKE_CASE - e.g., `DEFAULT_CLAUDE_CODE_PATH`
+- Internal files: use underscore prefix - e.g., `_types.ts`, `_utils.ts`, `_consts.ts`
 
 **Post-Code Change Workflow:**
 
