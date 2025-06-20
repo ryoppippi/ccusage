@@ -1,5 +1,5 @@
 import { uniq } from 'es-toolkit';
-import { DEFAULT_RECENT_DAYS } from './_consts.js';
+import { DEFAULT_RECENT_DAYS } from './_consts.ts';
 
 /**
  * Default session duration in hours (Claude's billing block duration)

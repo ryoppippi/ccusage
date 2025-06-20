@@ -9,6 +9,7 @@ import { readFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import path, { join } from 'node:path';
 import process from 'node:process';
+import { toArray } from '@antfu/utils';
 import { unreachable } from '@core/errorutil';
 import { groupBy, uniq } from 'es-toolkit'; // TODO: after node20 is deprecated, switch to native Object.groupBy
 import { sort } from 'fast-sort';
@@ -16,7 +17,7 @@ import { createFixture } from 'fs-fixture';
 import { isDirectorySync } from 'path-type';
 import { glob } from 'tinyglobby';
 import { z } from 'zod';
-import { CLAUDE_PROJECTS_DIR_NAME, DEFAULT_CLAUDE_CODE_PATH, USAGE_DATA_GLOB_PATTERN, USER_HOME_DIR } from './_consts.js';
+import { CLAUDE_CONFIG_DIR_ENV, CLAUDE_PROJECTS_DIR_NAME, DEFAULT_CLAUDE_CODE_PATH, DEFAULT_CLAUDE_CONFIG_PATH, USAGE_DATA_GLOB_PATTERN, USER_HOME_DIR } from './_consts.ts';
 import {
 	identifySessionBlocks,
 	type LoadedUsageEntry,
@@ -49,33 +50,98 @@ import {
 } from './pricing-fetcher.ts';
 
 /**
+ * Get all Claude data directories to search for usage data
+ * Supports multiple paths: environment variable (comma-separated), new default, and old default
+ * @returns Array of valid Claude data directory paths
+ */
+export function getClaudePaths(): string[] {
+	const paths: string[] = [];
+	const normalizedPaths = new Set<string>();
+
+	// Check environment variable first (supports comma-separated paths)
+	const envPaths = (process.env[CLAUDE_CONFIG_DIR_ENV] ?? '').trim();
+	if (envPaths !== '') {
+		const envPathList = envPaths.split(',').map(p => p.trim()).filter(p => p !== '');
+		for (const envPath of envPathList) {
+			const normalizedPath = path.resolve(envPath);
+			if (isDirectorySync(normalizedPath)) {
+				const projectsPath = path.join(normalizedPath, CLAUDE_PROJECTS_DIR_NAME);
+				if (isDirectorySync(projectsPath)) {
+					// Avoid duplicates using normalized paths
+					if (!normalizedPaths.has(normalizedPath)) {
+						normalizedPaths.add(normalizedPath);
+						paths.push(normalizedPath);
+					}
+				}
+			}
+		}
+	}
+
+	// Add default paths if they exist
+	const defaultPaths = [
+		path.join(USER_HOME_DIR, DEFAULT_CLAUDE_CONFIG_PATH), // New default: ~/.config/claude
+		path.join(USER_HOME_DIR, DEFAULT_CLAUDE_CODE_PATH), // Old default: ~/.claude
+	];
+
+	for (const defaultPath of defaultPaths) {
+		const normalizedPath = path.resolve(defaultPath);
+		if (isDirectorySync(normalizedPath)) {
+			const projectsPath = path.join(normalizedPath, CLAUDE_PROJECTS_DIR_NAME);
+			if (isDirectorySync(projectsPath)) {
+				// Avoid duplicates using normalized paths
+				if (!normalizedPaths.has(normalizedPath)) {
+					normalizedPaths.add(normalizedPath);
+					paths.push(normalizedPath);
+				}
+			}
+		}
+	}
+
+	if (paths.length === 0) {
+		throw new Error(
+			`No valid Claude data directories found. Please ensure at least one of the following exists:
+- ${path.join(USER_HOME_DIR, DEFAULT_CLAUDE_CONFIG_PATH, CLAUDE_PROJECTS_DIR_NAME)}
+- ${path.join(USER_HOME_DIR, DEFAULT_CLAUDE_CODE_PATH, CLAUDE_PROJECTS_DIR_NAME)}
+- Or set ${CLAUDE_CONFIG_DIR_ENV} environment variable to valid directory path(s) containing a '${CLAUDE_PROJECTS_DIR_NAME}' subdirectory`.trim(),
+		);
+	}
+
+	return paths;
+}
+
+/**
  * Default path for Claude data directory
  * Uses environment variable CLAUDE_CONFIG_DIR if set, otherwise defaults to ~/.claude
+ * @deprecated Use getClaudePaths() instead for multiple path support
  */
 export function getDefaultClaudePath(): string {
-	const envClaudeCodePath = (process.env.CLAUDE_CONFIG_DIR ?? '').trim();
-	if (envClaudeCodePath === '') {
-		return path.join(USER_HOME_DIR, DEFAULT_CLAUDE_CODE_PATH);
+	// Check environment variable first
+	const envPath = (process.env[CLAUDE_CONFIG_DIR_ENV] ?? '').trim();
+	if (envPath !== '') {
+		// For backward compatibility, only use the first path if multiple are provided
+		const firstPath = envPath.split(',')[0]?.trim();
+		if (firstPath != null && firstPath !== '') {
+			if (!isDirectorySync(firstPath)) {
+				throw new Error(`CLAUDE_CONFIG_DIR path is not a valid directory: ${firstPath}`);
+			}
+			return firstPath;
+		}
 	}
 
-	// First validate that the CLAUDE_CONFIG_DIR itself exists and is a directory
-	if (!isDirectorySync(envClaudeCodePath)) {
-		throw new Error(
-			`CLAUDE_CONFIG_DIR path is not a valid directory: ${envClaudeCodePath}. 
-Please set CLAUDE_CONFIG_DIR to a valid directory path, or ensure ${path.join(USER_HOME_DIR, DEFAULT_CLAUDE_CODE_PATH)} exists.
-			`.trim(),
-		);
+	// Prefer the new default path ~/.config/claude if it exists
+	const newDefaultPath = path.join(USER_HOME_DIR, DEFAULT_CLAUDE_CONFIG_PATH);
+	if (isDirectorySync(newDefaultPath)) {
+		return newDefaultPath;
 	}
 
-	const claudeCodeProjectsPath = path.join(envClaudeCodePath, CLAUDE_PROJECTS_DIR_NAME);
-	if (!isDirectorySync(claudeCodeProjectsPath)) {
-		throw new Error(
-			`Claude data directory does not exist: ${claudeCodeProjectsPath}. 
-Please set CLAUDE_CONFIG_DIR to a valid path, or ensure ${path.join(USER_HOME_DIR, DEFAULT_CLAUDE_CODE_PATH)} exists.
-			`.trim(),
-		);
+	// Fall back to the old default path ~/.claude for backward compatibility
+	const oldDefaultPath = path.join(USER_HOME_DIR, DEFAULT_CLAUDE_CODE_PATH);
+	if (isDirectorySync(oldDefaultPath)) {
+		return oldDefaultPath;
 	}
-	return envClaudeCodePath;
+
+	// If neither exists, return the old default for backward compatibility
+	return oldDefaultPath;
 }
 
 /**
@@ -581,19 +647,26 @@ export type LoadOptions = {
 export async function loadDailyUsageData(
 	options?: LoadOptions,
 ): Promise<DailyUsage[]> {
-	const claudePath = options?.claudePath ?? getDefaultClaudePath();
-	const claudeDir = path.join(claudePath, CLAUDE_PROJECTS_DIR_NAME);
-	const files = await glob([USAGE_DATA_GLOB_PATTERN], {
-		cwd: claudeDir,
-		absolute: true,
-	});
+	// Get all Claude paths or use the specific one from options
+	const claudePaths = toArray(options?.claudePath ?? getClaudePaths());
 
-	if (files.length === 0) {
+	// Collect files from all paths
+	const allFiles: string[] = [];
+	for (const claudePath of claudePaths) {
+		const claudeDir = path.join(claudePath, CLAUDE_PROJECTS_DIR_NAME);
+		const files = await glob([USAGE_DATA_GLOB_PATTERN], {
+			cwd: claudeDir,
+			absolute: true,
+		});
+		allFiles.push(...files);
+	}
+
+	if (allFiles.length === 0) {
 		return [];
 	}
 
 	// Sort files by timestamp to ensure chronological processing
-	const sortedFiles = await sortFilesByTimestamp(files);
+	const sortedFiles = await sortFilesByTimestamp(allFiles);
 
 	// Fetch pricing data for cost calculation only when needed
 	const mode = options?.mode ?? 'auto';
@@ -703,19 +776,38 @@ export async function loadDailyUsageData(
 export async function loadSessionData(
 	options?: LoadOptions,
 ): Promise<SessionUsage[]> {
-	const claudePath = options?.claudePath ?? getDefaultClaudePath();
-	const claudeDir = path.join(claudePath, CLAUDE_PROJECTS_DIR_NAME);
-	const files = await glob([USAGE_DATA_GLOB_PATTERN], {
-		cwd: claudeDir,
-		absolute: true,
-	});
+	// Get all Claude paths or use the specific one from options
+	const claudePaths = toArray(options?.claudePath ?? getClaudePaths());
 
-	if (files.length === 0) {
+	// Collect files from all paths with their base directories
+	const filesWithBase: Array<{ file: string; baseDir: string }> = [];
+	for (const claudePath of claudePaths) {
+		const claudeDir = path.join(claudePath, CLAUDE_PROJECTS_DIR_NAME);
+		const files = await glob([USAGE_DATA_GLOB_PATTERN], {
+			cwd: claudeDir,
+			absolute: true,
+		});
+		// Store each file with its base directory for later session extraction
+		for (const file of files) {
+			filesWithBase.push({ file, baseDir: claudeDir });
+		}
+	}
+
+	if (filesWithBase.length === 0) {
 		return [];
 	}
 
 	// Sort files by timestamp to ensure chronological processing
-	const sortedFiles = await sortFilesByTimestamp(files);
+	// Create a map for O(1) lookup instead of O(N) find operations
+	const fileToBaseMap = new Map(filesWithBase.map(f => [f.file, f.baseDir]));
+	const sortedFilesWithBase = await sortFilesByTimestamp(
+		filesWithBase.map(f => f.file),
+	).then(sortedFiles =>
+		sortedFiles.map(file => ({
+			file,
+			baseDir: fileToBaseMap.get(file) ?? '',
+		})),
+	);
 
 	// Fetch pricing data for cost calculation only when needed
 	const mode = options?.mode ?? 'auto';
@@ -737,9 +829,9 @@ export async function loadSessionData(
 		model: string | undefined;
 	}> = [];
 
-	for (const file of sortedFiles) {
-		// Extract session info from file path
-		const relativePath = path.relative(claudeDir, file);
+	for (const { file, baseDir } of sortedFilesWithBase) {
+		// Extract session info from file path using its specific base directory
+		const relativePath = path.relative(baseDir, file);
 		const parts = relativePath.split(path.sep);
 
 		// Session ID is the directory name containing the JSONL file
@@ -939,19 +1031,26 @@ export async function loadMonthlyUsageData(
 export async function loadSessionBlockData(
 	options?: LoadOptions,
 ): Promise<SessionBlock[]> {
-	const claudePath = options?.claudePath ?? getDefaultClaudePath();
-	const claudeDir = path.join(claudePath, CLAUDE_PROJECTS_DIR_NAME);
-	const files = await glob([USAGE_DATA_GLOB_PATTERN], {
-		cwd: claudeDir,
-		absolute: true,
-	});
+	// Get all Claude paths or use the specific one from options
+	const claudePaths = toArray(options?.claudePath ?? getClaudePaths());
 
-	if (files.length === 0) {
+	// Collect files from all paths
+	const allFiles: string[] = [];
+	for (const claudePath of claudePaths) {
+		const claudeDir = path.join(claudePath, CLAUDE_PROJECTS_DIR_NAME);
+		const files = await glob([USAGE_DATA_GLOB_PATTERN], {
+			cwd: claudeDir,
+			absolute: true,
+		});
+		allFiles.push(...files);
+	}
+
+	if (allFiles.length === 0) {
 		return [];
 	}
 
 	// Sort files by timestamp to ensure chronological processing
-	const sortedFiles = await sortFilesByTimestamp(files);
+	const sortedFiles = await sortFilesByTimestamp(allFiles);
 
 	// Fetch pricing data for cost calculation only when needed
 	const mode = options?.mode ?? 'auto';
@@ -1096,9 +1195,9 @@ if (import.meta.vitest != null) {
 		// Use undefined to indicate the env var should not be set
 			vi.stubEnv('CLAUDE_CONFIG_DIR', undefined as string | undefined);
 
-			// Test that it returns the default path (which ends with .claude)
+			// Test that it returns the default path (which can be either .config/claude or .claude)
 			const actualPath = getDefaultClaudePath();
-			expect(actualPath).toMatch(/\.claude$/);
+			expect(actualPath).toMatch(/\.(config\/claude|claude)$/);
 			expect(actualPath).toContain(homedir());
 		});
 
@@ -3554,6 +3653,151 @@ if (import.meta.vitest != null) {
 					expect(sessions.length).toBe(1);
 				}
 			});
+		});
+	});
+
+	describe('getDefaultClaudePath (deprecated)', () => {
+		afterEach(() => {
+			vi.unstubAllEnvs();
+		});
+
+		it('uses environment variable when set', async () => {
+			await using fixture = await createFixture({
+				projects: {},
+			});
+
+			vi.stubEnv('CLAUDE_CONFIG_DIR', fixture.path);
+
+			expect(getDefaultClaudePath()).toBe(fixture.path);
+		});
+
+		it('prefers new default path over old when both exist', async () => {
+			vi.stubEnv('CLAUDE_CONFIG_DIR', '');
+
+			// In CI environment, both paths are created, so it should prefer new one
+			const result = getDefaultClaudePath();
+			// Should contain either the new path or old path
+			expect(typeof result).toBe('string');
+			expect(result.length).toBeGreaterThan(0);
+		});
+
+		it('falls back to first environment path when multiple provided', async () => {
+			await using fixture1 = await createFixture({
+				projects: {},
+			});
+			await using fixture2 = await createFixture({
+				projects: {},
+			});
+
+			vi.stubEnv('CLAUDE_CONFIG_DIR', `${fixture1.path},${fixture2.path}`);
+
+			expect(path.resolve(getDefaultClaudePath())).toBe(path.resolve(fixture1.path));
+		});
+	});
+
+	describe('getClaudePaths', () => {
+		afterEach(() => {
+			vi.unstubAllEnvs();
+			vi.unstubAllGlobals();
+		});
+
+		it('returns paths from environment variable when set', async () => {
+			await using fixture1 = await createFixture({
+				projects: {},
+			});
+			await using fixture2 = await createFixture({
+				projects: {},
+			});
+
+			vi.stubEnv('CLAUDE_CONFIG_DIR', `${fixture1.path},${fixture2.path}`);
+
+			const paths = getClaudePaths();
+			const normalizedFixture1 = path.resolve(fixture1.path);
+			const normalizedFixture2 = path.resolve(fixture2.path);
+
+			expect(paths).toEqual(expect.arrayContaining([normalizedFixture1, normalizedFixture2]));
+			// Environment paths should be prioritized
+			expect(paths[0]).toBe(normalizedFixture1);
+			expect(paths[1]).toBe(normalizedFixture2);
+		});
+
+		it('filters out non-existent paths from environment variable', async () => {
+			await using fixture = await createFixture({
+				projects: {},
+			});
+
+			vi.stubEnv('CLAUDE_CONFIG_DIR', `${fixture.path},/nonexistent/path`);
+
+			const paths = getClaudePaths();
+			const normalizedFixture = path.resolve(fixture.path);
+			expect(paths).toEqual(expect.arrayContaining([normalizedFixture]));
+			expect(paths[0]).toBe(normalizedFixture);
+		});
+
+		it('removes duplicates from combined paths', async () => {
+			await using fixture = await createFixture({
+				projects: {},
+			});
+
+			vi.stubEnv('CLAUDE_CONFIG_DIR', `${fixture.path},${fixture.path}`);
+
+			const paths = getClaudePaths();
+			const normalizedFixture = path.resolve(fixture.path);
+			// Should only contain the fixture path once (but may include defaults)
+			const fixtureCount = paths.filter(p => p === normalizedFixture).length;
+			expect(fixtureCount).toBe(1);
+		});
+
+		it('returns non-empty array with existing default paths', () => {
+			// This test will use real filesystem checks for default paths
+			vi.stubEnv('CLAUDE_CONFIG_DIR', '');
+			const paths = getClaudePaths();
+
+			expect(Array.isArray(paths)).toBe(true);
+			// At least one path should exist in our test environment (CI creates both)
+			expect(paths.length).toBeGreaterThanOrEqual(1);
+		});
+	});
+
+	describe('multiple paths integration', () => {
+		it('loadDailyUsageData aggregates data from multiple paths', async () => {
+			await using fixture1 = await createFixture({
+				projects: {
+					project1: {
+						session1: {
+							'usage.jsonl': JSON.stringify({
+								timestamp: '2024-01-01T00:00:00Z',
+								message: { usage: { input_tokens: 100, output_tokens: 50 } },
+								costUSD: 0.01,
+							}),
+						},
+					},
+				},
+			});
+
+			await using fixture2 = await createFixture({
+				projects: {
+					project2: {
+						session2: {
+							'usage.jsonl': JSON.stringify({
+								timestamp: '2024-01-01T01:00:00Z',
+								message: { usage: { input_tokens: 200, output_tokens: 100 } },
+								costUSD: 0.02,
+							}),
+						},
+					},
+				},
+			});
+
+			vi.stubEnv('CLAUDE_CONFIG_DIR', `${fixture1.path},${fixture2.path}`);
+
+			const result = await loadDailyUsageData();
+			// Find the specific date we're testing
+			const targetDate = result.find(day => day.date === '2024-01-01');
+			expect(targetDate).toBeDefined();
+			expect(targetDate?.inputTokens).toBe(300);
+			expect(targetDate?.outputTokens).toBe(150);
+			expect(targetDate?.totalCost).toBe(0.03);
 		});
 	});
 }

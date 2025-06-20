@@ -2,7 +2,7 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { createFixture } from 'fs-fixture';
 import { glob } from 'tinyglobby';
-import { CLAUDE_PROJECTS_DIR_NAME, DEBUG_MATCH_THRESHOLD_PERCENT, DEFAULT_CLAUDE_CODE_PATH, USAGE_DATA_GLOB_PATTERN, USER_HOME_DIR } from './_consts.js';
+import { CLAUDE_PROJECTS_DIR_NAME, DEBUG_MATCH_THRESHOLD_PERCENT, DEFAULT_CLAUDE_CODE_PATH, USAGE_DATA_GLOB_PATTERN, USER_HOME_DIR } from './_consts.ts';
 import { usageDataSchema } from './data-loader.ts';
 import { logger } from './logger.ts';
 import { PricingFetcher } from './pricing-fetcher.ts';
