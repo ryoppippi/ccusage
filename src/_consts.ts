@@ -1,4 +1,5 @@
 import { homedir } from 'node:os';
+import { xdgConfig } from 'xdg-basedir';
 
 /**
  * URL for LiteLLM's model pricing and context window data
@@ -37,16 +38,22 @@ export const BLOCKS_DEFAULT_TERMINAL_WIDTH = 120;
 export const DEBUG_MATCH_THRESHOLD_PERCENT = 0.1;
 
 /**
+ * User's home directory path
+ * Centralized access to OS home directory for consistent path building
+ */
+export const USER_HOME_DIR = homedir();
+
+/**
  * Default Claude data directory path (~/.claude)
  * Used as base path for loading usage data from JSONL files
  */
 export const DEFAULT_CLAUDE_CODE_PATH = '.claude';
 
 /**
- * Additional default Claude data directory path (~/.config/claude)
- * Used as secondary path for loading usage data from JSONL files
+ * Default Claude data directory path using XDG config directory
+ * Uses XDG_CONFIG_HOME if set, otherwise falls back to ~/.config/claude
  */
-export const DEFAULT_CLAUDE_CONFIG_PATH = '.config/claude';
+export const DEFAULT_CLAUDE_CONFIG_PATH = `${xdgConfig ?? `${USER_HOME_DIR}/.config`}/claude`;
 
 /**
  * Environment variable for specifying multiple Claude data directories
@@ -73,7 +80,7 @@ export const USAGE_DATA_GLOB_PATTERN = '**/*.jsonl';
 export const MCP_DEFAULT_PORT = 8080;
 
 /**
- * User's home directory path
- * Centralized access to OS home directory for consistent path building
+ * XDG config directory path
+ * Uses XDG_CONFIG_HOME if set, otherwise falls back to ~/.config
  */
-export const USER_HOME_DIR = homedir();
+export const XDG_CONFIG_DIR = xdgConfig ?? `${USER_HOME_DIR}/.config`;

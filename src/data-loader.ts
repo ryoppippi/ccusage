@@ -79,7 +79,7 @@ export function getClaudePaths(): string[] {
 
 	// Add default paths if they exist
 	const defaultPaths = [
-		path.join(USER_HOME_DIR, DEFAULT_CLAUDE_CONFIG_PATH), // New default: ~/.config/claude
+		DEFAULT_CLAUDE_CONFIG_PATH, // New default: XDG config directory
 		path.join(USER_HOME_DIR, DEFAULT_CLAUDE_CODE_PATH), // Old default: ~/.claude
 	];
 
@@ -100,7 +100,7 @@ export function getClaudePaths(): string[] {
 	if (paths.length === 0) {
 		throw new Error(
 			`No valid Claude data directories found. Please ensure at least one of the following exists:
-- ${path.join(USER_HOME_DIR, DEFAULT_CLAUDE_CONFIG_PATH, CLAUDE_PROJECTS_DIR_NAME)}
+- ${path.join(DEFAULT_CLAUDE_CONFIG_PATH, CLAUDE_PROJECTS_DIR_NAME)}
 - ${path.join(USER_HOME_DIR, DEFAULT_CLAUDE_CODE_PATH, CLAUDE_PROJECTS_DIR_NAME)}
 - Or set ${CLAUDE_CONFIG_DIR_ENV} environment variable to valid directory path(s) containing a '${CLAUDE_PROJECTS_DIR_NAME}' subdirectory`.trim(),
 		);
@@ -128,8 +128,8 @@ export function getDefaultClaudePath(): string {
 		}
 	}
 
-	// Prefer the new default path ~/.config/claude if it exists
-	const newDefaultPath = path.join(USER_HOME_DIR, DEFAULT_CLAUDE_CONFIG_PATH);
+	// Prefer the new default path (XDG config directory) if it exists
+	const newDefaultPath = DEFAULT_CLAUDE_CONFIG_PATH;
 	if (isDirectorySync(newDefaultPath)) {
 		return newDefaultPath;
 	}
