@@ -8,7 +8,7 @@ import {
 	createTotalsObject,
 	getTotalTokens,
 } from '../calculate-cost.ts';
-import { formatDateCompact, getDefaultClaudePath, loadDailyUsageData } from '../data-loader.ts';
+import { formatDateCompact, loadDailyUsageData } from '../data-loader.ts';
 import { detectMismatches, printMismatchReport } from '../debug.ts';
 import { log, logger } from '../logger.ts';
 
@@ -24,7 +24,6 @@ export const dailyCommand = define({
 		const dailyData = await loadDailyUsageData({
 			since: ctx.values.since,
 			until: ctx.values.until,
-			claudePath: getDefaultClaudePath(),
 			mode: ctx.values.mode,
 			order: ctx.values.order,
 			offline: ctx.values.offline,
@@ -45,7 +44,7 @@ export const dailyCommand = define({
 
 		// Show debug information if requested
 		if (ctx.values.debug && !ctx.values.json) {
-			const mismatchStats = await detectMismatches(getDefaultClaudePath());
+			const mismatchStats = await detectMismatches(undefined);
 			printMismatchReport(mismatchStats, ctx.values.debugSamples);
 		}
 
