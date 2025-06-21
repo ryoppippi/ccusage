@@ -11,7 +11,7 @@ import {
 } from '../_session-blocks.ts';
 import { sharedCommandConfig } from '../_shared-args.ts';
 import { formatCurrency, formatModelsDisplayMultiline, formatNumber, ResponsiveTable } from '../_utils.ts';
-import { getIsolatedClaudePaths, loadSessionBlockData } from '../data-loader.ts';
+import { getClaudePaths, getIsolatedClaudePaths, loadSessionBlockData } from '../data-loader.ts';
 import { log, logger } from '../logger.ts';
 
 /**
@@ -103,7 +103,7 @@ function parseTokenLimit(value: string | undefined, maxFromAll: number): number 
 
 export const blocksIsolatedCommand = define({
 	name: 'blocks-isolated',
-	description: 'Show usage report grouped by session billing blocks (only from CLAUDE_CONFIG_DIR)',
+	description: 'Show usage report grouped by session billing blocks (prioritizes CLAUDE_CONFIG_DIR if set)',
 	args: {
 		...sharedCommandConfig.args,
 		active: {
@@ -142,23 +142,20 @@ export const blocksIsolatedCommand = define({
 			process.exit(1);
 		}
 
-		// Get isolated Claude paths (will throw if not configured)
-		let isolatedPaths: string[];
+		// Get Claude paths - try isolated first, fall back to default
+		let paths: string[];
+		let isIsolated = false;
 		try {
-			isolatedPaths = getIsolatedClaudePaths();
+			paths = getIsolatedClaudePaths();
+			isIsolated = true;
 		}
-		catch (error) {
-			if (ctx.values.json) {
-				log(JSON.stringify({ error: (error as Error).message }));
-			}
-			else {
-				logger.error((error as Error).message);
-			}
-			process.exit(1);
+		catch {
+			// Fall back to default behavior
+			paths = getClaudePaths();
 		}
 
 		let blocks = await loadSessionBlockData({
-			claudePath: isolatedPaths,
+			claudePath: paths,
 			since: ctx.values.since,
 			until: ctx.values.until,
 			mode: ctx.values.mode,
@@ -214,7 +211,8 @@ export const blocksIsolatedCommand = define({
 		if (ctx.values.json) {
 			// JSON output
 			const jsonOutput = {
-				isolatedPaths,
+				paths,
+				isIsolated,
 				blocks: blocks.map((block: SessionBlock) => {
 					const burnRate = block.isActive ? calculateBurnRate(block) : null;
 					const projection = block.isActive ? projectBlockUsage(block) : null;
@@ -268,7 +266,7 @@ export const blocksIsolatedCommand = define({
 				const burnRate = calculateBurnRate(block);
 				const projection = projectBlockUsage(block);
 
-				logger.box('Current Session Block Status (Isolated)');
+				logger.box(isIsolated ? 'Current Session Block Status (Isolated)' : 'Current Session Block Status');
 
 				const now = new Date();
 				const elapsed = Math.round(
@@ -319,16 +317,20 @@ export const blocksIsolatedCommand = define({
 					}
 				}
 
-				log(pc.dim(`\nReading from isolated path(s): ${isolatedPaths.join(', ')}`));
+				if (isIsolated) {
+					log(pc.dim(`\nReading from isolated path(s): ${paths.join(', ')}`));
+				}
 			}
 			else {
 				// Table view for multiple blocks
-				logger.box('Claude Code Token Usage Report - Isolated Session Blocks');
+				logger.box(isIsolated ? 'Claude Code Token Usage Report - Isolated Session Blocks' : 'Claude Code Token Usage Report - Session Blocks');
 
-				// Display isolated directory information
-				const envPath = process.env[CLAUDE_CONFIG_DIR_ENV];
-				log(pc.dim(`Using CLAUDE_CONFIG_DIR: ${envPath}`));
-				log(pc.dim(`Reading from: ${isolatedPaths.join(', ')}\n`));
+				// Display directory information
+				if (isIsolated) {
+					const envPath = process.env[CLAUDE_CONFIG_DIR_ENV];
+					log(pc.dim(`Using CLAUDE_CONFIG_DIR: ${envPath}`));
+					log(pc.dim(`Reading from: ${paths.join(', ')}\n`));
+				}
 
 				// Calculate token limit if "max" is specified
 				const actualTokenLimit = parseTokenLimit(ctx.values.tokenLimit, maxTokensFromAll);
