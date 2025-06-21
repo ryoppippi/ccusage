@@ -1,5 +1,7 @@
 # Live Monitoring
 
+![Live monitoring dashboard showing real-time token usage, burn rate, and cost projections](/assets/blocks-live.png)
+
 Live monitoring provides a real-time dashboard that updates as you use Claude Code, showing progress bars, burn rates, and cost projections for your active session.
 
 ## Quick Start
