@@ -1,5 +1,5 @@
 <div align="center">
-    <img src="https://cdn.jsdelivr.net/gh/ryoppippi/ccusage@main/docs/assets/logo.svg" alt="ccusage logo" width="256" height="256">
+    <img src="https://cdn.jsdelivr.net/gh/ryoppippi/ccusage@main/docs/public/logo.svg" alt="ccusage logo" width="256" height="256">
     <h1>ccusage</h1>
 </div>
 
@@ -11,7 +11,7 @@
 </p>
 
 <div align="center">
-    <img src="https://cdn.jsdelivr.net/gh/ryoppippi/ccusage@main/docs/assets/screenshot.png">
+    <img src="https://cdn.jsdelivr.net/gh/ryoppippi/ccusage@main/docs/public/screenshot.png">
 </div>
 
 > Analyze your Claude Code token usage and costs from local JSONL files — incredibly fast and informative!
