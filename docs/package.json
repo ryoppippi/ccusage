@@ -6,6 +6,7 @@
 	"description": "Documentation for ccusage",
 	"scripts": {
 		"build": "typedoc --excludeInternal && ROLLDOWN_OPTIONS_VALIDATION=loose vitepress build",
+		"deploy": "wrangler deploy",
 		"dev": "typedoc --excludeInternal && vitepress dev",
 		"docs:api": "typedoc --excludeInternal",
 		"preview": "vitepress preview"
@@ -18,7 +19,8 @@
 		"vitepress": "^1.6.0",
 		"vitepress-plugin-group-icons": "^1.2.6",
 		"vitepress-plugin-llms": "^1.5.1",
-		"vitepress-plugin-mermaid": "^2.0.17"
+		"vitepress-plugin-mermaid": "^2.0.17",
+		"wrangler": "^4.20.5"
 	},
 	"overrides": {
 		"vite": "npm:rolldown-vite@latest"

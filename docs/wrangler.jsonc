@@ -1,0 +1,13 @@
+{
+	"$schema": "../node_modules/wrangler/config-schema.json",
+	"name": "ccusage-guide",
+	"main": "./index.ts",
+	"compatibility_date": "2025-06-21",
+	"build": {
+		"command": "bun run build"
+	},
+	"assets": {
+		"binding": "ASSETS",
+		"directory": ".vitepress/dist/"
+	}
+}
