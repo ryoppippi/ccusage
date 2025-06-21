@@ -293,7 +293,7 @@ ccusage blocks -t max
 ccusage blocks --live # automatically uses highest previous session as token limit (-t max)
 ccusage blocks --live -t 500000  # with explicit token limit (500,000 tokens)
 ccusage blocks --live -t max     # explicitly use highest previous session limit
-ccusage blocks --live --refresh-interval 5  # update every 5 seconds (default: 3s)
+ccusage blocks --live --refresh-interval 5  # update every 5 seconds (default: 1s)
 ccusage blocks --live -t 1000000 --refresh-interval 2  # 1M token limit, 2s refresh
 
 # Combine options
@@ -321,7 +321,7 @@ The blocks report helps you understand Claude Code's 5-hour rolling session wind
 
 **Live Monitoring Features:**
 
-- Real-time dashboard updates every 3 seconds (configurable 1-60s)
+- Real-time dashboard updates every 1 second (configurable 1-60s)
 - Automatic token limit detection from your usage history
 - Session progress bar with time remaining and burn rate
 - Cost projections based on current usage patterns
@@ -335,7 +335,7 @@ The blocks report helps you understand Claude Code's 5-hour rolling session wind
 - `-r, --recent`: Show blocks from last 3 days (including active)
 - `-l, --session-length <hours>`: Session block duration in hours (default: 5)
 - `--live`: Live monitoring mode with real-time dashboard (automatically uses `-t max` and shows active block only)
-- `--refresh-interval <seconds>`: Refresh interval for live mode (default: 3, range: 1-60)
+- `--refresh-interval <seconds>`: Refresh interval for live mode (default: 1, range: 1-60)
 
 ### Options
 
