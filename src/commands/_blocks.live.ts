@@ -262,8 +262,8 @@ function renderLiveDisplay(terminal: TerminalManager, block: SessionBlock, confi
 		? (burnRate.tokensPerMinute > 1000 ? pc.red('⚡ HIGH') : burnRate.tokensPerMinute > 500 ? pc.yellow('⚡ MODERATE') : pc.green('✓ NORMAL'))
 		: '';
 	const rateDisplay = burnRate != null
-		? `${Math.round(burnRate.tokensPerMinute)} per min ${rateIndicator}`
-		: 'N/A';
+		? `Burn Rate: ${Math.round(burnRate.tokensPerMinute)} per min ${rateIndicator}`
+		: 'Burn Rate: N/A';
 
 	// Usage section
 	const usageLabel = pc.bold('🔥 USAGE');
