@@ -31,6 +31,10 @@
 	"files": [
 		"dist"
 	],
+	"workspaces": [
+		".",
+		"docs"
+	],
 	"scripts": {
 		"build": "tsdown",
 		"format": "bun run lint --fix",
