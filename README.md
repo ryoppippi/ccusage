@@ -286,9 +286,11 @@ ccusage blocks -t 500000
 ccusage blocks -t max
 
 # Live monitoring dashboard with real-time updates
-ccusage blocks --live # assumes -t max (for token limit), and --refresh-interval 3 (default)
-ccusage blocks --live -t 500000  # With token limit
-ccusage blocks --live --refresh-interval 5  # Update every 5 seconds
+ccusage blocks --live # automatically uses highest previous session as token limit (-t max)
+ccusage blocks --live -t 500000  # with explicit token limit (500,000 tokens)
+ccusage blocks --live -t max     # explicitly use highest previous session limit
+ccusage blocks --live --refresh-interval 5  # update every 5 seconds (default: 3s)
+ccusage blocks --live -t 1000000 --refresh-interval 2  # 1M token limit, 2s refresh
 
 # Combine options
 ccusage blocks --recent -t max
@@ -313,13 +315,22 @@ The blocks report helps you understand Claude Code's 5-hour rolling session wind
 - Helps track if you're approaching token limits within a session
 - The `-t max` option automatically uses your highest previous block as the limit
 
+**Live Monitoring Features:**
+
+- Real-time dashboard updates every 3 seconds (configurable 1-60s)
+- Automatic token limit detection from your usage history
+- Session progress bar with time remaining and burn rate
+- Cost projections based on current usage patterns
+- Colorful progress indicators (green/yellow/red for quota warnings)
+- Graceful shutdown with Ctrl+C
+
 #### Blocks-specific options
 
 - `-t, --token-limit <number|max>`: Set token limit for quota warnings (use "max" for highest previous block)
 - `-a, --active`: Show only active block with detailed projections
 - `-r, --recent`: Show blocks from last 3 days (including active)
 - `-l, --session-length <hours>`: Session block duration in hours (default: 5)
-- `--live`: Live monitoring mode with real-time updates (automatically shows active block only)
+- `--live`: Live monitoring mode with real-time dashboard (automatically uses `-t max` and shows active block only)
 - `--refresh-interval <seconds>`: Refresh interval for live mode (default: 3, range: 1-60)
 
 ### Options
