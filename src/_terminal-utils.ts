@@ -1,23 +1,25 @@
 import type { WriteStream } from 'node:tty';
 import process from 'node:process';
+import ansiEscapes from 'ansi-escapes';
+import stringWidth from 'string-width';
 
 /**
  * Terminal control sequences for live display updates
  */
 export const TERMINAL_CONTROL = {
 	// Cursor control
-	HIDE_CURSOR: '\u001B[?25l',
-	SHOW_CURSOR: '\u001B[?25h',
+	HIDE_CURSOR: ansiEscapes.cursorHide,
+	SHOW_CURSOR: ansiEscapes.cursorShow,
 
 	// Screen control
-	CLEAR_SCREEN: '\u001B[2J',
-	CLEAR_LINE: '\u001B[2K',
-	MOVE_TO_TOP: '\u001B[H',
+	CLEAR_SCREEN: ansiEscapes.clearScreen,
+	CLEAR_LINE: ansiEscapes.eraseLine,
+	MOVE_TO_TOP: ansiEscapes.cursorTo(0, 0),
 
 	// Movement
-	MOVE_UP: (n: number) => `\u001B[${n}A`,
-	MOVE_DOWN: (n: number) => `\u001B[${n}B`,
-	MOVE_TO_COLUMN: (n: number) => `\u001B[${n}G`,
+	MOVE_UP: (n: number) => ansiEscapes.cursorUp(n),
+	MOVE_DOWN: (n: number) => ansiEscapes.cursorDown(n),
+	MOVE_TO_COLUMN: (n: number) => ansiEscapes.cursorTo(n - 1, undefined),
 } as const;
 
 /**
@@ -235,6 +237,7 @@ export function formatDuration(minutes: number): string {
  * Strip ANSI color codes from a string
  * @param str - String with potential ANSI codes
  * @returns String with ANSI codes removed
+ * @deprecated Use stringWidth() for measuring display width
  */
 export function stripAnsi(str: string): string {
 	// eslint-disable-next-line no-control-regex
@@ -248,7 +251,7 @@ export function stripAnsi(str: string): string {
  * @returns Centered text with padding
  */
 export function centerText(text: string, width: number): string {
-	const textLength = stripAnsi(text).length;
+	const textLength = stringWidth(text);
 	if (textLength >= width) {
 		return text;
 	}

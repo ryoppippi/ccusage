@@ -13,17 +13,17 @@
  * - Model information
  */
 
+import type { SessionBlock } from '../_session-blocks.ts';
+import type { CostMode, SortOrder } from '../_types.ts';
 import process from 'node:process';
+import { delay } from '@jsr/std__async/delay';
 import pc from 'picocolors';
-import { LiveMonitor } from '../live-monitor.internal.js';
+import stringWidth from 'string-width';
+import { LiveMonitor } from '../_live-monitor.ts';
+import { calculateBurnRate, projectBlockUsage } from '../_session-blocks.ts';
+import { centerText, createProgressBar, formatDuration, TerminalManager } from '../_terminal-utils.ts';
+import { formatCurrency, formatModelsDisplay, formatNumber } from '../_utils.ts';
 import { logger } from '../logger.ts';
-import {
-	calculateBurnRate,
-	projectBlockUsage,
-	type SessionBlock,
-} from '../session-blocks.internal.ts';
-import { centerText, createProgressBar, formatDuration, stripAnsi, TerminalManager } from '../terminal-utils.internal.ts';
-import { formatCurrency, formatModelsDisplay, formatNumber } from '../utils.internal.ts';
 
 /**
  * Live monitoring configuration
@@ -33,18 +33,9 @@ export type LiveMonitoringConfig = {
 	tokenLimit?: number;
 	refreshInterval: number;
 	sessionDurationHours: number;
-	mode: 'auto' | 'calculate' | 'display';
-	order: 'asc' | 'desc';
+	mode: CostMode;
+	order: SortOrder;
 };
-
-/**
- * Sleep for specified milliseconds
- */
-async function sleep(ms: number): Promise<void> {
-	return new Promise((resolve) => {
-		setTimeout(resolve, ms);
-	});
-}
 
 /**
  * Format token counts with K suffix for display
@@ -71,15 +62,18 @@ const DETAIL_COLUMN_WIDTHS = {
  */
 export async function startLiveMonitoring(config: LiveMonitoringConfig): Promise<void> {
 	const terminal = new TerminalManager();
-	let isRunning = true;
+	const abortController = new AbortController();
 
 	// Setup graceful shutdown
 	const cleanup = (): void => {
-		isRunning = false;
+		abortController.abort();
 		terminal.cleanup();
 		terminal.clearScreen();
 		logger.info('Live monitoring stopped.');
-		process.exit(0);
+		// Check if process.exitCode is already set before explicitly exiting
+		if (process.exitCode == null) {
+			process.exit(0);
+		}
 	};
 
 	process.on('SIGINT', cleanup);
@@ -97,15 +91,22 @@ export async function startLiveMonitoring(config: LiveMonitoringConfig): Promise
 	});
 
 	try {
-		// eslint-disable-next-line no-unmodified-loop-condition
-		while (isRunning) {
+		while (!abortController.signal.aborted) {
 			// Get active block with lightweight refresh
 			const activeBlock = await monitor.getActiveBlock();
 
 			if (activeBlock == null) {
 				terminal.clearScreen();
 				terminal.write(pc.yellow('No active session block found. Waiting...\n'));
-				await sleep(config.refreshInterval);
+				try {
+					await delay(config.refreshInterval, { signal: abortController.signal });
+				}
+				catch (error) {
+					if ((error instanceof DOMException || error instanceof Error) && error.name === 'AbortError') {
+						break; // Graceful shutdown
+					}
+					throw error;
+				}
 				continue;
 			}
 
@@ -114,13 +115,32 @@ export async function startLiveMonitoring(config: LiveMonitoringConfig): Promise
 			renderLiveDisplay(terminal, activeBlock, config);
 
 			// Wait before next refresh
-			await sleep(config.refreshInterval);
+			try {
+				await delay(config.refreshInterval, { signal: abortController.signal });
+			}
+			catch (error) {
+				if ((error instanceof DOMException || error instanceof Error) && error.name === 'AbortError') {
+					break; // Graceful shutdown
+				}
+				throw error;
+			}
 		}
 	}
 	catch (error) {
+		if ((error instanceof DOMException || error instanceof Error) && error.name === 'AbortError') {
+			// Normal graceful shutdown, don't log as error
+			return;
+		}
 		terminal.clearScreen();
-		terminal.write(pc.red(`Error: ${error instanceof Error ? error.message : String(error)}\n`));
-		await sleep(config.refreshInterval);
+		const errorMessage = error instanceof Error ? error.message : String(error);
+		terminal.write(pc.red(`Error: ${errorMessage}\n`));
+		logger.error(`Live monitoring error: ${errorMessage}`);
+		try {
+			await delay(config.refreshInterval, { signal: abortController.signal });
+		}
+		catch {
+			// Ignore abort during error recovery
+		}
 	}
 }
 
@@ -185,7 +205,7 @@ function renderLiveDisplay(terminal: TerminalManager, block: SessionBlock, confi
 	// Session section
 	const sessionLabel = pc.bold('⏱️ SESSION');
 	const sessionBarStr = `${sessionLabel}${''.padEnd(labelWidth - 10)} ${sessionProgressBar} ${sessionPercent.toFixed(1).padStart(6)}%`;
-	const sessionBarPadded = sessionBarStr + ' '.repeat(Math.max(0, boxWidth - 3 - stripAnsi(sessionBarStr).length));
+	const sessionBarPadded = sessionBarStr + ' '.repeat(Math.max(0, boxWidth - 3 - stringWidth(sessionBarStr)));
 	terminal.write(`${marginStr}│ ${sessionBarPadded}│\n`);
 
 	// Session details (indented)
@@ -193,13 +213,13 @@ function renderLiveDisplay(terminal: TerminalManager, block: SessionBlock, confi
 	const col2 = `${pc.gray('Elapsed:')} ${formatDuration(elapsed)}`;
 	const col3 = `${pc.gray('Remaining:')} ${formatDuration(remaining)} (${endTime})`;
 	// Calculate actual visible lengths without ANSI codes
-	const col1Visible = stripAnsi(col1).length;
-	const col2Visible = stripAnsi(col2).length;
+	const col1Visible = stringWidth(col1);
+	const col2Visible = stringWidth(col2);
 	// Fixed column positions - aligned with proper spacing
 	const pad1 = ' '.repeat(Math.max(0, DETAIL_COLUMN_WIDTHS.col1 - col1Visible));
 	const pad2 = ' '.repeat(Math.max(0, DETAIL_COLUMN_WIDTHS.col2 - col2Visible));
 	const sessionDetails = `   ${col1}${pad1}${col2}${pad2}${col3}`;
-	const sessionDetailsPadded = sessionDetails + ' '.repeat(Math.max(0, boxWidth - 3 - stripAnsi(sessionDetails).length));
+	const sessionDetailsPadded = sessionDetails + ' '.repeat(Math.max(0, boxWidth - 3 - stringWidth(sessionDetails)));
 	terminal.write(`${marginStr}│ ${sessionDetailsPadded}│\n`);
 	terminal.write(`${marginStr}│${' '.repeat(boxWidth - 2)}│\n`);
 	terminal.write(`${marginStr}├${'─'.repeat(boxWidth - 2)}┤\n`);
@@ -248,7 +268,7 @@ function renderLiveDisplay(terminal: TerminalManager, block: SessionBlock, confi
 	const usageLabel = pc.bold('🔥 USAGE');
 	if (config.tokenLimit != null && config.tokenLimit > 0) {
 		const usageBarStr = `${usageLabel}${''.padEnd(labelWidth - 8)} ${usageBar} ${tokenPercent.toFixed(1).padStart(6)}% (${formatTokensShort(totalTokens)}/${formatTokensShort(config.tokenLimit)})`;
-		const usageBarPadded = usageBarStr + ' '.repeat(Math.max(0, boxWidth - 3 - stripAnsi(usageBarStr).length));
+		const usageBarPadded = usageBarStr + ' '.repeat(Math.max(0, boxWidth - 3 - stringWidth(usageBarStr)));
 		terminal.write(`${marginStr}│ ${usageBarPadded}│\n`);
 
 		// Usage details (indented and aligned)
@@ -256,30 +276,30 @@ function renderLiveDisplay(terminal: TerminalManager, block: SessionBlock, confi
 		const col2 = `${pc.gray('Limit:')} ${formatNumber(config.tokenLimit)} tokens`;
 		const col3 = `${pc.gray('Cost:')} ${formatCurrency(block.costUSD)}`;
 		// Calculate visible lengths without ANSI codes
-		const col1Visible = stripAnsi(col1).length;
-		const col2Visible = stripAnsi(col2).length;
+		const col1Visible = stringWidth(col1);
+		const col2Visible = stringWidth(col2);
 		// Fixed column positions - match session alignment
 		const pad1 = ' '.repeat(Math.max(0, DETAIL_COLUMN_WIDTHS.col1 - col1Visible));
 		const pad2 = ' '.repeat(Math.max(0, DETAIL_COLUMN_WIDTHS.col2 - col2Visible));
 		const usageDetails = `   ${col1}${pad1}${col2}${pad2}${col3}`;
-		const usageDetailsPadded = usageDetails + ' '.repeat(Math.max(0, boxWidth - 3 - stripAnsi(usageDetails).length));
+		const usageDetailsPadded = usageDetails + ' '.repeat(Math.max(0, boxWidth - 3 - stringWidth(usageDetails)));
 		terminal.write(`${marginStr}│ ${usageDetailsPadded}│\n`);
 	}
 	else {
 		const usageBarStr = `${usageLabel}${''.padEnd(labelWidth - 8)} ${usageBar} (${formatTokensShort(totalTokens)} tokens)`;
-		const usageBarPadded = usageBarStr + ' '.repeat(Math.max(0, boxWidth - 3 - stripAnsi(usageBarStr).length));
+		const usageBarPadded = usageBarStr + ' '.repeat(Math.max(0, boxWidth - 3 - stringWidth(usageBarStr)));
 		terminal.write(`${marginStr}│ ${usageBarPadded}│\n`);
 
 		// Usage details (indented)
 		const col1 = `${pc.gray('Tokens:')} ${formatNumber(totalTokens)} (${rateDisplay})`;
 		const col3 = `${pc.gray('Cost:')} ${formatCurrency(block.costUSD)}`;
 		// Calculate visible length without ANSI codes
-		const col1Visible = stripAnsi(col1).length;
+		const col1Visible = stringWidth(col1);
 		// Fixed column positions - match session alignment
 		const pad1 = ' '.repeat(Math.max(0, DETAIL_COLUMN_WIDTHS.col1 - col1Visible));
 		const pad2 = ' '.repeat(DETAIL_COLUMN_WIDTHS.col2);
 		const usageDetails = `   ${col1}${pad1}${pad2}${col3}`;
-		const usageDetailsPadded = usageDetails + ' '.repeat(Math.max(0, boxWidth - 3 - stripAnsi(usageDetails).length));
+		const usageDetailsPadded = usageDetails + ' '.repeat(Math.max(0, boxWidth - 3 - stringWidth(usageDetails)));
 		terminal.write(`${marginStr}│ ${usageDetailsPadded}│\n`);
 	}
 
@@ -331,7 +351,7 @@ function renderLiveDisplay(terminal: TerminalManager, block: SessionBlock, confi
 		const projLabel = pc.bold('📈 PROJECTION');
 		if (config.tokenLimit != null && config.tokenLimit > 0) {
 			const projBarStr = `${projLabel}${''.padEnd(labelWidth - 13)} ${projectionBar} ${projectedPercent.toFixed(1).padStart(6)}% (${formatTokensShort(projection.totalTokens)}/${formatTokensShort(config.tokenLimit)})`;
-			const projBarPadded = projBarStr + ' '.repeat(Math.max(0, boxWidth - 3 - stripAnsi(projBarStr).length));
+			const projBarPadded = projBarStr + ' '.repeat(Math.max(0, boxWidth - 3 - stringWidth(projBarStr)));
 			terminal.write(`${marginStr}│ ${projBarPadded}│\n`);
 
 			// Projection details (indented and aligned)
@@ -339,18 +359,18 @@ function renderLiveDisplay(terminal: TerminalManager, block: SessionBlock, confi
 			const col2 = `${pc.gray('Tokens:')} ${formatNumber(projection.totalTokens)}`;
 			const col3 = `${pc.gray('Cost:')} ${formatCurrency(projection.totalCost)}`;
 			// Calculate visible lengths (without ANSI codes)
-			const col1Visible = stripAnsi(col1).length;
-			const col2Visible = stripAnsi(col2).length;
+			const col1Visible = stringWidth(col1);
+			const col2Visible = stringWidth(col2);
 			// Fixed column positions - match session alignment
 			const pad1 = ' '.repeat(Math.max(0, DETAIL_COLUMN_WIDTHS.col1 - col1Visible));
 			const pad2 = ' '.repeat(Math.max(0, DETAIL_COLUMN_WIDTHS.col2 - col2Visible));
 			const projDetails = `   ${col1}${pad1}${col2}${pad2}${col3}`;
-			const projDetailsPadded = projDetails + ' '.repeat(Math.max(0, boxWidth - 3 - stripAnsi(projDetails).length));
+			const projDetailsPadded = projDetails + ' '.repeat(Math.max(0, boxWidth - 3 - stringWidth(projDetails)));
 			terminal.write(`${marginStr}│ ${projDetailsPadded}│\n`);
 		}
 		else {
 			const projBarStr = `${projLabel}${''.padEnd(labelWidth - 13)} ${projectionBar} (${formatTokensShort(projection.totalTokens)} tokens)`;
-			const projBarPadded = projBarStr + ' '.repeat(Math.max(0, boxWidth - 3 - stripAnsi(projBarStr).length));
+			const projBarPadded = projBarStr + ' '.repeat(Math.max(0, boxWidth - 3 - stringWidth(projBarStr)));
 			terminal.write(`${marginStr}│ ${projBarPadded}│\n`);
 
 			// Projection details (indented)
@@ -358,13 +378,13 @@ function renderLiveDisplay(terminal: TerminalManager, block: SessionBlock, confi
 			const col2 = `${pc.gray('Tokens:')} ${formatNumber(projection.totalTokens)}`;
 			const col3 = `${pc.gray('Cost:')} ${formatCurrency(projection.totalCost)}`;
 			// Calculate visible lengths
-			const col1Visible = stripAnsi(col1).length;
-			const col2Visible = stripAnsi(col2).length;
+			const col1Visible = stringWidth(col1);
+			const col2Visible = stringWidth(col2);
 			// Fixed column positions - match session alignment
 			const pad1 = ' '.repeat(Math.max(0, DETAIL_COLUMN_WIDTHS.col1 - col1Visible));
 			const pad2 = ' '.repeat(Math.max(0, DETAIL_COLUMN_WIDTHS.col2 - col2Visible));
 			const projDetails = `   ${col1}${pad1}${col2}${pad2}${col3}`;
-			const projDetailsPadded = projDetails + ' '.repeat(Math.max(0, boxWidth - 3 - stripAnsi(projDetails).length));
+			const projDetailsPadded = projDetails + ' '.repeat(Math.max(0, boxWidth - 3 - stringWidth(projDetails)));
 			terminal.write(`${marginStr}│ ${projDetailsPadded}│\n`);
 		}
 
@@ -375,7 +395,7 @@ function renderLiveDisplay(terminal: TerminalManager, block: SessionBlock, confi
 	if (block.models.length > 0) {
 		terminal.write(`${marginStr}├${'─'.repeat(boxWidth - 2)}┤\n`);
 		const modelsLine = `⚙️  Models: ${formatModelsDisplay(block.models)}`;
-		const modelsLinePadded = modelsLine + ' '.repeat(Math.max(0, boxWidth - 3 - stripAnsi(modelsLine).length));
+		const modelsLinePadded = modelsLine + ' '.repeat(Math.max(0, boxWidth - 3 - stringWidth(modelsLine)));
 		terminal.write(`${marginStr}│ ${modelsLinePadded}│\n`);
 	}
 

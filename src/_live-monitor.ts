@@ -8,11 +8,13 @@
  * Used exclusively by blocks-live.ts for the --live flag functionality.
  */
 
-import type { CostMode, SortOrder } from './types.internal.ts';
+import type { LoadedUsageEntry, SessionBlock } from './_session-blocks.ts';
+import type { CostMode, SortOrder } from './_types.ts';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { glob } from 'tinyglobby';
-import { CLAUDE_PROJECTS_DIR_NAME, USAGE_DATA_GLOB_PATTERN } from './consts.internal.js';
+import { CLAUDE_PROJECTS_DIR_NAME, USAGE_DATA_GLOB_PATTERN } from './_consts.ts';
+import { identifySessionBlocks } from './_session-blocks.ts';
 import {
 	calculateCostForEntry,
 	createUniqueHash,
@@ -21,11 +23,6 @@ import {
 	usageDataSchema,
 } from './data-loader.ts';
 import { PricingFetcher } from './pricing-fetcher.ts';
-import {
-	identifySessionBlocks,
-	type LoadedUsageEntry,
-	type SessionBlock,
-} from './session-blocks.internal.ts';
 
 /**
  * Configuration for live monitoring
@@ -171,4 +168,88 @@ export class LiveMonitor implements Disposable {
 		this.processedHashes.clear();
 		this.allEntries = [];
 	}
+}
+
+if (import.meta.vitest != null) {
+	const { describe, it, expect, beforeEach, afterEach } = import.meta.vitest;
+
+	describe('LiveMonitor', () => {
+		let tempDir: string;
+		let monitor: LiveMonitor;
+
+		beforeEach(async () => {
+			const { createFixture } = await import('fs-fixture');
+			const now = new Date();
+			const recentTimestamp = new Date(now.getTime() - 60 * 60 * 1000); // 1 hour ago
+
+			const fixture = await createFixture({
+				'projects/test-project/session1/usage.jsonl': `${JSON.stringify({
+					timestamp: recentTimestamp.toISOString(),
+					message: {
+						model: 'claude-sonnet-4-20250514',
+						usage: {
+							input_tokens: 100,
+							output_tokens: 50,
+							cache_creation_input_tokens: 0,
+							cache_read_input_tokens: 0,
+						},
+					},
+					costUSD: 0.01,
+					version: '1.0.0',
+				})}\n`,
+			});
+			tempDir = fixture.path;
+
+			monitor = new LiveMonitor({
+				claudePath: tempDir,
+				sessionDurationHours: 5,
+				mode: 'display',
+				order: 'desc',
+			});
+		});
+
+		afterEach(() => {
+			monitor[Symbol.dispose]();
+		});
+
+		it('should initialize and handle clearing cache', async () => {
+			// Test initial state by calling getActiveBlock which should work
+			const initialBlock = await monitor.getActiveBlock();
+			expect(initialBlock).not.toBeNull();
+
+			// Clear cache and test again
+			monitor.clearCache();
+			const afterClearBlock = await monitor.getActiveBlock();
+			expect(afterClearBlock).not.toBeNull();
+		});
+
+		it('should load and process usage data', async () => {
+			const activeBlock = await monitor.getActiveBlock();
+
+			expect(activeBlock).not.toBeNull();
+			if (activeBlock != null) {
+				expect(activeBlock.tokenCounts.inputTokens).toBe(100);
+				expect(activeBlock.tokenCounts.outputTokens).toBe(50);
+				expect(activeBlock.costUSD).toBe(0.01);
+				expect(activeBlock.models).toContain('claude-sonnet-4-20250514');
+			}
+		});
+
+		it('should handle empty directories', async () => {
+			const { createFixture } = await import('fs-fixture');
+			const emptyFixture = await createFixture({});
+
+			const emptyMonitor = new LiveMonitor({
+				claudePath: emptyFixture.path,
+				sessionDurationHours: 5,
+				mode: 'display',
+				order: 'desc',
+			});
+
+			const activeBlock = await emptyMonitor.getActiveBlock();
+			expect(activeBlock).toBeNull();
+
+			emptyMonitor[Symbol.dispose]();
+		});
+	});
 }

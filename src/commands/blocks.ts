@@ -13,7 +13,7 @@ import { sharedCommandConfig } from '../_shared-args.ts';
 import { formatCurrency, formatModelsDisplayMultiline, formatNumber, ResponsiveTable } from '../_utils.ts';
 import { getDefaultClaudePath, loadSessionBlockData } from '../data-loader.ts';
 import { log, logger } from '../logger.ts';
-import { startLiveMonitoring } from './blocks-live.ts';
+import { startLiveMonitoring } from './_blocks.live.ts';
 
 /**
  * Formats the time display for a session block
@@ -229,7 +229,6 @@ export const blocksCommand = define({
 			if (refreshInterval !== ctx.values.refreshInterval) {
 				logger.warn(`Refresh interval adjusted to ${refreshInterval} seconds (valid range: 1-60)`);
 			}
-			ctx.values.refreshInterval = refreshInterval;
 
 			// Start live monitoring
 			await startLiveMonitoring({
