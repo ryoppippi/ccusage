@@ -1,6 +1,6 @@
 import type { WriteStream } from 'node:tty';
 import process from 'node:process';
-import ansiEscapes from 'ansi-escapes';
+import * as ansiEscapes from 'ansi-escapes';
 import stringWidth from 'string-width';
 
 /**
