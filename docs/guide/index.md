@@ -94,15 +94,6 @@ The tool automatically detects and aggregates data from both locations for compa
 - **Estimate Accuracy** - Costs are estimates and may not reflect actual billing
   :::
 
-## Community
-
-ccusage has inspired several community projects:
-
-- **macOS Menu Bar Apps** - System tray integration
-- **Raycast Extensions** - Quick access via Raycast
-- **Web Dashboards** - Browser-based visualization
-- **Real-time Monitors** - Terminal-based live tracking
-
 ## Getting Started
 
 Ready to analyze your Claude Code usage? Check out our [Getting Started Guide](/guide/getting-started) to begin exploring your data!
