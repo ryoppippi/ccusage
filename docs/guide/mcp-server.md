@@ -119,7 +119,7 @@ ccusage mcp
 
 ### With Claude Desktop
 
-![Claude Desktop MCP Configuration](/assets/mcp-claude-desktop.avif)
+![Claude Desktop MCP Configuration](/mcp-claude-desktop.avif)
 
 To use ccusage MCP with Claude Desktop, add this to your Claude Desktop configuration file:
 

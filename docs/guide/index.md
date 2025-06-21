@@ -1,6 +1,6 @@
 # Introduction
 
-![ccusage daily report showing token usage and costs by date](/assets/screenshot.png)
+![ccusage daily report showing token usage and costs by date](/screenshot.png)
 
 **ccusage** (claude-code-usage) is a powerful CLI tool that analyzes your Claude Code usage from local JSONL files to help you understand your token consumption patterns and estimated costs.
 
