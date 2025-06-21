@@ -1,5 +1,5 @@
 <div align="center">
-    <img src="https://cdn.jsdelivr.net/gh/ryoppippi/ccusage@main/docs/logo.svg" alt="ccusage logo" width="256" height="256">
+    <img src="https://cdn.jsdelivr.net/gh/ryoppippi/ccusage@main/docs/assets/logo.svg" alt="ccusage logo" width="256" height="256">
     <h1>ccusage</h1>
 </div>
 
@@ -12,11 +12,11 @@
 </p>
 
 <div align="center">
-    <img src="https://cdn.jsdelivr.net/gh/ryoppippi/ccusage@main/docs/screenshot.png">
+    <img src="https://cdn.jsdelivr.net/gh/ryoppippi/ccusage@main/docs/assets/screenshot.png">
 </div>
 
 <div align="center">
-    <img src="https://cdn.jsdelivr.net/gh/ryoppippi/ccusage@main/docs/blocks-live.png">
+    <img src="https://cdn.jsdelivr.net/gh/ryoppippi/ccusage@main/docs/assets/blocks-live.png">
 </div>
 
 > **ccusage(claude-code-usage)**
@@ -404,7 +404,7 @@ Available MCP tools:
 #### Claude Desktop Configuration Example
 
 <div align="center">
-    <img src="https://cdn.jsdelivr.net/gh/ryoppippi/ccusage@main/docs/mcp-claude-desktop.avif">
+    <img src="https://cdn.jsdelivr.net/gh/ryoppippi/ccusage@main/docs/assets/mcp-claude-desktop.avif">
 </div>
 
 To use ccusage MCP with Claude Desktop, add this to your Claude Desktop configuration file:
