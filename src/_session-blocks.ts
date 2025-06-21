@@ -7,13 +7,13 @@ import { DEFAULT_RECENT_DAYS } from './_consts.ts';
 export const DEFAULT_SESSION_DURATION_HOURS = 5;
 
 /**
- * Floors a timestamp to the beginning of the hour
+ * Floors a timestamp to the beginning of the hour in UTC
  * @param timestamp - The timestamp to floor
- * @returns New Date object floored to the hour
+ * @returns New Date object floored to the UTC hour
  */
 function floorToHour(timestamp: Date): Date {
 	const floored = new Date(timestamp);
-	floored.setMinutes(0, 0, 0);
+	floored.setUTCMinutes(0, 0, 0);
 	return floored;
 }
 
