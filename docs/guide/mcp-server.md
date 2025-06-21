@@ -119,9 +119,7 @@ ccusage mcp
 
 ### With Claude Desktop
 
-<div align="center">
-    <img src="https://cdn.jsdelivr.net/gh/ryoppippi/ccusage@main/docs/mcp-claude-desktop.avif" alt="Claude Desktop MCP Configuration">
-</div>
+![Claude Desktop MCP Configuration](/assets/mcp-claude-desktop.avif)
 
 To use ccusage MCP with Claude Desktop, add this to your Claude Desktop configuration file:
 
