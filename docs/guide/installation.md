@@ -102,19 +102,19 @@ bun run format
 
 ### Node.js
 
-- **Minimum**: Node.js 18.x
+- **Minimum**: Node.js 20.x
 - **Recommended**: Node.js 20.x or later
 - **LTS versions** are fully supported
 
 ### Bun (Alternative)
 
-- **Minimum**: Bun 1.0+
+- **Minimum**: Bun 1.2+
 - **Recommended**: Latest stable release
 - Often faster than Node.js for ccusage
 
-### Deno (Experimental)
+### Deno
 
-Deno support is experimental but works with proper permissions:
+Deno 2.0+ is fully supported with proper permissions:
 
 ```bash
 deno run \
