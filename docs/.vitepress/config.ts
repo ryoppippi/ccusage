@@ -33,6 +33,8 @@ export default withMermaid(defineConfig({
 					{ text: 'GitHub', link: 'https://github.com/ryoppippi/ccusage' },
 					{ text: 'npm', link: 'https://www.npmjs.com/package/ccusage' },
 					{ text: 'Changelog', link: 'https://github.com/ryoppippi/ccusage/releases' },
+					{ text: 'DeepWiki', link: 'https://deepwiki.com/ryoppippi/ccusage' },
+					{ text: 'Package Stats', link: 'https://tanstack.com/ccusage?npmPackage=ccusage' },
 				],
 			},
 		],
