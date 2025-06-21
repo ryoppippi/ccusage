@@ -1,11 +1,13 @@
 import { defineConfig } from 'vitepress';
 import { groupIconMdPlugin, groupIconVitePlugin } from 'vitepress-plugin-group-icons';
+import llmstxt from 'vitepress-plugin-llms';
 
 export default defineConfig({
 	title: 'ccusage',
 	description: 'Usage analysis tool for Claude Code',
 	base: '/',
 	cleanUrls: true,
+	ignoreDeadLinks: true,
 
 	head: [
 		['link', { rel: 'icon', href: '/favicon.svg' }],
@@ -129,6 +131,7 @@ export default defineConfig({
 	vite: {
 		plugins: [
 			groupIconVitePlugin(),
+			...llmstxt(),
 		],
 	},
 
