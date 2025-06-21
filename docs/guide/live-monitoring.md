@@ -24,24 +24,7 @@ The dashboard refreshes every second, showing:
 
 ### Visual Example
 
-```
-╭─────────────────────────────────────────────╮
-│                                             │
-│  🔥 Live Session Monitor - Active Block     │
-│                                             │
-╰─────────────────────────────────────────────╯
-
-📊 Session Progress
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 45%
-Current: 450,000 / 1,000,000 tokens
-
-⏰ Time Remaining: 2h 15m
-🔥 Burn Rate: 1,250 tokens/min
-💰 Current Cost: $127.45
-📈 Projected Cost: $283.22
-
-⚠️  Warning: 55% of token limit used
-```
+![Live monitoring dashboard showing real-time token usage, burn rate, and cost projections](/assets/blocks-live.png)
 
 ## Command Options
 
