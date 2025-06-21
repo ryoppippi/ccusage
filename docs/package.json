@@ -17,7 +17,8 @@
 		"typedoc-vitepress-theme": "^1.1.2",
 		"vitepress": "^1.6.0",
 		"vitepress-plugin-group-icons": "^1.2.6",
-		"vitepress-plugin-llms": "^1.5.1"
+		"vitepress-plugin-llms": "^1.5.1",
+		"vitepress-plugin-mermaid": "^2.0.17"
 	},
 	"overrides": {
 		"vite": "npm:rolldown-vite@latest"

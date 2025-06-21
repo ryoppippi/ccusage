@@ -1,8 +1,9 @@
 import { defineConfig } from 'vitepress';
 import { groupIconMdPlugin, groupIconVitePlugin } from 'vitepress-plugin-group-icons';
 import llmstxt from 'vitepress-plugin-llms';
+import { withMermaid } from 'vitepress-plugin-mermaid';
 
-export default defineConfig({
+export default withMermaid(defineConfig({
 	title: 'ccusage',
 	description: 'Usage analysis tool for Claude Code',
 	base: '/',
@@ -132,4 +133,7 @@ export default defineConfig({
 			md.use(groupIconMdPlugin);
 		},
 	},
-});
+	mermaid: {
+		// Optional mermaid configuration
+	},
+}));
