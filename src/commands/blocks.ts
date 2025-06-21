@@ -1,3 +1,4 @@
+import type { SessionBlock } from '../_session-blocks.ts';
 import process from 'node:process';
 import { define } from 'gunshi';
 import pc from 'picocolors';
@@ -7,7 +8,7 @@ import {
 	DEFAULT_SESSION_DURATION_HOURS,
 	filterRecentBlocks,
 	projectBlockUsage,
-	type SessionBlock,
+
 } from '../_session-blocks.ts';
 import { sharedCommandConfig } from '../_shared-args.ts';
 import { formatCurrency, formatModelsDisplayMultiline, formatNumber, ResponsiveTable } from '../_utils.ts';

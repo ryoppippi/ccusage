@@ -8,6 +8,7 @@
  * @module data-loader
  */
 
+import type { LoadedUsageEntry, SessionBlock } from './_session-blocks.ts';
 import type {
 	ActivityDate,
 	CostMode,
@@ -30,8 +31,7 @@ import { z } from 'zod';
 import { CLAUDE_CONFIG_DIR_ENV, CLAUDE_PROJECTS_DIR_NAME, DEFAULT_CLAUDE_CODE_PATH, DEFAULT_CLAUDE_CONFIG_PATH, USAGE_DATA_GLOB_PATTERN, USER_HOME_DIR } from './_consts.ts';
 import {
 	identifySessionBlocks,
-	type LoadedUsageEntry,
-	type SessionBlock,
+
 } from './_session-blocks.ts';
 import {
 	activityDateSchema,

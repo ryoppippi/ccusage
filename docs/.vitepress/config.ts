@@ -70,6 +70,7 @@ export default withMermaid(defineConfig({
 				{
 					text: 'Integration',
 					items: [
+						{ text: 'Library Usage', link: '/guide/library-usage' },
 						{ text: 'MCP Server', link: '/guide/mcp-server' },
 						{ text: 'JSON Output', link: '/guide/json-output' },
 					],

@@ -8,9 +8,10 @@
  * @module pricing-fetcher
  */
 
+import type { ModelPricing } from './_types.ts';
 import { LITELLM_PRICING_URL } from './_consts.ts';
 import { prefetchClaudePricing } from './_macro.ts' with { type: 'macro' };
-import { type ModelPricing, modelPricingSchema } from './_types.ts';
+import { modelPricingSchema } from './_types.ts';
 import { logger } from './logger.ts';
 
 /**

@@ -7,7 +7,8 @@
  * @module logger
  */
 
-import { consola, type ConsolaInstance } from 'consola';
+import type { ConsolaInstance } from 'consola';
+import { consola } from 'consola';
 
 import { name } from '../package.json';
 

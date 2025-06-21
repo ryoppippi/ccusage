@@ -2,8 +2,9 @@
  * Prefetch claude data for the current user.
  */
 
+import type { ModelPricing } from './_types.ts';
 import { LITELLM_PRICING_URL } from './_consts.ts';
-import { type ModelPricing, modelPricingSchema } from './_types.ts';
+import { modelPricingSchema } from './_types.ts';
 
 /**
  * Prefetches the pricing data for Claude models from the LiteLLM API.
