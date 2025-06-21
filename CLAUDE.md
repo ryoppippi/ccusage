@@ -145,7 +145,7 @@ This ensures code quality and catches issues immediately after changes.
   - `/docs/guide/daily-reports.md` - Daily report output screenshot
   - `/docs/guide/live-monitoring.md` - Live monitoring dashboard screenshot
   - `/docs/guide/mcp-server.md` - Claude Desktop integration screenshot
-- **Image Path**: Use relative paths like `/assets/screenshot.png` for images stored in `/docs/assets/`
+- **Image Path**: Use relative paths like `/screenshot.png` for images stored in `/docs/public/`
 - **Alt Text**: Always include descriptive alt text for accessibility
 
 ## Claude Models and Testing

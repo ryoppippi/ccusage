@@ -6,7 +6,7 @@ hero:
   text: Claude Code Usage Analysis
   tagline: A powerful CLI tool for analyzing Claude Code usage from local JSONL files
   image:
-    src: /assets/logo.svg
+    src: /logo.svg
     alt: ccusage logo
   actions:
     - theme: brand
