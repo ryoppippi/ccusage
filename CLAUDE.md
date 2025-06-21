@@ -134,6 +134,20 @@ After making any code changes, ALWAYS run these commands in parallel:
 
 This ensures code quality and catches issues immediately after changes.
 
+## Documentation Guidelines
+
+**Screenshot Usage:**
+
+- **Placement**: Always place screenshots immediately after the main heading (H1) in documentation pages
+- **Purpose**: Provide immediate visual context to users before textual explanations
+- **Guides with Screenshots**:
+  - `/docs/guide/index.md` (What is ccusage) - Main usage screenshot
+  - `/docs/guide/daily-reports.md` - Daily report output screenshot
+  - `/docs/guide/live-monitoring.md` - Live monitoring dashboard screenshot
+  - `/docs/guide/mcp-server.md` - Claude Desktop integration screenshot
+- **Image Path**: Use relative paths like `/assets/screenshot.png` for images stored in `/docs/assets/`
+- **Alt Text**: Always include descriptive alt text for accessibility
+
 ## Claude Models and Testing
 
 **Supported Claude 4 Models (as of 2025):**
