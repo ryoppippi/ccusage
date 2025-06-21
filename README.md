@@ -15,6 +15,10 @@
     <img src="https://cdn.jsdelivr.net/gh/ryoppippi/ccusage@main/docs/screenshot.png">
 </div>
 
+<div align="center">
+    <img src="https://cdn.jsdelivr.net/gh/ryoppippi/ccusage@main/docs/blocks-live.png">
+</div>
+
 > **ccusage(claude-code-usage)**
 
 A CLI tool for analyzing Claude Code usage from local JSONL files.
