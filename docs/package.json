@@ -5,7 +5,7 @@
 	"private": true,
 	"description": "Documentation for ccusage",
 	"scripts": {
-		"build": "typedoc --excludeInternal && vitepress build",
+		"build": "typedoc --excludeInternal && ROLLDOWN_OPTIONS_VALIDATION=loose vitepress build",
 		"dev": "typedoc --excludeInternal && vitepress dev",
 		"docs:api": "typedoc --excludeInternal",
 		"preview": "vitepress preview"
@@ -18,5 +18,8 @@
 		"vitepress": "^1.6.0",
 		"vitepress-plugin-group-icons": "^1.2.6",
 		"vitepress-plugin-llms": "^1.5.1"
+	},
+	"overrides": {
+		"vite": "npm:rolldown-vite@latest"
 	}
 }
