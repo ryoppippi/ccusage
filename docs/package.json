@@ -5,14 +5,16 @@
 	"private": true,
 	"description": "Documentation for ccusage",
 	"scripts": {
-		"build": "typedoc && vitepress build",
-		"dev": "vitepress dev",
-		"docs:api": "cd .. && typedoc",
+		"build": "typedoc --excludeInternal && vitepress build",
+		"dev": "typedoc --excludeInternal && vitepress dev",
+		"docs:api": "typedoc --excludeInternal",
 		"preview": "vitepress preview"
 	},
 	"devDependencies": {
-		"typedoc": "^0.27.4",
-		"typedoc-plugin-markdown": "^4.2.9",
+		"fast-glob": "^3.3.3",
+		"typedoc": "^0.28.4",
+		"typedoc-plugin-markdown": "^4.6.3",
+		"typedoc-vitepress-theme": "^1.1.2",
 		"vitepress": "^1.6.0",
 		"vitepress-plugin-group-icons": "^1.2.6",
 		"vitepress-plugin-llms": "^1.5.1"

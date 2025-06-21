@@ -1,3 +1,12 @@
+/**
+ * @fileoverview Debug utilities for cost calculation validation
+ *
+ * This module provides debugging tools for detecting mismatches between
+ * pre-calculated costs and calculated costs based on token usage and model pricing.
+ *
+ * @module debug
+ */
+
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { createFixture } from 'fs-fixture';

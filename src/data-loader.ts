@@ -1,3 +1,13 @@
+/**
+ * @fileoverview Data loading utilities for Claude Code usage analysis
+ *
+ * This module provides functions for loading and parsing Claude Code usage data
+ * from JSONL files stored in Claude data directories. It handles data aggregation
+ * for daily, monthly, and session-based reporting.
+ *
+ * @module data-loader
+ */
+
 import type {
 	ActivityDate,
 	CostMode,

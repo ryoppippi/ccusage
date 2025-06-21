@@ -1,3 +1,13 @@
+/**
+ * @fileoverview Model pricing data fetcher for cost calculations
+ *
+ * This module provides a PricingFetcher class that retrieves and caches
+ * model pricing information from LiteLLM's pricing database for accurate
+ * cost calculations based on token usage.
+ *
+ * @module pricing-fetcher
+ */
+
 import { LITELLM_PRICING_URL } from './_consts.ts';
 import { prefetchClaudePricing } from './_macro.ts' with { type: 'macro' };
 import { type ModelPricing, modelPricingSchema } from './_types.ts';

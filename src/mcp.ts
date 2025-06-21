@@ -1,3 +1,13 @@
+/**
+ * @fileoverview MCP (Model Context Protocol) server implementation
+ *
+ * This module provides MCP server functionality for exposing ccusage data
+ * through the Model Context Protocol. It includes both stdio and HTTP transport
+ * options for integration with various MCP clients.
+ *
+ * @module mcp
+ */
+
 import type { LoadOptions } from './data-loader.ts';
 import { StreamableHTTPTransport } from '@hono/mcp';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';

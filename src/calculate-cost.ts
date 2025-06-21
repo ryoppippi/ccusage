@@ -1,3 +1,13 @@
+/**
+ * @fileoverview Cost calculation utilities for usage data analysis
+ *
+ * This module provides functions for calculating costs and aggregating token usage
+ * across different time periods and models. It handles both pre-calculated costs
+ * and dynamic cost calculations based on model pricing.
+ *
+ * @module calculate-cost
+ */
+
 import type { DailyUsage, MonthlyUsage, SessionUsage } from './data-loader.ts';
 import {
 	createActivityDate,
