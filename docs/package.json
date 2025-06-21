@@ -7,7 +7,7 @@
 	"scripts": {
 		"build": "typedoc && vitepress build",
 		"dev": "vitepress dev",
-		"docs:api": "typedoc",
+		"docs:api": "cd .. && typedoc",
 		"preview": "vitepress preview"
 	},
 	"devDependencies": {

@@ -1,0 +1,68 @@
+{
+	"$schema": "https://typedoc.org/schema.json",
+	"entryPoints": [
+		"src/index.ts",
+		"src/data-loader.ts",
+		"src/calculate-cost.ts",
+		"src/mcp.ts",
+		"src/_types.ts"
+	],
+	"out": "docs/api",
+	"hideGenerator": true,
+	"disableSources": false,
+	"sourceLinkTemplate": "https://github.com/ryoppippi/ccusage/blob/{gitRevision}/{path}#L{line}",
+	"gitRevision": "main",
+	"readme": "none",
+	"excludePrivate": true,
+	"excludeProtected": true,
+	"excludeInternal": true,
+	"categorizeByGroup": true,
+	"categoryOrder": [
+		"Data Loading",
+		"Cost Calculation",
+		"MCP Integration",
+		"Type Definitions",
+		"*"
+	],
+	"groupOrder": [
+		"Functions",
+		"Classes",
+		"Interfaces",
+		"Type Aliases",
+		"Variables"
+	],
+	"sort": [
+		"source-order"
+	],
+	"kindSortOrder": [
+		"Document",
+		"Project",
+		"Module",
+		"Namespace",
+		"Enum",
+		"EnumMember",
+		"Class",
+		"Interface",
+		"TypeAlias",
+		"Constructor",
+		"Property",
+		"Variable",
+		"Function",
+		"Accessor",
+		"Method",
+		"Parameter",
+		"TypeParameter",
+		"TypeLiteral",
+		"CallSignature",
+		"ConstructorSignature",
+		"IndexSignature",
+		"GetSignature",
+		"SetSignature"
+	],
+	"navigation": {
+		"includeCategories": true,
+		"includeGroups": true
+	},
+	"searchInComments": true,
+	"cleanOutputDir": true
+}
