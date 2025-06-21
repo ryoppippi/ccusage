@@ -68,7 +68,6 @@ export default defineConfig({
 					text: 'Integration',
 					items: [
 						{ text: 'MCP Server', link: '/guide/mcp-server' },
-						{ text: 'Claude Desktop Setup', link: '/guide/claude-desktop' },
 						{ text: 'JSON Output', link: '/guide/json-output' },
 					],
 				},
