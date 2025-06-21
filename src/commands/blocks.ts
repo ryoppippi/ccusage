@@ -139,8 +139,8 @@ export const blocksCommand = define({
 		},
 		refreshInterval: {
 			type: 'number',
-			description: 'Refresh interval in seconds for live mode (default: 3)',
-			default: 3,
+			description: 'Refresh interval in seconds for live mode (default: 1)',
+			default: 1,
 		},
 	},
 	toKebab: true,
