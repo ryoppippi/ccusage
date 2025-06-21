@@ -565,6 +565,7 @@ some projects use `ccusage` internally and provide additional features:
 
 - [claude-usage-tracker-for-mac](https://github.com/penicillin0/claude-usage-tracker-for-mac) – macOS menu bar app to visualize Claude Code usage costs by [@penicillin0](https://github.com/penicillin0).
 - [ccusage Raycast Extension](https://www.raycast.com/nyatinte/ccusage) – Raycast extension to view Claude Code usage reports in Raycast by [@nyatinte](https://github.com/nyatinte).
+- [ClaudeCode_Dashboard](https://github.com/m-sigepon/ClaudeCode_Dashboard) – Web dashboard to visualize Claude Code usage with charts and USD/JPY conversion by [@m-sigepon](https://github.com/m-sigepon).
 
 ## Acknowledgments
 
