@@ -71,6 +71,12 @@ export default defineConfig({
 						{ text: 'JSON Output', link: '/guide/json-output' },
 					],
 				},
+				{
+					text: 'Community',
+					items: [
+						{ text: 'Related Projects', link: '/guide/related-projects' },
+					],
+				},
 			],
 			'/api/': [
 				{
