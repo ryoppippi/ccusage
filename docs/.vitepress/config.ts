@@ -41,7 +41,7 @@ export default defineConfig({
 				{
 					text: 'Introduction',
 					items: [
-						{ text: 'What is ccusage?', link: '/guide/' },
+						{ text: 'Introduction', link: '/guide/' },
 						{ text: 'Getting Started', link: '/guide/getting-started' },
 						{ text: 'Installation', link: '/guide/installation' },
 					],
