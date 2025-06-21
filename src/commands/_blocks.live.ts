@@ -204,7 +204,8 @@ function renderLiveDisplay(terminal: TerminalManager, block: SessionBlock, confi
 
 	// Session section
 	const sessionLabel = pc.bold('⏱️ SESSION');
-	const sessionBarStr = `${sessionLabel}${''.padEnd(labelWidth - 10)} ${sessionProgressBar} ${sessionPercent.toFixed(1).padStart(6)}%`;
+	const sessionLabelWidth = stringWidth(sessionLabel);
+	const sessionBarStr = `${sessionLabel}${''.padEnd(Math.max(0, labelWidth - sessionLabelWidth))} ${sessionProgressBar} ${sessionPercent.toFixed(1).padStart(6)}%`;
 	const sessionBarPadded = sessionBarStr + ' '.repeat(Math.max(0, boxWidth - 3 - stringWidth(sessionBarStr)));
 	terminal.write(`${marginStr}│ ${sessionBarPadded}│\n`);
 
@@ -266,8 +267,9 @@ function renderLiveDisplay(terminal: TerminalManager, block: SessionBlock, confi
 
 	// Usage section
 	const usageLabel = pc.bold('🔥 USAGE');
+	const usageLabelWidth = stringWidth(usageLabel);
 	if (config.tokenLimit != null && config.tokenLimit > 0) {
-		const usageBarStr = `${usageLabel}${''.padEnd(labelWidth - 8)} ${usageBar} ${tokenPercent.toFixed(1).padStart(6)}% (${formatTokensShort(totalTokens)}/${formatTokensShort(config.tokenLimit)})`;
+		const usageBarStr = `${usageLabel}${''.padEnd(Math.max(0, labelWidth - usageLabelWidth))} ${usageBar} ${tokenPercent.toFixed(1).padStart(6)}% (${formatTokensShort(totalTokens)}/${formatTokensShort(config.tokenLimit)})`;
 		const usageBarPadded = usageBarStr + ' '.repeat(Math.max(0, boxWidth - 3 - stringWidth(usageBarStr)));
 		terminal.write(`${marginStr}│ ${usageBarPadded}│\n`);
 
@@ -286,7 +288,7 @@ function renderLiveDisplay(terminal: TerminalManager, block: SessionBlock, confi
 		terminal.write(`${marginStr}│ ${usageDetailsPadded}│\n`);
 	}
 	else {
-		const usageBarStr = `${usageLabel}${''.padEnd(labelWidth - 8)} ${usageBar} (${formatTokensShort(totalTokens)} tokens)`;
+		const usageBarStr = `${usageLabel}${''.padEnd(Math.max(0, labelWidth - usageLabelWidth))} ${usageBar} (${formatTokensShort(totalTokens)} tokens)`;
 		const usageBarPadded = usageBarStr + ' '.repeat(Math.max(0, boxWidth - 3 - stringWidth(usageBarStr)));
 		terminal.write(`${marginStr}│ ${usageBarPadded}│\n`);
 
@@ -349,8 +351,9 @@ function renderLiveDisplay(terminal: TerminalManager, block: SessionBlock, confi
 
 		// Projection section
 		const projLabel = pc.bold('📈 PROJECTION');
+		const projLabelWidth = stringWidth(projLabel);
 		if (config.tokenLimit != null && config.tokenLimit > 0) {
-			const projBarStr = `${projLabel}${''.padEnd(labelWidth - 13)} ${projectionBar} ${projectedPercent.toFixed(1).padStart(6)}% (${formatTokensShort(projection.totalTokens)}/${formatTokensShort(config.tokenLimit)})`;
+			const projBarStr = `${projLabel}${''.padEnd(Math.max(0, labelWidth - projLabelWidth))} ${projectionBar} ${projectedPercent.toFixed(1).padStart(6)}% (${formatTokensShort(projection.totalTokens)}/${formatTokensShort(config.tokenLimit)})`;
 			const projBarPadded = projBarStr + ' '.repeat(Math.max(0, boxWidth - 3 - stringWidth(projBarStr)));
 			terminal.write(`${marginStr}│ ${projBarPadded}│\n`);
 
@@ -369,7 +372,7 @@ function renderLiveDisplay(terminal: TerminalManager, block: SessionBlock, confi
 			terminal.write(`${marginStr}│ ${projDetailsPadded}│\n`);
 		}
 		else {
-			const projBarStr = `${projLabel}${''.padEnd(labelWidth - 13)} ${projectionBar} (${formatTokensShort(projection.totalTokens)} tokens)`;
+			const projBarStr = `${projLabel}${''.padEnd(Math.max(0, labelWidth - projLabelWidth))} ${projectionBar} (${formatTokensShort(projection.totalTokens)} tokens)`;
 			const projBarPadded = projBarStr + ' '.repeat(Math.max(0, boxWidth - 3 - stringWidth(projBarStr)));
 			terminal.write(`${marginStr}│ ${projBarPadded}│\n`);
 
