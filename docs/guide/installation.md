@@ -125,15 +125,6 @@ deno run \
   npm:ccusage@latest
 ```
 
-## Platform Support
-
-ccusage works on all major platforms:
-
-- ✅ **macOS** - Full support
-- ✅ **Linux** - Full support
-- ✅ **Windows** - Full support
-- ✅ **WSL** - Full support
-
 ## Verification
 
 After installation, verify ccusage is working:
