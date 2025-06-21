@@ -26,7 +26,6 @@ export default defineConfig({
 		nav: [
 			{ text: 'Guide', link: '/guide/' },
 			{ text: 'API Reference', link: '/api/' },
-			{ text: 'Examples', link: '/examples/' },
 			{
 				text: 'Links',
 				items: [
@@ -83,18 +82,6 @@ export default defineConfig({
 						{ text: 'Calculate Cost', link: '/api/calculate-cost' },
 						{ text: 'MCP Server', link: '/api/mcp' },
 						{ text: 'Types', link: '/api/types' },
-					],
-				},
-			],
-			'/examples/': [
-				{
-					text: 'Examples',
-					items: [
-						{ text: 'Basic Usage', link: '/examples/' },
-						{ text: 'Filtering Data', link: '/examples/filtering' },
-						{ text: 'JSON Processing', link: '/examples/json-processing' },
-						{ text: 'MCP Integration', link: '/examples/mcp-integration' },
-						{ text: 'Custom Scripts', link: '/examples/custom-scripts' },
 					],
 				},
 			],
