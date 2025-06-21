@@ -69,6 +69,7 @@
 		"lint-staged": "^16.1.2",
 		"path-type": "^6.0.0",
 		"picocolors": "^1.1.1",
+		"pretty-ms": "^9.2.0",
 		"publint": "^0.3.12",
 		"rollup-plugin-node-externals": "^8.0.1",
 		"simple-git-hooks": "^2.13.0",

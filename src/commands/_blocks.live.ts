@@ -18,10 +18,11 @@ import type { CostMode, SortOrder } from '../_types.ts';
 import process from 'node:process';
 import { delay } from '@jsr/std__async/delay';
 import pc from 'picocolors';
+import prettyMs from 'pretty-ms';
 import stringWidth from 'string-width';
 import { LiveMonitor } from '../_live-monitor.ts';
 import { calculateBurnRate, projectBlockUsage } from '../_session-blocks.ts';
-import { centerText, createProgressBar, formatDuration, TerminalManager } from '../_terminal-utils.ts';
+import { centerText, createProgressBar, TerminalManager } from '../_terminal-utils.ts';
 import { formatCurrency, formatModelsDisplay, formatNumber } from '../_utils.ts';
 import { logger } from '../logger.ts';
 
@@ -211,8 +212,8 @@ function renderLiveDisplay(terminal: TerminalManager, block: SessionBlock, confi
 
 	// Session details (indented)
 	const col1 = `${pc.gray('Started:')} ${startTime}`;
-	const col2 = `${pc.gray('Elapsed:')} ${formatDuration(elapsed)}`;
-	const col3 = `${pc.gray('Remaining:')} ${formatDuration(remaining)} (${endTime})`;
+	const col2 = `${pc.gray('Elapsed:')} ${prettyMs(elapsed * 60 * 1000, { compact: true })}`;
+	const col3 = `${pc.gray('Remaining:')} ${prettyMs(remaining * 60 * 1000, { compact: true })} (${endTime})`;
 	// Calculate actual visible lengths without ANSI codes
 	const col1Visible = stringWidth(col1);
 	const col2Visible = stringWidth(col2);

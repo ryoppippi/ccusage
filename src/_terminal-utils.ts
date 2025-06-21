@@ -219,32 +219,6 @@ export function createProgressBar(
 }
 
 /**
- * Formats time duration in human-readable format
- * @param minutes - Duration in minutes
- * @returns Formatted string like "2h 45m" or "45m"
- */
-export function formatDuration(minutes: number): string {
-	const hours = Math.floor(minutes / 60);
-	const mins = Math.round(minutes % 60);
-
-	if (hours > 0) {
-		return `${hours}h ${mins}m`;
-	}
-	return `${mins}m`;
-}
-
-/**
- * Strip ANSI color codes from a string
- * @param str - String with potential ANSI codes
- * @returns String with ANSI codes removed
- * @deprecated Use stringWidth() for measuring display width
- */
-export function stripAnsi(str: string): string {
-	// eslint-disable-next-line no-control-regex
-	return str.replace(/\x1B\[[0-9;]*m/g, '');
-}
-
-/**
  * Centers text within a given width
  * @param text - Text to center
  * @param width - Total width
