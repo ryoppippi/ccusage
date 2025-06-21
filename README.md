@@ -15,6 +15,10 @@
     <img src="https://cdn.jsdelivr.net/gh/ryoppippi/ccusage@main/docs/screenshot.png">
 </div>
 
+<div align="center">
+    <img src="https://cdn.jsdelivr.net/gh/ryoppippi/ccusage@main/docs/blocks-live.png">
+</div>
+
 > **ccusage(claude-code-usage)**
 
 A CLI tool for analyzing Claude Code usage from local JSONL files.
@@ -48,6 +52,7 @@ This tool helps you understand the value you're getting from your subscription b
 - 📅 **Monthly Report**: View token usage and costs aggregated by month
 - 💬 **Session Report**: View usage grouped by conversation sessions
 - ⏰ **5-Hour Blocks Report**: Track usage within Claude's billing windows with active block monitoring
+- 📈 **Live Monitoring**: Real-time dashboard showing active session progress, token burn rate, and cost projections with `blocks --live`
 - 🤖 **Model Tracking**: See which Claude models you're using (Opus, Sonnet, etc.)
 - 📊 **Model Breakdown**: View per-model cost breakdown with `--breakdown` flag
 - 📅 **Date Filtering**: Filter reports by date range using `--since` and `--until`
@@ -284,6 +289,13 @@ ccusage blocks -t 500000
 # Use the highest previous block as the token limit
 ccusage blocks -t max
 
+# Live monitoring dashboard with real-time updates
+ccusage blocks --live # automatically uses highest previous session as token limit (-t max)
+ccusage blocks --live -t 500000  # with explicit token limit (500,000 tokens)
+ccusage blocks --live -t max     # explicitly use highest previous session limit
+ccusage blocks --live --refresh-interval 5  # update every 5 seconds (default: 1s)
+ccusage blocks --live -t 1000000 --refresh-interval 2  # 1M token limit, 2s refresh
+
 # Combine options
 ccusage blocks --recent -t max
 
@@ -307,11 +319,23 @@ The blocks report helps you understand Claude Code's 5-hour rolling session wind
 - Helps track if you're approaching token limits within a session
 - The `-t max` option automatically uses your highest previous block as the limit
 
+**Live Monitoring Features:**
+
+- Real-time dashboard updates every 1 second (configurable 1-60s)
+- Automatic token limit detection from your usage history
+- Session progress bar with time remaining and burn rate
+- Cost projections based on current usage patterns
+- Colorful progress indicators (green/yellow/red for quota warnings)
+- Graceful shutdown with Ctrl+C
+
 #### Blocks-specific options
 
 - `-t, --token-limit <number|max>`: Set token limit for quota warnings (use "max" for highest previous block)
 - `-a, --active`: Show only active block with detailed projections
 - `-r, --recent`: Show blocks from last 3 days (including active)
+- `-l, --session-length <hours>`: Session block duration in hours (default: 5)
+- `--live`: Live monitoring mode with real-time dashboard (automatically uses `-t max` and shows active block only)
+- `--refresh-interval <seconds>`: Refresh interval for live mode (default: 1, range: 1-60)
 
 ### Options
 

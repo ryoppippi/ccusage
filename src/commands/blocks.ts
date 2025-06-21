@@ -1,7 +1,7 @@
 import process from 'node:process';
 import { define } from 'gunshi';
 import pc from 'picocolors';
-import { BLOCKS_COMPACT_WIDTH_THRESHOLD, BLOCKS_DEFAULT_TERMINAL_WIDTH, BLOCKS_WARNING_THRESHOLD, DEFAULT_RECENT_DAYS } from '../_consts.ts';
+import { BLOCKS_COMPACT_WIDTH_THRESHOLD, BLOCKS_DEFAULT_TERMINAL_WIDTH, BLOCKS_WARNING_THRESHOLD, DEFAULT_RECENT_DAYS, DEFAULT_REFRESH_INTERVAL_SECONDS, MAX_REFRESH_INTERVAL_SECONDS, MIN_REFRESH_INTERVAL_SECONDS } from '../_consts.ts';
 import {
 	calculateBurnRate,
 	DEFAULT_SESSION_DURATION_HOURS,
@@ -11,8 +11,9 @@ import {
 } from '../_session-blocks.ts';
 import { sharedCommandConfig } from '../_shared-args.ts';
 import { formatCurrency, formatModelsDisplayMultiline, formatNumber, ResponsiveTable } from '../_utils.ts';
-import { loadSessionBlockData } from '../data-loader.ts';
+import { getDefaultClaudePath, loadSessionBlockData } from '../data-loader.ts';
 import { log, logger } from '../logger.ts';
+import { startLiveMonitoring } from './_blocks.live.ts';
 
 /**
  * Formats the time display for a session block
@@ -94,9 +95,11 @@ function parseTokenLimit(value: string | undefined, maxFromAll: number): number 
 	if (value == null || value === '') {
 		return undefined;
 	}
+
 	if (value === 'max') {
 		return maxFromAll > 0 ? maxFromAll : undefined;
 	}
+
 	const limit = Number.parseInt(value, 10);
 	return Number.isNaN(limit) ? undefined : limit;
 }
@@ -121,13 +124,23 @@ export const blocksCommand = define({
 		tokenLimit: {
 			type: 'string',
 			short: 't',
-			description: 'Token limit for quota warnings (e.g., 500000 or "max" for highest previous block)',
+			description: 'Token limit for quota warnings (e.g., 500000 or "max")',
 		},
 		sessionLength: {
 			type: 'number',
 			short: 'l',
 			description: `Session block duration in hours (default: ${DEFAULT_SESSION_DURATION_HOURS})`,
 			default: DEFAULT_SESSION_DURATION_HOURS,
+		},
+		live: {
+			type: 'boolean',
+			description: 'Live monitoring mode with real-time updates',
+			default: false,
+		},
+		refreshInterval: {
+			type: 'number',
+			description: `Refresh interval in seconds for live mode (default: ${DEFAULT_REFRESH_INTERVAL_SECONDS})`,
+			default: DEFAULT_REFRESH_INTERVAL_SECONDS,
 		},
 	},
 	toKebab: true,
@@ -193,6 +206,40 @@ export const blocksCommand = define({
 				}
 				process.exit(0);
 			}
+		}
+
+		// Live monitoring mode
+		if (ctx.values.live && !ctx.values.json) {
+			// Live mode only shows active blocks
+			if (!ctx.values.active) {
+				logger.info('Live mode automatically shows only active blocks.');
+			}
+
+			// Default to 'max' if no token limit specified in live mode
+			let tokenLimitValue = ctx.values.tokenLimit;
+			if (tokenLimitValue == null || tokenLimitValue === '') {
+				tokenLimitValue = 'max';
+				if (maxTokensFromAll > 0) {
+					logger.info(`No token limit specified, using max from previous sessions: ${formatNumber(maxTokensFromAll)}`);
+				}
+			}
+
+			// Validate refresh interval
+			const refreshInterval = Math.max(MIN_REFRESH_INTERVAL_SECONDS, Math.min(MAX_REFRESH_INTERVAL_SECONDS, ctx.values.refreshInterval));
+			if (refreshInterval !== ctx.values.refreshInterval) {
+				logger.warn(`Refresh interval adjusted to ${refreshInterval} seconds (valid range: ${MIN_REFRESH_INTERVAL_SECONDS}-${MAX_REFRESH_INTERVAL_SECONDS})`);
+			}
+
+			// Start live monitoring
+			await startLiveMonitoring({
+				claudePath: getDefaultClaudePath(),
+				tokenLimit: parseTokenLimit(tokenLimitValue, maxTokensFromAll),
+				refreshInterval: refreshInterval * 1000, // Convert to milliseconds
+				sessionDurationHours: ctx.values.sessionLength,
+				mode: ctx.values.mode,
+				order: ctx.values.order,
+			});
+			return; // Exit early, don't show table
 		}
 
 		if (ctx.values.json) {
