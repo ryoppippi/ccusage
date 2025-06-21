@@ -4,10 +4,12 @@ ccusage includes a built-in Model Context Protocol (MCP) server that exposes usa
 
 ## Starting the MCP Server
 
-### Default (stdio transport)
+### stdio transport (default)
 
 ```bash
 ccusage mcp
+# or explicitly (--type stdio is optional):
+ccusage mcp --type stdio
 ```
 
 The stdio transport is ideal for local integration where the client directly spawns the process.
