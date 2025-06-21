@@ -110,6 +110,48 @@ export function getClaudePaths(): string[] {
 }
 
 /**
+ * Get Claude data directories exclusively from CLAUDE_CONFIG_DIR environment variable
+ * Unlike getClaudePaths(), this ignores default directories and only uses environment-specified paths
+ * @returns Array of valid Claude data directory paths from environment variable only
+ * @throws Error if CLAUDE_CONFIG_DIR is not set or contains no valid directories
+ */
+export function getIsolatedClaudePaths(): string[] {
+	const paths: string[] = [];
+	const normalizedPaths = new Set<string>();
+
+	// Check environment variable (supports comma-separated paths)
+	const envPaths = (process.env[CLAUDE_CONFIG_DIR_ENV] ?? '').trim();
+	if (envPaths === '') {
+		throw new Error(
+			`${CLAUDE_CONFIG_DIR_ENV} environment variable is not set. This command requires explicit directory configuration.`,
+		);
+	}
+
+	const envPathList = envPaths.split(',').map(p => p.trim()).filter(p => p !== '');
+	for (const envPath of envPathList) {
+		const normalizedPath = path.resolve(envPath);
+		if (isDirectorySync(normalizedPath)) {
+			const projectsPath = path.join(normalizedPath, CLAUDE_PROJECTS_DIR_NAME);
+			if (isDirectorySync(projectsPath)) {
+				// Avoid duplicates using normalized paths
+				if (!normalizedPaths.has(normalizedPath)) {
+					normalizedPaths.add(normalizedPath);
+					paths.push(normalizedPath);
+				}
+			}
+		}
+	}
+
+	if (paths.length === 0) {
+		throw new Error(
+			`No valid Claude data directories found in ${CLAUDE_CONFIG_DIR_ENV}. Please ensure the specified path(s) contain a '${CLAUDE_PROJECTS_DIR_NAME}' subdirectory.`,
+		);
+	}
+
+	return paths;
+}
+
+/**
  * Default path for Claude data directory
  * Uses environment variable CLAUDE_CONFIG_DIR if set, otherwise defaults to ~/.claude
  * @deprecated Use getClaudePaths() instead for multiple path support
@@ -631,7 +673,7 @@ export type DateFilter = {
  * Configuration options for loading usage data
  */
 export type LoadOptions = {
-	claudePath?: string; // Custom path to Claude data directory
+	claudePath?: string | string[]; // Custom path to Claude data directory
 	mode?: CostMode; // Cost calculation mode
 	order?: SortOrder; // Sort order for dates
 	offline?: boolean; // Use offline mode for pricing

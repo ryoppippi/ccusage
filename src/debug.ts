@@ -62,13 +62,21 @@ type MismatchStats = {
  * @returns Statistics about pricing mismatches found
  */
 export async function detectMismatches(
-	claudePath?: string,
+	claudePath?: string | string[],
 ): Promise<MismatchStats> {
-	const claudeDir = claudePath ?? path.join(getDefaultClaudePath(), CLAUDE_PROJECTS_DIR_NAME);
-	const files = await glob([USAGE_DATA_GLOB_PATTERN], {
-		cwd: claudeDir,
-		absolute: true,
-	});
+	const claudePaths = claudePath ? (Array.isArray(claudePath) ? claudePath : [claudePath]) : [getDefaultClaudePath()];
+	const allFiles: string[] = [];
+	
+	for (const singlePath of claudePaths) {
+		// Check if this is a test path (doesn't contain projects directory)
+		const isTestPath = singlePath && !singlePath.includes(CLAUDE_PROJECTS_DIR_NAME);
+		const claudeDir = isTestPath ? singlePath : path.join(singlePath, CLAUDE_PROJECTS_DIR_NAME);
+		const files = await glob([USAGE_DATA_GLOB_PATTERN], {
+			cwd: claudeDir,
+			absolute: true,
+		});
+		allFiles.push(...files);
+	}
 
 	// Use PricingFetcher with using statement for automatic cleanup
 	using fetcher = new PricingFetcher();
@@ -83,7 +91,7 @@ export async function detectMismatches(
 		versionStats: new Map(),
 	};
 
-	for (const file of files) {
+	for (const file of allFiles) {
 		const content = await readFile(file, 'utf-8');
 		const lines = content
 			.trim()

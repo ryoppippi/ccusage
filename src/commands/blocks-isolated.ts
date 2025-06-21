@@ -1,7 +1,7 @@
 import process from 'node:process';
 import { define } from 'gunshi';
 import pc from 'picocolors';
-import { BLOCKS_COMPACT_WIDTH_THRESHOLD, BLOCKS_DEFAULT_TERMINAL_WIDTH, BLOCKS_WARNING_THRESHOLD, CLAUDE_CONFIG_DIR_ENV, DEFAULT_RECENT_DAYS, DEFAULT_REFRESH_INTERVAL_SECONDS, MAX_REFRESH_INTERVAL_SECONDS, MIN_REFRESH_INTERVAL_SECONDS } from '../_consts.ts';
+import { BLOCKS_COMPACT_WIDTH_THRESHOLD, BLOCKS_DEFAULT_TERMINAL_WIDTH, BLOCKS_WARNING_THRESHOLD, CLAUDE_CONFIG_DIR_ENV, DEFAULT_RECENT_DAYS } from '../_consts.ts';
 import {
 	calculateBurnRate,
 	DEFAULT_SESSION_DURATION_HOURS,
@@ -11,9 +11,8 @@ import {
 } from '../_session-blocks.ts';
 import { sharedCommandConfig } from '../_shared-args.ts';
 import { formatCurrency, formatModelsDisplayMultiline, formatNumber, ResponsiveTable } from '../_utils.ts';
-import { getClaudePaths, getDefaultClaudePath, loadSessionBlockData } from '../data-loader.ts';
+import { getIsolatedClaudePaths, loadSessionBlockData } from '../data-loader.ts';
 import { log, logger } from '../logger.ts';
-import { startLiveMonitoring } from './_blocks.live.ts';
 
 /**
  * Formats the time display for a session block
@@ -95,18 +94,16 @@ function parseTokenLimit(value: string | undefined, maxFromAll: number): number 
 	if (value == null || value === '') {
 		return undefined;
 	}
-
 	if (value === 'max') {
 		return maxFromAll > 0 ? maxFromAll : undefined;
 	}
-
 	const limit = Number.parseInt(value, 10);
 	return Number.isNaN(limit) ? undefined : limit;
 }
 
-export const blocksCommand = define({
-	name: 'blocks',
-	description: 'Show usage report grouped by session billing blocks',
+export const blocksIsolatedCommand = define({
+	name: 'blocks-isolated',
+	description: 'Show usage report grouped by session billing blocks (only from CLAUDE_CONFIG_DIR)',
 	args: {
 		...sharedCommandConfig.args,
 		active: {
@@ -124,23 +121,13 @@ export const blocksCommand = define({
 		tokenLimit: {
 			type: 'string',
 			short: 't',
-			description: 'Token limit for quota warnings (e.g., 500000 or "max")',
+			description: 'Token limit for quota warnings (e.g., 500000 or "max" for highest previous block)',
 		},
 		sessionLength: {
 			type: 'number',
 			short: 'l',
 			description: `Session block duration in hours (default: ${DEFAULT_SESSION_DURATION_HOURS})`,
 			default: DEFAULT_SESSION_DURATION_HOURS,
-		},
-		live: {
-			type: 'boolean',
-			description: 'Live monitoring mode with real-time updates',
-			default: false,
-		},
-		refreshInterval: {
-			type: 'number',
-			description: `Refresh interval in seconds for live mode (default: ${DEFAULT_REFRESH_INTERVAL_SECONDS})`,
-			default: DEFAULT_REFRESH_INTERVAL_SECONDS,
 		},
 	},
 	toKebab: true,
@@ -155,7 +142,23 @@ export const blocksCommand = define({
 			process.exit(1);
 		}
 
+		// Get isolated Claude paths (will throw if not configured)
+		let isolatedPaths: string[];
+		try {
+			isolatedPaths = getIsolatedClaudePaths();
+		}
+		catch (error) {
+			if (ctx.values.json) {
+				log(JSON.stringify({ error: (error as Error).message }));
+			}
+			else {
+				logger.error((error as Error).message);
+			}
+			process.exit(1);
+		}
+
 		let blocks = await loadSessionBlockData({
+			claudePath: isolatedPaths,
 			since: ctx.values.since,
 			until: ctx.values.until,
 			mode: ctx.values.mode,
@@ -169,7 +172,7 @@ export const blocksCommand = define({
 				log(JSON.stringify({ blocks: [] }));
 			}
 			else {
-				logger.warn('No Claude usage data found.');
+				logger.warn('No Claude usage data found in isolated directories.');
 			}
 			process.exit(0);
 		}
@@ -208,43 +211,10 @@ export const blocksCommand = define({
 			}
 		}
 
-		// Live monitoring mode
-		if (ctx.values.live && !ctx.values.json) {
-			// Live mode only shows active blocks
-			if (!ctx.values.active) {
-				logger.info('Live mode automatically shows only active blocks.');
-			}
-
-			// Default to 'max' if no token limit specified in live mode
-			let tokenLimitValue = ctx.values.tokenLimit;
-			if (tokenLimitValue == null || tokenLimitValue === '') {
-				tokenLimitValue = 'max';
-				if (maxTokensFromAll > 0) {
-					logger.info(`No token limit specified, using max from previous sessions: ${formatNumber(maxTokensFromAll)}`);
-				}
-			}
-
-			// Validate refresh interval
-			const refreshInterval = Math.max(MIN_REFRESH_INTERVAL_SECONDS, Math.min(MAX_REFRESH_INTERVAL_SECONDS, ctx.values.refreshInterval));
-			if (refreshInterval !== ctx.values.refreshInterval) {
-				logger.warn(`Refresh interval adjusted to ${refreshInterval} seconds (valid range: ${MIN_REFRESH_INTERVAL_SECONDS}-${MAX_REFRESH_INTERVAL_SECONDS})`);
-			}
-
-			// Start live monitoring
-			await startLiveMonitoring({
-				claudePath: getDefaultClaudePath(),
-				tokenLimit: parseTokenLimit(tokenLimitValue, maxTokensFromAll),
-				refreshInterval: refreshInterval * 1000, // Convert to milliseconds
-				sessionDurationHours: ctx.values.sessionLength,
-				mode: ctx.values.mode,
-				order: ctx.values.order,
-			});
-			return; // Exit early, don't show table
-		}
-
 		if (ctx.values.json) {
 			// JSON output
 			const jsonOutput = {
+				isolatedPaths,
 				blocks: blocks.map((block: SessionBlock) => {
 					const burnRate = block.isActive ? calculateBurnRate(block) : null;
 					const projection = block.isActive ? projectBlockUsage(block) : null;
@@ -298,7 +268,7 @@ export const blocksCommand = define({
 				const burnRate = calculateBurnRate(block);
 				const projection = projectBlockUsage(block);
 
-				logger.box('Current Session Block Status');
+				logger.box('Current Session Block Status (Isolated)');
 
 				const now = new Date();
 				const elapsed = Math.round(
@@ -348,20 +318,17 @@ export const blocksCommand = define({
 						}
 					}
 				}
+
+				log(pc.dim(`\nReading from isolated path(s): ${isolatedPaths.join(', ')}`));
 			}
 			else {
 				// Table view for multiple blocks
-				logger.box('Claude Code Token Usage Report - Session Blocks');
+				logger.box('Claude Code Token Usage Report - Isolated Session Blocks');
 
-				// Display config directory information
-				const claudePaths = getClaudePaths();
-				if (claudePaths.length > 0) {
-					const envPath = process.env[CLAUDE_CONFIG_DIR_ENV];
-					if (envPath != null && envPath !== '') {
-						log(pc.dim(`Using CLAUDE_CONFIG_DIR: ${envPath}`));
-					}
-					log(pc.dim(`Reading from: ${claudePaths.join(', ')}\n`));
-				}
+				// Display isolated directory information
+				const envPath = process.env[CLAUDE_CONFIG_DIR_ENV];
+				log(pc.dim(`Using CLAUDE_CONFIG_DIR: ${envPath}`));
+				log(pc.dim(`Reading from: ${isolatedPaths.join(', ')}\n`));
 
 				// Calculate token limit if "max" is specified
 				const actualTokenLimit = parseTokenLimit(ctx.values.tokenLimit, maxTokensFromAll);

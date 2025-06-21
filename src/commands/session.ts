@@ -1,6 +1,7 @@
 import process from 'node:process';
 import { define } from 'gunshi';
 import pc from 'picocolors';
+import { CLAUDE_CONFIG_DIR_ENV } from '../_consts.ts';
 import { sharedCommandConfig } from '../_shared-args.ts';
 import { formatCurrency, formatModelsDisplayMultiline, formatNumber, pushBreakdownRows, ResponsiveTable } from '../_utils.ts';
 import {
@@ -8,7 +9,7 @@ import {
 	createTotalsObject,
 	getTotalTokens,
 } from '../calculate-cost.ts';
-import { formatDateCompact, loadSessionData } from '../data-loader.ts';
+import { formatDateCompact, getClaudePaths, loadSessionData } from '../data-loader.ts';
 import { detectMismatches, printMismatchReport } from '../debug.ts';
 import { log, logger } from '../logger.ts';
 
@@ -70,6 +71,16 @@ export const sessionCommand = define({
 		else {
 			// Print header
 			logger.box('Claude Code Token Usage Report - By Session');
+
+			// Display config directory information
+			const claudePaths = getClaudePaths();
+			if (claudePaths.length > 0) {
+				const envPath = process.env[CLAUDE_CONFIG_DIR_ENV];
+				if (envPath != null && envPath !== '') {
+					log(pc.dim(`Using CLAUDE_CONFIG_DIR: ${envPath}`));
+				}
+				log(pc.dim(`Reading from: ${claudePaths.join(', ')}\n`));
+			}
 
 			// Create table with compact mode support
 			const table = new ResponsiveTable({

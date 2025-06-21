@@ -9,20 +9,36 @@ import {
 	createTotalsObject,
 	getTotalTokens,
 } from '../calculate-cost.ts';
-import { formatDateCompact, getClaudePaths, loadDailyUsageData } from '../data-loader.ts';
+import { formatDateCompact, getIsolatedClaudePaths, loadDailyUsageData } from '../data-loader.ts';
 import { detectMismatches, printMismatchReport } from '../debug.ts';
 import { log, logger } from '../logger.ts';
 
-export const dailyCommand = define({
-	name: 'daily',
-	description: 'Show usage report grouped by date',
+export const isolatedCommand = define({
+	name: 'isolated',
+	description: 'Show daily usage report from CLAUDE_CONFIG_DIR only',
 	...sharedCommandConfig,
 	async run(ctx) {
 		if (ctx.values.json) {
 			logger.level = 0;
 		}
 
+		// Get isolated Claude paths (will throw if not configured)
+		let isolatedPaths: string[];
+		try {
+			isolatedPaths = getIsolatedClaudePaths();
+		}
+		catch (error) {
+			if (ctx.values.json) {
+				log(JSON.stringify({ error: (error as Error).message }));
+			}
+			else {
+				logger.error((error as Error).message);
+			}
+			process.exit(1);
+		}
+
 		const dailyData = await loadDailyUsageData({
+			claudePath: isolatedPaths,
 			since: ctx.values.since,
 			until: ctx.values.until,
 			mode: ctx.values.mode,
@@ -32,10 +48,10 @@ export const dailyCommand = define({
 
 		if (dailyData.length === 0) {
 			if (ctx.values.json) {
-				log(JSON.stringify([]));
+				log(JSON.stringify({ isolatedPaths, daily: [] }));
 			}
 			else {
-				logger.warn('No Claude usage data found.');
+				logger.warn('No Claude usage data found in isolated directories.');
 			}
 			process.exit(0);
 		}
@@ -45,13 +61,14 @@ export const dailyCommand = define({
 
 		// Show debug information if requested
 		if (ctx.values.debug && !ctx.values.json) {
-			const mismatchStats = await detectMismatches(undefined);
+			const mismatchStats = await detectMismatches(isolatedPaths);
 			printMismatchReport(mismatchStats, ctx.values.debugSamples);
 		}
 
 		if (ctx.values.json) {
 			// Output JSON format
 			const jsonOutput = {
+				isolatedPaths,
 				daily: dailyData.map(data => ({
 					date: data.date,
 					inputTokens: data.inputTokens,
@@ -69,17 +86,12 @@ export const dailyCommand = define({
 		}
 		else {
 			// Print header
-			logger.box('Claude Code Token Usage Report - Daily');
+			logger.box('Claude Code Token Usage Report - Isolated Daily');
 
-			// Display config directory information
-			const claudePaths = getClaudePaths();
-			if (claudePaths.length > 0) {
-				const envPath = process.env[CLAUDE_CONFIG_DIR_ENV];
-				if (envPath != null && envPath !== '') {
-					log(pc.dim(`Using CLAUDE_CONFIG_DIR: ${envPath}`));
-				}
-				log(pc.dim(`Reading from: ${claudePaths.join(', ')}\n`));
-			}
+			// Display isolated directory information
+			const envPath = process.env[CLAUDE_CONFIG_DIR_ENV];
+			log(pc.dim(`Using CLAUDE_CONFIG_DIR: ${envPath}`));
+			log(pc.dim(`Reading from: ${isolatedPaths.join(', ')}\n`));
 
 			// Create table with compact mode support
 			const table = new ResponsiveTable({
