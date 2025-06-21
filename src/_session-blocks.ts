@@ -7,6 +7,17 @@ import { DEFAULT_RECENT_DAYS } from './_consts.ts';
 export const DEFAULT_SESSION_DURATION_HOURS = 5;
 
 /**
+ * Floors a timestamp to the beginning of the hour in UTC
+ * @param timestamp - The timestamp to floor
+ * @returns New Date object floored to the UTC hour
+ */
+function floorToHour(timestamp: Date): Date {
+	const floored = new Date(timestamp);
+	floored.setUTCMinutes(0, 0, 0);
+	return floored;
+}
+
+/**
  * Represents a single usage data entry loaded from JSONL files
  */
 export type LoadedUsageEntry = {
@@ -92,8 +103,8 @@ export function identifySessionBlocks(
 		const entryTime = entry.timestamp;
 
 		if (currentBlockStart == null) {
-			// First entry - start a new block
-			currentBlockStart = entryTime;
+			// First entry - start a new block (floored to the hour)
+			currentBlockStart = floorToHour(entryTime);
 			currentBlockEntries = [entry];
 		}
 		else {
@@ -118,8 +129,8 @@ export function identifySessionBlocks(
 					}
 				}
 
-				// Start new block
-				currentBlockStart = entryTime;
+				// Start new block (floored to the hour)
+				currentBlockStart = floorToHour(entryTime);
 				currentBlockEntries = [entry];
 			}
 			else {
@@ -451,6 +462,17 @@ if (import.meta.vitest != null) {
 			const blocks = identifySessionBlocks([entry]);
 			expect(blocks[0]?.tokenCounts.cacheCreationInputTokens).toBe(100);
 			expect(blocks[0]?.tokenCounts.cacheReadInputTokens).toBe(200);
+		});
+
+		it('floors block start time to nearest hour', () => {
+			const entryTime = new Date('2024-01-01T10:55:30Z'); // 10:55:30 AM
+			const expectedStartTime = new Date('2024-01-01T10:00:00Z'); // Should floor to 10:00:00 AM
+			const entries: LoadedUsageEntry[] = [createMockEntry(entryTime)];
+
+			const blocks = identifySessionBlocks(entries);
+			expect(blocks).toHaveLength(1);
+			expect(blocks[0]?.startTime).toEqual(expectedStartTime);
+			expect(blocks[0]?.id).toBe(expectedStartTime.toISOString());
 		});
 	});
 
