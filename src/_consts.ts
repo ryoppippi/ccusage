@@ -84,3 +84,21 @@ export const USAGE_DATA_GLOB_PATTERN = '**/*.jsonl';
  * Used when no port is specified for MCP server communication
  */
 export const MCP_DEFAULT_PORT = 8080;
+
+/**
+ * Default refresh interval in seconds for live monitoring mode
+ * Used in blocks command for real-time updates
+ */
+export const DEFAULT_REFRESH_INTERVAL_SECONDS = 1;
+
+/**
+ * Minimum refresh interval in seconds for live monitoring mode
+ * Prevents too-frequent updates that could impact performance
+ */
+export const MIN_REFRESH_INTERVAL_SECONDS = 1;
+
+/**
+ * Maximum refresh interval in seconds for live monitoring mode
+ * Prevents too-slow updates that reduce monitoring effectiveness
+ */
+export const MAX_REFRESH_INTERVAL_SECONDS = 60;

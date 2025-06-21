@@ -1,7 +1,7 @@
 import process from 'node:process';
 import { define } from 'gunshi';
 import pc from 'picocolors';
-import { BLOCKS_COMPACT_WIDTH_THRESHOLD, BLOCKS_DEFAULT_TERMINAL_WIDTH, BLOCKS_WARNING_THRESHOLD, DEFAULT_RECENT_DAYS } from '../_consts.ts';
+import { BLOCKS_COMPACT_WIDTH_THRESHOLD, BLOCKS_DEFAULT_TERMINAL_WIDTH, BLOCKS_WARNING_THRESHOLD, DEFAULT_RECENT_DAYS, DEFAULT_REFRESH_INTERVAL_SECONDS, MAX_REFRESH_INTERVAL_SECONDS, MIN_REFRESH_INTERVAL_SECONDS } from '../_consts.ts';
 import {
 	calculateBurnRate,
 	DEFAULT_SESSION_DURATION_HOURS,
@@ -139,8 +139,8 @@ export const blocksCommand = define({
 		},
 		refreshInterval: {
 			type: 'number',
-			description: 'Refresh interval in seconds for live mode (default: 1)',
-			default: 1,
+			description: `Refresh interval in seconds for live mode (default: ${DEFAULT_REFRESH_INTERVAL_SECONDS})`,
+			default: DEFAULT_REFRESH_INTERVAL_SECONDS,
 		},
 	},
 	toKebab: true,
@@ -225,9 +225,9 @@ export const blocksCommand = define({
 			}
 
 			// Validate refresh interval
-			const refreshInterval = Math.max(1, Math.min(60, ctx.values.refreshInterval));
+			const refreshInterval = Math.max(MIN_REFRESH_INTERVAL_SECONDS, Math.min(MAX_REFRESH_INTERVAL_SECONDS, ctx.values.refreshInterval));
 			if (refreshInterval !== ctx.values.refreshInterval) {
-				logger.warn(`Refresh interval adjusted to ${refreshInterval} seconds (valid range: 1-60)`);
+				logger.warn(`Refresh interval adjusted to ${refreshInterval} seconds (valid range: ${MIN_REFRESH_INTERVAL_SECONDS}-${MAX_REFRESH_INTERVAL_SECONDS})`);
 			}
 
 			// Start live monitoring
