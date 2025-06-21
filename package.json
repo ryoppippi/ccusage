@@ -37,6 +37,9 @@
 	],
 	"scripts": {
 		"build": "tsdown",
+		"docs:build": "cd docs && bun run build",
+		"docs:dev": "cd docs && bun run dev",
+		"docs:preview": "cd docs && bun run preview",
 		"format": "bun run lint --fix",
 		"lint": "eslint --cache .",
 		"mcp": "bunx @modelcontextprotocol/inspector bun run start mcp",
