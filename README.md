@@ -600,7 +600,7 @@ Thanks to [@milliondev](https://note.com/milliondev) for the original concept an
 
 <p align="center">
     <a href="https://github.com/sponsors/ryoppippi">
-        <img src="https://cdn.jsdelivr.net/gh/ryoppippi/sponsors/sponsors.svg">
+        <img src="https://cdn.jsdelivr.net/gh/ryoppippi/sponsors@main/sponsors.svg">
     </a>
 </p>
 
