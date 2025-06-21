@@ -1,4 +1,4 @@
-# What is ccusage?
+# Introduction
 
 ![ccusage daily report showing token usage and costs by date](/assets/screenshot.png)
 

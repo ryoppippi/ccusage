@@ -11,7 +11,7 @@ hero:
   actions:
     - theme: brand
       text: Get Started
-      link: /guide/getting-started
+      link: /guide/
     - theme: alt
       text: View on GitHub
       link: https://github.com/ryoppippi/ccusage
@@ -20,6 +20,7 @@ features:
   - icon: 📊
     title: Daily Reports
     details: View token usage and costs aggregated by date with detailed breakdowns
+    link: /guide/daily-reports
   - icon: 📅
     title: Monthly Reports
     details: Analyze usage patterns over monthly periods with cost tracking
