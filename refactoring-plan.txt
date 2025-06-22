@@ -1,0 +1,74 @@
+# File Structure Refactoring Plan
+
+## Current Issues
+1. `commands/_blocks.live.ts` is 523 lines - too large for a command file
+2. `data-loader.ts` is 3676 lines - extremely large
+3. Live rendering logic is mixed into command layer
+4. Commands should be thin CLI layers, not contain business logic
+
+## Proposed Structure
+
+### Option 1: Dedicated Live Rendering Directory
+```
+src/
+├── live-rendering/              # New directory for live monitoring
+│   ├── frame-limiter.ts        # shouldRenderFrame logic
+│   ├── display-renderer.ts     # renderActiveBlock, renderWaitingState
+│   ├── layout.ts              # renderLiveDisplay and layout logic
+│   └── types.ts               # LiveMonitoringConfig and related types
+├── _live-monitor.ts            # Keep existing (data fetching only)
+├── _terminal-utils.ts          # Keep existing (basic terminal ops)
+└── commands/
+    └── _blocks.live.ts         # Thin CLI layer (50-100 lines)
+```
+
+### Option 2: Single File Approach
+```
+src/
+├── _live-rendering.ts          # All live rendering logic
+├── _live-monitor.ts            # Keep existing (data fetching)
+├── _terminal-utils.ts          # Keep existing (basic terminal ops)
+└── commands/
+    └── _blocks.live.ts         # Thin CLI layer
+```
+
+## Migration Steps
+1. Extract rendering logic from commands/_blocks.live.ts
+2. Move functions to appropriate new files
+3. Add proper exports/imports
+4. Add in-source tests to new files
+5. Ensure commands/_blocks.live.ts becomes a thin orchestration layer
+
+## Function Distribution
+
+### Frame Rate & Timing Logic → frame-limiter.ts or _live-rendering.ts
+- `shouldRenderFrame()` - frame rate limiting
+- `delayWithAbort()` - AbortSignal-aware delay
+
+### Display Rendering → display-renderer.ts or _live-rendering.ts
+- `renderActiveBlock()` - main dashboard rendering
+- `renderWaitingState()` - "no active session" state
+- `renderLiveDisplay()` - layout and formatting
+- `renderCompactLiveDisplay()` - narrow terminal mode
+
+### Utilities
+- `formatTokensShort()` - could go to _utils.ts
+- `DETAIL_COLUMN_WIDTHS` - could go to _consts.ts
+
+## Testing Strategy
+- Add in-source tests using `if (import.meta.vitest != null)` pattern
+- Test frame rate limiting logic
+- Test rendering functions with mock TerminalManager
+- Test display calculations and layout
+
+## Benefits
+1. Clear separation of concerns
+2. Reusable rendering components
+3. Testable business logic
+4. Thinner command files
+5. Better maintainability
+
+## Implementation Priority
+1. **Later**: Complete refactoring as described above
+2. **Now**: Continue with current approach, add in-source tests
+3. **Future**: Consider data-loader.ts refactoring (3676 lines is too much)
