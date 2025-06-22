@@ -94,6 +94,10 @@ The tool automatically detects and aggregates data from both locations for compa
 - **Estimate Accuracy** - Costs are estimates and may not reflect actual billing
   :::
 
+## Acknowledgments
+
+Thanks to [@milliondev](https://note.com/milliondev) for the [original concept and approach](https://note.com/milliondev/n/n872c1c5b3ed8) to Claude Code usage analysis.
+
 ## Getting Started
 
 Ready to analyze your Claude Code usage? Check out our [Getting Started Guide](/guide/getting-started) to begin exploring your data!
