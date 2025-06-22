@@ -2,6 +2,7 @@ import { defineConfig } from 'vitepress';
 import { groupIconMdPlugin, groupIconVitePlugin } from 'vitepress-plugin-group-icons';
 import llmstxt from 'vitepress-plugin-llms';
 import { withMermaid } from 'vitepress-plugin-mermaid';
+import typedocSidebar from '../api/typedoc-sidebar.json';
 
 export default withMermaid(defineConfig({
 	title: 'ccusage',
@@ -87,10 +88,7 @@ export default withMermaid(defineConfig({
 					text: 'API Reference',
 					items: [
 						{ text: 'Overview', link: '/api/' },
-						{ text: 'Data Loader', link: '/api/data-loader' },
-						{ text: 'Calculate Cost', link: '/api/calculate-cost' },
-						{ text: 'MCP Server', link: '/api/mcp' },
-						{ text: 'Types', link: '/api/types' },
+						...typedocSidebar,
 					],
 				},
 			],

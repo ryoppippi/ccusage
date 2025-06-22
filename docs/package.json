@@ -5,10 +5,10 @@
 	"private": true,
 	"description": "Documentation for ccusage",
 	"scripts": {
-		"build": "typedoc --excludeInternal && ROLLDOWN_OPTIONS_VALIDATION=loose vitepress build",
+		"build": "typedoc --excludeInternal && node update-api-index.mjs && ROLLDOWN_OPTIONS_VALIDATION=loose vitepress build",
 		"deploy": "wrangler deploy",
-		"dev": "typedoc --excludeInternal && vitepress dev",
-		"docs:api": "typedoc --excludeInternal",
+		"dev": "typedoc --excludeInternal && node update-api-index.mjs && vitepress dev",
+		"docs:api": "typedoc --excludeInternal && node update-api-index.mjs",
 		"preview": "vitepress preview"
 	},
 	"devDependencies": {
