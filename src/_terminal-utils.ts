@@ -3,11 +3,11 @@ import process from 'node:process';
 import * as ansiEscapes from 'ansi-escapes';
 import stringWidth from 'string-width';
 
-// Synchronized output mode escape sequences (DEC mode 2026)
-// These prevent tearing during updates by buffering terminal operations
+// DEC synchronized output mode - prevents screen flickering by buffering all terminal writes
+// until flush() is called. Think of it like double-buffering in graphics programming.
 // Reference: https://gist.github.com/christianparpart/d8a62cc1ab659194337d73e399004036
-const SYNC_START = '\x1B[?2026h';
-const SYNC_END = '\x1B[?2026l';
+const SYNC_START = '\x1B[?2026h'; // Start sync mode
+const SYNC_END = '\x1B[?2026l'; // End sync mode
 
 /**
  * Manages terminal state for live updates
@@ -75,8 +75,8 @@ export class TerminalManager {
 	}
 
 	/**
-	 * Enables buffering mode for batch writes
-	 * Improves performance when terminal is not focused
+	 * Enables buffering mode - collects all writes in memory instead of sending immediately
+	 * This prevents flickering when doing many rapid updates
 	 */
 	startBuffering(): void {
 		this.useBuffering = true;
@@ -84,12 +84,12 @@ export class TerminalManager {
 	}
 
 	/**
-	 * Flushes buffer and disables buffering mode
-	 * Writes all buffered content in a single operation
+	 * Sends all buffered content to terminal at once
+	 * This creates smooth, atomic updates without flickering
 	 */
 	flush(): void {
 		if (this.useBuffering && this.buffer.length > 0) {
-			// Wrap in sync mode if available for atomic updates
+			// Wrap output in sync mode for truly atomic screen updates
 			if (this.syncMode && this.stream.isTTY) {
 				this.stream.write(SYNC_START + this.buffer.join('') + SYNC_END);
 			}
@@ -102,21 +102,20 @@ export class TerminalManager {
 	}
 
 	/**
-	 * Enters alternate screen buffer (like vim/less)
-	 * Preserves the main screen content
+	 * Switches to alternate screen buffer (like vim/less does)
+	 * This preserves what was on screen before and allows full-screen apps
 	 */
 	enterAlternateScreen(): void {
 		if (!this.alternateScreenActive && this.stream.isTTY) {
 			this.stream.write(ansiEscapes.enterAlternativeScreen);
-			// Disable line wrap to prevent visual artifacts
+			// Turn off line wrapping to prevent text from breaking badly
 			this.stream.write('\x1B[?7l');
 			this.alternateScreenActive = true;
 		}
 	}
 
 	/**
-	 * Exits alternate screen buffer
-	 * Restores the main screen content
+	 * Returns to normal screen, restoring what was there before
 	 */
 	exitAlternateScreen(): void {
 		if (this.alternateScreenActive && this.stream.isTTY) {
@@ -128,8 +127,8 @@ export class TerminalManager {
 	}
 
 	/**
-	 * Enables synchronized output mode (if supported)
-	 * Prevents tearing during updates
+	 * Enables sync mode - terminal will wait for END signal before showing updates
+	 * Prevents the user from seeing partial/torn screen updates
 	 */
 	enableSyncMode(): void {
 		this.syncMode = true;
@@ -159,16 +158,16 @@ export class TerminalManager {
 	}
 
 	/**
-	 * Checks if the stream is connected to a real terminal (TTY)
-	 * Used to avoid sending ANSI escape codes to files or pipes
+	 * Returns true if output goes to a real terminal (not a file or pipe)
+	 * We only send fancy ANSI codes to real terminals
 	 */
 	get isTTY(): boolean {
 		return this.stream.isTTY ?? false;
 	}
 
 	/**
-	 * Cleanup method to restore terminal state
-	 * Always call this before program exit to show cursor again
+	 * Restores terminal to normal state - MUST call before program exits
+	 * Otherwise user's terminal might be left in a broken state
 	 */
 	cleanup(): void {
 		this.showCursor();

@@ -104,7 +104,7 @@ export const MIN_REFRESH_INTERVAL_SECONDS = 1;
 export const MAX_REFRESH_INTERVAL_SECONDS = 60;
 
 /**
- * Minimum render interval in milliseconds for frame rate limiting
- * Cap at ~60fps to prevent excessive updates during live monitoring
+ * Frame rate limit for live monitoring (16ms = ~60fps)
+ * Prevents terminal flickering and excessive CPU usage during rapid updates
  */
 export const MIN_RENDER_INTERVAL_MS = 16;
