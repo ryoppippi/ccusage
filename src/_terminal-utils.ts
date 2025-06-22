@@ -62,8 +62,7 @@ export class TerminalManager {
 	 */
 	clearScreen(): void {
 		if (this.stream.isTTY) {
-			// Use readline to clear and reposition cursor - this is more reliable
-			// than ANSI escape sequences in some environments
+			// Use readline to clear and reposition cursor
 			readline.cursorTo(this.stream, 0, 0);
 			readline.clearScreenDown(this.stream);
 			// Reset line counter for next content
