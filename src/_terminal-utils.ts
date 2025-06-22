@@ -9,6 +9,13 @@ import stringWidth from 'string-width';
 const SYNC_START = '\x1B[?2026h'; // Start sync mode
 const SYNC_END = '\x1B[?2026l'; // End sync mode
 
+// Line wrap control sequences
+const DISABLE_LINE_WRAP = '\x1B[?7l'; // Disable automatic line wrapping
+const ENABLE_LINE_WRAP = '\x1B[?7h'; // Enable automatic line wrapping
+
+// ANSI reset sequence
+const ANSI_RESET = '\u001B[0m'; // Reset all formatting and colors
+
 /**
  * Manages terminal state for live updates
  * Provides a clean interface for terminal operations with automatic TTY checking
@@ -109,7 +116,7 @@ export class TerminalManager {
 		if (!this.alternateScreenActive && this.stream.isTTY) {
 			this.stream.write(ansiEscapes.enterAlternativeScreen);
 			// Turn off line wrapping to prevent text from breaking badly
-			this.stream.write('\x1B[?7l');
+			this.stream.write(DISABLE_LINE_WRAP);
 			this.alternateScreenActive = true;
 		}
 	}
@@ -120,7 +127,7 @@ export class TerminalManager {
 	exitAlternateScreen(): void {
 		if (this.alternateScreenActive && this.stream.isTTY) {
 			// Re-enable line wrap
-			this.stream.write('\x1B[?7h');
+			this.stream.write(ENABLE_LINE_WRAP);
 			this.stream.write(ansiEscapes.exitAlternativeScreen);
 			this.alternateScreenActive = false;
 		}
@@ -254,7 +261,7 @@ export function createProgressBar(
 	bar += fillChar.repeat(fillWidth);
 	bar += emptyChar.repeat(emptyWidth);
 	if (color !== '') {
-		bar += '\u001B[0m'; // Reset color
+		bar += ANSI_RESET; // Reset color
 	}
 	bar += rightBracket;
 
