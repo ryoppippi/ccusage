@@ -94,7 +94,7 @@ clearLine(): void {
 	 */
 	moveToLineStart(): void {
 		if (this.stream.isTTY) {
-			this.stream.write(TERMINAL_CONTROL.MOVE_TO_COLUMN(1));
+			this.stream.write('\u001B[1G');
 		}
 	}
 
