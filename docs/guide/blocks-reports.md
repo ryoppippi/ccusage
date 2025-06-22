@@ -45,6 +45,7 @@ Claude Code uses **5-hour billing windows** for session tracking:
 - **Block Duration**: Lasts exactly 5 hours from start time
 - **Rolling Windows**: New blocks start with activity after previous block expires
 - **Billing Relevance**: Matches Claude's internal session tracking
+- **UTC Time Handling**: Block boundaries are calculated in UTC to ensure consistent behavior across time zones
 
 ### Block Status Indicators
 
