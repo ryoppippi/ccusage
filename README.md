@@ -63,7 +63,7 @@ ccusage daily --breakdown  # Per-model cost breakdown
 
 ## Documentation
 
-Full documentation is available at **[ccusage.ryoppippi.com](https://ccusage.ryoppippi.com/)**
+Full documentation is available at **[ccusage.com](https://ccusage.com/)**
 
 ## Sponsors
 

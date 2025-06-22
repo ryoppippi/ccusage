@@ -5,63 +5,52 @@ import * as ansiEscapes from 'ansi-escapes';
 import stringWidth from 'string-width';
 
 /**
- * Terminal control sequences for live display updates
- */
-export const TERMINAL_CONTROL = {
-	// Cursor control
-	HIDE_CURSOR: ansiEscapes.cursorHide,
-	SHOW_CURSOR: ansiEscapes.cursorShow,
-
-	// Screen control
-	CLEAR_SCREEN: ansiEscapes.clearScreen,
-	CLEAR_LINE: ansiEscapes.eraseLine,
-	MOVE_TO_TOP: ansiEscapes.cursorTo(0, 0),
-
-	// Movement
-	MOVE_UP: (n: number) => ansiEscapes.cursorUp(n),
-	MOVE_DOWN: (n: number) => ansiEscapes.cursorDown(n),
-	MOVE_TO_COLUMN: (n: number) => ansiEscapes.cursorTo(n - 1, undefined),
-} as const;
-
-/**
  * Manages terminal state for live updates
+ * Provides a clean interface for terminal operations with automatic TTY checking
+ * and cursor state management for live monitoring displays
  */
 export class TerminalManager {
 	private stream: WriteStream;
 	private cursorHidden = false;
+
 	private originalWrite: typeof process.stdout.write;
 	private lastContentLines = 0;
 
+
 	constructor(stream: WriteStream = process.stdout) {
 		this.stream = stream;
-		this.originalWrite = stream.write.bind(stream);
 	}
 
 	/**
-	 * Hides the terminal cursor
+	 * Hides the terminal cursor for cleaner live updates
+	 * Only works in TTY environments (real terminals)
 	 */
 	hideCursor(): void {
 		if (!this.cursorHidden && this.stream.isTTY) {
-			this.stream.write(TERMINAL_CONTROL.HIDE_CURSOR);
+			// Only hide cursor in TTY environments to prevent issues with non-interactive streams
+			this.stream.write(ansiEscapes.cursorHide);
 			this.cursorHidden = true;
 		}
 	}
 
 	/**
 	 * Shows the terminal cursor
+	 * Should be called during cleanup to restore normal terminal behavior
 	 */
 	showCursor(): void {
 		if (this.cursorHidden && this.stream.isTTY) {
-			this.stream.write(TERMINAL_CONTROL.SHOW_CURSOR);
+			this.stream.write(ansiEscapes.cursorShow);
 			this.cursorHidden = false;
 		}
 	}
 
 	/**
-	 * Clears the entire screen and moves cursor to top
+	 * Clears the entire screen and moves cursor to top-left corner
+	 * Essential for live monitoring displays that need to refresh completely
 	 */
 	clearScreen(): void {
 		if (this.stream.isTTY) {
+
 			// Use readline to clear and reposition cursor
 			readline.cursorTo(this.stream, 0, 0);
 			readline.clearScreenDown(this.stream);
@@ -112,6 +101,17 @@ export class TerminalManager {
 
 	/**
 	 * Writes text to the stream and tracks line count
+
+			// Only clear screen in TTY environments to prevent issues with non-interactive streams
+			this.stream.write(ansiEscapes.clearScreen);
+			this.stream.write(ansiEscapes.cursorTo(0, 0));
+		}
+	}
+
+	/**
+	 * Writes text to the terminal stream
+	 * Simple wrapper that could be removed, but kept for API consistency
+
 	 */
 	write(text: string): void {
 		this.stream.write(text);
@@ -128,28 +128,32 @@ export class TerminalManager {
 	}
 
 	/**
-	 * Gets terminal width
+	 * Gets terminal width in columns
+	 * Falls back to 80 columns if detection fails
 	 */
 	get width(): number {
 		return this.stream.columns || 80;
 	}
 
 	/**
-	 * Gets terminal height
+	 * Gets terminal height in rows
+	 * Falls back to 24 rows if detection fails
 	 */
 	get height(): number {
 		return this.stream.rows || 24;
 	}
 
 	/**
-	 * Checks if the stream is a TTY
+	 * Checks if the stream is connected to a real terminal (TTY)
+	 * Used to avoid sending ANSI escape codes to files or pipes
 	 */
 	get isTTY(): boolean {
 		return this.stream.isTTY ?? false;
 	}
 
 	/**
-	 * Ensures cursor is shown on cleanup
+	 * Cleanup method to restore terminal state
+	 * Always call this before program exit to show cursor again
 	 */
 	cleanup(): void {
 		this.showCursor();
@@ -157,23 +161,26 @@ export class TerminalManager {
 }
 
 /**
- * Creates a progress bar string
- * @param value - Current value
- * @param max - Maximum value
- * @param width - Width of the progress bar
- * @param options - Display options
- * @param options.showPercentage - Whether to show percentage
+ * Creates a progress bar string with customizable appearance
+ *
+ * Example: createProgressBar(75, 100, 20) -> "[████████████████░░░░] 75.0%"
+ *
+ * @param value - Current progress value
+ * @param max - Maximum value (100% point)
+ * @param width - Character width of the progress bar (excluding brackets and text)
+ * @param options - Customization options for appearance and display
+ * @param options.showPercentage - Whether to show percentage after the bar
  * @param options.showValues - Whether to show current/max values
- * @param options.fillChar - Character for filled portion
- * @param options.emptyChar - Character for empty portion
- * @param options.leftBracket - Left bracket character
- * @param options.rightBracket - Right bracket character
- * @param options.colors - Color configuration
- * @param options.colors.low - Color for low percentage
- * @param options.colors.medium - Color for medium percentage
- * @param options.colors.high - Color for high percentage
- * @param options.colors.critical - Color for critical percentage
- * @returns Formatted progress bar string
+ * @param options.fillChar - Character for filled portion (default: '█')
+ * @param options.emptyChar - Character for empty portion (default: '░')
+ * @param options.leftBracket - Left bracket character (default: '[')
+ * @param options.rightBracket - Right bracket character (default: ']')
+ * @param options.colors - Color configuration for different thresholds
+ * @param options.colors.low - Color for low percentage values
+ * @param options.colors.medium - Color for medium percentage values
+ * @param options.colors.high - Color for high percentage values
+ * @param options.colors.critical - Color for critical percentage values
+ * @returns Formatted progress bar string with optional percentage/values
  */
 export function createProgressBar(
 	value: number,
@@ -247,10 +254,16 @@ export function createProgressBar(
 }
 
 /**
- * Centers text within a given width
- * @param text - Text to center
- * @param width - Total width
- * @returns Centered text with padding
+ * Centers text within a specified width using spaces for padding
+ *
+ * Uses string-width to handle Unicode characters and ANSI escape codes properly.
+ * If text is longer than width, returns original text without truncation.
+ *
+ * Example: centerText("Hello", 10) -> "  Hello   "
+ *
+ * @param text - Text to center (may contain ANSI color codes)
+ * @param width - Total character width including padding
+ * @returns Text with spaces added for centering
  */
 export function centerText(text: string, width: number): string {
 	const textLength = stringWidth(text);

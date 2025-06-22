@@ -89,12 +89,8 @@ export function getTotalTokens(tokens: TokenData): number {
  */
 export function createTotalsObject(totals: TokenTotals): TotalsObject {
 	return {
-		inputTokens: totals.inputTokens,
-		outputTokens: totals.outputTokens,
-		cacheCreationTokens: totals.cacheCreationTokens,
-		cacheReadTokens: totals.cacheReadTokens,
+		...totals,
 		totalTokens: getTotalTokens(totals),
-		totalCost: totals.totalCost,
 	};
 }
 
