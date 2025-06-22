@@ -9,7 +9,7 @@ import { join } from 'node:path';
 import process from 'node:process';
 
 const descriptions = {
-	'_consts': 'Internal constants (not exported in public API)',
+	'\\_consts': 'Internal constants (not exported in public API)',
 	'calculate-cost': 'Cost calculation utilities for usage data analysis',
 	'data-loader': 'Data loading utilities for Claude Code usage analysis',
 	'debug': 'Debug utilities for cost calculation validation',
@@ -27,8 +27,14 @@ async function updateApiIndex() {
 
 		// Replace empty descriptions with actual ones
 		for (const [module, description] of Object.entries(descriptions)) {
-			const oldPattern = `| [${module}](${module}/index.md) | - |`;
-			const newPattern = `| [${module}](${module}/index.md) | ${description} |`;
+			let linkPath = `${module}/index.md`;
+			// Special case for _consts which links to consts/
+			if (module === '\\_consts') {
+				linkPath = 'consts/index.md';
+			}
+
+			const oldPattern = `| [${module}](${linkPath}) | - |`;
+			const newPattern = `| [${module}](${linkPath}) | ${description} |`;
 			content = content.replace(oldPattern, newPattern);
 		}
 
@@ -48,13 +54,17 @@ async function updateConstsPage() {
 	try {
 		let content = await readFile(constsIndexPath, 'utf-8');
 
-		// Add note about constants not being exported
-		const oldHeader = '# \\_consts';
-		const newHeader = `# \\_consts
+		// Add note about constants not being exported (only if not already present)
+		const noteText = '> **Note**: These constants are internal implementation details and are not exported in the public API. They are documented here for reference purposes only.';
 
-> **Note**: These constants are internal implementation details and are not exported in the public API. They are documented here for reference purposes only.`;
+		if (!content.includes(noteText)) {
+			const oldHeader = '# \\_consts';
+			const newHeader = `# \\_consts
 
-		content = content.replace(oldHeader, newHeader);
+${noteText}`;
+
+			content = content.replace(oldHeader, newHeader);
+		}
 
 		await writeFile(constsIndexPath, content);
 		// eslint-disable-next-line no-console
