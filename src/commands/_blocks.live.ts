@@ -98,6 +98,8 @@ export async function startLiveMonitoring(config: LiveMonitoringConfig): Promise
 
 			if (activeBlock == null) {
 				terminal.clearScreen();
+				// Small delay to ensure terminal processes the clear command
+				await new Promise(resolve => setTimeout(resolve, 10));
 				terminal.write(pc.yellow('No active session block found. Waiting...\n'));
 				try {
 					await delay(config.refreshInterval, { signal: abortController.signal });
@@ -111,8 +113,10 @@ export async function startLiveMonitoring(config: LiveMonitoringConfig): Promise
 				continue;
 			}
 
-			// Clear screen and render
+			// Always clear screen before rendering
 			terminal.clearScreen();
+			// Small delay to ensure terminal processes the clear command
+			await new Promise(resolve => setTimeout(resolve, 10));
 			renderLiveDisplay(terminal, activeBlock, config);
 
 			// Wait before next refresh
@@ -162,9 +166,6 @@ function renderLiveDisplay(terminal: TerminalManager, block: SessionBlock, confi
 		renderCompactLiveDisplay(terminal, block, config, totalTokens, elapsed, remaining);
 		return;
 	}
-
-	// Clear screen and calculate layout
-	terminal.clearScreen();
 
 	// Calculate box dimensions - use full width with minimal margins
 	const boxWidth = Math.min(120, width - 2); // Use almost full width, leaving 1 char margin on each side

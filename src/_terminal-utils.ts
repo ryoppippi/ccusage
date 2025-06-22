@@ -1,5 +1,6 @@
 import type { WriteStream } from 'node:tty';
 import process from 'node:process';
+import * as readline from 'node:readline';
 import * as ansiEscapes from 'ansi-escapes';
 import stringWidth from 'string-width';
 
@@ -29,6 +30,7 @@ export class TerminalManager {
 	private stream: WriteStream;
 	private cursorHidden = false;
 	private originalWrite: typeof process.stdout.write;
+	private lastContentLines = 0;
 
 	constructor(stream: WriteStream = process.stdout) {
 		this.stream = stream;
@@ -60,8 +62,25 @@ export class TerminalManager {
 	 */
 	clearScreen(): void {
 		if (this.stream.isTTY) {
-			this.stream.write(TERMINAL_CONTROL.CLEAR_SCREEN);
-			this.stream.write(TERMINAL_CONTROL.MOVE_TO_TOP);
+			// Use readline to clear and reposition cursor - this is more reliable
+			// than ANSI escape sequences in some environments
+			readline.cursorTo(this.stream, 0, 0);
+			readline.clearScreenDown(this.stream);
+			// Reset line counter for next content
+			this.lastContentLines = 0;
+		}
+	}
+
+	/**
+	 * Clears the previously written content by moving cursor up and clearing lines
+	 */
+	clearPreviousContent(): void {
+		if (this.stream.isTTY && this.lastContentLines > 0) {
+			// Move cursor up to beginning of previous content
+			this.stream.write(TERMINAL_CONTROL.MOVE_UP(this.lastContentLines));
+			// Clear from cursor to end of screen
+			this.stream.write('\u001B[0J');
+			this.lastContentLines = 0;
 		}
 	}
 
@@ -93,9 +112,19 @@ export class TerminalManager {
 	}
 
 	/**
-	 * Writes text to the stream
+	 * Writes text to the stream and tracks line count
 	 */
 	write(text: string): void {
+		this.stream.write(text);
+		// Count lines in the written text
+		const lines = (text.match(/\n/g)?.length) ?? 0;
+		this.lastContentLines += lines;
+	}
+
+	/**
+	 * Writes text to the stream without tracking line count
+	 */
+	writeRaw(text: string): void {
 		this.stream.write(text);
 	}
 
