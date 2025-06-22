@@ -65,7 +65,7 @@ export class TerminalManager {
 	clearPreviousContent(): void {
 		if (this.stream.isTTY && this.lastContentLines > 0) {
 			// Move cursor up to beginning of previous content
-			this.stream.write(TERMINAL_CONTROL.MOVE_UP(this.lastContentLines));
+			this.stream.write(`\u001B[${this.lastContentLines}A`);
 			// Clear from cursor to end of screen
 			this.stream.write('\u001B[0J');
 			this.lastContentLines = 0;
