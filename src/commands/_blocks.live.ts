@@ -9,13 +9,12 @@
 import type { LiveMonitoringConfig } from '../_live-rendering.ts';
 import process from 'node:process';
 import pc from 'picocolors';
+import { MIN_RENDER_INTERVAL_MS } from '../_consts.ts';
 import { LiveMonitor } from '../_live-monitor.ts';
 import {
 	delayWithAbort,
-
 	renderActiveBlock,
 	renderWaitingState,
-	shouldRenderFrame,
 } from '../_live-rendering.ts';
 import { TerminalManager } from '../_terminal-utils.ts';
 import { logger } from '../logger.ts';
@@ -55,9 +54,12 @@ export async function startLiveMonitoring(config: LiveMonitoringConfig): Promise
 
 	try {
 		while (!abortController.signal.aborted) {
-			// Frame rate limiting
-			const canRender = await shouldRenderFrame(lastRenderTime, abortController.signal);
-			if (!canRender) {
+			const now = Date.now();
+			const timeSinceLastRender = now - lastRenderTime;
+
+			// Skip render if too soon (frame rate limiting)
+			if (timeSinceLastRender < MIN_RENDER_INTERVAL_MS) {
+				await delayWithAbort(MIN_RENDER_INTERVAL_MS - timeSinceLastRender, abortController.signal);
 				continue;
 			}
 

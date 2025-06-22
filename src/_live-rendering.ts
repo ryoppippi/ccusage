@@ -14,7 +14,6 @@ import * as ansiEscapes from 'ansi-escapes';
 import pc from 'picocolors';
 import prettyMs from 'pretty-ms';
 import stringWidth from 'string-width';
-import { MIN_RENDER_INTERVAL_MS } from './_consts.ts';
 import { calculateBurnRate, projectBlockUsage } from './_session-blocks.ts';
 import { centerText, createProgressBar } from './_terminal-utils.ts';
 import { formatCurrency, formatModelsDisplay, formatNumber } from './_utils.ts';
@@ -36,22 +35,6 @@ export type LiveMonitoringConfig = {
  */
 export async function delayWithAbort(ms: number, signal: AbortSignal): Promise<void> {
 	await delay(ms, { signal });
-}
-
-/**
- * Frame rate limiter - prevents rendering faster than ~60fps
- * This stops the terminal from flickering during rapid updates
- * Returns true when it's time to render, false to skip this frame
- */
-export async function shouldRenderFrame(lastRenderTime: number, signal: AbortSignal): Promise<boolean> {
-	const now = Date.now();
-	const timeSinceLastRender = now - lastRenderTime;
-
-	if (timeSinceLastRender < MIN_RENDER_INTERVAL_MS) {
-		await delayWithAbort(MIN_RENDER_INTERVAL_MS - timeSinceLastRender, signal);
-		return false; // Skip this frame
-	}
-	return true; // Proceed with rendering
 }
 
 /**
@@ -406,26 +389,6 @@ export function renderCompactLiveDisplay(
 // In-source testing
 if (import.meta.vitest != null) {
 	const { describe, it, expect } = import.meta.vitest;
-
-	describe('shouldRenderFrame', () => {
-		it('should return true when enough time has passed', async () => {
-			const controller = new AbortController();
-			const lastRenderTime = Date.now() - 20; // 20ms ago
-			const result = await shouldRenderFrame(lastRenderTime, controller.signal);
-			expect(result).toBe(true);
-		});
-
-		it('should return false and delay when too soon', async () => {
-			const controller = new AbortController();
-			const lastRenderTime = Date.now() - 5; // Only 5ms ago
-			const start = Date.now();
-			const result = await shouldRenderFrame(lastRenderTime, controller.signal);
-			const elapsed = Date.now() - start;
-
-			expect(result).toBe(false);
-			expect(elapsed).toBeGreaterThanOrEqual(10); // Should have delayed ~11ms
-		});
-	});
 
 	describe('formatTokensShort', () => {
 		it('should format numbers under 1000 as-is', () => {
