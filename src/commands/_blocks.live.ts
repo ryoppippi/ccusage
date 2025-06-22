@@ -17,13 +17,22 @@ import type { SessionBlock } from '../_session-blocks.ts';
 import type { CostMode, SortOrder } from '../_types.ts';
 import process from 'node:process';
 import { delay } from '@jsr/std__async/delay';
+import * as ansiEscapes from 'ansi-escapes';
 import pc from 'picocolors';
 import prettyMs from 'pretty-ms';
 import stringWidth from 'string-width';
 import { LiveMonitor } from '../_live-monitor.ts';
 import { calculateBurnRate, projectBlockUsage } from '../_session-blocks.ts';
-import { centerText, createProgressBar, TerminalManager } from '../_terminal-utils.ts';
-import { formatCurrency, formatModelsDisplay, formatNumber } from '../_utils.ts';
+import {
+	centerText,
+	createProgressBar,
+	TerminalManager,
+} from '../_terminal-utils.ts';
+import {
+	formatCurrency,
+	formatModelsDisplay,
+	formatNumber,
+} from '../_utils.ts';
 import { logger } from '../logger.ts';
 
 /**
@@ -61,9 +70,13 @@ const DETAIL_COLUMN_WIDTHS = {
 /**
  * Starts live monitoring of the active session block
  */
-export async function startLiveMonitoring(config: LiveMonitoringConfig): Promise<void> {
+export async function startLiveMonitoring(
+	config: LiveMonitoringConfig,
+): Promise<void> {
 	const terminal = new TerminalManager();
 	const abortController = new AbortController();
+	let lastRenderTime = 0;
+	const MIN_RENDER_INTERVAL = 16; // Cap at ~60fps to prevent excessive updates
 
 	// Setup graceful shutdown
 	const cleanup = (): void => {
@@ -80,7 +93,14 @@ export async function startLiveMonitoring(config: LiveMonitoringConfig): Promise
 	process.on('SIGINT', cleanup);
 	process.on('SIGTERM', cleanup);
 
-	// Hide cursor for cleaner display
+	// Setup terminal for optimal TUI performance
+	terminal.enterAlternateScreen();
+	terminal.enableSyncMode();
+
+	// Initial clear
+	terminal.clearScreen();
+
+	// Hide cursor after alternate screen and clear
 	terminal.hideCursor();
 
 	// Create live monitor with efficient data loading
@@ -93,17 +113,41 @@ export async function startLiveMonitoring(config: LiveMonitoringConfig): Promise
 
 	try {
 		while (!abortController.signal.aborted) {
+			const now = Date.now();
+			const timeSinceLastRender = now - lastRenderTime;
+
+			// Skip render if too soon (frame rate limiting)
+			if (timeSinceLastRender < MIN_RENDER_INTERVAL) {
+				await delay(MIN_RENDER_INTERVAL - timeSinceLastRender, {
+					signal: abortController.signal,
+				});
+				continue;
+			}
 			// Get active block with lightweight refresh
 			const activeBlock = await monitor.getActiveBlock();
 
 			if (activeBlock == null) {
-				terminal.clearScreen();
-				terminal.write(pc.yellow('No active session block found. Waiting...\n'));
+				// Use cursor positioning instead of clearing entire screen
+				terminal.startBuffering();
+				terminal.write(ansiEscapes.cursorTo(0, 0));
+				terminal.write(ansiEscapes.eraseDown);
+				terminal.write(
+					pc.yellow('No active session block found. Waiting...\n'),
+				);
+				// Ensure cursor stays hidden
+				terminal.write(ansiEscapes.cursorHide);
+				terminal.flush();
 				try {
-					await delay(config.refreshInterval, { signal: abortController.signal });
+					await delay(config.refreshInterval, {
+						signal: abortController.signal,
+					});
 				}
 				catch (error) {
-					if ((error instanceof DOMException || error instanceof Error) && error.name === 'AbortError') {
+					if (
+						(error instanceof DOMException
+							|| error instanceof Error)
+						&& error.name === 'AbortError'
+					) {
 						break; // Graceful shutdown
 					}
 					throw error;
@@ -111,16 +155,28 @@ export async function startLiveMonitoring(config: LiveMonitoringConfig): Promise
 				continue;
 			}
 
-			// Clear screen and render
-			terminal.clearScreen();
+			// Render with synchronized updates for reduced flicker
+			terminal.startBuffering();
+			// Move cursor to home and clear screen content
+			terminal.write(ansiEscapes.cursorTo(0, 0));
+			terminal.write(ansiEscapes.eraseDown);
 			renderLiveDisplay(terminal, activeBlock, config);
+			// Ensure cursor stays hidden
+			terminal.write(ansiEscapes.cursorHide);
+			terminal.flush();
+			lastRenderTime = Date.now();
 
 			// Wait before next refresh
 			try {
-				await delay(config.refreshInterval, { signal: abortController.signal });
+				await delay(config.refreshInterval, {
+					signal: abortController.signal,
+				});
 			}
 			catch (error) {
-				if ((error instanceof DOMException || error instanceof Error) && error.name === 'AbortError') {
+				if (
+					(error instanceof DOMException || error instanceof Error)
+					&& error.name === 'AbortError'
+				) {
 					break; // Graceful shutdown
 				}
 				throw error;
@@ -128,16 +184,24 @@ export async function startLiveMonitoring(config: LiveMonitoringConfig): Promise
 		}
 	}
 	catch (error) {
-		if ((error instanceof DOMException || error instanceof Error) && error.name === 'AbortError') {
+		if (
+			(error instanceof DOMException || error instanceof Error)
+			&& error.name === 'AbortError'
+		) {
 			// Normal graceful shutdown, don't log as error
 			return;
 		}
+		terminal.startBuffering();
 		terminal.clearScreen();
-		const errorMessage = error instanceof Error ? error.message : String(error);
+		const errorMessage
+			= error instanceof Error ? error.message : String(error);
 		terminal.write(pc.red(`Error: ${errorMessage}\n`));
+		terminal.flush();
 		logger.error(`Live monitoring error: ${errorMessage}`);
 		try {
-			await delay(config.refreshInterval, { signal: abortController.signal });
+			await delay(config.refreshInterval, {
+				signal: abortController.signal,
+			});
 		}
 		catch {
 			// Ignore abort during error recovery
@@ -148,23 +212,34 @@ export async function startLiveMonitoring(config: LiveMonitoringConfig): Promise
 /**
  * Renders the live display for an active session block
  */
-function renderLiveDisplay(terminal: TerminalManager, block: SessionBlock, config: LiveMonitoringConfig): void {
+function renderLiveDisplay(
+	terminal: TerminalManager,
+	block: SessionBlock,
+	config: LiveMonitoringConfig,
+): void {
 	const width = terminal.width;
 	const now = new Date();
 
 	// Calculate key metrics
-	const totalTokens = block.tokenCounts.inputTokens + block.tokenCounts.outputTokens;
+	const totalTokens
+		= block.tokenCounts.inputTokens + block.tokenCounts.outputTokens;
 	const elapsed = (now.getTime() - block.startTime.getTime()) / (1000 * 60);
 	const remaining = (block.endTime.getTime() - now.getTime()) / (1000 * 60);
 
 	// Use compact mode for narrow terminals
 	if (width < 60) {
-		renderCompactLiveDisplay(terminal, block, config, totalTokens, elapsed, remaining);
+		renderCompactLiveDisplay(
+			terminal,
+			block,
+			config,
+			totalTokens,
+			elapsed,
+			remaining,
+		);
 		return;
 	}
 
-	// Clear screen and calculate layout
-	terminal.clearScreen();
+	// Don't clear here - it's handled by the caller
 
 	// Calculate box dimensions - use full width with minimal margins
 	const boxWidth = Math.min(120, width - 2); // Use almost full width, leaving 1 char margin on each side
@@ -194,12 +269,24 @@ function renderLiveDisplay(terminal: TerminalManager, block: SessionBlock, confi
 	);
 
 	// Format times with AM/PM
-	const startTime = block.startTime.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
-	const endTime = block.endTime.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+	const startTime = block.startTime.toLocaleTimeString(undefined, {
+		hour: '2-digit',
+		minute: '2-digit',
+		second: '2-digit',
+		hour12: true,
+	});
+	const endTime = block.endTime.toLocaleTimeString(undefined, {
+		hour: '2-digit',
+		minute: '2-digit',
+		second: '2-digit',
+		hour12: true,
+	});
 
 	// Draw header
 	terminal.write(`${marginStr}┌${'─'.repeat(boxWidth - 2)}┐\n`);
-	terminal.write(`${marginStr}│${pc.bold(centerText('CLAUDE CODE - LIVE TOKEN USAGE MONITOR', boxWidth - 2))}│\n`);
+	terminal.write(
+		`${marginStr}│${pc.bold(centerText('CLAUDE CODE - LIVE TOKEN USAGE MONITOR', boxWidth - 2))}│\n`,
+	);
 	terminal.write(`${marginStr}├${'─'.repeat(boxWidth - 2)}┤\n`);
 	terminal.write(`${marginStr}│${' '.repeat(boxWidth - 2)}│\n`);
 
@@ -207,7 +294,9 @@ function renderLiveDisplay(terminal: TerminalManager, block: SessionBlock, confi
 	const sessionLabel = pc.bold('⏱️ SESSION');
 	const sessionLabelWidth = stringWidth(sessionLabel);
 	const sessionBarStr = `${sessionLabel}${''.padEnd(Math.max(0, labelWidth - sessionLabelWidth))} ${sessionProgressBar} ${sessionPercent.toFixed(1).padStart(6)}%`;
-	const sessionBarPadded = sessionBarStr + ' '.repeat(Math.max(0, boxWidth - 3 - stringWidth(sessionBarStr)));
+	const sessionBarPadded
+		= sessionBarStr
+			+ ' '.repeat(Math.max(0, boxWidth - 3 - stringWidth(sessionBarStr)));
 	terminal.write(`${marginStr}│ ${sessionBarPadded}│\n`);
 
 	// Session details (indented)
@@ -218,19 +307,26 @@ function renderLiveDisplay(terminal: TerminalManager, block: SessionBlock, confi
 	const col1Visible = stringWidth(col1);
 	const col2Visible = stringWidth(col2);
 	// Fixed column positions - aligned with proper spacing
-	const pad1 = ' '.repeat(Math.max(0, DETAIL_COLUMN_WIDTHS.col1 - col1Visible));
-	const pad2 = ' '.repeat(Math.max(0, DETAIL_COLUMN_WIDTHS.col2 - col2Visible));
+	const pad1 = ' '.repeat(
+		Math.max(0, DETAIL_COLUMN_WIDTHS.col1 - col1Visible),
+	);
+	const pad2 = ' '.repeat(
+		Math.max(0, DETAIL_COLUMN_WIDTHS.col2 - col2Visible),
+	);
 	const sessionDetails = `   ${col1}${pad1}${col2}${pad2}${col3}`;
-	const sessionDetailsPadded = sessionDetails + ' '.repeat(Math.max(0, boxWidth - 3 - stringWidth(sessionDetails)));
+	const sessionDetailsPadded
+		= sessionDetails
+			+ ' '.repeat(Math.max(0, boxWidth - 3 - stringWidth(sessionDetails)));
 	terminal.write(`${marginStr}│ ${sessionDetailsPadded}│\n`);
 	terminal.write(`${marginStr}│${' '.repeat(boxWidth - 2)}│\n`);
 	terminal.write(`${marginStr}├${'─'.repeat(boxWidth - 2)}┤\n`);
 	terminal.write(`${marginStr}│${' '.repeat(boxWidth - 2)}│\n`);
 
 	// Usage section (always show)
-	const tokenPercent = config.tokenLimit != null && config.tokenLimit > 0
-		? (totalTokens / config.tokenLimit) * 100
-		: 0;
+	const tokenPercent
+		= config.tokenLimit != null && config.tokenLimit > 0
+			? (totalTokens / config.tokenLimit) * 100
+			: 0;
 
 	// Determine bar color based on percentage
 	let barColor = pc.green;
@@ -242,36 +338,40 @@ function renderLiveDisplay(terminal: TerminalManager, block: SessionBlock, confi
 	}
 
 	// Create colored progress bar
-	const usageBar = config.tokenLimit != null && config.tokenLimit > 0
-		? createProgressBar(
-				totalTokens,
-				config.tokenLimit,
-				barWidth,
-				{
+	const usageBar
+		= config.tokenLimit != null && config.tokenLimit > 0
+			? createProgressBar(totalTokens, config.tokenLimit, barWidth, {
 					showPercentage: false,
 					fillChar: barColor('█'),
 					emptyChar: pc.gray('░'),
 					leftBracket: '[',
 					rightBracket: ']',
-				},
-			)
-		: `[${pc.green('█'.repeat(Math.floor(barWidth * 0.1)))}${pc.gray('░'.repeat(barWidth - Math.floor(barWidth * 0.1)))}]`;
+				})
+			: `[${pc.green('█'.repeat(Math.floor(barWidth * 0.1)))}${pc.gray('░'.repeat(barWidth - Math.floor(barWidth * 0.1)))}]`;
 
 	// Burn rate with better formatting
 	const burnRate = calculateBurnRate(block);
-	const rateIndicator = burnRate != null
-		? (burnRate.tokensPerMinute > 1000 ? pc.red('⚡ HIGH') : burnRate.tokensPerMinute > 500 ? pc.yellow('⚡ MODERATE') : pc.green('✓ NORMAL'))
-		: '';
-	const rateDisplay = burnRate != null
-		? `${pc.bold('Burn Rate:')} ${Math.round(burnRate.tokensPerMinute)} token/min ${rateIndicator}`
-		: `${pc.bold('Burn Rate:')} N/A`;
+	const rateIndicator
+		= burnRate != null
+			? burnRate.tokensPerMinute > 1000
+				? pc.red('⚡ HIGH')
+				: burnRate.tokensPerMinute > 500
+					? pc.yellow('⚡ MODERATE')
+					: pc.green('✓ NORMAL')
+			: '';
+	const rateDisplay
+		= burnRate != null
+			? `${pc.bold('Burn Rate:')} ${Math.round(burnRate.tokensPerMinute)} token/min ${rateIndicator}`
+			: `${pc.bold('Burn Rate:')} N/A`;
 
 	// Usage section
 	const usageLabel = pc.bold('🔥 USAGE');
 	const usageLabelWidth = stringWidth(usageLabel);
 	if (config.tokenLimit != null && config.tokenLimit > 0) {
 		const usageBarStr = `${usageLabel}${''.padEnd(Math.max(0, labelWidth - usageLabelWidth))} ${usageBar} ${tokenPercent.toFixed(1).padStart(6)}% (${formatTokensShort(totalTokens)}/${formatTokensShort(config.tokenLimit)})`;
-		const usageBarPadded = usageBarStr + ' '.repeat(Math.max(0, boxWidth - 3 - stringWidth(usageBarStr)));
+		const usageBarPadded
+			= usageBarStr
+				+ ' '.repeat(Math.max(0, boxWidth - 3 - stringWidth(usageBarStr)));
 		terminal.write(`${marginStr}│ ${usageBarPadded}│\n`);
 
 		// Usage details (indented and aligned)
@@ -282,15 +382,23 @@ function renderLiveDisplay(terminal: TerminalManager, block: SessionBlock, confi
 		const col1Visible = stringWidth(col1);
 		const col2Visible = stringWidth(col2);
 		// Fixed column positions - match session alignment
-		const pad1 = ' '.repeat(Math.max(0, DETAIL_COLUMN_WIDTHS.col1 - col1Visible));
-		const pad2 = ' '.repeat(Math.max(0, DETAIL_COLUMN_WIDTHS.col2 - col2Visible));
+		const pad1 = ' '.repeat(
+			Math.max(0, DETAIL_COLUMN_WIDTHS.col1 - col1Visible),
+		);
+		const pad2 = ' '.repeat(
+			Math.max(0, DETAIL_COLUMN_WIDTHS.col2 - col2Visible),
+		);
 		const usageDetails = `   ${col1}${pad1}${col2}${pad2}${col3}`;
-		const usageDetailsPadded = usageDetails + ' '.repeat(Math.max(0, boxWidth - 3 - stringWidth(usageDetails)));
+		const usageDetailsPadded
+			= usageDetails
+				+ ' '.repeat(Math.max(0, boxWidth - 3 - stringWidth(usageDetails)));
 		terminal.write(`${marginStr}│ ${usageDetailsPadded}│\n`);
 	}
 	else {
 		const usageBarStr = `${usageLabel}${''.padEnd(Math.max(0, labelWidth - usageLabelWidth))} ${usageBar} (${formatTokensShort(totalTokens)} tokens)`;
-		const usageBarPadded = usageBarStr + ' '.repeat(Math.max(0, boxWidth - 3 - stringWidth(usageBarStr)));
+		const usageBarPadded
+			= usageBarStr
+				+ ' '.repeat(Math.max(0, boxWidth - 3 - stringWidth(usageBarStr)));
 		terminal.write(`${marginStr}│ ${usageBarPadded}│\n`);
 
 		// Usage details (indented)
@@ -299,10 +407,14 @@ function renderLiveDisplay(terminal: TerminalManager, block: SessionBlock, confi
 		// Calculate visible length without ANSI codes
 		const col1Visible = stringWidth(col1);
 		// Fixed column positions - match session alignment
-		const pad1 = ' '.repeat(Math.max(0, DETAIL_COLUMN_WIDTHS.col1 - col1Visible));
+		const pad1 = ' '.repeat(
+			Math.max(0, DETAIL_COLUMN_WIDTHS.col1 - col1Visible),
+		);
 		const pad2 = ' '.repeat(DETAIL_COLUMN_WIDTHS.col2);
 		const usageDetails = `   ${col1}${pad1}${pad2}${col3}`;
-		const usageDetailsPadded = usageDetails + ' '.repeat(Math.max(0, boxWidth - 3 - stringWidth(usageDetails)));
+		const usageDetailsPadded
+			= usageDetails
+				+ ' '.repeat(Math.max(0, boxWidth - 3 - stringWidth(usageDetails)));
 		terminal.write(`${marginStr}│ ${usageDetailsPadded}│\n`);
 	}
 
@@ -313,9 +425,10 @@ function renderLiveDisplay(terminal: TerminalManager, block: SessionBlock, confi
 	// Projections section
 	const projection = projectBlockUsage(block);
 	if (projection != null) {
-		const projectedPercent = config.tokenLimit != null && config.tokenLimit > 0
-			? (projection.totalTokens / config.tokenLimit) * 100
-			: 0;
+		const projectedPercent
+			= config.tokenLimit != null && config.tokenLimit > 0
+				? (projection.totalTokens / config.tokenLimit) * 100
+				: 0;
 
 		// Determine projection bar color
 		let projBarColor = pc.green;
@@ -327,35 +440,39 @@ function renderLiveDisplay(terminal: TerminalManager, block: SessionBlock, confi
 		}
 
 		// Create projection bar
-		const projectionBar = config.tokenLimit != null && config.tokenLimit > 0
-			? createProgressBar(
-					projection.totalTokens,
-					config.tokenLimit,
-					barWidth,
-					{
-						showPercentage: false,
-						fillChar: projBarColor('█'),
-						emptyChar: pc.gray('░'),
-						leftBracket: '[',
-						rightBracket: ']',
-					},
-				)
-			: `[${pc.green('█'.repeat(Math.floor(barWidth * 0.15)))}${pc.gray('░'.repeat(barWidth - Math.floor(barWidth * 0.15)))}]`;
+		const projectionBar
+			= config.tokenLimit != null && config.tokenLimit > 0
+				? createProgressBar(
+						projection.totalTokens,
+						config.tokenLimit,
+						barWidth,
+						{
+							showPercentage: false,
+							fillChar: projBarColor('█'),
+							emptyChar: pc.gray('░'),
+							leftBracket: '[',
+							rightBracket: ']',
+						},
+					)
+				: `[${pc.green('█'.repeat(Math.floor(barWidth * 0.15)))}${pc.gray('░'.repeat(barWidth - Math.floor(barWidth * 0.15)))}]`;
 
-		const limitStatus = config.tokenLimit != null && config.tokenLimit > 0
-			? (projectedPercent > 100
+		const limitStatus
+			= config.tokenLimit != null && config.tokenLimit > 0
+				? projectedPercent > 100
 					? pc.red('❌ WILL EXCEED LIMIT')
 					: projectedPercent > 80
 						? pc.yellow('⚠️  APPROACHING LIMIT')
-						: pc.green('✓ WITHIN LIMIT'))
-			: pc.green('✓ ON TRACK');
+						: pc.green('✓ WITHIN LIMIT')
+				: pc.green('✓ ON TRACK');
 
 		// Projection section
 		const projLabel = pc.bold('📈 PROJECTION');
 		const projLabelWidth = stringWidth(projLabel);
 		if (config.tokenLimit != null && config.tokenLimit > 0) {
 			const projBarStr = `${projLabel}${''.padEnd(Math.max(0, labelWidth - projLabelWidth))} ${projectionBar} ${projectedPercent.toFixed(1).padStart(6)}% (${formatTokensShort(projection.totalTokens)}/${formatTokensShort(config.tokenLimit)})`;
-			const projBarPadded = projBarStr + ' '.repeat(Math.max(0, boxWidth - 3 - stringWidth(projBarStr)));
+			const projBarPadded
+				= projBarStr
+					+ ' '.repeat(Math.max(0, boxWidth - 3 - stringWidth(projBarStr)));
 			terminal.write(`${marginStr}│ ${projBarPadded}│\n`);
 
 			// Projection details (indented and aligned)
@@ -366,15 +483,25 @@ function renderLiveDisplay(terminal: TerminalManager, block: SessionBlock, confi
 			const col1Visible = stringWidth(col1);
 			const col2Visible = stringWidth(col2);
 			// Fixed column positions - match session alignment
-			const pad1 = ' '.repeat(Math.max(0, DETAIL_COLUMN_WIDTHS.col1 - col1Visible));
-			const pad2 = ' '.repeat(Math.max(0, DETAIL_COLUMN_WIDTHS.col2 - col2Visible));
+			const pad1 = ' '.repeat(
+				Math.max(0, DETAIL_COLUMN_WIDTHS.col1 - col1Visible),
+			);
+			const pad2 = ' '.repeat(
+				Math.max(0, DETAIL_COLUMN_WIDTHS.col2 - col2Visible),
+			);
 			const projDetails = `   ${col1}${pad1}${col2}${pad2}${col3}`;
-			const projDetailsPadded = projDetails + ' '.repeat(Math.max(0, boxWidth - 3 - stringWidth(projDetails)));
+			const projDetailsPadded
+				= projDetails
+					+ ' '.repeat(
+						Math.max(0, boxWidth - 3 - stringWidth(projDetails)),
+					);
 			terminal.write(`${marginStr}│ ${projDetailsPadded}│\n`);
 		}
 		else {
 			const projBarStr = `${projLabel}${''.padEnd(Math.max(0, labelWidth - projLabelWidth))} ${projectionBar} (${formatTokensShort(projection.totalTokens)} tokens)`;
-			const projBarPadded = projBarStr + ' '.repeat(Math.max(0, boxWidth - 3 - stringWidth(projBarStr)));
+			const projBarPadded
+				= projBarStr
+					+ ' '.repeat(Math.max(0, boxWidth - 3 - stringWidth(projBarStr)));
 			terminal.write(`${marginStr}│ ${projBarPadded}│\n`);
 
 			// Projection details (indented)
@@ -385,10 +512,18 @@ function renderLiveDisplay(terminal: TerminalManager, block: SessionBlock, confi
 			const col1Visible = stringWidth(col1);
 			const col2Visible = stringWidth(col2);
 			// Fixed column positions - match session alignment
-			const pad1 = ' '.repeat(Math.max(0, DETAIL_COLUMN_WIDTHS.col1 - col1Visible));
-			const pad2 = ' '.repeat(Math.max(0, DETAIL_COLUMN_WIDTHS.col2 - col2Visible));
+			const pad1 = ' '.repeat(
+				Math.max(0, DETAIL_COLUMN_WIDTHS.col1 - col1Visible),
+			);
+			const pad2 = ' '.repeat(
+				Math.max(0, DETAIL_COLUMN_WIDTHS.col2 - col2Visible),
+			);
 			const projDetails = `   ${col1}${pad1}${col2}${pad2}${col3}`;
-			const projDetailsPadded = projDetails + ' '.repeat(Math.max(0, boxWidth - 3 - stringWidth(projDetails)));
+			const projDetailsPadded
+				= projDetails
+					+ ' '.repeat(
+						Math.max(0, boxWidth - 3 - stringWidth(projDetails)),
+					);
 			terminal.write(`${marginStr}│ ${projDetailsPadded}│\n`);
 		}
 
@@ -399,14 +534,18 @@ function renderLiveDisplay(terminal: TerminalManager, block: SessionBlock, confi
 	if (block.models.length > 0) {
 		terminal.write(`${marginStr}├${'─'.repeat(boxWidth - 2)}┤\n`);
 		const modelsLine = `⚙️  Models: ${formatModelsDisplay(block.models)}`;
-		const modelsLinePadded = modelsLine + ' '.repeat(Math.max(0, boxWidth - 3 - stringWidth(modelsLine)));
+		const modelsLinePadded
+			= modelsLine
+				+ ' '.repeat(Math.max(0, boxWidth - 3 - stringWidth(modelsLine)));
 		terminal.write(`${marginStr}│ ${modelsLinePadded}│\n`);
 	}
 
 	// Footer
 	terminal.write(`${marginStr}├${'─'.repeat(boxWidth - 2)}┤\n`);
 	const refreshText = `↻ Refreshing every ${config.refreshInterval / 1000}s  •  Press Ctrl+C to stop`;
-	terminal.write(`${marginStr}│${pc.gray(centerText(refreshText, boxWidth - 2))}│\n`);
+	terminal.write(
+		`${marginStr}│${pc.gray(centerText(refreshText, boxWidth - 2))}│\n`,
+	);
 	terminal.write(`${marginStr}└${'─'.repeat(boxWidth - 2)}┘\n`);
 }
 
@@ -429,13 +568,22 @@ function renderCompactLiveDisplay(
 
 	// Session info
 	const sessionPercent = (elapsed / (elapsed + remaining)) * 100;
-	terminal.write(`Session: ${sessionPercent.toFixed(1)}% (${Math.floor(elapsed / 60)}h ${Math.floor(elapsed % 60)}m)\n`);
+	terminal.write(
+		`Session: ${sessionPercent.toFixed(1)}% (${Math.floor(elapsed / 60)}h ${Math.floor(elapsed % 60)}m)\n`,
+	);
 
 	// Token usage
 	if (config.tokenLimit != null && config.tokenLimit > 0) {
 		const tokenPercent = (totalTokens / config.tokenLimit) * 100;
-		const status = tokenPercent > 100 ? pc.red('OVER') : tokenPercent > 80 ? pc.yellow('WARN') : pc.green('OK');
-		terminal.write(`Tokens: ${formatNumber(totalTokens)}/${formatNumber(config.tokenLimit)} ${status}\n`);
+		const status
+			= tokenPercent > 100
+				? pc.red('OVER')
+				: tokenPercent > 80
+					? pc.yellow('WARN')
+					: pc.green('OK');
+		terminal.write(
+			`Tokens: ${formatNumber(totalTokens)}/${formatNumber(config.tokenLimit)} ${status}\n`,
+		);
 	}
 	else {
 		terminal.write(`Tokens: ${formatNumber(totalTokens)}\n`);
@@ -452,5 +600,7 @@ function renderCompactLiveDisplay(
 
 	// Footer
 	terminal.write(`${'─'.repeat(width)}\n`);
-	terminal.write(pc.gray(`Refresh: ${config.refreshInterval / 1000}s | Ctrl+C: stop\n`));
+	terminal.write(
+		pc.gray(`Refresh: ${config.refreshInterval / 1000}s | Ctrl+C: stop\n`),
+	);
 }
