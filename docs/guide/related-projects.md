@@ -6,6 +6,7 @@ Projects that use ccusage internally or extend its functionality:
 
 - [claude-usage-tracker-for-mac](https://github.com/penicillin0/claude-usage-tracker-for-mac) - macOS menu bar app for tracking Claude usage
 - [ClaudeCode_Dashboard](https://github.com/m-sigepon/ClaudeCode_Dashboard) - Web dashboard with charts and visualizations
+- [Ccusage App](https://github.com/EthanBarlo/ccusage-app) - Native application to display ccusage data in graphs and visualizations
 
 ## Extensions & Integrations
 
