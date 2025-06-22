@@ -13,8 +13,7 @@ export class TerminalManager {
 	private stream: WriteStream;
 	private cursorHidden = false;
 
-	private originalWrite: typeof process.stdout.write;
-	private lastContentLines = 0;
+  private lastContentLines = 0;
 
 
 	constructor(stream: WriteStream = process.stdout) {
