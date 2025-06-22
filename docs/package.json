@@ -13,7 +13,7 @@
 	},
 	"devDependencies": {
 		"fast-glob": "^3.3.3",
-		"typedoc": "^0.28.4",
+		"typedoc": "^0.28.5",
 		"typedoc-plugin-markdown": "^4.6.3",
 		"typedoc-vitepress-theme": "^1.1.2",
 		"vitepress": "^1.6.0",
