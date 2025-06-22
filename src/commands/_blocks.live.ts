@@ -21,6 +21,7 @@ import * as ansiEscapes from 'ansi-escapes';
 import pc from 'picocolors';
 import prettyMs from 'pretty-ms';
 import stringWidth from 'string-width';
+import { MIN_RENDER_INTERVAL_MS } from '../_consts.ts';
 import { LiveMonitor } from '../_live-monitor.ts';
 import { calculateBurnRate, projectBlockUsage } from '../_session-blocks.ts';
 import {
@@ -46,6 +47,29 @@ export type LiveMonitoringConfig = {
 	mode: CostMode;
 	order: SortOrder;
 };
+
+/**
+ * Delay with AbortSignal support and graceful error handling
+ * @param ms - Milliseconds to delay
+ * @param signal - AbortSignal to cancel the delay
+ * @throws {Error} - Rethrows non-abort errors
+ */
+async function delayWithAbort(ms: number, signal: AbortSignal): Promise<void> {
+	try {
+		await delay(ms, { signal });
+	}
+	catch (error) {
+		if (
+			(error instanceof DOMException || error instanceof Error)
+			&& error.name === 'AbortError'
+		) {
+			// Re-throw abort errors to allow caller to handle graceful shutdown
+			throw error;
+		}
+		// Re-throw other errors
+		throw error;
+	}
+}
 
 /**
  * Format token counts with K suffix for display
@@ -76,7 +100,6 @@ export async function startLiveMonitoring(
 	const terminal = new TerminalManager();
 	const abortController = new AbortController();
 	let lastRenderTime = 0;
-	const MIN_RENDER_INTERVAL = 16; // Cap at ~60fps to prevent excessive updates
 
 	// Setup graceful shutdown
 	const cleanup = (): void => {
@@ -117,10 +140,19 @@ export async function startLiveMonitoring(
 			const timeSinceLastRender = now - lastRenderTime;
 
 			// Skip render if too soon (frame rate limiting)
-			if (timeSinceLastRender < MIN_RENDER_INTERVAL) {
-				await delay(MIN_RENDER_INTERVAL - timeSinceLastRender, {
-					signal: abortController.signal,
-				});
+			if (timeSinceLastRender < MIN_RENDER_INTERVAL_MS) {
+				try {
+					await delayWithAbort(MIN_RENDER_INTERVAL_MS - timeSinceLastRender, abortController.signal);
+				}
+				catch (error) {
+					if (
+						(error instanceof DOMException || error instanceof Error)
+						&& error.name === 'AbortError'
+					) {
+						break; // Graceful shutdown
+					}
+					throw error;
+				}
 				continue;
 			}
 			// Get active block with lightweight refresh
@@ -138,14 +170,11 @@ export async function startLiveMonitoring(
 				terminal.write(ansiEscapes.cursorHide);
 				terminal.flush();
 				try {
-					await delay(config.refreshInterval, {
-						signal: abortController.signal,
-					});
+					await delayWithAbort(config.refreshInterval, abortController.signal);
 				}
 				catch (error) {
 					if (
-						(error instanceof DOMException
-							|| error instanceof Error)
+						(error instanceof DOMException || error instanceof Error)
 						&& error.name === 'AbortError'
 					) {
 						break; // Graceful shutdown
@@ -168,9 +197,7 @@ export async function startLiveMonitoring(
 
 			// Wait before next refresh
 			try {
-				await delay(config.refreshInterval, {
-					signal: abortController.signal,
-				});
+				await delayWithAbort(config.refreshInterval, abortController.signal);
 			}
 			catch (error) {
 				if (
@@ -198,14 +225,8 @@ export async function startLiveMonitoring(
 		terminal.write(pc.red(`Error: ${errorMessage}\n`));
 		terminal.flush();
 		logger.error(`Live monitoring error: ${errorMessage}`);
-		try {
-			await delay(config.refreshInterval, {
-				signal: abortController.signal,
-			});
-		}
-		catch {
-			// Ignore abort during error recovery
-		}
+		// Ignore abort during error recovery
+		await delayWithAbort(config.refreshInterval, abortController.signal).catch(() => {});
 	}
 }
 

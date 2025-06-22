@@ -5,6 +5,7 @@ import stringWidth from 'string-width';
 
 // Synchronized output mode escape sequences (DEC mode 2026)
 // These prevent tearing during updates by buffering terminal operations
+// Reference: https://gist.github.com/christianparpart/d8a62cc1ab659194337d73e399004036
 const SYNC_START = '\x1B[?2026h';
 const SYNC_END = '\x1B[?2026l';
 

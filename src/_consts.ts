@@ -102,3 +102,9 @@ export const MIN_REFRESH_INTERVAL_SECONDS = 1;
  * Prevents too-slow updates that reduce monitoring effectiveness
  */
 export const MAX_REFRESH_INTERVAL_SECONDS = 60;
+
+/**
+ * Minimum render interval in milliseconds for frame rate limiting
+ * Cap at ~60fps to prevent excessive updates during live monitoring
+ */
+export const MIN_RENDER_INTERVAL_MS = 16;
