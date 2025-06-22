@@ -35,15 +35,7 @@ export type LiveMonitoringConfig = {
  * Delay with AbortSignal support and graceful error handling
  */
 export async function delayWithAbort(ms: number, signal: AbortSignal): Promise<void> {
-	try {
-		await delay(ms, { signal });
-	}
-	catch (error) {
-		if ((error instanceof DOMException || error instanceof Error) && error.name === 'AbortError') {
-			throw error; // Re-throw abort errors for graceful shutdown
-		}
-		throw error;
-	}
+	await delay(ms, { signal });
 }
 
 /**
@@ -56,16 +48,8 @@ export async function shouldRenderFrame(lastRenderTime: number, signal: AbortSig
 	const timeSinceLastRender = now - lastRenderTime;
 
 	if (timeSinceLastRender < MIN_RENDER_INTERVAL_MS) {
-		try {
-			await delayWithAbort(MIN_RENDER_INTERVAL_MS - timeSinceLastRender, signal);
-			return false; // Skip this frame
-		}
-		catch (error) {
-			if ((error instanceof DOMException || error instanceof Error) && error.name === 'AbortError') {
-				throw error; // Propagate shutdown signal
-			}
-			throw error;
-		}
+		await delayWithAbort(MIN_RENDER_INTERVAL_MS - timeSinceLastRender, signal);
+		return false; // Skip this frame
 	}
 	return true; // Proceed with rendering
 }
@@ -239,42 +223,36 @@ export function renderLiveDisplay(terminal: TerminalManager, block: SessionBlock
 	// Usage section
 	const usageLabel = pc.bold('🔥 USAGE');
 	const usageLabelWidth = stringWidth(usageLabel);
-	if (config.tokenLimit != null && config.tokenLimit > 0) {
-		const usageBarStr = `${usageLabel}${''.padEnd(Math.max(0, labelWidth - usageLabelWidth))} ${usageBar} ${tokenPercent.toFixed(1).padStart(6)}% (${formatTokensShort(totalTokens)}/${formatTokensShort(config.tokenLimit)})`;
-		const usageBarPadded = usageBarStr + ' '.repeat(Math.max(0, boxWidth - 3 - stringWidth(usageBarStr)));
-		terminal.write(`${marginStr}│ ${usageBarPadded}│\n`);
 
-		// Usage details (indented and aligned)
-		const col1 = `${pc.gray('Tokens:')} ${formatNumber(totalTokens)} (${rateDisplay})`;
-		const col2 = `${pc.gray('Limit:')} ${formatNumber(config.tokenLimit)} tokens`;
-		const col3 = `${pc.gray('Cost:')} ${formatCurrency(block.costUSD)}`;
-		// Calculate visible lengths without ANSI codes
-		const col1Visible = stringWidth(col1);
-		const col2Visible = stringWidth(col2);
-		// Fixed column positions - match session alignment
-		const pad1 = ' '.repeat(Math.max(0, DETAIL_COLUMN_WIDTHS.col1 - col1Visible));
-		const pad2 = ' '.repeat(Math.max(0, DETAIL_COLUMN_WIDTHS.col2 - col2Visible));
-		const usageDetails = `   ${col1}${pad1}${col2}${pad2}${col3}`;
-		const usageDetailsPadded = usageDetails + ' '.repeat(Math.max(0, boxWidth - 3 - stringWidth(usageDetails)));
-		terminal.write(`${marginStr}│ ${usageDetailsPadded}│\n`);
-	}
-	else {
-		const usageBarStr = `${usageLabel}${''.padEnd(Math.max(0, labelWidth - usageLabelWidth))} ${usageBar} (${formatTokensShort(totalTokens)} tokens)`;
-		const usageBarPadded = usageBarStr + ' '.repeat(Math.max(0, boxWidth - 3 - stringWidth(usageBarStr)));
-		terminal.write(`${marginStr}│ ${usageBarPadded}│\n`);
+	// Prepare usage bar string and details based on token limit availability
+	// Using const destructuring pattern instead of let/reassignment to avoid side effects
+	// This creates immutable values based on the condition, improving code clarity
+	const { usageBarStr, usageCol1, usageCol2, usageCol3 } = config.tokenLimit != null && config.tokenLimit > 0
+		? {
+				usageBarStr: `${usageLabel}${''.padEnd(Math.max(0, labelWidth - usageLabelWidth))} ${usageBar} ${tokenPercent.toFixed(1).padStart(6)}% (${formatTokensShort(totalTokens)}/${formatTokensShort(config.tokenLimit)})`,
+				usageCol1: `${pc.gray('Tokens:')} ${formatNumber(totalTokens)} (${rateDisplay})`,
+				usageCol2: `${pc.gray('Limit:')} ${formatNumber(config.tokenLimit)} tokens`,
+				usageCol3: `${pc.gray('Cost:')} ${formatCurrency(block.costUSD)}`,
+			}
+		: {
+				usageBarStr: `${usageLabel}${''.padEnd(Math.max(0, labelWidth - usageLabelWidth))} ${usageBar} (${formatTokensShort(totalTokens)} tokens)`,
+				usageCol1: `${pc.gray('Tokens:')} ${formatNumber(totalTokens)} (${rateDisplay})`,
+				usageCol2: '',
+				usageCol3: `${pc.gray('Cost:')} ${formatCurrency(block.costUSD)}`,
+			};
 
-		// Usage details (indented)
-		const col1 = `${pc.gray('Tokens:')} ${formatNumber(totalTokens)} (${rateDisplay})`;
-		const col3 = `${pc.gray('Cost:')} ${formatCurrency(block.costUSD)}`;
-		// Calculate visible length without ANSI codes
-		const col1Visible = stringWidth(col1);
-		// Fixed column positions - match session alignment
-		const pad1 = ' '.repeat(Math.max(0, DETAIL_COLUMN_WIDTHS.col1 - col1Visible));
-		const pad2 = ' '.repeat(DETAIL_COLUMN_WIDTHS.col2);
-		const usageDetails = `   ${col1}${pad1}${pad2}${col3}`;
-		const usageDetailsPadded = usageDetails + ' '.repeat(Math.max(0, boxWidth - 3 - stringWidth(usageDetails)));
-		terminal.write(`${marginStr}│ ${usageDetailsPadded}│\n`);
-	}
+	// Render usage bar
+	const usageBarPadded = usageBarStr + ' '.repeat(Math.max(0, boxWidth - 3 - stringWidth(usageBarStr)));
+	terminal.write(`${marginStr}│ ${usageBarPadded}│\n`);
+
+	// Render usage details (indented and aligned)
+	const usageCol1Visible = stringWidth(usageCol1);
+	const usageCol2Visible = stringWidth(usageCol2);
+	const usagePad1 = ' '.repeat(Math.max(0, DETAIL_COLUMN_WIDTHS.col1 - usageCol1Visible));
+	const usagePad2 = usageCol2.length > 0 ? ' '.repeat(Math.max(0, DETAIL_COLUMN_WIDTHS.col2 - usageCol2Visible)) : ' '.repeat(DETAIL_COLUMN_WIDTHS.col2);
+	const usageDetails = `   ${usageCol1}${usagePad1}${usageCol2}${usagePad2}${usageCol3}`;
+	const usageDetailsPadded = usageDetails + ' '.repeat(Math.max(0, boxWidth - 3 - stringWidth(usageDetails)));
+	terminal.write(`${marginStr}│ ${usageDetailsPadded}│\n`);
 
 	terminal.write(`${marginStr}│${' '.repeat(boxWidth - 2)}│\n`);
 	terminal.write(`${marginStr}├${'─'.repeat(boxWidth - 2)}┤\n`);

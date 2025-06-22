@@ -8,6 +8,7 @@
 
 import type { LiveMonitoringConfig } from '../_live-rendering.ts';
 import process from 'node:process';
+import pc from 'picocolors';
 import { LiveMonitor } from '../_live-monitor.ts';
 import {
 	delayWithAbort,
@@ -86,7 +87,7 @@ export async function startLiveMonitoring(config: LiveMonitoringConfig): Promise
 		const errorMessage = error instanceof Error ? error.message : String(error);
 		terminal.startBuffering();
 		terminal.clearScreen();
-		terminal.write(`Error: ${errorMessage}\n`);
+		terminal.write(pc.red(`Error: ${errorMessage}\n`));
 		terminal.flush();
 		logger.error(`Live monitoring error: ${errorMessage}`);
 		await delayWithAbort(config.refreshInterval, abortController.signal).catch(() => {});
