@@ -74,11 +74,11 @@ export class TerminalManager {
 	/**
 	 * Clears the current line
 	 */
-	clearLine(): void {
-		if (this.stream.isTTY) {
-			this.stream.write(TERMINAL_CONTROL.CLEAR_LINE);
-		}
-	}
+clearLine(): void {
+    if (this.stream.isTTY) {
+        this.stream.write('\u001B[2K');
+    }
+}
 
 	/**
 	 * Moves cursor up by n lines
