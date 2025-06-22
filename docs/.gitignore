@@ -3,7 +3,7 @@
 .vitepress/cache/
 
 # Generated documentation
-docs/
+api/
 
 # Dependencies
 node_modules/
