@@ -78,6 +78,11 @@ export const sharedArgs = {
 		description: 'Use cached pricing data for Claude models instead of fetching from API',
 		default: false,
 	},
+	'am-pm': {
+		type: 'boolean',
+		description: 'Use 12-hour (AM/PM) time format instead of 24-hour',
+		default: false,
+	},
 } as const satisfies Args;
 
 /**

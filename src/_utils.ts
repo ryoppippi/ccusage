@@ -304,6 +304,64 @@ export function formatCurrency(amount: number): string {
 }
 
 /**
+ * Formats a date/time according to the specified time format preference
+ * @param date - The date to format
+ * @param useAmPm - Whether to use 12-hour AM/PM format (default: false for 24-hour format)
+ * @param options - Additional formatting options
+ * @returns Formatted date/time string
+ */
+export function formatDateTime(date: Date, useAmPm = false, options: {
+	includeDate?: boolean;
+	includeSeconds?: boolean;
+	compact?: boolean;
+} = {}): string {
+	const { includeDate = true, includeSeconds = false, compact = false } = options;
+	
+	const baseOptions: Intl.DateTimeFormatOptions = {
+		hour: '2-digit',
+		minute: '2-digit',
+		hour12: useAmPm,
+	};
+	
+	if (includeSeconds) {
+		baseOptions.second = '2-digit';
+	}
+	
+	if (includeDate) {
+		if (compact) {
+			baseOptions.month = '2-digit';
+			baseOptions.day = '2-digit';
+		} else {
+			// Use default full date format
+			return date.toLocaleString(undefined, { ...baseOptions });
+		}
+	}
+	
+	return date.toLocaleString(undefined, baseOptions);
+}
+
+/**
+ * Formats only the time portion of a date according to the specified time format preference
+ * @param date - The date to format
+ * @param useAmPm - Whether to use 12-hour AM/PM format (default: false for 24-hour format)
+ * @param includeSeconds - Whether to include seconds (default: false)
+ * @returns Formatted time string
+ */
+export function formatTime(date: Date, useAmPm = false, includeSeconds = false): string {
+	const options: Intl.DateTimeFormatOptions = {
+		hour: '2-digit',
+		minute: '2-digit',
+		hour12: useAmPm,
+	};
+	
+	if (includeSeconds) {
+		options.second = '2-digit';
+	}
+	
+	return date.toLocaleTimeString(undefined, options);
+}
+
+/**
  * Formats Claude model names into a shorter, more readable format
  * Extracts model type and generation from full model name
  * @param modelName - Full model name (e.g., "claude-sonnet-4-20250514")
