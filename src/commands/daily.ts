@@ -1,3 +1,4 @@
+import type { DailyProjectOutput } from '../_json-output-types.ts';
 import process from 'node:process';
 import { define } from 'gunshi';
 import pc from 'picocolors';
@@ -16,8 +17,8 @@ import { log, logger } from '../logger.ts';
 /**
  * Group daily usage data by project for JSON output
  */
-function groupByProject(dailyData: ReturnType<typeof loadDailyUsageData> extends Promise<infer T> ? T : never): Record<string, any[]> {
-	const projects: Record<string, any[]> = {};
+function groupByProject(dailyData: ReturnType<typeof loadDailyUsageData> extends Promise<infer T> ? T : never): Record<string, DailyProjectOutput[]> {
+	const projects: Record<string, DailyProjectOutput[]> = {};
 
 	for (const data of dailyData) {
 		const projectName = data.project ?? 'unknown';
@@ -1023,6 +1024,87 @@ if (import.meta.vitest != null) {
 			// Clean up environment
 			delete process.env[PROJECT_ALIASES_ENV];
 			clearAliasCache();
+		});
+
+		it('validates JSON output conforms to DailyProjectOutput interface', async () => {
+			// Create test data that should match the interface exactly
+			const mockDailyData = [
+				{
+					date: createDailyDate('2024-01-01'),
+					project: 'test-project',
+					inputTokens: 1000,
+					outputTokens: 500,
+					cacheCreationTokens: 100,
+					cacheReadTokens: 200,
+					totalCost: 0.01,
+					modelsUsed: [createModelName('claude-sonnet-4-20250514')],
+					modelBreakdowns: [],
+				},
+				{
+					date: createDailyDate('2024-01-02'),
+					project: 'test-project',
+					inputTokens: 800,
+					outputTokens: 400,
+					cacheCreationTokens: 50,
+					cacheReadTokens: 150,
+					totalCost: 0.008,
+					modelsUsed: [createModelName('claude-opus-4-20250514')],
+					modelBreakdowns: [],
+				},
+			];
+
+			// Generate JSON output using groupByProject
+			const projectGroups = groupByProject(mockDailyData);
+
+			// Verify structure matches DailyProjectOutput interface
+			expect(projectGroups).toHaveProperty('test-project');
+			const projectData = projectGroups['test-project']!;
+			expect(Array.isArray(projectData)).toBe(true);
+			expect(projectData).toHaveLength(2);
+
+			// Validate each entry matches DailyProjectOutput interface
+			for (const entry of projectData) {
+				// Required properties from DailyProjectOutput
+				expect(entry).toHaveProperty('date');
+				expect(entry).toHaveProperty('inputTokens');
+				expect(entry).toHaveProperty('outputTokens');
+				expect(entry).toHaveProperty('cacheCreationTokens');
+				expect(entry).toHaveProperty('cacheReadTokens');
+				expect(entry).toHaveProperty('totalTokens');
+				expect(entry).toHaveProperty('totalCost');
+				expect(entry).toHaveProperty('modelsUsed');
+				expect(entry).toHaveProperty('modelBreakdowns');
+
+				// Type validations
+				expect(typeof entry.date).toBe('string'); // DailyDate is a branded string
+				expect(typeof entry.inputTokens).toBe('number');
+				expect(typeof entry.outputTokens).toBe('number');
+				expect(typeof entry.cacheCreationTokens).toBe('number');
+				expect(typeof entry.cacheReadTokens).toBe('number');
+				expect(typeof entry.totalTokens).toBe('number');
+				expect(typeof entry.totalCost).toBe('number');
+				expect(Array.isArray(entry.modelsUsed)).toBe(true);
+				expect(Array.isArray(entry.modelBreakdowns)).toBe(true);
+
+				// Verify branded types are correctly used
+				expect(entry.date).toMatch(/^\d{4}-\d{2}-\d{2}$/); // DailyDate format
+				for (const model of entry.modelsUsed) {
+					expect(typeof model).toBe('string'); // ModelName is branded string
+					expect(model).toMatch(/^claude-/); // Should start with 'claude-'
+				}
+
+				// Verify totalTokens calculation is correct
+				const expectedTotal = entry.inputTokens + entry.outputTokens + entry.cacheCreationTokens + entry.cacheReadTokens;
+				expect(entry.totalTokens).toBe(expectedTotal);
+			}
+
+			// Verify specific values from mock data
+			expect(projectData[0]!.inputTokens).toBe(1000);
+			expect(projectData[0]!.outputTokens).toBe(500);
+			expect(projectData[0]!.totalTokens).toBe(1800); // 1000 + 500 + 100 + 200
+			expect(projectData[1]!.inputTokens).toBe(800);
+			expect(projectData[1]!.outputTokens).toBe(400);
+			expect(projectData[1]!.totalTokens).toBe(1400); // 800 + 400 + 50 + 150
 		});
 	});
 }

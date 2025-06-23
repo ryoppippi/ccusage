@@ -1,3 +1,4 @@
+import type { SessionProjectOutput } from '../_json-output-types.ts';
 import process from 'node:process';
 import { define } from 'gunshi';
 import pc from 'picocolors';
@@ -16,8 +17,8 @@ import { log, logger } from '../logger.ts';
 /**
  * Group session usage data by project for JSON output
  */
-function groupByProject(sessionData: ReturnType<typeof loadSessionData> extends Promise<infer T> ? T : never): Record<string, any[]> {
-	const projects: Record<string, any[]> = {};
+function groupByProject(sessionData: ReturnType<typeof loadSessionData> extends Promise<infer T> ? T : never): Record<string, SessionProjectOutput[]> {
+	const projects: Record<string, SessionProjectOutput[]> = {};
 
 	for (const data of sessionData) {
 		const projectName = data.projectPath ?? 'unknown';
@@ -307,6 +308,7 @@ if (import.meta.vitest != null) {
 	describe('session command --instances integration', () => {
 		it('groups data by project when --instances flag is used', async () => {
 			// Create test fixture with 2 projects and multiple sessions
+			const { createProjectPath } = await import('../_types.ts');
 			await using fixture = await createFixture({
 				projects: {
 					'project-alpha': {
@@ -371,8 +373,8 @@ if (import.meta.vitest != null) {
 			// Should have both projects represented
 			const projects = new Set(sessionData.map(d => d.projectPath));
 			expect(projects.size).toBe(2);
-			expect(projects.has('project-alpha')).toBe(true);
-			expect(projects.has('project-beta')).toBe(true);
+			expect(projects.has(createProjectPath('project-alpha'))).toBe(true);
+			expect(projects.has(createProjectPath('project-beta'))).toBe(true);
 
 			// Verify session grouping
 			const alphaSessions = sessionData.filter(d => d.projectPath === 'project-alpha');
@@ -383,30 +385,33 @@ if (import.meta.vitest != null) {
 
 		it('generates project headers when rendering table with --instances', async () => {
 			// Test the groupDataByProject function used for table rendering
+			const { createSessionId, createProjectPath, createActivityDate } = await import('../_types.ts');
 			const mockSessionData = [
 				{
-					sessionId: 'session1',
-					projectPath: 'project-alpha',
+					sessionId: createSessionId('session1'),
+					projectPath: createProjectPath('project-alpha'),
 					inputTokens: 1000,
 					outputTokens: 500,
 					cacheCreationTokens: 0,
 					cacheReadTokens: 0,
 					totalCost: 0.01,
-					lastActivity: createISOTimestamp('2024-01-01T10:00:00Z'),
+					lastActivity: createActivityDate('2024-01-01'),
 					modelsUsed: [createModelName('claude-sonnet-4-20250514')],
 					modelBreakdowns: [],
+					versions: [],
 				},
 				{
-					sessionId: 'session2',
-					projectPath: 'project-beta',
+					sessionId: createSessionId('session2'),
+					projectPath: createProjectPath('project-beta'),
 					inputTokens: 2000,
 					outputTokens: 1000,
 					cacheCreationTokens: 0,
 					cacheReadTokens: 0,
 					totalCost: 0.02,
-					lastActivity: createISOTimestamp('2024-01-01T14:00:00Z'),
+					lastActivity: createActivityDate('2024-01-01'),
 					modelsUsed: [createModelName('claude-opus-4-20250514')],
 					modelBreakdowns: [],
+					versions: [],
 				},
 			];
 
@@ -534,10 +539,11 @@ if (import.meta.vitest != null) {
 			// Verify projects structure contains expected project keys
 			if ('projects' in instancesJsonOutput) {
 				const projects = instancesJsonOutput.projects;
-				expect(Object.keys(projects)).toContain('project-alpha');
-				expect(Object.keys(projects)).toContain('project-beta');
-				expect(Array.isArray(projects['project-alpha'])).toBe(true);
-				expect(Array.isArray(projects['project-beta'])).toBe(true);
+				expect(projects).toBeDefined();
+				expect(Object.keys(projects!)).toContain('project-alpha');
+				expect(Object.keys(projects!)).toContain('project-beta');
+				expect(Array.isArray(projects!['project-alpha'])).toBe(true);
+				expect(Array.isArray(projects!['project-beta'])).toBe(true);
 			}
 
 			// Verify sessions structure is array format
@@ -545,6 +551,94 @@ if (import.meta.vitest != null) {
 				expect(Array.isArray(standardJsonOutput.sessions)).toBe(true);
 				expect(standardJsonOutput.sessions.length).toBeGreaterThan(0);
 			}
+		});
+
+		it('validates JSON output conforms to SessionProjectOutput interface', async () => {
+			// Create test data that should match the interface exactly
+			const { createSessionId, createActivityDate, createProjectPath } = await import('../_types.ts');
+			const mockSessionData = [
+				{
+					sessionId: createSessionId('session1'),
+					projectPath: createProjectPath('test-project'),
+					inputTokens: 1000,
+					outputTokens: 500,
+					cacheCreationTokens: 100,
+					cacheReadTokens: 200,
+					totalCost: 0.01,
+					lastActivity: createActivityDate('2024-01-01'),
+					modelsUsed: [createModelName('claude-sonnet-4-20250514')],
+					modelBreakdowns: [],
+					versions: [],
+				},
+				{
+					sessionId: createSessionId('session2'),
+					projectPath: createProjectPath('test-project'),
+					inputTokens: 1500,
+					outputTokens: 750,
+					cacheCreationTokens: 150,
+					cacheReadTokens: 300,
+					totalCost: 0.015,
+					lastActivity: createActivityDate('2024-01-01'),
+					modelsUsed: [createModelName('claude-opus-4-20250514')],
+					modelBreakdowns: [],
+					versions: [],
+				},
+			];
+
+			// Generate JSON output using groupByProject
+			const projectGroups = groupByProject(mockSessionData);
+
+			// Verify structure matches SessionProjectOutput interface
+			expect(projectGroups).toHaveProperty('test-project');
+			const projectData = projectGroups['test-project']!;
+			expect(Array.isArray(projectData)).toBe(true);
+			expect(projectData).toHaveLength(2);
+
+			// Validate each entry matches SessionProjectOutput interface
+			for (const entry of projectData) {
+				// Required properties from SessionProjectOutput
+				expect(entry).toHaveProperty('sessionId');
+				expect(entry).toHaveProperty('inputTokens');
+				expect(entry).toHaveProperty('outputTokens');
+				expect(entry).toHaveProperty('cacheCreationTokens');
+				expect(entry).toHaveProperty('cacheReadTokens');
+				expect(entry).toHaveProperty('totalTokens');
+				expect(entry).toHaveProperty('totalCost');
+				expect(entry).toHaveProperty('lastActivity');
+				expect(entry).toHaveProperty('modelsUsed');
+				expect(entry).toHaveProperty('modelBreakdowns');
+
+				// Type validations
+				expect(typeof entry.sessionId).toBe('string'); // SessionId is a branded string
+				expect(typeof entry.inputTokens).toBe('number');
+				expect(typeof entry.outputTokens).toBe('number');
+				expect(typeof entry.cacheCreationTokens).toBe('number');
+				expect(typeof entry.cacheReadTokens).toBe('number');
+				expect(typeof entry.totalTokens).toBe('number');
+				expect(typeof entry.totalCost).toBe('number');
+				expect(typeof entry.lastActivity).toBe('string'); // ActivityDate is a branded string
+				expect(Array.isArray(entry.modelsUsed)).toBe(true);
+				expect(Array.isArray(entry.modelBreakdowns)).toBe(true);
+
+				// Verify branded types are correctly used
+				expect(entry.lastActivity).toMatch(/^\d{4}-\d{2}-\d{2}$/); // ActivityDate (YYYY-MM-DD format)
+				for (const model of entry.modelsUsed) {
+					expect(typeof model).toBe('string'); // ModelName is branded string
+					expect(model).toMatch(/^claude-/); // Should start with 'claude-'
+				}
+
+				// Verify totalTokens calculation is correct
+				const expectedTotal = entry.inputTokens + entry.outputTokens + entry.cacheCreationTokens + entry.cacheReadTokens;
+				expect(entry.totalTokens).toBe(expectedTotal);
+			}
+
+			// Verify specific values from mock data
+			expect(projectData[0]!.inputTokens).toBe(1000);
+			expect(projectData[0]!.outputTokens).toBe(500);
+			expect(projectData[0]!.totalTokens).toBe(1800); // 1000 + 500 + 100 + 200
+			expect(projectData[1]!.inputTokens).toBe(1500);
+			expect(projectData[1]!.outputTokens).toBe(750);
+			expect(projectData[1]!.totalTokens).toBe(2700); // 1500 + 750 + 150 + 300
 		});
 	});
 }

@@ -1,3 +1,4 @@
+import type { MonthlyProjectOutput } from '../_json-output-types.ts';
 import process from 'node:process';
 import { define } from 'gunshi';
 import pc from 'picocolors';
@@ -16,8 +17,8 @@ import { log, logger } from '../logger.ts';
 /**
  * Group monthly usage data by project for JSON output
  */
-function groupByProject(monthlyData: ReturnType<typeof loadMonthlyUsageData> extends Promise<infer T> ? T : never): Record<string, any[]> {
-	const projects: Record<string, any[]> = {};
+function groupByProject(monthlyData: ReturnType<typeof loadMonthlyUsageData> extends Promise<infer T> ? T : never): Record<string, MonthlyProjectOutput[]> {
+	const projects: Record<string, MonthlyProjectOutput[]> = {};
 
 	for (const data of monthlyData) {
 		const projectName = data.project ?? 'unknown';
@@ -502,10 +503,11 @@ if (import.meta.vitest != null) {
 			// Verify projects structure contains expected project keys
 			if ('projects' in instancesJsonOutput) {
 				const projects = instancesJsonOutput.projects;
-				expect(Object.keys(projects)).toContain('project-alpha');
-				expect(Object.keys(projects)).toContain('project-beta');
-				expect(Array.isArray(projects['project-alpha'])).toBe(true);
-				expect(Array.isArray(projects['project-beta'])).toBe(true);
+				expect(projects).toBeDefined();
+				expect(Object.keys(projects!)).toContain('project-alpha');
+				expect(Object.keys(projects!)).toContain('project-beta');
+				expect(Array.isArray(projects!['project-alpha'])).toBe(true);
+				expect(Array.isArray(projects!['project-beta'])).toBe(true);
 			}
 
 			// Verify monthly structure is array format
@@ -513,6 +515,88 @@ if (import.meta.vitest != null) {
 				expect(Array.isArray(standardJsonOutput.monthly)).toBe(true);
 				expect(standardJsonOutput.monthly.length).toBeGreaterThan(0);
 			}
+		});
+
+		it('validates JSON output conforms to MonthlyProjectOutput interface', async () => {
+			// Create test data that should match the interface exactly
+			const { createMonthlyDate } = await import('../_types.ts');
+			const mockMonthlyData = [
+				{
+					month: createMonthlyDate('2024-01'),
+					project: 'test-project',
+					inputTokens: 15000,
+					outputTokens: 7500,
+					cacheCreationTokens: 1000,
+					cacheReadTokens: 2000,
+					totalCost: 0.15,
+					modelsUsed: [createModelName('claude-sonnet-4-20250514')],
+					modelBreakdowns: [],
+				},
+				{
+					month: createMonthlyDate('2024-02'),
+					project: 'test-project',
+					inputTokens: 12000,
+					outputTokens: 6000,
+					cacheCreationTokens: 800,
+					cacheReadTokens: 1600,
+					totalCost: 0.12,
+					modelsUsed: [createModelName('claude-opus-4-20250514')],
+					modelBreakdowns: [],
+				},
+			];
+
+			// Generate JSON output using groupByProject
+			const projectGroups = groupByProject(mockMonthlyData);
+
+			// Verify structure matches MonthlyProjectOutput interface
+			expect(projectGroups).toHaveProperty('test-project');
+			const projectData = projectGroups['test-project']!;
+			expect(Array.isArray(projectData)).toBe(true);
+			expect(projectData).toHaveLength(2);
+
+			// Validate each entry matches MonthlyProjectOutput interface
+			for (const entry of projectData) {
+				// Required properties from MonthlyProjectOutput
+				expect(entry).toHaveProperty('month');
+				expect(entry).toHaveProperty('inputTokens');
+				expect(entry).toHaveProperty('outputTokens');
+				expect(entry).toHaveProperty('cacheCreationTokens');
+				expect(entry).toHaveProperty('cacheReadTokens');
+				expect(entry).toHaveProperty('totalTokens');
+				expect(entry).toHaveProperty('totalCost');
+				expect(entry).toHaveProperty('modelsUsed');
+				expect(entry).toHaveProperty('modelBreakdowns');
+
+				// Type validations
+				expect(typeof entry.month).toBe('string'); // MonthlyDate is a branded string
+				expect(typeof entry.inputTokens).toBe('number');
+				expect(typeof entry.outputTokens).toBe('number');
+				expect(typeof entry.cacheCreationTokens).toBe('number');
+				expect(typeof entry.cacheReadTokens).toBe('number');
+				expect(typeof entry.totalTokens).toBe('number');
+				expect(typeof entry.totalCost).toBe('number');
+				expect(Array.isArray(entry.modelsUsed)).toBe(true);
+				expect(Array.isArray(entry.modelBreakdowns)).toBe(true);
+
+				// Verify branded types are correctly used
+				expect(entry.month).toMatch(/^\d{4}-\d{2}$/); // MonthlyDate format
+				for (const model of entry.modelsUsed) {
+					expect(typeof model).toBe('string'); // ModelName is branded string
+					expect(model).toMatch(/^claude-/); // Should start with 'claude-'
+				}
+
+				// Verify totalTokens calculation is correct
+				const expectedTotal = entry.inputTokens + entry.outputTokens + entry.cacheCreationTokens + entry.cacheReadTokens;
+				expect(entry.totalTokens).toBe(expectedTotal);
+			}
+
+			// Verify specific values from mock data
+			expect(projectData[0]!.inputTokens).toBe(15000);
+			expect(projectData[0]!.outputTokens).toBe(7500);
+			expect(projectData[0]!.totalTokens).toBe(25500); // 15000 + 7500 + 1000 + 2000
+			expect(projectData[1]!.inputTokens).toBe(12000);
+			expect(projectData[1]!.outputTokens).toBe(6000);
+			expect(projectData[1]!.totalTokens).toBe(20400); // 12000 + 6000 + 800 + 1600
 		});
 	});
 }
