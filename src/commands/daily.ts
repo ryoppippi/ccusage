@@ -650,7 +650,7 @@ if (import.meta.vitest != null) {
 
 			// Verify projects structure contains expected project keys
 			if ('projects' in instancesJsonOutput) {
-				const projects = instancesJsonOutput.projects;
+				const projects = instancesJsonOutput.projects as Record<string, any[]>;
 				expect(Object.keys(projects)).toContain('project-alpha');
 				expect(Object.keys(projects)).toContain('project-beta');
 				expect(Array.isArray(projects['project-alpha'])).toBe(true);
@@ -662,6 +662,367 @@ if (import.meta.vitest != null) {
 				expect(Array.isArray(standardJsonOutput.daily)).toBe(true);
 				expect(standardJsonOutput.daily.length).toBeGreaterThan(0);
 			}
+		});
+
+		it('correctly handles --instances and --project flag combination', async () => {
+			// Create test fixture with multiple projects
+			await using fixture = await createFixture({
+				projects: {
+					'target-project': {
+						session1: {
+							'usage.jsonl': JSON.stringify({
+								timestamp: createISOTimestamp('2024-01-01T10:00:00Z'),
+								message: {
+									usage: {
+										input_tokens: 1000,
+										output_tokens: 500,
+									},
+									model: 'claude-sonnet-4-20250514',
+								},
+								costUSD: 0.01,
+							}),
+						},
+					},
+					'other-project': {
+						session2: {
+							'usage.jsonl': JSON.stringify({
+								timestamp: createISOTimestamp('2024-01-01T14:00:00Z'),
+								message: {
+									usage: {
+										input_tokens: 2000,
+										output_tokens: 1000,
+									},
+									model: 'claude-opus-4-20250514',
+								},
+								costUSD: 0.02,
+							}),
+						},
+					},
+				},
+			});
+
+			const { loadDailyUsageData } = await import('../data-loader.ts');
+
+			// Test combining both flags: --instances --project target-project
+			const combinedFlagsData = await loadDailyUsageData({
+				claudePath: fixture.path,
+				groupByProject: true, // --instances flag
+				project: 'target-project', // --project flag
+			});
+
+			// Should only have data from target-project (project filtering works)
+			expect(combinedFlagsData).toHaveLength(1);
+			expect(combinedFlagsData[0]?.project).toBe('target-project');
+			expect(combinedFlagsData[0]?.inputTokens).toBe(1000);
+			expect(combinedFlagsData[0]?.outputTokens).toBe(500);
+			expect(combinedFlagsData[0]?.totalCost).toBe(0.01);
+
+			// Verify that project grouping was enabled (project field is populated)
+			expect(combinedFlagsData[0]?.project).toBeDefined();
+
+			// Test that filtering works correctly - should not include other-project data
+			const allProjectsData = await loadDailyUsageData({
+				claudePath: fixture.path,
+				groupByProject: true, // --instances only, no project filter
+			});
+
+			// Without project filter, should have both projects
+			expect(allProjectsData).toHaveLength(2);
+
+			// With project filter, should only have target project
+			expect(combinedFlagsData).toHaveLength(1);
+
+			// Test JSON output structure with combined flags
+			const { calculateTotals, createTotalsObject } = await import('../calculate-cost.ts');
+			const totals = calculateTotals(combinedFlagsData);
+
+			// Should produce projects structure (due to --instances) with only filtered project
+			const jsonOutput = combinedFlagsData.some(d => d.project != null)
+				? {
+						projects: groupByProject(combinedFlagsData),
+						totals: createTotalsObject(totals),
+					}
+				: {
+						daily: combinedFlagsData.map(data => ({
+							date: data.date,
+							inputTokens: data.inputTokens,
+							outputTokens: data.outputTokens,
+							cacheCreationTokens: data.cacheCreationTokens,
+							cacheReadTokens: data.cacheReadTokens,
+							totalTokens: data.inputTokens + data.outputTokens + data.cacheCreationTokens + data.cacheReadTokens,
+							totalCost: data.totalCost,
+							modelsUsed: data.modelsUsed,
+							modelBreakdowns: data.modelBreakdowns,
+							...(data.project != null && { project: data.project }),
+						})),
+						totals: createTotalsObject(totals),
+					};
+
+			// Should use projects structure (because of --instances)
+			expect('projects' in jsonOutput).toBe(true);
+			expect('daily' in jsonOutput).toBe(false);
+
+			// Should only contain the filtered project
+			if ('projects' in jsonOutput) {
+				const projects = jsonOutput.projects as Record<string, any[]>;
+				expect(Object.keys(projects)).toHaveLength(1);
+				expect(projects['target-project']).toBeDefined();
+				expect(projects['other-project']).toBeUndefined();
+				expect(Array.isArray(projects['target-project'])).toBe(true);
+				expect(projects['target-project']).toHaveLength(1);
+			}
+		});
+
+		it('handles empty state correctly with --instances and non-existent project', async () => {
+			// Create test fixture with existing data
+			await using fixture = await createFixture({
+				projects: {
+					'existing-project': {
+						session1: {
+							'usage.jsonl': JSON.stringify({
+								timestamp: createISOTimestamp('2024-01-01T10:00:00Z'),
+								message: {
+									usage: {
+										input_tokens: 1000,
+										output_tokens: 500,
+									},
+									model: 'claude-sonnet-4-20250514',
+								},
+								costUSD: 0.01,
+							}),
+						},
+					},
+				},
+			});
+
+			const { loadDailyUsageData } = await import('../data-loader.ts');
+
+			// Test --instances with non-existent project (should return empty array)
+			const emptyData = await loadDailyUsageData({
+				claudePath: fixture.path,
+				groupByProject: true, // --instances flag
+				project: 'non-existent-project', // --project flag with non-existent project
+			});
+
+			// Should return empty array (no data matches the filter)
+			expect(emptyData).toHaveLength(0);
+			expect(Array.isArray(emptyData)).toBe(true);
+
+			// Test that we have data when not filtering (sanity check)
+			const allData = await loadDailyUsageData({
+				claudePath: fixture.path,
+				groupByProject: true,
+			});
+			expect(allData.length).toBeGreaterThan(0);
+
+			// Test empty state JSON output structure for --instances mode
+			const { calculateTotals, createTotalsObject } = await import('../calculate-cost.ts');
+			const totals = calculateTotals(emptyData);
+
+			// When data is empty but --instances was used, should still produce projects structure
+			const jsonOutput = {
+				projects: groupByProject(emptyData), // Will be empty object {}
+				totals: createTotalsObject(totals),
+			};
+
+			// Verify empty projects structure
+			expect(typeof jsonOutput.projects).toBe('object');
+			expect(Object.keys(jsonOutput.projects)).toHaveLength(0);
+			expect(jsonOutput.totals).toBeDefined();
+
+			// Verify totals for empty data
+			expect(totals.inputTokens).toBe(0);
+			expect(totals.outputTokens).toBe(0);
+			expect(totals.totalCost).toBe(0);
+
+			// Test that empty state detection works correctly
+			// This mimics the check in the command: if (dailyData.length === 0)
+			expect(emptyData.length === 0).toBe(true);
+		});
+
+		it('applies formatProjectName when rendering project headers with --instances', async () => {
+			// Create test fixture with complex project names that need formatting
+			await using fixture = await createFixture({
+				projects: {
+					// Long complex project path that should be formatted
+					'-Users-phaedrus-Development-adminifi-edugakko-api--feature-ticket-002-configure-dependabot': {
+						session1: {
+							'usage.jsonl': JSON.stringify({
+								timestamp: createISOTimestamp('2024-01-01T10:00:00Z'),
+								message: {
+									usage: {
+										input_tokens: 1000,
+										output_tokens: 500,
+									},
+									model: 'claude-sonnet-4-20250514',
+								},
+								costUSD: 0.01,
+							}),
+						},
+					},
+					// Simple project name that shouldn't change much
+					'simple-project': {
+						session2: {
+							'usage.jsonl': JSON.stringify({
+								timestamp: createISOTimestamp('2024-01-01T14:00:00Z'),
+								message: {
+									usage: {
+										input_tokens: 2000,
+										output_tokens: 1000,
+									},
+									model: 'claude-opus-4-20250514',
+								},
+								costUSD: 0.02,
+							}),
+						},
+					},
+				},
+			});
+
+			const { loadDailyUsageData } = await import('../data-loader.ts');
+			const { formatProjectName } = await import('../_project-names.ts');
+
+			// Load data with project grouping enabled
+			const dailyData = await loadDailyUsageData({
+				claudePath: fixture.path,
+				groupByProject: true,
+			});
+
+			// Test that groupDataByProject works with complex project names
+			const projectGroups = groupDataByProject(dailyData);
+
+			// Verify we have both projects
+			expect(Object.keys(projectGroups)).toHaveLength(2);
+			expect(projectGroups['-Users-phaedrus-Development-adminifi-edugakko-api--feature-ticket-002-configure-dependabot']).toBeDefined();
+			expect(projectGroups['simple-project']).toBeDefined();
+
+			// Test that formatProjectName processes the complex name correctly
+			const complexProjectName = '-Users-phaedrus-Development-adminifi-edugakko-api--feature-ticket-002-configure-dependabot';
+			const formattedComplexName = formatProjectName(complexProjectName);
+
+			// This should format to something much shorter (based on existing tests in _project-names.ts)
+			expect(formattedComplexName).toBe('configure-dependabot');
+			expect(formattedComplexName.length).toBeLessThan(complexProjectName.length);
+
+			// Test that simple project name passes through cleanly
+			const simpleFormatted = formatProjectName('simple-project');
+			expect(simpleFormatted).toBe('simple-project');
+
+			// Verify project header rendering logic (simulates what happens in the command)
+			for (const [projectName, projectData] of Object.entries(projectGroups)) {
+				const headerText = `Project: ${formatProjectName(projectName)}`;
+
+				if (projectName === complexProjectName) {
+					// Complex name should be shortened
+					expect(headerText).toBe('Project: configure-dependabot');
+					expect(headerText.length).toBeLessThan(100); // Much shorter than original
+				}
+				else if (projectName === 'simple-project') {
+					// Simple name should be unchanged
+					expect(headerText).toBe('Project: simple-project');
+				}
+
+				// Verify that each project group has data
+				expect(Array.isArray(projectData)).toBe(true);
+				expect(projectData.length).toBeGreaterThan(0);
+			}
+		});
+
+		it('works with project aliases when rendering project headers', async () => {
+			// Test project alias functionality by setting environment variable
+			const { PROJECT_ALIASES_ENV } = await import('../_consts.ts');
+			const { clearAliasCache } = await import('../_project-names.ts');
+
+			// Clear any existing alias cache
+			clearAliasCache();
+
+			// Set up aliases: raw project name = display alias
+			process.env[PROJECT_ALIASES_ENV] = 'complex-project=My Complex Project,simple-proj=Simple Tool';
+
+			await using fixture = await createFixture({
+				projects: {
+					'complex-project': {
+						session1: {
+							'usage.jsonl': JSON.stringify({
+								timestamp: createISOTimestamp('2024-01-01T10:00:00Z'),
+								message: {
+									usage: {
+										input_tokens: 1000,
+										output_tokens: 500,
+									},
+									model: 'claude-sonnet-4-20250514',
+								},
+								costUSD: 0.01,
+							}),
+						},
+					},
+					'simple-proj': {
+						session2: {
+							'usage.jsonl': JSON.stringify({
+								timestamp: createISOTimestamp('2024-01-01T14:00:00Z'),
+								message: {
+									usage: {
+										input_tokens: 2000,
+										output_tokens: 1000,
+									},
+									model: 'claude-opus-4-20250514',
+								},
+								costUSD: 0.02,
+							}),
+						},
+					},
+					'no-alias-project': {
+						session3: {
+							'usage.jsonl': JSON.stringify({
+								timestamp: createISOTimestamp('2024-01-01T16:00:00Z'),
+								message: {
+									usage: {
+										input_tokens: 800,
+										output_tokens: 400,
+									},
+									model: 'claude-sonnet-4-20250514',
+								},
+								costUSD: 0.008,
+							}),
+						},
+					},
+				},
+			});
+
+			const { loadDailyUsageData } = await import('../data-loader.ts');
+			const { formatProjectName } = await import('../_project-names.ts');
+
+			// Load data with project grouping
+			const dailyData = await loadDailyUsageData({
+				claudePath: fixture.path,
+				groupByProject: true,
+			});
+
+			const projectGroups = groupDataByProject(dailyData);
+
+			// Test alias resolution
+			expect(formatProjectName('complex-project')).toBe('My Complex Project');
+			expect(formatProjectName('simple-proj')).toBe('Simple Tool');
+			expect(formatProjectName('no-alias-project')).toBe('no-alias-project'); // No alias, unchanged
+
+			// Verify project header rendering with aliases
+			for (const [projectName] of Object.entries(projectGroups)) {
+				const headerText = `Project: ${formatProjectName(projectName)}`;
+
+				if (projectName === 'complex-project') {
+					expect(headerText).toBe('Project: My Complex Project');
+				}
+				else if (projectName === 'simple-proj') {
+					expect(headerText).toBe('Project: Simple Tool');
+				}
+				else if (projectName === 'no-alias-project') {
+					expect(headerText).toBe('Project: no-alias-project');
+				}
+			}
+
+			// Clean up environment
+			delete process.env[PROJECT_ALIASES_ENV];
+			clearAliasCache();
 		});
 	});
 }
