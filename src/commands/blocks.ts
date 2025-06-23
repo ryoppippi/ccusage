@@ -83,7 +83,7 @@ function extractProjectFromBlock(block: SessionBlock): string | null {
 		if (entry != null && 'filePath' in entry) {
 			const filePath = (entry as { filePath: string }).filePath;
 			// Extract project name from path like "projects/project-name/session/file.jsonl"
-			const parts = filePath.split('/');
+			const parts = filePath.split(/[/\\]/);
 			const projectIndex = parts.findIndex(part => part === 'projects');
 			if (projectIndex !== -1 && projectIndex + 1 < parts.length) {
 				return parts[projectIndex + 1] ?? null;

@@ -46,8 +46,10 @@ function groupByProject(sessionData: ReturnType<typeof loadSessionData> extends 
 /**
  * Group session usage data by project for table display
  */
-function groupDataByProject(sessionData: ReturnType<typeof loadSessionData> extends Promise<infer T> ? T : never): Record<string, typeof sessionData> {
-	const projects: Record<string, typeof sessionData> = {};
+type SessionData = Awaited<ReturnType<typeof loadSessionData>>;
+
+function groupDataByProject(sessionData: SessionData): Record<string, SessionData> {
+	const projects: Record<string, SessionData> = {};
 
 	for (const data of sessionData) {
 		const projectName = data.projectPath ?? 'unknown';

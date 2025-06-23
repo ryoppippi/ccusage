@@ -45,8 +45,10 @@ function groupByProject(dailyData: ReturnType<typeof loadDailyUsageData> extends
 /**
  * Group daily usage data by project for table display
  */
-function groupDataByProject(dailyData: ReturnType<typeof loadDailyUsageData> extends Promise<infer T> ? T : never): Record<string, typeof dailyData> {
-	const projects: Record<string, typeof dailyData> = {};
+type DailyData = Awaited<ReturnType<typeof loadDailyUsageData>>;
+
+function groupDataByProject(dailyData: DailyData): Record<string, DailyData> {
+	const projects: Record<string, DailyData> = {};
 
 	for (const data of dailyData) {
 		const projectName = data.project ?? 'unknown';

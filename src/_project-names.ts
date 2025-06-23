@@ -66,7 +66,7 @@ export function clearAliasCache(): void {
  *
  * // Complex project with feature branch
  * parseProjectName('-Users-phaedrus-Development-adminifi-edugakko-api--feature-ticket-002-configure-dependabot')
- * // → 'edugakko-api'
+ * // → 'configure-dependabot'
  *
  * // Handle unknown projects
  * parseProjectName('unknown')

@@ -45,8 +45,10 @@ function groupByProject(monthlyData: ReturnType<typeof loadMonthlyUsageData> ext
 /**
  * Group monthly usage data by project for table display
  */
-function groupDataByProject(monthlyData: ReturnType<typeof loadMonthlyUsageData> extends Promise<infer T> ? T : never): Record<string, typeof monthlyData> {
-	const projects: Record<string, typeof monthlyData> = {};
+type MonthlyData = Awaited<ReturnType<typeof loadMonthlyUsageData>>;
+
+function groupDataByProject(monthlyData: MonthlyData): Record<string, MonthlyData> {
+	const projects: Record<string, MonthlyData> = {};
 
 	for (const data of monthlyData) {
 		const projectName = data.project ?? 'unknown';
