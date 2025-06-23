@@ -3,6 +3,7 @@ import process from 'node:process';
 import { define } from 'gunshi';
 import pc from 'picocolors';
 import { BLOCKS_COMPACT_WIDTH_THRESHOLD, BLOCKS_DEFAULT_TERMINAL_WIDTH, BLOCKS_WARNING_THRESHOLD, DEFAULT_RECENT_DAYS, DEFAULT_REFRESH_INTERVAL_SECONDS, MAX_REFRESH_INTERVAL_SECONDS, MIN_REFRESH_INTERVAL_SECONDS } from '../_consts.ts';
+import { formatProjectName } from '../_project-names.ts';
 import {
 	calculateBurnRate,
 	DEFAULT_SESSION_DURATION_HOURS,
@@ -15,6 +16,85 @@ import { formatCurrency, formatModelsDisplayMultiline, formatNumber, ResponsiveT
 import { getClaudePaths, loadSessionBlockData } from '../data-loader.ts';
 import { log, logger } from '../logger.ts';
 import { startLiveMonitoring } from './_blocks.live.ts';
+
+/**
+ * Group session block data by project for JSON output
+ */
+function groupByProject(blocks: SessionBlock[]): Record<string, any[]> {
+	const projects: Record<string, any[]> = {};
+
+	for (const block of blocks) {
+		// Extract project from block id or entries
+		const projectName = extractProjectFromBlock(block) ?? 'unknown';
+
+		if (projects[projectName] == null) {
+			projects[projectName] = [];
+		}
+
+		const burnRate = block.isActive ? calculateBurnRate(block) : null;
+		const projection = block.isActive ? projectBlockUsage(block) : null;
+
+		projects[projectName].push({
+			id: block.id,
+			startTime: block.startTime.toISOString(),
+			endTime: block.endTime.toISOString(),
+			actualEndTime: block.actualEndTime?.toISOString() ?? null,
+			isActive: block.isActive,
+			isGap: block.isGap ?? false,
+			entries: block.entries.length,
+			tokenCounts: block.tokenCounts,
+			totalTokens: block.tokenCounts.inputTokens + block.tokenCounts.outputTokens,
+			costUSD: block.costUSD,
+			models: block.models,
+			burnRate,
+			projection,
+		});
+	}
+
+	return projects;
+}
+
+/**
+ * Group session block data by project for table display
+ */
+function groupDataByProject(blocks: SessionBlock[]): Record<string, SessionBlock[]> {
+	const projects: Record<string, SessionBlock[]> = {};
+
+	for (const block of blocks) {
+		const projectName = extractProjectFromBlock(block) ?? 'unknown';
+
+		if (projects[projectName] == null) {
+			projects[projectName] = [];
+		}
+
+		projects[projectName].push(block);
+	}
+
+	return projects;
+}
+
+/**
+ * Extract project name from a session block
+ */
+function extractProjectFromBlock(block: SessionBlock): string | null {
+	// Try to extract project from the first entry's file path
+	if (block.entries.length > 0) {
+		const entry = block.entries[0];
+		if (entry != null && 'filePath' in entry) {
+			const filePath = (entry as { filePath: string }).filePath;
+			// Extract project name from path like "projects/project-name/session/file.jsonl"
+			const parts = filePath.split('/');
+			const projectIndex = parts.findIndex(part => part === 'projects');
+			if (projectIndex !== -1 && projectIndex + 1 < parts.length) {
+				return parts[projectIndex + 1] ?? null;
+			}
+		}
+	}
+
+	// Fallback: try to extract from block id
+	const idParts = block.id.split('-');
+	return idParts.length > 1 ? (idParts[0] ?? null) : null;
+}
 
 /**
  * Formats the time display for a session block
@@ -163,6 +243,8 @@ export const blocksCommand = define({
 			order: ctx.values.order,
 			offline: ctx.values.offline,
 			sessionDurationHours: ctx.values.sessionLength,
+			groupByProject: ctx.values.instances,
+			project: ctx.values.project,
 		});
 
 		if (blocks.length === 0) {
@@ -250,46 +332,50 @@ export const blocksCommand = define({
 		}
 
 		if (ctx.values.json) {
-			// JSON output
-			const jsonOutput = {
-				blocks: blocks.map((block: SessionBlock) => {
-					const burnRate = block.isActive ? calculateBurnRate(block) : null;
-					const projection = block.isActive ? projectBlockUsage(block) : null;
+			// JSON output - group by project if instances flag is used
+			const jsonOutput = ctx.values.instances
+				? {
+						projects: groupByProject(blocks),
+					}
+				: {
+						blocks: blocks.map((block: SessionBlock) => {
+							const burnRate = block.isActive ? calculateBurnRate(block) : null;
+							const projection = block.isActive ? projectBlockUsage(block) : null;
 
-					return {
-						id: block.id,
-						startTime: block.startTime.toISOString(),
-						endTime: block.endTime.toISOString(),
-						actualEndTime: block.actualEndTime?.toISOString() ?? null,
-						isActive: block.isActive,
-						isGap: block.isGap ?? false,
-						entries: block.entries.length,
-						tokenCounts: block.tokenCounts,
-						totalTokens:
-							block.tokenCounts.inputTokens
-							+ block.tokenCounts.outputTokens,
-						costUSD: block.costUSD,
-						models: block.models,
-						burnRate,
-						projection,
-						tokenLimitStatus: projection != null && ctx.values.tokenLimit != null
-							? (() => {
-									const limit = parseTokenLimit(ctx.values.tokenLimit, maxTokensFromAll);
-									return limit != null
-										? {
-												limit,
-												projectedUsage: projection.totalTokens,
-												percentUsed: (projection.totalTokens / limit) * 100,
-												status: projection.totalTokens > limit
-													? 'exceeds'
-													: projection.totalTokens > limit * BLOCKS_WARNING_THRESHOLD ? 'warning' : 'ok',
-											}
-										: undefined;
-								})()
-							: undefined,
+							return {
+								id: block.id,
+								startTime: block.startTime.toISOString(),
+								endTime: block.endTime.toISOString(),
+								actualEndTime: block.actualEndTime?.toISOString() ?? null,
+								isActive: block.isActive,
+								isGap: block.isGap ?? false,
+								entries: block.entries.length,
+								tokenCounts: block.tokenCounts,
+								totalTokens:
+								block.tokenCounts.inputTokens
+								+ block.tokenCounts.outputTokens,
+								costUSD: block.costUSD,
+								models: block.models,
+								burnRate,
+								projection,
+								tokenLimitStatus: projection != null && ctx.values.tokenLimit != null
+									? (() => {
+											const limit = parseTokenLimit(ctx.values.tokenLimit, maxTokensFromAll);
+											return limit != null
+												? {
+														limit,
+														projectedUsage: projection.totalTokens,
+														percentUsed: (projection.totalTokens / limit) * 100,
+														status: projection.totalTokens > limit
+															? 'exceeds'
+															: projection.totalTokens > limit * BLOCKS_WARNING_THRESHOLD ? 'warning' : 'ok',
+													}
+												: undefined;
+										})()
+									: undefined,
+							};
+						}),
 					};
-				}),
-			};
 
 			log(JSON.stringify(jsonOutput, null, 2));
 		}
@@ -385,94 +471,213 @@ export const blocksCommand = define({
 				const terminalWidth = process.stdout.columns || BLOCKS_DEFAULT_TERMINAL_WIDTH;
 				const useCompactFormat = terminalWidth < BLOCKS_COMPACT_WIDTH_THRESHOLD;
 
-				for (const block of blocks) {
-					if (block.isGap ?? false) {
-						// Gap row
-						const gapRow = [
-							pc.gray(formatBlockTime(block, useCompactFormat)),
-							pc.gray('(inactive)'),
-							pc.gray('-'),
-							pc.gray('-'),
-						];
-						if (actualTokenLimit != null && actualTokenLimit > 0) {
-							gapRow.push(pc.gray('-'));
-						}
-						gapRow.push(pc.gray('-'));
-						table.push(gapRow);
-					}
-					else {
-						const totalTokens
-							= block.tokenCounts.inputTokens + block.tokenCounts.outputTokens;
-						const status = block.isActive ? pc.green('ACTIVE') : '';
+				// Add block data - group by project if instances flag is used
+				if (ctx.values.instances) {
+					// Group data by project for visual separation
+					const projectGroups = groupDataByProject(blocks);
 
-						const row = [
-							formatBlockTime(block, useCompactFormat),
-							status,
-							formatModels(block.models),
-							formatNumber(totalTokens),
-						];
-
-						// Add percentage if token limit is set
-						if (actualTokenLimit != null && actualTokenLimit > 0) {
-							const percentage = (totalTokens / actualTokenLimit) * 100;
-							const percentText = `${percentage.toFixed(1)}%`;
-							row.push(percentage > 100 ? pc.red(percentText) : percentText);
+					let isFirstProject = true;
+					for (const [projectName, projectBlocks] of Object.entries(projectGroups)) {
+						// Add project section header
+						if (!isFirstProject) {
+							// Add empty row for visual separation between projects
+							const emptyCols = Array.from({ length: tableHeaders.length }, () => '');
+							table.push(emptyCols);
 						}
 
-						row.push(formatCurrency(block.costUSD));
-						table.push(row);
+						// Add project header row
+						const headerCols = Array.from({ length: tableHeaders.length }, () => '');
+						headerCols[0] = pc.cyan(`Project: ${formatProjectName(projectName)}`);
+						table.push(headerCols);
 
-						// Add REMAINING and PROJECTED rows for active blocks
-						if (block.isActive) {
-							// REMAINING row - only show if token limit is set
-							if (actualTokenLimit != null && actualTokenLimit > 0) {
-								const currentTokens = block.tokenCounts.inputTokens + block.tokenCounts.outputTokens;
-								const remainingTokens = Math.max(0, actualTokenLimit - currentTokens);
-								const remainingText = remainingTokens > 0
-									? formatNumber(remainingTokens)
-									: pc.red('0');
-
-								// Calculate remaining percentage (how much of limit is left)
-								const remainingPercent = ((actualTokenLimit - currentTokens) / actualTokenLimit) * 100;
-								const remainingPercentText = remainingPercent > 0
-									? `${remainingPercent.toFixed(1)}%`
-									: pc.red('0.0%');
-
-								const remainingRow = [
-									{ content: pc.gray(`(assuming ${formatNumber(actualTokenLimit)} token limit)`), hAlign: 'right' as const },
-									pc.blue('REMAINING'),
-									'',
-									remainingText,
-									remainingPercentText,
-									'', // No cost for remaining - it's about token limit, not cost
+						// Add blocks for this project
+						for (const block of projectBlocks) {
+							if (block.isGap ?? false) {
+								// Gap row
+								const gapRow = [
+									pc.gray(formatBlockTime(block, useCompactFormat)),
+									pc.gray('(inactive)'),
+									pc.gray('-'),
+									pc.gray('-'),
 								];
-								table.push(remainingRow);
+								if (actualTokenLimit != null && actualTokenLimit > 0) {
+									gapRow.push(pc.gray('-'));
+								}
+								gapRow.push(pc.gray('-'));
+								table.push(gapRow);
 							}
+							else {
+								const totalTokens
+									= block.tokenCounts.inputTokens + block.tokenCounts.outputTokens;
+								const status = block.isActive ? pc.green('ACTIVE') : '';
 
-							// PROJECTED row
-							const projection = projectBlockUsage(block);
-							if (projection != null) {
-								const projectedTokens = formatNumber(projection.totalTokens);
-								const projectedText = actualTokenLimit != null && actualTokenLimit > 0 && projection.totalTokens > actualTokenLimit
-									? pc.red(projectedTokens)
-									: projectedTokens;
-
-								const projectedRow = [
-									{ content: pc.gray('(assuming current burn rate)'), hAlign: 'right' as const },
-									pc.yellow('PROJECTED'),
-									'',
-									projectedText,
+								const row = [
+									formatBlockTime(block, useCompactFormat),
+									status,
+									formatModels(block.models),
+									formatNumber(totalTokens),
 								];
 
 								// Add percentage if token limit is set
 								if (actualTokenLimit != null && actualTokenLimit > 0) {
-									const percentage = (projection.totalTokens / actualTokenLimit) * 100;
+									const percentage = (totalTokens / actualTokenLimit) * 100;
 									const percentText = `${percentage.toFixed(1)}%`;
-									projectedRow.push(percentText);
+									row.push(percentage > 100 ? pc.red(percentText) : percentText);
 								}
 
-								projectedRow.push(formatCurrency(projection.totalCost));
-								table.push(projectedRow);
+								row.push(formatCurrency(block.costUSD));
+								table.push(row);
+
+								// Add REMAINING and PROJECTED rows for active blocks
+								if (block.isActive) {
+									// REMAINING row - only show if token limit is set
+									if (actualTokenLimit != null && actualTokenLimit > 0) {
+										const currentTokens = block.tokenCounts.inputTokens + block.tokenCounts.outputTokens;
+										const remainingTokens = Math.max(0, actualTokenLimit - currentTokens);
+										const remainingText = remainingTokens > 0
+											? formatNumber(remainingTokens)
+											: pc.red('0');
+
+										// Calculate remaining percentage (how much of limit is left)
+										const remainingPercent = ((actualTokenLimit - currentTokens) / actualTokenLimit) * 100;
+										const remainingPercentText = remainingPercent > 0
+											? `${remainingPercent.toFixed(1)}%`
+											: pc.red('0.0%');
+
+										const remainingRow = [
+											{ content: pc.gray(`(assuming ${formatNumber(actualTokenLimit)} token limit)`), hAlign: 'right' as const },
+											pc.blue('REMAINING'),
+											'',
+											remainingText,
+											remainingPercentText,
+											'', // No cost for remaining - it's about token limit, not cost
+										];
+										table.push(remainingRow);
+									}
+
+									// PROJECTED row
+									const projection = projectBlockUsage(block);
+									if (projection != null) {
+										const projectedTokens = formatNumber(projection.totalTokens);
+										const projectedText = actualTokenLimit != null && actualTokenLimit > 0 && projection.totalTokens > actualTokenLimit
+											? pc.red(projectedTokens)
+											: projectedTokens;
+
+										const projectedRow = [
+											{ content: pc.gray('(assuming current burn rate)'), hAlign: 'right' as const },
+											pc.yellow('PROJECTED'),
+											'',
+											projectedText,
+										];
+
+										// Add percentage if token limit is set
+										if (actualTokenLimit != null && actualTokenLimit > 0) {
+											const percentage = (projection.totalTokens / actualTokenLimit) * 100;
+											const percentText = `${percentage.toFixed(1)}%`;
+											projectedRow.push(percentText);
+										}
+
+										projectedRow.push(formatCurrency(projection.totalCost));
+										table.push(projectedRow);
+									}
+								}
+							}
+						}
+
+						isFirstProject = false;
+					}
+				}
+				else {
+					// Standard display without project grouping
+					for (const block of blocks) {
+						if (block.isGap ?? false) {
+							// Gap row
+							const gapRow = [
+								pc.gray(formatBlockTime(block, useCompactFormat)),
+								pc.gray('(inactive)'),
+								pc.gray('-'),
+								pc.gray('-'),
+							];
+							if (actualTokenLimit != null && actualTokenLimit > 0) {
+								gapRow.push(pc.gray('-'));
+							}
+							gapRow.push(pc.gray('-'));
+							table.push(gapRow);
+						}
+						else {
+							const totalTokens
+								= block.tokenCounts.inputTokens + block.tokenCounts.outputTokens;
+							const status = block.isActive ? pc.green('ACTIVE') : '';
+
+							const row = [
+								formatBlockTime(block, useCompactFormat),
+								status,
+								formatModels(block.models),
+								formatNumber(totalTokens),
+							];
+
+							// Add percentage if token limit is set
+							if (actualTokenLimit != null && actualTokenLimit > 0) {
+								const percentage = (totalTokens / actualTokenLimit) * 100;
+								const percentText = `${percentage.toFixed(1)}%`;
+								row.push(percentage > 100 ? pc.red(percentText) : percentText);
+							}
+
+							row.push(formatCurrency(block.costUSD));
+							table.push(row);
+
+							// Add REMAINING and PROJECTED rows for active blocks
+							if (block.isActive) {
+								// REMAINING row - only show if token limit is set
+								if (actualTokenLimit != null && actualTokenLimit > 0) {
+									const currentTokens = block.tokenCounts.inputTokens + block.tokenCounts.outputTokens;
+									const remainingTokens = Math.max(0, actualTokenLimit - currentTokens);
+									const remainingText = remainingTokens > 0
+										? formatNumber(remainingTokens)
+										: pc.red('0');
+
+									// Calculate remaining percentage (how much of limit is left)
+									const remainingPercent = ((actualTokenLimit - currentTokens) / actualTokenLimit) * 100;
+									const remainingPercentText = remainingPercent > 0
+										? `${remainingPercent.toFixed(1)}%`
+										: pc.red('0.0%');
+
+									const remainingRow = [
+										{ content: pc.gray(`(assuming ${formatNumber(actualTokenLimit)} token limit)`), hAlign: 'right' as const },
+										pc.blue('REMAINING'),
+										'',
+										remainingText,
+										remainingPercentText,
+										'', // No cost for remaining - it's about token limit, not cost
+									];
+									table.push(remainingRow);
+								}
+
+								// PROJECTED row
+								const projection = projectBlockUsage(block);
+								if (projection != null) {
+									const projectedTokens = formatNumber(projection.totalTokens);
+									const projectedText = actualTokenLimit != null && actualTokenLimit > 0 && projection.totalTokens > actualTokenLimit
+										? pc.red(projectedTokens)
+										: projectedTokens;
+
+									const projectedRow = [
+										{ content: pc.gray('(assuming current burn rate)'), hAlign: 'right' as const },
+										pc.yellow('PROJECTED'),
+										'',
+										projectedText,
+									];
+
+									// Add percentage if token limit is set
+									if (actualTokenLimit != null && actualTokenLimit > 0) {
+										const percentage = (projection.totalTokens / actualTokenLimit) * 100;
+										const percentText = `${percentage.toFixed(1)}%`;
+										projectedRow.push(percentText);
+									}
+
+									projectedRow.push(formatCurrency(projection.totalCost));
+									table.push(projectedRow);
+								}
 							}
 						}
 					}

@@ -68,6 +68,13 @@ export const DEFAULT_CLAUDE_CONFIG_PATH = `${XDG_CONFIG_DIR}/claude`;
 export const CLAUDE_CONFIG_DIR_ENV = 'CLAUDE_CONFIG_DIR';
 
 /**
+ * Environment variable for custom project name aliases
+ * Format: "raw-name=alias,another-name=other-alias"
+ * Used to override display names for project directories
+ */
+export const PROJECT_ALIASES_ENV = 'CCUSAGE_PROJECT_ALIASES';
+
+/**
  * Claude projects directory name within the data directory
  * Contains subdirectories for each project with usage data
  */

@@ -119,6 +119,25 @@ export function getClaudePaths(): string[] {
 }
 
 /**
+ * Extract project name from Claude JSONL file path
+ * @param jsonlPath - Absolute path to JSONL file
+ * @returns Project name extracted from path, or "unknown" if malformed
+ */
+export function extractProjectFromPath(jsonlPath: string): string {
+	// Normalize path separators for cross-platform compatibility
+	const normalizedPath = jsonlPath.replace(/[/\\]/g, path.sep);
+	const segments = normalizedPath.split(path.sep);
+	const projectsIndex = segments.findIndex(segment => segment === CLAUDE_PROJECTS_DIR_NAME);
+
+	if (projectsIndex === -1 || projectsIndex + 1 >= segments.length) {
+		return 'unknown';
+	}
+
+	const projectName = segments[projectsIndex + 1];
+	return projectName != null && projectName.trim() !== '' ? projectName : 'unknown';
+}
+
+/**
  * Zod schema for validating Claude usage data from JSONL files
  */
 export const usageDataSchema = z.object({
@@ -172,6 +191,7 @@ export const dailyUsageSchema = z.object({
 	totalCost: z.number(),
 	modelsUsed: z.array(modelNameSchema),
 	modelBreakdowns: z.array(modelBreakdownSchema),
+	project: z.string().optional(), // Project name when groupByProject is enabled
 });
 
 /**
@@ -213,6 +233,7 @@ export const monthlyUsageSchema = z.object({
 	totalCost: z.number(),
 	modelsUsed: z.array(modelNameSchema),
 	modelBreakdowns: z.array(modelBreakdownSchema),
+	project: z.string().optional(), // Project name when groupByProject is enabled
 });
 
 /**
@@ -377,6 +398,24 @@ function filterByDateRange<T>(
 			return false;
 		}
 		return true;
+	});
+}
+
+/**
+ * Filters items by project name
+ */
+function filterByProject<T>(
+	items: T[],
+	getProject: (item: T) => string | undefined,
+	projectFilter?: string,
+): T[] {
+	if (projectFilter == null) {
+		return items;
+	}
+
+	return items.filter((item) => {
+		const projectName = getProject(item);
+		return projectName === projectFilter;
 	});
 }
 
@@ -610,6 +649,8 @@ export type LoadOptions = {
 	order?: SortOrder; // Sort order for dates
 	offline?: boolean; // Use offline mode for pricing
 	sessionDurationHours?: number; // Session block duration in hours
+	groupByProject?: boolean; // Group data by project instead of aggregating
+	project?: string; // Filter to specific project name
 } & DateFilter;
 
 /**
@@ -639,8 +680,15 @@ export async function loadDailyUsageData(
 		return [];
 	}
 
+	// Filter by project if specified
+	const projectFilteredFiles = filterByProject(
+		allFiles,
+		filePath => extractProjectFromPath(filePath),
+		options?.project,
+	);
+
 	// Sort files by timestamp to ensure chronological processing
-	const sortedFiles = await sortFilesByTimestamp(allFiles);
+	const sortedFiles = await sortFilesByTimestamp(projectFilteredFiles);
 
 	// Fetch pricing data for cost calculation only when needed
 	const mode = options?.mode ?? 'auto';
@@ -652,7 +700,7 @@ export async function loadDailyUsageData(
 	const processedHashes = new Set<string>();
 
 	// Collect all valid data entries first
-	const allEntries: { data: UsageData; date: string; cost: number; model: string | undefined }[] = [];
+	const allEntries: { data: UsageData; date: string; cost: number; model: string | undefined; project: string }[] = [];
 
 	for (const file of sortedFiles) {
 		const content = await readFile(file, 'utf-8');
@@ -687,7 +735,10 @@ export async function loadDailyUsageData(
 					? await calculateCostForEntry(data, mode, fetcher)
 					: data.costUSD ?? 0;
 
-				allEntries.push({ data, date, cost, model: data.message.model });
+				// Extract project name from file path
+				const project = extractProjectFromPath(file);
+
+				allEntries.push({ data, date, cost, model: data.message.model, project });
 			}
 			catch {
 				// Skip invalid JSON lines
@@ -695,15 +746,26 @@ export async function loadDailyUsageData(
 		}
 	}
 
-	// Group by date using Object.groupBy
-	const groupedByDate = groupBy(allEntries, entry => entry.date);
+	// Group by date, optionally including project
+	// Automatically enable project grouping when project filter is specified
+	const needsProjectGrouping = options?.groupByProject === true || options?.project != null;
+	const groupingKey = needsProjectGrouping
+		? (entry: typeof allEntries[0]) => `${entry.date}|${entry.project}`
+		: (entry: typeof allEntries[0]) => entry.date;
+
+	const groupedData = groupBy(allEntries, groupingKey);
 
 	// Aggregate each group
-	const results = Object.entries(groupedByDate)
-		.map(([date, entries]) => {
+	const results = Object.entries(groupedData)
+		.map(([groupKey, entries]) => {
 			if (entries == null) {
 				return undefined;
 			}
+
+			// Extract date and project from groupKey (format: "date" or "date|project")
+			const parts = groupKey.split('|');
+			const date = parts[0] ?? groupKey;
+			const project = parts.length > 1 ? parts[1] : undefined;
 
 			// Aggregate by model first
 			const modelAggregates = aggregateByModel(
@@ -725,20 +787,26 @@ export async function loadDailyUsageData(
 
 			const modelsUsed = extractUniqueModels(entries, e => e.model);
 
-			return {
+			const result = {
 				date: createDailyDate(date),
 				...totals,
 				modelsUsed: modelsUsed as ModelName[],
 				modelBreakdowns,
+				...(project != null && { project }),
 			};
+
+			return result;
 		})
 		.filter(item => item != null);
 
 	// Filter by date range if specified
-	const filtered = filterByDateRange(results, item => item.date, options?.since, options?.until);
+	const dateFiltered = filterByDateRange(results, item => item.date, options?.since, options?.until);
+
+	// Filter by project if specified
+	const finalFiltered = filterByProject(dateFiltered, item => item.project, options?.project);
 
 	// Sort by date based on order option (default to descending)
-	return sortByDate(filtered, item => item.date, options?.order);
+	return sortByDate(finalFiltered, item => item.date, options?.order);
 }
 
 /**
@@ -771,11 +839,18 @@ export async function loadSessionData(
 		return [];
 	}
 
+	// Filter by project if specified
+	const projectFilteredWithBase = filterByProject(
+		filesWithBase,
+		item => extractProjectFromPath(item.file),
+		options?.project,
+	);
+
 	// Sort files by timestamp to ensure chronological processing
 	// Create a map for O(1) lookup instead of O(N) find operations
-	const fileToBaseMap = new Map(filesWithBase.map(f => [f.file, f.baseDir]));
+	const fileToBaseMap = new Map(projectFilteredWithBase.map(f => [f.file, f.baseDir]));
 	const sortedFilesWithBase = await sortFilesByTimestamp(
-		filesWithBase.map(f => f.file),
+		projectFilteredWithBase.map(f => f.file),
 	).then(sortedFiles =>
 		sortedFiles.map(file => ({
 			file,
@@ -919,9 +994,12 @@ export async function loadSessionData(
 		.filter(item => item != null);
 
 	// Filter by date range if specified
-	const filtered = filterByDateRange(results, item => item.lastActivity, options?.since, options?.until);
+	const dateFiltered = filterByDateRange(results, item => item.lastActivity, options?.since, options?.until);
 
-	return sortByDate(filtered, item => item.lastActivity, options?.order);
+	// Filter by project if specified
+	const sessionFiltered = filterByProject(dateFiltered, item => item.projectPath, options?.project);
+
+	return sortByDate(sessionFiltered, item => item.lastActivity, options?.order);
 }
 
 /**
@@ -935,16 +1013,26 @@ export async function loadMonthlyUsageData(
 ): Promise<MonthlyUsage[]> {
 	const dailyData = await loadDailyUsageData(options);
 
-	// Group daily data by month using Object.groupBy
-	const groupedByMonth = groupBy(dailyData, data =>
-		data.date.substring(0, 7));
+	// Group daily data by month, optionally including project
+	// Automatically enable project grouping when project filter is specified
+	const needsProjectGrouping = options?.groupByProject === true || options?.project != null;
+	const groupingKey = needsProjectGrouping
+		? (data: typeof dailyData[0]) => `${data.date.substring(0, 7)}|${data.project ?? 'unknown'}`
+		: (data: typeof dailyData[0]) => data.date.substring(0, 7);
+
+	const groupedByMonth = groupBy(dailyData, groupingKey);
 
 	// Aggregate each month group
 	const monthlyArray: MonthlyUsage[] = [];
-	for (const [month, dailyEntries] of Object.entries(groupedByMonth)) {
+	for (const [groupKey, dailyEntries] of Object.entries(groupedByMonth)) {
 		if (dailyEntries == null) {
 			continue;
 		}
+
+		// Extract month and project from groupKey (format: "month" or "month|project")
+		const parts = groupKey.split('|');
+		const month = parts[0] ?? groupKey;
+		const project = parts.length > 1 ? parts[1] : undefined;
 
 		// Aggregate model breakdowns across all days
 		const allBreakdowns = dailyEntries.flatMap(daily => daily.modelBreakdowns);
@@ -987,6 +1075,7 @@ export async function loadMonthlyUsageData(
 			totalCost,
 			modelsUsed: uniq(models) as ModelName[],
 			modelBreakdowns,
+			...(project != null && { project }),
 		};
 
 		monthlyArray.push(monthlyUsage);
@@ -1023,8 +1112,15 @@ export async function loadSessionBlockData(
 		return [];
 	}
 
+	// Filter by project if specified
+	const blocksFilteredFiles = filterByProject(
+		allFiles,
+		filePath => extractProjectFromPath(filePath),
+		options?.project,
+	);
+
 	// Sort files by timestamp to ensure chronological processing
-	const sortedFiles = await sortFilesByTimestamp(allFiles);
+	const sortedFiles = await sortFilesByTimestamp(blocksFilteredFiles);
 
 	// Fetch pricing data for cost calculation only when needed
 	const mode = options?.mode ?? 'auto';
@@ -1092,7 +1188,7 @@ export async function loadSessionBlockData(
 	const blocks = identifySessionBlocks(allEntries, options?.sessionDurationHours);
 
 	// Filter by date range if specified
-	const filtered = (options?.since != null && options.since !== '') || (options?.until != null && options.until !== '')
+	const dateFiltered = (options?.since != null && options.since !== '') || (options?.until != null && options.until !== '')
 		? blocks.filter((block) => {
 				const blockDateStr = formatDate(block.startTime.toISOString()).replace(/-/g, '');
 				if (options.since != null && options.since !== '' && blockDateStr < options.since) {
@@ -1106,7 +1202,7 @@ export async function loadSessionBlockData(
 		: blocks;
 
 	// Sort by start time based on order option
-	return sortByDate(filtered, block => block.startTime, options?.order);
+	return sortByDate(dateFiltered, block => block.startTime, options?.order);
 }
 
 if (import.meta.vitest != null) {
