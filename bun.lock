@@ -52,7 +52,7 @@
         "@types/bun": "^1.2.17",
         "tinyglobby": "^0.2.14",
         "typedoc": "^0.28.5",
-        "typedoc-plugin-markdown": "^4.6.4",
+        "typedoc-plugin-markdown": "^4.7.0",
         "typedoc-vitepress-theme": "^1.1.2",
         "vitepress": "^1.6.3",
         "vitepress-plugin-group-icons": "^1.6.0",
