@@ -286,3 +286,233 @@ export const monthlyCommand = define({
 		}
 	},
 });
+
+if (import.meta.vitest != null) {
+	const { describe, it, expect } = import.meta.vitest;
+
+	// eslint-disable-next-line antfu/no-top-level-await
+	const { createFixture } = await import('fs-fixture');
+	// eslint-disable-next-line antfu/no-top-level-await
+	const { createISOTimestamp, createMonthlyDate, createModelName } = await import('../_types.ts');
+
+	describe('monthly command --instances integration', () => {
+		it('groups data by project when --instances flag is used', async () => {
+			// Create test fixture with 2 projects across different months
+			await using fixture = await createFixture({
+				projects: {
+					'project-alpha': {
+						session1: {
+							'usage.jsonl': JSON.stringify({
+								timestamp: createISOTimestamp('2024-01-15T10:00:00Z'),
+								message: {
+									usage: {
+										input_tokens: 1000,
+										output_tokens: 500,
+									},
+									model: 'claude-sonnet-4-20250514',
+								},
+								costUSD: 0.01,
+							}),
+						},
+					},
+					'project-beta': {
+						session2: {
+							'usage.jsonl': JSON.stringify({
+								timestamp: createISOTimestamp('2024-02-15T14:00:00Z'),
+								message: {
+									usage: {
+										input_tokens: 2000,
+										output_tokens: 1000,
+									},
+									model: 'claude-opus-4-20250514',
+								},
+								costUSD: 0.02,
+							}),
+						},
+					},
+				},
+			});
+
+			// Test data loading with groupByProject: true (like --instances does)
+			const { loadMonthlyUsageData } = await import('../data-loader.ts');
+			const monthlyData = await loadMonthlyUsageData({
+				claudePath: fixture.path,
+				groupByProject: true,
+			});
+
+			// Should have 2 separate entries (one per project per month)
+			expect(monthlyData).toHaveLength(2);
+
+			// Both entries should have project field populated
+			expect(monthlyData.every(d => d.project != null)).toBe(true);
+
+			// Should have both projects represented
+			const projects = new Set(monthlyData.map(d => d.project));
+			expect(projects.size).toBe(2);
+			expect(projects.has('project-alpha')).toBe(true);
+			expect(projects.has('project-beta')).toBe(true);
+		});
+
+		it('generates project headers when rendering table with --instances', async () => {
+			// Test the groupDataByProject function used for table rendering
+			const mockMonthlyData = [
+				{
+					month: createMonthlyDate('2024-01'),
+					project: 'project-alpha',
+					inputTokens: 1000,
+					outputTokens: 500,
+					cacheCreationTokens: 0,
+					cacheReadTokens: 0,
+					totalCost: 0.01,
+					modelsUsed: [createModelName('claude-sonnet-4-20250514')],
+					modelBreakdowns: [],
+				},
+				{
+					month: createMonthlyDate('2024-01'),
+					project: 'project-beta',
+					inputTokens: 2000,
+					outputTokens: 1000,
+					cacheCreationTokens: 0,
+					cacheReadTokens: 0,
+					totalCost: 0.02,
+					modelsUsed: [createModelName('claude-opus-4-20250514')],
+					modelBreakdowns: [],
+				},
+			];
+
+			// Test the groupDataByProject function
+			const projectGroups = groupDataByProject(mockMonthlyData);
+
+			// Should have 2 project groups
+			expect(Object.keys(projectGroups)).toHaveLength(2);
+			expect(projectGroups['project-alpha']).toBeDefined();
+			expect(projectGroups['project-beta']).toBeDefined();
+
+			// Each group should contain correct data
+			expect(projectGroups['project-alpha']).toHaveLength(1);
+			expect(projectGroups['project-beta']).toHaveLength(1);
+			expect(projectGroups['project-alpha']![0]!.inputTokens).toBe(1000);
+			expect(projectGroups['project-beta']![0]!.inputTokens).toBe(2000);
+		});
+
+		it('produces different JSON structures for --instances vs standard mode', async () => {
+			// Create test fixture with multiple projects
+			await using fixture = await createFixture({
+				projects: {
+					'project-alpha': {
+						session1: {
+							'usage.jsonl': JSON.stringify({
+								timestamp: createISOTimestamp('2024-01-15T10:00:00Z'),
+								message: {
+									usage: {
+										input_tokens: 1000,
+										output_tokens: 500,
+									},
+									model: 'claude-sonnet-4-20250514',
+								},
+								costUSD: 0.01,
+							}),
+						},
+					},
+					'project-beta': {
+						session2: {
+							'usage.jsonl': JSON.stringify({
+								timestamp: createISOTimestamp('2024-02-15T14:00:00Z'),
+								message: {
+									usage: {
+										input_tokens: 2000,
+										output_tokens: 1000,
+									},
+									model: 'claude-opus-4-20250514',
+								},
+								costUSD: 0.02,
+							}),
+						},
+					},
+				},
+			});
+
+			const { loadMonthlyUsageData } = await import('../data-loader.ts');
+			const { calculateTotals, createTotalsObject } = await import('../calculate-cost.ts');
+
+			// Test standard mode (no --instances)
+			const standardData = await loadMonthlyUsageData({
+				claudePath: fixture.path,
+				groupByProject: false,
+			});
+
+			const standardTotals = calculateTotals(standardData);
+
+			// Simulate standard JSON output structure
+			const standardJsonOutput = {
+				monthly: standardData.map(data => ({
+					month: data.month,
+					inputTokens: data.inputTokens,
+					outputTokens: data.outputTokens,
+					cacheCreationTokens: data.cacheCreationTokens,
+					cacheReadTokens: data.cacheReadTokens,
+					totalTokens: data.inputTokens + data.outputTokens + data.cacheCreationTokens + data.cacheReadTokens,
+					totalCost: data.totalCost,
+					modelsUsed: data.modelsUsed,
+					modelBreakdowns: data.modelBreakdowns,
+					...(data.project != null && { project: data.project }),
+				})),
+				totals: createTotalsObject(standardTotals),
+			};
+
+			// Test instances mode (--instances)
+			const instancesData = await loadMonthlyUsageData({
+				claudePath: fixture.path,
+				groupByProject: true,
+			});
+
+			const instancesTotals = calculateTotals(instancesData);
+
+			// Simulate --instances JSON output structure
+			const instancesJsonOutput = instancesData.some(d => d.project != null)
+				? {
+						projects: groupByProject(instancesData),
+						totals: createTotalsObject(instancesTotals),
+					}
+				: {
+						monthly: instancesData.map(data => ({
+							month: data.month,
+							inputTokens: data.inputTokens,
+							outputTokens: data.outputTokens,
+							cacheCreationTokens: data.cacheCreationTokens,
+							cacheReadTokens: data.cacheReadTokens,
+							totalTokens: data.inputTokens + data.outputTokens + data.cacheCreationTokens + data.cacheReadTokens,
+							totalCost: data.totalCost,
+							modelsUsed: data.modelsUsed,
+							modelBreakdowns: data.modelBreakdowns,
+							...(data.project != null && { project: data.project }),
+						})),
+						totals: createTotalsObject(instancesTotals),
+					};
+
+			// Verify different JSON structures
+			expect('monthly' in standardJsonOutput).toBe(true);
+			expect('projects' in standardJsonOutput).toBe(false);
+			expect('totals' in standardJsonOutput).toBe(true);
+
+			expect('monthly' in instancesJsonOutput).toBe(false);
+			expect('projects' in instancesJsonOutput).toBe(true);
+			expect('totals' in instancesJsonOutput).toBe(true);
+
+			// Verify projects structure contains expected project keys
+			if ('projects' in instancesJsonOutput) {
+				const projects = instancesJsonOutput.projects;
+				expect(Object.keys(projects)).toContain('project-alpha');
+				expect(Object.keys(projects)).toContain('project-beta');
+				expect(Array.isArray(projects['project-alpha'])).toBe(true);
+				expect(Array.isArray(projects['project-beta'])).toBe(true);
+			}
+
+			// Verify monthly structure is array format
+			if ('monthly' in standardJsonOutput) {
+				expect(Array.isArray(standardJsonOutput.monthly)).toBe(true);
+				expect(standardJsonOutput.monthly.length).toBeGreaterThan(0);
+			}
+		});
+	});
+}

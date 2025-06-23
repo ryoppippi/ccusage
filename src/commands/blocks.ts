@@ -688,3 +688,262 @@ export const blocksCommand = define({
 		}
 	},
 });
+
+if (import.meta.vitest != null) {
+	const { describe, it, expect } = import.meta.vitest;
+
+	// eslint-disable-next-line antfu/no-top-level-await
+	const { createISOTimestamp, createModelName } = await import('../_types.ts');
+
+	describe('blocks command --instances integration', () => {
+		it('extracts project from file paths correctly', async () => {
+			// Test the extractProjectFromBlock function directly
+			const testBlock = {
+				id: 'test-block-1',
+				startTime: new Date('2024-01-01T10:00:00Z'),
+				endTime: new Date('2024-01-01T15:00:00Z'),
+				actualEndTime: null,
+				isActive: false,
+				tokenCounts: {
+					inputTokens: 1000,
+					outputTokens: 500,
+					cacheCreationTokens: 0,
+					cacheReadTokens: 0,
+				},
+				costUSD: 0.01,
+				models: [createModelName('claude-sonnet-4-20250514')],
+				entries: [
+					{
+						filePath: 'projects/test-project/session1/usage.jsonl',
+						timestamp: createISOTimestamp('2024-01-01T10:00:00Z'),
+					},
+				],
+			};
+
+			const projectName = extractProjectFromBlock(testBlock);
+			expect(projectName).toBe('test-project');
+		});
+
+		it('handles Windows path separators correctly', async () => {
+			// Test Windows-style paths (this validates the cross-platform fix)
+			const testBlock = {
+				id: 'test-block-1',
+				startTime: new Date('2024-01-01T10:00:00Z'),
+				endTime: new Date('2024-01-01T15:00:00Z'),
+				actualEndTime: null,
+				isActive: false,
+				tokenCounts: {
+					inputTokens: 1000,
+					outputTokens: 500,
+					cacheCreationTokens: 0,
+					cacheReadTokens: 0,
+				},
+				costUSD: 0.01,
+				models: [createModelName('claude-sonnet-4-20250514')],
+				entries: [
+					{
+						filePath: 'projects\\windows-project\\session1\\usage.jsonl',
+						timestamp: createISOTimestamp('2024-01-01T10:00:00Z'),
+					},
+				],
+			};
+
+			const projectName = extractProjectFromBlock(testBlock);
+			expect(projectName).toBe('windows-project');
+		});
+
+		it('falls back to block id when no entries exist', async () => {
+			// Test fallback behavior
+			const testBlock = {
+				id: 'fallback-project-1234',
+				startTime: new Date('2024-01-01T10:00:00Z'),
+				endTime: new Date('2024-01-01T15:00:00Z'),
+				actualEndTime: null,
+				isActive: false,
+				tokenCounts: {
+					inputTokens: 1000,
+					outputTokens: 500,
+					cacheCreationTokens: 0,
+					cacheReadTokens: 0,
+				},
+				costUSD: 0.01,
+				models: [createModelName('claude-sonnet-4-20250514')],
+				entries: [],
+			};
+
+			const projectName = extractProjectFromBlock(testBlock);
+			expect(projectName).toBe('fallback');
+		});
+
+		it('returns null for malformed paths and simple block ids', async () => {
+			// Test edge cases
+			const testBlockBadPath = {
+				id: 'simpleid', // No dashes, so fallback returns null
+				startTime: new Date('2024-01-01T10:00:00Z'),
+				endTime: new Date('2024-01-01T15:00:00Z'),
+				actualEndTime: null,
+				isActive: false,
+				tokenCounts: {
+					inputTokens: 1000,
+					outputTokens: 500,
+					cacheCreationTokens: 0,
+					cacheReadTokens: 0,
+				},
+				costUSD: 0.01,
+				models: [createModelName('claude-sonnet-4-20250514')],
+				entries: [
+					{
+						filePath: 'malformed/path/without/projects',
+						timestamp: createISOTimestamp('2024-01-01T10:00:00Z'),
+					},
+				],
+			};
+
+			const projectName = extractProjectFromBlock(testBlockBadPath);
+			expect(projectName).toBe(null);
+		});
+
+		it('groups blocks by project when --instances flag is used', async () => {
+			// Test that the groupByProject function works correctly with mock blocks that have proper structure
+			const mockBlocks = [
+				{
+					id: 'alpha-session-1',
+					startTime: new Date('2024-01-01T10:00:00Z'),
+					endTime: new Date('2024-01-01T15:00:00Z'),
+					actualEndTime: null,
+					isActive: false,
+					tokenCounts: {
+						inputTokens: 1000,
+						outputTokens: 500,
+						cacheCreationTokens: 0,
+						cacheReadTokens: 0,
+					},
+					costUSD: 0.01,
+					models: [createModelName('claude-sonnet-4-20250514')],
+					entries: [
+						{
+							filePath: 'projects/project-alpha/session1/usage.jsonl',
+							timestamp: createISOTimestamp('2024-01-01T10:00:00Z'),
+						},
+					],
+				},
+				{
+					id: 'beta-session-2',
+					startTime: new Date('2024-01-01T11:00:00Z'),
+					endTime: new Date('2024-01-01T16:00:00Z'),
+					actualEndTime: null,
+					isActive: false,
+					tokenCounts: {
+						inputTokens: 2000,
+						outputTokens: 1000,
+						cacheCreationTokens: 0,
+						cacheReadTokens: 0,
+					},
+					costUSD: 0.02,
+					models: [createModelName('claude-opus-4-20250514')],
+					entries: [
+						{
+							filePath: 'projects/project-beta/session2/usage.jsonl',
+							timestamp: createISOTimestamp('2024-01-01T11:00:00Z'),
+						},
+					],
+				},
+			];
+
+			// Test that the --instances functionality extracts projects correctly
+			const projectGroups = groupByProject(mockBlocks);
+
+			// Should have 2 project groups
+			expect(Object.keys(projectGroups)).toHaveLength(2);
+			expect(projectGroups['project-alpha']).toBeDefined();
+			expect(projectGroups['project-beta']).toBeDefined();
+
+			// Verify each group contains the right data
+			expect(projectGroups['project-alpha']).toHaveLength(1);
+			expect(projectGroups['project-beta']).toHaveLength(1);
+
+			// Verify project extraction logic
+			const extractedProjects = mockBlocks.map(block => extractProjectFromBlock(block));
+			expect(extractedProjects).toContain('project-alpha');
+			expect(extractedProjects).toContain('project-beta');
+		});
+
+		it('produces correct JSON output structure with --instances', async () => {
+			// Mock session blocks data
+			const mockBlocks = [
+				{
+					id: 'block-1',
+					startTime: new Date('2024-01-01T10:00:00Z'),
+					endTime: new Date('2024-01-01T15:00:00Z'),
+					actualEndTime: null,
+					isActive: false,
+					tokenCounts: {
+						inputTokens: 1000,
+						outputTokens: 500,
+						cacheCreationTokens: 0,
+						cacheReadTokens: 0,
+					},
+					costUSD: 0.01,
+					models: [createModelName('claude-sonnet-4-20250514')],
+					entries: [
+						{
+							filePath: 'projects/project-alpha/session1/usage.jsonl',
+							timestamp: createISOTimestamp('2024-01-01T10:00:00Z'),
+						},
+					],
+				},
+				{
+					id: 'block-2',
+					startTime: new Date('2024-01-01T11:00:00Z'),
+					endTime: new Date('2024-01-01T16:00:00Z'),
+					actualEndTime: null,
+					isActive: false,
+					tokenCounts: {
+						inputTokens: 2000,
+						outputTokens: 1000,
+						cacheCreationTokens: 0,
+						cacheReadTokens: 0,
+					},
+					costUSD: 0.02,
+					models: [createModelName('claude-opus-4-20250514')],
+					entries: [
+						{
+							filePath: 'projects/project-beta/session2/usage.jsonl',
+							timestamp: createISOTimestamp('2024-01-01T11:00:00Z'),
+						},
+					],
+				},
+			];
+
+			// Test the groupByProject function for JSON output
+			const projectGroups = groupByProject(mockBlocks);
+
+			// Should have 2 project groups
+			expect(Object.keys(projectGroups)).toHaveLength(2);
+			expect(projectGroups['project-alpha']).toBeDefined();
+			expect(projectGroups['project-beta']).toBeDefined();
+
+			// Each group should be an array
+			expect(Array.isArray(projectGroups['project-alpha'])).toBe(true);
+			expect(Array.isArray(projectGroups['project-beta'])).toBe(true);
+
+			// Verify project grouping contains correct block data
+			expect(projectGroups['project-alpha']).toHaveLength(1);
+			expect(projectGroups['project-beta']).toHaveLength(1);
+
+			// Verify block structure includes required fields
+			const alphaBlock = projectGroups['project-alpha']![0] as Record<string, any>;
+			expect(alphaBlock).toHaveProperty('id');
+			expect(alphaBlock).toHaveProperty('startTime');
+			expect(alphaBlock).toHaveProperty('endTime');
+			expect(alphaBlock).toHaveProperty('isActive');
+			expect(alphaBlock).toHaveProperty('tokenCounts');
+			expect(alphaBlock).toHaveProperty('totalTokens');
+			expect(alphaBlock).toHaveProperty('costUSD');
+			expect(alphaBlock).toHaveProperty('models');
+
+			// Verify total tokens calculation
+			expect(alphaBlock.totalTokens).toBe(1500); // 1000 + 500
+		});
+	});
+}

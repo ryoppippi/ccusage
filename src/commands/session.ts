@@ -295,3 +295,256 @@ export const sessionCommand = define({
 		}
 	},
 });
+
+if (import.meta.vitest != null) {
+	const { describe, it, expect } = import.meta.vitest;
+
+	// eslint-disable-next-line antfu/no-top-level-await
+	const { createFixture } = await import('fs-fixture');
+	// eslint-disable-next-line antfu/no-top-level-await
+	const { createISOTimestamp, createModelName } = await import('../_types.ts');
+
+	describe('session command --instances integration', () => {
+		it('groups data by project when --instances flag is used', async () => {
+			// Create test fixture with 2 projects and multiple sessions
+			await using fixture = await createFixture({
+				projects: {
+					'project-alpha': {
+						session1: {
+							'usage.jsonl': JSON.stringify({
+								timestamp: createISOTimestamp('2024-01-01T10:00:00Z'),
+								message: {
+									usage: {
+										input_tokens: 1000,
+										output_tokens: 500,
+									},
+									model: 'claude-sonnet-4-20250514',
+								},
+								costUSD: 0.01,
+							}),
+						},
+						session2: {
+							'usage.jsonl': JSON.stringify({
+								timestamp: createISOTimestamp('2024-01-01T11:00:00Z'),
+								message: {
+									usage: {
+										input_tokens: 800,
+										output_tokens: 400,
+									},
+									model: 'claude-sonnet-4-20250514',
+								},
+								costUSD: 0.008,
+							}),
+						},
+					},
+					'project-beta': {
+						session3: {
+							'usage.jsonl': JSON.stringify({
+								timestamp: createISOTimestamp('2024-01-01T14:00:00Z'),
+								message: {
+									usage: {
+										input_tokens: 2000,
+										output_tokens: 1000,
+									},
+									model: 'claude-opus-4-20250514',
+								},
+								costUSD: 0.02,
+							}),
+						},
+					},
+				},
+			});
+
+			// Test data loading with groupByProject: true (like --instances does)
+			const { loadSessionData } = await import('../data-loader.ts');
+			const sessionData = await loadSessionData({
+				claudePath: fixture.path,
+				groupByProject: true,
+			});
+
+			// Should have 3 entries (2 sessions for project-alpha, 1 for project-beta)
+			expect(sessionData).toHaveLength(3);
+
+			// All entries should have projectPath field populated
+			expect(sessionData.every(d => d.projectPath != null)).toBe(true);
+
+			// Should have both projects represented
+			const projects = new Set(sessionData.map(d => d.projectPath));
+			expect(projects.size).toBe(2);
+			expect(projects.has('project-alpha')).toBe(true);
+			expect(projects.has('project-beta')).toBe(true);
+
+			// Verify session grouping
+			const alphaSessions = sessionData.filter(d => d.projectPath === 'project-alpha');
+			const betaSessions = sessionData.filter(d => d.projectPath === 'project-beta');
+			expect(alphaSessions).toHaveLength(2);
+			expect(betaSessions).toHaveLength(1);
+		});
+
+		it('generates project headers when rendering table with --instances', async () => {
+			// Test the groupDataByProject function used for table rendering
+			const mockSessionData = [
+				{
+					sessionId: 'session1',
+					projectPath: 'project-alpha',
+					inputTokens: 1000,
+					outputTokens: 500,
+					cacheCreationTokens: 0,
+					cacheReadTokens: 0,
+					totalCost: 0.01,
+					lastActivity: createISOTimestamp('2024-01-01T10:00:00Z'),
+					modelsUsed: [createModelName('claude-sonnet-4-20250514')],
+					modelBreakdowns: [],
+				},
+				{
+					sessionId: 'session2',
+					projectPath: 'project-beta',
+					inputTokens: 2000,
+					outputTokens: 1000,
+					cacheCreationTokens: 0,
+					cacheReadTokens: 0,
+					totalCost: 0.02,
+					lastActivity: createISOTimestamp('2024-01-01T14:00:00Z'),
+					modelsUsed: [createModelName('claude-opus-4-20250514')],
+					modelBreakdowns: [],
+				},
+			];
+
+			// Test the groupDataByProject function
+			const projectGroups = groupDataByProject(mockSessionData);
+
+			// Should have 2 project groups
+			expect(Object.keys(projectGroups)).toHaveLength(2);
+			expect(projectGroups['project-alpha']).toBeDefined();
+			expect(projectGroups['project-beta']).toBeDefined();
+
+			// Each group should contain correct data
+			expect(projectGroups['project-alpha']).toHaveLength(1);
+			expect(projectGroups['project-beta']).toHaveLength(1);
+			expect(projectGroups['project-alpha']![0]!.inputTokens).toBe(1000);
+			expect(projectGroups['project-beta']![0]!.inputTokens).toBe(2000);
+		});
+
+		it('produces different JSON structures for --instances vs standard mode', async () => {
+			// Create test fixture with multiple projects
+			await using fixture = await createFixture({
+				projects: {
+					'project-alpha': {
+						session1: {
+							'usage.jsonl': JSON.stringify({
+								timestamp: createISOTimestamp('2024-01-01T10:00:00Z'),
+								message: {
+									usage: {
+										input_tokens: 1000,
+										output_tokens: 500,
+									},
+									model: 'claude-sonnet-4-20250514',
+								},
+								costUSD: 0.01,
+							}),
+						},
+					},
+					'project-beta': {
+						session2: {
+							'usage.jsonl': JSON.stringify({
+								timestamp: createISOTimestamp('2024-01-01T14:00:00Z'),
+								message: {
+									usage: {
+										input_tokens: 2000,
+										output_tokens: 1000,
+									},
+									model: 'claude-opus-4-20250514',
+								},
+								costUSD: 0.02,
+							}),
+						},
+					},
+				},
+			});
+
+			const { loadSessionData } = await import('../data-loader.ts');
+			const { calculateTotals, createTotalsObject } = await import('../calculate-cost.ts');
+
+			// Test standard mode (no --instances)
+			const standardData = await loadSessionData({
+				claudePath: fixture.path,
+				groupByProject: false,
+			});
+
+			const standardTotals = calculateTotals(standardData);
+
+			// Simulate standard JSON output structure
+			const standardJsonOutput = {
+				sessions: standardData.map(data => ({
+					sessionId: data.sessionId,
+					inputTokens: data.inputTokens,
+					outputTokens: data.outputTokens,
+					cacheCreationTokens: data.cacheCreationTokens,
+					cacheReadTokens: data.cacheReadTokens,
+					totalTokens: data.inputTokens + data.outputTokens + data.cacheCreationTokens + data.cacheReadTokens,
+					totalCost: data.totalCost,
+					lastActivity: data.lastActivity,
+					modelsUsed: data.modelsUsed,
+					modelBreakdowns: data.modelBreakdowns,
+					...(data.projectPath != null && { projectPath: data.projectPath }),
+				})),
+				totals: createTotalsObject(standardTotals),
+			};
+
+			// Test instances mode (--instances)
+			const instancesData = await loadSessionData({
+				claudePath: fixture.path,
+				groupByProject: true,
+			});
+
+			const instancesTotals = calculateTotals(instancesData);
+
+			// Simulate --instances JSON output structure
+			const instancesJsonOutput = instancesData.some(d => d.projectPath != null)
+				? {
+						projects: groupByProject(instancesData),
+						totals: createTotalsObject(instancesTotals),
+					}
+				: {
+						sessions: instancesData.map(data => ({
+							sessionId: data.sessionId,
+							inputTokens: data.inputTokens,
+							outputTokens: data.outputTokens,
+							cacheCreationTokens: data.cacheCreationTokens,
+							cacheReadTokens: data.cacheReadTokens,
+							totalTokens: data.inputTokens + data.outputTokens + data.cacheCreationTokens + data.cacheReadTokens,
+							totalCost: data.totalCost,
+							lastActivity: data.lastActivity,
+							modelsUsed: data.modelsUsed,
+							modelBreakdowns: data.modelBreakdowns,
+							...(data.projectPath != null && { projectPath: data.projectPath }),
+						})),
+						totals: createTotalsObject(instancesTotals),
+					};
+
+			// Verify different JSON structures
+			expect('sessions' in standardJsonOutput).toBe(true);
+			expect('projects' in standardJsonOutput).toBe(false);
+			expect('totals' in standardJsonOutput).toBe(true);
+
+			expect('sessions' in instancesJsonOutput).toBe(false);
+			expect('projects' in instancesJsonOutput).toBe(true);
+			expect('totals' in instancesJsonOutput).toBe(true);
+
+			// Verify projects structure contains expected project keys
+			if ('projects' in instancesJsonOutput) {
+				const projects = instancesJsonOutput.projects;
+				expect(Object.keys(projects)).toContain('project-alpha');
+				expect(Object.keys(projects)).toContain('project-beta');
+				expect(Array.isArray(projects['project-alpha'])).toBe(true);
+				expect(Array.isArray(projects['project-beta'])).toBe(true);
+			}
+
+			// Verify sessions structure is array format
+			if ('sessions' in standardJsonOutput) {
+				expect(Array.isArray(standardJsonOutput.sessions)).toBe(true);
+				expect(standardJsonOutput.sessions.length).toBeGreaterThan(0);
+			}
+		});
+	});
+}
