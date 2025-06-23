@@ -108,5 +108,8 @@
 	},
 	"trustedDependencies": [
 		"simple-git-hooks"
-	]
+	],
+	"engines": {
+		"node": ">=18.18.0"
+	}
 }
