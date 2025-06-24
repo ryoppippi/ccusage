@@ -8,7 +8,6 @@ import {
 	DEFAULT_SESSION_DURATION_HOURS,
 	filterRecentBlocks,
 	projectBlockUsage,
-
 } from '../_session-blocks.ts';
 import { sharedCommandConfig } from '../_shared-args.ts';
 import { formatCurrency, formatModelsDisplayMultiline, formatNumber, ResponsiveTable } from '../_utils.ts';
