@@ -25,7 +25,7 @@
         "fast-sort": "^3.4.1",
         "fs-fixture": "^2.8.1",
         "gunshi": "^0.26.3",
-        "hono": "^4.8.1",
+        "hono": "^4.8.2",
         "lint-staged": "^16.1.2",
         "path-type": "^6.0.0",
         "picocolors": "^1.1.1",
