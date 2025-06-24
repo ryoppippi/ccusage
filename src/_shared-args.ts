@@ -78,17 +78,6 @@ export const sharedArgs = {
 		description: 'Use cached pricing data for Claude models instead of fetching from API',
 		default: false,
 	},
-	instances: {
-		type: 'boolean',
-		short: 'i',
-		description: 'Show usage breakdown by project/instance',
-		default: false,
-	},
-	project: {
-		type: 'string',
-		short: 'p',
-		description: 'Filter to specific project name',
-	},
 } as const satisfies Args;
 
 /**

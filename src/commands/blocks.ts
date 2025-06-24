@@ -1,10 +1,8 @@
-import type { BlockProjectOutput } from '../_json-output-types.ts';
 import type { SessionBlock } from '../_session-blocks.ts';
 import process from 'node:process';
 import { define } from 'gunshi';
 import pc from 'picocolors';
 import { BLOCKS_COMPACT_WIDTH_THRESHOLD, BLOCKS_DEFAULT_TERMINAL_WIDTH, BLOCKS_WARNING_THRESHOLD, DEFAULT_RECENT_DAYS, DEFAULT_REFRESH_INTERVAL_SECONDS, MAX_REFRESH_INTERVAL_SECONDS, MIN_REFRESH_INTERVAL_SECONDS } from '../_consts.ts';
-import { formatProjectName } from '../_project-names.ts';
 import {
 	calculateBurnRate,
 	DEFAULT_SESSION_DURATION_HOURS,
@@ -17,85 +15,6 @@ import { formatCurrency, formatModelsDisplayMultiline, formatNumber, ResponsiveT
 import { getClaudePaths, loadSessionBlockData } from '../data-loader.ts';
 import { log, logger } from '../logger.ts';
 import { startLiveMonitoring } from './_blocks.live.ts';
-
-/**
- * Group session block data by project for JSON output
- */
-function groupByProject(blocks: SessionBlock[]): Record<string, BlockProjectOutput[]> {
-	const projects: Record<string, BlockProjectOutput[]> = {};
-
-	for (const block of blocks) {
-		// Extract project from block id or entries
-		const projectName = extractProjectFromBlock(block) ?? 'unknown';
-
-		if (projects[projectName] == null) {
-			projects[projectName] = [];
-		}
-
-		const burnRate = block.isActive ? calculateBurnRate(block) : null;
-		const projection = block.isActive ? projectBlockUsage(block) : null;
-
-		projects[projectName].push({
-			id: block.id,
-			startTime: block.startTime.toISOString(),
-			endTime: block.endTime.toISOString(),
-			actualEndTime: block.actualEndTime?.toISOString() ?? null,
-			isActive: block.isActive,
-			isGap: block.isGap ?? false,
-			entries: block.entries.length,
-			tokenCounts: block.tokenCounts,
-			totalTokens: block.tokenCounts.inputTokens + block.tokenCounts.outputTokens,
-			costUSD: block.costUSD,
-			models: block.models,
-			burnRate,
-			projection,
-		});
-	}
-
-	return projects;
-}
-
-/**
- * Group session block data by project for table display
- */
-function groupDataByProject(blocks: SessionBlock[]): Record<string, SessionBlock[]> {
-	const projects: Record<string, SessionBlock[]> = {};
-
-	for (const block of blocks) {
-		const projectName = extractProjectFromBlock(block) ?? 'unknown';
-
-		if (projects[projectName] == null) {
-			projects[projectName] = [];
-		}
-
-		projects[projectName].push(block);
-	}
-
-	return projects;
-}
-
-/**
- * Extract project name from a session block
- */
-function extractProjectFromBlock(block: SessionBlock): string | null {
-	// Try to extract project from the first entry's file path
-	if (block.entries.length > 0) {
-		const entry = block.entries[0];
-		if (entry != null && 'filePath' in entry) {
-			const filePath = (entry as { filePath: string }).filePath;
-			// Extract project name from path like "projects/project-name/session/file.jsonl"
-			const parts = filePath.split(/[/\\]/);
-			const projectIndex = parts.findIndex(part => part === 'projects');
-			if (projectIndex !== -1 && projectIndex + 1 < parts.length) {
-				return parts[projectIndex + 1] ?? null;
-			}
-		}
-	}
-
-	// Fallback: try to extract from block id
-	const idParts = block.id.split('-');
-	return idParts.length > 1 ? (idParts[0] ?? null) : null;
-}
 
 /**
  * Formats the time display for a session block
@@ -244,8 +163,6 @@ export const blocksCommand = define({
 			order: ctx.values.order,
 			offline: ctx.values.offline,
 			sessionDurationHours: ctx.values.sessionLength,
-			groupByProject: ctx.values.instances,
-			project: ctx.values.project,
 		});
 
 		if (blocks.length === 0) {
@@ -333,50 +250,46 @@ export const blocksCommand = define({
 		}
 
 		if (ctx.values.json) {
-			// JSON output - group by project if instances flag is used
-			const jsonOutput = ctx.values.instances
-				? {
-						projects: groupByProject(blocks),
-					}
-				: {
-						blocks: blocks.map((block: SessionBlock) => {
-							const burnRate = block.isActive ? calculateBurnRate(block) : null;
-							const projection = block.isActive ? projectBlockUsage(block) : null;
+			// JSON output
+			const jsonOutput = {
+				blocks: blocks.map((block: SessionBlock) => {
+					const burnRate = block.isActive ? calculateBurnRate(block) : null;
+					const projection = block.isActive ? projectBlockUsage(block) : null;
 
-							return {
-								id: block.id,
-								startTime: block.startTime.toISOString(),
-								endTime: block.endTime.toISOString(),
-								actualEndTime: block.actualEndTime?.toISOString() ?? null,
-								isActive: block.isActive,
-								isGap: block.isGap ?? false,
-								entries: block.entries.length,
-								tokenCounts: block.tokenCounts,
-								totalTokens:
+					return {
+						id: block.id,
+						startTime: block.startTime.toISOString(),
+						endTime: block.endTime.toISOString(),
+						actualEndTime: block.actualEndTime?.toISOString() ?? null,
+						isActive: block.isActive,
+						isGap: block.isGap ?? false,
+						entries: block.entries.length,
+						tokenCounts: block.tokenCounts,
+						totalTokens:
 								block.tokenCounts.inputTokens
 								+ block.tokenCounts.outputTokens,
-								costUSD: block.costUSD,
-								models: block.models,
-								burnRate,
-								projection,
-								tokenLimitStatus: projection != null && ctx.values.tokenLimit != null
-									? (() => {
-											const limit = parseTokenLimit(ctx.values.tokenLimit, maxTokensFromAll);
-											return limit != null
-												? {
-														limit,
-														projectedUsage: projection.totalTokens,
-														percentUsed: (projection.totalTokens / limit) * 100,
-														status: projection.totalTokens > limit
-															? 'exceeds'
-															: projection.totalTokens > limit * BLOCKS_WARNING_THRESHOLD ? 'warning' : 'ok',
-													}
-												: undefined;
-										})()
-									: undefined,
-							};
-						}),
+						costUSD: block.costUSD,
+						models: block.models,
+						burnRate,
+						projection,
+						tokenLimitStatus: projection != null && ctx.values.tokenLimit != null
+							? (() => {
+									const limit = parseTokenLimit(ctx.values.tokenLimit, maxTokensFromAll);
+									return limit != null
+										? {
+												limit,
+												projectedUsage: projection.totalTokens,
+												percentUsed: (projection.totalTokens / limit) * 100,
+												status: projection.totalTokens > limit
+													? 'exceeds'
+													: projection.totalTokens > limit * BLOCKS_WARNING_THRESHOLD ? 'warning' : 'ok',
+											}
+										: undefined;
+								})()
+							: undefined,
 					};
+				}),
+			};
 
 			log(JSON.stringify(jsonOutput, null, 2));
 		}
@@ -472,213 +385,95 @@ export const blocksCommand = define({
 				const terminalWidth = process.stdout.columns || BLOCKS_DEFAULT_TERMINAL_WIDTH;
 				const useCompactFormat = terminalWidth < BLOCKS_COMPACT_WIDTH_THRESHOLD;
 
-				// Add block data - group by project if instances flag is used
-				if (ctx.values.instances) {
-					// Group data by project for visual separation
-					const projectGroups = groupDataByProject(blocks);
+				// Add block data
+				for (const block of blocks) {
+					if (block.isGap ?? false) {
+						// Gap row
+						const gapRow = [
+							pc.gray(formatBlockTime(block, useCompactFormat)),
+							pc.gray('(inactive)'),
+							pc.gray('-'),
+							pc.gray('-'),
+						];
+						if (actualTokenLimit != null && actualTokenLimit > 0) {
+							gapRow.push(pc.gray('-'));
+						}
+						gapRow.push(pc.gray('-'));
+						table.push(gapRow);
+					}
+					else {
+						const totalTokens
+							= block.tokenCounts.inputTokens + block.tokenCounts.outputTokens;
+						const status = block.isActive ? pc.green('ACTIVE') : '';
 
-					let isFirstProject = true;
-					for (const [projectName, projectBlocks] of Object.entries(projectGroups)) {
-						// Add project section header
-						if (!isFirstProject) {
-							// Add empty row for visual separation between projects
-							const emptyCols = Array.from({ length: tableHeaders.length }, () => '');
-							table.push(emptyCols);
+						const row = [
+							formatBlockTime(block, useCompactFormat),
+							status,
+							formatModels(block.models),
+							formatNumber(totalTokens),
+						];
+
+						// Add percentage if token limit is set
+						if (actualTokenLimit != null && actualTokenLimit > 0) {
+							const percentage = (totalTokens / actualTokenLimit) * 100;
+							const percentText = `${percentage.toFixed(1)}%`;
+							row.push(percentage > 100 ? pc.red(percentText) : percentText);
 						}
 
-						// Add project header row
-						const headerCols = Array.from({ length: tableHeaders.length }, () => '');
-						headerCols[0] = pc.cyan(`Project: ${formatProjectName(projectName)}`);
-						table.push(headerCols);
+						row.push(formatCurrency(block.costUSD));
+						table.push(row);
 
-						// Add blocks for this project
-						for (const block of projectBlocks) {
-							if (block.isGap ?? false) {
-								// Gap row
-								const gapRow = [
-									pc.gray(formatBlockTime(block, useCompactFormat)),
-									pc.gray('(inactive)'),
-									pc.gray('-'),
-									pc.gray('-'),
+						// Add REMAINING and PROJECTED rows for active blocks
+						if (block.isActive) {
+							// REMAINING row - only show if token limit is set
+							if (actualTokenLimit != null && actualTokenLimit > 0) {
+								const currentTokens = block.tokenCounts.inputTokens + block.tokenCounts.outputTokens;
+								const remainingTokens = Math.max(0, actualTokenLimit - currentTokens);
+								const remainingText = remainingTokens > 0
+									? formatNumber(remainingTokens)
+									: pc.red('0');
+
+								// Calculate remaining percentage (how much of limit is left)
+								const remainingPercent = ((actualTokenLimit - currentTokens) / actualTokenLimit) * 100;
+								const remainingPercentText = remainingPercent > 0
+									? `${remainingPercent.toFixed(1)}%`
+									: pc.red('0.0%');
+
+								const remainingRow = [
+									{ content: pc.gray(`(assuming ${formatNumber(actualTokenLimit)} token limit)`), hAlign: 'right' as const },
+									pc.blue('REMAINING'),
+									'',
+									remainingText,
+									remainingPercentText,
+									'', // No cost for remaining - it's about token limit, not cost
 								];
-								if (actualTokenLimit != null && actualTokenLimit > 0) {
-									gapRow.push(pc.gray('-'));
-								}
-								gapRow.push(pc.gray('-'));
-								table.push(gapRow);
+								table.push(remainingRow);
 							}
-							else {
-								const totalTokens
-									= block.tokenCounts.inputTokens + block.tokenCounts.outputTokens;
-								const status = block.isActive ? pc.green('ACTIVE') : '';
 
-								const row = [
-									formatBlockTime(block, useCompactFormat),
-									status,
-									formatModels(block.models),
-									formatNumber(totalTokens),
+							// PROJECTED row
+							const projection = projectBlockUsage(block);
+							if (projection != null) {
+								const projectedTokens = formatNumber(projection.totalTokens);
+								const projectedText = actualTokenLimit != null && actualTokenLimit > 0 && projection.totalTokens > actualTokenLimit
+									? pc.red(projectedTokens)
+									: projectedTokens;
+
+								const projectedRow = [
+									{ content: pc.gray('(assuming current burn rate)'), hAlign: 'right' as const },
+									pc.yellow('PROJECTED'),
+									'',
+									projectedText,
 								];
 
 								// Add percentage if token limit is set
 								if (actualTokenLimit != null && actualTokenLimit > 0) {
-									const percentage = (totalTokens / actualTokenLimit) * 100;
+									const percentage = (projection.totalTokens / actualTokenLimit) * 100;
 									const percentText = `${percentage.toFixed(1)}%`;
-									row.push(percentage > 100 ? pc.red(percentText) : percentText);
+									projectedRow.push(percentText);
 								}
 
-								row.push(formatCurrency(block.costUSD));
-								table.push(row);
-
-								// Add REMAINING and PROJECTED rows for active blocks
-								if (block.isActive) {
-									// REMAINING row - only show if token limit is set
-									if (actualTokenLimit != null && actualTokenLimit > 0) {
-										const currentTokens = block.tokenCounts.inputTokens + block.tokenCounts.outputTokens;
-										const remainingTokens = Math.max(0, actualTokenLimit - currentTokens);
-										const remainingText = remainingTokens > 0
-											? formatNumber(remainingTokens)
-											: pc.red('0');
-
-										// Calculate remaining percentage (how much of limit is left)
-										const remainingPercent = ((actualTokenLimit - currentTokens) / actualTokenLimit) * 100;
-										const remainingPercentText = remainingPercent > 0
-											? `${remainingPercent.toFixed(1)}%`
-											: pc.red('0.0%');
-
-										const remainingRow = [
-											{ content: pc.gray(`(assuming ${formatNumber(actualTokenLimit)} token limit)`), hAlign: 'right' as const },
-											pc.blue('REMAINING'),
-											'',
-											remainingText,
-											remainingPercentText,
-											'', // No cost for remaining - it's about token limit, not cost
-										];
-										table.push(remainingRow);
-									}
-
-									// PROJECTED row
-									const projection = projectBlockUsage(block);
-									if (projection != null) {
-										const projectedTokens = formatNumber(projection.totalTokens);
-										const projectedText = actualTokenLimit != null && actualTokenLimit > 0 && projection.totalTokens > actualTokenLimit
-											? pc.red(projectedTokens)
-											: projectedTokens;
-
-										const projectedRow = [
-											{ content: pc.gray('(assuming current burn rate)'), hAlign: 'right' as const },
-											pc.yellow('PROJECTED'),
-											'',
-											projectedText,
-										];
-
-										// Add percentage if token limit is set
-										if (actualTokenLimit != null && actualTokenLimit > 0) {
-											const percentage = (projection.totalTokens / actualTokenLimit) * 100;
-											const percentText = `${percentage.toFixed(1)}%`;
-											projectedRow.push(percentText);
-										}
-
-										projectedRow.push(formatCurrency(projection.totalCost));
-										table.push(projectedRow);
-									}
-								}
-							}
-						}
-
-						isFirstProject = false;
-					}
-				}
-				else {
-					// Standard display without project grouping
-					for (const block of blocks) {
-						if (block.isGap ?? false) {
-							// Gap row
-							const gapRow = [
-								pc.gray(formatBlockTime(block, useCompactFormat)),
-								pc.gray('(inactive)'),
-								pc.gray('-'),
-								pc.gray('-'),
-							];
-							if (actualTokenLimit != null && actualTokenLimit > 0) {
-								gapRow.push(pc.gray('-'));
-							}
-							gapRow.push(pc.gray('-'));
-							table.push(gapRow);
-						}
-						else {
-							const totalTokens
-								= block.tokenCounts.inputTokens + block.tokenCounts.outputTokens;
-							const status = block.isActive ? pc.green('ACTIVE') : '';
-
-							const row = [
-								formatBlockTime(block, useCompactFormat),
-								status,
-								formatModels(block.models),
-								formatNumber(totalTokens),
-							];
-
-							// Add percentage if token limit is set
-							if (actualTokenLimit != null && actualTokenLimit > 0) {
-								const percentage = (totalTokens / actualTokenLimit) * 100;
-								const percentText = `${percentage.toFixed(1)}%`;
-								row.push(percentage > 100 ? pc.red(percentText) : percentText);
-							}
-
-							row.push(formatCurrency(block.costUSD));
-							table.push(row);
-
-							// Add REMAINING and PROJECTED rows for active blocks
-							if (block.isActive) {
-								// REMAINING row - only show if token limit is set
-								if (actualTokenLimit != null && actualTokenLimit > 0) {
-									const currentTokens = block.tokenCounts.inputTokens + block.tokenCounts.outputTokens;
-									const remainingTokens = Math.max(0, actualTokenLimit - currentTokens);
-									const remainingText = remainingTokens > 0
-										? formatNumber(remainingTokens)
-										: pc.red('0');
-
-									// Calculate remaining percentage (how much of limit is left)
-									const remainingPercent = ((actualTokenLimit - currentTokens) / actualTokenLimit) * 100;
-									const remainingPercentText = remainingPercent > 0
-										? `${remainingPercent.toFixed(1)}%`
-										: pc.red('0.0%');
-
-									const remainingRow = [
-										{ content: pc.gray(`(assuming ${formatNumber(actualTokenLimit)} token limit)`), hAlign: 'right' as const },
-										pc.blue('REMAINING'),
-										'',
-										remainingText,
-										remainingPercentText,
-										'', // No cost for remaining - it's about token limit, not cost
-									];
-									table.push(remainingRow);
-								}
-
-								// PROJECTED row
-								const projection = projectBlockUsage(block);
-								if (projection != null) {
-									const projectedTokens = formatNumber(projection.totalTokens);
-									const projectedText = actualTokenLimit != null && actualTokenLimit > 0 && projection.totalTokens > actualTokenLimit
-										? pc.red(projectedTokens)
-										: projectedTokens;
-
-									const projectedRow = [
-										{ content: pc.gray('(assuming current burn rate)'), hAlign: 'right' as const },
-										pc.yellow('PROJECTED'),
-										'',
-										projectedText,
-									];
-
-									// Add percentage if token limit is set
-									if (actualTokenLimit != null && actualTokenLimit > 0) {
-										const percentage = (projection.totalTokens / actualTokenLimit) * 100;
-										const percentText = `${percentage.toFixed(1)}%`;
-										projectedRow.push(percentText);
-									}
-
-									projectedRow.push(formatCurrency(projection.totalCost));
-									table.push(projectedRow);
-								}
+								projectedRow.push(formatCurrency(projection.totalCost));
+								table.push(projectedRow);
 							}
 						}
 					}
@@ -689,411 +484,3 @@ export const blocksCommand = define({
 		}
 	},
 });
-
-if (import.meta.vitest != null) {
-	const { describe, it, expect } = import.meta.vitest;
-
-	// eslint-disable-next-line antfu/no-top-level-await
-	const { createISOTimestamp, createModelName } = await import('../_types.ts');
-
-	describe('blocks command --instances integration', () => {
-		it('extracts project from file paths correctly', async () => {
-			// Test the extractProjectFromBlock function directly
-			const testBlock = {
-				id: 'test-block-1',
-				startTime: new Date('2024-01-01T10:00:00Z'),
-				endTime: new Date('2024-01-01T15:00:00Z'),
-				actualEndTime: undefined,
-				isActive: false,
-				tokenCounts: {
-					inputTokens: 1000,
-					outputTokens: 500,
-					cacheCreationTokens: 0,
-					cacheReadTokens: 0,
-				},
-				costUSD: 0.01,
-				models: [createModelName('claude-sonnet-4-20250514')],
-				entries: [
-					{
-						filePath: 'projects/test-project/session1/usage.jsonl',
-						timestamp: createISOTimestamp('2024-01-01T10:00:00Z'),
-					},
-				],
-			};
-
-			const projectName = extractProjectFromBlock(testBlock);
-			expect(projectName).toBe('test-project');
-		});
-
-		it('handles Windows path separators correctly', async () => {
-			// Test Windows-style paths (this validates the cross-platform fix)
-			const testBlock = {
-				id: 'test-block-1',
-				startTime: new Date('2024-01-01T10:00:00Z'),
-				endTime: new Date('2024-01-01T15:00:00Z'),
-				actualEndTime: undefined,
-				isActive: false,
-				tokenCounts: {
-					inputTokens: 1000,
-					outputTokens: 500,
-					cacheCreationTokens: 0,
-					cacheReadTokens: 0,
-				},
-				costUSD: 0.01,
-				models: [createModelName('claude-sonnet-4-20250514')],
-				entries: [
-					{
-						filePath: 'projects\\windows-project\\session1\\usage.jsonl',
-						timestamp: createISOTimestamp('2024-01-01T10:00:00Z'),
-					},
-				],
-			};
-
-			const projectName = extractProjectFromBlock(testBlock);
-			expect(projectName).toBe('windows-project');
-		});
-
-		it('falls back to block id when no entries exist', async () => {
-			// Test fallback behavior
-			const testBlock = {
-				id: 'fallback-project-1234',
-				startTime: new Date('2024-01-01T10:00:00Z'),
-				endTime: new Date('2024-01-01T15:00:00Z'),
-				actualEndTime: undefined,
-				isActive: false,
-				tokenCounts: {
-					inputTokens: 1000,
-					outputTokens: 500,
-					cacheCreationTokens: 0,
-					cacheReadTokens: 0,
-				},
-				costUSD: 0.01,
-				models: [createModelName('claude-sonnet-4-20250514')],
-				entries: [],
-			};
-
-			const projectName = extractProjectFromBlock(testBlock);
-			expect(projectName).toBe('fallback');
-		});
-
-		it('returns null for malformed paths and simple block ids', async () => {
-			// Test edge cases
-			const testBlockBadPath = {
-				id: 'simpleid', // No dashes, so fallback returns null
-				startTime: new Date('2024-01-01T10:00:00Z'),
-				endTime: new Date('2024-01-01T15:00:00Z'),
-				actualEndTime: undefined,
-				isActive: false,
-				tokenCounts: {
-					inputTokens: 1000,
-					outputTokens: 500,
-					cacheCreationTokens: 0,
-					cacheReadTokens: 0,
-				},
-				costUSD: 0.01,
-				models: [createModelName('claude-sonnet-4-20250514')],
-				entries: [
-					{
-						filePath: 'malformed/path/without/projects',
-						timestamp: createISOTimestamp('2024-01-01T10:00:00Z'),
-					},
-				],
-			};
-
-			const projectName = extractProjectFromBlock(testBlockBadPath);
-			expect(projectName).toBe(null);
-		});
-
-		it('groups blocks by project when --instances flag is used', async () => {
-			// Test that the groupByProject function works correctly with mock blocks that have proper structure
-			const mockBlocks = [
-				{
-					id: 'alpha-session-1',
-					startTime: new Date('2024-01-01T10:00:00Z'),
-					endTime: new Date('2024-01-01T15:00:00Z'),
-					actualEndTime: undefined,
-					isActive: false,
-					tokenCounts: {
-						inputTokens: 1000,
-						outputTokens: 500,
-						cacheCreationTokens: 0,
-						cacheReadTokens: 0,
-					},
-					costUSD: 0.01,
-					models: [createModelName('claude-sonnet-4-20250514')],
-					entries: [
-						{
-							filePath: 'projects/project-alpha/session1/usage.jsonl',
-							timestamp: createISOTimestamp('2024-01-01T10:00:00Z'),
-						},
-					],
-				},
-				{
-					id: 'beta-session-2',
-					startTime: new Date('2024-01-01T11:00:00Z'),
-					endTime: new Date('2024-01-01T16:00:00Z'),
-					actualEndTime: undefined,
-					isActive: false,
-					tokenCounts: {
-						inputTokens: 2000,
-						outputTokens: 1000,
-						cacheCreationTokens: 0,
-						cacheReadTokens: 0,
-					},
-					costUSD: 0.02,
-					models: [createModelName('claude-opus-4-20250514')],
-					entries: [
-						{
-							filePath: 'projects/project-beta/session2/usage.jsonl',
-							timestamp: createISOTimestamp('2024-01-01T11:00:00Z'),
-						},
-					],
-				},
-			];
-
-			// Test that the --instances functionality extracts projects correctly
-			const projectGroups = groupByProject(mockBlocks);
-
-			// Should have 2 project groups
-			expect(Object.keys(projectGroups)).toHaveLength(2);
-			expect(projectGroups['project-alpha']).toBeDefined();
-			expect(projectGroups['project-beta']).toBeDefined();
-
-			// Verify each group contains the right data
-			expect(projectGroups['project-alpha']).toHaveLength(1);
-			expect(projectGroups['project-beta']).toHaveLength(1);
-
-			// Verify project extraction logic
-			const extractedProjects = mockBlocks.map(block => extractProjectFromBlock(block));
-			expect(extractedProjects).toContain('project-alpha');
-			expect(extractedProjects).toContain('project-beta');
-		});
-
-		it('produces correct JSON output structure with --instances', async () => {
-			// Mock session blocks data
-			const mockBlocks = [
-				{
-					id: 'block-1',
-					startTime: new Date('2024-01-01T10:00:00Z'),
-					endTime: new Date('2024-01-01T15:00:00Z'),
-					actualEndTime: undefined,
-					isActive: false,
-					tokenCounts: {
-						inputTokens: 1000,
-						outputTokens: 500,
-						cacheCreationTokens: 0,
-						cacheReadTokens: 0,
-					},
-					costUSD: 0.01,
-					models: [createModelName('claude-sonnet-4-20250514')],
-					entries: [
-						{
-							filePath: 'projects/project-alpha/session1/usage.jsonl',
-							timestamp: createISOTimestamp('2024-01-01T10:00:00Z'),
-						},
-					],
-				},
-				{
-					id: 'block-2',
-					startTime: new Date('2024-01-01T11:00:00Z'),
-					endTime: new Date('2024-01-01T16:00:00Z'),
-					actualEndTime: undefined,
-					isActive: false,
-					tokenCounts: {
-						inputTokens: 2000,
-						outputTokens: 1000,
-						cacheCreationTokens: 0,
-						cacheReadTokens: 0,
-					},
-					costUSD: 0.02,
-					models: [createModelName('claude-opus-4-20250514')],
-					entries: [
-						{
-							filePath: 'projects/project-beta/session2/usage.jsonl',
-							timestamp: createISOTimestamp('2024-01-01T11:00:00Z'),
-						},
-					],
-				},
-			];
-
-			// Test the groupByProject function for JSON output
-			const projectGroups = groupByProject(mockBlocks);
-
-			// Should have 2 project groups
-			expect(Object.keys(projectGroups)).toHaveLength(2);
-			expect(projectGroups['project-alpha']).toBeDefined();
-			expect(projectGroups['project-beta']).toBeDefined();
-
-			// Each group should be an array
-			expect(Array.isArray(projectGroups['project-alpha'])).toBe(true);
-			expect(Array.isArray(projectGroups['project-beta'])).toBe(true);
-
-			// Verify project grouping contains correct block data
-			expect(projectGroups['project-alpha']).toHaveLength(1);
-			expect(projectGroups['project-beta']).toHaveLength(1);
-
-			// Verify block structure includes required fields
-			const alphaBlock = projectGroups['project-alpha']![0] as Record<string, any>;
-			expect(alphaBlock).toHaveProperty('id');
-			expect(alphaBlock).toHaveProperty('startTime');
-			expect(alphaBlock).toHaveProperty('endTime');
-			expect(alphaBlock).toHaveProperty('isActive');
-			expect(alphaBlock).toHaveProperty('tokenCounts');
-			expect(alphaBlock).toHaveProperty('totalTokens');
-			expect(alphaBlock).toHaveProperty('costUSD');
-			expect(alphaBlock).toHaveProperty('models');
-
-			// Verify total tokens calculation
-			expect(alphaBlock.totalTokens).toBe(1500); // 1000 + 500
-		});
-
-		it('validates JSON output conforms to BlockProjectOutput interface', async () => {
-			// Create test session blocks with simplified structure for type validation
-			// Note: Using type assertion to bypass complex LoadedUsageEntry structure
-			const mockBlocks = [
-				{
-					id: 'test-project-1',
-					startTime: new Date('2024-01-01T10:00:00Z'),
-					endTime: new Date('2024-01-01T15:00:00Z'),
-					actualEndTime: new Date('2024-01-01T14:30:00Z'),
-					isActive: false,
-					isGap: false,
-					tokenCounts: {
-						inputTokens: 1000,
-						outputTokens: 500,
-						cacheCreationInputTokens: 100,
-						cacheReadInputTokens: 200,
-					},
-					costUSD: 0.01,
-					models: ['claude-sonnet-4-20250514'],
-					entries: [],
-				},
-				{
-					id: 'test-project-2',
-					startTime: new Date('2024-01-01T16:00:00Z'),
-					endTime: new Date('2024-01-01T21:00:00Z'),
-					actualEndTime: undefined,
-					isActive: true,
-					isGap: false,
-					tokenCounts: {
-						inputTokens: 1500,
-						outputTokens: 750,
-						cacheCreationInputTokens: 150,
-						cacheReadInputTokens: 300,
-					},
-					costUSD: 0.015,
-					models: ['claude-opus-4-20250514'],
-					entries: [],
-				},
-			] as SessionBlock[];
-
-			// Generate JSON output using groupByProject
-			const projectGroups = groupByProject(mockBlocks);
-
-			// Verify structure matches BlockProjectOutput interface
-			// Note: extractProjectFromBlock will extract 'test' from 'test-project-1' and 'test-project-2'
-			expect(projectGroups).toHaveProperty('test');
-			const projectData = projectGroups.test!;
-			expect(Array.isArray(projectData)).toBe(true);
-			expect(projectData).toHaveLength(2);
-
-			// Validate each entry matches BlockProjectOutput interface
-			for (const entry of projectData) {
-				// Required properties from BlockProjectOutput
-				expect(entry).toHaveProperty('id');
-				expect(entry).toHaveProperty('startTime');
-				expect(entry).toHaveProperty('endTime');
-				expect(entry).toHaveProperty('actualEndTime');
-				expect(entry).toHaveProperty('isActive');
-				expect(entry).toHaveProperty('isGap');
-				expect(entry).toHaveProperty('entries');
-				expect(entry).toHaveProperty('tokenCounts');
-				expect(entry).toHaveProperty('totalTokens');
-				expect(entry).toHaveProperty('costUSD');
-				expect(entry).toHaveProperty('models');
-				expect(entry).toHaveProperty('burnRate');
-				expect(entry).toHaveProperty('projection');
-
-				// Type validations
-				expect(typeof entry.id).toBe('string');
-				expect(typeof entry.startTime).toBe('string'); // ISO string
-				expect(typeof entry.endTime).toBe('string'); // ISO string
-				expect(entry.actualEndTime === null || typeof entry.actualEndTime === 'string').toBe(true);
-				expect(typeof entry.isActive).toBe('boolean');
-				expect(typeof entry.isGap).toBe('boolean');
-				expect(typeof entry.entries).toBe('number');
-				expect(typeof entry.tokenCounts).toBe('object');
-				expect(typeof entry.totalTokens).toBe('number');
-				expect(typeof entry.costUSD).toBe('number');
-				expect(Array.isArray(entry.models)).toBe(true);
-
-				// Verify ISO string format for dates
-				expect(entry.startTime).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
-				expect(entry.endTime).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
-				if (entry.actualEndTime !== null) {
-					expect(entry.actualEndTime).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
-				}
-
-				// Verify tokenCounts structure (note: different naming from other commands)
-				expect(entry.tokenCounts).toHaveProperty('inputTokens');
-				expect(entry.tokenCounts).toHaveProperty('outputTokens');
-				expect(entry.tokenCounts).toHaveProperty('cacheCreationInputTokens');
-				expect(entry.tokenCounts).toHaveProperty('cacheReadInputTokens');
-				expect(typeof entry.tokenCounts.inputTokens).toBe('number');
-				expect(typeof entry.tokenCounts.outputTokens).toBe('number');
-				expect(typeof entry.tokenCounts.cacheCreationInputTokens).toBe('number');
-				expect(typeof entry.tokenCounts.cacheReadInputTokens).toBe('number');
-
-				// Verify totalTokens calculation is correct (note: different from other commands)
-				const expectedTotal = entry.tokenCounts.inputTokens + entry.tokenCounts.outputTokens;
-				expect(entry.totalTokens).toBe(expectedTotal);
-
-				// Verify models are string array (not branded ModelName[])
-				for (const model of entry.models) {
-					expect(typeof model).toBe('string');
-					expect(model).toMatch(/^claude-/); // Should start with 'claude-'
-				}
-
-				// Verify burnRate and projection types
-				if (entry.burnRate !== null) {
-					expect(typeof entry.burnRate).toBe('object');
-					expect(entry.burnRate).toHaveProperty('tokensPerMinute');
-					expect(entry.burnRate).toHaveProperty('costPerHour');
-					expect(typeof entry.burnRate.tokensPerMinute).toBe('number');
-					expect(typeof entry.burnRate.costPerHour).toBe('number');
-				}
-
-				if (entry.projection !== null) {
-					expect(typeof entry.projection).toBe('object');
-					expect(entry.projection).toHaveProperty('totalTokens');
-					expect(entry.projection).toHaveProperty('totalCost');
-					expect(entry.projection).toHaveProperty('remainingMinutes');
-					expect(typeof entry.projection.totalTokens).toBe('number');
-					expect(typeof entry.projection.totalCost).toBe('number');
-					expect(typeof entry.projection.remainingMinutes).toBe('number');
-				}
-			}
-
-			// Verify specific values from mock data
-			expect(projectData[0]!.tokenCounts.inputTokens).toBe(1000);
-			expect(projectData[0]!.tokenCounts.outputTokens).toBe(500);
-			expect(projectData[0]!.totalTokens).toBe(1500); // 1000 + 500 (note: cache tokens not included in blocks totalTokens)
-			expect(projectData[0]!.isActive).toBe(false);
-			expect(projectData[0]!.burnRate).toBe(null); // Not active, so no burn rate
-			expect(projectData[0]!.projection).toBe(null); // Not active, so no projection
-
-			expect(projectData[1]!.tokenCounts.inputTokens).toBe(1500);
-			expect(projectData[1]!.tokenCounts.outputTokens).toBe(750);
-			expect(projectData[1]!.totalTokens).toBe(2250); // 1500 + 750
-			expect(projectData[1]!.isActive).toBe(true);
-			// Active blocks may have burnRate and projection (depends on block data)
-			// The important thing is that the types are correctly structured
-			if (projectData[1]!.burnRate !== null) {
-				expect(typeof projectData[1]!.burnRate).toBe('object');
-			}
-			if (projectData[1]!.projection !== null) {
-				expect(typeof projectData[1]!.projection).toBe('object');
-			}
-		});
-	});
-}

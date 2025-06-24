@@ -68,6 +68,20 @@ export const dailyCommand = define({
 	name: 'daily',
 	description: 'Show usage report grouped by date',
 	...sharedCommandConfig,
+	args: {
+		...sharedCommandConfig.args,
+		instances: {
+			type: 'boolean',
+			short: 'i',
+			description: 'Show usage breakdown by project/instance',
+			default: false,
+		},
+		project: {
+			type: 'string',
+			short: 'p',
+			description: 'Filter to specific project name',
+		},
+	},
 	async run(ctx) {
 		if (ctx.values.json) {
 			logger.level = 0;
