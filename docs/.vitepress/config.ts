@@ -18,7 +18,7 @@ export default withMermaid(defineConfig({
 		['meta', { property: 'og:locale', content: 'en' }],
 		['meta', { property: 'og:title', content: 'ccusage | Claude Code Usage Analysis' }],
 		['meta', { property: 'og:site_name', content: 'ccusage' }],
-		['meta', { property: 'og:image', content: 'https://cdn.jsdelivr.net/gh/ryoppippi/ccusage@main/docs/public/logo.svg' }],
+		['meta', { property: 'og:image', content: 'https://cdn.jsdelivr.net/gh/ryoppippi/ccusage@main/docs/public/logo.png' }],
 		['meta', { property: 'og:url', content: 'https://github.com/ryoppippi/ccusage' }],
 	],
 
@@ -80,6 +80,7 @@ export default withMermaid(defineConfig({
 					text: 'Community',
 					items: [
 						{ text: 'Related Projects', link: '/guide/related-projects' },
+						{ text: 'Sponsors', link: '/guide/sponsors' },
 					],
 				},
 			],

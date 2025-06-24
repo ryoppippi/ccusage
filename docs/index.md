@@ -55,3 +55,11 @@ features:
     title: MCP Integration
     details: Built-in Model Context Protocol server for tool integration
 ---
+
+<div style="text-align: center; margin: 2rem 0;">
+  <h2 style="margin-bottom: 1rem;">Support ccusage</h2>
+  <p style="margin-bottom: 1.5rem;">If you find ccusage helpful, please consider sponsoring the development!</p>
+  <a href="https://github.com/sponsors/ryoppippi" target="_blank">
+    <img src="https://cdn.jsdelivr.net/gh/ryoppippi/sponsors@main/sponsors.svg" alt="Sponsors" style="max-width: 100%; height: auto;">
+  </a>
+</div>

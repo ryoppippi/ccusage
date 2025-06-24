@@ -20,8 +20,18 @@
 
 ## Installation
 
+### Quick Start (Recommended)
+
+Run directly without installation:
+
 ```bash
-npm i -g ccusage
+npx ccusage@latest
+```
+
+### Local Installation
+
+```bash
+npm install -g ccusage
 ```
 
 ## Usage

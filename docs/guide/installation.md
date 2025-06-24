@@ -125,6 +125,16 @@ deno run \
   npm:ccusage@latest
 ```
 
+Also you can use `offline` mode to run ccusage without network access:
+
+```bash
+deno run \
+  -E \
+  -R=$HOME/.claude/projects/ \
+  -S=homedir \
+  npm:ccusage@latest --offline
+```
+
 ## Verification
 
 After installation, verify ccusage is working:
