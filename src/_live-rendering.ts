@@ -31,6 +31,20 @@ export type LiveMonitoringConfig = {
 };
 
 /**
+ * Helper function to calculate total tokens including cache tokens
+ * @param tokenCounts - Token counts from SessionBlock
+ * @returns Total number of tokens
+ */
+function getTotalTokens(tokenCounts: SessionBlock['tokenCounts']): number {
+	return (
+		tokenCounts.inputTokens
+		+ tokenCounts.outputTokens
+		+ tokenCounts.cacheCreationInputTokens
+		+ tokenCounts.cacheReadInputTokens
+	);
+}
+
+/**
  * Delay with AbortSignal support and graceful error handling
  */
 export async function delayWithAbort(ms: number, signal: AbortSignal): Promise<void> {
@@ -93,7 +107,7 @@ export function renderLiveDisplay(terminal: TerminalManager, block: SessionBlock
 	const now = new Date();
 
 	// Calculate key metrics
-	const totalTokens = block.tokenCounts.inputTokens + block.tokenCounts.outputTokens;
+	const totalTokens = getTotalTokens(block.tokenCounts);
 	const elapsed = (now.getTime() - block.startTime.getTime()) / (1000 * 60);
 	const remaining = (block.endTime.getTime() - now.getTime()) / (1000 * 60);
 
@@ -144,7 +158,7 @@ export function renderLiveDisplay(terminal: TerminalManager, block: SessionBlock
 	const sessionLabel = pc.bold('⏱️ SESSION');
 	const sessionLabelWidth = stringWidth(sessionLabel);
 	const sessionBarStr = `${sessionLabel}${''.padEnd(Math.max(0, labelWidth - sessionLabelWidth))} ${sessionProgressBar} ${sessionPercent.toFixed(1).padStart(6)}%`;
-	const sessionBarPadded = sessionBarStr + ' '.repeat(Math.max(0, boxWidth - 3 - stringWidth(sessionBarStr)));
+	const sessionBarPadded = sessionBarStr + ' '.repeat(Math.max(0, boxWidth - 2 - stringWidth(sessionBarStr)));
 	terminal.write(`${marginStr}│ ${sessionBarPadded}│\n`);
 
 	// Session details (indented)
@@ -330,7 +344,7 @@ export function renderLiveDisplay(terminal: TerminalManager, block: SessionBlock
 	if (block.models.length > 0) {
 		terminal.write(`${marginStr}├${'─'.repeat(boxWidth - 2)}┤\n`);
 		const modelsLine = `⚙️  Models: ${formatModelsDisplay(block.models)}`;
-		const modelsLinePadded = modelsLine + ' '.repeat(Math.max(0, boxWidth - 3 - stringWidth(modelsLine)));
+		const modelsLinePadded = modelsLine + ' '.repeat(Math.max(0, boxWidth - 2 - stringWidth(modelsLine)));
 		terminal.write(`${marginStr}│ ${modelsLinePadded}│\n`);
 	}
 
