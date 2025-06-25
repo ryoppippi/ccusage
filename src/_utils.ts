@@ -295,12 +295,76 @@ export function formatNumber(num: number): string {
 }
 
 /**
+ * Currency formatting configuration
+ */
+type CurrencyFormat = {
+	symbol: string;
+	decimals: number;
+	symbolPosition: 'before' | 'after';
+};
+
+/**
+ * Map of currency codes to their formatting configuration
+ */
+const CURRENCY_FORMATS: Record<string, CurrencyFormat> = {
+	USD: { symbol: '$', decimals: 2, symbolPosition: 'before' },
+	EUR: { symbol: '€', decimals: 2, symbolPosition: 'after' },
+	GBP: { symbol: '£', decimals: 2, symbolPosition: 'before' },
+	JPY: { symbol: '¥', decimals: 0, symbolPosition: 'before' },
+	KRW: { symbol: '₩', decimals: 0, symbolPosition: 'before' },
+	CNY: { symbol: '¥', decimals: 2, symbolPosition: 'before' },
+	CAD: { symbol: 'C$', decimals: 2, symbolPosition: 'before' },
+	AUD: { symbol: 'A$', decimals: 2, symbolPosition: 'before' },
+	CHF: { symbol: 'CHF', decimals: 2, symbolPosition: 'before' },
+	SEK: { symbol: 'kr', decimals: 2, symbolPosition: 'after' },
+	NOK: { symbol: 'kr', decimals: 2, symbolPosition: 'after' },
+	DKK: { symbol: 'kr', decimals: 2, symbolPosition: 'after' },
+	RUB: { symbol: '₽', decimals: 2, symbolPosition: 'after' },
+	INR: { symbol: '₹', decimals: 2, symbolPosition: 'before' },
+	BRL: { symbol: 'R$', decimals: 2, symbolPosition: 'before' },
+	MXN: { symbol: '$', decimals: 2, symbolPosition: 'before' },
+	ZAR: { symbol: 'R', decimals: 2, symbolPosition: 'before' },
+	SGD: { symbol: 'S$', decimals: 2, symbolPosition: 'before' },
+	HKD: { symbol: 'HK$', decimals: 2, symbolPosition: 'before' },
+	TWD: { symbol: 'NT$', decimals: 0, symbolPosition: 'before' },
+	THB: { symbol: '฿', decimals: 2, symbolPosition: 'before' },
+	PLN: { symbol: 'zł', decimals: 2, symbolPosition: 'after' },
+	CZK: { symbol: 'Kč', decimals: 2, symbolPosition: 'after' },
+	HUF: { symbol: 'Ft', decimals: 0, symbolPosition: 'after' },
+};
+
+/**
  * Formats a number as USD currency with dollar sign and 2 decimal places
  * @param amount - The amount to format
  * @returns Formatted currency string (e.g., "$12.34")
  */
-export function formatCurrency(amount: number): string {
-	return `$${amount.toFixed(2)}`;
+export function formatCurrency(amount: number): string;
+/**
+ * Formats a number as currency with the specified currency code
+ * @param amount - The amount to format
+ * @param currencyCode - The currency code (e.g., "USD", "EUR", "JPY")
+ * @returns Formatted currency string (e.g., "$12.34", "12,34€", "¥1234")
+ */
+export function formatCurrency(amount: number, currencyCode: string): string;
+export function formatCurrency(amount: number, currencyCode = 'USD'): string {
+	const upperCode = currencyCode.toUpperCase();
+	const format = CURRENCY_FORMATS[upperCode];
+
+	if (format == null) {
+		// Fallback to USD format for unknown currencies
+		return `${upperCode} ${amount.toFixed(2)}`;
+	}
+
+	const formattedAmount = format.decimals === 0
+		? Math.round(amount).toLocaleString('en-US')
+		: amount.toFixed(format.decimals);
+
+	if (format.symbolPosition === 'before') {
+		return `${format.symbol}${formattedAmount}`;
+	}
+	else {
+		return `${formattedAmount}${format.symbol}`;
+	}
 }
 
 /**
@@ -352,6 +416,7 @@ export function formatModelsDisplayMultiline(models: string[]): string {
  * @param breakdowns - Array of model breakdowns
  * @param extraColumns - Number of extra empty columns before the data (default: 1 for models column)
  * @param trailingColumns - Number of extra empty columns after the data (default: 0)
+ * @param currencyCode - Currency code for cost formatting (default: 'USD')
  */
 export function pushBreakdownRows(
 	table: { push: (row: (string | number)[]) => void },
@@ -365,6 +430,7 @@ export function pushBreakdownRows(
 	}>,
 	extraColumns = 1,
 	trailingColumns = 0,
+	currencyCode = 'USD',
 ): void {
 	for (const breakdown of breakdowns) {
 		const row: (string | number)[] = [`  └─ ${formatModelName(breakdown.modelName)}`];
@@ -384,7 +450,7 @@ export function pushBreakdownRows(
 			pc.gray(formatNumber(breakdown.cacheCreationTokens)),
 			pc.gray(formatNumber(breakdown.cacheReadTokens)),
 			pc.gray(formatNumber(totalTokens)),
-			pc.gray(formatCurrency(breakdown.cost)),
+			pc.gray(formatCurrency(breakdown.cost, currencyCode)),
 		);
 
 		// Add trailing empty columns
@@ -746,36 +812,88 @@ if (import.meta.vitest != null) {
 	});
 
 	describe('formatCurrency', () => {
-		it('formats positive amounts', () => {
-			expect(formatCurrency(10)).toBe('$10.00');
-			expect(formatCurrency(100.5)).toBe('$100.50');
-			expect(formatCurrency(1234.56)).toBe('$1234.56');
+		describe('USD (default)', () => {
+			it('formats positive amounts', () => {
+				expect(formatCurrency(10)).toBe('$10.00');
+				expect(formatCurrency(100.5)).toBe('$100.50');
+				expect(formatCurrency(1234.56)).toBe('$1234.56');
+			});
+
+			it('formats zero', () => {
+				expect(formatCurrency(0)).toBe('$0.00');
+			});
+
+			it('formats negative amounts', () => {
+				expect(formatCurrency(-10)).toBe('$-10.00');
+				expect(formatCurrency(-100.5)).toBe('$-100.50');
+			});
+
+			it('rounds to two decimal places', () => {
+				expect(formatCurrency(10.999)).toBe('$11.00');
+				expect(formatCurrency(10.994)).toBe('$10.99');
+				expect(formatCurrency(10.995)).toBe('$10.99'); // JavaScript's toFixed uses banker's rounding
+			});
+
+			it('handles small decimal values', () => {
+				expect(formatCurrency(0.01)).toBe('$0.01');
+				expect(formatCurrency(0.001)).toBe('$0.00');
+				expect(formatCurrency(0.009)).toBe('$0.01');
+			});
+
+			it('handles large numbers', () => {
+				expect(formatCurrency(1000000)).toBe('$1000000.00');
+				expect(formatCurrency(9999999.99)).toBe('$9999999.99');
+			});
 		});
 
-		it('formats zero', () => {
-			expect(formatCurrency(0)).toBe('$0.00');
-		});
+		describe('other currencies', () => {
+			it('formats EUR with symbol after amount', () => {
+				expect(formatCurrency(10.50, 'EUR')).toBe('10.50€');
+				expect(formatCurrency(1234.56, 'eur')).toBe('1234.56€');
+			});
 
-		it('formats negative amounts', () => {
-			expect(formatCurrency(-10)).toBe('$-10.00');
-			expect(formatCurrency(-100.5)).toBe('$-100.50');
-		});
+			it('formats JPY without decimals', () => {
+				expect(formatCurrency(1000, 'JPY')).toBe('¥1,000');
+				expect(formatCurrency(1234.56, 'JPY')).toBe('¥1,235'); // rounded
+			});
 
-		it('rounds to two decimal places', () => {
-			expect(formatCurrency(10.999)).toBe('$11.00');
-			expect(formatCurrency(10.994)).toBe('$10.99');
-			expect(formatCurrency(10.995)).toBe('$10.99'); // JavaScript's toFixed uses banker's rounding
-		});
+			it('formats GBP with symbol before amount', () => {
+				expect(formatCurrency(10.50, 'GBP')).toBe('£10.50');
+				expect(formatCurrency(1234.56, 'gbp')).toBe('£1234.56');
+			});
 
-		it('handles small decimal values', () => {
-			expect(formatCurrency(0.01)).toBe('$0.01');
-			expect(formatCurrency(0.001)).toBe('$0.00');
-			expect(formatCurrency(0.009)).toBe('$0.01');
-		});
+			it('formats KRW without decimals', () => {
+				expect(formatCurrency(1000, 'KRW')).toBe('₩1,000');
+				expect(formatCurrency(1234.56, 'KRW')).toBe('₩1,235'); // rounded
+			});
 
-		it('handles large numbers', () => {
-			expect(formatCurrency(1000000)).toBe('$1000000.00');
-			expect(formatCurrency(9999999.99)).toBe('$9999999.99');
+			it('formats CAD with C$ symbol', () => {
+				expect(formatCurrency(10.50, 'CAD')).toBe('C$10.50');
+			});
+
+			it('formats currencies with symbol after (SEK, NOK, DKK)', () => {
+				expect(formatCurrency(10.50, 'SEK')).toBe('10.50kr');
+				expect(formatCurrency(10.50, 'NOK')).toBe('10.50kr');
+				expect(formatCurrency(10.50, 'DKK')).toBe('10.50kr');
+			});
+
+			it('formats currencies with symbol after (RUB, PLN, CZK, HUF)', () => {
+				expect(formatCurrency(10.50, 'RUB')).toBe('10.50₽');
+				expect(formatCurrency(10.50, 'PLN')).toBe('10.50zł');
+				expect(formatCurrency(10.50, 'CZK')).toBe('10.50Kč');
+				expect(formatCurrency(1000, 'HUF')).toBe('1,000Ft'); // no decimals
+			});
+
+			it('handles unknown currencies with fallback format', () => {
+				expect(formatCurrency(10.50, 'UNKNOWN')).toBe('UNKNOWN 10.50');
+				expect(formatCurrency(1234.56, 'XYZ')).toBe('XYZ 1234.56');
+			});
+
+			it('handles case insensitive currency codes', () => {
+				expect(formatCurrency(10.50, 'usd')).toBe('$10.50');
+				expect(formatCurrency(10.50, 'Eur')).toBe('10.50€');
+				expect(formatCurrency(1000, 'jpy')).toBe('¥1,000');
+			});
 		});
 	});
 

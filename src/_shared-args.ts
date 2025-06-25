@@ -78,6 +78,12 @@ export const sharedArgs = {
 		description: 'Use cached pricing data for Claude models instead of fetching from API',
 		default: false,
 	},
+	currency: {
+		type: 'string',
+		short: 'c',
+		description: 'Currency to display costs in (default: USD). Examples: JPY, EUR, GBP',
+		default: 'USD',
+	},
 } as const satisfies Args;
 
 /**

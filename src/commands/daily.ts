@@ -8,6 +8,7 @@ import {
 	createTotalsObject,
 	getTotalTokens,
 } from '../calculate-cost.ts';
+import { CurrencyConverter } from '../currency-converter.ts';
 import { formatDateCompact, loadDailyUsageData } from '../data-loader.ts';
 import { detectMismatches, printMismatchReport } from '../debug.ts';
 import { log, logger } from '../logger.ts';
@@ -48,10 +49,49 @@ export const dailyCommand = define({
 			printMismatchReport(mismatchStats, ctx.values.debugSamples);
 		}
 
+		// Set up currency conversion
+		using currencyConverter = new CurrencyConverter();
+		const targetCurrency = ctx.values.currency.toUpperCase();
+
+		// Validate currency if not USD
+		if (targetCurrency !== 'USD') {
+			const isSupported = await currencyConverter.isCurrencySupported(targetCurrency);
+			if (!isSupported) {
+				logger.error(`Currency '${targetCurrency}' is not supported. Use 'USD' or check available currencies.`);
+				process.exit(1);
+			}
+		}
+
+		// Convert costs for daily data
+		const convertedDailyData = await Promise.all(dailyData.map(async (data) => {
+			const convertedCost = await currencyConverter.convertAmount(data.totalCost, targetCurrency);
+			const convertedBreakdowns = await Promise.all(data.modelBreakdowns.map(async (breakdown) => {
+				const convertedBreakdownCost = await currencyConverter.convertAmount(breakdown.cost, targetCurrency);
+				return {
+					...breakdown,
+					cost: convertedBreakdownCost ?? 0,
+				};
+			}));
+
+			return {
+				...data,
+				totalCost: convertedCost ?? 0,
+				modelBreakdowns: convertedBreakdowns,
+			};
+		}));
+
+		// Convert totals
+		const convertedTotalCost = await currencyConverter.convertAmount(totals.totalCost, targetCurrency);
+		const convertedTotals = {
+			...totals,
+			totalCost: convertedTotalCost ?? 0,
+		};
+
 		if (ctx.values.json) {
 			// Output JSON format
 			const jsonOutput = {
-				daily: dailyData.map(data => ({
+				currency: targetCurrency,
+				daily: convertedDailyData.map(data => ({
 					date: data.date,
 					inputTokens: data.inputTokens,
 					outputTokens: data.outputTokens,
@@ -62,13 +102,16 @@ export const dailyCommand = define({
 					modelsUsed: data.modelsUsed,
 					modelBreakdowns: data.modelBreakdowns,
 				})),
-				totals: createTotalsObject(totals),
+				totals: createTotalsObject(convertedTotals),
 			};
 			log(JSON.stringify(jsonOutput, null, 2));
 		}
 		else {
 			// Print header
 			logger.box('Claude Code Token Usage Report - Daily');
+
+			// Get currency column header
+			const currencyColumnHeader = currencyConverter.getCurrencyColumnHeader(targetCurrency);
 
 			// Create table with compact mode support
 			const table = new ResponsiveTable({
@@ -80,7 +123,7 @@ export const dailyCommand = define({
 					'Cache Create',
 					'Cache Read',
 					'Total Tokens',
-					'Cost (USD)',
+					currencyColumnHeader,
 				],
 				style: {
 					head: ['cyan'],
@@ -101,7 +144,7 @@ export const dailyCommand = define({
 					'Models',
 					'Input',
 					'Output',
-					'Cost (USD)',
+					currencyColumnHeader,
 				],
 				compactColAligns: [
 					'left',
@@ -114,7 +157,7 @@ export const dailyCommand = define({
 			});
 
 			// Add daily data
-			for (const data of dailyData) {
+			for (const data of convertedDailyData) {
 				// Main row
 				table.push([
 					data.date,
@@ -124,12 +167,12 @@ export const dailyCommand = define({
 					formatNumber(data.cacheCreationTokens),
 					formatNumber(data.cacheReadTokens),
 					formatNumber(getTotalTokens(data)),
-					formatCurrency(data.totalCost),
+					formatCurrency(data.totalCost, targetCurrency),
 				]);
 
 				// Add model breakdown rows if flag is set
 				if (ctx.values.breakdown) {
-					pushBreakdownRows(table, data.modelBreakdowns);
+					pushBreakdownRows(table, data.modelBreakdowns, 1, 0, targetCurrency);
 				}
 			}
 
@@ -149,12 +192,12 @@ export const dailyCommand = define({
 			table.push([
 				pc.yellow('Total'),
 				'', // Empty for Models column in totals
-				pc.yellow(formatNumber(totals.inputTokens)),
-				pc.yellow(formatNumber(totals.outputTokens)),
-				pc.yellow(formatNumber(totals.cacheCreationTokens)),
-				pc.yellow(formatNumber(totals.cacheReadTokens)),
-				pc.yellow(formatNumber(getTotalTokens(totals))),
-				pc.yellow(formatCurrency(totals.totalCost)),
+				pc.yellow(formatNumber(convertedTotals.inputTokens)),
+				pc.yellow(formatNumber(convertedTotals.outputTokens)),
+				pc.yellow(formatNumber(convertedTotals.cacheCreationTokens)),
+				pc.yellow(formatNumber(convertedTotals.cacheReadTokens)),
+				pc.yellow(formatNumber(getTotalTokens(convertedTotals))),
+				pc.yellow(formatCurrency(convertedTotals.totalCost, targetCurrency)),
 			]);
 
 			log(table.toString());
