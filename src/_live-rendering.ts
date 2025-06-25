@@ -16,6 +16,7 @@ import prettyMs from 'pretty-ms';
 import stringWidth from 'string-width';
 import { calculateBurnRate, projectBlockUsage } from './_session-blocks.ts';
 import { centerText, createProgressBar } from './_terminal-utils.ts';
+import { getTotalTokens } from './_token-utils.ts';
 import { formatCurrency, formatModelsDisplay, formatNumber } from './_utils.ts';
 
 /**
@@ -29,20 +30,6 @@ export type LiveMonitoringConfig = {
 	mode: CostMode;
 	order: SortOrder;
 };
-
-/**
- * Helper function to calculate total tokens including cache tokens
- * @param tokenCounts - Token counts from SessionBlock
- * @returns Total number of tokens
- */
-function getTotalTokens(tokenCounts: SessionBlock['tokenCounts']): number {
-	return (
-		tokenCounts.inputTokens
-		+ tokenCounts.outputTokens
-		+ tokenCounts.cacheCreationInputTokens
-		+ tokenCounts.cacheReadInputTokens
-	);
-}
 
 /**
  * Delay with AbortSignal support and graceful error handling
@@ -172,7 +159,7 @@ export function renderLiveDisplay(terminal: TerminalManager, block: SessionBlock
 	const pad1 = ' '.repeat(Math.max(0, DETAIL_COLUMN_WIDTHS.col1 - col1Visible));
 	const pad2 = ' '.repeat(Math.max(0, DETAIL_COLUMN_WIDTHS.col2 - col2Visible));
 	const sessionDetails = `   ${col1}${pad1}${pad2}${col3}`;
-	const sessionDetailsPadded = sessionDetails + ' '.repeat(Math.max(0, boxWidth - 3 - stringWidth(sessionDetails)));
+	const sessionDetailsPadded = sessionDetails + ' '.repeat(Math.max(0, boxWidth - 2 - stringWidth(sessionDetails)));
 	terminal.write(`${marginStr}│ ${sessionDetailsPadded}│\n`);
 	terminal.write(`${marginStr}│${' '.repeat(boxWidth - 2)}│\n`);
 	terminal.write(`${marginStr}├${'─'.repeat(boxWidth - 2)}┤\n`);
@@ -195,17 +182,17 @@ export function renderLiveDisplay(terminal: TerminalManager, block: SessionBlock
 	// Create colored progress bar
 	const usageBar = config.tokenLimit != null && config.tokenLimit > 0
 		? createProgressBar(
-				totalTokens,
-				config.tokenLimit,
-				barWidth,
-				{
-					showPercentage: false,
-					fillChar: barColor('█'),
-					emptyChar: pc.gray('░'),
-					leftBracket: '[',
-					rightBracket: ']',
-				},
-			)
+			totalTokens,
+			config.tokenLimit,
+			barWidth,
+			{
+				showPercentage: false,
+				fillChar: barColor('█'),
+				emptyChar: pc.gray('░'),
+				leftBracket: '[',
+				rightBracket: ']',
+			},
+		)
 		: `[${pc.green('█'.repeat(Math.floor(barWidth * 0.1)))}${pc.gray('░'.repeat(barWidth - Math.floor(barWidth * 0.1)))}]`;
 
 	// Burn rate with better formatting
@@ -226,20 +213,20 @@ export function renderLiveDisplay(terminal: TerminalManager, block: SessionBlock
 	// This creates immutable values based on the condition, improving code clarity
 	const { usageBarStr, usageCol1, usageCol2, usageCol3 } = config.tokenLimit != null && config.tokenLimit > 0
 		? {
-				usageBarStr: `${usageLabel}${''.padEnd(Math.max(0, labelWidth - usageLabelWidth))} ${usageBar} ${tokenPercent.toFixed(1).padStart(6)}% (${formatTokensShort(totalTokens)}/${formatTokensShort(config.tokenLimit)})`,
-				usageCol1: `${pc.gray('Tokens:')} ${formatNumber(totalTokens)} (${rateDisplay})`,
-				usageCol2: `${pc.gray('Limit:')} ${formatNumber(config.tokenLimit)} tokens`,
-				usageCol3: `${pc.gray('Cost:')} ${formatCurrency(block.costUSD)}`,
-			}
+			usageBarStr: `${usageLabel}${''.padEnd(Math.max(0, labelWidth - usageLabelWidth))} ${usageBar} ${tokenPercent.toFixed(1).padStart(6)}% (${formatTokensShort(totalTokens)}/${formatTokensShort(config.tokenLimit)})`,
+			usageCol1: `${pc.gray('Tokens:')} ${formatNumber(totalTokens)} (${rateDisplay})`,
+			usageCol2: `${pc.gray('Limit:')} ${formatNumber(config.tokenLimit)} tokens`,
+			usageCol3: `${pc.gray('Cost:')} ${formatCurrency(block.costUSD)}`,
+		}
 		: {
-				usageBarStr: `${usageLabel}${''.padEnd(Math.max(0, labelWidth - usageLabelWidth))} ${usageBar} (${formatTokensShort(totalTokens)} tokens)`,
-				usageCol1: `${pc.gray('Tokens:')} ${formatNumber(totalTokens)} (${rateDisplay})`,
-				usageCol2: '',
-				usageCol3: `${pc.gray('Cost:')} ${formatCurrency(block.costUSD)}`,
-			};
+			usageBarStr: `${usageLabel}${''.padEnd(Math.max(0, labelWidth - usageLabelWidth))} ${usageBar} (${formatTokensShort(totalTokens)} tokens)`,
+			usageCol1: `${pc.gray('Tokens:')} ${formatNumber(totalTokens)} (${rateDisplay})`,
+			usageCol2: '',
+			usageCol3: `${pc.gray('Cost:')} ${formatCurrency(block.costUSD)}`,
+		};
 
 	// Render usage bar
-	const usageBarPadded = usageBarStr + ' '.repeat(Math.max(0, boxWidth - 3 - stringWidth(usageBarStr)));
+	const usageBarPadded = usageBarStr + ' '.repeat(Math.max(0, boxWidth - 2 - stringWidth(usageBarStr)));
 	terminal.write(`${marginStr}│ ${usageBarPadded}│\n`);
 
 	// Render usage details (indented and aligned)
@@ -248,7 +235,7 @@ export function renderLiveDisplay(terminal: TerminalManager, block: SessionBlock
 	const usagePad1 = ' '.repeat(Math.max(0, DETAIL_COLUMN_WIDTHS.col1 - usageCol1Visible));
 	const usagePad2 = usageCol2.length > 0 ? ' '.repeat(Math.max(0, DETAIL_COLUMN_WIDTHS.col2 - usageCol2Visible)) : ' '.repeat(DETAIL_COLUMN_WIDTHS.col2);
 	const usageDetails = `   ${usageCol1}${usagePad1}${usageCol2}${usagePad2}${usageCol3}`;
-	const usageDetailsPadded = usageDetails + ' '.repeat(Math.max(0, boxWidth - 3 - stringWidth(usageDetails)));
+	const usageDetailsPadded = usageDetails + ' '.repeat(Math.max(0, boxWidth - 2 - stringWidth(usageDetails)));
 	terminal.write(`${marginStr}│ ${usageDetailsPadded}│\n`);
 
 	terminal.write(`${marginStr}│${' '.repeat(boxWidth - 2)}│\n`);
@@ -274,25 +261,25 @@ export function renderLiveDisplay(terminal: TerminalManager, block: SessionBlock
 		// Create projection bar
 		const projectionBar = config.tokenLimit != null && config.tokenLimit > 0
 			? createProgressBar(
-					projection.totalTokens,
-					config.tokenLimit,
-					barWidth,
-					{
-						showPercentage: false,
-						fillChar: projBarColor('█'),
-						emptyChar: pc.gray('░'),
-						leftBracket: '[',
-						rightBracket: ']',
-					},
-				)
+				projection.totalTokens,
+				config.tokenLimit,
+				barWidth,
+				{
+					showPercentage: false,
+					fillChar: projBarColor('█'),
+					emptyChar: pc.gray('░'),
+					leftBracket: '[',
+					rightBracket: ']',
+				},
+			)
 			: `[${pc.green('█'.repeat(Math.floor(barWidth * 0.15)))}${pc.gray('░'.repeat(barWidth - Math.floor(barWidth * 0.15)))}]`;
 
 		const limitStatus = config.tokenLimit != null && config.tokenLimit > 0
 			? (projectedPercent > 100
-					? pc.red('❌ WILL EXCEED LIMIT')
-					: projectedPercent > 80
-						? pc.yellow('⚠️  APPROACHING LIMIT')
-						: pc.green('✓ WITHIN LIMIT'))
+				? pc.red('❌ WILL EXCEED LIMIT')
+				: projectedPercent > 80
+					? pc.yellow('⚠️  APPROACHING LIMIT')
+					: pc.green('✓ WITHIN LIMIT'))
 			: pc.green('✓ ON TRACK');
 
 		// Projection section
@@ -300,7 +287,7 @@ export function renderLiveDisplay(terminal: TerminalManager, block: SessionBlock
 		const projLabelWidth = stringWidth(projLabel);
 		if (config.tokenLimit != null && config.tokenLimit > 0) {
 			const projBarStr = `${projLabel}${''.padEnd(Math.max(0, labelWidth - projLabelWidth))} ${projectionBar} ${projectedPercent.toFixed(1).padStart(6)}% (${formatTokensShort(projection.totalTokens)}/${formatTokensShort(config.tokenLimit)})`;
-			const projBarPadded = projBarStr + ' '.repeat(Math.max(0, boxWidth - 3 - stringWidth(projBarStr)));
+			const projBarPadded = projBarStr + ' '.repeat(Math.max(0, boxWidth - 2 - stringWidth(projBarStr)));
 			terminal.write(`${marginStr}│ ${projBarPadded}│\n`);
 
 			// Projection details (indented and aligned)
@@ -314,12 +301,12 @@ export function renderLiveDisplay(terminal: TerminalManager, block: SessionBlock
 			const pad1 = ' '.repeat(Math.max(0, DETAIL_COLUMN_WIDTHS.col1 - col1Visible));
 			const pad2 = ' '.repeat(Math.max(0, DETAIL_COLUMN_WIDTHS.col2 - col2Visible));
 			const projDetails = `   ${col1}${pad1}${col2}${pad2}${col3}`;
-			const projDetailsPadded = projDetails + ' '.repeat(Math.max(0, boxWidth - 3 - stringWidth(projDetails)));
+			const projDetailsPadded = projDetails + ' '.repeat(Math.max(0, boxWidth - 2 - stringWidth(projDetails)));
 			terminal.write(`${marginStr}│ ${projDetailsPadded}│\n`);
 		}
 		else {
 			const projBarStr = `${projLabel}${''.padEnd(Math.max(0, labelWidth - projLabelWidth))} ${projectionBar} (${formatTokensShort(projection.totalTokens)} tokens)`;
-			const projBarPadded = projBarStr + ' '.repeat(Math.max(0, boxWidth - 3 - stringWidth(projBarStr)));
+			const projBarPadded = projBarStr + ' '.repeat(Math.max(0, boxWidth - 2 - stringWidth(projBarStr)));
 			terminal.write(`${marginStr}│ ${projBarPadded}│\n`);
 
 			// Projection details (indented)
@@ -333,7 +320,7 @@ export function renderLiveDisplay(terminal: TerminalManager, block: SessionBlock
 			const pad1 = ' '.repeat(Math.max(0, DETAIL_COLUMN_WIDTHS.col1 - col1Visible));
 			const pad2 = ' '.repeat(Math.max(0, DETAIL_COLUMN_WIDTHS.col2 - col2Visible));
 			const projDetails = `   ${col1}${pad1}${col2}${pad2}${col3}`;
-			const projDetailsPadded = projDetails + ' '.repeat(Math.max(0, boxWidth - 3 - stringWidth(projDetails)));
+			const projDetailsPadded = projDetails + ' '.repeat(Math.max(0, boxWidth - 2 - stringWidth(projDetails)));
 			terminal.write(`${marginStr}│ ${projDetailsPadded}│\n`);
 		}
 
