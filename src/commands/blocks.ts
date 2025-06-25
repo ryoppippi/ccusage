@@ -11,6 +11,7 @@ import {
 
 } from '../_session-blocks.ts';
 import { sharedCommandConfig } from '../_shared-args.ts';
+import { getTotalTokens } from '../_token-utils.ts';
 import { formatCurrency, formatModelsDisplayMultiline, formatNumber, ResponsiveTable } from '../_utils.ts';
 import { getClaudePaths, loadSessionBlockData } from '../data-loader.ts';
 import { log, logger } from '../logger.ts';
@@ -25,19 +26,19 @@ import { startLiveMonitoring } from './_blocks.live.ts';
 function formatBlockTime(block: SessionBlock, compact = false): string {
 	const start = compact
 		? block.startTime.toLocaleString(undefined, {
-				month: '2-digit',
-				day: '2-digit',
-				hour: '2-digit',
-				minute: '2-digit',
-			})
+			month: '2-digit',
+			day: '2-digit',
+			hour: '2-digit',
+			minute: '2-digit',
+		})
 		: block.startTime.toLocaleString();
 
 	if (block.isGap ?? false) {
 		const end = compact
 			? block.endTime.toLocaleString(undefined, {
-					hour: '2-digit',
-					minute: '2-digit',
-				})
+				hour: '2-digit',
+				minute: '2-digit',
+			})
 			: block.endTime.toLocaleString();
 		const duration = Math.round((block.endTime.getTime() - block.startTime.getTime()) / (1000 * 60 * 60));
 		return compact ? `${start}-${end}\n(${duration}h gap)` : `${start} - ${end} (${duration}h gap)`;
@@ -180,7 +181,7 @@ export const blocksCommand = define({
 		if (ctx.values.tokenLimit === 'max') {
 			for (const block of blocks) {
 				if (!(block.isGap ?? false) && !block.isActive) {
-					const blockTokens = block.tokenCounts.inputTokens + block.tokenCounts.outputTokens;
+					const blockTokens = getTotalTokens(block.tokenCounts);
 					if (blockTokens > maxTokensFromAll) {
 						maxTokensFromAll = blockTokens;
 					}
@@ -274,18 +275,18 @@ export const blocksCommand = define({
 						projection,
 						tokenLimitStatus: projection != null && ctx.values.tokenLimit != null
 							? (() => {
-									const limit = parseTokenLimit(ctx.values.tokenLimit, maxTokensFromAll);
-									return limit != null
-										? {
-												limit,
-												projectedUsage: projection.totalTokens,
-												percentUsed: (projection.totalTokens / limit) * 100,
-												status: projection.totalTokens > limit
-													? 'exceeds'
-													: projection.totalTokens > limit * BLOCKS_WARNING_THRESHOLD ? 'warning' : 'ok',
-											}
-										: undefined;
-								})()
+								const limit = parseTokenLimit(ctx.values.tokenLimit, maxTokensFromAll);
+								return limit != null
+									? {
+										limit,
+										projectedUsage: projection.totalTokens,
+										percentUsed: (projection.totalTokens / limit) * 100,
+										status: projection.totalTokens > limit
+											? 'exceeds'
+											: projection.totalTokens > limit * BLOCKS_WARNING_THRESHOLD ? 'warning' : 'ok',
+									}
+									: undefined;
+							})()
 							: undefined,
 					};
 				}),
@@ -338,7 +339,7 @@ export const blocksCommand = define({
 						// Parse token limit
 						const limit = parseTokenLimit(ctx.values.tokenLimit, maxTokensFromAll);
 						if (limit != null && limit > 0) {
-							const currentTokens = block.tokenCounts.inputTokens + block.tokenCounts.outputTokens;
+							const currentTokens = getTotalTokens(block.tokenCounts);
 							const remainingTokens = Math.max(0, limit - currentTokens);
 							const percentUsed = (projection.totalTokens / limit) * 100;
 							const status = percentUsed > 100
@@ -402,7 +403,7 @@ export const blocksCommand = define({
 					}
 					else {
 						const totalTokens
-							= block.tokenCounts.inputTokens + block.tokenCounts.outputTokens;
+							= getTotalTokens(block.tokenCounts);
 						const status = block.isActive ? pc.green('ACTIVE') : '';
 
 						const row = [
@@ -426,7 +427,7 @@ export const blocksCommand = define({
 						if (block.isActive) {
 							// REMAINING row - only show if token limit is set
 							if (actualTokenLimit != null && actualTokenLimit > 0) {
-								const currentTokens = block.tokenCounts.inputTokens + block.tokenCounts.outputTokens;
+								const currentTokens = getTotalTokens(block.tokenCounts);
 								const remainingTokens = Math.max(0, actualTokenLimit - currentTokens);
 								const remainingText = remainingTokens > 0
 									? formatNumber(remainingTokens)
