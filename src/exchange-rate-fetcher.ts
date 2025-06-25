@@ -85,7 +85,7 @@ export class ExchangeRateFetcher implements Disposable {
 	 * @returns Current date string
 	 */
 	private getCurrentDateString(): string {
-		return new Date().toISOString().split('T')[0]!;
+		return new Date().toISOString().slice(0, 10);
 	}
 
 	/**

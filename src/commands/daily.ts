@@ -9,6 +9,7 @@ import {
 	getTotalTokens,
 } from '../calculate-cost.ts';
 import { CurrencyConverter } from '../currency-converter.ts';
+import { validateCurrency } from '../currency-validator.ts';
 import { formatDateCompact, loadDailyUsageData } from '../data-loader.ts';
 import { detectMismatches, printMismatchReport } from '../debug.ts';
 import { log, logger } from '../logger.ts';
@@ -51,15 +52,14 @@ export const dailyCommand = define({
 
 		// Set up currency conversion
 		using currencyConverter = new CurrencyConverter();
-		const targetCurrency = ctx.values.currency.toUpperCase();
 
-		// Validate currency if not USD
-		if (targetCurrency !== 'USD') {
-			const isSupported = await currencyConverter.isCurrencySupported(targetCurrency);
-			if (!isSupported) {
-				logger.error(`Currency '${targetCurrency}' is not supported. Use 'USD' or check available currencies.`);
-				process.exit(1);
-			}
+		// Validate and normalize currency
+		let targetCurrency: string;
+		try {
+			targetCurrency = await validateCurrency(ctx.values.currency, currencyConverter);
+		}
+		catch {
+			process.exit(1);
 		}
 
 		// Convert costs for daily data
@@ -69,13 +69,13 @@ export const dailyCommand = define({
 				const convertedBreakdownCost = await currencyConverter.convertAmount(breakdown.cost, targetCurrency);
 				return {
 					...breakdown,
-					cost: convertedBreakdownCost ?? 0,
+					cost: convertedBreakdownCost ?? breakdown.cost, // Fallback to original USD
 				};
 			}));
 
 			return {
 				...data,
-				totalCost: convertedCost ?? 0,
+				totalCost: convertedCost ?? data.totalCost, // Fallback to original USD
 				modelBreakdowns: convertedBreakdowns,
 			};
 		}));
@@ -84,7 +84,7 @@ export const dailyCommand = define({
 		const convertedTotalCost = await currencyConverter.convertAmount(totals.totalCost, targetCurrency);
 		const convertedTotals = {
 			...totals,
-			totalCost: convertedTotalCost ?? 0,
+			totalCost: convertedTotalCost ?? totals.totalCost, // Fallback to original USD
 		};
 
 		if (ctx.values.json) {

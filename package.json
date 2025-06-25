@@ -17,8 +17,10 @@
 	"exports": {
 		".": "./dist/index.js",
 		"./calculate-cost": "./dist/calculate-cost.js",
+		"./currency-converter": "./dist/currency-converter.js",
 		"./data-loader": "./dist/data-loader.js",
 		"./debug": "./dist/debug.js",
+		"./exchange-rate-fetcher": "./dist/exchange-rate-fetcher.js",
 		"./logger": "./dist/logger.js",
 		"./mcp": "./dist/mcp.js",
 		"./pricing-fetcher": "./dist/pricing-fetcher.js",
