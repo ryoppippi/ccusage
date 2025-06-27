@@ -1,4 +1,3 @@
-import NodeExternals from 'rollup-plugin-node-externals';
 import { defineConfig } from 'tsdown';
 import Macros from 'unplugin-macros/rolldown';
 
@@ -21,8 +20,8 @@ export default defineConfig({
 	publint: true,
 	unused: true,
 	exports: true,
+	nodeProtocol: true,
 	plugins: [
-		NodeExternals(),
 		Macros({
 			include: ['src/index.ts', 'src/pricing-fetcher.ts'],
 		}),
