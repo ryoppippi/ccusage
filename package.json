@@ -35,6 +35,9 @@
 		".",
 		"docs"
 	],
+	"engines": {
+		"node": ">=20.0.0"
+	},
 	"scripts": {
 		"build": "tsdown",
 		"docs:build": "cd docs && bun run build",
@@ -108,8 +111,5 @@
 	},
 	"trustedDependencies": [
 		"simple-git-hooks"
-	],
-	"engines": {
-        "node": ">=20.0.0"
-    }
+	]
 }
