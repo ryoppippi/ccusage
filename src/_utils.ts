@@ -308,6 +308,9 @@ export function formatCurrency(amount: number): string {
  * @param date - The date to format
  * @param useAmPm - Whether to use 12-hour AM/PM format (default: false for 24-hour format)
  * @param options - Additional formatting options
+ * @param options.includeDate - Whether to include the date in the output (default: true)
+ * @param options.includeSeconds - Whether to include seconds in the output (default: false)
+ * @param options.compact - Whether to use compact date format (default: false)
  * @returns Formatted date/time string
  */
 export function formatDateTime(date: Date, useAmPm = false, options: {
@@ -316,27 +319,28 @@ export function formatDateTime(date: Date, useAmPm = false, options: {
 	compact?: boolean;
 } = {}): string {
 	const { includeDate = true, includeSeconds = false, compact = false } = options;
-	
+
 	const baseOptions: Intl.DateTimeFormatOptions = {
 		hour: '2-digit',
 		minute: '2-digit',
 		hour12: useAmPm,
 	};
-	
+
 	if (includeSeconds) {
 		baseOptions.second = '2-digit';
 	}
-	
+
 	if (includeDate) {
 		if (compact) {
 			baseOptions.month = '2-digit';
 			baseOptions.day = '2-digit';
-		} else {
+		}
+		else {
 			// Use default full date format
 			return date.toLocaleString(undefined, { ...baseOptions });
 		}
 	}
-	
+
 	return date.toLocaleString(undefined, baseOptions);
 }
 
@@ -353,11 +357,11 @@ export function formatTime(date: Date, useAmPm = false, includeSeconds = false):
 		minute: '2-digit',
 		hour12: useAmPm,
 	};
-	
+
 	if (includeSeconds) {
 		options.second = '2-digit';
 	}
-	
+
 	return date.toLocaleTimeString(undefined, options);
 }
 
