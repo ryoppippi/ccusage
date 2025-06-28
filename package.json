@@ -36,7 +36,7 @@
 		"docs"
 	],
 	"engines": {
-		"node": ">=20.0.0"
+		"node": ">=20.19.3"
 	},
 	"scripts": {
 		"build": "tsdown",
