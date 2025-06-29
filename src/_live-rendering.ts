@@ -160,9 +160,12 @@ export function renderLiveDisplay(terminal: TerminalManager, block: SessionBlock
 	const sessionDetails = `   ${col1}${pad1}${pad2}${col3}`;
 	const sessionDetailsPadded = sessionDetails + ' '.repeat(Math.max(0, boxWidth - 3 - stringWidth(sessionDetails)));
 	// Claude usage limit message
-	const resetTime = block.usageLimitResetTime?.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: true }) ?? null;
-	const usageLimitResetTime = resetTime !== null ? pc.red(`❌ USAGE LIMIT. RESET AT ${resetTime}`) : '';
-	const usageLimitResetTimePadded = resetTime !== null ? usageLimitResetTime + ' '.repeat(Math.max(0, boxWidth - 3 - stringWidth(usageLimitResetTime))) : null;
+	let usageLimitResetTimePadded: string | null = null;
+	if (block.usageLimitResetTime !== undefined && now < block.usageLimitResetTime) {
+		const resetTime = block.usageLimitResetTime?.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: true }) ?? null;
+		const usageLimitResetTime = resetTime !== null ? pc.red(`❌ USAGE LIMIT. RESET AT ${resetTime}`) : '';
+		usageLimitResetTimePadded = resetTime !== null ? usageLimitResetTime + ' '.repeat(Math.max(0, boxWidth - 3 - stringWidth(usageLimitResetTime))) : null;
+	}
 	terminal.write(`${marginStr}│ ${sessionDetailsPadded}│\n`);
 	if (usageLimitResetTimePadded !== null) {
 		terminal.write(`${marginStr}│ ${usageLimitResetTimePadded}│\n`);
