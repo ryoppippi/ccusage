@@ -750,7 +750,7 @@ export async function loadDailyUsageData(
 	// Automatically enable project grouping when project filter is specified
 	const needsProjectGrouping = options?.groupByProject === true || options?.project != null;
 	const groupingKey = needsProjectGrouping
-		? (entry: typeof allEntries[0]) => `${entry.date}|${entry.project}`
+		? (entry: typeof allEntries[0]) => `${entry.date}\x00${entry.project}`
 		: (entry: typeof allEntries[0]) => entry.date;
 
 	const groupedData = groupBy(allEntries, groupingKey);
@@ -762,8 +762,8 @@ export async function loadDailyUsageData(
 				return undefined;
 			}
 
-			// Extract date and project from groupKey (format: "date" or "date|project")
-			const parts = groupKey.split('|');
+			// Extract date and project from groupKey (format: "date" or "date\x00project")
+			const parts = groupKey.split('\x00');
 			const date = parts[0] ?? groupKey;
 			const project = parts.length > 1 ? parts[1] : undefined;
 
@@ -1017,7 +1017,7 @@ export async function loadMonthlyUsageData(
 	// Automatically enable project grouping when project filter is specified
 	const needsProjectGrouping = options?.groupByProject === true || options?.project != null;
 	const groupingKey = needsProjectGrouping
-		? (data: typeof dailyData[0]) => `${data.date.substring(0, 7)}|${data.project ?? 'unknown'}`
+		? (data: typeof dailyData[0]) => `${data.date.substring(0, 7)}\x00${data.project ?? 'unknown'}`
 		: (data: typeof dailyData[0]) => data.date.substring(0, 7);
 
 	const groupedByMonth = groupBy(dailyData, groupingKey);
@@ -1029,8 +1029,8 @@ export async function loadMonthlyUsageData(
 			continue;
 		}
 
-		// Extract month and project from groupKey (format: "month" or "month|project")
-		const parts = groupKey.split('|');
+		// Extract month and project from groupKey (format: "month" or "month\x00project")
+		const parts = groupKey.split('\x00');
 		const month = parts[0] ?? groupKey;
 		const project = parts.length > 1 ? parts[1] : undefined;
 
@@ -1206,6 +1206,8 @@ export async function loadSessionBlockData(
 }
 
 if (import.meta.vitest != null) {
+	const { describe, it, expect } = import.meta.vitest;
+
 	describe('formatDate', () => {
 		it('formats UTC timestamp to local date', () => {
 		// Test with UTC timestamps - results depend on local timezone
@@ -3378,6 +3380,8 @@ invalid json line
 
 // duplication functionality tests
 if (import.meta.vitest != null) {
+	const { describe, it, expect } = import.meta.vitest;
+
 	describe('deduplication functionality', () => {
 		describe('createUniqueHash', () => {
 			it('should create hash from message id and request id', () => {
