@@ -15,7 +15,18 @@ import { modelPricingSchema } from './_types.ts';
  * @throws Will throw an error if the fetch operation fails.
  */
 export async function prefetchClaudePricing(): Promise<Record<string, ModelPricing>> {
-	const response = await fetch(LITELLM_PRICING_URL);
+	// Check for proxy configuration and create fetch options
+	const proxyUrl = process.env.https_proxy || process.env.HTTPS_PROXY || 
+	                 process.env.http_proxy || process.env.HTTP_PROXY;
+	
+	const fetchOptions: RequestInit = {};
+	if (proxyUrl) {
+		// For Node.js with undici, we need to use ProxyAgent
+		const { ProxyAgent } = await import('undici');
+		(fetchOptions as any).dispatcher = new ProxyAgent(proxyUrl);
+	}
+	
+	const response = await fetch(LITELLM_PRICING_URL, fetchOptions);
 	if (!response.ok) {
 		throw new Error(`Failed to fetch pricing data: ${response.statusText}`);
 	}
