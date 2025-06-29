@@ -602,7 +602,7 @@ export async function calculateCostForEntry(
  * @param data - Usage data entry
  * @returns Usage limit expiration date
  */
-export function getusageLimitResetTime(data: UsageData): Date | null {
+export function getUsageLimitResetTime(data: UsageData): Date | null {
 	let resetTime: Date | null = null;
 
 	if (data.isApiErrorMessage === true) {
@@ -1095,7 +1095,7 @@ export async function loadSessionBlockData(
 					: data.costUSD ?? 0;
 
 				// Get Claude Code usage limit expiration date
-				const usageLimitResetTime = getusageLimitResetTime(data);
+				const usageLimitResetTime = getUsageLimitResetTime(data);
 
 				allEntries.push({
 					timestamp: new Date(data.timestamp),

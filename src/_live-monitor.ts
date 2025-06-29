@@ -19,7 +19,7 @@ import {
 	calculateCostForEntry,
 	createUniqueHash,
 	getEarliestTimestamp,
-	getusageLimitResetTime,
+	getUsageLimitResetTime,
 	sortFilesByTimestamp,
 	usageDataSchema,
 } from './data-loader.ts';
@@ -130,7 +130,7 @@ export class LiveMonitor implements Disposable {
 									this.fetcher!,
 								));
 
-						const usageLimitResetTime = getusageLimitResetTime(data);
+						const usageLimitResetTime = getUsageLimitResetTime(data);
 
 						// Add entry
 						this.allEntries.push({
