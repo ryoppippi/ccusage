@@ -51,6 +51,11 @@ ccusage blocks --live  # Real-time usage dashboard
 ccusage daily --since 20250525 --until 20250530
 ccusage daily --json  # JSON output
 ccusage daily --breakdown  # Per-model cost breakdown
+
+# Time format options
+ccusage blocks  # 24-hour time format (default): 14:30:45
+ccusage blocks --am-pm  # 12-hour AM/PM format: 2:30:45 PM
+ccusage blocks --live --am-pm  # Live monitoring with AM/PM format
 ```
 
 ## Features
@@ -71,6 +76,7 @@ ccusage daily --breakdown  # Per-model cost breakdown
 - 💰 **Cost Tracking**: Shows costs in USD for each day/month/session
 - 🔄 **Cache Token Support**: Tracks and displays cache creation and cache read tokens separately
 - 🌐 **Offline Mode**: Use pre-cached pricing data without network connectivity with `--offline` (Claude models only)
+- 🕐 **Time Format Options**: Choose between 24-hour format (default) or 12-hour AM/PM format with `--am-pm` flag
 - 🔌 **MCP Integration**: Built-in Model Context Protocol server for integration with other tools
 
 ## Documentation
