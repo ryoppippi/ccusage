@@ -31,6 +31,7 @@ export type LoadedUsageEntry = {
 	costUSD: number | null;
 	model: string;
 	version?: string;
+	usageLimitResetTime?: Date; // Claude API usage limit reset time
 };
 
 /**
@@ -57,6 +58,7 @@ export type SessionBlock = {
 	tokenCounts: TokenCounts;
 	costUSD: number;
 	models: string[];
+	usageLimitResetTime?: Date; // Claude API usage limit reset time
 };
 
 /**
@@ -173,6 +175,7 @@ function createBlock(startTime: Date, entries: LoadedUsageEntry[], now: Date, se
 
 	let costUSD = 0;
 	const models: string[] = [];
+	let usageLimitResetTime: Date | undefined;
 
 	for (const entry of entries) {
 		tokenCounts.inputTokens += entry.usage.inputTokens;
@@ -180,6 +183,7 @@ function createBlock(startTime: Date, entries: LoadedUsageEntry[], now: Date, se
 		tokenCounts.cacheCreationInputTokens += entry.usage.cacheCreationInputTokens;
 		tokenCounts.cacheReadInputTokens += entry.usage.cacheReadInputTokens;
 		costUSD += entry.costUSD ?? 0;
+		usageLimitResetTime = entry.usageLimitResetTime ?? usageLimitResetTime;
 		models.push(entry.model);
 	}
 
@@ -193,6 +197,7 @@ function createBlock(startTime: Date, entries: LoadedUsageEntry[], now: Date, se
 		tokenCounts,
 		costUSD,
 		models: uniq(models),
+		usageLimitResetTime,
 	};
 }
 
