@@ -8,7 +8,9 @@
  * @module calculate-cost
  */
 
+import type { AggregatedTokenCounts } from './_token-utils.ts';
 import type { DailyUsage, MonthlyUsage, SessionUsage } from './data-loader.ts';
+import { getTotalTokens } from './_token-utils.ts';
 import {
 	createActivityDate,
 	createDailyDate,
@@ -19,14 +21,10 @@ import {
 } from './_types.ts';
 
 /**
- * Token usage data structure containing input, output, and cache token counts
+ * Alias for AggregatedTokenCounts from shared utilities
+ * @deprecated Use AggregatedTokenCounts from _token-utils.ts instead
  */
-type TokenData = {
-	inputTokens: number;
-	outputTokens: number;
-	cacheCreationTokens: number;
-	cacheReadTokens: number;
-};
+type TokenData = AggregatedTokenCounts;
 
 /**
  * Token totals including cost information
@@ -68,19 +66,8 @@ export function calculateTotals(
 	);
 }
 
-/**
- * Calculates the sum of all token types (input, output, cache creation, cache read)
- * @param tokens - Token data containing different token counts
- * @returns Total number of tokens across all types
- */
-export function getTotalTokens(tokens: TokenData): number {
-	return (
-		tokens.inputTokens
-		+ tokens.outputTokens
-		+ tokens.cacheCreationTokens
-		+ tokens.cacheReadTokens
-	);
-}
+// Re-export getTotalTokens from shared utilities for backward compatibility
+export { getTotalTokens };
 
 /**
  * Creates a complete totals object by adding total token count to existing totals

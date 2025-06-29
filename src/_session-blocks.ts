@@ -1,5 +1,6 @@
 import { uniq } from 'es-toolkit';
 import { DEFAULT_RECENT_DAYS } from './_consts.ts';
+import { getTotalTokens } from './_token-utils.ts';
 
 /**
  * Default session duration in hours (Claude's billing block duration)
@@ -255,7 +256,7 @@ export function calculateBurnRate(block: SessionBlock): BurnRate | null {
 		return null;
 	}
 
-	const totalTokens = block.tokenCounts.inputTokens + block.tokenCounts.outputTokens;
+	const totalTokens = getTotalTokens(block.tokenCounts);
 	const tokensPerMinute = totalTokens / durationMinutes;
 	const costPerHour = (block.costUSD / durationMinutes) * 60;
 
@@ -284,7 +285,7 @@ export function projectBlockUsage(block: SessionBlock): ProjectedUsage | null {
 	const remainingTime = block.endTime.getTime() - now.getTime();
 	const remainingMinutes = Math.max(0, remainingTime / (1000 * 60));
 
-	const currentTokens = block.tokenCounts.inputTokens + block.tokenCounts.outputTokens;
+	const currentTokens = getTotalTokens(block.tokenCounts);
 	const projectedAdditionalTokens = burnRate.tokensPerMinute * remainingMinutes;
 	const totalTokens = currentTokens + projectedAdditionalTokens;
 
