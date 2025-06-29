@@ -12,6 +12,7 @@ import type { LoadedUsageEntry, SessionBlock } from './_session-blocks.ts';
 import type { CostMode, SortOrder } from './_types.ts';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
+import { Result } from '@praha/byethrow';
 import { glob } from 'tinyglobby';
 import { CLAUDE_PROJECTS_DIR_NAME, USAGE_DATA_GLOB_PATTERN } from './_consts.ts';
 import { identifySessionBlocks } from './_session-blocks.ts';
@@ -91,61 +92,72 @@ export class LiveMonitor implements Disposable {
 			const sortedFiles = await sortFilesByTimestamp(filesToRead);
 
 			for (const file of sortedFiles) {
-				const content = await readFile(file, 'utf-8')
-					.catch(() => {
-						// Skip files that can't be read
-						return '';
-					});
+				const fileReader = Result.try({
+					try: async () => readFile(file, 'utf-8'),
+					catch: () => new Error('File read failed'),
+				});
 
+				const fileResult = await fileReader();
+				if (Result.isFailure(fileResult)) {
+					// Skip files that can't be read
+					continue;
+				}
+
+				const content = fileResult.value;
 				const lines = content
 					.trim()
 					.split('\n')
 					.filter(line => line.length > 0);
 
 				for (const line of lines) {
-					try {
-						const parsed = JSON.parse(line) as unknown;
-						const result = usageDataSchema.safeParse(parsed);
-						if (!result.success) {
-							continue;
-						}
-						const data = result.data;
+					const parseParser = Result.try({
+						try: () => JSON.parse(line) as unknown,
+						catch: () => new Error('Invalid JSON'),
+					});
 
-						// Check for duplicates
-						const uniqueHash = createUniqueHash(data);
-						if (uniqueHash != null && this.processedHashes.has(uniqueHash)) {
-							continue;
-						}
-						if (uniqueHash != null) {
-							this.processedHashes.add(uniqueHash);
-						}
-
-						// Calculate cost if needed
-						const costUSD: number = await (this.config.mode === 'display'
-							? Promise.resolve(data.costUSD ?? 0)
-							: calculateCostForEntry(
-									data,
-									this.config.mode,
-									this.fetcher!,
-								));
-
-						// Add entry
-						this.allEntries.push({
-							timestamp: new Date(data.timestamp),
-							usage: {
-								inputTokens: data.message.usage.input_tokens ?? 0,
-								outputTokens: data.message.usage.output_tokens ?? 0,
-								cacheCreationInputTokens: data.message.usage.cache_creation_input_tokens ?? 0,
-								cacheReadInputTokens: data.message.usage.cache_read_input_tokens ?? 0,
-							},
-							costUSD,
-							model: data.message.model ?? '<synthetic>',
-							version: data.version,
-						});
-					}
-					catch {
+					const parseResult = parseParser();
+					if (Result.isFailure(parseResult)) {
 						// Skip malformed lines
+						continue;
 					}
+
+					const result = usageDataSchema.safeParse(parseResult.value);
+					if (!result.success) {
+						continue;
+					}
+					const data = result.data;
+
+					// Check for duplicates
+					const uniqueHash = createUniqueHash(data);
+					if (uniqueHash != null && this.processedHashes.has(uniqueHash)) {
+						continue;
+					}
+					if (uniqueHash != null) {
+						this.processedHashes.add(uniqueHash);
+					}
+
+					// Calculate cost if needed
+					const costUSD: number = await (this.config.mode === 'display'
+						? Promise.resolve(data.costUSD ?? 0)
+						: calculateCostForEntry(
+								data,
+								this.config.mode,
+								this.fetcher!,
+							));
+
+					// Add entry
+					this.allEntries.push({
+						timestamp: new Date(data.timestamp),
+						usage: {
+							inputTokens: data.message.usage.input_tokens ?? 0,
+							outputTokens: data.message.usage.output_tokens ?? 0,
+							cacheCreationInputTokens: data.message.usage.cache_creation_input_tokens ?? 0,
+							cacheReadInputTokens: data.message.usage.cache_read_input_tokens ?? 0,
+						},
+						costUSD,
+						model: data.message.model ?? '<synthetic>',
+						version: data.version,
+					});
 				}
 			}
 		}
