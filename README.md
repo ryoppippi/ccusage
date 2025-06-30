@@ -51,6 +51,11 @@ ccusage blocks --live  # Real-time usage dashboard
 ccusage daily --since 20250525 --until 20250530
 ccusage daily --json  # JSON output
 ccusage daily --breakdown  # Per-model cost breakdown
+
+# Project analysis
+ccusage daily --instances  # Group by project/instance
+ccusage daily --project myproject  # Filter to specific project
+ccusage daily --instances --project myproject --json  # Combined usage
 ```
 
 ## Features
@@ -72,6 +77,7 @@ ccusage daily --breakdown  # Per-model cost breakdown
 - 🔄 **Cache Token Support**: Tracks and displays cache creation and cache read tokens separately
 - 🌐 **Offline Mode**: Use pre-cached pricing data without network connectivity with `--offline` (Claude models only)
 - 🔌 **MCP Integration**: Built-in Model Context Protocol server for integration with other tools
+- 🏗️ **Multi-Instance Support**: Group usage by project with `--instances` flag and filter by specific projects
 
 ## Documentation
 

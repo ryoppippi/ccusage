@@ -152,6 +152,47 @@ ccusage daily --offline
 ccusage daily -O
 ```
 
+### Project Analysis
+
+Group usage by project instead of aggregating across all projects:
+
+```bash
+# Group daily usage by project
+ccusage daily --instances
+ccusage daily -i
+```
+
+When using `--instances`, the report shows usage for each project separately:
+
+```
+┌──────────────┬────────────────────────────────────────────────────────────────────────────────────────────┐
+│ Project: my-project                                                                                     │
+├──────────────┬──────────────────┬────────┬─────────┬────────────┬────────────┬─────────────┬──────────┤
+│ Date         │ Models           │ Input  │ Output  │ Cache Create│ Cache Read │ Total Tokens│ Cost (USD)│
+├──────────────┼──────────────────┼────────┼─────────┼────────────┼────────────┼─────────────┼──────────┤
+│ 2025-06-21   │ • sonnet-4       │    277 │  31,456 │         512│      1,024 │      33,269 │     $7.33│
+└──────────────┴──────────────────┴────────┴─────────┴────────────┴────────────┴─────────────┴──────────┘
+
+┌──────────────┬────────────────────────────────────────────────────────────────────────────────────────────┐
+│ Project: other-project                                                                                  │
+├──────────────┬──────────────────┬────────┬─────────┬────────────┬────────────┬─────────────┬──────────┤
+│ Date         │ Models           │ Input  │ Output  │ Cache Create│ Cache Read │ Total Tokens│ Cost (USD)│
+├──────────────┼──────────────────┼────────┼─────────┼────────────┼────────────┼─────────────┼──────────┤
+│ 2025-06-21   │ • opus-4         │    100 │  15,000 │         256│        512 │      15,868 │    $10.25│
+└──────────────┴──────────────────┴────────┴─────────┴────────────┴────────────┴─────────────┴──────────┘
+```
+
+Filter to a specific project:
+
+```bash
+# Show only usage from "my-project"
+ccusage daily --project my-project
+ccusage daily -p my-project
+
+# Combine with instances flag
+ccusage daily --instances --project my-project
+```
+
 ## Common Use Cases
 
 ### Track Monthly Spending
@@ -186,6 +227,29 @@ ccusage daily --breakdown
 ```bash
 # Last 7 days
 ccusage daily --since $(date -d '7 days ago' +%Y%m%d)
+```
+
+### Analyze Project Usage
+
+```bash
+# See usage breakdown by project
+ccusage daily --instances
+
+# Track specific project costs
+ccusage daily --project my-important-project --since 20250601
+
+# Compare project usage with JSON export
+ccusage daily --instances --json > project-analysis.json
+```
+
+### Team Usage Analysis
+
+```bash
+# Set custom project names for better reporting
+export CCUSAGE_PROJECT_ALIASES="uuid-project=Frontend App,long-name=Backend API"
+
+# Generate team report with readable project names
+ccusage daily --instances --since 20250601
 ```
 
 ## Tips

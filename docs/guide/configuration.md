@@ -26,6 +26,71 @@ ccusage daily
 
 When multiple directories are specified, ccusage automatically aggregates usage data from all valid locations.
 
+### CCUSAGE_PROJECT_ALIASES
+
+Configure custom display names for project directories using the `CCUSAGE_PROJECT_ALIASES` environment variable:
+
+```bash
+# Set custom project aliases
+export CCUSAGE_PROJECT_ALIASES="long-project-name=Short Name,uuid-project=My Project"
+ccusage daily --instances
+```
+
+#### Format
+
+Use comma-separated `raw-name=alias` pairs:
+
+```bash
+export CCUSAGE_PROJECT_ALIASES="project1=Production API,project2=Dev Environment"
+```
+
+#### Use Cases
+
+- **UUID Projects**: Replace cryptic UUIDs with readable names
+- **Long Paths**: Shorten verbose directory names for better table display
+- **Team Consistency**: Standardize project names across team members
+
+#### Example
+
+```bash
+# Without aliases
+ccusage daily --instances
+# Shows: a2cd99ed-a586-4fe4-8f59-b0026409ec09
+
+# With aliases
+export CCUSAGE_PROJECT_ALIASES="a2cd99ed-a586-4fe4-8f59-b0026409ec09=My Project"
+ccusage daily --instances
+# Shows: My Project
+```
+
+#### Project Name Formatting
+
+ccusage automatically formats complex project directory names into readable display names:
+
+**Automatic Cleanup:**
+- **Path Removal**: Strips common directory prefixes like `/Users/username/Development/`
+- **UUID Shortening**: Reduces long UUIDs to last two segments for brevity
+- **Feature Branch Parsing**: Extracts meaningful names from complex paths
+
+**Examples:**
+
+```bash
+# Complex project paths → Formatted names
+-Users-phaedrus-Development-adminifi-edugakko-api--feature-ticket-002-configure-dependabot
+→ configure-dependabot
+
+a2cd99ed-a586-4fe4-8f59-b0026409ec09.jsonl  
+→ 8f59-b0026409ec09.jsonl
+
+/Users/john/Development/my-app
+→ my-app
+```
+
+**Priority Order:**
+1. **Custom aliases** (via `CCUSAGE_PROJECT_ALIASES`) take highest priority
+2. **Automatic formatting** applies intelligent parsing rules
+3. **Original name** used as fallback if parsing fails
+
 ## Default Directory Detection
 
 ### Automatic Detection
@@ -74,6 +139,11 @@ ccusage daily --order asc              # Oldest first
 # Offline mode
 ccusage daily --offline                # Use cached pricing data
 ccusage daily -O                       # Short alias
+
+# Project analysis (daily command only)
+ccusage daily --instances              # Group by project
+ccusage daily --project myproject      # Filter to specific project
+ccusage daily --instances --project myproject  # Combined usage
 ```
 
 ### Debug Options
