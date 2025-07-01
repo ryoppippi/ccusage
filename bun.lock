@@ -55,7 +55,7 @@
         "typedoc-vitepress-theme": "^1.1.2",
         "vitepress": "^1.6.3",
         "vitepress-plugin-group-icons": "^1.6.0",
-        "vitepress-plugin-llms": "^1.5.1",
+        "vitepress-plugin-llms": "^1.6.0",
         "vitepress-plugin-mermaid": "^2.0.17",
         "wrangler": "^4.22.0",
       },
@@ -1644,7 +1644,7 @@
 
     "toidentifier": ["toidentifier@1.0.1", "", {}, "sha512-o5sSPKEkg/DIQNmH43V0/uerLrpzVedkUh8tGNvaeXpfpuwjKenlSox/2O/BTlZUtEe+JG7s5YhEz608PlAHRA=="],
 
-    "tokenx": ["tokenx@1.0.1", "", {}, "sha512-MhOngUHRuVE0CHP4cNEZ/XpdXETFL65nJpEvoTW+VYPuXsT/MTeNj+UNnekNsnxecmj2DEvUYPebqz+CsPTUSg=="],
+    "tokenx": ["tokenx@1.1.0", "", {}, "sha512-KCjtiC2niPwTSuz4ktM82Ki5bjqBwYpssiHDsGr5BpejN/B3ksacRvrsdoxljdMIh2nCX78alnDkeemBmYUmTA=="],
 
     "toml-eslint-parser": ["toml-eslint-parser@0.10.0", "", { "dependencies": { "eslint-visitor-keys": "^3.0.0" } }, "sha512-khrZo4buq4qVmsGzS5yQjKe/WsFvV8fGfOjDQN0q4iy9FjRfPWRgTFrU8u1R2iu/SfWLhY9WnCi4Jhdrcbtg+g=="],
 
@@ -1732,7 +1732,7 @@
 
     "vitepress-plugin-group-icons": ["vitepress-plugin-group-icons@1.6.0", "", { "dependencies": { "@iconify-json/logos": "^1.2.4", "@iconify-json/vscode-icons": "^1.2.18", "@iconify/utils": "^2.3.0" }, "peerDependencies": { "markdown-it": ">=14", "vite": ">=3" } }, "sha512-+nxuVETpFkOYR5qHdvj3M5otWusJyS3ozEvVf1aQaE5Oz5e6NR0naYKTtH0Zf3Qss4vnhqaYt2Lq4jUTn9JVuA=="],
 
-    "vitepress-plugin-llms": ["vitepress-plugin-llms@1.5.1", "", { "dependencies": { "byte-size": "^9.0.1", "gray-matter": "^4.0.3", "markdown-title": "^1.0.2", "millify": "^6.1.0", "minimatch": "^10.0.1", "path-to-regexp": "^8.2.0", "picocolors": "^1.1.1", "remark": "^15.0.1", "remark-frontmatter": "^5.0.0", "tokenx": "^1.0.0", "unist-util-remove": "^4.0.0", "unist-util-visit": "^5.0.0" } }, "sha512-dEofHjDDiudwFZCvU6MxmKe9HV6KeBvA9Mz9gnZAYTSwg7AVr6PRreURQRYAvCAxzLEgaJ1WRef/OwtNqvNOCA=="],
+    "vitepress-plugin-llms": ["vitepress-plugin-llms@1.6.0", "", { "dependencies": { "byte-size": "^9.0.1", "gray-matter": "^4.0.3", "markdown-it": "^14.1.0", "markdown-title": "^1.0.2", "millify": "^6.1.0", "minimatch": "^10.0.3", "path-to-regexp": "^8.2.0", "picocolors": "^1.1.1", "remark": "^15.0.1", "remark-frontmatter": "^5.0.0", "tokenx": "^1.1.0", "unist-util-remove": "^4.0.0", "unist-util-visit": "^5.0.0" } }, "sha512-5EjrMvtggY61fAnhC+rldzw1UqPxwdbtsh/w15Z/Gy7u/SOsPQgSdDzoQm1iFet6ofAzUB2TXA8wj5KZX9TKSA=="],
 
     "vitepress-plugin-mermaid": ["vitepress-plugin-mermaid@2.0.17", "", { "optionalDependencies": { "@mermaid-js/mermaid-mindmap": "^9.3.0" }, "peerDependencies": { "mermaid": "10 || 11", "vitepress": "^1.0.0 || ^1.0.0-alpha" } }, "sha512-IUzYpwf61GC6k0XzfmAmNrLvMi9TRrVRMsUyCA8KNXhg/mQ1VqWnO0/tBVPiX5UoKF1mDUwqn5QV4qAJl6JnUg=="],
 
