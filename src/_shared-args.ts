@@ -78,11 +78,10 @@ export const sharedArgs = {
 		description: 'Use cached pricing data for Claude models instead of fetching from API',
 		default: false,
 	},
-	color: { // handled by picocolors
+	color: { // --color and --no-color are handled by picocolors
 		type: 'boolean',
 		negatable: true,
 		description: 'Enable/disable colored output (default: auto)',
-		default: true,
 	},
 } as const satisfies Args;
 
