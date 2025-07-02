@@ -21,7 +21,7 @@ import path from 'node:path';
 import process from 'node:process';
 import { toArray } from '@antfu/utils';
 import { unreachable } from '@core/errorutil';
-import { Result } from '@praha/byethrow';
+import { R } from '@praha/byethrow';
 import { groupBy, uniq } from 'es-toolkit'; // TODO: after node20 is deprecated, switch to native Object.groupBy
 import { sort } from 'fast-sort';
 import { createFixture } from 'fs-fixture';
@@ -573,7 +573,7 @@ export async function calculateCostForEntry(
 	if (mode === 'calculate') {
 		// Always calculate from tokens
 		if (data.message.model != null) {
-			return fetcher.calculateCostFromTokens(data.message.usage, data.message.model);
+			return R.unwrap(fetcher.calculateCostFromTokens(data.message.usage, data.message.model));
 		}
 		return 0;
 	}
@@ -585,7 +585,7 @@ export async function calculateCostForEntry(
 		}
 
 		if (data.message.model != null) {
-			return fetcher.calculateCostFromTokens(data.message.usage, data.message.model);
+			return R.unwrap(fetcher.calculateCostFromTokens(data.message.usage, data.message.model));
 		}
 
 		return 0;
@@ -663,13 +663,13 @@ export async function loadDailyUsageData(
 			.filter(line => line.length > 0);
 
 		for (const line of lines) {
-			const parseParser = Result.try({
+			const parseParser = R.try({
 				try: () => JSON.parse(line) as unknown,
 				catch: () => new Error('Invalid JSON'),
 			});
 
 			const parseResult = parseParser();
-			if (Result.isFailure(parseResult)) {
+			if (R.isFailure(parseResult)) {
 				// Skip invalid JSON lines
 				continue;
 			}
@@ -827,13 +827,13 @@ export async function loadSessionData(
 			.filter(line => line.length > 0);
 
 		for (const line of lines) {
-			const parseParser = Result.try({
+			const parseParser = R.try({
 				try: () => JSON.parse(line) as unknown,
 				catch: () => new Error('Invalid JSON'),
 			});
 
 			const parseResult = parseParser();
-			if (Result.isFailure(parseResult)) {
+			if (R.isFailure(parseResult)) {
 				// Skip invalid JSON lines
 				continue;
 			}
@@ -1057,13 +1057,13 @@ export async function loadSessionBlockData(
 			.filter(line => line.length > 0);
 
 		for (const line of lines) {
-			const parseParser = Result.try({
+			const parseParser = R.try({
 				try: () => JSON.parse(line) as unknown,
 				catch: error => error,
 			});
 
 			const parseResult = parseParser();
-			if (Result.isFailure(parseResult)) {
+			if (R.isFailure(parseResult)) {
 				// Skip invalid JSON lines but log for debugging purposes
 				logger.debug(`Skipping invalid JSON line in 5-hour blocks: ${parseResult.error instanceof Error ? parseResult.error.message : String(parseResult.error)}`);
 				continue;
