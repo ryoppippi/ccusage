@@ -11,7 +11,7 @@ import {
 
 } from '../_session-blocks.ts';
 import { sharedCommandConfig } from '../_shared-args.ts';
-import { formatCurrency, formatModelsDisplayMultiline, formatNumber, ResponsiveTable } from '../_utils.ts';
+import { formatCurrency, formatDateTime, formatModelsDisplayMultiline, formatNumber, ResponsiveTable } from '../_utils.ts';
 import { getClaudePaths, loadSessionBlockData } from '../data-loader.ts';
 import { log, logger } from '../logger.ts';
 import { startLiveMonitoring } from './_blocks.live.ts';
@@ -20,25 +20,18 @@ import { startLiveMonitoring } from './_blocks.live.ts';
  * Formats the time display for a session block
  * @param block - Session block to format
  * @param compact - Whether to use compact formatting for narrow terminals
+ * @param useAmPm - Whether to use 12-hour AM/PM time format
  * @returns Formatted time string with duration and status information
  */
-function formatBlockTime(block: SessionBlock, compact = false): string {
+function formatBlockTime(block: SessionBlock, compact = false, useAmPm = false): string {
 	const start = compact
-		? block.startTime.toLocaleString(undefined, {
-				month: '2-digit',
-				day: '2-digit',
-				hour: '2-digit',
-				minute: '2-digit',
-			})
-		: block.startTime.toLocaleString();
+		? formatDateTime(block.startTime, useAmPm, { compact: true })
+		: formatDateTime(block.startTime, useAmPm);
 
 	if (block.isGap ?? false) {
 		const end = compact
-			? block.endTime.toLocaleString(undefined, {
-					hour: '2-digit',
-					minute: '2-digit',
-				})
-			: block.endTime.toLocaleString();
+			? formatDateTime(block.endTime, useAmPm, { includeDate: false, compact: true })
+			: formatDateTime(block.endTime, useAmPm, { includeDate: false });
 		const duration = Math.round((block.endTime.getTime() - block.startTime.getTime()) / (1000 * 60 * 60));
 		return compact ? `${start}-${end}\n(${duration}h gap)` : `${start} - ${end} (${duration}h gap)`;
 	}
@@ -245,6 +238,7 @@ export const blocksCommand = define({
 				sessionDurationHours: ctx.values.sessionLength,
 				mode: ctx.values.mode,
 				order: ctx.values.order,
+				useAmPm: ctx.values.amPm,
 			});
 			return; // Exit early, don't show table
 		}
@@ -315,7 +309,7 @@ export const blocksCommand = define({
 					(block.endTime.getTime() - now.getTime()) / (1000 * 60),
 				);
 
-				log(`Block Started: ${pc.cyan(block.startTime.toLocaleString())} (${pc.yellow(`${Math.floor(elapsed / 60)}h ${elapsed % 60}m`)} ago)`);
+				log(`Block Started: ${pc.cyan(formatDateTime(block.startTime, ctx.values.amPm))} (${pc.yellow(`${Math.floor(elapsed / 60)}h ${elapsed % 60}m`)} ago)`);
 				log(`Time Remaining: ${pc.green(`${Math.floor(remaining / 60)}h ${remaining % 60}m`)}\n`);
 
 				log(pc.bold('Current Usage:'));
@@ -389,7 +383,7 @@ export const blocksCommand = define({
 					if (block.isGap ?? false) {
 						// Gap row
 						const gapRow = [
-							pc.gray(formatBlockTime(block, useCompactFormat)),
+							pc.gray(formatBlockTime(block, useCompactFormat, ctx.values.amPm)),
 							pc.gray('(inactive)'),
 							pc.gray('-'),
 							pc.gray('-'),
@@ -406,7 +400,7 @@ export const blocksCommand = define({
 						const status = block.isActive ? pc.green('ACTIVE') : '';
 
 						const row = [
-							formatBlockTime(block, useCompactFormat),
+							formatBlockTime(block, useCompactFormat, ctx.values.amPm),
 							status,
 							formatModels(block.models),
 							formatNumber(totalTokens),

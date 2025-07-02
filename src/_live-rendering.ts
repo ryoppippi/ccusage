@@ -16,7 +16,7 @@ import prettyMs from 'pretty-ms';
 import stringWidth from 'string-width';
 import { calculateBurnRate, projectBlockUsage } from './_session-blocks.ts';
 import { centerText, createProgressBar } from './_terminal-utils.ts';
-import { formatCurrency, formatModelsDisplay, formatNumber } from './_utils.ts';
+import { formatCurrency, formatModelsDisplay, formatNumber, formatTime } from './_utils.ts';
 
 /**
  * Live monitoring configuration
@@ -28,6 +28,7 @@ export type LiveMonitoringConfig = {
 	sessionDurationHours: number;
 	mode: CostMode;
 	order: SortOrder;
+	useAmPm: boolean;
 };
 
 /**
@@ -130,9 +131,9 @@ export function renderLiveDisplay(terminal: TerminalManager, block: SessionBlock
 		},
 	);
 
-	// Format times with AM/PM
-	const startTime = block.startTime.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
-	const endTime = block.endTime.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+	// Format times
+	const startTime = formatTime(block.startTime, config.useAmPm, true);
+	const endTime = formatTime(block.endTime, config.useAmPm, true);
 
 	// Draw header
 	terminal.write(`${marginStr}┌${'─'.repeat(boxWidth - 2)}┐\n`);
