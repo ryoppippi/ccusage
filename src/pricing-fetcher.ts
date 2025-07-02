@@ -93,7 +93,20 @@ export class PricingFetcher implements Disposable {
 
 		try {
 			logger.warn('Fetching latest model pricing from LiteLLM...');
-			const response = await fetch(LITELLM_PRICING_URL);
+			
+			// Check for proxy configuration and create fetch options
+			const proxyUrl = process.env.https_proxy || process.env.HTTPS_PROXY || 
+			                 process.env.http_proxy || process.env.HTTP_PROXY;
+			
+			const fetchOptions: RequestInit = {};
+			if (proxyUrl) {
+				// For Node.js with undici, we need to use ProxyAgent
+				const { ProxyAgent } = await import('undici');
+				(fetchOptions as any).dispatcher = new ProxyAgent(proxyUrl);
+				logger.info(`Using proxy: ${proxyUrl}`);
+			}
+			
+			const response = await fetch(LITELLM_PRICING_URL, fetchOptions);
 			if (!response.ok) {
 				throw new Error(`Failed to fetch pricing data: ${response.statusText}`);
 			}
