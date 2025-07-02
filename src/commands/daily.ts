@@ -1,6 +1,7 @@
 import process from 'node:process';
 import { define } from 'gunshi';
 import pc from 'picocolors';
+import { handleUsageDataCsv } from '../_csv-output.ts';
 import { sharedCommandConfig } from '../_shared-args.ts';
 import { formatCurrency, formatModelsDisplayMultiline, formatNumber, pushBreakdownRows, ResponsiveTable } from '../_utils.ts';
 import {
@@ -17,8 +18,19 @@ export const dailyCommand = define({
 	description: 'Show usage report grouped by date',
 	...sharedCommandConfig,
 	async run(ctx) {
-		if (ctx.values.json) {
+		if (ctx.values.json || ctx.values.csv) {
 			logger.level = 0;
+		}
+
+		// Validate CSV/JSON options early
+		try {
+			if (ctx.values.json && ctx.values.csv) {
+				throw new Error('Cannot use both --json and --csv options together');
+			}
+		}
+		catch (error: any) {
+			logger.error(error.message);
+			process.exit(1);
 		}
 
 		const dailyData = await loadDailyUsageData({
@@ -33,6 +45,9 @@ export const dailyCommand = define({
 			if (ctx.values.json) {
 				log(JSON.stringify([]));
 			}
+			else if (ctx.values.csv) {
+				handleUsageDataCsv([], ctx.values.json, ctx.values.csv, 'daily');
+			}
 			else {
 				logger.warn('No Claude usage data found.');
 			}
@@ -43,12 +58,15 @@ export const dailyCommand = define({
 		const totals = calculateTotals(dailyData);
 
 		// Show debug information if requested
-		if (ctx.values.debug && !ctx.values.json) {
+		if (ctx.values.debug && !ctx.values.json && !ctx.values.csv) {
 			const mismatchStats = await detectMismatches(undefined);
 			printMismatchReport(mismatchStats, ctx.values.debugSamples);
 		}
 
-		if (ctx.values.json) {
+		if (ctx.values.csv) {
+			handleUsageDataCsv(dailyData, ctx.values.json, ctx.values.csv, 'daily');
+		}
+		else if (ctx.values.json) {
 			// Output JSON format
 			const jsonOutput = {
 				daily: dailyData.map(data => ({

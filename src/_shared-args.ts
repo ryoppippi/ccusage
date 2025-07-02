@@ -38,6 +38,11 @@ export const sharedArgs = {
 		description: 'Output in JSON format',
 		default: false,
 	},
+	csv: {
+		type: 'boolean',
+		description: 'Output in CSV format',
+		default: false,
+	},
 	mode: {
 		type: 'enum',
 		short: 'm',

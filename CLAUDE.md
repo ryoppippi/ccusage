@@ -26,6 +26,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `bun run start monthly --json` - Show monthly usage report in JSON format
 - `bun run start session --json` - Show session usage report in JSON format
 - `bun run start blocks --json` - Show blocks usage report in JSON format
+- `bun run start daily --csv` - Show daily usage report in CSV format
+- `bun run start monthly --csv` - Show monthly usage report in CSV format
+- `bun run start session --csv` - Show session usage report in CSV format
+- `bun run start blocks --csv` - Show blocks usage report in CSV format
 - `bun run start daily --mode <mode>` - Control cost calculation mode (auto/calculate/display)
 - `bun run start monthly --mode <mode>` - Control cost calculation mode (auto/calculate/display)
 - `bun run start session --mode <mode>` - Control cost calculation mode (auto/calculate/display)
@@ -74,6 +78,7 @@ This is a CLI tool that analyzes Claude Code usage data from local JSONL files s
 
 - Table format (default): Pretty-printed tables with colors for terminal display
 - JSON format (`--json`): Structured JSON output for programmatic consumption
+- CSV format (`--csv`): Comma-separated values for spreadsheet analysis (cannot be used with `--json`)
 
 **Key Data Structures:**
 

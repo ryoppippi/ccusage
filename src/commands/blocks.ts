@@ -3,6 +3,7 @@ import process from 'node:process';
 import { define } from 'gunshi';
 import pc from 'picocolors';
 import { BLOCKS_COMPACT_WIDTH_THRESHOLD, BLOCKS_DEFAULT_TERMINAL_WIDTH, BLOCKS_WARNING_THRESHOLD, DEFAULT_RECENT_DAYS, DEFAULT_REFRESH_INTERVAL_SECONDS, MAX_REFRESH_INTERVAL_SECONDS, MIN_REFRESH_INTERVAL_SECONDS } from '../_consts.ts';
+import { handleBlocksCsv } from '../_csv-output.ts';
 import {
 	calculateBurnRate,
 	DEFAULT_SESSION_DURATION_HOURS,
@@ -146,8 +147,19 @@ export const blocksCommand = define({
 	},
 	toKebab: true,
 	async run(ctx) {
-		if (ctx.values.json) {
+		if (ctx.values.json || ctx.values.csv) {
 			logger.level = 0;
+		}
+
+		// Validate CSV/JSON options early
+		try {
+			if (ctx.values.json && ctx.values.csv) {
+				throw new Error('Cannot use both --json and --csv options together');
+			}
+		}
+		catch (error: any) {
+			logger.error(error.message);
+			process.exit(1);
 		}
 
 		// Validate session length
@@ -168,6 +180,9 @@ export const blocksCommand = define({
 		if (blocks.length === 0) {
 			if (ctx.values.json) {
 				log(JSON.stringify({ blocks: [] }));
+			}
+			else if (ctx.values.csv) {
+				handleBlocksCsv([], ctx.values.json, ctx.values.csv, ctx.values.tokenLimit, maxTokensFromAll);
 			}
 			else {
 				logger.warn('No Claude usage data found.');
@@ -210,7 +225,7 @@ export const blocksCommand = define({
 		}
 
 		// Live monitoring mode
-		if (ctx.values.live && !ctx.values.json) {
+		if (ctx.values.live && !ctx.values.json && !ctx.values.csv) {
 			// Live mode only shows active blocks
 			if (!ctx.values.active) {
 				logger.info('Live mode automatically shows only active blocks.');
@@ -249,7 +264,10 @@ export const blocksCommand = define({
 			return; // Exit early, don't show table
 		}
 
-		if (ctx.values.json) {
+		if (ctx.values.csv) {
+			handleBlocksCsv(blocks, ctx.values.json, ctx.values.csv, ctx.values.tokenLimit, maxTokensFromAll);
+		}
+		else if (ctx.values.json) {
 			// JSON output
 			const jsonOutput = {
 				blocks: blocks.map((block: SessionBlock) => {
