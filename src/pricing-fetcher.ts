@@ -9,7 +9,7 @@
  */
 
 import type { ModelPricing } from './_types.ts';
-import { R } from '@praha/byethrow';
+import { Result } from '@praha/byethrow';
 import { LITELLM_PRICING_URL } from './_consts.ts';
 import { prefetchClaudePricing } from './_macro.ts' with { type: 'macro' };
 import { modelPricingSchema } from './_types.ts';
@@ -49,7 +49,7 @@ export class PricingFetcher implements Disposable {
 	 * Loads offline pricing data from pre-fetched cache
 	 * @returns Map of model names to pricing information
 	 */
-	private loadOfflinePricing = R.try({
+	private loadOfflinePricing = Result.try({
 		try: async () => {
 			const pricing = new Map(Object.entries(await prefetchClaudePricing()));
 			this.cachedPricing = pricing;
@@ -64,15 +64,15 @@ export class PricingFetcher implements Disposable {
 	 * @returns Map of model names to pricing information
 	 * @throws Error if both network fetch and fallback fail
 	 */
-	private async handleFallbackToCachedPricing(originalError: unknown): R.ResultAsync<Map<string, ModelPricing>, Error> {
+	private async handleFallbackToCachedPricing(originalError: unknown): Result.ResultAsync<Map<string, ModelPricing>, Error> {
 		logger.warn('Failed to fetch model pricing from LiteLLM, falling back to cached pricing data');
 		logger.debug('Fetch error details:', originalError);
-		return R.pipe(
+		return Result.pipe(
 			this.loadOfflinePricing(),
-			R.inspect((pricing) => {
+			Result.inspect((pricing) => {
 				logger.info(`Using cached pricing data for ${pricing.size} models`);
 			}),
-			R.inspectError((error) => {
+			Result.inspectError((error) => {
 				logger.error('Failed to load cached pricing data as fallback:', error);
 				logger.error('Original fetch error:', originalError);
 			}),
@@ -84,32 +84,32 @@ export class PricingFetcher implements Disposable {
 	 * Automatically falls back to offline mode if network fetch fails
 	 * @returns Map of model names to pricing information
 	 */
-	private async ensurePricingLoaded(): R.ResultAsync<Map<string, ModelPricing>, Error> {
-		return R.pipe(
-			this.cachedPricing != null ? R.succeed(this.cachedPricing) : R.fail(new Error('Cached pricing not available')),
-			R.orElse(async () => {
+	private async ensurePricingLoaded(): Result.ResultAsync<Map<string, ModelPricing>, Error> {
+		return Result.pipe(
+			this.cachedPricing != null ? Result.succeed(this.cachedPricing) : Result.fail(new Error('Cached pricing not available')),
+			Result.orElse(async () => {
 				// If we're in offline mode, return pre-fetched data
 				if (this.offline) {
 					return this.loadOfflinePricing();
 				}
 
 				logger.warn('Fetching latest model pricing from LiteLLM...');
-				return R.pipe(
-					R.try({
+				return Result.pipe(
+					Result.try({
 						try: fetch(LITELLM_PRICING_URL),
 						catch: error => new Error('Failed to fetch model pricing from LiteLLM', { cause: error }),
 					}),
-					R.andThrough((response) => {
+					Result.andThrough((response) => {
 						if (!response.ok) {
-							return R.fail(new Error(`Failed to fetch pricing data: ${response.statusText}`));
+							return Result.fail(new Error(`Failed to fetch pricing data: ${response.statusText}`));
 						}
-						return R.succeed();
+						return Result.succeed();
 					}),
-					R.andThen(async response => R.try({
+					Result.andThen(async response => Result.try({
 						try: response.json() as Promise<Record<string, unknown>>,
 						catch: error => new Error('Failed to parse pricing data', { cause: error }),
 					})),
-					R.map((data) => {
+					Result.map((data) => {
 						const pricing = new Map<string, ModelPricing>();
 						for (const [modelName, modelData] of Object.entries(data)) {
 							if (typeof modelData === 'object' && modelData !== null) {
@@ -122,11 +122,11 @@ export class PricingFetcher implements Disposable {
 						}
 						return pricing;
 					}),
-					R.inspect((pricing) => {
+					Result.inspect((pricing) => {
 						this.cachedPricing = pricing;
 						logger.info(`Loaded pricing for ${pricing.size} models`);
 					}),
-					R.orElse(async error => this.handleFallbackToCachedPricing(error)),
+					Result.orElse(async error => this.handleFallbackToCachedPricing(error)),
 				);
 			}),
 		);
@@ -136,7 +136,7 @@ export class PricingFetcher implements Disposable {
 	 * Fetches all available model pricing data
 	 * @returns Map of model names to pricing information
 	 */
-	async fetchModelPricing(): R.ResultAsync<Map<string, ModelPricing>, Error> {
+	async fetchModelPricing(): Result.ResultAsync<Map<string, ModelPricing>, Error> {
 		return this.ensurePricingLoaded();
 	}
 
@@ -146,10 +146,10 @@ export class PricingFetcher implements Disposable {
 	 * @param modelName - Name of the model to get pricing for
 	 * @returns Model pricing information or null if not found
 	 */
-	async getModelPricing(modelName: string): R.ResultAsync<ModelPricing | null, Error> {
-		return R.pipe(
+	async getModelPricing(modelName: string): Result.ResultAsync<ModelPricing | null, Error> {
+		return Result.pipe(
 			this.ensurePricingLoaded(),
-			R.map((pricing) => {
+			Result.map((pricing) => {
 				// Direct match
 				const directMatch = pricing.get(modelName);
 				if (directMatch != null) {
@@ -206,10 +206,10 @@ export class PricingFetcher implements Disposable {
 			cache_read_input_tokens?: number;
 		},
 		modelName: string,
-	): R.ResultAsync<number, Error> {
-		return R.pipe(
+	): Result.ResultAsync<number, Error> {
+		return Result.pipe(
 			this.getModelPricing(modelName),
-			R.map(pricing => pricing == null ? 0 : this.calculateCostFromPricing(tokens, pricing)),
+			Result.map(pricing => pricing == null ? 0 : this.calculateCostFromPricing(tokens, pricing)),
 		);
 	}
 
@@ -279,7 +279,7 @@ if (import.meta.vitest != null) {
 
 				{
 					using fetcher = new TestPricingFetcher();
-					const pricing = await R.unwrap(fetcher.fetchModelPricing());
+					const pricing = await Result.unwrap(fetcher.fetchModelPricing());
 					expect(pricing.size).toBeGreaterThan(0);
 				}
 
@@ -289,7 +289,7 @@ if (import.meta.vitest != null) {
 			it('should calculate costs directly with model name', async () => {
 				using fetcher = new PricingFetcher();
 
-				const cost = await R.unwrap(fetcher.calculateCostFromTokens(
+				const cost = await Result.unwrap(fetcher.calculateCostFromTokens(
 					{
 						input_tokens: 1000,
 						output_tokens: 500,
@@ -304,7 +304,7 @@ if (import.meta.vitest != null) {
 		describe('fetchModelPricing', () => {
 			it('should fetch and parse pricing data from LiteLLM', async () => {
 				using fetcher = new PricingFetcher();
-				const pricing = await R.unwrap(fetcher.fetchModelPricing());
+				const pricing = await Result.unwrap(fetcher.fetchModelPricing());
 
 				// Should have pricing data
 				expect(pricing.size).toBeGreaterThan(0);
@@ -319,12 +319,12 @@ if (import.meta.vitest != null) {
 			it('should cache pricing data', async () => {
 				using fetcher = new PricingFetcher();
 				// First call should fetch from network
-				const firstResult = await R.unwrap(fetcher.fetchModelPricing());
+				const firstResult = await Result.unwrap(fetcher.fetchModelPricing());
 				const firstKeys = Array.from(firstResult.keys());
 
 				// Second call should use cache (and be instant)
 				const startTime = Date.now();
-				const secondResult = await R.unwrap(fetcher.fetchModelPricing());
+				const secondResult = await Result.unwrap(fetcher.fetchModelPricing());
 				const endTime = Date.now();
 
 				// Should be very fast (< 5ms) if cached
@@ -340,7 +340,7 @@ if (import.meta.vitest != null) {
 				using fetcher = new PricingFetcher();
 
 				// Test with a known Claude model from LiteLLM
-				const pricing = await R.unwrap(fetcher.getModelPricing('claude-sonnet-4-20250514'));
+				const pricing = await Result.unwrap(fetcher.getModelPricing('claude-sonnet-4-20250514'));
 				expect(pricing).not.toBeNull();
 			});
 
@@ -348,14 +348,14 @@ if (import.meta.vitest != null) {
 				using fetcher = new PricingFetcher();
 
 				// Test partial matching
-				const pricing = await R.unwrap(fetcher.getModelPricing('claude-sonnet-4'));
+				const pricing = await Result.unwrap(fetcher.getModelPricing('claude-sonnet-4'));
 				expect(pricing).not.toBeNull();
 			});
 
 			it('should return null for unknown models', async () => {
 				using fetcher = new PricingFetcher();
 
-				const pricing = await R.unwrap(fetcher.getModelPricing(
+				const pricing = await Result.unwrap(fetcher.getModelPricing(
 					'definitely-not-a-real-model-xyz',
 				));
 				expect(pricing).toBeNull();
@@ -366,7 +366,7 @@ if (import.meta.vitest != null) {
 			it('should calculate cost for claude-sonnet-4-20250514', async () => {
 				using fetcher = new PricingFetcher();
 				const modelName = 'claude-4-sonnet-20250514';
-				const pricing = await R.unwrap(fetcher.getModelPricing(modelName));
+				const pricing = await Result.unwrap(fetcher.getModelPricing(modelName));
 
 				// This model should exist in LiteLLM
 				expect(pricing).not.toBeNull();
@@ -387,7 +387,7 @@ if (import.meta.vitest != null) {
 			it('should calculate cost including cache tokens for claude-sonnet-4-20250514', async () => {
 				using fetcher = new PricingFetcher();
 				const modelName = 'claude-4-sonnet-20250514';
-				const pricing = await R.unwrap(fetcher.getModelPricing(modelName));
+				const pricing = await Result.unwrap(fetcher.getModelPricing(modelName));
 
 				const cost = fetcher.calculateCostFromPricing(
 					{
@@ -412,7 +412,7 @@ if (import.meta.vitest != null) {
 			it('should calculate cost for claude-opus-4-20250514', async () => {
 				using fetcher = new PricingFetcher();
 				const modelName = 'claude-4-opus-20250514';
-				const pricing = await R.unwrap(fetcher.getModelPricing(modelName));
+				const pricing = await Result.unwrap(fetcher.getModelPricing(modelName));
 
 				// This model should exist in LiteLLM
 				expect(pricing).not.toBeNull();
@@ -433,7 +433,7 @@ if (import.meta.vitest != null) {
 			it('should calculate cost including cache tokens for claude-opus-4-20250514', async () => {
 				using fetcher = new PricingFetcher();
 				const modelName = 'claude-4-opus-20250514';
-				const pricing = await R.unwrap(fetcher.getModelPricing(modelName));
+				const pricing = await Result.unwrap(fetcher.getModelPricing(modelName));
 
 				const cost = fetcher.calculateCostFromPricing(
 					{
@@ -494,7 +494,7 @@ if (import.meta.vitest != null) {
 			it('should use pre-fetched data in offline mode when available', async () => {
 				using fetcher = new PricingFetcher(true); // offline mode
 
-				const pricing = await R.unwrap(fetcher.fetchModelPricing());
+				const pricing = await Result.unwrap(fetcher.fetchModelPricing());
 
 				// Should have Claude models from pre-fetched data
 				expect(pricing.size).toBeGreaterThan(0);
@@ -509,7 +509,7 @@ if (import.meta.vitest != null) {
 			it('should calculate costs in offline mode when data available', async () => {
 				using fetcher = new PricingFetcher(true); // offline mode
 
-				const cost = await R.unwrap(fetcher.calculateCostFromTokens(
+				const cost = await Result.unwrap(fetcher.calculateCostFromTokens(
 					{
 						input_tokens: 1000,
 						output_tokens: 500,
@@ -541,7 +541,7 @@ if (import.meta.vitest != null) {
 				vi.stubGlobal('fetch', fetchMock);
 
 				using fetcher = new PricingFetcher(false); // Start in online mode
-				const pricing = await R.unwrap(fetcher.fetchModelPricing());
+				const pricing = await Result.unwrap(fetcher.fetchModelPricing());
 
 				// Verify that fetch was called (attempting online mode first)
 				expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining('litellm'));
@@ -568,7 +568,7 @@ if (import.meta.vitest != null) {
 
 				using fetcher = new PricingFetcher(false); // Start in online mode, will fallback
 
-				const cost = await R.unwrap(fetcher.calculateCostFromTokens(
+				const cost = await Result.unwrap(fetcher.calculateCostFromTokens(
 					{
 						input_tokens: 1000,
 						output_tokens: 500,
@@ -598,7 +598,7 @@ if (import.meta.vitest != null) {
 				vi.stubGlobal('fetch', fetchMock);
 
 				using fetcher = new PricingFetcher(false); // Start in online mode
-				const pricing = await R.unwrap(fetcher.fetchModelPricing());
+				const pricing = await Result.unwrap(fetcher.fetchModelPricing());
 
 				// Verify that fetch was attempted
 				expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining('litellm'));
