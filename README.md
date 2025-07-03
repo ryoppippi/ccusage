@@ -22,13 +22,24 @@
 
 ### Quick Start (Recommended)
 
-Run directly without installation:
+Thanks to ccusage's incredibly small bundle size ([![install size](https://packagephobia.com/badge?p=ccusage)](https://packagephobia.com/result?p=ccusage)), you can run it directly without installation:
 
 ```bash
+# Using bunx (recommended for speed)
+bunx ccusage
+
+# Using npx
 npx ccusage@latest
+
+# Using deno (with security flags)
+deno run -E -R=$HOME/.claude/projects/ -S=homedir -N='raw.githubusercontent.com:443' npm:ccusage@latest
 ```
 
-### Local Installation
+> 💡 **Tip**: We recommend using `bunx` instead of `npx` for a massive speed improvement!
+
+### Local Installation (Optional)
+
+Since ccusage has such a small bundle size, installation is entirely optional:
 
 ```bash
 npm install -g ccusage
@@ -72,6 +83,7 @@ ccusage daily --breakdown  # Per-model cost breakdown
 - 🔄 **Cache Token Support**: Tracks and displays cache creation and cache read tokens separately
 - 🌐 **Offline Mode**: Use pre-cached pricing data without network connectivity with `--offline` (Claude models only)
 - 🔌 **MCP Integration**: Built-in Model Context Protocol server for integration with other tools
+- 🚀 **Ultra-Small Bundle**: Unlike other CLI tools, we pay extreme attention to bundle size - incredibly small even without minification!
 
 ## Documentation
 

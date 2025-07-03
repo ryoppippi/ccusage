@@ -8,6 +8,7 @@
 
 import type { LiveMonitoringConfig } from '../_live-rendering.ts';
 import process from 'node:process';
+import { Result } from '@praha/byethrow';
 import pc from 'picocolors';
 import { MIN_RENDER_INTERVAL_MS } from '../_consts.ts';
 import { LiveMonitor } from '../_live-monitor.ts';
@@ -52,35 +53,40 @@ export async function startLiveMonitoring(config: LiveMonitoringConfig): Promise
 		order: config.order,
 	});
 
-	try {
-		while (!abortController.signal.aborted) {
-			const now = Date.now();
-			const timeSinceLastRender = now - lastRenderTime;
+	const monitoringResult = await Result.try({
+		try: async () => {
+			while (!abortController.signal.aborted) {
+				const now = Date.now();
+				const timeSinceLastRender = now - lastRenderTime;
 
-			// Skip render if too soon (frame rate limiting)
-			if (timeSinceLastRender < MIN_RENDER_INTERVAL_MS) {
-				await delayWithAbort(MIN_RENDER_INTERVAL_MS - timeSinceLastRender, abortController.signal);
-				continue;
+				// Skip render if too soon (frame rate limiting)
+				if (timeSinceLastRender < MIN_RENDER_INTERVAL_MS) {
+					await delayWithAbort(MIN_RENDER_INTERVAL_MS - timeSinceLastRender, abortController.signal);
+					continue;
+				}
+
+				// Get latest data
+				const activeBlock = await monitor.getActiveBlock();
+				monitor.clearCache(); // TODO: debug LiveMonitor.getActiveBlock() efficiency
+
+				if (activeBlock == null) {
+					await renderWaitingState(terminal, config, abortController.signal);
+					continue;
+				}
+
+				// Render active block
+				renderActiveBlock(terminal, activeBlock, config);
+				lastRenderTime = Date.now();
+
+				// Wait before next refresh
+				await delayWithAbort(config.refreshInterval, abortController.signal);
 			}
+		},
+		catch: error => error,
+	})();
 
-			// Get latest data
-			const activeBlock = await monitor.getActiveBlock();
-			monitor.clearCache(); // TODO: debug LiveMonitor.getActiveBlock() efficiency
-
-			if (activeBlock == null) {
-				await renderWaitingState(terminal, config, abortController.signal);
-				continue;
-			}
-
-			// Render active block
-			renderActiveBlock(terminal, activeBlock, config);
-			lastRenderTime = Date.now();
-
-			// Wait before next refresh
-			await delayWithAbort(config.refreshInterval, abortController.signal);
-		}
-	}
-	catch (error) {
+	if (Result.isFailure(monitoringResult)) {
+		const error = monitoringResult.error;
 		if ((error instanceof DOMException || error instanceof Error) && error.name === 'AbortError') {
 			return; // Normal graceful shutdown
 		}
