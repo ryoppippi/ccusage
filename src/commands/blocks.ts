@@ -26,19 +26,19 @@ import { startLiveMonitoring } from './_blocks.live.ts';
 function formatBlockTime(block: SessionBlock, compact = false): string {
 	const start = compact
 		? block.startTime.toLocaleString(undefined, {
-			month: '2-digit',
-			day: '2-digit',
-			hour: '2-digit',
-			minute: '2-digit',
-		})
+				month: '2-digit',
+				day: '2-digit',
+				hour: '2-digit',
+				minute: '2-digit',
+			})
 		: block.startTime.toLocaleString();
 
 	if (block.isGap ?? false) {
 		const end = compact
 			? block.endTime.toLocaleString(undefined, {
-				hour: '2-digit',
-				minute: '2-digit',
-			})
+					hour: '2-digit',
+					minute: '2-digit',
+				})
 			: block.endTime.toLocaleString();
 		const duration = Math.round((block.endTime.getTime() - block.startTime.getTime()) / (1000 * 60 * 60));
 		return compact ? `${start}-${end}\n(${duration}h gap)` : `${start} - ${end} (${duration}h gap)`;
@@ -275,18 +275,18 @@ export const blocksCommand = define({
 						projection,
 						tokenLimitStatus: projection != null && ctx.values.tokenLimit != null
 							? (() => {
-								const limit = parseTokenLimit(ctx.values.tokenLimit, maxTokensFromAll);
-								return limit != null
-									? {
-										limit,
-										projectedUsage: projection.totalTokens,
-										percentUsed: (projection.totalTokens / limit) * 100,
-										status: projection.totalTokens > limit
-											? 'exceeds'
-											: projection.totalTokens > limit * BLOCKS_WARNING_THRESHOLD ? 'warning' : 'ok',
-									}
-									: undefined;
-							})()
+									const limit = parseTokenLimit(ctx.values.tokenLimit, maxTokensFromAll);
+									return limit != null
+										? {
+												limit,
+												projectedUsage: projection.totalTokens,
+												percentUsed: (projection.totalTokens / limit) * 100,
+												status: projection.totalTokens > limit
+													? 'exceeds'
+													: projection.totalTokens > limit * BLOCKS_WARNING_THRESHOLD ? 'warning' : 'ok',
+											}
+										: undefined;
+								})()
 							: undefined,
 					};
 				}),

@@ -182,17 +182,17 @@ export function renderLiveDisplay(terminal: TerminalManager, block: SessionBlock
 	// Create colored progress bar
 	const usageBar = config.tokenLimit != null && config.tokenLimit > 0
 		? createProgressBar(
-			totalTokens,
-			config.tokenLimit,
-			barWidth,
-			{
-				showPercentage: false,
-				fillChar: barColor('█'),
-				emptyChar: pc.gray('░'),
-				leftBracket: '[',
-				rightBracket: ']',
-			},
-		)
+				totalTokens,
+				config.tokenLimit,
+				barWidth,
+				{
+					showPercentage: false,
+					fillChar: barColor('█'),
+					emptyChar: pc.gray('░'),
+					leftBracket: '[',
+					rightBracket: ']',
+				},
+			)
 		: `[${pc.green('█'.repeat(Math.floor(barWidth * 0.1)))}${pc.gray('░'.repeat(barWidth - Math.floor(barWidth * 0.1)))}]`;
 
 	// Burn rate with better formatting
@@ -213,17 +213,17 @@ export function renderLiveDisplay(terminal: TerminalManager, block: SessionBlock
 	// This creates immutable values based on the condition, improving code clarity
 	const { usageBarStr, usageCol1, usageCol2, usageCol3 } = config.tokenLimit != null && config.tokenLimit > 0
 		? {
-			usageBarStr: `${usageLabel}${''.padEnd(Math.max(0, labelWidth - usageLabelWidth))} ${usageBar} ${tokenPercent.toFixed(1).padStart(6)}% (${formatTokensShort(totalTokens)}/${formatTokensShort(config.tokenLimit)})`,
-			usageCol1: `${pc.gray('Tokens:')} ${formatNumber(totalTokens)} (${rateDisplay})`,
-			usageCol2: `${pc.gray('Limit:')} ${formatNumber(config.tokenLimit)} tokens`,
-			usageCol3: `${pc.gray('Cost:')} ${formatCurrency(block.costUSD)}`,
-		}
+				usageBarStr: `${usageLabel}${''.padEnd(Math.max(0, labelWidth - usageLabelWidth))} ${usageBar} ${tokenPercent.toFixed(1).padStart(6)}% (${formatTokensShort(totalTokens)}/${formatTokensShort(config.tokenLimit)})`,
+				usageCol1: `${pc.gray('Tokens:')} ${formatNumber(totalTokens)} (${rateDisplay})`,
+				usageCol2: `${pc.gray('Limit:')} ${formatNumber(config.tokenLimit)} tokens`,
+				usageCol3: `${pc.gray('Cost:')} ${formatCurrency(block.costUSD)}`,
+			}
 		: {
-			usageBarStr: `${usageLabel}${''.padEnd(Math.max(0, labelWidth - usageLabelWidth))} ${usageBar} (${formatTokensShort(totalTokens)} tokens)`,
-			usageCol1: `${pc.gray('Tokens:')} ${formatNumber(totalTokens)} (${rateDisplay})`,
-			usageCol2: '',
-			usageCol3: `${pc.gray('Cost:')} ${formatCurrency(block.costUSD)}`,
-		};
+				usageBarStr: `${usageLabel}${''.padEnd(Math.max(0, labelWidth - usageLabelWidth))} ${usageBar} (${formatTokensShort(totalTokens)} tokens)`,
+				usageCol1: `${pc.gray('Tokens:')} ${formatNumber(totalTokens)} (${rateDisplay})`,
+				usageCol2: '',
+				usageCol3: `${pc.gray('Cost:')} ${formatCurrency(block.costUSD)}`,
+			};
 
 	// Render usage bar
 	const usageBarPadded = usageBarStr + ' '.repeat(Math.max(0, boxWidth - 2 - stringWidth(usageBarStr)));
@@ -261,25 +261,25 @@ export function renderLiveDisplay(terminal: TerminalManager, block: SessionBlock
 		// Create projection bar
 		const projectionBar = config.tokenLimit != null && config.tokenLimit > 0
 			? createProgressBar(
-				projection.totalTokens,
-				config.tokenLimit,
-				barWidth,
-				{
-					showPercentage: false,
-					fillChar: projBarColor('█'),
-					emptyChar: pc.gray('░'),
-					leftBracket: '[',
-					rightBracket: ']',
-				},
-			)
+					projection.totalTokens,
+					config.tokenLimit,
+					barWidth,
+					{
+						showPercentage: false,
+						fillChar: projBarColor('█'),
+						emptyChar: pc.gray('░'),
+						leftBracket: '[',
+						rightBracket: ']',
+					},
+				)
 			: `[${pc.green('█'.repeat(Math.floor(barWidth * 0.15)))}${pc.gray('░'.repeat(barWidth - Math.floor(barWidth * 0.15)))}]`;
 
 		const limitStatus = config.tokenLimit != null && config.tokenLimit > 0
 			? (projectedPercent > 100
-				? pc.red('❌ WILL EXCEED LIMIT')
-				: projectedPercent > 80
-					? pc.yellow('⚠️  APPROACHING LIMIT')
-					: pc.green('✓ WITHIN LIMIT'))
+					? pc.red('❌ WILL EXCEED LIMIT')
+					: projectedPercent > 80
+						? pc.yellow('⚠️  APPROACHING LIMIT')
+						: pc.green('✓ WITHIN LIMIT'))
 			: pc.green('✓ ON TRACK');
 
 		// Projection section
