@@ -21,6 +21,7 @@ import path from 'node:path';
 import process from 'node:process';
 import { toArray } from '@antfu/utils';
 import { unreachable } from '@core/errorutil';
+import { Result } from '@praha/byethrow';
 import { groupBy, uniq } from 'es-toolkit'; // TODO: after node20 is deprecated, switch to native Object.groupBy
 import { sort } from 'fast-sort';
 import { createFixture } from 'fs-fixture';
@@ -611,7 +612,7 @@ export async function calculateCostForEntry(
 	if (mode === 'calculate') {
 		// Always calculate from tokens
 		if (data.message.model != null) {
-			return fetcher.calculateCostFromTokens(data.message.usage, data.message.model);
+			return Result.unwrap(fetcher.calculateCostFromTokens(data.message.usage, data.message.model));
 		}
 		return 0;
 	}
@@ -623,7 +624,7 @@ export async function calculateCostForEntry(
 		}
 
 		if (data.message.model != null) {
-			return fetcher.calculateCostFromTokens(data.message.usage, data.message.model);
+			return Result.unwrap(fetcher.calculateCostFromTokens(data.message.usage, data.message.model));
 		}
 
 		return 0;
@@ -710,39 +711,44 @@ export async function loadDailyUsageData(
 			.filter(line => line.length > 0);
 
 		for (const line of lines) {
-			try {
-				const parsed = JSON.parse(line) as unknown;
-				const result = usageDataSchema.safeParse(parsed);
-				if (!result.success) {
-					continue;
-				}
-				const data = result.data;
+			const parseParser = Result.try({
+				try: () => JSON.parse(line) as unknown,
+				catch: () => new Error('Invalid JSON'),
+			});
 
-				// Check for duplicate message + request ID combination
-				const uniqueHash = createUniqueHash(data);
-				if (isDuplicateEntry(uniqueHash, processedHashes)) {
-					// Skip duplicate message
-					continue;
-				}
-
-				// Mark this combination as processed
-				markAsProcessed(uniqueHash, processedHashes);
-
-				const date = formatDate(data.timestamp);
-				// If fetcher is available, calculate cost based on mode and tokens
-				// If fetcher is null, use pre-calculated costUSD or default to 0
-				const cost = fetcher != null
-					? await calculateCostForEntry(data, mode, fetcher)
-					: data.costUSD ?? 0;
-
-				// Extract project name from file path
-				const project = extractProjectFromPath(file);
-
-				allEntries.push({ data, date, cost, model: data.message.model, project });
-			}
-			catch {
+			const parseResult = parseParser();
+			if (Result.isFailure(parseResult)) {
 				// Skip invalid JSON lines
+				continue;
 			}
+
+			const result = usageDataSchema.safeParse(parseResult.value);
+			if (!result.success) {
+				continue;
+			}
+			const data = result.data;
+
+			// Check for duplicate message + request ID combination
+			const uniqueHash = createUniqueHash(data);
+			if (isDuplicateEntry(uniqueHash, processedHashes)) {
+				// Skip duplicate message
+				continue;
+			}
+
+			// Mark this combination as processed
+			markAsProcessed(uniqueHash, processedHashes);
+
+			const date = formatDate(data.timestamp);
+			// If fetcher is available, calculate cost based on mode and tokens
+			// If fetcher is null, use pre-calculated costUSD or default to 0
+			const cost = fetcher != null
+				? await calculateCostForEntry(data, mode, fetcher)
+				: data.costUSD ?? 0;
+
+			// Extract project name from file path
+			const project = extractProjectFromPath(file);
+
+			allEntries.push({ data, date, cost, model: data.message.model, project });
 		}
 	}
 
@@ -896,42 +902,47 @@ export async function loadSessionData(
 			.filter(line => line.length > 0);
 
 		for (const line of lines) {
-			try {
-				const parsed = JSON.parse(line) as unknown;
-				const result = usageDataSchema.safeParse(parsed);
-				if (!result.success) {
-					continue;
-				}
-				const data = result.data;
+			const parseParser = Result.try({
+				try: () => JSON.parse(line) as unknown,
+				catch: () => new Error('Invalid JSON'),
+			});
 
-				// Check for duplicate message + request ID combination
-				const uniqueHash = createUniqueHash(data);
-				if (isDuplicateEntry(uniqueHash, processedHashes)) {
-					// Skip duplicate message
-					continue;
-				}
-
-				// Mark this combination as processed
-				markAsProcessed(uniqueHash, processedHashes);
-
-				const sessionKey = `${projectPath}/${sessionId}`;
-				const cost = fetcher != null
-					? await calculateCostForEntry(data, mode, fetcher)
-					: data.costUSD ?? 0;
-
-				allEntries.push({
-					data,
-					sessionKey,
-					sessionId,
-					projectPath,
-					cost,
-					timestamp: data.timestamp,
-					model: data.message.model,
-				});
-			}
-			catch {
+			const parseResult = parseParser();
+			if (Result.isFailure(parseResult)) {
 				// Skip invalid JSON lines
+				continue;
 			}
+
+			const result = usageDataSchema.safeParse(parseResult.value);
+			if (!result.success) {
+				continue;
+			}
+			const data = result.data;
+
+			// Check for duplicate message + request ID combination
+			const uniqueHash = createUniqueHash(data);
+			if (isDuplicateEntry(uniqueHash, processedHashes)) {
+				// Skip duplicate message
+				continue;
+			}
+
+			// Mark this combination as processed
+			markAsProcessed(uniqueHash, processedHashes);
+
+			const sessionKey = `${projectPath}/${sessionId}`;
+			const cost = fetcher != null
+				? await calculateCostForEntry(data, mode, fetcher)
+				: data.costUSD ?? 0;
+
+			allEntries.push({
+				data,
+				sessionKey,
+				sessionId,
+				projectPath,
+				cost,
+				timestamp: data.timestamp,
+				model: data.message.model,
+			});
 		}
 	}
 
@@ -1142,45 +1153,50 @@ export async function loadSessionBlockData(
 			.filter(line => line.length > 0);
 
 		for (const line of lines) {
-			try {
-				const parsed = JSON.parse(line) as unknown;
-				const result = usageDataSchema.safeParse(parsed);
-				if (!result.success) {
-					continue;
-				}
-				const data = result.data;
+			const parseParser = Result.try({
+				try: () => JSON.parse(line) as unknown,
+				catch: error => error,
+			});
 
-				// Check for duplicate message + request ID combination
-				const uniqueHash = createUniqueHash(data);
-				if (isDuplicateEntry(uniqueHash, processedHashes)) {
-					// Skip duplicate message
-					continue;
-				}
-
-				// Mark this combination as processed
-				markAsProcessed(uniqueHash, processedHashes);
-
-				const cost = fetcher != null
-					? await calculateCostForEntry(data, mode, fetcher)
-					: data.costUSD ?? 0;
-
-				allEntries.push({
-					timestamp: new Date(data.timestamp),
-					usage: {
-						inputTokens: data.message.usage.input_tokens,
-						outputTokens: data.message.usage.output_tokens,
-						cacheCreationInputTokens: data.message.usage.cache_creation_input_tokens ?? 0,
-						cacheReadInputTokens: data.message.usage.cache_read_input_tokens ?? 0,
-					},
-					costUSD: cost,
-					model: data.message.model ?? 'unknown',
-					version: data.version,
-				});
-			}
-			catch (error) {
+			const parseResult = parseParser();
+			if (Result.isFailure(parseResult)) {
 				// Skip invalid JSON lines but log for debugging purposes
-				logger.debug(`Skipping invalid JSON line in 5-hour blocks: ${error instanceof Error ? error.message : String(error)}`);
+				logger.debug(`Skipping invalid JSON line in 5-hour blocks: ${parseResult.error instanceof Error ? parseResult.error.message : String(parseResult.error)}`);
+				continue;
 			}
+
+			const result = usageDataSchema.safeParse(parseResult.value);
+			if (!result.success) {
+				continue;
+			}
+			const data = result.data;
+
+			// Check for duplicate message + request ID combination
+			const uniqueHash = createUniqueHash(data);
+			if (isDuplicateEntry(uniqueHash, processedHashes)) {
+				// Skip duplicate message
+				continue;
+			}
+
+			// Mark this combination as processed
+			markAsProcessed(uniqueHash, processedHashes);
+
+			const cost = fetcher != null
+				? await calculateCostForEntry(data, mode, fetcher)
+				: data.costUSD ?? 0;
+
+			allEntries.push({
+				timestamp: new Date(data.timestamp),
+				usage: {
+					inputTokens: data.message.usage.input_tokens,
+					outputTokens: data.message.usage.output_tokens,
+					cacheCreationInputTokens: data.message.usage.cache_creation_input_tokens ?? 0,
+					cacheReadInputTokens: data.message.usage.cache_read_input_tokens ?? 0,
+				},
+				costUSD: cost,
+				model: data.message.model ?? 'unknown',
+				version: data.version,
+			});
 		}
 	}
 

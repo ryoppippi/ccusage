@@ -22,6 +22,14 @@
 				"@eslint/mcp@latest"
 			],
 			"env": {}
+		},
+		"@praha/byethrow": {
+			"type": "stdio",
+			"command": "bun",
+			"args": [
+				"byethrow-mcp"
+			],
+			"env": {}
 		}
 	}
 }
