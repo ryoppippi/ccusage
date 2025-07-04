@@ -153,24 +153,7 @@ export class ProxyAwareHttpClient implements HttpClient {
 			}
 
 			// Convert RequestInit headers to OutgoingHttpHeaders
-			const requestHeaders: OutgoingHttpHeaders = { ...baseHeaders };
-			if (options.headers != null) {
-				if (options.headers instanceof Headers) {
-					for (const [key, value] of options.headers.entries()) {
-						requestHeaders[key] = value;
-					}
-				}
-				else if (Array.isArray(options.headers)) {
-					for (const [key, value] of options.headers) {
-						if (key !== undefined) {
-							requestHeaders[key] = value;
-						}
-					}
-				}
-				else {
-					Object.assign(requestHeaders, options.headers);
-				}
-			}
+			const requestHeaders = this.convertHeaders(options.headers, baseHeaders);
 
 			const requestOptions: HttpRequestOptions | HttpsRequestOptions = {
 				hostname: proxy.hostname,
@@ -208,24 +191,7 @@ export class ProxyAwareHttpClient implements HttpClient {
 			const requestModule = targetUrl.protocol === 'https:' ? httpsRequest : httpRequest;
 
 			// Convert RequestInit headers to OutgoingHttpHeaders
-			let requestHeaders: OutgoingHttpHeaders = {};
-			if (options.headers != null) {
-				if (options.headers instanceof Headers) {
-					for (const [key, value] of options.headers.entries()) {
-						requestHeaders[key] = value;
-					}
-				}
-				else if (Array.isArray(options.headers)) {
-					for (const [key, value] of options.headers) {
-						if (key !== undefined) {
-							requestHeaders[key] = value;
-						}
-					}
-				}
-				else {
-					requestHeaders = options.headers as OutgoingHttpHeaders;
-				}
-			}
+			const requestHeaders = this.convertHeaders(options.headers);
 
 			const requestOptions: HttpRequestOptions | HttpsRequestOptions = {
 				hostname: targetUrl.hostname,
@@ -248,6 +214,37 @@ export class ProxyAwareHttpClient implements HttpClient {
 			}
 			req.end();
 		});
+	}
+
+	/**
+	 * Converts RequestInit headers to Node.js OutgoingHttpHeaders format
+	 *
+	 * @param headers - Headers in various formats (Headers object, array, or plain object)
+	 * @param baseHeaders - Optional base headers to merge with
+	 * @returns Converted headers in OutgoingHttpHeaders format
+	 */
+	private convertHeaders(headers?: RequestInit['headers'], baseHeaders?: OutgoingHttpHeaders): OutgoingHttpHeaders {
+		const requestHeaders: OutgoingHttpHeaders = { ...baseHeaders };
+
+		if (headers != null) {
+			if (headers instanceof Headers) {
+				for (const [key, value] of headers.entries()) {
+					requestHeaders[key] = value;
+				}
+			}
+			else if (Array.isArray(headers)) {
+				for (const [key, value] of headers) {
+					if (key !== undefined && typeof key === 'string' && typeof value === 'string') {
+						requestHeaders[key] = value;
+					}
+				}
+			}
+			else {
+				Object.assign(requestHeaders, headers);
+			}
+		}
+
+		return requestHeaders;
 	}
 
 	/**

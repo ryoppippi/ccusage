@@ -196,7 +196,7 @@ ccusage monthly
 
 # Popular proxy tools
 export HTTP_PROXY=http://127.0.0.1:7897  # Clash Verge
-export HTTP_PROXY=http://127.0.0.1:1087  # V2Ray
+# export HTTP_PROXY=http://127.0.0.1:1087  # V2Ray (alternative)
 ```
 
 ### Automatic Fallback
