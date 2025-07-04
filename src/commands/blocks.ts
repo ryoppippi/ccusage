@@ -288,6 +288,7 @@ export const blocksCommand = define({
 										: undefined;
 								})()
 							: undefined,
+						usageLimitResetTime: block.usageLimitResetTime,
 					};
 				}),
 			};

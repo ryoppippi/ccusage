@@ -91,6 +91,16 @@ Full documentation is available at **[ccusage.com](https://ccusage.com/)**
 
 ## Sponsors
 
+### Featured Sponsor
+
+Check out these [47 Claude Code ProTips from Greg Baugues.](https://www.youtube.com/watch?v=TiNpzxoBPz0&lc=UgyVgQyOhfJJlheVMcB4AaABAg)
+
+<p align="center">
+    <a href="https://www.youtube.com/watch?v=TiNpzxoBPz0&lc=UgyVgQyOhfJJlheVMcB4AaABAg">
+        <img src="https://cdn.jsdelivr.net/gh/ryoppippi/ccusage@main/docs/public/claude_code_protips_thumbnail_v1.png" alt="47 Claude Code ProTips from Greg Baugues" width="600">
+    </a>
+</p>
+
 <p align="center">
     <a href="https://github.com/sponsors/ryoppippi">
         <img src="https://cdn.jsdelivr.net/gh/ryoppippi/sponsors@main/sponsors.svg">

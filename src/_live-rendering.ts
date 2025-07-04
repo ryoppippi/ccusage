@@ -16,7 +16,6 @@ import prettyMs from 'pretty-ms';
 import stringWidth from 'string-width';
 import { calculateBurnRate, projectBlockUsage } from './_session-blocks.ts';
 import { centerText, createProgressBar } from './_terminal-utils.ts';
-import { getTotalTokens } from './_token-utils.ts';
 import { formatCurrency, formatModelsDisplay, formatNumber } from './_utils.ts';
 
 /**
@@ -94,7 +93,7 @@ export function renderLiveDisplay(terminal: TerminalManager, block: SessionBlock
 	const now = new Date();
 
 	// Calculate key metrics
-	const totalTokens = getTotalTokens(block.tokenCounts);
+	const totalTokens = block.tokenCounts.inputTokens + block.tokenCounts.outputTokens;
 	const elapsed = (now.getTime() - block.startTime.getTime()) / (1000 * 60);
 	const remaining = (block.endTime.getTime() - now.getTime()) / (1000 * 60);
 
@@ -145,7 +144,7 @@ export function renderLiveDisplay(terminal: TerminalManager, block: SessionBlock
 	const sessionLabel = pc.bold('⏱️ SESSION');
 	const sessionLabelWidth = stringWidth(sessionLabel);
 	const sessionBarStr = `${sessionLabel}${''.padEnd(Math.max(0, labelWidth - sessionLabelWidth))} ${sessionProgressBar} ${sessionPercent.toFixed(1).padStart(6)}%`;
-	const sessionBarPadded = sessionBarStr + ' '.repeat(Math.max(0, boxWidth - 2 - stringWidth(sessionBarStr)));
+	const sessionBarPadded = sessionBarStr + ' '.repeat(Math.max(0, boxWidth - 3 - stringWidth(sessionBarStr)));
 	terminal.write(`${marginStr}│ ${sessionBarPadded}│\n`);
 
 	// Session details (indented)
@@ -159,8 +158,18 @@ export function renderLiveDisplay(terminal: TerminalManager, block: SessionBlock
 	const pad1 = ' '.repeat(Math.max(0, DETAIL_COLUMN_WIDTHS.col1 - col1Visible));
 	const pad2 = ' '.repeat(Math.max(0, DETAIL_COLUMN_WIDTHS.col2 - col2Visible));
 	const sessionDetails = `   ${col1}${pad1}${pad2}${col3}`;
-	const sessionDetailsPadded = sessionDetails + ' '.repeat(Math.max(0, boxWidth - 2 - stringWidth(sessionDetails)));
+	const sessionDetailsPadded = sessionDetails + ' '.repeat(Math.max(0, boxWidth - 3 - stringWidth(sessionDetails)));
+	// Claude usage limit message
+	let usageLimitResetTimePadded: string | null = null;
+	if (block.usageLimitResetTime !== undefined && now < block.usageLimitResetTime) {
+		const resetTime = block.usageLimitResetTime?.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: true }) ?? null;
+		const usageLimitResetTime = resetTime !== null ? pc.red(`❌ USAGE LIMIT. RESET AT ${resetTime}`) : '';
+		usageLimitResetTimePadded = resetTime !== null ? usageLimitResetTime + ' '.repeat(Math.max(0, boxWidth - 3 - stringWidth(usageLimitResetTime))) : null;
+	}
 	terminal.write(`${marginStr}│ ${sessionDetailsPadded}│\n`);
+	if (usageLimitResetTimePadded !== null) {
+		terminal.write(`${marginStr}│ ${usageLimitResetTimePadded}│\n`);
+	}
 	terminal.write(`${marginStr}│${' '.repeat(boxWidth - 2)}│\n`);
 	terminal.write(`${marginStr}├${'─'.repeat(boxWidth - 2)}┤\n`);
 	terminal.write(`${marginStr}│${' '.repeat(boxWidth - 2)}│\n`);
@@ -226,7 +235,7 @@ export function renderLiveDisplay(terminal: TerminalManager, block: SessionBlock
 			};
 
 	// Render usage bar
-	const usageBarPadded = usageBarStr + ' '.repeat(Math.max(0, boxWidth - 2 - stringWidth(usageBarStr)));
+	const usageBarPadded = usageBarStr + ' '.repeat(Math.max(0, boxWidth - 3 - stringWidth(usageBarStr)));
 	terminal.write(`${marginStr}│ ${usageBarPadded}│\n`);
 
 	// Render usage details (indented and aligned)
@@ -235,7 +244,7 @@ export function renderLiveDisplay(terminal: TerminalManager, block: SessionBlock
 	const usagePad1 = ' '.repeat(Math.max(0, DETAIL_COLUMN_WIDTHS.col1 - usageCol1Visible));
 	const usagePad2 = usageCol2.length > 0 ? ' '.repeat(Math.max(0, DETAIL_COLUMN_WIDTHS.col2 - usageCol2Visible)) : ' '.repeat(DETAIL_COLUMN_WIDTHS.col2);
 	const usageDetails = `   ${usageCol1}${usagePad1}${usageCol2}${usagePad2}${usageCol3}`;
-	const usageDetailsPadded = usageDetails + ' '.repeat(Math.max(0, boxWidth - 2 - stringWidth(usageDetails)));
+	const usageDetailsPadded = usageDetails + ' '.repeat(Math.max(0, boxWidth - 3 - stringWidth(usageDetails)));
 	terminal.write(`${marginStr}│ ${usageDetailsPadded}│\n`);
 
 	terminal.write(`${marginStr}│${' '.repeat(boxWidth - 2)}│\n`);
@@ -287,7 +296,7 @@ export function renderLiveDisplay(terminal: TerminalManager, block: SessionBlock
 		const projLabelWidth = stringWidth(projLabel);
 		if (config.tokenLimit != null && config.tokenLimit > 0) {
 			const projBarStr = `${projLabel}${''.padEnd(Math.max(0, labelWidth - projLabelWidth))} ${projectionBar} ${projectedPercent.toFixed(1).padStart(6)}% (${formatTokensShort(projection.totalTokens)}/${formatTokensShort(config.tokenLimit)})`;
-			const projBarPadded = projBarStr + ' '.repeat(Math.max(0, boxWidth - 2 - stringWidth(projBarStr)));
+			const projBarPadded = projBarStr + ' '.repeat(Math.max(0, boxWidth - 3 - stringWidth(projBarStr)));
 			terminal.write(`${marginStr}│ ${projBarPadded}│\n`);
 
 			// Projection details (indented and aligned)
@@ -301,12 +310,12 @@ export function renderLiveDisplay(terminal: TerminalManager, block: SessionBlock
 			const pad1 = ' '.repeat(Math.max(0, DETAIL_COLUMN_WIDTHS.col1 - col1Visible));
 			const pad2 = ' '.repeat(Math.max(0, DETAIL_COLUMN_WIDTHS.col2 - col2Visible));
 			const projDetails = `   ${col1}${pad1}${col2}${pad2}${col3}`;
-			const projDetailsPadded = projDetails + ' '.repeat(Math.max(0, boxWidth - 2 - stringWidth(projDetails)));
+			const projDetailsPadded = projDetails + ' '.repeat(Math.max(0, boxWidth - 3 - stringWidth(projDetails)));
 			terminal.write(`${marginStr}│ ${projDetailsPadded}│\n`);
 		}
 		else {
 			const projBarStr = `${projLabel}${''.padEnd(Math.max(0, labelWidth - projLabelWidth))} ${projectionBar} (${formatTokensShort(projection.totalTokens)} tokens)`;
-			const projBarPadded = projBarStr + ' '.repeat(Math.max(0, boxWidth - 2 - stringWidth(projBarStr)));
+			const projBarPadded = projBarStr + ' '.repeat(Math.max(0, boxWidth - 3 - stringWidth(projBarStr)));
 			terminal.write(`${marginStr}│ ${projBarPadded}│\n`);
 
 			// Projection details (indented)
@@ -320,7 +329,7 @@ export function renderLiveDisplay(terminal: TerminalManager, block: SessionBlock
 			const pad1 = ' '.repeat(Math.max(0, DETAIL_COLUMN_WIDTHS.col1 - col1Visible));
 			const pad2 = ' '.repeat(Math.max(0, DETAIL_COLUMN_WIDTHS.col2 - col2Visible));
 			const projDetails = `   ${col1}${pad1}${col2}${pad2}${col3}`;
-			const projDetailsPadded = projDetails + ' '.repeat(Math.max(0, boxWidth - 2 - stringWidth(projDetails)));
+			const projDetailsPadded = projDetails + ' '.repeat(Math.max(0, boxWidth - 3 - stringWidth(projDetails)));
 			terminal.write(`${marginStr}│ ${projDetailsPadded}│\n`);
 		}
 
@@ -331,7 +340,7 @@ export function renderLiveDisplay(terminal: TerminalManager, block: SessionBlock
 	if (block.models.length > 0) {
 		terminal.write(`${marginStr}├${'─'.repeat(boxWidth - 2)}┤\n`);
 		const modelsLine = `⚙️  Models: ${formatModelsDisplay(block.models)}`;
-		const modelsLinePadded = modelsLine + ' '.repeat(Math.max(0, boxWidth - 2 - stringWidth(modelsLine)));
+		const modelsLinePadded = modelsLine + ' '.repeat(Math.max(0, boxWidth - 3 - stringWidth(modelsLine)));
 		terminal.write(`${marginStr}│ ${modelsLinePadded}│\n`);
 	}
 

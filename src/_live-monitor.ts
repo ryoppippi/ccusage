@@ -20,6 +20,7 @@ import {
 	calculateCostForEntry,
 	createUniqueHash,
 	getEarliestTimestamp,
+	getUsageLimitResetTime,
 	sortFilesByTimestamp,
 	usageDataSchema,
 } from './data-loader.ts';
@@ -93,88 +94,75 @@ export class LiveMonitor implements Disposable {
 			const sortedFiles = await sortFilesByTimestamp(filesToRead);
 
 			for (const file of sortedFiles) {
-				const fileReader = Result.try({
-					try: async () => readFile(file, 'utf-8'),
-					catch: (error) => {
-						// Preserve original error information for better debugging
-						if (error instanceof Error) {
-							return error;
+				const content = await readFile(file, 'utf-8')
+					.catch((error) => {
+						// Handle file access errors gracefully with specific logging for ENOENT
+						const isEnoent = error instanceof Error && 
+							(error.message.includes('ENOENT') || error.message.includes('no such file or directory'));
+						
+						if (isEnoent) {
+							// For ENOENT errors (likely due to cloud sync), use debug level
+							logger.debug(`File temporarily unavailable (likely syncing): ${path.basename(file)}`);
+						} else {
+							// For other read errors, use debug level but with more detail
+							logger.debug(`Failed to read usage file ${path.basename(file)}:`, error.message);
 						}
-						return new Error(`File read failed: ${String(error)}`);
-					},
-				});
-
-				const fileResult = await fileReader();
-				if (Result.isFailure(fileResult)) {
-					// Log file access issues for debugging, but continue processing
-					const error = fileResult.error;
-					const isEnoent = error.message.includes('ENOENT') || error.message.includes('no such file or directory');
-					
-					if (isEnoent) {
-						// For ENOENT errors (likely due to cloud sync), use debug level
-						logger.debug(`File temporarily unavailable (likely syncing): ${path.basename(file)}`);
-					} else {
-						// For other read errors, use debug level but with more detail
-						logger.debug(`Failed to read usage file ${path.basename(file)}:`, error.message);
-					}
-					continue;
-				}
-
-				const content = fileResult.value;
+						
+						// Skip files that can't be read
+						return '';
+					});
 				const lines = content
 					.trim()
 					.split('\n')
 					.filter(line => line.length > 0);
 
 				for (const line of lines) {
-					const parseParser = Result.try({
-						try: () => JSON.parse(line) as unknown,
-						catch: () => new Error('Invalid JSON'),
-					});
+					try {
+						const parsed = JSON.parse(line) as unknown;
+						const result = usageDataSchema.safeParse(parsed);
+						if (!result.success) {
+							continue;
+						}
+						const data = result.data;
 
-					const parseResult = parseParser();
-					if (Result.isFailure(parseResult)) {
+						// Check for duplicates
+						const uniqueHash = createUniqueHash(data);
+						if (uniqueHash != null && this.processedHashes.has(uniqueHash)) {
+							continue;
+						}
+						if (uniqueHash != null) {
+							this.processedHashes.add(uniqueHash);
+						}
+
+						// Calculate cost if needed
+						const costUSD: number = await (this.config.mode === 'display'
+							? Promise.resolve(data.costUSD ?? 0)
+							: calculateCostForEntry(
+									data,
+									this.config.mode,
+									this.fetcher!,
+								));
+
+						const usageLimitResetTime = getUsageLimitResetTime(data);
+
+						// Add entry
+						this.allEntries.push({
+							timestamp: new Date(data.timestamp),
+							usage: {
+								inputTokens: data.message.usage.input_tokens ?? 0,
+								outputTokens: data.message.usage.output_tokens ?? 0,
+								cacheCreationInputTokens: data.message.usage.cache_creation_input_tokens ?? 0,
+								cacheReadInputTokens: data.message.usage.cache_read_input_tokens ?? 0,
+							},
+							costUSD,
+							model: data.message.model ?? '<synthetic>',
+							version: data.version,
+							usageLimitResetTime: usageLimitResetTime ?? undefined,
+						});
+					}
+					catch {
 						// Skip malformed lines
-						continue;
 					}
-
-					const result = usageDataSchema.safeParse(parseResult.value);
-					if (!result.success) {
-						continue;
-					}
-					const data = result.data;
-
-					// Check for duplicates
-					const uniqueHash = createUniqueHash(data);
-					if (uniqueHash != null && this.processedHashes.has(uniqueHash)) {
-						continue;
-					}
-					if (uniqueHash != null) {
-						this.processedHashes.add(uniqueHash);
-					}
-
-					// Calculate cost if needed
-					const costUSD: number = await (this.config.mode === 'display'
-						? Promise.resolve(data.costUSD ?? 0)
-						: calculateCostForEntry(
-								data,
-								this.config.mode,
-								this.fetcher!,
-							));
-
-					// Add entry
-					this.allEntries.push({
-						timestamp: new Date(data.timestamp),
-						usage: {
-							inputTokens: data.message.usage.input_tokens ?? 0,
-							outputTokens: data.message.usage.output_tokens ?? 0,
-							cacheCreationInputTokens: data.message.usage.cache_creation_input_tokens ?? 0,
-							cacheReadInputTokens: data.message.usage.cache_read_input_tokens ?? 0,
-						},
-						costUSD,
-						model: data.message.model ?? '<synthetic>',
-						version: data.version,
-					});
 				}
 			}
 		}
