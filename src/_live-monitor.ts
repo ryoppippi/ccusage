@@ -23,6 +23,7 @@ import {
 	sortFilesByTimestamp,
 	usageDataSchema,
 } from './data-loader.ts';
+import { logger } from './logger.ts';
 import { PricingFetcher } from './pricing-fetcher.ts';
 
 /**
@@ -94,12 +95,28 @@ export class LiveMonitor implements Disposable {
 			for (const file of sortedFiles) {
 				const fileReader = Result.try({
 					try: async () => readFile(file, 'utf-8'),
-					catch: () => new Error('File read failed'),
+					catch: (error) => {
+						// Preserve original error information for better debugging
+						if (error instanceof Error) {
+							return error;
+						}
+						return new Error(`File read failed: ${String(error)}`);
+					},
 				});
 
 				const fileResult = await fileReader();
 				if (Result.isFailure(fileResult)) {
-					// Skip files that can't be read
+					// Log file access issues for debugging, but continue processing
+					const error = fileResult.error;
+					const isEnoent = error.message.includes('ENOENT') || error.message.includes('no such file or directory');
+					
+					if (isEnoent) {
+						// For ENOENT errors (likely due to cloud sync), use debug level
+						logger.debug(`File temporarily unavailable (likely syncing): ${path.basename(file)}`);
+					} else {
+						// For other read errors, use debug level but with more detail
+						logger.debug(`Failed to read usage file ${path.basename(file)}:`, error.message);
+					}
 					continue;
 				}
 

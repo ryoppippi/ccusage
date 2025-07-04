@@ -516,9 +516,21 @@ export async function getEarliestTimestamp(filePath: string): Promise<Date | nul
 		return earliestDate;
 	}
 	catch (error) {
-		// Log file access errors for diagnostics, but continue processing
+		// Handle file access errors gracefully
 		// This ensures files without timestamps or with access issues are sorted to the end
-		logger.debug(`Failed to get earliest timestamp for ${filePath}:`, error);
+		
+		// Check if this is a file sync related error (ENOENT)
+		const isEnoent = error instanceof Error && 
+			(error.message.includes('ENOENT') || error.message.includes('no such file or directory'));
+		
+		if (isEnoent) {
+			// For ENOENT errors (likely due to cloud sync), use debug level to avoid spam
+			logger.debug(`File temporarily unavailable (likely syncing): ${path.basename(filePath)}`);
+		} else {
+			// For other errors, log with more detail for debugging
+			logger.debug(`Failed to get earliest timestamp for ${filePath}:`, error);
+		}
+		
 		return null;
 	}
 }
