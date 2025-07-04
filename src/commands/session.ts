@@ -62,6 +62,7 @@ export const sessionCommand = define({
 					lastActivity: data.lastActivity,
 					modelsUsed: data.modelsUsed,
 					modelBreakdowns: data.modelBreakdowns,
+					projectPath: data.projectPath,
 				})),
 				totals: createTotalsObject(totals),
 			};
@@ -118,6 +119,7 @@ export const sessionCommand = define({
 				compactThreshold: 100,
 			});
 
+			// Add session data
 			let maxSessionLength = 0;
 			for (const data of sessionData) {
 				const sessionDisplay = data.sessionId.split('-').slice(-2).join('-'); // Display last two parts of session ID
