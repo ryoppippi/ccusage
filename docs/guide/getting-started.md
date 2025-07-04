@@ -100,6 +100,10 @@ ccusage monthly --json > usage-data.json
 ccusage blocks --live
 ```
 
+## Colors
+
+ccusage automatically colors the output based on the terminal's capabilities. If you want to disable colors, you can use the `--no-color` flag. Or you can use the `--color` flag to force colors on.
+
 ## Troubleshooting
 
 ### No Data Found

@@ -9,6 +9,7 @@
 
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
+import { Result } from '@praha/byethrow';
 import { createFixture } from 'fs-fixture';
 import { glob } from 'tinyglobby';
 import { CLAUDE_PROJECTS_DIR_NAME, DEBUG_MATCH_THRESHOLD_PERCENT, USAGE_DATA_GLOB_PATTERN } from './_consts.ts';
@@ -110,100 +111,104 @@ export async function detectMismatches(
 			.filter(line => line.length > 0);
 
 		for (const line of lines) {
-			try {
-				const parsed = JSON.parse(line) as unknown;
-				const result = usageDataSchema.safeParse(parsed);
+			const parseParser = Result.try({
+				try: () => JSON.parse(line) as unknown,
+				catch: () => new Error('Invalid JSON'),
+			});
 
-				if (!result.success) {
-					continue;
-				}
+			const parseResult = parseParser();
+			if (Result.isFailure(parseResult)) {
+				continue;
+			}
 
-				const data = result.data;
-				stats.totalEntries++;
+			const schemaResult = usageDataSchema.safeParse(parseResult.value);
 
-				// Check if we have both costUSD and model
-				if (
-					data.costUSD !== undefined
-					&& data.message.model != null
-					&& data.message.model !== '<synthetic>'
-				) {
-					stats.entriesWithBoth++;
+			if (!schemaResult.success) {
+				continue;
+			}
 
-					const model = data.message.model;
-					const calculatedCost = await fetcher.calculateCostFromTokens(
-						data.message.usage,
-						model,
-					);
+			const data = schemaResult.data;
+			stats.totalEntries++;
 
-					// Only compare if we could calculate a cost
-					const difference = Math.abs(data.costUSD - calculatedCost);
-					const percentDiff
+			// Check if we have both costUSD and model
+			if (
+				data.costUSD !== undefined
+				&& data.message.model != null
+				&& data.message.model !== '<synthetic>'
+			) {
+				stats.entriesWithBoth++;
+
+				const model = data.message.model;
+				const calculatedCost = await Result.unwrap(fetcher.calculateCostFromTokens(
+					data.message.usage,
+					model,
+				));
+
+				// Only compare if we could calculate a cost
+				const difference = Math.abs(data.costUSD - calculatedCost);
+				const percentDiff
 						= data.costUSD > 0 ? (difference / data.costUSD) * 100 : 0;
 
-					// Update model statistics
-					const modelStat = stats.modelStats.get(model) ?? {
+				// Update model statistics
+				const modelStat = stats.modelStats.get(model) ?? {
+					total: 0,
+					matches: 0,
+					mismatches: 0,
+					avgPercentDiff: 0,
+				};
+				modelStat.total++;
+
+				// Update version statistics if version is available
+				if (data.version != null) {
+					const versionStat = stats.versionStats.get(data.version) ?? {
 						total: 0,
 						matches: 0,
 						mismatches: 0,
 						avgPercentDiff: 0,
 					};
-					modelStat.total++;
+					versionStat.total++;
 
-					// Update version statistics if version is available
-					if (data.version != null) {
-						const versionStat = stats.versionStats.get(data.version) ?? {
-							total: 0,
-							matches: 0,
-							mismatches: 0,
-							avgPercentDiff: 0,
-						};
-						versionStat.total++;
+					// Consider it a match if within the defined threshold (to account for floating point)
+					if (percentDiff < DEBUG_MATCH_THRESHOLD_PERCENT) {
+						versionStat.matches++;
+					}
+					else {
+						versionStat.mismatches++;
+					}
 
-						// Consider it a match if within the defined threshold (to account for floating point)
-						if (percentDiff < DEBUG_MATCH_THRESHOLD_PERCENT) {
-							versionStat.matches++;
-						}
-						else {
-							versionStat.mismatches++;
-						}
-
-						// Update average percent difference for version
-						versionStat.avgPercentDiff
+					// Update average percent difference for version
+					versionStat.avgPercentDiff
 								= (versionStat.avgPercentDiff * (versionStat.total - 1)
 									+ percentDiff)
 								/ versionStat.total;
-						stats.versionStats.set(data.version, versionStat);
-					}
+					stats.versionStats.set(data.version, versionStat);
+				}
 
-					// Consider it a match if within 0.1% difference (to account for floating point)
-					if (percentDiff < 0.1) {
-						stats.matches++;
-						modelStat.matches++;
-					}
-					else {
-						stats.mismatches++;
-						modelStat.mismatches++;
-						stats.discrepancies.push({
-							file: path.basename(file),
-							timestamp: data.timestamp,
-							model,
-							originalCost: data.costUSD,
-							calculatedCost,
-							difference,
-							percentDiff,
-							usage: data.message.usage,
-						});
-					}
+				// Consider it a match if within 0.1% difference (to account for floating point)
+				if (percentDiff < 0.1) {
+					stats.matches++;
+					modelStat.matches++;
+				}
+				else {
+					stats.mismatches++;
+					modelStat.mismatches++;
+					stats.discrepancies.push({
+						file: path.basename(file),
+						timestamp: data.timestamp,
+						model,
+						originalCost: data.costUSD,
+						calculatedCost,
+						difference,
+						percentDiff,
+						usage: data.message.usage,
+					});
+				}
 
-					// Update average percent difference
-					modelStat.avgPercentDiff
+				// Update average percent difference
+				modelStat.avgPercentDiff
 							= (modelStat.avgPercentDiff * (modelStat.total - 1) + percentDiff)
 								/ modelStat.total;
-					stats.modelStats.set(model, modelStat);
-				}
-			}
-			catch {
-				// Skip invalid JSON
+				stats.modelStats.set(model, modelStat);
 			}
 		}
 	}
