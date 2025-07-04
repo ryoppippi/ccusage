@@ -13,6 +13,7 @@ import type { CostMode, SortOrder } from './_types.ts';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { Result } from '@praha/byethrow';
+import { createFixture } from 'fs-fixture';
 import { glob } from 'tinyglobby';
 import { CLAUDE_PROJECTS_DIR_NAME, USAGE_DATA_GLOB_PATTERN } from './_consts.ts';
 import { identifySessionBlocks } from './_session-blocks.ts';
@@ -193,7 +194,6 @@ if (import.meta.vitest != null) {
 		let monitor: LiveMonitor;
 
 		beforeEach(async () => {
-			const { createFixture } = await import('fs-fixture');
 			const now = new Date();
 			const recentTimestamp = new Date(now.getTime() - 60 * 60 * 1000); // 1 hour ago
 
@@ -251,7 +251,6 @@ if (import.meta.vitest != null) {
 		});
 
 		it('should handle empty directories', async () => {
-			const { createFixture } = await import('fs-fixture');
 			const emptyFixture = await createFixture({});
 
 			const emptyMonitor = new LiveMonitor({

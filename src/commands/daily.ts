@@ -1,9 +1,12 @@
 import type { DailyProjectOutput } from '../_json-output-types.ts';
 import process from 'node:process';
+import { createFixture } from 'fs-fixture';
 import { define } from 'gunshi';
 import pc from 'picocolors';
-import { formatProjectName } from '../_project-names.ts';
+import { PROJECT_ALIASES_ENV } from '../_consts.ts';
+import { clearAliasCache, formatProjectName } from '../_project-names.ts';
 import { sharedCommandConfig } from '../_shared-args.ts';
+import { createDailyDate, createISOTimestamp, createModelName } from '../_types.ts';
 import { formatCurrency, formatModelsDisplayMultiline, formatNumber, pushBreakdownRows, ResponsiveTable } from '../_utils.ts';
 import {
 	calculateTotals,
@@ -292,13 +295,6 @@ export const dailyCommand = define({
 });
 
 if (import.meta.vitest != null) {
-	const { describe, it, expect } = import.meta.vitest;
-
-	// eslint-disable-next-line antfu/no-top-level-await
-	const { createFixture } = await import('fs-fixture');
-	// eslint-disable-next-line antfu/no-top-level-await
-	const { createISOTimestamp, createDailyDate, createModelName } = await import('../_types.ts');
-
 	describe('daily command --instances integration', () => {
 		it('groups data by project when --instances flag is used', async () => {
 			// Create test fixture with 2 projects
@@ -338,7 +334,6 @@ if (import.meta.vitest != null) {
 			});
 
 			// Test data loading with groupByProject: true (like --instances does)
-			const { loadDailyUsageData } = await import('../data-loader.ts');
 			const dailyData = await loadDailyUsageData({
 				claudePath: fixture.path,
 				groupByProject: true,
@@ -477,7 +472,6 @@ if (import.meta.vitest != null) {
 			});
 
 			// Test filtering by specific project
-			const { loadDailyUsageData } = await import('../data-loader.ts');
 			const filteredData = await loadDailyUsageData({
 				claudePath: fixture.path,
 				project: 'project-alpha',
@@ -514,7 +508,6 @@ if (import.meta.vitest != null) {
 			});
 
 			// Test filtering by non-existent project
-			const { loadDailyUsageData } = await import('../data-loader.ts');
 			const filteredData = await loadDailyUsageData({
 				claudePath: fixture.path,
 				project: 'non-existent-project',
@@ -547,7 +540,6 @@ if (import.meta.vitest != null) {
 			});
 
 			// Test that project filtering automatically populates project field
-			const { loadDailyUsageData } = await import('../data-loader.ts');
 			const filteredData = await loadDailyUsageData({
 				claudePath: fixture.path,
 				project: 'test-project',
@@ -595,9 +587,6 @@ if (import.meta.vitest != null) {
 					},
 				},
 			});
-
-			const { loadDailyUsageData } = await import('../data-loader.ts');
-			const { calculateTotals, createTotalsObject } = await import('../calculate-cost.ts');
 
 			// Test standard mode (no --instances)
 			const standardData = await loadDailyUsageData({
@@ -716,8 +705,6 @@ if (import.meta.vitest != null) {
 				},
 			});
 
-			const { loadDailyUsageData } = await import('../data-loader.ts');
-
 			// Test combining both flags: --instances --project target-project
 			const combinedFlagsData = await loadDailyUsageData({
 				claudePath: fixture.path,
@@ -748,7 +735,6 @@ if (import.meta.vitest != null) {
 			expect(combinedFlagsData).toHaveLength(1);
 
 			// Test JSON output structure with combined flags
-			const { calculateTotals, createTotalsObject } = await import('../calculate-cost.ts');
 			const totals = calculateTotals(combinedFlagsData);
 
 			// Should produce projects structure (due to --instances) with only filtered project
@@ -810,8 +796,6 @@ if (import.meta.vitest != null) {
 				},
 			});
 
-			const { loadDailyUsageData } = await import('../data-loader.ts');
-
 			// Test --instances with non-existent project (should return empty array)
 			const emptyData = await loadDailyUsageData({
 				claudePath: fixture.path,
@@ -831,7 +815,6 @@ if (import.meta.vitest != null) {
 			expect(allData.length).toBeGreaterThan(0);
 
 			// Test empty state JSON output structure for --instances mode
-			const { calculateTotals, createTotalsObject } = await import('../calculate-cost.ts');
 			const totals = calculateTotals(emptyData);
 
 			// When data is empty but --instances was used, should still produce projects structure
@@ -894,9 +877,6 @@ if (import.meta.vitest != null) {
 				},
 			});
 
-			const { loadDailyUsageData } = await import('../data-loader.ts');
-			const { formatProjectName } = await import('../_project-names.ts');
-
 			// Load data with project grouping enabled
 			const dailyData = await loadDailyUsageData({
 				claudePath: fixture.path,
@@ -945,8 +925,6 @@ if (import.meta.vitest != null) {
 
 		it('works with project aliases when rendering project headers', async () => {
 			// Test project alias functionality by setting environment variable
-			const { PROJECT_ALIASES_ENV } = await import('../_consts.ts');
-			const { clearAliasCache } = await import('../_project-names.ts');
 
 			// Clear any existing alias cache
 			clearAliasCache();
@@ -1003,9 +981,6 @@ if (import.meta.vitest != null) {
 					},
 				},
 			});
-
-			const { loadDailyUsageData } = await import('../data-loader.ts');
-			const { formatProjectName } = await import('../_project-names.ts');
 
 			// Load data with project grouping
 			const dailyData = await loadDailyUsageData({
