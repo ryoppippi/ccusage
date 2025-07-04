@@ -257,10 +257,11 @@ export class ProxyAwareHttpClient implements HttpClient {
 	 * @param resolve - Promise resolve function
 	 */
 	private handleResponse(res: IncomingMessage, url: string, resolve: (value: Response) => void): void {
-		let data = '';
+		const chunks: string[] = [];
 		res.setEncoding('utf8');
-		res.on('data', (chunk: string) => data += chunk);
+		res.on('data', (chunk: string) => chunks.push(chunk));
 		res.on('end', () => {
+			const data = chunks.join('');
 			// Create Fetch API compatible Response object
 			const response = {
 				ok: (res.statusCode ?? 0) >= 200 && (res.statusCode ?? 0) < 300,
@@ -298,10 +299,10 @@ if (import.meta.vitest != null) {
 		 */
 		afterEach(() => {
 			// Clean up proxy environment variables
-			delete process.env.HTTP_PROXY;
-			delete process.env.HTTPS_PROXY;
-			delete process.env.http_proxy;
-			delete process.env.https_proxy;
+			process.env.HTTP_PROXY = undefined;
+			process.env.HTTPS_PROXY = undefined;
+			process.env.http_proxy = undefined;
+			process.env.https_proxy = undefined;
 		});
 
 		describe('constructor and proxy detection', () => {
