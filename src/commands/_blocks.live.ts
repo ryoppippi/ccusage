@@ -65,8 +65,39 @@ export async function startLiveMonitoring(config: LiveMonitoringConfig): Promise
 					continue;
 				}
 
-				// Get latest data
-				const activeBlock = await monitor.getActiveBlock();
+				// Get latest data with error handling
+				const blockResult = await Result.try({
+					try: async () => monitor.getActiveBlock(),
+					catch: (error) => error,
+				})();
+
+				if (Result.isFailure(blockResult)) {
+					const error = blockResult.error;
+					const errorMessage = error instanceof Error ? error.message : String(error);
+					
+					// Check if this is a file synchronization related error (ENOENT)
+					const isSyncError = errorMessage.includes('ENOENT') || errorMessage.includes('no such file or directory');
+					
+					if (isSyncError) {
+						// For sync-related errors, show a friendlier message and continue monitoring
+						const friendlyMessage = 'File temporarily unavailable (likely due to cloud sync)';
+						terminal.startBuffering();
+						terminal.clearScreen();
+						terminal.write(pc.yellow(`Warning: ${friendlyMessage}\n`));
+						terminal.write(pc.dim('Waiting for file sync to complete...\n'));
+						terminal.flush();
+						logger.warn(`File sync issue detected: ${errorMessage}`);
+						
+						// Continue monitoring after a delay
+						await delayWithAbort(config.refreshInterval, abortController.signal);
+						continue;
+					} else {
+						// For other errors, re-throw to be handled by outer try-catch
+						throw error;
+					}
+				}
+
+				const activeBlock = blockResult.value;
 				monitor.clearCache(); // TODO: debug LiveMonitor.getActiveBlock() efficiency
 
 				if (activeBlock == null) {
@@ -91,29 +122,13 @@ export async function startLiveMonitoring(config: LiveMonitoringConfig): Promise
 			return; // Normal graceful shutdown
 		}
 
-		// Handle and display errors
+		// Handle non-sync errors that caused the monitoring loop to exit
 		const errorMessage = error instanceof Error ? error.message : String(error);
-		
-		// Check if this is a file synchronization related error (ENOENT)
-		const isSyncError = errorMessage.includes('ENOENT') || errorMessage.includes('no such file or directory');
-		
-		if (isSyncError) {
-			// For sync-related errors, show a friendlier message and use warning level
-			const friendlyMessage = 'File temporarily unavailable (likely due to cloud sync)';
-			terminal.startBuffering();
-			terminal.clearScreen();
-			terminal.write(pc.yellow(`Warning: ${friendlyMessage}\n`));
-			terminal.write(pc.dim('Waiting for file sync to complete...\n'));
-			terminal.flush();
-			logger.warn(`File sync issue detected: ${errorMessage}`);
-		} else {
-			// For other errors, use the original error handling
-			terminal.startBuffering();
-			terminal.clearScreen();
-			terminal.write(pc.red(`Error: ${errorMessage}\n`));
-			terminal.flush();
-			logger.error(`Live monitoring error: ${errorMessage}`);
-		}
+		terminal.startBuffering();
+		terminal.clearScreen();
+		terminal.write(pc.red(`Error: ${errorMessage}\n`));
+		terminal.flush();
+		logger.error(`Live monitoring error: ${errorMessage}`);
 		
 		await delayWithAbort(config.refreshInterval, abortController.signal).catch(() => {});
 	}
