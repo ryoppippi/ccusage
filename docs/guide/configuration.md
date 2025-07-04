@@ -163,6 +163,68 @@ ccusage daily
 ccusage daily --offline
 ```
 
+## HTTP Proxy Support
+
+ccusage automatically supports HTTP/HTTPS proxies for network-restricted environments like corporate firewalls or regional access restrictions.
+
+### Setting Up Proxy
+
+ccusage detects proxy configuration from standard environment variables:
+
+```bash
+# HTTP proxy (most common)
+export HTTP_PROXY=http://127.0.0.1:7897
+export HTTPS_PROXY=http://127.0.0.1:7897
+
+# Alternative lowercase variables
+export http_proxy=http://127.0.0.1:7897
+export https_proxy=http://127.0.0.1:7897
+
+# With authentication
+export HTTP_PROXY=http://username:password@proxy.company.com:8080
+```
+
+### Proxy Usage Examples
+
+```bash
+# Set proxy for current session
+HTTP_PROXY=http://127.0.0.1:7897 ccusage daily
+
+# Set proxy globally (add to ~/.bashrc or ~/.zshrc)
+export HTTP_PROXY=http://127.0.0.1:7897
+ccusage monthly
+
+# Popular proxy tools
+export HTTP_PROXY=http://127.0.0.1:7897  # Clash Verge
+export HTTP_PROXY=http://127.0.0.1:1087  # V2Ray
+```
+
+### Automatic Fallback
+
+If proxy connection fails, ccusage automatically falls back to direct connection:
+
+```bash
+# You'll see a warning message like:
+# "Proxy request failed, falling back to direct connection"
+```
+
+### When to Use Proxy
+
+#### ✅ Ideal For
+
+- **Regional restrictions** - Accessing LiteLLM API from restricted regions
+- **Corporate networks** - Behind company firewalls or proxies
+- **VPN/Proxy tools** - Using tools like Clash Verge, V2Ray, or similar
+- **Network filtering** - When direct access to external APIs is blocked
+
+#### ✅ Features
+
+- **Zero configuration** - Works with any HTTP/HTTPS proxy
+- **Automatic detection** - Uses standard environment variables
+- **Authentication support** - Username/password authentication
+- **Graceful fallback** - Falls back to direct connection if proxy fails
+- **No dependencies** - Uses only Node.js built-in modules
+
 ## MCP Server Configuration
 
 ccusage includes a built-in MCP (Model Context Protocol) server for integration with other tools.

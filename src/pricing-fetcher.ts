@@ -9,6 +9,7 @@
  */
 
 import type { ModelPricing } from './_types.ts';
+import type { HttpClient } from './http/client.ts';
 import { Result } from '@praha/byethrow';
 import { LITELLM_PRICING_URL } from './_consts.ts';
 import { prefetchClaudePricing } from './_macro.ts' with { type: 'macro' };
@@ -22,13 +23,16 @@ import { logger } from './logger.ts';
 export class PricingFetcher implements Disposable {
 	private cachedPricing: Map<string, ModelPricing> | null = null;
 	private readonly offline: boolean;
+	private readonly httpClient: HttpClient;
 
 	/**
 	 * Creates a new PricingFetcher instance
 	 * @param offline - Whether to use pre-fetched pricing data instead of fetching from API
+	 * @param httpClient - HTTP client for making requests (defaults to global fetch)
 	 */
-	constructor(offline = false) {
+	constructor(offline = false, httpClient?: HttpClient) {
 		this.offline = offline;
+		this.httpClient = httpClient ?? globalThis;
 	}
 
 	/**
@@ -96,7 +100,7 @@ export class PricingFetcher implements Disposable {
 				logger.warn('Fetching latest model pricing from LiteLLM...');
 				return Result.pipe(
 					Result.try({
-						try: fetch(LITELLM_PRICING_URL),
+						try: this.httpClient.fetch(LITELLM_PRICING_URL),
 						catch: error => new Error('Failed to fetch model pricing from LiteLLM', { cause: error }),
 					}),
 					Result.andThrough((response) => {
