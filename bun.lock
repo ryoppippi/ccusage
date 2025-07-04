@@ -15,7 +15,7 @@
         "@praha/byethrow-mcp": "^0.0.10",
         "@ryoppippi/eslint-config": "^0.3.7",
         "@types/bun": "^1.2.17",
-        "@typescript/native-preview": "^7.0.0-dev.20250630.1",
+        "@typescript/native-preview": "^7.0.0-dev.20250701.1",
         "ansi-escapes": "^7.0.0",
         "bumpp": "^10.2.0",
         "clean-pkg-json": "^1.3.0",
