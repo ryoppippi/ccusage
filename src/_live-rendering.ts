@@ -149,8 +149,8 @@ export function renderLiveDisplay(terminal: TerminalManager, block: SessionBlock
 
 	// Session details (indented)
 	const col1 = `${pc.gray('Started:')} ${startTime}`;
-	const col2 = `${pc.gray('Elapsed:')} ${prettyMs(elapsed * 60 * 1000, { compact: true })}`;
-	const col3 = `${pc.gray('Remaining:')} ${prettyMs(remaining * 60 * 1000, { compact: true })} (${endTime})`;
+	const col2 = `${pc.gray('Elapsed:')} ${Math.floor(elapsed / 60)}h ${Math.floor(elapsed % 60)}m`;
+	const col3 = `${pc.gray('Remaining:')} ${Math.floor(remaining / 60)}h ${Math.floor(remaining % 60)}m (${endTime})`;
 	// Calculate actual visible lengths without ANSI codes
 	const col1Visible = stringWidth(col1);
 	const col2Visible = stringWidth(col2);
@@ -370,7 +370,8 @@ export function renderCompactLiveDisplay(
 
 	// Session info
 	const sessionPercent = (elapsed / (elapsed + remaining)) * 100;
-	terminal.write(`Session: ${sessionPercent.toFixed(1)}% (${Math.floor(elapsed / 60)}h ${Math.floor(elapsed % 60)}m)\n`);
+	terminal.write(`Session: ${sessionPercent.toFixed(1)}% (${Math.floor(elapsed / 60)}h ${Math.floor(elapsed % 60)}m elapsed)\n`);
+	terminal.write(`Remaining: ${Math.floor(remaining / 60)}h ${Math.floor(remaining % 60)}m\n`);
 
 	// Token usage
 	if (config.tokenLimit != null && config.tokenLimit > 0) {
