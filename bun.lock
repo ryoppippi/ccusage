@@ -7,7 +7,7 @@
         "@antfu/utils": "^9.2.0",
         "@core/errorutil": "npm:@jsr/core__errorutil",
         "@hono/mcp": "^0.1.0",
-        "@hono/node-server": "^1.14.4",
+        "@hono/node-server": "^1.15.0",
         "@jsr/std__async": "1",
         "@modelcontextprotocol/sdk": "^1.13.2",
         "@oxc-project/runtime": "^0.75.0",
@@ -258,7 +258,7 @@
 
     "@hono/mcp": ["@hono/mcp@0.1.0", "", { "peerDependencies": { "@modelcontextprotocol/sdk": "^1.12.0", "hono": "*" } }, "sha512-IELNnKF5tjbUm+wthfToZrNxZIjs1RWLiwCx8N+m8xfJcL6hfcpj/21Gsw8HL88lbnCh191mbFwYvXnx856QZg=="],
 
-    "@hono/node-server": ["@hono/node-server@1.14.4", "", { "peerDependencies": { "hono": "^4" } }, "sha512-DnxpshhYewr2q9ZN8ez/M5mmc3sucr8CT1sIgIy1bkeUXut9XWDkqHoFHRhWIQgkYnKpVRxunyhK7WzpJeJ6qQ=="],
+    "@hono/node-server": ["@hono/node-server@1.15.0", "", { "peerDependencies": { "hono": "^4" } }, "sha512-MjmK4l5N4dQpZ9OSWN0tCj7ejuc7WvuWMzSKtc89bnknJykAeHxzRigXBTYZk85H6Awrii6RM59iUiUluApu2A=="],
 
     "@humanfs/core": ["@humanfs/core@0.19.1", "", {}, "sha512-5DyQ4+1JEUzejeK1JGICcideyfUbGixgS9jNgex5nqkW+cY7WZhxBigmieN5Qnw9ZosSNVC9KQKyb+GUaGyKUA=="],
 
