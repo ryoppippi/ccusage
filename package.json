@@ -72,7 +72,7 @@
 		"clean-pkg-json": "^1.3.0",
 		"cli-table3": "^0.6.5",
 		"consola": "^3.4.2",
-		"es-toolkit": "^1.39.5",
+		"es-toolkit": "^1.39.6",
 		"eslint": "^9.30.1",
 		"eslint-plugin-format": "^1.0.1",
 		"fast-sort": "^3.4.1",
