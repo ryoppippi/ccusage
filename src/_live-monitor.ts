@@ -12,6 +12,7 @@ import type { LoadedUsageEntry, SessionBlock } from './_session-blocks.ts';
 import type { CostMode, SortOrder } from './_types.ts';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
+import { Result } from '@praha/byethrow';
 import { glob } from 'tinyglobby';
 import { CLAUDE_PROJECTS_DIR_NAME, USAGE_DATA_GLOB_PATTERN } from './_consts.ts';
 import { identifySessionBlocks } from './_session-blocks.ts';
@@ -23,6 +24,7 @@ import {
 	sortFilesByTimestamp,
 	usageDataSchema,
 } from './data-loader.ts';
+import { logger } from './logger.ts';
 import { PricingFetcher } from './pricing-fetcher.ts';
 
 /**
@@ -93,11 +95,22 @@ export class LiveMonitor implements Disposable {
 
 			for (const file of sortedFiles) {
 				const content = await readFile(file, 'utf-8')
-					.catch(() => {
+					.catch((error) => {
+						// Handle file access errors gracefully with specific logging for ENOENT
+						const isEnoent = error instanceof Error && 
+							(error.message.includes('ENOENT') || error.message.includes('no such file or directory'));
+						
+						if (isEnoent) {
+							// For ENOENT errors (likely due to cloud sync), use debug level
+							logger.debug(`File temporarily unavailable (likely syncing): ${path.basename(file)}`);
+						} else {
+							// For other read errors, use debug level but with more detail
+							logger.debug(`Failed to read usage file ${path.basename(file)}:`, error.message);
+						}
+						
 						// Skip files that can't be read
 						return '';
 					});
-
 				const lines = content
 					.trim()
 					.split('\n')
