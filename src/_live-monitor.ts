@@ -12,6 +12,7 @@ import type { LoadedUsageEntry, SessionBlock } from './_session-blocks.ts';
 import type { CostMode, SortOrder } from './_types.ts';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
+import { Result } from '@praha/byethrow';
 import { glob } from 'tinyglobby';
 import { CLAUDE_PROJECTS_DIR_NAME, USAGE_DATA_GLOB_PATTERN } from './_consts.ts';
 import { identifySessionBlocks } from './_session-blocks.ts';
@@ -104,52 +105,56 @@ export class LiveMonitor implements Disposable {
 					.filter(line => line.length > 0);
 
 				for (const line of lines) {
-					try {
-						const parsed = JSON.parse(line) as unknown;
-						const result = usageDataSchema.safeParse(parsed);
-						if (!result.success) {
-							continue;
-						}
-						const data = result.data;
-
-						// Check for duplicates
-						const uniqueHash = createUniqueHash(data);
-						if (uniqueHash != null && this.processedHashes.has(uniqueHash)) {
-							continue;
-						}
-						if (uniqueHash != null) {
-							this.processedHashes.add(uniqueHash);
-						}
-
-						// Calculate cost if needed
-						const costUSD: number = await (this.config.mode === 'display'
-							? Promise.resolve(data.costUSD ?? 0)
-							: calculateCostForEntry(
-									data,
-									this.config.mode,
-									this.fetcher!,
-								));
-
-						const usageLimitResetTime = getUsageLimitResetTime(data);
-
-						// Add entry
-						this.allEntries.push({
-							timestamp: new Date(data.timestamp),
-							usage: {
-								inputTokens: data.message.usage.input_tokens ?? 0,
-								outputTokens: data.message.usage.output_tokens ?? 0,
-								cacheCreationInputTokens: data.message.usage.cache_creation_input_tokens ?? 0,
-								cacheReadInputTokens: data.message.usage.cache_read_input_tokens ?? 0,
-							},
-							costUSD,
-							model: data.message.model ?? '<synthetic>',
-							version: data.version,
-							usageLimitResetTime: usageLimitResetTime ?? undefined,
-						});
+					const parseJson = Result.try({
+						try: () => JSON.parse(line) as unknown,
+						catch: () => new Error('Invalid JSON'),
+					});
+					const parseResult = parseJson();
+					if (Result.isFailure(parseResult)) {
+						continue; // Skip malformed lines
 					}
-					catch {
-						// Skip malformed lines
+
+					const parsed = parseResult.value;
+					const result = usageDataSchema.safeParse(parsed);
+					if (!result.success) {
+						continue;
 					}
+					const data = result.data;
+
+					// Check for duplicates
+					const uniqueHash = createUniqueHash(data);
+					if (uniqueHash != null && this.processedHashes.has(uniqueHash)) {
+						continue;
+					}
+					if (uniqueHash != null) {
+						this.processedHashes.add(uniqueHash);
+					}
+
+					// Calculate cost if needed
+					const costUSD: number = await (this.config.mode === 'display'
+						? Promise.resolve(data.costUSD ?? 0)
+						: calculateCostForEntry(
+								data,
+								this.config.mode,
+								this.fetcher!,
+							));
+
+					const usageLimitResetTime = getUsageLimitResetTime(data);
+
+					// Add entry
+					this.allEntries.push({
+						timestamp: new Date(data.timestamp),
+						usage: {
+							inputTokens: data.message.usage.input_tokens ?? 0,
+							outputTokens: data.message.usage.output_tokens ?? 0,
+							cacheCreationInputTokens: data.message.usage.cache_creation_input_tokens ?? 0,
+							cacheReadInputTokens: data.message.usage.cache_read_input_tokens ?? 0,
+						},
+						costUSD,
+						model: data.message.model ?? '<synthetic>',
+						version: data.version,
+						usageLimitResetTime: usageLimitResetTime ?? undefined,
+					});
 				}
 			}
 		}

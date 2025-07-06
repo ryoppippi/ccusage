@@ -389,6 +389,8 @@ if (import.meta.vitest != null) {
 				const modelName = 'claude-4-sonnet-20250514';
 				const pricing = await Result.unwrap(fetcher.getModelPricing(modelName));
 
+				// We need to check that pricing is not null before using it
+				expect(pricing).not.toBeNull();
 				const cost = fetcher.calculateCostFromPricing(
 					{
 						input_tokens: 1000,
@@ -435,6 +437,8 @@ if (import.meta.vitest != null) {
 				const modelName = 'claude-4-opus-20250514';
 				const pricing = await Result.unwrap(fetcher.getModelPricing(modelName));
 
+				// We need to check that pricing is not null before using it
+				expect(pricing).not.toBeNull();
 				const cost = fetcher.calculateCostFromPricing(
 					{
 						input_tokens: 1000,
