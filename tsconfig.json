@@ -13,7 +13,9 @@
 		"resolveJsonModule": true,
 		"types": [
 			"vitest/globals",
-			"vitest/importMeta"
+			"vitest/importMeta",
+			"@types/deno",
+			"@types/bun"
 		],
 		"allowImportingTsExtensions": true,
 		"allowJs": true,
