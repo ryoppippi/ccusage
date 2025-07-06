@@ -41,6 +41,10 @@ graph LR
 
 ## Key Features
 
+### 🚀 Ultra-Small Bundle Size
+
+Unlike other CLI tools, we pay extreme attention to bundle size. ccusage achieves an incredibly small footprint even without minification, which means you can run it directly without installation using `bunx ccusage` for instant access.
+
 ### 📊 Multiple Report Types
 
 - **Daily Reports** - Usage aggregated by calendar date

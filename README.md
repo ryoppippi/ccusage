@@ -22,13 +22,24 @@
 
 ### Quick Start (Recommended)
 
-Run directly without installation:
+Thanks to ccusage's incredibly small bundle size ([![install size](https://packagephobia.com/badge?p=ccusage)](https://packagephobia.com/result?p=ccusage)), you can run it directly without installation:
 
 ```bash
+# Using bunx (recommended for speed)
+bunx ccusage
+
+# Using npx
 npx ccusage@latest
+
+# Using deno (with security flags)
+deno run -E -R=$HOME/.claude/projects/ -S=homedir -N='raw.githubusercontent.com:443' npm:ccusage@latest
 ```
 
-### Local Installation
+> 💡 **Tip**: We recommend using `bunx` instead of `npx` for a massive speed improvement!
+
+### Local Installation (Optional)
+
+Since ccusage has such a small bundle size, installation is entirely optional:
 
 ```bash
 npm install -g ccusage
@@ -78,12 +89,23 @@ ccusage daily --instances --project myproject --json  # Combined usage
 - 🌐 **Offline Mode**: Use pre-cached pricing data without network connectivity with `--offline` (Claude models only)
 - 🔌 **MCP Integration**: Built-in Model Context Protocol server for integration with other tools
 - 🏗️ **Multi-Instance Support**: Group usage by project with `--instances` flag and filter by specific projects
+- 🚀 **Ultra-Small Bundle**: Unlike other CLI tools, we pay extreme attention to bundle size - incredibly small even without minification!
 
 ## Documentation
 
 Full documentation is available at **[ccusage.com](https://ccusage.com/)**
 
 ## Sponsors
+
+### Featured Sponsor
+
+Check out these [47 Claude Code ProTips from Greg Baugues.](https://www.youtube.com/watch?v=TiNpzxoBPz0&lc=UgyVgQyOhfJJlheVMcB4AaABAg)
+
+<p align="center">
+    <a href="https://www.youtube.com/watch?v=TiNpzxoBPz0&lc=UgyVgQyOhfJJlheVMcB4AaABAg">
+        <img src="https://cdn.jsdelivr.net/gh/ryoppippi/ccusage@main/docs/public/claude_code_protips_thumbnail_v1.png" alt="47 Claude Code ProTips from Greg Baugues" width="600">
+    </a>
+</p>
 
 <p align="center">
     <a href="https://github.com/sponsors/ryoppippi">

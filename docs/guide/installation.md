@@ -2,18 +2,27 @@
 
 ccusage can be installed and used in several ways depending on your preferences and use case.
 
+## Why No Installation Needed?
+
+Thanks to ccusage's incredibly small bundle size, you don't need to install it globally. Unlike other CLI tools, we pay extreme attention to bundle size optimization, achieving an impressively small footprint even without minification. This means:
+
+- ✅ Near-instant startup times
+- ✅ Minimal download overhead
+- ✅ Always use the latest version
+- ✅ No global pollution of your system
+
 ## Quick Start (Recommended)
 
-The fastest way to try ccusage is to run it directly without installation:
+The fastest way to use ccusage is to run it directly:
 
 ::: code-group
 
-```bash [npx]
-npx ccusage@latest
+```bash [bunx (Recommended)]
+bunx ccusage
 ```
 
-```bash [bunx]
-bunx ccusage
+```bash [npx]
+npx ccusage@latest
 ```
 
 ```bash [pnpm]
@@ -26,16 +35,28 @@ deno run -E -R=$HOME/.claude/projects/ -S=homedir -N='raw.githubusercontent.com:
 
 :::
 
-This approach:
+::: tip Speed Recommendation
+We strongly recommend using `bunx` instead of `npx` due to the massive speed difference. Bunx caches packages more efficiently, resulting in near-instant startup times after the first run.
+:::
 
-- ✅ Always uses the latest version
-- ✅ No global installation required
-- ✅ Works across different systems
-- ✅ Perfect for occasional use
+::: info Deno Security
+Consider using `deno run` if you want additional security controls. Deno allows you to specify exact permissions, making it safer to run tools you haven't audited.
+:::
 
-## Global Installation
+### Performance Comparison
 
-If you use ccusage frequently, install it globally:
+Here's why runtime choice matters:
+
+| Runtime | First Run | Subsequent Runs | Notes |
+|---------|-----------|-----------------|-------|
+| bunx | Fast | **Instant** | Best overall choice |
+| npx | Slow | Moderate | Widely available |
+| pnpm dlx | Fast | Fast | Good alternative |
+| deno | Moderate | Fast | Best for security |
+
+## Global Installation (Optional)
+
+While not necessary due to our small bundle size, you can still install ccusage globally if you prefer:
 
 ::: code-group
 

@@ -19,6 +19,7 @@ import {
 	calculateCostForEntry,
 	createUniqueHash,
 	getEarliestTimestamp,
+	getUsageLimitResetTime,
 	sortFilesByTimestamp,
 	usageDataSchema,
 } from './data-loader.ts';
@@ -91,7 +92,12 @@ export class LiveMonitor implements Disposable {
 			const sortedFiles = await sortFilesByTimestamp(filesToRead);
 
 			for (const file of sortedFiles) {
-				const content = await readFile(file, 'utf-8');
+				const content = await readFile(file, 'utf-8')
+					.catch(() => {
+						// Skip files that can't be read
+						return '';
+					});
+
 				const lines = content
 					.trim()
 					.split('\n')
@@ -124,6 +130,8 @@ export class LiveMonitor implements Disposable {
 									this.fetcher!,
 								));
 
+						const usageLimitResetTime = getUsageLimitResetTime(data);
+
 						// Add entry
 						this.allEntries.push({
 							timestamp: new Date(data.timestamp),
@@ -136,6 +144,7 @@ export class LiveMonitor implements Disposable {
 							costUSD,
 							model: data.message.model ?? '<synthetic>',
 							version: data.version,
+							usageLimitResetTime: usageLimitResetTime ?? undefined,
 						});
 					}
 					catch {

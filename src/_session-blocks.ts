@@ -1,5 +1,6 @@
 import { uniq } from 'es-toolkit';
 import { DEFAULT_RECENT_DAYS } from './_consts.ts';
+import { getTotalTokens } from './_token-utils.ts';
 
 /**
  * Default session duration in hours (Claude's billing block duration)
@@ -31,6 +32,7 @@ export type LoadedUsageEntry = {
 	costUSD: number | null;
 	model: string;
 	version?: string;
+	usageLimitResetTime?: Date; // Claude API usage limit reset time
 };
 
 /**
@@ -57,6 +59,7 @@ export type SessionBlock = {
 	tokenCounts: TokenCounts;
 	costUSD: number;
 	models: string[];
+	usageLimitResetTime?: Date; // Claude API usage limit reset time
 };
 
 /**
@@ -173,6 +176,7 @@ function createBlock(startTime: Date, entries: LoadedUsageEntry[], now: Date, se
 
 	let costUSD = 0;
 	const models: string[] = [];
+	let usageLimitResetTime: Date | undefined;
 
 	for (const entry of entries) {
 		tokenCounts.inputTokens += entry.usage.inputTokens;
@@ -180,6 +184,7 @@ function createBlock(startTime: Date, entries: LoadedUsageEntry[], now: Date, se
 		tokenCounts.cacheCreationInputTokens += entry.usage.cacheCreationInputTokens;
 		tokenCounts.cacheReadInputTokens += entry.usage.cacheReadInputTokens;
 		costUSD += entry.costUSD ?? 0;
+		usageLimitResetTime = entry.usageLimitResetTime ?? usageLimitResetTime;
 		models.push(entry.model);
 	}
 
@@ -193,6 +198,7 @@ function createBlock(startTime: Date, entries: LoadedUsageEntry[], now: Date, se
 		tokenCounts,
 		costUSD,
 		models: uniq(models),
+		usageLimitResetTime,
 	};
 }
 
@@ -255,7 +261,7 @@ export function calculateBurnRate(block: SessionBlock): BurnRate | null {
 		return null;
 	}
 
-	const totalTokens = block.tokenCounts.inputTokens + block.tokenCounts.outputTokens;
+	const totalTokens = getTotalTokens(block.tokenCounts);
 	const tokensPerMinute = totalTokens / durationMinutes;
 	const costPerHour = (block.costUSD / durationMinutes) * 60;
 
@@ -284,7 +290,7 @@ export function projectBlockUsage(block: SessionBlock): ProjectedUsage | null {
 	const remainingTime = block.endTime.getTime() - now.getTime();
 	const remainingMinutes = Math.max(0, remainingTime / (1000 * 60));
 
-	const currentTokens = block.tokenCounts.inputTokens + block.tokenCounts.outputTokens;
+	const currentTokens = getTotalTokens(block.tokenCounts);
 	const projectedAdditionalTokens = burnRate.tokensPerMinute * remainingMinutes;
 	const totalTokens = currentTokens + projectedAdditionalTokens;
 
