@@ -53,26 +53,31 @@ export const mcpCommand = define({
 		else {
 			const app = createMcpHttpApp(options);
 			// Use the Hono app to handle requests
-			if (globalThis.Bun != null) {
-				logger.info('Detected Bun environment, starting Bun server');
-				Bun.serve({
-					fetch: app.fetch,
-					port,
-				});
-			}
-			else if (globalThis.Deno != null) {
-				logger.info('Detected Deno environment, starting Deno server');
-				Deno.serve(
-					{ port },
-					app.fetch,
-				);
-			}
-			else {
-				logger.warn('No Bun or Deno detected, falling back to Node.js server');
-				serve({
-					fetch: app.fetch,
-					port,
-				});
+			// eslint-disable-next-line ts/switch-exhaustiveness-check
+			switch (true) {
+				case globalThis.Bun != null: {
+					logger.info('Detected Bun environment, starting Bun server');
+					Bun.serve({
+						fetch: app.fetch,
+						port,
+					});
+					break;
+				}
+				case globalThis.Deno != null: {
+					logger.info('Detected Deno environment, starting Deno server');
+					Deno.serve(
+						{ port },
+						app.fetch,
+					);
+					break;
+				}
+				default: {
+					logger.warn('No Bun or Deno detected, falling back to Node.js server');
+					serve({
+						fetch: app.fetch,
+						port,
+					});
+				}
 			}
 			logger.info(`MCP server is running on http://localhost:${port}`);
 		}
