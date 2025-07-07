@@ -131,3 +131,11 @@ export const MAX_REFRESH_INTERVAL_SECONDS = 60;
  * Prevents terminal flickering and excessive CPU usage during rapid updates
  */
 export const MIN_RENDER_INTERVAL_MS = 16;
+
+/**
+ * Burn rate thresholds for indicator display (tokens per minute)
+ */
+export const BURN_RATE_THRESHOLDS = {
+	HIGH: 1000,
+	MODERATE: 500,
+} as const;

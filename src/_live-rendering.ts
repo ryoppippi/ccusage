@@ -14,9 +14,29 @@ import * as ansiEscapes from 'ansi-escapes';
 import pc from 'picocolors';
 import prettyMs from 'pretty-ms';
 import stringWidth from 'string-width';
+import { BURN_RATE_THRESHOLDS } from './_consts.ts';
 import { calculateBurnRate, projectBlockUsage } from './_session-blocks.ts';
 import { centerText, createProgressBar } from './_terminal-utils.ts';
 import { formatCurrency, formatModelsDisplay, formatNumber } from './_utils.ts';
+
+/**
+ * Get rate indicator (HIGH/MODERATE/NORMAL) based on burn rate
+ */
+function getRateIndicator(burnRate: ReturnType<typeof calculateBurnRate>): string {
+	if (burnRate == null) {
+		return '';
+	}
+
+	// eslint-disable-next-line ts/switch-exhaustiveness-check
+	switch (true) {
+		case burnRate.tokensPerMinuteForIndicator > BURN_RATE_THRESHOLDS.HIGH:
+			return pc.red('⚡ HIGH');
+		case burnRate.tokensPerMinuteForIndicator > BURN_RATE_THRESHOLDS.MODERATE:
+			return pc.yellow('⚡ MODERATE');
+		default:
+			return pc.green('✓ NORMAL');
+	}
+}
 
 /**
  * Live monitoring configuration
@@ -206,9 +226,7 @@ export function renderLiveDisplay(terminal: TerminalManager, block: SessionBlock
 
 	// Burn rate with better formatting
 	const burnRate = calculateBurnRate(block);
-	const rateIndicator = burnRate != null
-		? (burnRate.tokensPerMinute > 1000 ? pc.red('⚡ HIGH') : burnRate.tokensPerMinute > 500 ? pc.yellow('⚡ MODERATE') : pc.green('✓ NORMAL'))
-		: '';
+	const rateIndicator = getRateIndicator(burnRate);
 	const rateDisplay = burnRate != null
 		? `${pc.bold('Burn Rate:')} ${Math.round(burnRate.tokensPerMinute)} token/min ${rateIndicator}`
 		: `${pc.bold('Burn Rate:')} N/A`;
@@ -408,6 +426,93 @@ if (import.meta.vitest != null) {
 			expect(formatTokensShort(1000)).toBe('1.0k');
 			expect(formatTokensShort(1234)).toBe('1.2k');
 			expect(formatTokensShort(15678)).toBe('15.7k');
+		});
+	});
+
+	describe('getRateIndicator', () => {
+		it('returns empty string for null burn rate', () => {
+			const result = getRateIndicator(null);
+			expect(result).toBe('');
+		});
+
+		it('returns HIGH for rates above 1000', () => {
+			const burnRate = {
+				tokensPerMinute: 2000,
+				tokensPerMinuteForIndicator: 1500,
+				costPerHour: 10,
+			};
+			const result = getRateIndicator(burnRate);
+			expect(result).toContain('HIGH');
+		});
+
+		it('returns MODERATE for rates between 500 and 1000', () => {
+			const burnRate = {
+				tokensPerMinute: 1000,
+				tokensPerMinuteForIndicator: 750,
+				costPerHour: 5,
+			};
+			const result = getRateIndicator(burnRate);
+			expect(result).toContain('MODERATE');
+		});
+
+		it('returns NORMAL for rates 500 and below', () => {
+			const burnRate = {
+				tokensPerMinute: 800,
+				tokensPerMinuteForIndicator: 400,
+				costPerHour: 2,
+			};
+			const result = getRateIndicator(burnRate);
+			expect(result).toContain('NORMAL');
+		});
+
+		it('returns NORMAL for exactly 500 tokens per minute', () => {
+			const burnRate = {
+				tokensPerMinute: 1000,
+				tokensPerMinuteForIndicator: 500,
+				costPerHour: 3,
+			};
+			const result = getRateIndicator(burnRate);
+			expect(result).toContain('NORMAL');
+		});
+
+		it('returns MODERATE for exactly 1000 tokens per minute (boundary)', () => {
+			const burnRate = {
+				tokensPerMinute: 2000,
+				tokensPerMinuteForIndicator: 1000,
+				costPerHour: 5,
+			};
+			const result = getRateIndicator(burnRate);
+			expect(result).toContain('MODERATE'); // 1000 is not greater than 1000, but is greater than 500
+		});
+
+		it('returns HIGH for just above 1000 tokens per minute', () => {
+			const burnRate = {
+				tokensPerMinute: 2000,
+				tokensPerMinuteForIndicator: 1001,
+				costPerHour: 5,
+			};
+			const result = getRateIndicator(burnRate);
+			expect(result).toContain('HIGH');
+		});
+
+		it('returns NORMAL for just below 500 tokens per minute', () => {
+			const burnRate = {
+				tokensPerMinute: 800,
+				tokensPerMinuteForIndicator: 499,
+				costPerHour: 2,
+			};
+			const result = getRateIndicator(burnRate);
+			expect(result).toContain('NORMAL');
+		});
+
+		it('returns MODERATE for just above 500 tokens per minute', () => {
+			const burnRate = {
+				tokensPerMinute: 1000,
+				tokensPerMinuteForIndicator: 501,
+				costPerHour: 3,
+			};
+			const result = getRateIndicator(burnRate);
+			expect(result).toContain('MODERATE');
 		});
 	});
 

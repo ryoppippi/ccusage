@@ -1,8 +1,10 @@
 import { defineConfig } from 'vitepress';
+import * as path from 'node:path';
 import { groupIconMdPlugin, groupIconVitePlugin } from 'vitepress-plugin-group-icons';
 import llmstxt from 'vitepress-plugin-llms';
 import { withMermaid } from 'vitepress-plugin-mermaid';
 import typedocSidebar from '../api/typedoc-sidebar.json';
+import { cloudflareRedirect } from '@ryoppippi/vite-plugin-cloudflare-redirect'
 
 export default withMermaid(defineConfig({
 	title: 'ccusage',
@@ -130,6 +132,12 @@ export default withMermaid(defineConfig({
 
 	vite: {
 		plugins: [
+			cloudflareRedirect({
+            mode: "generate",
+            entries: [
+                { from: '/raycast', to: 'https://www.raycast.com/nyatinte/ccusage', status: 302 },
+            ]
+        }),
 			groupIconVitePlugin(),
 			...llmstxt(),
 		],
