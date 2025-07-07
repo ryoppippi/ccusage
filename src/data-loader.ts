@@ -1256,8 +1256,6 @@ export async function loadSessionBlockData(
 }
 
 if (import.meta.vitest != null) {
-	const { describe, it, expect } = import.meta.vitest;
-
 	describe('formatDate', () => {
 		it('formats UTC timestamp to local date', () => {
 			// Test with UTC timestamps - results depend on local timezone
@@ -3461,8 +3459,6 @@ invalid json line
 
 // duplication functionality tests
 if (import.meta.vitest != null) {
-	const { describe, it, expect } = import.meta.vitest;
-
 	describe('deduplication functionality', () => {
 		describe('createUniqueHash', () => {
 			it('should create hash from message id and request id', () => {
