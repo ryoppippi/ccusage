@@ -63,7 +63,7 @@
 		"@modelcontextprotocol/sdk": "^1.15.0",
 		"@oxc-project/runtime": "^0.75.1",
 		"@praha/byethrow": "^0.4.1",
-		"@praha/byethrow-mcp": "^0.0.10",
+		"@praha/byethrow-mcp": "^0.0.11",
 		"@ryoppippi/eslint-config": "^0.3.7",
 		"@types/bun": "^1.2.18",
 		"@typescript/native-preview": "^7.0.0-dev.20250704.1",
