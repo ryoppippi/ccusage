@@ -162,8 +162,9 @@ class TranslationValidator {
 				const content = readFileSync(filePath, 'utf-8');
 				translations = JSON.parse(content) as Record<string, unknown>;
 			}
-			catch {
-				result.errors.push(`Invalid JSON`);
+			catch (error) {
+				const message = error instanceof Error ? error.message : String(error);
+				result.errors.push(`Invalid JSON: ${message}`);
 				result.valid = false;
 				return result;
 			}
