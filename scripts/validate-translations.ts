@@ -225,9 +225,10 @@ class TranslationValidator {
 				result.valid = false;
 			}
 		}
-		catch {
-			result.errors.push(`Unexpected error`);
+catch (error) {
+			result.errors.push(`Unexpected error: ${error}`);
 			result.valid = false;
+		}
 		}
 
 		return result;
