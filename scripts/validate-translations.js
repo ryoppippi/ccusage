@@ -191,7 +191,7 @@ class TranslationValidator {
 			}
 
 			// Check placeholders
-			const placeholderPattern = /TODO|FIXME|\\[TRANSLE\\]|translation needed|TBD|TBA/i;
+			const placeholderPattern = /TODO|FIXME|\[TRANSLATE\]|translation needed|TBD|TBA/i;
 			const checkPlaceholders = (obj, path = '') => {
 				const found = [];
 				for (const [key, value] of Object.entries(obj)) {
