@@ -1,0 +1,142 @@
+{
+	"commands": {
+		"descriptions": {
+			"daily": "Täglichen Claude Code Token-Nutzungsbericht anzeigen",
+			"monthly": "Monatlichen Claude Code Token-Nutzungsbericht anzeigen",
+			"session": "Claude Code Token-Nutzung nach Sitzungen anzeigen",
+			"blocks": "Claude Code Token-Nutzung in Sitzungsblöcken mit Live-Überwachung anzeigen",
+			"mcp": "MCP-Server für Claude Desktop-Integration starten"
+		},
+		"args": {
+			"since": "Ab Datum filtern (Format YYYYMMDD)",
+			"until": "Bis Datum filtern (Format YYYYMMDD)",
+			"json": "Ausgabe im JSON-Format",
+			"mode": "Kostenbergechnungsmodus: auto (costUSD verwenden falls vorhanden, sonst berechnen), calculate (immer berechnen), display (immer costUSD verwenden)",
+			"debug": "Preis-Diskrepanz-Informationen zur Fehlerbehebung anzeigen",
+			"debugSamples": "Anzahl der Diskrepanz-Beispiele in der Debug-Ausgabe anzuzeigen",
+			"order": "Sortierreihenfolge: desc (neueste zuerst) oder asc (älteste zuerst)",
+			"breakdown": "Pro-Modell-Kostenaufschlüsselung anzeigen",
+			"offline": "Zwischengespeicherte Preisdaten für Claude-Modelle anstatt API-Abruf verwenden",
+			"color": "Farbige Ausgabe aktivieren (Standard: auto). FORCE_COLOR=1 hat denselben Effekt.",
+			"noColor": "Farbige Ausgabe deaktivieren (Standard: auto). NO_COLOR=1 hat denselben Effekt.",
+			"lang": "Sprache für CLI-Ausgabe und Berichte (auto: aus Umgebung erkennen)"
+		}
+	},
+	"reports": {
+		"headers": {
+			"daily": "Claude Code Token-Nutzungsbericht - Täglich",
+			"monthly": "Claude Code Token-Nutzungsbericht - Monatlich",
+			"session": "Claude Code Token-Nutzungsbericht - Nach Sitzung",
+			"blocks": "Claude Code Token-Nutzungsbericht - Sitzungsblöcke"
+		},
+		"columns": {
+			"date": "Datum",
+			"month": "Monat",
+			"session": "Sitzung",
+			"block": "Block",
+			"model": "Modell",
+			"models": "Modelle",
+			"input": "Eingabe",
+			"output": "Ausgabe",
+			"cacheCreate": "Cache Erstellen",
+			"cacheRead": "Cache Lesen",
+			"inputTokens": "Eingabe-Token",
+			"outputTokens": "Ausgabe-Token",
+			"totalTokens": "Gesamt-Token",
+			"cost": "Kosten",
+			"costUSD": "Kosten (USD)",
+			"timestamp": "Zeitstempel",
+			"duration": "Dauer",
+			"status": "Status",
+			"elapsed": "vergangen",
+			"remaining": "verbleibend",
+			"lastActivity": "Letzte Aktivität",
+			"blockStart": "Block-Start",
+			"durationStatus": "Dauer/Status"
+		}
+	},
+	"messages": {
+		"errors": {
+			"noData": "Keine Claude-Nutzungsdaten gefunden",
+			"invalidDate": "Ungültiges Datumsformat",
+			"translationNotFound": "Übersetzung nicht gefunden",
+			"loadingTranslations": "Fehler beim Laden der Übersetzungen",
+			"failedToLoadOfflinePricing": "Fehler beim Laden der Offline-Preisdaten",
+			"failedToLoadCachedPricing": "Fehler beim Laden der zwischengespeicherten Preisdaten als Fallback",
+			"failedToFetchPricing": "Fehler beim Abrufen der Modellpreise von LiteLLM",
+			"failedToFetchPricingData": "Fehler beim Abrufen der Preisdaten: {statusText}",
+			"failedToParsePricing": "Fehler beim Parsen der Preisdaten",
+			"noValidClaudeDir": "Kein gültiges Claude-Datenverzeichnis gefunden",
+			"translationFileNotFound": "Übersetzungsdatei für Locale '{locale}' nicht gefunden, zurück zu Englisch",
+			"errorLoadingTranslations": "Fehler beim Laden der Übersetzungen für Locale '{locale}'",
+			"errorLoadingFallback": "Fehler beim Laden der Fallback-Übersetzungen",
+			"invalidLocale": "[ccusage] Ungültige Locale: {locale}. Zurück zu Englisch."
+		},
+		"info": {
+			"fetchingPricing": "Preisdaten werden abgerufen...",
+			"pricingLoaded": "Preisdaten für {0} Modelle geladen",
+			"detectedLocale": "Erkannte Locale: {0}",
+			"usingFallback": "Verwende Fallback-Locale: {0}"
+		},
+		"status": {
+			"active": "aktiv",
+			"gap": "Pause",
+			"elapsed": "vergangen",
+			"remaining": "verbleibend",
+			"initializing": "Initialisierung...",
+			"monitoring": "Überwachung...",
+			"completed": "Abgeschlossen"
+		}
+	},
+	"live": {
+		"title": "CLAUDE CODE - LIVE TOKEN-NUTZUNGSMONITOR",
+		"labels": {
+			"session": "Sitzung",
+			"model": "Modell",
+			"tokens": "Token",
+			"cost": "Kosten",
+			"time": "Zeit",
+			"status": "Status",
+			"total": "Gesamt",
+			"current": "Aktuell",
+			"average": "Durchschnitt",
+			"lastUpdate": "Letzte Aktualisierung",
+			"refresh": "Aktualisieren",
+			"pause": "Pausieren",
+			"resume": "Fortsetzen",
+			"stop": "Stoppen"
+		}
+	},
+	"pricing": {
+		"fetchingFromLiteLLM": "Abrufen der neuesten Modellpreise von LiteLLM...",
+		"loadedModels": "Preise für {count} Modelle geladen",
+		"fallbackToCached": "Fehler beim Abrufen der Preise von LiteLLM, verwende zwischengespeicherte Daten",
+		"usingCachedPricing": "Verwende zwischengespeicherte Preisdaten für {count} Modelle"
+	},
+	"debug": {
+		"noPricingData": "Keine Preisdaten zum Analysieren gefunden.",
+		"reportTitle": "Debugging-Bericht für Preisabweichungen",
+		"totalEntriesProcessed": "Gesamte verarbeitete Einträge: {count}",
+		"entriesWithBoth": "Einträge mit costUSD und Modell: {count}",
+		"matchesWithinThreshold": "Übereinstimmungen (innerhalb 0,1%): {count}",
+		"mismatches": "Abweichungen: {count}",
+		"matchRate": "Übereinstimmungsrate: {rate}%",
+		"modelStatistics": "Modell-Statistiken",
+		"versionStatistics": "Versions-Statistiken",
+		"sampleDiscrepancies": "Beispiel-Abweichungen (erste {count})",
+		"totalEntries": "Gesamte Einträge: {count}",
+		"matches": "Übereinstimmungen: {count} ({rate}%)",
+		"avgPercentDiff": "Durchschnittliche %-Differenz: {diff}%",
+		"file": "Datei: {file}",
+		"timestamp": "Zeitstempel: {timestamp}",
+		"model": "Modell: {model}",
+		"originalCost": "Ursprüngliche Kosten: ${cost}",
+		"calculatedCost": "Berechnete Kosten: ${cost}",
+		"difference": "Differenz: ${diff} ({percent}%)",
+		"tokens": "Token: {tokens}"
+	},
+	"warnings": {
+		"compactHeaderNotFound": "Warnung: Kompakter Header \"{header}\" nicht in Tabellen-Headern [{headers}] gefunden. Verwende erste Spalte als Fallback.",
+		"failedToGetTimestamp": "Fehler beim Abrufen des frühesten Zeitstempels für {file}"
+	}
+}

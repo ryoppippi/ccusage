@@ -29,6 +29,7 @@ import { isDirectorySync } from 'path-type';
 import { glob } from 'tinyglobby';
 import { z } from 'zod';
 import { CLAUDE_CONFIG_DIR_ENV, CLAUDE_PROJECTS_DIR_NAME, DEFAULT_CLAUDE_CODE_PATH, DEFAULT_CLAUDE_CONFIG_PATH, USAGE_DATA_GLOB_PATTERN, USER_HOME_DIR } from './_consts.ts';
+import { i18n } from './_i18n.ts';
 import {
 	identifySessionBlocks,
 
@@ -522,7 +523,7 @@ export async function getEarliestTimestamp(filePath: string): Promise<Date | nul
 	catch (error) {
 		// Log file access errors for diagnostics, but continue processing
 		// This ensures files without timestamps or with access issues are sorted to the end
-		logger.debug(`Failed to get earliest timestamp for ${filePath}:`, error);
+		logger.debug(i18n.tp('warnings.failedToGetTimestamp', { file: filePath }), error);
 		return null;
 	}
 }

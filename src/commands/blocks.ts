@@ -3,6 +3,7 @@ import process from 'node:process';
 import { define } from 'gunshi';
 import pc from 'picocolors';
 import { BLOCKS_COMPACT_WIDTH_THRESHOLD, BLOCKS_DEFAULT_TERMINAL_WIDTH, BLOCKS_WARNING_THRESHOLD, DEFAULT_RECENT_DAYS, DEFAULT_REFRESH_INTERVAL_SECONDS, MAX_REFRESH_INTERVAL_SECONDS, MIN_REFRESH_INTERVAL_SECONDS } from '../_consts.ts';
+import { i18n } from '../_i18n.ts';
 import {
 	calculateBurnRate,
 	DEFAULT_SESSION_DURATION_HOURS,
@@ -14,7 +15,7 @@ import { sharedCommandConfig } from '../_shared-args.ts';
 import { getTotalTokens } from '../_token-utils.ts';
 import { formatCurrency, formatModelsDisplayMultiline, formatNumber, ResponsiveTable } from '../_utils.ts';
 import { getClaudePaths, loadSessionBlockData } from '../data-loader.ts';
-import { log, logger } from '../logger.ts';
+import { log, logger, loggerHelpers } from '../logger.ts';
 import { startLiveMonitoring } from './_blocks.live.ts';
 
 /**
@@ -41,7 +42,8 @@ function formatBlockTime(block: SessionBlock, compact = false): string {
 				})
 			: block.endTime.toLocaleString();
 		const duration = Math.round((block.endTime.getTime() - block.startTime.getTime()) / (1000 * 60 * 60));
-		return compact ? `${start}-${end}\n(${duration}h gap)` : `${start} - ${end} (${duration}h gap)`;
+		const gapText = i18n.t('messages.status.gap');
+		return compact ? `${start}-${end}\n(${duration}h ${gapText})` : `${start} - ${end} (${duration}h ${gapText})`;
 	}
 
 	const duration = block.actualEndTime != null
@@ -60,7 +62,9 @@ function formatBlockTime(block: SessionBlock, compact = false): string {
 		if (compact) {
 			return `${start}\n(${elapsedHours}h${elapsedMins}m/${remainingHours}h${remainingMins}m)`;
 		}
-		return `${start} (${elapsedHours}h ${elapsedMins}m elapsed, ${remainingHours}h ${remainingMins}m remaining)`;
+		const elapsedText = i18n.t('messages.status.elapsed');
+		const remainingText = i18n.t('messages.status.remaining');
+		return `${start} (${elapsedHours}h ${elapsedMins}m ${elapsedText}, ${remainingHours}h ${remainingMins}m ${remainingText})`;
 	}
 
 	const hours = Math.floor(duration / 60);
@@ -108,7 +112,7 @@ function parseTokenLimit(value: string | undefined, maxFromAll: number): number 
 
 export const blocksCommand = define({
 	name: 'blocks',
-	description: 'Show usage report grouped by session billing blocks',
+	get description() { return i18n.t('commands.descriptions.blocks'); },
 	args: {
 		...sharedCommandConfig.args,
 		active: {
@@ -147,6 +151,8 @@ export const blocksCommand = define({
 	},
 	toKebab: true,
 	async run(ctx) {
+		// Initialize i18n with CLI language argument
+		i18n.initialize(ctx.values.lang);
 		if (ctx.values.json) {
 			logger.level = 0;
 		}
@@ -171,7 +177,7 @@ export const blocksCommand = define({
 				log(JSON.stringify({ blocks: [] }));
 			}
 			else {
-				logger.warn('No Claude usage data found.');
+				loggerHelpers.warnNoData();
 			}
 			process.exit(0);
 		}
@@ -235,8 +241,8 @@ export const blocksCommand = define({
 			// Start live monitoring
 			const paths = getClaudePaths();
 			if (paths.length === 0) {
-				logger.error('No valid Claude data directory found');
-				throw new Error('No valid Claude data directory found');
+				logger.error(i18n.t('messages.errors.noValidClaudeDir'));
+				throw new Error(i18n.t('messages.errors.noValidClaudeDir'));
 			}
 
 			await startLiveMonitoring({
@@ -360,12 +366,12 @@ export const blocksCommand = define({
 			}
 			else {
 				// Table view for multiple blocks
-				logger.box('Claude Code Token Usage Report - Session Blocks');
+				logger.box(i18n.t('reports.headers.blocks'));
 
 				// Calculate token limit if "max" is specified
 				const actualTokenLimit = parseTokenLimit(ctx.values.tokenLimit, maxTokensFromAll);
 
-				const tableHeaders = ['Block Start', 'Duration/Status', 'Models', 'Tokens'];
+				const tableHeaders = [i18n.t('reports.columns.blockStart'), i18n.t('reports.columns.durationStatus'), i18n.t('reports.columns.models'), i18n.t('reports.columns.totalTokens')];
 				const tableAligns: ('left' | 'right' | 'center')[] = ['left', 'left', 'left', 'right'];
 
 				// Add % column if token limit is set
@@ -374,7 +380,7 @@ export const blocksCommand = define({
 					tableAligns.push('right');
 				}
 
-				tableHeaders.push('Cost');
+				tableHeaders.push(i18n.t('reports.columns.cost'));
 				tableAligns.push('right');
 
 				const table = new ResponsiveTable({
@@ -405,7 +411,7 @@ export const blocksCommand = define({
 					else {
 						const totalTokens
 							= getTotalTokens(block.tokenCounts);
-						const status = block.isActive ? pc.green('ACTIVE') : '';
+						const status = block.isActive ? pc.green(i18n.t('messages.status.active').toUpperCase()) : '';
 
 						const row = [
 							formatBlockTime(block, useCompactFormat),

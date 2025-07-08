@@ -84,6 +84,30 @@ ccusage daily --breakdown  # Per-model cost breakdown
 - 🌐 **Offline Mode**: Use pre-cached pricing data without network connectivity with `--offline` (Claude models only)
 - 🔌 **MCP Integration**: Built-in Model Context Protocol server for integration with other tools
 - 🚀 **Ultra-Small Bundle**: Unlike other CLI tools, we pay extreme attention to bundle size - incredibly small even without minification!
+- 🌍 **Internationalization**: Full support for multiple languages (English, French, Spanish, German, Japanese, Chinese) with `--lang` option
+
+## Language Support
+
+ccusage supports multiple languages for a localized experience:
+
+```bash
+# French
+ccusage --lang=fr
+
+# Spanish
+ccusage --lang=es
+
+# German
+ccusage --lang=de
+
+# Japanese
+ccusage --lang=ja
+
+# Chinese
+ccusage --lang=zh
+```
+
+All text is translated including table headers, error messages, and status information. The tool automatically detects your system locale or you can specify a language explicitly. See the [Internationalization Guide](https://ccusage.com/guide/i18n) for complete details.
 
 ## Documentation
 

@@ -11,6 +11,7 @@
 import type { ModelPricing } from './_types.ts';
 import { Result } from '@praha/byethrow';
 import { LITELLM_PRICING_URL } from './_consts.ts';
+import { i18n } from './_i18n.ts';
 import { prefetchClaudePricing } from './_macro.ts' with { type: 'macro' };
 import { modelPricingSchema } from './_types.ts';
 import { logger } from './logger.ts';
@@ -55,7 +56,7 @@ export class PricingFetcher implements Disposable {
 			this.cachedPricing = pricing;
 			return pricing;
 		},
-		catch: error => new Error('Failed to load offline pricing data', { cause: error }),
+		catch: error => new Error(i18n.t('messages.errors.failedToLoadOfflinePricing'), { cause: error }),
 	});
 
 	/**
@@ -65,15 +66,15 @@ export class PricingFetcher implements Disposable {
 	 * @throws Error if both network fetch and fallback fail
 	 */
 	private async handleFallbackToCachedPricing(originalError: unknown): Result.ResultAsync<Map<string, ModelPricing>, Error> {
-		logger.warn('Failed to fetch model pricing from LiteLLM, falling back to cached pricing data');
+		logger.warn(i18n.t('pricing.fallbackToCached'));
 		logger.debug('Fetch error details:', originalError);
 		return Result.pipe(
 			this.loadOfflinePricing(),
 			Result.inspect((pricing) => {
-				logger.info(`Using cached pricing data for ${pricing.size} models`);
+				logger.info(i18n.tp('pricing.usingCachedPricing', { count: pricing.size }));
 			}),
 			Result.inspectError((error) => {
-				logger.error('Failed to load cached pricing data as fallback:', error);
+				logger.error(i18n.t('messages.errors.failedToLoadCachedPricing'), error);
 				logger.error('Original fetch error:', originalError);
 			}),
 		);
@@ -93,21 +94,21 @@ export class PricingFetcher implements Disposable {
 					return this.loadOfflinePricing();
 				}
 
-				logger.warn('Fetching latest model pricing from LiteLLM...');
+				logger.warn(i18n.t('pricing.fetchingFromLiteLLM'));
 				return Result.pipe(
 					Result.try({
 						try: fetch(LITELLM_PRICING_URL),
-						catch: error => new Error('Failed to fetch model pricing from LiteLLM', { cause: error }),
+						catch: error => new Error(i18n.t('messages.errors.failedToFetchPricing'), { cause: error }),
 					}),
 					Result.andThrough((response) => {
 						if (!response.ok) {
-							return Result.fail(new Error(`Failed to fetch pricing data: ${response.statusText}`));
+							return Result.fail(new Error(i18n.tp('messages.errors.failedToFetchPricingData', { statusText: response.statusText })));
 						}
 						return Result.succeed();
 					}),
 					Result.andThen(async response => Result.try({
 						try: response.json() as Promise<Record<string, unknown>>,
-						catch: error => new Error('Failed to parse pricing data', { cause: error }),
+						catch: error => new Error(i18n.t('messages.errors.failedToParsePricing'), { cause: error }),
 					})),
 					Result.map((data) => {
 						const pricing = new Map<string, ModelPricing>();
@@ -124,7 +125,7 @@ export class PricingFetcher implements Disposable {
 					}),
 					Result.inspect((pricing) => {
 						this.cachedPricing = pricing;
-						logger.info(`Loaded pricing for ${pricing.size} models`);
+						logger.info(i18n.tp('pricing.loadedModels', { count: pricing.size }));
 					}),
 					Result.orElse(async error => this.handleFallbackToCachedPricing(error)),
 				);
@@ -251,7 +252,7 @@ export class PricingFetcher implements Disposable {
 		) {
 			cost
 				+= tokens.cache_creation_input_tokens
-					* pricing.cache_creation_input_token_cost;
+				* pricing.cache_creation_input_token_cost;
 		}
 
 		// Cache read tokens cost
@@ -271,7 +272,7 @@ if (import.meta.vitest != null) {
 				let fetcherDisposed = false;
 
 				class TestPricingFetcher extends PricingFetcher {
-					override [Symbol.dispose](): void {
+					override[Symbol.dispose](): void {
 						super[Symbol.dispose]();
 						fetcherDisposed = true;
 					}
@@ -400,7 +401,7 @@ if (import.meta.vitest != null) {
 				);
 
 				const expectedCost
-				= 1000 * (pricing!.input_cost_per_token ?? 0)
+					= 1000 * (pricing!.input_cost_per_token ?? 0)
 					+ 500 * (pricing!.output_cost_per_token ?? 0)
 					+ 200 * (pricing!.cache_creation_input_token_cost ?? 0)
 					+ 300 * (pricing!.cache_read_input_token_cost ?? 0);
@@ -446,7 +447,7 @@ if (import.meta.vitest != null) {
 				);
 
 				const expectedCost
-				= 1000 * (pricing!.input_cost_per_token ?? 0)
+					= 1000 * (pricing!.input_cost_per_token ?? 0)
 					+ 500 * (pricing!.output_cost_per_token ?? 0)
 					+ 200 * (pricing!.cache_creation_input_token_cost ?? 0)
 					+ 300 * (pricing!.cache_read_input_token_cost ?? 0);
@@ -459,7 +460,7 @@ if (import.meta.vitest != null) {
 				using fetcher = new PricingFetcher();
 				const partialPricing: ModelPricing = {
 					input_cost_per_token: 0.00001,
-				// output_cost_per_token is missing
+					// output_cost_per_token is missing
 				};
 
 				const cost = fetcher.calculateCostFromPricing(
