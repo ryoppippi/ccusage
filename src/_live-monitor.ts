@@ -32,6 +32,7 @@ export type LiveMonitorConfig = {
 	sessionDurationHours: number;
 	mode: CostMode;
 	order: SortOrder;
+	models?: string[];
 };
 
 /**
@@ -145,9 +146,22 @@ export class LiveMonitor implements Disposable {
 			}
 		}
 
+		// Filter by models if specified
+		const filteredEntries = this.config.models != null && this.config.models.length > 0
+			? this.allEntries.filter((entry) => {
+					// Check if the entry's model matches any of the specified models
+					// Support partial matching (e.g., "sonnet" matches "claude-sonnet-4-20250514")
+					const entryModel = entry.model.toLowerCase();
+					return this.config.models!.some((filterModel) => {
+						const lowerFilterModel = filterModel.toLowerCase();
+						return entryModel.includes(lowerFilterModel) || lowerFilterModel.includes(entryModel);
+					});
+				})
+			: this.allEntries;
+
 		// Generate blocks and find active one
 		const blocks = identifySessionBlocks(
-			this.allEntries,
+			filteredEntries,
 			this.config.sessionDurationHours,
 		);
 

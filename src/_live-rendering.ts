@@ -29,6 +29,7 @@ export type LiveMonitoringConfig = {
 	sessionDurationHours: number;
 	mode: CostMode;
 	order: SortOrder;
+	models?: string[];
 };
 
 /**

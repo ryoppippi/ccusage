@@ -50,6 +50,7 @@ export async function startLiveMonitoring(config: LiveMonitoringConfig): Promise
 		sessionDurationHours: config.sessionDurationHours,
 		mode: config.mode,
 		order: config.order,
+		models: config.models,
 	});
 
 	try {

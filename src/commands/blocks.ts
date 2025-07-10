@@ -124,6 +124,20 @@ function parseCostLimit(value: string | undefined, maxFromAll: number): number |
 	return Number.isNaN(limit) ? undefined : limit;
 }
 
+/**
+ * Parses model filter argument
+ * @param value - Model filter string value (comma-separated or single model)
+ * @returns Array of model names or undefined if not specified
+ */
+function parseModelFilter(value: string | undefined): string[] | undefined {
+	if (value == null || value === '') {
+		return undefined;
+	}
+
+	// Split by comma and trim whitespace
+	return value.split(',').map(model => model.trim()).filter(model => model !== '');
+}
+
 export const blocksCommand = define({
 	name: 'blocks',
 	description: 'Show usage report grouped by session billing blocks',
@@ -167,6 +181,11 @@ export const blocksCommand = define({
 			description: `Refresh interval in seconds for live mode (default: ${DEFAULT_REFRESH_INTERVAL_SECONDS})`,
 			default: DEFAULT_REFRESH_INTERVAL_SECONDS,
 		},
+		model: {
+			type: 'string',
+			short: 'm',
+			description: 'Filter by specific model(s) - comma-separated or single model name',
+		},
 	},
 	toKebab: true,
 	async run(ctx) {
@@ -187,6 +206,7 @@ export const blocksCommand = define({
 			order: ctx.values.order,
 			offline: ctx.values.offline,
 			sessionDurationHours: ctx.values.sessionLength,
+			models: parseModelFilter(ctx.values.model),
 		});
 
 		if (blocks.length === 0) {
@@ -304,6 +324,7 @@ export const blocksCommand = define({
 				sessionDurationHours: ctx.values.sessionLength,
 				mode: ctx.values.mode,
 				order: ctx.values.order,
+				models: parseModelFilter(ctx.values.model),
 			});
 			return; // Exit early, don't show table
 		}

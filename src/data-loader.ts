@@ -610,6 +610,7 @@ export type LoadOptions = {
 	order?: SortOrder; // Sort order for dates
 	offline?: boolean; // Use offline mode for pricing
 	sessionDurationHours?: number; // Session block duration in hours
+	models?: string[]; // Filter by specific models
 } & DateFilter;
 
 /**
@@ -1088,8 +1089,21 @@ export async function loadSessionBlockData(
 		}
 	}
 
+	// Filter by models if specified
+	const filteredEntries = options?.models != null && options.models.length > 0
+		? allEntries.filter((entry) => {
+				// Check if the entry's model matches any of the specified models
+				// Support partial matching (e.g., "sonnet" matches "claude-sonnet-4-20250514")
+				const entryModel = entry.model.toLowerCase();
+				return options.models!.some((filterModel) => {
+					const lowerFilterModel = filterModel.toLowerCase();
+					return entryModel.includes(lowerFilterModel) || lowerFilterModel.includes(entryModel);
+				});
+			})
+		: allEntries;
+
 	// Identify session blocks
-	const blocks = identifySessionBlocks(allEntries, options?.sessionDurationHours);
+	const blocks = identifySessionBlocks(filteredEntries, options?.sessionDurationHours);
 
 	// Filter by date range if specified
 	const filtered = (options?.since != null && options.since !== '') || (options?.until != null && options.until !== '')
