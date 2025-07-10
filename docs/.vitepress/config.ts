@@ -1,8 +1,10 @@
 import { defineConfig } from 'vitepress';
+import * as path from 'node:path';
 import { groupIconMdPlugin, groupIconVitePlugin } from 'vitepress-plugin-group-icons';
 import llmstxt from 'vitepress-plugin-llms';
 import { withMermaid } from 'vitepress-plugin-mermaid';
 import typedocSidebar from '../api/typedoc-sidebar.json';
+import { cloudflareRedirect } from '@ryoppippi/vite-plugin-cloudflare-redirect'
 
 export default withMermaid(defineConfig({
 	title: 'ccusage',
@@ -18,7 +20,7 @@ export default withMermaid(defineConfig({
 		['meta', { property: 'og:locale', content: 'en' }],
 		['meta', { property: 'og:title', content: 'ccusage | Claude Code Usage Analysis' }],
 		['meta', { property: 'og:site_name', content: 'ccusage' }],
-		['meta', { property: 'og:image', content: 'https://cdn.jsdelivr.net/gh/ryoppippi/ccusage@main/docs/public/logo.svg' }],
+		['meta', { property: 'og:image', content: 'https://cdn.jsdelivr.net/gh/ryoppippi/ccusage@main/docs/public/logo.png' }],
 		['meta', { property: 'og:url', content: 'https://github.com/ryoppippi/ccusage' }],
 	],
 
@@ -80,6 +82,7 @@ export default withMermaid(defineConfig({
 					text: 'Community',
 					items: [
 						{ text: 'Related Projects', link: '/guide/related-projects' },
+						{ text: 'Sponsors', link: '/guide/sponsors' },
 					],
 				},
 			],
@@ -129,6 +132,15 @@ export default withMermaid(defineConfig({
 
 	vite: {
 		plugins: [
+			cloudflareRedirect({
+            mode: "generate",
+            entries: [
+                { from: '/raycast', to: 'https://www.raycast.com/nyatinte/ccusage', status: 302 },
+                { from: '/gh', to: 'https://github.com/ryoppippi/ccusage', status: 302 },
+                { from: '/npm', to: 'https://www.npmjs.com/package/ccusage', status: 302 },
+                { from: '/deepwiki', to: 'https://deepwiki.com/ryoppippi/ccusage', status: 302 },
+            ]
+        }),
 			groupIconVitePlugin(),
 			...llmstxt(),
 		],

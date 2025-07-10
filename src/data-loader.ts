@@ -21,6 +21,7 @@ import path from 'node:path';
 import process from 'node:process';
 import { toArray } from '@antfu/utils';
 import { unreachable } from '@core/errorutil';
+import { Result } from '@praha/byethrow';
 import { groupBy, uniq } from 'es-toolkit'; // TODO: after node20 is deprecated, switch to native Object.groupBy
 import { sort } from 'fast-sort';
 import { createFixture } from 'fs-fixture';
@@ -133,9 +134,13 @@ export const usageDataSchema = z.object({
 		}),
 		model: modelNameSchema.optional(), // Model is inside message object
 		id: messageIdSchema.optional(), // Message ID for deduplication
+		content: z.array(z.object({
+			text: z.string().optional(),
+		})).optional(),
 	}),
 	costUSD: z.number().optional(), // Made optional for new schema
 	requestId: requestIdSchema.optional(), // Request ID for deduplication
+	isApiErrorMessage: z.boolean().optional(),
 });
 
 /**
@@ -572,7 +577,7 @@ export async function calculateCostForEntry(
 	if (mode === 'calculate') {
 		// Always calculate from tokens
 		if (data.message.model != null) {
-			return fetcher.calculateCostFromTokens(data.message.usage, data.message.model);
+			return Result.unwrap(fetcher.calculateCostFromTokens(data.message.usage, data.message.model), 0);
 		}
 		return 0;
 	}
@@ -584,13 +589,35 @@ export async function calculateCostForEntry(
 		}
 
 		if (data.message.model != null) {
-			return fetcher.calculateCostFromTokens(data.message.usage, data.message.model);
+			return Result.unwrap(fetcher.calculateCostFromTokens(data.message.usage, data.message.model), 0);
 		}
 
 		return 0;
 	}
 
 	unreachable(mode);
+}
+
+/**
+ * Get Claude Code usage limit expiration date
+ * @param data - Usage data entry
+ * @returns Usage limit expiration date
+ */
+export function getUsageLimitResetTime(data: UsageData): Date | null {
+	let resetTime: Date | null = null;
+
+	if (data.isApiErrorMessage === true) {
+		const timestampMatch = data.message?.content?.find(
+			c => c.text != null && c.text.includes('Claude AI usage limit reached'),
+		)?.text?.match(/\|(\d+)/) ?? null;
+
+		if (timestampMatch?.[1] != null) {
+			const resetTimestamp = Number.parseInt(timestampMatch[1]);
+			resetTime = resetTimestamp > 0 ? new Date(resetTimestamp * 1000) : null;
+		}
+	}
+
+	return resetTime;
 }
 
 /**
@@ -1068,6 +1095,9 @@ export async function loadSessionBlockData(
 					? await calculateCostForEntry(data, mode, fetcher)
 					: data.costUSD ?? 0;
 
+				// Get Claude Code usage limit expiration date
+				const usageLimitResetTime = getUsageLimitResetTime(data);
+
 				allEntries.push({
 					timestamp: new Date(data.timestamp),
 					usage: {
@@ -1079,6 +1109,7 @@ export async function loadSessionBlockData(
 					costUSD: cost,
 					model: data.message.model ?? 'unknown',
 					version: data.version,
+					usageLimitResetTime: usageLimitResetTime ?? undefined,
 				});
 			}
 			catch (error) {

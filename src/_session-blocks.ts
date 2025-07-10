@@ -1,5 +1,6 @@
 import { uniq } from 'es-toolkit';
 import { DEFAULT_RECENT_DAYS } from './_consts.ts';
+import { getTotalTokens } from './_token-utils.ts';
 
 /**
  * Default session duration in hours (Claude's billing block duration)
@@ -31,6 +32,7 @@ export type LoadedUsageEntry = {
 	costUSD: number | null;
 	model: string;
 	version?: string;
+	usageLimitResetTime?: Date; // Claude API usage limit reset time
 };
 
 /**
@@ -57,6 +59,7 @@ export type SessionBlock = {
 	tokenCounts: TokenCounts;
 	costUSD: number;
 	models: string[];
+	usageLimitResetTime?: Date; // Claude API usage limit reset time
 };
 
 /**
@@ -64,6 +67,7 @@ export type SessionBlock = {
  */
 type BurnRate = {
 	tokensPerMinute: number;
+	tokensPerMinuteForIndicator: number;
 	costPerHour: number;
 };
 
@@ -173,6 +177,7 @@ function createBlock(startTime: Date, entries: LoadedUsageEntry[], now: Date, se
 
 	let costUSD = 0;
 	const models: string[] = [];
+	let usageLimitResetTime: Date | undefined;
 
 	for (const entry of entries) {
 		tokenCounts.inputTokens += entry.usage.inputTokens;
@@ -180,6 +185,7 @@ function createBlock(startTime: Date, entries: LoadedUsageEntry[], now: Date, se
 		tokenCounts.cacheCreationInputTokens += entry.usage.cacheCreationInputTokens;
 		tokenCounts.cacheReadInputTokens += entry.usage.cacheReadInputTokens;
 		costUSD += entry.costUSD ?? 0;
+		usageLimitResetTime = entry.usageLimitResetTime ?? usageLimitResetTime;
 		models.push(entry.model);
 	}
 
@@ -193,6 +199,7 @@ function createBlock(startTime: Date, entries: LoadedUsageEntry[], now: Date, se
 		tokenCounts,
 		costUSD,
 		models: uniq(models),
+		usageLimitResetTime,
 	};
 }
 
@@ -255,12 +262,19 @@ export function calculateBurnRate(block: SessionBlock): BurnRate | null {
 		return null;
 	}
 
-	const totalTokens = block.tokenCounts.inputTokens + block.tokenCounts.outputTokens;
+	const totalTokens = getTotalTokens(block.tokenCounts);
 	const tokensPerMinute = totalTokens / durationMinutes;
+
+	// For burn rate indicator (HIGH/MODERATE/NORMAL), use only input and output tokens
+	// to maintain consistent thresholds with pre-cache behavior
+	const nonCacheTokens = (block.tokenCounts.inputTokens ?? 0) + (block.tokenCounts.outputTokens ?? 0);
+	const tokensPerMinuteForIndicator = nonCacheTokens / durationMinutes;
+
 	const costPerHour = (block.costUSD / durationMinutes) * 60;
 
 	return {
 		tokensPerMinute,
+		tokensPerMinuteForIndicator,
 		costPerHour,
 	};
 }
@@ -284,7 +298,7 @@ export function projectBlockUsage(block: SessionBlock): ProjectedUsage | null {
 	const remainingTime = block.endTime.getTime() - now.getTime();
 	const remainingMinutes = Math.max(0, remainingTime / (1000 * 60));
 
-	const currentTokens = block.tokenCounts.inputTokens + block.tokenCounts.outputTokens;
+	const currentTokens = getTotalTokens(block.tokenCounts);
 	const projectedAdditionalTokens = burnRate.tokensPerMinute * remainingMinutes;
 	const totalTokens = currentTokens + projectedAdditionalTokens;
 
@@ -569,7 +583,46 @@ if (import.meta.vitest != null) {
 
 			const result = calculateBurnRate(block);
 			expect(result).not.toBeNull();
-			expect(result?.tokensPerMinute).toBe(4500); // 4500 tokens / 1 minute
+			expect(result?.tokensPerMinute).toBe(4500); // 4500 tokens / 1 minute (includes all tokens)
+			expect(result?.tokensPerMinuteForIndicator).toBe(4500); // 4500 tokens / 1 minute (non-cache only)
+			expect(result?.costPerHour).toBeCloseTo(1.8, 2); // 0.03 / 1 minute * 60 minutes
+		});
+
+		it('correctly separates cache and non-cache tokens in burn rate calculation', () => {
+			const baseTime = new Date('2024-01-01T10:00:00Z');
+			const block: SessionBlock = {
+				id: baseTime.toISOString(),
+				startTime: baseTime,
+				endTime: new Date(baseTime.getTime() + SESSION_DURATION_MS),
+				isActive: true,
+				entries: [
+					{
+						timestamp: baseTime,
+						usage: { inputTokens: 1000, outputTokens: 500, cacheCreationInputTokens: 0, cacheReadInputTokens: 0 },
+						costUSD: 0.01,
+						model: 'claude-sonnet-4-20250514',
+					},
+					{
+						timestamp: new Date(baseTime.getTime() + 60 * 1000),
+						usage: { inputTokens: 500, outputTokens: 200, cacheCreationInputTokens: 2000, cacheReadInputTokens: 8000 },
+						costUSD: 0.02,
+						model: 'claude-sonnet-4-20250514',
+					},
+				],
+				tokenCounts: {
+					inputTokens: 1500,
+					outputTokens: 700,
+					cacheCreationInputTokens: 2000,
+					cacheReadInputTokens: 8000,
+				},
+				costUSD: 0.03,
+				models: ['claude-sonnet-4-20250514'],
+			};
+
+			const result = calculateBurnRate(block);
+			expect(result).not.toBeNull();
+			expect(result?.tokensPerMinute).toBe(12200); // 1500 + 700 + 2000 + 8000 = 12200 tokens / 1 minute
+			expect(result?.tokensPerMinuteForIndicator).toBe(2200); // 1500 + 700 = 2200 tokens / 1 minute (non-cache only)
 			expect(result?.costPerHour).toBeCloseTo(1.8, 2); // 0.03 / 1 minute * 60 minutes
 		});
 	});

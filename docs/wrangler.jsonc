@@ -1,13 +1,16 @@
 {
-	"$schema": "../node_modules/wrangler/config-schema.json",
-	"name": "ccusage-guide",
-	"main": "./index.ts",
-	"compatibility_date": "2025-06-21",
-	"build": {
-		"command": "bun run build"
-	},
-	"assets": {
-		"binding": "ASSETS",
-		"directory": ".vitepress/dist/"
-	}
+  "$schema": "../node_modules/wrangler/config-schema.json",
+  "name": "ccusage-guide",
+  "main": "./index.ts",
+  "compatibility_date": "2025-06-21",
+  "build": {
+    "command": "bun run build"
+  },
+  "assets": {
+    "binding": "ASSETS",
+    "directory": ".vitepress/dist/",
+    "html_handling": "drop-trailing-slash",
+    "run_worker_first": false,
+    "not_found_handling": "404-page"
+  }
 }

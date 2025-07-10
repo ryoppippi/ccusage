@@ -5,7 +5,7 @@ Welcome to ccusage! This guide will help you get up and running with analyzing y
 ## Prerequisites
 
 - Claude Code installed and used (generates JSONL files)
-- Node.js 18+ or Bun runtime
+- Node.js 20+ or Bun runtime
 
 ## Quick Start
 
@@ -99,6 +99,10 @@ ccusage monthly --json > usage-data.json
 ```bash
 ccusage blocks --live
 ```
+
+## Colors
+
+ccusage automatically colors the output based on the terminal's capabilities. If you want to disable colors, you can use the `--no-color` flag. Or you can use the `--color` flag to force colors on.
 
 ## Troubleshooting
 

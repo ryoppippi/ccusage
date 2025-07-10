@@ -109,6 +109,16 @@ This is a CLI tool that analyzes Claude Code usage data from local JSONL files s
 - File paths always use Node.js path utilities for cross-platform compatibility
 - **Import conventions**: Use `.ts` extensions for local file imports (e.g., `import { foo } from './utils.ts'`)
 
+**Error Handling:**
+
+- **Prefer @praha/byethrow Result type** over traditional try-catch for functional error handling
+- Use `Result.try()` for wrapping operations that may throw (JSON parsing, etc.)
+- Use `Result.isFailure()` for checking errors (more readable than `!Result.isSuccess()`)
+- Use early return pattern (`if (Result.isFailure(result)) continue;`) instead of ternary operators
+- For async operations: create wrapper function with `Result.try()` then call it
+- Keep traditional try-catch only for: file I/O with complex error handling, legacy code that's hard to refactor
+- Always use `Result.isFailure()` and `Result.isSuccess()` type guards for better code clarity
+
 **Naming Conventions:**
 
 - Variables: start with lowercase (camelCase) - e.g., `usageDataSchema`, `modelBreakdownSchema`
