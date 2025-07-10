@@ -76,6 +76,11 @@ export type PerModelBreakdown = {
 type BurnRate = {
 	tokensPerMinute: number;
 	costPerHour: number;
+	/**
+	 * Activity density ratio (0-1) indicating how much of the time period
+	 * the model was actually active. Used to adjust projections for sparse usage.
+	 */
+	activityDensity?: number;
 };
 
 /**
@@ -270,9 +275,54 @@ export function calculateBurnRate(block: SessionBlock): BurnRate | null {
 	const tokensPerMinute = totalTokens / durationMinutes;
 	const costPerHour = (block.costUSD / durationMinutes) * 60;
 
+	// Calculate activity density for sparse usage detection
+	let activityDensity: number | undefined;
+
+	// Detect sparse usage by analyzing entry distribution
+	// If entries are very sparse compared to session duration, calculate density
+	const averageMinutesBetweenEntries = durationMinutes / Math.max(1, block.entries.length - 1);
+	const SPARSE_THRESHOLD_MINUTES = 5; // If entries are >5 minutes apart on average, consider sparse
+
+	if (averageMinutesBetweenEntries > SPARSE_THRESHOLD_MINUTES && block.entries.length < 100) {
+		// Calculate the actual activity windows
+		const entryTimeSlots = block.entries.map(entry => entry.timestamp.getTime());
+		entryTimeSlots.sort((a, b) => a - b);
+
+		if (entryTimeSlots.length > 0) {
+			// Estimate active time by grouping entries into activity bursts
+			let totalActiveMinutes = 0;
+			let currentBurstStart = entryTimeSlots[0]!;
+			let lastEntryTime = entryTimeSlots[0]!;
+			const BURST_GAP_MINUTES = 10; // Entries within 10 minutes are considered part of same burst
+
+			for (let i = 1; i < entryTimeSlots.length; i++) {
+				const currentTime = entryTimeSlots[i]!;
+				const gapMinutes = (currentTime - lastEntryTime) / (1000 * 60);
+
+				if (gapMinutes > BURST_GAP_MINUTES) {
+					// End of current burst
+					totalActiveMinutes += (lastEntryTime - currentBurstStart) / (1000 * 60);
+					currentBurstStart = currentTime;
+				}
+				lastEntryTime = currentTime;
+			}
+
+			// Add the final burst
+			totalActiveMinutes += (lastEntryTime - currentBurstStart) / (1000 * 60);
+
+			// Ensure minimum active time (at least 1 minute per burst)
+			const numberOfBursts = Math.max(1, Math.ceil(totalActiveMinutes / BURST_GAP_MINUTES) || 1);
+			totalActiveMinutes = Math.max(totalActiveMinutes, numberOfBursts);
+
+			// Calculate density as ratio of active time to total span
+			activityDensity = Math.min(1, totalActiveMinutes / durationMinutes);
+		}
+	}
+
 	return {
 		tokensPerMinute,
 		costPerHour,
+		activityDensity,
 	};
 }
 
@@ -296,10 +346,19 @@ export function projectBlockUsage(block: SessionBlock): ProjectedUsage | null {
 	const remainingMinutes = Math.max(0, remainingTime / (1000 * 60));
 
 	const currentTokens = block.tokenCounts.inputTokens + block.tokenCounts.outputTokens;
-	const projectedAdditionalTokens = burnRate.tokensPerMinute * remainingMinutes;
+
+	// Adjust projection based on activity density for sparse usage
+	let effectiveRemainingMinutes = remainingMinutes;
+	if (burnRate.activityDensity != null && burnRate.activityDensity < 1) {
+		// For sparse usage, assume the model will only be active for a portion of the remaining time
+		// This prevents unrealistic projections for sporadically used models
+		effectiveRemainingMinutes = remainingMinutes * burnRate.activityDensity;
+	}
+
+	const projectedAdditionalTokens = burnRate.tokensPerMinute * effectiveRemainingMinutes;
 	const totalTokens = currentTokens + projectedAdditionalTokens;
 
-	const projectedAdditionalCost = (burnRate.costPerHour / 60) * remainingMinutes;
+	const projectedAdditionalCost = (burnRate.costPerHour / 60) * effectiveRemainingMinutes;
 	const totalCost = block.costUSD + projectedAdditionalCost;
 
 	return {
