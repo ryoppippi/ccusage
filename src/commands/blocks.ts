@@ -7,6 +7,9 @@ import {
 	calculateBurnRate,
 	DEFAULT_SESSION_DURATION_HOURS,
 	filterRecentBlocks,
+	findGlobalModelMaxes,
+	getModelCostLimit,
+	getModelTokenLimit,
 	projectBlockUsage,
 
 } from '../_session-blocks.ts';
@@ -199,6 +202,42 @@ export const blocksCommand = define({
 			process.exit(1);
 		}
 
+		// Load unfiltered data first for max limit calculations
+		const allBlocks = await loadSessionBlockData({
+			since: ctx.values.since,
+			until: ctx.values.until,
+			mode: ctx.values.mode,
+			order: ctx.values.order,
+			offline: ctx.values.offline,
+			sessionDurationHours: ctx.values.sessionLength,
+			// No model filtering for limit calculations
+		});
+
+		// Calculate per-model maxes from ALL blocks (unfiltered data)
+		const globalModelMaxes = findGlobalModelMaxes(allBlocks);
+		const modelFilter = parseModelFilter(ctx.values.model);
+
+		// Calculate max tokens using per-model analysis
+		let maxTokensFromAll = 0;
+		if (ctx.values.tokenLimit === 'max') {
+			maxTokensFromAll = getModelTokenLimit(globalModelMaxes, modelFilter);
+			if (ctx.values.json !== true && maxTokensFromAll > 0) {
+				const modelText = modelFilter != null ? ` for ${modelFilter.join(', ')} model(s)` : ' across all models';
+				logger.info(`Using max tokens from previous sessions${modelText}: ${formatNumber(maxTokensFromAll)}`);
+			}
+		}
+
+		// Calculate max cost using per-model analysis
+		let maxCostFromAll = 0;
+		if (ctx.values.costLimit === 'max') {
+			maxCostFromAll = getModelCostLimit(globalModelMaxes, modelFilter);
+			if (ctx.values.json !== true && maxCostFromAll > 0) {
+				const modelText = modelFilter != null ? ` for ${modelFilter.join(', ')} model(s)` : ' across all models';
+				logger.info(`Using max cost from previous sessions${modelText}: $${maxCostFromAll.toFixed(2)}`);
+			}
+		}
+
+		// Now load filtered data for actual display
 		let blocks = await loadSessionBlockData({
 			since: ctx.values.since,
 			until: ctx.values.until,
@@ -206,7 +245,7 @@ export const blocksCommand = define({
 			order: ctx.values.order,
 			offline: ctx.values.offline,
 			sessionDurationHours: ctx.values.sessionLength,
-			models: parseModelFilter(ctx.values.model),
+			models: modelFilter,
 		});
 
 		if (blocks.length === 0) {
@@ -217,37 +256,6 @@ export const blocksCommand = define({
 				logger.warn('No Claude usage data found.');
 			}
 			process.exit(0);
-		}
-
-		// Calculate max tokens from ALL blocks before applying filters
-		let maxTokensFromAll = 0;
-		if (ctx.values.tokenLimit === 'max') {
-			for (const block of blocks) {
-				if (!(block.isGap ?? false) && !block.isActive) {
-					const blockTokens = block.tokenCounts.inputTokens + block.tokenCounts.outputTokens;
-					if (blockTokens > maxTokensFromAll) {
-						maxTokensFromAll = blockTokens;
-					}
-				}
-			}
-			if (!ctx.values.json && maxTokensFromAll > 0) {
-				logger.info(`Using max tokens from previous sessions: ${formatNumber(maxTokensFromAll)}`);
-			}
-		}
-
-		// Calculate max cost from ALL blocks before applying filters
-		let maxCostFromAll = 0;
-		if (ctx.values.costLimit === 'max') {
-			for (const block of blocks) {
-				if (!(block.isGap ?? false) && !block.isActive) {
-					if (block.costUSD > maxCostFromAll) {
-						maxCostFromAll = block.costUSD;
-					}
-				}
-			}
-			if (!ctx.values.json && maxCostFromAll > 0) {
-				logger.info(`Using max cost from previous sessions: $${maxCostFromAll.toFixed(2)}`);
-			}
 		}
 
 		// Apply filters
@@ -324,7 +332,7 @@ export const blocksCommand = define({
 				sessionDurationHours: ctx.values.sessionLength,
 				mode: ctx.values.mode,
 				order: ctx.values.order,
-				models: parseModelFilter(ctx.values.model),
+				models: modelFilter,
 			});
 			return; // Exit early, don't show table
 		}

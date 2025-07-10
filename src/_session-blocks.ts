@@ -60,6 +60,17 @@ export type SessionBlock = {
 };
 
 /**
+ * Represents per-model cost and token breakdown within a session block
+ */
+export type PerModelBreakdown = {
+	[modelName: string]: {
+		costUSD: number;
+		totalTokens: number;
+		entries: number;
+	};
+};
+
+/**
  * Represents usage burn rate calculations
  */
 type BurnRate = {
@@ -296,6 +307,132 @@ export function projectBlockUsage(block: SessionBlock): ProjectedUsage | null {
 		totalCost: Math.round(totalCost * 100) / 100,
 		remainingMinutes: Math.round(remainingMinutes),
 	};
+}
+
+/**
+ * Calculates per-model cost and token breakdown for a session block
+ * @param block - Session block to analyze
+ * @returns Per-model breakdown with costs, tokens, and entry counts
+ */
+export function calculatePerModelCosts(block: SessionBlock): PerModelBreakdown {
+	const breakdown: PerModelBreakdown = {};
+
+	// Skip gap blocks
+	if (block.isGap ?? false) {
+		return breakdown;
+	}
+
+	for (const entry of block.entries) {
+		const modelName = entry.model;
+
+		if (breakdown[modelName] == null) {
+			breakdown[modelName] = {
+				costUSD: 0,
+				totalTokens: 0,
+				entries: 0,
+			};
+		}
+
+		breakdown[modelName].costUSD += entry.costUSD ?? 0;
+		breakdown[modelName].totalTokens += entry.usage.inputTokens + entry.usage.outputTokens;
+		breakdown[modelName].entries += 1;
+	}
+
+	return breakdown;
+}
+
+/**
+ * Finds the global maximum cost and tokens per model across all session blocks
+ * @param blocks - Array of session blocks to analyze
+ * @returns Global maximum values per model
+ */
+export function findGlobalModelMaxes(blocks: SessionBlock[]): PerModelBreakdown {
+	const globalMaxes: PerModelBreakdown = {};
+
+	for (const block of blocks) {
+		// Skip gap blocks and active blocks for historical max calculation
+		if ((block.isGap ?? false) || block.isActive) {
+			continue;
+		}
+
+		const blockBreakdown = calculatePerModelCosts(block);
+
+		for (const [modelName, modelData] of Object.entries(blockBreakdown)) {
+			if (globalMaxes[modelName] == null) {
+				globalMaxes[modelName] = {
+					costUSD: modelData.costUSD,
+					totalTokens: modelData.totalTokens,
+					entries: modelData.entries,
+				};
+			}
+			else {
+				// Track maximum values for each metric
+				globalMaxes[modelName].costUSD = Math.max(globalMaxes[modelName].costUSD, modelData.costUSD);
+				globalMaxes[modelName].totalTokens = Math.max(globalMaxes[modelName].totalTokens, modelData.totalTokens);
+				globalMaxes[modelName].entries = Math.max(globalMaxes[modelName].entries, modelData.entries);
+			}
+		}
+	}
+
+	return globalMaxes;
+}
+
+/**
+ * Gets the appropriate cost limit for the specified models
+ * @param globalMaxes - Global per-model maximum values
+ * @param models - Array of model names to filter by (undefined for no filter)
+ * @returns Maximum cost limit for the specified models
+ */
+export function getModelCostLimit(globalMaxes: PerModelBreakdown, models?: string[]): number {
+	if (models == null || models.length === 0) {
+		// No model filter - return the highest cost across all models
+		return Math.max(...Object.values(globalMaxes).map(data => data.costUSD), 0);
+	}
+
+	// Model filter applied - find the highest cost among matching models
+	let maxCost = 0;
+	for (const [modelName, modelData] of Object.entries(globalMaxes)) {
+		const modelMatches = models.some((filterModel) => {
+			const lowerFilterModel = filterModel.toLowerCase();
+			const lowerModelName = modelName.toLowerCase();
+			return lowerModelName.includes(lowerFilterModel) || lowerFilterModel.includes(lowerModelName);
+		});
+
+		if (modelMatches) {
+			maxCost = Math.max(maxCost, modelData.costUSD);
+		}
+	}
+
+	return maxCost;
+}
+
+/**
+ * Gets the appropriate token limit for the specified models
+ * @param globalMaxes - Global per-model maximum values
+ * @param models - Array of model names to filter by (undefined for no filter)
+ * @returns Maximum token limit for the specified models
+ */
+export function getModelTokenLimit(globalMaxes: PerModelBreakdown, models?: string[]): number {
+	if (models == null || models.length === 0) {
+		// No model filter - return the highest token count across all models
+		return Math.max(...Object.values(globalMaxes).map(data => data.totalTokens), 0);
+	}
+
+	// Model filter applied - find the highest token count among matching models
+	let maxTokens = 0;
+	for (const [modelName, modelData] of Object.entries(globalMaxes)) {
+		const modelMatches = models.some((filterModel) => {
+			const lowerFilterModel = filterModel.toLowerCase();
+			const lowerModelName = modelName.toLowerCase();
+			return lowerModelName.includes(lowerFilterModel) || lowerFilterModel.includes(lowerModelName);
+		});
+
+		if (modelMatches) {
+			maxTokens = Math.max(maxTokens, modelData.totalTokens);
+		}
+	}
+
+	return maxTokens;
 }
 
 /**

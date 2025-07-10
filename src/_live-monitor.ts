@@ -146,22 +146,9 @@ export class LiveMonitor implements Disposable {
 			}
 		}
 
-		// Filter by models if specified
-		const filteredEntries = this.config.models != null && this.config.models.length > 0
-			? this.allEntries.filter((entry) => {
-					// Check if the entry's model matches any of the specified models
-					// Support partial matching (e.g., "sonnet" matches "claude-sonnet-4-20250514")
-					const entryModel = entry.model.toLowerCase();
-					return this.config.models!.some((filterModel) => {
-						const lowerFilterModel = filterModel.toLowerCase();
-						return entryModel.includes(lowerFilterModel) || lowerFilterModel.includes(entryModel);
-					});
-				})
-			: this.allEntries;
-
-		// Generate blocks and find active one
+		// Generate blocks from ALL entries first (preserve session structure)
 		const blocks = identifySessionBlocks(
-			filteredEntries,
+			this.allEntries,
 			this.config.sessionDurationHours,
 		);
 
@@ -170,8 +157,84 @@ export class LiveMonitor implements Disposable {
 			? blocks
 			: blocks.reverse();
 
-		// Find active block
-		return sortedBlocks.find(block => block.isActive) ?? null;
+		// Find active block based on session structure (not filtered data)
+		const activeBlock = sortedBlocks.find(block => block.isActive);
+
+		if (activeBlock == null) {
+			return null;
+		}
+
+		// Apply model filtering to the active block's entries only
+		if (this.config.models != null && this.config.models.length > 0) {
+			return this.filterBlockByModels(activeBlock, this.config.models);
+		}
+
+		return activeBlock;
+	}
+
+	/**
+	 * Filters a session block's entries by specified models while preserving block structure
+	 * @param block - Original session block
+	 * @param models - Array of model names to filter by
+	 * @returns New session block with filtered entries and recalculated aggregates
+	 */
+	private filterBlockByModels(block: SessionBlock, models: string[]): SessionBlock {
+		// Filter entries by models with partial matching
+		const filteredEntries = block.entries.filter((entry) => {
+			const entryModel = entry.model.toLowerCase();
+			return models.some((filterModel) => {
+				const lowerFilterModel = filterModel.toLowerCase();
+				return entryModel.includes(lowerFilterModel) || lowerFilterModel.includes(entryModel);
+			});
+		});
+
+		// If no entries match, return empty block with preserved structure
+		if (filteredEntries.length === 0) {
+			return {
+				...block,
+				entries: [],
+				tokenCounts: {
+					inputTokens: 0,
+					outputTokens: 0,
+					cacheCreationInputTokens: 0,
+					cacheReadInputTokens: 0,
+				},
+				costUSD: 0,
+				models: [],
+			};
+		}
+
+		// Recalculate aggregated data for filtered entries
+		const tokenCounts = {
+			inputTokens: 0,
+			outputTokens: 0,
+			cacheCreationInputTokens: 0,
+			cacheReadInputTokens: 0,
+		};
+
+		let totalCost = 0;
+		const uniqueModels = new Set<string>();
+
+		for (const entry of filteredEntries) {
+			tokenCounts.inputTokens += entry.usage.inputTokens;
+			tokenCounts.outputTokens += entry.usage.outputTokens;
+			tokenCounts.cacheCreationInputTokens += entry.usage.cacheCreationInputTokens;
+			tokenCounts.cacheReadInputTokens += entry.usage.cacheReadInputTokens;
+
+			if (entry.costUSD != null) {
+				totalCost += entry.costUSD;
+			}
+
+			uniqueModels.add(entry.model);
+		}
+
+		return {
+			...block,
+			entries: filteredEntries,
+			tokenCounts,
+			costUSD: totalCost,
+			models: Array.from(uniqueModels).sort(),
+		};
 	}
 
 	/**

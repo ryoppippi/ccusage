@@ -998,6 +998,78 @@ export async function loadMonthlyUsageData(
 }
 
 /**
+ * Filters session blocks' entries by specified models while preserving block structure
+ * @param blocks - Array of session blocks to filter
+ * @param models - Array of model names to filter by
+ * @returns Array of session blocks with filtered entries and recalculated aggregates
+ */
+function filterBlocksByModels(blocks: SessionBlock[], models: string[]): SessionBlock[] {
+	return blocks.map((block) => {
+		// Skip gap blocks
+		if (block.isGap ?? false) {
+			return block;
+		}
+
+		// Filter entries by models with partial matching
+		const filteredEntries = block.entries.filter((entry) => {
+			const entryModel = entry.model.toLowerCase();
+			return models.some((filterModel) => {
+				const lowerFilterModel = filterModel.toLowerCase();
+				return entryModel.includes(lowerFilterModel) || lowerFilterModel.includes(entryModel);
+			});
+		});
+
+		// If no entries match, return empty block with preserved structure
+		if (filteredEntries.length === 0) {
+			return {
+				...block,
+				entries: [],
+				tokenCounts: {
+					inputTokens: 0,
+					outputTokens: 0,
+					cacheCreationInputTokens: 0,
+					cacheReadInputTokens: 0,
+				},
+				costUSD: 0,
+				models: [],
+			};
+		}
+
+		// Recalculate aggregated data for filtered entries
+		const tokenCounts = {
+			inputTokens: 0,
+			outputTokens: 0,
+			cacheCreationInputTokens: 0,
+			cacheReadInputTokens: 0,
+		};
+
+		let totalCost = 0;
+		const uniqueModels = new Set<string>();
+
+		for (const entry of filteredEntries) {
+			tokenCounts.inputTokens += entry.usage.inputTokens;
+			tokenCounts.outputTokens += entry.usage.outputTokens;
+			tokenCounts.cacheCreationInputTokens += entry.usage.cacheCreationInputTokens;
+			tokenCounts.cacheReadInputTokens += entry.usage.cacheReadInputTokens;
+
+			if (entry.costUSD != null) {
+				totalCost += entry.costUSD;
+			}
+
+			uniqueModels.add(entry.model);
+		}
+
+		return {
+			...block,
+			entries: filteredEntries,
+			tokenCounts,
+			costUSD: totalCost,
+			models: Array.from(uniqueModels).sort(),
+		};
+	});
+}
+
+/**
  * Loads usage data and organizes it into session blocks (typically 5-hour billing periods)
  * Processes all usage data and groups it into time-based blocks for billing analysis
  * @param options - Optional configuration including session duration and filtering
@@ -1089,25 +1161,17 @@ export async function loadSessionBlockData(
 		}
 	}
 
-	// Filter by models if specified
-	const filteredEntries = options?.models != null && options.models.length > 0
-		? allEntries.filter((entry) => {
-				// Check if the entry's model matches any of the specified models
-				// Support partial matching (e.g., "sonnet" matches "claude-sonnet-4-20250514")
-				const entryModel = entry.model.toLowerCase();
-				return options.models!.some((filterModel) => {
-					const lowerFilterModel = filterModel.toLowerCase();
-					return entryModel.includes(lowerFilterModel) || lowerFilterModel.includes(entryModel);
-				});
-			})
-		: allEntries;
+	// Identify session blocks from ALL entries first (preserve session structure)
+	const blocks = identifySessionBlocks(allEntries, options?.sessionDurationHours);
 
-	// Identify session blocks
-	const blocks = identifySessionBlocks(filteredEntries, options?.sessionDurationHours);
+	// Apply model filtering to blocks while preserving structure
+	const filteredBlocks = options?.models != null && options.models.length > 0
+		? filterBlocksByModels(blocks, options.models)
+		: blocks;
 
 	// Filter by date range if specified
 	const filtered = (options?.since != null && options.since !== '') || (options?.until != null && options.until !== '')
-		? blocks.filter((block) => {
+		? filteredBlocks.filter((block) => {
 				const blockDateStr = formatDate(block.startTime.toISOString()).replace(/-/g, '');
 				if (options.since != null && options.since !== '' && blockDateStr < options.since) {
 					return false;
@@ -1117,7 +1181,7 @@ export async function loadSessionBlockData(
 				}
 				return true;
 			})
-		: blocks;
+		: filteredBlocks;
 
 	// Sort by start time based on order option
 	return sortByDate(filtered, block => block.startTime, options?.order);
