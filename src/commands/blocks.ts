@@ -106,6 +106,25 @@ function parseTokenLimit(value: string | undefined, maxFromAll: number): number 
 	return Number.isNaN(limit) ? undefined : limit;
 }
 
+/**
+ * Parses cost limit argument, supporting 'max' keyword
+ * @param value - Cost limit string value
+ * @param maxFromAll - Maximum cost found in all blocks
+ * @returns Parsed cost limit or undefined if invalid
+ */
+function parseCostLimit(value: string | undefined, maxFromAll: number): number | undefined {
+	if (value == null || value === '') {
+		return undefined;
+	}
+
+	if (value === 'max') {
+		return maxFromAll > 0 ? maxFromAll : undefined;
+	}
+
+	const limit = Number.parseFloat(value);
+	return Number.isNaN(limit) ? undefined : limit;
+}
+
 export const blocksCommand = define({
 	name: 'blocks',
 	description: 'Show usage report grouped by session billing blocks',
@@ -127,6 +146,11 @@ export const blocksCommand = define({
 			type: 'string',
 			short: 't',
 			description: 'Token limit for quota warnings (e.g., 500000 or "max")',
+		},
+		costLimit: {
+			type: 'string',
+			short: 'c',
+			description: 'Cost limit for quota warnings (e.g., 5.50 or "max")',
 		},
 		sessionLength: {
 			type: 'number',
@@ -192,6 +216,21 @@ export const blocksCommand = define({
 			}
 		}
 
+		// Calculate max cost from ALL blocks before applying filters
+		let maxCostFromAll = 0;
+		if (ctx.values.costLimit === 'max') {
+			for (const block of blocks) {
+				if (!(block.isGap ?? false) && !block.isActive) {
+					if (block.costUSD > maxCostFromAll) {
+						maxCostFromAll = block.costUSD;
+					}
+				}
+			}
+			if (!ctx.values.json && maxCostFromAll > 0) {
+				logger.info(`Using max cost from previous sessions: $${maxCostFromAll.toFixed(2)}`);
+			}
+		}
+
 		// Apply filters
 		if (ctx.values.recent) {
 			blocks = filterRecentBlocks(blocks, DEFAULT_RECENT_DAYS);
@@ -217,12 +256,31 @@ export const blocksCommand = define({
 				logger.info('Live mode automatically shows only active blocks.');
 			}
 
+			// Validate mutual exclusivity of token and cost limits
+			if (ctx.values.tokenLimit != null && ctx.values.costLimit != null) {
+				logger.error('Cannot specify both --token-limit and --cost-limit at the same time');
+				process.exit(1);
+			}
+
 			// Default to 'max' if no token limit specified in live mode
 			let tokenLimitValue = ctx.values.tokenLimit;
-			if (tokenLimitValue == null || tokenLimitValue === '') {
+			const costLimitValue = ctx.values.costLimit;
+
+			if (tokenLimitValue == null && costLimitValue == null) {
 				tokenLimitValue = 'max';
 				if (maxTokensFromAll > 0) {
-					logger.info(`No token limit specified, using max from previous sessions: ${formatNumber(maxTokensFromAll)}`);
+					logger.info(`No limit specified, using token limit max from previous sessions: ${formatNumber(maxTokensFromAll)}`);
+				}
+			}
+			else if (tokenLimitValue == null || tokenLimitValue === '') {
+				if (costLimitValue != null) {
+					// Cost limit is specified, don't default token limit
+				}
+				else {
+					tokenLimitValue = 'max';
+					if (maxTokensFromAll > 0) {
+						logger.info(`No token limit specified, using max from previous sessions: ${formatNumber(maxTokensFromAll)}`);
+					}
 				}
 			}
 
@@ -242,6 +300,7 @@ export const blocksCommand = define({
 			await startLiveMonitoring({
 				claudePath: paths[0]!,
 				tokenLimit: parseTokenLimit(tokenLimitValue, maxTokensFromAll),
+				costLimit: parseCostLimit(costLimitValue, maxCostFromAll),
 				refreshInterval: refreshInterval * 1000, // Convert to milliseconds
 				sessionDurationHours: ctx.values.sessionLength,
 				mode: ctx.values.mode,
