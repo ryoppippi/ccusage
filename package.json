@@ -62,7 +62,7 @@
 		"@jsr/std__async": "1",
 		"@modelcontextprotocol/sdk": "^1.15.0",
 		"@oxc-project/runtime": "^0.75.1",
-		"@praha/byethrow": "^0.4.1",
+		"@praha/byethrow": "^0.6.0",
 		"@praha/byethrow-mcp": "^0.0.12",
 		"@ryoppippi/eslint-config": "^0.3.7",
 		"@types/bun": "^1.2.18",

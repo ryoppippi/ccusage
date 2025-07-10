@@ -11,7 +11,7 @@
         "@jsr/std__async": "1",
         "@modelcontextprotocol/sdk": "^1.15.0",
         "@oxc-project/runtime": "^0.75.1",
-        "@praha/byethrow": "^0.4.1",
+        "@praha/byethrow": "^0.6.0",
         "@praha/byethrow-mcp": "^0.0.12",
         "@ryoppippi/eslint-config": "^0.3.7",
         "@types/bun": "^1.2.18",
@@ -355,7 +355,7 @@
 
     "@pkgr/core": ["@pkgr/core@0.1.2", "", {}, "sha512-fdDH1LSGfZdTH2sxdpVMw31BanV28K/Gry0cVFxaNP77neJSkd82mM8ErPNYs9e+0O7SdHBLTDzDgwUuy18RnQ=="],
 
-    "@praha/byethrow": ["@praha/byethrow@0.4.1", "", {}, "sha512-NOh+0/aZjtOg9oXSXg1/NxeWIM0oiwDlLCLCmh+qAUlarUCRFKGRm7kOA3dpLwfQzFDMSWUJUoBGLKY227gV3g=="],
+    "@praha/byethrow": ["@praha/byethrow@0.6.0", "", { "dependencies": { "@standard-schema/spec": "^1.0.0" } }, "sha512-l2zw8Ckg6GnbGwh2jk6mMi26h7FcedUZL21X6EX12gQu2x2tITCkScWDFuBdVlLU/FTJzn6CmHlHyVdu6adXdw=="],
 
     "@praha/byethrow-mcp": ["@praha/byethrow-mcp@0.0.12", "", { "dependencies": { "@modelcontextprotocol/sdk": "^1.12.3", "consola": "^3.4.2", "zod": "^3.25.67" }, "bin": { "byethrow-mcp": "dist/index.js" } }, "sha512-E+ucAPb9wgfe/T78KsyuOuJHaa67amiKSqEZ9Jravpz2xpreTnGLfsQonOv5hwlT7Is8VOUInzuLPf3OX8nc+A=="],
 
@@ -408,6 +408,8 @@
     "@shikijs/types": ["@shikijs/types@2.5.0", "", { "dependencies": { "@shikijs/vscode-textmate": "^10.0.2", "@types/hast": "^3.0.4" } }, "sha512-ygl5yhxki9ZLNuNpPitBWvcy9fsSKKaRuO4BAlMyagszQidxcpLAr0qiW/q43DtSIDxO6hEbtYLiFZNXO/hdGw=="],
 
     "@shikijs/vscode-textmate": ["@shikijs/vscode-textmate@10.0.2", "", {}, "sha512-83yeghZ2xxin3Nj8z1NMd/NCuca+gsYXswywDy5bHvwlWL8tpTQmzGeUuHd9FC3E/SBEMvzJRwWEOz5gGes9Qg=="],
+
+    "@standard-schema/spec": ["@standard-schema/spec@1.0.0", "", {}, "sha512-m2bOd0f2RT9k8QJx1JN85cZYyH1RqFBdlwtkSlf4tBDYLCiiZnv1fIIwacK6cqwXavOydf0NPToMQgpKq+dVlA=="],
 
     "@stylistic/eslint-plugin": ["@stylistic/eslint-plugin@5.0.0-beta.5", "", { "dependencies": { "@eslint-community/eslint-utils": "^4.7.0", "@typescript-eslint/types": "^8.32.1", "eslint-visitor-keys": "^4.2.0", "espree": "^10.3.0", "estraverse": "^5.3.0", "picomatch": "^4.0.2" }, "peerDependencies": { "eslint": ">=9.0.0" } }, "sha512-hYoTE1AuPKkF8gN6nwJVnBovUEkt3UGiE3zu8nNmFi3yw7F36l1/tU/VRg16CZC804rnAhUwsYTHqKnAPqICxg=="],
 
