@@ -498,12 +498,12 @@ if (import.meta.vitest != null) {
 		it('should display cost limit when provided', () => {
 			// Mock terminal with buffer to capture output
 			const buffer: string[] = [];
-			const mockTerminal: TerminalManager = {
+			const mockTerminal = {
 				width: 50,
 				height: 20,
 				write: (str: string) => buffer.push(str),
 				startBuffering: () => {},
-				flushBuffer: () => {},
+				flush: () => {},
 			};
 
 			const mockBlock: SessionBlock = {
@@ -511,7 +511,7 @@ if (import.meta.vitest != null) {
 				startTime: new Date(),
 				endTime: new Date(),
 				costUSD: 2.5,
-				tokenCounts: { inputTokens: 5000, outputTokens: 3000, cacheCreationTokens: 0, cacheReadTokens: 0 },
+				tokenCounts: { inputTokens: 5000, outputTokens: 3000, cacheCreationInputTokens: 0, cacheReadInputTokens: 0 },
 				entries: [], // Required by calculateBurnRate
 				isActive: false,
 				models: [],
@@ -527,7 +527,8 @@ if (import.meta.vitest != null) {
 				order: 'desc',
 			};
 
-			renderCompactLiveDisplay(mockTerminal, mockBlock, config, 8000, 120, 60);
+			// eslint-disable-next-line ts/no-unsafe-argument
+			renderCompactLiveDisplay(mockTerminal as any, mockBlock, config, 8000, 120, 60);
 
 			const output = buffer.join('');
 			expect(output).toContain('Cost: $2.50/$5.00');
@@ -537,12 +538,12 @@ if (import.meta.vitest != null) {
 
 		it('should display token limit when provided', () => {
 			const buffer: string[] = [];
-			const mockTerminal: TerminalManager = {
+			const mockTerminal = {
 				width: 50,
 				height: 20,
 				write: (str: string) => buffer.push(str),
 				startBuffering: () => {},
-				flushBuffer: () => {},
+				flush: () => {},
 			};
 
 			const mockBlock: SessionBlock = {
@@ -550,7 +551,7 @@ if (import.meta.vitest != null) {
 				startTime: new Date(),
 				endTime: new Date(),
 				costUSD: 2.5,
-				tokenCounts: { inputTokens: 5000, outputTokens: 3500, cacheCreationTokens: 0, cacheReadTokens: 0 },
+				tokenCounts: { inputTokens: 5000, outputTokens: 3500, cacheCreationInputTokens: 0, cacheReadInputTokens: 0 },
 				entries: [], // Required by calculateBurnRate
 				isActive: false,
 				models: [],
@@ -566,7 +567,8 @@ if (import.meta.vitest != null) {
 				order: 'desc',
 			};
 
-			renderCompactLiveDisplay(mockTerminal, mockBlock, config, 8500, 120, 60);
+			// eslint-disable-next-line ts/no-unsafe-argument
+			renderCompactLiveDisplay(mockTerminal as any, mockBlock, config, 8500, 120, 60);
 
 			const output = buffer.join('');
 			expect(output).toContain('Tokens: 8,500/10,000');
@@ -576,12 +578,12 @@ if (import.meta.vitest != null) {
 
 		it('should prefer cost limit over token limit when both provided', () => {
 			const buffer: string[] = [];
-			const mockTerminal: TerminalManager = {
+			const mockTerminal = {
 				width: 50,
 				height: 20,
 				write: (str: string) => buffer.push(str),
 				startBuffering: () => {},
-				flushBuffer: () => {},
+				flush: () => {},
 			};
 
 			const mockBlock: SessionBlock = {
@@ -589,7 +591,7 @@ if (import.meta.vitest != null) {
 				startTime: new Date(),
 				endTime: new Date(),
 				costUSD: 4.5,
-				tokenCounts: { inputTokens: 5000, outputTokens: 3000, cacheCreationTokens: 0, cacheReadTokens: 0 },
+				tokenCounts: { inputTokens: 5000, outputTokens: 3000, cacheCreationInputTokens: 0, cacheReadInputTokens: 0 },
 				entries: [], // Required by calculateBurnRate
 				isActive: false,
 				models: [],
@@ -605,7 +607,8 @@ if (import.meta.vitest != null) {
 				order: 'desc',
 			};
 
-			renderCompactLiveDisplay(mockTerminal, mockBlock, config, 8000, 120, 60);
+			// eslint-disable-next-line ts/no-unsafe-argument
+			renderCompactLiveDisplay(mockTerminal as any, mockBlock, config, 8000, 120, 60);
 
 			const output = buffer.join('');
 			expect(output).toContain('Cost: $4.50/$5.00');
