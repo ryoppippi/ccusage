@@ -24,6 +24,7 @@ import { formatCurrency, formatModelsDisplay, formatNumber } from './_utils.ts';
 export type LiveMonitoringConfig = {
 	claudePath: string;
 	tokenLimit?: number;
+	costLimit?: number;
 	refreshInterval: number;
 	sessionDurationHours: number;
 	mode: CostMode;
@@ -136,7 +137,7 @@ export function renderLiveDisplay(terminal: TerminalManager, block: SessionBlock
 
 	// Draw header
 	terminal.write(`${marginStr}┌${'─'.repeat(boxWidth - 2)}┐\n`);
-	terminal.write(`${marginStr}│${pc.bold(centerText('CLAUDE CODE - LIVE TOKEN USAGE MONITOR', boxWidth - 2))}│\n`);
+	terminal.write(`${marginStr}│${pc.bold(centerText('CLAUDE CODE - LIVE USAGE MONITOR', boxWidth - 2))}│\n`);
 	terminal.write(`${marginStr}├${'─'.repeat(boxWidth - 2)}┤\n`);
 	terminal.write(`${marginStr}│${' '.repeat(boxWidth - 2)}│\n`);
 
@@ -164,25 +165,30 @@ export function renderLiveDisplay(terminal: TerminalManager, block: SessionBlock
 	terminal.write(`${marginStr}├${'─'.repeat(boxWidth - 2)}┤\n`);
 	terminal.write(`${marginStr}│${' '.repeat(boxWidth - 2)}│\n`);
 
-	// Usage section (always show)
-	const tokenPercent = config.tokenLimit != null && config.tokenLimit > 0
-		? (totalTokens / config.tokenLimit) * 100
-		: 0;
+	// Usage section (always show) - support both token and cost limits
+	const usingCostLimit = config.costLimit != null && config.costLimit > 0;
+	const usingTokenLimit = config.tokenLimit != null && config.tokenLimit > 0;
+
+	const usagePercent = usingCostLimit && config.costLimit != null
+		? (block.costUSD / config.costLimit) * 100
+		: usingTokenLimit && config.tokenLimit != null
+			? (totalTokens / config.tokenLimit) * 100
+			: 0;
 
 	// Determine bar color based on percentage
 	let barColor = pc.green;
-	if (tokenPercent > 100) {
+	if (usagePercent > 100) {
 		barColor = pc.red;
 	}
-	else if (tokenPercent > 80) {
+	else if (usagePercent > 80) {
 		barColor = pc.yellow;
 	}
 
 	// Create colored progress bar
-	const usageBar = config.tokenLimit != null && config.tokenLimit > 0
+	const usageBar = usingCostLimit && config.costLimit != null
 		? createProgressBar(
-				totalTokens,
-				config.tokenLimit,
+				block.costUSD,
+				config.costLimit,
 				barWidth,
 				{
 					showPercentage: false,
@@ -192,7 +198,20 @@ export function renderLiveDisplay(terminal: TerminalManager, block: SessionBlock
 					rightBracket: ']',
 				},
 			)
-		: `[${pc.green('█'.repeat(Math.floor(barWidth * 0.1)))}${pc.gray('░'.repeat(barWidth - Math.floor(barWidth * 0.1)))}]`;
+		: usingTokenLimit && config.tokenLimit != null
+			? createProgressBar(
+					totalTokens,
+					config.tokenLimit,
+					barWidth,
+					{
+						showPercentage: false,
+						fillChar: barColor('█'),
+						emptyChar: pc.gray('░'),
+						leftBracket: '[',
+						rightBracket: ']',
+					},
+				)
+			: `[${pc.green('█'.repeat(Math.floor(barWidth * 0.1)))}${pc.gray('░'.repeat(barWidth - Math.floor(barWidth * 0.1)))}]`;
 
 	// Burn rate with better formatting
 	const burnRate = calculateBurnRate(block);
@@ -207,22 +226,29 @@ export function renderLiveDisplay(terminal: TerminalManager, block: SessionBlock
 	const usageLabel = pc.bold('🔥 USAGE');
 	const usageLabelWidth = stringWidth(usageLabel);
 
-	// Prepare usage bar string and details based on token limit availability
+	// Prepare usage bar string and details based on limit type availability
 	// Using const destructuring pattern instead of let/reassignment to avoid side effects
 	// This creates immutable values based on the condition, improving code clarity
-	const { usageBarStr, usageCol1, usageCol2, usageCol3 } = config.tokenLimit != null && config.tokenLimit > 0
+	const { usageBarStr, usageCol1, usageCol2, usageCol3 } = usingCostLimit && config.costLimit != null
 		? {
-				usageBarStr: `${usageLabel}${''.padEnd(Math.max(0, labelWidth - usageLabelWidth))} ${usageBar} ${tokenPercent.toFixed(1).padStart(6)}% (${formatTokensShort(totalTokens)}/${formatTokensShort(config.tokenLimit)})`,
-				usageCol1: `${pc.gray('Tokens:')} ${formatNumber(totalTokens)} (${rateDisplay})`,
-				usageCol2: `${pc.gray('Limit:')} ${formatNumber(config.tokenLimit)} tokens`,
-				usageCol3: `${pc.gray('Cost:')} ${formatCurrency(block.costUSD)}`,
+				usageBarStr: `${usageLabel}${''.padEnd(Math.max(0, labelWidth - usageLabelWidth))} ${usageBar} ${usagePercent.toFixed(1).padStart(6)}% (${formatCurrency(block.costUSD)}/${formatCurrency(config.costLimit)})`,
+				usageCol1: `${pc.gray('Cost:')} ${formatCurrency(block.costUSD)} (${burnRate?.costPerHour != null ? `$${burnRate.costPerHour.toFixed(2)}/hour` : 'N/A'})`,
+				usageCol2: `${pc.gray('Limit:')} ${formatCurrency(config.costLimit)}`,
+				usageCol3: `${pc.gray('Tokens:')} ${formatNumber(totalTokens)}`,
 			}
-		: {
-				usageBarStr: `${usageLabel}${''.padEnd(Math.max(0, labelWidth - usageLabelWidth))} ${usageBar} (${formatTokensShort(totalTokens)} tokens)`,
-				usageCol1: `${pc.gray('Tokens:')} ${formatNumber(totalTokens)} (${rateDisplay})`,
-				usageCol2: '',
-				usageCol3: `${pc.gray('Cost:')} ${formatCurrency(block.costUSD)}`,
-			};
+		: usingTokenLimit && config.tokenLimit != null
+			? {
+					usageBarStr: `${usageLabel}${''.padEnd(Math.max(0, labelWidth - usageLabelWidth))} ${usageBar} ${usagePercent.toFixed(1).padStart(6)}% (${formatTokensShort(totalTokens)}/${formatTokensShort(config.tokenLimit)})`,
+					usageCol1: `${pc.gray('Tokens:')} ${formatNumber(totalTokens)} (${rateDisplay})`,
+					usageCol2: `${pc.gray('Limit:')} ${formatNumber(config.tokenLimit)} tokens`,
+					usageCol3: `${pc.gray('Cost:')} ${formatCurrency(block.costUSD)}`,
+				}
+			: {
+					usageBarStr: `${usageLabel}${''.padEnd(Math.max(0, labelWidth - usageLabelWidth))} ${usageBar} (${formatTokensShort(totalTokens)} tokens)`,
+					usageCol1: `${pc.gray('Tokens:')} ${formatNumber(totalTokens)} (${rateDisplay})`,
+					usageCol2: '',
+					usageCol3: `${pc.gray('Cost:')} ${formatCurrency(block.costUSD)}`,
+				};
 
 	// Render usage bar
 	const usageBarPadded = usageBarStr + ' '.repeat(Math.max(0, boxWidth - 3 - stringWidth(usageBarStr)));
@@ -244,9 +270,11 @@ export function renderLiveDisplay(terminal: TerminalManager, block: SessionBlock
 	// Projections section
 	const projection = projectBlockUsage(block);
 	if (projection != null) {
-		const projectedPercent = config.tokenLimit != null && config.tokenLimit > 0
-			? (projection.totalTokens / config.tokenLimit) * 100
-			: 0;
+		const projectedPercent = usingCostLimit && config.costLimit != null
+			? (projection.totalCost / config.costLimit) * 100
+			: usingTokenLimit && config.tokenLimit != null
+				? (projection.totalTokens / config.tokenLimit) * 100
+				: 0;
 
 		// Determine projection bar color
 		let projBarColor = pc.green;
@@ -258,10 +286,10 @@ export function renderLiveDisplay(terminal: TerminalManager, block: SessionBlock
 		}
 
 		// Create projection bar
-		const projectionBar = config.tokenLimit != null && config.tokenLimit > 0
+		const projectionBar = usingCostLimit && config.costLimit != null
 			? createProgressBar(
-					projection.totalTokens,
-					config.tokenLimit,
+					projection.totalCost,
+					config.costLimit,
 					barWidth,
 					{
 						showPercentage: false,
@@ -271,9 +299,22 @@ export function renderLiveDisplay(terminal: TerminalManager, block: SessionBlock
 						rightBracket: ']',
 					},
 				)
-			: `[${pc.green('█'.repeat(Math.floor(barWidth * 0.15)))}${pc.gray('░'.repeat(barWidth - Math.floor(barWidth * 0.15)))}]`;
+			: usingTokenLimit && config.tokenLimit != null
+				? createProgressBar(
+						projection.totalTokens,
+						config.tokenLimit,
+						barWidth,
+						{
+							showPercentage: false,
+							fillChar: projBarColor('█'),
+							emptyChar: pc.gray('░'),
+							leftBracket: '[',
+							rightBracket: ']',
+						},
+					)
+				: `[${pc.green('█'.repeat(Math.floor(barWidth * 0.15)))}${pc.gray('░'.repeat(barWidth - Math.floor(barWidth * 0.15)))}]`;
 
-		const limitStatus = config.tokenLimit != null && config.tokenLimit > 0
+		const limitStatus = (usingCostLimit || usingTokenLimit)
 			? (projectedPercent > 100
 					? pc.red('❌ WILL EXCEED LIMIT')
 					: projectedPercent > 80
@@ -284,7 +325,26 @@ export function renderLiveDisplay(terminal: TerminalManager, block: SessionBlock
 		// Projection section
 		const projLabel = pc.bold('📈 PROJECTION');
 		const projLabelWidth = stringWidth(projLabel);
-		if (config.tokenLimit != null && config.tokenLimit > 0) {
+		if (usingCostLimit && config.costLimit != null) {
+			const projBarStr = `${projLabel}${''.padEnd(Math.max(0, labelWidth - projLabelWidth))} ${projectionBar} ${projectedPercent.toFixed(1).padStart(6)}% (${formatCurrency(projection.totalCost)}/${formatCurrency(config.costLimit)})`;
+			const projBarPadded = projBarStr + ' '.repeat(Math.max(0, boxWidth - 3 - stringWidth(projBarStr)));
+			terminal.write(`${marginStr}│ ${projBarPadded}│\n`);
+
+			// Projection details (indented and aligned)
+			const col1 = `${pc.gray('Status:')} ${limitStatus}`;
+			const col2 = `${pc.gray('Cost:')} ${formatCurrency(projection.totalCost)}`;
+			const col3 = `${pc.gray('Tokens:')} ${formatNumber(projection.totalTokens)}`;
+			// Calculate visible lengths (without ANSI codes)
+			const col1Visible = stringWidth(col1);
+			const col2Visible = stringWidth(col2);
+			// Fixed column positions - match session alignment
+			const pad1 = ' '.repeat(Math.max(0, DETAIL_COLUMN_WIDTHS.col1 - col1Visible));
+			const pad2 = ' '.repeat(Math.max(0, DETAIL_COLUMN_WIDTHS.col2 - col2Visible));
+			const projDetails = `   ${col1}${pad1}${col2}${pad2}${col3}`;
+			const projDetailsPadded = projDetails + ' '.repeat(Math.max(0, boxWidth - 3 - stringWidth(projDetails)));
+			terminal.write(`${marginStr}│ ${projDetailsPadded}│\n`);
+		}
+		else if (usingTokenLimit && config.tokenLimit != null) {
 			const projBarStr = `${projLabel}${''.padEnd(Math.max(0, labelWidth - projLabelWidth))} ${projectionBar} ${projectedPercent.toFixed(1).padStart(6)}% (${formatTokensShort(projection.totalTokens)}/${formatTokensShort(config.tokenLimit)})`;
 			const projBarPadded = projBarStr + ' '.repeat(Math.max(0, boxWidth - 3 - stringWidth(projBarStr)));
 			terminal.write(`${marginStr}│ ${projBarPadded}│\n`);
@@ -362,18 +422,29 @@ export function renderCompactLiveDisplay(
 	const sessionPercent = (elapsed / (elapsed + remaining)) * 100;
 	terminal.write(`Session: ${sessionPercent.toFixed(1)}% (${Math.floor(elapsed / 60)}h ${Math.floor(elapsed % 60)}m)\n`);
 
-	// Token usage
-	if (config.tokenLimit != null && config.tokenLimit > 0) {
+	// Usage display - support both token and cost limits
+	const usingCostLimit = config.costLimit != null && config.costLimit > 0;
+	const usingTokenLimit = config.tokenLimit != null && config.tokenLimit > 0;
+
+	if (usingCostLimit && config.costLimit != null) {
+		// Cost limit takes precedence
+		const costPercent = (block.costUSD / config.costLimit) * 100;
+		const status = costPercent > 100 ? pc.red('OVER') : costPercent > 80 ? pc.yellow('WARN') : pc.green('OK');
+		terminal.write(`Cost: ${formatCurrency(block.costUSD)}/${formatCurrency(config.costLimit)} ${status}\n`);
+		terminal.write(`Tokens: ${formatNumber(totalTokens)}\n`);
+	}
+	else if (usingTokenLimit && config.tokenLimit != null) {
+		// Token limit only
 		const tokenPercent = (totalTokens / config.tokenLimit) * 100;
 		const status = tokenPercent > 100 ? pc.red('OVER') : tokenPercent > 80 ? pc.yellow('WARN') : pc.green('OK');
 		terminal.write(`Tokens: ${formatNumber(totalTokens)}/${formatNumber(config.tokenLimit)} ${status}\n`);
+		terminal.write(`Cost: ${formatCurrency(block.costUSD)}\n`);
 	}
 	else {
+		// No limits
 		terminal.write(`Tokens: ${formatNumber(totalTokens)}\n`);
+		terminal.write(`Cost: ${formatCurrency(block.costUSD)}\n`);
 	}
-
-	// Cost
-	terminal.write(`Cost: ${formatCurrency(block.costUSD)}\n`);
 
 	// Burn rate
 	const burnRate = calculateBurnRate(block);
@@ -419,6 +490,127 @@ if (import.meta.vitest != null) {
 			await expect(delayWithAbort(50, controller.signal))
 				.rejects
 				.toThrow('This operation was aborted');
+		});
+	});
+
+	describe('renderCompactLiveDisplay', () => {
+		it('should display cost limit when provided', () => {
+			// Mock terminal with buffer to capture output
+			const buffer: string[] = [];
+			const mockTerminal: TerminalManager = {
+				width: 50,
+				height: 20,
+				write: (str: string) => buffer.push(str),
+				startBuffering: () => {},
+				flushBuffer: () => {},
+			};
+
+			const mockBlock: SessionBlock = {
+				id: 'test-block-1',
+				startTime: new Date(),
+				endTime: new Date(),
+				costUSD: 2.5,
+				tokenCounts: { inputTokens: 5000, outputTokens: 3000, cacheCreationTokens: 0, cacheReadTokens: 0 },
+				entries: [], // Required by calculateBurnRate
+				isActive: false,
+				models: [],
+			};
+
+			const config: LiveMonitoringConfig = {
+				claudePath: '/test/path',
+				costLimit: 5.0,
+				tokenLimit: undefined,
+				refreshInterval: 1000,
+				sessionDurationHours: 5,
+				mode: 'auto',
+				order: 'desc',
+			};
+
+			renderCompactLiveDisplay(mockTerminal, mockBlock, config, 8000, 120, 60);
+
+			const output = buffer.join('');
+			expect(output).toContain('Cost: $2.50/$5.00');
+			expect(output).toContain('OK'); // Status should be OK as we're at 50%
+			expect(output).toContain('Tokens: 8,000'); // Should show tokens without limit
+		});
+
+		it('should display token limit when provided', () => {
+			const buffer: string[] = [];
+			const mockTerminal: TerminalManager = {
+				width: 50,
+				height: 20,
+				write: (str: string) => buffer.push(str),
+				startBuffering: () => {},
+				flushBuffer: () => {},
+			};
+
+			const mockBlock: SessionBlock = {
+				id: 'test-block-2',
+				startTime: new Date(),
+				endTime: new Date(),
+				costUSD: 2.5,
+				tokenCounts: { inputTokens: 5000, outputTokens: 3500, cacheCreationTokens: 0, cacheReadTokens: 0 },
+				entries: [], // Required by calculateBurnRate
+				isActive: false,
+				models: [],
+			};
+
+			const config: LiveMonitoringConfig = {
+				claudePath: '/test/path',
+				costLimit: undefined,
+				tokenLimit: 10000,
+				refreshInterval: 1000,
+				sessionDurationHours: 5,
+				mode: 'auto',
+				order: 'desc',
+			};
+
+			renderCompactLiveDisplay(mockTerminal, mockBlock, config, 8500, 120, 60);
+
+			const output = buffer.join('');
+			expect(output).toContain('Tokens: 8,500/10,000');
+			expect(output).toContain('WARN'); // Status is WARN at 85% (> 80%)
+			expect(output).toContain('Cost: $2.50'); // Should show cost without limit
+		});
+
+		it('should prefer cost limit over token limit when both provided', () => {
+			const buffer: string[] = [];
+			const mockTerminal: TerminalManager = {
+				width: 50,
+				height: 20,
+				write: (str: string) => buffer.push(str),
+				startBuffering: () => {},
+				flushBuffer: () => {},
+			};
+
+			const mockBlock: SessionBlock = {
+				id: 'test-block-3',
+				startTime: new Date(),
+				endTime: new Date(),
+				costUSD: 4.5,
+				tokenCounts: { inputTokens: 5000, outputTokens: 3000, cacheCreationTokens: 0, cacheReadTokens: 0 },
+				entries: [], // Required by calculateBurnRate
+				isActive: false,
+				models: [],
+			};
+
+			const config: LiveMonitoringConfig = {
+				claudePath: '/test/path',
+				costLimit: 5.0,
+				tokenLimit: 10000,
+				refreshInterval: 1000,
+				sessionDurationHours: 5,
+				mode: 'auto',
+				order: 'desc',
+			};
+
+			renderCompactLiveDisplay(mockTerminal, mockBlock, config, 8000, 120, 60);
+
+			const output = buffer.join('');
+			expect(output).toContain('Cost: $4.50/$5.00');
+			expect(output).toContain('WARN'); // Status should be WARN as cost is at 90% (> 80%)
+			expect(output).toContain('Tokens: 8,000'); // Should show tokens without limit
+			expect(output).not.toContain('Tokens: 8,000/10,000'); // Should NOT show token limit
 		});
 	});
 }

@@ -1,5 +1,5 @@
 {
-	"name": "ccusage",
+	"name": "hg-ccusage",
 	"type": "module",
 	"version": "15.2.0",
 	"description": "Usage analysis tool for Claude Code",
