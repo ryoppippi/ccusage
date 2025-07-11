@@ -10,7 +10,7 @@
         "@hono/node-server": "^1.15.0",
         "@jsr/std__async": "1",
         "@modelcontextprotocol/sdk": "^1.15.0",
-        "@oxc-project/runtime": "^0.75.1",
+        "@oxc-project/runtime": "^0.76.0",
         "@praha/byethrow": "^0.6.0",
         "@praha/byethrow-mcp": "^0.0.12",
         "@ryoppippi/eslint-config": "^0.3.7",
@@ -349,7 +349,7 @@
 
     "@nodelib/fs.walk": ["@nodelib/fs.walk@1.2.8", "", { "dependencies": { "@nodelib/fs.scandir": "2.1.5", "fastq": "^1.6.0" } }, "sha512-oGB+UxlgWcgQkgwo8GcEGwemoTFt3FIO9ababBmaGwXIoBKZ+GTy0pP185beGg7Llih/NSHSV2XAs1lnznocSg=="],
 
-    "@oxc-project/runtime": ["@oxc-project/runtime@0.75.1", "", {}, "sha512-UH07DRi7xXqAsJ/sFbJJg0liIXnapB6P5uADXIiF1s6WQjZzcTIkKHca0s522QVxmijPxVX5ijCYxSr7eSq5CQ=="],
+    "@oxc-project/runtime": ["@oxc-project/runtime@0.76.0", "", {}, "sha512-17iezP/BukiovZZR7lp6fZZjNTOmodCWQKkI7sn2sOB1TiccRWzO2bpxnE94jhg8l+nBRMrwnM/cjFCr23winw=="],
 
     "@oxc-project/types": ["@oxc-project/types@0.73.2", "", {}, "sha512-kU2FjfCb9VTNg/KbOTKVi2sYrKTkNQYq1Fi1v1jCKjbUGA9wqkNDqijNBLeDwagFtDuK2EIWvTzNDYU4k/918g=="],
 
