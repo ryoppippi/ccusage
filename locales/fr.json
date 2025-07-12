@@ -1,0 +1,142 @@
+{
+	"commands": {
+		"descriptions": {
+			"daily": "Afficher le rapport d'utilisation quotidien des tokens Claude Code",
+			"monthly": "Afficher le rapport d'utilisation mensuel des tokens Claude Code",
+			"session": "Afficher l'utilisation des tokens Claude Code par session",
+			"blocks": "Afficher l'utilisation des tokens Claude Code par blocs de session avec monitoring en direct",
+			"mcp": "Démarrer le serveur MCP pour l'intégration Claude Desktop"
+		},
+		"args": {
+			"since": "Filtrer à partir de la date (format YYYYMMDD)",
+			"until": "Filtrer jusqu'à la date (format YYYYMMDD)",
+			"json": "Sortie au format JSON",
+			"mode": "Mode de calcul des coûts : auto (utilise costUSD si existant, sinon calcule), calculate (toujours calculer), display (toujours utiliser costUSD)",
+			"debug": "Afficher les informations de discordance de tarification pour le débogage",
+			"debugSamples": "Nombre d'échantillons de discordances à afficher dans la sortie de débogage",
+			"order": "Ordre de tri : desc (plus récent en premier) ou asc (plus ancien en premier)",
+			"breakdown": "Afficher la répartition des coûts par modèle",
+			"offline": "Utiliser les données de tarification mises en cache pour les modèles Claude au lieu de récupérer depuis l'API",
+			"color": "Activer la sortie colorée (par défaut : auto). FORCE_COLOR=1 a le même effet.",
+			"noColor": "Désactiver la sortie colorée (par défaut : auto). NO_COLOR=1 a le même effet.",
+			"lang": "Langue pour la sortie CLI et les rapports (auto : détecter depuis l'environnement)"
+		}
+	},
+	"reports": {
+		"headers": {
+			"daily": "Rapport d'utilisation des tokens Claude Code - Quotidien",
+			"monthly": "Rapport d'utilisation des tokens Claude Code - Mensuel",
+			"session": "Rapport d'utilisation des tokens Claude Code - Par session",
+			"blocks": "Rapport d'utilisation des tokens Claude Code - Blocs de session"
+		},
+		"columns": {
+			"date": "Date",
+			"month": "Mois",
+			"session": "Session",
+			"block": "Bloc",
+			"model": "Modèle",
+			"models": "Modèles",
+			"input": "Entrée",
+			"output": "Sortie",
+			"cacheCreate": "Cache Créé",
+			"cacheRead": "Cache Lu",
+			"inputTokens": "Tokens d'entrée",
+			"outputTokens": "Tokens de sortie",
+			"totalTokens": "Total tokens",
+			"cost": "Coût",
+			"costUSD": "Coût (USD)",
+			"timestamp": "Horodatage",
+			"duration": "Durée",
+			"status": "Statut",
+			"elapsed": "Écoulé",
+			"remaining": "Restant",
+			"lastActivity": "Dernière activité",
+			"blockStart": "Début du bloc",
+			"durationStatus": "Durée/Statut"
+		}
+	},
+	"messages": {
+		"errors": {
+			"noData": "Aucune donnée d'utilisation Claude trouvée",
+			"invalidDate": "Format de date invalide",
+			"translationNotFound": "Traduction non trouvée",
+			"loadingTranslations": "Erreur lors du chargement des traductions",
+			"failedToLoadOfflinePricing": "Échec du chargement des données de tarification hors ligne",
+			"failedToLoadCachedPricing": "Échec du chargement des données de tarification en cache comme solution de secours",
+			"failedToFetchPricing": "Échec de récupération des tarifs de modèles depuis LiteLLM",
+			"failedToFetchPricingData": "Échec de récupération des données de tarification : {statusText}",
+			"failedToParsePricing": "Échec d'analyse des données de tarification",
+			"noValidClaudeDir": "Aucun répertoire de données Claude valide trouvé",
+			"translationFileNotFound": "Fichier de traduction non trouvé pour la locale '{locale}', retour à l'anglais",
+			"errorLoadingTranslations": "Erreur lors du chargement des traductions pour la locale '{locale}'",
+			"errorLoadingFallback": "Erreur lors du chargement des traductions de secours",
+			"invalidLocale": "[ccusage] Locale invalide : {locale}. Retour à l'anglais."
+		},
+		"info": {
+			"fetchingPricing": "Récupération des données de tarification...",
+			"pricingLoaded": "Données de tarification chargées pour {0} modèles",
+			"detectedLocale": "Locale détectée : {0}",
+			"usingFallback": "Utilisation de la locale de secours : {0}"
+		},
+		"status": {
+			"active": "actif",
+			"gap": "pause",
+			"elapsed": "écoulé",
+			"remaining": "restant",
+			"initializing": "Initialisation...",
+			"monitoring": "Surveillance...",
+			"completed": "Terminé"
+		}
+	},
+	"live": {
+		"title": "CLAUDE CODE - MONITEUR D'UTILISATION DES TOKENS EN DIRECT",
+		"labels": {
+			"session": "Session",
+			"model": "Modèle",
+			"tokens": "Tokens",
+			"cost": "Coût",
+			"time": "Heure",
+			"status": "Statut",
+			"total": "Total",
+			"current": "Actuel",
+			"average": "Moyenne",
+			"lastUpdate": "Dernière mise à jour",
+			"refresh": "Actualiser",
+			"pause": "Pause",
+			"resume": "Reprendre",
+			"stop": "Arrêter"
+		}
+	},
+	"pricing": {
+		"fetchingFromLiteLLM": "Récupération des derniers tarifs de modèles depuis LiteLLM...",
+		"loadedModels": "Tarifs chargés pour {count} modèles",
+		"fallbackToCached": "Échec de récupération des tarifs depuis LiteLLM, utilisation des données en cache",
+		"usingCachedPricing": "Utilisation des données de tarifs en cache pour {count} modèles"
+	},
+	"debug": {
+		"noPricingData": "Aucune donnée de tarification trouvée à analyser.",
+		"reportTitle": "Rapport de débogage des discordances de tarification",
+		"totalEntriesProcessed": "Entrées totales traitées : {count}",
+		"entriesWithBoth": "Entrées avec costUSD et modèle : {count}",
+		"matchesWithinThreshold": "Correspondances (dans les 0,1%) : {count}",
+		"mismatches": "Discordances : {count}",
+		"matchRate": "Taux de correspondance : {rate}%",
+		"modelStatistics": "Statistiques par modèle",
+		"versionStatistics": "Statistiques par version",
+		"sampleDiscrepancies": "Échantillons de discordances (premiers {count})",
+		"totalEntries": "Entrées totales : {count}",
+		"matches": "Correspondances : {count} ({rate}%)",
+		"avgPercentDiff": "Différence % moyenne : {diff}%",
+		"file": "Fichier : {file}",
+		"timestamp": "Horodatage : {timestamp}",
+		"model": "Modèle : {model}",
+		"originalCost": "Coût original : {cost}$",
+		"calculatedCost": "Coût calculé : {cost}$",
+		"difference": "Différence : {diff}$ ({percent}%)",
+		"tokens": "Tokens : {tokens}"
+	},
+	"warnings": {
+		"compactHeaderNotFound": "Attention : En-tête compact \"{header}\" non trouvé dans les en-têtes du tableau [{headers}]. Utilisation de la première colonne par défaut.",
+		"failedToGetTimestamp": "Échec de récupération de l'horodatage le plus ancien pour {file}"
+	}
+}

@@ -1,0 +1,142 @@
+{
+	"commands": {
+		"descriptions": {
+			"daily": "Claude Codeトークン使用量の日次レポートを表示",
+			"monthly": "Claude Codeトークン使用量の月次レポートを表示",
+			"session": "セッション別Claude Codeトークン使用量を表示",
+			"blocks": "リアルタイム監視機能付きセッションブロック別Claude Codeトークン使用量を表示",
+			"mcp": "Claude Desktop統合用MCPサーバーを開始"
+		},
+		"args": {
+			"since": "開始日でフィルタ（YYYYMMDD形式）",
+			"until": "終了日でフィルタ（YYYYMMDD形式）",
+			"json": "JSON形式で出力",
+			"mode": "コスト計算モード：auto（costUSDが存在する場合は使用、それ以外は計算）、calculate（常に計算）、display（常にcostUSDを使用）",
+			"debug": "デバッグ用の価格不一致情報を表示",
+			"debugSamples": "デバッグ出力で表示する不一致サンプル数",
+			"order": "ソート順：desc（新しい順）またはasc（古い順）",
+			"breakdown": "モデル別コスト内訳を表示",
+			"offline": "APIから取得する代わりにClaudeモデル用キャッシュ価格データを使用",
+			"color": "カラー出力を有効化（デフォルト：auto）。FORCE_COLOR=1も同じ効果。",
+			"noColor": "カラー出力を無効化（デフォルト：auto）。NO_COLOR=1も同じ効果。",
+			"lang": "CLI出力とレポートの言語（auto：環境から検出）"
+		}
+	},
+	"reports": {
+		"headers": {
+			"daily": "Claude Codeトークン使用量レポート - 日次",
+			"monthly": "Claude Codeトークン使用量レポート - 月次",
+			"session": "Claude Codeトークン使用量レポート - セッション別",
+			"blocks": "Claude Codeトークン使用量レポート - セッションブロック"
+		},
+		"columns": {
+			"date": "日付",
+			"month": "月",
+			"session": "セッション",
+			"block": "ブロック",
+			"model": "モデル",
+			"models": "モデル",
+			"input": "入力",
+			"output": "出力",
+			"cacheCreate": "キャッシュ作成",
+			"cacheRead": "キャッシュ読取",
+			"inputTokens": "入力トークン",
+			"outputTokens": "出力トークン",
+			"totalTokens": "総トークン",
+			"cost": "コスト",
+			"costUSD": "コスト（USD）",
+			"timestamp": "タイムスタンプ",
+			"duration": "期間",
+			"status": "ステータス",
+			"elapsed": "経過",
+			"remaining": "残り",
+			"lastActivity": "最終活動",
+			"blockStart": "ブロック開始",
+			"durationStatus": "期間/ステータス"
+		}
+	},
+	"messages": {
+		"errors": {
+			"noData": "Claude使用データが見つかりません",
+			"invalidDate": "無効な日付形式",
+			"translationNotFound": "翻訳が見つかりません",
+			"loadingTranslations": "翻訳の読み込みエラー",
+			"failedToLoadOfflinePricing": "オフライン価格データの読み込みに失敗しました",
+			"failedToLoadCachedPricing": "フォールバックとしてキャッシュされた価格データの読み込みに失敗しました",
+			"failedToFetchPricing": "LiteLLMからのモデル価格の取得に失敗しました",
+			"failedToFetchPricingData": "価格データの取得に失敗しました: {statusText}",
+			"failedToParsePricing": "価格データの解析に失敗しました",
+			"noValidClaudeDir": "有効なClaudeデータディレクトリが見つかりません",
+			"translationFileNotFound": "ロケール'{locale}'の翻訳ファイルが見つかりません、英語にフォールバックします",
+			"errorLoadingTranslations": "ロケール'{locale}'の翻訳読み込みエラー",
+			"errorLoadingFallback": "フォールバック翻訳の読み込みエラー",
+			"invalidLocale": "[ccusage] 無効なロケール：{locale}。英語にフォールバックします。"
+		},
+		"info": {
+			"fetchingPricing": "価格データを取得中...",
+			"pricingLoaded": "{0}モデルの価格データを読み込みました",
+			"detectedLocale": "検出されたロケール：{0}",
+			"usingFallback": "フォールバックロケールを使用：{0}"
+		},
+		"status": {
+			"active": "アクティブ",
+			"gap": "ギャップ",
+			"elapsed": "経過",
+			"remaining": "残り",
+			"initializing": "初期化中...",
+			"monitoring": "監視中...",
+			"completed": "完了"
+		}
+	},
+	"live": {
+		"title": "CLAUDE CODE - リアルタイムトークン使用量モニター",
+		"labels": {
+			"session": "セッション",
+			"model": "モデル",
+			"tokens": "トークン",
+			"cost": "コスト",
+			"time": "時間",
+			"status": "ステータス",
+			"total": "合計",
+			"current": "現在",
+			"average": "平均",
+			"lastUpdate": "最終更新",
+			"refresh": "更新",
+			"pause": "一時停止",
+			"resume": "再開",
+			"stop": "停止"
+		}
+	},
+	"pricing": {
+		"fetchingFromLiteLLM": "LiteLLMから最新のモデル価格を取得中...",
+		"loadedModels": "{count}モデルの価格を読み込み完了",
+		"fallbackToCached": "LiteLLMからの価格取得に失敗、キャッシュデータを使用",
+		"usingCachedPricing": "{count}モデルのキャッシュ価格データを使用"
+	},
+	"debug": {
+		"noPricingData": "分析する価格データが見つかりません。",
+		"reportTitle": "価格不一致デバッグレポート",
+		"totalEntriesProcessed": "処理された総エントリ数：{count}",
+		"entriesWithBoth": "costUSDとモデルの両方があるエントリ：{count}",
+		"matchesWithinThreshold": "一致（0.1%以内）：{count}",
+		"mismatches": "不一致：{count}",
+		"matchRate": "一致率：{rate}%",
+		"modelStatistics": "モデル統計",
+		"versionStatistics": "バージョン統計",
+		"sampleDiscrepancies": "サンプル不一致（最初の{count}個）",
+		"totalEntries": "総エントリ数：{count}",
+		"matches": "一致：{count}（{rate}%）",
+		"avgPercentDiff": "平均パーセント差：{diff}%",
+		"file": "ファイル：{file}",
+		"timestamp": "タイムスタンプ：{timestamp}",
+		"model": "モデル：{model}",
+		"originalCost": "元のコスト：${cost}",
+		"calculatedCost": "計算されたコスト：${cost}",
+		"difference": "差：${diff}（{percent}%）",
+		"tokens": "トークン：{tokens}"
+	},
+	"warnings": {
+		"compactHeaderNotFound": "警告：コンパクトヘッダー\"{header}\"がテーブルヘッダー[{headers}]に見つかりません。最初の列をフォールバックとして使用します。",
+		"failedToGetTimestamp": "{file}の最早タイムスタンプの取得に失敗しました"
+	}
+}

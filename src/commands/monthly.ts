@@ -1,6 +1,7 @@
 import process from 'node:process';
 import { define } from 'gunshi';
 import pc from 'picocolors';
+import { i18n } from '../_i18n.ts';
 import { sharedCommandConfig } from '../_shared-args.ts';
 import { formatCurrency, formatModelsDisplayMultiline, formatNumber, pushBreakdownRows, ResponsiveTable } from '../_utils.ts';
 import {
@@ -10,13 +11,16 @@ import {
 } from '../calculate-cost.ts';
 import { formatDateCompact, loadMonthlyUsageData } from '../data-loader.ts';
 import { detectMismatches, printMismatchReport } from '../debug.ts';
-import { log, logger } from '../logger.ts';
+import { log, logger, loggerHelpers } from '../logger.ts';
 
 export const monthlyCommand = define({
 	name: 'monthly',
-	description: 'Show usage report grouped by month',
+	get description() { return i18n.t('commands.descriptions.monthly'); },
 	...sharedCommandConfig,
 	async run(ctx) {
+		// Initialize i18n with CLI language argument
+		i18n.initialize(ctx.values.lang);
+
 		if (ctx.values.json) {
 			logger.level = 0;
 		}
@@ -45,7 +49,7 @@ export const monthlyCommand = define({
 				log(JSON.stringify(emptyOutput, null, 2));
 			}
 			else {
-				logger.warn('No Claude usage data found.');
+				loggerHelpers.warnNoData();
 			}
 			process.exit(0);
 		}
@@ -79,19 +83,19 @@ export const monthlyCommand = define({
 		}
 		else {
 			// Print header
-			logger.box('Claude Code Token Usage Report - Monthly');
+			logger.box(i18n.t('reports.headers.monthly'));
 
 			// Create table with compact mode support
 			const table = new ResponsiveTable({
 				head: [
-					'Month',
-					'Models',
-					'Input',
-					'Output',
-					'Cache Create',
-					'Cache Read',
-					'Total Tokens',
-					'Cost (USD)',
+					i18n.t('reports.columns.month'),
+					i18n.t('reports.columns.models'),
+					i18n.t('reports.columns.input'),
+					i18n.t('reports.columns.output'),
+					i18n.t('reports.columns.cacheCreate'),
+					i18n.t('reports.columns.cacheRead'),
+					i18n.t('reports.columns.totalTokens'),
+					i18n.t('reports.columns.costUSD'),
 				],
 				style: {
 					head: ['cyan'],
@@ -108,11 +112,11 @@ export const monthlyCommand = define({
 				],
 				dateFormatter: formatDateCompact,
 				compactHead: [
-					'Month',
-					'Models',
-					'Input',
-					'Output',
-					'Cost (USD)',
+					i18n.t('reports.columns.month'),
+					i18n.t('reports.columns.models'),
+					i18n.t('reports.columns.input'),
+					i18n.t('reports.columns.output'),
+					i18n.t('reports.columns.costUSD'),
 				],
 				compactColAligns: [
 					'left',

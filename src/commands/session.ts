@@ -1,6 +1,7 @@
 import process from 'node:process';
 import { define } from 'gunshi';
 import pc from 'picocolors';
+import { i18n } from '../_i18n.ts';
 import { sharedCommandConfig } from '../_shared-args.ts';
 import { formatCurrency, formatModelsDisplayMultiline, formatNumber, pushBreakdownRows, ResponsiveTable } from '../_utils.ts';
 import {
@@ -10,13 +11,16 @@ import {
 } from '../calculate-cost.ts';
 import { formatDateCompact, loadSessionData } from '../data-loader.ts';
 import { detectMismatches, printMismatchReport } from '../debug.ts';
-import { log, logger } from '../logger.ts';
+import { log, logger, loggerHelpers } from '../logger.ts';
 
 export const sessionCommand = define({
 	name: 'session',
-	description: 'Show usage report grouped by conversation session',
+	get description() { return i18n.t('commands.descriptions.session'); },
 	...sharedCommandConfig,
 	async run(ctx) {
+		// Initialize i18n with CLI language argument
+		i18n.initialize(ctx.values.lang);
+
 		if (ctx.values.json) {
 			logger.level = 0;
 		}
@@ -34,7 +38,7 @@ export const sessionCommand = define({
 				log(JSON.stringify([]));
 			}
 			else {
-				logger.warn('No Claude usage data found.');
+				loggerHelpers.warnNoData();
 			}
 			process.exit(0);
 		}
@@ -69,20 +73,20 @@ export const sessionCommand = define({
 		}
 		else {
 			// Print header
-			logger.box('Claude Code Token Usage Report - By Session');
+			logger.box(i18n.t('reports.headers.session'));
 
 			// Create table with compact mode support
 			const table = new ResponsiveTable({
 				head: [
-					'Session',
-					'Models',
-					'Input',
-					'Output',
-					'Cache Create',
-					'Cache Read',
-					'Total Tokens',
-					'Cost (USD)',
-					'Last Activity',
+					i18n.t('reports.columns.session'),
+					i18n.t('reports.columns.models'),
+					i18n.t('reports.columns.input'),
+					i18n.t('reports.columns.output'),
+					i18n.t('reports.columns.cacheCreate'),
+					i18n.t('reports.columns.cacheRead'),
+					i18n.t('reports.columns.totalTokens'),
+					i18n.t('reports.columns.costUSD'),
+					i18n.t('reports.columns.lastActivity'),
 				],
 				style: {
 					head: ['cyan'],
@@ -100,12 +104,12 @@ export const sessionCommand = define({
 				],
 				dateFormatter: formatDateCompact,
 				compactHead: [
-					'Session',
-					'Models',
-					'Input',
-					'Output',
-					'Cost (USD)',
-					'Last Activity',
+					i18n.t('reports.columns.session'),
+					i18n.t('reports.columns.models'),
+					i18n.t('reports.columns.input'),
+					i18n.t('reports.columns.output'),
+					i18n.t('reports.columns.costUSD'),
+					i18n.t('reports.columns.lastActivity'),
 				],
 				compactColAligns: [
 					'left',

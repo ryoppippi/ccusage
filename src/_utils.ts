@@ -3,6 +3,7 @@ import Table from 'cli-table3';
 import { uniq } from 'es-toolkit';
 import pc from 'picocolors';
 import stringWidth from 'string-width';
+import { i18n } from './_i18n.ts';
 
 /**
  * Table row data type supporting strings, numbers, and formatted cell objects
@@ -39,15 +40,53 @@ export class ResponsiveTable {
 	private compactMode = false;
 
 	/**
+	 * Translates table headers using the i18n system
+	 * Maps known headers to translation keys
+	 * @param headers - Array of headers to translate
+	 * @returns Array of translated headers
+	 */
+	private translateHeaders(headers: string[]): string[] {
+		// Mapping of known headers to translation keys
+		const headerMapping: Record<string, string> = {
+			'Date': 'reports.columns.date',
+			'Month': 'reports.columns.month',
+			'Session': 'reports.columns.session',
+			'Block': 'reports.columns.block',
+			'Model': 'reports.columns.model',
+			'Input Tokens': 'reports.columns.inputTokens',
+			'Output Tokens': 'reports.columns.outputTokens',
+			'Total Tokens': 'reports.columns.totalTokens',
+			'Cost': 'reports.columns.cost',
+			'Cost (USD)': 'reports.columns.costUSD',
+			'Timestamp': 'reports.columns.timestamp',
+			'Duration': 'reports.columns.duration',
+			'Status': 'reports.columns.status',
+			'Elapsed': 'reports.columns.elapsed',
+			'Remaining': 'reports.columns.remaining',
+		};
+
+		return headers.map((header) => {
+			const translationKey = headerMapping[header];
+			if (translationKey !== undefined && translationKey !== null && translationKey !== '') {
+				return i18n.t(translationKey);
+			}
+			// Return original header if no translation found
+			return header;
+		});
+	}
+
+	/**
 	 * Creates a new responsive table instance
 	 * @param options - Table configuration options
 	 */
 	constructor(options: TableOptions) {
-		this.head = options.head;
+		// Translate headers automatically
+		this.head = this.translateHeaders(options.head);
+		this.compactHead = options.compactHead !== undefined && options.compactHead !== null ? this.translateHeaders(options.compactHead) : undefined;
+
 		this.colAligns = options.colAligns ?? Array.from({ length: this.head.length }, () => 'left');
 		this.style = options.style;
 		this.dateFormatter = options.dateFormatter;
-		this.compactHead = options.compactHead;
 		this.compactColAligns = options.compactColAligns;
 		this.compactThreshold = options.compactThreshold ?? 100;
 	}
@@ -95,7 +134,10 @@ export class ResponsiveTable {
 			const index = this.head.indexOf(compactHeader);
 			if (index < 0) {
 				// Log warning for debugging configuration issues
-				console.warn(`Warning: Compact header "${compactHeader}" not found in table headers [${this.head.join(', ')}]. Using first column as fallback.`);
+				console.warn(i18n.tp('warnings.compactHeaderNotFound', {
+					header: compactHeader,
+					headers: this.head.join(', '),
+				}));
 				return 0; // fallback to first column if not found
 			}
 			return index;
@@ -295,12 +337,37 @@ export function formatNumber(num: number): string {
 }
 
 /**
- * Formats a number as USD currency with dollar sign and 2 decimal places
- * @param amount - The amount to format
- * @returns Formatted currency string (e.g., "$12.34")
+ * Formats a number as currency using locale-appropriate formatting
+ * @param amount - Amount to format
+ * @returns Formatted currency string
  */
 export function formatCurrency(amount: number): string {
-	return `$${amount.toFixed(2)}`;
+	try {
+		const locale = i18n.getLocale();
+
+		// Mapping locale to currency and locale for Intl.NumberFormat
+		const currencyMapping: Record<string, { currency: string; locale: string }> = {
+			en: { currency: 'USD', locale: 'en-US' },
+			fr: { currency: 'EUR', locale: 'fr-FR' },
+			es: { currency: 'EUR', locale: 'es-ES' },
+			de: { currency: 'EUR', locale: 'de-DE' },
+			ja: { currency: 'JPY', locale: 'ja-JP' },
+			zh: { currency: 'CNY', locale: 'zh-CN' },
+		};
+
+		const config = currencyMapping[locale] !== undefined && currencyMapping[locale] !== null ? currencyMapping[locale] : currencyMapping.en!;
+
+		return new Intl.NumberFormat(config.locale, {
+			style: 'currency',
+			currency: config.currency,
+			minimumFractionDigits: 2,
+			maximumFractionDigits: 2,
+		}).format(amount);
+	}
+	catch {
+		// Fallback to USD format if Intl.NumberFormat fails
+		return `$${amount.toFixed(2)}`;
+	}
 }
 
 /**
@@ -342,7 +409,7 @@ export function formatModelsDisplay(models: string[]): string {
 export function formatModelsDisplayMultiline(models: string[]): string {
 	// Format array of models for display with newlines and bullet points
 	const uniqueModels = uniq(models.map(formatModelName));
-	return uniqueModels.sort().map(model => `- ${model}`).join('\n');
+	return uniqueModels.sort().map(model => `• ${model}`).join('\n');
 }
 
 /**
@@ -567,7 +634,10 @@ if (import.meta.vitest != null) {
 
 				// Verify warning was logged
 				expect(mockWarn).toHaveBeenCalledWith(
-					'Warning: Compact header "NonExistent" not found in table headers [Date, Model, Input, Output, Cost]. Using first column as fallback.',
+					i18n.tp('warnings.compactHeaderNotFound', {
+						header: 'NonExistent',
+						headers: 'Date, Model, Input, Output, Cost',
+					}),
 				);
 
 				// Restore original values

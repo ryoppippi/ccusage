@@ -1,0 +1,142 @@
+{
+	"commands": {
+		"descriptions": {
+			"daily": "Show daily Claude Code token usage report",
+			"monthly": "Show monthly Claude Code token usage report",
+			"session": "Show Claude Code token usage by session",
+			"blocks": "Show Claude Code token usage in session blocks with live monitoring",
+			"mcp": "Start MCP server for Claude Desktop integration"
+		},
+		"args": {
+			"since": "Filter from date (YYYYMMDD format)",
+			"until": "Filter until date (YYYYMMDD format)",
+			"json": "Output in JSON format",
+			"mode": "Cost calculation mode: auto (use costUSD if exists, otherwise calculate), calculate (always calculate), display (always use costUSD)",
+			"debug": "Show pricing mismatch information for debugging",
+			"debugSamples": "Number of sample discrepancies to show in debug output",
+			"order": "Sort order: desc (newest first) or asc (oldest first)",
+			"breakdown": "Show per-model cost breakdown",
+			"offline": "Use cached pricing data for Claude models instead of fetching from API",
+			"color": "Enable colored output (default: auto). FORCE_COLOR=1 has the same effect.",
+			"noColor": "Disable colored output (default: auto). NO_COLOR=1 has the same effect.",
+			"lang": "Language for CLI output and reports (auto: detect from environment)"
+		}
+	},
+	"reports": {
+		"headers": {
+			"daily": "Claude Code Token Usage Report - Daily",
+			"monthly": "Claude Code Token Usage Report - Monthly",
+			"session": "Claude Code Token Usage Report - By Session",
+			"blocks": "Claude Code Token Usage Report - Session Blocks"
+		},
+		"columns": {
+			"date": "Date",
+			"month": "Month",
+			"session": "Session",
+			"block": "Block",
+			"model": "Model",
+			"models": "Models",
+			"input": "Input",
+			"output": "Output",
+			"cacheCreate": "Cache Create",
+			"cacheRead": "Cache Read",
+			"inputTokens": "Input Tokens",
+			"outputTokens": "Output Tokens",
+			"totalTokens": "Total Tokens",
+			"cost": "Cost",
+			"costUSD": "Cost (USD)",
+			"timestamp": "Timestamp",
+			"duration": "Duration",
+			"status": "Status",
+			"elapsed": "Elapsed",
+			"remaining": "Remaining",
+			"lastActivity": "Last Activity",
+			"blockStart": "Block Start",
+			"durationStatus": "Duration/Status"
+		}
+	},
+	"messages": {
+		"errors": {
+			"noData": "No Claude usage data found",
+			"invalidDate": "Invalid date format",
+			"translationNotFound": "Translation not found",
+			"loadingTranslations": "Error loading translations",
+			"failedToLoadOfflinePricing": "Failed to load offline pricing data",
+			"failedToLoadCachedPricing": "Failed to load cached pricing data as fallback",
+			"failedToFetchPricing": "Failed to fetch model pricing from LiteLLM",
+			"failedToFetchPricingData": "Failed to fetch pricing data: {statusText}",
+			"failedToParsePricing": "Failed to parse pricing data",
+			"noValidClaudeDir": "No valid Claude data directory found",
+			"translationFileNotFound": "Translation file not found for locale '{locale}', falling back to English",
+			"errorLoadingTranslations": "Error loading translations for locale '{locale}'",
+			"errorLoadingFallback": "Error loading fallback translations",
+			"invalidLocale": "[ccusage] Invalid locale: {locale}. Falling back to English."
+		},
+		"info": {
+			"fetchingPricing": "Fetching pricing data...",
+			"pricingLoaded": "Pricing data loaded for {0} models",
+			"detectedLocale": "Detected locale: {0}",
+			"usingFallback": "Using fallback locale: {0}"
+		},
+		"status": {
+			"active": "active",
+			"gap": "gap",
+			"elapsed": "elapsed",
+			"remaining": "remaining",
+			"initializing": "Initializing...",
+			"monitoring": "Monitoring...",
+			"completed": "Completed"
+		}
+	},
+	"live": {
+		"title": "CLAUDE CODE - LIVE TOKEN USAGE MONITOR",
+		"labels": {
+			"session": "Session",
+			"model": "Model",
+			"tokens": "Tokens",
+			"cost": "Cost",
+			"time": "Time",
+			"status": "Status",
+			"total": "Total",
+			"current": "Current",
+			"average": "Average",
+			"lastUpdate": "Last Update",
+			"refresh": "Refresh",
+			"pause": "Pause",
+			"resume": "Resume",
+			"stop": "Stop"
+		}
+	},
+	"pricing": {
+		"fetchingFromLiteLLM": "Fetching latest model pricing from LiteLLM...",
+		"loadedModels": "Loaded pricing for {count} models",
+		"fallbackToCached": "Failed to fetch model pricing from LiteLLM, falling back to cached pricing data",
+		"usingCachedPricing": "Using cached pricing data for {count} models"
+	},
+	"debug": {
+		"noPricingData": "No pricing data found to analyze.",
+		"reportTitle": "Pricing Mismatch Debug Report",
+		"totalEntriesProcessed": "Total entries processed: {count}",
+		"entriesWithBoth": "Entries with both costUSD and model: {count}",
+		"matchesWithinThreshold": "Matches (within 0.1%): {count}",
+		"mismatches": "Mismatches: {count}",
+		"matchRate": "Match rate: {rate}%",
+		"modelStatistics": "Model Statistics",
+		"versionStatistics": "Version Statistics",
+		"sampleDiscrepancies": "Sample Discrepancies (first {count})",
+		"totalEntries": "Total entries: {count}",
+		"matches": "Matches: {count} ({rate}%)",
+		"avgPercentDiff": "Avg % difference: {diff}%",
+		"file": "File: {file}",
+		"timestamp": "Timestamp: {timestamp}",
+		"model": "Model: {model}",
+		"originalCost": "Original cost: ${cost}",
+		"calculatedCost": "Calculated cost: ${cost}",
+		"difference": "Difference: ${diff} ({percent}%)",
+		"tokens": "Tokens: {tokens}"
+	},
+	"warnings": {
+		"compactHeaderNotFound": "Warning: Compact header \"{header}\" not found in table headers [{headers}]. Using first column as fallback.",
+		"failedToGetTimestamp": "Failed to get earliest timestamp for {file}"
+	}
+}

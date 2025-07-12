@@ -13,6 +13,7 @@ import { Result } from '@praha/byethrow';
 import { createFixture } from 'fs-fixture';
 import { glob } from 'tinyglobby';
 import { CLAUDE_PROJECTS_DIR_NAME, DEBUG_MATCH_THRESHOLD_PERCENT, USAGE_DATA_GLOB_PATTERN } from './_consts.ts';
+import { i18n } from './_i18n.ts';
 import { getClaudePaths, usageDataSchema } from './data-loader.ts';
 import { logger } from './logger.ts';
 import { PricingFetcher } from './pricing-fetcher.ts';
@@ -81,7 +82,7 @@ export async function detectMismatches(
 	else {
 		const paths = getClaudePaths();
 		if (paths.length === 0) {
-			throw new Error('No valid Claude data directory found');
+			throw new Error(i18n.t('messages.errors.noValidClaudeDir'));
 		}
 		claudeDir = path.join(paths[0]!, CLAUDE_PROJECTS_DIR_NAME);
 	}
@@ -226,26 +227,22 @@ export function printMismatchReport(
 	sampleCount = 5,
 ): void {
 	if (stats.entriesWithBoth === 0) {
-		logger.info('No pricing data found to analyze.');
+		logger.info(i18n.t('debug.noPricingData'));
 		return;
 	}
 
 	const matchRate = (stats.matches / stats.entriesWithBoth) * 100;
 
-	logger.info('\n=== Pricing Mismatch Debug Report ===');
-	logger.info(
-		`Total entries processed: ${stats.totalEntries.toLocaleString()}`,
-	);
-	logger.info(
-		`Entries with both costUSD and model: ${stats.entriesWithBoth.toLocaleString()}`,
-	);
-	logger.info(`Matches (within 0.1%): ${stats.matches.toLocaleString()}`);
-	logger.info(`Mismatches: ${stats.mismatches.toLocaleString()}`);
-	logger.info(`Match rate: ${matchRate.toFixed(2)}%`);
+	logger.info(`\n=== ${i18n.t('debug.reportTitle')} ===`);
+	logger.info(i18n.tp('debug.totalEntriesProcessed', { count: stats.totalEntries.toLocaleString() }));
+	logger.info(i18n.tp('debug.entriesWithBoth', { count: stats.entriesWithBoth.toLocaleString() }));
+	logger.info(i18n.tp('debug.matchesWithinThreshold', { count: stats.matches.toLocaleString() }));
+	logger.info(i18n.tp('debug.mismatches', { count: stats.mismatches.toLocaleString() }));
+	logger.info(i18n.tp('debug.matchRate', { rate: matchRate.toFixed(2) }));
 
 	// Show model-by-model breakdown if there are mismatches
 	if (stats.mismatches > 0 && stats.modelStats.size > 0) {
-		logger.info('\n=== Model Statistics ===');
+		logger.info(`\n=== ${i18n.t('debug.modelStatistics')} ===`);
 		const sortedModels = Array.from(stats.modelStats.entries()).sort(
 			(a, b) => b[1].mismatches - a[1].mismatches,
 		);
@@ -254,13 +251,13 @@ export function printMismatchReport(
 			if (modelStat.mismatches > 0) {
 				const modelMatchRate = (modelStat.matches / modelStat.total) * 100;
 				logger.info(`${model}:`);
-				logger.info(`  Total entries: ${modelStat.total.toLocaleString()}`);
+				logger.info(`  ${i18n.tp('debug.totalEntries', { count: modelStat.total.toLocaleString() })}`);
 				logger.info(
-					`  Matches: ${modelStat.matches.toLocaleString()} (${modelMatchRate.toFixed(1)}%)`,
+					`  ${i18n.tp('debug.matches', { count: modelStat.matches.toLocaleString(), rate: modelMatchRate.toFixed(1) })}`,
 				);
-				logger.info(`  Mismatches: ${modelStat.mismatches.toLocaleString()}`);
+				logger.info(`  ${i18n.tp('debug.mismatches', { count: modelStat.mismatches.toLocaleString() })}`);
 				logger.info(
-					`  Avg % difference: ${modelStat.avgPercentDiff.toFixed(1)}%`,
+					`  ${i18n.tp('debug.avgPercentDiff', { diff: modelStat.avgPercentDiff.toFixed(1) })}`,
 				);
 			}
 		}
@@ -268,7 +265,7 @@ export function printMismatchReport(
 
 	// Show version statistics if there are mismatches
 	if (stats.mismatches > 0 && stats.versionStats.size > 0) {
-		logger.info('\n=== Version Statistics ===');
+		logger.info(`\n=== ${i18n.t('debug.versionStatistics')} ===`);
 		const sortedVersions = Array.from(stats.versionStats.entries())
 			.filter(([_, versionStat]) => versionStat.mismatches > 0)
 			.sort((a, b) => b[1].mismatches - a[1].mismatches);
@@ -276,32 +273,35 @@ export function printMismatchReport(
 		for (const [version, versionStat] of sortedVersions) {
 			const versionMatchRate = (versionStat.matches / versionStat.total) * 100;
 			logger.info(`${version}:`);
-			logger.info(`  Total entries: ${versionStat.total.toLocaleString()}`);
+			logger.info(`  ${i18n.tp('debug.totalEntries', { count: versionStat.total.toLocaleString() })}`);
 			logger.info(
-				`  Matches: ${versionStat.matches.toLocaleString()} (${versionMatchRate.toFixed(1)}%)`,
+				`  ${i18n.tp('debug.matches', { count: versionStat.matches.toLocaleString(), rate: versionMatchRate.toFixed(1) })}`,
 			);
-			logger.info(`  Mismatches: ${versionStat.mismatches.toLocaleString()}`);
+			logger.info(`  ${i18n.tp('debug.mismatches', { count: versionStat.mismatches.toLocaleString() })}`);
 			logger.info(
-				`  Avg % difference: ${versionStat.avgPercentDiff.toFixed(1)}%`,
+				`  ${i18n.tp('debug.avgPercentDiff', { diff: versionStat.avgPercentDiff.toFixed(1) })}`,
 			);
 		}
 	}
 
 	// Show sample discrepancies
 	if (stats.discrepancies.length > 0 && sampleCount > 0) {
-		logger.info(`\n=== Sample Discrepancies (first ${sampleCount}) ===`);
+		logger.info(`\n=== ${i18n.tp('debug.sampleDiscrepancies', { count: sampleCount })} ===`);
 		const samples = stats.discrepancies.slice(0, sampleCount);
 
 		for (const disc of samples) {
-			logger.info(`File: ${disc.file}`);
-			logger.info(`Timestamp: ${disc.timestamp}`);
-			logger.info(`Model: ${disc.model}`);
-			logger.info(`Original cost: $${disc.originalCost.toFixed(6)}`);
-			logger.info(`Calculated cost: $${disc.calculatedCost.toFixed(6)}`);
+			logger.info(i18n.tp('debug.file', { file: disc.file }));
+			logger.info(i18n.tp('debug.timestamp', { timestamp: disc.timestamp }));
+			logger.info(i18n.tp('debug.model', { model: disc.model }));
+			logger.info(i18n.tp('debug.originalCost', { cost: disc.originalCost.toFixed(6) }));
+			logger.info(i18n.tp('debug.calculatedCost', { cost: disc.calculatedCost.toFixed(6) }));
 			logger.info(
-				`Difference: $${disc.difference.toFixed(6)} (${disc.percentDiff.toFixed(2)}%)`,
+				i18n.tp('debug.difference', {
+					diff: disc.difference.toFixed(6),
+					percent: disc.percentDiff.toFixed(2),
+				}),
 			);
-			logger.info(`Tokens: ${JSON.stringify(disc.usage)}`);
+			logger.info(i18n.tp('debug.tokens', { tokens: JSON.stringify(disc.usage) }));
 			logger.info('---');
 		}
 	}
