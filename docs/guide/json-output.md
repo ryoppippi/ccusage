@@ -22,32 +22,92 @@ ccusage blocks --json
 
 ## JSON Structure
 
-### Daily Reports
+### Daily Reports (Standard)
+
+Standard daily reports aggregate usage across all projects:
 
 ```json
 {
-	"type": "daily",
-	"data": [
+	"daily": [
 		{
 			"date": "2025-05-30",
-			"models": ["claude-opus-4-20250514", "claude-sonnet-4-20250514"],
 			"inputTokens": 277,
 			"outputTokens": 31456,
 			"cacheCreationTokens": 512,
 			"cacheReadTokens": 1024,
 			"totalTokens": 33269,
-			"costUSD": 17.58
+			"totalCost": 17.58,
+			"modelsUsed": ["claude-opus-4-20250514", "claude-sonnet-4-20250514"],
+			"modelBreakdowns": [...]
 		}
 	],
-	"summary": {
-		"totalInputTokens": 11174,
-		"totalOutputTokens": 720366,
-		"totalCacheCreationTokens": 896,
-		"totalCacheReadTokens": 2304,
+	"totals": {
+		"inputTokens": 11174,
+		"outputTokens": 720366,
+		"cacheCreationTokens": 896,
+		"cacheReadTokens": 2304,
 		"totalTokens": 734740,
-		"totalCostUSD": 336.47
+		"totalCost": 336.47
 	}
 }
+```
+
+### Daily Reports (Project-Grouped)
+
+When using `--instances`, daily reports group usage by project:
+
+```json
+{
+	"projects": {
+		"my-frontend-app": [
+			{
+				"date": "2025-05-30",
+				"inputTokens": 177,
+				"outputTokens": 16456,
+				"cacheCreationTokens": 256,
+				"cacheReadTokens": 512,
+				"totalTokens": 17401,
+				"totalCost": 7.33,
+				"modelsUsed": ["claude-sonnet-4-20250514"],
+				"modelBreakdowns": [...]
+			}
+		],
+		"backend-api": [
+			{
+				"date": "2025-05-30",
+				"inputTokens": 100,
+				"outputTokens": 15000,
+				"cacheCreationTokens": 256,
+				"cacheReadTokens": 512,
+				"totalTokens": 15868,
+				"totalCost": 10.25,
+				"modelsUsed": ["claude-opus-4-20250514"],
+				"modelBreakdowns": [...]
+			}
+		]
+	},
+	"totals": {
+		"inputTokens": 277,
+		"outputTokens": 31456,
+		"cacheCreationTokens": 512,
+		"cacheReadTokens": 1024,
+		"totalTokens": 33269,
+		"totalCost": 17.58
+	}
+}
+```
+
+#### Usage
+
+```bash
+# Standard aggregated output
+ccusage daily --json
+
+# Project-grouped output  
+ccusage daily --instances --json
+
+# Filter to specific project
+ccusage daily --project my-frontend-app --json
 ```
 
 ### Monthly Reports
@@ -195,6 +255,11 @@ ccusage daily --json --order asc
 
 # With model breakdown
 ccusage daily --json --breakdown
+
+# Project analysis
+ccusage daily --json --instances                    # Group by project
+ccusage daily --json --project my-project           # Filter to project
+ccusage daily --json --instances --project my-app   # Combined usage
 ```
 
 ### Model Breakdown JSON
@@ -252,7 +317,16 @@ ccusage session --json | jq -r '.data[].models[]' | sort -u
 ccusage session --json | jq -r '.data | sort_by(.costUSD) | reverse | .[0].session'
 
 # Get daily costs as CSV
-ccusage daily --json | jq -r '.data[] | [.date, .costUSD] | @csv'
+ccusage daily --json | jq -r '.daily[] | [.date, .totalCost] | @csv'
+
+# Analyze project costs
+ccusage daily --instances --json | jq -r '.projects | to_entries[] | [.key, (.value | map(.totalCost) | add)] | @csv'
+
+# Find most expensive project
+ccusage daily --instances --json | jq -r '.projects | to_entries | map({project: .key, total: (.value | map(.totalCost) | add)}) | sort_by(.total) | reverse | .[0].project'
+
+# Get usage by project for specific date
+ccusage daily --instances --json | jq '.projects | to_entries[] | select(.value[].date == "2025-05-30") | {project: .key, usage: .value[0]}'
 ```
 
 ### Using with Python
@@ -269,8 +343,25 @@ data = json.loads(result.stdout)
 for day in data['data']:
     print(f"Date: {day['date']}, Cost: ${day['costUSD']:.2f}")
 
-total_cost = data['summary']['totalCostUSD']
+total_cost = data['totals']['totalCost']
 print(f"Total cost: ${total_cost:.2f}")
+
+# Project analysis example
+result = subprocess.run(['ccusage', 'daily', '--instances', '--json'], capture_output=True, text=True)
+project_data = json.loads(result.stdout)
+
+if 'projects' in project_data:
+    for project_name, daily_entries in project_data['projects'].items():
+        project_total = sum(day['totalCost'] for day in daily_entries)
+        print(f"Project {project_name}: ${project_total:.2f}")
+        
+    # Find highest spending project
+    project_totals = {
+        project: sum(day['totalCost'] for day in days)
+        for project, days in project_data['projects'].items()
+    }
+    top_project = max(project_totals, key=project_totals.get)
+    print(f"Highest spending project: {top_project} (${project_totals[top_project]:.2f})")
 ```
 
 ### Using with Node.js
@@ -289,6 +380,27 @@ console.log(`Found ${expensiveSessions.length} expensive sessions`);
 expensiveSessions.forEach((session) => {
 	console.log(`${session.session}: $${session.costUSD.toFixed(2)}`);
 });
+
+// Project analysis example
+const projectOutput = execSync('ccusage daily --instances --json', { encoding: 'utf-8' });
+const projectData = JSON.parse(projectOutput);
+
+if (projectData.projects) {
+	// Calculate total cost per project
+	const projectCosts = Object.entries(projectData.projects).map(([name, days]) => ({
+		name,
+		totalCost: days.reduce((sum, day) => sum + day.totalCost, 0),
+		totalTokens: days.reduce((sum, day) => sum + day.totalTokens, 0)
+	}));
+
+	// Sort by cost descending
+	projectCosts.sort((a, b) => b.totalCost - a.totalCost);
+	
+	console.log('Project Usage Summary:');
+	projectCosts.forEach(project => {
+		console.log(`${project.name}: $${project.totalCost.toFixed(2)} (${project.totalTokens.toLocaleString()} tokens)`);
+	});
+}
 ```
 
 ## Programmatic Usage

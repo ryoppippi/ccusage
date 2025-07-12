@@ -1,6 +1,8 @@
 import process from 'node:process';
 import { define } from 'gunshi';
 import pc from 'picocolors';
+import { groupByProject, groupDataByProject } from '../_daily-grouping.ts';
+import { formatProjectName } from '../_project-names.ts';
 import { sharedCommandConfig } from '../_shared-args.ts';
 import { formatCurrency, formatModelsDisplayMultiline, formatNumber, pushBreakdownRows, ResponsiveTable } from '../_utils.ts';
 import {
@@ -16,6 +18,20 @@ export const dailyCommand = define({
 	name: 'daily',
 	description: 'Show usage report grouped by date',
 	...sharedCommandConfig,
+	args: {
+		...sharedCommandConfig.args,
+		instances: {
+			type: 'boolean',
+			short: 'i',
+			description: 'Show usage breakdown by project/instance',
+			default: false,
+		},
+		project: {
+			type: 'string',
+			short: 'p',
+			description: 'Filter to specific project name',
+		},
+	},
 	async run(ctx) {
 		if (ctx.values.json) {
 			logger.level = 0;
@@ -27,6 +43,8 @@ export const dailyCommand = define({
 			mode: ctx.values.mode,
 			order: ctx.values.order,
 			offline: ctx.values.offline,
+			groupByProject: ctx.values.instances,
+			project: ctx.values.project,
 		});
 
 		if (dailyData.length === 0) {
@@ -49,21 +67,27 @@ export const dailyCommand = define({
 		}
 
 		if (ctx.values.json) {
-			// Output JSON format
-			const jsonOutput = {
-				daily: dailyData.map(data => ({
-					date: data.date,
-					inputTokens: data.inputTokens,
-					outputTokens: data.outputTokens,
-					cacheCreationTokens: data.cacheCreationTokens,
-					cacheReadTokens: data.cacheReadTokens,
-					totalTokens: getTotalTokens(data),
-					totalCost: data.totalCost,
-					modelsUsed: data.modelsUsed,
-					modelBreakdowns: data.modelBreakdowns,
-				})),
-				totals: createTotalsObject(totals),
-			};
+			// Output JSON format - group by project if instances flag is used
+			const jsonOutput = ctx.values.instances && dailyData.some(d => d.project != null)
+				? {
+						projects: groupByProject(dailyData),
+						totals: createTotalsObject(totals),
+					}
+				: {
+						daily: dailyData.map(data => ({
+							date: data.date,
+							inputTokens: data.inputTokens,
+							outputTokens: data.outputTokens,
+							cacheCreationTokens: data.cacheCreationTokens,
+							cacheReadTokens: data.cacheReadTokens,
+							totalTokens: getTotalTokens(data),
+							totalCost: data.totalCost,
+							modelsUsed: data.modelsUsed,
+							modelBreakdowns: data.modelBreakdowns,
+							...(data.project != null && { project: data.project }),
+						})),
+						totals: createTotalsObject(totals),
+					};
 			log(JSON.stringify(jsonOutput, null, 2));
 		}
 		else {
@@ -113,23 +137,72 @@ export const dailyCommand = define({
 				compactThreshold: 100,
 			});
 
-			// Add daily data
-			for (const data of dailyData) {
-				// Main row
-				table.push([
-					data.date,
-					formatModelsDisplayMultiline(data.modelsUsed),
-					formatNumber(data.inputTokens),
-					formatNumber(data.outputTokens),
-					formatNumber(data.cacheCreationTokens),
-					formatNumber(data.cacheReadTokens),
-					formatNumber(getTotalTokens(data)),
-					formatCurrency(data.totalCost),
-				]);
+			// Add daily data - group by project if instances flag is used
+			if (ctx.values.instances && dailyData.some(d => d.project != null)) {
+				// Group data by project for visual separation
+				const projectGroups = groupDataByProject(dailyData);
 
-				// Add model breakdown rows if flag is set
-				if (ctx.values.breakdown) {
-					pushBreakdownRows(table, data.modelBreakdowns);
+				let isFirstProject = true;
+				for (const [projectName, projectData] of Object.entries(projectGroups)) {
+					// Add project section header
+					if (!isFirstProject) {
+						// Add empty row for visual separation between projects
+						table.push(['', '', '', '', '', '', '', '']);
+					}
+
+					// Add project header row
+					table.push([
+						pc.cyan(`Project: ${formatProjectName(projectName)}`),
+						'',
+						'',
+						'',
+						'',
+						'',
+						'',
+						'',
+					]);
+
+					// Add data rows for this project
+					for (const data of projectData) {
+						table.push([
+							data.date,
+							formatModelsDisplayMultiline(data.modelsUsed),
+							formatNumber(data.inputTokens),
+							formatNumber(data.outputTokens),
+							formatNumber(data.cacheCreationTokens),
+							formatNumber(data.cacheReadTokens),
+							formatNumber(getTotalTokens(data)),
+							formatCurrency(data.totalCost),
+						]);
+
+						// Add model breakdown rows if flag is set
+						if (ctx.values.breakdown) {
+							pushBreakdownRows(table, data.modelBreakdowns);
+						}
+					}
+
+					isFirstProject = false;
+				}
+			}
+			else {
+				// Standard display without project grouping
+				for (const data of dailyData) {
+					// Main row
+					table.push([
+						data.date,
+						formatModelsDisplayMultiline(data.modelsUsed),
+						formatNumber(data.inputTokens),
+						formatNumber(data.outputTokens),
+						formatNumber(data.cacheCreationTokens),
+						formatNumber(data.cacheReadTokens),
+						formatNumber(getTotalTokens(data)),
+						formatCurrency(data.totalCost),
+					]);
+
+					// Add model breakdown rows if flag is set
+					if (ctx.values.breakdown) {
+						pushBreakdownRows(table, data.modelBreakdowns);
+					}
 				}
 			}
 

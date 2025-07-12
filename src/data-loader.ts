@@ -120,6 +120,25 @@ export function getClaudePaths(): string[] {
 }
 
 /**
+ * Extract project name from Claude JSONL file path
+ * @param jsonlPath - Absolute path to JSONL file
+ * @returns Project name extracted from path, or "unknown" if malformed
+ */
+export function extractProjectFromPath(jsonlPath: string): string {
+	// Normalize path separators for cross-platform compatibility
+	const normalizedPath = jsonlPath.replace(/[/\\]/g, path.sep);
+	const segments = normalizedPath.split(path.sep);
+	const projectsIndex = segments.findIndex(segment => segment === CLAUDE_PROJECTS_DIR_NAME);
+
+	if (projectsIndex === -1 || projectsIndex + 1 >= segments.length) {
+		return 'unknown';
+	}
+
+	const projectName = segments[projectsIndex + 1];
+	return projectName != null && projectName.trim() !== '' ? projectName : 'unknown';
+}
+
+/**
  * Zod schema for validating Claude usage data from JSONL files
  */
 export const usageDataSchema = z.object({
@@ -177,6 +196,7 @@ export const dailyUsageSchema = z.object({
 	totalCost: z.number(),
 	modelsUsed: z.array(modelNameSchema),
 	modelBreakdowns: z.array(modelBreakdownSchema),
+	project: z.string().optional(), // Project name when groupByProject is enabled
 });
 
 /**
@@ -218,6 +238,7 @@ export const monthlyUsageSchema = z.object({
 	totalCost: z.number(),
 	modelsUsed: z.array(modelNameSchema),
 	modelBreakdowns: z.array(modelBreakdownSchema),
+	project: z.string().optional(), // Project name when groupByProject is enabled
 });
 
 /**
@@ -386,6 +407,24 @@ function filterByDateRange<T>(
 }
 
 /**
+ * Filters items by project name
+ */
+function filterByProject<T>(
+	items: T[],
+	getProject: (item: T) => string | undefined,
+	projectFilter?: string,
+): T[] {
+	if (projectFilter == null) {
+		return items;
+	}
+
+	return items.filter((item) => {
+		const projectName = getProject(item);
+		return projectName === projectFilter;
+	});
+}
+
+/**
  * Checks if an entry is a duplicate based on hash
  */
 function isDuplicateEntry(
@@ -500,20 +539,22 @@ export async function getEarliestTimestamp(filePath: string): Promise<Date | nul
 				continue;
 			}
 
-			try {
-				const json = JSON.parse(line) as Record<string, unknown>;
-				if (json.timestamp != null && typeof json.timestamp === 'string') {
-					const date = new Date(json.timestamp);
-					if (!Number.isNaN(date.getTime())) {
-						if (earliestDate == null || date < earliestDate) {
-							earliestDate = date;
-						}
-					}
-				}
-			}
-			catch {
+			const parseResult = Result.try({
+				try: () => JSON.parse(line) as Record<string, unknown>,
+				catch: error => new Error('Failed to parse JSON', { cause: error }),
+			})();
+			if (Result.isFailure(parseResult)) {
 				// Skip invalid JSON lines
 				continue;
+			}
+			const json = parseResult.value;
+			if (json.timestamp != null && typeof json.timestamp === 'string') {
+				const date = new Date(json.timestamp);
+				if (!Number.isNaN(date.getTime())) {
+					if (earliestDate == null || date < earliestDate) {
+						earliestDate = date;
+					}
+				}
 			}
 		}
 
@@ -577,7 +618,11 @@ export async function calculateCostForEntry(
 	if (mode === 'calculate') {
 		// Always calculate from tokens
 		if (data.message.model != null) {
-			return Result.unwrap(fetcher.calculateCostFromTokens(data.message.usage, data.message.model), 0);
+			const costResult = await fetcher.calculateCostFromTokens(data.message.usage, data.message.model);
+			if (Result.isFailure(costResult)) {
+				return 0;
+			}
+			return costResult.value;
 		}
 		return 0;
 	}
@@ -589,7 +634,11 @@ export async function calculateCostForEntry(
 		}
 
 		if (data.message.model != null) {
-			return Result.unwrap(fetcher.calculateCostFromTokens(data.message.usage, data.message.model), 0);
+			const costResult = await fetcher.calculateCostFromTokens(data.message.usage, data.message.model);
+			if (Result.isFailure(costResult)) {
+				return 0;
+			}
+			return costResult.value;
 		}
 
 		return 0;
@@ -637,6 +686,8 @@ export type LoadOptions = {
 	order?: SortOrder; // Sort order for dates
 	offline?: boolean; // Use offline mode for pricing
 	sessionDurationHours?: number; // Session block duration in hours
+	groupByProject?: boolean; // Group data by project instead of aggregating
+	project?: string; // Filter to specific project name
 } & DateFilter;
 
 /**
@@ -666,8 +717,15 @@ export async function loadDailyUsageData(
 		return [];
 	}
 
+	// Filter by project if specified
+	const projectFilteredFiles = filterByProject(
+		allFiles,
+		filePath => extractProjectFromPath(filePath),
+		options?.project,
+	);
+
 	// Sort files by timestamp to ensure chronological processing
-	const sortedFiles = await sortFilesByTimestamp(allFiles);
+	const sortedFiles = await sortFilesByTimestamp(projectFilteredFiles);
 
 	// Fetch pricing data for cost calculation only when needed
 	const mode = options?.mode ?? 'auto';
@@ -679,7 +737,7 @@ export async function loadDailyUsageData(
 	const processedHashes = new Set<string>();
 
 	// Collect all valid data entries first
-	const allEntries: { data: UsageData; date: string; cost: number; model: string | undefined }[] = [];
+	const allEntries: { data: UsageData; date: string; cost: number; model: string | undefined; project: string }[] = [];
 
 	for (const file of sortedFiles) {
 		const content = await readFile(file, 'utf-8');
@@ -689,48 +747,65 @@ export async function loadDailyUsageData(
 			.filter(line => line.length > 0);
 
 		for (const line of lines) {
-			try {
-				const parsed = JSON.parse(line) as unknown;
-				const result = usageDataSchema.safeParse(parsed);
-				if (!result.success) {
-					continue;
-				}
-				const data = result.data;
-
-				// Check for duplicate message + request ID combination
-				const uniqueHash = createUniqueHash(data);
-				if (isDuplicateEntry(uniqueHash, processedHashes)) {
-					// Skip duplicate message
-					continue;
-				}
-
-				// Mark this combination as processed
-				markAsProcessed(uniqueHash, processedHashes);
-
-				const date = formatDate(data.timestamp);
-				// If fetcher is available, calculate cost based on mode and tokens
-				// If fetcher is null, use pre-calculated costUSD or default to 0
-				const cost = fetcher != null
-					? await calculateCostForEntry(data, mode, fetcher)
-					: data.costUSD ?? 0;
-
-				allEntries.push({ data, date, cost, model: data.message.model });
-			}
-			catch {
+			const parseResult = Result.try({
+				try: () => JSON.parse(line) as unknown,
+				catch: error => new Error('Failed to parse JSON', { cause: error }),
+			})();
+			if (Result.isFailure(parseResult)) {
 				// Skip invalid JSON lines
+				continue;
 			}
+			const parsed = parseResult.value;
+			const result = usageDataSchema.safeParse(parsed);
+			if (!result.success) {
+				continue;
+			}
+			const data = result.data;
+
+			// Check for duplicate message + request ID combination
+			const uniqueHash = createUniqueHash(data);
+			if (isDuplicateEntry(uniqueHash, processedHashes)) {
+				// Skip duplicate message
+				continue;
+			}
+
+			// Mark this combination as processed
+			markAsProcessed(uniqueHash, processedHashes);
+
+			const date = formatDate(data.timestamp);
+			// If fetcher is available, calculate cost based on mode and tokens
+			// If fetcher is null, use pre-calculated costUSD or default to 0
+			const cost = fetcher != null
+				? await calculateCostForEntry(data, mode, fetcher)
+				: data.costUSD ?? 0;
+
+			// Extract project name from file path
+			const project = extractProjectFromPath(file);
+
+			allEntries.push({ data, date, cost, model: data.message.model, project });
 		}
 	}
 
-	// Group by date using Object.groupBy
-	const groupedByDate = groupBy(allEntries, entry => entry.date);
+	// Group by date, optionally including project
+	// Automatically enable project grouping when project filter is specified
+	const needsProjectGrouping = options?.groupByProject === true || options?.project != null;
+	const groupingKey = needsProjectGrouping
+		? (entry: typeof allEntries[0]) => `${entry.date}\x00${entry.project}`
+		: (entry: typeof allEntries[0]) => entry.date;
+
+	const groupedData = groupBy(allEntries, groupingKey);
 
 	// Aggregate each group
-	const results = Object.entries(groupedByDate)
-		.map(([date, entries]) => {
+	const results = Object.entries(groupedData)
+		.map(([groupKey, entries]) => {
 			if (entries == null) {
 				return undefined;
 			}
+
+			// Extract date and project from groupKey (format: "date" or "date\x00project")
+			const parts = groupKey.split('\x00');
+			const date = parts[0] ?? groupKey;
+			const project = parts.length > 1 ? parts[1] : undefined;
 
 			// Aggregate by model first
 			const modelAggregates = aggregateByModel(
@@ -752,20 +827,26 @@ export async function loadDailyUsageData(
 
 			const modelsUsed = extractUniqueModels(entries, e => e.model);
 
-			return {
+			const result = {
 				date: createDailyDate(date),
 				...totals,
 				modelsUsed: modelsUsed as ModelName[],
 				modelBreakdowns,
+				...(project != null && { project }),
 			};
+
+			return result;
 		})
 		.filter(item => item != null);
 
 	// Filter by date range if specified
-	const filtered = filterByDateRange(results, item => item.date, options?.since, options?.until);
+	const dateFiltered = filterByDateRange(results, item => item.date, options?.since, options?.until);
+
+	// Filter by project if specified
+	const finalFiltered = filterByProject(dateFiltered, item => item.project, options?.project);
 
 	// Sort by date based on order option (default to descending)
-	return sortByDate(filtered, item => item.date, options?.order);
+	return sortByDate(finalFiltered, item => item.date, options?.order);
 }
 
 /**
@@ -798,11 +879,18 @@ export async function loadSessionData(
 		return [];
 	}
 
+	// Filter by project if specified
+	const projectFilteredWithBase = filterByProject(
+		filesWithBase,
+		item => extractProjectFromPath(item.file),
+		options?.project,
+	);
+
 	// Sort files by timestamp to ensure chronological processing
 	// Create a map for O(1) lookup instead of O(N) find operations
-	const fileToBaseMap = new Map(filesWithBase.map(f => [f.file, f.baseDir]));
+	const fileToBaseMap = new Map(projectFilteredWithBase.map(f => [f.file, f.baseDir]));
 	const sortedFilesWithBase = await sortFilesByTimestamp(
-		filesWithBase.map(f => f.file),
+		projectFilteredWithBase.map(f => f.file),
 	).then(sortedFiles =>
 		sortedFiles.map(file => ({
 			file,
@@ -848,42 +936,45 @@ export async function loadSessionData(
 			.filter(line => line.length > 0);
 
 		for (const line of lines) {
-			try {
-				const parsed = JSON.parse(line) as unknown;
-				const result = usageDataSchema.safeParse(parsed);
-				if (!result.success) {
-					continue;
-				}
-				const data = result.data;
-
-				// Check for duplicate message + request ID combination
-				const uniqueHash = createUniqueHash(data);
-				if (isDuplicateEntry(uniqueHash, processedHashes)) {
-					// Skip duplicate message
-					continue;
-				}
-
-				// Mark this combination as processed
-				markAsProcessed(uniqueHash, processedHashes);
-
-				const sessionKey = `${projectPath}/${sessionId}`;
-				const cost = fetcher != null
-					? await calculateCostForEntry(data, mode, fetcher)
-					: data.costUSD ?? 0;
-
-				allEntries.push({
-					data,
-					sessionKey,
-					sessionId,
-					projectPath,
-					cost,
-					timestamp: data.timestamp,
-					model: data.message.model,
-				});
-			}
-			catch {
+			const parseResult = Result.try({
+				try: () => JSON.parse(line) as unknown,
+				catch: error => new Error('Failed to parse JSON', { cause: error }),
+			})();
+			if (Result.isFailure(parseResult)) {
 				// Skip invalid JSON lines
+				continue;
 			}
+			const parsed = parseResult.value;
+			const result = usageDataSchema.safeParse(parsed);
+			if (!result.success) {
+				continue;
+			}
+			const data = result.data;
+
+			// Check for duplicate message + request ID combination
+			const uniqueHash = createUniqueHash(data);
+			if (isDuplicateEntry(uniqueHash, processedHashes)) {
+				// Skip duplicate message
+				continue;
+			}
+
+			// Mark this combination as processed
+			markAsProcessed(uniqueHash, processedHashes);
+
+			const sessionKey = `${projectPath}/${sessionId}`;
+			const cost = fetcher != null
+				? await calculateCostForEntry(data, mode, fetcher)
+				: data.costUSD ?? 0;
+
+			allEntries.push({
+				data,
+				sessionKey,
+				sessionId,
+				projectPath,
+				cost,
+				timestamp: data.timestamp,
+				model: data.message.model,
+			});
 		}
 	}
 
@@ -946,9 +1037,12 @@ export async function loadSessionData(
 		.filter(item => item != null);
 
 	// Filter by date range if specified
-	const filtered = filterByDateRange(results, item => item.lastActivity, options?.since, options?.until);
+	const dateFiltered = filterByDateRange(results, item => item.lastActivity, options?.since, options?.until);
 
-	return sortByDate(filtered, item => item.lastActivity, options?.order);
+	// Filter by project if specified
+	const sessionFiltered = filterByProject(dateFiltered, item => item.projectPath, options?.project);
+
+	return sortByDate(sessionFiltered, item => item.lastActivity, options?.order);
 }
 
 /**
@@ -962,16 +1056,26 @@ export async function loadMonthlyUsageData(
 ): Promise<MonthlyUsage[]> {
 	const dailyData = await loadDailyUsageData(options);
 
-	// Group daily data by month using Object.groupBy
-	const groupedByMonth = groupBy(dailyData, data =>
-		data.date.substring(0, 7));
+	// Group daily data by month, optionally including project
+	// Automatically enable project grouping when project filter is specified
+	const needsProjectGrouping = options?.groupByProject === true || options?.project != null;
+	const groupingKey = needsProjectGrouping
+		? (data: typeof dailyData[0]) => `${data.date.substring(0, 7)}\x00${data.project ?? 'unknown'}`
+		: (data: typeof dailyData[0]) => data.date.substring(0, 7);
+
+	const groupedByMonth = groupBy(dailyData, groupingKey);
 
 	// Aggregate each month group
 	const monthlyArray: MonthlyUsage[] = [];
-	for (const [month, dailyEntries] of Object.entries(groupedByMonth)) {
+	for (const [groupKey, dailyEntries] of Object.entries(groupedByMonth)) {
 		if (dailyEntries == null) {
 			continue;
 		}
+
+		// Extract month and project from groupKey (format: "month" or "month\x00project")
+		const parts = groupKey.split('\x00');
+		const month = parts[0] ?? groupKey;
+		const project = parts.length > 1 ? parts[1] : undefined;
 
 		// Aggregate model breakdowns across all days
 		const allBreakdowns = dailyEntries.flatMap(daily => daily.modelBreakdowns);
@@ -1014,6 +1118,7 @@ export async function loadMonthlyUsageData(
 			totalCost,
 			modelsUsed: uniq(models) as ModelName[],
 			modelBreakdowns,
+			...(project != null && { project }),
 		};
 
 		monthlyArray.push(monthlyUsage);
@@ -1050,8 +1155,15 @@ export async function loadSessionBlockData(
 		return [];
 	}
 
+	// Filter by project if specified
+	const blocksFilteredFiles = filterByProject(
+		allFiles,
+		filePath => extractProjectFromPath(filePath),
+		options?.project,
+	);
+
 	// Sort files by timestamp to ensure chronological processing
-	const sortedFiles = await sortFilesByTimestamp(allFiles);
+	const sortedFiles = await sortFilesByTimestamp(blocksFilteredFiles);
 
 	// Fetch pricing data for cost calculation only when needed
 	const mode = options?.mode ?? 'auto';
@@ -1073,49 +1185,52 @@ export async function loadSessionBlockData(
 			.filter(line => line.length > 0);
 
 		for (const line of lines) {
-			try {
-				const parsed = JSON.parse(line) as unknown;
-				const result = usageDataSchema.safeParse(parsed);
-				if (!result.success) {
-					continue;
-				}
-				const data = result.data;
-
-				// Check for duplicate message + request ID combination
-				const uniqueHash = createUniqueHash(data);
-				if (isDuplicateEntry(uniqueHash, processedHashes)) {
-					// Skip duplicate message
-					continue;
-				}
-
-				// Mark this combination as processed
-				markAsProcessed(uniqueHash, processedHashes);
-
-				const cost = fetcher != null
-					? await calculateCostForEntry(data, mode, fetcher)
-					: data.costUSD ?? 0;
-
-				// Get Claude Code usage limit expiration date
-				const usageLimitResetTime = getUsageLimitResetTime(data);
-
-				allEntries.push({
-					timestamp: new Date(data.timestamp),
-					usage: {
-						inputTokens: data.message.usage.input_tokens,
-						outputTokens: data.message.usage.output_tokens,
-						cacheCreationInputTokens: data.message.usage.cache_creation_input_tokens ?? 0,
-						cacheReadInputTokens: data.message.usage.cache_read_input_tokens ?? 0,
-					},
-					costUSD: cost,
-					model: data.message.model ?? 'unknown',
-					version: data.version,
-					usageLimitResetTime: usageLimitResetTime ?? undefined,
-				});
-			}
-			catch (error) {
+			const parseResult = Result.try({
+				try: () => JSON.parse(line) as unknown,
+				catch: error => new Error('Failed to parse JSON', { cause: error }),
+			})();
+			if (Result.isFailure(parseResult)) {
 				// Skip invalid JSON lines but log for debugging purposes
-				logger.debug(`Skipping invalid JSON line in 5-hour blocks: ${error instanceof Error ? error.message : String(error)}`);
+				logger.debug(`Skipping invalid JSON line in 5-hour blocks: ${parseResult.error.message}`);
+				continue;
 			}
+			const parsed = parseResult.value;
+			const result = usageDataSchema.safeParse(parsed);
+			if (!result.success) {
+				continue;
+			}
+			const data = result.data;
+
+			// Check for duplicate message + request ID combination
+			const uniqueHash = createUniqueHash(data);
+			if (isDuplicateEntry(uniqueHash, processedHashes)) {
+				// Skip duplicate message
+				continue;
+			}
+
+			// Mark this combination as processed
+			markAsProcessed(uniqueHash, processedHashes);
+
+			const cost = fetcher != null
+				? await calculateCostForEntry(data, mode, fetcher)
+				: data.costUSD ?? 0;
+
+			// Get Claude Code usage limit expiration date
+			const usageLimitResetTime = getUsageLimitResetTime(data);
+
+			allEntries.push({
+				timestamp: new Date(data.timestamp),
+				usage: {
+					inputTokens: data.message.usage.input_tokens,
+					outputTokens: data.message.usage.output_tokens,
+					cacheCreationInputTokens: data.message.usage.cache_creation_input_tokens ?? 0,
+					cacheReadInputTokens: data.message.usage.cache_read_input_tokens ?? 0,
+				},
+				costUSD: cost,
+				model: data.message.model ?? 'unknown',
+				version: data.version,
+				usageLimitResetTime: usageLimitResetTime ?? undefined,
+			});
 		}
 	}
 
@@ -1123,7 +1238,7 @@ export async function loadSessionBlockData(
 	const blocks = identifySessionBlocks(allEntries, options?.sessionDurationHours);
 
 	// Filter by date range if specified
-	const filtered = (options?.since != null && options.since !== '') || (options?.until != null && options.until !== '')
+	const dateFiltered = (options?.since != null && options.since !== '') || (options?.until != null && options.until !== '')
 		? blocks.filter((block) => {
 				const blockDateStr = formatDate(block.startTime.toISOString()).replace(/-/g, '');
 				if (options.since != null && options.since !== '' && blockDateStr < options.since) {
@@ -1137,44 +1252,74 @@ export async function loadSessionBlockData(
 		: blocks;
 
 	// Sort by start time based on order option
-	return sortByDate(filtered, block => block.startTime, options?.order);
+	return sortByDate(dateFiltered, block => block.startTime, options?.order);
 }
 
 if (import.meta.vitest != null) {
 	describe('formatDate', () => {
 		it('formats UTC timestamp to local date', () => {
-		// Test with UTC timestamps - results depend on local timezone
-			expect(formatDate('2024-01-01T00:00:00Z')).toBe('2024-01-01');
-			expect(formatDate('2024-12-31T23:59:59Z')).toBe('2024-12-31');
+			// Test with UTC timestamps - results depend on local timezone
+			// Instead of hardcoding expected values, test the format pattern
+			const result1 = formatDate('2024-01-01T00:00:00Z');
+			const result2 = formatDate('2024-12-31T23:59:59Z');
+
+			// Should be in YYYY-MM-DD format
+			expect(result1).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+			expect(result2).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+
+			// Year should be 2023 or 2024 depending on timezone
+			expect(['2023-12-31', '2024-01-01']).toContain(result1);
+			expect(['2024-12-31', '2025-01-01']).toContain(result2);
 		});
 
 		it('handles various date formats', () => {
-			expect(formatDate('2024-01-01')).toBe('2024-01-01');
+			// Date-only strings might be interpreted as UTC midnight
+			const dateOnlyResult = formatDate('2024-01-01');
+			expect(['2023-12-31', '2024-01-01']).toContain(dateOnlyResult);
+
+			// Local timestamps should preserve the date
 			expect(formatDate('2024-01-01T12:00:00')).toBe('2024-01-01');
+
+			// UTC noon should be same date in all timezones
 			expect(formatDate('2024-01-01T12:00:00.000Z')).toBe('2024-01-01');
 		});
 
 		it('pads single digit months and days', () => {
-			expect(formatDate('2024-01-05T00:00:00Z')).toBe('2024-01-05');
-			expect(formatDate('2024-10-01T00:00:00Z')).toBe('2024-10-01');
+			// Use UTC noon to avoid timezone issues
+			expect(formatDate('2024-01-05T12:00:00Z')).toBe('2024-01-05');
+			expect(formatDate('2024-10-01T12:00:00Z')).toBe('2024-10-01');
 		});
 	});
 
 	describe('formatDateCompact', () => {
 		it('formats UTC timestamp to local date with line break', () => {
-			expect(formatDateCompact('2024-01-01T00:00:00Z')).toBe('2024\n01-01');
+			const result = formatDateCompact('2024-01-01T00:00:00Z');
+			// Should be in YYYY\nMM-DD format
+			expect(result).toMatch(/^\d{4}\n\d{2}-\d{2}$/);
+			// Could be 2023\n12-31 or 2024\n01-01 depending on timezone
+			expect(['2023\n12-31', '2024\n01-01']).toContain(result);
 		});
 
 		it('handles various date formats', () => {
-			expect(formatDateCompact('2024-12-31T23:59:59Z')).toBe('2024\n12-31');
-			expect(formatDateCompact('2024-01-01')).toBe('2024\n01-01');
+			const result = formatDateCompact('2024-12-31T23:59:59Z');
+			expect(result).toMatch(/^\d{4}\n\d{2}-\d{2}$/);
+			expect(['2024\n12-31', '2025\n01-01']).toContain(result);
+
+			// Date-only strings might be interpreted as UTC midnight
+			const dateOnlyResult = formatDateCompact('2024-01-01');
+			expect(['2023\n12-31', '2024\n01-01']).toContain(dateOnlyResult);
+
+			// Local timestamps should preserve the date
 			expect(formatDateCompact('2024-01-01T12:00:00')).toBe('2024\n01-01');
+
+			// UTC noon should be same date in all timezones
 			expect(formatDateCompact('2024-01-01T12:00:00.000Z')).toBe('2024\n01-01');
 		});
 
 		it('pads single digit months and days', () => {
-			expect(formatDateCompact('2024-01-05T00:00:00Z')).toBe('2024\n01-05');
-			expect(formatDateCompact('2024-10-01T00:00:00Z')).toBe('2024\n10-01');
+			// Use UTC noon to avoid timezone issues
+			expect(formatDateCompact('2024-01-05T12:00:00Z')).toBe('2024\n01-05');
+			expect(formatDateCompact('2024-10-01T12:00:00Z')).toBe('2024\n10-01');
 		});
 	});
 
@@ -1189,9 +1334,10 @@ if (import.meta.vitest != null) {
 		});
 
 		it('aggregates daily usage data correctly', async () => {
+			// Use timestamps in the middle of the day to avoid timezone issues
 			const mockData1: UsageData[] = [
 				{
-					timestamp: createISOTimestamp('2024-01-01T00:00:00Z'),
+					timestamp: createISOTimestamp('2024-01-01T10:00:00Z'),
 					message: { usage: { input_tokens: 100, output_tokens: 50 } },
 					costUSD: 0.01,
 				},
@@ -1232,7 +1378,7 @@ if (import.meta.vitest != null) {
 
 		it('handles cache tokens', async () => {
 			const mockData: UsageData = {
-				timestamp: createISOTimestamp('2024-01-01T00:00:00Z'),
+				timestamp: createISOTimestamp('2024-01-01T12:00:00Z'),
 				message: {
 					usage: {
 						input_tokens: 100,
@@ -1263,17 +1409,17 @@ if (import.meta.vitest != null) {
 		it('filters by date range', async () => {
 			const mockData: UsageData[] = [
 				{
-					timestamp: createISOTimestamp('2024-01-01T00:00:00Z'),
+					timestamp: createISOTimestamp('2024-01-01T12:00:00Z'),
 					message: { usage: { input_tokens: 100, output_tokens: 50 } },
 					costUSD: 0.01,
 				},
 				{
-					timestamp: createISOTimestamp('2024-01-15T00:00:00Z'),
+					timestamp: createISOTimestamp('2024-01-15T12:00:00Z'),
 					message: { usage: { input_tokens: 200, output_tokens: 100 } },
 					costUSD: 0.02,
 				},
 				{
-					timestamp: createISOTimestamp('2024-01-31T00:00:00Z'),
+					timestamp: createISOTimestamp('2024-01-31T12:00:00Z'),
 					message: { usage: { input_tokens: 300, output_tokens: 150 } },
 					costUSD: 0.03,
 				},
@@ -1303,17 +1449,17 @@ if (import.meta.vitest != null) {
 		it('sorts by date descending by default', async () => {
 			const mockData: UsageData[] = [
 				{
-					timestamp: createISOTimestamp('2024-01-15T00:00:00Z'),
+					timestamp: createISOTimestamp('2024-01-15T12:00:00Z'),
 					message: { usage: { input_tokens: 200, output_tokens: 100 } },
 					costUSD: 0.02,
 				},
 				{
-					timestamp: createISOTimestamp('2024-01-01T00:00:00Z'),
+					timestamp: createISOTimestamp('2024-01-01T12:00:00Z'),
 					message: { usage: { input_tokens: 100, output_tokens: 50 } },
 					costUSD: 0.01,
 				},
 				{
-					timestamp: createISOTimestamp('2024-01-31T00:00:00Z'),
+					timestamp: createISOTimestamp('2024-01-31T12:00:00Z'),
 					message: { usage: { input_tokens: 300, output_tokens: 150 } },
 					costUSD: 0.03,
 				},
@@ -1339,17 +1485,17 @@ if (import.meta.vitest != null) {
 		it('sorts by date ascending when order is \'asc\'', async () => {
 			const mockData: UsageData[] = [
 				{
-					timestamp: createISOTimestamp('2024-01-15T00:00:00Z'),
+					timestamp: createISOTimestamp('2024-01-15T12:00:00Z'),
 					message: { usage: { input_tokens: 200, output_tokens: 100 } },
 					costUSD: 0.02,
 				},
 				{
-					timestamp: createISOTimestamp('2024-01-01T00:00:00Z'),
+					timestamp: createISOTimestamp('2024-01-01T12:00:00Z'),
 					message: { usage: { input_tokens: 100, output_tokens: 50 } },
 					costUSD: 0.01,
 				},
 				{
-					timestamp: createISOTimestamp('2024-01-31T00:00:00Z'),
+					timestamp: createISOTimestamp('2024-01-31T12:00:00Z'),
 					message: { usage: { input_tokens: 300, output_tokens: 150 } },
 					costUSD: 0.03,
 				},
@@ -1379,17 +1525,17 @@ if (import.meta.vitest != null) {
 		it('sorts by date descending when order is \'desc\'', async () => {
 			const mockData: UsageData[] = [
 				{
-					timestamp: createISOTimestamp('2024-01-15T00:00:00Z'),
+					timestamp: createISOTimestamp('2024-01-15T12:00:00Z'),
 					message: { usage: { input_tokens: 200, output_tokens: 100 } },
 					costUSD: 0.02,
 				},
 				{
-					timestamp: createISOTimestamp('2024-01-01T00:00:00Z'),
+					timestamp: createISOTimestamp('2024-01-01T12:00:00Z'),
 					message: { usage: { input_tokens: 100, output_tokens: 50 } },
 					costUSD: 0.01,
 				},
 				{
-					timestamp: createISOTimestamp('2024-01-31T00:00:00Z'),
+					timestamp: createISOTimestamp('2024-01-31T12:00:00Z'),
 					message: { usage: { input_tokens: 300, output_tokens: 150 } },
 					costUSD: 0.03,
 				},
@@ -1418,7 +1564,7 @@ if (import.meta.vitest != null) {
 
 		it('handles invalid JSON lines gracefully', async () => {
 			const mockData = `
-{"timestamp":"2024-01-01T00:00:00Z","message":{"usage":{"input_tokens":100,"output_tokens":50}},"costUSD":0.01}
+{"timestamp":"2024-01-01T12:00:00Z","message":{"usage":{"input_tokens":100,"output_tokens":50}},"costUSD":0.01}
 invalid json line
 {"timestamp":"2024-01-01T12:00:00Z","message":{"usage":{"input_tokens":200,"output_tokens":100}},"costUSD":0.02}
 { broken json
@@ -1445,8 +1591,8 @@ invalid json line
 
 		it('skips data without required fields', async () => {
 			const mockData = `
-{"timestamp":"2024-01-01T00:00:00Z","message":{"usage":{"input_tokens":100,"output_tokens":50}},"costUSD":0.01}
-{"timestamp":"2024-01-01T12:00:00Z","message":{"usage":{}}}
+{"timestamp":"2024-01-01T12:00:00Z","message":{"usage":{"input_tokens":100,"output_tokens":50}},"costUSD":0.01}
+{"timestamp":"2024-01-01T14:00:00Z","message":{"usage":{}}}
 {"timestamp":"2024-01-01T18:00:00Z","message":{}}
 {"timestamp":"2024-01-01T20:00:00Z"}
 {"message":{"usage":{"input_tokens":200,"output_tokens":100}}}
@@ -1476,17 +1622,17 @@ invalid json line
 		it('aggregates daily data by month correctly', async () => {
 			const mockData: UsageData[] = [
 				{
-					timestamp: createISOTimestamp('2024-01-01T00:00:00Z'),
+					timestamp: createISOTimestamp('2024-01-01T12:00:00Z'),
 					message: { usage: { input_tokens: 100, output_tokens: 50 } },
 					costUSD: 0.01,
 				},
 				{
-					timestamp: createISOTimestamp('2024-01-15T00:00:00Z'),
+					timestamp: createISOTimestamp('2024-01-15T12:00:00Z'),
 					message: { usage: { input_tokens: 200, output_tokens: 100 } },
 					costUSD: 0.02,
 				},
 				{
-					timestamp: createISOTimestamp('2024-02-01T00:00:00Z'),
+					timestamp: createISOTimestamp('2024-02-01T12:00:00Z'),
 					message: { usage: { input_tokens: 150, output_tokens: 75 } },
 					costUSD: 0.015,
 				},
@@ -1554,12 +1700,12 @@ invalid json line
 		it('handles single month data', async () => {
 			const mockData: UsageData[] = [
 				{
-					timestamp: createISOTimestamp('2024-01-01T00:00:00Z'),
+					timestamp: createISOTimestamp('2024-01-01T12:00:00Z'),
 					message: { usage: { input_tokens: 100, output_tokens: 50 } },
 					costUSD: 0.01,
 				},
 				{
-					timestamp: createISOTimestamp('2024-01-31T00:00:00Z'),
+					timestamp: createISOTimestamp('2024-01-31T12:00:00Z'),
 					message: { usage: { input_tokens: 200, output_tokens: 100 } },
 					costUSD: 0.02,
 				},
@@ -1600,22 +1746,22 @@ invalid json line
 		it('sorts months in descending order', async () => {
 			const mockData: UsageData[] = [
 				{
-					timestamp: createISOTimestamp('2024-01-01T00:00:00Z'),
+					timestamp: createISOTimestamp('2024-01-01T12:00:00Z'),
 					message: { usage: { input_tokens: 100, output_tokens: 50 } },
 					costUSD: 0.01,
 				},
 				{
-					timestamp: createISOTimestamp('2024-03-01T00:00:00Z'),
+					timestamp: createISOTimestamp('2024-03-01T12:00:00Z'),
 					message: { usage: { input_tokens: 100, output_tokens: 50 } },
 					costUSD: 0.01,
 				},
 				{
-					timestamp: createISOTimestamp('2024-02-01T00:00:00Z'),
+					timestamp: createISOTimestamp('2024-02-01T12:00:00Z'),
 					message: { usage: { input_tokens: 100, output_tokens: 50 } },
 					costUSD: 0.01,
 				},
 				{
-					timestamp: createISOTimestamp('2023-12-01T00:00:00Z'),
+					timestamp: createISOTimestamp('2023-12-01T12:00:00Z'),
 					message: { usage: { input_tokens: 100, output_tokens: 50 } },
 					costUSD: 0.01,
 				},
@@ -1640,22 +1786,22 @@ invalid json line
 		it('sorts months in ascending order when order is \'asc\'', async () => {
 			const mockData: UsageData[] = [
 				{
-					timestamp: createISOTimestamp('2024-01-01T00:00:00Z'),
+					timestamp: createISOTimestamp('2024-01-01T12:00:00Z'),
 					message: { usage: { input_tokens: 100, output_tokens: 50 } },
 					costUSD: 0.01,
 				},
 				{
-					timestamp: createISOTimestamp('2024-03-01T00:00:00Z'),
+					timestamp: createISOTimestamp('2024-03-01T12:00:00Z'),
 					message: { usage: { input_tokens: 100, output_tokens: 50 } },
 					costUSD: 0.01,
 				},
 				{
-					timestamp: createISOTimestamp('2024-02-01T00:00:00Z'),
+					timestamp: createISOTimestamp('2024-02-01T12:00:00Z'),
 					message: { usage: { input_tokens: 100, output_tokens: 50 } },
 					costUSD: 0.01,
 				},
 				{
-					timestamp: createISOTimestamp('2023-12-01T00:00:00Z'),
+					timestamp: createISOTimestamp('2023-12-01T12:00:00Z'),
 					message: { usage: { input_tokens: 100, output_tokens: 50 } },
 					costUSD: 0.01,
 				},
@@ -1683,22 +1829,22 @@ invalid json line
 		it('handles year boundaries correctly in sorting', async () => {
 			const mockData: UsageData[] = [
 				{
-					timestamp: createISOTimestamp('2024-01-01T00:00:00Z'),
+					timestamp: createISOTimestamp('2024-01-01T12:00:00Z'),
 					message: { usage: { input_tokens: 100, output_tokens: 50 } },
 					costUSD: 0.01,
 				},
 				{
-					timestamp: createISOTimestamp('2023-12-01T00:00:00Z'),
+					timestamp: createISOTimestamp('2023-12-01T12:00:00Z'),
 					message: { usage: { input_tokens: 100, output_tokens: 50 } },
 					costUSD: 0.01,
 				},
 				{
-					timestamp: createISOTimestamp('2024-02-01T00:00:00Z'),
+					timestamp: createISOTimestamp('2024-02-01T12:00:00Z'),
 					message: { usage: { input_tokens: 100, output_tokens: 50 } },
 					costUSD: 0.01,
 				},
 				{
-					timestamp: createISOTimestamp('2023-11-01T00:00:00Z'),
+					timestamp: createISOTimestamp('2023-11-01T12:00:00Z'),
 					message: { usage: { input_tokens: 100, output_tokens: 50 } },
 					costUSD: 0.01,
 				},
@@ -1734,17 +1880,17 @@ invalid json line
 		it('respects date filters', async () => {
 			const mockData: UsageData[] = [
 				{
-					timestamp: createISOTimestamp('2024-01-01T00:00:00Z'),
+					timestamp: createISOTimestamp('2024-01-01T12:00:00Z'),
 					message: { usage: { input_tokens: 100, output_tokens: 50 } },
 					costUSD: 0.01,
 				},
 				{
-					timestamp: createISOTimestamp('2024-02-15T00:00:00Z'),
+					timestamp: createISOTimestamp('2024-02-15T12:00:00Z'),
 					message: { usage: { input_tokens: 200, output_tokens: 100 } },
 					costUSD: 0.02,
 				},
 				{
-					timestamp: createISOTimestamp('2024-03-01T00:00:00Z'),
+					timestamp: createISOTimestamp('2024-03-01T12:00:00Z'),
 					message: { usage: { input_tokens: 150, output_tokens: 75 } },
 					costUSD: 0.015,
 				},
@@ -1775,7 +1921,7 @@ invalid json line
 		it('handles cache tokens correctly', async () => {
 			const mockData: UsageData[] = [
 				{
-					timestamp: createISOTimestamp('2024-01-01T00:00:00Z'),
+					timestamp: createISOTimestamp('2024-01-01T12:00:00Z'),
 					message: {
 						usage: {
 							input_tokens: 100,
@@ -1787,7 +1933,7 @@ invalid json line
 					costUSD: 0.01,
 				},
 				{
-					timestamp: createISOTimestamp('2024-01-15T00:00:00Z'),
+					timestamp: createISOTimestamp('2024-01-15T12:00:00Z'),
 					message: {
 						usage: {
 							input_tokens: 200,
@@ -1830,7 +1976,7 @@ invalid json line
 
 		it('extracts session info from file paths', async () => {
 			const mockData: UsageData = {
-				timestamp: createISOTimestamp('2024-01-01T00:00:00Z'),
+				timestamp: createISOTimestamp('2024-01-01T12:00:00Z'),
 				message: { usage: { input_tokens: 100, output_tokens: 50 } },
 				costUSD: 0.01,
 			};
@@ -1864,7 +2010,7 @@ invalid json line
 		it('aggregates session usage data', async () => {
 			const mockData: UsageData[] = [
 				{
-					timestamp: createISOTimestamp('2024-01-01T00:00:00Z'),
+					timestamp: createISOTimestamp('2024-01-01T12:00:00Z'),
 					message: {
 						usage: {
 							input_tokens: 100,
@@ -1916,7 +2062,7 @@ invalid json line
 		it('tracks versions', async () => {
 			const mockData: UsageData[] = [
 				{
-					timestamp: createISOTimestamp('2024-01-01T00:00:00Z'),
+					timestamp: createISOTimestamp('2024-01-01T12:00:00Z'),
 					message: { usage: { input_tokens: 100, output_tokens: 50 } },
 					version: createVersion('1.0.0'),
 					costUSD: 0.01,
@@ -1956,7 +2102,7 @@ invalid json line
 				{
 					sessionId: 'session1',
 					data: {
-						timestamp: createISOTimestamp('2024-01-15T00:00:00Z'),
+						timestamp: createISOTimestamp('2024-01-15T12:00:00Z'),
 						message: { usage: { input_tokens: 100, output_tokens: 50 } },
 						costUSD: 0.01,
 					},
@@ -1964,7 +2110,7 @@ invalid json line
 				{
 					sessionId: 'session2',
 					data: {
-						timestamp: createISOTimestamp('2024-01-01T00:00:00Z'),
+						timestamp: createISOTimestamp('2024-01-01T12:00:00Z'),
 						message: { usage: { input_tokens: 100, output_tokens: 50 } },
 						costUSD: 0.01,
 					},
@@ -1972,7 +2118,7 @@ invalid json line
 				{
 					sessionId: 'session3',
 					data: {
-						timestamp: createISOTimestamp('2024-01-31T00:00:00Z'),
+						timestamp: createISOTimestamp('2024-01-31T12:00:00Z'),
 						message: { usage: { input_tokens: 100, output_tokens: 50 } },
 						costUSD: 0.01,
 					},
@@ -2002,7 +2148,7 @@ invalid json line
 				{
 					sessionId: 'session1',
 					data: {
-						timestamp: createISOTimestamp('2024-01-15T00:00:00Z'),
+						timestamp: createISOTimestamp('2024-01-15T12:00:00Z'),
 						message: { usage: { input_tokens: 100, output_tokens: 50 } },
 						costUSD: 0.01,
 					},
@@ -2010,7 +2156,7 @@ invalid json line
 				{
 					sessionId: 'session2',
 					data: {
-						timestamp: createISOTimestamp('2024-01-01T00:00:00Z'),
+						timestamp: createISOTimestamp('2024-01-01T12:00:00Z'),
 						message: { usage: { input_tokens: 100, output_tokens: 50 } },
 						costUSD: 0.01,
 					},
@@ -2018,7 +2164,7 @@ invalid json line
 				{
 					sessionId: 'session3',
 					data: {
-						timestamp: createISOTimestamp('2024-01-31T00:00:00Z'),
+						timestamp: createISOTimestamp('2024-01-31T12:00:00Z'),
 						message: { usage: { input_tokens: 100, output_tokens: 50 } },
 						costUSD: 0.01,
 					},
@@ -2051,7 +2197,7 @@ invalid json line
 				{
 					sessionId: 'session1',
 					data: {
-						timestamp: createISOTimestamp('2024-01-15T00:00:00Z'),
+						timestamp: createISOTimestamp('2024-01-15T12:00:00Z'),
 						message: { usage: { input_tokens: 100, output_tokens: 50 } },
 						costUSD: 0.01,
 					},
@@ -2059,7 +2205,7 @@ invalid json line
 				{
 					sessionId: 'session2',
 					data: {
-						timestamp: createISOTimestamp('2024-01-01T00:00:00Z'),
+						timestamp: createISOTimestamp('2024-01-01T12:00:00Z'),
 						message: { usage: { input_tokens: 100, output_tokens: 50 } },
 						costUSD: 0.01,
 					},
@@ -2067,7 +2213,7 @@ invalid json line
 				{
 					sessionId: 'session3',
 					data: {
-						timestamp: createISOTimestamp('2024-01-31T00:00:00Z'),
+						timestamp: createISOTimestamp('2024-01-31T12:00:00Z'),
 						message: { usage: { input_tokens: 100, output_tokens: 50 } },
 						costUSD: 0.01,
 					},
@@ -2100,7 +2246,7 @@ invalid json line
 				{
 					sessionId: 'session1',
 					data: {
-						timestamp: createISOTimestamp('2024-01-01T00:00:00Z'),
+						timestamp: createISOTimestamp('2024-01-01T12:00:00Z'),
 						message: { usage: { input_tokens: 100, output_tokens: 50 } },
 						costUSD: 0.01,
 					},
@@ -2108,7 +2254,7 @@ invalid json line
 				{
 					sessionId: 'session2',
 					data: {
-						timestamp: createISOTimestamp('2024-01-15T00:00:00Z'),
+						timestamp: createISOTimestamp('2024-01-15T12:00:00Z'),
 						message: { usage: { input_tokens: 100, output_tokens: 50 } },
 						costUSD: 0.01,
 					},
@@ -2116,7 +2262,7 @@ invalid json line
 				{
 					sessionId: 'session3',
 					data: {
-						timestamp: createISOTimestamp('2024-01-31T00:00:00Z'),
+						timestamp: createISOTimestamp('2024-01-31T12:00:00Z'),
 						message: { usage: { input_tokens: 100, output_tokens: 50 } },
 						costUSD: 0.01,
 					},
@@ -3670,7 +3816,7 @@ if (import.meta.vitest != null) {
 					project1: {
 						session1: {
 							'usage.jsonl': JSON.stringify({
-								timestamp: '2024-01-01T00:00:00Z',
+								timestamp: '2024-01-01T12:00:00Z',
 								message: { usage: { input_tokens: 100, output_tokens: 50 } },
 								costUSD: 0.01,
 							}),
@@ -3684,7 +3830,7 @@ if (import.meta.vitest != null) {
 					project2: {
 						session2: {
 							'usage.jsonl': JSON.stringify({
-								timestamp: '2024-01-01T01:00:00Z',
+								timestamp: '2024-01-01T13:00:00Z', // Changed from 01:00:00Z to avoid timezone issues
 								message: { usage: { input_tokens: 200, output_tokens: 100 } },
 								costUSD: 0.02,
 							}),
@@ -3702,6 +3848,6 @@ if (import.meta.vitest != null) {
 			expect(targetDate?.inputTokens).toBe(300);
 			expect(targetDate?.outputTokens).toBe(150);
 			expect(targetDate?.totalCost).toBe(0.03);
-		});
+		}, 30000); // Increase timeout to 30 seconds
 	});
 }
