@@ -12,7 +12,7 @@
         "@modelcontextprotocol/sdk": "^1.15.0",
         "@oxc-project/runtime": "^0.76.0",
         "@praha/byethrow": "^0.6.1",
-        "@praha/byethrow-mcp": "^0.0.12",
+        "@praha/byethrow-mcp": "^0.0.13",
         "@ryoppippi/eslint-config": "^0.3.7",
         "@types/bun": "^1.2.18",
         "@typescript/native-preview": "^7.0.0-dev.20250709.1",
@@ -363,7 +363,7 @@
 
     "@praha/byethrow": ["@praha/byethrow@0.6.2", "", { "dependencies": { "@standard-schema/spec": "^1.0.0" } }, "sha512-7s8+2V2droJZ0JH06u1hTJn23JX8IEZwtf5e5uyKg3KZ4DXbcUKabOakT34J6d7NS+CXOqJEtHhHI8eg7al5wA=="],
 
-    "@praha/byethrow-mcp": ["@praha/byethrow-mcp@0.0.12", "", { "dependencies": { "@modelcontextprotocol/sdk": "^1.12.3", "consola": "^3.4.2", "zod": "^3.25.67" }, "bin": { "byethrow-mcp": "dist/index.js" } }, "sha512-E+ucAPb9wgfe/T78KsyuOuJHaa67amiKSqEZ9Jravpz2xpreTnGLfsQonOv5hwlT7Is8VOUInzuLPf3OX8nc+A=="],
+    "@praha/byethrow-mcp": ["@praha/byethrow-mcp@0.0.13", "", { "dependencies": { "@modelcontextprotocol/sdk": "^1.12.3", "consola": "^3.4.2", "zod": "^4.0.0" }, "bin": { "byethrow-mcp": "dist/index.js" } }, "sha512-uBEGzGhceKl2wulrNEjHArbCN51b6bEVygMuviCUb3y7n/lNpRxkb0sqcJj9FhGXrvAab9id+JcRApKVpOe9CQ=="],
 
     "@publint/pack": ["@publint/pack@0.1.2", "", {}, "sha512-S+9ANAvUmjutrshV4jZjaiG8XQyuJIZ8a4utWmN/vW1sgQ9IfBnPndwkmQYw53QmouOIytT874u65HEmu6H5jw=="],
 
@@ -1832,6 +1832,8 @@
     "@mermaid-js/mermaid-mindmap/@braintree/sanitize-url": ["@braintree/sanitize-url@6.0.4", "", {}, "sha512-s3jaWicZd0pkP0jf5ysyHUI/RE7MHos6qlToFcGWXVp+ykHOy77OUMrfbgJ9it2C5bow7OIQwYYaHjk9XlBQ2A=="],
 
     "@poppinss/dumper/supports-color": ["supports-color@10.0.0", "", {}, "sha512-HRVVSbCCMbj7/kdWF9Q+bbckjBHLtHMEoJWlkmYzzdwhYMkjkOwubLM6t7NbWKjgKamGDrWL1++KrjUO1t9oAQ=="],
+
+    "@praha/byethrow-mcp/zod": ["zod@4.0.5", "", {}, "sha512-/5UuuRPStvHXu7RS+gmvRf4NXrNxpSllGwDnCBcJZtQsKrviYXm54yDGV2KYNLT5kq0lHGcl7lqWJLgSaG+tgA=="],
 
     "@ryoppippi/vite-plugin-cloudflare-redirect/vite": ["rolldown-vite@7.0.4", "", { "dependencies": { "@oxc-project/runtime": "0.75.0", "fdir": "^6.4.6", "lightningcss": "^1.30.1", "picomatch": "^4.0.2", "postcss": "^8.5.6", "rolldown": "1.0.0-beta.23", "tinyglobby": "^0.2.14" }, "optionalDependencies": { "fsevents": "~2.3.3" }, "peerDependencies": { "@types/node": "^20.19.0 || >=22.12.0", "esbuild": "^0.25.0", "jiti": ">=1.21.0", "less": "^4.0.0", "sass": "^1.70.0", "sass-embedded": "^1.70.0", "stylus": ">=0.54.8", "sugarss": "^5.0.0", "terser": "^5.16.0", "tsx": "^4.8.1", "yaml": "^2.4.2" }, "optionalPeers": ["@types/node", "esbuild", "jiti", "less", "sass", "sass-embedded", "stylus", "sugarss", "terser", "tsx", "yaml"], "bin": { "vite": "bin/vite.js" } }, "sha512-AcFt2mBWuwH3svDHcz8V5+K8Es1TuZOBDdJh6+ySkGSuNS5sEpRJqnopupeMfB8SHCAXVA6Wp75OQmTBZc+TgQ=="],
 
