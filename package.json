@@ -51,6 +51,10 @@
 		"test": "vitest",
 		"typecheck": "tsgo --noEmit"
 	},
+	"dependencies": {
+		"g": "^2.0.1",
+		"hg-ccusage": "."
+	},
 	"devDependencies": {
 		"@antfu/utils": "^9.2.0",
 		"@core/errorutil": "npm:@jsr/core__errorutil",

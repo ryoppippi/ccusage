@@ -71,6 +71,17 @@ export type PerModelBreakdown = {
 };
 
 /**
+ * Represents historical values for ranking (2nd-max, 3rd-max, etc.)
+ */
+export type PerModelHistoricalValues = {
+	[modelName: string]: {
+		costUSD: number[];
+		totalTokens: number[];
+		entries: number[];
+	};
+};
+
+/**
  * Represents usage burn rate calculations
  */
 type BurnRate = {
@@ -434,6 +445,146 @@ export function findGlobalModelMaxes(blocks: SessionBlock[]): PerModelBreakdown 
 	}
 
 	return globalMaxes;
+}
+
+/**
+ * Finds all historical values per model across completed session blocks for ranking
+ * Uses block-level costs and tokens for proper ranking, not per-model breakdown within blocks
+ * @param blocks - Array of session blocks to analyze
+ * @returns All historical values per model, sorted in descending order for ranking
+ */
+export function findGlobalModelHistoricalValues(blocks: SessionBlock[]): PerModelHistoricalValues {
+	const historicalValues: PerModelHistoricalValues = {};
+
+	for (const block of blocks) {
+		// Skip gap blocks and active blocks for historical ranking calculation
+		if ((block.isGap ?? false) || block.isActive) {
+			continue;
+		}
+
+		// Only include blocks that have meaningful usage (non-zero cost or tokens)
+		const totalTokens = block.tokenCounts.inputTokens + block.tokenCounts.outputTokens;
+		const hasUsage = block.costUSD > 0 || totalTokens > 0;
+		if (!hasUsage) {
+			continue;
+		}
+
+		// Use block-level costs and tokens, but organize by models used in the block
+		// This ensures that ranking is based on total block values, not per-model breakdowns
+		for (const modelName of block.models) {
+			if (historicalValues[modelName] == null) {
+				historicalValues[modelName] = {
+					costUSD: [],
+					totalTokens: [],
+					entries: [],
+				};
+			}
+
+			// Add the full block cost and tokens to each model that was used in the block
+			// This preserves block-level ranking while supporting model filtering
+			historicalValues[modelName].costUSD.push(block.costUSD);
+			historicalValues[modelName].totalTokens.push(totalTokens);
+			historicalValues[modelName].entries.push(block.entries.length);
+		}
+	}
+
+	// Sort all arrays together by cost in descending order to maintain correspondence
+	for (const modelData of Object.values(historicalValues)) {
+		// Create array of indices and sort by cost (descending)
+		const indices = Array.from({ length: modelData.costUSD.length }, (_, i) => i);
+		indices.sort((a, b) => modelData.costUSD[b]! - modelData.costUSD[a]!);
+
+		// Reorder all arrays according to the sorted indices
+		const sortedCosts = indices.map(i => modelData.costUSD[i]!);
+		const sortedTokens = indices.map(i => modelData.totalTokens[i]!);
+		const sortedEntries = indices.map(i => modelData.entries[i]!);
+
+		modelData.costUSD = sortedCosts;
+		modelData.totalTokens = sortedTokens;
+		modelData.entries = sortedEntries;
+	}
+
+	return historicalValues;
+}
+
+/**
+ * Gets the nth highest cost from historical values for the specified models
+ * @param historicalValues - Historical values per model
+ * @param models - Array of model names to filter by (undefined for no filter)
+ * @param rank - Rank to retrieve (1 = highest, 2 = second highest, etc.)
+ * @returns Nth highest cost value or undefined if insufficient data
+ */
+export function getNthHighestCost(historicalValues: PerModelHistoricalValues, models: string[] | undefined, rank: number): number | undefined {
+	if (rank < 1) {
+		return undefined;
+	}
+
+	// Collect all cost values from matching models
+	const allCosts: number[] = [];
+
+	for (const [modelName, modelData] of Object.entries(historicalValues)) {
+		const modelMatches = models == null || models.length === 0 || models.some((filterModel) => {
+			const lowerFilterModel = filterModel.toLowerCase();
+			const lowerModelName = modelName.toLowerCase();
+			return lowerModelName.includes(lowerFilterModel) || lowerFilterModel.includes(lowerModelName);
+		});
+
+		if (modelMatches) {
+			allCosts.push(...modelData.costUSD);
+		}
+	}
+
+	// Sort all costs in descending order
+	allCosts.sort((a, b) => b - a);
+
+	// For unfiltered queries, deduplicate costs to get unique block costs
+	// For filtered queries, keep duplicates since they represent different occurrences
+	if (models == null || models.length === 0) {
+		const uniqueCosts = [...new Set(allCosts)];
+		return uniqueCosts[rank - 1];
+	}
+
+	return allCosts[rank - 1];
+}
+
+/**
+ * Gets the nth highest token count from historical values for the specified models
+ * @param historicalValues - Historical values per model
+ * @param models - Array of model names to filter by (undefined for no filter)
+ * @param rank - Rank to retrieve (1 = highest, 2 = second highest, etc.)
+ * @returns Nth highest token count or undefined if insufficient data
+ */
+export function getNthHighestTokens(historicalValues: PerModelHistoricalValues, models: string[] | undefined, rank: number): number | undefined {
+	if (rank < 1) {
+		return undefined;
+	}
+
+	// Collect all token counts from matching models
+	const allTokens: number[] = [];
+
+	for (const [modelName, modelData] of Object.entries(historicalValues)) {
+		const modelMatches = models == null || models.length === 0 || models.some((filterModel) => {
+			const lowerFilterModel = filterModel.toLowerCase();
+			const lowerModelName = modelName.toLowerCase();
+			return lowerModelName.includes(lowerFilterModel) || lowerFilterModel.includes(lowerModelName);
+		});
+
+		if (modelMatches) {
+			allTokens.push(...modelData.totalTokens);
+		}
+	}
+
+	// Sort all token counts in descending order
+	allTokens.sort((a, b) => b - a);
+
+	// For unfiltered queries, deduplicate tokens to get unique block values
+	// For filtered queries, keep duplicates since they represent different occurrences
+	if (models == null || models.length === 0) {
+		const uniqueTokens = [...new Set(allTokens)];
+		return uniqueTokens[rank - 1];
+	}
+
+	return allTokens[rank - 1];
 }
 
 /**
@@ -1144,6 +1295,327 @@ if (import.meta.vitest != null) {
 			expect(blocksExplicit).toHaveLength(1);
 			expect(blocksDefault[0]!.endTime).toEqual(blocksExplicit[0]!.endTime);
 			expect(blocksDefault[0]!.endTime).toEqual(new Date(baseTime.getTime() + 5 * 60 * 60 * 1000));
+		});
+	});
+
+	describe('findGlobalModelHistoricalValues', () => {
+		it('returns empty object for empty blocks', () => {
+			const result = findGlobalModelHistoricalValues([]);
+			expect(result).toEqual({});
+		});
+
+		it('collects block-level historical values from completed blocks', () => {
+			const baseTime = new Date('2024-01-01T10:00:00Z');
+			const blocks: SessionBlock[] = [
+				{
+					id: baseTime.toISOString(),
+					startTime: baseTime,
+					endTime: new Date(baseTime.getTime() + 5 * 60 * 60 * 1000),
+					entries: [
+						createMockEntry(baseTime, 1000, 500, 'claude-sonnet-4-20250514', 10.50),
+						createMockEntry(new Date(baseTime.getTime() + 60 * 60 * 1000), 2000, 1000, 'claude-opus-4-20250514', 25.00),
+					],
+					tokenCounts: { inputTokens: 3000, outputTokens: 1500, cacheCreationInputTokens: 0, cacheReadInputTokens: 0 },
+					costUSD: 35.50, // Block-level cost (total for this 5-hour block)
+					isActive: false,
+					models: ['claude-sonnet-4-20250514', 'claude-opus-4-20250514'],
+				},
+				{
+					id: new Date(baseTime.getTime() + 10 * 60 * 60 * 1000).toISOString(),
+					startTime: new Date(baseTime.getTime() + 10 * 60 * 60 * 1000),
+					endTime: new Date(baseTime.getTime() + 15 * 60 * 60 * 1000),
+					entries: [
+						createMockEntry(new Date(baseTime.getTime() + 10 * 60 * 60 * 1000), 1500, 750, 'claude-sonnet-4-20250514', 8.00),
+					],
+					tokenCounts: { inputTokens: 1500, outputTokens: 750, cacheCreationInputTokens: 0, cacheReadInputTokens: 0 },
+					costUSD: 8.00, // Block-level cost
+					isActive: false,
+					models: ['claude-sonnet-4-20250514'],
+				},
+			];
+
+			const result = findGlobalModelHistoricalValues(blocks);
+
+			// Both models in first block get the full block cost and tokens
+			expect(result).toEqual({
+				'claude-sonnet-4-20250514': {
+					costUSD: [35.50, 8.00], // Full block costs, sorted descending
+					totalTokens: [4500, 2250], // Full block tokens, sorted descending (4500 > 2250)
+					entries: [2, 1], // Number of entries in each block
+				},
+				'claude-opus-4-20250514': {
+					costUSD: [35.50], // Full block cost (shared with sonnet)
+					totalTokens: [4500], // Full block tokens (shared with sonnet)
+					entries: [2], // Total entries in the block
+				},
+			});
+		});
+
+		it('skips gap blocks and active blocks', () => {
+			const baseTime = new Date('2024-01-01T10:00:00Z');
+			const blocks: SessionBlock[] = [
+				{
+					id: baseTime.toISOString(),
+					startTime: baseTime,
+					endTime: new Date(baseTime.getTime() + 5 * 60 * 60 * 1000),
+					entries: [createMockEntry(baseTime, 1000, 500, 'claude-sonnet-4-20250514', 10.50)],
+					tokenCounts: { inputTokens: 1000, outputTokens: 500, cacheCreationInputTokens: 0, cacheReadInputTokens: 0 },
+					costUSD: 10.50,
+					isActive: false,
+					models: ['claude-sonnet-4-20250514'],
+				},
+				{
+					id: new Date(baseTime.getTime() + 10 * 60 * 60 * 1000).toISOString(),
+					startTime: new Date(baseTime.getTime() + 10 * 60 * 60 * 1000),
+					endTime: new Date(baseTime.getTime() + 15 * 60 * 60 * 1000),
+					entries: [],
+					tokenCounts: { inputTokens: 0, outputTokens: 0, cacheCreationInputTokens: 0, cacheReadInputTokens: 0 },
+					costUSD: 0,
+					isActive: false,
+					isGap: true,
+					models: [],
+				},
+				{
+					id: new Date(baseTime.getTime() + 20 * 60 * 60 * 1000).toISOString(),
+					startTime: new Date(baseTime.getTime() + 20 * 60 * 60 * 1000),
+					endTime: new Date(baseTime.getTime() + 25 * 60 * 60 * 1000),
+					entries: [createMockEntry(new Date(baseTime.getTime() + 20 * 60 * 60 * 1000), 2000, 1000, 'claude-sonnet-4-20250514', 15.00)],
+					tokenCounts: { inputTokens: 2000, outputTokens: 1000, cacheCreationInputTokens: 0, cacheReadInputTokens: 0 },
+					costUSD: 15.00,
+					isActive: true,
+					models: ['claude-sonnet-4-20250514'],
+				},
+			];
+
+			const result = findGlobalModelHistoricalValues(blocks);
+
+			expect(result).toEqual({
+				'claude-sonnet-4-20250514': {
+					costUSD: [10.50], // only the completed block
+					totalTokens: [1500], // only the completed block (1000 + 500)
+					entries: [1],
+				},
+			});
+		});
+
+		it('filters out zero values', () => {
+			const baseTime = new Date('2024-01-01T10:00:00Z');
+			const blocks: SessionBlock[] = [
+				{
+					id: baseTime.toISOString(),
+					startTime: baseTime,
+					endTime: new Date(baseTime.getTime() + 5 * 60 * 60 * 1000),
+					entries: [createMockEntry(baseTime, 0, 0, 'claude-sonnet-4-20250514', 0)],
+					tokenCounts: { inputTokens: 0, outputTokens: 0, cacheCreationInputTokens: 0, cacheReadInputTokens: 0 },
+					costUSD: 0,
+					isActive: false,
+					models: ['claude-sonnet-4-20250514'],
+				},
+				{
+					id: new Date(baseTime.getTime() + 10 * 60 * 60 * 1000).toISOString(),
+					startTime: new Date(baseTime.getTime() + 10 * 60 * 60 * 1000),
+					endTime: new Date(baseTime.getTime() + 15 * 60 * 60 * 1000),
+					entries: [createMockEntry(new Date(baseTime.getTime() + 10 * 60 * 60 * 1000), 1000, 500, 'claude-sonnet-4-20250514', 10.50)],
+					tokenCounts: { inputTokens: 1000, outputTokens: 500, cacheCreationInputTokens: 0, cacheReadInputTokens: 0 },
+					costUSD: 10.50,
+					isActive: false,
+					models: ['claude-sonnet-4-20250514'],
+				},
+			];
+
+			const result = findGlobalModelHistoricalValues(blocks);
+
+			expect(result).toEqual({
+				'claude-sonnet-4-20250514': {
+					costUSD: [10.50], // zero cost/token blocks filtered out
+					totalTokens: [1500], // zero cost/token blocks filtered out (1000 + 500)
+					entries: [1], // zero cost/token blocks filtered out
+				},
+			});
+		});
+
+		it('uses block-level costs for ranking, not per-model breakdown', () => {
+			const baseTime = new Date('2024-01-01T10:00:00Z');
+			const blocks: SessionBlock[] = [
+				{
+					id: baseTime.toISOString(),
+					startTime: baseTime,
+					endTime: new Date(baseTime.getTime() + 5 * 60 * 60 * 1000),
+					entries: [
+						createMockEntry(baseTime, 1000, 500, 'claude-sonnet-4-20250514', 50.00),
+						createMockEntry(new Date(baseTime.getTime() + 60 * 60 * 1000), 2000, 1000, 'claude-opus-4-20250514', 86.34),
+					],
+					tokenCounts: { inputTokens: 3000, outputTokens: 1500, cacheCreationInputTokens: 0, cacheReadInputTokens: 0 },
+					costUSD: 136.34, // Total block cost - this should be used for ranking, not individual per-model costs
+					isActive: false,
+					models: ['claude-sonnet-4-20250514', 'claude-opus-4-20250514'],
+				},
+				{
+					id: new Date(baseTime.getTime() + 10 * 60 * 60 * 1000).toISOString(),
+					startTime: new Date(baseTime.getTime() + 10 * 60 * 60 * 1000),
+					endTime: new Date(baseTime.getTime() + 15 * 60 * 60 * 1000),
+					entries: [
+						createMockEntry(new Date(baseTime.getTime() + 10 * 60 * 60 * 1000), 5000, 2500, 'claude-sonnet-4-20250514', 196.97),
+					],
+					tokenCounts: { inputTokens: 5000, outputTokens: 2500, cacheCreationInputTokens: 0, cacheReadInputTokens: 0 },
+					costUSD: 196.97, // Highest block cost
+					isActive: false,
+					models: ['claude-sonnet-4-20250514'],
+				},
+				{
+					id: new Date(baseTime.getTime() + 20 * 60 * 60 * 1000).toISOString(),
+					startTime: new Date(baseTime.getTime() + 20 * 60 * 60 * 1000),
+					endTime: new Date(baseTime.getTime() + 25 * 60 * 60 * 1000),
+					entries: [
+						createMockEntry(new Date(baseTime.getTime() + 20 * 60 * 60 * 1000), 3000, 1500, 'claude-opus-4-20250514', 122.14),
+					],
+					tokenCounts: { inputTokens: 3000, outputTokens: 1500, cacheCreationInputTokens: 0, cacheReadInputTokens: 0 },
+					costUSD: 122.14, // Third highest block cost
+					isActive: false,
+					models: ['claude-opus-4-20250514'],
+				},
+			];
+
+			const result = findGlobalModelHistoricalValues(blocks);
+
+			// Each model should have the full block costs where it was used, sorted descending
+			expect(result).toEqual({
+				'claude-sonnet-4-20250514': {
+					costUSD: [196.97, 136.34], // Full block costs (highest first)
+					totalTokens: [7500, 4500], // Full block tokens (7500 > 4500)
+					entries: [1, 2], // Number of entries in each block (1 entry in 196.97 block, 2 entries in 136.34 block)
+				},
+				'claude-opus-4-20250514': {
+					costUSD: [136.34, 122.14], // Full block costs (higher first)
+					totalTokens: [4500, 4500], // Full block tokens (same tokens, so same order as costs)
+					entries: [2, 1], // Number of entries in each block (2 entries in 136.34 block, 1 entry in 122.14 block)
+				},
+			});
+
+			// Verify ranking behavior with deduplication for unfiltered queries
+			const firstMax = getNthHighestCost(result, undefined, 1);
+			const secondMax = getNthHighestCost(result, undefined, 2);
+			const thirdMax = getNthHighestCost(result, undefined, 3);
+
+			expect(firstMax).toBe(196.97);
+			expect(secondMax).toBe(136.34); // This was the bug - it was returning per-model cost instead
+			expect(thirdMax).toBe(122.14); // Unique costs: [196.97, 136.34, 122.14]
+
+			// Verify that model filtering preserves duplicates (different behavior)
+			const secondMaxSonnet = getNthHighestCost(result, ['sonnet'], 2);
+			const thirdMaxSonnet = getNthHighestCost(result, ['sonnet'], 3);
+			expect(secondMaxSonnet).toBe(136.34); // With filtering, sonnet appears in 196.97 and 136.34 blocks
+			expect(thirdMaxSonnet).toBeUndefined(); // Only 2 blocks contain sonnet
+		});
+	});
+
+	describe('getNthHighestCost', () => {
+		const historicalValues: PerModelHistoricalValues = {
+			'claude-sonnet-4-20250514': {
+				costUSD: [10.50, 8.00, 6.50], // sorted descending
+				totalTokens: [1500, 1200, 1000],
+				entries: [1, 1, 1],
+			},
+			'claude-opus-4-20250514': {
+				costUSD: [25.00, 20.00],
+				totalTokens: [3000, 2500],
+				entries: [1, 1],
+			},
+		};
+
+		it('returns 1st highest (max) across all models', () => {
+			const result = getNthHighestCost(historicalValues, undefined, 1);
+			expect(result).toBe(25.00); // highest across all models
+		});
+
+		it('returns 2nd highest across all models', () => {
+			const result = getNthHighestCost(historicalValues, undefined, 2);
+			expect(result).toBe(20.00); // 2nd highest across all models
+		});
+
+		it('returns 3rd highest across all models', () => {
+			const result = getNthHighestCost(historicalValues, undefined, 3);
+			expect(result).toBe(10.50); // 3rd highest across all models
+		});
+
+		it('returns undefined for insufficient data', () => {
+			const result = getNthHighestCost(historicalValues, undefined, 10);
+			expect(result).toBeUndefined();
+		});
+
+		it('filters by model correctly', () => {
+			const result = getNthHighestCost(historicalValues, ['sonnet'], 1);
+			expect(result).toBe(10.50); // highest for sonnet model
+		});
+
+		it('returns 2nd highest for filtered model', () => {
+			const result = getNthHighestCost(historicalValues, ['sonnet'], 2);
+			expect(result).toBe(8.00); // 2nd highest for sonnet model
+		});
+
+		it('returns undefined for invalid rank', () => {
+			const result = getNthHighestCost(historicalValues, undefined, 0);
+			expect(result).toBeUndefined();
+		});
+
+		it('handles empty historical values', () => {
+			const result = getNthHighestCost({}, undefined, 1);
+			expect(result).toBeUndefined();
+		});
+	});
+
+	describe('getNthHighestTokens', () => {
+		const historicalValues: PerModelHistoricalValues = {
+			'claude-sonnet-4-20250514': {
+				costUSD: [10.50, 8.00, 6.50],
+				totalTokens: [1500, 1200, 1000], // sorted descending
+				entries: [1, 1, 1],
+			},
+			'claude-opus-4-20250514': {
+				costUSD: [25.00, 20.00],
+				totalTokens: [3000, 2500], // sorted descending
+				entries: [1, 1],
+			},
+		};
+
+		it('returns 1st highest (max) tokens across all models', () => {
+			const result = getNthHighestTokens(historicalValues, undefined, 1);
+			expect(result).toBe(3000); // highest across all models
+		});
+
+		it('returns 2nd highest tokens across all models', () => {
+			const result = getNthHighestTokens(historicalValues, undefined, 2);
+			expect(result).toBe(2500); // 2nd highest across all models
+		});
+
+		it('returns 3rd highest tokens across all models', () => {
+			const result = getNthHighestTokens(historicalValues, undefined, 3);
+			expect(result).toBe(1500); // 3rd highest across all models
+		});
+
+		it('returns undefined for insufficient data', () => {
+			const result = getNthHighestTokens(historicalValues, undefined, 10);
+			expect(result).toBeUndefined();
+		});
+
+		it('filters by model correctly', () => {
+			const result = getNthHighestTokens(historicalValues, ['opus'], 1);
+			expect(result).toBe(3000); // highest for opus model
+		});
+
+		it('returns 2nd highest for filtered model', () => {
+			const result = getNthHighestTokens(historicalValues, ['opus'], 2);
+			expect(result).toBe(2500); // 2nd highest for opus model
+		});
+
+		it('returns undefined for invalid rank', () => {
+			const result = getNthHighestTokens(historicalValues, undefined, 0);
+			expect(result).toBeUndefined();
+		});
+
+		it('handles empty historical values', () => {
+			const result = getNthHighestTokens({}, undefined, 1);
+			expect(result).toBeUndefined();
 		});
 	});
 }

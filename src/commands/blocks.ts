@@ -1,4 +1,4 @@
-import type { SessionBlock } from '../_session-blocks.ts';
+import type { PerModelHistoricalValues, SessionBlock } from '../_session-blocks.ts';
 import process from 'node:process';
 import { define } from 'gunshi';
 import pc from 'picocolors';
@@ -7,9 +7,9 @@ import {
 	calculateBurnRate,
 	DEFAULT_SESSION_DURATION_HOURS,
 	filterRecentBlocks,
-	findGlobalModelMaxes,
-	getModelCostLimit,
-	getModelTokenLimit,
+	findGlobalModelHistoricalValues,
+	getNthHighestCost,
+	getNthHighestTokens,
 	projectBlockUsage,
 
 } from '../_session-blocks.ts';
@@ -90,39 +90,63 @@ function formatModels(models: string[]): string {
 }
 
 /**
- * Parses token limit argument, supporting 'max' keyword
+ * Parses token limit argument, supporting 'max' and ranking patterns like '2nd-max', '3rd-max'
  * @param value - Token limit string value
- * @param maxFromAll - Maximum token count found in all blocks
+ * @param historicalValues - Historical values per model for ranking
+ * @param models - Array of model names to filter by (undefined for no filter)
  * @returns Parsed token limit or undefined if invalid
  */
-function parseTokenLimit(value: string | undefined, maxFromAll: number): number | undefined {
+function parseTokenLimit(value: string | undefined, historicalValues: PerModelHistoricalValues, models?: string[]): number | undefined {
 	if (value == null || value === '') {
 		return undefined;
 	}
 
+	// Handle 'max' keyword (1st highest)
 	if (value === 'max') {
-		return maxFromAll > 0 ? maxFromAll : undefined;
+		return getNthHighestTokens(historicalValues, models, 1);
 	}
 
+	// Handle ranking patterns like '2nd-max', '3rd-max', '10th-max'
+	const rankMatch = value.match(/^(\d+)(?:st|nd|rd|th)-max$/);
+	if (rankMatch != null && rankMatch[1] != null) {
+		const rank = Number.parseInt(rankMatch[1], 10);
+		if (rank >= 1) {
+			return getNthHighestTokens(historicalValues, models, rank);
+		}
+	}
+
+	// Handle numeric values
 	const limit = Number.parseInt(value, 10);
 	return Number.isNaN(limit) ? undefined : limit;
 }
 
 /**
- * Parses cost limit argument, supporting 'max' keyword
+ * Parses cost limit argument, supporting 'max' and ranking patterns like '2nd-max', '3rd-max'
  * @param value - Cost limit string value
- * @param maxFromAll - Maximum cost found in all blocks
+ * @param historicalValues - Historical values per model for ranking
+ * @param models - Array of model names to filter by (undefined for no filter)
  * @returns Parsed cost limit or undefined if invalid
  */
-function parseCostLimit(value: string | undefined, maxFromAll: number): number | undefined {
+function parseCostLimit(value: string | undefined, historicalValues: PerModelHistoricalValues, models?: string[]): number | undefined {
 	if (value == null || value === '') {
 		return undefined;
 	}
 
+	// Handle 'max' keyword (1st highest)
 	if (value === 'max') {
-		return maxFromAll > 0 ? maxFromAll : undefined;
+		return getNthHighestCost(historicalValues, models, 1);
 	}
 
+	// Handle ranking patterns like '2nd-max', '3rd-max', '10th-max'
+	const rankMatch = value.match(/^(\d+)(?:st|nd|rd|th)-max$/);
+	if (rankMatch != null && rankMatch[1] != null) {
+		const rank = Number.parseInt(rankMatch[1], 10);
+		if (rank >= 1) {
+			return getNthHighestCost(historicalValues, models, rank);
+		}
+	}
+
+	// Handle numeric values
 	const limit = Number.parseFloat(value);
 	return Number.isNaN(limit) ? undefined : limit;
 }
@@ -161,12 +185,12 @@ export const blocksCommand = define({
 		tokenLimit: {
 			type: 'string',
 			short: 't',
-			description: 'Token limit for quota warnings (e.g., 500000 or "max")',
+			description: 'Token limit for quota warnings (e.g., 500000, "max", "2nd-max", "3rd-max")',
 		},
 		costLimit: {
 			type: 'string',
 			short: 'c',
-			description: 'Cost limit for quota warnings (e.g., 5.50 or "max")',
+			description: 'Cost limit for quota warnings (e.g., 5.50, "max", "2nd-max", "3rd-max")',
 		},
 		sessionLength: {
 			type: 'number',
@@ -213,27 +237,29 @@ export const blocksCommand = define({
 			// No model filtering for limit calculations
 		});
 
-		// Calculate per-model maxes from ALL blocks (unfiltered data)
-		const globalModelMaxes = findGlobalModelMaxes(allBlocks);
+		// Calculate per-model historical values from ALL blocks (unfiltered data) for ranking
+		const globalModelHistoricalValues = findGlobalModelHistoricalValues(allBlocks);
 		const modelFilter = parseModelFilter(ctx.values.model);
 
-		// Calculate max tokens using per-model analysis
-		let maxTokensFromAll = 0;
-		if (ctx.values.tokenLimit === 'max') {
-			maxTokensFromAll = getModelTokenLimit(globalModelMaxes, modelFilter);
-			if (ctx.values.json !== true && maxTokensFromAll > 0) {
+		// Calculate token limit using ranking analysis
+		let tokenLimitFromRanking: number | undefined;
+		if (ctx.values.tokenLimit != null) {
+			tokenLimitFromRanking = parseTokenLimit(ctx.values.tokenLimit, globalModelHistoricalValues, modelFilter);
+			if (ctx.values.json !== true && tokenLimitFromRanking != null && tokenLimitFromRanking > 0) {
 				const modelText = modelFilter != null ? ` for ${modelFilter.join(', ')} model(s)` : ' across all models';
-				logger.info(`Using max tokens from previous sessions${modelText}: ${formatNumber(maxTokensFromAll)}`);
+				const rankText = ctx.values.tokenLimit === 'max' ? 'max' : ctx.values.tokenLimit;
+				logger.info(`Using ${rankText} tokens from previous sessions${modelText}: ${formatNumber(tokenLimitFromRanking)}`);
 			}
 		}
 
-		// Calculate max cost using per-model analysis
-		let maxCostFromAll = 0;
-		if (ctx.values.costLimit === 'max') {
-			maxCostFromAll = getModelCostLimit(globalModelMaxes, modelFilter);
-			if (ctx.values.json !== true && maxCostFromAll > 0) {
+		// Calculate cost limit using ranking analysis
+		let costLimitFromRanking: number | undefined;
+		if (ctx.values.costLimit != null) {
+			costLimitFromRanking = parseCostLimit(ctx.values.costLimit, globalModelHistoricalValues, modelFilter);
+			if (ctx.values.json !== true && costLimitFromRanking != null && costLimitFromRanking > 0) {
 				const modelText = modelFilter != null ? ` for ${modelFilter.join(', ')} model(s)` : ' across all models';
-				logger.info(`Using max cost from previous sessions${modelText}: $${maxCostFromAll.toFixed(2)}`);
+				const rankText = ctx.values.costLimit === 'max' ? 'max' : ctx.values.costLimit;
+				logger.info(`Using ${rankText} cost from previous sessions${modelText}: $${costLimitFromRanking.toFixed(2)}`);
 			}
 		}
 
@@ -295,8 +321,8 @@ export const blocksCommand = define({
 
 			if (tokenLimitValue == null && costLimitValue == null) {
 				tokenLimitValue = 'max';
-				if (maxTokensFromAll > 0) {
-					logger.info(`No limit specified, using token limit max from previous sessions: ${formatNumber(maxTokensFromAll)}`);
+				if (tokenLimitFromRanking != null && tokenLimitFromRanking > 0) {
+					logger.info(`No limit specified, using token limit max from previous sessions: ${formatNumber(tokenLimitFromRanking)}`);
 				}
 			}
 			else if (tokenLimitValue == null || tokenLimitValue === '') {
@@ -305,8 +331,8 @@ export const blocksCommand = define({
 				}
 				else {
 					tokenLimitValue = 'max';
-					if (maxTokensFromAll > 0) {
-						logger.info(`No token limit specified, using max from previous sessions: ${formatNumber(maxTokensFromAll)}`);
+					if (tokenLimitFromRanking != null && tokenLimitFromRanking > 0) {
+						logger.info(`No token limit specified, using max from previous sessions: ${formatNumber(tokenLimitFromRanking)}`);
 					}
 				}
 			}
@@ -326,8 +352,8 @@ export const blocksCommand = define({
 
 			await startLiveMonitoring({
 				claudePath: paths[0]!,
-				tokenLimit: parseTokenLimit(tokenLimitValue, maxTokensFromAll),
-				costLimit: parseCostLimit(costLimitValue, maxCostFromAll),
+				tokenLimit: parseTokenLimit(tokenLimitValue, globalModelHistoricalValues, modelFilter),
+				costLimit: parseCostLimit(costLimitValue, globalModelHistoricalValues, modelFilter),
 				refreshInterval: refreshInterval * 1000, // Convert to milliseconds
 				sessionDurationHours: ctx.values.sessionLength,
 				mode: ctx.values.mode,
@@ -362,7 +388,7 @@ export const blocksCommand = define({
 						projection,
 						tokenLimitStatus: projection != null && ctx.values.tokenLimit != null
 							? (() => {
-									const limit = parseTokenLimit(ctx.values.tokenLimit, maxTokensFromAll);
+									const limit = parseTokenLimit(ctx.values.tokenLimit, globalModelHistoricalValues, modelFilter);
 									return limit != null
 										? {
 												limit,
@@ -424,7 +450,7 @@ export const blocksCommand = define({
 
 					if (ctx.values.tokenLimit != null) {
 						// Parse token limit
-						const limit = parseTokenLimit(ctx.values.tokenLimit, maxTokensFromAll);
+						const limit = parseTokenLimit(ctx.values.tokenLimit, globalModelHistoricalValues, modelFilter);
 						if (limit != null && limit > 0) {
 							const currentTokens = block.tokenCounts.inputTokens + block.tokenCounts.outputTokens;
 							const remainingTokens = Math.max(0, limit - currentTokens);
@@ -449,7 +475,7 @@ export const blocksCommand = define({
 				logger.box('Claude Code Token Usage Report - Session Blocks');
 
 				// Calculate token limit if "max" is specified
-				const actualTokenLimit = parseTokenLimit(ctx.values.tokenLimit, maxTokensFromAll);
+				const actualTokenLimit = parseTokenLimit(ctx.values.tokenLimit, globalModelHistoricalValues, modelFilter);
 
 				const tableHeaders = ['Block Start', 'Duration/Status', 'Models', 'Tokens'];
 				const tableAligns: ('left' | 'right' | 'center')[] = ['left', 'left', 'left', 'right'];
