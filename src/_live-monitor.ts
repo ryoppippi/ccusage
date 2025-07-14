@@ -29,7 +29,7 @@ import { PricingFetcher } from './pricing-fetcher.ts';
  * Configuration for live monitoring
  */
 export type LiveMonitorConfig = {
-	claudePath: string;
+	claudePaths: string[];
 	sessionDurationHours: number;
 	mode: CostMode;
 	order: SortOrder;
@@ -65,19 +65,26 @@ export class LiveMonitor implements Disposable {
 	 * Only reads new or modified files since last check
 	 */
 	async getActiveBlock(): Promise<SessionBlock | null> {
-		const claudeDir = path.join(this.config.claudePath, CLAUDE_PROJECTS_DIR_NAME);
-		const files = await glob([USAGE_DATA_GLOB_PATTERN], {
-			cwd: claudeDir,
-			absolute: true,
-		});
+		const allFiles: string[] = [];
 
-		if (files.length === 0) {
+		// Collect files from all Claude directories
+		for (const claudePath of this.config.claudePaths) {
+			const claudeDir = path.join(claudePath, CLAUDE_PROJECTS_DIR_NAME);
+			const files = await glob([USAGE_DATA_GLOB_PATTERN], {
+				cwd: claudeDir,
+				absolute: true,
+			}).catch(() => []);
+
+			allFiles.push(...files);
+		}
+
+		if (allFiles.length === 0) {
 			return null;
 		}
 
 		// Check for new or modified files
 		const filesToRead: string[] = [];
-		for (const file of files) {
+		for (const file of allFiles) {
 			const timestamp = await getEarliestTimestamp(file);
 			const lastTimestamp = this.lastFileTimestamps.get(file);
 
@@ -208,7 +215,7 @@ if (import.meta.vitest != null) {
 			tempDir = fixture.path;
 
 			monitor = new LiveMonitor({
-				claudePath: tempDir,
+				claudePaths: [tempDir],
 				sessionDurationHours: 5,
 				mode: 'display',
 				order: 'desc',
@@ -247,7 +254,7 @@ if (import.meta.vitest != null) {
 			const emptyFixture = await createFixture({});
 
 			const emptyMonitor = new LiveMonitor({
-				claudePath: emptyFixture.path,
+				claudePaths: [emptyFixture.path],
 				sessionDurationHours: 5,
 				mode: 'display',
 				order: 'desc',

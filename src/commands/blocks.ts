@@ -240,7 +240,7 @@ export const blocksCommand = define({
 			}
 
 			await startLiveMonitoring({
-				claudePath: paths[0]!,
+				claudePaths: paths,
 				tokenLimit: parseTokenLimit(tokenLimitValue, maxTokensFromAll),
 				refreshInterval: refreshInterval * 1000, // Convert to milliseconds
 				sessionDurationHours: ctx.values.sessionLength,

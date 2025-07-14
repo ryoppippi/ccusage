@@ -47,7 +47,7 @@ export async function startLiveMonitoring(config: LiveMonitoringConfig): Promise
 
 	// Create live monitor with efficient data loading
 	using monitor = new LiveMonitor({
-		claudePath: config.claudePath,
+		claudePaths: config.claudePaths,
 		sessionDurationHours: config.sessionDurationHours,
 		mode: config.mode,
 		order: config.order,

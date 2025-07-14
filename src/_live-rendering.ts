@@ -42,7 +42,7 @@ function getRateIndicator(burnRate: ReturnType<typeof calculateBurnRate>): strin
  * Live monitoring configuration
  */
 export type LiveMonitoringConfig = {
-	claudePath: string;
+	claudePaths: string[];
 	tokenLimit?: number;
 	refreshInterval: number;
 	sessionDurationHours: number;
