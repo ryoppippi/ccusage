@@ -94,11 +94,7 @@ function formatModels(models: string[]): string {
  * @returns Parsed token limit or undefined if invalid
  */
 function parseTokenLimit(value: string | undefined, maxFromAll: number): number | undefined {
-	if (value == null || value === '') {
-		return undefined;
-	}
-
-	if (value === 'max') {
+	if (value == null || value === '' || value === 'max') {
 		return maxFromAll > 0 ? maxFromAll : undefined;
 	}
 
@@ -178,7 +174,7 @@ export const blocksCommand = define({
 
 		// Calculate max tokens from ALL blocks before applying filters
 		let maxTokensFromAll = 0;
-		if (ctx.values.tokenLimit === 'max') {
+		if (ctx.values.tokenLimit === 'max' || ctx.values.tokenLimit == null || ctx.values.tokenLimit === '') {
 			for (const block of blocks) {
 				if (!(block.isGap ?? false) && !block.isActive) {
 					const blockTokens = getTotalTokens(block.tokenCounts);
