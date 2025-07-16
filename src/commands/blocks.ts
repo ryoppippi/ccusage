@@ -262,9 +262,7 @@ export const blocksCommand = define({
 						isGap: block.isGap ?? false,
 						entries: block.entries.length,
 						tokenCounts: block.tokenCounts,
-						totalTokens:
-							block.tokenCounts.inputTokens
-							+ block.tokenCounts.outputTokens,
+						totalTokens: getTotalTokens(block.tokenCounts),
 						costUSD: block.costUSD,
 						models: block.models,
 						burnRate,
