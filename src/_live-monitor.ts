@@ -65,18 +65,14 @@ export class LiveMonitor implements Disposable {
 	 * Only reads new or modified files since last check
 	 */
 	async getActiveBlock(): Promise<SessionBlock | null> {
-		const allFiles: string[] = [];
-
-		// Collect files from all Claude directories
-		for (const claudePath of this.config.claudePaths) {
+		const filePromises = this.config.claudePaths.map(async (claudePath) => {
 			const claudeDir = path.join(claudePath, CLAUDE_PROJECTS_DIR_NAME);
-			const files = await glob([USAGE_DATA_GLOB_PATTERN], {
+			return glob([USAGE_DATA_GLOB_PATTERN], {
 				cwd: claudeDir,
 				absolute: true,
-			}).catch(() => []);
-
-			allFiles.push(...files);
-		}
+			}).catch(() => []); // Gracefully handle errors for individual paths
+		});
+		const allFiles = (await Promise.all(filePromises)).flat();
 
 		if (allFiles.length === 0) {
 			return null;
