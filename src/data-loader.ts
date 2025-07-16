@@ -421,16 +421,32 @@ function extractUniqueModels<T>(
 }
 
 /**
+ * Shared method for formatting dates with proper timezone handling
+ * @param dateStr - Input date string
+ * @param twoLine - Whether to format as two lines (true) or single line (false)
+ * @returns Formatted date string
+ */
+function formatDateInternal(dateStr: string, twoLine: boolean): string {
+	const date = new Date(dateStr);
+	
+	// Detect if the string includes UTC indicator (Z) or timezone offset (±HH:MM)
+	const hasTimezone = /Z|[+-]\d{2}:\d{2}/.test(dateStr);
+	
+	// Use UTC getters if timezone is specified, otherwise use local getters
+	const year = hasTimezone ? date.getUTCFullYear() : date.getFullYear();
+	const month = String(hasTimezone ? date.getUTCMonth() + 1 : date.getMonth() + 1).padStart(2, '0');
+	const day = String(hasTimezone ? date.getUTCDate() : date.getDate()).padStart(2, '0');
+	
+	return twoLine ? `${year}\n${month}-${day}` : `${year}-${month}-${day}`;
+}
+
+/**
  * Formats a date string to YYYY-MM-DD format
  * @param dateStr - Input date string
  * @returns Formatted date string in YYYY-MM-DD format
  */
 export function formatDate(dateStr: string): string {
-	const date = new Date(dateStr);
-	const year = date.getUTCFullYear();
-	const month = String(date.getUTCMonth() + 1).padStart(2, '0');
-	const day = String(date.getUTCDate()).padStart(2, '0');
-	return `${year}-${month}-${day}`;
+	return formatDateInternal(dateStr, false);
 }
 
 /**
@@ -439,11 +455,7 @@ export function formatDate(dateStr: string): string {
  * @returns Formatted date string with newline separator (YYYY\nMM-DD)
  */
 export function formatDateCompact(dateStr: string): string {
-	const date = new Date(dateStr);
-	const year = date.getUTCFullYear();
-	const month = String(date.getUTCMonth() + 1).padStart(2, '0');
-	const day = String(date.getUTCDate()).padStart(2, '0');
-	return `${year}\n${month}-${day}`;
+	return formatDateInternal(dateStr, true);
 }
 
 /**
@@ -1142,16 +1154,30 @@ export async function loadSessionBlockData(
 
 if (import.meta.vitest != null) {
 	describe('formatDate', () => {
-		it('formats UTC timestamp to local date', () => {
-		// Test with UTC timestamps - results depend on local timezone
+		it('formats UTC timestamps using UTC date', () => {
+			// UTC timestamps should always use UTC date regardless of local timezone
 			expect(formatDate('2024-01-01T00:00:00Z')).toBe('2024-01-01');
 			expect(formatDate('2024-12-31T23:59:59Z')).toBe('2024-12-31');
+			expect(formatDate('2024-01-01T12:00:00.000Z')).toBe('2024-01-01');
 		});
 
-		it('handles various date formats', () => {
-			expect(formatDate('2024-01-01')).toBe('2024-01-01');
-			expect(formatDate('2024-01-01T12:00:00')).toBe('2024-01-01');
-			expect(formatDate('2024-01-01T12:00:00.000Z')).toBe('2024-01-01');
+		it('formats timezone offset strings using UTC date', () => {
+			// Strings with timezone offsets should use UTC date
+			expect(formatDate('2024-01-01T00:00:00+00:00')).toBe('2024-01-01');
+			expect(formatDate('2024-01-01T00:00:00-05:00')).toBe('2024-01-01');
+			expect(formatDate('2024-12-31T23:59:59+08:00')).toBe('2024-12-31');
+		});
+
+		it('formats local date strings using local date', () => {
+			// Without timezone indicator, should use local date interpretation
+			const localDate = new Date('2024-01-01T12:00:00');
+			const expectedYear = localDate.getFullYear();
+			const expectedMonth = String(localDate.getMonth() + 1).padStart(2, '0');
+			const expectedDay = String(localDate.getDate()).padStart(2, '0');
+			const expected = `${expectedYear}-${expectedMonth}-${expectedDay}`;
+			
+			expect(formatDate('2024-01-01')).toBe(expected);
+			expect(formatDate('2024-01-01T12:00:00')).toBe(expected);
 		});
 
 		it('pads single digit months and days', () => {
@@ -1161,15 +1187,30 @@ if (import.meta.vitest != null) {
 	});
 
 	describe('formatDateCompact', () => {
-		it('formats UTC timestamp to local date with line break', () => {
+		it('formats UTC timestamps using UTC date with line break', () => {
+			// UTC timestamps should always use UTC date regardless of local timezone
 			expect(formatDateCompact('2024-01-01T00:00:00Z')).toBe('2024\n01-01');
+			expect(formatDateCompact('2024-12-31T23:59:59Z')).toBe('2024\n12-31');
+			expect(formatDateCompact('2024-01-01T12:00:00.000Z')).toBe('2024\n01-01');
 		});
 
-		it('handles various date formats', () => {
-			expect(formatDateCompact('2024-12-31T23:59:59Z')).toBe('2024\n12-31');
-			expect(formatDateCompact('2024-01-01')).toBe('2024\n01-01');
-			expect(formatDateCompact('2024-01-01T12:00:00')).toBe('2024\n01-01');
-			expect(formatDateCompact('2024-01-01T12:00:00.000Z')).toBe('2024\n01-01');
+		it('formats timezone offset strings using UTC date with line break', () => {
+			// Strings with timezone offsets should use UTC date
+			expect(formatDateCompact('2024-01-01T00:00:00+00:00')).toBe('2024\n01-01');
+			expect(formatDateCompact('2024-01-01T00:00:00-05:00')).toBe('2024\n01-01');
+			expect(formatDateCompact('2024-12-31T23:59:59+08:00')).toBe('2024\n12-31');
+		});
+
+		it('formats local date strings using local date with line break', () => {
+			// Without timezone indicator, should use local date interpretation
+			const localDate = new Date('2024-01-01T12:00:00');
+			const expectedYear = localDate.getFullYear();
+			const expectedMonth = String(localDate.getMonth() + 1).padStart(2, '0');
+			const expectedDay = String(localDate.getDate()).padStart(2, '0');
+			const expected = `${expectedYear}\n${expectedMonth}-${expectedDay}`;
+			
+			expect(formatDateCompact('2024-01-01')).toBe(expected);
+			expect(formatDateCompact('2024-01-01T12:00:00')).toBe(expected);
 		});
 
 		it('pads single digit months and days', () => {
