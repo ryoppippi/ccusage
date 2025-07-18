@@ -1,6 +1,7 @@
 import process from 'node:process';
 import { define } from 'gunshi';
 import pc from 'picocolors';
+import { i18n } from '../_i18n.ts';
 import { sharedCommandConfig } from '../_shared-args.ts';
 import { formatCurrency, formatModelsDisplayMultiline, formatNumber, pushBreakdownRows, ResponsiveTable } from '../_utils.ts';
 import {
@@ -10,13 +11,16 @@ import {
 } from '../calculate-cost.ts';
 import { formatDateCompact, loadDailyUsageData } from '../data-loader.ts';
 import { detectMismatches, printMismatchReport } from '../debug.ts';
-import { log, logger } from '../logger.ts';
+import { log, logger, loggerHelpers } from '../logger.ts';
 
 export const dailyCommand = define({
 	name: 'daily',
-	description: 'Show usage report grouped by date',
+	get description() { return i18n.t('commands.descriptions.daily'); },
 	...sharedCommandConfig,
 	async run(ctx) {
+		// Initialize i18n with CLI language argument
+		i18n.initialize(ctx.values.lang);
+
 		if (ctx.values.json) {
 			logger.level = 0;
 		}
@@ -34,7 +38,7 @@ export const dailyCommand = define({
 				log(JSON.stringify([]));
 			}
 			else {
-				logger.warn('No Claude usage data found.');
+				loggerHelpers.warnNoData();
 			}
 			process.exit(0);
 		}
@@ -68,19 +72,19 @@ export const dailyCommand = define({
 		}
 		else {
 			// Print header
-			logger.box('Claude Code Token Usage Report - Daily');
+			logger.box(i18n.t('reports.headers.daily'));
 
 			// Create table with compact mode support
 			const table = new ResponsiveTable({
 				head: [
-					'Date',
-					'Models',
-					'Input',
-					'Output',
-					'Cache Create',
-					'Cache Read',
-					'Total Tokens',
-					'Cost (USD)',
+					i18n.t('reports.columns.date'),
+					i18n.t('reports.columns.models'),
+					i18n.t('reports.columns.input'),
+					i18n.t('reports.columns.output'),
+					i18n.t('reports.columns.cacheCreate'),
+					i18n.t('reports.columns.cacheRead'),
+					i18n.t('reports.columns.totalTokens'),
+					i18n.t('reports.columns.costUSD'),
 				],
 				style: {
 					head: ['cyan'],
@@ -97,11 +101,11 @@ export const dailyCommand = define({
 				],
 				dateFormatter: formatDateCompact,
 				compactHead: [
-					'Date',
-					'Models',
-					'Input',
-					'Output',
-					'Cost (USD)',
+					i18n.t('reports.columns.date'),
+					i18n.t('reports.columns.models'),
+					i18n.t('reports.columns.input'),
+					i18n.t('reports.columns.output'),
+					i18n.t('reports.columns.costUSD'),
 				],
 				compactColAligns: [
 					'left',

@@ -1,0 +1,142 @@
+{
+	"commands": {
+		"descriptions": {
+			"daily": "Mostrar informe diario de uso de tokens de Claude Code",
+			"monthly": "Mostrar informe mensual de uso de tokens de Claude Code",
+			"session": "Mostrar uso de tokens de Claude Code por sesión",
+			"blocks": "Mostrar uso de tokens de Claude Code en bloques de sesión con monitoreo en vivo",
+			"mcp": "Iniciar servidor MCP para integración con Claude Desktop"
+		},
+		"args": {
+			"since": "Filtrar desde fecha (formato YYYYMMDD)",
+			"until": "Filtrar hasta fecha (formato YYYYMMDD)",
+			"json": "Salida en formato JSON",
+			"mode": "Modo de cálculo de costos: auto (usar costUSD si existe, sino calcular), calculate (siempre calcular), display (siempre usar costUSD)",
+			"debug": "Mostrar información de discrepancia de precios para depuración",
+			"debugSamples": "Número de muestras de discrepancias a mostrar en la salida de depuración",
+			"order": "Orden de clasificación: desc (más reciente primero) o asc (más antiguo primero)",
+			"breakdown": "Mostrar desglose de costos por modelo",
+			"offline": "Usar datos de precios en caché para modelos Claude en lugar de obtener desde la API",
+			"color": "Habilitar salida coloreada (por defecto: auto). FORCE_COLOR=1 tiene el mismo efecto.",
+			"noColor": "Deshabilitar salida coloreada (por defecto: auto). NO_COLOR=1 tiene el mismo efecto.",
+			"lang": "Idioma para salida CLI e informes (auto: detectar desde el entorno)"
+		}
+	},
+	"reports": {
+		"headers": {
+			"daily": "Informe de uso de tokens de Claude Code - Diario",
+			"monthly": "Informe de uso de tokens de Claude Code - Mensual",
+			"session": "Informe de uso de tokens de Claude Code - Por sesión",
+			"blocks": "Informe de uso de tokens de Claude Code - Bloques de sesión"
+		},
+		"columns": {
+			"date": "Fecha",
+			"month": "Mes",
+			"session": "Sesión",
+			"block": "Bloque",
+			"model": "Modelo",
+			"models": "Modelos",
+			"input": "Entrada",
+			"output": "Salida",
+			"cacheCreate": "Crear Cache",
+			"cacheRead": "Leer Cache",
+			"inputTokens": "Tokens de entrada",
+			"outputTokens": "Tokens de salida",
+			"totalTokens": "Tokens totales",
+			"cost": "Costo",
+			"costUSD": "Costo (USD)",
+			"timestamp": "Marca de tiempo",
+			"duration": "Duración",
+			"status": "Estado",
+			"elapsed": "transcurrido",
+			"remaining": "restante",
+			"lastActivity": "Última actividad",
+			"blockStart": "Inicio del bloque",
+			"durationStatus": "Duración/Estado"
+		}
+	},
+	"messages": {
+		"errors": {
+			"noData": "No se encontraron datos de uso de Claude",
+			"invalidDate": "Formato de fecha inválido",
+			"translationNotFound": "Traducción no encontrada",
+			"loadingTranslations": "Error al cargar traducciones",
+			"failedToLoadOfflinePricing": "Error al cargar datos de precios sin conexión",
+			"failedToLoadCachedPricing": "Error al cargar datos de precios en caché como respaldo",
+			"failedToFetchPricing": "Error al obtener precios de modelos desde LiteLLM",
+			"failedToFetchPricingData": "Error al obtener datos de precios: {statusText}",
+			"failedToParsePricing": "Error al analizar datos de precios",
+			"noValidClaudeDir": "No se encontró directorio de datos de Claude válido",
+			"translationFileNotFound": "Archivo de traducción no encontrado para configuración regional '{locale}', volviendo al inglés",
+			"errorLoadingTranslations": "Error al cargar traducciones para configuración regional '{locale}'",
+			"errorLoadingFallback": "Error al cargar traducciones de respaldo",
+			"invalidLocale": "[ccusage] Configuración regional inválida: {locale}. Volviendo al inglés."
+		},
+		"info": {
+			"fetchingPricing": "Obteniendo datos de precios...",
+			"pricingLoaded": "Datos de precios cargados para {0} modelos",
+			"detectedLocale": "Configuración regional detectada: {0}",
+			"usingFallback": "Usando configuración regional de respaldo: {0}"
+		},
+		"status": {
+			"active": "activo",
+			"gap": "pausa",
+			"elapsed": "transcurrido",
+			"remaining": "restante",
+			"initializing": "Inicializando...",
+			"monitoring": "Monitoreando...",
+			"completed": "Completado"
+		}
+	},
+	"live": {
+		"title": "CLAUDE CODE - MONITOR DE USO DE TOKENS EN VIVO",
+		"labels": {
+			"session": "Sesión",
+			"model": "Modelo",
+			"tokens": "Tokens",
+			"cost": "Costo",
+			"time": "Hora",
+			"status": "Estado",
+			"total": "Total",
+			"current": "Actual",
+			"average": "Promedio",
+			"lastUpdate": "Última actualización",
+			"refresh": "Actualizar",
+			"pause": "Pausar",
+			"resume": "Reanudar",
+			"stop": "Detener"
+		}
+	},
+	"pricing": {
+		"fetchingFromLiteLLM": "Obteniendo los últimos precios de modelos desde LiteLLM...",
+		"loadedModels": "Precios cargados para {count} modelos",
+		"fallbackToCached": "Error al obtener precios desde LiteLLM, usando datos en caché",
+		"usingCachedPricing": "Usando datos de precios en caché para {count} modelos"
+	},
+	"debug": {
+		"noPricingData": "No se encontraron datos de precios para analizar.",
+		"reportTitle": "Informe de depuración de discrepancias de precios",
+		"totalEntriesProcessed": "Entradas totales procesadas: {count}",
+		"entriesWithBoth": "Entradas con costUSD y modelo: {count}",
+		"matchesWithinThreshold": "Coincidencias (dentro del 0,1%): {count}",
+		"mismatches": "Discrepancias: {count}",
+		"matchRate": "Tasa de coincidencia: {rate}%",
+		"modelStatistics": "Estadísticas por modelo",
+		"versionStatistics": "Estadísticas por versión",
+		"sampleDiscrepancies": "Muestra de discrepancias (primeros {count})",
+		"totalEntries": "Entradas totales: {count}",
+		"matches": "Coincidencias: {count} ({rate}%)",
+		"avgPercentDiff": "Diferencia % promedio: {diff}%",
+		"file": "Archivo: {file}",
+		"timestamp": "Marca de tiempo: {timestamp}",
+		"model": "Modelo: {model}",
+		"originalCost": "Costo original: ${cost}",
+		"calculatedCost": "Costo calculado: ${cost}",
+		"difference": "Diferencia: ${diff} ({percent}%)",
+		"tokens": "Tokens: {tokens}"
+	},
+	"warnings": {
+		"compactHeaderNotFound": "Advertencia: Encabezado compacto \"{header}\" no encontrado en encabezados de tabla [{headers}]. Usando primera columna por defecto.",
+		"failedToGetTimestamp": "Error al obtener marca de tiempo más antigua para {file}"
+	}
+}

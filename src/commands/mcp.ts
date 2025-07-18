@@ -1,6 +1,7 @@
 import { serve } from '@hono/node-server';
 import { define } from 'gunshi';
 import { MCP_DEFAULT_PORT } from '../_consts.ts';
+import { i18n } from '../_i18n.ts';
 import { sharedArgs } from '../_shared-args.ts';
 import { getClaudePaths } from '../data-loader.ts';
 import { logger } from '../logger.ts';
@@ -12,7 +13,7 @@ import { createMcpHttpApp, createMcpServer, startMcpServerStdio } from '../mcp.t
  */
 export const mcpCommand = define({
 	name: 'mcp',
-	description: 'Start MCP server with usage reporting tools',
+	get description() { return i18n.t('commands.descriptions.mcp'); },
 	args: {
 		mode: sharedArgs.mode,
 		type: {
@@ -27,8 +28,12 @@ export const mcpCommand = define({
 			description: `Port for HTTP transport (default: ${MCP_DEFAULT_PORT})`,
 			default: MCP_DEFAULT_PORT,
 		},
+		lang: sharedArgs.lang,
 	},
 	async run(ctx) {
+		// Initialize i18n with CLI language argument
+		i18n.initialize(ctx.values.lang);
+
 		const { type, mode, port } = ctx.values;
 		// disable info logging for stdio
 		if (type === 'stdio') {
@@ -37,8 +42,8 @@ export const mcpCommand = define({
 
 		const paths = getClaudePaths();
 		if (paths.length === 0) {
-			logger.error('No valid Claude data directory found');
-			throw new Error('No valid Claude data directory found');
+			logger.error(i18n.t('messages.errors.noValidClaudeDir'));
+			throw new Error(i18n.t('messages.errors.noValidClaudeDir'));
 		}
 
 		const options = {

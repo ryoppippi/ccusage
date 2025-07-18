@@ -13,7 +13,8 @@
 		"resolveJsonModule": true,
 		"types": [
 			"vitest/globals",
-			"vitest/importMeta"
+			"vitest/importMeta",
+			"node"
 		],
 		"allowImportingTsExtensions": true,
 		"allowJs": true,

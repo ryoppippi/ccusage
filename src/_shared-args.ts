@@ -1,5 +1,6 @@
 import type { Args } from 'gunshi';
 import type { CostMode, SortOrder } from './_types.ts';
+import { i18n } from './_i18n.ts';
 import { CostModes, filterDateSchema, SortOrders } from './_types.ts';
 
 /**
@@ -11,7 +12,7 @@ import { CostModes, filterDateSchema, SortOrders } from './_types.ts';
 function parseDateArg(value: string): string {
 	const result = filterDateSchema.safeParse(value);
 	if (!result.success) {
-		throw new TypeError(result.error.issues[0]?.message ?? 'Invalid date format');
+		throw new TypeError(result.error.issues[0]?.message ?? i18n.t('messages.errors.invalidDate'));
 	}
 	return result.data;
 }
@@ -85,6 +86,13 @@ export const sharedArgs = {
 	noColor: { // --no-color and NO_COLOR=1 is handled by picocolors
 		type: 'boolean',
 		description: 'Disable colored output (default: auto). NO_COLOR=1 has the same effect.',
+	},
+	lang: {
+		type: 'enum',
+		short: 'l',
+		description: 'Language for CLI output and reports (auto: detect from environment)',
+		default: 'auto' as const,
+		choices: ['auto', 'en', 'fr', 'es', 'de', 'ja', 'zh'] as const,
 	},
 } as const satisfies Args;
 
