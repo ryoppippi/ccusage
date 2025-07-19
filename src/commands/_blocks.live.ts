@@ -54,7 +54,7 @@ export async function startLiveMonitoring(config: LiveMonitoringConfig): Promise
 	});
 
 	const monitoringResult = await Result.try({
-		try: async (): Promise<void> => {
+		try: async () => {
 			while (!abortController.signal.aborted) {
 				const now = Date.now();
 				const timeSinceLastRender = now - lastRenderTime;
@@ -82,7 +82,7 @@ export async function startLiveMonitoring(config: LiveMonitoringConfig): Promise
 				await delayWithAbort(config.refreshInterval, abortController.signal);
 			}
 		},
-		catch: (error: unknown) => error,
+		catch: error => error,
 	})();
 
 	if (Result.isFailure(monitoringResult)) {

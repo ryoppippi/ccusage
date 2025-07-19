@@ -127,7 +127,7 @@ export class LiveMonitor implements Disposable {
 					}
 
 					// Calculate cost if needed
-					const costUSD: number = await (this.config.mode === 'display'
+					const costUSD = await (this.config.mode === 'display'
 						? Promise.resolve(data.costUSD ?? 0)
 						: calculateCostForEntry(
 								data,

@@ -41,13 +41,13 @@ export const DEBUG_MATCH_THRESHOLD_PERCENT = 0.1;
  * User's home directory path
  * Centralized access to OS home directory for consistent path building
  */
-export const USER_HOME_DIR: string = homedir();
+export const USER_HOME_DIR = homedir();
 
 /**
  * XDG config directory path
  * Uses XDG_CONFIG_HOME if set, otherwise falls back to ~/.config
  */
-const XDG_CONFIG_DIR: string = xdgConfig ?? `${USER_HOME_DIR}/.config`;
+const XDG_CONFIG_DIR = xdgConfig ?? `${USER_HOME_DIR}/.config`;
 
 /**
  * Default Claude data directory path (~/.claude)

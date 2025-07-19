@@ -1,5 +1,6 @@
 import type { DailyProjectOutput } from './_json-output-types.ts';
 import type { loadDailyUsageData } from './data-loader.ts';
+import { createDailyDate, createModelName } from './_types.ts';
 import { getTotalTokens } from './calculate-cost.ts';
 
 /**
@@ -56,11 +57,6 @@ export function groupDataByProject(dailyData: DailyData): Record<string, DailyDa
 }
 
 if (import.meta.vitest != null) {
-	const { describe, it, expect } = import.meta.vitest;
-
-	// eslint-disable-next-line antfu/no-top-level-await
-	const { createDailyDate, createModelName } = await import('./_types.ts');
-
 	describe('groupByProject', () => {
 		it('groups daily data by project for JSON output', () => {
 			const mockData = [

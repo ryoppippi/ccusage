@@ -65,7 +65,7 @@ import {
  * @returns Array of valid Claude data directory paths
  */
 export function getClaudePaths(): string[] {
-	const paths: string[] = [];
+	const paths = [];
 	const normalizedPaths = new Set<string>();
 
 	// Check environment variable first (supports comma-separated paths)
@@ -751,7 +751,7 @@ export async function loadDailyUsageData(
 
 	// Filter by project if specified
 	const projectFilteredFiles = filterByProject(
-		allFiles,
+		fileList,
 		filePath => extractProjectFromPath(filePath),
 		options?.project,
 	);
