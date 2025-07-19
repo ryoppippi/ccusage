@@ -8,6 +8,7 @@ import {
 	DEFAULT_SESSION_DURATION_HOURS,
 	filterRecentBlocks,
 	projectBlockUsage,
+
 } from '../_session-blocks.ts';
 import { sharedCommandConfig } from '../_shared-args.ts';
 import { getTotalTokens } from '../_token-utils.ts';
@@ -380,7 +381,6 @@ export const blocksCommand = define({
 				const terminalWidth = process.stdout.columns || BLOCKS_DEFAULT_TERMINAL_WIDTH;
 				const useCompactFormat = terminalWidth < BLOCKS_COMPACT_WIDTH_THRESHOLD;
 
-				// Add block data
 				for (const block of blocks) {
 					if (block.isGap ?? false) {
 						// Gap row
