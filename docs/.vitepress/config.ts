@@ -136,6 +136,9 @@ export default withMermaid(defineConfig({
             mode: "generate",
             entries: [
                 { from: '/raycast', to: 'https://www.raycast.com/nyatinte/ccusage', status: 302 },
+                { from: '/gh', to: 'https://github.com/ryoppippi/ccusage', status: 302 },
+                { from: '/npm', to: 'https://www.npmjs.com/package/ccusage', status: 302 },
+                { from: '/deepwiki', to: 'https://deepwiki.com/ryoppippi/ccusage', status: 302 },
             ]
         }),
 			groupIconVitePlugin(),

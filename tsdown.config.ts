@@ -29,4 +29,5 @@ export default defineConfig({
 	define: {
 		'import.meta.vitest': 'undefined',
 	},
+	onSuccess: 'sort-package-json',
 });

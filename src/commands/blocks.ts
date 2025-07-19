@@ -93,11 +93,7 @@ function formatModels(models: string[]): string {
  * @returns Parsed token limit or undefined if invalid
  */
 function parseTokenLimit(value: string | undefined, maxFromAll: number): number | undefined {
-	if (value == null || value === '') {
-		return undefined;
-	}
-
-	if (value === 'max') {
+	if (value == null || value === '' || value === 'max') {
 		return maxFromAll > 0 ? maxFromAll : undefined;
 	}
 
@@ -177,7 +173,7 @@ export const blocksCommand = define({
 
 		// Calculate max tokens from ALL blocks before applying filters
 		let maxTokensFromAll = 0;
-		if (ctx.values.tokenLimit === 'max') {
+		if (ctx.values.tokenLimit === 'max' || ctx.values.tokenLimit == null || ctx.values.tokenLimit === '') {
 			for (const block of blocks) {
 				if (!(block.isGap ?? false) && !block.isActive) {
 					const blockTokens = getTotalTokens(block.tokenCounts);
@@ -239,7 +235,7 @@ export const blocksCommand = define({
 			}
 
 			await startLiveMonitoring({
-				claudePath: paths[0]!,
+				claudePaths: paths,
 				tokenLimit: parseTokenLimit(tokenLimitValue, maxTokensFromAll),
 				refreshInterval: refreshInterval * 1000, // Convert to milliseconds
 				sessionDurationHours: ctx.values.sessionLength,
@@ -265,9 +261,7 @@ export const blocksCommand = define({
 						isGap: block.isGap ?? false,
 						entries: block.entries.length,
 						tokenCounts: block.tokenCounts,
-						totalTokens:
-								block.tokenCounts.inputTokens
-								+ block.tokenCounts.outputTokens,
+						totalTokens: getTotalTokens(block.tokenCounts),
 						costUSD: block.costUSD,
 						models: block.models,
 						burnRate,

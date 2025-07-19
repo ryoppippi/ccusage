@@ -460,16 +460,32 @@ function extractUniqueModels<T>(
 }
 
 /**
+ * Shared method for formatting dates with proper timezone handling
+ * @param dateStr - Input date string
+ * @param twoLine - Whether to format as two lines (true) or single line (false)
+ * @returns Formatted date string
+ */
+function formatDateInternal(dateStr: string, twoLine: boolean): string {
+	const date = new Date(dateStr);
+
+	// Detect if the string includes UTC indicator (Z) or timezone offset (±HH:MM)
+	const hasTimezone = /Z|[+-]\d{2}:\d{2}/.test(dateStr);
+
+	// Use UTC getters if timezone is specified, otherwise use local getters
+	const year = hasTimezone ? date.getUTCFullYear() : date.getFullYear();
+	const month = String(hasTimezone ? date.getUTCMonth() + 1 : date.getMonth() + 1).padStart(2, '0');
+	const day = String(hasTimezone ? date.getUTCDate() : date.getDate()).padStart(2, '0');
+
+	return twoLine ? `${year}\n${month}-${day}` : `${year}-${month}-${day}`;
+}
+
+/**
  * Formats a date string to YYYY-MM-DD format
  * @param dateStr - Input date string
  * @returns Formatted date string in YYYY-MM-DD format
  */
 export function formatDate(dateStr: string): string {
-	const date = new Date(dateStr);
-	const year = date.getFullYear();
-	const month = String(date.getMonth() + 1).padStart(2, '0');
-	const day = String(date.getDate()).padStart(2, '0');
-	return `${year}-${month}-${day}`;
+	return formatDateInternal(dateStr, false);
 }
 
 /**
@@ -478,11 +494,7 @@ export function formatDate(dateStr: string): string {
  * @returns Formatted date string with newline separator (YYYY\nMM-DD)
  */
 export function formatDateCompact(dateStr: string): string {
-	const date = new Date(dateStr);
-	const year = date.getFullYear();
-	const month = String(date.getMonth() + 1).padStart(2, '0');
-	const day = String(date.getDate()).padStart(2, '0');
-	return `${year}\n${month}-${day}`;
+	return formatDateInternal(dateStr, true);
 }
 
 /**
@@ -670,6 +682,33 @@ export function getUsageLimitResetTime(data: UsageData): Date | null {
 }
 
 /**
+ * Result of glob operation with base directory information
+ */
+export type GlobResult = {
+	file: string;
+	baseDir: string;
+};
+
+/**
+ * Glob files from multiple Claude paths in parallel
+ * @param claudePaths - Array of Claude base paths
+ * @returns Array of file paths with their base directories
+ */
+export async function globUsageFiles(claudePaths: string[]): Promise<GlobResult[]> {
+	const filePromises = claudePaths.map(async (claudePath) => {
+		const claudeDir = path.join(claudePath, CLAUDE_PROJECTS_DIR_NAME);
+		const files = await glob([USAGE_DATA_GLOB_PATTERN], {
+			cwd: claudeDir,
+			absolute: true,
+		}).catch(() => []); // Gracefully handle errors for individual paths
+
+		// Map each file to include its base directory
+		return files.map(file => ({ file, baseDir: claudeDir }));
+	});
+	return (await Promise.all(filePromises)).flat();
+}
+
+/**
  * Date range filter for limiting usage data by date
  */
 export type DateFilter = {
@@ -702,18 +741,11 @@ export async function loadDailyUsageData(
 	// Get all Claude paths or use the specific one from options
 	const claudePaths = toArray(options?.claudePath ?? getClaudePaths());
 
-	// Collect files from all paths
-	const allFiles: string[] = [];
-	for (const claudePath of claudePaths) {
-		const claudeDir = path.join(claudePath, CLAUDE_PROJECTS_DIR_NAME);
-		const files = await glob([USAGE_DATA_GLOB_PATTERN], {
-			cwd: claudeDir,
-			absolute: true,
-		});
-		allFiles.push(...files);
-	}
+	// Collect files from all paths in parallel
+	const allFiles = await globUsageFiles(claudePaths);
+	const fileList = allFiles.map(f => f.file);
 
-	if (allFiles.length === 0) {
+	if (fileList.length === 0) {
 		return [];
 	}
 
@@ -861,19 +893,8 @@ export async function loadSessionData(
 	// Get all Claude paths or use the specific one from options
 	const claudePaths = toArray(options?.claudePath ?? getClaudePaths());
 
-	// Collect files from all paths with their base directories
-	const filesWithBase: Array<{ file: string; baseDir: string }> = [];
-	for (const claudePath of claudePaths) {
-		const claudeDir = path.join(claudePath, CLAUDE_PROJECTS_DIR_NAME);
-		const files = await glob([USAGE_DATA_GLOB_PATTERN], {
-			cwd: claudeDir,
-			absolute: true,
-		});
-		// Store each file with its base directory for later session extraction
-		for (const file of files) {
-			filesWithBase.push({ file, baseDir: claudeDir });
-		}
-	}
+	// Collect files from all paths with their base directories in parallel
+	const filesWithBase = await globUsageFiles(claudePaths);
 
 	if (filesWithBase.length === 0) {
 		return [];
@@ -1257,31 +1278,30 @@ export async function loadSessionBlockData(
 
 if (import.meta.vitest != null) {
 	describe('formatDate', () => {
-		it('formats UTC timestamp to local date', () => {
-			// Test with UTC timestamps - results depend on local timezone
-			// Instead of hardcoding expected values, test the format pattern
-			const result1 = formatDate('2024-01-01T00:00:00Z');
-			const result2 = formatDate('2024-12-31T23:59:59Z');
-
-			// Should be in YYYY-MM-DD format
-			expect(result1).toMatch(/^\d{4}-\d{2}-\d{2}$/);
-			expect(result2).toMatch(/^\d{4}-\d{2}-\d{2}$/);
-
-			// Year should be 2023 or 2024 depending on timezone
-			expect(['2023-12-31', '2024-01-01']).toContain(result1);
-			expect(['2024-12-31', '2025-01-01']).toContain(result2);
+		it('formats UTC timestamps using UTC date', () => {
+			// UTC timestamps should always use UTC date regardless of local timezone
+			expect(formatDate('2024-01-01T00:00:00Z')).toBe('2024-01-01');
+			expect(formatDate('2024-12-31T23:59:59Z')).toBe('2024-12-31');
+			expect(formatDate('2024-01-01T12:00:00.000Z')).toBe('2024-01-01');
 		});
 
-		it('handles various date formats', () => {
-			// Date-only strings might be interpreted as UTC midnight
-			const dateOnlyResult = formatDate('2024-01-01');
-			expect(['2023-12-31', '2024-01-01']).toContain(dateOnlyResult);
+		it('formats timezone offset strings using UTC date', () => {
+			// Strings with timezone offsets should use UTC date
+			expect(formatDate('2024-01-01T00:00:00+00:00')).toBe('2024-01-01');
+			expect(formatDate('2024-01-01T00:00:00-05:00')).toBe('2024-01-01');
+			expect(formatDate('2024-12-31T23:59:59+08:00')).toBe('2024-12-31');
+		});
 
-			// Local timestamps should preserve the date
-			expect(formatDate('2024-01-01T12:00:00')).toBe('2024-01-01');
+		it('formats local date strings using local date', () => {
+			// Without timezone indicator, should use local date interpretation
+			const localDate = new Date('2024-01-01T12:00:00');
+			const expectedYear = localDate.getFullYear();
+			const expectedMonth = String(localDate.getMonth() + 1).padStart(2, '0');
+			const expectedDay = String(localDate.getDate()).padStart(2, '0');
+			const expected = `${expectedYear}-${expectedMonth}-${expectedDay}`;
 
-			// UTC noon should be same date in all timezones
-			expect(formatDate('2024-01-01T12:00:00.000Z')).toBe('2024-01-01');
+			expect(formatDate('2024-01-01')).toBe(expected);
+			expect(formatDate('2024-01-01T12:00:00')).toBe(expected);
 		});
 
 		it('pads single digit months and days', () => {
@@ -1292,28 +1312,30 @@ if (import.meta.vitest != null) {
 	});
 
 	describe('formatDateCompact', () => {
-		it('formats UTC timestamp to local date with line break', () => {
-			const result = formatDateCompact('2024-01-01T00:00:00Z');
-			// Should be in YYYY\nMM-DD format
-			expect(result).toMatch(/^\d{4}\n\d{2}-\d{2}$/);
-			// Could be 2023\n12-31 or 2024\n01-01 depending on timezone
-			expect(['2023\n12-31', '2024\n01-01']).toContain(result);
+		it('formats UTC timestamps using UTC date with line break', () => {
+			// UTC timestamps should always use UTC date regardless of local timezone
+			expect(formatDateCompact('2024-01-01T00:00:00Z')).toBe('2024\n01-01');
+			expect(formatDateCompact('2024-12-31T23:59:59Z')).toBe('2024\n12-31');
+			expect(formatDateCompact('2024-01-01T12:00:00.000Z')).toBe('2024\n01-01');
 		});
 
-		it('handles various date formats', () => {
-			const result = formatDateCompact('2024-12-31T23:59:59Z');
-			expect(result).toMatch(/^\d{4}\n\d{2}-\d{2}$/);
-			expect(['2024\n12-31', '2025\n01-01']).toContain(result);
+		it('formats timezone offset strings using UTC date with line break', () => {
+			// Strings with timezone offsets should use UTC date
+			expect(formatDateCompact('2024-01-01T00:00:00+00:00')).toBe('2024\n01-01');
+			expect(formatDateCompact('2024-01-01T00:00:00-05:00')).toBe('2024\n01-01');
+			expect(formatDateCompact('2024-12-31T23:59:59+08:00')).toBe('2024\n12-31');
+		});
 
-			// Date-only strings might be interpreted as UTC midnight
-			const dateOnlyResult = formatDateCompact('2024-01-01');
-			expect(['2023\n12-31', '2024\n01-01']).toContain(dateOnlyResult);
+		it('formats local date strings using local date with line break', () => {
+			// Without timezone indicator, should use local date interpretation
+			const localDate = new Date('2024-01-01T12:00:00');
+			const expectedYear = localDate.getFullYear();
+			const expectedMonth = String(localDate.getMonth() + 1).padStart(2, '0');
+			const expectedDay = String(localDate.getDate()).padStart(2, '0');
+			const expected = `${expectedYear}\n${expectedMonth}-${expectedDay}`;
 
-			// Local timestamps should preserve the date
-			expect(formatDateCompact('2024-01-01T12:00:00')).toBe('2024\n01-01');
-
-			// UTC noon should be same date in all timezones
-			expect(formatDateCompact('2024-01-01T12:00:00.000Z')).toBe('2024\n01-01');
+			expect(formatDateCompact('2024-01-01')).toBe(expected);
+			expect(formatDateCompact('2024-01-01T12:00:00')).toBe(expected);
 		});
 
 		it('pads single digit months and days', () => {
@@ -3849,5 +3871,73 @@ if (import.meta.vitest != null) {
 			expect(targetDate?.outputTokens).toBe(150);
 			expect(targetDate?.totalCost).toBe(0.03);
 		}, 30000); // Increase timeout to 30 seconds
+	});
+
+	describe('globUsageFiles', () => {
+		it('should glob files from multiple paths in parallel with base directories', async () => {
+			await using fixture = await createFixture({
+				'path1/projects/project1/session1/usage.jsonl': 'data1',
+				'path2/projects/project2/session2/usage.jsonl': 'data2',
+				'path3/projects/project3/session3/usage.jsonl': 'data3',
+			});
+
+			const paths = [
+				path.join(fixture.path, 'path1'),
+				path.join(fixture.path, 'path2'),
+				path.join(fixture.path, 'path3'),
+			];
+
+			const results = await globUsageFiles(paths);
+
+			expect(results).toHaveLength(3);
+			expect(results.some(r => r.file.includes('project1'))).toBe(true);
+			expect(results.some(r => r.file.includes('project2'))).toBe(true);
+			expect(results.some(r => r.file.includes('project3'))).toBe(true);
+
+			// Check base directories are included
+			const result1 = results.find(r => r.file.includes('project1'));
+			expect(result1?.baseDir).toContain('path1/projects');
+		});
+
+		it('should handle errors gracefully and return empty array for failed paths', async () => {
+			await using fixture = await createFixture({
+				'valid/projects/project1/session1/usage.jsonl': 'data1',
+			});
+
+			const paths = [
+				path.join(fixture.path, 'valid'),
+				path.join(fixture.path, 'nonexistent'), // This path doesn't exist
+			];
+
+			const results = await globUsageFiles(paths);
+
+			expect(results).toHaveLength(1);
+			expect(results.at(0)?.file).toContain('project1');
+		});
+
+		it('should return empty array when no files found', async () => {
+			await using fixture = await createFixture({
+				'empty/projects': {}, // Empty directory
+			});
+
+			const paths = [path.join(fixture.path, 'empty')];
+			const results = await globUsageFiles(paths);
+
+			expect(results).toEqual([]);
+		});
+
+		it('should handle multiple files from same base directory', async () => {
+			await using fixture = await createFixture({
+				'path1/projects/project1/session1/usage.jsonl': 'data1',
+				'path1/projects/project1/session2/usage.jsonl': 'data2',
+				'path1/projects/project2/session1/usage.jsonl': 'data3',
+			});
+
+			const paths = [path.join(fixture.path, 'path1')];
+			const results = await globUsageFiles(paths);
+
+			expect(results).toHaveLength(3);
+			expect(results.every(r => r.baseDir.includes('path1/projects'))).toBe(true);
+		});
 	});
 }

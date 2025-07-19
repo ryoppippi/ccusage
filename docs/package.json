@@ -16,15 +16,15 @@
   },
   "devDependencies": {
     "@ryoppippi/vite-plugin-cloudflare-redirect": "npm:@jsr/ryoppippi__vite-plugin-cloudflare-redirect",
-    "@types/bun": "^1.2.17",
+    "@types/bun": "^1.2.18",
     "tinyglobby": "^0.2.14",
     "typedoc": "^0.28.7",
     "typedoc-plugin-markdown": "^4.7.0",
     "typedoc-vitepress-theme": "^1.1.2",
     "vitepress": "^1.6.3",
     "vitepress-plugin-group-icons": "^1.6.1",
-    "vitepress-plugin-llms": "^1.6.0",
+    "vitepress-plugin-llms": "^1.7.0",
     "vitepress-plugin-mermaid": "^2.0.17",
-    "wrangler": "^4.23.0"
+    "wrangler": "^4.24.3"
   }
 }
