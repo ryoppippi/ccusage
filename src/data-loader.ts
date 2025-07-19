@@ -551,22 +551,20 @@ export async function getEarliestTimestamp(filePath: string): Promise<Date | nul
 				continue;
 			}
 
-			const parseResult = Result.try({
-				try: () => JSON.parse(line) as Record<string, unknown>,
-				catch: error => new Error('Failed to parse JSON', { cause: error }),
-			})();
-			if (Result.isFailure(parseResult)) {
-				// Skip invalid JSON lines
-				continue;
-			}
-			const json = parseResult.value;
-			if (json.timestamp != null && typeof json.timestamp === 'string') {
-				const date = new Date(json.timestamp);
-				if (!Number.isNaN(date.getTime())) {
-					if (earliestDate == null || date < earliestDate) {
-						earliestDate = date;
+			try {
+				const json = JSON.parse(line) as Record<string, unknown>;
+				if (json.timestamp != null && typeof json.timestamp === 'string') {
+					const date = new Date(json.timestamp);
+					if (!Number.isNaN(date.getTime())) {
+						if (earliestDate == null || date < earliestDate) {
+							earliestDate = date;
+						}
 					}
 				}
+			}
+			catch {
+				// Skip invalid JSON lines
+				continue;
 			}
 		}
 
@@ -630,11 +628,7 @@ export async function calculateCostForEntry(
 	if (mode === 'calculate') {
 		// Always calculate from tokens
 		if (data.message.model != null) {
-			const costResult = await fetcher.calculateCostFromTokens(data.message.usage, data.message.model);
-			if (Result.isFailure(costResult)) {
-				return 0;
-			}
-			return costResult.value;
+			return Result.unwrap(fetcher.calculateCostFromTokens(data.message.usage, data.message.model), 0);
 		}
 		return 0;
 	}
@@ -646,11 +640,7 @@ export async function calculateCostForEntry(
 		}
 
 		if (data.message.model != null) {
-			const costResult = await fetcher.calculateCostFromTokens(data.message.usage, data.message.model);
-			if (Result.isFailure(costResult)) {
-				return 0;
-			}
-			return costResult.value;
+			return Result.unwrap(fetcher.calculateCostFromTokens(data.message.usage, data.message.model), 0);
 		}
 
 		return 0;
@@ -779,42 +769,39 @@ export async function loadDailyUsageData(
 			.filter(line => line.length > 0);
 
 		for (const line of lines) {
-			const parseResult = Result.try({
-				try: () => JSON.parse(line) as unknown,
-				catch: error => new Error('Failed to parse JSON', { cause: error }),
-			})();
-			if (Result.isFailure(parseResult)) {
+			try {
+				const parsed = JSON.parse(line) as unknown;
+				const result = usageDataSchema.safeParse(parsed);
+				if (!result.success) {
+					continue;
+				}
+				const data = result.data;
+
+				// Check for duplicate message + request ID combination
+				const uniqueHash = createUniqueHash(data);
+				if (isDuplicateEntry(uniqueHash, processedHashes)) {
+					// Skip duplicate message
+					continue;
+				}
+
+				// Mark this combination as processed
+				markAsProcessed(uniqueHash, processedHashes);
+
+				const date = formatDate(data.timestamp);
+				// If fetcher is available, calculate cost based on mode and tokens
+				// If fetcher is null, use pre-calculated costUSD or default to 0
+				const cost = fetcher != null
+					? await calculateCostForEntry(data, mode, fetcher)
+					: data.costUSD ?? 0;
+
+				// Extract project name from file path
+				const project = extractProjectFromPath(file);
+
+				allEntries.push({ data, date, cost, model: data.message.model, project });
+			}
+			catch {
 				// Skip invalid JSON lines
-				continue;
 			}
-			const parsed = parseResult.value;
-			const result = usageDataSchema.safeParse(parsed);
-			if (!result.success) {
-				continue;
-			}
-			const data = result.data;
-
-			// Check for duplicate message + request ID combination
-			const uniqueHash = createUniqueHash(data);
-			if (isDuplicateEntry(uniqueHash, processedHashes)) {
-				// Skip duplicate message
-				continue;
-			}
-
-			// Mark this combination as processed
-			markAsProcessed(uniqueHash, processedHashes);
-
-			const date = formatDate(data.timestamp);
-			// If fetcher is available, calculate cost based on mode and tokens
-			// If fetcher is null, use pre-calculated costUSD or default to 0
-			const cost = fetcher != null
-				? await calculateCostForEntry(data, mode, fetcher)
-				: data.costUSD ?? 0;
-
-			// Extract project name from file path
-			const project = extractProjectFromPath(file);
-
-			allEntries.push({ data, date, cost, model: data.message.model, project });
 		}
 	}
 
@@ -859,15 +846,13 @@ export async function loadDailyUsageData(
 
 			const modelsUsed = extractUniqueModels(entries, e => e.model);
 
-			const result = {
+			return {
 				date: createDailyDate(date),
 				...totals,
 				modelsUsed: modelsUsed as ModelName[],
 				modelBreakdowns,
 				...(project != null && { project }),
 			};
-
-			return result;
 		})
 		.filter(item => item != null);
 
@@ -957,45 +942,42 @@ export async function loadSessionData(
 			.filter(line => line.length > 0);
 
 		for (const line of lines) {
-			const parseResult = Result.try({
-				try: () => JSON.parse(line) as unknown,
-				catch: error => new Error('Failed to parse JSON', { cause: error }),
-			})();
-			if (Result.isFailure(parseResult)) {
-				// Skip invalid JSON lines
-				continue;
-			}
-			const parsed = parseResult.value;
-			const result = usageDataSchema.safeParse(parsed);
-			if (!result.success) {
-				continue;
-			}
-			const data = result.data;
+			try {
+				const parsed = JSON.parse(line) as unknown;
+				const result = usageDataSchema.safeParse(parsed);
+				if (!result.success) {
+					continue;
+				}
+				const data = result.data;
 
-			// Check for duplicate message + request ID combination
-			const uniqueHash = createUniqueHash(data);
-			if (isDuplicateEntry(uniqueHash, processedHashes)) {
+				// Check for duplicate message + request ID combination
+				const uniqueHash = createUniqueHash(data);
+				if (isDuplicateEntry(uniqueHash, processedHashes)) {
 				// Skip duplicate message
-				continue;
+					continue;
+				}
+
+				// Mark this combination as processed
+				markAsProcessed(uniqueHash, processedHashes);
+
+				const sessionKey = `${projectPath}/${sessionId}`;
+				const cost = fetcher != null
+					? await calculateCostForEntry(data, mode, fetcher)
+					: data.costUSD ?? 0;
+
+				allEntries.push({
+					data,
+					sessionKey,
+					sessionId,
+					projectPath,
+					cost,
+					timestamp: data.timestamp,
+					model: data.message.model,
+				});
 			}
-
-			// Mark this combination as processed
-			markAsProcessed(uniqueHash, processedHashes);
-
-			const sessionKey = `${projectPath}/${sessionId}`;
-			const cost = fetcher != null
-				? await calculateCostForEntry(data, mode, fetcher)
-				: data.costUSD ?? 0;
-
-			allEntries.push({
-				data,
-				sessionKey,
-				sessionId,
-				projectPath,
-				cost,
-				timestamp: data.timestamp,
-				model: data.message.model,
-			});
+			catch {
+				// Skip invalid JSON lines
+			}
 		}
 	}
 
@@ -1206,52 +1188,49 @@ export async function loadSessionBlockData(
 			.filter(line => line.length > 0);
 
 		for (const line of lines) {
-			const parseResult = Result.try({
-				try: () => JSON.parse(line) as unknown,
-				catch: error => new Error('Failed to parse JSON', { cause: error }),
-			})();
-			if (Result.isFailure(parseResult)) {
-				// Skip invalid JSON lines but log for debugging purposes
-				logger.debug(`Skipping invalid JSON line in 5-hour blocks: ${parseResult.error.message}`);
-				continue;
-			}
-			const parsed = parseResult.value;
-			const result = usageDataSchema.safeParse(parsed);
-			if (!result.success) {
-				continue;
-			}
-			const data = result.data;
+			try {
+				const parsed = JSON.parse(line) as unknown;
+				const result = usageDataSchema.safeParse(parsed);
+				if (!result.success) {
+					continue;
+				}
+				const data = result.data;
 
-			// Check for duplicate message + request ID combination
-			const uniqueHash = createUniqueHash(data);
-			if (isDuplicateEntry(uniqueHash, processedHashes)) {
+				// Check for duplicate message + request ID combination
+				const uniqueHash = createUniqueHash(data);
+				if (isDuplicateEntry(uniqueHash, processedHashes)) {
 				// Skip duplicate message
-				continue;
+					continue;
+				}
+
+				// Mark this combination as processed
+				markAsProcessed(uniqueHash, processedHashes);
+
+				const cost = fetcher != null
+					? await calculateCostForEntry(data, mode, fetcher)
+					: data.costUSD ?? 0;
+
+				// Get Claude Code usage limit expiration date
+				const usageLimitResetTime = getUsageLimitResetTime(data);
+
+				allEntries.push({
+					timestamp: new Date(data.timestamp),
+					usage: {
+						inputTokens: data.message.usage.input_tokens,
+						outputTokens: data.message.usage.output_tokens,
+						cacheCreationInputTokens: data.message.usage.cache_creation_input_tokens ?? 0,
+						cacheReadInputTokens: data.message.usage.cache_read_input_tokens ?? 0,
+					},
+					costUSD: cost,
+					model: data.message.model ?? 'unknown',
+					version: data.version,
+					usageLimitResetTime: usageLimitResetTime ?? undefined,
+				});
 			}
-
-			// Mark this combination as processed
-			markAsProcessed(uniqueHash, processedHashes);
-
-			const cost = fetcher != null
-				? await calculateCostForEntry(data, mode, fetcher)
-				: data.costUSD ?? 0;
-
-			// Get Claude Code usage limit expiration date
-			const usageLimitResetTime = getUsageLimitResetTime(data);
-
-			allEntries.push({
-				timestamp: new Date(data.timestamp),
-				usage: {
-					inputTokens: data.message.usage.input_tokens,
-					outputTokens: data.message.usage.output_tokens,
-					cacheCreationInputTokens: data.message.usage.cache_creation_input_tokens ?? 0,
-					cacheReadInputTokens: data.message.usage.cache_read_input_tokens ?? 0,
-				},
-				costUSD: cost,
-				model: data.message.model ?? 'unknown',
-				version: data.version,
-				usageLimitResetTime: usageLimitResetTime ?? undefined,
-			});
+			catch (error) {
+				// Skip invalid JSON lines but log for debugging purposes
+				logger.debug(`Skipping invalid JSON line in 5-hour blocks: ${error instanceof Error ? error.message : String(error)}`);
+			}
 		}
 	}
 
