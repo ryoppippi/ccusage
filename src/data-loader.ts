@@ -621,6 +621,33 @@ export function getUsageLimitResetTime(data: UsageData): Date | null {
 }
 
 /**
+ * Result of glob operation with base directory information
+ */
+export type GlobResult = {
+	file: string;
+	baseDir: string;
+};
+
+/**
+ * Glob files from multiple Claude paths in parallel
+ * @param claudePaths - Array of Claude base paths
+ * @returns Array of file paths with their base directories
+ */
+export async function globUsageFiles(claudePaths: string[]): Promise<GlobResult[]> {
+	const filePromises = claudePaths.map(async (claudePath) => {
+		const claudeDir = path.join(claudePath, CLAUDE_PROJECTS_DIR_NAME);
+		const files = await glob([USAGE_DATA_GLOB_PATTERN], {
+			cwd: claudeDir,
+			absolute: true,
+		}).catch(() => []); // Gracefully handle errors for individual paths
+
+		// Map each file to include its base directory
+		return files.map(file => ({ file, baseDir: claudeDir }));
+	});
+	return (await Promise.all(filePromises)).flat();
+}
+
+/**
  * Date range filter for limiting usage data by date
  */
 export type DateFilter = {
@@ -651,23 +678,16 @@ export async function loadDailyUsageData(
 	// Get all Claude paths or use the specific one from options
 	const claudePaths = toArray(options?.claudePath ?? getClaudePaths());
 
-	// Collect files from all paths
-	const allFiles: string[] = [];
-	for (const claudePath of claudePaths) {
-		const claudeDir = path.join(claudePath, CLAUDE_PROJECTS_DIR_NAME);
-		const files = await glob([USAGE_DATA_GLOB_PATTERN], {
-			cwd: claudeDir,
-			absolute: true,
-		});
-		allFiles.push(...files);
-	}
+	// Collect files from all paths in parallel
+	const allFiles = await globUsageFiles(claudePaths);
+	const fileList = allFiles.map(f => f.file);
 
-	if (allFiles.length === 0) {
+	if (fileList.length === 0) {
 		return [];
 	}
 
 	// Sort files by timestamp to ensure chronological processing
-	const sortedFiles = await sortFilesByTimestamp(allFiles);
+	const sortedFiles = await sortFilesByTimestamp(fileList);
 
 	// Fetch pricing data for cost calculation only when needed
 	const mode = options?.mode ?? 'auto';
@@ -780,19 +800,8 @@ export async function loadSessionData(
 	// Get all Claude paths or use the specific one from options
 	const claudePaths = toArray(options?.claudePath ?? getClaudePaths());
 
-	// Collect files from all paths with their base directories
-	const filesWithBase: Array<{ file: string; baseDir: string }> = [];
-	for (const claudePath of claudePaths) {
-		const claudeDir = path.join(claudePath, CLAUDE_PROJECTS_DIR_NAME);
-		const files = await glob([USAGE_DATA_GLOB_PATTERN], {
-			cwd: claudeDir,
-			absolute: true,
-		});
-		// Store each file with its base directory for later session extraction
-		for (const file of files) {
-			filesWithBase.push({ file, baseDir: claudeDir });
-		}
-	}
+	// Collect files from all paths with their base directories in parallel
+	const filesWithBase = await globUsageFiles(claudePaths);
 
 	if (filesWithBase.length === 0) {
 		return [];
@@ -3702,6 +3711,74 @@ if (import.meta.vitest != null) {
 			expect(targetDate?.inputTokens).toBe(300);
 			expect(targetDate?.outputTokens).toBe(150);
 			expect(targetDate?.totalCost).toBe(0.03);
+		});
+	});
+
+	describe('globUsageFiles', () => {
+		it('should glob files from multiple paths in parallel with base directories', async () => {
+			await using fixture = await createFixture({
+				'path1/projects/project1/session1/usage.jsonl': 'data1',
+				'path2/projects/project2/session2/usage.jsonl': 'data2',
+				'path3/projects/project3/session3/usage.jsonl': 'data3',
+			});
+
+			const paths = [
+				path.join(fixture.path, 'path1'),
+				path.join(fixture.path, 'path2'),
+				path.join(fixture.path, 'path3'),
+			];
+
+			const results = await globUsageFiles(paths);
+
+			expect(results).toHaveLength(3);
+			expect(results.some(r => r.file.includes('project1'))).toBe(true);
+			expect(results.some(r => r.file.includes('project2'))).toBe(true);
+			expect(results.some(r => r.file.includes('project3'))).toBe(true);
+
+			// Check base directories are included
+			const result1 = results.find(r => r.file.includes('project1'));
+			expect(result1?.baseDir).toContain('path1/projects');
+		});
+
+		it('should handle errors gracefully and return empty array for failed paths', async () => {
+			await using fixture = await createFixture({
+				'valid/projects/project1/session1/usage.jsonl': 'data1',
+			});
+
+			const paths = [
+				path.join(fixture.path, 'valid'),
+				path.join(fixture.path, 'nonexistent'), // This path doesn't exist
+			];
+
+			const results = await globUsageFiles(paths);
+
+			expect(results).toHaveLength(1);
+			expect(results.at(0)?.file).toContain('project1');
+		});
+
+		it('should return empty array when no files found', async () => {
+			await using fixture = await createFixture({
+				'empty/projects': {}, // Empty directory
+			});
+
+			const paths = [path.join(fixture.path, 'empty')];
+			const results = await globUsageFiles(paths);
+
+			expect(results).toEqual([]);
+		});
+
+		it('should handle multiple files from same base directory', async () => {
+			await using fixture = await createFixture({
+				'path1/projects/project1/session1/usage.jsonl': 'data1',
+				'path1/projects/project1/session2/usage.jsonl': 'data2',
+				'path1/projects/project2/session1/usage.jsonl': 'data3',
+			});
+
+			const paths = [path.join(fixture.path, 'path1')];
+			const results = await globUsageFiles(paths);
+
+			expect(results).toHaveLength(3);
+			expect(results.every(r => r.baseDir.includes('path1/projects'))).toBe(true);
 		});
 	});
 }
