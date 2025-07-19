@@ -3831,7 +3831,7 @@ if (import.meta.vitest != null) {
 					project2: {
 						session2: {
 							'usage.jsonl': JSON.stringify({
-								timestamp: '2024-01-01T13:00:00Z', // Changed from 01:00:00Z to avoid timezone issues
+								timestamp: '2024-01-01T13:00:00Z',
 								message: { usage: { input_tokens: 200, output_tokens: 100 } },
 								costUSD: 0.02,
 							}),
@@ -3849,7 +3849,7 @@ if (import.meta.vitest != null) {
 			expect(targetDate?.inputTokens).toBe(300);
 			expect(targetDate?.outputTokens).toBe(150);
 			expect(targetDate?.totalCost).toBe(0.03);
-		}, 30000); // Increase timeout to 30 seconds
+		}, 30000);
 	});
 
 	describe('globUsageFiles', () => {
