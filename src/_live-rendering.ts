@@ -17,6 +17,7 @@ import stringWidth from 'string-width';
 import { BURN_RATE_THRESHOLDS } from './_consts.ts';
 import { calculateBurnRate, projectBlockUsage } from './_session-blocks.ts';
 import { centerText, createProgressBar } from './_terminal-utils.ts';
+import { getTotalTokens } from './_token-utils.ts';
 import { formatCurrency, formatModelsDisplay, formatNumber } from './_utils.ts';
 
 /**
@@ -113,7 +114,7 @@ export function renderLiveDisplay(terminal: TerminalManager, block: SessionBlock
 	const now = new Date();
 
 	// Calculate key metrics
-	const totalTokens = block.tokenCounts.inputTokens + block.tokenCounts.outputTokens;
+	const totalTokens = getTotalTokens(block.tokenCounts);
 	const elapsed = (now.getTime() - block.startTime.getTime()) / (1000 * 60);
 	const remaining = (block.endTime.getTime() - now.getTime()) / (1000 * 60);
 
