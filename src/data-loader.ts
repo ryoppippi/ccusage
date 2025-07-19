@@ -428,15 +428,15 @@ function extractUniqueModels<T>(
  */
 function formatDateInternal(dateStr: string, twoLine: boolean): string {
 	const date = new Date(dateStr);
-	
+
 	// Detect if the string includes UTC indicator (Z) or timezone offset (±HH:MM)
 	const hasTimezone = /Z|[+-]\d{2}:\d{2}/.test(dateStr);
-	
+
 	// Use UTC getters if timezone is specified, otherwise use local getters
 	const year = hasTimezone ? date.getUTCFullYear() : date.getFullYear();
 	const month = String(hasTimezone ? date.getUTCMonth() + 1 : date.getMonth() + 1).padStart(2, '0');
 	const day = String(hasTimezone ? date.getUTCDate() : date.getDate()).padStart(2, '0');
-	
+
 	return twoLine ? `${year}\n${month}-${day}` : `${year}-${month}-${day}`;
 }
 
@@ -1175,7 +1175,7 @@ if (import.meta.vitest != null) {
 			const expectedMonth = String(localDate.getMonth() + 1).padStart(2, '0');
 			const expectedDay = String(localDate.getDate()).padStart(2, '0');
 			const expected = `${expectedYear}-${expectedMonth}-${expectedDay}`;
-			
+
 			expect(formatDate('2024-01-01')).toBe(expected);
 			expect(formatDate('2024-01-01T12:00:00')).toBe(expected);
 		});
@@ -1208,7 +1208,7 @@ if (import.meta.vitest != null) {
 			const expectedMonth = String(localDate.getMonth() + 1).padStart(2, '0');
 			const expectedDay = String(localDate.getDate()).padStart(2, '0');
 			const expected = `${expectedYear}\n${expectedMonth}-${expectedDay}`;
-			
+
 			expect(formatDateCompact('2024-01-01')).toBe(expected);
 			expect(formatDateCompact('2024-01-01T12:00:00')).toBe(expected);
 		});
