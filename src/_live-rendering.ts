@@ -99,14 +99,6 @@ function formatTokensShort(num: number): string {
 }
 
 /**
- * Column layout constants for detail rows
- */
-const DETAIL_COLUMN_WIDTHS = {
-	col1: 46, // First column width (e.g., "Tokens: 12,345 (50 per min ✓ NORMAL)")
-	col2: 37, // Second column width (e.g., "Limit: 60,000 tokens")
-} as const;
-
-/**
  * Renders the live display for an active session block
  */
 export function renderLiveDisplay(terminal: TerminalManager, block: SessionBlock, config: LiveMonitoringConfig): void {
@@ -117,6 +109,11 @@ export function renderLiveDisplay(terminal: TerminalManager, block: SessionBlock
 	const totalTokens = getTotalTokens(block.tokenCounts);
 	const elapsed = (now.getTime() - block.startTime.getTime()) / (1000 * 60);
 	const remaining = (block.endTime.getTime() - now.getTime()) / (1000 * 60);
+
+	// Helper function to format token display based on available space
+	const formatTokenDisplay = (tokens: number, useShort: boolean): string => {
+		return useShort ? formatTokensShort(tokens) : formatNumber(tokens);
+	};
 
 	// Use compact mode for narrow terminals
 	if (width < 60) {
@@ -203,17 +200,16 @@ export function renderLiveDisplay(terminal: TerminalManager, block: SessionBlock
 	terminal.write(`${marginStr}│ ${sessionBarPadded}│\n`);
 
 	// Session details (indented)
-	const col1 = `${pc.gray('Started:')} ${startTime}`;
-	const col2 = `${pc.gray('Elapsed:')} ${prettyMs(elapsed * 60 * 1000, { compact: true })}`;
-	const col3 = `${pc.gray('Remaining:')} ${prettyMs(remaining * 60 * 1000, { compact: true })} (${endTime})`;
-	// Calculate actual visible lengths without ANSI codes
-	const col1Visible = stringWidth(col1);
-	const col2Visible = stringWidth(col2);
-	// Fixed column positions - aligned with proper spacing
-	const pad1 = ' '.repeat(Math.max(0, DETAIL_COLUMN_WIDTHS.col1 - col1Visible));
-	const pad2 = ' '.repeat(Math.max(0, DETAIL_COLUMN_WIDTHS.col2 - col2Visible));
-	const sessionDetails = `   ${col1}${pad1}${pad2}${col3}`;
+	const sessionCol1 = `${pc.gray('Started:')} ${startTime}`;
+	const sessionCol2 = `${pc.gray('Elapsed:')} ${prettyMs(elapsed * 60 * 1000, { compact: true })}`;
+	const sessionCol3 = `${pc.gray('Remaining:')} ${prettyMs(remaining * 60 * 1000, { compact: true })} (${endTime})`;
+
+	// Build session details with fixed 2-space separation
+	const sessionIndent = 3; // Leading spaces
+	const sessionSpacing = 2; // Fixed spacing between columns
+	const sessionDetails = `${' '.repeat(sessionIndent)}${sessionCol1}${' '.repeat(sessionSpacing)}${sessionCol2}${' '.repeat(sessionSpacing)}${sessionCol3}`;
 	const sessionDetailsPadded = sessionDetails + ' '.repeat(Math.max(0, boxWidth - 3 - stringWidth(sessionDetails)));
+
 	// Claude usage limit message
 	let usageLimitResetTimePadded: string | null = null;
 	if (block.usageLimitResetTime !== undefined && now < block.usageLimitResetTime) {
@@ -258,9 +254,6 @@ export function renderLiveDisplay(terminal: TerminalManager, block: SessionBlock
 	// Burn rate with better formatting
 	const burnRate = calculateBurnRate(block);
 	const rateIndicator = getRateIndicator(burnRate);
-	const rateDisplay = burnRate != null
-		? `${pc.bold('Burn Rate:')} ${Math.round(burnRate.tokensPerMinute)} token/min ${rateIndicator}`
-		: `${pc.bold('Burn Rate:')} N/A`;
 
 	// Usage section
 	const usageLabel = pc.bold('🔥 USAGE');
@@ -269,25 +262,86 @@ export function renderLiveDisplay(terminal: TerminalManager, block: SessionBlock
 	// Create usage bar string with pre-generated text
 	const usageBarStr = `${usageLabel}${''.padEnd(Math.max(0, labelWidth - usageLabelWidth))} ${usageBar} ${usageRightText}`;
 
-	// Prepare usage details based on token limit availability
-	const usageCol1 = `${pc.gray('Tokens:')} ${formatNumber(totalTokens)} (${rateDisplay})`;
-	const usageCol2 = config.tokenLimit != null && config.tokenLimit > 0
-		? `${pc.gray('Limit:')} ${formatNumber(config.tokenLimit)} tokens`
+	// Prepare usage details - try with full numbers first
+	const usageIndent = 3; // Leading spaces
+	const usageSpacing = 2; // Fixed spacing between columns
+	const availableWidth = boxWidth - 3 - usageIndent; // Available width for content
+
+	// Build rate display helper
+	const buildRateDisplay = (useShort: boolean): string => {
+		if (burnRate == null) {
+			return `${pc.bold('Burn Rate:')} N/A`;
+		}
+		const rateValue = Math.round(burnRate.tokensPerMinute);
+		const formattedRate = useShort ? formatTokensShort(rateValue) : formatNumber(rateValue);
+		return `${pc.bold('Burn Rate:')} ${formattedRate} token/min ${rateIndicator}`;
+	};
+
+	// First try with full format
+	let rateDisplay = buildRateDisplay(false);
+	let usageCol1 = `${pc.gray('Tokens:')} ${formatTokenDisplay(totalTokens, false)} (${rateDisplay})`;
+	let usageCol2 = config.tokenLimit != null && config.tokenLimit > 0
+		? `${pc.gray('Limit:')} ${formatTokenDisplay(config.tokenLimit, false)} tokens`
 		: '';
 	const usageCol3 = `${pc.gray('Cost:')} ${formatCurrency(block.costUSD)}`;
+
+	// Calculate total width needed
+	let totalWidth = stringWidth(usageCol1) + stringWidth(usageCol3);
+	if (usageCol2.length > 0) {
+		totalWidth += stringWidth(usageCol2) + usageSpacing; // Extra spacing for third column
+	}
+	totalWidth += usageSpacing; // Spacing between first and last column
+
+	// If doesn't fit, use two-line layout with short format
+	let useTwoLineLayout = false;
+	if (totalWidth > availableWidth) {
+		useTwoLineLayout = true;
+		// Rebuild with short format for two-line layout
+		rateDisplay = buildRateDisplay(true);
+		usageCol1 = `${pc.gray('Tokens:')} ${formatTokenDisplay(totalTokens, true)} (${rateDisplay})`;
+		if (usageCol2.length > 0) {
+			usageCol2 = `${pc.gray('Limit:')} ${formatTokenDisplay(config.tokenLimit!, true)} tokens`;
+		}
+	}
 
 	// Render usage bar
 	const usageBarPadded = usageBarStr + ' '.repeat(Math.max(0, boxWidth - 3 - stringWidth(usageBarStr)));
 	terminal.write(`${marginStr}│ ${usageBarPadded}│\n`);
 
 	// Render usage details (indented and aligned)
-	const usageCol1Visible = stringWidth(usageCol1);
-	const usageCol2Visible = stringWidth(usageCol2);
-	const usagePad1 = ' '.repeat(Math.max(0, DETAIL_COLUMN_WIDTHS.col1 - usageCol1Visible));
-	const usagePad2 = usageCol2.length > 0 ? ' '.repeat(Math.max(0, DETAIL_COLUMN_WIDTHS.col2 - usageCol2Visible)) : ' '.repeat(DETAIL_COLUMN_WIDTHS.col2);
-	const usageDetails = `   ${usageCol1}${usagePad1}${usageCol2}${usagePad2}${usageCol3}`;
-	const usageDetailsPadded = usageDetails + ' '.repeat(Math.max(0, boxWidth - 3 - stringWidth(usageDetails)));
-	terminal.write(`${marginStr}│ ${usageDetailsPadded}│\n`);
+	if (useTwoLineLayout) {
+		// Two-line layout: Tokens on first line, Limit & Cost on second line
+		const usageDetailsLine1 = `${' '.repeat(usageIndent)}${usageCol1}`;
+		const usageDetailsLine1Padded = usageDetailsLine1 + ' '.repeat(Math.max(0, boxWidth - 3 - stringWidth(usageDetailsLine1)));
+		terminal.write(`${marginStr}│ ${usageDetailsLine1Padded}│\n`);
+
+		let usageDetailsLine2: string;
+		if (usageCol2.length > 0) {
+			// Limit and Cost on second line
+			usageDetailsLine2 = `${' '.repeat(usageIndent)}${usageCol2}${' '.repeat(usageSpacing)}${usageCol3}`;
+		}
+		else {
+			// Just Cost on second line
+			usageDetailsLine2 = `${' '.repeat(usageIndent)}${usageCol3}`;
+		}
+		const usageDetailsLine2Padded = usageDetailsLine2 + ' '.repeat(Math.max(0, boxWidth - 3 - stringWidth(usageDetailsLine2)));
+		terminal.write(`${marginStr}│ ${usageDetailsLine2Padded}│\n`);
+	}
+	else {
+		// Single-line layout
+		let usageDetails: string;
+		if (usageCol2.length > 0) {
+			// Three columns: Tokens, Limit, Cost
+			usageDetails = `${' '.repeat(usageIndent)}${usageCol1}${' '.repeat(usageSpacing)}${usageCol2}${' '.repeat(usageSpacing)}${usageCol3}`;
+		}
+		else {
+			// Two columns: Tokens, Cost (no limit)
+			usageDetails = `${' '.repeat(usageIndent)}${usageCol1}${' '.repeat(usageSpacing)}${usageCol3}`;
+		}
+
+		const usageDetailsPadded = usageDetails + ' '.repeat(Math.max(0, boxWidth - 3 - stringWidth(usageDetails)));
+		terminal.write(`${marginStr}│ ${usageDetailsPadded}│\n`);
+	}
 
 	terminal.write(`${marginStr}│${' '.repeat(boxWidth - 2)}│\n`);
 	terminal.write(`${marginStr}├${'─'.repeat(boxWidth - 2)}┤\n`);
@@ -338,18 +392,43 @@ export function renderLiveDisplay(terminal: TerminalManager, block: SessionBlock
 		terminal.write(`${marginStr}│ ${projBarPadded}│\n`);
 
 		// Projection details (indented and aligned)
-		const col1 = `${pc.gray('Status:')} ${limitStatus}`;
-		const col2 = `${pc.gray('Tokens:')} ${formatNumber(projection.totalTokens)}`;
-		const col3 = `${pc.gray('Cost:')} ${formatCurrency(projection.totalCost)}`;
-		// Calculate visible lengths (without ANSI codes)
-		const col1Visible = stringWidth(col1);
-		const col2Visible = stringWidth(col2);
-		// Fixed column positions - match session alignment
-		const pad1 = ' '.repeat(Math.max(0, DETAIL_COLUMN_WIDTHS.col1 - col1Visible));
-		const pad2 = ' '.repeat(Math.max(0, DETAIL_COLUMN_WIDTHS.col2 - col2Visible));
-		const projDetails = `   ${col1}${pad1}${col2}${pad2}${col3}`;
-		const projDetailsPadded = projDetails + ' '.repeat(Math.max(0, boxWidth - 3 - stringWidth(projDetails)));
-		terminal.write(`${marginStr}│ ${projDetailsPadded}│\n`);
+		const projIndent = 3; // Leading spaces
+		const projSpacing = 2; // Fixed spacing between columns
+		const projAvailableWidth = boxWidth - 3 - projIndent; // Available width for content
+
+		// First try with full format
+		const projCol1 = `${pc.gray('Status:')} ${limitStatus}`;
+		let projCol2 = `${pc.gray('Tokens:')} ${formatTokenDisplay(projection.totalTokens, false)}`;
+		const projCol3 = `${pc.gray('Cost:')} ${formatCurrency(projection.totalCost)}`;
+
+		// Calculate total width needed
+		const projTotalWidth = stringWidth(projCol1) + stringWidth(projCol2) + stringWidth(projCol3) + (projSpacing * 2);
+
+		// If doesn't fit, use two-line layout with short format
+		let projUseTwoLineLayout = false;
+		if (projTotalWidth > projAvailableWidth) {
+			projUseTwoLineLayout = true;
+			// Rebuild with short format for two-line layout
+			projCol2 = `${pc.gray('Tokens:')} ${formatTokenDisplay(projection.totalTokens, true)}`;
+		}
+
+		// Render projection details
+		if (projUseTwoLineLayout) {
+			// Two-line layout: Status on first line, Tokens & Cost on second line
+			const projDetailsLine1 = `${' '.repeat(projIndent)}${projCol1}`;
+			const projDetailsLine1Padded = projDetailsLine1 + ' '.repeat(Math.max(0, boxWidth - 3 - stringWidth(projDetailsLine1)));
+			terminal.write(`${marginStr}│ ${projDetailsLine1Padded}│\n`);
+
+			const projDetailsLine2 = `${' '.repeat(projIndent)}${projCol2}${' '.repeat(projSpacing)}${projCol3}`;
+			const projDetailsLine2Padded = projDetailsLine2 + ' '.repeat(Math.max(0, boxWidth - 3 - stringWidth(projDetailsLine2)));
+			terminal.write(`${marginStr}│ ${projDetailsLine2Padded}│\n`);
+		}
+		else {
+			// Single-line layout with fixed 2-space separation
+			const projDetails = `${' '.repeat(projIndent)}${projCol1}${' '.repeat(projSpacing)}${projCol2}${' '.repeat(projSpacing)}${projCol3}`;
+			const projDetailsPadded = projDetails + ' '.repeat(Math.max(0, boxWidth - 3 - stringWidth(projDetails)));
+			terminal.write(`${marginStr}│ ${projDetailsPadded}│\n`);
+		}
 
 		terminal.write(`${marginStr}│${' '.repeat(boxWidth - 2)}│\n`);
 	}
