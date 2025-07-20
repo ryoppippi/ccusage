@@ -207,7 +207,17 @@ export function renderLiveDisplay(terminal: TerminalManager, block: SessionBlock
 	// Build session details with fixed 2-space separation
 	const sessionIndent = 3; // Leading spaces
 	const sessionSpacing = 2; // Fixed spacing between columns
-	const sessionDetails = `${' '.repeat(sessionIndent)}${sessionCol1}${' '.repeat(sessionSpacing)}${sessionCol2}${' '.repeat(sessionSpacing)}${sessionCol3}`;
+	const sessionAvailableWidth = boxWidth - 3 - sessionIndent; // Available width for content
+
+	// First try with all three columns
+	let sessionDetails = `${' '.repeat(sessionIndent)}${sessionCol1}${' '.repeat(sessionSpacing)}${sessionCol2}${' '.repeat(sessionSpacing)}${sessionCol3}`;
+	const sessionDetailsWidth = stringWidth(sessionCol1) + stringWidth(sessionCol2) + stringWidth(sessionCol3) + (sessionSpacing * 2);
+
+	// If doesn't fit, omit Elapsed column
+	if (sessionDetailsWidth > sessionAvailableWidth) {
+		sessionDetails = `${' '.repeat(sessionIndent)}${sessionCol1}${' '.repeat(sessionSpacing)}${sessionCol3}`;
+	}
+
 	const sessionDetailsPadded = sessionDetails + ' '.repeat(Math.max(0, boxWidth - 3 - stringWidth(sessionDetails)));
 
 	// Claude usage limit message
