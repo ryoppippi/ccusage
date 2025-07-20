@@ -163,12 +163,8 @@ export function renderLiveDisplay(terminal: TerminalManager, block: SessionBlock
 	// Calculate dynamic progress bar width based on actual text lengths
 	const labelWidth = 14; // Width for labels like "SESSION"
 	const spacing = 4; // Spacing between elements
-	const boxPadding = 3; // Box border (│ ) + space on left + (│) on right
-	const minBarWidth = 20; // Minimum progress bar width
-	const barWidth = Math.max(
-		minBarWidth,
-		boxWidth - labelWidth - maxRightTextWidth - spacing - boxPadding,
-	);
+	const boxPadding = 4; // Box border (│ ) + space on left + space + (│) on right
+	const barWidth = boxWidth - labelWidth - maxRightTextWidth - spacing - boxPadding;
 	const sessionProgressBar = createProgressBar(
 		elapsed,
 		sessionDuration,
