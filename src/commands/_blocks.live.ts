@@ -81,16 +81,19 @@ export async function startLiveMonitoring(config: LiveMonitoringConfig): Promise
 				// Wait before next refresh (refreshInterval passed, aborted, or terminal resized)
 				let resizeEventHandler: undefined | ((value: unknown) => void);
 
-				await Promise.race([
-					delayWithAbort(config.refreshInterval, abortController.signal),
-					new Promise((resolve) => {
-						resizeEventHandler = resolve;
-						process.stdout.once('resize', resolve);
-					}),
-				]);
-
-				if (resizeEventHandler !== undefined) {
-					process.stdout.removeListener('resize', resizeEventHandler);
+				try {
+					await Promise.race([
+						delayWithAbort(config.refreshInterval, abortController.signal),
+						new Promise((resolve) => {
+							resizeEventHandler = resolve;
+							process.stdout.once('resize', resolve);
+						}),
+					]);
+				}
+				finally {
+					if (resizeEventHandler !== undefined) {
+						process.stdout.removeListener('resize', resizeEventHandler);
+					}
 				}
 			}
 		},
