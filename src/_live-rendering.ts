@@ -289,11 +289,11 @@ export function renderLiveDisplay(terminal: TerminalManager, block: SessionBlock
 	const usageCol3 = `${pc.gray('Cost:')} ${formatCurrency(block.costUSD)}`;
 
 	// Calculate total width needed
-	let totalWidth = stringWidth(usageCol1) + stringWidth(usageCol3);
+	let totalWidth = stringWidth(usageCol1);
 	if (usageCol2.length > 0) {
-		totalWidth += stringWidth(usageCol2) + detailsSpacing; // Extra spacing for third column
+		totalWidth += detailsSpacing + stringWidth(usageCol2);
 	}
-	totalWidth += detailsSpacing; // Spacing between first and last column
+	totalWidth += detailsSpacing + stringWidth(usageCol3);
 
 	// If doesn't fit, use two-line layout with short format
 	let useTwoLineLayout = false;
