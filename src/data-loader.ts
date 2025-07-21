@@ -16,9 +16,11 @@ import type {
 	SortOrder,
 	Version,
 } from './_types.ts';
+import { createReadStream } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
+import { createInterface } from 'node:readline';
 import { toArray } from '@antfu/utils';
 import { unreachable } from '@core/errorutil';
 import { Result } from '@praha/byethrow';
@@ -762,47 +764,75 @@ export async function loadDailyUsageData(
 	const allEntries: { data: UsageData; date: string; cost: number; model: string | undefined; project: string }[] = [];
 
 	for (const file of sortedFiles) {
-		const content = await readFile(file, 'utf-8');
-		const lines = content
-			.trim()
-			.split('\n')
-			.filter(line => line.length > 0);
+		await new Promise<void>((resolve) => {
+			const fileStream = createReadStream(file);
+			const rl = createInterface({
+				input: fileStream,
+				crlfDelay: Infinity,
+			});
 
-		for (const line of lines) {
-			try {
-				const parsed = JSON.parse(line) as unknown;
-				const result = usageDataSchema.safeParse(parsed);
-				if (!result.success) {
-					continue;
-				}
-				const data = result.data;
+			const pendingOperations: Promise<void>[] = [];
 
-				// Check for duplicate message + request ID combination
-				const uniqueHash = createUniqueHash(data);
-				if (isDuplicateEntry(uniqueHash, processedHashes)) {
-					// Skip duplicate message
-					continue;
+			rl.on('line', (line) => {
+				if (line.trim().length === 0) {
+					return;
 				}
 
-				// Mark this combination as processed
-				markAsProcessed(uniqueHash, processedHashes);
+				const operation = (async () => {
+					try {
+						const parsed = JSON.parse(line) as unknown;
+						const result = usageDataSchema.safeParse(parsed);
+						if (!result.success) {
+							return;
+						}
+						const data = result.data;
 
-				const date = formatDate(data.timestamp);
-				// If fetcher is available, calculate cost based on mode and tokens
-				// If fetcher is null, use pre-calculated costUSD or default to 0
-				const cost = fetcher != null
-					? await calculateCostForEntry(data, mode, fetcher)
-					: data.costUSD ?? 0;
+						// Check for duplicate message + request ID combination
+						const uniqueHash = createUniqueHash(data);
+						if (isDuplicateEntry(uniqueHash, processedHashes)) {
+							// Skip duplicate message
+							return;
+						}
 
-				// Extract project name from file path
-				const project = extractProjectFromPath(file);
+						// Mark this combination as processed
+						markAsProcessed(uniqueHash, processedHashes);
 
-				allEntries.push({ data, date, cost, model: data.message.model, project });
-			}
-			catch {
-				// Skip invalid JSON lines
-			}
-		}
+						const date = formatDate(data.timestamp);
+						// If fetcher is available, calculate cost based on mode and tokens
+						// If fetcher is null, use pre-calculated costUSD or default to 0
+						const cost = fetcher != null
+							? await calculateCostForEntry(data, mode, fetcher)
+							: data.costUSD ?? 0;
+
+						// Extract project name from file path
+						const project = extractProjectFromPath(file);
+
+						allEntries.push({ data, date, cost, model: data.message.model, project });
+					}
+					catch {
+						// Skip invalid JSON lines
+					}
+				})();
+
+				pendingOperations.push(operation);
+			});
+
+			rl.on('close', () => {
+				Promise.all(pendingOperations)
+					.then(() => {
+						resolve();
+					})
+					.catch(() => {
+						// Errors in individual operations are already handled
+						resolve();
+					});
+			});
+
+			rl.on('error', () => {
+				// Skip files that can't be read
+				resolve();
+			});
+		});
 	}
 
 	// Group by date, optionally including project
@@ -935,50 +965,78 @@ export async function loadSessionData(
 		const joinedPath = parts.slice(0, -2).join(path.sep);
 		const projectPath = joinedPath.length > 0 ? joinedPath : 'Unknown Project';
 
-		const content = await readFile(file, 'utf-8');
-		const lines = content
-			.trim()
-			.split('\n')
-			.filter(line => line.length > 0);
+		await new Promise<void>((resolve) => {
+			const fileStream = createReadStream(file);
+			const rl = createInterface({
+				input: fileStream,
+				crlfDelay: Infinity,
+			});
 
-		for (const line of lines) {
-			try {
-				const parsed = JSON.parse(line) as unknown;
-				const result = usageDataSchema.safeParse(parsed);
-				if (!result.success) {
-					continue;
-				}
-				const data = result.data;
+			const pendingOperations: Promise<void>[] = [];
 
-				// Check for duplicate message + request ID combination
-				const uniqueHash = createUniqueHash(data);
-				if (isDuplicateEntry(uniqueHash, processedHashes)) {
-				// Skip duplicate message
-					continue;
+			rl.on('line', (line) => {
+				if (line.trim().length === 0) {
+					return;
 				}
 
-				// Mark this combination as processed
-				markAsProcessed(uniqueHash, processedHashes);
+				const operation = (async () => {
+					try {
+						const parsed = JSON.parse(line) as unknown;
+						const result = usageDataSchema.safeParse(parsed);
+						if (!result.success) {
+							return;
+						}
+						const data = result.data;
 
-				const sessionKey = `${projectPath}/${sessionId}`;
-				const cost = fetcher != null
-					? await calculateCostForEntry(data, mode, fetcher)
-					: data.costUSD ?? 0;
+						// Check for duplicate message + request ID combination
+						const uniqueHash = createUniqueHash(data);
+						if (isDuplicateEntry(uniqueHash, processedHashes)) {
+						// Skip duplicate message
+							return;
+						}
 
-				allEntries.push({
-					data,
-					sessionKey,
-					sessionId,
-					projectPath,
-					cost,
-					timestamp: data.timestamp,
-					model: data.message.model,
-				});
-			}
-			catch {
-				// Skip invalid JSON lines
-			}
-		}
+						// Mark this combination as processed
+						markAsProcessed(uniqueHash, processedHashes);
+
+						const sessionKey = `${projectPath}/${sessionId}`;
+						const cost = fetcher != null
+							? await calculateCostForEntry(data, mode, fetcher)
+							: data.costUSD ?? 0;
+
+						allEntries.push({
+							data,
+							sessionKey,
+							sessionId,
+							projectPath,
+							cost,
+							timestamp: data.timestamp,
+							model: data.message.model,
+						});
+					}
+					catch {
+						// Skip invalid JSON lines
+					}
+				})();
+
+				pendingOperations.push(operation);
+			});
+
+			rl.on('close', () => {
+				Promise.all(pendingOperations)
+					.then(() => {
+						resolve();
+					})
+					.catch(() => {
+						// Errors in individual operations are already handled
+						resolve();
+					});
+			});
+
+			rl.on('error', () => {
+				// Skip files that can't be read
+				resolve();
+			});
+		});
 	}
 
 	// Group by session using Object.groupBy
@@ -1181,57 +1239,85 @@ export async function loadSessionBlockData(
 	const allEntries: LoadedUsageEntry[] = [];
 
 	for (const file of sortedFiles) {
-		const content = await readFile(file, 'utf-8');
-		const lines = content
-			.trim()
-			.split('\n')
-			.filter(line => line.length > 0);
+		await new Promise<void>((resolve) => {
+			const fileStream = createReadStream(file);
+			const rl = createInterface({
+				input: fileStream,
+				crlfDelay: Infinity,
+			});
 
-		for (const line of lines) {
-			try {
-				const parsed = JSON.parse(line) as unknown;
-				const result = usageDataSchema.safeParse(parsed);
-				if (!result.success) {
-					continue;
-				}
-				const data = result.data;
+			const pendingOperations: Promise<void>[] = [];
 
-				// Check for duplicate message + request ID combination
-				const uniqueHash = createUniqueHash(data);
-				if (isDuplicateEntry(uniqueHash, processedHashes)) {
-				// Skip duplicate message
-					continue;
+			rl.on('line', (line) => {
+				if (line.trim().length === 0) {
+					return;
 				}
 
-				// Mark this combination as processed
-				markAsProcessed(uniqueHash, processedHashes);
+				const operation = (async () => {
+					try {
+						const parsed = JSON.parse(line) as unknown;
+						const result = usageDataSchema.safeParse(parsed);
+						if (!result.success) {
+							return;
+						}
+						const data = result.data;
 
-				const cost = fetcher != null
-					? await calculateCostForEntry(data, mode, fetcher)
-					: data.costUSD ?? 0;
+						// Check for duplicate message + request ID combination
+						const uniqueHash = createUniqueHash(data);
+						if (isDuplicateEntry(uniqueHash, processedHashes)) {
+						// Skip duplicate message
+							return;
+						}
 
-				// Get Claude Code usage limit expiration date
-				const usageLimitResetTime = getUsageLimitResetTime(data);
+						// Mark this combination as processed
+						markAsProcessed(uniqueHash, processedHashes);
 
-				allEntries.push({
-					timestamp: new Date(data.timestamp),
-					usage: {
-						inputTokens: data.message.usage.input_tokens,
-						outputTokens: data.message.usage.output_tokens,
-						cacheCreationInputTokens: data.message.usage.cache_creation_input_tokens ?? 0,
-						cacheReadInputTokens: data.message.usage.cache_read_input_tokens ?? 0,
-					},
-					costUSD: cost,
-					model: data.message.model ?? 'unknown',
-					version: data.version,
-					usageLimitResetTime: usageLimitResetTime ?? undefined,
-				});
-			}
-			catch (error) {
-				// Skip invalid JSON lines but log for debugging purposes
-				logger.debug(`Skipping invalid JSON line in 5-hour blocks: ${error instanceof Error ? error.message : String(error)}`);
-			}
-		}
+						const cost = fetcher != null
+							? await calculateCostForEntry(data, mode, fetcher)
+							: data.costUSD ?? 0;
+
+						// Get Claude Code usage limit expiration date
+						const usageLimitResetTime = getUsageLimitResetTime(data);
+
+						allEntries.push({
+							timestamp: new Date(data.timestamp),
+							usage: {
+								inputTokens: data.message.usage.input_tokens,
+								outputTokens: data.message.usage.output_tokens,
+								cacheCreationInputTokens: data.message.usage.cache_creation_input_tokens ?? 0,
+								cacheReadInputTokens: data.message.usage.cache_read_input_tokens ?? 0,
+							},
+							costUSD: cost,
+							model: data.message.model ?? 'unknown',
+							version: data.version,
+							usageLimitResetTime: usageLimitResetTime ?? undefined,
+						});
+					}
+					catch (error) {
+						// Skip invalid JSON lines but log for debugging purposes
+						logger.debug(`Skipping invalid JSON line in 5-hour blocks: ${error instanceof Error ? error.message : String(error)}`);
+					}
+				})();
+
+				pendingOperations.push(operation);
+			});
+
+			rl.on('close', () => {
+				Promise.all(pendingOperations)
+					.then(() => {
+						resolve();
+					})
+					.catch(() => {
+						// Errors in individual operations are already handled
+						resolve();
+					});
+			});
+
+			rl.on('error', () => {
+				// Skip files that can't be read
+				resolve();
+			});
+		});
 	}
 
 	// Identify session blocks
