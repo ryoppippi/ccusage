@@ -16,6 +16,7 @@ import type {
 	SortOrder,
 	Version,
 } from './_types.ts';
+import { once } from 'node:events';
 import { createReadStream } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
@@ -764,7 +765,7 @@ export async function loadDailyUsageData(
 	const allEntries: { data: UsageData; date: string; cost: number; model: string | undefined; project: string }[] = [];
 
 	for (const file of sortedFiles) {
-		await new Promise<void>((resolve) => {
+		try {
 			const fileStream = createReadStream(file);
 			const rl = createInterface({
 				input: fileStream,
@@ -817,22 +818,15 @@ export async function loadDailyUsageData(
 				pendingOperations.push(operation);
 			});
 
-			rl.on('close', () => {
-				Promise.all(pendingOperations)
-					.then(() => {
-						resolve();
-					})
-					.catch(() => {
-						// Errors in individual operations are already handled
-						resolve();
-					});
-			});
-
-			rl.on('error', () => {
-				// Skip files that can't be read
-				resolve();
-			});
-		});
+			await once(rl, 'close');
+			await Promise.all(pendingOperations)
+				.catch(() => {
+				// Errors in individual operations are already handled
+				});
+		}
+		catch {
+			// Skip files that cannot be read or parsed
+		}
 	}
 
 	// Group by date, optionally including project
@@ -965,7 +959,7 @@ export async function loadSessionData(
 		const joinedPath = parts.slice(0, -2).join(path.sep);
 		const projectPath = joinedPath.length > 0 ? joinedPath : 'Unknown Project';
 
-		await new Promise<void>((resolve) => {
+		try {
 			const fileStream = createReadStream(file);
 			const rl = createInterface({
 				input: fileStream,
@@ -1021,22 +1015,15 @@ export async function loadSessionData(
 				pendingOperations.push(operation);
 			});
 
-			rl.on('close', () => {
-				Promise.all(pendingOperations)
-					.then(() => {
-						resolve();
-					})
-					.catch(() => {
-						// Errors in individual operations are already handled
-						resolve();
-					});
-			});
-
-			rl.on('error', () => {
-				// Skip files that can't be read
-				resolve();
-			});
-		});
+			await once(rl, 'close');
+			await Promise.all(pendingOperations)
+				.catch(() => {
+					// Errors in individual operations are already handled
+				});
+		}
+		catch {
+			// Skip files that can't be read
+		}
 	}
 
 	// Group by session using Object.groupBy
@@ -1239,7 +1226,7 @@ export async function loadSessionBlockData(
 	const allEntries: LoadedUsageEntry[] = [];
 
 	for (const file of sortedFiles) {
-		await new Promise<void>((resolve) => {
+		try {
 			const fileStream = createReadStream(file);
 			const rl = createInterface({
 				input: fileStream,
@@ -1302,22 +1289,15 @@ export async function loadSessionBlockData(
 				pendingOperations.push(operation);
 			});
 
-			rl.on('close', () => {
-				Promise.all(pendingOperations)
-					.then(() => {
-						resolve();
-					})
-					.catch(() => {
-						// Errors in individual operations are already handled
-						resolve();
-					});
-			});
-
-			rl.on('error', () => {
-				// Skip files that can't be read
-				resolve();
-			});
-		});
+			await once(rl, 'close');
+			await Promise.all(pendingOperations)
+				.catch(() => {
+					// Errors in individual operations are already handled
+				});
+		}
+		catch {
+			// Skip files that can't be read
+		}
 	}
 
 	// Identify session blocks

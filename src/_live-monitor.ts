@@ -10,6 +10,7 @@
 
 import type { LoadedUsageEntry, SessionBlock } from './_session-blocks.ts';
 import type { CostMode, SortOrder } from './_types.ts';
+import { once } from 'node:events';
 import { createReadStream } from 'node:fs';
 import { createInterface } from 'node:readline';
 import { identifySessionBlocks } from './_session-blocks.ts';
@@ -111,7 +112,7 @@ export class LiveMonitor implements Disposable {
 	 * Processes a single file using streaming to avoid memory issues
 	 */
 	private async processFileStream(file: string): Promise<void> {
-		return new Promise((resolve) => {
+		try {
 			const fileStream = createReadStream(file);
 			const rl = createInterface({
 				input: fileStream,
@@ -177,22 +178,15 @@ export class LiveMonitor implements Disposable {
 				pendingOperations.push(operation);
 			});
 
-			rl.on('close', () => {
-				Promise.all(pendingOperations)
-					.then(() => {
-						resolve();
-					})
-					.catch(() => {
-						// Errors in individual operations are already handled
-						resolve();
-					});
-			});
-
-			rl.on('error', () => {
-				// Skip files that can't be read
-				resolve();
-			});
-		});
+			await once(rl, 'close');
+			await Promise.all(pendingOperations)
+				.catch(() => {
+					// Errors in individual operations are already handled
+				});
+		}
+		catch {
+			// Skip files that can't be read
+		}
 	}
 
 	/**
