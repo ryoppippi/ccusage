@@ -54,7 +54,7 @@
         "@types/bun": "^1.2.19",
         "tinyglobby": "^0.2.14",
         "typedoc": "^0.28.7",
-        "typedoc-plugin-markdown": "^4.7.0",
+        "typedoc-plugin-markdown": "^4.7.1",
         "typedoc-vitepress-theme": "^1.1.2",
         "vitepress": "^1.6.3",
         "vitepress-plugin-group-icons": "^1.6.1",
@@ -1687,7 +1687,7 @@
 
     "typedoc": ["typedoc@0.28.7", "", { "dependencies": { "@gerrit0/mini-shiki": "^3.7.0", "lunr": "^2.3.9", "markdown-it": "^14.1.0", "minimatch": "^9.0.5", "yaml": "^2.8.0" }, "peerDependencies": { "typescript": "5.0.x || 5.1.x || 5.2.x || 5.3.x || 5.4.x || 5.5.x || 5.6.x || 5.7.x || 5.8.x" }, "bin": { "typedoc": "bin/typedoc" } }, "sha512-lpz0Oxl6aidFkmS90VQDQjk/Qf2iw0IUvFqirdONBdj7jPSN9mGXhy66BcGNDxx5ZMyKKiBVAREvPEzT6Uxipw=="],
 
-    "typedoc-plugin-markdown": ["typedoc-plugin-markdown@4.7.0", "", { "peerDependencies": { "typedoc": "0.28.x" } }, "sha512-PitbnAps2vpcqK2gargKoiFXLWFttvwUbyns/E6zGIFG5Gz8ZQJGttHnYR9csOlcSjB/uyjd8tnoayrtsXG17w=="],
+    "typedoc-plugin-markdown": ["typedoc-plugin-markdown@4.7.1", "", { "peerDependencies": { "typedoc": "0.28.x" } }, "sha512-HN/fHLm2S6MD4HX8txfB4eWvVBzX/mEYy5U5s1KTAdh3E5uX5/lilswqTzZlPTT6fNZInAboAdFGpbAuBKnE4A=="],
 
     "typedoc-vitepress-theme": ["typedoc-vitepress-theme@1.1.2", "", { "peerDependencies": { "typedoc-plugin-markdown": ">=4.4.0" } }, "sha512-hQvCZRr5uKDqY1bRuY1+eNTNn6d4TE4OP5pnw65Y7WGgajkJW9X1/lVJK2UJpcwCmwkdjw1QIO49H9JQlxWhhw=="],
 
