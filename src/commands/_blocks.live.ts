@@ -91,7 +91,7 @@ export async function startLiveMonitoring(config: LiveMonitoringConfig): Promise
 					]);
 				}
 				finally {
-					if (resizeEventHandler !== undefined) {
+					if (resizeEventHandler != null) {
 						process.stdout.removeListener('resize', resizeEventHandler);
 					}
 				}
