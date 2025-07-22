@@ -119,7 +119,7 @@ export class LiveMonitor implements Disposable {
 				crlfDelay: Infinity,
 			});
 
-			const pendingOperations: Promise<void>[] = [];
+			const pendingOperations: Promise<LoadedUsageEntry | undefined>[] = [];
 
 			rl.on('line', (line) => {
 				if (line.trim().length === 0) {
@@ -155,8 +155,7 @@ export class LiveMonitor implements Disposable {
 
 						const usageLimitResetTime = getUsageLimitResetTime(usageData);
 
-						// Add entry
-						this.allEntries.push({
+						return {
 							timestamp: new Date(usageData.timestamp),
 							usage: {
 								inputTokens: usageData.message.usage.input_tokens ?? 0,
@@ -168,7 +167,7 @@ export class LiveMonitor implements Disposable {
 							model: usageData.message.model ?? '<synthetic>',
 							version: usageData.version,
 							usageLimitResetTime: usageLimitResetTime ?? undefined,
-						});
+						};
 					}
 					catch {
 						// Skip malformed lines
@@ -179,10 +178,9 @@ export class LiveMonitor implements Disposable {
 			});
 
 			await once(rl, 'close');
-			await Promise.all(pendingOperations)
-				.catch(() => {
-					// Errors in individual operations are already handled
-				});
+			const entries = (await Promise.all(pendingOperations)).filter((e): e is LoadedUsageEntry => e != null);
+			// Add entries
+			this.allEntries.push(...entries);
 		}
 		catch {
 			// Skip files that can't be read

@@ -772,7 +772,7 @@ export async function loadDailyUsageData(
 				crlfDelay: Infinity,
 			});
 
-			const pendingOperations: Promise<void>[] = [];
+			const pendingOperations: Promise<typeof allEntries[number] | undefined>[] = [];
 
 			rl.on('line', (line) => {
 				if (line.trim().length === 0) {
@@ -808,7 +808,7 @@ export async function loadDailyUsageData(
 						// Extract project name from file path
 						const project = extractProjectFromPath(file);
 
-						allEntries.push({ data, date, cost, model: data.message.model, project });
+						return { data, date, cost, model: data.message.model, project };
 					}
 					catch {
 						// Skip invalid JSON lines
@@ -819,10 +819,8 @@ export async function loadDailyUsageData(
 			});
 
 			await once(rl, 'close');
-			await Promise.all(pendingOperations)
-				.catch(() => {
-				// Errors in individual operations are already handled
-				});
+			const entries = (await Promise.all(pendingOperations)).filter(e => e != null);
+			allEntries.push(...entries);
 		}
 		catch {
 			// Skip files that cannot be read or parsed
@@ -966,7 +964,15 @@ export async function loadSessionData(
 				crlfDelay: Infinity,
 			});
 
-			const pendingOperations: Promise<void>[] = [];
+			const pendingOperations: Promise<{
+				data: UsageData;
+				sessionKey: string;
+				sessionId: string;
+				projectPath: string;
+				cost: number;
+				timestamp: string;
+				model: string | undefined;
+			} | undefined>[] = [];
 
 			rl.on('line', (line) => {
 				if (line.trim().length === 0) {
@@ -997,7 +1003,7 @@ export async function loadSessionData(
 							? await calculateCostForEntry(data, mode, fetcher)
 							: data.costUSD ?? 0;
 
-						allEntries.push({
+						return {
 							data,
 							sessionKey,
 							sessionId,
@@ -1005,7 +1011,7 @@ export async function loadSessionData(
 							cost,
 							timestamp: data.timestamp,
 							model: data.message.model,
-						});
+						};
 					}
 					catch {
 						// Skip invalid JSON lines
@@ -1016,10 +1022,8 @@ export async function loadSessionData(
 			});
 
 			await once(rl, 'close');
-			await Promise.all(pendingOperations)
-				.catch(() => {
-					// Errors in individual operations are already handled
-				});
+			const entries = (await Promise.all(pendingOperations)).filter(e => e != null);
+			allEntries.push(...entries);
 		}
 		catch {
 			// Skip files that can't be read
@@ -1233,7 +1237,7 @@ export async function loadSessionBlockData(
 				crlfDelay: Infinity,
 			});
 
-			const pendingOperations: Promise<void>[] = [];
+			const pendingOperations: Promise<typeof allEntries[number] | undefined>[] = [];
 
 			rl.on('line', (line) => {
 				if (line.trim().length === 0) {
@@ -1266,7 +1270,7 @@ export async function loadSessionBlockData(
 						// Get Claude Code usage limit expiration date
 						const usageLimitResetTime = getUsageLimitResetTime(data);
 
-						allEntries.push({
+						return {
 							timestamp: new Date(data.timestamp),
 							usage: {
 								inputTokens: data.message.usage.input_tokens,
@@ -1278,7 +1282,7 @@ export async function loadSessionBlockData(
 							model: data.message.model ?? 'unknown',
 							version: data.version,
 							usageLimitResetTime: usageLimitResetTime ?? undefined,
-						});
+						};
 					}
 					catch (error) {
 						// Skip invalid JSON lines but log for debugging purposes
@@ -1290,10 +1294,8 @@ export async function loadSessionBlockData(
 			});
 
 			await once(rl, 'close');
-			await Promise.all(pendingOperations)
-				.catch(() => {
-					// Errors in individual operations are already handled
-				});
+			const entries = (await Promise.all(pendingOperations)).filter(e => e != null);
+			allEntries.push(...entries);
 		}
 		catch {
 			// Skip files that can't be read
