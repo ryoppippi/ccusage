@@ -65,7 +65,7 @@
 		"@praha/byethrow": "^0.6.2",
 		"@praha/byethrow-mcp": "^0.0.14",
 		"@ryoppippi/eslint-config": "^0.3.7",
-		"@types/bun": "^1.2.18",
+		"@types/bun": "^1.2.19",
 		"@typescript/native-preview": "^7.0.0-dev.20250719.1",
 		"ansi-escapes": "^7.0.0",
 		"bumpp": "^10.2.0",
