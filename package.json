@@ -90,7 +90,7 @@
 		"tinyglobby": "^0.2.14",
 		"tsdown": "^0.12.9",
 		"type-fest": "^4.41.0",
-		"unplugin-macros": "^0.17.0",
+		"unplugin-macros": "^0.17.1",
 		"unplugin-unused": "^0.5.1",
 		"vitest": "^3.2.4",
 		"xdg-basedir": "^5.1.0",
