@@ -917,10 +917,12 @@ export async function loadSessionData(
 		const relativePath = path.relative(baseDir, file);
 		const parts = relativePath.split(path.sep);
 
-		// Session ID is the directory name containing the JSONL file
-		const sessionId = parts[parts.length - 2] ?? 'unknown';
-		// Project path is everything before the session ID
-		const joinedPath = parts.slice(0, -2).join(path.sep);
+		// Session ID is the name of the jsonl file name containing the JSONL file
+		const sessionId = parts[parts.length - 1].replace(/.jsonl/g, '') ?? 'unknown';
+		// Project path is everything before the session ID. Since it is relative to the
+		// projects folder (.../dashed-path-project-name/uuid-for-session.jsonl)
+		// so 0,-2 would be empty since there's only 2 elements.
+		const joinedPath = parts.slice(0, -1).join(path.sep);
 		const projectPath = joinedPath.length > 0 ? joinedPath : 'Unknown Project';
 
 		const content = await readFile(file, 'utf-8');
