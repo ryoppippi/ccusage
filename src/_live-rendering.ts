@@ -21,6 +21,17 @@ import { getTotalTokens } from './_token-utils.ts';
 import { formatCurrency, formatModelsDisplay, formatNumber } from './_utils.ts';
 
 /**
+ * Draws an emoji with consistent 2-character width regardless of terminal behavior
+ * @param emoji The emoji to draw
+ * @returns A string containing ANSI escape sequences and the emoji
+ */
+function drawEmoji(emoji: string): string {
+	// Save position, draw emoji, restore position, then move forward 2 characters
+	// This ensures the emoji always takes up 2 character spaces regardless of how the terminal renders it
+	return `${ansiEscapes.cursorSavePosition}${emoji}${ansiEscapes.cursorRestorePosition}${ansiEscapes.cursorForward(2)}`;
+}
+
+/**
  * Get rate indicator (HIGH/MODERATE/NORMAL) based on burn rate
  */
 function getRateIndicator(burnRate: ReturnType<typeof calculateBurnRate>): string {
@@ -194,7 +205,7 @@ export function renderLiveDisplay(terminal: TerminalManager, block: SessionBlock
 	terminal.write(`${marginStr}│${' '.repeat(boxWidth - 2)}│\n`);
 
 	// Session section
-	const sessionLabel = pc.bold('⏱️ SESSION');
+	const sessionLabel = `${drawEmoji('⏱️')}${pc.bold(' SESSION')}`;
 	const sessionLabelWidth = stringWidth(sessionLabel);
 	const sessionBarStr = `${sessionLabel}${''.padEnd(Math.max(0, labelWidth - sessionLabelWidth))} ${sessionProgressBar} ${sessionRightText}`;
 	const sessionBarPadded = sessionBarStr + ' '.repeat(Math.max(0, boxWidth - 3 - stringWidth(sessionBarStr)));
@@ -273,7 +284,7 @@ export function renderLiveDisplay(terminal: TerminalManager, block: SessionBlock
 	};
 
 	// Usage section
-	const usageLabel = pc.bold('🔥 USAGE');
+	const usageLabel = `${drawEmoji('🔥')}${pc.bold(' USAGE')}`;
 	const usageLabelWidth = stringWidth(usageLabel);
 
 	// Create usage bar string with pre-generated text
@@ -386,7 +397,7 @@ export function renderLiveDisplay(terminal: TerminalManager, block: SessionBlock
 			: pc.green('✓ ON TRACK');
 
 		// Projection section
-		const projLabel = pc.bold('📈 PROJECTION');
+		const projLabel = `${drawEmoji('📈')}${pc.bold(' PROJECTION')}`;
 		const projLabelWidth = stringWidth(projLabel);
 
 		// Create projection bar string with pre-generated text
@@ -435,7 +446,7 @@ export function renderLiveDisplay(terminal: TerminalManager, block: SessionBlock
 	// Models section
 	if (block.models.length > 0) {
 		terminal.write(`${marginStr}├${'─'.repeat(boxWidth - 2)}┤\n`);
-		const modelsLine = `⚙️  Models: ${formatModelsDisplay(block.models)}`;
+		const modelsLine = `${drawEmoji('⚙️')}  Models: ${formatModelsDisplay(block.models)}`;
 		const modelsLinePadded = modelsLine + ' '.repeat(Math.max(0, boxWidth - 3 - stringWidth(modelsLine)));
 		terminal.write(`${marginStr}│ ${modelsLinePadded}│\n`);
 	}
