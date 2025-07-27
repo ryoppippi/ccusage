@@ -323,7 +323,7 @@ export function drawEmoji(emoji: string): string {
 // In-source testing
 if (import.meta.vitest != null) {
 	describe('drawEmoji', () => {
-		it('should always return a string with width 2', () => {
+		it('should always return a string with width as same as original', () => {
 			// 2-width emojis
 			expect(stringWidth(drawEmoji('⏱️'))).toBe(2);
 			expect(stringWidth(drawEmoji('🔥'))).toBe(2);
@@ -331,6 +331,7 @@ if (import.meta.vitest != null) {
 			expect(stringWidth(drawEmoji('⚙️'))).toBe(2);
 			expect(stringWidth(drawEmoji('❌'))).toBe(2);
 			expect(stringWidth(drawEmoji('⚠️'))).toBe(2);
+			expect(stringWidth(drawEmoji('⚡'))).toBe(2);
 
 			// 1-width emojis
 			expect(stringWidth(drawEmoji('✓'))).toBe(1);

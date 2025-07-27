@@ -31,9 +31,9 @@ function getRateIndicator(burnRate: ReturnType<typeof calculateBurnRate>): strin
 	// eslint-disable-next-line ts/switch-exhaustiveness-check
 	switch (true) {
 		case burnRate.tokensPerMinuteForIndicator > BURN_RATE_THRESHOLDS.HIGH:
-			return pc.red('⚡ HIGH');
+			return pc.red(`${drawEmoji('⚡')} HIGH`);
 		case burnRate.tokensPerMinuteForIndicator > BURN_RATE_THRESHOLDS.MODERATE:
-			return pc.yellow('⚡ MODERATE');
+			return pc.yellow(`${drawEmoji('⚡')} MODERATE`);
 		default:
 			return pc.green(`${drawEmoji('✓')} NORMAL`);
 	}
