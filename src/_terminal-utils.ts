@@ -300,29 +300,28 @@ export function centerText(text: string, width: number): string {
 	return ' '.repeat(leftPadding) + text + ' '.repeat(rightPadding);
 }
 
+// Using below sequences causes issues in some terminals such as NeoVim.
+// - ansiEscapes.cursorSavePosition (\u001B[s = Save Cursor)
+// - ansiEscapes.cursorRestorePosition (\u001B[u = Unsave Cursor)
+//
+// Instead, we use:
+// - \u001B7 = Save Cursor & Attrs
+// - \u001B8 = Restore Cursor & Attrs
+//
+// see: https://www2.ccs.neu.edu/research/gpc/VonaUtils/vona/terminal/vtansi.htm
+const SAVE_CURSOR = '\u001B7';
+const RESTORE_CURSOR = '\u001B8';
 /**
  * Draws an emoji with consistent 2-character width regardless of terminal behavior
  * @param emoji The emoji to draw
  * @returns A string containing ANSI escape sequences and the emoji
  */
 export function drawEmoji(emoji: string): string {
-	const emojiWidth = stringWidth(emoji);
-	const content = emojiWidth === 1 ? `${emoji} ` : emoji;
+	// Since the width is also measured by stringWidth on the function call side,
+	// the width consumed by the terminal and the value returned by stringWidth must be consistent.
+	const content = stringWidth(emoji) === 1 ? `${emoji} ` : emoji;
 
-	// Using below sequences instead causes issues in some terminals such as NeoVim.
-	// - ansiEscapes.cursorSavePosition (\u001B[s = Save Cursor)
-	// - ansiEscapes.cursorRestorePosition (\u001B[u = Unsave Cursor)
-	//
-	// Instead, we use:
-	// - \u001B7 = Save Cursor & Attrs
-	// - \u001B8 = Restore Cursor & Attrs
-	//
-	// see: https://www2.ccs.neu.edu/research/gpc/VonaUtils/vona/terminal/vtansi.htm
-
-	const SAVE_CUROSR = '\u001B7';
-	const RESTORE_CURSOR = '\u001B8';
-
-	return `${SAVE_CUROSR}${content}${RESTORE_CURSOR}${ansiEscapes.cursorForward(2)}`;
+	return `${SAVE_CURSOR}${content}${RESTORE_CURSOR}${ansiEscapes.cursorForward(2)}`;
 }
 
 // In-source testing
