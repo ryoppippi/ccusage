@@ -308,7 +308,21 @@ export function centerText(text: string, width: number): string {
 export function drawEmoji(emoji: string): string {
 	const emojiWidth = stringWidth(emoji);
 	const content = emojiWidth === 1 ? `${emoji} ` : emoji;
-	return `${ansiEscapes.cursorSavePosition}${content}${ansiEscapes.cursorRestorePosition}${ansiEscapes.cursorForward(2)}`;
+
+	// Using below sequences instead causes issues in some terminals such as NeoVim.
+	// - ansiEscapes.cursorSavePosition (\u001B[s = Save Cursor)
+	// - ansiEscapes.cursorRestorePosition (\u001B[u = Unsave Cursor)
+	//
+	// Instead, we use:
+	// - \u001B7 = Save Cursor & Attrs
+	// - \u001B8 = Restore Cursor & Attrs
+	//
+	// see: https://www2.ccs.neu.edu/research/gpc/VonaUtils/vona/terminal/vtansi.htm
+
+	const SAVE_CUROSR = '\u001B7';
+	const RESTORE_CURSOR = '\u001B8';
+
+	return `${SAVE_CUROSR}${content}${RESTORE_CURSOR}${ansiEscapes.cursorForward(2)}`;
 }
 
 // In-source testing
