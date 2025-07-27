@@ -435,7 +435,7 @@ export function renderLiveDisplay(terminal: TerminalManager, block: SessionBlock
 	// Models section
 	if (block.models.length > 0) {
 		terminal.write(`${marginStr}├${'─'.repeat(boxWidth - 2)}┤\n`);
-		const modelsLine = `${drawEmoji('⚙️')} Models: ${formatModelsDisplay(block.models)}`;
+		const modelsLine = `${drawEmoji('⚙️')}  Models: ${formatModelsDisplay(block.models)}`;
 		const modelsLinePadded = modelsLine + ' '.repeat(Math.max(0, boxWidth - 3 - stringWidth(modelsLine)));
 		terminal.write(`${marginStr}│ ${modelsLinePadded}│\n`);
 	}
