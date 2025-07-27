@@ -317,11 +317,7 @@ const RESTORE_CURSOR = '\u001B8';
  * @returns A string containing ANSI escape sequences and the emoji
  */
 export function drawEmoji(emoji: string): string {
-	// Since the width is also measured by stringWidth on the function call side,
-	// the width consumed by the terminal and the value returned by stringWidth must be consistent.
-	const content = stringWidth(emoji) === 1 ? `${emoji} ` : emoji;
-
-	return `${SAVE_CURSOR}${content}${RESTORE_CURSOR}${ansiEscapes.cursorForward(2)}`;
+	return `${SAVE_CURSOR}${emoji}${RESTORE_CURSOR}${ansiEscapes.cursorForward(stringWidth(emoji))}`;
 }
 
 // In-source testing
@@ -337,8 +333,8 @@ if (import.meta.vitest != null) {
 			expect(stringWidth(drawEmoji('⚠️'))).toBe(2);
 
 			// 1-width emojis (should be padded to 2)
-			expect(stringWidth(drawEmoji('✓'))).toBe(2);
-			expect(stringWidth(drawEmoji('↻'))).toBe(2);
+			expect(stringWidth(drawEmoji('✓'))).toBe(1);
+			expect(stringWidth(drawEmoji('↻'))).toBe(1);
 		});
 	});
 }
