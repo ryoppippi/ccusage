@@ -332,7 +332,7 @@ if (import.meta.vitest != null) {
 			expect(stringWidth(drawEmoji('❌'))).toBe(2);
 			expect(stringWidth(drawEmoji('⚠️'))).toBe(2);
 
-			// 1-width emojis (should be padded to 2)
+			// 1-width emojis
 			expect(stringWidth(drawEmoji('✓'))).toBe(1);
 			expect(stringWidth(drawEmoji('↻'))).toBe(1);
 		});
