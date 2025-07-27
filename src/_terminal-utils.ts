@@ -299,3 +299,33 @@ export function centerText(text: string, width: number): string {
 
 	return ' '.repeat(leftPadding) + text + ' '.repeat(rightPadding);
 }
+
+/**
+ * Draws an emoji with consistent 2-character width regardless of terminal behavior
+ * @param emoji The emoji to draw
+ * @returns A string containing ANSI escape sequences and the emoji
+ */
+export function drawEmoji(emoji: string): string {
+	const emojiWidth = stringWidth(emoji);
+	const content = emojiWidth === 1 ? `${emoji} ` : emoji;
+	return `${ansiEscapes.cursorSavePosition}${content}${ansiEscapes.cursorRestorePosition}${ansiEscapes.cursorForward(2)}`;
+}
+
+// In-source testing
+if (import.meta.vitest != null) {
+	describe('drawEmoji', () => {
+		it('should always return a string with width 2', () => {
+			// 2-width emojis
+			expect(stringWidth(drawEmoji('⏱️'))).toBe(2);
+			expect(stringWidth(drawEmoji('🔥'))).toBe(2);
+			expect(stringWidth(drawEmoji('📈'))).toBe(2);
+			expect(stringWidth(drawEmoji('⚙️'))).toBe(2);
+			expect(stringWidth(drawEmoji('❌'))).toBe(2);
+			expect(stringWidth(drawEmoji('⚠️'))).toBe(2);
+
+			// 1-width emojis (should be padded to 2)
+			expect(stringWidth(drawEmoji('✓'))).toBe(2);
+			expect(stringWidth(drawEmoji('↻'))).toBe(2);
+		});
+	});
+}

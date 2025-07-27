@@ -16,20 +16,9 @@ import prettyMs from 'pretty-ms';
 import stringWidth from 'string-width';
 import { BURN_RATE_THRESHOLDS } from './_consts.ts';
 import { calculateBurnRate, projectBlockUsage } from './_session-blocks.ts';
-import { centerText, createProgressBar } from './_terminal-utils.ts';
+import { centerText, createProgressBar, drawEmoji } from './_terminal-utils.ts';
 import { getTotalTokens } from './_token-utils.ts';
 import { formatCurrency, formatModelsDisplay, formatNumber } from './_utils.ts';
-
-/**
- * Draws an emoji with consistent 2-character width regardless of terminal behavior
- * @param emoji The emoji to draw
- * @returns A string containing ANSI escape sequences and the emoji
- */
-function drawEmoji(emoji: string): string {
-	// Save position, draw emoji, restore position, then move forward 2 characters
-	// This ensures the emoji always takes up 2 character spaces regardless of how the terminal renders it
-	return `${ansiEscapes.cursorSavePosition}${emoji}${ansiEscapes.cursorRestorePosition}${ansiEscapes.cursorForward(2)}`;
-}
 
 /**
  * Get rate indicator (HIGH/MODERATE/NORMAL) based on burn rate
