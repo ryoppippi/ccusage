@@ -2052,6 +2052,349 @@ invalid json line
 		});
 	});
 
+	describe('loadWeeklyUsageData', () => {
+		it('aggregates daily data by week correctly', async () => {
+			const mockData: UsageData[] = [
+				{
+					timestamp: createISOTimestamp('2024-01-01T12:00:00Z'),
+					message: { usage: { input_tokens: 100, output_tokens: 50 } },
+					costUSD: 0.01,
+				},
+				{
+					timestamp: createISOTimestamp('2024-01-02T12:00:00Z'),
+					message: { usage: { input_tokens: 200, output_tokens: 100 } },
+					costUSD: 0.02,
+				},
+				{
+					timestamp: createISOTimestamp('2024-01-15T12:00:00Z'),
+					message: { usage: { input_tokens: 150, output_tokens: 75 } },
+					costUSD: 0.015,
+				},
+			];
+
+			await using fixture = await createFixture({
+				projects: {
+					project1: {
+						session1: {
+							'file.jsonl': mockData.map(d => JSON.stringify(d)).join('\n'),
+						},
+					},
+				},
+			});
+
+			const result = await loadWeeklyUsageData({ claudePath: fixture.path });
+
+			// Should be sorted by week descending (2024-01-15 first)
+			expect(result).toHaveLength(2);
+			expect(result[0]).toEqual({
+				week: '2024-01-15',
+				inputTokens: 150,
+				outputTokens: 75,
+				cacheCreationTokens: 0,
+				cacheReadTokens: 0,
+				totalCost: 0.015,
+				modelsUsed: [],
+				modelBreakdowns: [{
+					modelName: 'unknown',
+					inputTokens: 150,
+					outputTokens: 75,
+					cacheCreationTokens: 0,
+					cacheReadTokens: 0,
+					cost: 0.015,
+				}],
+			});
+			expect(result[1]).toEqual({
+				week: '2024-01-01',
+				inputTokens: 300,
+				outputTokens: 150,
+				cacheCreationTokens: 0,
+				cacheReadTokens: 0,
+				totalCost: 0.03,
+				modelsUsed: [],
+				modelBreakdowns: [{
+					modelName: 'unknown',
+					inputTokens: 300,
+					outputTokens: 150,
+					cacheCreationTokens: 0,
+					cacheReadTokens: 0,
+					cost: 0.03,
+				}],
+			});
+		});
+
+		it('handles empty data', async () => {
+			await using fixture = await createFixture({
+				projects: {},
+			});
+
+			const result = await loadWeeklyUsageData({ claudePath: fixture.path });
+			expect(result).toEqual([]);
+		});
+
+		it('handles single week data', async () => {
+			const mockData: UsageData[] = [
+				{
+					timestamp: createISOTimestamp('2024-01-01T12:00:00Z'), // Monday
+					message: { usage: { input_tokens: 100, output_tokens: 50 } },
+					costUSD: 0.01,
+				},
+				{
+					timestamp: createISOTimestamp('2024-01-04T12:00:00Z'), // Thursday
+					message: { usage: { input_tokens: 200, output_tokens: 100 } },
+					costUSD: 0.02,
+				},
+			];
+
+			await using fixture = await createFixture({
+				projects: {
+					project1: {
+						session1: {
+							'file.jsonl': mockData.map(d => JSON.stringify(d)).join('\n'),
+						},
+					},
+				},
+			});
+
+			const result = await loadWeeklyUsageData({ claudePath: fixture.path });
+
+			expect(result).toHaveLength(1);
+			expect(result[0]).toEqual({
+				week: '2024-01-01',
+				inputTokens: 300,
+				outputTokens: 150,
+				cacheCreationTokens: 0,
+				cacheReadTokens: 0,
+				totalCost: 0.03,
+				modelsUsed: [],
+				modelBreakdowns: [{
+					modelName: 'unknown',
+					inputTokens: 300,
+					outputTokens: 150,
+					cacheCreationTokens: 0,
+					cacheReadTokens: 0,
+					cost: 0.03,
+				}],
+			});
+		});
+
+		it('sorts weeks in descending order', async () => {
+			const mockData: UsageData[] = [
+				{
+					timestamp: createISOTimestamp('2024-01-01T12:00:00Z'),
+					message: { usage: { input_tokens: 100, output_tokens: 50 } },
+					costUSD: 0.01,
+				},
+				{
+					timestamp: createISOTimestamp('2024-01-08T12:00:00Z'),
+					message: { usage: { input_tokens: 100, output_tokens: 50 } },
+					costUSD: 0.01,
+				},
+				{
+					timestamp: createISOTimestamp('2024-01-15T12:00:00Z'),
+					message: { usage: { input_tokens: 100, output_tokens: 50 } },
+					costUSD: 0.01,
+				},
+				{
+					timestamp: createISOTimestamp('2024-01-22T12:00:00Z'),
+					message: { usage: { input_tokens: 100, output_tokens: 50 } },
+					costUSD: 0.01,
+				},
+			];
+
+			await using fixture = await createFixture({
+				projects: {
+					project1: {
+						session1: {
+							'file.jsonl': mockData.map(d => JSON.stringify(d)).join('\n'),
+						},
+					},
+				},
+			});
+
+			const result = await loadWeeklyUsageData({ claudePath: fixture.path });
+			const weeks = result.map(r => r.week);
+
+			expect(weeks).toEqual(['2024-01-22', '2024-01-15', '2024-01-08', '2024-01-01']);
+		});
+
+		it('sorts weeks in ascending order when order is \'asc\'', async () => {
+			const mockData: UsageData[] = [
+				{
+					timestamp: createISOTimestamp('2024-01-01T12:00:00Z'),
+					message: { usage: { input_tokens: 100, output_tokens: 50 } },
+					costUSD: 0.01,
+				},
+				{
+					timestamp: createISOTimestamp('2024-01-08T12:00:00Z'),
+					message: { usage: { input_tokens: 100, output_tokens: 50 } },
+					costUSD: 0.01,
+				},
+				{
+					timestamp: createISOTimestamp('2024-01-15T12:00:00Z'),
+					message: { usage: { input_tokens: 100, output_tokens: 50 } },
+					costUSD: 0.01,
+				},
+				{
+					timestamp: createISOTimestamp('2024-01-22T12:00:00Z'),
+					message: { usage: { input_tokens: 100, output_tokens: 50 } },
+					costUSD: 0.01,
+				},
+			];
+
+			await using fixture = await createFixture({
+				projects: {
+					project1: {
+						session1: {
+							'file.jsonl': mockData.map(d => JSON.stringify(d)).join('\n'),
+						},
+					},
+				},
+			});
+
+			const result = await loadWeeklyUsageData({ claudePath: fixture.path, order: 'asc' });
+			const weeks = result.map(r => r.week);
+
+			expect(weeks).toEqual(['2024-01-01', '2024-01-08', '2024-01-15', '2024-01-22']);
+		});
+
+		it('handles year boundaries correctly in sorting', async () => {
+			const mockData: UsageData[] = [
+				{
+					timestamp: createISOTimestamp('2024-01-01T12:00:00Z'),
+					message: { usage: { input_tokens: 100, output_tokens: 50 } },
+					costUSD: 0.01,
+				},
+				{
+					timestamp: createISOTimestamp('2023-12-04T12:00:00Z'),
+					message: { usage: { input_tokens: 100, output_tokens: 50 } },
+					costUSD: 0.01,
+				},
+				{
+					timestamp: createISOTimestamp('2024-02-05T12:00:00Z'),
+					message: { usage: { input_tokens: 100, output_tokens: 50 } },
+					costUSD: 0.01,
+				},
+				{
+					timestamp: createISOTimestamp('2023-11-06T12:00:00Z'),
+					message: { usage: { input_tokens: 100, output_tokens: 50 } },
+					costUSD: 0.01,
+				},
+			];
+
+			await using fixture = await createFixture({
+				projects: {
+					project1: {
+						session1: {
+							'file.jsonl': mockData.map(d => JSON.stringify(d)).join('\n'),
+						},
+					},
+				},
+			});
+
+			// Descending order (default)
+			const descResult = await loadWeeklyUsageData({
+				claudePath: fixture.path,
+				order: 'desc',
+			});
+			const descWeeks = descResult.map(r => r.week);
+			expect(descWeeks).toEqual(['2024-02-05', '2024-01-01', '2023-12-04', '2023-11-06']);
+
+			// Ascending order
+			const ascResult = await loadWeeklyUsageData({
+				claudePath: fixture.path,
+				order: 'asc',
+			});
+			const ascWeeks = ascResult.map(r => r.week);
+			expect(ascWeeks).toEqual(['2023-11-06', '2023-12-04', '2024-01-01', '2024-02-05']);
+		});
+
+		it('respects date filters', async () => {
+			const mockData: UsageData[] = [
+				{
+					timestamp: createISOTimestamp('2024-01-02T12:00:00Z'),
+					message: { usage: { input_tokens: 100, output_tokens: 50 } },
+					costUSD: 0.01,
+				},
+				{
+					timestamp: createISOTimestamp('2024-02-06T12:00:00Z'),
+					message: { usage: { input_tokens: 200, output_tokens: 100 } },
+					costUSD: 0.02,
+				},
+				{
+					timestamp: createISOTimestamp('2024-03-05T12:00:00Z'),
+					message: { usage: { input_tokens: 150, output_tokens: 75 } },
+					costUSD: 0.015,
+				},
+			];
+
+			await using fixture = await createFixture({
+				projects: {
+					project1: {
+						session1: {
+							'file.jsonl': mockData.map(d => JSON.stringify(d)).join('\n'),
+						},
+					},
+				},
+			});
+
+			const result = await loadWeeklyUsageData({
+				claudePath: fixture.path,
+				since: '20240110',
+				until: '20240225',
+			});
+
+			// Should only include February data
+			expect(result).toHaveLength(1);
+			expect(result[0]?.week).toBe('2024-02-05');
+			expect(result[0]?.inputTokens).toBe(200);
+		});
+
+		it('handles cache tokens correctly', async () => {
+			const mockData: UsageData[] = [
+				{
+					timestamp: createISOTimestamp('2024-01-02T12:00:00Z'),
+					message: {
+						usage: {
+							input_tokens: 100,
+							output_tokens: 50,
+							cache_creation_input_tokens: 25,
+							cache_read_input_tokens: 10,
+						},
+					},
+					costUSD: 0.01,
+				},
+				{
+					timestamp: createISOTimestamp('2024-01-03T12:00:00Z'),
+					message: {
+						usage: {
+							input_tokens: 200,
+							output_tokens: 100,
+							cache_creation_input_tokens: 50,
+							cache_read_input_tokens: 20,
+						},
+					},
+					costUSD: 0.02,
+				},
+			];
+
+			await using fixture = await createFixture({
+				projects: {
+					project1: {
+						session1: {
+							'file.jsonl': mockData.map(d => JSON.stringify(d)).join('\n'),
+						},
+					},
+				},
+			});
+
+			const result = await loadWeeklyUsageData({ claudePath: fixture.path });
+
+			expect(result).toHaveLength(1);
+			expect(result[0]?.cacheCreationTokens).toBe(75); // 25 + 50
+			expect(result[0]?.cacheReadTokens).toBe(30); // 10 + 20
+		});
+	});
+
 	describe('loadSessionData', () => {
 		it('returns empty array when no files found', async () => {
 			await using fixture = await createFixture({
