@@ -265,7 +265,7 @@ export const weeklyUsageSchema = z.object({
 });
 
 /**
- * Type definition for monthly usage aggregation
+ * Type definition for weekly usage aggregation
  */
 export type WeeklyUsage = z.infer<typeof weeklyUsageSchema>;
 
@@ -1151,7 +1151,7 @@ type DayOfWeek = 0 | 1;
 
 /**
  * @param date - The date to get the week for
- * @returns The week of the year in which the given date falls into
+ * @returns The date of the first day of the week for the given date
  */
 function getDateWeek(date: Date): WeeklyDate {
 	// If it turns out Anthropic is using Monday as the first day of
