@@ -1243,8 +1243,8 @@ export async function loadWeeklyUsageData(
 		weeklyArray.push(weeklyUsage);
 	}
 
-	// Sort by month based on sortOrder
-	return sortByDate(weeklyArray, item => `${item.week}-01`, options?.order);
+	// Sort by week based on sortOrder
+	return sortByDate(weeklyArray, item => item.week, options?.order);
 }
 
 /**
