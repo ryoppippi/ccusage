@@ -39,6 +39,11 @@ export const monthlyDateSchema = z.string()
 	.regex(/^\d{4}-\d{2}$/, 'Date must be in YYYY-MM format')
 	.brand<'MonthlyDate'>();
 
+export const weeklyDateSchema = z
+	.string()
+	.regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be in YYYY-MM-DD format')
+	.brand<'WeeklyDate'>();
+
 export const filterDateSchema = z.string()
 	.regex(/^\d{8}$/, 'Date must be in YYYYMMDD format')
 	.brand<'FilterDate'>();
@@ -63,6 +68,7 @@ export type ISOTimestamp = z.infer<typeof isoTimestampSchema>;
 export type DailyDate = z.infer<typeof dailyDateSchema>;
 export type ActivityDate = z.infer<typeof activityDateSchema>;
 export type MonthlyDate = z.infer<typeof monthlyDateSchema>;
+export type WeeklyDate = z.infer<typeof weeklyDateSchema>;
 export type FilterDate = z.infer<typeof filterDateSchema>;
 export type ProjectPath = z.infer<typeof projectPathSchema>;
 export type Version = z.infer<typeof versionSchema>;
@@ -79,6 +85,7 @@ export const createISOTimestamp = (value: string): ISOTimestamp => isoTimestampS
 export const createDailyDate = (value: string): DailyDate => dailyDateSchema.parse(value);
 export const createActivityDate = (value: string): ActivityDate => activityDateSchema.parse(value);
 export const createMonthlyDate = (value: string): MonthlyDate => monthlyDateSchema.parse(value);
+export const createWeeklyDate = (value: string): WeeklyDate => weeklyDateSchema.parse(value);
 export const createFilterDate = (value: string): FilterDate => filterDateSchema.parse(value);
 export const createProjectPath = (value: string): ProjectPath => projectPathSchema.parse(value);
 export const createVersion = (value: string): Version => versionSchema.parse(value);

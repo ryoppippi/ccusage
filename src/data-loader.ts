@@ -15,6 +15,7 @@ import type {
 	ModelName,
 	SortOrder,
 	Version,
+	WeeklyDate,
 } from './_types.ts';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
@@ -44,6 +45,7 @@ import {
 	createRequestId,
 	createSessionId,
 	createVersion,
+	createWeeklyDate,
 	dailyDateSchema,
 	isoTimestampSchema,
 	messageIdSchema,
@@ -53,6 +55,7 @@ import {
 	requestIdSchema,
 	sessionIdSchema,
 	versionSchema,
+	weeklyDateSchema,
 } from './_types.ts';
 import { logger } from './logger.ts';
 import {
@@ -245,6 +248,26 @@ export const monthlyUsageSchema = z.object({
  * Type definition for monthly usage aggregation
  */
 export type MonthlyUsage = z.infer<typeof monthlyUsageSchema>;
+
+/**
+ * Zod schema for weekly usage aggregation data
+ */
+export const weeklyUsageSchema = z.object({
+	week: weeklyDateSchema, // YYYY-MM-DD format
+	inputTokens: z.number(),
+	outputTokens: z.number(),
+	cacheCreationTokens: z.number(),
+	cacheReadTokens: z.number(),
+	totalCost: z.number(),
+	modelsUsed: z.array(modelNameSchema),
+	modelBreakdowns: z.array(modelBreakdownSchema),
+	project: z.string().optional(), // Project name when groupByProject is enabled
+});
+
+/**
+ * Type definition for monthly usage aggregation
+ */
+export type WeeklyUsage = z.infer<typeof weeklyUsageSchema>;
 
 /**
  * Internal type for aggregating token statistics and costs
@@ -1117,6 +1140,111 @@ export async function loadMonthlyUsageData(
 
 	// Sort by month based on sortOrder
 	return sortByDate(monthlyArray, item => `${item.month}-01`, options?.order);
+}
+
+// SUNDAY and MONDAY are both here because we don't know yet how Anthropic
+// is going to group the weekly usage. The code is written this way so that
+// if it needs to be changed it'll be easy to just change it.
+// const SUNDAY: DayOfWeek = 0;
+const MONDAY: DayOfWeek = 1;
+type DayOfWeek = 0 | 1;
+
+/**
+ * @param date - The date to get the week for
+ * @returns The week of the year in which the given date falls into
+ */
+function getDateWeek(date: Date): WeeklyDate {
+	// If it turns out Anthropic is using Monday as the first day of
+	// the week for the billing window, just use that instead.
+	const startOfWeek: DayOfWeek = MONDAY;
+	const d = new Date(date);
+	const day = d.getDay();
+	const shift = (day - startOfWeek + 7) % 7;
+	d.setDate(d.getDate() - shift);
+
+	return createWeeklyDate(d.toISOString().substring(0, 10));
+}
+
+export async function loadWeeklyUsageData(
+	options?: LoadOptions,
+): Promise<WeeklyUsage[]> {
+	const dailyData = await loadDailyUsageData(options);
+
+	// Group daily data by week, optionally including project
+	// Automatically enable project grouping when project filter is specified
+	const needsProjectGrouping
+    = options?.groupByProject === true || options?.project != null;
+
+	const groupingKey = needsProjectGrouping
+		? (data: (typeof dailyData)[0]) =>
+				`${getDateWeek(new Date(data.date))}\x00${data.project ?? 'unknown'}`
+		: (data: (typeof dailyData)[0]) => `${getDateWeek(new Date(data.date))}`;
+
+	const groupedByWeek = groupBy(dailyData, groupingKey);
+
+	// Aggregate each week group
+	const weeklyArray: WeeklyUsage[] = [];
+	for (const [groupKey, dailyEntries] of Object.entries(groupedByWeek)) {
+		if (dailyEntries == null) {
+			continue;
+		}
+
+		// Extract week and project from groupKey (format: "week" or "week\x00project")
+		const parts = groupKey.split('\x00');
+		const week = parts[0] ?? groupKey;
+		const project = parts.length > 1 ? parts[1] : undefined;
+
+		// Aggregate model breakdowns across all days
+		const allBreakdowns = dailyEntries.flatMap(
+			daily => daily.modelBreakdowns,
+		);
+		const modelAggregates = aggregateModelBreakdowns(allBreakdowns);
+
+		// Create model breakdowns
+		const modelBreakdowns = createModelBreakdowns(modelAggregates);
+
+		// Collect unique models
+		const models: string[] = [];
+		for (const data of dailyEntries) {
+			for (const model of data.modelsUsed) {
+				// Skip synthetic model
+				if (model !== '<synthetic>') {
+					models.push(model);
+				}
+			}
+		}
+
+		// Calculate totals from daily entries
+		let totalInputTokens = 0;
+		let totalOutputTokens = 0;
+		let totalCacheCreationTokens = 0;
+		let totalCacheReadTokens = 0;
+		let totalCost = 0;
+
+		for (const daily of dailyEntries) {
+			totalInputTokens += daily.inputTokens;
+			totalOutputTokens += daily.outputTokens;
+			totalCacheCreationTokens += daily.cacheCreationTokens;
+			totalCacheReadTokens += daily.cacheReadTokens;
+			totalCost += daily.totalCost;
+		}
+		const weeklyUsage: WeeklyUsage = {
+			week: createWeeklyDate(week),
+			inputTokens: totalInputTokens,
+			outputTokens: totalOutputTokens,
+			cacheCreationTokens: totalCacheCreationTokens,
+			cacheReadTokens: totalCacheReadTokens,
+			totalCost,
+			modelsUsed: uniq(models) as ModelName[],
+			modelBreakdowns,
+			...(project != null && { project }),
+		};
+
+		weeklyArray.push(weeklyUsage);
+	}
+
+	// Sort by month based on sortOrder
+	return sortByDate(weeklyArray, item => `${item.week}-01`, options?.order);
 }
 
 /**
