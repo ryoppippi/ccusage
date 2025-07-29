@@ -116,8 +116,13 @@ Check out these [47 Claude Code ProTips from Greg Baugues.](https://www.youtube.
 
 ## Claude Code Resources
 
-[`ClaudeLog`](https://claudelog.com) &nbsp; by &nbsp; [InventorBlack](https://www.reddit.com/user/inventor_black/)    
-A comprehensive knowledge base with detailed breakdowns of advanced [mechanics](https://claudelog.com/mechanics/you-are-the-main-thread/) including [CLAUDE.md best practices](https://claudelog.com/mechanics/claude-md-supremacy), practical technique guides like [plan mode](https://claudelog.com/mechanics/plan-mode), [ultrathink](https://claudelog.com/faqs/what-is-ultrathink/), [sub-agents](https://claudelog.com/mechanics/task-agent-tools/), [agent-first design](https://claudelog.com/mechanics/agent-first-design/), [agent engineering](https://claudelog.com/mechanics/agent-engineering/), [humanising agents](https://claudelog.com/mechanics/humanising-agents/) and [configuration guides](https://claudelog.com/configuration).
+[`ClaudeLog`](https://claudelog.com) &nbsp; by &nbsp; [InventorBlack](https://www.reddit.com/user/inventor_black/)
+A comprehensive knowledge base with detailed breakdowns of advanced topics, including:
+
+*   Advanced [mechanics](https://claudelog.com/mechanics/you-are-the-main-thread/) and [CLAUDE.md best practices](https://claudelog.com/mechanics/claude-md-supremacy).
+*   Practical technique guides for [plan mode](https://claudelog.com/mechanics/plan-mode), [ultrathink](https://claudelog.com/faqs/what-is-ultrathink/), and [sub-agents](https://claudelog.com/mechanics/task-agent-tools/).
+*   Concepts like [agent-first design](https://claudelog.com/mechanics/agent-first-design/), [agent engineering](https://claudelog.com/mechanics/agent-engineering/), and [humanising agents](https://claudelog.com/mechanics/humanising-agents/).
+*   [Configuration guides](https://claudelog.com/configuration).
 
 ## Star History
 
