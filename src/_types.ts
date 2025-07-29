@@ -69,6 +69,7 @@ export type DailyDate = z.infer<typeof dailyDateSchema>;
 export type ActivityDate = z.infer<typeof activityDateSchema>;
 export type MonthlyDate = z.infer<typeof monthlyDateSchema>;
 export type WeeklyDate = z.infer<typeof weeklyDateSchema>;
+export type Bucket = MonthlyDate | WeeklyDate;
 export type FilterDate = z.infer<typeof filterDateSchema>;
 export type ProjectPath = z.infer<typeof projectPathSchema>;
 export type Version = z.infer<typeof versionSchema>;
@@ -89,6 +90,13 @@ export const createWeeklyDate = (value: string): WeeklyDate => weeklyDateSchema.
 export const createFilterDate = (value: string): FilterDate => filterDateSchema.parse(value);
 export const createProjectPath = (value: string): ProjectPath => projectPathSchema.parse(value);
 export const createVersion = (value: string): Version => versionSchema.parse(value);
+
+export function createBucket(value: string): Bucket {
+	if (weeklyDateSchema.safeParse(value).success) {
+		return createWeeklyDate(value);
+	}
+	return createMonthlyDate(value);
+};
 
 /**
  * Available cost calculation modes

@@ -11,6 +11,7 @@
 import type { LoadedUsageEntry, SessionBlock } from './_session-blocks.ts';
 import type {
 	ActivityDate,
+	Bucket,
 	CostMode,
 	ModelName,
 	SortOrder,
@@ -36,6 +37,7 @@ import {
 } from './_session-blocks.ts';
 import {
 	activityDateSchema,
+	createBucket,
 	createDailyDate,
 	createISOTimestamp,
 	createMessageId,
@@ -268,6 +270,26 @@ export const weeklyUsageSchema = z.object({
  * Type definition for weekly usage aggregation
  */
 export type WeeklyUsage = z.infer<typeof weeklyUsageSchema>;
+
+/**
+ * Zod schema for bucket usage aggregation data
+ */
+export const bucketUsageSchema = z.object({
+	bucket: z.union([weeklyDateSchema, monthlyDateSchema]), // WeeklyDate or MonthlyDate
+	inputTokens: z.number(),
+	outputTokens: z.number(),
+	cacheCreationTokens: z.number(),
+	cacheReadTokens: z.number(),
+	totalCost: z.number(),
+	modelsUsed: z.array(modelNameSchema),
+	modelBreakdowns: z.array(modelBreakdownSchema),
+	project: z.string().optional(), // Project name when groupByProject is enabled
+});
+
+/**
+ * Type definition for bucket usage aggregation
+ */
+export type BucketUsage = z.infer<typeof bucketUsageSchema>;
 
 /**
  * Internal type for aggregating token statistics and costs
@@ -1068,78 +1090,11 @@ export async function loadSessionData(
 export async function loadMonthlyUsageData(
 	options?: LoadOptions,
 ): Promise<MonthlyUsage[]> {
-	const dailyData = await loadDailyUsageData(options);
-
-	// Group daily data by month, optionally including project
-	// Automatically enable project grouping when project filter is specified
-	const needsProjectGrouping = options?.groupByProject === true || options?.project != null;
-	const groupingKey = needsProjectGrouping
-		? (data: typeof dailyData[0]) => `${data.date.substring(0, 7)}\x00${data.project ?? 'unknown'}`
-		: (data: typeof dailyData[0]) => data.date.substring(0, 7);
-
-	const groupedByMonth = groupBy(dailyData, groupingKey);
-
-	// Aggregate each month group
-	const monthlyArray: MonthlyUsage[] = [];
-	for (const [groupKey, dailyEntries] of Object.entries(groupedByMonth)) {
-		if (dailyEntries == null) {
-			continue;
-		}
-
-		// Extract month and project from groupKey (format: "month" or "month\x00project")
-		const parts = groupKey.split('\x00');
-		const month = parts[0] ?? groupKey;
-		const project = parts.length > 1 ? parts[1] : undefined;
-
-		// Aggregate model breakdowns across all days
-		const allBreakdowns = dailyEntries.flatMap(daily => daily.modelBreakdowns);
-		const modelAggregates = aggregateModelBreakdowns(allBreakdowns);
-
-		// Create model breakdowns
-		const modelBreakdowns = createModelBreakdowns(modelAggregates);
-
-		// Collect unique models
-		const models: string[] = [];
-		for (const data of dailyEntries) {
-			for (const model of data.modelsUsed) {
-				// Skip synthetic model
-				if (model !== '<synthetic>') {
-					models.push(model);
-				}
-			}
-		}
-
-		// Calculate totals from daily entries
-		let totalInputTokens = 0;
-		let totalOutputTokens = 0;
-		let totalCacheCreationTokens = 0;
-		let totalCacheReadTokens = 0;
-		let totalCost = 0;
-
-		for (const daily of dailyEntries) {
-			totalInputTokens += daily.inputTokens;
-			totalOutputTokens += daily.outputTokens;
-			totalCacheCreationTokens += daily.cacheCreationTokens;
-			totalCacheReadTokens += daily.cacheReadTokens;
-			totalCost += daily.totalCost;
-		}
-		const monthlyUsage: MonthlyUsage = {
-			month: createMonthlyDate(month),
-			inputTokens: totalInputTokens,
-			outputTokens: totalOutputTokens,
-			cacheCreationTokens: totalCacheCreationTokens,
-			cacheReadTokens: totalCacheReadTokens,
-			totalCost,
-			modelsUsed: uniq(models) as ModelName[],
-			modelBreakdowns,
-			...(project != null && { project }),
-		};
-
-		monthlyArray.push(monthlyUsage);
-	}
-
-	// Sort by month based on sortOrder
-	return sortByDate(monthlyArray, item => `${item.month}-01`, options?.order);
+	return loadBucketUsageData((data: DailyUsage) => createMonthlyDate(data.date.substring(0, 7)), options)
+		.then(usages => usages.map<MonthlyUsage>(({ bucket, ...rest }) => ({
+			month: createMonthlyDate(bucket.toString()),
+			...rest,
+		})));
 }
 
 // SUNDAY and MONDAY are both here because we don't know yet how Anthropic
@@ -1168,6 +1123,17 @@ function getDateWeek(date: Date): WeeklyDate {
 export async function loadWeeklyUsageData(
 	options?: LoadOptions,
 ): Promise<WeeklyUsage[]> {
+	return loadBucketUsageData((data: DailyUsage) => getDateWeek(new Date(data.date)), options)
+		.then(usages => usages.map<WeeklyUsage>(({ bucket, ...rest }) => ({
+			week: createWeeklyDate(bucket.toString()),
+			...rest,
+		})));
+}
+
+export async function loadBucketUsageData(
+	groupingFn: (data: DailyUsage) => Bucket,
+	options?: LoadOptions,
+): Promise<BucketUsage[]> {
 	const dailyData = await loadDailyUsageData(options);
 
 	// Group daily data by week, optionally including project
@@ -1176,22 +1142,20 @@ export async function loadWeeklyUsageData(
     = options?.groupByProject === true || options?.project != null;
 
 	const groupingKey = needsProjectGrouping
-		? (data: (typeof dailyData)[0]) =>
-				`${getDateWeek(new Date(data.date))}\x00${data.project ?? 'unknown'}`
-		: (data: (typeof dailyData)[0]) => `${getDateWeek(new Date(data.date))}`;
+		? (data: DailyUsage) =>
+				`${groupingFn(data)}\x00${data.project ?? 'unknown'}`
+		: (data: DailyUsage) => `${groupingFn(data)}`;
 
-	const groupedByWeek = groupBy(dailyData, groupingKey);
+	const grouped = groupBy(dailyData, groupingKey);
 
-	// Aggregate each week group
-	const weeklyArray: WeeklyUsage[] = [];
-	for (const [groupKey, dailyEntries] of Object.entries(groupedByWeek)) {
+	const buckets: BucketUsage[] = [];
+	for (const [groupKey, dailyEntries] of Object.entries(grouped)) {
 		if (dailyEntries == null) {
 			continue;
 		}
 
-		// Extract week and project from groupKey (format: "week" or "week\x00project")
 		const parts = groupKey.split('\x00');
-		const week = parts[0] ?? groupKey;
+		const bucket = createBucket(parts[0] ?? groupKey);
 		const project = parts.length > 1 ? parts[1] : undefined;
 
 		// Aggregate model breakdowns across all days
@@ -1228,8 +1192,8 @@ export async function loadWeeklyUsageData(
 			totalCacheReadTokens += daily.cacheReadTokens;
 			totalCost += daily.totalCost;
 		}
-		const weeklyUsage: WeeklyUsage = {
-			week: createWeeklyDate(week),
+		const bucketUsage: BucketUsage = {
+			bucket,
 			inputTokens: totalInputTokens,
 			outputTokens: totalOutputTokens,
 			cacheCreationTokens: totalCacheCreationTokens,
@@ -1240,11 +1204,10 @@ export async function loadWeeklyUsageData(
 			...(project != null && { project }),
 		};
 
-		weeklyArray.push(weeklyUsage);
+		buckets.push(bucketUsage);
 	}
 
-	// Sort by week based on sortOrder
-	return sortByDate(weeklyArray, item => item.week, options?.order);
+	return sortByDate(buckets, item => item.bucket, options?.order);
 }
 
 /**
