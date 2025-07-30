@@ -12,6 +12,7 @@ Projects that use ccusage internally or extend its functionality:
 ## Extensions & Integrations
 
 - [ccusage Raycast Extension](https://www.raycast.com/nyatinte/ccusage) - Raycast integration for quick usage checks
+- [ccusage.nvim](https://github.com/S1M0N38/ccusage.nvim) - Track Claude Code usage in Neovim
 
 ## Contributing
 
