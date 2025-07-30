@@ -8,6 +8,7 @@ Projects that use ccusage internally or extend its functionality:
 - [ClaudeCode_Dashboard](https://github.com/m-sigepon/ClaudeCode_Dashboard) - Web dashboard with charts and visualizations
 - [Ccusage App](https://github.com/EthanBarlo/ccusage-app) - Native application to display ccusage data in graphs and visualizations
 - [CCOwl](https://github.com/sivchari/ccowl) - A cross-platform status bar application that monitors Claude Code usage in real-time.
+- [ccusage.nvim](https://github.com/S1M0N38/ccusage.nvim) - Track Claude Code usage in Neovim
 
 ## Extensions & Integrations
 
