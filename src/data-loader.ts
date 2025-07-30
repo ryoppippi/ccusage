@@ -28,11 +28,15 @@ import { createFixture } from 'fs-fixture';
 import { isDirectorySync } from 'path-type';
 import { glob } from 'tinyglobby';
 import { z } from 'zod';
-import { CLAUDE_CONFIG_DIR_ENV, CLAUDE_PROJECTS_DIR_NAME, DEFAULT_CLAUDE_CODE_PATH, DEFAULT_CLAUDE_CONFIG_PATH, USAGE_DATA_GLOB_PATTERN, USER_HOME_DIR } from './_consts.ts';
 import {
-	identifySessionBlocks,
-
-} from './_session-blocks.ts';
+	CLAUDE_CONFIG_DIR_ENV,
+	CLAUDE_PROJECTS_DIR_NAME,
+	DEFAULT_CLAUDE_CODE_PATH,
+	DEFAULT_CLAUDE_CONFIG_PATH,
+	USAGE_DATA_GLOB_PATTERN,
+	USER_HOME_DIR,
+} from './_consts.ts';
+import { identifySessionBlocks } from './_session-blocks.ts';
 import {
 	activityDateSchema,
 	createDailyDate,
@@ -55,9 +59,7 @@ import {
 	versionSchema,
 } from './_types.ts';
 import { logger } from './logger.ts';
-import {
-	PricingFetcher,
-} from './pricing-fetcher.ts';
+import { PricingFetcher } from './pricing-fetcher.ts';
 
 /**
  * Get all Claude data directories to search for usage data
@@ -71,11 +73,17 @@ export function getClaudePaths(): string[] {
 	// Check environment variable first (supports comma-separated paths)
 	const envPaths = (process.env[CLAUDE_CONFIG_DIR_ENV] ?? '').trim();
 	if (envPaths !== '') {
-		const envPathList = envPaths.split(',').map(p => p.trim()).filter(p => p !== '');
+		const envPathList = envPaths
+			.split(',')
+			.map(p => p.trim())
+			.filter(p => p !== '');
 		for (const envPath of envPathList) {
 			const normalizedPath = path.resolve(envPath);
 			if (isDirectorySync(normalizedPath)) {
-				const projectsPath = path.join(normalizedPath, CLAUDE_PROJECTS_DIR_NAME);
+				const projectsPath = path.join(
+					normalizedPath,
+					CLAUDE_PROJECTS_DIR_NAME,
+				);
 				if (isDirectorySync(projectsPath)) {
 					// Avoid duplicates using normalized paths
 					if (!normalizedPaths.has(normalizedPath)) {
@@ -128,14 +136,18 @@ export function extractProjectFromPath(jsonlPath: string): string {
 	// Normalize path separators for cross-platform compatibility
 	const normalizedPath = jsonlPath.replace(/[/\\]/g, path.sep);
 	const segments = normalizedPath.split(path.sep);
-	const projectsIndex = segments.findIndex(segment => segment === CLAUDE_PROJECTS_DIR_NAME);
+	const projectsIndex = segments.findIndex(
+		segment => segment === CLAUDE_PROJECTS_DIR_NAME,
+	);
 
 	if (projectsIndex === -1 || projectsIndex + 1 >= segments.length) {
 		return 'unknown';
 	}
 
 	const projectName = segments[projectsIndex + 1];
-	return projectName != null && projectName.trim() !== '' ? projectName : 'unknown';
+	return projectName != null && projectName.trim() !== ''
+		? projectName
+		: 'unknown';
 }
 
 /**
@@ -153,9 +165,13 @@ export const usageDataSchema = z.object({
 		}),
 		model: modelNameSchema.optional(), // Model is inside message object
 		id: messageIdSchema.optional(), // Message ID for deduplication
-		content: z.array(z.object({
-			text: z.string().optional(),
-		})).optional(),
+		content: z
+			.array(
+				z.object({
+					text: z.string().optional(),
+				}),
+			)
+			.optional(),
 	}),
 	costUSD: z.number().optional(), // Made optional for new schema
 	requestId: requestIdSchema.optional(), // Request ID for deduplication
@@ -290,8 +306,10 @@ function aggregateByModel<T>(
 		modelAggregates.set(modelName, {
 			inputTokens: existing.inputTokens + (usage.input_tokens ?? 0),
 			outputTokens: existing.outputTokens + (usage.output_tokens ?? 0),
-			cacheCreationTokens: existing.cacheCreationTokens + (usage.cache_creation_input_tokens ?? 0),
-			cacheReadTokens: existing.cacheReadTokens + (usage.cache_read_input_tokens ?? 0),
+			cacheCreationTokens:
+      existing.cacheCreationTokens + (usage.cache_creation_input_tokens ?? 0),
+			cacheReadTokens:
+      existing.cacheReadTokens + (usage.cache_read_input_tokens ?? 0),
 			cost: existing.cost + cost,
 		});
 	}
@@ -325,7 +343,8 @@ function aggregateModelBreakdowns(
 		modelAggregates.set(breakdown.modelName, {
 			inputTokens: existing.inputTokens + breakdown.inputTokens,
 			outputTokens: existing.outputTokens + breakdown.outputTokens,
-			cacheCreationTokens: existing.cacheCreationTokens + breakdown.cacheCreationTokens,
+			cacheCreationTokens:
+      existing.cacheCreationTokens + breakdown.cacheCreationTokens,
 			cacheReadTokens: existing.cacheReadTokens + breakdown.cacheReadTokens,
 			cost: existing.cost + breakdown.cost,
 		});
@@ -364,8 +383,10 @@ function calculateTotals<T>(
 			return {
 				inputTokens: acc.inputTokens + (usage.input_tokens ?? 0),
 				outputTokens: acc.outputTokens + (usage.output_tokens ?? 0),
-				cacheCreationTokens: acc.cacheCreationTokens + (usage.cache_creation_input_tokens ?? 0),
-				cacheReadTokens: acc.cacheReadTokens + (usage.cache_read_input_tokens ?? 0),
+				cacheCreationTokens:
+        acc.cacheCreationTokens + (usage.cache_creation_input_tokens ?? 0),
+				cacheReadTokens:
+        acc.cacheReadTokens + (usage.cache_read_input_tokens ?? 0),
 				cost: acc.cost + cost,
 				totalCost: acc.totalCost + cost,
 			};
@@ -456,19 +477,23 @@ function extractUniqueModels<T>(
 	entries: T[],
 	getModel: (entry: T) => string | undefined,
 ): string[] {
-	return uniq(entries.map(getModel).filter((m): m is string => m != null && m !== '<synthetic>'));
+	return uniq(
+		entries
+			.map(getModel)
+			.filter((m): m is string => m != null && m !== '<synthetic>'),
+	);
 }
 
 /**
  * Formats a date string to YYYY-MM-DD format
- * @param dateStr - Input date string
+ * @param dateStr - Input date string (ALWAYS in UTC)
  * @returns Formatted date string in YYYY-MM-DD format
  */
 export function formatDate(dateStr: string): string {
 	const date = new Date(dateStr);
-	const year = date.getFullYear();
-	const month = String(date.getMonth() + 1).padStart(2, '0');
-	const day = String(date.getDate()).padStart(2, '0');
+	const year = date.getUTCFullYear();
+	const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+	const day = String(date.getUTCDate()).padStart(2, '0');
 	return `${year}-${month}-${day}`;
 }
 
@@ -479,9 +504,9 @@ export function formatDate(dateStr: string): string {
  */
 export function formatDateCompact(dateStr: string): string {
 	const date = new Date(dateStr);
-	const year = date.getFullYear();
-	const month = String(date.getMonth() + 1).padStart(2, '0');
-	const day = String(date.getDate()).padStart(2, '0');
+	const year = date.getUTCFullYear();
+	const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+	const day = String(date.getUTCDate()).padStart(2, '0');
 	return `${year}\n${month}-${day}`;
 }
 
@@ -527,7 +552,9 @@ export function createUniqueHash(data: UsageData): string | null {
  * Extract the earliest timestamp from a JSONL file
  * Scans through the file until it finds a valid timestamp
  */
-export async function getEarliestTimestamp(filePath: string): Promise<Date | null> {
+export async function getEarliestTimestamp(
+	filePath: string,
+): Promise<Date | null> {
 	try {
 		const content = await readFile(filePath, 'utf-8');
 		const lines = content.trim().split('\n');
@@ -616,7 +643,10 @@ export async function calculateCostForEntry(
 	if (mode === 'calculate') {
 		// Always calculate from tokens
 		if (data.message.model != null) {
-			return Result.unwrap(fetcher.calculateCostFromTokens(data.message.usage, data.message.model), 0);
+			return Result.unwrap(
+				fetcher.calculateCostFromTokens(data.message.usage, data.message.model),
+				0,
+			);
 		}
 		return 0;
 	}
@@ -628,7 +658,10 @@ export async function calculateCostForEntry(
 		}
 
 		if (data.message.model != null) {
-			return Result.unwrap(fetcher.calculateCostFromTokens(data.message.usage, data.message.model), 0);
+			return Result.unwrap(
+				fetcher.calculateCostFromTokens(data.message.usage, data.message.model),
+				0,
+			);
 		}
 
 		return 0;
@@ -672,7 +705,9 @@ export type GlobResult = {
  * @param claudePaths - Array of Claude base paths
  * @returns Array of file paths with their base directories
  */
-export async function globUsageFiles(claudePaths: string[]): Promise<GlobResult[]> {
+export async function globUsageFiles(
+	claudePaths: string[],
+): Promise<GlobResult[]> {
 	const filePromises = claudePaths.map(async (claudePath) => {
 		const claudeDir = path.join(claudePath, CLAUDE_PROJECTS_DIR_NAME);
 		const files = await glob([USAGE_DATA_GLOB_PATTERN], {
@@ -741,13 +776,20 @@ export async function loadDailyUsageData(
 	const mode = options?.mode ?? 'auto';
 
 	// Use PricingFetcher with using statement for automatic cleanup
-	using fetcher = mode === 'display' ? null : new PricingFetcher(options?.offline);
+	using fetcher
+  = mode === 'display' ? null : new PricingFetcher(options?.offline);
 
 	// Track processed message+request combinations for deduplication
 	const processedHashes = new Set<string>();
 
 	// Collect all valid data entries first
-	const allEntries: { data: UsageData; date: string; cost: number; model: string | undefined; project: string }[] = [];
+	const allEntries: {
+		data: UsageData;
+		date: string;
+		cost: number;
+		model: string | undefined;
+		project: string;
+	}[] = [];
 
 	for (const file of sortedFiles) {
 		const content = await readFile(file, 'utf-8');
@@ -785,7 +827,13 @@ export async function loadDailyUsageData(
 				// Extract project name from file path
 				const project = extractProjectFromPath(file);
 
-				allEntries.push({ data, date, cost, model: data.message.model, project });
+				allEntries.push({
+					data,
+					date,
+					cost,
+					model: data.message.model,
+					project,
+				});
 			}
 			catch {
 				// Skip invalid JSON lines
@@ -795,10 +843,11 @@ export async function loadDailyUsageData(
 
 	// Group by date, optionally including project
 	// Automatically enable project grouping when project filter is specified
-	const needsProjectGrouping = options?.groupByProject === true || options?.project != null;
+	const needsProjectGrouping
+  = options?.groupByProject === true || options?.project != null;
 	const groupingKey = needsProjectGrouping
-		? (entry: typeof allEntries[0]) => `${entry.date}\x00${entry.project}`
-		: (entry: typeof allEntries[0]) => entry.date;
+		? (entry: (typeof allEntries)[0]) => `${entry.date}\x00${entry.project}`
+		: (entry: (typeof allEntries)[0]) => entry.date;
 
 	const groupedData = groupBy(allEntries, groupingKey);
 
@@ -845,10 +894,19 @@ export async function loadDailyUsageData(
 		.filter(item => item != null);
 
 	// Filter by date range if specified
-	const dateFiltered = filterByDateRange(results, item => item.date, options?.since, options?.until);
+	const dateFiltered = filterByDateRange(
+		results,
+		item => item.date,
+		options?.since,
+		options?.until,
+	);
 
 	// Filter by project if specified
-	const finalFiltered = filterByProject(dateFiltered, item => item.project, options?.project);
+	const finalFiltered = filterByProject(
+		dateFiltered,
+		item => item.project,
+		options?.project,
+	);
 
 	// Sort by date based on order option (default to descending)
 	return sortByDate(finalFiltered, item => item.date, options?.order);
@@ -882,7 +940,9 @@ export async function loadSessionData(
 
 	// Sort files by timestamp to ensure chronological processing
 	// Create a map for O(1) lookup instead of O(N) find operations
-	const fileToBaseMap = new Map(projectFilteredWithBase.map(f => [f.file, f.baseDir]));
+	const fileToBaseMap = new Map(
+		projectFilteredWithBase.map(f => [f.file, f.baseDir]),
+	);
 	const sortedFilesWithBase = await sortFilesByTimestamp(
 		projectFilteredWithBase.map(f => f.file),
 	).then(sortedFiles =>
@@ -896,7 +956,8 @@ export async function loadSessionData(
 	const mode = options?.mode ?? 'auto';
 
 	// Use PricingFetcher with using statement for automatic cleanup
-	using fetcher = mode === 'display' ? null : new PricingFetcher(options?.offline);
+	using fetcher
+= mode === 'display' ? null : new PricingFetcher(options?.offline);
 
 	// Track processed message+request combinations for deduplication
 	const processedHashes = new Set<string>();
@@ -918,7 +979,16 @@ export async function loadSessionData(
 		const parts = relativePath.split(path.sep);
 
 		// Session ID is the name of the jsonl file name containing the JSONL file
-		const sessionId = ((parts[parts.length - 1] ?? '').replace(/\.jsonl/g, '') !== '') || 'unknown';
+		let sessionId: string;
+		if (
+			parts.length > 0
+			&& (parts[parts.length - 1] ?? '').replace(/\.jsonl/g, '') !== ''
+		) {
+			sessionId = (parts[parts.length - 1] ?? '').replace(/\.jsonl/g, '');
+		}
+		else {
+			sessionId = 'unknown';
+		}
 		// Project path is everything before the session ID. Since it is relative to the
 		// projects folder (.../dashed-path-project-name/uuid-for-session.jsonl)
 		// so 0,-2 would be empty since there's only 2 elements.
@@ -943,7 +1013,7 @@ export async function loadSessionData(
 				// Check for duplicate message + request ID combination
 				const uniqueHash = createUniqueHash(data);
 				if (isDuplicateEntry(uniqueHash, processedHashes)) {
-				// Skip duplicate message
+					// Skip duplicate message
 					continue;
 				}
 
@@ -972,10 +1042,7 @@ export async function loadSessionData(
 	}
 
 	// Group by session using Object.groupBy
-	const groupedBySessions = groupBy(
-		allEntries,
-		entry => entry.sessionKey,
-	);
+	const groupedBySessions = groupBy(allEntries, entry => entry.sessionKey);
 
 	// Aggregate each session group
 	const results = Object.entries(groupedBySessions)
@@ -1030,12 +1097,25 @@ export async function loadSessionData(
 		.filter(item => item != null);
 
 	// Filter by date range if specified
-	const dateFiltered = filterByDateRange(results, item => item.lastActivity, options?.since, options?.until);
+	const dateFiltered = filterByDateRange(
+		results,
+		item => item.lastActivity,
+		options?.since,
+		options?.until,
+	);
 
 	// Filter by project if specified
-	const sessionFiltered = filterByProject(dateFiltered, item => item.projectPath, options?.project);
+	const sessionFiltered = filterByProject(
+		dateFiltered,
+		item => item.projectPath,
+		options?.project,
+	);
 
-	return sortByDate(sessionFiltered, item => item.lastActivity, options?.order);
+	return sortByDate(
+		sessionFiltered,
+		item => item.lastActivity,
+		options?.order,
+	);
 }
 
 /**
@@ -1051,10 +1131,12 @@ export async function loadMonthlyUsageData(
 
 	// Group daily data by month, optionally including project
 	// Automatically enable project grouping when project filter is specified
-	const needsProjectGrouping = options?.groupByProject === true || options?.project != null;
+	const needsProjectGrouping
+  = options?.groupByProject === true || options?.project != null;
 	const groupingKey = needsProjectGrouping
-		? (data: typeof dailyData[0]) => `${data.date.substring(0, 7)}\x00${data.project ?? 'unknown'}`
-		: (data: typeof dailyData[0]) => data.date.substring(0, 7);
+		? (data: (typeof dailyData)[0]) =>
+				`${data.date.substring(0, 7)}\x00${data.project ?? 'unknown'}`
+		: (data: (typeof dailyData)[0]) => data.date.substring(0, 7);
 
 	const groupedByMonth = groupBy(dailyData, groupingKey);
 
@@ -1071,7 +1153,9 @@ export async function loadMonthlyUsageData(
 		const project = parts.length > 1 ? parts[1] : undefined;
 
 		// Aggregate model breakdowns across all days
-		const allBreakdowns = dailyEntries.flatMap(daily => daily.modelBreakdowns);
+		const allBreakdowns = dailyEntries.flatMap(
+			daily => daily.modelBreakdowns,
+		);
 		const modelAggregates = aggregateModelBreakdowns(allBreakdowns);
 
 		// Create model breakdowns
@@ -1162,7 +1246,8 @@ export async function loadSessionBlockData(
 	const mode = options?.mode ?? 'auto';
 
 	// Use PricingFetcher with using statement for automatic cleanup
-	using fetcher = mode === 'display' ? null : new PricingFetcher(options?.offline);
+	using fetcher
+  = mode === 'display' ? null : new PricingFetcher(options?.offline);
 
 	// Track processed message+request combinations for deduplication
 	const processedHashes = new Set<string>();
@@ -1189,7 +1274,7 @@ export async function loadSessionBlockData(
 				// Check for duplicate message + request ID combination
 				const uniqueHash = createUniqueHash(data);
 				if (isDuplicateEntry(uniqueHash, processedHashes)) {
-				// Skip duplicate message
+					// Skip duplicate message
 					continue;
 				}
 
@@ -1208,8 +1293,10 @@ export async function loadSessionBlockData(
 					usage: {
 						inputTokens: data.message.usage.input_tokens,
 						outputTokens: data.message.usage.output_tokens,
-						cacheCreationInputTokens: data.message.usage.cache_creation_input_tokens ?? 0,
-						cacheReadInputTokens: data.message.usage.cache_read_input_tokens ?? 0,
+						cacheCreationInputTokens:
+            data.message.usage.cache_creation_input_tokens ?? 0,
+						cacheReadInputTokens:
+            data.message.usage.cache_read_input_tokens ?? 0,
 					},
 					costUSD: cost,
 					model: data.message.model ?? 'unknown',
@@ -1219,13 +1306,18 @@ export async function loadSessionBlockData(
 			}
 			catch (error) {
 				// Skip invalid JSON lines but log for debugging purposes
-				logger.debug(`Skipping invalid JSON line in 5-hour blocks: ${error instanceof Error ? error.message : String(error)}`);
+				logger.debug(
+					`Skipping invalid JSON line in 5-hour blocks: ${error instanceof Error ? error.message : String(error)}`,
+				);
 			}
 		}
 	}
 
 	// Identify session blocks
-	const blocks = identifySessionBlocks(allEntries, options?.sessionDurationHours);
+	const blocks = identifySessionBlocks(
+		allEntries,
+		options?.sessionDurationHours,
+	);
 
 	// Filter by date range if specified
 	const dateFiltered = (options?.since != null && options.since !== '') || (options?.until != null && options.until !== '')
@@ -1248,7 +1340,7 @@ export async function loadSessionBlockData(
 if (import.meta.vitest != null) {
 	describe('formatDate', () => {
 		it('formats UTC timestamp to local date', () => {
-		// Test with UTC timestamps - results depend on local timezone
+			// Test with UTC timestamps - results depend on local timezone
 			expect(formatDate('2024-01-01T00:00:00Z')).toBe('2024-01-01');
 			expect(formatDate('2024-12-31T23:59:59Z')).toBe('2024-12-31');
 		});
@@ -1319,12 +1411,10 @@ if (import.meta.vitest != null) {
 			await using fixture = await createFixture({
 				projects: {
 					project1: {
-						session1: {
-							'file1.jsonl': mockData1.map(d => JSON.stringify(d)).join('\n'),
-						},
-						session2: {
-							'file2.jsonl': JSON.stringify(mockData2),
-						},
+						'session1.jsonl': mockData1
+							.map(d => JSON.stringify(d))
+							.join('\n'),
+						'session2.jsonl': JSON.stringify(mockData2),
 					},
 				},
 			});
@@ -1355,9 +1445,7 @@ if (import.meta.vitest != null) {
 			await using fixture = await createFixture({
 				projects: {
 					project1: {
-						session1: {
-							'file.jsonl': JSON.stringify(mockData),
-						},
+						'session1.jsonl': JSON.stringify(mockData),
 					},
 				},
 			});
@@ -1390,9 +1478,7 @@ if (import.meta.vitest != null) {
 			await using fixture = await createFixture({
 				projects: {
 					project1: {
-						session1: {
-							'file.jsonl': mockData.map(d => JSON.stringify(d)).join('\n'),
-						},
+						'session1.jsonl': mockData.map(d => JSON.stringify(d)).join('\n'),
 					},
 				},
 			});
@@ -1430,9 +1516,7 @@ if (import.meta.vitest != null) {
 			await using fixture = await createFixture({
 				projects: {
 					project1: {
-						session1: {
-							'file.jsonl': mockData.map(d => JSON.stringify(d)).join('\n'),
-						},
+						'session1.jsonl': mockData.map(d => JSON.stringify(d)).join('\n'),
 					},
 				},
 			});
@@ -1466,9 +1550,7 @@ if (import.meta.vitest != null) {
 			await using fixture = await createFixture({
 				projects: {
 					project1: {
-						session1: {
-							'usage.jsonl': mockData.map(d => JSON.stringify(d)).join('\n'),
-						},
+						'session1.jsonl': mockData.map(d => JSON.stringify(d)).join('\n'),
 					},
 				},
 			});
@@ -1506,9 +1588,7 @@ if (import.meta.vitest != null) {
 			await using fixture = await createFixture({
 				projects: {
 					project1: {
-						session1: {
-							'usage.jsonl': mockData.map(d => JSON.stringify(d)).join('\n'),
-						},
+						'session1.jsonl': mockData.map(d => JSON.stringify(d)).join('\n'),
 					},
 				},
 			});
@@ -1536,9 +1616,7 @@ invalid json line
 			await using fixture = await createFixture({
 				projects: {
 					project1: {
-						session1: {
-							'file.jsonl': mockData,
-						},
+						'session1.jsonl': mockData,
 					},
 				},
 			});
@@ -1564,9 +1642,7 @@ invalid json line
 			await using fixture = await createFixture({
 				projects: {
 					project1: {
-						session1: {
-							'file.jsonl': mockData,
-						},
+						'session1.jsonl': mockData,
 					},
 				},
 			});
@@ -1603,9 +1679,7 @@ invalid json line
 			await using fixture = await createFixture({
 				projects: {
 					project1: {
-						session1: {
-							'file.jsonl': mockData.map(d => JSON.stringify(d)).join('\n'),
-						},
+						'session1.jsonl': mockData.map(d => JSON.stringify(d)).join('\n'),
 					},
 				},
 			});
@@ -1622,14 +1696,16 @@ invalid json line
 				cacheReadTokens: 0,
 				totalCost: 0.015,
 				modelsUsed: [],
-				modelBreakdowns: [{
-					modelName: 'unknown',
-					inputTokens: 150,
-					outputTokens: 75,
-					cacheCreationTokens: 0,
-					cacheReadTokens: 0,
-					cost: 0.015,
-				}],
+				modelBreakdowns: [
+					{
+						modelName: 'unknown',
+						inputTokens: 150,
+						outputTokens: 75,
+						cacheCreationTokens: 0,
+						cacheReadTokens: 0,
+						cost: 0.015,
+					},
+				],
 			});
 			expect(result[1]).toEqual({
 				month: '2024-01',
@@ -1639,14 +1715,16 @@ invalid json line
 				cacheReadTokens: 0,
 				totalCost: 0.03,
 				modelsUsed: [],
-				modelBreakdowns: [{
-					modelName: 'unknown',
-					inputTokens: 300,
-					outputTokens: 150,
-					cacheCreationTokens: 0,
-					cacheReadTokens: 0,
-					cost: 0.03,
-				}],
+				modelBreakdowns: [
+					{
+						modelName: 'unknown',
+						inputTokens: 300,
+						outputTokens: 150,
+						cacheCreationTokens: 0,
+						cacheReadTokens: 0,
+						cost: 0.03,
+					},
+				],
 			});
 		});
 
@@ -1676,9 +1754,7 @@ invalid json line
 			await using fixture = await createFixture({
 				projects: {
 					project1: {
-						session1: {
-							'file.jsonl': mockData.map(d => JSON.stringify(d)).join('\n'),
-						},
+						'session1.jsonl': mockData.map(d => JSON.stringify(d)).join('\n'),
 					},
 				},
 			});
@@ -1694,14 +1770,16 @@ invalid json line
 				cacheReadTokens: 0,
 				totalCost: 0.03,
 				modelsUsed: [],
-				modelBreakdowns: [{
-					modelName: 'unknown',
-					inputTokens: 300,
-					outputTokens: 150,
-					cacheCreationTokens: 0,
-					cacheReadTokens: 0,
-					cost: 0.03,
-				}],
+				modelBreakdowns: [
+					{
+						modelName: 'unknown',
+						inputTokens: 300,
+						outputTokens: 150,
+						cacheCreationTokens: 0,
+						cacheReadTokens: 0,
+						cost: 0.03,
+					},
+				],
 			});
 		});
 
@@ -1732,9 +1810,7 @@ invalid json line
 			await using fixture = await createFixture({
 				projects: {
 					project1: {
-						session1: {
-							'file.jsonl': mockData.map(d => JSON.stringify(d)).join('\n'),
-						},
+						'session1.jsonl': mockData.map(d => JSON.stringify(d)).join('\n'),
 					},
 				},
 			});
@@ -1772,9 +1848,7 @@ invalid json line
 			await using fixture = await createFixture({
 				projects: {
 					project1: {
-						session1: {
-							'file.jsonl': mockData.map(d => JSON.stringify(d)).join('\n'),
-						},
+						'session1.jsonl': mockData.map(d => JSON.stringify(d)).join('\n'),
 					},
 				},
 			});
@@ -1815,9 +1889,7 @@ invalid json line
 			await using fixture = await createFixture({
 				projects: {
 					project1: {
-						session1: {
-							'file.jsonl': mockData.map(d => JSON.stringify(d)).join('\n'),
-						},
+						'session1.jsonl': mockData.map(d => JSON.stringify(d)).join('\n'),
 					},
 				},
 			});
@@ -1861,9 +1933,7 @@ invalid json line
 			await using fixture = await createFixture({
 				projects: {
 					project1: {
-						session1: {
-							'file.jsonl': mockData.map(d => JSON.stringify(d)).join('\n'),
-						},
+						'session1.jsonl': mockData.map(d => JSON.stringify(d)).join('\n'),
 					},
 				},
 			});
@@ -1911,9 +1981,7 @@ invalid json line
 			await using fixture = await createFixture({
 				projects: {
 					project1: {
-						session1: {
-							'file.jsonl': mockData.map(d => JSON.stringify(d)).join('\n'),
-						},
+						'session1.jsonl': mockData.map(d => JSON.stringify(d)).join('\n'),
 					},
 				},
 			});
@@ -1946,14 +2014,10 @@ invalid json line
 			await using fixture = await createFixture({
 				projects: {
 					'project1/subfolder': {
-						session123: {
-							'chat.jsonl': JSON.stringify(mockData),
-						},
+						'session123.jsonl': JSON.stringify(mockData),
 					},
 					'project2': {
-						session456: {
-							'chat.jsonl': JSON.stringify(mockData),
-						},
+						'session456.jsonl': JSON.stringify(mockData),
 					},
 				},
 			});
@@ -2000,9 +2064,7 @@ invalid json line
 			await using fixture = await createFixture({
 				projects: {
 					project1: {
-						session1: {
-							'chat.jsonl': mockData.map(d => JSON.stringify(d)).join('\n'),
-						},
+						'session1.jsonl': mockData.map(d => JSON.stringify(d)).join('\n'),
 					},
 				},
 			});
@@ -2046,9 +2108,7 @@ invalid json line
 			await using fixture = await createFixture({
 				projects: {
 					project1: {
-						session1: {
-							'chat.jsonl': mockData.map(d => JSON.stringify(d)).join('\n'),
-						},
+						'session1.jsonl': mockData.map(d => JSON.stringify(d)).join('\n'),
 					},
 				},
 			});
@@ -2088,14 +2148,9 @@ invalid json line
 			];
 
 			await using fixture = await createFixture({
-				projects: {
-					project1: Object.fromEntries(
-						sessions.map(s => [
-							s.sessionId,
-							{ 'chat.jsonl': JSON.stringify(s.data) },
-						]),
-					),
-				},
+				projects: Object.fromEntries(
+					sessions.map(s => [`${s.sessionId}.jsonl`, JSON.stringify(s.data)]),
+				),
 			});
 
 			const result = await loadSessionData({ claudePath: fixture.path });
@@ -2137,8 +2192,8 @@ invalid json line
 				projects: {
 					project1: Object.fromEntries(
 						sessions.map(s => [
-							s.sessionId,
-							{ 'chat.jsonl': JSON.stringify(s.data) },
+							`${s.sessionId}.jsonl`,
+							JSON.stringify(s.data),
 						]),
 					),
 				},
@@ -2185,10 +2240,9 @@ invalid json line
 			await using fixture = await createFixture({
 				projects: {
 					project1: Object.fromEntries(
-						sessions.map(s => [
-							s.sessionId,
-							{ 'chat.jsonl': JSON.stringify(s.data) },
-						]),
+						sessions.map((s) => {
+							return [`${s.sessionId}.jsonl`, JSON.stringify(s.data)];
+						}),
 					),
 				},
 			});
@@ -2234,10 +2288,9 @@ invalid json line
 			await using fixture = await createFixture({
 				projects: {
 					project1: Object.fromEntries(
-						sessions.map(s => [
-							s.sessionId,
-							{ 'chat.jsonl': JSON.stringify(s.data) },
-						]),
+						sessions.map((s) => {
+							return [`${s.sessionId}.jsonl`, JSON.stringify(s.data)];
+						}),
 					),
 				},
 			});
@@ -2270,9 +2323,7 @@ invalid json line
 				await using fixture = await createFixture({
 					projects: {
 						'test-project-old': {
-							'session-old': {
-								'usage.jsonl': `${JSON.stringify(oldData)}\n`,
-							},
+							'session-old.jsonl': `${JSON.stringify(oldData)}\n`,
 						},
 					},
 				});
@@ -2287,7 +2338,7 @@ invalid json line
 			});
 
 			it('should calculate cost for new schema with claude-sonnet-4-20250514', async () => {
-			// Use a well-known Claude model
+				// Use a well-known Claude model
 				const modelName = createModelName('claude-sonnet-4-20250514');
 
 				const newData = {
@@ -2306,9 +2357,7 @@ invalid json line
 				await using fixture = await createFixture({
 					projects: {
 						'test-project-new': {
-							'session-new': {
-								'usage.jsonl': `${JSON.stringify(newData)}\n`,
-							},
+							'session-new.jsonl': `${JSON.stringify(newData)}\n`,
 						},
 					},
 				});
@@ -2327,7 +2376,7 @@ invalid json line
 			});
 
 			it('should calculate cost for new schema with claude-opus-4-20250514', async () => {
-			// Use Claude 4 Opus model
+				// Use Claude 4 Opus model
 				const modelName = createModelName('claude-opus-4-20250514');
 
 				const newData = {
@@ -2346,9 +2395,7 @@ invalid json line
 				await using fixture = await createFixture({
 					projects: {
 						'test-project-opus': {
-							'session-opus': {
-								'usage.jsonl': `${JSON.stringify(newData)}\n`,
-							},
+							'session-opus.jsonl': `${JSON.stringify(newData)}\n`,
 						},
 					},
 				});
@@ -2384,15 +2431,13 @@ invalid json line
 				const data3 = {
 					timestamp: '2024-01-17T12:00:00Z',
 					message: { usage: { input_tokens: 300, output_tokens: 150 } },
-				// No costUSD and no model - should be 0 cost
+					// No costUSD and no model - should be 0 cost
 				};
 
 				await using fixture = await createFixture({
 					projects: {
 						'test-project-mixed': {
-							'session-mixed': {
-								'usage.jsonl': `${JSON.stringify(data1)}\n${JSON.stringify(data2)}\n${JSON.stringify(data3)}\n`,
-							},
+							'session-mixed.jsonl': `${JSON.stringify(data1)}\n${JSON.stringify(data2)}\n${JSON.stringify(data3)}\n`,
 						},
 					},
 				});
@@ -2412,15 +2457,13 @@ invalid json line
 				const data = {
 					timestamp: '2024-01-18T10:00:00Z',
 					message: { usage: { input_tokens: 500, output_tokens: 250 } },
-				// No costUSD and no model
+					// No costUSD and no model
 				};
 
 				await using fixture = await createFixture({
 					projects: {
 						'test-project-no-cost': {
-							'session-no-cost': {
-								'usage.jsonl': `${JSON.stringify(data)}\n`,
-							},
+							'session-no-cost.jsonl': `${JSON.stringify(data)}\n`,
 						},
 					},
 				});
@@ -2453,12 +2496,8 @@ invalid json line
 				await using fixture = await createFixture({
 					projects: {
 						'test-project': {
-							session1: {
-								'usage.jsonl': JSON.stringify(session1Data),
-							},
-							session2: {
-								'usage.jsonl': JSON.stringify(session2Data),
-							},
+							'session1.jsonl': JSON.stringify(session1Data),
+							'session2.jsonl': JSON.stringify(session2Data),
 						},
 					},
 				});
@@ -2490,9 +2529,7 @@ invalid json line
 				await using fixture = await createFixture({
 					projects: {
 						'test-project-unknown': {
-							'session-unknown': {
-								'usage.jsonl': `${JSON.stringify(data)}\n`,
-							},
+							'session-unknown.jsonl': `${JSON.stringify(data)}\n`,
 						},
 					},
 				});
@@ -2524,9 +2561,7 @@ invalid json line
 				await using fixture = await createFixture({
 					projects: {
 						'test-project-cache': {
-							'session-cache': {
-								'usage.jsonl': `${JSON.stringify(data)}\n`,
-							},
+							'session-cache.jsonl': `${JSON.stringify(data)}\n`,
 						},
 					},
 				});
@@ -2561,9 +2596,7 @@ invalid json line
 				await using fixture = await createFixture({
 					projects: {
 						'test-project-opus-cache': {
-							'session-opus-cache': {
-								'usage.jsonl': `${JSON.stringify(data)}\n`,
-							},
+							'session-opus-cache.jsonl': `${JSON.stringify(data)}\n`,
 						},
 					},
 				});
@@ -2601,9 +2634,7 @@ invalid json line
 				await using fixture = await createFixture({
 					projects: {
 						'test-project': {
-							session: {
-								'usage.jsonl': `${JSON.stringify(data1)}\n${JSON.stringify(data2)}\n`,
-							},
+							'session.jsonl': `${JSON.stringify(data1)}\n${JSON.stringify(data2)}\n`,
 						},
 					},
 				});
@@ -2630,9 +2661,7 @@ invalid json line
 				await using fixture = await createFixture({
 					projects: {
 						'test-project': {
-							session: {
-								'usage.jsonl': JSON.stringify(data),
-							},
+							'session.jsonl': JSON.stringify(data),
 						},
 					},
 				});
@@ -2663,15 +2692,13 @@ invalid json line
 						usage: { input_tokens: 2000, output_tokens: 1000 },
 						model: createModelName('claude-4-sonnet-20250514'),
 					},
-				// No costUSD - should result in 0 cost
+					// No costUSD - should result in 0 cost
 				};
 
 				await using fixture = await createFixture({
 					projects: {
 						'test-project': {
-							session: {
-								'usage.jsonl': `${JSON.stringify(data1)}\n${JSON.stringify(data2)}\n`,
-							},
+							'session.jsonl': `${JSON.stringify(data1)}\n${JSON.stringify(data2)}\n`,
 						},
 					},
 				});
@@ -2698,9 +2725,7 @@ invalid json line
 				await using fixture = await createFixture({
 					projects: {
 						'test-project': {
-							session1: {
-								'usage.jsonl': JSON.stringify(sessionData),
-							},
+							'session1.jsonl': JSON.stringify(sessionData),
 						},
 					},
 				});
@@ -2735,9 +2760,7 @@ invalid json line
 				await using fixture = await createFixture({
 					projects: {
 						'test-project': {
-							session: {
-								'usage.jsonl': JSON.stringify(data),
-							},
+							'session.jsonl': JSON.stringify(data),
 						},
 					},
 				});
@@ -2765,9 +2788,7 @@ invalid json line
 				await using fixture = await createFixture({
 					projects: {
 						'test-project': {
-							session: {
-								'usage.jsonl': JSON.stringify(data),
-							},
+							'session.jsonl': JSON.stringify(data),
 						},
 					},
 				});
@@ -2790,15 +2811,13 @@ invalid json line
 						usage: { input_tokens: 1000, output_tokens: 500 },
 						model: createModelName('claude-4-sonnet-20250514'),
 					},
-				// No costUSD, so auto mode will need to calculate
+					// No costUSD, so auto mode will need to calculate
 				};
 
 				await using fixture = await createFixture({
 					projects: {
 						'test-project': {
-							session: {
-								'usage.jsonl': JSON.stringify(data),
-							},
+							'session.jsonl': JSON.stringify(data),
 						},
 					},
 				});
@@ -2826,9 +2845,7 @@ invalid json line
 				await using fixture = await createFixture({
 					projects: {
 						'test-project': {
-							session: {
-								'usage.jsonl': JSON.stringify(data),
-							},
+							'session.jsonl': JSON.stringify(data),
 						},
 					},
 				});
@@ -2856,9 +2873,7 @@ invalid json line
 				await using fixture = await createFixture({
 					projects: {
 						'test-project': {
-							session: {
-								'usage.jsonl': JSON.stringify(data),
-							},
+							'session.jsonl': JSON.stringify(data),
 						},
 					},
 				});
@@ -2896,7 +2911,11 @@ invalid json line
 		describe('display mode', () => {
 			it('should return costUSD when available', async () => {
 				using fetcher = new PricingFetcher();
-				const result = await calculateCostForEntry(mockUsageData, 'display', fetcher);
+				const result = await calculateCostForEntry(
+					mockUsageData,
+					'display',
+					fetcher,
+				);
 				expect(result).toBe(0.05);
 			});
 
@@ -2905,21 +2924,29 @@ invalid json line
 				dataWithoutCost.costUSD = undefined;
 
 				using fetcher = new PricingFetcher();
-				const result = await calculateCostForEntry(dataWithoutCost, 'display', fetcher);
+				const result = await calculateCostForEntry(
+					dataWithoutCost,
+					'display',
+					fetcher,
+				);
 				expect(result).toBe(0);
 			});
 
 			it('should not use model pricing in display mode', async () => {
-			// Even with model pricing available, should use costUSD
+				// Even with model pricing available, should use costUSD
 				using fetcher = new PricingFetcher();
-				const result = await calculateCostForEntry(mockUsageData, 'display', fetcher);
+				const result = await calculateCostForEntry(
+					mockUsageData,
+					'display',
+					fetcher,
+				);
 				expect(result).toBe(0.05);
 			});
 		});
 
 		describe('calculate mode', () => {
 			it('should calculate cost from tokens when model pricing available', async () => {
-			// Use the exact same structure as working integration tests
+				// Use the exact same structure as working integration tests
 				const testData: UsageData = {
 					timestamp: createISOTimestamp('2024-01-01T10:00:00Z'),
 					message: {
@@ -2932,7 +2959,11 @@ invalid json line
 				};
 
 				using fetcher = new PricingFetcher();
-				const result = await calculateCostForEntry(testData, 'calculate', fetcher);
+				const result = await calculateCostForEntry(
+					testData,
+					'calculate',
+					fetcher,
+				);
 
 				expect(result).toBeGreaterThan(0);
 			});
@@ -2955,14 +2986,21 @@ invalid json line
 				dataWithoutModel.message.model = undefined;
 
 				using fetcher = new PricingFetcher();
-				const result = await calculateCostForEntry(dataWithoutModel, 'calculate', fetcher);
+				const result = await calculateCostForEntry(
+					dataWithoutModel,
+					'calculate',
+					fetcher,
+				);
 				expect(result).toBe(0);
 			});
 
 			it('should return 0 when model pricing not found', async () => {
 				const dataWithUnknownModel = {
 					...mockUsageData,
-					message: { ...mockUsageData.message, model: createModelName('unknown-model') },
+					message: {
+						...mockUsageData.message,
+						model: createModelName('unknown-model'),
+					},
 				};
 
 				using fetcher = new PricingFetcher();
@@ -3000,7 +3038,11 @@ invalid json line
 		describe('auto mode', () => {
 			it('should use costUSD when available', async () => {
 				using fetcher = new PricingFetcher();
-				const result = await calculateCostForEntry(mockUsageData, 'auto', fetcher);
+				const result = await calculateCostForEntry(
+					mockUsageData,
+					'auto',
+					fetcher,
+				);
 				expect(result).toBe(0.05);
 			});
 
@@ -3031,7 +3073,11 @@ invalid json line
 				dataWithoutCostOrModel.message.model = undefined;
 
 				using fetcher = new PricingFetcher();
-				const result = await calculateCostForEntry(dataWithoutCostOrModel, 'auto', fetcher);
+				const result = await calculateCostForEntry(
+					dataWithoutCostOrModel,
+					'auto',
+					fetcher,
+				);
 				expect(result).toBe(0);
 			});
 
@@ -3040,14 +3086,22 @@ invalid json line
 				dataWithoutCost.costUSD = undefined;
 
 				using fetcher = new PricingFetcher();
-				const result = await calculateCostForEntry(dataWithoutCost, 'auto', fetcher);
+				const result = await calculateCostForEntry(
+					dataWithoutCost,
+					'auto',
+					fetcher,
+				);
 				expect(result).toBe(0);
 			});
 
 			it('should prefer costUSD over calculation even when both available', async () => {
-			// Both costUSD and model pricing available, should use costUSD
+				// Both costUSD and model pricing available, should use costUSD
 				using fetcher = new PricingFetcher();
-				const result = await calculateCostForEntry(mockUsageData, 'auto', fetcher);
+				const result = await calculateCostForEntry(
+					mockUsageData,
+					'auto',
+					fetcher,
+				);
 				expect(result).toBe(0.05);
 			});
 		});
@@ -3069,21 +3123,33 @@ invalid json line
 				dataWithZeroTokens.costUSD = undefined;
 
 				using fetcher = new PricingFetcher();
-				const result = await calculateCostForEntry(dataWithZeroTokens, 'calculate', fetcher);
+				const result = await calculateCostForEntry(
+					dataWithZeroTokens,
+					'calculate',
+					fetcher,
+				);
 				expect(result).toBe(0);
 			});
 
 			it('should handle costUSD of 0', async () => {
 				const dataWithZeroCost = { ...mockUsageData, costUSD: 0 };
 				using fetcher = new PricingFetcher();
-				const result = await calculateCostForEntry(dataWithZeroCost, 'display', fetcher);
+				const result = await calculateCostForEntry(
+					dataWithZeroCost,
+					'display',
+					fetcher,
+				);
 				expect(result).toBe(0);
 			});
 
 			it('should handle negative costUSD', async () => {
 				const dataWithNegativeCost = { ...mockUsageData, costUSD: -0.01 };
 				using fetcher = new PricingFetcher();
-				const result = await calculateCostForEntry(dataWithNegativeCost, 'display', fetcher);
+				const result = await calculateCostForEntry(
+					dataWithNegativeCost,
+					'display',
+					fetcher,
+				);
 				expect(result).toBe(-0.01);
 			});
 		});
@@ -3120,72 +3186,8 @@ invalid json line
 			await using fixture = await createFixture({
 				projects: {
 					project1: {
-						session1: {
-							'conversation1.jsonl': [
-								{
-									timestamp: now.toISOString(),
-									message: {
-										id: 'msg1',
-										usage: {
-											input_tokens: 1000,
-											output_tokens: 500,
-										},
-										model: createModelName('claude-sonnet-4-20250514'),
-									},
-									requestId: 'req1',
-									costUSD: 0.01,
-									version: createVersion('1.0.0'),
-								},
-								{
-									timestamp: laterTime.toISOString(),
-									message: {
-										id: 'msg2',
-										usage: {
-											input_tokens: 2000,
-											output_tokens: 1000,
-										},
-										model: createModelName('claude-sonnet-4-20250514'),
-									},
-									requestId: 'req2',
-									costUSD: 0.02,
-									version: createVersion('1.0.0'),
-								},
-								{
-									timestamp: muchLaterTime.toISOString(),
-									message: {
-										id: 'msg3',
-										usage: {
-											input_tokens: 1500,
-											output_tokens: 750,
-										},
-										model: createModelName('claude-sonnet-4-20250514'),
-									},
-									requestId: 'req3',
-									costUSD: 0.015,
-									version: createVersion('1.0.0'),
-								},
-							].map(data => JSON.stringify(data)).join('\n'),
-						},
-					},
-				},
-			});
-
-			const result = await loadSessionBlockData({ claudePath: fixture.path });
-			expect(result.length).toBeGreaterThan(0); // Should have blocks
-			expect(result[0]?.entries).toHaveLength(1); // First block has one entry
-			// Total entries across all blocks should be 3
-			const totalEntries = result.reduce((sum, block) => sum + block.entries.length, 0);
-			expect(totalEntries).toBe(3);
-		});
-
-		it('handles cost calculation modes correctly', async () => {
-			const now = new Date('2024-01-01T10:00:00Z');
-
-			await using fixture = await createFixture({
-				projects: {
-					project1: {
-						session1: {
-							'conversation1.jsonl': JSON.stringify({
+						'session1.jsonl': [
+							{
 								timestamp: now.toISOString(),
 								message: {
 									id: 'msg1',
@@ -3195,11 +3197,76 @@ invalid json line
 									},
 									model: createModelName('claude-sonnet-4-20250514'),
 								},
-								request: { id: 'req1' },
+								requestId: 'req1',
 								costUSD: 0.01,
 								version: createVersion('1.0.0'),
-							}),
-						},
+							},
+							{
+								timestamp: laterTime.toISOString(),
+								message: {
+									id: 'msg2',
+									usage: {
+										input_tokens: 2000,
+										output_tokens: 1000,
+									},
+									model: createModelName('claude-sonnet-4-20250514'),
+								},
+								requestId: 'req2',
+								costUSD: 0.02,
+								version: createVersion('1.0.0'),
+							},
+							{
+								timestamp: muchLaterTime.toISOString(),
+								message: {
+									id: 'msg3',
+									usage: {
+										input_tokens: 1500,
+										output_tokens: 750,
+									},
+									model: createModelName('claude-sonnet-4-20250514'),
+								},
+								requestId: 'req3',
+								costUSD: 0.015,
+								version: createVersion('1.0.0'),
+							},
+						]
+							.map(data => JSON.stringify(data))
+							.join('\n'),
+					},
+				},
+			});
+
+			const result = await loadSessionBlockData({ claudePath: fixture.path });
+			expect(result.length).toBeGreaterThan(0); // Should have blocks
+			expect(result[0]?.entries).toHaveLength(1); // First block has one entry
+			// Total entries across all blocks should be 3
+			const totalEntries = result.reduce(
+				(sum, block) => sum + block.entries.length,
+				0,
+			);
+			expect(totalEntries).toBe(3);
+		});
+
+		it('handles cost calculation modes correctly', async () => {
+			const now = new Date('2024-01-01T10:00:00Z');
+
+			await using fixture = await createFixture({
+				projects: {
+					project1: {
+						'session1.jsonl': JSON.stringify({
+							timestamp: now.toISOString(),
+							message: {
+								id: 'msg1',
+								usage: {
+									input_tokens: 1000,
+									output_tokens: 500,
+								},
+								model: createModelName('claude-sonnet-4-20250514'),
+							},
+							request: { id: 'req1' },
+							costUSD: 0.01,
+							version: createVersion('1.0.0'),
+						}),
 					},
 				},
 			});
@@ -3229,43 +3296,43 @@ invalid json line
 			await using fixture = await createFixture({
 				projects: {
 					project1: {
-						session1: {
-							'conversation1.jsonl': [
-								{
-									timestamp: date1.toISOString(),
-									message: {
-										id: 'msg1',
-										usage: { input_tokens: 1000, output_tokens: 500 },
-										model: createModelName('claude-sonnet-4-20250514'),
-									},
-									requestId: 'req1',
-									costUSD: 0.01,
-									version: createVersion('1.0.0'),
+						'session1.jsonl': [
+							{
+								timestamp: date1.toISOString(),
+								message: {
+									id: 'msg1',
+									usage: { input_tokens: 1000, output_tokens: 500 },
+									model: createModelName('claude-sonnet-4-20250514'),
 								},
-								{
-									timestamp: date2.toISOString(),
-									message: {
-										id: 'msg2',
-										usage: { input_tokens: 2000, output_tokens: 1000 },
-										model: createModelName('claude-sonnet-4-20250514'),
-									},
-									requestId: 'req2',
-									costUSD: 0.02,
-									version: createVersion('1.0.0'),
+								requestId: 'req1',
+								costUSD: 0.01,
+								version: createVersion('1.0.0'),
+							},
+							{
+								timestamp: date2.toISOString(),
+								message: {
+									id: 'msg2',
+									usage: { input_tokens: 2000, output_tokens: 1000 },
+									model: createModelName('claude-sonnet-4-20250514'),
 								},
-								{
-									timestamp: date3.toISOString(),
-									message: {
-										id: 'msg3',
-										usage: { input_tokens: 1500, output_tokens: 750 },
-										model: createModelName('claude-sonnet-4-20250514'),
-									},
-									requestId: 'req3',
-									costUSD: 0.015,
-									version: createVersion('1.0.0'),
+								requestId: 'req2',
+								costUSD: 0.02,
+								version: createVersion('1.0.0'),
+							},
+							{
+								timestamp: date3.toISOString(),
+								message: {
+									id: 'msg3',
+									usage: { input_tokens: 1500, output_tokens: 750 },
+									model: createModelName('claude-sonnet-4-20250514'),
 								},
-							].map(data => JSON.stringify(data)).join('\n'),
-						},
+								requestId: 'req3',
+								costUSD: 0.015,
+								version: createVersion('1.0.0'),
+							},
+						]
+							.map(data => JSON.stringify(data))
+							.join('\n'),
 					},
 				},
 			});
@@ -3285,10 +3352,15 @@ invalid json line
 			});
 			expect(untilResult.length).toBeGreaterThan(0);
 			// The filter uses formatDate which converts to YYYYMMDD format for comparison
-			expect(untilResult.every((block) => {
-				const blockDateStr = block.startTime.toISOString().slice(0, 10).replace(/-/g, '');
-				return blockDateStr <= '20240102';
-			})).toBe(true);
+			expect(
+				untilResult.every((block) => {
+					const blockDateStr = block.startTime
+						.toISOString()
+						.slice(0, 10)
+						.replace(/-/g, '');
+					return blockDateStr <= '20240102';
+				}),
+			).toBe(true);
 		});
 
 		it('sorts blocks by order parameter', async () => {
@@ -3298,32 +3370,32 @@ invalid json line
 			await using fixture = await createFixture({
 				projects: {
 					project1: {
-						session1: {
-							'conversation1.jsonl': [
-								{
-									timestamp: date2.toISOString(),
-									message: {
-										id: 'msg2',
-										usage: { input_tokens: 2000, output_tokens: 1000 },
-										model: createModelName('claude-sonnet-4-20250514'),
-									},
-									requestId: 'req2',
-									costUSD: 0.02,
-									version: createVersion('1.0.0'),
+						'session1.jsonl': [
+							{
+								timestamp: date2.toISOString(),
+								message: {
+									id: 'msg2',
+									usage: { input_tokens: 2000, output_tokens: 1000 },
+									model: createModelName('claude-sonnet-4-20250514'),
 								},
-								{
-									timestamp: date1.toISOString(),
-									message: {
-										id: 'msg1',
-										usage: { input_tokens: 1000, output_tokens: 500 },
-										model: createModelName('claude-sonnet-4-20250514'),
-									},
-									requestId: 'req1',
-									costUSD: 0.01,
-									version: createVersion('1.0.0'),
+								requestId: 'req2',
+								costUSD: 0.02,
+								version: createVersion('1.0.0'),
+							},
+							{
+								timestamp: date1.toISOString(),
+								message: {
+									id: 'msg1',
+									usage: { input_tokens: 1000, output_tokens: 500 },
+									model: createModelName('claude-sonnet-4-20250514'),
 								},
-							].map(data => JSON.stringify(data)).join('\n'),
-						},
+								requestId: 'req1',
+								costUSD: 0.01,
+								version: createVersion('1.0.0'),
+							},
+						]
+							.map(data => JSON.stringify(data))
+							.join('\n'),
 					},
 				},
 			});
@@ -3349,33 +3421,33 @@ invalid json line
 			await using fixture = await createFixture({
 				projects: {
 					project1: {
-						session1: {
-							'conversation1.jsonl': [
-								{
-									timestamp: now.toISOString(),
-									message: {
-										id: 'msg1',
-										usage: { input_tokens: 1000, output_tokens: 500 },
-										model: createModelName('claude-sonnet-4-20250514'),
-									},
-									requestId: 'req1',
-									costUSD: 0.01,
-									version: createVersion('1.0.0'),
+						'session1.jsonl': [
+							{
+								timestamp: now.toISOString(),
+								message: {
+									id: 'msg1',
+									usage: { input_tokens: 1000, output_tokens: 500 },
+									model: createModelName('claude-sonnet-4-20250514'),
 								},
-								// Duplicate entry - should be filtered out
-								{
-									timestamp: now.toISOString(),
-									message: {
-										id: 'msg1',
-										usage: { input_tokens: 1000, output_tokens: 500 },
-										model: createModelName('claude-sonnet-4-20250514'),
-									},
-									requestId: 'req1',
-									costUSD: 0.01,
-									version: createVersion('1.0.0'),
+								requestId: 'req1',
+								costUSD: 0.01,
+								version: createVersion('1.0.0'),
+							},
+							// Duplicate entry - should be filtered out
+							{
+								timestamp: now.toISOString(),
+								message: {
+									id: 'msg1',
+									usage: { input_tokens: 1000, output_tokens: 500 },
+									model: createModelName('claude-sonnet-4-20250514'),
 								},
-							].map(data => JSON.stringify(data)).join('\n'),
-						},
+								requestId: 'req1',
+								costUSD: 0.01,
+								version: createVersion('1.0.0'),
+							},
+						]
+							.map(data => JSON.stringify(data))
+							.join('\n'),
 					},
 				},
 			});
@@ -3391,23 +3463,21 @@ invalid json line
 			await using fixture = await createFixture({
 				projects: {
 					project1: {
-						session1: {
-							'conversation1.jsonl': [
-								'invalid json line',
-								JSON.stringify({
-									timestamp: now.toISOString(),
-									message: {
-										id: 'msg1',
-										usage: { input_tokens: 1000, output_tokens: 500 },
-										model: createModelName('claude-sonnet-4-20250514'),
-									},
-									requestId: 'req1',
-									costUSD: 0.01,
-									version: createVersion('1.0.0'),
-								}),
-								'another invalid line',
-							].join('\n'),
-						},
+						'session1.jsonl': [
+							'invalid json line',
+							JSON.stringify({
+								timestamp: now.toISOString(),
+								message: {
+									id: 'msg1',
+									usage: { input_tokens: 1000, output_tokens: 500 },
+									model: createModelName('claude-sonnet-4-20250514'),
+								},
+								requestId: 'req1',
+								costUSD: 0.01,
+								version: createVersion('1.0.0'),
+							}),
+							'another invalid line',
+						].join('\n'),
 					},
 				},
 			});
@@ -3476,16 +3546,27 @@ if (import.meta.vitest != null) {
 		describe('getEarliestTimestamp', () => {
 			it('should extract earliest timestamp from JSONL file', async () => {
 				const content = [
-					JSON.stringify({ timestamp: '2025-01-15T12:00:00Z', message: { usage: {} } }),
-					JSON.stringify({ timestamp: '2025-01-10T10:00:00Z', message: { usage: {} } }),
-					JSON.stringify({ timestamp: '2025-01-12T11:00:00Z', message: { usage: {} } }),
+					JSON.stringify({
+						timestamp: '2025-01-15T12:00:00Z',
+						message: { usage: {} },
+					}),
+					JSON.stringify({
+						timestamp: '2025-01-10T10:00:00Z',
+						message: { usage: {} },
+					}),
+					JSON.stringify({
+						timestamp: '2025-01-12T11:00:00Z',
+						message: { usage: {} },
+					}),
 				].join('\n');
 
 				await using fixture = await createFixture({
 					'test.jsonl': content,
 				});
 
-				const timestamp = await getEarliestTimestamp(fixture.getPath('test.jsonl'));
+				const timestamp = await getEarliestTimestamp(
+					fixture.getPath('test.jsonl'),
+				);
 				expect(timestamp).toEqual(new Date('2025-01-10T10:00:00Z'));
 			});
 
@@ -3499,14 +3580,19 @@ if (import.meta.vitest != null) {
 					'test.jsonl': content,
 				});
 
-				const timestamp = await getEarliestTimestamp(fixture.getPath('test.jsonl'));
+				const timestamp = await getEarliestTimestamp(
+					fixture.getPath('test.jsonl'),
+				);
 				expect(timestamp).toBeNull();
 			});
 
 			it('should skip invalid JSON lines', async () => {
 				const content = [
 					'invalid json',
-					JSON.stringify({ timestamp: '2025-01-10T10:00:00Z', message: { usage: {} } }),
+					JSON.stringify({
+						timestamp: '2025-01-10T10:00:00Z',
+						message: { usage: {} },
+					}),
 					'{ broken: json',
 				].join('\n');
 
@@ -3514,7 +3600,9 @@ if (import.meta.vitest != null) {
 					'test.jsonl': content,
 				});
 
-				const timestamp = await getEarliestTimestamp(fixture.getPath('test.jsonl'));
+				const timestamp = await getEarliestTimestamp(
+					fixture.getPath('test.jsonl'),
+				);
 				expect(timestamp).toEqual(new Date('2025-01-10T10:00:00Z'));
 			});
 		});
@@ -3558,34 +3646,30 @@ if (import.meta.vitest != null) {
 				await using fixture = await createFixture({
 					projects: {
 						project1: {
-							session1: {
-								'file1.jsonl': JSON.stringify({
-									timestamp: '2025-01-10T10:00:00Z',
-									message: {
-										id: 'msg_123',
-										usage: {
-											input_tokens: 100,
-											output_tokens: 50,
-										},
+							'session1.jsonl': JSON.stringify({
+								timestamp: '2025-01-10T10:00:00Z',
+								message: {
+									id: 'msg_123',
+									usage: {
+										input_tokens: 100,
+										output_tokens: 50,
 									},
-									requestId: 'req_456',
-									costUSD: 0.001,
-								}),
-							},
-							session2: {
-								'file2.jsonl': JSON.stringify({
-									timestamp: '2025-01-15T10:00:00Z',
-									message: {
-										id: 'msg_123',
-										usage: {
-											input_tokens: 100,
-											output_tokens: 50,
-										},
+								},
+								requestId: 'req_456',
+								costUSD: 0.001,
+							}),
+							'session2.jsonl': JSON.stringify({
+								timestamp: '2025-01-15T10:00:00Z',
+								message: {
+									id: 'msg_123',
+									usage: {
+										input_tokens: 100,
+										output_tokens: 50,
 									},
-									requestId: 'req_456',
-									costUSD: 0.001,
-								}),
-							},
+								},
+								requestId: 'req_456',
+								costUSD: 0.001,
+							}),
 						},
 					},
 				});
@@ -3605,30 +3689,32 @@ if (import.meta.vitest != null) {
 			it('should process files in chronological order', async () => {
 				await using fixture = await createFixture({
 					projects: {
-						'newer.jsonl': JSON.stringify({
-							timestamp: '2025-01-15T10:00:00Z',
-							message: {
-								id: 'msg_123',
-								usage: {
-									input_tokens: 200,
-									output_tokens: 100,
+						project1: {
+							'newer.jsonl': JSON.stringify({
+								timestamp: '2025-01-15T10:00:00Z',
+								message: {
+									id: 'msg_123',
+									usage: {
+										input_tokens: 200,
+										output_tokens: 100,
+									},
 								},
-							},
-							requestId: 'req_456',
-							costUSD: 0.002,
-						}),
-						'older.jsonl': JSON.stringify({
-							timestamp: '2025-01-10T10:00:00Z',
-							message: {
-								id: 'msg_123',
-								usage: {
-									input_tokens: 100,
-									output_tokens: 50,
+								requestId: 'req_456',
+								costUSD: 0.002,
+							}),
+							'older.jsonl': JSON.stringify({
+								timestamp: '2025-01-10T10:00:00Z',
+								message: {
+									id: 'msg_123',
+									usage: {
+										input_tokens: 100,
+										output_tokens: 50,
+									},
 								},
-							},
-							requestId: 'req_456',
-							costUSD: 0.001,
-						}),
+								requestId: 'req_456',
+								costUSD: 0.001,
+							}),
+						},
 					},
 				});
 
@@ -3650,34 +3736,30 @@ if (import.meta.vitest != null) {
 				await using fixture = await createFixture({
 					projects: {
 						project1: {
-							session1: {
-								'file1.jsonl': JSON.stringify({
-									timestamp: '2025-01-10T10:00:00Z',
-									message: {
-										id: 'msg_123',
-										usage: {
-											input_tokens: 100,
-											output_tokens: 50,
-										},
+							'session1.jsonl': JSON.stringify({
+								timestamp: '2025-01-10T10:00:00Z',
+								message: {
+									id: 'msg_123',
+									usage: {
+										input_tokens: 100,
+										output_tokens: 50,
 									},
-									requestId: 'req_456',
-									costUSD: 0.001,
-								}),
-							},
-							session2: {
-								'file2.jsonl': JSON.stringify({
-									timestamp: '2025-01-15T10:00:00Z',
-									message: {
-										id: 'msg_123',
-										usage: {
-											input_tokens: 100,
-											output_tokens: 50,
-										},
+								},
+								requestId: 'req_456',
+								costUSD: 0.001,
+							}),
+							'session2.jsonl': JSON.stringify({
+								timestamp: '2025-01-15T10:00:00Z',
+								message: {
+									id: 'msg_123',
+									usage: {
+										input_tokens: 100,
+										output_tokens: 50,
 									},
-									requestId: 'req_456',
-									costUSD: 0.001,
-								}),
-							},
+								},
+								requestId: 'req_456',
+								costUSD: 0.001,
+							}),
 						},
 					},
 				});
@@ -3700,7 +3782,7 @@ if (import.meta.vitest != null) {
 					expect(session2.outputTokens).toBe(0);
 				}
 				else {
-				// It's also valid for session2 to not be included if it has no entries
+					// It's also valid for session2 to not be included if it has no entries
 					expect(sessions.length).toBe(1);
 				}
 			});
@@ -3727,7 +3809,9 @@ if (import.meta.vitest != null) {
 			const normalizedFixture1 = path.resolve(fixture1.path);
 			const normalizedFixture2 = path.resolve(fixture2.path);
 
-			expect(paths).toEqual(expect.arrayContaining([normalizedFixture1, normalizedFixture2]));
+			expect(paths).toEqual(
+				expect.arrayContaining([normalizedFixture1, normalizedFixture2]),
+			);
 			// Environment paths should be prioritized
 			expect(paths[0]).toBe(normalizedFixture1);
 			expect(paths[1]).toBe(normalizedFixture2);
@@ -3776,13 +3860,11 @@ if (import.meta.vitest != null) {
 			await using fixture1 = await createFixture({
 				projects: {
 					project1: {
-						session1: {
-							'usage.jsonl': JSON.stringify({
-								timestamp: '2024-01-01T12:00:00Z',
-								message: { usage: { input_tokens: 100, output_tokens: 50 } },
-								costUSD: 0.01,
-							}),
-						},
+						'session1.jsonl': JSON.stringify({
+							timestamp: '2024-01-01T12:00:00Z',
+							message: { usage: { input_tokens: 100, output_tokens: 50 } },
+							costUSD: 0.01,
+						}),
 					},
 				},
 			});
@@ -3790,13 +3872,11 @@ if (import.meta.vitest != null) {
 			await using fixture2 = await createFixture({
 				projects: {
 					project2: {
-						session2: {
-							'usage.jsonl': JSON.stringify({
-								timestamp: '2024-01-01T13:00:00Z',
-								message: { usage: { input_tokens: 200, output_tokens: 100 } },
-								costUSD: 0.02,
-							}),
-						},
+						'session2.jsonl': JSON.stringify({
+							timestamp: '2024-01-01T13:00:00Z',
+							message: { usage: { input_tokens: 200, output_tokens: 100 } },
+							costUSD: 0.02,
+						}),
 					},
 				},
 			});
@@ -3877,7 +3957,9 @@ if (import.meta.vitest != null) {
 			const results = await globUsageFiles(paths);
 
 			expect(results).toHaveLength(3);
-			expect(results.every(r => r.baseDir.includes('path1/projects'))).toBe(true);
+			expect(results.every(r => r.baseDir.includes('path1/projects'))).toBe(
+				true,
+			);
 		});
 	});
 }
