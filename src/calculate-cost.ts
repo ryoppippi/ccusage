@@ -9,7 +9,7 @@
  */
 
 import type { AggregatedTokenCounts } from './_token-utils.ts';
-import type { DailyUsage, MonthlyUsage, SessionUsage } from './data-loader.ts';
+import type { DailyUsage, MonthlyUsage, SessionUsage, WeeklyUsage } from './data-loader.ts';
 import { getTotalTokens } from './_token-utils.ts';
 import {
 	createActivityDate,
@@ -46,7 +46,7 @@ type TotalsObject = TokenTotals & {
  * @returns Aggregated token totals and cost
  */
 export function calculateTotals(
-	data: Array<DailyUsage | MonthlyUsage | SessionUsage>,
+	data: Array<DailyUsage | MonthlyUsage | WeeklyUsage | SessionUsage>,
 ): TokenTotals {
 	return data.reduce(
 		(acc, item) => ({
