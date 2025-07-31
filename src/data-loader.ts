@@ -27,6 +27,7 @@ import { Result } from '@praha/byethrow';
 import { groupBy, uniq } from 'es-toolkit'; // TODO: after node20 is deprecated, switch to native Object.groupBy
 import { sort } from 'fast-sort';
 import { createFixture } from 'fs-fixture';
+import { DateTime } from 'luxon';
 import { isDirectorySync } from 'path-type';
 import { glob } from 'tinyglobby';
 import { z } from 'zod';
@@ -1097,21 +1098,19 @@ export async function loadMonthlyUsageData(
 		})));
 }
 
-// SUNDAY and MONDAY are both here because we don't know yet how Anthropic
-// is going to group the weekly usage. The code is written this way so that
-// if it needs to be changed it'll be easy to just change it.
-// const SUNDAY: DayOfWeek = 0;
-const MONDAY: DayOfWeek = 1;
-type DayOfWeek = 0 | 1;
-
 /**
  * @param date - The date to get the week for
  * @returns The date of the first day of the week for the given date
  */
 function getDateWeek(date: Date): WeeklyDate {
-	// If it turns out Anthropic is using Monday as the first day of
-	// the week for the billing window, just use that instead.
-	const startOfWeek: DayOfWeek = MONDAY;
+	// Anthropic is rolling this out on August 28, 2025. We're assuming that's when the
+	// weekly window is starting. Using Luxon here allows the code to easily account for
+	// Pacific time with daylight savings when necessary, since it's assumed based on
+	// what could be found online that Anthropic uses PDT for their time as well.
+	const startOfWeek = DateTime.fromObject(
+		{ year: 2025, month: 8, day: 28 },
+		{ zone: 'America/Los_Angeles' },
+	).toJSDate().getDay();
 	const d = new Date(date);
 	const day = d.getDay();
 	const shift = (day - startOfWeek + 7) % 7;
@@ -2050,7 +2049,7 @@ invalid json line
 			// Should be sorted by week descending (2024-01-15 first)
 			expect(result).toHaveLength(2);
 			expect(result[0]).toEqual({
-				week: '2024-01-15',
+				week: '2024-01-11',
 				inputTokens: 150,
 				outputTokens: 75,
 				cacheCreationTokens: 0,
@@ -2067,7 +2066,7 @@ invalid json line
 				}],
 			});
 			expect(result[1]).toEqual({
-				week: '2024-01-01',
+				week: '2023-12-28',
 				inputTokens: 300,
 				outputTokens: 150,
 				cacheCreationTokens: 0,
@@ -2097,12 +2096,12 @@ invalid json line
 		it('handles single week data', async () => {
 			const mockData: UsageData[] = [
 				{
-					timestamp: createISOTimestamp('2024-01-01T12:00:00Z'), // Monday
+					timestamp: createISOTimestamp('2023-12-28T12:00:00Z'),
 					message: { usage: { input_tokens: 100, output_tokens: 50 } },
 					costUSD: 0.01,
 				},
 				{
-					timestamp: createISOTimestamp('2024-01-04T12:00:00Z'), // Thursday
+					timestamp: createISOTimestamp('2024-01-02T12:00:00Z'),
 					message: { usage: { input_tokens: 200, output_tokens: 100 } },
 					costUSD: 0.02,
 				},
@@ -2122,7 +2121,7 @@ invalid json line
 
 			expect(result).toHaveLength(1);
 			expect(result[0]).toEqual({
-				week: '2024-01-01',
+				week: '2023-12-28',
 				inputTokens: 300,
 				outputTokens: 150,
 				cacheCreationTokens: 0,
@@ -2177,7 +2176,7 @@ invalid json line
 			const result = await loadWeeklyUsageData({ claudePath: fixture.path });
 			const weeks = result.map(r => r.week);
 
-			expect(weeks).toEqual(['2024-01-22', '2024-01-15', '2024-01-08', '2024-01-01']);
+			expect(weeks).toEqual(['2024-01-18', '2024-01-11', '2024-01-04', '2023-12-28']);
 		});
 
 		it('sorts weeks in ascending order when order is \'asc\'', async () => {
@@ -2217,7 +2216,7 @@ invalid json line
 			const result = await loadWeeklyUsageData({ claudePath: fixture.path, order: 'asc' });
 			const weeks = result.map(r => r.week);
 
-			expect(weeks).toEqual(['2024-01-01', '2024-01-08', '2024-01-15', '2024-01-22']);
+			expect(weeks).toEqual(['2023-12-28', '2024-01-04', '2024-01-11', '2024-01-18']);
 		});
 
 		it('handles year boundaries correctly in sorting', async () => {
@@ -2260,7 +2259,7 @@ invalid json line
 				order: 'desc',
 			});
 			const descWeeks = descResult.map(r => r.week);
-			expect(descWeeks).toEqual(['2024-02-05', '2024-01-01', '2023-12-04', '2023-11-06']);
+			expect(descWeeks).toEqual(['2024-02-01', '2023-12-28', '2023-11-30', '2023-11-02']);
 
 			// Ascending order
 			const ascResult = await loadWeeklyUsageData({
@@ -2268,7 +2267,7 @@ invalid json line
 				order: 'asc',
 			});
 			const ascWeeks = ascResult.map(r => r.week);
-			expect(ascWeeks).toEqual(['2023-11-06', '2023-12-04', '2024-01-01', '2024-02-05']);
+			expect(ascWeeks).toEqual(['2023-11-02', '2023-11-30', '2023-12-28', '2024-02-01']);
 		});
 
 		it('respects date filters', async () => {
@@ -2308,7 +2307,7 @@ invalid json line
 
 			// Should only include February data
 			expect(result).toHaveLength(1);
-			expect(result[0]?.week).toBe('2024-02-05');
+			expect(result[0]?.week).toBe('2024-02-01');
 			expect(result[0]?.inputTokens).toBe(200);
 		});
 
