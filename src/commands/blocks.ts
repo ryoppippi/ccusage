@@ -315,6 +315,7 @@ export const blocksCommand = define({
 				log(`Time Remaining: ${pc.green(`${Math.floor(remaining / 60)}h ${remaining % 60}m`)}\n`);
 
 				log(pc.bold('Current Usage:'));
+				log(`  Messages:         ${formatNumber(block.entries.length)}`);
 				log(`  Input Tokens:     ${formatNumber(block.tokenCounts.inputTokens)}`);
 				log(`  Output Tokens:    ${formatNumber(block.tokenCounts.outputTokens)}`);
 				log(`  Total Cost:       ${formatCurrency(block.costUSD)}\n`);
@@ -359,8 +360,8 @@ export const blocksCommand = define({
 				// Calculate token limit if "max" is specified
 				const actualTokenLimit = parseTokenLimit(ctx.values.tokenLimit, maxTokensFromAll);
 
-				const tableHeaders = ['Block Start', 'Duration/Status', 'Models', 'Tokens'];
-				const tableAligns: ('left' | 'right' | 'center')[] = ['left', 'left', 'left', 'right'];
+				const tableHeaders = ['Block Start', 'Duration/Status', 'Models', 'Messages', 'Tokens'];
+				const tableAligns: ('left' | 'right' | 'center')[] = ['left', 'left', 'left', 'right', 'right'];
 
 				// Add % column if token limit is set
 				if (actualTokenLimit != null && actualTokenLimit > 0) {
@@ -389,6 +390,7 @@ export const blocksCommand = define({
 							pc.gray('(inactive)'),
 							pc.gray('-'),
 							pc.gray('-'),
+							pc.gray('-'),
 						];
 						if (actualTokenLimit != null && actualTokenLimit > 0) {
 							gapRow.push(pc.gray('-'));
@@ -405,6 +407,7 @@ export const blocksCommand = define({
 							formatBlockTime(block, useCompactFormat),
 							status,
 							formatModels(block.models),
+							formatNumber(block.entries.length),
 							formatNumber(totalTokens),
 						];
 
@@ -438,6 +441,7 @@ export const blocksCommand = define({
 									{ content: pc.gray(`(assuming ${formatNumber(actualTokenLimit)} token limit)`), hAlign: 'right' as const },
 									pc.blue('REMAINING'),
 									'',
+									'',
 									remainingText,
 									remainingPercentText,
 									'', // No cost for remaining - it's about token limit, not cost
@@ -456,6 +460,7 @@ export const blocksCommand = define({
 								const projectedRow = [
 									{ content: pc.gray('(assuming current burn rate)'), hAlign: 'right' as const },
 									pc.yellow('PROJECTED'),
+									'',
 									'',
 									projectedText,
 								];
