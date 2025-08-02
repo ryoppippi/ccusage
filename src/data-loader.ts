@@ -60,8 +60,9 @@ import {
 } from './pricing-fetcher.ts';
 
 /**
- * Get all Claude data directories to search for usage data
- * Supports multiple paths: environment variable (comma-separated), new default, and old default
+ * Get Claude data directories to search for usage data
+ * When CLAUDE_CONFIG_DIR is set: uses only those paths
+ * When not set: uses default paths (~/.config/claude and ~/.claude)
  * @returns Array of valid Claude data directory paths
  */
 export function getClaudePaths(): string[] {
@@ -85,9 +86,18 @@ export function getClaudePaths(): string[] {
 				}
 			}
 		}
+		// If environment variable is set, return only those paths (or error if none valid)
+		if (paths.length > 0) {
+			return paths;
+		}
+		// If environment variable is set but no valid paths found, throw error
+		throw new Error(
+			`No valid Claude data directories found in CLAUDE_CONFIG_DIR. Please ensure the following exists:
+- ${envPaths}/${CLAUDE_PROJECTS_DIR_NAME}`.trim(),
+		);
 	}
 
-	// Add default paths if they exist
+	// Only check default paths if no environment variable is set
 	const defaultPaths = [
 		DEFAULT_CLAUDE_CONFIG_PATH, // New default: XDG config directory
 		path.join(USER_HOME_DIR, DEFAULT_CLAUDE_CODE_PATH), // Old default: ~/.claude
