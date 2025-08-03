@@ -61,7 +61,7 @@
 		"@hono/node-server": "^1.17.1",
 		"@jsr/std__async": "1",
 		"@modelcontextprotocol/sdk": "^1.17.0",
-		"@oxc-project/runtime": "^0.79.0",
+		"@oxc-project/runtime": "^0.79.1",
 		"@praha/byethrow": "^0.6.2",
 		"@praha/byethrow-mcp": "^0.1.0",
 		"@ryoppippi/eslint-config": "^0.3.7",
