@@ -48,6 +48,7 @@ Unlike other CLI tools, we pay extreme attention to bundle size. ccusage achieve
 ### 📊 Multiple Report Types
 
 - **Daily Reports** - Usage aggregated by calendar date
+- **Weekly Reports** - Usage aggregated by week with configurable start day
 - **Monthly Reports** - Monthly summaries with trends
 - **Session Reports** - Per-conversation analysis
 - **Blocks Reports** - 5-hour billing window tracking

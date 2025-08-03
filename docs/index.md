@@ -21,6 +21,10 @@ features:
     title: Daily Reports
     details: View token usage and costs aggregated by date with detailed breakdowns
     link: /guide/daily-reports
+  - icon: 📆
+    title: Weekly Reports
+    details: Track usage patterns by week with configurable start day
+    link: /guide/weekly-reports
   - icon: 📅
     title: Monthly Reports
     details: Analyze usage patterns over monthly periods with cost tracking
