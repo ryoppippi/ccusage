@@ -2064,7 +2064,7 @@ invalid json line
 			// Should be sorted by week descending (2024-01-15 first)
 			expect(result).toHaveLength(2);
 			expect(result[0]).toEqual({
-				week: '2024-01-11',
+				week: '2024-01-14',
 				inputTokens: 150,
 				outputTokens: 75,
 				cacheCreationTokens: 0,
@@ -2081,7 +2081,7 @@ invalid json line
 				}],
 			});
 			expect(result[1]).toEqual({
-				week: '2023-12-28',
+				week: '2023-12-31',
 				inputTokens: 300,
 				outputTokens: 150,
 				cacheCreationTokens: 0,
@@ -2111,12 +2111,12 @@ invalid json line
 		it('handles single week data', async () => {
 			const mockData: UsageData[] = [
 				{
-					timestamp: createISOTimestamp('2023-12-28T12:00:00Z'),
+					timestamp: createISOTimestamp('2024-01-01T12:00:00Z'),
 					message: { usage: { input_tokens: 100, output_tokens: 50 } },
 					costUSD: 0.01,
 				},
 				{
-					timestamp: createISOTimestamp('2024-01-02T12:00:00Z'),
+					timestamp: createISOTimestamp('2024-01-03T12:00:00Z'),
 					message: { usage: { input_tokens: 200, output_tokens: 100 } },
 					costUSD: 0.02,
 				},
@@ -2136,7 +2136,7 @@ invalid json line
 
 			expect(result).toHaveLength(1);
 			expect(result[0]).toEqual({
-				week: '2023-12-28',
+				week: '2023-12-31',
 				inputTokens: 300,
 				outputTokens: 150,
 				cacheCreationTokens: 0,
@@ -2191,7 +2191,7 @@ invalid json line
 			const result = await loadWeeklyUsageData({ claudePath: fixture.path });
 			const weeks = result.map(r => r.week);
 
-			expect(weeks).toEqual(['2024-01-18', '2024-01-11', '2024-01-04', '2023-12-28']);
+			expect(weeks).toEqual(['2024-01-21', '2024-01-14', '2024-01-07', '2023-12-31']);
 		});
 
 		it('sorts weeks in ascending order when order is \'asc\'', async () => {
@@ -2231,7 +2231,7 @@ invalid json line
 			const result = await loadWeeklyUsageData({ claudePath: fixture.path, order: 'asc' });
 			const weeks = result.map(r => r.week);
 
-			expect(weeks).toEqual(['2023-12-28', '2024-01-04', '2024-01-11', '2024-01-18']);
+			expect(weeks).toEqual(['2023-12-31', '2024-01-07', '2024-01-14', '2024-01-21']);
 		});
 
 		it('handles year boundaries correctly in sorting', async () => {
@@ -2274,7 +2274,7 @@ invalid json line
 				order: 'desc',
 			});
 			const descWeeks = descResult.map(r => r.week);
-			expect(descWeeks).toEqual(['2024-02-01', '2023-12-28', '2023-11-30', '2023-11-02']);
+			expect(descWeeks).toEqual(['2024-02-04', '2023-12-31', '2023-12-03', '2023-11-05']);
 
 			// Ascending order
 			const ascResult = await loadWeeklyUsageData({
@@ -2282,7 +2282,7 @@ invalid json line
 				order: 'asc',
 			});
 			const ascWeeks = ascResult.map(r => r.week);
-			expect(ascWeeks).toEqual(['2023-11-02', '2023-11-30', '2023-12-28', '2024-02-01']);
+			expect(ascWeeks).toEqual(['2023-11-05', '2023-12-03', '2023-12-31', '2024-02-04']);
 		});
 
 		it('respects date filters', async () => {
@@ -2322,7 +2322,7 @@ invalid json line
 
 			// Should only include February data
 			expect(result).toHaveLength(1);
-			expect(result[0]?.week).toBe('2024-02-01');
+			expect(result[0]?.week).toBe('2024-02-04');
 			expect(result[0]?.inputTokens).toBe(200);
 		});
 
