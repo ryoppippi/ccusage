@@ -1,7 +1,7 @@
 import process from 'node:process';
 import { define } from 'gunshi';
 import pc from 'picocolors';
-import { sharedCommandConfig } from '../_shared-args.ts';
+import { sharedArgs } from '../_shared-args.ts';
 import { formatCurrency, formatModelsDisplayMultiline, formatNumber, pushBreakdownRows, ResponsiveTable } from '../_utils.ts';
 import {
 	calculateTotals,
@@ -12,10 +12,22 @@ import { formatDateCompact, loadWeeklyUsageData } from '../data-loader.ts';
 import { detectMismatches, printMismatchReport } from '../debug.ts';
 import { log, logger } from '../logger.ts';
 
+const weekDays = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'] as const;
+
 export const weeklyCommand = define({
 	name: 'weekly',
 	description: 'Show usage report grouped by week',
-	...sharedCommandConfig,
+	args: {
+		...sharedArgs,
+		startOfWeek: {
+			type: 'enum',
+			short: 'w',
+			description: 'Day to start the week on (default: thursday for August 28, 2025)',
+			default: 'thursday' as const,
+			choices: weekDays,
+		},
+	},
+	toKebab: true,
 	async run(ctx) {
 		if (ctx.values.json) {
 			logger.level = 0;
@@ -27,6 +39,7 @@ export const weeklyCommand = define({
 			mode: ctx.values.mode,
 			order: ctx.values.order,
 			offline: ctx.values.offline,
+			startOfWeek: ctx.values.startOfWeek,
 		});
 
 		if (weeklyData.length === 0) {

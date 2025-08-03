@@ -33,7 +33,6 @@ import { z } from 'zod';
 import { CLAUDE_CONFIG_DIR_ENV, CLAUDE_PROJECTS_DIR_NAME, DEFAULT_CLAUDE_CODE_PATH, DEFAULT_CLAUDE_CONFIG_PATH, USAGE_DATA_GLOB_PATTERN, USER_HOME_DIR } from './_consts.ts';
 import {
 	identifySessionBlocks,
-
 } from './_session-blocks.ts';
 import {
 	activityDateSchema,
@@ -739,6 +738,8 @@ export type DateFilter = {
 	until?: string; // YYYYMMDD format
 };
 
+type WeekDay = 'sunday' | 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday';
+
 /**
  * Configuration options for loading usage data
  */
@@ -750,6 +751,7 @@ export type LoadOptions = {
 	sessionDurationHours?: number; // Session block duration in hours
 	groupByProject?: boolean; // Group data by project instead of aggregating
 	project?: string; // Filter to specific project name
+	startOfWeek?: WeekDay; // Start of week for weekly aggregation
 } & DateFilter;
 
 /**
@@ -1099,19 +1101,14 @@ export async function loadMonthlyUsageData(
 
 /**
  * @param date - The date to get the week for
+ * @param startDay - The day to start the week on (0 = Sunday, 1 = Monday, ..., 6 = Saturday)
  * @returns The date of the first day of the week for the given date
  */
-function getDateWeek(date: Date): WeeklyDate {
-	// Anthropic is rolling this out on August 28, 2025. We're assuming that's when the
-	// weekly window is starting. August 28, 2025 is a Thursday in Pacific Time.
-	// This implementation uses native JavaScript Date to handle Pacific Time.
-	// Note: August 28, 2025 would be in PDT (UTC-7).
-	const referenceDate = new Date('2025-08-28T00:00:00-07:00');
-	const startOfWeek = referenceDate.getDay(); // Thursday = 4
-
+function getDateWeek(date: Date, startDay: number = 4): WeeklyDate {
+	// Default to Thursday (4) for August 28, 2025 rollout
 	const d = new Date(date);
 	const day = d.getDay();
-	const shift = (day - startOfWeek + 7) % 7;
+	const shift = (day - startDay + 7) % 7;
 	d.setDate(d.getDate() - shift);
 
 	return createWeeklyDate(d.toISOString().substring(0, 10));
@@ -1120,7 +1117,20 @@ function getDateWeek(date: Date): WeeklyDate {
 export async function loadWeeklyUsageData(
 	options?: LoadOptions,
 ): Promise<WeeklyUsage[]> {
-	return loadBucketUsageData((data: DailyUsage) => getDateWeek(new Date(data.date)), options)
+	// Convert day name to number (0 = Sunday, 1 = Monday, ..., 6 = Saturday)
+	const dayNameToNumber = {
+		sunday: 0,
+		monday: 1,
+		tuesday: 2,
+		wednesday: 3,
+		thursday: 4,
+		friday: 5,
+		saturday: 6,
+	} as const satisfies Record<WeekDay, number>;
+
+	const startDay = options?.startOfWeek != null ? dayNameToNumber[options.startOfWeek] : 4; // Default to Thursday
+
+	return loadBucketUsageData((data: DailyUsage) => getDateWeek(new Date(data.date), startDay), options)
 		.then(usages => usages.map<WeeklyUsage>(({ bucket, ...rest }) => ({
 			week: createWeeklyDate(bucket.toString()),
 			...rest,
