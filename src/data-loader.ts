@@ -516,17 +516,36 @@ function extractUniqueModels<T>(
 }
 
 /**
+ * Date formatter using Intl.DateTimeFormat for consistent formatting
+ * Using UTC to avoid timezone issues
+ */
+const dateFormatter = new Intl.DateTimeFormat('en-CA', {
+	timeZone: 'UTC',
+	year: 'numeric',
+	month: '2-digit',
+	day: '2-digit',
+});
+
+/**
  * Formats a date string to YYYY-MM-DD format
  * @param dateStr - Input date string
  * @returns Formatted date string in YYYY-MM-DD format
  */
 export function formatDate(dateStr: string): string {
 	const date = new Date(dateStr);
-	const year = date.getFullYear();
-	const month = String(date.getMonth() + 1).padStart(2, '0');
-	const day = String(date.getDate()).padStart(2, '0');
-	return `${year}-${month}-${day}`;
+	// en-CA locale gives us YYYY-MM-DD format directly
+	return dateFormatter.format(date);
 }
+
+/**
+ * Date parts formatter for extracting year, month, and day separately
+ */
+const datePartsFormatter = new Intl.DateTimeFormat('en', {
+	timeZone: 'UTC',
+	year: 'numeric',
+	month: '2-digit',
+	day: '2-digit',
+});
 
 /**
  * Formats a date string to compact format with year on first line and month-day on second
@@ -535,9 +554,10 @@ export function formatDate(dateStr: string): string {
  */
 export function formatDateCompact(dateStr: string): string {
 	const date = new Date(dateStr);
-	const year = date.getFullYear();
-	const month = String(date.getMonth() + 1).padStart(2, '0');
-	const day = String(date.getDate()).padStart(2, '0');
+	const parts = datePartsFormatter.formatToParts(date);
+	const year = parts.find(p => p.type === 'year')?.value ?? '';
+	const month = parts.find(p => p.type === 'month')?.value ?? '';
+	const day = parts.find(p => p.type === 'day')?.value ?? '';
 	return `${year}\n${month}-${day}`;
 }
 
