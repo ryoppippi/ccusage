@@ -8,7 +8,7 @@
  * @module data-loader
  */
 
-import type { IntRange } from 'type-fest';
+import type { IntRange, TupleToUnion } from 'type-fest';
 import type { WEEK_DAYS } from './_consts.ts';
 import type { LoadedUsageEntry, SessionBlock } from './_session-blocks.ts';
 import type {
@@ -740,7 +740,7 @@ export type DateFilter = {
 	until?: string; // YYYYMMDD format
 };
 
-type WeekDay = typeof WEEK_DAYS[number];
+type WeekDay = TupleToUnion<typeof WEEK_DAYS>;
 type DayOfWeek = IntRange<0, typeof WEEK_DAYS['length']>; // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
 
 /**
