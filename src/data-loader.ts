@@ -27,7 +27,6 @@ import { Result } from '@praha/byethrow';
 import { groupBy, uniq } from 'es-toolkit'; // TODO: after node20 is deprecated, switch to native Object.groupBy
 import { sort } from 'fast-sort';
 import { createFixture } from 'fs-fixture';
-import { DateTime } from 'luxon';
 import { isDirectorySync } from 'path-type';
 import { glob } from 'tinyglobby';
 import { z } from 'zod';
@@ -1104,13 +1103,12 @@ export async function loadMonthlyUsageData(
  */
 function getDateWeek(date: Date): WeeklyDate {
 	// Anthropic is rolling this out on August 28, 2025. We're assuming that's when the
-	// weekly window is starting. Using Luxon here allows the code to easily account for
-	// Pacific time with daylight savings when necessary, since it's assumed based on
-	// what could be found online that Anthropic uses PDT for their time as well.
-	const startOfWeek = DateTime.fromObject(
-		{ year: 2025, month: 8, day: 28 },
-		{ zone: 'America/Los_Angeles' },
-	).toJSDate().getDay();
+	// weekly window is starting. August 28, 2025 is a Thursday in Pacific Time.
+	// This implementation uses native JavaScript Date to handle Pacific Time.
+	// Note: August 28, 2025 would be in PDT (UTC-7).
+	const referenceDate = new Date('2025-08-28T00:00:00-07:00');
+	const startOfWeek = referenceDate.getDay(); // Thursday = 4
+
 	const d = new Date(date);
 	const day = d.getDay();
 	const shift = (day - startOfWeek + 7) % 7;
