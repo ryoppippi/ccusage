@@ -1,6 +1,7 @@
 import process from 'node:process';
 import { define } from 'gunshi';
 import pc from 'picocolors';
+import { WEEK_DAYS } from '../_consts.ts';
 import { sharedArgs } from '../_shared-args.ts';
 import { formatCurrency, formatModelsDisplayMultiline, formatNumber, pushBreakdownRows, ResponsiveTable } from '../_utils.ts';
 import {
@@ -12,8 +13,6 @@ import { formatDateCompact, loadWeeklyUsageData } from '../data-loader.ts';
 import { detectMismatches, printMismatchReport } from '../debug.ts';
 import { log, logger } from '../logger.ts';
 
-const weekDays = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'] as const;
-
 export const weeklyCommand = define({
 	name: 'weekly',
 	description: 'Show usage report grouped by week',
@@ -24,7 +23,7 @@ export const weeklyCommand = define({
 			short: 'w',
 			description: 'Day to start the week on',
 			default: 'sunday' as const,
-			choices: weekDays,
+			choices: WEEK_DAYS,
 		},
 	},
 	toKebab: true,

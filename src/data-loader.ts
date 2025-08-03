@@ -9,6 +9,7 @@
  */
 
 import type { IntRange } from 'type-fest';
+import type { WEEK_DAYS } from './_consts.ts';
 import type { LoadedUsageEntry, SessionBlock } from './_session-blocks.ts';
 import type {
 	ActivityDate,
@@ -739,7 +740,7 @@ export type DateFilter = {
 	until?: string; // YYYYMMDD format
 };
 
-type WeekDay = 'sunday' | 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday';
+type WeekDay = typeof WEEK_DAYS[number];
 type DayOfWeek = IntRange<0, 7>; // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
 
 /**
