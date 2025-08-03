@@ -8,6 +8,7 @@
  * @module data-loader
  */
 
+import type { IntRange } from 'type-fest';
 import type { LoadedUsageEntry, SessionBlock } from './_session-blocks.ts';
 import type {
 	ActivityDate,
@@ -739,6 +740,7 @@ export type DateFilter = {
 };
 
 type WeekDay = 'sunday' | 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday';
+type DayOfWeek = IntRange<0, 7>; // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
 
 /**
  * Configuration options for loading usage data
@@ -1104,7 +1106,7 @@ export async function loadMonthlyUsageData(
  * @param startDay - The day to start the week on (0 = Sunday, 1 = Monday, ..., 6 = Saturday)
  * @returns The date of the first day of the week for the given date
  */
-function getDateWeek(date: Date, startDay: number): WeeklyDate {
+function getDateWeek(date: Date, startDay: DayOfWeek): WeeklyDate {
 	const d = new Date(date);
 	const day = d.getDay();
 	const shift = (day - startDay + 7) % 7;
@@ -1116,7 +1118,7 @@ function getDateWeek(date: Date, startDay: number): WeeklyDate {
 /**
  * Convert day name to number (0 = Sunday, 1 = Monday, ..., 6 = Saturday)
  */
-function getDayNumber(day: WeekDay): number {
+function getDayNumber(day: WeekDay): DayOfWeek {
 	const dayMap = {
 		sunday: 0,
 		monday: 1,
@@ -1125,7 +1127,7 @@ function getDayNumber(day: WeekDay): number {
 		thursday: 4,
 		friday: 5,
 		saturday: 6,
-	} as const;
+	} as const satisfies Record<WeekDay, DayOfWeek>;
 	return dayMap[day];
 }
 
