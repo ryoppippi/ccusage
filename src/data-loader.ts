@@ -741,7 +741,7 @@ export type DateFilter = {
 };
 
 type WeekDay = typeof WEEK_DAYS[number];
-type DayOfWeek = IntRange<0, 7>; // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+type DayOfWeek = IntRange<0, typeof WEEK_DAYS['length']>; // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
 
 /**
  * Configuration options for loading usage data
