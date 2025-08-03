@@ -99,6 +99,7 @@ This is a CLI tool that analyzes Claude Code usage data from local JSONL files s
   - **ESLint MCP**: Lint TypeScript/JavaScript files directly through Claude Code tools
   - **Context7 MCP**: Look up documentation for libraries and frameworks
   - **Gunshi MCP**: Access gunshi.dev documentation and examples
+  - **TypeScript MCP (lsmcp)**: Search for TypeScript functions, types, and symbols across the codebase
 
 ## Code Style Notes
 
@@ -196,6 +197,7 @@ This ensures code quality and catches issues immediately after changes.
 - [gunshi](https://gunshi.dev/llms.txt) - Documentation available via Gunshi MCP server
 - Context7 MCP server available for library documentation lookup
 - do not use console.log. use logger.ts instead
+- **IMPORTANT**: When searching for TypeScript functions, types, or symbols in the codebase, ALWAYS use TypeScript MCP (lsmcp) tools like `get_definitions`, `find_references`, `get_hover`, etc. DO NOT use grep/rg for searching TypeScript code structures.
 
 # important-instruction-reminders
 
