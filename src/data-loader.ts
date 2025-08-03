@@ -1104,8 +1104,7 @@ export async function loadMonthlyUsageData(
  * @param startDay - The day to start the week on (0 = Sunday, 1 = Monday, ..., 6 = Saturday)
  * @returns The date of the first day of the week for the given date
  */
-function getDateWeek(date: Date, startDay: number = 4): WeeklyDate {
-	// Default to Thursday (4) for August 28, 2025 rollout
+function getDateWeek(date: Date, startDay: number): WeeklyDate {
 	const d = new Date(date);
 	const day = d.getDay();
 	const shift = (day - startDay + 7) % 7;
@@ -1114,11 +1113,11 @@ function getDateWeek(date: Date, startDay: number = 4): WeeklyDate {
 	return createWeeklyDate(d.toISOString().substring(0, 10));
 }
 
-export async function loadWeeklyUsageData(
-	options?: LoadOptions,
-): Promise<WeeklyUsage[]> {
-	// Convert day name to number (0 = Sunday, 1 = Monday, ..., 6 = Saturday)
-	const dayNameToNumber = {
+/**
+ * Convert day name to number (0 = Sunday, 1 = Monday, ..., 6 = Saturday)
+ */
+function getDayNumber(day: WeekDay): number {
+	const dayMap = {
 		sunday: 0,
 		monday: 1,
 		tuesday: 2,
@@ -1126,9 +1125,14 @@ export async function loadWeeklyUsageData(
 		thursday: 4,
 		friday: 5,
 		saturday: 6,
-	} as const satisfies Record<WeekDay, number>;
+	} as const;
+	return dayMap[day];
+}
 
-	const startDay = options?.startOfWeek != null ? dayNameToNumber[options.startOfWeek] : 4; // Default to Thursday
+export async function loadWeeklyUsageData(
+	options?: LoadOptions,
+): Promise<WeeklyUsage[]> {
+	const startDay = options?.startOfWeek != null ? getDayNumber(options.startOfWeek) : getDayNumber('sunday');
 
 	return loadBucketUsageData((data: DailyUsage) => getDateWeek(new Date(data.date), startDay), options)
 		.then(usages => usages.map<WeeklyUsage>(({ bucket, ...rest }) => ({

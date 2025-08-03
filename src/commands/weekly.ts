@@ -22,8 +22,8 @@ export const weeklyCommand = define({
 		startOfWeek: {
 			type: 'enum',
 			short: 'w',
-			description: 'Day to start the week on (default: thursday for August 28, 2025)',
-			default: 'thursday' as const,
+			description: 'Day to start the week on',
+			default: 'sunday' as const,
 			choices: weekDays,
 		},
 	},
