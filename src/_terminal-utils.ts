@@ -320,7 +320,6 @@ export function drawEmoji(emoji: string): string {
 	return `${SAVE_CURSOR}${emoji}${RESTORE_CURSOR}${ansiEscapes.cursorForward(stringWidth(emoji))}`;
 }
 
-// In-source testing
 if (import.meta.vitest != null) {
 	describe('drawEmoji', () => {
 		it('should always return a string with width as same as original', () => {
