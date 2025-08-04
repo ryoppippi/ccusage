@@ -517,10 +517,9 @@ function extractUniqueModels<T>(
 
 /**
  * Date formatter using Intl.DateTimeFormat for consistent formatting
- * Using UTC to avoid timezone issues
+ * Uses local timezone for proper date grouping
  */
 const dateFormatter = new Intl.DateTimeFormat('en-CA', {
-	timeZone: 'UTC',
 	year: 'numeric',
 	month: '2-digit',
 	day: '2-digit',
@@ -541,7 +540,6 @@ export function formatDate(dateStr: string): string {
  * Date parts formatter for extracting year, month, and day separately
  */
 const datePartsFormatter = new Intl.DateTimeFormat('en', {
-	timeZone: 'UTC',
 	year: 'numeric',
 	month: '2-digit',
 	day: '2-digit',
