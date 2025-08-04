@@ -160,6 +160,7 @@ export const blocksCommand = define({
 			order: ctx.values.order,
 			offline: ctx.values.offline,
 			sessionDurationHours: ctx.values.sessionLength,
+			timezone: ctx.values.timezone,
 		});
 
 		if (blocks.length === 0) {

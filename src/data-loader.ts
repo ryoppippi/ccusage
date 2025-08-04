@@ -516,43 +516,56 @@ function extractUniqueModels<T>(
 }
 
 /**
- * Date formatter using Intl.DateTimeFormat for consistent formatting
- * Uses local timezone for proper date grouping
+ * Creates a date formatter with the specified timezone
+ * @param timezone - Optional timezone to use (e.g., 'UTC', 'America/New_York')
+ * @returns Intl.DateTimeFormat instance
  */
-const dateFormatter = new Intl.DateTimeFormat('en-CA', {
-	year: 'numeric',
-	month: '2-digit',
-	day: '2-digit',
-});
+function createDateFormatter(timezone?: string): Intl.DateTimeFormat {
+	return new Intl.DateTimeFormat('en-CA', {
+		year: 'numeric',
+		month: '2-digit',
+		day: '2-digit',
+		timeZone: timezone,
+	});
+}
+
+/**
+ * Creates a date parts formatter with the specified timezone
+ * @param timezone - Optional timezone to use
+ * @returns Intl.DateTimeFormat instance
+ */
+function createDatePartsFormatter(timezone?: string): Intl.DateTimeFormat {
+	return new Intl.DateTimeFormat('en', {
+		year: 'numeric',
+		month: '2-digit',
+		day: '2-digit',
+		timeZone: timezone,
+	});
+}
 
 /**
  * Formats a date string to YYYY-MM-DD format
  * @param dateStr - Input date string
+ * @param timezone - Optional timezone to use for formatting
  * @returns Formatted date string in YYYY-MM-DD format
  */
-export function formatDate(dateStr: string): string {
+export function formatDate(dateStr: string, timezone?: string): string {
 	const date = new Date(dateStr);
+	const formatter = createDateFormatter(timezone);
 	// en-CA locale gives us YYYY-MM-DD format directly
-	return dateFormatter.format(date);
+	return formatter.format(date);
 }
-
-/**
- * Date parts formatter for extracting year, month, and day separately
- */
-const datePartsFormatter = new Intl.DateTimeFormat('en', {
-	year: 'numeric',
-	month: '2-digit',
-	day: '2-digit',
-});
 
 /**
  * Formats a date string to compact format with year on first line and month-day on second
  * @param dateStr - Input date string
+ * @param timezone - Optional timezone to use for formatting
  * @returns Formatted date string with newline separator (YYYY\nMM-DD)
  */
-export function formatDateCompact(dateStr: string): string {
+export function formatDateCompact(dateStr: string, timezone?: string): string {
 	const date = new Date(dateStr);
-	const parts = datePartsFormatter.formatToParts(date);
+	const formatter = createDatePartsFormatter(timezone);
+	const parts = formatter.formatToParts(date);
 	const year = parts.find(p => p.type === 'year')?.value ?? '';
 	const month = parts.find(p => p.type === 'month')?.value ?? '';
 	const day = parts.find(p => p.type === 'day')?.value ?? '';
@@ -783,6 +796,7 @@ export type LoadOptions = {
 	groupByProject?: boolean; // Group data by project instead of aggregating
 	project?: string; // Filter to specific project name
 	startOfWeek?: WeekDay; // Start of week for weekly aggregation
+	timezone?: string; // Timezone for date grouping (e.g., 'UTC', 'America/New_York'). Defaults to system timezone
 } & DateFilter;
 
 /**
@@ -853,7 +867,7 @@ export async function loadDailyUsageData(
 				// Mark this combination as processed
 				markAsProcessed(uniqueHash, processedHashes);
 
-				const date = formatDate(data.timestamp);
+				const date = formatDate(data.timestamp, options?.timezone);
 				// If fetcher is available, calculate cost based on mode and tokens
 				// If fetcher is null, use pre-calculated costUSD or default to 0
 				const cost = fetcher != null
@@ -1097,7 +1111,7 @@ export async function loadSessionData(
 				sessionId: createSessionId(latestEntry.sessionId),
 				projectPath: createProjectPath(latestEntry.projectPath),
 				...totals,
-				lastActivity: formatDate(latestEntry.timestamp) as ActivityDate,
+				lastActivity: formatDate(latestEntry.timestamp, options?.timezone) as ActivityDate,
 				versions: uniq(versions).sort() as Version[],
 				modelsUsed: modelsUsed as ModelName[],
 				modelBreakdowns,
@@ -1361,7 +1375,7 @@ export async function loadSessionBlockData(
 	// Filter by date range if specified
 	const dateFiltered = (options?.since != null && options.since !== '') || (options?.until != null && options.until !== '')
 		? blocks.filter((block) => {
-				const blockDateStr = formatDate(block.startTime.toISOString()).replace(/-/g, '');
+				const blockDateStr = formatDate(block.startTime.toISOString(), options?.timezone).replace(/-/g, '');
 				if (options.since != null && options.since !== '' && blockDateStr < options.since) {
 					return false;
 				}
@@ -1382,6 +1396,42 @@ if (import.meta.vitest != null) {
 		// Test with UTC timestamps - results depend on local timezone
 			expect(formatDate('2024-01-01T00:00:00Z')).toBe('2024-01-01');
 			expect(formatDate('2024-12-31T23:59:59Z')).toBe('2024-12-31');
+		});
+
+		it('respects timezone parameter', () => {
+			// Test date that crosses day boundary
+			const testTimestamp = '2024-01-01T15:00:00Z'; // 3 PM UTC = midnight JST next day
+
+			// Default behavior (no timezone) uses system timezone
+			expect(formatDate(testTimestamp)).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+
+			// UTC timezone
+			expect(formatDate(testTimestamp, 'UTC')).toBe('2024-01-01');
+
+			// Asia/Tokyo timezone (crosses to next day)
+			expect(formatDate(testTimestamp, 'Asia/Tokyo')).toBe('2024-01-02');
+
+			// America/New_York timezone
+			expect(formatDate('2024-01-02T03:00:00Z', 'America/New_York')).toBe('2024-01-01'); // 3 AM UTC = 10 PM EST previous day
+
+			// Invalid timezone should throw or use default behavior
+			// Most browsers will throw, but some might fallback to UTC
+			try {
+				formatDate(testTimestamp, 'Invalid/Timezone');
+			}
+			catch (e) {
+				expect(e).toBeInstanceOf(RangeError);
+			}
+		});
+
+		it('formatDateCompact respects timezone parameter', () => {
+			const testTimestamp = '2024-01-01T15:00:00Z';
+
+			// UTC timezone
+			expect(formatDateCompact(testTimestamp, 'UTC')).toBe('2024\n01-01');
+
+			// Asia/Tokyo timezone (crosses to next day)
+			expect(formatDateCompact(testTimestamp, 'Asia/Tokyo')).toBe('2024\n01-02');
 		});
 
 		it('handles various date formats', () => {

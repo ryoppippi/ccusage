@@ -6,7 +6,7 @@ ccusage supports various configuration options to customize its behavior and ada
 
 ### CLAUDE_CONFIG_DIR
 
-The primary configuration option is the `CLAUDE_CONFIG_DIR` environment variable, which specifies where ccusage should look for Claude Code data.
+The `CLAUDE_CONFIG_DIR` environment variable specifies where ccusage should look for Claude Code data.
 
 #### Single Directory
 
@@ -140,11 +140,46 @@ ccusage daily --order asc              # Oldest first
 ccusage daily --offline                # Use cached pricing data
 ccusage daily -O                       # Short alias
 
+# Timezone
+ccusage daily --timezone UTC           # Use UTC timezone
+ccusage daily -z America/New_York      # Use New York timezone
+ccusage daily --timezone Asia/Tokyo    # Use Tokyo timezone
+
 # Project analysis (daily command only)
 ccusage daily --instances              # Group by project
 ccusage daily --project myproject      # Filter to specific project
 ccusage daily --instances --project myproject  # Combined usage
 ```
+
+### Timezone Configuration
+
+The `--timezone` option controls how dates are calculated for grouping usage data:
+
+```bash
+# Use UTC timezone for consistent reports
+ccusage daily --timezone UTC
+
+# Use specific timezone
+ccusage daily --timezone America/New_York
+ccusage monthly -z Asia/Tokyo
+
+# Default behavior (no timezone specified)
+ccusage daily  # Uses system's local timezone
+```
+
+#### Timezone Effect
+
+The timezone affects how usage is grouped by date. For example, usage at 11 PM UTC on January 1st would appear on:
+- **January 1st** when `--timezone UTC`
+- **January 1st** when `--timezone America/New_York` (6 PM EST)
+- **January 2nd** when `--timezone Asia/Tokyo` (8 AM JST next day)
+
+#### Use Cases
+
+- **UTC Alignment**: Use `--timezone UTC` for consistent reports across different locations
+- **Remote Teams**: Align reports to team's primary timezone
+- **Cross-Timezone Analysis**: Compare usage patterns across different time zones
+- **CI/CD Environments**: Use UTC for consistent automated reports
 
 ### Debug Options
 

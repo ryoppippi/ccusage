@@ -35,6 +35,7 @@ export const weeklyCommand = define({
 		const weeklyData = await loadWeeklyUsageData({
 			since: ctx.values.since,
 			until: ctx.values.until,
+			timezone: ctx.values.timezone,
 			mode: ctx.values.mode,
 			order: ctx.values.order,
 			offline: ctx.values.offline,
@@ -118,7 +119,7 @@ export const weeklyCommand = define({
 					'right',
 					'right',
 				],
-				dateFormatter: formatDateCompact,
+				dateFormatter: (dateStr: string) => formatDateCompact(dateStr, ctx.values.timezone),
 				compactHead: [
 					'Week',
 					'Models',

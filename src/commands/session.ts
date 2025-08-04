@@ -27,6 +27,7 @@ export const sessionCommand = define({
 			mode: ctx.values.mode,
 			order: ctx.values.order,
 			offline: ctx.values.offline,
+			timezone: ctx.values.timezone,
 		});
 
 		if (sessionData.length === 0) {
@@ -99,7 +100,7 @@ export const sessionCommand = define({
 					'right',
 					'left',
 				],
-				dateFormatter: formatDateCompact,
+				dateFormatter: (dateStr: string) => formatDateCompact(dateStr, ctx.values.timezone),
 				compactHead: [
 					'Session',
 					'Models',
