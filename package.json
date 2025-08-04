@@ -85,7 +85,7 @@
 		"picocolors": "^1.1.1",
 		"pretty-ms": "^9.2.0",
 		"publint": "^0.3.12",
-		"simple-git-hooks": "^2.13.0",
+		"simple-git-hooks": "^2.13.1",
 		"sort-package-json": "^3.4.0",
 		"string-width": "^7.2.0",
 		"tinyglobby": "^0.2.14",
