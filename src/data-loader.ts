@@ -872,7 +872,8 @@ export async function loadDailyUsageData(
 				// Mark this combination as processed
 				markAsProcessed(uniqueHash, processedHashes);
 
-				const date = formatDate(data.timestamp, options?.timezone, options?.locale);
+				// Always use en-CA for date grouping to ensure YYYY-MM-DD format
+				const date = formatDate(data.timestamp, options?.timezone, 'en-CA');
 				// If fetcher is available, calculate cost based on mode and tokens
 				// If fetcher is null, use pre-calculated costUSD or default to 0
 				const cost = fetcher != null
@@ -1116,7 +1117,8 @@ export async function loadSessionData(
 				sessionId: createSessionId(latestEntry.sessionId),
 				projectPath: createProjectPath(latestEntry.projectPath),
 				...totals,
-				lastActivity: formatDate(latestEntry.timestamp, options?.timezone, options?.locale) as ActivityDate,
+				// Always use en-CA for date storage to ensure YYYY-MM-DD format
+				lastActivity: formatDate(latestEntry.timestamp, options?.timezone, 'en-CA') as ActivityDate,
 				versions: uniq(versions).sort() as Version[],
 				modelsUsed: modelsUsed as ModelName[],
 				modelBreakdowns,
@@ -1380,7 +1382,8 @@ export async function loadSessionBlockData(
 	// Filter by date range if specified
 	const dateFiltered = (options?.since != null && options.since !== '') || (options?.until != null && options.until !== '')
 		? blocks.filter((block) => {
-				const blockDateStr = formatDate(block.startTime.toISOString(), options?.timezone, options?.locale).replace(/-/g, '');
+				// Always use en-CA for date comparison to ensure YYYY-MM-DD format
+				const blockDateStr = formatDate(block.startTime.toISOString(), options?.timezone, 'en-CA').replace(/-/g, '');
 				if (options.since != null && options.since !== '' && blockDateStr < options.since) {
 					return false;
 				}
