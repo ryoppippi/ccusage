@@ -145,6 +145,11 @@ ccusage daily --timezone UTC           # Use UTC timezone
 ccusage daily -z America/New_York      # Use New York timezone
 ccusage daily --timezone Asia/Tokyo    # Use Tokyo timezone
 
+# Locale
+ccusage daily --locale en-US           # US English (12-hour time)
+ccusage daily -l ja-JP                 # Japanese (24-hour time)
+ccusage daily --locale de-DE           # German (24-hour time)
+
 # Project analysis (daily command only)
 ccusage daily --instances              # Group by project
 ccusage daily --project myproject      # Filter to specific project
@@ -180,6 +185,45 @@ The timezone affects how usage is grouped by date. For example, usage at 11 PM U
 - **Remote Teams**: Align reports to team's primary timezone
 - **Cross-Timezone Analysis**: Compare usage patterns across different time zones
 - **CI/CD Environments**: Use UTC for consistent automated reports
+
+### Locale Configuration
+
+The `--locale` option controls date and time formatting:
+
+```bash
+# Use US English locale (12-hour time format)
+ccusage daily --locale en-US
+
+# Use Japanese locale (24-hour time format)
+ccusage blocks --locale ja-JP
+
+# Use German locale (24-hour time format)
+ccusage session -l de-DE
+
+# Default behavior (no locale specified)
+ccusage daily  # Uses en-CA (ISO date format, 24-hour time)
+```
+
+#### Locale Effects
+
+The locale affects how dates and times are displayed:
+
+- **Date Format**:
+  - `en-US`: 08/04/2025
+  - `en-CA`: 2025-08-04 (ISO format)
+  - `ja-JP`: 2025/08/04
+  - `de-DE`: 04.08.2025
+
+- **Time Format**:
+  - `en-US`: 3:30:00 PM (12-hour)
+  - `en-CA`, `ja-JP`, `de-DE`: 15:30:00 (24-hour)
+
+#### Use Cases
+
+- **International Teams**: Display dates/times in familiar formats
+- **12/24 Hour Preference**: Choose between AM/PM or 24-hour time
+- **Regional Standards**: Match local date formatting conventions
+- **ISO Compliance**: Use `en-CA` for ISO 8601 date format
 
 ### Debug Options
 
@@ -327,7 +371,7 @@ Or with global installation:
 - **`session`** - Session-based reports
 - **`blocks`** - 5-hour billing blocks reports
 
-Each tool accepts `since`, `until`, and `mode` parameters.
+Each tool accepts `since`, `until`, `mode`, `timezone`, and `locale` parameters.
 
 ## Terminal Display Configuration
 

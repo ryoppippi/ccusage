@@ -196,6 +196,7 @@ export function createMcpServer({
 		until: filterDateSchema.optional(),
 		mode: z.enum(['auto', 'calculate', 'display']).default('auto').optional(),
 		timezone: z.string().optional(),
+		locale: z.string().default('en-CA').optional(),
 	};
 
 	// Register daily tool

@@ -516,12 +516,13 @@ function extractUniqueModels<T>(
 }
 
 /**
- * Creates a date formatter with the specified timezone
- * @param timezone - Optional timezone to use (e.g., 'UTC', 'America/New_York')
+ * Creates a date formatter with the specified timezone and locale
+ * @param timezone - Timezone to use (e.g., 'UTC', 'America/New_York')
+ * @param locale - Locale to use for formatting (e.g., 'en-US', 'ja-JP')
  * @returns Intl.DateTimeFormat instance
  */
-function createDateFormatter(timezone?: string): Intl.DateTimeFormat {
-	return new Intl.DateTimeFormat('en-CA', {
+function createDateFormatter(timezone: string | undefined, locale: string): Intl.DateTimeFormat {
+	return new Intl.DateTimeFormat(locale, {
 		year: 'numeric',
 		month: '2-digit',
 		day: '2-digit',
@@ -530,12 +531,13 @@ function createDateFormatter(timezone?: string): Intl.DateTimeFormat {
 }
 
 /**
- * Creates a date parts formatter with the specified timezone
- * @param timezone - Optional timezone to use
+ * Creates a date parts formatter with the specified timezone and locale
+ * @param timezone - Timezone to use
+ * @param locale - Locale to use for formatting
  * @returns Intl.DateTimeFormat instance
  */
-function createDatePartsFormatter(timezone?: string): Intl.DateTimeFormat {
-	return new Intl.DateTimeFormat('en', {
+function createDatePartsFormatter(timezone: string | undefined, locale: string): Intl.DateTimeFormat {
+	return new Intl.DateTimeFormat(locale, {
 		year: 'numeric',
 		month: '2-digit',
 		day: '2-digit',
@@ -547,24 +549,26 @@ function createDatePartsFormatter(timezone?: string): Intl.DateTimeFormat {
  * Formats a date string to YYYY-MM-DD format
  * @param dateStr - Input date string
  * @param timezone - Optional timezone to use for formatting
+ * @param locale - Optional locale to use for formatting (defaults to 'en-CA' for YYYY-MM-DD format)
  * @returns Formatted date string in YYYY-MM-DD format
  */
-export function formatDate(dateStr: string, timezone?: string): string {
+export function formatDate(dateStr: string, timezone?: string, locale?: string): string {
 	const date = new Date(dateStr);
-	const formatter = createDateFormatter(timezone);
-	// en-CA locale gives us YYYY-MM-DD format directly
+	// Use en-CA as default for consistent YYYY-MM-DD format
+	const formatter = createDateFormatter(timezone, locale ?? 'en-CA');
 	return formatter.format(date);
 }
 
 /**
  * Formats a date string to compact format with year on first line and month-day on second
  * @param dateStr - Input date string
- * @param timezone - Optional timezone to use for formatting
+ * @param timezone - Timezone to use for formatting (pass undefined to use system timezone)
+ * @param locale - Locale to use for formatting
  * @returns Formatted date string with newline separator (YYYY\nMM-DD)
  */
-export function formatDateCompact(dateStr: string, timezone?: string): string {
+export function formatDateCompact(dateStr: string, timezone: string | undefined, locale: string): string {
 	const date = new Date(dateStr);
-	const formatter = createDatePartsFormatter(timezone);
+	const formatter = createDatePartsFormatter(timezone, locale);
 	const parts = formatter.formatToParts(date);
 	const year = parts.find(p => p.type === 'year')?.value ?? '';
 	const month = parts.find(p => p.type === 'month')?.value ?? '';
@@ -797,6 +801,7 @@ export type LoadOptions = {
 	project?: string; // Filter to specific project name
 	startOfWeek?: WeekDay; // Start of week for weekly aggregation
 	timezone?: string; // Timezone for date grouping (e.g., 'UTC', 'America/New_York'). Defaults to system timezone
+	locale?: string; // Locale for date/time formatting (e.g., 'en-US', 'ja-JP'). Defaults to 'en-US'
 } & DateFilter;
 
 /**
@@ -867,7 +872,7 @@ export async function loadDailyUsageData(
 				// Mark this combination as processed
 				markAsProcessed(uniqueHash, processedHashes);
 
-				const date = formatDate(data.timestamp, options?.timezone);
+				const date = formatDate(data.timestamp, options?.timezone, options?.locale);
 				// If fetcher is available, calculate cost based on mode and tokens
 				// If fetcher is null, use pre-calculated costUSD or default to 0
 				const cost = fetcher != null
@@ -1111,7 +1116,7 @@ export async function loadSessionData(
 				sessionId: createSessionId(latestEntry.sessionId),
 				projectPath: createProjectPath(latestEntry.projectPath),
 				...totals,
-				lastActivity: formatDate(latestEntry.timestamp, options?.timezone) as ActivityDate,
+				lastActivity: formatDate(latestEntry.timestamp, options?.timezone, options?.locale) as ActivityDate,
 				versions: uniq(versions).sort() as Version[],
 				modelsUsed: modelsUsed as ModelName[],
 				modelBreakdowns,
@@ -1375,7 +1380,7 @@ export async function loadSessionBlockData(
 	// Filter by date range if specified
 	const dateFiltered = (options?.since != null && options.since !== '') || (options?.until != null && options.until !== '')
 		? blocks.filter((block) => {
-				const blockDateStr = formatDate(block.startTime.toISOString(), options?.timezone).replace(/-/g, '');
+				const blockDateStr = formatDate(block.startTime.toISOString(), options?.timezone, options?.locale).replace(/-/g, '');
 				if (options.since != null && options.since !== '' && blockDateStr < options.since) {
 					return false;
 				}
@@ -1422,10 +1427,10 @@ if (import.meta.vitest != null) {
 			const testTimestamp = '2024-01-01T15:00:00Z';
 
 			// UTC timezone
-			expect(formatDateCompact(testTimestamp, 'UTC')).toBe('2024\n01-01');
+			expect(formatDateCompact(testTimestamp, 'UTC', 'en-US')).toBe('2024\n01-01');
 
 			// Asia/Tokyo timezone (crosses to next day)
-			expect(formatDateCompact(testTimestamp, 'Asia/Tokyo')).toBe('2024\n01-02');
+			expect(formatDateCompact(testTimestamp, 'Asia/Tokyo', 'en-US')).toBe('2024\n01-02');
 		});
 
 		it('handles various date formats', () => {
@@ -1439,24 +1444,44 @@ if (import.meta.vitest != null) {
 			expect(formatDate('2024-01-05T12:00:00Z')).toBe('2024-01-05');
 			expect(formatDate('2024-10-01T12:00:00Z')).toBe('2024-10-01');
 		});
+
+		it('respects locale parameter', () => {
+			const testDate = '2024-08-04T12:00:00Z';
+
+			// Different locales format dates differently
+			expect(formatDate(testDate, 'UTC', 'en-US')).toBe('08/04/2024');
+			expect(formatDate(testDate, 'UTC', 'en-CA')).toBe('2024-08-04');
+			expect(formatDate(testDate, 'UTC', 'ja-JP')).toBe('2024/08/04');
+			expect(formatDate(testDate, 'UTC', 'de-DE')).toBe('04.08.2024');
+		});
 	});
 
 	describe('formatDateCompact', () => {
 		it('formats UTC timestamp to local date with line break', () => {
-			expect(formatDateCompact('2024-01-01T00:00:00Z')).toBe('2024\n01-01');
+			expect(formatDateCompact('2024-01-01T00:00:00Z', undefined, 'en-US')).toBe('2024\n01-01');
 		});
 
 		it('handles various date formats', () => {
-			expect(formatDateCompact('2024-12-31T23:59:59Z')).toBe('2024\n12-31');
-			expect(formatDateCompact('2024-01-01')).toBe('2024\n01-01');
-			expect(formatDateCompact('2024-01-01T12:00:00')).toBe('2024\n01-01');
-			expect(formatDateCompact('2024-01-01T12:00:00.000Z')).toBe('2024\n01-01');
+			expect(formatDateCompact('2024-12-31T23:59:59Z', undefined, 'en-US')).toBe('2024\n12-31');
+			expect(formatDateCompact('2024-01-01', undefined, 'en-US')).toBe('2024\n01-01');
+			expect(formatDateCompact('2024-01-01T12:00:00', undefined, 'en-US')).toBe('2024\n01-01');
+			expect(formatDateCompact('2024-01-01T12:00:00.000Z', undefined, 'en-US')).toBe('2024\n01-01');
 		});
 
 		it('pads single digit months and days', () => {
 			// Use UTC noon to avoid timezone issues
-			expect(formatDateCompact('2024-01-05T12:00:00Z')).toBe('2024\n01-05');
-			expect(formatDateCompact('2024-10-01T12:00:00Z')).toBe('2024\n10-01');
+			expect(formatDateCompact('2024-01-05T12:00:00Z', undefined, 'en-US')).toBe('2024\n01-05');
+			expect(formatDateCompact('2024-10-01T12:00:00Z', undefined, 'en-US')).toBe('2024\n10-01');
+		});
+
+		it('respects locale parameter', () => {
+			const testDate = '2024-08-04T12:00:00Z';
+
+			// Different locales format dates differently
+			expect(formatDateCompact(testDate, 'UTC', 'en-US')).toBe('2024\n08-04');
+			expect(formatDateCompact(testDate, 'UTC', 'en-CA')).toBe('2024\n08-04');
+			expect(formatDateCompact(testDate, 'UTC', 'ja-JP')).toBe('2024\n08-04');
+			// All locales should produce similar compact format
 		});
 	});
 

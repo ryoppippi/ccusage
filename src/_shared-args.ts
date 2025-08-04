@@ -91,6 +91,12 @@ export const sharedArgs = {
 		short: 'z',
 		description: 'Timezone for date grouping (e.g., UTC, America/New_York, Asia/Tokyo). Default: system timezone',
 	},
+	locale: {
+		type: 'string',
+		short: 'l',
+		description: 'Locale for date/time formatting (e.g., en-US, ja-JP, de-DE)',
+		default: 'en-CA',
+	},
 } as const satisfies Args;
 
 /**

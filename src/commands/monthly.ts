@@ -28,6 +28,7 @@ export const monthlyCommand = define({
 			order: ctx.values.order,
 			offline: ctx.values.offline,
 			timezone: ctx.values.timezone,
+			locale: ctx.values.locale,
 		});
 
 		if (monthlyData.length === 0) {
@@ -107,7 +108,7 @@ export const monthlyCommand = define({
 					'right',
 					'right',
 				],
-				dateFormatter: (dateStr: string) => formatDateCompact(dateStr, ctx.values.timezone),
+				dateFormatter: (dateStr: string) => formatDateCompact(dateStr, ctx.values.timezone, ctx.values.locale),
 				compactHead: [
 					'Month',
 					'Models',

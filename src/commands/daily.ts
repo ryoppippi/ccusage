@@ -46,6 +46,7 @@ export const dailyCommand = define({
 			groupByProject: ctx.values.instances,
 			project: ctx.values.project,
 			timezone: ctx.values.timezone,
+			locale: ctx.values.locale,
 		});
 
 		if (dailyData.length === 0) {
@@ -120,7 +121,7 @@ export const dailyCommand = define({
 					'right',
 					'right',
 				],
-				dateFormatter: (dateStr: string) => formatDateCompact(dateStr, ctx.values.timezone),
+				dateFormatter: (dateStr: string) => formatDateCompact(dateStr, ctx.values.timezone, ctx.values.locale),
 				compactHead: [
 					'Date',
 					'Models',

@@ -21,25 +21,26 @@ import { startLiveMonitoring } from './_blocks.live.ts';
  * Formats the time display for a session block
  * @param block - Session block to format
  * @param compact - Whether to use compact formatting for narrow terminals
+ * @param locale - Locale for date/time formatting
  * @returns Formatted time string with duration and status information
  */
-function formatBlockTime(block: SessionBlock, compact = false): string {
+function formatBlockTime(block: SessionBlock, compact = false, locale?: string): string {
 	const start = compact
-		? block.startTime.toLocaleString(undefined, {
+		? block.startTime.toLocaleString(locale, {
 				month: '2-digit',
 				day: '2-digit',
 				hour: '2-digit',
 				minute: '2-digit',
 			})
-		: block.startTime.toLocaleString();
+		: block.startTime.toLocaleString(locale);
 
 	if (block.isGap ?? false) {
 		const end = compact
-			? block.endTime.toLocaleString(undefined, {
+			? block.endTime.toLocaleString(locale, {
 					hour: '2-digit',
 					minute: '2-digit',
 				})
-			: block.endTime.toLocaleString();
+			: block.endTime.toLocaleString(locale);
 		const duration = Math.round((block.endTime.getTime() - block.startTime.getTime()) / (1000 * 60 * 60));
 		return compact ? `${start}-${end}\n(${duration}h gap)` : `${start} - ${end} (${duration}h gap)`;
 	}
@@ -161,6 +162,7 @@ export const blocksCommand = define({
 			offline: ctx.values.offline,
 			sessionDurationHours: ctx.values.sessionLength,
 			timezone: ctx.values.timezone,
+			locale: ctx.values.locale,
 		});
 
 		if (blocks.length === 0) {
@@ -386,7 +388,7 @@ export const blocksCommand = define({
 					if (block.isGap ?? false) {
 						// Gap row
 						const gapRow = [
-							pc.gray(formatBlockTime(block, useCompactFormat)),
+							pc.gray(formatBlockTime(block, useCompactFormat, ctx.values.locale)),
 							pc.gray('(inactive)'),
 							pc.gray('-'),
 							pc.gray('-'),
@@ -403,7 +405,7 @@ export const blocksCommand = define({
 						const status = block.isActive ? pc.green('ACTIVE') : '';
 
 						const row = [
-							formatBlockTime(block, useCompactFormat),
+							formatBlockTime(block, useCompactFormat, ctx.values.locale),
 							status,
 							formatModels(block.models),
 							formatNumber(totalTokens),

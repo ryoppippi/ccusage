@@ -40,6 +40,7 @@ export const weeklyCommand = define({
 			order: ctx.values.order,
 			offline: ctx.values.offline,
 			startOfWeek: ctx.values.startOfWeek,
+			locale: ctx.values.locale,
 		});
 
 		if (weeklyData.length === 0) {
@@ -119,7 +120,7 @@ export const weeklyCommand = define({
 					'right',
 					'right',
 				],
-				dateFormatter: (dateStr: string) => formatDateCompact(dateStr, ctx.values.timezone),
+				dateFormatter: (dateStr: string) => formatDateCompact(dateStr, ctx.values.timezone, ctx.values.locale),
 				compactHead: [
 					'Week',
 					'Models',
