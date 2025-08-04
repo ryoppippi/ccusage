@@ -1414,14 +1414,8 @@ if (import.meta.vitest != null) {
 			// America/New_York timezone
 			expect(formatDate('2024-01-02T03:00:00Z', 'America/New_York')).toBe('2024-01-01'); // 3 AM UTC = 10 PM EST previous day
 
-			// Invalid timezone should throw or use default behavior
-			// Most browsers will throw, but some might fallback to UTC
-			try {
-				formatDate(testTimestamp, 'Invalid/Timezone');
-			}
-			catch (e) {
-				expect(e).toBeInstanceOf(RangeError);
-			}
+			// Invalid timezone should throw a RangeError
+			expect(() => formatDate(testTimestamp, 'Invalid/Timezone')).toThrow(RangeError);
 		});
 
 		it('formatDateCompact respects timezone parameter', () => {
