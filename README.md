@@ -118,7 +118,7 @@ Check out these [47 Claude Code ProTips from Greg Baugues.](https://www.youtube.
     </a>
 </p>
 
-### Projects Using `ccusage`
+## Projects Using `ccusage`
 
 - **[viberank](https://viberank.app)** — A community-driven leaderboard for Claude Code usage. Uses **ccusage** data to let developers track, compare, and showcase their Claude token stats and coding habits. ([GitHub](https://github.com/sculptdotfun/viberank))
 
