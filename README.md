@@ -122,7 +122,6 @@ Check out these [47 Claude Code ProTips from Greg Baugues.](https://www.youtube.
 
 - **[viberank](https://viberank.app)** — A community-driven leaderboard for Claude Code usage. Uses **ccusage** data to let developers track, compare, and showcase their Claude token stats and coding habits. ([GitHub](https://github.com/sculptdotfun/viberank))
 
-
 ## Claude Code Resources
 
 [`ClaudeLog`](https://claudelog.com) &nbsp; by &nbsp; [InventorBlack](https://www.reddit.com/user/inventor_black/)
