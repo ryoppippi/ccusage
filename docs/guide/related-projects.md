@@ -14,9 +14,9 @@ Projects that use ccusage internally or extend its functionality:
 - [ccusage Raycast Extension](https://www.raycast.com/nyatinte/ccusage) - Raycast integration for quick usage checks
 - [ccusage.nvim](https://github.com/S1M0N38/ccusage.nvim) - Track Claude Code usage in Neovim
 
-## Projects Using `ccusage`
+## Web Applications
 
-- **[viberank](https://viberank.app)** — A community-driven leaderboard for Claude Code usage. Uses **ccusage** data to let developers track, compare, and showcase their Claude token stats and coding habits. ([GitHub](https://github.com/sculptdotfun/viberank))
+- [viberank](https://viberank.app) - A community-driven leaderboard for Claude Code usage. ([GitHub](https://github.com/sculptdotfun/viberank))
 
 ## Contributing
 
