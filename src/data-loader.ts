@@ -569,7 +569,8 @@ export function formatDate(dateStr: string, timezone?: string, locale?: string):
 export function formatDateCompact(dateStr: string, timezone: string | undefined, locale: string): string {
 	// For YYYY-MM-DD format, append T00:00:00 to parse as local date
 	// Without this, new Date('YYYY-MM-DD') interprets as UTC midnight
-	const date = dailyDateSchema.safeParse(dateStr).success
+	const parseResult = dailyDateSchema.safeParse(dateStr);
+	const date = parseResult.success
 		? timezone != null
 			? new Date(`${dateStr}T00:00:00Z`)
 			: new Date(`${dateStr}T00:00:00`)
