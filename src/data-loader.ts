@@ -567,7 +567,12 @@ export function formatDate(dateStr: string, timezone?: string, locale?: string):
  * @returns Formatted date string with newline separator (YYYY\nMM-DD)
  */
 export function formatDateCompact(dateStr: string, timezone: string | undefined, locale: string): string {
-	const date = new Date(dateStr);
+	// For YYYY-MM-DD format, append T00:00:00 to parse as local date
+	// Without this, new Date('YYYY-MM-DD') interprets as UTC midnight
+	const localDateStr = /^\d{4}-\d{2}-\d{2}$/.test(dateStr)
+		? `${dateStr}T00:00:00`
+		: dateStr;
+	const date = new Date(localDateStr);
 	const formatter = createDatePartsFormatter(timezone, locale);
 	const parts = formatter.formatToParts(date);
 	const year = parts.find(p => p.type === 'year')?.value ?? '';
