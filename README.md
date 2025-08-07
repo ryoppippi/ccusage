@@ -96,19 +96,6 @@ ccusage daily --instances --project myproject --json  # Combined usage
 - 🌐 **Locale Support**: Customize date/time formatting with `--locale` option (e.g., en-US, ja-JP, de-DE)
 - 🚀 **Ultra-Small Bundle**: Unlike other CLI tools, we pay extreme attention to bundle size - incredibly small even without minification!
 
-## Environment Variables
-
-- `LOG_LEVEL` - Control the verbosity of log output
-
-  - `0` - Silent (errors only)
-  - `1` - Warnings
-  - `2` - Normal logs
-  - `3` - Informational logs (default)
-  - `4` - Debug logs
-  - `5` - Trace logs (most verbose)
-
-  Example: `LOG_LEVEL=0 ccusage daily` for silent output
-
 ## Documentation
 
 Full documentation is available at **[ccusage.com](https://ccusage.com/)**
