@@ -93,6 +93,7 @@ export const sharedArgs = {
 	},
 	locale: {
 		type: 'string',
+		short: 'l',
 		description: 'Locale for date/time formatting (e.g., en-US, ja-JP, de-DE)',
 		default: 'en-CA',
 	},
