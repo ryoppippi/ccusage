@@ -46,6 +46,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `calculate` - Always calculate costs from token counts using model pricing, ignore costUSD
 - `display` - Always use pre-calculated costUSD values, show 0 for missing costs
 
+**Environment Variables:**
+
+- `LOG_LEVEL` - Control logging verbosity (0=silent, 1=warn, 2=log, 3=info, 4=debug, 5=trace)
+  - Example: `LOG_LEVEL=0 bun run start daily` for silent output
+  - Useful for debugging or suppressing non-critical output
+
 **Multiple Claude Data Directories:**
 
 This tool supports multiple Claude data directories to handle different Claude Code installations:
