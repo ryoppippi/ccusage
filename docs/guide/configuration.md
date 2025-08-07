@@ -26,6 +26,32 @@ ccusage daily
 
 When multiple directories are specified, ccusage automatically aggregates usage data from all valid locations.
 
+### LOG_LEVEL
+
+Control the verbosity of log output using the `LOG_LEVEL` environment variable. ccusage uses [consola](https://github.com/unjs/consola) for logging under the hood:
+
+```bash
+# Set logging level
+export LOG_LEVEL=0  # Silent (errors only)
+export LOG_LEVEL=1  # Warnings
+export LOG_LEVEL=2  # Normal logs
+export LOG_LEVEL=3  # Informational logs (default)
+export LOG_LEVEL=4  # Debug logs
+export LOG_LEVEL=5  # Trace logs (most verbose)
+
+# Examples
+LOG_LEVEL=0 ccusage daily       # Silent output, only show results
+LOG_LEVEL=4 ccusage daily       # Debug output for troubleshooting
+LOG_LEVEL=5 ccusage session     # Trace all operations
+```
+
+#### Use Cases
+
+- **Clean Output**: Use `LOG_LEVEL=0` for scripts or when piping output
+- **Debugging**: Use `LOG_LEVEL=4` or `5` to troubleshoot issues
+- **CI/CD**: Use `LOG_LEVEL=1` to only see warnings and errors
+- **Development**: Use higher levels to understand internal operations
+
 ### CCUSAGE_PROJECT_ALIASES
 
 Configure custom display names for project directories using the `CCUSAGE_PROJECT_ALIASES` environment variable:
