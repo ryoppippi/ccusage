@@ -127,7 +127,7 @@ export const blocksCommand = define({
 		},
 		sessionLength: {
 			type: 'number',
-			short: 'l',
+			short: 'n',
 			description: `Session block duration in hours (default: ${DEFAULT_SESSION_DURATION_HOURS})`,
 			default: DEFAULT_SESSION_DURATION_HOURS,
 		},
