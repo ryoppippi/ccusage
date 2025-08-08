@@ -135,3 +135,26 @@ export const modelPricingSchema = z.object({
  * Type definition for model pricing information
  */
 export type ModelPricing = z.infer<typeof modelPricingSchema>;
+
+/**
+ * Zod schema for Claude Code statusline hook JSON data
+ */
+export const statuslineHookJsonSchema = z.object({
+	hook_event_name: z.literal('Status'),
+	session_id: z.string(),
+	transcript_path: z.string(),
+	cwd: z.string(),
+	model: z.object({
+		id: z.string(),
+		display_name: z.string(),
+	}),
+	workspace: z.object({
+		current_dir: z.string(),
+		project_dir: z.string(),
+	}),
+});
+
+/**
+ * Type definition for Claude Code statusline hook JSON data
+ */
+export type StatuslineHookJson = z.infer<typeof statuslineHookJsonSchema>;
