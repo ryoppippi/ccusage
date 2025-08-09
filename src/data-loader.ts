@@ -24,7 +24,6 @@ import { unreachable } from '@core/errorutil';
 import { Result } from '@praha/byethrow';
 import { groupBy, uniq } from 'es-toolkit'; // TODO: after node20 is deprecated, switch to native Object.groupBy
 import { sort } from 'fast-sort';
-import { createFixture } from 'fs-fixture';
 import { isDirectorySync } from 'path-type';
 import { glob } from 'tinyglobby';
 import { z } from 'zod';
@@ -36,6 +35,12 @@ import {
 	USAGE_DATA_GLOB_PATTERN,
 	USER_HOME_DIR,
 } from './_consts.ts';
+import {
+	createDailyUsageFixture,
+	createEmptyProjectsFixture,
+	createMultiProjectFixture,
+	createTimestampTestFixture,
+} from './_fixtures.ts';
 import { identifySessionBlocks } from './_session-blocks.ts';
 import {
 	activityDateSchema,
@@ -1338,6 +1343,8 @@ export async function loadSessionBlockData(
 }
 
 if (import.meta.vitest != null) {
+	// Dynamic imports will be loaded within individual test suites to avoid top-level await
+
 	describe('formatDate', () => {
 		it('formats UTC timestamp to local date', () => {
 			// Test with UTC timestamps - results depend on local timezone
@@ -1379,9 +1386,7 @@ if (import.meta.vitest != null) {
 
 	describe('loadDailyUsageData', () => {
 		it('returns empty array when no files found', async () => {
-			await using fixture = await createFixture({
-				projects: {},
-			});
+			await using fixture = await createEmptyProjectsFixture();
 
 			const result = await loadDailyUsageData({ claudePath: fixture.path });
 			expect(result).toEqual([]);
@@ -1408,15 +1413,9 @@ if (import.meta.vitest != null) {
 				costUSD: 0.03,
 			};
 
-			await using fixture = await createFixture({
-				projects: {
-					project1: {
-						'session1.jsonl': mockData1
-							.map(d => JSON.stringify(d))
-							.join('\n'),
-						'session2.jsonl': JSON.stringify(mockData2),
-					},
-				},
+			await using fixture = await createDailyUsageFixture({
+				mockData1,
+				mockData2,
 			});
 
 			const result = await loadDailyUsageData({ claudePath: fixture.path });
@@ -1442,12 +1441,8 @@ if (import.meta.vitest != null) {
 				costUSD: 0.01,
 			};
 
-			await using fixture = await createFixture({
-				projects: {
-					project1: {
-						'session1.jsonl': JSON.stringify(mockData),
-					},
-				},
+			await using fixture = await createDailyUsageFixture({
+				sessions: { 'session1.jsonl': mockData },
 			});
 
 			const result = await loadDailyUsageData({ claudePath: fixture.path });
@@ -1475,12 +1470,8 @@ if (import.meta.vitest != null) {
 				},
 			];
 
-			await using fixture = await createFixture({
-				projects: {
-					project1: {
-						'session1.jsonl': mockData.map(d => JSON.stringify(d)).join('\n'),
-					},
-				},
+			await using fixture = await createDailyUsageFixture({
+				sessions: { 'session1.jsonl': mockData },
 			});
 
 			const result = await loadDailyUsageData({
@@ -1513,12 +1504,8 @@ if (import.meta.vitest != null) {
 				},
 			];
 
-			await using fixture = await createFixture({
-				projects: {
-					project1: {
-						'session1.jsonl': mockData.map(d => JSON.stringify(d)).join('\n'),
-					},
-				},
+			await using fixture = await createDailyUsageFixture({
+				sessions: { 'session1.jsonl': mockData },
 			});
 
 			const result = await loadDailyUsageData({ claudePath: fixture.path });
@@ -1547,12 +1534,8 @@ if (import.meta.vitest != null) {
 				},
 			];
 
-			await using fixture = await createFixture({
-				projects: {
-					project1: {
-						'session1.jsonl': mockData.map(d => JSON.stringify(d)).join('\n'),
-					},
-				},
+			await using fixture = await createDailyUsageFixture({
+				sessions: { 'session1.jsonl': mockData },
 			});
 
 			const result = await loadDailyUsageData({
@@ -1585,12 +1568,8 @@ if (import.meta.vitest != null) {
 				},
 			];
 
-			await using fixture = await createFixture({
-				projects: {
-					project1: {
-						'session1.jsonl': mockData.map(d => JSON.stringify(d)).join('\n'),
-					},
-				},
+			await using fixture = await createDailyUsageFixture({
+				sessions: { 'session1.jsonl': mockData },
 			});
 
 			const result = await loadDailyUsageData({
@@ -1605,6 +1584,7 @@ if (import.meta.vitest != null) {
 		});
 
 		it('handles invalid JSON lines gracefully', async () => {
+			const { createRawJSONLFixture } = await import('./_fixtures.ts');
 			const mockData = `
 {"timestamp":"2024-01-01T12:00:00Z","message":{"usage":{"input_tokens":100,"output_tokens":50}},"costUSD":0.01}
 invalid json line
@@ -1613,13 +1593,7 @@ invalid json line
 {"timestamp":"2024-01-01T18:00:00Z","message":{"usage":{"input_tokens":300,"output_tokens":150}},"costUSD":0.03}
 `.trim();
 
-			await using fixture = await createFixture({
-				projects: {
-					project1: {
-						'session1.jsonl': mockData,
-					},
-				},
-			});
+			await using fixture = await createRawJSONLFixture('project1', 'session1.jsonl', mockData);
 
 			const result = await loadDailyUsageData({ claudePath: fixture.path });
 
@@ -1630,6 +1604,7 @@ invalid json line
 		});
 
 		it('skips data without required fields', async () => {
+			const { createRawJSONLFixture } = await import('./_fixtures.ts');
 			const mockData = `
 {"timestamp":"2024-01-01T12:00:00Z","message":{"usage":{"input_tokens":100,"output_tokens":50}},"costUSD":0.01}
 {"timestamp":"2024-01-01T14:00:00Z","message":{"usage":{}}}
@@ -1639,13 +1614,7 @@ invalid json line
 {"timestamp":"2024-01-01T22:00:00Z","message":{"usage":{"input_tokens":300,"output_tokens":150}},"costUSD":0.03}
 `.trim();
 
-			await using fixture = await createFixture({
-				projects: {
-					project1: {
-						'session1.jsonl': mockData,
-					},
-				},
-			});
+			await using fixture = await createRawJSONLFixture('project1', 'session1.jsonl', mockData);
 
 			const result = await loadDailyUsageData({ claudePath: fixture.path });
 
@@ -1676,12 +1645,8 @@ invalid json line
 				},
 			];
 
-			await using fixture = await createFixture({
-				projects: {
-					project1: {
-						'session1.jsonl': mockData.map(d => JSON.stringify(d)).join('\n'),
-					},
-				},
+			await using fixture = await createDailyUsageFixture({
+				sessions: { 'session1.jsonl': mockData },
 			});
 
 			const result = await loadMonthlyUsageData({ claudePath: fixture.path });
@@ -1729,9 +1694,7 @@ invalid json line
 		});
 
 		it('handles empty data', async () => {
-			await using fixture = await createFixture({
-				projects: {},
-			});
+			await using fixture = await createEmptyProjectsFixture();
 
 			const result = await loadMonthlyUsageData({ claudePath: fixture.path });
 			expect(result).toEqual([]);
@@ -1751,12 +1714,8 @@ invalid json line
 				},
 			];
 
-			await using fixture = await createFixture({
-				projects: {
-					project1: {
-						'session1.jsonl': mockData.map(d => JSON.stringify(d)).join('\n'),
-					},
-				},
+			await using fixture = await createDailyUsageFixture({
+				sessions: { 'session1.jsonl': mockData },
 			});
 
 			const result = await loadMonthlyUsageData({ claudePath: fixture.path });
@@ -1807,12 +1766,8 @@ invalid json line
 				},
 			];
 
-			await using fixture = await createFixture({
-				projects: {
-					project1: {
-						'session1.jsonl': mockData.map(d => JSON.stringify(d)).join('\n'),
-					},
-				},
+			await using fixture = await createDailyUsageFixture({
+				sessions: { 'session1.jsonl': mockData },
 			});
 
 			const result = await loadMonthlyUsageData({ claudePath: fixture.path });
@@ -1845,12 +1800,8 @@ invalid json line
 				},
 			];
 
-			await using fixture = await createFixture({
-				projects: {
-					project1: {
-						'session1.jsonl': mockData.map(d => JSON.stringify(d)).join('\n'),
-					},
-				},
+			await using fixture = await createDailyUsageFixture({
+				sessions: { 'session1.jsonl': mockData },
 			});
 
 			const result = await loadMonthlyUsageData({
@@ -1886,12 +1837,8 @@ invalid json line
 				},
 			];
 
-			await using fixture = await createFixture({
-				projects: {
-					project1: {
-						'session1.jsonl': mockData.map(d => JSON.stringify(d)).join('\n'),
-					},
-				},
+			await using fixture = await createDailyUsageFixture({
+				sessions: { 'session1.jsonl': mockData },
 			});
 
 			// Descending order (default)
@@ -1930,11 +1877,9 @@ invalid json line
 				},
 			];
 
-			await using fixture = await createFixture({
-				projects: {
-					project1: {
-						'session1.jsonl': mockData.map(d => JSON.stringify(d)).join('\n'),
-					},
+			await using fixture = await createDailyUsageFixture({
+				sessions: {
+					'session1.jsonl': mockData,
 				},
 			});
 
@@ -1978,12 +1923,8 @@ invalid json line
 				},
 			];
 
-			await using fixture = await createFixture({
-				projects: {
-					project1: {
-						'session1.jsonl': mockData.map(d => JSON.stringify(d)).join('\n'),
-					},
-				},
+			await using fixture = await createDailyUsageFixture({
+				sessions: { 'session1.jsonl': mockData },
 			});
 
 			const result = await loadMonthlyUsageData({ claudePath: fixture.path });
@@ -1996,9 +1937,7 @@ invalid json line
 
 	describe('loadSessionData', () => {
 		it('returns empty array when no files found', async () => {
-			await using fixture = await createFixture({
-				projects: {},
-			});
+			await using fixture = await createEmptyProjectsFixture();
 
 			const result = await loadSessionData({ claudePath: fixture.path });
 			expect(result).toEqual([]);
@@ -2011,14 +1950,12 @@ invalid json line
 				costUSD: 0.01,
 			};
 
-			await using fixture = await createFixture({
-				projects: {
-					'project1/subfolder': {
-						'session123.jsonl': JSON.stringify(mockData),
-					},
-					'project2': {
-						'session456.jsonl': JSON.stringify(mockData),
-					},
+			await using fixture = await createMultiProjectFixture({
+				'project1/subfolder': {
+					'session123.jsonl': mockData,
+				},
+				'project2': {
+					'session456.jsonl': mockData,
 				},
 			});
 
@@ -2061,11 +1998,9 @@ invalid json line
 				},
 			];
 
-			await using fixture = await createFixture({
-				projects: {
-					project1: {
-						'session1.jsonl': mockData.map(d => JSON.stringify(d)).join('\n'),
-					},
+			await using fixture = await createDailyUsageFixture({
+				sessions: {
+					'session1.jsonl': mockData,
 				},
 			});
 
@@ -2105,12 +2040,8 @@ invalid json line
 				},
 			];
 
-			await using fixture = await createFixture({
-				projects: {
-					project1: {
-						'session1.jsonl': mockData.map(d => JSON.stringify(d)).join('\n'),
-					},
-				},
+			await using fixture = await createDailyUsageFixture({
+				sessions: { 'session1.jsonl': mockData },
 			});
 
 			const result = await loadSessionData({ claudePath: fixture.path });
@@ -2120,6 +2051,7 @@ invalid json line
 		});
 
 		it('sorts by last activity descending', async () => {
+			const { createSessionFixture } = await import('./_fixtures.ts');
 			const sessions = [
 				{
 					sessionId: 'session1',
@@ -2147,11 +2079,9 @@ invalid json line
 				},
 			];
 
-			await using fixture = await createFixture({
-				projects: Object.fromEntries(
-					sessions.map(s => [`${s.sessionId}.jsonl`, JSON.stringify(s.data)]),
-				),
-			});
+			await using fixture = await createSessionFixture(
+				sessions.map(s => ({ sessionId: s.sessionId, data: s.data })),
+			);
 
 			const result = await loadSessionData({ claudePath: fixture.path });
 
@@ -2161,6 +2091,7 @@ invalid json line
 		});
 
 		it('sorts by last activity ascending when order is \'asc\'', async () => {
+			const { createSessionFixture } = await import('./_fixtures.ts');
 			const sessions = [
 				{
 					sessionId: 'session1',
@@ -2188,16 +2119,7 @@ invalid json line
 				},
 			];
 
-			await using fixture = await createFixture({
-				projects: {
-					project1: Object.fromEntries(
-						sessions.map(s => [
-							`${s.sessionId}.jsonl`,
-							JSON.stringify(s.data),
-						]),
-					),
-				},
-			});
+			await using fixture = await createSessionFixture(sessions);
 
 			const result = await loadSessionData({
 				claudePath: fixture.path,
@@ -2210,6 +2132,7 @@ invalid json line
 		});
 
 		it('sorts by last activity descending when order is \'desc\'', async () => {
+			const { createSessionFixture } = await import('./_fixtures.ts');
 			const sessions = [
 				{
 					sessionId: 'session1',
@@ -2237,15 +2160,9 @@ invalid json line
 				},
 			];
 
-			await using fixture = await createFixture({
-				projects: {
-					project1: Object.fromEntries(
-						sessions.map((s) => {
-							return [`${s.sessionId}.jsonl`, JSON.stringify(s.data)];
-						}),
-					),
-				},
-			});
+			await using fixture = await createSessionFixture(
+				sessions.map(s => ({ sessionId: s.sessionId, data: s.data })),
+			);
 
 			const result = await loadSessionData({
 				claudePath: fixture.path,
@@ -2258,6 +2175,7 @@ invalid json line
 		});
 
 		it('filters by date range based on last activity', async () => {
+			const { createSessionFixture } = await import('./_fixtures.ts');
 			const sessions = [
 				{
 					sessionId: 'session1',
@@ -2285,15 +2203,9 @@ invalid json line
 				},
 			];
 
-			await using fixture = await createFixture({
-				projects: {
-					project1: Object.fromEntries(
-						sessions.map((s) => {
-							return [`${s.sessionId}.jsonl`, JSON.stringify(s.data)];
-						}),
-					),
-				},
-			});
+			await using fixture = await createSessionFixture(
+				sessions.map(s => ({ sessionId: s.sessionId, data: s.data })),
+			);
 
 			const result = await loadSessionData({
 				claudePath: fixture.path,
@@ -2320,12 +2232,9 @@ invalid json line
 					costUSD: 0.05, // Pre-calculated cost
 				};
 
-				await using fixture = await createFixture({
-					projects: {
-						'test-project-old': {
-							'session-old.jsonl': `${JSON.stringify(oldData)}\n`,
-						},
-					},
+				await using fixture = await createDailyUsageFixture({
+					project: 'test-project-old',
+					sessions: { 'session-old.jsonl': oldData },
 				});
 
 				const results = await loadDailyUsageData({ claudePath: fixture.path });
@@ -2354,12 +2263,9 @@ invalid json line
 					},
 				};
 
-				await using fixture = await createFixture({
-					projects: {
-						'test-project-new': {
-							'session-new.jsonl': `${JSON.stringify(newData)}\n`,
-						},
-					},
+				await using fixture = await createDailyUsageFixture({
+					project: 'test-project-new',
+					sessions: { 'session-new.jsonl': newData },
 				});
 
 				const results = await loadDailyUsageData({ claudePath: fixture.path });
@@ -2392,12 +2298,9 @@ invalid json line
 					},
 				};
 
-				await using fixture = await createFixture({
-					projects: {
-						'test-project-opus': {
-							'session-opus.jsonl': `${JSON.stringify(newData)}\n`,
-						},
-					},
+				await using fixture = await createDailyUsageFixture({
+					project: 'test-project-opus',
+					sessions: { 'session-opus.jsonl': newData },
 				});
 
 				const results = await loadDailyUsageData({ claudePath: fixture.path });
@@ -2434,12 +2337,9 @@ invalid json line
 					// No costUSD and no model - should be 0 cost
 				};
 
-				await using fixture = await createFixture({
-					projects: {
-						'test-project-mixed': {
-							'session-mixed.jsonl': `${JSON.stringify(data1)}\n${JSON.stringify(data2)}\n${JSON.stringify(data3)}\n`,
-						},
-					},
+				await using fixture = await createDailyUsageFixture({
+					project: 'test-project-mixed',
+					sessions: { 'session-mixed.jsonl': [data1, data2, data3] },
 				});
 
 				const results = await loadDailyUsageData({ claudePath: fixture.path });
@@ -2460,12 +2360,8 @@ invalid json line
 					// No costUSD and no model
 				};
 
-				await using fixture = await createFixture({
-					projects: {
-						'test-project-no-cost': {
-							'session-no-cost.jsonl': `${JSON.stringify(data)}\n`,
-						},
-					},
+				await using fixture = await createDailyUsageFixture({
+					sessions: { 'session-no-cost.jsonl': data },
 				});
 
 				const results = await loadDailyUsageData({ claudePath: fixture.path });
@@ -2479,6 +2375,7 @@ invalid json line
 
 		describe('loadSessionData with mixed schemas', () => {
 			it('should handle mixed cost sources in different sessions', async () => {
+				const { createSessionFixture } = await import('./_fixtures.ts');
 				const session1Data = {
 					timestamp: '2024-01-15T10:00:00Z',
 					message: { usage: { input_tokens: 1000, output_tokens: 500 } },
@@ -2493,14 +2390,18 @@ invalid json line
 					},
 				};
 
-				await using fixture = await createFixture({
-					projects: {
-						'test-project': {
-							'session1.jsonl': JSON.stringify(session1Data),
-							'session2.jsonl': JSON.stringify(session2Data),
-						},
+				await using fixture = await createSessionFixture([
+					{
+						project: 'test-project',
+						sessionId: 'session1',
+						data: session1Data,
 					},
-				});
+					{
+						project: 'test-project',
+						sessionId: 'session2',
+						data: session2Data,
+					},
+				]);
 
 				const results = await loadSessionData({ claudePath: fixture.path });
 
@@ -2526,12 +2427,8 @@ invalid json line
 					},
 				};
 
-				await using fixture = await createFixture({
-					projects: {
-						'test-project-unknown': {
-							'session-unknown.jsonl': `${JSON.stringify(data)}\n`,
-						},
-					},
+				await using fixture = await createDailyUsageFixture({
+					sessions: { 'session-unknown.jsonl': data },
 				});
 
 				const results = await loadSessionData({ claudePath: fixture.path });
@@ -2558,12 +2455,8 @@ invalid json line
 					},
 				};
 
-				await using fixture = await createFixture({
-					projects: {
-						'test-project-cache': {
-							'session-cache.jsonl': `${JSON.stringify(data)}\n`,
-						},
-					},
+				await using fixture = await createDailyUsageFixture({
+					sessions: { 'session-cache.jsonl': data },
 				});
 
 				const results = await loadDailyUsageData({ claudePath: fixture.path });
@@ -2593,12 +2486,8 @@ invalid json line
 					},
 				};
 
-				await using fixture = await createFixture({
-					projects: {
-						'test-project-opus-cache': {
-							'session-opus-cache.jsonl': `${JSON.stringify(data)}\n`,
-						},
-					},
+				await using fixture = await createDailyUsageFixture({
+					sessions: { 'session-opus-cache.jsonl': data },
 				});
 
 				const results = await loadDailyUsageData({ claudePath: fixture.path });
@@ -2631,12 +2520,9 @@ invalid json line
 					},
 				};
 
-				await using fixture = await createFixture({
-					projects: {
-						'test-project': {
-							'session.jsonl': `${JSON.stringify(data1)}\n${JSON.stringify(data2)}\n`,
-						},
-					},
+				await using fixture = await createDailyUsageFixture({
+					project: 'test-project',
+					sessions: { 'session.jsonl': [data1, data2] },
 				});
 
 				const results = await loadDailyUsageData({
@@ -2658,12 +2544,9 @@ invalid json line
 					costUSD: 99.99, // This should be ignored
 				};
 
-				await using fixture = await createFixture({
-					projects: {
-						'test-project': {
-							'session.jsonl': JSON.stringify(data),
-						},
-					},
+				await using fixture = await createDailyUsageFixture({
+					project: 'test-project',
+					sessions: { 'session.jsonl': data },
 				});
 
 				const results = await loadDailyUsageData({
@@ -2677,30 +2560,27 @@ invalid json line
 			});
 
 			it('display mode: always uses costUSD, even if undefined', async () => {
-				const data1 = {
-					timestamp: createISOTimestamp('2024-01-01T10:00:00Z'),
-					message: {
-						usage: { input_tokens: 1000, output_tokens: 500 },
-						model: createModelName('claude-4-sonnet-20250514'),
-					},
-					costUSD: 0.05,
-				};
+				const { testData } = await import('./_fixtures.ts');
+				const data1 = testData.usageDataWithModel(
+					'2024-01-01T10:00:00Z',
+					1000,
+					500,
+					'claude-4-sonnet-20250514',
+					0.05,
+				);
 
-				const data2 = {
-					timestamp: '2024-01-01T11:00:00Z',
-					message: {
-						usage: { input_tokens: 2000, output_tokens: 1000 },
-						model: createModelName('claude-4-sonnet-20250514'),
-					},
+				const data2 = testData.usageDataWithModel(
+					'2024-01-01T11:00:00Z',
+					2000,
+					1000,
+					'claude-4-sonnet-20250514',
 					// No costUSD - should result in 0 cost
-				};
+				);
 
-				await using fixture = await createFixture({
-					projects: {
-						'test-project': {
-							'session.jsonl': `${JSON.stringify(data1)}\n${JSON.stringify(data2)}\n`,
-						},
-					},
+				await using fixture = await createDailyUsageFixture({
+					mockData1: [data1, data2],
+					project: 'test-project',
+					sessions: { 'session.jsonl': [data1, data2] },
 				});
 
 				const results = await loadDailyUsageData({
@@ -2713,22 +2593,22 @@ invalid json line
 			});
 
 			it('mode works with session data', async () => {
-				const sessionData = {
-					timestamp: createISOTimestamp('2024-01-01T10:00:00Z'),
-					message: {
-						usage: { input_tokens: 1000, output_tokens: 500 },
-						model: createModelName('claude-4-sonnet-20250514'),
-					},
-					costUSD: 99.99,
-				};
+				const { testData, createSessionFixture } = await import('./_fixtures.ts');
+				const sessionData = testData.usageDataWithModel(
+					'2024-01-01T10:00:00Z',
+					1000,
+					500,
+					'claude-4-sonnet-20250514',
+					99.99,
+				);
 
-				await using fixture = await createFixture({
-					projects: {
-						'test-project': {
-							'session1.jsonl': JSON.stringify(sessionData),
-						},
+				await using fixture = await createSessionFixture([
+					{
+						project: 'test-project',
+						sessionId: 'session1',
+						data: sessionData,
 					},
-				});
+				]);
 
 				// Test calculate mode
 				const calculateResults = await loadSessionData({
@@ -2748,21 +2628,18 @@ invalid json line
 
 		describe('pricing data fetching optimization', () => {
 			it('should not require model pricing when mode is display', async () => {
-				const data = {
-					timestamp: createISOTimestamp('2024-01-01T10:00:00Z'),
-					message: {
-						usage: { input_tokens: 1000, output_tokens: 500 },
-						model: createModelName('claude-4-sonnet-20250514'),
-					},
-					costUSD: 0.05,
-				};
+				const { testData } = await import('./_fixtures.ts');
+				const data = testData.usageDataWithModel(
+					'2024-01-01T10:00:00Z',
+					1000,
+					500,
+					'claude-4-sonnet-20250514',
+					0.05,
+				);
 
-				await using fixture = await createFixture({
-					projects: {
-						'test-project': {
-							'session.jsonl': JSON.stringify(data),
-						},
-					},
+				await using fixture = await createDailyUsageFixture({
+					project: 'test-project',
+					sessions: { 'session.jsonl': data },
 				});
 
 				// In display mode, only pre-calculated costUSD should be used
@@ -2776,21 +2653,18 @@ invalid json line
 			});
 
 			it('should fetch pricing data when mode is calculate', async () => {
-				const data = {
-					timestamp: createISOTimestamp('2024-01-01T10:00:00Z'),
-					message: {
-						usage: { input_tokens: 1000, output_tokens: 500 },
-						model: createModelName('claude-4-sonnet-20250514'),
-					},
-					costUSD: 0.05,
-				};
+				const { testData } = await import('./_fixtures.ts');
+				const data = testData.usageDataWithModel(
+					'2024-01-01T10:00:00Z',
+					1000,
+					500,
+					'claude-4-sonnet-20250514',
+					0.05,
+				);
 
-				await using fixture = await createFixture({
-					projects: {
-						'test-project': {
-							'session.jsonl': JSON.stringify(data),
-						},
-					},
+				await using fixture = await createDailyUsageFixture({
+					project: 'test-project',
+					sessions: { 'session.jsonl': data },
 				});
 
 				// This should fetch pricing data (will call real fetch)
@@ -2805,21 +2679,18 @@ invalid json line
 			});
 
 			it('should fetch pricing data when mode is auto', async () => {
-				const data = {
-					timestamp: createISOTimestamp('2024-01-01T10:00:00Z'),
-					message: {
-						usage: { input_tokens: 1000, output_tokens: 500 },
-						model: createModelName('claude-4-sonnet-20250514'),
-					},
+				const { testData } = await import('./_fixtures.ts');
+				const data = testData.usageDataWithModel(
+					'2024-01-01T10:00:00Z',
+					1000,
+					500,
+					'claude-4-sonnet-20250514',
 					// No costUSD, so auto mode will need to calculate
-				};
+				);
 
-				await using fixture = await createFixture({
-					projects: {
-						'test-project': {
-							'session.jsonl': JSON.stringify(data),
-						},
-					},
+				await using fixture = await createDailyUsageFixture({
+					project: 'test-project',
+					sessions: { 'session.jsonl': data },
 				});
 
 				// This should fetch pricing data (will call real fetch)
@@ -2833,22 +2704,22 @@ invalid json line
 			});
 
 			it('session data should not require model pricing when mode is display', async () => {
-				const data = {
-					timestamp: createISOTimestamp('2024-01-01T10:00:00Z'),
-					message: {
-						usage: { input_tokens: 1000, output_tokens: 500 },
-						model: createModelName('claude-4-sonnet-20250514'),
-					},
-					costUSD: 0.05,
-				};
+				const { testData, createSessionFixture } = await import('./_fixtures.ts');
+				const data = testData.usageDataWithModel(
+					'2024-01-01T10:00:00Z',
+					1000,
+					500,
+					'claude-4-sonnet-20250514',
+					0.05,
+				);
 
-				await using fixture = await createFixture({
-					projects: {
-						'test-project': {
-							'session.jsonl': JSON.stringify(data),
-						},
+				await using fixture = await createSessionFixture([
+					{
+						project: 'test-project',
+						sessionId: 'session',
+						data,
 					},
-				});
+				]);
 
 				// In display mode, only pre-calculated costUSD should be used
 				const results = await loadSessionData({
@@ -2865,17 +2736,14 @@ invalid json line
 					timestamp: createISOTimestamp('2024-01-01T10:00:00Z'),
 					message: {
 						usage: { input_tokens: 1000, output_tokens: 500 },
-						model: 'some-unknown-model',
+						model: 'some-unknown-model', // Intentionally unknown model for test
 					},
 					costUSD: 0.05,
 				};
 
-				await using fixture = await createFixture({
-					projects: {
-						'test-project': {
-							'session.jsonl': JSON.stringify(data),
-						},
-					},
+				await using fixture = await createDailyUsageFixture({
+					project: 'test-project',
+					sessions: { 'session.jsonl': data },
 				});
 
 				// This test verifies that display mode doesn't try to fetch pricing
@@ -3156,7 +3024,7 @@ invalid json line
 
 		describe('offline mode', () => {
 			it('should pass offline flag through loadDailyUsageData', async () => {
-				await using fixture = await createFixture({ projects: {} });
+				await using fixture = await createEmptyProjectsFixture();
 				// This test verifies that the offline flag is properly passed through
 				// We can't easily mock the internal behavior, but we can verify it doesn't throw
 				const result = await loadDailyUsageData({
@@ -3173,7 +3041,7 @@ invalid json line
 
 	describe('loadSessionBlockData', () => {
 		it('returns empty array when no files found', async () => {
-			await using fixture = await createFixture({ projects: {} });
+			await using fixture = await createEmptyProjectsFixture();
 			const result = await loadSessionBlockData({ claudePath: fixture.path });
 			expect(result).toEqual([]);
 		});
@@ -3183,57 +3051,53 @@ invalid json line
 			const laterTime = new Date(now.getTime() + 1 * 60 * 60 * 1000); // 1 hour later
 			const muchLaterTime = new Date(now.getTime() + 6 * 60 * 60 * 1000); // 6 hours later
 
-			await using fixture = await createFixture({
-				projects: {
-					project1: {
-						'session1.jsonl': [
-							{
-								timestamp: now.toISOString(),
-								message: {
-									id: 'msg1',
-									usage: {
-										input_tokens: 1000,
-										output_tokens: 500,
-									},
-									model: createModelName('claude-sonnet-4-20250514'),
-								},
-								requestId: 'req1',
-								costUSD: 0.01,
-								version: createVersion('1.0.0'),
-							},
-							{
-								timestamp: laterTime.toISOString(),
-								message: {
-									id: 'msg2',
-									usage: {
-										input_tokens: 2000,
-										output_tokens: 1000,
-									},
-									model: createModelName('claude-sonnet-4-20250514'),
-								},
-								requestId: 'req2',
-								costUSD: 0.02,
-								version: createVersion('1.0.0'),
-							},
-							{
-								timestamp: muchLaterTime.toISOString(),
-								message: {
-									id: 'msg3',
-									usage: {
-										input_tokens: 1500,
-										output_tokens: 750,
-									},
-									model: createModelName('claude-sonnet-4-20250514'),
-								},
-								requestId: 'req3',
-								costUSD: 0.015,
-								version: createVersion('1.0.0'),
-							},
-						]
-							.map(data => JSON.stringify(data))
-							.join('\n'),
+			const mockData = [
+				{
+					timestamp: now.toISOString(),
+					message: {
+						id: 'msg1',
+						usage: {
+							input_tokens: 1000,
+							output_tokens: 500,
+						},
+						model: createModelName('claude-sonnet-4-20250514'),
 					},
+					requestId: 'req1',
+					costUSD: 0.01,
+					version: createVersion('1.0.0'),
 				},
+				{
+					timestamp: laterTime.toISOString(),
+					message: {
+						id: 'msg2',
+						usage: {
+							input_tokens: 2000,
+							output_tokens: 1000,
+						},
+						model: createModelName('claude-sonnet-4-20250514'),
+					},
+					requestId: 'req2',
+					costUSD: 0.02,
+					version: createVersion('1.0.0'),
+				},
+				{
+					timestamp: muchLaterTime.toISOString(),
+					message: {
+						id: 'msg3',
+						usage: {
+							input_tokens: 1500,
+							output_tokens: 750,
+						},
+						model: createModelName('claude-sonnet-4-20250514'),
+					},
+					requestId: 'req3',
+					costUSD: 0.015,
+					version: createVersion('1.0.0'),
+				},
+			];
+
+			await using fixture = await createDailyUsageFixture({
+				sessions: { 'session1.jsonl': mockData },
 			});
 
 			const result = await loadSessionBlockData({ claudePath: fixture.path });
@@ -3250,25 +3114,23 @@ invalid json line
 		it('handles cost calculation modes correctly', async () => {
 			const now = new Date('2024-01-01T10:00:00Z');
 
-			await using fixture = await createFixture({
-				projects: {
-					project1: {
-						'session1.jsonl': JSON.stringify({
-							timestamp: now.toISOString(),
-							message: {
-								id: 'msg1',
-								usage: {
-									input_tokens: 1000,
-									output_tokens: 500,
-								},
-								model: createModelName('claude-sonnet-4-20250514'),
-							},
-							request: { id: 'req1' },
-							costUSD: 0.01,
-							version: createVersion('1.0.0'),
-						}),
+			const mockData = {
+				timestamp: now.toISOString(),
+				message: {
+					id: 'msg1',
+					usage: {
+						input_tokens: 1000,
+						output_tokens: 500,
 					},
+					model: createModelName('claude-sonnet-4-20250514'),
 				},
+				request: { id: 'req1' },
+				costUSD: 0.01,
+				version: createVersion('1.0.0'),
+			};
+
+			await using fixture = await createDailyUsageFixture({
+				sessions: { 'session1.jsonl': mockData },
 			});
 
 			// Test display mode
@@ -3293,48 +3155,44 @@ invalid json line
 			const date2 = new Date('2024-01-02T10:00:00Z');
 			const date3 = new Date('2024-01-03T10:00:00Z');
 
-			await using fixture = await createFixture({
-				projects: {
-					project1: {
-						'session1.jsonl': [
-							{
-								timestamp: date1.toISOString(),
-								message: {
-									id: 'msg1',
-									usage: { input_tokens: 1000, output_tokens: 500 },
-									model: createModelName('claude-sonnet-4-20250514'),
-								},
-								requestId: 'req1',
-								costUSD: 0.01,
-								version: createVersion('1.0.0'),
-							},
-							{
-								timestamp: date2.toISOString(),
-								message: {
-									id: 'msg2',
-									usage: { input_tokens: 2000, output_tokens: 1000 },
-									model: createModelName('claude-sonnet-4-20250514'),
-								},
-								requestId: 'req2',
-								costUSD: 0.02,
-								version: createVersion('1.0.0'),
-							},
-							{
-								timestamp: date3.toISOString(),
-								message: {
-									id: 'msg3',
-									usage: { input_tokens: 1500, output_tokens: 750 },
-									model: createModelName('claude-sonnet-4-20250514'),
-								},
-								requestId: 'req3',
-								costUSD: 0.015,
-								version: createVersion('1.0.0'),
-							},
-						]
-							.map(data => JSON.stringify(data))
-							.join('\n'),
+			const mockData = [
+				{
+					timestamp: date1.toISOString(),
+					message: {
+						id: 'msg1',
+						usage: { input_tokens: 1000, output_tokens: 500 },
+						model: createModelName('claude-sonnet-4-20250514'),
 					},
+					requestId: 'req1',
+					costUSD: 0.01,
+					version: createVersion('1.0.0'),
 				},
+				{
+					timestamp: date2.toISOString(),
+					message: {
+						id: 'msg2',
+						usage: { input_tokens: 2000, output_tokens: 1000 },
+						model: createModelName('claude-sonnet-4-20250514'),
+					},
+					requestId: 'req2',
+					costUSD: 0.02,
+					version: createVersion('1.0.0'),
+				},
+				{
+					timestamp: date3.toISOString(),
+					message: {
+						id: 'msg3',
+						usage: { input_tokens: 1500, output_tokens: 750 },
+						model: createModelName('claude-sonnet-4-20250514'),
+					},
+					requestId: 'req3',
+					costUSD: 0.015,
+					version: createVersion('1.0.0'),
+				},
+			];
+
+			await using fixture = await createDailyUsageFixture({
+				sessions: { 'session1.jsonl': mockData },
 			});
 
 			// Test filtering with since parameter
@@ -3367,36 +3225,34 @@ invalid json line
 			const date1 = new Date('2024-01-01T10:00:00Z');
 			const date2 = new Date('2024-01-02T10:00:00Z');
 
-			await using fixture = await createFixture({
-				projects: {
-					project1: {
-						'session1.jsonl': [
-							{
-								timestamp: date2.toISOString(),
-								message: {
-									id: 'msg2',
-									usage: { input_tokens: 2000, output_tokens: 1000 },
-									model: createModelName('claude-sonnet-4-20250514'),
-								},
-								requestId: 'req2',
-								costUSD: 0.02,
-								version: createVersion('1.0.0'),
-							},
-							{
-								timestamp: date1.toISOString(),
-								message: {
-									id: 'msg1',
-									usage: { input_tokens: 1000, output_tokens: 500 },
-									model: createModelName('claude-sonnet-4-20250514'),
-								},
-								requestId: 'req1',
-								costUSD: 0.01,
-								version: createVersion('1.0.0'),
-							},
-						]
-							.map(data => JSON.stringify(data))
-							.join('\n'),
+			const mockData = [
+				{
+					timestamp: date2.toISOString(),
+					message: {
+						id: 'msg2',
+						usage: { input_tokens: 2000, output_tokens: 1000 },
+						model: createModelName('claude-sonnet-4-20250514'),
 					},
+					requestId: 'req2',
+					costUSD: 0.02,
+					version: createVersion('1.0.0'),
+				},
+				{
+					timestamp: date1.toISOString(),
+					message: {
+						id: 'msg1',
+						usage: { input_tokens: 1000, output_tokens: 500 },
+						model: createModelName('claude-sonnet-4-20250514'),
+					},
+					requestId: 'req1',
+					costUSD: 0.01,
+					version: createVersion('1.0.0'),
+				},
+			];
+
+			await using fixture = await createDailyUsageFixture({
+				sessions: {
+					'session1.jsonl': mockData,
 				},
 			});
 
@@ -3418,37 +3274,35 @@ invalid json line
 		it('handles deduplication correctly', async () => {
 			const now = new Date('2024-01-01T10:00:00Z');
 
-			await using fixture = await createFixture({
-				projects: {
-					project1: {
-						'session1.jsonl': [
-							{
-								timestamp: now.toISOString(),
-								message: {
-									id: 'msg1',
-									usage: { input_tokens: 1000, output_tokens: 500 },
-									model: createModelName('claude-sonnet-4-20250514'),
-								},
-								requestId: 'req1',
-								costUSD: 0.01,
-								version: createVersion('1.0.0'),
-							},
-							// Duplicate entry - should be filtered out
-							{
-								timestamp: now.toISOString(),
-								message: {
-									id: 'msg1',
-									usage: { input_tokens: 1000, output_tokens: 500 },
-									model: createModelName('claude-sonnet-4-20250514'),
-								},
-								requestId: 'req1',
-								costUSD: 0.01,
-								version: createVersion('1.0.0'),
-							},
-						]
-							.map(data => JSON.stringify(data))
-							.join('\n'),
+			const mockData = [
+				{
+					timestamp: now.toISOString(),
+					message: {
+						id: 'msg1',
+						usage: { input_tokens: 1000, output_tokens: 500 },
+						model: createModelName('claude-sonnet-4-20250514'),
 					},
+					requestId: 'req1',
+					costUSD: 0.01,
+					version: createVersion('1.0.0'),
+				},
+				// Duplicate entry - should be filtered out
+				{
+					timestamp: now.toISOString(),
+					message: {
+						id: 'msg1',
+						usage: { input_tokens: 1000, output_tokens: 500 },
+						model: createModelName('claude-sonnet-4-20250514'),
+					},
+					requestId: 'req1',
+					costUSD: 0.01,
+					version: createVersion('1.0.0'),
+				},
+			];
+
+			await using fixture = await createDailyUsageFixture({
+				sessions: {
+					'session1.jsonl': mockData,
 				},
 			});
 
@@ -3458,29 +3312,30 @@ invalid json line
 		});
 
 		it('handles invalid JSON lines gracefully', async () => {
+			const { testData, createRawJSONLFixture } = await import('./_fixtures.ts');
 			const now = new Date('2024-01-01T10:00:00Z');
 
-			await using fixture = await createFixture({
-				projects: {
-					project1: {
-						'session1.jsonl': [
-							'invalid json line',
-							JSON.stringify({
-								timestamp: now.toISOString(),
-								message: {
-									id: 'msg1',
-									usage: { input_tokens: 1000, output_tokens: 500 },
-									model: createModelName('claude-sonnet-4-20250514'),
-								},
-								requestId: 'req1',
-								costUSD: 0.01,
-								version: createVersion('1.0.0'),
-							}),
-							'another invalid line',
-						].join('\n'),
-					},
-				},
-			});
+			const validData = testData.usageDataWithIds(
+				now.toISOString(),
+				1000,
+				500,
+				'msg1',
+				'req1',
+				0.01,
+			);
+			validData.version = createVersion('1.0.0');
+
+			const rawContent = [
+				'invalid json line',
+				JSON.stringify(validData),
+				'another invalid line',
+			].join('\n');
+
+			await using fixture = await createRawJSONLFixture(
+				'project1',
+				'session1.jsonl',
+				rawContent,
+			);
 
 			const result = await loadSessionBlockData({ claudePath: fixture.path });
 			expect(result).toHaveLength(1);
@@ -3560,7 +3415,7 @@ if (import.meta.vitest != null) {
 					}),
 				].join('\n');
 
-				await using fixture = await createFixture({
+				await using fixture = await createTimestampTestFixture({
 					'test.jsonl': content,
 				});
 
@@ -3576,7 +3431,7 @@ if (import.meta.vitest != null) {
 					JSON.stringify({ data: 'no timestamp' }),
 				].join('\n');
 
-				await using fixture = await createFixture({
+				await using fixture = await createTimestampTestFixture({
 					'test.jsonl': content,
 				});
 
@@ -3596,7 +3451,7 @@ if (import.meta.vitest != null) {
 					'{ broken: json',
 				].join('\n');
 
-				await using fixture = await createFixture({
+				await using fixture = await createTimestampTestFixture({
 					'test.jsonl': content,
 				});
 
@@ -3609,7 +3464,7 @@ if (import.meta.vitest != null) {
 
 		describe('sortFilesByTimestamp', () => {
 			it('should sort files by earliest timestamp', async () => {
-				await using fixture = await createFixture({
+				await using fixture = await createTimestampTestFixture({
 					'file1.jsonl': JSON.stringify({ timestamp: '2025-01-15T10:00:00Z' }),
 					'file2.jsonl': JSON.stringify({ timestamp: '2025-01-10T10:00:00Z' }),
 					'file3.jsonl': JSON.stringify({ timestamp: '2025-01-12T10:00:00Z' }),
@@ -3625,7 +3480,7 @@ if (import.meta.vitest != null) {
 			});
 
 			it('should place files without timestamps at the end', async () => {
-				await using fixture = await createFixture({
+				await using fixture = await createTimestampTestFixture({
 					'file1.jsonl': JSON.stringify({ timestamp: '2025-01-15T10:00:00Z' }),
 					'file2.jsonl': JSON.stringify({ no_timestamp: true }),
 					'file3.jsonl': JSON.stringify({ timestamp: '2025-01-10T10:00:00Z' }),
@@ -3643,34 +3498,32 @@ if (import.meta.vitest != null) {
 
 		describe('loadDailyUsageData with deduplication', () => {
 			it('should deduplicate entries with same message and request IDs', async () => {
-				await using fixture = await createFixture({
-					projects: {
-						project1: {
-							'session1.jsonl': JSON.stringify({
-								timestamp: '2025-01-10T10:00:00Z',
-								message: {
-									id: 'msg_123',
-									usage: {
-										input_tokens: 100,
-										output_tokens: 50,
-									},
+				await using fixture = await createMultiProjectFixture({
+					project1: {
+						'session1.jsonl': JSON.stringify({
+							timestamp: '2025-01-10T10:00:00Z',
+							message: {
+								id: 'msg_123',
+								usage: {
+									input_tokens: 100,
+									output_tokens: 50,
 								},
-								requestId: 'req_456',
-								costUSD: 0.001,
-							}),
-							'session2.jsonl': JSON.stringify({
-								timestamp: '2025-01-15T10:00:00Z',
-								message: {
-									id: 'msg_123',
-									usage: {
-										input_tokens: 100,
-										output_tokens: 50,
-									},
+							},
+							requestId: 'req_456',
+							costUSD: 0.001,
+						}),
+						'session2.jsonl': JSON.stringify({
+							timestamp: '2025-01-15T10:00:00Z',
+							message: {
+								id: 'msg_123',
+								usage: {
+									input_tokens: 100,
+									output_tokens: 50,
 								},
-								requestId: 'req_456',
-								costUSD: 0.001,
-							}),
-						},
+							},
+							requestId: 'req_456',
+							costUSD: 0.001,
+						}),
 					},
 				});
 
@@ -3687,34 +3540,35 @@ if (import.meta.vitest != null) {
 			});
 
 			it('should process files in chronological order', async () => {
-				await using fixture = await createFixture({
-					projects: {
-						project1: {
-							'newer.jsonl': JSON.stringify({
-								timestamp: '2025-01-15T10:00:00Z',
-								message: {
-									id: 'msg_123',
-									usage: {
-										input_tokens: 200,
-										output_tokens: 100,
-									},
-								},
-								requestId: 'req_456',
-								costUSD: 0.002,
-							}),
-							'older.jsonl': JSON.stringify({
-								timestamp: '2025-01-10T10:00:00Z',
-								message: {
-									id: 'msg_123',
-									usage: {
-										input_tokens: 100,
-										output_tokens: 50,
-									},
-								},
-								requestId: 'req_456',
-								costUSD: 0.001,
-							}),
+				const newerData = {
+					timestamp: '2025-01-15T10:00:00Z',
+					message: {
+						id: 'msg_123',
+						usage: {
+							input_tokens: 200,
+							output_tokens: 100,
 						},
+					},
+					requestId: 'req_456',
+					costUSD: 0.002,
+				};
+				const olderData = {
+					timestamp: '2025-01-10T10:00:00Z',
+					message: {
+						id: 'msg_123',
+						usage: {
+							input_tokens: 100,
+							output_tokens: 50,
+						},
+					},
+					requestId: 'req_456',
+					costUSD: 0.001,
+				};
+
+				await using fixture = await createDailyUsageFixture({
+					sessions: {
+						'newer.jsonl': newerData,
+						'older.jsonl': olderData,
 					},
 				});
 
@@ -3733,34 +3587,35 @@ if (import.meta.vitest != null) {
 
 		describe('loadSessionData with deduplication', () => {
 			it('should deduplicate entries across sessions', async () => {
-				await using fixture = await createFixture({
-					projects: {
-						project1: {
-							'session1.jsonl': JSON.stringify({
-								timestamp: '2025-01-10T10:00:00Z',
-								message: {
-									id: 'msg_123',
-									usage: {
-										input_tokens: 100,
-										output_tokens: 50,
-									},
-								},
-								requestId: 'req_456',
-								costUSD: 0.001,
-							}),
-							'session2.jsonl': JSON.stringify({
-								timestamp: '2025-01-15T10:00:00Z',
-								message: {
-									id: 'msg_123',
-									usage: {
-										input_tokens: 100,
-										output_tokens: 50,
-									},
-								},
-								requestId: 'req_456',
-								costUSD: 0.001,
-							}),
+				const session1Data = {
+					timestamp: '2025-01-10T10:00:00Z',
+					message: {
+						id: 'msg_123',
+						usage: {
+							input_tokens: 100,
+							output_tokens: 50,
 						},
+					},
+					requestId: 'req_456',
+					costUSD: 0.001,
+				};
+				const session2Data = {
+					timestamp: '2025-01-15T10:00:00Z',
+					message: {
+						id: 'msg_123',
+						usage: {
+							input_tokens: 100,
+							output_tokens: 50,
+						},
+					},
+					requestId: 'req_456',
+					costUSD: 0.001,
+				};
+
+				await using fixture = await createDailyUsageFixture({
+					sessions: {
+						'session1.jsonl': session1Data,
+						'session2.jsonl': session2Data,
 					},
 				});
 
@@ -3796,12 +3651,8 @@ if (import.meta.vitest != null) {
 		});
 
 		it('returns paths from environment variable when set', async () => {
-			await using fixture1 = await createFixture({
-				projects: {},
-			});
-			await using fixture2 = await createFixture({
-				projects: {},
-			});
+			await using fixture1 = await createEmptyProjectsFixture();
+			await using fixture2 = await createEmptyProjectsFixture();
 
 			vi.stubEnv('CLAUDE_CONFIG_DIR', `${fixture1.path},${fixture2.path}`);
 
@@ -3818,9 +3669,7 @@ if (import.meta.vitest != null) {
 		});
 
 		it('filters out non-existent paths from environment variable', async () => {
-			await using fixture = await createFixture({
-				projects: {},
-			});
+			await using fixture = await createEmptyProjectsFixture();
 
 			vi.stubEnv('CLAUDE_CONFIG_DIR', `${fixture.path},/nonexistent/path`);
 
@@ -3831,9 +3680,7 @@ if (import.meta.vitest != null) {
 		});
 
 		it('removes duplicates from combined paths', async () => {
-			await using fixture = await createFixture({
-				projects: {},
-			});
+			await using fixture = await createEmptyProjectsFixture();
 
 			vi.stubEnv('CLAUDE_CONFIG_DIR', `${fixture.path},${fixture.path}`);
 
@@ -3857,28 +3704,25 @@ if (import.meta.vitest != null) {
 
 	describe('multiple paths integration', () => {
 		it('loadDailyUsageData aggregates data from multiple paths', async () => {
-			await using fixture1 = await createFixture({
-				projects: {
-					project1: {
-						'session1.jsonl': JSON.stringify({
-							timestamp: '2024-01-01T12:00:00Z',
-							message: { usage: { input_tokens: 100, output_tokens: 50 } },
-							costUSD: 0.01,
-						}),
-					},
-				},
+			const fixture1Data = {
+				timestamp: '2024-01-01T12:00:00Z',
+				message: { usage: { input_tokens: 100, output_tokens: 50 } },
+				costUSD: 0.01,
+			};
+			const fixture2Data = {
+				timestamp: '2024-01-01T13:00:00Z',
+				message: { usage: { input_tokens: 200, output_tokens: 100 } },
+				costUSD: 0.02,
+			};
+
+			await using fixture1 = await createDailyUsageFixture({
+				project: 'project1',
+				sessions: { 'session1.jsonl': fixture1Data },
 			});
 
-			await using fixture2 = await createFixture({
-				projects: {
-					project2: {
-						'session2.jsonl': JSON.stringify({
-							timestamp: '2024-01-01T13:00:00Z',
-							message: { usage: { input_tokens: 200, output_tokens: 100 } },
-							costUSD: 0.02,
-						}),
-					},
-				},
+			await using fixture2 = await createDailyUsageFixture({
+				project: 'project2',
+				sessions: { 'session2.jsonl': fixture2Data },
 			});
 
 			vi.stubEnv('CLAUDE_CONFIG_DIR', `${fixture1.path},${fixture2.path}`);
@@ -3895,7 +3739,7 @@ if (import.meta.vitest != null) {
 
 	describe('globUsageFiles', () => {
 		it('should glob files from multiple paths in parallel with base directories', async () => {
-			await using fixture = await createFixture({
+			await using fixture = await createTimestampTestFixture({
 				'path1/projects/project1/session1/usage.jsonl': 'data1',
 				'path2/projects/project2/session2/usage.jsonl': 'data2',
 				'path3/projects/project3/session3/usage.jsonl': 'data3',
@@ -3920,7 +3764,7 @@ if (import.meta.vitest != null) {
 		});
 
 		it('should handle errors gracefully and return empty array for failed paths', async () => {
-			await using fixture = await createFixture({
+			await using fixture = await createTimestampTestFixture({
 				'valid/projects/project1/session1/usage.jsonl': 'data1',
 			});
 
@@ -3936,7 +3780,7 @@ if (import.meta.vitest != null) {
 		});
 
 		it('should return empty array when no files found', async () => {
-			await using fixture = await createFixture({
+			await using fixture = await createTimestampTestFixture({
 				'empty/projects': {}, // Empty directory
 			});
 
@@ -3947,7 +3791,7 @@ if (import.meta.vitest != null) {
 		});
 
 		it('should handle multiple files from same base directory', async () => {
-			await using fixture = await createFixture({
+			await using fixture = await createTimestampTestFixture({
 				'path1/projects/project1/session1/usage.jsonl': 'data1',
 				'path1/projects/project1/session2/usage.jsonl': 'data2',
 				'path1/projects/project2/session1/usage.jsonl': 'data3',
