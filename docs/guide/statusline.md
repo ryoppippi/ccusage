@@ -22,7 +22,7 @@ Add this to your `~/.claude/settings.json` or `~/.config/claude/settings.json`:
 {
   "statusLine": {
     "type": "command",
-    "command": "ccusage statusline",
+    "command": "bun x ccusage statusline", // Use "npx -y ccusage statusline" if you prefer npm
     "padding": 0  // Optional: set to 0 to let status line go to edge
   }
 }
