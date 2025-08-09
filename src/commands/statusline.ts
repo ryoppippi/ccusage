@@ -1,6 +1,6 @@
-import type { StatuslineHookJson } from '../_types.ts';
 import path from 'node:path';
 import process from 'node:process';
+import getStdin from 'get-stdin';
 import { define } from 'gunshi';
 import pc from 'picocolors';
 import { calculateBurnRate } from '../_session-blocks.ts';
@@ -11,35 +11,6 @@ import { getClaudePaths, loadDailyUsageData, loadSessionBlockData, loadSessionDa
 import { log, logger } from '../logger.ts';
 
 /**
- * Reads JSON input from stdin
- * @returns Parsed StatuslineHookJson or null if invalid
- */
-async function readStdinJson(): Promise<StatuslineHookJson | null> {
-	return new Promise((resolve) => {
-		let input = '';
-		process.stdin.on('data', (chunk) => {
-			input += String(chunk);
-		});
-		process.stdin.on('end', () => {
-			try {
-				const data = JSON.parse(input) as unknown;
-				const parsed = statuslineHookJsonSchema.safeParse(data);
-				if (parsed.success) {
-					resolve(parsed.data);
-				}
-				else {
-					logger.error('Invalid input JSON:', parsed.error);
-					resolve(null);
-				}
-			}
-			catch (error) {
-				logger.error('Failed to parse JSON input:', error);
-				resolve(null);
-			}
-		});
-	});
-}
-
 /**
  * Formats the remaining time for display
  * @param remaining - Remaining minutes
@@ -64,11 +35,19 @@ export const statuslineCommand = define({
 		logger.level = 0;
 
 		// Read input from stdin
-		const hookData = await readStdinJson();
-		if (hookData == null) {
-			log('❌ Invalid input');
+		const stdin = await getStdin();
+		if (stdin.length === 0) {
+			log('❌ No input provided');
 			process.exit(1);
 		}
+		// Parse input as JSON
+		const hookDataJson: unknown = JSON.parse(stdin.trim());
+		const hookDataParseResult = statuslineHookJsonSchema.safeParse(hookDataJson);
+		if (!hookDataParseResult.success) {
+			log('❌ Invalid input format:', hookDataParseResult.error.message);
+			process.exit(1);
+		}
+		const hookData = hookDataParseResult.data;
 
 		// Get Claude paths
 		const claudePaths = getClaudePaths();
