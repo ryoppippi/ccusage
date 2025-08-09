@@ -1,4 +1,3 @@
-import path from 'node:path';
 import process from 'node:process';
 import getStdin from 'get-stdin';
 import { define } from 'gunshi';
@@ -7,7 +6,7 @@ import { calculateBurnRate } from '../_session-blocks.ts';
 import { statuslineHookJsonSchema } from '../_types.ts';
 import { formatCurrency } from '../_utils.ts';
 import { calculateTotals } from '../calculate-cost.ts';
-import { getClaudePaths, loadDailyUsageData, loadSessionBlockData, loadSessionData } from '../data-loader.ts';
+import { getClaudePaths, loadDailyUsageData, loadSessionBlockData, loadSessionUsageById } from '../data-loader.ts';
 import { log, logger } from '../logger.ts';
 
 /**
@@ -56,22 +55,15 @@ export const statuslineCommand = define({
 			process.exit(1);
 		}
 
-		// Extract session ID from transcript path
-		// Path format: /path/to/projects/{project}/{session}/transcript.json
-		const transcriptParts = hookData.transcript_path.split(path.sep);
-		const sessionId = transcriptParts[transcriptParts.length - 2] ?? '';
+		// Extract session ID from hook data
+		const sessionId = hookData.session_id;
 
-		// Load current session's cost
-		let sessionCost = 0;
+		// Load current session's cost by finding the specific JSONL file
+		let sessionCost: number | null = null;
 		try {
-			const sessionData = await loadSessionData({
-				mode: 'auto',
-			});
-
-			// Find the current session
-			const currentSession = sessionData.find(s => s.sessionId === sessionId);
-			if (currentSession != null) {
-				sessionCost = currentSession.totalCost;
+			const sessionData = await loadSessionUsageById(sessionId, { mode: 'auto' });
+			if (sessionData != null) {
+				sessionCost = sessionData.totalCost;
 			}
 		}
 		catch (error) {
@@ -167,7 +159,8 @@ export const statuslineCommand = define({
 
 		// Format and output the status line
 		// Format: 🤖 model | 💰 session / today / block | 🔥 burn
-		const statusLine = `🤖 ${modelName} | 💰 ${formatCurrency(sessionCost)} session / ${formatCurrency(todayCost)} today / ${blockInfo}${burnRateInfo}`;
+		const sessionDisplay = sessionCost !== null ? formatCurrency(sessionCost) : 'N/A';
+		const statusLine = `🤖 ${modelName} | 💰 ${sessionDisplay} session / ${formatCurrency(todayCost)} today / ${blockInfo}${burnRateInfo}`;
 
 		log(statusLine);
 	},

@@ -1195,6 +1195,66 @@ export async function loadWeeklyUsageData(
 		})));
 }
 
+/**
+ * Load usage data for a specific session by sessionId
+ * Searches for a JSONL file named {sessionId}.jsonl in all Claude project directories
+ * @param sessionId - The session ID to load data for (matches the JSONL filename)
+ * @param options - Options for loading data
+ * @param options.mode - Cost calculation mode (auto, calculate, display)
+ * @param options.offline - Whether to use offline pricing data
+ * @returns Usage data for the specific session or null if not found
+ */
+export async function loadSessionUsageById(
+	sessionId: string,
+	options?: { mode?: CostMode; offline?: boolean },
+): Promise<{ totalCost: number; entries: UsageData[] } | null> {
+	const claudePaths = getClaudePaths();
+
+	// Find the JSONL file for this session ID
+	const patterns = claudePaths.map(p => path.join(p, 'projects', '**', `${sessionId}.jsonl`));
+	const jsonlFiles = await glob(patterns);
+
+	if (jsonlFiles.length === 0) {
+		return null;
+	}
+
+	const file = jsonlFiles[0];
+	if (file == null) {
+		return null;
+	}
+	const content = await readFile(file, 'utf-8');
+	const lines = content.trim().split('\n').filter(line => line.length > 0);
+
+	const mode = options?.mode ?? 'auto';
+	using fetcher = mode === 'display' ? null : new PricingFetcher(options?.offline);
+
+	const entries: UsageData[] = [];
+	let totalCost = 0;
+
+	for (const line of lines) {
+		try {
+			const parsed = JSON.parse(line) as unknown;
+			const result = usageDataSchema.safeParse(parsed);
+			if (!result.success) {
+				continue;
+			}
+			const data = result.data;
+
+			const cost = fetcher != null
+				? await calculateCostForEntry(data, mode, fetcher)
+				: data.costUSD ?? 0;
+
+			totalCost += cost;
+			entries.push(data);
+		}
+		catch {
+			// Skip invalid JSON lines
+		}
+	}
+
+	return { totalCost, entries };
+}
+
 export async function loadBucketUsageData(
 	groupingFn: (data: DailyUsage) => Bucket,
 	options?: LoadOptions,
@@ -1458,6 +1518,89 @@ if (import.meta.vitest != null) {
 			expect(formatDate(testDate, 'UTC', 'en-CA')).toBe('2024-08-04');
 			expect(formatDate(testDate, 'UTC', 'ja-JP')).toBe('2024/08/04');
 			expect(formatDate(testDate, 'UTC', 'de-DE')).toBe('04.08.2024');
+		});
+	});
+
+	describe('loadSessionUsageById', async () => {
+		const { createFixture } = await import('fs-fixture');
+
+		afterEach(() => {
+			vi.unstubAllEnvs();
+		});
+
+		it('loads usage data for a specific session', async () => {
+			await using fixture = await createFixture({
+				'.claude': {
+					projects: {
+						'test-project': {
+							'session-123.jsonl': `${JSON.stringify({
+								timestamp: '2024-01-01T00:00:00Z',
+								sessionId: 'session-123',
+								message: {
+									usage: {
+										input_tokens: 100,
+										output_tokens: 50,
+										cache_creation_input_tokens: 10,
+										cache_read_input_tokens: 20,
+									},
+									model: 'claude-sonnet-4-20250514',
+								},
+								costUSD: 0.5,
+							})}\n${JSON.stringify({
+								timestamp: '2024-01-01T01:00:00Z',
+								sessionId: 'session-123',
+								message: {
+									usage: {
+										input_tokens: 200,
+										output_tokens: 100,
+										cache_creation_input_tokens: 20,
+										cache_read_input_tokens: 40,
+									},
+									model: 'claude-sonnet-4-20250514',
+								},
+								costUSD: 1.0,
+							})}`,
+						},
+					},
+				},
+			});
+
+			vi.stubEnv('CLAUDE_CONFIG_DIR', path.join(fixture.path, '.claude'));
+
+			const result = await loadSessionUsageById('session-123', { mode: 'display' });
+
+			expect(result).not.toBeNull();
+			expect(result?.totalCost).toBe(1.5);
+			expect(result?.entries).toHaveLength(2);
+		});
+
+		it('returns null for non-existent session', async () => {
+			await using fixture = await createFixture({
+				'.claude': {
+					projects: {
+						'test-project': {
+							'other-session.jsonl': JSON.stringify({
+								timestamp: '2024-01-01T00:00:00Z',
+								sessionId: 'other-session',
+								message: {
+									usage: {
+										input_tokens: 100,
+										output_tokens: 50,
+									},
+									model: 'claude-sonnet-4-20250514',
+								},
+								costUSD: 0.5,
+							}),
+						},
+					},
+				},
+			});
+
+			vi.stubEnv('CLAUDE_CONFIG_DIR', path.join(fixture.path, '.claude'));
+
+			const result = await loadSessionUsageById('non-existent', { mode: 'display' });
+
+			expect(result).toBeNull();
 		});
 	});
 

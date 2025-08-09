@@ -86,7 +86,14 @@ This is a CLI tool that analyzes Claude Code usage data from local JSONL files s
 
 - Raw usage data is parsed from JSONL with timestamp, token counts, and pre-calculated costs
 - Data is aggregated into daily summaries, monthly summaries, session summaries, or 5-hour billing blocks
-- Sessions are identified by directory structure: `projects/{project}/{session}/{file}.jsonl`
+- **Important Note on Naming**: The term "session" in this codebase has two different meanings:
+  1. **Session Reports** (`bun run start session`): Groups usage by project directories. What we call "sessionId" in these reports is actually derived from the directory structure (project/directory)
+  2. **True Session ID**: The actual Claude Code session ID found in the `sessionId` field within JSONL entries and used as the filename ({sessionId}.jsonl)
+- File structure: `projects/{project}/{sessionId}.jsonl` where:
+  - `{project}` is the project directory name (used for grouping)
+  - `{sessionId}.jsonl` is the JSONL file named with the actual session ID from Claude Code
+  - Each JSONL file contains all usage entries for a single Claude Code session
+  - The sessionId in the filename matches the `sessionId` field inside the JSONL entries
 - 5-hour blocks group usage data by Claude's billing cycles with active block tracking
 
 **External Dependencies:**
