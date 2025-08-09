@@ -86,17 +86,11 @@ export function getClaudePaths(): string[] {
 	// Check environment variable first (supports comma-separated paths)
 	const envPaths = (process.env[CLAUDE_CONFIG_DIR_ENV] ?? '').trim();
 	if (envPaths !== '') {
-		const envPathList = envPaths
-			.split(',')
-			.map(p => p.trim())
-			.filter(p => p !== '');
+		const envPathList = envPaths.split(',').map(p => p.trim()).filter(p => p !== '');
 		for (const envPath of envPathList) {
 			const normalizedPath = path.resolve(envPath);
 			if (isDirectorySync(normalizedPath)) {
-				const projectsPath = path.join(
-					normalizedPath,
-					CLAUDE_PROJECTS_DIR_NAME,
-				);
+				const projectsPath = path.join(normalizedPath, CLAUDE_PROJECTS_DIR_NAME);
 				if (isDirectorySync(projectsPath)) {
 					// Avoid duplicates using normalized paths
 					if (!normalizedPaths.has(normalizedPath)) {
@@ -158,18 +152,14 @@ export function extractProjectFromPath(jsonlPath: string): string {
 	// Normalize path separators for cross-platform compatibility
 	const normalizedPath = jsonlPath.replace(/[/\\]/g, path.sep);
 	const segments = normalizedPath.split(path.sep);
-	const projectsIndex = segments.findIndex(
-		segment => segment === CLAUDE_PROJECTS_DIR_NAME,
-	);
+	const projectsIndex = segments.findIndex(segment => segment === CLAUDE_PROJECTS_DIR_NAME);
 
 	if (projectsIndex === -1 || projectsIndex + 1 >= segments.length) {
 		return 'unknown';
 	}
 
 	const projectName = segments[projectsIndex + 1];
-	return projectName != null && projectName.trim() !== ''
-		? projectName
-		: 'unknown';
+	return projectName != null && projectName.trim() !== '' ? projectName : 'unknown';
 }
 
 /**
@@ -187,13 +177,9 @@ export const usageDataSchema = z.object({
 		}),
 		model: modelNameSchema.optional(), // Model is inside message object
 		id: messageIdSchema.optional(), // Message ID for deduplication
-		content: z
-			.array(
-				z.object({
-					text: z.string().optional(),
-				}),
-			)
-			.optional(),
+		content: z.array(z.object({
+			text: z.string().optional(),
+		})).optional(),
 	}),
 	costUSD: z.number().optional(), // Made optional for new schema
 	requestId: requestIdSchema.optional(), // Request ID for deduplication
@@ -1060,8 +1046,7 @@ export async function loadSessionData(
 	const mode = options?.mode ?? 'auto';
 
 	// Use PricingFetcher with using statement for automatic cleanup
-	using fetcher
-= mode === 'display' ? null : new PricingFetcher(options?.offline);
+	using fetcher = mode === 'display' ? null : new PricingFetcher(options?.offline);
 
 	// Track processed message+request combinations for deduplication
 	const processedHashes = new Set<string>();
