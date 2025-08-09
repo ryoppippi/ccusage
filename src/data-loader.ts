@@ -158,6 +158,8 @@ export function extractProjectFromPath(jsonlPath: string): string {
  * Zod schema for validating Claude usage data from JSONL files
  */
 export const usageDataSchema = z.object({
+	cwd: z.string().optional(), // Claude Code version, optional for compatibility
+	sessionId: sessionIdSchema.optional(), // Session ID for deduplication
 	timestamp: isoTimestampSchema,
 	version: versionSchema.optional(), // Claude Code version
 	message: z.object({
