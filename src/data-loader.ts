@@ -86,7 +86,10 @@ export function getClaudePaths(): string[] {
 	// Check environment variable first (supports comma-separated paths)
 	const envPaths = (process.env[CLAUDE_CONFIG_DIR_ENV] ?? '').trim();
 	if (envPaths !== '') {
-		const envPathList = envPaths.split(',').map(p => p.trim()).filter(p => p !== '');
+		const envPathList = envPaths
+			.split(',')
+			.map(p => p.trim())
+			.filter(p => p !== '');
 		for (const envPath of envPathList) {
 			const normalizedPath = path.resolve(envPath);
 			if (isDirectorySync(normalizedPath)) {
@@ -177,9 +180,13 @@ export const usageDataSchema = z.object({
 		}),
 		model: modelNameSchema.optional(), // Model is inside message object
 		id: messageIdSchema.optional(), // Message ID for deduplication
-		content: z.array(z.object({
-			text: z.string().optional(),
-		})).optional(),
+		content: z
+			.array(
+				z.object({
+					text: z.string().optional(),
+				}),
+			)
+			.optional(),
 	}),
 	costUSD: z.number().optional(), // Made optional for new schema
 	requestId: requestIdSchema.optional(), // Request ID for deduplication
@@ -355,9 +362,8 @@ function aggregateByModel<T>(
 			inputTokens: existing.inputTokens + (usage.input_tokens ?? 0),
 			outputTokens: existing.outputTokens + (usage.output_tokens ?? 0),
 			cacheCreationTokens:
-      existing.cacheCreationTokens + (usage.cache_creation_input_tokens ?? 0),
-			cacheReadTokens:
-      existing.cacheReadTokens + (usage.cache_read_input_tokens ?? 0),
+				existing.cacheCreationTokens + (usage.cache_creation_input_tokens ?? 0),
+			cacheReadTokens: existing.cacheReadTokens + (usage.cache_read_input_tokens ?? 0),
 			cost: existing.cost + cost,
 		});
 	}
@@ -368,9 +374,7 @@ function aggregateByModel<T>(
 /**
  * Aggregates model breakdowns from multiple sources
  */
-function aggregateModelBreakdowns(
-	breakdowns: ModelBreakdown[],
-): Map<string, TokenStats> {
+function aggregateModelBreakdowns(breakdowns: ModelBreakdown[]): Map<string, TokenStats> {
 	const modelAggregates = new Map<string, TokenStats>();
 	const defaultStats: TokenStats = {
 		inputTokens: 0,
@@ -391,8 +395,7 @@ function aggregateModelBreakdowns(
 		modelAggregates.set(breakdown.modelName, {
 			inputTokens: existing.inputTokens + breakdown.inputTokens,
 			outputTokens: existing.outputTokens + breakdown.outputTokens,
-			cacheCreationTokens:
-      existing.cacheCreationTokens + breakdown.cacheCreationTokens,
+			cacheCreationTokens: existing.cacheCreationTokens + breakdown.cacheCreationTokens,
 			cacheReadTokens: existing.cacheReadTokens + breakdown.cacheReadTokens,
 			cost: existing.cost + breakdown.cost,
 		});
@@ -404,9 +407,7 @@ function aggregateModelBreakdowns(
 /**
  * Converts model aggregates to sorted model breakdowns
  */
-function createModelBreakdowns(
-	modelAggregates: Map<string, TokenStats>,
-): ModelBreakdown[] {
+function createModelBreakdowns(modelAggregates: Map<string, TokenStats>): ModelBreakdown[] {
 	return Array.from(modelAggregates.entries())
 		.map(([modelName, stats]) => ({
 			modelName: modelName as ModelName,
@@ -432,9 +433,8 @@ function calculateTotals<T>(
 				inputTokens: acc.inputTokens + (usage.input_tokens ?? 0),
 				outputTokens: acc.outputTokens + (usage.output_tokens ?? 0),
 				cacheCreationTokens:
-        acc.cacheCreationTokens + (usage.cache_creation_input_tokens ?? 0),
-				cacheReadTokens:
-        acc.cacheReadTokens + (usage.cache_read_input_tokens ?? 0),
+					acc.cacheCreationTokens + (usage.cache_creation_input_tokens ?? 0),
+				cacheReadTokens: acc.cacheReadTokens + (usage.cache_read_input_tokens ?? 0),
 				cost: acc.cost + cost,
 				totalCost: acc.totalCost + cost,
 			};
@@ -496,10 +496,7 @@ function filterByProject<T>(
 /**
  * Checks if an entry is a duplicate based on hash
  */
-function isDuplicateEntry(
-	uniqueHash: string | null,
-	processedHashes: Set<string>,
-): boolean {
+function isDuplicateEntry(uniqueHash: string | null, processedHashes: Set<string>): boolean {
 	if (uniqueHash == null) {
 		return false;
 	}
@@ -509,10 +506,7 @@ function isDuplicateEntry(
 /**
  * Marks an entry as processed
  */
-function markAsProcessed(
-	uniqueHash: string | null,
-	processedHashes: Set<string>,
-): void {
+function markAsProcessed(uniqueHash: string | null, processedHashes: Set<string>): void {
 	if (uniqueHash != null) {
 		processedHashes.add(uniqueHash);
 	}
@@ -525,11 +519,7 @@ function extractUniqueModels<T>(
 	entries: T[],
 	getModel: (entry: T) => string | undefined,
 ): string[] {
-	return uniq(
-		entries
-			.map(getModel)
-			.filter((m): m is string => m != null && m !== '<synthetic>'),
-	);
+	return uniq(entries.map(getModel).filter((m): m is string => m != null && m !== '<synthetic>'));
 }
 
 /**
@@ -553,7 +543,10 @@ function createDateFormatter(timezone: string | undefined, locale: string): Intl
  * @param locale - Locale to use for formatting
  * @returns Intl.DateTimeFormat instance
  */
-function createDatePartsFormatter(timezone: string | undefined, locale: string): Intl.DateTimeFormat {
+function createDatePartsFormatter(
+	timezone: string | undefined,
+	locale: string,
+): Intl.DateTimeFormat {
 	return new Intl.DateTimeFormat(locale, {
 		year: 'numeric',
 		month: '2-digit',
@@ -583,7 +576,11 @@ export function formatDate(dateStr: string, timezone?: string, locale?: string):
  * @param locale - Locale to use for formatting
  * @returns Formatted date string with newline separator (YYYY\nMM-DD)
  */
-export function formatDateCompact(dateStr: string, timezone: string | undefined, locale: string): string {
+export function formatDateCompact(
+	dateStr: string,
+	timezone: string | undefined,
+	locale: string,
+): string {
 	const date = new Date(dateStr);
 	const formatter = createDatePartsFormatter(timezone, locale);
 	const parts = formatter.formatToParts(date);
@@ -635,9 +632,7 @@ export function createUniqueHash(data: UsageData): string | null {
  * Extract the earliest timestamp from a JSONL file
  * Scans through the file until it finds a valid timestamp
  */
-export async function getEarliestTimestamp(
-	filePath: string,
-): Promise<Date | null> {
+export async function getEarliestTimestamp(filePath: string): Promise<Date | null> {
 	try {
 		const content = await readFile(filePath, 'utf-8');
 		const lines = content.trim().split('\n');
@@ -762,9 +757,11 @@ export function getUsageLimitResetTime(data: UsageData): Date | null {
 	let resetTime: Date | null = null;
 
 	if (data.isApiErrorMessage === true) {
-		const timestampMatch = data.message?.content?.find(
-			c => c.text != null && c.text.includes('Claude AI usage limit reached'),
-		)?.text?.match(/\|(\d+)/) ?? null;
+		const timestampMatch
+			= data.message?.content
+				?.find(c => c.text != null && c.text.includes('Claude AI usage limit reached'))
+				?.text
+				?.match(/\|(\d+)/) ?? null;
 
 		if (timestampMatch?.[1] != null) {
 			const resetTimestamp = Number.parseInt(timestampMatch[1]);
@@ -788,9 +785,7 @@ export type GlobResult = {
  * @param claudePaths - Array of Claude base paths
  * @returns Array of file paths with their base directories
  */
-export async function globUsageFiles(
-	claudePaths: string[],
-): Promise<GlobResult[]> {
+export async function globUsageFiles(claudePaths: string[]): Promise<GlobResult[]> {
 	const filePromises = claudePaths.map(async (claudePath) => {
 		const claudeDir = path.join(claudePath, CLAUDE_PROJECTS_DIR_NAME);
 		const files = await glob([USAGE_DATA_GLOB_PATTERN], {
@@ -813,7 +808,7 @@ export type DateFilter = {
 };
 
 type WeekDay = TupleToUnion<typeof WEEK_DAYS>;
-type DayOfWeek = IntRange<0, typeof WEEK_DAYS['length']>; // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+type DayOfWeek = IntRange<0, (typeof WEEK_DAYS)['length']>; // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
 
 /**
  * Configuration options for loading usage data
@@ -837,9 +832,7 @@ export type LoadOptions = {
  * @param options - Optional configuration for loading and filtering data
  * @returns Array of daily usage summaries sorted by date
  */
-export async function loadDailyUsageData(
-	options?: LoadOptions,
-): Promise<DailyUsage[]> {
+export async function loadDailyUsageData(options?: LoadOptions): Promise<DailyUsage[]> {
 	// Get all Claude paths or use the specific one from options
 	const claudePaths = toArray(options?.claudePath ?? getClaudePaths());
 
@@ -865,8 +858,7 @@ export async function loadDailyUsageData(
 	const mode = options?.mode ?? 'auto';
 
 	// Use PricingFetcher with using statement for automatic cleanup
-	using fetcher
-  = mode === 'display' ? null : new PricingFetcher(options?.offline);
+	using fetcher = mode === 'display' ? null : new PricingFetcher(options?.offline);
 
 	// Track processed message+request combinations for deduplication
 	const processedHashes = new Set<string>();
@@ -910,9 +902,10 @@ export async function loadDailyUsageData(
 				const date = formatDate(data.timestamp, options?.timezone, 'en-CA');
 				// If fetcher is available, calculate cost based on mode and tokens
 				// If fetcher is null, use pre-calculated costUSD or default to 0
-				const cost = fetcher != null
-					? await calculateCostForEntry(data, mode, fetcher)
-					: data.costUSD ?? 0;
+				const cost
+					= fetcher != null
+						? await calculateCostForEntry(data, mode, fetcher)
+						: (data.costUSD ?? 0);
 
 				// Extract project name from file path
 				const project = extractProjectFromPath(file);
@@ -933,8 +926,7 @@ export async function loadDailyUsageData(
 
 	// Group by date, optionally including project
 	// Automatically enable project grouping when project filter is specified
-	const needsProjectGrouping
-  = options?.groupByProject === true || options?.project != null;
+	const needsProjectGrouping = options?.groupByProject === true || options?.project != null;
 	const groupingKey = needsProjectGrouping
 		? (entry: (typeof allEntries)[0]) => `${entry.date}\x00${entry.project}`
 		: (entry: (typeof allEntries)[0]) => entry.date;
@@ -992,11 +984,7 @@ export async function loadDailyUsageData(
 	);
 
 	// Filter by project if specified
-	const finalFiltered = filterByProject(
-		dateFiltered,
-		item => item.project,
-		options?.project,
-	);
+	const finalFiltered = filterByProject(dateFiltered, item => item.project, options?.project);
 
 	// Sort by date based on order option (default to descending)
 	return sortByDate(finalFiltered, item => item.date, options?.order);
@@ -1008,9 +996,7 @@ export async function loadDailyUsageData(
  * @param options - Optional configuration for loading and filtering data
  * @returns Array of session usage summaries sorted by last activity
  */
-export async function loadSessionData(
-	options?: LoadOptions,
-): Promise<SessionUsage[]> {
+export async function loadSessionData(options?: LoadOptions): Promise<SessionUsage[]> {
 	// Get all Claude paths or use the specific one from options
 	const claudePaths = toArray(options?.claudePath ?? getClaudePaths());
 
@@ -1030,9 +1016,7 @@ export async function loadSessionData(
 
 	// Sort files by timestamp to ensure chronological processing
 	// Create a map for O(1) lookup instead of O(N) find operations
-	const fileToBaseMap = new Map(
-		projectFilteredWithBase.map(f => [f.file, f.baseDir]),
-	);
+	const fileToBaseMap = new Map(projectFilteredWithBase.map(f => [f.file, f.baseDir]));
 	const sortedFilesWithBase = await sortFilesByTimestamp(
 		projectFilteredWithBase.map(f => f.file),
 	).then(sortedFiles =>
@@ -1069,10 +1053,7 @@ export async function loadSessionData(
 
 		// Session ID is the name of the jsonl file name containing the JSONL file
 		let sessionId: string;
-		if (
-			parts.length > 0
-			&& (parts[parts.length - 1] ?? '').replace(/\.jsonl/g, '') !== ''
-		) {
+		if (parts.length > 0 && (parts[parts.length - 1] ?? '').replace(/\.jsonl/g, '') !== '') {
 			sessionId = (parts[parts.length - 1] ?? '').replace(/\.jsonl/g, '');
 		}
 		else {
@@ -1110,9 +1091,10 @@ export async function loadSessionData(
 				markAsProcessed(uniqueHash, processedHashes);
 
 				const sessionKey = `${projectPath}/${sessionId}`;
-				const cost = fetcher != null
-					? await calculateCostForEntry(data, mode, fetcher)
-					: data.costUSD ?? 0;
+				const cost
+					= fetcher != null
+						? await calculateCostForEntry(data, mode, fetcher)
+						: (data.costUSD ?? 0);
 
 				allEntries.push({
 					data,
@@ -1178,7 +1160,11 @@ export async function loadSessionData(
 				projectPath: createProjectPath(latestEntry.projectPath),
 				...totals,
 				// Always use en-CA for date storage to ensure YYYY-MM-DD format
-				lastActivity: formatDate(latestEntry.timestamp, options?.timezone, 'en-CA') as ActivityDate,
+				lastActivity: formatDate(
+					latestEntry.timestamp,
+					options?.timezone,
+					'en-CA',
+				) as ActivityDate,
 				versions: uniq(versions).sort() as Version[],
 				modelsUsed: modelsUsed as ModelName[],
 				modelBreakdowns,
@@ -1201,11 +1187,7 @@ export async function loadSessionData(
 		options?.project,
 	);
 
-	return sortByDate(
-		sessionFiltered,
-		item => item.lastActivity,
-		options?.order,
-	);
+	return sortByDate(sessionFiltered, item => item.lastActivity, options?.order);
 }
 
 /**
@@ -1214,14 +1196,16 @@ export async function loadSessionData(
  * @param options - Optional configuration for loading and filtering data
  * @returns Array of monthly usage summaries sorted by month
  */
-export async function loadMonthlyUsageData(
-	options?: LoadOptions,
-): Promise<MonthlyUsage[]> {
-	return loadBucketUsageData((data: DailyUsage) => createMonthlyDate(data.date.substring(0, 7)), options)
-		.then(usages => usages.map<MonthlyUsage>(({ bucket, ...rest }) => ({
+export async function loadMonthlyUsageData(options?: LoadOptions): Promise<MonthlyUsage[]> {
+	return loadBucketUsageData(
+		(data: DailyUsage) => createMonthlyDate(data.date.substring(0, 7)),
+		options,
+	).then(usages =>
+		usages.map<MonthlyUsage>(({ bucket, ...rest }) => ({
 			month: createMonthlyDate(bucket.toString()),
 			...rest,
-		})));
+		})),
+	);
 }
 
 /**
@@ -1254,16 +1238,19 @@ function getDayNumber(day: WeekDay): DayOfWeek {
 	return dayMap[day];
 }
 
-export async function loadWeeklyUsageData(
-	options?: LoadOptions,
-): Promise<WeeklyUsage[]> {
-	const startDay = options?.startOfWeek != null ? getDayNumber(options.startOfWeek) : getDayNumber('sunday');
+export async function loadWeeklyUsageData(options?: LoadOptions): Promise<WeeklyUsage[]> {
+	const startDay
+		= options?.startOfWeek != null ? getDayNumber(options.startOfWeek) : getDayNumber('sunday');
 
-	return loadBucketUsageData((data: DailyUsage) => getDateWeek(new Date(data.date), startDay), options)
-		.then(usages => usages.map<WeeklyUsage>(({ bucket, ...rest }) => ({
+	return loadBucketUsageData(
+		(data: DailyUsage) => getDateWeek(new Date(data.date), startDay),
+		options,
+	).then(usages =>
+		usages.map<WeeklyUsage>(({ bucket, ...rest }) => ({
 			week: createWeeklyDate(bucket.toString()),
 			...rest,
-		})));
+		})),
+	);
 }
 
 export async function loadBucketUsageData(
@@ -1274,12 +1261,10 @@ export async function loadBucketUsageData(
 
 	// Group daily data by week, optionally including project
 	// Automatically enable project grouping when project filter is specified
-	const needsProjectGrouping
-		= options?.groupByProject === true || options?.project != null;
+	const needsProjectGrouping = options?.groupByProject === true || options?.project != null;
 
 	const groupingKey = needsProjectGrouping
-		? (data: DailyUsage) =>
-				`${groupingFn(data)}\x00${data.project ?? 'unknown'}`
+		? (data: DailyUsage) => `${groupingFn(data)}\x00${data.project ?? 'unknown'}`
 		: (data: DailyUsage) => `${groupingFn(data)}`;
 
 	const grouped = groupBy(dailyData, groupingKey);
@@ -1295,9 +1280,7 @@ export async function loadBucketUsageData(
 		const project = parts.length > 1 ? parts[1] : undefined;
 
 		// Aggregate model breakdowns across all days
-		const allBreakdowns = dailyEntries.flatMap(
-			daily => daily.modelBreakdowns,
-		);
+		const allBreakdowns = dailyEntries.flatMap(daily => daily.modelBreakdowns);
 		const modelAggregates = aggregateModelBreakdowns(allBreakdowns);
 
 		// Create model breakdowns
@@ -1352,9 +1335,7 @@ export async function loadBucketUsageData(
  * @param options - Optional configuration including session duration and filtering
  * @returns Array of session blocks with usage and cost information
  */
-export async function loadSessionBlockData(
-	options?: LoadOptions,
-): Promise<SessionBlock[]> {
+export async function loadSessionBlockData(options?: LoadOptions): Promise<SessionBlock[]> {
 	// Get all Claude paths or use the specific one from options
 	const claudePaths = toArray(options?.claudePath ?? getClaudePaths());
 
@@ -1387,8 +1368,7 @@ export async function loadSessionBlockData(
 	const mode = options?.mode ?? 'auto';
 
 	// Use PricingFetcher with using statement for automatic cleanup
-	using fetcher
-  = mode === 'display' ? null : new PricingFetcher(options?.offline);
+	using fetcher = mode === 'display' ? null : new PricingFetcher(options?.offline);
 
 	// Track processed message+request combinations for deduplication
 	const processedHashes = new Set<string>();
@@ -1422,9 +1402,10 @@ export async function loadSessionBlockData(
 				// Mark this combination as processed
 				markAsProcessed(uniqueHash, processedHashes);
 
-				const cost = fetcher != null
-					? await calculateCostForEntry(data, mode, fetcher)
-					: data.costUSD ?? 0;
+				const cost
+					= fetcher != null
+						? await calculateCostForEntry(data, mode, fetcher)
+						: (data.costUSD ?? 0);
 
 				// Get Claude Code usage limit expiration date
 				const usageLimitResetTime = getUsageLimitResetTime(data);
@@ -1435,9 +1416,8 @@ export async function loadSessionBlockData(
 						inputTokens: data.message.usage.input_tokens,
 						outputTokens: data.message.usage.output_tokens,
 						cacheCreationInputTokens:
-            data.message.usage.cache_creation_input_tokens ?? 0,
-						cacheReadInputTokens:
-            data.message.usage.cache_read_input_tokens ?? 0,
+							data.message.usage.cache_creation_input_tokens ?? 0,
+						cacheReadInputTokens: data.message.usage.cache_read_input_tokens ?? 0,
 					},
 					costUSD: cost,
 					model: data.message.model ?? 'unknown',
@@ -1455,25 +1435,36 @@ export async function loadSessionBlockData(
 	}
 
 	// Identify session blocks
-	const blocks = identifySessionBlocks(
-		allEntries,
-		options?.sessionDurationHours,
-	);
+	const blocks = identifySessionBlocks(allEntries, options?.sessionDurationHours);
 
 	// Filter by date range if specified
-	const dateFiltered = (options?.since != null && options.since !== '') || (options?.until != null && options.until !== '')
-		? blocks.filter((block) => {
-				// Always use en-CA for date comparison to ensure YYYY-MM-DD format
-				const blockDateStr = formatDate(block.startTime.toISOString(), options?.timezone, 'en-CA').replace(/-/g, '');
-				if (options.since != null && options.since !== '' && blockDateStr < options.since) {
-					return false;
-				}
-				if (options.until != null && options.until !== '' && blockDateStr > options.until) {
-					return false;
-				}
-				return true;
-			})
-		: blocks;
+	const dateFiltered
+		= (options?.since != null && options.since !== '')
+			|| (options?.until != null && options.until !== '')
+			? blocks.filter((block) => {
+					// Always use en-CA for date comparison to ensure YYYY-MM-DD format
+					const blockDateStr = formatDate(
+						block.startTime.toISOString(),
+						options?.timezone,
+						'en-CA',
+					).replace(/-/g, '');
+					if (
+						options.since != null
+						&& options.since !== ''
+						&& blockDateStr < options.since
+					) {
+						return false;
+					}
+					if (
+						options.until != null
+						&& options.until !== ''
+						&& blockDateStr > options.until
+					) {
+						return false;
+					}
+					return true;
+				})
+			: blocks;
 
 	// Sort by start time based on order option
 	return sortByDate(dateFiltered, block => block.startTime, options?.order);
@@ -1544,20 +1535,32 @@ if (import.meta.vitest != null) {
 
 	describe('formatDateCompact', () => {
 		it('formats UTC timestamp to local date with line break', () => {
-			expect(formatDateCompact('2024-01-01T00:00:00Z', undefined, 'en-US')).toBe('2024\n01-01');
+			expect(formatDateCompact('2024-01-01T00:00:00Z', undefined, 'en-US')).toBe(
+				'2024\n01-01',
+			);
 		});
 
 		it('handles various date formats', () => {
-			expect(formatDateCompact('2024-12-31T23:59:59Z', undefined, 'en-US')).toBe('2024\n12-31');
+			expect(formatDateCompact('2024-12-31T23:59:59Z', undefined, 'en-US')).toBe(
+				'2024\n12-31',
+			);
 			expect(formatDateCompact('2024-01-01', undefined, 'en-US')).toBe('2024\n01-01');
-			expect(formatDateCompact('2024-01-01T12:00:00', undefined, 'en-US')).toBe('2024\n01-01');
-			expect(formatDateCompact('2024-01-01T12:00:00.000Z', undefined, 'en-US')).toBe('2024\n01-01');
+			expect(formatDateCompact('2024-01-01T12:00:00', undefined, 'en-US')).toBe(
+				'2024\n01-01',
+			);
+			expect(formatDateCompact('2024-01-01T12:00:00.000Z', undefined, 'en-US')).toBe(
+				'2024\n01-01',
+			);
 		});
 
 		it('pads single digit months and days', () => {
 			// Use UTC noon to avoid timezone issues
-			expect(formatDateCompact('2024-01-05T12:00:00Z', undefined, 'en-US')).toBe('2024\n01-05');
-			expect(formatDateCompact('2024-10-01T12:00:00Z', undefined, 'en-US')).toBe('2024\n10-01');
+			expect(formatDateCompact('2024-01-05T12:00:00Z', undefined, 'en-US')).toBe(
+				'2024\n01-05',
+			);
+			expect(formatDateCompact('2024-10-01T12:00:00Z', undefined, 'en-US')).toBe(
+				'2024\n10-01',
+			);
 		});
 
 		it('respects locale parameter', () => {
@@ -1780,7 +1783,11 @@ invalid json line
 {"timestamp":"2024-01-01T18:00:00Z","message":{"usage":{"input_tokens":300,"output_tokens":150}},"costUSD":0.03}
 `.trim();
 
-			await using fixture = await createRawJSONLFixture('project1', 'session1.jsonl', mockData);
+			await using fixture = await createRawJSONLFixture(
+				'project1',
+				'session1.jsonl',
+				mockData,
+			);
 
 			const result = await loadDailyUsageData({ claudePath: fixture.path });
 
@@ -1801,7 +1808,11 @@ invalid json line
 {"timestamp":"2024-01-01T22:00:00Z","message":{"usage":{"input_tokens":300,"output_tokens":150}},"costUSD":0.03}
 `.trim();
 
-			await using fixture = await createRawJSONLFixture('project1', 'session1.jsonl', mockData);
+			await using fixture = await createRawJSONLFixture(
+				'project1',
+				'session1.jsonl',
+				mockData,
+			);
 
 			const result = await loadDailyUsageData({ claudePath: fixture.path });
 
@@ -2163,14 +2174,16 @@ invalid json line
 				cacheReadTokens: 0,
 				totalCost: 0.015,
 				modelsUsed: [],
-				modelBreakdowns: [{
-					modelName: 'unknown',
-					inputTokens: 150,
-					outputTokens: 75,
-					cacheCreationTokens: 0,
-					cacheReadTokens: 0,
-					cost: 0.015,
-				}],
+				modelBreakdowns: [
+					{
+						modelName: 'unknown',
+						inputTokens: 150,
+						outputTokens: 75,
+						cacheCreationTokens: 0,
+						cacheReadTokens: 0,
+						cost: 0.015,
+					},
+				],
 			});
 			expect(result[1]).toEqual({
 				week: '2023-12-31',
@@ -2180,14 +2193,16 @@ invalid json line
 				cacheReadTokens: 0,
 				totalCost: 0.03,
 				modelsUsed: [],
-				modelBreakdowns: [{
-					modelName: 'unknown',
-					inputTokens: 300,
-					outputTokens: 150,
-					cacheCreationTokens: 0,
-					cacheReadTokens: 0,
-					cost: 0.03,
-				}],
+				modelBreakdowns: [
+					{
+						modelName: 'unknown',
+						inputTokens: 300,
+						outputTokens: 150,
+						cacheCreationTokens: 0,
+						cacheReadTokens: 0,
+						cost: 0.03,
+					},
+				],
 			});
 		});
 
@@ -2235,14 +2250,16 @@ invalid json line
 				cacheReadTokens: 0,
 				totalCost: 0.03,
 				modelsUsed: [],
-				modelBreakdowns: [{
-					modelName: 'unknown',
-					inputTokens: 300,
-					outputTokens: 150,
-					cacheCreationTokens: 0,
-					cacheReadTokens: 0,
-					cost: 0.03,
-				}],
+				modelBreakdowns: [
+					{
+						modelName: 'unknown',
+						inputTokens: 300,
+						outputTokens: 150,
+						cacheCreationTokens: 0,
+						cacheReadTokens: 0,
+						cost: 0.03,
+					},
+				],
 			});
 		});
 
@@ -2487,9 +2504,7 @@ invalid json line
 
 			expect(result).toHaveLength(2);
 			expect(result.find(s => s.sessionId === 'session123')).toBeTruthy();
-			expect(
-				result.find(s => s.projectPath === 'project1/subfolder'),
-			).toBeTruthy();
+			expect(result.find(s => s.projectPath === 'project1/subfolder')).toBeTruthy();
 			expect(result.find(s => s.sessionId === 'session456')).toBeTruthy();
 			expect(result.find(s => s.projectPath === 'project2')).toBeTruthy();
 		});
@@ -3303,11 +3318,7 @@ invalid json line
 		describe('display mode', () => {
 			it('should return costUSD when available', async () => {
 				using fetcher = new PricingFetcher();
-				const result = await calculateCostForEntry(
-					mockUsageData,
-					'display',
-					fetcher,
-				);
+				const result = await calculateCostForEntry(mockUsageData, 'display', fetcher);
 				expect(result).toBe(0.05);
 			});
 
@@ -3316,22 +3327,14 @@ invalid json line
 				dataWithoutCost.costUSD = undefined;
 
 				using fetcher = new PricingFetcher();
-				const result = await calculateCostForEntry(
-					dataWithoutCost,
-					'display',
-					fetcher,
-				);
+				const result = await calculateCostForEntry(dataWithoutCost, 'display', fetcher);
 				expect(result).toBe(0);
 			});
 
 			it('should not use model pricing in display mode', async () => {
 				// Even with model pricing available, should use costUSD
 				using fetcher = new PricingFetcher();
-				const result = await calculateCostForEntry(
-					mockUsageData,
-					'display',
-					fetcher,
-				);
+				const result = await calculateCostForEntry(mockUsageData, 'display', fetcher);
 				expect(result).toBe(0.05);
 			});
 		});
@@ -3351,11 +3354,7 @@ invalid json line
 				};
 
 				using fetcher = new PricingFetcher();
-				const result = await calculateCostForEntry(
-					testData,
-					'calculate',
-					fetcher,
-				);
+				const result = await calculateCostForEntry(testData, 'calculate', fetcher);
 
 				expect(result).toBeGreaterThan(0);
 			});
@@ -3363,11 +3362,7 @@ invalid json line
 			it('should ignore costUSD in calculate mode', async () => {
 				using fetcher = new PricingFetcher();
 				const dataWithHighCost = { ...mockUsageData, costUSD: 99.99 };
-				const result = await calculateCostForEntry(
-					dataWithHighCost,
-					'calculate',
-					fetcher,
-				);
+				const result = await calculateCostForEntry(dataWithHighCost, 'calculate', fetcher);
 
 				expect(result).toBeGreaterThan(0);
 				expect(result).toBeLessThan(1); // Much less than 99.99
@@ -3378,11 +3373,7 @@ invalid json line
 				dataWithoutModel.message.model = undefined;
 
 				using fetcher = new PricingFetcher();
-				const result = await calculateCostForEntry(
-					dataWithoutModel,
-					'calculate',
-					fetcher,
-				);
+				const result = await calculateCostForEntry(dataWithoutModel, 'calculate', fetcher);
 				expect(result).toBe(0);
 			});
 
@@ -3430,11 +3421,7 @@ invalid json line
 		describe('auto mode', () => {
 			it('should use costUSD when available', async () => {
 				using fetcher = new PricingFetcher();
-				const result = await calculateCostForEntry(
-					mockUsageData,
-					'auto',
-					fetcher,
-				);
+				const result = await calculateCostForEntry(mockUsageData, 'auto', fetcher);
 				expect(result).toBe(0.05);
 			});
 
@@ -3451,11 +3438,7 @@ invalid json line
 				};
 
 				using fetcher = new PricingFetcher();
-				const result = await calculateCostForEntry(
-					dataWithoutCost,
-					'auto',
-					fetcher,
-				);
+				const result = await calculateCostForEntry(dataWithoutCost, 'auto', fetcher);
 				expect(result).toBeGreaterThan(0);
 			});
 
@@ -3465,11 +3448,7 @@ invalid json line
 				dataWithoutCostOrModel.message.model = undefined;
 
 				using fetcher = new PricingFetcher();
-				const result = await calculateCostForEntry(
-					dataWithoutCostOrModel,
-					'auto',
-					fetcher,
-				);
+				const result = await calculateCostForEntry(dataWithoutCostOrModel, 'auto', fetcher);
 				expect(result).toBe(0);
 			});
 
@@ -3478,22 +3457,14 @@ invalid json line
 				dataWithoutCost.costUSD = undefined;
 
 				using fetcher = new PricingFetcher();
-				const result = await calculateCostForEntry(
-					dataWithoutCost,
-					'auto',
-					fetcher,
-				);
+				const result = await calculateCostForEntry(dataWithoutCost, 'auto', fetcher);
 				expect(result).toBe(0);
 			});
 
 			it('should prefer costUSD over calculation even when both available', async () => {
 				// Both costUSD and model pricing available, should use costUSD
 				using fetcher = new PricingFetcher();
-				const result = await calculateCostForEntry(
-					mockUsageData,
-					'auto',
-					fetcher,
-				);
+				const result = await calculateCostForEntry(mockUsageData, 'auto', fetcher);
 				expect(result).toBe(0.05);
 			});
 		});
@@ -3526,11 +3497,7 @@ invalid json line
 			it('should handle costUSD of 0', async () => {
 				const dataWithZeroCost = { ...mockUsageData, costUSD: 0 };
 				using fetcher = new PricingFetcher();
-				const result = await calculateCostForEntry(
-					dataWithZeroCost,
-					'display',
-					fetcher,
-				);
+				const result = await calculateCostForEntry(dataWithZeroCost, 'display', fetcher);
 				expect(result).toBe(0);
 			});
 
@@ -3628,10 +3595,7 @@ invalid json line
 			expect(result.length).toBeGreaterThan(0); // Should have blocks
 			expect(result[0]?.entries).toHaveLength(1); // First block has one entry
 			// Total entries across all blocks should be 3
-			const totalEntries = result.reduce(
-				(sum, block) => sum + block.entries.length,
-				0,
-			);
+			const totalEntries = result.reduce((sum, block) => sum + block.entries.length, 0);
 			expect(totalEntries).toBe(3);
 		});
 
@@ -3943,9 +3907,7 @@ if (import.meta.vitest != null) {
 					'test.jsonl': content,
 				});
 
-				const timestamp = await getEarliestTimestamp(
-					fixture.getPath('test.jsonl'),
-				);
+				const timestamp = await getEarliestTimestamp(fixture.getPath('test.jsonl'));
 				expect(timestamp).toEqual(new Date('2025-01-10T10:00:00Z'));
 			});
 
@@ -3959,9 +3921,7 @@ if (import.meta.vitest != null) {
 					'test.jsonl': content,
 				});
 
-				const timestamp = await getEarliestTimestamp(
-					fixture.getPath('test.jsonl'),
-				);
+				const timestamp = await getEarliestTimestamp(fixture.getPath('test.jsonl'));
 				expect(timestamp).toBeNull();
 			});
 
@@ -3979,9 +3939,7 @@ if (import.meta.vitest != null) {
 					'test.jsonl': content,
 				});
 
-				const timestamp = await getEarliestTimestamp(
-					fixture.getPath('test.jsonl'),
-				);
+				const timestamp = await getEarliestTimestamp(fixture.getPath('test.jsonl'));
 				expect(timestamp).toEqual(new Date('2025-01-10T10:00:00Z'));
 			});
 		});
@@ -4184,9 +4142,7 @@ if (import.meta.vitest != null) {
 			const normalizedFixture1 = path.resolve(fixture1.path);
 			const normalizedFixture2 = path.resolve(fixture2.path);
 
-			expect(paths).toEqual(
-				expect.arrayContaining([normalizedFixture1, normalizedFixture2]),
-			);
+			expect(paths).toEqual(expect.arrayContaining([normalizedFixture1, normalizedFixture2]));
 			// Environment paths should be prioritized
 			expect(paths[0]).toBe(normalizedFixture1);
 			expect(paths[1]).toBe(normalizedFixture2);
@@ -4325,9 +4281,7 @@ if (import.meta.vitest != null) {
 			const results = await globUsageFiles(paths);
 
 			expect(results).toHaveLength(3);
-			expect(results.every(r => r.baseDir.includes('path1/projects'))).toBe(
-				true,
-			);
+			expect(results.every(r => r.baseDir.includes('path1/projects'))).toBe(true);
 		});
 	});
 }
