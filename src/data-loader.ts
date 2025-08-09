@@ -31,7 +31,12 @@ import {
 	USAGE_DATA_GLOB_PATTERN,
 	USER_HOME_DIR,
 } from './_consts.ts';
-import { createDailyUsageFixture, createEmptyProjectsFixture, createMultiProjectFixture, createTimestampTestFixture } from './_fixtures.ts';
+import {
+	createDailyUsageFixture,
+	createEmptyProjectsFixture,
+	createMultiProjectFixture,
+	createTimestampTestFixture,
+} from './_fixtures.ts';
 import { identifySessionBlocks } from './_session-blocks.ts';
 import {
 	activityDateSchema,
@@ -710,7 +715,10 @@ export function getUsageLimitResetTime(data: UsageData): Date | null {
 
 	if (data.isApiErrorMessage === true) {
 		const timestampMatch
-			= data.message?.content?.find(c => c.text != null && c.text.includes('Claude AI usage limit reached'))?.text?.match(/\|(\d+)/) ?? null;
+			= data.message?.content
+				?.find(c => c.text != null && c.text.includes('Claude AI usage limit reached'))
+				?.text
+				?.match(/\|(\d+)/) ?? null;
 
 		if (timestampMatch?.[1] != null) {
 			const resetTimestamp = Number.parseInt(timestampMatch[1]);
@@ -1159,7 +1167,10 @@ export async function loadWeeklyUsageData(options?: LoadOptions): Promise<Weekly
 	);
 }
 
-export async function loadBucketUsageData(groupingFn: (data: DailyUsage) => Bucket, options?: LoadOptions): Promise<BucketUsage[]> {
+export async function loadBucketUsageData(
+	groupingFn: (data: DailyUsage) => Bucket,
+	options?: LoadOptions,
+): Promise<BucketUsage[]> {
 	const dailyData = await loadDailyUsageData(options);
 
 	// Group daily data by week, optionally including project
@@ -1322,7 +1333,9 @@ export async function loadSessionBlockData(options?: LoadOptions): Promise<Sessi
 			}
 			catch (error) {
 				// Skip invalid JSON lines but log for debugging purposes
-				logger.debug(`Skipping invalid JSON line in 5-hour blocks: ${error instanceof Error ? error.message : String(error)}`);
+				logger.debug(
+					`Skipping invalid JSON line in 5-hour blocks: ${error instanceof Error ? error.message : String(error)}`,
+				);
 			}
 		}
 	}
@@ -2981,7 +2994,13 @@ invalid json line
 
 			it('mode works with session data', async () => {
 				const { testData, createSessionFixture } = await import('./_fixtures.ts');
-				const sessionData = testData.usageDataWithModel('2024-01-01T10:00:00Z', 1000, 500, 'claude-4-sonnet-20250514', 99.99);
+				const sessionData = testData.usageDataWithModel(
+					'2024-01-01T10:00:00Z',
+					1000,
+					500,
+					'claude-4-sonnet-20250514',
+					99.99,
+				);
 
 				await using fixture = await createSessionFixture([
 					{
