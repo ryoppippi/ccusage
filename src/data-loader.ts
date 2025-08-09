@@ -30,7 +30,7 @@ import { createFixture } from 'fs-fixture';
 import { isDirectorySync } from 'path-type';
 import { glob } from 'tinyglobby';
 import { z } from 'zod';
-import { aggregateByModel, aggregateModelBreakdowns, calculateTotals, createModelBreakdowns, extractUniqueModels, filterByDateRange, filterByProject, loadCommonUsageData, sortByDate } from './_common-loader.ts';
+import { aggregateModelBreakdowns, aggregateUsageGroup, createGroupingKey, createModelBreakdowns, loadCommonUsageData, parseGroupingKey, processUsageData, sortByDate } from './_common-loader.ts';
 import { CLAUDE_CONFIG_DIR_ENV, CLAUDE_PROJECTS_DIR_NAME, DEFAULT_CLAUDE_CODE_PATH, DEFAULT_CLAUDE_CONFIG_PATH, USAGE_DATA_GLOB_PATTERN, USER_HOME_DIR } from './_consts.ts';
 import {
 	identifySessionBlocks,
@@ -586,62 +586,34 @@ export type LoadOptions = {
 export async function loadDailyUsageData(
 	options?: LoadOptions,
 ): Promise<DailyUsage[]> {
-	// Use the common loader to get processed entries
-	const { entries } = await loadCommonUsageData(options);
-
-	if (entries.length === 0) {
-		return [];
-	}
-
-	// Transform entries to include date and project for daily grouping
-	const allEntries = entries.map(entry => ({
-		data: entry.data,
-		date: formatDate(entry.data.timestamp, options?.timezone, 'en-CA'),
-		cost: entry.cost,
-		model: entry.model,
-		project: extractProjectFromPath(entry.file),
-	}));
-
-	// Group by date, optionally including project
-	// Automatically enable project grouping when project filter is specified
-	const needsProjectGrouping = options?.groupByProject === true || options?.project != null;
-	const groupingKey = needsProjectGrouping
-		? (entry: typeof allEntries[0]) => `${entry.date}\x00${entry.project}`
-		: (entry: typeof allEntries[0]) => entry.date;
-
-	const groupedData = groupBy(allEntries, groupingKey);
-
-	// Aggregate each group
-	const results = Object.entries(groupedData)
-		.map(([groupKey, entries]) => {
-			if (entries == null) {
-				return undefined;
-			}
-
-			// Extract date and project from groupKey (format: "date" or "date\x00project")
-			const parts = groupKey.split('\x00');
-			const date = parts[0] ?? groupKey;
-			const project = parts.length > 1 ? parts[1] : undefined;
-
-			// Aggregate by model first
-			const modelAggregates = aggregateByModel(
+	return processUsageData<
+		{ data: UsageData; date: string; cost: number; model: string | undefined; project: string },
+		DailyUsage,
+		LoadOptions
+	>(
+		options,
+		// Transform entry to include date and project
+		entry => ({
+			data: entry.data,
+			date: formatDate(entry.data.timestamp, options?.timezone, 'en-CA'),
+			cost: entry.cost,
+			model: entry.model,
+			project: extractProjectFromPath(entry.file),
+		}),
+		// Create grouping key
+		(entry) => {
+			const needsProjectGrouping = options?.groupByProject === true || options?.project != null;
+			return createGroupingKey(entry.date, entry.project, needsProjectGrouping);
+		},
+		// Aggregate group
+		(groupKey, entries) => {
+			const { primary: date, secondary: project } = parseGroupingKey(groupKey);
+			const { totals, modelBreakdowns, modelsUsed } = aggregateUsageGroup(
 				entries,
 				entry => entry.model,
 				entry => entry.data.message.usage,
 				entry => entry.cost,
 			);
-
-			// Create model breakdowns
-			const modelBreakdowns = createModelBreakdowns(modelAggregates);
-
-			// Calculate totals
-			const totals = calculateTotals(
-				entries,
-				entry => entry.data.message.usage,
-				entry => entry.cost,
-			);
-
-			const modelsUsed = extractUniqueModels(entries, e => e.model);
 
 			return {
 				date: createDailyDate(date),
@@ -650,17 +622,12 @@ export async function loadDailyUsageData(
 				modelBreakdowns,
 				...(project != null && { project }),
 			};
-		})
-		.filter(item => item != null);
-
-	// Filter by date range if specified
-	const dateFiltered = filterByDateRange(results, item => item.date, options?.since, options?.until);
-
-	// Filter by project if specified
-	const finalFiltered = filterByProject(dateFiltered, item => item.project, options?.project);
-
-	// Sort by date based on order option (default to descending)
-	return sortByDate(finalFiltered, item => item.date, options?.order);
+		},
+		// Date field getter
+		result => result.date,
+		// Project field getter
+		result => result.project,
+	);
 }
 
 /**
@@ -672,54 +639,41 @@ export async function loadDailyUsageData(
 export async function loadSessionData(
 	options?: LoadOptions,
 ): Promise<SessionUsage[]> {
-	// Use the common loader to get processed entries and filesWithBase
-	const { entries, filesWithBase } = await loadCommonUsageData(options);
+	return processUsageData<
+		{ data: UsageData; sessionKey: string; sessionId: string; projectPath: string; cost: number; timestamp: string; model: string | undefined },
+		SessionUsage,
+		LoadOptions
+	>(
+		options,
+		// Transform entry to include session information
+		(entry, context) => {
+			const fileToBaseMap = new Map(context.filesWithBase.map(f => [f.file, f.baseDir]));
+			const baseDir = fileToBaseMap.get(entry.file) ?? '';
+			// Extract session info from file path using its specific base directory
+			const relativePath = path.relative(baseDir, entry.file);
+			const parts = relativePath.split(path.sep);
 
-	if (entries.length === 0) {
-		return [];
-	}
+			// Session ID is the directory name containing the JSONL file
+			const sessionId = parts[parts.length - 2] ?? 'unknown';
+			// Project path is everything before the session ID
+			const joinedPath = parts.slice(0, -2).join(path.sep);
+			const projectPath = joinedPath.length > 0 ? joinedPath : 'Unknown Project';
+			const sessionKey = `${projectPath}/${sessionId}`;
 
-	// Create a map for file to base directory lookup
-	const fileToBaseMap = new Map(filesWithBase.map(f => [f.file, f.baseDir]));
-
-	// Transform entries to include session information
-	const allEntries = entries.map((entry) => {
-		const baseDir = fileToBaseMap.get(entry.file) ?? '';
-		// Extract session info from file path using its specific base directory
-		const relativePath = path.relative(baseDir, entry.file);
-		const parts = relativePath.split(path.sep);
-
-		// Session ID is the directory name containing the JSONL file
-		const sessionId = parts[parts.length - 2] ?? 'unknown';
-		// Project path is everything before the session ID
-		const joinedPath = parts.slice(0, -2).join(path.sep);
-		const projectPath = joinedPath.length > 0 ? joinedPath : 'Unknown Project';
-		const sessionKey = `${projectPath}/${sessionId}`;
-
-		return {
-			data: entry.data,
-			sessionKey,
-			sessionId,
-			projectPath,
-			cost: entry.cost,
-			timestamp: entry.data.timestamp,
-			model: entry.model,
-		};
-	});
-
-	// Group by session using Object.groupBy
-	const groupedBySessions = groupBy(
-		allEntries,
+			return {
+				data: entry.data,
+				sessionKey,
+				sessionId,
+				projectPath,
+				cost: entry.cost,
+				timestamp: entry.data.timestamp,
+				model: entry.model,
+			};
+		},
+		// Create grouping key (session key)
 		entry => entry.sessionKey,
-	);
-
-	// Aggregate each session group
-	const results = Object.entries(groupedBySessions)
-		.map(([_, entries]) => {
-			if (entries == null) {
-				return undefined;
-			}
-
+		// Aggregate group
+		(_, entries) => {
 			// Find the latest timestamp for lastActivity
 			const latestEntry = entries.reduce((latest, current) =>
 				current.timestamp > latest.timestamp ? current : latest,
@@ -733,25 +687,12 @@ export async function loadSessionData(
 				}
 			}
 
-			// Aggregate by model
-			const modelAggregates = aggregateByModel(
+			const { totals, modelBreakdowns, modelsUsed } = aggregateUsageGroup(
 				entries,
 				entry => entry.model,
 				entry => entry.data.message.usage,
 				entry => entry.cost,
 			);
-
-			// Create model breakdowns
-			const modelBreakdowns = createModelBreakdowns(modelAggregates);
-
-			// Calculate totals
-			const totals = calculateTotals(
-				entries,
-				entry => entry.data.message.usage,
-				entry => entry.cost,
-			);
-
-			const modelsUsed = extractUniqueModels(entries, e => e.model);
 
 			return {
 				sessionId: createSessionId(latestEntry.sessionId),
@@ -763,16 +704,12 @@ export async function loadSessionData(
 				modelsUsed: modelsUsed as ModelName[],
 				modelBreakdowns,
 			};
-		})
-		.filter(item => item != null);
-
-	// Filter by date range if specified
-	const dateFiltered = filterByDateRange(results, item => item.lastActivity, options?.since, options?.until);
-
-	// Filter by project if specified
-	const sessionFiltered = filterByProject(dateFiltered, item => item.projectPath, options?.project);
-
-	return sortByDate(sessionFiltered, item => item.lastActivity, options?.order);
+		},
+		// Date field getter
+		result => result.lastActivity,
+		// Project field getter
+		result => result.projectPath,
+	);
 }
 
 /**

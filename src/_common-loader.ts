@@ -8,6 +8,7 @@ import type { ModelBreakdown, UsageData } from './data-loader.ts';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { toArray } from '@antfu/utils';
+import { groupBy } from 'es-toolkit';
 import { sort } from 'fast-sort';
 import { createFixture } from 'fs-fixture';
 import { glob } from 'tinyglobby';
@@ -25,6 +26,9 @@ export type CommonLoadOptions = {
 	project?: string;
 	mode?: CostMode;
 	offline?: boolean;
+	since?: string;
+	until?: string;
+	order?: SortOrder;
 };
 
 /**
@@ -419,6 +423,109 @@ export function aggregateModelBreakdowns(
 	}
 
 	return modelAggregates;
+}
+
+/**
+ * Generic function to process and aggregate usage data
+ * @internal
+ */
+export async function processUsageData<TEntry, TResult, TOptions extends CommonLoadOptions = CommonLoadOptions>(
+	options: TOptions | undefined,
+	transformEntry: (entry: ProcessedEntry, context: { filesWithBase: FileWithBase[] }) => TEntry,
+	getGroupKey: (entry: TEntry) => string,
+	aggregateGroup: (groupKey: string, entries: TEntry[], options?: TOptions) => TResult | undefined,
+	getDateField: (result: TResult) => string,
+	getProjectField?: (result: TResult) => string | undefined,
+): Promise<TResult[]> {
+	// Use the common loader to get processed entries and filesWithBase
+	const { entries, filesWithBase } = await loadCommonUsageData(options);
+
+	if (entries.length === 0) {
+		return [];
+	}
+
+	// Transform entries using the provided transformer
+	const transformedEntries = entries.map(entry =>
+		transformEntry(entry, { filesWithBase }),
+	);
+
+	// Group entries using the provided grouping function
+	const groupedData = groupBy(transformedEntries, getGroupKey);
+
+	// Aggregate each group using the provided aggregator
+	const results = Object.entries(groupedData)
+		.map(([groupKey, groupEntries]) => {
+			if (groupEntries == null) {
+				return undefined;
+			}
+			return aggregateGroup(groupKey, groupEntries, options);
+		})
+		.filter((item): item is TResult => item != null);
+
+	// Apply common filters and sorting
+	let filtered = filterByDateRange(results, getDateField, options?.since, options?.until);
+
+	if (getProjectField != null) {
+		filtered = filterByProject(filtered, getProjectField, options?.project);
+	}
+
+	return sortByDate(filtered, getDateField, options?.order);
+}
+
+/**
+ * Creates a grouping key with optional project
+ * @internal
+ */
+export function createGroupingKey(
+	primary: string,
+	secondary?: string,
+	needsSecondary?: boolean,
+): string {
+	if (needsSecondary === true && secondary != null) {
+		return `${primary}\x00${secondary}`;
+	}
+	return primary;
+}
+
+/**
+ * Parses a grouping key into parts
+ * @internal
+ */
+export function parseGroupingKey(groupKey: string): { primary: string; secondary?: string } {
+	const parts = groupKey.split('\x00');
+	return {
+		primary: parts[0] ?? groupKey,
+		secondary: parts.length > 1 ? parts[1] : undefined,
+	};
+}
+
+/**
+ * Common aggregation for usage groups
+ * @internal
+ */
+export function aggregateUsageGroup<T>(
+	entries: T[],
+	getModel: (entry: T) => string | undefined,
+	getUsage: (entry: T) => UsageData['message']['usage'],
+	getCost: (entry: T) => number,
+): {
+		totals: TokenStats & { totalCost: number };
+		modelBreakdowns: ModelBreakdown[];
+		modelsUsed: string[];
+	} {
+	// Aggregate by model
+	const modelAggregates = aggregateByModel(entries, getModel, getUsage, getCost);
+
+	// Create model breakdowns
+	const modelBreakdowns = createModelBreakdowns(modelAggregates);
+
+	// Calculate totals
+	const totals = calculateTotals(entries, getUsage, getCost);
+
+	// Extract unique models
+	const modelsUsed = extractUniqueModels(entries, getModel);
+
+	return { totals, modelBreakdowns, modelsUsed };
 }
 
 /**
