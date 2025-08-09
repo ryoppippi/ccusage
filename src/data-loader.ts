@@ -23,7 +23,6 @@ import type {
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
-import { toArray } from '@antfu/utils';
 import { unreachable } from '@core/errorutil';
 import { Result } from '@praha/byethrow';
 import { groupBy, uniq } from 'es-toolkit'; // TODO: after node20 is deprecated, switch to native Object.groupBy
@@ -483,31 +482,6 @@ function filterByProject<T>(
 }
 
 /**
- * Checks if an entry is a duplicate based on hash
- */
-function isDuplicateEntry(
-	uniqueHash: string | null,
-	processedHashes: Set<string>,
-): boolean {
-	if (uniqueHash == null) {
-		return false;
-	}
-	return processedHashes.has(uniqueHash);
-}
-
-/**
- * Marks an entry as processed
- */
-function markAsProcessed(
-	uniqueHash: string | null,
-	processedHashes: Set<string>,
-): void {
-	if (uniqueHash != null) {
-		processedHashes.add(uniqueHash);
-	}
-}
-
-/**
  * Extracts unique models from entries, excluding synthetic model
  */
 function extractUniqueModels<T>(
@@ -815,83 +789,24 @@ export type LoadOptions = {
 export async function loadDailyUsageData(
 	options?: LoadOptions,
 ): Promise<DailyUsage[]> {
-	// Get all Claude paths or use the specific one from options
-	const claudePaths = toArray(options?.claudePath ?? getClaudePaths());
+	// Import the common loader
+	const { loadCommonUsageData } = await import('./_common-loader.ts');
 
-	// Collect files from all paths in parallel
-	const allFiles = await globUsageFiles(claudePaths);
-	const fileList = allFiles.map(f => f.file);
+	// Use the common loader to get processed entries
+	const { entries } = await loadCommonUsageData(options);
 
-	if (fileList.length === 0) {
+	if (entries.length === 0) {
 		return [];
 	}
 
-	// Filter by project if specified
-	const projectFilteredFiles = filterByProject(
-		fileList,
-		filePath => extractProjectFromPath(filePath),
-		options?.project,
-	);
-
-	// Sort files by timestamp to ensure chronological processing
-	const sortedFiles = await sortFilesByTimestamp(projectFilteredFiles);
-
-	// Fetch pricing data for cost calculation only when needed
-	const mode = options?.mode ?? 'auto';
-
-	// Use PricingFetcher with using statement for automatic cleanup
-	using fetcher = mode === 'display' ? null : new PricingFetcher(options?.offline);
-
-	// Track processed message+request combinations for deduplication
-	const processedHashes = new Set<string>();
-
-	// Collect all valid data entries first
-	const allEntries: { data: UsageData; date: string; cost: number; model: string | undefined; project: string }[] = [];
-
-	for (const file of sortedFiles) {
-		const content = await readFile(file, 'utf-8');
-		const lines = content
-			.trim()
-			.split('\n')
-			.filter(line => line.length > 0);
-
-		for (const line of lines) {
-			try {
-				const parsed = JSON.parse(line) as unknown;
-				const result = usageDataSchema.safeParse(parsed);
-				if (!result.success) {
-					continue;
-				}
-				const data = result.data;
-
-				// Check for duplicate message + request ID combination
-				const uniqueHash = createUniqueHash(data);
-				if (isDuplicateEntry(uniqueHash, processedHashes)) {
-					// Skip duplicate message
-					continue;
-				}
-
-				// Mark this combination as processed
-				markAsProcessed(uniqueHash, processedHashes);
-
-				// Always use en-CA for date grouping to ensure YYYY-MM-DD format
-				const date = formatDate(data.timestamp, options?.timezone, 'en-CA');
-				// If fetcher is available, calculate cost based on mode and tokens
-				// If fetcher is null, use pre-calculated costUSD or default to 0
-				const cost = fetcher != null
-					? await calculateCostForEntry(data, mode, fetcher)
-					: data.costUSD ?? 0;
-
-				// Extract project name from file path
-				const project = extractProjectFromPath(file);
-
-				allEntries.push({ data, date, cost, model: data.message.model, project });
-			}
-			catch {
-				// Skip invalid JSON lines
-			}
-		}
-	}
+	// Transform entries to include date and project for daily grouping
+	const allEntries = entries.map(entry => ({
+		data: entry.data,
+		date: formatDate(entry.data.timestamp, options?.timezone, 'en-CA'),
+		cost: entry.cost,
+		model: entry.model,
+		project: extractProjectFromPath(entry.file),
+	}));
 
 	// Group by date, optionally including project
 	// Automatically enable project grouping when project filter is specified
@@ -963,58 +878,24 @@ export async function loadDailyUsageData(
 export async function loadSessionData(
 	options?: LoadOptions,
 ): Promise<SessionUsage[]> {
-	// Get all Claude paths or use the specific one from options
-	const claudePaths = toArray(options?.claudePath ?? getClaudePaths());
+	// Import the common loader
+	const { loadCommonUsageData } = await import('./_common-loader.ts');
 
-	// Collect files from all paths with their base directories in parallel
-	const filesWithBase = await globUsageFiles(claudePaths);
+	// Use the common loader to get processed entries and filesWithBase
+	const { entries, filesWithBase } = await loadCommonUsageData(options);
 
-	if (filesWithBase.length === 0) {
+	if (entries.length === 0) {
 		return [];
 	}
 
-	// Filter by project if specified
-	const projectFilteredWithBase = filterByProject(
-		filesWithBase,
-		item => extractProjectFromPath(item.file),
-		options?.project,
-	);
+	// Create a map for file to base directory lookup
+	const fileToBaseMap = new Map(filesWithBase.map(f => [f.file, f.baseDir]));
 
-	// Sort files by timestamp to ensure chronological processing
-	// Create a map for O(1) lookup instead of O(N) find operations
-	const fileToBaseMap = new Map(projectFilteredWithBase.map(f => [f.file, f.baseDir]));
-	const sortedFilesWithBase = await sortFilesByTimestamp(
-		projectFilteredWithBase.map(f => f.file),
-	).then(sortedFiles =>
-		sortedFiles.map(file => ({
-			file,
-			baseDir: fileToBaseMap.get(file) ?? '',
-		})),
-	);
-
-	// Fetch pricing data for cost calculation only when needed
-	const mode = options?.mode ?? 'auto';
-
-	// Use PricingFetcher with using statement for automatic cleanup
-	using fetcher = mode === 'display' ? null : new PricingFetcher(options?.offline);
-
-	// Track processed message+request combinations for deduplication
-	const processedHashes = new Set<string>();
-
-	// Collect all valid data entries with session info first
-	const allEntries: Array<{
-		data: UsageData;
-		sessionKey: string;
-		sessionId: string;
-		projectPath: string;
-		cost: number;
-		timestamp: string;
-		model: string | undefined;
-	}> = [];
-
-	for (const { file, baseDir } of sortedFilesWithBase) {
+	// Transform entries to include session information
+	const allEntries = entries.map((entry) => {
+		const baseDir = fileToBaseMap.get(entry.file) ?? '';
 		// Extract session info from file path using its specific base directory
-		const relativePath = path.relative(baseDir, file);
+		const relativePath = path.relative(baseDir, entry.file);
 		const parts = relativePath.split(path.sep);
 
 		// Session ID is the directory name containing the JSONL file
@@ -1022,52 +903,18 @@ export async function loadSessionData(
 		// Project path is everything before the session ID
 		const joinedPath = parts.slice(0, -2).join(path.sep);
 		const projectPath = joinedPath.length > 0 ? joinedPath : 'Unknown Project';
+		const sessionKey = `${projectPath}/${sessionId}`;
 
-		const content = await readFile(file, 'utf-8');
-		const lines = content
-			.trim()
-			.split('\n')
-			.filter(line => line.length > 0);
-
-		for (const line of lines) {
-			try {
-				const parsed = JSON.parse(line) as unknown;
-				const result = usageDataSchema.safeParse(parsed);
-				if (!result.success) {
-					continue;
-				}
-				const data = result.data;
-
-				// Check for duplicate message + request ID combination
-				const uniqueHash = createUniqueHash(data);
-				if (isDuplicateEntry(uniqueHash, processedHashes)) {
-				// Skip duplicate message
-					continue;
-				}
-
-				// Mark this combination as processed
-				markAsProcessed(uniqueHash, processedHashes);
-
-				const sessionKey = `${projectPath}/${sessionId}`;
-				const cost = fetcher != null
-					? await calculateCostForEntry(data, mode, fetcher)
-					: data.costUSD ?? 0;
-
-				allEntries.push({
-					data,
-					sessionKey,
-					sessionId,
-					projectPath,
-					cost,
-					timestamp: data.timestamp,
-					model: data.message.model,
-				});
-			}
-			catch {
-				// Skip invalid JSON lines
-			}
-		}
-	}
+		return {
+			data: entry.data,
+			sessionKey,
+			sessionId,
+			projectPath,
+			cost: entry.cost,
+			timestamp: entry.data.timestamp,
+			model: entry.model,
+		};
+	});
 
 	// Group by session using Object.groupBy
 	const groupedBySessions = groupBy(
@@ -1344,99 +1191,35 @@ export async function loadBucketUsageData(
 export async function loadSessionBlockData(
 	options?: LoadOptions,
 ): Promise<SessionBlock[]> {
-	// Get all Claude paths or use the specific one from options
-	const claudePaths = toArray(options?.claudePath ?? getClaudePaths());
+	// Import the common loader
+	const { loadCommonUsageData } = await import('./_common-loader.ts');
 
-	// Collect files from all paths
-	const allFiles: string[] = [];
-	for (const claudePath of claudePaths) {
-		const claudeDir = path.join(claudePath, CLAUDE_PROJECTS_DIR_NAME);
-		const files = await glob([USAGE_DATA_GLOB_PATTERN], {
-			cwd: claudeDir,
-			absolute: true,
-		});
-		allFiles.push(...files);
-	}
+	// Use the common loader to get processed entries
+	const { entries } = await loadCommonUsageData(options);
 
-	if (allFiles.length === 0) {
+	if (entries.length === 0) {
 		return [];
 	}
 
-	// Filter by project if specified
-	const blocksFilteredFiles = filterByProject(
-		allFiles,
-		filePath => extractProjectFromPath(filePath),
-		options?.project,
-	);
+	// Transform entries to LoadedUsageEntry format for session blocks
+	const allEntries: LoadedUsageEntry[] = entries.map((entry) => {
+		// Get Claude Code usage limit expiration date
+		const usageLimitResetTime = getUsageLimitResetTime(entry.data);
 
-	// Sort files by timestamp to ensure chronological processing
-	const sortedFiles = await sortFilesByTimestamp(blocksFilteredFiles);
-
-	// Fetch pricing data for cost calculation only when needed
-	const mode = options?.mode ?? 'auto';
-
-	// Use PricingFetcher with using statement for automatic cleanup
-	using fetcher = mode === 'display' ? null : new PricingFetcher(options?.offline);
-
-	// Track processed message+request combinations for deduplication
-	const processedHashes = new Set<string>();
-
-	// Collect all valid data entries first
-	const allEntries: LoadedUsageEntry[] = [];
-
-	for (const file of sortedFiles) {
-		const content = await readFile(file, 'utf-8');
-		const lines = content
-			.trim()
-			.split('\n')
-			.filter(line => line.length > 0);
-
-		for (const line of lines) {
-			try {
-				const parsed = JSON.parse(line) as unknown;
-				const result = usageDataSchema.safeParse(parsed);
-				if (!result.success) {
-					continue;
-				}
-				const data = result.data;
-
-				// Check for duplicate message + request ID combination
-				const uniqueHash = createUniqueHash(data);
-				if (isDuplicateEntry(uniqueHash, processedHashes)) {
-				// Skip duplicate message
-					continue;
-				}
-
-				// Mark this combination as processed
-				markAsProcessed(uniqueHash, processedHashes);
-
-				const cost = fetcher != null
-					? await calculateCostForEntry(data, mode, fetcher)
-					: data.costUSD ?? 0;
-
-				// Get Claude Code usage limit expiration date
-				const usageLimitResetTime = getUsageLimitResetTime(data);
-
-				allEntries.push({
-					timestamp: new Date(data.timestamp),
-					usage: {
-						inputTokens: data.message.usage.input_tokens,
-						outputTokens: data.message.usage.output_tokens,
-						cacheCreationInputTokens: data.message.usage.cache_creation_input_tokens ?? 0,
-						cacheReadInputTokens: data.message.usage.cache_read_input_tokens ?? 0,
-					},
-					costUSD: cost,
-					model: data.message.model ?? 'unknown',
-					version: data.version,
-					usageLimitResetTime: usageLimitResetTime ?? undefined,
-				});
-			}
-			catch (error) {
-				// Skip invalid JSON lines but log for debugging purposes
-				logger.debug(`Skipping invalid JSON line in 5-hour blocks: ${error instanceof Error ? error.message : String(error)}`);
-			}
-		}
-	}
+		return {
+			timestamp: new Date(entry.data.timestamp),
+			usage: {
+				inputTokens: entry.data.message.usage.input_tokens,
+				outputTokens: entry.data.message.usage.output_tokens,
+				cacheCreationInputTokens: entry.data.message.usage.cache_creation_input_tokens ?? 0,
+				cacheReadInputTokens: entry.data.message.usage.cache_read_input_tokens ?? 0,
+			},
+			costUSD: entry.cost,
+			model: entry.data.message.model ?? 'unknown',
+			version: entry.data.version,
+			usageLimitResetTime: usageLimitResetTime ?? undefined,
+		};
+	});
 
 	// Identify session blocks
 	const blocks = identifySessionBlocks(allEntries, options?.sessionDurationHours);
