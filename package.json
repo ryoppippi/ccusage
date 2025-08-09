@@ -80,6 +80,7 @@
 		"eslint-plugin-format": "^1.0.1",
 		"fast-sort": "^3.4.1",
 		"fs-fixture": "^2.8.1",
+		"get-stdin": "^9.0.0",
 		"gunshi": "^0.26.3",
 		"hono": "^4.8.12",
 		"lint-staged": "^16.1.2",
