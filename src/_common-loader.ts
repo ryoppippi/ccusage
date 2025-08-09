@@ -198,3 +198,280 @@ function markAsProcessed(
 		processedHashes.add(uniqueHash);
 	}
 }
+
+if (import.meta.vitest != null) {
+	describe('globUsageFiles', () => {
+		it('should glob files from multiple paths with base directories', async () => {
+			const { createFixture } = await import('fs-fixture');
+			const { CLAUDE_PROJECTS_DIR_NAME } = await import('./_consts.ts');
+
+			await using fixture1 = await createFixture({
+				[CLAUDE_PROJECTS_DIR_NAME]: {
+					project1: {
+						session1: {
+							'chat.jsonl': '{"timestamp": "2024-01-01T00:00:00Z"}',
+						},
+					},
+				},
+			});
+
+			await using fixture2 = await createFixture({
+				[CLAUDE_PROJECTS_DIR_NAME]: {
+					project2: {
+						session2: {
+							'data.jsonl': '{"timestamp": "2024-01-02T00:00:00Z"}',
+						},
+					},
+				},
+			});
+
+			const result = await globUsageFiles([fixture1.path, fixture2.path]);
+
+			expect(result).toHaveLength(2);
+			expect(result.some(f => f.file.includes('chat.jsonl'))).toBe(true);
+			expect(result.some(f => f.file.includes('data.jsonl'))).toBe(true);
+			expect(result[0]?.baseDir).toContain(CLAUDE_PROJECTS_DIR_NAME);
+			expect(result[1]?.baseDir).toContain(CLAUDE_PROJECTS_DIR_NAME);
+		});
+
+		it('should return empty array when no files found', async () => {
+			const { createFixture } = await import('fs-fixture');
+			const { CLAUDE_PROJECTS_DIR_NAME } = await import('./_consts.ts');
+
+			await using fixture = await createFixture({
+				[CLAUDE_PROJECTS_DIR_NAME]: {
+					// Empty directory
+				},
+			});
+
+			const result = await globUsageFiles([fixture.path]);
+			expect(result).toHaveLength(0);
+		});
+	});
+
+	describe('loadCommonUsageData', () => {
+		it('should load and parse JSONL files correctly', async () => {
+			const { createFixture } = await import('fs-fixture');
+			const { CLAUDE_PROJECTS_DIR_NAME } = await import('./_consts.ts');
+			const { createISOTimestamp, createMessageId, createRequestId } = await import('./_types.ts');
+
+			const mockData: UsageData[] = [
+				{
+					timestamp: createISOTimestamp('2024-01-01T00:00:00Z'),
+					message: {
+						id: createMessageId('msg-1'),
+						usage: {
+							input_tokens: 100,
+							output_tokens: 50,
+						},
+					},
+					requestId: createRequestId('req-1'),
+					costUSD: 0.01,
+				},
+				{
+					timestamp: createISOTimestamp('2024-01-01T01:00:00Z'),
+					message: {
+						id: createMessageId('msg-2'),
+						usage: {
+							input_tokens: 200,
+							output_tokens: 100,
+						},
+					},
+					requestId: createRequestId('req-2'),
+					costUSD: 0.02,
+				},
+			];
+
+			await using fixture = await createFixture({
+				[CLAUDE_PROJECTS_DIR_NAME]: {
+					project1: {
+						session1: {
+							'chat.jsonl': mockData.map(d => JSON.stringify(d)).join('\n'),
+						},
+					},
+				},
+			});
+
+			const result = await loadCommonUsageData({
+				claudePath: fixture.path,
+				mode: 'display', // Use display mode to avoid fetching pricing
+			});
+
+			expect(result.entries).toHaveLength(2);
+			expect(result.entries[0]?.cost).toBe(0.01);
+			expect(result.entries[1]?.cost).toBe(0.02);
+			expect(result.entries[0]?.data.message.usage.input_tokens).toBe(100);
+			expect(result.entries[1]?.data.message.usage.input_tokens).toBe(200);
+		});
+
+		it('should handle deduplication correctly', async () => {
+			const { createFixture } = await import('fs-fixture');
+			const { CLAUDE_PROJECTS_DIR_NAME } = await import('./_consts.ts');
+			const { createISOTimestamp, createMessageId, createRequestId } = await import('./_types.ts');
+
+			const duplicateData: UsageData[] = [
+				{
+					timestamp: createISOTimestamp('2024-01-01T00:00:00Z'),
+					message: {
+						id: createMessageId('msg-1'),
+						usage: {
+							input_tokens: 100,
+							output_tokens: 50,
+						},
+					},
+					requestId: createRequestId('req-1'),
+					costUSD: 0.01,
+				},
+				// Duplicate with same message ID and request ID
+				{
+					timestamp: createISOTimestamp('2024-01-01T01:00:00Z'),
+					message: {
+						id: createMessageId('msg-1'),
+						usage: {
+							input_tokens: 200,
+							output_tokens: 100,
+						},
+					},
+					requestId: createRequestId('req-1'),
+					costUSD: 0.02,
+				},
+				// Different message ID, should not be deduplicated
+				{
+					timestamp: createISOTimestamp('2024-01-01T02:00:00Z'),
+					message: {
+						id: createMessageId('msg-2'),
+						usage: {
+							input_tokens: 300,
+							output_tokens: 150,
+						},
+					},
+					requestId: createRequestId('req-2'),
+					costUSD: 0.03,
+				},
+			];
+
+			await using fixture = await createFixture({
+				[CLAUDE_PROJECTS_DIR_NAME]: {
+					project1: {
+						session1: {
+							'chat.jsonl': duplicateData.map(d => JSON.stringify(d)).join('\n'),
+						},
+					},
+				},
+			});
+
+			const result = await loadCommonUsageData({
+				claudePath: fixture.path,
+				mode: 'display',
+			});
+
+			// Should have 2 entries after deduplication (first and third)
+			expect(result.entries).toHaveLength(2);
+			expect(result.entries[0]?.data.message.usage.input_tokens).toBe(100);
+			expect(result.entries[1]?.data.message.usage.input_tokens).toBe(300);
+		});
+
+		it('should filter by project when specified', async () => {
+			const { createFixture } = await import('fs-fixture');
+			const { CLAUDE_PROJECTS_DIR_NAME } = await import('./_consts.ts');
+			const { createISOTimestamp, createMessageId, createRequestId } = await import('./_types.ts');
+
+			const project1Data: UsageData = {
+				timestamp: createISOTimestamp('2024-01-01T00:00:00Z'),
+				message: {
+					id: createMessageId('msg-1'),
+					usage: {
+						input_tokens: 100,
+						output_tokens: 50,
+					},
+				},
+				requestId: createRequestId('req-1'),
+				costUSD: 0.01,
+			};
+
+			const project2Data: UsageData = {
+				timestamp: createISOTimestamp('2024-01-01T01:00:00Z'),
+				message: {
+					id: createMessageId('msg-2'),
+					usage: {
+						input_tokens: 200,
+						output_tokens: 100,
+					},
+				},
+				requestId: createRequestId('req-2'),
+				costUSD: 0.02,
+			};
+
+			await using fixture = await createFixture({
+				[CLAUDE_PROJECTS_DIR_NAME]: {
+					project1: {
+						session1: {
+							'chat.jsonl': JSON.stringify(project1Data),
+						},
+					},
+					project2: {
+						session2: {
+							'chat.jsonl': JSON.stringify(project2Data),
+						},
+					},
+				},
+			});
+
+			const result = await loadCommonUsageData({
+				claudePath: fixture.path,
+				project: 'project1',
+				mode: 'display',
+			});
+
+			expect(result.entries).toHaveLength(1);
+			expect(result.entries[0]?.data.message.usage.input_tokens).toBe(100);
+			expect(result.filesWithBase).toHaveLength(1);
+			expect(result.filesWithBase[0]?.file).toContain('project1');
+		});
+
+		it('should handle invalid JSON lines gracefully', async () => {
+			const { createFixture } = await import('fs-fixture');
+			const { CLAUDE_PROJECTS_DIR_NAME } = await import('./_consts.ts');
+			const { createISOTimestamp, createMessageId, createRequestId } = await import('./_types.ts');
+
+			const validData: UsageData = {
+				timestamp: createISOTimestamp('2024-01-01T00:00:00Z'),
+				message: {
+					id: createMessageId('msg-1'),
+					usage: {
+						input_tokens: 100,
+						output_tokens: 50,
+					},
+				},
+				requestId: createRequestId('req-1'),
+				costUSD: 0.01,
+			};
+
+			const mixedContent = [
+				'invalid json',
+				JSON.stringify(validData),
+				'{ broken json',
+				'', // Empty line
+			].join('\n');
+
+			await using fixture = await createFixture({
+				[CLAUDE_PROJECTS_DIR_NAME]: {
+					project1: {
+						session1: {
+							'chat.jsonl': mixedContent,
+						},
+					},
+				},
+			});
+
+			const result = await loadCommonUsageData({
+				claudePath: fixture.path,
+				mode: 'display',
+			});
+
+			// Should only have 1 valid entry
+			expect(result.entries).toHaveLength(1);
+			expect(result.entries[0]?.data.message.usage.input_tokens).toBe(100);
+		});
+	});
+}
