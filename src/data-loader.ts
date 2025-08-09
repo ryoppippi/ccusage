@@ -1415,11 +1415,9 @@ export async function loadSessionBlockData(
 }
 
 if (import.meta.vitest != null) {
-	// Dynamic imports will be loaded within individual test suites to avoid top-level await
-
 	describe('formatDate', () => {
 		it('formats UTC timestamp to local date', () => {
-			// Test with UTC timestamps - results depend on local timezone
+		// Test with UTC timestamps - results depend on local timezone
 			expect(formatDate('2024-01-01T00:00:00Z')).toBe('2024-01-01');
 			expect(formatDate('2024-12-31T23:59:59Z')).toBe('2024-12-31');
 		});
@@ -1479,32 +1477,20 @@ if (import.meta.vitest != null) {
 
 	describe('formatDateCompact', () => {
 		it('formats UTC timestamp to local date with line break', () => {
-			expect(formatDateCompact('2024-01-01T00:00:00Z', undefined, 'en-US')).toBe(
-				'2024\n01-01',
-			);
+			expect(formatDateCompact('2024-01-01T00:00:00Z', undefined, 'en-US')).toBe('2024\n01-01');
 		});
 
 		it('handles various date formats', () => {
-			expect(formatDateCompact('2024-12-31T23:59:59Z', undefined, 'en-US')).toBe(
-				'2024\n12-31',
-			);
+			expect(formatDateCompact('2024-12-31T23:59:59Z', undefined, 'en-US')).toBe('2024\n12-31');
 			expect(formatDateCompact('2024-01-01', undefined, 'en-US')).toBe('2024\n01-01');
-			expect(formatDateCompact('2024-01-01T12:00:00', undefined, 'en-US')).toBe(
-				'2024\n01-01',
-			);
-			expect(formatDateCompact('2024-01-01T12:00:00.000Z', undefined, 'en-US')).toBe(
-				'2024\n01-01',
-			);
+			expect(formatDateCompact('2024-01-01T12:00:00', undefined, 'en-US')).toBe('2024\n01-01');
+			expect(formatDateCompact('2024-01-01T12:00:00.000Z', undefined, 'en-US')).toBe('2024\n01-01');
 		});
 
 		it('pads single digit months and days', () => {
 			// Use UTC noon to avoid timezone issues
-			expect(formatDateCompact('2024-01-05T12:00:00Z', undefined, 'en-US')).toBe(
-				'2024\n01-05',
-			);
-			expect(formatDateCompact('2024-10-01T12:00:00Z', undefined, 'en-US')).toBe(
-				'2024\n10-01',
-			);
+			expect(formatDateCompact('2024-01-05T12:00:00Z', undefined, 'en-US')).toBe('2024\n01-05');
+			expect(formatDateCompact('2024-10-01T12:00:00Z', undefined, 'en-US')).toBe('2024\n10-01');
 		});
 
 		it('respects locale parameter', () => {
@@ -1718,6 +1704,9 @@ if (import.meta.vitest != null) {
 		});
 
 		it('handles invalid JSON lines gracefully', async () => {
+			// <!--//TODO PURPOSELY BROKEN DON'T MERGE FIXME
+			// Need to get rid of this dynamic import, why do we even need
+			// the import?
 			const { createRawJSONLFixture } = await import('./_fixtures.ts');
 			const mockData = `
 {"timestamp":"2024-01-01T12:00:00Z","message":{"usage":{"input_tokens":100,"output_tokens":50}},"costUSD":0.01}
@@ -1803,16 +1792,14 @@ invalid json line
 				cacheReadTokens: 0,
 				totalCost: 0.015,
 				modelsUsed: [],
-				modelBreakdowns: [
-					{
-						modelName: 'unknown',
-						inputTokens: 150,
-						outputTokens: 75,
-						cacheCreationTokens: 0,
-						cacheReadTokens: 0,
-						cost: 0.015,
-					},
-				],
+				modelBreakdowns: [{
+					modelName: 'unknown',
+					inputTokens: 150,
+					outputTokens: 75,
+					cacheCreationTokens: 0,
+					cacheReadTokens: 0,
+					cost: 0.015,
+				}],
 			});
 			expect(result[1]).toEqual({
 				month: '2024-01',
@@ -1822,16 +1809,14 @@ invalid json line
 				cacheReadTokens: 0,
 				totalCost: 0.03,
 				modelsUsed: [],
-				modelBreakdowns: [
-					{
-						modelName: 'unknown',
-						inputTokens: 300,
-						outputTokens: 150,
-						cacheCreationTokens: 0,
-						cacheReadTokens: 0,
-						cost: 0.03,
-					},
-				],
+				modelBreakdowns: [{
+					modelName: 'unknown',
+					inputTokens: 300,
+					outputTokens: 150,
+					cacheCreationTokens: 0,
+					cacheReadTokens: 0,
+					cost: 0.03,
+				}],
 			});
 		});
 
@@ -1871,16 +1856,14 @@ invalid json line
 				cacheReadTokens: 0,
 				totalCost: 0.03,
 				modelsUsed: [],
-				modelBreakdowns: [
-					{
-						modelName: 'unknown',
-						inputTokens: 300,
-						outputTokens: 150,
-						cacheCreationTokens: 0,
-						cacheReadTokens: 0,
-						cost: 0.03,
-					},
-				],
+				modelBreakdowns: [{
+					modelName: 'unknown',
+					inputTokens: 300,
+					outputTokens: 150,
+					cacheCreationTokens: 0,
+					cacheReadTokens: 0,
+					cost: 0.03,
+				}],
 			});
 		});
 
@@ -2118,16 +2101,14 @@ invalid json line
 				cacheReadTokens: 0,
 				totalCost: 0.015,
 				modelsUsed: [],
-				modelBreakdowns: [
-					{
-						modelName: 'unknown',
-						inputTokens: 150,
-						outputTokens: 75,
-						cacheCreationTokens: 0,
-						cacheReadTokens: 0,
-						cost: 0.015,
-					},
-				],
+				modelBreakdowns: [{
+					modelName: 'unknown',
+					inputTokens: 150,
+					outputTokens: 75,
+					cacheCreationTokens: 0,
+					cacheReadTokens: 0,
+					cost: 0.015,
+				}],
 			});
 			expect(result[1]).toEqual({
 				week: '2023-12-31',
@@ -2137,16 +2118,14 @@ invalid json line
 				cacheReadTokens: 0,
 				totalCost: 0.03,
 				modelsUsed: [],
-				modelBreakdowns: [
-					{
-						modelName: 'unknown',
-						inputTokens: 300,
-						outputTokens: 150,
-						cacheCreationTokens: 0,
-						cacheReadTokens: 0,
-						cost: 0.03,
-					},
-				],
+				modelBreakdowns: [{
+					modelName: 'unknown',
+					inputTokens: 300,
+					outputTokens: 150,
+					cacheCreationTokens: 0,
+					cacheReadTokens: 0,
+					cost: 0.03,
+				}],
 			});
 		});
 
@@ -2194,16 +2173,14 @@ invalid json line
 				cacheReadTokens: 0,
 				totalCost: 0.03,
 				modelsUsed: [],
-				modelBreakdowns: [
-					{
-						modelName: 'unknown',
-						inputTokens: 300,
-						outputTokens: 150,
-						cacheCreationTokens: 0,
-						cacheReadTokens: 0,
-						cost: 0.03,
-					},
-				],
+				modelBreakdowns: [{
+					modelName: 'unknown',
+					inputTokens: 300,
+					outputTokens: 150,
+					cacheCreationTokens: 0,
+					cacheReadTokens: 0,
+					cost: 0.03,
+				}],
 			});
 		});
 
@@ -2448,7 +2425,9 @@ invalid json line
 
 			expect(result).toHaveLength(2);
 			expect(result.find(s => s.sessionId === 'session123')).toBeTruthy();
-			expect(result.find(s => s.projectPath === 'project1/subfolder')).toBeTruthy();
+			expect(
+				result.find(s => s.projectPath === 'project1/subfolder'),
+			).toBeTruthy();
 			expect(result.find(s => s.sessionId === 'session456')).toBeTruthy();
 			expect(result.find(s => s.projectPath === 'project2')).toBeTruthy();
 		});
