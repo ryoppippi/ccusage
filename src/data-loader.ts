@@ -86,10 +86,7 @@ export function getClaudePaths(): string[] {
 	// Check environment variable first (supports comma-separated paths)
 	const envPaths = (process.env[CLAUDE_CONFIG_DIR_ENV] ?? '').trim();
 	if (envPaths !== '') {
-		const envPathList = envPaths
-			.split(',')
-			.map(p => p.trim())
-			.filter(p => p !== '');
+		const envPathList = envPaths.split(',').map(p => p.trim()).filter(p => p !== '');
 		for (const envPath of envPathList) {
 			const normalizedPath = path.resolve(envPath);
 			if (isDirectorySync(normalizedPath)) {
@@ -180,13 +177,9 @@ export const usageDataSchema = z.object({
 		}),
 		model: modelNameSchema.optional(), // Model is inside message object
 		id: messageIdSchema.optional(), // Message ID for deduplication
-		content: z
-			.array(
-				z.object({
-					text: z.string().optional(),
-				}),
-			)
-			.optional(),
+		content: z.array(z.object({
+			text: z.string().optional(),
+		})).optional(),
 	}),
 	costUSD: z.number().optional(), // Made optional for new schema
 	requestId: requestIdSchema.optional(), // Request ID for deduplication
@@ -361,8 +354,7 @@ function aggregateByModel<T>(
 		modelAggregates.set(modelName, {
 			inputTokens: existing.inputTokens + (usage.input_tokens ?? 0),
 			outputTokens: existing.outputTokens + (usage.output_tokens ?? 0),
-			cacheCreationTokens:
-				existing.cacheCreationTokens + (usage.cache_creation_input_tokens ?? 0),
+			cacheCreationTokens: existing.cacheCreationTokens + (usage.cache_creation_input_tokens ?? 0),
 			cacheReadTokens: existing.cacheReadTokens + (usage.cache_read_input_tokens ?? 0),
 			cost: existing.cost + cost,
 		});
@@ -374,7 +366,9 @@ function aggregateByModel<T>(
 /**
  * Aggregates model breakdowns from multiple sources
  */
-function aggregateModelBreakdowns(breakdowns: ModelBreakdown[]): Map<string, TokenStats> {
+function aggregateModelBreakdowns(
+	breakdowns: ModelBreakdown[],
+): Map<string, TokenStats> {
 	const modelAggregates = new Map<string, TokenStats>();
 	const defaultStats: TokenStats = {
 		inputTokens: 0,
@@ -407,7 +401,9 @@ function aggregateModelBreakdowns(breakdowns: ModelBreakdown[]): Map<string, Tok
 /**
  * Converts model aggregates to sorted model breakdowns
  */
-function createModelBreakdowns(modelAggregates: Map<string, TokenStats>): ModelBreakdown[] {
+function createModelBreakdowns(
+	modelAggregates: Map<string, TokenStats>,
+): ModelBreakdown[] {
 	return Array.from(modelAggregates.entries())
 		.map(([modelName, stats]) => ({
 			modelName: modelName as ModelName,
@@ -432,8 +428,7 @@ function calculateTotals<T>(
 			return {
 				inputTokens: acc.inputTokens + (usage.input_tokens ?? 0),
 				outputTokens: acc.outputTokens + (usage.output_tokens ?? 0),
-				cacheCreationTokens:
-					acc.cacheCreationTokens + (usage.cache_creation_input_tokens ?? 0),
+				cacheCreationTokens: acc.cacheCreationTokens + (usage.cache_creation_input_tokens ?? 0),
 				cacheReadTokens: acc.cacheReadTokens + (usage.cache_read_input_tokens ?? 0),
 				cost: acc.cost + cost,
 				totalCost: acc.totalCost + cost,
@@ -496,7 +491,10 @@ function filterByProject<T>(
 /**
  * Checks if an entry is a duplicate based on hash
  */
-function isDuplicateEntry(uniqueHash: string | null, processedHashes: Set<string>): boolean {
+function isDuplicateEntry(
+	uniqueHash: string | null,
+	processedHashes: Set<string>,
+): boolean {
 	if (uniqueHash == null) {
 		return false;
 	}
@@ -506,7 +504,10 @@ function isDuplicateEntry(uniqueHash: string | null, processedHashes: Set<string
 /**
  * Marks an entry as processed
  */
-function markAsProcessed(uniqueHash: string | null, processedHashes: Set<string>): void {
+function markAsProcessed(
+	uniqueHash: string | null,
+	processedHashes: Set<string>,
+): void {
 	if (uniqueHash != null) {
 		processedHashes.add(uniqueHash);
 	}
@@ -543,10 +544,7 @@ function createDateFormatter(timezone: string | undefined, locale: string): Intl
  * @param locale - Locale to use for formatting
  * @returns Intl.DateTimeFormat instance
  */
-function createDatePartsFormatter(
-	timezone: string | undefined,
-	locale: string,
-): Intl.DateTimeFormat {
+function createDatePartsFormatter(timezone: string | undefined, locale: string): Intl.DateTimeFormat {
 	return new Intl.DateTimeFormat(locale, {
 		year: 'numeric',
 		month: '2-digit',
@@ -576,11 +574,7 @@ export function formatDate(dateStr: string, timezone?: string, locale?: string):
  * @param locale - Locale to use for formatting
  * @returns Formatted date string with newline separator (YYYY\nMM-DD)
  */
-export function formatDateCompact(
-	dateStr: string,
-	timezone: string | undefined,
-	locale: string,
-): string {
+export function formatDateCompact(dateStr: string, timezone: string | undefined, locale: string): string {
 	const date = new Date(dateStr);
 	const formatter = createDatePartsFormatter(timezone, locale);
 	const parts = formatter.formatToParts(date);
@@ -721,10 +715,7 @@ export async function calculateCostForEntry(
 	if (mode === 'calculate') {
 		// Always calculate from tokens
 		if (data.message.model != null) {
-			return Result.unwrap(
-				fetcher.calculateCostFromTokens(data.message.usage, data.message.model),
-				0,
-			);
+			return Result.unwrap(fetcher.calculateCostFromTokens(data.message.usage, data.message.model), 0);
 		}
 		return 0;
 	}
@@ -736,10 +727,7 @@ export async function calculateCostForEntry(
 		}
 
 		if (data.message.model != null) {
-			return Result.unwrap(
-				fetcher.calculateCostFromTokens(data.message.usage, data.message.model),
-				0,
-			);
+			return Result.unwrap(fetcher.calculateCostFromTokens(data.message.usage, data.message.model), 0);
 		}
 
 		return 0;
@@ -757,11 +745,9 @@ export function getUsageLimitResetTime(data: UsageData): Date | null {
 	let resetTime: Date | null = null;
 
 	if (data.isApiErrorMessage === true) {
-		const timestampMatch
-			= data.message?.content
-				?.find(c => c.text != null && c.text.includes('Claude AI usage limit reached'))
-				?.text
-				?.match(/\|(\d+)/) ?? null;
+		const timestampMatch = data.message?.content?.find(
+			c => c.text != null && c.text.includes('Claude AI usage limit reached'),
+		)?.text?.match(/\|(\d+)/) ?? null;
 
 		if (timestampMatch?.[1] != null) {
 			const resetTimestamp = Number.parseInt(timestampMatch[1]);
@@ -808,7 +794,7 @@ export type DateFilter = {
 };
 
 type WeekDay = TupleToUnion<typeof WEEK_DAYS>;
-type DayOfWeek = IntRange<0, (typeof WEEK_DAYS)['length']>; // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+type DayOfWeek = IntRange<0, typeof WEEK_DAYS['length']>; // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
 
 /**
  * Configuration options for loading usage data
@@ -832,7 +818,9 @@ export type LoadOptions = {
  * @param options - Optional configuration for loading and filtering data
  * @returns Array of daily usage summaries sorted by date
  */
-export async function loadDailyUsageData(options?: LoadOptions): Promise<DailyUsage[]> {
+export async function loadDailyUsageData(
+	options?: LoadOptions,
+): Promise<DailyUsage[]> {
 	// Get all Claude paths or use the specific one from options
 	const claudePaths = toArray(options?.claudePath ?? getClaudePaths());
 
@@ -864,13 +852,7 @@ export async function loadDailyUsageData(options?: LoadOptions): Promise<DailyUs
 	const processedHashes = new Set<string>();
 
 	// Collect all valid data entries first
-	const allEntries: {
-		data: UsageData;
-		date: string;
-		cost: number;
-		model: string | undefined;
-		project: string;
-	}[] = [];
+	const allEntries: { data: UsageData; date: string; cost: number; model: string | undefined; project: string }[] = [];
 
 	for (const file of sortedFiles) {
 		const content = await readFile(file, 'utf-8');
@@ -902,21 +884,14 @@ export async function loadDailyUsageData(options?: LoadOptions): Promise<DailyUs
 				const date = formatDate(data.timestamp, options?.timezone, 'en-CA');
 				// If fetcher is available, calculate cost based on mode and tokens
 				// If fetcher is null, use pre-calculated costUSD or default to 0
-				const cost
-					= fetcher != null
-						? await calculateCostForEntry(data, mode, fetcher)
-						: (data.costUSD ?? 0);
+				const cost = fetcher != null
+					? await calculateCostForEntry(data, mode, fetcher)
+					: data.costUSD ?? 0;
 
 				// Extract project name from file path
 				const project = extractProjectFromPath(file);
 
-				allEntries.push({
-					data,
-					date,
-					cost,
-					model: data.message.model,
-					project,
-				});
+				allEntries.push({ data, date, cost, model: data.message.model, project });
 			}
 			catch {
 				// Skip invalid JSON lines
@@ -928,8 +903,8 @@ export async function loadDailyUsageData(options?: LoadOptions): Promise<DailyUs
 	// Automatically enable project grouping when project filter is specified
 	const needsProjectGrouping = options?.groupByProject === true || options?.project != null;
 	const groupingKey = needsProjectGrouping
-		? (entry: (typeof allEntries)[0]) => `${entry.date}\x00${entry.project}`
-		: (entry: (typeof allEntries)[0]) => entry.date;
+		? (entry: typeof allEntries[0]) => `${entry.date}\x00${entry.project}`
+		: (entry: typeof allEntries[0]) => entry.date;
 
 	const groupedData = groupBy(allEntries, groupingKey);
 
@@ -976,12 +951,7 @@ export async function loadDailyUsageData(options?: LoadOptions): Promise<DailyUs
 		.filter(item => item != null);
 
 	// Filter by date range if specified
-	const dateFiltered = filterByDateRange(
-		results,
-		item => item.date,
-		options?.since,
-		options?.until,
-	);
+	const dateFiltered = filterByDateRange(results, item => item.date, options?.since, options?.until);
 
 	// Filter by project if specified
 	const finalFiltered = filterByProject(dateFiltered, item => item.project, options?.project);
@@ -996,7 +966,9 @@ export async function loadDailyUsageData(options?: LoadOptions): Promise<DailyUs
  * @param options - Optional configuration for loading and filtering data
  * @returns Array of session usage summaries sorted by last activity
  */
-export async function loadSessionData(options?: LoadOptions): Promise<SessionUsage[]> {
+export async function loadSessionData(
+	options?: LoadOptions,
+): Promise<SessionUsage[]> {
 	// Get all Claude paths or use the specific one from options
 	const claudePaths = toArray(options?.claudePath ?? getClaudePaths());
 
@@ -1083,7 +1055,7 @@ export async function loadSessionData(options?: LoadOptions): Promise<SessionUsa
 				// Check for duplicate message + request ID combination
 				const uniqueHash = createUniqueHash(data);
 				if (isDuplicateEntry(uniqueHash, processedHashes)) {
-					// Skip duplicate message
+				// Skip duplicate message
 					continue;
 				}
 
@@ -1091,10 +1063,9 @@ export async function loadSessionData(options?: LoadOptions): Promise<SessionUsa
 				markAsProcessed(uniqueHash, processedHashes);
 
 				const sessionKey = `${projectPath}/${sessionId}`;
-				const cost
-					= fetcher != null
-						? await calculateCostForEntry(data, mode, fetcher)
-						: (data.costUSD ?? 0);
+				const cost = fetcher != null
+					? await calculateCostForEntry(data, mode, fetcher)
+					: data.costUSD ?? 0;
 
 				allEntries.push({
 					data,
@@ -1113,7 +1084,10 @@ export async function loadSessionData(options?: LoadOptions): Promise<SessionUsa
 	}
 
 	// Group by session using Object.groupBy
-	const groupedBySessions = groupBy(allEntries, entry => entry.sessionKey);
+	const groupedBySessions = groupBy(
+		allEntries,
+		entry => entry.sessionKey,
+	);
 
 	// Aggregate each session group
 	const results = Object.entries(groupedBySessions)
@@ -1160,11 +1134,7 @@ export async function loadSessionData(options?: LoadOptions): Promise<SessionUsa
 				projectPath: createProjectPath(latestEntry.projectPath),
 				...totals,
 				// Always use en-CA for date storage to ensure YYYY-MM-DD format
-				lastActivity: formatDate(
-					latestEntry.timestamp,
-					options?.timezone,
-					'en-CA',
-				) as ActivityDate,
+				lastActivity: formatDate(latestEntry.timestamp, options?.timezone, 'en-CA') as ActivityDate,
 				versions: uniq(versions).sort() as Version[],
 				modelsUsed: modelsUsed as ModelName[],
 				modelBreakdowns,
@@ -1173,19 +1143,10 @@ export async function loadSessionData(options?: LoadOptions): Promise<SessionUsa
 		.filter(item => item != null);
 
 	// Filter by date range if specified
-	const dateFiltered = filterByDateRange(
-		results,
-		item => item.lastActivity,
-		options?.since,
-		options?.until,
-	);
+	const dateFiltered = filterByDateRange(results, item => item.lastActivity, options?.since, options?.until);
 
 	// Filter by project if specified
-	const sessionFiltered = filterByProject(
-		dateFiltered,
-		item => item.projectPath,
-		options?.project,
-	);
+	const sessionFiltered = filterByProject(dateFiltered, item => item.projectPath, options?.project);
 
 	return sortByDate(sessionFiltered, item => item.lastActivity, options?.order);
 }
@@ -1196,16 +1157,14 @@ export async function loadSessionData(options?: LoadOptions): Promise<SessionUsa
  * @param options - Optional configuration for loading and filtering data
  * @returns Array of monthly usage summaries sorted by month
  */
-export async function loadMonthlyUsageData(options?: LoadOptions): Promise<MonthlyUsage[]> {
-	return loadBucketUsageData(
-		(data: DailyUsage) => createMonthlyDate(data.date.substring(0, 7)),
-		options,
-	).then(usages =>
-		usages.map<MonthlyUsage>(({ bucket, ...rest }) => ({
+export async function loadMonthlyUsageData(
+	options?: LoadOptions,
+): Promise<MonthlyUsage[]> {
+	return loadBucketUsageData((data: DailyUsage) => createMonthlyDate(data.date.substring(0, 7)), options)
+		.then(usages => usages.map<MonthlyUsage>(({ bucket, ...rest }) => ({
 			month: createMonthlyDate(bucket.toString()),
 			...rest,
-		})),
-	);
+		})));
 }
 
 /**
@@ -1238,19 +1197,16 @@ function getDayNumber(day: WeekDay): DayOfWeek {
 	return dayMap[day];
 }
 
-export async function loadWeeklyUsageData(options?: LoadOptions): Promise<WeeklyUsage[]> {
-	const startDay
-		= options?.startOfWeek != null ? getDayNumber(options.startOfWeek) : getDayNumber('sunday');
+export async function loadWeeklyUsageData(
+	options?: LoadOptions,
+): Promise<WeeklyUsage[]> {
+	const startDay = options?.startOfWeek != null ? getDayNumber(options.startOfWeek) : getDayNumber('sunday');
 
-	return loadBucketUsageData(
-		(data: DailyUsage) => getDateWeek(new Date(data.date), startDay),
-		options,
-	).then(usages =>
-		usages.map<WeeklyUsage>(({ bucket, ...rest }) => ({
+	return loadBucketUsageData((data: DailyUsage) => getDateWeek(new Date(data.date), startDay), options)
+		.then(usages => usages.map<WeeklyUsage>(({ bucket, ...rest }) => ({
 			week: createWeeklyDate(bucket.toString()),
 			...rest,
-		})),
-	);
+		})));
 }
 
 export async function loadBucketUsageData(
@@ -1261,10 +1217,12 @@ export async function loadBucketUsageData(
 
 	// Group daily data by week, optionally including project
 	// Automatically enable project grouping when project filter is specified
-	const needsProjectGrouping = options?.groupByProject === true || options?.project != null;
+	const needsProjectGrouping
+    = options?.groupByProject === true || options?.project != null;
 
 	const groupingKey = needsProjectGrouping
-		? (data: DailyUsage) => `${groupingFn(data)}\x00${data.project ?? 'unknown'}`
+		? (data: DailyUsage) =>
+				`${groupingFn(data)}\x00${data.project ?? 'unknown'}`
 		: (data: DailyUsage) => `${groupingFn(data)}`;
 
 	const grouped = groupBy(dailyData, groupingKey);
@@ -1280,7 +1238,9 @@ export async function loadBucketUsageData(
 		const project = parts.length > 1 ? parts[1] : undefined;
 
 		// Aggregate model breakdowns across all days
-		const allBreakdowns = dailyEntries.flatMap(daily => daily.modelBreakdowns);
+		const allBreakdowns = dailyEntries.flatMap(
+			daily => daily.modelBreakdowns,
+		);
 		const modelAggregates = aggregateModelBreakdowns(allBreakdowns);
 
 		// Create model breakdowns
@@ -1335,7 +1295,9 @@ export async function loadBucketUsageData(
  * @param options - Optional configuration including session duration and filtering
  * @returns Array of session blocks with usage and cost information
  */
-export async function loadSessionBlockData(options?: LoadOptions): Promise<SessionBlock[]> {
+export async function loadSessionBlockData(
+	options?: LoadOptions,
+): Promise<SessionBlock[]> {
 	// Get all Claude paths or use the specific one from options
 	const claudePaths = toArray(options?.claudePath ?? getClaudePaths());
 
@@ -1395,17 +1357,16 @@ export async function loadSessionBlockData(options?: LoadOptions): Promise<Sessi
 				// Check for duplicate message + request ID combination
 				const uniqueHash = createUniqueHash(data);
 				if (isDuplicateEntry(uniqueHash, processedHashes)) {
-					// Skip duplicate message
+				// Skip duplicate message
 					continue;
 				}
 
 				// Mark this combination as processed
 				markAsProcessed(uniqueHash, processedHashes);
 
-				const cost
-					= fetcher != null
-						? await calculateCostForEntry(data, mode, fetcher)
-						: (data.costUSD ?? 0);
+				const cost = fetcher != null
+					? await calculateCostForEntry(data, mode, fetcher)
+					: data.costUSD ?? 0;
 
 				// Get Claude Code usage limit expiration date
 				const usageLimitResetTime = getUsageLimitResetTime(data);
@@ -1415,8 +1376,7 @@ export async function loadSessionBlockData(options?: LoadOptions): Promise<Sessi
 					usage: {
 						inputTokens: data.message.usage.input_tokens,
 						outputTokens: data.message.usage.output_tokens,
-						cacheCreationInputTokens:
-							data.message.usage.cache_creation_input_tokens ?? 0,
+						cacheCreationInputTokens: data.message.usage.cache_creation_input_tokens ?? 0,
 						cacheReadInputTokens: data.message.usage.cache_read_input_tokens ?? 0,
 					},
 					costUSD: cost,
@@ -1427,9 +1387,7 @@ export async function loadSessionBlockData(options?: LoadOptions): Promise<Sessi
 			}
 			catch (error) {
 				// Skip invalid JSON lines but log for debugging purposes
-				logger.debug(
-					`Skipping invalid JSON line in 5-hour blocks: ${error instanceof Error ? error.message : String(error)}`,
-				);
+				logger.debug(`Skipping invalid JSON line in 5-hour blocks: ${error instanceof Error ? error.message : String(error)}`);
 			}
 		}
 	}
@@ -1438,33 +1396,19 @@ export async function loadSessionBlockData(options?: LoadOptions): Promise<Sessi
 	const blocks = identifySessionBlocks(allEntries, options?.sessionDurationHours);
 
 	// Filter by date range if specified
-	const dateFiltered
-		= (options?.since != null && options.since !== '')
-			|| (options?.until != null && options.until !== '')
-			? blocks.filter((block) => {
-					// Always use en-CA for date comparison to ensure YYYY-MM-DD format
-					const blockDateStr = formatDate(
-						block.startTime.toISOString(),
-						options?.timezone,
-						'en-CA',
-					).replace(/-/g, '');
-					if (
-						options.since != null
-						&& options.since !== ''
-						&& blockDateStr < options.since
-					) {
-						return false;
-					}
-					if (
-						options.until != null
-						&& options.until !== ''
-						&& blockDateStr > options.until
-					) {
-						return false;
-					}
-					return true;
-				})
-			: blocks;
+	const dateFiltered = (options?.since != null && options.since !== '') || (options?.until != null && options.until !== '')
+		? blocks.filter((block) => {
+				// Always use en-CA for date comparison to ensure YYYY-MM-DD format
+				const blockDateStr = formatDate(block.startTime.toISOString(), options?.timezone, 'en-CA').replace(/-/g, '');
+				if (options.since != null && options.since !== '' && blockDateStr < options.since) {
+					return false;
+				}
+				if (options.until != null && options.until !== '' && blockDateStr > options.until) {
+					return false;
+				}
+				return true;
+			})
+		: blocks;
 
 	// Sort by start time based on order option
 	return sortByDate(dateFiltered, block => block.startTime, options?.order);
