@@ -22,6 +22,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `bun run start monthly` - Show monthly usage report
 - `bun run start session` - Show session-based usage report
 - `bun run start blocks` - Show 5-hour billing blocks usage report
+- `bun run start statusline` - Show compact status line (Beta)
 - `bun run start daily --json` - Show daily usage report in JSON format
 - `bun run start monthly --json` - Show monthly usage report in JSON format
 - `bun run start session --json` - Show session usage report in JSON format

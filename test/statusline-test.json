@@ -1,0 +1,14 @@
+{
+	"hook_event_name": "Status",
+	"session_id": "test-session-123",
+	"transcript_path": "/Users/test/.config/claude/projects/test-project/session-123/transcript.json",
+	"cwd": "/Users/test/project",
+	"model": {
+		"id": "claude-opus-4-1",
+		"display_name": "Opus"
+	},
+	"workspace": {
+		"current_dir": "/Users/test/project",
+		"project_dir": "/Users/test/project"
+	}
+}

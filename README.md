@@ -55,6 +55,7 @@ ccusage daily    # Daily token usage and costs
 ccusage monthly  # Monthly aggregated report
 ccusage session  # Usage by conversation session
 ccusage blocks   # 5-hour billing windows
+ccusage statusline  # Compact status line for hooks (Beta)
 
 # Live monitoring
 ccusage blocks --live  # Real-time usage dashboard
@@ -79,6 +80,7 @@ ccusage daily --instances --project myproject --json  # Combined usage
 - 💬 **Session Report**: View usage grouped by conversation sessions
 - ⏰ **5-Hour Blocks Report**: Track usage within Claude's billing windows with active block monitoring
 - 📈 **Live Monitoring**: Real-time dashboard showing active session progress, token burn rate, and cost projections with `blocks --live`
+- 🚀 **Statusline Integration**: Compact usage display for Claude Code status bar hooks (Beta)
 - 🤖 **Model Tracking**: See which Claude models you're using (Opus, Sonnet, etc.)
 - 📊 **Model Breakdown**: View per-model cost breakdown with `--breakdown` flag
 - 📅 **Date Filtering**: Filter reports by date range using `--since` and `--until`
