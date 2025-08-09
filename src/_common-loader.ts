@@ -8,8 +8,10 @@ import type { UsageData } from './data-loader.ts';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { toArray } from '@antfu/utils';
+import { createFixture } from 'fs-fixture';
 import { glob } from 'tinyglobby';
 import { CLAUDE_PROJECTS_DIR_NAME, USAGE_DATA_GLOB_PATTERN } from './_consts.ts';
+import { createISOTimestamp, createMessageId, createRequestId } from './_types.ts';
 import { calculateCostForEntry, createUniqueHash, extractProjectFromPath, getClaudePaths, sortFilesByTimestamp, usageDataSchema } from './data-loader.ts';
 import { logger } from './logger.ts';
 import { PricingFetcher } from './pricing-fetcher.ts';
@@ -202,9 +204,6 @@ function markAsProcessed(
 if (import.meta.vitest != null) {
 	describe('globUsageFiles', () => {
 		it('should glob files from multiple paths with base directories', async () => {
-			const { createFixture } = await import('fs-fixture');
-			const { CLAUDE_PROJECTS_DIR_NAME } = await import('./_consts.ts');
-
 			await using fixture1 = await createFixture({
 				[CLAUDE_PROJECTS_DIR_NAME]: {
 					project1: {
@@ -235,9 +234,6 @@ if (import.meta.vitest != null) {
 		});
 
 		it('should return empty array when no files found', async () => {
-			const { createFixture } = await import('fs-fixture');
-			const { CLAUDE_PROJECTS_DIR_NAME } = await import('./_consts.ts');
-
 			await using fixture = await createFixture({
 				[CLAUDE_PROJECTS_DIR_NAME]: {
 					// Empty directory
@@ -251,10 +247,6 @@ if (import.meta.vitest != null) {
 
 	describe('loadCommonUsageData', () => {
 		it('should load and parse JSONL files correctly', async () => {
-			const { createFixture } = await import('fs-fixture');
-			const { CLAUDE_PROJECTS_DIR_NAME } = await import('./_consts.ts');
-			const { createISOTimestamp, createMessageId, createRequestId } = await import('./_types.ts');
-
 			const mockData: UsageData[] = [
 				{
 					timestamp: createISOTimestamp('2024-01-01T00:00:00Z'),
@@ -305,10 +297,6 @@ if (import.meta.vitest != null) {
 		});
 
 		it('should handle deduplication correctly', async () => {
-			const { createFixture } = await import('fs-fixture');
-			const { CLAUDE_PROJECTS_DIR_NAME } = await import('./_consts.ts');
-			const { createISOTimestamp, createMessageId, createRequestId } = await import('./_types.ts');
-
 			const duplicateData: UsageData[] = [
 				{
 					timestamp: createISOTimestamp('2024-01-01T00:00:00Z'),
@@ -372,10 +360,6 @@ if (import.meta.vitest != null) {
 		});
 
 		it('should filter by project when specified', async () => {
-			const { createFixture } = await import('fs-fixture');
-			const { CLAUDE_PROJECTS_DIR_NAME } = await import('./_consts.ts');
-			const { createISOTimestamp, createMessageId, createRequestId } = await import('./_types.ts');
-
 			const project1Data: UsageData = {
 				timestamp: createISOTimestamp('2024-01-01T00:00:00Z'),
 				message: {
@@ -430,10 +414,6 @@ if (import.meta.vitest != null) {
 		});
 
 		it('should handle invalid JSON lines gracefully', async () => {
-			const { createFixture } = await import('fs-fixture');
-			const { CLAUDE_PROJECTS_DIR_NAME } = await import('./_consts.ts');
-			const { createISOTimestamp, createMessageId, createRequestId } = await import('./_types.ts');
-
 			const validData: UsageData = {
 				timestamp: createISOTimestamp('2024-01-01T00:00:00Z'),
 				message: {
