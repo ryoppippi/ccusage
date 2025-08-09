@@ -3,11 +3,12 @@
  * @internal
  */
 
-import type { CostMode } from './_types.ts';
-import type { UsageData } from './data-loader.ts';
+import type { CostMode, ModelName, SortOrder } from './_types.ts';
+import type { ModelBreakdown, UsageData } from './data-loader.ts';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { toArray } from '@antfu/utils';
+import { sort } from 'fast-sort';
 import { createFixture } from 'fs-fixture';
 import { glob } from 'tinyglobby';
 import { CLAUDE_PROJECTS_DIR_NAME, USAGE_DATA_GLOB_PATTERN } from './_consts.ts';
@@ -177,6 +178,25 @@ function filterFilesByProject<T>(
 }
 
 /**
+ * Filters items by project name
+ * @internal
+ */
+export function filterByProject<T>(
+	items: T[],
+	getProject: (item: T) => string | undefined,
+	projectFilter?: string,
+): T[] {
+	if (projectFilter == null) {
+		return items;
+	}
+
+	return items.filter((item) => {
+		const projectName = getProject(item);
+		return projectName === projectFilter;
+	});
+}
+
+/**
  * Checks if an entry is a duplicate based on hash
  */
 function isDuplicateEntry(
@@ -199,6 +219,206 @@ function markAsProcessed(
 	if (uniqueHash != null) {
 		processedHashes.add(uniqueHash);
 	}
+}
+
+/**
+ * Filters items by date range
+ * @internal
+ */
+export function filterByDateRange<T>(
+	items: T[],
+	getDate: (item: T) => string,
+	since?: string,
+	until?: string,
+): T[] {
+	if ((since == null || since === '') && (until == null || until === '')) {
+		return items;
+	}
+
+	return items.filter((item) => {
+		const dateStr = getDate(item).replace(/-/g, '');
+		if (since != null && since !== '' && dateStr < since) {
+			return false;
+		}
+		if (until != null && until !== '' && dateStr > until) {
+			return false;
+		}
+		return true;
+	});
+}
+
+/**
+ * Sorts items by date field
+ * @internal
+ */
+export function sortByDate<T>(
+	items: T[],
+	getDate: (item: T) => string | Date,
+	order: SortOrder = 'desc',
+): T[] {
+	return sort(items)[order]((item) => {
+		const date = getDate(item);
+		return typeof date === 'string' ? new Date(date) : date;
+	});
+}
+
+/**
+ * Internal type for aggregating token statistics and costs
+ * @internal
+ */
+export type TokenStats = {
+	inputTokens: number;
+	outputTokens: number;
+	cacheCreationTokens: number;
+	cacheReadTokens: number;
+	cost: number;
+};
+
+/**
+ * Aggregates token counts and costs by model name
+ * @internal
+ */
+export function aggregateByModel<T>(
+	entries: T[],
+	getModel: (entry: T) => string | undefined,
+	getUsage: (entry: T) => UsageData['message']['usage'],
+	getCost: (entry: T) => number,
+): Map<string, TokenStats> {
+	const modelAggregates = new Map<string, TokenStats>();
+	const defaultStats: TokenStats = {
+		inputTokens: 0,
+		outputTokens: 0,
+		cacheCreationTokens: 0,
+		cacheReadTokens: 0,
+		cost: 0,
+	};
+
+	for (const entry of entries) {
+		const modelName = getModel(entry) ?? 'unknown';
+		// Skip synthetic model
+		if (modelName === '<synthetic>') {
+			continue;
+		}
+
+		const usage = getUsage(entry);
+		const cost = getCost(entry);
+
+		const existing = modelAggregates.get(modelName) ?? defaultStats;
+
+		modelAggregates.set(modelName, {
+			inputTokens: existing.inputTokens + (usage.input_tokens ?? 0),
+			outputTokens: existing.outputTokens + (usage.output_tokens ?? 0),
+			cacheCreationTokens: existing.cacheCreationTokens + (usage.cache_creation_input_tokens ?? 0),
+			cacheReadTokens: existing.cacheReadTokens + (usage.cache_read_input_tokens ?? 0),
+			cost: existing.cost + cost,
+		});
+	}
+
+	return modelAggregates;
+}
+
+/**
+ * Converts model aggregates to sorted model breakdowns
+ * @internal
+ */
+export function createModelBreakdowns(
+	modelAggregates: Map<string, TokenStats>,
+): ModelBreakdown[] {
+	return Array.from(modelAggregates.entries())
+		.map(([modelName, stats]) => ({
+			modelName: modelName as ModelName,
+			...stats,
+		}))
+		.sort((a, b) => b.cost - a.cost); // Sort by cost descending
+}
+
+/**
+ * Calculates total token counts and costs from entries
+ * @internal
+ */
+export function calculateTotals<T>(
+	entries: T[],
+	getUsage: (entry: T) => UsageData['message']['usage'],
+	getCost: (entry: T) => number,
+): TokenStats & { totalCost: number } {
+	return entries.reduce(
+		(acc, entry) => {
+			const usage = getUsage(entry);
+			const cost = getCost(entry);
+
+			return {
+				inputTokens: acc.inputTokens + (usage.input_tokens ?? 0),
+				outputTokens: acc.outputTokens + (usage.output_tokens ?? 0),
+				cacheCreationTokens: acc.cacheCreationTokens + (usage.cache_creation_input_tokens ?? 0),
+				cacheReadTokens: acc.cacheReadTokens + (usage.cache_read_input_tokens ?? 0),
+				cost: acc.cost + cost,
+				totalCost: acc.totalCost + cost,
+			};
+		},
+		{
+			inputTokens: 0,
+			outputTokens: 0,
+			cacheCreationTokens: 0,
+			cacheReadTokens: 0,
+			cost: 0,
+			totalCost: 0,
+		},
+	);
+}
+
+/**
+ * Extracts unique models from entries, excluding synthetic model
+ * @internal
+ */
+export function extractUniqueModels<T>(
+	entries: T[],
+	getModel: (entry: T) => string | undefined,
+): string[] {
+	const models = new Set<string>();
+	for (const entry of entries) {
+		const model = getModel(entry);
+		if (model != null && model !== '<synthetic>') {
+			models.add(model);
+		}
+	}
+	return Array.from(models).sort();
+}
+
+/**
+ * Aggregates model breakdowns from multiple sources
+ * @internal
+ */
+export function aggregateModelBreakdowns(
+	breakdowns: ModelBreakdown[],
+): Map<string, TokenStats> {
+	const modelAggregates = new Map<string, TokenStats>();
+	const defaultStats: TokenStats = {
+		inputTokens: 0,
+		outputTokens: 0,
+		cacheCreationTokens: 0,
+		cacheReadTokens: 0,
+		cost: 0,
+	};
+
+	for (const breakdown of breakdowns) {
+		const modelName = String(breakdown.modelName);
+		// Skip synthetic model
+		if (modelName === '<synthetic>') {
+			continue;
+		}
+
+		const existing = modelAggregates.get(modelName) ?? { ...defaultStats };
+
+		modelAggregates.set(modelName, {
+			inputTokens: existing.inputTokens + Number(breakdown.inputTokens),
+			outputTokens: existing.outputTokens + Number(breakdown.outputTokens),
+			cacheCreationTokens: existing.cacheCreationTokens + Number(breakdown.cacheCreationTokens),
+			cacheReadTokens: existing.cacheReadTokens + Number(breakdown.cacheReadTokens),
+			cost: existing.cost + Number(breakdown.cost),
+		});
+	}
+
+	return modelAggregates;
 }
 
 /**

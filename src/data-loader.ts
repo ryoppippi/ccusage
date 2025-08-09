@@ -26,11 +26,11 @@ import process from 'node:process';
 import { unreachable } from '@core/errorutil';
 import { Result } from '@praha/byethrow';
 import { groupBy, uniq } from 'es-toolkit'; // TODO: after node20 is deprecated, switch to native Object.groupBy
-import { sort } from 'fast-sort';
 import { createFixture } from 'fs-fixture';
 import { isDirectorySync } from 'path-type';
 import { glob } from 'tinyglobby';
 import { z } from 'zod';
+import { aggregateByModel, aggregateModelBreakdowns, calculateTotals, createModelBreakdowns, extractUniqueModels, filterByDateRange, filterByProject, loadCommonUsageData, sortByDate } from './_common-loader.ts';
 import { CLAUDE_CONFIG_DIR_ENV, CLAUDE_PROJECTS_DIR_NAME, DEFAULT_CLAUDE_CODE_PATH, DEFAULT_CLAUDE_CONFIG_PATH, USAGE_DATA_GLOB_PATTERN, USER_HOME_DIR } from './_consts.ts';
 import {
 	identifySessionBlocks,
@@ -304,194 +304,6 @@ export const bucketUsageSchema = z.object({
 export type BucketUsage = z.infer<typeof bucketUsageSchema>;
 
 /**
- * Internal type for aggregating token statistics and costs
- */
-type TokenStats = {
-	inputTokens: number;
-	outputTokens: number;
-	cacheCreationTokens: number;
-	cacheReadTokens: number;
-	cost: number;
-};
-
-/**
- * Aggregates token counts and costs by model name
- */
-function aggregateByModel<T>(
-	entries: T[],
-	getModel: (entry: T) => string | undefined,
-	getUsage: (entry: T) => UsageData['message']['usage'],
-	getCost: (entry: T) => number,
-): Map<string, TokenStats> {
-	const modelAggregates = new Map<string, TokenStats>();
-	const defaultStats: TokenStats = {
-		inputTokens: 0,
-		outputTokens: 0,
-		cacheCreationTokens: 0,
-		cacheReadTokens: 0,
-		cost: 0,
-	};
-
-	for (const entry of entries) {
-		const modelName = getModel(entry) ?? 'unknown';
-		// Skip synthetic model
-		if (modelName === '<synthetic>') {
-			continue;
-		}
-
-		const usage = getUsage(entry);
-		const cost = getCost(entry);
-
-		const existing = modelAggregates.get(modelName) ?? defaultStats;
-
-		modelAggregates.set(modelName, {
-			inputTokens: existing.inputTokens + (usage.input_tokens ?? 0),
-			outputTokens: existing.outputTokens + (usage.output_tokens ?? 0),
-			cacheCreationTokens: existing.cacheCreationTokens + (usage.cache_creation_input_tokens ?? 0),
-			cacheReadTokens: existing.cacheReadTokens + (usage.cache_read_input_tokens ?? 0),
-			cost: existing.cost + cost,
-		});
-	}
-
-	return modelAggregates;
-}
-
-/**
- * Aggregates model breakdowns from multiple sources
- */
-function aggregateModelBreakdowns(
-	breakdowns: ModelBreakdown[],
-): Map<string, TokenStats> {
-	const modelAggregates = new Map<string, TokenStats>();
-	const defaultStats: TokenStats = {
-		inputTokens: 0,
-		outputTokens: 0,
-		cacheCreationTokens: 0,
-		cacheReadTokens: 0,
-		cost: 0,
-	};
-
-	for (const breakdown of breakdowns) {
-		// Skip synthetic model
-		if (breakdown.modelName === '<synthetic>') {
-			continue;
-		}
-
-		const existing = modelAggregates.get(breakdown.modelName) ?? defaultStats;
-
-		modelAggregates.set(breakdown.modelName, {
-			inputTokens: existing.inputTokens + breakdown.inputTokens,
-			outputTokens: existing.outputTokens + breakdown.outputTokens,
-			cacheCreationTokens: existing.cacheCreationTokens + breakdown.cacheCreationTokens,
-			cacheReadTokens: existing.cacheReadTokens + breakdown.cacheReadTokens,
-			cost: existing.cost + breakdown.cost,
-		});
-	}
-
-	return modelAggregates;
-}
-
-/**
- * Converts model aggregates to sorted model breakdowns
- */
-function createModelBreakdowns(
-	modelAggregates: Map<string, TokenStats>,
-): ModelBreakdown[] {
-	return Array.from(modelAggregates.entries())
-		.map(([modelName, stats]) => ({
-			modelName: modelName as ModelName,
-			...stats,
-		}))
-		.sort((a, b) => b.cost - a.cost); // Sort by cost descending
-}
-
-/**
- * Calculates total token counts and costs from entries
- */
-function calculateTotals<T>(
-	entries: T[],
-	getUsage: (entry: T) => UsageData['message']['usage'],
-	getCost: (entry: T) => number,
-): TokenStats & { totalCost: number } {
-	return entries.reduce(
-		(acc, entry) => {
-			const usage = getUsage(entry);
-			const cost = getCost(entry);
-
-			return {
-				inputTokens: acc.inputTokens + (usage.input_tokens ?? 0),
-				outputTokens: acc.outputTokens + (usage.output_tokens ?? 0),
-				cacheCreationTokens: acc.cacheCreationTokens + (usage.cache_creation_input_tokens ?? 0),
-				cacheReadTokens: acc.cacheReadTokens + (usage.cache_read_input_tokens ?? 0),
-				cost: acc.cost + cost,
-				totalCost: acc.totalCost + cost,
-			};
-		},
-		{
-			inputTokens: 0,
-			outputTokens: 0,
-			cacheCreationTokens: 0,
-			cacheReadTokens: 0,
-			cost: 0,
-			totalCost: 0,
-		},
-	);
-}
-
-/**
- * Filters items by date range
- */
-function filterByDateRange<T>(
-	items: T[],
-	getDate: (item: T) => string,
-	since?: string,
-	until?: string,
-): T[] {
-	if (since == null && until == null) {
-		return items;
-	}
-
-	return items.filter((item) => {
-		const dateStr = getDate(item).substring(0, 10).replace(/-/g, ''); // Convert to YYYYMMDD
-		if (since != null && dateStr < since) {
-			return false;
-		}
-		if (until != null && dateStr > until) {
-			return false;
-		}
-		return true;
-	});
-}
-
-/**
- * Filters items by project name
- */
-function filterByProject<T>(
-	items: T[],
-	getProject: (item: T) => string | undefined,
-	projectFilter?: string,
-): T[] {
-	if (projectFilter == null) {
-		return items;
-	}
-
-	return items.filter((item) => {
-		const projectName = getProject(item);
-		return projectName === projectFilter;
-	});
-}
-
-/**
- * Extracts unique models from entries, excluding synthetic model
- */
-function extractUniqueModels<T>(
-	entries: T[],
-	getModel: (entry: T) => string | undefined,
-): string[] {
-	return uniq(entries.map(getModel).filter((m): m is string => m != null && m !== '<synthetic>'));
-}
-
-/**
  * Creates a date formatter with the specified timezone and locale
  * @param timezone - Timezone to use (e.g., 'UTC', 'America/New_York')
  * @param locale - Locale to use for formatting (e.g., 'en-US', 'ja-JP')
@@ -559,21 +371,6 @@ export function formatDateCompact(dateStr: string, timezone: string | undefined,
  * @param order - Sort order (asc or desc)
  * @returns Sorted array
  */
-function sortByDate<T>(
-	items: T[],
-	getDate: (item: T) => string | Date,
-	order: SortOrder = 'desc',
-): T[] {
-	const sorted = sort(items);
-	switch (order) {
-		case 'desc':
-			return sorted.desc(item => new Date(getDate(item)).getTime());
-		case 'asc':
-			return sorted.asc(item => new Date(getDate(item)).getTime());
-		default:
-			unreachable(order);
-	}
-}
 
 /**
  * Create a unique identifier for deduplication using message ID and request ID
@@ -789,9 +586,6 @@ export type LoadOptions = {
 export async function loadDailyUsageData(
 	options?: LoadOptions,
 ): Promise<DailyUsage[]> {
-	// Import the common loader
-	const { loadCommonUsageData } = await import('./_common-loader.ts');
-
 	// Use the common loader to get processed entries
 	const { entries } = await loadCommonUsageData(options);
 
@@ -878,9 +672,6 @@ export async function loadDailyUsageData(
 export async function loadSessionData(
 	options?: LoadOptions,
 ): Promise<SessionUsage[]> {
-	// Import the common loader
-	const { loadCommonUsageData } = await import('./_common-loader.ts');
-
 	// Use the common loader to get processed entries and filesWithBase
 	const { entries, filesWithBase } = await loadCommonUsageData(options);
 
@@ -1176,9 +967,6 @@ export async function loadBucketUsageData(
 export async function loadSessionBlockData(
 	options?: LoadOptions,
 ): Promise<SessionBlock[]> {
-	// Import the common loader
-	const { loadCommonUsageData } = await import('./_common-loader.ts');
-
 	// Use the common loader to get processed entries
 	const { entries } = await loadCommonUsageData(options);
 
