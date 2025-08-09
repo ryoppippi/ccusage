@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Testing and Quality:**
 
-- `bun run test` - Run all tests (using vitest via bun)
+- `bun run test` - Run all tests (using vitest via bun, watch mode disabled)
 - Lint code using ESLint MCP server (available via Claude Code tools)
 - `bun run format` - Format code with ESLint (writes changes)
 - `bun typecheck` - Type check with TypeScript
@@ -22,6 +22,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `bun run start monthly` - Show monthly usage report
 - `bun run start session` - Show session-based usage report
 - `bun run start blocks` - Show 5-hour billing blocks usage report
+- `bun run start statusline` - Show compact status line (Beta)
 - `bun run start daily --json` - Show daily usage report in JSON format
 - `bun run start monthly --json` - Show monthly usage report in JSON format
 - `bun run start session --json` - Show session usage report in JSON format
@@ -45,6 +46,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `auto` (default) - Use pre-calculated costUSD when available, otherwise calculate from tokens
 - `calculate` - Always calculate costs from token counts using model pricing, ignore costUSD
 - `display` - Always use pre-calculated costUSD values, show 0 for missing costs
+
+**Environment Variables:**
+
+- `LOG_LEVEL` - Control logging verbosity (0=silent, 1=warn, 2=log, 3=info, 4=debug, 5=trace)
+  - Example: `LOG_LEVEL=0 bun run start daily` for silent output
+  - Useful for debugging or suppressing non-critical output
 
 **Multiple Claude Data Directories:**
 
@@ -99,6 +106,7 @@ This is a CLI tool that analyzes Claude Code usage data from local JSONL files s
   - **ESLint MCP**: Lint TypeScript/JavaScript files directly through Claude Code tools
   - **Context7 MCP**: Look up documentation for libraries and frameworks
   - **Gunshi MCP**: Access gunshi.dev documentation and examples
+  - **TypeScript MCP (lsmcp)**: Search for TypeScript functions, types, and symbols across the codebase
 
 ## Code Style Notes
 
@@ -196,6 +204,7 @@ This ensures code quality and catches issues immediately after changes.
 - [gunshi](https://gunshi.dev/llms.txt) - Documentation available via Gunshi MCP server
 - Context7 MCP server available for library documentation lookup
 - do not use console.log. use logger.ts instead
+- **IMPORTANT**: When searching for TypeScript functions, types, or symbols in the codebase, ALWAYS use TypeScript MCP (lsmcp) tools like `get_definitions`, `find_references`, `get_hover`, etc. DO NOT use grep/rg for searching TypeScript code structures.
 
 # important-instruction-reminders
 

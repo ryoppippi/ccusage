@@ -8,13 +8,17 @@
  * @module data-loader
  */
 
+import type { IntRange, TupleToUnion } from 'type-fest';
+import type { WEEK_DAYS } from './_consts.ts';
 import type { LoadedUsageEntry, SessionBlock } from './_session-blocks.ts';
 import type {
 	ActivityDate,
+	Bucket,
 	CostMode,
 	ModelName,
 	SortOrder,
 	Version,
+	WeeklyDate,
 } from './_types.ts';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
@@ -44,6 +48,7 @@ import {
 import { identifySessionBlocks } from './_session-blocks.ts';
 import {
 	activityDateSchema,
+	createBucket,
 	createDailyDate,
 	createISOTimestamp,
 	createMessageId,
@@ -53,6 +58,7 @@ import {
 	createRequestId,
 	createSessionId,
 	createVersion,
+	createWeeklyDate,
 	dailyDateSchema,
 	isoTimestampSchema,
 	messageIdSchema,
@@ -62,13 +68,15 @@ import {
 	requestIdSchema,
 	sessionIdSchema,
 	versionSchema,
+	weeklyDateSchema,
 } from './_types.ts';
 import { logger } from './logger.ts';
 import { PricingFetcher } from './pricing-fetcher.ts';
 
 /**
- * Get all Claude data directories to search for usage data
- * Supports multiple paths: environment variable (comma-separated), new default, and old default
+ * Get Claude data directories to search for usage data
+ * When CLAUDE_CONFIG_DIR is set: uses only those paths
+ * When not set: uses default paths (~/.config/claude and ~/.claude)
  * @returns Array of valid Claude data directory paths
  */
 export function getClaudePaths(): string[] {
@@ -98,9 +106,18 @@ export function getClaudePaths(): string[] {
 				}
 			}
 		}
+		// If environment variable is set, return only those paths (or error if none valid)
+		if (paths.length > 0) {
+			return paths;
+		}
+		// If environment variable is set but no valid paths found, throw error
+		throw new Error(
+			`No valid Claude data directories found in CLAUDE_CONFIG_DIR. Please ensure the following exists:
+- ${envPaths}/${CLAUDE_PROJECTS_DIR_NAME}`.trim(),
+		);
 	}
 
-	// Add default paths if they exist
+	// Only check default paths if no environment variable is set
 	const defaultPaths = [
 		DEFAULT_CLAUDE_CONFIG_PATH, // New default: XDG config directory
 		path.join(USER_HOME_DIR, DEFAULT_CLAUDE_CODE_PATH), // Old default: ~/.claude
@@ -266,6 +283,46 @@ export const monthlyUsageSchema = z.object({
  * Type definition for monthly usage aggregation
  */
 export type MonthlyUsage = z.infer<typeof monthlyUsageSchema>;
+
+/**
+ * Zod schema for weekly usage aggregation data
+ */
+export const weeklyUsageSchema = z.object({
+	week: weeklyDateSchema, // YYYY-MM-DD format
+	inputTokens: z.number(),
+	outputTokens: z.number(),
+	cacheCreationTokens: z.number(),
+	cacheReadTokens: z.number(),
+	totalCost: z.number(),
+	modelsUsed: z.array(modelNameSchema),
+	modelBreakdowns: z.array(modelBreakdownSchema),
+	project: z.string().optional(), // Project name when groupByProject is enabled
+});
+
+/**
+ * Type definition for weekly usage aggregation
+ */
+export type WeeklyUsage = z.infer<typeof weeklyUsageSchema>;
+
+/**
+ * Zod schema for bucket usage aggregation data
+ */
+export const bucketUsageSchema = z.object({
+	bucket: z.union([weeklyDateSchema, monthlyDateSchema]), // WeeklyDate or MonthlyDate
+	inputTokens: z.number(),
+	outputTokens: z.number(),
+	cacheCreationTokens: z.number(),
+	cacheReadTokens: z.number(),
+	totalCost: z.number(),
+	modelsUsed: z.array(modelNameSchema),
+	modelBreakdowns: z.array(modelBreakdownSchema),
+	project: z.string().optional(), // Project name when groupByProject is enabled
+});
+
+/**
+ * Type definition for bucket usage aggregation
+ */
+export type BucketUsage = z.infer<typeof bucketUsageSchema>;
 
 /**
  * Internal type for aggregating token statistics and costs
@@ -490,28 +547,63 @@ function extractUniqueModels<T>(
 }
 
 /**
+ * Creates a date formatter with the specified timezone and locale
+ * @param timezone - Timezone to use (e.g., 'UTC', 'America/New_York')
+ * @param locale - Locale to use for formatting (e.g., 'en-US', 'ja-JP')
+ * @returns Intl.DateTimeFormat instance
+ */
+function createDateFormatter(timezone: string | undefined, locale: string): Intl.DateTimeFormat {
+	return new Intl.DateTimeFormat(locale, {
+		year: 'numeric',
+		month: '2-digit',
+		day: '2-digit',
+		timeZone: timezone,
+	});
+}
+
+/**
+ * Creates a date parts formatter with the specified timezone and locale
+ * @param timezone - Timezone to use
+ * @param locale - Locale to use for formatting
+ * @returns Intl.DateTimeFormat instance
+ */
+function createDatePartsFormatter(timezone: string | undefined, locale: string): Intl.DateTimeFormat {
+	return new Intl.DateTimeFormat(locale, {
+		year: 'numeric',
+		month: '2-digit',
+		day: '2-digit',
+		timeZone: timezone,
+	});
+}
+
+/**
  * Formats a date string to YYYY-MM-DD format
- * @param dateStr - Input date string (ALWAYS in UTC)
+ * @param dateStr - Input date string
+ * @param timezone - Optional timezone to use for formatting
+ * @param locale - Optional locale to use for formatting (defaults to 'en-CA' for YYYY-MM-DD format)
  * @returns Formatted date string in YYYY-MM-DD format
  */
-export function formatDate(dateStr: string): string {
+export function formatDate(dateStr: string, timezone?: string, locale?: string): string {
 	const date = new Date(dateStr);
-	const year = date.getUTCFullYear();
-	const month = String(date.getUTCMonth() + 1).padStart(2, '0');
-	const day = String(date.getUTCDate()).padStart(2, '0');
-	return `${year}-${month}-${day}`;
+	// Use en-CA as default for consistent YYYY-MM-DD format
+	const formatter = createDateFormatter(timezone, locale ?? 'en-CA');
+	return formatter.format(date);
 }
 
 /**
  * Formats a date string to compact format with year on first line and month-day on second
  * @param dateStr - Input date string
+ * @param timezone - Timezone to use for formatting (pass undefined to use system timezone)
+ * @param locale - Locale to use for formatting
  * @returns Formatted date string with newline separator (YYYY\nMM-DD)
  */
-export function formatDateCompact(dateStr: string): string {
+export function formatDateCompact(dateStr: string, timezone: string | undefined, locale: string): string {
 	const date = new Date(dateStr);
-	const year = date.getUTCFullYear();
-	const month = String(date.getUTCMonth() + 1).padStart(2, '0');
-	const day = String(date.getUTCDate()).padStart(2, '0');
+	const formatter = createDatePartsFormatter(timezone, locale);
+	const parts = formatter.formatToParts(date);
+	const year = parts.find(p => p.type === 'year')?.value ?? '';
+	const month = parts.find(p => p.type === 'month')?.value ?? '';
+	const day = parts.find(p => p.type === 'day')?.value ?? '';
 	return `${year}\n${month}-${day}`;
 }
 
@@ -734,6 +826,9 @@ export type DateFilter = {
 	until?: string; // YYYYMMDD format
 };
 
+type WeekDay = TupleToUnion<typeof WEEK_DAYS>;
+type DayOfWeek = IntRange<0, typeof WEEK_DAYS['length']>; // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+
 /**
  * Configuration options for loading usage data
  */
@@ -745,6 +840,9 @@ export type LoadOptions = {
 	sessionDurationHours?: number; // Session block duration in hours
 	groupByProject?: boolean; // Group data by project instead of aggregating
 	project?: string; // Filter to specific project name
+	startOfWeek?: WeekDay; // Start of week for weekly aggregation
+	timezone?: string; // Timezone for date grouping (e.g., 'UTC', 'America/New_York'). Defaults to system timezone
+	locale?: string; // Locale for date/time formatting (e.g., 'en-US', 'ja-JP'). Defaults to 'en-US'
 } & DateFilter;
 
 /**
@@ -822,7 +920,8 @@ export async function loadDailyUsageData(
 				// Mark this combination as processed
 				markAsProcessed(uniqueHash, processedHashes);
 
-				const date = formatDate(data.timestamp);
+				// Always use en-CA for date grouping to ensure YYYY-MM-DD format
+				const date = formatDate(data.timestamp, options?.timezone, 'en-CA');
 				// If fetcher is available, calculate cost based on mode and tokens
 				// If fetcher is null, use pre-calculated costUSD or default to 0
 				const cost = fetcher != null
@@ -1093,7 +1192,8 @@ export async function loadSessionData(
 				sessionId: createSessionId(latestEntry.sessionId),
 				projectPath: createProjectPath(latestEntry.projectPath),
 				...totals,
-				lastActivity: formatDate(latestEntry.timestamp) as ActivityDate,
+				// Always use en-CA for date storage to ensure YYYY-MM-DD format
+				lastActivity: formatDate(latestEntry.timestamp, options?.timezone, 'en-CA') as ActivityDate,
 				versions: uniq(versions).sort() as Version[],
 				modelsUsed: modelsUsed as ModelName[],
 				modelBreakdowns,
@@ -1132,29 +1232,81 @@ export async function loadSessionData(
 export async function loadMonthlyUsageData(
 	options?: LoadOptions,
 ): Promise<MonthlyUsage[]> {
+	return loadBucketUsageData((data: DailyUsage) => createMonthlyDate(data.date.substring(0, 7)), options)
+		.then(usages => usages.map<MonthlyUsage>(({ bucket, ...rest }) => ({
+			month: createMonthlyDate(bucket.toString()),
+			...rest,
+		})));
+}
+
+/**
+ * @param date - The date to get the week for
+ * @param startDay - The day to start the week on (0 = Sunday, 1 = Monday, ..., 6 = Saturday)
+ * @returns The date of the first day of the week for the given date
+ */
+function getDateWeek(date: Date, startDay: DayOfWeek): WeeklyDate {
+	const d = new Date(date);
+	const day = d.getDay();
+	const shift = (day - startDay + 7) % 7;
+	d.setDate(d.getDate() - shift);
+
+	return createWeeklyDate(d.toISOString().substring(0, 10));
+}
+
+/**
+ * Convert day name to number (0 = Sunday, 1 = Monday, ..., 6 = Saturday)
+ */
+function getDayNumber(day: WeekDay): DayOfWeek {
+	const dayMap = {
+		sunday: 0,
+		monday: 1,
+		tuesday: 2,
+		wednesday: 3,
+		thursday: 4,
+		friday: 5,
+		saturday: 6,
+	} as const satisfies Record<WeekDay, DayOfWeek>;
+	return dayMap[day];
+}
+
+export async function loadWeeklyUsageData(
+	options?: LoadOptions,
+): Promise<WeeklyUsage[]> {
+	const startDay = options?.startOfWeek != null ? getDayNumber(options.startOfWeek) : getDayNumber('sunday');
+
+	return loadBucketUsageData((data: DailyUsage) => getDateWeek(new Date(data.date), startDay), options)
+		.then(usages => usages.map<WeeklyUsage>(({ bucket, ...rest }) => ({
+			week: createWeeklyDate(bucket.toString()),
+			...rest,
+		})));
+}
+
+export async function loadBucketUsageData(
+	groupingFn: (data: DailyUsage) => Bucket,
+	options?: LoadOptions,
+): Promise<BucketUsage[]> {
 	const dailyData = await loadDailyUsageData(options);
 
-	// Group daily data by month, optionally including project
+	// Group daily data by week, optionally including project
 	// Automatically enable project grouping when project filter is specified
 	const needsProjectGrouping
-  = options?.groupByProject === true || options?.project != null;
+		= options?.groupByProject === true || options?.project != null;
+
 	const groupingKey = needsProjectGrouping
-		? (data: (typeof dailyData)[0]) =>
-				`${data.date.substring(0, 7)}\x00${data.project ?? 'unknown'}`
-		: (data: (typeof dailyData)[0]) => data.date.substring(0, 7);
+		? (data: DailyUsage) =>
+				`${groupingFn(data)}\x00${data.project ?? 'unknown'}`
+		: (data: DailyUsage) => `${groupingFn(data)}`;
 
-	const groupedByMonth = groupBy(dailyData, groupingKey);
+	const grouped = groupBy(dailyData, groupingKey);
 
-	// Aggregate each month group
-	const monthlyArray: MonthlyUsage[] = [];
-	for (const [groupKey, dailyEntries] of Object.entries(groupedByMonth)) {
+	const buckets: BucketUsage[] = [];
+	for (const [groupKey, dailyEntries] of Object.entries(grouped)) {
 		if (dailyEntries == null) {
 			continue;
 		}
 
-		// Extract month and project from groupKey (format: "month" or "month\x00project")
 		const parts = groupKey.split('\x00');
-		const month = parts[0] ?? groupKey;
+		const bucket = createBucket(parts[0] ?? groupKey);
 		const project = parts.length > 1 ? parts[1] : undefined;
 
 		// Aggregate model breakdowns across all days
@@ -1191,8 +1343,8 @@ export async function loadMonthlyUsageData(
 			totalCacheReadTokens += daily.cacheReadTokens;
 			totalCost += daily.totalCost;
 		}
-		const monthlyUsage: MonthlyUsage = {
-			month: createMonthlyDate(month),
+		const bucketUsage: BucketUsage = {
+			bucket,
 			inputTokens: totalInputTokens,
 			outputTokens: totalOutputTokens,
 			cacheCreationTokens: totalCacheCreationTokens,
@@ -1203,11 +1355,10 @@ export async function loadMonthlyUsageData(
 			...(project != null && { project }),
 		};
 
-		monthlyArray.push(monthlyUsage);
+		buckets.push(bucketUsage);
 	}
 
-	// Sort by month based on sortOrder
-	return sortByDate(monthlyArray, item => `${item.month}-01`, options?.order);
+	return sortByDate(buckets, item => item.bucket, options?.order);
 }
 
 /**
@@ -1327,7 +1478,8 @@ export async function loadSessionBlockData(
 	// Filter by date range if specified
 	const dateFiltered = (options?.since != null && options.since !== '') || (options?.until != null && options.until !== '')
 		? blocks.filter((block) => {
-				const blockDateStr = formatDate(block.startTime.toISOString()).replace(/-/g, '');
+				// Always use en-CA for date comparison to ensure YYYY-MM-DD format
+				const blockDateStr = formatDate(block.startTime.toISOString(), options?.timezone, 'en-CA').replace(/-/g, '');
 				if (options.since != null && options.since !== '' && blockDateStr < options.since) {
 					return false;
 				}
@@ -1352,6 +1504,36 @@ if (import.meta.vitest != null) {
 			expect(formatDate('2024-12-31T23:59:59Z')).toBe('2024-12-31');
 		});
 
+		it('respects timezone parameter', () => {
+			// Test date that crosses day boundary
+			const testTimestamp = '2024-01-01T15:00:00Z'; // 3 PM UTC = midnight JST next day
+
+			// Default behavior (no timezone) uses system timezone
+			expect(formatDate(testTimestamp)).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+
+			// UTC timezone
+			expect(formatDate(testTimestamp, 'UTC')).toBe('2024-01-01');
+
+			// Asia/Tokyo timezone (crosses to next day)
+			expect(formatDate(testTimestamp, 'Asia/Tokyo')).toBe('2024-01-02');
+
+			// America/New_York timezone
+			expect(formatDate('2024-01-02T03:00:00Z', 'America/New_York')).toBe('2024-01-01'); // 3 AM UTC = 10 PM EST previous day
+
+			// Invalid timezone should throw a RangeError
+			expect(() => formatDate(testTimestamp, 'Invalid/Timezone')).toThrow(RangeError);
+		});
+
+		it('formatDateCompact respects timezone parameter', () => {
+			const testTimestamp = '2024-01-01T15:00:00Z';
+
+			// UTC timezone
+			expect(formatDateCompact(testTimestamp, 'UTC', 'en-US')).toBe('2024\n01-01');
+
+			// Asia/Tokyo timezone (crosses to next day)
+			expect(formatDateCompact(testTimestamp, 'Asia/Tokyo', 'en-US')).toBe('2024\n01-02');
+		});
+
 		it('handles various date formats', () => {
 			expect(formatDate('2024-01-01')).toBe('2024-01-01');
 			expect(formatDate('2024-01-01T12:00:00')).toBe('2024-01-01');
@@ -1363,24 +1545,44 @@ if (import.meta.vitest != null) {
 			expect(formatDate('2024-01-05T12:00:00Z')).toBe('2024-01-05');
 			expect(formatDate('2024-10-01T12:00:00Z')).toBe('2024-10-01');
 		});
+
+		it('respects locale parameter', () => {
+			const testDate = '2024-08-04T12:00:00Z';
+
+			// Different locales format dates differently
+			expect(formatDate(testDate, 'UTC', 'en-US')).toBe('08/04/2024');
+			expect(formatDate(testDate, 'UTC', 'en-CA')).toBe('2024-08-04');
+			expect(formatDate(testDate, 'UTC', 'ja-JP')).toBe('2024/08/04');
+			expect(formatDate(testDate, 'UTC', 'de-DE')).toBe('04.08.2024');
+		});
 	});
 
 	describe('formatDateCompact', () => {
 		it('formats UTC timestamp to local date with line break', () => {
-			expect(formatDateCompact('2024-01-01T00:00:00Z')).toBe('2024\n01-01');
+			expect(formatDateCompact('2024-01-01T00:00:00Z', undefined, 'en-US')).toBe('2024\n01-01');
 		});
 
 		it('handles various date formats', () => {
-			expect(formatDateCompact('2024-12-31T23:59:59Z')).toBe('2024\n12-31');
-			expect(formatDateCompact('2024-01-01')).toBe('2024\n01-01');
-			expect(formatDateCompact('2024-01-01T12:00:00')).toBe('2024\n01-01');
-			expect(formatDateCompact('2024-01-01T12:00:00.000Z')).toBe('2024\n01-01');
+			expect(formatDateCompact('2024-12-31T23:59:59Z', undefined, 'en-US')).toBe('2024\n12-31');
+			expect(formatDateCompact('2024-01-01', undefined, 'en-US')).toBe('2024\n01-01');
+			expect(formatDateCompact('2024-01-01T12:00:00', undefined, 'en-US')).toBe('2024\n01-01');
+			expect(formatDateCompact('2024-01-01T12:00:00.000Z', undefined, 'en-US')).toBe('2024\n01-01');
 		});
 
 		it('pads single digit months and days', () => {
 			// Use UTC noon to avoid timezone issues
-			expect(formatDateCompact('2024-01-05T12:00:00Z')).toBe('2024\n01-05');
-			expect(formatDateCompact('2024-10-01T12:00:00Z')).toBe('2024\n10-01');
+			expect(formatDateCompact('2024-01-05T12:00:00Z', undefined, 'en-US')).toBe('2024\n01-05');
+			expect(formatDateCompact('2024-10-01T12:00:00Z', undefined, 'en-US')).toBe('2024\n10-01');
+		});
+
+		it('respects locale parameter', () => {
+			const testDate = '2024-08-04T12:00:00Z';
+
+			// Different locales format dates differently
+			expect(formatDateCompact(testDate, 'UTC', 'en-US')).toBe('2024\n08-04');
+			expect(formatDateCompact(testDate, 'UTC', 'en-CA')).toBe('2024\n08-04');
+			expect(formatDateCompact(testDate, 'UTC', 'ja-JP')).toBe('2024\n08-04');
+			// All locales should produce similar compact format
 		});
 	});
 
@@ -1928,6 +2130,343 @@ invalid json line
 			});
 
 			const result = await loadMonthlyUsageData({ claudePath: fixture.path });
+
+			expect(result).toHaveLength(1);
+			expect(result[0]?.cacheCreationTokens).toBe(75); // 25 + 50
+			expect(result[0]?.cacheReadTokens).toBe(30); // 10 + 20
+		});
+	});
+
+	describe('loadWeeklyUsageData', () => {
+		it('aggregates daily data by week correctly', async () => {
+			const { createFixture } = await import('fs-fixture');
+			const mockData: UsageData[] = [
+				{
+					timestamp: createISOTimestamp('2024-01-01T12:00:00Z'),
+					message: { usage: { input_tokens: 100, output_tokens: 50 } },
+					costUSD: 0.01,
+				},
+				{
+					timestamp: createISOTimestamp('2024-01-02T12:00:00Z'),
+					message: { usage: { input_tokens: 200, output_tokens: 100 } },
+					costUSD: 0.02,
+				},
+				{
+					timestamp: createISOTimestamp('2024-01-15T12:00:00Z'),
+					message: { usage: { input_tokens: 150, output_tokens: 75 } },
+					costUSD: 0.015,
+				},
+			];
+
+			await using fixture = await createFixture({
+				projects: {
+					project1: {
+						'session1.jsonl': mockData.map(d => JSON.stringify(d)).join('\n'),
+					},
+				},
+			});
+
+			const result = await loadWeeklyUsageData({ claudePath: fixture.path });
+
+			// Should be sorted by week descending (2024-01-15 first)
+			expect(result).toHaveLength(2);
+			expect(result[0]).toEqual({
+				week: '2024-01-14',
+				inputTokens: 150,
+				outputTokens: 75,
+				cacheCreationTokens: 0,
+				cacheReadTokens: 0,
+				totalCost: 0.015,
+				modelsUsed: [],
+				modelBreakdowns: [{
+					modelName: 'unknown',
+					inputTokens: 150,
+					outputTokens: 75,
+					cacheCreationTokens: 0,
+					cacheReadTokens: 0,
+					cost: 0.015,
+				}],
+			});
+			expect(result[1]).toEqual({
+				week: '2023-12-31',
+				inputTokens: 300,
+				outputTokens: 150,
+				cacheCreationTokens: 0,
+				cacheReadTokens: 0,
+				totalCost: 0.03,
+				modelsUsed: [],
+				modelBreakdowns: [{
+					modelName: 'unknown',
+					inputTokens: 300,
+					outputTokens: 150,
+					cacheCreationTokens: 0,
+					cacheReadTokens: 0,
+					cost: 0.03,
+				}],
+			});
+		});
+
+		it('handles empty data', async () => {
+			const { createFixture } = await import('fs-fixture');
+			await using fixture = await createFixture({
+				projects: {},
+			});
+
+			const result = await loadWeeklyUsageData({ claudePath: fixture.path });
+			expect(result).toEqual([]);
+		});
+
+		it('handles single week data', async () => {
+			const { createFixture } = await import('fs-fixture');
+			const mockData: UsageData[] = [
+				{
+					timestamp: createISOTimestamp('2024-01-01T12:00:00Z'),
+					message: { usage: { input_tokens: 100, output_tokens: 50 } },
+					costUSD: 0.01,
+				},
+				{
+					timestamp: createISOTimestamp('2024-01-03T12:00:00Z'),
+					message: { usage: { input_tokens: 200, output_tokens: 100 } },
+					costUSD: 0.02,
+				},
+			];
+
+			await using fixture = await createFixture({
+				projects: {
+					project1: {
+						'session1.jsonl': mockData.map(d => JSON.stringify(d)).join('\n'),
+					},
+				},
+			});
+
+			const result = await loadWeeklyUsageData({ claudePath: fixture.path });
+
+			expect(result).toHaveLength(1);
+			expect(result[0]).toEqual({
+				week: '2023-12-31',
+				inputTokens: 300,
+				outputTokens: 150,
+				cacheCreationTokens: 0,
+				cacheReadTokens: 0,
+				totalCost: 0.03,
+				modelsUsed: [],
+				modelBreakdowns: [{
+					modelName: 'unknown',
+					inputTokens: 300,
+					outputTokens: 150,
+					cacheCreationTokens: 0,
+					cacheReadTokens: 0,
+					cost: 0.03,
+				}],
+			});
+		});
+
+		it('sorts weeks in descending order', async () => {
+			const { createFixture } = await import('fs-fixture');
+			const mockData: UsageData[] = [
+				{
+					timestamp: createISOTimestamp('2024-01-01T12:00:00Z'),
+					message: { usage: { input_tokens: 100, output_tokens: 50 } },
+					costUSD: 0.01,
+				},
+				{
+					timestamp: createISOTimestamp('2024-01-08T12:00:00Z'),
+					message: { usage: { input_tokens: 100, output_tokens: 50 } },
+					costUSD: 0.01,
+				},
+				{
+					timestamp: createISOTimestamp('2024-01-15T12:00:00Z'),
+					message: { usage: { input_tokens: 100, output_tokens: 50 } },
+					costUSD: 0.01,
+				},
+				{
+					timestamp: createISOTimestamp('2024-01-22T12:00:00Z'),
+					message: { usage: { input_tokens: 100, output_tokens: 50 } },
+					costUSD: 0.01,
+				},
+			];
+
+			await using fixture = await createFixture({
+				projects: {
+					project1: {
+						'session1.jsonl': mockData.map(d => JSON.stringify(d)).join('\n'),
+					},
+				},
+			});
+
+			const result = await loadWeeklyUsageData({ claudePath: fixture.path });
+			const weeks = result.map(r => r.week);
+
+			expect(weeks).toEqual(['2024-01-21', '2024-01-14', '2024-01-07', '2023-12-31']);
+		});
+
+		it('sorts weeks in ascending order when order is \'asc\'', async () => {
+			const { createFixture } = await import('fs-fixture');
+			const mockData: UsageData[] = [
+				{
+					timestamp: createISOTimestamp('2024-01-01T12:00:00Z'),
+					message: { usage: { input_tokens: 100, output_tokens: 50 } },
+					costUSD: 0.01,
+				},
+				{
+					timestamp: createISOTimestamp('2024-01-08T12:00:00Z'),
+					message: { usage: { input_tokens: 100, output_tokens: 50 } },
+					costUSD: 0.01,
+				},
+				{
+					timestamp: createISOTimestamp('2024-01-15T12:00:00Z'),
+					message: { usage: { input_tokens: 100, output_tokens: 50 } },
+					costUSD: 0.01,
+				},
+				{
+					timestamp: createISOTimestamp('2024-01-22T12:00:00Z'),
+					message: { usage: { input_tokens: 100, output_tokens: 50 } },
+					costUSD: 0.01,
+				},
+			];
+
+			await using fixture = await createFixture({
+				projects: {
+					project1: {
+						'session1.jsonl': mockData.map(d => JSON.stringify(d)).join('\n'),
+					},
+				},
+			});
+
+			const result = await loadWeeklyUsageData({ claudePath: fixture.path, order: 'asc' });
+			const weeks = result.map(r => r.week);
+
+			expect(weeks).toEqual(['2023-12-31', '2024-01-07', '2024-01-14', '2024-01-21']);
+		});
+
+		it('handles year boundaries correctly in sorting', async () => {
+			const { createFixture } = await import('fs-fixture');
+			const mockData: UsageData[] = [
+				{
+					timestamp: createISOTimestamp('2024-01-01T12:00:00Z'),
+					message: { usage: { input_tokens: 100, output_tokens: 50 } },
+					costUSD: 0.01,
+				},
+				{
+					timestamp: createISOTimestamp('2023-12-04T12:00:00Z'),
+					message: { usage: { input_tokens: 100, output_tokens: 50 } },
+					costUSD: 0.01,
+				},
+				{
+					timestamp: createISOTimestamp('2024-02-05T12:00:00Z'),
+					message: { usage: { input_tokens: 100, output_tokens: 50 } },
+					costUSD: 0.01,
+				},
+				{
+					timestamp: createISOTimestamp('2023-11-06T12:00:00Z'),
+					message: { usage: { input_tokens: 100, output_tokens: 50 } },
+					costUSD: 0.01,
+				},
+			];
+
+			await using fixture = await createFixture({
+				projects: {
+					project1: {
+						'session1.jsonl': mockData.map(d => JSON.stringify(d)).join('\n'),
+					},
+				},
+			});
+
+			// Descending order (default)
+			const descResult = await loadWeeklyUsageData({
+				claudePath: fixture.path,
+				order: 'desc',
+			});
+			const descWeeks = descResult.map(r => r.week);
+			expect(descWeeks).toEqual(['2024-02-04', '2023-12-31', '2023-12-03', '2023-11-05']);
+
+			// Ascending order
+			const ascResult = await loadWeeklyUsageData({
+				claudePath: fixture.path,
+				order: 'asc',
+			});
+			const ascWeeks = ascResult.map(r => r.week);
+			expect(ascWeeks).toEqual(['2023-11-05', '2023-12-03', '2023-12-31', '2024-02-04']);
+		});
+
+		it('respects date filters', async () => {
+			const { createFixture } = await import('fs-fixture');
+			const mockData: UsageData[] = [
+				{
+					timestamp: createISOTimestamp('2024-01-02T12:00:00Z'),
+					message: { usage: { input_tokens: 100, output_tokens: 50 } },
+					costUSD: 0.01,
+				},
+				{
+					timestamp: createISOTimestamp('2024-02-06T12:00:00Z'),
+					message: { usage: { input_tokens: 200, output_tokens: 100 } },
+					costUSD: 0.02,
+				},
+				{
+					timestamp: createISOTimestamp('2024-03-05T12:00:00Z'),
+					message: { usage: { input_tokens: 150, output_tokens: 75 } },
+					costUSD: 0.015,
+				},
+			];
+
+			await using fixture = await createFixture({
+				projects: {
+					project1: {
+						'session1.jsonl': mockData.map(d => JSON.stringify(d)).join('\n'),
+					},
+				},
+			});
+
+			const result = await loadWeeklyUsageData({
+				claudePath: fixture.path,
+				since: '20240110',
+				until: '20240225',
+			});
+
+			// Should only include February data
+			expect(result).toHaveLength(1);
+			expect(result[0]?.week).toBe('2024-02-04');
+			expect(result[0]?.inputTokens).toBe(200);
+		});
+
+		it('handles cache tokens correctly', async () => {
+			const { createFixture } = await import('fs-fixture');
+			const mockData: UsageData[] = [
+				{
+					timestamp: createISOTimestamp('2024-01-02T12:00:00Z'),
+					message: {
+						usage: {
+							input_tokens: 100,
+							output_tokens: 50,
+							cache_creation_input_tokens: 25,
+							cache_read_input_tokens: 10,
+						},
+					},
+					costUSD: 0.01,
+				},
+				{
+					timestamp: createISOTimestamp('2024-01-03T12:00:00Z'),
+					message: {
+						usage: {
+							input_tokens: 200,
+							output_tokens: 100,
+							cache_creation_input_tokens: 50,
+							cache_read_input_tokens: 20,
+						},
+					},
+					costUSD: 0.02,
+				},
+			];
+
+			await using fixture = await createFixture({
+				projects: {
+					project1: {
+						'session1.jsonl': mockData.map(d => JSON.stringify(d)).join('\n'),
+					},
+				},
+			});
+
+			const result = await loadWeeklyUsageData({ claudePath: fixture.path });
 
 			expect(result).toHaveLength(1);
 			expect(result[0]?.cacheCreationTokens).toBe(75); // 25 + 50

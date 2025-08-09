@@ -30,6 +30,16 @@
 				"byethrow-mcp"
 			],
 			"env": {}
+		},
+		"typescript": {
+			"command": "bun",
+			"args": [
+				"lsmcp",
+				"-p",
+				"typescript",
+				"--bin",
+				"bun tsgo --lsp --stdio"
+			]
 		}
 	}
 }

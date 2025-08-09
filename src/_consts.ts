@@ -139,3 +139,8 @@ export const BURN_RATE_THRESHOLDS = {
 	HIGH: 1000,
 	MODERATE: 500,
 } as const;
+
+/**
+ * Days of the week for weekly aggregation
+ */
+export const WEEK_DAYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'] as const;

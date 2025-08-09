@@ -86,6 +86,17 @@ export const sharedArgs = {
 		type: 'boolean',
 		description: 'Disable colored output (default: auto). NO_COLOR=1 has the same effect.',
 	},
+	timezone: {
+		type: 'string',
+		short: 'z',
+		description: 'Timezone for date grouping (e.g., UTC, America/New_York, Asia/Tokyo). Default: system timezone',
+	},
+	locale: {
+		type: 'string',
+		short: 'l',
+		description: 'Locale for date/time formatting (e.g., en-US, ja-JP, de-DE)',
+		default: 'en-CA',
+	},
 } as const satisfies Args;
 
 /**

@@ -56,6 +56,7 @@ export default withMermaid(defineConfig({
 					text: 'Usage',
 					items: [
 						{ text: 'Daily Reports', link: '/guide/daily-reports' },
+						{ text: 'Weekly Reports', link: '/guide/weekly-reports' },
 						{ text: 'Monthly Reports', link: '/guide/monthly-reports' },
 						{ text: 'Session Reports', link: '/guide/session-reports' },
 						{ text: 'Blocks Reports', link: '/guide/blocks-reports' },

@@ -39,6 +39,11 @@ export const monthlyDateSchema = z.string()
 	.regex(/^\d{4}-\d{2}$/, 'Date must be in YYYY-MM format')
 	.brand<'MonthlyDate'>();
 
+export const weeklyDateSchema = z
+	.string()
+	.regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be in YYYY-MM-DD format')
+	.brand<'WeeklyDate'>();
+
 export const filterDateSchema = z.string()
 	.regex(/^\d{8}$/, 'Date must be in YYYYMMDD format')
 	.brand<'FilterDate'>();
@@ -63,6 +68,8 @@ export type ISOTimestamp = z.infer<typeof isoTimestampSchema>;
 export type DailyDate = z.infer<typeof dailyDateSchema>;
 export type ActivityDate = z.infer<typeof activityDateSchema>;
 export type MonthlyDate = z.infer<typeof monthlyDateSchema>;
+export type WeeklyDate = z.infer<typeof weeklyDateSchema>;
+export type Bucket = MonthlyDate | WeeklyDate;
 export type FilterDate = z.infer<typeof filterDateSchema>;
 export type ProjectPath = z.infer<typeof projectPathSchema>;
 export type Version = z.infer<typeof versionSchema>;
@@ -79,9 +86,17 @@ export const createISOTimestamp = (value: string): ISOTimestamp => isoTimestampS
 export const createDailyDate = (value: string): DailyDate => dailyDateSchema.parse(value);
 export const createActivityDate = (value: string): ActivityDate => activityDateSchema.parse(value);
 export const createMonthlyDate = (value: string): MonthlyDate => monthlyDateSchema.parse(value);
+export const createWeeklyDate = (value: string): WeeklyDate => weeklyDateSchema.parse(value);
 export const createFilterDate = (value: string): FilterDate => filterDateSchema.parse(value);
 export const createProjectPath = (value: string): ProjectPath => projectPathSchema.parse(value);
 export const createVersion = (value: string): Version => versionSchema.parse(value);
+
+export function createBucket(value: string): Bucket {
+	if (weeklyDateSchema.safeParse(value).success) {
+		return createWeeklyDate(value);
+	}
+	return createMonthlyDate(value);
+};
 
 /**
  * Available cost calculation modes
@@ -120,3 +135,26 @@ export const modelPricingSchema = z.object({
  * Type definition for model pricing information
  */
 export type ModelPricing = z.infer<typeof modelPricingSchema>;
+
+/**
+ * Zod schema for Claude Code statusline hook JSON data
+ */
+export const statuslineHookJsonSchema = z.object({
+	session_id: z.string(),
+	transcript_path: z.string(),
+	cwd: z.string(),
+	model: z.object({
+		id: z.string(),
+		display_name: z.string(),
+	}),
+	workspace: z.object({
+		current_dir: z.string(),
+		project_dir: z.string(),
+	}),
+	version: z.string().optional(),
+});
+
+/**
+ * Type definition for Claude Code statusline hook JSON data
+ */
+export type StatuslineHookJson = z.infer<typeof statuslineHookJsonSchema>;

@@ -69,10 +69,11 @@ If you have a wide terminal, you'll also see cache token columns:
 
 Now that you have your first report, explore these features:
 
-1. **[Monthly Reports](/guide/monthly-reports)** - See usage aggregated by month
-2. **[Session Reports](/guide/session-reports)** - Analyze individual conversations
-3. **[Live Monitoring](/guide/live-monitoring)** - Real-time usage tracking
-4. **[Configuration](/guide/configuration)** - Customize ccusage behavior
+1. **[Weekly Reports](/guide/weekly-reports)** - Track usage patterns by week
+2. **[Monthly Reports](/guide/monthly-reports)** - See usage aggregated by month
+3. **[Session Reports](/guide/session-reports)** - Analyze individual conversations
+4. **[Live Monitoring](/guide/live-monitoring)** - Real-time usage tracking
+5. **[Configuration](/guide/configuration)** - Customize ccusage behavior
 
 ## Common Use Cases
 

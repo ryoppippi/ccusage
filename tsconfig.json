@@ -28,6 +28,7 @@
 		"noUnusedParameters": false,
 		"noEmit": true,
 		"verbatimModuleSyntax": true,
+		"erasableSyntaxOnly": true,
 		"skipLibCheck": true
 	},
 	"exclude": [

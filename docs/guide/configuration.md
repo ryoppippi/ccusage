@@ -6,7 +6,7 @@ ccusage supports various configuration options to customize its behavior and ada
 
 ### CLAUDE_CONFIG_DIR
 
-The primary configuration option is the `CLAUDE_CONFIG_DIR` environment variable, which specifies where ccusage should look for Claude Code data.
+The `CLAUDE_CONFIG_DIR` environment variable specifies where ccusage should look for Claude Code data.
 
 #### Single Directory
 
@@ -25,6 +25,32 @@ ccusage daily
 ```
 
 When multiple directories are specified, ccusage automatically aggregates usage data from all valid locations.
+
+### LOG_LEVEL
+
+Control the verbosity of log output using the `LOG_LEVEL` environment variable. ccusage uses [consola](https://github.com/unjs/consola) for logging under the hood:
+
+```bash
+# Set logging level
+export LOG_LEVEL=0  # Silent (errors only)
+export LOG_LEVEL=1  # Warnings
+export LOG_LEVEL=2  # Normal logs
+export LOG_LEVEL=3  # Informational logs (default)
+export LOG_LEVEL=4  # Debug logs
+export LOG_LEVEL=5  # Trace logs (most verbose)
+
+# Examples
+LOG_LEVEL=0 ccusage daily       # Silent output, only show results
+LOG_LEVEL=4 ccusage daily       # Debug output for troubleshooting
+LOG_LEVEL=5 ccusage session     # Trace all operations
+```
+
+#### Use Cases
+
+- **Clean Output**: Use `LOG_LEVEL=0` for scripts or when piping output
+- **Debugging**: Use `LOG_LEVEL=4` or `5` to troubleshoot issues
+- **CI/CD**: Use `LOG_LEVEL=1` to only see warnings and errors
+- **Development**: Use higher levels to understand internal operations
 
 ### CCUSAGE_PROJECT_ALIASES
 
@@ -140,11 +166,90 @@ ccusage daily --order asc              # Oldest first
 ccusage daily --offline                # Use cached pricing data
 ccusage daily -O                       # Short alias
 
+# Timezone
+ccusage daily --timezone UTC           # Use UTC timezone
+ccusage daily -z America/New_York      # Use New York timezone
+ccusage daily --timezone Asia/Tokyo    # Use Tokyo timezone
+
+# Locale
+ccusage daily --locale en-US           # US English (12-hour time)
+ccusage daily -l ja-JP                 # Japanese (24-hour time)
+ccusage daily --locale de-DE           # German (24-hour time)
+
 # Project analysis (daily command only)
 ccusage daily --instances              # Group by project
 ccusage daily --project myproject      # Filter to specific project
 ccusage daily --instances --project myproject  # Combined usage
 ```
+
+### Timezone Configuration
+
+The `--timezone` option controls how dates are calculated for grouping usage data:
+
+```bash
+# Use UTC timezone for consistent reports
+ccusage daily --timezone UTC
+
+# Use specific timezone
+ccusage daily --timezone America/New_York
+ccusage monthly -z Asia/Tokyo
+
+# Default behavior (no timezone specified)
+ccusage daily  # Uses system's local timezone
+```
+
+#### Timezone Effect
+
+The timezone affects how usage is grouped by date. For example, usage at 11 PM UTC on January 1st would appear on:
+- **January 1st** when `--timezone UTC`
+- **January 1st** when `--timezone America/New_York` (6 PM EST)
+- **January 2nd** when `--timezone Asia/Tokyo` (8 AM JST next day)
+
+#### Use Cases
+
+- **UTC Alignment**: Use `--timezone UTC` for consistent reports across different locations
+- **Remote Teams**: Align reports to team's primary timezone
+- **Cross-Timezone Analysis**: Compare usage patterns across different time zones
+- **CI/CD Environments**: Use UTC for consistent automated reports
+
+### Locale Configuration
+
+The `--locale` option controls date and time formatting:
+
+```bash
+# Use US English locale (12-hour time format)
+ccusage daily --locale en-US
+
+# Use Japanese locale (24-hour time format)
+ccusage blocks --locale ja-JP
+
+# Use German locale (24-hour time format)
+ccusage session -l de-DE
+
+# Default behavior (no locale specified)
+ccusage daily  # Uses en-CA (ISO date format, 24-hour time)
+```
+
+#### Locale Effects
+
+The locale affects how dates and times are displayed:
+
+- **Date Format**:
+  - `en-US`: 08/04/2025
+  - `en-CA`: 2025-08-04 (ISO format)
+  - `ja-JP`: 2025/08/04
+  - `de-DE`: 04.08.2025
+
+- **Time Format**:
+  - `en-US`: 3:30:00 PM (12-hour)
+  - `en-CA`, `ja-JP`, `de-DE`: 15:30:00 (24-hour)
+
+#### Use Cases
+
+- **International Teams**: Display dates/times in familiar formats
+- **12/24 Hour Preference**: Choose between AM/PM or 24-hour time
+- **Regional Standards**: Match local date formatting conventions
+- **ISO Compliance**: Use `en-CA` for ISO 8601 date format
 
 ### Debug Options
 
@@ -292,7 +397,7 @@ Or with global installation:
 - **`session`** - Session-based reports
 - **`blocks`** - 5-hour billing blocks reports
 
-Each tool accepts `since`, `until`, and `mode` parameters.
+Each tool accepts `since`, `until`, `mode`, `timezone`, and `locale` parameters.
 
 ## Terminal Display Configuration
 

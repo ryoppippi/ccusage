@@ -18,13 +18,13 @@
     "@ryoppippi/vite-plugin-cloudflare-redirect": "npm:@jsr/ryoppippi__vite-plugin-cloudflare-redirect",
     "@types/bun": "^1.2.19",
     "tinyglobby": "^0.2.14",
-    "typedoc": "^0.28.7",
-    "typedoc-plugin-markdown": "^4.7.1",
+    "typedoc": "^0.28.9",
+    "typedoc-plugin-markdown": "^4.8.0",
     "typedoc-vitepress-theme": "^1.1.2",
-    "vitepress": "^1.6.3",
+    "vitepress": "^1.6.4",
     "vitepress-plugin-group-icons": "^1.6.1",
-    "vitepress-plugin-llms": "^1.7.1",
+    "vitepress-plugin-llms": "^1.7.2",
     "vitepress-plugin-mermaid": "^2.0.17",
-    "wrangler": "^4.26.0"
+    "wrangler": "^4.28.0"
   }
 }

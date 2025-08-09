@@ -21,18 +21,26 @@ features:
     title: Daily Reports
     details: View token usage and costs aggregated by date with detailed breakdowns
     link: /guide/daily-reports
+  - icon: 📆
+    title: Weekly Reports
+    details: Track usage patterns by week with configurable start day
+    link: /guide/weekly-reports
   - icon: 📅
     title: Monthly Reports
     details: Analyze usage patterns over monthly periods with cost tracking
+    link: /guide/monthly-reports
   - icon: 💬
     title: Session Reports
     details: Group usage by conversation sessions for detailed analysis
+    link: /guide/session-reports
   - icon: ⏰
     title: 5-Hour Blocks
     details: Track usage within Claude's billing windows with active monitoring
+    link: /guide/blocks-reports
   - icon: 📈
     title: Live Monitoring
     details: Real-time dashboard with progress bars and cost projections
+    link: /guide/live-monitoring
   - icon: 🤖
     title: Model Tracking
     details: See which Claude models you're using (Opus, Sonnet, etc.)
@@ -42,6 +50,7 @@ features:
   - icon: 📄
     title: JSON Output
     details: Export data in structured JSON format for programmatic use
+    link: /guide/json-output
   - icon: 💰
     title: Cost Analysis
     details: Shows estimated costs in USD for each day/month/session
@@ -54,6 +63,7 @@ features:
   - icon: 🔌
     title: MCP Integration
     details: Built-in Model Context Protocol server for tool integration
+    link: /guide/mcp-server
 ---
 
 <div style="text-align: center; margin: 2rem 0;">

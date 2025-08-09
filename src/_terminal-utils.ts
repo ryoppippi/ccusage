@@ -299,3 +299,42 @@ export function centerText(text: string, width: number): string {
 
 	return ' '.repeat(leftPadding) + text + ' '.repeat(rightPadding);
 }
+
+// Using below sequences causes issues in some terminals such as NeoVim.
+// - ansiEscapes.cursorSavePosition (\u001B[s = Save Cursor)
+// - ansiEscapes.cursorRestorePosition (\u001B[u = Unsave Cursor)
+//
+// Instead, we use:
+// - \u001B7 = Save Cursor & Attrs
+// - \u001B8 = Restore Cursor & Attrs
+//
+// see: https://www2.ccs.neu.edu/research/gpc/VonaUtils/vona/terminal/vtansi.htm
+const SAVE_CURSOR = '\u001B7';
+const RESTORE_CURSOR = '\u001B8';
+/**
+ * Draws an emoji with consistent 2-character width regardless of terminal behavior
+ * @param emoji The emoji to draw
+ * @returns A string containing ANSI escape sequences and the emoji
+ */
+export function drawEmoji(emoji: string): string {
+	return `${SAVE_CURSOR}${emoji}${RESTORE_CURSOR}${ansiEscapes.cursorForward(stringWidth(emoji))}`;
+}
+
+if (import.meta.vitest != null) {
+	describe('drawEmoji', () => {
+		it('should always return a string with width as same as original', () => {
+			// 2-width emojis
+			expect(stringWidth(drawEmoji('⏱️'))).toBe(2);
+			expect(stringWidth(drawEmoji('🔥'))).toBe(2);
+			expect(stringWidth(drawEmoji('📈'))).toBe(2);
+			expect(stringWidth(drawEmoji('⚙️'))).toBe(2);
+			expect(stringWidth(drawEmoji('❌'))).toBe(2);
+			expect(stringWidth(drawEmoji('⚠️'))).toBe(2);
+			expect(stringWidth(drawEmoji('⚡'))).toBe(2);
+
+			// 1-width emojis
+			expect(stringWidth(drawEmoji('✓'))).toBe(1);
+			expect(stringWidth(drawEmoji('↻'))).toBe(1);
+		});
+	});
+}

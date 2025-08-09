@@ -16,7 +16,7 @@ import prettyMs from 'pretty-ms';
 import stringWidth from 'string-width';
 import { BURN_RATE_THRESHOLDS } from './_consts.ts';
 import { calculateBurnRate, projectBlockUsage } from './_session-blocks.ts';
-import { centerText, createProgressBar } from './_terminal-utils.ts';
+import { centerText, createProgressBar, drawEmoji } from './_terminal-utils.ts';
 import { getTotalTokens } from './_token-utils.ts';
 import { formatCurrency, formatModelsDisplay, formatNumber } from './_utils.ts';
 
@@ -31,11 +31,11 @@ function getRateIndicator(burnRate: ReturnType<typeof calculateBurnRate>): strin
 	// eslint-disable-next-line ts/switch-exhaustiveness-check
 	switch (true) {
 		case burnRate.tokensPerMinuteForIndicator > BURN_RATE_THRESHOLDS.HIGH:
-			return pc.red('⚡ HIGH');
+			return pc.red(`${drawEmoji('⚡')} HIGH`);
 		case burnRate.tokensPerMinuteForIndicator > BURN_RATE_THRESHOLDS.MODERATE:
-			return pc.yellow('⚡ MODERATE');
+			return pc.yellow(`${drawEmoji('⚡')} MODERATE`);
 		default:
-			return pc.green('✓ NORMAL');
+			return pc.green(`${drawEmoji('✓')} NORMAL`);
 	}
 }
 
@@ -194,7 +194,7 @@ export function renderLiveDisplay(terminal: TerminalManager, block: SessionBlock
 	terminal.write(`${marginStr}│${' '.repeat(boxWidth - 2)}│\n`);
 
 	// Session section
-	const sessionLabel = pc.bold('⏱️ SESSION');
+	const sessionLabel = `${drawEmoji('⏱️')}${pc.bold(' SESSION')}`;
 	const sessionLabelWidth = stringWidth(sessionLabel);
 	const sessionBarStr = `${sessionLabel}${''.padEnd(Math.max(0, labelWidth - sessionLabelWidth))} ${sessionProgressBar} ${sessionRightText}`;
 	const sessionBarPadded = sessionBarStr + ' '.repeat(Math.max(0, boxWidth - 3 - stringWidth(sessionBarStr)));
@@ -221,7 +221,7 @@ export function renderLiveDisplay(terminal: TerminalManager, block: SessionBlock
 	let usageLimitResetTimePadded: string | null = null;
 	if (block.usageLimitResetTime !== undefined && now < block.usageLimitResetTime) {
 		const resetTime = block.usageLimitResetTime?.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: true }) ?? null;
-		const usageLimitResetTime = resetTime !== null ? pc.red(`❌ USAGE LIMIT. RESET AT ${resetTime}`) : '';
+		const usageLimitResetTime = resetTime !== null ? pc.red(`${drawEmoji('❌')} USAGE LIMIT. RESET AT ${resetTime}`) : '';
 		usageLimitResetTimePadded = resetTime !== null ? usageLimitResetTime + ' '.repeat(Math.max(0, boxWidth - 3 - stringWidth(usageLimitResetTime))) : null;
 	}
 	terminal.write(`${marginStr}│ ${sessionDetailsPadded}│\n`);
@@ -273,7 +273,7 @@ export function renderLiveDisplay(terminal: TerminalManager, block: SessionBlock
 	};
 
 	// Usage section
-	const usageLabel = pc.bold('🔥 USAGE');
+	const usageLabel = `${drawEmoji('🔥')}${pc.bold(' USAGE')}`;
 	const usageLabelWidth = stringWidth(usageLabel);
 
 	// Create usage bar string with pre-generated text
@@ -379,14 +379,14 @@ export function renderLiveDisplay(terminal: TerminalManager, block: SessionBlock
 
 		const limitStatus = config.tokenLimit != null && config.tokenLimit > 0
 			? (projectedPercent > 100
-					? pc.red('❌ WILL EXCEED LIMIT')
+					? pc.red(`${drawEmoji('❌')} WILL EXCEED LIMIT`)
 					: projectedPercent > 80
-						? pc.yellow('⚠️  APPROACHING LIMIT')
-						: pc.green('✓ WITHIN LIMIT'))
-			: pc.green('✓ ON TRACK');
+						? pc.yellow(`${drawEmoji('⚠️')} APPROACHING LIMIT`)
+						: pc.green(`${drawEmoji('✓')} WITHIN LIMIT`))
+			: pc.green(`${drawEmoji('✓')} ON TRACK`);
 
 		// Projection section
-		const projLabel = pc.bold('📈 PROJECTION');
+		const projLabel = `${drawEmoji('📈')}${pc.bold(' PROJECTION')}`;
 		const projLabelWidth = stringWidth(projLabel);
 
 		// Create projection bar string with pre-generated text
@@ -435,14 +435,14 @@ export function renderLiveDisplay(terminal: TerminalManager, block: SessionBlock
 	// Models section
 	if (block.models.length > 0) {
 		terminal.write(`${marginStr}├${'─'.repeat(boxWidth - 2)}┤\n`);
-		const modelsLine = `⚙️  Models: ${formatModelsDisplay(block.models)}`;
+		const modelsLine = `${drawEmoji('⚙️')}  Models: ${formatModelsDisplay(block.models)}`;
 		const modelsLinePadded = modelsLine + ' '.repeat(Math.max(0, boxWidth - 3 - stringWidth(modelsLine)));
 		terminal.write(`${marginStr}│ ${modelsLinePadded}│\n`);
 	}
 
 	// Footer
 	terminal.write(`${marginStr}├${'─'.repeat(boxWidth - 2)}┤\n`);
-	const refreshText = `↻ Refreshing every ${config.refreshInterval / 1000}s  •  Press Ctrl+C to stop`;
+	const refreshText = `${drawEmoji('↻')} Refreshing every ${config.refreshInterval / 1000}s  •  Press Ctrl+C to stop`;
 	terminal.write(`${marginStr}│${pc.gray(centerText(refreshText, boxWidth - 2))}│\n`);
 	terminal.write(`${marginStr}└${'─'.repeat(boxWidth - 2)}┘\n`);
 }
