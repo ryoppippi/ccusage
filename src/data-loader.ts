@@ -1069,37 +1069,22 @@ export async function loadSessionUsageById(
 	if (file == null) {
 		return null;
 	}
-	const content = await readFile(file, 'utf-8');
-	const lines = content.trim().split('\n').filter(line => line.length > 0);
 
-	const mode = options?.mode ?? 'auto';
-	using fetcher = mode === 'display' ? null : new PricingFetcher(options?.offline);
+	// Import the helper function for processing a single file
+	const { processSingleFile } = await import('./_common-loader.ts');
 
-	const entries: UsageData[] = [];
-	let totalCost = 0;
+	// Process the single file using common logic
+	const result = await processSingleFile(file, options);
 
-	for (const line of lines) {
-		try {
-			const parsed = JSON.parse(line) as unknown;
-			const result = usageDataSchema.safeParse(parsed);
-			if (!result.success) {
-				continue;
-			}
-			const data = result.data;
-
-			const cost = fetcher != null
-				? await calculateCostForEntry(data, mode, fetcher)
-				: data.costUSD ?? 0;
-
-			totalCost += cost;
-			entries.push(data);
-		}
-		catch {
-			// Skip invalid JSON lines
-		}
+	if (result == null) {
+		return null;
 	}
 
-	return { totalCost, entries };
+	// Extract the usage data and calculate total cost
+	const usageEntries = result.entries.map(e => e.data);
+	const totalCost = result.entries.reduce((sum, e) => sum + e.cost, 0);
+
+	return { totalCost, entries: usageEntries };
 }
 
 export async function loadBucketUsageData(

@@ -201,6 +201,56 @@ function markAsProcessed(
 	}
 }
 
+/**
+ * Process a single JSONL file and return parsed entries with costs
+ */
+export async function processSingleFile(
+	file: string,
+	options?: { mode?: CostMode; offline?: boolean },
+): Promise<{ entries: ProcessedEntry[] } | null> {
+	try {
+		const content = await readFile(file, 'utf-8');
+		const lines = content.trim().split('\n').filter(line => line.length > 0);
+
+		const mode = options?.mode ?? 'auto';
+		using fetcher = mode === 'display' ? null : new PricingFetcher(options?.offline);
+
+		const entries: ProcessedEntry[] = [];
+
+		for (const line of lines) {
+			try {
+				const parsed = JSON.parse(line) as unknown;
+				const result = usageDataSchema.safeParse(parsed);
+				if (!result.success) {
+					continue;
+				}
+				const data = result.data;
+
+				const cost = fetcher != null
+					? await calculateCostForEntry(data, mode, fetcher)
+					: data.costUSD ?? 0;
+
+				entries.push({
+					data,
+					file,
+					cost,
+					model: data.message.model,
+				});
+			}
+			catch (error) {
+				// Skip invalid JSON lines but log for debugging
+				logger.debug(`Skipping invalid JSON line in ${file}: ${error instanceof Error ? error.message : String(error)}`);
+			}
+		}
+
+		return { entries };
+	}
+	catch (error) {
+		logger.debug(`Failed to process file ${file}: ${error instanceof Error ? error.message : String(error)}`);
+		return null;
+	}
+}
+
 if (import.meta.vitest != null) {
 	describe('globUsageFiles', () => {
 		it('should glob files from multiple paths with base directories', async () => {
