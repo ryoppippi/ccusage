@@ -3,6 +3,7 @@ import getStdin from 'get-stdin';
 import { define } from 'gunshi';
 import pc from 'picocolors';
 import { calculateBurnRate } from '../_session-blocks.ts';
+import { sharedArgs } from '../_shared-args.ts';
 import { statuslineHookJsonSchema } from '../_types.ts';
 import { formatCurrency } from '../_utils.ts';
 import { calculateTotals } from '../calculate-cost.ts';
@@ -28,8 +29,10 @@ function formatRemainingTime(remaining: number): string {
 export const statuslineCommand = define({
 	name: 'statusline',
 	description: 'Display compact status line for Claude Code hooks (Beta)',
-	args: {},
-	async run() {
+	args: {
+		offline: sharedArgs.offline,
+	},
+	async run(ctx) {
 		// Set logger to silent for statusline output
 		logger.level = 0;
 
@@ -61,7 +64,7 @@ export const statuslineCommand = define({
 		// Load current session's cost by finding the specific JSONL file
 		let sessionCost: number | null = null;
 		try {
-			const sessionData = await loadSessionUsageById(sessionId, { mode: 'auto' });
+			const sessionData = await loadSessionUsageById(sessionId, { mode: 'auto', offline: ctx.values.offline });
 			if (sessionData != null) {
 				sessionCost = sessionData.totalCost;
 			}
@@ -80,6 +83,7 @@ export const statuslineCommand = define({
 				since: todayStr,
 				until: todayStr,
 				mode: 'auto',
+				offline: ctx.values.offline,
 			});
 
 			if (dailyData.length > 0) {
@@ -97,6 +101,7 @@ export const statuslineCommand = define({
 		try {
 			const blocks = await loadSessionBlockData({
 				mode: 'auto',
+				offline: ctx.values.offline,
 			});
 
 			// Only identify blocks if we have data
