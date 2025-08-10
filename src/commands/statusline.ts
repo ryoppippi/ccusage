@@ -30,7 +30,10 @@ export const statuslineCommand = define({
 	name: 'statusline',
 	description: 'Display compact status line for Claude Code hooks (Beta)',
 	args: {
-		offline: sharedArgs.offline,
+		offline: {
+			...sharedArgs.offline,
+			default: true, // Default to offline mode for faster performance
+		},
 	},
 	async run(ctx) {
 		// Set logger to silent for statusline output
