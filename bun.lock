@@ -31,6 +31,7 @@
         "gunshi": "^0.26.3",
         "hono": "^4.8.12",
         "lint-staged": "^16.1.2",
+        "nano-spawn": "^1.0.2",
         "path-type": "^6.0.0",
         "picocolors": "^1.1.1",
         "pretty-ms": "^9.2.0",
