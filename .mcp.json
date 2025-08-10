@@ -31,14 +31,12 @@
 			],
 			"env": {}
 		},
-		"typescript": {
+		"lsmcp": {
 			"command": "bun",
 			"args": [
 				"lsmcp",
 				"-p",
-				"typescript",
-				"--bin",
-				"bun tsgo --lsp --stdio"
+				"tsgo"
 			]
 		}
 	}
