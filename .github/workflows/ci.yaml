@@ -32,13 +32,7 @@ jobs:
         run: |
           mkdir -p $HOME/.claude/projects
           mkdir -p $HOME/.config/claude/projects
-      - run: bun run test --coverage
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@015f24e6818733317a2da2edd6290ab26238649a # v5.0.7
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: ./coverage/lcov.info
-          fail_ci_if_error: true
+      - run: bun run test
 
   npm-publish-dry-run-and-upload-pkg-pr-now:
     runs-on: ubuntu-latest
