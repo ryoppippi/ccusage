@@ -9,13 +9,17 @@ export default defineConfig({
 		coverage: {
 			provider: 'v8',
 			reporter: ['text', 'json', 'lcov', 'html'],
+			include: ['src/**/*.ts'],
 			exclude: [
 				'node_modules/**',
+				'dist/**',
+				'docs/**',
 				'test/**',
-				'*.config.ts',
-				'*.config.js',
-				'src/**/*.test.ts',
-				'src/**/*.spec.ts',
+				'**/*.config.*',
+				'**/*.test.ts',
+				'**/*.spec.ts',
+				'src/commands/**', // CLI command files don't need coverage
+				'src/index.ts',
 			],
 		},
 	},
