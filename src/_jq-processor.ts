@@ -37,8 +37,6 @@ export async function processWithJq(jsonData: unknown, jqCommand: string): Resul
 
 // In-source tests
 if (import.meta.vitest != null) {
-	const { describe, it, expect } = import.meta.vitest;
-
 	describe('processWithJq', () => {
 		it('should process JSON with simple filter', async () => {
 			const data = { name: 'test', value: 42 };
