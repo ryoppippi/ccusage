@@ -6,6 +6,18 @@ export default defineConfig({
 		watch: false,
 		includeSource: ['src/**/*.{js,ts}'],
 		globals: true,
+		coverage: {
+			provider: 'v8',
+			reporter: ['text', 'json', 'lcov', 'html'],
+			exclude: [
+				'node_modules/**',
+				'test/**',
+				'*.config.ts',
+				'*.config.js',
+				'src/**/*.test.ts',
+				'src/**/*.spec.ts',
+			],
+		},
 	},
 	plugins: [
 		Macros({
