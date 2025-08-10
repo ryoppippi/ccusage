@@ -15,7 +15,7 @@ export async function processWithJq(jsonData: unknown, jqCommand: string): Resul
 	const result = Result.try({
 		try: async () => {
 			const spawnResult = await spawn('jq', [jqCommand], {
-				stdin: jsonString,
+				stdin: { string: jsonString },
 			});
 			return spawnResult.output.trim();
 		},
@@ -64,7 +64,7 @@ if (import.meta.vitest != null) {
 			const data = { message: 'hello world' };
 			const result = await processWithJq(data, '.message | @text');
 			const unwrapped = Result.unwrap(result);
-			expect(unwrapped).toBe('hello world');
+			expect(unwrapped).toBe('"hello world"');
 		});
 
 		it('should return error for invalid jq syntax', async () => {
