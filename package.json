@@ -69,7 +69,7 @@
 		"@praha/byethrow-mcp": "^0.1.0",
 		"@ryoppippi/eslint-config": "^0.3.7",
 		"@types/bun": "^1.2.19",
-		"@typescript/native-preview": "^7.0.0-dev.20250806.1",
+		"@typescript/native-preview": "^7.0.0-dev.20250807.1",
 		"ansi-escapes": "^7.0.0",
 		"bumpp": "^10.2.2",
 		"clean-pkg-json": "^1.3.0",
