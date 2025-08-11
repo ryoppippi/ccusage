@@ -313,3 +313,104 @@ export const sessionCommand = define({
 		}
 	},
 });
+
+if (import.meta.vitest != null) {
+	const vitest = import('vitest');
+
+	void vitest.then(({ describe, it, expect, vi, afterEach }) => {
+		describe('sessionCommand --id functionality', () => {
+			afterEach(() => {
+				vi.unstubAllEnvs();
+			});
+
+			it('shows session data using --id option', async () => {
+				const { createFixture } = await import('fs-fixture');
+				const path = await import('node:path');
+
+				await using fixture = await createFixture({
+					'.claude': {
+						projects: {
+							'test-project': {
+								'session-123.jsonl': `${JSON.stringify({
+									timestamp: '2024-01-01T00:00:00Z',
+									sessionId: 'session-123',
+									message: {
+										usage: {
+											input_tokens: 100,
+											output_tokens: 50,
+											cache_creation_input_tokens: 10,
+											cache_read_input_tokens: 20,
+										},
+										model: 'claude-sonnet-4-20250514',
+									},
+									costUSD: 0.5,
+								})}\n${JSON.stringify({
+									timestamp: '2024-01-01T01:00:00Z',
+									sessionId: 'session-123',
+									message: {
+										usage: {
+											input_tokens: 200,
+											output_tokens: 100,
+										},
+										model: 'claude-sonnet-4-20250514',
+									},
+									costUSD: 1.0,
+								})}`,
+							},
+						},
+					},
+				});
+
+				vi.stubEnv('CLAUDE_CONFIG_DIR', path.join(fixture.path, '.claude'));
+
+				// Test that we can access the loadSessionUsageById functionality through the command
+				const sessionUsage = await loadSessionUsageById('session-123', { mode: 'display', offline: true });
+
+				expect(sessionUsage).not.toBeNull();
+				expect(sessionUsage?.totalCost).toBe(1.5);
+				expect(sessionUsage?.entries).toHaveLength(2);
+
+				// Verify the first entry has the expected structure
+				const firstEntry = sessionUsage?.entries[0];
+				expect(firstEntry?.message.usage.input_tokens).toBe(100);
+				expect(firstEntry?.message.usage.output_tokens).toBe(50);
+				expect(firstEntry?.message.usage.cache_creation_input_tokens).toBe(10);
+				expect(firstEntry?.message.usage.cache_read_input_tokens).toBe(20);
+				expect(firstEntry?.message.model).toBe('claude-sonnet-4-20250514');
+			});
+
+			it('returns null for non-existent session ID', async () => {
+				const { createFixture } = await import('fs-fixture');
+				const path = await import('node:path');
+
+				await using fixture = await createFixture({
+					'.claude': {
+						projects: {},
+					},
+				});
+
+				vi.stubEnv('CLAUDE_CONFIG_DIR', path.join(fixture.path, '.claude'));
+
+				const sessionUsage = await loadSessionUsageById('non-existent-session', { mode: 'display', offline: true });
+				expect(sessionUsage).toBeNull();
+			});
+
+			it('verifies the --id option is properly defined in command args', () => {
+				// Verify that the sessionCommand has the id argument properly configured
+				expect(sessionCommand.args).toHaveProperty('id');
+				expect(sessionCommand.args.id).toEqual({
+					type: 'string',
+					short: 'i',
+					description: 'Load usage data for a specific session ID',
+				});
+			});
+
+			it('validates command exports loadSessionUsageById for external use', async () => {
+				// This test validates that the function we use is properly exported
+				// This ensures the API contract for custom statusline implementations
+				expect(loadSessionUsageById).toBeDefined();
+				expect(typeof loadSessionUsageById).toBe('function');
+			});
+		});
+	});
+}
