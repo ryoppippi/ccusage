@@ -1,14 +1,14 @@
-import { readFile } from 'node:fs/promises';
 import process from 'node:process';
 import getStdin from 'get-stdin';
 import { define } from 'gunshi';
 import pc from 'picocolors';
+import { CONTEXT_USAGE_THRESHOLDS } from '../_consts.ts';
 import { calculateBurnRate } from '../_session-blocks.ts';
 import { sharedArgs } from '../_shared-args.ts';
 import { statuslineHookJsonSchema } from '../_types.ts';
 import { formatCurrency } from '../_utils.ts';
 import { calculateTotals } from '../calculate-cost.ts';
-import { getClaudePaths, loadDailyUsageData, loadSessionBlockData, loadSessionUsageById } from '../data-loader.ts';
+import { calculateContextTokens, getClaudePaths, loadDailyUsageData, loadSessionBlockData, loadSessionUsageById } from '../data-loader.ts';
 import { log, logger } from '../logger.ts';
 
 /**
@@ -24,79 +24,6 @@ function formatRemainingTime(remaining: number): string {
 		return `${remainingHours}h ${remainingMins}m left`;
 	}
 	return `${remainingMins}m left`;
-}
-
-/**
- * Interface for transcript structure
- */
-type TranscriptUsage = {
-	input_tokens?: number;
-};
-
-type TranscriptMessage = {
-	usage?: TranscriptUsage;
-};
-
-type TranscriptData = {
-	messages?: TranscriptMessage[];
-	usage?: TranscriptUsage;
-};
-
-/**
- * Calculate context tokens from transcript file
- * @param transcriptPath - Path to the transcript JSON file
- * @returns Object with context tokens info or null if unavailable
- */
-async function calculateContextTokens(transcriptPath: string): Promise<{
-	totalInputTokens: number;
-	percentage: number;
-	contextLimit: number;
-} | null> {
-	let transcript: TranscriptData;
-	try {
-		const content = await readFile(transcriptPath, 'utf-8');
-		transcript = JSON.parse(content) as TranscriptData;
-	}
-	catch (error) {
-		logger.debug('Failed to read transcript file:', error);
-		return null;
-	}
-
-	// Calculate total input tokens from all messages with usage information
-	let totalInputTokens = 0;
-	const contextLimit = 200000; // Default Claude 4 context limit
-	let foundUsage = false;
-
-	// Look for usage information in the transcript
-	if (transcript.messages != null && Array.isArray(transcript.messages)) {
-		for (const message of transcript.messages) {
-			if (message.usage?.input_tokens != null) {
-				totalInputTokens = Math.max(totalInputTokens, message.usage.input_tokens);
-				foundUsage = true;
-			}
-		}
-	}
-
-	// If no usage found in messages, check if there's a direct usage field
-	if (!foundUsage && transcript.usage?.input_tokens != null) {
-		totalInputTokens = transcript.usage.input_tokens;
-		foundUsage = true;
-	}
-
-	// If still no usage found, return null
-	if (!foundUsage) {
-		logger.debug('No usage information found in transcript');
-		return null;
-	}
-
-	// Calculate percentage
-	const percentage = Math.round((totalInputTokens / contextLimit) * 100);
-
-	return {
-		totalInputTokens,
-		percentage,
-		contextLimit,
-	};
 }
 
 export const statuslineCommand = define({
@@ -240,20 +167,15 @@ export const statuslineCommand = define({
 		try {
 			const contextData = await calculateContextTokens(hookData.transcript_path);
 			if (contextData != null) {
-				// Format context percentage with color coding
-				let coloredPercentage = `${contextData.percentage}%`;
-				if (contextData.percentage < 50) {
-					coloredPercentage = pc.green(`${contextData.percentage}%`);
-				}
-				else if (contextData.percentage < 80) {
-					coloredPercentage = pc.yellow(`${contextData.percentage}%`);
-				}
-				else {
-					coloredPercentage = pc.red(`${contextData.percentage}%`);
-				}
+				// Format context percentage with color coding using constants
+				const coloredPercentage = contextData.percentage < CONTEXT_USAGE_THRESHOLDS.LOW
+					? pc.green(`${contextData.percentage}%`)
+					: contextData.percentage < CONTEXT_USAGE_THRESHOLDS.MEDIUM
+						? pc.yellow(`${contextData.percentage}%`)
+						: pc.red(`${contextData.percentage}%`);
 
 				// Format token count with thousand separators
-				const tokenDisplay = contextData.totalInputTokens.toLocaleString();
+				const tokenDisplay = contextData.maxInputTokens.toLocaleString();
 				contextInfo = ` | 🧠 ${tokenDisplay} (${coloredPercentage})`;
 			}
 		}

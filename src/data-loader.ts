@@ -17,6 +17,7 @@ import type {
 	CostMode,
 	ModelName,
 	SortOrder,
+	TranscriptMessage,
 	Version,
 	WeeklyDate,
 } from './_types.ts';
@@ -32,7 +33,7 @@ import { createFixture } from 'fs-fixture';
 import { isDirectorySync } from 'path-type';
 import { glob } from 'tinyglobby';
 import { z } from 'zod';
-import { CLAUDE_CONFIG_DIR_ENV, CLAUDE_PROJECTS_DIR_NAME, DEFAULT_CLAUDE_CODE_PATH, DEFAULT_CLAUDE_CONFIG_PATH, USAGE_DATA_GLOB_PATTERN, USER_HOME_DIR } from './_consts.ts';
+import { CLAUDE_CONFIG_DIR_ENV, CLAUDE_PROJECTS_DIR_NAME, CONTEXT_LIMIT, DEFAULT_CLAUDE_CODE_PATH, DEFAULT_CLAUDE_CONFIG_PATH, USAGE_DATA_GLOB_PATTERN, USER_HOME_DIR } from './_consts.ts';
 import {
 	identifySessionBlocks,
 } from './_session-blocks.ts';
@@ -1333,6 +1334,75 @@ export async function loadBucketUsageData(
 	}
 
 	return sortByDate(buckets, item => item.bucket, options?.order);
+}
+
+/**
+ * Calculate context tokens from transcript file using improved JSONL parsing
+ * Based on the Python reference implementation for better accuracy
+ * @param transcriptPath - Path to the transcript JSONL file
+ * @returns Object with context tokens info or null if unavailable
+ */
+export async function calculateContextTokens(transcriptPath: string): Promise<{
+	maxInputTokens: number;
+	percentage: number;
+	contextLimit: number;
+} | null> {
+	let content: string;
+	try {
+		content = await readFile(transcriptPath, 'utf-8');
+	}
+	catch (error) {
+		logger.debug('Failed to read transcript file:', error);
+		return null;
+	}
+
+	const lines = content.split('\n').reverse(); // Iterate from last line to first line
+
+	for (const line of lines) {
+		const trimmedLine = line.trim();
+		if (trimmedLine === '') {
+			continue;
+		}
+
+		const parseParser = Result.try({
+			try: () => JSON.parse(trimmedLine) as TranscriptMessage,
+			catch: () => new Error('Invalid JSON'),
+		});
+		const parseResult = parseParser();
+		if (Result.isFailure(parseResult)) {
+			continue; // Skip malformed JSON lines
+		}
+
+		const obj = parseResult.value;
+
+		// Check if this line contains the required token usage fields
+		if (obj.type === 'assistant'
+			&& obj.message != null
+			&& obj.message.usage != null
+			&& obj.message.usage.input_tokens != null
+			&& obj.message.usage.cache_creation_input_tokens != null
+			&& obj.message.usage.cache_read_input_tokens != null
+			&& obj.message.usage.output_tokens != null) {
+			const usage = obj.message.usage;
+			const maxInputTokens
+				= usage.input_tokens!
+					+ usage.cache_creation_input_tokens!
+					+ usage.cache_read_input_tokens!
+					+ usage.output_tokens!;
+
+			const percentage = Math.round((maxInputTokens / CONTEXT_LIMIT) * 100);
+
+			return {
+				maxInputTokens,
+				percentage,
+				contextLimit: CONTEXT_LIMIT,
+			};
+		}
+	}
+
+	// No valid usage information found
+	logger.debug('No usage information found in transcript');
+	return null;
 }
 
 /**
