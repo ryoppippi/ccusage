@@ -10,14 +10,22 @@ import {
 	createTotalsObject,
 	getTotalTokens,
 } from '../calculate-cost.ts';
-import { formatDateCompact, loadSessionData } from '../data-loader.ts';
+import { formatDateCompact, loadSessionData, loadSessionUsageById } from '../data-loader.ts';
 import { detectMismatches, printMismatchReport } from '../debug.ts';
 import { log, logger } from '../logger.ts';
 
 export const sessionCommand = define({
 	name: 'session',
 	description: 'Show usage report grouped by conversation session',
-	...sharedCommandConfig,
+	args: {
+		...sharedCommandConfig.args,
+		id: {
+			type: 'string',
+			short: 'i',
+			description: 'Load usage data for a specific session ID',
+		},
+	},
+	toKebab: true,
 	async run(ctx) {
 		// --jq implies --json
 		const useJson = ctx.values.json || ctx.values.jq != null;
@@ -25,6 +33,111 @@ export const sessionCommand = define({
 			logger.level = 0;
 		}
 
+		// Handle specific session ID lookup
+		if (ctx.values.id != null) {
+			const sessionUsage = await loadSessionUsageById(ctx.values.id, {
+				mode: ctx.values.mode,
+				offline: ctx.values.offline,
+			});
+
+			if (sessionUsage == null) {
+				if (useJson) {
+					log(JSON.stringify(null));
+				}
+				else {
+					logger.warn(`No session found with ID: ${ctx.values.id}`);
+				}
+				process.exit(0);
+			}
+
+			if (useJson) {
+				const jsonOutput = {
+					sessionId: ctx.values.id,
+					totalCost: sessionUsage.totalCost,
+					entries: sessionUsage.entries.map(entry => ({
+						timestamp: entry.timestamp,
+						inputTokens: entry.message.usage.input_tokens,
+						outputTokens: entry.message.usage.output_tokens,
+						cacheCreationTokens: entry.message.usage.cache_creation_input_tokens ?? 0,
+						cacheReadTokens: entry.message.usage.cache_read_input_tokens ?? 0,
+						model: entry.message.model ?? 'unknown',
+						costUSD: entry.costUSD ?? 0,
+					})),
+				};
+
+				// Process with jq if specified
+				if (ctx.values.jq != null) {
+					const jqResult = await processWithJq(jsonOutput, ctx.values.jq);
+					if (Result.isFailure(jqResult)) {
+						logger.error((jqResult.error).message);
+						process.exit(1);
+					}
+					log(jqResult.value);
+				}
+				else {
+					log(JSON.stringify(jsonOutput, null, 2));
+				}
+			}
+			else {
+				// Print header
+				logger.box(`Claude Code Session Usage - ${ctx.values.id}`);
+
+				// Show session summary
+				const totalTokens = sessionUsage.entries.reduce((sum, entry) =>
+					sum + entry.message.usage.input_tokens + entry.message.usage.output_tokens
+					+ (entry.message.usage.cache_creation_input_tokens ?? 0)
+					+ (entry.message.usage.cache_read_input_tokens ?? 0), 0);
+
+				log(`Total Cost: ${formatCurrency(sessionUsage.totalCost)}`);
+				log(`Total Tokens: ${formatNumber(totalTokens)}`);
+				log(`Total Entries: ${sessionUsage.entries.length}`);
+				log('');
+
+				// Show individual entries
+				if (sessionUsage.entries.length > 0) {
+					const table = new ResponsiveTable({
+						head: [
+							'Timestamp',
+							'Model',
+							'Input',
+							'Output',
+							'Cache Create',
+							'Cache Read',
+							'Cost (USD)',
+						],
+						style: {
+							head: ['cyan'],
+						},
+						colAligns: [
+							'left',
+							'left',
+							'right',
+							'right',
+							'right',
+							'right',
+							'right',
+						],
+					});
+
+					for (const entry of sessionUsage.entries) {
+						table.push([
+							new Date(entry.timestamp).toISOString(),
+							entry.message.model ?? 'unknown',
+							formatNumber(entry.message.usage.input_tokens),
+							formatNumber(entry.message.usage.output_tokens),
+							formatNumber(entry.message.usage.cache_creation_input_tokens ?? 0),
+							formatNumber(entry.message.usage.cache_read_input_tokens ?? 0),
+							formatCurrency(entry.costUSD ?? 0),
+						]);
+					}
+
+					log(table.toString());
+				}
+			}
+			return;
+		}
+
+		// Original session listing logic
 		const sessionData = await loadSessionData({
 			since: ctx.values.since,
 			until: ctx.values.until,
