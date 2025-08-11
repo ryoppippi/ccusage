@@ -77,6 +77,7 @@ export default withMermaid(defineConfig({
 						{ text: 'Library Usage', link: '/guide/library-usage' },
 						{ text: 'MCP Server', link: '/guide/mcp-server' },
 						{ text: 'JSON Output', link: '/guide/json-output' },
+						{ text: 'Statusline Integration', link: '/guide/statusline' },
 					],
 				},
 				{

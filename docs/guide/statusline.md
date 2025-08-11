@@ -28,17 +28,21 @@ Add this to your `~/.claude/settings.json` or `~/.config/claude/settings.json`:
 }
 ```
 
-### Prerequisites
+By default, statusline uses **offline mode** with cached pricing data for optimal performance.
 
-Ensure `ccusage` is installed globally or available in your PATH:
+### Online Mode (Optional)
 
-```bash
-npm install -g ccusage
-# or
-bun install -g ccusage
+If you need the latest pricing data from LiteLLM API, you can explicitly enable online mode:
+
+```json
+{
+  "statusLine": {
+    "type": "command",
+    "command": "bun x ccusage statusline --no-offline", // Fetches latest pricing from API
+    "padding": 0
+  }
+}
 ```
-
-**Note**: The status line command receives session information as JSON via stdin from Claude Code.
 
 ## Output Format
 
@@ -71,6 +75,8 @@ The statusline command:
 - Identifies the active 5-hour billing block
 - Calculates real-time burn rates and projections
 - Outputs a single line suitable for status bar display
+- **Uses offline mode by default** for instant response times without network dependencies
+- Can be configured to use online mode with `--no-offline` for latest pricing data
 
 ## Beta Notice
 

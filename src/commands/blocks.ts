@@ -1,8 +1,10 @@
 import type { SessionBlock } from '../_session-blocks.ts';
 import process from 'node:process';
+import { Result } from '@praha/byethrow';
 import { define } from 'gunshi';
 import pc from 'picocolors';
 import { BLOCKS_COMPACT_WIDTH_THRESHOLD, BLOCKS_DEFAULT_TERMINAL_WIDTH, BLOCKS_WARNING_THRESHOLD, DEFAULT_RECENT_DAYS, DEFAULT_REFRESH_INTERVAL_SECONDS, MAX_REFRESH_INTERVAL_SECONDS, MIN_REFRESH_INTERVAL_SECONDS } from '../_consts.ts';
+import { processWithJq } from '../_jq-processor.ts';
 import {
 	calculateBurnRate,
 	DEFAULT_SESSION_DURATION_HOURS,
@@ -144,7 +146,9 @@ export const blocksCommand = define({
 	},
 	toKebab: true,
 	async run(ctx) {
-		if (ctx.values.json) {
+		// --jq implies --json
+		const useJson = ctx.values.json || ctx.values.jq != null;
+		if (useJson) {
 			logger.level = 0;
 		}
 
@@ -166,7 +170,7 @@ export const blocksCommand = define({
 		});
 
 		if (blocks.length === 0) {
-			if (ctx.values.json) {
+			if (useJson) {
 				log(JSON.stringify({ blocks: [] }));
 			}
 			else {
@@ -186,7 +190,7 @@ export const blocksCommand = define({
 					}
 				}
 			}
-			if (!ctx.values.json && maxTokensFromAll > 0) {
+			if (!useJson && maxTokensFromAll > 0) {
 				logger.info(`Using max tokens from previous sessions: ${formatNumber(maxTokensFromAll)}`);
 			}
 		}
@@ -199,7 +203,7 @@ export const blocksCommand = define({
 		if (ctx.values.active) {
 			blocks = blocks.filter((block: SessionBlock) => block.isActive);
 			if (blocks.length === 0) {
-				if (ctx.values.json) {
+				if (useJson) {
 					log(JSON.stringify({ blocks: [], message: 'No active block' }));
 				}
 				else {
@@ -210,7 +214,7 @@ export const blocksCommand = define({
 		}
 
 		// Live monitoring mode
-		if (ctx.values.live && !ctx.values.json) {
+		if (ctx.values.live && !useJson) {
 			// Live mode only shows active blocks
 			if (!ctx.values.active) {
 				logger.info('Live mode automatically shows only active blocks.');
@@ -249,7 +253,7 @@ export const blocksCommand = define({
 			return; // Exit early, don't show table
 		}
 
-		if (ctx.values.json) {
+		if (useJson) {
 			// JSON output
 			const jsonOutput = {
 				blocks: blocks.map((block: SessionBlock) => {
@@ -290,7 +294,18 @@ export const blocksCommand = define({
 				}),
 			};
 
-			log(JSON.stringify(jsonOutput, null, 2));
+			// Process with jq if specified
+			if (ctx.values.jq != null) {
+				const jqResult = await processWithJq(jsonOutput, ctx.values.jq);
+				if (Result.isFailure(jqResult)) {
+					logger.error((jqResult.error).message);
+					process.exit(1);
+				}
+				log(jqResult.value);
+			}
+			else {
+				log(JSON.stringify(jsonOutput, null, 2));
+			}
 		}
 		else {
 			// Table output

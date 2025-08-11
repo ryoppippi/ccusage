@@ -9,4 +9,8 @@ export default ryoppippi({
 	ignores: [
 		'docs/**',
 	],
+}, {
+	rules: {
+		'test/no-importing-vitest-globals': 'error',
+	},
 });

@@ -19,8 +19,9 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           registry-url: 'https://registry.npmjs.org'
-          node-version: ${{env.NODE_VERSION}}
+          node-version: lts/*
       - uses: oven-sh/setup-bun@735343b667d3e6f658f44d0eca948eb6282f2b76 # v2.0.2
+      - run: npm install -g npm@latest
       - run: bun install --frozen-lockfile
       - run: npm publish --provenance --no-git-checks --access public
         env:

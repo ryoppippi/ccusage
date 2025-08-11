@@ -2,6 +2,49 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Guide for lsmcp mcp
+
+You are a professional coding agent concerned with one particular codebase. You have
+access to semantic coding tools on which you rely heavily for all your work, as well as collection of memory
+files containing general information about the codebase. You operate in a frugal and intelligent manner, always
+keeping in mind to not read or generate content that is not needed for the task at hand.
+
+When reading code in order to answer a user question or task, you should try reading only the necessary code.
+Some tasks may require you to understand the architecture of large parts of the codebase, while for others,
+it may be enough to read a small set of symbols or a single file.
+Generally, you should avoid reading entire files unless it is absolutely necessary, instead relying on
+intelligent step-by-step acquisition of information. Use the symbol indexing tools to efficiently navigate the codebase.
+
+IMPORTANT: Always use the symbol indexing tools to minimize code reading:
+
+- Use `search_symbol_from_index` to find specific symbols quickly (after indexing)
+- Use `get_document_symbols` to understand file structure
+- Use `find_references` to trace symbol usage
+- Only read full files when absolutely necessary
+
+You can achieve intelligent code reading by:
+
+1. Using `index_files` to build symbol index for fast searching
+2. Using `search_symbol_from_index` with filters (name, kind, file, container) to find symbols
+3. Using `get_document_symbols` to understand file structure
+4. Using `get_definitions`, `find_references` to trace relationships
+5. Using standard file operations when needed
+
+## Working with Symbols
+
+Symbols are identified by their name, kind, file location, and container. Use these tools:
+
+- `index_files` - Build symbol index for files matching pattern (e.g., '\*_/_.ts')
+- `search_symbol_from_index` - Fast search by name, kind (Class, Function, etc.), file pattern, or container
+- `get_document_symbols` - Get all symbols in a specific file with hierarchical structure
+- `get_definitions` - Navigate to symbol definitions
+- `find_references` - Find all references to a symbol
+- `get_hover` - Get hover information (type signature, documentation)
+- `get_diagnostics` - Get errors and warnings for a file
+- `get_workspace_symbols` - Search symbols across the entire workspace
+
+Always prefer indexed searches (tools with `_from_index` suffix) over reading entire files.
+
 ## Development Commands
 
 **Testing and Quality:**
@@ -86,7 +129,14 @@ This is a CLI tool that analyzes Claude Code usage data from local JSONL files s
 
 - Raw usage data is parsed from JSONL with timestamp, token counts, and pre-calculated costs
 - Data is aggregated into daily summaries, monthly summaries, session summaries, or 5-hour billing blocks
-- Sessions are identified by directory structure: `projects/{project}/{session}/{file}.jsonl`
+- **Important Note on Naming**: The term "session" in this codebase has two different meanings:
+  1. **Session Reports** (`bun run start session`): Groups usage by project directories. What we call "sessionId" in these reports is actually derived from the directory structure (project/directory)
+  2. **True Session ID**: The actual Claude Code session ID found in the `sessionId` field within JSONL entries and used as the filename ({sessionId}.jsonl)
+- File structure: `projects/{project}/{sessionId}.jsonl` where:
+  - `{project}` is the project directory name (used for grouping)
+  - `{sessionId}.jsonl` is the JSONL file named with the actual session ID from Claude Code
+  - Each JSONL file contains all usage entries for a single Claude Code session
+  - The sessionId in the filename matches the `sessionId` field inside the JSONL entries
 - 5-hour blocks group usage data by Claude's billing cycles with active block tracking
 
 **External Dependencies:**
