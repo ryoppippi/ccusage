@@ -37,3 +37,6 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 
 # lsmcp cache
 .lsmcp/cache
+
+# Claude Code local
+.claude/settings.local.json
