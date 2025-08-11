@@ -1,3 +1,4 @@
+import { readFile } from 'node:fs/promises';
 import process from 'node:process';
 import getStdin from 'get-stdin';
 import { define } from 'gunshi';
@@ -11,7 +12,6 @@ import { getClaudePaths, loadDailyUsageData, loadSessionBlockData, loadSessionUs
 import { log, logger } from '../logger.ts';
 
 /**
-/**
  * Formats the remaining time for display
  * @param remaining - Remaining minutes
  * @returns Formatted time string
@@ -24,6 +24,79 @@ function formatRemainingTime(remaining: number): string {
 		return `${remainingHours}h ${remainingMins}m left`;
 	}
 	return `${remainingMins}m left`;
+}
+
+/**
+ * Interface for transcript structure
+ */
+type TranscriptUsage = {
+	input_tokens?: number;
+};
+
+type TranscriptMessage = {
+	usage?: TranscriptUsage;
+};
+
+type TranscriptData = {
+	messages?: TranscriptMessage[];
+	usage?: TranscriptUsage;
+};
+
+/**
+ * Calculate context tokens from transcript file
+ * @param transcriptPath - Path to the transcript JSON file
+ * @returns Object with context tokens info or null if unavailable
+ */
+async function calculateContextTokens(transcriptPath: string): Promise<{
+	totalInputTokens: number;
+	percentage: number;
+	contextLimit: number;
+} | null> {
+	let transcript: TranscriptData;
+	try {
+		const content = await readFile(transcriptPath, 'utf-8');
+		transcript = JSON.parse(content) as TranscriptData;
+	}
+	catch (error) {
+		logger.debug('Failed to read transcript file:', error);
+		return null;
+	}
+
+	// Calculate total input tokens from all messages with usage information
+	let totalInputTokens = 0;
+	const contextLimit = 200000; // Default Claude 4 context limit
+	let foundUsage = false;
+
+	// Look for usage information in the transcript
+	if (transcript.messages != null && Array.isArray(transcript.messages)) {
+		for (const message of transcript.messages) {
+			if (message.usage?.input_tokens != null) {
+				totalInputTokens = Math.max(totalInputTokens, message.usage.input_tokens);
+				foundUsage = true;
+			}
+		}
+	}
+
+	// If no usage found in messages, check if there's a direct usage field
+	if (!foundUsage && transcript.usage?.input_tokens != null) {
+		totalInputTokens = transcript.usage.input_tokens;
+		foundUsage = true;
+	}
+
+	// If still no usage found, return null
+	if (!foundUsage) {
+		logger.debug('No usage information found in transcript');
+		return null;
+	}
+
+	// Calculate percentage
+	const percentage = Math.round((totalInputTokens / contextLimit) * 100);
+
+	return {
+		totalInputTokens,
+		percentage,
+		contextLimit,
+	};
 }
 
 export const statuslineCommand = define({
@@ -162,13 +235,39 @@ export const statuslineCommand = define({
 			blockInfo = 'No active block';
 		}
 
+		// Calculate context tokens from transcript
+		let contextInfo = '';
+		try {
+			const contextData = await calculateContextTokens(hookData.transcript_path);
+			if (contextData != null) {
+				// Format context percentage with color coding
+				let coloredPercentage = `${contextData.percentage}%`;
+				if (contextData.percentage < 50) {
+					coloredPercentage = pc.green(`${contextData.percentage}%`);
+				}
+				else if (contextData.percentage < 80) {
+					coloredPercentage = pc.yellow(`${contextData.percentage}%`);
+				}
+				else {
+					coloredPercentage = pc.red(`${contextData.percentage}%`);
+				}
+
+				// Format token count with thousand separators
+				const tokenDisplay = contextData.totalInputTokens.toLocaleString();
+				contextInfo = ` | 🧠 ${tokenDisplay} (${coloredPercentage})`;
+			}
+		}
+		catch (error) {
+			logger.debug('Failed to calculate context tokens:', error);
+		}
+
 		// Get model display name
 		const modelName = hookData.model.display_name;
 
 		// Format and output the status line
-		// Format: 🤖 model | 💰 session / today / block | 🔥 burn
+		// Format: 🤖 model | 💰 session / today / block | 🔥 burn | 🧠 context
 		const sessionDisplay = sessionCost !== null ? formatCurrency(sessionCost) : 'N/A';
-		const statusLine = `🤖 ${modelName} | 💰 ${sessionDisplay} session / ${formatCurrency(todayCost)} today / ${blockInfo}${burnRateInfo}`;
+		const statusLine = `🤖 ${modelName} | 💰 ${sessionDisplay} session / ${formatCurrency(todayCost)} today / ${blockInfo}${burnRateInfo}${contextInfo}`;
 
 		log(statusLine);
 	},
