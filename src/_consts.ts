@@ -144,7 +144,7 @@ export const BURN_RATE_THRESHOLDS = {
  * Default Claude 4 context window limit (200,000 tokens)
  * Used for calculating context usage percentages in statusline
  */
-export const CONTEXT_LIMIT = 200000;
+export const CONTEXT_LIMIT = 200_000;
 
 /**
  * Context usage percentage thresholds for color coding

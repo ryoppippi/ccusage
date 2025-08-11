@@ -168,14 +168,12 @@ export const statuslineCommand = define({
 			const contextData = await calculateContextTokens(hookData.transcript_path);
 			if (contextData != null) {
 				// Format context percentage with color coding using constants
-				const coloredPercentage = contextData.percentage < CONTEXT_USAGE_THRESHOLDS.LOW
-					? pc.green(`${contextData.percentage}%`)
-					: contextData.percentage < CONTEXT_USAGE_THRESHOLDS.MEDIUM
-						? pc.yellow(`${contextData.percentage}%`)
-						: pc.red(`${contextData.percentage}%`);
+				const p = contextData.percentage;
+				const color = p < CONTEXT_USAGE_THRESHOLDS.LOW ? pc.green : p < CONTEXT_USAGE_THRESHOLDS.MEDIUM ? pc.yellow : pc.red;
+				const coloredPercentage = color(`${p}%`);
 
 				// Format token count with thousand separators
-				const tokenDisplay = contextData.maxInputTokens.toLocaleString();
+				const tokenDisplay = contextData.inputTokens.toLocaleString();
 				contextInfo = ` | 🧠 ${tokenDisplay} (${coloredPercentage})`;
 			}
 		}

@@ -1343,7 +1343,7 @@ export async function loadBucketUsageData(
  * @returns Object with context tokens info or null if unavailable
  */
 export async function calculateContextTokens(transcriptPath: string): Promise<{
-	maxInputTokens: number;
+	inputTokens: number;
 	percentage: number;
 	contextLimit: number;
 } | null> {
@@ -1351,8 +1351,8 @@ export async function calculateContextTokens(transcriptPath: string): Promise<{
 	try {
 		content = await readFile(transcriptPath, 'utf-8');
 	}
-	catch (error) {
-		logger.debug('Failed to read transcript file:', error);
+	catch (error: unknown) {
+		logger.debug(`Failed to read transcript file: ${String(error)}`);
 		return null;
 	}
 
@@ -1364,45 +1364,85 @@ export async function calculateContextTokens(transcriptPath: string): Promise<{
 			continue;
 		}
 
-		const parseParser = Result.try({
-			try: () => JSON.parse(trimmedLine) as TranscriptMessage,
-			catch: () => new Error('Invalid JSON'),
-		});
-		const parseResult = parseParser();
-		if (Result.isFailure(parseResult)) {
-			continue; // Skip malformed JSON lines
+		try {
+			const obj = JSON.parse(trimmedLine) as TranscriptMessage;
+
+			// Check if this line contains the required token usage fields
+			if (obj.type === 'assistant'
+				&& obj.message != null
+				&& obj.message.usage != null
+				&& obj.message.usage.input_tokens != null) {
+				const usage = obj.message.usage;
+				const inputTokens
+					= usage.input_tokens!
+						+ (usage.cache_creation_input_tokens ?? 0)
+						+ (usage.cache_read_input_tokens ?? 0);
+
+				const percentage = Math.min(100, Math.max(0, Math.round((inputTokens / CONTEXT_LIMIT) * 100)));
+
+				return {
+					inputTokens,
+					percentage,
+					contextLimit: CONTEXT_LIMIT,
+				};
+			}
 		}
-
-		const obj = parseResult.value;
-
-		// Check if this line contains the required token usage fields
-		if (obj.type === 'assistant'
-			&& obj.message != null
-			&& obj.message.usage != null
-			&& obj.message.usage.input_tokens != null
-			&& obj.message.usage.cache_creation_input_tokens != null
-			&& obj.message.usage.cache_read_input_tokens != null
-			&& obj.message.usage.output_tokens != null) {
-			const usage = obj.message.usage;
-			const maxInputTokens
-				= usage.input_tokens!
-					+ usage.cache_creation_input_tokens!
-					+ usage.cache_read_input_tokens!
-					+ usage.output_tokens!;
-
-			const percentage = Math.round((maxInputTokens / CONTEXT_LIMIT) * 100);
-
-			return {
-				maxInputTokens,
-				percentage,
-				contextLimit: CONTEXT_LIMIT,
-			};
+		catch {
+			continue; // Skip malformed JSON lines
 		}
 	}
 
 	// No valid usage information found
 	logger.debug('No usage information found in transcript');
 	return null;
+}
+
+// Test for calculateContextTokens
+if (import.meta.vitest != null) {
+	describe('calculateContextTokens', () => {
+		it('returns null when transcript cannot be read', async () => {
+			const result = await calculateContextTokens('/nonexistent/path.jsonl');
+			expect(result).toBeNull();
+		});
+
+		it('parses latest assistant line and excludes output tokens', async () => {
+			await using fixture = await createFixture({
+				'transcript.jsonl': [
+					JSON.stringify({ type: 'user', message: {} }),
+					JSON.stringify({ type: 'assistant', message: { usage: { input_tokens: 1000, output_tokens: 999 } } }),
+					JSON.stringify({ type: 'assistant', message: { usage: { input_tokens: 2000, cache_creation_input_tokens: 100, cache_read_input_tokens: 50 } } }),
+				].join('\n'),
+			});
+			const res = await calculateContextTokens(fixture.getPath('transcript.jsonl'));
+			expect(res).not.toBeNull();
+			// Should pick the last assistant line and exclude output tokens
+			expect(res?.inputTokens).toBe(2000 + 100 + 50);
+			expect(res?.percentage).toBeGreaterThan(0);
+		});
+
+		it('handles missing cache fields gracefully', async () => {
+			await using fixture = await createFixture({
+				'transcript.jsonl': [
+					JSON.stringify({ type: 'assistant', message: { usage: { input_tokens: 1000 } } }),
+				].join('\n'),
+			});
+			const res = await calculateContextTokens(fixture.getPath('transcript.jsonl'));
+			expect(res).not.toBeNull();
+			expect(res?.inputTokens).toBe(1000);
+			expect(res?.percentage).toBeGreaterThan(0);
+		});
+
+		it('clamps percentage to 0-100 range', async () => {
+			await using fixture = await createFixture({
+				'transcript.jsonl': [
+					JSON.stringify({ type: 'assistant', message: { usage: { input_tokens: 300_000 } } }),
+				].join('\n'),
+			});
+			const res = await calculateContextTokens(fixture.getPath('transcript.jsonl'));
+			expect(res).not.toBeNull();
+			expect(res?.percentage).toBe(100); // Should be clamped to 100
+		});
+	});
 }
 
 /**
