@@ -1399,12 +1399,12 @@ export async function calculateContextTokens(transcriptPath: string): Promise<{
 
 // Test for calculateContextTokens
 if (import.meta.vitest != null) {
-	describe('calculateContextTokens', () => {
+	describe('calculateContextTokens', async () => {
 		it('returns null when transcript cannot be read', async () => {
 			const result = await calculateContextTokens('/nonexistent/path.jsonl');
 			expect(result).toBeNull();
 		});
-
+		const { createFixture } = await import('fs-fixture');
 		it('parses latest assistant line and excludes output tokens', async () => {
 			await using fixture = await createFixture({
 				'transcript.jsonl': [

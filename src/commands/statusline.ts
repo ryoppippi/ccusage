@@ -178,7 +178,7 @@ export const statuslineCommand = define({
 			}
 		}
 		catch (error) {
-			logger.debug('Failed to calculate context tokens:', error);
+			logger.debug(`Failed to calculate context tokens: ${error instanceof Error ? error.message : String(error)}`);
 		}
 
 		// Get model display name
