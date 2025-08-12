@@ -1,7 +1,9 @@
 import process from 'node:process';
+import { Result } from '@praha/byethrow';
 import { define } from 'gunshi';
 import pc from 'picocolors';
 import { groupByProject, groupDataByProject } from '../_daily-grouping.ts';
+import { processWithJq } from '../_jq-processor.ts';
 import { formatProjectName } from '../_project-names.ts';
 import { sharedCommandConfig } from '../_shared-args.ts';
 import { formatCurrency, formatModelsDisplayMultiline, formatNumber, pushBreakdownRows, ResponsiveTable } from '../_utils.ts';
@@ -33,7 +35,9 @@ export const dailyCommand = define({
 		},
 	},
 	async run(ctx) {
-		if (ctx.values.json) {
+		// --jq implies --json
+		const useJson = ctx.values.json || ctx.values.jq != null;
+		if (useJson) {
 			logger.level = 0;
 		}
 
@@ -50,7 +54,7 @@ export const dailyCommand = define({
 		});
 
 		if (dailyData.length === 0) {
-			if (ctx.values.json) {
+			if (useJson) {
 				log(JSON.stringify([]));
 			}
 			else {
@@ -63,12 +67,12 @@ export const dailyCommand = define({
 		const totals = calculateTotals(dailyData);
 
 		// Show debug information if requested
-		if (ctx.values.debug && !ctx.values.json) {
+		if (ctx.values.debug && !useJson) {
 			const mismatchStats = await detectMismatches(undefined);
 			printMismatchReport(mismatchStats, ctx.values.debugSamples);
 		}
 
-		if (ctx.values.json) {
+		if (useJson) {
 			// Output JSON format - group by project if instances flag is used
 			const jsonOutput = ctx.values.instances && dailyData.some(d => d.project != null)
 				? {
@@ -90,7 +94,19 @@ export const dailyCommand = define({
 						})),
 						totals: createTotalsObject(totals),
 					};
-			log(JSON.stringify(jsonOutput, null, 2));
+
+			// Process with jq if specified
+			if (ctx.values.jq != null) {
+				const jqResult = await processWithJq(jsonOutput, ctx.values.jq);
+				if (Result.isFailure(jqResult)) {
+					logger.error((jqResult.error).message);
+					process.exit(1);
+				}
+				log(jqResult.value);
+			}
+			else {
+				log(JSON.stringify(jsonOutput, null, 2));
+			}
 		}
 		else {
 			// Print header

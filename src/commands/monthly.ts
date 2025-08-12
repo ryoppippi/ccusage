@@ -1,6 +1,8 @@
 import process from 'node:process';
+import { Result } from '@praha/byethrow';
 import { define } from 'gunshi';
 import pc from 'picocolors';
+import { processWithJq } from '../_jq-processor.ts';
 import { sharedCommandConfig } from '../_shared-args.ts';
 import { formatCurrency, formatModelsDisplayMultiline, formatNumber, pushBreakdownRows, ResponsiveTable } from '../_utils.ts';
 import {
@@ -17,7 +19,9 @@ export const monthlyCommand = define({
 	description: 'Show usage report grouped by month',
 	...sharedCommandConfig,
 	async run(ctx) {
-		if (ctx.values.json) {
+		// --jq implies --json
+		const useJson = ctx.values.json || ctx.values.jq != null;
+		if (useJson) {
 			logger.level = 0;
 		}
 
@@ -32,7 +36,7 @@ export const monthlyCommand = define({
 		});
 
 		if (monthlyData.length === 0) {
-			if (ctx.values.json) {
+			if (useJson) {
 				const emptyOutput = {
 					monthly: [],
 					totals: {
@@ -56,12 +60,12 @@ export const monthlyCommand = define({
 		const totals = calculateTotals(monthlyData);
 
 		// Show debug information if requested
-		if (ctx.values.debug && !ctx.values.json) {
+		if (ctx.values.debug && !useJson) {
 			const mismatchStats = await detectMismatches(undefined);
 			printMismatchReport(mismatchStats, ctx.values.debugSamples);
 		}
 
-		if (ctx.values.json) {
+		if (useJson) {
 			// Output JSON format
 			const jsonOutput = {
 				monthly: monthlyData.map(data => ({
@@ -77,7 +81,19 @@ export const monthlyCommand = define({
 				})),
 				totals: createTotalsObject(totals),
 			};
-			log(JSON.stringify(jsonOutput, null, 2));
+
+			// Process with jq if specified
+			if (ctx.values.jq != null) {
+				const jqResult = await processWithJq(jsonOutput, ctx.values.jq);
+				if (Result.isFailure(jqResult)) {
+					logger.error((jqResult.error).message);
+					process.exit(1);
+				}
+				log(jqResult.value);
+			}
+			else {
+				log(JSON.stringify(jsonOutput, null, 2));
+			}
 		}
 		else {
 			// Print header

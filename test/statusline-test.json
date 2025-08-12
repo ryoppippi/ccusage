@@ -1,0 +1,13 @@
+{
+	"session_id": "test-session-123",
+	"transcript_path": "/Users/test/.config/claude/projects/test-project/test-session-123/transcript.json",
+	"cwd": "/Users/test/project",
+	"model": {
+		"id": "claude-opus-4-1-20250805",
+		"display_name": "Opus 4.1"
+	},
+	"workspace": {
+		"current_dir": "/Users/test/project",
+		"project_dir": "/Users/test/project"
+	}
+}

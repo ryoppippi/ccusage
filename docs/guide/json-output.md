@@ -300,11 +300,41 @@ When using `--breakdown`, the JSON includes per-model details:
 }
 ```
 
+## Using the --jq Option
+
+ccusage includes built-in jq processing with the `--jq` option. This allows you to process JSON output directly without using pipes:
+
+```bash
+# Get total cost directly
+ccusage daily --jq '.totals.totalCost'
+
+# Find the most expensive session
+ccusage session --jq '.sessions | sort_by(.totalCost) | reverse | .[0]'
+
+# Get daily costs as CSV
+ccusage daily --jq '.daily[] | [.date, .totalCost] | @csv'
+
+# List all unique models used
+ccusage session --jq '[.sessions[].modelsUsed[]] | unique | sort[]'
+
+# Get usage by specific date
+ccusage daily --jq '.daily[] | select(.date == "2025-05-30")'
+
+# Calculate average daily cost
+ccusage daily --jq '[.daily[].totalCost] | add / length'
+```
+
+### Important Notes
+
+- The `--jq` option implies `--json` (you don't need to specify both)
+- Requires jq to be installed on your system
+- If jq is not installed, you'll get an error message with installation instructions
+
 ## Integration Examples
 
-### Using with jq
+### Using with jq (via pipes)
 
-Process JSON output with jq for advanced filtering and formatting:
+You can also pipe JSON output to jq for advanced filtering and formatting:
 
 ```bash
 # Get total cost for the last 7 days

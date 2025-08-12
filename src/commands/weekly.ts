@@ -1,7 +1,9 @@
 import process from 'node:process';
+import { Result } from '@praha/byethrow';
 import { define } from 'gunshi';
 import pc from 'picocolors';
 import { WEEK_DAYS } from '../_consts.ts';
+import { processWithJq } from '../_jq-processor.ts';
 import { sharedArgs } from '../_shared-args.ts';
 import { formatCurrency, formatModelsDisplayMultiline, formatNumber, pushBreakdownRows, ResponsiveTable } from '../_utils.ts';
 import {
@@ -28,7 +30,9 @@ export const weeklyCommand = define({
 	},
 	toKebab: true,
 	async run(ctx) {
-		if (ctx.values.json) {
+		// --jq implies --json
+		const useJson = ctx.values.json || ctx.values.jq != null;
+		if (useJson) {
 			logger.level = 0;
 		}
 
@@ -44,7 +48,7 @@ export const weeklyCommand = define({
 		});
 
 		if (weeklyData.length === 0) {
-			if (ctx.values.json) {
+			if (useJson) {
 				const emptyOutput = {
 					weekly: [],
 					totals: {
@@ -68,12 +72,12 @@ export const weeklyCommand = define({
 		const totals = calculateTotals(weeklyData);
 
 		// Show debug information if requested
-		if (ctx.values.debug && !ctx.values.json) {
+		if (ctx.values.debug && !useJson) {
 			const mismatchStats = await detectMismatches(undefined);
 			printMismatchReport(mismatchStats, ctx.values.debugSamples);
 		}
 
-		if (ctx.values.json) {
+		if (useJson) {
 			// Output JSON format
 			const jsonOutput = {
 				weekly: weeklyData.map(data => ({
@@ -89,7 +93,19 @@ export const weeklyCommand = define({
 				})),
 				totals: createTotalsObject(totals),
 			};
-			log(JSON.stringify(jsonOutput, null, 2));
+
+			// Process with jq if specified
+			if (ctx.values.jq != null) {
+				const jqResult = await processWithJq(jsonOutput, ctx.values.jq);
+				if (Result.isFailure(jqResult)) {
+					logger.error((jqResult.error).message);
+					process.exit(1);
+				}
+				log(jqResult.value);
+			}
+			else {
+				log(JSON.stringify(jsonOutput, null, 2));
+			}
 		}
 		else {
 			// Print header

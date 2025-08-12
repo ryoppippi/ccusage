@@ -6,6 +6,7 @@ import { dailyCommand } from './daily.ts';
 import { mcpCommand } from './mcp.ts';
 import { monthlyCommand } from './monthly.ts';
 import { sessionCommand } from './session.ts';
+import { statuslineCommand } from './statusline.ts';
 import { weeklyCommand } from './weekly.ts';
 
 /**
@@ -18,6 +19,7 @@ subCommands.set('weekly', weeklyCommand);
 subCommands.set('session', sessionCommand);
 subCommands.set('blocks', blocksCommand);
 subCommands.set('mcp', mcpCommand);
+subCommands.set('statusline', statuslineCommand);
 
 /**
  * Default command when no subcommand is specified (defaults to daily)

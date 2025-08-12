@@ -93,8 +93,14 @@ export const sharedArgs = {
 	},
 	locale: {
 		type: 'string',
+		short: 'l',
 		description: 'Locale for date/time formatting (e.g., en-US, ja-JP, de-DE)',
 		default: 'en-CA',
+	},
+	jq: {
+		type: 'string',
+		short: 'q',
+		description: 'Process JSON output with jq command (requires jq binary, implies --json)',
 	},
 } as const satisfies Args;
 

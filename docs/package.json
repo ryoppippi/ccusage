@@ -5,14 +5,11 @@
   "description": "Documentation for ccusage",
   "type": "module",
   "scripts": {
-    "build": "bun run docs:api && ROLLDOWN_OPTIONS_VALIDATION=loose vitepress build",
+    "build": "bun run docs:api && vitepress build",
     "deploy": "wrangler deploy",
-    "dev": "bun run docs:api && ROLLDOWN_OPTIONS_VALIDATION=loose vitepress dev",
+    "dev": "bun run docs:api && vitepress dev",
     "docs:api": "./update-api-index.ts",
     "preview": "vitepress preview"
-  },
-  "overrides": {
-    "vite": "npm:rolldown-vite@latest"
   },
   "devDependencies": {
     "@ryoppippi/vite-plugin-cloudflare-redirect": "npm:@jsr/ryoppippi__vite-plugin-cloudflare-redirect",
@@ -21,10 +18,10 @@
     "typedoc": "^0.28.9",
     "typedoc-plugin-markdown": "^4.8.0",
     "typedoc-vitepress-theme": "^1.1.2",
-    "vitepress": "^1.6.3",
+    "vitepress": "^1.6.4",
     "vitepress-plugin-group-icons": "^1.6.1",
     "vitepress-plugin-llms": "^1.7.2",
     "vitepress-plugin-mermaid": "^2.0.17",
-    "wrangler": "^4.27.0"
+    "wrangler": "^4.28.1"
   }
 }

@@ -1,6 +1,9 @@
+// Types not needed here after extracting --id logic
 import process from 'node:process';
+import { Result } from '@praha/byethrow';
 import { define } from 'gunshi';
 import pc from 'picocolors';
+import { processWithJq } from '../_jq-processor.ts';
 import { sharedCommandConfig } from '../_shared-args.ts';
 import { formatCurrency, formatModelsDisplayMultiline, formatNumber, pushBreakdownRows, ResponsiveTable } from '../_utils.ts';
 import {
@@ -11,16 +14,45 @@ import {
 import { formatDateCompact, loadSessionData } from '../data-loader.ts';
 import { detectMismatches, printMismatchReport } from '../debug.ts';
 import { log, logger } from '../logger.ts';
+import { handleSessionIdLookup } from './_session_id.ts';
+
+// All --id logic moved to ./_session_id.ts
 
 export const sessionCommand = define({
 	name: 'session',
 	description: 'Show usage report grouped by conversation session',
 	...sharedCommandConfig,
+	args: {
+		...sharedCommandConfig.args,
+		id: {
+			type: 'string',
+			short: 'i',
+			description: 'Load usage data for a specific session ID',
+		},
+	},
+	toKebab: true,
 	async run(ctx) {
-		if (ctx.values.json) {
+		// --jq implies --json
+		const useJson = ctx.values.json || ctx.values.jq != null;
+		if (useJson) {
 			logger.level = 0;
 		}
 
+		// Handle specific session ID lookup
+		if (ctx.values.id != null) {
+			return handleSessionIdLookup({
+				values: {
+					id: ctx.values.id,
+					mode: ctx.values.mode,
+					offline: ctx.values.offline,
+					jq: ctx.values.jq,
+					timezone: ctx.values.timezone,
+					locale: ctx.values.locale ?? 'en-CA',
+				},
+			}, useJson);
+		}
+
+		// Original session listing logic
 		const sessionData = await loadSessionData({
 			since: ctx.values.since,
 			until: ctx.values.until,
@@ -32,7 +64,7 @@ export const sessionCommand = define({
 		});
 
 		if (sessionData.length === 0) {
-			if (ctx.values.json) {
+			if (useJson) {
 				log(JSON.stringify([]));
 			}
 			else {
@@ -45,12 +77,12 @@ export const sessionCommand = define({
 		const totals = calculateTotals(sessionData);
 
 		// Show debug information if requested
-		if (ctx.values.debug && !ctx.values.json) {
+		if (ctx.values.debug && !useJson) {
 			const mismatchStats = await detectMismatches(undefined);
 			printMismatchReport(mismatchStats, ctx.values.debugSamples);
 		}
 
-		if (ctx.values.json) {
+		if (useJson) {
 			// Output JSON format
 			const jsonOutput = {
 				sessions: sessionData.map(data => ({
@@ -68,7 +100,19 @@ export const sessionCommand = define({
 				})),
 				totals: createTotalsObject(totals),
 			};
-			log(JSON.stringify(jsonOutput, null, 2));
+
+			// Process with jq if specified
+			if (ctx.values.jq != null) {
+				const jqResult = await processWithJq(jsonOutput, ctx.values.jq);
+				if (Result.isFailure(jqResult)) {
+					logger.error((jqResult.error).message);
+					process.exit(1);
+				}
+				log(jqResult.value);
+			}
+			else {
+				log(JSON.stringify(jsonOutput, null, 2));
+			}
 		}
 		else {
 			// Print header
@@ -184,3 +228,6 @@ export const sessionCommand = define({
 		}
 	},
 });
+
+// Note: Tests for --id functionality are covered by the existing loadSessionUsageById tests
+// in data-loader.ts, since this command directly uses that function.
