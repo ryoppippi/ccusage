@@ -71,9 +71,9 @@ features:
   <p style="margin-bottom: 1.5rem;">If you find ccusage helpful, please consider sponsoring the development!</p>
   
   <h3 style="margin-bottom: 1rem;">Featured Sponsor</h3>
-  <p style="margin-bottom: 1rem;">Check out these <a href="https://www.youtube.com/watch?v=TiNpzxoBPz0&lc=UgyVgQyOhfJJlheVMcB4AaABAg" target="_blank">47 Claude Code ProTips from Greg Baugues.</a></p>
-  <a href="https://www.youtube.com/watch?v=TiNpzxoBPz0&lc=UgyVgQyOhfJJlheVMcB4AaABAg" target="_blank">
-    <img src="/claude_code_protips_thumbnail_v1.png" alt="47 Claude Code ProTips from Greg Baugues" style="max-width: 600px; height: auto;">
+  <p style="margin-bottom: 1rem;">Check out <a href="https://www.youtube.com/watch?v=Ak6qpQ5qdgk" target="_blank">ccusage: The Claude Code cost scorecard that went viral</a></p>
+  <a href="https://www.youtube.com/watch?v=Ak6qpQ5qdgk" target="_blank">
+    <img src="/ccusage_thumbnail.png" alt="ccusage: The Claude Code cost scorecard that went viral" style="max-width: 600px; height: auto;">
   </a>
   
   <div style="margin-top: 2rem;">
