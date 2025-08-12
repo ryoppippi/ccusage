@@ -158,6 +158,7 @@ async function outputSessionTableFormat(
 export const sessionCommand = define({
 	name: 'session',
 	description: 'Show usage report grouped by conversation session',
+	...sharedCommandConfig,
 	args: {
 		...sharedCommandConfig.args,
 		id: {
@@ -176,7 +177,16 @@ export const sessionCommand = define({
 
 		// Handle specific session ID lookup
 		if (ctx.values.id != null) {
-			await handleSessionIdLookup(ctx, useJson);
+			await handleSessionIdLookup({
+				values: {
+					id: ctx.values.id,
+					mode: ctx.values.mode,
+					offline: ctx.values.offline,
+					jq: ctx.values.jq,
+					timezone: ctx.values.timezone,
+					locale: ctx.values.locale,
+				},
+			}, useJson);
 			return;
 		}
 
