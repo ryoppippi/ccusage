@@ -11,10 +11,9 @@ import {
 	createTotalsObject,
 	getTotalTokens,
 } from '../calculate-cost.ts';
-import { formatDateCompact, loadSessionData } from '../data-loader.ts';
+import { formatDateCompact, loadSessionData, loadSessionUsageById } from '../data-loader.ts';
 import { detectMismatches, printMismatchReport } from '../debug.ts';
 import { log, logger } from '../logger.ts';
-import { handleSessionIdLookup } from './_session_id.ts';
 
 // All --id logic moved to ./_session_id.ts
 
@@ -38,18 +37,42 @@ export const sessionCommand = define({
 			logger.level = 0;
 		}
 
-		// Handle specific session ID lookup
+		// Handle specific session ID lookup (simple output)
 		if (ctx.values.id != null) {
-			await handleSessionIdLookup({
-				values: {
-					id: ctx.values.id,
-					mode: ctx.values.mode,
-					offline: ctx.values.offline,
-					jq: ctx.values.jq,
-					timezone: ctx.values.timezone,
-					locale: ctx.values.locale ?? 'en-CA',
-				},
-			}, useJson);
+			const sessionUsage = await loadSessionUsageById(ctx.values.id, {
+				mode: ctx.values.mode,
+				offline: ctx.values.offline,
+			});
+
+			if (sessionUsage == null) {
+				if (useJson) {
+					log(JSON.stringify(null));
+				}
+				else {
+					logger.warn(`No session found with ID: ${ctx.values.id}`);
+				}
+				process.exit(0);
+			}
+
+			if (useJson) {
+				const payload = { sessionId: ctx.values.id, totalCost: sessionUsage.totalCost };
+				if (ctx.values.jq != null) {
+					const jqResult = await processWithJq(payload, ctx.values.jq);
+					if (Result.isFailure(jqResult)) {
+						logger.error((jqResult.error).message);
+						process.exit(1);
+					}
+					log(jqResult.value);
+				}
+				else {
+					log(JSON.stringify(payload));
+				}
+			}
+			else {
+				// Print only the numeric total cost for simplicity
+				log(String(sessionUsage.totalCost));
+			}
+
 			return;
 		}
 
