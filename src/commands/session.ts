@@ -40,7 +40,7 @@ export const sessionCommand = define({
 
 		// Handle specific session ID lookup
 		if (ctx.values.id != null) {
-			await handleSessionIdLookup({
+			return handleSessionIdLookup({
 				values: {
 					id: ctx.values.id,
 					mode: ctx.values.mode,
@@ -50,7 +50,6 @@ export const sessionCommand = define({
 					locale: ctx.values.locale ?? 'en-CA',
 				},
 			}, useJson);
-			return;
 		}
 
 		// Original session listing logic
