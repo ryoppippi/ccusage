@@ -568,9 +568,9 @@ export function formatDate(dateStr: string, timezone?: string, locale?: string):
  * @param locale - Locale to use for formatting
  * @returns Formatted date string with newline separator (YYYY\nMM-DD)
  */
-export function formatDateCompact(dateStr: string, timezone: string | undefined, locale: string | undefined): string {
+export function formatDateCompact(dateStr: string, timezone: string | undefined, locale: string): string {
 	const date = new Date(dateStr);
-	const formatter = createDatePartsFormatter(timezone, locale ?? 'en-US');
+	const formatter = createDatePartsFormatter(timezone, locale);
 	const parts = formatter.formatToParts(date);
 	const year = parts.find(p => p.type === 'year')?.value ?? '';
 	const month = parts.find(p => p.type === 'month')?.value ?? '';

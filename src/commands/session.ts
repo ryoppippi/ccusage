@@ -176,7 +176,7 @@ export const sessionCommand = define({
 
 		// Handle specific session ID lookup
 		if (ctx.values.id != null) {
-			await handleSessionIdLookup({ ...ctx, values: { ...ctx.values, id: ctx.values.id } }, useJson);
+			await handleSessionIdLookup(ctx, useJson);
 			return;
 		}
 
