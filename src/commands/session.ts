@@ -1,5 +1,4 @@
-import type { CostMode } from '../_types.ts';
-import type { UsageData } from '../data-loader.ts';
+// Types not needed here after extracting --id logic
 import process from 'node:process';
 import { Result } from '@praha/byethrow';
 import { define } from 'gunshi';
@@ -12,148 +11,12 @@ import {
 	createTotalsObject,
 	getTotalTokens,
 } from '../calculate-cost.ts';
-import { formatDateCompact, loadSessionData, loadSessionUsageById } from '../data-loader.ts';
+import { formatDateCompact, loadSessionData } from '../data-loader.ts';
 import { detectMismatches, printMismatchReport } from '../debug.ts';
 import { log, logger } from '../logger.ts';
+import { handleSessionIdLookup } from './_session_id.ts';
 
-/**
- * Calculates the total tokens for a session's entries
- */
-function calculateSessionTotalTokens(entries: UsageData[]): number {
-	return entries.reduce((sum, entry) => {
-		const usage = entry.message.usage;
-		return sum
-			+ usage.input_tokens
-			+ usage.output_tokens
-			+ (usage.cache_creation_input_tokens ?? 0)
-			+ (usage.cache_read_input_tokens ?? 0);
-	}, 0);
-}
-
-/**
- * Handles session ID lookup and output formatting
- */
-async function handleSessionIdLookup(
-	ctx: { values: { id: string; mode: CostMode; offline: boolean; jq?: string; timezone?: string; locale?: string } },
-	useJson: boolean,
-): Promise<void> {
-	const sessionUsage = await loadSessionUsageById(ctx.values.id, {
-		mode: ctx.values.mode,
-		offline: ctx.values.offline,
-	});
-
-	if (sessionUsage == null) {
-		if (useJson) {
-			log(JSON.stringify(null));
-		}
-		else {
-			logger.warn(`No session found with ID: ${ctx.values.id}`);
-		}
-		process.exit(0);
-	}
-
-	if (useJson) {
-		await outputSessionJsonFormat(ctx, sessionUsage);
-	}
-	else {
-		await outputSessionTableFormat(ctx, sessionUsage);
-	}
-}
-
-/**
- * Outputs session data in JSON format
- */
-async function outputSessionJsonFormat(
-	ctx: { values: { id: string; jq?: string } },
-	sessionUsage: { totalCost: number; entries: UsageData[] },
-): Promise<void> {
-	const jsonOutput = {
-		sessionId: ctx.values.id,
-		totalCost: sessionUsage.totalCost,
-		entries: sessionUsage.entries.map(entry => ({
-			timestamp: entry.timestamp,
-			inputTokens: entry.message.usage.input_tokens,
-			outputTokens: entry.message.usage.output_tokens,
-			cacheCreationTokens: entry.message.usage.cache_creation_input_tokens ?? 0,
-			cacheReadTokens: entry.message.usage.cache_read_input_tokens ?? 0,
-			model: entry.message.model ?? 'unknown',
-			costUSD: entry.costUSD ?? 0,
-		})),
-	};
-
-	// Process with jq if specified
-	if (ctx.values.jq != null) {
-		const jqResult = await processWithJq(jsonOutput, ctx.values.jq);
-		if (Result.isFailure(jqResult)) {
-			logger.error((jqResult.error).message);
-			process.exit(1);
-		}
-		log(jqResult.value);
-	}
-	else {
-		log(JSON.stringify(jsonOutput, null, 2));
-	}
-}
-
-/**
- * Outputs session data in table format
- */
-async function outputSessionTableFormat(
-	ctx: { values: { id: string; timezone?: string; locale?: string } },
-	sessionUsage: { totalCost: number; entries: UsageData[] },
-): Promise<void> {
-	// Print header
-	logger.box(`Claude Code Session Usage - ${ctx.values.id}`);
-
-	// Show session summary
-	const totalTokens = calculateSessionTotalTokens(sessionUsage.entries);
-
-	log(`Total Cost: ${formatCurrency(sessionUsage.totalCost)}`);
-	log(`Total Tokens: ${formatNumber(totalTokens)}`);
-	log(`Total Entries: ${sessionUsage.entries.length}`);
-	log('');
-
-	// Show individual entries
-	if (sessionUsage.entries.length > 0) {
-		const table = new ResponsiveTable({
-			head: [
-				'Timestamp',
-				'Model',
-				'Input',
-				'Output',
-				'Cache Create',
-				'Cache Read',
-				'Cost (USD)',
-			],
-			style: {
-				head: ['cyan'],
-			},
-			colAligns: [
-				'left',
-				'left',
-				'right',
-				'right',
-				'right',
-				'right',
-				'right',
-			],
-		});
-
-		for (const entry of sessionUsage.entries) {
-			table.push([
-				formatDateCompact(entry.timestamp, ctx.values.timezone, ctx.values.locale),
-				entry.message.model ?? 'unknown',
-				formatNumber(entry.message.usage.input_tokens),
-				formatNumber(entry.message.usage.output_tokens),
-				formatNumber(entry.message.usage.cache_creation_input_tokens ?? 0),
-				formatNumber(entry.message.usage.cache_read_input_tokens ?? 0),
-				formatCurrency(entry.costUSD ?? 0),
-			]);
-		}
-
-		log(table.toString());
-	}
-}
+// All --id logic moved to ./_session_id.ts
 
 export const sessionCommand = define({
 	name: 'session',
@@ -184,7 +47,7 @@ export const sessionCommand = define({
 					offline: ctx.values.offline,
 					jq: ctx.values.jq,
 					timezone: ctx.values.timezone,
-					locale: ctx.values.locale,
+					locale: ctx.values.locale ?? 'en-CA',
 				},
 			}, useJson);
 			return;
