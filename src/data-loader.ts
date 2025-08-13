@@ -631,7 +631,14 @@ export function formatDate(dateStr: string, timezone?: string, locale?: string):
  * @returns Formatted date string with newline separator (YYYY\nMM-DD)
  */
 export function formatDateCompact(dateStr: string, timezone: string | undefined, locale: string): string {
-	const date = new Date(dateStr);
+	// For YYYY-MM-DD format, append T00:00:00 to parse as local date
+	// Without this, new Date('YYYY-MM-DD') interprets as UTC midnight
+	const parseResult = dailyDateSchema.safeParse(dateStr);
+	const date = parseResult.success
+		? timezone != null
+			? new Date(`${dateStr}T00:00:00Z`)
+			: new Date(`${dateStr}T00:00:00`)
+		: new Date(dateStr);
 	const formatter = createDatePartsFormatter(timezone, locale);
 	const parts = formatter.formatToParts(date);
 	const year = parts.find(p => p.type === 'year')?.value ?? '';
@@ -1624,6 +1631,12 @@ if (import.meta.vitest != null) {
 
 			// Asia/Tokyo timezone (crosses to next day)
 			expect(formatDateCompact(testTimestamp, 'Asia/Tokyo', 'en-US')).toBe('2024\n01-02');
+
+			// Daily date defined as UTC is preserved
+			expect(formatDateCompact('2024-01-01', 'UTC', 'en-US')).toBe('2024\n01-01');
+
+			// Daily date already in local time is preserved instead of being interpreted as UTC
+			expect(formatDateCompact('2024-01-01', undefined, 'en-US')).toBe('2024\n01-01');
 		});
 
 		it('handles various date formats', () => {

@@ -8,6 +8,44 @@ Session reports show your Claude Code usage grouped by individual conversation s
 ccusage session
 ```
 
+## Specific Session Lookup
+
+Query individual session details by providing a session ID:
+
+```bash
+ccusage session --id <session-id>
+```
+
+This is particularly useful for:
+- **Custom statuslines**: Integrate specific session data into your development environment
+- **Programmatic usage**: Extract session metrics for scripts and automation
+- **Detailed analysis**: Get comprehensive data about a single conversation
+
+### Examples
+
+```bash
+# Get session data in table format
+ccusage session --id session-abc123-def456
+
+# Get session data as JSON for scripting
+ccusage session --id session-abc123-def456 --json
+
+# Extract just the cost using jq
+ccusage session --id session-abc123-def456 --json --jq '.totalCost'
+
+# Use in a custom statusline script
+COST=$(ccusage session --id "$SESSION_ID" --json --jq '.totalCost')
+echo "Current session: \$${COST}"
+```
+
+### Session ID Format
+
+Session IDs are the actual filenames (without `.jsonl` extension) stored in Claude's data directories. They typically look like:
+- `session-20250621-abc123-def456`
+- `project-conversation-xyz789`
+
+You can find session IDs by running `ccusage session` and looking for the files in your Claude data directory.
+
 ## Example Output
 
 ```
@@ -50,6 +88,27 @@ Sessions are displayed using the last two segments of their full identifier:
 Sessions are sorted by cost (highest first) by default, making it easy to identify your most expensive conversations.
 
 ## Command Options
+
+### Session ID Lookup
+
+Get detailed information about a specific session:
+
+```bash
+# Query a specific session by ID
+ccusage session --id <session-id>
+
+# Get JSON output for a specific session
+ccusage session --id <session-id> --json
+
+# Short form using -i flag
+ccusage session -i <session-id>
+```
+
+**Use cases:**
+- Building custom statuslines that show current session costs
+- Creating scripts that monitor specific conversation expenses
+- Debugging or analyzing individual conversation patterns
+- Integrating session data into development workflows
 
 ### Date Filtering
 
