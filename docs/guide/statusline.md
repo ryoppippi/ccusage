@@ -49,7 +49,7 @@ If you need the latest pricing data from LiteLLM API, you can explicitly enable 
 The statusline displays a compact, single-line summary:
 
 ```
-🤖 Opus | 💰 $0.23 session / $1.23 today / $0.45 block (2h 45m left) | 🔥 $0.12/hr
+🤖 Opus | 💰 $0.23 session / $1.23 today / $0.45 block (2h 45m left) | 🔥 $0.12/hr | 🧠 25,000 (12%)
 ```
 
 ### Components Explained
@@ -62,6 +62,10 @@ The statusline displays a compact, single-line summary:
   - Green text: Normal (< 2,000 tokens/min)
   - Yellow text: Moderate (2,000-5,000 tokens/min)
   - Red text: High (> 5,000 tokens/min)
+- **Context Usage** (`🧠 25,000 (12%)`): Shows input tokens with percentage of context limit:
+  - Green text: Low usage (< 50% by default)
+  - Yellow text: Medium usage (50-80% by default)
+  - Red text: High usage (> 80% by default)
 
 When no active block exists:
 ```
@@ -86,6 +90,26 @@ The statusline command:
 - Configurable burn rate thresholds
 - Additional metrics display options
 - Session-specific cost tracking
+
+## Configuration
+
+### Environment Variables
+
+You can customize the context usage color thresholds using environment variables:
+
+- `CCUSAGE_CONTEXT_LOW_THRESHOLD` - Percentage below which context usage is shown in green (default: 50)
+- `CCUSAGE_CONTEXT_MEDIUM_THRESHOLD` - Percentage below which context usage is shown in yellow (default: 80)
+
+For example:
+```bash
+export CCUSAGE_CONTEXT_LOW_THRESHOLD=60
+export CCUSAGE_CONTEXT_MEDIUM_THRESHOLD=90
+```
+
+With these settings:
+- Green: < 60%
+- Yellow: 60-90%
+- Red: > 90%
 
 ## Troubleshooting
 

@@ -2,13 +2,12 @@ import process from 'node:process';
 import getStdin from 'get-stdin';
 import { define } from 'gunshi';
 import pc from 'picocolors';
-import { CONTEXT_USAGE_THRESHOLDS } from '../_consts.ts';
 import { calculateBurnRate } from '../_session-blocks.ts';
 import { sharedArgs } from '../_shared-args.ts';
 import { statuslineHookJsonSchema } from '../_types.ts';
 import { formatCurrency } from '../_utils.ts';
 import { calculateTotals } from '../calculate-cost.ts';
-import { calculateContextTokens, getClaudePaths, loadDailyUsageData, loadSessionBlockData, loadSessionUsageById } from '../data-loader.ts';
+import { calculateContextTokens, getClaudePaths, getContextUsageThresholds, loadDailyUsageData, loadSessionBlockData, loadSessionUsageById } from '../data-loader.ts';
 import { log, logger } from '../logger.ts';
 
 /**
@@ -167,9 +166,10 @@ export const statuslineCommand = define({
 		try {
 			const contextData = await calculateContextTokens(hookData.transcript_path);
 			if (contextData != null) {
-				// Format context percentage with color coding using constants
+				// Format context percentage with color coding using configurable thresholds
 				const p = contextData.percentage;
-				const color = p < CONTEXT_USAGE_THRESHOLDS.LOW ? pc.green : p < CONTEXT_USAGE_THRESHOLDS.MEDIUM ? pc.yellow : pc.red;
+				const thresholds = getContextUsageThresholds();
+				const color = p < thresholds.LOW ? pc.green : p < thresholds.MEDIUM ? pc.yellow : pc.red;
 				const coloredPercentage = color(`${p}%`);
 
 				// Format token count with thousand separators

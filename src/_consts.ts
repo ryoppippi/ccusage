@@ -149,11 +149,21 @@ export const CONTEXT_LIMIT = 200_000;
 /**
  * Context usage percentage thresholds for color coding
  */
-export const CONTEXT_USAGE_THRESHOLDS = {
+export const DEFAULT_CONTEXT_USAGE_THRESHOLDS = {
 	LOW: 50, // Below 50% - green
 	MEDIUM: 80, // 50-80% - yellow
 	// Above 80% - red
 } as const;
+
+/**
+ * Environment variable name for configuring context usage low threshold
+ */
+export const CONTEXT_LOW_THRESHOLD_ENV = 'CCUSAGE_CONTEXT_LOW_THRESHOLD';
+
+/**
+ * Environment variable name for configuring context usage medium threshold
+ */
+export const CONTEXT_MEDIUM_THRESHOLD_ENV = 'CCUSAGE_CONTEXT_MEDIUM_THRESHOLD';
 
 /**
  * Days of the week for weekly aggregation

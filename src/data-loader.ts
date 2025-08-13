@@ -17,7 +17,6 @@ import type {
 	CostMode,
 	ModelName,
 	SortOrder,
-	TranscriptMessage,
 	Version,
 	WeeklyDate,
 } from './_types.ts';
@@ -33,7 +32,7 @@ import { createFixture } from 'fs-fixture';
 import { isDirectorySync } from 'path-type';
 import { glob } from 'tinyglobby';
 import { z } from 'zod';
-import { CLAUDE_CONFIG_DIR_ENV, CLAUDE_PROJECTS_DIR_NAME, CONTEXT_LIMIT, DEFAULT_CLAUDE_CODE_PATH, DEFAULT_CLAUDE_CONFIG_PATH, USAGE_DATA_GLOB_PATTERN, USER_HOME_DIR } from './_consts.ts';
+import { CLAUDE_CONFIG_DIR_ENV, CLAUDE_PROJECTS_DIR_NAME, CONTEXT_LIMIT, CONTEXT_LOW_THRESHOLD_ENV, CONTEXT_MEDIUM_THRESHOLD_ENV, DEFAULT_CLAUDE_CODE_PATH, DEFAULT_CLAUDE_CONFIG_PATH, DEFAULT_CONTEXT_USAGE_THRESHOLDS, USAGE_DATA_GLOB_PATTERN, USER_HOME_DIR } from './_consts.ts';
 import {
 	identifySessionBlocks,
 } from './_session-blocks.ts';
@@ -137,6 +136,22 @@ export function getClaudePaths(): string[] {
 }
 
 /**
+ * Get context usage percentage thresholds for color coding
+ * Can be configured via environment variables or uses defaults
+ * @returns Context usage thresholds with LOW and MEDIUM percentages
+ */
+export function getContextUsageThresholds(): { readonly LOW: number; readonly MEDIUM: number } {
+	// Check environment variables with fallback to defaults
+	const lowThreshold = process.env[CONTEXT_LOW_THRESHOLD_ENV];
+	const mediumThreshold = process.env[CONTEXT_MEDIUM_THRESHOLD_ENV];
+
+	return {
+		LOW: lowThreshold != null ? Number.parseInt(lowThreshold, 10) : DEFAULT_CONTEXT_USAGE_THRESHOLDS.LOW,
+		MEDIUM: mediumThreshold != null ? Number.parseInt(mediumThreshold, 10) : DEFAULT_CONTEXT_USAGE_THRESHOLDS.MEDIUM,
+	} as const;
+}
+
+/**
  * Extract project name from Claude JSONL file path
  * @param jsonlPath - Absolute path to JSONL file
  * @returns Project name extracted from path, or "unknown" if malformed
@@ -179,6 +194,26 @@ export const usageDataSchema = z.object({
 	costUSD: z.number().optional(), // Made optional for new schema
 	requestId: requestIdSchema.optional(), // Request ID for deduplication
 	isApiErrorMessage: z.boolean().optional(),
+});
+
+/**
+ * Zod schema for transcript usage data from Claude messages
+ */
+export const transcriptUsageSchema = z.object({
+	input_tokens: z.number().optional(),
+	cache_creation_input_tokens: z.number().optional(),
+	cache_read_input_tokens: z.number().optional(),
+	output_tokens: z.number().optional(),
+});
+
+/**
+ * Zod schema for transcript message data
+ */
+export const transcriptMessageSchema = z.object({
+	type: z.string().optional(),
+	message: z.object({
+		usage: transcriptUsageSchema.optional(),
+	}).optional(),
 });
 
 /**
@@ -1365,7 +1400,12 @@ export async function calculateContextTokens(transcriptPath: string): Promise<{
 		}
 
 		try {
-			const obj = JSON.parse(trimmedLine) as TranscriptMessage;
+			const parsed = JSON.parse(trimmedLine) as unknown;
+			const result = transcriptMessageSchema.safeParse(parsed);
+			if (!result.success) {
+				continue; // Skip malformed JSON lines
+			}
+			const obj = result.data;
 
 			// Check if this line contains the required token usage fields
 			if (obj.type === 'assistant'
@@ -1395,54 +1435,6 @@ export async function calculateContextTokens(transcriptPath: string): Promise<{
 	// No valid usage information found
 	logger.debug('No usage information found in transcript');
 	return null;
-}
-
-// Test for calculateContextTokens
-if (import.meta.vitest != null) {
-	describe('calculateContextTokens', async () => {
-		it('returns null when transcript cannot be read', async () => {
-			const result = await calculateContextTokens('/nonexistent/path.jsonl');
-			expect(result).toBeNull();
-		});
-		const { createFixture } = await import('fs-fixture');
-		it('parses latest assistant line and excludes output tokens', async () => {
-			await using fixture = await createFixture({
-				'transcript.jsonl': [
-					JSON.stringify({ type: 'user', message: {} }),
-					JSON.stringify({ type: 'assistant', message: { usage: { input_tokens: 1000, output_tokens: 999 } } }),
-					JSON.stringify({ type: 'assistant', message: { usage: { input_tokens: 2000, cache_creation_input_tokens: 100, cache_read_input_tokens: 50 } } }),
-				].join('\n'),
-			});
-			const res = await calculateContextTokens(fixture.getPath('transcript.jsonl'));
-			expect(res).not.toBeNull();
-			// Should pick the last assistant line and exclude output tokens
-			expect(res?.inputTokens).toBe(2000 + 100 + 50);
-			expect(res?.percentage).toBeGreaterThan(0);
-		});
-
-		it('handles missing cache fields gracefully', async () => {
-			await using fixture = await createFixture({
-				'transcript.jsonl': [
-					JSON.stringify({ type: 'assistant', message: { usage: { input_tokens: 1000 } } }),
-				].join('\n'),
-			});
-			const res = await calculateContextTokens(fixture.getPath('transcript.jsonl'));
-			expect(res).not.toBeNull();
-			expect(res?.inputTokens).toBe(1000);
-			expect(res?.percentage).toBeGreaterThan(0);
-		});
-
-		it('clamps percentage to 0-100 range', async () => {
-			await using fixture = await createFixture({
-				'transcript.jsonl': [
-					JSON.stringify({ type: 'assistant', message: { usage: { input_tokens: 300_000 } } }),
-				].join('\n'),
-			});
-			const res = await calculateContextTokens(fixture.getPath('transcript.jsonl'));
-			expect(res).not.toBeNull();
-			expect(res?.percentage).toBe(100); // Should be clamped to 100
-		});
-	});
 }
 
 /**
@@ -4679,6 +4671,52 @@ if (import.meta.vitest != null) {
 
 			expect(results).toHaveLength(3);
 			expect(results.every(r => r.baseDir.includes('path1/projects'))).toBe(true);
+		});
+	});
+
+	// Test for calculateContextTokens
+	describe('calculateContextTokens', async () => {
+		it('returns null when transcript cannot be read', async () => {
+			const result = await calculateContextTokens('/nonexistent/path.jsonl');
+			expect(result).toBeNull();
+		});
+		const { createFixture } = await import('fs-fixture');
+		it('parses latest assistant line and excludes output tokens', async () => {
+			await using fixture = await createFixture({
+				'transcript.jsonl': [
+					JSON.stringify({ type: 'user', message: {} }),
+					JSON.stringify({ type: 'assistant', message: { usage: { input_tokens: 1000, output_tokens: 999 } } }),
+					JSON.stringify({ type: 'assistant', message: { usage: { input_tokens: 2000, cache_creation_input_tokens: 100, cache_read_input_tokens: 50 } } }),
+				].join('\n'),
+			});
+			const res = await calculateContextTokens(fixture.getPath('transcript.jsonl'));
+			expect(res).not.toBeNull();
+			// Should pick the last assistant line and exclude output tokens
+			expect(res?.inputTokens).toBe(2000 + 100 + 50);
+			expect(res?.percentage).toBeGreaterThan(0);
+		});
+
+		it('handles missing cache fields gracefully', async () => {
+			await using fixture = await createFixture({
+				'transcript.jsonl': [
+					JSON.stringify({ type: 'assistant', message: { usage: { input_tokens: 1000 } } }),
+				].join('\n'),
+			});
+			const res = await calculateContextTokens(fixture.getPath('transcript.jsonl'));
+			expect(res).not.toBeNull();
+			expect(res?.inputTokens).toBe(1000);
+			expect(res?.percentage).toBeGreaterThan(0);
+		});
+
+		it('clamps percentage to 0-100 range', async () => {
+			await using fixture = await createFixture({
+				'transcript.jsonl': [
+					JSON.stringify({ type: 'assistant', message: { usage: { input_tokens: 300_000 } } }),
+				].join('\n'),
+			});
+			const res = await calculateContextTokens(fixture.getPath('transcript.jsonl'));
+			expect(res).not.toBeNull();
+			expect(res?.percentage).toBe(100); // Should be clamped to 100
 		});
 	});
 }
