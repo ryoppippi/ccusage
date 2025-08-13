@@ -78,8 +78,6 @@ export const statuslineCommand = define({
 			Result.inspectError(error => logger.error('Failed to load session data:', error)),
 		);
 		const sessionCost = Result.unwrap(sessionCostResult, undefined);
-		// TODO: why sessiionCost is a function?
-		console.log({ sessionCost });
 
 		// Load today's usage data
 		const today = new Date();
