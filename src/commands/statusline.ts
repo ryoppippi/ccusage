@@ -1,4 +1,5 @@
 import process from 'node:process';
+import { Result } from '@praha/byethrow';
 import getStdin from 'get-stdin';
 import { define } from 'gunshi';
 import pc from 'picocolors';
@@ -63,54 +64,63 @@ export const statuslineCommand = define({
 		// Extract session ID from hook data
 		const sessionId = hookData.session_id;
 
-		// Load current session's cost by finding the specific JSONL file
-		let sessionCost: number | null = null;
-		try {
-			const sessionData = await loadSessionUsageById(sessionId, { mode: 'auto', offline: ctx.values.offline });
-			if (sessionData != null) {
-				sessionCost = sessionData.totalCost;
-			}
-		}
-		catch (error) {
-			logger.error('Failed to load session data:', error);
-		}
+		const sessionCostResult = await Result.pipe(
+			Result.try({
+				try: loadSessionUsageById(sessionId, {
+					mode: 'auto',
+					offline: ctx.values.offline,
+				}),
+				catch: error => error,
+			}),
+			Result.map((sessionCost) => {
+				return sessionCost?.totalCost;
+			}),
+			Result.inspectError(error => logger.error('Failed to load session data:', error)),
+		);
+		const sessionCost = Result.unwrap(sessionCostResult, undefined);
+		// TODO: why sessiionCost is a function?
+		console.log({ sessionCost });
 
 		// Load today's usage data
 		const today = new Date();
 		const todayStr = today.toISOString().split('T')[0]?.replace(/-/g, '') ?? ''; // Convert to YYYYMMDD format
 
-		let todayCost = 0;
-		try {
-			const dailyData = await loadDailyUsageData({
-				since: todayStr,
-				until: todayStr,
-				mode: 'auto',
-				offline: ctx.values.offline,
-			});
-
-			if (dailyData.length > 0) {
-				const totals = calculateTotals(dailyData);
-				todayCost = totals.totalCost;
-			}
-		}
-		catch (error) {
-			logger.error('Failed to load daily data:', error);
-		}
+		const todayCostResult = await Result.pipe(
+			Result.try({
+				try: loadDailyUsageData({
+					since: todayStr,
+					until: todayStr,
+					mode: 'auto',
+					offline: ctx.values.offline,
+				}),
+				catch: error => error,
+			}),
+			Result.map((dailyData) => {
+				if (dailyData.length > 0) {
+					const totals = calculateTotals(dailyData);
+					return totals.totalCost;
+				}
+				return 0;
+			}),
+			Result.inspectError(error => logger.error('Failed to load daily data:', error)),
+		);
+		const todayCost = Result.unwrap(todayCostResult, 0);
 
 		// Load session block data to find active block
-		let blockInfo = '';
-		let burnRateInfo = '';
-		try {
-			const blocks = await loadSessionBlockData({
-				mode: 'auto',
-				offline: ctx.values.offline,
-			});
+		const blockDataResult = await Result.pipe(
+			Result.try({
+				try: loadSessionBlockData({
+					mode: 'auto',
+					offline: ctx.values.offline,
+				}),
+				catch: error => error,
+			}),
+			Result.map((blocks) => {
+				// Only identify blocks if we have data
+				if (blocks.length === 0) {
+					return { blockInfo: 'No active block', burnRateInfo: '' };
+				}
 
-			// Only identify blocks if we have data
-			if (blocks.length === 0) {
-				blockInfo = 'No active block';
-			}
-			else {
 				// Find active block that contains our session
 				const activeBlock = blocks.find((block) => {
 					if (!block.isActive) {
@@ -128,65 +138,65 @@ export const statuslineCommand = define({
 					const remaining = Math.round((activeBlock.endTime.getTime() - now.getTime()) / (1000 * 60));
 					const blockCost = activeBlock.costUSD;
 
-					blockInfo = `${formatCurrency(blockCost)} block (${formatRemainingTime(remaining)})`;
+					const blockInfo = `${formatCurrency(blockCost)} block (${formatRemainingTime(remaining)})`;
 
 					// Calculate burn rate
 					const burnRate = calculateBurnRate(activeBlock);
-					if (burnRate != null) {
-						const costPerHour = burnRate.costPerHour;
-						const costPerHourStr = `${formatCurrency(costPerHour)}/hr`;
+					const burnRateInfo = burnRate != null
+						? (() => {
+								const costPerHour = burnRate.costPerHour;
+								const costPerHourStr = `${formatCurrency(costPerHour)}/hr`;
 
-						// Apply color based on burn rate (tokens per minute non-cache)
-						let coloredBurnRate = costPerHourStr;
-						if (burnRate.tokensPerMinuteForIndicator < 2000) {
-							coloredBurnRate = pc.green(costPerHourStr); // Normal
-						}
-						else if (burnRate.tokensPerMinuteForIndicator < 5000) {
-							coloredBurnRate = pc.yellow(costPerHourStr); // Moderate
-						}
-						else {
-							coloredBurnRate = pc.red(costPerHourStr); // High
-						}
+								// Apply color based on burn rate (tokens per minute non-cache)
+								const coloredBurnRate = burnRate.tokensPerMinuteForIndicator < 2000
+									? pc.green(costPerHourStr) // Normal
+									: burnRate.tokensPerMinuteForIndicator < 5000
+										? pc.yellow(costPerHourStr) // Moderate
+										: pc.red(costPerHourStr); // High
 
-						burnRateInfo = ` | 🔥 ${coloredBurnRate}`;
-					}
+								return ` | 🔥 ${coloredBurnRate}`;
+							})()
+						: '';
+
+					return { blockInfo, burnRateInfo };
 				}
-				else {
-					blockInfo = 'No active block';
-				}
-			}
-		}
-		catch (error) {
-			logger.error('Failed to load block data:', error);
-			blockInfo = 'No active block';
-		}
+
+				return { blockInfo: 'No active block', burnRateInfo: '' };
+			}),
+			Result.inspectError(error => logger.error('Failed to load block data:', error)),
+		);
+		const { blockInfo, burnRateInfo } = Result.unwrap(blockDataResult, { blockInfo: 'No active block', burnRateInfo: '' });
 
 		// Calculate context tokens from transcript
-		let contextInfo = '';
-		try {
-			const contextData = await calculateContextTokens(hookData.transcript_path);
-			if (contextData != null) {
-				// Format context percentage with color coding using configurable thresholds
-				const p = contextData.percentage;
-				const thresholds = getContextUsageThresholds();
-				const color = p < thresholds.LOW ? pc.green : p < thresholds.MEDIUM ? pc.yellow : pc.red;
-				const coloredPercentage = color(`${p}%`);
+		const contextInfoResult = await Result.pipe(
+			Result.try({
+				try: calculateContextTokens(hookData.transcript_path),
+				catch: error => error,
+			}),
+			Result.map((contextData) => {
+				if (contextData != null) {
+					// Format context percentage with color coding using configurable thresholds
+					const p = contextData.percentage;
+					const thresholds = getContextUsageThresholds();
+					const color = p < thresholds.LOW ? pc.green : p < thresholds.MEDIUM ? pc.yellow : pc.red;
+					const coloredPercentage = color(`${p}%`);
 
-				// Format token count with thousand separators
-				const tokenDisplay = contextData.inputTokens.toLocaleString();
-				contextInfo = ` | 🧠 ${tokenDisplay} (${coloredPercentage})`;
-			}
-		}
-		catch (error) {
-			logger.debug(`Failed to calculate context tokens: ${error instanceof Error ? error.message : String(error)}`);
-		}
+					// Format token count with thousand separators
+					const tokenDisplay = contextData.inputTokens.toLocaleString();
+					return ` | 🧠 ${tokenDisplay} (${coloredPercentage})`;
+				}
+				return '';
+			}),
+			Result.inspectError(error => logger.debug(`Failed to calculate context tokens: ${error instanceof Error ? error.message : String(error)}`)),
+		);
+		const contextInfo = Result.unwrap(contextInfoResult, '');
 
 		// Get model display name
 		const modelName = hookData.model.display_name;
 
 		// Format and output the status line
 		// Format: 🤖 model | 💰 session / today / block | 🔥 burn | 🧠 context
-		const sessionDisplay = sessionCost !== null ? formatCurrency(sessionCost) : 'N/A';
+		const sessionDisplay = sessionCost != null ? formatCurrency(sessionCost) : 'N/A';
 		const statusLine = `🤖 ${modelName} | 💰 ${sessionDisplay} session / ${formatCurrency(todayCost)} today / ${blockInfo}${burnRateInfo}${contextInfo}`;
 
 		log(statusLine);
