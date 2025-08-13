@@ -1280,7 +1280,7 @@ export async function loadSessionUsageById(
 	const claudePaths = getClaudePaths();
 
 	// Find the JSONL file for this session ID
-	// Convert backslashes to forward slashes to avoid tinyglobby bug with Windows paths in directories containing symlinks
+	// On Windows, replace backslashes from path.join with forward slashes for tinyglobby compatibility
 	const patterns = claudePaths.map(p => 
 		path.join(p, 'projects', '**', `${sessionId}.jsonl`).replace(/\\/g, '/')
 	);
