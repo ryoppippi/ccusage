@@ -1,5 +1,5 @@
 import process from 'node:process';
-import { Result } from '@praha/byethrow';
+import { R } from '@praha/byethrow';
 import getStdin from 'get-stdin';
 import { define } from 'gunshi';
 import pc from 'picocolors';
@@ -64,25 +64,25 @@ export const statuslineCommand = define({
 		// Extract session ID from hook data
 		const sessionId = hookData.session_id;
 
-		const sessionCost = await Result.pipe(
-			Result.try({
+		const sessionCost = await R.pipe(
+			R.try({
 				try: loadSessionUsageById(sessionId, {
 					mode: 'auto',
 					offline: ctx.values.offline,
 				}),
 				catch: error => error,
 			}),
-			Result.map(sessionCost => sessionCost?.totalCost),
-			Result.inspectError(error => logger.error('Failed to load session data:', error)),
-			Result.unwrap(undefined),
+			R.map(sessionCost => sessionCost?.totalCost),
+			R.inspectError(error => logger.error('Failed to load session data:', error)),
+			R.unwrap(undefined),
 		);
 
 		// Load today's usage data
 		const today = new Date();
 		const todayStr = today.toISOString().split('T')[0]?.replace(/-/g, '') ?? ''; // Convert to YYYYMMDD format
 
-		const todayCost = await Result.pipe(
-			Result.try({
+		const todayCost = await R.pipe(
+			R.try({
 				try: loadDailyUsageData({
 					since: todayStr,
 					until: todayStr,
@@ -91,27 +91,27 @@ export const statuslineCommand = define({
 				}),
 				catch: error => error,
 			}),
-			Result.map((dailyData) => {
+			R.map((dailyData) => {
 				if (dailyData.length > 0) {
 					const totals = calculateTotals(dailyData);
 					return totals.totalCost;
 				}
 				return 0;
 			}),
-			Result.inspectError(error => logger.error('Failed to load daily data:', error)),
-			Result.unwrap(0),
+			R.inspectError(error => logger.error('Failed to load daily data:', error)),
+			R.unwrap(0),
 		);
 
 		// Load session block data to find active block
-		const { blockInfo, burnRateInfo } = await Result.pipe(
-			Result.try({
+		const { blockInfo, burnRateInfo } = await R.pipe(
+			R.try({
 				try: loadSessionBlockData({
 					mode: 'auto',
 					offline: ctx.values.offline,
 				}),
 				catch: error => error,
 			}),
-			Result.map((blocks) => {
+			R.map((blocks) => {
 				// Only identify blocks if we have data
 				if (blocks.length === 0) {
 					return { blockInfo: 'No active block', burnRateInfo: '' };
@@ -159,18 +159,18 @@ export const statuslineCommand = define({
 
 				return { blockInfo: 'No active block', burnRateInfo: '' };
 			}),
-			Result.inspectError(error => logger.error('Failed to load block data:', error)),
-			Result.unwrap({ blockInfo: 'No active block', burnRateInfo: '' }),
+			R.inspectError(error => logger.error('Failed to load block data:', error)),
+			R.unwrap({ blockInfo: 'No active block', burnRateInfo: '' }),
 		);
 
 		// Calculate context tokens from transcript
-		const contextInfo = await Result.pipe(
-			Result.try({
+		const contextInfo = await R.pipe(
+			R.try({
 				try: calculateContextTokens(hookData.transcript_path),
 				catch: error => error,
 			}),
-			Result.inspectError(error => logger.debug(`Failed to calculate context tokens: ${error instanceof Error ? error.message : String(error)}`)),
-			Result.map((ctx) => {
+			R.inspectError(error => logger.debug(`Failed to calculate context tokens: ${error instanceof Error ? error.message : String(error)}`)),
+			R.map((ctx) => {
 				if (ctx == null) {
 					return undefined;
 				}
@@ -187,7 +187,7 @@ export const statuslineCommand = define({
 				const tokenDisplay = ctx.inputTokens.toLocaleString();
 				return `${tokenDisplay} (${coloredPercentage})`;
 			}),
-			Result.unwrap(undefined),
+			R.unwrap(undefined),
 		);
 
 		// Get model display name

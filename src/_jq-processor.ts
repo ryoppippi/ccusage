@@ -1,4 +1,4 @@
-import { Result } from '@praha/byethrow';
+import { R } from '@praha/byethrow';
 import spawn from 'nano-spawn';
 
 /**
@@ -7,12 +7,12 @@ import spawn from 'nano-spawn';
  * @param jqCommand - The jq command/filter to apply
  * @returns The processed output from jq
  */
-export async function processWithJq(jsonData: unknown, jqCommand: string): Result.ResultAsync<string, Error> {
+export async function processWithJq(jsonData: unknown, jqCommand: string): R.ResultAsync<string, Error> {
 	// Convert JSON data to string
 	const jsonString = JSON.stringify(jsonData);
 
-	// Use Result.try with object form to wrap spawn call
-	const result = Result.try({
+	// Use R.try with object form to wrap spawn call
+	const result = R.try({
 		try: async () => {
 			const spawnResult = await spawn('jq', [jqCommand], {
 				stdin: { string: jsonString },
@@ -41,7 +41,7 @@ if (import.meta.vitest != null) {
 		it('should process JSON with simple filter', async () => {
 			const data = { name: 'test', value: 42 };
 			const result = await processWithJq(data, '.name');
-			const unwrapped = Result.unwrap(result);
+			const unwrapped = R.unwrap(result);
 			expect(unwrapped).toBe('"test"');
 		});
 
@@ -53,7 +53,7 @@ if (import.meta.vitest != null) {
 				],
 			};
 			const result = await processWithJq(data, '.items | map(.name)');
-			const unwrapped = Result.unwrap(result);
+			const unwrapped = R.unwrap(result);
 			const parsed = JSON.parse(unwrapped) as string[];
 			expect(parsed).toEqual(['apple', 'banana']);
 		});
@@ -61,14 +61,14 @@ if (import.meta.vitest != null) {
 		it('should handle raw output', async () => {
 			const data = { message: 'hello world' };
 			const result = await processWithJq(data, '.message | @text');
-			const unwrapped = Result.unwrap(result);
+			const unwrapped = R.unwrap(result);
 			expect(unwrapped).toBe('"hello world"');
 		});
 
 		it('should return error for invalid jq syntax', async () => {
 			const data = { test: 'value' };
 			const result = await processWithJq(data, 'invalid syntax {');
-			const error = Result.unwrapError(result);
+			const error = R.unwrapError(result);
 			expect(error.message).toContain('jq processing failed');
 		});
 
@@ -81,14 +81,14 @@ if (import.meta.vitest != null) {
 				],
 			};
 			const result = await processWithJq(data, '.users | sort_by(.age) | .[0].name');
-			const unwrapped = Result.unwrap(result);
+			const unwrapped = R.unwrap(result);
 			expect(unwrapped).toBe('"Bob"');
 		});
 
 		it('should handle numeric output', async () => {
 			const data = { values: [1, 2, 3, 4, 5] };
 			const result = await processWithJq(data, '.values | add');
-			const unwrapped = Result.unwrap(result);
+			const unwrapped = R.unwrap(result);
 			expect(unwrapped).toBe('15');
 		});
 	});

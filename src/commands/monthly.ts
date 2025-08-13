@@ -1,5 +1,5 @@
 import process from 'node:process';
-import { Result } from '@praha/byethrow';
+import { R } from '@praha/byethrow';
 import { define } from 'gunshi';
 import pc from 'picocolors';
 import { processWithJq } from '../_jq-processor.ts';
@@ -85,7 +85,7 @@ export const monthlyCommand = define({
 			// Process with jq if specified
 			if (ctx.values.jq != null) {
 				const jqResult = await processWithJq(jsonOutput, ctx.values.jq);
-				if (Result.isFailure(jqResult)) {
+				if (R.isFailure(jqResult)) {
 					logger.error((jqResult.error).message);
 					process.exit(1);
 				}

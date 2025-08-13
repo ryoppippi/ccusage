@@ -1,7 +1,7 @@
 import type { CostMode } from '../_types.ts';
 import type { UsageData } from '../data-loader.ts';
 import process from 'node:process';
-import { Result } from '@praha/byethrow';
+import { R } from '@praha/byethrow';
 import { processWithJq } from '../_jq-processor.ts';
 import { formatCurrency, formatNumber, ResponsiveTable } from '../_utils.ts';
 import { formatDateCompact, loadSessionUsageById } from '../data-loader.ts';
@@ -55,7 +55,7 @@ export async function handleSessionIdLookup(ctx: SessionIdContext, useJson: bool
 
 		if (ctx.values.jq != null) {
 			const jqResult = await processWithJq(jsonOutput, ctx.values.jq);
-			if (Result.isFailure(jqResult)) {
+			if (R.isFailure(jqResult)) {
 				logger.error(jqResult.error.message);
 				process.exit(1);
 			}

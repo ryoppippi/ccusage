@@ -1,5 +1,5 @@
 import process from 'node:process';
-import { Result } from '@praha/byethrow';
+import { R } from '@praha/byethrow';
 import { define } from 'gunshi';
 import pc from 'picocolors';
 import { groupByProject, groupDataByProject } from '../_daily-grouping.ts';
@@ -98,7 +98,7 @@ export const dailyCommand = define({
 			// Process with jq if specified
 			if (ctx.values.jq != null) {
 				const jqResult = await processWithJq(jsonOutput, ctx.values.jq);
-				if (Result.isFailure(jqResult)) {
+				if (R.isFailure(jqResult)) {
 					logger.error((jqResult.error).message);
 					process.exit(1);
 				}

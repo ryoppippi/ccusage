@@ -25,7 +25,7 @@ import path from 'node:path';
 import process from 'node:process';
 import { toArray } from '@antfu/utils';
 import { unreachable } from '@core/errorutil';
-import { Result } from '@praha/byethrow';
+import { R } from '@praha/byethrow';
 import { groupBy, uniq } from 'es-toolkit'; // TODO: after node20 is deprecated, switch to native Object.groupBy
 import { sort } from 'fast-sort';
 import { createFixture } from 'fs-fixture';
@@ -778,7 +778,7 @@ export async function calculateCostForEntry(
 	if (mode === 'calculate') {
 		// Always calculate from tokens
 		if (data.message.model != null) {
-			return Result.unwrap(fetcher.calculateCostFromTokens(data.message.usage, data.message.model), 0);
+			return R.unwrap(fetcher.calculateCostFromTokens(data.message.usage, data.message.model), 0);
 		}
 		return 0;
 	}
@@ -790,7 +790,7 @@ export async function calculateCostForEntry(
 		}
 
 		if (data.message.model != null) {
-			return Result.unwrap(fetcher.calculateCostFromTokens(data.message.usage, data.message.model), 0);
+			return R.unwrap(fetcher.calculateCostFromTokens(data.message.usage, data.message.model), 0);
 		}
 
 		return 0;

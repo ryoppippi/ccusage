@@ -1,6 +1,6 @@
 import type { SessionBlock } from '../_session-blocks.ts';
 import process from 'node:process';
-import { Result } from '@praha/byethrow';
+import { R } from '@praha/byethrow';
 import { define } from 'gunshi';
 import pc from 'picocolors';
 import { BLOCKS_COMPACT_WIDTH_THRESHOLD, BLOCKS_DEFAULT_TERMINAL_WIDTH, BLOCKS_WARNING_THRESHOLD, DEFAULT_RECENT_DAYS, DEFAULT_REFRESH_INTERVAL_SECONDS, MAX_REFRESH_INTERVAL_SECONDS, MIN_REFRESH_INTERVAL_SECONDS } from '../_consts.ts';
@@ -297,7 +297,7 @@ export const blocksCommand = define({
 			// Process with jq if specified
 			if (ctx.values.jq != null) {
 				const jqResult = await processWithJq(jsonOutput, ctx.values.jq);
-				if (Result.isFailure(jqResult)) {
+				if (R.isFailure(jqResult)) {
 					logger.error((jqResult.error).message);
 					process.exit(1);
 				}

@@ -9,7 +9,7 @@
 
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
-import { Result } from '@praha/byethrow';
+import { R } from '@praha/byethrow';
 import { createFixture } from 'fs-fixture';
 import { glob } from 'tinyglobby';
 import { CLAUDE_PROJECTS_DIR_NAME, DEBUG_MATCH_THRESHOLD_PERCENT, USAGE_DATA_GLOB_PATTERN } from './_consts.ts';
@@ -111,13 +111,13 @@ export async function detectMismatches(
 			.filter(line => line.length > 0);
 
 		for (const line of lines) {
-			const parseParser = Result.try({
+			const parseParser = R.try({
 				try: () => JSON.parse(line) as unknown,
 				catch: () => new Error('Invalid JSON'),
 			});
 
 			const parseResult = parseParser();
-			if (Result.isFailure(parseResult)) {
+			if (R.isFailure(parseResult)) {
 				continue;
 			}
 
@@ -139,7 +139,7 @@ export async function detectMismatches(
 				stats.entriesWithBoth++;
 
 				const model = data.message.model;
-				const calculatedCost = await Result.unwrap(fetcher.calculateCostFromTokens(
+				const calculatedCost = await R.unwrap(fetcher.calculateCostFromTokens(
 					data.message.usage,
 					model,
 				));

@@ -1,6 +1,6 @@
 // Types not needed here after extracting --id logic
 import process from 'node:process';
-import { Result } from '@praha/byethrow';
+import { R } from '@praha/byethrow';
 import { define } from 'gunshi';
 import pc from 'picocolors';
 import { processWithJq } from '../_jq-processor.ts';
@@ -104,7 +104,7 @@ export const sessionCommand = define({
 			// Process with jq if specified
 			if (ctx.values.jq != null) {
 				const jqResult = await processWithJq(jsonOutput, ctx.values.jq);
-				if (Result.isFailure(jqResult)) {
+				if (R.isFailure(jqResult)) {
 					logger.error((jqResult.error).message);
 					process.exit(1);
 				}
