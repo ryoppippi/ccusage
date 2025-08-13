@@ -64,7 +64,7 @@ export const statuslineCommand = define({
 		// Extract session ID from hook data
 		const sessionId = hookData.session_id;
 
-		const sessionCostResult = await Result.pipe(
+		const sessionCost = await Result.pipe(
 			Result.try({
 				try: loadSessionUsageById(sessionId, {
 					mode: 'auto',
@@ -76,14 +76,14 @@ export const statuslineCommand = define({
 				return sessionCost?.totalCost;
 			}),
 			Result.inspectError(error => logger.error('Failed to load session data:', error)),
+			Result.unwrap(undefined),
 		);
-		const sessionCost = Result.unwrap(sessionCostResult, undefined);
 
 		// Load today's usage data
 		const today = new Date();
 		const todayStr = today.toISOString().split('T')[0]?.replace(/-/g, '') ?? ''; // Convert to YYYYMMDD format
 
-		const todayCostResult = await Result.pipe(
+		const todayCost = await Result.pipe(
 			Result.try({
 				try: loadDailyUsageData({
 					since: todayStr,
@@ -101,11 +101,11 @@ export const statuslineCommand = define({
 				return 0;
 			}),
 			Result.inspectError(error => logger.error('Failed to load daily data:', error)),
+			Result.unwrap(0),
 		);
-		const todayCost = Result.unwrap(todayCostResult, 0);
 
 		// Load session block data to find active block
-		const blockDataResult = await Result.pipe(
+		const { blockInfo, burnRateInfo } = await Result.pipe(
 			Result.try({
 				try: loadSessionBlockData({
 					mode: 'auto',
@@ -162,11 +162,11 @@ export const statuslineCommand = define({
 				return { blockInfo: 'No active block', burnRateInfo: '' };
 			}),
 			Result.inspectError(error => logger.error('Failed to load block data:', error)),
+			Result.unwrap({ blockInfo: 'No active block', burnRateInfo: '' }),
 		);
-		const { blockInfo, burnRateInfo } = Result.unwrap(blockDataResult, { blockInfo: 'No active block', burnRateInfo: '' });
 
 		// Calculate context tokens from transcript
-		const contextInfoResult = await Result.pipe(
+		const contextInfo = await Result.pipe(
 			Result.try({
 				try: calculateContextTokens(hookData.transcript_path),
 				catch: error => error,
@@ -186,8 +186,8 @@ export const statuslineCommand = define({
 				return '';
 			}),
 			Result.inspectError(error => logger.debug(`Failed to calculate context tokens: ${error instanceof Error ? error.message : String(error)}`)),
+			Result.unwrap(''),
 		);
-		const contextInfo = Result.unwrap(contextInfoResult, '');
 
 		// Get model display name
 		const modelName = hookData.model.display_name;
