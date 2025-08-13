@@ -171,22 +171,22 @@ export const statuslineCommand = define({
 				try: calculateContextTokens(hookData.transcript_path),
 				catch: error => error,
 			}),
-			Result.map((contextData) => {
-				if (contextData != null) {
-					// Format context percentage with color coding using configurable thresholds
-					const p = contextData.percentage;
-					const thresholds = getContextUsageThresholds();
-					const color = p < thresholds.LOW ? pc.green : p < thresholds.MEDIUM ? pc.yellow : pc.red;
-					const coloredPercentage = color(`${p}%`);
-
-					// Format token count with thousand separators
-					const tokenDisplay = contextData.inputTokens.toLocaleString();
-					return ` | 🧠 ${tokenDisplay} (${coloredPercentage})`;
-				}
-				return '';
-			}),
 			Result.inspectError(error => logger.debug(`Failed to calculate context tokens: ${error instanceof Error ? error.message : String(error)}`)),
-			Result.unwrap(''),
+			Result.map((ctx) => {
+				if (ctx == null) {
+					return undefined;
+				}
+				// Format context percentage with color coding using configurable thresholds
+				const p = ctx.percentage;
+				const thresholds = getContextUsageThresholds();
+				const color = p < thresholds.LOW ? pc.green : p < thresholds.MEDIUM ? pc.yellow : pc.red;
+				const coloredPercentage = color(`${p}%`);
+
+				// Format token count with thousand separators
+				const tokenDisplay = ctx.inputTokens.toLocaleString();
+				return `${tokenDisplay} (${coloredPercentage})`;
+			}),
+			Result.unwrap(undefined),
 		);
 
 		// Get model display name
@@ -195,7 +195,7 @@ export const statuslineCommand = define({
 		// Format and output the status line
 		// Format: 🤖 model | 💰 session / today / block | 🔥 burn | 🧠 context
 		const sessionDisplay = sessionCost != null ? formatCurrency(sessionCost) : 'N/A';
-		const statusLine = `🤖 ${modelName} | 💰 ${sessionDisplay} session / ${formatCurrency(todayCost)} today / ${blockInfo}${burnRateInfo}${contextInfo}`;
+		const statusLine = `🤖 ${modelName} | 💰 ${sessionDisplay} session / ${formatCurrency(todayCost)} today / ${blockInfo}${burnRateInfo} | 🧠 ${contextInfo ?? 'N/A'}`;
 
 		log(statusLine);
 	},
