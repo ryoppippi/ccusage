@@ -100,6 +100,12 @@ You can customize the context usage color thresholds using environment variables
 - `CCUSAGE_CONTEXT_LOW_THRESHOLD` - Percentage below which context usage is shown in green (default: 50)
 - `CCUSAGE_CONTEXT_MEDIUM_THRESHOLD` - Percentage below which context usage is shown in yellow (default: 80)
 
+**Validation and Safety Features:**
+- Values are automatically clamped to the 0-100 range
+- Non-numeric values fall back to defaults
+- The `LOW` threshold must be less than the `MEDIUM` threshold; if not, both reset to defaults
+- Invalid configurations gracefully fall back to safe defaults (50% and 80%)
+
 For example:
 ```bash
 export CCUSAGE_CONTEXT_LOW_THRESHOLD=60
@@ -110,6 +116,15 @@ With these settings:
 - Green: < 60%
 - Yellow: 60-90%
 - Red: > 90%
+
+**Invalid Configuration Examples:**
+```bash
+# These will all fall back to defaults (50/80)
+export CCUSAGE_CONTEXT_LOW_THRESHOLD=invalid   # Non-numeric
+export CCUSAGE_CONTEXT_MEDIUM_THRESHOLD=150    # Clamped to 100, then reset due to ordering
+export CCUSAGE_CONTEXT_LOW_THRESHOLD=90        # Would be >= MEDIUM (80), so both reset
+export CCUSAGE_CONTEXT_MEDIUM_THRESHOLD=30     # Would be <= LOW (50), so both reset
+```
 
 ## Troubleshooting
 
