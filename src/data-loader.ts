@@ -32,7 +32,7 @@ import { createFixture } from 'fs-fixture';
 import { isDirectorySync } from 'path-type';
 import { glob } from 'tinyglobby';
 import { z } from 'zod';
-import { CLAUDE_CONFIG_DIR_ENV, CLAUDE_PROJECTS_DIR_NAME, DEFAULT_CLAUDE_CODE_PATH, DEFAULT_CLAUDE_CONFIG_PATH, USAGE_DATA_GLOB_PATTERN, USER_HOME_DIR } from './_consts.ts';
+import { CLAUDE_CONFIG_DIR_ENV, CLAUDE_PROJECTS_DIR_NAME, CONTEXT_LIMIT, CONTEXT_LOW_THRESHOLD_ENV, CONTEXT_MEDIUM_THRESHOLD_ENV, DEFAULT_CLAUDE_CODE_PATH, DEFAULT_CLAUDE_CONFIG_PATH, DEFAULT_CONTEXT_USAGE_THRESHOLDS, USAGE_DATA_GLOB_PATTERN, USER_HOME_DIR } from './_consts.ts';
 import {
 	identifySessionBlocks,
 } from './_session-blocks.ts';
@@ -136,6 +136,48 @@ export function getClaudePaths(): string[] {
 }
 
 /**
+ * Get context usage percentage thresholds for color coding
+ * Can be configured via environment variables or uses defaults
+ * Validates and clamps values to 0-100 range and enforces LOW < MEDIUM ordering
+ * @returns Context usage thresholds with LOW and MEDIUM percentages
+ */
+export function getContextUsageThresholds(): { readonly LOW: number; readonly MEDIUM: number } {
+	// Parse and validate environment variables
+	const lowThresholdStr = process.env[CONTEXT_LOW_THRESHOLD_ENV];
+	const mediumThresholdStr = process.env[CONTEXT_MEDIUM_THRESHOLD_ENV];
+
+	// Parse with validation - use defaults for invalid values
+	let lowThreshold: number = DEFAULT_CONTEXT_USAGE_THRESHOLDS.LOW;
+	let mediumThreshold: number = DEFAULT_CONTEXT_USAGE_THRESHOLDS.MEDIUM;
+
+	if (lowThresholdStr != null) {
+		const parsed = Number.parseInt(lowThresholdStr, 10);
+		if (!Number.isNaN(parsed)) {
+			lowThreshold = Math.max(0, Math.min(100, parsed)); // Clamp to 0-100
+		}
+	}
+
+	if (mediumThresholdStr != null) {
+		const parsed = Number.parseInt(mediumThresholdStr, 10);
+		if (!Number.isNaN(parsed)) {
+			mediumThreshold = Math.max(0, Math.min(100, parsed)); // Clamp to 0-100
+		}
+	}
+
+	// Enforce ordering: LOW must be less than MEDIUM
+	// If ordering is violated, reset both to defaults
+	if (lowThreshold >= mediumThreshold) {
+		lowThreshold = DEFAULT_CONTEXT_USAGE_THRESHOLDS.LOW;
+		mediumThreshold = DEFAULT_CONTEXT_USAGE_THRESHOLDS.MEDIUM;
+	}
+
+	return {
+		LOW: lowThreshold,
+		MEDIUM: mediumThreshold,
+	} as const;
+}
+
+/**
  * Extract project name from Claude JSONL file path
  * @param jsonlPath - Absolute path to JSONL file
  * @returns Project name extracted from path, or "unknown" if malformed
@@ -178,6 +220,26 @@ export const usageDataSchema = z.object({
 	costUSD: z.number().optional(), // Made optional for new schema
 	requestId: requestIdSchema.optional(), // Request ID for deduplication
 	isApiErrorMessage: z.boolean().optional(),
+});
+
+/**
+ * Zod schema for transcript usage data from Claude messages
+ */
+export const transcriptUsageSchema = z.object({
+	input_tokens: z.number().optional(),
+	cache_creation_input_tokens: z.number().optional(),
+	cache_read_input_tokens: z.number().optional(),
+	output_tokens: z.number().optional(),
+});
+
+/**
+ * Zod schema for transcript message data
+ */
+export const transcriptMessageSchema = z.object({
+	type: z.string().optional(),
+	message: z.object({
+		usage: transcriptUsageSchema.optional(),
+	}).optional(),
 });
 
 /**
@@ -1340,6 +1402,72 @@ export async function loadBucketUsageData(
 	}
 
 	return sortByDate(buckets, item => item.bucket, options?.order);
+}
+
+/**
+ * Calculate context tokens from transcript file using improved JSONL parsing
+ * Based on the Python reference implementation for better accuracy
+ * @param transcriptPath - Path to the transcript JSONL file
+ * @returns Object with context tokens info or null if unavailable
+ */
+export async function calculateContextTokens(transcriptPath: string): Promise<{
+	inputTokens: number;
+	percentage: number;
+	contextLimit: number;
+} | null> {
+	let content: string;
+	try {
+		content = await readFile(transcriptPath, 'utf-8');
+	}
+	catch (error: unknown) {
+		logger.debug(`Failed to read transcript file: ${String(error)}`);
+		return null;
+	}
+
+	const lines = content.split('\n').reverse(); // Iterate from last line to first line
+
+	for (const line of lines) {
+		const trimmedLine = line.trim();
+		if (trimmedLine === '') {
+			continue;
+		}
+
+		try {
+			const parsed = JSON.parse(trimmedLine) as unknown;
+			const result = transcriptMessageSchema.safeParse(parsed);
+			if (!result.success) {
+				continue; // Skip malformed JSON lines
+			}
+			const obj = result.data;
+
+			// Check if this line contains the required token usage fields
+			if (obj.type === 'assistant'
+				&& obj.message != null
+				&& obj.message.usage != null
+				&& obj.message.usage.input_tokens != null) {
+				const usage = obj.message.usage;
+				const inputTokens
+					= usage.input_tokens!
+						+ (usage.cache_creation_input_tokens ?? 0)
+						+ (usage.cache_read_input_tokens ?? 0);
+
+				const percentage = Math.min(100, Math.max(0, Math.round((inputTokens / CONTEXT_LIMIT) * 100)));
+
+				return {
+					inputTokens,
+					percentage,
+					contextLimit: CONTEXT_LIMIT,
+				};
+			}
+		}
+		catch {
+			continue; // Skip malformed JSON lines
+		}
+	}
+
+	// No valid usage information found
+	logger.debug('No usage information found in transcript');
+	return null;
 }
 
 /**
@@ -4582,6 +4710,156 @@ if (import.meta.vitest != null) {
 
 			expect(results).toHaveLength(3);
 			expect(results.every(r => r.baseDir.includes('path1/projects'))).toBe(true);
+		});
+	});
+
+	// Test for calculateContextTokens
+	describe('calculateContextTokens', async () => {
+		it('returns null when transcript cannot be read', async () => {
+			const result = await calculateContextTokens('/nonexistent/path.jsonl');
+			expect(result).toBeNull();
+		});
+		const { createFixture } = await import('fs-fixture');
+		it('parses latest assistant line and excludes output tokens', async () => {
+			await using fixture = await createFixture({
+				'transcript.jsonl': [
+					JSON.stringify({ type: 'user', message: {} }),
+					JSON.stringify({ type: 'assistant', message: { usage: { input_tokens: 1000, output_tokens: 999 } } }),
+					JSON.stringify({ type: 'assistant', message: { usage: { input_tokens: 2000, cache_creation_input_tokens: 100, cache_read_input_tokens: 50 } } }),
+				].join('\n'),
+			});
+			const res = await calculateContextTokens(fixture.getPath('transcript.jsonl'));
+			expect(res).not.toBeNull();
+			// Should pick the last assistant line and exclude output tokens
+			expect(res?.inputTokens).toBe(2000 + 100 + 50);
+			expect(res?.percentage).toBeGreaterThan(0);
+		});
+
+		it('handles missing cache fields gracefully', async () => {
+			await using fixture = await createFixture({
+				'transcript.jsonl': [
+					JSON.stringify({ type: 'assistant', message: { usage: { input_tokens: 1000 } } }),
+				].join('\n'),
+			});
+			const res = await calculateContextTokens(fixture.getPath('transcript.jsonl'));
+			expect(res).not.toBeNull();
+			expect(res?.inputTokens).toBe(1000);
+			expect(res?.percentage).toBeGreaterThan(0);
+		});
+
+		it('clamps percentage to 0-100 range', async () => {
+			await using fixture = await createFixture({
+				'transcript.jsonl': [
+					JSON.stringify({ type: 'assistant', message: { usage: { input_tokens: 300_000 } } }),
+				].join('\n'),
+			});
+			const res = await calculateContextTokens(fixture.getPath('transcript.jsonl'));
+			expect(res).not.toBeNull();
+			expect(res?.percentage).toBe(100); // Should be clamped to 100
+		});
+	});
+
+	describe('getContextUsageThresholds', () => {
+		afterEach(() => {
+			vi.unstubAllEnvs();
+		});
+
+		it('returns default values when no environment variables are set', () => {
+			const thresholds = getContextUsageThresholds();
+			expect(thresholds.LOW).toBe(50);
+			expect(thresholds.MEDIUM).toBe(80);
+		});
+
+		it('parses valid environment variables correctly', () => {
+			vi.stubEnv('CCUSAGE_CONTEXT_LOW_THRESHOLD', '30');
+			vi.stubEnv('CCUSAGE_CONTEXT_MEDIUM_THRESHOLD', '70');
+
+			const thresholds = getContextUsageThresholds();
+			expect(thresholds.LOW).toBe(30);
+			expect(thresholds.MEDIUM).toBe(70);
+		});
+
+		it('clamps values to 0-100 range', () => {
+			vi.stubEnv('CCUSAGE_CONTEXT_LOW_THRESHOLD', '-10');
+			vi.stubEnv('CCUSAGE_CONTEXT_MEDIUM_THRESHOLD', '150');
+
+			const thresholds = getContextUsageThresholds();
+			expect(thresholds.LOW).toBe(0);
+			expect(thresholds.MEDIUM).toBe(100);
+		});
+
+		it('handles non-numeric values by falling back to defaults', () => {
+			vi.stubEnv('CCUSAGE_CONTEXT_LOW_THRESHOLD', 'invalid');
+			vi.stubEnv('CCUSAGE_CONTEXT_MEDIUM_THRESHOLD', 'not-a-number');
+
+			const thresholds = getContextUsageThresholds();
+			expect(thresholds.LOW).toBe(50);
+			expect(thresholds.MEDIUM).toBe(80);
+		});
+
+		it('handles empty string values by falling back to defaults', () => {
+			vi.stubEnv('CCUSAGE_CONTEXT_LOW_THRESHOLD', '');
+			vi.stubEnv('CCUSAGE_CONTEXT_MEDIUM_THRESHOLD', '');
+
+			const thresholds = getContextUsageThresholds();
+			expect(thresholds.LOW).toBe(50);
+			expect(thresholds.MEDIUM).toBe(80);
+		});
+
+		it('handles partial invalid values correctly', () => {
+			vi.stubEnv('CCUSAGE_CONTEXT_LOW_THRESHOLD', '25');
+			vi.stubEnv('CCUSAGE_CONTEXT_MEDIUM_THRESHOLD', 'invalid');
+
+			const thresholds = getContextUsageThresholds();
+			expect(thresholds.LOW).toBe(25);
+			expect(thresholds.MEDIUM).toBe(80); // Falls back to default
+		});
+
+		it('enforces ordering constraint: resets to defaults when LOW >= MEDIUM', () => {
+			vi.stubEnv('CCUSAGE_CONTEXT_LOW_THRESHOLD', '85');
+			vi.stubEnv('CCUSAGE_CONTEXT_MEDIUM_THRESHOLD', '60');
+
+			const thresholds = getContextUsageThresholds();
+			// Should reset both to defaults due to ordering violation
+			expect(thresholds.LOW).toBe(50);
+			expect(thresholds.MEDIUM).toBe(80);
+		});
+
+		it('enforces ordering constraint: resets to defaults when LOW equals MEDIUM', () => {
+			vi.stubEnv('CCUSAGE_CONTEXT_LOW_THRESHOLD', '70');
+			vi.stubEnv('CCUSAGE_CONTEXT_MEDIUM_THRESHOLD', '70');
+
+			const thresholds = getContextUsageThresholds();
+			// Should reset both to defaults due to ordering violation
+			expect(thresholds.LOW).toBe(50);
+			expect(thresholds.MEDIUM).toBe(80);
+		});
+
+		it('handles edge case: LOW=0, MEDIUM=100', () => {
+			vi.stubEnv('CCUSAGE_CONTEXT_LOW_THRESHOLD', '0');
+			vi.stubEnv('CCUSAGE_CONTEXT_MEDIUM_THRESHOLD', '100');
+
+			const thresholds = getContextUsageThresholds();
+			expect(thresholds.LOW).toBe(0);
+			expect(thresholds.MEDIUM).toBe(100);
+		});
+
+		it('handles decimal values by truncating to integer', () => {
+			vi.stubEnv('CCUSAGE_CONTEXT_LOW_THRESHOLD', '25.7');
+			vi.stubEnv('CCUSAGE_CONTEXT_MEDIUM_THRESHOLD', '75.9');
+
+			const thresholds = getContextUsageThresholds();
+			expect(thresholds.LOW).toBe(25); // parseInt truncates
+			expect(thresholds.MEDIUM).toBe(75); // parseInt truncates
+		});
+
+		it('handles values with extra whitespace', () => {
+			vi.stubEnv('CCUSAGE_CONTEXT_LOW_THRESHOLD', '  30  ');
+			vi.stubEnv('CCUSAGE_CONTEXT_MEDIUM_THRESHOLD', '  70  ');
+
+			const thresholds = getContextUsageThresholds();
+			expect(thresholds.LOW).toBe(30);
+			expect(thresholds.MEDIUM).toBe(70);
 		});
 	});
 }

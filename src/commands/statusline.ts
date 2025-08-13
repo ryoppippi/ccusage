@@ -7,10 +7,9 @@ import { sharedArgs } from '../_shared-args.ts';
 import { statuslineHookJsonSchema } from '../_types.ts';
 import { formatCurrency } from '../_utils.ts';
 import { calculateTotals } from '../calculate-cost.ts';
-import { getClaudePaths, loadDailyUsageData, loadSessionBlockData, loadSessionUsageById } from '../data-loader.ts';
+import { calculateContextTokens, getClaudePaths, getContextUsageThresholds, loadDailyUsageData, loadSessionBlockData, loadSessionUsageById } from '../data-loader.ts';
 import { log, logger } from '../logger.ts';
 
-/**
 /**
  * Formats the remaining time for display
  * @param remaining - Remaining minutes
@@ -162,13 +161,33 @@ export const statuslineCommand = define({
 			blockInfo = 'No active block';
 		}
 
+		// Calculate context tokens from transcript
+		let contextInfo = '';
+		try {
+			const contextData = await calculateContextTokens(hookData.transcript_path);
+			if (contextData != null) {
+				// Format context percentage with color coding using configurable thresholds
+				const p = contextData.percentage;
+				const thresholds = getContextUsageThresholds();
+				const color = p < thresholds.LOW ? pc.green : p < thresholds.MEDIUM ? pc.yellow : pc.red;
+				const coloredPercentage = color(`${p}%`);
+
+				// Format token count with thousand separators
+				const tokenDisplay = contextData.inputTokens.toLocaleString();
+				contextInfo = ` | 🧠 ${tokenDisplay} (${coloredPercentage})`;
+			}
+		}
+		catch (error) {
+			logger.debug(`Failed to calculate context tokens: ${error instanceof Error ? error.message : String(error)}`);
+		}
+
 		// Get model display name
 		const modelName = hookData.model.display_name;
 
 		// Format and output the status line
-		// Format: 🤖 model | 💰 session / today / block | 🔥 burn
+		// Format: 🤖 model | 💰 session / today / block | 🔥 burn | 🧠 context
 		const sessionDisplay = sessionCost !== null ? formatCurrency(sessionCost) : 'N/A';
-		const statusLine = `🤖 ${modelName} | 💰 ${sessionDisplay} session / ${formatCurrency(todayCost)} today / ${blockInfo}${burnRateInfo}`;
+		const statusLine = `🤖 ${modelName} | 💰 ${sessionDisplay} session / ${formatCurrency(todayCost)} today / ${blockInfo}${burnRateInfo}${contextInfo}`;
 
 		log(statusLine);
 	},

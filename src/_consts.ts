@@ -141,6 +141,31 @@ export const BURN_RATE_THRESHOLDS = {
 } as const;
 
 /**
+ * Default Claude 4 context window limit (200,000 tokens)
+ * Used for calculating context usage percentages in statusline
+ */
+export const CONTEXT_LIMIT = 200_000;
+
+/**
+ * Context usage percentage thresholds for color coding
+ */
+export const DEFAULT_CONTEXT_USAGE_THRESHOLDS = {
+	LOW: 50, // Below 50% - green
+	MEDIUM: 80, // 50-80% - yellow
+	// Above 80% - red
+} as const;
+
+/**
+ * Environment variable name for configuring context usage low threshold
+ */
+export const CONTEXT_LOW_THRESHOLD_ENV = 'CCUSAGE_CONTEXT_LOW_THRESHOLD';
+
+/**
+ * Environment variable name for configuring context usage medium threshold
+ */
+export const CONTEXT_MEDIUM_THRESHOLD_ENV = 'CCUSAGE_CONTEXT_MEDIUM_THRESHOLD';
+
+/**
  * Days of the week for weekly aggregation
  */
 export const WEEK_DAYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'] as const;

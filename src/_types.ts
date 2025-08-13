@@ -158,3 +158,21 @@ export const statuslineHookJsonSchema = z.object({
  * Type definition for Claude Code statusline hook JSON data
  */
 export type StatuslineHookJson = z.infer<typeof statuslineHookJsonSchema>;
+
+/**
+ * Type definition for transcript usage data from Claude messages
+ */
+
+export type TranscriptUsage = {
+	input_tokens?: number;
+	cache_creation_input_tokens?: number;
+	cache_read_input_tokens?: number;
+	output_tokens?: number;
+};
+
+export type TranscriptMessage = {
+	type?: string;
+	message?: {
+		usage?: TranscriptUsage;
+	};
+};
