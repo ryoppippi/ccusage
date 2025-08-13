@@ -177,10 +177,13 @@ export const statuslineCommand = define({
 					return undefined;
 				}
 				// Format context percentage with color coding using configurable thresholds
-				const p = ctx.percentage;
 				const thresholds = getContextUsageThresholds();
-				const color = p < thresholds.LOW ? pc.green : p < thresholds.MEDIUM ? pc.yellow : pc.red;
-				const coloredPercentage = color(`${p}%`);
+				const color = ctx.percentage < thresholds.LOW
+					? pc.green
+					: ctx.percentage < thresholds.MEDIUM
+						? pc.yellow
+						: pc.red;
+				const coloredPercentage = color(`${ctx.percentage}%`);
 
 				// Format token count with thousand separators
 				const tokenDisplay = ctx.inputTokens.toLocaleString();
