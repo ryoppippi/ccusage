@@ -25,7 +25,6 @@ jobs:
       - run: bun install --frozen-lockfile
       - run: npm publish --provenance --no-git-checks --access public
         env:
-          NODE_AUTH_TOKEN: ${{secrets.NPM_TOKEN}}
           NPM_CONFIG_PROVENANCE: true
         working-directory: ${{env.PACKAGE_DIR}}
 

@@ -4,11 +4,11 @@ Support ccusage development by becoming a sponsor! Your contribution helps maint
 
 ## Featured Sponsor
 
-Check out these [47 Claude Code ProTips from Greg Baugues.](https://www.youtube.com/watch?v=TiNpzxoBPz0&lc=UgyVgQyOhfJJlheVMcB4AaABAg)
+Check out [ccusage: The Claude Code cost scorecard that went viral](https://www.youtube.com/watch?v=Ak6qpQ5qdgk)
 
 <p align="center">
-    <a href="https://www.youtube.com/watch?v=TiNpzxoBPz0&lc=UgyVgQyOhfJJlheVMcB4AaABAg">
-        <img src="/claude_code_protips_thumbnail_v1.png" alt="47 Claude Code ProTips from Greg Baugues" width="600">
+    <a href="https://www.youtube.com/watch?v=Ak6qpQ5qdgk">
+        <img src="/ccusage_thumbnail.png" alt="ccusage: The Claude Code cost scorecard that went viral" width="600">
     </a>
 </p>
 
