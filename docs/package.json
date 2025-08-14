@@ -15,7 +15,7 @@
     "@ryoppippi/vite-plugin-cloudflare-redirect": "npm:@jsr/ryoppippi__vite-plugin-cloudflare-redirect",
     "@types/bun": "^1.2.20",
     "tinyglobby": "^0.2.14",
-    "typedoc": "^0.28.9",
+    "typedoc": "^0.28.10",
     "typedoc-plugin-markdown": "^4.8.0",
     "typedoc-vitepress-theme": "^1.1.2",
     "vitepress": "^1.6.4",
