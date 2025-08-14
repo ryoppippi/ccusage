@@ -66,7 +66,7 @@
 		"@oxc-project/runtime": "^0.81.0",
 		"@praha/byethrow": "^0.6.3",
 		"@ryoppippi/eslint-config": "^0.3.7",
-		"@types/bun": "^1.2.19",
+		"@types/bun": "^1.2.20",
 		"@typescript/native-preview": "^7.0.0-dev.20250810.1",
 		"ansi-escapes": "^7.0.0",
 		"bumpp": "^10.2.2",

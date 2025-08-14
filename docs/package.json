@@ -13,7 +13,7 @@
   },
   "devDependencies": {
     "@ryoppippi/vite-plugin-cloudflare-redirect": "npm:@jsr/ryoppippi__vite-plugin-cloudflare-redirect",
-    "@types/bun": "^1.2.19",
+    "@types/bun": "^1.2.20",
     "tinyglobby": "^0.2.14",
     "typedoc": "^0.28.9",
     "typedoc-plugin-markdown": "^4.8.0",
