@@ -1,0 +1,13 @@
+{
+	"session_id": "test-session-sonnet4",
+	"transcript_path": "test/test-transcript.jsonl",
+	"cwd": "/Users/test/project",
+	"model": {
+		"id": "claude-sonnet-4-20250514",
+		"display_name": "Sonnet 4"
+	},
+	"workspace": {
+		"current_dir": "/Users/test/project",
+		"project_dir": "/Users/test/project"
+	}
+}
