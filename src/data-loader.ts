@@ -1281,8 +1281,8 @@ export async function loadSessionUsageById(
 
 	// Find the JSONL file for this session ID
 	// On Windows, replace backslashes from path.join with forward slashes for tinyglobby compatibility
-	const patterns = claudePaths.map(p => 
-		path.join(p, 'projects', '**', `${sessionId}.jsonl`).replace(/\\/g, '/')
+	const patterns = claudePaths.map(p =>
+		path.join(p, 'projects', '**', `${sessionId}.jsonl`).replace(/\\/g, '/'),
 	);
 	const jsonlFiles = await glob(patterns);
 
