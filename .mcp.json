@@ -14,15 +14,6 @@
 				"--no-cache"
 			]
 		},
-		"@praha/byethrow": {
-			"type": "stdio",
-			"command": "bun",
-			"args": [
-				"x",
-				"@praha/byethrow-mcp"
-			],
-			"env": {}
-		},
 		"lsmcp": {
 			"command": "bun",
 			"args": [

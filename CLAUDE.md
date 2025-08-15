@@ -170,6 +170,7 @@ This is a CLI tool that analyzes Claude Code usage data from local JSONL files s
 **Error Handling:**
 
 - **Prefer @praha/byethrow Result type** over traditional try-catch for functional error handling
+  - Documentation: https://praha-inc.github.io/byethrow/llms.txt
 - Use `Result.try()` for wrapping operations that may throw (JSON parsing, etc.)
 - Use `Result.isFailure()` for checking errors (more readable than `!Result.isSuccess()`)
 - Use early return pattern (`if (Result.isFailure(result)) continue;`) instead of ternary operators
