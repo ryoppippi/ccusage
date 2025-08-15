@@ -44,6 +44,22 @@ If you need the latest pricing data from LiteLLM API, you can explicitly enable 
 }
 ```
 
+### With Visual Burn Rate (Optional)
+
+You can enhance the burn rate display with visual indicators:
+
+```json
+{
+  "statusLine": {
+    "type": "command",
+    "command": "bun x ccusage statusline --visual-burn-rate emoji", // Add emoji indicators
+    "padding": 0
+  }
+}
+```
+
+See [Visual Burn Rate](#visual-burn-rate) section for all available options.
+
 ## Output Format
 
 The statusline displays a compact, single-line summary:
@@ -62,6 +78,7 @@ The statusline displays a compact, single-line summary:
   - Green text: Normal (< 2,000 tokens/min)
   - Yellow text: Moderate (2,000-5,000 tokens/min)
   - Red text: High (> 5,000 tokens/min)
+  - Optional visual status indicators (see [Visual Burn Rate](#visual-burn-rate))
 - **Context Usage** (`🧠 25,000 (12%)`): Shows input tokens with percentage of context limit:
   - Green text: Low usage (< 50% by default)
   - Yellow text: Medium usage (50-80% by default)
@@ -125,6 +142,43 @@ export CCUSAGE_CONTEXT_MEDIUM_THRESHOLD=150    # Clamped to 100, then reset due 
 export CCUSAGE_CONTEXT_LOW_THRESHOLD=90        # Would be >= MEDIUM (80), so both reset
 export CCUSAGE_CONTEXT_MEDIUM_THRESHOLD=30     # Would be <= LOW (50), so both reset
 ```
+
+### Visual Burn Rate
+
+You can enhance the burn rate display with visual status indicators using the `--visual-burn-rate` option:
+
+```bash
+# Add to your settings.json command
+bun x ccusage statusline --visual-burn-rate emoji
+```
+
+**Available options:**
+
+- `off` (default): No visual indicators, only colored text
+- `emoji`: Add emoji indicators (🟢/⚠️/🚨) 
+- `text`: Add text status in parentheses (Normal/Moderate/High)
+- `emoji-text`: Combine both emoji and text indicators
+
+**Examples:**
+
+```bash
+# Default (off)
+🔥 $0.12/hr
+
+# With emoji
+🔥 $0.12/hr 🟢
+
+# With text  
+🔥 $0.12/hr (Normal)
+
+# With both emoji and text
+🔥 $0.12/hr 🟢 (Normal)
+```
+
+**Status Indicators:**
+- 🟢 Normal (Green): < 2,000 tokens/min
+- ⚠️ Moderate (Yellow): 2,000-5,000 tokens/min  
+- 🚨 High (Red): > 5,000 tokens/min
 
 ## Troubleshooting
 
