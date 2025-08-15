@@ -14,14 +14,14 @@
         "@oxc-project/runtime": "^0.81.0",
         "@praha/byethrow": "^0.6.3",
         "@ryoppippi/eslint-config": "^0.3.7",
-        "@types/bun": "^1.2.19",
-        "@typescript/native-preview": "^7.0.0-dev.20250810.1",
+        "@types/bun": "^1.2.20",
+        "@typescript/native-preview": "^7.0.0-dev.20250811.1",
         "ansi-escapes": "^7.0.0",
-        "bumpp": "^10.2.2",
+        "bumpp": "^10.2.3",
         "clean-pkg-json": "^1.3.0",
         "cli-table3": "^0.6.5",
         "consola": "^3.4.2",
-        "es-toolkit": "^1.39.8",
+        "es-toolkit": "^1.39.9",
         "eslint": "^9.33.0",
         "eslint-plugin-format": "^1.0.1",
         "fast-sort": "^3.4.1",
@@ -39,7 +39,7 @@
         "sort-package-json": "^3.4.0",
         "string-width": "^7.2.0",
         "tinyglobby": "^0.2.14",
-        "tsdown": "^0.14.0",
+        "tsdown": "^0.14.1",
         "type-fest": "^4.41.0",
         "unplugin-macros": "^0.17.1",
         "unplugin-unused": "^0.5.1",
@@ -53,10 +53,10 @@
       "version": "15.0.0",
       "devDependencies": {
         "@ryoppippi/vite-plugin-cloudflare-redirect": "npm:@jsr/ryoppippi__vite-plugin-cloudflare-redirect",
-        "@types/bun": "^1.2.19",
+        "@types/bun": "^1.2.20",
         "tinyglobby": "^0.2.14",
-        "typedoc": "^0.28.9",
-        "typedoc-plugin-markdown": "^4.8.0",
+        "typedoc": "^0.28.10",
+        "typedoc-plugin-markdown": "^4.8.1",
         "typedoc-vitepress-theme": "^1.1.2",
         "vitepress": "^1.6.4",
         "vitepress-plugin-group-icons": "^1.6.2",
@@ -1742,9 +1742,9 @@
 
     "type-is": ["type-is@2.0.1", "", { "dependencies": { "content-type": "^1.0.5", "media-typer": "^1.1.0", "mime-types": "^3.0.0" } }, "sha512-OZs6gsjF4vMp32qrCbiVSkrFmXtG/AZhY3t0iAMrMBiAZyV9oALtXO8hsrHbMXF9x6L3grlFuwW2oAz7cav+Gw=="],
 
-    "typedoc": ["typedoc@0.28.9", "", { "dependencies": { "@gerrit0/mini-shiki": "^3.9.0", "lunr": "^2.3.9", "markdown-it": "^14.1.0", "minimatch": "^9.0.5", "yaml": "^2.8.0" }, "peerDependencies": { "typescript": "5.0.x || 5.1.x || 5.2.x || 5.3.x || 5.4.x || 5.5.x || 5.6.x || 5.7.x || 5.8.x || 5.9.x" }, "bin": { "typedoc": "bin/typedoc" } }, "sha512-aw45vwtwOl3QkUAmWCnLV9QW1xY+FSX2zzlit4MAfE99wX+Jij4ycnpbAWgBXsRrxmfs9LaYktg/eX5Bpthd3g=="],
+    "typedoc": ["typedoc@0.28.10", "", { "dependencies": { "@gerrit0/mini-shiki": "^3.9.0", "lunr": "^2.3.9", "markdown-it": "^14.1.0", "minimatch": "^9.0.5", "yaml": "^2.8.0" }, "peerDependencies": { "typescript": "5.0.x || 5.1.x || 5.2.x || 5.3.x || 5.4.x || 5.5.x || 5.6.x || 5.7.x || 5.8.x || 5.9.x" }, "bin": { "typedoc": "bin/typedoc" } }, "sha512-zYvpjS2bNJ30SoNYfHSRaFpBMZAsL7uwKbWwqoCNFWjcPnI3e/mPLh2SneH9mX7SJxtDpvDgvd9/iZxGbo7daw=="],
 
-    "typedoc-plugin-markdown": ["typedoc-plugin-markdown@4.8.0", "", { "peerDependencies": { "typedoc": "0.28.x" } }, "sha512-BQqXnT9PETe6WEFf8bcsvvGEGQHbwTo/BFyY+RUIsSB05Y0Wn56iF+fK1PY2OKJJIhV4kp4dp7osaP9Bm5a0Zw=="],
+    "typedoc-plugin-markdown": ["typedoc-plugin-markdown@4.8.1", "", { "peerDependencies": { "typedoc": "0.28.x" } }, "sha512-ug7fc4j0SiJxSwBGLncpSo8tLvrT9VONvPUQqQDTKPxCoFQBADLli832RGPtj6sfSVJebNSrHZQRUdEryYH/7g=="],
 
     "typedoc-vitepress-theme": ["typedoc-vitepress-theme@1.1.2", "", { "peerDependencies": { "typedoc-plugin-markdown": ">=4.4.0" } }, "sha512-hQvCZRr5uKDqY1bRuY1+eNTNn6d4TE4OP5pnw65Y7WGgajkJW9X1/lVJK2UJpcwCmwkdjw1QIO49H9JQlxWhhw=="],
 
@@ -2025,8 +2025,6 @@
     "strip-ansi-cjs/ansi-regex": ["ansi-regex@5.0.1", "", {}, "sha512-quJQXlTSUGL2LH9SUXo8VwsY4soanhgo6LNSm84E1LBcE8s3O0wpdiRzyR9z/ZZJMlMWv37qOOb9pdJlMUEKFQ=="],
 
     "toml-eslint-parser/eslint-visitor-keys": ["eslint-visitor-keys@3.4.3", "", {}, "sha512-wpc+LXeiyiisxPlEkUzU6svyS1frIO3Mgxj1fdy7Pm8Ygzguax2N3Fa/D/ag1WqbOprdI+uY6wMUl8/a2G+iag=="],
-
-    "typedoc/yaml": ["yaml@2.8.0", "", { "bin": { "yaml": "bin.mjs" } }, "sha512-4lLa/EcQCB0cJkyts+FpIRx5G/llPxfP6VQU5KByHEhLxY3IJCH0f0Hy1MHI8sClTvsIb8qwRJ6R/ZdlDJ/leQ=="],
 
     "unconfig/jiti": ["jiti@2.4.2", "", { "bin": { "jiti": "lib/jiti-cli.mjs" } }, "sha512-rg9zJN+G4n2nfJl5MW3BMygZX56zKPNVEYYqq7adpmMh4Jn2QNEwhvQlFy6jPVdcod7txZtKHWnyZiA3a0zP7A=="],
 
