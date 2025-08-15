@@ -32,7 +32,7 @@ import { createFixture } from 'fs-fixture';
 import { isDirectorySync } from 'path-type';
 import { glob } from 'tinyglobby';
 import { z } from 'zod';
-import { CLAUDE_CONFIG_DIR_ENV, CLAUDE_PROJECTS_DIR_NAME, CONTEXT_LIMIT, CONTEXT_LOW_THRESHOLD_ENV, CONTEXT_MEDIUM_THRESHOLD_ENV, DEFAULT_CLAUDE_CODE_PATH, DEFAULT_CLAUDE_CONFIG_PATH, DEFAULT_CONTEXT_USAGE_THRESHOLDS, USAGE_DATA_GLOB_PATTERN, USER_HOME_DIR } from './_consts.ts';
+import { CLAUDE_CONFIG_DIR_ENV, CLAUDE_PROJECTS_DIR_NAME, CONTEXT_LOW_THRESHOLD_ENV, CONTEXT_MEDIUM_THRESHOLD_ENV, DEFAULT_CLAUDE_CODE_PATH, DEFAULT_CLAUDE_CONFIG_PATH, DEFAULT_CONTEXT_USAGE_THRESHOLDS, USAGE_DATA_GLOB_PATTERN, USER_HOME_DIR } from './_consts.ts';
 import {
 	identifySessionBlocks,
 } from './_session-blocks.ts';
@@ -61,9 +61,7 @@ import {
 	weeklyDateSchema,
 } from './_types.ts';
 import { logger } from './logger.ts';
-import {
-	PricingFetcher,
-} from './pricing-fetcher.ts';
+import { PricingFetcher } from './pricing-fetcher.ts';
 
 /**
  * Get Claude data directories to search for usage data
@@ -1411,7 +1409,7 @@ export async function loadBucketUsageData(
  * @param transcriptPath - Path to the transcript JSONL file
  * @returns Object with context tokens info or null if unavailable
  */
-export async function calculateContextTokens(transcriptPath: string): Promise<{
+export async function calculateContextTokens(transcriptPath: string, modelId?: string, offline = false): Promise<{
 	inputTokens: number;
 	percentage: number;
 	contextLimit: number;
@@ -1452,12 +1450,30 @@ export async function calculateContextTokens(transcriptPath: string): Promise<{
 						+ (usage.cache_creation_input_tokens ?? 0)
 						+ (usage.cache_read_input_tokens ?? 0);
 
-				const percentage = Math.min(100, Math.max(0, Math.round((inputTokens / CONTEXT_LIMIT) * 100)));
+				// Get context limit from PricingFetcher
+				let contextLimit = 200_000; // Fallback for when modelId is not provided
+				if (modelId != null && modelId !== '') {
+					using fetcher = new PricingFetcher(offline);
+					const contextLimitResult = await fetcher.getModelContextLimit(modelId);
+					if (Result.isSuccess(contextLimitResult) && contextLimitResult.value != null) {
+						contextLimit = contextLimitResult.value;
+					}
+					else if (Result.isSuccess(contextLimitResult)) {
+						// Context limit not available for this model in LiteLLM
+						logger.debug(`No context limit data available for model ${modelId} in LiteLLM`);
+					}
+					else {
+						// Error occurred
+						logger.debug(`Failed to get context limit for model ${modelId}: ${contextLimitResult.error.message}`);
+					}
+				}
+
+				const percentage = Math.min(100, Math.max(0, Math.round((inputTokens / contextLimit) * 100)));
 
 				return {
 					inputTokens,
 					percentage,
-					contextLimit: CONTEXT_LIMIT,
+					contextLimit,
 				};
 			}
 		}
