@@ -653,6 +653,8 @@ if (import.meta.vitest != null) {
 						max_input_tokens: 100_000,
 					}],
 				]);
+				// eslint-disable-next-line ts/ban-ts-comment
+				// @ts-ignore - Accessing private property for testing
 				fetcher.cachedPricing = mockPricing;
 
 				const contextLimit = await Result.unwrap(fetcher.getModelContextLimit('test-model'));
@@ -661,6 +663,8 @@ if (import.meta.vitest != null) {
 
 			it('should return null when model not found', async () => {
 				using fetcher = new PricingFetcher(true);
+				// eslint-disable-next-line ts/ban-ts-comment
+				// @ts-ignore - Accessing private property for testing
 				fetcher.cachedPricing = new Map(); // Empty cache
 
 				const result = await Result.unwrap(fetcher.getModelContextLimit('unknown-model'));
@@ -677,6 +681,8 @@ if (import.meta.vitest != null) {
 						output_cost_per_token: 0.00003,
 					}],
 				]);
+				// eslint-disable-next-line ts/ban-ts-comment
+				// @ts-ignore - Accessing private property for testing
 				fetcher.cachedPricing = mockPricing;
 
 				const result = await Result.unwrap(fetcher.getModelContextLimit('test-model'));
