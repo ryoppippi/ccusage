@@ -84,7 +84,7 @@
 		"fs-fixture": "^2.8.1",
 		"get-stdin": "^9.0.0",
 		"gunshi": "^0.26.3",
-		"hono": "^4.9.0",
+		"hono": "^4.9.1",
 		"lint-staged": "^16.1.5",
 		"nano-spawn": "^1.0.2",
 		"path-type": "^6.0.0",
