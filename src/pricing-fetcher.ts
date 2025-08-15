@@ -189,6 +189,29 @@ export class PricingFetcher implements Disposable {
 	}
 
 	/**
+	 * Gets context window limit for a specific model from LiteLLM data
+	 * @param modelName - The model name to get context limit for
+	 * @returns The context limit in tokens, or null if not found
+	 */
+	async getModelContextLimit(modelName: string): Result.ResultAsync<number | null, Error> {
+		return Result.pipe(
+			this.getModelPricing(modelName),
+			Result.map((pricing) => {
+				if (pricing == null) {
+					return null; // Model not found in LiteLLM pricing data
+				}
+
+				const contextLimit = pricing.max_input_tokens ?? pricing.max_tokens;
+				if (contextLimit == null) {
+					return null; // No context limit data available for model
+				}
+
+				return contextLimit;
+			}),
+		);
+	}
+
+	/**
 	 * Calculates the cost for given token usage and model
 	 * @param tokens - Token usage breakdown
 	 * @param tokens.input_tokens - Number of input tokens
