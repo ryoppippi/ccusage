@@ -201,28 +201,3 @@ export const statuslineCommand = define({
 		log(statusLine);
 	},
 });
-
-if (import.meta.vitest != null) {
-	const { describe, expect, it } = import.meta.vitest;
-
-	describe('statusline model context limits', () => {
-		it('should show same context percentages for all Claude 4 models with current limits', () => {
-			// Test data with 3,000 tokens input
-			const tokenCount = 3_000;
-
-			// All Claude 4 models currently use 200K limit in Claude Code
-			// 3000/200000 = 1.5% -> rounds to 2%
-			const expectedPercentage = Math.round((tokenCount / 200_000) * 100);
-			expect(expectedPercentage).toBe(2);
-
-			// Verify this applies to all model variants
-			const opusPercentage = Math.round((tokenCount / 200_000) * 100);
-			const sonnet4Percentage = Math.round((tokenCount / 200_000) * 100);
-			const sonnet41Percentage = Math.round((tokenCount / 200_000) * 100);
-
-			expect(opusPercentage).toBe(2);
-			expect(sonnet4Percentage).toBe(2);
-			expect(sonnet41Percentage).toBe(2);
-		});
-	});
-}
