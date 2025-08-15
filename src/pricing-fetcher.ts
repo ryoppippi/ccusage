@@ -640,5 +640,48 @@ if (import.meta.vitest != null) {
 				expect(claudeModels.length).toBeGreaterThan(0);
 			});
 		});
+
+		describe('getModelContextLimit', () => {
+			it('should return context limit from pricing data when available', async () => {
+				using fetcher = new PricingFetcher(true); // Use offline mode with cached data
+
+				// Mock pricing data with context limits
+				const mockPricing = new Map([
+					['test-model', {
+						input_cost_per_token: 0.00001,
+						output_cost_per_token: 0.00003,
+						max_input_tokens: 100_000,
+					}],
+				]);
+				fetcher.cachedPricing = mockPricing;
+
+				const contextLimit = await Result.unwrap(fetcher.getModelContextLimit('test-model'));
+				expect(contextLimit).toBe(100_000);
+			});
+
+			it('should return null when model not found', async () => {
+				using fetcher = new PricingFetcher(true);
+				fetcher.cachedPricing = new Map(); // Empty cache
+
+				const result = await Result.unwrap(fetcher.getModelContextLimit('unknown-model'));
+				expect(result).toBeNull();
+			});
+
+			it('should return null when context fields are not available', async () => {
+				using fetcher = new PricingFetcher(true);
+
+				// Mock pricing data without context limits
+				const mockPricing = new Map([
+					['test-model', {
+						input_cost_per_token: 0.00001,
+						output_cost_per_token: 0.00003,
+					}],
+				]);
+				fetcher.cachedPricing = mockPricing;
+
+				const result = await Result.unwrap(fetcher.getModelContextLimit('test-model'));
+				expect(result).toBeNull();
+			});
+		});
 	});
 }
