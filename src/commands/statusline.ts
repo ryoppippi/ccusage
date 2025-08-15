@@ -163,10 +163,10 @@ export const statuslineCommand = define({
 			Result.unwrap({ blockInfo: 'No active block', burnRateInfo: '' }),
 		);
 
-		// Calculate context tokens from transcript
+		// Calculate context tokens from transcript with model-specific limits
 		const contextInfo = await Result.pipe(
 			Result.try({
-				try: calculateContextTokens(hookData.transcript_path),
+				try: calculateContextTokens(hookData.transcript_path, hookData.model.id, ctx.values.offline),
 				catch: error => error,
 			}),
 			Result.inspectError(error => logger.debug(`Failed to calculate context tokens: ${error instanceof Error ? error.message : String(error)}`)),
