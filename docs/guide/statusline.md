@@ -176,9 +176,9 @@ bun x ccusage statusline --visual-burn-rate emoji
 ```
 
 **Status Indicators:**
-- 🟢 Normal (Green): < 2,000 tokens/min
-- ⚠️ Moderate (Yellow): 2,000-5,000 tokens/min  
-- 🚨 High (Red): > 5,000 tokens/min
+- 🟢 Normal (Green)
+- ⚠️ Moderate (Yellow)
+- 🚨 High (Red)
 
 ## Troubleshooting
 
