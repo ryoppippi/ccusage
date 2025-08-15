@@ -129,6 +129,10 @@ export const modelPricingSchema = z.object({
 	output_cost_per_token: z.number().optional(),
 	cache_creation_input_token_cost: z.number().optional(),
 	cache_read_input_token_cost: z.number().optional(),
+	// Context window limits from LiteLLM data
+	max_tokens: z.number().optional(),
+	max_input_tokens: z.number().optional(),
+	max_output_tokens: z.number().optional(),
 });
 
 /**
