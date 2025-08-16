@@ -1,5 +1,5 @@
 import type { StatuslineSemaphore } from './_types.ts';
-import { existsSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import process from 'node:process';
@@ -122,25 +122,15 @@ export function cleanupOldSemaphores(): void {
 
 // In-source testing
 if (import.meta.vitest != null) {
-	const { describe, it, expect, beforeEach, afterEach } = import.meta.vitest;
-
 	describe('statusline semaphore', () => {
-		let tempDir: string;
-
-		beforeEach(() => {
-			// Create temporary directory for testing
-			tempDir = mkdtempSync(join(tmpdir(), 'test-ccusage-semaphore-'));
-		});
-
-		afterEach(() => {
-			// Clean up temporary directory
-			if (existsSync(tempDir)) {
-				rmSync(tempDir, { recursive: true, force: true });
-			}
+		it('should export functions', () => {
+			expect(typeof checkShouldSkipExecution).toBe('function');
+			expect(typeof updateSemaphore).toBe('function');
+			expect(typeof cleanupOldSemaphores).toBe('function');
 		});
 
 		it('should skip execution within refresh interval', () => {
-			const sessionId = 'test-session';
+			const sessionId = 'test-session-1';
 
 			// First execution - should not skip
 			const firstCheck = checkShouldSkipExecution(sessionId, 5000);
@@ -180,7 +170,7 @@ if (import.meta.vitest != null) {
 		});
 
 		it('should handle missing semaphore file gracefully', () => {
-			const result = checkShouldSkipExecution('non-existent-session', 5000);
+			const result = checkShouldSkipExecution('non-existent-session-3', 5000);
 			expect(Result.isSuccess(result)).toBe(true);
 			if (Result.isSuccess(result)) {
 				expect(result.value.shouldSkip).toBe(false);
