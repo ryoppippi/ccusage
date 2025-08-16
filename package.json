@@ -70,6 +70,7 @@
 		"@oxc-project/runtime": "^0.82.1",
 		"@praha/byethrow": "^0.6.3",
 		"@ryoppippi/eslint-config": "^0.3.7",
+		"@ryoppippi/limo": "npm:@jsr/ryoppippi__limo",
 		"@types/bun": "^1.2.20",
 		"@typescript/native-preview": "^7.0.0-dev.20250813.1",
 		"ansi-escapes": "^7.0.0",
