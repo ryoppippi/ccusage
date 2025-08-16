@@ -37,8 +37,8 @@ export const statuslineCommand = define({
 		},
 		refreshInterval: {
 			type: 'number',
-			description: 'Minimum refresh interval in milliseconds (default: 5000)',
-			default: 5000,
+			description: 'Minimum refresh interval in milliseconds (default: 1000)',
+			default: 1000,
 		},
 		disableCache: {
 			type: 'boolean',

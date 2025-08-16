@@ -203,7 +203,7 @@ if (import.meta.vitest != null) {
 	test('should skip execution within refresh interval', () => {
 		const semaphore = SemaphoreFactory.create({
 			semaphoreType: 'test',
-			refreshIntervalMs: 5000,
+			refreshIntervalMs: 1000,
 		});
 		const sessionId = 'test-session-1';
 

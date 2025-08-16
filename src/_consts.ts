@@ -130,7 +130,7 @@ export const MAX_REFRESH_INTERVAL_SECONDS = 60;
  * Default minimum refresh interval in milliseconds
  * Prevents rapid process spawning and excessive resource usage
  */
-export const DEFAULT_MIN_REFRESH_INTERVAL_MS = 5000; // 5 seconds
+export const DEFAULT_MIN_REFRESH_INTERVAL_MS = 1000; // 1 second
 
 /**
  * Frame rate limit for live monitoring (16ms = ~60fps)
