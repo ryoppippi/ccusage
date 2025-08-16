@@ -109,8 +109,8 @@ export const USAGE_DATA_GLOB_PATTERN = '**/*.jsonl';
 export const MCP_DEFAULT_PORT = 8080;
 
 /**
- * Default refresh interval in seconds for live monitoring mode
- * Used in blocks command for real-time updates
+ * Default refresh interval in seconds for live monitoring and statusline
+ * Used in blocks command for real-time updates and statusline rate limiting
  */
 export const DEFAULT_REFRESH_INTERVAL_SECONDS = 1;
 
@@ -125,12 +125,6 @@ export const MIN_REFRESH_INTERVAL_SECONDS = 1;
  * Prevents too-slow updates that reduce monitoring effectiveness
  */
 export const MAX_REFRESH_INTERVAL_SECONDS = 60;
-
-/**
- * Default minimum refresh interval in milliseconds
- * Prevents rapid process spawning and excessive resource usage
- */
-export const DEFAULT_MIN_REFRESH_INTERVAL_MS = 1000; // 1 second
 
 /**
  * Frame rate limit for live monitoring (16ms = ~60fps)

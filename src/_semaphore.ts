@@ -6,7 +6,7 @@ import { Result } from '@praha/byethrow';
 import * as limo from '@ryoppippi/limo';
 import { z } from 'zod';
 import { version } from '../package.json';
-import { DEFAULT_MIN_REFRESH_INTERVAL_MS } from './_consts.ts';
+import { DEFAULT_REFRESH_INTERVAL_SECONDS } from './_consts.ts';
 import { logger } from './logger.ts';
 
 /**
@@ -54,7 +54,7 @@ export class Semaphore {
 	constructor(config: SemaphoreConfig) {
 		this.semaphoreType = config.semaphoreType;
 		this.baseDirName = config.baseDirName ?? `ccusage-${config.semaphoreType}`;
-		this.refreshIntervalMs = config.refreshIntervalMs ?? DEFAULT_MIN_REFRESH_INTERVAL_MS;
+		this.refreshIntervalMs = config.refreshIntervalMs ?? (DEFAULT_REFRESH_INTERVAL_SECONDS * 1000);
 	}
 
 	/**
@@ -261,7 +261,7 @@ if (import.meta.vitest != null) {
 	test('should use custom refresh interval when provided', () => {
 		const semaphore = SemaphoreFactory.create({
 			semaphoreType: 'test',
-			refreshIntervalMs: 10000, // Long default interval
+			refreshIntervalMs: 5000, // Long default interval
 		});
 		const sessionId = 'test-session-4';
 
@@ -269,15 +269,15 @@ if (import.meta.vitest != null) {
 		const updateResult = semaphore.updateCache(sessionId, 'test output');
 		expect(Result.isSuccess(updateResult)).toBe(true);
 
-		// Should skip with default interval (10000ms - very long)
+		// Should skip with default interval (5000ms - long)
 		const checkDefault = semaphore.checkShouldSkip(sessionId);
 		expect(Result.isSuccess(checkDefault)).toBe(true);
 		if (Result.isSuccess(checkDefault)) {
 			expect(checkDefault.value.shouldSkip).toBe(true);
 		}
 
-		// Should not skip with shorter custom interval (1ms - very short)
-		const checkCustom = semaphore.checkShouldSkip(sessionId, 1);
+		// Should not skip with much shorter custom interval (0ms - immediate)
+		const checkCustom = semaphore.checkShouldSkip(sessionId, 0);
 		expect(Result.isSuccess(checkCustom)).toBe(true);
 		if (Result.isSuccess(checkCustom)) {
 			expect(checkCustom.value.shouldSkip).toBe(false);

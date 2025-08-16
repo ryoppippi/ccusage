@@ -3,6 +3,7 @@ import { Result } from '@praha/byethrow';
 import getStdin from 'get-stdin';
 import { define } from 'gunshi';
 import pc from 'picocolors';
+import { DEFAULT_REFRESH_INTERVAL_SECONDS } from '../_consts.ts';
 import { SemaphoreFactory } from '../_semaphore.ts';
 import { calculateBurnRate } from '../_session-blocks.ts';
 import { sharedArgs } from '../_shared-args.ts';
@@ -37,8 +38,8 @@ export const statuslineCommand = define({
 		},
 		refreshInterval: {
 			type: 'number',
-			description: 'Minimum refresh interval in milliseconds (default: 1000)',
-			default: 1000,
+			description: `Minimum refresh interval in milliseconds (default: ${DEFAULT_REFRESH_INTERVAL_SECONDS * 1000})`,
+			default: DEFAULT_REFRESH_INTERVAL_SECONDS * 1000,
 		},
 		disableCache: {
 			type: 'boolean',
