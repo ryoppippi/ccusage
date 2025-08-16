@@ -164,6 +164,22 @@ export const statuslineHookJsonSchema = z.object({
 export type StatuslineHookJson = z.infer<typeof statuslineHookJsonSchema>;
 
 /**
+ * Zod schema for statusline semaphore data structure
+ */
+export const statuslineSemaphoreSchema = z.object({
+	lastExecutionTime: z.number(), // Unix timestamp in milliseconds
+	lastOutput: z.string(), // Cached output from last execution
+	sessionId: z.string(), // Session ID for tracking
+	pid: z.number().optional(), // Process ID for debugging
+	version: z.string().optional(), // Semaphore version for migration
+});
+
+/**
+ * Type definition for statusline semaphore data structure
+ */
+export type StatuslineSemaphore = z.infer<typeof statuslineSemaphoreSchema>;
+
+/**
  * Type definition for transcript usage data from Claude messages
  */
 
