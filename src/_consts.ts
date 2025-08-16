@@ -127,20 +127,10 @@ export const MIN_REFRESH_INTERVAL_SECONDS = 1;
 export const MAX_REFRESH_INTERVAL_SECONDS = 60;
 
 /**
- * Minimum refresh interval for statusline command in milliseconds
- * Prevents rapid process spawning from Claude Code hooks
+ * Default minimum refresh interval in milliseconds
+ * Prevents rapid process spawning and excessive resource usage
  */
-export const STATUSLINE_MIN_REFRESH_INTERVAL_MS = 5000; // 5 seconds
-
-/**
- * Directory name for statusline semaphore files
- */
-export const STATUSLINE_SEMAPHORE_DIR_NAME = 'ccusage-statusline';
-
-/**
- * Maximum age for semaphore files before cleanup (24 hours)
- */
-export const STATUSLINE_SEMAPHORE_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+export const DEFAULT_MIN_REFRESH_INTERVAL_MS = 5000; // 5 seconds
 
 /**
  * Frame rate limit for live monitoring (16ms = ~60fps)

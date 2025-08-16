@@ -3,10 +3,9 @@ import { Result } from '@praha/byethrow';
 import getStdin from 'get-stdin';
 import { define } from 'gunshi';
 import pc from 'picocolors';
-import { STATUSLINE_MIN_REFRESH_INTERVAL_MS } from '../_consts.ts';
+import { SemaphoreFactory } from '../_semaphore.ts';
 import { calculateBurnRate } from '../_session-blocks.ts';
 import { sharedArgs } from '../_shared-args.ts';
-import { checkShouldSkipExecution, updateSemaphore } from '../_statusline-semaphore.ts';
 import { statuslineHookJsonSchema } from '../_types.ts';
 import { formatCurrency } from '../_utils.ts';
 import { calculateTotals } from '../calculate-cost.ts';
@@ -38,8 +37,8 @@ export const statuslineCommand = define({
 		},
 		refreshInterval: {
 			type: 'number',
-			description: `Minimum refresh interval in milliseconds (default: ${STATUSLINE_MIN_REFRESH_INTERVAL_MS})`,
-			default: STATUSLINE_MIN_REFRESH_INTERVAL_MS,
+			description: 'Minimum refresh interval in milliseconds (default: 5000)',
+			default: 5000,
 		},
 		disableCache: {
 			type: 'boolean',
@@ -76,12 +75,12 @@ export const statuslineCommand = define({
 		// Extract session ID from hook data
 		const sessionId = hookData.session_id;
 
+		// Create semaphore instance for statusline
+		const semaphore = SemaphoreFactory.statusline(ctx.values.refreshInterval);
+
 		// Rate limiting check
 		if (!ctx.values.disableCache) {
-			const checkResult = checkShouldSkipExecution(
-				sessionId,
-				ctx.values.refreshInterval,
-			);
+			const checkResult = semaphore.checkShouldSkip(sessionId);
 
 			if (Result.isSuccess(checkResult)) {
 				const { shouldSkip, cachedOutput } = checkResult.value;
@@ -232,7 +231,7 @@ export const statuslineCommand = define({
 
 		// Update semaphore before output
 		if (!ctx.values.disableCache) {
-			const updateResult = updateSemaphore(sessionId, statusLine);
+			const updateResult = semaphore.updateCache(sessionId, statusLine);
 			if (Result.isFailure(updateResult)) {
 				logger.debug('Failed to update semaphore:', updateResult.error);
 			}
