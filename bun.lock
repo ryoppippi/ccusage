@@ -11,7 +11,7 @@
         "@jsr/std__async": "1",
         "@mizchi/lsmcp": "^0.9.4",
         "@modelcontextprotocol/sdk": "^1.17.2",
-        "@oxc-project/runtime": "^0.82.0",
+        "@oxc-project/runtime": "^0.82.1",
         "@praha/byethrow": "^0.6.3",
         "@ryoppippi/eslint-config": "^0.3.7",
         "@types/bun": "^1.2.20",
