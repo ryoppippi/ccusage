@@ -1,3 +1,4 @@
+import type { Formatter } from 'picocolors/types';
 import process from 'node:process';
 import { Result } from '@praha/byethrow';
 import getStdin from 'get-stdin';
@@ -26,6 +27,8 @@ function formatRemainingTime(remaining: number): string {
 	return `${remainingMins}m left`;
 }
 
+const visualBurnRateChoices = ['off', 'emoji', 'text', 'emoji-text'] as const;
+
 export const statuslineCommand = define({
 	name: 'statusline',
 	description: 'Display compact status line for Claude Code hooks (Beta)',
@@ -33,6 +36,15 @@ export const statuslineCommand = define({
 		offline: {
 			...sharedArgs.offline,
 			default: true, // Default to offline mode for faster performance
+		},
+		visualBurnRate: {
+			type: 'enum',
+			choices: visualBurnRateChoices,
+			description: 'Controls the visualization of the burn rate status',
+			default: 'off',
+			short: 'vb',
+			negatable: false,
+			toKebab: true,
 		},
 	},
 	async run(ctx) {
@@ -140,17 +152,40 @@ export const statuslineCommand = define({
 					const burnRate = calculateBurnRate(activeBlock);
 					const burnRateInfo = burnRate != null
 						? (() => {
+								const renderEmojiStatus = ctx.values.visualBurnRate === 'emoji' || ctx.values.visualBurnRate === 'emoji-text';
+								const renderTextStatus = ctx.values.visualBurnRate === 'text' || ctx.values.visualBurnRate === 'emoji-text';
 								const costPerHour = burnRate.costPerHour;
 								const costPerHourStr = `${formatCurrency(costPerHour)}/hr`;
 
-								// Apply color based on burn rate (tokens per minute non-cache)
-								const coloredBurnRate = burnRate.tokensPerMinuteForIndicator < 2000
-									? pc.green(costPerHourStr) // Normal
-									: burnRate.tokensPerMinuteForIndicator < 5000
-										? pc.yellow(costPerHourStr) // Moderate
-										: pc.red(costPerHourStr); // High
+								type BurnStatus = 'normal' | 'moderate' | 'high';
 
-								return ` | 🔥 ${coloredBurnRate}`;
+								const burnStatus: BurnStatus = burnRate.tokensPerMinuteForIndicator < 2000
+									? 'normal'
+									: burnRate.tokensPerMinuteForIndicator < 5000
+										? 'moderate'
+										: 'high';
+
+								const burnStatusMappings: Record<BurnStatus, { emoji: string; textValue: string; coloredString: Formatter }> = {
+									normal: { emoji: '🟢', textValue: 'Normal', coloredString: pc.green },
+									moderate: { emoji: '⚠️', textValue: 'Moderate', coloredString: pc.yellow },
+									high: { emoji: '🚨', textValue: 'High', coloredString: pc.red },
+								};
+
+								const { emoji, textValue, coloredString } = burnStatusMappings[burnStatus];
+
+								const burnRateOutputSegments: string[] = [
+									coloredString(costPerHourStr),
+								];
+
+								if (renderEmojiStatus) {
+									burnRateOutputSegments.push(emoji);
+								}
+
+								if (renderTextStatus) {
+									burnRateOutputSegments.push(coloredString(`(${textValue})`));
+								}
+
+								return ` | 🔥 ${burnRateOutputSegments.join(' ')}`;
 							})()
 						: '';
 
