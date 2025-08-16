@@ -3,8 +3,10 @@ import { Result } from '@praha/byethrow';
 import getStdin from 'get-stdin';
 import { define } from 'gunshi';
 import pc from 'picocolors';
+import { STATUSLINE_MIN_REFRESH_INTERVAL_MS } from '../_consts.ts';
 import { calculateBurnRate } from '../_session-blocks.ts';
 import { sharedArgs } from '../_shared-args.ts';
+import { checkShouldSkipExecution, updateSemaphore } from '../_statusline-semaphore.ts';
 import { statuslineHookJsonSchema } from '../_types.ts';
 import { formatCurrency } from '../_utils.ts';
 import { calculateTotals } from '../calculate-cost.ts';
@@ -33,6 +35,16 @@ export const statuslineCommand = define({
 		offline: {
 			...sharedArgs.offline,
 			default: true, // Default to offline mode for faster performance
+		},
+		refreshInterval: {
+			type: 'number',
+			description: `Minimum refresh interval in milliseconds (default: ${STATUSLINE_MIN_REFRESH_INTERVAL_MS})`,
+			default: STATUSLINE_MIN_REFRESH_INTERVAL_MS,
+		},
+		disableCache: {
+			type: 'boolean',
+			description: 'Disable rate limiting cache',
+			default: false,
 		},
 	},
 	async run(ctx) {
@@ -63,6 +75,26 @@ export const statuslineCommand = define({
 
 		// Extract session ID from hook data
 		const sessionId = hookData.session_id;
+
+		// Rate limiting check
+		if (!ctx.values.disableCache) {
+			const checkResult = checkShouldSkipExecution(
+				sessionId,
+				ctx.values.refreshInterval,
+			);
+
+			if (Result.isSuccess(checkResult)) {
+				const { shouldSkip, cachedOutput } = checkResult.value;
+				if (shouldSkip && cachedOutput != null) {
+					log(cachedOutput);
+					process.exit(0);
+				}
+			}
+			else {
+				// If semaphore check fails, log debug message but continue execution
+				logger.debug('Semaphore check failed, continuing with execution:', checkResult.error);
+			}
+		}
 
 		const sessionCost = await Result.pipe(
 			Result.try({
@@ -197,6 +229,14 @@ export const statuslineCommand = define({
 		// Format: 🤖 model | 💰 session / today / block | 🔥 burn | 🧠 context
 		const sessionDisplay = sessionCost != null ? formatCurrency(sessionCost) : 'N/A';
 		const statusLine = `🤖 ${modelName} | 💰 ${sessionDisplay} session / ${formatCurrency(todayCost)} today / ${blockInfo}${burnRateInfo} | 🧠 ${contextInfo ?? 'N/A'}`;
+
+		// Update semaphore before output
+		if (!ctx.values.disableCache) {
+			const updateResult = updateSemaphore(sessionId, statusLine);
+			if (Result.isFailure(updateResult)) {
+				logger.debug('Failed to update semaphore:', updateResult.error);
+			}
+		}
 
 		log(statusLine);
 	},

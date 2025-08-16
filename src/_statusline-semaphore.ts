@@ -1,5 +1,5 @@
 import type { StatuslineSemaphore } from './_types.ts';
-import { existsSync, mkdirSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import process from 'node:process';
@@ -127,18 +127,15 @@ if (import.meta.vitest != null) {
 	describe('statusline semaphore', () => {
 		let tempDir: string;
 
-		beforeEach(async () => {
+		beforeEach(() => {
 			// Create temporary directory for testing
-			const fs = await import('node:fs');
-			const path = await import('node:path');
-			tempDir = fs.mkdtempSync(path.join(tmpdir(), 'test-ccusage-semaphore-'));
+			tempDir = mkdtempSync(join(tmpdir(), 'test-ccusage-semaphore-'));
 		});
 
-		afterEach(async () => {
+		afterEach(() => {
 			// Clean up temporary directory
-			const fs = await import('node:fs');
 			if (existsSync(tempDir)) {
-				fs.rmSync(tempDir, { recursive: true, force: true });
+				rmSync(tempDir, { recursive: true, force: true });
 			}
 		});
 
