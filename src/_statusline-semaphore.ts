@@ -122,59 +122,57 @@ export function cleanupOldSemaphores(): void {
 
 // In-source testing
 if (import.meta.vitest != null) {
-	describe('statusline semaphore', () => {
-		it('should export functions', () => {
-			expect(typeof checkShouldSkipExecution).toBe('function');
-			expect(typeof updateSemaphore).toBe('function');
-			expect(typeof cleanupOldSemaphores).toBe('function');
-		});
+	test('should export functions', () => {
+		expect(typeof checkShouldSkipExecution).toBe('function');
+		expect(typeof updateSemaphore).toBe('function');
+		expect(typeof cleanupOldSemaphores).toBe('function');
+	});
 
-		it('should skip execution within refresh interval', () => {
-			const sessionId = 'test-session-1';
+	test('should skip execution within refresh interval', () => {
+		const sessionId = 'test-session-1';
 
-			// First execution - should not skip
-			const firstCheck = checkShouldSkipExecution(sessionId, 5000);
-			expect(Result.isSuccess(firstCheck)).toBe(true);
-			if (Result.isSuccess(firstCheck)) {
-				expect(firstCheck.value.shouldSkip).toBe(false);
-			}
+		// First execution - should not skip
+		const firstCheck = checkShouldSkipExecution(sessionId, 5000);
+		expect(Result.isSuccess(firstCheck)).toBe(true);
+		if (Result.isSuccess(firstCheck)) {
+			expect(firstCheck.value.shouldSkip).toBe(false);
+		}
 
-			// Update semaphore
-			const updateResult = updateSemaphore(sessionId, 'test output');
-			expect(Result.isSuccess(updateResult)).toBe(true);
+		// Update semaphore
+		const updateResult = updateSemaphore(sessionId, 'test output');
+		expect(Result.isSuccess(updateResult)).toBe(true);
 
-			// Immediate second check - should skip
-			const secondCheck = checkShouldSkipExecution(sessionId, 5000);
-			expect(Result.isSuccess(secondCheck)).toBe(true);
-			if (Result.isSuccess(secondCheck)) {
-				expect(secondCheck.value.shouldSkip).toBe(true);
-				expect(secondCheck.value.cachedOutput).toBe('test output');
-			}
-		});
+		// Immediate second check - should skip
+		const secondCheck = checkShouldSkipExecution(sessionId, 5000);
+		expect(Result.isSuccess(secondCheck)).toBe(true);
+		if (Result.isSuccess(secondCheck)) {
+			expect(secondCheck.value.shouldSkip).toBe(true);
+			expect(secondCheck.value.cachedOutput).toBe('test output');
+		}
+	});
 
-		it('should not skip after refresh interval expires', async () => {
-			const sessionId = 'test-session-2';
-			const refreshInterval = 100; // 100ms for testing
+	test('should not skip after refresh interval expires', async () => {
+		const sessionId = 'test-session-2';
+		const refreshInterval = 100; // 100ms for testing
 
-			const updateResult = updateSemaphore(sessionId, 'test output');
-			expect(Result.isSuccess(updateResult)).toBe(true);
+		const updateResult = updateSemaphore(sessionId, 'test output');
+		expect(Result.isSuccess(updateResult)).toBe(true);
 
-			// Wait for interval to expire
-			await new Promise(resolve => setTimeout(resolve, refreshInterval + 10));
+		// Wait for interval to expire
+		await new Promise(resolve => setTimeout(resolve, refreshInterval + 10));
 
-			const check = checkShouldSkipExecution(sessionId, refreshInterval);
-			expect(Result.isSuccess(check)).toBe(true);
-			if (Result.isSuccess(check)) {
-				expect(check.value.shouldSkip).toBe(false);
-			}
-		});
+		const check = checkShouldSkipExecution(sessionId, refreshInterval);
+		expect(Result.isSuccess(check)).toBe(true);
+		if (Result.isSuccess(check)) {
+			expect(check.value.shouldSkip).toBe(false);
+		}
+	});
 
-		it('should handle missing semaphore file gracefully', () => {
-			const result = checkShouldSkipExecution('non-existent-session-3', 5000);
-			expect(Result.isSuccess(result)).toBe(true);
-			if (Result.isSuccess(result)) {
-				expect(result.value.shouldSkip).toBe(false);
-			}
-		});
+	test('should handle missing semaphore file gracefully', () => {
+		const result = checkShouldSkipExecution('non-existent-session-3', 5000);
+		expect(Result.isSuccess(result)).toBe(true);
+		if (Result.isSuccess(result)) {
+			expect(result.value.shouldSkip).toBe(false);
+		}
 	});
 }
