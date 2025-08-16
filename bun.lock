@@ -62,7 +62,7 @@
         "vitepress-plugin-group-icons": "^1.6.3",
         "vitepress-plugin-llms": "^1.7.3",
         "vitepress-plugin-mermaid": "^2.0.17",
-        "wrangler": "^4.29.0",
+        "wrangler": "^4.29.1",
       },
     },
   },
