@@ -1,15 +1,29 @@
-import type { StatuslineSemaphore } from './_types.ts';
 import { existsSync, mkdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import process from 'node:process';
 import { Result } from '@praha/byethrow';
 import * as limo from '@ryoppippi/limo';
+import { z } from 'zod';
+import { version } from '../package.json';
 import { STATUSLINE_MIN_REFRESH_INTERVAL_MS, STATUSLINE_SEMAPHORE_DIR_NAME } from './_consts.ts';
-import { statuslineSemaphoreSchema } from './_types.ts';
 import { logger } from './logger.ts';
 
-const SEMAPHORE_VERSION = '1.0.0';
+/**
+ * Zod schema for statusline semaphore data structure
+ */
+const statuslineSemaphoreSchema = z.object({
+	lastExecutionTime: z.number(), // Unix timestamp in milliseconds
+	lastOutput: z.string(), // Cached output from last execution
+	sessionId: z.string(), // Session ID for tracking
+	pid: z.number().optional(), // Process ID for debugging
+	version: z.string().optional(), // Semaphore version for migration
+});
+
+/**
+ * Type definition for statusline semaphore data structure
+ */
+type StatuslineSemaphore = z.infer<typeof statuslineSemaphoreSchema>;
 
 /**
  * Gets the semaphore directory path
@@ -76,7 +90,7 @@ export function checkShouldSkipExecution(
 			return { shouldSkip: false };
 		},
 		catch: error => new Error(`Failed to check semaphore: ${String(error)}`),
-	});
+	})();
 }
 
 /**
@@ -101,13 +115,13 @@ export function updateSemaphore(
 				lastOutput: output,
 				sessionId,
 				pid: process.pid,
-				version: SEMAPHORE_VERSION,
+				version,
 			};
 
 			logger.debug(`Updated semaphore for session: ${sessionId}`);
 		},
 		catch: error => new Error(`Failed to update semaphore: ${String(error)}`),
-	});
+	})();
 }
 
 /**
