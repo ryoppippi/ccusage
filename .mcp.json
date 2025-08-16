@@ -21,6 +21,16 @@
 				"-p",
 				"tsgo"
 			]
+		},
+		"byethrow": {
+			"command": "bun",
+			"args": [
+				"x",
+				"sitemcp",
+				"https://praha-inc.github.io/byethrow/",
+				"--concurrency 10",
+				"--no-cache"
+			]
 		}
 	}
 }
