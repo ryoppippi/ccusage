@@ -149,16 +149,6 @@ export class Semaphore {
 			catch: error => new Error(`Failed to update semaphore: ${String(error)}`),
 		})();
 	}
-
-	/**
-	 * Cleans up old semaphore files (older than 24 hours)
-	 * This is a placeholder for future implementation
-	 */
-	public cleanupOldFiles(): void {
-		// Implementation for cleaning old files
-		// This can be called periodically or on startup
-		logger.debug(`Semaphore cleanup not yet implemented for type: ${this.semaphoreType}`);
-	}
 }
 
 /**
