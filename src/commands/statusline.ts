@@ -1,17 +1,27 @@
+import type { SemaphoreData } from '../_types.ts';
+import { existsSync, mkdirSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import process from 'node:process';
 import { Result } from '@praha/byethrow';
+import * as limo from '@ryoppippi/limo';
 import getStdin from 'get-stdin';
 import { define } from 'gunshi';
 import pc from 'picocolors';
+import { version } from '../../package.json';
 import { DEFAULT_REFRESH_INTERVAL_SECONDS } from '../_consts.ts';
-import { SemaphoreFactory } from '../_semaphore.ts';
 import { calculateBurnRate } from '../_session-blocks.ts';
 import { sharedArgs } from '../_shared-args.ts';
-import { statuslineHookJsonSchema } from '../_types.ts';
+import { semaphoreSchema, statuslineHookJsonSchema } from '../_types.ts';
 import { formatCurrency } from '../_utils.ts';
 import { calculateTotals } from '../calculate-cost.ts';
 import { calculateContextTokens, getClaudePaths, getContextUsageThresholds, loadDailyUsageData, loadSessionBlockData, loadSessionUsageById } from '../data-loader.ts';
 import { log, logger } from '../logger.ts';
+
+function semaphoreValidator(data: unknown): data is SemaphoreData {
+	const result = semaphoreSchema.safeParse(data);
+	return result.success;
+}
 
 /**
  * Formats the remaining time for display
@@ -38,7 +48,7 @@ export const statuslineCommand = define({
 		},
 		refreshInterval: {
 			type: 'number',
-			description: `Minimum refresh interval in milliseconds (default: ${DEFAULT_REFRESH_INTERVAL_SECONDS * 1000})`,
+			description: `Minimum refresh interval in milliseconds`,
 			default: DEFAULT_REFRESH_INTERVAL_SECONDS * 1000,
 		},
 		disableCache: {
@@ -76,23 +86,31 @@ export const statuslineCommand = define({
 		// Extract session ID from hook data
 		const sessionId = hookData.session_id;
 
-		// Create semaphore instance for statusline
-		const semaphore = SemaphoreFactory.statusline(ctx.values.refreshInterval);
+		// Rate limiting check with directory creation
+		const semaphoreDir = join(tmpdir(), 'ccusage-statusline');
+		if (!ctx.values.disableCache) {
+			if (!existsSync(semaphoreDir)) {
+				mkdirSync(semaphoreDir, { recursive: true });
+			}
+		}
+
+		using cache = !ctx.values.disableCache
+			? new limo.Json(join(semaphoreDir, `${sessionId}.json`), {
+				allowNoExist: true,
+				validator: semaphoreValidator,
+				allowInvalidData: true, // Don't throw error on validation failure
+			})
+			: undefined;
 
 		// Rate limiting check
-		if (!ctx.values.disableCache) {
-			const checkResult = semaphore.checkShouldSkip(sessionId);
+		if (cache != null && cache.data != null) {
+			const { lastOutput, lastExecutionTime } = cache.data;
+			const timeSinceLastExecution = Date.now() - lastExecutionTime;
 
-			if (Result.isSuccess(checkResult)) {
-				const { shouldSkip, cachedOutput } = checkResult.value;
-				if (shouldSkip && cachedOutput != null) {
-					log(cachedOutput);
-					process.exit(0);
-				}
-			}
-			else {
-				// If semaphore check fails, log debug message but continue execution
-				logger.debug('Semaphore check failed, continuing with execution:', checkResult.error);
+			if (timeSinceLastExecution < ctx.values.refreshInterval) {
+				logger.debug(`Skipping execution: ${timeSinceLastExecution}ms < ${ctx.values.refreshInterval}ms`);
+				log(lastOutput);
+				process.exit(0);
 			}
 		}
 
@@ -230,14 +248,21 @@ export const statuslineCommand = define({
 		const sessionDisplay = sessionCost != null ? formatCurrency(sessionCost) : 'N/A';
 		const statusLine = `🤖 ${modelName} | 💰 ${sessionDisplay} session / ${formatCurrency(todayCost)} today / ${blockInfo}${burnRateInfo} | 🧠 ${contextInfo ?? 'N/A'}`;
 
-		// Update semaphore before output
-		if (!ctx.values.disableCache) {
-			const updateResult = semaphore.updateCache(sessionId, statusLine);
-			if (Result.isFailure(updateResult)) {
-				logger.debug('Failed to update semaphore:', updateResult.error);
-			}
+		log(statusLine);
+
+		// if cache is disabled, we don't need to update the cache
+		if (cache == null) {
+			process.exit(0);
 		}
 
-		log(statusLine);
+		// update cache with the output
+		cache.data = {
+			lastExecutionTime: Date.now(),
+			lastOutput: statusLine,
+			sessionId,
+			pid: process.pid,
+			version,
+			semaphoreType: 'statusline',
+		} as const;
 	},
 });

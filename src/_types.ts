@@ -180,3 +180,20 @@ export type TranscriptMessage = {
 		usage?: TranscriptUsage;
 	};
 };
+
+/**
+ * Zod schema for semaphore data structure
+ */
+export const semaphoreSchema = z.object({
+	lastExecutionTime: z.number(), // Unix timestamp in milliseconds
+	lastOutput: z.string(), // Cached output from last execution
+	sessionId: z.string(), // Session ID for tracking
+	pid: z.number().optional(), // Process ID for debugging
+	version: z.string().optional(), // Semaphore version for migration
+	semaphoreType: z.string(), // Type of semaphore for categorization
+});
+
+/**
+ * Type definition for semaphore data structure
+ */
+export type SemaphoreData = z.infer<typeof semaphoreSchema>;
