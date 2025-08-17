@@ -140,6 +140,9 @@ export const statuslineCommand = define({
 			Result.unwrap(undefined),
 		);
 
+		// Get current file modification time for cache validation and semaphore update
+		const currentMtime = await getFileModifiedTime(hookData.transcript_path);
+
 		if (ctx.values.cache && initialSemaphoreState != null) {
 			/**
 			 * Hybrid cache validation:
@@ -150,9 +153,6 @@ export const statuslineCommand = define({
 			const now = Date.now();
 			const timeElapsed = now - (initialSemaphoreState.lastUpdateTime ?? 0);
 			const isExpired = timeElapsed >= refreshInterval * 1000;
-
-			// Check if transcript file has been modified
-			const currentMtime = await getFileModifiedTime(hookData.transcript_path);
 			const isFileModified = initialSemaphoreState.transcriptMtime !== currentMtime;
 
 			if (!isExpired && !isFileModified) {
@@ -359,15 +359,14 @@ export const statuslineCommand = define({
 			if (!ctx.values.cache) {
 				return;
 			}
-			// update semaphore with result
+			// update semaphore with result (use mtime from cache validation time)
 			using semaphore = getSemaphore(sessionId);
-			const finalMtime = await getFileModifiedTime(hookData.transcript_path);
 			semaphore.data = {
 				date: new Date().toISOString(),
 				lastOutput: statusLine,
 				lastUpdateTime: Date.now(),
 				transcriptPath: hookData.transcript_path,
-				transcriptMtime: finalMtime,
+				transcriptMtime: currentMtime, // Use mtime from when we started processing
 				isUpdating: false,
 				pid: undefined,
 			};
