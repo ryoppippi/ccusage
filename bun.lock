@@ -13,7 +13,7 @@
         "@oxc-project/runtime": "^0.82.1",
         "@praha/byethrow": "^0.6.3",
         "@ryoppippi/eslint-config": "^0.3.7",
-        "@ryoppippi/limo": "npm:@jsr/ryoppippi__limo@^0.2.0",
+        "@ryoppippi/limo": "npm:@jsr/ryoppippi__limo@^0.2.1",
         "@std/async": "npm:@jsr/std__async@^1.0.14",
         "@types/bun": "^1.2.20",
         "@typescript/native-preview": "^7.0.0-dev.20250814.1",
@@ -445,7 +445,7 @@
 
     "@ryoppippi/eslint-config": ["@ryoppippi/eslint-config@0.3.7", "", { "dependencies": { "@antfu/eslint-config": "^4.11.0", "eslint-flat-config-utils": "^2.0.1", "eslint-plugin-ryoppippi": "^0.2.2", "pkg-types": "^2.1.0" }, "peerDependencies": { "@next/eslint-plugin-next": "^15.2.4", "@tanstack/eslint-plugin-query": ">= 5.68.0", "@tanstack/eslint-plugin-router": ">= 1.114.29", "eslint": ">= 9.23.0", "eslint-plugin-tailwindcss": "^3.18.0" }, "optionalPeers": ["@next/eslint-plugin-next", "@tanstack/eslint-plugin-query", "@tanstack/eslint-plugin-router", "eslint-plugin-tailwindcss"] }, "sha512-T0dW35+AtaaBfm0Ta1zl8/Xn0PD5NJoajCDgKr16ywwmg9q0xWjfwYCBaCJr+6QAKHokUH6109Q/nUf30pq9nA=="],
 
-    "@ryoppippi/limo": ["@jsr/ryoppippi__limo@0.2.0", "https://npm.jsr.io/~/11/@jsr/ryoppippi__limo/0.2.0.tgz", { "dependencies": { "@jsr/std__toml": "^1.0.0", "@jsr/std__yaml": "^1.0.0", "jsonc-parser": "^3.2.1" } }, "sha512-DQC0VHpp5CuTzMEdrqOE6fWZJ2pmdW1jrRoQRQRFsLfVDvQC6Z7e4Q6sw1yjv+VLeXV6jZFmok7ov/U6RpMo0w=="],
+    "@ryoppippi/limo": ["@jsr/ryoppippi__limo@0.2.1", "https://npm.jsr.io/~/11/@jsr/ryoppippi__limo/0.2.1.tgz", { "dependencies": { "@jsr/std__toml": "^1.0.0", "@jsr/std__yaml": "^1.0.0", "jsonc-parser": "^3.2.1", "type-fest": "^4.41.0" } }, "sha512-lAmhc0GCuyUYf6oJqSNNrC/6WFP8EEK4cJZXnrE5JJLb/4WjdOscMoMxArftjtnbi9e/pKYWQdy02wcRTkgljg=="],
 
     "@ryoppippi/vite-plugin-cloudflare-redirect": ["@jsr/ryoppippi__vite-plugin-cloudflare-redirect@1.1.0", "https://npm.jsr.io/~/11/@jsr/ryoppippi__vite-plugin-cloudflare-redirect/1.1.0.tgz", { "dependencies": { "cloudflare-redirect-parser": "^1.0.0", "defu": "^6.1.4", "vite": "^6.0.0" } }, "sha512-t9UhTEWNL/Ts8FdFGZesS+CVq5xP8FOq6fWP7bNxv98rbYhlwjMjTrFLzSfDpShFC0+tl5AcSdssM/1VfsuDWw=="],
 

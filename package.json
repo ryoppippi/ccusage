@@ -70,7 +70,7 @@
 		"@oxc-project/runtime": "^0.82.1",
 		"@praha/byethrow": "^0.6.3",
 		"@ryoppippi/eslint-config": "^0.3.7",
-		"@ryoppippi/limo": "npm:@jsr/ryoppippi__limo@^0.2.0",
+		"@ryoppippi/limo": "npm:@jsr/ryoppippi__limo@^0.2.1",
 		"@std/async": "npm:@jsr/std__async@^1.0.14",
 		"@types/bun": "^1.2.20",
 		"@typescript/native-preview": "^7.0.0-dev.20250814.1",
