@@ -1,4 +1,5 @@
 import { mkdirSync } from 'node:fs';
+import { stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import process from 'node:process';
@@ -17,6 +18,22 @@ import { calculateContextTokens, getContextUsageThresholds, loadDailyUsageData, 
 import { log, logger } from '../logger.ts';
 
 /**
+ * Gets the last modified time of a file using Result pattern
+ * @param filePath - Path to the file
+ * @returns Result with modification time in milliseconds, or 0 if file doesn't exist
+ */
+async function getFileModifiedTime(filePath: string): Promise<number> {
+	return Result.pipe(
+		Result.try({
+			try: stat(filePath),
+			catch: error => error,
+		}),
+		Result.map(stats => stats.mtime.getTime()),
+		Result.unwrap(0), // Default to 0 if file doesn't exist or can't be accessed
+	);
+}
+
+/**
  * Formats the remaining time for display
  * @param remaining - Remaining minutes
  * @returns Formatted time string
@@ -33,7 +50,7 @@ function formatRemainingTime(remaining: number): string {
 
 /**
  * Gets semaphore file for session-specific caching and process coordination
- * Uses time-based expiry and transcript path change detection for cache invalidation
+ * Uses time-based expiry and transcript file modification detection for cache invalidation
  */
 function getSemaphore(sessionId: string): ReturnType<typeof createLimoJson<SemaphoreType | undefined>> {
 	const semaphoreDir = join(tmpdir(), 'ccusage-semaphore');
@@ -48,7 +65,7 @@ function getSemaphore(sessionId: string): ReturnType<typeof createLimoJson<Semap
 
 /**
  * Semaphore structure for hybrid caching system
- * Combines time-based expiry with transcript path change detection
+ * Combines time-based expiry with transcript file modification detection
  */
 type SemaphoreType = {
 	/** ISO timestamp of last update */
@@ -57,8 +74,10 @@ type SemaphoreType = {
 	lastOutput: string;
 	/** Timestamp (milliseconds) of last successful update for time-based expiry */
 	lastUpdateTime: number;
-	/** Last processed transcript path for change detection */
+	/** Last processed transcript file path */
 	transcriptPath: string;
+	/** Last modification time of transcript file for change detection */
+	transcriptMtime: number;
 	/** Whether another process is currently updating (prevents concurrent updates) */
 	isUpdating?: boolean;
 	/** Process ID of updating process for deadlock detection */
@@ -67,7 +86,7 @@ type SemaphoreType = {
 
 export const statuslineCommand = define({
 	name: 'statusline',
-	description: 'Display compact status line for Claude Code hooks with hybrid caching (Beta)',
+	description: 'Display compact status line for Claude Code hooks with hybrid time+file caching (Beta)',
 	toKebab: true,
 	args: {
 		offline: {
@@ -125,15 +144,18 @@ export const statuslineCommand = define({
 			/**
 			 * Hybrid cache validation:
 			 * 1. Time-based expiry: Cache expires after refreshInterval seconds
-			 * 2. Transcript path change: Immediate invalidation when transcript_path changes
+			 * 2. File modification: Immediate invalidation when transcript file is modified
 			 * This ensures real-time updates while maintaining good performance
 			 */
 			const now = Date.now();
 			const timeElapsed = now - (initialSemaphoreState.lastUpdateTime ?? 0);
 			const isExpired = timeElapsed >= refreshInterval * 1000;
-			const isPathChanged = initialSemaphoreState.transcriptPath !== hookData.transcript_path;
 
-			if (!isExpired && !isPathChanged) {
+			// Check if transcript file has been modified
+			const currentMtime = await getFileModifiedTime(hookData.transcript_path);
+			const isFileModified = initialSemaphoreState.transcriptMtime !== currentMtime;
+
+			if (!isExpired && !isFileModified) {
 				// Cache is still valid, return cached output
 				log(initialSemaphoreState.lastOutput);
 				return;
@@ -176,11 +198,13 @@ export const statuslineCommand = define({
 				} as const satisfies SemaphoreType;
 			}
 			else {
+				const currentMtimeForInit = await getFileModifiedTime(hookData.transcript_path);
 				semaphore.data = {
 					date: new Date().toISOString(),
 					lastOutput: '',
 					lastUpdateTime: 0,
 					transcriptPath: hookData.transcript_path,
+					transcriptMtime: currentMtimeForInit,
 					isUpdating: true,
 					pid: currentPid,
 				} as const satisfies SemaphoreType;
@@ -337,11 +361,13 @@ export const statuslineCommand = define({
 			}
 			// update semaphore with result
 			using semaphore = getSemaphore(sessionId);
+			const finalMtime = await getFileModifiedTime(hookData.transcript_path);
 			semaphore.data = {
 				date: new Date().toISOString(),
 				lastOutput: statusLine,
 				lastUpdateTime: Date.now(),
 				transcriptPath: hookData.transcript_path,
+				transcriptMtime: finalMtime,
 				isUpdating: false,
 				pid: undefined,
 			};
