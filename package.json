@@ -49,7 +49,7 @@
 		"lint": "eslint --cache .",
 		"mcp": "bunx @modelcontextprotocol/inspector bun run start mcp",
 		"prepack": "bun run build && bun clean-pkg-json -r scripts.preinstall",
-		"prepare": "bun simple-git-hooks",
+		"prepare": "git config --local core.hooksPath .githooks",
 		"release": "bun lint && bun typecheck && vitest run && bun run build && bumpp",
 		"start": "bun run ./src/index.ts",
 		"test": "TZ=UTC vitest",
@@ -93,7 +93,6 @@
 		"picocolors": "^1.1.1",
 		"pretty-ms": "^9.2.0",
 		"publint": "^0.3.12",
-		"simple-git-hooks": "^2.13.1",
 		"sort-package-json": "^3.4.0",
 		"string-width": "^7.2.0",
 		"tinyglobby": "^0.2.14",
@@ -105,10 +104,6 @@
 		"xdg-basedir": "^5.1.0",
 		"zod": "^3.25.67"
 	},
-	"simple-git-hooks": {
-		"pre-commit": "bun lint-staged",
-		"pre-push": "bun run test && bun run typecheck"
-	},
 	"lint-staged": {
 		"*": [
 			"eslint --cache --fix"
@@ -116,8 +111,5 @@
 		"package.json": [
 			"sort-package-json"
 		]
-	},
-	"trustedDependencies": [
-		"simple-git-hooks"
-	]
+	}
 }
