@@ -35,5 +35,7 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 
 .eslintcache
 
-# lsmcp cache
+# lsmcp
 .lsmcp/cache
+.lsmcp/config.json
+.lsmcp/memories
