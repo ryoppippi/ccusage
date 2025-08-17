@@ -90,25 +90,29 @@ export const statuslineCommand = define({
 		// Extract session ID from hook data
 		const sessionId = hookData.session_id;
 
-		const cachedData = Result.pipe(
+		/**
+		 * Read initial semaphore state for cache validation and process checking
+		 * This is a snapshot taken at the beginning to avoid race conditions
+		 */
+		const initialSemaphoreState = Result.pipe(
 			Result.succeed(getSemaphore(sessionId)),
 			Result.map(semaphore => semaphore.data),
 			Result.unwrap(undefined),
 		);
 
-		if (ctx.values.cache && cachedData != null) {
-			const isSameInput = cachedData.inputHash === inputHash;
+		if (ctx.values.cache && initialSemaphoreState != null) {
+			const isSameInput = initialSemaphoreState.inputHash === inputHash;
 
 			if (isSameInput) {
 				// If same input, return cached output
-				log(cachedData.lastOutput);
+				log(initialSemaphoreState.lastOutput);
 				return;
 			}
 
 			// If another process is updating, return stale output
-			if (cachedData.isUpdating === true) {
+			if (initialSemaphoreState.isUpdating === true) {
 				// Check if the updating process is still alive (optional deadlock protection)
-				const pid = cachedData.pid;
+				const pid = initialSemaphoreState.pid;
 				let isProcessAlive = false;
 				if (pid != null) {
 					try {
@@ -123,7 +127,7 @@ export const statuslineCommand = define({
 
 				if (isProcessAlive) {
 					// Another process is actively updating, return stale output
-					log(cachedData.lastOutput);
+					log(initialSemaphoreState.lastOutput);
 					return;
 				}
 				// Process is dead, continue to update ourselves
@@ -317,8 +321,8 @@ export const statuslineCommand = define({
 			// Reset updating flag on error to prevent deadlock
 
 			// If we have a cached output from previous run, use it
-			if (cachedData?.lastOutput !== undefined && cachedData.lastOutput !== '') {
-				log(cachedData.lastOutput);
+			if (initialSemaphoreState?.lastOutput != null && initialSemaphoreState.lastOutput !== '') {
+				log(initialSemaphoreState.lastOutput);
 			}
 			else {
 				// Fallback minimal output
