@@ -1,5 +1,4 @@
 import { mkdirSync } from 'node:fs';
-import { stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import process from 'node:process';
@@ -12,26 +11,10 @@ import { DEFAULT_REFRESH_INTERVAL_SECONDS } from '../_consts.ts';
 import { calculateBurnRate } from '../_session-blocks.ts';
 import { sharedArgs } from '../_shared-args.ts';
 import { statuslineHookJsonSchema } from '../_types.ts';
-import { formatCurrency } from '../_utils.ts';
+import { formatCurrency, getFileModifiedTime } from '../_utils.ts';
 import { calculateTotals } from '../calculate-cost.ts';
 import { calculateContextTokens, getContextUsageThresholds, loadDailyUsageData, loadSessionBlockData, loadSessionUsageById } from '../data-loader.ts';
 import { log, logger } from '../logger.ts';
-
-/**
- * Gets the last modified time of a file using Result pattern
- * @param filePath - Path to the file
- * @returns Result with modification time in milliseconds, or 0 if file doesn't exist
- */
-async function getFileModifiedTime(filePath: string): Promise<number> {
-	return Result.pipe(
-		Result.try({
-			try: stat(filePath),
-			catch: error => error,
-		}),
-		Result.map(stats => stats.mtime.getTime()),
-		Result.unwrap(0), // Default to 0 if file doesn't exist or can't be accessed
-	);
-}
 
 /**
  * Formats the remaining time for display

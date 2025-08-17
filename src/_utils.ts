@@ -1,6 +1,9 @@
+import { stat } from 'node:fs/promises';
 import process from 'node:process';
+import { Result } from '@praha/byethrow';
 import Table from 'cli-table3';
 import { uniq } from 'es-toolkit';
+import { createFixture } from 'fs-fixture';
 import pc from 'picocolors';
 import stringWidth from 'string-width';
 
@@ -394,6 +397,22 @@ export function pushBreakdownRows(
 
 		table.push(row);
 	}
+}
+
+/**
+ * Gets the last modified time of a file using Result pattern
+ * @param filePath - Path to the file
+ * @returns Modification time in milliseconds, or 0 if file doesn't exist
+ */
+export async function getFileModifiedTime(filePath: string): Promise<number> {
+	return Result.pipe(
+		Result.try({
+			try: stat(filePath),
+			catch: error => error,
+		}),
+		Result.map(stats => stats.mtime.getTime()),
+		Result.unwrap(0), // Default to 0 if file doesn't exist or can't be accessed
+	);
 }
 
 if (import.meta.vitest != null) {
@@ -801,6 +820,41 @@ if (import.meta.vitest != null) {
 		it('handles models that do not match pattern with bullet points', () => {
 			const models = ['custom-model', 'claude-sonnet-4-20250514'];
 			expect(formatModelsDisplayMultiline(models)).toBe('- custom-model\n- sonnet-4');
+		});
+	});
+
+	describe('getFileModifiedTime', () => {
+		it('returns modification time for existing file', async () => {
+			await using fixture = await createFixture({
+				'test.txt': 'content',
+			});
+
+			const mtime = await getFileModifiedTime(`${fixture.path}/test.txt`);
+			expect(mtime).toBeGreaterThan(0);
+			expect(typeof mtime).toBe('number');
+		});
+
+		it('returns 0 for non-existent file', async () => {
+			const mtime = await getFileModifiedTime('/non/existent/file.txt');
+			expect(mtime).toBe(0);
+		});
+
+		it('returns different times for files modified at different times', async () => {
+			await using fixture = await createFixture({
+				'file1.txt': 'content1',
+			});
+
+			const mtime1 = await getFileModifiedTime(`${fixture.path}/file1.txt`);
+
+			// Wait a bit to ensure different modification time
+			await new Promise(resolve => setTimeout(resolve, 10));
+
+			// Modify the file
+			const { writeFile } = await import('node:fs/promises');
+			await writeFile(`${fixture.path}/file1.txt`, 'modified content');
+
+			const mtime2 = await getFileModifiedTime(`${fixture.path}/file1.txt`);
+			expect(mtime2).toBeGreaterThan(mtime1);
 		});
 	});
 }
