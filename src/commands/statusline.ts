@@ -1,4 +1,3 @@
-import { createHash } from 'node:crypto';
 import { mkdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -8,6 +7,7 @@ import { createLimoJson } from '@ryoppippi/limo';
 import getStdin from 'get-stdin';
 import { define } from 'gunshi';
 import pc from 'picocolors';
+import { DEFAULT_REFRESH_INTERVAL_SECONDS } from '../_consts.ts';
 import { calculateBurnRate } from '../_session-blocks.ts';
 import { sharedArgs } from '../_shared-args.ts';
 import { statuslineHookJsonSchema } from '../_types.ts';
@@ -31,6 +31,10 @@ function formatRemainingTime(remaining: number): string {
 	return `${remainingMins}m left`;
 }
 
+/**
+ * Gets semaphore file for session-specific caching and process coordination
+ * Uses time-based expiry and transcript path change detection for cache invalidation
+ */
 function getSemaphore(sessionId: string): ReturnType<typeof createLimoJson<SemaphoreType | undefined>> {
 	const semaphoreDir = join(tmpdir(), 'ccusage-semaphore');
 	const semaphorePath = join(semaphoreDir, `${sessionId}.lock`);
@@ -42,17 +46,29 @@ function getSemaphore(sessionId: string): ReturnType<typeof createLimoJson<Semap
 	return semaphore;
 }
 
+/**
+ * Semaphore structure for hybrid caching system
+ * Combines time-based expiry with transcript path change detection
+ */
 type SemaphoreType = {
+	/** ISO timestamp of last update */
 	date: string;
+	/** Cached status line output */
 	lastOutput: string;
-	inputHash: string;
+	/** Timestamp (milliseconds) of last successful update for time-based expiry */
+	lastUpdateTime: number;
+	/** Last processed transcript path for change detection */
+	transcriptPath: string;
+	/** Whether another process is currently updating (prevents concurrent updates) */
 	isUpdating?: boolean;
+	/** Process ID of updating process for deadlock detection */
 	pid?: number;
 };
 
 export const statuslineCommand = define({
 	name: 'statusline',
-	description: 'Display compact status line for Claude Code hooks (Beta)',
+	description: 'Display compact status line for Claude Code hooks with hybrid caching (Beta)',
+	toKebab: true,
 	args: {
 		offline: {
 			...sharedArgs.offline,
@@ -63,10 +79,18 @@ export const statuslineCommand = define({
 			description: 'Enable cache for status line output (default: true)',
 			default: true,
 		},
+		refreshInterval: {
+			type: 'number',
+			description: `Refresh interval in seconds for cache expiry (default: ${DEFAULT_REFRESH_INTERVAL_SECONDS})`,
+			default: DEFAULT_REFRESH_INTERVAL_SECONDS,
+		},
 	},
 	async run(ctx) {
 		// Set logger to silent for statusline output
 		logger.level = 0;
+
+		// Use refresh interval from CLI args
+		const refreshInterval = ctx.values.refreshInterval;
 
 		// Read input from stdin
 		const stdin = await getStdin();
@@ -74,9 +98,6 @@ export const statuslineCommand = define({
 			log('❌ No input provided');
 			process.exit(1);
 		}
-
-		// Calculate hash of input for cache comparison (using md5 for speed)
-		const inputHash = createHash('md5').update(stdin.trim()).digest('hex');
 
 		// Parse input as JSON
 		const hookDataJson: unknown = JSON.parse(stdin.trim());
@@ -101,10 +122,19 @@ export const statuslineCommand = define({
 		);
 
 		if (ctx.values.cache && initialSemaphoreState != null) {
-			const isSameInput = initialSemaphoreState.inputHash === inputHash;
+			/**
+			 * Hybrid cache validation:
+			 * 1. Time-based expiry: Cache expires after refreshInterval seconds
+			 * 2. Transcript path change: Immediate invalidation when transcript_path changes
+			 * This ensures real-time updates while maintaining good performance
+			 */
+			const now = Date.now();
+			const timeElapsed = now - (initialSemaphoreState.lastUpdateTime ?? 0);
+			const isExpired = timeElapsed >= refreshInterval * 1000;
+			const isPathChanged = initialSemaphoreState.transcriptPath !== hookData.transcript_path;
 
-			if (isSameInput) {
-				// If same input, return cached output
+			if (!isExpired && !isPathChanged) {
+				// Cache is still valid, return cached output
 				log(initialSemaphoreState.lastOutput);
 				return;
 			}
@@ -149,7 +179,8 @@ export const statuslineCommand = define({
 				semaphore.data = {
 					date: new Date().toISOString(),
 					lastOutput: '',
-					inputHash: '',
+					lastUpdateTime: 0,
+					transcriptPath: hookData.transcript_path,
 					isUpdating: true,
 					pid: currentPid,
 				} as const satisfies SemaphoreType;
@@ -309,7 +340,8 @@ export const statuslineCommand = define({
 			semaphore.data = {
 				date: new Date().toISOString(),
 				lastOutput: statusLine,
-				inputHash,
+				lastUpdateTime: Date.now(),
+				transcriptPath: hookData.transcript_path,
 				isUpdating: false,
 				pid: undefined,
 			};
