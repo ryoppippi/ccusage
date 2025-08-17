@@ -111,7 +111,6 @@ export const MCP_DEFAULT_PORT = 8080;
 /**
  * Default refresh interval in seconds for live monitoring mode
  * Used in blocks command for real-time updates
- * Note: statusline command now uses input-based caching instead of time intervals
  */
 export const DEFAULT_REFRESH_INTERVAL_SECONDS = 1;
 
