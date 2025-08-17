@@ -105,7 +105,7 @@
 	},
 	"simple-git-hooks": {
 		"pre-commit": "bun lint-staged",
-		"pre-push": "bun run test"
+		"pre-push": "bun run test && bun run typecheck"
 	},
 	"lint-staged": {
 		"*": [
