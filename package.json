@@ -66,7 +66,7 @@
 		"@hono/mcp": "^0.1.0",
 		"@hono/node-server": "^1.18.2",
 		"@mizchi/lsmcp": "^0.9.4",
-		"@modelcontextprotocol/sdk": "^1.17.2",
+		"@modelcontextprotocol/sdk": "^1.17.3",
 		"@oxc-project/runtime": "^0.82.1",
 		"@praha/byethrow": "^0.6.3",
 		"@ryoppippi/eslint-config": "^0.3.7",
