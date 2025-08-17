@@ -8,7 +8,7 @@ import { sharedArgs } from '../_shared-args.ts';
 import { statuslineHookJsonSchema } from '../_types.ts';
 import { formatCurrency } from '../_utils.ts';
 import { calculateTotals } from '../calculate-cost.ts';
-import { calculateContextTokens, getClaudePaths, getContextUsageThresholds, loadDailyUsageData, loadSessionBlockData, loadSessionUsageById } from '../data-loader.ts';
+import { calculateContextTokens, getContextUsageThresholds, loadDailyUsageData, loadSessionBlockData, loadSessionUsageById } from '../data-loader.ts';
 import { log, logger } from '../logger.ts';
 
 /**
@@ -53,13 +53,6 @@ export const statuslineCommand = define({
 			process.exit(1);
 		}
 		const hookData = hookDataParseResult.data;
-
-		// Get Claude paths
-		const claudePaths = getClaudePaths();
-		if (claudePaths.length === 0) {
-			log('❌ No Claude data directory found');
-			process.exit(1);
-		}
 
 		// Extract session ID from hook data
 		const sessionId = hookData.session_id;
