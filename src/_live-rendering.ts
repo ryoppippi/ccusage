@@ -9,7 +9,6 @@
 import type { SessionBlock } from './_session-blocks.ts';
 import type { TerminalManager } from './_terminal-utils.ts';
 import type { CostMode, SortOrder } from './_types.ts';
-import { delay } from '@jsr/std__async/delay';
 import * as ansiEscapes from 'ansi-escapes';
 import pc from 'picocolors';
 import prettyMs from 'pretty-ms';
@@ -19,6 +18,28 @@ import { calculateBurnRate, projectBlockUsage } from './_session-blocks.ts';
 import { centerText, createProgressBar, drawEmoji } from './_terminal-utils.ts';
 import { getTotalTokens } from './_token-utils.ts';
 import { formatCurrency, formatModelsDisplay, formatNumber } from './_utils.ts';
+// Simple delay function with AbortSignal support
+async function delay(ms: number, options?: { signal?: AbortSignal }): Promise<void> {
+	return new Promise<void>((resolve, reject) => {
+		const { signal } = options ?? {};
+
+		if (signal != null && signal.aborted) {
+			reject(new Error('This operation was aborted'));
+			return;
+		}
+
+		const timeoutId = setTimeout(() => {
+			resolve();
+		}, ms);
+
+		if (signal != null) {
+			signal.addEventListener('abort', () => {
+				clearTimeout(timeoutId);
+				reject(new Error('This operation was aborted'));
+			});
+		}
+	});
+}
 
 /**
  * Get rate indicator (HIGH/MODERATE/NORMAL) based on burn rate
