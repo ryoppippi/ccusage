@@ -1,4 +1,4 @@
-import { stat } from 'node:fs/promises';
+import { stat, utimes, writeFile } from 'node:fs/promises';
 import process from 'node:process';
 import { Result } from '@praha/byethrow';
 import Table from 'cli-table3';
@@ -824,13 +824,17 @@ if (import.meta.vitest != null) {
 	});
 
 	describe('getFileModifiedTime', () => {
-		it('returns modification time for existing file', async () => {
+		it('returns specific modification time when set', async () => {
 			await using fixture = await createFixture({
 				'test.txt': 'content',
 			});
 
-			const mtime = await getFileModifiedTime(`${fixture.path}/test.txt`);
-			expect(mtime).toBeGreaterThan(0);
+			// Set specific time (2024-01-01 12:00:00 UTC)
+			const specificTime = new Date('2024-01-01T12:00:00.000Z');
+			await utimes(`${fixture.path}/test.txt`, specificTime, specificTime);
+
+			const mtime = await getFileModifiedTime(fixture.getPath('test.txt'));
+			expect(mtime).toBe(specificTime.getTime());
 			expect(typeof mtime).toBe('number');
 		});
 
@@ -839,21 +843,25 @@ if (import.meta.vitest != null) {
 			expect(mtime).toBe(0);
 		});
 
-		it('returns different times for files modified at different times', async () => {
+		it('detects file modification correctly', async () => {
 			await using fixture = await createFixture({
-				'file1.txt': 'content1',
+				'test.txt': 'content',
 			});
 
-			const mtime1 = await getFileModifiedTime(`${fixture.path}/file1.txt`);
+			// Set first time
+			const firstTime = new Date('2024-01-01T10:00:00.000Z');
+			await utimes(`${fixture.path}/test.txt`, firstTime, firstTime);
 
-			// Wait a bit to ensure different modification time
-			await new Promise(resolve => setTimeout(resolve, 10));
+			const mtime1 = await getFileModifiedTime(`${fixture.path}/test.txt`);
+			expect(mtime1).toBe(firstTime.getTime());
 
-			// Modify the file
-			const { writeFile } = await import('node:fs/promises');
-			await writeFile(`${fixture.path}/file1.txt`, 'modified content');
+			// Modify file and set second time
+			const secondTime = new Date('2024-01-01T11:00:00.000Z');
+			await writeFile(fixture.getPath('test.txt'), 'modified content');
+			await utimes(fixture.getPath('test.txt'), secondTime, secondTime);
 
-			const mtime2 = await getFileModifiedTime(`${fixture.path}/file1.txt`);
+			const mtime2 = await getFileModifiedTime(fixture.getPath('test.txt'));
+			expect(mtime2).toBe(secondTime.getTime());
 			expect(mtime2).toBeGreaterThan(mtime1);
 		});
 	});
