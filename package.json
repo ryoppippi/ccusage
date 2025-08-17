@@ -62,7 +62,7 @@
 	},
 	"devDependencies": {
 		"@antfu/utils": "^9.2.0",
-		"@core/errorutil": "npm:@jsr/core__errorutil",
+		"@core/errorutil": "npm:@jsr/core__errorutil@^1.2.1",
 		"@hono/mcp": "^0.1.0",
 		"@hono/node-server": "^1.18.2",
 		"@mizchi/lsmcp": "^0.9.4",
@@ -71,7 +71,7 @@
 		"@praha/byethrow": "^0.6.3",
 		"@ryoppippi/eslint-config": "^0.3.7",
 		"@ryoppippi/limo": "npm:@jsr/ryoppippi__limo@^0.2.0",
-		"@std/async": "npm:@jsr/std__async",
+		"@std/async": "npm:@jsr/std__async@^1.0.14",
 		"@types/bun": "^1.2.20",
 		"@typescript/native-preview": "^7.0.0-dev.20250814.1",
 		"ansi-escapes": "^7.0.0",
