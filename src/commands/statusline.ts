@@ -31,6 +31,17 @@ function formatRemainingTime(remaining: number): string {
 	return `${remainingMins}m left`;
 }
 
+function getSemaphore(sessionId: string): ReturnType<typeof createLimoJson<SemaphoreType>> {
+	const semaphoreDir = join(tmpdir(), 'ccusage-semaphore');
+	const semaphorePath = join(semaphoreDir, `${sessionId}.lock`);
+
+	// Ensure semaphore directory exists
+	mkdirSync(semaphoreDir, { recursive: true });
+
+	const semaphore = createLimoJson<SemaphoreType>(semaphorePath);
+	return semaphore;
+}
+
 type SemaphoreType = {
 	date: string;
 	lastOutput: string;
@@ -79,28 +90,25 @@ export const statuslineCommand = define({
 		// Extract session ID from hook data
 		const sessionId = hookData.session_id;
 
-		const semaphoreDir = join(tmpdir(), 'ccusage-semaphore');
-		const semaphorePath = join(semaphoreDir, `${sessionId}.lock`);
+		const cachedData = Result.pipe(
+			Result.succeed(getSemaphore(sessionId)),
+			Result.map(semaphore => semaphore.data),
+			Result.unwrap(undefined),
+		);
 
-		// Ensure semaphore directory exists
-		mkdirSync(semaphoreDir, { recursive: true });
-
-		using semaphore = createLimoJson<SemaphoreType>(semaphorePath);
-
-		// Cache check phase
-		if (ctx.values.cache && semaphore.data != null) {
-			const isSameInput = semaphore.data.inputHash === inputHash;
+		if (ctx.values.cache && cachedData != null) {
+			const isSameInput = cachedData.inputHash === inputHash;
 
 			if (isSameInput) {
 				// If same input, return cached output
-				log(semaphore.data.lastOutput);
+				log(cachedData.lastOutput);
 				return;
 			}
 
 			// If another process is updating, return stale output
-			if (semaphore.data.isUpdating === true) {
+			if (cachedData.isUpdating === true) {
 				// Check if the updating process is still alive (optional deadlock protection)
-				const pid = semaphore.data.pid;
+				const pid = cachedData.pid;
 				let isProcessAlive = false;
 				if (pid != null) {
 					try {
@@ -115,7 +123,7 @@ export const statuslineCommand = define({
 
 				if (isProcessAlive) {
 					// Another process is actively updating, return stale output
-					log(semaphore.data.lastOutput);
+					log(cachedData.lastOutput);
 					return;
 				}
 				// Process is dead, continue to update ourselves
@@ -123,186 +131,212 @@ export const statuslineCommand = define({
 		}
 
 		// Acquisition phase: Mark as updating
-		const currentPid = process.pid;
-		if (semaphore.data != null) {
-			semaphore.data.isUpdating = true;
-			semaphore.data.pid = currentPid;
-		}
-		else {
-			semaphore.data = {
-				date: new Date().toISOString(),
-				lastOutput: '',
-				inputHash: '',
-				isUpdating: true,
-				pid: currentPid,
-			};
-		}
-
-		try {
-			const sessionCost = await Result.pipe(
-				Result.try({
-					try: loadSessionUsageById(sessionId, {
-						mode: 'auto',
-						offline: ctx.values.offline,
-					}),
-					catch: error => error,
-				}),
-				Result.map(sessionCost => sessionCost?.totalCost),
-				Result.inspectError(error => logger.error('Failed to load session data:', error)),
-				Result.unwrap(undefined),
-			);
-
-			// Load today's usage data
-			const today = new Date();
-			const todayStr = today.toISOString().split('T')[0]?.replace(/-/g, '') ?? ''; // Convert to YYYYMMDD format
-
-			const todayCost = await Result.pipe(
-				Result.try({
-					try: loadDailyUsageData({
-						since: todayStr,
-						until: todayStr,
-						mode: 'auto',
-						offline: ctx.values.offline,
-					}),
-					catch: error => error,
-				}),
-				Result.map((dailyData) => {
-					if (dailyData.length > 0) {
-						const totals = calculateTotals(dailyData);
-						return totals.totalCost;
-					}
-					return 0;
-				}),
-				Result.inspectError(error => logger.error('Failed to load daily data:', error)),
-				Result.unwrap(0),
-			);
-
-			// Load session block data to find active block
-			const { blockInfo, burnRateInfo } = await Result.pipe(
-				Result.try({
-					try: loadSessionBlockData({
-						mode: 'auto',
-						offline: ctx.values.offline,
-					}),
-					catch: error => error,
-				}),
-				Result.map((blocks) => {
-				// Only identify blocks if we have data
-					if (blocks.length === 0) {
-						return { blockInfo: 'No active block', burnRateInfo: '' };
-					}
-
-					// Find active block that contains our session
-					const activeBlock = blocks.find((block) => {
-						if (!block.isActive) {
-							return false;
-						}
-
-						// Check if any entry in this block matches our session
-						// Since we don't have direct session mapping in entries,
-						// we use the active block that's currently running
-						return true;
-					});
-
-					if (activeBlock != null) {
-						const now = new Date();
-						const remaining = Math.round((activeBlock.endTime.getTime() - now.getTime()) / (1000 * 60));
-						const blockCost = activeBlock.costUSD;
-
-						const blockInfo = `${formatCurrency(blockCost)} block (${formatRemainingTime(remaining)})`;
-
-						// Calculate burn rate
-						const burnRate = calculateBurnRate(activeBlock);
-						const burnRateInfo = burnRate != null
-							? (() => {
-									const costPerHour = burnRate.costPerHour;
-									const costPerHourStr = `${formatCurrency(costPerHour)}/hr`;
-
-									// Apply color based on burn rate (tokens per minute non-cache)
-									const coloredBurnRate = burnRate.tokensPerMinuteForIndicator < 2000
-										? pc.green(costPerHourStr) // Normal
-										: burnRate.tokensPerMinuteForIndicator < 5000
-											? pc.yellow(costPerHourStr) // Moderate
-											: pc.red(costPerHourStr); // High
-
-									return ` | 🔥 ${coloredBurnRate}`;
-								})()
-							: '';
-
-						return { blockInfo, burnRateInfo };
-					}
-
-					return { blockInfo: 'No active block', burnRateInfo: '' };
-				}),
-				Result.inspectError(error => logger.error('Failed to load block data:', error)),
-				Result.unwrap({ blockInfo: 'No active block', burnRateInfo: '' }),
-			);
-
-			// Calculate context tokens from transcript with model-specific limits
-			const contextInfo = await Result.pipe(
-				Result.try({
-					try: calculateContextTokens(hookData.transcript_path, hookData.model.id, ctx.values.offline),
-					catch: error => error,
-				}),
-				Result.inspectError(error => logger.debug(`Failed to calculate context tokens: ${error instanceof Error ? error.message : String(error)}`)),
-				Result.map((ctx) => {
-					if (ctx == null) {
-						return undefined;
-					}
-					// Format context percentage with color coding using configurable thresholds
-					const thresholds = getContextUsageThresholds();
-					const color = ctx.percentage < thresholds.LOW
-						? pc.green
-						: ctx.percentage < thresholds.MEDIUM
-							? pc.yellow
-							: pc.red;
-					const coloredPercentage = color(`${ctx.percentage}%`);
-
-					// Format token count with thousand separators
-					const tokenDisplay = ctx.inputTokens.toLocaleString();
-					return `${tokenDisplay} (${coloredPercentage})`;
-				}),
-				Result.unwrap(undefined),
-			);
-
-			// Get model display name
-			const modelName = hookData.model.display_name;
-
-			// Format and output the status line
-			// Format: 🤖 model | 💰 session / today / block | 🔥 burn | 🧠 context
-			const sessionDisplay = sessionCost != null ? formatCurrency(sessionCost) : 'N/A';
-			const statusLine = `🤖 ${modelName} | 💰 ${sessionDisplay} session / ${formatCurrency(todayCost)} today / ${blockInfo}${burnRateInfo} | 🧠 ${contextInfo ?? 'N/A'}`;
-
-			// Update semaphore with fresh data and mark as completed
-			if (ctx.values.cache) {
+		{
+			const currentPid = process.pid;
+			using semaphore = getSemaphore(sessionId);
+			if (semaphore.data != null) {
+				semaphore.data = {
+					...semaphore.data,
+					isUpdating: true,
+					pid: currentPid,
+				} as const satisfies SemaphoreType;
+			}
+			else {
 				semaphore.data = {
 					date: new Date().toISOString(),
-					lastOutput: statusLine,
-					inputHash,
-					isUpdating: false,
-					pid: undefined,
-				};
+					lastOutput: '',
+					inputHash: '',
+					isUpdating: true,
+					pid: currentPid,
+				} as const satisfies SemaphoreType;
 			}
-
-			log(statusLine);
 		}
-		catch (error) {
-			// Reset updating flag on error to prevent deadlock
-			if (ctx.values.cache && semaphore.data != null) {
-				semaphore.data.isUpdating = false;
-				semaphore.data.pid = undefined;
+
+		const mainProcessingResult = Result.pipe(
+			await Result.try({
+				try: async () => {
+					const sessionCost = await Result.pipe(
+						Result.try({
+							try: loadSessionUsageById(sessionId, {
+								mode: 'auto',
+								offline: ctx.values.offline,
+							}),
+							catch: error => error,
+						}),
+						Result.map(sessionCost => sessionCost?.totalCost),
+						Result.inspectError(error => logger.error('Failed to load session data:', error)),
+						Result.unwrap(undefined),
+					);
+
+					// Load today's usage data
+					const today = new Date();
+					const todayStr = today.toISOString().split('T')[0]?.replace(/-/g, '') ?? ''; // Convert to YYYYMMDD format
+
+					const todayCost = await Result.pipe(
+						Result.try({
+							try: loadDailyUsageData({
+								since: todayStr,
+								until: todayStr,
+								mode: 'auto',
+								offline: ctx.values.offline,
+							}),
+							catch: error => error,
+						}),
+						Result.map((dailyData) => {
+							if (dailyData.length > 0) {
+								const totals = calculateTotals(dailyData);
+								return totals.totalCost;
+							}
+							return 0;
+						}),
+						Result.inspectError(error => logger.error('Failed to load daily data:', error)),
+						Result.unwrap(0),
+					);
+
+					// Load session block data to find active block
+					const { blockInfo, burnRateInfo } = await Result.pipe(
+						Result.try({
+							try: loadSessionBlockData({
+								mode: 'auto',
+								offline: ctx.values.offline,
+							}),
+							catch: error => error,
+						}),
+						Result.map((blocks) => {
+						// Only identify blocks if we have data
+							if (blocks.length === 0) {
+								return { blockInfo: 'No active block', burnRateInfo: '' };
+							}
+
+							// Find active block that contains our session
+							const activeBlock = blocks.find((block) => {
+								if (!block.isActive) {
+									return false;
+								}
+
+								// Check if any entry in this block matches our session
+								// Since we don't have direct session mapping in entries,
+								// we use the active block that's currently running
+								return true;
+							});
+
+							if (activeBlock != null) {
+								const now = new Date();
+								const remaining = Math.round((activeBlock.endTime.getTime() - now.getTime()) / (1000 * 60));
+								const blockCost = activeBlock.costUSD;
+
+								const blockInfo = `${formatCurrency(blockCost)} block (${formatRemainingTime(remaining)})`;
+
+								// Calculate burn rate
+								const burnRate = calculateBurnRate(activeBlock);
+								const burnRateInfo = burnRate != null
+									? (() => {
+											const costPerHour = burnRate.costPerHour;
+											const costPerHourStr = `${formatCurrency(costPerHour)}/hr`;
+
+											// Apply color based on burn rate (tokens per minute non-cache)
+											const coloredBurnRate = burnRate.tokensPerMinuteForIndicator < 2000
+												? pc.green(costPerHourStr) // Normal
+												: burnRate.tokensPerMinuteForIndicator < 5000
+													? pc.yellow(costPerHourStr) // Moderate
+													: pc.red(costPerHourStr); // High
+
+											return ` | 🔥 ${coloredBurnRate}`;
+										})()
+									: '';
+
+								return { blockInfo, burnRateInfo };
+							}
+
+							return { blockInfo: 'No active block', burnRateInfo: '' };
+						}),
+						Result.inspectError(error => logger.error('Failed to load block data:', error)),
+						Result.unwrap({ blockInfo: 'No active block', burnRateInfo: '' }),
+					);
+
+					// Calculate context tokens from transcript with model-specific limits
+					const contextInfo = await Result.pipe(
+						Result.try({
+							try: calculateContextTokens(hookData.transcript_path, hookData.model.id, ctx.values.offline),
+							catch: error => error,
+						}),
+						Result.inspectError(error => logger.debug(`Failed to calculate context tokens: ${error instanceof Error ? error.message : String(error)}`)),
+						Result.map((ctx) => {
+							if (ctx == null) {
+								return undefined;
+							}
+							// Format context percentage with color coding using configurable thresholds
+							const thresholds = getContextUsageThresholds();
+							const color = ctx.percentage < thresholds.LOW
+								? pc.green
+								: ctx.percentage < thresholds.MEDIUM
+									? pc.yellow
+									: pc.red;
+							const coloredPercentage = color(`${ctx.percentage}%`);
+
+							// Format token count with thousand separators
+							const tokenDisplay = ctx.inputTokens.toLocaleString();
+							return `${tokenDisplay} (${coloredPercentage})`;
+						}),
+						Result.unwrap(undefined),
+					);
+
+					// Get model display name
+					const modelName = hookData.model.display_name;
+
+					// Format and output the status line
+					// Format: 🤖 model | 💰 session / today / block | 🔥 burn | 🧠 context
+					const sessionDisplay = sessionCost != null ? formatCurrency(sessionCost) : 'N/A';
+					const statusLine = `🤖 ${modelName} | 💰 ${sessionDisplay} session / ${formatCurrency(todayCost)} today / ${blockInfo}${burnRateInfo} | 🧠 ${contextInfo ?? 'N/A'}`;
+					return statusLine;
+				},
+				catch: error => error,
+			})(),
+		);
+
+		if (Result.isSuccess(mainProcessingResult)) {
+			const statusLine = mainProcessingResult.value;
+			log(statusLine);
+			if (!ctx.values.cache) {
+				return;
 			}
+			// update semaphore with result
+			using semaphore = getSemaphore(sessionId);
+			semaphore.data = {
+				date: new Date().toISOString(),
+				lastOutput: statusLine,
+				inputHash,
+				isUpdating: false,
+				pid: undefined,
+			};
+			return;
+		}
+
+		// Handle processing result
+		if (Result.isFailure(mainProcessingResult)) {
+			// Reset updating flag on error to prevent deadlock
 
 			// If we have a cached output from previous run, use it
-			if (semaphore.data?.lastOutput !== undefined && semaphore.data.lastOutput !== '') {
-				log(semaphore.data.lastOutput);
+			if (cachedData?.lastOutput !== undefined && cachedData.lastOutput !== '') {
+				log(cachedData.lastOutput);
 			}
 			else {
 				// Fallback minimal output
 				log('❌ Error generating status');
 			}
 
-			logger.error('Error in statusline command:', error);
+			logger.error('Error in statusline command:', mainProcessingResult.error);
+
+			if (!ctx.values.cache) {
+				return;
+			}
+
+			// Release semaphore and reset updating flag
+			using semaphore = getSemaphore(sessionId);
+			if (semaphore.data != null) {
+				semaphore.data.isUpdating = false;
+				semaphore.data.pid = undefined;
+			}
 		}
 	},
 });
