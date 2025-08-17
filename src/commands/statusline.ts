@@ -31,7 +31,7 @@ function formatRemainingTime(remaining: number): string {
 	return `${remainingMins}m left`;
 }
 
-function getSemaphore(sessionId: string): ReturnType<typeof createLimoJson<SemaphoreType>> {
+function getSemaphore(sessionId: string): ReturnType<typeof createLimoJson<SemaphoreType | undefined>> {
 	const semaphoreDir = join(tmpdir(), 'ccusage-semaphore');
 	const semaphorePath = join(semaphoreDir, `${sessionId}.lock`);
 
