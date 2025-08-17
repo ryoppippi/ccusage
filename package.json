@@ -104,7 +104,8 @@
 		"zod": "^3.25.67"
 	},
 	"simple-git-hooks": {
-		"pre-commit": "bun lint-staged"
+		"pre-commit": "bun lint-staged",
+		"pre-push": "bun run test"
 	},
 	"lint-staged": {
 		"*": [
