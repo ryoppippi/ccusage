@@ -1723,7 +1723,7 @@ if (import.meta.vitest != null) {
 				},
 			});
 
-			vi.stubEnv('CLAUDE_CONFIG_DIR', path.join(fixture.path, '.claude'));
+			vi.stubEnv('CLAUDE_CONFIG_DIR', fixture.getPath('.claude'));
 
 			const result = await loadSessionUsageById('session-123', { mode: 'display' });
 
@@ -1754,7 +1754,7 @@ if (import.meta.vitest != null) {
 				},
 			});
 
-			vi.stubEnv('CLAUDE_CONFIG_DIR', path.join(fixture.path, '.claude'));
+			vi.stubEnv('CLAUDE_CONFIG_DIR', fixture.getPath('.claude'));
 
 			const result = await loadSessionUsageById('non-existent', { mode: 'display' });
 
@@ -4671,9 +4671,9 @@ if (import.meta.vitest != null) {
 			});
 
 			const paths = [
-				path.join(fixture.path, 'path1'),
-				path.join(fixture.path, 'path2'),
-				path.join(fixture.path, 'path3'),
+				fixture.getPath('path1'),
+				fixture.getPath('path2'),
+				fixture.getPath('path3'),
 			];
 
 			const results = await globUsageFiles(paths);
@@ -4694,8 +4694,8 @@ if (import.meta.vitest != null) {
 			});
 
 			const paths = [
-				path.join(fixture.path, 'valid'),
-				path.join(fixture.path, 'nonexistent'), // This path doesn't exist
+				fixture.getPath('valid'),
+				fixture.getPath('nonexistent'), // This path doesn't exist
 			];
 
 			const results = await globUsageFiles(paths);
@@ -4709,7 +4709,7 @@ if (import.meta.vitest != null) {
 				'empty/projects': {}, // Empty directory
 			});
 
-			const paths = [path.join(fixture.path, 'empty')];
+			const paths = [fixture.getPath('empty')];
 			const results = await globUsageFiles(paths);
 
 			expect(results).toEqual([]);
@@ -4722,7 +4722,7 @@ if (import.meta.vitest != null) {
 				'path1/projects/project2/session1/usage.jsonl': 'data3',
 			});
 
-			const paths = [path.join(fixture.path, 'path1')];
+			const paths = [fixture.getPath('path1')];
 			const results = await globUsageFiles(paths);
 
 			expect(results).toHaveLength(3);
