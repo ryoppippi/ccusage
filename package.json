@@ -61,9 +61,6 @@
 		"test:statusline:sonnet41": "cat test/statusline-test-sonnet41.json | bun run start statusline --offline",
 		"typecheck": "tsgo --noEmit"
 	},
-	"dependencies": {
-		"zod-to-json-schema": "^3.24.6"
-	},
 	"devDependencies": {
 		"@antfu/utils": "^9.2.0",
 		"@core/errorutil": "npm:@jsr/core__errorutil@^1.2.1",
