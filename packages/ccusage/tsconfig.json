@@ -1,0 +1,12 @@
+{
+	"extends": "../../tsconfig.json",
+	"compilerOptions": {
+		"types": [
+			"vitest/globals",
+			"vitest/importMeta"
+		]
+	},
+	"exclude": [
+		"dist"
+	]
+}
