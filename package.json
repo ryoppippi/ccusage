@@ -31,7 +31,7 @@
 		"preinstall": "npx only-allow bun",
 		"lint": "bun run --filter '*' lint",
 		"mcp": "cd packages/ccusage && bun run mcp",
-		"prepare": "simple-git-hooks",
+		"prepare": "git config --local core.hooksPath .githooks",
 		"release": "cd packages/ccusage && bun run release",
 		"start": "cd packages/ccusage && bun run start",
 		"test": "bun run --filter '*' test",
@@ -42,9 +42,6 @@
 		"test:statusline:sonnet41": "cd packages/ccusage && bun run test:statusline:sonnet41",
 		"typecheck": "bun run --filter '*' typecheck"
 	},
-	"simple-git-hooks": {
-		"pre-commit": "bun lint-staged"
-	},
 	"lint-staged": {
 		"*": [
 			"bun run format"
@@ -52,7 +49,6 @@
 	},
 	"devDependencies": {
 		"lint-staged": "^16.1.5",
-		"simple-git-hooks": "^2.13.0",
 		"sort-package-json": "^3.4.0"
 	}
 }
