@@ -1,10 +1,10 @@
 {
 	"name": "ccusage-monorepo",
+	"type": "module",
 	"private": true,
 	"description": "Usage analysis tool for Claude Code - Monorepo",
-	"license": "MIT",
 	"author": "ryoppippi",
-	"type": "module",
+	"license": "MIT",
 	"funding": "https://github.com/ryoppippi/ccusage?sponsor=1",
 	"homepage": "https://github.com/ryoppippi/ccusage#readme",
 	"repository": {
@@ -27,23 +27,29 @@
 		"docs:deploy": "cd docs && bun run deploy",
 		"docs:dev": "cd docs && bun run dev",
 		"docs:preview": "cd docs && bun run preview",
-		"format": "sort-package-json **/package.json && bun run --filter '*' format",
+		"format": "bun run lint --fix",
 		"preinstall": "npx only-allow bun",
-		"lint": "bun run --filter '*' lint",
+		"lint": "eslint --cache .",
 		"prepare": "git config --local core.hooksPath .githooks",
 		"prerelease": "bun run lint && bun run typecheck && bun run test && bun run build",
 		"release": "bumpp --recursive",
 		"test": "bun run --filter '*' test",
 		"typecheck": "bun run --filter '*' typecheck"
 	},
+	"devDependencies": {
+		"@ryoppippi/eslint-config": "^0.3.7",
+		"bumpp": "^10.2.3",
+		"eslint": "^9.33.0",
+		"eslint-plugin-format": "^1.0.1",
+		"lint-staged": "^16.1.5",
+		"sort-package-json": "^3.4.0"
+	},
 	"lint-staged": {
 		"*": [
 			"bun run format"
+		],
+		"package.json": [
+			"sort-package-json"
 		]
-	},
-	"devDependencies": {
-		"bumpp": "^10.2.3",
-		"lint-staged": "^16.1.5",
-		"sort-package-json": "^3.4.0"
 	}
 }
