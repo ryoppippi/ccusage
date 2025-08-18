@@ -83,18 +83,6 @@ async function generateJsonSchema() {
 		await Bun.write(`${docsSchemaDir}/ccusage.schema.json`, schemaJson);
 		logger.info(`✓ Generated docs/public/schema/ccusage.schema.json`);
 
-		// Write TypeScript definition file for reference
-		const tsDefinition = `// This file is auto-generated. Do not edit manually.
-// Generated from: scripts/generate-json-schema.ts
-
-export const CCUSAGE_JSON_SCHEMA = ${schemaJson} as const;
-
-export type CcusageConfigSchema = typeof CCUSAGE_JSON_SCHEMA;
-`;
-
-		await Bun.write(`${schemaDir}/ccusage.schema.ts`, tsDefinition);
-		logger.info(`✓ Generated schema/ccusage.schema.ts`);
-
 		logger.info('JSON Schema generation completed successfully!');
 	}
 	catch (error) {
