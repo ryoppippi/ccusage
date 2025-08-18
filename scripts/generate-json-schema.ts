@@ -32,7 +32,6 @@ async function generateJsonSchema() {
 			$refStrategy: 'none', // Inline all definitions for better IDE support
 			markdownDescription: true, // Enable markdown in descriptions
 			target: 'jsonSchema7', // Use JSON Schema Draft 7
-			definitionPath: '#/definitions/',
 			// Add additional metadata
 			additionalProperties: false,
 		});

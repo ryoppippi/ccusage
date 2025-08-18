@@ -1,6 +1,6 @@
 {
-	"$ref": "#/#/definitions//ccusage-config",
-	"#/definitions/": {
+	"$ref": "#/definitions/ccusage-config",
+	"definitions": {
 		"ccusage-config": {
 			"type": "object",
 			"properties": {
