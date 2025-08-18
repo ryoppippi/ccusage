@@ -8,7 +8,6 @@ export default defineConfig({
 		globals: true,
 	},
 	plugins: [
-		// @ts-expect-error vite version mismatch with unplugin-macros
 		Macros({
 			include: ['src/index.ts', 'src/pricing-fetcher.ts'],
 		}),
