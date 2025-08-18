@@ -1,10 +1,10 @@
 {
 	"name": "ccusage-monorepo",
-	"type": "module",
-	"version": "15.9.9",
+	"private": true,
 	"description": "Usage analysis tool for Claude Code - Monorepo",
-	"author": "ryoppippi",
 	"license": "MIT",
+	"author": "ryoppippi",
+	"type": "module",
 	"funding": "https://github.com/ryoppippi/ccusage?sponsor=1",
 	"homepage": "https://github.com/ryoppippi/ccusage#readme",
 	"repository": {
@@ -14,7 +14,6 @@
 	"bugs": {
 		"url": "https://github.com/ryoppippi/ccusage/issues"
 	},
-	"private": true,
 	"workspaces": [
 		"packages/*",
 		"docs"
@@ -23,36 +22,37 @@
 		"node": ">=20.19.4"
 	},
 	"scripts": {
-		"build": "cd packages/ccusage && bun run build",
+		"build": "bun run --filter '*' build",
 		"docs:build": "cd docs && bun run build",
 		"docs:deploy": "cd docs && bun run deploy",
 		"docs:dev": "cd docs && bun run dev",
 		"docs:preview": "cd docs && bun run preview",
-		"format": "cd packages/ccusage && bun run format",
+		"format": "sort-package-json **/package.json && bun run --filter '*' format",
 		"preinstall": "npx only-allow bun",
-		"lint": "cd packages/ccusage && bun run lint",
+		"lint": "bun run --filter '*' lint",
 		"mcp": "cd packages/ccusage && bun run mcp",
-		"prepare": "git config --local core.hooksPath .githooks",
+		"prepare": "simple-git-hooks",
 		"release": "cd packages/ccusage && bun run release",
 		"start": "cd packages/ccusage && bun run start",
-		"test": "cd packages/ccusage && bun run test",
+		"test": "bun run --filter '*' test",
 		"test:statusline": "cd packages/ccusage && bun run test:statusline",
 		"test:statusline:all": "cd packages/ccusage && bun run test:statusline:all",
 		"test:statusline:opus4": "cd packages/ccusage && bun run test:statusline:opus4",
 		"test:statusline:sonnet4": "cd packages/ccusage && bun run test:statusline:sonnet4",
 		"test:statusline:sonnet41": "cd packages/ccusage && bun run test:statusline:sonnet41",
-		"typecheck": "cd packages/ccusage && bun run typecheck"
+		"typecheck": "bun run --filter '*' typecheck"
 	},
-	"devDependencies": {
-		"lint-staged": "^16.1.5",
-		"sort-package-json": "^3.4.0"
+	"simple-git-hooks": {
+		"pre-commit": "bun lint-staged"
 	},
 	"lint-staged": {
 		"*": [
-			"eslint --cache --fix"
-		],
-		"package.json": [
-			"sort-package-json"
+			"bun run format"
 		]
+	},
+	"devDependencies": {
+		"lint-staged": "^16.1.5",
+		"simple-git-hooks": "^2.13.0",
+		"sort-package-json": "^3.4.0"
 	}
 }
