@@ -39,17 +39,18 @@
 		"node": ">=20.19.4"
 	},
 	"scripts": {
-		"build": "tsdown",
+		"build": "bun run generate:schema && tsdown",
 		"docs:build": "cd docs && bun run build",
 		"docs:deploy": "cd docs && bun run deploy",
 		"docs:dev": "cd docs && bun run dev",
 		"docs:preview": "cd docs && bun run preview",
 		"format": "bun run lint --fix",
+		"generate:schema": "bun run scripts/generate-json-schema.ts",
 		"preinstall": "npx only-allow bun",
 		"lint": "eslint --cache .",
 		"mcp": "bunx @modelcontextprotocol/inspector bun run start mcp",
 		"prepack": "bun run build && bun clean-pkg-json -r scripts.preinstall",
-		"prepare": "git config --local core.hooksPath .githooks",
+		"prepare": "git config --local core.hooksPath .githooks && bun run generate:schema",
 		"release": "bun lint && bun typecheck && vitest run && bun run build && bumpp",
 		"start": "bun run ./src/index.ts",
 		"test": "TZ=UTC vitest",
@@ -59,6 +60,9 @@
 		"test:statusline:sonnet4": "cat test/statusline-test-sonnet4.json | bun run start statusline --offline",
 		"test:statusline:sonnet41": "cat test/statusline-test-sonnet41.json | bun run start statusline --offline",
 		"typecheck": "tsgo --noEmit"
+	},
+	"dependencies": {
+		"zod-to-json-schema": "^3.24.6"
 	},
 	"devDependencies": {
 		"@antfu/utils": "^9.2.0",

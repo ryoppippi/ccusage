@@ -1,2 +1,7 @@
 #!/bin/sh
+
+# Generate JSON Schema before committing
+bun run scripts/generate-json-schema.ts
+
+# Run lint-staged
 npx --no-install lint-staged

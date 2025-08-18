@@ -2,6 +2,7 @@ import process from 'node:process';
 import { Result } from '@praha/byethrow';
 import { define } from 'gunshi';
 import pc from 'picocolors';
+import { loadConfig, mergeConfigWithArgs } from '../_config-loader.ts';
 import { WEEK_DAYS } from '../_consts.ts';
 import { processWithJq } from '../_jq-processor.ts';
 import { sharedArgs } from '../_shared-args.ts';
@@ -30,22 +31,17 @@ export const weeklyCommand = define({
 	},
 	toKebab: true,
 	async run(ctx) {
+		// Load configuration and merge with CLI arguments
+		const config = loadConfig();
+		const mergedOptions = mergeConfigWithArgs('weekly', ctx.values, config) as typeof ctx.values;
+
 		// --jq implies --json
-		const useJson = ctx.values.json || ctx.values.jq != null;
+		const useJson = Boolean(mergedOptions.json) || mergedOptions.jq != null;
 		if (useJson) {
 			logger.level = 0;
 		}
 
-		const weeklyData = await loadWeeklyUsageData({
-			since: ctx.values.since,
-			until: ctx.values.until,
-			timezone: ctx.values.timezone,
-			mode: ctx.values.mode,
-			order: ctx.values.order,
-			offline: ctx.values.offline,
-			startOfWeek: ctx.values.startOfWeek,
-			locale: ctx.values.locale,
-		});
+		const weeklyData = await loadWeeklyUsageData(mergedOptions);
 
 		if (weeklyData.length === 0) {
 			if (useJson) {
@@ -72,9 +68,9 @@ export const weeklyCommand = define({
 		const totals = calculateTotals(weeklyData);
 
 		// Show debug information if requested
-		if (ctx.values.debug && !useJson) {
+		if (Boolean(mergedOptions.debug) && !useJson) {
 			const mismatchStats = await detectMismatches(undefined);
-			printMismatchReport(mismatchStats, ctx.values.debugSamples);
+			printMismatchReport(mismatchStats, mergedOptions.debugSamples as number | undefined);
 		}
 
 		if (useJson) {
@@ -95,8 +91,8 @@ export const weeklyCommand = define({
 			};
 
 			// Process with jq if specified
-			if (ctx.values.jq != null) {
-				const jqResult = await processWithJq(jsonOutput, ctx.values.jq);
+			if (mergedOptions.jq != null) {
+				const jqResult = await processWithJq(jsonOutput, mergedOptions.jq);
 				if (Result.isFailure(jqResult)) {
 					logger.error((jqResult.error).message);
 					process.exit(1);
@@ -136,7 +132,7 @@ export const weeklyCommand = define({
 					'right',
 					'right',
 				],
-				dateFormatter: (dateStr: string) => formatDateCompact(dateStr, ctx.values.timezone, ctx.values.locale),
+				dateFormatter: (dateStr: string) => formatDateCompact(dateStr, mergedOptions.timezone, mergedOptions.locale as string | undefined),
 				compactHead: [
 					'Week',
 					'Models',
@@ -169,7 +165,7 @@ export const weeklyCommand = define({
 				]);
 
 				// Add model breakdown rows if flag is set
-				if (ctx.values.breakdown) {
+				if (mergedOptions.breakdown) {
 					pushBreakdownRows(table, data.modelBreakdowns);
 				}
 			}
