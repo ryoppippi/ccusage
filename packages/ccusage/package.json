@@ -1,19 +1,19 @@
 {
 	"name": "ccusage",
+	"type": "module",
 	"version": "15.9.9",
 	"description": "Usage analysis tool for Claude Code",
+	"author": "ryoppippi",
+	"license": "MIT",
+	"funding": "https://github.com/ryoppippi/ccusage?sponsor=1",
 	"homepage": "https://github.com/ryoppippi/ccusage#readme",
-	"bugs": {
-		"url": "https://github.com/ryoppippi/ccusage/issues"
-	},
 	"repository": {
 		"type": "git",
 		"url": "git+https://github.com/ryoppippi/ccusage.git"
 	},
-	"funding": "https://github.com/ryoppippi/ccusage?sponsor=1",
-	"license": "MIT",
-	"author": "ryoppippi",
-	"type": "module",
+	"bugs": {
+		"url": "https://github.com/ryoppippi/ccusage/issues"
+	},
 	"exports": {
 		".": "./dist/index.js",
 		"./calculate-cost": "./dist/calculate-cost.js",
@@ -33,13 +33,15 @@
 		"README.md",
 		"dist"
 	],
+	"engines": {
+		"node": ">=20.19.4"
+	},
 	"scripts": {
 		"build": "tsdown",
 		"format": "bun run lint --fix",
 		"lint": "eslint --cache .",
 		"mcp": "bunx @modelcontextprotocol/inspector bun run start mcp",
 		"prepack": "bun run build && bun clean-pkg-json -r scripts.preinstall && cp ../../README.md ./README.md && cp ../../LICENSE ./LICENSE",
-		"release": "bun lint && bun typecheck && vitest run && bun run build && bumpp",
 		"start": "bun run ./src/index.ts",
 		"test": "TZ=UTC vitest",
 		"test:statusline": "cat test/statusline-test.json | bun run start statusline",
@@ -65,7 +67,6 @@
 		"@types/bun": "^1.2.20",
 		"@typescript/native-preview": "^7.0.0-dev.20250815.1",
 		"ansi-escapes": "^7.0.0",
-		"bumpp": "^10.2.3",
 		"clean-pkg-json": "^1.3.0",
 		"cli-table3": "^0.6.5",
 		"consola": "^3.4.2",
@@ -91,8 +92,5 @@
 		"vitest": "^3.2.4",
 		"xdg-basedir": "^5.1.0",
 		"zod": "^3.25.67"
-	},
-	"engines": {
-		"node": ">=20.19.4"
 	}
 }

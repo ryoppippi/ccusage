@@ -46,7 +46,6 @@
         "@types/bun": "^1.2.20",
         "@typescript/native-preview": "^7.0.0-dev.20250815.1",
         "ansi-escapes": "^7.0.0",
-        "bumpp": "^10.2.3",
         "clean-pkg-json": "^1.3.0",
         "cli-table3": "^0.6.5",
         "consola": "^3.4.2",
