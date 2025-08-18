@@ -73,7 +73,7 @@
 		"@ryoppippi/limo": "npm:@jsr/ryoppippi__limo@^0.2.2",
 		"@std/async": "npm:@jsr/std__async@^1.0.14",
 		"@types/bun": "^1.2.20",
-		"@typescript/native-preview": "^7.0.0-dev.20250814.1",
+		"@typescript/native-preview": "^7.0.0-dev.20250815.1",
 		"ansi-escapes": "^7.0.0",
 		"bumpp": "^10.2.3",
 		"clean-pkg-json": "^1.3.0",
