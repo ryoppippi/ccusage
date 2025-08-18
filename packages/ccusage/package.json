@@ -39,7 +39,7 @@
 	"scripts": {
 		"build": "tsdown",
 		"format": "bun run lint --fix",
-		"lint": "eslint --cache .",
+		"lint": "eslint --debug --cache .",
 		"mcp": "bunx @modelcontextprotocol/inspector bun run start mcp",
 		"prepack": "bun run build && bun clean-pkg-json -r scripts.preinstall && cp ../../README.md ./README.md && cp ../../LICENSE ./LICENSE",
 		"start": "bun run ./src/index.ts",
