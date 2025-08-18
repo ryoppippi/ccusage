@@ -17,3 +17,4 @@ node_modules/
 Thumbs.db
 
 public/_redirects
+public/config-schema.json

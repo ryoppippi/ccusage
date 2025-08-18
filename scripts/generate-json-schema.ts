@@ -10,7 +10,6 @@
  * - Schema validation for configuration files
  */
 
-import { existsSync, mkdirSync } from 'node:fs';
 import process from 'node:process';
 import { zodToJsonSchema } from 'zod-to-json-schema';
 import { createConfigSchema } from '../src/_config-schema.ts';
@@ -43,7 +42,7 @@ async function generateJsonSchema() {
 			description: 'Configuration file for ccusage - Claude Code usage analysis tool',
 			examples: [
 				{
-					$schema: './ccusage.schema.json',
+					$schema: 'https://ccusage.com/config-schema.json',
 					defaults: {
 						json: false,
 						mode: 'auto',
@@ -62,25 +61,14 @@ async function generateJsonSchema() {
 			],
 		};
 
-		// Ensure directories exist
-		const schemaDir = 'schema';
-		const docsSchemaDir = 'docs/public/schema';
-
-		if (!existsSync(schemaDir)) {
-			mkdirSync(schemaDir, { recursive: true });
-		}
-		if (!existsSync(docsSchemaDir)) {
-			mkdirSync(docsSchemaDir, { recursive: true });
-		}
-
 		// Write schema files
 		const schemaJson = JSON.stringify(enhancedSchema, null, 2);
 
-		await Bun.write(`${schemaDir}/ccusage.schema.json`, schemaJson);
-		logger.info(`✓ Generated schema/ccusage.schema.json`);
+		await Bun.write(`config-schema.json`, schemaJson);
+		logger.info(`✓ Generated config-schema.json`);
 
-		await Bun.write(`${docsSchemaDir}/ccusage.schema.json`, schemaJson);
-		logger.info(`✓ Generated docs/public/schema/ccusage.schema.json`);
+		await Bun.write(`docs/public/config-schema.json`, schemaJson);
+		logger.info(`✓ Generated docs/public/config-schema.json`);
 
 		logger.info('JSON Schema generation completed successfully!');
 	}

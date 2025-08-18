@@ -69,10 +69,13 @@ Unlike other CLI tools, we pay extreme attention to bundle size. ccusage achieve
 
 ### 🔧 Flexible Configuration
 
-- Multiple Claude data directory support
-- Environment variable configuration
-- Custom date filtering and sorting
-- Offline mode with cached pricing data
+- **JSON Configuration Files** - Set defaults for all commands or customize per-command
+- **IDE Support** - JSON Schema for autocomplete and validation
+- **Priority-based Settings** - CLI args > local config > user config > defaults
+- **Multiple Claude Data Directories** - Automatic detection and aggregation
+- **Environment Variables** - Traditional configuration options
+- **Custom Date Filtering** - Flexible time range selection and sorting
+- **Offline Mode** - Cached pricing data for air-gapped environments
 
 ## Data Sources
 

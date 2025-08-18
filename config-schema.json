@@ -709,7 +709,7 @@
 	"description": "Configuration file for ccusage - Claude Code usage analysis tool",
 	"examples": [
 		{
-			"$schema": "./ccusage.schema.json",
+			"$schema": "https://ccusage.com/config-schema.json",
 			"defaults": {
 				"json": false,
 				"mode": "auto",

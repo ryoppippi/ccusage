@@ -1,7 +1,7 @@
 {
-	"$schema": "./schema/ccusage.schema.json",
+	"$schema": "./config-schema.json",
 	"defaults": {
-		"json": false,
+		"json": true,
 		"mode": "auto",
 		"timezone": "Asia/Tokyo",
 		"locale": "ja-JP",

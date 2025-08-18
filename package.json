@@ -29,6 +29,7 @@
 	"types": "./dist/index.d.ts",
 	"bin": "./dist/index.js",
 	"files": [
+		"config-schema.json",
 		"dist"
 	],
 	"workspaces": [
