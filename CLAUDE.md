@@ -254,7 +254,6 @@ This ensures code quality and catches issues immediately after changes.
 # Tips for Claude Code
 
 - [gunshi](https://gunshi.dev/llms.txt) - Documentation available via Gunshi MCP server
-- [byethrow](https://praha-inc.github.io/byethrow/llms.txt) - Documentation available via Byethrow MCP server
 - Context7 MCP server available for library documentation lookup
 - do not use console.log. use logger.ts instead
 - **IMPORTANT**: When searching for TypeScript functions, types, or symbols in the codebase, ALWAYS use TypeScript MCP (lsmcp) tools like `get_definitions`, `find_references`, `get_hover`, etc. DO NOT use grep/rg for searching TypeScript code structures.
