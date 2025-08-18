@@ -4,6 +4,7 @@
     "": {
       "name": "ccusage",
       "devDependencies": {
+        "bumpp": "^10.2.3",
         "lint-staged": "^16.1.5",
         "sort-package-json": "^3.4.0",
       },

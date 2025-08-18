@@ -30,16 +30,10 @@
 		"format": "sort-package-json **/package.json && bun run --filter '*' format",
 		"preinstall": "npx only-allow bun",
 		"lint": "bun run --filter '*' lint",
-		"mcp": "cd packages/ccusage && bun run mcp",
 		"prepare": "git config --local core.hooksPath .githooks",
-		"release": "cd packages/ccusage && bun run release",
-		"start": "cd packages/ccusage && bun run start",
+		"prerelease": "bun run lint && bun run typecheck && bun run test && bun run build",
+		"release": "bumpp --recursive",
 		"test": "bun run --filter '*' test",
-		"test:statusline": "cd packages/ccusage && bun run test:statusline",
-		"test:statusline:all": "cd packages/ccusage && bun run test:statusline:all",
-		"test:statusline:opus4": "cd packages/ccusage && bun run test:statusline:opus4",
-		"test:statusline:sonnet4": "cd packages/ccusage && bun run test:statusline:sonnet4",
-		"test:statusline:sonnet41": "cd packages/ccusage && bun run test:statusline:sonnet41",
 		"typecheck": "bun run --filter '*' typecheck"
 	},
 	"lint-staged": {
@@ -48,6 +42,7 @@
 		]
 	},
 	"devDependencies": {
+		"bumpp": "^10.2.3",
 		"lint-staged": "^16.1.5",
 		"sort-package-json": "^3.4.0"
 	}
