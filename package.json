@@ -29,7 +29,7 @@
 		"docs:preview": "cd docs && bun run preview",
 		"format": "bun run lint --fix",
 		"preinstall": "npx only-allow bun",
-		"lint": "bun -b eslint --cache .",
+		"lint": "bun -b eslint .",
 		"prepare": "git config --local core.hooksPath .githooks",
 		"prerelease": "bun run lint && bun run typecheck && bun run test && bun run build",
 		"release": "bumpp --recursive",
