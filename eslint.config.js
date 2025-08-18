@@ -8,6 +8,8 @@ export default ryoppippi({
 	},
 	ignores: [
 		'docs/**',
+		'.lsmcp',
+		'.claude/settings.local.json',
 	],
 }, {
 	rules: {

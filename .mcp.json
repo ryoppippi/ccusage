@@ -21,6 +21,14 @@
 				"-p",
 				"tsgo"
 			]
+		},
+		"@praha/byethrow": {
+			"type": "stdio",
+			"command": "bun",
+			"args": [
+				"byethrow-mcp"
+			],
+			"env": {}
 		}
 	}
 }

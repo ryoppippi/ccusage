@@ -19,9 +19,9 @@
     "typedoc-plugin-markdown": "^4.8.1",
     "typedoc-vitepress-theme": "^1.1.2",
     "vitepress": "^1.6.4",
-    "vitepress-plugin-group-icons": "^1.6.2",
-    "vitepress-plugin-llms": "^1.7.2",
+    "vitepress-plugin-group-icons": "^1.6.3",
+    "vitepress-plugin-llms": "^1.7.3",
     "vitepress-plugin-mermaid": "^2.0.17",
-    "wrangler": "^4.28.1"
+    "wrangler": "^4.30.0"
   }
 }

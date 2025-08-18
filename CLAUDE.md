@@ -156,6 +156,7 @@ This is a CLI tool that analyzes Claude Code usage data from local JSONL files s
   - **ESLint MCP**: Lint TypeScript/JavaScript files directly through Claude Code tools
   - **Context7 MCP**: Look up documentation for libraries and frameworks
   - **Gunshi MCP**: Access gunshi.dev documentation and examples
+  - **Byethrow MCP**: Access @praha/byethrow documentation and examples for functional error handling
   - **TypeScript MCP (lsmcp)**: Search for TypeScript functions, types, and symbols across the codebase
 
 ## Code Style Notes
@@ -170,7 +171,7 @@ This is a CLI tool that analyzes Claude Code usage data from local JSONL files s
 **Error Handling:**
 
 - **Prefer @praha/byethrow Result type** over traditional try-catch for functional error handling
-  - Documentation: https://praha-inc.github.io/byethrow/llms.txt
+  - Documentation: Available via byethrow MCP server
 - Use `Result.try()` for wrapping operations that may throw (JSON parsing, etc.)
 - Use `Result.isFailure()` for checking errors (more readable than `!Result.isSuccess()`)
 - Use early return pattern (`if (Result.isFailure(result)) continue;`) instead of ternary operators
