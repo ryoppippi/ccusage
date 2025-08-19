@@ -1,4 +1,3 @@
-import type { subCommandUnion } from './commands/index.ts';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import process from 'node:process';
@@ -9,16 +8,31 @@ import { CONFIG_FILE_NAME } from './_consts.ts';
 import { getClaudePaths } from './data-loader.ts';
 import { logger } from './logger.ts';
 
-export type CommandName = typeof subCommandUnion[number][0];
+/**
+ * Extract explicitly provided arguments from gunshi tokens
+ * @param tokens - Command tokens from ctx.tokens
+ * @returns Object with keys as argument names and values as boolean (true if explicitly provided)
+ */
+function extractExplicitArgs(tokens: unknown[]): Record<string, boolean> {
+	const explicit: Record<string, boolean> = {};
 
-// Type for Gunshi context values
-type CliArgs = Record<string, unknown>;
+	for (const token of tokens) {
+		if (typeof token === 'object' && token !== null) {
+			const t = token as { kind?: string; name?: string };
+			if (t.kind === 'option' && typeof t.name === 'string') {
+				explicit[t.name] = true;
+			}
+		}
+	}
+
+	return explicit;
+}
 
 // Type for configuration data (simple structure without Zod)
 export type ConfigData = {
 	$schema?: string;
 	defaults?: Record<string, any>;
-	commands?: Partial<Record<CommandName, Record<string, any>>>;
+	commands?: Record<string, Record<string, any>>;
 	source?: string;
 };
 
@@ -133,17 +147,19 @@ export function loadConfig(configPath?: string): ConfigData | undefined {
  * 4. Gunshi defaults
  *
  * @param commandName - The command being executed
- * @param cliArgs - Arguments from CLI (ctx.values)
+ * @param ctx - Command context with values and explicit flags
+ * @param ctx.values - Command values from CLI
+ * @param ctx.tokens - Command tokens from CLI
  * @param config - Loaded configuration data
  * @returns Merged arguments object
  */
-export function mergeConfigWithArgs<T extends CliArgs>(
-	commandName: CommandName,
-	cliArgs: T,
+export function mergeConfigWithArgs<T extends Record<string, unknown>>(
+	commandName: string,
+	ctx: { values: T; tokens: unknown[] },
 	config?: ConfigData,
 ): T {
 	if (config == null) {
-		return cliArgs;
+		return ctx.values;
 	}
 
 	// Start with an empty base
@@ -160,9 +176,10 @@ export function mergeConfigWithArgs<T extends CliArgs>(
 	}
 
 	// 3. Apply CLI arguments (highest priority)
-	// Only override with CLI args that are explicitly set (not undefined)
-	for (const [key, value] of Object.entries(cliArgs)) {
-		if (value != null) {
+	// Only override with CLI args that are explicitly provided by the user
+	const explicit = extractExplicitArgs(ctx.tokens);
+	for (const [key, value] of Object.entries(ctx.values)) {
+		if (value != null && explicit[key] === true) {
 			// eslint-disable-next-line ts/no-unsafe-member-access
 			(merged as any)[key] = value;
 		}
@@ -204,6 +221,59 @@ export function validateConfigFile(configPath: string): { success: true; data: C
 }
 
 if (import.meta.vitest != null) {
+	describe('extractExplicitArgs', () => {
+		it('should extract explicit arguments from tokens', () => {
+			const tokens = [
+				{ kind: 'option', name: 'json' },
+				{ kind: 'option', name: 'debug' },
+				{ kind: 'positional', value: 'daily' }, // Should be ignored
+				{ kind: 'option', name: 'mode' },
+			];
+
+			const result = extractExplicitArgs(tokens);
+			expect(result).toEqual({
+				json: true,
+				debug: true,
+				mode: true,
+			});
+		});
+
+		it('should handle empty tokens array', () => {
+			const result = extractExplicitArgs([]);
+			expect(result).toEqual({});
+		});
+
+		it('should handle invalid token structures', () => {
+			const tokens = [
+				null,
+				undefined,
+				'string',
+				123,
+				{ kind: 'option' }, // Missing name
+				{ name: 'test' }, // Missing kind
+				{ kind: 'other', name: 'ignored' }, // Wrong kind
+			];
+
+			const result = extractExplicitArgs(tokens);
+			expect(result).toEqual({});
+		});
+
+		it('should handle mixed valid and invalid tokens', () => {
+			const tokens = [
+				{ kind: 'option', name: 'valid' },
+				null,
+				{ kind: 'positional', value: 'ignored' },
+				{ kind: 'option', name: 'alsoValid' },
+			];
+
+			const result = extractExplicitArgs(tokens);
+			expect(result).toEqual({
+				valid: true,
+				alsoValid: true,
+			});
+		});
+	});
+
 	describe('loadConfig', () => {
 		beforeEach(() => {
 			vi.restoreAllMocks();
@@ -408,7 +478,10 @@ if (import.meta.vitest != null) {
 				breakdown: true, // Not in config
 			};
 
-			const merged = mergeConfigWithArgs('daily', cliArgs, config);
+			const merged = mergeConfigWithArgs('daily', { values: cliArgs, tokens: [
+				{ kind: 'option', name: 'json' },
+				{ kind: 'option', name: 'breakdown' },
+			] }, config);
 
 			expect(merged).toEqual({
 				json: true, // From CLI (overrides config)
@@ -422,7 +495,10 @@ if (import.meta.vitest != null) {
 
 		it('should work without config', () => {
 			const cliArgs = { json: true, debug: false };
-			const merged = mergeConfigWithArgs('daily', cliArgs);
+			const merged = mergeConfigWithArgs('daily', { values: cliArgs, tokens: [
+				{ kind: 'option', name: 'json' },
+				{ kind: 'option', name: 'debug' },
+			] });
 			expect(merged).toEqual(cliArgs);
 		});
 
@@ -433,10 +509,65 @@ if (import.meta.vitest != null) {
 			};
 
 			const cliArgs = { json: true, instances: true };
-			const merged = mergeConfigWithArgs('daily', cliArgs, config);
+			const merged = mergeConfigWithArgs('daily', { values: cliArgs, tokens: [
+				{ kind: 'option', name: 'json' },
+				{ kind: 'option', name: 'instances' },
+			] }, config);
 
 			expect(merged.json).toBe(true);
 			expect(merged.instances).toBe(true);
+		});
+
+		it('should not override config with CLI args that were not explicitly provided', () => {
+			const config: ConfigData = {
+				defaults: {
+					json: false,
+					mode: 'calculate',
+				},
+				commands: {
+					daily: {
+						instances: true,
+					},
+				},
+			};
+
+			// CLI args has values but only 'json' was explicitly provided
+			const cliArgs = {
+				json: true,
+				mode: 'auto', // This has a value but wasn't explicitly provided
+				instances: false, // This also has a value but wasn't explicitly provided
+			};
+
+			const merged = mergeConfigWithArgs('daily', { values: cliArgs, tokens: [
+				{ kind: 'option', name: 'json' }, // Only json was explicitly provided
+			] }, config);
+
+			expect(merged).toEqual({
+				json: true, // From CLI (explicitly provided)
+				mode: 'calculate', // From config (CLI value ignored because not explicit)
+				instances: true, // From command config (CLI value ignored because not explicit)
+			});
+		});
+
+		it('should handle CLI args with null values correctly', () => {
+			const config: ConfigData = {
+				defaults: {
+					project: 'default-project',
+				},
+			};
+
+			const cliArgs = {
+				project: null, // Explicitly set to null
+			};
+
+			const merged = mergeConfigWithArgs('daily', { values: cliArgs, tokens: [
+				{ kind: 'option', name: 'project' },
+			] }, config);
+
+			// null value in CLI args should not override config even if explicit
+			expect(merged).toEqual({
+				project: 'default-project', // Config value retained because CLI value is null
+			});
 		});
 	});
 
