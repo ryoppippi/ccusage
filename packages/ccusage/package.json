@@ -34,12 +34,7 @@
 		"mcp": "bunx @modelcontextprotocol/inspector bun run start mcp",
 		"prepack": "bun run build && bun clean-pkg-json -r scripts.preinstall && cp ../../README.md ./README.md && cp ../../LICENSE ./LICENSE",
 		"start": "bun run ./src/index.ts",
-		"test": "TZ=UTC vitest",
-		"test:statusline": "cat test/statusline-test.json | bun run start statusline",
-		"test:statusline:all": "echo 'Testing Sonnet 4:' && bun run test:statusline:sonnet4 && echo 'Testing Opus 4.1:' && bun run test:statusline:opus4 && echo 'Testing Sonnet 4.1:' && bun run test:statusline:sonnet41",
-		"test:statusline:opus4": "cat test/statusline-test-opus4.json | bun run start statusline --offline",
-		"test:statusline:sonnet4": "cat test/statusline-test-sonnet4.json | bun run start statusline --offline",
-		"test:statusline:sonnet41": "cat test/statusline-test-sonnet41.json | bun run start statusline --offline"
+		"test": "TZ=UTC vitest"
 	},
 	"dependencies": {
 		"@ccusage/command": "workspace:*"

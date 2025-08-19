@@ -39,7 +39,7 @@
     },
     "packages/ccusage": {
       "name": "ccusage",
-      "version": "15.9.9",
+      "version": "15.10.0",
       "bin": "./dist/index.js",
       "dependencies": {
         "@ccusage/command": "workspace:*",
@@ -85,6 +85,7 @@
         "zod": "3.25.76",
       },
       "devDependencies": {
+        "@ccusage/config": "workspace:*",
         "tsdown": "^0.14.1",
         "unplugin-macros": "^0.17.2",
       },

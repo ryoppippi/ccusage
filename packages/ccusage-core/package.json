@@ -23,17 +23,6 @@
 		"./pricing-fetcher": "./src/pricing-fetcher.ts",
 		"./package.json": "./package.json"
 	},
-	"publishConfig": {
-		"exports": {
-			".": "./dist/index.js",
-			"./calculate-cost": "./dist/calculate-cost.js",
-			"./data-loader": "./dist/data-loader.js",
-			"./debug": "./dist/debug.js",
-			"./logger": "./dist/logger.js",
-			"./pricing-fetcher": "./dist/pricing-fetcher.js",
-			"./package.json": "./package.json"
-		}
-	},
 	"main": "./dist/index.js",
 	"module": "./dist/index.js",
 	"types": "./dist/index.d.ts",
@@ -70,7 +59,19 @@
 		"zod": "3.25.76"
 	},
 	"devDependencies": {
+		"@ccusage/config": "workspace:*",
 		"tsdown": "^0.14.1",
 		"unplugin-macros": "^0.17.2"
+	},
+	"publishConfig": {
+		"exports": {
+			".": "./dist/index.js",
+			"./calculate-cost": "./dist/calculate-cost.js",
+			"./data-loader": "./dist/data-loader.js",
+			"./debug": "./dist/debug.js",
+			"./logger": "./dist/logger.js",
+			"./pricing-fetcher": "./dist/pricing-fetcher.js",
+			"./package.json": "./package.json"
+		}
 	}
 }
