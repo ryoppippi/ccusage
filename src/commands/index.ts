@@ -1,5 +1,4 @@
 import process from 'node:process';
-import esMain from 'es-main';
 import { cli } from 'gunshi';
 import { description, name, version } from '../../package.json';
 import { blocksCommand } from './blocks.ts';
@@ -39,9 +38,7 @@ for (const [name, command] of subCommandUnion) {
  */
 const mainCommand = dailyCommand;
 
-// TODO: after node20 is deprecated, switch to `import.meta.main`
-if (import.meta.main ?? esMain(import.meta)) {
-// eslint-disable-next-line antfu/no-top-level-await
+export async function run(): Promise<void> {
 	await cli(process.argv.slice(2), mainCommand, {
 		name,
 		version,

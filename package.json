@@ -83,7 +83,6 @@
 		"clean-pkg-json": "^1.3.0",
 		"cli-table3": "^0.6.5",
 		"consola": "^3.4.2",
-		"es-main": "^1.4.0",
 		"es-toolkit": "^1.39.9",
 		"eslint": "^9.33.0",
 		"eslint-plugin-format": "^1.0.1",
