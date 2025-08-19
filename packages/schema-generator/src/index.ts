@@ -11,13 +11,10 @@
  */
 
 import process from 'node:process';
+import { sharedCommandConfig, subCommandUnion } from '@ccusage/command';
 import { Result } from '@praha/byethrow';
 import { $ } from 'bun';
-import { sharedArgs } from 'ccusage/src/_shared-args.ts';
-// Import command definitions to access their args
-import { subCommandUnion } from 'ccusage/src/commands/index.ts';
-
-import { logger } from 'ccusage/src/logger.ts';
+import { logger } from 'ccusage-core/logger';
 
 /**
  * The filename for the generated JSON Schema file.
@@ -99,7 +96,7 @@ function tokensSchemaToJsonSchema(schema: Record<string, any>): Record<string, a
 function createConfigSchemaJson(): Record<string, any> {
 	// Create schema for default/shared arguments (excluding CLI-only options)
 	const defaultsSchema = Object.fromEntries(
-		Object.entries(sharedArgs).filter(([key]) => !EXCLUDE_KEYS.includes(key)),
+		Object.entries(sharedCommandConfig).filter(([key]) => !EXCLUDE_KEYS.includes(key)),
 	);
 
 	// Create schemas for each command's specific arguments (excluding CLI-only options)

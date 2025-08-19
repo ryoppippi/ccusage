@@ -11,6 +11,6 @@
 
 /* eslint-disable antfu/no-top-level-await */
 
-import { run } from './commands/index.ts';
+import { run } from '@ccusage/command';
 
 await run();

@@ -8,7 +8,8 @@
 		"generate": "bun run src/index.ts"
 	},
 	"dependencies": {
+		"@ccusage/command": "workspace:*",
 		"@praha/byethrow": "^0.6.3",
-		"ccusage": "workspace:*"
+		"ccusage-core": "workspace:*"
 	}
 }

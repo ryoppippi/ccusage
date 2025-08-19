@@ -1,0 +1,51 @@
+{
+	"name": "ccusage-mcp",
+	"type": "module",
+	"version": "15.10.0",
+	"description": "MCP server for ccusage",
+	"author": "ryoppippi",
+	"license": "MIT",
+	"funding": "https://github.com/ryoppippi/ccusage?sponsor=1",
+	"homepage": "https://github.com/ryoppippi/ccusage#readme",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/ryoppippi/ccusage.git"
+	},
+	"bugs": {
+		"url": "https://github.com/ryoppippi/ccusage/issues"
+	},
+	"exports": {
+		".": "./src/index.ts",
+		"./package.json": "./package.json"
+	},
+	"publishConfig": {
+		"exports": {
+			".": "./dist/index.js",
+			"./package.json": "./package.json"
+		}
+	},
+	"main": "./dist/index.js",
+	"module": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"files": [
+		"dist"
+	],
+	"engines": {
+		"node": ">=20.19.4"
+	},
+	"scripts": {
+		"build": "tsdown",
+		"test": "TZ=UTC vitest"
+	},
+	"dependencies": {
+		"@hono/mcp": "^0.1.0",
+		"@hono/node-server": "^1.18.2",
+		"@modelcontextprotocol/sdk": "^1.17.3",
+		"ccusage-core": "workspace:*",
+		"hono": "^4.9.2",
+		"zod": "3.25.76"
+	},
+	"devDependencies": {
+		"tsdown": "^0.14.1"
+	}
+}

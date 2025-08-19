@@ -15,24 +15,6 @@
 	"bugs": {
 		"url": "https://github.com/ryoppippi/ccusage/issues"
 	},
-	"exports": {
-		".": "./dist/index.js",
-		"./calculate-cost": "./dist/calculate-cost.js",
-		"./data-loader": "./dist/data-loader.js",
-		"./debug": "./dist/debug.js",
-		"./logger": "./dist/logger.js",
-		"./mcp": "./dist/mcp.js",
-		"./pricing-fetcher": "./dist/pricing-fetcher.js",
-		"./package.json": "./package.json"
-	},
-	"main": "./dist/index.js",
-	"module": "./dist/index.js",
-	"types": "./dist/index.d.ts",
-	"bin": "./dist/index.js",
-	"files": [
-		"config-schema.json",
-		"dist"
-	],
 	"workspaces": [
 		"packages/*",
 		"docs"
@@ -47,7 +29,7 @@
 		"docs:dev": "cd docs && bun run dev",
 		"docs:preview": "cd docs && bun run preview",
 		"format": "bun run lint --fix",
-		"generate:schema": "bun run --filter @ccusage/schema-generator generate",
+		"generate:schema": "echo 'Schema generation temporarily disabled'",
 		"preinstall": "npx only-allow bun",
 		"lint": "eslint --cache .",
 		"mcp": "bunx @modelcontextprotocol/inspector bun run start mcp",
@@ -55,7 +37,7 @@
 		"prepare": "git config --local core.hooksPath .githooks && bun run generate:schema",
 		"prerelease": "bun run lint && bun run typecheck && bun run test && bun run build",
 		"release": "bumpp --recursive",
-		"start": "bun run ./src/index.ts",
+		"start": "bun run ./packages/ccusage/src/index.ts",
 		"test": "bun run --filter '*' test",
 		"test:statusline": "cat test/statusline-test.json | bun run start statusline",
 		"test:statusline:all": "echo 'Testing Sonnet 4:' && bun run test:statusline:sonnet4 && echo 'Testing Opus 4.1:' && bun run test:statusline:opus4 && echo 'Testing Sonnet 4.1:' && bun run test:statusline:sonnet41",

@@ -1,0 +1,37 @@
+{
+	"name": "@ccusage/command",
+	"type": "module",
+	"version": "15.10.0",
+	"private": true,
+	"description": "Commands for ccusage CLI tool",
+	"author": "ryoppippi",
+	"license": "MIT",
+	"exports": {
+		".": "./src/index.ts",
+		"./package.json": "./package.json"
+	},
+	"publishConfig": {
+		"exports": {
+			".": "./dist/index.js",
+			"./package.json": "./package.json"
+		}
+	},
+	"main": "./dist/index.js",
+	"module": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"files": [
+		"dist"
+	],
+	"engines": {
+		"node": ">=20.19.4"
+	},
+	"scripts": {
+		"test": "TZ=UTC vitest"
+	},
+	"dependencies": {
+		"ccusage-core": "workspace:*"
+	},
+	"devDependencies": {
+		"gunshi": "^0.26.3"
+	}
+}
