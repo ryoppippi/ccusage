@@ -220,65 +220,52 @@ async function generateJsonSchema() {
 		Result.unwrap(),
 	);
 
-	// Check if existing schema is identical to avoid unnecessary writes
+	// Check if existing root schema is identical to avoid unnecessary writes
 	const existingRootSchema = await readFile(SCHEMA_FILENAME);
-	const existingDocsSchema = await readFile(`docs/public/${SCHEMA_FILENAME}`);
-
 	const rootSchemaChanged = Result.isFailure(existingRootSchema) || Result.unwrap(existingRootSchema) !== schemaJson;
-	const docsSchemaChanged = Result.isFailure(existingDocsSchema) || Result.unwrap(existingDocsSchema) !== schemaJson;
 
-	if (!rootSchemaChanged && !docsSchemaChanged) {
+	if (!rootSchemaChanged) {
 		logger.info('✓ Schema files are up to date, skipping generation');
 		return;
 	}
 
-	const filesToLint: string[] = [];
+	await Result.pipe(
+		Result.try({
+			try: writeFile(SCHEMA_FILENAME, schemaJson),
+			safe: true,
+		}),
+		Result.inspectError((error) => {
+			logger.error(`Failed to write ${SCHEMA_FILENAME}:`, error);
+			process.exit(1);
+		}),
+		Result.inspect(() => logger.info(`✓ Generated ${SCHEMA_FILENAME}`)),
+	);
 
-	if (rootSchemaChanged) {
-		await Result.pipe(
-			Result.try({
-				try: writeFile(SCHEMA_FILENAME, schemaJson),
-				safe: true,
-			}),
-			Result.inspectError((error) => {
-				logger.error(`Failed to write ${SCHEMA_FILENAME}:`, error);
-				process.exit(1);
-			}),
-			Result.inspect(() => {
-				logger.info(`✓ Generated ${SCHEMA_FILENAME}`);
-				filesToLint.push(SCHEMA_FILENAME);
-			}),
-		);
-	}
+	// Copy to docs/public using Bun shell
+	await Result.pipe(
+		Result.try({
+			try: $`cp ${SCHEMA_FILENAME} docs/public/${SCHEMA_FILENAME}`,
+			catch: error => error,
+		}),
+		Result.inspectError((error) => {
+			logger.error(`Failed to copy to docs/public/${SCHEMA_FILENAME}:`, error);
+			process.exit(1);
+		}),
+		Result.inspect(() => logger.info(`✓ Copied to docs/public/${SCHEMA_FILENAME}`)),
+	);
 
-	if (docsSchemaChanged) {
-		await Result.pipe(
-			Result.try({
-				try: writeFile(`docs/public/${SCHEMA_FILENAME}`, schemaJson),
-				safe: true,
-			}),
-			Result.inspectError((error) => {
-				logger.error(`Failed to write docs/public/${SCHEMA_FILENAME}:`, error);
-				process.exit(1);
-			}),
-			Result.inspect(() => logger.info(`✓ Generated docs/public/${SCHEMA_FILENAME}`)),
-		);
-	}
-
-	// Run lint only on files that were actually changed
-	if (filesToLint.length > 0) {
-		await Result.pipe(
-			Result.try({
-				try: runLint(filesToLint),
-				safe: true,
-			}),
-			Result.inspectError((error) => {
-				logger.error('Failed to lint generated files:', error);
-				process.exit(1);
-			}),
-			Result.inspect(() => logger.info('✓ Linted generated files')),
-		);
-	}
+	// Run lint on the root schema file that was changed
+	await Result.pipe(
+		Result.try({
+			try: runLint([SCHEMA_FILENAME]),
+			safe: true,
+		}),
+		Result.inspectError((error) => {
+			logger.error('Failed to lint generated files:', error);
+			process.exit(1);
+		}),
+		Result.inspect(() => logger.info('✓ Linted generated files')),
+	);
 
 	logger.info('JSON Schema generation completed successfully!');
 }
