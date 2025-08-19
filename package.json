@@ -37,6 +37,8 @@
 		"typecheck": "bun run --filter '*' typecheck"
 	},
 	"devDependencies": {
+		"@mizchi/lsmcp": "^0.9.4",
+		"@praha/byethrow-mcp": "^0.1.2",
 		"@ryoppippi/eslint-config": "^0.3.7",
 		"bumpp": "^10.2.3",
 		"eslint": "^9.33.0",
