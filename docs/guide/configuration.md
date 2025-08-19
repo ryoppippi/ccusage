@@ -1,6 +1,295 @@
 # Configuration
 
-ccusage supports various configuration options to customize its behavior and adapt to different Claude Code installations.
+ccusage supports various configuration options to customize its behavior and adapt to different Claude Code installations. You can configure ccusage through configuration files, environment variables, and command-line options.
+
+## Configuration Files
+
+ccusage supports JSON configuration files to set default options for all commands or specific commands. This allows you to customize behavior without repeating options every time.
+
+### Configuration File Locations
+
+ccusage searches for configuration files in these locations (in priority order):
+
+1. **Local project**: `.ccusage/ccusage.json` (highest priority)
+2. **User config**: `~/.config/claude/ccusage.json`
+3. **Legacy location**: `~/.claude/ccusage.json` (lowest priority)
+
+Configuration files are merged in priority order, with local project settings overriding user settings.
+
+### Basic Configuration
+
+Create a `ccusage.json` file with default options:
+
+```json
+{
+  "$schema": "https://ccusage.com/config-schema.json",
+  "defaults": {
+    "json": false,
+    "mode": "auto",
+    "offline": false,
+    "timezone": "Asia/Tokyo",
+    "locale": "ja-JP",
+    "breakdown": true
+  }
+}
+```
+
+### Command-Specific Configuration
+
+Override defaults for specific commands:
+
+```json
+{
+  "$schema": "https://ccusage.com/config-schema.json",
+  "defaults": {
+    "mode": "auto",
+    "offline": false
+  },
+  "commands": {
+    "daily": {
+      "instances": true,
+      "breakdown": true
+    },
+    "blocks": {
+      "active": true,
+      "tokenLimit": "500000",
+      "live": false
+    },
+    "statusline": {
+      "offline": true,
+      "cache": true,
+      "refreshInterval": 2
+    }
+  }
+}
+```
+
+### Available Configuration Options
+
+#### Global Defaults
+
+Set default values that apply to all commands:
+
+```json
+{
+  "defaults": {
+    "since": "20250101",
+    "until": "20250630",
+    "json": false,
+    "mode": "auto",
+    "debug": false,
+    "debugSamples": 5,
+    "order": "asc",
+    "breakdown": false,
+    "offline": false,
+    "timezone": "UTC",
+    "locale": "en-CA",
+    "jq": ".data[]"
+  }
+}
+```
+
+#### Command-Specific Options
+
+##### Daily Command
+
+```json
+{
+  "commands": {
+    "daily": {
+      "instances": true,
+      "project": "my-project",
+      "breakdown": true
+    }
+  }
+}
+```
+
+##### Weekly Command
+
+```json
+{
+  "commands": {
+    "weekly": {
+      "startOfWeek": "monday",
+      "breakdown": true
+    }
+  }
+}
+```
+
+##### Session Command
+
+```json
+{
+  "commands": {
+    "session": {
+      "id": "abc123-session"
+    }
+  }
+}
+```
+
+##### Blocks Command
+
+```json
+{
+  "commands": {
+    "blocks": {
+      "active": true,
+      "recent": false,
+      "tokenLimit": "max",
+      "sessionLength": 5,
+      "live": false,
+      "refreshInterval": 1
+    }
+  }
+}
+```
+
+##### MCP Server
+
+```json
+{
+  "commands": {
+    "mcp": {
+      "type": "stdio",
+      "port": 8080,
+      "mode": "auto"
+    }
+  }
+}
+```
+
+##### Statusline
+
+```json
+{
+  "commands": {
+    "statusline": {
+      "offline": true,
+      "cache": true,
+      "refreshInterval": 1
+    }
+  }
+}
+```
+
+### Configuration Priority
+
+Settings are applied in this priority order (highest to lowest):
+
+1. **Command-line arguments** (e.g., `--json`, `--offline`)
+2. **Custom config file** (specified with `--config /path/to/config.json`)
+3. **Local project config** (`.ccusage/ccusage.json`)
+4. **User config** (`~/.config/claude/ccusage.json`)
+5. **Legacy config** (`~/.claude/ccusage.json`)
+6. **Built-in defaults**
+
+### Custom Configuration Files
+
+You can specify a custom configuration file using the `--config` option:
+
+```bash
+# Use a specific configuration file
+ccusage daily --config ./my-config.json
+
+# Works with all commands
+ccusage blocks --config /path/to/team-config.json
+```
+
+This is useful for:
+- **Team configurations** - Share configuration files across team members
+- **Environment-specific settings** - Different configs for development/production
+- **Project-specific overrides** - Use different settings for different projects
+
+### IDE Support
+
+ccusage provides JSON Schema for autocomplete and validation. Add the `$schema` property to get IntelliSense:
+
+```json
+{
+  "$schema": "https://ccusage.com/config-schema.json",
+  "defaults": {
+    "mode": "auto"
+  }
+}
+```
+
+You can also reference a local schema file (after installing ccusage):
+
+```json
+{
+  "$schema": "./node_modules/ccusage/config-schema.json",
+  "defaults": {
+    "mode": "auto"
+  }
+}
+```
+
+### Configuration Examples
+
+#### Team Development
+
+```json
+{
+  "$schema": "https://ccusage.com/config-schema.json",
+  "defaults": {
+    "timezone": "America/New_York",
+    "locale": "en-US",
+    "breakdown": true
+  },
+  "commands": {
+    "daily": {
+      "instances": true
+    },
+    "blocks": {
+      "active": true,
+      "tokenLimit": "500000"
+    }
+  }
+}
+```
+
+#### International Team
+
+```json
+{
+  "$schema": "https://ccusage.com/config-schema.json",
+  "defaults": {
+    "timezone": "UTC",
+    "locale": "en-CA",
+    "json": true
+  },
+  "commands": {
+    "daily": {
+      "jq": ".data[] | select(.cost > 1.0)"
+    }
+  }
+}
+```
+
+#### High-Performance Setup
+
+```json
+{
+  "$schema": "https://ccusage.com/config-schema.json",
+  "defaults": {
+    "offline": true,
+    "mode": "calculate"
+  },
+  "commands": {
+    "statusline": {
+      "cache": true,
+      "refreshInterval": 5
+    },
+    "blocks": {
+      "live": true,
+      "refreshInterval": 2
+    }
+  }
+}
+```
 
 ## Environment Variables
 

@@ -163,3 +163,9 @@ export const CONTEXT_MEDIUM_THRESHOLD_ENV = 'CCUSAGE_CONTEXT_MEDIUM_THRESHOLD';
  * Days of the week for weekly aggregation
  */
 export const WEEK_DAYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'] as const;
+
+/**
+ * Default configuration file name for storing usage data
+ * Used to load and save configuration settings
+ */
+export const CONFIG_FILE_NAME = 'ccusage.json';

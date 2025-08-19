@@ -71,6 +71,10 @@ ccusage daily --locale ja-JP  # Use Japanese locale for date/time formatting
 ccusage daily --instances  # Group by project/instance
 ccusage daily --project myproject  # Filter to specific project
 ccusage daily --instances --project myproject --json  # Combined usage
+
+# Compact mode for screenshots/sharing
+ccusage --compact  # Force compact table mode
+ccusage monthly --compact  # Compact monthly report
 ```
 
 ## Features
@@ -87,6 +91,7 @@ ccusage daily --instances --project myproject --json  # Combined usage
 - 📁 **Custom Path**: Support for custom Claude data directory locations
 - 🎨 **Beautiful Output**: Colorful table-formatted display with automatic responsive layout
 - 📱 **Smart Tables**: Automatic compact mode for narrow terminals (< 100 characters) with essential columns
+- 📸 **Compact Mode**: Use `--compact` flag to force compact table layout, perfect for screenshots and sharing
 - 📋 **Enhanced Model Display**: Model names shown as bulleted lists for better readability
 - 📄 **JSON Output**: Export data in structured JSON format with `--json`
 - 💰 **Cost Tracking**: Shows costs in USD for each day/month/session
@@ -96,6 +101,7 @@ ccusage daily --instances --project myproject --json  # Combined usage
 - 🏗️ **Multi-Instance Support**: Group usage by project with `--instances` flag and filter by specific projects
 - 🌍 **Timezone Support**: Configure timezone for date grouping with `--timezone` option
 - 🌐 **Locale Support**: Customize date/time formatting with `--locale` option (e.g., en-US, ja-JP, de-DE)
+- ⚙️ **Configuration Files**: Set defaults with JSON configuration files, complete with IDE autocomplete and validation
 - 🚀 **Ultra-Small Bundle**: Unlike other CLI tools, we pay extreme attention to bundle size - incredibly small even without minification!
 
 ## Documentation

@@ -9,28 +9,46 @@ import { sessionCommand } from './session.ts';
 import { statuslineCommand } from './statusline.ts';
 import { weeklyCommand } from './weekly.ts';
 
+// Re-export all commands for easy importing
+export { blocksCommand, dailyCommand, mcpCommand, monthlyCommand, sessionCommand, statuslineCommand, weeklyCommand };
+
+/**
+ * Command entries as tuple array
+ */
+export const subCommandUnion = [
+	['daily', dailyCommand],
+	['monthly', monthlyCommand],
+	['weekly', weeklyCommand],
+	['session', sessionCommand],
+	['blocks', blocksCommand],
+	['mcp', mcpCommand],
+	['statusline', statuslineCommand],
+] as const;
+
+/**
+ * Available command names extracted from union
+ */
+export type CommandName = typeof subCommandUnion[number][0];
+
 /**
  * Map of available CLI subcommands
  */
 const subCommands = new Map();
-subCommands.set('daily', dailyCommand);
-subCommands.set('monthly', monthlyCommand);
-subCommands.set('weekly', weeklyCommand);
-subCommands.set('session', sessionCommand);
-subCommands.set('blocks', blocksCommand);
-subCommands.set('mcp', mcpCommand);
-subCommands.set('statusline', statuslineCommand);
+for (const [name, command] of subCommandUnion) {
+	subCommands.set(name, command);
+}
 
 /**
  * Default command when no subcommand is specified (defaults to daily)
  */
 const mainCommand = dailyCommand;
 
-// eslint-disable-next-line antfu/no-top-level-await
-await cli(process.argv.slice(2), mainCommand, {
-	name,
-	version,
-	description,
-	subCommands,
-	renderHeader: null,
-});
+export async function run(): Promise<void> {
+	await cli(process.argv.slice(2), mainCommand, {
+		name,
+		version,
+		description,
+		subCommands,
+		renderHeader: null,
+	});
+}

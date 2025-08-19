@@ -1,18 +1,8 @@
 {
 	"mcpServers": {
 		"context7": {
-			"type": "sse",
-			"url": "https://mcp.context7.com/sse"
-		},
-		"gunshi-doc": {
-			"command": "bun",
-			"args": [
-				"x",
-				"sitemcp",
-				"https://gunshi.dev/",
-				"--concurrency 10",
-				"--no-cache"
-			]
+			"type": "http",
+			"url": "https://mcp.context7.com/mcp"
 		},
 		"lsmcp": {
 			"command": "bun",
@@ -29,6 +19,16 @@
 				"byethrow-mcp"
 			],
 			"env": {}
+		},
+		"gunshi-doc": {
+			"command": "bun",
+			"args": [
+				"x",
+				"sitemcp",
+				"https://gunshi.dev/",
+				"--concurrency 10",
+				"--no-cache"
+			]
 		}
 	}
 }

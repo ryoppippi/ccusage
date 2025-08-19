@@ -3,6 +3,7 @@ import process from 'node:process';
 import { Result } from '@praha/byethrow';
 import { define } from 'gunshi';
 import pc from 'picocolors';
+import { loadConfig, mergeConfigWithArgs } from '../_config-loader-tokens.ts';
 import { processWithJq } from '../_jq-processor.ts';
 import { sharedCommandConfig } from '../_shared-args.ts';
 import { formatCurrency, formatModelsDisplayMultiline, formatNumber, pushBreakdownRows, ResponsiveTable } from '../_utils.ts';
@@ -31,23 +32,27 @@ export const sessionCommand = define({
 		},
 	},
 	toKebab: true,
-	async run(ctx) {
+	async run(ctx): Promise<void> {
+		// Load configuration and merge with CLI arguments
+		const config = loadConfig(ctx.values.config);
+		const mergedOptions: typeof ctx.values = mergeConfigWithArgs(ctx, config);
+
 		// --jq implies --json
-		const useJson = ctx.values.json || ctx.values.jq != null;
+		const useJson = mergedOptions.json || mergedOptions.jq != null;
 		if (useJson) {
 			logger.level = 0;
 		}
 
 		// Handle specific session ID lookup
-		if (ctx.values.id != null) {
+		if (mergedOptions.id != null) {
 			return handleSessionIdLookup({
 				values: {
-					id: ctx.values.id,
-					mode: ctx.values.mode,
-					offline: ctx.values.offline,
-					jq: ctx.values.jq,
-					timezone: ctx.values.timezone,
-					locale: ctx.values.locale ?? 'en-CA',
+					id: mergedOptions.id,
+					mode: mergedOptions.mode,
+					offline: mergedOptions.offline,
+					jq: mergedOptions.jq,
+					timezone: mergedOptions.timezone,
+					locale: mergedOptions.locale ?? 'en-CA',
 				},
 			}, useJson);
 		}
@@ -163,6 +168,7 @@ export const sessionCommand = define({
 					'left',
 				],
 				compactThreshold: 100,
+				forceCompact: ctx.values.compact,
 			});
 
 			// Add session data
