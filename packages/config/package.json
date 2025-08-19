@@ -7,13 +7,11 @@
 	"author": "ryoppippi",
 	"license": "MIT",
 	"exports": {
-		"./tsdown": "./tsdown.config.shared.ts",
-		"./vitest": "./vitest.config.shared.ts",
+		"./tsdown": "./tsdown.ts",
+		"./vitest": "./vitest.ts",
+		"./tsconfig.json": "./tsconfig.json",
 		"./package.json": "./package.json"
 	},
-	"files": [
-		"*.ts"
-	],
 	"devDependencies": {
 		"tsdown": "^0.14.1",
 		"unplugin-macros": "^0.17.2",
