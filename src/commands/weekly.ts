@@ -148,6 +148,7 @@ export const weeklyCommand = define({
 					'right',
 				],
 				compactThreshold: 100,
+				forceCompact: ctx.values.compact,
 			});
 
 			// Add weekly data

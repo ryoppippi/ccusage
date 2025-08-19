@@ -396,8 +396,12 @@ export const blocksCommand = define({
 				});
 
 				// Detect if we need compact formatting
+				// Use compact format if:
+				// 1. User explicitly requested it with --compact flag
+				// 2. Terminal width is below threshold
 				const terminalWidth = process.stdout.columns || BLOCKS_DEFAULT_TERMINAL_WIDTH;
-				const useCompactFormat = terminalWidth < BLOCKS_COMPACT_WIDTH_THRESHOLD;
+				const isNarrowTerminal = terminalWidth < BLOCKS_COMPACT_WIDTH_THRESHOLD;
+				const useCompactFormat = ctx.values.compact || isNarrowTerminal;
 
 				for (const block of blocks) {
 					if (block.isGap ?? false) {

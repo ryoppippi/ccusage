@@ -105,6 +105,17 @@ ccusage blocks --live
 
 ccusage automatically colors the output based on the terminal's capabilities. If you want to disable colors, you can use the `--no-color` flag. Or you can use the `--color` flag to force colors on.
 
+## Compact Mode
+
+ccusage automatically adjusts its table layout based on terminal width. For narrow terminals (< 100 characters), it shows a compact view with essential columns. You can also force compact mode for better screenshots:
+
+```bash
+ccusage --compact            # Force compact mode
+ccusage monthly --compact    # Compact monthly report
+```
+
+This is particularly useful when sharing screenshots or working in constrained terminals.
+
 ## Troubleshooting
 
 ### No Data Found

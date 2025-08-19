@@ -151,6 +151,7 @@ export const dailyCommand = define({
 					'right',
 				],
 				compactThreshold: 100,
+				forceCompact: ctx.values.compact,
 			});
 
 			// Add daily data - group by project if instances flag is used

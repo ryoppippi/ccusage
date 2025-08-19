@@ -106,6 +106,11 @@ export const sharedArgs = {
 		type: 'string',
 		description: 'Path to configuration file (default: auto-discovery)',
 	},
+	compact: {
+		type: 'boolean',
+		description: 'Force compact mode for narrow displays (better for screenshots)',
+		default: false,
+	},
 } as const satisfies Args;
 
 /**

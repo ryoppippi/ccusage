@@ -137,6 +137,7 @@ export const monthlyCommand = define({
 					'right',
 				],
 				compactThreshold: 100,
+				forceCompact: ctx.values.compact,
 			});
 
 			// Add monthly data
