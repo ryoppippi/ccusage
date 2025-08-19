@@ -41,17 +41,17 @@ function validateConfigJson(data: unknown): data is ConfigData {
 	const config = data as Record<string, unknown>;
 
 	// Optional schema property
-	if (config.$schema !== undefined && typeof config.$schema !== 'string') {
+	if (config.$schema != null && typeof config.$schema !== 'string') {
 		return false;
 	}
 
 	// Optional defaults property
-	if (config.defaults !== undefined && (typeof config.defaults !== 'object' || config.defaults === null)) {
+	if (config.defaults != null && (typeof config.defaults !== 'object' || config.defaults === null)) {
 		return false;
 	}
 
 	// Optional commands property
-	if (config.commands !== undefined && (typeof config.commands !== 'object' || config.commands === null)) {
+	if (config.commands != null && (typeof config.commands !== 'object' || config.commands === null)) {
 		return false;
 	}
 
