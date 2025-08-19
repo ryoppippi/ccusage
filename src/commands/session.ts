@@ -163,6 +163,7 @@ export const sessionCommand = define({
 					'left',
 				],
 				compactThreshold: 100,
+				forceCompact: ctx.values.compact,
 			});
 
 			// Add session data

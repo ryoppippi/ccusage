@@ -102,6 +102,11 @@ export const sharedArgs = {
 		short: 'q',
 		description: 'Process JSON output with jq command (requires jq binary, implies --json)',
 	},
+	compact: {
+		type: 'boolean',
+		description: 'Force compact mode for narrow displays (better for screenshots)',
+		default: false,
+	},
 } as const satisfies Args;
 
 /**
