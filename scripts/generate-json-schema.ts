@@ -202,6 +202,20 @@ async function readFile(path: string): Promise<Result.Result<string, any>> {
 	})();
 }
 
+async function copySchemaToDocsPublic() {
+	return Result.pipe(
+		Result.try({
+			try: $`cp ${SCHEMA_FILENAME} docs/public/${SCHEMA_FILENAME}`,
+			catch: error => error,
+		}),
+		Result.inspectError((error) => {
+			logger.error(`Failed to copy to docs/public/${SCHEMA_FILENAME}:`, error);
+			process.exit(1);
+		}),
+		Result.inspect(() => logger.info(`✓ Copied to docs/public/${SCHEMA_FILENAME}`)),
+	);
+}
+
 async function generateJsonSchema() {
 	logger.info('Generating JSON Schema from args-tokens configuration schema...');
 
@@ -231,17 +245,7 @@ async function generateJsonSchema() {
 		logger.info('✓ Root schema is up to date, skipping generation');
 
 		// Always copy to docs/public since it's gitignored
-		await Result.pipe(
-			Result.try({
-				try: $`cp ${SCHEMA_FILENAME} docs/public/${SCHEMA_FILENAME}`,
-				catch: error => error,
-			}),
-			Result.inspectError((error) => {
-				logger.error(`Failed to copy to docs/public/${SCHEMA_FILENAME}:`, error);
-				process.exit(1);
-			}),
-			Result.inspect(() => logger.info(`✓ Copied to docs/public/${SCHEMA_FILENAME}`)),
-		);
+		await copySchemaToDocsPublic();
 
 		logger.info('JSON Schema sync completed successfully!');
 		return;
@@ -262,17 +266,7 @@ async function generateJsonSchema() {
 	);
 
 	// Copy to docs/public using Bun shell
-	await Result.pipe(
-		Result.try({
-			try: $`cp ${SCHEMA_FILENAME} docs/public/${SCHEMA_FILENAME}`,
-			catch: error => error,
-		}),
-		Result.inspectError((error) => {
-			logger.error(`Failed to copy to docs/public/${SCHEMA_FILENAME}:`, error);
-			process.exit(1);
-		}),
-		Result.inspect(() => logger.info(`✓ Copied to docs/public/${SCHEMA_FILENAME}`)),
-	);
+	await copySchemaToDocsPublic();
 
 	// Run lint on the root schema file that was changed
 	await Result.pipe(
