@@ -16,12 +16,6 @@
 	"type": "module",
 	"exports": {
 		".": "./src/index.ts",
-		"./calculate-cost": "./src/calculate-cost.ts",
-		"./data-loader": "./src/data-loader.ts",
-		"./debug": "./src/debug.ts",
-		"./logger": "./src/logger.ts",
-		"./mcp": "./src/mcp.ts",
-		"./pricing-fetcher": "./src/pricing-fetcher.ts",
 		"./package.json": "./package.json"
 	},
 	"main": "./dist/index.js",
@@ -41,7 +35,7 @@
 		"test": "TZ=UTC vitest"
 	},
 	"dependencies": {
-		"@ccusage/command": "workspace:*"
+		"@ccusage/commands": "workspace:*"
 	},
 	"devDependencies": {
 		"@ccusage/config": "workspace:*",
@@ -54,12 +48,6 @@
 	"publishConfig": {
 		"exports": {
 			".": "./dist/index.js",
-			"./calculate-cost": "./dist/calculate-cost.js",
-			"./data-loader": "./dist/data-loader.js",
-			"./debug": "./dist/debug.js",
-			"./logger": "./dist/logger.js",
-			"./mcp": "./dist/mcp.js",
-			"./pricing-fetcher": "./dist/pricing-fetcher.js",
 			"./package.json": "./package.json"
 		}
 	}
