@@ -3,9 +3,9 @@ import { globSync } from 'tinyglobby'
 
 const entryPoints = [
 	...globSync([
-		'../packages/ccusage/src/*.ts',
-		'!../packages/ccusage/src/**/*.test.ts', // Exclude test files
-		'!../packages/ccusage/src/_*.ts', // Exclude internal files with underscore prefix
+		'../packages/ccusage-core/src/*.ts',
+		'!../packages/ccusage-core/src/**/*.test.ts', // Exclude test files
+		'!../packages/ccusage-core/src/_*.ts', // Exclude internal files with underscore prefix
 	], {
 		absolute: false,
 		onlyFiles: true,
@@ -18,7 +18,6 @@ export default {
 	// typedoc options
 	// ref: https://typedoc.org/documents/Options.html
 	entryPoints,
-	tsconfig: '../packages/ccusage/tsconfig.json',
 	out: 'api',
 	plugin: ['typedoc-plugin-markdown', 'typedoc-vitepress-theme'],
 	readme: 'none',

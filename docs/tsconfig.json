@@ -1,14 +1,6 @@
 {
-	"extends": "../tsconfig.json",
-	"compilerOptions": {
-		"allowImportingTsExtensions": false,
-		"allowJs": true,
-		"noEmit": true,
-		"skipLibCheck": true
-	},
-	"include": [
-		".vitepress/**/*",
-		"**/*.ts",
-		"**/*.md"
-	]
+  "extends": "../tsconfig.json",
+  "include": [
+    "../packages/ccusage-core/src/**/*.ts"
+  ]
 }
