@@ -35,7 +35,7 @@ export const sessionCommand = define({
 	async run(ctx): Promise<void> {
 		// Load configuration and merge with CLI arguments
 		const config = loadConfig(ctx.values.config);
-		const mergedOptions: typeof ctx.values = mergeConfigWithArgs('session', ctx, config);
+		const mergedOptions: typeof ctx.values = mergeConfigWithArgs(ctx, config);
 
 		// --jq implies --json
 		const useJson = mergedOptions.json || mergedOptions.jq != null;

@@ -149,7 +149,7 @@ export const blocksCommand = define({
 	async run(ctx) {
 		// Load configuration and merge with CLI arguments
 		const config = loadConfig(ctx.values.config);
-		const mergedOptions = mergeConfigWithArgs('blocks', ctx, config);
+		const mergedOptions = mergeConfigWithArgs(ctx, config);
 
 		// --jq implies --json
 		const useJson = mergedOptions.json || mergedOptions.jq != null;

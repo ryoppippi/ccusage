@@ -22,7 +22,7 @@ export const monthlyCommand = define({
 	async run(ctx) {
 		// Load configuration and merge with CLI arguments
 		const config = loadConfig(ctx.values.config);
-		const mergedOptions = mergeConfigWithArgs('monthly', ctx, config);
+		const mergedOptions = mergeConfigWithArgs(ctx, config);
 
 		// --jq implies --json
 		const useJson = Boolean(mergedOptions.json) || mergedOptions.jq != null;
