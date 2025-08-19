@@ -542,13 +542,63 @@ The locale affects how dates and times are displayed:
 
 ### Debug Options
 
+The `--debug` flag provides detailed information about configuration loading and option merging, in addition to showing pricing mismatches.
+
 ```bash
 # Debug pricing mismatches
 ccusage daily --debug
 
 # Show sample discrepancies
 ccusage daily --debug --debug-samples 10
+
+# Debug configuration loading
+ccusage daily --debug --config ./my-config.json
 ```
+
+#### Debug Output for Configuration
+
+When `--debug` is enabled, ccusage shows detailed information about:
+
+1. **Config file discovery**: Which files are checked and found
+2. **Config file contents**: Schema, defaults, and command-specific options
+3. **Option merging**: How CLI args, command config, and defaults are combined
+
+**Example debug output:**
+
+```
+[ccusage] ℹ Debug mode enabled - showing config loading details
+
+[ccusage] ℹ Searching for config files:
+  • Checking: .ccusage/ccusage.json (not found)
+  • Checking: ~/.config/claude/ccusage.json (found ✓)
+  • Checking: ~/.claude/ccusage.json (not found)
+
+[ccusage] ℹ Loaded config from: ~/.config/claude/ccusage.json
+  • Schema: https://ccusage.com/config-schema.json
+  • Has defaults: yes (6 options)
+  • Has command configs: yes (daily, blocks)
+
+[ccusage] ℹ Merging options for 'daily' command:
+  • From defaults: mode="auto", offline=false, breakdown=true
+  • From command config: instances=true, project="my-project"
+  • From CLI args: debug=true, since="20250101"
+  • Final merged options: {
+      mode: "auto" (from defaults),
+      offline: false (from defaults),
+      breakdown: true (from defaults),
+      instances: true (from command config),
+      project: "my-project" (from command config),
+      debug: true (from CLI),
+      since: "20250101" (from CLI)
+    }
+```
+
+This debug information helps you:
+
+- **Verify config file locations**: Ensure the right config file is being loaded
+- **Understand option precedence**: See which source provides each option value
+- **Troubleshoot configuration issues**: Identify why certain options aren't being applied
+- **Validate custom config paths**: Confirm `--config` points to the right file
 
 ## Cost Calculation Modes
 
@@ -780,6 +830,40 @@ ccusage daily
 # Then use offline mode
 ccusage daily --offline
 ```
+
+#### Configuration Not Being Applied
+
+If your configuration options don't seem to be working:
+
+```bash
+# Use debug mode to see which config file is loaded
+ccusage daily --debug
+
+# Check if options are being applied correctly
+ccusage daily --debug --instances
+
+# Verify custom config file path
+ccusage daily --debug --config ./my-config.json
+```
+
+The debug output will show:
+- Which config files are being checked and loaded
+- How options from different sources (CLI, config file, defaults) are merged
+- The final values being used for each option
+
+**Common configuration issues:**
+
+1. **Config file not found**: Debug output shows "not found" for all search paths
+   - Solution: Place config file in `.ccusage/ccusage.json` or use `--config` to specify path
+
+2. **CLI args not overriding config**: Final merged options show config values instead of CLI values
+   - Solution: Ensure you're using the correct flag names and that they're being passed to the command
+
+3. **Command-specific config ignored**: Debug shows only defaults being applied
+   - Solution: Check that your command name in the config file matches exactly (e.g., "daily", not "Daily")
+
+4. **Invalid JSON structure**: Error messages about parsing configuration files
+   - Solution: Validate your JSON syntax and ensure it follows the expected schema
 
 ## Next Steps
 
