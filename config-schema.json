@@ -98,6 +98,12 @@
 							"type": "string",
 							"description": "Process JSON output with jq command (requires jq binary, implies --json)",
 							"markdownDescription": "Process JSON output with jq command (requires jq binary, implies --json)"
+						},
+						"compact": {
+							"type": "boolean",
+							"description": "Force compact mode for narrow displays (better for screenshots)",
+							"markdownDescription": "Force compact mode for narrow displays (better for screenshots)",
+							"default": false
 						}
 					},
 					"additionalProperties": false,
@@ -196,6 +202,12 @@
 									"type": "string",
 									"description": "Process JSON output with jq command (requires jq binary, implies --json)",
 									"markdownDescription": "Process JSON output with jq command (requires jq binary, implies --json)"
+								},
+								"compact": {
+									"type": "boolean",
+									"description": "Force compact mode for narrow displays (better for screenshots)",
+									"markdownDescription": "Force compact mode for narrow displays (better for screenshots)",
+									"default": false
 								},
 								"instances": {
 									"type": "boolean",
@@ -300,6 +312,12 @@
 									"type": "string",
 									"description": "Process JSON output with jq command (requires jq binary, implies --json)",
 									"markdownDescription": "Process JSON output with jq command (requires jq binary, implies --json)"
+								},
+								"compact": {
+									"type": "boolean",
+									"description": "Force compact mode for narrow displays (better for screenshots)",
+									"markdownDescription": "Force compact mode for narrow displays (better for screenshots)",
+									"default": false
 								}
 							},
 							"additionalProperties": false
@@ -393,6 +411,12 @@
 									"type": "string",
 									"description": "Process JSON output with jq command (requires jq binary, implies --json)",
 									"markdownDescription": "Process JSON output with jq command (requires jq binary, implies --json)"
+								},
+								"compact": {
+									"type": "boolean",
+									"description": "Force compact mode for narrow displays (better for screenshots)",
+									"markdownDescription": "Force compact mode for narrow displays (better for screenshots)",
+									"default": false
 								},
 								"startOfWeek": {
 									"type": "string",
@@ -502,6 +526,12 @@
 									"description": "Process JSON output with jq command (requires jq binary, implies --json)",
 									"markdownDescription": "Process JSON output with jq command (requires jq binary, implies --json)"
 								},
+								"compact": {
+									"type": "boolean",
+									"description": "Force compact mode for narrow displays (better for screenshots)",
+									"markdownDescription": "Force compact mode for narrow displays (better for screenshots)",
+									"default": false
+								},
 								"id": {
 									"type": "string",
 									"description": "Load usage data for a specific session ID",
@@ -599,6 +629,12 @@
 									"type": "string",
 									"description": "Process JSON output with jq command (requires jq binary, implies --json)",
 									"markdownDescription": "Process JSON output with jq command (requires jq binary, implies --json)"
+								},
+								"compact": {
+									"type": "boolean",
+									"description": "Force compact mode for narrow displays (better for screenshots)",
+									"markdownDescription": "Force compact mode for narrow displays (better for screenshots)",
+									"default": false
 								},
 								"active": {
 									"type": "boolean",
