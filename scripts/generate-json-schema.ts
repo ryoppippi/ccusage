@@ -206,7 +206,7 @@ async function generateJsonSchema() {
 	logger.info('Generating JSON Schema from args-tokens configuration schema...');
 
 	// Create the JSON Schema
-	const schemaJson = Result.pipe(
+	const schemaObject = Result.pipe(
 		Result.try({
 			try: () => createConfigSchemaJson(),
 			catch: error => error,
@@ -215,19 +215,24 @@ async function generateJsonSchema() {
 			logger.error('Error creating JSON Schema:', error);
 			process.exit(1);
 		}),
-		// Write schema files
-		Result.map(schema => JSON.stringify(schema, null, '\t')),
 		Result.unwrap(),
 	);
 
 	// Check if existing root schema is identical to avoid unnecessary writes
-	const existingRootSchema = await readFile(SCHEMA_FILENAME);
-	const rootSchemaChanged = Result.isFailure(existingRootSchema) || Result.unwrap(existingRootSchema) !== schemaJson;
+	const existingRootSchema = Result.pipe(
+		readFile(SCHEMA_FILENAME),
+		Result.map(content => JSON.parse(content) as unknown),
+		Result.unwrap(''),
+	);
 
-	if (!rootSchemaChanged) {
+	const isSchemaChanged = Bun.deepEquals(existingRootSchema, schemaObject);
+
+	if (!isSchemaChanged) {
 		logger.info('✓ Schema files are up to date, skipping generation');
 		return;
 	}
+
+	const schemaJson = JSON.stringify(schemaObject, null, '\t');
 
 	await Result.pipe(
 		Result.try({
