@@ -3,6 +3,7 @@ import process from 'node:process';
 import { Result } from '@praha/byethrow';
 import { define } from 'gunshi';
 import pc from 'picocolors';
+import { loadConfig, mergeConfigWithArgs } from '../_config-loader-tokens.ts';
 import { BLOCKS_COMPACT_WIDTH_THRESHOLD, BLOCKS_DEFAULT_TERMINAL_WIDTH, BLOCKS_WARNING_THRESHOLD, DEFAULT_RECENT_DAYS, DEFAULT_REFRESH_INTERVAL_SECONDS, MAX_REFRESH_INTERVAL_SECONDS, MIN_REFRESH_INTERVAL_SECONDS } from '../_consts.ts';
 import { processWithJq } from '../_jq-processor.ts';
 import {
@@ -146,8 +147,12 @@ export const blocksCommand = define({
 	},
 	toKebab: true,
 	async run(ctx) {
+		// Load configuration and merge with CLI arguments
+		const config = loadConfig(ctx.values.config);
+		const mergedOptions = mergeConfigWithArgs('blocks', ctx, config);
+
 		// --jq implies --json
-		const useJson = ctx.values.json || ctx.values.jq != null;
+		const useJson = mergedOptions.json || mergedOptions.jq != null;
 		if (useJson) {
 			logger.level = 0;
 		}

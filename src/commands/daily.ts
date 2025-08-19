@@ -38,7 +38,7 @@ export const dailyCommand = define({
 	async run(ctx) {
 		// Load configuration and merge with CLI arguments
 		const config = loadConfig(ctx.values.config);
-		const mergedOptions = mergeConfigWithArgs('daily', ctx.values, config);
+		const mergedOptions = mergeConfigWithArgs('daily', ctx, config);
 
 		// --jq implies --json
 		const useJson = Boolean(mergedOptions.json) || mergedOptions.jq != null;
