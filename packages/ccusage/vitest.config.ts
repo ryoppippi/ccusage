@@ -11,7 +11,7 @@ export default mergeConfig(
 					'src/index.ts',
 					'src/pricing-fetcher.ts',
 				],
-			}),
+			}) as any,
 		],
 		test: {
 			includeSource: ['./src/**/*.{js,ts}'],
