@@ -248,8 +248,6 @@ if (import.meta.main) {
 	await generateJsonSchema();
 }
 
-export { createConfigSchemaJson, generateJsonSchema, tokensSchemaToJsonSchema };
-
 if (import.meta.vitest != null) {
 	describe('tokensSchemaToJsonSchema', () => {
 		it('should convert boolean args to JSON Schema', () => {
