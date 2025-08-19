@@ -102,6 +102,11 @@ export const sharedArgs = {
 		short: 'q',
 		description: 'Process JSON output with jq command (requires jq binary, implies --json)',
 	},
+	config: {
+		type: 'string',
+		short: 'c',
+		description: 'Path to configuration file (default: auto-discovery)',
+	},
 } as const satisfies Args;
 
 /**

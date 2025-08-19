@@ -9,17 +9,29 @@ import { sessionCommand } from './session.ts';
 import { statuslineCommand } from './statusline.ts';
 import { weeklyCommand } from './weekly.ts';
 
+// Re-export all commands for easy importing
+export { blocksCommand, dailyCommand, mcpCommand, monthlyCommand, sessionCommand, statuslineCommand, weeklyCommand };
+
+/**
+ * Available command names
+ */
+export const subCommandUnion = [
+	['daily', dailyCommand],
+	['monthly', monthlyCommand],
+	['weekly', weeklyCommand],
+	['session', sessionCommand],
+	['blocks', blocksCommand],
+	['mcp', mcpCommand],
+	['statusline', statuslineCommand],
+] as const;
+
 /**
  * Map of available CLI subcommands
  */
 const subCommands = new Map();
-subCommands.set('daily', dailyCommand);
-subCommands.set('monthly', monthlyCommand);
-subCommands.set('weekly', weeklyCommand);
-subCommands.set('session', sessionCommand);
-subCommands.set('blocks', blocksCommand);
-subCommands.set('mcp', mcpCommand);
-subCommands.set('statusline', statuslineCommand);
+for (const [name, command] of subCommandUnion) {
+	subCommands.set(name, command);
+}
 
 /**
  * Default command when no subcommand is specified (defaults to daily)
