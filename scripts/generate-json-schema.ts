@@ -19,7 +19,17 @@ import { subCommandUnion } from '../src/commands/index.ts';
 
 import { logger } from '../src/logger.ts';
 
+/**
+ * The filename for the generated JSON Schema file.
+ * Used for both root directory and docs/public directory output.
+ */
 const SCHEMA_FILENAME = 'config-schema.json';
+
+/**
+ * Keys to exclude from the generated JSON Schema.
+ * These are CLI-only options that shouldn't appear in configuration files.
+ */
+const EXCLUDE_KEYS = ['config'];
 
 /**
  * Convert args-tokens schema to JSON Schema format
@@ -87,19 +97,16 @@ function tokensSchemaToJsonSchema(schema: Record<string, any>): Record<string, a
  * Create the complete configuration schema from all command definitions
  */
 function createConfigSchemaJson() {
-	// Exclude config option from schema since it's CLI-only
-	const excludeKeys = ['config'];
-
 	// Create schema for default/shared arguments (excluding CLI-only options)
 	const defaultsSchema = Object.fromEntries(
-		Object.entries(sharedArgs).filter(([key]) => !excludeKeys.includes(key)),
+		Object.entries(sharedArgs).filter(([key]) => !EXCLUDE_KEYS.includes(key)),
 	);
 
 	// Create schemas for each command's specific arguments (excluding CLI-only options)
 	const commandSchemas: Record<string, any> = {};
 	for (const [commandName, command] of subCommandUnion) {
 		commandSchemas[commandName] = Object.fromEntries(
-			Object.entries(command.args as Record<string, any>).filter(([key]) => !excludeKeys.includes(key)),
+			Object.entries(command.args as Record<string, any>).filter(([key]) => !EXCLUDE_KEYS.includes(key)),
 		);
 	}
 
@@ -247,7 +254,6 @@ async function generateJsonSchema() {
 if (import.meta.main) {
 	await generateJsonSchema();
 }
-
 if (import.meta.vitest != null) {
 	describe('tokensSchemaToJsonSchema', () => {
 		it('should convert boolean args to JSON Schema', () => {
