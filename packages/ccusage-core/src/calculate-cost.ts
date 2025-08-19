@@ -18,7 +18,7 @@ import {
 	createProjectPath,
 	createSessionId,
 	createVersion,
-} from './_types.ts';
+} from './types.ts';
 
 /**
  * Alias for AggregatedTokenCounts from shared utilities

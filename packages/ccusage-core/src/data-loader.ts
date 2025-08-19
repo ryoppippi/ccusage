@@ -19,7 +19,7 @@ import type {
 	SortOrder,
 	Version,
 	WeeklyDate,
-} from './_types.ts';
+} from './types.ts';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
@@ -59,7 +59,7 @@ import {
 	sessionIdSchema,
 	versionSchema,
 	weeklyDateSchema,
-} from './_types.ts';
+} from './types.ts';
 import { logger } from './logger.ts';
 import { PricingFetcher } from './pricing-fetcher.ts';
 

@@ -9,7 +9,7 @@
  */
 
 import type { LoadedUsageEntry, SessionBlock } from './_session-blocks.ts';
-import type { CostMode, SortOrder } from './_types.ts';
+import type { CostMode, SortOrder } from './types.ts';
 import { readFile } from 'node:fs/promises';
 import { identifySessionBlocks } from './_session-blocks.ts';
 import {

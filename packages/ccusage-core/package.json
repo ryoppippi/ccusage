@@ -21,6 +21,7 @@
 		"./debug": "./src/debug.ts",
 		"./logger": "./src/logger.ts",
 		"./pricing-fetcher": "./src/pricing-fetcher.ts",
+		"./types": "./src/types.ts",
 		"./package.json": "./package.json"
 	},
 	"main": "./dist/index.js",
@@ -64,6 +65,7 @@
 			"./debug": "./dist/debug.js",
 			"./logger": "./dist/logger.js",
 			"./pricing-fetcher": "./dist/pricing-fetcher.js",
+			"./types": "./dist/types.js",
 			"./package.json": "./package.json"
 		}
 	}

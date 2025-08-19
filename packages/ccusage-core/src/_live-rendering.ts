@@ -8,7 +8,7 @@
 
 import type { SessionBlock } from './_session-blocks.ts';
 import type { TerminalManager } from './_terminal-utils.ts';
-import type { CostMode, SortOrder } from './_types.ts';
+import type { CostMode, SortOrder } from './types.ts';
 import { delay } from '@std/async';
 import * as ansiEscapes from 'ansi-escapes';
 import pc from 'picocolors';
