@@ -164,15 +164,13 @@ function transformUsageDataWithTotals<T>(
 }
 
 /** Default options for the MCP server */
-const defaultOptions = {
-	claudePath: (() => {
-		const paths = getClaudePaths();
-		if (paths.length === 0) {
-			throw new Error('No valid Claude path found. Ensure getClaudePaths() returns at least one valid path.');
-		}
-		return paths[0];
-	})(),
-} as const satisfies LoadOptions;
+function defaultOptions(): LoadOptions {
+	const paths = getClaudePaths();
+	if (paths.length === 0) {
+		throw new Error('No valid Claude path found. Ensure getClaudePaths() returns at least one valid path.');
+	}
+	return { claudePath: paths[0] } as const satisfies LoadOptions;
+}
 
 /**
  * Creates an MCP server with tools for showing usage reports.
@@ -182,9 +180,7 @@ const defaultOptions = {
  * @param options.claudePath - Path to Claude's data directory
  * @returns Configured MCP server instance with registered tools
  */
-export function createMcpServer({
-	claudePath,
-}: LoadOptions = defaultOptions): McpServer {
+export function createMcpServer(options?: LoadOptions): McpServer {
 	const server = new McpServer({
 		name,
 		version,
@@ -198,6 +194,8 @@ export function createMcpServer({
 		timezone: z.string().optional(),
 		locale: z.string().default('en-CA').optional(),
 	};
+
+	const { claudePath } = options ?? defaultOptions();
 
 	// Register daily tool
 	server.registerTool(
@@ -397,10 +395,10 @@ export async function startMcpServerStdio(
  * @param options.claudePath - Path to Claude's data directory
  * @returns Configured Hono application for HTTP MCP transport
  */
-export function createMcpHttpApp(options: LoadOptions = defaultOptions): Hono {
+export function createMcpHttpApp(options?: LoadOptions): Hono {
 	const app = new Hono();
 
-	const mcpServer = createMcpServer(options);
+	const mcpServer = createMcpServer(options ?? defaultOptions());
 
 	app.all('/', async (c) => {
 		const transport = new StreamableHTTPTransport();

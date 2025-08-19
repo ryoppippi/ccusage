@@ -2,6 +2,7 @@ import process from 'node:process';
 import { Result } from '@praha/byethrow';
 import { define } from 'gunshi';
 import pc from 'picocolors';
+import { loadConfig, mergeConfigWithArgs } from '../_config-loader-tokens.ts';
 import { groupByProject, groupDataByProject } from '../_daily-grouping.ts';
 import { processWithJq } from '../_jq-processor.ts';
 import { formatProjectName } from '../_project-names.ts';
@@ -35,22 +36,19 @@ export const dailyCommand = define({
 		},
 	},
 	async run(ctx) {
+		// Load configuration and merge with CLI arguments
+		const config = loadConfig(ctx.values.config, ctx.values.debug);
+		const mergedOptions = mergeConfigWithArgs(ctx, config, ctx.values.debug);
+
 		// --jq implies --json
-		const useJson = ctx.values.json || ctx.values.jq != null;
+		const useJson = Boolean(mergedOptions.json) || mergedOptions.jq != null;
 		if (useJson) {
 			logger.level = 0;
 		}
 
 		const dailyData = await loadDailyUsageData({
-			since: ctx.values.since,
-			until: ctx.values.until,
-			mode: ctx.values.mode,
-			order: ctx.values.order,
-			offline: ctx.values.offline,
-			groupByProject: ctx.values.instances,
-			project: ctx.values.project,
-			timezone: ctx.values.timezone,
-			locale: ctx.values.locale,
+			...mergedOptions,
+			groupByProject: mergedOptions.instances,
 		});
 
 		if (dailyData.length === 0) {
@@ -67,14 +65,14 @@ export const dailyCommand = define({
 		const totals = calculateTotals(dailyData);
 
 		// Show debug information if requested
-		if (ctx.values.debug && !useJson) {
+		if (mergedOptions.debug && !useJson) {
 			const mismatchStats = await detectMismatches(undefined);
-			printMismatchReport(mismatchStats, ctx.values.debugSamples);
+			printMismatchReport(mismatchStats, mergedOptions.debugSamples as number | undefined);
 		}
 
 		if (useJson) {
 			// Output JSON format - group by project if instances flag is used
-			const jsonOutput = ctx.values.instances && dailyData.some(d => d.project != null)
+			const jsonOutput = Boolean(mergedOptions.instances) && dailyData.some(d => d.project != null)
 				? {
 						projects: groupByProject(dailyData),
 						totals: createTotalsObject(totals),
@@ -96,8 +94,8 @@ export const dailyCommand = define({
 					};
 
 			// Process with jq if specified
-			if (ctx.values.jq != null) {
-				const jqResult = await processWithJq(jsonOutput, ctx.values.jq);
+			if (mergedOptions.jq != null) {
+				const jqResult = await processWithJq(jsonOutput, mergedOptions.jq);
 				if (Result.isFailure(jqResult)) {
 					logger.error((jqResult.error).message);
 					process.exit(1);
@@ -137,7 +135,7 @@ export const dailyCommand = define({
 					'right',
 					'right',
 				],
-				dateFormatter: (dateStr: string) => formatDateCompact(dateStr, ctx.values.timezone, ctx.values.locale),
+				dateFormatter: (dateStr: string) => formatDateCompact(dateStr, mergedOptions.timezone, mergedOptions.locale ?? undefined),
 				compactHead: [
 					'Date',
 					'Models',
@@ -153,10 +151,11 @@ export const dailyCommand = define({
 					'right',
 				],
 				compactThreshold: 100,
+				forceCompact: ctx.values.compact,
 			});
 
 			// Add daily data - group by project if instances flag is used
-			if (ctx.values.instances && dailyData.some(d => d.project != null)) {
+			if (Boolean(mergedOptions.instances) && dailyData.some(d => d.project != null)) {
 				// Group data by project for visual separation
 				const projectGroups = groupDataByProject(dailyData);
 
@@ -194,7 +193,7 @@ export const dailyCommand = define({
 						]);
 
 						// Add model breakdown rows if flag is set
-						if (ctx.values.breakdown) {
+						if (mergedOptions.breakdown) {
 							pushBreakdownRows(table, data.modelBreakdowns);
 						}
 					}
@@ -218,7 +217,7 @@ export const dailyCommand = define({
 					]);
 
 					// Add model breakdown rows if flag is set
-					if (ctx.values.breakdown) {
+					if (mergedOptions.breakdown) {
 						pushBreakdownRows(table, data.modelBreakdowns);
 					}
 				}

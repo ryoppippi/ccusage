@@ -543,7 +543,6 @@ if (import.meta.vitest != null) {
 
 		describe('printMismatchReport', () => {
 			it('should work without errors for basic cases', () => {
-			// Since we can't easily mock logger in Bun test, just verify the function runs without errors
 				const stats = {
 					totalEntries: 10,
 					entriesWithBoth: 0,

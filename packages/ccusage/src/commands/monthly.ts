@@ -2,6 +2,7 @@ import process from 'node:process';
 import { Result } from '@praha/byethrow';
 import { define } from 'gunshi';
 import pc from 'picocolors';
+import { loadConfig, mergeConfigWithArgs } from '../_config-loader-tokens.ts';
 import { processWithJq } from '../_jq-processor.ts';
 import { sharedCommandConfig } from '../_shared-args.ts';
 import { formatCurrency, formatModelsDisplayMultiline, formatNumber, pushBreakdownRows, ResponsiveTable } from '../_utils.ts';
@@ -19,21 +20,17 @@ export const monthlyCommand = define({
 	description: 'Show usage report grouped by month',
 	...sharedCommandConfig,
 	async run(ctx) {
+		// Load configuration and merge with CLI arguments
+		const config = loadConfig(ctx.values.config, ctx.values.debug);
+		const mergedOptions = mergeConfigWithArgs(ctx, config, ctx.values.debug);
+
 		// --jq implies --json
-		const useJson = ctx.values.json || ctx.values.jq != null;
+		const useJson = Boolean(mergedOptions.json) || mergedOptions.jq != null;
 		if (useJson) {
 			logger.level = 0;
 		}
 
-		const monthlyData = await loadMonthlyUsageData({
-			since: ctx.values.since,
-			until: ctx.values.until,
-			mode: ctx.values.mode,
-			order: ctx.values.order,
-			offline: ctx.values.offline,
-			timezone: ctx.values.timezone,
-			locale: ctx.values.locale,
-		});
+		const monthlyData = await loadMonthlyUsageData(mergedOptions);
 
 		if (monthlyData.length === 0) {
 			if (useJson) {
@@ -60,9 +57,9 @@ export const monthlyCommand = define({
 		const totals = calculateTotals(monthlyData);
 
 		// Show debug information if requested
-		if (ctx.values.debug && !useJson) {
+		if (mergedOptions.debug && !useJson) {
 			const mismatchStats = await detectMismatches(undefined);
-			printMismatchReport(mismatchStats, ctx.values.debugSamples);
+			printMismatchReport(mismatchStats, mergedOptions.debugSamples as number | undefined);
 		}
 
 		if (useJson) {
@@ -83,8 +80,8 @@ export const monthlyCommand = define({
 			};
 
 			// Process with jq if specified
-			if (ctx.values.jq != null) {
-				const jqResult = await processWithJq(jsonOutput, ctx.values.jq);
+			if (mergedOptions.jq != null) {
+				const jqResult = await processWithJq(jsonOutput, mergedOptions.jq);
 				if (Result.isFailure(jqResult)) {
 					logger.error((jqResult.error).message);
 					process.exit(1);
@@ -124,7 +121,7 @@ export const monthlyCommand = define({
 					'right',
 					'right',
 				],
-				dateFormatter: (dateStr: string) => formatDateCompact(dateStr, ctx.values.timezone, ctx.values.locale),
+				dateFormatter: (dateStr: string) => formatDateCompact(dateStr, mergedOptions.timezone, mergedOptions.locale ?? 'en-CA'),
 				compactHead: [
 					'Month',
 					'Models',
@@ -140,6 +137,7 @@ export const monthlyCommand = define({
 					'right',
 				],
 				compactThreshold: 100,
+				forceCompact: ctx.values.compact,
 			});
 
 			// Add monthly data
@@ -157,7 +155,7 @@ export const monthlyCommand = define({
 				]);
 
 				// Add model breakdown rows if flag is set
-				if (ctx.values.breakdown) {
+				if (mergedOptions.breakdown) {
 					pushBreakdownRows(table, data.modelBreakdowns);
 				}
 			}

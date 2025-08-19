@@ -24,6 +24,7 @@ type TableOptions = {
 	compactHead?: string[];
 	compactColAligns?: ('left' | 'right' | 'center')[];
 	compactThreshold?: number;
+	forceCompact?: boolean;
 };
 
 /**
@@ -40,6 +41,7 @@ export class ResponsiveTable {
 	private compactColAligns?: ('left' | 'right' | 'center')[];
 	private compactThreshold: number;
 	private compactMode = false;
+	private forceCompact: boolean;
 
 	/**
 	 * Creates a new responsive table instance
@@ -53,6 +55,7 @@ export class ResponsiveTable {
 		this.compactHead = options.compactHead;
 		this.compactColAligns = options.compactColAligns;
 		this.compactThreshold = options.compactThreshold ?? 100;
+		this.forceCompact = options.forceCompact ?? false;
 	}
 
 	/**
@@ -123,7 +126,7 @@ export class ResponsiveTable {
 		const terminalWidth = Number.parseInt(process.env.COLUMNS ?? '', 10) || process.stdout.columns || 120;
 
 		// Determine if we should use compact mode
-		this.compactMode = terminalWidth < this.compactThreshold && this.compactHead != null;
+		this.compactMode = this.forceCompact || (terminalWidth < this.compactThreshold && this.compactHead != null);
 
 		// Get current table configuration
 		const { head, colAligns } = this.getCurrentTableConfig();

@@ -54,3 +54,28 @@ jobs:
       - uses: crate-ci/typos@master
         with:
           config: ./typos.toml
+
+  schema-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+      - uses: oven-sh/setup-bun@735343b667d3e6f658f44d0eca948eb6282f2b76 # v2.0.2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+      - name: Generate schema files
+        run: bun run generate:schema
+      - name: Check if schema files are up-to-date
+        run: |
+          if git diff --exit-code config-schema.json docs/public/config-schema.json; then
+            echo "✅ Schema files are up-to-date"
+          else
+            echo "❌ Schema files are not up-to-date. Please run 'bun run generate:schema' and commit the changes."
+            echo ""
+            echo "Changed files:"
+            git diff --name-only config-schema.json docs/public/config-schema.json
+            echo ""
+            echo "Diff:"
+            git diff config-schema.json docs/public/config-schema.json
+            exit 1
+          fi

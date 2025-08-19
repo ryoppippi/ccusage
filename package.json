@@ -1,6 +1,7 @@
 {
 	"name": "ccusage-monorepo",
 	"type": "module",
+	"version": "15.10.0",
 	"private": true,
 	"description": "Usage analysis tool for Claude Code - Monorepo",
 	"author": "ryoppippi",
@@ -14,6 +15,24 @@
 	"bugs": {
 		"url": "https://github.com/ryoppippi/ccusage/issues"
 	},
+	"exports": {
+		".": "./dist/index.js",
+		"./calculate-cost": "./dist/calculate-cost.js",
+		"./data-loader": "./dist/data-loader.js",
+		"./debug": "./dist/debug.js",
+		"./logger": "./dist/logger.js",
+		"./mcp": "./dist/mcp.js",
+		"./pricing-fetcher": "./dist/pricing-fetcher.js",
+		"./package.json": "./package.json"
+	},
+	"main": "./dist/index.js",
+	"module": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"bin": "./dist/index.js",
+	"files": [
+		"config-schema.json",
+		"dist"
+	],
 	"workspaces": [
 		"packages/*",
 		"docs"
@@ -28,19 +47,32 @@
 		"docs:dev": "cd docs && bun run dev",
 		"docs:preview": "cd docs && bun run preview",
 		"format": "bun run lint --fix",
+		"generate:schema": "bun run scripts/generate-json-schema.ts",
 		"preinstall": "npx only-allow bun",
 		"lint": "eslint --cache .",
-		"prepare": "git config --local core.hooksPath .githooks",
+		"mcp": "bunx @modelcontextprotocol/inspector bun run start mcp",
+		"prepack": "bun run build && bun clean-pkg-json -r scripts.preinstall",
+		"prepare": "git config --local core.hooksPath .githooks && bun run generate:schema",
 		"prerelease": "bun run lint && bun run typecheck && bun run test && bun run build",
 		"release": "bumpp --recursive",
+		"start": "bun run ./src/index.ts",
 		"test": "bun run --filter '*' test",
+		"test:statusline": "cat test/statusline-test.json | bun run start statusline",
+		"test:statusline:all": "echo 'Testing Sonnet 4:' && bun run test:statusline:sonnet4 && echo 'Testing Opus 4.1:' && bun run test:statusline:opus4 && echo 'Testing Sonnet 4.1:' && bun run test:statusline:sonnet41",
+		"test:statusline:opus4": "cat test/statusline-test-opus4.json | bun run start statusline --offline",
+		"test:statusline:sonnet4": "cat test/statusline-test-sonnet4.json | bun run start statusline --offline",
+		"test:statusline:sonnet41": "cat test/statusline-test-sonnet41.json | bun run start statusline --offline",
 		"typecheck": "tsgo --noEmit"
 	},
 	"devDependencies": {
 		"@mizchi/lsmcp": "^0.9.4",
 		"@praha/byethrow-mcp": "^0.1.2",
 		"@ryoppippi/eslint-config": "^0.3.7",
-		"@typescript/native-preview": "^7.0.0-dev.20250815.1",
+		"@ryoppippi/limo": "npm:@jsr/ryoppippi__limo@^0.2.2",
+		"@std/async": "npm:@jsr/std__async@^1.0.14",
+		"@types/bun": "^1.2.20",
+		"@typescript/native-preview": "^7.0.0-dev.20250816.1",
+		"ansi-escapes": "^7.0.0",
 		"bumpp": "^10.2.3",
 		"eslint": "^9.33.0",
 		"eslint-plugin-format": "^1.0.1",

@@ -9,4 +9,8 @@
  * @module index
  */
 
-import './commands/index.ts';
+/* eslint-disable antfu/no-top-level-await */
+
+import { run } from './commands/index.ts';
+
+await run();
