@@ -40,7 +40,7 @@ for (const [name, command] of subCommandUnion) {
 const mainCommand = dailyCommand;
 
 // TODO: after node20 is deprecated, switch to `import.meta.main`
-if (esMain(import.meta)) {
+if (import.meta.main ?? esMain(import.meta)) {
 // eslint-disable-next-line antfu/no-top-level-await
 	await cli(process.argv.slice(2), mainCommand, {
 		name,
