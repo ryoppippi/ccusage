@@ -219,16 +219,31 @@ async function generateJsonSchema() {
 	);
 
 	// Check if existing root schema is identical to avoid unnecessary writes
-	const existingRootSchema = Result.pipe(
+	const existingRootSchema = await Result.pipe(
 		readFile(SCHEMA_FILENAME),
 		Result.map(content => JSON.parse(content) as unknown),
 		Result.unwrap(''),
 	);
 
-	const isSchemaChanged = Bun.deepEquals(existingRootSchema, schemaObject);
+	const isSchemaChanged = !Bun.deepEquals(existingRootSchema, schemaObject, true);
 
 	if (!isSchemaChanged) {
-		logger.info('✓ Schema files are up to date, skipping generation');
+		logger.info('✓ Root schema is up to date, skipping generation');
+
+		// Always copy to docs/public since it's gitignored
+		await Result.pipe(
+			Result.try({
+				try: $`cp ${SCHEMA_FILENAME} docs/public/${SCHEMA_FILENAME}`,
+				catch: error => error,
+			}),
+			Result.inspectError((error) => {
+				logger.error(`Failed to copy to docs/public/${SCHEMA_FILENAME}:`, error);
+				process.exit(1);
+			}),
+			Result.inspect(() => logger.info(`✓ Copied to docs/public/${SCHEMA_FILENAME}`)),
+		);
+
+		logger.info('JSON Schema sync completed successfully!');
 		return;
 	}
 
