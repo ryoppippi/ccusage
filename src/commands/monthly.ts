@@ -121,7 +121,7 @@ export const monthlyCommand = define({
 					'right',
 					'right',
 				],
-				dateFormatter: (dateStr: string) => formatDateCompact(dateStr, mergedOptions.timezone, mergedOptions.locale ?? undefined),
+				dateFormatter: (dateStr: string) => formatDateCompact(dateStr, mergedOptions.timezone, mergedOptions.locale ?? 'en-CA'),
 				compactHead: [
 					'Month',
 					'Models',
