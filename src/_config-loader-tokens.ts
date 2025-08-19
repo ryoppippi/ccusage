@@ -1,9 +1,9 @@
 import type { subCommandUnion } from './commands/index.ts';
 import { existsSync, readFileSync } from 'node:fs';
-import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { Result } from '@praha/byethrow';
 import { createFixture } from 'fs-fixture';
+import { getClaudePaths } from './data-loader.ts';
 import { logger } from './logger.ts';
 
 export type CommandName = typeof subCommandUnion[number][0];
@@ -19,16 +19,28 @@ export type ConfigData = {
 };
 
 /**
- * Configuration file search paths in priority order (highest to lowest)
+ * Get configuration file search paths in priority order (highest to lowest)
  * 1. Local .ccusage/ccusage.json
- * 2. User config ~/.config/claude/ccusage.json
- * 3. User home ~/.claude/ccusage.json (legacy)
+ * 2. User config directories from getClaudePaths() + ccusage.json
  */
-const CONFIG_SEARCH_PATHS = [
-	'.ccusage/ccusage.json',
-	join(homedir(), '.config/claude/ccusage.json'),
-	join(homedir(), '.claude/ccusage.json'),
-];
+function getConfigSearchPaths(): string[] {
+	const paths = ['.ccusage/ccusage.json'];
+
+	// Add paths from getClaudePaths() for consistency with data loading
+	const claudePathsResult = Result.try({
+		try: () => getClaudePaths(),
+		safe: true,
+	});
+	if (Result.isSuccess(claudePathsResult)) {
+		for (const claudePath of claudePathsResult.value as string[]) {
+			paths.push(join(claudePath, 'ccusage.json'));
+		}
+	}
+	// If getClaudePaths fails, continue with just local config path
+	// This is OK for config loading since config files are optional
+
+	return paths;
+}
 
 /**
  * Basic JSON validation - just check if it can be parsed and has expected structure
@@ -98,7 +110,7 @@ export function loadConfig(configPath?: string): ConfigData | undefined {
 	}
 
 	// Auto-discovery from search paths
-	for (const searchPath of CONFIG_SEARCH_PATHS) {
+	for (const searchPath of getConfigSearchPaths()) {
 		if (existsSync(searchPath)) {
 			const parseConfigFile = Result.try({
 				try: () => {
@@ -183,7 +195,7 @@ export function mergeConfigWithArgs<T extends CliArgs>(
  * @returns Path to the configuration file being used, or undefined
  */
 export function findConfigPath(): string | undefined {
-	for (const configPath of CONFIG_SEARCH_PATHS) {
+	for (const configPath of getConfigSearchPaths()) {
 		if (existsSync(configPath)) {
 			return configPath;
 		}

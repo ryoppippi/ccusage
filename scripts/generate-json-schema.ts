@@ -11,6 +11,8 @@
  */
 
 import process from 'node:process';
+import { Result } from '@praha/byethrow';
+import { $ } from 'bun';
 import { sharedArgs } from '../src/_shared-args.ts';
 // Import command definitions to access their args
 import { subCommandUnion } from '../src/commands/index.ts';
@@ -166,28 +168,63 @@ function createConfigSchemaJson() {
 /**
  * Generate JSON Schema and write to files
  */
+async function runLint(files: string[]) {
+	return Result.try({
+		try: async () => {
+			await $`bun run lint --fix ${files}`;
+		},
+		safe: true,
+	});
+}
+
+async function writeFile(path: string, content: string) {
+	return Result.try({
+		try: async () => {
+			await Bun.write(path, content);
+		},
+		safe: true,
+	});
+}
+
 async function generateJsonSchema() {
 	logger.info('Generating JSON Schema from args-tokens configuration schema...');
 
-	try {
-		// Create the JSON Schema
-		const jsonSchema = createConfigSchemaJson();
-
-		// Write schema files
-		const schemaJson = JSON.stringify(jsonSchema, null, '\t');
-
-		await Bun.write(`config-schema.json`, schemaJson);
-		logger.info(`✓ Generated config-schema.json`);
-
-		await Bun.write(`docs/public/config-schema.json`, schemaJson);
-		logger.info(`✓ Generated docs/public/config-schema.json`);
-
-		logger.info('JSON Schema generation completed successfully!');
-	}
-	catch (error) {
-		logger.error('Failed to generate JSON Schema:', error);
+	// Create the JSON Schema
+	const schemaResult = Result.try({
+		try: () => createConfigSchemaJson(),
+		safe: true,
+	});
+	if (Result.isFailure(schemaResult)) {
+		logger.error('Failed to create JSON Schema:', schemaResult.error);
 		process.exit(1);
 	}
+
+	// Write schema files
+	const schemaJson = JSON.stringify(schemaResult.value, null, '\t');
+
+	const configSchemaResult = await writeFile('config-schema.json', schemaJson);
+	if (Result.isFailure(configSchemaResult)) {
+		logger.error('Failed to write config-schema.json:', configSchemaResult.error);
+		process.exit(1);
+	}
+	logger.info('✓ Generated config-schema.json');
+
+	const docsSchemaResult = await writeFile('docs/public/config-schema.json', schemaJson);
+	if (Result.isFailure(docsSchemaResult)) {
+		logger.error('Failed to write docs/public/config-schema.json:', docsSchemaResult.error);
+		process.exit(1);
+	}
+	logger.info('✓ Generated docs/public/config-schema.json');
+
+	// Run lint on generated files
+	const lintResult = await runLint(['config-schema.json', 'docs/public/config-schema.json']);
+	if (Result.isFailure(lintResult)) {
+		logger.error('Failed to lint generated files:', lintResult.error);
+		process.exit(1);
+	}
+	logger.info('✓ Linted generated files');
+
+	logger.info('JSON Schema generation completed successfully!');
 }
 
 // Run the generator
