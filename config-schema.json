@@ -739,6 +739,12 @@
 									"description": "Refresh interval in seconds for cache expiry (default: 1)",
 									"markdownDescription": "Refresh interval in seconds for cache expiry (default: 1)",
 									"default": 1
+								},
+								"debug": {
+									"type": "boolean",
+									"description": "Show pricing mismatch information for debugging",
+									"markdownDescription": "Show pricing mismatch information for debugging",
+									"default": false
 								}
 							},
 							"additionalProperties": false

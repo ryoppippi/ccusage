@@ -107,8 +107,8 @@ export const statuslineCommand = define({
 		logger.level = 0;
 
 		// Load configuration and merge with CLI args
-		const config = loadConfig(ctx.values.config, Boolean(ctx.values.debug));
-		const mergedOptions = mergeConfigWithArgs(ctx, config, Boolean(ctx.values.debug));
+		const config = loadConfig(ctx.values.config, ctx.values.debug);
+		const mergedOptions = mergeConfigWithArgs(ctx, config, ctx.values.debug);
 
 		// Use refresh interval from merged options
 		const refreshInterval = mergedOptions.refreshInterval;

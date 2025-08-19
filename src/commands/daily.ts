@@ -37,8 +37,8 @@ export const dailyCommand = define({
 	},
 	async run(ctx) {
 		// Load configuration and merge with CLI arguments
-		const config = loadConfig(ctx.values.config, Boolean(ctx.values.debug));
-		const mergedOptions = mergeConfigWithArgs(ctx, config, Boolean(ctx.values.debug));
+		const config = loadConfig(ctx.values.config, ctx.values.debug);
+		const mergedOptions = mergeConfigWithArgs(ctx, config, ctx.values.debug);
 
 		// --jq implies --json
 		const useJson = Boolean(mergedOptions.json) || mergedOptions.jq != null;
@@ -65,7 +65,7 @@ export const dailyCommand = define({
 		const totals = calculateTotals(dailyData);
 
 		// Show debug information if requested
-		if (Boolean(mergedOptions.debug) && !useJson) {
+		if (mergedOptions.debug && !useJson) {
 			const mismatchStats = await detectMismatches(undefined);
 			printMismatchReport(mismatchStats, mergedOptions.debugSamples as number | undefined);
 		}
