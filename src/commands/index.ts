@@ -13,7 +13,7 @@ import { weeklyCommand } from './weekly.ts';
 export { blocksCommand, dailyCommand, mcpCommand, monthlyCommand, sessionCommand, statuslineCommand, weeklyCommand };
 
 /**
- * Available command names
+ * Command entries as tuple array
  */
 export const subCommandUnion = [
 	['daily', dailyCommand],
@@ -24,6 +24,11 @@ export const subCommandUnion = [
 	['mcp', mcpCommand],
 	['statusline', statuslineCommand],
 ] as const;
+
+/**
+ * Available command names extracted from union
+ */
+export type CommandName = typeof subCommandUnion[number][0];
 
 /**
  * Map of available CLI subcommands
