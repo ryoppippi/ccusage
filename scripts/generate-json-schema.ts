@@ -19,6 +19,8 @@ import { subCommandUnion } from '../src/commands/index.ts';
 
 import { logger } from '../src/logger.ts';
 
+const SCHEMA_FILENAME = 'config-schema.json';
+
 /**
  * Convert args-tokens schema to JSON Schema format
  */
@@ -203,32 +205,32 @@ async function generateJsonSchema() {
 
 	await Result.pipe(
 		Result.try({
-			try: writeFile('config-schema.json', schemaJson),
+			try: writeFile(SCHEMA_FILENAME, schemaJson),
 			safe: true,
 		}),
 		Result.inspectError((error) => {
-			logger.error('Failed to write config-schema.json:', error);
+			logger.error(`Failed to write ${SCHEMA_FILENAME}:`, error);
 			process.exit(1);
 		}),
-		Result.inspect(() => logger.info('✓ Generated config-schema.json')),
+		Result.inspect(() => logger.info(`✓ Generated ${SCHEMA_FILENAME}`)),
 	);
 
 	await Result.pipe(
 		Result.try({
-			try: writeFile('docs/public/config-schema.json', schemaJson),
+			try: writeFile(`docs/public/${SCHEMA_FILENAME}`, schemaJson),
 			safe: true,
 		}),
 		Result.inspectError((error) => {
-			logger.error('Failed to write docs/public/config-schema.json:', error);
+			logger.error(`Failed to write docs/public/${SCHEMA_FILENAME}:`, error);
 			process.exit(1);
 		}),
-		Result.inspect(() => logger.info('✓ Generated docs/public/config-schema.json')),
+		Result.inspect(() => logger.info(`✓ Generated docs/public/${SCHEMA_FILENAME}`)),
 	);
 
 	// Run lint on generated files
 	await Result.pipe(
 		Result.try({
-			try: runLint(['config-schema.json']),
+			try: runLint([SCHEMA_FILENAME]),
 			safe: true,
 		}),
 		Result.inspectError((error) => {
