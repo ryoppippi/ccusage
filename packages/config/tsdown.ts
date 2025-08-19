@@ -9,7 +9,7 @@ export default defineConfig({
 	outDir: 'dist',
 	format: 'esm',
 	clean: true,
-	sourcemap: false,
+	sourcemap: true,
 	minify: 'dce-only',
 	treeshake: true,
 	dts: {
