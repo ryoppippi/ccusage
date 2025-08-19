@@ -716,6 +716,18 @@
 									"markdownDescription": "Use cached pricing data for Claude models instead of fetching from API",
 									"default": true
 								},
+								"visualBurnRate": {
+									"type": "string",
+									"enum": [
+										"off",
+										"emoji",
+										"text",
+										"emoji-text"
+									],
+									"description": "Controls the visualization of the burn rate status",
+									"markdownDescription": "Controls the visualization of the burn rate status",
+									"default": "off"
+								},
 								"cache": {
 									"type": "boolean",
 									"description": "Enable cache for status line output (default: true)",
