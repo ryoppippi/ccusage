@@ -1,15 +1,20 @@
 import Macros from 'unplugin-macros/vite';
-import { defineConfig } from 'vitest/config';
+import { defineProject, mergeConfig } from 'vitest/config';
+import configShared from '../../vitest.shared.config';
 
-export default defineConfig({
-	test: {
-		watch: false,
-		includeSource: ['src/**/*.{js,ts}'],
-		globals: true,
-	},
-	plugins: [
-		Macros({
-			include: ['src/index.ts', 'src/pricing-fetcher.ts'],
-		}),
-	],
-});
+export default mergeConfig(
+	configShared,
+	defineProject({
+		plugins: [
+			Macros({
+				include: [
+					'src/index.ts',
+					'src/pricing-fetcher.ts',
+				],
+			}),
+		],
+		test: {
+			includeSource: ['./src/**/*.{js,ts}'],
+		},
+	}),
+);

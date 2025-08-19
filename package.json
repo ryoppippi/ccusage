@@ -34,17 +34,19 @@
 		"prerelease": "bun run lint && bun run typecheck && bun run test && bun run build",
 		"release": "bumpp --recursive",
 		"test": "bun run --filter '*' test",
-		"typecheck": "bun run --filter '*' typecheck"
+		"typecheck": "tsgo --noEmit"
 	},
 	"devDependencies": {
 		"@mizchi/lsmcp": "^0.9.4",
 		"@praha/byethrow-mcp": "^0.1.2",
 		"@ryoppippi/eslint-config": "^0.3.7",
+		"@typescript/native-preview": "^7.0.0-dev.20250815.1",
 		"bumpp": "^10.2.3",
 		"eslint": "^9.33.0",
 		"eslint-plugin-format": "^1.0.1",
 		"lint-staged": "^16.1.5",
-		"sort-package-json": "^3.4.0"
+		"sort-package-json": "^3.4.0",
+		"vitest": "^3.2.4"
 	},
 	"lint-staged": {
 		"*": [
