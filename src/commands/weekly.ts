@@ -2,7 +2,7 @@ import process from 'node:process';
 import { Result } from '@praha/byethrow';
 import { define } from 'gunshi';
 import pc from 'picocolors';
-import { loadConfig, mergeConfigWithArgs } from '../_config-loader.ts';
+import { loadConfig, mergeConfigWithArgs } from '../_config-loader-tokens.ts';
 import { WEEK_DAYS } from '../_consts.ts';
 import { processWithJq } from '../_jq-processor.ts';
 import { sharedArgs } from '../_shared-args.ts';
@@ -32,8 +32,8 @@ export const weeklyCommand = define({
 	toKebab: true,
 	async run(ctx) {
 		// Load configuration and merge with CLI arguments
-		const config = loadConfig();
-		const mergedOptions = mergeConfigWithArgs('weekly', ctx.values, config) as typeof ctx.values;
+		const config = loadConfig(ctx.values.config);
+		const mergedOptions = mergeConfigWithArgs('weekly', ctx.values, config);
 
 		// --jq implies --json
 		const useJson = Boolean(mergedOptions.json) || mergedOptions.jq != null;
@@ -132,7 +132,7 @@ export const weeklyCommand = define({
 					'right',
 					'right',
 				],
-				dateFormatter: (dateStr: string) => formatDateCompact(dateStr, mergedOptions.timezone, mergedOptions.locale as string | undefined),
+				dateFormatter: (dateStr: string) => formatDateCompact(dateStr, mergedOptions.timezone, mergedOptions.locale ?? undefined),
 				compactHead: [
 					'Week',
 					'Models',

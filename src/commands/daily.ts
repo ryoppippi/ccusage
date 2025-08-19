@@ -2,7 +2,7 @@ import process from 'node:process';
 import { Result } from '@praha/byethrow';
 import { define } from 'gunshi';
 import pc from 'picocolors';
-import { loadConfig, mergeConfigWithArgs } from '../_config-loader.ts';
+import { loadConfig, mergeConfigWithArgs } from '../_config-loader-tokens.ts';
 import { groupByProject, groupDataByProject } from '../_daily-grouping.ts';
 import { processWithJq } from '../_jq-processor.ts';
 import { formatProjectName } from '../_project-names.ts';
@@ -37,8 +37,8 @@ export const dailyCommand = define({
 	},
 	async run(ctx) {
 		// Load configuration and merge with CLI arguments
-		const config = loadConfig();
-		const mergedOptions = mergeConfigWithArgs('daily', ctx.values, config) as typeof ctx.values;
+		const config = loadConfig(ctx.values.config);
+		const mergedOptions = mergeConfigWithArgs('daily', ctx.values, config);
 
 		// --jq implies --json
 		const useJson = Boolean(mergedOptions.json) || mergedOptions.jq != null;
@@ -135,7 +135,7 @@ export const dailyCommand = define({
 					'right',
 					'right',
 				],
-				dateFormatter: (dateStr: string) => formatDateCompact(dateStr, mergedOptions.timezone, mergedOptions.locale as string | undefined),
+				dateFormatter: (dateStr: string) => formatDateCompact(dateStr, mergedOptions.timezone, mergedOptions.locale ?? undefined),
 				compactHead: [
 					'Date',
 					'Models',

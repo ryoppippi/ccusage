@@ -7,7 +7,7 @@ import { createLimoJson } from '@ryoppippi/limo';
 import getStdin from 'get-stdin';
 import { define } from 'gunshi';
 import pc from 'picocolors';
-import { loadConfig, mergeConfigWithArgs } from '../_config-loader.ts';
+import { loadConfig, mergeConfigWithArgs } from '../_config-loader-tokens.ts';
 import { DEFAULT_REFRESH_INTERVAL_SECONDS } from '../_consts.ts';
 import { calculateBurnRate } from '../_session-blocks.ts';
 import { sharedArgs } from '../_shared-args.ts';
@@ -87,14 +87,15 @@ export const statuslineCommand = define({
 			description: `Refresh interval in seconds for cache expiry (default: ${DEFAULT_REFRESH_INTERVAL_SECONDS})`,
 			default: DEFAULT_REFRESH_INTERVAL_SECONDS,
 		},
+		config: sharedArgs.config,
 	},
 	async run(ctx) {
 		// Set logger to silent for statusline output
 		logger.level = 0;
 
 		// Load configuration and merge with CLI args
-		const config = loadConfig();
-		const mergedOptions = mergeConfigWithArgs('statusline', ctx.values, config) as typeof ctx.values;
+		const config = loadConfig(ctx.values.config);
+		const mergedOptions = mergeConfigWithArgs('statusline', ctx.values, config);
 
 		// Use refresh interval from merged options
 		const refreshInterval = mergedOptions.refreshInterval;

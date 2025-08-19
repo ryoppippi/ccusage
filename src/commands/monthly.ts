@@ -2,7 +2,7 @@ import process from 'node:process';
 import { Result } from '@praha/byethrow';
 import { define } from 'gunshi';
 import pc from 'picocolors';
-import { loadConfig, mergeConfigWithArgs } from '../_config-loader.ts';
+import { loadConfig, mergeConfigWithArgs } from '../_config-loader-tokens.ts';
 import { processWithJq } from '../_jq-processor.ts';
 import { sharedCommandConfig } from '../_shared-args.ts';
 import { formatCurrency, formatModelsDisplayMultiline, formatNumber, pushBreakdownRows, ResponsiveTable } from '../_utils.ts';
@@ -21,8 +21,8 @@ export const monthlyCommand = define({
 	...sharedCommandConfig,
 	async run(ctx) {
 		// Load configuration and merge with CLI arguments
-		const config = loadConfig();
-		const mergedOptions = mergeConfigWithArgs('monthly', ctx.values, config) as typeof ctx.values;
+		const config = loadConfig(ctx.values.config);
+		const mergedOptions = mergeConfigWithArgs('monthly', ctx.values, config);
 
 		// --jq implies --json
 		const useJson = Boolean(mergedOptions.json) || mergedOptions.jq != null;
@@ -121,7 +121,7 @@ export const monthlyCommand = define({
 					'right',
 					'right',
 				],
-				dateFormatter: (dateStr: string) => formatDateCompact(dateStr, mergedOptions.timezone, mergedOptions.locale as string | undefined),
+				dateFormatter: (dateStr: string) => formatDateCompact(dateStr, mergedOptions.timezone, mergedOptions.locale ?? undefined),
 				compactHead: [
 					'Month',
 					'Models',

@@ -180,10 +180,28 @@ Set default values that apply to all commands:
 Settings are applied in this priority order (highest to lowest):
 
 1. **Command-line arguments** (e.g., `--json`, `--offline`)
-2. **Local project config** (`.ccusage/ccusage.json`)
-3. **User config** (`~/.config/claude/ccusage.json`)
-4. **Legacy config** (`~/.claude/ccusage.json`)
-5. **Built-in defaults**
+2. **Custom config file** (specified with `--config /path/to/config.json`)
+3. **Local project config** (`.ccusage/ccusage.json`)
+4. **User config** (`~/.config/claude/ccusage.json`)
+5. **Legacy config** (`~/.claude/ccusage.json`)
+6. **Built-in defaults**
+
+### Custom Configuration Files
+
+You can specify a custom configuration file using the `--config` option:
+
+```bash
+# Use a specific configuration file
+ccusage daily --config ./my-config.json
+
+# Works with all commands
+ccusage blocks --config /path/to/team-config.json
+```
+
+This is useful for:
+- **Team configurations** - Share configuration files across team members
+- **Environment-specific settings** - Different configs for development/production
+- **Project-specific overrides** - Use different settings for different projects
 
 ### IDE Support
 

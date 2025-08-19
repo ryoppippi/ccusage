@@ -704,7 +704,7 @@
 			"additionalProperties": false
 		}
 	},
-	"$schema": "http://json-schema.org/draft-07/schema#",
+	"$schema": "https://json-schema.org/draft-07/schema#",
 	"title": "ccusage Configuration",
 	"description": "Configuration file for ccusage - Claude Code usage analysis tool",
 	"examples": [
