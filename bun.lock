@@ -42,15 +42,16 @@
       "version": "15.10.0",
       "bin": "./dist/index.js",
       "dependencies": {
-        "@ccusage/command": "workspace:*",
+        "@ccusage/commands": "workspace:*",
       },
       "devDependencies": {
+        "@ccusage/config": "workspace:*",
         "clean-pkg-json": "^1.3.0",
         "tsdown": "^0.14.1",
       },
     },
-    "packages/ccusage-command": {
-      "name": "@ccusage/command",
+    "packages/ccusage-commands": {
+      "name": "@ccusage/commands",
       "version": "15.10.0",
       "dependencies": {
         "ccusage-core": "workspace:*",
@@ -117,7 +118,7 @@
       "name": "@ccusage/schema-generator",
       "version": "15.10.0",
       "dependencies": {
-        "@ccusage/command": "workspace:*",
+        "@ccusage/commands": "workspace:*",
         "@praha/byethrow": "^0.6.3",
         "ccusage-core": "workspace:*",
       },
@@ -178,7 +179,7 @@
 
     "@braintree/sanitize-url": ["@braintree/sanitize-url@6.0.4", "", {}, "sha512-s3jaWicZd0pkP0jf5ysyHUI/RE7MHos6qlToFcGWXVp+ykHOy77OUMrfbgJ9it2C5bow7OIQwYYaHjk9XlBQ2A=="],
 
-    "@ccusage/command": ["@ccusage/command@workspace:packages/ccusage-command"],
+    "@ccusage/commands": ["@ccusage/commands@workspace:packages/ccusage-commands"],
 
     "@ccusage/config": ["@ccusage/config@workspace:packages/config"],
 

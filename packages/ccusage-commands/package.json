@@ -1,5 +1,5 @@
 {
-	"name": "@ccusage/command",
+	"name": "@ccusage/commands",
 	"type": "module",
 	"version": "15.10.0",
 	"private": true,
@@ -9,12 +9,6 @@
 	"exports": {
 		".": "./src/index.ts",
 		"./package.json": "./package.json"
-	},
-	"publishConfig": {
-		"exports": {
-			".": "./dist/index.js",
-			"./package.json": "./package.json"
-		}
 	},
 	"main": "./dist/index.js",
 	"module": "./dist/index.js",
@@ -29,9 +23,11 @@
 		"test": "TZ=UTC vitest"
 	},
 	"dependencies": {
-		"ccusage-core": "workspace:*"
+		"ccusage-core": "workspace:*",
+		"gunshi": "^0.26.3",
+		"zod": "3.25.76"
 	},
 	"devDependencies": {
-		"gunshi": "^0.26.3"
+		"@ccusage/config": "workspace:*"
 	}
 }
