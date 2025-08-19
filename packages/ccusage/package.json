@@ -22,6 +22,7 @@
 		"./logger": "./dist/logger.js",
 		"./mcp": "./dist/mcp.js",
 		"./pricing-fetcher": "./dist/pricing-fetcher.js",
+		"./src/*": "./src/*",
 		"./package.json": "./package.json"
 	},
 	"main": "./dist/index.js",

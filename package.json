@@ -47,7 +47,7 @@
 		"docs:dev": "cd docs && bun run dev",
 		"docs:preview": "cd docs && bun run preview",
 		"format": "bun run lint --fix",
-		"generate:schema": "bun run scripts/generate-json-schema.ts",
+		"generate:schema": "bun run --filter @ccusage/schema-generator generate",
 		"preinstall": "npx only-allow bun",
 		"lint": "eslint --cache .",
 		"mcp": "bunx @modelcontextprotocol/inspector bun run start mcp",

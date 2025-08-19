@@ -1,0 +1,14 @@
+{
+	"name": "@ccusage/schema-generator",
+	"type": "module",
+	"version": "15.10.0",
+	"private": true,
+	"description": "JSON Schema generator for ccusage configuration",
+	"scripts": {
+		"generate": "bun run src/index.ts"
+	},
+	"dependencies": {
+		"@praha/byethrow": "^0.6.3",
+		"ccusage": "workspace:*"
+	}
+}

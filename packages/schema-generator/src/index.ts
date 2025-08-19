@@ -13,11 +13,11 @@
 import process from 'node:process';
 import { Result } from '@praha/byethrow';
 import { $ } from 'bun';
-import { sharedArgs } from '../packages/ccusage/src/_shared-args.ts';
+import { sharedArgs } from 'ccusage/src/_shared-args.ts';
 // Import command definitions to access their args
-import { subCommandUnion } from '../packages/ccusage/src/commands/index.ts';
+import { subCommandUnion } from 'ccusage/src/commands/index.ts';
 
-import { logger } from '../packages/ccusage/src/logger.ts';
+import { logger } from 'ccusage/src/logger.ts';
 
 /**
  * The filename for the generated JSON Schema file.
@@ -96,7 +96,7 @@ function tokensSchemaToJsonSchema(schema: Record<string, any>): Record<string, a
 /**
  * Create the complete configuration schema from all command definitions
  */
-function createConfigSchemaJson() {
+function createConfigSchemaJson(): Record<string, any> {
 	// Create schema for default/shared arguments (excluding CLI-only options)
 	const defaultsSchema = Object.fromEntries(
 		Object.entries(sharedArgs).filter(([key]) => !EXCLUDE_KEYS.includes(key)),
@@ -177,14 +177,14 @@ function createConfigSchemaJson() {
 /**
  * Generate JSON Schema and write to files
  */
-async function runLint(files: string[]) {
+async function runLint(files: string[]): Promise<Result.Result<any, any>> {
 	return Result.try({
 		try: $`bun run lint --fix ${files}`,
 		catch: error => error,
 	});
 }
 
-async function writeFile(path: string, content: string) {
+async function writeFile(path: string, content: string): Promise<Result.Result<void, any>> {
 	const attempt = Result.try({
 		try: async () => Bun.write(path, content),
 		catch: error => error,
@@ -202,21 +202,21 @@ async function readFile(path: string): Promise<Result.Result<string, any>> {
 	})();
 }
 
-async function copySchemaToDocsPublic() {
+async function copySchemaToDocsPublic(): Promise<Result.Result<any, any>> {
 	return Result.pipe(
 		Result.try({
-			try: $`cp ${SCHEMA_FILENAME} docs/public/${SCHEMA_FILENAME}`,
+			try: $`cp ${SCHEMA_FILENAME} ../../docs/public/${SCHEMA_FILENAME}`,
 			catch: error => error,
 		}),
 		Result.inspectError((error) => {
-			logger.error(`Failed to copy to docs/public/${SCHEMA_FILENAME}:`, error);
+			logger.error(`Failed to copy to ../../docs/public/${SCHEMA_FILENAME}:`, error);
 			process.exit(1);
 		}),
-		Result.inspect(() => logger.info(`✓ Copied to docs/public/${SCHEMA_FILENAME}`)),
+		Result.inspect(() => logger.info(`✓ Copied to ../../docs/public/${SCHEMA_FILENAME}`)),
 	);
 }
 
-async function generateJsonSchema() {
+async function generateJsonSchema(): Promise<void> {
 	logger.info('Generating JSON Schema from args-tokens configuration schema...');
 
 	// Create the JSON Schema
@@ -234,7 +234,7 @@ async function generateJsonSchema() {
 
 	// Check if existing root schema is identical to avoid unnecessary writes
 	const existingRootSchema = await Result.pipe(
-		readFile(SCHEMA_FILENAME),
+		readFile(`../../${SCHEMA_FILENAME}`),
 		Result.map(content => JSON.parse(content) as unknown),
 		Result.unwrap(''),
 	);
@@ -255,14 +255,14 @@ async function generateJsonSchema() {
 
 	await Result.pipe(
 		Result.try({
-			try: writeFile(SCHEMA_FILENAME, schemaJson),
+			try: writeFile(`../../${SCHEMA_FILENAME}`, schemaJson),
 			safe: true,
 		}),
 		Result.inspectError((error) => {
-			logger.error(`Failed to write ${SCHEMA_FILENAME}:`, error);
+			logger.error(`Failed to write ../../${SCHEMA_FILENAME}:`, error);
 			process.exit(1);
 		}),
-		Result.inspect(() => logger.info(`✓ Generated ${SCHEMA_FILENAME}`)),
+		Result.inspect(() => logger.info(`✓ Generated ../../${SCHEMA_FILENAME}`)),
 	);
 
 	// Copy to docs/public using Bun shell
@@ -271,7 +271,7 @@ async function generateJsonSchema() {
 	// Run lint on the root schema file that was changed
 	await Result.pipe(
 		Result.try({
-			try: runLint([SCHEMA_FILENAME]),
+			try: runLint([`../../${SCHEMA_FILENAME}`]),
 			safe: true,
 		}),
 		Result.inspectError((error) => {
@@ -286,9 +286,10 @@ async function generateJsonSchema() {
 
 // Run the generator
 if (import.meta.main) {
-	await generateJsonSchema();
+	generateJsonSchema().catch(console.error);
 }
 if (import.meta.vitest != null) {
+	/* eslint-disable ts/no-unsafe-member-access, ts/no-unsafe-assignment */
 	describe('tokensSchemaToJsonSchema', () => {
 		it('should convert boolean args to JSON Schema', () => {
 			const schema = {
