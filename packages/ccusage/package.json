@@ -14,13 +14,6 @@
 	"license": "MIT",
 	"author": "ryoppippi",
 	"type": "module",
-	"exports": {
-		".": "./src/index.ts",
-		"./package.json": "./package.json"
-	},
-	"main": "./dist/index.js",
-	"module": "./dist/index.js",
-	"types": "./dist/index.d.ts",
 	"bin": "./dist/index.js",
 	"files": [
 		"LICENSE",
@@ -44,11 +37,5 @@
 	},
 	"engines": {
 		"node": ">=20.19.4"
-	},
-	"publishConfig": {
-		"exports": {
-			".": "./dist/index.js",
-			"./package.json": "./package.json"
-		}
 	}
 }
