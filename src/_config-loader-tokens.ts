@@ -9,6 +9,19 @@ import { getClaudePaths } from './data-loader.ts';
 import { logger } from './logger.ts';
 
 /**
+ * Minimal command context interface for config merging
+ * Contains only the properties we need from Gunshi's CommandContext
+ */
+export type ConfigMergeContext<T extends Record<string, unknown>> = {
+	/** Command values from CLI */
+	values: T;
+	/** Command tokens from CLI */
+	tokens: unknown[];
+	/** Command name being executed */
+	name?: string;
+};
+
+/**
  * Extract explicitly provided arguments from gunshi tokens
  * @param tokens - Command tokens from ctx.tokens
  * @returns Object with keys as argument names and values as boolean (true if explicitly provided)
@@ -146,16 +159,12 @@ export function loadConfig(configPath?: string): ConfigData | undefined {
  * 3. Default config
  * 4. Gunshi defaults
  *
- * @param commandName - The command being executed
- * @param ctx - Command context with values and explicit flags
- * @param ctx.values - Command values from CLI
- * @param ctx.tokens - Command tokens from CLI
+ * @param ctx - Command context with values, tokens, and name
  * @param config - Loaded configuration data
  * @returns Merged arguments object
  */
 export function mergeConfigWithArgs<T extends Record<string, unknown>>(
-	commandName: string,
-	ctx: { values: T; tokens: unknown[] },
+	ctx: ConfigMergeContext<T>,
 	config?: ConfigData,
 ): T {
 	if (config == null) {
@@ -171,7 +180,8 @@ export function mergeConfigWithArgs<T extends Record<string, unknown>>(
 	}
 
 	// 2. Apply command-specific config
-	if (config.commands?.[commandName] != null) {
+	const commandName = ctx.name;
+	if (commandName != null && config.commands?.[commandName] != null) {
 		Object.assign(merged, config.commands[commandName]);
 	}
 
@@ -185,7 +195,7 @@ export function mergeConfigWithArgs<T extends Record<string, unknown>>(
 		}
 	}
 
-	logger.debug(`Merged config for ${String(commandName)}:`, merged);
+	logger.debug(`Merged config for ${commandName ?? 'unknown'}:`, merged);
 	return merged;
 }
 
@@ -478,10 +488,10 @@ if (import.meta.vitest != null) {
 				breakdown: true, // Not in config
 			};
 
-			const merged = mergeConfigWithArgs('daily', { values: cliArgs, tokens: [
+			const merged = mergeConfigWithArgs({ values: cliArgs, tokens: [
 				{ kind: 'option', name: 'json' },
 				{ kind: 'option', name: 'breakdown' },
-			] }, config);
+			], name: 'daily' }, config);
 
 			expect(merged).toEqual({
 				json: true, // From CLI (overrides config)
@@ -495,10 +505,10 @@ if (import.meta.vitest != null) {
 
 		it('should work without config', () => {
 			const cliArgs = { json: true, debug: false };
-			const merged = mergeConfigWithArgs('daily', { values: cliArgs, tokens: [
+			const merged = mergeConfigWithArgs({ values: cliArgs, tokens: [
 				{ kind: 'option', name: 'json' },
 				{ kind: 'option', name: 'debug' },
-			] });
+			], name: 'daily' });
 			expect(merged).toEqual(cliArgs);
 		});
 
@@ -509,10 +519,10 @@ if (import.meta.vitest != null) {
 			};
 
 			const cliArgs = { json: true, instances: true };
-			const merged = mergeConfigWithArgs('daily', { values: cliArgs, tokens: [
+			const merged = mergeConfigWithArgs({ values: cliArgs, tokens: [
 				{ kind: 'option', name: 'json' },
 				{ kind: 'option', name: 'instances' },
-			] }, config);
+			], name: 'daily' }, config);
 
 			expect(merged.json).toBe(true);
 			expect(merged.instances).toBe(true);
@@ -538,9 +548,9 @@ if (import.meta.vitest != null) {
 				instances: false, // This also has a value but wasn't explicitly provided
 			};
 
-			const merged = mergeConfigWithArgs('daily', { values: cliArgs, tokens: [
+			const merged = mergeConfigWithArgs({ values: cliArgs, tokens: [
 				{ kind: 'option', name: 'json' }, // Only json was explicitly provided
-			] }, config);
+			], name: 'daily' }, config);
 
 			expect(merged).toEqual({
 				json: true, // From CLI (explicitly provided)
@@ -560,9 +570,9 @@ if (import.meta.vitest != null) {
 				project: null, // Explicitly set to null
 			};
 
-			const merged = mergeConfigWithArgs('daily', { values: cliArgs, tokens: [
+			const merged = mergeConfigWithArgs({ values: cliArgs, tokens: [
 				{ kind: 'option', name: 'project' },
-			] }, config);
+			], name: 'daily' }, config);
 
 			// null value in CLI args should not override config even if explicit
 			expect(merged).toEqual({
