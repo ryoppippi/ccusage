@@ -187,39 +187,56 @@ async function generateJsonSchema() {
 	logger.info('Generating JSON Schema from args-tokens configuration schema...');
 
 	// Create the JSON Schema
-	const schemaResult = Result.try({
-		try: () => createConfigSchemaJson(),
-		catch: error => error,
-	})();
-	if (Result.isFailure(schemaResult)) {
-		logger.error('Failed to create JSON Schema:', schemaResult.error);
-		process.exit(1);
-	}
+	const schemaJson = Result.pipe(
+		Result.try({
+			try: () => createConfigSchemaJson(),
+			catch: error => error,
+		})(),
+		Result.inspectError((error) => {
+			logger.error('Error creating JSON Schema:', error);
+			process.exit(1);
+		}),
+		// Write schema files
+		Result.map(schema => JSON.stringify(schema, null, '\t')),
+		Result.unwrap(),
+	);
 
-	// Write schema files
-	const schemaJson = JSON.stringify(schemaResult.value, null, '\t');
+	await Result.pipe(
+		Result.try({
+			try: writeFile('config-schema.json', schemaJson),
+			safe: true,
+		}),
+		Result.inspectError((error) => {
+			logger.error('Failed to write config-schema.json:', error);
+			process.exit(1);
+		}),
+		Result.inspect(() => logger.info('✓ Generated config-schema.json')),
+	);
 
-	const configSchemaResult = await writeFile('config-schema.json', schemaJson);
-	if (Result.isFailure(configSchemaResult)) {
-		logger.error('Failed to write config-schema.json:', configSchemaResult.error);
-		process.exit(1);
-	}
-	logger.info('✓ Generated config-schema.json');
-
-	const docsSchemaResult = await writeFile('docs/public/config-schema.json', schemaJson);
-	if (Result.isFailure(docsSchemaResult)) {
-		logger.error('Failed to write docs/public/config-schema.json:', docsSchemaResult.error);
-		process.exit(1);
-	}
-	logger.info('✓ Generated docs/public/config-schema.json');
+	await Result.pipe(
+		Result.try({
+			try: writeFile('docs/public/config-schema.json', schemaJson),
+			safe: true,
+		}),
+		Result.inspectError((error) => {
+			logger.error('Failed to write docs/public/config-schema.json:', error);
+			process.exit(1);
+		}),
+		Result.inspect(() => logger.info('✓ Generated docs/public/config-schema.json')),
+	);
 
 	// Run lint on generated files
-	const lintResult = await runLint(['config-schema.json', 'docs/public/config-schema.json']);
-	if (Result.isFailure(lintResult)) {
-		logger.error('Failed to lint generated files:', lintResult.error);
-		process.exit(1);
-	}
-	logger.info('✓ Linted generated files');
+	await Result.pipe(
+		Result.try({
+			try: runLint(['config-schema.json']),
+			safe: true,
+		}),
+		Result.inspectError((error) => {
+			logger.error('Failed to lint generated files:', error);
+			process.exit(1);
+		}),
+		Result.inspect(() => logger.info('✓ Linted generated files')),
+	);
 
 	logger.info('JSON Schema generation completed successfully!');
 }
