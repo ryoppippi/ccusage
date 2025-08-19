@@ -32,8 +32,8 @@ export const weeklyCommand = define({
 	toKebab: true,
 	async run(ctx) {
 		// Load configuration and merge with CLI arguments
-		const config = loadConfig(ctx.values.config);
-		const mergedOptions = mergeConfigWithArgs(ctx, config);
+		const config = loadConfig(ctx.values.config, Boolean(ctx.values.debug));
+		const mergedOptions = mergeConfigWithArgs(ctx, config, Boolean(ctx.values.debug));
 
 		// --jq implies --json
 		const useJson = Boolean(mergedOptions.json) || mergedOptions.jq != null;

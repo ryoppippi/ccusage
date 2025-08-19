@@ -100,14 +100,15 @@ export const statuslineCommand = define({
 			default: DEFAULT_REFRESH_INTERVAL_SECONDS,
 		},
 		config: sharedArgs.config,
+		debug: sharedArgs.debug,
 	},
 	async run(ctx) {
 		// Set logger to silent for statusline output
 		logger.level = 0;
 
 		// Load configuration and merge with CLI args
-		const config = loadConfig(ctx.values.config);
-		const mergedOptions = mergeConfigWithArgs(ctx, config);
+		const config = loadConfig(ctx.values.config, Boolean(ctx.values.debug));
+		const mergedOptions = mergeConfigWithArgs(ctx, config, Boolean(ctx.values.debug));
 
 		// Use refresh interval from merged options
 		const refreshInterval = mergedOptions.refreshInterval;

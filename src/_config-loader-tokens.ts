@@ -93,10 +93,14 @@ function validateConfigJson(data: unknown): data is ConfigData {
 /**
  * Internal function to load and parse a configuration file
  * @param filePath - Path to the configuration file
+ * @param debug - Whether to enable debug logging
  * @returns ConfigData if successful, undefined if failed
  */
-function loadConfigFile(filePath: string): ConfigData | undefined {
+function loadConfigFile(filePath: string, debug = false): ConfigData | undefined {
 	if (!existsSync(filePath)) {
+		if (debug) {
+			logger.info(`  • Checking: ${filePath} (not found)`);
+		}
 		return undefined;
 	}
 
@@ -108,14 +112,24 @@ function loadConfigFile(filePath: string): ConfigData | undefined {
 				if (!validateConfigJson(data)) {
 					throw new Error('Invalid configuration structure');
 				}
+				// Add source path to the config for debug display
+				(data).source = filePath;
 				return data;
 			},
 			catch: error => error,
 		})(),
-		Result.inspect(() => logger.debug(`Parsed configuration file: ${filePath}`)),
+		Result.inspect(() => {
+			logger.debug(`Parsed configuration file: ${filePath}`);
+			if (debug) {
+				logger.info(`  • Checking: ${filePath} (found ✓)`);
+			}
+		}),
 		Result.inspectError((error) => {
 			const errorMessage = error instanceof Error ? error.message : String(error);
 			logger.warn(`Error parsing configuration file at ${filePath}: ${errorMessage}`);
+			if (debug) {
+				logger.info(`  • Checking: ${filePath} (error: ${errorMessage})`);
+			}
 		}),
 		Result.unwrap(undefined),
 	);
@@ -126,28 +140,59 @@ function loadConfigFile(filePath: string): ConfigData | undefined {
 /**
  * Loads configuration from the specified path or auto-discovery
  * @param configPath - Optional path to specific config file
+ * @param debug - Whether to enable debug logging
  * @returns Parsed configuration data or undefined if no config found
  */
-export function loadConfig(configPath?: string): ConfigData | undefined {
+export function loadConfig(configPath?: string, debug = false): ConfigData | undefined {
+	if (debug) {
+		logger.info('Debug mode enabled - showing config loading details\n');
+	}
+
 	// If specific config path is provided, use it exclusively
 	if (configPath != null) {
-		const config = loadConfigFile(configPath);
+		if (debug) {
+			logger.info('Using specified config file:');
+			logger.info(`  • Path: ${configPath}`);
+		}
+		const config = loadConfigFile(configPath, debug);
 		if (config == null) {
 			logger.warn(`Configuration file not found or invalid: ${configPath}`);
+		}
+		else if (debug) {
+			logger.info('');
+			logger.info(`Loaded config from: ${configPath}`);
+			logger.info(`  • Schema: ${config.$schema ?? 'none'}`);
+			logger.info(`  • Has defaults: ${config.defaults != null ? 'yes' : 'no'}${config.defaults != null ? ` (${Object.keys(config.defaults).length} options)` : ''}`);
+			logger.info(`  • Has command configs: ${config.commands != null ? 'yes' : 'no'}${config.commands != null ? ` (${Object.keys(config.commands).join(', ')})` : ''}`);
 		}
 		return config;
 	}
 
 	// Auto-discovery from search paths (highest priority first)
+	if (debug) {
+		logger.info('Searching for config files:');
+	}
+
 	for (const searchPath of getConfigSearchPaths()) {
-		const config = loadConfigFile(searchPath);
+		const config = loadConfigFile(searchPath, debug);
 		if (config != null) {
+			if (debug) {
+				logger.info('');
+				logger.info(`Loaded config from: ${searchPath}`);
+				logger.info(`  • Schema: ${config.$schema ?? 'none'}`);
+				logger.info(`  • Has defaults: ${config.defaults != null ? 'yes' : 'no'}${config.defaults != null ? ` (${Object.keys(config.defaults).length} options)` : ''}`);
+				logger.info(`  • Has command configs: ${config.commands != null ? 'yes' : 'no'}${config.commands != null ? ` (${Object.keys(config.commands).join(', ')})` : ''}`);
+			}
 			return config;
 		}
 		// Continue searching other paths even if one config is invalid
 	}
 
 	logger.debug('No valid configuration file found');
+	if (debug) {
+		logger.info('');
+		logger.info('No valid configuration file found');
+	}
 	return undefined;
 }
 
@@ -161,28 +206,43 @@ export function loadConfig(configPath?: string): ConfigData | undefined {
  *
  * @param ctx - Command context with values, tokens, and name
  * @param config - Loaded configuration data
+ * @param debug - Whether to enable debug logging
  * @returns Merged arguments object
  */
 export function mergeConfigWithArgs<T extends Record<string, unknown>>(
 	ctx: ConfigMergeContext<T>,
 	config?: ConfigData,
+	debug = false,
 ): T {
 	if (config == null) {
+		if (debug) {
+			logger.info('');
+			logger.info(`No config file loaded, using CLI args only for '${ctx.name ?? 'unknown'}' command`);
+		}
 		return ctx.values;
 	}
 
 	// Start with an empty base
 	const merged = {} as T;
+	const commandName = ctx.name;
+
+	// Track sources for debug output
+	const sources: Record<string, string> = {};
 
 	// 1. Apply defaults from config (lowest priority)
 	if (config.defaults != null) {
-		Object.assign(merged, config.defaults);
+		for (const [key, value] of Object.entries(config.defaults)) {
+			(merged as Record<string, unknown>)[key] = value;
+			sources[key] = 'defaults';
+		}
 	}
 
 	// 2. Apply command-specific config
-	const commandName = ctx.name;
 	if (commandName != null && config.commands?.[commandName] != null) {
-		Object.assign(merged, config.commands[commandName]);
+		for (const [key, value] of Object.entries(config.commands[commandName])) {
+			(merged as Record<string, unknown>)[key] = value;
+			sources[key] = 'command config';
+		}
 	}
 
 	// 3. Apply CLI arguments (highest priority)
@@ -192,10 +252,48 @@ export function mergeConfigWithArgs<T extends Record<string, unknown>>(
 		if (value != null && explicit[key] === true) {
 			// eslint-disable-next-line ts/no-unsafe-member-access
 			(merged as any)[key] = value;
+			sources[key] = 'CLI';
 		}
 	}
 
 	logger.debug(`Merged config for ${commandName ?? 'unknown'}:`, merged);
+
+	if (debug) {
+		logger.info('');
+		logger.info(`Merging options for '${commandName ?? 'unknown'}' command:`);
+
+		// Group options by source
+		const bySource: Record<string, string[]> = {
+			'defaults': [],
+			'command config': [],
+			'CLI': [],
+		};
+
+		for (const [key, source] of Object.entries(sources)) {
+			if (bySource[source] != null) {
+				bySource[source].push(`${key}=${JSON.stringify((merged as Record<string, unknown>)[key])}`);
+			}
+		}
+
+		if (bySource.defaults!.length > 0) {
+			logger.info(`  • From defaults: ${bySource.defaults!.join(', ')}`);
+		}
+		if (bySource['command config']!.length > 0) {
+			logger.info(`  • From command config: ${bySource['command config']!.join(', ')}`);
+		}
+		if (bySource.CLI!.length > 0) {
+			logger.info(`  • From CLI args: ${bySource.CLI!.join(', ')}`);
+		}
+
+		// Show final result with sources
+		logger.info('  • Final merged options: {');
+		for (const [key, value] of Object.entries(merged)) {
+			const source = sources[key] ?? 'unknown';
+			logger.info(`      ${key}: ${JSON.stringify(value)} (from ${source}),`);
+		}
+		logger.info('    }');
+	}
+
 	return merged;
 }
 
@@ -376,7 +474,7 @@ if (import.meta.vitest != null) {
 			vi.spyOn(process, 'cwd').mockReturnValue(fixture.getPath());
 
 			const config1 = loadConfig();
-			expect(config1?.source).toBe('local');
+			expect(config1?.source).toBe(fixture.getPath('.ccusage/ccusage.json'));
 			expect(config1?.defaults?.mode).toBe('local-mode');
 
 			// Test 2: When local doesn't exist, search in Claude paths
@@ -405,7 +503,7 @@ if (import.meta.vitest != null) {
 
 			const config = loadConfig();
 			expect(config).toBeDefined();
-			expect(config?.source).toBe('local-fallback');
+			expect(config?.source).toBe(fixture.getPath('.ccusage/ccusage.json'));
 			expect(config?.defaults?.json).toBe(true);
 		});
 
@@ -609,6 +707,146 @@ if (import.meta.vitest != null) {
 		it('should reject non-existent file', () => {
 			const result = validateConfigFile('/non/existent/file.json');
 			expect(result.success).toBe(false);
+		});
+	});
+
+	describe('debug functionality', () => {
+		let loggerInfoSpy: any;
+
+		beforeEach(() => {
+			vi.restoreAllMocks();
+			loggerInfoSpy = vi.spyOn(logger, 'info').mockImplementation(() => {});
+		});
+
+		afterEach(() => {
+			vi.restoreAllMocks();
+		});
+
+		describe('loadConfig with debug', () => {
+			it('should log debug info when loading config with debug=true', async () => {
+				await using fixture = await createFixture({
+					'.ccusage/ccusage.json': JSON.stringify({
+						$schema: 'https://ccusage.com/config-schema.json',
+						defaults: { json: true, mode: 'auto' },
+						commands: { daily: { instances: true } },
+					}),
+				});
+
+				vi.spyOn(process, 'cwd').mockReturnValue(fixture.getPath());
+
+				const config = loadConfig(undefined, true);
+
+				expect(config).toBeDefined();
+				expect(loggerInfoSpy).toHaveBeenCalledWith('Debug mode enabled - showing config loading details\n');
+				expect(loggerInfoSpy).toHaveBeenCalledWith('Searching for config files:');
+				expect(loggerInfoSpy).toHaveBeenCalledWith(`  • Checking: ${fixture.getPath('.ccusage/ccusage.json')} (found ✓)`);
+				expect(loggerInfoSpy).toHaveBeenCalledWith('');
+				expect(loggerInfoSpy).toHaveBeenCalledWith(`Loaded config from: ${fixture.getPath('.ccusage/ccusage.json')}`);
+				expect(loggerInfoSpy).toHaveBeenCalledWith('  • Schema: https://ccusage.com/config-schema.json');
+				expect(loggerInfoSpy).toHaveBeenCalledWith('  • Has defaults: yes (2 options)');
+				expect(loggerInfoSpy).toHaveBeenCalledWith('  • Has command configs: yes (daily)');
+			});
+
+			it('should log search paths when no config found with debug=true', async () => {
+				await using fixture = await createFixture({
+					'no-config-here': '',
+				});
+
+				vi.spyOn(process, 'cwd').mockReturnValue(fixture.getPath());
+
+				const config = loadConfig(undefined, true);
+
+				expect(config).toBeUndefined();
+				expect(loggerInfoSpy).toHaveBeenCalledWith('Debug mode enabled - showing config loading details\n');
+				expect(loggerInfoSpy).toHaveBeenCalledWith('Searching for config files:');
+				expect(loggerInfoSpy).toHaveBeenCalledWith('');
+				expect(loggerInfoSpy).toHaveBeenCalledWith('No valid configuration file found');
+			});
+
+			it('should log specific config file path when provided', async () => {
+				await using fixture = await createFixture({
+					'custom-config.json': JSON.stringify({
+						defaults: { debug: true },
+					}),
+				});
+
+				const configPath = fixture.getPath('custom-config.json');
+				const config = loadConfig(configPath, true);
+
+				expect(config).toBeDefined();
+				expect(loggerInfoSpy).toHaveBeenCalledWith('Debug mode enabled - showing config loading details\n');
+				expect(loggerInfoSpy).toHaveBeenCalledWith('Using specified config file:');
+				expect(loggerInfoSpy).toHaveBeenCalledWith(`  • Path: ${configPath}`);
+				expect(loggerInfoSpy).toHaveBeenCalledWith('');
+				expect(loggerInfoSpy).toHaveBeenCalledWith(`Loaded config from: ${configPath}`);
+				expect(loggerInfoSpy).toHaveBeenCalledWith('  • Schema: none');
+				expect(loggerInfoSpy).toHaveBeenCalledWith('  • Has defaults: yes (1 options)');
+				expect(loggerInfoSpy).toHaveBeenCalledWith('  • Has command configs: no');
+			});
+		});
+
+		describe('mergeConfigWithArgs with debug', () => {
+			it('should log merge details with debug=true', () => {
+				const config: ConfigData = {
+					defaults: {
+						mode: 'auto',
+						offline: false,
+					},
+					commands: {
+						daily: {
+							instances: true,
+							project: 'test-project',
+						},
+					},
+				};
+
+				const cliArgs = {
+					debug: true,
+					since: '20250101',
+				};
+
+				const merged = mergeConfigWithArgs({
+					values: cliArgs,
+					tokens: [
+						{ kind: 'option', name: 'debug' },
+						{ kind: 'option', name: 'since' },
+					],
+					name: 'daily',
+				}, config, true);
+
+				expect(merged).toEqual({
+					mode: 'auto',
+					offline: false,
+					instances: true,
+					project: 'test-project',
+					debug: true,
+					since: '20250101',
+				});
+
+				expect(loggerInfoSpy).toHaveBeenCalledWith('');
+				expect(loggerInfoSpy).toHaveBeenCalledWith(`Merging options for 'daily' command:`);
+				expect(loggerInfoSpy).toHaveBeenCalledWith('  • From defaults: mode="auto", offline=false');
+				expect(loggerInfoSpy).toHaveBeenCalledWith('  • From command config: instances=true, project="test-project"');
+				expect(loggerInfoSpy).toHaveBeenCalledWith('  • From CLI args: debug=true, since="20250101"');
+				expect(loggerInfoSpy).toHaveBeenCalledWith('  • Final merged options: {');
+			});
+
+			it('should log no config message with debug=true when config is null', () => {
+				const cliArgs = { json: true, debug: false };
+
+				const merged = mergeConfigWithArgs({
+					values: cliArgs,
+					tokens: [
+						{ kind: 'option', name: 'json' },
+						{ kind: 'option', name: 'debug' },
+					],
+					name: 'daily',
+				}, undefined, true);
+
+				expect(merged).toEqual(cliArgs);
+				expect(loggerInfoSpy).toHaveBeenCalledWith('');
+				expect(loggerInfoSpy).toHaveBeenCalledWith(`No config file loaded, using CLI args only for 'daily' command`);
+			});
 		});
 	});
 }

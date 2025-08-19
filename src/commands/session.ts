@@ -34,8 +34,8 @@ export const sessionCommand = define({
 	toKebab: true,
 	async run(ctx): Promise<void> {
 		// Load configuration and merge with CLI arguments
-		const config = loadConfig(ctx.values.config);
-		const mergedOptions: typeof ctx.values = mergeConfigWithArgs(ctx, config);
+		const config = loadConfig(ctx.values.config, Boolean(ctx.values.debug));
+		const mergedOptions: typeof ctx.values = mergeConfigWithArgs(ctx, config, Boolean(ctx.values.debug));
 
 		// --jq implies --json
 		const useJson = mergedOptions.json || mergedOptions.jq != null;
