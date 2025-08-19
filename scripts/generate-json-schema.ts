@@ -176,10 +176,11 @@ async function runLint(files: string[]) {
 }
 
 async function writeFile(path: string, content: string) {
-	return Result.try({
-		try: Bun.write(path, content),
+	const attempt = Result.try({
+		try: async () => Bun.write(path, content),
 		catch: error => error,
 	});
+	return attempt();
 }
 
 async function generateJsonSchema() {
