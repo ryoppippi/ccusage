@@ -170,19 +170,15 @@ function createConfigSchemaJson() {
  */
 async function runLint(files: string[]) {
 	return Result.try({
-		try: async () => {
-			await $`bun run lint --fix ${files}`;
-		},
-		safe: true,
+		try: $`bun run lint --fix ${files}`,
+		catch: error => error,
 	});
 }
 
 async function writeFile(path: string, content: string) {
 	return Result.try({
-		try: async () => {
-			await Bun.write(path, content);
-		},
-		safe: true,
+		try: Bun.write(path, content),
+		catch: error => error,
 	});
 }
 
@@ -192,8 +188,8 @@ async function generateJsonSchema() {
 	// Create the JSON Schema
 	const schemaResult = Result.try({
 		try: () => createConfigSchemaJson(),
-		safe: true,
-	});
+		catch: error => error,
+	})();
 	if (Result.isFailure(schemaResult)) {
 		logger.error('Failed to create JSON Schema:', schemaResult.error);
 		process.exit(1);
