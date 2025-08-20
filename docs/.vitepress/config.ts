@@ -66,7 +66,11 @@ export default withMermaid(defineConfig({
 				{
 					text: 'Configuration',
 					items: [
-						{ text: 'Environment Variables', link: '/guide/configuration' },
+						{ text: 'Overview', link: '/guide/configuration' },
+						{ text: 'Command-Line Options', link: '/guide/cli-options' },
+						{ text: 'Environment Variables', link: '/guide/environment-variables' },
+						{ text: 'Configuration Files', link: '/guide/config-files' },
+						{ text: 'Directory Detection', link: '/guide/directory-detection' },
 						{ text: 'Custom Paths', link: '/guide/custom-paths' },
 						{ text: 'Cost Calculation Modes', link: '/guide/cost-modes' },
 					],

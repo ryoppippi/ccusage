@@ -105,16 +105,14 @@ ccusage blocks --live
 
 ccusage automatically colors the output based on the terminal's capabilities. If you want to disable colors, you can use the `--no-color` flag. Or you can use the `--color` flag to force colors on.
 
-## Compact Mode
+## Automatic Table Adjustment
 
-ccusage automatically adjusts its table layout based on terminal width. For narrow terminals (< 100 characters), it shows a compact view with essential columns. You can also force compact mode for better screenshots:
+ccusage automatically adjusts its table layout based on terminal width:
 
-```bash
-ccusage --compact            # Force compact mode
-ccusage monthly --compact    # Compact monthly report
-```
+- **Wide terminals (≥100 characters)**: Full table with all columns including cache metrics, model names, and detailed breakdowns
+- **Narrow terminals (<100 characters)**: Compact view with essential columns only (Date, Models, Input, Output, Cost)
 
-This is particularly useful when sharing screenshots or working in constrained terminals.
+The layout adjusts automatically based on your terminal width - no configuration needed. If you're in compact mode and want to see the full data, simply expand your terminal window.
 
 ## Troubleshooting
 
