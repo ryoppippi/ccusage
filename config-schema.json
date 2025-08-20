@@ -219,6 +219,11 @@
 									"type": "string",
 									"description": "Filter to specific project name",
 									"markdownDescription": "Filter to specific project name"
+								},
+								"projectAliases": {
+									"type": "string",
+									"description": "Comma-separated project aliases (e.g., 'ccusage=Usage Tracker,myproject=My Project')",
+									"markdownDescription": "Comma-separated project aliases (e.g., 'ccusage=Usage Tracker,myproject=My Project')"
 								}
 							},
 							"additionalProperties": false

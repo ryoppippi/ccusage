@@ -7,52 +7,6 @@
  * @module project-names
  */
 
-import process from 'node:process';
-import { PROJECT_ALIASES_ENV } from './_consts.ts';
-
-/**
- * Cache for parsed aliases to avoid repeated parsing
- */
-let aliasCache: Map<string, string> | null = null;
-
-/**
- * Parse project aliases from environment variable
- * @returns Map of raw project names to their aliases
- */
-function getProjectAliases(): Map<string, string> {
-	if (aliasCache !== null) {
-		return aliasCache;
-	}
-
-	aliasCache = new Map();
-
-	const aliasEnv = (process.env[PROJECT_ALIASES_ENV] ?? '').trim();
-	if (aliasEnv === '') {
-		return aliasCache;
-	}
-
-	// Parse comma-separated name=alias pairs
-	const pairs = aliasEnv.split(',').map(pair => pair.trim()).filter(pair => pair !== '');
-	for (const pair of pairs) {
-		const parts = pair.split('=').map(s => s.trim());
-		const rawName = parts[0];
-		const alias = parts[1];
-		if (rawName != null && alias != null && rawName !== '' && alias !== '') {
-			aliasCache.set(rawName, alias);
-		}
-	}
-
-	return aliasCache;
-}
-
-/**
- * Clear the alias cache (useful for testing)
- * @internal
- */
-export function clearAliasCache(): void {
-	aliasCache = null;
-}
-
 /**
  * Extract meaningful project name from directory-style project paths
  * Uses improved heuristics to handle complex project structures
@@ -165,6 +119,7 @@ function parseProjectName(projectName: string): string {
  * Format project name for display with custom alias support
  *
  * @param projectName - Raw project name from directory path
+ * @param aliases - Optional map of project names to their aliases
  * @returns User-friendly project name with alias support
  *
  * @example
@@ -173,15 +128,15 @@ function parseProjectName(projectName: string): string {
  * formatProjectName('-Users-phaedrus-Development-ccusage')
  * // → 'ccusage'
  *
- * // With alias (when CCUSAGE_PROJECT_ALIASES="ccusage=Usage Tracker")
- * formatProjectName('-Users-phaedrus-Development-ccusage')
+ * // With alias
+ * const aliases = new Map([['ccusage', 'Usage Tracker']]);
+ * formatProjectName('-Users-phaedrus-Development-ccusage', aliases)
  * // → 'Usage Tracker'
  * ```
  */
-export function formatProjectName(projectName: string): string {
+export function formatProjectName(projectName: string, aliases?: Map<string, string>): string {
 	// Check for custom alias first
-	const aliases = getProjectAliases();
-	if (aliases.has(projectName)) {
+	if (aliases != null && aliases.has(projectName)) {
 		return aliases.get(projectName)!;
 	}
 
@@ -189,30 +144,17 @@ export function formatProjectName(projectName: string): string {
 	const parsed = parseProjectName(projectName);
 
 	// Check if parsed name has an alias
-	if (aliases.has(parsed)) {
+	if (aliases != null && aliases.has(parsed)) {
 		return aliases.get(parsed)!;
 	}
 
 	return parsed;
 }
 
-/**
- * Get all configured project aliases
- * @returns Map of project names to their aliases
- */
-export function getConfiguredAliases(): Map<string, string> {
-	return new Map(getProjectAliases());
-}
-
 if (import.meta.vitest != null) {
-	const { describe, it, expect, beforeEach } = import.meta.vitest;
+	const { describe, it, expect } = import.meta.vitest;
 
 	describe('project name formatting', () => {
-		beforeEach(() => {
-			clearAliasCache();
-			delete (process.env as Record<string, string | undefined>)[PROJECT_ALIASES_ENV];
-		});
-
 		describe('parseProjectName', () => {
 			it('handles unknown project names', () => {
 				expect(formatProjectName('unknown')).toBe('Unknown Project');
@@ -245,54 +187,26 @@ if (import.meta.vitest != null) {
 
 		describe('custom aliases', () => {
 			it('uses configured aliases', () => {
-				(process.env as Record<string, string | undefined>)[PROJECT_ALIASES_ENV] = 'ccusage=Usage Tracker,test=Test Project';
+				const aliases = new Map([
+					['ccusage', 'Usage Tracker'],
+					['test', 'Test Project'],
+				]);
 
-				expect(formatProjectName('ccusage')).toBe('Usage Tracker');
-				expect(formatProjectName('test')).toBe('Test Project');
-				expect(formatProjectName('other')).toBe('other');
+				expect(formatProjectName('ccusage', aliases)).toBe('Usage Tracker');
+				expect(formatProjectName('test', aliases)).toBe('Test Project');
+				expect(formatProjectName('other', aliases)).toBe('other');
 			});
 
 			it('applies aliases to parsed project names', () => {
-				(process.env as Record<string, string | undefined>)[PROJECT_ALIASES_ENV] = 'ccusage=Usage Tracker';
+				const aliases = new Map([['ccusage', 'Usage Tracker']]);
 
-				expect(formatProjectName('-Users-phaedrus-Development-ccusage')).toBe('Usage Tracker');
+				expect(formatProjectName('-Users-phaedrus-Development-ccusage', aliases)).toBe('Usage Tracker');
 			});
 
-			it('handles malformed alias configuration gracefully', () => {
-				(process.env as Record<string, string | undefined>)[PROJECT_ALIASES_ENV] = 'invalid,=empty,valid=good';
-
-				expect(formatProjectName('valid')).toBe('good');
-				expect(formatProjectName('invalid')).toBe('invalid');
-			});
-
-			it('caches aliases for performance', () => {
-				(process.env as Record<string, string | undefined>)[PROJECT_ALIASES_ENV] = 'test=cached';
-
-				expect(formatProjectName('test')).toBe('cached');
-
-				// Change env var but cache should still be used
-				(process.env as Record<string, string | undefined>)[PROJECT_ALIASES_ENV] = 'test=changed';
-				expect(formatProjectName('test')).toBe('cached');
-
-				// Clear cache and test again
-				clearAliasCache();
-				expect(formatProjectName('test')).toBe('changed');
-			});
-		});
-
-		describe('getConfiguredAliases', () => {
-			it('returns configured aliases', () => {
-				(process.env as Record<string, string | undefined>)[PROJECT_ALIASES_ENV] = 'proj1=Project One,proj2=Project Two';
-
-				const aliases = getConfiguredAliases();
-				expect(aliases.get('proj1')).toBe('Project One');
-				expect(aliases.get('proj2')).toBe('Project Two');
-				expect(aliases.size).toBe(2);
-			});
-
-			it('returns empty map when no aliases configured', () => {
-				const aliases = getConfiguredAliases();
-				expect(aliases.size).toBe(0);
+			it('works without aliases', () => {
+				expect(formatProjectName('test')).toBe('test');
+				expect(formatProjectName('test', undefined)).toBe('test');
+				expect(formatProjectName('test', new Map())).toBe('test');
 			});
 		});
 	});

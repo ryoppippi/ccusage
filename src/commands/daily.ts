@@ -34,11 +34,32 @@ export const dailyCommand = define({
 			short: 'p',
 			description: 'Filter to specific project name',
 		},
+		projectAliases: {
+			type: 'string',
+			description: 'Comma-separated project aliases (e.g., \'ccusage=Usage Tracker,myproject=My Project\')',
+			hidden: true,
+		},
 	},
 	async run(ctx) {
 		// Load configuration and merge with CLI arguments
 		const config = loadConfig(ctx.values.config, ctx.values.debug);
 		const mergedOptions = mergeConfigWithArgs(ctx, config, ctx.values.debug);
+
+		// Convert projectAliases to Map if it exists
+		// Parse comma-separated key=value pairs
+		let projectAliases: Map<string, string> | undefined;
+		if (mergedOptions.projectAliases != null && typeof mergedOptions.projectAliases === 'string') {
+			projectAliases = new Map();
+			const pairs = mergedOptions.projectAliases.split(',').map(pair => pair.trim()).filter(pair => pair !== '');
+			for (const pair of pairs) {
+				const parts = pair.split('=').map(s => s.trim());
+				const rawName = parts[0];
+				const alias = parts[1];
+				if (rawName != null && alias != null && rawName !== '' && alias !== '') {
+					projectAliases.set(rawName, alias);
+				}
+			}
+		}
 
 		// --jq implies --json
 		const useJson = Boolean(mergedOptions.json) || mergedOptions.jq != null;
@@ -169,7 +190,7 @@ export const dailyCommand = define({
 
 					// Add project header row
 					table.push([
-						pc.cyan(`Project: ${formatProjectName(projectName)}`),
+						pc.cyan(`Project: ${formatProjectName(projectName, projectAliases)}`),
 						'',
 						'',
 						'',

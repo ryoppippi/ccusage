@@ -17,7 +17,7 @@ Settings are applied in this priority order (highest to lowest):
 
 1. **Command-line arguments** (e.g., `--json`, `--offline`)
 2. **Custom config file** (via `--config` flag)
-3. **Environment variables** (e.g., `CLAUDE_CONFIG_DIR`)
+3. **Environment variables** (e.g., `CLAUDE_CONFIG_DIR`, `LOG_LEVEL`)
 4. **Local project config** (`.ccusage/ccusage.json`)
 5. **User config** (`~/.config/claude/ccusage.json`)
 6. **Legacy config** (`~/.claude/ccusage.json`)
@@ -173,10 +173,20 @@ Analyze usage by project:
 
 - **Instances**: Group by project with `--instances`
 - **Project Filter**: Focus on specific project with `--project`
-- **Aliases**: Set custom names via `CCUSAGE_PROJECT_ALIASES`
+- **Aliases**: Set custom names via configuration file
+
+```json
+// .ccusage/ccusage.json
+{
+  "commands": {
+    "daily": {
+      "projectAliases": "uuid-123=My App,long-name=Backend"
+    }
+  }
+}
+```
 
 ```bash
-export CCUSAGE_PROJECT_ALIASES="uuid-123=My App"
 ccusage daily --instances --project "My App"
 ```
 

@@ -11,7 +11,8 @@
 	"commands": {
 		"daily": {
 			"instances": true,
-			"order": "desc"
+			"order": "desc",
+			"projectAliases": "ccusage=Usage Tracker,my-long-project-name=Project X"
 		},
 		"monthly": {
 			"breakdown": true
