@@ -663,18 +663,6 @@
 									"description": "Session block duration in hours (default: 5)",
 									"markdownDescription": "Session block duration in hours (default: 5)",
 									"default": 5
-								},
-								"live": {
-									"type": "boolean",
-									"description": "Live monitoring mode with real-time updates",
-									"markdownDescription": "Live monitoring mode with real-time updates",
-									"default": false
-								},
-								"refreshInterval": {
-									"type": "number",
-									"description": "Refresh interval in seconds for live mode (default: 1)",
-									"markdownDescription": "Refresh interval in seconds for live mode (default: 1)",
-									"default": 1
 								}
 							},
 							"additionalProperties": false

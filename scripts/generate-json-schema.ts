@@ -32,6 +32,14 @@ const SCHEMA_FILENAME = 'config-schema.json';
 const EXCLUDE_KEYS = ['config'];
 
 /**
+ * Command-specific keys to exclude from the generated JSON Schema.
+ * These are CLI-only options that shouldn't appear in configuration files.
+ */
+const COMMAND_EXCLUDE_KEYS: Record<string, string[]> = {
+	blocks: ['live', 'refreshInterval'],
+};
+
+/**
  * Convert args-tokens schema to JSON Schema format
  */
 function tokensSchemaToJsonSchema(schema: Record<string, any>): Record<string, any> {
@@ -105,8 +113,11 @@ function createConfigSchemaJson() {
 	// Create schemas for each command's specific arguments (excluding CLI-only options)
 	const commandSchemas: Record<string, any> = {};
 	for (const [commandName, command] of subCommandUnion) {
+		const commandExcludes = COMMAND_EXCLUDE_KEYS[commandName] ?? [];
 		commandSchemas[commandName] = Object.fromEntries(
-			Object.entries(command.args as Record<string, any>).filter(([key]) => !EXCLUDE_KEYS.includes(key)),
+			Object.entries(command.args as Record<string, any>).filter(([key]) =>
+				!EXCLUDE_KEYS.includes(key) && !commandExcludes.includes(key),
+			),
 		);
 	}
 
