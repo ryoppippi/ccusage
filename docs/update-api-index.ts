@@ -1,4 +1,4 @@
-#!/usr/bin/env -S bun -b
+#!/usr/bin/env -S bun
 
 /**
  * Post-processing script to update API index with module descriptions
@@ -74,7 +74,7 @@ ${noteText}`;
 }
 
 async function main() {
-	await $`bun -b typedoc --excludeInternal`
+	await $`bun typedoc --excludeInternal`
 	await updateApiIndex();
 	await updateConstsPage();
 }
