@@ -22,7 +22,6 @@ import type {
 } from './_types.ts';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
-import { readFileLines } from './_file-reader.ts';
 import process from 'node:process';
 import { toArray } from '@antfu/utils';
 import { unreachable } from '@core/errorutil';
@@ -34,6 +33,7 @@ import { isDirectorySync } from 'path-type';
 import { glob } from 'tinyglobby';
 import { z } from 'zod';
 import { CLAUDE_CONFIG_DIR_ENV, CLAUDE_PROJECTS_DIR_NAME, CONTEXT_LOW_THRESHOLD_ENV, CONTEXT_MEDIUM_THRESHOLD_ENV, DEFAULT_CLAUDE_CODE_PATH, DEFAULT_CLAUDE_CONFIG_PATH, DEFAULT_CONTEXT_USAGE_THRESHOLDS, USAGE_DATA_GLOB_PATTERN, USER_HOME_DIR } from './_consts.ts';
+import { readFileLines } from './_file-reader.ts';
 import {
 	identifySessionBlocks,
 } from './_session-blocks.ts';
