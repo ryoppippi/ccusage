@@ -22,6 +22,7 @@ import type {
 } from './_types.ts';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
+import { readFileLines } from './_file-reader.ts';
 import process from 'node:process';
 import { toArray } from '@antfu/utils';
 import { unreachable } from '@core/errorutil';
@@ -689,8 +690,7 @@ export function createUniqueHash(data: UsageData): string | null {
  */
 export async function getEarliestTimestamp(filePath: string): Promise<Date | null> {
 	try {
-		const content = await readFile(filePath, 'utf-8');
-		const lines = content.trim().split('\n');
+		const lines = await readFileLines(filePath);
 
 		let earliestDate: Date | null = null;
 
@@ -916,11 +916,7 @@ export async function loadDailyUsageData(
 	const allEntries: { data: UsageData; date: string; cost: number; model: string | undefined; project: string }[] = [];
 
 	for (const file of sortedFiles) {
-		const content = await readFile(file, 'utf-8');
-		const lines = content
-			.trim()
-			.split('\n')
-			.filter(line => line.length > 0);
+		const lines = await readFileLines(file);
 
 		for (const line of lines) {
 			try {
@@ -1090,11 +1086,7 @@ export async function loadSessionData(
 		const joinedPath = parts.slice(0, -2).join(path.sep);
 		const projectPath = joinedPath.length > 0 ? joinedPath : 'Unknown Project';
 
-		const content = await readFile(file, 'utf-8');
-		const lines = content
-			.trim()
-			.split('\n')
-			.filter(line => line.length > 0);
+		const lines = await readFileLines(file);
 
 		for (const line of lines) {
 			try {
@@ -1290,8 +1282,7 @@ export async function loadSessionUsageById(
 	if (file == null) {
 		return null;
 	}
-	const content = await readFile(file, 'utf-8');
-	const lines = content.trim().split('\n').filter(line => line.length > 0);
+	const lines = await readFileLines(file);
 
 	const mode = options?.mode ?? 'auto';
 	using fetcher = mode === 'display' ? null : new PricingFetcher(options?.offline);
@@ -1537,11 +1528,7 @@ export async function loadSessionBlockData(
 	const allEntries: LoadedUsageEntry[] = [];
 
 	for (const file of sortedFiles) {
-		const content = await readFile(file, 'utf-8');
-		const lines = content
-			.trim()
-			.split('\n')
-			.filter(line => line.length > 0);
+		const lines = await readFileLines(file);
 
 		for (const line of lines) {
 			try {
