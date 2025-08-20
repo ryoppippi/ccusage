@@ -8,8 +8,8 @@
  * @module json-output-types
  */
 
-import type { DailyDate, ModelName } from './_types.ts';
-import type { ModelBreakdown } from './data-loader.ts';
+import type { ModelBreakdown } from '@ccusage/core/data-loader';
+import type { DailyDate, ModelName } from '@ccusage/core/types';
 
 /**
  * Interface for daily command JSON output structure (groupByProject)

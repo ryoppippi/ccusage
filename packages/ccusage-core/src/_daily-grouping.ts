@@ -1,7 +1,7 @@
 import type { DailyProjectOutput } from './_json-output-types.ts';
 import type { loadDailyUsageData } from './data-loader.ts';
-import { createDailyDate, createModelName } from './types.ts';
 import { getTotalTokens } from './calculate-cost.ts';
+import { createDailyDate, createModelName } from './types.ts';
 
 /**
  * Type for daily data returned from loadDailyUsageData

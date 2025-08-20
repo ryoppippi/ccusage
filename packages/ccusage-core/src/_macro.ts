@@ -3,7 +3,7 @@
  */
 
 import type { ModelPricing } from './types.ts';
-import { LITELLM_PRICING_URL } from './_consts.ts';
+import { LITELLM_PRICING_URL } from './consts.ts';
 import { modelPricingSchema } from './types.ts';
 
 /**

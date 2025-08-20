@@ -1,0 +1,6 @@
+{
+	"extends": "./node_modules/@ccusage/config/tsconfig.json",
+	"include": [
+		"src /**/*.ts"
+	]
+}

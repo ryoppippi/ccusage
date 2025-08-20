@@ -12,9 +12,11 @@
 		"./tsconfig.json": "./tsconfig.json",
 		"./package.json": "./package.json"
 	},
+	"dependencies": {
+		"vitest": "^3.2.4"
+	},
 	"devDependencies": {
 		"tsdown": "^0.14.1",
-		"unplugin-macros": "^0.17.2",
-		"vitest": "^3.2.4"
+		"unplugin-macros": "^0.17.2"
 	}
 }

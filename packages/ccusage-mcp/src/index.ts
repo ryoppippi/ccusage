@@ -8,28 +8,28 @@
  * @module mcp
  */
 
-import type { LoadOptions } from 'ccusage-core/data-loader';
+import type { LoadOptions } from '@ccusage/core/data-loader';
+import {
+	calculateTotals,
+	createTotalsObject,
+	getClaudePaths,
+	getTotalTokens,
+	loadDailyUsageData,
+	loadMonthlyUsageData,
+	loadSessionBlockData,
+	loadSessionData,
+} from '@ccusage/core';
+import { filterDateSchema } from '@ccusage/core/types';
 import { StreamableHTTPTransport } from '@hono/mcp';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import {
-    calculateTotals,
-    createTotalsObject,
-    getClaudePaths,
-    getTotalTokens,
-    loadDailyUsageData,
-    loadMonthlyUsageData,
-    loadSessionBlockData,
-    loadSessionData,
-} from 'ccusage-core';
 import { createFixture } from 'fs-fixture';
 import { Hono } from 'hono/tiny';
-import { z } from 'zod';
 
+import { z } from 'zod';
 import { name, version } from '../package.json';
-import { filterDateSchema } from 'ccusage-core/types';
 
 // Output schemas for structured responses
 const modelBreakdownSchema = z.object({

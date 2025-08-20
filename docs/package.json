@@ -12,6 +12,7 @@
     "preview": "vitepress preview"
   },
   "devDependencies": {
+    "@ccusage/config": "workspace:*",
     "@ryoppippi/vite-plugin-cloudflare-redirect": "^1.1.2",
     "@types/bun": "^1.2.20",
     "tinyglobby": "^0.2.14",

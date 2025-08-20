@@ -10,10 +10,10 @@
 
 import type { ModelPricing } from './types.ts';
 import { Result } from '@praha/byethrow';
-import { LITELLM_PRICING_URL } from './_consts.ts';
 import { prefetchClaudePricing } from './_macro.ts' with { type: 'macro' };
-import { modelPricingSchema } from './types.ts';
+import { LITELLM_PRICING_URL } from './consts.ts';
 import { logger } from './logger.ts';
+import { modelPricingSchema } from './types.ts';
 
 /**
  * Fetches and caches model pricing information from LiteLLM

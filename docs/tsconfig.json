@@ -1,6 +1,10 @@
 {
-  "extends": "../tsconfig.json",
+  "extends": "./node_modules/@ccusage/config/tsconfig.json",
   "include": [
     "../packages/ccusage-core/src/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist"
   ]
 }

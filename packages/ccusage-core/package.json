@@ -1,27 +1,33 @@
 {
-	"name": "ccusage-core",
+	"name": "@ccusage/core",
+	"type": "module",
 	"version": "15.10.0",
 	"description": "Core logic for ccusage CLI tool",
+	"author": "ryoppippi",
+	"license": "MIT",
+	"funding": "https://github.com/ryoppippi/ccusage?sponsor=1",
 	"homepage": "https://github.com/ryoppippi/ccusage#readme",
-	"bugs": {
-		"url": "https://github.com/ryoppippi/ccusage/issues"
-	},
 	"repository": {
 		"type": "git",
 		"url": "git+https://github.com/ryoppippi/ccusage.git"
 	},
-	"funding": "https://github.com/ryoppippi/ccusage?sponsor=1",
-	"license": "MIT",
-	"author": "ryoppippi",
-	"type": "module",
+	"bugs": {
+		"url": "https://github.com/ryoppippi/ccusage/issues"
+	},
 	"exports": {
 		".": "./src/index.ts",
 		"./calculate-cost": "./src/calculate-cost.ts",
+		"./config": "./src/config.ts",
+		"./consts": "./src/consts.ts",
 		"./data-loader": "./src/data-loader.ts",
 		"./debug": "./src/debug.ts",
+		"./jq": "./src/jq.ts",
+		"./live": "./src/live.ts",
 		"./logger": "./src/logger.ts",
 		"./pricing-fetcher": "./src/pricing-fetcher.ts",
+		"./session": "./src/session.ts",
 		"./types": "./src/types.ts",
+		"./utils": "./src/utils.ts",
 		"./package.json": "./package.json"
 	},
 	"main": "./dist/index.js",
@@ -30,9 +36,15 @@
 	"files": [
 		"dist"
 	],
+	"engines": {
+		"node": ">=20.19.4"
+	},
 	"scripts": {
 		"build": "tsdown",
 		"test": "TZ=UTC vitest"
+	},
+	"peerDependencies": {
+		"zod": "3.25.76"
 	},
 	"dependencies": {
 		"@antfu/utils": "^9.2.0",
@@ -51,23 +63,24 @@
 		"@ccusage/config": "workspace:*",
 		"@types/bun": "^1.2.20",
 		"tsdown": "^0.14.1",
-		"unplugin-macros": "^0.17.2"
-	},
-	"peerDependencies": {
-		"zod": "3.25.76"
-	},
-	"engines": {
-		"node": ">=20.19.4"
+		"unplugin-macros": "^0.17.2",
+		"vitest": "^3.2.4"
 	},
 	"publishConfig": {
 		"exports": {
 			".": "./dist/index.js",
 			"./calculate-cost": "./dist/calculate-cost.js",
+			"./config": "./dist/config.js",
+			"./consts": "./dist/consts.js",
 			"./data-loader": "./dist/data-loader.js",
 			"./debug": "./dist/debug.js",
+			"./jq": "./dist/jq.js",
+			"./live": "./dist/live.js",
 			"./logger": "./dist/logger.js",
 			"./pricing-fetcher": "./dist/pricing-fetcher.js",
+			"./session": "./dist/session.js",
 			"./types": "./dist/types.js",
+			"./utils": "./dist/utils.js",
 			"./package.json": "./package.json"
 		}
 	}

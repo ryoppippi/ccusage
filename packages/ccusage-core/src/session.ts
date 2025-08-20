@@ -1,6 +1,6 @@
 import { uniq } from 'es-toolkit';
-import { DEFAULT_RECENT_DAYS } from './_consts.ts';
 import { getTotalTokens } from './_token-utils.ts';
+import { DEFAULT_RECENT_DAYS } from './consts.ts';
 
 /**
  * Default session duration in hours (Claude's billing block duration)

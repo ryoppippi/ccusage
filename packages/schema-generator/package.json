@@ -9,7 +9,7 @@
 	},
 	"dependencies": {
 		"@ccusage/commands": "workspace:*",
-		"@praha/byethrow": "^0.6.3",
-		"ccusage-core": "workspace:*"
+		"@ccusage/core": "workspace:*",
+		"@praha/byethrow": "^0.6.3"
 	}
 }

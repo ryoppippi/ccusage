@@ -59,8 +59,7 @@
 		"eslint": "^9.33.0",
 		"eslint-plugin-format": "^1.0.1",
 		"lint-staged": "^16.1.5",
-		"sort-package-json": "^3.4.0",
-		"vitest": "^3.2.4"
+		"sort-package-json": "^3.4.0"
 	},
 	"lint-staged": {
 		"*": [

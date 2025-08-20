@@ -11,7 +11,7 @@
  */
 
 import process from 'node:process';
-import { sharedCommandConfig, subCommandUnion } from '@ccusage/command';
+import { sharedCommandConfig, subCommandUnion } from '@ccusage/commands';
 import { Result } from '@praha/byethrow';
 import { $ } from 'bun';
 import { logger } from 'ccusage-core/logger';
@@ -183,7 +183,9 @@ async function runLint(files: string[]): Promise<Result.Result<any, any>> {
 
 async function writeFile(path: string, content: string): Promise<Result.Result<void, any>> {
 	const attempt = Result.try({
-		try: async () => Bun.write(path, content),
+		try: async () => {
+			await Bun.write(path, content);
+		},
 		catch: error => error,
 	});
 	return attempt();

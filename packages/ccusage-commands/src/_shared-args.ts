@@ -1,6 +1,6 @@
+import type { CostMode, SortOrder } from '@ccusage/core/types';
 import type { Args } from 'gunshi';
-import type { CostMode, SortOrder } from './_types.ts';
-import { CostModes, filterDateSchema, SortOrders } from './_types.ts';
+import { CostModes, filterDateSchema, SortOrders } from '@ccusage/core/types';
 
 /**
  * Parses and validates a date argument in YYYYMMDD format

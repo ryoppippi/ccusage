@@ -1,5 +1,5 @@
 {
-	"name": "ccusage-mcp",
+	"name": "@ccusage/mcp",
 	"type": "module",
 	"version": "15.10.0",
 	"description": "MCP server for ccusage",
@@ -16,13 +16,8 @@
 	},
 	"exports": {
 		".": "./src/index.ts",
+		"./consts": "./src/consts.ts",
 		"./package.json": "./package.json"
-	},
-	"publishConfig": {
-		"exports": {
-			".": "./dist/index.js",
-			"./package.json": "./package.json"
-		}
 	},
 	"main": "./dist/index.js",
 	"module": "./dist/index.js",
@@ -38,10 +33,10 @@
 		"test": "TZ=UTC vitest"
 	},
 	"dependencies": {
+		"@ccusage/core": "workspace:*",
 		"@hono/mcp": "^0.1.0",
 		"@hono/node-server": "^1.18.2",
 		"@modelcontextprotocol/sdk": "^1.17.3",
-		"ccusage-core": "workspace:*",
 		"hono": "^4.9.2",
 		"zod": "3.25.76"
 	},
@@ -49,5 +44,12 @@
 		"@ccusage/config": "workspace:*",
 		"@typescript/native-preview": "^7.0.0-dev.20250816.1",
 		"tsdown": "^0.14.1"
+	},
+	"publishConfig": {
+		"exports": {
+			".": "./dist/index.js",
+			"./consts": "./dist/consts.js",
+			"./package.json": "./package.json"
+		}
 	}
 }

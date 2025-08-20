@@ -1,10 +1,10 @@
+import { getClaudePaths } from '@ccusage/core/data-loader';
+import { logger } from '@ccusage/core/logger';
+import { createMcpHttpApp, createMcpServer, startMcpServerStdio } from '@ccusage/mcp';
+import { MCP_DEFAULT_PORT } from '@ccusage/mcp/consts';
 import { serve } from '@hono/node-server';
 import { define } from 'gunshi';
-import { MCP_DEFAULT_PORT } from '../_consts.ts';
-import { sharedArgs } from '../_shared-args.ts';
-import { getClaudePaths } from '../data-loader.ts';
-import { logger } from '../logger.ts';
-import { createMcpHttpApp, createMcpServer, startMcpServerStdio } from '../mcp.ts';
+import { sharedArgs } from './_shared-args.ts';
 
 /**
  * MCP server command that supports both stdio and HTTP transports.

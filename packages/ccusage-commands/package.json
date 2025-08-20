@@ -23,7 +23,8 @@
 		"test": "TZ=UTC vitest"
 	},
 	"dependencies": {
-		"ccusage-core": "workspace:*",
+		"@ccusage/core": "workspace:*",
+		"@ccusage/mcp": "workspace:*",
 		"gunshi": "^0.26.3",
 		"zod": "3.25.76"
 	},

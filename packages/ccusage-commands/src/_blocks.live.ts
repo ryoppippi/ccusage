@@ -6,19 +6,13 @@
  * The actual rendering logic is handled by the _live-rendering module.
  */
 
-import type { LiveMonitoringConfig } from '../_live-rendering.ts';
+import type { LiveMonitoringConfig } from '@ccusage/core/live';
 import process from 'node:process';
+import { MIN_RENDER_INTERVAL_MS } from '@ccusage/core/consts';
+import { delayWithAbort,	LiveMonitor,	renderActiveBlock,	renderWaitingState, TerminalManager } from '@ccusage/core/live';
+import { logger } from '@ccusage/core/logger';
 import { Result } from '@praha/byethrow';
 import pc from 'picocolors';
-import { MIN_RENDER_INTERVAL_MS } from '../_consts.ts';
-import { LiveMonitor } from '../_live-monitor.ts';
-import {
-	delayWithAbort,
-	renderActiveBlock,
-	renderWaitingState,
-} from '../_live-rendering.ts';
-import { TerminalManager } from '../_terminal-utils.ts';
-import { logger } from '../logger.ts';
 
 export async function startLiveMonitoring(config: LiveMonitoringConfig): Promise<void> {
 	const terminal = new TerminalManager();

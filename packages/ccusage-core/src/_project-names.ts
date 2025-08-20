@@ -8,7 +8,7 @@
  */
 
 import process from 'node:process';
-import { PROJECT_ALIASES_ENV } from './_consts.ts';
+import { PROJECT_ALIASES_ENV } from './consts.ts';
 
 /**
  * Cache for parsed aliases to avoid repeated parsing

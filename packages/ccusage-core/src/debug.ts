@@ -12,7 +12,7 @@ import path from 'node:path';
 import { Result } from '@praha/byethrow';
 import { createFixture } from 'fs-fixture';
 import { glob } from 'tinyglobby';
-import { CLAUDE_PROJECTS_DIR_NAME, DEBUG_MATCH_THRESHOLD_PERCENT, USAGE_DATA_GLOB_PATTERN } from './_consts.ts';
+import { CLAUDE_PROJECTS_DIR_NAME, DEBUG_MATCH_THRESHOLD_PERCENT, USAGE_DATA_GLOB_PATTERN } from './consts.ts';
 import { getClaudePaths, usageDataSchema } from './data-loader.ts';
 import { logger } from './logger.ts';
 import { PricingFetcher } from './pricing-fetcher.ts';

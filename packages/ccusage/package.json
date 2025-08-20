@@ -1,41 +1,39 @@
 {
 	"name": "ccusage",
+	"type": "module",
 	"version": "15.10.0",
 	"description": "Usage analysis tool for Claude Code",
+	"author": "ryoppippi",
+	"license": "MIT",
+	"funding": "https://github.com/ryoppippi/ccusage?sponsor=1",
 	"homepage": "https://github.com/ryoppippi/ccusage#readme",
-	"bugs": {
-		"url": "https://github.com/ryoppippi/ccusage/issues"
-	},
 	"repository": {
 		"type": "git",
 		"url": "git+https://github.com/ryoppippi/ccusage.git"
 	},
-	"funding": "https://github.com/ryoppippi/ccusage?sponsor=1",
-	"license": "MIT",
-	"author": "ryoppippi",
-	"type": "module",
+	"bugs": {
+		"url": "https://github.com/ryoppippi/ccusage/issues"
+	},
 	"bin": "./dist/index.js",
 	"files": [
 		"LICENSE",
 		"README.md",
 		"dist"
 	],
+	"engines": {
+		"node": ">=20.19.4"
+	},
 	"scripts": {
 		"build": "tsdown",
 		"mcp": "bunx @modelcontextprotocol/inspector bun run start mcp",
 		"prepack": "bun run build && bun clean-pkg-json -r scripts.preinstall && cp ../../README.md ./README.md && cp ../../LICENSE ./LICENSE",
-		"start": "bun run ./src/index.ts",
-		"test": "TZ=UTC vitest"
-	},
-	"dependencies": {
-		"@ccusage/commands": "workspace:*"
+		"start": "bun run ./src/index.ts"
 	},
 	"devDependencies": {
+		"@ccusage/commands": "workspace:*",
 		"@ccusage/config": "workspace:*",
+		"@ccusage/mcp": "workspace:*",
 		"clean-pkg-json": "^1.3.0",
 		"tsdown": "^0.14.1"
-	},
-	"engines": {
-		"node": ">=20.19.4"
 	}
 }
