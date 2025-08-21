@@ -218,12 +218,12 @@ export const statuslineCommand = define({
 				try: async () => {
 					const sessionCost = await Result.pipe(
 						Result.try({
-							try: loadSessionUsageById(sessionId, {
+							try: async () => loadSessionUsageById(sessionId, {
 								mode: 'auto',
 								offline: mergedOptions.offline,
 							}),
 							catch: error => error,
-						}),
+						})(),
 						Result.map(sessionCost => sessionCost?.totalCost),
 						Result.inspectError(error => logger.error('Failed to load session data:', error)),
 						Result.unwrap(undefined),
@@ -235,14 +235,14 @@ export const statuslineCommand = define({
 
 					const todayCost = await Result.pipe(
 						Result.try({
-							try: loadDailyUsageData({
+							try: async () => loadDailyUsageData({
 								since: todayStr,
 								until: todayStr,
 								mode: 'auto',
 								offline: mergedOptions.offline,
 							}),
 							catch: error => error,
-						}),
+						})(),
 						Result.map((dailyData) => {
 							if (dailyData.length > 0) {
 								const totals = calculateTotals(dailyData);
@@ -257,12 +257,12 @@ export const statuslineCommand = define({
 					// Load session block data to find active block
 					const { blockInfo, burnRateInfo } = await Result.pipe(
 						Result.try({
-							try: loadSessionBlockData({
+							try: async () => loadSessionBlockData({
 								mode: 'auto',
 								offline: mergedOptions.offline,
 							}),
 							catch: error => error,
-						}),
+						})(),
 						Result.map((blocks) => {
 						// Only identify blocks if we have data
 							if (blocks.length === 0) {
