@@ -60,6 +60,22 @@ You can enhance the burn rate display with visual indicators:
 
 See [Visual Burn Rate](#visual-burn-rate) section for all available options.
 
+### With Cost Source Options (Optional)
+
+You can control how session costs are calculated and displayed:
+
+```json
+{
+  "statusLine": {
+    "type": "command",
+    "command": "bun x ccusage statusline --cost-source both", // Show both CC and ccusage costs
+    "padding": 0
+  }
+}
+```
+
+See [Cost Source Options](#cost-source-options) section for all available modes.
+
 ## Output Format
 
 The statusline displays a compact, single-line summary:
@@ -68,10 +84,16 @@ The statusline displays a compact, single-line summary:
 🤖 Opus | 💰 $0.23 session / $1.23 today / $0.45 block (2h 45m left) | 🔥 $0.12/hr | 🧠 25,000 (12%)
 ```
 
+When using `--cost-source both`, the session cost shows both Claude Code and ccusage calculations:
+
+```
+🤖 Opus | 💰 ($0.25 cc / $0.23 ccusage) session / $1.23 today / $0.45 block (2h 45m left) | 🔥 $0.12/hr | 🧠 25,000 (12%)
+```
+
 ### Components Explained
 
 - **Model** (`🤖 Opus`): Currently active Claude model
-- **Session Cost** (`💰 $0.23 session`): Cost for the current conversation session
+- **Session Cost** (`💰 $0.23 session`): Cost for the current conversation session (see [Cost Source Options](#cost-source-options) for different calculation modes)
 - **Today's Cost** (`$1.23 today`): Total cost for the current day across all sessions
 - **Session Block** (`$0.45 block (2h 45m left)`): Current 5-hour block cost with remaining time
 - **Burn Rate** (`🔥 $0.12/hr`): Cost burn rate per hour with color-coded indicators:
@@ -107,6 +129,57 @@ The statusline command:
 - Configurable burn rate thresholds
 - Additional metrics display options
 - Session-specific cost tracking
+
+### Cost Source Options
+
+The `--cost-source` option controls how session costs are calculated and displayed:
+
+**Available modes:**
+
+- `auto` (default): Prefer Claude Code's pre-calculated cost when available, fallback to ccusage calculation
+- `ccusage`: Always calculate costs using ccusage's token-based calculation with LiteLLM pricing
+- `cc`: Always use Claude Code's pre-calculated cost from session data
+- `both`: Display both Claude Code and ccusage costs side by side for comparison
+
+**Command-line usage:**
+
+```bash
+# Default auto mode
+bun x ccusage statusline
+
+# Always use ccusage calculation
+bun x ccusage statusline --cost-source ccusage
+
+# Always use Claude Code cost
+bun x ccusage statusline --cost-source cc  
+
+# Show both costs for comparison
+bun x ccusage statusline --cost-source both
+```
+
+**Settings.json configuration:**
+
+```json
+{
+  "statusLine": {
+    "type": "command",
+    "command": "bun x ccusage statusline --cost-source both",
+    "padding": 0
+  }
+}
+```
+
+**When to use each mode:**
+
+- **`auto`**: Best for most users, provides accurate costs with fallback reliability
+- **`ccusage`**: When you want consistent calculation methods across all ccusage commands
+- **`cc`**: When you trust Claude Code's cost calculations and want minimal processing
+- **`both`**: For debugging cost discrepancies or comparing calculation methods
+
+**Output differences:**
+
+- **Single cost modes** (`auto`, `ccusage`, `cc`): `💰 $0.23 session`
+- **Both mode**: `💰 ($0.25 cc / $0.23 ccusage) session`
 
 ## Configuration
 
