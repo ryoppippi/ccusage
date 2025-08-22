@@ -9,5 +9,17 @@
 	"workspace": {
 		"current_dir": "/Users/test/project",
 		"project_dir": "/Users/test/project"
-	}
+	},
+	"version": "1.0.88",
+	"output_style": {
+		"name": "default"
+	},
+	"cost": {
+		"total_cost_usd": 0.0892,
+		"total_duration_ms": 180000,
+		"total_api_duration_ms": 12000,
+		"total_lines_added": 0,
+		"total_lines_removed": 0
+	},
+	"exceeds_200k_tokens": false
 }

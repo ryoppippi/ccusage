@@ -70,7 +70,7 @@ type SemaphoreType = {
 };
 
 const visualBurnRateChoices = ['off', 'emoji', 'text', 'emoji-text'] as const;
-const costSourceChoices = ['auto', 'ccusage', 'cc'] as const;
+const costSourceChoices = ['auto', 'ccusage', 'cc', 'both'] as const;
 
 export const statuslineCommand = define({
 	name: 'statusline',
@@ -93,7 +93,7 @@ export const statuslineCommand = define({
 		costSource: {
 			type: 'enum',
 			choices: costSourceChoices,
-			description: 'Session cost source: auto (prefer CC then ccusage), ccusage (always calculate), cc (always use Claude Code cost)',
+			description: 'Session cost source: auto (prefer CC then ccusage), ccusage (always calculate), cc (always use Claude Code cost), both (show both costs)',
 			default: 'auto',
 			short: 'cs',
 			negatable: false,
@@ -227,16 +227,11 @@ export const statuslineCommand = define({
 			await Result.try({
 				try: async () => {
 					// Determine session cost based on cost source
-					const sessionCost = await (async (): Promise<number | undefined> => {
+					const { sessionCost, ccCost, ccusageCost } = await (async (): Promise<{ sessionCost?: number; ccCost?: number; ccusageCost?: number }> => {
 						const costSource = ctx.values.costSource;
 
-						// If 'cc' mode and cost is available from Claude Code, use it
-						if (costSource === 'cc') {
-							return hookData.cost?.total_cost_usd;
-						}
-
-						// If 'ccusage' mode, always calculate using ccusage
-						if (costSource === 'ccusage') {
+						// Helper function to get ccusage cost
+						const getCcusageCost = async (): Promise<number | undefined> => {
 							return Result.pipe(
 								Result.try({
 									try: async () => loadSessionUsageById(sessionId, {
@@ -249,28 +244,37 @@ export const statuslineCommand = define({
 								Result.inspectError(error => logger.error('Failed to load session data:', error)),
 								Result.unwrap(undefined),
 							);
+						};
+
+						// If 'both' mode, calculate both costs
+						if (costSource === 'both') {
+							const ccCost = hookData.cost?.total_cost_usd;
+							const ccusageCost = await getCcusageCost();
+							return { ccCost, ccusageCost };
+						}
+
+						// If 'cc' mode and cost is available from Claude Code, use it
+						if (costSource === 'cc') {
+							return { sessionCost: hookData.cost?.total_cost_usd };
+						}
+
+						// If 'ccusage' mode, always calculate using ccusage
+						if (costSource === 'ccusage') {
+							const cost = await getCcusageCost();
+							return { sessionCost: cost };
 						}
 
 						// If 'auto' mode (default), prefer Claude Code cost, fallback to ccusage
 						if (costSource === 'auto') {
 							if (hookData.cost?.total_cost_usd != null) {
-								return hookData.cost.total_cost_usd;
+								return { sessionCost: hookData.cost.total_cost_usd };
 							}
 							// Fallback to ccusage calculation
-							return Result.pipe(
-								Result.try({
-									try: async () => loadSessionUsageById(sessionId, {
-										mode: 'auto',
-										offline: mergedOptions.offline,
-									}),
-									catch: error => error,
-								})(),
-								Result.map(sessionCost => sessionCost?.totalCost),
-								Result.inspectError(error => logger.error('Failed to load session data:', error)),
-								Result.unwrap(undefined),
-							);
+							const cost = await getCcusageCost();
+							return { sessionCost: cost };
 						}
 						costSource satisfies never; // Exhaustiveness check
+						return {}; // This line should never be reached
 					})();
 
 					// Load today's usage data
@@ -414,7 +418,16 @@ export const statuslineCommand = define({
 
 					// Format and output the status line
 					// Format: 🤖 model | 💰 session / today / block | 🔥 burn | 🧠 context
-					const sessionDisplay = sessionCost != null ? formatCurrency(sessionCost) : 'N/A';
+					const sessionDisplay = (() => {
+						// If both costs are available, show them side by side
+						if (ccCost != null || ccusageCost != null) {
+							const ccDisplay = ccCost != null ? formatCurrency(ccCost) : 'N/A';
+							const ccusageDisplay = ccusageCost != null ? formatCurrency(ccusageCost) : 'N/A';
+							return `${ccDisplay} cc / ${ccusageDisplay} ccusage`;
+						}
+						// Single cost display
+						return sessionCost != null ? formatCurrency(sessionCost) : 'N/A';
+					})();
 					const statusLine = `🤖 ${modelName} | 💰 ${sessionDisplay} session / ${formatCurrency(todayCost)} today / ${blockInfo}${burnRateInfo} | 🧠 ${contextInfo ?? 'N/A'}`;
 					return statusLine;
 				},
