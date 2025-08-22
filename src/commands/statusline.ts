@@ -423,7 +423,7 @@ export const statuslineCommand = define({
 						if (ccCost != null || ccusageCost != null) {
 							const ccDisplay = ccCost != null ? formatCurrency(ccCost) : 'N/A';
 							const ccusageDisplay = ccusageCost != null ? formatCurrency(ccusageCost) : 'N/A';
-							return `${ccDisplay} cc / ${ccusageDisplay} ccusage`;
+							return `(${ccDisplay} cc / ${ccusageDisplay} ccusage)`;
 						}
 						// Single cost display
 						return sessionCost != null ? formatCurrency(sessionCost) : 'N/A';
