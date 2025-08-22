@@ -231,8 +231,8 @@ export const statuslineCommand = define({
 						const costSource = ctx.values.costSource;
 
 						// If 'cc' mode and cost is available from Claude Code, use it
-						if (costSource === 'cc' && hookData.cost?.total_cost_usd != null) {
-							return hookData.cost.total_cost_usd;
+						if (costSource === 'cc') {
+							return hookData.cost?.total_cost_usd;
 						}
 
 						// If 'ccusage' mode, always calculate using ccusage
@@ -270,9 +270,7 @@ export const statuslineCommand = define({
 								Result.unwrap(undefined),
 							);
 						}
-
-						// If 'cc' mode but no cost available, return undefined (will show N/A)
-						return undefined;
+						costSource satisfies never; // Exhaustiveness check
 					})();
 
 					// Load today's usage data
