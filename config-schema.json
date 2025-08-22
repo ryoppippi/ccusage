@@ -726,10 +726,11 @@
 									"enum": [
 										"auto",
 										"ccusage",
-										"cc"
+										"cc",
+										"both"
 									],
-									"description": "Session cost source: auto (prefer CC then ccusage), ccusage (always calculate), cc (always use Claude Code cost)",
-									"markdownDescription": "Session cost source: auto (prefer CC then ccusage), ccusage (always calculate), cc (always use Claude Code cost)",
+									"description": "Session cost source: auto (prefer CC then ccusage), ccusage (always calculate), cc (always use Claude Code cost), both (show both costs)",
+									"markdownDescription": "Session cost source: auto (prefer CC then ccusage), ccusage (always calculate), cc (always use Claude Code cost), both (show both costs)",
 									"default": "auto"
 								},
 								"cache": {
