@@ -187,7 +187,6 @@ export type TranscriptMessage = {
 		usage?: TranscriptUsage;
 	};
 };
-
 if (import.meta.vitest != null) {
 	describe('statuslineHookJsonSchema', () => {
 		it('should parse valid statusline hook data without cost field', () => {

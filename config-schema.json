@@ -721,6 +721,17 @@
 									"markdownDescription": "Controls the visualization of the burn rate status",
 									"default": "off"
 								},
+								"costSource": {
+									"type": "string",
+									"enum": [
+										"auto",
+										"ccusage",
+										"cc"
+									],
+									"description": "Session cost source: auto (prefer CC then ccusage), ccusage (always calculate), cc (always use Claude Code cost)",
+									"markdownDescription": "Session cost source: auto (prefer CC then ccusage), ccusage (always calculate), cc (always use Claude Code cost)",
+									"default": "auto"
+								},
 								"cache": {
 									"type": "boolean",
 									"description": "Enable cache for status line output (default: true)",
