@@ -70,6 +70,7 @@ type SemaphoreType = {
 };
 
 const visualBurnRateChoices = ['off', 'emoji', 'text', 'emoji-text'] as const;
+const costSourceChoices = ['auto', 'ccusage', 'cc'] as const;
 
 export const statuslineCommand = define({
 	name: 'statusline',
@@ -86,6 +87,15 @@ export const statuslineCommand = define({
 			description: 'Controls the visualization of the burn rate status',
 			default: 'off',
 			short: 'vb',
+			negatable: false,
+			toKebab: true,
+		},
+		costSource: {
+			type: 'enum',
+			choices: costSourceChoices,
+			description: 'Session cost source: auto (prefer CC then ccusage), ccusage (always calculate), cc (always use Claude Code cost)',
+			default: 'auto',
+			short: 'cs',
 			negatable: false,
 			toKebab: true,
 		},
@@ -216,18 +226,54 @@ export const statuslineCommand = define({
 		const mainProcessingResult = Result.pipe(
 			await Result.try({
 				try: async () => {
-					const sessionCost = await Result.pipe(
-						Result.try({
-							try: async () => loadSessionUsageById(sessionId, {
-								mode: 'auto',
-								offline: mergedOptions.offline,
-							}),
-							catch: error => error,
-						})(),
-						Result.map(sessionCost => sessionCost?.totalCost),
-						Result.inspectError(error => logger.error('Failed to load session data:', error)),
-						Result.unwrap(undefined),
-					);
+					// Determine session cost based on cost source
+					const sessionCost = await (async (): Promise<number | undefined> => {
+						const costSource = ctx.values.costSource;
+
+						// If 'cc' mode and cost is available from Claude Code, use it
+						if (costSource === 'cc' && hookData.cost?.total_cost_usd != null) {
+							return hookData.cost.total_cost_usd;
+						}
+
+						// If 'ccusage' mode, always calculate using ccusage
+						if (costSource === 'ccusage') {
+							return Result.pipe(
+								Result.try({
+									try: async () => loadSessionUsageById(sessionId, {
+										mode: 'auto',
+										offline: mergedOptions.offline,
+									}),
+									catch: error => error,
+								})(),
+								Result.map(sessionCost => sessionCost?.totalCost),
+								Result.inspectError(error => logger.error('Failed to load session data:', error)),
+								Result.unwrap(undefined),
+							);
+						}
+
+						// If 'auto' mode (default), prefer Claude Code cost, fallback to ccusage
+						if (costSource === 'auto') {
+							if (hookData.cost?.total_cost_usd != null) {
+								return hookData.cost.total_cost_usd;
+							}
+							// Fallback to ccusage calculation
+							return Result.pipe(
+								Result.try({
+									try: async () => loadSessionUsageById(sessionId, {
+										mode: 'auto',
+										offline: mergedOptions.offline,
+									}),
+									catch: error => error,
+								})(),
+								Result.map(sessionCost => sessionCost?.totalCost),
+								Result.inspectError(error => logger.error('Failed to load session data:', error)),
+								Result.unwrap(undefined),
+							);
+						}
+
+						// If 'cc' mode but no cost available, return undefined (will show N/A)
+						return undefined;
+					})();
 
 					// Load today's usage data
 					const today = new Date();

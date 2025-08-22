@@ -156,6 +156,13 @@ export const statuslineHookJsonSchema = z.object({
 		project_dir: z.string(),
 	}),
 	version: z.string().optional(),
+	cost: z.object({
+		total_cost_usd: z.number(),
+		total_duration_ms: z.number().optional(),
+		total_api_duration_ms: z.number().optional(),
+		total_lines_added: z.number().optional(),
+		total_lines_removed: z.number().optional(),
+	}).optional(),
 });
 
 /**
@@ -180,3 +187,134 @@ export type TranscriptMessage = {
 		usage?: TranscriptUsage;
 	};
 };
+
+if (import.meta.vitest != null) {
+	describe('statuslineHookJsonSchema', () => {
+		it('should parse valid statusline hook data without cost field', () => {
+			const validData = {
+				session_id: '73cc9f9a-2775-4418-beec-bc36b62a1c6f',
+				transcript_path: '/path/to/transcript.jsonl',
+				cwd: '/path/to/project',
+				model: {
+					id: 'claude-sonnet-4-20250514',
+					display_name: 'Sonnet 4',
+				},
+				workspace: {
+					current_dir: '/path/to/project',
+					project_dir: '/path/to/project',
+				},
+				version: '1.0.88',
+			};
+
+			const result = statuslineHookJsonSchema.safeParse(validData);
+			expect(result.success).toBe(true);
+			if (result.success) {
+				expect(result.data.session_id).toBe('73cc9f9a-2775-4418-beec-bc36b62a1c6f');
+				expect(result.data.cost).toBeUndefined();
+			}
+		});
+
+		it('should parse valid statusline hook data with cost field', () => {
+			const validDataWithCost = {
+				session_id: '73cc9f9a-2775-4418-beec-bc36b62a1c6f',
+				transcript_path: '/path/to/transcript.jsonl',
+				cwd: '/path/to/project',
+				model: {
+					id: 'claude-sonnet-4-20250514',
+					display_name: 'Sonnet 4',
+				},
+				workspace: {
+					current_dir: '/path/to/project',
+					project_dir: '/path/to/project',
+				},
+				version: '1.0.88',
+				cost: {
+					total_cost_usd: 0.056266149999999994,
+					total_duration_ms: 164055,
+					total_api_duration_ms: 13577,
+					total_lines_added: 0,
+					total_lines_removed: 0,
+				},
+			};
+
+			const result = statuslineHookJsonSchema.safeParse(validDataWithCost);
+			expect(result.success).toBe(true);
+			if (result.success) {
+				expect(result.data.session_id).toBe('73cc9f9a-2775-4418-beec-bc36b62a1c6f');
+				expect(result.data.cost?.total_cost_usd).toBe(0.056266149999999994);
+				expect(result.data.cost?.total_duration_ms).toBe(164055);
+			}
+		});
+
+		it('should parse valid statusline hook data with minimal cost field', () => {
+			const validDataWithMinimalCost = {
+				session_id: '73cc9f9a-2775-4418-beec-bc36b62a1c6f',
+				transcript_path: '/path/to/transcript.jsonl',
+				cwd: '/path/to/project',
+				model: {
+					id: 'claude-sonnet-4-20250514',
+					display_name: 'Sonnet 4',
+				},
+				workspace: {
+					current_dir: '/path/to/project',
+					project_dir: '/path/to/project',
+				},
+				cost: {
+					total_cost_usd: 0.05,
+				},
+			};
+
+			const result = statuslineHookJsonSchema.safeParse(validDataWithMinimalCost);
+			expect(result.success).toBe(true);
+			if (result.success) {
+				expect(result.data.cost?.total_cost_usd).toBe(0.05);
+				expect(result.data.cost?.total_duration_ms).toBeUndefined();
+			}
+		});
+
+		it('should reject data with invalid cost field', () => {
+			const invalidData = {
+				session_id: '73cc9f9a-2775-4418-beec-bc36b62a1c6f',
+				transcript_path: '/path/to/transcript.jsonl',
+				cwd: '/path/to/project',
+				model: {
+					id: 'claude-sonnet-4-20250514',
+					display_name: 'Sonnet 4',
+				},
+				workspace: {
+					current_dir: '/path/to/project',
+					project_dir: '/path/to/project',
+				},
+				cost: {
+					total_cost_usd: 'invalid_string', // Should be number
+				},
+			};
+
+			const result = statuslineHookJsonSchema.safeParse(invalidData);
+			expect(result.success).toBe(false);
+		});
+
+		it('should reject data missing required cost.total_cost_usd field', () => {
+			const invalidData = {
+				session_id: '73cc9f9a-2775-4418-beec-bc36b62a1c6f',
+				transcript_path: '/path/to/transcript.jsonl',
+				cwd: '/path/to/project',
+				model: {
+					id: 'claude-sonnet-4-20250514',
+					display_name: 'Sonnet 4',
+				},
+				workspace: {
+					current_dir: '/path/to/project',
+					project_dir: '/path/to/project',
+				},
+				cost: {
+					// Missing total_cost_usd
+					total_duration_ms: 164055,
+				},
+			};
+
+			const result = statuslineHookJsonSchema.safeParse(invalidData);
+			expect(result.success).toBe(false);
+		});
+	});
+}
