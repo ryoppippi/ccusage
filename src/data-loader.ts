@@ -32,7 +32,7 @@ import { createFixture } from 'fs-fixture';
 import { isDirectorySync } from 'path-type';
 import { glob } from 'tinyglobby';
 import { z } from 'zod';
-import { CLAUDE_CONFIG_DIR_ENV, CLAUDE_PROJECTS_DIR_NAME, CONTEXT_LOW_THRESHOLD_ENV, CONTEXT_MEDIUM_THRESHOLD_ENV, DEFAULT_CLAUDE_CODE_PATH, DEFAULT_CLAUDE_CONFIG_PATH, DEFAULT_CONTEXT_USAGE_THRESHOLDS, USAGE_DATA_GLOB_PATTERN, USER_HOME_DIR } from './_consts.ts';
+import { CLAUDE_CONFIG_DIR_ENV, CLAUDE_PROJECTS_DIR_NAME, DEFAULT_CLAUDE_CODE_PATH, DEFAULT_CLAUDE_CONFIG_PATH, USAGE_DATA_GLOB_PATTERN, USER_HOME_DIR } from './_consts.ts';
 import {
 	identifySessionBlocks,
 } from './_session-blocks.ts';
@@ -131,48 +131,6 @@ export function getClaudePaths(): string[] {
 	}
 
 	return paths;
-}
-
-/**
- * Get context usage percentage thresholds for color coding
- * Can be configured via environment variables or uses defaults
- * Validates and clamps values to 0-100 range and enforces LOW < MEDIUM ordering
- * @returns Context usage thresholds with LOW and MEDIUM percentages
- */
-export function getContextUsageThresholds(): { readonly LOW: number; readonly MEDIUM: number } {
-	// Parse and validate environment variables
-	const lowThresholdStr = process.env[CONTEXT_LOW_THRESHOLD_ENV];
-	const mediumThresholdStr = process.env[CONTEXT_MEDIUM_THRESHOLD_ENV];
-
-	// Parse with validation - use defaults for invalid values
-	let lowThreshold: number = DEFAULT_CONTEXT_USAGE_THRESHOLDS.LOW;
-	let mediumThreshold: number = DEFAULT_CONTEXT_USAGE_THRESHOLDS.MEDIUM;
-
-	if (lowThresholdStr != null) {
-		const parsed = Number.parseInt(lowThresholdStr, 10);
-		if (!Number.isNaN(parsed)) {
-			lowThreshold = Math.max(0, Math.min(100, parsed)); // Clamp to 0-100
-		}
-	}
-
-	if (mediumThresholdStr != null) {
-		const parsed = Number.parseInt(mediumThresholdStr, 10);
-		if (!Number.isNaN(parsed)) {
-			mediumThreshold = Math.max(0, Math.min(100, parsed)); // Clamp to 0-100
-		}
-	}
-
-	// Enforce ordering: LOW must be less than MEDIUM
-	// If ordering is violated, reset both to defaults
-	if (lowThreshold >= mediumThreshold) {
-		lowThreshold = DEFAULT_CONTEXT_USAGE_THRESHOLDS.LOW;
-		mediumThreshold = DEFAULT_CONTEXT_USAGE_THRESHOLDS.MEDIUM;
-	}
-
-	return {
-		LOW: lowThreshold,
-		MEDIUM: mediumThreshold,
-	} as const;
 }
 
 /**
@@ -4773,110 +4731,6 @@ if (import.meta.vitest != null) {
 			const res = await calculateContextTokens(fixture.getPath('transcript.jsonl'));
 			expect(res).not.toBeNull();
 			expect(res?.percentage).toBe(100); // Should be clamped to 100
-		});
-	});
-
-	describe('getContextUsageThresholds', () => {
-		afterEach(() => {
-			vi.unstubAllEnvs();
-		});
-
-		it('returns default values when no environment variables are set', () => {
-			const thresholds = getContextUsageThresholds();
-			expect(thresholds.LOW).toBe(50);
-			expect(thresholds.MEDIUM).toBe(80);
-		});
-
-		it('parses valid environment variables correctly', () => {
-			vi.stubEnv('CCUSAGE_CONTEXT_LOW_THRESHOLD', '30');
-			vi.stubEnv('CCUSAGE_CONTEXT_MEDIUM_THRESHOLD', '70');
-
-			const thresholds = getContextUsageThresholds();
-			expect(thresholds.LOW).toBe(30);
-			expect(thresholds.MEDIUM).toBe(70);
-		});
-
-		it('clamps values to 0-100 range', () => {
-			vi.stubEnv('CCUSAGE_CONTEXT_LOW_THRESHOLD', '-10');
-			vi.stubEnv('CCUSAGE_CONTEXT_MEDIUM_THRESHOLD', '150');
-
-			const thresholds = getContextUsageThresholds();
-			expect(thresholds.LOW).toBe(0);
-			expect(thresholds.MEDIUM).toBe(100);
-		});
-
-		it('handles non-numeric values by falling back to defaults', () => {
-			vi.stubEnv('CCUSAGE_CONTEXT_LOW_THRESHOLD', 'invalid');
-			vi.stubEnv('CCUSAGE_CONTEXT_MEDIUM_THRESHOLD', 'not-a-number');
-
-			const thresholds = getContextUsageThresholds();
-			expect(thresholds.LOW).toBe(50);
-			expect(thresholds.MEDIUM).toBe(80);
-		});
-
-		it('handles empty string values by falling back to defaults', () => {
-			vi.stubEnv('CCUSAGE_CONTEXT_LOW_THRESHOLD', '');
-			vi.stubEnv('CCUSAGE_CONTEXT_MEDIUM_THRESHOLD', '');
-
-			const thresholds = getContextUsageThresholds();
-			expect(thresholds.LOW).toBe(50);
-			expect(thresholds.MEDIUM).toBe(80);
-		});
-
-		it('handles partial invalid values correctly', () => {
-			vi.stubEnv('CCUSAGE_CONTEXT_LOW_THRESHOLD', '25');
-			vi.stubEnv('CCUSAGE_CONTEXT_MEDIUM_THRESHOLD', 'invalid');
-
-			const thresholds = getContextUsageThresholds();
-			expect(thresholds.LOW).toBe(25);
-			expect(thresholds.MEDIUM).toBe(80); // Falls back to default
-		});
-
-		it('enforces ordering constraint: resets to defaults when LOW >= MEDIUM', () => {
-			vi.stubEnv('CCUSAGE_CONTEXT_LOW_THRESHOLD', '85');
-			vi.stubEnv('CCUSAGE_CONTEXT_MEDIUM_THRESHOLD', '60');
-
-			const thresholds = getContextUsageThresholds();
-			// Should reset both to defaults due to ordering violation
-			expect(thresholds.LOW).toBe(50);
-			expect(thresholds.MEDIUM).toBe(80);
-		});
-
-		it('enforces ordering constraint: resets to defaults when LOW equals MEDIUM', () => {
-			vi.stubEnv('CCUSAGE_CONTEXT_LOW_THRESHOLD', '70');
-			vi.stubEnv('CCUSAGE_CONTEXT_MEDIUM_THRESHOLD', '70');
-
-			const thresholds = getContextUsageThresholds();
-			// Should reset both to defaults due to ordering violation
-			expect(thresholds.LOW).toBe(50);
-			expect(thresholds.MEDIUM).toBe(80);
-		});
-
-		it('handles edge case: LOW=0, MEDIUM=100', () => {
-			vi.stubEnv('CCUSAGE_CONTEXT_LOW_THRESHOLD', '0');
-			vi.stubEnv('CCUSAGE_CONTEXT_MEDIUM_THRESHOLD', '100');
-
-			const thresholds = getContextUsageThresholds();
-			expect(thresholds.LOW).toBe(0);
-			expect(thresholds.MEDIUM).toBe(100);
-		});
-
-		it('handles decimal values by truncating to integer', () => {
-			vi.stubEnv('CCUSAGE_CONTEXT_LOW_THRESHOLD', '25.7');
-			vi.stubEnv('CCUSAGE_CONTEXT_MEDIUM_THRESHOLD', '75.9');
-
-			const thresholds = getContextUsageThresholds();
-			expect(thresholds.LOW).toBe(25); // parseInt truncates
-			expect(thresholds.MEDIUM).toBe(75); // parseInt truncates
-		});
-
-		it('handles values with extra whitespace', () => {
-			vi.stubEnv('CCUSAGE_CONTEXT_LOW_THRESHOLD', '  30  ');
-			vi.stubEnv('CCUSAGE_CONTEXT_MEDIUM_THRESHOLD', '  70  ');
-
-			const thresholds = getContextUsageThresholds();
-			expect(thresholds.LOW).toBe(30);
-			expect(thresholds.MEDIUM).toBe(70);
 		});
 	});
 }

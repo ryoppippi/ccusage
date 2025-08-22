@@ -8,14 +8,15 @@ import { createLimoJson } from '@ryoppippi/limo';
 import getStdin from 'get-stdin';
 import { define } from 'gunshi';
 import pc from 'picocolors';
+import { z } from 'zod';
 import { loadConfig, mergeConfigWithArgs } from '../_config-loader-tokens.ts';
-import { DEFAULT_REFRESH_INTERVAL_SECONDS } from '../_consts.ts';
+import { DEFAULT_CONTEXT_USAGE_THRESHOLDS, DEFAULT_REFRESH_INTERVAL_SECONDS } from '../_consts.ts';
 import { calculateBurnRate } from '../_session-blocks.ts';
 import { sharedArgs } from '../_shared-args.ts';
 import { statuslineHookJsonSchema } from '../_types.ts';
 import { formatCurrency, getFileModifiedTime } from '../_utils.ts';
 import { calculateTotals } from '../calculate-cost.ts';
-import { calculateContextTokens, getContextUsageThresholds, loadDailyUsageData, loadSessionBlockData, loadSessionUsageById } from '../data-loader.ts';
+import { calculateContextTokens, loadDailyUsageData, loadSessionBlockData, loadSessionUsageById } from '../data-loader.ts';
 import { log, logger } from '../logger.ts';
 
 /**
@@ -72,6 +73,9 @@ type SemaphoreType = {
 const visualBurnRateChoices = ['off', 'emoji', 'text', 'emoji-text'] as const;
 const costSourceChoices = ['auto', 'ccusage', 'cc', 'both'] as const;
 
+// Zod schema for context threshold validation
+const contextThresholdSchema = z.coerce.number().int().min(0, 'Context threshold must be at least 0').max(100, 'Context threshold must be at most 100');
+
 export const statuslineCommand = define({
 	name: 'statusline',
 	description: 'Display compact status line for Claude Code hooks with hybrid time+file caching (Beta)',
@@ -108,12 +112,29 @@ export const statuslineCommand = define({
 			description: `Refresh interval in seconds for cache expiry (default: ${DEFAULT_REFRESH_INTERVAL_SECONDS})`,
 			default: DEFAULT_REFRESH_INTERVAL_SECONDS,
 		},
+		contextLowThreshold: {
+			type: 'custom',
+			description: 'Context usage percentage below which status is shown in green (0-100)',
+			parse: (value: string) => contextThresholdSchema.parse(value),
+			default: DEFAULT_CONTEXT_USAGE_THRESHOLDS.LOW,
+		},
+		contextMediumThreshold: {
+			type: 'custom',
+			description: 'Context usage percentage below which status is shown in yellow (0-100)',
+			parse: (value: string) => contextThresholdSchema.parse(value),
+			default: DEFAULT_CONTEXT_USAGE_THRESHOLDS.MEDIUM,
+		},
 		config: sharedArgs.config,
 		debug: sharedArgs.debug,
 	},
 	async run(ctx) {
 		// Set logger to silent for statusline output
 		logger.level = 0;
+
+		// Validate threshold ordering constraint: LOW must be less than MEDIUM
+		if (ctx.values.contextLowThreshold >= ctx.values.contextMediumThreshold) {
+			throw new Error(`Context low threshold (${ctx.values.contextLowThreshold}) must be less than medium threshold (${ctx.values.contextMediumThreshold})`);
+		}
 
 		// Load configuration and merge with CLI args
 		const config = loadConfig(ctx.values.config, ctx.values.debug);
@@ -392,21 +413,20 @@ export const statuslineCommand = define({
 							catch: error => error,
 						}),
 						Result.inspectError(error => logger.debug(`Failed to calculate context tokens: ${error instanceof Error ? error.message : String(error)}`)),
-						Result.map((ctx) => {
-							if (ctx == null) {
+						Result.map((contextResult) => {
+							if (contextResult == null) {
 								return undefined;
 							}
-							// Format context percentage with color coding using configurable thresholds
-							const thresholds = getContextUsageThresholds();
-							const color = ctx.percentage < thresholds.LOW
+							// Format context percentage with color coding using option thresholds
+							const color = contextResult.percentage < ctx.values.contextLowThreshold
 								? pc.green
-								: ctx.percentage < thresholds.MEDIUM
+								: contextResult.percentage < ctx.values.contextMediumThreshold
 									? pc.yellow
 									: pc.red;
-							const coloredPercentage = color(`${ctx.percentage}%`);
+							const coloredPercentage = color(`${contextResult.percentage}%`);
 
 							// Format token count with thousand separators
-							const tokenDisplay = ctx.inputTokens.toLocaleString();
+							const tokenDisplay = contextResult.inputTokens.toLocaleString();
 							return `${tokenDisplay} (${coloredPercentage})`;
 						}),
 						Result.unwrap(undefined),

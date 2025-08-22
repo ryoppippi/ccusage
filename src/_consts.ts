@@ -127,16 +127,6 @@ export const DEFAULT_CONTEXT_USAGE_THRESHOLDS = {
 } as const;
 
 /**
- * Environment variable name for configuring context usage low threshold
- */
-export const CONTEXT_LOW_THRESHOLD_ENV = 'CCUSAGE_CONTEXT_LOW_THRESHOLD';
-
-/**
- * Environment variable name for configuring context usage medium threshold
- */
-export const CONTEXT_MEDIUM_THRESHOLD_ENV = 'CCUSAGE_CONTEXT_MEDIUM_THRESHOLD';
-
-/**
  * Days of the week for weekly aggregation
  */
 export const WEEK_DAYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'] as const;
