@@ -92,13 +92,28 @@ function formatModels(models: string[]): string {
 }
 
 /**
- * Parses token limit argument, supporting 'max' keyword
+ * Extracts the calculation method from token limit value
+ * @param value - Token limit string value
+ * @returns The method ('max', 'avg', 'median') or 'max' as default
+ */
+function getTokenLimitMethod(value: string | undefined | null): 'max' | 'avg' | 'median' {
+	if (value === 'avg') {
+		return 'avg';
+	}
+	if (value === 'median') {
+		return 'median';
+	}
+	return 'max'; // default for 'max', null, undefined, empty string, or numeric values
+}
+
+/**
+ * Parses token limit argument, supporting 'max', 'avg', and 'median' keywords
  * @param value - Token limit string value
  * @param calculatedLimit - Calculated token limit based on selected method and sessions
  * @returns Parsed token limit or undefined if invalid
  */
 function parseTokenLimit(value: string | undefined | null, calculatedLimit: number): number | undefined {
-	if (value === null || value === undefined || value === '' || value === 'max') {
+	if (value === null || value === undefined || value === '' || value === 'max' || value === 'avg' || value === 'median') {
 		return calculatedLimit > 0 ? calculatedLimit : undefined;
 	}
 
@@ -126,19 +141,13 @@ export const blocksCommand = define({
 		tokenLimit: {
 			type: 'string',
 			short: 't',
-			description: 'Token limit for quota warnings (e.g., 500000 or "max")',
+			description: 'Token limit for quota warnings (number, "max", "avg", or "median")',
 		},
 		sessionLength: {
 			type: 'number',
 			short: 'n',
 			description: `Session block duration in hours (default: ${DEFAULT_SESSION_DURATION_HOURS})`,
 			default: DEFAULT_SESSION_DURATION_HOURS,
-		},
-		tokenLimitMethod: {
-			type: 'string',
-			description: 'Method for calculating token limit: "max" (highest session), "avg" (average), or "median"',
-			default: 'max',
-			choices: ['max', 'avg', 'median'],
 		},
 		tokenLimitSessions: {
 			type: 'number',
@@ -203,10 +212,10 @@ export const blocksCommand = define({
 
 		// Calculate token limit from recent completed sessions
 		let calculatedTokenLimit = 0;
-		const tokenLimitMethod = ctx.values.tokenLimitMethod ?? 'max';
+		const tokenLimitMethod = getTokenLimitMethod(ctx.values.tokenLimit);
 		const tokenLimitSessions = ctx.values.tokenLimitSessions; // null means all sessions
 
-		if (ctx.values.tokenLimit === 'max' || ctx.values.tokenLimit == null || ctx.values.tokenLimit === '') {
+		if (ctx.values.tokenLimit === 'max' || ctx.values.tokenLimit === 'avg' || ctx.values.tokenLimit === 'median' || ctx.values.tokenLimit == null || ctx.values.tokenLimit === '') {
 			const completedBlocks: SessionBlock[] = [];
 
 			// Collect all completed blocks (non-gap, non-active)
@@ -225,7 +234,7 @@ export const blocksCommand = define({
 			if (blocksToUse.length > 0) {
 				const blockTokens = blocksToUse.map(block => getTotalTokens(block.tokenCounts));
 
-				switch (tokenLimitMethod as 'max' | 'avg' | 'median') {
+				switch (tokenLimitMethod) {
 					case 'avg': {
 						calculatedTokenLimit = Math.round(
 							blockTokens.reduce((sum, tokens) => sum + tokens, 0) / blockTokens.length,
@@ -236,19 +245,14 @@ export const blocksCommand = define({
 						const sortedTokens = [...blockTokens].sort((a, b) => a - b);
 						if (sortedTokens.length === 0) {
 							calculatedTokenLimit = 0;
-							break;
-						}
-						if (sortedTokens.length <= 1) {
-							calculatedTokenLimit = sortedTokens[0] ?? 0;
-							break;
 						}
 						else {
 							const mid = Math.floor(sortedTokens.length / 2);
 							calculatedTokenLimit = sortedTokens.length % 2 === 0
 								? Math.round(((sortedTokens[mid - 1] ?? 0) + (sortedTokens[mid] ?? 0)) / 2)
 								: sortedTokens[mid] ?? 0;
-							break;
 						}
+						break;
 					}
 					case 'max':
 					default:
@@ -297,7 +301,7 @@ export const blocksCommand = define({
 			if (tokenLimitValue == null || tokenLimitValue === '') {
 				tokenLimitValue = 'max';
 				if (calculatedTokenLimit > 0) {
-					logger.info(`No token limit specified, using ${tokenLimitMethod} from previous sessions: ${formatNumber(calculatedTokenLimit)}`);
+					logger.info(`No token limit specified, using max from previous sessions: ${formatNumber(calculatedTokenLimit)}`);
 				}
 			}
 
@@ -576,6 +580,22 @@ export const blocksCommand = define({
 
 if (import.meta.vitest != null) {
 	/* eslint-disable ts/no-unused-vars, ts/no-unsafe-member-access, ts/no-unsafe-argument */
+	describe('getTokenLimitMethod', () => {
+		it('returns correct method for valid keywords', () => {
+			expect(getTokenLimitMethod('max')).toBe('max');
+			expect(getTokenLimitMethod('avg')).toBe('avg');
+			expect(getTokenLimitMethod('median')).toBe('median');
+		});
+
+		it('returns max as default for other values', () => {
+			expect(getTokenLimitMethod(undefined)).toBe('max');
+			expect(getTokenLimitMethod(null)).toBe('max');
+			expect(getTokenLimitMethod('')).toBe('max');
+			expect(getTokenLimitMethod('1000')).toBe('max');
+			expect(getTokenLimitMethod('invalid')).toBe('max');
+		});
+	});
+
 	describe('parseTokenLimit', () => {
 		it('returns calculated limit when value is null or empty', () => {
 			expect(parseTokenLimit(undefined, 500)).toBe(500);
@@ -583,14 +603,18 @@ if (import.meta.vitest != null) {
 			expect(parseTokenLimit(null, 500)).toBe(500);
 		});
 
-		it('returns calculated limit when value is "max"', () => {
+		it('returns calculated limit when value is method keyword', () => {
 			expect(parseTokenLimit('max', 500)).toBe(500);
+			expect(parseTokenLimit('avg', 500)).toBe(500);
+			expect(parseTokenLimit('median', 500)).toBe(500);
 		});
 
 		it('returns undefined when calculated limit is 0', () => {
 			expect(parseTokenLimit(undefined, 0)).toBeUndefined();
 			expect(parseTokenLimit('', 0)).toBeUndefined();
 			expect(parseTokenLimit('max', 0)).toBeUndefined();
+			expect(parseTokenLimit('avg', 0)).toBeUndefined();
+			expect(parseTokenLimit('median', 0)).toBeUndefined();
 		});
 
 		it('parses numeric values correctly', () => {
@@ -951,7 +975,6 @@ if (import.meta.vitest != null) {
 		function createMockContext(overrides: Partial<any> = {}): { values: any; tokens: unknown[] } {
 			return {
 				values: {
-					tokenLimitMethod: 'max',
 					tokenLimitSessions: null,
 					tokenLimit: undefined,
 					sessionLength: 5,
@@ -969,18 +992,18 @@ if (import.meta.vitest != null) {
 
 		it('uses default values correctly', () => {
 			const ctx = createMockContext();
-			expect(ctx.values.tokenLimitMethod).toBe('max');
 			expect(ctx.values.tokenLimitSessions).toBeNull();
+			expect(getTokenLimitMethod(ctx.values.tokenLimit)).toBe('max'); // default method
 		});
 
-		it('accepts valid tokenLimitMethod values', () => {
-			const maxCtx = createMockContext({ tokenLimitMethod: 'max' });
-			const avgCtx = createMockContext({ tokenLimitMethod: 'avg' });
-			const medianCtx = createMockContext({ tokenLimitMethod: 'median' });
+		it('accepts valid tokenLimit method values', () => {
+			const maxCtx = createMockContext({ tokenLimit: 'max' });
+			const avgCtx = createMockContext({ tokenLimit: 'avg' });
+			const medianCtx = createMockContext({ tokenLimit: 'median' });
 
-			expect(maxCtx.values.tokenLimitMethod).toBe('max');
-			expect(avgCtx.values.tokenLimitMethod).toBe('avg');
-			expect(medianCtx.values.tokenLimitMethod).toBe('median');
+			expect(getTokenLimitMethod(maxCtx.values.tokenLimit)).toBe('max');
+			expect(getTokenLimitMethod(avgCtx.values.tokenLimit)).toBe('avg');
+			expect(getTokenLimitMethod(medianCtx.values.tokenLimit)).toBe('median');
 		});
 
 		it('accepts valid tokenLimitSessions values', () => {
@@ -994,14 +1017,27 @@ if (import.meta.vitest != null) {
 		it('maintains backward compatibility with tokenLimit="max"', () => {
 			const ctx = createMockContext({ tokenLimit: 'max' });
 			expect(ctx.values.tokenLimit).toBe('max');
+			expect(getTokenLimitMethod(ctx.values.tokenLimit)).toBe('max');
 
 			// This should trigger the calculation logic (when tokenLimit is "max")
 			expect(ctx.values.tokenLimit === 'max').toBe(true);
 		});
 
+		it('handles new tokenLimit method values', () => {
+			const avgCtx = createMockContext({ tokenLimit: 'avg' });
+			const medianCtx = createMockContext({ tokenLimit: 'median' });
+
+			expect(avgCtx.values.tokenLimit).toBe('avg');
+			expect(getTokenLimitMethod(avgCtx.values.tokenLimit)).toBe('avg');
+
+			expect(medianCtx.values.tokenLimit).toBe('median');
+			expect(getTokenLimitMethod(medianCtx.values.tokenLimit)).toBe('median');
+		});
+
 		it('handles explicit numeric tokenLimit values', () => {
 			const ctx = createMockContext({ tokenLimit: '50000' });
 			expect(ctx.values.tokenLimit).toBe('50000');
+			expect(getTokenLimitMethod(ctx.values.tokenLimit)).toBe('max'); // numeric values default to max method
 
 			// parseTokenLimit should handle this correctly
 			expect(parseTokenLimit(ctx.values.tokenLimit, 0)).toBe(50000);
@@ -1079,7 +1115,7 @@ if (import.meta.vitest != null) {
 
 	describe('Backwards Compatibility', () => {
 		it('maintains old behavior when defaults are used', () => {
-			// When tokenLimitMethod='max' and tokenLimitSessions=null,
+			// When tokenLimit defaults to 'max' method and tokenLimitSessions=null,
 			// behavior should be identical to the old implementation
 			const testTokens = [100, 200, 300, 150, 250];
 
@@ -1088,7 +1124,7 @@ if (import.meta.vitest != null) {
 
 			// New behavior with defaults
 			const sortedTokens = [...testTokens]; // no session limiting (null)
-			const newBehavior = Math.max(...sortedTokens); // 'max' method
+			const newBehavior = Math.max(...sortedTokens); // 'max' method (default)
 
 			expect(newBehavior).toBe(oldBehavior);
 			expect(newBehavior).toBe(300);
@@ -1100,11 +1136,32 @@ if (import.meta.vitest != null) {
 			expect(parseTokenLimit(undefined, 500)).toBe(500);
 			expect(parseTokenLimit('', 500)).toBe(500);
 
+			// New behavior: supports additional method keywords
+			expect(parseTokenLimit('avg', 500)).toBe(500);
+			expect(parseTokenLimit('median', 500)).toBe(500);
+
 			// Old behavior: if explicit number, use that
 			expect(parseTokenLimit('1000', 500)).toBe(1000);
 
 			// Old behavior: if calculated limit is 0 and tokenLimit is "max", return undefined
 			expect(parseTokenLimit('max', 0)).toBeUndefined();
+			expect(parseTokenLimit('avg', 0)).toBeUndefined();
+			expect(parseTokenLimit('median', 0)).toBeUndefined();
+		});
+
+		it('getTokenLimitMethod provides consistent method extraction', () => {
+			// Default to 'max' for old behavior
+			expect(getTokenLimitMethod(undefined)).toBe('max');
+			expect(getTokenLimitMethod(null)).toBe('max');
+			expect(getTokenLimitMethod('')).toBe('max');
+			expect(getTokenLimitMethod('max')).toBe('max');
+
+			// New method support
+			expect(getTokenLimitMethod('avg')).toBe('avg');
+			expect(getTokenLimitMethod('median')).toBe('median');
+
+			// Numeric values default to 'max' method
+			expect(getTokenLimitMethod('50000')).toBe('max');
 		});
 	});
 

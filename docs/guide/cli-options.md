@@ -212,23 +212,18 @@ ccusage blocks --token-limit max
 ccusage blocks --token-limit avg
 ccusage blocks --token-limit median
 
-# Token limit calculation methods
-ccusage blocks --token-limit-method max    # Use highest session (default)
-ccusage blocks --token-limit-method avg    # Use average of sessions
-ccusage blocks --token-limit-method median # Use median of sessions
-
 # Limit calculation to recent sessions
 ccusage blocks --token-limit-sessions 10   # Use last 10 sessions (default)
 ccusage blocks --token-limit-sessions 5    # Use last 5 sessions
 
 # Combined token limit options
-ccusage blocks --token-limit-method avg --token-limit-sessions 10
-ccusage blocks --token-limit-method median --token-limit-sessions 15
+ccusage blocks --token-limit avg --token-limit-sessions 10
+ccusage blocks --token-limit median --token-limit-sessions 15
 
 # Live monitoring mode
 ccusage blocks --live
 ccusage blocks --live --refresh-interval 2
-ccusage blocks --live --token-limit-method avg --token-limit-sessions 10
+ccusage blocks --live --token-limit avg --token-limit-sessions 10
 
 # Customize session length
 ccusage blocks --session-length 5
@@ -239,20 +234,19 @@ ccusage blocks --session-length 5
 | Option | Values | Description |
 |--------|---------|-------------|
 | `--token-limit` | `max`, `avg`, `median`, number | Set token limit (auto-calculated or explicit) |
-| `--token-limit-method` | `max`, `avg`, `median` | Choose calculation method for automatic limits |
 | `--token-limit-sessions` | number | Limit calculation to N most recent sessions |
 
 **Examples:**
 
 ```bash
 # Conservative: Maximum of last 5 sessions
-ccusage blocks --token-limit-method max --token-limit-sessions 5
+ccusage blocks --token-limit max --token-limit-sessions 5
 
 # Balanced: Average of last 10 sessions  
-ccusage blocks --token-limit-method avg --token-limit-sessions 10
+ccusage blocks --token-limit avg --token-limit-sessions 10
 
 # Robust: Median of all sessions (ignores outliers)
-ccusage blocks --token-limit-method median
+ccusage blocks --token-limit median
 
 # Explicit limit (overrides calculation methods)
 ccusage blocks --token-limit 750000

@@ -54,13 +54,13 @@ Choose how the automatic token limit is calculated from your usage history:
 
 ```bash
 # Maximum tokens from any session (default - conservative)
-ccusage blocks --live --token-limit-method max
+ccusage blocks --live --token-limit max
 
 # Average tokens across all sessions (balanced)
-ccusage blocks --live --token-limit-method avg
+ccusage blocks --live --token-limit avg
 
 # Median tokens across all sessions (robust against outliers)
-ccusage blocks --live --token-limit-method median
+ccusage blocks --live --token-limit median
 ```
 
 #### Limiting Calculation to Recent Sessions
@@ -82,16 +82,16 @@ ccusage blocks --live --token-limit-sessions 1
 
 ```bash
 # Average of last 10 sessions (balanced and recent)
-ccusage blocks --live --token-limit-method avg --token-limit-sessions 10
+ccusage blocks --live --token-limit avg --token-limit-sessions 10
 
 # Median of last 15 sessions (robust and comprehensive)
-ccusage blocks --live --token-limit-method median --token-limit-sessions 15
+ccusage blocks --live --token-limit median --token-limit-sessions 15
 
 # Maximum of last 5 sessions (conservative but responsive)
-ccusage blocks --live --token-limit-method max --token-limit-sessions 5
+ccusage blocks --live --token-limit max --token-limit-sessions 5
 
 # Short aliases
-ccusage blocks --live --token-limit-method avg --token-limit-sessions 10
+ccusage blocks --live --token-limit avg --token-limit-sessions 10
 ```
 
 #### When to Use Each Method
