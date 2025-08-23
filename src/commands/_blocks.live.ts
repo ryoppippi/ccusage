@@ -113,6 +113,12 @@ export async function startLiveMonitoring(config: LiveMonitoringConfig): Promise
 		terminal.write(pc.red(`Error: ${errorMessage}\n`));
 		terminal.flush();
 		logger.error(`Live monitoring error: ${errorMessage}`);
-		await delayWithAbort(config.refreshInterval, abortController.signal).catch(() => {});
+		await Result.pipe(
+			Result.try({
+				try: async () => delayWithAbort(config.refreshInterval, abortController.signal),
+				catch: () => new Error('DelayWithAbort failed'),
+			})(),
+			Result.unwrap(undefined),
+		);
 	}
 }

@@ -6,6 +6,7 @@
 
 import { join } from 'node:path';
 import process from 'node:process';
+import { Result } from '@praha/byethrow';
 import { $ } from 'bun';
 
 const descriptions = {
@@ -22,55 +23,71 @@ const descriptions = {
 async function updateApiIndex() {
 	const apiIndexPath = join(process.cwd(), 'api', 'index.md');
 
-	try {
-		let content = await Bun.file(apiIndexPath).text();
+	const updateResult = await Result.try({
+		try: async () => {
+			let content = await Bun.file(apiIndexPath).text();
 
-		// Replace empty descriptions with actual ones
-		for (const [module, description] of Object.entries(descriptions)) {
-			let linkPath = `${module}/index.md`;
-			// Special case for _consts which links to consts/
-			if (module === '\\_consts') {
-				linkPath = 'consts/index.md';
+			// Replace empty descriptions with actual ones
+			for (const [module, description] of Object.entries(descriptions)) {
+				let linkPath = `${module}/index.md`;
+				// Special case for _consts which links to consts/
+				if (module === '\\_consts') {
+					linkPath = 'consts/index.md';
+				}
+
+				const oldPattern = new RegExp(`\\|\\s*\\[${module}\\]\\(${linkPath}\\)\\s*\\|\\s*-\\s*\\|`, 'g');
+				content = content.replace(oldPattern, `| [${module}](${linkPath}) | ${description} |`);
 			}
 
-			const oldPattern = new RegExp(`\\|\\s*\\[${module}\\]\\(${linkPath}\\)\\s*\\|\\s*-\\s*\\|`, 'g');
-			content = content.replace(oldPattern, `| [${module}](${linkPath}) | ${description} |`);
-		}
+			await Bun.write(apiIndexPath, content);
+			return 'Updated API index with module descriptions';
+		},
+		catch: error => new Error('Failed to update API index', { cause: error }),
+	})();
 
-		await Bun.write(apiIndexPath, content);
-		console.log('✅ Updated API index with module descriptions');
-	}
-	catch (error) {
-		console.error('❌ Failed to update API index:', error);
-		process.exit(1);
-	}
+	Result.pipe(
+		updateResult,
+		Result.inspect((value) => console.log('✅', value)),
+		Result.inspectError((error) => {
+			console.error('❌', error.message);
+			process.exit(1);
+		}),
+	);
 }
 
 async function updateConstsPage() {
 	const constsIndexPath = join(process.cwd(), 'api', 'consts', 'index.md');
 
-	try {
-		let content = await Bun.file(constsIndexPath).text();
+	const updateResult = await Result.try({
+		try: async () => {
+			let content = await Bun.file(constsIndexPath).text();
 
-		// Add note about constants not being exported (only if not already present)
-		const noteText = '> **Note**: These constants are internal implementation details and are not exported in the public API. They are documented here for reference purposes only.';
+			// Add note about constants not being exported (only if not already present)
+			const noteText = '> **Note**: These constants are internal implementation details and are not exported in the public API. They are documented here for reference purposes only.';
 
-		if (!content.includes(noteText)) {
-			const oldHeader = '# \\_consts';
-			const newHeader = `# \\_consts
+			if (!content.includes(noteText)) {
+				const oldHeader = '# \\_consts';
+				const newHeader = `# \\_consts
 
 ${noteText}`;
 
-			content = content.replace(oldHeader, newHeader);
-		}
+				content = content.replace(oldHeader, newHeader);
+			}
 
-		await Bun.write(constsIndexPath, content);
-		console.log('✅ Updated constants page with disclaimer');
-	}
-	catch (error) {
-		console.error('❌ Failed to update constants page:', error);
-		// Don't exit here as this is optional
-	}
+			await Bun.write(constsIndexPath, content);
+			return 'Updated constants page with disclaimer';
+		},
+		catch: error => new Error('Failed to update constants page', { cause: error }),
+	})();
+
+	Result.pipe(
+		updateResult,
+		Result.inspect((value) => console.log('✅', value)),
+		Result.inspectError((error) => {
+			console.error('❌', error.message);
+			// Don't exit here as this is optional
+		}),
+	);
 }
 
 async function main() {

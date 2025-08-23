@@ -199,14 +199,11 @@ export const statuslineCommand = define({
 				const pid = initialSemaphoreState.pid;
 				let isProcessAlive = false;
 				if (pid != null) {
-					try {
-						process.kill(pid, 0); // Signal 0 doesn't kill, just checks if process exists
-						isProcessAlive = true;
-					}
-					catch {
-						// Process doesn't exist, likely dead
-						isProcessAlive = false;
-					}
+					const processCheckResult = Result.try({
+						try: () => process.kill(pid, 0), // Signal 0 doesn't kill, just checks if process exists
+						catch: () => new Error('Process not found'),
+					})();
+					isProcessAlive = Result.isSuccess(processCheckResult);
 				}
 
 				if (isProcessAlive) {
