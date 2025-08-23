@@ -43,6 +43,7 @@ type LiveMonitorState = {
 	lastFileTimestamps: Map<string, number>;
 	processedHashes: Set<string>;
 	allEntries: LoadedUsageEntry[];
+	[Symbol.dispose]: () => void;
 };
 
 /**
@@ -70,11 +71,16 @@ async function isRecentFile(filePath: string, cutoffTime: Date): Promise<boolean
  * Creates a new live monitoring state
  */
 export function createLiveMonitorState(config: LiveMonitorConfig): LiveMonitorState {
+	const fetcher = config.mode !== 'display' ? new PricingFetcher() : null;
+
 	return {
-		fetcher: config.mode !== 'display' ? new PricingFetcher() : null,
+		fetcher,
 		lastFileTimestamps: new Map<string, number>(),
 		processedHashes: new Set<string>(),
 		allEntries: [],
+		[Symbol.dispose](): void {
+			fetcher?.[Symbol.dispose]();
+		},
 	};
 }
 
@@ -255,13 +261,6 @@ export async function getActiveBlock(
 	return sortedBlocks.find(block => block.isActive) ?? null;
 }
 
-/**
- * Disposes of resources in the live monitoring state
- */
-export function disposeLiveMonitorState(state: LiveMonitorState): void {
-	state.fetcher?.[Symbol.dispose]();
-}
-
 if (import.meta.vitest != null) {
 	describe('LiveMonitor functions', () => {
 		let tempDir: string;
@@ -301,10 +300,6 @@ if (import.meta.vitest != null) {
 			state = createLiveMonitorState(config);
 		});
 
-		afterEach(() => {
-			disposeLiveMonitorState(state);
-		});
-
 		it('should initialize and handle clearing cache', async () => {
 			// Test initial state by calling getActiveBlock which should work
 			const initialBlock = await getActiveBlock(state, config);
@@ -339,12 +334,10 @@ if (import.meta.vitest != null) {
 				order: 'desc' as const,
 			};
 
-			const emptyState = createLiveMonitorState(emptyConfig);
+			using emptyState = createLiveMonitorState(emptyConfig);
 
 			const activeBlock = await getActiveBlock(emptyState, emptyConfig);
 			expect(activeBlock).toBeNull();
-
-			disposeLiveMonitorState(emptyState);
 		});
 	});
 }

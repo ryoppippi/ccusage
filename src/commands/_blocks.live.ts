@@ -14,7 +14,6 @@ import { MIN_RENDER_INTERVAL_MS } from '../_consts.ts';
 import {
 	clearLiveMonitorCache,
 	createLiveMonitorState,
-	disposeLiveMonitorState,
 	getActiveBlock,
 } from '../_live-monitor.ts';
 import {
@@ -37,12 +36,11 @@ export async function startLiveMonitoring(config: LiveMonitoringConfig): Promise
 		mode: config.mode,
 		order: config.order,
 	};
-	const monitorState = createLiveMonitorState(monitorConfig);
+	using monitorState = createLiveMonitorState(monitorConfig);
 
 	// Setup graceful shutdown
 	const cleanup = (): void => {
 		abortController.abort();
-		disposeLiveMonitorState(monitorState);
 		terminal.cleanup();
 		terminal.clearScreen();
 		logger.info('Live monitoring stopped.');
