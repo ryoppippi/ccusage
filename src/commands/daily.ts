@@ -1,3 +1,4 @@
+import type { UsageReportConfig } from '../_table.ts';
 import process from 'node:process';
 import { Result } from '@praha/byethrow';
 import { define } from 'gunshi';
@@ -7,7 +8,7 @@ import { groupByProject, groupDataByProject } from '../_daily-grouping.ts';
 import { processWithJq } from '../_jq-processor.ts';
 import { formatProjectName } from '../_project-names.ts';
 import { sharedCommandConfig } from '../_shared-args.ts';
-import { formatCurrency, formatModelsDisplayMultiline, formatNumber, pushBreakdownRows, ResponsiveTable } from '../_table.ts';
+import { addEmptySeparatorRow, createUsageReportTable, formatTotalsRow, formatUsageDataRow, pushBreakdownRows } from '../_table.ts';
 import {
 	calculateTotals,
 	createTotalsObject,
@@ -132,48 +133,12 @@ export const dailyCommand = define({
 			logger.box('Claude Code Token Usage Report - Daily');
 
 			// Create table with compact mode support
-			const table = new ResponsiveTable({
-				head: [
-					'Date',
-					'Models',
-					'Input',
-					'Output',
-					'Cache Create',
-					'Cache Read',
-					'Total Tokens',
-					'Cost (USD)',
-				],
-				style: {
-					head: ['cyan'],
-				},
-				colAligns: [
-					'left',
-					'left',
-					'right',
-					'right',
-					'right',
-					'right',
-					'right',
-					'right',
-				],
+			const tableConfig: UsageReportConfig = {
+				firstColumnName: 'Date',
 				dateFormatter: (dateStr: string) => formatDateCompact(dateStr, mergedOptions.timezone, mergedOptions.locale ?? undefined),
-				compactHead: [
-					'Date',
-					'Models',
-					'Input',
-					'Output',
-					'Cost (USD)',
-				],
-				compactColAligns: [
-					'left',
-					'left',
-					'right',
-					'right',
-					'right',
-				],
-				compactThreshold: 100,
 				forceCompact: ctx.values.compact,
-			});
+			};
+			const table = createUsageReportTable(tableConfig);
 
 			// Add daily data - group by project if instances flag is used
 			if (Boolean(mergedOptions.instances) && dailyData.some(d => d.project != null)) {
@@ -202,16 +167,15 @@ export const dailyCommand = define({
 
 					// Add data rows for this project
 					for (const data of projectData) {
-						table.push([
-							data.date,
-							formatModelsDisplayMultiline(data.modelsUsed),
-							formatNumber(data.inputTokens),
-							formatNumber(data.outputTokens),
-							formatNumber(data.cacheCreationTokens),
-							formatNumber(data.cacheReadTokens),
-							formatNumber(getTotalTokens(data)),
-							formatCurrency(data.totalCost),
-						]);
+						const row = formatUsageDataRow(data.date, {
+							inputTokens: data.inputTokens,
+							outputTokens: data.outputTokens,
+							cacheCreationTokens: data.cacheCreationTokens,
+							cacheReadTokens: data.cacheReadTokens,
+							totalCost: data.totalCost,
+							modelsUsed: data.modelsUsed,
+						});
+						table.push(row);
 
 						// Add model breakdown rows if flag is set
 						if (mergedOptions.breakdown) {
@@ -226,16 +190,15 @@ export const dailyCommand = define({
 				// Standard display without project grouping
 				for (const data of dailyData) {
 					// Main row
-					table.push([
-						data.date,
-						formatModelsDisplayMultiline(data.modelsUsed),
-						formatNumber(data.inputTokens),
-						formatNumber(data.outputTokens),
-						formatNumber(data.cacheCreationTokens),
-						formatNumber(data.cacheReadTokens),
-						formatNumber(getTotalTokens(data)),
-						formatCurrency(data.totalCost),
-					]);
+					const row = formatUsageDataRow(data.date, {
+						inputTokens: data.inputTokens,
+						outputTokens: data.outputTokens,
+						cacheCreationTokens: data.cacheCreationTokens,
+						cacheReadTokens: data.cacheReadTokens,
+						totalCost: data.totalCost,
+						modelsUsed: data.modelsUsed,
+					});
+					table.push(row);
 
 					// Add model breakdown rows if flag is set
 					if (mergedOptions.breakdown) {
@@ -245,28 +208,17 @@ export const dailyCommand = define({
 			}
 
 			// Add empty row for visual separation before totals
-			table.push([
-				'',
-				'',
-				'',
-				'',
-				'',
-				'',
-				'',
-				'',
-			]);
+			addEmptySeparatorRow(table, 8);
 
 			// Add totals
-			table.push([
-				pc.yellow('Total'),
-				'', // Empty for Models column in totals
-				pc.yellow(formatNumber(totals.inputTokens)),
-				pc.yellow(formatNumber(totals.outputTokens)),
-				pc.yellow(formatNumber(totals.cacheCreationTokens)),
-				pc.yellow(formatNumber(totals.cacheReadTokens)),
-				pc.yellow(formatNumber(getTotalTokens(totals))),
-				pc.yellow(formatCurrency(totals.totalCost)),
-			]);
+			const totalsRow = formatTotalsRow({
+				inputTokens: totals.inputTokens,
+				outputTokens: totals.outputTokens,
+				cacheCreationTokens: totals.cacheCreationTokens,
+				cacheReadTokens: totals.cacheReadTokens,
+				totalCost: totals.totalCost,
+			});
+			table.push(totalsRow);
 
 			log(table.toString());
 

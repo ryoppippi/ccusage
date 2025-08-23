@@ -405,6 +405,165 @@ export function pushBreakdownRows(
 	}
 }
 
+/**
+ * Configuration options for creating usage report tables
+ */
+export type UsageReportConfig = {
+	/** Name for the first column (Date, Month, Week, Session, etc.) */
+	firstColumnName: string;
+	/** Whether to include Last Activity column (for session reports) */
+	includeLastActivity?: boolean;
+	/** Date formatter function for responsive date formatting */
+	dateFormatter?: (dateStr: string) => string;
+	/** Force compact mode regardless of terminal width */
+	forceCompact?: boolean;
+};
+
+/**
+ * Standard usage data structure for table rows
+ */
+export type UsageData = {
+	inputTokens: number;
+	outputTokens: number;
+	cacheCreationTokens: number;
+	cacheReadTokens: number;
+	totalCost: number;
+	modelsUsed?: string[];
+};
+
+/**
+ * Creates a standard usage report table with consistent styling and layout
+ * @param config - Configuration options for the table
+ * @returns Configured ResponsiveTable instance
+ */
+export function createUsageReportTable(config: UsageReportConfig): ResponsiveTable {
+	const baseHeaders = [
+		config.firstColumnName,
+		'Models',
+		'Input',
+		'Output',
+		'Cache Create',
+		'Cache Read',
+		'Total Tokens',
+		'Cost (USD)',
+	];
+
+	const baseAligns: TableCellAlign[] = [
+		'left',
+		'left',
+		'right',
+		'right',
+		'right',
+		'right',
+		'right',
+		'right',
+	];
+
+	const compactHeaders = [
+		config.firstColumnName,
+		'Models',
+		'Input',
+		'Output',
+		'Cost (USD)',
+	];
+
+	const compactAligns: TableCellAlign[] = [
+		'left',
+		'left',
+		'right',
+		'right',
+		'right',
+	];
+
+	// Add Last Activity column for session reports
+	if (config.includeLastActivity ?? false) {
+		baseHeaders.push('Last Activity');
+		baseAligns.push('left');
+		compactHeaders.push('Last Activity');
+		compactAligns.push('left');
+	}
+
+	return new ResponsiveTable({
+		head: baseHeaders,
+		style: { head: ['cyan'] },
+		colAligns: baseAligns,
+		dateFormatter: config.dateFormatter,
+		compactHead: compactHeaders,
+		compactColAligns: compactAligns,
+		compactThreshold: 100,
+		forceCompact: config.forceCompact,
+	});
+}
+
+/**
+ * Formats a usage data row for display in the table
+ * @param firstColumnValue - Value for the first column (date, month, etc.)
+ * @param data - Usage data containing tokens and cost information
+ * @param lastActivity - Optional last activity value (for session reports)
+ * @returns Formatted table row
+ */
+export function formatUsageDataRow(
+	firstColumnValue: string,
+	data: UsageData,
+	lastActivity?: string,
+): (string | number)[] {
+	const totalTokens = data.inputTokens + data.outputTokens + data.cacheCreationTokens + data.cacheReadTokens;
+
+	const row: (string | number)[] = [
+		firstColumnValue,
+		data.modelsUsed != null ? formatModelsDisplayMultiline(data.modelsUsed) : '',
+		formatNumber(data.inputTokens),
+		formatNumber(data.outputTokens),
+		formatNumber(data.cacheCreationTokens),
+		formatNumber(data.cacheReadTokens),
+		formatNumber(totalTokens),
+		formatCurrency(data.totalCost),
+	];
+
+	if (lastActivity !== undefined) {
+		row.push(lastActivity);
+	}
+
+	return row;
+}
+
+/**
+ * Creates a totals row with yellow highlighting
+ * @param totals - Totals data to display
+ * @param includeLastActivity - Whether to include an empty last activity column
+ * @returns Formatted totals row
+ */
+export function formatTotalsRow(totals: UsageData, includeLastActivity = false): (string | number)[] {
+	const totalTokens = totals.inputTokens + totals.outputTokens + totals.cacheCreationTokens + totals.cacheReadTokens;
+
+	const row: (string | number)[] = [
+		pc.yellow('Total'),
+		'', // Empty for Models column in totals
+		pc.yellow(formatNumber(totals.inputTokens)),
+		pc.yellow(formatNumber(totals.outputTokens)),
+		pc.yellow(formatNumber(totals.cacheCreationTokens)),
+		pc.yellow(formatNumber(totals.cacheReadTokens)),
+		pc.yellow(formatNumber(totalTokens)),
+		pc.yellow(formatCurrency(totals.totalCost)),
+	];
+
+	if (includeLastActivity) {
+		row.push(''); // Empty for Last Activity column in totals
+	}
+
+	return row;
+}
+
+/**
+ * Adds an empty separator row to the table for visual separation
+ * @param table - Table to add separator row to
+ * @param columnCount - Number of columns in the table
+ */
+export function addEmptySeparatorRow(table: ResponsiveTable, columnCount: number): void {
+	const emptyRow = Array.from({ length: columnCount }, () => '');
+	table.push(emptyRow);
+}
+
 if (import.meta.vitest != null) {
 	describe('ResponsiveTable', () => {
 		describe('compact mode behavior', () => {

@@ -1,12 +1,12 @@
+import type { UsageReportConfig } from '../_table.ts';
 import process from 'node:process';
 import { Result } from '@praha/byethrow';
 import { define } from 'gunshi';
-import pc from 'picocolors';
 import { loadConfig, mergeConfigWithArgs } from '../_config-loader-tokens.ts';
 import { WEEK_DAYS } from '../_consts.ts';
 import { processWithJq } from '../_jq-processor.ts';
 import { sharedArgs } from '../_shared-args.ts';
-import { formatCurrency, formatModelsDisplayMultiline, formatNumber, pushBreakdownRows, ResponsiveTable } from '../_table.ts';
+import { addEmptySeparatorRow, createUsageReportTable, formatTotalsRow, formatUsageDataRow, pushBreakdownRows } from '../_table.ts';
 import {
 	calculateTotals,
 	createTotalsObject,
@@ -108,62 +108,25 @@ export const weeklyCommand = define({
 			logger.box('Claude Code Token Usage Report - Weekly');
 
 			// Create table with compact mode support
-			const table = new ResponsiveTable({
-				head: [
-					'Week',
-					'Models',
-					'Input',
-					'Output',
-					'Cache Create',
-					'Cache Read',
-					'Total Tokens',
-					'Cost (USD)',
-				],
-				style: {
-					head: ['cyan'],
-				},
-				colAligns: [
-					'left',
-					'left',
-					'right',
-					'right',
-					'right',
-					'right',
-					'right',
-					'right',
-				],
+			const tableConfig: UsageReportConfig = {
+				firstColumnName: 'Week',
 				dateFormatter: (dateStr: string) => formatDateCompact(dateStr, mergedOptions.timezone, mergedOptions.locale ?? undefined),
-				compactHead: [
-					'Week',
-					'Models',
-					'Input',
-					'Output',
-					'Cost (USD)',
-				],
-				compactColAligns: [
-					'left',
-					'left',
-					'right',
-					'right',
-					'right',
-				],
-				compactThreshold: 100,
 				forceCompact: ctx.values.compact,
-			});
+			};
+			const table = createUsageReportTable(tableConfig);
 
 			// Add weekly data
 			for (const data of weeklyData) {
 				// Main row
-				table.push([
-					data.week,
-					formatModelsDisplayMultiline(data.modelsUsed),
-					formatNumber(data.inputTokens),
-					formatNumber(data.outputTokens),
-					formatNumber(data.cacheCreationTokens),
-					formatNumber(data.cacheReadTokens),
-					formatNumber(getTotalTokens(data)),
-					formatCurrency(data.totalCost),
-				]);
+				const row = formatUsageDataRow(data.week, {
+					inputTokens: data.inputTokens,
+					outputTokens: data.outputTokens,
+					cacheCreationTokens: data.cacheCreationTokens,
+					cacheReadTokens: data.cacheReadTokens,
+					totalCost: data.totalCost,
+					modelsUsed: data.modelsUsed,
+				});
+				table.push(row);
 
 				// Add model breakdown rows if flag is set
 				if (mergedOptions.breakdown) {
@@ -172,28 +135,17 @@ export const weeklyCommand = define({
 			}
 
 			// Add empty row for visual separation before totals
-			table.push([
-				'',
-				'',
-				'',
-				'',
-				'',
-				'',
-				'',
-				'',
-			]);
+			addEmptySeparatorRow(table, 8);
 
 			// Add totals
-			table.push([
-				pc.yellow('Total'),
-				'', // Empty for Models column in totals
-				pc.yellow(formatNumber(totals.inputTokens)),
-				pc.yellow(formatNumber(totals.outputTokens)),
-				pc.yellow(formatNumber(totals.cacheCreationTokens)),
-				pc.yellow(formatNumber(totals.cacheReadTokens)),
-				pc.yellow(formatNumber(getTotalTokens(totals))),
-				pc.yellow(formatCurrency(totals.totalCost)),
-			]);
+			const totalsRow = formatTotalsRow({
+				inputTokens: totals.inputTokens,
+				outputTokens: totals.outputTokens,
+				cacheCreationTokens: totals.cacheCreationTokens,
+				cacheReadTokens: totals.cacheReadTokens,
+				totalCost: totals.totalCost,
+			});
+			table.push(totalsRow);
 
 			log(table.toString());
 

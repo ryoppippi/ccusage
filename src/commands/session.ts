@@ -1,12 +1,12 @@
+import type { UsageReportConfig } from '../_table.ts';
 // Types not needed here after extracting --id logic
 import process from 'node:process';
 import { Result } from '@praha/byethrow';
 import { define } from 'gunshi';
-import pc from 'picocolors';
 import { loadConfig, mergeConfigWithArgs } from '../_config-loader-tokens.ts';
 import { processWithJq } from '../_jq-processor.ts';
 import { sharedCommandConfig } from '../_shared-args.ts';
-import { formatCurrency, formatModelsDisplayMultiline, formatNumber, pushBreakdownRows, ResponsiveTable } from '../_table.ts';
+import { addEmptySeparatorRow, createUsageReportTable, formatTotalsRow, formatUsageDataRow, pushBreakdownRows } from '../_table.ts';
 import {
 	calculateTotals,
 	createTotalsObject,
@@ -124,52 +124,13 @@ export const sessionCommand = define({
 			logger.box('Claude Code Token Usage Report - By Session');
 
 			// Create table with compact mode support
-			const table = new ResponsiveTable({
-				head: [
-					'Session',
-					'Models',
-					'Input',
-					'Output',
-					'Cache Create',
-					'Cache Read',
-					'Total Tokens',
-					'Cost (USD)',
-					'Last Activity',
-				],
-				style: {
-					head: ['cyan'],
-				},
-				colAligns: [
-					'left',
-					'left',
-					'right',
-					'right',
-					'right',
-					'right',
-					'right',
-					'right',
-					'left',
-				],
+			const tableConfig: UsageReportConfig = {
+				firstColumnName: 'Session',
+				includeLastActivity: true,
 				dateFormatter: (dateStr: string) => formatDateCompact(dateStr, ctx.values.timezone, ctx.values.locale),
-				compactHead: [
-					'Session',
-					'Models',
-					'Input',
-					'Output',
-					'Cost (USD)',
-					'Last Activity',
-				],
-				compactColAligns: [
-					'left',
-					'left',
-					'right',
-					'right',
-					'right',
-					'left',
-				],
-				compactThreshold: 100,
 				forceCompact: ctx.values.compact,
-			});
+			};
+			const table = createUsageReportTable(tableConfig);
 
 			// Add session data
 			let maxSessionLength = 0;
@@ -179,17 +140,15 @@ export const sessionCommand = define({
 				maxSessionLength = Math.max(maxSessionLength, sessionDisplay.length);
 
 				// Main row
-				table.push([
-					sessionDisplay,
-					formatModelsDisplayMultiline(data.modelsUsed),
-					formatNumber(data.inputTokens),
-					formatNumber(data.outputTokens),
-					formatNumber(data.cacheCreationTokens),
-					formatNumber(data.cacheReadTokens),
-					formatNumber(getTotalTokens(data)),
-					formatCurrency(data.totalCost),
-					data.lastActivity,
-				]);
+				const row = formatUsageDataRow(sessionDisplay, {
+					inputTokens: data.inputTokens,
+					outputTokens: data.outputTokens,
+					cacheCreationTokens: data.cacheCreationTokens,
+					cacheReadTokens: data.cacheReadTokens,
+					totalCost: data.totalCost,
+					modelsUsed: data.modelsUsed,
+				}, data.lastActivity);
+				table.push(row);
 
 				// Add model breakdown rows if flag is set
 				if (ctx.values.breakdown) {
@@ -199,30 +158,17 @@ export const sessionCommand = define({
 			}
 
 			// Add empty row for visual separation before totals
-			table.push([
-				'',
-				'',
-				'',
-				'',
-				'',
-				'',
-				'',
-				'',
-				'',
-			]);
+			addEmptySeparatorRow(table, 9);
 
 			// Add totals
-			table.push([
-				pc.yellow('Total'),
-				'', // Empty for Models column in totals
-				pc.yellow(formatNumber(totals.inputTokens)),
-				pc.yellow(formatNumber(totals.outputTokens)),
-				pc.yellow(formatNumber(totals.cacheCreationTokens)),
-				pc.yellow(formatNumber(totals.cacheReadTokens)),
-				pc.yellow(formatNumber(getTotalTokens(totals))),
-				pc.yellow(formatCurrency(totals.totalCost)),
-				'',
-			]);
+			const totalsRow = formatTotalsRow({
+				inputTokens: totals.inputTokens,
+				outputTokens: totals.outputTokens,
+				cacheCreationTokens: totals.cacheCreationTokens,
+				cacheReadTokens: totals.cacheReadTokens,
+				totalCost: totals.totalCost,
+			}, true); // Include Last Activity column
+			table.push(totalsRow);
 
 			log(table.toString());
 
