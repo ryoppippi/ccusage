@@ -132,6 +132,16 @@ export const DEFAULT_CONTEXT_USAGE_THRESHOLDS = {
 export const WEEK_DAYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'] as const;
 
 /**
+ * Week day names type
+ */
+export type WeekDay = typeof WEEK_DAYS[number];
+
+/**
+ * Day of week as number (0 = Sunday, 1 = Monday, ..., 6 = Saturday)
+ */
+export type DayOfWeek = 0 | 1 | 2 | 3 | 4 | 5 | 6;
+
+/**
  * Default configuration file name for storing usage data
  * Used to load and save configuration settings
  */
