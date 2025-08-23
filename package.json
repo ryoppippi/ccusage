@@ -48,7 +48,7 @@
 		"format": "bun run lint --fix",
 		"generate:schema": "bun run scripts/generate-json-schema.ts",
 		"preinstall": "npx only-allow bun",
-		"lint": "eslint --cache .",
+		"lint": "eslint --cache --cache-strategy content .",
 		"mcp": "bunx @modelcontextprotocol/inspector bun run start mcp",
 		"prepack": "bun run build && bun clean-pkg-json -r scripts.preinstall",
 		"prepare": "git config --local core.hooksPath .githooks && bun run generate:schema",
@@ -109,7 +109,7 @@
 	},
 	"lint-staged": {
 		"*": [
-			"eslint --cache --fix",
+			"eslint --cache --cache-strategy content --fix",
 			"bun run generate:schema"
 		],
 		"package.json": [
