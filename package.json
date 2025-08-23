@@ -48,7 +48,7 @@
 		"format": "bun run lint --fix",
 		"generate:schema": "bun run scripts/generate-json-schema.ts",
 		"preinstall": "npx only-allow bun",
-		"lint": "eslint --concurrency=auto --cache .",
+		"lint": "eslint --cache .",
 		"mcp": "bunx @modelcontextprotocol/inspector bun run start mcp",
 		"prepack": "bun run build && bun clean-pkg-json -r scripts.preinstall",
 		"prepare": "git config --local core.hooksPath .githooks && bun run generate:schema",
@@ -83,7 +83,7 @@
 		"cli-table3": "^0.6.5",
 		"consola": "^3.4.2",
 		"es-toolkit": "^1.39.10",
-		"eslint": "^9.34.0",
+		"eslint": "^9.33.0",
 		"eslint-plugin-format": "^1.0.1",
 		"fast-sort": "^3.4.1",
 		"fs-fixture": "^2.8.1",
@@ -109,7 +109,7 @@
 	},
 	"lint-staged": {
 		"*": [
-			"eslint --concurrency=auto --cache --fix",
+			"eslint --cache --fix",
 			"bun run generate:schema"
 		],
 		"package.json": [
