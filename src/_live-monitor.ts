@@ -11,6 +11,7 @@
 import type { LoadedUsageEntry, SessionBlock } from './_session-blocks.ts';
 import type { CostMode, SortOrder } from './_types.ts';
 import { readFile, stat } from 'node:fs/promises';
+import { Result } from '@praha/byethrow';
 import pLimit from 'p-limit';
 import { identifySessionBlocks } from './_session-blocks.ts';
 import {
@@ -52,15 +53,14 @@ export class LiveMonitor implements Disposable {
 	 * This is a performance optimization for live monitoring only
 	 */
 	private async isRecentFile(filePath: string, cutoffTime: Date): Promise<boolean> {
-		try {
-			const fileStats = await stat(filePath);
-			// Use file modification time as approximation
-			// This is much faster than reading file contents
-			return fileStats.mtime >= cutoffTime;
-		}
-		catch {
-			return false; // Skip files that can't be read
-		}
+		return Result.pipe(
+			Result.try({
+				try: stat(filePath),
+				catch: error => error,
+			}),
+			Result.map(fileStats => fileStats.mtime >= cutoffTime),
+			Result.unwrap(false),
+		);
 	}
 
 	constructor(config: LiveMonitorConfig) {
@@ -184,58 +184,60 @@ export class LiveMonitor implements Disposable {
 			.filter(line => line.length > 0);
 
 		for (const line of lines) {
-			try {
-				const parsed = JSON.parse(line) as unknown;
-				const result = usageDataSchema.safeParse(parsed);
-				if (!result.success) {
-					continue;
-				}
-				const data = result.data;
+			const dataResult = Result.pipe(
+				Result.try({
+					try: () => JSON.parse(line) as unknown,
+					catch: error => error,
+				})(),
+				Result.map(data => usageDataSchema.parse(data)),
+			);
 
-				// Only process entries within retention window
-				const entryTime = new Date(data.timestamp);
-				if (entryTime < cutoffTime) {
-					continue;
-				}
-
-				// Check for duplicates
-				const uniqueHash = createUniqueHash(data);
-				if (uniqueHash != null && this.processedHashes.has(uniqueHash)) {
-					continue;
-				}
-				if (uniqueHash != null) {
-					this.processedHashes.add(uniqueHash);
-				}
-
-				// Calculate cost if needed
-				const costUSD: number = await (this.config.mode === 'display'
-					? Promise.resolve(data.costUSD ?? 0)
-					: calculateCostForEntry(
-							data,
-							this.config.mode,
-							this.fetcher!,
-						));
-
-				const usageLimitResetTime = getUsageLimitResetTime(data);
-
-				// Add entry
-				this.allEntries.push({
-					timestamp: entryTime,
-					usage: {
-						inputTokens: data.message.usage.input_tokens ?? 0,
-						outputTokens: data.message.usage.output_tokens ?? 0,
-						cacheCreationInputTokens: data.message.usage.cache_creation_input_tokens ?? 0,
-						cacheReadInputTokens: data.message.usage.cache_read_input_tokens ?? 0,
-					},
-					costUSD,
-					model: data.message.model ?? '<synthetic>',
-					version: data.version,
-					usageLimitResetTime: usageLimitResetTime ?? undefined,
-				});
+			if (Result.isFailure(dataResult)) {
+				continue; // Skip malformed JSON lines or validation failures
 			}
-			catch {
-				// Skip malformed lines
+
+			const data = Result.unwrap(dataResult);
+
+			// Only process entries within retention window
+			const entryTime = new Date(data.timestamp);
+			if (entryTime < cutoffTime) {
+				continue;
 			}
+
+			// Check for duplicates
+			const uniqueHash = createUniqueHash(data);
+			if (uniqueHash != null && this.processedHashes.has(uniqueHash)) {
+				continue;
+			}
+			if (uniqueHash != null) {
+				this.processedHashes.add(uniqueHash);
+			}
+
+			// Calculate cost if needed
+			const costUSD: number = await (this.config.mode === 'display'
+				? Promise.resolve(data.costUSD ?? 0)
+				: calculateCostForEntry(
+						data,
+						this.config.mode,
+						this.fetcher!,
+					));
+
+			const usageLimitResetTime = getUsageLimitResetTime(data);
+
+			// Add entry
+			this.allEntries.push({
+				timestamp: entryTime,
+				usage: {
+					inputTokens: data.message.usage.input_tokens ?? 0,
+					outputTokens: data.message.usage.output_tokens ?? 0,
+					cacheCreationInputTokens: data.message.usage.cache_creation_input_tokens ?? 0,
+					cacheReadInputTokens: data.message.usage.cache_read_input_tokens ?? 0,
+				},
+				costUSD,
+				model: data.message.model ?? '<synthetic>',
+				version: data.version,
+				usageLimitResetTime: usageLimitResetTime ?? undefined,
+			});
 		}
 	}
 }
