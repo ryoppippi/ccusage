@@ -1631,7 +1631,7 @@ if (import.meta.vitest != null) {
 
 			// Different locales format dates differently
 			expect(formatDate(testDate, 'UTC', 'en-US')).toBe('08/04/2024');
-			expect(formatDate(testDate, 'UTC', DEFAULT_LOCALE)).toBe('2024-08-04');
+			expect(formatDate(testDate, 'UTC', 'en-CA')).toBe('2024-08-04');
 			expect(formatDate(testDate, 'UTC', 'ja-JP')).toBe('2024/08/04');
 			expect(formatDate(testDate, 'UTC', 'de-DE')).toBe('04.08.2024');
 		});
@@ -1743,7 +1743,7 @@ if (import.meta.vitest != null) {
 
 			// Different locales format dates differently
 			expect(formatDateCompact(testDate, 'UTC', 'en-US')).toBe('2024\n08-04');
-			expect(formatDateCompact(testDate, 'UTC', DEFAULT_LOCALE)).toBe('2024\n08-04');
+			expect(formatDateCompact(testDate, 'UTC', 'en-CA')).toBe('2024\n08-04');
 			expect(formatDateCompact(testDate, 'UTC', 'ja-JP')).toBe('2024\n08-04');
 			// All locales should produce similar compact format
 		});
