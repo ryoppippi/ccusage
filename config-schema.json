@@ -663,6 +663,18 @@
 									"description": "Session block duration in hours (default: 5)",
 									"markdownDescription": "Session block duration in hours (default: 5)",
 									"default": 5
+								},
+								"tokenLimitMethod": {
+									"type": "string",
+									"description": "Method for calculating token limit: \"max\" (highest session), \"avg\" (average), or \"median\"",
+									"markdownDescription": "Method for calculating token limit: \"max\" (highest session), \"avg\" (average), or \"median\"",
+									"default": "max"
+								},
+								"tokenLimitSessions": {
+									"type": "number",
+									"description": "Number of recent completed sessions to use for token limit calculation (default: all sessions)",
+									"markdownDescription": "Number of recent completed sessions to use for token limit calculation (default: all sessions)",
+									"default": 10
 								}
 							},
 							"additionalProperties": false
