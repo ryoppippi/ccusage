@@ -151,7 +151,7 @@ export const blocksCommand = define({
 		},
 		tokenLimitSessions: {
 			type: 'number',
-			description: 'Number of recent completed sessions to use for token limit calculation (default: all sessions)',
+			description: 'Number of recent completed sessions to use for token limit calculation (default: 10)',
 			default: 10,
 		},
 		live: {
