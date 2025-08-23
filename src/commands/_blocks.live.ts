@@ -25,7 +25,7 @@ import { TerminalManager } from '../_terminal-utils.ts';
 import { logger } from '../logger.ts';
 
 export async function startLiveMonitoring(config: LiveMonitoringConfig): Promise<void> {
-	const terminal = new TerminalManager();
+	using terminal = new TerminalManager();
 	const abortController = new AbortController();
 	let lastRenderTime = 0;
 
@@ -41,7 +41,6 @@ export async function startLiveMonitoring(config: LiveMonitoringConfig): Promise
 	// Setup graceful shutdown
 	const cleanup = (): void => {
 		abortController.abort();
-		terminal.cleanup();
 		terminal.clearScreen();
 		logger.info('Live monitoring stopped.');
 		if (process.exitCode == null) {

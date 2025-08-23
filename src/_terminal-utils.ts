@@ -181,6 +181,13 @@ export class TerminalManager {
 		this.exitAlternateScreen();
 		this.disableSyncMode();
 	}
+
+	/**
+	 * Symbol.dispose implementation for using statements (synchronous disposal)
+	 */
+	[Symbol.dispose](): void {
+		this.cleanup();
+	}
 }
 
 /**
