@@ -33,10 +33,12 @@
 							"enum": [
 								"auto",
 								"calculate",
-								"display"
+								"display",
+								"statusline",
+								"max"
 							],
-							"description": "Cost calculation mode: auto (use costUSD if exists, otherwise calculate), calculate (always calculate), display (always use costUSD)",
-							"markdownDescription": "Cost calculation mode: auto (use costUSD if exists, otherwise calculate), calculate (always calculate), display (always use costUSD)",
+							"description": "Cost calculation mode: auto (costUSD → calculate), calculate (tokens only), display (costUSD only), statusline (statusline → costUSD → calculate), max (MAX of all sources)",
+							"markdownDescription": "Cost calculation mode: auto (costUSD → calculate), calculate (tokens only), display (costUSD only), statusline (statusline → costUSD → calculate), max (MAX of all sources)",
 							"default": "auto"
 						},
 						"debug": {
@@ -137,10 +139,12 @@
 									"enum": [
 										"auto",
 										"calculate",
-										"display"
+										"display",
+										"statusline",
+										"max"
 									],
-									"description": "Cost calculation mode: auto (use costUSD if exists, otherwise calculate), calculate (always calculate), display (always use costUSD)",
-									"markdownDescription": "Cost calculation mode: auto (use costUSD if exists, otherwise calculate), calculate (always calculate), display (always use costUSD)",
+									"description": "Cost calculation mode: auto (costUSD → calculate), calculate (tokens only), display (costUSD only), statusline (statusline → costUSD → calculate), max (MAX of all sources)",
+									"markdownDescription": "Cost calculation mode: auto (costUSD → calculate), calculate (tokens only), display (costUSD only), statusline (statusline → costUSD → calculate), max (MAX of all sources)",
 									"default": "auto"
 								},
 								"debug": {
@@ -252,10 +256,12 @@
 									"enum": [
 										"auto",
 										"calculate",
-										"display"
+										"display",
+										"statusline",
+										"max"
 									],
-									"description": "Cost calculation mode: auto (use costUSD if exists, otherwise calculate), calculate (always calculate), display (always use costUSD)",
-									"markdownDescription": "Cost calculation mode: auto (use costUSD if exists, otherwise calculate), calculate (always calculate), display (always use costUSD)",
+									"description": "Cost calculation mode: auto (costUSD → calculate), calculate (tokens only), display (costUSD only), statusline (statusline → costUSD → calculate), max (MAX of all sources)",
+									"markdownDescription": "Cost calculation mode: auto (costUSD → calculate), calculate (tokens only), display (costUSD only), statusline (statusline → costUSD → calculate), max (MAX of all sources)",
 									"default": "auto"
 								},
 								"debug": {
@@ -351,10 +357,12 @@
 									"enum": [
 										"auto",
 										"calculate",
-										"display"
+										"display",
+										"statusline",
+										"max"
 									],
-									"description": "Cost calculation mode: auto (use costUSD if exists, otherwise calculate), calculate (always calculate), display (always use costUSD)",
-									"markdownDescription": "Cost calculation mode: auto (use costUSD if exists, otherwise calculate), calculate (always calculate), display (always use costUSD)",
+									"description": "Cost calculation mode: auto (costUSD → calculate), calculate (tokens only), display (costUSD only), statusline (statusline → costUSD → calculate), max (MAX of all sources)",
+									"markdownDescription": "Cost calculation mode: auto (costUSD → calculate), calculate (tokens only), display (costUSD only), statusline (statusline → costUSD → calculate), max (MAX of all sources)",
 									"default": "auto"
 								},
 								"debug": {
@@ -465,10 +473,12 @@
 									"enum": [
 										"auto",
 										"calculate",
-										"display"
+										"display",
+										"statusline",
+										"max"
 									],
-									"description": "Cost calculation mode: auto (use costUSD if exists, otherwise calculate), calculate (always calculate), display (always use costUSD)",
-									"markdownDescription": "Cost calculation mode: auto (use costUSD if exists, otherwise calculate), calculate (always calculate), display (always use costUSD)",
+									"description": "Cost calculation mode: auto (costUSD → calculate), calculate (tokens only), display (costUSD only), statusline (statusline → costUSD → calculate), max (MAX of all sources)",
+									"markdownDescription": "Cost calculation mode: auto (costUSD → calculate), calculate (tokens only), display (costUSD only), statusline (statusline → costUSD → calculate), max (MAX of all sources)",
 									"default": "auto"
 								},
 								"debug": {
@@ -569,10 +579,12 @@
 									"enum": [
 										"auto",
 										"calculate",
-										"display"
+										"display",
+										"statusline",
+										"max"
 									],
-									"description": "Cost calculation mode: auto (use costUSD if exists, otherwise calculate), calculate (always calculate), display (always use costUSD)",
-									"markdownDescription": "Cost calculation mode: auto (use costUSD if exists, otherwise calculate), calculate (always calculate), display (always use costUSD)",
+									"description": "Cost calculation mode: auto (costUSD → calculate), calculate (tokens only), display (costUSD only), statusline (statusline → costUSD → calculate), max (MAX of all sources)",
+									"markdownDescription": "Cost calculation mode: auto (costUSD → calculate), calculate (tokens only), display (costUSD only), statusline (statusline → costUSD → calculate), max (MAX of all sources)",
 									"default": "auto"
 								},
 								"debug": {
@@ -675,10 +687,12 @@
 									"enum": [
 										"auto",
 										"calculate",
-										"display"
+										"display",
+										"statusline",
+										"max"
 									],
-									"description": "Cost calculation mode: auto (use costUSD if exists, otherwise calculate), calculate (always calculate), display (always use costUSD)",
-									"markdownDescription": "Cost calculation mode: auto (use costUSD if exists, otherwise calculate), calculate (always calculate), display (always use costUSD)",
+									"description": "Cost calculation mode: auto (costUSD → calculate), calculate (tokens only), display (costUSD only), statusline (statusline → costUSD → calculate), max (MAX of all sources)",
+									"markdownDescription": "Cost calculation mode: auto (costUSD → calculate), calculate (tokens only), display (costUSD only), statusline (statusline → costUSD → calculate), max (MAX of all sources)",
 									"default": "auto"
 								},
 								"type": {
@@ -756,6 +770,12 @@
 									"description": "Context usage percentage below which status is shown in yellow (0-100)",
 									"markdownDescription": "Context usage percentage below which status is shown in yellow (0-100)",
 									"default": 80
+								},
+								"saveCost": {
+									"type": "boolean",
+									"description": "Save Claude Code costs to local storage for enhanced accuracy in other commands (default: true)",
+									"markdownDescription": "Save Claude Code costs to local storage for enhanced accuracy in other commands (default: true)",
+									"default": true
 								},
 								"debug": {
 									"type": "boolean",

@@ -33,6 +33,7 @@ import { isDirectorySync } from 'path-type';
 import { glob } from 'tinyglobby';
 import { z } from 'zod';
 import { CLAUDE_CONFIG_DIR_ENV, CLAUDE_PROJECTS_DIR_NAME, DEFAULT_CLAUDE_CODE_PATH, DEFAULT_CLAUDE_CONFIG_PATH, USAGE_DATA_GLOB_PATTERN, USER_HOME_DIR } from './_consts.ts';
+import { getSavedCost } from './_cost-storage.ts';
 import {
 	identifySessionBlocks,
 } from './_session-blocks.ts';
@@ -717,7 +718,7 @@ export async function sortFilesByTimestamp(files: string[]): Promise<string[]> {
 /**
  * Calculates cost for a single usage data entry based on the specified cost calculation mode
  * @param data - Usage data entry
- * @param mode - Cost calculation mode (auto, calculate, or display)
+ * @param mode - Cost calculation mode (auto, calculate, display, statusline, or max)
  * @param fetcher - Pricing fetcher instance for calculating costs from tokens
  * @returns Calculated cost in USD
  */
@@ -750,6 +751,57 @@ export async function calculateCostForEntry(
 		}
 
 		return 0;
+	}
+
+	if (mode === 'statusline') {
+		// Statusline mode: saved statusline costs → pre-calculated costUSD → token-based calculation
+		if (data.sessionId != null) {
+			const savedCost = await getSavedCost(data.sessionId);
+			if (savedCost != null) {
+				return savedCost;
+			}
+		}
+
+		// Fallback to costUSD
+		if (data.costUSD != null) {
+			return data.costUSD;
+		}
+
+		// Final fallback to calculation
+		if (data.message.model != null) {
+			const calculatedCostResult = await fetcher.calculateCostFromTokens(data.message.usage, data.message.model);
+			return Result.unwrap(calculatedCostResult, 0);
+		}
+
+		return 0;
+	}
+
+	if (mode === 'max') {
+		// Max mode: MAX(saved statusline costs, pre-calculated costUSD, token-based calculation)
+		const costs: number[] = [];
+
+		// Get saved statusline cost
+		if (data.sessionId != null) {
+			const savedCost = await getSavedCost(data.sessionId);
+			if (savedCost != null) {
+				costs.push(savedCost);
+			}
+		}
+
+		// Get pre-calculated cost
+		if (data.costUSD != null) {
+			costs.push(data.costUSD);
+		}
+
+		// Get token-based calculation
+		if (data.message.model != null) {
+			const calculatedCostResult = await fetcher.calculateCostFromTokens(data.message.usage, data.message.model);
+			const calculatedCost = Result.unwrap(calculatedCostResult, 0);
+			costs.push(calculatedCost);
+		}
+
+		// Return the maximum cost, or 0 if no costs available
+		return costs.length > 0 ? Math.max(...costs) : 0;
 	}
 
 	unreachable(mode);

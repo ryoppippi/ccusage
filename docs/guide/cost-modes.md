@@ -1,6 +1,6 @@
 # Cost Modes
 
-ccusage supports three different cost calculation modes to handle various scenarios and data sources. Understanding these modes helps you get the most accurate cost estimates for your usage analysis.
+ccusage supports five different cost calculation modes to handle various scenarios and data sources. Understanding these modes helps you get the most accurate cost estimates for your usage analysis.
 
 ## Overview
 
@@ -9,6 +9,8 @@ Claude Code stores usage data in JSONL files with both token counts and pre-calc
 - **`auto`** - Smart mode using the best available data
 - **`calculate`** - Always calculate from token counts
 - **`display`** - Only show pre-calculated costs
+- **`statusline`** - Prioritize saved statusline costs with smart fallbacks
+- **`max`** - Return the highest cost from all available sources
 
 ## Mode Details
 
@@ -114,6 +116,76 @@ ccusage session --mode display --json
 │ 2025-01-15   │ • opus-4    │  1,245 │  28,756 │    $12.45  │ ← Pre-calculated
 │ 2024-12-20   │ • sonnet-4  │    856 │  19,234 │     $0.00  │ ← No cost data
 │ 2024-11-10   │ • opus-4    │    634 │  15,678 │     $0.00  │ ← No cost data
+└──────────────┴─────────────┴────────┴─────────┴────────────┘
+```
+
+### statusline
+
+The `statusline` mode prioritizes costs saved from the statusline feature with smart fallbacks:
+
+```bash
+ccusage daily --mode statusline
+ccusage monthly --mode statusline --breakdown
+```
+
+#### How it works:
+
+1. **Uses saved statusline costs** from `~/.config/claude/ccusage/costs/` when available
+2. **Falls back to `costUSD` values** from Claude Code data if no saved costs
+3. **Final fallback to token calculation** if neither source is available
+4. **Accounts for tool usage costs** and excludes cancelled branches (double ESC)
+
+#### Best for:
+
+- ✅ **Enhanced accuracy** - Uses Claude Code's official calculations including tool costs
+- ✅ **Real usage tracking** - Excludes costs from cancelled operations
+- ✅ **Comprehensive coverage** - Works even when statusline data isn't available
+- ✅ **Tool-heavy workflows** - Accurately captures MCP tool usage costs
+
+#### Example output:
+
+```
+┌──────────────┬─────────────┬────────┬─────────┬────────────┐
+│ Date         │ Models      │ Input  │ Output  │ Cost (USD) │
+├──────────────┼─────────────┼────────┼─────────┼────────────┤
+│ 2025-01-15   │ • opus-4    │  1,245 │  28,756 │    $12.75  │ ← Saved statusline cost
+│ 2024-12-20   │ • sonnet-4  │    856 │  19,234 │     $8.67  │ ← Fallback to costUSD
+│ 2024-11-10   │ • opus-4    │    634 │  15,678 │     $7.23  │ ← Fallback to calculation
+└──────────────┴─────────────┴────────┴─────────┴────────────┘
+```
+
+### max
+
+The `max` mode calculates all available costs and returns the highest value:
+
+```bash
+ccusage daily --mode max
+ccusage session --mode max --json
+```
+
+#### How it works:
+
+1. **Calculates saved statusline cost** if available
+2. **Gets pre-calculated `costUSD`** from Claude Code data if present
+3. **Calculates token-based cost** using current model pricing
+4. **Returns the maximum** of all available costs
+
+#### Best for:
+
+- ✅ **Conservative estimates** - Always shows the highest possible cost
+- ✅ **Cost validation** - Comparing different calculation methods
+- ✅ **Debugging discrepancies** - Understanding cost variations
+- ✅ **Budget planning** - Using worst-case scenarios for planning
+
+#### Example output:
+
+```
+┌──────────────┬─────────────┬────────┬─────────┬────────────┐
+│ Date         │ Models      │ Input  │ Output  │ Cost (USD) │
+├──────────────┼─────────────┼────────┼─────────┼────────────┤
+│ 2025-01-15   │ • opus-4    │  1,245 │  28,756 │    $12.75  │ ← MAX(12.75, 12.45, 12.38)
+│ 2024-12-20   │ • sonnet-4  │    856 │  19,234 │     $8.70  │ ← MAX(8.67, 8.70)
+│ 2024-11-10   │ • opus-4    │    634 │  15,678 │     $7.23  │ ← Only calculation available
 └──────────────┴─────────────┴────────┴─────────┴────────────┘
 ```
 
@@ -262,6 +334,20 @@ ccusage daily --debug --debug-samples 10
 - **Recent data analysis** - Most accurate for new usage
 - **Audit purposes** - Verifying pre-calculated costs
 
+### When to use `statusline` mode:
+
+- **Enhanced accuracy** - Want Claude Code's official calculations with tool costs
+- **Tool-heavy workflows** - Using MCP tools extensively
+- **Real usage tracking** - Exclude costs from cancelled operations
+- **Gradual improvement** - Build up saved cost data over time
+
+### When to use `max` mode:
+
+- **Conservative budgeting** - Need worst-case cost estimates
+- **Cost validation** - Comparing different calculation methods
+- **Debugging** - Understanding discrepancies between calculation methods
+- **Safety margins** - Planning with maximum possible costs
+
 ## Advanced Usage
 
 ### Combining with Other Options
@@ -275,13 +361,21 @@ ccusage session --mode display --json | jq '.[] | select(.totalCost > 0)'
 
 # Auto mode with date filtering
 ccusage monthly --mode auto --since 20240101 --order asc
+
+# Statusline mode for enhanced accuracy
+ccusage daily --mode statusline --breakdown
+
+# Max mode for conservative estimates
+ccusage session --mode max --json
 ```
 
 ### Performance Considerations
 
 - **`display` mode** - Fastest (no calculations)
 - **`auto` mode** - Moderate (conditional calculations)
-- **`calculate` mode** - Slowest (always calculates)
+- **`statusline` mode** - Moderate (file I/O for saved costs, then conditional calculations)
+- **`calculate` mode** - Slow (always calculates from tokens)
+- **`max` mode** - Slowest (calculates all methods and compares)
 
 ### Offline Mode Compatibility
 
@@ -289,6 +383,49 @@ ccusage monthly --mode auto --since 20240101 --order asc
 # All modes work with offline pricing data
 ccusage daily --mode calculate --offline
 ccusage monthly --mode auto --offline
+ccusage daily --mode statusline --offline
+ccusage session --mode max --offline
+```
+
+## Statusline Integration
+
+The new `statusline` and `max` modes leverage cost data saved from ccusage's statusline feature:
+
+### How Cost Storage Works
+
+1. **Automatic saving** - When using `ccusage statusline`, costs from Claude Code are automatically saved
+2. **Storage location** - Costs are stored in `~/.config/claude/ccusage/costs/{sessionId}.json`
+3. **Gradual improvement** - Accuracy improves over time as more sessions are tracked
+4. **Backward compatibility** - Falls back gracefully when no saved data exists
+
+### Benefits
+
+- **Tool usage costs** - Includes costs from MCP tool usage that may not appear in token counts
+- **Cancelled operations** - Excludes costs from cancelled branches (double ESC)
+- **Official calculations** - Uses Claude Code's actual billing calculations
+
+### Setup
+
+To enable cost saving, ensure your statusline is configured:
+
+```json
+{
+  "statusLine": {
+    "type": "command",
+    "command": "bun x ccusage statusline"
+  }
+}
+```
+
+The `--save-cost` flag is enabled by default. To disable:
+
+```json
+{
+  "statusLine": {
+    "type": "command", 
+    "command": "bun x ccusage statusline --no-save-cost"
+  }
+}
 ```
 
 ## Common Issues and Solutions

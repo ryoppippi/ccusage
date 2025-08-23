@@ -99,12 +99,14 @@ export function createBucket(value: string): Bucket {
 };
 
 /**
- * Available cost calculation modes
- * - auto: Use pre-calculated costs when available, otherwise calculate from tokens
- * - calculate: Always calculate costs from token counts using model pricing
- * - display: Always use pre-calculated costs, show 0 for missing costs
+ * Available cost calculation modes with fallback priority order:
+ * - auto: pre-calculated costUSD → token-based calculation (original behavior)
+ * - calculate: token-based calculation only (ignores costUSD)
+ * - display: pre-calculated costUSD only (shows $0.00 for missing costs)
+ * - statusline: saved statusline costs → pre-calculated costUSD → token-based calculation
+ * - max: MAX(saved statusline costs, pre-calculated costUSD, token-based calculation) - returns highest value
  */
-export const CostModes = ['auto', 'calculate', 'display'] as const;
+export const CostModes = ['auto', 'calculate', 'display', 'statusline', 'max'] as const;
 
 /**
  * Union type for cost calculation modes

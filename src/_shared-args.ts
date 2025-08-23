@@ -42,7 +42,7 @@ export const sharedArgs = {
 		type: 'enum',
 		short: 'm',
 		description:
-			'Cost calculation mode: auto (use costUSD if exists, otherwise calculate), calculate (always calculate), display (always use costUSD)',
+			'Cost calculation mode: auto (costUSD → calculate), calculate (tokens only), display (costUSD only), statusline (statusline → costUSD → calculate), max (MAX of all sources)',
 		default: 'auto' as const satisfies CostMode,
 		choices: CostModes,
 	},

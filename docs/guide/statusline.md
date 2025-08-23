@@ -253,6 +253,88 @@ bun x ccusage statusline --visual-burn-rate emoji
 - ⚠️ Moderate (Yellow)
 - 🚨 High (Red)
 
+## Cost Data Persistence
+
+The statusline feature automatically saves Claude Code's cost data for enhanced accuracy in other ccusage commands.
+
+### How It Works
+
+When Claude Code provides cost information (`total_cost_usd`), the statusline saves this data to:
+
+```
+~/.config/claude/ccusage/costs/{sessionId}.json
+```
+
+This stored cost data is then used by other commands when you specify:
+- `--mode statusline` - Prioritizes saved statusline costs
+- `--mode max` - Includes saved costs in maximum calculation
+
+### Benefits
+
+- **Enhanced accuracy** - Uses Claude Code's official cost calculations
+- **Tool usage costs** - Includes costs from MCP tool usage
+- **Cancelled operations** - Excludes costs from cancelled branches (double ESC)
+- **Gradual improvement** - Accuracy increases as more sessions are tracked
+
+### Configuration
+
+**Enable cost saving (default):**
+```json
+{
+  "statusLine": {
+    "type": "command",
+    "command": "bun x ccusage statusline"
+  }
+}
+```
+
+**Disable cost saving:**
+```json
+{
+  "statusLine": {
+    "type": "command",
+    "command": "bun x ccusage statusline --no-save-cost"
+  }
+}
+```
+
+### Storage Details
+
+**File structure:**
+```json
+{
+  "sessionId": "abc123",
+  "costs": [
+    {
+      "timestamp": "2025-01-22T10:30:00Z",
+      "totalCostUsd": 12.45,
+      "source": "statusline"
+    }
+  ]
+}
+```
+
+**Storage location:** Uses XDG config directory structure (`~/.config/claude/ccusage/costs/`) with fallback to `~/.claude/ccusage/costs/`
+
+**Privacy:** All data is stored locally on your machine
+
+### Integration with Other Commands
+
+Once cost data is saved, you can use it with any ccusage command:
+
+```bash
+# Use saved statusline costs with fallbacks
+ccusage daily --mode statusline
+
+# Get maximum cost from all sources
+ccusage monthly --mode max
+
+# Compare with token-based calculations
+ccusage session --mode calculate
+```
+
+See the [Cost Modes Guide](./cost-modes.md) for detailed information about different calculation modes.
+
 ## Troubleshooting
 
 ### No Output Displayed
