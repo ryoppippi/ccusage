@@ -31,7 +31,7 @@ import { createFixture } from 'fs-fixture';
 import { isDirectorySync } from 'path-type';
 import { glob } from 'tinyglobby';
 import { z } from 'zod';
-import { CLAUDE_CONFIG_DIR_ENV, CLAUDE_PROJECTS_DIR_NAME, DEFAULT_CLAUDE_CODE_PATH, DEFAULT_CLAUDE_CONFIG_PATH, USAGE_DATA_GLOB_PATTERN, USER_HOME_DIR } from './_consts.ts';
+import { CLAUDE_CONFIG_DIR_ENV, CLAUDE_PROJECTS_DIR_NAME, DEFAULT_CLAUDE_CODE_PATH, DEFAULT_CLAUDE_CONFIG_PATH, DEFAULT_LOCALE, USAGE_DATA_GLOB_PATTERN, USER_HOME_DIR } from './_consts.ts';
 import {
 	identifySessionBlocks,
 } from './_session-blocks.ts';
@@ -569,13 +569,13 @@ function createDatePartsFormatter(timezone: string | undefined, locale: string):
  * Formats a date string to YYYY-MM-DD format
  * @param dateStr - Input date string
  * @param timezone - Optional timezone to use for formatting
- * @param locale - Optional locale to use for formatting (defaults to 'en-CA' for YYYY-MM-DD format)
+ * @param locale - Optional locale to use for formatting (defaults to DEFAULT_LOCALE for YYYY-MM-DD format)
  * @returns Formatted date string in YYYY-MM-DD format
  */
 export function formatDate(dateStr: string, timezone?: string, locale?: string): string {
 	const date = new Date(dateStr);
-	// Use en-CA as default for consistent YYYY-MM-DD format
-	const formatter = createDateFormatter(timezone, locale ?? 'en-CA');
+	// Use DEFAULT_LOCALE as default for consistent YYYY-MM-DD format
+	const formatter = createDateFormatter(timezone, locale ?? DEFAULT_LOCALE);
 	return formatter.format(date);
 }
 
@@ -899,8 +899,8 @@ export async function loadDailyUsageData(
 				// Mark this combination as processed
 				markAsProcessed(uniqueHash, processedHashes);
 
-				// Always use en-CA for date grouping to ensure YYYY-MM-DD format
-				const date = formatDate(data.timestamp, options?.timezone, 'en-CA');
+				// Always use DEFAULT_LOCALE for date grouping to ensure YYYY-MM-DD format
+				const date = formatDate(data.timestamp, options?.timezone, DEFAULT_LOCALE);
 				// If fetcher is available, calculate cost based on mode and tokens
 				// If fetcher is null, use pre-calculated costUSD or default to 0
 				const cost = fetcher != null
@@ -1144,8 +1144,8 @@ export async function loadSessionData(
 				sessionId: createSessionId(latestEntry.sessionId),
 				projectPath: createProjectPath(latestEntry.projectPath),
 				...totals,
-				// Always use en-CA for date storage to ensure YYYY-MM-DD format
-				lastActivity: formatDate(latestEntry.timestamp, options?.timezone, 'en-CA') as ActivityDate,
+				// Always use DEFAULT_LOCALE for date storage to ensure YYYY-MM-DD format
+				lastActivity: formatDate(latestEntry.timestamp, options?.timezone, DEFAULT_LOCALE) as ActivityDate,
 				versions: uniq(versions).sort() as Version[],
 				modelsUsed: modelsUsed as ModelName[],
 				modelBreakdowns,
@@ -1554,8 +1554,8 @@ export async function loadSessionBlockData(
 	// Filter by date range if specified
 	const dateFiltered = (options?.since != null && options.since !== '') || (options?.until != null && options.until !== '')
 		? blocks.filter((block) => {
-				// Always use en-CA for date comparison to ensure YYYY-MM-DD format
-				const blockDateStr = formatDate(block.startTime.toISOString(), options?.timezone, 'en-CA').replace(/-/g, '');
+				// Always use DEFAULT_LOCALE for date comparison to ensure YYYY-MM-DD format
+				const blockDateStr = formatDate(block.startTime.toISOString(), options?.timezone, DEFAULT_LOCALE).replace(/-/g, '');
 				if (options.since != null && options.since !== '' && blockDateStr < options.since) {
 					return false;
 				}
@@ -1631,7 +1631,7 @@ if (import.meta.vitest != null) {
 
 			// Different locales format dates differently
 			expect(formatDate(testDate, 'UTC', 'en-US')).toBe('08/04/2024');
-			expect(formatDate(testDate, 'UTC', 'en-CA')).toBe('2024-08-04');
+			expect(formatDate(testDate, 'UTC', DEFAULT_LOCALE)).toBe('2024-08-04');
 			expect(formatDate(testDate, 'UTC', 'ja-JP')).toBe('2024/08/04');
 			expect(formatDate(testDate, 'UTC', 'de-DE')).toBe('04.08.2024');
 		});
@@ -1743,7 +1743,7 @@ if (import.meta.vitest != null) {
 
 			// Different locales format dates differently
 			expect(formatDateCompact(testDate, 'UTC', 'en-US')).toBe('2024\n08-04');
-			expect(formatDateCompact(testDate, 'UTC', 'en-CA')).toBe('2024\n08-04');
+			expect(formatDateCompact(testDate, 'UTC', DEFAULT_LOCALE)).toBe('2024\n08-04');
 			expect(formatDateCompact(testDate, 'UTC', 'ja-JP')).toBe('2024\n08-04');
 			// All locales should produce similar compact format
 		});

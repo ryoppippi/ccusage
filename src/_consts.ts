@@ -136,3 +136,9 @@ export const WEEK_DAYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday'
  * Used to load and save configuration settings
  */
 export const CONFIG_FILE_NAME = 'ccusage.json';
+
+/**
+ * Default locale for date formatting (en-CA provides YYYY-MM-DD ISO format)
+ * Used consistently across the application for date parsing and display
+ */
+export const DEFAULT_LOCALE = 'en-CA';

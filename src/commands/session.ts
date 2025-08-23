@@ -4,6 +4,7 @@ import process from 'node:process';
 import { Result } from '@praha/byethrow';
 import { define } from 'gunshi';
 import { loadConfig, mergeConfigWithArgs } from '../_config-loader-tokens.ts';
+import { DEFAULT_LOCALE } from '../_consts.ts';
 import { processWithJq } from '../_jq-processor.ts';
 import { sharedCommandConfig } from '../_shared-args.ts';
 import { addEmptySeparatorRow, createUsageReportTable, formatTotalsRow, formatUsageDataRow, pushBreakdownRows } from '../_table.ts';
@@ -52,7 +53,7 @@ export const sessionCommand = define({
 					offline: mergedOptions.offline,
 					jq: mergedOptions.jq,
 					timezone: mergedOptions.timezone,
-					locale: mergedOptions.locale ?? 'en-CA',
+					locale: mergedOptions.locale ?? DEFAULT_LOCALE,
 				},
 			}, useJson);
 		}
