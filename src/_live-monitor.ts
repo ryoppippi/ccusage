@@ -10,7 +10,8 @@
 
 import type { LoadedUsageEntry, SessionBlock } from './_session-blocks.ts';
 import type { CostMode, SortOrder } from './_types.ts';
-import { readFile } from 'node:fs/promises';
+import { readFile, stat } from 'node:fs/promises';
+import pLimit from 'p-limit';
 import { identifySessionBlocks } from './_session-blocks.ts';
 import {
 	calculateCostForEntry,
@@ -42,6 +43,25 @@ export class LiveMonitor implements Disposable {
 	private lastFileTimestamps = new Map<string, number>();
 	private processedHashes = new Set<string>();
 	private allEntries: LoadedUsageEntry[] = [];
+	private readonly RETENTION_HOURS = 24;
+	private readonly FILE_CONCURRENCY = 5;
+	private readonly fileLimit = pLimit(this.FILE_CONCURRENCY);
+
+	/**
+	 * Fast file filtering using file stats instead of reading contents
+	 * This is a performance optimization for live monitoring only
+	 */
+	private async isRecentFile(filePath: string, cutoffTime: Date): Promise<boolean> {
+		try {
+			const fileStats = await stat(filePath);
+			// Use file modification time as approximation
+			// This is much faster than reading file contents
+			return fileStats.mtime >= cutoffTime;
+		}
+		catch {
+			return false; // Skip files that can't be read
+		}
+	}
 
 	constructor(config: LiveMonitorConfig) {
 		this.config = config;
@@ -63,6 +83,7 @@ export class LiveMonitor implements Disposable {
 	 * Only reads new or modified files since last check
 	 */
 	async getActiveBlock(): Promise<SessionBlock | null> {
+		const cutoffTime = new Date(Date.now() - this.RETENTION_HOURS * 60 * 60 * 1000);
 		const results = await globUsageFiles(this.config.claudePaths);
 		const allFiles = results.map(r => r.file);
 
@@ -70,9 +91,17 @@ export class LiveMonitor implements Disposable {
 			return null;
 		}
 
-		// Check for new or modified files
-		const filesToRead: string[] = [];
+		// Filter files by modification time first (fast coarse filter)
+		const candidateFiles: string[] = [];
 		for (const file of allFiles) {
+			if (await this.isRecentFile(file, cutoffTime)) {
+				candidateFiles.push(file);
+			}
+		}
+
+		// Check for new or modified files among candidates
+		const filesToRead: string[] = [];
+		for (const file of candidateFiles) {
 			const timestamp = await getEarliestTimestamp(file);
 			const lastTimestamp = this.lastFileTimestamps.get(file);
 
@@ -82,69 +111,28 @@ export class LiveMonitor implements Disposable {
 			}
 		}
 
-		// Read only new/modified files
+		// Remove old entries from cache
+		this.cleanupOldEntries(cutoffTime);
+
+		// Read files with controlled concurrency
 		if (filesToRead.length > 0) {
 			const sortedFiles = await sortFilesByTimestamp(filesToRead);
 
-			for (const file of sortedFiles) {
-				const content = await readFile(file, 'utf-8')
-					.catch(() => {
-						// Skip files that can't be read
-						return '';
-					});
+			// Process files concurrently with p-limit
+			const fileResults = await Promise.allSettled(
+				sortedFiles.map(async file =>
+					this.fileLimit(async () => ({
+						file,
+						content: await readFile(file, 'utf-8'),
+					})),
+				),
+			);
 
-				const lines = content
-					.trim()
-					.split('\n')
-					.filter(line => line.length > 0);
-
-				for (const line of lines) {
-					try {
-						const parsed = JSON.parse(line) as unknown;
-						const result = usageDataSchema.safeParse(parsed);
-						if (!result.success) {
-							continue;
-						}
-						const data = result.data;
-
-						// Check for duplicates
-						const uniqueHash = createUniqueHash(data);
-						if (uniqueHash != null && this.processedHashes.has(uniqueHash)) {
-							continue;
-						}
-						if (uniqueHash != null) {
-							this.processedHashes.add(uniqueHash);
-						}
-
-						// Calculate cost if needed
-						const costUSD: number = await (this.config.mode === 'display'
-							? Promise.resolve(data.costUSD ?? 0)
-							: calculateCostForEntry(
-									data,
-									this.config.mode,
-									this.fetcher!,
-								));
-
-						const usageLimitResetTime = getUsageLimitResetTime(data);
-
-						// Add entry
-						this.allEntries.push({
-							timestamp: new Date(data.timestamp),
-							usage: {
-								inputTokens: data.message.usage.input_tokens ?? 0,
-								outputTokens: data.message.usage.output_tokens ?? 0,
-								cacheCreationInputTokens: data.message.usage.cache_creation_input_tokens ?? 0,
-								cacheReadInputTokens: data.message.usage.cache_read_input_tokens ?? 0,
-							},
-							costUSD,
-							model: data.message.model ?? '<synthetic>',
-							version: data.version,
-							usageLimitResetTime: usageLimitResetTime ?? undefined,
-						});
-					}
-					catch {
-						// Skip malformed lines
-					}
+			// Process successful file reads
+			for (const result of fileResults) {
+				if (result.status === 'fulfilled') {
+					const { content } = result.value;
+					await this.processFileContent(content, cutoffTime);
 				}
 			}
 		}
@@ -171,6 +159,84 @@ export class LiveMonitor implements Disposable {
 		this.lastFileTimestamps.clear();
 		this.processedHashes.clear();
 		this.allEntries = [];
+	}
+
+	/**
+	 * Removes entries older than the cutoff time to manage memory usage
+	 */
+	private cleanupOldEntries(cutoffTime: Date): void {
+		const initialCount = this.allEntries.length;
+		this.allEntries = this.allEntries.filter(entry => entry.timestamp >= cutoffTime);
+
+		// If we removed a significant number of entries, clear processed hashes to avoid stale references
+		if (initialCount - this.allEntries.length > 100) {
+			this.processedHashes.clear();
+		}
+	}
+
+	/**
+	 * Processes file content and adds valid entries within the retention window
+	 */
+	private async processFileContent(content: string, cutoffTime: Date): Promise<void> {
+		const lines = content
+			.trim()
+			.split('\n')
+			.filter(line => line.length > 0);
+
+		for (const line of lines) {
+			try {
+				const parsed = JSON.parse(line) as unknown;
+				const result = usageDataSchema.safeParse(parsed);
+				if (!result.success) {
+					continue;
+				}
+				const data = result.data;
+
+				// Only process entries within retention window
+				const entryTime = new Date(data.timestamp);
+				if (entryTime < cutoffTime) {
+					continue;
+				}
+
+				// Check for duplicates
+				const uniqueHash = createUniqueHash(data);
+				if (uniqueHash != null && this.processedHashes.has(uniqueHash)) {
+					continue;
+				}
+				if (uniqueHash != null) {
+					this.processedHashes.add(uniqueHash);
+				}
+
+				// Calculate cost if needed
+				const costUSD: number = await (this.config.mode === 'display'
+					? Promise.resolve(data.costUSD ?? 0)
+					: calculateCostForEntry(
+							data,
+							this.config.mode,
+							this.fetcher!,
+						));
+
+				const usageLimitResetTime = getUsageLimitResetTime(data);
+
+				// Add entry
+				this.allEntries.push({
+					timestamp: entryTime,
+					usage: {
+						inputTokens: data.message.usage.input_tokens ?? 0,
+						outputTokens: data.message.usage.output_tokens ?? 0,
+						cacheCreationInputTokens: data.message.usage.cache_creation_input_tokens ?? 0,
+						cacheReadInputTokens: data.message.usage.cache_read_input_tokens ?? 0,
+					},
+					costUSD,
+					model: data.message.model ?? '<synthetic>',
+					version: data.version,
+					usageLimitResetTime: usageLimitResetTime ?? undefined,
+				});
+			}
+			catch {
+				// Skip malformed lines
+			}
+		}
 	}
 }
 
