@@ -14,8 +14,8 @@ import {
 
 } from '../_session-blocks.ts';
 import { sharedCommandConfig } from '../_shared-args.ts';
+import { formatCurrency, formatModelsDisplayMultiline, formatNumber, ResponsiveTable } from '../_table.ts';
 import { getTotalTokens } from '../_token-utils.ts';
-import { formatCurrency, formatModelsDisplayMultiline, formatNumber, ResponsiveTable } from '../_utils.ts';
 import { getClaudePaths, loadSessionBlockData } from '../data-loader.ts';
 import { log, logger } from '../logger.ts';
 import { startLiveMonitoring } from './_blocks.live.ts';

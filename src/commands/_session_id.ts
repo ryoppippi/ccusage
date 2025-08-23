@@ -3,7 +3,7 @@ import type { UsageData } from '../data-loader.ts';
 import process from 'node:process';
 import { Result } from '@praha/byethrow';
 import { processWithJq } from '../_jq-processor.ts';
-import { formatCurrency, formatNumber, ResponsiveTable } from '../_utils.ts';
+import { formatCurrency, formatNumber, ResponsiveTable } from '../_table.ts';
 import { formatDateCompact, loadSessionUsageById } from '../data-loader.ts';
 import { log, logger } from '../logger.ts';
 
