@@ -3,7 +3,6 @@ import { mkdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import process from 'node:process';
-import { unreachable } from '@core/errorutil';
 import { Result } from '@praha/byethrow';
 import { createLimoJson } from '@ryoppippi/limo';
 import getStdin from 'get-stdin';
@@ -15,7 +14,7 @@ import { DEFAULT_CONTEXT_USAGE_THRESHOLDS, DEFAULT_REFRESH_INTERVAL_SECONDS } fr
 import { calculateBurnRate } from '../_session-blocks.ts';
 import { sharedArgs } from '../_shared-args.ts';
 import { statuslineHookJsonSchema } from '../_types.ts';
-import { formatCurrency, getFileModifiedTime } from '../_utils.ts';
+import { formatCurrency, getFileModifiedTime, unreachable } from '../_utils.ts';
 import { calculateTotals } from '../calculate-cost.ts';
 import { calculateContextTokens, loadDailyUsageData, loadSessionBlockData, loadSessionUsageById } from '../data-loader.ts';
 import { log, logger } from '../logger.ts';

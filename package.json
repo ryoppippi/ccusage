@@ -64,7 +64,6 @@
 	},
 	"devDependencies": {
 		"@antfu/utils": "^9.2.0",
-		"@core/errorutil": "npm:@jsr/core__errorutil@^1.2.1",
 		"@hono/mcp": "^0.1.0",
 		"@hono/node-server": "^1.19.0",
 		"@mizchi/lsmcp": "^0.10.0",

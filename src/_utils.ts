@@ -7,6 +7,10 @@ import { createFixture } from 'fs-fixture';
 import pc from 'picocolors';
 import stringWidth from 'string-width';
 
+export function unreachable(value: never): never {
+	throw new Error(`Unreachable code reached with value: ${value as any}`);
+}
+
 /**
  * Table row data type supporting strings, numbers, and formatted cell objects
  */
@@ -419,6 +423,14 @@ export async function getFileModifiedTime(filePath: string): Promise<number> {
 }
 
 if (import.meta.vitest != null) {
+	describe('unreachable', () => {
+		it('should throw an error when called', () => {
+			expect(() => unreachable('test' as never)).toThrow(
+				'Unreachable code reached with value: test',
+			);
+		});
+	});
+
 	describe('ResponsiveTable', () => {
 		describe('compact mode behavior', () => {
 			it('should activate compact mode when terminal width is below threshold', () => {
