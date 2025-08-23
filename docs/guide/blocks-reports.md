@@ -83,16 +83,21 @@ Perfect for understanding recent usage patterns without scrolling through all hi
 
 ### Token Limit Tracking
 
-Set token limits to monitor quota usage:
+Set token limits to monitor quota usage with flexible calculation methods:
 
 ```bash
 # Set explicit token limit
 ccusage blocks --token-limit 500000
 
-# Use highest previous block as limit
-ccusage blocks --token-limit max
-# or short form:
+# Use automatic calculation methods
+ccusage blocks --token-limit max     # Highest previous block (default)
+ccusage blocks --token-limit avg     # Average of all blocks
+ccusage blocks --token-limit median  # Median of all blocks
+
+# Short forms
 ccusage blocks -t max
+ccusage blocks -t avg
+ccusage blocks -t median
 ```
 
 When limits are set, blocks display:
@@ -100,6 +105,154 @@ When limits are set, blocks display:
 - ⚠️ **Warning indicators** when approaching limits
 - 🚨 **Alert indicators** when exceeding limits
 - **Progress bars** showing usage relative to limit
+
+#### Token Limit Calculation Methods
+
+Choose how automatic token limits are calculated from your usage history:
+
+```bash
+# Maximum tokens from any block (default - conservative)
+ccusage blocks --token-limit-method max
+
+# Average tokens across all blocks (balanced)
+ccusage blocks --token-limit-method avg
+
+# Median tokens across all blocks (robust against outliers)
+ccusage blocks --token-limit-method median
+```
+
+#### Limiting Calculation to Recent Sessions
+
+Control how many recent blocks are used for automatic limit calculation:
+
+```bash
+# Use only the 10 most recent blocks (default)
+ccusage blocks --token-limit-sessions 10
+
+# Use only the 5 most recent blocks (more responsive to patterns)
+ccusage blocks --token-limit-sessions 5
+
+# Use only the last block
+ccusage blocks --token-limit-sessions 1
+```
+
+#### Advanced Token Limit Examples
+
+Combine calculation methods with session limits for precise control:
+
+```bash
+# Conservative: Maximum of last 5 blocks
+ccusage blocks --token-limit-method max --token-limit-sessions 5
+
+# Balanced: Average of last 10 blocks
+ccusage blocks --token-limit-method avg --token-limit-sessions 10
+
+# Robust: Median of last 15 blocks (ignores outliers)
+ccusage blocks --token-limit-method median --token-limit-sessions 15
+
+# Recent pattern focus: Average of last 3 blocks
+ccusage blocks --token-limit-method avg --token-limit-sessions 3
+```
+
+#### Understanding Calculation Methods
+
+**Maximum (max)** - Most conservative approach:
+```bash
+ccusage blocks --token-limit-method max --token-limit-sessions 10
+```
+- **Best for**: Cost control, avoiding budget overruns
+- **Behavior**: Uses your highest usage block as the limit
+- **Result**: Most restrictive warnings, earliest alerts
+- **Use when**: You want strict budget management
+
+**Average (avg)** - Balanced approach:
+```bash
+ccusage blocks --token-limit-method avg --token-limit-sessions 10
+```
+- **Best for**: Typical usage patterns, consistent workflows
+- **Behavior**: Uses your average block usage as the limit
+- **Result**: Moderate warnings based on normal usage
+- **Use when**: You have consistent usage patterns
+
+**Median (median)** - Robust against outliers:
+```bash
+ccusage blocks --token-limit-method median --token-limit-sessions 10
+```
+- **Best for**: Variable usage with occasional large sessions
+- **Behavior**: Ignores extreme high/low usage blocks
+- **Result**: Warnings based on typical (not average) usage
+- **Use when**: You have mixed session types or occasional spikes
+
+#### Practical Token Limit Scenarios
+
+**Scenario 1: New User Learning Patterns**
+```bash
+# Start conservative, adjust based on experience
+ccusage blocks --token-limit-method max --token-limit-sessions 3
+```
+- **Why**: Uses maximum of last 3 sessions for safety
+- **Benefit**: Prevents accidental overuse while learning
+- **Adjustment**: Switch to `avg` method once patterns emerge
+
+**Scenario 2: Consistent Daily Developer**
+```bash
+# Balanced approach based on typical usage
+ccusage blocks --token-limit-method avg --token-limit-sessions 10
+```
+- **Why**: Average of last 10 sessions reflects normal workflow
+- **Benefit**: Warnings at appropriate levels for usual work
+- **Adjustment**: Increase sessions count during routine changes
+
+**Scenario 3: Project-Based Usage (Variable Intensity)**
+```bash
+# Median handles both light and heavy project phases
+ccusage blocks --token-limit-method median --token-limit-sessions 15
+```
+- **Why**: Median ignores occasional large refactoring sessions
+- **Benefit**: Consistent warnings despite usage variability
+- **Adjustment**: Use `max` during intense project phases
+
+**Scenario 4: Budget-Conscious Team Lead**
+```bash
+# Conservative limits with recent pattern awareness
+ccusage blocks --token-limit-method max --token-limit-sessions 7
+```
+- **Why**: Maximum of last week prevents budget overruns
+- **Benefit**: Early warnings help maintain cost discipline
+- **Adjustment**: Combine with explicit limits during month-end
+
+**Scenario 5: Experimental Developer (High Variance)**
+```bash
+# Robust calculation ignoring outliers
+ccusage blocks --token-limit-method median --token-limit-sessions 20
+```
+- **Why**: Large sample size with outlier protection
+- **Benefit**: Stable warnings despite experimental sessions
+- **Adjustment**: Switch to `avg` during stable development phases
+
+#### Migration from Previous Max-Only Approach
+
+The new token limit calculation improves upon the previous max-only approach:
+
+**Before (Limited)**:
+```bash
+ccusage blocks --token-limit max  # Only used highest session
+```
+
+**Now (Flexible)**:
+```bash
+# Choose your calculation method
+ccusage blocks --token-limit-method avg --token-limit-sessions 10
+ccusage blocks --token-limit-method median --token-limit-sessions 15
+ccusage blocks --token-limit-method max --token-limit-sessions 5
+```
+
+**Key Improvements**:
+- **Better Accuracy**: Methods reflect actual usage patterns
+- **Outlier Handling**: Median method ignores extreme sessions
+- **Recent Focus**: Session limits consider recent workflow changes
+- **Flexibility**: Multiple methods for different use cases
+- **Backward Compatibility**: `--token-limit max` still works as before
 
 ### Live Monitoring
 
