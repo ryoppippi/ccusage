@@ -3,6 +3,7 @@ import { mkdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import process from 'node:process';
+import { unreachable } from '@core/errorutil';
 import { Result } from '@praha/byethrow';
 import { createLimoJson } from '@ryoppippi/limo';
 import getStdin from 'get-stdin';
@@ -293,7 +294,7 @@ export const statuslineCommand = define({
 							const cost = await getCcusageCost();
 							return { sessionCost: cost };
 						}
-						costSource satisfies never; // Exhaustiveness check
+						unreachable(costSource);
 						return {}; // This line should never be reached
 					})();
 
