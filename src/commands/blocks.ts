@@ -4,7 +4,7 @@ import { Result } from '@praha/byethrow';
 import { define } from 'gunshi';
 import pc from 'picocolors';
 import { loadConfig, mergeConfigWithArgs } from '../_config-loader-tokens.ts';
-import { BLOCKS_COMPACT_WIDTH_THRESHOLD, BLOCKS_DEFAULT_TERMINAL_WIDTH, BLOCKS_WARNING_THRESHOLD, DEFAULT_RECENT_DAYS, DEFAULT_REFRESH_INTERVAL_SECONDS, MAX_REFRESH_INTERVAL_SECONDS, MIN_REFRESH_INTERVAL_SECONDS } from '../_consts.ts';
+import { BLOCKS_COMPACT_WIDTH_THRESHOLD, BLOCKS_DEFAULT_TERMINAL_WIDTH, BLOCKS_WARNING_THRESHOLD, DEFAULT_RECENT_DAYS, DEFAULT_REFRESH_INTERVAL_SECONDS, DEFAULT_TOKEN_LIMIT_SESSIONS, MAX_REFRESH_INTERVAL_SECONDS, MIN_REFRESH_INTERVAL_SECONDS } from '../_consts.ts';
 import { processWithJq } from '../_jq-processor.ts';
 import {
 	calculateBurnRate,
@@ -141,7 +141,7 @@ export const blocksCommand = define({
 		tokenLimit: {
 			type: 'string',
 			short: 't',
-			description: 'Token limit for quota warnings (number, "max", "avg", or "median")',
+			description: 'Token limit for quota warnings (number: e.g. 50000, "max", "avg", or "median")',
 		},
 		sessionLength: {
 			type: 'number',
@@ -151,8 +151,8 @@ export const blocksCommand = define({
 		},
 		tokenLimitSessions: {
 			type: 'number',
-			description: 'Number of recent completed sessions to use for token limit calculation (default: 10)',
-			default: 10,
+			description: `Number of recent completed sessions to use for token limit calculation (default: ${DEFAULT_TOKEN_LIMIT_SESSIONS})`,
+			default: DEFAULT_TOKEN_LIMIT_SESSIONS,
 		},
 		live: {
 			type: 'boolean',
@@ -243,15 +243,10 @@ export const blocksCommand = define({
 					}
 					case 'median': {
 						const sortedTokens = [...blockTokens].sort((a, b) => a - b);
-						if (sortedTokens.length === 0) {
-							calculatedTokenLimit = 0;
-						}
-						else {
-							const mid = Math.floor(sortedTokens.length / 2);
-							calculatedTokenLimit = sortedTokens.length % 2 === 0
-								? Math.round(((sortedTokens[mid - 1] ?? 0) + (sortedTokens[mid] ?? 0)) / 2)
-								: sortedTokens[mid] ?? 0;
-						}
+						const mid = Math.floor(sortedTokens.length / 2);
+						calculatedTokenLimit = sortedTokens.length % 2 === 0
+							? Math.round(((sortedTokens[mid - 1] ?? 0) + (sortedTokens[mid] ?? 0)) / 2)
+							: (sortedTokens[mid] ?? 0);
 						break;
 					}
 					case 'max':
@@ -1081,8 +1076,8 @@ if (import.meta.vitest != null) {
 			const completedBlocks = blocks.filter(block => !(block.isGap ?? false) && !block.isActive);
 			completedBlocks.sort((a, b) => b.startTime.getTime() - a.startTime.getTime());
 
-			// Request 10 sessions but only have 2
-			const blocksToUse = completedBlocks.slice(0, 10); // Should just return all 2
+			// Request DEFAULT_TOKEN_LIMIT_SESSIONS sessions but only have 2
+			const blocksToUse = completedBlocks.slice(0, DEFAULT_TOKEN_LIMIT_SESSIONS); // Should just return all 2
 			expect(blocksToUse).toHaveLength(2);
 
 			const blockTokens = blocksToUse.map(block => getTotalTokens(block.tokenCounts));

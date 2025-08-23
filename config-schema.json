@@ -655,8 +655,8 @@
 								},
 								"tokenLimit": {
 									"type": "string",
-									"description": "Token limit for quota warnings (number, \"max\", \"avg\", or \"median\")",
-									"markdownDescription": "Token limit for quota warnings (number, \"max\", \"avg\", or \"median\")"
+									"description": "Token limit for quota warnings (number: e.g. 50000, \"max\", \"avg\", or \"median\")",
+									"markdownDescription": "Token limit for quota warnings (number: e.g. 50000, \"max\", \"avg\", or \"median\")"
 								},
 								"sessionLength": {
 									"type": "number",
