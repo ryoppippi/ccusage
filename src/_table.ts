@@ -3,6 +3,7 @@ import Table from 'cli-table3';
 import { uniq } from 'es-toolkit';
 import pc from 'picocolors';
 import stringWidth from 'string-width';
+import { logger } from './logger.js';
 
 /**
  * Horizontal alignment options for table cells
@@ -104,7 +105,7 @@ export class ResponsiveTable {
 			const index = this.head.indexOf(compactHeader);
 			if (index < 0) {
 				// Log warning for debugging configuration issues
-				console.warn(`Warning: Compact header "${compactHeader}" not found in table headers [${this.head.join(', ')}]. Using first column as fallback.`);
+				logger.warn(`Warning: Compact header "${compactHeader}" not found in table headers [${this.head.join(', ')}]. Using first column as fallback.`);
 				return 0; // fallback to first column if not found
 			}
 			return index;
