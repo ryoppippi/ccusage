@@ -92,33 +92,37 @@ function formatModels(models: string[]): string {
 }
 
 /**
- * Extracts the calculation method from token limit value
- * @param value - Token limit string value
- * @returns The method ('max', 'avg', 'median') or 'max' as default
- */
-function getTokenLimitMethod(value: string | undefined | null): 'max' | 'avg' | 'median' {
-	if (value === 'avg') {
-		return 'avg';
-	}
-	if (value === 'median') {
-		return 'median';
-	}
-	return 'max'; // default for 'max', null, undefined, empty string, or numeric values
-}
-
-/**
  * Parses token limit argument, supporting 'max', 'avg', and 'median' keywords
  * @param value - Token limit string value
  * @param calculatedLimit - Calculated token limit based on selected method and sessions
- * @returns Parsed token limit or undefined if invalid
+ * @returns Object containing parsed limit and method
  */
-function parseTokenLimit(value: string | undefined | null, calculatedLimit: number): number | undefined {
-	if (value === null || value === undefined || value === '' || value === 'max' || value === 'avg' || value === 'median') {
-		return calculatedLimit > 0 ? calculatedLimit : undefined;
+function parseTokenLimit(value: string | undefined | null, calculatedLimit: number): {
+	limit: number | undefined;
+	method: 'max' | 'avg' | 'median';
+} {
+	const v = typeof value === 'string' ? value.trim().toLowerCase() : '';
+
+	// Determine method
+	let method: 'max' | 'avg' | 'median' = 'max';
+	if (v === 'avg') {
+		method = 'avg';
+	}
+	else if (v === 'median') {
+		method = 'median';
 	}
 
-	const limit = Number.parseInt(value, 10);
-	return Number.isNaN(limit) ? undefined : limit;
+	// Determine limit
+	let limit: number | undefined;
+	if (value === null || value === undefined || value === '' || v === 'max' || v === 'avg' || v === 'median') {
+		limit = calculatedLimit > 0 ? calculatedLimit : undefined;
+	}
+	else {
+		const parsedLimit = Number.parseInt(value, 10);
+		limit = Number.isNaN(parsedLimit) ? undefined : parsedLimit;
+	}
+
+	return { limit, method };
 }
 
 export const blocksCommand = define({
@@ -212,7 +216,7 @@ export const blocksCommand = define({
 
 		// Calculate token limit from recent completed sessions
 		let calculatedTokenLimit = 0;
-		const tokenLimitMethod = getTokenLimitMethod(ctx.values.tokenLimit);
+		const { method: tokenLimitMethod } = parseTokenLimit(ctx.values.tokenLimit, 0);
 		const tokenLimitSessions = ctx.values.tokenLimitSessions; // null means all sessions
 
 		if (ctx.values.tokenLimit === 'max' || ctx.values.tokenLimit === 'avg' || ctx.values.tokenLimit === 'median' || ctx.values.tokenLimit == null || ctx.values.tokenLimit === '') {
@@ -315,7 +319,7 @@ export const blocksCommand = define({
 
 			await startLiveMonitoring({
 				claudePaths: paths,
-				tokenLimit: parseTokenLimit(tokenLimitValue, calculatedTokenLimit),
+				tokenLimit: parseTokenLimit(tokenLimitValue, calculatedTokenLimit).limit,
 				refreshInterval: refreshInterval * 1000, // Convert to milliseconds
 				sessionDurationHours: ctx.values.sessionLength,
 				mode: ctx.values.mode,
@@ -347,7 +351,7 @@ export const blocksCommand = define({
 						projection,
 						tokenLimitStatus: projection != null && ctx.values.tokenLimit != null
 							? (() => {
-									const limit = parseTokenLimit(ctx.values.tokenLimit, calculatedTokenLimit);
+									const { limit } = parseTokenLimit(ctx.values.tokenLimit, calculatedTokenLimit);
 									return limit != null
 										? {
 												limit,
@@ -421,7 +425,7 @@ export const blocksCommand = define({
 
 					if (ctx.values.tokenLimit != null) {
 						// Parse token limit
-						const limit = parseTokenLimit(ctx.values.tokenLimit, calculatedTokenLimit);
+						const { limit } = parseTokenLimit(ctx.values.tokenLimit, calculatedTokenLimit);
 						if (limit != null && limit > 0) {
 							const currentTokens = getTotalTokens(block.tokenCounts);
 							const remainingTokens = Math.max(0, limit - currentTokens);
@@ -446,7 +450,7 @@ export const blocksCommand = define({
 				logger.box('Claude Code Token Usage Report - Session Blocks');
 
 				// Calculate token limit if "max" is specified
-				const actualTokenLimit = parseTokenLimit(ctx.values.tokenLimit, calculatedTokenLimit);
+				const { limit: actualTokenLimit } = parseTokenLimit(ctx.values.tokenLimit, calculatedTokenLimit);
 
 				const tableHeaders = ['Block Start', 'Duration/Status', 'Models', 'Tokens'];
 				const tableAligns: ('left' | 'right' | 'center')[] = ['left', 'left', 'left', 'right'];
@@ -575,53 +579,44 @@ export const blocksCommand = define({
 
 if (import.meta.vitest != null) {
 	/* eslint-disable ts/no-unused-vars, ts/no-unsafe-member-access, ts/no-unsafe-argument */
-	describe('getTokenLimitMethod', () => {
-		it('returns correct method for valid keywords', () => {
-			expect(getTokenLimitMethod('max')).toBe('max');
-			expect(getTokenLimitMethod('avg')).toBe('avg');
-			expect(getTokenLimitMethod('median')).toBe('median');
-		});
-
-		it('returns max as default for other values', () => {
-			expect(getTokenLimitMethod(undefined)).toBe('max');
-			expect(getTokenLimitMethod(null)).toBe('max');
-			expect(getTokenLimitMethod('')).toBe('max');
-			expect(getTokenLimitMethod('1000')).toBe('max');
-			expect(getTokenLimitMethod('invalid')).toBe('max');
-		});
-	});
 
 	describe('parseTokenLimit', () => {
-		it('returns calculated limit when value is null or empty', () => {
-			expect(parseTokenLimit(undefined, 500)).toBe(500);
-			expect(parseTokenLimit('', 500)).toBe(500);
-			expect(parseTokenLimit(null, 500)).toBe(500);
+		it('returns calculated limit and correct method when value is null or empty', () => {
+			expect(parseTokenLimit(undefined, 500)).toEqual({ limit: 500, method: 'max' });
+			expect(parseTokenLimit('', 500)).toEqual({ limit: 500, method: 'max' });
+			expect(parseTokenLimit(null, 500)).toEqual({ limit: 500, method: 'max' });
 		});
 
-		it('returns calculated limit when value is method keyword', () => {
-			expect(parseTokenLimit('max', 500)).toBe(500);
-			expect(parseTokenLimit('avg', 500)).toBe(500);
-			expect(parseTokenLimit('median', 500)).toBe(500);
+		it('returns calculated limit and correct method when value is method keyword', () => {
+			expect(parseTokenLimit('max', 500)).toEqual({ limit: 500, method: 'max' });
+			expect(parseTokenLimit('avg', 500)).toEqual({ limit: 500, method: 'avg' });
+			expect(parseTokenLimit('median', 500)).toEqual({ limit: 500, method: 'median' });
 		});
 
-		it('returns undefined when calculated limit is 0', () => {
-			expect(parseTokenLimit(undefined, 0)).toBeUndefined();
-			expect(parseTokenLimit('', 0)).toBeUndefined();
-			expect(parseTokenLimit('max', 0)).toBeUndefined();
-			expect(parseTokenLimit('avg', 0)).toBeUndefined();
-			expect(parseTokenLimit('median', 0)).toBeUndefined();
+		it('returns undefined limit when calculated limit is 0', () => {
+			expect(parseTokenLimit(undefined, 0)).toEqual({ limit: undefined, method: 'max' });
+			expect(parseTokenLimit('', 0)).toEqual({ limit: undefined, method: 'max' });
+			expect(parseTokenLimit('max', 0)).toEqual({ limit: undefined, method: 'max' });
+			expect(parseTokenLimit('avg', 0)).toEqual({ limit: undefined, method: 'avg' });
+			expect(parseTokenLimit('median', 0)).toEqual({ limit: undefined, method: 'median' });
 		});
 
-		it('parses numeric values correctly', () => {
-			expect(parseTokenLimit('1000', 500)).toBe(1000);
-			expect(parseTokenLimit('0', 500)).toBe(0);
-			expect(parseTokenLimit('999999', 500)).toBe(999999);
+		it('parses numeric values correctly with default method', () => {
+			expect(parseTokenLimit('1000', 500)).toEqual({ limit: 1000, method: 'max' });
+			expect(parseTokenLimit('0', 500)).toEqual({ limit: 0, method: 'max' });
+			expect(parseTokenLimit('999999', 500)).toEqual({ limit: 999999, method: 'max' });
 		});
 
-		it('returns undefined for invalid numeric values', () => {
-			expect(parseTokenLimit('invalid', 500)).toBeUndefined();
-			expect(parseTokenLimit('12.5', 500)).toBe(12); // parseInt parses "12.5" as 12
-			expect(parseTokenLimit('-100', 500)).toBe(-100); // parseInt parses negative numbers
+		it('returns undefined limit for invalid numeric values with default method', () => {
+			expect(parseTokenLimit('invalid', 500)).toEqual({ limit: undefined, method: 'max' });
+			expect(parseTokenLimit('12.5', 500)).toEqual({ limit: 12, method: 'max' }); // parseInt parses "12.5" as 12
+			expect(parseTokenLimit('-100', 500)).toEqual({ limit: -100, method: 'max' }); // parseInt parses negative numbers
+		});
+
+		it('handles whitespace and case insensitivity for methods', () => {
+			expect(parseTokenLimit(' MAX ', 500)).toEqual({ limit: 500, method: 'max' });
+			expect(parseTokenLimit(' Avg ', 500)).toEqual({ limit: 500, method: 'avg' });
+			expect(parseTokenLimit(' MEDIAN ', 500)).toEqual({ limit: 500, method: 'median' });
 		});
 	});
 
@@ -988,7 +983,7 @@ if (import.meta.vitest != null) {
 		it('uses default values correctly', () => {
 			const ctx = createMockContext();
 			expect(ctx.values.tokenLimitSessions).toBeNull();
-			expect(getTokenLimitMethod(ctx.values.tokenLimit)).toBe('max'); // default method
+			expect(parseTokenLimit(ctx.values.tokenLimit, 0).method).toBe('max'); // default method
 		});
 
 		it('accepts valid tokenLimit method values', () => {
@@ -996,9 +991,9 @@ if (import.meta.vitest != null) {
 			const avgCtx = createMockContext({ tokenLimit: 'avg' });
 			const medianCtx = createMockContext({ tokenLimit: 'median' });
 
-			expect(getTokenLimitMethod(maxCtx.values.tokenLimit)).toBe('max');
-			expect(getTokenLimitMethod(avgCtx.values.tokenLimit)).toBe('avg');
-			expect(getTokenLimitMethod(medianCtx.values.tokenLimit)).toBe('median');
+			expect(parseTokenLimit(maxCtx.values.tokenLimit, 0).method).toBe('max');
+			expect(parseTokenLimit(avgCtx.values.tokenLimit, 0).method).toBe('avg');
+			expect(parseTokenLimit(medianCtx.values.tokenLimit, 0).method).toBe('median');
 		});
 
 		it('accepts valid tokenLimitSessions values', () => {
@@ -1012,7 +1007,7 @@ if (import.meta.vitest != null) {
 		it('maintains backward compatibility with tokenLimit="max"', () => {
 			const ctx = createMockContext({ tokenLimit: 'max' });
 			expect(ctx.values.tokenLimit).toBe('max');
-			expect(getTokenLimitMethod(ctx.values.tokenLimit)).toBe('max');
+			expect(parseTokenLimit(ctx.values.tokenLimit, 0).method).toBe('max');
 
 			// This should trigger the calculation logic (when tokenLimit is "max")
 			expect(ctx.values.tokenLimit === 'max').toBe(true);
@@ -1023,19 +1018,19 @@ if (import.meta.vitest != null) {
 			const medianCtx = createMockContext({ tokenLimit: 'median' });
 
 			expect(avgCtx.values.tokenLimit).toBe('avg');
-			expect(getTokenLimitMethod(avgCtx.values.tokenLimit)).toBe('avg');
+			expect(parseTokenLimit(avgCtx.values.tokenLimit, 0).method).toBe('avg');
 
 			expect(medianCtx.values.tokenLimit).toBe('median');
-			expect(getTokenLimitMethod(medianCtx.values.tokenLimit)).toBe('median');
+			expect(parseTokenLimit(medianCtx.values.tokenLimit, 0).method).toBe('median');
 		});
 
 		it('handles explicit numeric tokenLimit values', () => {
 			const ctx = createMockContext({ tokenLimit: '50000' });
 			expect(ctx.values.tokenLimit).toBe('50000');
-			expect(getTokenLimitMethod(ctx.values.tokenLimit)).toBe('max'); // numeric values default to max method
+			expect(parseTokenLimit(ctx.values.tokenLimit, 0).method).toBe('max'); // numeric values default to max method
 
 			// parseTokenLimit should handle this correctly
-			expect(parseTokenLimit(ctx.values.tokenLimit, 0)).toBe(50000);
+			expect(parseTokenLimit(ctx.values.tokenLimit, 0).limit).toBe(50000);
 		});
 	});
 
@@ -1127,36 +1122,36 @@ if (import.meta.vitest != null) {
 
 		it('parseTokenLimit preserves backward compatibility', () => {
 			// Old behavior: if tokenLimit is "max" or undefined, use calculated limit
-			expect(parseTokenLimit('max', 500)).toBe(500);
-			expect(parseTokenLimit(undefined, 500)).toBe(500);
-			expect(parseTokenLimit('', 500)).toBe(500);
+			expect(parseTokenLimit('max', 500).limit).toBe(500);
+			expect(parseTokenLimit(undefined, 500).limit).toBe(500);
+			expect(parseTokenLimit('', 500).limit).toBe(500);
 
 			// New behavior: supports additional method keywords
-			expect(parseTokenLimit('avg', 500)).toBe(500);
-			expect(parseTokenLimit('median', 500)).toBe(500);
+			expect(parseTokenLimit('avg', 500).limit).toBe(500);
+			expect(parseTokenLimit('median', 500).limit).toBe(500);
 
 			// Old behavior: if explicit number, use that
-			expect(parseTokenLimit('1000', 500)).toBe(1000);
+			expect(parseTokenLimit('1000', 500).limit).toBe(1000);
 
 			// Old behavior: if calculated limit is 0 and tokenLimit is "max", return undefined
-			expect(parseTokenLimit('max', 0)).toBeUndefined();
-			expect(parseTokenLimit('avg', 0)).toBeUndefined();
-			expect(parseTokenLimit('median', 0)).toBeUndefined();
+			expect(parseTokenLimit('max', 0).limit).toBeUndefined();
+			expect(parseTokenLimit('avg', 0).limit).toBeUndefined();
+			expect(parseTokenLimit('median', 0).limit).toBeUndefined();
 		});
 
-		it('getTokenLimitMethod provides consistent method extraction', () => {
+		it('parseTokenLimit provides consistent method extraction', () => {
 			// Default to 'max' for old behavior
-			expect(getTokenLimitMethod(undefined)).toBe('max');
-			expect(getTokenLimitMethod(null)).toBe('max');
-			expect(getTokenLimitMethod('')).toBe('max');
-			expect(getTokenLimitMethod('max')).toBe('max');
+			expect(parseTokenLimit(undefined, 0).method).toBe('max');
+			expect(parseTokenLimit(null, 0).method).toBe('max');
+			expect(parseTokenLimit('', 0).method).toBe('max');
+			expect(parseTokenLimit('max', 0).method).toBe('max');
 
 			// New method support
-			expect(getTokenLimitMethod('avg')).toBe('avg');
-			expect(getTokenLimitMethod('median')).toBe('median');
+			expect(parseTokenLimit('avg', 0).method).toBe('avg');
+			expect(parseTokenLimit('median', 0).method).toBe('median');
 
 			// Numeric values default to 'max' method
-			expect(getTokenLimitMethod('50000')).toBe('max');
+			expect(parseTokenLimit('50000', 0).method).toBe('max');
 		});
 	});
 
