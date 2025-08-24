@@ -19,6 +19,7 @@ import { Hono } from 'hono/tiny';
 import { z } from 'zod';
 
 import { name, version } from '../package.json';
+import { DEFAULT_LOCALE } from './_consts.ts';
 import { filterDateSchema } from './_types.ts';
 import {
 	calculateTotals,
@@ -192,7 +193,7 @@ export function createMcpServer(options?: LoadOptions): McpServer {
 		until: filterDateSchema.optional(),
 		mode: z.enum(['auto', 'calculate', 'display']).default('auto').optional(),
 		timezone: z.string().optional(),
-		locale: z.string().default('en-CA').optional(),
+		locale: z.string().default(DEFAULT_LOCALE).optional(),
 	};
 
 	const { claudePath } = options ?? defaultOptions();

@@ -13,8 +13,9 @@ import { loadConfig, mergeConfigWithArgs } from '../_config-loader-tokens.ts';
 import { DEFAULT_CONTEXT_USAGE_THRESHOLDS, DEFAULT_REFRESH_INTERVAL_SECONDS } from '../_consts.ts';
 import { calculateBurnRate } from '../_session-blocks.ts';
 import { sharedArgs } from '../_shared-args.ts';
+import { formatCurrency } from '../_table.ts';
 import { statuslineHookJsonSchema } from '../_types.ts';
-import { formatCurrency, getFileModifiedTime } from '../_utils.ts';
+import { getFileModifiedTime, unreachable } from '../_utils.ts';
 import { calculateTotals } from '../calculate-cost.ts';
 import { calculateContextTokens, loadDailyUsageData, loadSessionBlockData, loadSessionUsageById } from '../data-loader.ts';
 import { log, logger } from '../logger.ts';
@@ -293,7 +294,7 @@ export const statuslineCommand = define({
 							const cost = await getCcusageCost();
 							return { sessionCost: cost };
 						}
-						costSource satisfies never; // Exhaustiveness check
+						unreachable(costSource);
 						return {}; // This line should never be reached
 					})();
 

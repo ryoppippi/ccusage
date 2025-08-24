@@ -4,6 +4,10 @@
 			"type": "http",
 			"url": "https://mcp.context7.com/mcp"
 		},
+		"grep": {
+			"type": "http",
+			"url": "https://mcp.grep.app"
+		},
 		"lsmcp": {
 			"command": "bun",
 			"args": [

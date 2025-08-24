@@ -1,5 +1,6 @@
 import type { Args } from 'gunshi';
 import type { CostMode, SortOrder } from './_types.ts';
+import { DEFAULT_LOCALE } from './_consts.ts';
 import { CostModes, filterDateSchema, SortOrders } from './_types.ts';
 
 /**
@@ -95,7 +96,7 @@ export const sharedArgs = {
 		type: 'string',
 		short: 'l',
 		description: 'Locale for date/time formatting (e.g., en-US, ja-JP, de-DE)',
-		default: 'en-CA',
+		default: DEFAULT_LOCALE,
 	},
 	jq: {
 		type: 'string',

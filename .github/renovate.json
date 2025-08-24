@@ -1,16 +1,6 @@
 {
 	"$schema": "https://docs.renovatebot.com/renovate-schema.json",
-	"vulnerabilityAlerts": {
-		"labels": ["security"]
-	},
-	"labels": ["dependencies", "renovate"],
-	"rangeStrategy": "bump",
-	"lockFileMaintenance": {
-		"enabled": true
-	},
-	"platformAutomerge": true,
-	"dependencyDashboard": false,
-	"automerge": true,
-	"branchConcurrentLimit": 0,
-	"stabilityDays": 3
+	"extends": [
+		"github>ryoppippi/renovate-config:no-group"
+	]
 }

@@ -8,8 +8,7 @@
  * @module data-loader
  */
 
-import type { IntRange, TupleToUnion } from 'type-fest';
-import type { WEEK_DAYS } from './_consts.ts';
+import type { WeekDay } from './_consts.ts';
 import type { LoadedUsageEntry, SessionBlock } from './_session-blocks.ts';
 import type {
 	ActivityDate,
@@ -18,21 +17,26 @@ import type {
 	ModelName,
 	SortOrder,
 	Version,
-	WeeklyDate,
 } from './_types.ts';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
 import { toArray } from '@antfu/utils';
-import { unreachable } from '@core/errorutil';
 import { Result } from '@praha/byethrow';
 import { groupBy, uniq } from 'es-toolkit'; // TODO: after node20 is deprecated, switch to native Object.groupBy
-import { sort } from 'fast-sort';
 import { createFixture } from 'fs-fixture';
 import { isDirectorySync } from 'path-type';
 import { glob } from 'tinyglobby';
 import { z } from 'zod';
-import { CLAUDE_CONFIG_DIR_ENV, CLAUDE_PROJECTS_DIR_NAME, DEFAULT_CLAUDE_CODE_PATH, DEFAULT_CLAUDE_CONFIG_PATH, USAGE_DATA_GLOB_PATTERN, USER_HOME_DIR } from './_consts.ts';
+import { CLAUDE_CONFIG_DIR_ENV, CLAUDE_PROJECTS_DIR_NAME, DEFAULT_CLAUDE_CODE_PATH, DEFAULT_CLAUDE_CONFIG_PATH, DEFAULT_LOCALE, USAGE_DATA_GLOB_PATTERN, USER_HOME_DIR } from './_consts.ts';
+import {
+	filterByDateRange,
+	formatDate,
+	formatDateCompact,
+	getDateWeek,
+	getDayNumber,
+	sortByDate,
+} from './_date-utils.ts';
 import {
 	identifySessionBlocks,
 } from './_session-blocks.ts';
@@ -60,6 +64,7 @@ import {
 	versionSchema,
 	weeklyDateSchema,
 } from './_types.ts';
+import { unreachable } from './_utils.ts';
 import { logger } from './logger.ts';
 import { PricingFetcher } from './pricing-fetcher.ts';
 
@@ -458,31 +463,6 @@ function calculateTotals<T>(
 }
 
 /**
- * Filters items by date range
- */
-function filterByDateRange<T>(
-	items: T[],
-	getDate: (item: T) => string,
-	since?: string,
-	until?: string,
-): T[] {
-	if (since == null && until == null) {
-		return items;
-	}
-
-	return items.filter((item) => {
-		const dateStr = getDate(item).substring(0, 10).replace(/-/g, ''); // Convert to YYYYMMDD
-		if (since != null && dateStr < since) {
-			return false;
-		}
-		if (until != null && dateStr > until) {
-			return false;
-		}
-		return true;
-	});
-}
-
-/**
  * Filters items by project name
  */
 function filterByProject<T>(
@@ -533,97 +513,6 @@ function extractUniqueModels<T>(
 	getModel: (entry: T) => string | undefined,
 ): string[] {
 	return uniq(entries.map(getModel).filter((m): m is string => m != null && m !== '<synthetic>'));
-}
-
-/**
- * Creates a date formatter with the specified timezone and locale
- * @param timezone - Timezone to use (e.g., 'UTC', 'America/New_York')
- * @param locale - Locale to use for formatting (e.g., 'en-US', 'ja-JP')
- * @returns Intl.DateTimeFormat instance
- */
-function createDateFormatter(timezone: string | undefined, locale: string): Intl.DateTimeFormat {
-	return new Intl.DateTimeFormat(locale, {
-		year: 'numeric',
-		month: '2-digit',
-		day: '2-digit',
-		timeZone: timezone,
-	});
-}
-
-/**
- * Creates a date parts formatter with the specified timezone and locale
- * @param timezone - Timezone to use
- * @param locale - Locale to use for formatting
- * @returns Intl.DateTimeFormat instance
- */
-function createDatePartsFormatter(timezone: string | undefined, locale: string): Intl.DateTimeFormat {
-	return new Intl.DateTimeFormat(locale, {
-		year: 'numeric',
-		month: '2-digit',
-		day: '2-digit',
-		timeZone: timezone,
-	});
-}
-
-/**
- * Formats a date string to YYYY-MM-DD format
- * @param dateStr - Input date string
- * @param timezone - Optional timezone to use for formatting
- * @param locale - Optional locale to use for formatting (defaults to 'en-CA' for YYYY-MM-DD format)
- * @returns Formatted date string in YYYY-MM-DD format
- */
-export function formatDate(dateStr: string, timezone?: string, locale?: string): string {
-	const date = new Date(dateStr);
-	// Use en-CA as default for consistent YYYY-MM-DD format
-	const formatter = createDateFormatter(timezone, locale ?? 'en-CA');
-	return formatter.format(date);
-}
-
-/**
- * Formats a date string to compact format with year on first line and month-day on second
- * @param dateStr - Input date string
- * @param timezone - Timezone to use for formatting (pass undefined to use system timezone)
- * @param locale - Locale to use for formatting
- * @returns Formatted date string with newline separator (YYYY\nMM-DD)
- */
-export function formatDateCompact(dateStr: string, timezone: string | undefined, locale: string): string {
-	// For YYYY-MM-DD format, append T00:00:00 to parse as local date
-	// Without this, new Date('YYYY-MM-DD') interprets as UTC midnight
-	const parseResult = dailyDateSchema.safeParse(dateStr);
-	const date = parseResult.success
-		? timezone != null
-			? new Date(`${dateStr}T00:00:00Z`)
-			: new Date(`${dateStr}T00:00:00`)
-		: new Date(dateStr);
-	const formatter = createDatePartsFormatter(timezone, locale);
-	const parts = formatter.formatToParts(date);
-	const year = parts.find(p => p.type === 'year')?.value ?? '';
-	const month = parts.find(p => p.type === 'month')?.value ?? '';
-	const day = parts.find(p => p.type === 'day')?.value ?? '';
-	return `${year}\n${month}-${day}`;
-}
-
-/**
- * Generic function to sort items by date based on sort order
- * @param items - Array of items to sort
- * @param getDate - Function to extract date/timestamp from item
- * @param order - Sort order (asc or desc)
- * @returns Sorted array
- */
-function sortByDate<T>(
-	items: T[],
-	getDate: (item: T) => string | Date,
-	order: SortOrder = 'desc',
-): T[] {
-	const sorted = sort(items);
-	switch (order) {
-		case 'desc':
-			return sorted.desc(item => new Date(getDate(item)).getTime());
-		case 'asc':
-			return sorted.asc(item => new Date(getDate(item)).getTime());
-		default:
-			unreachable(order);
-	}
 }
 
 /**
@@ -812,9 +701,6 @@ export type DateFilter = {
 	until?: string; // YYYYMMDD format
 };
 
-type WeekDay = TupleToUnion<typeof WEEK_DAYS>;
-type DayOfWeek = IntRange<0, typeof WEEK_DAYS['length']>; // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
-
 /**
  * Configuration options for loading usage data
  */
@@ -899,8 +785,8 @@ export async function loadDailyUsageData(
 				// Mark this combination as processed
 				markAsProcessed(uniqueHash, processedHashes);
 
-				// Always use en-CA for date grouping to ensure YYYY-MM-DD format
-				const date = formatDate(data.timestamp, options?.timezone, 'en-CA');
+				// Always use DEFAULT_LOCALE for date grouping to ensure YYYY-MM-DD format
+				const date = formatDate(data.timestamp, options?.timezone, DEFAULT_LOCALE);
 				// If fetcher is available, calculate cost based on mode and tokens
 				// If fetcher is null, use pre-calculated costUSD or default to 0
 				const cost = fetcher != null
@@ -1144,8 +1030,8 @@ export async function loadSessionData(
 				sessionId: createSessionId(latestEntry.sessionId),
 				projectPath: createProjectPath(latestEntry.projectPath),
 				...totals,
-				// Always use en-CA for date storage to ensure YYYY-MM-DD format
-				lastActivity: formatDate(latestEntry.timestamp, options?.timezone, 'en-CA') as ActivityDate,
+				// Always use DEFAULT_LOCALE for date storage to ensure YYYY-MM-DD format
+				lastActivity: formatDate(latestEntry.timestamp, options?.timezone, DEFAULT_LOCALE) as ActivityDate,
 				versions: uniq(versions).sort() as Version[],
 				modelsUsed: modelsUsed as ModelName[],
 				modelBreakdowns,
@@ -1176,36 +1062,6 @@ export async function loadMonthlyUsageData(
 			month: createMonthlyDate(bucket.toString()),
 			...rest,
 		})));
-}
-
-/**
- * @param date - The date to get the week for
- * @param startDay - The day to start the week on (0 = Sunday, 1 = Monday, ..., 6 = Saturday)
- * @returns The date of the first day of the week for the given date
- */
-function getDateWeek(date: Date, startDay: DayOfWeek): WeeklyDate {
-	const d = new Date(date);
-	const day = d.getDay();
-	const shift = (day - startDay + 7) % 7;
-	d.setDate(d.getDate() - shift);
-
-	return createWeeklyDate(d.toISOString().substring(0, 10));
-}
-
-/**
- * Convert day name to number (0 = Sunday, 1 = Monday, ..., 6 = Saturday)
- */
-function getDayNumber(day: WeekDay): DayOfWeek {
-	const dayMap = {
-		sunday: 0,
-		monday: 1,
-		tuesday: 2,
-		wednesday: 3,
-		thursday: 4,
-		friday: 5,
-		saturday: 6,
-	} as const satisfies Record<WeekDay, DayOfWeek>;
-	return dayMap[day];
 }
 
 export async function loadWeeklyUsageData(
@@ -1554,8 +1410,8 @@ export async function loadSessionBlockData(
 	// Filter by date range if specified
 	const dateFiltered = (options?.since != null && options.since !== '') || (options?.until != null && options.until !== '')
 		? blocks.filter((block) => {
-				// Always use en-CA for date comparison to ensure YYYY-MM-DD format
-				const blockDateStr = formatDate(block.startTime.toISOString(), options?.timezone, 'en-CA').replace(/-/g, '');
+				// Always use DEFAULT_LOCALE for date comparison to ensure YYYY-MM-DD format
+				const blockDateStr = formatDate(block.startTime.toISOString(), options?.timezone, DEFAULT_LOCALE).replace(/-/g, '');
 				if (options.since != null && options.since !== '' && blockDateStr < options.since) {
 					return false;
 				}

@@ -11,7 +11,11 @@ import process from 'node:process';
 import { Result } from '@praha/byethrow';
 import pc from 'picocolors';
 import { MIN_RENDER_INTERVAL_MS } from '../_consts.ts';
-import { LiveMonitor } from '../_live-monitor.ts';
+import {
+	clearLiveMonitorCache,
+	createLiveMonitorState,
+	getActiveBlock,
+} from '../_live-monitor.ts';
 import {
 	delayWithAbort,
 	renderActiveBlock,
@@ -24,6 +28,15 @@ export async function startLiveMonitoring(config: LiveMonitoringConfig): Promise
 	const terminal = new TerminalManager();
 	const abortController = new AbortController();
 	let lastRenderTime = 0;
+
+	// Create live monitor state with efficient data loading
+	const monitorConfig = {
+		claudePaths: config.claudePaths,
+		sessionDurationHours: config.sessionDurationHours,
+		mode: config.mode,
+		order: config.order,
+	};
+	using monitorState = createLiveMonitorState(monitorConfig);
 
 	// Setup graceful shutdown
 	const cleanup = (): void => {
@@ -45,14 +58,6 @@ export async function startLiveMonitoring(config: LiveMonitoringConfig): Promise
 	terminal.clearScreen();
 	terminal.hideCursor();
 
-	// Create live monitor with efficient data loading
-	using monitor = new LiveMonitor({
-		claudePaths: config.claudePaths,
-		sessionDurationHours: config.sessionDurationHours,
-		mode: config.mode,
-		order: config.order,
-	});
-
 	const monitoringResult = await Result.try({
 		try: async () => {
 			while (!abortController.signal.aborted) {
@@ -66,8 +71,8 @@ export async function startLiveMonitoring(config: LiveMonitoringConfig): Promise
 				}
 
 				// Get latest data
-				const activeBlock = await monitor.getActiveBlock();
-				monitor.clearCache(); // TODO: debug LiveMonitor.getActiveBlock() efficiency
+				const activeBlock = await getActiveBlock(monitorState, monitorConfig);
+				clearLiveMonitorCache(monitorState); // Clear cache for memory management
 
 				if (activeBlock == null) {
 					await renderWaitingState(terminal, config, abortController.signal);

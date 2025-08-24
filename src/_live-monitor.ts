@@ -10,7 +10,9 @@
 
 import type { LoadedUsageEntry, SessionBlock } from './_session-blocks.ts';
 import type { CostMode, SortOrder } from './_types.ts';
-import { readFile } from 'node:fs/promises';
+import { readFile, stat } from 'node:fs/promises';
+import { Result } from '@praha/byethrow';
+import pLimit from 'p-limit';
 import { identifySessionBlocks } from './_session-blocks.ts';
 import {
 	calculateCostForEntry,
@@ -34,150 +36,236 @@ export type LiveMonitorConfig = {
 };
 
 /**
- * Manages live monitoring of Claude usage with efficient data reloading
+ * State for live monitoring operations
  */
-export class LiveMonitor implements Disposable {
-	private config: LiveMonitorConfig;
-	private fetcher: PricingFetcher | null = null;
-	private lastFileTimestamps = new Map<string, number>();
-	private processedHashes = new Set<string>();
-	private allEntries: LoadedUsageEntry[] = [];
+type LiveMonitorState = {
+	fetcher: PricingFetcher | null;
+	lastFileTimestamps: Map<string, number>;
+	processedHashes: Set<string>;
+	allEntries: LoadedUsageEntry[];
+	[Symbol.dispose]: () => void;
+};
 
-	constructor(config: LiveMonitorConfig) {
-		this.config = config;
-		// Initialize pricing fetcher once if needed
-		if (config.mode !== 'display') {
-			this.fetcher = new PricingFetcher();
-		}
-	}
+/**
+ * Constants for live monitoring
+ */
+const RETENTION_HOURS = 24;
+const FILE_CONCURRENCY = 5;
 
-	/**
-	 * Implements Disposable interface
-	 */
-	[Symbol.dispose](): void {
-		this.fetcher?.[Symbol.dispose]();
-	}
+/**
+ * Fast file filtering using file stats instead of reading contents
+ * This is a performance optimization for live monitoring only
+ */
+async function isRecentFile(filePath: string, cutoffTime: Date): Promise<boolean> {
+	return Result.pipe(
+		Result.try({
+			try: stat(filePath),
+			catch: error => error,
+		}),
+		Result.map(fileStats => fileStats.mtime >= cutoffTime),
+		Result.unwrap(false),
+	);
+}
 
-	/**
-	 * Gets the current active session block with minimal file reading
-	 * Only reads new or modified files since last check
-	 */
-	async getActiveBlock(): Promise<SessionBlock | null> {
-		const results = await globUsageFiles(this.config.claudePaths);
-		const allFiles = results.map(r => r.file);
+/**
+ * Creates a new live monitoring state
+ */
+export function createLiveMonitorState(config: LiveMonitorConfig): LiveMonitorState {
+	const fetcher = config.mode !== 'display' ? new PricingFetcher() : null;
 
-		if (allFiles.length === 0) {
-			return null;
-		}
+	return {
+		fetcher,
+		lastFileTimestamps: new Map<string, number>(),
+		processedHashes: new Set<string>(),
+		allEntries: [],
+		[Symbol.dispose](): void {
+			fetcher?.[Symbol.dispose]();
+		},
+	};
+}
 
-		// Check for new or modified files
-		const filesToRead: string[] = [];
-		for (const file of allFiles) {
-			const timestamp = await getEarliestTimestamp(file);
-			const lastTimestamp = this.lastFileTimestamps.get(file);
+/**
+ * Clears all cached data from the state
+ */
+export function clearLiveMonitorCache(state: LiveMonitorState): void {
+	state.lastFileTimestamps.clear();
+	state.processedHashes.clear();
+	state.allEntries = [];
+}
 
-			if (timestamp != null && (lastTimestamp == null || timestamp.getTime() > lastTimestamp)) {
-				filesToRead.push(file);
-				this.lastFileTimestamps.set(file, timestamp.getTime());
-			}
-		}
+/**
+ * Removes entries older than the cutoff time to manage memory usage
+ */
+function cleanupOldEntries(state: LiveMonitorState, cutoffTime: Date): void {
+	const initialCount = state.allEntries.length;
+	state.allEntries = state.allEntries.filter(entry => entry.timestamp >= cutoffTime);
 
-		// Read only new/modified files
-		if (filesToRead.length > 0) {
-			const sortedFiles = await sortFilesByTimestamp(filesToRead);
-
-			for (const file of sortedFiles) {
-				const content = await readFile(file, 'utf-8')
-					.catch(() => {
-						// Skip files that can't be read
-						return '';
-					});
-
-				const lines = content
-					.trim()
-					.split('\n')
-					.filter(line => line.length > 0);
-
-				for (const line of lines) {
-					try {
-						const parsed = JSON.parse(line) as unknown;
-						const result = usageDataSchema.safeParse(parsed);
-						if (!result.success) {
-							continue;
-						}
-						const data = result.data;
-
-						// Check for duplicates
-						const uniqueHash = createUniqueHash(data);
-						if (uniqueHash != null && this.processedHashes.has(uniqueHash)) {
-							continue;
-						}
-						if (uniqueHash != null) {
-							this.processedHashes.add(uniqueHash);
-						}
-
-						// Calculate cost if needed
-						const costUSD: number = await (this.config.mode === 'display'
-							? Promise.resolve(data.costUSD ?? 0)
-							: calculateCostForEntry(
-									data,
-									this.config.mode,
-									this.fetcher!,
-								));
-
-						const usageLimitResetTime = getUsageLimitResetTime(data);
-
-						// Add entry
-						this.allEntries.push({
-							timestamp: new Date(data.timestamp),
-							usage: {
-								inputTokens: data.message.usage.input_tokens ?? 0,
-								outputTokens: data.message.usage.output_tokens ?? 0,
-								cacheCreationInputTokens: data.message.usage.cache_creation_input_tokens ?? 0,
-								cacheReadInputTokens: data.message.usage.cache_read_input_tokens ?? 0,
-							},
-							costUSD,
-							model: data.message.model ?? '<synthetic>',
-							version: data.version,
-							usageLimitResetTime: usageLimitResetTime ?? undefined,
-						});
-					}
-					catch {
-						// Skip malformed lines
-					}
-				}
-			}
-		}
-
-		// Generate blocks and find active one
-		const blocks = identifySessionBlocks(
-			this.allEntries,
-			this.config.sessionDurationHours,
-		);
-
-		// Sort blocks
-		const sortedBlocks = this.config.order === 'asc'
-			? blocks
-			: blocks.reverse();
-
-		// Find active block
-		return sortedBlocks.find(block => block.isActive) ?? null;
-	}
-
-	/**
-	 * Clears all cached data to force a full reload
-	 */
-	clearCache(): void {
-		this.lastFileTimestamps.clear();
-		this.processedHashes.clear();
-		this.allEntries = [];
+	// If we removed a significant number of entries, clear processed hashes to avoid stale references
+	if (initialCount - state.allEntries.length > 100) {
+		state.processedHashes.clear();
 	}
 }
 
+/**
+ * Processes file content and adds valid entries within the retention window
+ */
+async function processFileContent(
+	state: LiveMonitorState,
+	config: LiveMonitorConfig,
+	content: string,
+	cutoffTime: Date,
+): Promise<void> {
+	const lines = content
+		.trim()
+		.split('\n')
+		.filter(line => line.length > 0);
+
+	for (const line of lines) {
+		const dataResult = Result.pipe(
+			Result.try({
+				try: () => JSON.parse(line) as unknown,
+				catch: error => error,
+			})(),
+			Result.andThen((data) => {
+				const parseResult = usageDataSchema.safeParse(data);
+				return parseResult.success
+					? Result.succeed(parseResult.data)
+					: Result.fail(parseResult.error);
+			}),
+		);
+
+		if (Result.isFailure(dataResult)) {
+			continue; // Skip malformed JSON lines or validation failures
+		}
+
+		const data = Result.unwrap(dataResult);
+
+		// Only process entries within retention window
+		const entryTime = new Date(data.timestamp);
+		if (entryTime < cutoffTime) {
+			continue;
+		}
+
+		// Check for duplicates
+		const uniqueHash = createUniqueHash(data);
+		if (uniqueHash != null && state.processedHashes.has(uniqueHash)) {
+			continue;
+		}
+		if (uniqueHash != null) {
+			state.processedHashes.add(uniqueHash);
+		}
+
+		// Calculate cost if needed
+		const costUSD: number = await (config.mode === 'display'
+			? Promise.resolve(data.costUSD ?? 0)
+			: calculateCostForEntry(
+					data,
+					config.mode,
+					state.fetcher!,
+				));
+
+		const usageLimitResetTime = getUsageLimitResetTime(data);
+
+		// Add entry
+		state.allEntries.push({
+			timestamp: entryTime,
+			usage: {
+				inputTokens: data.message.usage.input_tokens ?? 0,
+				outputTokens: data.message.usage.output_tokens ?? 0,
+				cacheCreationInputTokens: data.message.usage.cache_creation_input_tokens ?? 0,
+				cacheReadInputTokens: data.message.usage.cache_read_input_tokens ?? 0,
+			},
+			costUSD,
+			model: data.message.model ?? '<synthetic>',
+			version: data.version,
+			usageLimitResetTime: usageLimitResetTime ?? undefined,
+		});
+	}
+}
+
+/**
+ * Gets the current active session block with minimal file reading
+ * Only reads new or modified files since last check
+ */
+export async function getActiveBlock(
+	state: LiveMonitorState,
+	config: LiveMonitorConfig,
+): Promise<SessionBlock | null> {
+	const cutoffTime = new Date(Date.now() - RETENTION_HOURS * 60 * 60 * 1000);
+	const results = await globUsageFiles(config.claudePaths);
+	const allFiles = results.map(r => r.file);
+
+	if (allFiles.length === 0) {
+		return null;
+	}
+
+	// Filter files by modification time first (fast coarse filter)
+	const candidateFiles: string[] = [];
+	for (const file of allFiles) {
+		if (await isRecentFile(file, cutoffTime)) {
+			candidateFiles.push(file);
+		}
+	}
+
+	// Check for new or modified files among candidates
+	const filesToRead: string[] = [];
+	for (const file of candidateFiles) {
+		const timestamp = await getEarliestTimestamp(file);
+		const lastTimestamp = state.lastFileTimestamps.get(file);
+
+		if (timestamp != null && (lastTimestamp == null || timestamp.getTime() > lastTimestamp)) {
+			filesToRead.push(file);
+			state.lastFileTimestamps.set(file, timestamp.getTime());
+		}
+	}
+
+	// Remove old entries from cache
+	cleanupOldEntries(state, cutoffTime);
+
+	// Read files with controlled concurrency
+	if (filesToRead.length > 0) {
+		const sortedFiles = await sortFilesByTimestamp(filesToRead);
+		const fileLimit = pLimit(FILE_CONCURRENCY);
+
+		// Process files concurrently with p-limit
+		const fileResults = await Promise.allSettled(
+			sortedFiles.map(async file =>
+				fileLimit(async () => ({
+					file,
+					content: await readFile(file, 'utf-8'),
+				})),
+			),
+		);
+
+		// Process successful file reads
+		for (const result of fileResults) {
+			if (result.status === 'fulfilled') {
+				const { content } = result.value;
+				await processFileContent(state, config, content, cutoffTime);
+			}
+		}
+	}
+
+	// Generate blocks and find active one
+	const blocks = identifySessionBlocks(
+		state.allEntries,
+		config.sessionDurationHours,
+	);
+
+	// Sort blocks
+	const sortedBlocks = config.order === 'asc'
+		? blocks
+		: blocks.reverse();
+
+	// Find active block
+	return sortedBlocks.find(block => block.isActive) ?? null;
+}
+
 if (import.meta.vitest != null) {
-	describe('LiveMonitor', () => {
+	describe('LiveMonitor functions', () => {
 		let tempDir: string;
-		let monitor: LiveMonitor;
+		let state: LiveMonitorState;
+		let config: LiveMonitorConfig;
 
 		beforeEach(async () => {
 			const { createFixture } = await import('fs-fixture');
@@ -202,31 +290,29 @@ if (import.meta.vitest != null) {
 			});
 			tempDir = fixture.path;
 
-			monitor = new LiveMonitor({
+			config = {
 				claudePaths: [tempDir],
 				sessionDurationHours: 5,
 				mode: 'display',
 				order: 'desc',
-			});
-		});
+			};
 
-		afterEach(() => {
-			monitor[Symbol.dispose]();
+			state = createLiveMonitorState(config);
 		});
 
 		it('should initialize and handle clearing cache', async () => {
 			// Test initial state by calling getActiveBlock which should work
-			const initialBlock = await monitor.getActiveBlock();
+			const initialBlock = await getActiveBlock(state, config);
 			expect(initialBlock).not.toBeNull();
 
 			// Clear cache and test again
-			monitor.clearCache();
-			const afterClearBlock = await monitor.getActiveBlock();
+			clearLiveMonitorCache(state);
+			const afterClearBlock = await getActiveBlock(state, config);
 			expect(afterClearBlock).not.toBeNull();
 		});
 
 		it('should load and process usage data', async () => {
-			const activeBlock = await monitor.getActiveBlock();
+			const activeBlock = await getActiveBlock(state, config);
 
 			expect(activeBlock).not.toBeNull();
 			if (activeBlock != null) {
@@ -241,17 +327,17 @@ if (import.meta.vitest != null) {
 			const { createFixture } = await import('fs-fixture');
 			const emptyFixture = await createFixture({});
 
-			const emptyMonitor = new LiveMonitor({
+			const emptyConfig = {
 				claudePaths: [emptyFixture.path],
 				sessionDurationHours: 5,
-				mode: 'display',
-				order: 'desc',
-			});
+				mode: 'display' as const,
+				order: 'desc' as const,
+			};
 
-			const activeBlock = await emptyMonitor.getActiveBlock();
+			using emptyState = createLiveMonitorState(emptyConfig);
+
+			const activeBlock = await getActiveBlock(emptyState, emptyConfig);
 			expect(activeBlock).toBeNull();
-
-			emptyMonitor[Symbol.dispose]();
 		});
 	});
 }

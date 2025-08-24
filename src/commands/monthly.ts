@@ -1,17 +1,19 @@
+import type { UsageReportConfig } from '../_table.ts';
 import process from 'node:process';
 import { Result } from '@praha/byethrow';
 import { define } from 'gunshi';
-import pc from 'picocolors';
 import { loadConfig, mergeConfigWithArgs } from '../_config-loader-tokens.ts';
+import { DEFAULT_LOCALE } from '../_consts.ts';
+import { formatDateCompact } from '../_date-utils.ts';
 import { processWithJq } from '../_jq-processor.ts';
 import { sharedCommandConfig } from '../_shared-args.ts';
-import { formatCurrency, formatModelsDisplayMultiline, formatNumber, pushBreakdownRows, ResponsiveTable } from '../_utils.ts';
+import { addEmptySeparatorRow, createUsageReportTable, formatTotalsRow, formatUsageDataRow, pushBreakdownRows } from '../_table.ts';
 import {
 	calculateTotals,
 	createTotalsObject,
 	getTotalTokens,
 } from '../calculate-cost.ts';
-import { formatDateCompact, loadMonthlyUsageData } from '../data-loader.ts';
+import { loadMonthlyUsageData } from '../data-loader.ts';
 import { detectMismatches, printMismatchReport } from '../debug.ts';
 import { log, logger } from '../logger.ts';
 
@@ -97,62 +99,25 @@ export const monthlyCommand = define({
 			logger.box('Claude Code Token Usage Report - Monthly');
 
 			// Create table with compact mode support
-			const table = new ResponsiveTable({
-				head: [
-					'Month',
-					'Models',
-					'Input',
-					'Output',
-					'Cache Create',
-					'Cache Read',
-					'Total Tokens',
-					'Cost (USD)',
-				],
-				style: {
-					head: ['cyan'],
-				},
-				colAligns: [
-					'left',
-					'left',
-					'right',
-					'right',
-					'right',
-					'right',
-					'right',
-					'right',
-				],
-				dateFormatter: (dateStr: string) => formatDateCompact(dateStr, mergedOptions.timezone, mergedOptions.locale ?? 'en-CA'),
-				compactHead: [
-					'Month',
-					'Models',
-					'Input',
-					'Output',
-					'Cost (USD)',
-				],
-				compactColAligns: [
-					'left',
-					'left',
-					'right',
-					'right',
-					'right',
-				],
-				compactThreshold: 100,
+			const tableConfig: UsageReportConfig = {
+				firstColumnName: 'Month',
+				dateFormatter: (dateStr: string) => formatDateCompact(dateStr, mergedOptions.timezone, mergedOptions.locale ?? DEFAULT_LOCALE),
 				forceCompact: ctx.values.compact,
-			});
+			};
+			const table = createUsageReportTable(tableConfig);
 
 			// Add monthly data
 			for (const data of monthlyData) {
 				// Main row
-				table.push([
-					data.month,
-					formatModelsDisplayMultiline(data.modelsUsed),
-					formatNumber(data.inputTokens),
-					formatNumber(data.outputTokens),
-					formatNumber(data.cacheCreationTokens),
-					formatNumber(data.cacheReadTokens),
-					formatNumber(getTotalTokens(data)),
-					formatCurrency(data.totalCost),
-				]);
+				const row = formatUsageDataRow(data.month, {
+					inputTokens: data.inputTokens,
+					outputTokens: data.outputTokens,
+					cacheCreationTokens: data.cacheCreationTokens,
+					cacheReadTokens: data.cacheReadTokens,
+					totalCost: data.totalCost,
+					modelsUsed: data.modelsUsed,
+				});
+				table.push(row);
 
 				// Add model breakdown rows if flag is set
 				if (mergedOptions.breakdown) {
@@ -161,28 +126,17 @@ export const monthlyCommand = define({
 			}
 
 			// Add empty row for visual separation before totals
-			table.push([
-				'',
-				'',
-				'',
-				'',
-				'',
-				'',
-				'',
-				'',
-			]);
+			addEmptySeparatorRow(table, 8);
 
 			// Add totals
-			table.push([
-				pc.yellow('Total'),
-				'', // Empty for Models column in totals
-				pc.yellow(formatNumber(totals.inputTokens)),
-				pc.yellow(formatNumber(totals.outputTokens)),
-				pc.yellow(formatNumber(totals.cacheCreationTokens)),
-				pc.yellow(formatNumber(totals.cacheReadTokens)),
-				pc.yellow(formatNumber(getTotalTokens(totals))),
-				pc.yellow(formatCurrency(totals.totalCost)),
-			]);
+			const totalsRow = formatTotalsRow({
+				inputTokens: totals.inputTokens,
+				outputTokens: totals.outputTokens,
+				cacheCreationTokens: totals.cacheCreationTokens,
+				cacheReadTokens: totals.cacheReadTokens,
+				totalCost: totals.totalCost,
+			});
+			table.push(totalsRow);
 
 			log(table.toString());
 
