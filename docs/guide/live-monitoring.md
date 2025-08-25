@@ -32,7 +32,7 @@ The dashboard refreshes every second, showing:
 
 ### Token Limits
 
-Set custom token limits for quota warnings:
+Set custom token limits for quota warnings with flexible calculation methods:
 
 ```bash
 # Use specific token limit
@@ -41,9 +41,75 @@ ccusage blocks --live -t 500000
 # Use highest previous session as limit (default)
 ccusage blocks --live -t max
 
-# Explicitly set max (same as default)
-ccusage blocks --live -t max
+# Use average of all previous sessions
+ccusage blocks --live -t avg
+
+# Use median of all previous sessions
+ccusage blocks --live -t median
 ```
+
+#### Token Limit Calculation Methods
+
+Choose how the automatic token limit is calculated from your usage history:
+
+```bash
+# Maximum tokens from any session (default - conservative)
+ccusage blocks --live --token-limit max
+
+# Average tokens across all sessions (balanced)
+ccusage blocks --live --token-limit avg
+
+# Median tokens across all sessions (robust against outliers)
+ccusage blocks --live --token-limit median
+```
+
+#### Limiting Calculation to Recent Sessions
+
+Control how many recent sessions are used for automatic limit calculation:
+
+```bash
+# Use only the 10 most recent sessions for calculation (default)
+ccusage blocks --live --token-limit-sessions 10
+
+# Use only the 5 most recent sessions (more responsive to recent patterns)
+ccusage blocks --live --token-limit-sessions 5
+
+# Use only the last session (equivalent to -t max with single session)
+ccusage blocks --live --token-limit-sessions 1
+```
+
+#### Combined Token Limit Options
+
+```bash
+# Average of last 10 sessions (balanced and recent)
+ccusage blocks --live --token-limit avg --token-limit-sessions 10
+
+# Median of last 15 sessions (robust and comprehensive)
+ccusage blocks --live --token-limit median --token-limit-sessions 15
+
+# Maximum of last 5 sessions (conservative but responsive)
+ccusage blocks --live --token-limit max --token-limit-sessions 5
+
+# Short aliases
+ccusage blocks --live --token-limit avg --token-limit-sessions 10
+```
+
+#### When to Use Each Method
+
+**Maximum (max)** - Most conservative approach:
+- Best for: Cost-conscious usage, avoiding overruns
+- Behavior: Sets limit to your highest usage session
+- Use when: You want strict budget control
+
+**Average (avg)** - Balanced approach:
+- Best for: Typical usage patterns, steady workflows
+- Behavior: Sets limit based on your typical usage
+- Use when: You have consistent usage patterns
+
+**Median (median)** - Robust against outliers:
+- Best for: Variable usage with occasional spikes
+- Behavior: Ignores extreme high/low sessions
+- Use when: You have mixed session types (quick questions + long projects)
 
 ### Refresh Interval
 
