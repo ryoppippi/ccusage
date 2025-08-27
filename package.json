@@ -1,19 +1,19 @@
 {
 	"name": "ccusage",
-	"type": "module",
 	"version": "16.2.0",
 	"description": "Usage analysis tool for Claude Code",
-	"author": "ryoppippi",
-	"license": "MIT",
-	"funding": "https://github.com/ryoppippi/ccusage?sponsor=1",
 	"homepage": "https://github.com/ryoppippi/ccusage#readme",
+	"bugs": {
+		"url": "https://github.com/ryoppippi/ccusage/issues"
+	},
 	"repository": {
 		"type": "git",
 		"url": "git+https://github.com/ryoppippi/ccusage.git"
 	},
-	"bugs": {
-		"url": "https://github.com/ryoppippi/ccusage/issues"
-	},
+	"funding": "https://github.com/ryoppippi/ccusage?sponsor=1",
+	"license": "MIT",
+	"author": "ryoppippi",
+	"type": "module",
 	"exports": {
 		".": "./dist/index.js",
 		"./calculate-cost": "./dist/calculate-cost.js",
@@ -36,9 +36,6 @@
 		".",
 		"docs"
 	],
-	"engines": {
-		"node": ">=20.19.4"
-	},
 	"scripts": {
 		"build": "bun run generate:schema && tsdown",
 		"docs:build": "cd docs && bun run build",
@@ -51,7 +48,7 @@
 		"lint": "eslint --cache .",
 		"mcp": "bunx @modelcontextprotocol/inspector bun run start mcp",
 		"prepack": "bun run build && bun clean-pkg-json -r scripts.preinstall",
-		"prepare": "git config --local core.hooksPath .githooks && bun run generate:schema",
+		"prepare": "bun run generate:schema",
 		"release": "bun lint && bun typecheck && vitest && bun run build && bumpp",
 		"start": "bun run ./src/index.ts",
 		"test": "TZ=UTC vitest",
@@ -89,7 +86,7 @@
 		"get-stdin": "^9.0.0",
 		"gunshi": "^0.26.3",
 		"hono": "^4.9.2",
-		"lint-staged": "^16.1.5",
+		"lefthook": "^1.12.3",
 		"nano-spawn": "^1.0.2",
 		"p-limit": "^7.1.0",
 		"path-type": "^6.0.0",
@@ -107,17 +104,7 @@
 		"xdg-basedir": "^5.1.0",
 		"zod": "^3.25.67"
 	},
-	"lint-staged": {
-		"*": [
-			"eslint --cache --fix",
-			"bun run generate:schema",
-			"bun vitest --passWithNoTests"
-		],
-		"*.{ts,js}": [
-			"bun typecheck"
-		],
-		"package.json": [
-			"sort-package-json"
-		]
+	"engines": {
+		"node": ">=20.19.4"
 	}
 }

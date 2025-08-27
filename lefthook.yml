@@ -1,0 +1,17 @@
+pre-commit:
+  commands:
+    lint:
+      glob: '*'
+      run: bun run lint --fix {staged_files}
+      stage_fixed: true
+    typecheck:
+      glob: '*.{ts,js}'
+      run: bun typecheck
+    schema:
+      run: bun run generate:schema
+    test:
+      run: bun vitest --passWithNoTests
+    sort-package:
+      glob: package.json
+      run: bunx sort-package-json {staged_files}
+      stage_fixed: true
