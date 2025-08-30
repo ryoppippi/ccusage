@@ -35,9 +35,6 @@ npx ccusage@latest
 
 # Using deno (with security flags)
 deno run -E -R=$HOME/.claude/projects/ -S=homedir -N='raw.githubusercontent.com:443' npm:ccusage@latest
-
-# Using brew (for MacOS)
-brew install ccusage
 ```
 
 > 💡 **Tip**: We recommend using `bunx` instead of `npx` for a massive speed improvement!
@@ -48,6 +45,12 @@ Since ccusage has such a small bundle size, installation is entirely optional:
 
 ```bash
 npm install -g ccusage
+```
+
+For MacOS, `brew` is available too:
+
+```bash
+brew install ccusage
 ```
 
 ## Usage
