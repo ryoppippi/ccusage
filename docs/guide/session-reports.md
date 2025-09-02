@@ -216,7 +216,6 @@ ccusage session -O
 Session reports help you understand which conversations are most costly:
 
 ```bash
-# Find your most expensive sessions (default sort)
 ccusage session
 ```
 
