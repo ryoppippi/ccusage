@@ -83,7 +83,7 @@ Now that you have your first report, explore these features:
 ccusage daily --since 20241201 --until 20241231
 ```
 
-### Find Expensive Sessions
+### Analyze Sessions
 
 ```bash
 ccusage session
