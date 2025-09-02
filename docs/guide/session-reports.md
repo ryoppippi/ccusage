@@ -125,16 +125,6 @@ ccusage session --since 20250520 --until 20250530
 ccusage session --since $(date -d '7 days ago' +%Y%m%d)
 ```
 
-### Sort Order
-
-```bash
-# Show most expensive sessions first (default)
-ccusage session --order desc
-
-# Show least expensive sessions first
-ccusage session --order asc
-```
-
 ### Cost Calculation Modes
 
 ```bash
@@ -226,8 +216,8 @@ ccusage session -O
 Session reports help you understand which conversations are most costly:
 
 ```bash
-# Find your most expensive sessions
-ccusage session --order desc
+# Find your most expensive sessions (default sort)
+ccusage session
 ```
 
 Look at the top sessions to understand:

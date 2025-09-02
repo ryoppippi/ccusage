@@ -21,12 +21,15 @@ import { handleSessionIdLookup } from './_session_id.ts';
 
 // All --id logic moved to ./_session_id.ts
 
+// All shared args except --order (not supported for session)
+const { order, ...sharedArgs } = sharedCommandConfig.args;
+
 export const sessionCommand = define({
 	name: 'session',
 	description: 'Show usage report grouped by conversation session',
 	...sharedCommandConfig,
 	args: {
-		...sharedCommandConfig.args,
+		...sharedArgs,
 		id: {
 			type: 'string',
 			short: 'i',
@@ -64,7 +67,6 @@ export const sessionCommand = define({
 			since: ctx.values.since,
 			until: ctx.values.until,
 			mode: ctx.values.mode,
-			order: ctx.values.order,
 			offline: ctx.values.offline,
 			timezone: ctx.values.timezone,
 			locale: ctx.values.locale,

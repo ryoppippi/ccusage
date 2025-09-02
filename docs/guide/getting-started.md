@@ -86,7 +86,7 @@ ccusage daily --since 20241201 --until 20241231
 ### Find Expensive Sessions
 
 ```bash
-ccusage session --order desc
+ccusage session
 ```
 
 ### Export for Analysis
