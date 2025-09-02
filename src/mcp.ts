@@ -9,13 +9,11 @@
  */
 
 import type { LoadOptions } from './data-loader.ts';
-import { StreamableHTTPTransport } from '@hono/mcp';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { createFixture } from 'fs-fixture';
-import { Hono } from 'hono/tiny';
 import { z } from 'zod';
 
 import { name, version } from '../package.json';
@@ -387,29 +385,6 @@ export async function startMcpServerStdio(
 	await server.connect(transport);
 }
 
-/**
- * Create Hono app for MCP HTTP server.
- * Provides HTTP transport support for MCP protocol using Hono framework.
- * Handles POST requests for MCP communication and returns appropriate errors for other methods.
- *
- * @param options - Configuration options for the MCP server
- * @param options.claudePath - Path to Claude's data directory
- * @returns Configured Hono application for HTTP MCP transport
- */
-export function createMcpHttpApp(options?: LoadOptions): Hono {
-	const app = new Hono();
-
-	const mcpServer = createMcpServer(options ?? defaultOptions());
-
-	app.all('/', async (c) => {
-		const transport = new StreamableHTTPTransport();
-		await mcpServer.connect(transport);
-		return transport.handleRequest(c);
-	});
-
-	return app;
-}
-
 if (import.meta.vitest != null) {
 	/* eslint-disable ts/no-unsafe-assignment, ts/no-unsafe-member-access, ts/no-unsafe-call */
 	describe('MCP Server', () => {
@@ -640,155 +615,6 @@ if (import.meta.vitest != null) {
 
 				await client.close();
 				await server.close();
-			});
-		});
-
-		describe('HTTP transport', () => {
-			it('should create HTTP app', () => {
-				const app = createMcpHttpApp();
-				expect(app).toBeDefined();
-			});
-
-			it('should handle invalid JSON in POST request', async () => {
-				const app = createMcpHttpApp();
-
-				const response = await app.request('/', {
-					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
-					body: 'invalid json',
-				});
-
-				expect(response.status).toBe(406);
-				const data = await response.json();
-				expect(data).toMatchObject({
-					jsonrpc: '2.0',
-					error: {
-						code: -32000,
-						message: 'Not Acceptable: Client must accept both application/json and text/event-stream',
-					},
-					id: null,
-				});
-			});
-
-			it('should handle MCP initialize request', async () => {
-				await using fixture = await createFixture({
-					'projects/test-project/session1/usage.jsonl': JSON.stringify({
-						timestamp: '2024-01-01T12:00:00Z',
-						costUSD: 0.001,
-						version: '1.0.0',
-						message: {
-							model: 'claude-sonnet-4-20250514',
-							usage: { input_tokens: 50, output_tokens: 10 },
-						},
-					}),
-				});
-
-				const app = createMcpHttpApp({ claudePath: fixture.path });
-
-				const response = await app.request('/', {
-					method: 'POST',
-					headers: {
-						'Content-Type': 'application/json',
-						'Accept': 'application/json, text/event-stream',
-					},
-					body: JSON.stringify({
-						jsonrpc: '2.0',
-						method: 'initialize',
-						params: {
-							protocolVersion: '1.0.0',
-							capabilities: {},
-							clientInfo: { name: 'test-client', version: '1.0.0' },
-						},
-						id: 1,
-					}),
-				});
-
-				expect(response.status).toBe(200);
-				expect(response.headers.get('content-type')).toBe('text/event-stream');
-
-				const text = await response.text();
-				expect(text).toContain('event: message');
-				expect(text).toContain('data: ');
-
-				// Extract the JSON data from the SSE response
-				const dataLine = text.split('\n').find(line => line.startsWith('data: '));
-				expect(dataLine).toBeDefined();
-				const data = JSON.parse(dataLine!.replace('data: ', ''));
-
-				expect(data.jsonrpc).toBe('2.0');
-				expect(data.id).toBe(1);
-				expect(data.result).toHaveProperty('protocolVersion');
-				expect(data.result).toHaveProperty('capabilities');
-				expect(data.result.serverInfo).toEqual({ name, version });
-			});
-
-			it('should handle MCP callTool request for daily tool', async () => {
-				await using fixture = await createFixture({
-					'projects/test-project/session1/usage.jsonl': JSON.stringify({
-						timestamp: '2024-01-01T12:00:00Z',
-						costUSD: 0.001,
-						version: '1.0.0',
-						message: {
-							model: 'claude-sonnet-4-20250514',
-							usage: { input_tokens: 50, output_tokens: 10 },
-						},
-					}),
-				});
-
-				const app = createMcpHttpApp({ claudePath: fixture.path });
-
-				// First initialize
-				await app.request('/', {
-					method: 'POST',
-					headers: {
-						'Content-Type': 'application/json',
-						'Accept': 'application/json, text/event-stream',
-					},
-					body: JSON.stringify({
-						jsonrpc: '2.0',
-						method: 'initialize',
-						params: {
-							protocolVersion: '1.0.0',
-							capabilities: {},
-							clientInfo: { name: 'test-client', version: '1.0.0' },
-						},
-						id: 1,
-					}),
-				});
-
-				// Then call tool
-				const response = await app.request('/', {
-					method: 'POST',
-					headers: {
-						'Content-Type': 'application/json',
-						'Accept': 'application/json, text/event-stream',
-					},
-					body: JSON.stringify({
-						jsonrpc: '2.0',
-						method: 'tools/call',
-						params: {
-							name: 'daily',
-							arguments: { mode: 'auto' },
-						},
-						id: 2,
-					}),
-				});
-
-				expect(response.status).toBe(200);
-				const text = await response.text();
-
-				expect(text).toContain('event: message');
-				expect(text).toContain('data: ');
-
-				// Extract the JSON data from the SSE response
-				const dataLine = text.split('\n').find(line => line.startsWith('data: '));
-				expect(dataLine).toBeDefined();
-				const data = JSON.parse(dataLine!.replace('data: ', ''));
-
-				expect(data.jsonrpc).toBe('2.0');
-				expect(data.id).toBe(2);
-				expect(data.result).toHaveProperty('content');
-				expect(Array.isArray(data.result.content)).toBe(true);
 			});
 		});
 

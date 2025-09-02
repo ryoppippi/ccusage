@@ -223,11 +223,8 @@ ccusage blocks --session-length 5
 Options for MCP server:
 
 ```bash
-# Default stdio transport
+# Start MCP server with stdio transport
 ccusage mcp
-
-# HTTP transport
-ccusage mcp --type http --port 8080
 
 # Custom cost mode
 ccusage mcp --mode calculate

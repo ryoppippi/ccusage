@@ -80,12 +80,6 @@ export const CLAUDE_PROJECTS_DIR_NAME = 'projects';
 export const USAGE_DATA_GLOB_PATTERN = '**/*.jsonl';
 
 /**
- * Default port for MCP server HTTP transport
- * Used when no port is specified for MCP server communication
- */
-export const MCP_DEFAULT_PORT = 8080;
-
-/**
  * Default refresh interval in seconds for live monitoring mode
  * Used in blocks command for real-time updates
  */

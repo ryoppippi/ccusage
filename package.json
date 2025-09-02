@@ -64,8 +64,6 @@
 	},
 	"devDependencies": {
 		"@antfu/utils": "^9.2.0",
-		"@hono/mcp": "^0.1.0",
-		"@hono/node-server": "^1.19.0",
 		"@mizchi/lsmcp": "^0.10.0",
 		"@modelcontextprotocol/sdk": "^1.17.3",
 		"@oxc-project/runtime": "^0.82.3",
@@ -88,7 +86,6 @@
 		"fs-fixture": "^2.8.1",
 		"get-stdin": "^9.0.0",
 		"gunshi": "^0.26.3",
-		"hono": "^4.9.2",
 		"lint-staged": "^16.1.5",
 		"nano-spawn": "^1.0.2",
 		"p-limit": "^7.1.0",

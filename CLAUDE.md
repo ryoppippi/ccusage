@@ -81,8 +81,7 @@ Always prefer indexed searches (tools with `_from_index` suffix) over reading en
 
 **MCP Server Usage:**
 
-- `bun run start mcp` - Start MCP server with stdio transport (default)
-- `bun run start mcp --type http --port 8080` - Start MCP server with HTTP transport
+- `bun run start mcp` - Start MCP server with stdio transport
 
 **Cost Calculation Modes:**
 

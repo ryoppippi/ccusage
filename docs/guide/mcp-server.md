@@ -4,23 +4,13 @@ ccusage includes a built-in Model Context Protocol (MCP) server that exposes usa
 
 ## Starting the MCP Server
 
-### stdio transport (default)
+The MCP server uses stdio transport for communication with MCP clients:
 
 ```bash
 ccusage mcp
-# or explicitly (--type stdio is optional):
-ccusage mcp --type stdio
 ```
 
-The stdio transport is ideal for local integration where the client directly spawns the process.
-
-### HTTP Stream Transport
-
-```bash
-ccusage mcp --type http --port 8080
-```
-
-The HTTP stream transport is best for remote access when you need to call the server from another machine or network location.
+The stdio transport is ideal for local integration where the client directly spawns the process and communicates through standard input/output streams.
 
 ### Cost Calculation Mode
 
