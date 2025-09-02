@@ -483,16 +483,6 @@
 									"markdownDescription": "Number of sample discrepancies to show in debug output (default: 5)",
 									"default": 5
 								},
-								"order": {
-									"type": "string",
-									"enum": [
-										"desc",
-										"asc"
-									],
-									"description": "Sort order: desc (newest first) or asc (oldest first)",
-									"markdownDescription": "Sort order: desc (newest first) or asc (oldest first)",
-									"default": "asc"
-								},
 								"breakdown": {
 									"type": "boolean",
 									"description": "Show per-model cost breakdown",
