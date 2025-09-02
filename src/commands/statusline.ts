@@ -91,7 +91,8 @@ export const statuslineCommand = define({
 			choices: visualBurnRateChoices,
 			description: 'Controls the visualization of the burn rate status',
 			default: 'off',
-			short: 'vb',
+			// Use capital 'B' to avoid conflicts and follow 1-letter short alias rule
+			short: 'B',
 			negatable: false,
 			toKebab: true,
 		},
