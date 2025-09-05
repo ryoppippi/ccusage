@@ -32,6 +32,12 @@ export const BLOCKS_COMPACT_WIDTH_THRESHOLD = 120;
 export const BLOCKS_DEFAULT_TERMINAL_WIDTH = 120;
 
 /**
+ * Default number of recent completed sessions to use for token limit calculation in the blocks command
+ * Used when automatic token limit detection is enabled to analyze usage patterns
+ */
+export const DEFAULT_TOKEN_LIMIT_SESSIONS = 10;
+
+/**
  * Threshold percentage for considering costs as matching (0.1% tolerance)
  * Used in debug cost validation to allow for minor calculation differences
  */
