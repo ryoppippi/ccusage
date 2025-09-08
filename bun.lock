@@ -5,7 +5,7 @@
       "name": "ccusage",
       "devDependencies": {
         "@antfu/utils": "^9.2.0",
-        "@hono/mcp": "^0.1.0",
+        "@hono/mcp": "^0.1.2",
         "@hono/node-server": "^1.19.0",
         "@mizchi/lsmcp": "^0.10.0",
         "@modelcontextprotocol/sdk": "^1.17.3",
@@ -250,7 +250,7 @@
 
     "@gerrit0/mini-shiki": ["@gerrit0/mini-shiki@3.9.2", "", { "dependencies": { "@shikijs/engine-oniguruma": "^3.9.2", "@shikijs/langs": "^3.9.2", "@shikijs/themes": "^3.9.2", "@shikijs/types": "^3.9.2", "@shikijs/vscode-textmate": "^10.0.2" } }, "sha512-Tvsj+AOO4Z8xLRJK900WkyfxHsZQu+Zm1//oT1w443PO6RiYMoq/4NGOhaNuZoUMYsjKIAPVQ6eOFMddj6yphQ=="],
 
-    "@hono/mcp": ["@hono/mcp@0.1.1", "", { "peerDependencies": { "@modelcontextprotocol/sdk": "^1.12.0", "hono": ">=4.0.0" } }, "sha512-2iQ4xBKfQdBBJP3V1/XCVyxQZeWWnxJG+5ytu9/Xuwwje3D70fm9ws0VV536rZ3CKWrnZZ/X+xeJ7FwR3ErVbw=="],
+    "@hono/mcp": ["@hono/mcp@0.1.2", "", { "peerDependencies": { "@modelcontextprotocol/sdk": "^1.12.0", "hono": ">=4.0.0" } }, "sha512-eOOuToYeGY4aQET23GqHgNCM3MeidBTdeD/Yko0aK2Hga+BIpJ5Kg3wXYUmPVcFLEMAZHVvVYSxJC7LYKBeY2g=="],
 
     "@hono/node-server": ["@hono/node-server@1.19.0", "", { "peerDependencies": { "hono": "^4" } }, "sha512-1k8/8OHf5VIymJEcJyVksFpT+AQ5euY0VA5hUkCnlKpD4mr8FSbvXaHblxeTTEr90OaqWzAkQaqD80qHZQKxBA=="],
 
