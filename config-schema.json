@@ -645,14 +645,20 @@
 								},
 								"tokenLimit": {
 									"type": "string",
-									"description": "Token limit for quota warnings (e.g., 500000 or \"max\")",
-									"markdownDescription": "Token limit for quota warnings (e.g., 500000 or \"max\")"
+									"description": "Token limit for quota warnings (number: e.g. 50000, \"max\", \"avg\", or \"median\")",
+									"markdownDescription": "Token limit for quota warnings (number: e.g. 50000, \"max\", \"avg\", or \"median\")"
 								},
 								"sessionLength": {
 									"type": "number",
 									"description": "Session block duration in hours (default: 5)",
 									"markdownDescription": "Session block duration in hours (default: 5)",
 									"default": 5
+								},
+								"tokenLimitSessions": {
+									"type": "number",
+									"description": "Number of recent completed sessions to use for token limit calculation (default: 10)",
+									"markdownDescription": "Number of recent completed sessions to use for token limit calculation (default: 10)",
+									"default": 10
 								}
 							},
 							"additionalProperties": false
