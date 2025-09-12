@@ -18,11 +18,14 @@ import type {
 	SortOrder,
 	Version,
 } from './_types.ts';
-import { readFile } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
+import { mkdir, readFile, stat } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
 import { toArray } from '@antfu/utils';
 import { Result } from '@praha/byethrow';
+import { createLimoJson } from '@ryoppippi/limo';
 import { groupBy, uniq } from 'es-toolkit'; // TODO: after node20 is deprecated, switch to native Object.groupBy
 import { createFixture } from 'fs-fixture';
 import { isDirectorySync } from 'path-type';
@@ -67,6 +70,134 @@ import {
 import { unreachable } from './_utils.ts';
 import { logger } from './logger.ts';
 import { PricingFetcher } from './pricing-fetcher.ts';
+
+// Cache schema
+type CacheSchema = {
+	version: string;
+	cache: {
+		[optionsKey: string]: {
+			[absoluteFilePath: string]: {
+				mtime: number;
+				data: any;
+			};
+		};
+	};
+};
+
+const CACHE_VERSION = '1';
+
+class FileCache<T> {
+	private cache: ReturnType<typeof this.loadCache> | null = null;
+	private optionsKey: string;
+	private claudePaths: string[];
+	private cacheFileName: string;
+	private options?: LoadOptions;
+	private enabled: boolean = true;
+
+	constructor(
+		cacheFileName: string,
+		claudePaths: string[],
+		options?: LoadOptions,
+	) {
+		this.claudePaths = claudePaths;
+		this.optionsKey = this.computeOptionsKey(options ?? {});
+		this.cacheFileName = cacheFileName;
+		this.options = options;
+	}
+
+	public disable(): void {
+		this.enabled = false;
+	}
+
+	private async ensureCacheInitialized(): Promise<void> {
+		if (this.cache == null && this.enabled) {
+			const cacheDir = await this.getCacheDir();
+			const cacheFilePath = path.join(cacheDir, this.cacheFileName);
+			this.cache = this.loadCache(cacheFilePath);
+		}
+	}
+
+	async getOrProcess(
+		file: string,
+		processor: (file: string) => Promise<T>,
+		processFromCache?: (file: string, cachedData: T) => Promise<T>,
+	): Promise<T> {
+		if (!this.enabled) {
+			return processor(file);
+		}
+		await this.ensureCacheInitialized();
+
+		const fileStats = await stat(file);
+
+		// Try cache first
+		const cachedData = this.cache!.data?.cache[this.optionsKey]?.[file];
+		if (cachedData != null && cachedData.mtime === fileStats.mtimeMs) {
+			if (processFromCache == null) {
+				return cachedData.data as T;
+			}
+			else {
+				return processFromCache(file, cachedData.data as T);
+			}
+		}
+
+		// Process if not cached
+		const data = await processor(file);
+
+		// Save immediately (limoJson auto-persists)
+		const cache = this.cache;
+		if (cache?.data != null) {
+			if (cache.data.cache[this.optionsKey] == null) {
+				cache.data.cache[this.optionsKey] = {};
+			}
+			cache.data.cache[this.optionsKey]![file] = {
+				mtime: fileStats.mtimeMs,
+				data,
+			};
+		}
+
+		return data;
+	}
+
+	public computeOptionsKey(options: LoadOptions): string {
+		const claudePaths = toArray(options?.claudePath ?? getClaudePaths());
+		const relevantOptions = {
+			claudePaths: claudePaths.sort(),
+			mode: options?.mode ?? 'auto',
+			offline: options?.offline ?? false,
+			project: options?.project,
+			groupByProject: options?.groupByProject,
+			timezone: options?.timezone,
+			locale: options?.locale,
+			since: options?.since,
+			until: options?.until,
+			sessionDurationHours: options?.sessionDurationHours,
+			startOfWeek: options?.startOfWeek,
+		};
+		return createHash('sha1')
+			.update(JSON.stringify(relevantOptions, Object.keys(relevantOptions).sort()))
+			.digest('base64');
+	}
+
+	public async getCacheDir(): Promise<string> {
+		const cacheDir = path.join(tmpdir(), 'ccusage-cache');
+		await mkdir(cacheDir, { recursive: true });
+		return cacheDir;
+	}
+
+	public loadCache(filePath: string): ReturnType<typeof createLimoJson<CacheSchema | undefined>> {
+		const cache = createLimoJson<CacheSchema | undefined>(filePath);
+		if (cache.data == null || cache.data.version !== CACHE_VERSION) {
+			cache.data = { version: CACHE_VERSION, cache: {} };
+		}
+		return cache;
+	}
+
+	[Symbol.dispose](): void {
+		if (this.cache != null) {
+			this.cache[Symbol.dispose]();
+		}
+	}
+}
 
 /**
  * Get Claude data directories to search for usage data
@@ -679,7 +810,7 @@ export type GlobResult = {
  * @param claudePaths - Array of Claude base paths
  * @returns Array of file paths with their base directories
  */
-export async function globUsageFiles(claudePaths: string[]): Promise<GlobResult[]> {
+export async function globUsageFiles(claudePaths: string[], minUpdateTime?: Date): Promise<GlobResult[]> {
 	const filePromises = claudePaths.map(async (claudePath) => {
 		const claudeDir = path.join(claudePath, CLAUDE_PROJECTS_DIR_NAME);
 		const files = await glob([USAGE_DATA_GLOB_PATTERN], {
@@ -687,10 +818,36 @@ export async function globUsageFiles(claudePaths: string[]): Promise<GlobResult[
 			absolute: true,
 		}).catch(() => []); // Gracefully handle errors for individual paths
 
+		// Filter files by modification time if specified
+		const filteredFiles = minUpdateTime != null
+			? await filterFilesByModificationTime(files, minUpdateTime)
+			: files;
+
 		// Map each file to include its base directory
-		return files.map(file => ({ file, baseDir: claudeDir }));
+		return filteredFiles.map(file => ({ file, baseDir: claudeDir }));
 	});
 	return (await Promise.all(filePromises)).flat();
+}
+
+/**
+ * Filters files by modification time, keeping only files modified after the given timestamp
+ */
+async function filterFilesByModificationTime(files: string[], minUpdateTime: Date): Promise<string[]> {
+	const minUpdateTimeMs = minUpdateTime.getTime();
+
+	const checkPromises = files.map(async (file) => {
+		try {
+			const stats = await stat(file);
+			return stats.mtime.getTime() > minUpdateTimeMs ? file : null;
+		}
+		catch {
+			// If we can't stat the file, include it to avoid missing data
+			return file;
+		}
+	});
+
+	const results = await Promise.all(checkPromises);
+	return results.filter((file): file is string => file !== null);
 }
 
 /**
@@ -715,6 +872,8 @@ export type LoadOptions = {
 	startOfWeek?: WeekDay; // Start of week for weekly aggregation
 	timezone?: string; // Timezone for date grouping (e.g., 'UTC', 'America/New_York'). Defaults to system timezone
 	locale?: string; // Locale for date/time formatting (e.g., 'en-US', 'ja-JP'). Defaults to 'en-US'
+	minUpdateTime?: Date; // Only process files modified after this timestamp
+	includeContent?: boolean; // Whether to include file content in the output, defaults to true, disables cache
 } & DateFilter;
 
 /**
@@ -729,8 +888,8 @@ export async function loadDailyUsageData(
 	// Get all Claude paths or use the specific one from options
 	const claudePaths = toArray(options?.claudePath ?? getClaudePaths());
 
-	// Collect files from all paths in parallel
-	const allFiles = await globUsageFiles(claudePaths);
+	// Collect files from all paths in parallel, filtering by minUpdateTime if specified
+	const allFiles = await globUsageFiles(claudePaths, options?.minUpdateTime);
 	const fileList = allFiles.map(f => f.file);
 
 	if (fileList.length === 0) {
@@ -756,53 +915,82 @@ export async function loadDailyUsageData(
 	// Track processed message+request combinations for deduplication
 	const processedHashes = new Set<string>();
 
-	// Collect all valid data entries first
 	const allEntries: { data: UsageData; date: string; cost: number; model: string | undefined; project: string }[] = [];
 
-	for (const file of sortedFiles) {
-		const content = await readFile(file, 'utf-8');
-		const lines = content
-			.trim()
-			.split('\n')
-			.filter(line => line.length > 0);
+	// Set up cache and process files
+	using fileCache = new FileCache<typeof allEntries>('daily-cache.json', claudePaths, options);
 
-		for (const line of lines) {
-			try {
-				const parsed = JSON.parse(line) as unknown;
-				const result = usageDataSchema.safeParse(parsed);
-				if (!result.success) {
-					continue;
-				}
-				const data = result.data;
-
-				// Check for duplicate message + request ID combination
-				const uniqueHash = createUniqueHash(data);
-				if (isDuplicateEntry(uniqueHash, processedHashes)) {
-					// Skip duplicate message
-					continue;
-				}
-
-				// Mark this combination as processed
-				markAsProcessed(uniqueHash, processedHashes);
-
-				// Always use DEFAULT_LOCALE for date grouping to ensure YYYY-MM-DD format
-				const date = formatDate(data.timestamp, options?.timezone, DEFAULT_LOCALE);
-				// If fetcher is available, calculate cost based on mode and tokens
-				// If fetcher is null, use pre-calculated costUSD or default to 0
-				const cost = fetcher != null
-					? await calculateCostForEntry(data, mode, fetcher)
-					: data.costUSD ?? 0;
-
-				// Extract project name from file path
-				const project = extractProjectFromPath(file);
-
-				allEntries.push({ data, date, cost, model: data.message.model, project });
-			}
-			catch {
-				// Skip invalid JSON lines
-			}
-		}
+	// When we need to include content, cache file get big enough caching benefits are outweighed by parsing cache file
+	if (options?.includeContent !== false) {
+		fileCache.disable();
 	}
+
+	const filePromises = sortedFiles.map(async (file) => {
+		const fileEntries = await fileCache.getOrProcess(file, async (file) => {
+			const entries: typeof allEntries = [];
+			const content = await readFile(file, 'utf-8');
+			const lines = content
+				.trim()
+				.split('\n')
+				.filter(line => line.length > 0);
+
+			for (const line of lines) {
+				try {
+					const parsed = JSON.parse(line) as unknown;
+					const result = usageDataSchema.safeParse(parsed);
+					if (!result.success) {
+						continue;
+					}
+					const data = result.data;
+
+					// Check for duplicate message + request ID combination
+					const uniqueHash = createUniqueHash(data);
+					if (isDuplicateEntry(uniqueHash, processedHashes)) {
+						// Skip duplicate message
+						continue;
+					}
+
+					// Mark this combination as processed
+					markAsProcessed(uniqueHash, processedHashes);
+
+					// Always use DEFAULT_LOCALE for date grouping to ensure YYYY-MM-DD format
+					const date = formatDate(data.timestamp, options?.timezone, DEFAULT_LOCALE);
+					// If fetcher is available, calculate cost based on mode and tokens
+					// If fetcher is null, use pre-calculated costUSD or default to 0
+					const cost = fetcher != null
+						? await calculateCostForEntry(data, mode, fetcher)
+						: data.costUSD ?? 0;
+
+					// Extract project name from file path
+					const project = extractProjectFromPath(file);
+
+					if (options?.includeContent === false) {
+						delete data.message.content;
+					}
+
+					entries.push({ data, date, cost, model: data.message.model, project });
+				}
+				catch {
+					// Skip invalid JSON lines
+				}
+			}
+
+			return entries;
+		}, async (_file, cachedEntries) => {
+			for (const entry of cachedEntries) {
+				// Rebuild processed hashes from cached entries to avoid duplicates across files
+				const uniqueHash = createUniqueHash(entry.data);
+				markAsProcessed(uniqueHash, processedHashes);
+			}
+
+			return cachedEntries;
+		});
+
+		return fileEntries;
+	});
+
+	const allFileEntries = await Promise.all(filePromises);
+	allEntries.push(...allFileEntries.flat());
 
 	// Group by date, optionally including project
 	// Automatically enable project grouping when project filter is specified
@@ -923,62 +1111,76 @@ export async function loadSessionData(
 		model: string | undefined;
 	}> = [];
 
-	for (const { file, baseDir } of sortedFilesWithBase) {
-		// Extract session info from file path using its specific base directory
-		const relativePath = path.relative(baseDir, file);
-		const parts = relativePath.split(path.sep);
+	// Set up cache and process files
+	using fileCache = new FileCache<typeof allEntries>('session-cache.json', claudePaths, options);
 
-		// Session ID is the directory name containing the JSONL file
-		const sessionId = parts[parts.length - 2] ?? 'unknown';
-		// Project path is everything before the session ID
-		const joinedPath = parts.slice(0, -2).join(path.sep);
-		const projectPath = joinedPath.length > 0 ? joinedPath : 'Unknown Project';
+	const filePromises = sortedFilesWithBase.map(async ({ file, baseDir }) => {
+		const fileEntries = await fileCache.getOrProcess(file, async (file) => {
+			const entries: typeof allEntries = [];
 
-		const content = await readFile(file, 'utf-8');
-		const lines = content
-			.trim()
-			.split('\n')
-			.filter(line => line.length > 0);
+			// Extract session info from file path using its specific base directory
+			const relativePath = path.relative(baseDir, file);
+			const parts = relativePath.split(path.sep);
 
-		for (const line of lines) {
-			try {
-				const parsed = JSON.parse(line) as unknown;
-				const result = usageDataSchema.safeParse(parsed);
-				if (!result.success) {
-					continue;
+			// Session ID is the directory name containing the JSONL file
+			const sessionId = parts[parts.length - 2] ?? 'unknown';
+			// Project path is everything before the session ID
+			const joinedPath = parts.slice(0, -2).join(path.sep);
+			const projectPath = joinedPath.length > 0 ? joinedPath : 'Unknown Project';
+
+			const content = await readFile(file, 'utf-8');
+			const lines = content
+				.trim()
+				.split('\n')
+				.filter(line => line.length > 0);
+
+			for (const line of lines) {
+				try {
+					const parsed = JSON.parse(line) as unknown;
+					const result = usageDataSchema.safeParse(parsed);
+					if (!result.success) {
+						continue;
+					}
+					const data = result.data;
+
+					// Check for duplicate message + request ID combination
+					const uniqueHash = createUniqueHash(data);
+					if (isDuplicateEntry(uniqueHash, processedHashes)) {
+					// Skip duplicate message
+						continue;
+					}
+
+					// Mark this combination as processed
+					markAsProcessed(uniqueHash, processedHashes);
+
+					const sessionKey = `${projectPath}/${sessionId}`;
+					const cost = fetcher != null
+						? await calculateCostForEntry(data, mode, fetcher)
+						: data.costUSD ?? 0;
+
+					entries.push({
+						data,
+						sessionKey,
+						sessionId,
+						projectPath,
+						cost,
+						timestamp: data.timestamp,
+						model: data.message.model,
+					});
 				}
-				const data = result.data;
-
-				// Check for duplicate message + request ID combination
-				const uniqueHash = createUniqueHash(data);
-				if (isDuplicateEntry(uniqueHash, processedHashes)) {
-				// Skip duplicate message
-					continue;
+				catch {
+					// Skip invalid JSON lines
 				}
-
-				// Mark this combination as processed
-				markAsProcessed(uniqueHash, processedHashes);
-
-				const sessionKey = `${projectPath}/${sessionId}`;
-				const cost = fetcher != null
-					? await calculateCostForEntry(data, mode, fetcher)
-					: data.costUSD ?? 0;
-
-				allEntries.push({
-					data,
-					sessionKey,
-					sessionId,
-					projectPath,
-					cost,
-					timestamp: data.timestamp,
-					model: data.message.model,
-				});
 			}
-			catch {
-				// Skip invalid JSON lines
-			}
-		}
-	}
+
+			return entries;
+		});
+
+		return fileEntries;
+	});
+
+	const allFileEntries = await Promise.all(filePromises);
+	allEntries.push(...allFileEntries.flat());
 
 	// Group by session using Object.groupBy
 	const groupedBySessions = groupBy(
@@ -1313,16 +1515,8 @@ export async function loadSessionBlockData(
 	// Get all Claude paths or use the specific one from options
 	const claudePaths = toArray(options?.claudePath ?? getClaudePaths());
 
-	// Collect files from all paths
-	const allFiles: string[] = [];
-	for (const claudePath of claudePaths) {
-		const claudeDir = path.join(claudePath, CLAUDE_PROJECTS_DIR_NAME);
-		const files = await glob([USAGE_DATA_GLOB_PATTERN], {
-			cwd: claudeDir,
-			absolute: true,
-		});
-		allFiles.push(...files);
-	}
+	// Collect files from all paths in parallel, filtering by minUpdateTime if specified
+	const allFiles = (await globUsageFiles(claudePaths, options?.minUpdateTime)).map(f => f.file);
 
 	if (allFiles.length === 0) {
 		return [];
@@ -1347,62 +1541,85 @@ export async function loadSessionBlockData(
 	// Track processed message+request combinations for deduplication
 	const processedHashes = new Set<string>();
 
-	// Collect all valid data entries first
+	// Set up cache and process files
+	using fileCache = new FileCache<LoadedUsageEntry[]>('blocks-cache.json', claudePaths, options);
+
 	const allEntries: LoadedUsageEntry[] = [];
 
-	for (const file of sortedFiles) {
-		const content = await readFile(file, 'utf-8');
-		const lines = content
-			.trim()
-			.split('\n')
-			.filter(line => line.length > 0);
+	const filePromises = sortedFiles.map(async (file) => {
+		const fileEntries = await fileCache.getOrProcess(file, async (file) => {
+			const entries: LoadedUsageEntry[] = [];
+			const content = await readFile(file, 'utf-8');
+			const lines = content
+				.trim()
+				.split('\n')
+				.filter(line => line.length > 0);
 
-		for (const line of lines) {
-			try {
-				const parsed = JSON.parse(line) as unknown;
-				const result = usageDataSchema.safeParse(parsed);
-				if (!result.success) {
-					continue;
+			for (const line of lines) {
+				try {
+					const parsed = JSON.parse(line) as unknown;
+					const result = usageDataSchema.safeParse(parsed);
+					if (!result.success) {
+						continue;
+					}
+					const data = result.data;
+
+					// Check for duplicate message + request ID combination
+					const uniqueHash = createUniqueHash(data);
+					if (isDuplicateEntry(uniqueHash, processedHashes)) {
+					// Skip duplicate message
+						continue;
+					}
+
+					// Mark this combination as processed
+					markAsProcessed(uniqueHash, processedHashes);
+
+					const cost = fetcher != null
+						? await calculateCostForEntry(data, mode, fetcher)
+						: data.costUSD ?? 0;
+
+					// Get Claude Code usage limit expiration date
+					const usageLimitResetTime = getUsageLimitResetTime(data);
+
+					entries.push({
+						timestamp: new Date(data.timestamp),
+						usage: {
+							inputTokens: data.message.usage.input_tokens,
+							outputTokens: data.message.usage.output_tokens,
+							cacheCreationInputTokens: data.message.usage.cache_creation_input_tokens ?? 0,
+							cacheReadInputTokens: data.message.usage.cache_read_input_tokens ?? 0,
+						},
+						costUSD: cost,
+						model: data.message.model ?? 'unknown',
+						version: data.version,
+						usageLimitResetTime: usageLimitResetTime ?? undefined,
+					});
 				}
-				const data = result.data;
-
-				// Check for duplicate message + request ID combination
-				const uniqueHash = createUniqueHash(data);
-				if (isDuplicateEntry(uniqueHash, processedHashes)) {
-				// Skip duplicate message
-					continue;
+				catch (error) {
+					// Skip invalid JSON lines but log for debugging purposes
+					logger.debug(`Skipping invalid JSON line in 5-hour blocks: ${error instanceof Error ? error.message : String(error)}`);
 				}
-
-				// Mark this combination as processed
-				markAsProcessed(uniqueHash, processedHashes);
-
-				const cost = fetcher != null
-					? await calculateCostForEntry(data, mode, fetcher)
-					: data.costUSD ?? 0;
-
-				// Get Claude Code usage limit expiration date
-				const usageLimitResetTime = getUsageLimitResetTime(data);
-
-				allEntries.push({
-					timestamp: new Date(data.timestamp),
-					usage: {
-						inputTokens: data.message.usage.input_tokens,
-						outputTokens: data.message.usage.output_tokens,
-						cacheCreationInputTokens: data.message.usage.cache_creation_input_tokens ?? 0,
-						cacheReadInputTokens: data.message.usage.cache_read_input_tokens ?? 0,
-					},
-					costUSD: cost,
-					model: data.message.model ?? 'unknown',
-					version: data.version,
-					usageLimitResetTime: usageLimitResetTime ?? undefined,
-				});
 			}
-			catch (error) {
-				// Skip invalid JSON lines but log for debugging purposes
-				logger.debug(`Skipping invalid JSON line in 5-hour blocks: ${error instanceof Error ? error.message : String(error)}`);
+
+			return entries;
+		}, async (_file, cachedEntries) => {
+			for (const entry of cachedEntries) {
+				// Handle timestamp conversion for entries that come from cache
+				if (!(entry.timestamp instanceof Date)) {
+					entry.timestamp = new Date(entry.timestamp);
+				}
+				if (entry.usageLimitResetTime != null && !(entry.usageLimitResetTime instanceof Date)) {
+					entry.usageLimitResetTime = new Date(entry.usageLimitResetTime);
+				}
 			}
-		}
-	}
+			return cachedEntries;
+		});
+
+		return fileEntries;
+	});
+
+	const allFileEntries = await Promise.all(filePromises);
+	allEntries.push(...allFileEntries.flat());
 
 	// Identify session blocks
 	const blocks = identifySessionBlocks(allEntries, options?.sessionDurationHours);
