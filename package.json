@@ -51,7 +51,7 @@
 		"lint": "eslint --cache .",
 		"mcp": "bunx @modelcontextprotocol/inspector bun run start mcp",
 		"prepack": "bun run build && bun clean-pkg-json -r scripts.preinstall",
-		"prepare": "git config --local core.hooksPath .githooks && bun run generate:schema",
+		"prepare": "git config --local core.hooksPath .githooks && bun run generate:schema && ln -s ./CLAUDE.md ./AGENTS.md",
 		"release": "bun lint && bun typecheck && vitest && bun run build && bumpp",
 		"start": "bun run ./src/index.ts",
 		"test": "TZ=UTC vitest",

@@ -37,3 +37,5 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 
 # lsmcp cache
 .lsmcp/cache
+
+AGENTS.md
