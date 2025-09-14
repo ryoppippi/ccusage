@@ -29,6 +29,7 @@ export type TableOptions = {
 	compactColAligns?: TableCellAlign[];
 	compactThreshold?: number;
 	forceCompact?: boolean;
+	logger?: (message: string) => void;
 };
 
 /**
@@ -46,6 +47,7 @@ export class ResponsiveTable {
 	private compactThreshold: number;
 	private compactMode = false;
 	private forceCompact: boolean;
+	private logger: (message: string) => void;
 
 	/**
 	 * Creates a new responsive table instance
@@ -60,6 +62,7 @@ export class ResponsiveTable {
 		this.compactColAligns = options.compactColAligns;
 		this.compactThreshold = options.compactThreshold ?? 100;
 		this.forceCompact = options.forceCompact ?? false;
+		this.logger = options.logger ?? logger.warn;
 	}
 
 	/**
@@ -105,7 +108,7 @@ export class ResponsiveTable {
 			const index = this.head.indexOf(compactHeader);
 			if (index < 0) {
 				// Log warning for debugging configuration issues
-				logger.warn(`Warning: Compact header "${compactHeader}" not found in table headers [${this.head.join(', ')}]. Using first column as fallback.`);
+				this.logger(`Warning: Compact header "${compactHeader}" not found in table headers [${this.head.join(', ')}]. Using first column as fallback.`);
 				return 0; // fallback to first column if not found
 			}
 			return index;
@@ -711,14 +714,14 @@ if (import.meta.vitest != null) {
 			});
 
 			it('should fallback to first column for non-existent headers and log warning', () => {
+				// Mock logger.warn to capture warning
+				const mockLogger = vi.fn();
 				const table = new ResponsiveTable({
 					head: ['Date', 'Model', 'Input', 'Output', 'Cost'],
 					compactHead: ['Date', 'NonExistent', 'Cost'],
 					compactThreshold: 100,
+					logger: mockLogger,
 				});
-
-				// Mock logger.warn to capture warning
-				const mockWarn = vi.spyOn(logger, 'warn');
 
 				// Mock process.env.COLUMNS to simulate narrow terminal
 				const originalColumns = process.env.COLUMNS;
@@ -733,12 +736,11 @@ if (import.meta.vitest != null) {
 				expect(indices).toEqual([0, 0, 4]); // Date (0), fallback to first (0), Cost (4)
 
 				// Verify warning was logged
-				expect(mockWarn).toHaveBeenCalledWith(
+				expect(mockLogger).toHaveBeenCalledWith(
 					'Warning: Compact header "NonExistent" not found in table headers [Date, Model, Input, Output, Cost]. Using first column as fallback.',
 				);
 
-				// Restore original values
-				mockWarn.mockRestore();
+				// Restore original value
 				process.env.COLUMNS = originalColumns;
 			});
 
