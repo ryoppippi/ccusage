@@ -43,7 +43,7 @@ jobs:
         with:
           bun-version: latest
       - run: bun install --frozen-lockfile
-      - run: bunx pkg-pr-new publish --bun
+      - run: bunx pkg-pr-new@0.0.60 publish --bun
 
   spell-check:
     runs-on: ubuntu-latest
