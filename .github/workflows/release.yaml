@@ -39,6 +39,6 @@ jobs:
       - uses: oven-sh/setup-bun@735343b667d3e6f658f44d0eca948eb6282f2b76 # v2.0.2
         with:
           bun-version: latest
-      - run: bun x changelogithub
+      - run: bun x changelogithub@13.16.0
         env:
           GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
