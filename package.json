@@ -65,7 +65,7 @@
 	"devDependencies": {
 		"@antfu/utils": "^9.2.0",
 		"@hono/mcp": "^0.1.4",
-		"@hono/node-server": "^1.19.0",
+		"@hono/node-server": "^1.19.2",
 		"@mizchi/lsmcp": "^0.10.0",
 		"@modelcontextprotocol/sdk": "^1.17.3",
 		"@oxc-project/runtime": "^0.82.3",
