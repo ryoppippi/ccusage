@@ -303,6 +303,10 @@ export const statuslineCommand = define({
 					const today = new Date();
 					const todayStr = today.toISOString().split('T')[0]?.replace(/-/g, '') ?? ''; // Convert to YYYYMMDD format
 
+					// Only process files modified after midnight today for daily data
+					const midnightToday = new Date();
+					midnightToday.setHours(0, 0, 0, 0);
+
 					const todayCost = await Result.pipe(
 						Result.try({
 							try: async () => loadDailyUsageData({
@@ -310,6 +314,8 @@ export const statuslineCommand = define({
 								until: todayStr,
 								mode: 'auto',
 								offline: mergedOptions.offline,
+								minUpdateTime: midnightToday,
+								includeContent: false,
 							}),
 							catch: error => error,
 						})(),
@@ -325,11 +331,16 @@ export const statuslineCommand = define({
 					);
 
 					// Load session block data to find active block
+					// Only process files modified in the last 6 hours for block data
+					// This ensures we capture the current blocks without processing all historical data
+					const sixHoursAgo = new Date(Date.now() - 6 * 60 * 60 * 1000);
+
 					const { blockInfo, burnRateInfo } = await Result.pipe(
 						Result.try({
 							try: async () => loadSessionBlockData({
 								mode: 'auto',
 								offline: mergedOptions.offline,
+								minUpdateTime: sixHoursAgo,
 							}),
 							catch: error => error,
 						})(),
