@@ -7,18 +7,26 @@
     "docs"
   ],
   "scripts": {
-    "preinstall": "npx only-allow pnpm",
     "build": "pnpm run --filter '*' build",
     "docs:dev": "pnpm run --filter docs dev",
     "format": "pnpm run --filter '*' format",
+    "preinstall": "npx only-allow pnpm",
     "lint": "pnpm run --filter '*' lint",
-    "typecheck": "pnpm run --filter '*' typecheck",
     "prepare": "pnpm run /^prepare:/",
-    "prepare:git": "git config --local core.hooksPath .githooks",
     "prepare:agents": "ln -s ./CLAUDE.md ./AGENTS.md || true",
+    "prepare:git": "git config --local core.hooksPath .githooks",
     "release": "pnpm bumpp -r",
     "test": "pnpm run --filter '*' test",
-    "test:packages": "pnpm run --filter '*' test"
+    "test:packages": "pnpm run --filter '*' test",
+    "typecheck": "pnpm run --filter '*' typecheck"
+  },
+  "lint-staged": {
+    "*": [
+      "pnpm run format"
+    ],
+    "./**/package.json": [
+      "sort-package-json"
+    ]
   },
   "devDependencies": {
     "@mizchi/lsmcp": "^0.10.0",
@@ -41,11 +49,6 @@
         "version": "^1.2.21",
         "onFail": "download"
       }
-    ]
-  },
-  "lint-staged": {
-    "*": [
-      "pnpm run format"
     ]
   }
 }
