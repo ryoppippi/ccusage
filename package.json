@@ -7,11 +7,12 @@
     "docs"
   ],
   "scripts": {
+    "preinstall": "npx only-allow bun",
     "build": "bun run --filter '*' build",
     "docs:dev": "bun run --cwd docs dev",
     "format": "bun run --filter '*' format",
-    "preinstall": "npx only-allow bun",
     "lint": "bun run --filter '*' lint",
+    "typecheck": "bun run --filter '*' typecheck",
     "prepare": "git config --local core.hooksPath .githooks && (ln -s ./CLAUDE.md ./AGENTS.md || true)",
     "release": "bun bumpp -r",
     "test": "bun run --filter '*' test",
