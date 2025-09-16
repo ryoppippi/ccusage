@@ -17,9 +17,6 @@ importers:
       bumpp:
         specifier: ^10.2.3
         version: 10.2.3
-      bun:
-        specifier: runtime:^1.2.21
-        version: runtime:1.2.22
       lint-staged:
         specifier: ^16.1.5
         version: 16.1.6
@@ -38,9 +35,9 @@ importers:
       '@ryoppippi/vite-plugin-cloudflare-redirect':
         specifier: npm:@jsr/ryoppippi__vite-plugin-cloudflare-redirect
         version: '@jsr/ryoppippi__vite-plugin-cloudflare-redirect@1.1.2'
-      '@types/bun':
-        specifier: ^1.2.20
-        version: 1.2.22(@types/react@19.1.13)
+      node:
+        specifier: runtime:^24.4.0
+        version: runtime:24.8.0
       tinyglobby:
         specifier: ^0.2.14
         version: 0.2.15
@@ -2117,8 +2114,7 @@ packages:
           targets:
             - cpu: x64
               os: win32
-    version: 1.2.22
-    hasBin: true
+    version: 0.0.0
 
   bytes@3.1.2:
     resolution: {integrity: sha512-/Nf7TyzTx6S3yRJObOAV7956r8cr2+Oj8AC5dt8wSP3BQAoeX58NoHyCU8P8zGkNXStjTSi6fzO6F0pBdcYbEg==}
@@ -3739,8 +3735,7 @@ packages:
           targets:
             - cpu: x64
               os: win32
-    version: 24.8.0
-    hasBin: true
+    version: 0.0.0
 
   non-layered-tidy-tree-layout@2.0.2:
     resolution: {integrity: sha512-gkXMxRzUH+PB0ax9dUN0yYF0S25BqeAYqhgMaLUFmpXLEk7Fcu8f4emJuOAY0V8kjDICxROIKsTAKsV/v355xw==}
