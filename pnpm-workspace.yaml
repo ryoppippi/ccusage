@@ -6,3 +6,5 @@ onlyBuiltDependencies:
   - esbuild
   - sharp
   - workerd
+
+enablePrePostScripts: true

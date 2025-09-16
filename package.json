@@ -15,6 +15,7 @@
     "prepare": "pnpm run /^prepare:/",
     "prepare:agents": "ln -s ./CLAUDE.md ./AGENTS.md || true",
     "prepare:git": "git config --local core.hooksPath .githooks",
+    "prerelease": "pnpm run --filter '*' prerelease",
     "release": "pnpm bumpp -r",
     "test": "pnpm run --filter '*' test",
     "test:packages": "pnpm run --filter '*' test",
