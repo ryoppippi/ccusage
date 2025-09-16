@@ -147,7 +147,7 @@ export async function detectMismatches(
 				// Only compare if we could calculate a cost
 				const difference = Math.abs(data.costUSD - calculatedCost);
 				const percentDiff
-						= data.costUSD > 0 ? (difference / data.costUSD) * 100 : 0;
+					= data.costUSD > 0 ? (difference / data.costUSD) * 100 : 0;
 
 				// Update model statistics
 				const modelStat = stats.modelStats.get(model) ?? {
@@ -178,9 +178,9 @@ export async function detectMismatches(
 
 					// Update average percent difference for version
 					versionStat.avgPercentDiff
-								= (versionStat.avgPercentDiff * (versionStat.total - 1)
-									+ percentDiff)
-								/ versionStat.total;
+						= (versionStat.avgPercentDiff * (versionStat.total - 1)
+							+ percentDiff)
+						/ versionStat.total;
 					stats.versionStats.set(data.version, versionStat);
 				}
 
@@ -206,8 +206,8 @@ export async function detectMismatches(
 
 				// Update average percent difference
 				modelStat.avgPercentDiff
-							= (modelStat.avgPercentDiff * (modelStat.total - 1) + percentDiff)
-								/ modelStat.total;
+					= (modelStat.avgPercentDiff * (modelStat.total - 1) + percentDiff)
+						/ modelStat.total;
 				stats.modelStats.set(model, modelStat);
 			}
 		}

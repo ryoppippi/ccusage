@@ -1146,7 +1146,7 @@ export async function loadBucketUsageData(
 	// Group daily data by week, optionally including project
 	// Automatically enable project grouping when project filter is specified
 	const needsProjectGrouping
-    = options?.groupByProject === true || options?.project != null;
+		= options?.groupByProject === true || options?.project != null;
 
 	const groupingKey = needsProjectGrouping
 		? (data: DailyUsage) =>

@@ -38,7 +38,7 @@
 	"scripts": {
 		"build": "pnpm run generate:schema && tsdown",
 		"format": "pnpm run lint --fix",
-		"generate:schema": "node scripts/generate-json-schema.ts",
+		"generate:schema": "bun scripts/generate-json-schema.ts",
 		"lint": "eslint --cache .",
 		"prepack": "pnpm run build && pnpm dlx clean-pkg-json -r scripts.preinstall",
 		"prepare": "pnpm run generate:schema || true",
