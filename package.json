@@ -28,11 +28,18 @@
   },
   "packageManager": "pnpm@10.16.1",
   "devEngines": {
-    "runtime": {
-      "name": "node",
-      "version": "^24.4.0",
-      "onFail": "download"
-    }
+    "runtime": [
+      {
+        "name": "node",
+        "version": "^24.4.0",
+        "onFail": "download"
+      },
+      {
+        "name": "bun",
+        "version": "^1.2.21",
+        "onFail": "download"
+      }
+    ]
   },
   "engines": {
     "node": ">=20.19.4"

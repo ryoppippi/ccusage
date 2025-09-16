@@ -17,6 +17,9 @@ importers:
       bumpp:
         specifier: ^10.2.3
         version: 10.2.3
+      bun:
+        specifier: runtime:^1.2.21
+        version: runtime:1.2.22
       lint-staged:
         specifier: ^16.1.5
         version: 16.1.6
@@ -2032,6 +2035,85 @@ packages:
     peerDependencies:
       '@types/react': ^19
 
+  bun@runtime:1.2.22:
+    resolution:
+      type: variations
+      variants:
+        - resolution:
+            archive: zip
+            bin: bun
+            integrity: sha256-64x+CcvqVyQUoKNnhI4ay/BSlKlGpZRAWgFLH7Oz/HY=
+            prefix: bun-darwin-aarch64
+            type: binary
+            url: https://github.com/oven-sh/bun/releases/download/bun-v1.2.22/bun-darwin-aarch64.zip
+          targets:
+            - cpu: arm64
+              os: darwin
+        - resolution:
+            archive: zip
+            bin: bun
+            integrity: sha256-p0hHIafq1FiHyBLnYLEkBH5mMXPPKjunxaoZkssizT4=
+            prefix: bun-darwin-x64
+            type: binary
+            url: https://github.com/oven-sh/bun/releases/download/bun-v1.2.22/bun-darwin-x64.zip
+          targets:
+            - cpu: x64
+              os: darwin
+        - resolution:
+            archive: zip
+            bin: bun
+            integrity: sha256-iMVM1mFprrX/MbwMnXSoAXx+aWVZdHL/SezDVayzqIQ=
+            prefix: bun-linux-aarch64-musl
+            type: binary
+            url: https://github.com/oven-sh/bun/releases/download/bun-v1.2.22/bun-linux-aarch64-musl.zip
+          targets:
+            - cpu: arm64
+              os: linux
+              libc: musl
+        - resolution:
+            archive: zip
+            bin: bun
+            integrity: sha256-qXxof7XlTeTi+whpp6yaLZw691rBguK2gTjB3Y+YExs=
+            prefix: bun-linux-aarch64
+            type: binary
+            url: https://github.com/oven-sh/bun/releases/download/bun-v1.2.22/bun-linux-aarch64.zip
+          targets:
+            - cpu: arm64
+              os: linux
+        - resolution:
+            archive: zip
+            bin: bun
+            integrity: sha256-3eW9efDhMMub8X9Vuhgl6Yp39x73jFddjKLMrlQx9H4=
+            prefix: bun-linux-x64-musl
+            type: binary
+            url: https://github.com/oven-sh/bun/releases/download/bun-v1.2.22/bun-linux-x64-musl.zip
+          targets:
+            - cpu: x64
+              os: linux
+              libc: musl
+        - resolution:
+            archive: zip
+            bin: bun
+            integrity: sha256-TERq8aAde0Dh4RuuvDUvmyv9Eoh+Ubl907WYec7idDo=
+            prefix: bun-linux-x64
+            type: binary
+            url: https://github.com/oven-sh/bun/releases/download/bun-v1.2.22/bun-linux-x64.zip
+          targets:
+            - cpu: x64
+              os: linux
+        - resolution:
+            archive: zip
+            bin: bun.exe
+            integrity: sha256-OijGhbR6FZxXB9FQrMtbSQPDDx57TdAbsxHUESvetFI=
+            prefix: bun-windows-x64
+            type: binary
+            url: https://github.com/oven-sh/bun/releases/download/bun-v1.2.22/bun-windows-x64.zip
+          targets:
+            - cpu: x64
+              os: win32
+    version: 1.2.22
+    hasBin: true
+
   bytes@3.1.2:
     resolution: {integrity: sha512-/Nf7TyzTx6S3yRJObOAV7956r8cr2+Oj8AC5dt8wSP3BQAoeX58NoHyCU8P8zGkNXStjTSi6fzO6F0pBdcYbEg==}
     engines: {node: '>= 0.8'}
@@ -3651,8 +3733,7 @@ packages:
           targets:
             - cpu: x64
               os: win32
-    version: 24.8.0
-    hasBin: true
+    version: 0.0.0
 
   non-layered-tidy-tree-layout@2.0.2:
     resolution: {integrity: sha512-gkXMxRzUH+PB0ax9dUN0yYF0S25BqeAYqhgMaLUFmpXLEk7Fcu8f4emJuOAY0V8kjDICxROIKsTAKsV/v355xw==}
@@ -6437,6 +6518,8 @@ snapshots:
     dependencies:
       '@types/node': 24.5.1
       '@types/react': 19.1.13
+
+  bun@runtime:1.2.22: {}
 
   bytes@3.1.2: {}
 
