@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 
 /**
  * @fileoverview Generate JSON Schema from args-tokens configuration schema
@@ -10,12 +10,9 @@
  * - Schema validation for configuration files
  */
 
-import { promises as fs } from 'node:fs';
-import path from 'node:path';
 import process from 'node:process';
-import { fileURLToPath } from 'node:url';
-import { promisify } from 'node:util';
 import { Result } from '@praha/byethrow';
+import { $ } from 'bun';
 import { sharedArgs } from '../src/_shared-args.ts';
 // Import command definitions to access their args
 import { subCommandUnion } from '../src/commands/index.ts';
@@ -27,7 +24,6 @@ import { logger } from '../src/logger.ts';
  * Used for both root directory and docs/public directory output.
  */
 const SCHEMA_FILENAME = 'config-schema.json';
-const DOCS_PUBLIC_DIR = fileURLToPath(new URL('../../../docs/public', import.meta.url));
 
 /**
  * Keys to exclude from the generated JSON Schema.
@@ -194,18 +190,14 @@ function createConfigSchemaJson() {
  */
 async function runLint(files: string[]) {
 	return Result.try({
-		try: async () => {
-			const { execFile } = await import('node:child_process');
-			const execFileAsync = promisify(execFile);
-			return execFileAsync('pnpm', ['run', 'lint', '--fix', ...files]);
-		},
+		try: $`bun run lint --fix ${files}`,
 		catch: error => error,
 	});
 }
 
 async function writeFile(path: string, content: string) {
 	const attempt = Result.try({
-		try: async () => fs.writeFile(path, content, 'utf8'),
+		try: async () => Bun.write(path, content),
 		catch: error => error,
 	});
 	return attempt();
@@ -213,18 +205,18 @@ async function writeFile(path: string, content: string) {
 
 async function readFile(path: string): Promise<Result.Result<string, any>> {
 	return Result.try({
-		try: async () => fs.readFile(path, 'utf8'),
+		try: async () => {
+			const file = Bun.file(path);
+			return file.text();
+		},
 		catch: error => error,
 	})();
 }
 
 async function copySchemaToDocsPublic() {
-	const sourcePath = path.join(process.cwd(), SCHEMA_FILENAME);
-	const targetPath = path.join(DOCS_PUBLIC_DIR, SCHEMA_FILENAME);
-
 	return Result.pipe(
 		Result.try({
-			try: async () => fs.copyFile(sourcePath, targetPath),
+			try: $`cp ${SCHEMA_FILENAME} docs/public/${SCHEMA_FILENAME}`,
 			catch: error => error,
 		}),
 		Result.inspectError((error) => {
@@ -258,7 +250,7 @@ async function generateJsonSchema() {
 		Result.unwrap(''),
 	);
 
-	const isSchemaChanged = JSON.stringify(existingRootSchema) !== JSON.stringify(schemaObject);
+	const isSchemaChanged = !Bun.deepEquals(existingRootSchema, schemaObject, true);
 
 	if (!isSchemaChanged) {
 		logger.info('✓ Root schema is up to date, skipping generation');
