@@ -1,35 +1,28 @@
 {
-	"name": "ccusage-monorepo",
-	"private": true,
-	"type": "module",
-	"workspaces": [
-		"packages/*",
-		"docs"
-	],
-	"scripts": {
-		"build": "bun run --filter '*' build",
-		"docs:dev": "bun run --cwd docs dev",
-		"format": "bun run --filter '*' format",
-		"preinstall": "npx only-allow bun",
-		"lint": "bun run --filter '*' lint",
-		"prepare": "git config --local core.hooksPath .githooks && (ln -s ./CLAUDE.md ./AGENTS.md || true)",
-		"release": "bun bumpp -r"
-	},
-	"lint-staged": {
-		"*": [
-			"bun run format"
-		],
-		"package.json": [
-			"bun sort-package-json"
-		]
-	},
-	"devDependencies": {
-		"bumpp": "^10.2.3",
-		"lint-staged": "^16.1.5",
-		"sort-package-json": "^3.4.0"
-	},
-	"packageManager": "bun@1.2.21",
-	"engines": {
-		"node": ">=20.19.4"
-	}
+  "name": "ccusage-monorepo",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "packages/*",
+    "docs"
+  ],
+  "scripts": {
+    "build": "bun run --filter '*' build",
+    "docs:dev": "bun run --cwd docs dev",
+    "format": "bun run --filter '*' format",
+    "preinstall": "npx only-allow bun",
+    "lint": "bun run --filter '*' lint",
+    "prepare": "git config --local core.hooksPath .githooks && (ln -s ./CLAUDE.md ./AGENTS.md || true)",
+    "release": "bun bumpp -r",
+    "test": "bun run --filter '*' test"
+  },
+  "devDependencies": {
+    "bumpp": "^10.2.3",
+    "lint-staged": "^16.1.5",
+    "sort-package-json": "^3.4.0"
+  },
+  "packageManager": "bun@1.2.21",
+  "engines": {
+    "node": ">=20.19.4"
+  }
 }
