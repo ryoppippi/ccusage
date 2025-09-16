@@ -1,6 +1,6 @@
 {
   "name": "@ccusage/docs",
-  "version": "15.0.0",
+  "version": "16.2.5",
   "private": true,
   "description": "Documentation for ccusage",
   "type": "module",
