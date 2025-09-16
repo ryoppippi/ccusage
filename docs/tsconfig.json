@@ -3,8 +3,10 @@
   "compilerOptions": {
     "allowImportingTsExtensions": false,
     "allowJs": true,
+    "resolveJsonModule": true,
     "noEmit": true,
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "types": []
   },
   "include": [
     ".vitepress/**/*",
