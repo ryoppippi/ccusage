@@ -95,15 +95,5 @@
 		"vitest": "^3.2.4",
 		"xdg-basedir": "^5.1.0",
 		"zod": "^3.25.67"
-	},
-	"lint-staged": {
-		"*": [
-			"eslint --cache --fix",
-			"bun run generate:schema",
-			"bun vitest --passWithNoTests"
-		],
-		"package.json": [
-			"sort-package-json"
-		]
 	}
 }
