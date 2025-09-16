@@ -35,6 +35,9 @@ importers:
       '@ryoppippi/vite-plugin-cloudflare-redirect':
         specifier: jsr:^1.1.2
         version: '@jsr/ryoppippi__vite-plugin-cloudflare-redirect@1.1.2'
+      '@typescript/native-preview':
+        specifier: ^7.0.0-dev.20250821.1
+        version: 7.0.0-dev.20250916.1
       node:
         specifier: runtime:^24.4.0
         version: runtime:24.8.0
