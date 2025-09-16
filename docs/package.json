@@ -13,7 +13,7 @@
     "typecheck": "tsgo --noEmit"
   },
   "devDependencies": {
-    "@ryoppippi/vite-plugin-cloudflare-redirect": "jsr:^1.1.2",
+    "@ryoppippi/vite-plugin-cloudflare-redirect": "^1.1.2",
     "@typescript/native-preview": "^7.0.0-dev.20250821.1",
     "tinyglobby": "^0.2.14",
     "typedoc": "^0.28.10",

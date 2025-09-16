@@ -146,7 +146,7 @@ export default withMermaid(defineConfig({
                 { from: '/npm', to: 'https://www.npmjs.com/package/ccusage', status: 302 },
                 { from: '/deepwiki', to: 'https://deepwiki.com/ryoppippi/ccusage', status: 302 },
             ]
-        }),
+        }) as any,
 			groupIconVitePlugin(),
 			...llmstxt(),
 		],
