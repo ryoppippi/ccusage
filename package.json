@@ -18,7 +18,6 @@
     "prerelease": "pnpm run --filter '*' prerelease",
     "release": "pnpm bumpp -r",
     "test": "pnpm run --filter '*' test",
-    "test:packages": "pnpm run --filter '*' test",
     "typecheck": "pnpm run --filter '*' typecheck"
   },
   "lint-staged": {
