@@ -3,8 +3,18 @@ import * as path from 'node:path';
 import { groupIconMdPlugin, groupIconVitePlugin } from 'vitepress-plugin-group-icons';
 import llmstxt from 'vitepress-plugin-llms';
 import { withMermaid } from 'vitepress-plugin-mermaid';
-import typedocSidebar from '../api/typedoc-sidebar.json';
+import { createRequire } from 'node:module';
+import type { DefaultTheme } from 'vitepress';
 import { cloudflareRedirect } from '@ryoppippi/vite-plugin-cloudflare-redirect'
+
+const require = createRequire(import.meta.url);
+const typedocSidebar = (() => {
+	try {
+		return require('../api/typedoc-sidebar.json') as DefaultTheme.SidebarItem[];
+	} catch {
+		return [] satisfies DefaultTheme.SidebarItem[];
+	}
+})();
 
 export default withMermaid(defineConfig({
 	title: 'ccusage',
