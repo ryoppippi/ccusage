@@ -7,29 +7,39 @@
     "docs"
   ],
   "scripts": {
-    "preinstall": "npx only-allow bun",
-    "build": "bun run --filter '*' build",
-    "docs:dev": "bun run --cwd docs dev",
-    "format": "bun run --filter '*' format",
-    "lint": "bun run --filter '*' lint",
-    "typecheck": "bun run --filter '*' typecheck",
+    "preinstall": "npx only-allow pnpm",
+    "build": "pnpm run --filter '*' build",
+    "docs:dev": "pnpm run --filter docs dev",
+    "format": "pnpm run --filter '*' format",
+    "lint": "pnpm run --filter '*' lint",
+    "typecheck": "pnpm run --filter '*' typecheck",
     "prepare": "git config --local core.hooksPath .githooks && (ln -s ./CLAUDE.md ./AGENTS.md || true)",
-    "release": "bun bumpp -r",
-    "test": "bun run --filter '*' test",
-    "test:packages": "bun run --filter '*' test"
+    "release": "pnpm bumpp -r",
+    "test": "pnpm run --filter '*' test",
+    "test:packages": "pnpm run --filter '*' test"
   },
   "devDependencies": {
+    "@mizchi/lsmcp": "^0.10.0",
+    "@praha/byethrow-mcp": "^0.1.2",
     "bumpp": "^10.2.3",
     "lint-staged": "^16.1.5",
+    "sitemcp": "^0.5.9",
     "sort-package-json": "^3.4.0"
   },
-  "packageManager": "bun@1.2.21",
+  "packageManager": "pnpm@10.16.1",
+  "devEngines": {
+    "runtime": {
+      "name": "node",
+      "version": "^24.4.0",
+      "onFail": "download"
+    }
+  },
   "engines": {
     "node": ">=20.19.4"
   },
   "lint-staged": {
     "*": [
-      "bun run format"
+      "pnpm run format"
     ]
   }
 }
