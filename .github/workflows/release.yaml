@@ -5,6 +5,9 @@ on:
     tags:
       - '*'
 
+env:
+  PACKAGE_DIR: packages/ccusage
+
 jobs:
   npm:
     runs-on: ubuntu-latest

@@ -10,7 +10,9 @@
  * - Schema validation for configuration files
  */
 
+import path from 'node:path';
 import process from 'node:process';
+import { fileURLToPath } from 'node:url';
 import { Result } from '@praha/byethrow';
 import { $ } from 'bun';
 import { sharedArgs } from '../src/_shared-args.ts';
@@ -24,6 +26,7 @@ import { logger } from '../src/logger.ts';
  * Used for both root directory and docs/public directory output.
  */
 const SCHEMA_FILENAME = 'config-schema.json';
+const DOCS_PUBLIC_DIR = fileURLToPath(new URL('../../../docs/public', import.meta.url));
 
 /**
  * Keys to exclude from the generated JSON Schema.
@@ -214,9 +217,12 @@ async function readFile(path: string): Promise<Result.Result<string, any>> {
 }
 
 async function copySchemaToDocsPublic() {
+	const sourcePath = path.join(process.cwd(), SCHEMA_FILENAME);
+	const targetPath = path.join(DOCS_PUBLIC_DIR, SCHEMA_FILENAME);
+
 	return Result.pipe(
 		Result.try({
-			try: $`cp ${SCHEMA_FILENAME} docs/public/${SCHEMA_FILENAME}`,
+			try: $`cp ${sourcePath} ${targetPath}`,
 			catch: error => error,
 		}),
 		Result.inspectError((error) => {
