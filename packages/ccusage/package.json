@@ -93,5 +93,19 @@
 		"vitest": "^3.2.4",
 		"xdg-basedir": "^5.1.0",
 		"zod": "^3.25.67"
+	},
+	"devEngines": {
+		"runtime": [
+			{
+				"name": "node",
+				"version": "^24.4.0",
+				"onFail": "download"
+			},
+			{
+				"name": "bun",
+				"version": "^1.2.21",
+				"onFail": "download"
+			}
+		]
 	}
 }
