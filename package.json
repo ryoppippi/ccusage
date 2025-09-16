@@ -13,7 +13,9 @@
     "format": "pnpm run --filter '*' format",
     "lint": "pnpm run --filter '*' lint",
     "typecheck": "pnpm run --filter '*' typecheck",
-    "prepare": "git config --local core.hooksPath .githooks && (ln -s ./CLAUDE.md ./AGENTS.md || true)",
+    "prepare": "pnpm run /^prepare:/",
+    "prepare:git": "git config --local core.hooksPath .githooks",
+    "prepare:agents": "ln -s ./CLAUDE.md ./AGENTS.md || true",
     "release": "pnpm bumpp -r",
     "test": "pnpm run --filter '*' test",
     "test:packages": "pnpm run --filter '*' test"
@@ -40,9 +42,6 @@
         "onFail": "download"
       }
     ]
-  },
-  "engines": {
-    "node": ">=20.19.4"
   },
   "lint-staged": {
     "*": [
