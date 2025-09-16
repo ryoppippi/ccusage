@@ -1,4 +1,4 @@
-#!/usr/bin/env bun
+#!/usr/bin/env node
 
 /**
  * @fileoverview Generate JSON Schema from args-tokens configuration schema
@@ -10,11 +10,12 @@
  * - Schema validation for configuration files
  */
 
+import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
+import { promisify } from 'node:util';
 import { Result } from '@praha/byethrow';
-import { $ } from 'bun';
 import { sharedArgs } from '../src/_shared-args.ts';
 // Import command definitions to access their args
 import { subCommandUnion } from '../src/commands/index.ts';
@@ -193,14 +194,18 @@ function createConfigSchemaJson() {
  */
 async function runLint(files: string[]) {
 	return Result.try({
-		try: $`bun run lint --fix ${files}`,
+		try: async () => {
+			const { execFile } = await import('node:child_process');
+			const execFileAsync = promisify(execFile);
+			return execFileAsync('pnpm', ['run', 'lint', '--fix', ...files]);
+		},
 		catch: error => error,
 	});
 }
 
 async function writeFile(path: string, content: string) {
 	const attempt = Result.try({
-		try: async () => Bun.write(path, content),
+		try: async () => fs.writeFile(path, content, 'utf8'),
 		catch: error => error,
 	});
 	return attempt();
@@ -208,10 +213,7 @@ async function writeFile(path: string, content: string) {
 
 async function readFile(path: string): Promise<Result.Result<string, any>> {
 	return Result.try({
-		try: async () => {
-			const file = Bun.file(path);
-			return file.text();
-		},
+		try: async () => fs.readFile(path, 'utf8'),
 		catch: error => error,
 	})();
 }
@@ -222,7 +224,7 @@ async function copySchemaToDocsPublic() {
 
 	return Result.pipe(
 		Result.try({
-			try: $`cp ${sourcePath} ${targetPath}`,
+			try: async () => fs.copyFile(sourcePath, targetPath),
 			catch: error => error,
 		}),
 		Result.inspectError((error) => {
@@ -256,7 +258,7 @@ async function generateJsonSchema() {
 		Result.unwrap(''),
 	);
 
-	const isSchemaChanged = !Bun.deepEquals(existingRootSchema, schemaObject, true);
+	const isSchemaChanged = JSON.stringify(existingRootSchema) !== JSON.stringify(schemaObject);
 
 	if (!isSchemaChanged) {
 		logger.info('✓ Root schema is up to date, skipping generation');

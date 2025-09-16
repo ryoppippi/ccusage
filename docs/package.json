@@ -5,9 +5,9 @@
   "description": "Documentation for ccusage",
   "type": "module",
   "scripts": {
-    "build": "bun run docs:api && cp ../packages/ccusage/config-schema.json public/config-schema.json && vitepress build",
+    "build": "pnpm run docs:api && cp ../packages/ccusage/config-schema.json public/config-schema.json && vitepress build",
     "deploy": "wrangler deploy",
-    "dev": "bun run docs:api && cp ../packages/ccusage/config-schema.json public/config-schema.json && vitepress dev",
+    "dev": "pnpm run docs:api && cp ../packages/ccusage/config-schema.json public/config-schema.json && vitepress dev",
     "docs:api": "./update-api-index.ts",
     "preview": "vitepress preview"
   },
