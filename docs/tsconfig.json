@@ -1,5 +1,5 @@
 {
-  "extends": "../packages/ccusage/tsconfig.json",
+  "extends": "./node_modules/ccusage/tsconfig.json",
   "compilerOptions": {
     "allowImportingTsExtensions": false,
     "allowJs": true,

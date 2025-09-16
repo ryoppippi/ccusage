@@ -3,14 +3,14 @@ import { globSync } from 'tinyglobby'
 
 const entryPoints = [
 	...globSync([
-		'../packages/ccusage/src/*.ts',
-		'!../packages/ccusage/src/**/*.test.ts', // Exclude test files
-		'!../packages/ccusage/src/_*.ts', // Exclude internal files with underscore prefix
+		'./node_modules/ccusage/src/*.ts',
+		'!./node_modules/ccusage/src/**/*.test.ts', // Exclude test files
+		'!./node_modules/ccusage/src/_*.ts', // Exclude internal files with underscore prefix
 	], {
 		absolute: false,
 		onlyFiles: true,
 	}),
-	'../packages/ccusage/src/_consts.ts', // Include constants for documentation
+	'./node_modules/ccusage/src/_consts.ts', // Include constants for documentation
 ];
 
 /** @type {import('typedoc').TypeDocOptions & import('typedoc-plugin-markdown').PluginOptions & { docsRoot?: string } } */
@@ -18,7 +18,7 @@ export default {
 	// typedoc options
 	// ref: https://typedoc.org/documents/Options.html
 	entryPoints,
-	tsconfig: '../packages/ccusage/tsconfig.json',
+	tsconfig: './node_modules/ccusage/tsconfig.json',
 	out: 'api',
 	plugin: ['typedoc-plugin-markdown', 'typedoc-vitepress-theme'],
 	readme: 'none',
