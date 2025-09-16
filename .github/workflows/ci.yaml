@@ -66,6 +66,7 @@ jobs:
       - run: bun install --frozen-lockfile
       - name: Generate schema files
         run: bun run generate:schema
+        working-directory: packages/ccusage
       - name: Check if schema files are up-to-date
         run: |
           if git diff --exit-code packages/ccusage/config-schema.json docs/public/config-schema.json; then
