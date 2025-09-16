@@ -14,7 +14,6 @@
     "preinstall": "npx only-allow pnpm",
     "lint": "pnpm run --filter '*' lint",
     "prepare": "pnpm run /^prepare:/",
-    "prepare:agents": "ln -s ./CLAUDE.md ./AGENTS.md || true",
     "prepare:git": "git config --local core.hooksPath .githooks",
     "prerelease": "pnpm run --filter '*' prerelease",
     "release": "pnpm bumpp -r",
