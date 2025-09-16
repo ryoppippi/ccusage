@@ -48,9 +48,9 @@ RECOMMENDED USAGE:
 
 TESTING COMMANDS:
 
-- `bun run test:statusline:sonnet4` - Test with Claude 4 Sonnet
-- `bun run test:statusline:opus4` - Test with Claude 4.1 Opus
-- `bun run test:statusline:sonnet41` - Test with Claude 4.1 Sonnet
-- `bun run test:statusline:all` - Run all model tests
+- `pnpm run test:statusline:sonnet4` - Test with Claude 4 Sonnet
+- `pnpm run test:statusline:opus4` - Test with Claude 4.1 Opus
+- `pnpm run test:statusline:sonnet41` - Test with Claude 4.1 Sonnet
+- `pnpm run test:statusline:all` - Run all model tests
 
 Last updated: 2025-08-15 (Dynamic Context Limits feature)

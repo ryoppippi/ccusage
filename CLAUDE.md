@@ -49,40 +49,40 @@ Always prefer indexed searches (tools with `_from_index` suffix) over reading en
 
 **Testing and Quality:**
 
-- `bun run test` - Run all tests (using vitest via bun, watch mode disabled)
+- `pnpm run test` - Run all tests (using vitest via pnpm, watch mode disabled)
 - Lint code using ESLint MCP server (available via Claude Code tools)
-- `bun run format` - Format code with ESLint (writes changes)
-- `bun typecheck` - Type check with TypeScript
+- `pnpm run format` - Format code with ESLint (writes changes)
+- `pnpm typecheck` - Type check with TypeScript
 
 **Build and Release:**
 
-- `bun run build` - Build distribution files with tsdown
-- `bun run release` - Full release workflow (lint + typecheck + test + build + version bump)
+- `pnpm run build` - Build distribution files with tsdown
+- `pnpm run release` - Full release workflow (lint + typecheck + test + build + version bump)
 
 **Development Usage:**
 
-- `bun run start daily` - Show daily usage report
-- `bun run start monthly` - Show monthly usage report
-- `bun run start session` - Show session-based usage report
-- `bun run start blocks` - Show 5-hour billing blocks usage report
-- `bun run start statusline` - Show compact status line (Beta)
-- `bun run start daily --json` - Show daily usage report in JSON format
-- `bun run start monthly --json` - Show monthly usage report in JSON format
-- `bun run start session --json` - Show session usage report in JSON format
-- `bun run start blocks --json` - Show blocks usage report in JSON format
-- `bun run start daily --mode <mode>` - Control cost calculation mode (auto/calculate/display)
-- `bun run start monthly --mode <mode>` - Control cost calculation mode (auto/calculate/display)
-- `bun run start session --mode <mode>` - Control cost calculation mode (auto/calculate/display)
-- `bun run start blocks --mode <mode>` - Control cost calculation mode (auto/calculate/display)
-- `bun run start blocks --active` - Show only active block with projections
-- `bun run start blocks --recent` - Show blocks from last 3 days (including active)
-- `bun run start blocks --token-limit <limit>` - Token limit for quota warnings (number or "max")
-- `bun run ./src/index.ts` - Direct execution for development
+- `pnpm run start daily` - Show daily usage report
+- `pnpm run start monthly` - Show monthly usage report
+- `pnpm run start session` - Show session-based usage report
+- `pnpm run start blocks` - Show 5-hour billing blocks usage report
+- `pnpm run start statusline` - Show compact status line (Beta)
+- `pnpm run start daily --json` - Show daily usage report in JSON format
+- `pnpm run start monthly --json` - Show monthly usage report in JSON format
+- `pnpm run start session --json` - Show session usage report in JSON format
+- `pnpm run start blocks --json` - Show blocks usage report in JSON format
+- `pnpm run start daily --mode <mode>` - Control cost calculation mode (auto/calculate/display)
+- `pnpm run start monthly --mode <mode>` - Control cost calculation mode (auto/calculate/display)
+- `pnpm run start session --mode <mode>` - Control cost calculation mode (auto/calculate/display)
+- `pnpm run start blocks --mode <mode>` - Control cost calculation mode (auto/calculate/display)
+- `pnpm run start blocks --active` - Show only active block with projections
+- `pnpm run start blocks --recent` - Show blocks from last 3 days (including active)
+- `pnpm run start blocks --token-limit <limit>` - Token limit for quota warnings (number or "max")
+- `node ./src/index.ts` - Direct execution for development
 
 **MCP Server Usage:**
 
-- `bun run start mcp` - Start MCP server with stdio transport (default)
-- `bun run start mcp --type http --port 8080` - Start MCP server with HTTP transport
+- `pnpm run start mcp` - Start MCP server with stdio transport (default)
+- `pnpm run start mcp --type http --port 8080` - Start MCP server with HTTP transport
 
 **Cost Calculation Modes:**
 
@@ -93,7 +93,7 @@ Always prefer indexed searches (tools with `_from_index` suffix) over reading en
 **Environment Variables:**
 
 - `LOG_LEVEL` - Control logging verbosity (0=silent, 1=warn, 2=log, 3=info, 4=debug, 5=trace)
-  - Example: `LOG_LEVEL=0 bun run start daily` for silent output
+  - Example: `LOG_LEVEL=0 pnpm run start daily` for silent output
   - Useful for debugging or suppressing non-critical output
 
 **Multiple Claude Data Directories:**
@@ -130,7 +130,7 @@ This is a CLI tool that analyzes Claude Code usage data from local JSONL files s
 - Raw usage data is parsed from JSONL with timestamp, token counts, and pre-calculated costs
 - Data is aggregated into daily summaries, monthly summaries, session summaries, or 5-hour billing blocks
 - **Important Note on Naming**: The term "session" in this codebase has two different meanings:
-  1. **Session Reports** (`bun run start session`): Groups usage by project directories. What we call "sessionId" in these reports is actually derived from the directory structure (project/directory)
+  1. **Session Reports** (`pnpm run start session`): Groups usage by project directories. What we call "sessionId" in these reports is actually derived from the directory structure (project/directory)
   2. **True Session ID**: The actual Claude Code session ID found in the `sessionId` field within JSONL entries and used as the filename ({sessionId}.jsonl)
 - File structure: `projects/{project}/{sessionId}.jsonl` where:
   - `{project}` is the project directory name (used for grouping)
@@ -199,7 +199,7 @@ This is a CLI tool that analyzes Claude Code usage data from local JSONL files s
 After making any code changes, ALWAYS run these commands in parallel:
 
 - `bun run format` - Auto-fix and format code with ESLint (includes linting)
-- `bun typecheck` - Type check with TypeScript
+- `pnpm typecheck` - Type check with TypeScript
 - `bun run test` - Run all tests
 
 This ensures code quality and catches issues immediately after changes.
