@@ -43,8 +43,7 @@ jobs:
         with:
           bun-version: latest
       - run: bun install --frozen-lockfile
-      - run: bunx pkg-pr-new@0.0.60 publish --bun
-        working-directory: packages/ccusage
+      - run: bunx pkg-pr-new@0.0.60 publish --bun './packages/ccusage'
 
   spell-check:
     runs-on: ubuntu-latest
