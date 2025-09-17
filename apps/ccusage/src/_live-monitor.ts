@@ -14,6 +14,7 @@ import { readFile, stat } from 'node:fs/promises';
 import { Result } from '@praha/byethrow';
 import pLimit from 'p-limit';
 import * as v from 'valibot';
+import { PricingFetcher } from './_pricing-fetcher.ts';
 import { identifySessionBlocks } from './_session-blocks.ts';
 import {
 	calculateCostForEntry,
@@ -24,7 +25,6 @@ import {
 	sortFilesByTimestamp,
 	usageDataSchema,
 } from './data-loader.ts';
-import { PricingFetcher } from './pricing-fetcher.ts';
 
 /**
  * Configuration for live monitoring

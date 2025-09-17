@@ -20,7 +20,6 @@
 		"./data-loader": "./src/data-loader.ts",
 		"./debug": "./src/debug.ts",
 		"./logger": "./src/logger.ts",
-		"./pricing-fetcher": "./src/pricing-fetcher.ts",
 		"./package.json": "./package.json"
 	},
 	"main": "./dist/index.js",
@@ -101,7 +100,6 @@
 			"./data-loader": "./dist/data-loader.js",
 			"./debug": "./dist/debug.js",
 			"./logger": "./dist/logger.js",
-			"./pricing-fetcher": "./dist/pricing-fetcher.js",
 			"./package.json": "./package.json"
 		}
 	},
