@@ -1,14 +1,58 @@
+import type { ResponsiveTable } from '@ccusage/terminal/table';
 import process from 'node:process';
-import Table from 'cli-table3';
+import {
+	addEmptySeparatorRow,
+	createUsageReportTable,
+	formatTotalsRow,
+	formatUsageDataRow,
+} from '@ccusage/terminal/table';
+import { sort } from 'fast-sort';
 import { define } from 'gunshi';
-import pc from 'picocolors';
 import { DEFAULT_LOCALE, DEFAULT_MODEL, DEFAULT_TIMEZONE, MODEL_ENV_VAR } from '../_consts.ts';
 import { buildDailyReport } from '../daily-report.ts';
 import { loadTokenUsageEvents } from '../data-loader.ts';
 import { normalizeFilterDate } from '../date-utils.ts';
 import { log, logger } from '../logger.ts';
 import { CodexPricingSource } from '../pricing.ts';
-import { formatCurrency, formatTokens } from '../token-utils.ts';
+
+const TABLE_COLUMN_COUNT = 8;
+
+function splitUsageTokens(usage: {
+	inputTokens: number;
+	cachedInputTokens: number;
+	outputTokens: number;
+	reasoningOutputTokens: number;
+}): {
+	inputTokens: number;
+	cacheReadTokens: number;
+	outputTokens: number;
+} {
+	const cacheReadTokens = Math.min(usage.cachedInputTokens, usage.inputTokens);
+	const inputTokens = Math.max(usage.inputTokens - cacheReadTokens, 0);
+	const outputTokens = usage.outputTokens + usage.reasoningOutputTokens;
+
+	return {
+		inputTokens,
+		cacheReadTokens,
+		outputTokens,
+	};
+}
+
+function isOptionExplicit(tokens: ReadonlyArray<unknown>, optionName: string): boolean {
+	for (const token of tokens) {
+		if (typeof token === 'object' && token != null) {
+			const candidate = token as { kind?: string; name?: string };
+			if (candidate.kind === 'option' && candidate.name === optionName) {
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
+function formatModelsList(models: Record<string, { totalTokens: number }>): string[] {
+	return sort(Object.keys(models)).asc();
+}
 
 export const dailyCommand = define({
 	name: 'daily',
@@ -44,6 +88,7 @@ export const dailyCommand = define({
 			type: 'string',
 			short: 'm',
 			description: 'Default model name when Codex log lacks model metadata',
+			default: DEFAULT_MODEL,
 		},
 		offline: {
 			type: 'boolean',
@@ -71,7 +116,11 @@ export const dailyCommand = define({
 		}
 
 		const modelFromEnv = process.env[MODEL_ENV_VAR];
-		const defaultModel = ctx.values.model ?? (modelFromEnv != null && modelFromEnv !== '' ? modelFromEnv : DEFAULT_MODEL);
+		const modelProvidedViaCli = isOptionExplicit(ctx.tokens, 'model');
+		let defaultModel = ctx.values.model ?? DEFAULT_MODEL;
+		if (!modelProvidedViaCli && modelFromEnv != null && modelFromEnv !== '') {
+			defaultModel = modelFromEnv;
+		}
 
 		const { events, missingDirectories } = await loadTokenUsageEvents({
 			defaultModel,
@@ -86,8 +135,14 @@ export const dailyCommand = define({
 			return;
 		}
 
+		const shouldLogPricingFetch = !ctx.values.offline && !jsonOutput;
+		if (shouldLogPricingFetch) {
+			logger.warn('Fetching latest model pricing from LiteLLM...');
+		}
+
 		const pricingSource = new CodexPricingSource({
 			offline: ctx.values.offline,
+			suppressFetcherFetchLog: shouldLogPricingFetch,
 		});
 		try {
 			const rows = await buildDailyReport(events, {
@@ -129,45 +184,49 @@ export const dailyCommand = define({
 				return;
 			}
 
-			const table = new Table({
-				head: ['Date', 'Input', 'Cached', 'Output', 'Reasoning', 'Total', 'Cost (USD)', 'Models'],
-				style: {
-					border: [],
-					head: [],
-					compact: false,
-				},
+			logger.box(`Codex Token Usage Report - Daily (Timezone: ${ctx.values.timezone ?? DEFAULT_TIMEZONE})`);
+
+			const table: ResponsiveTable = createUsageReportTable({
+				firstColumnName: 'Date',
 			});
 
-			for (const row of rows) {
-				const modelsString = Object.entries(row.models)
-					.map(([model, usage]) => `${model} (${formatTokens(usage.totalTokens)})`)
-					.join(', ');
+			const totalsForDisplay = {
+				inputTokens: 0,
+				outputTokens: 0,
+				cacheCreationTokens: 0,
+				cacheReadTokens: 0,
+				totalCost: totals.costUSD,
+			};
 
-				table.push([
-					row.date,
-					formatTokens(row.inputTokens),
-					formatTokens(row.cachedInputTokens),
-					formatTokens(row.outputTokens),
-					formatTokens(row.reasoningOutputTokens),
-					formatTokens(row.totalTokens),
-					formatCurrency(row.costUSD, ctx.values.locale),
-					modelsString,
-				]);
+			for (const row of rows) {
+				const split = splitUsageTokens(row);
+				totalsForDisplay.inputTokens += split.inputTokens;
+				totalsForDisplay.outputTokens += split.outputTokens;
+				totalsForDisplay.cacheReadTokens += split.cacheReadTokens;
+
+				const formattedRow = formatUsageDataRow(row.date, {
+					inputTokens: split.inputTokens,
+					outputTokens: split.outputTokens,
+					cacheCreationTokens: 0,
+					cacheReadTokens: split.cacheReadTokens,
+					totalCost: row.costUSD,
+					modelsUsed: formatModelsList(row.models),
+				});
+
+				table.push(formattedRow);
 			}
 
-			table.push([
-				pc.bold('Totals'),
-				pc.bold(formatTokens(totals.inputTokens)),
-				pc.bold(formatTokens(totals.cachedInputTokens)),
-				pc.bold(formatTokens(totals.outputTokens)),
-				pc.bold(formatTokens(totals.reasoningOutputTokens)),
-				pc.bold(formatTokens(totals.totalTokens)),
-				pc.bold(formatCurrency(totals.costUSD, ctx.values.locale)),
-				'',
-			]);
+			totalsForDisplay.totalCost = totals.costUSD;
 
-			logger.info(`Codex Token Usage Report - Daily (Timezone: ${ctx.values.timezone ?? DEFAULT_TIMEZONE})`);
+			addEmptySeparatorRow(table, TABLE_COLUMN_COUNT);
+			table.push(formatTotalsRow(totalsForDisplay));
+
 			log(table.toString());
+
+			if (table.isCompactMode()) {
+				logger.info('\nRunning in Compact Mode');
+				logger.info('Expand terminal width to see cache metrics and total tokens');
+			}
 		}
 		finally {
 			pricingSource[Symbol.dispose]();

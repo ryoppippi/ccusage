@@ -32,6 +32,7 @@
 
 ## CLI Usage
 
+- Treat Codex as a sibling to `apps/ccusage`; whenever possible reuse the same shared packages (`@ccusage/terminal`, pricing helpers, logging), command names, and flag semantics. Diverge only when Codex-specific data forces it and document the reason inline.
 - Entry point remains Gunshi-based; only `daily` subcommand is wired for now.
 - Session discovery relies solely on `CODEX_HOME`; there is no explicit `--dir` override.
 - `--json` toggles structured output; totals include aggregated tokens and USD cost.

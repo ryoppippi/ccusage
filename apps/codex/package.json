@@ -25,25 +25,24 @@
 		"test": "TZ=UTC vitest",
 		"typecheck": "tsgo --noEmit"
 	},
-	"dependencies": {
-		"@ccusage/internal": "workspace:*",
-		"@praha/byethrow": "catalog:runtime",
-		"cli-table3": "catalog:runtime",
-		"consola": "catalog:runtime",
-		"gunshi": "catalog:runtime",
-		"picocolors": "catalog:runtime",
-		"tinyglobby": "catalog:runtime",
-		"valibot": "catalog:runtime"
-	},
 	"devDependencies": {
+		"@ccusage/internal": "workspace:*",
+		"@ccusage/terminal": "workspace:*",
+		"@praha/byethrow": "catalog:runtime",
 		"@ryoppippi/eslint-config": "catalog:lint",
 		"@typescript/native-preview": "catalog:types",
+		"consola": "catalog:runtime",
 		"eslint": "catalog:lint",
+		"fast-sort": "catalog:runtime",
 		"fs-fixture": "catalog:testing",
+		"gunshi": "catalog:runtime",
+		"picocolors": "catalog:runtime",
 		"sort-package-json": "catalog:release",
+		"tinyglobby": "catalog:runtime",
 		"tsdown": "catalog:build",
 		"unplugin-macros": "catalog:build",
 		"unplugin-unused": "catalog:build",
+		"valibot": "catalog:runtime",
 		"vitest": "catalog:testing"
 	},
 	"publishConfig": {

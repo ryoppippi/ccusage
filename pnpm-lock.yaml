@@ -333,15 +333,18 @@ importers:
       '@ccusage/internal':
         specifier: workspace:*
         version: link:../../packages/internal
+      '@ccusage/terminal':
+        specifier: workspace:*
+        version: link:../../packages/terminal
       '@praha/byethrow':
         specifier: catalog:runtime
         version: 0.6.3
-      cli-table3:
-        specifier: catalog:runtime
-        version: 0.6.5
       consola:
         specifier: catalog:runtime
         version: 3.4.2
+      fast-sort:
+        specifier: catalog:runtime
+        version: 3.4.1
       gunshi:
         specifier: catalog:runtime
         version: 0.26.3
