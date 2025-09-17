@@ -10,6 +10,7 @@
 
 import type { ModelPricing } from './_types.ts';
 import { Result } from '@praha/byethrow';
+import * as v from 'valibot';
 import { LITELLM_PRICING_URL } from './_consts.ts';
 import { prefetchClaudePricing } from './_macro.ts' with { type: 'macro' };
 import { modelPricingSchema } from './_types.ts';
@@ -113,9 +114,9 @@ export class PricingFetcher implements Disposable {
 						const pricing = new Map<string, ModelPricing>();
 						for (const [modelName, modelData] of Object.entries(data)) {
 							if (typeof modelData === 'object' && modelData !== null) {
-								const parsed = modelPricingSchema.safeParse(modelData);
+								const parsed = v.safeParse(modelPricingSchema, modelData);
 								if (parsed.success) {
-									pricing.set(modelName, parsed.data);
+									pricing.set(modelName, parsed.output);
 								}
 								// Skip models that don't match our schema
 							}

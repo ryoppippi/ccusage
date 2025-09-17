@@ -3,6 +3,7 @@
  */
 
 import type { ModelPricing } from './_types.ts';
+import * as v from 'valibot';
 import { LITELLM_PRICING_URL } from './_consts.ts';
 import { modelPricingSchema } from './_types.ts';
 
@@ -27,9 +28,9 @@ export async function prefetchClaudePricing(): Promise<Record<string, ModelPrici
 	// Cache all models that start with 'claude-'
 	for (const [modelName, modelData] of Object.entries(data)) {
 		if (modelName.startsWith('claude-') && modelData != null && typeof modelData === 'object') {
-			const parsed = modelPricingSchema.safeParse(modelData);
+			const parsed = v.safeParse(modelPricingSchema, modelData);
 			if (parsed.success) {
-				prefetchClaudeData[modelName] = parsed.data;
+				prefetchClaudeData[modelName] = parsed.output;
 			}
 		}
 	}
