@@ -425,10 +425,10 @@ if (import.meta.vitest != null) {
 				);
 
 				const expectedCost
-				= 1000 * (pricing!.input_cost_per_token ?? 0)
-					+ 500 * (pricing!.output_cost_per_token ?? 0)
-					+ 200 * (pricing!.cache_creation_input_token_cost ?? 0)
-					+ 300 * (pricing!.cache_read_input_token_cost ?? 0);
+					= 1000 * (pricing!.input_cost_per_token ?? 0)
+						+ 500 * (pricing!.output_cost_per_token ?? 0)
+						+ 200 * (pricing!.cache_creation_input_token_cost ?? 0)
+						+ 300 * (pricing!.cache_read_input_token_cost ?? 0);
 
 				expect(cost).toBeCloseTo(expectedCost);
 				expect(cost).toBeGreaterThan(0);
@@ -473,10 +473,10 @@ if (import.meta.vitest != null) {
 				);
 
 				const expectedCost
-				= 1000 * (pricing!.input_cost_per_token ?? 0)
-					+ 500 * (pricing!.output_cost_per_token ?? 0)
-					+ 200 * (pricing!.cache_creation_input_token_cost ?? 0)
-					+ 300 * (pricing!.cache_read_input_token_cost ?? 0);
+					= 1000 * (pricing!.input_cost_per_token ?? 0)
+						+ 500 * (pricing!.output_cost_per_token ?? 0)
+						+ 200 * (pricing!.cache_creation_input_token_cost ?? 0)
+						+ 300 * (pricing!.cache_read_input_token_cost ?? 0);
 
 				expect(cost).toBeCloseTo(expectedCost);
 				expect(cost).toBeGreaterThan(0);

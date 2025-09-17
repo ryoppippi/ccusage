@@ -214,17 +214,8 @@ async function readFile(path: string): Promise<Result.Result<string, any>> {
 }
 
 async function copySchemaToDocsPublic() {
-	return Result.pipe(
-		Result.try({
-			try: $`cp ${SCHEMA_FILENAME} docs/public/${SCHEMA_FILENAME}`,
-			catch: error => error,
-		}),
-		Result.inspectError((error) => {
-			logger.error(`Failed to copy to docs/public/${SCHEMA_FILENAME}:`, error);
-			process.exit(1);
-		}),
-		Result.inspect(() => logger.info(`✓ Copied to docs/public/${SCHEMA_FILENAME}`)),
-	);
+	const gitRoot = await $`git rev-parse --show-toplevel`.text().then(text => text.trim());
+	await $`cp ${SCHEMA_FILENAME} ${gitRoot}/docs/public/${SCHEMA_FILENAME}`;
 }
 
 async function generateJsonSchema() {

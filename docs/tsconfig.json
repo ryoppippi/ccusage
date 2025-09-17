@@ -1,14 +1,21 @@
 {
-	"extends": "../tsconfig.json",
-	"compilerOptions": {
-		"allowImportingTsExtensions": false,
-		"allowJs": true,
-		"noEmit": true,
-		"skipLibCheck": true
-	},
-	"include": [
-		".vitepress/**/*",
-		"**/*.ts",
-		"**/*.md"
-	]
+  "extends": "./node_modules/ccusage/tsconfig.json",
+  "compilerOptions": {
+    "allowImportingTsExtensions": false,
+    "allowJs": true,
+    "resolveJsonModule": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "types": []
+  },
+  "include": [
+    ".vitepress/**/*",
+    "**/*.ts",
+    "**/*.md"
+  ],
+  "exclude": [
+    "node_modules",
+    ".vitepress/cache",
+    ".vitepress/dist"
+  ]
 }

@@ -10,40 +10,34 @@ jobs:
 
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
-      - uses: oven-sh/setup-bun@735343b667d3e6f658f44d0eca948eb6282f2b76 # v2.0.2
-        with:
-          bun-version: latest
-      - run: bun install --frozen-lockfile
-      - run: bun lint
-      - run: bun typecheck
+      - uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda # v4.1.0
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm typecheck
 
   test:
     runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
-      - uses: oven-sh/setup-bun@735343b667d3e6f658f44d0eca948eb6282f2b76 # v2.0.2
-        with:
-          bun-version: latest
-      - run: bun install --frozen-lockfile
+      - uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda # v4.1.0
+      - run: pnpm install --frozen-lockfile
       - name: Check jq is available
         run: which jq && jq --version
       - name: Create default Claude directories for tests
         run: |
           mkdir -p $HOME/.claude/projects
           mkdir -p $HOME/.config/claude/projects
-      - run: bun run test
+      - run: pnpm run test
 
   npm-publish-dry-run-and-upload-pkg-pr-now:
     runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
-      - uses: oven-sh/setup-bun@735343b667d3e6f658f44d0eca948eb6282f2b76 # v2.0.2
-        with:
-          bun-version: latest
-      - run: bun install --frozen-lockfile
-      - run: bunx pkg-pr-new@0.0.60 publish --bun
+      - uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda # v4.1.0
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm dlx pkg-pr-new@0.0.60 publish --pnpm './packages/*'
 
   spell-check:
     runs-on: ubuntu-latest
@@ -59,23 +53,22 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
-      - uses: oven-sh/setup-bun@735343b667d3e6f658f44d0eca948eb6282f2b76 # v2.0.2
-        with:
-          bun-version: latest
-      - run: bun install --frozen-lockfile
+      - uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda # v4.1.0
+      - run: pnpm install --frozen-lockfile
       - name: Generate schema files
-        run: bun run generate:schema
+        run: pnpm run generate:schema
+        working-directory: packages/ccusage
       - name: Check if schema files are up-to-date
         run: |
-          if git diff --exit-code config-schema.json docs/public/config-schema.json; then
+          if git diff --exit-code packages/ccusage/config-schema.json docs/public/config-schema.json; then
             echo "✅ Schema files are up-to-date"
           else
-            echo "❌ Schema files are not up-to-date. Please run 'bun run generate:schema' and commit the changes."
+            echo "❌ Schema files are not up-to-date. Please run 'pnpm run generate:schema' and commit the changes."
             echo ""
             echo "Changed files:"
-            git diff --name-only config-schema.json docs/public/config-schema.json
+            git diff --name-only packages/ccusage/config-schema.json docs/public/config-schema.json
             echo ""
             echo "Diff:"
-            git diff config-schema.json docs/public/config-schema.json
+            git diff packages/ccusage/config-schema.json docs/public/config-schema.json
             exit 1
           fi

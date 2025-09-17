@@ -1,27 +1,37 @@
 {
   "name": "@ccusage/docs",
-  "version": "15.0.0",
+  "version": "16.2.5",
   "private": true,
   "description": "Documentation for ccusage",
   "type": "module",
   "scripts": {
-    "build": "bun run docs:api && cp ../config-schema.json public/config-schema.json && vitepress build",
+    "build": "pnpm run docs:api && cp ../packages/ccusage/config-schema.json public/config-schema.json && vitepress build",
     "deploy": "wrangler deploy",
-    "dev": "bun run docs:api && cp ../config-schema.json public/config-schema.json && vitepress dev",
+    "dev": "pnpm run docs:api && cp ../packages/ccusage/config-schema.json public/config-schema.json && vitepress dev",
     "docs:api": "./update-api-index.ts",
-    "preview": "vitepress preview"
+    "preview": "vitepress preview",
+    "typecheck": "tsgo --noEmit"
   },
   "devDependencies": {
-    "@ryoppippi/vite-plugin-cloudflare-redirect": "npm:@jsr/ryoppippi__vite-plugin-cloudflare-redirect",
-    "@types/bun": "^1.2.20",
-    "tinyglobby": "^0.2.14",
-    "typedoc": "^0.28.10",
-    "typedoc-plugin-markdown": "^4.8.1",
-    "typedoc-vitepress-theme": "^1.1.2",
-    "vitepress": "^1.6.4",
-    "vitepress-plugin-group-icons": "^1.6.3",
-    "vitepress-plugin-llms": "^1.7.3",
-    "vitepress-plugin-mermaid": "^2.0.17",
-    "wrangler": "^4.32.0"
+    "@ryoppippi/vite-plugin-cloudflare-redirect": "catalog:docs",
+    "@typescript/native-preview": "catalog:types",
+    "ccusage": "workspace:^",
+    "tinyglobby": "catalog:runtime",
+    "typedoc": "catalog:docs",
+    "typedoc-plugin-markdown": "catalog:docs",
+    "typedoc-vitepress-theme": "catalog:docs",
+    "vitepress": "catalog:docs",
+    "vitepress-plugin-group-icons": "catalog:docs",
+    "vitepress-plugin-llms": "catalog:docs",
+    "wrangler": "catalog:docs"
+  },
+  "devEngines": {
+    "runtime": [
+      {
+        "name": "node",
+        "version": "^24.4.0",
+        "onFail": "download"
+      }
+    ]
   }
 }

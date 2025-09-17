@@ -9,8 +9,9 @@
 			"url": "https://mcp.grep.app"
 		},
 		"lsmcp": {
-			"command": "bun",
+			"command": "npx",
 			"args": [
+				"--no-install",
 				"lsmcp",
 				"-p",
 				"tsgo"
@@ -18,16 +19,17 @@
 		},
 		"@praha/byethrow": {
 			"type": "stdio",
-			"command": "bun",
+			"command": "npx",
 			"args": [
+				"--no-install",
 				"byethrow-mcp"
 			],
 			"env": {}
 		},
 		"gunshi-doc": {
-			"command": "bun",
+			"command": "npx",
 			"args": [
-				"x",
+				"--no-install",
 				"sitemcp",
 				"https://gunshi.dev/",
 				"--concurrency 10",

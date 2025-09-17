@@ -3,7 +3,7 @@
   "name": "ccusage-guide",
   "compatibility_date": "2025-07-21",
   "build": {
-    "command": "bun run build"
+    "command": "pnpm run build"
   },
   "assets": {
     "directory": ".vitepress/dist/",

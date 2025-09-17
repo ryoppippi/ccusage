@@ -1,12 +1,16 @@
 import { defineConfig } from 'vitepress';
 import * as path from 'node:path';
+import * as fs from 'node:fs';
 import { groupIconMdPlugin, groupIconVitePlugin } from 'vitepress-plugin-group-icons';
 import llmstxt from 'vitepress-plugin-llms';
-import { withMermaid } from 'vitepress-plugin-mermaid';
-import typedocSidebar from '../api/typedoc-sidebar.json';
-import { cloudflareRedirect } from '@ryoppippi/vite-plugin-cloudflare-redirect'
+import type { DefaultTheme } from 'vitepress';
+import { cloudflareRedirect } from '@ryoppippi/vite-plugin-cloudflare-redirect';
 
-export default withMermaid(defineConfig({
+
+const typedocSidebarJson = fs.readFileSync(path.join(import.meta.dirname, '../api/typedoc-sidebar.json'))
+const typedocSidebar = JSON.parse(typedocSidebarJson.toString()) as DefaultTheme.SidebarItem[];
+
+export default defineConfig({
 	title: 'ccusage',
 	description: 'Usage analysis tool for Claude Code',
 	base: '/',
@@ -146,7 +150,7 @@ export default withMermaid(defineConfig({
                 { from: '/npm', to: 'https://www.npmjs.com/package/ccusage', status: 302 },
                 { from: '/deepwiki', to: 'https://deepwiki.com/ryoppippi/ccusage', status: 302 },
             ]
-        }),
+        }) as any,
 			groupIconVitePlugin(),
 			...llmstxt(),
 		],
@@ -157,7 +161,4 @@ export default withMermaid(defineConfig({
 			md.use(groupIconMdPlugin);
 		},
 	},
-	mermaid: {
-		// Optional mermaid configuration
-	},
-}));
+});
