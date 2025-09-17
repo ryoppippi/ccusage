@@ -151,25 +151,6 @@ export const SortOrders = ['desc', 'asc'] as const;
 export type SortOrder = TupleToUnion<typeof SortOrders>;
 
 /**
- * Valibot schema for model pricing information from LiteLLM
- */
-export const modelPricingSchema = v.object({
-	input_cost_per_token: v.optional(v.number()),
-	output_cost_per_token: v.optional(v.number()),
-	cache_creation_input_token_cost: v.optional(v.number()),
-	cache_read_input_token_cost: v.optional(v.number()),
-	// Context window limits from LiteLLM data
-	max_tokens: v.optional(v.number()),
-	max_input_tokens: v.optional(v.number()),
-	max_output_tokens: v.optional(v.number()),
-});
-
-/**
- * Type definition for model pricing information
- */
-export type ModelPricing = v.InferOutput<typeof modelPricingSchema>;
-
-/**
  * Valibot schema for Claude Code statusline hook JSON data
  */
 export const statuslineHookJsonSchema = v.object({

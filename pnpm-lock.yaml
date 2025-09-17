@@ -213,6 +213,9 @@ importers:
       '@antfu/utils':
         specifier: catalog:runtime
         version: 9.2.0
+      '@ccusage/internal':
+        specifier: workspace:*
+        version: link:../../packages/internal
       '@ccusage/terminal':
         specifier: workspace:*
         version: link:../../packages/terminal
@@ -325,6 +328,67 @@ importers:
         specifier: catalog:runtime
         version: 5.1.0
 
+  apps/codex:
+    dependencies:
+      '@ccusage/internal':
+        specifier: workspace:*
+        version: link:../../packages/internal
+      '@praha/byethrow':
+        specifier: catalog:runtime
+        version: 0.6.3
+      cli-table3:
+        specifier: catalog:runtime
+        version: 0.6.5
+      consola:
+        specifier: catalog:runtime
+        version: 3.4.2
+      gunshi:
+        specifier: catalog:runtime
+        version: 0.26.3
+      picocolors:
+        specifier: catalog:runtime
+        version: 1.1.1
+      tinyglobby:
+        specifier: catalog:runtime
+        version: 0.2.15
+      valibot:
+        specifier: catalog:runtime
+        version: 1.1.0(typescript@5.9.2)
+    devDependencies:
+      '@ryoppippi/eslint-config':
+        specifier: catalog:lint
+        version: 0.3.7(@vue/compiler-sfc@3.5.21)(eslint-plugin-format@1.0.1(eslint@9.35.0(jiti@2.5.1)))(eslint@9.35.0(jiti@2.5.1))(typescript@5.9.2)(vitest@3.2.4(@types/debug@4.1.12)(@types/node@24.5.1)(happy-dom@16.8.1)(jiti@2.5.1)(yaml@2.8.1))
+      '@typescript/native-preview':
+        specifier: catalog:types
+        version: 7.0.0-dev.20250916.1
+      bun:
+        specifier: runtime:^1.2.21
+        version: runtime:1.2.22
+      eslint:
+        specifier: catalog:lint
+        version: 9.35.0(jiti@2.5.1)
+      fs-fixture:
+        specifier: catalog:testing
+        version: 2.8.1
+      node:
+        specifier: runtime:^24.4.0
+        version: runtime:24.8.0
+      sort-package-json:
+        specifier: catalog:release
+        version: 3.4.0
+      tsdown:
+        specifier: catalog:build
+        version: 0.14.2(@typescript/native-preview@7.0.0-dev.20250916.1)(publint@0.3.12)(typescript@5.9.2)(unplugin-unused@0.5.3)
+      unplugin-macros:
+        specifier: catalog:build
+        version: 0.18.2(@types/node@24.5.1)(jiti@2.5.1)(yaml@2.8.1)
+      unplugin-unused:
+        specifier: catalog:build
+        version: 0.5.3
+      vitest:
+        specifier: catalog:testing
+        version: 3.2.4(@types/debug@4.1.12)(@types/node@24.5.1)(happy-dom@16.8.1)(jiti@2.5.1)(yaml@2.8.1)
+
   apps/mcp:
     dependencies:
       '@hono/mcp':
@@ -418,6 +482,27 @@ importers:
       wrangler:
         specifier: catalog:docs
         version: 4.37.1
+
+  packages/internal:
+    devDependencies:
+      '@praha/byethrow':
+        specifier: catalog:runtime
+        version: 0.6.3
+      '@ryoppippi/eslint-config':
+        specifier: catalog:lint
+        version: 0.3.7(@vue/compiler-sfc@3.5.21)(eslint-plugin-format@1.0.1(eslint@9.35.0(jiti@2.5.1)))(eslint@9.35.0(jiti@2.5.1))(typescript@5.9.2)(vitest@3.2.4(@types/debug@4.1.12)(@types/node@24.5.1)(happy-dom@16.8.1)(jiti@2.5.1)(yaml@2.8.1))
+      eslint:
+        specifier: catalog:lint
+        version: 9.35.0(jiti@2.5.1)
+      fs-fixture:
+        specifier: catalog:testing
+        version: 2.8.1
+      valibot:
+        specifier: catalog:runtime
+        version: 1.1.0(typescript@5.9.2)
+      vitest:
+        specifier: catalog:testing
+        version: 3.2.4(@types/debug@4.1.12)(@types/node@24.5.1)(happy-dom@16.8.1)(jiti@2.5.1)(yaml@2.8.1)
 
   packages/terminal:
     dependencies:
