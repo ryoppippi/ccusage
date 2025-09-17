@@ -1,4 +1,4 @@
-import type { UsageReportConfig } from '../_table.ts';
+import type { UsageReportConfig } from '@ccusage/terminal/table';
 import process from 'node:process';
 import { Result } from '@praha/byethrow';
 import { define } from 'gunshi';
@@ -7,7 +7,7 @@ import { WEEK_DAYS } from '../_consts.ts';
 import { formatDateCompact } from '../_date-utils.ts';
 import { processWithJq } from '../_jq-processor.ts';
 import { sharedArgs } from '../_shared-args.ts';
-import { addEmptySeparatorRow, createUsageReportTable, formatTotalsRow, formatUsageDataRow, pushBreakdownRows } from '../_table.ts';
+import { addEmptySeparatorRow, createUsageReportTable, formatTotalsRow, formatUsageDataRow, pushBreakdownRows } from '@ccusage/terminal/table';
 import {
 	calculateTotals,
 	createTotalsObject,

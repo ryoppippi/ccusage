@@ -3,7 +3,6 @@ import Table from 'cli-table3';
 import { uniq } from 'es-toolkit';
 import pc from 'picocolors';
 import stringWidth from 'string-width';
-import { logger } from './logger.js';
 
 /**
  * Horizontal alignment options for table cells
@@ -62,7 +61,7 @@ export class ResponsiveTable {
 		this.compactColAligns = options.compactColAligns;
 		this.compactThreshold = options.compactThreshold ?? 100;
 		this.forceCompact = options.forceCompact ?? false;
-		this.logger = options.logger ?? logger.warn;
+		this.logger = options.logger ?? console.warn;
 	}
 
 	/**

@@ -13,7 +13,7 @@ import { loadConfig, mergeConfigWithArgs } from '../_config-loader-tokens.ts';
 import { DEFAULT_CONTEXT_USAGE_THRESHOLDS, DEFAULT_REFRESH_INTERVAL_SECONDS } from '../_consts.ts';
 import { calculateBurnRate } from '../_session-blocks.ts';
 import { sharedArgs } from '../_shared-args.ts';
-import { formatCurrency } from '../_table.ts';
+import { formatCurrency } from '@ccusage/terminal/table';
 import { statuslineHookJsonSchema } from '../_types.ts';
 import { getFileModifiedTime, unreachable } from '../_utils.ts';
 import { calculateTotals } from '../calculate-cost.ts';
