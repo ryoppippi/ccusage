@@ -1,6 +1,6 @@
 # Codex CLI Overview (Beta)
 
-![Codex CLI daily report](/codex-cli.png)
+![Codex CLI daily report](/codex-cli.jpeg)
 
 > ⚠️ The Codex companion CLI is experimental. Expect breaking changes while both ccusage and [OpenAI's Codex CLI](https://github.com/openai/codex) continue to evolve.
 
@@ -18,7 +18,7 @@ npx @ccusage/codex@latest --help
 
 ## Data Source
 
-The CLI reads Codex session JSONL files located under `CODEX_HOME` (defaults to `~/.codex`). Each file represents a single Codex CLI session and contains running token totals that the tool converts into per-day deltas.
+The CLI reads Codex session JSONL files located under `CODEX_HOME` (defaults to `~/.codex`). Each file represents a single Codex CLI session and contains running token totals that the tool converts into per-day or per-month deltas.
 
 ## Environment Variables
 
@@ -30,7 +30,13 @@ The CLI reads Codex session JSONL files located under `CODEX_HOME` (defaults to 
 
 ## Next Steps
 
-- [Daily report command](./daily.md) (currently implemented)
+- [Daily report command](./daily.md)
 - Additional reports will mirror the ccusage CLI as the Codex tooling stabilizes.
 
 Have feedback or ideas? [Open an issue](https://github.com/ryoppippi/ccusage/issues/new) so we can improve the beta.
+
+## Troubleshooting
+
+::: details Why are there no entries before September 2025?
+OpenAI's Codex CLI started emitting `token_count` events in [commit 0269096](https://github.com/openai/codex/commit/0269096229e8c8bd95185173706807dc10838c7a) (2025-09-06). Earlier session logs simply don't contain token usage metrics, so `@ccusage/codex` has nothing to aggregate. If you need historic data, rerun those sessions after that Codex update.
+:::

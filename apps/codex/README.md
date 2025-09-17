@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="https://cdn.jsdelivr.net/gh/ryoppippi/ccusage@main/docs/public/codex-cli.png" alt="Codex CLI usage screenshot" width="640">
+  <img src="https://cdn.jsdelivr.net/gh/ryoppippi/ccusage@main/docs/public/codex-cli.jpeg" alt="Codex CLI usage screenshot" width="640">
   <h1>@ccusage/codex</h1>
   <p>Analyze <a href="https://github.com/openai/codex">OpenAI Codex CLI</a> usage logs with the same reporting experience as <code>ccusage</code>.</p>
 </div>
