@@ -14,12 +14,7 @@ function parseDateArg(value: string): string {
 	const result = v.safeParse(filterDateSchema, value);
 	if (!result.success) {
 		const flattened = v.flatten(result.issues);
-		const message = flattened.root?.[0]
-			?? Object.values(flattened.nested ?? {})
-				.flatMap(errors => errors ?? [])
-				.at(0)
-				?? 'Invalid date format';
-		throw new TypeError(message);
+		throw new TypeError(JSON.stringify(flattened));
 	}
 	return result.output;
 }
