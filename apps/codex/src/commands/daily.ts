@@ -99,8 +99,9 @@ export const dailyCommand = define({
 		},
 		offline: {
 			type: 'boolean',
+			short: 'O',
 			description: 'Use cached pricing data instead of fetching from LiteLLM',
-			default: true,
+			default: false,
 			negatable: true,
 		},
 	},
