@@ -25,7 +25,7 @@ The CLI reads Codex session JSONL files located under `CODEX_HOME` (defaults to 
 | Variable | Description |
 | --- | --- |
 | `CODEX_HOME` | Override the root directory containing Codex session folders |
-| `CODEX_USAGE_MODEL` | Default model name when a log entry does not include model metadata |
+| `CODEX_USAGE_MODEL` | Default model when metadata is missing (overridden by `--model`; falls back to `gpt-5` otherwise) |
 | `LOG_LEVEL` | Adjust consola verbosity (0 silent … 5 trace) |
 
 ## Next Steps
