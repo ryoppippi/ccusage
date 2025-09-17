@@ -3,24 +3,28 @@ import { globSync } from 'tinyglobby'
 
 const entryPoints = [
 	...globSync([
-		'./node_modules/ccusage/src/*.ts',
-		'!./node_modules/ccusage/src/**/*.test.ts', // Exclude test files
-		'!./node_modules/ccusage/src/_*.ts', // Exclude internal files with underscore prefix
+		'../packages/core/src/*.ts',
+		'!../packages/core/src/index.ts', // Exclude empty index
+		'!../packages/core/src/**/*.test.ts', // Exclude test files
 	], {
 		absolute: true,
 		onlyFiles: true,
 		cwd: import.meta.dirname,
 	}),
-	'./node_modules/ccusage/src/_consts.ts', // Include constants for documentation
-];
+]
+
+console.log('Entry points for TypeDoc:', entryPoints);
 
 /** @type {import('typedoc').TypeDocOptions & import('typedoc-plugin-markdown').PluginOptions & { docsRoot?: string } } */
 export default {
 	// typedoc options
 	// ref: https://typedoc.org/documents/Options.html
 	entryPoints,
-	tsconfig: './node_modules/ccusage/tsconfig.json',
-	out: 'api/ccusage',
+	entryPointStrategy: 'expand',
+	categorizeByGroup: false,
+	treatWarningsAsErrors: false,
+	tsconfig: '../packages/core/tsconfig.json',
+	out: 'api/core',
 	plugin: ['typedoc-plugin-markdown', 'typedoc-vitepress-theme'],
 	readme: 'none',
 	excludeInternal: true,
@@ -44,6 +48,7 @@ export default {
 	// typedoc-plugin-markdown options
 	// ref: https://typedoc-plugin-markdown.org/docs/options
 	entryFileName: 'index',
+	flattenOutputFiles: false, // This should preserve module structure
 	hidePageTitle: false,
 	useCodeBlocks: true,
 	disableSources: true,

@@ -1,5 +1,11 @@
 import type { SessionBlock } from '../_session-blocks.ts';
 import process from 'node:process';
+import {
+	formatCurrency,
+	formatModelsDisplayMultiline,
+	formatNumber,
+	ResponsiveTable,
+} from '@ccusage/core/table';
 import { Result } from '@praha/byethrow';
 import { define } from 'gunshi';
 import pc from 'picocolors';
@@ -14,7 +20,6 @@ import {
 
 } from '../_session-blocks.ts';
 import { sharedCommandConfig } from '../_shared-args.ts';
-import { formatCurrency, formatModelsDisplayMultiline, formatNumber, ResponsiveTable } from '../_table.ts';
 import { getTotalTokens } from '../_token-utils.ts';
 import { getClaudePaths, loadSessionBlockData } from '../data-loader.ts';
 import { log, logger } from '../logger.ts';

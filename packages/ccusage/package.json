@@ -54,6 +54,9 @@
 		"test:statusline:sonnet41": "cat test/statusline-test-sonnet41.json | node ./src/index.ts statusline --offline",
 		"typecheck": "tsgo --noEmit"
 	},
+	"dependencies": {
+		"@ccusage/core": "workspace:*"
+	},
 	"devDependencies": {
 		"@antfu/utils": "catalog:runtime",
 		"@oxc-project/runtime": "catalog:build",
@@ -66,7 +69,6 @@
 		"ansi-escapes": "catalog:runtime",
 		"bumpp": "catalog:release",
 		"clean-pkg-json": "catalog:release",
-		"cli-table3": "catalog:runtime",
 		"consola": "catalog:runtime",
 		"es-toolkit": "catalog:runtime",
 		"eslint": "catalog:lint",

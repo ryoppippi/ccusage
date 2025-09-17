@@ -1,5 +1,13 @@
-import type { UsageReportConfig } from '../_table.ts';
+import type { UsageReportConfig } from '@ccusage/core/table';
 import process from 'node:process';
+import {
+	addEmptySeparatorRow,
+	createUsageReportTable,
+	formatTotalsRow,
+	formatUsageDataRow,
+	pushBreakdownRows,
+
+} from '@ccusage/core/table';
 import { Result } from '@praha/byethrow';
 import { define } from 'gunshi';
 import pc from 'picocolors';
@@ -9,7 +17,6 @@ import { formatDateCompact } from '../_date-utils.ts';
 import { processWithJq } from '../_jq-processor.ts';
 import { formatProjectName } from '../_project-names.ts';
 import { sharedCommandConfig } from '../_shared-args.ts';
-import { addEmptySeparatorRow, createUsageReportTable, formatTotalsRow, formatUsageDataRow, pushBreakdownRows } from '../_table.ts';
 import {
 	calculateTotals,
 	createTotalsObject,

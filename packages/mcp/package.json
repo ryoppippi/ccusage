@@ -61,6 +61,7 @@
 		"publint": "catalog:lint",
 		"sort-package-json": "catalog:release",
 		"tsdown": "catalog:build",
+		"unplugin-unused": "catalog:build",
 		"vitest": "catalog:testing"
 	},
 	"publishConfig": {

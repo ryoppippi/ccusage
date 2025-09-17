@@ -1,0 +1,9 @@
+{
+	"extends": "../ccusage/tsconfig.json",
+	"compilerOptions": {
+		"noEmit": true
+	},
+	"include": [
+		"src"
+	]
+}

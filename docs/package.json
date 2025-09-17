@@ -13,6 +13,7 @@
     "typecheck": "tsgo --noEmit"
   },
   "devDependencies": {
+    "@ccusage/core": "workspace:*",
     "@ryoppippi/vite-plugin-cloudflare-redirect": "catalog:docs",
     "@typescript/native-preview": "catalog:types",
     "ccusage": "workspace:^",

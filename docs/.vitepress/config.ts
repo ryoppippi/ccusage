@@ -7,8 +7,13 @@ import type { DefaultTheme } from 'vitepress';
 import { cloudflareRedirect } from '@ryoppippi/vite-plugin-cloudflare-redirect';
 
 
-const typedocSidebarJson = fs.readFileSync(path.join(import.meta.dirname, '../api/typedoc-sidebar.json'))
-const typedocSidebar = JSON.parse(typedocSidebarJson.toString()) as DefaultTheme.SidebarItem[];
+// Load ccusage API sidebar
+const ccusageSidebarJson = fs.readFileSync(path.join(import.meta.dirname, '../api/ccusage/typedoc-sidebar.json'))
+const ccusageSidebar = JSON.parse(ccusageSidebarJson.toString()) as DefaultTheme.SidebarItem[];
+
+// Load core API sidebar
+const coreSidebarJson = fs.readFileSync(path.join(import.meta.dirname, '../api/core/typedoc-sidebar.json'))
+const coreSidebar = JSON.parse(coreSidebarJson.toString()) as DefaultTheme.SidebarItem[];
 
 export default defineConfig({
 	title: 'ccusage',
@@ -101,7 +106,26 @@ export default defineConfig({
 					text: 'API Reference',
 					items: [
 						{ text: 'Overview', link: '/api/' },
-						...typedocSidebar,
+						{ text: 'ccusage Package', link: '/api/ccusage/' },
+						{ text: '@ccusage/core Package', link: '/api/core/' },
+					],
+				},
+			],
+			'/api/ccusage/': [
+				{
+					text: 'ccusage Package',
+					items: [
+						{ text: 'Overview', link: '/api/ccusage/' },
+						...ccusageSidebar,
+					],
+				},
+			],
+			'/api/core/': [
+				{
+					text: '@ccusage/core Package',
+					items: [
+						{ text: 'Overview', link: '/api/core/' },
+						...coreSidebar,
 					],
 				},
 			],
