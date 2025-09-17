@@ -69,3 +69,29 @@ export function formatDisplayDate(dateKey: string, locale?: string, timezone?: s
 	});
 	return formatter.format(date);
 }
+
+export function toMonthKey(timestamp: string, timezone?: string): string {
+	const tz = safeTimeZone(timezone);
+	const date = new Date(timestamp);
+	const formatter = new Intl.DateTimeFormat('en-CA', {
+		year: 'numeric',
+		month: '2-digit',
+		timeZone: tz,
+	});
+	const [year, month] = formatter.format(date).split('-');
+	return `${year}-${month}`;
+}
+
+export function formatDisplayMonth(monthKey: string, locale?: string, timezone?: string): string {
+	const tz = safeTimeZone(timezone);
+	const [yearStr = '0', monthStr = '1'] = monthKey.split('-');
+	const year = Number.parseInt(yearStr, 10);
+	const month = Number.parseInt(monthStr, 10);
+	const date = new Date(Date.UTC(year, month - 1, 1));
+	const formatter = new Intl.DateTimeFormat(locale ?? 'en-US', {
+		year: 'numeric',
+		month: 'short',
+		timeZone: tz,
+	});
+	return formatter.format(date);
+}

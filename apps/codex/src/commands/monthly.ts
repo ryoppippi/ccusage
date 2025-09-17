@@ -11,17 +11,17 @@ import pc from 'picocolors';
 import { DEFAULT_MODEL, DEFAULT_TIMEZONE, MODEL_ENV_VAR } from '../_consts.ts';
 import { sharedArgs } from '../_shared-args.ts';
 import { formatModelsList, isOptionExplicit, splitUsageTokens } from '../command-utils.ts';
-import { buildDailyReport } from '../daily-report.ts';
 import { loadTokenUsageEvents } from '../data-loader.ts';
 import { normalizeFilterDate } from '../date-utils.ts';
 import { log, logger } from '../logger.ts';
+import { buildMonthlyReport } from '../monthly-report.ts';
 import { CodexPricingSource } from '../pricing.ts';
 
 const TABLE_COLUMN_COUNT = 8;
 
-export const dailyCommand = define({
-	name: 'daily',
-	description: 'Show Codex token usage grouped by day',
+export const monthlyCommand = define({
+	name: 'monthly',
+	description: 'Show Codex token usage grouped by month',
 	args: sharedArgs,
 	async run(ctx) {
 		const jsonOutput = Boolean(ctx.values.json);
@@ -57,7 +57,7 @@ export const dailyCommand = define({
 		}
 
 		if (events.length === 0) {
-			log(jsonOutput ? JSON.stringify({ daily: [], totals: null }) : 'No Codex usage data found.');
+			log(jsonOutput ? JSON.stringify({ monthly: [], totals: null }) : 'No Codex usage data found.');
 			return;
 		}
 
@@ -65,7 +65,7 @@ export const dailyCommand = define({
 			offline: ctx.values.offline,
 		});
 		try {
-			const rows = await buildDailyReport(events, {
+			const rows = await buildMonthlyReport(events, {
 				pricingSource,
 				timezone: ctx.values.timezone,
 				locale: ctx.values.locale,
@@ -75,7 +75,7 @@ export const dailyCommand = define({
 			});
 
 			if (rows.length === 0) {
-				log(jsonOutput ? JSON.stringify({ daily: [], totals: null }) : 'No Codex usage data found for provided filters.');
+				log(jsonOutput ? JSON.stringify({ monthly: [], totals: null }) : 'No Codex usage data found for provided filters.');
 				return;
 			}
 
@@ -98,18 +98,18 @@ export const dailyCommand = define({
 
 			if (jsonOutput) {
 				log(JSON.stringify({
-					daily: rows,
+					monthly: rows,
 					totals,
 				}, null, 2));
 				return;
 			}
 
-			logger.box(`Codex Token Usage Report - Daily (Timezone: ${ctx.values.timezone ?? DEFAULT_TIMEZONE})`);
+			logger.box(`Codex Token Usage Report - Monthly (Timezone: ${ctx.values.timezone ?? DEFAULT_TIMEZONE})`);
 
 			const table: ResponsiveTable = new ResponsiveTable({
-				head: ['Date', 'Models', 'Input', 'Output', 'Reasoning', 'Cache Read', 'Total Tokens', 'Cost (USD)'],
+				head: ['Month', 'Models', 'Input', 'Output', 'Reasoning', 'Cache Read', 'Total Tokens', 'Cost (USD)'],
 				colAligns: ['left', 'left', 'right', 'right', 'right', 'right', 'right', 'right'],
-				compactHead: ['Date', 'Models', 'Input', 'Output', 'Cost (USD)'],
+				compactHead: ['Month', 'Models', 'Input', 'Output', 'Cost (USD)'],
 				compactColAligns: ['left', 'left', 'right', 'right', 'right'],
 				compactThreshold: 100,
 				style: { head: ['cyan'] },
@@ -134,7 +134,7 @@ export const dailyCommand = define({
 				totalsForDisplay.costUSD += row.costUSD;
 
 				table.push([
-					row.date,
+					row.month,
 					formatModelsDisplayMultiline(formatModelsList(row.models)),
 					formatNumber(split.inputTokens),
 					formatNumber(split.outputTokens),

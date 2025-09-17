@@ -18,6 +18,13 @@ export type DailyUsageSummary = {
 	models: Map<string, TokenUsageDelta>;
 } & TokenUsageDelta;
 
+export type MonthlyUsageSummary = {
+	month: string;
+	firstTimestamp: string;
+	costUSD: number;
+	models: Map<string, TokenUsageDelta>;
+} & TokenUsageDelta;
+
 export type ModelPricing = {
 	inputCostPerMToken: number;
 	cachedInputCostPerMToken: number;
@@ -35,6 +42,17 @@ export type PricingSource = {
 
 export type DailyReportRow = {
 	date: string;
+	inputTokens: number;
+	cachedInputTokens: number;
+	outputTokens: number;
+	reasoningOutputTokens: number;
+	totalTokens: number;
+	costUSD: number;
+	models: Record<string, TokenUsageDelta>;
+};
+
+export type MonthlyReportRow = {
+	month: string;
 	inputTokens: number;
 	cachedInputTokens: number;
 	outputTokens: number;
