@@ -96,7 +96,7 @@ Always run these commands in parallel after code changes:
 
 - `gunshi` - CLI framework
 - `cli-table3` - Table formatting
-- `zod` - Schema validation
+- `valibot` - Schema validation
 - `@praha/byethrow` - Functional error handling
 
 **Key Dev Dependencies:**
