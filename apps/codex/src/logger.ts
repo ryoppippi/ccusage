@@ -1,10 +1,17 @@
+import type { ConsolaInstance } from 'consola';
 import process from 'node:process';
-import consola from 'consola';
+import { consola } from 'consola';
 
-export const logger = consola.create({
-	level: Number(process.env.LOG_LEVEL ?? 3),
-});
+import { name } from '../package.json';
 
-export function log(message: string): void {
-	logger.log(message);
+export const logger: ConsolaInstance = consola.withTag(name);
+
+if (process.env.LOG_LEVEL != null) {
+	const level = Number.parseInt(process.env.LOG_LEVEL, 10);
+	if (!Number.isNaN(level)) {
+		logger.level = level;
+	}
 }
+
+// eslint-disable-next-line no-console
+export const log = console.log;
