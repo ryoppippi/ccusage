@@ -72,4 +72,4 @@ Check out [ccusage: The Claude Code cost scorecard that went viral](https://www.
 
 ## License
 
-MIT
+MIT © [@ryoppippi](https://github.com/ryoppippi)
