@@ -1,0 +1,31 @@
+{
+	"name": "@ccusage/terminal",
+	"type": "module",
+	"version": "1.0.0",
+	"private": true,
+	"description": "Terminal utilities for ccusage",
+	"exports": {
+		"./table": "./src/table.ts",
+		"./utils": "./src/utils.ts"
+	},
+	"scripts": {
+		"test": "TZ=UTC vitest",
+		"typecheck": "tsgo --noEmit",
+		"lint": "eslint --cache .",
+		"format": "pnpm run lint --fix"
+	},
+	"dependencies": {
+		"@oxc-project/runtime": "catalog:build",
+		"ansi-escapes": "catalog:runtime",
+		"cli-table3": "catalog:runtime",
+		"es-toolkit": "catalog:runtime",
+		"picocolors": "catalog:runtime",
+		"string-width": "catalog:runtime"
+	},
+	"devDependencies": {
+		"@ryoppippi/eslint-config": "catalog:lint",
+		"eslint": "catalog:lint",
+		"eslint-plugin-format": "catalog:lint",
+		"vitest": "catalog:testing"
+	}
+}

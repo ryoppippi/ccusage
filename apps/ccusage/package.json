@@ -53,6 +53,7 @@
 	},
 	"devDependencies": {
 		"@antfu/utils": "catalog:runtime",
+		"@ccusage/terminal": "workspace:*",
 		"@oxc-project/runtime": "catalog:build",
 		"@praha/byethrow": "catalog:runtime",
 		"@ryoppippi/eslint-config": "catalog:lint",
@@ -63,7 +64,6 @@
 		"ansi-escapes": "catalog:runtime",
 		"bumpp": "catalog:release",
 		"clean-pkg-json": "catalog:release",
-		"cli-table3": "catalog:runtime",
 		"consola": "catalog:runtime",
 		"es-toolkit": "catalog:runtime",
 		"eslint": "catalog:lint",

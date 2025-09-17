@@ -7,7 +7,7 @@
  */
 
 import type { SessionBlock } from './_session-blocks.ts';
-import type { TerminalManager } from './_terminal-utils.ts';
+import type { TerminalManager } from '@ccusage/terminal/utils';
 import type { CostMode, SortOrder } from './_types.ts';
 import { delay } from '@std/async';
 import * as ansiEscapes from 'ansi-escapes';
@@ -16,8 +16,8 @@ import prettyMs from 'pretty-ms';
 import stringWidth from 'string-width';
 import { BURN_RATE_THRESHOLDS } from './_consts.ts';
 import { calculateBurnRate, projectBlockUsage } from './_session-blocks.ts';
-import { formatCurrency, formatModelsDisplay, formatNumber } from './_table.ts';
-import { centerText, createProgressBar, drawEmoji } from './_terminal-utils.ts';
+import { formatCurrency, formatModelsDisplay, formatNumber } from '@ccusage/terminal/table';
+import { centerText, createProgressBar, drawEmoji } from '@ccusage/terminal/utils';
 import { getTotalTokens } from './_token-utils.ts';
 
 /**

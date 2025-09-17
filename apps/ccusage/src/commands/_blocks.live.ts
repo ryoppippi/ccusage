@@ -21,7 +21,7 @@ import {
 	renderActiveBlock,
 	renderWaitingState,
 } from '../_live-rendering.ts';
-import { TerminalManager } from '../_terminal-utils.ts';
+import { TerminalManager } from '@ccusage/terminal/utils';
 import { logger } from '../logger.ts';
 
 export async function startLiveMonitoring(config: LiveMonitoringConfig): Promise<void> {

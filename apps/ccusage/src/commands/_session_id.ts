@@ -4,7 +4,7 @@ import process from 'node:process';
 import { Result } from '@praha/byethrow';
 import { formatDateCompact } from '../_date-utils.ts';
 import { processWithJq } from '../_jq-processor.ts';
-import { formatCurrency, formatNumber, ResponsiveTable } from '../_table.ts';
+import { formatCurrency, formatNumber, ResponsiveTable } from '@ccusage/terminal/table';
 import { loadSessionUsageById } from '../data-loader.ts';
 import { log, logger } from '../logger.ts';
 
