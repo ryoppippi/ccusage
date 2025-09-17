@@ -4,7 +4,7 @@
 	"version": "16.2.5",
 	"private": true,
 	"workspaces": [
-		"packages/*",
+		"apps/*",
 		"docs"
 	],
 	"packageManager": "pnpm@10.16.1",

@@ -1,5 +1,5 @@
 packages:
-  - packages/*
+  - apps/*
   - docs
 
 minimumReleaseAge: 2880
