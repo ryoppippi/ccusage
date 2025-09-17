@@ -87,7 +87,7 @@ export const dailyCommand = define({
 		model: {
 			type: 'string',
 			short: 'm',
-			description: 'Default model name when Codex log lacks model metadata',
+			description: `Default model name when Codex log lacks model metadata (defaults to ${DEFAULT_MODEL}, or CODEX_USAGE_MODEL if set)`,
 			default: DEFAULT_MODEL,
 		},
 		offline: {
