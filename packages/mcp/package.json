@@ -27,7 +27,6 @@
 		"ccusage-mcp": "./dist/cli.js"
 	},
 	"files": [
-		"bin.js",
 		"dist"
 	],
 	"engines": {
