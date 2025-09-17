@@ -13,10 +13,28 @@ import { CostModes, filterDateSchema, SortOrders } from './_types.ts';
 function parseDateArg(value: string): string {
 	const result = v.safeParse(filterDateSchema, value);
 	if (!result.success) {
-		const message = result.issues[0]?.message ?? 'Invalid date format';
+		const message = formatIssues(result.issues) ?? 'Invalid date format';
 		throw new TypeError(message);
 	}
 	return result.output;
+}
+
+function formatIssues(issues: [v.BaseIssue<unknown>, ...v.BaseIssue<unknown>[]]): string | null {
+	const flattened = v.flatten(issues);
+	const rootMessage = flattened.root?.[0];
+	if (rootMessage != null) {
+		return rootMessage;
+	}
+	if (flattened.nested != null) {
+		for (const [path, pathErrors] of Object.entries(flattened.nested)) {
+			const nestedMessage = pathErrors?.[0];
+			if (nestedMessage != null) {
+				const label = path.length > 0 ? `${path}: ` : '';
+				return `${label}${nestedMessage}`;
+			}
+		}
+	}
+	return null;
 }
 
 /**
