@@ -2,6 +2,16 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Monorepo Structure
+
+This is a monorepo containing multiple packages. For package-specific guidance, refer to the individual CLAUDE.md files:
+
+- **Main CLI Package**: @packages/ccusage/CLAUDE.md - Core ccusage CLI tool and library
+- **MCP Server Package**: @packages/mcp/CLAUDE.md - MCP server implementation for ccusage data
+- **Documentation**: @docs/CLAUDE.md - VitePress-based documentation website
+
+Each package has its own development commands, dependencies, and specific guidelines. Always check the relevant package's CLAUDE.md when working within that package directory.
+
 ## Guide for lsmcp mcp
 
 You are a professional coding agent concerned with one particular codebase. You have
@@ -79,10 +89,10 @@ Always prefer indexed searches (tools with `_from_index` suffix) over reading en
 - `pnpm run start blocks --token-limit <limit>` - Token limit for quota warnings (number or "max")
 - `node ./src/index.ts` - Direct execution for development
 
-**MCP Server Usage:**
+**MCP Server Usage:** (now provided by the `@ccusage/mcp` package)
 
-- `pnpm run start mcp` - Start MCP server with stdio transport (default)
-- `pnpm run start mcp --type http --port 8080` - Start MCP server with HTTP transport
+- `pnpm dlx @ccusage/mcp@latest -- --help` - Show available options
+- `pnpm dlx @ccusage/mcp@latest -- --type http --port 8080` - Start HTTP transport
 
 **Cost Calculation Modes:**
 

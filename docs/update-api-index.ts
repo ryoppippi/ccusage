@@ -17,7 +17,6 @@ const descriptions = {
 	'debug': 'Debug utilities for cost calculation validation',
 	'index': 'Main entry point for ccusage CLI tool',
 	'logger': 'Logging utilities for the ccusage application',
-	'mcp': 'MCP (Model Context Protocol) server implementation',
 	'pricing-fetcher': 'Model pricing data fetcher for cost calculations',
 } as const;
 

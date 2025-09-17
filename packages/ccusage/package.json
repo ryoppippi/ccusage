@@ -15,13 +15,12 @@
 		"url": "https://github.com/ryoppippi/ccusage/issues"
 	},
 	"exports": {
-		".": "./dist/index.js",
-		"./calculate-cost": "./dist/calculate-cost.js",
-		"./data-loader": "./dist/data-loader.js",
-		"./debug": "./dist/debug.js",
-		"./logger": "./dist/logger.js",
-		"./mcp": "./dist/mcp.js",
-		"./pricing-fetcher": "./dist/pricing-fetcher.js",
+		".": "./src/index.ts",
+		"./calculate-cost": "./src/calculate-cost.ts",
+		"./data-loader": "./src/data-loader.ts",
+		"./debug": "./src/debug.ts",
+		"./logger": "./src/logger.ts",
+		"./pricing-fetcher": "./src/pricing-fetcher.ts",
 		"./package.json": "./package.json"
 	},
 	"main": "./dist/index.js",
@@ -57,9 +56,6 @@
 	},
 	"devDependencies": {
 		"@antfu/utils": "catalog:runtime",
-		"@hono/mcp": "catalog:runtime",
-		"@hono/node-server": "catalog:runtime",
-		"@modelcontextprotocol/sdk": "catalog:runtime",
 		"@oxc-project/runtime": "catalog:build",
 		"@praha/byethrow": "catalog:runtime",
 		"@ryoppippi/eslint-config": "catalog:lint",
@@ -79,7 +75,6 @@
 		"fs-fixture": "catalog:testing",
 		"get-stdin": "catalog:runtime",
 		"gunshi": "catalog:runtime",
-		"hono": "catalog:runtime",
 		"nano-spawn": "catalog:runtime",
 		"p-limit": "catalog:runtime",
 		"path-type": "catalog:runtime",
@@ -96,6 +91,17 @@
 		"vitest": "catalog:testing",
 		"xdg-basedir": "catalog:runtime",
 		"zod": "catalog:runtime"
+	},
+	"publishConfig": {
+		"exports": {
+			".": "./dist/index.js",
+			"./calculate-cost": "./dist/calculate-cost.js",
+			"./data-loader": "./dist/data-loader.js",
+			"./debug": "./dist/debug.js",
+			"./logger": "./dist/logger.js",
+			"./pricing-fetcher": "./dist/pricing-fetcher.js",
+			"./package.json": "./package.json"
+		}
 	},
 	"devEngines": {
 		"runtime": [

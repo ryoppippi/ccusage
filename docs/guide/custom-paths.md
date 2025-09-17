@@ -286,28 +286,28 @@ ccu-period 202501  # January 2025
 
 ## MCP Integration with Custom Paths
 
-When using ccusage as an MCP server with custom paths:
+When using the standalone MCP CLI with custom paths:
 
 ### Claude Desktop Configuration
 
 ```json
 {
 	"mcpServers": {
-		"ccusage": {
-			"command": "ccusage",
-			"args": ["mcp"],
-			"env": {
-				"CLAUDE_CONFIG_DIR": "/path/to/your/claude/data"
-			}
-		},
-		"ccusage-archive": {
-			"command": "ccusage",
-			"args": ["mcp"],
-			"env": {
-				"CLAUDE_CONFIG_DIR": "/archive/claude-2024,/archive/claude-2025"
-			}
-		}
-	}
+    "ccusage": {
+      "command": "npx",
+      "args": ["@ccusage/mcp@latest"],
+      "env": {
+        "CLAUDE_CONFIG_DIR": "/path/to/your/claude/data"
+      }
+    },
+    "ccusage-archive": {
+      "command": "npx",
+      "args": ["@ccusage/mcp@latest"],
+      "env": {
+        "CLAUDE_CONFIG_DIR": "/archive/claude-2024,/archive/claude-2025"
+      }
+    }
+  }
 }
 ```
 
