@@ -135,14 +135,8 @@ export const dailyCommand = define({
 			return;
 		}
 
-		const shouldLogPricingFetch = !ctx.values.offline && !jsonOutput;
-		if (shouldLogPricingFetch) {
-			logger.warn('Fetching latest model pricing from LiteLLM...');
-		}
-
 		const pricingSource = new CodexPricingSource({
 			offline: ctx.values.offline,
-			suppressFetcherFetchLog: shouldLogPricingFetch,
 		});
 		try {
 			const rows = await buildDailyReport(events, {

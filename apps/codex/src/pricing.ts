@@ -1,4 +1,4 @@
-import type { LiteLLMModelPricing, PricingLogger } from '@ccusage/internal/pricing';
+import type { LiteLLMModelPricing } from '@ccusage/internal/pricing';
 import type { ModelPricing, PricingSource } from './_types.ts';
 import { LiteLLMPricingFetcher } from '@ccusage/internal/pricing';
 import { Result } from '@praha/byethrow';
@@ -7,32 +7,6 @@ import { prefetchCodexPricing } from './_macro.ts' with { type: 'macro' };
 import { logger } from './logger.ts';
 
 const CODEX_PROVIDER_PREFIXES = ['openai/', 'azure/', 'openrouter/openai/'];
-const FETCH_PRICING_MESSAGE = 'Fetching latest model pricing from LiteLLM...';
-
-function createPricingLogger(baseLogger: PricingLogger, suppressFetchLog: boolean): PricingLogger {
-	if (!suppressFetchLog) {
-		return baseLogger;
-	}
-
-	return {
-		debug: (...args: unknown[]) => {
-			baseLogger.debug(...args);
-		},
-		error: (...args: unknown[]) => {
-			baseLogger.error(...args);
-		},
-		info: (...args: unknown[]) => {
-			baseLogger.info(...args);
-		},
-		warn: (...args: unknown[]) => {
-			const [first] = args;
-			if (typeof first === 'string' && first.includes(FETCH_PRICING_MESSAGE)) {
-				return;
-			}
-			baseLogger.warn(...args);
-		},
-	};
-}
 
 function toPerMillion(value: number | undefined, fallback?: number): number {
 	const perToken = value ?? fallback ?? 0;
@@ -42,7 +16,6 @@ function toPerMillion(value: number | undefined, fallback?: number): number {
 export type CodexPricingSourceOptions = {
 	offline?: boolean;
 	offlineLoader?: () => Promise<Record<string, LiteLLMModelPricing>>;
-	suppressFetcherFetchLog?: boolean;
 };
 
 const PREFETCHED_CODEX_PRICING = prefetchCodexPricing();
@@ -51,13 +24,10 @@ export class CodexPricingSource implements PricingSource, Disposable {
 	private readonly fetcher: LiteLLMPricingFetcher;
 
 	constructor(options: CodexPricingSourceOptions = {}) {
-		const suppressFetchLog = options.suppressFetcherFetchLog ?? false;
-		const baseLogger = logger as PricingLogger;
-		const pricingLogger = createPricingLogger(baseLogger, suppressFetchLog);
 		this.fetcher = new LiteLLMPricingFetcher({
 			offline: options.offline ?? false,
 			offlineLoader: options.offlineLoader ?? (async () => PREFETCHED_CODEX_PRICING),
-			logger: pricingLogger,
+			logger,
 			providerPrefixes: CODEX_PROVIDER_PREFIXES,
 		});
 	}
