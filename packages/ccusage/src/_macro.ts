@@ -3,6 +3,7 @@
  */
 
 import type { ModelPricing } from './_types.ts';
+import process from 'node:process';
 import * as v from 'valibot';
 import { LITELLM_PRICING_URL } from './_consts.ts';
 import { modelPricingSchema } from './_types.ts';
@@ -16,6 +17,13 @@ import { modelPricingSchema } from './_types.ts';
  * @throws Will throw an error if the fetch operation fails.
  */
 export async function prefetchClaudePricing(): Promise<Record<string, ModelPricing>> {
+	// Skip API fetch if OFFLINE environment variable is set during build time
+	if (process.env.OFFLINE === 'true') {
+		// Return empty object when offline to avoid API calls
+		// PricingFetcher will handle offline mode appropriately
+		return {};
+	}
+
 	const response = await fetch(LITELLM_PRICING_URL);
 	if (!response.ok) {
 		throw new Error(`Failed to fetch pricing data: ${response.statusText}`);
