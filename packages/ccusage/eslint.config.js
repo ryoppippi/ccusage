@@ -1,6 +1,7 @@
 import { ryoppippi } from '@ryoppippi/eslint-config';
 
-export default ryoppippi({
+/** @type {import('eslint').Linter.FlatConfig[]} */
+const config = ryoppippi({
 	type: 'lib',
 	svelte: false,
 }, {
@@ -8,3 +9,5 @@ export default ryoppippi({
 		'test/no-importing-vitest-globals': 'error',
 	},
 });
+
+export default config;
