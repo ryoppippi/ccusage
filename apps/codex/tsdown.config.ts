@@ -1,6 +1,5 @@
 import { defineConfig } from 'tsdown';
 import Macros from 'unplugin-macros/rolldown';
-import Unused from 'unplugin-unused/rolldown';
 
 export default defineConfig({
 	entry: ['src/index.ts'],
@@ -18,7 +17,6 @@ export default defineConfig({
 		Macros({
 			include: ['src/index.ts', 'src/pricing.ts'],
 		}),
-		Unused(),
 	],
 	define: {
 		'import.meta.vitest': 'undefined',
