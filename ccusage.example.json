@@ -1,5 +1,5 @@
 {
-	"$schema": "./config-schema.json",
+	"$schema": "./packages/ccusage/config-schema.json",
 	"defaults": {
 		"json": true,
 		"mode": "auto",
@@ -19,9 +19,6 @@
 		},
 		"weekly": {
 			"startOfWeek": "monday"
-		},
-		"session": {
-			"order": "desc"
 		},
 		"blocks": {
 			"tokenLimit": "500000",
