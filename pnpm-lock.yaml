@@ -6,9 +6,18 @@ settings:
 
 catalogs:
   build:
+    '@oxc-project/runtime':
+      specifier: ^0.82.3
+      version: 0.82.3
     tsdown:
       specifier: ^0.14.1
       version: 0.14.2
+    unplugin-macros:
+      specifier: ^0.18.0
+      version: 0.18.2
+    unplugin-unused:
+      specifier: ^0.5.2
+      version: 0.5.3
   docs:
     '@ryoppippi/vite-plugin-cloudflare-redirect':
       specifier: ^1.1.2
@@ -83,9 +92,6 @@ catalogs:
     '@modelcontextprotocol/sdk':
       specifier: ^1.17.3
       version: 1.18.0
-    '@oxc-project/runtime':
-      specifier: ^0.82.3
-      version: 0.82.3
     '@praha/byethrow':
       specifier: ^0.6.3
       version: 0.6.3
@@ -143,12 +149,6 @@ catalogs:
     type-fest:
       specifier: ^4.41.0
       version: 4.41.0
-    unplugin-macros:
-      specifier: ^0.18.0
-      version: 0.18.2
-    unplugin-unused:
-      specifier: ^0.5.2
-      version: 0.5.3
     xdg-basedir:
       specifier: ^5.1.0
       version: 5.1.0
@@ -253,7 +253,7 @@ importers:
         specifier: catalog:runtime
         version: 1.18.0
       '@oxc-project/runtime':
-        specifier: catalog:runtime
+        specifier: catalog:build
         version: 0.82.3
       '@praha/byethrow':
         specifier: catalog:runtime
@@ -352,10 +352,10 @@ importers:
         specifier: catalog:runtime
         version: 4.41.0
       unplugin-macros:
-        specifier: catalog:runtime
+        specifier: catalog:build
         version: 0.18.2(@types/node@24.5.1)(jiti@2.5.1)(yaml@2.8.1)
       unplugin-unused:
-        specifier: catalog:runtime
+        specifier: catalog:build
         version: 0.5.3
       vitest:
         specifier: catalog:testing

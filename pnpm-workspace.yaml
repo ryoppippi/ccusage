@@ -8,7 +8,6 @@ catalogs:
     "@hono/mcp": ^0.1.4
     "@hono/node-server": ^1.19.2
     "@modelcontextprotocol/sdk": ^1.17.3
-    "@oxc-project/runtime": ^0.82.3
     "@praha/byethrow": ^0.6.3
     "@ryoppippi/limo": jsr:^0.2.2
     "@std/async": jsr:^1.0.14
@@ -28,8 +27,6 @@ catalogs:
     "string-width": ^7.2.0
     "tinyglobby": ^0.2.14
     "type-fest": ^4.41.0
-    "unplugin-macros": ^0.18.0
-    "unplugin-unused": ^0.5.2
     "xdg-basedir": ^5.1.0
     "zod": ^3.25.67
 
@@ -49,6 +46,9 @@ catalogs:
 
   build:
     "tsdown": ^0.14.1
+    "@oxc-project/runtime": ^0.82.3
+    "unplugin-macros": ^0.18.0
+    "unplugin-unused": ^0.5.2
 
   release:
     "bumpp": ^10.2.3
