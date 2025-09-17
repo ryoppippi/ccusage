@@ -14,16 +14,14 @@
 		"lint": "eslint --cache .",
 		"format": "pnpm run lint --fix"
 	},
-	"peerDependencies": {
+	"dependencies": {
 		"@praha/byethrow": "catalog:runtime",
 		"valibot": "catalog:runtime"
 	},
 	"devDependencies": {
-		"@praha/byethrow": "catalog:runtime",
 		"@ryoppippi/eslint-config": "catalog:lint",
 		"eslint": "catalog:lint",
 		"fs-fixture": "catalog:testing",
-		"valibot": "catalog:runtime",
 		"vitest": "catalog:testing"
 	}
 }
