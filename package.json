@@ -31,6 +31,7 @@
   "devDependencies": {
     "@mizchi/lsmcp": "^0.10.0",
     "@praha/byethrow-mcp": "^0.1.2",
+    "@typescript/native-preview": "7.0.0-dev.20250916.1",
     "bumpp": "^10.2.3",
     "lint-staged": "^16.1.5",
     "sitemcp": "^0.5.9",
