@@ -31,6 +31,7 @@ The CLI reads Codex session JSONL files located under `CODEX_HOME` (defaults to 
 ## Next Steps
 
 - [Daily report command](./daily.md)
+- [Monthly report command](./monthly.md)
 - Additional reports will mirror the ccusage CLI as the Codex tooling stabilizes.
 
 Have feedback or ideas? [Open an issue](https://github.com/ryoppippi/ccusage/issues/new) so we can improve the beta.

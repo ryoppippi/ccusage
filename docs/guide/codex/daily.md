@@ -21,3 +21,5 @@ npx @ccusage/codex@latest daily
 | `--offline` / `--no-offline` | Force cached LiteLLM pricing or enable live fetching |
 
 The output uses the same responsive table component as ccusage, including compact mode support and per-model token summaries.
+
+Need higher-level trends? Switch to the [monthly report](./monthly.md) for month-by-month rollups with the same flag set.

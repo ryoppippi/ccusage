@@ -29,6 +29,12 @@ bunx @ccusage/codex daily --since 20250911 --until 20250917
 
 # JSON output for scripting
 bunx @ccusage/codex daily --json
+
+# Monthly usage grouped by month
+bunx @ccusage/codex monthly
+
+# Monthly JSON report for integrations
+bunx @ccusage/codex monthly --json
 ```
 
 Useful environment variables:
@@ -42,6 +48,7 @@ Useful environment variables:
 - Responsive terminal tables shared with the `ccusage` CLI
 - Offline-first pricing cache with automatic LiteLLM refresh when needed
 - Per-model token and cost aggregation, including cached token accounting
+- Daily and monthly rollups with identical CLI options
 - JSON output for further processing or scripting
 
 ## License
