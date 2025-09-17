@@ -54,6 +54,10 @@ features:
   - icon: 💰
     title: Cost Analysis
     details: Shows estimated costs in USD for each day/month/session
+  - icon: 🧠
+    title: Codex Desktop Support
+    details: Analyze OpenAI Codex desktop session logs with the companion CLI
+    link: https://github.com/ryoppippi/ccusage/tree/feature/codex-cli/apps/codex
   - icon: 🔄
     title: Cache Support
     details: Tracks cache creation and cache read tokens separately
