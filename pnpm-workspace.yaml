@@ -2,6 +2,8 @@ packages:
   - packages/*
   - docs
 
+minimumReleaseAge: 2880
+
 catalogs:
   runtime:
     "@antfu/utils": ^9.2.0
