@@ -6,18 +6,13 @@
 	"description": "Shared internal utilities for ccusage toolchain",
 	"exports": {
 		"./pricing": "./src/pricing.ts",
-		"./pricing-fetch-utils": "./src/pricing-fetch-utils.ts",
-		"./package.json": "./package.json"
+		"./pricing-fetch-utils": "./src/pricing-fetch-utils.ts"
 	},
-	"files": [
-		"dist"
-	],
 	"scripts": {
-		"build": "tsdown",
-		"format": "pnpm run lint --fix",
-		"lint": "eslint --cache .",
 		"test": "TZ=UTC vitest",
-		"typecheck": "tsgo --noEmit"
+		"typecheck": "tsgo --noEmit",
+		"lint": "eslint --cache .",
+		"format": "pnpm run lint --fix"
 	},
 	"dependencies": {
 		"@praha/byethrow": "catalog:runtime",
@@ -25,20 +20,8 @@
 	},
 	"devDependencies": {
 		"@ryoppippi/eslint-config": "catalog:lint",
-		"@typescript/native-preview": "catalog:types",
 		"eslint": "catalog:lint",
 		"fs-fixture": "catalog:testing",
-		"publint": "catalog:lint",
-		"sort-package-json": "catalog:release",
-		"tsdown": "catalog:build",
-		"unplugin-unused": "catalog:build",
 		"vitest": "catalog:testing"
-	},
-	"publishConfig": {
-		"exports": {
-			"./pricing": "./dist/pricing.js",
-			"./pricing-fetch-utils": "./dist/pricing-fetch-utils.js",
-			"./package.json": "./package.json"
-		}
 	}
 }

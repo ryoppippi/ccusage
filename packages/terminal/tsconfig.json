@@ -31,11 +31,7 @@
 		"erasableSyntaxOnly": true,
 		"skipLibCheck": true
 	},
-	"include": [
-		"src/**/*.ts",
-		"vitest.config.ts",
-		"tsdown.config.ts"
-	],
+	"include": ["src/**/*.ts", "vitest.config.ts"],
 	"exclude": [
 		"dist"
 	]
