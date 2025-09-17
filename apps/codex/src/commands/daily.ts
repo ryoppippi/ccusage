@@ -1,13 +1,14 @@
-import type { ResponsiveTable } from '@ccusage/terminal/table';
 import process from 'node:process';
 import {
 	addEmptySeparatorRow,
-	createUsageReportTable,
-	formatTotalsRow,
-	formatUsageDataRow,
+	formatCurrency,
+	formatModelsDisplayMultiline,
+	formatNumber,
+	ResponsiveTable,
 } from '@ccusage/terminal/table';
 import { sort } from 'fast-sort';
 import { define } from 'gunshi';
+import pc from 'picocolors';
 import { DEFAULT_LOCALE, DEFAULT_MODEL, DEFAULT_TIMEZONE, MODEL_ENV_VAR } from '../_consts.ts';
 import { buildDailyReport } from '../daily-report.ts';
 import { loadTokenUsageEvents } from '../data-loader.ts';
@@ -24,15 +25,18 @@ function splitUsageTokens(usage: {
 	reasoningOutputTokens: number;
 }): {
 	inputTokens: number;
+	reasoningTokens: number;
 	cacheReadTokens: number;
 	outputTokens: number;
 } {
 	const cacheReadTokens = Math.min(usage.cachedInputTokens, usage.inputTokens);
 	const inputTokens = Math.max(usage.inputTokens - cacheReadTokens, 0);
-	const outputTokens = usage.outputTokens + usage.reasoningOutputTokens;
+	const outputTokens = usage.outputTokens;
+	const reasoningTokens = usage.reasoningOutputTokens;
 
 	return {
 		inputTokens,
+		reasoningTokens,
 		cacheReadTokens,
 		outputTokens,
 	};
@@ -51,7 +55,8 @@ function isOptionExplicit(tokens: ReadonlyArray<unknown>, optionName: string): b
 }
 
 function formatModelsList(models: Record<string, { totalTokens: number }>): string[] {
-	return sort(Object.keys(models)).asc();
+	return sort(Object.keys(models))
+		.asc(model => model);
 }
 
 export const dailyCommand = define({
@@ -66,10 +71,12 @@ export const dailyCommand = define({
 		},
 		since: {
 			type: 'string',
+			short: 's',
 			description: 'Filter from date (YYYY-MM-DD or YYYYMMDD)',
 		},
 		until: {
 			type: 'string',
+			short: 'u',
 			description: 'Filter until date (inclusive)',
 		},
 		timezone: {
@@ -180,40 +187,56 @@ export const dailyCommand = define({
 
 			logger.box(`Codex Token Usage Report - Daily (Timezone: ${ctx.values.timezone ?? DEFAULT_TIMEZONE})`);
 
-			const table: ResponsiveTable = createUsageReportTable({
-				firstColumnName: 'Date',
+			const table: ResponsiveTable = new ResponsiveTable({
+				head: ['Date', 'Models', 'Input', 'Output', 'Reasoning', 'Cache Read', 'Total Tokens', 'Cost (USD)'],
+				colAligns: ['left', 'left', 'right', 'right', 'right', 'right', 'right', 'right'],
+				compactHead: ['Date', 'Models', 'Input', 'Output', 'Cost (USD)'],
+				compactColAligns: ['left', 'left', 'right', 'right', 'right'],
+				compactThreshold: 100,
+				style: { head: ['cyan'] },
 			});
 
 			const totalsForDisplay = {
 				inputTokens: 0,
 				outputTokens: 0,
-				cacheCreationTokens: 0,
+				reasoningTokens: 0,
 				cacheReadTokens: 0,
-				totalCost: totals.costUSD,
+				totalTokens: 0,
+				costUSD: 0,
 			};
 
 			for (const row of rows) {
 				const split = splitUsageTokens(row);
 				totalsForDisplay.inputTokens += split.inputTokens;
 				totalsForDisplay.outputTokens += split.outputTokens;
+				totalsForDisplay.reasoningTokens += split.reasoningTokens;
 				totalsForDisplay.cacheReadTokens += split.cacheReadTokens;
+				totalsForDisplay.totalTokens += row.totalTokens;
+				totalsForDisplay.costUSD += row.costUSD;
 
-				const formattedRow = formatUsageDataRow(row.date, {
-					inputTokens: split.inputTokens,
-					outputTokens: split.outputTokens,
-					cacheCreationTokens: 0,
-					cacheReadTokens: split.cacheReadTokens,
-					totalCost: row.costUSD,
-					modelsUsed: formatModelsList(row.models),
-				});
-
-				table.push(formattedRow);
+				table.push([
+					row.date,
+					formatModelsDisplayMultiline(formatModelsList(row.models)),
+					formatNumber(split.inputTokens),
+					formatNumber(split.outputTokens),
+					formatNumber(split.reasoningTokens),
+					formatNumber(split.cacheReadTokens),
+					formatNumber(row.totalTokens),
+					formatCurrency(row.costUSD),
+				]);
 			}
 
-			totalsForDisplay.totalCost = totals.costUSD;
-
 			addEmptySeparatorRow(table, TABLE_COLUMN_COUNT);
-			table.push(formatTotalsRow(totalsForDisplay));
+			table.push([
+				pc.yellow('Total'),
+				'',
+				pc.yellow(formatNumber(totalsForDisplay.inputTokens)),
+				pc.yellow(formatNumber(totalsForDisplay.outputTokens)),
+				pc.yellow(formatNumber(totalsForDisplay.reasoningTokens)),
+				pc.yellow(formatNumber(totalsForDisplay.cacheReadTokens)),
+				pc.yellow(formatNumber(totalsForDisplay.totalTokens)),
+				pc.yellow(formatCurrency(totalsForDisplay.costUSD)),
+			]);
 
 			log(table.toString());
 
