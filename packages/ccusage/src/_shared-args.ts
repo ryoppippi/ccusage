@@ -1,5 +1,6 @@
 import type { Args } from 'gunshi';
 import type { CostMode, SortOrder } from './_types.ts';
+import * as v from 'valibot';
 import { DEFAULT_LOCALE } from './_consts.ts';
 import { CostModes, filterDateSchema, SortOrders } from './_types.ts';
 
@@ -10,11 +11,12 @@ import { CostModes, filterDateSchema, SortOrders } from './_types.ts';
  * @throws TypeError if date format is invalid
  */
 function parseDateArg(value: string): string {
-	const result = filterDateSchema.safeParse(value);
+	const result = v.safeParse(filterDateSchema, value);
 	if (!result.success) {
-		throw new TypeError(result.error.issues[0]?.message ?? 'Invalid date format');
+		const message = result.issues[0]?.message ?? 'Invalid date format';
+		throw new TypeError(message);
 	}
-	return result.data;
+	return result.output;
 }
 
 /**
