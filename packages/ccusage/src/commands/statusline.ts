@@ -98,31 +98,6 @@ function parseContextThreshold(value: string): number {
 	return v.parse(contextThresholdSchema, value);
 }
 
-function formatValidationIssues(
-	issues: [v.BaseIssue<unknown>, ...v.BaseIssue<unknown>[]],
-): string {
-	const flattened = v.flatten(issues);
-	const messages: string[] = [];
-
-	if (flattened.root != null) {
-		messages.push(...flattened.root);
-	}
-
-	if (flattened.nested != null) {
-		for (const [path, pathErrors] of Object.entries(flattened.nested)) {
-			if (pathErrors == null) {
-				continue;
-			}
-			for (const error of pathErrors) {
-				const label = path.length > 0 ? path : '(root)';
-				messages.push(`${label}: ${error}`);
-			}
-		}
-	}
-
-	return messages.length > 0 ? messages.join('; ') : 'Unknown validation error';
-}
-
 export const statuslineCommand = define({
 	name: 'statusline',
 	description: 'Display compact status line for Claude Code hooks with hybrid time+file caching (Beta)',
@@ -202,8 +177,7 @@ export const statuslineCommand = define({
 		const hookDataJson: unknown = JSON.parse(stdin.trim());
 		const hookDataParseResult = v.safeParse(statuslineHookJsonSchema, hookDataJson);
 		if (!hookDataParseResult.success) {
-			const errorMessage = formatValidationIssues(hookDataParseResult.issues);
-			log('❌ Invalid input format:', errorMessage);
+			log('❌ Invalid input format:', v.flatten(hookDataParseResult.issues));
 			process.exit(1);
 		}
 		const hookData = hookDataParseResult.output;
