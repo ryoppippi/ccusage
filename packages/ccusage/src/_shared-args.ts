@@ -8,15 +8,9 @@ import { CostModes, filterDateSchema, SortOrders } from './_types.ts';
  * Parses and validates a date argument in YYYYMMDD format
  * @param value - Date string to parse
  * @returns Validated date string
- * @throws TypeError if date format is invalid
  */
 function parseDateArg(value: string): string {
-	const result = v.safeParse(filterDateSchema, value);
-	if (!result.success) {
-		const flattened = v.flatten(result.issues);
-		throw new TypeError(JSON.stringify(flattened));
-	}
-	return result.output;
+	return v.parse(filterDateSchema, value);
 }
 
 /**
