@@ -4,13 +4,11 @@
 	"version": "16.2.5",
 	"private": true,
 	"description": "Usage analysis tool for OpenAI Codex sessions",
-	"exports": {
-		".": "./src/index.ts",
-		"./package.json": "./package.json"
-	},
 	"main": "./dist/index.js",
 	"module": "./dist/index.js",
-	"bin": "./src/index.ts",
+	"bin": {
+		"ccusage-codex": "./src/index.ts"
+	},
 	"files": [
 		"dist"
 	],
@@ -46,10 +44,8 @@
 		"vitest": "catalog:testing"
 	},
 	"publishConfig": {
-		"bin": "./dist/index.js",
-		"exports": {
-			".": "./dist/index.js",
-			"./package.json": "./package.json"
+		"bin": {
+			"ccusage-codex": "./src/index.ts"
 		}
 	},
 	"devEngines": {
