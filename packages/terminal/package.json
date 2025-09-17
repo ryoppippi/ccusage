@@ -6,16 +6,20 @@
 	"description": "Terminal utilities for ccusage",
 	"exports": {
 		"./table": "./src/table.ts",
-		"./utils": "./src/utils.ts"
+		"./utils": "./src/utils.ts",
+		"./package.json": "./package.json"
 	},
+	"files": [
+		"dist"
+	],
 	"scripts": {
-		"test": "TZ=UTC vitest",
-		"typecheck": "tsgo --noEmit",
+		"build": "tsdown",
+		"format": "pnpm run lint --fix",
 		"lint": "eslint --cache .",
-		"format": "pnpm run lint --fix"
+		"test": "TZ=UTC vitest",
+		"typecheck": "tsgo --noEmit"
 	},
 	"dependencies": {
-		"@oxc-project/runtime": "catalog:build",
 		"ansi-escapes": "catalog:runtime",
 		"cli-table3": "catalog:runtime",
 		"es-toolkit": "catalog:runtime",
@@ -24,8 +28,20 @@
 	},
 	"devDependencies": {
 		"@ryoppippi/eslint-config": "catalog:lint",
+		"@typescript/native-preview": "catalog:types",
 		"eslint": "catalog:lint",
 		"eslint-plugin-format": "catalog:lint",
+		"publint": "catalog:lint",
+		"sort-package-json": "catalog:release",
+		"tsdown": "catalog:build",
+		"unplugin-unused": "catalog:build",
 		"vitest": "catalog:testing"
+	},
+	"publishConfig": {
+		"exports": {
+			"./table": "./dist/table.js",
+			"./utils": "./dist/utils.js",
+			"./package.json": "./package.json"
+		}
 	}
 }
