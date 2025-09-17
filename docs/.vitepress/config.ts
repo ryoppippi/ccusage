@@ -68,6 +68,13 @@ export default defineConfig({
 					],
 				},
 				{
+					text: 'Codex (Beta)',
+					items: [
+						{ text: 'Overview', link: '/guide/codex/' },
+						{ text: 'Daily Report', link: '/guide/codex/daily' },
+					],
+				},
+				{
 					text: 'Configuration',
 					items: [
 						{ text: 'Overview', link: '/guide/configuration' },

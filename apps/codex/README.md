@@ -1,29 +1,34 @@
 <div align="center">
-  <img src="./docs/screenshot.png" alt="codex usage screenshot" width="640">
+  <img src="https://cdn.jsdelivr.net/gh/ryoppippi/ccusage@main/docs/public/codex-cli.png" alt="Codex CLI usage screenshot" width="640">
   <h1>@ccusage/codex</h1>
-  <p>Analyze OpenAI Codex desktop usage logs with the same reporting experience as <code>ccusage</code>.</p>
+  <p>Analyze <a href="https://github.com/openai/codex">OpenAI Codex CLI</a> usage logs with the same reporting experience as <code>ccusage</code>.</p>
 </div>
+
+> ⚠️ <strong>Beta:</strong> The Codex CLI support is experimental. Expect breaking changes until the upstream Codex tooling stabilizes.
 
 ## Quick Start
 
 ```bash
-pnpm install
-pnpm --filter @ccusage/codex run start -- --help
+# Recommended (fastest)
+bunx @ccusage/codex --help
+
+# Using npx
+npx @ccusage/codex@latest --help
 ```
 
-The CLI looks for Codex session JSONL files under `CODEX_HOME` (defaults to `~/.codex`).
+> 💡 The CLI looks for Codex session JSONL files under `CODEX_HOME` (defaults to `~/.codex`).
 
 ## Common Commands
 
 ```bash
 # Daily usage grouped by date (default command)
-pnpm --filter @ccusage/codex run start -- daily
+bunx @ccusage/codex daily
 
 # Date range filtering
-pnpm --filter @ccusage/codex run start -- daily --since 20250911 --until 20250917
+bunx @ccusage/codex daily --since 20250911 --until 20250917
 
 # JSON output for scripting
-pnpm --filter @ccusage/codex run start -- daily --json
+bunx @ccusage/codex daily --json
 ```
 
 Useful environment variables:
