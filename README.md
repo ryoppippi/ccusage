@@ -1,1 +1,1 @@
-./packages/ccusage/README.md
+./apps/ccusage/README.md
