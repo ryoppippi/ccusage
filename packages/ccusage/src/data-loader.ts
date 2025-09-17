@@ -27,7 +27,7 @@ import { groupBy, uniq } from 'es-toolkit'; // TODO: after node20 is deprecated,
 import { createFixture } from 'fs-fixture';
 import { isDirectorySync } from 'path-type';
 import { glob } from 'tinyglobby';
-import { z } from 'zod';
+import * as v from 'valibot';
 import { CLAUDE_CONFIG_DIR_ENV, CLAUDE_PROJECTS_DIR_NAME, DEFAULT_CLAUDE_CODE_PATH, DEFAULT_CLAUDE_CONFIG_PATH, DEFAULT_LOCALE, USAGE_DATA_GLOB_PATTERN, USER_HOME_DIR } from './_consts.ts';
 import {
 	filterByDateRange,
@@ -52,7 +52,6 @@ import {
 	createRequestId,
 	createSessionId,
 	createVersion,
-	createWeeklyDate,
 	dailyDateSchema,
 	isoTimestampSchema,
 	messageIdSchema,
@@ -158,174 +157,174 @@ export function extractProjectFromPath(jsonlPath: string): string {
 }
 
 /**
- * Zod schema for validating Claude usage data from JSONL files
+ * Valibot schema for validating Claude usage data from JSONL files
  */
-export const usageDataSchema = z.object({
-	cwd: z.string().optional(), // Claude Code version, optional for compatibility
-	sessionId: sessionIdSchema.optional(), // Session ID for deduplication
+export const usageDataSchema = v.object({
+	cwd: v.optional(v.string()), // Claude Code version, optional for compatibility
+	sessionId: v.optional(sessionIdSchema), // Session ID for deduplication
 	timestamp: isoTimestampSchema,
-	version: versionSchema.optional(), // Claude Code version
-	message: z.object({
-		usage: z.object({
-			input_tokens: z.number(),
-			output_tokens: z.number(),
-			cache_creation_input_tokens: z.number().optional(),
-			cache_read_input_tokens: z.number().optional(),
+	version: v.optional(versionSchema), // Claude Code version
+	message: v.object({
+		usage: v.object({
+			input_tokens: v.number(),
+			output_tokens: v.number(),
+			cache_creation_input_tokens: v.optional(v.number()),
+			cache_read_input_tokens: v.optional(v.number()),
 		}),
-		model: modelNameSchema.optional(), // Model is inside message object
-		id: messageIdSchema.optional(), // Message ID for deduplication
-		content: z.array(z.object({
-			text: z.string().optional(),
-		})).optional(),
+		model: v.optional(modelNameSchema), // Model is inside message object
+		id: v.optional(messageIdSchema), // Message ID for deduplication
+		content: v.optional(v.array(v.object({
+			text: v.optional(v.string()),
+		}))),
 	}),
-	costUSD: z.number().optional(), // Made optional for new schema
-	requestId: requestIdSchema.optional(), // Request ID for deduplication
-	isApiErrorMessage: z.boolean().optional(),
+	costUSD: v.optional(v.number()), // Made optional for new schema
+	requestId: v.optional(requestIdSchema), // Request ID for deduplication
+	isApiErrorMessage: v.optional(v.boolean()),
 });
 
 /**
- * Zod schema for transcript usage data from Claude messages
+ * Valibot schema for transcript usage data from Claude messages
  */
-export const transcriptUsageSchema = z.object({
-	input_tokens: z.number().optional(),
-	cache_creation_input_tokens: z.number().optional(),
-	cache_read_input_tokens: z.number().optional(),
-	output_tokens: z.number().optional(),
+export const transcriptUsageSchema = v.object({
+	input_tokens: v.optional(v.number()),
+	cache_creation_input_tokens: v.optional(v.number()),
+	cache_read_input_tokens: v.optional(v.number()),
+	output_tokens: v.optional(v.number()),
 });
 
 /**
- * Zod schema for transcript message data
+ * Valibot schema for transcript message data
  */
-export const transcriptMessageSchema = z.object({
-	type: z.string().optional(),
-	message: z.object({
-		usage: transcriptUsageSchema.optional(),
-	}).optional(),
+export const transcriptMessageSchema = v.object({
+	type: v.optional(v.string()),
+	message: v.optional(v.object({
+		usage: v.optional(transcriptUsageSchema),
+	})),
 });
 
 /**
  * Type definition for Claude usage data entries from JSONL files
  */
-export type UsageData = z.infer<typeof usageDataSchema>;
+export type UsageData = v.InferOutput<typeof usageDataSchema>;
 
 /**
- * Zod schema for model-specific usage breakdown data
+ * Valibot schema for model-specific usage breakdown data
  */
-export const modelBreakdownSchema = z.object({
+export const modelBreakdownSchema = v.object({
 	modelName: modelNameSchema,
-	inputTokens: z.number(),
-	outputTokens: z.number(),
-	cacheCreationTokens: z.number(),
-	cacheReadTokens: z.number(),
-	cost: z.number(),
+	inputTokens: v.number(),
+	outputTokens: v.number(),
+	cacheCreationTokens: v.number(),
+	cacheReadTokens: v.number(),
+	cost: v.number(),
 });
 
 /**
  * Type definition for model-specific usage breakdown
  */
-export type ModelBreakdown = z.infer<typeof modelBreakdownSchema>;
+export type ModelBreakdown = v.InferOutput<typeof modelBreakdownSchema>;
 
 /**
- * Zod schema for daily usage aggregation data
+ * Valibot schema for daily usage aggregation data
  */
-export const dailyUsageSchema = z.object({
+export const dailyUsageSchema = v.object({
 	date: dailyDateSchema, // YYYY-MM-DD format
-	inputTokens: z.number(),
-	outputTokens: z.number(),
-	cacheCreationTokens: z.number(),
-	cacheReadTokens: z.number(),
-	totalCost: z.number(),
-	modelsUsed: z.array(modelNameSchema),
-	modelBreakdowns: z.array(modelBreakdownSchema),
-	project: z.string().optional(), // Project name when groupByProject is enabled
+	inputTokens: v.number(),
+	outputTokens: v.number(),
+	cacheCreationTokens: v.number(),
+	cacheReadTokens: v.number(),
+	totalCost: v.number(),
+	modelsUsed: v.array(modelNameSchema),
+	modelBreakdowns: v.array(modelBreakdownSchema),
+	project: v.optional(v.string()), // Project name when groupByProject is enabled
 });
 
 /**
  * Type definition for daily usage aggregation
  */
-export type DailyUsage = z.infer<typeof dailyUsageSchema>;
+export type DailyUsage = v.InferOutput<typeof dailyUsageSchema>;
 
 /**
- * Zod schema for session-based usage aggregation data
+ * Valibot schema for session-based usage aggregation data
  */
-export const sessionUsageSchema = z.object({
+export const sessionUsageSchema = v.object({
 	sessionId: sessionIdSchema,
 	projectPath: projectPathSchema,
-	inputTokens: z.number(),
-	outputTokens: z.number(),
-	cacheCreationTokens: z.number(),
-	cacheReadTokens: z.number(),
-	totalCost: z.number(),
+	inputTokens: v.number(),
+	outputTokens: v.number(),
+	cacheCreationTokens: v.number(),
+	cacheReadTokens: v.number(),
+	totalCost: v.number(),
 	lastActivity: activityDateSchema,
-	versions: z.array(versionSchema), // List of unique versions used in this session
-	modelsUsed: z.array(modelNameSchema),
-	modelBreakdowns: z.array(modelBreakdownSchema),
+	versions: v.array(versionSchema), // List of unique versions used in this session
+	modelsUsed: v.array(modelNameSchema),
+	modelBreakdowns: v.array(modelBreakdownSchema),
 });
 
 /**
  * Type definition for session-based usage aggregation
  */
-export type SessionUsage = z.infer<typeof sessionUsageSchema>;
+export type SessionUsage = v.InferOutput<typeof sessionUsageSchema>;
 
 /**
- * Zod schema for monthly usage aggregation data
+ * Valibot schema for monthly usage aggregation data
  */
-export const monthlyUsageSchema = z.object({
+export const monthlyUsageSchema = v.object({
 	month: monthlyDateSchema, // YYYY-MM format
-	inputTokens: z.number(),
-	outputTokens: z.number(),
-	cacheCreationTokens: z.number(),
-	cacheReadTokens: z.number(),
-	totalCost: z.number(),
-	modelsUsed: z.array(modelNameSchema),
-	modelBreakdowns: z.array(modelBreakdownSchema),
-	project: z.string().optional(), // Project name when groupByProject is enabled
+	inputTokens: v.number(),
+	outputTokens: v.number(),
+	cacheCreationTokens: v.number(),
+	cacheReadTokens: v.number(),
+	totalCost: v.number(),
+	modelsUsed: v.array(modelNameSchema),
+	modelBreakdowns: v.array(modelBreakdownSchema),
+	project: v.optional(v.string()), // Project name when groupByProject is enabled
 });
 
 /**
  * Type definition for monthly usage aggregation
  */
-export type MonthlyUsage = z.infer<typeof monthlyUsageSchema>;
+export type MonthlyUsage = v.InferOutput<typeof monthlyUsageSchema>;
 
 /**
- * Zod schema for weekly usage aggregation data
+ * Valibot schema for weekly usage aggregation data
  */
-export const weeklyUsageSchema = z.object({
+export const weeklyUsageSchema = v.object({
 	week: weeklyDateSchema, // YYYY-MM-DD format
-	inputTokens: z.number(),
-	outputTokens: z.number(),
-	cacheCreationTokens: z.number(),
-	cacheReadTokens: z.number(),
-	totalCost: z.number(),
-	modelsUsed: z.array(modelNameSchema),
-	modelBreakdowns: z.array(modelBreakdownSchema),
-	project: z.string().optional(), // Project name when groupByProject is enabled
+	inputTokens: v.number(),
+	outputTokens: v.number(),
+	cacheCreationTokens: v.number(),
+	cacheReadTokens: v.number(),
+	totalCost: v.number(),
+	modelsUsed: v.array(modelNameSchema),
+	modelBreakdowns: v.array(modelBreakdownSchema),
+	project: v.optional(v.string()), // Project name when groupByProject is enabled
 });
 
 /**
  * Type definition for weekly usage aggregation
  */
-export type WeeklyUsage = z.infer<typeof weeklyUsageSchema>;
+export type WeeklyUsage = v.InferOutput<typeof weeklyUsageSchema>;
 
 /**
- * Zod schema for bucket usage aggregation data
+ * Valibot schema for bucket usage aggregation data
  */
-export const bucketUsageSchema = z.object({
-	bucket: z.union([weeklyDateSchema, monthlyDateSchema]), // WeeklyDate or MonthlyDate
-	inputTokens: z.number(),
-	outputTokens: z.number(),
-	cacheCreationTokens: z.number(),
-	cacheReadTokens: z.number(),
-	totalCost: z.number(),
-	modelsUsed: z.array(modelNameSchema),
-	modelBreakdowns: z.array(modelBreakdownSchema),
-	project: z.string().optional(), // Project name when groupByProject is enabled
+export const bucketUsageSchema = v.object({
+	bucket: v.union([weeklyDateSchema, monthlyDateSchema]), // WeeklyDate or MonthlyDate
+	inputTokens: v.number(),
+	outputTokens: v.number(),
+	cacheCreationTokens: v.number(),
+	cacheReadTokens: v.number(),
+	totalCost: v.number(),
+	modelsUsed: v.array(modelNameSchema),
+	modelBreakdowns: v.array(modelBreakdownSchema),
+	project: v.optional(v.string()), // Project name when groupByProject is enabled
 });
 
 /**
  * Type definition for bucket usage aggregation
  */
-export type BucketUsage = z.infer<typeof bucketUsageSchema>;
+export type BucketUsage = v.InferOutput<typeof bucketUsageSchema>;
 
 /**
  * Internal type for aggregating token statistics and costs
@@ -769,11 +768,11 @@ export async function loadDailyUsageData(
 		for (const line of lines) {
 			try {
 				const parsed = JSON.parse(line) as unknown;
-				const result = usageDataSchema.safeParse(parsed);
+				const result = v.safeParse(usageDataSchema, parsed);
 				if (!result.success) {
 					continue;
 				}
-				const data = result.data;
+				const data = result.output;
 
 				// Check for duplicate message + request ID combination
 				const uniqueHash = createUniqueHash(data);
@@ -943,11 +942,11 @@ export async function loadSessionData(
 		for (const line of lines) {
 			try {
 				const parsed = JSON.parse(line) as unknown;
-				const result = usageDataSchema.safeParse(parsed);
+				const result = v.safeParse(usageDataSchema, parsed);
 				if (!result.success) {
 					continue;
 				}
-				const data = result.data;
+				const data = result.output;
 
 				// Check for duplicate message + request ID combination
 				const uniqueHash = createUniqueHash(data);
@@ -1057,9 +1056,9 @@ export async function loadSessionData(
 export async function loadMonthlyUsageData(
 	options?: LoadOptions,
 ): Promise<MonthlyUsage[]> {
-	return loadBucketUsageData((data: DailyUsage) => createMonthlyDate(data.date.substring(0, 7)), options)
+	return loadBucketUsageData((data: DailyUsage) => createMonthlyDate(data.date.slice(0, 7)), options)
 		.then(usages => usages.map<MonthlyUsage>(({ bucket, ...rest }) => ({
-			month: createMonthlyDate(bucket.toString()),
+			month: v.parse(monthlyDateSchema, bucket),
 			...rest,
 		})));
 }
@@ -1071,7 +1070,7 @@ export async function loadWeeklyUsageData(
 
 	return loadBucketUsageData((data: DailyUsage) => getDateWeek(new Date(data.date), startDay), options)
 		.then(usages => usages.map<WeeklyUsage>(({ bucket, ...rest }) => ({
-			week: createWeeklyDate(bucket.toString()),
+			week: v.parse(weeklyDateSchema, bucket),
 			...rest,
 		})));
 }
@@ -1116,11 +1115,11 @@ export async function loadSessionUsageById(
 	for (const line of lines) {
 		try {
 			const parsed = JSON.parse(line) as unknown;
-			const result = usageDataSchema.safeParse(parsed);
+			const result = v.safeParse(usageDataSchema, parsed);
 			if (!result.success) {
 				continue;
 			}
-			const data = result.data;
+			const data = result.output;
 
 			const cost = fetcher != null
 				? await calculateCostForEntry(data, mode, fetcher)
@@ -1149,8 +1148,11 @@ export async function loadBucketUsageData(
 		= options?.groupByProject === true || options?.project != null;
 
 	const groupingKey = needsProjectGrouping
-		? (data: DailyUsage) =>
-				`${groupingFn(data)}\x00${data.project ?? 'unknown'}`
+		? (data: DailyUsage) => {
+				const bucketValue = groupingFn(data);
+				const projectSegment = data.project ?? 'unknown';
+				return `${bucketValue}\x00${projectSegment}`;
+			}
 		: (data: DailyUsage) => `${groupingFn(data)}`;
 
 	const grouped = groupBy(dailyData, groupingKey);
@@ -1247,11 +1249,11 @@ export async function calculateContextTokens(transcriptPath: string, modelId?: s
 
 		try {
 			const parsed = JSON.parse(trimmedLine) as unknown;
-			const result = transcriptMessageSchema.safeParse(parsed);
+			const result = v.safeParse(transcriptMessageSchema, parsed);
 			if (!result.success) {
 				continue; // Skip malformed JSON lines
 			}
-			const obj = result.data;
+			const obj = result.output;
 
 			// Check if this line contains the required token usage fields
 			if (obj.type === 'assistant'
@@ -1360,11 +1362,11 @@ export async function loadSessionBlockData(
 		for (const line of lines) {
 			try {
 				const parsed = JSON.parse(line) as unknown;
-				const result = usageDataSchema.safeParse(parsed);
+				const result = v.safeParse(usageDataSchema, parsed);
 				if (!result.success) {
 					continue;
 				}
-				const data = result.data;
+				const data = result.output;
 
 				// Check for duplicate message + request ID combination
 				const uniqueHash = createUniqueHash(data);

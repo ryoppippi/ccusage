@@ -1,10 +1,12 @@
-import type { DayOfWeek, WeekDay } from './_consts.ts';
 /**
  * Date utility functions for handling date formatting, filtering, and manipulation
  * @module date-utils
  */
+
+import type { DayOfWeek, WeekDay } from './_consts.ts';
 import type { WeeklyDate } from './_types.ts';
 import { sort } from 'fast-sort';
+import * as v from 'valibot';
 import { DEFAULT_LOCALE } from './_consts.ts';
 import { createWeeklyDate, dailyDateSchema } from './_types.ts';
 import { unreachable } from './_utils.ts';
@@ -68,7 +70,7 @@ export function formatDate(dateStr: string, timezone?: string, locale?: string):
 export function formatDateCompact(dateStr: string, timezone: string | undefined, locale: string): string {
 	// For YYYY-MM-DD format, append T00:00:00 to parse as local date
 	// Without this, new Date('YYYY-MM-DD') interprets as UTC midnight
-	const parseResult = dailyDateSchema.safeParse(dateStr);
+	const parseResult = v.safeParse(dailyDateSchema, dateStr);
 	const date = parseResult.success
 		? timezone != null
 			? new Date(`${dateStr}T00:00:00Z`)
@@ -290,25 +292,25 @@ if (import.meta.vitest != null) {
 		it('should get the first day of week starting from Sunday', () => {
 			const date = new Date('2024-01-03T10:00:00Z'); // Wednesday
 			const result = getDateWeek(date, 0); // Sunday start
-			expect(result.toString().substring(0, 10)).toBe('2023-12-31'); // Previous Sunday
+			expect(result).toBe(createWeeklyDate('2023-12-31')); // Previous Sunday
 		});
 
 		it('should get the first day of week starting from Monday', () => {
 			const date = new Date('2024-01-03T10:00:00Z'); // Wednesday
 			const result = getDateWeek(date, 1); // Monday start
-			expect(result.toString().substring(0, 10)).toBe('2024-01-01'); // Monday of same week
+			expect(result).toBe(createWeeklyDate('2024-01-01')); // Monday of same week
 		});
 
 		it('should handle when the date is already the start of the week', () => {
 			const date = new Date('2024-01-01T10:00:00Z'); // Monday
 			const result = getDateWeek(date, 1); // Monday start
-			expect(result.toString().substring(0, 10)).toBe('2024-01-01'); // Same Monday
+			expect(result).toBe(createWeeklyDate('2024-01-01')); // Same Monday
 		});
 
 		it('should handle Sunday as start of week when date is Sunday', () => {
 			const date = new Date('2023-12-31T10:00:00Z'); // Sunday
 			const result = getDateWeek(date, 0); // Sunday start
-			expect(result.toString().substring(0, 10)).toBe('2023-12-31'); // Same Sunday
+			expect(result).toBe(createWeeklyDate('2023-12-31')); // Same Sunday
 		});
 	});
 
