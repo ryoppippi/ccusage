@@ -4,6 +4,17 @@
 	"version": "16.2.5",
 	"private": true,
 	"description": "Usage analysis tool for OpenAI Codex sessions",
+	"author": "ryoppippi",
+	"license": "MIT",
+	"funding": "https://github.com/ryoppippi/ccusage?sponsor=1",
+	"homepage": "https://github.com/ryoppippi/ccusage#readme",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/ryoppippi/ccusage.git"
+	},
+	"bugs": {
+		"url": "https://github.com/ryoppippi/ccusage/issues"
+	},
 	"main": "./dist/index.js",
 	"module": "./dist/index.js",
 	"bin": {
