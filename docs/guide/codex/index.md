@@ -1,6 +1,6 @@
 # Codex CLI Overview (Beta)
 
-![Codex CLI daily report](https://cdn.jsdelivr.net/gh/ryoppippi/ccusage@main/docs/public/codex-cli.png)
+![Codex CLI daily report](/codex-cli.png)
 
 > ⚠️ The Codex companion CLI is experimental. Expect breaking changes while both ccusage and [OpenAI's Codex CLI](https://github.com/openai/codex) continue to evolve.
 
