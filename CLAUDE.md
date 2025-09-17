@@ -198,9 +198,9 @@ This is a CLI tool that analyzes Claude Code usage data from local JSONL files s
 
 After making any code changes, ALWAYS run these commands in parallel:
 
-- `bun run format` - Auto-fix and format code with ESLint (includes linting)
+- `pnpm run format` - Auto-fix and format code with ESLint (includes linting)
 - `pnpm typecheck` - Type check with TypeScript
-- `bun run test` - Run all tests
+- `pnpm run test` - Run all tests
 
 This ensures code quality and catches issues immediately after changes.
 

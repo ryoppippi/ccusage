@@ -1,50 +1,56 @@
 {
-  "name": "ccusage-monorepo",
-  "version": "16.2.5",
-  "private": true,
-  "type": "module",
-  "workspaces": [
-    "packages/*",
-    "docs"
-  ],
-  "scripts": {
-    "build": "pnpm run --filter '*' build",
-    "docs:dev": "pnpm run --filter docs dev",
-    "format": "pnpm run --filter '*' format",
-    "preinstall": "npx only-allow pnpm",
-    "lint": "pnpm run --filter '*' lint",
-    "prepare": "pnpm run /^prepare:/",
-    "prepare:git": "git config --local core.hooksPath .githooks",
-    "prerelease": "pnpm run --filter '*' prerelease",
-    "release": "pnpm bumpp -r",
-    "test": "pnpm run --filter '*' test",
-    "typecheck": "pnpm run --filter '*' typecheck"
-  },
-  "lint-staged": {
-    "*": [
-      "pnpm run format"
-    ],
-    "./**/package.json": [
-      "sort-package-json"
-    ]
-  },
-  "devDependencies": {
-    "@mizchi/lsmcp": "catalog:mcp",
-    "@praha/byethrow-mcp": "catalog:mcp",
-    "@typescript/native-preview": "catalog:types",
-    "bumpp": "catalog:release",
-    "lint-staged": "catalog:release",
-    "sitemcp": "catalog:mcp",
-    "sort-package-json": "catalog:release"
-  },
-  "packageManager": "pnpm@10.16.1",
-  "devEngines": {
-    "runtime": [
-      {
-        "name": "node",
-        "version": "^24.4.0",
-        "onFail": "download"
-      }
-    ]
-  }
+	"name": "ccusage-monorepo",
+	"type": "module",
+	"version": "16.2.5",
+	"private": true,
+	"workspaces": [
+		"packages/*",
+		"docs"
+	],
+	"packageManager": "pnpm@10.16.1",
+	"scripts": {
+		"build": "pnpm run --filter '*' build",
+		"docs:dev": "pnpm run --filter docs dev",
+		"format": "pnpm --aggregate-output /^format:/",
+		"format:root": "pnpm run lint:root --fix",
+		"format:submodules": "pnpm --parallel -r --aggregate-output /^format/",
+		"preinstall": "npx only-allow pnpm",
+		"lint": "pnpm --no-bail --aggregate-output /^lint:/",
+		"lint:packages": "pnpm --parallel -r --no-bail --aggregate-output /^lint$/",
+		"lint:root": "eslint --cache eslint.config.js .",
+		"prepare": "pnpm run /^prepare:/",
+		"prepare:git": "git config --local core.hooksPath .githooks",
+		"prerelease": "pnpm run --filter '*' prerelease",
+		"release": "pnpm bumpp -r",
+		"test": "pnpm run --filter '*' test",
+		"typecheck": "pnpm run --filter '*' typecheck"
+	},
+	"devDependencies": {
+		"@mizchi/lsmcp": "catalog:mcp",
+		"@praha/byethrow-mcp": "catalog:mcp",
+		"@ryoppippi/eslint-config": "catalog:lint",
+		"@typescript/native-preview": "catalog:types",
+		"bumpp": "catalog:release",
+		"eslint": "catalog:lint",
+		"lint-staged": "catalog:release",
+		"sitemcp": "catalog:mcp",
+		"sort-package-json": "catalog:release"
+	},
+	"lint-staged": {
+		"*": [
+			"pnpm run format"
+		],
+		"./**/package.json": [
+			"sort-package-json"
+		]
+	},
+	"devEngines": {
+		"runtime": [
+			{
+				"name": "node",
+				"version": "^24.4.0",
+				"onFail": "download"
+			}
+		]
+	}
 }
