@@ -13,6 +13,7 @@ import type { CostMode, SortOrder } from './_types.ts';
 import { readFile, stat } from 'node:fs/promises';
 import { Result } from '@praha/byethrow';
 import pLimit from 'p-limit';
+import * as v from 'valibot';
 import { identifySessionBlocks } from './_session-blocks.ts';
 import {
 	calculateCostForEntry,
@@ -127,10 +128,10 @@ async function processFileContent(
 				catch: error => error,
 			})(),
 			Result.andThen((data) => {
-				const parseResult = usageDataSchema.safeParse(data);
+				const parseResult = v.safeParse(usageDataSchema, data);
 				return parseResult.success
-					? Result.succeed(parseResult.data)
-					: Result.fail(parseResult.error);
+					? Result.succeed(parseResult.output)
+					: Result.fail(parseResult.issues);
 			}),
 		);
 

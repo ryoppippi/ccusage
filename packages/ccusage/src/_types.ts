@@ -1,99 +1,128 @@
 import type { TupleToUnion } from 'type-fest';
-import { z } from 'zod';
+import * as v from 'valibot';
 
 /**
- * Branded Zod schemas for type safety using Zod's built-in brand functionality
+ * Branded Valibot schemas for type safety using brand markers.
  */
 
 // Core identifier schemas
-export const modelNameSchema = z.string()
-	.min(1, 'Model name cannot be empty')
-	.brand<'ModelName'>();
+export const modelNameSchema = v.pipe(
+	v.string(),
+	v.minLength(1, 'Model name cannot be empty'),
+	v.brand('ModelName'),
+);
 
-export const sessionIdSchema = z.string()
-	.min(1, 'Session ID cannot be empty')
-	.brand<'SessionId'>();
+export const sessionIdSchema = v.pipe(
+	v.string(),
+	v.minLength(1, 'Session ID cannot be empty'),
+	v.brand('SessionId'),
+);
 
-export const requestIdSchema = z.string()
-	.min(1, 'Request ID cannot be empty')
-	.brand<'RequestId'>();
+export const requestIdSchema = v.pipe(
+	v.string(),
+	v.minLength(1, 'Request ID cannot be empty'),
+	v.brand('RequestId'),
+);
 
-export const messageIdSchema = z.string()
-	.min(1, 'Message ID cannot be empty')
-	.brand<'MessageId'>();
+export const messageIdSchema = v.pipe(
+	v.string(),
+	v.minLength(1, 'Message ID cannot be empty'),
+	v.brand('MessageId'),
+);
 
 // Date and timestamp schemas
-export const isoTimestampSchema = z.string()
-	.regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/, 'Invalid ISO timestamp')
-	.brand<'ISOTimestamp'>();
+const isoTimestampRegex = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/;
+export const isoTimestampSchema = v.pipe(
+	v.string(),
+	v.regex(isoTimestampRegex, 'Invalid ISO timestamp'),
+	v.brand('ISOTimestamp'),
+);
 
-export const dailyDateSchema = z.string()
-	.regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be in YYYY-MM-DD format')
-	.brand<'DailyDate'>();
+const yyyymmddRegex = /^\d{4}-\d{2}-\d{2}$/;
+export const dailyDateSchema = v.pipe(
+	v.string(),
+	v.regex(yyyymmddRegex, 'Date must be in YYYY-MM-DD format'),
+	v.brand('DailyDate'),
+);
 
-export const activityDateSchema = z.string()
-	.regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be in YYYY-MM-DD format')
-	.brand<'ActivityDate'>();
+export const activityDateSchema = v.pipe(
+	v.string(),
+	v.regex(yyyymmddRegex, 'Date must be in YYYY-MM-DD format'),
+	v.brand('ActivityDate'),
+);
 
-export const monthlyDateSchema = z.string()
-	.regex(/^\d{4}-\d{2}$/, 'Date must be in YYYY-MM format')
-	.brand<'MonthlyDate'>();
+const yyyymmRegex = /^\d{4}-\d{2}$/;
+export const monthlyDateSchema = v.pipe(
+	v.string(),
+	v.regex(yyyymmRegex, 'Date must be in YYYY-MM format'),
+	v.brand('MonthlyDate'),
+);
 
-export const weeklyDateSchema = z
-	.string()
-	.regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be in YYYY-MM-DD format')
-	.brand<'WeeklyDate'>();
+export const weeklyDateSchema = v.pipe(
+	v.string(),
+	v.regex(yyyymmddRegex, 'Date must be in YYYY-MM-DD format'),
+	v.brand('WeeklyDate'),
+);
 
-export const filterDateSchema = z.string()
-	.regex(/^\d{8}$/, 'Date must be in YYYYMMDD format')
-	.brand<'FilterDate'>();
+const filterDateRegex = /^\d{8}$/;
+export const filterDateSchema = v.pipe(
+	v.string(),
+	v.regex(filterDateRegex, 'Date must be in YYYYMMDD format'),
+	v.brand('FilterDate'),
+);
 
 // Other domain-specific schemas
-export const projectPathSchema = z.string()
-	.min(1, 'Project path cannot be empty')
-	.brand<'ProjectPath'>();
+export const projectPathSchema = v.pipe(
+	v.string(),
+	v.minLength(1, 'Project path cannot be empty'),
+	v.brand('ProjectPath'),
+);
 
-export const versionSchema = z.string()
-	.regex(/^\d+\.\d+\.\d+/, 'Invalid version format')
-	.brand<'Version'>();
+const versionRegex = /^\d+\.\d+\.\d+/;
+export const versionSchema = v.pipe(
+	v.string(),
+	v.regex(versionRegex, 'Invalid version format'),
+	v.brand('Version'),
+);
 
 /**
  * Inferred branded types from schemas
  */
-export type ModelName = z.infer<typeof modelNameSchema>;
-export type SessionId = z.infer<typeof sessionIdSchema>;
-export type RequestId = z.infer<typeof requestIdSchema>;
-export type MessageId = z.infer<typeof messageIdSchema>;
-export type ISOTimestamp = z.infer<typeof isoTimestampSchema>;
-export type DailyDate = z.infer<typeof dailyDateSchema>;
-export type ActivityDate = z.infer<typeof activityDateSchema>;
-export type MonthlyDate = z.infer<typeof monthlyDateSchema>;
-export type WeeklyDate = z.infer<typeof weeklyDateSchema>;
+export type ModelName = v.InferOutput<typeof modelNameSchema>;
+export type SessionId = v.InferOutput<typeof sessionIdSchema>;
+export type RequestId = v.InferOutput<typeof requestIdSchema>;
+export type MessageId = v.InferOutput<typeof messageIdSchema>;
+export type ISOTimestamp = v.InferOutput<typeof isoTimestampSchema>;
+export type DailyDate = v.InferOutput<typeof dailyDateSchema>;
+export type ActivityDate = v.InferOutput<typeof activityDateSchema>;
+export type MonthlyDate = v.InferOutput<typeof monthlyDateSchema>;
+export type WeeklyDate = v.InferOutput<typeof weeklyDateSchema>;
 export type Bucket = MonthlyDate | WeeklyDate;
-export type FilterDate = z.infer<typeof filterDateSchema>;
-export type ProjectPath = z.infer<typeof projectPathSchema>;
-export type Version = z.infer<typeof versionSchema>;
+export type FilterDate = v.InferOutput<typeof filterDateSchema>;
+export type ProjectPath = v.InferOutput<typeof projectPathSchema>;
+export type Version = v.InferOutput<typeof versionSchema>;
 
 /**
  * Helper functions to create branded values by parsing and validating input strings
  * These functions should be used when converting plain strings to branded types
  */
-export const createModelName = (value: string): ModelName => modelNameSchema.parse(value);
-export const createSessionId = (value: string): SessionId => sessionIdSchema.parse(value);
-export const createRequestId = (value: string): RequestId => requestIdSchema.parse(value);
-export const createMessageId = (value: string): MessageId => messageIdSchema.parse(value);
-export const createISOTimestamp = (value: string): ISOTimestamp => isoTimestampSchema.parse(value);
-export const createDailyDate = (value: string): DailyDate => dailyDateSchema.parse(value);
-export const createActivityDate = (value: string): ActivityDate => activityDateSchema.parse(value);
-export const createMonthlyDate = (value: string): MonthlyDate => monthlyDateSchema.parse(value);
-export const createWeeklyDate = (value: string): WeeklyDate => weeklyDateSchema.parse(value);
-export const createFilterDate = (value: string): FilterDate => filterDateSchema.parse(value);
-export const createProjectPath = (value: string): ProjectPath => projectPathSchema.parse(value);
-export const createVersion = (value: string): Version => versionSchema.parse(value);
+export const createModelName = (value: string): ModelName => v.parse(modelNameSchema, value);
+export const createSessionId = (value: string): SessionId => v.parse(sessionIdSchema, value);
+export const createRequestId = (value: string): RequestId => v.parse(requestIdSchema, value);
+export const createMessageId = (value: string): MessageId => v.parse(messageIdSchema, value);
+export const createISOTimestamp = (value: string): ISOTimestamp => v.parse(isoTimestampSchema, value);
+export const createDailyDate = (value: string): DailyDate => v.parse(dailyDateSchema, value);
+export const createActivityDate = (value: string): ActivityDate => v.parse(activityDateSchema, value);
+export const createMonthlyDate = (value: string): MonthlyDate => v.parse(monthlyDateSchema, value);
+export const createWeeklyDate = (value: string): WeeklyDate => v.parse(weeklyDateSchema, value);
+export const createFilterDate = (value: string): FilterDate => v.parse(filterDateSchema, value);
+export const createProjectPath = (value: string): ProjectPath => v.parse(projectPathSchema, value);
+export const createVersion = (value: string): Version => v.parse(versionSchema, value);
 
 export function createBucket(value: string): Bucket {
-	if (weeklyDateSchema.safeParse(value).success) {
-		return createWeeklyDate(value);
+	const weeklyResult = v.safeParse(weeklyDateSchema, value);
+	if (weeklyResult.success) {
+		return weeklyResult.output;
 	}
 	return createMonthlyDate(value);
 };
@@ -122,68 +151,54 @@ export const SortOrders = ['desc', 'asc'] as const;
 export type SortOrder = TupleToUnion<typeof SortOrders>;
 
 /**
- * Zod schema for model pricing information from LiteLLM
+ * Valibot schema for model pricing information from LiteLLM
  */
-export const modelPricingSchema = z.object({
-	input_cost_per_token: z.number().optional(),
-	output_cost_per_token: z.number().optional(),
-	cache_creation_input_token_cost: z.number().optional(),
-	cache_read_input_token_cost: z.number().optional(),
+export const modelPricingSchema = v.object({
+	input_cost_per_token: v.optional(v.number()),
+	output_cost_per_token: v.optional(v.number()),
+	cache_creation_input_token_cost: v.optional(v.number()),
+	cache_read_input_token_cost: v.optional(v.number()),
 	// Context window limits from LiteLLM data
-	max_tokens: z.number().optional(),
-	max_input_tokens: z.number().optional(),
-	max_output_tokens: z.number().optional(),
+	max_tokens: v.optional(v.number()),
+	max_input_tokens: v.optional(v.number()),
+	max_output_tokens: v.optional(v.number()),
 });
 
 /**
  * Type definition for model pricing information
  */
-export type ModelPricing = z.infer<typeof modelPricingSchema>;
+export type ModelPricing = v.InferOutput<typeof modelPricingSchema>;
 
 /**
- * Zod schema for Claude Code statusline hook JSON data
+ * Valibot schema for Claude Code statusline hook JSON data
  */
-export const statuslineHookJsonSchema = z.object({
-	session_id: z.string(),
-	transcript_path: z.string(),
-	cwd: z.string(),
-	model: z.object({
-		id: z.string(),
-		display_name: z.string(),
+export const statuslineHookJsonSchema = v.object({
+	session_id: v.string(),
+	transcript_path: v.string(),
+	cwd: v.string(),
+	model: v.object({
+		id: v.string(),
+		display_name: v.string(),
 	}),
-	workspace: z.object({
-		current_dir: z.string(),
-		project_dir: z.string(),
+	workspace: v.object({
+		current_dir: v.string(),
+		project_dir: v.string(),
 	}),
-	version: z.string().optional(),
-	cost: z.object({
-		total_cost_usd: z.number(),
-		total_duration_ms: z.number().optional(),
-		total_api_duration_ms: z.number().optional(),
-		total_lines_added: z.number().optional(),
-		total_lines_removed: z.number().optional(),
-	}).optional(),
+	version: v.optional(v.string()),
+	cost: v.optional(v.object({
+		total_cost_usd: v.number(),
+		total_duration_ms: v.optional(v.number()),
+		total_api_duration_ms: v.optional(v.number()),
+		total_lines_added: v.optional(v.number()),
+		total_lines_removed: v.optional(v.number()),
+	})),
 });
 
 /**
  * Type definition for Claude Code statusline hook JSON data
  */
-export type StatuslineHookJson = z.infer<typeof statuslineHookJsonSchema>;
+export type StatuslineHookJson = v.InferOutput<typeof statuslineHookJsonSchema>;
 
 /**
  * Type definition for transcript usage data from Claude messages
  */
-
-export type TranscriptUsage = {
-	input_tokens?: number;
-	cache_creation_input_tokens?: number;
-	cache_read_input_tokens?: number;
-	output_tokens?: number;
-};
-
-export type TranscriptMessage = {
-	type?: string;
-	message?: {
-		usage?: TranscriptUsage;
-	};
-};

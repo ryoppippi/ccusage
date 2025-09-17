@@ -12,6 +12,7 @@ import path from 'node:path';
 import { Result } from '@praha/byethrow';
 import { createFixture } from 'fs-fixture';
 import { glob } from 'tinyglobby';
+import * as v from 'valibot';
 import { CLAUDE_PROJECTS_DIR_NAME, DEBUG_MATCH_THRESHOLD_PERCENT, USAGE_DATA_GLOB_PATTERN } from './_consts.ts';
 import { getClaudePaths, usageDataSchema } from './data-loader.ts';
 import { logger } from './logger.ts';
@@ -121,13 +122,13 @@ export async function detectMismatches(
 				continue;
 			}
 
-			const schemaResult = usageDataSchema.safeParse(parseResult.value);
+			const schemaResult = v.safeParse(usageDataSchema, parseResult.value);
 
 			if (!schemaResult.success) {
 				continue;
 			}
 
-			const data = schemaResult.data;
+			const data = schemaResult.output;
 			stats.totalEntries++;
 
 			// Check if we have both costUSD and model

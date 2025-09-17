@@ -41,7 +41,7 @@ function extractExplicitArgs(tokens: unknown[]): Record<string, boolean> {
 	return explicit;
 }
 
-// Type for configuration data (simple structure without Zod)
+// Type for configuration data (simple structure without Valibot)
 export type ConfigData = {
 	$schema?: string;
 	defaults?: Record<string, any>;

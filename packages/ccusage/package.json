@@ -88,9 +88,9 @@
 		"type-fest": "catalog:runtime",
 		"unplugin-macros": "catalog:build",
 		"unplugin-unused": "catalog:build",
+		"valibot": "catalog:runtime",
 		"vitest": "catalog:testing",
-		"xdg-basedir": "catalog:runtime",
-		"zod": "catalog:runtime"
+		"xdg-basedir": "catalog:runtime"
 	},
 	"publishConfig": {
 		"exports": {

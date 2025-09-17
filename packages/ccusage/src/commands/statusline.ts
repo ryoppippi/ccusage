@@ -8,7 +8,7 @@ import { createLimoJson } from '@ryoppippi/limo';
 import getStdin from 'get-stdin';
 import { define } from 'gunshi';
 import pc from 'picocolors';
-import { z } from 'zod';
+import * as v from 'valibot';
 import { loadConfig, mergeConfigWithArgs } from '../_config-loader-tokens.ts';
 import { DEFAULT_CONTEXT_USAGE_THRESHOLDS, DEFAULT_REFRESH_INTERVAL_SECONDS } from '../_consts.ts';
 import { calculateBurnRate } from '../_session-blocks.ts';
@@ -74,8 +74,29 @@ type SemaphoreType = {
 const visualBurnRateChoices = ['off', 'emoji', 'text', 'emoji-text'] as const;
 const costSourceChoices = ['auto', 'ccusage', 'cc', 'both'] as const;
 
-// Zod schema for context threshold validation
-const contextThresholdSchema = z.coerce.number().int().min(0, 'Context threshold must be at least 0').max(100, 'Context threshold must be at most 100');
+// Valibot schema for context threshold validation
+const contextThresholdSchema = v.pipe(
+	v.union([
+		v.number(),
+		v.pipe(
+			v.string(),
+			v.trim(),
+			v.check(
+				value => /^-?\d+$/u.test(value),
+				'Context threshold must be an integer',
+			),
+			v.transform(value => Number.parseInt(value, 10)),
+		),
+	]),
+	v.number('Context threshold must be a number'),
+	v.integer('Context threshold must be an integer'),
+	v.minValue(0, 'Context threshold must be at least 0'),
+	v.maxValue(100, 'Context threshold must be at most 100'),
+);
+
+function parseContextThreshold(value: string): number {
+	return v.parse(contextThresholdSchema, value);
+}
 
 export const statuslineCommand = define({
 	name: 'statusline',
@@ -117,13 +138,13 @@ export const statuslineCommand = define({
 		contextLowThreshold: {
 			type: 'custom',
 			description: 'Context usage percentage below which status is shown in green (0-100)',
-			parse: (value: string) => contextThresholdSchema.parse(value),
+			parse: value => parseContextThreshold(value),
 			default: DEFAULT_CONTEXT_USAGE_THRESHOLDS.LOW,
 		},
 		contextMediumThreshold: {
 			type: 'custom',
 			description: 'Context usage percentage below which status is shown in yellow (0-100)',
-			parse: (value: string) => contextThresholdSchema.parse(value),
+			parse: value => parseContextThreshold(value),
 			default: DEFAULT_CONTEXT_USAGE_THRESHOLDS.MEDIUM,
 		},
 		config: sharedArgs.config,
@@ -154,12 +175,12 @@ export const statuslineCommand = define({
 
 		// Parse input as JSON
 		const hookDataJson: unknown = JSON.parse(stdin.trim());
-		const hookDataParseResult = statuslineHookJsonSchema.safeParse(hookDataJson);
+		const hookDataParseResult = v.safeParse(statuslineHookJsonSchema, hookDataJson);
 		if (!hookDataParseResult.success) {
-			log('❌ Invalid input format:', hookDataParseResult.error.message);
+			log('❌ Invalid input format:', v.flatten(hookDataParseResult.issues));
 			process.exit(1);
 		}
-		const hookData = hookDataParseResult.data;
+		const hookData = hookDataParseResult.output;
 
 		// Extract session ID from hook data
 		const sessionId = hookData.session_id;
