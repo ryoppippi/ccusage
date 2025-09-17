@@ -149,7 +149,6 @@ const blocksResponseSchema = {
 };
 
 // Type for structured content to avoid repetitive casting
-type StructuredContent = { [x: string]: unknown };
 
 /**
  * Helper function to transform usage data with totals into JSON output format
