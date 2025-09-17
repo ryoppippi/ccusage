@@ -24,7 +24,7 @@
 	"module": "./dist/index.js",
 	"types": "./dist/index.d.ts",
 	"bin": {
-		"ccusage-mcp": "./dist/cli.js"
+		"ccusage-mcp": "./src/cli.ts"
 	},
 	"files": [
 		"dist"
@@ -64,6 +64,9 @@
 		"vitest": "catalog:testing"
 	},
 	"publishConfig": {
+		"bin": {
+			"ccusage-mcp": "./dist/cli.js"
+		},
 		"exports": {
 			".": "./dist/index.js",
 			"./cli": "./dist/cli.js",
