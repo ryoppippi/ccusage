@@ -2,6 +2,75 @@ packages:
   - packages/*
   - docs
 
+catalogs:
+  runtime:
+    "@antfu/utils": ^9.2.0
+    "@hono/mcp": ^0.1.4
+    "@hono/node-server": ^1.19.2
+    "@modelcontextprotocol/sdk": ^1.17.3
+    "@oxc-project/runtime": ^0.82.3
+    "@praha/byethrow": ^0.6.3
+    "@ryoppippi/limo": jsr:^0.2.2
+    "@std/async": jsr:^1.0.14
+    "ansi-escapes": ^7.0.0
+    "cli-table3": ^0.6.5
+    "consola": ^3.4.2
+    "es-toolkit": ^1.39.10
+    "fast-sort": ^3.4.1
+    "get-stdin": ^9.0.0
+    "gunshi": ^0.26.3
+    "hono": ^4.9.2
+    "nano-spawn": ^1.0.2
+    "p-limit": ^7.1.0
+    "path-type": ^6.0.0
+    "picocolors": ^1.1.1
+    "pretty-ms": ^9.2.0
+    "string-width": ^7.2.0
+    "tinyglobby": ^0.2.14
+    "type-fest": ^4.41.0
+    "unplugin-macros": ^0.18.0
+    "unplugin-unused": ^0.5.2
+    "xdg-basedir": ^5.1.0
+    "zod": ^3.25.67
+
+  types:
+    "@types/bun": ^1.2.20
+    "@typescript/native-preview": ^7.0.0-dev.20250916.1
+
+  lint:
+    "@ryoppippi/eslint-config": ^0.3.7
+    "eslint": ^9.33.0
+    "eslint-plugin-format": ^1.0.1
+    "publint": ^0.3.12
+
+  testing:
+    "fs-fixture": ^2.8.1
+    "vitest": ^3.2.4
+
+  build:
+    "tsdown": ^0.14.1
+
+  release:
+    "bumpp": ^10.2.3
+    "clean-pkg-json": ^1.3.0
+    "lint-staged": ^16.1.5
+    "sort-package-json": ^3.4.0
+
+  docs:
+    "@ryoppippi/vite-plugin-cloudflare-redirect": ^1.1.2
+    "typedoc": ^0.28.10
+    "typedoc-plugin-markdown": ^4.8.1
+    "typedoc-vitepress-theme": ^1.1.2
+    "vitepress": ^1.6.4
+    "vitepress-plugin-group-icons": ^1.6.3
+    "vitepress-plugin-llms": ^1.7.3
+    "wrangler": ^4.32.0
+
+  mcp:
+    "@mizchi/lsmcp": ^0.10.0
+    "@praha/byethrow-mcp": ^0.1.2
+    "sitemcp": ^0.5.9
+
 onlyBuiltDependencies:
   - esbuild
   - sharp

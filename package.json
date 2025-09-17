@@ -29,13 +29,13 @@
     ]
   },
   "devDependencies": {
-    "@mizchi/lsmcp": "^0.10.0",
-    "@praha/byethrow-mcp": "^0.1.2",
-    "@typescript/native-preview": "7.0.0-dev.20250916.1",
-    "bumpp": "^10.2.3",
-    "lint-staged": "^16.1.5",
-    "sitemcp": "^0.5.9",
-    "sort-package-json": "^3.4.0"
+    "@mizchi/lsmcp": "catalog:mcp",
+    "@praha/byethrow-mcp": "catalog:mcp",
+    "@typescript/native-preview": "catalog:types",
+    "bumpp": "catalog:release",
+    "lint-staged": "catalog:release",
+    "sitemcp": "catalog:mcp",
+    "sort-package-json": "catalog:release"
   },
   "packageManager": "pnpm@10.16.1",
   "devEngines": {
