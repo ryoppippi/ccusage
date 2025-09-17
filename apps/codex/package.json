@@ -1,0 +1,70 @@
+{
+	"name": "@ccusage/codex",
+	"type": "module",
+	"version": "16.2.5",
+	"private": true,
+	"description": "Usage analysis tool for OpenAI Codex sessions",
+	"exports": {
+		".": "./src/index.ts",
+		"./package.json": "./package.json"
+	},
+	"main": "./dist/index.js",
+	"module": "./dist/index.js",
+	"bin": "./src/index.ts",
+	"files": [
+		"dist"
+	],
+	"engines": {
+		"node": ">=20.19.4"
+	},
+	"scripts": {
+		"build": "tsdown",
+		"format": "pnpm run lint --fix",
+		"lint": "eslint --cache .",
+		"start": "bun ./src/index.ts",
+		"test": "TZ=UTC vitest",
+		"typecheck": "tsgo --noEmit"
+	},
+	"dependencies": {
+		"@ccusage/internal": "workspace:*",
+		"@praha/byethrow": "catalog:runtime",
+		"cli-table3": "catalog:runtime",
+		"consola": "catalog:runtime",
+		"gunshi": "catalog:runtime",
+		"picocolors": "catalog:runtime",
+		"tinyglobby": "catalog:runtime",
+		"valibot": "catalog:runtime"
+	},
+	"devDependencies": {
+		"@ryoppippi/eslint-config": "catalog:lint",
+		"@typescript/native-preview": "catalog:types",
+		"eslint": "catalog:lint",
+		"fs-fixture": "catalog:testing",
+		"sort-package-json": "catalog:release",
+		"tsdown": "catalog:build",
+		"unplugin-macros": "catalog:build",
+		"unplugin-unused": "catalog:build",
+		"vitest": "catalog:testing"
+	},
+	"publishConfig": {
+		"bin": "./dist/index.js",
+		"exports": {
+			".": "./dist/index.js",
+			"./package.json": "./package.json"
+		}
+	},
+	"devEngines": {
+		"runtime": [
+			{
+				"name": "node",
+				"version": "^24.4.0",
+				"onFail": "download"
+			},
+			{
+				"name": "bun",
+				"version": "^1.2.21",
+				"onFail": "download"
+			}
+		]
+	}
+}
