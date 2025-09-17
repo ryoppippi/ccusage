@@ -249,12 +249,6 @@ importers:
       '@antfu/utils':
         specifier: catalog:runtime
         version: 9.2.0
-      '@ccusage/mcp':
-        specifier: workspace:*
-        version: link:../mcp
-      '@hono/node-server':
-        specifier: catalog:runtime
-        version: 1.19.3(hono@4.9.7)
       '@oxc-project/runtime':
         specifier: catalog:build
         version: 0.82.3
@@ -372,12 +366,18 @@ importers:
       '@hono/mcp':
         specifier: catalog:runtime
         version: 0.1.4(@modelcontextprotocol/sdk@1.18.0)(hono@4.9.7)
+      '@hono/node-server':
+        specifier: catalog:runtime
+        version: 1.19.3(hono@4.9.7)
       '@modelcontextprotocol/sdk':
         specifier: catalog:runtime
         version: 1.18.0
       ccusage:
         specifier: workspace:*
         version: link:../ccusage
+      gunshi:
+        specifier: catalog:runtime
+        version: 0.26.3
       hono:
         specifier: catalog:runtime
         version: 4.9.7

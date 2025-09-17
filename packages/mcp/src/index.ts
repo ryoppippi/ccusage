@@ -237,7 +237,7 @@ export function createMcpServer(options?: LoadOptions): McpServer {
 						text: JSON.stringify(jsonOutput, null, 2),
 					},
 				],
-				structuredContent: jsonOutput as StructuredContent,
+				structuredContent: jsonOutput,
 			};
 		},
 	);
@@ -280,7 +280,7 @@ export function createMcpServer(options?: LoadOptions): McpServer {
 						text: JSON.stringify(jsonOutput, null, 2),
 					},
 				],
-				structuredContent: jsonOutput as StructuredContent,
+				structuredContent: jsonOutput,
 			};
 		},
 	);
@@ -322,7 +322,7 @@ export function createMcpServer(options?: LoadOptions): McpServer {
 						text: JSON.stringify(jsonOutput, null, 2),
 					},
 				],
-				structuredContent: jsonOutput as StructuredContent,
+				structuredContent: jsonOutput,
 			};
 		},
 	);
@@ -368,7 +368,7 @@ export function createMcpServer(options?: LoadOptions): McpServer {
 						text: JSON.stringify(jsonOutput, null, 2),
 					},
 				],
-				structuredContent: jsonOutput as StructuredContent,
+				structuredContent: jsonOutput,
 			};
 		},
 	);

@@ -254,20 +254,6 @@ Override defaults for specific commands using the `commands` section:
 }
 ```
 
-### MCP Server
-
-```json
-{
-  "commands": {
-    "mcp": {
-      "type": "stdio",
-      "port": 8080,
-      "mode": "auto"
-    }
-  }
-}
-```
-
 ### Statusline
 
 ```json

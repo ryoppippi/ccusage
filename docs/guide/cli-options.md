@@ -218,20 +218,7 @@ ccusage blocks --live --refresh-interval 2
 ccusage blocks --session-length 5
 ```
 
-### MCP Server
-
-Options for MCP server:
-
-```bash
-# Default stdio transport
-ccusage mcp
-
-# HTTP transport
-ccusage mcp --type http --port 8080
-
-# Custom cost mode
-ccusage mcp --mode calculate
-```
+> **Note:** The MCP server CLI moved to the dedicated `@ccusage/mcp` package. See the [MCP Server guide](/guide/mcp-server) for usage details.
 
 ### Statusline
 

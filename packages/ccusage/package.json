@@ -1,26 +1,26 @@
 {
 	"name": "ccusage",
-	"type": "module",
 	"version": "16.2.5",
 	"description": "Usage analysis tool for Claude Code",
-	"author": "ryoppippi",
-	"license": "MIT",
-	"funding": "https://github.com/ryoppippi/ccusage?sponsor=1",
 	"homepage": "https://github.com/ryoppippi/ccusage#readme",
+	"bugs": {
+		"url": "https://github.com/ryoppippi/ccusage/issues"
+	},
 	"repository": {
 		"type": "git",
 		"url": "git+https://github.com/ryoppippi/ccusage.git"
 	},
-	"bugs": {
-		"url": "https://github.com/ryoppippi/ccusage/issues"
-	},
+	"funding": "https://github.com/ryoppippi/ccusage?sponsor=1",
+	"license": "MIT",
+	"author": "ryoppippi",
+	"type": "module",
 	"exports": {
-		".": "./dist/index.js",
-		"./calculate-cost": "./dist/calculate-cost.js",
-		"./data-loader": "./dist/data-loader.js",
-		"./debug": "./dist/debug.js",
-		"./logger": "./dist/logger.js",
-		"./pricing-fetcher": "./dist/pricing-fetcher.js",
+		".": "./src/index.ts",
+		"./calculate-cost": "./src/calculate-cost.ts",
+		"./data-loader": "./src/data-loader.ts",
+		"./debug": "./src/debug.ts",
+		"./logger": "./src/logger.ts",
+		"./pricing-fetcher": "./src/pricing-fetcher.ts",
 		"./package.json": "./package.json"
 	},
 	"main": "./dist/index.js",
@@ -31,9 +31,6 @@
 		"config-schema.json",
 		"dist"
 	],
-	"engines": {
-		"node": ">=20.19.4"
-	},
 	"scripts": {
 		"build": "pnpm run generate:schema && tsdown",
 		"format": "pnpm run lint --fix",
@@ -56,8 +53,6 @@
 	},
 	"devDependencies": {
 		"@antfu/utils": "catalog:runtime",
-		"@ccusage/mcp": "workspace:*",
-		"@hono/node-server": "catalog:runtime",
 		"@oxc-project/runtime": "catalog:build",
 		"@praha/byethrow": "catalog:runtime",
 		"@ryoppippi/eslint-config": "catalog:lint",
@@ -93,6 +88,20 @@
 		"vitest": "catalog:testing",
 		"xdg-basedir": "catalog:runtime",
 		"zod": "catalog:runtime"
+	},
+	"engines": {
+		"node": ">=20.19.4"
+	},
+	"publishConfig": {
+		"exports": {
+			".": "./dist/index.js",
+			"./calculate-cost": "./dist/calculate-cost.js",
+			"./data-loader": "./dist/data-loader.js",
+			"./debug": "./dist/debug.js",
+			"./logger": "./dist/logger.js",
+			"./pricing-fetcher": "./dist/pricing-fetcher.js",
+			"./package.json": "./package.json"
+		}
 	},
 	"devEngines": {
 		"runtime": [

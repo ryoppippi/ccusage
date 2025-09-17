@@ -19,7 +19,9 @@ export default defineConfig({
 	},
 	publint: true,
 	unused: true,
-	exports: true,
+	exports: {
+		devExports: true,
+	},
 	nodeProtocol: true,
 	plugins: [
 		Macros({

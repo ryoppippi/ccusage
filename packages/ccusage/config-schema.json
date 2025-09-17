@@ -657,39 +657,6 @@
 							},
 							"additionalProperties": false
 						},
-						"mcp": {
-							"type": "object",
-							"properties": {
-								"mode": {
-									"type": "string",
-									"enum": [
-										"auto",
-										"calculate",
-										"display"
-									],
-									"description": "Cost calculation mode: auto (use costUSD if exists, otherwise calculate), calculate (always calculate), display (always use costUSD)",
-									"markdownDescription": "Cost calculation mode: auto (use costUSD if exists, otherwise calculate), calculate (always calculate), display (always use costUSD)",
-									"default": "auto"
-								},
-								"type": {
-									"type": "string",
-									"enum": [
-										"stdio",
-										"http"
-									],
-									"description": "Transport type for MCP server",
-									"markdownDescription": "Transport type for MCP server",
-									"default": "stdio"
-								},
-								"port": {
-									"type": "number",
-									"description": "Port for HTTP transport (default: 8080)",
-									"markdownDescription": "Port for HTTP transport (default: 8080)",
-									"default": 8080
-								}
-							},
-							"additionalProperties": false
-						},
 						"statusline": {
 							"type": "object",
 							"properties": {

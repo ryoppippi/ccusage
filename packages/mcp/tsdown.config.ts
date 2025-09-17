@@ -1,13 +1,11 @@
 import { defineConfig } from 'tsdown';
 
 export default defineConfig({
-	entry: [
-		'./src/index.ts',
-	],
+	entry: ['src/*.ts'],
 	outDir: 'dist',
 	format: 'esm',
 	clean: true,
-	sourcemap: false,
+	sourcemap: true,
 	minify: 'dce-only',
 	treeshake: true,
 	dts: {
@@ -15,7 +13,9 @@ export default defineConfig({
 	},
 	publint: true,
 	unused: true,
-	exports: true,
+	exports: {
+		devExports: true,
+	},
 	nodeProtocol: true,
 	define: {
 		'import.meta.vitest': 'undefined',
