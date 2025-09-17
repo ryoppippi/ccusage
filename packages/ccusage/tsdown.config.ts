@@ -13,15 +13,9 @@ export default defineConfig({
 	sourcemap: false,
 	minify: 'dce-only',
 	treeshake: true,
-	dts: {
-		tsgo: true,
-		resolve: ['type-fest', 'valibot'],
-	},
+	dts: false,
 	publint: true,
 	unused: true,
-	exports: {
-		devExports: true,
-	},
 	nodeProtocol: true,
 	plugins: [
 		Macros({

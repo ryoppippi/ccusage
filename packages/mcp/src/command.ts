@@ -1,11 +1,11 @@
-import type { LoadOptions } from 'ccusage/data-loader';
+import type { LoadOptions } from '@ccusage/core/claude-code';
 import process from 'node:process';
+import { getClaudePaths } from '@ccusage/core/claude-code';
 import { serve } from '@hono/node-server';
-import { getClaudePaths } from 'ccusage/data-loader';
-import { logger } from 'ccusage/logger';
 import { cli, define } from 'gunshi';
 import { description, name, version } from '../package.json';
 import { createMcpHttpApp, createMcpServer, startMcpServerStdio } from './index.ts';
+import { logger } from './logger.ts';
 
 type McpType = (typeof MCP_TYPE_CHOICES)[number];
 type Mode = LoadOptions['mode'];
@@ -43,7 +43,15 @@ export const mcpCommand = define({
 		},
 	},
 	async run(ctx) {
-		const { type: mcpType, mode, port } = ctx.values;
+		const {
+			type: rawType = 'stdio',
+			mode: rawMode = 'auto',
+			port: rawPort = MCP_DEFAULT_PORT,
+		} = ctx.values as { type?: McpType; mode?: Mode; port?: number };
+
+		const mcpType: McpType = rawType;
+		const mode: Mode = rawMode;
+		const port = rawPort;
 
 		if (mcpType === 'stdio') {
 			logger.level = 0;

@@ -10,7 +10,7 @@ import type { LiveMonitoringConfig } from '../_live-rendering.ts';
 import process from 'node:process';
 import { Result } from '@praha/byethrow';
 import pc from 'picocolors';
-import { MIN_RENDER_INTERVAL_MS } from '../_consts.ts';
+import { MIN_RENDER_INTERVAL_MS } from '@ccusage/core/consts';
 import {
 	clearLiveMonitorCache,
 	createLiveMonitorState,
@@ -21,7 +21,7 @@ import {
 	renderActiveBlock,
 	renderWaitingState,
 } from '../_live-rendering.ts';
-import { TerminalManager } from '../_terminal-utils.ts';
+import { TerminalManager } from '@ccusage/internal/terminal';
 import { logger } from '../logger.ts';
 
 export async function startLiveMonitoring(config: LiveMonitoringConfig): Promise<void> {

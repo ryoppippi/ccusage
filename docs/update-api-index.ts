@@ -128,8 +128,9 @@ Shared utilities for creating responsive tables and formatting usage data across
 	try {
 		await fs.writeFile(overviewPath, overviewContent, 'utf8');
 		console.log('✅ Created overall API overview');
-	} catch (error) {
-		console.error('❌ Failed to create overall overview:', error);
+	} catch (error: unknown) {
+		const message = error instanceof Error ? error.message : String(error);
+		console.error('❌ Failed to create overall overview:', message);
 	}
 }
 
@@ -144,8 +145,9 @@ async function main() {
 	try {
 		await generateCoreApiDocs();
 		await mergeCoreApiDocs();
-	} catch (error) {
-		console.warn('⚠️ Failed to generate core API docs, skipping:', error.message);
+	} catch (error: unknown) {
+		const message = error instanceof Error ? error.message : String(error);
+		console.warn('⚠️ Failed to generate core API docs, skipping:', message);
 	}
 
 	// Create overall API overview

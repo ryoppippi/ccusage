@@ -1,4 +1,4 @@
-import type { UsageReportConfig } from '@ccusage/core/table';
+import type { UsageReportConfig } from '@ccusage/internal/table';
 import process from 'node:process';
 import {
 	addEmptySeparatorRow,
@@ -7,22 +7,18 @@ import {
 	formatUsageDataRow,
 	pushBreakdownRows,
 
-} from '@ccusage/core/table';
+} from '@ccusage/internal/table';
 import { Result } from '@praha/byethrow';
 import { define } from 'gunshi';
 import pc from 'picocolors';
 import { loadConfig, mergeConfigWithArgs } from '../_config-loader-tokens.ts';
 import { groupByProject, groupDataByProject } from '../_daily-grouping.ts';
-import { formatDateCompact } from '../_date-utils.ts';
+import { formatDateCompact } from '@ccusage/core/date-utils';
 import { processWithJq } from '../_jq-processor.ts';
-import { formatProjectName } from '../_project-names.ts';
+import { formatProjectName } from '@ccusage/core/project-names';
 import { sharedCommandConfig } from '../_shared-args.ts';
-import {
-	calculateTotals,
-	createTotalsObject,
-	getTotalTokens,
-} from '../calculate-cost.ts';
-import { loadDailyUsageData } from '../data-loader.ts';
+import { calculateTotals, createTotalsObject, getTotalTokens } from '@ccusage/core/calculate-cost';
+import { loadDailyUsageData } from '@ccusage/core/claude-code';
 import { detectMismatches, printMismatchReport } from '../debug.ts';
 import { log, logger } from '../logger.ts';
 

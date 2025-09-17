@@ -3,18 +3,13 @@
  * @module date-utils
  */
 
-import type { DayOfWeek, WeekDay } from './_consts.ts';
-import type { WeeklyDate } from './_types.ts';
+import type { DayOfWeek, WeekDay } from './consts.ts';
+import type { SortOrder, WeeklyDate } from './types.ts';
+import { unreachable } from '@ccusage/internal';
 import { sort } from 'fast-sort';
 import * as v from 'valibot';
-import { DEFAULT_LOCALE } from './_consts.ts';
-import { createWeeklyDate, dailyDateSchema } from './_types.ts';
-import { unreachable } from './_utils.ts';
-
-/**
- * Sort order for date-based sorting
- */
-export type SortOrder = 'asc' | 'desc';
+import { DEFAULT_LOCALE } from './consts.ts';
+import { createWeeklyDate, dailyDateSchema } from './types.ts';
 
 /**
  * Creates a date formatter with the specified timezone and locale

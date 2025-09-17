@@ -8,13 +8,13 @@
  * Used exclusively by blocks-live.ts for the --live flag functionality.
  */
 
-import type { LoadedUsageEntry, SessionBlock } from './_session-blocks.ts';
-import type { CostMode, SortOrder } from './_types.ts';
+import type { LoadedUsageEntry, SessionBlock } from '@ccusage/core/session-blocks';
+import type { CostMode, SortOrder } from '@ccusage/core/types';
 import { readFile, stat } from 'node:fs/promises';
 import { Result } from '@praha/byethrow';
 import pLimit from 'p-limit';
 import * as v from 'valibot';
-import { identifySessionBlocks } from './_session-blocks.ts';
+import { identifySessionBlocks } from '@ccusage/core/session-blocks';
 import {
 	calculateCostForEntry,
 	createUniqueHash,
@@ -23,8 +23,8 @@ import {
 	globUsageFiles,
 	sortFilesByTimestamp,
 	usageDataSchema,
-} from './data-loader.ts';
-import { PricingFetcher } from './pricing-fetcher.ts';
+} from '@ccusage/core/claude-code';
+import { PricingFetcher } from '@ccusage/core/pricing-fetcher';
 
 /**
  * Configuration for live monitoring

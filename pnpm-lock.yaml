@@ -259,6 +259,9 @@ importers:
       '@antfu/utils':
         specifier: catalog:runtime
         version: 9.2.0
+      '@ccusage/internal':
+        specifier: workspace:*
+        version: link:../internal
       '@oxc-project/runtime':
         specifier: catalog:build
         version: 0.82.3
@@ -295,18 +298,12 @@ importers:
       consola:
         specifier: catalog:runtime
         version: 3.4.2
-      es-toolkit:
-        specifier: catalog:runtime
-        version: 1.39.10
       eslint:
         specifier: catalog:lint
         version: 9.35.0(jiti@2.5.1)
       eslint-plugin-format:
         specifier: catalog:lint
         version: 1.0.1(eslint@9.35.0(jiti@2.5.1))
-      fast-sort:
-        specifier: catalog:runtime
-        version: 3.4.1
       fs-fixture:
         specifier: catalog:testing
         version: 2.8.1
@@ -325,9 +322,6 @@ importers:
       p-limit:
         specifier: catalog:runtime
         version: 7.1.1
-      path-type:
-        specifier: catalog:runtime
-        version: 6.0.0
       picocolors:
         specifier: catalog:runtime
         version: 1.1.1
@@ -349,9 +343,6 @@ importers:
       tsdown:
         specifier: catalog:build
         version: 0.14.2(@typescript/native-preview@7.0.0-dev.20250916.1)(publint@0.3.12)(typescript@5.9.2)(unplugin-unused@0.5.3)
-      type-fest:
-        specifier: catalog:runtime
-        version: 4.41.0
       unplugin-macros:
         specifier: catalog:build
         version: 0.18.2(@types/node@24.5.1)(jiti@2.5.1)(yaml@2.8.1)
@@ -370,19 +361,43 @@ importers:
 
   packages/core:
     dependencies:
-      cli-table3:
+      '@antfu/utils':
         specifier: catalog:runtime
-        version: 0.6.5
+        version: 9.2.0
+      '@ccusage/internal':
+        specifier: workspace:*
+        version: link:../internal
+      '@praha/byethrow':
+        specifier: catalog:runtime
+        version: 0.6.3
       es-toolkit:
         specifier: catalog:runtime
         version: 1.39.10
-      picocolors:
+      fast-sort:
         specifier: catalog:runtime
-        version: 1.1.1
-      string-width:
+        version: 3.4.1
+      path-type:
         specifier: catalog:runtime
-        version: 7.2.0
+        version: 6.0.0
+      tinyglobby:
+        specifier: catalog:runtime
+        version: 0.2.15
+      type-fest:
+        specifier: catalog:runtime
+        version: 4.41.0
+      valibot:
+        specifier: catalog:runtime
+        version: 1.1.0(typescript@5.9.2)
+      xdg-basedir:
+        specifier: catalog:runtime
+        version: 5.1.0
     devDependencies:
+      '@oxc-project/runtime':
+        specifier: catalog:build
+        version: 0.82.3
+      fs-fixture:
+        specifier: catalog:testing
+        version: 2.8.1
       node:
         specifier: runtime:^24.4.0
         version: runtime:24.8.0
@@ -399,8 +414,39 @@ importers:
         specifier: catalog:testing
         version: 3.2.4(@types/debug@4.1.12)(@types/node@24.5.1)(happy-dom@16.8.1)(jiti@2.5.1)(yaml@2.8.1)
 
+  packages/internal:
+    dependencies:
+      '@praha/byethrow':
+        specifier: catalog:runtime
+        version: 0.6.3
+      ansi-escapes:
+        specifier: catalog:runtime
+        version: 7.1.0
+      cli-table3:
+        specifier: catalog:runtime
+        version: 0.6.5
+      es-toolkit:
+        specifier: catalog:runtime
+        version: 1.39.10
+      picocolors:
+        specifier: catalog:runtime
+        version: 1.1.1
+      string-width:
+        specifier: catalog:runtime
+        version: 7.2.0
+    devDependencies:
+      tsdown:
+        specifier: catalog:build
+        version: 0.14.2(@typescript/native-preview@7.0.0-dev.20250916.1)(publint@0.3.12)(typescript@5.9.2)(unplugin-unused@0.5.3)
+      vitest:
+        specifier: catalog:testing
+        version: 3.2.4(@types/debug@4.1.12)(@types/node@24.5.1)(happy-dom@16.8.1)(jiti@2.5.1)(yaml@2.8.1)
+
   packages/mcp:
     dependencies:
+      '@ccusage/core':
+        specifier: workspace:*
+        version: link:../core
       '@hono/mcp':
         specifier: catalog:runtime
         version: 0.1.4(@modelcontextprotocol/sdk@1.18.0)(hono@4.9.7)
@@ -413,6 +459,9 @@ importers:
       ccusage:
         specifier: workspace:*
         version: link:../ccusage
+      consola:
+        specifier: catalog:runtime
+        version: 3.4.2
       gunshi:
         specifier: catalog:runtime
         version: 0.26.3

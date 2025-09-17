@@ -354,12 +354,13 @@ export function formatModelsDisplay(models: string[]): string {
 export function formatModelsDisplayMultiline(models: string[]): string {
 	// Format array of models for display with newlines and bullet points
 	const uniqueModels = uniq(models.map(formatModelName));
-	return uniqueModels.sort().map(model => `- ${model}`).join('\n');
+	return uniqueModels.sort().map((model: string) => `- ${model}`).join('\n');
 }
 
 /**
  * Pushes model breakdown rows to a table
  * @param table - The table to push rows to
+ * @param table.push - Method to add rows to the table
  * @param breakdowns - Array of model breakdowns
  * @param extraColumns - Number of extra empty columns before the data (default: 1 for models column)
  * @param trailingColumns - Number of extra empty columns after the data (default: 0)
@@ -461,7 +462,7 @@ export function createUsageReportTable(config: UsageReportConfig): ResponsiveTab
 		'right',
 	];
 
-	if (config.includeLastActivity) {
+	if (config.includeLastActivity === true) {
 		baseHeaders.push('Last Activity');
 		baseAligns.push('left');
 	}
@@ -469,10 +470,10 @@ export function createUsageReportTable(config: UsageReportConfig): ResponsiveTab
 	return new ResponsiveTable({
 		head: baseHeaders,
 		colAligns: baseAligns,
-		compactHead: config.includeLastActivity
+		compactHead: config.includeLastActivity === true
 			? [config.firstColumnName, 'Models', 'Cost', 'Last Activity']
 			: [config.firstColumnName, 'Models', 'Cost'],
-		compactColAligns: config.includeLastActivity
+		compactColAligns: config.includeLastActivity === true
 			? ['left', 'left', 'right', 'left']
 			: ['left', 'left', 'right'],
 		style: {
@@ -485,8 +486,8 @@ export function createUsageReportTable(config: UsageReportConfig): ResponsiveTab
 
 /**
  * Formats usage data into a table row
- * @param data - Usage data to format
  * @param firstColumnValue - Value for the first column
+ * @param data - Usage data to format
  * @param lastActivity - Optional last activity string to append as final column
  * @returns Formatted table row
  */

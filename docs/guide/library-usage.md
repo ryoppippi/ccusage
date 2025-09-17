@@ -1,17 +1,13 @@
 # Library Usage
 
-While **ccusage** is primarily known as a CLI tool, it can also be used as a library in your JavaScript/TypeScript projects. This allows you to integrate Claude Code usage analysis directly into your applications.
+While **ccusage** itself is now CLI-only, the shared logic that powers the CLI is published via the `@ccusage/core` package. これを使うことで、Claude Code の使用状況をアプリケーション内から直接解析できます。
 
 ## Installation
 
 ```bash
-npm install ccusage
+pnpm add @ccusage/core
 # or
-yarn add ccusage
-# or
-pnpm add ccusage
-# or
-bun add ccusage
+npm install @ccusage/core
 ```
 
 ## Basic Usage
@@ -19,7 +15,11 @@ bun add ccusage
 The library provides functions to load and analyze Claude Code usage data:
 
 ```typescript
-import { loadDailyUsageData, loadMonthlyUsageData, loadSessionData } from 'ccusage/data-loader';
+import {
+	loadDailyUsageData,
+	loadMonthlyUsageData,
+	loadSessionData,
+} from '@ccusage/core/claude-code';
 
 // Load daily usage data
 const dailyData = await loadDailyUsageData();
@@ -39,7 +39,10 @@ console.log(sessionData);
 Use the cost calculation utilities to work with token costs:
 
 ```typescript
-import { calculateTotals, getTotalTokens } from 'ccusage/calculate-cost';
+import {
+	calculateTotals,
+	getTotalTokens,
+} from '@ccusage/core/calculate-cost';
 
 // Assume 'usageEntries' is an array of usage data objects
 const totals = calculateTotals(usageEntries);
@@ -53,7 +56,7 @@ const totalTokens = getTotalTokens(usageEntries);
 You can customize the data loading behavior:
 
 ```typescript
-import { loadDailyUsageData } from 'ccusage/data-loader';
+import { loadDailyUsageData } from '@ccusage/core/claude-code';
 
 // Load data with custom options
 const data = await loadDailyUsageData({
@@ -67,7 +70,13 @@ const data = await loadDailyUsageData({
 The library is fully typed with TypeScript definitions:
 
 ```typescript
-import type { DailyUsage, ModelBreakdown, MonthlyUsage, SessionUsage, UsageData } from 'ccusage/data-loader';
+import type {
+	DailyUsage,
+	ModelBreakdown,
+	MonthlyUsage,
+	SessionUsage,
+	UsageData,
+} from '@ccusage/core/claude-code';
 
 // Use the types in your application
 function processUsageData(data: UsageData[]): void {
@@ -79,7 +88,7 @@ function processUsageData(data: UsageData[]): void {
 
 You can also create your own MCP server using the dedicated `@ccusage/mcp` package:
 
-> **Note**: Install `ccusage` and `@ccusage/mcp` together, for example with `pnpm add ccusage @ccusage/mcp`.
+> **Note**: The MCP server consumes the same core utilities. Install both `@ccusage/core` and `@ccusage/mcp` (for example `pnpm add @ccusage/core @ccusage/mcp`).
 
 ```typescript
 import { createMcpServer } from '@ccusage/mcp';
@@ -102,7 +111,7 @@ Here are some common use cases:
 ### Building a Web Dashboard
 
 ```typescript
-import { loadDailyUsageData } from 'ccusage/data-loader';
+import { loadDailyUsageData } from '@ccusage/core/claude-code';
 
 export async function GET() {
 	const data = await loadDailyUsageData();
@@ -113,7 +122,10 @@ export async function GET() {
 ### Creating Custom Reports
 
 ```typescript
-import { calculateTotals, loadSessionData } from 'ccusage';
+import {
+	calculateTotals,
+} from '@ccusage/core/calculate-cost';
+import { loadSessionData } from '@ccusage/core/claude-code';
 
 async function generateCustomReport() {
 	const sessions = await loadSessionData();
@@ -131,7 +143,7 @@ async function generateCustomReport() {
 ### Monitoring Usage Programmatically
 
 ```typescript
-import { loadDailyUsageData } from 'ccusage/data-loader';
+import { loadDailyUsageData } from '@ccusage/core/claude-code';
 
 async function checkUsageAlert() {
 	const dailyData = await loadDailyUsageData();

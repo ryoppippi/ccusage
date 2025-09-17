@@ -1,123 +1,99 @@
 {
-	"name": "ccusage",
-	"version": "16.2.5",
-	"description": "Usage analysis tool for Claude Code",
-	"homepage": "https://github.com/ryoppippi/ccusage#readme",
-	"bugs": {
-		"url": "https://github.com/ryoppippi/ccusage/issues"
-	},
-	"repository": {
-		"type": "git",
-		"url": "git+https://github.com/ryoppippi/ccusage.git"
-	},
-	"funding": "https://github.com/ryoppippi/ccusage?sponsor=1",
-	"license": "MIT",
-	"author": "ryoppippi",
-	"type": "module",
-	"exports": {
-		".": "./src/index.ts",
-		"./calculate-cost": "./src/calculate-cost.ts",
-		"./data-loader": "./src/data-loader.ts",
-		"./debug": "./src/debug.ts",
-		"./logger": "./src/logger.ts",
-		"./pricing-fetcher": "./src/pricing-fetcher.ts",
-		"./package.json": "./package.json"
-	},
-	"main": "./dist/index.js",
-	"module": "./dist/index.js",
-	"types": "./dist/index.d.ts",
-	"bin": "./src/index.ts",
-	"files": [
-		"config-schema.json",
-		"dist"
-	],
-	"scripts": {
-		"build": "pnpm run generate:schema && tsdown",
-		"format": "pnpm run lint --fix",
-		"generate:schema": "OFFLINE=true bun scripts/generate-json-schema.ts",
-		"lint": "eslint --cache .",
-		"prepack": "pnpm run build && clean-pkg-json",
-		"prepare": "pnpm run generate:schema || true",
-		"prerelease": "pnpm /^prerelease:/",
-		"prerelease:build": "pnpm run build",
-		"prerelease:lint": "pnpm run lint",
-		"prerelease:typecheck": "pnpm typecheck",
-		"start": "bun ./src/index.ts",
-		"test": "TZ=UTC vitest",
-		"test:statusline": "cat test/statusline-test.json | node ./src/index.ts statusline",
-		"test:statusline:all": "echo 'Testing Sonnet 4:' && pnpm run test:statusline:sonnet4 && echo 'Testing Opus 4.1:' && pnpm run test:statusline:opus4 && echo 'Testing Sonnet 4.1:' && pnpm run test:statusline:sonnet41",
-		"test:statusline:opus4": "cat test/statusline-test-opus4.json | node ./src/index.ts statusline --offline",
-		"test:statusline:sonnet4": "cat test/statusline-test-sonnet4.json | node ./src/index.ts statusline --offline",
-		"test:statusline:sonnet41": "cat test/statusline-test-sonnet41.json | node ./src/index.ts statusline --offline",
-		"typecheck": "tsgo --noEmit"
-	},
-	"dependencies": {
-		"@ccusage/core": "workspace:*"
-	},
-	"devDependencies": {
-		"@antfu/utils": "catalog:runtime",
-		"@oxc-project/runtime": "catalog:build",
-		"@praha/byethrow": "catalog:runtime",
-		"@ryoppippi/eslint-config": "catalog:lint",
-		"@ryoppippi/limo": "catalog:runtime",
-		"@std/async": "catalog:runtime",
-		"@types/bun": "catalog:types",
-		"@typescript/native-preview": "catalog:types",
-		"ansi-escapes": "catalog:runtime",
-		"bumpp": "catalog:release",
-		"clean-pkg-json": "catalog:release",
-		"consola": "catalog:runtime",
-		"es-toolkit": "catalog:runtime",
-		"eslint": "catalog:lint",
-		"eslint-plugin-format": "catalog:lint",
-		"fast-sort": "catalog:runtime",
-		"fs-fixture": "catalog:testing",
-		"get-stdin": "catalog:runtime",
-		"gunshi": "catalog:runtime",
-		"nano-spawn": "catalog:runtime",
-		"p-limit": "catalog:runtime",
-		"path-type": "catalog:runtime",
-		"picocolors": "catalog:runtime",
-		"pretty-ms": "catalog:runtime",
-		"publint": "catalog:lint",
-		"sort-package-json": "catalog:release",
-		"string-width": "catalog:runtime",
-		"tinyglobby": "catalog:runtime",
-		"tsdown": "catalog:build",
-		"type-fest": "catalog:runtime",
-		"unplugin-macros": "catalog:build",
-		"unplugin-unused": "catalog:build",
-		"valibot": "catalog:runtime",
-		"vitest": "catalog:testing",
-		"xdg-basedir": "catalog:runtime"
-	},
-	"engines": {
-		"node": ">=20.19.4"
-	},
-	"publishConfig": {
-		"bin": "./dist/index.js",
-		"exports": {
-			".": "./dist/index.js",
-			"./calculate-cost": "./dist/calculate-cost.js",
-			"./data-loader": "./dist/data-loader.js",
-			"./debug": "./dist/debug.js",
-			"./logger": "./dist/logger.js",
-			"./pricing-fetcher": "./dist/pricing-fetcher.js",
-			"./package.json": "./package.json"
-		}
-	},
-	"devEngines": {
-		"runtime": [
-			{
-				"name": "node",
-				"version": "^24.4.0",
-				"onFail": "download"
-			},
-			{
-				"name": "bun",
-				"version": "^1.2.21",
-				"onFail": "download"
-			}
-		]
-	}
+  "name": "ccusage",
+  "type": "module",
+  "version": "16.2.5",
+  "description": "Usage analysis tool for Claude Code",
+  "author": "ryoppippi",
+  "license": "MIT",
+  "funding": "https://github.com/ryoppippi/ccusage?sponsor=1",
+  "homepage": "https://github.com/ryoppippi/ccusage#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ryoppippi/ccusage.git"
+  },
+  "bugs": {
+    "url": "https://github.com/ryoppippi/ccusage/issues"
+  },
+  "bin": "./src/index.ts",
+  "files": [
+    "config-schema.json",
+    "dist"
+  ],
+  "engines": {
+    "node": ">=20.19.4"
+  },
+  "scripts": {
+    "build": "pnpm run generate:schema && tsdown",
+    "format": "pnpm run lint --fix",
+    "generate:schema": "OFFLINE=true bun scripts/generate-json-schema.ts",
+    "lint": "eslint --cache .",
+    "prepack": "pnpm run build && clean-pkg-json",
+    "prepare": "pnpm run generate:schema || true",
+    "prerelease": "pnpm /^prerelease:/",
+    "prerelease:build": "pnpm run build",
+    "prerelease:lint": "pnpm run lint",
+    "prerelease:typecheck": "pnpm typecheck",
+    "start": "bun ./src/index.ts",
+    "test": "TZ=UTC vitest",
+    "test:statusline": "cat test/statusline-test.json | node ./src/index.ts statusline",
+    "test:statusline:all": "echo 'Testing Sonnet 4:' && pnpm run test:statusline:sonnet4 && echo 'Testing Opus 4.1:' && pnpm run test:statusline:opus4 && echo 'Testing Sonnet 4.1:' && pnpm run test:statusline:sonnet41",
+    "test:statusline:opus4": "cat test/statusline-test-opus4.json | node ./src/index.ts statusline --offline",
+    "test:statusline:sonnet4": "cat test/statusline-test-sonnet4.json | node ./src/index.ts statusline --offline",
+    "test:statusline:sonnet41": "cat test/statusline-test-sonnet41.json | node ./src/index.ts statusline --offline",
+    "typecheck": "tsgo --noEmit"
+  },
+  "dependencies": {
+    "@ccusage/core": "workspace:*"
+  },
+  "devDependencies": {
+    "@antfu/utils": "catalog:runtime",
+    "@ccusage/internal": "workspace:*",
+    "@oxc-project/runtime": "catalog:build",
+    "@praha/byethrow": "catalog:runtime",
+    "@ryoppippi/eslint-config": "catalog:lint",
+    "@ryoppippi/limo": "catalog:runtime",
+    "@std/async": "catalog:runtime",
+    "@types/bun": "catalog:types",
+    "@typescript/native-preview": "catalog:types",
+    "ansi-escapes": "catalog:runtime",
+    "bumpp": "catalog:release",
+    "clean-pkg-json": "catalog:release",
+    "consola": "catalog:runtime",
+    "eslint": "catalog:lint",
+    "eslint-plugin-format": "catalog:lint",
+    "fs-fixture": "catalog:testing",
+    "get-stdin": "catalog:runtime",
+    "gunshi": "catalog:runtime",
+    "nano-spawn": "catalog:runtime",
+    "p-limit": "catalog:runtime",
+    "picocolors": "catalog:runtime",
+    "pretty-ms": "catalog:runtime",
+    "publint": "catalog:lint",
+    "sort-package-json": "catalog:release",
+    "string-width": "catalog:runtime",
+    "tinyglobby": "catalog:runtime",
+    "tsdown": "catalog:build",
+    "unplugin-macros": "catalog:build",
+    "unplugin-unused": "catalog:build",
+    "valibot": "catalog:runtime",
+    "vitest": "catalog:testing",
+    "xdg-basedir": "catalog:runtime"
+  },
+  "publishConfig": {
+    "bin": "./dist/index.js"
+  },
+  "devEngines": {
+    "runtime": [
+      {
+        "name": "node",
+        "version": "^24.4.0",
+        "onFail": "download"
+      },
+      {
+        "name": "bun",
+        "version": "^1.2.21",
+        "onFail": "download"
+      }
+    ]
+  }
 }

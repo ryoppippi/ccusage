@@ -1,19 +1,19 @@
 {
 	"name": "@ccusage/mcp",
+	"type": "module",
 	"version": "16.2.5",
 	"description": "MCP server implementation for ccusage data",
+	"author": "ryoppippi",
+	"license": "MIT",
+	"funding": "https://github.com/ryoppippi/ccusage?sponsor=1",
 	"homepage": "https://github.com/ryoppippi/ccusage#readme",
-	"bugs": {
-		"url": "https://github.com/ryoppippi/ccusage/issues"
-	},
 	"repository": {
 		"type": "git",
 		"url": "git+https://github.com/ryoppippi/ccusage.git"
 	},
-	"funding": "https://github.com/ryoppippi/ccusage?sponsor=1",
-	"license": "MIT",
-	"author": "ryoppippi",
-	"type": "module",
+	"bugs": {
+		"url": "https://github.com/ryoppippi/ccusage/issues"
+	},
 	"exports": {
 		".": "./src/index.ts",
 		"./cli": "./src/cli.ts",
@@ -29,6 +29,9 @@
 	"files": [
 		"dist"
 	],
+	"engines": {
+		"node": ">=20.19.4"
+	},
 	"scripts": {
 		"build": "tsdown",
 		"format": "pnpm run lint --fix",
@@ -42,10 +45,12 @@
 		"typecheck": "tsgo --noEmit"
 	},
 	"dependencies": {
+		"@ccusage/core": "workspace:*",
 		"@hono/mcp": "catalog:runtime",
 		"@hono/node-server": "catalog:runtime",
 		"@modelcontextprotocol/sdk": "catalog:runtime",
 		"ccusage": "workspace:*",
+		"consola": "catalog:runtime",
 		"gunshi": "catalog:runtime",
 		"hono": "catalog:runtime",
 		"zod": "catalog:runtime"
@@ -60,9 +65,6 @@
 		"tsdown": "catalog:build",
 		"unplugin-unused": "catalog:build",
 		"vitest": "catalog:testing"
-	},
-	"engines": {
-		"node": ">=20.19.4"
 	},
 	"publishConfig": {
 		"bin": {

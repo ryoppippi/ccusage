@@ -13,10 +13,14 @@ import { Result } from '@praha/byethrow';
 import { createFixture } from 'fs-fixture';
 import { glob } from 'tinyglobby';
 import * as v from 'valibot';
-import { CLAUDE_PROJECTS_DIR_NAME, DEBUG_MATCH_THRESHOLD_PERCENT, USAGE_DATA_GLOB_PATTERN } from './_consts.ts';
-import { getClaudePaths, usageDataSchema } from './data-loader.ts';
+import { getClaudePaths, usageDataSchema } from '@ccusage/core/claude-code';
+import {
+	CLAUDE_PROJECTS_DIR_NAME,
+	USAGE_DATA_GLOB_PATTERN,
+} from '@ccusage/core/claude-code-consts';
+import { DEBUG_MATCH_THRESHOLD_PERCENT } from '@ccusage/core/consts';
 import { logger } from './logger.ts';
-import { PricingFetcher } from './pricing-fetcher.ts';
+import { PricingFetcher } from '@ccusage/core/pricing-fetcher';
 
 /**
  * Represents a pricing discrepancy between original and calculated costs

@@ -8,13 +8,13 @@
  * @module pricing-fetcher
  */
 
-import type { ModelPricing } from './_types.ts';
+import type { ModelPricing } from './types.ts';
 import { Result } from '@praha/byethrow';
 import * as v from 'valibot';
-import { LITELLM_PRICING_URL } from './_consts.ts';
 import { prefetchClaudePricing } from './_macro.ts' with { type: 'macro' };
-import { modelPricingSchema } from './_types.ts';
+import { LITELLM_PRICING_URL } from './consts.ts';
 import { logger } from './logger.ts';
+import { modelPricingSchema } from './types.ts';
 
 /**
  * Fetches and caches model pricing information from LiteLLM
@@ -24,10 +24,6 @@ export class PricingFetcher implements Disposable {
 	private cachedPricing: Map<string, ModelPricing> | null = null;
 	private readonly offline: boolean;
 
-	/**
-	 * Creates a new PricingFetcher instance
-	 * @param offline - Whether to use pre-fetched pricing data instead of fetching from API
-	 */
 	constructor(offline = false) {
 		this.offline = offline;
 	}

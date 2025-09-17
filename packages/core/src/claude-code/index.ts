@@ -8,8 +8,8 @@
  * @module data-loader
  */
 
-import type { WeekDay } from './_consts.ts';
-import type { LoadedUsageEntry, SessionBlock } from './_session-blocks.ts';
+import type { WeekDay } from '../consts.ts';
+import type { LoadedUsageEntry, SessionBlock } from '../session-blocks.ts';
 import type {
 	ActivityDate,
 	Bucket,
@@ -17,18 +17,26 @@ import type {
 	ModelName,
 	SortOrder,
 	Version,
-} from './_types.ts';
+} from '../types.ts';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
 import { toArray } from '@antfu/utils';
+import { unreachable } from '@ccusage/internal';
 import { Result } from '@praha/byethrow';
 import { groupBy, uniq } from 'es-toolkit'; // TODO: after node20 is deprecated, switch to native Object.groupBy
 import { createFixture } from 'fs-fixture';
 import { isDirectorySync } from 'path-type';
 import { glob } from 'tinyglobby';
 import * as v from 'valibot';
-import { CLAUDE_CONFIG_DIR_ENV, CLAUDE_PROJECTS_DIR_NAME, DEFAULT_CLAUDE_CODE_PATH, DEFAULT_CLAUDE_CONFIG_PATH, DEFAULT_LOCALE, USAGE_DATA_GLOB_PATTERN, USER_HOME_DIR } from './_consts.ts';
+import {
+	CLAUDE_CONFIG_DIR_ENV,
+	CLAUDE_PROJECTS_DIR_NAME,
+	DEFAULT_CLAUDE_CODE_PATH,
+	DEFAULT_CLAUDE_CONFIG_PATH,
+	USAGE_DATA_GLOB_PATTERN,
+} from '../claude-code-consts.ts';
+import { DEFAULT_LOCALE, USER_HOME_DIR } from '../consts.ts';
 import {
 	filterByDateRange,
 	formatDate,
@@ -36,10 +44,9 @@ import {
 	getDateWeek,
 	getDayNumber,
 	sortByDate,
-} from './_date-utils.ts';
-import {
-	identifySessionBlocks,
-} from './_session-blocks.ts';
+} from '../date-utils.ts';
+import { PricingFetcher } from '../pricing-fetcher.ts';
+import { identifySessionBlocks } from '../session-blocks.ts';
 import {
 	activityDateSchema,
 	createBucket,
@@ -62,10 +69,8 @@ import {
 	sessionIdSchema,
 	versionSchema,
 	weeklyDateSchema,
-} from './_types.ts';
-import { unreachable } from './_utils.ts';
+} from '../types.ts';
 import { logger } from './logger.ts';
-import { PricingFetcher } from './pricing-fetcher.ts';
 
 /**
  * Get Claude data directories to search for usage data

@@ -8,24 +8,30 @@
  * @module mcp
  */
 
-import type { LoadOptions } from 'ccusage/data-loader';
-import { StreamableHTTPTransport } from '@hono/mcp';
-import { Client } from '@modelcontextprotocol/sdk/client/index.js';
-import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import type {
+	DailyUsage,
+	LoadOptions,
+	MonthlyUsage,
+	SessionUsage,
+} from '@ccusage/core/claude-code';
+import type { SessionBlock } from '@ccusage/core/session-blocks';
 import {
 	calculateTotals,
 	createTotalsObject,
 	getTotalTokens,
-} from 'ccusage/calculate-cost';
+} from '@ccusage/core/calculate-cost';
 import {
 	getClaudePaths,
 	loadDailyUsageData,
 	loadMonthlyUsageData,
 	loadSessionBlockData,
 	loadSessionData,
-} from 'ccusage/data-loader';
+} from '@ccusage/core/claude-code';
+import { StreamableHTTPTransport } from '@hono/mcp';
+import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
+import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { createFixture } from 'fs-fixture';
 
 import { Hono } from 'hono/tiny';
@@ -153,16 +159,20 @@ const blocksResponseSchema = {
 /**
  * Helper function to transform usage data with totals into JSON output format
  */
-function transformUsageDataWithTotals<T>(
+type UsageTotals = ReturnType<typeof createTotalsObject>;
+
+type UsageResponse<U> = Record<string, U[]> & { totals: UsageTotals };
+
+function transformUsageDataWithTotals<T, U>(
 	data: T[],
 	totals: ReturnType<typeof calculateTotals>,
-	mapper: (item: T) => any,
+	mapper: (item: T) => U,
 	key: string,
-): { [K in string]: any } & { totals: ReturnType<typeof createTotalsObject> } {
+): UsageResponse<U> {
 	return {
 		[key]: data.map(mapper),
 		totals: createTotalsObject(totals),
-	};
+	} as UsageResponse<U>;
 }
 
 /** Default options for the MCP server */
@@ -215,7 +225,7 @@ export function createMcpServer(options?: LoadOptions): McpServer {
 			const jsonOutput = transformUsageDataWithTotals(
 				dailyData,
 				totals,
-				data => ({
+				(data: DailyUsage) => ({
 					date: data.date,
 					inputTokens: data.inputTokens,
 					outputTokens: data.outputTokens,
@@ -257,7 +267,7 @@ export function createMcpServer(options?: LoadOptions): McpServer {
 			const jsonOutput = transformUsageDataWithTotals(
 				sessionData,
 				totals,
-				data => ({
+				(data: SessionUsage) => ({
 					sessionId: data.sessionId,
 					inputTokens: data.inputTokens,
 					outputTokens: data.outputTokens,
@@ -300,7 +310,7 @@ export function createMcpServer(options?: LoadOptions): McpServer {
 			const jsonOutput = transformUsageDataWithTotals(
 				monthlyData,
 				totals,
-				data => ({
+				(data: MonthlyUsage) => ({
 					month: data.month,
 					inputTokens: data.inputTokens,
 					outputTokens: data.outputTokens,
@@ -339,7 +349,7 @@ export function createMcpServer(options?: LoadOptions): McpServer {
 
 			// Transform data to match CLI JSON output format
 			const jsonOutput = {
-				blocks: blocks.map((block) => {
+				blocks: blocks.map((block: SessionBlock) => {
 					return {
 						id: block.id,
 						startTime: block.startTime.toISOString(),

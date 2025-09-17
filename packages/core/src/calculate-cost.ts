@@ -8,9 +8,14 @@
  * @module calculate-cost
  */
 
-import type { AggregatedTokenCounts } from './_token-utils.ts';
-import type { DailyUsage, MonthlyUsage, SessionUsage, WeeklyUsage } from './data-loader.ts';
-import { getTotalTokens } from './_token-utils.ts';
+import type {
+	DailyUsage,
+	MonthlyUsage,
+	SessionUsage,
+	WeeklyUsage,
+} from './claude-code/index.ts';
+import type { AggregatedTokenCounts } from './token-utils.ts';
+import { getTotalTokens } from './token-utils.ts';
 import {
 	createActivityDate,
 	createDailyDate,
@@ -18,7 +23,7 @@ import {
 	createProjectPath,
 	createSessionId,
 	createVersion,
-} from './_types.ts';
+} from './types.ts';
 
 /**
  * Alias for AggregatedTokenCounts from shared utilities

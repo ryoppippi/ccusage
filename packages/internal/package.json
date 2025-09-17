@@ -1,0 +1,32 @@
+{
+  "name": "@ccusage/internal",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./package.json": "./package.json",
+    "./terminal": "./src/terminal.ts",
+    "./table": "./src/table.ts",
+    "./runtime": "./src/runtime.ts"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsdown",
+    "test": "TZ=UTC vitest --passWithNoTests"
+  },
+  "dependencies": {
+    "@praha/byethrow": "catalog:runtime",
+    "ansi-escapes": "catalog:runtime",
+    "cli-table3": "catalog:runtime",
+    "es-toolkit": "catalog:runtime",
+    "picocolors": "catalog:runtime",
+    "string-width": "catalog:runtime"
+  },
+  "devDependencies": {
+    "tsdown": "catalog:build",
+    "vitest": "catalog:testing"
+  }
+}

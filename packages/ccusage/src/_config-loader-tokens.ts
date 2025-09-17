@@ -4,8 +4,8 @@ import process from 'node:process';
 import { toArray } from '@antfu/utils';
 import { Result } from '@praha/byethrow';
 import { createFixture } from 'fs-fixture';
-import { CONFIG_FILE_NAME } from './_consts.ts';
-import { getClaudePaths } from './data-loader.ts';
+import { CONFIG_FILE_NAME } from '@ccusage/core/consts';
+import { getClaudePaths } from '@ccusage/core/claude-code';
 import { logger } from './logger.ts';
 
 /**

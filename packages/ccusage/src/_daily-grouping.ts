@@ -1,12 +1,12 @@
-import type { DailyProjectOutput } from './_json-output-types.ts';
-import type { loadDailyUsageData } from './data-loader.ts';
-import { createDailyDate, createModelName } from './_types.ts';
-import { getTotalTokens } from './calculate-cost.ts';
+import type { DailyProjectOutput } from '@ccusage/core/json-output-types';
+import type { DailyUsage } from '@ccusage/core/claude-code';
+import { createDailyDate, createModelName } from '@ccusage/core/types';
+import { getTotalTokens } from '@ccusage/core/calculate-cost';
 
 /**
  * Type for daily data returned from loadDailyUsageData
  */
-type DailyData = Awaited<ReturnType<typeof loadDailyUsageData>>;
+type DailyData = DailyUsage[];
 
 /**
  * Group daily usage data by project for JSON output
