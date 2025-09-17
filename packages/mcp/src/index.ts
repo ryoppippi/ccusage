@@ -8,31 +8,33 @@
  * @module mcp
  */
 
-import type { LoadOptions } from './data-loader.ts';
+import type { LoadOptions } from 'ccusage/data-loader';
 import { StreamableHTTPTransport } from '@hono/mcp';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import { createFixture } from 'fs-fixture';
-import { Hono } from 'hono/tiny';
-import { z } from 'zod';
-
-import { name, version } from '../package.json';
-import { DEFAULT_LOCALE } from './_consts.ts';
-import { filterDateSchema } from './_types.ts';
 import {
 	calculateTotals,
 	createTotalsObject,
 	getTotalTokens,
-} from './calculate-cost.ts';
+} from 'ccusage/calculate-cost';
 import {
 	getClaudePaths,
 	loadDailyUsageData,
 	loadMonthlyUsageData,
 	loadSessionBlockData,
 	loadSessionData,
-} from './data-loader.ts';
+} from 'ccusage/data-loader';
+import { createFixture } from 'fs-fixture';
+
+import { Hono } from 'hono/tiny';
+import { z } from 'zod';
+import { name, version } from '../package.json';
+
+const DEFAULT_LOCALE = 'en-CA';
+const filterDateSchema = z.string()
+	.regex(/^\d{8}$/, 'Date must be in YYYYMMDD format');
 
 // Output schemas for structured responses
 const modelBreakdownSchema = z.object({

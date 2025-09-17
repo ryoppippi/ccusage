@@ -1,0 +1,76 @@
+{
+	"name": "@ccusage/mcp",
+	"type": "module",
+	"version": "16.2.5",
+	"description": "MCP server implementation for ccusage data",
+	"author": "ryoppippi",
+	"license": "MIT",
+	"funding": "https://github.com/ryoppippi/ccusage?sponsor=1",
+	"homepage": "https://github.com/ryoppippi/ccusage#readme",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/ryoppippi/ccusage.git"
+	},
+	"bugs": {
+		"url": "https://github.com/ryoppippi/ccusage/issues"
+	},
+	"exports": {
+		".": "./dist/index.js",
+		"./package.json": "./package.json"
+	},
+	"main": "./dist/index.js",
+	"module": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"files": [
+		"dist"
+	],
+	"engines": {
+		"node": ">=20.19.4"
+	},
+	"scripts": {
+		"build": "tsdown",
+		"format": "pnpm run lint --fix",
+		"lint": "eslint --cache .",
+		"prepack": "pnpm run build && clean-pkg-json",
+		"prepare": "pnpm run build",
+		"prerelease": "pnpm /^prerelease:/",
+		"prerelease:build": "pnpm run build",
+		"prerelease:lint": "pnpm run lint",
+		"prerelease:typecheck": "pnpm typecheck",
+		"test": "TZ=UTC vitest",
+		"typecheck": "tsgo --noEmit"
+	},
+	"peerDependencies": {
+		"ccusage": "workspace:*"
+	},
+	"dependencies": {
+		"@hono/mcp": "catalog:runtime",
+		"@modelcontextprotocol/sdk": "catalog:runtime",
+		"hono": "catalog:runtime",
+		"zod": "catalog:runtime"
+	},
+	"devDependencies": {
+		"@ryoppippi/eslint-config": "catalog:lint",
+		"clean-pkg-json": "catalog:release",
+		"eslint": "catalog:lint",
+		"fs-fixture": "catalog:testing",
+		"publint": "catalog:lint",
+		"sort-package-json": "catalog:release",
+		"tsdown": "catalog:build",
+		"vitest": "catalog:testing"
+	},
+	"devEngines": {
+		"runtime": [
+			{
+				"name": "node",
+				"version": "^24.4.0",
+				"onFail": "download"
+			},
+			{
+				"name": "bun",
+				"version": "^1.2.21",
+				"onFail": "download"
+			}
+		]
+	}
+}

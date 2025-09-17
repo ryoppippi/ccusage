@@ -77,10 +77,12 @@ function processUsageData(data: UsageData[]): void {
 
 ## MCP Server Integration
 
-You can also create your own MCP server using the library:
+You can also create your own MCP server using the dedicated `@ccusage/mcp` package:
+
+> **Note**: `@ccusage/mcp` declares `ccusage` as a peer dependency. Install them together, for example with `pnpm add ccusage @ccusage/mcp`.
 
 ```typescript
-import { createMcpServer } from 'ccusage/mcp';
+import { createMcpServer } from '@ccusage/mcp';
 
 // Create an MCP server instance
 const server = createMcpServer();

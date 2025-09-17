@@ -1,10 +1,23 @@
+import { createRequire } from 'node:module';
 import { serve } from '@hono/node-server';
 import { define } from 'gunshi';
 import { MCP_DEFAULT_PORT } from '../_consts.ts';
 import { sharedArgs } from '../_shared-args.ts';
 import { getClaudePaths } from '../data-loader.ts';
 import { logger } from '../logger.ts';
-import { createMcpHttpApp, createMcpServer, startMcpServerStdio } from '../mcp.ts';
+
+type McpModule = typeof import('@ccusage/mcp');
+
+let cachedMcpModule: McpModule | null = null;
+
+function getMcpModule(): McpModule {
+	if (cachedMcpModule != null) {
+		return cachedMcpModule;
+	}
+	const require = createRequire(import.meta.url);
+	cachedMcpModule = require('@ccusage/mcp') as McpModule;
+	return cachedMcpModule;
+}
 
 /**
  * MCP server command that supports both stdio and HTTP transports.
@@ -46,12 +59,14 @@ export const mcpCommand = define({
 			mode,
 		};
 
+		const mcp = getMcpModule();
+
 		if (type === 'stdio') {
-			const server = createMcpServer(options);
-			await startMcpServerStdio(server);
+			const server = mcp.createMcpServer(options);
+			await mcp.startMcpServerStdio(server);
 		}
 		else {
-			const app = createMcpHttpApp(options);
+			const app = mcp.createMcpHttpApp(options);
 			// Use the Hono app to handle requests
 			serve({
 				fetch: app.fetch,
