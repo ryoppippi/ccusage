@@ -62,6 +62,7 @@ catalogs:
     string-width: ^7.2.0
     tinyglobby: ^0.2.14
     type-fest: ^4.41.0
+    valibot: ^1.1.0
     xdg-basedir: ^5.1.0
     zod: ^3.25.67
 
