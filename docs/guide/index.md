@@ -24,15 +24,6 @@ ccusage analyzes the local JSONL files that Claude Code automatically generates 
 
 ## How It Works
 
-```mermaid
-graph LR
-    A[Claude Code] --> B[Local JSONL Files]
-    B --> C[ccusage]
-    C --> D[Usage Reports]
-    C --> E[Cost Analysis]
-    C --> F[Live Monitoring]
-```
-
 1. **Claude Code generates JSONL files** containing usage data
 2. **ccusage reads these files** from your local machine
 3. **Analyzes and aggregates** the data by date, session, or time blocks
