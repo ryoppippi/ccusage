@@ -97,16 +97,6 @@ The tool automatically detects and aggregates data from both locations for compa
 
 Thanks to [@milliondev](https://note.com/milliondev) for the [original concept and approach](https://note.com/milliondev/n/n1d018da2d769) to Claude Code usage analysis.
 
-## Codex Desktop Support
-
-If you also work in the OpenAI Codex desktop editor, the companion CLI **`@ccusage/codex`** brings the same reporting experience to Codex session logs. It reuses the responsive tables, pricing cache, and JSON output from ccusage.
-
-![Codex CLI daily report](/codex-screenshot.png)
-
-- Source: [`apps/codex`](https://github.com/ryoppippi/ccusage/tree/feature/codex-cli/apps/codex)
-- Works out of the box with `pnpm --filter @ccusage/codex run start -- daily`
-- Reads session JSONL files under `CODEX_HOME` (defaults to `~/.codex`)
-
 ## Getting Started
 
 Ready to analyze your Claude Code usage? Check out our [Getting Started Guide](/guide/getting-started) to begin exploring your data!
