@@ -1,5 +1,5 @@
 {
-	"$schema": "./packages/ccusage/config-schema.json",
+	"$schema": "./apps/ccusage/config-schema.json",
 	"defaults": {
 		"json": true,
 		"mode": "auto",

@@ -6,8 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This is a monorepo containing multiple packages. For package-specific guidance, refer to the individual CLAUDE.md files:
 
-- **Main CLI Package**: @packages/ccusage/CLAUDE.md - Core ccusage CLI tool and library
-- **MCP Server Package**: @packages/mcp/CLAUDE.md - MCP server implementation for ccusage data
+- **Main CLI Package**: @apps/ccusage/CLAUDE.md - Core ccusage CLI tool and library
+- **MCP Server Package**: @apps/mcp/CLAUDE.md - MCP server implementation for ccusage data
 - **Documentation**: @docs/CLAUDE.md - VitePress-based documentation website
 
 Each package has its own development commands, dependencies, and specific guidelines. Always check the relevant package's CLAUDE.md when working within that package directory.
