@@ -76,6 +76,9 @@ ccusage daily --instances --project myproject --json  # Combined usage
 # Compact mode for screenshots/sharing
 ccusage --compact  # Force compact table mode
 ccusage monthly --compact  # Compact monthly report
+
+# MCP Server (Model Context Protocol)
+npx @ccusage/mcp@latest  # Run MCP server for Claude Desktop integration
 ```
 
 ## Features
