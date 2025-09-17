@@ -45,11 +45,15 @@ Useful environment variables:
 
 ## Features
 
-- Responsive terminal tables shared with the `ccusage` CLI
-- Offline-first pricing cache with automatic LiteLLM refresh when needed
-- Per-model token and cost aggregation, including cached token accounting
-- Daily and monthly rollups with identical CLI options
-- JSON output for further processing or scripting
+- 📊 Responsive terminal tables shared with the `ccusage` CLI
+- 💵 Offline-first pricing cache with automatic LiteLLM refresh when needed
+- 🤖 Per-model token and cost aggregation, including cached token accounting
+- 📅 Daily and monthly rollups with identical CLI options
+- 📄 JSON output for further processing or scripting
+
+## Documentation
+
+For detailed guides and examples, visit **[ccusage.com/guide/codex](https://ccusage.com/guide/codex/)**.
 
 ## License
 
