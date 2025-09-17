@@ -39,43 +39,35 @@ deno run -E -R=$HOME/.claude/projects/ -S=homedir -N='raw.githubusercontent.com:
 
 > 💡 **Tip**: We recommend using `bunx` instead of `npx` for a massive speed improvement!
 
-### Local Installation (Optional)
-
-Since ccusage has such a small bundle size, installation is entirely optional:
-
-```bash
-npm install -g ccusage
-```
-
 ## Usage
 
 ```bash
 # Basic usage
-ccusage          # Show daily report (default)
-ccusage daily    # Daily token usage and costs
-ccusage monthly  # Monthly aggregated report
-ccusage session  # Usage by conversation session
-ccusage blocks   # 5-hour billing windows
-ccusage statusline  # Compact status line for hooks (Beta)
+npx ccusage          # Show daily report (default)
+npx ccusage daily    # Daily token usage and costs
+npx ccusage monthly  # Monthly aggregated report
+npx ccusage session  # Usage by conversation session
+npx ccusage blocks   # 5-hour billing windows
+npx ccusage statusline  # Compact status line for hooks (Beta)
 
 # Live monitoring
-ccusage blocks --live  # Real-time usage dashboard
+npx ccusage blocks --live  # Real-time usage dashboard
 
 # Filters and options
-ccusage daily --since 20250525 --until 20250530
-ccusage daily --json  # JSON output
-ccusage daily --breakdown  # Per-model cost breakdown
-ccusage daily --timezone UTC  # Use UTC timezone
-ccusage daily --locale ja-JP  # Use Japanese locale for date/time formatting
+npx ccusage daily --since 20250525 --until 20250530
+npx ccusage daily --json  # JSON output
+npx ccusage daily --breakdown  # Per-model cost breakdown
+npx ccusage daily --timezone UTC  # Use UTC timezone
+npx ccusage daily --locale ja-JP  # Use Japanese locale for date/time formatting
 
 # Project analysis
-ccusage daily --instances  # Group by project/instance
-ccusage daily --project myproject  # Filter to specific project
-ccusage daily --instances --project myproject --json  # Combined usage
+npx ccusage daily --instances  # Group by project/instance
+npx ccusage daily --project myproject  # Filter to specific project
+npx ccusage daily --instances --project myproject --json  # Combined usage
 
 # Compact mode for screenshots/sharing
-ccusage --compact  # Force compact table mode
-ccusage monthly --compact  # Compact monthly report
+npx ccusage --compact  # Force compact table mode
+npx ccusage monthly --compact  # Compact monthly report
 
 # MCP Server (Model Context Protocol)
 npx @ccusage/mcp@latest  # Run MCP server for Claude Desktop integration
