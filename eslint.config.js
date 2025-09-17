@@ -4,6 +4,7 @@ export default ryoppippi({
 	type: 'lib',
 	svelte: false,
 	ignores: [
+		'apps',
 		'packages',
 		'docs',
 		'.lsmcp',
