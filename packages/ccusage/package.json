@@ -1,19 +1,19 @@
 {
 	"name": "ccusage",
+	"type": "module",
 	"version": "16.2.5",
 	"description": "Usage analysis tool for Claude Code",
+	"author": "ryoppippi",
+	"license": "MIT",
+	"funding": "https://github.com/ryoppippi/ccusage?sponsor=1",
 	"homepage": "https://github.com/ryoppippi/ccusage#readme",
-	"bugs": {
-		"url": "https://github.com/ryoppippi/ccusage/issues"
-	},
 	"repository": {
 		"type": "git",
 		"url": "git+https://github.com/ryoppippi/ccusage.git"
 	},
-	"funding": "https://github.com/ryoppippi/ccusage?sponsor=1",
-	"license": "MIT",
-	"author": "ryoppippi",
-	"type": "module",
+	"bugs": {
+		"url": "https://github.com/ryoppippi/ccusage/issues"
+	},
 	"exports": {
 		".": "./src/index.ts",
 		"./calculate-cost": "./src/calculate-cost.ts",
@@ -31,6 +31,9 @@
 		"config-schema.json",
 		"dist"
 	],
+	"engines": {
+		"node": ">=20.19.4"
+	},
 	"scripts": {
 		"build": "pnpm run generate:schema && tsdown",
 		"format": "pnpm run lint --fix",
@@ -88,9 +91,6 @@
 		"vitest": "catalog:testing",
 		"xdg-basedir": "catalog:runtime",
 		"zod": "catalog:runtime"
-	},
-	"engines": {
-		"node": ">=20.19.4"
 	},
 	"publishConfig": {
 		"exports": {
