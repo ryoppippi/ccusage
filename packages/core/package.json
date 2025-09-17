@@ -1,7 +1,6 @@
 {
 	"name": "@ccusage/core",
 	"version": "16.2.5",
-	"private": true,
 	"description": "Shared utilities for ccusage",
 	"homepage": "https://github.com/ryoppippi/ccusage#readme",
 	"bugs": {
