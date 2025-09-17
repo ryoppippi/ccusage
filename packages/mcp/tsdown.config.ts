@@ -5,7 +5,7 @@ export default defineConfig({
 	outDir: 'dist',
 	format: 'esm',
 	clean: true,
-	sourcemap: true,
+	sourcemap: false,
 	minify: 'dce-only',
 	treeshake: true,
 	dts: {
