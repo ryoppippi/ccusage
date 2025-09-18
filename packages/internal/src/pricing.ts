@@ -12,6 +12,11 @@ export const liteLLMModelPricingSchema = v.object({
 	max_tokens: v.optional(v.number()),
 	max_input_tokens: v.optional(v.number()),
 	max_output_tokens: v.optional(v.number()),
+	// 1M context window pricing
+	input_cost_per_token_above_200k_tokens: v.optional(v.number()),
+	output_cost_per_token_above_200k_tokens: v.optional(v.number()),
+	cache_creation_input_token_cost_above_200k_tokens: v.optional(v.number()),
+	cache_read_input_token_cost_above_200k_tokens: v.optional(v.number()),
 });
 
 export type LiteLLMModelPricing = v.InferOutput<typeof liteLLMModelPricingSchema>;
@@ -212,27 +217,72 @@ export class LiteLLMPricingFetcher implements Disposable {
 		pricing: LiteLLMModelPricing,
 	): number {
 		let cost = 0;
+		const CONTEXT_THRESHOLD = 200_000;
 
-		if (pricing.input_cost_per_token != null) {
-			cost += tokens.input_tokens * pricing.input_cost_per_token;
+		// Calculate input tokens cost
+		if (tokens.input_tokens > 0) {
+			if (tokens.input_tokens > CONTEXT_THRESHOLD && pricing.input_cost_per_token_above_200k_tokens != null) {
+				// Split tokens into two buckets: below and above 200k
+				const tokensBelow200k = Math.min(tokens.input_tokens, CONTEXT_THRESHOLD);
+				const tokensAbove200k = Math.max(0, tokens.input_tokens - CONTEXT_THRESHOLD);
+
+				if (pricing.input_cost_per_token != null) {
+					cost += tokensBelow200k * pricing.input_cost_per_token;
+				}
+				cost += tokensAbove200k * pricing.input_cost_per_token_above_200k_tokens;
+			}
+			else if (pricing.input_cost_per_token != null) {
+				cost += tokens.input_tokens * pricing.input_cost_per_token;
+			}
 		}
 
-		if (pricing.output_cost_per_token != null) {
-			cost += tokens.output_tokens * pricing.output_cost_per_token;
+		// Calculate output tokens cost
+		if (tokens.output_tokens > 0) {
+			if (tokens.output_tokens > CONTEXT_THRESHOLD && pricing.output_cost_per_token_above_200k_tokens != null) {
+				// Split tokens into two buckets: below and above 200k
+				const tokensBelow200k = Math.min(tokens.output_tokens, CONTEXT_THRESHOLD);
+				const tokensAbove200k = Math.max(0, tokens.output_tokens - CONTEXT_THRESHOLD);
+
+				if (pricing.output_cost_per_token != null) {
+					cost += tokensBelow200k * pricing.output_cost_per_token;
+				}
+				cost += tokensAbove200k * pricing.output_cost_per_token_above_200k_tokens;
+			}
+			else if (pricing.output_cost_per_token != null) {
+				cost += tokens.output_tokens * pricing.output_cost_per_token;
+			}
 		}
 
-		if (
-			tokens.cache_creation_input_tokens != null
-			&& pricing.cache_creation_input_token_cost != null
-		) {
-			cost
-				+= tokens.cache_creation_input_tokens
-					* pricing.cache_creation_input_token_cost;
+		// Calculate cache creation cost
+		if (tokens.cache_creation_input_tokens != null && tokens.cache_creation_input_tokens > 0) {
+			if (tokens.cache_creation_input_tokens > CONTEXT_THRESHOLD && pricing.cache_creation_input_token_cost_above_200k_tokens != null) {
+				const tokensBelow200k = Math.min(tokens.cache_creation_input_tokens, CONTEXT_THRESHOLD);
+				const tokensAbove200k = Math.max(0, tokens.cache_creation_input_tokens - CONTEXT_THRESHOLD);
+
+				if (pricing.cache_creation_input_token_cost != null) {
+					cost += tokensBelow200k * pricing.cache_creation_input_token_cost;
+				}
+				cost += tokensAbove200k * pricing.cache_creation_input_token_cost_above_200k_tokens;
+			}
+			else if (pricing.cache_creation_input_token_cost != null) {
+				cost += tokens.cache_creation_input_tokens * pricing.cache_creation_input_token_cost;
+			}
 		}
 
-		if (tokens.cache_read_input_tokens != null && pricing.cache_read_input_token_cost != null) {
-			cost
-				+= tokens.cache_read_input_tokens * pricing.cache_read_input_token_cost;
+		// Calculate cache read cost
+		if (tokens.cache_read_input_tokens != null && tokens.cache_read_input_tokens > 0) {
+			if (tokens.cache_read_input_tokens > CONTEXT_THRESHOLD && pricing.cache_read_input_token_cost_above_200k_tokens != null) {
+				const tokensBelow200k = Math.min(tokens.cache_read_input_tokens, CONTEXT_THRESHOLD);
+				const tokensAbove200k = Math.max(0, tokens.cache_read_input_tokens - CONTEXT_THRESHOLD);
+
+				if (pricing.cache_read_input_token_cost != null) {
+					cost += tokensBelow200k * pricing.cache_read_input_token_cost;
+				}
+				cost += tokensAbove200k * pricing.cache_read_input_token_cost_above_200k_tokens;
+			}
+			else if (pricing.cache_read_input_token_cost != null) {
+				cost += tokens.cache_read_input_tokens * pricing.cache_read_input_token_cost;
+			}
 		}
 
 		return cost;
@@ -302,6 +352,100 @@ if (import.meta.vitest != null) {
 			}, 'gpt-5'));
 
 			expect(cost).toBeCloseTo((1000 * 1.25e-6) + (500 * 1e-5) + (200 * 1.25e-7));
+		});
+
+		it('calculates cost with 1M context window pricing for input tokens', async () => {
+			using fetcher = new LiteLLMPricingFetcher({
+				offline: true,
+				offlineLoader: async () => ({
+					'claude-4-sonnet-20250514': {
+						input_cost_per_token: 3e-6,
+						output_cost_per_token: 1.5e-5,
+						input_cost_per_token_above_200k_tokens: 6e-6,
+						output_cost_per_token_above_200k_tokens: 2.25e-5,
+					},
+				}),
+			});
+
+			// Test with 300k input tokens (200k at normal rate, 100k at higher rate)
+			const cost = await Result.unwrap(fetcher.calculateCostFromTokens({
+				input_tokens: 300_000,
+				output_tokens: 1000,
+			}, 'claude-4-sonnet-20250514'));
+
+			const expectedCost = (200_000 * 3e-6) + (100_000 * 6e-6) + (1000 * 1.5e-5);
+			expect(cost).toBeCloseTo(expectedCost);
+		});
+
+		it('calculates cost with 1M context window pricing for output tokens', async () => {
+			using fetcher = new LiteLLMPricingFetcher({
+				offline: true,
+				offlineLoader: async () => ({
+					'claude-4-sonnet-20250514': {
+						input_cost_per_token: 3e-6,
+						output_cost_per_token: 1.5e-5,
+						input_cost_per_token_above_200k_tokens: 6e-6,
+						output_cost_per_token_above_200k_tokens: 2.25e-5,
+					},
+				}),
+			});
+
+			// Test with 250k output tokens (200k at normal rate, 50k at higher rate)
+			const cost = await Result.unwrap(fetcher.calculateCostFromTokens({
+				input_tokens: 1000,
+				output_tokens: 250_000,
+			}, 'claude-4-sonnet-20250514'));
+
+			const expectedCost = (1000 * 3e-6) + (200_000 * 1.5e-5) + (50_000 * 2.25e-5);
+			expect(cost).toBeCloseTo(expectedCost);
+		});
+
+		it('calculates cost with 1M context window pricing for cache tokens', async () => {
+			using fetcher = new LiteLLMPricingFetcher({
+				offline: true,
+				offlineLoader: async () => ({
+					'claude-4-sonnet-20250514': {
+						input_cost_per_token: 3e-6,
+						cache_creation_input_token_cost: 3.75e-6,
+						cache_read_input_token_cost: 3e-7,
+						cache_creation_input_token_cost_above_200k_tokens: 7.5e-6,
+						cache_read_input_token_cost_above_200k_tokens: 6e-7,
+					},
+				}),
+			});
+
+			// Test with 300k cache creation and read tokens
+			const cost = await Result.unwrap(fetcher.calculateCostFromTokens({
+				input_tokens: 1000,
+				output_tokens: 0,
+				cache_creation_input_tokens: 300_000,
+				cache_read_input_tokens: 250_000,
+			}, 'claude-4-sonnet-20250514'));
+
+			const expectedCost = (1000 * 3e-6)
+				+ (200_000 * 3.75e-6) + (100_000 * 7.5e-6) // cache creation
+				+ (200_000 * 3e-7) + (50_000 * 6e-7); // cache read
+			expect(cost).toBeCloseTo(expectedCost);
+		});
+
+		it('handles models without 1M context pricing correctly', async () => {
+			using fetcher = new LiteLLMPricingFetcher({
+				offline: true,
+				offlineLoader: async () => ({
+					'gpt-5': {
+						input_cost_per_token: 1e-6,
+						output_cost_per_token: 2e-6,
+					},
+				}),
+			});
+
+			// Should use normal pricing for all tokens
+			const cost = await Result.unwrap(fetcher.calculateCostFromTokens({
+				input_tokens: 300_000,
+				output_tokens: 250_000,
+			}, 'gpt-5'));
+
+			expect(cost).toBeCloseTo((300_000 * 1e-6) + (250_000 * 2e-6));
 		});
 	});
 }
