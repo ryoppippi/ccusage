@@ -6,7 +6,9 @@
     "resolveJsonModule": true,
     "noEmit": true,
     "skipLibCheck": true,
-    "types": []
+    "types": [
+      "bun"
+    ]
   },
   "include": [
     ".vitepress/**/*",
