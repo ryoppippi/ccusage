@@ -1,4 +1,3 @@
-// @ts-check
 import type { TypeDocOptions } from 'typedoc'
 import type { PluginOptions } from 'typedoc-plugin-markdown'
 import { globSync } from 'tinyglobby'
