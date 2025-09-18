@@ -8,12 +8,14 @@
     "build": "pnpm run docs:api && cp ../apps/ccusage/config-schema.json public/config-schema.json && vitepress build",
     "deploy": "wrangler deploy",
     "dev": "pnpm run docs:api && cp ../apps/ccusage/config-schema.json public/config-schema.json && vitepress dev",
-    "docs:api": "./update-api-index.ts",
+    "docs:api": "bun ./update-api-index.ts",
     "preview": "vitepress preview",
     "typecheck": "tsgo --noEmit"
   },
   "devDependencies": {
     "@ryoppippi/vite-plugin-cloudflare-redirect": "catalog:docs",
+    "@types/bun": "catalog:types",
+    "@types/react": "catalog:types",
     "@typescript/native-preview": "catalog:types",
     "ccusage": "workspace:^",
     "tinyglobby": "catalog:runtime",
@@ -30,6 +32,11 @@
       {
         "name": "node",
         "version": "^24.4.0",
+        "onFail": "download"
+      },
+      {
+        "name": "bun",
+        "version": "^1.2.21",
         "onFail": "download"
       }
     ]

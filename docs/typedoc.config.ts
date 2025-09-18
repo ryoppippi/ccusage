@@ -1,5 +1,8 @@
-// @ts-check
+import type { TypeDocOptions } from 'typedoc'
+import type { PluginOptions } from 'typedoc-plugin-markdown'
 import { globSync } from 'tinyglobby'
+
+type TypedocConfig = TypeDocOptions & PluginOptions & { docsRoot?: string }
 
 const entryPoints = [
 	...globSync([
@@ -13,7 +16,6 @@ const entryPoints = [
 	'./node_modules/ccusage/src/_consts.ts', // Include constants for documentation
 ];
 
-/** @type {import('typedoc').TypeDocOptions & import('typedoc-plugin-markdown').PluginOptions & { docsRoot?: string } } */
 export default {
 	// typedoc options
 	// ref: https://typedoc.org/documents/Options.html
@@ -44,4 +46,4 @@ export default {
 	// typedoc-vitepress-theme options
 	// ref: https://typedoc-plugin-markdown.org/plugins/vitepress/options
 	docsRoot: '.',
-};
+} satisfies TypedocConfig;
