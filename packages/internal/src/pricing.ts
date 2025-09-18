@@ -216,76 +216,60 @@ export class LiteLLMPricingFetcher implements Disposable {
 		},
 		pricing: LiteLLMModelPricing,
 	): number {
-		let cost = 0;
 		const CONTEXT_THRESHOLD = 200_000;
 
-		// Calculate input tokens cost
-		if (tokens.input_tokens > 0) {
-			if (tokens.input_tokens > CONTEXT_THRESHOLD && pricing.input_cost_per_token_above_200k_tokens != null) {
-				// Split tokens into two buckets: below and above 200k
-				const tokensBelow200k = Math.min(tokens.input_tokens, CONTEXT_THRESHOLD);
-				const tokensAbove200k = Math.max(0, tokens.input_tokens - CONTEXT_THRESHOLD);
+		const calculateTieredCost = (
+			totalTokens: number | undefined,
+			basePrice: number | undefined,
+			tieredPrice: number | undefined,
+		): number => {
+			if (totalTokens == null || totalTokens <= 0) {
+				return 0;
+			}
 
-				if (pricing.input_cost_per_token != null) {
-					cost += tokensBelow200k * pricing.input_cost_per_token;
+			if (totalTokens > CONTEXT_THRESHOLD && tieredPrice != null) {
+				const tokensBelowThreshold = Math.min(totalTokens, CONTEXT_THRESHOLD);
+				const tokensAboveThreshold = Math.max(0, totalTokens - CONTEXT_THRESHOLD);
+
+				let tieredCost = tokensAboveThreshold * tieredPrice;
+				if (basePrice != null) {
+					tieredCost += tokensBelowThreshold * basePrice;
 				}
-				cost += tokensAbove200k * pricing.input_cost_per_token_above_200k_tokens;
+				return tieredCost;
 			}
-			else if (pricing.input_cost_per_token != null) {
-				cost += tokens.input_tokens * pricing.input_cost_per_token;
-			}
-		}
 
-		// Calculate output tokens cost
-		if (tokens.output_tokens > 0) {
-			if (tokens.output_tokens > CONTEXT_THRESHOLD && pricing.output_cost_per_token_above_200k_tokens != null) {
-				// Split tokens into two buckets: below and above 200k
-				const tokensBelow200k = Math.min(tokens.output_tokens, CONTEXT_THRESHOLD);
-				const tokensAbove200k = Math.max(0, tokens.output_tokens - CONTEXT_THRESHOLD);
-
-				if (pricing.output_cost_per_token != null) {
-					cost += tokensBelow200k * pricing.output_cost_per_token;
-				}
-				cost += tokensAbove200k * pricing.output_cost_per_token_above_200k_tokens;
+			if (basePrice != null) {
+				return totalTokens * basePrice;
 			}
-			else if (pricing.output_cost_per_token != null) {
-				cost += tokens.output_tokens * pricing.output_cost_per_token;
-			}
-		}
 
-		// Calculate cache creation cost
-		if (tokens.cache_creation_input_tokens != null && tokens.cache_creation_input_tokens > 0) {
-			if (tokens.cache_creation_input_tokens > CONTEXT_THRESHOLD && pricing.cache_creation_input_token_cost_above_200k_tokens != null) {
-				const tokensBelow200k = Math.min(tokens.cache_creation_input_tokens, CONTEXT_THRESHOLD);
-				const tokensAbove200k = Math.max(0, tokens.cache_creation_input_tokens - CONTEXT_THRESHOLD);
+			return 0;
+		};
 
-				if (pricing.cache_creation_input_token_cost != null) {
-					cost += tokensBelow200k * pricing.cache_creation_input_token_cost;
-				}
-				cost += tokensAbove200k * pricing.cache_creation_input_token_cost_above_200k_tokens;
-			}
-			else if (pricing.cache_creation_input_token_cost != null) {
-				cost += tokens.cache_creation_input_tokens * pricing.cache_creation_input_token_cost;
-			}
-		}
+		const inputCost = calculateTieredCost(
+			tokens.input_tokens,
+			pricing.input_cost_per_token,
+			pricing.input_cost_per_token_above_200k_tokens,
+		);
 
-		// Calculate cache read cost
-		if (tokens.cache_read_input_tokens != null && tokens.cache_read_input_tokens > 0) {
-			if (tokens.cache_read_input_tokens > CONTEXT_THRESHOLD && pricing.cache_read_input_token_cost_above_200k_tokens != null) {
-				const tokensBelow200k = Math.min(tokens.cache_read_input_tokens, CONTEXT_THRESHOLD);
-				const tokensAbove200k = Math.max(0, tokens.cache_read_input_tokens - CONTEXT_THRESHOLD);
+		const outputCost = calculateTieredCost(
+			tokens.output_tokens,
+			pricing.output_cost_per_token,
+			pricing.output_cost_per_token_above_200k_tokens,
+		);
 
-				if (pricing.cache_read_input_token_cost != null) {
-					cost += tokensBelow200k * pricing.cache_read_input_token_cost;
-				}
-				cost += tokensAbove200k * pricing.cache_read_input_token_cost_above_200k_tokens;
-			}
-			else if (pricing.cache_read_input_token_cost != null) {
-				cost += tokens.cache_read_input_tokens * pricing.cache_read_input_token_cost;
-			}
-		}
+		const cacheCreationCost = calculateTieredCost(
+			tokens.cache_creation_input_tokens,
+			pricing.cache_creation_input_token_cost,
+			pricing.cache_creation_input_token_cost_above_200k_tokens,
+		);
 
-		return cost;
+		const cacheReadCost = calculateTieredCost(
+			tokens.cache_read_input_tokens,
+			pricing.cache_read_input_token_cost,
+			pricing.cache_read_input_token_cost_above_200k_tokens,
+		);
+
+		return inputCost + outputCost + cacheCreationCost + cacheReadCost;
 	}
 
 	async calculateCostFromTokens(
