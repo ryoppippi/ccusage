@@ -46,19 +46,16 @@ const codexMonthlyRowSchema = z.object({
 	models: z.record(codexModelUsageSchema),
 });
 
-export const codexDailyResponseShape = {
+// Response schemas for internal parsing only - not exported
+const codexDailyResponseSchema = z.object({
 	daily: z.array(codexDailyRowSchema),
 	totals: codexTotalsSchema.nullable(),
-} as const satisfies Record<string, z.ZodTypeAny>;
+});
 
-export const codexDailyResponseSchema = z.object(codexDailyResponseShape);
-
-export const codexMonthlyResponseShape = {
+const codexMonthlyResponseSchema = z.object({
 	monthly: z.array(codexMonthlyRowSchema),
 	totals: codexTotalsSchema.nullable(),
-} as const satisfies Record<string, z.ZodTypeAny>;
-
-export const codexMonthlyResponseSchema = z.object(codexMonthlyResponseShape);
+});
 
 export const codexParametersShape = {
 	since: z.string().optional(),
