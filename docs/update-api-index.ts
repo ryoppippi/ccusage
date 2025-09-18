@@ -77,7 +77,7 @@ ${noteText}`;
 async function main() {
 	const { execFile } = await import('node:child_process');
 	const execFileAsync = promisify(execFile);
-	await execFileAsync('pnpm', ['typedoc', '--excludeInternal']);
+	await execFileAsync('pnpm', ['typedoc', '--excludeInternal', '--options', './typedoc.config.ts']);
 	await updateApiIndex();
 	await updateConstsPage();
 }
