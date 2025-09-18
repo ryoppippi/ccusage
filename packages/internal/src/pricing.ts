@@ -4,6 +4,15 @@ import * as v from 'valibot';
 export const LITELLM_PRICING_URL
 	= 'https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json';
 
+/**
+ * Token threshold for tiered pricing in 1M context window models.
+ * LiteLLM's pricing schema hard-codes this threshold in field names
+ * (e.g., `input_cost_per_token_above_200k_tokens`).
+ * If upstream schema changes this threshold, this constant and related
+ * field names will need updating.
+ */
+const TIERED_PRICING_TOKEN_THRESHOLD = 200_000;
+
 export const liteLLMModelPricingSchema = v.object({
 	input_cost_per_token: v.optional(v.number()),
 	output_cost_per_token: v.optional(v.number()),
@@ -227,8 +236,6 @@ export class LiteLLMPricingFetcher implements Disposable {
 		},
 		pricing: LiteLLMModelPricing,
 	): number {
-		const CONTEXT_THRESHOLD = 200_000;
-
 		/**
 		 * Calculate cost with tiered pricing for 1M context window models
 		 *
@@ -251,9 +258,9 @@ export class LiteLLMPricingFetcher implements Disposable {
 				return 0;
 			}
 
-			if (totalTokens > CONTEXT_THRESHOLD && tieredPrice != null) {
-				const tokensBelowThreshold = Math.min(totalTokens, CONTEXT_THRESHOLD);
-				const tokensAboveThreshold = Math.max(0, totalTokens - CONTEXT_THRESHOLD);
+			if (totalTokens > TIERED_PRICING_TOKEN_THRESHOLD && tieredPrice != null) {
+				const tokensBelowThreshold = Math.min(totalTokens, TIERED_PRICING_TOKEN_THRESHOLD);
+				const tokensAboveThreshold = Math.max(0, totalTokens - TIERED_PRICING_TOKEN_THRESHOLD);
 
 				let tieredCost = tokensAboveThreshold * tieredPrice;
 				if (basePrice != null) {
@@ -366,7 +373,7 @@ if (import.meta.vitest != null) {
 			using fetcher = new LiteLLMPricingFetcher({
 				offline: true,
 				offlineLoader: async () => ({
-					'claude-4-sonnet-20250514': {
+					'anthropic/claude-4-sonnet-20250514': {
 						input_cost_per_token: 3e-6,
 						output_cost_per_token: 1.5e-5,
 						input_cost_per_token_above_200k_tokens: 6e-6,
@@ -385,7 +392,7 @@ if (import.meta.vitest != null) {
 				output_tokens: 250_000,
 				cache_creation_input_tokens: 300_000,
 				cache_read_input_tokens: 250_000,
-			}, 'claude-4-sonnet-20250514'));
+			}, 'anthropic/claude-4-sonnet-20250514'));
 
 			const expectedCost
 				= (200_000 * 3e-6) + (100_000 * 6e-6) // input
