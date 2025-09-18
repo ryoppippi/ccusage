@@ -14,17 +14,8 @@
 	"bugs": {
 		"url": "https://github.com/ryoppippi/ccusage/issues"
 	},
-	"exports": {
-		".": "./src/index.ts",
-		"./cli": "./src/cli.ts",
-		"./command": "./src/command.ts",
-		"./package.json": "./package.json"
-	},
-	"main": "./dist/index.js",
-	"module": "./dist/index.js",
-	"types": "./dist/index.d.ts",
 	"bin": {
-		"ccusage-mcp": "./src/cli.ts"
+		"ccusage-mcp": "./src/index.ts"
 	},
 	"files": [
 		"dist"
@@ -45,12 +36,14 @@
 		"typecheck": "tsgo --noEmit"
 	},
 	"dependencies": {
+		"@ccusage/codex": "workspace:*",
 		"@hono/mcp": "catalog:runtime",
 		"@hono/node-server": "catalog:runtime",
 		"@modelcontextprotocol/sdk": "catalog:runtime",
 		"ccusage": "workspace:*",
 		"gunshi": "catalog:runtime",
 		"hono": "catalog:runtime",
+		"nano-spawn": "catalog:runtime",
 		"zod": "catalog:runtime"
 	},
 	"devDependencies": {
@@ -65,13 +58,7 @@
 	},
 	"publishConfig": {
 		"bin": {
-			"ccusage-mcp": "./dist/cli.js"
-		},
-		"exports": {
-			".": "./dist/index.js",
-			"./cli": "./dist/cli.js",
-			"./command": "./dist/command.js",
-			"./package.json": "./package.json"
+			"ccusage-mcp": "./dist/index.js"
 		}
 	},
 	"devEngines": {
