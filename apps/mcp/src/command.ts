@@ -86,7 +86,14 @@ export const mcpCommand = define({
 });
 
 export async function runCli(argv: string[] = process.argv.slice(2)): Promise<void> {
-	await cli(argv, mcpCommand, {
+	// When invoked through npx/bunx, the binary name might be passed as the first argument
+	// Filter it out if it matches the expected binary name
+	let args = argv;
+	if (args[0] === 'ccusage-mcp') {
+		args = args.slice(1);
+	}
+
+	await cli(args, mcpCommand, {
 		name,
 		version,
 		description,
