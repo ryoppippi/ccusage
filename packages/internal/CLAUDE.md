@@ -59,6 +59,41 @@ This package has minimal runtime dependencies that get bundled:
 - `consola` - Logging
 - `valibot` - Schema validation
 
+## Pricing Implementation Notes
+
+### Tiered Pricing Support
+
+LiteLLM supports tiered pricing for large context window models. Not all models use tiered pricing:
+
+**Models WITH tiered pricing:**
+
+- **Claude/Anthropic models**: 200k token threshold
+  - Fields: `input_cost_per_token_above_200k_tokens`, `output_cost_per_token_above_200k_tokens`
+  - Cache fields: `cache_creation_input_token_cost_above_200k_tokens`, `cache_read_input_token_cost_above_200k_tokens`
+  - ✅ Currently implemented in cost calculation logic
+
+- **Gemini models**: 128k token threshold
+  - Fields: `input_cost_per_token_above_128k_tokens`, `output_cost_per_token_above_128k_tokens`
+  - ⚠️ Schema supports these fields but calculation logic NOT implemented
+  - Would require different threshold handling if Gemini support is added
+
+**Models WITHOUT tiered pricing:**
+
+- **GPT/OpenAI models**: Flat rate pricing (no token-based tiers)
+  - Note: OpenAI has "tier levels" but these are for API rate limits, not pricing
+
+### ⚠️ IMPORTANT for Future Development
+
+When adding support for new models:
+
+1. **Check if the model has tiered pricing** in LiteLLM's schema
+2. **Verify the threshold value** (200k for Claude, 128k for Gemini, etc.)
+3. **Update calculation logic** if threshold differs from currently implemented 200k
+4. **Add comprehensive tests** for boundary conditions at the threshold
+5. **Document the pricing structure** in relevant CLAUDE.md files
+
+The current implementation in `pricing.ts` only handles 200k threshold. Adding models with different thresholds would require refactoring the `calculateTieredCost` helper function.
+
 ## Code Style
 
 Follow the same conventions as the main ccusage package:
