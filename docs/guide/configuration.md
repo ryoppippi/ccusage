@@ -47,23 +47,26 @@ ccusage daily --mode display --timezone UTC
 ### Basic Setup
 
 1. **Set your Claude directory** (if not using defaults):
+
 ```bash
 export CLAUDE_CONFIG_DIR="$HOME/.config/claude"
 ```
 
 2. **Create a configuration file** for your preferences:
+
 ```json
 {
-  "$schema": "https://ccusage.com/config-schema.json",
-  "defaults": {
-    "timezone": "America/New_York",
-    "locale": "en-US",
-    "breakdown": true
-  }
+	"$schema": "https://ccusage.com/config-schema.json",
+	"defaults": {
+		"timezone": "America/New_York",
+		"locale": "en-US",
+		"breakdown": true
+	}
 }
 ```
 
 3. **Use command-line options** for one-off changes:
+
 ```bash
 ccusage daily --since 20250101 --json
 ```
@@ -77,16 +80,16 @@ For individual developers working on multiple projects:
 ```json
 // ~/.config/claude/ccusage.json
 {
-  "$schema": "https://ccusage.com/config-schema.json",
-  "defaults": {
-    "breakdown": true,
-    "timezone": "local"
-  },
-  "commands": {
-    "daily": {
-      "instances": true
-    }
-  }
+	"$schema": "https://ccusage.com/config-schema.json",
+	"defaults": {
+		"breakdown": true,
+		"timezone": "local"
+	},
+	"commands": {
+		"daily": {
+			"instances": true
+		}
+	}
 }
 ```
 
@@ -97,12 +100,12 @@ For teams sharing configuration:
 ```json
 // .ccusage/ccusage.json (committed to repo)
 {
-  "$schema": "https://ccusage.com/config-schema.json",
-  "defaults": {
-    "timezone": "UTC",
-    "locale": "en-CA",
-    "mode": "auto"
-  }
+	"$schema": "https://ccusage.com/config-schema.json",
+	"defaults": {
+		"timezone": "UTC",
+		"locale": "en-CA",
+		"mode": "auto"
+	}
 }
 ```
 
@@ -178,11 +181,11 @@ Analyze usage by project:
 ```json
 // .ccusage/ccusage.json
 {
-  "commands": {
-    "daily": {
-      "projectAliases": "uuid-123=My App,long-name=Backend"
-    }
-  }
+	"commands": {
+		"daily": {
+			"projectAliases": "uuid-123=My App,long-name=Backend"
+		}
+	}
 }
 ```
 
@@ -208,6 +211,7 @@ LOG_LEVEL=5 ccusage daily
 ### Debug Output
 
 Debug mode shows:
+
 - Config file discovery and loading
 - Option merging from different sources
 - Final configuration values
@@ -242,6 +246,7 @@ Add comments or README files explaining configuration choices:
 # ccusage Configuration
 
 Our team uses:
+
 - UTC timezone for consistency
 - JSON output for automated processing
 - Calculate mode for accurate cost tracking
@@ -253,7 +258,7 @@ Use the schema for validation:
 
 ```json
 {
-  "$schema": "https://ccusage.com/config-schema.json"
+	"$schema": "https://ccusage.com/config-schema.json"
 }
 ```
 

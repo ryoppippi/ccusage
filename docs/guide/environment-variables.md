@@ -29,6 +29,7 @@ When multiple directories are specified, ccusage automatically aggregates usage 
 ### Default Behavior
 
 When `CLAUDE_CONFIG_DIR` is not set, ccusage automatically searches in:
+
 1. `~/.config/claude/projects/` (new default, Claude Code v1.0.30+)
 2. `~/.claude/projects/` (legacy location, pre-v1.0.30)
 
@@ -75,14 +76,14 @@ Controls the verbosity of log output. ccusage uses [consola](https://github.com/
 
 ### Log Levels
 
-| Level | Value | Description | Use Case |
-|-------|-------|-------------|----------|
-| Silent | `0` | Errors only | Scripts, piping output |
-| Warn | `1` | Warnings and errors | CI/CD environments |
-| Log | `2` | Normal logs | General use |
-| Info | `3` | Informational logs (default) | Standard operation |
-| Debug | `4` | Debug information | Troubleshooting |
-| Trace | `5` | All operations | Deep debugging |
+| Level  | Value | Description                  | Use Case               |
+| ------ | ----- | ---------------------------- | ---------------------- |
+| Silent | `0`   | Errors only                  | Scripts, piping output |
+| Warn   | `1`   | Warnings and errors          | CI/CD environments     |
+| Log    | `2`   | Normal logs                  | General use            |
+| Info   | `3`   | Informational logs (default) | Standard operation     |
+| Debug  | `4`   | Debug information            | Troubleshooting        |
+| Trace  | `5`   | All operations               | Deep debugging         |
 
 ### Usage Examples
 
@@ -129,7 +130,6 @@ LOG_LEVEL=5 ccusage daily --debug
 # Silent logs when piping to other commands
 LOG_LEVEL=0 ccusage monthly --json | python analyze.py
 ```
-
 
 ## Additional Environment Variables
 
@@ -215,6 +215,7 @@ Environment variables have lower precedence than command-line arguments but high
 4. **Built-in defaults** (lowest priority)
 
 Example:
+
 ```bash
 # Environment variable sets offline mode
 export CCUSAGE_OFFLINE=1

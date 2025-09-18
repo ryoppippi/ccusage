@@ -454,6 +454,9 @@ importers:
 
   docs:
     devDependencies:
+      '@ryoppippi/eslint-config':
+        specifier: catalog:lint
+        version: 0.3.7(@vue/compiler-sfc@3.5.21)(eslint-plugin-format@1.0.1(eslint@9.35.0(jiti@2.5.1)))(eslint@9.35.0(jiti@2.5.1))(typescript@5.9.2)(vitest@3.2.4(@types/debug@4.1.12)(@types/node@24.5.1)(happy-dom@16.8.1)(jiti@2.5.1)(yaml@2.8.1))
       '@ryoppippi/vite-plugin-cloudflare-redirect':
         specifier: catalog:docs
         version: 1.1.2(vite@7.1.5(@types/node@24.5.1)(jiti@2.5.1)(yaml@2.8.1))
@@ -472,6 +475,12 @@ importers:
       ccusage:
         specifier: workspace:^
         version: link:../apps/ccusage
+      eslint:
+        specifier: catalog:lint
+        version: 9.35.0(jiti@2.5.1)
+      eslint-plugin-format:
+        specifier: catalog:lint
+        version: 1.0.1(eslint@9.35.0(jiti@2.5.1))
       node:
         specifier: runtime:^24.4.0
         version: runtime:24.8.0

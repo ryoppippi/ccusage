@@ -14,14 +14,14 @@ npx @ccusage/codex@latest session
 
 ## Options
 
-| Flag | Description |
-| --- | --- |
-| `--since` / `--until` | Filter sessions by their activity date (YYYYMMDD or YYYY-MM-DD) |
-| `--timezone` | Override the timezone used for date grouping and last-activity display |
-| `--locale` | Adjust locale for table and timestamp formatting |
-| `--json` | Emit structured JSON (`{ sessions: [], totals: {} }`) instead of a table |
-| `--offline` / `--no-offline` | Force cached LiteLLM pricing or enable live fetching |
-| `--compact` | Force compact table layout (same columns as a narrow terminal) |
+| Flag                         | Description                                                              |
+| ---------------------------- | ------------------------------------------------------------------------ |
+| `--since` / `--until`        | Filter sessions by their activity date (YYYYMMDD or YYYY-MM-DD)          |
+| `--timezone`                 | Override the timezone used for date grouping and last-activity display   |
+| `--locale`                   | Adjust locale for table and timestamp formatting                         |
+| `--json`                     | Emit structured JSON (`{ sessions: [], totals: {} }`) instead of a table |
+| `--offline` / `--no-offline` | Force cached LiteLLM pricing or enable live fetching                     |
+| `--compact`                  | Force compact table layout (same columns as a narrow terminal)           |
 
 JSON output includes a `sessions` array with per-model breakdowns, cached token counts, `lastActivity`, and `isFallback` flags for any events that required the legacy `gpt-5` pricing fallback.
 

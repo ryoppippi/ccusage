@@ -108,38 +108,38 @@ ccusage weekly --json
 
 ```json
 {
-  "weekly": [
-    {
-      "week": "2025-06-16",
-      "inputTokens": 1234,
-      "outputTokens": 156789,
-      "cacheCreationTokens": 2048,
-      "cacheReadTokens": 4096,
-      "totalTokens": 164167,
-      "totalCost": 87.56,
-      "modelsUsed": ["claude-opus-4-20250514", "claude-sonnet-4-20250514"],
-      "modelBreakdowns": {
-        "claude-opus-4-20250514": {
-          "inputTokens": 800,
-          "outputTokens": 80000,
-          "totalCost": 54.80
-        },
-        "claude-sonnet-4-20250514": {
-          "inputTokens": 434,
-          "outputTokens": 76789,
-          "totalCost": 32.76
-        }
-      }
-    }
-  ],
-  "totals": {
-    "inputTokens": 7479,
-    "outputTokens": 737034,
-    "cacheCreationTokens": 9216,
-    "cacheReadTokens": 18432,
-    "totalTokens": 772161,
-    "totalCost": 348.67
-  }
+	"weekly": [
+		{
+			"week": "2025-06-16",
+			"inputTokens": 1234,
+			"outputTokens": 156789,
+			"cacheCreationTokens": 2048,
+			"cacheReadTokens": 4096,
+			"totalTokens": 164167,
+			"totalCost": 87.56,
+			"modelsUsed": ["claude-opus-4-20250514", "claude-sonnet-4-20250514"],
+			"modelBreakdowns": {
+				"claude-opus-4-20250514": {
+					"inputTokens": 800,
+					"outputTokens": 80000,
+					"totalCost": 54.80
+				},
+				"claude-sonnet-4-20250514": {
+					"inputTokens": 434,
+					"outputTokens": 76789,
+					"totalCost": 32.76
+				}
+			}
+		}
+	],
+	"totals": {
+		"inputTokens": 7479,
+		"outputTokens": 737034,
+		"cacheCreationTokens": 9216,
+		"cacheReadTokens": 18432,
+		"totalTokens": 772161,
+		"totalCost": 348.67
+	}
 }
 ```
 

@@ -1,12 +1,12 @@
 {
-  "$schema": "../node_modules/wrangler/config-schema.json",
-  "name": "ccusage-guide",
-  "compatibility_date": "2025-07-21",
-  "build": {
-    "command": "pnpm run build"
-  },
-  "assets": {
-    "directory": ".vitepress/dist/",
-    "not_found_handling": "404-page"
-  }
+	"$schema": "../node_modules/wrangler/config-schema.json",
+	"name": "ccusage-guide",
+	"compatibility_date": "2025-07-21",
+	"build": {
+		"command": "pnpm run build"
+	},
+	"assets": {
+		"directory": ".vitepress/dist/",
+		"not_found_handling": "404-page"
+	}
 }

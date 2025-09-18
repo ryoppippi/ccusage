@@ -71,7 +71,7 @@ ${noteText}`;
 	}
 }
 
-if(import.meta.main) {
+if (import.meta.main) {
 	await Bun.$`bun -b typedoc --excludeInternal --options ./typedoc.config.ts`;
 	await updateApiIndex();
 	await updateConstsPage();

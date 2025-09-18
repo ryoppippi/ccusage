@@ -61,6 +61,7 @@ Claude Code stores usage data in a specific structure:
 ```
 
 Each:
+
 - **Project directory** represents a different Claude Code project/workspace
 - **JSONL file** contains usage data for a specific session
 - **Session ID** in the filename matches the `sessionId` field within the file
