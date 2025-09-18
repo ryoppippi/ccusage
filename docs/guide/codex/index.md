@@ -27,7 +27,7 @@ The CLI reads Codex session JSONL files located under `CODEX_HOME` (defaults to 
 - **Pricing** – Rates come from LiteLLM's pricing dataset via the shared `LiteLLMPricingFetcher`. Aliases such as `gpt-5-codex` map to canonical entries (`gpt-5`) so cost calculations remain accurate.
 - **Legacy fallback** – Early September 2025 logs that never recorded `turn_context` metadata are still included; the CLI assumes `gpt-5` for pricing so you can review the tokens even though the model tag is missing (the JSON output also marks these rows with `"isFallback": true`).
 - **Cost formula** – Non-cached input uses the standard input price; cached input uses the cache-read price (falling back to the input price when missing); and output tokens are billed at the output price. All prices are per million tokens. Reasoning tokens may be shown for reference, but they are part of the output charge and are not billed separately.
-- **Totals and reports** – Daily and monthly commands display per-model breakdowns, overall totals, and optional JSON for automation.
+- **Totals and reports** – Daily, monthly, and session commands display per-model breakdowns, overall totals, and optional JSON for automation.
 
 ## Environment Variables
 
@@ -42,6 +42,7 @@ When Codex emits a model alias (for example `gpt-5-codex`), the CLI automaticall
 
 - [Daily report command](./daily.md)
 - [Monthly report command](./monthly.md)
+- [Session report command](./session.md)
 - Additional reports will mirror the ccusage CLI as the Codex tooling stabilizes.
 
 Have feedback or ideas? [Open an issue](https://github.com/ryoppippi/ccusage/issues/new) so we can improve the beta.

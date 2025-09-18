@@ -95,3 +95,14 @@ export function formatDisplayMonth(monthKey: string, locale?: string, timezone?:
 	});
 	return formatter.format(date);
 }
+
+export function formatDisplayDateTime(timestamp: string, locale?: string, timezone?: string): string {
+	const tz = safeTimeZone(timezone);
+	const date = new Date(timestamp);
+	const formatter = new Intl.DateTimeFormat(locale ?? 'en-US', {
+		dateStyle: 'short',
+		timeStyle: 'short',
+		timeZone: tz,
+	});
+	return formatter.format(date);
+}

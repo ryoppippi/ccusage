@@ -37,4 +37,9 @@ export const sharedArgs = {
 		default: false,
 		negatable: true,
 	},
+	compact: {
+		type: 'boolean',
+		description: 'Force compact table layout for narrow terminals',
+		default: false,
+	},
 } as const satisfies Args;

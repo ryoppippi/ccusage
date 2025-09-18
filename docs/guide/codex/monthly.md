@@ -21,5 +21,6 @@ npx @ccusage/codex@latest monthly
 | `--locale`                   | Adjust month label formatting                                               |
 | `--json`                     | Emit structured JSON instead of a table                                     |
 | `--offline` / `--no-offline` | Force cached LiteLLM pricing or enable live fetching                        |
+| `--compact`                  | Force compact table layout (same columns as a narrow terminal)              |
 
 The output uses the same responsive table component as ccusage, including compact mode support, per-model token summaries, and a combined totals row.

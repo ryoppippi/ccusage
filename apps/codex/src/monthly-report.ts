@@ -135,6 +135,7 @@ if (import.meta.vitest != null) {
 			};
 			const report = await buildMonthlyReport([
 				{
+					sessionId: 'session-1',
 					timestamp: '2025-08-11T03:00:00.000Z',
 					model: 'gpt-5',
 					inputTokens: 1_000,
@@ -144,6 +145,7 @@ if (import.meta.vitest != null) {
 					totalTokens: 1_500,
 				},
 				{
+					sessionId: 'session-1',
 					timestamp: '2025-08-20T05:00:00.000Z',
 					model: 'gpt-5-mini',
 					inputTokens: 400,
@@ -153,6 +155,7 @@ if (import.meta.vitest != null) {
 					totalTokens: 750,
 				},
 				{
+					sessionId: 'session-2',
 					timestamp: '2025-09-12T01:00:00.000Z',
 					model: 'gpt-5',
 					inputTokens: 2_000,
