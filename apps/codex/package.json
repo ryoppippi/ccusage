@@ -29,6 +29,7 @@
 		"build": "tsdown",
 		"format": "pnpm run lint --fix",
 		"lint": "eslint --cache .",
+		"prepack": "pnpm run build && clean-pkg-json",
 		"start": "bun ./src/index.ts",
 		"test": "TZ=UTC vitest",
 		"typecheck": "tsgo --noEmit"
@@ -39,6 +40,7 @@
 		"@praha/byethrow": "catalog:runtime",
 		"@ryoppippi/eslint-config": "catalog:lint",
 		"@typescript/native-preview": "catalog:types",
+		"clean-pkg-json": "catalog:release",
 		"consola": "catalog:runtime",
 		"eslint": "catalog:lint",
 		"fast-sort": "catalog:runtime",
