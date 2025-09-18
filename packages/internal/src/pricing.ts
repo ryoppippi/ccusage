@@ -202,7 +202,7 @@ export class LiteLLMPricingFetcher implements Disposable {
 				if (pricing == null) {
 					return null;
 				}
-				return pricing.max_input_tokens ?? pricing.max_tokens ?? null;
+				return pricing.max_input_tokens ?? null;
 			}),
 		);
 	}
