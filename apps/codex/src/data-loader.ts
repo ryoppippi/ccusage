@@ -151,6 +151,7 @@ export async function loadTokenUsageEvents(options: LoadOptions = {}): Promise<L
 			}
 
 			let previousTotals: RawUsage | null = null;
+			let currentModel: string | undefined;
 			const lines = fileContentResult.value.split(/\r?\n/);
 			for (const line of lines) {
 				const trimmed = line.trim();
@@ -173,7 +174,18 @@ export async function loadTokenUsageEvents(options: LoadOptions = {}): Promise<L
 					continue;
 				}
 
-				if ((entry.type as string | undefined) !== 'event_msg') {
+				const entryType = entry.type as string | undefined;
+
+				if (entryType === 'turn_context') {
+					const contextPayload = entry.payload as Record<string, unknown> | undefined;
+					const contextModel = extractModel(contextPayload);
+					if (contextModel != null) {
+						currentModel = contextModel;
+					}
+					continue;
+				}
+
+				if (entryType !== 'event_msg') {
 					continue;
 				}
 
@@ -214,7 +226,7 @@ export async function loadTokenUsageEvents(options: LoadOptions = {}): Promise<L
 					continue;
 				}
 
-				const model = extractModel({ ...payload, info });
+				const model = extractModel({ ...payload, info }) ?? currentModel;
 				if (model == null) {
 					logger.debug('Skipping Codex token event without model metadata', { file, timestamp });
 					continue;
@@ -245,6 +257,13 @@ if (import.meta.vitest != null) {
 				sessions: {
 					'project-1.jsonl': [
 						JSON.stringify({
+							timestamp: '2025-09-11T18:25:30.000Z',
+							type: 'turn_context',
+							payload: {
+								model: 'gpt-5',
+							},
+						}),
+						JSON.stringify({
 							timestamp: '2025-09-11T18:25:40.670Z',
 							type: 'event_msg',
 							payload: {
@@ -266,6 +285,13 @@ if (import.meta.vitest != null) {
 									},
 									model: 'gpt-5',
 								},
+							},
+						}),
+						JSON.stringify({
+							timestamp: '2025-09-11T18:40:00.000Z',
+							type: 'turn_context',
+							payload: {
+								model: 'gpt-5',
 							},
 						}),
 						JSON.stringify({
@@ -295,11 +321,15 @@ if (import.meta.vitest != null) {
 			});
 			expect(missingDirectories).toEqual([]);
 
-			expect(events).toHaveLength(1);
+			expect(events).toHaveLength(2);
 			const first = events[0]!;
 			expect(first.model).toBe('gpt-5');
 			expect(first.inputTokens).toBe(1_200);
 			expect(first.cachedInputTokens).toBe(200);
+			const second = events[1]!;
+			expect(second.model).toBe('gpt-5');
+			expect(second.inputTokens).toBe(800);
+			expect(second.cachedInputTokens).toBe(100);
 		});
 	});
 }
