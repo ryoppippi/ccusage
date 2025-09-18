@@ -128,6 +128,7 @@ export const statuslineCommand = define({
 		cache: {
 			type: 'boolean',
 			description: 'Enable cache for status line output (default: true)',
+			negatable: true,
 			default: true,
 		},
 		refreshInterval: {
