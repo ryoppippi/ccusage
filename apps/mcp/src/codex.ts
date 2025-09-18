@@ -1,10 +1,6 @@
-import { createRequire } from 'node:module';
-import path from 'node:path';
-import process from 'node:process';
-import spawn, { SubprocessError } from 'nano-spawn';
+import type { CliInvocation } from './cli-utils.ts';
 import { z } from 'zod';
-
-const nodeRequire = createRequire(import.meta.url);
+import { createCliInvocation, executeCliCommand, resolveBinaryPath } from './cli-utils.ts';
 
 const codexModelUsageSchema = z.object({
 	inputTokens: z.number(),
@@ -67,60 +63,15 @@ export const codexParametersShape = {
 
 export const codexParametersSchema = z.object(codexParametersShape);
 
-type CodexBinField = string | Record<string, string> | undefined;
+let cachedCodexInvocation: CliInvocation | null = null;
 
-type CodexInvocation = {
-	executable: string;
-	prefixArgs: string[];
-};
-
-let cachedCodexInvocation: CodexInvocation | null = null;
-
-function getCodexInvocation(): CodexInvocation {
+function getCodexInvocation(): CliInvocation {
 	if (cachedCodexInvocation != null) {
 		return cachedCodexInvocation;
 	}
 
-	let packageJsonPath: string;
-	try {
-		packageJsonPath = nodeRequire.resolve('@ccusage/codex/package.json');
-	}
-	catch (error) {
-		throw new Error('Unable to resolve @ccusage/codex. Install the package alongside @ccusage/mcp to enable Codex tools.', { cause: error });
-	}
-
-	const codexPackage = nodeRequire('@ccusage/codex/package.json') as { bin?: CodexBinField; publishConfig?: { bin?: CodexBinField } };
-	const binField: CodexBinField = codexPackage.bin ?? codexPackage.publishConfig?.bin;
-
-	let binRelative: string | undefined;
-	if (typeof binField === 'string') {
-		binRelative = binField;
-	}
-	else if (binField != null && typeof binField === 'object') {
-		binRelative = binField['ccusage-codex'] ?? Object.values(binField)[0];
-	}
-
-	if (binRelative == null) {
-		throw new Error('Unable to locate ccusage-codex binary entry in @ccusage/codex package.json');
-	}
-
-	const codexDir = path.dirname(packageJsonPath);
-	const entryPath = path.resolve(codexDir, binRelative);
-
-	// Use bun for TypeScript files in development
-	if (entryPath.endsWith('.ts')) {
-		cachedCodexInvocation = {
-			executable: 'bun',
-			prefixArgs: [entryPath],
-		};
-	}
-	else {
-		// Use node for built JavaScript files in production
-		cachedCodexInvocation = {
-			executable: process.execPath,
-			prefixArgs: [entryPath],
-		};
-	}
+	const entryPath = resolveBinaryPath('@ccusage/codex', 'ccusage-codex');
+	cachedCodexInvocation = createCliInvocation(entryPath);
 	return cachedCodexInvocation;
 }
 
@@ -151,28 +102,9 @@ async function runCodexCliJson(command: 'daily' | 'monthly', parameters: z.infer
 		cliArgs.push('--no-offline');
 	}
 
-	try {
-		const result = await spawn(executable, cliArgs, {
-			env: {
-				...process.env,
-				// Keep default log level to allow JSON output
-				// nano-spawn captures stdout, so it won't leak to terminal
-				FORCE_COLOR: '0',
-			},
-		});
-		const output = (result.stdout ?? result.output ?? '').trim();
-		if (output === '') {
-			throw new Error('Codex CLI returned empty output');
-		}
-		return output;
-	}
-	catch (error: unknown) {
-		if (error instanceof SubprocessError) {
-			const message = (error.stderr ?? error.stdout ?? error.output ?? error.message).trim();
-			throw new Error(message);
-		}
-		throw error;
-	}
+	return executeCliCommand(executable, cliArgs, {
+		// Keep default log level to allow JSON output
+	});
 }
 
 export async function getCodexDaily(parameters: z.infer<typeof codexParametersSchema>) {

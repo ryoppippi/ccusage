@@ -14,34 +14,26 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import {
-	calculateTotals,
-	getTotalTokens,
-} from 'ccusage/calculate-cost';
-import {
-	loadDailyUsageData,
-	loadMonthlyUsageData,
-	loadSessionBlockData,
-	loadSessionData,
-} from 'ccusage/data-loader';
 import { createFixture } from 'fs-fixture';
 
 import { Hono } from 'hono/tiny';
-import { z } from 'zod';
 import { name, version } from '../package.json';
 
 import {
-	defaultOptions,
-	filterDateSchema,
-	transformUsageDataWithTotals,
-} from './claude-code.ts';
+	ccusageParametersSchema,
+	ccusageParametersShape,
+	getCcusageBlocks,
+	getCcusageDaily,
+	getCcusageMonthly,
+	getCcusageSession,
+} from './ccusage.ts';
 import {
 	codexParametersSchema,
 	codexParametersShape,
 	getCodexDaily,
 	getCodexMonthly,
 } from './codex.ts';
-import { DEFAULT_LOCALE } from './consts.ts';
+import { defaultOptions } from './mcp-utils.ts';
 
 /**
  * Creates an MCP server with tools for showing usage reports.
@@ -57,46 +49,21 @@ export function createMcpServer(options?: LoadOptions): McpServer {
 		version,
 	});
 
-	// Define the schema for tool parameters
-	const parametersZodSchema = {
-		since: filterDateSchema.optional(),
-		until: filterDateSchema.optional(),
-		mode: z.enum(['auto', 'calculate', 'display']).default('auto').optional(),
-		timezone: z.string().optional(),
-		locale: z.string().default(DEFAULT_LOCALE).optional(),
-	};
-
-	const { claudePath } = options ?? defaultOptions();
+	const { claudePath = '' } = options ?? defaultOptions();
+	if (claudePath === '') {
+		throw new Error('Claude path is required');
+	}
 
 	// Register daily tool
 	server.registerTool(
 		'daily',
 		{
 			description: 'Show usage report grouped by date',
-			inputSchema: parametersZodSchema,
+			inputSchema: ccusageParametersShape,
 		},
 		async (args) => {
-			const dailyData = await loadDailyUsageData({ ...args, claudePath });
-
-			// Transform data to match CLI JSON output format
-			const totals = calculateTotals(dailyData);
-			const jsonOutput = transformUsageDataWithTotals(
-				dailyData,
-				totals,
-				data => ({
-					date: data.date,
-					inputTokens: data.inputTokens,
-					outputTokens: data.outputTokens,
-					cacheCreationTokens: data.cacheCreationTokens,
-					cacheReadTokens: data.cacheReadTokens,
-					totalTokens: getTotalTokens(data),
-					totalCost: data.totalCost,
-					modelsUsed: data.modelsUsed,
-					modelBreakdowns: data.modelBreakdowns,
-				}),
-				'daily',
-			);
-
+			const parameters = ccusageParametersSchema.parse(args);
+			const jsonOutput = await getCcusageDaily(parameters, claudePath);
 			return {
 				content: [
 					{
@@ -113,31 +80,11 @@ export function createMcpServer(options?: LoadOptions): McpServer {
 		'session',
 		{
 			description: 'Show usage report grouped by conversation session',
-			inputSchema: parametersZodSchema,
+			inputSchema: ccusageParametersShape,
 		},
 		async (args) => {
-			const sessionData = await loadSessionData({ ...args, claudePath });
-
-			// Transform data to match CLI JSON output format
-			const totals = calculateTotals(sessionData);
-			const jsonOutput = transformUsageDataWithTotals(
-				sessionData,
-				totals,
-				data => ({
-					sessionId: data.sessionId,
-					inputTokens: data.inputTokens,
-					outputTokens: data.outputTokens,
-					cacheCreationTokens: data.cacheCreationTokens,
-					cacheReadTokens: data.cacheReadTokens,
-					totalTokens: getTotalTokens(data),
-					totalCost: data.totalCost,
-					lastActivity: data.lastActivity,
-					modelsUsed: data.modelsUsed,
-					modelBreakdowns: data.modelBreakdowns,
-				}),
-				'sessions',
-			);
-
+			const parameters = ccusageParametersSchema.parse(args);
+			const jsonOutput = await getCcusageSession(parameters, claudePath);
 			return {
 				content: [
 					{
@@ -154,30 +101,11 @@ export function createMcpServer(options?: LoadOptions): McpServer {
 		'monthly',
 		{
 			description: 'Show usage report grouped by month',
-			inputSchema: parametersZodSchema,
+			inputSchema: ccusageParametersShape,
 		},
 		async (args) => {
-			const monthlyData = await loadMonthlyUsageData({ ...args, claudePath });
-
-			// Transform data to match CLI JSON output format
-			const totals = calculateTotals(monthlyData);
-			const jsonOutput = transformUsageDataWithTotals(
-				monthlyData,
-				totals,
-				data => ({
-					month: data.month,
-					inputTokens: data.inputTokens,
-					outputTokens: data.outputTokens,
-					cacheCreationTokens: data.cacheCreationTokens,
-					cacheReadTokens: data.cacheReadTokens,
-					totalTokens: getTotalTokens(data),
-					totalCost: data.totalCost,
-					modelsUsed: data.modelsUsed,
-					modelBreakdowns: data.modelBreakdowns,
-				}),
-				'monthly',
-			);
-
+			const parameters = ccusageParametersSchema.parse(args);
+			const jsonOutput = await getCcusageMonthly(parameters, claudePath);
 			return {
 				content: [
 					{
@@ -194,34 +122,11 @@ export function createMcpServer(options?: LoadOptions): McpServer {
 		'blocks',
 		{
 			description: 'Show usage report grouped by session billing blocks',
-			inputSchema: parametersZodSchema,
+			inputSchema: ccusageParametersShape,
 		},
 		async (args) => {
-			const blocks = await loadSessionBlockData({ ...args, claudePath });
-
-			// Transform data to match CLI JSON output format
-			const jsonOutput = {
-				blocks: blocks.map((block) => {
-					return {
-						id: block.id,
-						startTime: block.startTime.toISOString(),
-						endTime: block.endTime.toISOString(),
-						actualEndTime: block.actualEndTime?.toISOString() ?? null,
-						isActive: block.isActive,
-						isGap: block.isGap ?? false,
-						entries: block.entries.length,
-						tokenCounts: block.tokenCounts,
-						totalTokens:
-							block.tokenCounts.inputTokens
-							+ block.tokenCounts.outputTokens,
-						costUSD: block.costUSD,
-						models: block.models,
-						burnRate: null,
-						projection: null,
-					};
-				}),
-			};
-
+			const parameters = ccusageParametersSchema.parse(args);
+			const jsonOutput = await getCcusageBlocks(parameters, claudePath);
 			return {
 				content: [
 					{
