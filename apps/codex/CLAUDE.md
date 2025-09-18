@@ -15,11 +15,11 @@
 - `reasoning_output_tokens`: structured reasoning tokens counted separately by OpenAI.
 - `total_tokens`: either provided directly or recomputed as `input + output + reasoning`.
 
-## Cost Calculation
+-## Cost Calculation
 
 - Pricing is pulled from LiteLLM's public JSON (`model_prices_and_context_window.json`).
-- Default model is `gpt-5`; override via `--model` flag or `CODEX_USAGE_MODEL` env var.
-- Per-model pricing is fetched through the shared `LiteLLMPricingFetcher` with an offline cache macro for `gpt-5*` variants.
+- The CLI trusts the model metadata emitted in each `turn_context`. Sessions missing that metadata (observed in early September 2025 builds) should be skipped rather than attempting a fallback.
+- Per-model pricing is fetched through the shared `LiteLLMPricingFetcher` with an offline cache macro scoped to Codex-prefixed models. Aliases (e.g. `gpt-5-codex → gpt-5`) are handled in `CodexPricingSource` for pricing parity.
 - Cost formula per model/date:
   - Non-cached input: `(input_tokens - cached_input_tokens) / 1_000_000 * input_cost_per_mtoken`.
   - Cached input: `cached_input_tokens / 1_000_000 * cached_input_cost_per_mtoken` (falls back to input price when missing).

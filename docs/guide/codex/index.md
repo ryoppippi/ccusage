@@ -27,6 +27,8 @@ The CLI reads Codex session JSONL files located under `CODEX_HOME` (defaults to 
 | `CODEX_HOME` | Override the root directory containing Codex session folders |
 | `LOG_LEVEL` | Adjust consola verbosity (0 silent … 5 trace) |
 
+When Codex emits a model alias (for example `gpt-5-codex`), the CLI automatically resolves it to the canonical LiteLLM pricing entry. No manual override is needed.
+
 ## Next Steps
 
 - [Daily report command](./daily.md)

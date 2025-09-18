@@ -48,8 +48,9 @@ bunx @ccusage/codex monthly --json
 Useful environment variables:
 
 - `CODEX_HOME` – override the root directory that contains Codex session folders
-- `CODEX_USAGE_MODEL` – default model name when a log entry is missing metadata
 - `LOG_LEVEL` – controla consola log verbosity (0 silent … 5 trace)
+
+ℹ️ The CLI now relies on the model metadata recorded in each `turn_context`. Sessions emitted during early September 2025 that lack this metadata are skipped to avoid mispricing. Newer builds of the Codex CLI restore the model field, and aliases such as `gpt-5-codex` automatically resolve to the correct LiteLLM pricing entry.
 
 ## Features
 
