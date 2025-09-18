@@ -102,6 +102,7 @@ export const dailyCommand = define({
 				compactHead: ['Date', 'Models', 'Input', 'Output', 'Cost (USD)'],
 				compactColAligns: ['left', 'left', 'right', 'right', 'right'],
 				compactThreshold: 100,
+				forceCompact: ctx.values.compact,
 				style: { head: ['cyan'] },
 			});
 
