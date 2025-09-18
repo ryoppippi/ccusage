@@ -37,6 +37,7 @@ import {
 	getDayNumber,
 	sortByDate,
 } from './_date-utils.ts';
+import { PricingFetcher } from './_pricing-fetcher.ts';
 import {
 	identifySessionBlocks,
 } from './_session-blocks.ts';
@@ -65,7 +66,6 @@ import {
 } from './_types.ts';
 import { unreachable } from './_utils.ts';
 import { logger } from './logger.ts';
-import { PricingFetcher } from './pricing-fetcher.ts';
 
 /**
  * Get Claude data directories to search for usage data

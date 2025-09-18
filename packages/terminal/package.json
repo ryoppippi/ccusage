@@ -9,10 +9,10 @@
 		"./utils": "./src/utils.ts"
 	},
 	"scripts": {
-		"test": "TZ=UTC vitest",
-		"typecheck": "tsgo --noEmit",
+		"format": "pnpm run lint --fix",
 		"lint": "eslint --cache .",
-		"format": "pnpm run lint --fix"
+		"test": "TZ=UTC vitest",
+		"typecheck": "tsgo --noEmit"
 	},
 	"dependencies": {
 		"@oxc-project/runtime": "catalog:build",

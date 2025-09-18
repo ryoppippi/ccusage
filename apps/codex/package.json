@@ -1,0 +1,76 @@
+{
+	"name": "@ccusage/codex",
+	"type": "module",
+	"version": "16.2.5",
+	"description": "Usage analysis tool for OpenAI Codex sessions",
+	"author": "ryoppippi",
+	"license": "MIT",
+	"funding": "https://github.com/ryoppippi/ccusage?sponsor=1",
+	"homepage": "https://github.com/ryoppippi/ccusage#readme",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/ryoppippi/ccusage.git"
+	},
+	"bugs": {
+		"url": "https://github.com/ryoppippi/ccusage/issues"
+	},
+	"main": "./dist/index.js",
+	"bin": {
+		"ccusage-codex": "./src/index.ts"
+	},
+	"files": [
+		"dist"
+	],
+	"engines": {
+		"node": ">=20.19.4"
+	},
+	"scripts": {
+		"build": "tsdown",
+		"format": "pnpm run lint --fix",
+		"lint": "eslint --cache .",
+		"prepack": "pnpm run build && clean-pkg-json",
+		"start": "bun ./src/index.ts",
+		"test": "TZ=UTC vitest",
+		"typecheck": "tsgo --noEmit"
+	},
+	"devDependencies": {
+		"@ccusage/internal": "workspace:*",
+		"@ccusage/terminal": "workspace:*",
+		"@praha/byethrow": "catalog:runtime",
+		"@ryoppippi/eslint-config": "catalog:lint",
+		"@typescript/native-preview": "catalog:types",
+		"clean-pkg-json": "catalog:release",
+		"consola": "catalog:runtime",
+		"eslint": "catalog:lint",
+		"fast-sort": "catalog:runtime",
+		"fs-fixture": "catalog:testing",
+		"gunshi": "catalog:runtime",
+		"picocolors": "catalog:runtime",
+		"sort-package-json": "catalog:release",
+		"tinyglobby": "catalog:runtime",
+		"tsdown": "catalog:build",
+		"unplugin-macros": "catalog:build",
+		"unplugin-unused": "catalog:build",
+		"valibot": "catalog:runtime",
+		"vitest": "catalog:testing"
+	},
+	"publishConfig": {
+		"bin": {
+			"ccusage-codex": "./dist/index.js"
+		}
+	},
+	"devEngines": {
+		"runtime": [
+			{
+				"name": "node",
+				"version": "^24.4.0",
+				"onFail": "download"
+			},
+			{
+				"name": "bun",
+				"version": "^1.2.21",
+				"onFail": "download"
+			}
+		]
+	}
+}

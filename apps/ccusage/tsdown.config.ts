@@ -14,8 +14,13 @@ export default defineConfig({
 	minify: 'dce-only',
 	treeshake: true,
 	dts: {
-		tsgo: true,
-		resolve: ['type-fest', 'valibot'],
+		tsgo: false,
+		resolve: [
+			'type-fest',
+			'valibot',
+			'@ccusage/internal',
+			'@ccusage/terminal',
+		],
 	},
 	publint: true,
 	unused: true,
