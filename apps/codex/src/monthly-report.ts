@@ -170,12 +170,14 @@ if (import.meta.vitest != null) {
 			expect(first.cachedInputTokens).toBe(300);
 			expect(first.outputTokens).toBe(700);
 			expect(first.reasoningOutputTokens).toBe(50);
+			// gpt-5: 800 non-cached input @ 1.25, 200 cached @ 0.125, 500 output @ 10
+			// gpt-5-mini: 300 non-cached input @ 0.6, 100 cached @ 0.06, 200 output @ 2 (reasoning already included)
 			const expectedCost = (800 / 1_000_000) * 1.25
 				+ (200 / 1_000_000) * 0.125
 				+ (500 / 1_000_000) * 10
 				+ (300 / 1_000_000) * 0.6
 				+ (100 / 1_000_000) * 0.06
-				+ (250 / 1_000_000) * 2;
+				+ (200 / 1_000_000) * 2;
 			expect(first.costUSD).toBeCloseTo(expectedCost, 10);
 		});
 	});
