@@ -40,7 +40,7 @@
 | `reasoning_output_tokens`                       | Optional breakdown for reasoning            | Informational only; already included in `output_tokens`                  |
 | `total_tokens`                                  | Cumulative total emitted by Codex           | Used verbatim when present; legacy entries fall back to `input + output` |
 
-Parsing normalises every event through these rules. When we have to synthesise totals for legacy JSONL files we explicitly skip adding reasoning so the display matches what Codex billed. Events that rely on model/pricing fallbacks carry `isFallbackModel === true`, and aggregated model rows expose `isFallback` so table/JSON output highlights the assumption.
+Parsing normalizes every event through these rules. When we have to synthesize totals for legacy JSONL files we explicitly skip adding reasoning so the display matches what Codex billed. Events that rely on model/pricing fallbacks carry `isFallbackModel === true`, and aggregated model rows expose `isFallback` so table/JSON output highlights the assumption.
 
 ## CLI Usage
 
