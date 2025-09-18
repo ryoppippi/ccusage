@@ -7,27 +7,16 @@
  * @module logger
  */
 
-import type { ConsolaInstance } from 'consola';
-import process from 'node:process';
-import { consola } from 'consola';
+import { createLogger, log } from '@ccusage/internal/logger';
 
 import { name } from '../package.json';
 
 /**
  * Application logger instance with package name tag
  */
-export const logger: ConsolaInstance = consola.withTag(name);
-
-// Apply LOG_LEVEL environment variable if set
-if (process.env.LOG_LEVEL != null) {
-	const level = Number.parseInt(process.env.LOG_LEVEL, 10);
-	if (!Number.isNaN(level)) {
-		logger.level = level;
-	}
-}
+export const logger = createLogger(name);
 
 /**
  * Direct console.log function for cases where logger formatting is not desired
  */
-// eslint-disable-next-line no-console
-export const log = console.log;
+export { log };
