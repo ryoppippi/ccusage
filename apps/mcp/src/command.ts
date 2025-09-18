@@ -25,6 +25,7 @@ export const mcpCommand = define({
 	args: {
 		mode: {
 			type: 'enum',
+			short: 'm',
 			description: 'Cost calculation mode for usage reports',
 			choices: MODE_CHOICES,
 			default: 'auto' satisfies Mode,
@@ -38,6 +39,7 @@ export const mcpCommand = define({
 		},
 		port: {
 			type: 'number',
+			short: 'p',
 			description: `Port for HTTP transport (default: ${MCP_DEFAULT_PORT})`,
 			default: MCP_DEFAULT_PORT,
 		},
