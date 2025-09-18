@@ -431,5 +431,79 @@ if (import.meta.vitest != null) {
 
 			expect(cost).toBeCloseTo((300_000 * 1e-6) + (250_000 * 2e-6));
 		});
+
+		it('handles edge cases for tiered pricing correctly', async () => {
+			using fetcher = new LiteLLMPricingFetcher({
+				offline: true,
+				offlineLoader: async () => ({
+					'claude-4-sonnet-20250514': {
+						input_cost_per_token: 3e-6,
+						output_cost_per_token: 1.5e-5,
+						input_cost_per_token_above_200k_tokens: 6e-6,
+						output_cost_per_token_above_200k_tokens: 2.25e-5,
+					},
+				}),
+			});
+
+			// Test with exactly 200k tokens (should use only base price)
+			const cost200k = await Result.unwrap(fetcher.calculateCostFromTokens({
+				input_tokens: 200_000,
+				output_tokens: 0,
+			}, 'claude-4-sonnet-20250514'));
+			expect(cost200k).toBeCloseTo(200_000 * 3e-6);
+
+			// Test with 200,001 tokens (should use tiered pricing for 1 token)
+			const cost200k1 = await Result.unwrap(fetcher.calculateCostFromTokens({
+				input_tokens: 200_001,
+				output_tokens: 0,
+			}, 'claude-4-sonnet-20250514'));
+			expect(cost200k1).toBeCloseTo((200_000 * 3e-6) + (1 * 6e-6));
+
+			// Test with 0 tokens (should return 0)
+			const costZero = await Result.unwrap(fetcher.calculateCostFromTokens({
+				input_tokens: 0,
+				output_tokens: 0,
+			}, 'claude-4-sonnet-20250514'));
+			expect(costZero).toBe(0);
+
+			// Test with undefined tokens (should handle gracefully)
+			const costUndefined = await Result.unwrap(fetcher.calculateCostFromTokens({
+				input_tokens: 100,
+				output_tokens: 0,
+				cache_creation_input_tokens: undefined,
+				cache_read_input_tokens: undefined,
+			}, 'claude-4-sonnet-20250514'));
+			expect(costUndefined).toBeCloseTo(100 * 3e-6);
+		});
+
+		it('handles missing base price but has tiered price', async () => {
+			using fetcher = new LiteLLMPricingFetcher({
+				offline: true,
+				offlineLoader: async () => ({
+					'theoretical-model': {
+						// No base price, only tiered pricing
+						input_cost_per_token_above_200k_tokens: 6e-6,
+						output_cost_per_token_above_200k_tokens: 2.25e-5,
+					},
+				}),
+			});
+
+			// Test with 300k tokens - should only charge for tokens above 200k
+			const cost = await Result.unwrap(fetcher.calculateCostFromTokens({
+				input_tokens: 300_000,
+				output_tokens: 250_000,
+			}, 'theoretical-model'));
+
+			// Only 100k input tokens above 200k are charged
+			// Only 50k output tokens above 200k are charged
+			expect(cost).toBeCloseTo((100_000 * 6e-6) + (50_000 * 2.25e-5));
+
+			// Test with tokens below threshold - should return 0 (no base price)
+			const costBelow = await Result.unwrap(fetcher.calculateCostFromTokens({
+				input_tokens: 100_000,
+				output_tokens: 100_000,
+			}, 'theoretical-model'));
+			expect(costBelow).toBe(0);
+		});
 	});
 }
