@@ -338,7 +338,7 @@ if (import.meta.vitest != null) {
 			expect(cost).toBeCloseTo((1000 * 1.25e-6) + (500 * 1e-5) + (200 * 1.25e-7));
 		});
 
-		it('calculates cost with 1M context window pricing for all token types', async () => {
+		it('calculates tiered pricing for tokens exceeding 200k threshold (300k input, 250k output, 300k cache creation, 250k cache read)', async () => {
 			using fetcher = new LiteLLMPricingFetcher({
 				offline: true,
 				offlineLoader: async () => ({
@@ -371,7 +371,7 @@ if (import.meta.vitest != null) {
 			expect(cost).toBeCloseTo(expectedCost);
 		});
 
-		it('handles models without 1M context pricing correctly', async () => {
+		it('uses standard pricing for 300k/250k tokens when model lacks tiered pricing', async () => {
 			using fetcher = new LiteLLMPricingFetcher({
 				offline: true,
 				offlineLoader: async () => ({
@@ -391,7 +391,7 @@ if (import.meta.vitest != null) {
 			expect(cost).toBeCloseTo((300_000 * 1e-6) + (250_000 * 2e-6));
 		});
 
-		it('handles boundary cases at 200k threshold correctly', async () => {
+		it('correctly applies pricing at 200k boundary (200k uses base, 200,001 uses tiered, 0 returns 0)', async () => {
 			using fetcher = new LiteLLMPricingFetcher({
 				offline: true,
 				offlineLoader: async () => ({
@@ -424,7 +424,7 @@ if (import.meta.vitest != null) {
 			expect(costZero).toBe(0);
 		});
 
-		it('handles missing base price but has tiered price', async () => {
+		it('charges only for tokens above 200k when base price is missing (300k→100k charged, 100k→0 charged)', async () => {
 			using fetcher = new LiteLLMPricingFetcher({
 				offline: true,
 				offlineLoader: async () => ({
