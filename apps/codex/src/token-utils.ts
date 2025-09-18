@@ -24,10 +24,24 @@ function nonCachedInputTokens(usage: TokenUsageDelta): number {
 	return nonCached > 0 ? nonCached : 0;
 }
 
+/**
+ * Calculate the cost in USD for token usage based on model pricing
+ *
+ * @param usage - Token usage data including input, output, cached, and reasoning tokens
+ * @param pricing - Model-specific pricing rates per million tokens
+ * @returns Cost in USD
+ *
+ * @remarks
+ * - Cached input tokens receive a 50% discount from OpenAI
+ * @see {@link https://platform.openai.com/docs/guides/prompt-caching}
+ *
+ * - Reasoning tokens are already included in output_tokens, so they are not added separately
+ * to avoid double-counting
+ */
 export function calculateCostUSD(usage: TokenUsageDelta, pricing: ModelPricing): number {
 	const nonCachedInput = nonCachedInputTokens(usage);
 	const cachedInput = usage.cachedInputTokens > usage.inputTokens ? usage.inputTokens : usage.cachedInputTokens;
-	const outputTokens = usage.outputTokens + usage.reasoningOutputTokens;
+	const outputTokens = usage.outputTokens;
 
 	const inputCost = (nonCachedInput / MILLION) * pricing.inputCostPerMToken;
 	const cachedCost = (cachedInput / MILLION) * pricing.cachedInputCostPerMToken;
