@@ -20,6 +20,14 @@ npx @ccusage/codex@latest --help
 
 The CLI reads Codex session JSONL files located under `CODEX_HOME` (defaults to `~/.codex`). Each file represents a single Codex CLI session and contains running token totals that the tool converts into per-day or per-month deltas.
 
+## What Gets Calculated
+
+- **Token deltas** – Each `event_msg` with `payload.type === "token_count"` reports cumulative totals. The CLI subtracts the previous totals to recover per-turn token usage (input, cached input, output, reasoning, total).
+- **Per-model grouping** – The `turn_context` metadata specifies the active model. We aggregate tokens per day/month and per model. Sessions lacking model metadata (seen in early September 2025 builds) are skipped.
+- **Pricing** – Rates come from LiteLLM's pricing dataset via the shared `LiteLLMPricingFetcher`. Aliases such as `gpt-5-codex` map to canonical entries (`gpt-5`) so cost calculations remain accurate.
+- **Cost formula** – Non-cached input uses the standard input price; cached input uses the cache read price (falling back to input when missing); output and reasoning tokens use the output price. All prices are per million tokens.
+- **Totals and reports** – Daily and monthly commands display per-model breakdowns, overall totals, and optional JSON for automation.
+
 ## Environment Variables
 
 | Variable | Description |
