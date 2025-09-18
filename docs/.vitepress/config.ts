@@ -71,6 +71,8 @@ export default defineConfig({
 					items: [
 						{ text: 'Overview', link: '/guide/codex/' },
 						{ text: 'Daily Report', link: '/guide/codex/daily' },
+						{ text: 'Monthly Report', link: '/guide/codex/monthly' },
+						{ text: 'Session Report', link: '/guide/codex/session' },
 					],
 				},
 				{
