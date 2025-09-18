@@ -41,6 +41,9 @@ export const liteLLMModelPricingSchema = v.object({
 	output_cost_per_token_above_200k_tokens: v.optional(v.number()),
 	cache_creation_input_token_cost_above_200k_tokens: v.optional(v.number()),
 	cache_read_input_token_cost_above_200k_tokens: v.optional(v.number()),
+	// Gemini: Tiered pricing (128k threshold) - NOT implemented in calculations
+	input_cost_per_token_above_128k_tokens: v.optional(v.number()),
+	output_cost_per_token_above_128k_tokens: v.optional(v.number()),
 });
 
 export type LiteLLMModelPricing = v.InferOutput<typeof liteLLMModelPricingSchema>;
