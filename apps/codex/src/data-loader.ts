@@ -213,6 +213,9 @@ export async function loadTokenUsageEvents(options: LoadOptions = {}): Promise<L
 		});
 
 		for (const file of files) {
+			const relativeSessionPath = path.relative(directoryPath, file);
+			const normalizedSessionPath = relativeSessionPath.split(path.sep).join('/');
+			const sessionId = normalizedSessionPath.replace(/\.jsonl$/i, '');
 			const fileContentResult = await Result.try({
 				try: readFile(file, 'utf8'),
 				catch: error => error,
@@ -327,6 +330,7 @@ export async function loadTokenUsageEvents(options: LoadOptions = {}): Promise<L
 				}
 
 				const event: TokenUsageEvent = {
+					sessionId,
 					timestamp,
 					model,
 					inputTokens: delta.inputTokens,
