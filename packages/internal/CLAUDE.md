@@ -11,6 +11,7 @@ This package contains shared internal utilities for the ccusage monorepo.
 ## Important Notes
 
 **CRITICAL**: This is an internal package that gets bundled into the final applications. Therefore:
+
 - **Always add this package as a `devDependency`** in apps that use it, NOT as a regular dependency
 - Apps in this monorepo (ccusage, mcp, codex) are bundled CLIs, so all their runtime dependencies should be in `devDependencies`
 - The bundler will include the code from this package in the final output
@@ -18,6 +19,7 @@ This package contains shared internal utilities for the ccusage monorepo.
 ## Available Exports
 
 **Utilities:**
+
 - `./pricing` - LiteLLM pricing fetcher and utilities
 - `./pricing-fetch-utils` - Pricing fetch helper functions
 - `./logger` - Logger factory using consola with LOG_LEVEL support
@@ -38,6 +40,7 @@ When adding new shared utilities:
 1. Create the utility file in `src/`
 2. Add the export to `package.json` exports field
 3. Import in consuming apps as `devDependencies`:
+   <!-- eslint-skip -->
    ```json
    "devDependencies": {
      "@ccusage/internal": "workspace:*"
@@ -51,6 +54,7 @@ When adding new shared utilities:
 ## Dependencies
 
 This package has minimal runtime dependencies that get bundled:
+
 - `@praha/byethrow` - Functional error handling
 - `consola` - Logging
 - `valibot` - Schema validation
@@ -58,6 +62,7 @@ This package has minimal runtime dependencies that get bundled:
 ## Code Style
 
 Follow the same conventions as the main ccusage package:
+
 - Use `.ts` extensions for local imports
 - Prefer `@praha/byethrow Result` type over try-catch
 - Only export what's actually used by other modules
