@@ -6,7 +6,10 @@
 	"description": "Shared internal utilities for ccusage toolchain",
 	"exports": {
 		"./pricing": "./src/pricing.ts",
-		"./pricing-fetch-utils": "./src/pricing-fetch-utils.ts"
+		"./pricing-fetch-utils": "./src/pricing-fetch-utils.ts",
+		"./logger": "./src/logger.ts",
+		"./format": "./src/format.ts",
+		"./constants": "./src/constants.ts"
 	},
 	"scripts": {
 		"format": "pnpm run lint --fix",
@@ -16,6 +19,7 @@
 	},
 	"dependencies": {
 		"@praha/byethrow": "catalog:runtime",
+		"consola": "catalog:runtime",
 		"valibot": "catalog:runtime"
 	},
 	"devDependencies": {

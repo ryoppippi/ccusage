@@ -9,6 +9,7 @@
  */
 
 import type { LoadOptions } from 'ccusage/data-loader';
+import { DEFAULT_LOCALE } from '@ccusage/internal/constants';
 import { StreamableHTTPTransport } from '@hono/mcp';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
@@ -32,7 +33,6 @@ import { Hono } from 'hono/tiny';
 import { z } from 'zod';
 import { name, version } from '../package.json';
 
-const DEFAULT_LOCALE = 'en-CA';
 const filterDateSchema = z.string()
 	.regex(/^\d{8}$/, 'Date must be in YYYYMMDD format');
 
@@ -194,7 +194,7 @@ export function createMcpServer(options?: LoadOptions): McpServer {
 		until: filterDateSchema.optional(),
 		mode: z.enum(['auto', 'calculate', 'display']).default('auto').optional(),
 		timezone: z.string().optional(),
-		locale: z.string().default(DEFAULT_LOCALE).optional(),
+		locale: z.string().default(DEFAULT_LOCALE as string).optional(),
 	};
 
 	const { claudePath } = options ?? defaultOptions();
