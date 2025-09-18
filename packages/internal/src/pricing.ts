@@ -13,6 +13,21 @@ export const LITELLM_PRICING_URL
  */
 const TIERED_PRICING_TOKEN_THRESHOLD = 200_000;
 
+/**
+ * LiteLLM Model Pricing Schema
+ *
+ * ⚠️ TIERED PRICING NOTE:
+ * Different models use different token thresholds for tiered pricing:
+ * - Claude/Anthropic: 200k tokens (implemented in calculateTieredCost)
+ * - Gemini: 128k tokens (schema fields only, NOT implemented in calculations)
+ * - GPT/OpenAI: No tiered pricing (flat rate)
+ *
+ * When adding support for new models:
+ * 1. Check if model has tiered pricing in LiteLLM data
+ * 2. Verify the threshold value
+ * 3. Update calculateTieredCost logic if threshold differs from 200k
+ * 4. Add tests for tiered pricing boundaries
+ */
 export const liteLLMModelPricingSchema = v.object({
 	input_cost_per_token: v.optional(v.number()),
 	output_cost_per_token: v.optional(v.number()),
@@ -21,7 +36,7 @@ export const liteLLMModelPricingSchema = v.object({
 	max_tokens: v.optional(v.number()),
 	max_input_tokens: v.optional(v.number()),
 	max_output_tokens: v.optional(v.number()),
-	// 1M context window pricing
+	// Claude/Anthropic: 1M context window pricing (200k threshold)
 	input_cost_per_token_above_200k_tokens: v.optional(v.number()),
 	output_cost_per_token_above_200k_tokens: v.optional(v.number()),
 	cache_creation_input_token_cost_above_200k_tokens: v.optional(v.number()),
