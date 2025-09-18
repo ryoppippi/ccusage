@@ -155,7 +155,8 @@ async function runCodexCliJson(command: 'daily' | 'monthly', parameters: z.infer
 		const result = await spawn(executable, cliArgs, {
 			env: {
 				...process.env,
-				LOG_LEVEL: '0',
+				// Keep default log level to allow JSON output
+				// nano-spawn captures stdout, so it won't leak to terminal
 				FORCE_COLOR: '0',
 			},
 		});
