@@ -70,7 +70,7 @@ function getCodexInvocation(): CliInvocation {
 		return cachedCodexInvocation;
 	}
 
-	const entryPath = resolveBinaryPath('@ccusage/codex', 'ccusage-codex');
+	const entryPath = resolveBinaryPath('@ccusage/codex');
 	cachedCodexInvocation = createCliInvocation(entryPath);
 	return cachedCodexInvocation;
 }

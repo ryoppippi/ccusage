@@ -15,9 +15,7 @@
 		"url": "https://github.com/ryoppippi/ccusage/issues"
 	},
 	"main": "./dist/index.js",
-	"bin": {
-		"ccusage-codex": "./src/index.ts"
-	},
+	"bin": "./src/index.ts",
 	"files": [
 		"dist"
 	],
@@ -55,9 +53,7 @@
 		"vitest": "catalog:testing"
 	},
 	"publishConfig": {
-		"bin": {
-			"ccusage-codex": "./dist/index.js"
-		}
+		"bin": "./dist/index.js"
 	},
 	"devEngines": {
 		"runtime": [

@@ -5,8 +5,6 @@ import spawn, { SubprocessError } from 'nano-spawn';
 
 const nodeRequire = createRequire(import.meta.url);
 
-export type BinField = string | Record<string, string> | undefined;
-
 export type CliInvocation = {
 	executable: string;
 	prefixArgs: string[];
@@ -15,10 +13,7 @@ export type CliInvocation = {
 /**
  * Resolves the binary path for a package
  */
-export function resolveBinaryPath(
-	packageName: string,
-	binName?: string,
-): string {
+export function resolveBinaryPath(packageName: string): string {
 	let packageJsonPath: string;
 	try {
 		packageJsonPath = nodeRequire.resolve(`${packageName}/package.json`);
@@ -27,23 +22,15 @@ export function resolveBinaryPath(
 		throw new Error(`Unable to resolve ${packageName}. Install the package alongside @ccusage/mcp to enable ${packageName} tools.`, { cause: error });
 	}
 
-	const packageJson = nodeRequire(packageJsonPath) as { bin?: BinField; publishConfig?: { bin?: BinField } };
-	const binField: BinField = packageJson.bin ?? packageJson.publishConfig?.bin;
+	const packageJson = nodeRequire(packageJsonPath) as { bin?: string; publishConfig?: { bin?: string } };
+	const binField = packageJson.bin ?? packageJson.publishConfig?.bin;
 
-	let binRelative: string | undefined;
-	if (typeof binField === 'string') {
-		binRelative = binField;
-	}
-	else if (binField != null && typeof binField === 'object') {
-		binRelative = (binName != null && binName !== '') ? binField[binName] : Object.values(binField)[0];
-	}
-
-	if (binRelative == null) {
-		throw new Error(`Unable to locate ${binName ?? packageName} binary entry in ${packageName}/package.json`);
+	if (typeof binField !== 'string') {
+		throw new TypeError(`Unable to locate binary entry in ${packageName}/package.json`);
 	}
 
 	const packageDir = path.dirname(packageJsonPath);
-	return path.resolve(packageDir, binRelative);
+	return path.resolve(packageDir, binField);
 }
 
 /**

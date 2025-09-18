@@ -42,14 +42,7 @@ for (const [name, command] of subCommandUnion) {
 const mainCommand = dailyCommand;
 
 export async function run(): Promise<void> {
-	// When invoked through npx, the binary name might be passed as the first argument
-	// Filter it out if it matches the expected binary name
-	let args = process.argv.slice(2);
-	if (args[0] === 'ccusage') {
-		args = args.slice(1);
-	}
-
-	await cli(args, mainCommand, {
+	await cli(process.argv.slice(2), mainCommand, {
 		name,
 		version,
 		description,

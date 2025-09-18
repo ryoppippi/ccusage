@@ -21,9 +21,7 @@
 	"main": "./dist/index.js",
 	"module": "./dist/index.js",
 	"types": "./dist/index.d.ts",
-	"bin": {
-		"ccusage-mcp": "./src/index.ts"
-	},
+	"bin": "./src/index.ts",
 	"files": [
 		"dist"
 	],
@@ -64,9 +62,7 @@
 		"vitest": "catalog:testing"
 	},
 	"publishConfig": {
-		"bin": {
-			"ccusage-mcp": "./dist/index.js"
-		},
+		"bin": "./dist/index.js",
 		"exports": {
 			".": "./dist/index.js",
 			"./package.json": "./package.json"
