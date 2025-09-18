@@ -21,6 +21,19 @@ function ensureNumber(value: unknown): number {
 	return typeof value === 'number' && Number.isFinite(value) ? value : 0;
 }
 
+/**
+ * Normalize Codex `token_count` payloads into a predictable shape.
+ *
+ * Codex reports four counters:
+ *   - input_tokens
+ *   - cached_input_tokens (a.k.a cache_read_input_tokens)
+ *   - output_tokens (this already includes any reasoning charge)
+ *   - reasoning_output_tokens (informational only)
+ *
+ * Modern JSONL entries also provide `total_tokens`, but legacy ones may omit it.
+ * When that happens we mirror Codex' billing behavior and synthesize
+ * `input + output` (reasoning is treated as part of output, not an extra charge).
+ */
 function normalizeRawUsage(value: unknown): RawUsage | null {
 	if (value == null || typeof value !== 'object') {
 		return null;
@@ -40,7 +53,7 @@ function normalizeRawUsage(value: unknown): RawUsage | null {
 		reasoning_output_tokens: reasoning,
 		// LiteLLM pricing treats reasoning tokens as part of the normal output price. Codex
 		// includes them as a separate field but does not add them to total_tokens, so when we
-		// have to synthesize a total (legacy logs), we mirror that behaviour with input+output.
+		// have to synthesize a total (legacy logs), we mirror that behavior with input+output.
 		total_tokens: total > 0 ? total : input + output,
 	};
 }
@@ -55,6 +68,14 @@ function subtractRawUsage(current: RawUsage, previous: RawUsage | null): RawUsag
 	};
 }
 
+/**
+ * Convert cumulative usage into a per-event delta.
+ *
+ * Codex includes the cost of reasoning inside `output_tokens`. The
+ * `reasoning_output_tokens` field is useful for display/debug purposes, but we
+ * must not add it to the billable output again. For legacy totals we therefore
+ * fallback to `input + output`.
+ */
 function convertToDelta(raw: RawUsage): TokenUsageDelta {
 	const total = raw.total_tokens > 0
 		? raw.total_tokens
