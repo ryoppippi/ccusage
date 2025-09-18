@@ -106,25 +106,21 @@ function getCodexInvocation(): CodexInvocation {
 
 	const codexDir = path.dirname(packageJsonPath);
 	const entryPath = path.resolve(codexDir, binRelative);
-	const prefixArgs: string[] = [];
 
+	// Use bun for TypeScript files in development
 	if (entryPath.endsWith('.ts')) {
-		let loaderPath: string;
-		try {
-			loaderPath = nodeRequire.resolve('@typescript/native-preview/register');
-		}
-		catch (error) {
-			throw new Error('Running Codex CLI from source requires @typescript/native-preview. Install it or build @ccusage/codex before using Codex MCP tools.', { cause: error });
-		}
-		prefixArgs.push('--import', loaderPath);
+		cachedCodexInvocation = {
+			executable: 'bun',
+			prefixArgs: [entryPath],
+		};
 	}
-
-	prefixArgs.push(entryPath);
-
-	cachedCodexInvocation = {
-		executable: process.execPath,
-		prefixArgs,
-	};
+	else {
+		// Use node for built JavaScript files in production
+		cachedCodexInvocation = {
+			executable: process.execPath,
+			prefixArgs: [entryPath],
+		};
+	}
 	return cachedCodexInvocation;
 }
 
