@@ -16,15 +16,13 @@
 	},
 	"exports": {
 		".": "./src/index.ts",
-		"./cli": "./src/cli.ts",
-		"./command": "./src/command.ts",
 		"./package.json": "./package.json"
 	},
 	"main": "./dist/index.js",
 	"module": "./dist/index.js",
 	"types": "./dist/index.d.ts",
 	"bin": {
-		"ccusage-mcp": "./src/cli.ts"
+		"ccusage-mcp": "./src/index.ts"
 	},
 	"files": [
 		"dist"
@@ -34,6 +32,7 @@
 	},
 	"scripts": {
 		"build": "tsdown",
+		"dev": "bun -b --watch ./src/index.ts",
 		"format": "pnpm run lint --fix",
 		"lint": "eslint --cache .",
 		"prepack": "pnpm run build && clean-pkg-json",
@@ -41,16 +40,19 @@
 		"prerelease:build": "pnpm run build",
 		"prerelease:lint": "pnpm run lint",
 		"prerelease:typecheck": "pnpm typecheck",
+		"start": "bun ./src/index.ts",
 		"test": "TZ=UTC vitest",
 		"typecheck": "tsgo --noEmit"
 	},
 	"dependencies": {
+		"@ccusage/codex": "workspace:*",
 		"@hono/mcp": "catalog:runtime",
 		"@hono/node-server": "catalog:runtime",
 		"@modelcontextprotocol/sdk": "catalog:runtime",
 		"ccusage": "workspace:*",
 		"gunshi": "catalog:runtime",
 		"hono": "catalog:runtime",
+		"nano-spawn": "catalog:runtime",
 		"zod": "catalog:runtime"
 	},
 	"devDependencies": {
@@ -66,12 +68,10 @@
 	},
 	"publishConfig": {
 		"bin": {
-			"ccusage-mcp": "./dist/cli.js"
+			"ccusage-mcp": "./dist/index.js"
 		},
 		"exports": {
 			".": "./dist/index.js",
-			"./cli": "./dist/cli.js",
-			"./command": "./dist/command.js",
 			"./package.json": "./package.json"
 		}
 	},

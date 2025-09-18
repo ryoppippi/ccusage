@@ -5,7 +5,7 @@ import { getClaudePaths } from 'ccusage/data-loader';
 import { logger } from 'ccusage/logger';
 import { cli, define } from 'gunshi';
 import { description, name, version } from '../package.json';
-import { createMcpHttpApp, createMcpServer, startMcpServerStdio } from './index.ts';
+import { createMcpHttpApp, createMcpServer, startMcpServerStdio } from './mcp.ts';
 
 type McpType = (typeof MCP_TYPE_CHOICES)[number];
 type Mode = LoadOptions['mode'];
@@ -25,6 +25,7 @@ export const mcpCommand = define({
 	args: {
 		mode: {
 			type: 'enum',
+			short: 'm',
 			description: 'Cost calculation mode for usage reports',
 			choices: MODE_CHOICES,
 			default: 'auto' satisfies Mode,
@@ -38,6 +39,7 @@ export const mcpCommand = define({
 		},
 		port: {
 			type: 'number',
+			short: 'p',
 			description: `Port for HTTP transport (default: ${MCP_DEFAULT_PORT})`,
 			default: MCP_DEFAULT_PORT,
 		},

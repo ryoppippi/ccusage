@@ -2,4 +2,4 @@
 
 import { runCli } from './command.ts';
 
-await runCli();
+void runCli();

@@ -25,7 +25,9 @@
 	"main": "./dist/index.js",
 	"module": "./dist/index.js",
 	"types": "./dist/index.d.ts",
-	"bin": "./src/index.ts",
+	"bin": {
+		"ccusage": "./src/index.ts"
+	},
 	"files": [
 		"config-schema.json",
 		"dist"
@@ -93,7 +95,9 @@
 		"xdg-basedir": "catalog:runtime"
 	},
 	"publishConfig": {
-		"bin": "./dist/index.js",
+		"bin": {
+			"ccusage": "./dist/index.js"
+		},
 		"exports": {
 			".": "./dist/index.js",
 			"./calculate-cost": "./dist/calculate-cost.js",
