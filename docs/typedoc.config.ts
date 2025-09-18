@@ -1,8 +1,8 @@
-import type { TypeDocOptions } from 'typedoc'
-import type { PluginOptions } from 'typedoc-plugin-markdown'
-import { globSync } from 'tinyglobby'
+import type { TypeDocOptions } from 'typedoc';
+import type { PluginOptions } from 'typedoc-plugin-markdown';
+import { globSync } from 'tinyglobby';
 
-type TypedocConfig = TypeDocOptions & PluginOptions & { docsRoot?: string }
+type TypedocConfig = TypeDocOptions & PluginOptions & { docsRoot?: string };
 
 const entryPoints = [
 	...globSync([

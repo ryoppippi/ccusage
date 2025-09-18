@@ -293,21 +293,21 @@ When using the standalone MCP CLI with custom paths:
 ```json
 {
 	"mcpServers": {
-    "ccusage": {
-      "command": "npx",
-      "args": ["@ccusage/mcp@latest"],
-      "env": {
-        "CLAUDE_CONFIG_DIR": "/path/to/your/claude/data"
-      }
-    },
-    "ccusage-archive": {
-      "command": "npx",
-      "args": ["@ccusage/mcp@latest"],
-      "env": {
-        "CLAUDE_CONFIG_DIR": "/archive/claude-2024,/archive/claude-2025"
-      }
-    }
-  }
+		"ccusage": {
+			"command": "npx",
+			"args": ["@ccusage/mcp@latest"],
+			"env": {
+				"CLAUDE_CONFIG_DIR": "/path/to/your/claude/data"
+			}
+		},
+		"ccusage-archive": {
+			"command": "npx",
+			"args": ["@ccusage/mcp@latest"],
+			"env": {
+				"CLAUDE_CONFIG_DIR": "/archive/claude-2024,/archive/claude-2025"
+			}
+		}
+	}
 }
 ```
 

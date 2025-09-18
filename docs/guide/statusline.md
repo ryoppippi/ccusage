@@ -20,11 +20,11 @@ Add this to your `~/.claude/settings.json` or `~/.config/claude/settings.json`:
 
 ```json
 {
-  "statusLine": {
-    "type": "command",
-    "command": "bun x ccusage statusline", // Use "npx -y ccusage statusline" if you prefer npm
-    "padding": 0  // Optional: set to 0 to let status line go to edge
-  }
+	"statusLine": {
+		"type": "command",
+		"command": "bun x ccusage statusline", // Use "npx -y ccusage statusline" if you prefer npm
+		"padding": 0 // Optional: set to 0 to let status line go to edge
+	}
 }
 ```
 
@@ -36,11 +36,11 @@ If you need the latest pricing data from LiteLLM API, you can explicitly enable 
 
 ```json
 {
-  "statusLine": {
-    "type": "command",
-    "command": "bun x ccusage statusline --no-offline", // Fetches latest pricing from API
-    "padding": 0
-  }
+	"statusLine": {
+		"type": "command",
+		"command": "bun x ccusage statusline --no-offline", // Fetches latest pricing from API
+		"padding": 0
+	}
 }
 ```
 
@@ -50,11 +50,11 @@ You can enhance the burn rate display with visual indicators:
 
 ```json
 {
-  "statusLine": {
-    "type": "command",
-    "command": "bun x ccusage statusline --visual-burn-rate emoji", // Add emoji indicators
-    "padding": 0
-  }
+	"statusLine": {
+		"type": "command",
+		"command": "bun x ccusage statusline --visual-burn-rate emoji", // Add emoji indicators
+		"padding": 0
+	}
 }
 ```
 
@@ -66,11 +66,11 @@ You can control how session costs are calculated and displayed:
 
 ```json
 {
-  "statusLine": {
-    "type": "command",
-    "command": "bun x ccusage statusline --cost-source both", // Show both CC and ccusage costs
-    "padding": 0
-  }
+	"statusLine": {
+		"type": "command",
+		"command": "bun x ccusage statusline --cost-source both", // Show both CC and ccusage costs
+		"padding": 0
+	}
 }
 ```
 
@@ -107,6 +107,7 @@ When using `--cost-source both`, the session cost shows both Claude Code and ccu
   - Red text: High usage (> 80% by default)
 
 When no active block exists:
+
 ```
 🤖 Opus | 💰 $0.00 session / $0.00 today / No active block
 ```
@@ -114,6 +115,7 @@ When no active block exists:
 ## Technical Details
 
 The statusline command:
+
 - Reads session information from stdin (provided by Claude Code hooks)
 - Identifies the active 5-hour billing block
 - Calculates real-time burn rates and projections
@@ -151,7 +153,7 @@ bun x ccusage statusline
 bun x ccusage statusline --cost-source ccusage
 
 # Always use Claude Code cost
-bun x ccusage statusline --cost-source cc  
+bun x ccusage statusline --cost-source cc
 
 # Show both costs for comparison
 bun x ccusage statusline --cost-source both
@@ -161,11 +163,11 @@ bun x ccusage statusline --cost-source both
 
 ```json
 {
-  "statusLine": {
-    "type": "command",
-    "command": "bun x ccusage statusline --cost-source both",
-    "padding": 0
-  }
+	"statusLine": {
+		"type": "command",
+		"command": "bun x ccusage statusline --cost-source both",
+		"padding": 0
+	}
 }
 ```
 
@@ -191,11 +193,13 @@ You can customize the context usage color thresholds using command-line options 
 - `--context-medium-threshold` - Percentage below which context usage is shown in yellow (default: 80)
 
 **Validation and Safety Features:**
+
 - Values are automatically validated to be integers in the 0-100 range
 - The `LOW` threshold must be less than the `MEDIUM` threshold
 - Invalid configurations will show clear error messages
 
 **Command-line usage:**
+
 ```bash
 bun x ccusage statusline --context-low-threshold 60 --context-medium-threshold 90
 ```
@@ -204,15 +208,17 @@ bun x ccusage statusline --context-low-threshold 60 --context-medium-threshold 9
 You can also set these options in your configuration file. See the [Configuration Guide](/guide/configuration) for more details.
 
 With these settings:
+
 - Green: < 60%
 - Yellow: 60-90%
 - Red: > 90%
 
 **Example usage in Claude Code settings:**
+
 ```json
 {
-  "command": "bun x ccusage statusline --context-low-threshold 60 --context-medium-threshold 90",
-  "timeout": 5000
+	"command": "bun x ccusage statusline --context-low-threshold 60 --context-medium-threshold 90",
+	"timeout": 5000
 }
 ```
 
@@ -228,7 +234,7 @@ bun x ccusage statusline --visual-burn-rate emoji
 **Available options:**
 
 - `off` (default): No visual indicators, only colored text
-- `emoji`: Add emoji indicators (🟢/⚠️/🚨) 
+- `emoji`: Add emoji indicators (🟢/⚠️/🚨)
 - `text`: Add text status in parentheses (Normal/Moderate/High)
 - `emoji-text`: Combine both emoji and text indicators
 
@@ -241,7 +247,7 @@ bun x ccusage statusline --visual-burn-rate emoji
 # With emoji
 🔥 $0.12/hr 🟢
 
-# With text  
+# With text
 🔥 $0.12/hr (Normal)
 
 # With both emoji and text
@@ -249,6 +255,7 @@ bun x ccusage statusline --visual-burn-rate emoji
 ```
 
 **Status Indicators:**
+
 - 🟢 Normal (Green)
 - ⚠️ Moderate (Yellow)
 - 🚨 High (Red)
@@ -258,6 +265,7 @@ bun x ccusage statusline --visual-burn-rate emoji
 ### No Output Displayed
 
 If the statusline doesn't show:
+
 1. Verify `ccusage` is in your PATH
 2. Check Claude Code logs for any errors
 3. Ensure you have valid usage data in your Claude data directory
@@ -265,6 +273,7 @@ If the statusline doesn't show:
 ### Incorrect Costs
 
 If costs seem incorrect:
+
 - The command uses the same cost calculation as other ccusage commands
 - Verify with `ccusage daily` or `ccusage blocks` for detailed breakdowns
 

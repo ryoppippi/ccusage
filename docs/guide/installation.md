@@ -47,12 +47,12 @@ Consider using `deno run` if you want additional security controls. Deno allows 
 
 Here's why runtime choice matters:
 
-| Runtime | First Run | Subsequent Runs | Notes |
-|---------|-----------|-----------------|-------|
-| bunx | Fast | **Instant** | Best overall choice |
-| npx | Slow | Moderate | Widely available |
-| pnpm dlx | Fast | Fast | Good alternative |
-| deno | Moderate | Fast | Best for security |
+| Runtime  | First Run | Subsequent Runs | Notes               |
+| -------- | --------- | --------------- | ------------------- |
+| bunx     | Fast      | **Instant**     | Best overall choice |
+| npx      | Slow      | Moderate        | Widely available    |
+| pnpm dlx | Fast      | Fast            | Good alternative    |
+| deno     | Moderate  | Fast            | Best for security   |
 
 ## Global Installation (Optional)
 

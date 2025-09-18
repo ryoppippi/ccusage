@@ -249,15 +249,16 @@ Use project aliases to replace cryptic or long project directory names with read
 ```json
 // .ccusage/ccusage.json - Set custom project names for better reporting
 {
-  "commands": {
-    "daily": {
-      "projectAliases": "uuid-project=Frontend App,long-name=Backend API"
-    }
-  }
+	"commands": {
+		"daily": {
+			"projectAliases": "uuid-project=Frontend App,long-name=Backend API"
+		}
+	}
 }
 ```
 
 The `projectAliases` setting uses a comma-separated format of `original-name=display-name` pairs. This is especially useful when:
+
 - Your projects have UUID-based names (e.g., `a2cd99ed-a586=My App`)
 - Directory names are long paths that get truncated
 - You want consistent naming across team reports
