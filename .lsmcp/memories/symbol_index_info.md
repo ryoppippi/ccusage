@@ -1,47 +1,40 @@
 ---
 created: 2025-08-10T20:53:29.066Z
-updated: 2025-08-22T11:06:14.669Z
+updated: 2025-09-18T21:04:06.798Z
 ---
 
-# Symbol Index Configuration for ccusage
+## lsmcp Symbol Index Configuration
 
-## Project Setup
-- **Language**: TypeScript
-- **Pattern Used**: `src/**/*.ts` (automatically indexed by project overview)
-- **Root Directory**: `/Users/ryoppippi/ghq/github.com/ryoppippi/ccusage`
+**Project:** ccusage-monorepo v16.2.5
+**Language:** TypeScript/JavaScript
+**Root:** /Users/ryoppippi/ghq/github.com/ryoppippi/ccusage
 
-## Index Statistics
-- **Total Files**: 37
-- **Total Symbols**: 226
-- **Indexing Time**: 3s
-- **Last Updated**: 2025-08-22T11:05:39.166Z
+### Index Results:
+- **Files indexed:** 71
+- **Symbols indexed:** 322
+- **Indexing time:** 7 seconds
+- **Pattern used:** Auto-detected TypeScript files
 
-## Symbol Breakdown
-- **Classes**: 61
-- **Interfaces**: 0  
-- **Functions**: 102
-- **Methods**: 31
-- **Properties**: 28
+### Symbol Breakdown:
+- Classes: 93
+- Functions: 164
+- Methods: 32
+- Properties: 28
 
-## Key Features Verified
-✅ Symbol search by name (e.g., 'main' finds 2 functions)
-✅ Symbol search by kind (e.g., 'Class' finds 61 classes)
-✅ LSP integration working (definitions, references, hover)
-✅ Project structure automatically detected
+### Key Directories:
+- `apps/ccusage/` - Main CLI tool (25 files)
+- `apps/codex/` - Codex integration (11 files)
+- `apps/mcp/` - MCP server (6 files)
+- `packages/internal/` - Shared utilities (4 files)
+- `packages/terminal/` - Terminal utilities (2 files)
 
-## Common Search Patterns
-- Search by name: `search_symbols --name "functionName"`
-- Search by type: `search_symbols --kind "Class"`
-- Search in specific file: `search_symbols --file "src/commands/"`
-- Get file symbols: `lsp_get_document_symbols --relativePath "src/index.ts"`
+### Status: ✅ Successfully indexed
+- LSP server working correctly
+- Symbol search enabled
+- All major components indexed
 
-## Issues Encountered
-None - indexing completed successfully on first attempt.
-
-## Architecture Notes
-This is a CLI tool for Claude Code usage analysis with clean TypeScript structure:
-- Main entry: `src/index.ts`
-- Commands: `src/commands/`
-- Internal utilities: `src/_*.ts` (underscore prefix)
-- Data types: `src/_types.ts`
-- Configuration: TypeScript with strict mode enabled
+### Usage:
+- Use `search_symbols` to find specific symbols
+- Use `get_document_symbols` to explore file structure
+- Use `find_references` and `get_definitions` for navigation
+- Symbol index automatically maintained
