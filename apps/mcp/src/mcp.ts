@@ -31,17 +31,11 @@ import { z } from 'zod';
 import { name, version } from '../package.json';
 
 import {
-	blocksResponseSchema,
-	dailyResponseSchema,
 	defaultOptions,
 	filterDateSchema,
-	monthlyResponseSchema,
-	sessionResponseSchema,
 	transformUsageDataWithTotals,
 } from './claude-code.ts';
 import {
-	codexDailyResponseShape,
-	codexMonthlyResponseShape,
 	codexParametersSchema,
 	codexParametersShape,
 	getCodexDaily,
@@ -80,7 +74,6 @@ export function createMcpServer(options?: LoadOptions): McpServer {
 		{
 			description: 'Show usage report grouped by date',
 			inputSchema: parametersZodSchema,
-			outputSchema: dailyResponseSchema,
 		},
 		async (args) => {
 			const dailyData = await loadDailyUsageData({ ...args, claudePath });
@@ -111,7 +104,6 @@ export function createMcpServer(options?: LoadOptions): McpServer {
 						text: JSON.stringify(jsonOutput, null, 2),
 					},
 				],
-				structuredContent: jsonOutput,
 			};
 		},
 	);
@@ -122,7 +114,6 @@ export function createMcpServer(options?: LoadOptions): McpServer {
 		{
 			description: 'Show usage report grouped by conversation session',
 			inputSchema: parametersZodSchema,
-			outputSchema: sessionResponseSchema,
 		},
 		async (args) => {
 			const sessionData = await loadSessionData({ ...args, claudePath });
@@ -154,7 +145,6 @@ export function createMcpServer(options?: LoadOptions): McpServer {
 						text: JSON.stringify(jsonOutput, null, 2),
 					},
 				],
-				structuredContent: jsonOutput,
 			};
 		},
 	);
@@ -165,7 +155,6 @@ export function createMcpServer(options?: LoadOptions): McpServer {
 		{
 			description: 'Show usage report grouped by month',
 			inputSchema: parametersZodSchema,
-			outputSchema: monthlyResponseSchema,
 		},
 		async (args) => {
 			const monthlyData = await loadMonthlyUsageData({ ...args, claudePath });
@@ -196,7 +185,6 @@ export function createMcpServer(options?: LoadOptions): McpServer {
 						text: JSON.stringify(jsonOutput, null, 2),
 					},
 				],
-				structuredContent: jsonOutput,
 			};
 		},
 	);
@@ -207,7 +195,6 @@ export function createMcpServer(options?: LoadOptions): McpServer {
 		{
 			description: 'Show usage report grouped by session billing blocks',
 			inputSchema: parametersZodSchema,
-			outputSchema: blocksResponseSchema,
 		},
 		async (args) => {
 			const blocks = await loadSessionBlockData({ ...args, claudePath });
@@ -242,7 +229,6 @@ export function createMcpServer(options?: LoadOptions): McpServer {
 						text: JSON.stringify(jsonOutput, null, 2),
 					},
 				],
-				structuredContent: jsonOutput,
 			};
 		},
 	);
@@ -253,7 +239,6 @@ export function createMcpServer(options?: LoadOptions): McpServer {
 		{
 			description: 'Show Codex usage grouped by day',
 			inputSchema: codexParametersShape,
-			outputSchema: codexDailyResponseShape,
 		},
 		async (args) => {
 			const parameters = codexParametersSchema.parse(args);
@@ -265,7 +250,6 @@ export function createMcpServer(options?: LoadOptions): McpServer {
 						text: JSON.stringify(codexDaily, null, 2),
 					},
 				],
-				structuredContent: codexDaily,
 			};
 		},
 	);
@@ -276,7 +260,6 @@ export function createMcpServer(options?: LoadOptions): McpServer {
 		{
 			description: 'Show Codex usage grouped by month',
 			inputSchema: codexParametersShape,
-			outputSchema: codexMonthlyResponseShape,
 		},
 		async (args) => {
 			const parameters = codexParametersSchema.parse(args);
@@ -288,7 +271,6 @@ export function createMcpServer(options?: LoadOptions): McpServer {
 						text: JSON.stringify(codexMonthly, null, 2),
 					},
 				],
-				structuredContent: codexMonthly,
 			};
 		},
 	);
@@ -421,11 +403,6 @@ if (import.meta.vitest != null) {
 				expect((result.content as any).at(0)).toHaveProperty('type', 'text');
 				expect((result.content as any).at(0)).toHaveProperty('text');
 
-				// Test structured content
-				expect(result).toHaveProperty('structuredContent');
-				expect((result as any).structuredContent).toHaveProperty('daily');
-				expect(Array.isArray((result as any).structuredContent.daily)).toBe(true);
-
 				const data = JSON.parse((result.content as any).at(0).text as string);
 				expect(data).toHaveProperty('daily');
 				expect(data).toHaveProperty('totals');
@@ -467,12 +444,6 @@ if (import.meta.vitest != null) {
 				expect(result.content).toHaveLength(1);
 				expect((result.content as any)[0]).toHaveProperty('type', 'text');
 				expect((result.content as any)[0]).toHaveProperty('text');
-
-				// Test structured content
-				expect(result).toHaveProperty('structuredContent');
-				expect((result as any).structuredContent).toHaveProperty('sessions');
-				expect((result as any).structuredContent).toHaveProperty('totals');
-				expect(Array.isArray((result as any).structuredContent.sessions)).toBe(true);
 
 				const data = JSON.parse((result.content as any)[0].text as string);
 				expect(data).toHaveProperty('sessions');
