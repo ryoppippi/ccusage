@@ -242,6 +242,10 @@ export class LiteLLMPricingFetcher implements Disposable {
 	 * Handles all token types: input, output, cache creation, and cache read.
 	 *
 	 * @param tokens - Token counts for different types
+	 * @param tokens.input_tokens - Number of input tokens
+	 * @param tokens.output_tokens - Number of output tokens
+	 * @param tokens.cache_creation_input_tokens - Number of cache creation input tokens
+	 * @param tokens.cache_read_input_tokens - Number of cache read input tokens
 	 * @param pricing - Model pricing information from LiteLLM
 	 * @returns Total cost in USD
 	 */
