@@ -1,71 +1,69 @@
 # CLAUDE.md - Internal Package
 
-This package provides shared internal utilities for the ccusage toolchain.
+This package contains shared internal utilities for the ccusage monorepo.
 
 ## Package Overview
 
 **Name**: `@ccusage/internal`
 **Description**: Shared internal utilities for ccusage toolchain
-**Type**: Internal library package (private)
-
-## Development Commands
-
-**Testing and Quality:**
-
-- `pnpm run test` - Run all tests using vitest
-- `pnpm run lint` - Lint code using ESLint
-- `pnpm run format` - Format and auto-fix code with ESLint
-- `pnpm typecheck` - Type check with TypeScript
-
-## Architecture
-
-This package contains shared internal utilities used across the ccusage monorepo:
-
-**Key Modules:**
-
-- `src/pricing.ts` - Pricing data and model definitions
-- `src/pricing-fetch-utils.ts` - Utilities for fetching pricing data from LiteLLM
-
-**Exports:**
-
-- `./pricing` - Pricing data and model definitions
-- `./pricing-fetch-utils` - Pricing fetch utilities
-
-## Dependencies
-
-**Runtime Dependencies:**
-
-- `@praha/byethrow` - Functional error handling
-- `valibot` - Schema validation
-
-**Dev Dependencies:**
-
-- `vitest` - Testing framework
-- `eslint` - Linting and formatting
-- `fs-fixture` - Test fixture creation
-
-## Testing Guidelines
-
-- **In-Source Testing**: Tests are written in the same files using `if (import.meta.vitest != null)` blocks
-- **Vitest Globals Enabled**: Use `describe`, `it`, `expect` directly without imports
-- **CRITICAL**: NEVER use `await import()` dynamic imports anywhere, especially in test blocks
-
-## Code Style
-
-Follow the same code style guidelines as the main ccusage package:
-
-- **Error Handling**: Prefer `@praha/byethrow Result` type over try-catch
-- **Imports**: Use `.ts` extensions for local imports
-- **Exports**: Only export what's actually used
-- **No console.log**: Use proper logging utilities
-
-**Post-Change Workflow:**
-Always run these commands in parallel after code changes:
-
-- `pnpm run format` - Auto-fix and format
-- `pnpm typecheck` - Type checking
-- `pnpm run test` - Run tests
+**Type**: Internal library (private package)
 
 ## Important Notes
 
-This is a private internal package and should not be published to npm. It exists solely to share code between other packages in the monorepo.
+**CRITICAL**: This is an internal package that gets bundled into the final applications. Therefore:
+
+- **Always add this package as a `devDependency`** in apps that use it, NOT as a regular dependency
+- Apps in this monorepo (ccusage, mcp, codex) are bundled CLIs, so all their runtime dependencies should be in `devDependencies`
+- The bundler will include the code from this package in the final output
+
+## Available Exports
+
+**Utilities:**
+
+- `./pricing` - LiteLLM pricing fetcher and utilities
+- `./pricing-fetch-utils` - Pricing fetch helper functions
+- `./logger` - Logger factory using consola with LOG_LEVEL support
+- `./format` - Number formatting utilities (formatTokens, formatCurrency)
+- `./constants` - Shared constants (DEFAULT_LOCALE, MILLION)
+
+## Development Commands
+
+- `pnpm run test` - Run tests
+- `pnpm run lint` - Lint code
+- `pnpm run format` - Format and auto-fix code
+- `pnpm typecheck` - Type check with TypeScript
+
+## Adding New Utilities
+
+When adding new shared utilities:
+
+1. Create the utility file in `src/`
+2. Add the export to `package.json` exports field
+3. Import in consuming apps as `devDependencies`:
+   <!-- eslint-skip -->
+   ```json
+   "devDependencies": {
+     "@ccusage/internal": "workspace:*"
+   }
+   ```
+4. Use the utility:
+   ```typescript
+   import { createLogger } from '@ccusage/internal/logger';
+   ```
+
+## Dependencies
+
+This package has minimal runtime dependencies that get bundled:
+
+- `@praha/byethrow` - Functional error handling
+- `consola` - Logging
+- `valibot` - Schema validation
+
+## Code Style
+
+Follow the same conventions as the main ccusage package:
+
+- Use `.ts` extensions for local imports
+- Prefer `@praha/byethrow Result` type over try-catch
+- Only export what's actually used by other modules
+- Use vitest in-source testing with `if (import.meta.vitest != null)` blocks

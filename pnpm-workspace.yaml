@@ -3,6 +3,9 @@ packages:
   - docs
   - packages/*
 
+catalog:
+  consola: 3.4.2
+
 catalogMode: strict
 
 catalogs:
