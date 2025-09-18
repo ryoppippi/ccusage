@@ -41,12 +41,12 @@ deno run -E -R=$HOME/.codex/ -S=homedir -N='raw.githubusercontent.com:443' npm:@
 Since `npx @ccusage/codex@latest` is quite long to type repeatedly, we strongly recommend setting up a shell alias:
 
 ```bash
-# bash/zsh: alias codex-usage='bunx @ccusage/codex@latest'
-# fish:     alias codex-usage 'bunx @ccusage/codex@latest'
+# bash/zsh: alias ccusage-codex='bunx @ccusage/codex@latest'
+# fish:     alias ccusage-codex 'bunx @ccusage/codex@latest'
 
 # Then simply run:
-codex-usage daily
-codex-usage monthly --json
+ccusage-codex daily
+ccusage-codex monthly --json
 ```
 
 > 💡 The CLI looks for Codex session JSONL files under `CODEX_HOME` (defaults to `~/.codex`).

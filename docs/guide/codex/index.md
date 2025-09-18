@@ -30,12 +30,12 @@ Bun 1.2.x's bunx prioritizes binaries matching the package name suffix when give
 Since `npx @ccusage/codex@latest` is quite long to type repeatedly, we strongly recommend setting up a shell alias for convenience:
 
 ```bash
-# bash/zsh: alias codex-usage='bunx @ccusage/codex@latest'
-# fish:     alias codex-usage 'bunx @ccusage/codex@latest'
+# bash/zsh: alias ccusage-codex='bunx @ccusage/codex@latest'
+# fish:     alias ccusage-codex 'bunx @ccusage/codex@latest'
 
 # Then simply run:
-codex-usage daily
-codex-usage monthly --json
+ccusage-codex daily
+ccusage-codex monthly --json
 ```
 
 ::: tip
