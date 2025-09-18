@@ -56,6 +56,7 @@
 		"zod": "catalog:runtime"
 	},
 	"devDependencies": {
+		"@ccusage/internal": "workspace:*",
 		"@ryoppippi/eslint-config": "catalog:lint",
 		"clean-pkg-json": "catalog:release",
 		"eslint": "catalog:lint",

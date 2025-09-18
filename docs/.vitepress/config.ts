@@ -1,13 +1,12 @@
-import { defineConfig } from 'vitepress';
-import * as path from 'node:path';
+import type { DefaultTheme } from 'vitepress';
 import * as fs from 'node:fs';
+import * as path from 'node:path';
+import { cloudflareRedirect } from '@ryoppippi/vite-plugin-cloudflare-redirect';
+import { defineConfig } from 'vitepress';
 import { groupIconMdPlugin, groupIconVitePlugin } from 'vitepress-plugin-group-icons';
 import llmstxt from 'vitepress-plugin-llms';
-import type { DefaultTheme } from 'vitepress';
-import { cloudflareRedirect } from '@ryoppippi/vite-plugin-cloudflare-redirect';
 
-
-const typedocSidebarJson = fs.readFileSync(path.join(import.meta.dirname, '../api/typedoc-sidebar.json'))
+const typedocSidebarJson = fs.readFileSync(path.join(import.meta.dirname, '../api/typedoc-sidebar.json'));
 const typedocSidebar = JSON.parse(typedocSidebarJson.toString()) as DefaultTheme.SidebarItem[];
 
 export default defineConfig({
@@ -150,14 +149,14 @@ export default defineConfig({
 	vite: {
 		plugins: [
 			cloudflareRedirect({
-            mode: "generate",
-            entries: [
-                { from: '/raycast', to: 'https://www.raycast.com/nyatinte/ccusage', status: 302 },
-                { from: '/gh', to: 'https://github.com/ryoppippi/ccusage', status: 302 },
-                { from: '/npm', to: 'https://www.npmjs.com/package/ccusage', status: 302 },
-                { from: '/deepwiki', to: 'https://deepwiki.com/ryoppippi/ccusage', status: 302 },
-            ]
-        }) as any,
+				mode: 'generate',
+				entries: [
+					{ from: '/raycast', to: 'https://www.raycast.com/nyatinte/ccusage', status: 302 },
+					{ from: '/gh', to: 'https://github.com/ryoppippi/ccusage', status: 302 },
+					{ from: '/npm', to: 'https://www.npmjs.com/package/ccusage', status: 302 },
+					{ from: '/deepwiki', to: 'https://deepwiki.com/ryoppippi/ccusage', status: 302 },
+				],
+			}) as any,
 			groupIconVitePlugin(),
 			...llmstxt(),
 		],

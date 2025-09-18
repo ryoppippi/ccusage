@@ -17,6 +17,7 @@ ccusage session --id <session-id>
 ```
 
 This is particularly useful for:
+
 - **Custom statuslines**: Integrate specific session data into your development environment
 - **Programmatic usage**: Extract session metrics for scripts and automation
 - **Detailed analysis**: Get comprehensive data about a single conversation
@@ -41,6 +42,7 @@ echo "Current session: \$${COST}"
 ### Session ID Format
 
 Session IDs are the actual filenames (without `.jsonl` extension) stored in Claude's data directories. They typically look like:
+
 - `session-20250621-abc123-def456`
 - `project-conversation-xyz789`
 
@@ -105,6 +107,7 @@ ccusage session -i <session-id>
 ```
 
 **Use cases:**
+
 - Building custom statuslines that show current session costs
 - Creating scripts that monitor specific conversation expenses
 - Debugging or analyzing individual conversation patterns

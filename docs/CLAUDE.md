@@ -11,24 +11,30 @@ This directory contains the VitePress-based documentation website for ccusage.
 ## Development Commands
 
 **Documentation Development:**
+
 - `pnpm run dev` - Start development server with API docs generation and schema copy
 - `pnpm run build` - Build documentation site for production
 - `pnpm run preview` - Preview built documentation locally
 - `pnpm run docs:api` - Generate API documentation from TypeScript source
+- `pnpm run lint` - Lint documentation files using ESLint
+- `pnpm run format` - Format and auto-fix documentation files with ESLint
 - `pnpm typecheck` - Type check TypeScript files
 
 **Deployment:**
+
 - `pnpm run deploy` - Deploy to Cloudflare using Wrangler
 
 ## Architecture
 
 **Documentation Structure:**
+
 - `guide/` - User guides and tutorials with screenshots
 - `api/` - Auto-generated API documentation from TypeScript source
 - `public/` - Static assets including screenshots and config schema
 - `.vitepress/` - VitePress configuration and theme customization
 
 **Key Files:**
+
 - `update-api-index.ts` - Script to generate API documentation index
 - `typedoc.config.mjs` - TypeDoc configuration for API docs generation
 - `public/config-schema.json` - JSON schema copied from ccusage package during build
@@ -36,6 +42,7 @@ This directory contains the VitePress-based documentation website for ccusage.
 ## Documentation Guidelines
 
 **Screenshot Usage:**
+
 - **Placement**: Always place screenshots immediately after main headings (H1)
 - **Purpose**: Provide immediate visual context before textual explanations
 - **Guides with Screenshots**:
@@ -47,6 +54,7 @@ This directory contains the VitePress-based documentation website for ccusage.
 - **Alt Text**: Always include descriptive alt text for accessibility
 
 **Content Organization:**
+
 - User-facing guides in `guide/` directory
 - Auto-generated API reference in `api/` directory
 - Static assets and schemas in `public/` directory
@@ -61,6 +69,7 @@ This directory contains the VitePress-based documentation website for ccusage.
 ## Dependencies
 
 **Key Dev Dependencies:**
+
 - `vitepress` - Static site generator
 - `typedoc` - API documentation generation
 - `typedoc-plugin-markdown` - Markdown output for TypeDoc
@@ -69,6 +78,7 @@ This directory contains the VitePress-based documentation website for ccusage.
 - `ccusage` - Main package (workspace dependency for API docs)
 
 **VitePress Plugins:**
+
 - `vitepress-plugin-group-icons` - Group icons in navigation
 - `vitepress-plugin-llms` - LLM-specific enhancements
 - `@ryoppippi/vite-plugin-cloudflare-redirect` - Cloudflare redirect handling
@@ -88,6 +98,7 @@ This directory contains the VitePress-based documentation website for ccusage.
 - **Visual First**: Lead with screenshots, then explain with text
 - **Consistency**: Follow established patterns for new documentation pages
 - **Cross-References**: Link between related guides and API documentation
+- **ESLint in Markdown**: For code blocks that should skip ESLint parsing (e.g., containing `...` syntax), add `<!-- eslint-skip -->` before the code block
 
 ## File Organization
 

@@ -1,4 +1,5 @@
 import type { ModelPricing, TokenUsageDelta } from './_types.ts';
+import { formatCurrency, formatTokens } from '@ccusage/internal/format';
 import { MILLION } from './_consts.ts';
 
 export function createEmptyUsage(): TokenUsageDelta {
@@ -50,15 +51,4 @@ export function calculateCostUSD(usage: TokenUsageDelta, pricing: ModelPricing):
 	return inputCost + cachedCost + outputCost;
 }
 
-export function formatTokens(value: number): string {
-	return new Intl.NumberFormat('en-US').format(Math.round(value));
-}
-
-export function formatCurrency(value: number, locale?: string): string {
-	return new Intl.NumberFormat(locale ?? 'en-US', {
-		style: 'currency',
-		currency: 'USD',
-		minimumFractionDigits: 4,
-		maximumFractionDigits: 4,
-	}).format(value);
-}
+export { formatCurrency, formatTokens };

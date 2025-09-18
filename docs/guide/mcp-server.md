@@ -95,13 +95,13 @@ Update your Claude Desktop configuration to use direct execution:
 
 ```json
 {
-  "mcpServers": {
-    "ccusage": {
-      "command": "bunx",
-      "args": ["@ccusage/mcp@latest"],
-      "env": {}
-    }
-  }
+	"mcpServers": {
+		"ccusage": {
+			"command": "bunx",
+			"args": ["@ccusage/mcp@latest"],
+			"env": {}
+		}
+	}
 }
 ```
 
@@ -109,13 +109,13 @@ Or using `npx`:
 
 ```json
 {
-  "mcpServers": {
-    "ccusage": {
-      "command": "npx",
-      "args": ["@ccusage/mcp@latest"],
-      "env": {}
-    }
-  }
+	"mcpServers": {
+		"ccusage": {
+			"command": "npx",
+			"args": ["@ccusage/mcp@latest"],
+			"env": {}
+		}
+	}
 }
 ```
 
@@ -123,23 +123,23 @@ Need custom paths or cost modes? Pass them as arguments:
 
 ```json
 {
-  "mcpServers": {
-    "ccusage": {
-      "command": "bunx",
-      "args": [
-        "@ccusage/mcp@latest",
-        "--mode",
-        "calculate",
-        "--type",
-        "http",
-        "--port",
-        "8080"
-      ],
-      "env": {
-        "CLAUDE_CONFIG_DIR": "/path/to/claude/data"
-      }
-    }
-  }
+	"mcpServers": {
+		"ccusage": {
+			"command": "bunx",
+			"args": [
+				"@ccusage/mcp@latest",
+				"--mode",
+				"calculate",
+				"--type",
+				"http",
+				"--port",
+				"8080"
+			],
+			"env": {
+				"CLAUDE_CONFIG_DIR": "/path/to/claude/data"
+			}
+		}
+	}
 }
 ```
 

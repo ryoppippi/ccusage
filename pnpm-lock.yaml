@@ -169,6 +169,9 @@ catalogs:
     '@types/bun':
       specifier: ^1.2.20
       version: 1.2.22
+    '@types/react':
+      specifier: ^19.1.13
+      version: 19.1.13
     '@typescript/native-preview':
       specifier: ^7.0.0-dev.20250916.1
       version: 7.0.0-dev.20250916.1
@@ -424,6 +427,9 @@ importers:
         specifier: catalog:runtime
         version: 3.25.76
     devDependencies:
+      '@ccusage/internal':
+        specifier: workspace:*
+        version: link:../../packages/internal
       '@ryoppippi/eslint-config':
         specifier: catalog:lint
         version: 0.3.7(@vue/compiler-sfc@3.5.21)(eslint-plugin-format@1.0.1(eslint@9.35.0(jiti@2.5.1)))(eslint@9.35.0(jiti@2.5.1))(typescript@5.9.2)(vitest@3.2.4(@types/debug@4.1.12)(@types/node@24.5.1)(happy-dom@16.8.1)(jiti@2.5.1)(yaml@2.8.1))
@@ -457,15 +463,33 @@ importers:
 
   docs:
     devDependencies:
+      '@ryoppippi/eslint-config':
+        specifier: catalog:lint
+        version: 0.3.7(@vue/compiler-sfc@3.5.21)(eslint-plugin-format@1.0.1(eslint@9.35.0(jiti@2.5.1)))(eslint@9.35.0(jiti@2.5.1))(typescript@5.9.2)(vitest@3.2.4(@types/debug@4.1.12)(@types/node@24.5.1)(happy-dom@16.8.1)(jiti@2.5.1)(yaml@2.8.1))
       '@ryoppippi/vite-plugin-cloudflare-redirect':
         specifier: catalog:docs
         version: 1.1.2(vite@7.1.5(@types/node@24.5.1)(jiti@2.5.1)(yaml@2.8.1))
+      '@types/bun':
+        specifier: catalog:types
+        version: 1.2.22(@types/react@19.1.13)
+      '@types/react':
+        specifier: catalog:types
+        version: 19.1.13
       '@typescript/native-preview':
         specifier: catalog:types
         version: 7.0.0-dev.20250916.1
+      bun:
+        specifier: runtime:^1.2.21
+        version: runtime:1.2.22
       ccusage:
         specifier: workspace:^
         version: link:../apps/ccusage
+      eslint:
+        specifier: catalog:lint
+        version: 9.35.0(jiti@2.5.1)
+      eslint-plugin-format:
+        specifier: catalog:lint
+        version: 1.0.1(eslint@9.35.0(jiti@2.5.1))
       node:
         specifier: runtime:^24.4.0
         version: runtime:24.8.0
@@ -483,7 +507,7 @@ importers:
         version: 1.1.2(typedoc-plugin-markdown@4.8.1(typedoc@0.28.13(typescript@5.9.2)))
       vitepress:
         specifier: catalog:docs
-        version: 1.6.4(@algolia/client-search@5.37.0)(@types/node@24.5.1)(change-case@5.4.4)(postcss@8.5.6)(search-insights@2.17.3)(typescript@5.9.2)
+        version: 1.6.4(@algolia/client-search@5.37.0)(@types/node@24.5.1)(@types/react@19.1.13)(change-case@5.4.4)(postcss@8.5.6)(search-insights@2.17.3)(typescript@5.9.2)
       vitepress-plugin-group-icons:
         specifier: catalog:docs
         version: 1.6.3(markdown-it@14.1.0)(vite@7.1.5(@types/node@24.5.1)(jiti@2.5.1)(yaml@2.8.1))
@@ -499,6 +523,9 @@ importers:
       '@praha/byethrow':
         specifier: catalog:runtime
         version: 0.6.3
+      consola:
+        specifier: catalog:runtime
+        version: 3.4.2
       valibot:
         specifier: catalog:runtime
         version: 1.1.0(typescript@5.9.2)
@@ -5038,9 +5065,9 @@ snapshots:
 
   '@docsearch/css@3.8.2': {}
 
-  '@docsearch/js@3.8.2(@algolia/client-search@5.37.0)(search-insights@2.17.3)':
+  '@docsearch/js@3.8.2(@algolia/client-search@5.37.0)(@types/react@19.1.13)(search-insights@2.17.3)':
     dependencies:
-      '@docsearch/react': 3.8.2(@algolia/client-search@5.37.0)(search-insights@2.17.3)
+      '@docsearch/react': 3.8.2(@algolia/client-search@5.37.0)(@types/react@19.1.13)(search-insights@2.17.3)
       preact: 10.27.2
     transitivePeerDependencies:
       - '@algolia/client-search'
@@ -5049,13 +5076,14 @@ snapshots:
       - react-dom
       - search-insights
 
-  '@docsearch/react@3.8.2(@algolia/client-search@5.37.0)(search-insights@2.17.3)':
+  '@docsearch/react@3.8.2(@algolia/client-search@5.37.0)(@types/react@19.1.13)(search-insights@2.17.3)':
     dependencies:
       '@algolia/autocomplete-core': 1.17.7(@algolia/client-search@5.37.0)(algoliasearch@5.37.0)(search-insights@2.17.3)
       '@algolia/autocomplete-preset-algolia': 1.17.7(@algolia/client-search@5.37.0)(algoliasearch@5.37.0)
       '@docsearch/css': 3.8.2
       algoliasearch: 5.37.0
     optionalDependencies:
+      '@types/react': 19.1.13
       search-insights: 2.17.3
     transitivePeerDependencies:
       - '@algolia/client-search'
@@ -8904,10 +8932,10 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  vitepress@1.6.4(@algolia/client-search@5.37.0)(@types/node@24.5.1)(change-case@5.4.4)(postcss@8.5.6)(search-insights@2.17.3)(typescript@5.9.2):
+  vitepress@1.6.4(@algolia/client-search@5.37.0)(@types/node@24.5.1)(@types/react@19.1.13)(change-case@5.4.4)(postcss@8.5.6)(search-insights@2.17.3)(typescript@5.9.2):
     dependencies:
       '@docsearch/css': 3.8.2
-      '@docsearch/js': 3.8.2(@algolia/client-search@5.37.0)(search-insights@2.17.3)
+      '@docsearch/js': 3.8.2(@algolia/client-search@5.37.0)(@types/react@19.1.13)(search-insights@2.17.3)
       '@iconify-json/simple-icons': 1.2.52
       '@shikijs/core': 2.5.0
       '@shikijs/transformers': 2.5.0

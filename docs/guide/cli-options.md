@@ -94,6 +94,7 @@ ccusage monthly -z Europe/London
 #### Timezone Effect
 
 The timezone affects how usage is grouped by date. For example, usage at 11 PM UTC on January 1st would appear on:
+
 - **January 1st** when `--timezone UTC`
 - **January 1st** when `--timezone America/New_York` (6 PM EST)
 - **January 2nd** when `--timezone Asia/Tokyo` (8 AM JST next day)
@@ -121,12 +122,14 @@ ccusage daily -l fr-FR
 The locale affects display formatting:
 
 **Date Format:**
+
 - `en-US`: 08/04/2025
 - `en-CA`: 2025-08-04 (ISO format, default)
 - `ja-JP`: 2025/08/04
 - `de-DE`: 04.08.2025
 
 **Time Format:**
+
 - `en-US`: 3:30:00 PM (12-hour)
 - Others: 15:30:00 (24-hour)
 
@@ -322,17 +325,17 @@ LOG_LEVEL=0 ccusage daily --json
 
 Many options have short aliases for convenience:
 
-| Long Option | Short | Description |
-|------------|-------|-------------|
-| `--json` | `-j` | JSON output |
-| `--breakdown` | `-b` | Per-model breakdown |
-| `--offline` | `-O` | Offline mode |
-| `--timezone` | `-z` | Set timezone |
-| `--locale` | `-l` | Set locale |
-| `--instances` | `-i` | Group by project |
-| `--project` | `-p` | Filter project |
-| `--active` | `-a` | Active block only |
-| `--recent` | `-r` | Recent blocks |
+| Long Option   | Short | Description         |
+| ------------- | ----- | ------------------- |
+| `--json`      | `-j`  | JSON output         |
+| `--breakdown` | `-b`  | Per-model breakdown |
+| `--offline`   | `-O`  | Offline mode        |
+| `--timezone`  | `-z`  | Set timezone        |
+| `--locale`    | `-l`  | Set locale          |
+| `--instances` | `-i`  | Group by project    |
+| `--project`   | `-p`  | Filter project      |
+| `--active`    | `-a`  | Active block only   |
+| `--recent`    | `-r`  | Recent blocks       |
 
 ## Related Documentation
 

@@ -11,17 +11,17 @@ import pc from 'picocolors';
 import { DEFAULT_TIMEZONE } from '../_consts.ts';
 import { sharedArgs } from '../_shared-args.ts';
 import { formatModelsList, splitUsageTokens } from '../command-utils.ts';
-import { buildDailyReport } from '../daily-report.ts';
 import { loadTokenUsageEvents } from '../data-loader.ts';
-import { normalizeFilterDate } from '../date-utils.ts';
+import { formatDisplayDate, formatDisplayDateTime, normalizeFilterDate, toDateKey } from '../date-utils.ts';
 import { log, logger } from '../logger.ts';
 import { CodexPricingSource } from '../pricing.ts';
+import { buildSessionReport } from '../session-report.ts';
 
-const TABLE_COLUMN_COUNT = 8;
+const TABLE_COLUMN_COUNT = 11;
 
-export const dailyCommand = define({
-	name: 'daily',
-	description: 'Show Codex token usage grouped by day',
+export const sessionCommand = define({
+	name: 'session',
+	description: 'Show Codex token usage grouped by session',
 	args: sharedArgs,
 	async run(ctx) {
 		const jsonOutput = Boolean(ctx.values.json);
@@ -48,7 +48,7 @@ export const dailyCommand = define({
 		}
 
 		if (events.length === 0) {
-			log(jsonOutput ? JSON.stringify({ daily: [], totals: null }) : 'No Codex usage data found.');
+			log(jsonOutput ? JSON.stringify({ sessions: [], totals: null }) : 'No Codex usage data found.');
 			return;
 		}
 
@@ -56,7 +56,7 @@ export const dailyCommand = define({
 			offline: ctx.values.offline,
 		});
 		try {
-			const rows = await buildDailyReport(events, {
+			const rows = await buildSessionReport(events, {
 				pricingSource,
 				timezone: ctx.values.timezone,
 				locale: ctx.values.locale,
@@ -65,7 +65,7 @@ export const dailyCommand = define({
 			});
 
 			if (rows.length === 0) {
-				log(jsonOutput ? JSON.stringify({ daily: [], totals: null }) : 'No Codex usage data found for provided filters.');
+				log(jsonOutput ? JSON.stringify({ sessions: [], totals: null }) : 'No Codex usage data found for provided filters.');
 				return;
 			}
 
@@ -88,19 +88,19 @@ export const dailyCommand = define({
 
 			if (jsonOutput) {
 				log(JSON.stringify({
-					daily: rows,
+					sessions: rows,
 					totals,
 				}, null, 2));
 				return;
 			}
 
-			logger.box(`Codex Token Usage Report - Daily (Timezone: ${ctx.values.timezone ?? DEFAULT_TIMEZONE})`);
+			logger.box(`Codex Token Usage Report - Sessions (Timezone: ${ctx.values.timezone ?? DEFAULT_TIMEZONE})`);
 
 			const table: ResponsiveTable = new ResponsiveTable({
-				head: ['Date', 'Models', 'Input', 'Output', 'Reasoning', 'Cache Read', 'Total Tokens', 'Cost (USD)'],
-				colAligns: ['left', 'left', 'right', 'right', 'right', 'right', 'right', 'right'],
-				compactHead: ['Date', 'Models', 'Input', 'Output', 'Cost (USD)'],
-				compactColAligns: ['left', 'left', 'right', 'right', 'right'],
+				head: ['Date', 'Directory', 'Session', 'Models', 'Input', 'Output', 'Reasoning', 'Cache Read', 'Total Tokens', 'Cost (USD)', 'Last Activity'],
+				colAligns: ['left', 'left', 'left', 'left', 'right', 'right', 'right', 'right', 'right', 'right', 'left'],
+				compactHead: ['Date', 'Directory', 'Session', 'Input', 'Output', 'Cost (USD)'],
+				compactColAligns: ['left', 'left', 'left', 'right', 'right', 'right'],
 				compactThreshold: 100,
 				forceCompact: ctx.values.compact,
 				style: { head: ['cyan'] },
@@ -124,8 +124,16 @@ export const dailyCommand = define({
 				totalsForDisplay.totalTokens += row.totalTokens;
 				totalsForDisplay.costUSD += row.costUSD;
 
+				const dateKey = toDateKey(row.lastActivity, ctx.values.timezone);
+				const displayDate = formatDisplayDate(dateKey, ctx.values.locale, ctx.values.timezone);
+				const directoryDisplay = row.directory === '' ? '-' : row.directory;
+				const sessionFile = row.sessionFile;
+				const shortSession = sessionFile.length > 8 ? `…${sessionFile.slice(-8)}` : sessionFile;
+
 				table.push([
-					row.date,
+					displayDate,
+					directoryDisplay,
+					shortSession,
 					formatModelsDisplayMultiline(formatModelsList(row.models)),
 					formatNumber(split.inputTokens),
 					formatNumber(split.outputTokens),
@@ -133,11 +141,14 @@ export const dailyCommand = define({
 					formatNumber(split.cacheReadTokens),
 					formatNumber(row.totalTokens),
 					formatCurrency(row.costUSD),
+					formatDisplayDateTime(row.lastActivity, ctx.values.locale, ctx.values.timezone),
 				]);
 			}
 
 			addEmptySeparatorRow(table, TABLE_COLUMN_COUNT);
 			table.push([
+				'',
+				'',
 				pc.yellow('Total'),
 				'',
 				pc.yellow(formatNumber(totalsForDisplay.inputTokens)),
@@ -146,13 +157,14 @@ export const dailyCommand = define({
 				pc.yellow(formatNumber(totalsForDisplay.cacheReadTokens)),
 				pc.yellow(formatNumber(totalsForDisplay.totalTokens)),
 				pc.yellow(formatCurrency(totalsForDisplay.costUSD)),
+				'',
 			]);
 
 			log(table.toString());
 
 			if (table.isCompactMode()) {
 				logger.info('\nRunning in Compact Mode');
-				logger.info('Expand terminal width to see cache metrics and total tokens');
+				logger.info('Expand terminal width to see directories, cache metrics, total tokens, and last activity');
 			}
 		}
 		finally {
