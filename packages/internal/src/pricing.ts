@@ -198,12 +198,7 @@ export class LiteLLMPricingFetcher implements Disposable {
 	async getModelContextLimit(modelName: string): Result.ResultAsync<number | null, Error> {
 		return Result.pipe(
 			this.getModelPricing(modelName),
-			Result.map((pricing) => {
-				if (pricing == null) {
-					return null;
-				}
-				return pricing.max_input_tokens ?? null;
-			}),
+			Result.map(pricing => pricing?.max_input_tokens ?? null),
 		);
 	}
 
