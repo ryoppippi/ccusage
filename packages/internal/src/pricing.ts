@@ -207,6 +207,17 @@ export class LiteLLMPricingFetcher implements Disposable {
 		);
 	}
 
+	/**
+	 * Calculate the total cost for token usage based on model pricing
+	 *
+	 * Supports tiered pricing for 1M context window models where tokens
+	 * above 200k are charged at a different rate. Handles all token types:
+	 * input, output, cache creation, and cache read.
+	 *
+	 * @param tokens - Token counts for different types
+	 * @param pricing - Model pricing information from LiteLLM
+	 * @returns Total cost in USD
+	 */
 	calculateCostFromPricing(
 		tokens: {
 			input_tokens: number;
@@ -218,6 +229,19 @@ export class LiteLLMPricingFetcher implements Disposable {
 	): number {
 		const CONTEXT_THRESHOLD = 200_000;
 
+		/**
+		 * Calculate cost with tiered pricing for 1M context window models
+		 *
+		 * @param totalTokens - Total number of tokens to calculate cost for
+		 * @param basePrice - Price per token for tokens up to 200k threshold
+		 * @param tieredPrice - Price per token for tokens above 200k threshold
+		 * @returns Total cost applying tiered pricing when applicable
+		 *
+		 * @example
+		 * // 300k tokens with base price $3/M and tiered price $6/M
+		 * calculateTieredCost(300_000, 3e-6, 6e-6)
+		 * // Returns: (200_000 * 3e-6) + (100_000 * 6e-6) = $1.2
+		 */
 		const calculateTieredCost = (
 			totalTokens: number | undefined,
 			basePrice: number | undefined,
