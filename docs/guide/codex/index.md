@@ -9,12 +9,38 @@ The `@ccusage/codex` package reuses ccusage's responsive tables, pricing cache, 
 ## Installation & Launch
 
 ```bash
-# Recommended (fastest)
-bunx @ccusage/codex --help
-
-# Using npx
+# Recommended - always include @latest
 npx @ccusage/codex@latest --help
+bunx @ccusage/codex@latest --help  # ⚠️ MUST include @latest with bunx
+
+# Alternative package runners
+pnpm dlx @ccusage/codex --help
+pnpx @ccusage/codex --help
+
+# Using deno (with security flags)
+deno run -E -R=$HOME/.codex/ -S=homedir -N='raw.githubusercontent.com:443' npm:@ccusage/codex@latest --help
 ```
+
+::: warning ⚠️ Critical for bunx users
+Bun 1.2.x's bunx prioritizes binaries matching the package name suffix when given a scoped package. For `@ccusage/codex`, it looks for a `codex` binary in PATH first. If you have an existing `codex` command installed (e.g., GitHub Copilot's codex), that will be executed instead. **Always use `bunx @ccusage/codex@latest` with the version tag** to force bunx to fetch and run the correct package.
+:::
+
+### Recommended: Shell Alias
+
+Since `npx @ccusage/codex@latest` is quite long to type repeatedly, we strongly recommend setting up a shell alias for convenience:
+
+```bash
+# bash/zsh: alias ccusage-codex='bunx @ccusage/codex@latest'
+# fish:     alias ccusage-codex 'bunx @ccusage/codex@latest'
+
+# Then simply run:
+ccusage-codex daily
+ccusage-codex monthly --json
+```
+
+::: tip
+After adding the alias to your shell config file (`.bashrc`, `.zshrc`, or `config.fish`), restart your shell or run `source` on the config file to apply the changes.
+:::
 
 ## Data Source
 
