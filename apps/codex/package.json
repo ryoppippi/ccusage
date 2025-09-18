@@ -29,10 +29,7 @@
 		"format": "pnpm run lint --fix",
 		"lint": "eslint --cache .",
 		"prepack": "pnpm run build && clean-pkg-json",
-		"prerelease": "pnpm /^prerelease:/",
-		"prerelease:build": "pnpm run build",
-		"prerelease:lint": "pnpm run lint",
-		"prerelease:typecheck": "pnpm typecheck",
+		"prerelease": "pnpm run lint && pnpm run typecheck && pnpm run build",
 		"start": "bun ./src/index.ts",
 		"test": "TZ=UTC vitest",
 		"typecheck": "tsgo --noEmit"
