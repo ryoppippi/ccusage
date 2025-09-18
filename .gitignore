@@ -36,5 +36,5 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 .eslintcache
 
 # lsmcp cache
-.lsmcp/cache
+symbols.db
 
