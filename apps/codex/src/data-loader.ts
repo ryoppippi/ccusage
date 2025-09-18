@@ -5,6 +5,7 @@ import process from 'node:process';
 import { Result } from '@praha/byethrow';
 import { createFixture } from 'fs-fixture';
 import { glob } from 'tinyglobby';
+import * as v from 'valibot';
 import { CODEX_HOME_ENV, DEFAULT_CODEX_DIR, DEFAULT_SESSION_SUBDIR, SESSION_GLOB } from './_consts.ts';
 import { logger } from './logger.ts';
 
@@ -67,30 +68,77 @@ function convertToDelta(raw: RawUsage): TokenUsageDelta {
 	};
 }
 
+const recordSchema = v.record(v.string(), v.unknown());
+
+const entrySchema = v.object({
+	type: v.string(),
+	payload: v.optional(v.unknown()),
+	timestamp: v.optional(v.string()),
+});
+
+const tokenCountPayloadSchema = v.object({
+	type: v.literal('token_count'),
+	info: v.optional(recordSchema),
+});
+
 function extractModel(value: unknown): string | undefined {
-	if (value == null || typeof value !== 'object') {
+	const parsed = v.safeParse(recordSchema, value);
+	if (!parsed.success) {
 		return undefined;
 	}
 
-	const payload = value as Record<string, unknown>;
-	const info = payload.info;
-	if (typeof info === 'object' && info != null) {
-		const infoRecord = info as Record<string, unknown>;
-		const modelCandidates = [
-			infoRecord.model,
-			infoRecord.model_name,
-			(infoRecord.metadata as Record<string, unknown> | undefined)?.model,
-		];
+	const payload = parsed.output;
 
-		for (const candidate of modelCandidates) {
-			if (typeof candidate === 'string' && candidate.trim() !== '') {
-				return candidate;
+	const infoCandidate = payload.info;
+	if (infoCandidate != null) {
+		const infoParsed = v.safeParse(recordSchema, infoCandidate);
+		if (infoParsed.success) {
+			const info = infoParsed.output;
+			const directCandidates = [info.model, info.model_name];
+			for (const candidate of directCandidates) {
+				const model = asNonEmptyString(candidate);
+				if (model != null) {
+					return model;
+				}
+			}
+
+			if (info.metadata != null) {
+				const metadataParsed = v.safeParse(recordSchema, info.metadata);
+				if (metadataParsed.success) {
+					const model = asNonEmptyString(metadataParsed.output.model);
+					if (model != null) {
+						return model;
+					}
+				}
 			}
 		}
 	}
 
-	const candidate = payload.model ?? (payload.metadata as Record<string, unknown> | undefined)?.model;
-	return typeof candidate === 'string' && candidate.trim() !== '' ? candidate : undefined;
+	const fallbackModel = asNonEmptyString(payload.model);
+	if (fallbackModel != null) {
+		return fallbackModel;
+	}
+
+	if (payload.metadata != null) {
+		const metadataParsed = v.safeParse(recordSchema, payload.metadata);
+		if (metadataParsed.success) {
+			const model = asNonEmptyString(metadataParsed.output.model);
+			if (model != null) {
+				return model;
+			}
+		}
+	}
+
+	return undefined;
+}
+
+function asNonEmptyString(value: unknown): string | undefined {
+	if (typeof value !== 'string') {
+		return undefined;
+	}
+
+	const trimmed = value.trim();
+	return trimmed === '' ? undefined : trimmed;
 }
 
 export type LoadOptions = {
@@ -160,7 +208,7 @@ export async function loadTokenUsageEvents(options: LoadOptions = {}): Promise<L
 				}
 
 				const parseLine = Result.try({
-					try: () => JSON.parse(trimmed) as Record<string, unknown>,
+					try: () => JSON.parse(trimmed) as unknown,
 					catch: error => error,
 				});
 				const parsedResult = parseLine();
@@ -169,18 +217,20 @@ export async function loadTokenUsageEvents(options: LoadOptions = {}): Promise<L
 					continue;
 				}
 
-				const entry = parsedResult.value;
-				if (entry == null || typeof entry !== 'object') {
+				const entryParse = v.safeParse(entrySchema, parsedResult.value);
+				if (!entryParse.success) {
 					continue;
 				}
 
-				const entryType = entry.type as string | undefined;
+				const { type: entryType, payload, timestamp } = entryParse.output;
 
 				if (entryType === 'turn_context') {
-					const contextPayload = entry.payload as Record<string, unknown> | undefined;
-					const contextModel = extractModel(contextPayload);
-					if (contextModel != null) {
-						currentModel = contextModel;
+					const contextPayload = v.safeParse(recordSchema, payload ?? null);
+					if (contextPayload.success) {
+						const contextModel = extractModel(contextPayload.output);
+						if (contextModel != null) {
+							currentModel = contextModel;
+						}
 					}
 					continue;
 				}
@@ -189,17 +239,16 @@ export async function loadTokenUsageEvents(options: LoadOptions = {}): Promise<L
 					continue;
 				}
 
-				const payload = entry.payload as Record<string, unknown> | undefined;
-				if (payload?.type !== 'token_count') {
+				const tokenPayloadResult = v.safeParse(tokenCountPayloadSchema, payload ?? undefined);
+				if (!tokenPayloadResult.success) {
 					continue;
 				}
 
-				const timestamp = entry.timestamp;
-				if (typeof timestamp !== 'string') {
+				if (timestamp == null) {
 					continue;
 				}
 
-				const info = payload.info as Record<string, unknown> | undefined;
+				const info = tokenPayloadResult.output.info;
 				const lastUsage = normalizeRawUsage(info?.last_token_usage);
 				const totalUsage = normalizeRawUsage(info?.total_token_usage);
 
@@ -226,7 +275,11 @@ export async function loadTokenUsageEvents(options: LoadOptions = {}): Promise<L
 					continue;
 				}
 
-				const model = extractModel({ ...payload, info }) ?? currentModel;
+				const payloadRecordResult = v.safeParse(recordSchema, payload ?? undefined);
+				const extractionSource = payloadRecordResult.success
+					? Object.assign({}, payloadRecordResult.output, { info })
+					: { info };
+				const model = extractModel(extractionSource) ?? currentModel;
 				if (model == null) {
 					logger.debug('Skipping Codex token event without model metadata', { file, timestamp });
 					continue;
