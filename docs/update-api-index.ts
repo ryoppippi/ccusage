@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 
 /**
  * Post-processing script to update API index with module descriptions
@@ -6,9 +6,6 @@
 
 import { join } from 'node:path';
 import process from 'node:process';
-import { promises as fs } from 'node:fs';
-import { spawn } from 'node:child_process';
-import { promisify } from 'node:util';
 
 const descriptions = {
 	'\\_consts': 'Internal constants (not exported in public API)',
@@ -21,10 +18,10 @@ const descriptions = {
 } as const;
 
 async function updateApiIndex() {
-	const apiIndexPath = join(process.cwd(), 'api', 'index.md');
+	const apiIndexPath = join(import.meta.dirname, 'api', 'index.md');
 
 	try {
-		let content = await fs.readFile(apiIndexPath, 'utf8');
+		let content = await Bun.file(apiIndexPath).text();
 
 		// Replace empty descriptions with actual ones
 		for (const [module, description] of Object.entries(descriptions)) {
@@ -38,7 +35,7 @@ async function updateApiIndex() {
 			content = content.replace(oldPattern, `| [${module}](${linkPath}) | ${description} |`);
 		}
 
-		await fs.writeFile(apiIndexPath, content, 'utf8');
+		await Bun.write(apiIndexPath, content);
 		console.log('✅ Updated API index with module descriptions');
 	}
 	catch (error) {
@@ -48,10 +45,10 @@ async function updateApiIndex() {
 }
 
 async function updateConstsPage() {
-	const constsIndexPath = join(process.cwd(), 'api', 'consts', 'index.md');
+	const constsIndexPath = join(import.meta.dirname, 'api', 'consts', 'index.md');
 
 	try {
-		let content = await fs.readFile(constsIndexPath, 'utf8');
+		let content = await Bun.file(constsIndexPath).text();
 
 		// Add note about constants not being exported (only if not already present)
 		const noteText = '> **Note**: These constants are internal implementation details and are not exported in the public API. They are documented here for reference purposes only.';
@@ -65,7 +62,7 @@ ${noteText}`;
 			content = content.replace(oldHeader, newHeader);
 		}
 
-		await fs.writeFile(constsIndexPath, content, 'utf8');
+		await Bun.write(constsIndexPath, content);
 		console.log('✅ Updated constants page with disclaimer');
 	}
 	catch (error) {
@@ -74,12 +71,8 @@ ${noteText}`;
 	}
 }
 
-async function main() {
-	const { execFile } = await import('node:child_process');
-	const execFileAsync = promisify(execFile);
-	await execFileAsync('pnpm', ['typedoc', '--excludeInternal']);
+if(import.meta.main) {
+	await Bun.$`bun -b typedoc --excludeInternal --options ./typedoc.config.ts`;
 	await updateApiIndex();
 	await updateConstsPage();
 }
-
-await main();
