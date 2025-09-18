@@ -14,6 +14,19 @@
 	"bugs": {
 		"url": "https://github.com/ryoppippi/ccusage/issues"
 	},
+	"exports": {
+		".": "./src/index.ts",
+		"./claude-code": "./src/claude-code.ts",
+		"./cli": "./src/cli.ts",
+		"./codex": "./src/codex.ts",
+		"./command": "./src/command.ts",
+		"./consts": "./src/consts.ts",
+		"./mcp": "./src/mcp.ts",
+		"./package.json": "./package.json"
+	},
+	"main": "./dist/index.js",
+	"module": "./dist/index.js",
+	"types": "./dist/index.d.ts",
 	"bin": {
 		"ccusage-mcp": "./src/index.ts"
 	},
@@ -59,6 +72,16 @@
 	"publishConfig": {
 		"bin": {
 			"ccusage-mcp": "./dist/index.js"
+		},
+		"exports": {
+			".": "./dist/index.js",
+			"./claude-code": "./dist/claude-code.js",
+			"./cli": "./dist/cli.js",
+			"./codex": "./dist/codex.js",
+			"./command": "./dist/command.js",
+			"./consts": "./dist/consts.js",
+			"./mcp": "./dist/mcp.js",
+			"./package.json": "./package.json"
 		}
 	},
 	"devEngines": {
