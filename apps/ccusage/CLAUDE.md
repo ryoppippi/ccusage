@@ -92,6 +92,8 @@ Always run these commands in parallel after code changes:
 
 ## Dependencies
 
+Because `ccusage` is distributed as a bundled CLI, keep all runtime libraries in `devDependencies` so the bundler captures them.
+
 **Key Runtime Dependencies:**
 
 - `gunshi` - CLI framework

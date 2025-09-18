@@ -52,6 +52,24 @@ claude mcp add ccusage npx -- @ccusage/mcp@latest
 
 For full documentation, visit **[ccusage.com/guide/mcp-server](https://ccusage.com/guide/mcp-server)**
 
+## Sponsors
+
+### Featured Sponsor
+
+Check out [ccusage: The Claude Code cost scorecard that went viral](https://www.youtube.com/watch?v=Ak6qpQ5qdgk)
+
+<p align="center">
+    <a href="https://www.youtube.com/watch?v=Ak6qpQ5qdgk">
+        <img src="https://cdn.jsdelivr.net/gh/ryoppippi/ccusage@main/docs/public/ccusage_thumbnail.png" alt="ccusage: The Claude Code cost scorecard that went viral" width="600">
+    </a>
+</p>
+
+<p align="center">
+    <a href="https://github.com/sponsors/ryoppippi">
+        <img src="https://cdn.jsdelivr.net/gh/ryoppippi/sponsors@main/sponsors.svg">
+    </a>
+</p>
+
 ## License
 
-MIT
+MIT © [@ryoppippi](https://github.com/ryoppippi)

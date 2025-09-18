@@ -12,6 +12,10 @@ This is a monorepo containing multiple packages. For package-specific guidance, 
 
 Each package has its own development commands, dependencies, and specific guidelines. Always check the relevant package's CLAUDE.md when working within that package directory.
 
+### Apps Are Bundled
+
+All projects under `apps/` ship as bundled CLIs/binaries. Treat their runtime dependencies as bundled assets: list everything in each app's `devDependencies` (never `dependencies`) so the bundler owns the runtime payload.
+
 ## Guide for lsmcp mcp
 
 You are a professional coding agent concerned with one particular codebase. You have

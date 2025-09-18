@@ -1,0 +1,27 @@
+{
+	"name": "@ccusage/internal",
+	"type": "module",
+	"version": "0.1.0",
+	"private": true,
+	"description": "Shared internal utilities for ccusage toolchain",
+	"exports": {
+		"./pricing": "./src/pricing.ts",
+		"./pricing-fetch-utils": "./src/pricing-fetch-utils.ts"
+	},
+	"scripts": {
+		"format": "pnpm run lint --fix",
+		"lint": "eslint --cache .",
+		"test": "TZ=UTC vitest",
+		"typecheck": "tsgo --noEmit"
+	},
+	"dependencies": {
+		"@praha/byethrow": "catalog:runtime",
+		"valibot": "catalog:runtime"
+	},
+	"devDependencies": {
+		"@ryoppippi/eslint-config": "catalog:lint",
+		"eslint": "catalog:lint",
+		"fs-fixture": "catalog:testing",
+		"vitest": "catalog:testing"
+	}
+}

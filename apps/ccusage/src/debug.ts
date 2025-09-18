@@ -14,9 +14,9 @@ import { createFixture } from 'fs-fixture';
 import { glob } from 'tinyglobby';
 import * as v from 'valibot';
 import { CLAUDE_PROJECTS_DIR_NAME, DEBUG_MATCH_THRESHOLD_PERCENT, USAGE_DATA_GLOB_PATTERN } from './_consts.ts';
+import { PricingFetcher } from './_pricing-fetcher.ts';
 import { getClaudePaths, usageDataSchema } from './data-loader.ts';
 import { logger } from './logger.ts';
-import { PricingFetcher } from './pricing-fetcher.ts';
 
 /**
  * Represents a pricing discrepancy between original and calculated costs
