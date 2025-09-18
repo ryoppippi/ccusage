@@ -331,16 +331,16 @@ export const statuslineCommand = define({
 					);
 
 					// Load session block data to find active block
-					// Only process files modified in the last 6 hours for block data
+					// Only process files modified in the last 24 hours for block data
 					// This ensures we capture the current blocks without processing all historical data
-					const sixHoursAgo = new Date(Date.now() - 6 * 60 * 60 * 1000);
+					const lastBlocksTime = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
 					const { blockInfo, burnRateInfo } = await Result.pipe(
 						Result.try({
 							try: async () => loadSessionBlockData({
 								mode: 'auto',
 								offline: mergedOptions.offline,
-								minUpdateTime: sixHoursAgo,
+								minUpdateTime: lastBlocksTime,
 							}),
 							catch: error => error,
 						})(),
