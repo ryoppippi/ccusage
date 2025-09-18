@@ -25,6 +25,23 @@ deno run -E -R=$HOME/.codex/ -S=homedir -N='raw.githubusercontent.com:443' npm:@
 Bun 1.2.x's bunx prioritizes binaries matching the package name suffix when given a scoped package. For `@ccusage/codex`, it looks for a `codex` binary in PATH first. If you have an existing `codex` command installed (e.g., GitHub Copilot's codex), that will be executed instead. **Always use `bunx @ccusage/codex@latest` with the version tag** to force bunx to fetch and run the correct package.
 :::
 
+### Recommended: Shell Alias
+
+Since `npx @ccusage/codex@latest` is quite long to type repeatedly, we strongly recommend setting up a shell alias for convenience:
+
+```bash
+# bash/zsh: alias codex-usage='bunx @ccusage/codex@latest'
+# fish:     alias codex-usage 'bunx @ccusage/codex@latest'
+
+# Then simply run:
+codex-usage daily
+codex-usage monthly --json
+```
+
+::: tip
+After adding the alias to your shell config file (`.bashrc`, `.zshrc`, or `config.fish`), restart your shell or run `source` on the config file to apply the changes.
+:::
+
 ## Data Source
 
 The CLI reads Codex session JSONL files located under `CODEX_HOME` (defaults to `~/.codex`). Each file represents a single Codex CLI session and contains running token totals that the tool converts into per-day or per-month deltas.
