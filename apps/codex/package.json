@@ -55,7 +55,7 @@
 	},
 	"publishConfig": {
 		"bin": {
-			"ccusage-codex": "./src/index.ts"
+			"ccusage-codex": "./dist/index.js"
 		}
 	},
 	"devEngines": {
