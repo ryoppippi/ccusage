@@ -20,6 +20,20 @@
 
 > Analyze your Claude Code token usage and costs from local JSONL files — incredibly fast and informative!
 
+## ccusage Family
+
+### 📊 [ccusage](https://www.npmjs.com/package/ccusage) - Claude Code Usage Analyzer
+
+The main CLI tool for analyzing Claude Code usage from local JSONL files. Track daily, monthly, and session-based usage with beautiful tables and live monitoring.
+
+### 🤖 [@ccusage/codex](https://www.npmjs.com/package/@ccusage/codex) - OpenAI Codex Usage Analyzer
+
+Companion tool for analyzing OpenAI Codex usage. Same powerful features as ccusage but tailored for Codex users, including GPT-5 support and 1M token context windows.
+
+### 🔌 [@ccusage/mcp](https://www.npmjs.com/package/@ccusage/mcp) - MCP Server Integration
+
+Model Context Protocol server that exposes ccusage data to Claude Desktop and other MCP-compatible tools. Enable real-time usage tracking directly in your AI workflows.
+
 ## Installation
 
 ### Quick Start (Recommended)
@@ -27,17 +41,51 @@
 Thanks to ccusage's incredibly small bundle size ([![install size](https://packagephobia.com/badge?p=ccusage)](https://packagephobia.com/result?p=ccusage)), you can run it directly without installation:
 
 ```bash
-# Using bunx (recommended for speed)
+# Recommended - always include @latest to ensure you get the newest version
+npx ccusage@latest
 bunx ccusage
 
-# Using npx
-npx ccusage@latest
+# Alternative package runners
+pnpm dlx ccusage
+pnpx ccusage
 
 # Using deno (with security flags)
 deno run -E -R=$HOME/.claude/projects/ -S=homedir -N='raw.githubusercontent.com:443' npm:ccusage@latest
 ```
 
-> 💡 **Tip**: We recommend using `bunx` instead of `npx` for a massive speed improvement!
+> 💡 **Important**: We strongly recommend using `@latest` suffix with npx (e.g., `npx ccusage@latest`) to ensure you're running the most recent version with the latest features and bug fixes.
+
+### Related Tools
+
+#### Codex CLI
+
+Analyze OpenAI Codex usage with our companion tool [@ccusage/codex](https://www.npmjs.com/package/@ccusage/codex):
+
+```bash
+# Recommended - always include @latest
+npx @ccusage/codex@latest
+bunx @ccusage/codex@latest  # ⚠️ MUST include @latest with bunx
+
+# Alternative package runners
+pnpm dlx @ccusage/codex
+pnpx @ccusage/codex
+
+# Using deno (with security flags)
+deno run -E -R=$HOME/.codex/ -S=homedir -N='raw.githubusercontent.com:443' npm:@ccusage/codex@latest
+```
+
+> ⚠️ **Critical for bunx users**: Bun 1.2.x's bunx prioritizes binaries matching the package name suffix when given a scoped package. For `@ccusage/codex`, it looks for a `codex` binary in PATH first. If you have an existing `codex` command installed (e.g., GitHub Copilot's codex), that will be executed instead. **Always use `bunx @ccusage/codex@latest` with the version tag** to force bunx to fetch and run the correct package.
+
+#### MCP Server
+
+Integrate ccusage with Claude Desktop using [@ccusage/mcp](https://www.npmjs.com/package/@ccusage/mcp):
+
+```bash
+# Start MCP server for Claude Desktop integration
+npx @ccusage/mcp@latest --type http --port 8080
+```
+
+This enables real-time usage tracking and analysis directly within Claude Desktop conversations.
 
 ## Usage
 
@@ -68,9 +116,6 @@ npx ccusage daily --instances --project myproject --json  # Combined usage
 # Compact mode for screenshots/sharing
 npx ccusage --compact  # Force compact table mode
 npx ccusage monthly --compact  # Compact monthly report
-
-# MCP Server (Model Context Protocol)
-npx @ccusage/mcp@latest  # Run MCP server for Claude Desktop integration
 ```
 
 ## Features

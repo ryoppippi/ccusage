@@ -22,12 +22,19 @@
 ## Quick Start
 
 ```bash
-# Recommended (fastest)
-bunx @ccusage/codex --help
-
-# Using npx
+# Recommended - always include @latest
 npx @ccusage/codex@latest --help
+bunx @ccusage/codex@latest --help  # ⚠️ MUST include @latest with bunx
+
+# Alternative package runners
+pnpm dlx @ccusage/codex
+pnpx @ccusage/codex
+
+# Using deno (with security flags)
+deno run -E -R=$HOME/.codex/ -S=homedir -N='raw.githubusercontent.com:443' npm:@ccusage/codex@latest --help
 ```
+
+> ⚠️ **Critical for bunx users**: Bun 1.2.x's bunx prioritizes binaries matching the package name suffix when given a scoped package. For `@ccusage/codex`, it looks for a `codex` binary in PATH first. If you have an existing `codex` command installed (e.g., GitHub Copilot's codex), that will be executed instead. **Always use `bunx @ccusage/codex@latest` with the version tag** to force bunx to fetch and run the correct package.
 
 > 💡 The CLI looks for Codex session JSONL files under `CODEX_HOME` (defaults to `~/.codex`).
 
@@ -35,19 +42,19 @@ npx @ccusage/codex@latest --help
 
 ```bash
 # Daily usage grouped by date (default command)
-bunx @ccusage/codex daily
+npx @ccusage/codex@latest daily
 
 # Date range filtering
-bunx @ccusage/codex daily --since 20250911 --until 20250917
+npx @ccusage/codex@latest daily --since 20250911 --until 20250917
 
 # JSON output for scripting
-bunx @ccusage/codex daily --json
+npx @ccusage/codex@latest daily --json
 
 # Monthly usage grouped by month
-bunx @ccusage/codex monthly
+npx @ccusage/codex@latest monthly
 
 # Monthly JSON report for integrations
-bunx @ccusage/codex monthly --json
+npx @ccusage/codex@latest monthly --json
 ```
 
 Useful environment variables:
