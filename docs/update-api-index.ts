@@ -1,4 +1,6 @@
 #!/usr/bin/env bun
+/* eslint-disable antfu/no-top-level-await */
+/* eslint-disable no-console */
 
 /**
  * Post-processing script to update API index with module descriptions
