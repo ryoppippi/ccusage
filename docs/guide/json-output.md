@@ -26,6 +26,8 @@ ccusage blocks --json
 
 Standard daily reports aggregate usage across all projects:
 
+<!-- eslint-skip -->
+
 ```json
 {
 	"daily": [
@@ -55,6 +57,8 @@ Standard daily reports aggregate usage across all projects:
 ### Daily Reports (Project-Grouped)
 
 When using `--instances`, daily reports group usage by project:
+
+<!-- eslint-skip -->
 
 ```json
 {
@@ -103,7 +107,7 @@ When using `--instances`, daily reports group usage by project:
 # Standard aggregated output
 ccusage daily --json
 
-# Project-grouped output  
+# Project-grouped output
 ccusage daily --instances --json
 
 # Filter to specific project
@@ -384,7 +388,7 @@ if 'projects' in project_data:
     for project_name, daily_entries in project_data['projects'].items():
         project_total = sum(day['totalCost'] for day in daily_entries)
         print(f"Project {project_name}: ${project_total:.2f}")
-        
+
     # Find highest spending project
     project_totals = {
         project: sum(day['totalCost'] for day in days)
@@ -425,9 +429,9 @@ if (projectData.projects) {
 
 	// Sort by cost descending
 	projectCosts.sort((a, b) => b.totalCost - a.totalCost);
-	
+
 	console.log('Project Usage Summary:');
-	projectCosts.forEach(project => {
+	projectCosts.forEach((project) => {
 		console.log(`${project.name}: $${project.totalCost.toFixed(2)} (${project.totalTokens.toLocaleString()} tokens)`);
 	});
 }
