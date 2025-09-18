@@ -91,6 +91,7 @@ When adding support for new models:
 3. **Update calculation logic** if threshold differs from currently implemented 200k
 4. **Add comprehensive tests** for boundary conditions at the threshold
 5. **Document the pricing structure** in relevant CLAUDE.md files
+6. **If cache-specific rates are missing**, fall back to the corresponding input rates (base and above-threshold) to avoid under-charging cached tokens
 
 The current implementation in `pricing.ts` only handles 200k threshold. Adding models with different thresholds would require refactoring the `calculateTieredCost` helper function.
 

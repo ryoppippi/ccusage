@@ -5,13 +5,13 @@ export const LITELLM_PRICING_URL
 	= 'https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json';
 
 /**
- * Token threshold for tiered pricing in 1M context window models.
+ * Default token threshold for tiered pricing in 1M context window models.
  * LiteLLM's pricing schema hard-codes this threshold in field names
  * (e.g., `input_cost_per_token_above_200k_tokens`).
- * If upstream schema changes this threshold, this constant and related
- * field names will need updating.
+ * The threshold parameter in calculateTieredCost allows flexibility for
+ * future models that may use different thresholds.
  */
-const TIERED_PRICING_TOKEN_THRESHOLD = 200_000;
+const DEFAULT_TIERED_THRESHOLD = 200_000;
 
 /**
  * LiteLLM Model Pricing Schema
@@ -238,8 +238,8 @@ export class LiteLLMPricingFetcher implements Disposable {
 	 * Calculate the total cost for token usage based on model pricing
 	 *
 	 * Supports tiered pricing for 1M context window models where tokens
-	 * above 200k are charged at a different rate. Handles all token types:
-	 * input, output, cache creation, and cache read.
+	 * above a threshold (default 200k) are charged at a different rate.
+	 * Handles all token types: input, output, cache creation, and cache read.
 	 *
 	 * @param tokens - Token counts for different types
 	 * @param pricing - Model pricing information from LiteLLM
@@ -258,8 +258,9 @@ export class LiteLLMPricingFetcher implements Disposable {
 		 * Calculate cost with tiered pricing for 1M context window models
 		 *
 		 * @param totalTokens - Total number of tokens to calculate cost for
-		 * @param basePrice - Price per token for tokens up to 200k threshold
-		 * @param tieredPrice - Price per token for tokens above 200k threshold
+		 * @param basePrice - Price per token for tokens up to the threshold
+		 * @param tieredPrice - Price per token for tokens above the threshold
+		 * @param threshold - Token threshold for tiered pricing (default 200k)
 		 * @returns Total cost applying tiered pricing when applicable
 		 *
 		 * @example
@@ -271,14 +272,15 @@ export class LiteLLMPricingFetcher implements Disposable {
 			totalTokens: number | undefined,
 			basePrice: number | undefined,
 			tieredPrice: number | undefined,
+			threshold: number = DEFAULT_TIERED_THRESHOLD,
 		): number => {
 			if (totalTokens == null || totalTokens <= 0) {
 				return 0;
 			}
 
-			if (totalTokens > TIERED_PRICING_TOKEN_THRESHOLD && tieredPrice != null) {
-				const tokensBelowThreshold = Math.min(totalTokens, TIERED_PRICING_TOKEN_THRESHOLD);
-				const tokensAboveThreshold = Math.max(0, totalTokens - TIERED_PRICING_TOKEN_THRESHOLD);
+			if (totalTokens > threshold && tieredPrice != null) {
+				const tokensBelowThreshold = Math.min(totalTokens, threshold);
+				const tokensAboveThreshold = Math.max(0, totalTokens - threshold);
 
 				let tieredCost = tokensAboveThreshold * tieredPrice;
 				if (basePrice != null) {
