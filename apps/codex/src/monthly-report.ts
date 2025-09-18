@@ -6,14 +6,12 @@ import type {
 	TokenUsageDelta,
 	TokenUsageEvent,
 } from './_types.ts';
-import { DEFAULT_MODEL } from './_consts.ts';
 import { formatDisplayMonth, isWithinRange, toDateKey, toMonthKey } from './date-utils.ts';
 import { addUsage, calculateCostUSD, createEmptyUsage } from './token-utils.ts';
 
 export type MonthlyReportOptions = {
 	timezone?: string;
 	locale?: string;
-	defaultModel?: string;
 	since?: string;
 	until?: string;
 	pricingSource: PricingSource;
@@ -39,7 +37,6 @@ export async function buildMonthlyReport(
 ): Promise<MonthlyReportRow[]> {
 	const timezone = options.timezone;
 	const locale = options.locale;
-	const defaultModel = options.defaultModel ?? DEFAULT_MODEL;
 	const since = options.since;
 	const until = options.until;
 	const pricingSource = options.pricingSource;
@@ -47,6 +44,11 @@ export async function buildMonthlyReport(
 	const summaries = new Map<string, MonthlyUsageSummary>();
 
 	for (const event of events) {
+		const modelName = event.model?.trim();
+		if (modelName == null || modelName === '') {
+			continue;
+		}
+
 		const dateKey = toDateKey(event.timestamp, timezone);
 		if (!isWithinRange(dateKey, since, until)) {
 			continue;
@@ -59,8 +61,6 @@ export async function buildMonthlyReport(
 		}
 
 		addUsage(summary, event);
-
-		const modelName = event.model ?? defaultModel;
 		const modelUsage = summary.models.get(modelName) ?? createEmptyUsage();
 		if (!summary.models.has(modelName)) {
 			summary.models.set(modelName, modelUsage);

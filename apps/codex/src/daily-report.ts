@@ -1,12 +1,10 @@
 import type { DailyReportRow, DailyUsageSummary, ModelPricing, PricingSource, TokenUsageDelta, TokenUsageEvent } from './_types.ts';
-import { DEFAULT_MODEL } from './_consts.ts';
 import { formatDisplayDate, isWithinRange, toDateKey } from './date-utils.ts';
 import { addUsage, calculateCostUSD, createEmptyUsage } from './token-utils.ts';
 
 export type DailyReportOptions = {
 	timezone?: string;
 	locale?: string;
-	defaultModel?: string;
 	since?: string;
 	until?: string;
 	pricingSource: PricingSource;
@@ -32,7 +30,6 @@ export async function buildDailyReport(
 ): Promise<DailyReportRow[]> {
 	const timezone = options.timezone;
 	const locale = options.locale;
-	const defaultModel = options.defaultModel ?? DEFAULT_MODEL;
 	const since = options.since;
 	const until = options.until;
 	const pricingSource = options.pricingSource;
@@ -40,6 +37,11 @@ export async function buildDailyReport(
 	const summaries = new Map<string, DailyUsageSummary>();
 
 	for (const event of events) {
+		const modelName = event.model?.trim();
+		if (modelName == null || modelName === '') {
+			continue;
+		}
+
 		const dateKey = toDateKey(event.timestamp, timezone);
 		if (!isWithinRange(dateKey, since, until)) {
 			continue;
@@ -51,8 +53,6 @@ export async function buildDailyReport(
 		}
 
 		addUsage(summary, event);
-
-		const modelName = event.model ?? defaultModel;
 		const modelUsage = summary.models.get(modelName) ?? createEmptyUsage();
 		if (!summary.models.has(modelName)) {
 			summary.models.set(modelName, modelUsage);

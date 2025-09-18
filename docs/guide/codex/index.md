@@ -25,7 +25,6 @@ The CLI reads Codex session JSONL files located under `CODEX_HOME` (defaults to 
 | Variable | Description |
 | --- | --- |
 | `CODEX_HOME` | Override the root directory containing Codex session folders |
-| `CODEX_USAGE_MODEL` | Default model when metadata is missing (overridden by `--model`; falls back to `gpt-5` otherwise) |
 | `LOG_LEVEL` | Adjust consola verbosity (0 silent … 5 trace) |
 
 ## Next Steps
@@ -40,4 +39,8 @@ Have feedback or ideas? [Open an issue](https://github.com/ryoppippi/ccusage/iss
 
 ::: details Why are there no entries before September 2025?
 OpenAI's Codex CLI started emitting `token_count` events in [commit 0269096](https://github.com/openai/codex/commit/0269096229e8c8bd95185173706807dc10838c7a) (2025-09-06). Earlier session logs simply don't contain token usage metrics, so `@ccusage/codex` has nothing to aggregate. If you need historic data, rerun those sessions after that Codex update.
+:::
+
+::: details What if some September 2025 sessions still get skipped?
+During the 2025-09 rollouts a few Codex builds emitted `token_count` events without the matching `turn_context` metadata, so the CLI could not determine which model generated the tokens. Those entries are ignored to avoid mispriced reports. If you encounter this, relaunch the Codex CLI to generate fresh logs—the current builds restore the missing metadata.
 :::

@@ -1,5 +1,5 @@
 import type { Args } from 'gunshi';
-import { DEFAULT_LOCALE, DEFAULT_MODEL, DEFAULT_TIMEZONE } from './_consts.ts';
+import { DEFAULT_LOCALE, DEFAULT_TIMEZONE } from './_consts.ts';
 
 export const sharedArgs = {
 	json: {
@@ -29,12 +29,6 @@ export const sharedArgs = {
 		short: 'l',
 		description: 'Locale for formatting',
 		default: DEFAULT_LOCALE,
-	},
-	model: {
-		type: 'string',
-		short: 'm',
-		description: `Default model name when Codex log lacks model metadata (defaults to ${DEFAULT_MODEL}, or CODEX_USAGE_MODEL if set)`,
-		default: DEFAULT_MODEL,
 	},
 	offline: {
 		type: 'boolean',

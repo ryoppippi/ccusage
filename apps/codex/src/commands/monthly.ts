@@ -8,9 +8,9 @@ import {
 } from '@ccusage/terminal/table';
 import { define } from 'gunshi';
 import pc from 'picocolors';
-import { DEFAULT_MODEL, DEFAULT_TIMEZONE, MODEL_ENV_VAR } from '../_consts.ts';
+import { DEFAULT_TIMEZONE } from '../_consts.ts';
 import { sharedArgs } from '../_shared-args.ts';
-import { formatModelsList, isOptionExplicit, splitUsageTokens } from '../command-utils.ts';
+import { formatModelsList, splitUsageTokens } from '../command-utils.ts';
 import { loadTokenUsageEvents } from '../data-loader.ts';
 import { normalizeFilterDate } from '../date-utils.ts';
 import { log, logger } from '../logger.ts';
@@ -41,16 +41,7 @@ export const monthlyCommand = define({
 			process.exit(1);
 		}
 
-		const modelFromEnv = process.env[MODEL_ENV_VAR];
-		const modelProvidedViaCli = isOptionExplicit(ctx.tokens, 'model');
-		let defaultModel = ctx.values.model ?? DEFAULT_MODEL;
-		if (!modelProvidedViaCli && modelFromEnv != null && modelFromEnv !== '') {
-			defaultModel = modelFromEnv;
-		}
-
-		const { events, missingDirectories } = await loadTokenUsageEvents({
-			defaultModel,
-		});
+		const { events, missingDirectories } = await loadTokenUsageEvents();
 
 		for (const missing of missingDirectories) {
 			logger.warn(`Codex session directory not found: ${missing}`);
@@ -69,7 +60,6 @@ export const monthlyCommand = define({
 				pricingSource,
 				timezone: ctx.values.timezone,
 				locale: ctx.values.locale,
-				defaultModel,
 				since,
 				until,
 			});

@@ -5,7 +5,7 @@ import process from 'node:process';
 import { Result } from '@praha/byethrow';
 import { createFixture } from 'fs-fixture';
 import { glob } from 'tinyglobby';
-import { CODEX_HOME_ENV, DEFAULT_CODEX_DIR, DEFAULT_MODEL, DEFAULT_SESSION_SUBDIR, SESSION_GLOB } from './_consts.ts';
+import { CODEX_HOME_ENV, DEFAULT_CODEX_DIR, DEFAULT_SESSION_SUBDIR, SESSION_GLOB } from './_consts.ts';
 import { logger } from './logger.ts';
 
 type RawUsage = {
@@ -95,7 +95,6 @@ function extractModel(value: unknown): string | undefined {
 
 export type LoadOptions = {
 	sessionDirs?: string[];
-	defaultModel?: string;
 };
 
 export type LoadResult = {
@@ -114,7 +113,6 @@ export async function loadTokenUsageEvents(options: LoadOptions = {}): Promise<L
 		: DEFAULT_CODEX_DIR;
 	const defaultSessionsDir = path.join(codexHome, DEFAULT_SESSION_SUBDIR);
 	const sessionDirs = providedDirs ?? [defaultSessionsDir];
-	const defaultModel = options.defaultModel ?? DEFAULT_MODEL;
 
 	const events: TokenUsageEvent[] = [];
 	const missingDirectories: string[] = [];
@@ -216,7 +214,11 @@ export async function loadTokenUsageEvents(options: LoadOptions = {}): Promise<L
 					continue;
 				}
 
-				const model = extractModel({ ...payload, info }) ?? defaultModel;
+				const model = extractModel({ ...payload, info });
+				if (model == null) {
+					logger.debug('Skipping Codex token event without model metadata', { file, timestamp });
+					continue;
+				}
 
 				events.push({
 					timestamp,
@@ -238,7 +240,7 @@ export async function loadTokenUsageEvents(options: LoadOptions = {}): Promise<L
 
 if (import.meta.vitest != null) {
 	describe('loadTokenUsageEvents', () => {
-		it('parses token_count events and falls back to default model', async () => {
+		it('parses token_count events and skips entries without model metadata', async () => {
 			await using fixture = await createFixture({
 				sessions: {
 					'project-1.jsonl': [
@@ -290,17 +292,14 @@ if (import.meta.vitest != null) {
 
 			const { events, missingDirectories } = await loadTokenUsageEvents({
 				sessionDirs: [fixture.getPath('sessions')],
-				defaultModel: 'gpt-5',
 			});
 			expect(missingDirectories).toEqual([]);
 
-			expect(events).toHaveLength(2);
+			expect(events).toHaveLength(1);
 			const first = events[0]!;
-			const second = events[1]!;
 			expect(first.model).toBe('gpt-5');
 			expect(first.inputTokens).toBe(1_200);
-			expect(second.inputTokens).toBe(800);
-			expect(second.cachedInputTokens).toBe(100);
+			expect(first.cachedInputTokens).toBe(200);
 		});
 	});
 }
