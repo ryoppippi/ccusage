@@ -1,4 +1,4 @@
-import type { DailyReportRow, DailyUsageSummary, ModelPricing, PricingSource, TokenUsageDelta, TokenUsageEvent } from './_types.ts';
+import type { DailyReportRow, DailyUsageSummary, ModelPricing, ModelUsage, PricingSource, TokenUsageEvent } from './_types.ts';
 import { formatDisplayDate, isWithinRange, toDateKey } from './date-utils.ts';
 import { addUsage, calculateCostUSD, createEmptyUsage } from './token-utils.ts';
 
@@ -53,11 +53,14 @@ export async function buildDailyReport(
 		}
 
 		addUsage(summary, event);
-		const modelUsage = summary.models.get(modelName) ?? createEmptyUsage();
+		const modelUsage: ModelUsage = summary.models.get(modelName) ?? { ...createEmptyUsage(), isFallback: false };
 		if (!summary.models.has(modelName)) {
 			summary.models.set(modelName, modelUsage);
 		}
 		addUsage(modelUsage, event);
+		if (event.isFallbackModel === true) {
+			modelUsage.isFallback = true;
+		}
 	}
 
 	const uniqueModels = new Set<string>();
@@ -86,7 +89,7 @@ export async function buildDailyReport(
 		}
 		summary.costUSD = cost;
 
-		const rowModels: Record<string, TokenUsageDelta> = {};
+		const rowModels: Record<string, ModelUsage> = {};
 		for (const [modelName, usage] of summary.models) {
 			rowModels[modelName] = { ...usage };
 		}

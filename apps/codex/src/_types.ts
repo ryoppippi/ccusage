@@ -9,20 +9,25 @@ export type TokenUsageDelta = {
 export type TokenUsageEvent = {
 	timestamp: string;
 	model?: string;
+	isFallbackModel?: boolean;
 } & TokenUsageDelta;
+
+export type ModelUsage = TokenUsageDelta & {
+	isFallback?: boolean;
+};
 
 export type DailyUsageSummary = {
 	date: string;
 	firstTimestamp: string;
 	costUSD: number;
-	models: Map<string, TokenUsageDelta>;
+	models: Map<string, ModelUsage>;
 } & TokenUsageDelta;
 
 export type MonthlyUsageSummary = {
 	month: string;
 	firstTimestamp: string;
 	costUSD: number;
-	models: Map<string, TokenUsageDelta>;
+	models: Map<string, ModelUsage>;
 } & TokenUsageDelta;
 
 export type ModelPricing = {
@@ -48,7 +53,7 @@ export type DailyReportRow = {
 	reasoningOutputTokens: number;
 	totalTokens: number;
 	costUSD: number;
-	models: Record<string, TokenUsageDelta>;
+	models: Record<string, ModelUsage>;
 };
 
 export type MonthlyReportRow = {
@@ -59,5 +64,5 @@ export type MonthlyReportRow = {
 	reasoningOutputTokens: number;
 	totalTokens: number;
 	costUSD: number;
-	models: Record<string, TokenUsageDelta>;
+	models: Record<string, ModelUsage>;
 };

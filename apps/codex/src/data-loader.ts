@@ -38,7 +38,10 @@ function normalizeRawUsage(value: unknown): RawUsage | null {
 		cached_input_tokens: cached,
 		output_tokens: output,
 		reasoning_output_tokens: reasoning,
-		total_tokens: total > 0 ? total : input + output + reasoning,
+		// LiteLLM pricing treats reasoning tokens as part of the normal output price. Codex
+		// includes them as a separate field but does not add them to total_tokens, so when we
+		// have to synthesize a total (legacy logs), we mirror that behaviour with input+output.
+		total_tokens: total > 0 ? total : input + output,
 	};
 }
 
@@ -55,7 +58,7 @@ function subtractRawUsage(current: RawUsage, previous: RawUsage | null): RawUsag
 function convertToDelta(raw: RawUsage): TokenUsageDelta {
 	const total = raw.total_tokens > 0
 		? raw.total_tokens
-		: raw.input_tokens + raw.output_tokens + raw.reasoning_output_tokens;
+		: raw.input_tokens + raw.output_tokens;
 
 	const cached = Math.min(raw.cached_input_tokens, raw.input_tokens);
 
@@ -69,6 +72,7 @@ function convertToDelta(raw: RawUsage): TokenUsageDelta {
 }
 
 const recordSchema = v.record(v.string(), v.unknown());
+const LEGACY_FALLBACK_MODEL = 'gpt-5';
 
 const entrySchema = v.object({
 	type: v.string(),
@@ -200,6 +204,8 @@ export async function loadTokenUsageEvents(options: LoadOptions = {}): Promise<L
 
 			let previousTotals: RawUsage | null = null;
 			let currentModel: string | undefined;
+			let currentModelIsFallback = false;
+			let legacyFallbackUsed = false;
 			const lines = fileContentResult.value.split(/\r?\n/);
 			for (const line of lines) {
 				const trimmed = line.trim();
@@ -230,6 +236,7 @@ export async function loadTokenUsageEvents(options: LoadOptions = {}): Promise<L
 						const contextModel = extractModel(contextPayload.output);
 						if (contextModel != null) {
 							currentModel = contextModel;
+							currentModelIsFallback = false;
 						}
 					}
 					continue;
@@ -279,13 +286,26 @@ export async function loadTokenUsageEvents(options: LoadOptions = {}): Promise<L
 				const extractionSource = payloadRecordResult.success
 					? Object.assign({}, payloadRecordResult.output, { info })
 					: { info };
-				const model = extractModel(extractionSource) ?? currentModel;
-				if (model == null) {
-					logger.debug('Skipping Codex token event without model metadata', { file, timestamp });
-					continue;
+				const extractedModel = extractModel(extractionSource);
+				let isFallbackModel = false;
+				if (extractedModel != null) {
+					currentModel = extractedModel;
+					currentModelIsFallback = false;
 				}
 
-				events.push({
+				let model = extractedModel ?? currentModel;
+				if (model == null) {
+					model = LEGACY_FALLBACK_MODEL;
+					isFallbackModel = true;
+					legacyFallbackUsed = true;
+					currentModel = model;
+					currentModelIsFallback = true;
+				}
+				else if (extractedModel == null && currentModelIsFallback) {
+					isFallbackModel = true;
+				}
+
+				const event: TokenUsageEvent = {
 					timestamp,
 					model,
 					inputTokens: delta.inputTokens,
@@ -293,7 +313,19 @@ export async function loadTokenUsageEvents(options: LoadOptions = {}): Promise<L
 					outputTokens: delta.outputTokens,
 					reasoningOutputTokens: delta.reasoningOutputTokens,
 					totalTokens: delta.totalTokens,
-				});
+				};
+
+				if (isFallbackModel) {
+					// Surface the fallback so both table + JSON outputs can annotate pricing that was
+					// inferred rather than sourced from the log metadata.
+					event.isFallbackModel = true;
+				}
+
+				events.push(event);
+			}
+
+			if (legacyFallbackUsed) {
+				logger.debug('Legacy Codex session lacked model metadata; applied fallback', { file, model: LEGACY_FALLBACK_MODEL });
 			}
 		}
 	}
@@ -383,6 +415,38 @@ if (import.meta.vitest != null) {
 			expect(second.model).toBe('gpt-5');
 			expect(second.inputTokens).toBe(800);
 			expect(second.cachedInputTokens).toBe(100);
+		});
+
+		it('falls back to legacy model when metadata is missing entirely', async () => {
+			await using fixture = await createFixture({
+				sessions: {
+					'legacy.jsonl': [
+						JSON.stringify({
+							timestamp: '2025-09-15T13:00:00.000Z',
+							type: 'event_msg',
+							payload: {
+								type: 'token_count',
+								info: {
+									total_token_usage: {
+										input_tokens: 5_000,
+										cached_input_tokens: 0,
+										output_tokens: 1_000,
+										reasoning_output_tokens: 0,
+										total_tokens: 6_000,
+									},
+								},
+							},
+						}),
+					].join('\n'),
+				},
+			});
+
+			const { events } = await loadTokenUsageEvents({
+				sessionDirs: [fixture.getPath('sessions')],
+			});
+			expect(events).toHaveLength(1);
+			expect(events[0]!.model).toBe('gpt-5');
+			expect(events[0]!.isFallbackModel).toBe(true);
 		});
 	});
 }

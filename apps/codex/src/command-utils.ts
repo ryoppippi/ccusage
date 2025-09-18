@@ -15,8 +15,9 @@ export function splitUsageTokens(usage: UsageGroup): {
 } {
 	const cacheReadTokens = Math.min(usage.cachedInputTokens, usage.inputTokens);
 	const inputTokens = Math.max(usage.inputTokens - cacheReadTokens, 0);
-	const outputTokens = usage.outputTokens;
-	const reasoningTokens = usage.reasoningOutputTokens;
+	const outputTokens = Math.max(usage.outputTokens, 0);
+	const rawReasoning = usage.reasoningOutputTokens ?? 0;
+	const reasoningTokens = Math.max(0, Math.min(rawReasoning, outputTokens));
 
 	return {
 		inputTokens,
@@ -26,7 +27,8 @@ export function splitUsageTokens(usage: UsageGroup): {
 	};
 }
 
-export function formatModelsList(models: Record<string, { totalTokens: number }>): string[] {
-	return sort(Object.keys(models))
-		.asc(model => model);
+export function formatModelsList(models: Record<string, { totalTokens: number; isFallback?: boolean }>): string[] {
+	return sort(Object.entries(models))
+		.asc(([model]) => model)
+		.map(([model, data]) => (data.isFallback === true ? `${model} (fallback)` : model));
 }

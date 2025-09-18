@@ -1,9 +1,9 @@
 import type {
 	ModelPricing,
+	ModelUsage,
 	MonthlyReportRow,
 	MonthlyUsageSummary,
 	PricingSource,
-	TokenUsageDelta,
 	TokenUsageEvent,
 } from './_types.ts';
 import { formatDisplayMonth, isWithinRange, toDateKey, toMonthKey } from './date-utils.ts';
@@ -61,11 +61,14 @@ export async function buildMonthlyReport(
 		}
 
 		addUsage(summary, event);
-		const modelUsage = summary.models.get(modelName) ?? createEmptyUsage();
+		const modelUsage: ModelUsage = summary.models.get(modelName) ?? { ...createEmptyUsage(), isFallback: false };
 		if (!summary.models.has(modelName)) {
 			summary.models.set(modelName, modelUsage);
 		}
 		addUsage(modelUsage, event);
+		if (event.isFallbackModel === true) {
+			modelUsage.isFallback = true;
+		}
 	}
 
 	const uniqueModels = new Set<string>();
@@ -94,7 +97,7 @@ export async function buildMonthlyReport(
 		}
 		summary.costUSD = cost;
 
-		const rowModels: Record<string, TokenUsageDelta> = {};
+		const rowModels: Record<string, ModelUsage> = {};
 		for (const [modelName, usage] of summary.models) {
 			rowModels[modelName] = { ...usage };
 		}
