@@ -39,6 +39,7 @@
 		"prerelease:build": "pnpm run build",
 		"prerelease:lint": "pnpm run lint",
 		"prerelease:typecheck": "pnpm typecheck",
+		"start": "bun ./src/index.ts",
 		"test": "TZ=UTC vitest",
 		"typecheck": "tsgo --noEmit"
 	},
