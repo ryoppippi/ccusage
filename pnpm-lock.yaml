@@ -427,6 +427,9 @@ importers:
       '@ryoppippi/eslint-config':
         specifier: catalog:lint
         version: 0.3.7(@vue/compiler-sfc@3.5.21)(eslint-plugin-format@1.0.1(eslint@9.35.0(jiti@2.5.1)))(eslint@9.35.0(jiti@2.5.1))(typescript@5.9.2)(vitest@3.2.4(@types/debug@4.1.12)(@types/node@24.5.1)(happy-dom@16.8.1)(jiti@2.5.1)(yaml@2.8.1))
+      '@typescript/native-preview':
+        specifier: catalog:types
+        version: 7.0.0-dev.20250916.1
       bun:
         specifier: runtime:^1.2.21
         version: runtime:1.2.22
@@ -2375,8 +2378,7 @@ packages:
           targets:
             - cpu: x64
               os: win32
-    version: 1.2.22
-    hasBin: true
+    version: 0.0.0
 
   bytes@3.1.2:
     resolution: {integrity: sha512-/Nf7TyzTx6S3yRJObOAV7956r8cr2+Oj8AC5dt8wSP3BQAoeX58NoHyCU8P8zGkNXStjTSi6fzO6F0pBdcYbEg==}
@@ -3775,8 +3777,7 @@ packages:
           targets:
             - cpu: x64
               os: win32
-    version: 24.8.0
-    hasBin: true
+    version: 0.0.0
 
   nth-check@2.1.1:
     resolution: {integrity: sha512-lqjrjmaOoAnWfMmBPL+XNnynZh2+swxiX3WUE0s4yEHI6m+AwrK2UZOimIRl3X/4QctVqS8AiZjFqyOGrMXb/w==}
