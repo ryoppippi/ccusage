@@ -1,25 +1,41 @@
 import { LiteLLMPricingFetcher } from '@ccusage/internal/pricing';
 import { Result } from '@praha/byethrow';
 import { prefetchClaudePricing } from './_macro.ts' with { type: 'macro' };
+import { prefetchGLMPricing } from './_glm-macro.ts' with { type: 'macro' };
 import { logger } from './logger.ts';
 
-const CLAUDE_PROVIDER_PREFIXES = [
+const CCUSAGE_PROVIDER_PREFIXES = [
 	'anthropic/',
 	'claude-3-5-',
 	'claude-3-',
 	'claude-',
 	'openrouter/openai/',
+	'deepinfra/',
+	'vercel_ai_gateway/',
 ];
 
 const PREFETCHED_CLAUDE_PRICING = prefetchClaudePricing();
+const PREFETCHED_GLM_PRICING = prefetchGLMPricing();
+
+async function combinePricingData(): Promise<Record<string, any>> {
+	const [claudePricing, glmPricing] = await Promise.all([
+		PREFETCHED_CLAUDE_PRICING,
+		PREFETCHED_GLM_PRICING,
+	]);
+
+	return {
+		...claudePricing,
+		...glmPricing,
+	};
+}
 
 export class PricingFetcher extends LiteLLMPricingFetcher {
 	constructor(offline = false) {
 		super({
 			offline,
-			offlineLoader: async () => PREFETCHED_CLAUDE_PRICING,
+			offlineLoader: async () => combinePricingData(),
 			logger,
-			providerPrefixes: CLAUDE_PROVIDER_PREFIXES,
+			providerPrefixes: CCUSAGE_PROVIDER_PREFIXES,
 		});
 	}
 }
@@ -35,6 +51,42 @@ if (import.meta.vitest != null) {
 		it('calculates cost for Claude model tokens', async () => {
 			using fetcher = new PricingFetcher(true);
 			const pricing = await Result.unwrap(fetcher.getModelPricing('claude-sonnet-4-20250514'));
+			const cost = fetcher.calculateCostFromPricing({
+				input_tokens: 1000,
+				output_tokens: 500,
+				cache_read_input_tokens: 300,
+			}, pricing!);
+
+			expect(cost).toBeGreaterThan(0);
+		});
+
+		it('calculates cost for GLM-4.5 model tokens', async () => {
+			using fetcher = new PricingFetcher(true);
+			const pricing = await Result.unwrap(fetcher.getModelPricing('glm-4.5'));
+			const cost = fetcher.calculateCostFromPricing({
+				input_tokens: 1000,
+				output_tokens: 500,
+				cache_read_input_tokens: 300,
+			}, pricing!);
+
+			expect(cost).toBeGreaterThan(0);
+		});
+
+		it('calculates cost for GLM-4.5 model with provider prefix', async () => {
+			using fetcher = new PricingFetcher(true);
+			const pricing = await Result.unwrap(fetcher.getModelPricing('deepinfra/zai-org/GLM-4.5'));
+			const cost = fetcher.calculateCostFromPricing({
+				input_tokens: 1000,
+				output_tokens: 500,
+				cache_read_input_tokens: 300,
+			}, pricing!);
+
+			expect(cost).toBeGreaterThan(0);
+		});
+
+		it('calculates cost for GLM-4.5-Air model', async () => {
+			using fetcher = new PricingFetcher(true);
+			const pricing = await Result.unwrap(fetcher.getModelPricing('glm-4.5-air'));
 			const cost = fetcher.calculateCostFromPricing({
 				input_tokens: 1000,
 				output_tokens: 500,
