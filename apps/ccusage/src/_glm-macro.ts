@@ -21,11 +21,7 @@ const GLM_MODEL_PREFIXES = [
 function isGLMModel(modelName: string, _pricing: LiteLLMModelPricing): boolean {
 	const lowerModelName = modelName.toLowerCase();
 	return GLM_MODEL_PREFIXES.some(prefix =>
-		lowerModelName.includes(prefix.toLowerCase()) ||
-		lowerModelName.startsWith(prefix.toLowerCase()) ||
-		// Support direct model names like "glm-4.5" matching "deepinfra/zai-org/GLM-4.5"
-		(prefix.includes('glm-4.5') && lowerModelName.includes('glm-4.5')) ||
-		(prefix.includes('glm-4-air') && lowerModelName.includes('glm-4-air'))
+		lowerModelName.includes(prefix.toLowerCase()),
 	);
 }
 

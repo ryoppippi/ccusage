@@ -1,7 +1,8 @@
+import type { LiteLLMModelPricing } from '@ccusage/internal/pricing';
 import { LiteLLMPricingFetcher } from '@ccusage/internal/pricing';
 import { Result } from '@praha/byethrow';
-import { prefetchClaudePricing } from './_macro.ts' with { type: 'macro' };
 import { prefetchGLMPricing } from './_glm-macro.ts' with { type: 'macro' };
+import { prefetchClaudePricing } from './_macro.ts' with { type: 'macro' };
 import { logger } from './logger.ts';
 
 const CCUSAGE_PROVIDER_PREFIXES = [
@@ -17,7 +18,7 @@ const CCUSAGE_PROVIDER_PREFIXES = [
 const PREFETCHED_CLAUDE_PRICING = prefetchClaudePricing();
 const PREFETCHED_GLM_PRICING = prefetchGLMPricing();
 
-async function combinePricingData(): Promise<Record<string, any>> {
+async function combinePricingData(): Promise<Record<string, LiteLLMModelPricing>> {
 	const [claudePricing, glmPricing] = await Promise.all([
 		PREFETCHED_CLAUDE_PRICING,
 		PREFETCHED_GLM_PRICING,
@@ -55,43 +56,23 @@ if (import.meta.vitest != null) {
 				input_tokens: 1000,
 				output_tokens: 500,
 				cache_read_input_tokens: 300,
-			}, pricing!);
+			}, pricing);
 
 			expect(cost).toBeGreaterThan(0);
 		});
 
-		it('calculates cost for GLM-4.5 model tokens', async () => {
+		it.each([
+			'glm-4.5',
+			'deepinfra/zai-org/GLM-4.5',
+			'glm-4.5-air',
+		])('calculates cost for %s model tokens', async (modelName) => {
 			using fetcher = new PricingFetcher(true);
-			const pricing = await Result.unwrap(fetcher.getModelPricing('glm-4.5'));
+			const pricing = await Result.unwrap(fetcher.getModelPricing(modelName));
 			const cost = fetcher.calculateCostFromPricing({
 				input_tokens: 1000,
 				output_tokens: 500,
 				cache_read_input_tokens: 300,
-			}, pricing!);
-
-			expect(cost).toBeGreaterThan(0);
-		});
-
-		it('calculates cost for GLM-4.5 model with provider prefix', async () => {
-			using fetcher = new PricingFetcher(true);
-			const pricing = await Result.unwrap(fetcher.getModelPricing('deepinfra/zai-org/GLM-4.5'));
-			const cost = fetcher.calculateCostFromPricing({
-				input_tokens: 1000,
-				output_tokens: 500,
-				cache_read_input_tokens: 300,
-			}, pricing!);
-
-			expect(cost).toBeGreaterThan(0);
-		});
-
-		it('calculates cost for GLM-4.5-Air model', async () => {
-			using fetcher = new PricingFetcher(true);
-			const pricing = await Result.unwrap(fetcher.getModelPricing('glm-4.5-air'));
-			const cost = fetcher.calculateCostFromPricing({
-				input_tokens: 1000,
-				output_tokens: 500,
-				cache_read_input_tokens: 300,
-			}, pricing!);
+			}, pricing);
 
 			expect(cost).toBeGreaterThan(0);
 		});
