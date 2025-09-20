@@ -157,6 +157,7 @@ export default defineConfig({
 					{ from: '/gh', to: 'https://github.com/ryoppippi/ccusage', status: 302 },
 					{ from: '/npm', to: 'https://www.npmjs.com/package/ccusage', status: 302 },
 					{ from: '/deepwiki', to: 'https://deepwiki.com/ryoppippi/ccusage', status: 302 },
+					{ from: '/sponsor', to: 'https://github.com/sponsors/ryoppippi', status: 302 },
 				],
 			}) as any,
 			groupIconVitePlugin(),
