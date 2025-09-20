@@ -118,6 +118,7 @@ export default defineConfig({
 		socialLinks: [
 			{ icon: 'github', link: 'https://github.com/ryoppippi/ccusage' },
 			{ icon: 'npm', link: 'https://www.npmjs.com/package/ccusage' },
+			{ icon: 'twitter', link: 'https://x.com/cc_usage' },
 		],
 
 		footer: {
