@@ -41,6 +41,7 @@ export default defineConfig({
 					{ text: 'Changelog', link: 'https://github.com/ryoppippi/ccusage/releases' },
 					{ text: 'DeepWiki', link: 'https://deepwiki.com/ryoppippi/ccusage' },
 					{ text: 'Package Stats', link: 'https://tanstack.com/ccusage?npmPackage=ccusage' },
+					{ text: 'Sponsor', link: 'https://github.com/sponsors/ryoppippi' },
 				],
 			},
 		],
