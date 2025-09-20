@@ -71,6 +71,8 @@ const DEFAULT_PROVIDER_PREFIXES = [
 	'openai/',
 	'azure/',
 	'openrouter/openai/',
+	'deepinfra/',
+	'vercel_ai_gateway/',
 ];
 
 function createLogger(logger?: PricingLogger): PricingLogger {
