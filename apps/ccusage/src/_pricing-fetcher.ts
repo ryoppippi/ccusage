@@ -1,8 +1,7 @@
 import type { LiteLLMModelPricing } from '@ccusage/internal/pricing';
 import { LiteLLMPricingFetcher } from '@ccusage/internal/pricing';
 import { Result } from '@praha/byethrow';
-import { prefetchGLMPricing } from './_glm-macro.ts' with { type: 'macro' };
-import { prefetchClaudePricing } from './_macro.ts' with { type: 'macro' };
+import { prefetchClaudePricing, prefetchGLMPricing } from './_macro.ts' with { type: 'macro' };
 import { logger } from './logger.ts';
 
 const CCUSAGE_PROVIDER_PREFIXES = [
