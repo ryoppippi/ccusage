@@ -4,7 +4,7 @@ The `daily` command mirrors ccusage's daily report but operates on Codex CLI ses
 
 ```bash
 # Recommended (fastest)
-bunx @ccusage/codex daily
+bunx @ccusage/codex@latest daily
 
 # Using npx
 npx @ccusage/codex@latest daily

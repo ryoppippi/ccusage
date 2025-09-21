@@ -68,6 +68,9 @@ npx @ccusage/codex@latest monthly
 
 # Monthly JSON report for integrations
 npx @ccusage/codex@latest monthly --json
+
+# Session-level detailed report
+npx @ccusage/codex@latest sessions
 ```
 
 Useful environment variables:
