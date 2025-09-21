@@ -41,6 +41,7 @@ export default defineConfig({
 					{ text: 'Changelog', link: 'https://github.com/ryoppippi/ccusage/releases' },
 					{ text: 'DeepWiki', link: 'https://deepwiki.com/ryoppippi/ccusage' },
 					{ text: 'Package Stats', link: 'https://tanstack.com/ccusage?npmPackage=ccusage' },
+					{ text: 'Sponsor', link: 'https://github.com/sponsors/ryoppippi' },
 				],
 			},
 		],
@@ -118,6 +119,7 @@ export default defineConfig({
 		socialLinks: [
 			{ icon: 'github', link: 'https://github.com/ryoppippi/ccusage' },
 			{ icon: 'npm', link: 'https://www.npmjs.com/package/ccusage' },
+			{ icon: 'twitter', link: 'https://x.com/cc_usage' },
 		],
 
 		footer: {
@@ -157,6 +159,7 @@ export default defineConfig({
 					{ from: '/gh', to: 'https://github.com/ryoppippi/ccusage', status: 302 },
 					{ from: '/npm', to: 'https://www.npmjs.com/package/ccusage', status: 302 },
 					{ from: '/deepwiki', to: 'https://deepwiki.com/ryoppippi/ccusage', status: 302 },
+					{ from: '/sponsor', to: 'https://github.com/sponsors/ryoppippi', status: 302 },
 				],
 			}) as any,
 			groupIconVitePlugin(),
