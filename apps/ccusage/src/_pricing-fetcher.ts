@@ -18,7 +18,7 @@ const CCUSAGE_PROVIDER_PREFIXES = [
 const PREFETCHED_CLAUDE_PRICING = prefetchClaudePricing();
 const PREFETCHED_GLM_PRICING = prefetchGLMPricing();
 
-async function combinePricingData(): Promise<Record<string, LiteLLMModelPricing>> {
+async function prefetchCcusagePricing(): Promise<Record<string, LiteLLMModelPricing>> {
 	const [claudePricing, glmPricing] = await Promise.all([
 		PREFETCHED_CLAUDE_PRICING,
 		PREFETCHED_GLM_PRICING,
@@ -34,7 +34,7 @@ export class PricingFetcher extends LiteLLMPricingFetcher {
 	constructor(offline = false) {
 		super({
 			offline,
-			offlineLoader: async () => combinePricingData(),
+			offlineLoader: async () => prefetchCcusagePricing(),
 			logger,
 			providerPrefixes: CCUSAGE_PROVIDER_PREFIXES,
 		});
@@ -61,13 +61,33 @@ if (import.meta.vitest != null) {
 			expect(cost).toBeGreaterThan(0);
 		});
 
-		it.each([
-			'glm-4.5',
-			'deepinfra/zai-org/GLM-4.5',
-			'glm-4.5-air',
-		])('calculates cost for %s model tokens', async (modelName) => {
+		it('calculates cost for GLM-4.5 model tokens', async () => {
 			using fetcher = new PricingFetcher(true);
-			const pricing = await Result.unwrap(fetcher.getModelPricing(modelName));
+			const pricing = await Result.unwrap(fetcher.getModelPricing('glm-4.5'));
+			const cost = fetcher.calculateCostFromPricing({
+				input_tokens: 1000,
+				output_tokens: 500,
+				cache_read_input_tokens: 300,
+			}, pricing);
+
+			expect(cost).toBeGreaterThan(0);
+		});
+
+		it('calculates cost for GLM-4.5 model with provider prefix', async () => {
+			using fetcher = new PricingFetcher(true);
+			const pricing = await Result.unwrap(fetcher.getModelPricing('deepinfra/zai-org/GLM-4.5'));
+			const cost = fetcher.calculateCostFromPricing({
+				input_tokens: 1000,
+				output_tokens: 500,
+				cache_read_input_tokens: 300,
+			}, pricing);
+
+			expect(cost).toBeGreaterThan(0);
+		});
+
+		it('calculates cost for GLM-4.5-Air model', async () => {
+			using fetcher = new PricingFetcher(true);
+			const pricing = await Result.unwrap(fetcher.getModelPricing('glm-4.5-air'));
 			const cost = fetcher.calculateCostFromPricing({
 				input_tokens: 1000,
 				output_tokens: 500,
