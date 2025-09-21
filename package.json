@@ -28,7 +28,7 @@
 	"devDependencies": {
 		"@mizchi/lsmcp": "catalog:mcp",
 		"@praha/byethrow-mcp": "catalog:mcp",
-		"@ryoppippi/eslint-config": "catalog:",
+		"@ryoppippi/eslint-config": "catalog:lint",
 		"@typescript/native-preview": "catalog:types",
 		"bumpp": "catalog:release",
 		"eslint": "catalog:lint",
