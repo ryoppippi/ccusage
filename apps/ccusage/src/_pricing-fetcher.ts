@@ -51,11 +51,12 @@ if (import.meta.vitest != null) {
 		it('calculates cost for Claude model tokens', async () => {
 			using fetcher = new PricingFetcher(true);
 			const pricing = await Result.unwrap(fetcher.getModelPricing('claude-sonnet-4-20250514'));
+			expect(pricing).not.toBeNull();
 			const cost = fetcher.calculateCostFromPricing({
 				input_tokens: 1000,
 				output_tokens: 500,
 				cache_read_input_tokens: 300,
-			}, pricing);
+			}, pricing!);
 
 			expect(cost).toBeGreaterThan(0);
 		});
@@ -63,11 +64,12 @@ if (import.meta.vitest != null) {
 		it('calculates cost for GLM-4.5 model tokens', async () => {
 			using fetcher = new PricingFetcher(true);
 			const pricing = await Result.unwrap(fetcher.getModelPricing('glm-4.5'));
+			expect(pricing).not.toBeNull();
 			const cost = fetcher.calculateCostFromPricing({
 				input_tokens: 1000,
 				output_tokens: 500,
 				cache_read_input_tokens: 300,
-			}, pricing);
+			}, pricing!);
 
 			expect(cost).toBeGreaterThan(0);
 		});
@@ -75,11 +77,12 @@ if (import.meta.vitest != null) {
 		it('calculates cost for GLM-4.5 model with provider prefix', async () => {
 			using fetcher = new PricingFetcher(true);
 			const pricing = await Result.unwrap(fetcher.getModelPricing('deepinfra/zai-org/GLM-4.5'));
+			expect(pricing).not.toBeNull();
 			const cost = fetcher.calculateCostFromPricing({
 				input_tokens: 1000,
 				output_tokens: 500,
 				cache_read_input_tokens: 300,
-			}, pricing);
+			}, pricing!);
 
 			expect(cost).toBeGreaterThan(0);
 		});
@@ -87,11 +90,12 @@ if (import.meta.vitest != null) {
 		it('calculates cost for GLM-4.5-Air model', async () => {
 			using fetcher = new PricingFetcher(true);
 			const pricing = await Result.unwrap(fetcher.getModelPricing('glm-4.5-air'));
+			expect(pricing).not.toBeNull();
 			const cost = fetcher.calculateCostFromPricing({
 				input_tokens: 1000,
 				output_tokens: 500,
 				cache_read_input_tokens: 300,
-			}, pricing);
+			}, pricing!);
 
 			expect(cost).toBeGreaterThan(0);
 		});
