@@ -37,7 +37,7 @@ catalogs:
   runtime:
     '@antfu/utils': ^9.2.0
     '@hono/mcp': ^0.1.4
-    '@hono/node-server': ^1.19.2
+    '@hono/node-server': ^1.19.3
     '@modelcontextprotocol/sdk': ^1.17.3
     '@praha/byethrow': ^0.6.3
     '@ryoppippi/limo': jsr:^0.2.2
