@@ -24,37 +24,3 @@ export async function prefetchClaudePricing(): Promise<Record<string, LiteLLMMod
 		return createPricingDataset();
 	}
 }
-
-const GLM_MODEL_PREFIXES = [
-	'glm-4',
-	'glm-4.5',
-	'glm-4-5',
-	'deepinfra/zai-org/GLM',
-	'vercel_ai_gateway/zai/glm',
-	'deepinfra/glm',
-	'vercel_ai_gateway/glm',
-	'glm-4.5-air',
-	'glm-4-air',
-];
-
-function isGLMModel(modelName: string, _pricing: LiteLLMModelPricing): boolean {
-	const lowerModelName = modelName.toLowerCase();
-	return GLM_MODEL_PREFIXES.some(prefix =>
-		lowerModelName.includes(prefix.toLowerCase()),
-	);
-}
-
-export async function prefetchGLMPricing(): Promise<Record<string, LiteLLMModelPricing>> {
-	if (process.env.OFFLINE === 'true') {
-		return createPricingDataset();
-	}
-
-	try {
-		const dataset = await fetchLiteLLMPricingDataset();
-		return filterPricingDataset(dataset, isGLMModel);
-	}
-	catch (error) {
-		console.warn('Failed to prefetch GLM pricing data, proceeding with empty cache.', error);
-		return createPricingDataset();
-	}
-}
