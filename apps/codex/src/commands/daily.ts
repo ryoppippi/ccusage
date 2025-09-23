@@ -37,7 +37,7 @@ export const dailyCommand = define({
 			until = normalizeFilterDate(ctx.values.until);
 		}
 		catch (error) {
-			logger.error(String(error));
+			logger.error(error instanceof Error ? error.message : String(error));
 			process.exit(1);
 		}
 
