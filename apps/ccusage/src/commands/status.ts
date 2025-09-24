@@ -60,7 +60,7 @@ export const statusCommand = define({
 				styledStatus = pc.red(description);
 			}
 
-			log(`Claude Status: ${styledStatus}`);
+			log(`Claude Status: ${styledStatus} - ${status.page.url}`);
 		}
 	},
 });
