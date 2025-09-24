@@ -657,6 +657,28 @@
 							},
 							"additionalProperties": false
 						},
+						"status": {
+							"type": "object",
+							"properties": {
+								"json": {
+									"type": "boolean",
+									"description": "Output in JSON format",
+									"markdownDescription": "Output in JSON format",
+									"default": false
+								},
+								"color": {
+									"type": "boolean",
+									"description": "Enable colored output (default: auto). FORCE_COLOR=1 has the same effect.",
+									"markdownDescription": "Enable colored output (default: auto). FORCE_COLOR=1 has the same effect."
+								},
+								"noColor": {
+									"type": "boolean",
+									"description": "Disable colored output (default: auto). NO_COLOR=1 has the same effect.",
+									"markdownDescription": "Disable colored output (default: auto). NO_COLOR=1 has the same effect."
+								}
+							},
+							"additionalProperties": false
+						},
 						"statusline": {
 							"type": "object",
 							"properties": {
