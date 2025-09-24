@@ -5,11 +5,12 @@ import { blocksCommand } from './blocks.ts';
 import { dailyCommand } from './daily.ts';
 import { monthlyCommand } from './monthly.ts';
 import { sessionCommand } from './session.ts';
+import { statusCommand } from './status.ts';
 import { statuslineCommand } from './statusline.ts';
 import { weeklyCommand } from './weekly.ts';
 
 // Re-export all commands for easy importing
-export { blocksCommand, dailyCommand, monthlyCommand, sessionCommand, statuslineCommand, weeklyCommand };
+export { blocksCommand, dailyCommand, monthlyCommand, sessionCommand, statusCommand, statuslineCommand, weeklyCommand };
 
 /**
  * Command entries as tuple array
@@ -20,6 +21,7 @@ export const subCommandUnion = [
 	['weekly', weeklyCommand],
 	['session', sessionCommand],
 	['blocks', blocksCommand],
+	['status', statusCommand],
 	['statusline', statuslineCommand],
 ] as const;
 
