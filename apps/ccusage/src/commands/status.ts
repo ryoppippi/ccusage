@@ -1,3 +1,4 @@
+import process from 'node:process';
 import { Result } from '@praha/byethrow';
 import { define } from 'gunshi';
 import { fetchClaudeStatus, getStatusColor } from '../_claude-status-api.ts';
@@ -45,7 +46,7 @@ export const statusCommand = define({
 				logger.error(errorMessage);
 			}
 
-			throw error;
+			process.exit(1);
 		}
 
 		const status = statusResult.value;
