@@ -93,6 +93,57 @@ export async function fetchClaudeStatus(): Result.ResultAsync<ClaudeStatus, Erro
 if (import.meta.vitest != null) {
 	const { describe, it, expect } = import.meta.vitest;
 
+	describe('fetchClaudeStatus', () => {
+		it('should fetch and parse actual API response', async () => {
+			const result = await fetchClaudeStatus();
+
+			// Only run test if API is available
+			if (Result.isSuccess(result)) {
+				expect(result.value).toHaveProperty('status');
+				expect(result.value.status).toHaveProperty('description');
+				expect(result.value.status).toHaveProperty('indicator');
+				expect(typeof result.value.status.description).toBe('string');
+				expect(typeof result.value.status.indicator).toBe('string');
+
+				expect(result.value).toHaveProperty('page');
+				expect(result.value.page).toHaveProperty('id');
+				expect(result.value.page).toHaveProperty('name');
+				expect(result.value.page).toHaveProperty('url');
+				expect(result.value.page).toHaveProperty('time_zone');
+				expect(result.value.page).toHaveProperty('updated_at');
+			}
+			else {
+				// Skip test if network is unavailable
+				console.warn('Claude status API unavailable, skipping detailed validation:', result.error.message);
+			}
+		});
+
+		it('should return Result type with proper structure', async () => {
+			const result = await fetchClaudeStatus();
+
+			// Verify Result type structure
+			if (Result.isSuccess(result)) {
+				expect(result).toHaveProperty('value');
+				expect(typeof result.value).toBe('object');
+			}
+			else {
+				expect(result).toHaveProperty('error');
+				expect(result.error).toBeInstanceOf(Error);
+			}
+		});
+
+		it('should handle ClaudeStatus type correctly', async () => {
+			const result = await fetchClaudeStatus();
+
+			if (Result.isSuccess(result)) {
+				const status = result.value;
+				// Verify ClaudeStatus type structure
+				expect(status.status.indicator).toMatch(/^.+$/); // Any non-empty string
+				expect(status.page.url).toMatch(/^https?:\/\/.+/);
+			}
+		});
+	});
+
 	describe('getStatusColor', () => {
 		it('should return green formatter for "none" indicator', () => {
 			const formatter = getStatusColor('none', 'All Systems Operational', true);
