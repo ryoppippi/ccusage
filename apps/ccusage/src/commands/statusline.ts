@@ -3,7 +3,7 @@ import { mkdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import process from 'node:process';
-import { formatCurrency } from '@ccusage/terminal/table';
+import { formatCurrency } from '@better-ccusage/terminal/table';
 import { Result } from '@praha/byethrow';
 import { createLimoJson } from '@ryoppippi/limo';
 import getStdin from 'get-stdin';
@@ -40,7 +40,7 @@ function formatRemainingTime(remaining: number): string {
  * Uses time-based expiry and transcript file modification detection for cache invalidation
  */
 function getSemaphore(sessionId: string): ReturnType<typeof createLimoJson<SemaphoreType | undefined>> {
-	const semaphoreDir = join(tmpdir(), 'ccusage-semaphore');
+	const semaphoreDir = join(tmpdir(), 'better-better-ccusage-semaphore');
 	const semaphorePath = join(semaphoreDir, `${sessionId}.lock`);
 
 	// Ensure semaphore directory exists
@@ -72,7 +72,7 @@ type SemaphoreType = {
 };
 
 const visualBurnRateChoices = ['off', 'emoji', 'text', 'emoji-text'] as const;
-const costSourceChoices = ['auto', 'ccusage', 'cc', 'both'] as const;
+const costSourceChoices = ['auto', 'better-better-ccusage', 'cc', 'both'] as const;
 
 // Valibot schema for context threshold validation
 const contextThresholdSchema = v.pipe(
@@ -120,7 +120,7 @@ export const statuslineCommand = define({
 		costSource: {
 			type: 'enum',
 			choices: costSourceChoices,
-			description: 'Session cost source: auto (prefer CC then ccusage), ccusage (always calculate), cc (always use Claude Code cost), both (show both costs)',
+			description: 'Session cost source: auto (prefer CC then better-better-ccusage), better-better-ccusage (always calculate), cc (always use Claude Code cost), both (show both costs)',
 			default: 'auto',
 			negatable: false,
 			toKebab: true,
@@ -271,10 +271,10 @@ export const statuslineCommand = define({
 			await Result.try({
 				try: async () => {
 					// Determine session cost based on cost source
-					const { sessionCost, ccCost, ccusageCost } = await (async (): Promise<{ sessionCost?: number; ccCost?: number; ccusageCost?: number }> => {
+					const { sessionCost, ccCost, better-ccusageCost } = await (async (): Promise<{ sessionCost?: number; ccCost?: number; better-ccusageCost?: number }> => {
 						const costSource = ctx.values.costSource;
 
-						// Helper function to get ccusage cost
+						// Helper function to get better-ccusage cost
 						const getCcusageCost = async (): Promise<number | undefined> => {
 							return Result.pipe(
 								Result.try({
@@ -293,8 +293,8 @@ export const statuslineCommand = define({
 						// If 'both' mode, calculate both costs
 						if (costSource === 'both') {
 							const ccCost = hookData.cost?.total_cost_usd;
-							const ccusageCost = await getCcusageCost();
-							return { ccCost, ccusageCost };
+							const better-ccusageCost = await getCcusageCost();
+							return { ccCost, better-ccusageCost };
 						}
 
 						// If 'cc' mode and cost is available from Claude Code, use it
@@ -302,18 +302,18 @@ export const statuslineCommand = define({
 							return { sessionCost: hookData.cost?.total_cost_usd };
 						}
 
-						// If 'ccusage' mode, always calculate using ccusage
-						if (costSource === 'ccusage') {
+						// If 'better-ccusage' mode, always calculate using better-ccusage
+						if (costSource === 'better-ccusage') {
 							const cost = await getCcusageCost();
 							return { sessionCost: cost };
 						}
 
-						// If 'auto' mode (default), prefer Claude Code cost, fallback to ccusage
+						// If 'auto' mode (default), prefer Claude Code cost, fallback to better-ccusage
 						if (costSource === 'auto') {
 							if (hookData.cost?.total_cost_usd != null) {
 								return { sessionCost: hookData.cost.total_cost_usd };
 							}
-							// Fallback to ccusage calculation
+							// Fallback to better-ccusage calculation
 							const cost = await getCcusageCost();
 							return { sessionCost: cost };
 						}
@@ -463,10 +463,10 @@ export const statuslineCommand = define({
 					// Format: 🤖 model | 💰 session / today / block | 🔥 burn | 🧠 context
 					const sessionDisplay = (() => {
 						// If both costs are available, show them side by side
-						if (ccCost != null || ccusageCost != null) {
+						if (ccCost != null || better-ccusageCost != null) {
 							const ccDisplay = ccCost != null ? formatCurrency(ccCost) : 'N/A';
-							const ccusageDisplay = ccusageCost != null ? formatCurrency(ccusageCost) : 'N/A';
-							return `(${ccDisplay} cc / ${ccusageDisplay} ccusage)`;
+							const better-ccusageDisplay = better-ccusageCost != null ? formatCurrency(better-ccusageCost) : 'N/A';
+							return `(${ccDisplay} cc / ${better-ccusageDisplay} better-ccusage)`;
 						}
 						// Single cost display
 						return sessionCost != null ? formatCurrency(sessionCost) : 'N/A';

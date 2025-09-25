@@ -1,8 +1,8 @@
 {
-	"name": "@ccusage/mcp",
+	"name": "@better-ccusage/mcp",
 	"type": "module",
 	"version": "17.0.2",
-	"description": "MCP server implementation for ccusage data",
+	"description": "MCP server implementation for better-ccusage data with multi-provider support",
 	"author": "ryoppippi",
 	"license": "MIT",
 	"funding": "https://github.com/ryoppippi/ccusage?sponsor=1",
@@ -22,7 +22,7 @@
 	"module": "./dist/index.js",
 	"types": "./dist/index.d.ts",
 	"bin": {
-		"ccusage-mcp": "./src/index.ts"
+		"better-ccusage-mcp": "./src/index.ts"
 	},
 	"files": [
 		"dist"
@@ -65,7 +65,7 @@
 	},
 	"publishConfig": {
 		"bin": {
-			"ccusage-mcp": "./dist/index.js"
+			"better-ccusage-mcp": "./dist/index.js"
 		},
 		"exports": {
 			".": "./dist/index.js",

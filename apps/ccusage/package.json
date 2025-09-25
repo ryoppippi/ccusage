@@ -1,8 +1,8 @@
 {
-	"name": "ccusage",
+	"name": "better-ccusage",
 	"type": "module",
 	"version": "17.0.2",
-	"description": "Usage analysis tool for Claude Code",
+	"description": "Enhanced usage analysis tool for Claude Code with multi-provider support",
 	"author": "ryoppippi",
 	"license": "MIT",
 	"funding": "https://github.com/ryoppippi/ccusage?sponsor=1",
@@ -26,7 +26,7 @@
 	"module": "./dist/index.js",
 	"types": "./dist/index.d.ts",
 	"bin": {
-		"ccusage": "./src/index.ts"
+		"better-ccusage": "./src/index.ts"
 	},
 	"files": [
 		"config-schema.json",
@@ -92,7 +92,7 @@
 	},
 	"publishConfig": {
 		"bin": {
-			"ccusage": "./dist/index.js"
+			"better-ccusage": "./dist/index.js"
 		},
 		"exports": {
 			".": "./dist/index.js",

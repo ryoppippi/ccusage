@@ -2,7 +2,7 @@ import { Result } from '@praha/byethrow';
 import * as v from 'valibot';
 
 export const LITELLM_PRICING_URL
-	= 'https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json';
+	= 'https://raw.githubusercontent.com/cobra91/better-ccusage/main/model_prices_and_context_window.json';
 
 /**
  * Default token threshold for tiered pricing in 1M context window models.
@@ -71,6 +71,8 @@ const DEFAULT_PROVIDER_PREFIXES = [
 	'openai/',
 	'azure/',
 	'openrouter/openai/',
+	'deepinfra/',
+	'vercel_ai_gateway/',
 ];
 
 function createLogger(logger?: PricingLogger): PricingLogger {

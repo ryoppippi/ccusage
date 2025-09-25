@@ -139,7 +139,7 @@ export type DayOfWeek = 0 | 1 | 2 | 3 | 4 | 5 | 6;
  * Default configuration file name for storing usage data
  * Used to load and save configuration settings
  */
-export const CONFIG_FILE_NAME = 'ccusage.json';
+export const CONFIG_FILE_NAME = 'better-ccusage.json';
 
 /**
  * Default locale for date formatting (en-CA provides YYYY-MM-DD ISO format)
