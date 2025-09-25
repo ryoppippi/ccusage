@@ -1,7 +1,6 @@
 import { Result } from '@praha/byethrow';
 import { define } from 'gunshi';
-import pc from 'picocolors';
-import { fetchClaudeStatus } from '../_claude-status-api.ts';
+import { fetchClaudeStatus, getStatusColor } from '../_claude-status-api.ts';
 import { sharedArgs } from '../_shared-args.ts';
 import { log, logger } from '../logger.ts';
 
@@ -19,6 +18,16 @@ export const statusCommand = define({
 		if (useJson) {
 			logger.level = 0;
 		}
+
+		// Determine color preference from flags
+		let enableColors: boolean | undefined;
+		if (ctx.values.color === true) {
+			enableColors = true;
+		}
+		else if (ctx.values.noColor === true) {
+			enableColors = false;
+		}
+		// Otherwise, leave undefined to use auto-detection
 
 		const statusResult = await fetchClaudeStatus();
 
@@ -49,17 +58,9 @@ export const statusCommand = define({
 			const description = status.status.description;
 			const indicator = status.status.indicator;
 
-			// Style the status based on common status indicators
-			let styledStatus = description;
-			if (indicator === 'none' || description.toLowerCase().includes('operational')) {
-				styledStatus = pc.green(description);
-			}
-			else if (indicator === 'minor' || description.toLowerCase().includes('degraded')) {
-				styledStatus = pc.yellow(description);
-			}
-			else if (indicator === 'major' || indicator === 'critical' || description.toLowerCase().includes('outage')) {
-				styledStatus = pc.red(description);
-			}
+			// Get color formatter based on status and color preference
+			const colorFormatter = getStatusColor(indicator, description, enableColors);
+			const styledStatus = colorFormatter(description);
 
 			log(`Claude Status: ${styledStatus} - ${status.page.url}`);
 		}
