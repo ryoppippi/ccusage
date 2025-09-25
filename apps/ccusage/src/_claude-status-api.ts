@@ -91,8 +91,6 @@ export async function fetchClaudeStatus(): Result.ResultAsync<ClaudeStatus, Erro
 }
 
 if (import.meta.vitest != null) {
-	const { describe, it, expect } = import.meta.vitest;
-
 	describe('fetchClaudeStatus', () => {
 		it('should fetch and parse actual API response', async () => {
 			const result = await fetchClaudeStatus();
