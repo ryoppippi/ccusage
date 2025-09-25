@@ -37,16 +37,8 @@ export type StatusIndicator = 'none' | 'minor' | 'major' | 'critical';
 export function getStatusColor(
 	indicator: string,
 	description: string,
-	enableColors?: boolean,
 ): Formatter {
-	// Determine if colors should be enabled
-	const shouldColor = enableColors ?? pc.isColorSupported;
-
-	if (!shouldColor) {
-		return (text: string | number | null | undefined) => String(text ?? '');
-	}
-
-	// Primary check: indicator-based coloring
+	// Determine color based on status indicator and description
 	if (indicator === 'none' || description.toLowerCase().includes('operational')) {
 		return pc.green;
 	}
@@ -57,8 +49,8 @@ export function getStatusColor(
 		return pc.red;
 	}
 
-	// Default: no coloring for unknown status
-	return (text: string | number | null | undefined) => String(text ?? '');
+	// Default: no special coloring for unknown status
+	return pc.white;
 }
 
 /**
@@ -157,7 +149,7 @@ if (import.meta.vitest != null) {
 
 	describe('getStatusColor', () => {
 		it('should return green formatter for "none" indicator', () => {
-			const formatter = getStatusColor('none', 'All Systems Operational', true);
+			const formatter = getStatusColor('none', 'All Systems Operational');
 			const result = formatter('test');
 			// Verify it's colored (contains ANSI escape codes)
 			expect(result).toContain('\u001B[32m'); // Green ANSI code
@@ -165,7 +157,7 @@ if (import.meta.vitest != null) {
 		});
 
 		it('should return yellow formatter for "minor" indicator', () => {
-			const formatter = getStatusColor('minor', 'Partially Degraded Service', true);
+			const formatter = getStatusColor('minor', 'Partially Degraded Service');
 			const result = formatter('test');
 			// Verify it's colored with yellow
 			expect(result).toContain('\u001B[33m'); // Yellow ANSI code
@@ -173,7 +165,7 @@ if (import.meta.vitest != null) {
 		});
 
 		it('should return red formatter for "major" indicator', () => {
-			const formatter = getStatusColor('major', 'Service Outage', true);
+			const formatter = getStatusColor('major', 'Service Outage');
 			const result = formatter('test');
 			// Verify it's colored with red
 			expect(result).toContain('\u001B[31m'); // Red ANSI code
@@ -181,7 +173,7 @@ if (import.meta.vitest != null) {
 		});
 
 		it('should return red formatter for "critical" indicator', () => {
-			const formatter = getStatusColor('critical', 'Critical System Failure', true);
+			const formatter = getStatusColor('critical', 'Critical System Failure');
 			const result = formatter('test');
 			// Verify it's colored with red
 			expect(result).toContain('\u001B[31m'); // Red ANSI code
@@ -189,7 +181,7 @@ if (import.meta.vitest != null) {
 		});
 
 		it('should fall back to description-based detection for "operational"', () => {
-			const formatter = getStatusColor('unknown', 'All Systems Operational', true);
+			const formatter = getStatusColor('unknown', 'All Systems Operational');
 			const result = formatter('test');
 			// Should be green based on description
 			expect(result).toContain('\u001B[32m'); // Green ANSI code
@@ -197,7 +189,7 @@ if (import.meta.vitest != null) {
 		});
 
 		it('should fall back to description-based detection for "degraded"', () => {
-			const formatter = getStatusColor('unknown', 'Service is degraded', true);
+			const formatter = getStatusColor('unknown', 'Service is degraded');
 			const result = formatter('test');
 			// Should be yellow based on description
 			expect(result).toContain('\u001B[33m'); // Yellow ANSI code
@@ -205,31 +197,31 @@ if (import.meta.vitest != null) {
 		});
 
 		it('should fall back to description-based detection for "outage"', () => {
-			const formatter = getStatusColor('unknown', 'Service outage ongoing', true);
+			const formatter = getStatusColor('unknown', 'Service outage ongoing');
 			const result = formatter('test');
 			// Should be red based on description
 			expect(result).toContain('\u001B[31m'); // Red ANSI code
 			expect(result).toContain('test');
 		});
 
-		it('should return plain text when colors are disabled', () => {
-			const formatter = getStatusColor('none', 'All Systems Operational', false);
+		it('should return white formatter for unknown status', () => {
+			const formatter = getStatusColor('unknown', 'Unknown status text');
 			const result = formatter('test');
-			// Should not contain any ANSI escape codes
-			expect(result).not.toContain('\u001B[');
-			expect(result).toBe('test');
+			// Should contain white color ANSI codes
+			expect(result).toContain('\u001B[37m'); // White ANSI code
+			expect(result).toContain('test');
 		});
 
-		it('should return plain text for unknown status', () => {
-			const formatter = getStatusColor('unknown', 'Unknown status', true);
+		it('should return white formatter for completely unknown status', () => {
+			const formatter = getStatusColor('unknown', 'Unknown status');
 			const result = formatter('test');
-			// Should not contain any ANSI escape codes for unknown status
-			expect(result).not.toContain('\u001B[');
-			expect(result).toBe('test');
+			// Should contain white color ANSI codes for unknown status
+			expect(result).toContain('\u001B[37m'); // White ANSI code
+			expect(result).toContain('test');
 		});
 
 		it('should handle null/undefined input gracefully', () => {
-			const formatter = getStatusColor('none', 'All Systems Operational', true);
+			const formatter = getStatusColor('none', 'All Systems Operational');
 			expect(formatter(null)).toBe('');
 			expect(formatter(undefined)).toBe('');
 		});

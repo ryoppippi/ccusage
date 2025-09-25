@@ -10,8 +10,6 @@ export const statusCommand = define({
 	description: 'Show Claude service status',
 	args: {
 		json: sharedArgs.json,
-		color: sharedArgs.color,
-		noColor: sharedArgs.noColor,
 	},
 	toKebab: true,
 	async run(ctx) {
@@ -19,16 +17,6 @@ export const statusCommand = define({
 		if (useJson) {
 			logger.level = 0;
 		}
-
-		// Determine color preference from flags
-		let enableColors: boolean | undefined;
-		if (ctx.values.color === true) {
-			enableColors = true;
-		}
-		else if (ctx.values.noColor === true) {
-			enableColors = false;
-		}
-		// Otherwise, leave undefined to use auto-detection
 
 		const statusResult = await fetchClaudeStatus();
 
@@ -59,8 +47,8 @@ export const statusCommand = define({
 			const description = status.status.description;
 			const indicator = status.status.indicator;
 
-			// Get color formatter based on status and color preference
-			const colorFormatter = getStatusColor(indicator, description, enableColors);
+			// Get color formatter based on status
+			const colorFormatter = getStatusColor(indicator, description);
 			const styledStatus = colorFormatter(description);
 
 			log(`Claude Status: ${styledStatus} - ${status.page.url}`);
