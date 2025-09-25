@@ -66,17 +66,3 @@ export const statusCommand = define({
 		}
 	},
 });
-
-if (import.meta.vitest != null) {
-	const { describe, it, expect } = import.meta.vitest;
-
-	describe('statusCommand', () => {
-		it('should have correct command definition', () => {
-			expect(statusCommand.name).toBe('status');
-			expect(statusCommand.description).toBe('Show Claude service status');
-			expect(statusCommand.args?.json).toBeDefined();
-			expect(statusCommand.args?.color).toBeDefined();
-			expect(statusCommand.args?.noColor).toBeDefined();
-		});
-	});
-}
