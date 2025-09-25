@@ -1,0 +1,4 @@
+{"type":"user","message":{}}
+{"type":"assistant","message":{"usage":{"input_tokens":1000,"output_tokens":50,"cache_creation_input_tokens":100,"cache_read_input_tokens":500}}}
+{"type":"user","message":{}}
+{"type":"assistant","message":{"usage":{"input_tokens":2000,"output_tokens":100,"cache_creation_input_tokens":200,"cache_read_input_tokens":800}}}

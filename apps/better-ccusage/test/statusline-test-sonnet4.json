@@ -1,0 +1,25 @@
+{
+	"session_id": "test-session-sonnet4",
+	"transcript_path": "test/test-transcript.jsonl",
+	"cwd": "/Users/test/project",
+	"model": {
+		"id": "claude-sonnet-4-20250514",
+		"display_name": "Sonnet 4"
+	},
+	"workspace": {
+		"current_dir": "/Users/test/project",
+		"project_dir": "/Users/test/project"
+	},
+	"version": "1.0.88",
+	"output_style": {
+		"name": "default"
+	},
+	"cost": {
+		"total_cost_usd": 0.0245,
+		"total_duration_ms": 120000,
+		"total_api_duration_ms": 8500,
+		"total_lines_added": 0,
+		"total_lines_removed": 0
+	},
+	"exceeds_200k_tokens": false
+}
