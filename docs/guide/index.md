@@ -1,8 +1,8 @@
 # Introduction
 
-![ccusage daily report showing token usage and costs by date](/screenshot.png)
+![better-ccusage daily report showing token usage and costs by date](/screenshot.png)
 
-**ccusage** (claude-code-usage) is a powerful CLI tool that analyzes your Claude Code usage from local JSONL files to help you understand your token consumption patterns and estimated costs.
+**better-ccusage** (better-claude-code-usage) is a powerful CLI tool that analyzes your Claude Code usage from local JSONL files to help you understand your token consumption patterns and estimated costs with multi-provider support.
 
 ## The Problem
 
@@ -15,7 +15,7 @@ Claude Code's Max plan offers unlimited usage, which is fantastic! But many user
 
 ## The Solution
 
-ccusage analyzes the local JSONL files that Claude Code automatically generates and provides:
+better-ccusage analyzes the local JSONL files that Claude Code automatically generates and provides:
 
 - **Detailed Usage Reports** - Daily, monthly, and session-based breakdowns
 - **Cost Analysis** - Estimated costs based on token usage and model pricing
@@ -25,7 +25,7 @@ ccusage analyzes the local JSONL files that Claude Code automatically generates 
 ## How It Works
 
 1. **Claude Code generates JSONL files** containing usage data
-2. **ccusage reads these files** from your local machine
+2. **better-better-ccusage reads these files** from your local machine
 3. **Analyzes and aggregates** the data by date, session, or time blocks
 4. **Calculates estimated costs** using model pricing information
 5. **Presents results** in beautiful tables or JSON format
@@ -34,7 +34,7 @@ ccusage analyzes the local JSONL files that Claude Code automatically generates 
 
 ### 🚀 Ultra-Small Bundle Size
 
-Unlike other CLI tools, we pay extreme attention to bundle size. ccusage achieves an incredibly small footprint even without minification, which means you can run it directly without installation using `bunx ccusage` for instant access.
+Unlike other CLI tools, we pay extreme attention to bundle size. better-ccusage achieves an incredibly small footprint even without minification, which means you can run it directly without installation using `bunx better-ccusage` for instant access.
 
 ### 📊 Multiple Report Types
 
@@ -68,9 +68,39 @@ Unlike other CLI tools, we pay extreme attention to bundle size. ccusage achieve
 - **Custom Date Filtering** - Flexible time range selection and sorting
 - **Offline Mode** - Cached pricing data for air-gapped environments
 
+## Multi-Provider Support
+
+better-ccusage extends the original ccusage functionality with support for multiple AI providers:
+
+### 🔄 Zai Provider Integration
+- Track usage when using Zai's Claude Code integration
+- Support for Zai-specific model variants
+- Accurate cost calculation for Zai pricing
+
+### 🚀 GLM-4.5 Model Support
+- Full support for GLM-4.5 models from various providers
+- Token counting and cost calculation optimized for GLM-4.5
+- Compatibility with existing Claude Code workflows
+
+### 🌐 Provider Detection
+- Automatic detection of provider from usage data
+- Separate reporting and aggregation by provider
+- Unified interface for multi-provider environments
+
+## Why better-ccusage?
+
+better-ccusage was created to address a limitation in the original ccusage project: while ccusage focuses exclusively on Claude Code usage with Anthropic models, better-ccusage extends support to external providers that use Claude Code with different models like Zai and GLM-4.5.
+
+The original ccusage project doesn't account for:
+- **Zai** providers that use Claude Code infrastructure with their own models
+- **GLM-4.5** models from other AI providers
+- Multi-provider environments where organizations use different AI services through Claude Code
+
+better-ccusage maintains full compatibility with ccusage while adding comprehensive support for these additional providers and models.
+
 ## Data Sources
 
-ccusage reads from Claude Code's local data directories:
+better-better-ccusage reads from Claude Code's local data directories:
 
 - **New location**: `~/.config/claude/projects/` (Claude Code v1.0.30+)
 - **Legacy location**: `~/.claude/projects/` (pre-v1.0.30)

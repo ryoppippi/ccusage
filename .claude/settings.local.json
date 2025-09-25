@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pnpm run:*)",
+      "Bash(pnpm --dir /mnt/d/Dev/ccusage run release)",
+      "Bash(pnpm --dir /mnt/d/Dev/ccusage/apps/codex run format)",
+      "mcp__lsmcp__search_symbols",
+      "Bash(pnpm --dir /mnt/d/Dev/ccusage/apps/mcp run format)",
+      "Bash(pnpm dlx:*)",
+      "Bash(pnpm --dir /mnt/d/Dev/ccusage/apps/ccusage run format)",
+      "Bash(pnpm --dir /mnt/d/Dev/ccusage run --filter '*' format)"
+    ]
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "context7",
+    "grep",
+    "lsmcp",
+    "@praha/byethrow",
+    "gunshi-doc"
+  ]
+}
