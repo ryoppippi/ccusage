@@ -1,4 +1,4 @@
-import process from 'node:process';
+import { Result } from '@praha/byethrow';
 import { define } from 'gunshi';
 import pc from 'picocolors';
 import { fetchClaudeStatus } from '../_claude-status-api.ts';
@@ -22,12 +22,13 @@ export const statusCommand = define({
 
 		const statusResult = await fetchClaudeStatus();
 
-		if (!statusResult.success) {
-			const errorMessage = `Failed to fetch Claude status: ${statusResult.error.message}`;
+		if (Result.isFailure(statusResult)) {
+			const error = statusResult.error;
+			const errorMessage = `Failed to fetch Claude status: ${error.message}`;
 
 			if (useJson) {
 				log(JSON.stringify({
-					error: statusResult.error.message,
+					error: error.message,
 					success: false,
 				}));
 			}
@@ -35,7 +36,7 @@ export const statusCommand = define({
 				logger.error(errorMessage);
 			}
 
-			process.exit(1);
+			throw error;
 		}
 
 		const status = statusResult.value;
