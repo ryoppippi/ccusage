@@ -32,7 +32,7 @@ catalogs:
   release:
     bumpp: ^10.2.3
     clean-pkg-json: ^1.3.0
-    lint-staged: ^16.1.5
+    lefthook: ^1.13.4
     sort-package-json: ^3.4.0
   runtime:
     '@antfu/utils': ^9.2.0
@@ -75,6 +75,7 @@ minimumReleaseAge: 2880
 
 onlyBuiltDependencies:
   - esbuild
+  - lefthook
   - sharp
   - workerd
 

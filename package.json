@@ -18,8 +18,6 @@
 		"lint": "pnpm --no-bail --aggregate-output /^lint:/",
 		"lint:root": "eslint --cache eslint.config.js .",
 		"lint:submodules": "pnpm --parallel -r --no-bail /^lint/",
-		"prepare": "pnpm run /^prepare:/",
-		"prepare:git": "git config --local core.hooksPath .githooks",
 		"prerelease": "pnpm run --filter '*' prerelease",
 		"release": "pnpm bumpp -r",
 		"test": "pnpm run --filter '*' test",
@@ -32,18 +30,10 @@
 		"@typescript/native-preview": "catalog:types",
 		"bumpp": "catalog:release",
 		"eslint": "catalog:lint",
-		"lint-staged": "catalog:release",
+		"lefthook": "catalog:release",
 		"sitemcp": "catalog:mcp",
 		"sort-package-json": "catalog:release"
-	},
-	"lint-staged": {
-		"*": [
-			"pnpm run format"
-		],
-		"./**/package.json": [
-			"sort-package-json"
-		]
-	},
+		},
 	"devEngines": {
 		"runtime": [
 			{

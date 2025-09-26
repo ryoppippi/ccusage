@@ -1,0 +1,20 @@
+pre-commit:
+  parallel: true
+  skip:
+    - merge
+    - rebase
+  commands:
+    format:
+      glob: "**/*.{cjs,cts,ctsx,js,jsx,mjs,mts,mtsx,ts,tsx,json,yml,yaml,md,mdx}"
+      run: pnpm run format
+      stage_fixed: true
+    sort-package-json:
+      glob: "**/package.json"
+      run: pnpm exec sort-package-json {files}
+      stage_fixed: true
+    typecheck:
+      glob: "**/*.{ts,tsx,cts,ctsx,mts,mtsx}"
+      run: pnpm typecheck
+    test:
+      glob: "**/*.{ts,tsx,cts,ctsx,mts,mtsx}"
+      run: pnpm run test
