@@ -30,7 +30,7 @@
 		"@typescript/native-preview": "catalog:types",
 		"bumpp": "catalog:release",
 		"eslint": "catalog:lint",
-		"lefthook": "catalog:release",
+		"lefthook": "catalog:lint",
 		"sitemcp": "catalog:mcp",
 		"sort-package-json": "catalog:release"
 	},
