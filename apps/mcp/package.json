@@ -1,19 +1,19 @@
 {
 	"name": "@better-ccusage/mcp",
-	"type": "module",
-	"version": "17.0.2",
+	"version": "1.0.0",
 	"description": "MCP server implementation for better-ccusage data with multi-provider support",
-	"author": "ryoppippi",
-	"license": "MIT",
-	"funding": "https://github.com/ryoppippi/ccusage?sponsor=1",
-	"homepage": "https://github.com/ryoppippi/ccusage#readme",
+	"homepage": "https://github.com/cobra91/better-ccusage#readme",
+	"bugs": {
+		"url": "https://github.com/cobra91/better-ccusage/issues"
+	},
 	"repository": {
 		"type": "git",
-		"url": "git+https://github.com/ryoppippi/ccusage.git"
+		"url": "git+https://github.com/cobra91/better-ccusage.git"
 	},
-	"bugs": {
-		"url": "https://github.com/ryoppippi/ccusage/issues"
-	},
+	"funding": "https://github.com/cobra91/better-ccusage?sponsor=1",
+	"license": "MIT",
+	"author": "cobra91",
+	"type": "module",
 	"exports": {
 		".": "./src/index.ts",
 		"./package.json": "./package.json"
@@ -27,9 +27,6 @@
 	"files": [
 		"dist"
 	],
-	"engines": {
-		"node": ">=20.19.4"
-	},
 	"scripts": {
 		"build": "tsdown",
 		"dev": "bun -b --watch ./src/index.ts",
@@ -62,6 +59,9 @@
 		"sort-package-json": "catalog:release",
 		"tsdown": "catalog:build",
 		"vitest": "catalog:testing"
+	},
+	"engines": {
+		"node": ">=20.19.4"
 	},
 	"publishConfig": {
 		"bin": {

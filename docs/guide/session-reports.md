@@ -5,7 +5,7 @@ Session reports show your Claude Code usage grouped by individual conversation s
 ## Basic Usage
 
 ```bash
-ccusage session
+better-ccusage session
 ```
 
 ## Specific Session Lookup
@@ -13,7 +13,7 @@ ccusage session
 Query individual session details by providing a session ID:
 
 ```bash
-ccusage session --id <session-id>
+better-ccusage session --id <session-id>
 ```
 
 This is particularly useful for:
@@ -26,13 +26,13 @@ This is particularly useful for:
 
 ```bash
 # Get session data in table format
-ccusage session --id session-abc123-def456
+better-ccusage session --id session-abc123-def456
 
 # Get session data as JSON for scripting
-ccusage session --id session-abc123-def456 --json
+better-ccusage session --id session-abc123-def456 --json
 
 # Extract just the cost using jq
-ccusage session --id session-abc123-def456 --json --jq '.totalCost'
+better-ccusage session --id session-abc123-def456 --json --jq '.totalCost'
 
 # Use in a custom statusline script
 COST=$(ccusage session --id "$SESSION_ID" --json --jq '.totalCost')
@@ -97,13 +97,13 @@ Get detailed information about a specific session:
 
 ```bash
 # Query a specific session by ID
-ccusage session --id <session-id>
+better-ccusage session --id <session-id>
 
 # Get JSON output for a specific session
-ccusage session --id <session-id> --json
+better-ccusage session --id <session-id> --json
 
 # Short form using -i flag
-ccusage session -i <session-id>
+better-ccusage session -i <session-id>
 ```
 
 **Use cases:**
@@ -119,26 +119,26 @@ Filter sessions by their last activity date:
 
 ```bash
 # Show sessions active since May 25th
-ccusage session --since 20250525
+better-ccusage session --since 20250525
 
 # Show sessions active in a specific date range
-ccusage session --since 20250520 --until 20250530
+better-ccusage session --since 20250520 --until 20250530
 
 # Show only recent sessions (last week)
-ccusage session --since $(date -d '7 days ago' +%Y%m%d)
+better-ccusage session --since $(date -d '7 days ago' +%Y%m%d)
 ```
 
 ### Cost Calculation Modes
 
 ```bash
 # Use pre-calculated costs when available (default)
-ccusage session --mode auto
+better-ccusage session --mode auto
 
 # Always calculate costs from tokens
-ccusage session --mode calculate
+better-ccusage session --mode calculate
 
 # Only show pre-calculated costs
-ccusage session --mode display
+better-ccusage session --mode display
 ```
 
 ### Model Breakdown
@@ -146,7 +146,7 @@ ccusage session --mode display
 See per-model cost breakdown within each session:
 
 ```bash
-ccusage session --breakdown
+better-ccusage session --breakdown
 ```
 
 Example with breakdown:
@@ -168,7 +168,7 @@ Example with breakdown:
 Export session data as JSON for further analysis:
 
 ```bash
-ccusage session --json
+better-ccusage session --json
 ```
 
 ```json
@@ -207,9 +207,9 @@ ccusage session --json
 Use cached pricing data without network access:
 
 ```bash
-ccusage session --offline
+better-ccusage session --offline
 # or short form:
-ccusage session -O
+better-ccusage session -O
 ```
 
 ## Analysis Use Cases
@@ -219,7 +219,7 @@ ccusage session -O
 Session reports help you understand which conversations are most costly:
 
 ```bash
-ccusage session
+better-ccusage session
 ```
 
 Look at the top sessions to understand:
@@ -232,18 +232,18 @@ Look at the top sessions to understand:
 
 ```bash
 # See recent conversation activity
-ccusage session --since 20250615
+better-ccusage session --since 20250615
 
 # Compare different time periods
-ccusage session --since 20250601 --until 20250615  # First half of month
-ccusage session --since 20250616 --until 20250630  # Second half of month
+better-ccusage session --since 20250601 --until 20250615  # First half of month
+better-ccusage session --since 20250616 --until 20250630  # Second half of month
 ```
 
 ### Model Usage Analysis
 
 ```bash
 # See which models you use in different conversations
-ccusage session --breakdown
+better-ccusage session --breakdown
 ```
 
 This helps understand:
@@ -256,10 +256,10 @@ This helps understand:
 
 ```bash
 # Export data for spreadsheet analysis
-ccusage session --json > sessions.json
+better-ccusage session --json > sessions.json
 
 # Find sessions above a certain cost threshold
-ccusage session --json | jq '.sessions[] | select(.totalCost > 50)'
+better-ccusage session --json | jq '.sessions[] | select(.totalCost > 50)'
 ```
 
 ## Tips for Session Analysis

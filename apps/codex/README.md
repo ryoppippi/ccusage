@@ -101,7 +101,7 @@ Check out [better-ccusage: The Claude Code cost scorecard that went viral]
 
 <p align="center">
     <a href="https://www.youtube.com/watch?v=Ak6qpQ5qdgk">
-        <img src="https://cdn.jsdelivr.net/gh/cobra91/better-ccusage@main/docs/public/ccusage_thumbnail.png" alt="better-better-ccusage: The Claude Code cost scorecard that went viral" width="600">
+        <img src="https://cdn.jsdelivr.net/gh/cobra91/better-ccusage@main/docs/public/ccusage_thumbnail.png" alt="better-ccusage: The Claude Code cost scorecard that went viral" width="600">
     </a>
 </p>
 

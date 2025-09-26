@@ -216,11 +216,48 @@ export class LiteLLMPricingFetcher implements Disposable {
 				}
 
 				const lower = modelName.toLowerCase();
+
+				// Try exact model name match first (highest priority)
 				for (const [key, value] of pricing) {
 					const comparison = key.toLowerCase();
-					if (comparison.includes(lower) || lower.includes(comparison)) {
+					if (comparison === lower || comparison.endsWith(`/${lower}`)) {
 						return value;
 					}
+				}
+
+				// Try partial match but prioritize models that contain the full model name
+				let bestMatch = null;
+				let bestMatchScore = 0;
+
+				for (const [key, value] of pricing) {
+					const comparison = key.toLowerCase();
+
+					// Score matches: exact substring gets higher score
+					let score = 0;
+					if (comparison.includes(lower)) {
+						// Higher score for exact model name without "air" suffix
+						if (comparison.includes(`${lower}/`) || comparison.endsWith(`/${lower}`)) {
+							score = 100; // Exact model name as provider/model
+						}
+						else if (comparison.includes(lower) && !comparison.includes('air')) {
+							score = 90; // Contains model name, not air variant
+						}
+						else if (comparison.includes(lower)) {
+							score = 50; // Contains model name but might be air variant
+						}
+					}
+					else if (lower.includes(comparison)) {
+						score = 10; // Partial match
+					}
+
+					if (score > bestMatchScore) {
+						bestMatch = value;
+						bestMatchScore = score;
+					}
+				}
+
+				if (bestMatch !== null) {
+					return bestMatch;
 				}
 
 				return null;

@@ -8,7 +8,14 @@
       "Bash(pnpm --dir /mnt/d/Dev/ccusage/apps/mcp run format)",
       "Bash(pnpm dlx:*)",
       "Bash(pnpm --dir /mnt/d/Dev/ccusage/apps/better-ccusage run format)",
-      "Bash(pnpm --dir /mnt/d/Dev/ccusage run --filter '*' format)"
+      "Bash(pnpm --dir /mnt/d/Dev/ccusage run --filter '*' format)",
+      "Bash(node:*)",
+      "Bash(cat:*)",
+      "Bash(dir:*)",
+      "Bash(wsl node:*)",
+      "Bash(powershell:*)",
+      "Bash(wsl cat:*)",
+      "Bash(pnpm:*)"
     ]
   },
   "enableAllProjectMcpServers": true,

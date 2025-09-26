@@ -8,5 +8,6 @@ export default ryoppippi({
 		'docs',
 		'.lsmcp',
 		'.claude/settings.local.json',
+		'scripts',
 	],
 });

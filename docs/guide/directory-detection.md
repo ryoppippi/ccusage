@@ -1,10 +1,10 @@
 # Directory Detection
 
-ccusage automatically detects and manages Claude Code data directories.
+better-ccusage automatically detects and manages Claude Code data directories.
 
 ## Default Directory Locations
 
-ccusage automatically searches for Claude Code data in these locations:
+better-ccusage automatically searches for Claude Code data in these locations:
 
 - **`~/.config/claude/projects/`** - New default location (Claude Code v1.0.30+)
 - **`~/.claude/projects/`** - Legacy location (pre-v1.0.30)
@@ -32,7 +32,7 @@ Override the default search with a specific directory:
 
 ```bash
 export CLAUDE_CONFIG_DIR="/custom/path/to/claude"
-ccusage daily
+better-ccusage daily
 ```
 
 ### Multiple Directories
@@ -41,7 +41,7 @@ Aggregate data from multiple Claude installations:
 
 ```bash
 export CLAUDE_CONFIG_DIR="/path/to/claude1,/path/to/claude2"
-ccusage daily
+better-ccusage daily
 ```
 
 ## Directory Structure
@@ -82,7 +82,7 @@ echo $CLAUDE_CONFIG_DIR
 
 # Test with explicit directory
 export CLAUDE_CONFIG_DIR="/path/to/claude"
-ccusage daily
+better-ccusage daily
 ```
 
 ### Permission Errors
@@ -102,7 +102,7 @@ chmod -R 755 ~/.config/claude/
 ```bash
 # Force specific directory
 export CLAUDE_CONFIG_DIR="/exact/path/to/claude"
-ccusage daily
+better-ccusage daily
 
 # Verify which directory is being used
 LOG_LEVEL=4 ccusage daily

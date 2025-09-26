@@ -36,12 +36,12 @@ pnpm dlx @better-ccusage/mcp@latest -- --type http --port 8080
 
 ```bash
 # Run the CLI directly
-ccusage-mcp --help
+better-ccusage-mcp --help
 ```
 
 ## Architecture
 
-This package implements an MCP server that exposes ccusage functionality through the Model Context Protocol:
+This package implements an MCP server that exposes better-ccusage functionality through the Model Context Protocol:
 
 **Key Modules:**
 

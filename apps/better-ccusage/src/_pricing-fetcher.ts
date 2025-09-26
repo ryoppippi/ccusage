@@ -10,8 +10,9 @@ const CCUSAGE_PROVIDER_PREFIXES = [
 	'claude-3-',
 	'claude-',
 	'openrouter/openai/',
-	'deepinfra/',
-	'vercel_ai_gateway/',
+	'zai/',
+	'deepseek/',
+	'dashscope/',
 ];
 
 const PREFETCHED_CLAUDE_PRICING = prefetchClaudePricing();

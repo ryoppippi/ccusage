@@ -325,7 +325,7 @@ function formatModelName(modelName: string): string {
 	// Extract model type from full model name
 	// e.g., "claude-sonnet-4-20250514" -> "sonnet-4"
 	// e.g., "claude-opus-4-20250514" -> "opus-4"
-	const match = RegExp(/claude-(\w+)-(\d+)-\d+/).exec(modelName);
+	const match = /claude-(\w+)-(\d+)-\d+/.exec(modelName);
 	if (match != null) {
 		return `${match[1]}-${match[2]}`;
 	}

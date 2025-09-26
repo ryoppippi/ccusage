@@ -26,15 +26,15 @@ better-ccusage maintains full compatibility with ccusage while adding comprehens
 
 ### Key Differences
 
-| Feature | Original ccusage | better-ccusage |
-|---------|-----------------|----------------|
-| Anthropic Models | ✅ | ✅ |
-| Zai Provider | ❌ | ✅ |
-| GLM-4.5 Models | ❌ | ✅ |
-| Multi-Provider Support | ❌ | ✅ |
-| Provider Detection | ❌ | ✅ |
-| Cost Calculation by Provider | ❌ | ✅ |
-| Original ccusage Features | ✅ | ✅ |
+| Feature                      | Original ccusage | better-ccusage |
+| ---------------------------- | ---------------- | -------------- |
+| Anthropic Models             | ✅               | ✅             |
+| Zai Provider                 | ❌               | ✅             |
+| GLM-4.5 Models               | ❌               | ✅             |
+| Multi-Provider Support       | ❌               | ✅             |
+| Provider Detection           | ❌               | ✅             |
+| Cost Calculation by Provider | ❌               | ✅             |
+| Original ccusage Features    | ✅               | ✅             |
 
 Each package has its own development commands, dependencies, and specific guidelines. Always check the relevant package's CLAUDE.md when working within that package directory.
 
@@ -253,7 +253,7 @@ feat(better-ccusage): add support for GLM-4.5 models
 fix(mcp): resolve connection timeout issues
 docs(guide): update installation instructions
 refactor(better-ccusage): extract cost calculation to separate module
-feat(better-better-ccusage): add Zai provider integration
+feat(better-ccusage): add Zai provider integration
 test(mcp): add integration tests for HTTP transport
 chore: update dependencies
 ```

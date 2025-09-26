@@ -25,7 +25,7 @@ better-ccusage analyzes the local JSONL files that Claude Code automatically gen
 ## How It Works
 
 1. **Claude Code generates JSONL files** containing usage data
-2. **better-better-ccusage reads these files** from your local machine
+2. **better-ccusage reads these files** from your local machine
 3. **Analyzes and aggregates** the data by date, session, or time blocks
 4. **Calculates estimated costs** using model pricing information
 5. **Presents results** in beautiful tables or JSON format
@@ -73,16 +73,19 @@ Unlike other CLI tools, we pay extreme attention to bundle size. better-ccusage 
 better-ccusage extends the original ccusage functionality with support for multiple AI providers:
 
 ### 🔄 Zai Provider Integration
+
 - Track usage when using Zai's Claude Code integration
 - Support for Zai-specific model variants
 - Accurate cost calculation for Zai pricing
 
 ### 🚀 GLM-4.5 Model Support
+
 - Full support for GLM-4.5 models from various providers
 - Token counting and cost calculation optimized for GLM-4.5
 - Compatibility with existing Claude Code workflows
 
 ### 🌐 Provider Detection
+
 - Automatic detection of provider from usage data
 - Separate reporting and aggregation by provider
 - Unified interface for multi-provider environments
@@ -92,6 +95,7 @@ better-ccusage extends the original ccusage functionality with support for multi
 better-ccusage was created to address a limitation in the original ccusage project: while ccusage focuses exclusively on Claude Code usage with Anthropic models, better-ccusage extends support to external providers that use Claude Code with different models like Zai and GLM-4.5.
 
 The original ccusage project doesn't account for:
+
 - **Zai** providers that use Claude Code infrastructure with their own models
 - **GLM-4.5** models from other AI providers
 - Multi-provider environments where organizations use different AI services through Claude Code
@@ -100,7 +104,7 @@ better-ccusage maintains full compatibility with ccusage while adding comprehens
 
 ## Data Sources
 
-better-better-ccusage reads from Claude Code's local data directories:
+better-ccusage reads from Claude Code's local data directories:
 
 - **New location**: `~/.config/claude/projects/` (Claude Code v1.0.30+)
 - **Legacy location**: `~/.claude/projects/` (pre-v1.0.30)
