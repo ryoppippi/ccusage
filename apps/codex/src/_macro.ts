@@ -2,7 +2,7 @@ import type { LiteLLMModelPricing } from '@better-ccusage/internal/pricing';
 import process from 'node:process';
 import {
 	createPricingDataset,
-	fetchLiteLLMPricingDataset,
+	loadLocalPricingDataset,
 	filterPricingDataset,
 } from '@better-ccusage/internal/pricing-fetch-utils';
 
@@ -19,16 +19,13 @@ function isCodexModel(modelName: string, _pricing: LiteLLMModelPricing): boolean
 }
 
 export async function prefetchCodexPricing(): Promise<Record<string, LiteLLMModelPricing>> {
-	if (process.env.OFFLINE === 'true') {
-		return createPricingDataset();
-	}
-
 	try {
-		const dataset = await fetchLiteLLMPricingDataset();
+		// Always use local pricing data
+		const dataset = loadLocalPricingDataset();
 		return filterPricingDataset(dataset, isCodexModel);
 	}
 	catch (error) {
-		console.warn('Failed to prefetch Codex pricing data, proceeding with empty cache.', error);
+		console.warn('Failed to load local Codex pricing data, proceeding with empty cache.', error);
 		return createPricingDataset();
 	}
 }

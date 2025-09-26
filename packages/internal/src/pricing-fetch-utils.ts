@@ -5,11 +5,42 @@ import {
 
 	liteLLMModelPricingSchema,
 } from './pricing.ts';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 
 export type PricingDataset = Record<string, LiteLLMModelPricing>;
 
 export function createPricingDataset(): PricingDataset {
 	return Object.create(null) as PricingDataset;
+}
+
+export function loadLocalPricingDataset(): PricingDataset {
+	try {
+		// Load the local pricing JSON file
+		const localPath = join(process.cwd(), 'model_prices_and_context_window.json');
+		const rawData = readFileSync(localPath, 'utf8');
+		const jsonDataset = JSON.parse(rawData) as Record<string, unknown>;
+
+		const dataset = createPricingDataset();
+
+		for (const [modelName, modelData] of Object.entries(jsonDataset)) {
+			if (modelData == null || typeof modelData !== 'object') {
+				continue;
+			}
+
+			const parsed = v.safeParse(liteLLMModelPricingSchema, modelData);
+			if (!parsed.success) {
+				continue;
+			}
+
+			dataset[modelName] = parsed.output;
+		}
+
+		return dataset;
+	} catch (error) {
+		console.warn('Failed to load local pricing data, returning empty dataset:', error);
+		return createPricingDataset();
+	}
 }
 
 export async function fetchLiteLLMPricingDataset(): Promise<PricingDataset> {
