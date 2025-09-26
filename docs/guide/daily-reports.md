@@ -14,7 +14,7 @@ better-ccusage daily
 better-ccusage
 ```
 
-The daily command is the default, so you can omit it when running ccusage.
+The daily command is the default, so you can omit it when running better-ccusage.
 
 ## Example Output
 
@@ -247,7 +247,7 @@ better-ccusage daily --instances --json > project-analysis.json
 Use project aliases to replace cryptic or long project directory names with readable labels:
 
 ```json
-// .ccusage/ccusage.json - Set custom project names for better reporting
+// .better-ccusage/better-ccusage.json - Set custom project names for better reporting
 {
 	"commands": {
 		"daily": {
