@@ -1,6 +1,6 @@
 {
 	"name": "@better-ccusage/mcp",
-	"version": "1.0.0",
+	"version": "1.0.2",
 	"description": "MCP server implementation for better-ccusage data with multi-provider support",
 	"homepage": "https://github.com/cobra91/better-ccusage#readme",
 	"bugs": {
