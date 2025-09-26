@@ -18,8 +18,8 @@ export default defineConfig({
 		resolve: [
 			'type-fest',
 			'valibot',
-			'@ccusage/internal',
-			'@ccusage/terminal',
+			'@better-ccusage/internal',
+			'@better-ccusage/terminal',
 		],
 	},
 	publint: true,

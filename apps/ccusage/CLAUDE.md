@@ -1,10 +1,10 @@
-# CLAUDE.md - ccusage Package
+# CLAUDE.md - better-ccusage Package
 
-This is the main ccusage CLI package that provides usage analysis for Claude Code.
+This is the main better-ccusage CLI package that provides usage analysis for Claude Code.
 
 ## Package Overview
 
-**Name**: `ccusage`
+**Name**: `better-ccusage`
 **Description**: Usage analysis tool for Claude Code
 **Type**: CLI tool and library with TypeScript exports
 
@@ -45,7 +45,7 @@ This is the main ccusage CLI package that provides usage analysis for Claude Cod
 
 ## Architecture
 
-This package contains the core ccusage functionality:
+This package contains the core better-ccusage functionality:
 
 **Key Modules:**
 
@@ -92,7 +92,7 @@ Always run these commands in parallel after code changes:
 
 ## Dependencies
 
-Because `ccusage` is distributed as a bundled CLI, keep all runtime libraries in `devDependencies` so the bundler captures them.
+Because `better-ccusage` is distributed as a bundled CLI, keep all runtime libraries in `devDependencies` so the bundler captures them.
 
 **Key Runtime Dependencies:**
 

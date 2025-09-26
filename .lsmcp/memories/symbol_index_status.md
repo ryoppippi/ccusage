@@ -3,9 +3,9 @@ created: 2025-08-15T10:09:44.271Z
 updated: 2025-08-15T11:07:13.578Z
 ---
 
-Symbol Index Onboarding Complete - ccusage Project
+Symbol Index Onboarding Complete - better-ccusage Project
 
-Project: /Users/ryoppippi/ghq/github.com/ryoppippi/ccusage
+Project: /Users/cobra91/ghq/github.com/cobra91/better-ccusage
 Language: TypeScript/JavaScript
 Pattern Used: \*_/_.{ts,tsx,js,jsx} (automatic detection)
 

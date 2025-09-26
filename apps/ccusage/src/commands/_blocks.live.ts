@@ -8,7 +8,7 @@
 
 import type { LiveMonitoringConfig } from '../_live-rendering.ts';
 import process from 'node:process';
-import { TerminalManager } from '@ccusage/terminal/utils';
+import { TerminalManager } from '@better-ccusage/terminal/utils';
 import { Result } from '@praha/byethrow';
 import pc from 'picocolors';
 import { MIN_RENDER_INTERVAL_MS } from '../_consts.ts';

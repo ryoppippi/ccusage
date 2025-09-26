@@ -1,1 +1,1 @@
-./apps/ccusage/README.md
+./apps/better-ccusage/README.md

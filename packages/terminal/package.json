@@ -1,9 +1,9 @@
 {
-	"name": "@ccusage/terminal",
+	"name": "@better-ccusage/terminal",
 	"type": "module",
 	"version": "17.0.2",
 	"private": true,
-	"description": "Terminal utilities for ccusage",
+	"description": "Terminal utilities for better-ccusage",
 	"exports": {
 		"./table": "./src/table.ts",
 		"./utils": "./src/utils.ts"

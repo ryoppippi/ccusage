@@ -23,7 +23,7 @@ function getCcusageInvocation(): CliInvocation {
 		return cachedCcusageInvocation;
 	}
 
-	const entryPath = resolveBinaryPath('ccusage', 'ccusage');
+	const entryPath = resolveBinaryPath('better-ccusage', 'better-ccusage');
 	cachedCcusageInvocation = createCliInvocation(entryPath);
 	return cachedCcusageInvocation;
 }

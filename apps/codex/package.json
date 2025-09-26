@@ -1,22 +1,22 @@
 {
-	"name": "@ccusage/codex",
+	"name": "@better-ccusage/codex",
 	"type": "module",
 	"version": "17.0.2",
 	"description": "Usage analysis tool for OpenAI Codex sessions",
-	"author": "ryoppippi",
+	"author": "cobra91",
 	"license": "MIT",
-	"funding": "https://github.com/ryoppippi/ccusage?sponsor=1",
-	"homepage": "https://github.com/ryoppippi/ccusage#readme",
+	"funding": "https://github.com/cobra91/better-ccusage?sponsor=1",
+	"homepage": "https://github.com/cobra91/better-ccusage#readme",
 	"repository": {
 		"type": "git",
-		"url": "git+https://github.com/ryoppippi/ccusage.git"
+		"url": "git+https://github.com/cobra91/better-ccusage.git"
 	},
 	"bugs": {
-		"url": "https://github.com/ryoppippi/ccusage/issues"
+		"url": "https://github.com/cobra91/better-ccusage/issues"
 	},
 	"main": "./dist/index.js",
 	"bin": {
-		"ccusage-codex": "./src/index.ts"
+		"better-ccusage-codex": "./src/index.ts"
 	},
 	"files": [
 		"dist"
@@ -35,8 +35,8 @@
 		"typecheck": "tsgo --noEmit"
 	},
 	"devDependencies": {
-		"@ccusage/internal": "workspace:*",
-		"@ccusage/terminal": "workspace:*",
+		"@better-ccusage/internal": "workspace:*",
+		"@better-ccusage/terminal": "workspace:*",
 		"@praha/byethrow": "catalog:runtime",
 		"@ryoppippi/eslint-config": "catalog:lint",
 		"@typescript/native-preview": "catalog:types",
@@ -56,7 +56,7 @@
 	},
 	"publishConfig": {
 		"bin": {
-			"ccusage-codex": "./dist/index.js"
+			"better-ccusage-codex": "./dist/index.js"
 		}
 	},
 	"devEngines": {

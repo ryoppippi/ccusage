@@ -5,9 +5,9 @@ updated: 2025-09-18T21:04:06.798Z
 
 ## lsmcp Symbol Index Configuration
 
-**Project:** ccusage-monorepo v16.2.5
+**Project:** better-ccusage-monorepo v16.2.5
 **Language:** TypeScript/JavaScript
-**Root:** /Users/ryoppippi/ghq/github.com/ryoppippi/ccusage
+**Root:** /Users/cobra91/ghq/github.com/cobra91/better-ccusage
 
 ### Index Results:
 - **Files indexed:** 71
@@ -22,7 +22,7 @@ updated: 2025-09-18T21:04:06.798Z
 - Properties: 28
 
 ### Key Directories:
-- `apps/ccusage/` - Main CLI tool (25 files)
+- `apps/better-ccusage/` - Main CLI tool (25 files)
 - `apps/codex/` - Codex integration (11 files)
 - `apps/mcp/` - MCP server (6 files)
 - `packages/internal/` - Shared utilities (4 files)

@@ -221,7 +221,7 @@ ccusage blocks --live --refresh-interval 2
 ccusage blocks --session-length 5
 ```
 
-> **Note:** The MCP server CLI moved to the dedicated `@ccusage/mcp` package. See the [MCP Server guide](/guide/mcp-server) for usage details.
+> **Note:** The MCP server CLI moved to the dedicated `@better-ccusage/mcp` package. See the [MCP Server guide](/guide/mcp-server) for usage details.
 
 ### Statusline
 

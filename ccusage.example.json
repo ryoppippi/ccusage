@@ -1,5 +1,5 @@
 {
-	"$schema": "./apps/ccusage/config-schema.json",
+	"$schema": "./apps/better-ccusage/config-schema.json",
 	"defaults": {
 		"json": true,
 		"mode": "auto",
@@ -12,7 +12,7 @@
 		"daily": {
 			"instances": true,
 			"order": "desc",
-			"projectAliases": "ccusage=Usage Tracker,my-long-project-name=Project X"
+			"projectAliases": "better-ccusage=Usage Tracker,my-long-project-name=Project X"
 		},
 		"monthly": {
 			"breakdown": true

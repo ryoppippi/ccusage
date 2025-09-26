@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This is a monorepo containing multiple packages. For package-specific guidance, refer to the individual CLAUDE.md files:
 
-- **Main CLI Package**: @apps/ccusage/CLAUDE.md - Core better-ccusage CLI tool and library
+- **Main CLI Package**: @apps/better-ccusage/CLAUDE.md - Core better-ccusage CLI tool and library
 - **MCP Server Package**: @apps/mcp/CLAUDE.md - MCP server implementation for better-ccusage data
 - **Documentation**: @docs/CLAUDE.md - VitePress-based documentation website
 
@@ -17,6 +17,7 @@ better-ccusage is a fork of the original ccusage project that addresses a critic
 ### Why the Fork?
 
 The original ccusage project is designed specifically for Anthropic's Claude Code and doesn't account for:
+
 - **Zai** providers that use Claude Code infrastructure with their own models
 - **GLM-4.5** models from other AI providers
 - Multi-provider environments where organizations use different AI services through Claude Code
@@ -211,7 +212,7 @@ Follow the Conventional Commits specification with package/area prefixes:
 **Scope Naming Rules:**
 
 - **Apps**: Use the app directory name
-  - `feat(ccusage):` - Changes to apps/ccusage
+  - `feat(better-ccusage):` - Changes to apps/better-ccusage
   - `fix(mcp):` - Fixes in apps/mcp
   - `feat(codex):` - Features for apps/codex (if exists)
   - `feat(better-ccusage):` - Changes to better-ccusage core functionality
@@ -248,11 +249,11 @@ Follow the Conventional Commits specification with package/area prefixes:
 **Examples:**
 
 ```
-feat(ccusage): add support for GLM-4.5 models
+feat(better-ccusage): add support for GLM-4.5 models
 fix(mcp): resolve connection timeout issues
 docs(guide): update installation instructions
-refactor(ccusage): extract cost calculation to separate module
-feat(better-ccusage): add Zai provider integration
+refactor(better-ccusage): extract cost calculation to separate module
+feat(better-better-ccusage): add Zai provider integration
 test(mcp): add integration tests for HTTP transport
 chore: update dependencies
 ```
@@ -262,7 +263,7 @@ chore: update dependencies
 PR titles should follow the same format as commit messages. When a PR contains multiple commits, the title should describe the main change:
 
 ```
-feat(ccusage): implement session-based usage reports
+feat(better-ccusage): implement session-based usage reports
 fix(mcp): handle edge cases in data aggregation
 docs: comprehensive API documentation update
 ```

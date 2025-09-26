@@ -1,14 +1,14 @@
 # Sponsors
 
-Support ccusage development by becoming a sponsor! Your contribution helps maintain and improve this tool.
+Support better-ccusage development by becoming a sponsor! Your contribution helps maintain and improve this tool.
 
 ## Featured Sponsor
 
-Check out [ccusage: The Claude Code cost scorecard that went viral](https://www.youtube.com/watch?v=Ak6qpQ5qdgk)
+Check out [better-ccusage: The Claude Code cost scorecard that went viral]
 
 <p align="center">
     <a href="https://www.youtube.com/watch?v=Ak6qpQ5qdgk">
-        <img src="/ccusage_thumbnail.png" alt="ccusage: The Claude Code cost scorecard that went viral" width="600">
+        <img src="/ccusage_thumbnail.png" alt="better-ccusage: The Claude Code cost scorecard that went viral" width="600">
     </a>
 </p>
 
@@ -20,14 +20,14 @@ Check out [ccusage: The Claude Code cost scorecard that went viral](https://www.
 
 ## How to Sponsor
 
-Visit [GitHub Sponsors - @ryoppippi](https://github.com/sponsors/ryoppippi) to support the development of ccusage and other open source projects.
+Visit [GitHub Sponsors - @ryoppippi](https://github.com/sponsors/ryoppippi) to support the development of better-ccusage and other open source projects.
 
 ## Star History
 
-<a href="https://www.star-history.com/#ryoppippi/ccusage&Date">
+<a href="https://www.star-history.com/#ryoppippi/better-ccusage&Date">
     <picture>
-        <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=ryoppippi/ccusage&type=Date&theme=dark" />
-        <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=ryoppippi/ccusage&type=Date" />
-        <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=ryoppippi/ccusage&type=Date" />
+        <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=ryoppippi/better-ccusage&type=Date&theme=dark" />
+        <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=ryoppippi/better-ccusage&type=Date" />
+        <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=ryoppippi/better-ccusage&type=Date" />
     </picture>
 </a>

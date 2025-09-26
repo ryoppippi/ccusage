@@ -57,18 +57,18 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - name: Generate schema files
         run: pnpm run generate:schema
-        working-directory: apps/ccusage
+        working-directory: apps/better-ccusage
       - name: Check if schema files are up-to-date
         run: |
-          if git diff --exit-code apps/ccusage/config-schema.json docs/public/config-schema.json; then
+          if git diff --exit-code apps/better-ccusage/config-schema.json docs/public/config-schema.json; then
             echo "✅ Schema files are up-to-date"
           else
             echo "❌ Schema files are not up-to-date. Please run 'pnpm run generate:schema' and commit the changes."
             echo ""
             echo "Changed files:"
-            git diff --name-only apps/ccusage/config-schema.json docs/public/config-schema.json
+            git diff --name-only apps/better-ccusage/config-schema.json docs/public/config-schema.json
             echo ""
             echo "Diff:"
-            git diff apps/ccusage/config-schema.json docs/public/config-schema.json
+            git diff apps/better-ccusage/config-schema.json docs/public/config-schema.json
             exit 1
           fi

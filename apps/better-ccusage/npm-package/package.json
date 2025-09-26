@@ -1,7 +1,7 @@
 {
 	"name": "better-ccusage",
 	"type": "module",
-	"version": "17.0.2",
+	"version": "1.0.3",
 	"description": "Enhanced usage analysis tool for Claude Code with multi-provider support",
 	"author": "cobra91",
 	"license": "MIT",
@@ -24,19 +24,18 @@
 	},
 	"main": "./dist/index.js",
 	"module": "./dist/index.js",
-	"types": "./dist/index.d.ts",
 	"bin": {
 		"better-ccusage": "./src/index.ts"
 	},
 	"files": [
 		"config-schema.json",
-		"dist"
+		"src"
 	],
 	"engines": {
 		"node": ">=20.19.4"
 	},
 	"scripts": {
-		"build": "pnpm run generate:schema && tsdown",
+		"build": "tsdown",
 		"format": "pnpm run lint --fix",
 		"generate:schema": "OFFLINE=true bun scripts/generate-json-schema.ts",
 		"lint": "eslint --cache .",

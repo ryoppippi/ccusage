@@ -1,5 +1,5 @@
 import type { ModelPricing, TokenUsageDelta } from './_types.ts';
-import { formatCurrency, formatTokens } from '@ccusage/internal/format';
+import { formatCurrency, formatTokens } from '@better-ccusage/internal/format';
 import { MILLION } from './_consts.ts';
 
 export function createEmptyUsage(): TokenUsageDelta {

@@ -42,18 +42,18 @@
 		"typecheck": "tsgo --noEmit"
 	},
 	"dependencies": {
-		"@ccusage/codex": "workspace:*",
+		"@better-ccusage/codex": "workspace:*",
 		"@hono/mcp": "catalog:runtime",
 		"@hono/node-server": "catalog:runtime",
 		"@modelcontextprotocol/sdk": "catalog:runtime",
-		"ccusage": "workspace:*",
+		"better-ccusage": "workspace:*",
 		"gunshi": "catalog:runtime",
 		"hono": "catalog:runtime",
 		"nano-spawn": "catalog:runtime",
 		"zod": "catalog:runtime"
 	},
 	"devDependencies": {
-		"@ccusage/internal": "workspace:*",
+		"@better-ccusage/internal": "workspace:*",
 		"@ryoppippi/eslint-config": "catalog:lint",
 		"clean-pkg-json": "catalog:release",
 		"eslint": "catalog:lint",

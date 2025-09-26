@@ -1,6 +1,6 @@
-import type { UsageReportConfig } from '@ccusage/terminal/table';
+import type { UsageReportConfig } from '@better-ccusage/terminal/table';
 import process from 'node:process';
-import { addEmptySeparatorRow, createUsageReportTable, formatTotalsRow, formatUsageDataRow, pushBreakdownRows } from '@ccusage/terminal/table';
+import { addEmptySeparatorRow, createUsageReportTable, formatTotalsRow, formatUsageDataRow, pushBreakdownRows } from '@better-ccusage/terminal/table';
 import { Result } from '@praha/byethrow';
 import { define } from 'gunshi';
 import pc from 'picocolors';
@@ -38,7 +38,7 @@ export const dailyCommand = define({
 		},
 		projectAliases: {
 			type: 'string',
-			description: 'Comma-separated project aliases (e.g., \'ccusage=Usage Tracker,myproject=My Project\')',
+			description: 'Comma-separated project aliases (e.g., \'better-ccusage=Usage Tracker,myproject=My Project\')',
 			hidden: true,
 		},
 	},

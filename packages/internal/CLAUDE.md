@@ -1,11 +1,11 @@
 # CLAUDE.md - Internal Package
 
-This package contains shared internal utilities for the ccusage monorepo.
+This package contains shared internal utilities for the better-ccusage monorepo.
 
 ## Package Overview
 
-**Name**: `@ccusage/internal`
-**Description**: Shared internal utilities for ccusage toolchain
+**Name**: `@better-ccusage/internal`
+**Description**: Shared internal utilities for better-ccusage toolchain
 **Type**: Internal library (private package)
 
 ## Important Notes
@@ -13,7 +13,7 @@ This package contains shared internal utilities for the ccusage monorepo.
 **CRITICAL**: This is an internal package that gets bundled into the final applications. Therefore:
 
 - **Always add this package as a `devDependency`** in apps that use it, NOT as a regular dependency
-- Apps in this monorepo (ccusage, mcp, codex) are bundled CLIs, so all their runtime dependencies should be in `devDependencies`
+- Apps in this monorepo (better-ccusage, mcp, codex) are bundled CLIs, so all their runtime dependencies should be in `devDependencies`
 - The bundler will include the code from this package in the final output
 
 ## Available Exports
@@ -43,12 +43,12 @@ When adding new shared utilities:
    <!-- eslint-skip -->
    ```json
    "devDependencies": {
-     "@ccusage/internal": "workspace:*"
+     "@better-ccusage/internal": "workspace:*"
    }
    ```
 4. Use the utility:
    ```typescript
-   import { createLogger } from '@ccusage/internal/logger';
+   import { createLogger } from '@better-ccusage/internal/logger';
    ```
 
 ## Dependencies
@@ -97,7 +97,7 @@ The current implementation in `pricing.ts` only handles 200k threshold. Adding m
 
 ## Code Style
 
-Follow the same conventions as the main ccusage package:
+Follow the same conventions as the main better-ccusage package:
 
 - Use `.ts` extensions for local imports
 - Prefer `@praha/byethrow Result` type over try-catch

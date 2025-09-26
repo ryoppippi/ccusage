@@ -6,11 +6,11 @@
  * Provides frame rate limiting, display rendering, and layout functions.
  */
 
-import type { TerminalManager } from '@ccusage/terminal/utils';
+import type { TerminalManager } from '@better-ccusage/terminal/utils';
 import type { SessionBlock } from './_session-blocks.ts';
 import type { CostMode, SortOrder } from './_types.ts';
-import { formatCurrency, formatModelsDisplay, formatNumber } from '@ccusage/terminal/table';
-import { centerText, createProgressBar, drawEmoji } from '@ccusage/terminal/utils';
+import { formatCurrency, formatModelsDisplay, formatNumber } from '@better-ccusage/terminal/table';
+import { centerText, createProgressBar, drawEmoji } from '@better-ccusage/terminal/utils';
 import { delay } from '@std/async';
 import * as ansiEscapes from 'ansi-escapes';
 import pc from 'picocolors';

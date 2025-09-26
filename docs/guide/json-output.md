@@ -370,7 +370,7 @@ import json
 import subprocess
 
 # Get daily usage data
-result = subprocess.run(['ccusage', 'daily', '--json'], capture_output=True, text=True)
+result = subprocess.run(['better-ccusage', 'daily', '--json'], capture_output=True, text=True)
 data = json.loads(result.stdout)
 
 # Process the data
@@ -381,7 +381,7 @@ total_cost = data['totals']['totalCost']
 print(f"Total cost: ${total_cost:.2f}")
 
 # Project analysis example
-result = subprocess.run(['ccusage', 'daily', '--instances', '--json'], capture_output=True, text=True)
+result = subprocess.run(['better-ccusage', 'daily', '--instances', '--json'], capture_output=True, text=True)
 project_data = json.loads(result.stdout)
 
 if 'projects' in project_data:
@@ -404,7 +404,7 @@ if 'projects' in project_data:
 import { execSync } from 'node:child_process';
 
 // Get session usage data
-const output = execSync('ccusage session --json', { encoding: 'utf-8' });
+const output = execSync('better-ccusage session --json', { encoding: 'utf-8' });
 const data = JSON.parse(output);
 
 // Find sessions over $10
@@ -416,7 +416,7 @@ expensiveSessions.forEach((session) => {
 });
 
 // Project analysis example
-const projectOutput = execSync('ccusage daily --instances --json', { encoding: 'utf-8' });
+const projectOutput = execSync('better-ccusage daily --instances --json', { encoding: 'utf-8' });
 const projectData = JSON.parse(projectOutput);
 
 if (projectData.projects) {

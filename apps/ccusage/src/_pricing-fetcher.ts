@@ -1,5 +1,5 @@
-import type { LiteLLMModelPricing } from '@ccusage/internal/pricing';
-import { LiteLLMPricingFetcher } from '@ccusage/internal/pricing';
+import type { LiteLLMModelPricing } from '@better-ccusage/internal/pricing';
+import { LiteLLMPricingFetcher } from '@better-ccusage/internal/pricing';
 import { Result } from '@praha/byethrow';
 import { prefetchClaudePricing, prefetchGLMPricing } from './_macro.ts' with { type: 'macro' };
 import { logger } from './logger.ts';

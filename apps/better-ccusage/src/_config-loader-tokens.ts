@@ -51,12 +51,12 @@ export type ConfigData = {
 
 /**
  * Get configuration file search paths in priority order (highest to lowest)
- * 1. Local .ccusage/ccusage.json
- * 2. User config directories from getClaudePaths() + ccusage.json
+ * 1. Local .better-ccusage/better-ccusage.json
+ * 2. User config directories from getClaudePaths() + better-ccusage.json
  */
 function getConfigSearchPaths(): string[] {
 	const claudeConfigDirs = [
-		join(process.cwd(), '.ccusage'),
+		join(process.cwd(), '.better-ccusage'),
 		...toArray(getClaudePaths()),
 	];
 	return claudeConfigDirs.map(dir => join(dir, CONFIG_FILE_NAME));
@@ -391,9 +391,9 @@ if (import.meta.vitest != null) {
 			vi.restoreAllMocks();
 		});
 
-		it('should load valid configuration from .ccusage/ccusage.json', async () => {
+		it('should load valid configuration from .better-ccusage/better-ccusage.json', async () => {
 			await using fixture = await createFixture({
-				'.ccusage/ccusage.json': JSON.stringify({
+				'.better-ccusage/better-ccusage.json': JSON.stringify({
 					defaults: { json: true },
 					commands: { daily: { instances: true } },
 				}),
@@ -437,7 +437,7 @@ if (import.meta.vitest != null) {
 
 		it('should handle invalid JSON gracefully', async () => {
 			await using fixture = await createFixture({
-				'.ccusage/ccusage.json': '{ invalid json }',
+				'.better-ccusage/better-ccusage.json': '{ invalid json }',
 			});
 
 			vi.spyOn(process, 'cwd').mockReturnValue(fixture.getPath());
@@ -446,9 +446,9 @@ if (import.meta.vitest != null) {
 			expect(config).toBeUndefined();
 		});
 
-		it('should prioritize local .ccusage config over Claude paths', async () => {
+		it('should prioritize local .better-ccusage config over Claude paths', async () => {
 			await using fixture = await createFixture({
-				'.ccusage/ccusage.json': JSON.stringify({
+				'.better-ccusage/better-ccusage.json': JSON.stringify({
 					defaults: { json: true },
 					commands: { daily: { priority: 'local' } },
 				}),
@@ -464,7 +464,7 @@ if (import.meta.vitest != null) {
 
 		it('should test configuration priority order with multiple files', async () => {
 			await using fixture = await createFixture({
-				'.ccusage/ccusage.json': JSON.stringify({
+				'.better-ccusage/better-ccusage.json': JSON.stringify({
 					source: 'local',
 					defaults: { mode: 'local-mode' },
 				}),
@@ -474,12 +474,12 @@ if (import.meta.vitest != null) {
 			vi.spyOn(process, 'cwd').mockReturnValue(fixture.getPath());
 
 			const config1 = loadConfig();
-			expect(config1?.source).toBe(fixture.getPath('.ccusage/ccusage.json'));
+			expect(config1?.source).toBe(fixture.getPath('.better-ccusage/better-ccusage.json'));
 			expect(config1?.defaults?.mode).toBe('local-mode');
 
 			// Test 2: When local doesn't exist, search in Claude paths
 			await using fixture2 = await createFixture({
-				'no-ccusage-dir': '',
+				'no-better-ccusage-dir': '',
 			});
 
 			vi.spyOn(process, 'cwd').mockReturnValue(fixture2.getPath());
@@ -487,12 +487,12 @@ if (import.meta.vitest != null) {
 			const config2 = loadConfig();
 			// Since we can't easily mock getClaudePaths, this test verifies the logic
 			// In real implementation, first available config would be loaded
-			expect(config2).toBeUndefined(); // No local .ccusage and no real Claude paths
+			expect(config2).toBeUndefined(); // No local .better-ccusage and no real Claude paths
 		});
 
 		it('should handle getClaudePaths() errors gracefully', async () => {
 			await using fixture = await createFixture({
-				'.ccusage/ccusage.json': JSON.stringify({
+				'.better-ccusage/better-ccusage.json': JSON.stringify({
 					defaults: { json: true },
 					source: 'local-fallback',
 				}),
@@ -503,13 +503,13 @@ if (import.meta.vitest != null) {
 
 			const config = loadConfig();
 			expect(config).toBeDefined();
-			expect(config?.source).toBe(fixture.getPath('.ccusage/ccusage.json'));
+			expect(config?.source).toBe(fixture.getPath('.better-ccusage/better-ccusage.json'));
 			expect(config?.defaults?.json).toBe(true);
 		});
 
 		it('should handle empty configuration file', async () => {
 			await using fixture = await createFixture({
-				'.ccusage/ccusage.json': '{}',
+				'.better-ccusage/better-ccusage.json': '{}',
 			});
 
 			vi.spyOn(process, 'cwd').mockReturnValue(fixture.getPath());
@@ -522,7 +522,7 @@ if (import.meta.vitest != null) {
 
 		it('should validate configuration structure', async () => {
 			await using fixture = await createFixture({
-				'.ccusage/ccusage.json': JSON.stringify({
+				'.better-ccusage/better-ccusage.json': JSON.stringify({
 					defaults: 'invalid-type', // Should be object
 					commands: { daily: { instances: true } },
 				}),
@@ -536,7 +536,7 @@ if (import.meta.vitest != null) {
 
 		it('should use validateConfigFile internally', async () => {
 			await using fixture = await createFixture({
-				'.ccusage/ccusage.json': JSON.stringify({
+				'.better-ccusage/better-ccusage.json': JSON.stringify({
 					defaults: { json: true },
 					commands: { daily: { instances: true } },
 				}),
@@ -545,7 +545,7 @@ if (import.meta.vitest != null) {
 			});
 
 			// Test validateConfigFile directly
-			const validResult = validateConfigFile(fixture.getPath('.ccusage/ccusage.json'));
+			const validResult = validateConfigFile(fixture.getPath('.better-ccusage/better-ccusage.json'));
 			expect(validResult.success).toBe(true);
 			expect((validResult as { success: true; data: ConfigData }).data.defaults?.json).toBe(true);
 			expect((validResult as { success: true; data: ConfigData }).data.commands?.daily?.instances).toBe(true);
@@ -725,8 +725,8 @@ if (import.meta.vitest != null) {
 		describe('loadConfig with debug', () => {
 			it('should log debug info when loading config with debug=true', async () => {
 				await using fixture = await createFixture({
-					'.ccusage/ccusage.json': JSON.stringify({
-						$schema: 'https://ccusage.com/config-schema.json',
+					'.better-ccusage/better-ccusage.json': JSON.stringify({
+						$schema: 'https://better-ccusage.com/config-schema.json',
 						defaults: { json: true, mode: 'auto' },
 						commands: { daily: { instances: true } },
 					}),
@@ -739,10 +739,10 @@ if (import.meta.vitest != null) {
 				expect(config).toBeDefined();
 				expect(loggerInfoSpy).toHaveBeenCalledWith('Debug mode enabled - showing config loading details\n');
 				expect(loggerInfoSpy).toHaveBeenCalledWith('Searching for config files:');
-				expect(loggerInfoSpy).toHaveBeenCalledWith(`  • Checking: ${fixture.getPath('.ccusage/ccusage.json')} (found ✓)`);
+				expect(loggerInfoSpy).toHaveBeenCalledWith(`  • Checking: ${fixture.getPath('.better-ccusage/better-ccusage.json')} (found ✓)`);
 				expect(loggerInfoSpy).toHaveBeenCalledWith('');
-				expect(loggerInfoSpy).toHaveBeenCalledWith(`Loaded config from: ${fixture.getPath('.ccusage/ccusage.json')}`);
-				expect(loggerInfoSpy).toHaveBeenCalledWith('  • Schema: https://ccusage.com/config-schema.json');
+				expect(loggerInfoSpy).toHaveBeenCalledWith(`Loaded config from: ${fixture.getPath('.better-ccusage/better-ccusage.json')}`);
+				expect(loggerInfoSpy).toHaveBeenCalledWith('  • Schema: https://better-ccusage.com/config-schema.json');
 				expect(loggerInfoSpy).toHaveBeenCalledWith('  • Has defaults: yes (2 options)');
 				expect(loggerInfoSpy).toHaveBeenCalledWith('  • Has command configs: yes (daily)');
 			});

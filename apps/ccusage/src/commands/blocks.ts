@@ -1,6 +1,6 @@
 import type { SessionBlock } from '../_session-blocks.ts';
 import process from 'node:process';
-import { formatCurrency, formatModelsDisplayMultiline, formatNumber, ResponsiveTable } from '@ccusage/terminal/table';
+import { formatCurrency, formatModelsDisplayMultiline, formatNumber, ResponsiveTable } from '@better-ccusage/terminal/table';
 import { Result } from '@praha/byethrow';
 import { define } from 'gunshi';
 import pc from 'picocolors';

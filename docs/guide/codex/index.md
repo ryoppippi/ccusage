@@ -4,34 +4,34 @@
 
 > ⚠️ The Codex companion CLI is experimental. Expect breaking changes while both ccusage and [OpenAI's Codex CLI](https://github.com/openai/codex) continue to evolve.
 
-The `@ccusage/codex` package reuses ccusage's responsive tables, pricing cache, and token accounting to analyze OpenAI Codex CLI session logs.
+The `@better-ccusage/codex` package reuses ccusage's responsive tables, pricing cache, and token accounting to analyze OpenAI Codex CLI session logs.
 
 ## Installation & Launch
 
 ```bash
 # Recommended - always include @latest
-npx @ccusage/codex@latest --help
-bunx @ccusage/codex@latest --help  # ⚠️ MUST include @latest with bunx
+npx @better-ccusage/codex@latest --help
+bunx @better-ccusage/codex@latest --help  # ⚠️ MUST include @latest with bunx
 
 # Alternative package runners
-pnpm dlx @ccusage/codex --help
-pnpx @ccusage/codex --help
+pnpm dlx @better-ccusage/codex --help
+pnpx @better-ccusage/codex --help
 
 # Using deno (with security flags)
-deno run -E -R=$HOME/.codex/ -S=homedir -N='raw.githubusercontent.com:443' npm:@ccusage/codex@latest --help
+deno run -E -R=$HOME/.codex/ -S=homedir -N='raw.githubusercontent.com:443' npm:@better-ccusage/codex@latest --help
 ```
 
 ::: warning ⚠️ Critical for bunx users
-Bun 1.2.x's bunx prioritizes binaries matching the package name suffix when given a scoped package. For `@ccusage/codex`, it looks for a `codex` binary in PATH first. If you have an existing `codex` command installed (e.g., GitHub Copilot's codex), that will be executed instead. **Always use `bunx @ccusage/codex@latest` with the version tag** to force bunx to fetch and run the correct package.
+Bun 1.2.x's bunx prioritizes binaries matching the package name suffix when given a scoped package. For `@better-ccusage/codex`, it looks for a `codex` binary in PATH first. If you have an existing `codex` command installed (e.g., GitHub Copilot's codex), that will be executed instead. **Always use `bunx @better-ccusage/codex@latest` with the version tag** to force bunx to fetch and run the correct package.
 :::
 
 ### Recommended: Shell Alias
 
-Since `npx @ccusage/codex@latest` is quite long to type repeatedly, we strongly recommend setting up a shell alias for convenience:
+Since `npx @better-ccusage/codex@latest` is quite long to type repeatedly, we strongly recommend setting up a shell alias for convenience:
 
 ```bash
-# bash/zsh: alias ccusage-codex='bunx @ccusage/codex@latest'
-# fish:     alias ccusage-codex 'bunx @ccusage/codex@latest'
+# bash/zsh: alias ccusage-codex='bunx @better-ccusage/codex@latest'
+# fish:     alias ccusage-codex 'bunx @better-ccusage/codex@latest'
 
 # Then simply run:
 ccusage-codex daily
@@ -76,7 +76,7 @@ Have feedback or ideas? [Open an issue](https://github.com/ryoppippi/ccusage/iss
 ## Troubleshooting
 
 ::: details Why are there no entries before September 2025?
-OpenAI's Codex CLI started emitting `token_count` events in [commit 0269096](https://github.com/openai/codex/commit/0269096229e8c8bd95185173706807dc10838c7a) (2025-09-06). Earlier session logs simply don't contain token usage metrics, so `@ccusage/codex` has nothing to aggregate. If you need historic data, rerun those sessions after that Codex update.
+OpenAI's Codex CLI started emitting `token_count` events in [commit 0269096](https://github.com/openai/codex/commit/0269096229e8c8bd95185173706807dc10838c7a) (2025-09-06). Earlier session logs simply don't contain token usage metrics, so `@better-ccusage/codex` has nothing to aggregate. If you need historic data, rerun those sessions after that Codex update.
 :::
 
 ::: details What if some September 2025 sessions still get skipped?

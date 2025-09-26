@@ -24,7 +24,7 @@ export function resolveBinaryPath(
 		packageJsonPath = nodeRequire.resolve(`${packageName}/package.json`);
 	}
 	catch (error) {
-		throw new Error(`Unable to resolve ${packageName}. Install the package alongside @ccusage/mcp to enable ${packageName} tools.`, { cause: error });
+		throw new Error(`Unable to resolve ${packageName}. Install the package alongside @better-ccusage/mcp to enable ${packageName} tools.`, { cause: error });
 	}
 
 	const packageJson = nodeRequire(packageJsonPath) as { bin?: BinField; publishConfig?: { bin?: BinField } };

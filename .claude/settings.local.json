@@ -7,7 +7,7 @@
       "mcp__lsmcp__search_symbols",
       "Bash(pnpm --dir /mnt/d/Dev/ccusage/apps/mcp run format)",
       "Bash(pnpm dlx:*)",
-      "Bash(pnpm --dir /mnt/d/Dev/ccusage/apps/ccusage run format)",
+      "Bash(pnpm --dir /mnt/d/Dev/ccusage/apps/better-ccusage run format)",
       "Bash(pnpm --dir /mnt/d/Dev/ccusage run --filter '*' format)"
     ]
   },

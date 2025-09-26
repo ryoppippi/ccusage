@@ -71,8 +71,7 @@ const DEFAULT_PROVIDER_PREFIXES = [
 	'openai/',
 	'azure/',
 	'openrouter/openai/',
-	'deepinfra/',
-	'vercel_ai_gateway/',
+	'zai/',
 ];
 
 function createLogger(logger?: PricingLogger): PricingLogger {
@@ -112,7 +111,7 @@ export class LiteLLMPricingFetcher implements Disposable {
 		this.cachedPricing = null;
 	}
 
-	private loadOfflinePricing = Result.try({
+	private readonly loadOfflinePricing = Result.try({
 		try: async () => {
 			if (this.offlineLoader == null) {
 				throw new Error('Offline loader was not provided');

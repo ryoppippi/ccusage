@@ -4,7 +4,7 @@
  * @fileoverview Generate JSON Schema from args-tokens configuration schema
  *
  * This script generates a JSON Schema file from the args-tokens configuration schema
- * for ccusage configuration files. The generated schema enables:
+ * for better-ccusage configuration files. The generated schema enables:
  * - IDE autocomplete and validation
  * - Documentation of available options
  * - Schema validation for configuration files
@@ -140,9 +140,9 @@ function createConfigSchemaJson() {
 
 	// Main configuration schema
 	return {
-		$ref: '#/definitions/ccusage-config',
+		$ref: '#/definitions/better-ccusage-config',
 		definitions: {
-			'ccusage-config': {
+			'better-ccusage-config': {
 				type: 'object',
 				properties: {
 					$schema: {
@@ -161,11 +161,11 @@ function createConfigSchemaJson() {
 			},
 		},
 		$schema: 'https://json-schema.org/draft-07/schema#',
-		title: 'ccusage Configuration',
-		description: 'Configuration file for ccusage - Claude Code usage analysis tool',
+		title: 'better-ccusage Configuration',
+		description: 'Configuration file for better-ccusage - Claude Code usage analysis tool',
 		examples: [
 			{
-				$schema: 'https://ccusage.com/config-schema.json',
+				$schema: 'https://better-ccusage.com/config-schema.json',
 				defaults: {
 					json: false,
 					mode: 'auto',
@@ -336,15 +336,15 @@ if (import.meta.vitest != null) {
 			const jsonSchema = createConfigSchemaJson();
 
 			expect(jsonSchema).toBeDefined();
-			expect(jsonSchema.$ref).toBe('#/definitions/ccusage-config');
+			expect(jsonSchema.$ref).toBe('#/definitions/better-ccusage-config');
 			expect(jsonSchema.definitions).toBeDefined();
-			expect(jsonSchema.definitions['ccusage-config']).toBeDefined();
-			expect(jsonSchema.definitions['ccusage-config'].type).toBe('object');
+			expect(jsonSchema.definitions['better-ccusage-config']).toBeDefined();
+			expect(jsonSchema.definitions['better-ccusage-config'].type).toBe('object');
 		});
 
 		it('should include all expected properties', () => {
 			const jsonSchema = createConfigSchemaJson();
-			const mainSchema = jsonSchema.definitions['ccusage-config'];
+			const mainSchema = jsonSchema.definitions['better-ccusage-config'];
 
 			expect(mainSchema.properties).toHaveProperty('$schema');
 			expect(mainSchema.properties).toHaveProperty('defaults');
@@ -353,7 +353,7 @@ if (import.meta.vitest != null) {
 
 		it('should include all command schemas', () => {
 			const jsonSchema = createConfigSchemaJson();
-			const commandsSchema = jsonSchema.definitions['ccusage-config'].properties.commands;
+			const commandsSchema = jsonSchema.definitions['better-ccusage-config'].properties.commands;
 
 			expect(commandsSchema.properties).toHaveProperty('daily');
 			expect(commandsSchema.properties).toHaveProperty('monthly');

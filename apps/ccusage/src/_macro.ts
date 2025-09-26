@@ -1,10 +1,10 @@
-import type { LiteLLMModelPricing } from '@ccusage/internal/pricing';
+import type { LiteLLMModelPricing } from '@better-ccusage/internal/pricing';
 import process from 'node:process';
 import {
 	createPricingDataset,
 	fetchLiteLLMPricingDataset,
 	filterPricingDataset,
-} from '@ccusage/internal/pricing-fetch-utils';
+} from '@better-ccusage/internal/pricing-fetch-utils';
 
 function isClaudeModel(modelName: string, _pricing: LiteLLMModelPricing): boolean {
 	return modelName.startsWith('claude-');

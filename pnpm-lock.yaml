@@ -211,15 +211,15 @@ importers:
         specifier: catalog:release
         version: 3.4.0
 
-  apps/ccusage:
+  apps/better-ccusage:
     devDependencies:
       '@antfu/utils':
         specifier: catalog:runtime
         version: 9.2.0
-      '@ccusage/internal':
+      '@better-ccusage/internal':
         specifier: workspace:*
         version: link:../../packages/internal
-      '@ccusage/terminal':
+      '@better-ccusage/terminal':
         specifier: workspace:*
         version: link:../../packages/terminal
       '@oxc-project/runtime':
@@ -330,10 +330,10 @@ importers:
 
   apps/codex:
     devDependencies:
-      '@ccusage/internal':
+      '@better-ccusage/internal':
         specifier: workspace:*
         version: link:../../packages/internal
-      '@ccusage/terminal':
+      '@better-ccusage/terminal':
         specifier: workspace:*
         version: link:../../packages/terminal
       '@praha/byethrow':
@@ -393,7 +393,7 @@ importers:
 
   apps/mcp:
     dependencies:
-      '@ccusage/codex':
+      '@better-ccusage/codex':
         specifier: workspace:*
         version: link:../codex
       '@hono/mcp':
@@ -405,9 +405,9 @@ importers:
       '@modelcontextprotocol/sdk':
         specifier: catalog:runtime
         version: 1.18.0
-      ccusage:
+      better-ccusage:
         specifier: workspace:*
-        version: link:../ccusage
+        version: link:../better-ccusage
       gunshi:
         specifier: catalog:runtime
         version: 0.26.3
@@ -421,7 +421,7 @@ importers:
         specifier: catalog:runtime
         version: 3.25.76
     devDependencies:
-      '@ccusage/internal':
+      '@better-ccusage/internal':
         specifier: workspace:*
         version: link:../../packages/internal
       '@ryoppippi/eslint-config':
@@ -475,9 +475,9 @@ importers:
       bun:
         specifier: runtime:^1.2.21
         version: runtime:1.2.22
-      ccusage:
+      better-ccusage:
         specifier: workspace:^
-        version: link:../apps/ccusage
+        version: link:../apps/better-ccusage
       eslint:
         specifier: catalog:lint
         version: 9.35.0(jiti@2.5.1)
