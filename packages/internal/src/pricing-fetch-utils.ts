@@ -16,19 +16,27 @@ export function createPricingDataset(): PricingDataset {
 
 export function loadLocalPricingDataset(): PricingDataset {
 	try {
-		// Load the local pricing JSON file from monorepo root
-		// Try multiple possible locations to handle different CI scenarios
+		// Load the local pricing JSON file from multiple possible locations
+		// Try current working directory first (for development)
+		// Then try relative to this file (for published package)
 		const possiblePaths = [
 			join(cwd(), 'model_prices_and_context_window.json'),
 			join(cwd(), '..', 'model_prices_and_context_window.json'),
 			join(cwd(), '..', '..', 'model_prices_and_context_window.json'),
+			// Try paths relative to this file (for published package)
+			join(import.meta.url, '..', '..', '..', 'model_prices_and_context_window.json'),
+			join(import.meta.url, '..', '..', '..', '..', 'model_prices_and_context_window.json'),
 		];
 
 		let rawData: string | undefined;
 
 		for (const path of possiblePaths) {
 			try {
-				rawData = readFileSync(path, 'utf8');
+				// Handle file:// URLs from import.meta.url
+				const filePath = path.startsWith('file://')
+					? path.slice(7) // Remove file:// prefix
+					: path;
+				rawData = readFileSync(filePath, 'utf8');
 				break;
 			}
 			catch {
