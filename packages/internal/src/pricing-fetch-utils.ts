@@ -25,19 +25,18 @@ export function loadLocalPricingDataset(): PricingDataset {
 		];
 
 		let rawData: string | undefined;
-		let usedPath: string | undefined;
 
 		for (const path of possiblePaths) {
 			try {
 				rawData = readFileSync(path, 'utf8');
-				usedPath = path;
 				break;
-			} catch {
+			}
+			catch {
 				// Continue to next path
 			}
 		}
 
-		if (!rawData) {
+		if (rawData === undefined || rawData === null || rawData.trim() === '') {
 			throw new Error(`Could not find model_prices_and_context_window.json in any of these locations: ${possiblePaths.join(', ')}`);
 		}
 		const jsonDataset = JSON.parse(rawData) as Record<string, unknown>;
@@ -45,7 +44,7 @@ export function loadLocalPricingDataset(): PricingDataset {
 		const dataset = createPricingDataset();
 
 		for (const [modelName, modelData] of Object.entries(jsonDataset)) {
-			if (modelData == null || typeof modelData !== 'object') {
+			if (modelData === null || modelData === undefined || typeof modelData !== 'object') {
 				continue;
 			}
 
@@ -75,7 +74,7 @@ export async function fetchPricingDataset(): Promise<PricingDataset> {
 	const dataset = createPricingDataset();
 
 	for (const [modelName, modelData] of Object.entries(rawDataset)) {
-		if (modelData == null || typeof modelData !== 'object') {
+		if (modelData === null || modelData === undefined || typeof modelData !== 'object') {
 			continue;
 		}
 
