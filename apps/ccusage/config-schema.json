@@ -104,6 +104,24 @@
 							"description": "Force compact mode for narrow displays (better for screenshots)",
 							"markdownDescription": "Force compact mode for narrow displays (better for screenshots)",
 							"default": false
+						},
+						"contextWindowMode": {
+							"type": "string",
+							"enum": [
+								"auto",
+								"claude-api",
+								"claude-plan"
+							],
+							"description": "Context window detection mode: auto (use model database), claude-api (1M tokens for Claude API users), claude-plan (200k tokens for Claude plan users)",
+							"markdownDescription": "Context window detection mode: auto (use model database), claude-api (1M tokens for Claude API users), claude-plan (200k tokens for Claude plan users)",
+							"default": "auto"
+						},
+						"customContextWindow": {
+							"type": "number",
+							"minimum": 1000,
+							"maximum": 2000000,
+							"description": "Custom context window size in tokens (overrides contextWindowMode)",
+							"markdownDescription": "Custom context window size in tokens (overrides contextWindowMode)"
 						}
 					},
 					"additionalProperties": false,
