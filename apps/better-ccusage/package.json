@@ -34,7 +34,7 @@
 	"scripts": {
 		"build": "tsdown",
 		"format": "pnpm run lint --fix",
-		"generate:schema": "OFFLINE=true bun scripts/generate-json-schema.ts",
+		"generate:schema": "OFFLINE=true node scripts/generate-json-schema.ts",
 		"lint": "eslint --cache .",
 		"prepack": "pnpm run build && clean-pkg-json",
 		"prepare": "pnpm run generate:schema || true",
