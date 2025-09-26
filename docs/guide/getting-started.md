@@ -1,6 +1,6 @@
 # Getting Started
 
-Welcome to ccusage! This guide will help you get up and running with analyzing your Claude Code usage data.
+Welcome to better-ccusage! This guide will help you get up and running with analyzing your Claude Code usage data.
 
 ## Prerequisites
 
@@ -9,20 +9,20 @@ Welcome to ccusage! This guide will help you get up and running with analyzing y
 
 ## Quick Start
 
-The fastest way to try ccusage is to run it directly without installation:
+The fastest way to try better-ccusage is to run it directly without installation:
 
 ::: code-group
 
 ```bash [npx]
-npx ccusage@latest
+npx better-ccusage@latest
 ```
 
 ```bash [bunx]
-bunx ccusage
+bunx better-ccusage
 ```
 
 ```bash [pnpm]
-pnpm dlx ccusage
+pnpm dlx better-ccusage
 ```
 
 :::
@@ -31,7 +31,7 @@ This will show your daily usage report by default.
 
 ## Your First Report
 
-When you run ccusage for the first time, you'll see a table showing your Claude Code usage by date:
+When you run better-ccusage for the first time, you'll see a table showing your Claude Code usage by date:
 
 ```
 ╭──────────────────────────────────────────╮
@@ -73,41 +73,41 @@ Now that you have your first report, explore these features:
 2. **[Monthly Reports](/guide/monthly-reports)** - See usage aggregated by month
 3. **[Session Reports](/guide/session-reports)** - Analyze individual conversations
 4. **[Live Monitoring](/guide/live-monitoring)** - Real-time usage tracking
-5. **[Configuration](/guide/configuration)** - Customize ccusage behavior
+5. **[Configuration](/guide/configuration)** - Customize better-ccusage behavior
 
 ## Common Use Cases
 
 ### Monitor Daily Usage
 
 ```bash
-ccusage daily --since 20241201 --until 20241231
+better-ccusage daily --since 20241201 --until 20241231
 ```
 
 ### Analyze Sessions
 
 ```bash
-ccusage session
+better-ccusage session
 ```
 
 ### Export for Analysis
 
 ```bash
-ccusage monthly --json > usage-data.json
+better-ccusage monthly --json > usage-data.json
 ```
 
 ### Live Session Monitoring
 
 ```bash
-ccusage blocks --live
+better-ccusage blocks --live
 ```
 
 ## Colors
 
-ccusage automatically colors the output based on the terminal's capabilities. If you want to disable colors, you can use the `--no-color` flag. Or you can use the `--color` flag to force colors on.
+better-ccusage automatically colors the output based on the terminal's capabilities. If you want to disable colors, you can use the `--no-color` flag. Or you can use the `--color` flag to force colors on.
 
 ## Automatic Table Adjustment
 
-ccusage automatically adjusts its table layout based on terminal width:
+better-ccusage automatically adjusts its table layout based on terminal width:
 
 - **Wide terminals (≥100 characters)**: Full table with all columns including cache metrics, model names, and detailed breakdowns
 - **Narrow terminals (<100 characters)**: Compact view with essential columns only (Date, Models, Input, Output, Cost)
@@ -118,9 +118,9 @@ The layout adjusts automatically based on your terminal width - no configuration
 
 ### No Data Found
 
-If ccusage shows no data, check:
+If better-ccusage shows no data, check:
 
-1. **Claude Code is installed and used** - ccusage reads from Claude Code's data files
+1. **Claude Code is installed and used** - better-ccusage reads from Claude Code's data files
 2. **Data directory exists** - Default locations:
    - `~/.config/claude/projects/` (new default)
    - `~/.claude/projects/` (legacy)
@@ -131,11 +131,11 @@ If your Claude data is in a custom location:
 
 ```bash
 export CLAUDE_CONFIG_DIR="/path/to/your/claude/data"
-ccusage daily
+better-ccusage daily
 ```
 
 ## Getting Help
 
-- Use `ccusage --help` for command options
-- Visit our [GitHub repository](https://github.com/ryoppippi/ccusage) for issues
+- Use `better-ccusage --help` for command options
+- Visit our [GitHub repository](https://github.com/cobra91/better-ccusage) for issues
 - Check the [API Reference](/api/) for programmatic usage

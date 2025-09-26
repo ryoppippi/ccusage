@@ -4,7 +4,7 @@ This directory contains the VitePress-based documentation website for ccusage.
 
 ## Package Overview
 
-**Name**: `@ccusage/docs`
+**Name**: `@better-ccusage/docs`
 **Description**: Documentation for ccusage
 **Type**: VitePress documentation site (private package)
 

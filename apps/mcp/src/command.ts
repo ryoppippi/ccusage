@@ -1,8 +1,8 @@
-import type { LoadOptions } from 'ccusage/data-loader';
+import type { LoadOptions } from 'better-ccusage/data-loader';
 import process from 'node:process';
 import { serve } from '@hono/node-server';
-import { getClaudePaths } from 'ccusage/data-loader';
-import { logger } from 'ccusage/logger';
+import { getClaudePaths } from 'better-ccusage/data-loader';
+import { logger } from 'better-ccusage/logger';
 import { cli, define } from 'gunshi';
 import { description, name, version } from '../package.json';
 import { createMcpHttpApp, createMcpServer, startMcpServerStdio } from './mcp.ts';
@@ -89,7 +89,7 @@ export async function runCli(argv: string[] = process.argv.slice(2)): Promise<vo
 	// When invoked through npx/bunx, the binary name might be passed as the first argument
 	// Filter it out if it matches the expected binary name
 	let args = argv;
-	if (args[0] === 'ccusage-mcp') {
+	if (args[0] === 'better-ccusage-mcp') {
 		args = args.slice(1);
 	}
 

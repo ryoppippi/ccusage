@@ -23,8 +23,8 @@ export default defineConfig({
 		['meta', { property: 'og:locale', content: 'en' }],
 		['meta', { property: 'og:title', content: 'better-ccusage | Enhanced Claude Code Usage Analysis with Multi-Provider Support' }],
 		['meta', { property: 'og:site_name', content: 'better-ccusage' }],
-		['meta', { property: 'og:image', content: 'https://cdn.jsdelivr.net/gh/ryoppippi/ccusage@main/docs/public/logo.png' }],
-		['meta', { property: 'og:url', content: 'https://github.com/ryoppippi/better-ccusage' }],
+		['meta', { property: 'og:image', content: 'https://cdn.jsdelivr.net/gh/cobra91/better-ccusage@main/docs/public/logo.png' }],
+		['meta', { property: 'og:url', content: 'https://github.com/cobra91/better-ccusage' }],
 	],
 
 	themeConfig: {
@@ -36,12 +36,12 @@ export default defineConfig({
 			{
 				text: 'Links',
 				items: [
-					{ text: 'GitHub', link: 'https://github.com/ryoppippi/better-ccusage' },
+					{ text: 'GitHub', link: 'https://github.com/cobra91/better-ccusage' },
 					{ text: 'npm', link: 'https://www.npmjs.com/package/better-ccusage' },
-					{ text: 'Changelog', link: 'https://github.com/ryoppippi/better-ccusage/releases' },
-					{ text: 'DeepWiki', link: 'https://deepwiki.com/ryoppippi/better-ccusage' },
-					{ text: 'Package Stats', link: 'https://tanstack.com/ccusage?npmPackage=better-ccusage' },
-					{ text: 'Sponsor', link: 'https://github.com/sponsors/ryoppippi' },
+					{ text: 'Changelog', link: 'https://github.com/cobra91/better-ccusage/releases' },
+					{ text: 'DeepWiki', link: 'https://deepwiki.com/cobra91/better-ccusage' },
+					{ text: 'Package Stats', link: 'https://tanstack.com/better-ccusage?npmPackage=better-ccusage' },
+					{ text: 'Sponsor', link: 'https://github.com/sponsors/cobra91' },
 				],
 			},
 		],
@@ -117,14 +117,14 @@ export default defineConfig({
 		},
 
 		socialLinks: [
-			{ icon: 'github', link: 'https://github.com/ryoppippi/better-ccusage' },
+			{ icon: 'github', link: 'https://github.com/cobra91/better-ccusage' },
 			{ icon: 'npm', link: 'https://www.npmjs.com/package/better-ccusage' },
 			{ icon: 'twitter', link: 'https://x.com/cc_usage' },
 		],
 
 		footer: {
 			message: 'Released under the MIT License.',
-			copyright: 'Copyright © 2025 ryoppippi',
+			copyright: 'Copyright © 2025 cobra91',
 		},
 
 		search: {
@@ -132,7 +132,7 @@ export default defineConfig({
 		},
 
 		editLink: {
-			pattern: 'https://github.com/ryoppippi/better-ccusage/edit/main/docs/:path',
+			pattern: 'https://github.com/cobra91/better-ccusage/edit/main/docs/:path',
 			text: 'Edit this page on GitHub',
 		},
 
@@ -156,10 +156,10 @@ export default defineConfig({
 				mode: 'generate',
 				entries: [
 					{ from: '/raycast', to: 'https://www.raycast.com/nyatinte/ccusage', status: 302 },
-					{ from: '/gh', to: 'https://github.com/ryoppippi/better-ccusage', status: 302 },
+					{ from: '/gh', to: 'https://github.com/cobra91/better-ccusage', status: 302 },
 					{ from: '/npm', to: 'https://www.npmjs.com/package/better-ccusage', status: 302 },
-					{ from: '/deepwiki', to: 'https://deepwiki.com/ryoppippi/better-ccusage', status: 302 },
-					{ from: '/sponsor', to: 'https://github.com/sponsors/ryoppippi', status: 302 },
+					{ from: '/deepwiki', to: 'https://deepwiki.com/cobra91/better-ccusage', status: 302 },
+					{ from: '/sponsor', to: 'https://github.com/sponsors/cobra91', status: 302 },
 				],
 			}) as any,
 			groupIconVitePlugin(),

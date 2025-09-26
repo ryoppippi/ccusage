@@ -8,7 +8,7 @@
  * @module mcp
  */
 
-import type { LoadOptions } from 'ccusage/data-loader';
+import type { LoadOptions } from 'better-ccusage/data-loader';
 import { StreamableHTTPTransport } from '@hono/mcp';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';

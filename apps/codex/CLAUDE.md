@@ -44,7 +44,7 @@ Parsing normalizes every event through these rules. When we have to synthesize t
 
 ## CLI Usage
 
-- Treat Codex as a sibling to `apps/ccusage`; whenever possible reuse the same shared packages (`@ccusage/terminal`, pricing helpers, logging), command names, and flag semantics. Diverge only when Codex-specific data forces it and document the reason inline.
+- Treat Codex as a sibling to `apps/ccusage`; whenever possible reuse the same shared packages (`@better-ccusage/terminal`, pricing helpers, logging), command names, and flag semantics. Diverge only when Codex-specific data forces it and document the reason inline.
 - Codex is packaged as a bundled CLI. Keep every runtime dependency in `devDependencies` so the bundle includes the code that ships.
 - Entry point remains Gunshi-based; only `daily` subcommand is wired for now.
 - Session discovery relies solely on `CODEX_HOME`; there is no explicit `--dir` override.

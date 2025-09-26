@@ -1,10 +1,10 @@
 # Cost Modes
 
-ccusage supports three different cost calculation modes to handle various scenarios and data sources. Understanding these modes helps you get the most accurate cost estimates for your usage analysis.
+better-ccusage supports three different cost calculation modes to handle various scenarios and data sources. Understanding these modes helps you get the most accurate cost estimates for your usage analysis.
 
 ## Overview
 
-Claude Code stores usage data in JSONL files with both token counts and pre-calculated cost information. ccusage can handle this data in different ways depending on your needs:
+Claude Code stores usage data in JSONL files with both token counts and pre-calculated cost information. better-ccusage can handle this data in different ways depending on your needs:
 
 - **`auto`** - Smart mode using the best available data
 - **`calculate`** - Always calculate from token counts
@@ -17,9 +17,9 @@ Claude Code stores usage data in JSONL files with both token counts and pre-calc
 The `auto` mode intelligently chooses the best cost calculation method for each entry:
 
 ```bash
-ccusage daily --mode auto
+better-ccusage daily --mode auto
 # or simply:
-ccusage daily
+better-ccusage daily
 ```
 
 #### How it works:
@@ -52,8 +52,8 @@ ccusage daily
 The `calculate` mode always computes costs from token counts using model pricing:
 
 ```bash
-ccusage daily --mode calculate
-ccusage monthly --mode calculate --breakdown
+better-ccusage daily --mode calculate
+better-ccusage monthly --mode calculate --breakdown
 ```
 
 #### How it works:
@@ -87,8 +87,8 @@ ccusage monthly --mode calculate --breakdown
 The `display` mode only shows pre-calculated costs from Claude Code:
 
 ```bash
-ccusage daily --mode display
-ccusage session --mode display --json
+better-ccusage daily --mode display
+better-ccusage session --mode display --json
 ```
 
 #### How it works:
@@ -125,7 +125,7 @@ You have data from different time periods with varying cost information:
 
 ```bash
 # Auto mode handles mixed data intelligently
-ccusage daily --mode auto --since 20241201
+better-ccusage daily --mode auto --since 20241201
 
 # Shows:
 # - Pre-calculated costs for recent entries (Jan 2025)
@@ -138,7 +138,7 @@ You want to compare costs across different months using the same methodology:
 
 ```bash
 # Calculate mode ensures consistent methodology
-ccusage monthly --mode calculate --breakdown
+better-ccusage monthly --mode calculate --breakdown
 
 # All months use the same token-based calculation
 # Useful for trend analysis and cost projections
@@ -150,7 +150,7 @@ You want to verify Claude's official cost calculations:
 
 ```bash
 # Display mode shows only official Claude costs
-ccusage daily --mode display --since 20250101
+better-ccusage daily --mode display --since 20250101
 
 # Compare with your Claude billing dashboard
 # Entries without costs show $0.00
@@ -162,17 +162,17 @@ Analyzing usage patterns over time:
 
 ```bash
 # Auto mode for complete picture
-ccusage daily --mode auto --since 20240101 --until 20241231
+better-ccusage daily --mode auto --since 20240101 --until 20241231
 
 # Calculate mode for consistent comparison
-ccusage monthly --mode calculate --order asc
+better-ccusage monthly --mode calculate --order asc
 ```
 
 ## Cost Calculation Details
 
 ### Token-Based Calculation
 
-When calculating costs from tokens, ccusage uses:
+When calculating costs from tokens, better-ccusage uses:
 
 #### Model Pricing Sources
 
@@ -224,7 +224,7 @@ Claude Code provides `costUSD` values in JSONL files:
 Use debug mode to understand cost calculation discrepancies:
 
 ```bash
-ccusage daily --mode auto --debug
+better-ccusage daily --mode auto --debug
 ```
 
 Shows:
@@ -236,7 +236,7 @@ Shows:
 
 ```bash
 # Show more sample discrepancies
-ccusage daily --debug --debug-samples 10
+better-ccusage daily --debug --debug-samples 10
 ```
 
 ## Mode Selection Guide
@@ -268,13 +268,13 @@ ccusage daily --debug --debug-samples 10
 
 ```bash
 # Calculate mode with breakdown by model
-ccusage daily --mode calculate --breakdown
+better-ccusage daily --mode calculate --breakdown
 
 # Display mode with JSON output for analysis
-ccusage session --mode display --json | jq '.[] | select(.totalCost > 0)'
+better-ccusage session --mode display --json | jq '.[] | select(.totalCost > 0)'
 
 # Auto mode with date filtering
-ccusage monthly --mode auto --since 20240101 --order asc
+better-ccusage monthly --mode auto --since 20240101 --order asc
 ```
 
 ### Performance Considerations
@@ -287,8 +287,8 @@ ccusage monthly --mode auto --since 20240101 --order asc
 
 ```bash
 # All modes work with offline pricing data
-ccusage daily --mode calculate --offline
-ccusage monthly --mode auto --offline
+better-ccusage daily --mode calculate --offline
+better-ccusage monthly --mode auto --offline
 ```
 
 ## Common Issues and Solutions
@@ -301,8 +301,8 @@ ccusage monthly --mode auto --offline
 
 ```bash
 # Switch to auto or calculate mode
-ccusage daily --mode auto
-ccusage daily --mode calculate
+better-ccusage daily --mode auto
+better-ccusage daily --mode calculate
 ```
 
 ### Issue: Inconsistent cost calculations
@@ -313,7 +313,7 @@ ccusage daily --mode calculate
 
 ```bash
 # Use calculate mode for consistency
-ccusage daily --mode calculate --since 20240101
+better-ccusage daily --mode calculate --since 20240101
 ```
 
 ### Issue: Large discrepancies in debug mode
@@ -324,8 +324,8 @@ ccusage daily --mode calculate --since 20240101
 
 ```bash
 # Check for pricing updates
-ccusage daily --mode auto  # Updates pricing cache
-ccusage daily --mode calculate --debug  # Compare calculations
+better-ccusage daily --mode auto  # Updates pricing cache
+better-ccusage daily --mode calculate --debug  # Compare calculations
 ```
 
 ### Issue: Missing cost data for recent entries
@@ -336,7 +336,7 @@ ccusage daily --mode calculate --debug  # Compare calculations
 
 ```bash
 # Use calculate mode as fallback
-ccusage daily --mode calculate
+better-ccusage daily --mode calculate
 ```
 
 ## Next Steps

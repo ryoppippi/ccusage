@@ -22,7 +22,7 @@ const ANSI_RESET = '\u001B[0m'; // Reset all formatting and colors
  * and cursor state management for live monitoring displays
  */
 export class TerminalManager {
-	private stream: WriteStream;
+	private readonly stream: WriteStream;
 	private cursorHidden = false;
 	private buffer: string[] = [];
 	private useBuffering = false;

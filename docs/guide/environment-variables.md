@@ -1,6 +1,6 @@
 # Environment Variables
 
-ccusage supports several environment variables for configuration and customization. Environment variables provide a way to configure ccusage without modifying command-line arguments or configuration files.
+better-ccusage supports several environment variables for configuration and customization. Environment variables provide a way to configure ccusage without modifying command-line arguments or configuration files.
 
 ## CLAUDE_CONFIG_DIR
 
@@ -12,7 +12,7 @@ Set a single custom Claude data directory:
 
 ```bash
 export CLAUDE_CONFIG_DIR="/path/to/your/claude/data"
-ccusage daily
+better-ccusage daily
 ```
 
 ### Multiple Directories
@@ -21,7 +21,7 @@ Set multiple directories (comma-separated) to aggregate data from multiple sourc
 
 ```bash
 export CLAUDE_CONFIG_DIR="/path/to/claude1,/path/to/claude2"
-ccusage daily
+better-ccusage daily
 ```
 
 When multiple directories are specified, ccusage automatically aggregates usage data from all valid locations.
@@ -67,7 +67,7 @@ export CLAUDE_CONFIG_DIR="/team-shared/claude-data/$USER"
 ```bash
 # Use specific directory in CI pipeline
 export CLAUDE_CONFIG_DIR="/ci-data/claude-logs"
-ccusage daily --json > usage-report.json
+better-ccusage daily --json > usage-report.json
 ```
 
 ## LOG_LEVEL
@@ -139,7 +139,7 @@ Force offline mode by default:
 
 ```bash
 export CCUSAGE_OFFLINE=1
-ccusage daily  # Runs in offline mode
+better-ccusage daily  # Runs in offline mode
 ```
 
 ### NO_COLOR
@@ -148,7 +148,7 @@ Disable colored output (standard CLI convention):
 
 ```bash
 export NO_COLOR=1
-ccusage daily  # No color formatting
+better-ccusage daily  # No color formatting
 ```
 
 ### FORCE_COLOR
@@ -157,7 +157,7 @@ Force colored output even when piping:
 
 ```bash
 export FORCE_COLOR=1
-ccusage daily | less -R  # Preserves colors
+better-ccusage daily | less -R  # Preserves colors
 ```
 
 ## Setting Environment Variables
@@ -170,7 +170,7 @@ LOG_LEVEL=0 ccusage daily
 
 # Set for current shell session
 export CLAUDE_CONFIG_DIR="/custom/path"
-ccusage daily
+better-ccusage daily
 ```
 
 ### Permanent (Shell Profile)
@@ -221,7 +221,7 @@ Example:
 export CCUSAGE_OFFLINE=1
 
 # But command-line argument overrides it
-ccusage daily --no-offline  # Runs in online mode
+better-ccusage daily --no-offline  # Runs in online mode
 ```
 
 ## Debugging

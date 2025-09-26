@@ -1,6 +1,6 @@
-import type { LiteLLMModelPricing } from '@ccusage/internal/pricing';
+import type { LiteLLMModelPricing } from '@better-ccusage/internal/pricing';
 import type { ModelPricing, PricingSource } from './_types.ts';
-import { LiteLLMPricingFetcher } from '@ccusage/internal/pricing';
+import { LiteLLMPricingFetcher } from '@better-ccusage/internal/pricing';
 import { Result } from '@praha/byethrow';
 import { MILLION } from './_consts.ts';
 import { prefetchCodexPricing } from './_macro.ts' with { type: 'macro' };

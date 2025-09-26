@@ -1,14 +1,14 @@
 {
 	"session_id": "73cc9f9a-2775-4418-beec-bc36b62a1c6f",
-	"transcript_path": "/Users/ryoppippi/.config/claude/projects/-Users-ryoppippi-ghq-github-com-ryoppippi-ccusage/73cc9f9a-2775-4418-beec-bc36b62a1c6f.jsonl",
-	"cwd": "/Users/ryoppippi/ghq/github.com/ryoppippi/ccusage",
+	"transcript_path": "/Users/cobra91/.config/claude/projects/-Users-cobra91-ghq-github-com-cobra91-better-ccusage/73cc9f9a-2775-4418-beec-bc36b62a1c6f.jsonl",
+	"cwd": "/Users/cobra91/ghq/github.com/cobra91/better-ccusage",
 	"model": {
 		"id": "claude-sonnet-4-20250514",
 		"display_name": "Sonnet 4"
 	},
 	"workspace": {
-		"current_dir": "/Users/ryoppippi/ghq/github.com/ryoppippi/ccusage",
-		"project_dir": "/Users/ryoppippi/ghq/github.com/ryoppippi/ccusage"
+		"current_dir": "/Users/cobra91/ghq/github.com/cobra91/better-ccusage",
+		"project_dir": "/Users/cobra91/ghq/github.com/cobra91/better-ccusage"
 	},
 	"version": "1.0.88",
 	"output_style": {

@@ -4,7 +4,7 @@ import { ryoppippi } from '@ryoppippi/eslint-config';
 const config = ryoppippi({
 	type: 'app',
 	ignores: [
-		'packages',
+		'package.json',
 	],
 }, {
 	rules: {

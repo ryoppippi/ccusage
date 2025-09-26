@@ -2,19 +2,19 @@
 layout: home
 
 hero:
-  name: ccusage
+  name: better-ccusage
   text: Claude Code Usage Analysis
   tagline: A powerful CLI tool for analyzing Claude Code usage from local JSONL files
   image:
     src: /logo.svg
-    alt: ccusage logo
+    alt: better-ccusage logo
   actions:
     - theme: brand
       text: Get Started
       link: /guide/
     - theme: alt
       text: View on GitHub
-      link: https://github.com/ryoppippi/ccusage
+      link: https://github.com/cobra91/better-ccusage
 
 features:
   - icon: 📊
@@ -67,18 +67,18 @@ features:
 ---
 
 <div style="text-align: center; margin: 2rem 0;">
-  <h2 style="margin-bottom: 1rem;">Support ccusage</h2>
-  <p style="margin-bottom: 1.5rem;">If you find ccusage helpful, please consider sponsoring the development!</p>
+  <h2 style="margin-bottom: 1rem;">Support better-ccusage</h2>
+  <p style="margin-bottom: 1.5rem;">If you find better-ccusage helpful, please consider sponsoring the development!</p>
 
   <h3 style="margin-bottom: 1rem;">Featured Sponsor</h3>
-  <p style="margin-bottom: 1rem;">Check out <a href="https://www.youtube.com/watch?v=Ak6qpQ5qdgk" target="_blank">ccusage: The Claude Code cost scorecard that went viral</a></p>
+  <p style="margin-bottom: 1rem;">Check out <a href="https://www.youtube.com/watch?v=Ak6qpQ5qdgk" target="_blank">better-ccusage: The Claude Code cost scorecard that went viral</a></p>
   <a href="https://www.youtube.com/watch?v=Ak6qpQ5qdgk" target="_blank">
-    <img src="/ccusage_thumbnail.png" alt="ccusage: The Claude Code cost scorecard that went viral" style="max-width: 600px; height: auto;">
+    <img src="/ccusage_thumbnail.png" alt="better-ccusage: The Claude Code cost scorecard that went viral" style="max-width: 600px; height: auto;">
   </a>
 
   <div style="margin-top: 2rem;">
-    <a href="https://github.com/sponsors/ryoppippi" target="_blank">
-      <img src="https://cdn.jsdelivr.net/gh/ryoppippi/sponsors@main/sponsors.svg" alt="Sponsors" style="max-width: 100%; height: auto;">
+    <a href="https://github.com/sponsors/cobra91" target="_blank">
+      <img src="https://cdn.jsdelivr.net/gh/cobra91/sponsors@main/sponsors.svg" alt="Sponsors" style="max-width: 100%; height: auto;">
     </a>
   </div>
 </div>

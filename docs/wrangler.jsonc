@@ -1,6 +1,6 @@
 {
 	"$schema": "../node_modules/wrangler/config-schema.json",
-	"name": "ccusage-guide",
+	"name": "better-ccusage-guide",
 	"compatibility_date": "2025-07-21",
 	"build": {
 		"command": "pnpm run build"

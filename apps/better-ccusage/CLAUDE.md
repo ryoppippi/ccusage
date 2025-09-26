@@ -45,7 +45,7 @@ This is the main better-ccusage CLI package that provides usage analysis for Cla
 
 ## Architecture
 
-This package contains the core ccusage functionality:
+This package contains the core better-ccusage functionality:
 
 **Key Modules:**
 
@@ -92,7 +92,7 @@ Always run these commands in parallel after code changes:
 
 ## Dependencies
 
-Because `ccusage` is distributed as a bundled CLI, keep all runtime libraries in `devDependencies` so the bundler captures them.
+Because `better-ccusage` is distributed as a bundled CLI, keep all runtime libraries in `devDependencies` so the bundler captures them.
 
 **Key Runtime Dependencies:**
 

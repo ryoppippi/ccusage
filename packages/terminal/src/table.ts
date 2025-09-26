@@ -36,17 +36,17 @@ export type TableOptions = {
  * Automatically adjusts formatting and layout for different screen sizes
  */
 export class ResponsiveTable {
-	private head: string[];
-	private rows: TableRow[] = [];
-	private colAligns: TableCellAlign[];
-	private style?: { head?: string[] };
-	private dateFormatter?: (dateStr: string) => string;
-	private compactHead?: string[];
-	private compactColAligns?: TableCellAlign[];
-	private compactThreshold: number;
+	private readonly head: string[];
+	private readonly rows: TableRow[] = [];
+	private readonly colAligns: TableCellAlign[];
+	private readonly style?: { head?: string[] };
+	private readonly dateFormatter?: (dateStr: string) => string;
+	private readonly compactHead?: string[];
+	private readonly compactColAligns?: TableCellAlign[];
+	private readonly compactThreshold: number;
 	private compactMode = false;
-	private forceCompact: boolean;
-	private logger: (message: string) => void;
+	private readonly forceCompact: boolean;
+	private readonly logger: (message: string) => void;
 
 	/**
 	 * Creates a new responsive table instance
@@ -325,7 +325,7 @@ function formatModelName(modelName: string): string {
 	// Extract model type from full model name
 	// e.g., "claude-sonnet-4-20250514" -> "sonnet-4"
 	// e.g., "claude-opus-4-20250514" -> "opus-4"
-	const match = modelName.match(/claude-(\w+)-(\d+)-\d+/);
+	const match = /claude-(\w+)-(\d+)-\d+/.exec(modelName);
 	if (match != null) {
 		return `${match[1]}-${match[2]}`;
 	}
