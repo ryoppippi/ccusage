@@ -20,7 +20,7 @@ This package contains shared internal utilities for the better-ccusage monorepo.
 
 **Utilities:**
 
-- `./pricing` - LiteLLM pricing fetcher and utilities
+- `./pricing` - Pricing fetcher and utilities
 - `./pricing-fetch-utils` - Pricing fetch helper functions
 - `./logger` - Logger factory using consola with LOG_LEVEL support
 - `./format` - Number formatting utilities (formatTokens, formatCurrency)
@@ -63,7 +63,7 @@ This package has minimal runtime dependencies that get bundled:
 
 ### Tiered Pricing Support
 
-LiteLLM supports tiered pricing for large context window models. Not all models use tiered pricing:
+The pricing data supports tiered pricing for large context window models. Not all models use tiered pricing:
 
 **Models WITH tiered pricing:**
 
@@ -86,7 +86,7 @@ LiteLLM supports tiered pricing for large context window models. Not all models 
 
 When adding support for new models:
 
-1. **Check if the model has tiered pricing** in LiteLLM's schema
+1. **Check if the model has tiered pricing** in the pricing schema
 2. **Verify the threshold value** (200k for Claude, 128k for Gemini, etc.)
 3. **Update calculation logic** if threshold differs from currently implemented 200k
 4. **Add comprehensive tests** for boundary conditions at the threshold

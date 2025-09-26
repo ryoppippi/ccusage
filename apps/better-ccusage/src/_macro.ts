@@ -1,16 +1,15 @@
-import type { LiteLLMModelPricing } from '@better-ccusage/internal/pricing';
-import process from 'node:process';
+import type { ModelPricing } from '@better-ccusage/internal/pricing';
 import {
 	createPricingDataset,
-	loadLocalPricingDataset,
 	filterPricingDataset,
+	loadLocalPricingDataset,
 } from '@better-ccusage/internal/pricing-fetch-utils';
 
-function isClaudeModel(modelName: string, _pricing: LiteLLMModelPricing): boolean {
+function isClaudeModel(modelName: string, _pricing: ModelPricing): boolean {
 	return modelName.startsWith('claude-');
 }
 
-export async function prefetchClaudePricing(): Promise<Record<string, LiteLLMModelPricing>> {
+export async function prefetchClaudePricing(): Promise<Record<string, ModelPricing>> {
 	try {
 		// Always use local pricing data
 		const dataset = loadLocalPricingDataset();
@@ -34,14 +33,14 @@ const GLM_MODEL_PREFIXES = [
 	'glm-4-air',
 ];
 
-function isGLMModel(modelName: string, _pricing: LiteLLMModelPricing): boolean {
+function isGLMModel(modelName: string, _pricing: ModelPricing): boolean {
 	const lowerModelName = modelName.toLowerCase();
 	return GLM_MODEL_PREFIXES.some(prefix =>
 		lowerModelName.includes(prefix.toLowerCase()),
 	);
 }
 
-export async function prefetchGLMPricing(): Promise<Record<string, LiteLLMModelPricing>> {
+export async function prefetchGLMPricing(): Promise<Record<string, ModelPricing>> {
 	try {
 		// Always use local pricing data
 		const dataset = loadLocalPricingDataset();

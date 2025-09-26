@@ -78,13 +78,13 @@ Useful environment variables:
 - `CODEX_HOME` – override the root directory that contains Codex session folders
 - `LOG_LEVEL` – controla consola log verbosity (0 silent … 5 trace)
 
-ℹ️ The CLI now relies on the model metadata recorded in each `turn_context`. Sessions emitted during early September 2025 that lack this metadata are skipped to avoid mispricing. Newer builds of the Codex CLI restore the model field, and aliases such as `gpt-5-codex` automatically resolve to the correct LiteLLM pricing entry.
+ℹ️ The CLI now relies on the model metadata recorded in each `turn_context`. Sessions emitted during early September 2025 that lack this metadata are skipped to avoid mispricing. Newer builds of the Codex CLI restore the model field, and aliases such as `gpt-5-codex` automatically resolve to the correct pricing entry.
 📦 For legacy JSONL files that never emitted `turn_context` metadata, the CLI falls back to treating the tokens as `gpt-5` so that usage still appears in reports (pricing is therefore approximate for those sessions). In JSON output you will also see `"isFallback": true` on those model entries.
 
 ## Features
 
 - 📊 Responsive terminal tables shared with the `better-ccusage` CLI
-- 💵 Offline-first pricing cache with automatic LiteLLM refresh when needed
+- 💵 Offline-first pricing cache with automatic refresh when needed
 - 🤖 Per-model token and cost aggregation, including cached token accounting
 - 📅 Daily and monthly rollups with identical CLI options
 - 📄 JSON output for further processing or scripting

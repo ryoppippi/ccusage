@@ -1,14 +1,14 @@
-import type { LiteLLMModelPricing } from './pricing.ts';
-import * as v from 'valibot';
-import {
-	LITELLM_PRICING_URL,
-
-	liteLLMModelPricingSchema,
-} from './pricing.ts';
+import type { ModelPricing } from './pricing.ts';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { cwd } from 'node:process';
+import * as v from 'valibot';
+import {
+	modelPricingSchema,
+	PRICING_DATA_URL,
+} from './pricing.ts';
 
-export type PricingDataset = Record<string, LiteLLMModelPricing>;
+export type PricingDataset = Record<string, ModelPricing>;
 
 export function createPricingDataset(): PricingDataset {
 	return Object.create(null) as PricingDataset;
@@ -17,7 +17,7 @@ export function createPricingDataset(): PricingDataset {
 export function loadLocalPricingDataset(): PricingDataset {
 	try {
 		// Load the local pricing JSON file
-		const localPath = join(process.cwd(), 'model_prices_and_context_window.json');
+		const localPath = join(cwd(), 'model_prices_and_context_window.json');
 		const rawData = readFileSync(localPath, 'utf8');
 		const jsonDataset = JSON.parse(rawData) as Record<string, unknown>;
 
@@ -28,7 +28,7 @@ export function loadLocalPricingDataset(): PricingDataset {
 				continue;
 			}
 
-			const parsed = v.safeParse(liteLLMModelPricingSchema, modelData);
+			const parsed = v.safeParse(modelPricingSchema, modelData);
 			if (!parsed.success) {
 				continue;
 			}
@@ -37,14 +37,15 @@ export function loadLocalPricingDataset(): PricingDataset {
 		}
 
 		return dataset;
-	} catch (error) {
+	}
+	catch (error) {
 		console.warn('Failed to load local pricing data, returning empty dataset:', error);
 		return createPricingDataset();
 	}
 }
 
-export async function fetchLiteLLMPricingDataset(): Promise<PricingDataset> {
-	const response = await fetch(LITELLM_PRICING_URL);
+export async function fetchPricingDataset(): Promise<PricingDataset> {
+	const response = await fetch(PRICING_DATA_URL);
 	if (!response.ok) {
 		throw new Error(`Failed to fetch pricing data: ${response.status} ${response.statusText}`);
 	}
@@ -57,7 +58,7 @@ export async function fetchLiteLLMPricingDataset(): Promise<PricingDataset> {
 			continue;
 		}
 
-		const parsed = v.safeParse(liteLLMModelPricingSchema, modelData);
+		const parsed = v.safeParse(modelPricingSchema, modelData);
 		if (!parsed.success) {
 			continue;
 		}
@@ -70,7 +71,7 @@ export async function fetchLiteLLMPricingDataset(): Promise<PricingDataset> {
 
 export function filterPricingDataset(
 	dataset: PricingDataset,
-	predicate: (modelName: string, pricing: LiteLLMModelPricing) => boolean,
+	predicate: (modelName: string, pricing: ModelPricing) => boolean,
 ): PricingDataset {
 	const filtered = createPricingDataset();
 	for (const [modelName, pricing] of Object.entries(dataset)) {

@@ -1,5 +1,5 @@
-import type { LiteLLMModelPricing } from '@better-ccusage/internal/pricing';
-import { LiteLLMPricingFetcher } from '@better-ccusage/internal/pricing';
+import type { ModelPricing } from '@better-ccusage/internal/pricing';
+import { PricingFetcher } from '@better-ccusage/internal/pricing';
 import { Result } from '@praha/byethrow';
 import { prefetchClaudePricing, prefetchGLMPricing } from './_macro.ts' with { type: 'macro' };
 import { logger } from './logger.ts';
@@ -18,7 +18,7 @@ const CCUSAGE_PROVIDER_PREFIXES = [
 const PREFETCHED_CLAUDE_PRICING = prefetchClaudePricing();
 const PREFETCHED_GLM_PRICING = prefetchGLMPricing();
 
-async function prefetchCcusagePricing(): Promise<Record<string, LiteLLMModelPricing>> {
+async function prefetchCcusagePricing(): Promise<Record<string, ModelPricing>> {
 	const [claudePricing, glmPricing] = await Promise.all([
 		PREFETCHED_CLAUDE_PRICING,
 		PREFETCHED_GLM_PRICING,
@@ -30,7 +30,7 @@ async function prefetchCcusagePricing(): Promise<Record<string, LiteLLMModelPric
 	};
 }
 
-export class PricingFetcher extends LiteLLMPricingFetcher {
+export class CcusagePricingFetcher extends PricingFetcher {
 	constructor(offline = false) {
 		super({
 			offline,

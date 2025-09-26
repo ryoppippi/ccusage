@@ -51,7 +51,7 @@ function normalizeRawUsage(value: unknown): RawUsage | null {
 		cached_input_tokens: cached,
 		output_tokens: output,
 		reasoning_output_tokens: reasoning,
-		// LiteLLM pricing treats reasoning tokens as part of the normal output price. Codex
+		// Model pricing treats reasoning tokens as part of the normal output price. Codex
 		// includes them as a separate field but does not add them to total_tokens, so when we
 		// have to synthesize a total (legacy logs), we mirror that behavior with input+output.
 		total_tokens: total > 0 ? total : input + output,

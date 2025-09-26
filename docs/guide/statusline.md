@@ -32,7 +32,7 @@ By default, statusline uses **offline mode** with cached pricing data for optima
 
 ### Online Mode (Optional)
 
-If you need the latest pricing data from LiteLLM API, you can explicitly enable online mode:
+If you need the latest pricing data from external API, you can explicitly enable online mode:
 
 ```json
 {
@@ -139,7 +139,7 @@ The `--cost-source` option controls how session costs are calculated and display
 **Available modes:**
 
 - `auto` (default): Prefer Claude Code's pre-calculated cost when available, fallback to ccusage calculation
-- `ccusage`: Always calculate costs using ccusage's token-based calculation with LiteLLM pricing
+- `ccusage`: Always calculate costs using ccusage's token-based calculation with local pricing data
 - `cc`: Always use Claude Code's pre-calculated cost from session data
 - `both`: Display both Claude Code and ccusage costs side by side for comparison
 

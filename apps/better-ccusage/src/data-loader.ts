@@ -37,7 +37,7 @@ import {
 	getDayNumber,
 	sortByDate,
 } from './_date-utils.ts';
-import { PricingFetcher } from './_pricing-fetcher.ts';
+import { CcusagePricingFetcher } from './_pricing-fetcher.ts';
 import {
 	identifySessionBlocks,
 } from './_session-blocks.ts';
@@ -612,7 +612,7 @@ export async function sortFilesByTimestamp(files: string[]): Promise<string[]> {
 export async function calculateCostForEntry(
 	data: UsageData,
 	mode: CostMode,
-	fetcher: PricingFetcher,
+	fetcher: CcusagePricingFetcher,
 ): Promise<number> {
 	if (mode === 'display') {
 		// Always use costUSD, even if undefined
@@ -749,8 +749,8 @@ export async function loadDailyUsageData(
 	// Fetch pricing data for cost calculation only when needed
 	const mode = options?.mode ?? 'auto';
 
-	// Use PricingFetcher with using statement for automatic cleanup
-	using fetcher = mode === 'display' ? null : new PricingFetcher(options?.offline);
+	// Use CcusagePricingFetcher with using statement for automatic cleanup
+	using fetcher = mode === 'display' ? null : new CcusagePricingFetcher(options?.offline);
 
 	// Track processed message+request combinations for deduplication
 	const processedHashes = new Set<string>();
@@ -905,8 +905,8 @@ export async function loadSessionData(
 	// Fetch pricing data for cost calculation only when needed
 	const mode = options?.mode ?? 'auto';
 
-	// Use PricingFetcher with using statement for automatic cleanup
-	using fetcher = mode === 'display' ? null : new PricingFetcher(options?.offline);
+	// Use CcusagePricingFetcher with using statement for automatic cleanup
+	using fetcher = mode === 'display' ? null : new CcusagePricingFetcher(options?.offline);
 
 	// Track processed message+request combinations for deduplication
 	const processedHashes = new Set<string>();
@@ -1107,7 +1107,7 @@ export async function loadSessionUsageById(
 	const lines = content.trim().split('\n').filter(line => line.length > 0);
 
 	const mode = options?.mode ?? 'auto';
-	using fetcher = mode === 'display' ? null : new PricingFetcher(options?.offline);
+	using fetcher = mode === 'display' ? null : new CcusagePricingFetcher(options?.offline);
 
 	const entries: UsageData[] = [];
 	let totalCost = 0;
@@ -1266,17 +1266,17 @@ export async function calculateContextTokens(transcriptPath: string, modelId?: s
 						+ (usage.cache_creation_input_tokens ?? 0)
 						+ (usage.cache_read_input_tokens ?? 0);
 
-				// Get context limit from PricingFetcher
+				// Get context limit from CcusagePricingFetcher
 				let contextLimit = 200_000; // Fallback for when modelId is not provided
 				if (modelId != null && modelId !== '') {
-					using fetcher = new PricingFetcher(offline);
+					using fetcher = new CcusagePricingFetcher(offline);
 					const contextLimitResult = await fetcher.getModelContextLimit(modelId);
 					if (Result.isSuccess(contextLimitResult) && contextLimitResult.value != null) {
 						contextLimit = contextLimitResult.value;
 					}
 					else if (Result.isSuccess(contextLimitResult)) {
-						// Context limit not available for this model in LiteLLM
-						logger.debug(`No context limit data available for model ${modelId} in LiteLLM`);
+						// Context limit not available for this model in pricing data
+						logger.debug(`No context limit data available for model ${modelId} in pricing data`);
 					}
 					else {
 						// Error occurred
@@ -1343,8 +1343,8 @@ export async function loadSessionBlockData(
 	// Fetch pricing data for cost calculation only when needed
 	const mode = options?.mode ?? 'auto';
 
-	// Use PricingFetcher with using statement for automatic cleanup
-	using fetcher = mode === 'display' ? null : new PricingFetcher(options?.offline);
+	// Use CcusagePricingFetcher with using statement for automatic cleanup
+	using fetcher = mode === 'display' ? null : new CcusagePricingFetcher(options?.offline);
 
 	// Track processed message+request combinations for deduplication
 	const processedHashes = new Set<string>();
@@ -3560,7 +3560,7 @@ invalid json line
 
 		describe('display mode', () => {
 			it('should return costUSD when available', async () => {
-				using fetcher = new PricingFetcher();
+				using fetcher = new CcusagePricingFetcher();
 				const result = await calculateCostForEntry(mockUsageData, 'display', fetcher);
 				expect(result).toBe(0.05);
 			});
@@ -3569,14 +3569,14 @@ invalid json line
 				const dataWithoutCost = { ...mockUsageData };
 				dataWithoutCost.costUSD = undefined;
 
-				using fetcher = new PricingFetcher();
+				using fetcher = new CcusagePricingFetcher();
 				const result = await calculateCostForEntry(dataWithoutCost, 'display', fetcher);
 				expect(result).toBe(0);
 			});
 
 			it('should not use model pricing in display mode', async () => {
 			// Even with model pricing available, should use costUSD
-				using fetcher = new PricingFetcher();
+				using fetcher = new CcusagePricingFetcher();
 				const result = await calculateCostForEntry(mockUsageData, 'display', fetcher);
 				expect(result).toBe(0.05);
 			});
@@ -3596,14 +3596,14 @@ invalid json line
 					},
 				};
 
-				using fetcher = new PricingFetcher();
+				using fetcher = new CcusagePricingFetcher();
 				const result = await calculateCostForEntry(testData, 'calculate', fetcher);
 
 				expect(result).toBeGreaterThan(0);
 			});
 
 			it('should ignore costUSD in calculate mode', async () => {
-				using fetcher = new PricingFetcher();
+				using fetcher = new CcusagePricingFetcher();
 				const dataWithHighCost = { ...mockUsageData, costUSD: 99.99 };
 				const result = await calculateCostForEntry(
 					dataWithHighCost,
@@ -3619,7 +3619,7 @@ invalid json line
 				const dataWithoutModel = { ...mockUsageData };
 				dataWithoutModel.message.model = undefined;
 
-				using fetcher = new PricingFetcher();
+				using fetcher = new CcusagePricingFetcher();
 				const result = await calculateCostForEntry(dataWithoutModel, 'calculate', fetcher);
 				expect(result).toBe(0);
 			});
@@ -3630,7 +3630,7 @@ invalid json line
 					message: { ...mockUsageData.message, model: createModelName('unknown-model') },
 				};
 
-				using fetcher = new PricingFetcher();
+				using fetcher = new CcusagePricingFetcher();
 				const result = await calculateCostForEntry(
 					dataWithUnknownModel,
 					'calculate',
@@ -3651,7 +3651,7 @@ invalid json line
 					},
 				};
 
-				using fetcher = new PricingFetcher();
+				using fetcher = new CcusagePricingFetcher();
 				const result = await calculateCostForEntry(
 					dataWithoutCacheTokens,
 					'calculate',
@@ -3664,7 +3664,7 @@ invalid json line
 
 		describe('auto mode', () => {
 			it('should use costUSD when available', async () => {
-				using fetcher = new PricingFetcher();
+				using fetcher = new CcusagePricingFetcher();
 				const result = await calculateCostForEntry(mockUsageData, 'auto', fetcher);
 				expect(result).toBe(0.05);
 			});
@@ -3681,7 +3681,7 @@ invalid json line
 					},
 				};
 
-				using fetcher = new PricingFetcher();
+				using fetcher = new CcusagePricingFetcher();
 				const result = await calculateCostForEntry(
 					dataWithoutCost,
 					'auto',
@@ -3695,7 +3695,7 @@ invalid json line
 				dataWithoutCostOrModel.costUSD = undefined;
 				dataWithoutCostOrModel.message.model = undefined;
 
-				using fetcher = new PricingFetcher();
+				using fetcher = new CcusagePricingFetcher();
 				const result = await calculateCostForEntry(dataWithoutCostOrModel, 'auto', fetcher);
 				expect(result).toBe(0);
 			});
@@ -3704,14 +3704,14 @@ invalid json line
 				const dataWithoutCost = { ...mockUsageData };
 				dataWithoutCost.costUSD = undefined;
 
-				using fetcher = new PricingFetcher();
+				using fetcher = new CcusagePricingFetcher();
 				const result = await calculateCostForEntry(dataWithoutCost, 'auto', fetcher);
 				expect(result).toBe(0);
 			});
 
 			it('should prefer costUSD over calculation even when both available', async () => {
 			// Both costUSD and model pricing available, should use costUSD
-				using fetcher = new PricingFetcher();
+				using fetcher = new CcusagePricingFetcher();
 				const result = await calculateCostForEntry(mockUsageData, 'auto', fetcher);
 				expect(result).toBe(0.05);
 			});
@@ -3733,21 +3733,21 @@ invalid json line
 				};
 				dataWithZeroTokens.costUSD = undefined;
 
-				using fetcher = new PricingFetcher();
+				using fetcher = new CcusagePricingFetcher();
 				const result = await calculateCostForEntry(dataWithZeroTokens, 'calculate', fetcher);
 				expect(result).toBe(0);
 			});
 
 			it('should handle costUSD of 0', async () => {
 				const dataWithZeroCost = { ...mockUsageData, costUSD: 0 };
-				using fetcher = new PricingFetcher();
+				using fetcher = new CcusagePricingFetcher();
 				const result = await calculateCostForEntry(dataWithZeroCost, 'display', fetcher);
 				expect(result).toBe(0);
 			});
 
 			it('should handle negative costUSD', async () => {
 				const dataWithNegativeCost = { ...mockUsageData, costUSD: -0.01 };
-				using fetcher = new PricingFetcher();
+				using fetcher = new CcusagePricingFetcher();
 				const result = await calculateCostForEntry(dataWithNegativeCost, 'display', fetcher);
 				expect(result).toBe(-0.01);
 			});
