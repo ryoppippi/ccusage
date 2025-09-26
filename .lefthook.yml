@@ -5,16 +5,16 @@ pre-commit:
     - rebase
   commands:
     format:
-      glob: "**/*.{cjs,cts,ctsx,js,jsx,mjs,mts,mtsx,ts,tsx,json,yml,yaml,md,mdx}"
-      run: pnpm run format
+      glob: '**/*.{cjs,cts,ctsx,js,jsx,mjs,mts,mtsx,ts,tsx,json,yml,yaml,md,mdx}'
+      run: pnpm eslint --fix {files}
       stage_fixed: true
     sort-package-json:
-      glob: "**/package.json"
+      glob: '**/package.json'
       run: pnpm exec sort-package-json {files}
       stage_fixed: true
     typecheck:
-      glob: "**/*.{ts,tsx,cts,ctsx,mts,mtsx}"
-      run: pnpm typecheck
+      glob: '**/*.{ts,tsx,cts,ctsx,mts,mtsx}'
+      run: pnpm tsgo {files}
     test:
-      glob: "**/*.{ts,tsx,cts,ctsx,mts,mtsx}"
-      run: pnpm run test
+      glob: '**/*.{ts,tsx,cts,ctsx,mts,mtsx}'
+      run: pnpm vitest --passWithNoTests --run --bail --changedSince=origin/main {files}

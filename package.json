@@ -33,7 +33,7 @@
 		"lefthook": "catalog:release",
 		"sitemcp": "catalog:mcp",
 		"sort-package-json": "catalog:release"
-		},
+	},
 	"devEngines": {
 		"runtime": [
 			{
