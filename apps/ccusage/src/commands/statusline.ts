@@ -11,7 +11,7 @@ import { define } from 'gunshi';
 import pc from 'picocolors';
 import * as v from 'valibot';
 import { loadConfig, mergeConfigWithArgs } from '../_config-loader-tokens.ts';
-import { DEFAULT_CONTEXT_USAGE_THRESHOLDS, DEFAULT_REFRESH_INTERVAL_SECONDS } from '../_consts.ts';
+import { CONTEXT_WINDOW_MODES, DEFAULT_CONTEXT_USAGE_THRESHOLDS, DEFAULT_REFRESH_INTERVAL_SECONDS } from '../_consts.ts';
 import { calculateBurnRate } from '../_session-blocks.ts';
 import { sharedArgs } from '../_shared-args.ts';
 import { statuslineHookJsonSchema } from '../_types.ts';
@@ -147,6 +147,17 @@ export const statuslineCommand = define({
 			description: 'Context usage percentage below which status is shown in yellow (0-100)',
 			parse: value => parseContextThreshold(value),
 			default: DEFAULT_CONTEXT_USAGE_THRESHOLDS.MEDIUM,
+		},
+		contextWindowMode: {
+			type: 'enum',
+			choices: CONTEXT_WINDOW_MODES,
+			description: 'Context window detection mode: auto (use model database), claude-api (1M tokens), claude-plan (200k tokens)',
+			default: 'auto',
+			negatable: false,
+		},
+		customContextWindow: {
+			type: 'number',
+			description: 'Custom context window size in tokens (overrides contextWindowMode)',
 		},
 		config: sharedArgs.config,
 		debug: sharedArgs.debug,
@@ -433,7 +444,7 @@ export const statuslineCommand = define({
 					// Calculate context tokens from transcript with model-specific limits
 					const contextInfo = await Result.pipe(
 						Result.try({
-							try: calculateContextTokens(hookData.transcript_path, hookData.model.id, mergedOptions.offline),
+							try: calculateContextTokens(hookData.transcript_path, hookData.model.id, mergedOptions.offline, config),
 							catch: error => error,
 						}),
 						Result.inspectError(error => logger.debug(`Failed to calculate context tokens: ${error instanceof Error ? error.message : String(error)}`)),

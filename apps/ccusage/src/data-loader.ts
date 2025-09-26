@@ -13,6 +13,7 @@ import type { LoadedUsageEntry, SessionBlock } from './_session-blocks.ts';
 import type {
 	ActivityDate,
 	Bucket,
+	ContextWindowMode,
 	CostMode,
 	ModelName,
 	SortOrder,
@@ -28,7 +29,7 @@ import { createFixture } from 'fs-fixture';
 import { isDirectorySync } from 'path-type';
 import { glob } from 'tinyglobby';
 import * as v from 'valibot';
-import { CLAUDE_CONFIG_DIR_ENV, CLAUDE_PROJECTS_DIR_NAME, DEFAULT_CLAUDE_CODE_PATH, DEFAULT_CLAUDE_CONFIG_PATH, DEFAULT_LOCALE, USAGE_DATA_GLOB_PATTERN, USER_HOME_DIR } from './_consts.ts';
+import { CLAUDE_CONFIG_DIR_ENV, CLAUDE_PROJECTS_DIR_NAME, DEFAULT_CLAUDE_CODE_PATH, DEFAULT_CLAUDE_CONFIG_PATH, DEFAULT_CONTEXT_WINDOWS, DEFAULT_LOCALE, USAGE_DATA_GLOB_PATTERN, USER_HOME_DIR } from './_consts.ts';
 import {
 	filterByDateRange,
 	formatDate,
@@ -66,6 +67,7 @@ import {
 } from './_types.ts';
 import { unreachable } from './_utils.ts';
 import { logger } from './logger.ts';
+import type { ConfigData } from './_config-loader-tokens.ts';
 
 /**
  * Get Claude data directories to search for usage data
@@ -1220,12 +1222,67 @@ export async function loadBucketUsageData(
 }
 
 /**
+ * Resolve the context window size based on configuration and model
+ * @param config - Configuration data containing context window settings
+ * @param modelId - Model identifier for LiteLLM lookup
+ * @param offline - Whether to use offline pricing data
+ * @returns Promise resolving to context window size in tokens
+ */
+async function resolveContextWindow(config: ConfigData | undefined, modelId?: string, offline = false): Promise<number> {
+	// 1. Check for custom context window override (highest priority)
+	const customWindow = config?.defaults?.customContextWindow;
+	if (customWindow != null && typeof customWindow === 'number' && customWindow > 0) {
+		return customWindow;
+	}
+
+	// 2. Check context window mode setting
+	const mode = config?.defaults?.contextWindowMode as ContextWindowMode | undefined;
+	if (mode === 'claude-api') {
+		return DEFAULT_CONTEXT_WINDOWS.CLAUDE_API;
+	}
+	if (mode === 'claude-plan') {
+		return DEFAULT_CONTEXT_WINDOWS.CLAUDE_PLAN;
+	}
+
+	// 3. For 'auto' mode or when not configured, try LiteLLM lookup
+	if (modelId != null && modelId !== '') {
+		using fetcher = new PricingFetcher(offline);
+		const contextLimitResult = await fetcher.getModelContextLimit(modelId);
+		if (Result.isSuccess(contextLimitResult) && contextLimitResult.value != null) {
+			// For Claude models, the LiteLLM max_input_tokens (1M) is the billing window,
+			// but the practical context window for plan users is 200k.
+			// Since we can't auto-detect plan vs API, use conservative fallback.
+			const litellmLimit = contextLimitResult.value;
+			if (litellmLimit >= 1_000_000) {
+				// This is likely a Claude model with 1M billing window
+				// Default to conservative 200k unless explicitly configured
+				return DEFAULT_CONTEXT_WINDOWS.FALLBACK;
+			}
+			return litellmLimit;
+		}
+		// Log debug info for failures
+		if (Result.isSuccess(contextLimitResult)) {
+			logger.debug(`No context limit data available for model ${modelId} in LiteLLM`);
+		}
+		else {
+			logger.debug(`Failed to get context limit for model ${modelId}: ${contextLimitResult.error.message}`);
+		}
+	}
+
+	// 4. Final fallback
+	return DEFAULT_CONTEXT_WINDOWS.FALLBACK;
+}
+
+/**
  * Calculate context tokens from transcript file using improved JSONL parsing
  * Based on the Python reference implementation for better accuracy
  * @param transcriptPath - Path to the transcript JSONL file
+ * @param modelId - Model identifier for context window lookup
+ * @param offline - Whether to use offline pricing data
+ * @param config - Configuration data for context window settings
  * @returns Object with context tokens info or null if unavailable
  */
-export async function calculateContextTokens(transcriptPath: string, modelId?: string, offline = false): Promise<{
+export async function calculateContextTokens(transcriptPath: string, modelId?: string, offline = false, config?: ConfigData): Promise<{
 	inputTokens: number;
 	percentage: number;
 	contextLimit: number;
@@ -1266,23 +1323,8 @@ export async function calculateContextTokens(transcriptPath: string, modelId?: s
 						+ (usage.cache_creation_input_tokens ?? 0)
 						+ (usage.cache_read_input_tokens ?? 0);
 
-				// Get context limit from PricingFetcher
-				let contextLimit = 200_000; // Fallback for when modelId is not provided
-				if (modelId != null && modelId !== '') {
-					using fetcher = new PricingFetcher(offline);
-					const contextLimitResult = await fetcher.getModelContextLimit(modelId);
-					if (Result.isSuccess(contextLimitResult) && contextLimitResult.value != null) {
-						contextLimit = contextLimitResult.value;
-					}
-					else if (Result.isSuccess(contextLimitResult)) {
-						// Context limit not available for this model in LiteLLM
-						logger.debug(`No context limit data available for model ${modelId} in LiteLLM`);
-					}
-					else {
-						// Error occurred
-						logger.debug(`Failed to get context limit for model ${modelId}: ${contextLimitResult.error.message}`);
-					}
-				}
+				// Get context limit using configuration-aware resolver
+				const contextLimit = await resolveContextWindow(config, modelId, offline);
 
 				const percentage = Math.min(100, Math.max(0, Math.round((inputTokens / contextLimit) * 100)));
 
