@@ -6,7 +6,7 @@ pre-commit:
   commands:
     format:
       glob: '**/*.{cjs,cts,ctsx,js,jsx,mjs,mts,mtsx,ts,tsx,json,yml,yaml,md,mdx}'
-      run: pnpm eslint --fix {files}
+      run: pnpm eslint --cache --fix {files}
       stage_fixed: true
     sort-package-json:
       glob: '**/package.json'
