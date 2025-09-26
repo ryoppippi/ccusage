@@ -2,7 +2,7 @@ import type { LiteLLMModelPricing } from '@better-ccusage/internal/pricing';
 import process from 'node:process';
 import {
 	createPricingDataset,
-	fetchLiteLLMPricingDataset,
+	loadLocalPricingDataset,
 	filterPricingDataset,
 } from '@better-ccusage/internal/pricing-fetch-utils';
 
@@ -11,16 +11,13 @@ function isClaudeModel(modelName: string, _pricing: LiteLLMModelPricing): boolea
 }
 
 export async function prefetchClaudePricing(): Promise<Record<string, LiteLLMModelPricing>> {
-	if (process.env.OFFLINE === 'true') {
-		return createPricingDataset();
-	}
-
 	try {
-		const dataset = await fetchLiteLLMPricingDataset();
+		// Always use local pricing data
+		const dataset = loadLocalPricingDataset();
 		return filterPricingDataset(dataset, isClaudeModel);
 	}
 	catch (error) {
-		console.warn('Failed to prefetch Claude pricing data, proceeding with empty cache.', error);
+		console.warn('Failed to load local Claude pricing data, proceeding with empty cache.', error);
 		return createPricingDataset();
 	}
 }
@@ -45,16 +42,13 @@ function isGLMModel(modelName: string, _pricing: LiteLLMModelPricing): boolean {
 }
 
 export async function prefetchGLMPricing(): Promise<Record<string, LiteLLMModelPricing>> {
-	if (process.env.OFFLINE === 'true') {
-		return createPricingDataset();
-	}
-
 	try {
-		const dataset = await fetchLiteLLMPricingDataset();
+		// Always use local pricing data
+		const dataset = loadLocalPricingDataset();
 		return filterPricingDataset(dataset, isGLMModel);
 	}
 	catch (error) {
-		console.warn('Failed to prefetch GLM pricing data, proceeding with empty cache.', error);
+		console.warn('Failed to load local GLM pricing data, proceeding with empty cache.', error);
 		return createPricingDataset();
 	}
 }

@@ -60,6 +60,8 @@ async function runCcusageCliJson(
 	return executeCliCommand(executable, cliArgs, {
 		// Set Claude path for ccusage
 		CLAUDE_CONFIG_DIR: claudePath,
+		// Force offline mode to prevent network calls to LiteLLM
+		OFFLINE: 'true',
 	});
 }
 
