@@ -4662,7 +4662,7 @@ if (import.meta.vitest != null) {
 			expect(res?.contextLimit).toBe(1_000_000);
 		});
 
-		it('prioritises customContextWindow over contextWindowMode', async () => {
+		it('prioritizes customContextWindow over contextWindowMode', async () => {
 			const config = {
 				defaults: {
 					contextWindowMode: 'claude-api',
@@ -4762,7 +4762,7 @@ if (import.meta.vitest != null) {
 			expect(result).toBe(200_000);
 		});
 
-		it('prioritises custom window over mode setting', async () => {
+		it('prioritizes custom window over mode setting', async () => {
 			const config = {
 				defaults: {
 					contextWindowMode: 'claude-api',
