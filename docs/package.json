@@ -1,6 +1,6 @@
 {
 	"name": "@better-ccusage/docs",
-	"version": "1.0.2",
+	"version": "1.0.3",
 	"private": true,
 	"description": "Documentation for better-ccusage",
 	"type": "module",
