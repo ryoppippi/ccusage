@@ -1,7 +1,7 @@
 {
 	"name": "@better-ccusage/internal",
 	"type": "module",
-	"version": "1.0.3",
+	"version": "1.0.6",
 	"private": true,
 	"description": "Shared internal utilities for better-ccusage toolchain",
 	"exports": {
