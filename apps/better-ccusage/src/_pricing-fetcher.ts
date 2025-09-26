@@ -77,7 +77,7 @@ if (import.meta.vitest != null) {
 
 		it('calculates cost for GLM-4.5 model with provider prefix', async () => {
 			using fetcher = new PricingFetcher(true);
-			const pricing = await Result.unwrap(fetcher.getModelPricing('deepinfra/zai-org/GLM-4.5'));
+			const pricing = await Result.unwrap(fetcher.getModelPricing('zai/glm-4.5'));
 			expect(pricing).not.toBeNull();
 			const cost = fetcher.calculateCostFromPricing({
 				input_tokens: 1000,

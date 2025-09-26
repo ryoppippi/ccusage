@@ -243,7 +243,8 @@ export class LiteLLMPricingFetcher implements Disposable {
 							// Extra priority for zai provider (main GLM models)
 							if (comparison.startsWith('zai/')) {
 								score = 95; // zai provider models get highest priority
-							} else {
+							}
+							else {
 								score = 90; // Contains model name, not air variant
 							}
 						}
