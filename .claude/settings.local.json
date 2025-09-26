@@ -15,7 +15,10 @@
       "Bash(wsl node:*)",
       "Bash(powershell:*)",
       "Bash(wsl cat:*)",
-      "Bash(pnpm:*)"
+      "Bash(pnpm:*)",
+      "Bash(wsl gh pr view:*)",
+      "Bash(wsl git log:*)",
+      "Bash(wsl git:*)"
     ]
   },
   "enableAllProjectMcpServers": true,
