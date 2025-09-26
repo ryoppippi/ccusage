@@ -42,7 +42,7 @@ Control how costs are calculated when generating reports:
 # Use cached costUSD values when present, otherwise calculate from tokens (default)
 bunx @better-ccusage/mcp@latest --mode auto
 
-# Always calculate from tokens using LiteLLM pricing data
+# Always calculate from tokens using local pricing data
 bunx @better-ccusage/mcp@latest --mode calculate
 
 # Only use pre-calculated costUSD values and default to 0 when missing

@@ -14,7 +14,7 @@ import { createFixture } from 'fs-fixture';
 import { glob } from 'tinyglobby';
 import * as v from 'valibot';
 import { CLAUDE_PROJECTS_DIR_NAME, DEBUG_MATCH_THRESHOLD_PERCENT, USAGE_DATA_GLOB_PATTERN } from './_consts.ts';
-import { PricingFetcher } from './_pricing-fetcher.ts';
+import { CcusagePricingFetcher } from './_pricing-fetcher.ts';
 import { getClaudePaths, usageDataSchema } from './data-loader.ts';
 import { logger } from './logger.ts';
 
@@ -91,8 +91,8 @@ export async function detectMismatches(
 		absolute: true,
 	});
 
-	// Use PricingFetcher with using statement for automatic cleanup
-	using fetcher = new PricingFetcher();
+	// Use CcusagePricingFetcher with using statement for automatic cleanup
+	using fetcher = new CcusagePricingFetcher(true);
 
 	const stats: MismatchStats = {
 		totalEntries: 0,

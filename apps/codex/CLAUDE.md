@@ -17,9 +17,9 @@
 
 -## Cost Calculation
 
-- Pricing is pulled from LiteLLM's public JSON (`model_prices_and_context_window.json`).
+- Pricing is pulled from local pricing data (`model_prices_and_context_window.json`).
 - The CLI trusts the model metadata emitted in each `turn_context`. Sessions missing that metadata (observed in early September 2025 builds) fall back to `gpt-5` so the tokens remain visible, but the pricing should be considered approximate. These events are tagged with `isFallbackModel === true` and surface as `isFallback` in aggregated JSON.
-- Per-model pricing is fetched through the shared `LiteLLMPricingFetcher` with an offline cache macro scoped to Codex-prefixed models. Aliases (e.g. `gpt-5-codex → gpt-5`) are handled in `CodexPricingSource` for pricing parity.
+- Per-model pricing is fetched through the shared `PricingFetcher` with an offline cache macro scoped to Codex-prefixed models. Aliases (e.g. `gpt-5-codex → gpt-5`) are handled in `CodexPricingSource` for pricing parity.
 - Cost formula per model/date:
   - Non-cached input: `(input_tokens - cached_input_tokens) / 1_000_000 * input_cost_per_mtoken`.
   - Cached input: `cached_input_tokens / 1_000_000 * cached_input_cost_per_mtoken` (falls back to input price when missing).

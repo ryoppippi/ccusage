@@ -59,7 +59,7 @@ This package contains the core better-ccusage functionality:
 
 1. Loads JSONL files from `~/.claude/projects/` and `~/.config/claude/projects/`
 2. Aggregates usage data by time periods or sessions
-3. Calculates costs using LiteLLM pricing database
+3. Calculates costs using local pricing database
 4. Outputs formatted tables or JSON
 
 ## Testing Guidelines
@@ -117,4 +117,4 @@ The package provides multiple exports for library usage:
 - `./data-loader` - Data loading functions
 - `./debug` - Debug utilities
 - `./logger` - Logging utilities
-- `./pricing-fetcher` - LiteLLM pricing integration
+- `./pricing-fetcher` - Pricing data integration

@@ -33,7 +33,7 @@ export const sharedArgs = {
 	offline: {
 		type: 'boolean',
 		short: 'O',
-		description: 'Use cached pricing data instead of fetching from LiteLLM',
+		description: 'Use cached pricing data instead of fetching from external source',
 		default: false,
 		negatable: true,
 	},

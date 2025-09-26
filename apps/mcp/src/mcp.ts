@@ -274,6 +274,7 @@ if (import.meta.vitest != null) {
 			});
 
 			it('should call daily tool successfully', async () => {
+				await using fixture = await createFixture({
 					'projects/test-project/session1/usage.jsonl': JSON.stringify({
 						timestamp: '2024-01-01T12:00:00Z',
 						costUSD: 0.001,

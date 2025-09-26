@@ -14,7 +14,7 @@ import { readFile, stat } from 'node:fs/promises';
 import { Result } from '@praha/byethrow';
 import pLimit from 'p-limit';
 import * as v from 'valibot';
-import { PricingFetcher } from './_pricing-fetcher.ts';
+import { CcusagePricingFetcher } from './_pricing-fetcher.ts';
 import { identifySessionBlocks } from './_session-blocks.ts';
 import {
 	calculateCostForEntry,
@@ -40,7 +40,7 @@ export type LiveMonitorConfig = {
  * State for live monitoring operations
  */
 type LiveMonitorState = {
-	fetcher: PricingFetcher | null;
+	fetcher: CcusagePricingFetcher | null;
 	lastFileTimestamps: Map<string, number>;
 	processedHashes: Set<string>;
 	allEntries: LoadedUsageEntry[];
@@ -72,7 +72,7 @@ async function isRecentFile(filePath: string, cutoffTime: Date): Promise<boolean
  * Creates a new live monitoring state
  */
 export function createLiveMonitorState(config: LiveMonitorConfig): LiveMonitorState {
-	const fetcher = config.mode !== 'display' ? new PricingFetcher() : null;
+	const fetcher = config.mode !== 'display' ? new CcusagePricingFetcher() : null;
 
 	return {
 		fetcher,

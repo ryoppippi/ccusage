@@ -60,7 +60,7 @@ better-ccusage monthly --mode calculate --breakdown
 
 1. **Ignores `costUSD` values** from Claude Code data
 2. **Uses token counts** (input, output, cache) for all entries
-3. **Applies current model pricing** from LiteLLM database
+3. **Applies current model pricing** from local pricing database
 4. **Consistent methodology** across all time periods
 
 #### Best for:
@@ -176,7 +176,7 @@ When calculating costs from tokens, better-ccusage uses:
 
 #### Model Pricing Sources
 
-- **LiteLLM database** - Up-to-date model pricing
+- **Local pricing database** - Up-to-date model pricing
 - **Automatic updates** - Pricing refreshed regularly
 - **Multiple models** - Supports Claude Opus, Sonnet, and other models
 

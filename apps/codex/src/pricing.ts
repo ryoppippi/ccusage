@@ -1,6 +1,6 @@
-import type { LiteLLMModelPricing } from '@better-ccusage/internal/pricing';
+import type { ModelPricing as InternalModelPricing } from '@better-ccusage/internal/pricing';
 import type { ModelPricing, PricingSource } from './_types.ts';
-import { LiteLLMPricingFetcher } from '@better-ccusage/internal/pricing';
+import { PricingFetcher } from '@better-ccusage/internal/pricing';
 import { Result } from '@praha/byethrow';
 import { MILLION } from './_consts.ts';
 import { prefetchCodexPricing } from './_macro.ts' with { type: 'macro' };
@@ -18,16 +18,16 @@ function toPerMillion(value: number | undefined, fallback?: number): number {
 
 export type CodexPricingSourceOptions = {
 	offline?: boolean;
-	offlineLoader?: () => Promise<Record<string, LiteLLMModelPricing>>;
+	offlineLoader?: () => Promise<Record<string, InternalModelPricing>>;
 };
 
 const PREFETCHED_CODEX_PRICING = prefetchCodexPricing();
 
 export class CodexPricingSource implements PricingSource, Disposable {
-	private readonly fetcher: LiteLLMPricingFetcher;
+	private readonly fetcher: PricingFetcher;
 
 	constructor(options: CodexPricingSourceOptions = {}) {
-		this.fetcher = new LiteLLMPricingFetcher({
+		this.fetcher = new PricingFetcher({
 			offline: options.offline ?? false,
 			offlineLoader: options.offlineLoader ?? (async () => PREFETCHED_CODEX_PRICING),
 			logger,
@@ -71,7 +71,7 @@ export class CodexPricingSource implements PricingSource, Disposable {
 
 if (import.meta.vitest != null) {
 	describe('CodexPricingSource', () => {
-		it('converts LiteLLM pricing to per-million costs', async () => {
+		it('converts model pricing to per-million costs', async () => {
 			using source = new CodexPricingSource({
 				offline: true,
 				offlineLoader: async () => ({

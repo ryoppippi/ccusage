@@ -1,9 +1,8 @@
-import type { LiteLLMModelPricing } from '@better-ccusage/internal/pricing';
-import process from 'node:process';
+import type { ModelPricing } from '@better-ccusage/internal/pricing';
 import {
 	createPricingDataset,
-	loadLocalPricingDataset,
 	filterPricingDataset,
+	loadLocalPricingDataset,
 } from '@better-ccusage/internal/pricing-fetch-utils';
 
 const CODEX_MODEL_PREFIXES = [
@@ -14,11 +13,11 @@ const CODEX_MODEL_PREFIXES = [
 	'openrouter/openai/gpt-5',
 ];
 
-function isCodexModel(modelName: string, _pricing: LiteLLMModelPricing): boolean {
+function isCodexModel(modelName: string, _pricing: ModelPricing): boolean {
 	return CODEX_MODEL_PREFIXES.some(prefix => modelName.startsWith(prefix));
 }
 
-export async function prefetchCodexPricing(): Promise<Record<string, LiteLLMModelPricing>> {
+export async function prefetchCodexPricing(): Promise<Record<string, ModelPricing>> {
 	try {
 		// Always use local pricing data
 		const dataset = loadLocalPricingDataset();

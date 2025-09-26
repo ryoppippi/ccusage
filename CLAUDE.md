@@ -183,7 +183,7 @@ This is a CLI tool that analyzes Claude Code usage data from local JSONL files s
 
 - Uses local timezone for date formatting
 - CLI built with `gunshi` framework, tables with `cli-table3`
-- **LiteLLM Integration**: Cost calculations depend on LiteLLM's pricing database for model pricing data
+- **Pricing Integration**: Cost calculations depend on local pricing database for model pricing data
 
 **MCP Integration:**
 
@@ -351,16 +351,16 @@ This ensures code quality and catches issues immediately after changes.
 - Mock data is created using `fs-fixture` with `createFixture()` for Claude data directory simulation
 - All test files must use current Claude 4 models, not outdated Claude 3 models
 - Test coverage should include both Sonnet and Opus models for comprehensive validation
-- Model names in tests must exactly match LiteLLM's pricing database entries
-- When adding new model tests, verify the model exists in LiteLLM before implementation
-- Tests depend on real pricing data from LiteLLM - failures may indicate model availability issues
+- Model names in tests must exactly match the pricing database entries
+- When adding new model tests, verify the model exists in the pricing data before implementation
+- Tests depend on real pricing data - failures may indicate model availability issues
 
-**LiteLLM Integration Notes:**
+**Pricing Integration Notes:**
 
-- Cost calculations require exact model name matches with LiteLLM's database
-- Test failures often indicate model names don't exist in LiteLLM's pricing data
-- Future model updates require checking LiteLLM compatibility first
-- The application cannot calculate costs for models not supported by LiteLLM
+- Cost calculations require exact model name matches with the pricing database
+- Test failures often indicate model names don't exist in the pricing data
+- Future model updates require checking pricing data compatibility first
+- The application cannot calculate costs for models not supported in the pricing data
 
 # Tips for Claude Code
 

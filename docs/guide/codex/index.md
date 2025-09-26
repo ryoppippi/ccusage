@@ -50,7 +50,7 @@ The CLI reads Codex session JSONL files located under `CODEX_HOME` (defaults to 
 
 - **Token deltas** – Each `event_msg` with `payload.type === "token_count"` reports cumulative totals. The CLI subtracts the previous totals to recover per-turn token usage (input, cached input, output, reasoning, total).
 - **Per-model grouping** – The `turn_context` metadata specifies the active model. We aggregate tokens per day/month and per model. Sessions lacking model metadata (seen in early September 2025 builds) are skipped.
-- **Pricing** – Rates come from LiteLLM's pricing dataset via the shared `LiteLLMPricingFetcher`. Aliases such as `gpt-5-codex` map to canonical entries (`gpt-5`) so cost calculations remain accurate.
+- **Pricing** – Rates come from local pricing dataset via the shared `PricingFetcher`. Aliases such as `gpt-5-codex` map to canonical entries (`gpt-5`) so cost calculations remain accurate.
 - **Legacy fallback** – Early September 2025 logs that never recorded `turn_context` metadata are still included; the CLI assumes `gpt-5` for pricing so you can review the tokens even though the model tag is missing (the JSON output also marks these rows with `"isFallback": true`).
 - **Cost formula** – Non-cached input uses the standard input price; cached input uses the cache-read price (falling back to the input price when missing); and output tokens are billed at the output price. All prices are per million tokens. Reasoning tokens may be shown for reference, but they are part of the output charge and are not billed separately.
 - **Totals and reports** – Daily, monthly, and session commands display per-model breakdowns, overall totals, and optional JSON for automation.
@@ -62,7 +62,7 @@ The CLI reads Codex session JSONL files located under `CODEX_HOME` (defaults to 
 | `CODEX_HOME` | Override the root directory containing Codex session folders |
 | `LOG_LEVEL`  | Adjust consola verbosity (0 silent … 5 trace)                |
 
-When Codex emits a model alias (for example `gpt-5-codex`), the CLI automatically resolves it to the canonical LiteLLM pricing entry. No manual override is needed.
+When Codex emits a model alias (for example `gpt-5-codex`), the CLI automatically resolves it to the canonical pricing entry. No manual override is needed.
 
 ## Next Steps
 
