@@ -37,7 +37,7 @@
 		"node": ">=20.19.4"
 	},
 	"scripts": {
-		"build": "pnpm run generate:schema && tsdown",
+		"build": "pnpm run generate:schema && tsdown && cp model_prices_and_context_window.json dist/",
 		"format": "pnpm run lint --fix",
 		"generate:schema": "OFFLINE=true bun scripts/generate-json-schema.ts",
 		"lint": "eslint --cache .",

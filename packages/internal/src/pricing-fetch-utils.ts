@@ -20,15 +20,10 @@ export function loadLocalPricingDataset(): PricingDataset {
 		// Try current working directory first (for development)
 		// Then try relative to this file (for published package)
 		const possiblePaths = [
-			// Development paths (relative to current working directory)
-			join(cwd(), 'model_prices_and_context_window.json'),
-			join(cwd(), '..', 'model_prices_and_context_window.json'),
-			join(cwd(), '..', '..', 'model_prices_and_context_window.json'),
-			// Published package paths (relative to this bundled file)
+			// Published package: alongside the bundled file in dist/
 			join(import.meta.url, '..', 'model_prices_and_context_window.json'),
-			join(import.meta.url, '..', '..', 'model_prices_and_context_window.json'),
-			join(import.meta.url, '..', '..', '..', 'model_prices_and_context_window.json'),
-			join(import.meta.url, '..', '..', '..', '..', 'model_prices_and_context_window.json'),
+			// Development: in the app root directory
+			join(cwd(), 'model_prices_and_context_window.json'),
 		];
 
 		let rawData: string | undefined;
