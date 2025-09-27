@@ -18,7 +18,7 @@ export default defineConfig({
 	sourcemap: false,
 	minify: 'dce-only',
 	treeshake: true,
-	dts: false,
+	dts: true,
 	publint: true,
 	unused: true,
 	exports: {
