@@ -1,7 +1,8 @@
 import type { ModelPricing } from './pricing.ts';
 import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { cwd } from 'node:process';
+import { fileURLToPath } from 'node:url';
 import * as v from 'valibot';
 import {
 	modelPricingSchema,
@@ -19,9 +20,12 @@ export function loadLocalPricingDataset(): PricingDataset {
 		// Load the local pricing JSON file from multiple possible locations
 		// Try current working directory first (for development)
 		// Then try relative to this file (for published package)
+		// Get the directory of the current module (cross-platform)
+		const currentModuleDir = dirname(fileURLToPath(import.meta.url));
+
 		const possiblePaths = [
 			// Published package: alongside the bundled file in dist/
-			join(import.meta.url, '..', 'model_prices_and_context_window.json'),
+			join(currentModuleDir, 'model_prices_and_context_window.json'),
 			// Development: in the app root directory
 			join(cwd(), 'model_prices_and_context_window.json'),
 		];
@@ -30,11 +34,7 @@ export function loadLocalPricingDataset(): PricingDataset {
 
 		for (const path of possiblePaths) {
 			try {
-				// Handle file:// URLs from import.meta.url
-				const filePath = path.startsWith('file://')
-					? path.slice(7) // Remove file:// prefix
-					: path;
-				rawData = readFileSync(filePath, 'utf8');
+				rawData = readFileSync(path, 'utf8');
 				break;
 			}
 			catch {
