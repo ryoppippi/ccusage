@@ -24,7 +24,7 @@
   },
   "main": "./dist/index.js",
   "module": "./dist/index.js",
-	"types": "./dist/index.d.ts",
+  "types": "./dist/index.d.ts",
   "bin": {
 		"better-ccusage": "./src/index.ts"
   },
@@ -96,7 +96,10 @@
       "better-ccusage": "./dist/index.js"
     },
     "exports": {
-      ".": "./dist/index.js",
+      ".": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
       "./calculate-cost": "./dist/calculate-cost.js",
       "./data-loader": "./dist/data-loader.js",
       "./debug": "./dist/debug.js",
