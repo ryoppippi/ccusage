@@ -1,6 +1,6 @@
 {
   "name": "better-ccusage",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "description": "Enhanced usage analysis tool for Claude Code with multi-provider support",
   "homepage": "https://github.com/cobra91/better-ccusage#readme",
   "bugs": {
