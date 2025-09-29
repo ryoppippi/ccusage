@@ -87,8 +87,8 @@ catalogs:
       specifier: ^0.1.4
       version: 0.1.4
     '@hono/node-server':
-      specifier: ^1.19.3
-      version: 1.19.3
+      specifier: ^1.19.4
+      version: 1.19.4
     '@modelcontextprotocol/sdk':
       specifier: ^1.18.1
       version: 1.18.1
@@ -401,7 +401,7 @@ importers:
         version: 0.1.4(@modelcontextprotocol/sdk@1.18.1)(hono@4.9.7)
       '@hono/node-server':
         specifier: catalog:runtime
-        version: 1.19.3(hono@4.9.7)
+        version: 1.19.4(hono@4.9.7)
       '@modelcontextprotocol/sdk':
         specifier: catalog:runtime
         version: 1.18.1
@@ -1344,8 +1344,8 @@ packages:
       '@modelcontextprotocol/sdk': ^1.12.0
       hono: '>=4.0.0'
 
-  '@hono/node-server@1.19.3':
-    resolution: {integrity: sha512-Fjyxfux0rMPXMSob79OmddfpK5ArJa2xLkLCV+zamHkbeXQtSNKOi0keiBKyHZ/hCRKjigjmKGp4AJnDFq8PUw==}
+  '@hono/node-server@1.19.4':
+    resolution: {integrity: sha512-AWKQZ/YkHUBSHeL/5Ld8FWgUs6wFf4TxGYxqp9wLZxRdFuHBpXmgOq+CuDoL4vllkZLzovCf5HBJnypiy3EtHA==}
     engines: {node: '>=18.14.1'}
     peerDependencies:
       hono: ^4
@@ -5417,7 +5417,7 @@ snapshots:
       '@modelcontextprotocol/sdk': 1.18.1
       hono: 4.9.7
 
-  '@hono/node-server@1.19.3(hono@4.9.7)':
+  '@hono/node-server@1.19.4(hono@4.9.7)':
     dependencies:
       hono: 4.9.7
 
