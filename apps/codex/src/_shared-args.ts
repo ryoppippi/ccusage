@@ -42,4 +42,9 @@ export const sharedArgs = {
 		description: 'Force compact table layout for narrow terminals',
 		default: false,
 	},
+	color: { // --color / --no-color; env NO_COLOR / FORCE_COLOR handled by picocolors
+		type: 'boolean',
+		description: 'Enable or disable colored output (default: auto via NO_COLOR/FORCE_COLOR).',
+		negatable: true,
+	},
 } as const satisfies Args;

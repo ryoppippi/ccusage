@@ -81,16 +81,16 @@ catalogs:
       version: 3.4.0
   runtime:
     '@antfu/utils':
-      specifier: ^9.2.0
+      specifier: ^9.2.1
       version: 9.2.1
     '@hono/mcp':
       specifier: ^0.1.4
       version: 0.1.4
     '@hono/node-server':
-      specifier: ^1.19.3
+      specifier: ^1.19.4
       version: 1.19.4
     '@modelcontextprotocol/sdk':
-      specifier: ^1.17.3
+      specifier: ^1.18.1
       version: 1.18.1
     '@praha/byethrow':
       specifier: ^0.6.3
@@ -3796,8 +3796,7 @@ packages:
           targets:
             - cpu: x64
               os: win32
-    version: 24.9.0
-    hasBin: true
+    version: 0.0.0
 
   nth-check@2.1.1:
     resolution: {integrity: sha512-lqjrjmaOoAnWfMmBPL+XNnynZh2+swxiX3WUE0s4yEHI6m+AwrK2UZOimIRl3X/4QctVqS8AiZjFqyOGrMXb/w==}

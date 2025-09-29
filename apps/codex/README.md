@@ -95,16 +95,6 @@ For detailed guides and examples, visit **[better-ccusage.com/guide/codex](https
 
 ## Sponsors
 
-### Featured Sponsor
-
-Check out [better-ccusage: The Claude Code cost scorecard that went viral]
-
-<p align="center">
-    <a href="https://www.youtube.com/watch?v=Ak6qpQ5qdgk">
-        <img src="https://cdn.jsdelivr.net/gh/cobra91/better-ccusage@main/docs/public/ccusage_thumbnail.png" alt="better-ccusage: The Claude Code cost scorecard that went viral" width="600">
-    </a>
-</p>
-
 <p align="center">
     <a href="https://github.com/sponsors/cobra91">
         <img src="https://cdn.jsdelivr.net/gh/cobra91/sponsors@main/sponsors.svg">

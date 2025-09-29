@@ -18,6 +18,7 @@
 		"lint": "pnpm --no-bail --aggregate-output /^lint:/",
 		"lint:root": "eslint --cache eslint.config.js .",
 		"lint:submodules": "pnpm --parallel -r --no-bail /^lint/",
+		"lint-staged": "lint-staged",
 		"prepare": "pnpm run /^prepare:/",
 		"prepare:git": "git config --local core.hooksPath .githooks",
 		"prerelease": "pnpm run --filter '*' prerelease",
