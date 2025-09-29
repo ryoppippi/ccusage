@@ -2,8 +2,11 @@ name: Sync Upstream Changes
 
 on:
   schedule:
-    - cron: '0 6 * * 1'  # Every Monday at 6 AM UTC
-  workflow_dispatch:     # Manual trigger
+    - cron: '0 6 * * 1' # Every Monday at 6 AM UTC
+  workflow_dispatch: # Manual trigger
+permissions:
+  contents: write
+  pull-requests: write
 
 jobs:
   sync-upstream:
@@ -44,29 +47,29 @@ jobs:
 
       - name: Merge upstream changes
         if: steps.check-updates.outputs.needs_update == 'true'
+        id: merge_upstream
         run: |
           git merge upstream/main -m "feat: sync upstream ccusage changes"
-        continue-on-error: true
 
       - name: Push integration branch
-        if: steps.check-updates.outputs.needs_update == 'true'
+        if: steps.check-updates.outputs.needs_update == 'true' && steps.merge_upstream.outcome == 'success'
         run: |
           git push origin sync/upstream-${{ steps.check-updates.outputs.upstream_commit }}
 
       - name: Create PR
-        if: steps.check-updates.outputs.needs_update == 'true'
+        if: steps.check-updates.outputs.needs_update == 'true' && steps.merge_upstream.outcome == 'success'
         uses: actions/github-script@v7
+        env:
+          BRANCH: sync/upstream-${{ steps.check-updates.outputs.upstream_commit }}
         with:
           script: |
             const { owner, repo } = context.repo;
-            const branch = `sync/upstream-${{ steps.check-updates.outputs.upstream_commit }}`;
-
+            const branch = process.env.BRANCH;
             await github.rest.pulls.create({
               owner,
               repo,
-              title: `feat: sync upstream ccusage changes`,
-              body: |
-              ## Summary
+              title: 'feat: sync upstream ccusage changes',
+              body: `## Summary
               Automatic sync with upstream ccusage project.
 
               **Upstream commit:** ${{ steps.check-updates.outputs.upstream_commit }}
@@ -78,7 +81,6 @@ jobs:
               - [ ] Test CLI functionality
               - [ ] Verify MCP server operation
 
-              🤖 Generated with [Claude Code](https://claude.com/claude-code)
               head: branch,
               base: 'main'
             });

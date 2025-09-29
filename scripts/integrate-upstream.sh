@@ -3,7 +3,8 @@
 # Integration script for better-ccusage upstream sync
 # Usage: ./scripts/integrate-upstream.sh [upstream-commit]
 
-set -e
+set -euo pipefail
+IFS=$'\n\t'
 
 UPSTREAM_COMMIT=${1:-"upstream/main"}
 CURRENT_BRANCH=$(git branch --show-current)
@@ -18,7 +19,10 @@ echo "Upstream target: $UPSTREAM_COMMIT"
 git checkout -b "$INTEGRATION_BRANCH"
 
 # Fetch latest upstream
-git fetch upstream
+if ! git remote get-url upstream >/dev/null 2>&1; then
+  echo "❌ Remote 'upstream' not configured. Run: git remote add upstream <url>"; exit 1
+fi
+git fetch upstream --prune
 
 # Get commit info
 UPSTREAM_HASH=$(git rev-parse "$UPSTREAM_COMMIT")
@@ -28,8 +32,21 @@ echo "📊 Integration details:"
 echo "  From: $CURRENT_HASH"
 echo "  To:   $UPSTREAM_HASH"
 
-# Create custom merge commit message
-cat > /tmp/merge-msg.txt << EOF
+echo "🔍 Validating integration environment..."
+# Validate pnpm is available
+if ! command -v pnpm &> /dev/null; then
+  echo "❌ pnpm not found. Please install pnpm first."; exit 1
+fi
+# Validate git repo status
+if ! git rev-parse --git-dir > /dev/null 2>&1; then
+  echo "❌ Not a git repository."; exit 1
+fi
+
+# Create custom merge commit message (temp file)
+TMP_MERGE_MSG="$(mktemp -t integrate-merge-msg.XXXXXX)"
+cleanup() { rm -f "$TMP_MERGE_MSG"; }
+trap cleanup EXIT
+cat > "$TMP_MERGE_MSG" << 'EOF'
 feat: integrate upstream ccusage changes
 
 ## Upstream Changes
@@ -46,14 +63,10 @@ feat: integrate upstream ccusage changes
 - [ ] Run complete test suite
 - [ ] Check CLI output formats
 - [ ] Validate MCP server operation
-
-🤖 Generated with [Claude Code](https://claude.com/claude-code)
-
-Co-Authored-By: Claude <noreply@anthropic.com>
 EOF
 
 # Attempt merge
-if git merge "$UPSTREAM_COMMIT" -F /tmp/merge-msg.txt; then
+if git merge "$UPSTREAM_COMMIT" -F "$TMP_MERGE_MSG"; then
     echo "✅ Merge completed successfully!"
 
     # Run basic tests
@@ -83,5 +96,4 @@ else
     echo "   - Custom better-ccusage features"
 fi
 
-# Cleanup
-rm -f /tmp/merge-msg.txt
+# Cleanup handled by trap

@@ -4,14 +4,6 @@ Support better-ccusage development by becoming a sponsor! Your contribution help
 
 ## Featured Sponsor
 
-Check out [better-ccusage: The Claude Code cost scorecard that went viral]
-
-<p align="center">
-    <a href="https://www.youtube.com/watch?v=Ak6qpQ5qdgk">
-        <img src="/ccusage_thumbnail.png" alt="better-ccusage: The Claude Code cost scorecard that went viral" width="600">
-    </a>
-</p>
-
 <p align="center">
     <a href="https://github.com/sponsors/cobra91">
         <img src="https://cdn.jsdelivr.net/gh/cobra91/sponsors@main/sponsors.svg">

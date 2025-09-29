@@ -102,8 +102,8 @@ wsl --install
 # Once installed, navigate to your project
 cd /mnt/d/Dev/better-ccusage
 
-# Ensure Node.js and pnpm are installed in WSL
-curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+# Ensure Node.js (v24) and pnpm are installed in WSL
+curl -fsSL https://deb.nodesource.com/setup_24.x | sudo -E bash -
 sudo apt-get install -y nodejs
 npm install -g pnpm
 
