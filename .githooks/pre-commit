@@ -1,4 +1,10 @@
 #!/bin/sh
 
-# Run lint-staged
-npx --no-install lint-staged
+# Check if we're in WSL environment
+if grep -q Microsoft /proc/version 2>/dev/null || [ -n "$WSL_DISTRO_NAME" ]; then
+    # We're in WSL, use WSL's pnpm
+    cd "$(git rev-parse --show-toplevel)" && pnpm lint-staged
+else
+    # We're on Windows or native Linux
+    npx --no-install lint-staged
+fi

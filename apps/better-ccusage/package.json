@@ -26,7 +26,7 @@
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "bin": {
-		"better-ccusage": "./src/index.ts"
+    "better-ccusage": "./src/index.ts"
   },
   "files": [
     "config-schema.json",
@@ -34,7 +34,7 @@
     "dist"
   ],
   "scripts": {
-		"build": "pnpm run generate:schema && tsdown && cp model_prices_and_context_window.json dist/",
+    "build": "pnpm run generate:schema && tsdown && cp model_prices_and_context_window.json dist/",
     "format": "pnpm run lint --fix",
     "generate:schema": "OFFLINE=true bun scripts/generate-json-schema.ts",
     "lint": "eslint --cache .",
@@ -96,10 +96,7 @@
       "better-ccusage": "./dist/index.js"
     },
     "exports": {
-      ".": {
-        "types": "./dist/index.d.ts",
-        "default": "./dist/index.js"
-      },
+      ".": "./dist/index.js",
       "./calculate-cost": "./dist/calculate-cost.js",
       "./data-loader": "./dist/data-loader.js",
       "./debug": "./dist/debug.js",
