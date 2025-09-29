@@ -103,6 +103,10 @@ When limits are set, blocks display:
 
 ### Live Monitoring
 
+::: warning DEPRECATED
+The `blocks --live` monitor feature is deprecated and will be removed in a future version. Please use the [statusline command](/guide/statusline) instead for real-time monitoring.
+:::
+
 Real-time dashboard with automatic updates:
 
 ```bash

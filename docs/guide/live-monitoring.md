@@ -2,6 +2,10 @@
 
 ![Live monitoring dashboard showing real-time token usage, burn rate, and cost projections](/blocks-live.png)
 
+::: warning DEPRECATED
+The `blocks --live` monitor feature is deprecated and will be removed in a future version. Please use the [statusline command](/guide/statusline) instead for real-time monitoring.
+:::
+
 Live monitoring provides a real-time dashboard that updates as you use Claude Code, showing progress bars, burn rates, and cost projections for your active session.
 
 ## Quick Start
