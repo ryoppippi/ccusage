@@ -35,10 +35,10 @@ catalogs:
     lint-staged: ^16.1.5
     sort-package-json: ^3.4.0
   runtime:
-    '@antfu/utils': ^9.2.0
+    '@antfu/utils': ^9.2.1
     '@hono/mcp': ^0.1.4
-    '@hono/node-server': ^1.19.3
-    '@modelcontextprotocol/sdk': ^1.17.3
+    '@hono/node-server': ^1.19.4
+    '@modelcontextprotocol/sdk': ^1.18.1
     '@praha/byethrow': ^0.6.3
     '@ryoppippi/limo': jsr:^0.2.2
     '@std/async': jsr:^1.0.14

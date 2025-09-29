@@ -1,0 +1,82 @@
+name: Sync Upstream Changes
+
+on:
+  schedule:
+    - cron: '0 6 * * 1'  # Every Monday at 6 AM UTC
+  workflow_dispatch:     # Manual trigger
+
+jobs:
+  sync-upstream:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure git
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+
+      - name: Add upstream remote
+        run: |
+          git remote add upstream https://github.com/ryoppippi/ccusage.git
+          git fetch upstream
+
+      - name: Check for updates
+        id: check-updates
+        run: |
+          LATEST_UPSTREAM=$(git rev-parse upstream/main)
+          CURRENT=$(git rev-parse HEAD)
+          if [ "$LATEST_UPSTREAM" != "$CURRENT" ]; then
+            echo "needs_update=true" >> $GITHUB_OUTPUT
+            echo "upstream_commit=$LATEST_UPSTREAM" >> $GITHUB_OUTPUT
+          else
+            echo "needs_update=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create integration branch
+        if: steps.check-updates.outputs.needs_update == 'true'
+        run: |
+          git checkout -b sync/upstream-${{ steps.check-updates.outputs.upstream_commit }}
+
+      - name: Merge upstream changes
+        if: steps.check-updates.outputs.needs_update == 'true'
+        run: git merge upstream/main -m "feat: sync upstream ccusage changes"
+        continue-on-error: true
+
+      - name: Push integration branch
+        if: steps.check-updates.outputs.needs_update == 'true'
+        run: |
+          git push origin sync/upstream-${{ steps.check-updates.outputs.upstream_commit }}
+
+      - name: Create PR
+        if: steps.check-updates.outputs.needs_update == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const branch = `sync/upstream-${{ steps.check-updates.outputs.upstream_commit }}`;
+
+            await github.rest.pulls.create({
+              owner,
+              repo,
+              title: `feat: sync upstream ccusage changes`,
+              body: `## Summary
+              Automatic sync with upstream ccusage project.
+
+              **Upstream commit:** ${{ steps.check-updates.outputs.upstream_commit }}
+
+              ## Test plan
+              - [ ] Verify all custom features (Zai/GLM-4.5) still work
+              - [ ] Run test suite
+              - [ ] Check pricing database compatibility
+              - [ ] Test CLI functionality
+              - [ ] Verify MCP server operation
+
+              🤖 Generated with [Claude Code](https://claude.com/claude-code)`,
+              head: branch,
+              base: 'main'
+            });
