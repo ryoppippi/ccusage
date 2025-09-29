@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
-import { runCli } from './command.ts';
+import { run } from './command.ts';
 
-void runCli();
+// eslint-disable-next-line antfu/no-top-level-await
+await run();
