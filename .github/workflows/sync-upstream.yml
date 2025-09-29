@@ -44,7 +44,8 @@ jobs:
 
       - name: Merge upstream changes
         if: steps.check-updates.outputs.needs_update == 'true'
-        run: git merge upstream/main -m "feat: sync upstream ccusage changes"
+        run: |
+          git merge upstream/main -m "feat: sync upstream ccusage changes"
         continue-on-error: true
 
       - name: Push integration branch
@@ -64,7 +65,8 @@ jobs:
               owner,
               repo,
               title: `feat: sync upstream ccusage changes`,
-              body: `## Summary
+              body: |
+              ## Summary
               Automatic sync with upstream ccusage project.
 
               **Upstream commit:** ${{ steps.check-updates.outputs.upstream_commit }}
@@ -76,7 +78,7 @@ jobs:
               - [ ] Test CLI functionality
               - [ ] Verify MCP server operation
 
-              🤖 Generated with [Claude Code](https://claude.com/claude-code)`,
+              🤖 Generated with [Claude Code](https://claude.com/claude-code)
               head: branch,
               base: 'main'
             });
