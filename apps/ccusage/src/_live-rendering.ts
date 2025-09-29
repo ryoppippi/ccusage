@@ -187,9 +187,10 @@ export function renderLiveDisplay(terminal: TerminalManager, block: SessionBlock
 	const detailsSpacing = 2; // Fixed spacing between columns
 	const detailsAvailableWidth = boxWidth - 3 - detailsIndent; // Available width for content
 
-	// Draw header
+	// Draw header with deprecation warning
 	terminal.write(`${marginStr}┌${'─'.repeat(boxWidth - 2)}┐\n`);
 	terminal.write(`${marginStr}│${pc.bold(centerText('CLAUDE CODE - LIVE TOKEN USAGE MONITOR', boxWidth - 2))}│\n`);
+	terminal.write(`${marginStr}│${pc.yellow(centerText('⚠️  DEPRECATED - Use https://claude.ai/settings/usage', boxWidth - 2))}│\n`);
 	terminal.write(`${marginStr}├${'─'.repeat(boxWidth - 2)}┤\n`);
 	terminal.write(`${marginStr}│${' '.repeat(boxWidth - 2)}│\n`);
 
