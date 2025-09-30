@@ -8,7 +8,7 @@
     <a href="https://npmjs.com/package/@better-ccusage/codex"><img src="https://img.shields.io/npm/v/@better-ccusage/codex?color=yellow" alt="npm version" /></a>
     <a href="https://tanstack.com/stats/npm?packageGroups=%5B%7B%22packages%22:%5B%7B%22name%22:%22@better-ccusage/codex%22%7D%5D%7D%5D&range=30-days&transform=none&binType=daily&showDataMode=all&height=400"><img src="https://img.shields.io/npm/dy/@better-ccusage/codex" alt="NPM Downloads" /></a>
     <a href="https://packagephobia.com/result?p=@better-ccusage/codex"><img src="https://packagephobia.com/badge?p=@better-ccusage/codex" alt="install size" /></a>
-    <a href="https://deepwiki.com/cobra91/better-ccusage"></a>
+    <a href="https://deepwiki.com/cobra91/better-ccusage">DeepWiki</a>
 </p>
 
 <div align="center">
