@@ -452,7 +452,7 @@ export const blocksCommand = define({
 
 						// Add prompts count if requested
 						if (ctx.values.prompts) {
-							row.push(formatNumber(block.entries.length));
+							row.push(formatNumber(block.userPromptCount));
 						}
 
 						// Add percentage if token limit is set
