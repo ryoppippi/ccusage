@@ -39,7 +39,7 @@ Standard daily reports aggregate usage across all projects:
 			"cacheReadTokens": 1024,
 			"totalTokens": 33269,
 			"totalCost": 17.58,
-			"modelsUsed": ["claude-opus-4-20250514", "claude-sonnet-4-20250514"],
+			"modelsUsed": ["claude-opus-4-20250514", "claude-sonnet-4-20250514", "claude-sonnet-4-5-20250929"],
 			"modelBreakdowns": [...]
 		}
 	],
@@ -72,7 +72,7 @@ When using `--instances`, daily reports group usage by project:
 				"cacheReadTokens": 512,
 				"totalTokens": 17401,
 				"totalCost": 7.33,
-				"modelsUsed": ["claude-sonnet-4-20250514"],
+				"modelsUsed": ["claude-sonnet-4-20250514", "claude-sonnet-4-5-20250929"],
 				"modelBreakdowns": [...]
 			}
 		],
@@ -122,7 +122,7 @@ better-ccusage daily --project my-frontend-app --json
 	"data": [
 		{
 			"month": "2025-05",
-			"models": ["claude-opus-4-20250514", "claude-sonnet-4-20250514"],
+			"models": ["claude-opus-4-20250514", "claude-sonnet-4-20250514", "claude-sonnet-4-5-20250929"],
 			"inputTokens": 11174,
 			"outputTokens": 720366,
 			"cacheCreationTokens": 896,
@@ -150,7 +150,7 @@ better-ccusage daily --project my-frontend-app --json
 	"data": [
 		{
 			"session": "session-1",
-			"models": ["claude-opus-4-20250514", "claude-sonnet-4-20250514"],
+			"models": ["claude-opus-4-20250514", "claude-sonnet-4-20250514", "claude-sonnet-4-5-20250929"],
 			"inputTokens": 4512,
 			"outputTokens": 350846,
 			"cacheCreationTokens": 512,
@@ -182,7 +182,7 @@ better-ccusage daily --project my-frontend-app --json
 			"blockEnd": "2025-05-30T15:00:00.000Z",
 			"isActive": true,
 			"timeRemaining": "2h 15m",
-			"models": ["claude-sonnet-4-20250514"],
+			"models": ["claude-sonnet-4-20250514", "claude-sonnet-4-5-20250929"],
 			"inputTokens": 1250,
 			"outputTokens": 15000,
 			"cacheCreationTokens": 256,
@@ -276,7 +276,7 @@ When using `--breakdown`, the JSON includes per-model details:
 	"data": [
 		{
 			"date": "2025-05-30",
-			"models": ["claude-opus-4-20250514", "claude-sonnet-4-20250514"],
+			"models": ["claude-opus-4-20250514", "claude-sonnet-4-20250514", "claude-sonnet-4-5-20250929"],
 			"inputTokens": 277,
 			"outputTokens": 31456,
 			"totalTokens": 33269,
@@ -297,6 +297,14 @@ When using `--breakdown`, the JSON includes per-model details:
 					"cacheReadTokens": 512,
 					"totalTokens": 17401,
 					"costUSD": 7.33
+				},
+				"claude-sonnet-4-5-20250929": {
+					"inputTokens": 150,
+					"outputTokens": 8900,
+					"cacheCreationTokens": 128,
+					"cacheReadTokens": 256,
+					"totalTokens": 9434,
+					"costUSD": 6.12
 				}
 			}
 		}

@@ -1,6 +1,6 @@
 {
 	"name": "@better-ccusage/codex",
-	"version": "1.0.9",
+	"version": "1.1.0",
 	"description": "Usage analysis tool for OpenAI Codex sessions",
 	"homepage": "https://github.com/cobra91/better-ccusage#readme",
 	"bugs": {

@@ -117,7 +117,7 @@ better-ccusage weekly --json
 			"cacheReadTokens": 4096,
 			"totalTokens": 164167,
 			"totalCost": 87.56,
-			"modelsUsed": ["claude-opus-4-20250514", "claude-sonnet-4-20250514"],
+			"modelsUsed": ["claude-opus-4-20250514", "claude-sonnet-4-5-20250929", "claude-sonnet-4-20250514"],
 			"modelBreakdowns": {
 				"claude-opus-4-20250514": {
 					"inputTokens": 800,
@@ -125,6 +125,11 @@ better-ccusage weekly --json
 					"totalCost": 54.80
 				},
 				"claude-sonnet-4-20250514": {
+					"inputTokens": 434,
+					"outputTokens": 76789,
+					"totalCost": 32.76
+				},
+				"claude-sonnet-4-5-20250929": {
 					"inputTokens": 434,
 					"outputTokens": 76789,
 					"totalCost": 32.76

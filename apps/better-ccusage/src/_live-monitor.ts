@@ -324,6 +324,47 @@ if (import.meta.vitest != null) {
 			}
 		});
 
+		it('should load and process usage data with claude-sonnet-4-5-20250929', async () => {
+			const { createFixture } = await import('fs-fixture');
+			const now = new Date();
+			const recentTimestamp = new Date(now.getTime() - 60 * 60 * 1000); // 1 hour ago
+
+			const sonnet45Fixture = await createFixture({
+				'projects/test-project/session1/usage.jsonl': `${JSON.stringify({
+					timestamp: recentTimestamp.toISOString(),
+					message: {
+						model: 'claude-sonnet-4-5-20250929',
+						usage: {
+							input_tokens: 100,
+							output_tokens: 50,
+							cache_creation_input_tokens: 0,
+							cache_read_input_tokens: 0,
+						},
+					},
+					costUSD: 0.01,
+					version: '1.0.0',
+				})}\n`,
+			});
+
+			const sonnet45Config = {
+				claudePaths: [sonnet45Fixture.path],
+				sessionDurationHours: 5,
+				mode: 'display' as const,
+				order: 'desc' as const,
+			};
+
+			using sonnet45State = createLiveMonitorState(sonnet45Config);
+			const activeBlock = await getActiveBlock(sonnet45State, sonnet45Config);
+
+			expect(activeBlock).not.toBeNull();
+			if (activeBlock != null) {
+				expect(activeBlock.tokenCounts.inputTokens).toBe(100);
+				expect(activeBlock.tokenCounts.outputTokens).toBe(50);
+				expect(activeBlock.costUSD).toBe(0.01);
+				expect(activeBlock.models).toContain('claude-sonnet-4-5-20250929');
+			}
+		});
+
 		it('should handle empty directories', async () => {
 			const { createFixture } = await import('fs-fixture');
 			const emptyFixture = await createFixture({});

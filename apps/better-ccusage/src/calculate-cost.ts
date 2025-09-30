@@ -115,6 +115,38 @@ if (import.meta.vitest != null) {
 			expect(totals.totalCost).toBeCloseTo(0.03);
 		});
 
+		it('calculateTotals should aggregate daily usage data with claude-sonnet-4-5-20250929', () => {
+			const dailyData: DailyUsage[] = [
+				{
+					date: createDailyDate('2024-01-01'),
+					inputTokens: 100,
+					outputTokens: 50,
+					cacheCreationTokens: 25,
+					cacheReadTokens: 10,
+					totalCost: 0.01,
+					modelsUsed: [createModelName('claude-sonnet-4-5-20250929')],
+					modelBreakdowns: [],
+				},
+				{
+					date: createDailyDate('2024-01-02'),
+					inputTokens: 200,
+					outputTokens: 100,
+					cacheCreationTokens: 50,
+					cacheReadTokens: 20,
+					totalCost: 0.02,
+					modelsUsed: [createModelName('claude-sonnet-4-5-20250929')],
+					modelBreakdowns: [],
+				},
+			];
+
+			const totals = calculateTotals(dailyData);
+			expect(totals.inputTokens).toBe(300);
+			expect(totals.outputTokens).toBe(150);
+			expect(totals.cacheCreationTokens).toBe(75);
+			expect(totals.cacheReadTokens).toBe(30);
+			expect(totals.totalCost).toBeCloseTo(0.03);
+		});
+
 		it('calculateTotals should aggregate session usage data', () => {
 			const sessionData: SessionUsage[] = [
 				{
@@ -141,6 +173,44 @@ if (import.meta.vitest != null) {
 					lastActivity: createActivityDate('2024-01-02'),
 					versions: [createVersion('1.0.3'), createVersion('1.0.4')],
 					modelsUsed: [createModelName('claude-opus-4-20250514')],
+					modelBreakdowns: [],
+				},
+			];
+
+			const totals = calculateTotals(sessionData);
+			expect(totals.inputTokens).toBe(300);
+			expect(totals.outputTokens).toBe(150);
+			expect(totals.cacheCreationTokens).toBe(75);
+			expect(totals.cacheReadTokens).toBe(30);
+			expect(totals.totalCost).toBeCloseTo(0.03);
+		});
+
+		it('calculateTotals should aggregate session usage data with claude-sonnet-4-5-20250929', () => {
+			const sessionData: SessionUsage[] = [
+				{
+					sessionId: createSessionId('session-1'),
+					projectPath: createProjectPath('project/path'),
+					inputTokens: 100,
+					outputTokens: 50,
+					cacheCreationTokens: 25,
+					cacheReadTokens: 10,
+					totalCost: 0.01,
+					lastActivity: createActivityDate('2024-01-01'),
+					versions: [createVersion('1.0.3')],
+					modelsUsed: [createModelName('claude-sonnet-4-5-20250929')],
+					modelBreakdowns: [],
+				},
+				{
+					sessionId: createSessionId('session-2'),
+					projectPath: createProjectPath('project/path'),
+					inputTokens: 200,
+					outputTokens: 100,
+					cacheCreationTokens: 50,
+					cacheReadTokens: 20,
+					totalCost: 0.02,
+					lastActivity: createActivityDate('2024-01-02'),
+					versions: [createVersion('1.0.3'), createVersion('1.0.4')],
+					modelsUsed: [createModelName('claude-sonnet-4-5-20250929')],
 					modelBreakdowns: [],
 				},
 			];

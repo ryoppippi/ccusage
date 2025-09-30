@@ -318,14 +318,15 @@ export function formatCurrency(amount: number): string {
 /**
  * Formats Claude model names into a shorter, more readable format
  * Extracts model type and generation from full model name
- * @param modelName - Full model name (e.g., "claude-sonnet-4-20250514")
- * @returns Shortened model name (e.g., "sonnet-4") or original if pattern doesn't match
+ * @param modelName - Full model name (e.g., "claude-sonnet-4-5-20250929")
+ * @returns Shortened model name (e.g., "sonnet-4-5") or original if pattern doesn't match
  */
 function formatModelName(modelName: string): string {
 	// Extract model type from full model name
+	// e.g., "claude-sonnet-4-5-20250929" -> "sonnet-4-5"
 	// e.g., "claude-sonnet-4-20250514" -> "sonnet-4"
 	// e.g., "claude-opus-4-20250514" -> "opus-4"
-	const match = /claude-(\w+)-(\d+)-\d+/.exec(modelName);
+	const match = /claude-(\w+)-([\d-]+)-\d{8}/.exec(modelName);
 	if (match != null) {
 		return `${match[1]}-${match[2]}`;
 	}
@@ -952,14 +953,18 @@ if (import.meta.vitest != null) {
 			expect(formatModelsDisplayMultiline(['claude-sonnet-4-20250514'])).toBe('- sonnet-4');
 		});
 
+		it('formats single model with bullet point', () => {
+			expect(formatModelsDisplayMultiline(['claude-sonnet-4-5-20250929'])).toBe('- sonnet-4-5');
+		});
+
 		it('formats multiple models with newlines and bullet points', () => {
-			const models = ['claude-sonnet-4-20250514', 'claude-opus-4-20250514'];
-			expect(formatModelsDisplayMultiline(models)).toBe('- opus-4\n- sonnet-4');
+			const models = ['claude-sonnet-4-20250514', 'claude-opus-4-20250514', 'claude-sonnet-4-5-20250929'];
+			expect(formatModelsDisplayMultiline(models)).toBe('- opus-4\n- sonnet-4\n- sonnet-4-5');
 		});
 
 		it('removes duplicates and sorts with bullet points', () => {
-			const models = ['claude-sonnet-4-20250514', 'claude-opus-4-20250514', 'claude-sonnet-4-20250514'];
-			expect(formatModelsDisplayMultiline(models)).toBe('- opus-4\n- sonnet-4');
+			const models = ['claude-sonnet-4-20250514', 'claude-opus-4-20250514', 'claude-sonnet-4-20250514', 'claude-sonnet-4-5-20250929'];
+			expect(formatModelsDisplayMultiline(models)).toBe('- opus-4\n- sonnet-4\n- sonnet-4-5');
 		});
 
 		it('handles empty array', () => {
@@ -967,8 +972,8 @@ if (import.meta.vitest != null) {
 		});
 
 		it('handles models that do not match pattern with bullet points', () => {
-			const models = ['custom-model', 'claude-sonnet-4-20250514'];
-			expect(formatModelsDisplayMultiline(models)).toBe('- custom-model\n- sonnet-4');
+			const models = ['custom-model', 'claude-sonnet-4-20250514', 'claude-sonnet-4-5-20250929'];
+			expect(formatModelsDisplayMultiline(models)).toBe('- custom-model\n- sonnet-4\n- sonnet-4-5');
 		});
 	});
 }

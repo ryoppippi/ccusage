@@ -336,6 +336,31 @@ if (import.meta.vitest != null) {
 				expect(stats.discrepancies).toHaveLength(0);
 			});
 
+			it('should detect no mismatches when costs match with Sonnet 4.5', async () => {
+				await using fixture = await createFixture({
+					'test.jsonl': JSON.stringify({
+						timestamp: '2024-01-01T12:00:00Z',
+						costUSD: 0.00015, // 50 * 0.000003 = 0.00015 (matches calculated)
+						version: '1.0.0',
+						message: {
+							model: 'claude-sonnet-4-5-20250929',
+							usage: {
+								input_tokens: 50,
+								output_tokens: 0,
+							},
+						},
+					}),
+				});
+
+				const stats = await detectMismatches(fixture.path);
+
+				expect(stats.totalEntries).toBe(1);
+				expect(stats.entriesWithBoth).toBe(1);
+				expect(stats.matches).toBe(1);
+				expect(stats.mismatches).toBe(0);
+				expect(stats.discrepancies).toHaveLength(0);
+			});
+
 			it('should detect mismatches when costs differ significantly', async () => {
 				await using fixture = await createFixture({
 					'test.jsonl': JSON.stringify({
@@ -364,6 +389,38 @@ if (import.meta.vitest != null) {
 				expect(discrepancy).toBeDefined();
 				expect(discrepancy?.file).toBe('test.jsonl');
 				expect(discrepancy?.model).toBe('claude-sonnet-4-20250514');
+				expect(discrepancy?.originalCost).toBe(0.1);
+				expect(discrepancy?.percentDiff).toBeGreaterThan(0.1);
+			});
+
+			it('should detect mismatches when costs differ significantly with Sonnet 4.5', async () => {
+				await using fixture = await createFixture({
+					'test.jsonl': JSON.stringify({
+						timestamp: '2024-01-01T12:00:00Z',
+						costUSD: 0.1, // Significantly different from calculated cost
+						version: '1.0.0',
+						message: {
+							model: 'claude-sonnet-4-5-20250929',
+							usage: {
+								input_tokens: 50,
+								output_tokens: 10,
+							},
+						},
+					}),
+				});
+
+				const stats = await detectMismatches(fixture.path);
+
+				expect(stats.totalEntries).toBe(1);
+				expect(stats.entriesWithBoth).toBe(1);
+				expect(stats.matches).toBe(0);
+				expect(stats.mismatches).toBe(1);
+				expect(stats.discrepancies).toHaveLength(1);
+
+				const discrepancy = stats.discrepancies[0];
+				expect(discrepancy).toBeDefined();
+				expect(discrepancy?.file).toBe('test.jsonl');
+				expect(discrepancy?.model).toBe('claude-sonnet-4-5-20250929');
 				expect(discrepancy?.originalCost).toBe(0.1);
 				expect(discrepancy?.percentDiff).toBeGreaterThan(0.1);
 			});
@@ -475,6 +532,37 @@ if (import.meta.vitest != null) {
 				expect(discrepancy?.percentDiff).toBeGreaterThan(0.1);
 			});
 
+			it('should detect mismatches for claude-sonnet-4-5-20250929', async () => {
+				await using fixture = await createFixture({
+					'sonnet45-test.jsonl': JSON.stringify({
+						timestamp: '2024-01-01T12:00:00Z',
+						costUSD: 0.5, // Significantly different from calculated cost
+						version: '1.0.0',
+						message: {
+							model: 'claude-sonnet-4-5-20250929',
+							usage: {
+								input_tokens: 100,
+								output_tokens: 50,
+							},
+						},
+					}),
+				});
+
+				const stats = await detectMismatches(fixture.path);
+
+				expect(stats.totalEntries).toBe(1);
+				expect(stats.entriesWithBoth).toBe(1);
+				expect(stats.mismatches).toBe(1);
+				expect(stats.discrepancies).toHaveLength(1);
+
+				const discrepancy = stats.discrepancies[0];
+				expect(discrepancy).toBeDefined();
+				expect(discrepancy?.file).toBe('sonnet45-test.jsonl');
+				expect(discrepancy?.model).toBe('claude-sonnet-4-5-20250929');
+				expect(discrepancy?.originalCost).toBe(0.5);
+				expect(discrepancy?.percentDiff).toBeGreaterThan(0.1);
+			});
+
 			it('should track model statistics', async () => {
 				await using fixture = await createFixture({
 					'test.jsonl': [
@@ -501,6 +589,38 @@ if (import.meta.vitest != null) {
 
 				expect(stats.modelStats.has('claude-sonnet-4-20250514')).toBe(true);
 				const modelStat = stats.modelStats.get('claude-sonnet-4-20250514');
+				expect(modelStat).toBeDefined();
+				expect(modelStat?.total).toBe(2);
+				expect(modelStat?.matches).toBe(1);
+				expect(modelStat?.mismatches).toBe(1);
+			});
+
+			it('should track model statistics with Sonnet 4.5', async () => {
+				await using fixture = await createFixture({
+					'test-45.jsonl': [
+						JSON.stringify({
+							timestamp: '2024-01-01T12:00:00Z',
+							costUSD: 0.00015, // 50 * 0.000003 = 0.00015 (matches)
+							message: {
+								model: 'claude-sonnet-4-5-20250929',
+								usage: { input_tokens: 50, output_tokens: 0 },
+							},
+						}),
+						JSON.stringify({
+							timestamp: '2024-01-02T12:00:00Z',
+							costUSD: 0.001, // Mismatch with calculated cost (0.0003)
+							message: {
+								model: 'claude-sonnet-4-5-20250929',
+								usage: { input_tokens: 50, output_tokens: 10 },
+							},
+						}),
+					].join('\n'),
+				});
+
+				const stats = await detectMismatches(fixture.path);
+
+				expect(stats.modelStats.has('claude-sonnet-4-5-20250929')).toBe(true);
+				const modelStat = stats.modelStats.get('claude-sonnet-4-5-20250929');
 				expect(modelStat).toBeDefined();
 				expect(modelStat?.total).toBe(2);
 				expect(modelStat?.matches).toBe(1);

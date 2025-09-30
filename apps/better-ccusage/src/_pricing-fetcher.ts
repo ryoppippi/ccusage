@@ -62,6 +62,19 @@ if (import.meta.vitest != null) {
 			expect(cost).toBeGreaterThan(0);
 		});
 
+		it('calculates cost for claude-sonnet-4-5-20250929 model tokens', async () => {
+			using fetcher = new CcusagePricingFetcher(true);
+			const pricing = await Result.unwrap(fetcher.getModelPricing('claude-sonnet-4-5-20250929'));
+			expect(pricing).not.toBeNull();
+			const cost = fetcher.calculateCostFromPricing({
+				input_tokens: 1000,
+				output_tokens: 500,
+				cache_read_input_tokens: 300,
+			}, pricing!);
+
+			expect(cost).toBeGreaterThan(0);
+		});
+
 		it('calculates cost for GLM-4.5 model tokens', async () => {
 			using fetcher = new CcusagePricingFetcher(true);
 			const pricing = await Result.unwrap(fetcher.getModelPricing('glm-4.5'));
