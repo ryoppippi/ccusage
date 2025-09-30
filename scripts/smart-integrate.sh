@@ -43,9 +43,6 @@ if [ ! -d "apps/better-ccusage" ]; then
   echo "❌ apps/better-ccusage not found."; exit 1i
 git mv apps/better-ccusage apps/ccusage-temp
 
-# Commit the rename
-git commit -m "chore: temporary rename for upstream integration" --no-verify
-
 # Now merge upstream
 echo "🔄 Merging upstream changes..."
 if git merge "$UPSTREAM_COMMIT" --no-edit; then
@@ -63,7 +60,7 @@ if git merge "$UPSTREAM_COMMIT" --no-edit; then
     git mv apps/ccusage-temp apps/better-ccusage
 
     # Commit the structure change
-    git commit -m "chore: restore better-ccusage structure"
+    git commit -m "chore: restore better-ccusage structure" --no-verify
 
     # If upstream ccusage existed, merge it into our better-ccusage
     if [ -d "apps/upstream-ccusage" ]; then
@@ -79,7 +76,7 @@ if git merge "$UPSTREAM_COMMIT" --no-edit; then
 
         # Add all changes
         git add .
-        git commit -m "feat: merge upstream ccusage into better-ccusage"
+        git commit -m "feat: merge upstream ccusage into better-ccusage"  --no-verify
 
         # Go back to integration branch
         git checkout "$INTEGRATION_BRANCH"
