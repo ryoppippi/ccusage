@@ -329,15 +329,16 @@ This ensures code quality and catches issues immediately after changes.
 
 ## Claude Models and Testing
 
-**Supported Claude 4 Models (as of 2025):**
+**Supported Claude 4.5 Models (as of 2025):**
 
+- `claude-sonnet-4-5-20250929` - Latest Claude 4.5 Sonnet model` - Latest Claude 4 Sonnet model
 - `claude-sonnet-4-20250514` - Latest Claude 4 Sonnet model
 - `claude-opus-4-20250514` - Latest Claude 4 Opus model
 
 **Model Naming Convention:**
 
 - Pattern: `claude-{model-type}-{generation}-{date}`
-- Example: `claude-sonnet-4-20250514` (NOT `claude-4-sonnet-20250514`)
+- Example: `claude-sonnet-4-5-20250929` (NOT `claude-4-5-sonnet-20250929`)
 - The generation number comes AFTER the model type
 
 **Testing Guidelines:**

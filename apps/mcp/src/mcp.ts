@@ -317,6 +317,50 @@ if (import.meta.vitest != null) {
 				await server.close();
 			}, 30000);
 
+			it('should call daily tool successfully with Sonnet 4.5', async () => {
+				await using fixture = await createFixture({
+					'projects/test-project/session1/usage.jsonl': JSON.stringify({
+						timestamp: '2024-01-01T12:00:00Z',
+						costUSD: 0.001,
+						version: '1.0.0',
+						message: {
+							model: 'claude-sonnet-4-5-20250929',
+							usage: { input_tokens: 50, output_tokens: 10 },
+						},
+					}),
+				});
+
+				const client = new Client({ name: 'test-client', version: '1.0.0' });
+				const server = createMcpServer({ claudePath: fixture.path });
+
+				const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+
+				await Promise.all([
+					client.connect(clientTransport),
+					server.connect(serverTransport),
+				]);
+
+				const result = await client.callTool({
+					name: 'daily',
+					arguments: { mode: 'auto' },
+				});
+
+				expect(result).toHaveProperty('content');
+				expect(Array.isArray(result.content)).toBe(true);
+				expect(result.content).toHaveLength(1);
+
+				expect((result.content as any).at(0)).toHaveProperty('type', 'text');
+				expect((result.content as any).at(0)).toHaveProperty('text');
+
+				const data = JSON.parse((result.content as any).at(0).text as string);
+				expect(data).toHaveProperty('daily');
+				expect(data).toHaveProperty('totals');
+				expect(Array.isArray(data.daily)).toBe(true);
+
+				await client.close();
+				await server.close();
+			}, 30000);
+
 			it('should call session tool successfully', async () => {
 				await using fixture = await createFixture({
 					'projects/test-project/session1/usage.jsonl': JSON.stringify({
@@ -325,6 +369,48 @@ if (import.meta.vitest != null) {
 						version: '1.0.0',
 						message: {
 							model: 'claude-sonnet-4-20250514',
+							usage: { input_tokens: 50, output_tokens: 10 },
+						},
+					}),
+				});
+
+				const client = new Client({ name: 'test-client', version: '1.0.0' });
+				const server = createMcpServer({ claudePath: fixture.path });
+
+				const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+
+				await Promise.all([
+					client.connect(clientTransport),
+					server.connect(serverTransport),
+				]);
+
+				const result = await client.callTool({
+					name: 'session',
+					arguments: { mode: 'auto' },
+				});
+
+				expect(result).toHaveProperty('content');
+				expect(result.content).toHaveLength(1);
+				expect((result.content as any)[0]).toHaveProperty('type', 'text');
+				expect((result.content as any)[0]).toHaveProperty('text');
+
+				const data = JSON.parse((result.content as any)[0].text as string);
+				expect(data).toHaveProperty('sessions');
+				expect(data).toHaveProperty('totals');
+				expect(Array.isArray(data.sessions)).toBe(true);
+
+				await client.close();
+				await server.close();
+			});
+
+			it('should call session tool successfully with Sonnet 4.5', async () => {
+				await using fixture = await createFixture({
+					'projects/test-project/session1/usage.jsonl': JSON.stringify({
+						timestamp: '2024-01-01T12:00:00Z',
+						costUSD: 0.001,
+						version: '1.0.0',
+						message: {
+							model: 'claude-sonnet-4-5-20250929',
 							usage: { input_tokens: 50, output_tokens: 10 },
 						},
 					}),
@@ -401,6 +487,48 @@ if (import.meta.vitest != null) {
 				await server.close();
 			});
 
+			it('should call monthly tool successfully with Sonnet 4.5', async () => {
+				await using fixture = await createFixture({
+					'projects/test-project/session1/usage.jsonl': JSON.stringify({
+						timestamp: '2024-01-01T12:00:00Z',
+						costUSD: 0.001,
+						version: '1.0.0',
+						message: {
+							model: 'claude-sonnet-4-5-20250929',
+							usage: { input_tokens: 50, output_tokens: 10 },
+						},
+					}),
+				});
+
+				const client = new Client({ name: 'test-client', version: '1.0.0' });
+				const server = createMcpServer({ claudePath: fixture.path });
+
+				const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+
+				await Promise.all([
+					client.connect(clientTransport),
+					server.connect(serverTransport),
+				]);
+
+				const result = await client.callTool({
+					name: 'monthly',
+					arguments: { mode: 'auto' },
+				});
+
+				expect(result).toHaveProperty('content');
+				expect(result.content).toHaveLength(1);
+				expect((result.content as any)[0]).toHaveProperty('type', 'text');
+				expect((result.content as any)[0]).toHaveProperty('text');
+
+				const data = JSON.parse((result.content as any)[0].text as string);
+				expect(data).toHaveProperty('monthly');
+				expect(data).toHaveProperty('totals');
+				expect(Array.isArray(data.monthly)).toBe(true);
+
+				await client.close();
+				await server.close();
+			}, 30000);
+
 			it('should call blocks tool successfully', async () => {
 				await using fixture = await createFixture({
 					'projects/test-project/session1/usage.jsonl': JSON.stringify({
@@ -409,6 +537,47 @@ if (import.meta.vitest != null) {
 						version: '1.0.0',
 						message: {
 							model: 'claude-sonnet-4-20250514',
+							usage: { input_tokens: 50, output_tokens: 10 },
+						},
+					}),
+				});
+
+				const client = new Client({ name: 'test-client', version: '1.0.0' });
+				const server = createMcpServer({ claudePath: fixture.path });
+
+				const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+
+				await Promise.all([
+					client.connect(clientTransport),
+					server.connect(serverTransport),
+				]);
+
+				const result = await client.callTool({
+					name: 'blocks',
+					arguments: { mode: 'auto' },
+				});
+
+				expect(result).toHaveProperty('content');
+				expect(result.content).toHaveLength(1);
+				expect((result.content as any)[0]).toHaveProperty('type', 'text');
+				expect((result.content as any)[0]).toHaveProperty('text');
+
+				const data = JSON.parse((result.content as any)[0].text as string);
+				expect(data).toHaveProperty('blocks');
+				expect(Array.isArray(data.blocks)).toBe(true);
+
+				await client.close();
+				await server.close();
+			}, 30000);
+
+			it('should call blocks tool successfully with Sonnet 4.5', async () => {
+				await using fixture = await createFixture({
+					'projects/test-project/session1/usage.jsonl': JSON.stringify({
+						timestamp: '2024-01-01T12:00:00Z',
+						costUSD: 0.001,
+						version: '1.0.0',
+						message: {
+							model: 'claude-sonnet-4-5-20250929',
 							usage: { input_tokens: 50, output_tokens: 10 },
 						},
 					}),
@@ -530,6 +699,75 @@ if (import.meta.vitest != null) {
 						version: '1.0.0',
 						message: {
 							model: 'claude-sonnet-4-20250514',
+							usage: { input_tokens: 50, output_tokens: 10 },
+						},
+					}),
+				});
+
+				const app = createMcpHttpApp({ claudePath: fixture.path });
+
+				// First initialize
+				await app.request('/', {
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json',
+						'Accept': 'application/json, text/event-stream',
+					},
+					body: JSON.stringify({
+						jsonrpc: '2.0',
+						method: 'initialize',
+						params: {
+							protocolVersion: '1.0.0',
+							capabilities: {},
+							clientInfo: { name: 'test-client', version: '1.0.0' },
+						},
+						id: 1,
+					}),
+				});
+
+				// Then call tool
+				const response = await app.request('/', {
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json',
+						'Accept': 'application/json, text/event-stream',
+					},
+					body: JSON.stringify({
+						jsonrpc: '2.0',
+						method: 'tools/call',
+						params: {
+							name: 'daily',
+							arguments: { mode: 'auto' },
+						},
+						id: 2,
+					}),
+				});
+
+				expect(response.status).toBe(200);
+				const text = await response.text();
+
+				expect(text).toContain('event: message');
+				expect(text).toContain('data: ');
+
+				// Extract the JSON data from the SSE response
+				const dataLine = text.split('\n').find(line => line.startsWith('data: '));
+				expect(dataLine).toBeDefined();
+				const data = JSON.parse(dataLine!.replace('data: ', ''));
+
+				expect(data.jsonrpc).toBe('2.0');
+				expect(data.id).toBe(2);
+				expect(data.result).toHaveProperty('content');
+				expect(Array.isArray(data.result.content)).toBe(true);
+			});
+
+			it('should handle MCP callTool request for daily tool with Sonnet 4.5', async () => {
+				await using fixture = await createFixture({
+					'projects/test-project/session1/usage.jsonl': JSON.stringify({
+						timestamp: '2024-01-01T12:00:00Z',
+						costUSD: 0.001,
+						version: '1.0.0',
+						message: {
+							model: 'claude-sonnet-4-5-20250929',
 							usage: { input_tokens: 50, output_tokens: 10 },
 						},
 					}),
@@ -802,6 +1040,61 @@ if (import.meta.vitest != null) {
 						version: '1.0.0',
 						message: {
 							model: 'claude-sonnet-4-20250514',
+							usage: { input_tokens: 50, output_tokens: 10 },
+						},
+					}),
+				});
+
+				const client = new Client({ name: 'test-client', version: '1.0.0' });
+				const server = createMcpServer({ claudePath: fixture.path });
+
+				const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+
+				await Promise.all([
+					client.connect(clientTransport),
+					server.connect(serverTransport),
+				]);
+
+				// Call multiple tools concurrently
+				const [dailyResult, sessionResult, monthlyResult, blocksResult] = await Promise.all([
+					client.callTool({ name: 'daily', arguments: { mode: 'auto' } }),
+					client.callTool({ name: 'session', arguments: { mode: 'auto' } }),
+					client.callTool({ name: 'monthly', arguments: { mode: 'auto' } }),
+					client.callTool({ name: 'blocks', arguments: { mode: 'auto' } }),
+				]);
+
+				expect(dailyResult).toHaveProperty('content');
+				expect(sessionResult).toHaveProperty('content');
+				expect(monthlyResult).toHaveProperty('content');
+				expect(blocksResult).toHaveProperty('content');
+
+				// Verify all responses are valid JSON objects with expected structure
+				const dailyData = JSON.parse((dailyResult.content as any)[0].text as string);
+				const sessionData = JSON.parse((sessionResult.content as any)[0].text as string);
+				const monthlyData = JSON.parse((monthlyResult.content as any)[0].text as string);
+				const blocksData = JSON.parse((blocksResult.content as any)[0].text as string);
+
+				expect(dailyData).toHaveProperty('daily');
+				expect(Array.isArray(dailyData.daily)).toBe(true);
+				expect(sessionData).toHaveProperty('sessions');
+				expect(Array.isArray(sessionData.sessions)).toBe(true);
+				expect(monthlyData).toHaveProperty('monthly');
+				expect(Array.isArray(monthlyData.monthly)).toBe(true);
+				expect(blocksData).toHaveProperty('blocks');
+				expect(Array.isArray(blocksData.blocks)).toBe(true);
+
+				await client.close();
+				await server.close();
+			});
+
+			it('should handle concurrent tool calls with Sonnet 4.5', async () => {
+				await using fixture = await createFixture({
+					'projects/test-project/session1/usage.jsonl': JSON.stringify({
+						timestamp: '2024-01-01T12:00:00Z',
+						costUSD: 0.001,
+						version: '1.0.0',
+						message: {
+							model: 'claude-sonnet-4-5-20250929',
 							usage: { input_tokens: 50, output_tokens: 10 },
 						},
 					}),

@@ -66,7 +66,7 @@ This package contains the core better-ccusage functionality:
 
 - **In-Source Testing**: Tests are written in the same files using `if (import.meta.vitest != null)` blocks
 - **Vitest Globals Enabled**: Use `describe`, `it`, `expect` directly without imports
-- **Model Testing**: Use current Claude 4 models (sonnet-4, opus-4) in tests
+- **Model Testing**: Use current Claude 4 models (sonnet-4-5, sonnet-4 and opus-4) in tests
 - **Mock Data**: Uses `fs-fixture` with `createFixture()` for Claude data simulation
 - **CRITICAL**: NEVER use `await import()` dynamic imports anywhere, especially in test blocks
 

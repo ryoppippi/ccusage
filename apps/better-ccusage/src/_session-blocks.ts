@@ -431,11 +431,35 @@ if (import.meta.vitest != null) {
 			expect(blocks[0]?.models).toEqual(['claude-sonnet-4-20250514', 'claude-opus-4-20250514']);
 		});
 
+		it('aggregates different models correctly with claude-sonnet-4-5-20250929', () => {
+			const baseTime = new Date('2024-01-01T10:00:00Z');
+			const entries: LoadedUsageEntry[] = [
+				createMockEntry(baseTime, 1000, 500, 'claude-sonnet-4-5-20250929'),
+				createMockEntry(new Date(baseTime.getTime() + 60 * 60 * 1000), 2000, 1000, 'claude-opus-4-20250514'),
+			];
+
+			const blocks = identifySessionBlocks(entries);
+			expect(blocks).toHaveLength(1);
+			expect(blocks[0]?.models).toEqual(['claude-sonnet-4-5-20250929', 'claude-opus-4-20250514']);
+		});
+
 		it('handles null costUSD correctly', () => {
 			const baseTime = new Date('2024-01-01T10:00:00Z');
 			const entries: LoadedUsageEntry[] = [
 				createMockEntry(baseTime, 1000, 500, 'claude-sonnet-4-20250514', 0.01),
 				{ ...createMockEntry(new Date(baseTime.getTime() + 60 * 60 * 1000)), costUSD: null },
+			];
+
+			const blocks = identifySessionBlocks(entries);
+			expect(blocks).toHaveLength(1);
+			expect(blocks[0]?.costUSD).toBe(0.01); // Only the first entry's cost
+		});
+
+		it('handles null costUSD correctly with Sonnet 4.5', () => {
+			const baseTime = new Date('2024-01-01T10:00:00Z');
+			const entries: LoadedUsageEntry[] = [
+				createMockEntry(baseTime, 1000, 500, 'claude-sonnet-4-5-20250929', 0.01),
+				{ ...createMockEntry(new Date(baseTime.getTime() + 60 * 60 * 1000), 1000, 500, 'claude-sonnet-4-5-20250929'), costUSD: null },
 			];
 
 			const blocks = identifySessionBlocks(entries);
@@ -559,6 +583,31 @@ if (import.meta.vitest != null) {
 			expect(result).toBeNull();
 		});
 
+		it('returns null when duration is zero or negative with Sonnet 4.5', () => {
+			const baseTime = new Date('2024-01-01T10:00:00Z');
+			const block: SessionBlock = {
+				id: baseTime.toISOString(),
+				startTime: baseTime,
+				endTime: new Date(baseTime.getTime() + SESSION_DURATION_MS),
+				isActive: true,
+				entries: [
+					createMockEntry(baseTime, 1000, 500, 'claude-sonnet-4-5-20250929'),
+					createMockEntry(baseTime, 2000, 1000, 'claude-sonnet-4-5-20250929'), // Same timestamp
+				],
+				tokenCounts: {
+					inputTokens: 2000,
+					outputTokens: 1000,
+					cacheCreationInputTokens: 0,
+					cacheReadInputTokens: 0,
+				},
+				costUSD: 0.02,
+				models: ['claude-sonnet-4-5-20250929'],
+			};
+
+			const result = calculateBurnRate(block);
+			expect(result).toBeNull();
+		});
+
 		it('calculates burn rate correctly', () => {
 			const baseTime = new Date('2024-01-01T10:00:00Z');
 			const laterTime = new Date(baseTime.getTime() + 60 * 1000); // 1 minute later
@@ -579,6 +628,35 @@ if (import.meta.vitest != null) {
 				},
 				costUSD: 0.03,
 				models: ['claude-sonnet-4-20250514'],
+			};
+
+			const result = calculateBurnRate(block);
+			expect(result).not.toBeNull();
+			expect(result?.tokensPerMinute).toBe(4500); // 4500 tokens / 1 minute (includes all tokens)
+			expect(result?.tokensPerMinuteForIndicator).toBe(4500); // 4500 tokens / 1 minute (non-cache only)
+			expect(result?.costPerHour).toBeCloseTo(1.8, 2); // 0.03 / 1 minute * 60 minutes
+		});
+
+		it('calculates burn rate correctly with Sonnet 4.5', () => {
+			const baseTime = new Date('2024-01-01T10:00:00Z');
+			const laterTime = new Date(baseTime.getTime() + 60 * 1000); // 1 minute later
+			const block: SessionBlock = {
+				id: baseTime.toISOString(),
+				startTime: baseTime,
+				endTime: new Date(baseTime.getTime() + SESSION_DURATION_MS),
+				isActive: true,
+				entries: [
+					createMockEntry(baseTime, 1000, 500, 'claude-sonnet-4-5-20250929', 0.01),
+					createMockEntry(laterTime, 2000, 1000, 'claude-sonnet-4-5-20250929', 0.02),
+				],
+				tokenCounts: {
+					inputTokens: 3000,
+					outputTokens: 1500,
+					cacheCreationInputTokens: 0,
+					cacheReadInputTokens: 0,
+				},
+				costUSD: 0.03,
+				models: ['claude-sonnet-4-5-20250929'],
 			};
 
 			const result = calculateBurnRate(block);

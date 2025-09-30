@@ -1548,6 +1548,52 @@ if (import.meta.vitest != null) {
 			expect(result?.entries).toHaveLength(2);
 		});
 
+		it('loads usage data for a specific session with Sonnet 4.5', async () => {
+			await using fixture = await createFixture({
+				'.claude': {
+					projects: {
+						'test-project': {
+							'session-456.jsonl': `${JSON.stringify({
+								timestamp: '2024-01-01T00:00:00Z',
+								sessionId: 'session-456',
+								message: {
+									usage: {
+										input_tokens: 100,
+										output_tokens: 50,
+										cache_creation_input_tokens: 10,
+										cache_read_input_tokens: 20,
+									},
+									model: 'claude-sonnet-4-5-20250929',
+								},
+								costUSD: 0.5,
+							})}\n${JSON.stringify({
+								timestamp: '2024-01-01T01:00:00Z',
+								sessionId: 'session-456',
+								message: {
+									usage: {
+										input_tokens: 200,
+										output_tokens: 100,
+										cache_creation_input_tokens: 20,
+										cache_read_input_tokens: 40,
+									},
+									model: 'claude-sonnet-4-5-20250929',
+								},
+								costUSD: 1.0,
+							})}`,
+						},
+					},
+				},
+			});
+
+			vi.stubEnv('CLAUDE_CONFIG_DIR', fixture.getPath('.claude'));
+
+			const result = await loadSessionUsageById('session-456', { mode: 'display' });
+
+			expect(result).not.toBeNull();
+			expect(result?.totalCost).toBe(1.5);
+			expect(result?.entries).toHaveLength(2);
+		});
+
 		it('returns null for non-existent session', async () => {
 			await using fixture = await createFixture({
 				'.claude': {
@@ -1573,6 +1619,35 @@ if (import.meta.vitest != null) {
 			vi.stubEnv('CLAUDE_CONFIG_DIR', fixture.getPath('.claude'));
 
 			const result = await loadSessionUsageById('non-existent', { mode: 'display' });
+
+			expect(result).toBeNull();
+		});
+
+		it('returns null for non-existent session with Sonnet 4.5', async () => {
+			await using fixture = await createFixture({
+				'.claude': {
+					projects: {
+						'test-project': {
+							'other-session-45.jsonl': JSON.stringify({
+								timestamp: '2024-01-01T00:00:00Z',
+								sessionId: 'other-session-45',
+								message: {
+									usage: {
+										input_tokens: 100,
+										output_tokens: 50,
+									},
+									model: 'claude-sonnet-4-5-20250929',
+								},
+								costUSD: 0.5,
+							}),
+						},
+					},
+				},
+			});
+
+			vi.stubEnv('CLAUDE_CONFIG_DIR', fixture.getPath('.claude'));
+
+			const result = await loadSessionUsageById('non-existent-45', { mode: 'display' });
 
 			expect(result).toBeNull();
 		});
@@ -2991,6 +3066,46 @@ invalid json line
 				expect(results[0]?.totalCost).toBeGreaterThan(0);
 			});
 
+			it('should calculate cost for new schema with claude-sonnet-4-5-20250929', async () => {
+			// Use Claude 4.5 Sonnet model
+				const modelName = createModelName('claude-sonnet-4-5-20250929');
+
+				const newData = {
+					timestamp: '2024-01-16T10:00:00Z',
+					message: {
+						usage: {
+							input_tokens: 1000,
+							output_tokens: 500,
+							cache_creation_input_tokens: 200,
+							cache_read_input_tokens: 300,
+						},
+						model: modelName,
+					},
+				};
+
+				await using fixture = await createFixture({
+					projects: {
+						'test-project-sonnet45': {
+							'session-sonnet45': {
+								'usage.jsonl': `${JSON.stringify(newData)}\n`,
+							},
+						},
+					},
+				});
+
+				const results = await loadDailyUsageData({ claudePath: fixture.path });
+
+				expect(results).toHaveLength(1);
+				expect(results[0]?.date).toBe('2024-01-16');
+				expect(results[0]?.inputTokens).toBe(1000);
+				expect(results[0]?.outputTokens).toBe(500);
+				expect(results[0]?.cacheCreationTokens).toBe(200);
+				expect(results[0]?.cacheReadTokens).toBe(300);
+
+				// Should have calculated some cost
+				expect(results[0]?.totalCost).toBeGreaterThan(0);
+			});
+
 			it('should calculate cost for new schema with claude-opus-4-20250514', async () => {
 			// Use Claude 4 Opus model
 				const modelName = createModelName('claude-opus-4-20250514');
@@ -3190,6 +3305,43 @@ invalid json line
 					projects: {
 						'test-project-cache': {
 							'session-cache': {
+								'usage.jsonl': `${JSON.stringify(data)}\n`,
+							},
+						},
+					},
+				});
+
+				const results = await loadDailyUsageData({ claudePath: fixture.path });
+
+				expect(results).toHaveLength(1);
+				expect(results[0]?.date).toBe('2024-01-20');
+				expect(results[0]?.inputTokens).toBe(1000);
+				expect(results[0]?.outputTokens).toBe(500);
+				expect(results[0]?.cacheCreationTokens).toBe(2000);
+				expect(results[0]?.cacheReadTokens).toBe(1500);
+
+				// Should have calculated cost including cache tokens
+				expect(results[0]?.totalCost).toBeGreaterThan(0);
+			});
+
+			it('should correctly calculate costs for all token types with claude-sonnet-4-5-20250929', async () => {
+				const data = {
+					timestamp: '2024-01-20T10:00:00Z',
+					message: {
+						usage: {
+							input_tokens: 1000,
+							output_tokens: 500,
+							cache_creation_input_tokens: 2000,
+							cache_read_input_tokens: 1500,
+						},
+						model: createModelName('claude-sonnet-4-5-20250929'),
+					},
+				};
+
+				await using fixture = await createFixture({
+					projects: {
+						'test-project-cache-sonnet45': {
+							'session-cache-sonnet45': {
 								'usage.jsonl': `${JSON.stringify(data)}\n`,
 							},
 						},

@@ -122,7 +122,7 @@ better-ccusage daily --json
 	"data": [
 		{
 			"date": "2025-06-21",
-			"models": ["claude-opus-4-20250514", "claude-sonnet-4-20250514"],
+			"models": ["claude-opus-4-20250514", "claude-sonnet-4-5-20250929", "claude-sonnet-4-20250514"],
 			"inputTokens": 277,
 			"outputTokens": 31456,
 			"cacheCreationTokens": 512,
