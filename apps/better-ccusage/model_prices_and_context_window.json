@@ -319,6 +319,32 @@
 		"supports_vision": true,
 		"tool_use_system_prompt_tokens": 159
 	},
+	 "claude-sonnet-4-5-20250929": {
+        "cache_creation_input_token_cost": 3.75e-06,
+        "cache_read_input_token_cost": 3e-07,
+        "input_cost_per_token": 3e-06,
+        "provider": "anthropic",
+        "max_input_tokens": 200000,
+        "max_output_tokens": 200000,
+        "max_tokens": 200000,
+        "mode": "chat",
+        "output_cost_per_token": 1.5e-05,
+        "search_context_cost_per_query": {
+            "search_context_size_high": 0.01,
+            "search_context_size_low": 0.01,
+            "search_context_size_medium": 0.01
+        },
+        "supports_assistant_prefill": true,
+        "supports_computer_use": true,
+        "supports_function_calling": true,
+        "supports_pdf_input": true,
+        "supports_prompt_caching": true,
+        "supports_reasoning": true,
+        "supports_response_schema": true,
+        "supports_tool_choice": true,
+        "supports_vision": true,
+        "tool_use_system_prompt_tokens": 346
+    },
 	"claude-opus-4-1": {
 		"cache_creation_input_token_cost": 0.00001875,
 		"cache_creation_input_token_cost_above_1hr": 0.00003,
@@ -6546,7 +6572,29 @@
 		"cache_creation_input_token_cost": 0,
 		"cache_read_input_token_cost": 1.1e-7
 	},
+	"zai/glm-4.6": {
+		"input_cost_per_token": 6e-7,
+		"provider": "zai",
+		"max_input_tokens": 131072,
+		"max_output_tokens": 131072,
+		"max_tokens": 131072,
+		"mode": "chat",
+		"output_cost_per_token": 0.0000022,
+		"cache_creation_input_token_cost": 0,
+		"cache_read_input_token_cost": 1.1e-7
+	},
 	"zai/glm-4.5-air": {
+		"input_cost_per_token": 2e-7,
+		"provider": "zai",
+		"max_input_tokens": 128000,
+		"max_output_tokens": 96000,
+		"max_tokens": 128000,
+		"mode": "chat",
+		"output_cost_per_token": 0.0000011,
+		"cache_creation_input_token_cost": 0,
+		"cache_read_input_token_cost": 3e-8
+	},
+	"zai/glm-4.6-air": {
 		"input_cost_per_token": 2e-7,
 		"provider": "zai",
 		"max_input_tokens": 128000,
