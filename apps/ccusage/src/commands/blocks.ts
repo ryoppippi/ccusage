@@ -144,6 +144,12 @@ export const blocksCommand = define({
 			description: `Refresh interval in seconds for live mode (default: ${DEFAULT_REFRESH_INTERVAL_SECONDS})`,
 			default: DEFAULT_REFRESH_INTERVAL_SECONDS,
 		},
+		prompts: {
+			type: 'boolean',
+			short: 'p',
+			description: 'Show number of prompts in each block',
+			default: false,
+		},
 	},
 	toKebab: true,
 	async run(ctx) {
@@ -385,6 +391,12 @@ export const blocksCommand = define({
 				const tableHeaders = ['Block Start', 'Duration/Status', 'Models', 'Tokens'];
 				const tableAligns: ('left' | 'right' | 'center')[] = ['left', 'left', 'left', 'right'];
 
+				// Add prompts column if requested
+				if (ctx.values.prompts) {
+					tableHeaders.push('Prompts');
+					tableAligns.push('right');
+				}
+
 				// Add % column if token limit is set
 				if (actualTokenLimit != null && actualTokenLimit > 0) {
 					tableHeaders.push('%');
@@ -417,6 +429,9 @@ export const blocksCommand = define({
 							pc.gray('-'),
 							pc.gray('-'),
 						];
+						if (ctx.values.prompts) {
+							gapRow.push(pc.gray('-'));
+						}
 						if (actualTokenLimit != null && actualTokenLimit > 0) {
 							gapRow.push(pc.gray('-'));
 						}
@@ -434,6 +449,11 @@ export const blocksCommand = define({
 							formatModels(block.models),
 							formatNumber(totalTokens),
 						];
+
+						// Add prompts count if requested
+						if (ctx.values.prompts) {
+							row.push(formatNumber(block.entries.length));
+						}
 
 						// Add percentage if token limit is set
 						if (actualTokenLimit != null && actualTokenLimit > 0) {
@@ -466,9 +486,15 @@ export const blocksCommand = define({
 									pc.blue('REMAINING'),
 									'',
 									remainingText,
-									remainingPercentText,
-									'', // No cost for remaining - it's about token limit, not cost
 								];
+
+								// Add prompts column if requested
+								if (ctx.values.prompts) {
+									remainingRow.push('');
+								}
+
+								remainingRow.push(remainingPercentText);
+								remainingRow.push(''); // No cost for remaining - it's about token limit, not cost
 								table.push(remainingRow);
 							}
 
@@ -486,6 +512,11 @@ export const blocksCommand = define({
 									'',
 									projectedText,
 								];
+
+								// Add prompts column if requested
+								if (ctx.values.prompts) {
+									projectedRow.push('');
+								}
 
 								// Add percentage if token limit is set
 								if (actualTokenLimit != null && actualTokenLimit > 0) {

@@ -653,6 +653,12 @@
 									"description": "Session block duration in hours (default: 5)",
 									"markdownDescription": "Session block duration in hours (default: 5)",
 									"default": 5
+								},
+								"prompts": {
+									"type": "boolean",
+									"description": "Show number of prompts in each block",
+									"markdownDescription": "Show number of prompts in each block",
+									"default": false
 								}
 							},
 							"additionalProperties": false
