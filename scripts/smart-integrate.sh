@@ -44,7 +44,7 @@ if [ ! -d "apps/better-ccusage" ]; then
 git mv apps/better-ccusage apps/ccusage-temp
 
 # Commit the rename
-git commit -m "chore: temporary rename for upstream integration"
+git commit -m "chore: temporary rename for upstream integration" --no-verify
 
 # Now merge upstream
 echo "🔄 Merging upstream changes..."

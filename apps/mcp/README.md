@@ -65,7 +65,7 @@ For full documentation, visit **[better-ccusage.com/guide/mcp-server](https://be
 
 <p align="center">
     <a href="https://github.com/sponsors/cobra91">
-        <img src="https://cdn.jsdelivr.net/gh/cobra91/sponsors@main/sponsors.svg">
+        Cobra91
     </a>
 </p>
 

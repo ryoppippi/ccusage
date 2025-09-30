@@ -55,10 +55,10 @@ Your custom additions:
 
 ```bash
 # Use the automated script
-./scripts/integrate-upstream.sh
+./scripts/smart-integrate.sh
 
 # Or manual process
-git checkout -b integrate-upstream
+git checkout -b smart-integrate
 git merge upstream/main
 # Resolve conflicts
 git commit
