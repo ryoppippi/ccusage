@@ -1,11 +1,7 @@
 {
 	"name": "@better-ccusage/terminal",
 	"type": "module",
-<<<<<<< HEAD
-	"version": "1.0.9",
-=======
 	"version": "1.1.0",
->>>>>>> 7f50e6c (feat(better-ccusage): Add sonnet4-5 support)
 	"private": true,
 	"description": "Terminal utilities for better-ccusage",
 	"exports": {
