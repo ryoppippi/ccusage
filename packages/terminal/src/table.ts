@@ -318,14 +318,15 @@ export function formatCurrency(amount: number): string {
 /**
  * Formats Claude model names into a shorter, more readable format
  * Extracts model type and generation from full model name
- * @param modelName - Full model name (e.g., "claude-sonnet-4-20250514")
- * @returns Shortened model name (e.g., "sonnet-4") or original if pattern doesn't match
+ * @param modelName - Full model name (e.g., "claude-sonnet-4-20250514" or "claude-sonnet-4-5-20250929")
+ * @returns Shortened model name (e.g., "sonnet-4" or "sonnet-4-5") or original if pattern doesn't match
  */
 function formatModelName(modelName: string): string {
 	// Extract model type from full model name
 	// e.g., "claude-sonnet-4-20250514" -> "sonnet-4"
 	// e.g., "claude-opus-4-20250514" -> "opus-4"
-	const match = modelName.match(/claude-(\w+)-(\d+)-\d+/);
+	// e.g., "claude-sonnet-4-5-20250929" -> "sonnet-4-5"
+	const match = modelName.match(/claude-(\w+)-([\d-]+)-(\d{8})/);
 	if (match != null) {
 		return `${match[1]}-${match[2]}`;
 	}
@@ -969,6 +970,15 @@ if (import.meta.vitest != null) {
 		it('handles models that do not match pattern with bullet points', () => {
 			const models = ['custom-model', 'claude-sonnet-4-20250514'];
 			expect(formatModelsDisplayMultiline(models)).toBe('- custom-model\n- sonnet-4');
+		});
+
+		it('formats Claude 4.5 models correctly', () => {
+			expect(formatModelsDisplayMultiline(['claude-sonnet-4-5-20250929'])).toBe('- sonnet-4-5');
+		});
+
+		it('formats mixed model versions', () => {
+			const models = ['claude-sonnet-4-20250514', 'claude-sonnet-4-5-20250929', 'claude-opus-4-1-20250805'];
+			expect(formatModelsDisplayMultiline(models)).toBe('- opus-4-1\n- sonnet-4\n- sonnet-4-5');
 		});
 	});
 }
