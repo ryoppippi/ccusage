@@ -31,7 +31,6 @@ export type StatusIndicator = 'none' | 'minor' | 'major' | 'critical';
  * Get the appropriate color formatter for Claude status
  * @param indicator - Status indicator from API
  * @param description - Status description for fallback detection
- * @param enableColors - Whether to enable colors (default: auto-detect)
  * @returns Color formatter function
  */
 export function getStatusColor(
@@ -91,17 +90,16 @@ if (import.meta.vitest != null) {
 			expect(Result.isSuccess(result) || Result.isFailure(result)).toBe(true);
 		});
 
-		it('should have proper structure when successful', async () => {
+		it('should fetch Claude status successfully', async () => {
+			// If this test fails, it indicates API trouble
 			const result = await fetchClaudeStatus();
 
-			// Skip this test if API is not available, but don't use conditional assertions
+			// Early error if API fails - this makes the test deterministic
 			if (Result.isFailure(result)) {
-				// Log why we're skipping but don't make assertions conditional
-				console.warn('Skipping structure validation due to API unavailability');
-				return;
+				throw new Error(`API failed: ${result.error.message}`);
 			}
 
-			// When successful, verify the structure
+			expect(Result.isSuccess(result)).toBe(true);
 			expect(result.value).toHaveProperty('status');
 			expect(result.value.status).toHaveProperty('description');
 			expect(result.value.status).toHaveProperty('indicator');
@@ -116,31 +114,17 @@ if (import.meta.vitest != null) {
 			expect(result.value.page).toHaveProperty('updated_at');
 		});
 
-		it('should handle errors gracefully when API fails', async () => {
+		it('should validate ClaudeStatus type structure', async () => {
+			// If this test fails, it indicates API trouble
 			const result = await fetchClaudeStatus();
 
-			// If we got a failure result, verify it has proper error structure
+			// Early error if API fails - this makes the test deterministic
 			if (Result.isFailure(result)) {
-				expect(result).toHaveProperty('error');
-				expect(result.error).toBeInstanceOf(Error);
-				return;
+				throw new Error(`API failed: ${result.error.message}`);
 			}
 
-			// If successful, just verify it's the expected type
-			expect(result).toHaveProperty('value');
-			expect(typeof result.value).toBe('object');
-		});
+			expect(Result.isSuccess(result)).toBe(true);
 
-		it('should validate ClaudeStatus type structure when available', async () => {
-			const result = await fetchClaudeStatus();
-
-			// Early return if API is not available
-			if (Result.isFailure(result)) {
-				console.warn('Skipping ClaudeStatus validation due to API unavailability');
-				return;
-			}
-
-			// When API is available, validate the type structure
 			const status = result.value;
 			expect(status.status.indicator).toMatch(/^.+$/); // Any non-empty string
 			expect(status.page.url).toMatch(/^https?:\/\/.+/);
