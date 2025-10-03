@@ -54,8 +54,9 @@ export function isWithinRange(dateKey: string, since?: string, until?: string): 
 	return true;
 }
 
-export function formatDisplayDate(dateKey: string, locale?: string, timezone?: string): string {
-	const tz = safeTimeZone(timezone);
+export function formatDisplayDate(dateKey: string, locale?: string, _timezone?: string): string {
+	// dateKey is already computed for the target timezone via toDateKey().
+	// Treat it as a plain calendar date and avoid shifting it by applying a timezone.
 	const [yearStr = '0', monthStr = '1', dayStr = '1'] = dateKey.split('-');
 	const year = Number.parseInt(yearStr, 10);
 	const month = Number.parseInt(monthStr, 10);
@@ -65,7 +66,7 @@ export function formatDisplayDate(dateKey: string, locale?: string, timezone?: s
 		year: 'numeric',
 		month: 'short',
 		day: '2-digit',
-		timeZone: tz,
+		timeZone: 'UTC',
 	});
 	return formatter.format(date);
 }
@@ -82,8 +83,9 @@ export function toMonthKey(timestamp: string, timezone?: string): string {
 	return `${year}-${month}`;
 }
 
-export function formatDisplayMonth(monthKey: string, locale?: string, timezone?: string): string {
-	const tz = safeTimeZone(timezone);
+export function formatDisplayMonth(monthKey: string, locale?: string, _timezone?: string): string {
+	// monthKey is already derived in the target timezone via toMonthKey().
+	// Render it as a calendar month without shifting by timezone.
 	const [yearStr = '0', monthStr = '1'] = monthKey.split('-');
 	const year = Number.parseInt(yearStr, 10);
 	const month = Number.parseInt(monthStr, 10);
@@ -91,7 +93,7 @@ export function formatDisplayMonth(monthKey: string, locale?: string, timezone?:
 	const formatter = new Intl.DateTimeFormat(locale ?? 'en-US', {
 		year: 'numeric',
 		month: 'short',
-		timeZone: tz,
+		timeZone: 'UTC',
 	});
 	return formatter.format(date);
 }
