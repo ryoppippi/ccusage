@@ -208,6 +208,24 @@ export const transcriptMessageSchema = v.object({
 export type UsageData = v.InferOutput<typeof usageDataSchema>;
 
 /**
+ * Type definition for user messages from JSONL files
+ */
+export type UserMessage = v.InferOutput<typeof userMessageSchema>;
+
+/**
+ * Valibot schema for user messages (no usage data, just timestamps)
+ */
+export const userMessageSchema = v.object({
+	timestamp: isoTimestampSchema,
+	type: v.literal('user'),
+	message: v.object({
+		role: v.literal('user'),
+		content: v.union([v.string(), v.array(v.any())]),
+	}),
+	sessionId: v.optional(sessionIdSchema),
+});
+
+/**
  * Valibot schema for model-specific usage breakdown data
  */
 export const modelBreakdownSchema = v.object({
@@ -521,12 +539,13 @@ export function createUniqueHash(data: UsageData): string | null {
 	const messageId = data.message.id;
 	const requestId = data.requestId;
 
-	if (messageId == null || requestId == null) {
+	if (messageId == null) {
 		return null;
 	}
 
-	// Create a hash using simple concatenation
-	return `${messageId}:${requestId}`;
+	// Use both messageId and requestId if available, otherwise just messageId
+	// This handles cases where requestId is missing from JSONL entries
+	return requestId != null ? `${messageId}:${requestId}` : messageId;
 }
 
 /**
@@ -1351,6 +1370,8 @@ export async function loadSessionBlockData(
 
 	// Collect all valid data entries first
 	const allEntries: LoadedUsageEntry[] = [];
+	// Also collect user messages for prompt counting
+	const allUserMessages: UserMessage[] = [];
 
 	for (const file of sortedFiles) {
 		const content = await readFile(file, 'utf-8');
@@ -1362,42 +1383,54 @@ export async function loadSessionBlockData(
 		for (const line of lines) {
 			try {
 				const parsed = JSON.parse(line) as unknown;
-				const result = v.safeParse(usageDataSchema, parsed);
-				if (!result.success) {
+
+				// Try to parse as usage data (assistant messages with tokens)
+				const usageResult = v.safeParse(usageDataSchema, parsed);
+				if (usageResult.success) {
+					const data = usageResult.output;
+
+					// Check for duplicate message + request ID combination
+					const uniqueHash = createUniqueHash(data);
+					if (isDuplicateEntry(uniqueHash, processedHashes)) {
+						// Skip duplicate message
+						continue;
+					}
+
+					// Mark this combination as processed
+					markAsProcessed(uniqueHash, processedHashes);
+
+					const cost = fetcher != null
+						? await calculateCostForEntry(data, mode, fetcher)
+						: data.costUSD ?? 0;
+
+					// Get Claude Code usage limit expiration date
+					const usageLimitResetTime = getUsageLimitResetTime(data);
+
+					allEntries.push({
+						timestamp: new Date(data.timestamp),
+						usage: {
+							inputTokens: data.message.usage.input_tokens,
+							outputTokens: data.message.usage.output_tokens,
+							cacheCreationInputTokens: data.message.usage.cache_creation_input_tokens ?? 0,
+							cacheReadInputTokens: data.message.usage.cache_read_input_tokens ?? 0,
+						},
+						costUSD: cost,
+						model: data.message.model ?? 'unknown',
+						version: data.version,
+						usageLimitResetTime: usageLimitResetTime ?? undefined,
+					});
 					continue;
 				}
-				const data = result.output;
 
-				// Check for duplicate message + request ID combination
-				const uniqueHash = createUniqueHash(data);
-				if (isDuplicateEntry(uniqueHash, processedHashes)) {
-				// Skip duplicate message
+				// Try to parse as user message (for prompt counting)
+				const userResult = v.safeParse(userMessageSchema, parsed);
+				if (userResult.success) {
+					const userMessage = userResult.output;
+					allUserMessages.push(userMessage);
 					continue;
 				}
 
-				// Mark this combination as processed
-				markAsProcessed(uniqueHash, processedHashes);
-
-				const cost = fetcher != null
-					? await calculateCostForEntry(data, mode, fetcher)
-					: data.costUSD ?? 0;
-
-				// Get Claude Code usage limit expiration date
-				const usageLimitResetTime = getUsageLimitResetTime(data);
-
-				allEntries.push({
-					timestamp: new Date(data.timestamp),
-					usage: {
-						inputTokens: data.message.usage.input_tokens,
-						outputTokens: data.message.usage.output_tokens,
-						cacheCreationInputTokens: data.message.usage.cache_creation_input_tokens ?? 0,
-						cacheReadInputTokens: data.message.usage.cache_read_input_tokens ?? 0,
-					},
-					costUSD: cost,
-					model: data.message.model ?? 'unknown',
-					version: data.version,
-					usageLimitResetTime: usageLimitResetTime ?? undefined,
-				});
+			// Skip lines that don't match either schema
 			}
 			catch (error) {
 				// Skip invalid JSON lines but log for debugging purposes
@@ -1407,7 +1440,7 @@ export async function loadSessionBlockData(
 	}
 
 	// Identify session blocks
-	const blocks = identifySessionBlocks(allEntries, options?.sessionDurationHours);
+	const blocks = identifySessionBlocks(allEntries, allUserMessages, options?.sessionDurationHours);
 
 	// Filter by date range if specified
 	const dateFiltered = (options?.since != null && options.since !== '') || (options?.until != null && options.until !== '')
