@@ -27,7 +27,7 @@ catalogs:
     publint: ^0.3.12
   mcp:
     '@mizchi/lsmcp': ^0.10.0
-    '@praha/byethrow-mcp': ^0.1.2
+    '@praha/byethrow-mcp': ^0.1.4
     sitemcp: ^0.5.9
   release:
     bumpp: ^10.2.3
@@ -37,7 +37,7 @@ catalogs:
   runtime:
     '@antfu/utils': ^9.2.1
     '@hono/mcp': ^0.1.4
-    '@hono/node-server': ^1.19.4
+    '@hono/node-server': ^1.19.5
     '@modelcontextprotocol/sdk': ^1.18.1
     '@praha/byethrow': ^0.6.3
     '@ryoppippi/limo': jsr:^0.2.2
