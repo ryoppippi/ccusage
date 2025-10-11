@@ -45,6 +45,7 @@
 		"fast-sort": "catalog:runtime",
 		"fs-fixture": "catalog:testing",
 		"gunshi": "catalog:runtime",
+		"nano-spawn": "catalog:runtime",
 		"picocolors": "catalog:runtime",
 		"sort-package-json": "catalog:release",
 		"tinyglobby": "catalog:runtime",
