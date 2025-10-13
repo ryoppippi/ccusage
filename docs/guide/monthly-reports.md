@@ -2,6 +2,12 @@
 
 Monthly reports aggregate your Claude Code usage by calendar month, providing a high-level view of your usage patterns and costs over longer time periods.
 
+:::warning NOTICE
+Claude Code can only retain logs for 30 days by default. To be able to check logs for more than a month, you need to change the value of `cleanupPeriodDays` in the settings file.
+
+[Claude Code settings - Claude Docs](https://docs.claude.com/en/docs/claude-code/settings#settings-files)
+:::
+
 ## Basic Usage
 
 ```bash
