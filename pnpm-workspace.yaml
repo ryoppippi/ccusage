@@ -65,7 +65,7 @@ catalogs:
     fs-fixture: ^2.8.1
     vitest: ^3.2.4
   types:
-    '@types/bun': ^1.2.20
+    '@types/bun': ^1.2.23
     '@types/react': ^19.1.13
     '@typescript/native-preview': ^7.0.0-dev.20250916.1
 
