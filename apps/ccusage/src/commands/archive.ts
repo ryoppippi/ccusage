@@ -7,13 +7,13 @@
  * @module commands/archive
  */
 
-import { copyFileSync, existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, statSync } from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 import * as readline from 'node:readline';
 import { define } from 'gunshi';
 import { glob } from 'tinyglobby';
-import { getArchivePath, getArchivePathErrorMessage, getConfigFilePath } from '../_config.ts';
+import { getArchivePath, getArchivePathErrorMessage, getConfigFilePath, isAutoArchiveEnabled, isFirstTimeAutoArchiveSetup, saveConfig } from '../_config.ts';
 import { CLAUDE_PROJECTS_DIR_NAME, USAGE_DATA_GLOB_PATTERN } from '../_consts.ts';
 import { getClaudePaths } from '../data-loader.ts';
 import { logger } from '../logger.ts';
@@ -36,7 +36,7 @@ type ArchiveStats = {
  * @param dryRun - If true, only simulate the operation
  * @returns Archive statistics
  */
-async function copyJSONLFiles(
+export async function copyJSONLFiles(
 	sourceDirs: string[],
 	archiveDir: string,
 	dryRun: boolean,
@@ -136,7 +136,7 @@ function formatBytes(bytes: number): string {
  * @param defaultAnswer - Default answer (true = yes, false = no)
  * @returns Promise resolving to user's answer
  */
-async function askYesNo(question: string, defaultAnswer: boolean = true): Promise<boolean> {
+export async function askYesNo(question: string, defaultAnswer: boolean = true): Promise<boolean> {
 	const rl = readline.createInterface({
 		input: process.stdin,
 		output: process.stdout,
@@ -175,36 +175,93 @@ async function askArchivePath(defaultPath: string): Promise<string> {
 }
 
 /**
- * Save archive path to config file
- * @param archivePath - Path to save in config
+ * Run auto-archive if enabled in config or CLI
+ * This function silently archives data in the background without user interaction
+ * Used by report commands (daily, monthly, session, blocks, weekly)
+ * @param cliOption - Auto-archive setting from CLI (undefined = not specified)
+ * @param customArchivePath - Custom archive path from CLI (undefined = use default)
+ * @param useJson - Whether JSON output mode is enabled (skips interactive prompts)
  */
-function saveArchivePathToConfig(archivePath: string): void {
-	const configPath = getConfigFilePath();
-	const configDir = path.dirname(configPath);
+export async function runAutoArchiveIfEnabled(cliOption?: boolean, customArchivePath?: string, useJson = false): Promise<void> {
+	// First-time setup: ask user if they want to enable auto-archive
+	if (cliOption == null && isFirstTimeAutoArchiveSetup() && !useJson) {
+		// eslint-disable-next-line no-console
+		console.log('\n💡 Tip: You can automatically archive usage data before generating reports.');
+		// eslint-disable-next-line no-console
+		console.log('   This helps preserve your data beyond Claude Code\'s automatic cleanup.\n');
 
-	// Create config directory if needed
-	if (!existsSync(configDir)) {
-		mkdirSync(configDir, { recursive: true });
+		const enableAutoArchive = await askYesNo(
+			'Would you like to enable automatic archiving for future reports?',
+			false,
+		);
+
+		// Save user's choice to config
+		saveConfig({ autoArchive: enableAutoArchive });
+
+		if (enableAutoArchive) {
+			// eslint-disable-next-line no-console
+			console.log(`\n✓ Auto-archive enabled and saved to: ${getConfigFilePath()}`);
+			// eslint-disable-next-line no-console
+			console.log('💡 You can disable it anytime with --no-auto-archive or by editing the config file.\n');
+		}
+		else {
+			// eslint-disable-next-line no-console
+			console.log('\n✓ Auto-archive disabled. You can enable it later with --auto-archive\n');
+			return; // Don't run archive if user chose not to enable it
+		}
 	}
 
-	// Load existing config or create new one
-	let config: Record<string, unknown> = {};
-	if (existsSync(configPath)) {
-		try {
-			const content = readFileSync(configPath, 'utf-8');
-			config = JSON.parse(content) as Record<string, unknown>;
-		}
-		catch {
-			// If config file is invalid, start fresh
-		}
+	// Check if auto-archive is enabled
+	if (!isAutoArchiveEnabled(cliOption)) {
+		logger.debug('Auto-archive is disabled');
+		return;
 	}
 
-	// Update archive path
-	config.archivePath = archivePath;
+	logger.debug('Auto-archive is enabled, starting...');
 
-	// Save config
-	writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf-8');
-	logger.info(`Saved archive path to ${configPath}`);
+	try {
+		// Get source directories
+		const sourceDirs = getClaudePaths();
+		if (sourceDirs.length === 0) {
+			logger.debug('No Claude data directories found for auto-archive');
+			return;
+		}
+
+		// Get archive path
+		const archivePath = getArchivePath(customArchivePath);
+		logger.debug(`Auto-archiving to: ${archivePath}`);
+
+		// Check if archive parent directory exists
+		if (!existsSync(path.dirname(archivePath))) {
+			logger.warn(`Auto-archive skipped: parent directory does not exist (${archivePath})`);
+			return;
+		}
+
+		// Perform archive silently
+		const stats = await copyJSONLFiles(sourceDirs, archivePath, false);
+
+		// Log summary only if files were copied
+		if (stats.copiedFiles > 0) {
+			logger.info(`📦 Auto-archived ${stats.copiedFiles} file${stats.copiedFiles === 1 ? '' : 's'} to ${archivePath}`);
+		}
+		else {
+			logger.debug('Auto-archive: no new files to archive');
+		}
+
+		// Log errors if any
+		if (stats.errors.length > 0) {
+			logger.warn(`Auto-archive encountered ${stats.errors.length} error${stats.errors.length === 1 ? '' : 's'}`);
+			for (const err of stats.errors) {
+				logger.debug(`  ${err.file}: ${err.error}`);
+			}
+		}
+	}
+	catch (error) {
+		// Don't fail the main command if auto-archive fails
+		const errorMsg = error instanceof Error ? error.message : String(error);
+		logger.warn(`Auto-archive failed: ${errorMsg}`);
+		logger.debug('Continuing with report command...');
+	}
 }
 
 /**
@@ -289,9 +346,28 @@ export const archiveCommand = define({
 				);
 
 				if (saveToConfig) {
-					saveArchivePathToConfig(archivePath);
+					// Also ask about enabling auto-archive
 					// eslint-disable-next-line no-console
-					console.log(`\n✓ Configuration saved to: ${configFilePath}\n`);
+					console.log('\n💡 Tip: You can automatically archive data before generating reports.');
+					const enableAutoArchive = await askYesNo(
+						'Enable automatic archiving for future reports?',
+						true,
+					);
+
+					// Save both archive path and auto-archive setting together
+					saveConfig({
+						archivePath,
+						autoArchive: enableAutoArchive,
+					});
+
+					// eslint-disable-next-line no-console
+					console.log(`\n✓ Configuration saved to: ${configFilePath}`);
+					if (enableAutoArchive) {
+						// eslint-disable-next-line no-console
+						console.log('✓ Auto-archive enabled for future reports');
+					}
+					// eslint-disable-next-line no-console
+					console.log('');
 				}
 				else {
 					// eslint-disable-next-line no-console

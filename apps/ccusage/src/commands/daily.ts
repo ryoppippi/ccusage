@@ -18,6 +18,7 @@ import {
 import { getClaudePathsWithArchive, loadDailyUsageData } from '../data-loader.ts';
 import { detectMismatches, printMismatchReport } from '../debug.ts';
 import { log, logger } from '../logger.ts';
+import { runAutoArchiveIfEnabled } from './archive.ts';
 
 export const dailyCommand = define({
 	name: 'daily',
@@ -68,6 +69,9 @@ export const dailyCommand = define({
 		if (useJson) {
 			logger.level = 0;
 		}
+
+		// Run auto-archive if enabled (after calculating useJson)
+		await runAutoArchiveIfEnabled(mergedOptions.autoArchive, mergedOptions.archivePath, useJson);
 
 		// Get Claude paths, including archive if --all-time is specified
 		const claudePaths = mergedOptions.allTime === true

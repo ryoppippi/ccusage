@@ -10,7 +10,7 @@
  * @module config
  */
 
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
@@ -158,12 +158,72 @@ For more help, see: https://github.com/yasunogithub/ccusage#archive
 }
 
 /**
+ * Save configuration to file
+ * Creates config directory if needed and merges with existing config
+ * @param updates - Configuration values to save
+ */
+export function saveConfig(updates: Partial<Config>): void {
+	const configDir = path.dirname(CONFIG_FILE_PATH);
+
+	// Create config directory if needed
+	if (!existsSync(configDir)) {
+		mkdirSync(configDir, { recursive: true });
+	}
+
+	// Load existing config or create new one
+	let config: Record<string, unknown> = {};
+	if (existsSync(CONFIG_FILE_PATH)) {
+		try {
+			const content = readFileSync(CONFIG_FILE_PATH, 'utf-8');
+			config = JSON.parse(content) as Record<string, unknown>;
+		}
+		catch {
+			// If config file is invalid, start fresh
+			logger.debug('Existing config file is invalid, creating new one');
+		}
+	}
+
+	// Merge updates
+	config = { ...config, ...updates };
+
+	// Save config
+	writeFileSync(CONFIG_FILE_PATH, JSON.stringify(config, null, 2), 'utf-8');
+	logger.debug(`Saved config to ${CONFIG_FILE_PATH}`);
+}
+
+/**
  * Check if auto-archive is enabled
+ * Priority: CLI option > Config file > Default (false)
+ * @param cliOption - Auto-archive setting from CLI (undefined = not specified)
  * @returns true if auto-archive is enabled
  */
-export function isAutoArchiveEnabled(): boolean {
+export function isAutoArchiveEnabled(cliOption?: boolean): boolean {
+	// Priority 1: CLI option (if explicitly specified)
+	if (cliOption != null) {
+		logger.debug(`Auto-archive from CLI: ${cliOption}`);
+		return cliOption;
+	}
+
+	// Priority 2: Config file
 	const config = loadConfig();
-	return config.autoArchive ?? false;
+	if (config.autoArchive != null) {
+		logger.debug(`Auto-archive from config: ${config.autoArchive}`);
+		return config.autoArchive;
+	}
+
+	// Priority 3: Default
+	logger.debug('Auto-archive default: false');
+	return false;
+}
+
+/**
+ * Check if this is the first time auto-archive setup is needed
+ * Returns true if config file doesn't have autoArchive setting
+ * @returns true if first-time setup is needed
+ */
+export function isFirstTimeAutoArchiveSetup(): boolean {
+	const config = loadConfig();
+	return config.autoArchive == null;
 }
 
 /**

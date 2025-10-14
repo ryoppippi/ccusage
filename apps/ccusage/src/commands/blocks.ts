@@ -19,6 +19,7 @@ import { getTotalTokens } from '../_token-utils.ts';
 import { getClaudePaths, getClaudePathsWithArchive, loadSessionBlockData } from '../data-loader.ts';
 import { log, logger } from '../logger.ts';
 import { startLiveMonitoring } from './_blocks.live.ts';
+import { runAutoArchiveIfEnabled } from './archive.ts';
 
 /**
  * Formats the time display for a session block
@@ -156,6 +157,9 @@ export const blocksCommand = define({
 		if (useJson) {
 			logger.level = 0;
 		}
+
+		// Run auto-archive if enabled (after calculating useJson)
+		await runAutoArchiveIfEnabled(mergedOptions.autoArchive, mergedOptions.archivePath, useJson);
 
 		// Validate session length
 		if (ctx.values.sessionLength <= 0) {

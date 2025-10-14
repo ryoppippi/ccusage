@@ -117,6 +117,11 @@ export const sharedArgs = {
 		type: 'string',
 		description: 'Custom archive path (overrides config and env, used with --all-time)',
 	},
+	autoArchive: {
+		type: 'boolean',
+		negatable: true,
+		description: 'Automatically archive usage data before generating reports (overrides config)',
+	},
 } as const satisfies Args;
 
 /**
