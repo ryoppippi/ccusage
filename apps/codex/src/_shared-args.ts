@@ -50,4 +50,13 @@ export const sharedArgs = {
 		type: 'boolean',
 		description: 'Disable colored output (default: auto). NO_COLOR=1 has the same effect.',
 	},
+	allTime: {
+		type: 'boolean',
+		description: 'Include archived data from all time (requires archive setup)',
+		default: false,
+	},
+	archivePath: {
+		type: 'string',
+		description: 'Custom archive path (overrides config and env, used with --all-time)',
+	},
 } as const satisfies Args;

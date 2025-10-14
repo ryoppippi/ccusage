@@ -13,7 +13,7 @@ import {
 	createTotalsObject,
 	getTotalTokens,
 } from '../calculate-cost.ts';
-import { loadMonthlyUsageData } from '../data-loader.ts';
+import { getClaudePathsWithArchive, loadMonthlyUsageData } from '../data-loader.ts';
 import { detectMismatches, printMismatchReport } from '../debug.ts';
 import { log, logger } from '../logger.ts';
 
@@ -32,7 +32,18 @@ export const monthlyCommand = define({
 			logger.level = 0;
 		}
 
-		const monthlyData = await loadMonthlyUsageData(mergedOptions);
+		// Get Claude paths, including archive if --all-time is specified
+		const claudePaths = mergedOptions.allTime === true
+			? getClaudePathsWithArchive({
+					includeArchive: true,
+					archivePath: mergedOptions.archivePath,
+				})
+			: undefined; // Let loadMonthlyUsageData use default paths
+
+		const monthlyData = await loadMonthlyUsageData({
+			...mergedOptions,
+			claudePath: claudePaths,
+		});
 
 		if (monthlyData.length === 0) {
 			if (useJson) {

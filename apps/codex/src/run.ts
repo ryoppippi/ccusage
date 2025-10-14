@@ -1,15 +1,16 @@
 import process from 'node:process';
 import { cli } from 'gunshi';
 import { description, name, version } from '../package.json';
+import { archiveCommand } from './commands/archive.ts';
 import { dailyCommand } from './commands/daily.ts';
 import { monthlyCommand } from './commands/monthly.ts';
 import { sessionCommand } from './commands/session.ts';
 
-const subCommands = new Map([
-	['daily', dailyCommand],
-	['monthly', monthlyCommand],
-	['session', sessionCommand],
-]);
+const subCommands = new Map();
+subCommands.set('daily', dailyCommand);
+subCommands.set('monthly', monthlyCommand);
+subCommands.set('session', sessionCommand);
+subCommands.set('archive', archiveCommand);
 
 const mainCommand = dailyCommand;
 

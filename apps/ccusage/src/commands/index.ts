@@ -1,6 +1,7 @@
 import process from 'node:process';
 import { cli } from 'gunshi';
 import { description, name, version } from '../../package.json';
+import { archiveCommand } from './archive.ts';
 import { blocksCommand } from './blocks.ts';
 import { dailyCommand } from './daily.ts';
 import { monthlyCommand } from './monthly.ts';
@@ -9,7 +10,7 @@ import { statuslineCommand } from './statusline.ts';
 import { weeklyCommand } from './weekly.ts';
 
 // Re-export all commands for easy importing
-export { blocksCommand, dailyCommand, monthlyCommand, sessionCommand, statuslineCommand, weeklyCommand };
+export { archiveCommand, blocksCommand, dailyCommand, monthlyCommand, sessionCommand, statuslineCommand, weeklyCommand };
 
 /**
  * Command entries as tuple array
@@ -21,6 +22,7 @@ export const subCommandUnion = [
 	['session', sessionCommand],
 	['blocks', blocksCommand],
 	['statusline', statuslineCommand],
+	['archive', archiveCommand],
 ] as const;
 
 /**

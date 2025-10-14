@@ -16,7 +16,7 @@ import {
 } from '../_session-blocks.ts';
 import { sharedCommandConfig } from '../_shared-args.ts';
 import { getTotalTokens } from '../_token-utils.ts';
-import { getClaudePaths, loadSessionBlockData } from '../data-loader.ts';
+import { getClaudePaths, getClaudePathsWithArchive, loadSessionBlockData } from '../data-loader.ts';
 import { log, logger } from '../logger.ts';
 import { startLiveMonitoring } from './_blocks.live.ts';
 
@@ -163,6 +163,14 @@ export const blocksCommand = define({
 			process.exit(1);
 		}
 
+		// Get Claude paths, including archive if --all-time is specified
+		const claudePaths = mergedOptions.allTime === true
+			? getClaudePathsWithArchive({
+					includeArchive: true,
+					archivePath: mergedOptions.archivePath,
+				})
+			: undefined; // Let loadSessionBlockData use default paths
+
 		let blocks = await loadSessionBlockData({
 			since: ctx.values.since,
 			until: ctx.values.until,
@@ -172,6 +180,7 @@ export const blocksCommand = define({
 			sessionDurationHours: ctx.values.sessionLength,
 			timezone: ctx.values.timezone,
 			locale: ctx.values.locale,
+			claudePath: claudePaths,
 		});
 
 		if (blocks.length === 0) {

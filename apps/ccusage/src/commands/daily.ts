@@ -15,7 +15,7 @@ import {
 	createTotalsObject,
 	getTotalTokens,
 } from '../calculate-cost.ts';
-import { loadDailyUsageData } from '../data-loader.ts';
+import { getClaudePathsWithArchive, loadDailyUsageData } from '../data-loader.ts';
 import { detectMismatches, printMismatchReport } from '../debug.ts';
 import { log, logger } from '../logger.ts';
 
@@ -69,9 +69,18 @@ export const dailyCommand = define({
 			logger.level = 0;
 		}
 
+		// Get Claude paths, including archive if --all-time is specified
+		const claudePaths = mergedOptions.allTime === true
+			? getClaudePathsWithArchive({
+					includeArchive: true,
+					archivePath: mergedOptions.archivePath,
+				})
+			: undefined; // Let loadDailyUsageData use default paths
+
 		const dailyData = await loadDailyUsageData({
 			...mergedOptions,
 			groupByProject: mergedOptions.instances,
+			claudePath: claudePaths,
 		});
 
 		if (dailyData.length === 0) {

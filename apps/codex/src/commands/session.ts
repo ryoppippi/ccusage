@@ -11,7 +11,7 @@ import pc from 'picocolors';
 import { DEFAULT_TIMEZONE } from '../_consts.ts';
 import { sharedArgs } from '../_shared-args.ts';
 import { formatModelsList, splitUsageTokens } from '../command-utils.ts';
-import { loadTokenUsageEvents } from '../data-loader.ts';
+import { getCodexSessionsDirsWithArchive, loadTokenUsageEvents } from '../data-loader.ts';
 import { formatDisplayDate, formatDisplayDateTime, normalizeFilterDate, toDateKey } from '../date-utils.ts';
 import { log, logger } from '../logger.ts';
 import { CodexPricingSource } from '../pricing.ts';
@@ -41,7 +41,17 @@ export const sessionCommand = define({
 			process.exit(1);
 		}
 
-		const { events, missingDirectories } = await loadTokenUsageEvents();
+		// Get session directories, including archive if --all-time is specified
+		const sessionDirs = ctx.values.allTime === true
+			? getCodexSessionsDirsWithArchive({
+					includeArchive: true,
+					archivePath: ctx.values.archivePath,
+				})
+			: undefined; // Let loadTokenUsageEvents use default
+
+		const { events, missingDirectories } = await loadTokenUsageEvents({
+			sessionDirs,
+		});
 
 		for (const missing of missingDirectories) {
 			logger.warn(`Codex session directory not found: ${missing}`);

@@ -104,6 +104,17 @@
 							"description": "Force compact mode for narrow displays (better for screenshots)",
 							"markdownDescription": "Force compact mode for narrow displays (better for screenshots)",
 							"default": false
+						},
+						"allTime": {
+							"type": "boolean",
+							"description": "Include archived data from all time (requires archive setup)",
+							"markdownDescription": "Include archived data from all time (requires archive setup)",
+							"default": false
+						},
+						"archivePath": {
+							"type": "string",
+							"description": "Custom archive path (overrides config and env, used with --all-time)",
+							"markdownDescription": "Custom archive path (overrides config and env, used with --all-time)"
 						}
 					},
 					"additionalProperties": false,
@@ -208,6 +219,17 @@
 									"description": "Force compact mode for narrow displays (better for screenshots)",
 									"markdownDescription": "Force compact mode for narrow displays (better for screenshots)",
 									"default": false
+								},
+								"allTime": {
+									"type": "boolean",
+									"description": "Include archived data from all time (requires archive setup)",
+									"markdownDescription": "Include archived data from all time (requires archive setup)",
+									"default": false
+								},
+								"archivePath": {
+									"type": "string",
+									"description": "Custom archive path (overrides config and env, used with --all-time)",
+									"markdownDescription": "Custom archive path (overrides config and env, used with --all-time)"
 								},
 								"instances": {
 									"type": "boolean",
@@ -323,6 +345,17 @@
 									"description": "Force compact mode for narrow displays (better for screenshots)",
 									"markdownDescription": "Force compact mode for narrow displays (better for screenshots)",
 									"default": false
+								},
+								"allTime": {
+									"type": "boolean",
+									"description": "Include archived data from all time (requires archive setup)",
+									"markdownDescription": "Include archived data from all time (requires archive setup)",
+									"default": false
+								},
+								"archivePath": {
+									"type": "string",
+									"description": "Custom archive path (overrides config and env, used with --all-time)",
+									"markdownDescription": "Custom archive path (overrides config and env, used with --all-time)"
 								}
 							},
 							"additionalProperties": false
@@ -422,6 +455,17 @@
 									"description": "Force compact mode for narrow displays (better for screenshots)",
 									"markdownDescription": "Force compact mode for narrow displays (better for screenshots)",
 									"default": false
+								},
+								"allTime": {
+									"type": "boolean",
+									"description": "Include archived data from all time (requires archive setup)",
+									"markdownDescription": "Include archived data from all time (requires archive setup)",
+									"default": false
+								},
+								"archivePath": {
+									"type": "string",
+									"description": "Custom archive path (overrides config and env, used with --all-time)",
+									"markdownDescription": "Custom archive path (overrides config and env, used with --all-time)"
 								},
 								"startOfWeek": {
 									"type": "string",
@@ -527,6 +571,17 @@
 									"markdownDescription": "Force compact mode for narrow displays (better for screenshots)",
 									"default": false
 								},
+								"allTime": {
+									"type": "boolean",
+									"description": "Include archived data from all time (requires archive setup)",
+									"markdownDescription": "Include archived data from all time (requires archive setup)",
+									"default": false
+								},
+								"archivePath": {
+									"type": "string",
+									"description": "Custom archive path (overrides config and env, used with --all-time)",
+									"markdownDescription": "Custom archive path (overrides config and env, used with --all-time)"
+								},
 								"id": {
 									"type": "string",
 									"description": "Load usage data for a specific session ID",
@@ -631,6 +686,17 @@
 									"markdownDescription": "Force compact mode for narrow displays (better for screenshots)",
 									"default": false
 								},
+								"allTime": {
+									"type": "boolean",
+									"description": "Include archived data from all time (requires archive setup)",
+									"markdownDescription": "Include archived data from all time (requires archive setup)",
+									"default": false
+								},
+								"archivePath": {
+									"type": "string",
+									"description": "Custom archive path (overrides config and env, used with --all-time)",
+									"markdownDescription": "Custom archive path (overrides config and env, used with --all-time)"
+								},
 								"active": {
 									"type": "boolean",
 									"description": "Show only active block with projections",
@@ -718,6 +784,29 @@
 									"type": "boolean",
 									"description": "Show pricing mismatch information for debugging",
 									"markdownDescription": "Show pricing mismatch information for debugging",
+									"default": false
+								}
+							},
+							"additionalProperties": false
+						},
+						"archive": {
+							"type": "object",
+							"properties": {
+								"path": {
+									"type": "string",
+									"description": "Custom archive path (overrides config and env)",
+									"markdownDescription": "Custom archive path (overrides config and env)"
+								},
+								"dryRun": {
+									"type": "boolean",
+									"description": "Show what would be archived without copying files",
+									"markdownDescription": "Show what would be archived without copying files",
+									"default": false
+								},
+								"yes": {
+									"type": "boolean",
+									"description": "Skip interactive confirmation (use default path)",
+									"markdownDescription": "Skip interactive confirmation (use default path)",
 									"default": false
 								}
 							},
