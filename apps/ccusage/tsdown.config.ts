@@ -30,7 +30,7 @@ export default defineConfig({
 	nodeProtocol: true,
 	plugins: [
 		Macros({
-			include: ['src/index.ts', 'src/pricing-fetcher.ts'],
+			include: ['src/index.ts', 'src/_pricing-fetcher.ts'],
 		}),
 	],
 	define: {
