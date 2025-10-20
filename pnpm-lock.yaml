@@ -61,8 +61,8 @@ catalogs:
       specifier: ^0.10.0
       version: 0.10.0
     '@praha/byethrow-mcp':
-      specifier: ^0.1.4
-      version: 0.1.4
+      specifier: ^0.1.6
+      version: 0.1.6
     sitemcp:
       specifier: ^0.5.9
       version: 0.5.9
@@ -185,7 +185,7 @@ importers:
         version: 0.10.0
       '@praha/byethrow-mcp':
         specifier: catalog:mcp
-        version: 0.1.4
+        version: 0.1.6
       '@ryoppippi/eslint-config':
         specifier: catalog:lint
         version: 0.4.0(@vue/compiler-sfc@3.5.21)(eslint-plugin-format@1.0.1(eslint@9.35.0(jiti@2.5.1)))(eslint@9.35.0(jiti@2.5.1))(typescript@5.9.2)(vitest@3.2.4(@types/debug@4.1.12)(@types/node@24.5.1)(happy-dom@16.8.1)(jiti@2.5.1)(yaml@2.8.1))
@@ -1603,8 +1603,8 @@ packages:
   '@poppinss/exception@1.2.2':
     resolution: {integrity: sha512-m7bpKCD4QMlFCjA/nKTs23fuvoVFoA83brRKmObCUNmi/9tVu8Ve3w4YQAnJu4q3Tjf5fr685HYIC/IA2zHRSg==}
 
-  '@praha/byethrow-mcp@0.1.4':
-    resolution: {integrity: sha512-r0PnzP64v83e6Qdnke2/TPjQM1bTk3rWgHFFpJVq6uvMi9aOHZ514m/VoHDOwNLXx0lYIWHTphWEGPRR+ceazg==}
+  '@praha/byethrow-mcp@0.1.6':
+    resolution: {integrity: sha512-GYJvfOvRbqylaKjZRiVydO1XJefq1LQ/60Smj4mztWvHeegl78aHVcTl5duQtpSUapyfL5UuDpRvK5SviCiUEA==}
     hasBin: true
 
   '@praha/byethrow@0.6.3':
@@ -5660,7 +5660,7 @@ snapshots:
 
   '@poppinss/exception@1.2.2': {}
 
-  '@praha/byethrow-mcp@0.1.4':
+  '@praha/byethrow-mcp@0.1.6':
     dependencies:
       '@modelcontextprotocol/sdk': 1.18.1
       citty: 0.1.6
