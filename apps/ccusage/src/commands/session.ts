@@ -13,10 +13,11 @@ import {
 	createTotalsObject,
 	getTotalTokens,
 } from '../calculate-cost.ts';
-import { loadSessionData } from '../data-loader.ts';
+import { getClaudePathsWithArchive, loadSessionData } from '../data-loader.ts';
 import { detectMismatches, printMismatchReport } from '../debug.ts';
 import { log, logger } from '../logger.ts';
 import { handleSessionIdLookup } from './_session_id.ts';
+import { runAutoArchiveIfEnabled } from './archive.ts';
 
 // eslint-disable-next-line ts/no-unused-vars
 const { order: _, ...sharedArgs } = sharedCommandConfig.args;
@@ -45,6 +46,9 @@ export const sessionCommand = define({
 			logger.level = 0;
 		}
 
+		// Run auto-archive if enabled (after calculating useJson)
+		await runAutoArchiveIfEnabled(mergedOptions.autoArchive, mergedOptions.archivePath, useJson);
+
 		// Handle specific session ID lookup
 		if (mergedOptions.id != null) {
 			return handleSessionIdLookup({
@@ -59,6 +63,14 @@ export const sessionCommand = define({
 			}, useJson);
 		}
 
+		// Get Claude paths, including archive if --all-time is specified
+		const claudePaths = mergedOptions.allTime === true
+			? getClaudePathsWithArchive({
+					includeArchive: true,
+					archivePath: mergedOptions.archivePath,
+				})
+			: undefined; // Let loadSessionData use default paths
+
 		// Original session listing logic
 		const sessionData = await loadSessionData({
 			since: ctx.values.since,
@@ -67,6 +79,7 @@ export const sessionCommand = define({
 			offline: ctx.values.offline,
 			timezone: ctx.values.timezone,
 			locale: ctx.values.locale,
+			claudePath: claudePaths,
 		});
 
 		if (sessionData.length === 0) {
