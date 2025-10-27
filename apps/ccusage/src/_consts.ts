@@ -121,6 +121,20 @@ export const DEFAULT_CONTEXT_USAGE_THRESHOLDS = {
 } as const;
 
 /**
+ * Context window mode choices for configuration
+ */
+export const CONTEXT_WINDOW_MODES = ['auto', 'claude-api', 'claude-plan'] as const;
+
+/**
+ * Default context window sizes for different modes
+ */
+export const DEFAULT_CONTEXT_WINDOWS = {
+	CLAUDE_PLAN: 200_000, // Claude plan users: 200k tokens
+	CLAUDE_API: 1_000_000, // Claude API users: 1M tokens
+	FALLBACK: 200_000, // Conservative fallback when unknown
+} as const;
+
+/**
  * Days of the week for weekly aggregation
  */
 export const WEEK_DAYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'] as const;
