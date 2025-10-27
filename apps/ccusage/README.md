@@ -101,6 +101,9 @@ npx ccusage statusline  # Compact status line for hooks (Beta)
 # Live monitoring
 npx ccusage blocks --live  # Real-time usage dashboard
 
+# Prompt counting (useful for GLM and other models without token limits)
+npx ccusage blocks --prompts  # Show number of prompts per 5-hour block
+
 # Filters and options
 npx ccusage daily --since 20250525 --until 20250530
 npx ccusage daily --json  # JSON output
@@ -118,12 +121,53 @@ npx ccusage --compact  # Force compact table mode
 npx ccusage monthly --compact  # Compact monthly report
 ```
 
+## Prompt Counting for GLM and Other Models
+
+The `--prompts` flag in the `blocks` command is particularly useful for users of GLM (General Language Model) and other AI models that don't have strict token limits or when you want to track usage patterns rather than costs.
+
+### Why Use Prompt Counting?
+
+- **GLM Users**: GLM models often have different pricing models or usage limits based on the number of prompts rather than tokens
+- **Usage Pattern Analysis**: Understand your interaction frequency with AI models
+- **Productivity Tracking**: Monitor how many prompts you send during different time periods
+- **Budget Planning**: Some services charge per prompt rather than per token
+
+### How It Works
+
+```bash
+# Show prompts per 5-hour block
+npx ccusage blocks --prompts
+
+# Combined with other flags
+npx ccusage blocks --prompts --recent  # Last 3 days
+npx ccusage blocks --prompts --json    # JSON output
+```
+
+### Example Output
+
+```
+Block Start                     Duration/Status  Models             Tokens   Prompts     %     Cost
+2025-09-05, 2:00:00 PM (13m)                     - sonnet-4         92,531        6   0.1%    $0.07
+2025-09-10, 7:00:00 PM (3h 10m)                 - <synthetic>      22,299,…      249  13.2%    $9.57
+2025-09-11, 8:00:00 AM (1h 13m)                 - sonnet-4         2,567,4…      36   1.5%    $1.35
+```
+
+### GLM-Specific Use Cases
+
+- **Prompt Rate Tracking**: Monitor how many prompts you send per 5-hour window
+- **Usage Patterns**: Identify your most productive hours
+- **Service Limit Monitoring**: Track usage against prompt-based service limits
+- **Cost Analysis**: For services that charge per prompt, calculate costs per 5-hour block
+
+The prompt count works by counting individual JSONL entries in each session block, where each entry represents one complete prompt/response interaction with the AI model.
+
 ## Features
 
 - 📊 **Daily Report**: View token usage and costs aggregated by date
 - 📅 **Monthly Report**: View token usage and costs aggregated by month
 - 💬 **Session Report**: View usage grouped by conversation sessions
 - ⏰ **5-Hour Blocks Report**: Track usage within Claude's billing windows with active block monitoring
+- 🔢 **Prompt Counting**: Show the number of prompts sent in each 5-hour block with `blocks --prompts` - perfect for GLM and other models without strict token limits
 - 📈 **Live Monitoring**: Real-time dashboard showing active session progress, token burn rate, and cost projections with `blocks --live`
 - 🚀 **Statusline Integration**: Compact usage display for Claude Code status bar hooks (Beta)
 - 🤖 **Model Tracking**: See which Claude models you're using (Opus, Sonnet, etc.)
