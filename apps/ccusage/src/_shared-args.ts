@@ -108,6 +108,20 @@ export const sharedArgs = {
 		description: 'Force compact mode for narrow displays (better for screenshots)',
 		default: false,
 	},
+	allTime: {
+		type: 'boolean',
+		description: 'Include archived data from all time (requires archive setup)',
+		default: false,
+	},
+	archivePath: {
+		type: 'string',
+		description: 'Custom archive path (overrides config and env, used with --all-time)',
+	},
+	autoArchive: {
+		type: 'boolean',
+		negatable: true,
+		description: 'Automatically archive usage data before generating reports (overrides config)',
+	},
 } as const satisfies Args;
 
 /**

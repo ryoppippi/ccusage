@@ -18,6 +18,7 @@ import type {
 	SortOrder,
 	Version,
 } from './_types.ts';
+import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
@@ -28,6 +29,7 @@ import { createFixture } from 'fs-fixture';
 import { isDirectorySync } from 'path-type';
 import { glob } from 'tinyglobby';
 import * as v from 'valibot';
+import { getArchivePath } from './_config.ts';
 import { CLAUDE_CONFIG_DIR_ENV, CLAUDE_PROJECTS_DIR_NAME, DEFAULT_CLAUDE_CODE_PATH, DEFAULT_CLAUDE_CONFIG_PATH, DEFAULT_LOCALE, USAGE_DATA_GLOB_PATTERN, USER_HOME_DIR } from './_consts.ts';
 import {
 	filterByDateRange,
@@ -132,6 +134,39 @@ export function getClaudePaths(): string[] {
 - ${path.join(USER_HOME_DIR, DEFAULT_CLAUDE_CODE_PATH, CLAUDE_PROJECTS_DIR_NAME)}
 - Or set ${CLAUDE_CONFIG_DIR_ENV} environment variable to valid directory path(s) containing a '${CLAUDE_PROJECTS_DIR_NAME}' subdirectory`.trim(),
 		);
+	}
+
+	return paths;
+}
+
+/**
+ * Get Claude data directories including optional archive path
+ * @param options - Options for path resolution
+ * @param options.includeArchive - If true, include archive directory in the paths
+ * @param options.archivePath - Custom archive path (overrides default)
+ * @returns Array of valid Claude data directory paths (including archive if requested)
+ */
+export function getClaudePathsWithArchive(options?: {
+	includeArchive?: boolean;
+	archivePath?: string;
+}): string[] {
+	const paths = getClaudePaths();
+
+	// Add archive path if requested
+	if (options?.includeArchive === true) {
+		const archivePath = getArchivePath(options?.archivePath);
+		if (existsSync(archivePath)) {
+			// Archive path is already in the expected format (no /projects suffix needed)
+			const normalizedPath = path.resolve(archivePath);
+			// Avoid duplicates
+			if (!paths.includes(normalizedPath)) {
+				logger.debug(`Including archive path: ${normalizedPath}`);
+				paths.push(normalizedPath);
+			}
+		}
+		else {
+			logger.warn(`Archive path does not exist: ${archivePath}`);
+		}
 	}
 
 	return paths;
@@ -704,7 +739,7 @@ export type DateFilter = {
  * Configuration options for loading usage data
  */
 export type LoadOptions = {
-	claudePath?: string; // Custom path to Claude data directory
+	claudePath?: string | string[]; // Custom path(s) to Claude data directory
 	mode?: CostMode; // Cost calculation mode
 	order?: SortOrder; // Sort order for dates
 	offline?: boolean; // Use offline mode for pricing

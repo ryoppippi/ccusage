@@ -1,4 +1,5 @@
 import type { TokenUsageDelta, TokenUsageEvent } from './_types.ts';
+import { existsSync } from 'node:fs';
 import { readFile, stat } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
@@ -6,6 +7,7 @@ import { Result } from '@praha/byethrow';
 import { createFixture } from 'fs-fixture';
 import { glob } from 'tinyglobby';
 import * as v from 'valibot';
+import { getArchivePath } from './_config.ts';
 import { CODEX_HOME_ENV, DEFAULT_CODEX_DIR, DEFAULT_SESSION_SUBDIR, SESSION_GLOB } from './_consts.ts';
 import { logger } from './logger.ts';
 
@@ -174,6 +176,47 @@ export type LoadResult = {
 	events: TokenUsageEvent[];
 	missingDirectories: string[];
 };
+
+/**
+ * Get default Codex sessions directory
+ * @returns Codex sessions directory path
+ */
+export function getCodexSessionsDir(): string {
+	const codexHomeEnv = process.env[CODEX_HOME_ENV]?.trim();
+	const codexHome = codexHomeEnv != null && codexHomeEnv !== ''
+		? path.resolve(codexHomeEnv)
+		: DEFAULT_CODEX_DIR;
+	return path.join(codexHome, DEFAULT_SESSION_SUBDIR);
+}
+
+/**
+ * Get Codex sessions directories including optional archive path
+ * @param options - Options for path resolution
+ * @param options.includeArchive - If true, include archive directory in the paths
+ * @param options.archivePath - Custom archive path (overrides default)
+ * @returns Array of Codex sessions directory paths (including archive if requested)
+ */
+export function getCodexSessionsDirsWithArchive(options?: {
+	includeArchive?: boolean;
+	archivePath?: string;
+}): string[] {
+	const dirs = [getCodexSessionsDir()];
+
+	// Add archive path if requested
+	if (options?.includeArchive === true) {
+		const archivePath = getArchivePath(options?.archivePath);
+		const archiveSessionsDir = path.join(archivePath, DEFAULT_SESSION_SUBDIR);
+		if (existsSync(archiveSessionsDir)) {
+			logger.debug(`Including archive sessions dir: ${archiveSessionsDir}`);
+			dirs.push(archiveSessionsDir);
+		}
+		else {
+			logger.warn(`Archive sessions directory does not exist: ${archiveSessionsDir}`);
+		}
+	}
+
+	return dirs;
+}
 
 export async function loadTokenUsageEvents(options: LoadOptions = {}): Promise<LoadResult> {
 	const providedDirs = options.sessionDirs != null && options.sessionDirs.length > 0
