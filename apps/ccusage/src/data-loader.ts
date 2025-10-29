@@ -18,7 +18,7 @@ import type {
 	SortOrder,
 	Version,
 } from './_types.ts';
-import { createReadStream } from 'node:fs';
+import { createReadStream, createWriteStream } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
@@ -661,23 +661,23 @@ if (import.meta.vitest != null) {
 			await using fixture = await createFixture({});
 			const filePath = path.join(fixture.path, 'large.jsonl');
 
-			// Write file in chunks to avoid Node.js string length limit (~512MB)
+			// Write file using streaming to avoid Node.js string length limit (~512MB)
 			// Creating a 600MB string directly would cause "RangeError: Invalid string length"
-			// even in test code, so we write in smaller chunks instead
-			const { writeFile } = await import('node:fs/promises');
-			const chunkSize = 10000; // lines per chunk
-			let chunk = '';
-			for (let i = 0; i < chunkSize; i++) {
-				chunk += sampleEntry;
+			const writeStream = createWriteStream(filePath);
+
+			// Write lines and handle backpressure
+			for (let i = 0; i < lineCount; i++) {
+				const canContinue = writeStream.write(sampleEntry);
+				// Respect backpressure by waiting for drain event
+				if (!canContinue) {
+					await new Promise(resolve => writeStream.once('drain', resolve));
+				}
 			}
 
-			for (let i = 0; i < lineCount; i += chunkSize) {
-				const currentChunkSize = Math.min(chunkSize, lineCount - i);
-				const currentChunk = currentChunkSize === chunkSize
-					? chunk
-					: sampleEntry.repeat(currentChunkSize);
-				await writeFile(filePath, currentChunk, { flag: i === 0 ? 'w' : 'a' });
-			}
+			// Ensure all data is flushed
+			await new Promise((resolve, reject) => {
+				writeStream.end((err?: Error | null) => err ? reject(err) : resolve(undefined));
+			});
 
 			// Test streaming processing
 			let processedCount = 0;
