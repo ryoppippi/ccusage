@@ -29,6 +29,11 @@ export const weeklyCommand = define({
 			default: 'sunday' as const,
 			choices: WEEK_DAYS,
 		},
+		prompts: {
+			type: 'boolean',
+			description: 'Include prompt count column',
+			default: false,
+		},
 	},
 	toKebab: true,
 	async run(ctx) {
@@ -87,8 +92,12 @@ export const weeklyCommand = define({
 					totalCost: data.totalCost,
 					modelsUsed: data.modelsUsed,
 					modelBreakdowns: data.modelBreakdowns,
+					promptCount: data.promptCount,
 				})),
-				totals: createTotalsObject(totals),
+				totals: {
+					...createTotalsObject(totals),
+					promptCount: weeklyData.reduce((sum, data) => sum + (data.promptCount || 0), 0),
+				},
 			};
 
 			// Process with jq if specified
@@ -113,6 +122,7 @@ export const weeklyCommand = define({
 				firstColumnName: 'Week',
 				dateFormatter: (dateStr: string) => formatDateCompact(dateStr, mergedOptions.timezone, mergedOptions.locale ?? undefined),
 				forceCompact: ctx.values.compact,
+				includePrompts: ctx.values.prompts,
 			};
 			const table = createUsageReportTable(tableConfig);
 
@@ -126,7 +136,8 @@ export const weeklyCommand = define({
 					cacheReadTokens: data.cacheReadTokens,
 					totalCost: data.totalCost,
 					modelsUsed: data.modelsUsed,
-				}, false);
+					promptCount: data.promptCount,
+				}, true); // Enable prompts column
 				table.push(row);
 
 				// Add model breakdown rows if flag is set
@@ -145,7 +156,8 @@ export const weeklyCommand = define({
 				cacheCreationTokens: totals.cacheCreationTokens,
 				cacheReadTokens: totals.cacheReadTokens,
 				totalCost: totals.totalCost,
-			}, false);
+				promptCount: weeklyData.reduce((sum, data) => sum + (data.promptCount || 0), 0),
+			}, true); // Enable prompts in totals row
 			table.push(totalsRow);
 
 			log(table.toString());

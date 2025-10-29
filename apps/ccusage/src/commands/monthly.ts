@@ -20,7 +20,14 @@ import { log, logger } from '../logger.ts';
 export const monthlyCommand = define({
 	name: 'monthly',
 	description: 'Show usage report grouped by month',
-	...sharedCommandConfig,
+	args: {
+		...sharedCommandConfig.args,
+		prompts: {
+			type: 'boolean',
+			description: 'Include prompt count column',
+			default: false,
+		},
+	},
 	async run(ctx) {
 		// Load configuration and merge with CLI arguments
 		const config = loadConfig(ctx.values.config, ctx.values.debug);
@@ -77,8 +84,12 @@ export const monthlyCommand = define({
 					totalCost: data.totalCost,
 					modelsUsed: data.modelsUsed,
 					modelBreakdowns: data.modelBreakdowns,
+					promptCount: data.promptCount,
 				})),
-				totals: createTotalsObject(totals),
+				totals: {
+					...createTotalsObject(totals),
+					promptCount: monthlyData.reduce((sum, data) => sum + (data.promptCount || 0), 0),
+				},
 			};
 
 			// Process with jq if specified
@@ -103,6 +114,7 @@ export const monthlyCommand = define({
 				firstColumnName: 'Month',
 				dateFormatter: (dateStr: string) => formatDateCompact(dateStr, mergedOptions.timezone, mergedOptions.locale ?? DEFAULT_LOCALE),
 				forceCompact: ctx.values.compact,
+				includePrompts: ctx.values.prompts,
 			};
 			const table = createUsageReportTable(tableConfig);
 
@@ -116,7 +128,8 @@ export const monthlyCommand = define({
 					cacheReadTokens: data.cacheReadTokens,
 					totalCost: data.totalCost,
 					modelsUsed: data.modelsUsed,
-				}, false);
+					promptCount: data.promptCount,
+				}, true); // Enable prompts column
 				table.push(row);
 
 				// Add model breakdown rows if flag is set
@@ -135,7 +148,8 @@ export const monthlyCommand = define({
 				cacheCreationTokens: totals.cacheCreationTokens,
 				cacheReadTokens: totals.cacheReadTokens,
 				totalCost: totals.totalCost,
-			}, false);
+				promptCount: monthlyData.reduce((sum, data) => sum + (data.promptCount || 0), 0),
+			}, true); // Enable prompts in totals row
 			table.push(totalsRow);
 
 			log(table.toString());

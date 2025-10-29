@@ -181,6 +181,34 @@ npx ccusage monthly --compact  # Compact monthly report
 
 The prompt count shows exactly how many individual messages/prompts you sent to Claude each day, helping you understand your usage patterns beyond just token counts and costs.
 
+### Monthly Report with Prompt Counts (`--prompts`)
+
+```
+┌──────────┬──────────────────────┬──────────┬──────────┬──────────┐
+│ Month    │ Models               │  Prompts │    Input │   Output │     Cost │
+├──────────┼──────────────────────┼──────────┼──────────┼──────────┤
+│ 2025-01  │ claude-sonnet-4      │    1,247 │ 5,546,527 │  100,168 │    $8.01 │
+│ 2024-12  │ claude-sonnet-4      │      892 │ 3,214,789 │   89,234 │    $4.67 │
+├──────────┼──────────────────────┼──────────┼──────────┼──────────┤
+│ Total    │                      │    2,139 │ 8,761,316 │  189,402 │   $12.68 │
+└──────────┴──────────────────────┴──────────┴──────────┴──────────┘
+```
+
+### Weekly Report with Prompt Counts (`--prompts`)
+
+```
+┌──────────┬─────────────────┬──────────┬──────────┬──────────┐
+│ Week     │ Models          │  Prompts │    Input │   Output │     Cost │
+├──────────┼─────────────────┼──────────┼──────────┼──────────┤
+│ 2025-01-13│ claude-sonnet-4 │      721 │ 5,546,527 │  100,168 │    $8.01 │
+│ 2025-01-06│ claude-sonnet-4 │      518 │ 2,891,234 │   78,912 │    $3.45 │
+├──────────┼─────────────────┼──────────┼──────────┼──────────┤
+│ Total    │                 │    1,239 │ 8,437,761 │  179,080 │   $11.46 │
+└──────────┴─────────────────┴──────────┴──────────┴──────────┘
+```
+
+The `--prompts` flag works with all time-based reports (daily, weekly, monthly) to show how many prompts you sent during each time period.
+
 ## Documentation
 
 Full documentation is available at **[ccusage.com](https://ccusage.com/)**
