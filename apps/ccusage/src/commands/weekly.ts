@@ -126,7 +126,7 @@ export const weeklyCommand = define({
 					cacheReadTokens: data.cacheReadTokens,
 					totalCost: data.totalCost,
 					modelsUsed: data.modelsUsed,
-				});
+				}, false);
 				table.push(row);
 
 				// Add model breakdown rows if flag is set
@@ -145,7 +145,7 @@ export const weeklyCommand = define({
 				cacheCreationTokens: totals.cacheCreationTokens,
 				cacheReadTokens: totals.cacheReadTokens,
 				totalCost: totals.totalCost,
-			});
+			}, false);
 			table.push(totalsRow);
 
 			log(table.toString());

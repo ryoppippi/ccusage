@@ -70,6 +70,7 @@ if (import.meta.vitest != null) {
 					totalCost: 0.01,
 					modelsUsed: [createModelName('claude-sonnet-4-20250514')],
 					modelBreakdowns: [],
+					promptCount: 5,
 				},
 				{
 					date: createDailyDate('2024-01-01'),
@@ -81,6 +82,7 @@ if (import.meta.vitest != null) {
 					totalCost: 0.02,
 					modelsUsed: [createModelName('claude-opus-4-20250514')],
 					modelBreakdowns: [],
+					promptCount: 8,
 				},
 			];
 
@@ -105,6 +107,7 @@ if (import.meta.vitest != null) {
 					totalCost: 0.01,
 					modelsUsed: [createModelName('claude-sonnet-4-20250514')],
 					modelBreakdowns: [],
+					promptCount: 3,
 				},
 			];
 
@@ -128,6 +131,7 @@ if (import.meta.vitest != null) {
 					totalCost: 0.01,
 					modelsUsed: [createModelName('claude-sonnet-4-20250514')],
 					modelBreakdowns: [],
+					promptCount: 5,
 				},
 				{
 					date: createDailyDate('2024-01-02'),
@@ -139,6 +143,7 @@ if (import.meta.vitest != null) {
 					totalCost: 0.008,
 					modelsUsed: [createModelName('claude-sonnet-4-20250514')],
 					modelBreakdowns: [],
+					promptCount: 4,
 				},
 			];
 

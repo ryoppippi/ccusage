@@ -94,6 +94,7 @@ if (import.meta.vitest != null) {
 					totalCost: 0.01,
 					modelsUsed: [createModelName('claude-sonnet-4-20250514')],
 					modelBreakdowns: [],
+					promptCount: 3,
 				},
 				{
 					date: createDailyDate('2024-01-02'),
@@ -104,6 +105,7 @@ if (import.meta.vitest != null) {
 					totalCost: 0.02,
 					modelsUsed: [createModelName('claude-opus-4-20250514')],
 					modelBreakdowns: [],
+					promptCount: 5,
 				},
 			];
 

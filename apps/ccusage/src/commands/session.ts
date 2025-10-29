@@ -148,7 +148,7 @@ export const sessionCommand = define({
 					cacheReadTokens: data.cacheReadTokens,
 					totalCost: data.totalCost,
 					modelsUsed: data.modelsUsed,
-				}, data.lastActivity);
+				}, false, data.lastActivity);
 				table.push(row);
 
 				// Add model breakdown rows if flag is set
@@ -168,7 +168,7 @@ export const sessionCommand = define({
 				cacheCreationTokens: totals.cacheCreationTokens,
 				cacheReadTokens: totals.cacheReadTokens,
 				totalCost: totals.totalCost,
-			}, true); // Include Last Activity column
+			}, false, true); // Include Last Activity column
 			table.push(totalsRow);
 
 			log(table.toString());

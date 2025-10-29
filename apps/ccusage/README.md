@@ -105,6 +105,7 @@ npx ccusage blocks --live  # Real-time usage dashboard
 npx ccusage daily --since 20250525 --until 20250530
 npx ccusage daily --json  # JSON output
 npx ccusage daily --breakdown  # Per-model cost breakdown
+npx ccusage daily --prompts  # Show prompt count column
 npx ccusage daily --timezone UTC  # Use UTC timezone
 npx ccusage daily --locale ja-JP  # Use Japanese locale for date/time formatting
 
@@ -112,6 +113,10 @@ npx ccusage daily --locale ja-JP  # Use Japanese locale for date/time formatting
 npx ccusage daily --instances  # Group by project/instance
 npx ccusage daily --project myproject  # Filter to specific project
 npx ccusage daily --instances --project myproject --json  # Combined usage
+
+# Prompt analysis
+npx ccusage daily --prompts  # Show how many prompts you sent each day
+npx ccusage daily --prompts --json  # Include prompt counts in JSON output
 
 # Compact mode for screenshots/sharing
 npx ccusage --compact  # Force compact table mode
@@ -126,6 +131,7 @@ npx ccusage monthly --compact  # Compact monthly report
 - ⏰ **5-Hour Blocks Report**: Track usage within Claude's billing windows with active block monitoring
 - 📈 **Live Monitoring**: Real-time dashboard showing active session progress, token burn rate, and cost projections with `blocks --live`
 - 🚀 **Statusline Integration**: Compact usage display for Claude Code status bar hooks (Beta)
+- 🔢 **Prompt Count**: Show number of prompts/messages sent per day with `--prompts` flag
 - 🤖 **Model Tracking**: See which Claude models you're using (Opus, Sonnet, etc.)
 - 📊 **Model Breakdown**: View per-model cost breakdown with `--breakdown` flag
 - 📅 **Date Filtering**: Filter reports by date range using `--since` and `--until`
@@ -144,6 +150,36 @@ npx ccusage monthly --compact  # Compact monthly report
 - 🌐 **Locale Support**: Customize date/time formatting with `--locale` option (e.g., en-US, ja-JP, de-DE)
 - ⚙️ **Configuration Files**: Set defaults with JSON configuration files, complete with IDE autocomplete and validation
 - 🚀 **Ultra-Small Bundle**: Unlike other CLI tools, we pay extreme attention to bundle size - incredibly small even without minification!
+
+## Prompt Count Examples
+
+### Standard Daily Report (Default)
+
+```
+┌──────────┬─────────────────┬──────────┬──────────┬──────────┐
+│ Date     │ Models          │    Input │   Output │     Cost │
+├──────────┼─────────────────┼──────────┼──────────┼──────────┤
+│ 2025-01-15│ claude-sonnet-4 │  694,203 │   36,324 │    $2.09 │
+│ 2025-01-16│ claude-sonnet-4 │ 4,852,324 │   63,844 │    $5.92 │
+├──────────┼─────────────────┼──────────┼──────────┼──────────┤
+│ Total    │                 │ 5,546,527 │  100,168 │    $8.01 │
+└──────────┴─────────────────┴──────────┴──────────┴──────────┘
+```
+
+### Daily Report with Prompt Counts (`--prompts`)
+
+```
+┌──────────┬─────────────────┬──────────┬──────────┬──────────┐
+│ Date     │ Models          │  Prompts │    Input │   Output │     Cost │
+├──────────┼─────────────────┼──────────┼──────────┼──────────┤
+│ 2025-01-15│ claude-sonnet-4 │      273 │  694,203 │   36,324 │    $2.09 │
+│ 2025-01-16│ claude-sonnet-4 │      448 │ 4,852,324 │   63,844 │    $5.92 │
+├──────────┼─────────────────┼──────────┼──────────┼──────────┤
+│ Total    │                 │      721 │ 5,546,527 │  100,168 │    $8.01 │
+└──────────┴─────────────────┴──────────┴──────────┴──────────┘
+```
+
+The prompt count shows exactly how many individual messages/prompts you sent to Claude each day, helping you understand your usage patterns beyond just token counts and costs.
 
 ## Documentation
 

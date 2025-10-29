@@ -236,6 +236,7 @@ export const dailyUsageSchema = v.object({
 	totalCost: v.number(),
 	modelsUsed: v.array(modelNameSchema),
 	modelBreakdowns: v.array(modelBreakdownSchema),
+	promptCount: v.number(), // Number of prompts/messages for this day
 	project: v.optional(v.string()), // Project name when groupByProject is enabled
 });
 
@@ -849,6 +850,7 @@ export async function loadDailyUsageData(
 				...totals,
 				modelsUsed: modelsUsed as ModelName[],
 				modelBreakdowns,
+				promptCount: entries.length, // Number of prompts/messages for this day
 				...(project != null && { project }),
 			};
 		})
@@ -1688,6 +1690,67 @@ if (import.meta.vitest != null) {
 
 			expect(result[0]?.cacheCreationTokens).toBe(25);
 			expect(result[0]?.cacheReadTokens).toBe(10);
+		});
+
+		it('calculates prompt count correctly', async () => {
+			const mockData1: UsageData[] = [
+				{
+					timestamp: createISOTimestamp('2024-01-01T10:00:00Z'),
+					message: { usage: { input_tokens: 100, output_tokens: 50 } },
+					costUSD: 0.01,
+				},
+				{
+					timestamp: createISOTimestamp('2024-01-01T12:00:00Z'),
+					message: { usage: { input_tokens: 200, output_tokens: 100 } },
+					costUSD: 0.02,
+				},
+				{
+					timestamp: createISOTimestamp('2024-01-01T14:00:00Z'),
+					message: { usage: { input_tokens: 150, output_tokens: 75 } },
+					costUSD: 0.015,
+				},
+			];
+
+			const mockData2: UsageData[] = [
+				{
+					timestamp: createISOTimestamp('2024-01-02T09:00:00Z'),
+					message: { usage: { input_tokens: 300, output_tokens: 150 } },
+					costUSD: 0.03,
+				},
+				{
+					timestamp: createISOTimestamp('2024-01-02T11:00:00Z'),
+					message: { usage: { input_tokens: 250, output_tokens: 125 } },
+					costUSD: 0.025,
+				},
+			];
+
+			await using fixture = await createFixture({
+				projects: {
+					project1: {
+						session1: {
+							'file1.jsonl': mockData1.map(d => JSON.stringify(d)).join('\n'),
+							'file2.jsonl': mockData2.map(d => JSON.stringify(d)).join('\n'),
+						},
+					},
+				},
+			});
+
+			const result = await loadDailyUsageData({ claudePath: fixture.path });
+
+			expect(result).toHaveLength(2);
+
+			// Results are sorted by date descending by default, so 2024-01-02 comes first
+			// First result (newest day) should have 2 prompts (2 entries in mockData2)
+			expect(result[0]?.date).toBe('2024-01-02');
+			expect(result[0]?.promptCount).toBe(2);
+			expect(result[0]?.inputTokens).toBe(550); // 300 + 250
+			expect(result[0]?.outputTokens).toBe(275); // 150 + 125
+
+			// Second result (older day) should have 3 prompts (3 entries in mockData1)
+			expect(result[1]?.date).toBe('2024-01-01');
+			expect(result[1]?.promptCount).toBe(3);
+			expect(result[1]?.inputTokens).toBe(450); // 100 + 200 + 150
+			expect(result[1]?.outputTokens).toBe(225); // 50 + 100 + 75
 		});
 
 		it('filters by date range', async () => {
