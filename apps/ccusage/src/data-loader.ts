@@ -670,13 +670,13 @@ if (import.meta.vitest != null) {
 				const canContinue = writeStream.write(sampleEntry);
 				// Respect backpressure by waiting for drain event
 				if (!canContinue) {
-					await new Promise(resolve => writeStream.once('drain', resolve));
+					await new Promise<void>(resolve => writeStream.once('drain', () => resolve()));
 				}
 			}
 
 			// Ensure all data is flushed
-			await new Promise((resolve, reject) => {
-				writeStream.end((err?: Error | null) => err ? reject(err) : resolve(undefined));
+			await new Promise<void>((resolve, reject) => {
+				writeStream.end((err?: Error | null) => err ? reject(err) : resolve());
 			});
 
 			// Test streaming processing
