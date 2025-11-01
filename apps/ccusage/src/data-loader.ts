@@ -18,9 +18,11 @@ import type {
 	SortOrder,
 	Version,
 } from './_types.ts';
+import { createReadStream, createWriteStream } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
+import { createInterface } from 'node:readline';
 import { toArray } from '@antfu/utils';
 import { Result } from '@praha/byethrow';
 import { groupBy, uniq } from 'es-toolkit'; // TODO: after node20 is deprecated, switch to native Object.groupBy
@@ -530,21 +532,40 @@ export function createUniqueHash(data: UsageData): string | null {
 }
 
 /**
+ * Process a JSONL file line by line using streams to avoid memory issues with large files
+ * @param filePath - Path to the JSONL file
+ * @param processLine - Callback function to process each line
+ */
+async function processJSONLFileByLine(
+	filePath: string,
+	processLine: (line: string, lineNumber: number) => void | Promise<void>,
+): Promise<void> {
+	const fileStream = createReadStream(filePath, { encoding: 'utf-8' });
+	const rl = createInterface({
+		input: fileStream,
+		crlfDelay: Number.POSITIVE_INFINITY,
+	});
+
+	let lineNumber = 0;
+	for await (const line of rl) {
+		lineNumber++;
+		if (line.trim().length === 0) {
+			continue;
+		}
+		await processLine(line, lineNumber);
+	}
+}
+
+/**
  * Extract the earliest timestamp from a JSONL file
  * Scans through the file until it finds a valid timestamp
+ * Uses streaming to handle large files without loading entire content into memory
  */
 export async function getEarliestTimestamp(filePath: string): Promise<Date | null> {
 	try {
-		const content = await readFile(filePath, 'utf-8');
-		const lines = content.trim().split('\n');
-
 		let earliestDate: Date | null = null;
 
-		for (const line of lines) {
-			if (line.trim() === '') {
-				continue;
-			}
-
+		await processJSONLFileByLine(filePath, (line) => {
 			try {
 				const json = JSON.parse(line) as Record<string, unknown>;
 				if (json.timestamp != null && typeof json.timestamp === 'string') {
@@ -558,9 +579,8 @@ export async function getEarliestTimestamp(filePath: string): Promise<Date | nul
 			}
 			catch {
 				// Skip invalid JSON lines
-				continue;
 			}
-		}
+		});
 
 		return earliestDate;
 	}
@@ -759,18 +779,15 @@ export async function loadDailyUsageData(
 	const allEntries: { data: UsageData; date: string; cost: number; model: string | undefined; project: string }[] = [];
 
 	for (const file of sortedFiles) {
-		const content = await readFile(file, 'utf-8');
-		const lines = content
-			.trim()
-			.split('\n')
-			.filter(line => line.length > 0);
+		// Extract project name from file path once per file
+		const project = extractProjectFromPath(file);
 
-		for (const line of lines) {
+		await processJSONLFileByLine(file, async (line) => {
 			try {
 				const parsed = JSON.parse(line) as unknown;
 				const result = v.safeParse(usageDataSchema, parsed);
 				if (!result.success) {
-					continue;
+					return;
 				}
 				const data = result.output;
 
@@ -778,7 +795,7 @@ export async function loadDailyUsageData(
 				const uniqueHash = createUniqueHash(data);
 				if (isDuplicateEntry(uniqueHash, processedHashes)) {
 					// Skip duplicate message
-					continue;
+					return;
 				}
 
 				// Mark this combination as processed
@@ -792,15 +809,12 @@ export async function loadDailyUsageData(
 					? await calculateCostForEntry(data, mode, fetcher)
 					: data.costUSD ?? 0;
 
-				// Extract project name from file path
-				const project = extractProjectFromPath(file);
-
 				allEntries.push({ data, date, cost, model: data.message.model, project });
 			}
 			catch {
 				// Skip invalid JSON lines
 			}
-		}
+		});
 	}
 
 	// Group by date, optionally including project
@@ -933,18 +947,12 @@ export async function loadSessionData(
 		const joinedPath = parts.slice(0, -2).join(path.sep);
 		const projectPath = joinedPath.length > 0 ? joinedPath : 'Unknown Project';
 
-		const content = await readFile(file, 'utf-8');
-		const lines = content
-			.trim()
-			.split('\n')
-			.filter(line => line.length > 0);
-
-		for (const line of lines) {
+		await processJSONLFileByLine(file, async (line) => {
 			try {
 				const parsed = JSON.parse(line) as unknown;
 				const result = v.safeParse(usageDataSchema, parsed);
 				if (!result.success) {
-					continue;
+					return;
 				}
 				const data = result.output;
 
@@ -952,7 +960,7 @@ export async function loadSessionData(
 				const uniqueHash = createUniqueHash(data);
 				if (isDuplicateEntry(uniqueHash, processedHashes)) {
 				// Skip duplicate message
-					continue;
+					return;
 				}
 
 				// Mark this combination as processed
@@ -976,7 +984,7 @@ export async function loadSessionData(
 			catch {
 				// Skip invalid JSON lines
 			}
-		}
+		});
 	}
 
 	// Group by session using Object.groupBy
@@ -1103,8 +1111,6 @@ export async function loadSessionUsageById(
 	if (file == null) {
 		return null;
 	}
-	const content = await readFile(file, 'utf-8');
-	const lines = content.trim().split('\n').filter(line => line.length > 0);
 
 	const mode = options?.mode ?? 'auto';
 	using fetcher = mode === 'display' ? null : new PricingFetcher(options?.offline);
@@ -1112,12 +1118,12 @@ export async function loadSessionUsageById(
 	const entries: UsageData[] = [];
 	let totalCost = 0;
 
-	for (const line of lines) {
+	await processJSONLFileByLine(file, async (line) => {
 		try {
 			const parsed = JSON.parse(line) as unknown;
 			const result = v.safeParse(usageDataSchema, parsed);
 			if (!result.success) {
-				continue;
+				return;
 			}
 			const data = result.output;
 
@@ -1131,7 +1137,7 @@ export async function loadSessionUsageById(
 		catch {
 			// Skip invalid JSON lines
 		}
-	}
+	});
 
 	return { totalCost, entries };
 }
@@ -1353,18 +1359,12 @@ export async function loadSessionBlockData(
 	const allEntries: LoadedUsageEntry[] = [];
 
 	for (const file of sortedFiles) {
-		const content = await readFile(file, 'utf-8');
-		const lines = content
-			.trim()
-			.split('\n')
-			.filter(line => line.length > 0);
-
-		for (const line of lines) {
+		await processJSONLFileByLine(file, async (line) => {
 			try {
 				const parsed = JSON.parse(line) as unknown;
 				const result = v.safeParse(usageDataSchema, parsed);
 				if (!result.success) {
-					continue;
+					return;
 				}
 				const data = result.output;
 
@@ -1372,7 +1372,7 @@ export async function loadSessionBlockData(
 				const uniqueHash = createUniqueHash(data);
 				if (isDuplicateEntry(uniqueHash, processedHashes)) {
 				// Skip duplicate message
-					continue;
+					return;
 				}
 
 				// Mark this combination as processed
@@ -1403,7 +1403,7 @@ export async function loadSessionBlockData(
 				// Skip invalid JSON lines but log for debugging purposes
 				logger.debug(`Skipping invalid JSON line in 5-hour blocks: ${error instanceof Error ? error.message : String(error)}`);
 			}
-		}
+		});
 	}
 
 	// Identify session blocks
@@ -4080,6 +4080,138 @@ invalid json line
 			const result = await loadSessionBlockData({ claudePath: fixture.path });
 			expect(result).toHaveLength(1);
 			expect(result[0]?.entries).toHaveLength(1);
+		});
+
+		describe('processJSONLFileByLine', () => {
+			it('should process each non-empty line with correct line numbers', async () => {
+				await using fixture = await createFixture({
+					'test.jsonl': '{"line": 1}\n{"line": 2}\n{"line": 3}\n',
+				});
+
+				const lines: Array<{ content: string; lineNumber: number }> = [];
+				await processJSONLFileByLine(path.join(fixture.path, 'test.jsonl'), (line, lineNumber) => {
+					lines.push({ content: line, lineNumber });
+				});
+
+				expect(lines).toHaveLength(3);
+				expect(lines[0]).toEqual({ content: '{"line": 1}', lineNumber: 1 });
+				expect(lines[1]).toEqual({ content: '{"line": 2}', lineNumber: 2 });
+				expect(lines[2]).toEqual({ content: '{"line": 3}', lineNumber: 3 });
+			});
+
+			it('should skip empty lines', async () => {
+				await using fixture = await createFixture({
+					'test.jsonl': '{"line": 1}\n\n{"line": 2}\n  \n{"line": 3}\n',
+				});
+
+				const lines: string[] = [];
+				await processJSONLFileByLine(path.join(fixture.path, 'test.jsonl'), (line) => {
+					lines.push(line);
+				});
+
+				expect(lines).toHaveLength(3);
+				expect(lines[0]).toBe('{"line": 1}');
+				expect(lines[1]).toBe('{"line": 2}');
+				expect(lines[2]).toBe('{"line": 3}');
+			});
+
+			it('should handle async processLine callback', async () => {
+				await using fixture = await createFixture({
+					'test.jsonl': '{"line": 1}\n{"line": 2}\n',
+				});
+
+				const results: string[] = [];
+				await processJSONLFileByLine(path.join(fixture.path, 'test.jsonl'), async (line) => {
+					// Simulate async operation
+					await new Promise(resolve => setTimeout(resolve, 1));
+					results.push(line);
+				});
+
+				expect(results).toHaveLength(2);
+				expect(results[0]).toBe('{"line": 1}');
+				expect(results[1]).toBe('{"line": 2}');
+			});
+
+			it('should throw error when file does not exist', async () => {
+				await expect(
+					processJSONLFileByLine('/nonexistent/file.jsonl', () => {}),
+				).rejects.toThrow();
+			});
+
+			it('should handle empty file', async () => {
+				await using fixture = await createFixture({
+					'empty.jsonl': '',
+				});
+
+				const lines: string[] = [];
+				await processJSONLFileByLine(path.join(fixture.path, 'empty.jsonl'), (line) => {
+					lines.push(line);
+				});
+
+				expect(lines).toHaveLength(0);
+			});
+
+			it('should handle file with only empty lines', async () => {
+				await using fixture = await createFixture({
+					'only-empty.jsonl': '\n\n  \n\t\n',
+				});
+
+				const lines: string[] = [];
+				await processJSONLFileByLine(path.join(fixture.path, 'only-empty.jsonl'), (line) => {
+					lines.push(line);
+				});
+
+				expect(lines).toHaveLength(0);
+			});
+
+			it('should process large files (600MB+) without RangeError', async () => {
+				// Create a realistic JSONL entry similar to actual Claude data (~283 bytes per line)
+				const sampleEntry = JSON.stringify({
+					timestamp: '2025-01-10T10:00:00Z',
+					message: {
+						id: 'msg_01234567890123456789',
+						usage: { input_tokens: 1000, output_tokens: 500 },
+						model: 'claude-sonnet-4-20250514',
+					},
+					requestId: 'req_01234567890123456789',
+					costUSD: 0.01,
+				}) + '\n';
+
+				// Target 600MB file (this would cause RangeError with readFile in Node.js)
+				const targetMB = 600;
+				const lineSize = Buffer.byteLength(sampleEntry, 'utf-8');
+				const lineCount = Math.ceil((targetMB * 1024 * 1024) / lineSize);
+
+				// Create fixture directory first
+				await using fixture = await createFixture({});
+				const filePath = path.join(fixture.path, 'large.jsonl');
+
+				// Write file using streaming to avoid Node.js string length limit (~512MB)
+				// Creating a 600MB string directly would cause "RangeError: Invalid string length"
+				const writeStream = createWriteStream(filePath);
+
+				// Write lines and handle backpressure
+				for (let i = 0; i < lineCount; i++) {
+					const canContinue = writeStream.write(sampleEntry);
+					// Respect backpressure by waiting for drain event
+					if (!canContinue) {
+						await new Promise<void>(resolve => writeStream.once('drain', () => resolve()));
+					}
+				}
+
+				// Ensure all data is flushed
+				await new Promise<void>((resolve, reject) => {
+					writeStream.end((err?: Error | null) => err ? reject(err) : resolve());
+				});
+
+				// Test streaming processing
+				let processedCount = 0;
+				await processJSONLFileByLine(filePath, () => {
+					processedCount++;
+				});
+
+				expect(processedCount).toBe(lineCount);
+			});
 		});
 	});
 }
