@@ -556,140 +556,6 @@ async function processJSONLFileByLine(
 	}
 }
 
-if (import.meta.vitest != null) {
-	describe('processJSONLFileByLine', () => {
-		it('should process each non-empty line with correct line numbers', async () => {
-			await using fixture = await createFixture({
-				'test.jsonl': '{"line": 1}\n{"line": 2}\n{"line": 3}\n',
-			});
-
-			const lines: Array<{ content: string; lineNumber: number }> = [];
-			await processJSONLFileByLine(path.join(fixture.path, 'test.jsonl'), (line, lineNumber) => {
-				lines.push({ content: line, lineNumber });
-			});
-
-			expect(lines).toHaveLength(3);
-			expect(lines[0]).toEqual({ content: '{"line": 1}', lineNumber: 1 });
-			expect(lines[1]).toEqual({ content: '{"line": 2}', lineNumber: 2 });
-			expect(lines[2]).toEqual({ content: '{"line": 3}', lineNumber: 3 });
-		});
-
-		it('should skip empty lines', async () => {
-			await using fixture = await createFixture({
-				'test.jsonl': '{"line": 1}\n\n{"line": 2}\n  \n{"line": 3}\n',
-			});
-
-			const lines: string[] = [];
-			await processJSONLFileByLine(path.join(fixture.path, 'test.jsonl'), (line) => {
-				lines.push(line);
-			});
-
-			expect(lines).toHaveLength(3);
-			expect(lines[0]).toBe('{"line": 1}');
-			expect(lines[1]).toBe('{"line": 2}');
-			expect(lines[2]).toBe('{"line": 3}');
-		});
-
-		it('should handle async processLine callback', async () => {
-			await using fixture = await createFixture({
-				'test.jsonl': '{"line": 1}\n{"line": 2}\n',
-			});
-
-			const results: string[] = [];
-			await processJSONLFileByLine(path.join(fixture.path, 'test.jsonl'), async (line) => {
-				// Simulate async operation
-				await new Promise(resolve => setTimeout(resolve, 1));
-				results.push(line);
-			});
-
-			expect(results).toHaveLength(2);
-			expect(results[0]).toBe('{"line": 1}');
-			expect(results[1]).toBe('{"line": 2}');
-		});
-
-		it('should throw error when file does not exist', async () => {
-			await expect(
-				processJSONLFileByLine('/nonexistent/file.jsonl', () => {}),
-			).rejects.toThrow();
-		});
-
-		it('should handle empty file', async () => {
-			await using fixture = await createFixture({
-				'empty.jsonl': '',
-			});
-
-			const lines: string[] = [];
-			await processJSONLFileByLine(path.join(fixture.path, 'empty.jsonl'), (line) => {
-				lines.push(line);
-			});
-
-			expect(lines).toHaveLength(0);
-		});
-
-		it('should handle file with only empty lines', async () => {
-			await using fixture = await createFixture({
-				'only-empty.jsonl': '\n\n  \n\t\n',
-			});
-
-			const lines: string[] = [];
-			await processJSONLFileByLine(path.join(fixture.path, 'only-empty.jsonl'), (line) => {
-				lines.push(line);
-			});
-
-			expect(lines).toHaveLength(0);
-		});
-
-		it('should process large files (600MB+) without RangeError', async () => {
-			// Create a realistic JSONL entry similar to actual Claude data (~283 bytes per line)
-			const sampleEntry = JSON.stringify({
-				timestamp: '2025-01-10T10:00:00Z',
-				message: {
-					id: 'msg_01234567890123456789',
-					usage: { input_tokens: 1000, output_tokens: 500 },
-					model: 'claude-sonnet-4-20250514',
-				},
-				requestId: 'req_01234567890123456789',
-				costUSD: 0.01,
-			}) + '\n';
-
-			// Target 600MB file (this would cause RangeError with readFile in Node.js)
-			const targetMB = 600;
-			const lineSize = Buffer.byteLength(sampleEntry, 'utf-8');
-			const lineCount = Math.ceil((targetMB * 1024 * 1024) / lineSize);
-
-			// Create fixture directory first
-			await using fixture = await createFixture({});
-			const filePath = path.join(fixture.path, 'large.jsonl');
-
-			// Write file using streaming to avoid Node.js string length limit (~512MB)
-			// Creating a 600MB string directly would cause "RangeError: Invalid string length"
-			const writeStream = createWriteStream(filePath);
-
-			// Write lines and handle backpressure
-			for (let i = 0; i < lineCount; i++) {
-				const canContinue = writeStream.write(sampleEntry);
-				// Respect backpressure by waiting for drain event
-				if (!canContinue) {
-					await new Promise<void>(resolve => writeStream.once('drain', () => resolve()));
-				}
-			}
-
-			// Ensure all data is flushed
-			await new Promise<void>((resolve, reject) => {
-				writeStream.end((err?: Error | null) => err ? reject(err) : resolve());
-			});
-
-			// Test streaming processing
-			let processedCount = 0;
-			await processJSONLFileByLine(filePath, () => {
-				processedCount++;
-			});
-
-			expect(processedCount).toBe(lineCount);
-		});
-	});
-}
-
 /**
  * Extract the earliest timestamp from a JSONL file
  * Scans through the file until it finds a valid timestamp
@@ -4214,6 +4080,138 @@ invalid json line
 			const result = await loadSessionBlockData({ claudePath: fixture.path });
 			expect(result).toHaveLength(1);
 			expect(result[0]?.entries).toHaveLength(1);
+		});
+
+		describe('processJSONLFileByLine', () => {
+			it('should process each non-empty line with correct line numbers', async () => {
+				await using fixture = await createFixture({
+					'test.jsonl': '{"line": 1}\n{"line": 2}\n{"line": 3}\n',
+				});
+
+				const lines: Array<{ content: string; lineNumber: number }> = [];
+				await processJSONLFileByLine(path.join(fixture.path, 'test.jsonl'), (line, lineNumber) => {
+					lines.push({ content: line, lineNumber });
+				});
+
+				expect(lines).toHaveLength(3);
+				expect(lines[0]).toEqual({ content: '{"line": 1}', lineNumber: 1 });
+				expect(lines[1]).toEqual({ content: '{"line": 2}', lineNumber: 2 });
+				expect(lines[2]).toEqual({ content: '{"line": 3}', lineNumber: 3 });
+			});
+
+			it('should skip empty lines', async () => {
+				await using fixture = await createFixture({
+					'test.jsonl': '{"line": 1}\n\n{"line": 2}\n  \n{"line": 3}\n',
+				});
+
+				const lines: string[] = [];
+				await processJSONLFileByLine(path.join(fixture.path, 'test.jsonl'), (line) => {
+					lines.push(line);
+				});
+
+				expect(lines).toHaveLength(3);
+				expect(lines[0]).toBe('{"line": 1}');
+				expect(lines[1]).toBe('{"line": 2}');
+				expect(lines[2]).toBe('{"line": 3}');
+			});
+
+			it('should handle async processLine callback', async () => {
+				await using fixture = await createFixture({
+					'test.jsonl': '{"line": 1}\n{"line": 2}\n',
+				});
+
+				const results: string[] = [];
+				await processJSONLFileByLine(path.join(fixture.path, 'test.jsonl'), async (line) => {
+					// Simulate async operation
+					await new Promise(resolve => setTimeout(resolve, 1));
+					results.push(line);
+				});
+
+				expect(results).toHaveLength(2);
+				expect(results[0]).toBe('{"line": 1}');
+				expect(results[1]).toBe('{"line": 2}');
+			});
+
+			it('should throw error when file does not exist', async () => {
+				await expect(
+					processJSONLFileByLine('/nonexistent/file.jsonl', () => {}),
+				).rejects.toThrow();
+			});
+
+			it('should handle empty file', async () => {
+				await using fixture = await createFixture({
+					'empty.jsonl': '',
+				});
+
+				const lines: string[] = [];
+				await processJSONLFileByLine(path.join(fixture.path, 'empty.jsonl'), (line) => {
+					lines.push(line);
+				});
+
+				expect(lines).toHaveLength(0);
+			});
+
+			it('should handle file with only empty lines', async () => {
+				await using fixture = await createFixture({
+					'only-empty.jsonl': '\n\n  \n\t\n',
+				});
+
+				const lines: string[] = [];
+				await processJSONLFileByLine(path.join(fixture.path, 'only-empty.jsonl'), (line) => {
+					lines.push(line);
+				});
+
+				expect(lines).toHaveLength(0);
+			});
+
+			it('should process large files (600MB+) without RangeError', async () => {
+				// Create a realistic JSONL entry similar to actual Claude data (~283 bytes per line)
+				const sampleEntry = JSON.stringify({
+					timestamp: '2025-01-10T10:00:00Z',
+					message: {
+						id: 'msg_01234567890123456789',
+						usage: { input_tokens: 1000, output_tokens: 500 },
+						model: 'claude-sonnet-4-20250514',
+					},
+					requestId: 'req_01234567890123456789',
+					costUSD: 0.01,
+				}) + '\n';
+
+				// Target 600MB file (this would cause RangeError with readFile in Node.js)
+				const targetMB = 600;
+				const lineSize = Buffer.byteLength(sampleEntry, 'utf-8');
+				const lineCount = Math.ceil((targetMB * 1024 * 1024) / lineSize);
+
+				// Create fixture directory first
+				await using fixture = await createFixture({});
+				const filePath = path.join(fixture.path, 'large.jsonl');
+
+				// Write file using streaming to avoid Node.js string length limit (~512MB)
+				// Creating a 600MB string directly would cause "RangeError: Invalid string length"
+				const writeStream = createWriteStream(filePath);
+
+				// Write lines and handle backpressure
+				for (let i = 0; i < lineCount; i++) {
+					const canContinue = writeStream.write(sampleEntry);
+					// Respect backpressure by waiting for drain event
+					if (!canContinue) {
+						await new Promise<void>(resolve => writeStream.once('drain', () => resolve()));
+					}
+				}
+
+				// Ensure all data is flushed
+				await new Promise<void>((resolve, reject) => {
+					writeStream.end((err?: Error | null) => err ? reject(err) : resolve());
+				});
+
+				// Test streaming processing
+				let processedCount = 0;
+				await processJSONLFileByLine(filePath, () => {
+					processedCount++;
+				});
+
+				expect(processedCount).toBe(lineCount);
+			});
 		});
 	});
 }
