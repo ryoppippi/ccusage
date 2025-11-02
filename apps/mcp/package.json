@@ -55,6 +55,7 @@
 	"devDependencies": {
 		"@ccusage/internal": "workspace:*",
 		"@ryoppippi/eslint-config": "catalog:lint",
+		"@typescript/native-preview": "catalog:types",
 		"clean-pkg-json": "catalog:release",
 		"eslint": "catalog:lint",
 		"fs-fixture": "catalog:testing",
