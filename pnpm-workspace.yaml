@@ -36,7 +36,7 @@ catalogs:
     sort-package-json: ^3.4.0
   runtime:
     '@antfu/utils': ^9.2.1
-    '@hono/mcp': ^0.1.4
+    '@hono/mcp': ^0.1.5
     '@hono/node-server': ^1.19.5
     '@modelcontextprotocol/sdk': ^1.18.1
     '@praha/byethrow': ^0.6.3
