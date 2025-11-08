@@ -6,11 +6,12 @@ import { dailyCommand } from './commands/daily.ts';
 import { monthlyCommand } from './commands/monthly.ts';
 import { sessionCommand } from './commands/session.ts';
 
-const subCommands = new Map();
-subCommands.set('daily', dailyCommand);
-subCommands.set('monthly', monthlyCommand);
-subCommands.set('session', sessionCommand);
-subCommands.set('archive', archiveCommand);
+const subCommands = new Map<string, typeof dailyCommand | typeof archiveCommand>([
+	['daily', dailyCommand],
+	['monthly', monthlyCommand],
+	['session', sessionCommand],
+	['archive', archiveCommand],
+]);
 
 const mainCommand = dailyCommand;
 
