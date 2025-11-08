@@ -18,6 +18,7 @@ import type {
 	SortOrder,
 	Version,
 } from './_types.ts';
+import { Buffer } from 'node:buffer';
 import { createReadStream, createWriteStream } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
@@ -4166,7 +4167,7 @@ invalid json line
 
 			it('should process large files (600MB+) without RangeError', async () => {
 				// Create a realistic JSONL entry similar to actual Claude data (~283 bytes per line)
-				const sampleEntry = JSON.stringify({
+				const sampleEntry = `${JSON.stringify({
 					timestamp: '2025-01-10T10:00:00Z',
 					message: {
 						id: 'msg_01234567890123456789',
@@ -4175,7 +4176,7 @@ invalid json line
 					},
 					requestId: 'req_01234567890123456789',
 					costUSD: 0.01,
-				}) + '\n';
+				})}\n`;
 
 				// Target 600MB file (this would cause RangeError with readFile in Node.js)
 				const targetMB = 600;
@@ -4201,7 +4202,7 @@ invalid json line
 
 				// Ensure all data is flushed
 				await new Promise<void>((resolve, reject) => {
-					writeStream.end((err?: Error | null) => err ? reject(err) : resolve());
+					writeStream.end((err?: Error | null) => (err != null) ? reject(err) : resolve());
 				});
 
 				// Test streaming processing
