@@ -250,6 +250,7 @@ export async function getActiveBlock(
 	// Generate blocks and find active one
 	const blocks = identifySessionBlocks(
 		state.allEntries,
+		[], // No user messages in live monitoring (yet)
 		config.sessionDurationHours,
 	);
 

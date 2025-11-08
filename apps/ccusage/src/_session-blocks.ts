@@ -1,3 +1,4 @@
+import type { UserMessage } from './data-loader.ts';
 import { uniq } from 'es-toolkit';
 import { DEFAULT_RECENT_DAYS } from './_consts.ts';
 import { getTotalTokens } from './_token-utils.ts';
@@ -60,6 +61,7 @@ export type SessionBlock = {
 	costUSD: number;
 	models: string[];
 	usageLimitResetTime?: Date; // Claude API usage limit reset time
+	userPromptCount: number; // Number of user prompts sent in this block
 };
 
 /**
@@ -89,6 +91,7 @@ type ProjectedUsage = {
  */
 export function identifySessionBlocks(
 	entries: LoadedUsageEntry[],
+	userMessages: UserMessage[] = [],
 	sessionDurationHours = DEFAULT_SESSION_DURATION_HOURS,
 ): SessionBlock[] {
 	if (entries.length === 0) {
@@ -98,6 +101,7 @@ export function identifySessionBlocks(
 	const sessionDurationMs = sessionDurationHours * 60 * 60 * 1000;
 	const blocks: SessionBlock[] = [];
 	const sortedEntries = [...entries].sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
+	const sortedUserMessages = [...userMessages].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
 
 	let currentBlockStart: Date | null = null;
 	let currentBlockEntries: LoadedUsageEntry[] = [];
@@ -122,7 +126,7 @@ export function identifySessionBlocks(
 
 			if (timeSinceBlockStart > sessionDurationMs || timeSinceLastEntry > sessionDurationMs) {
 				// Close current block
-				const block = createBlock(currentBlockStart, currentBlockEntries, now, sessionDurationMs);
+				const block = createBlock(currentBlockStart, currentBlockEntries, sortedUserMessages, now, sessionDurationMs);
 				blocks.push(block);
 
 				// Add gap block if there's a significant gap
@@ -146,7 +150,7 @@ export function identifySessionBlocks(
 
 	// Close the last block
 	if (currentBlockStart != null && currentBlockEntries.length > 0) {
-		const block = createBlock(currentBlockStart, currentBlockEntries, now, sessionDurationMs);
+		const block = createBlock(currentBlockStart, currentBlockEntries, sortedUserMessages, now, sessionDurationMs);
 		blocks.push(block);
 	}
 
@@ -161,7 +165,7 @@ export function identifySessionBlocks(
  * @param sessionDurationMs - Session duration in milliseconds
  * @returns Session block with aggregated data
  */
-function createBlock(startTime: Date, entries: LoadedUsageEntry[], now: Date, sessionDurationMs: number): SessionBlock {
+function createBlock(startTime: Date, entries: LoadedUsageEntry[], userMessages: UserMessage[], now: Date, sessionDurationMs: number): SessionBlock {
 	const endTime = new Date(startTime.getTime() + sessionDurationMs);
 	const lastEntry = entries[entries.length - 1];
 	const actualEndTime = lastEntry != null ? lastEntry.timestamp : startTime;
@@ -189,6 +193,12 @@ function createBlock(startTime: Date, entries: LoadedUsageEntry[], now: Date, se
 		models.push(entry.model);
 	}
 
+	// Count user messages in this block's time range
+	const userPromptCount = userMessages.filter((userMsg) => {
+		const msgTime = new Date(userMsg.timestamp);
+		return msgTime >= startTime && msgTime < endTime;
+	}).length;
+
 	return {
 		id: startTime.toISOString(),
 		startTime,
@@ -200,6 +210,7 @@ function createBlock(startTime: Date, entries: LoadedUsageEntry[], now: Date, se
 		costUSD,
 		models: uniq(models),
 		usageLimitResetTime,
+		userPromptCount,
 	};
 }
 
@@ -235,6 +246,7 @@ function createGapBlock(lastActivityTime: Date, nextActivityTime: Date, sessionD
 		},
 		costUSD: 0,
 		models: [],
+		userPromptCount: 0,
 	};
 }
 
@@ -505,6 +517,7 @@ if (import.meta.vitest != null) {
 					cacheReadInputTokens: 0,
 				},
 				costUSD: 0,
+				userPromptCount: 0,
 				models: [],
 			};
 
@@ -527,6 +540,7 @@ if (import.meta.vitest != null) {
 					cacheReadInputTokens: 0,
 				},
 				costUSD: 0,
+				userPromptCount: 0,
 				models: [],
 			};
 
@@ -552,6 +566,7 @@ if (import.meta.vitest != null) {
 					cacheReadInputTokens: 0,
 				},
 				costUSD: 0.02,
+				userPromptCount: 0,
 				models: ['claude-sonnet-4-20250514'],
 			};
 
@@ -578,6 +593,7 @@ if (import.meta.vitest != null) {
 					cacheReadInputTokens: 0,
 				},
 				costUSD: 0.03,
+				userPromptCount: 0,
 				models: ['claude-sonnet-4-20250514'],
 			};
 
@@ -616,6 +632,7 @@ if (import.meta.vitest != null) {
 					cacheReadInputTokens: 8000,
 				},
 				costUSD: 0.03,
+				userPromptCount: 0,
 				models: ['claude-sonnet-4-20250514'],
 			};
 
@@ -642,6 +659,7 @@ if (import.meta.vitest != null) {
 					cacheReadInputTokens: 0,
 				},
 				costUSD: 0.01,
+				userPromptCount: 0,
 				models: [],
 			};
 
@@ -664,10 +682,11 @@ if (import.meta.vitest != null) {
 					cacheReadInputTokens: 0,
 				},
 				costUSD: 0,
+				userPromptCount: 0,
 				models: [],
 			};
 
-			const result = projectBlockUsage(block);
+			const result = calculateBurnRate(block);
 			expect(result).toBeNull();
 		});
 
@@ -685,6 +704,7 @@ if (import.meta.vitest != null) {
 					cacheReadInputTokens: 0,
 				},
 				costUSD: 0.01,
+				userPromptCount: 0,
 				models: [],
 			};
 
@@ -714,6 +734,7 @@ if (import.meta.vitest != null) {
 					cacheReadInputTokens: 0,
 				},
 				costUSD: 0.03,
+				userPromptCount: 0,
 				models: ['claude-sonnet-4-20250514'],
 			};
 
@@ -745,6 +766,7 @@ if (import.meta.vitest != null) {
 						cacheReadInputTokens: 0,
 					},
 					costUSD: 0.01,
+					userPromptCount: 0,
 					models: [],
 				},
 				{
@@ -760,6 +782,7 @@ if (import.meta.vitest != null) {
 						cacheReadInputTokens: 0,
 					},
 					costUSD: 0.02,
+					userPromptCount: 0,
 					models: [],
 				},
 			];
@@ -787,6 +810,7 @@ if (import.meta.vitest != null) {
 						cacheReadInputTokens: 0,
 					},
 					costUSD: 0.01,
+					userPromptCount: 0,
 					models: [],
 				},
 			];
@@ -815,6 +839,7 @@ if (import.meta.vitest != null) {
 						cacheReadInputTokens: 0,
 					},
 					costUSD: 0.01,
+					userPromptCount: 0,
 					models: [],
 				},
 				{
@@ -830,6 +855,7 @@ if (import.meta.vitest != null) {
 						cacheReadInputTokens: 0,
 					},
 					costUSD: 0.02,
+					userPromptCount: 0,
 					models: [],
 				},
 			];
@@ -857,6 +883,7 @@ if (import.meta.vitest != null) {
 						cacheReadInputTokens: 0,
 					},
 					costUSD: 0.01,
+					userPromptCount: 0,
 					models: [],
 				},
 			];
@@ -875,7 +902,7 @@ if (import.meta.vitest != null) {
 				createMockEntry(new Date(baseTime.getTime() + 2 * 60 * 60 * 1000)), // 2 hours later
 			];
 
-			const blocks = identifySessionBlocks(entries, 3);
+			const blocks = identifySessionBlocks(entries, [], 3);
 			expect(blocks).toHaveLength(1);
 			expect(blocks[0]?.startTime).toEqual(baseTime);
 			expect(blocks[0]?.entries).toHaveLength(3);
@@ -889,7 +916,7 @@ if (import.meta.vitest != null) {
 				createMockEntry(new Date(baseTime.getTime() + 3 * 60 * 60 * 1000)), // 3 hours later (beyond 2h limit)
 			];
 
-			const blocks = identifySessionBlocks(entries, 2);
+			const blocks = identifySessionBlocks(entries, [], 2);
 			expect(blocks).toHaveLength(3); // first block, gap block, second block
 			expect(blocks[0]?.entries).toHaveLength(1);
 			expect(blocks[0]?.endTime).toEqual(new Date(baseTime.getTime() + 2 * 60 * 60 * 1000));
@@ -905,7 +932,7 @@ if (import.meta.vitest != null) {
 				createMockEntry(new Date(baseTime.getTime() + 2 * 60 * 60 * 1000)), // 2 hours later (beyond 1h)
 			];
 
-			const blocks = identifySessionBlocks(entries, 1);
+			const blocks = identifySessionBlocks(entries, [], 1);
 			expect(blocks).toHaveLength(3); // first block, gap block, second block
 			expect(blocks[0]?.entries).toHaveLength(2);
 			expect(blocks[1]?.isGap).toBe(true);
@@ -920,7 +947,7 @@ if (import.meta.vitest != null) {
 				createMockEntry(new Date(baseTime.getTime() + 6 * 60 * 60 * 1000)), // 6 hours later (4 hours from last entry, beyond 2.5h)
 			];
 
-			const blocks = identifySessionBlocks(entries, 2.5);
+			const blocks = identifySessionBlocks(entries, [], 2.5);
 			expect(blocks).toHaveLength(3); // first block, gap block, second block
 			expect(blocks[0]?.entries).toHaveLength(2);
 			expect(blocks[0]?.endTime).toEqual(new Date(baseTime.getTime() + 2.5 * 60 * 60 * 1000));
@@ -936,7 +963,7 @@ if (import.meta.vitest != null) {
 				createMockEntry(new Date(baseTime.getTime() + 80 * 60 * 1000)), // 80 minutes later (60 minutes from last entry, beyond 0.5h)
 			];
 
-			const blocks = identifySessionBlocks(entries, 0.5);
+			const blocks = identifySessionBlocks(entries, [], 0.5);
 			expect(blocks).toHaveLength(3); // first block, gap block, second block
 			expect(blocks[0]?.entries).toHaveLength(2);
 			expect(blocks[0]?.endTime).toEqual(new Date(baseTime.getTime() + 0.5 * 60 * 60 * 1000));
@@ -952,7 +979,7 @@ if (import.meta.vitest != null) {
 				createMockEntry(new Date(baseTime.getTime() + 20 * 60 * 60 * 1000)), // 20 hours later (within 24h)
 			];
 
-			const blocks = identifySessionBlocks(entries, 24);
+			const blocks = identifySessionBlocks(entries, [], 24);
 			expect(blocks).toHaveLength(1); // single block
 			expect(blocks[0]?.entries).toHaveLength(3);
 			expect(blocks[0]?.endTime).toEqual(new Date(baseTime.getTime() + 24 * 60 * 60 * 1000));
@@ -966,7 +993,7 @@ if (import.meta.vitest != null) {
 				createMockEntry(new Date(baseTime.getTime() + 5 * 60 * 60 * 1000)), // 5 hours later (4h from last entry, beyond 3h)
 			];
 
-			const blocks = identifySessionBlocks(entries, 3);
+			const blocks = identifySessionBlocks(entries, [], 3);
 			expect(blocks).toHaveLength(3); // first block, gap block, second block
 
 			// Gap block should start 3 hours after last activity in first block
@@ -983,7 +1010,7 @@ if (import.meta.vitest != null) {
 				createMockEntry(new Date(baseTime.getTime() + 2 * 60 * 60 * 1000)), // exactly 2 hours later (equal to session duration)
 			];
 
-			const blocks = identifySessionBlocks(entries, 2);
+			const blocks = identifySessionBlocks(entries, [], 2);
 			expect(blocks).toHaveLength(1); // single block (entries are exactly at session boundary)
 			expect(blocks[0]?.entries).toHaveLength(2);
 		});
@@ -995,7 +1022,7 @@ if (import.meta.vitest != null) {
 			];
 
 			const blocksDefault = identifySessionBlocks(entries);
-			const blocksExplicit = identifySessionBlocks(entries, 5);
+			const blocksExplicit = identifySessionBlocks(entries, [], 5);
 
 			expect(blocksDefault).toHaveLength(1);
 			expect(blocksExplicit).toHaveLength(1);
