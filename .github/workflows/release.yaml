@@ -21,7 +21,6 @@ jobs:
         with:
           registry-url: 'https://registry.npmjs.org'
           node-version: lts/*
-      - run: npm install -g npm@latest
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter='./apps/**' publish --provenance --no-git-checks --access public
 
