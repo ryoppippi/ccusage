@@ -28,7 +28,7 @@ jobs:
   release:
     needs:
       - npm
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     permissions:
       contents: write
     steps:
