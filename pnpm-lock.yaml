@@ -87,8 +87,8 @@ catalogs:
       specifier: ^0.1.5
       version: 0.1.5
     '@hono/node-server':
-      specifier: ^1.19.5
-      version: 1.19.5
+      specifier: ^1.19.6
+      version: 1.19.6
     '@modelcontextprotocol/sdk':
       specifier: ^1.18.1
       version: 1.18.1
@@ -251,7 +251,7 @@ importers:
         version: 10.2.3
       bun:
         specifier: runtime:^1.2.21
-        version: runtime:1.3.1
+        version: runtime:1.3.2
       clean-pkg-json:
         specifier: catalog:release
         version: 1.3.0
@@ -347,7 +347,7 @@ importers:
         version: 7.0.0-dev.20251105.1
       bun:
         specifier: runtime:^1.2.21
-        version: runtime:1.3.1
+        version: runtime:1.3.2
       clean-pkg-json:
         specifier: catalog:release
         version: 1.3.0
@@ -401,7 +401,7 @@ importers:
         version: 0.1.5(@modelcontextprotocol/sdk@1.18.1)(hono@4.9.7)
       '@hono/node-server':
         specifier: catalog:runtime
-        version: 1.19.5(hono@4.9.7)
+        version: 1.19.6(hono@4.9.7)
       '@modelcontextprotocol/sdk':
         specifier: catalog:runtime
         version: 1.18.1
@@ -432,7 +432,7 @@ importers:
         version: 7.0.0-dev.20251105.1
       bun:
         specifier: runtime:^1.2.21
-        version: runtime:1.3.1
+        version: runtime:1.3.2
       clean-pkg-json:
         specifier: catalog:release
         version: 1.3.0
@@ -477,7 +477,7 @@ importers:
         version: 7.0.0-dev.20251105.1
       bun:
         specifier: runtime:^1.2.21
-        version: runtime:1.3.1
+        version: runtime:1.3.2
       ccusage:
         specifier: workspace:^
         version: link:../apps/ccusage
@@ -1347,8 +1347,8 @@ packages:
       '@modelcontextprotocol/sdk': ^1.12.0
       hono: '>=4.0.0'
 
-  '@hono/node-server@1.19.5':
-    resolution: {integrity: sha512-iBuhh+uaaggeAuf+TftcjZyWh2GEgZcVGXkNtskLVoWaXhnJtC5HLHrU8W1KHDoucqO1MswwglmkWLFyiDn4WQ==}
+  '@hono/node-server@1.19.6':
+    resolution: {integrity: sha512-Shz/KjlIeAhfiuE93NDKVdZ7HdBVLQAfdbaXEaoAVO3ic9ibRSLGIQGkcBbFyuLr+7/1D5ZCINM8B+6IvXeMtw==}
     engines: {node: '>=18.14.1'}
     peerDependencies:
       hono: ^4
@@ -2320,37 +2320,37 @@ packages:
     peerDependencies:
       '@types/react': ^19
 
-  bun@runtime:1.3.1:
+  bun@runtime:1.3.2:
     resolution:
       type: variations
       variants:
         - resolution:
             archive: zip
             bin: bun
-            integrity: sha256-ronylWETMwdRWqPdpdXv3R6dJod+yFtPGAABNDGqmO0=
+            integrity: sha256-2FhHmC21dFGBMKRVgrzxTY4r6WELZstQRsIDSFeLD+I=
             prefix: bun-darwin-aarch64
             type: binary
-            url: https://github.com/oven-sh/bun/releases/download/bun-v1.3.1/bun-darwin-aarch64.zip
+            url: https://github.com/oven-sh/bun/releases/download/bun-v1.3.2/bun-darwin-aarch64.zip
           targets:
             - cpu: arm64
               os: darwin
         - resolution:
             archive: zip
             bin: bun
-            integrity: sha256-cQNtAAA9YyOW8Rf6gVidudIvxJzuGliYxZ9uiO5Q8MM=
+            integrity: sha256-eNTwyGN0J6wL5VY5ppf/agJejrlAppIMpQhgPEGlp7A=
             prefix: bun-darwin-x64
             type: binary
-            url: https://github.com/oven-sh/bun/releases/download/bun-v1.3.1/bun-darwin-x64.zip
+            url: https://github.com/oven-sh/bun/releases/download/bun-v1.3.2/bun-darwin-x64.zip
           targets:
             - cpu: x64
               os: darwin
         - resolution:
             archive: zip
             bin: bun
-            integrity: sha256-PO95iyz6lacEnE9XTTOHAep7LA0bHAubx5nq8cIZnEA=
+            integrity: sha256-urqUctj+AoPHuZP9Z/2RBUD3YIyGDtMo+jMcTQwNvlQ=
             prefix: bun-linux-aarch64-musl
             type: binary
-            url: https://github.com/oven-sh/bun/releases/download/bun-v1.3.1/bun-linux-aarch64-musl.zip
+            url: https://github.com/oven-sh/bun/releases/download/bun-v1.3.2/bun-linux-aarch64-musl.zip
           targets:
             - cpu: arm64
               os: linux
@@ -2358,20 +2358,20 @@ packages:
         - resolution:
             archive: zip
             bin: bun
-            integrity: sha256-ZWZqGEOeiR5XUbZmED/lkahRnxG2bsS9hlTFUV1P/4o=
+            integrity: sha256-/jjBO2trRQr05PD7jgSyLspT+c1xBo0dHuv09KRPAvs=
             prefix: bun-linux-aarch64
             type: binary
-            url: https://github.com/oven-sh/bun/releases/download/bun-v1.3.1/bun-linux-aarch64.zip
+            url: https://github.com/oven-sh/bun/releases/download/bun-v1.3.2/bun-linux-aarch64.zip
           targets:
             - cpu: arm64
               os: linux
         - resolution:
             archive: zip
             bin: bun
-            integrity: sha256-hd7Urkki1obeWUR/9GNud5MUDtoFtlf7uDwOWferDDA=
+            integrity: sha256-bndzZQmHVatRadGmCStq4Ydh9KbkoyNlJSrZieSUiFo=
             prefix: bun-linux-x64-musl
             type: binary
-            url: https://github.com/oven-sh/bun/releases/download/bun-v1.3.1/bun-linux-x64-musl.zip
+            url: https://github.com/oven-sh/bun/releases/download/bun-v1.3.2/bun-linux-x64-musl.zip
           targets:
             - cpu: x64
               os: linux
@@ -2379,24 +2379,24 @@ packages:
         - resolution:
             archive: zip
             bin: bun
-            integrity: sha256-QAgkyCv8wIVDZbytoRz1PXOE7LHiw9oOLAosalJ9Vik=
+            integrity: sha256-DLVqRIS9d2Sj7vm55nq0V4QJgSh7RnlJdNHmYSy/Zwk=
             prefix: bun-linux-x64
             type: binary
-            url: https://github.com/oven-sh/bun/releases/download/bun-v1.3.1/bun-linux-x64.zip
+            url: https://github.com/oven-sh/bun/releases/download/bun-v1.3.2/bun-linux-x64.zip
           targets:
             - cpu: x64
               os: linux
         - resolution:
             archive: zip
             bin: bun.exe
-            integrity: sha256-9mGeMXUuElnB0gkOw+oWNm+lqOtJt47Rh80Fkww4vlU=
+            integrity: sha256-XnO066DMCQhd8UHhFnYJsQBXDxoNU42H+bnA2lSvWNY=
             prefix: bun-windows-x64
             type: binary
-            url: https://github.com/oven-sh/bun/releases/download/bun-v1.3.1/bun-windows-x64.zip
+            url: https://github.com/oven-sh/bun/releases/download/bun-v1.3.2/bun-windows-x64.zip
           targets:
             - cpu: x64
               os: win32
-    version: 1.3.1
+    version: 1.3.2
     hasBin: true
 
   bytes@3.1.2:
@@ -5420,7 +5420,7 @@ snapshots:
       '@modelcontextprotocol/sdk': 1.18.1
       hono: 4.9.7
 
-  '@hono/node-server@1.19.5(hono@4.9.7)':
+  '@hono/node-server@1.19.6(hono@4.9.7)':
     dependencies:
       hono: 4.9.7
 
@@ -6383,7 +6383,7 @@ snapshots:
       '@types/node': 24.5.1
       '@types/react': 19.1.13
 
-  bun@runtime:1.3.1: {}
+  bun@runtime:1.3.2: {}
 
   bytes@3.1.2: {}
 
