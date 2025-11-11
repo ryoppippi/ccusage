@@ -13,6 +13,7 @@ import type { LoadedUsageEntry, SessionBlock } from './_session-blocks.ts';
 import type {
 	ActivityDate,
 	Bucket,
+	ContextWindowMode,
 	CostMode,
 	ModelName,
 	SortOrder,
@@ -31,7 +32,7 @@ import { createFixture } from 'fs-fixture';
 import { isDirectorySync } from 'path-type';
 import { glob } from 'tinyglobby';
 import * as v from 'valibot';
-import { CLAUDE_CONFIG_DIR_ENV, CLAUDE_PROJECTS_DIR_NAME, DEFAULT_CLAUDE_CODE_PATH, DEFAULT_CLAUDE_CONFIG_PATH, DEFAULT_LOCALE, USAGE_DATA_GLOB_PATTERN, USER_HOME_DIR } from './_consts.ts';
+import { CLAUDE_CONFIG_DIR_ENV, CLAUDE_PROJECTS_DIR_NAME, CONTEXT_WINDOW_MODES, DEFAULT_CLAUDE_CODE_PATH, DEFAULT_CLAUDE_CONFIG_PATH, DEFAULT_CONTEXT_WINDOWS, DEFAULT_LOCALE, USAGE_DATA_GLOB_PATTERN, USER_HOME_DIR } from './_consts.ts';
 import {
 	filterByDateRange,
 	formatDate,
@@ -69,6 +70,7 @@ import {
 } from './_types.ts';
 import { unreachable } from './_utils.ts';
 import { logger } from './logger.ts';
+import type { ConfigData } from './_config-loader-tokens.ts';
 
 /**
  * Get Claude data directories to search for usage data
@@ -1227,12 +1229,67 @@ export async function loadBucketUsageData(
 }
 
 /**
+ * Resolve the context window size based on configuration and model
+ * @param config - Configuration data containing context window settings
+ * @param modelId - Model identifier for LiteLLM lookup
+ * @param offline - Whether to use offline pricing data
+ * @returns Promise resolving to context window size in tokens
+ */
+async function resolveContextWindow(config: ConfigData | undefined, modelId?: string, offline = false): Promise<number> {
+	// 1. Check for custom context window override (highest priority)
+	const customWindow = config?.defaults?.customContextWindow;
+	if (customWindow != null && typeof customWindow === 'number' && customWindow > 0) {
+		return customWindow;
+	}
+
+	// 2. Check context window mode setting
+	const mode = config?.defaults?.contextWindowMode as ContextWindowMode | undefined;
+	if (mode === 'claude-api') {
+		return DEFAULT_CONTEXT_WINDOWS.CLAUDE_API;
+	}
+	if (mode === 'claude-plan') {
+		return DEFAULT_CONTEXT_WINDOWS.CLAUDE_PLAN;
+	}
+
+	// 3. For 'auto' mode or when not configured, try LiteLLM lookup
+	if (modelId != null && modelId !== '') {
+		using fetcher = new PricingFetcher(offline);
+		const contextLimitResult = await fetcher.getModelContextLimit(modelId);
+		if (Result.isSuccess(contextLimitResult) && contextLimitResult.value != null) {
+			// For Claude models, the LiteLLM max_input_tokens (1M) is the billing window,
+			// but the practical context window for plan users is 200k.
+			// Since we can't auto-detect plan vs API, use conservative fallback.
+			const litellmLimit = contextLimitResult.value;
+			if (litellmLimit >= 1_000_000) {
+				// This is likely a Claude model with 1M billing window
+				// Default to conservative 200k unless explicitly configured
+				return DEFAULT_CONTEXT_WINDOWS.FALLBACK;
+			}
+			return litellmLimit;
+		}
+		// Log debug info for failures
+		if (Result.isSuccess(contextLimitResult)) {
+			logger.debug(`No context limit data available for model ${modelId} in LiteLLM`);
+		}
+		else {
+			logger.debug(`Failed to get context limit for model ${modelId}: ${contextLimitResult.error.message}`);
+		}
+	}
+
+	// 4. Final fallback
+	return DEFAULT_CONTEXT_WINDOWS.FALLBACK;
+}
+
+/**
  * Calculate context tokens from transcript file using improved JSONL parsing
  * Based on the Python reference implementation for better accuracy
  * @param transcriptPath - Path to the transcript JSONL file
+ * @param modelId - Model identifier for context window lookup
+ * @param offline - Whether to use offline pricing data
+ * @param config - Configuration data for context window settings
  * @returns Object with context tokens info or null if unavailable
  */
-export async function calculateContextTokens(transcriptPath: string, modelId?: string, offline = false): Promise<{
+export async function calculateContextTokens(transcriptPath: string, modelId?: string, offline = false, config?: ConfigData): Promise<{
 	inputTokens: number;
 	percentage: number;
 	contextLimit: number;
@@ -1273,23 +1330,8 @@ export async function calculateContextTokens(transcriptPath: string, modelId?: s
 						+ (usage.cache_creation_input_tokens ?? 0)
 						+ (usage.cache_read_input_tokens ?? 0);
 
-				// Get context limit from PricingFetcher
-				let contextLimit = 200_000; // Fallback for when modelId is not provided
-				if (modelId != null && modelId !== '') {
-					using fetcher = new PricingFetcher(offline);
-					const contextLimitResult = await fetcher.getModelContextLimit(modelId);
-					if (Result.isSuccess(contextLimitResult) && contextLimitResult.value != null) {
-						contextLimit = contextLimitResult.value;
-					}
-					else if (Result.isSuccess(contextLimitResult)) {
-						// Context limit not available for this model in LiteLLM
-						logger.debug(`No context limit data available for model ${modelId} in LiteLLM`);
-					}
-					else {
-						// Error occurred
-						logger.debug(`Failed to get context limit for model ${modelId}: ${contextLimitResult.error.message}`);
-					}
-				}
+				// Get context limit using configuration-aware resolver
+				const contextLimit = await resolveContextWindow(config, modelId, offline);
 
 				const percentage = Math.min(100, Math.max(0, Math.round((inputTokens / contextLimit) * 100)));
 
@@ -4722,6 +4764,305 @@ if (import.meta.vitest != null) {
 			const res = await calculateContextTokens(fixture.getPath('transcript.jsonl'));
 			expect(res).not.toBeNull();
 			expect(res?.percentage).toBe(100); // Should be clamped to 100
+		});
+
+		// Tests for new context window configuration functionality
+		it('uses claude-plan mode for correct percentage calculation', async () => {
+			const config = { defaults: { contextWindowMode: 'claude-plan' } };
+			await using fixture = await createFixture({
+				'transcript.jsonl': [
+					JSON.stringify({ type: 'assistant', message: { usage: { input_tokens: 40_000 } } }),
+				].join('\n'),
+			});
+			const res = await calculateContextTokens(fixture.getPath('transcript.jsonl'), 'claude-sonnet-4-20250514', true, config);
+			expect(res).not.toBeNull();
+			expect(res?.inputTokens).toBe(40_000);
+			expect(res?.percentage).toBe(20); // 40k / 200k = 20%
+			expect(res?.contextLimit).toBe(200_000);
+		});
+
+		it('uses claude-api mode for correct percentage calculation', async () => {
+			const config = { defaults: { contextWindowMode: 'claude-api' } };
+			await using fixture = await createFixture({
+				'transcript.jsonl': [
+					JSON.stringify({ type: 'assistant', message: { usage: { input_tokens: 130_000 } } }),
+				].join('\n'),
+			});
+			const res = await calculateContextTokens(fixture.getPath('transcript.jsonl'), 'claude-sonnet-4-20250514', true, config);
+			expect(res).not.toBeNull();
+			expect(res?.inputTokens).toBe(130_000);
+			expect(res?.percentage).toBe(13); // 130k / 1M = 13%
+			expect(res?.contextLimit).toBe(1_000_000);
+		});
+
+		it('prioritizes customContextWindow over contextWindowMode', async () => {
+			const config = {
+				defaults: {
+					contextWindowMode: 'claude-api',
+					customContextWindow: 500_000
+				}
+			};
+			await using fixture = await createFixture({
+				'transcript.jsonl': [
+					JSON.stringify({ type: 'assistant', message: { usage: { input_tokens: 100_000 } } }),
+				].join('\n'),
+			});
+			const res = await calculateContextTokens(fixture.getPath('transcript.jsonl'), 'claude-sonnet-4-20250514', true, config);
+			expect(res).not.toBeNull();
+			expect(res?.inputTokens).toBe(100_000);
+			expect(res?.percentage).toBe(20); // 100k / 500k = 20%
+			expect(res?.contextLimit).toBe(500_000);
+		});
+
+		it('falls back to auto mode when contextWindowMode is invalid', async () => {
+			const config = { defaults: { contextWindowMode: 'invalid-mode' } };
+			await using fixture = await createFixture({
+				'transcript.jsonl': [
+					JSON.stringify({ type: 'assistant', message: { usage: { input_tokens: 50_000 } } }),
+				].join('\n'),
+			});
+			const res = await calculateContextTokens(fixture.getPath('transcript.jsonl'), 'claude-sonnet-4-20250514', true, config);
+			expect(res).not.toBeNull();
+			expect(res?.inputTokens).toBe(50_000);
+			expect(res?.contextLimit).toBe(200_000); // Should use fallback
+			expect(res?.percentage).toBe(25); // 50k / 200k = 25%
+		});
+
+		it('handles missing config gracefully', async () => {
+			await using fixture = await createFixture({
+				'transcript.jsonl': [
+					JSON.stringify({ type: 'assistant', message: { usage: { input_tokens: 60_000 } } }),
+				].join('\n'),
+			});
+			const res = await calculateContextTokens(fixture.getPath('transcript.jsonl'), 'claude-sonnet-4-20250514', true, undefined);
+			expect(res).not.toBeNull();
+			expect(res?.inputTokens).toBe(60_000);
+			expect(res?.contextLimit).toBe(200_000); // Should use fallback
+			expect(res?.percentage).toBe(30); // 60k / 200k = 30%
+		});
+
+		it('handles empty config object', async () => {
+			const config = { defaults: {} };
+			await using fixture = await createFixture({
+				'transcript.jsonl': [
+					JSON.stringify({ type: 'assistant', message: { usage: { input_tokens: 80_000 } } }),
+				].join('\n'),
+			});
+			const res = await calculateContextTokens(fixture.getPath('transcript.jsonl'), 'claude-sonnet-4-20250514', true, config);
+			expect(res).not.toBeNull();
+			expect(res?.inputTokens).toBe(80_000);
+			expect(res?.contextLimit).toBe(200_000); // Should use fallback
+			expect(res?.percentage).toBe(40); // 80k / 200k = 40%
+		});
+
+		it('ignores invalid customContextWindow values', async () => {
+			const config = {
+				defaults: {
+					contextWindowMode: 'claude-plan',
+					customContextWindow: 0 // Invalid
+				}
+			};
+			await using fixture = await createFixture({
+				'transcript.jsonl': [
+					JSON.stringify({ type: 'assistant', message: { usage: { input_tokens: 20_000 } } }),
+				].join('\n'),
+			});
+			const res = await calculateContextTokens(fixture.getPath('transcript.jsonl'), 'claude-sonnet-4-20250514', true, config);
+			expect(res).not.toBeNull();
+			expect(res?.inputTokens).toBe(20_000);
+			expect(res?.contextLimit).toBe(200_000); // Should fall back to mode
+			expect(res?.percentage).toBe(10); // 20k / 200k = 10%
+		});
+	});
+
+	// Test for resolveContextWindow helper function
+	describe('resolveContextWindow', async () => {
+		it('returns custom context window when provided', async () => {
+			const config = { defaults: { customContextWindow: 750_000 } };
+			const result = await resolveContextWindow(config, 'claude-sonnet-4-20250514', true);
+			expect(result).toBe(750_000);
+		});
+
+		it('returns claude-api context window for claude-api mode', async () => {
+			const config = { defaults: { contextWindowMode: 'claude-api' } };
+			const result = await resolveContextWindow(config, 'claude-sonnet-4-20250514', true);
+			expect(result).toBe(1_000_000);
+		});
+
+		it('returns claude-plan context window for claude-plan mode', async () => {
+			const config = { defaults: { contextWindowMode: 'claude-plan' } };
+			const result = await resolveContextWindow(config, 'claude-sonnet-4-20250514', true);
+			expect(result).toBe(200_000);
+		});
+
+		it('prioritizes custom window over mode setting', async () => {
+			const config = {
+				defaults: {
+					contextWindowMode: 'claude-api',
+					customContextWindow: 300_000
+				}
+			};
+			const result = await resolveContextWindow(config, 'claude-sonnet-4-20250514', true);
+			expect(result).toBe(300_000);
+		});
+
+		it('ignores invalid custom context window values', async () => {
+			const config = {
+				defaults: {
+					contextWindowMode: 'claude-plan',
+					customContextWindow: -1 // Invalid
+				}
+			};
+			const result = await resolveContextWindow(config, 'claude-sonnet-4-20250514', true);
+			expect(result).toBe(200_000); // Should use mode instead
+		});
+
+		it('falls back to default when no config provided', async () => {
+			const result = await resolveContextWindow(undefined, 'claude-sonnet-4-20250514', true);
+			expect(result).toBe(200_000); // Should use fallback
+		});
+
+		it('falls back to default when config is empty', async () => {
+			const config = { defaults: {} };
+			const result = await resolveContextWindow(config, 'claude-sonnet-4-20250514', true);
+			expect(result).toBe(200_000); // Should use fallback
+		});
+
+		it('falls back to default for invalid context window mode', async () => {
+			const config = { defaults: { contextWindowMode: 'invalid-mode' } };
+			const result = await resolveContextWindow(config, 'claude-sonnet-4-20250514', true);
+			expect(result).toBe(200_000); // Should use fallback
+		});
+
+		it('handles auto mode with Claude model using conservative fallback', async () => {
+			const config = { defaults: { contextWindowMode: 'auto' } };
+			const result = await resolveContextWindow(config, 'claude-sonnet-4-20250514', true);
+			expect(result).toBe(200_000); // Should use conservative fallback in offline mode
+		});
+
+		it('handles auto mode without model ID', async () => {
+			const config = { defaults: { contextWindowMode: 'auto' } };
+			const result = await resolveContextWindow(config, undefined, true);
+			expect(result).toBe(200_000); // Should use fallback
+		});
+
+		it('handles auto mode with empty model ID', async () => {
+			const config = { defaults: { contextWindowMode: 'auto' } };
+			const result = await resolveContextWindow(config, '', true);
+			expect(result).toBe(200_000); // Should use fallback
+		});
+	});
+
+	// Tests for constants and types
+	describe('Context Window Constants', () => {
+		it('has correct CONTEXT_WINDOW_MODES array', () => {
+			expect(CONTEXT_WINDOW_MODES).toEqual(['auto', 'claude-api', 'claude-plan']);
+			expect(CONTEXT_WINDOW_MODES).toHaveLength(3);
+		});
+
+		it('has correct DEFAULT_CONTEXT_WINDOWS values', () => {
+			expect(DEFAULT_CONTEXT_WINDOWS.CLAUDE_PLAN).toBe(200_000);
+			expect(DEFAULT_CONTEXT_WINDOWS.CLAUDE_API).toBe(1_000_000);
+			expect(DEFAULT_CONTEXT_WINDOWS.FALLBACK).toBe(200_000);
+		});
+
+		it('claude-plan and fallback have same conservative value', () => {
+			expect(DEFAULT_CONTEXT_WINDOWS.CLAUDE_PLAN).toBe(DEFAULT_CONTEXT_WINDOWS.FALLBACK);
+		});
+
+		it('claude-api has larger context window than claude-plan', () => {
+			expect(DEFAULT_CONTEXT_WINDOWS.CLAUDE_API).toBeGreaterThan(DEFAULT_CONTEXT_WINDOWS.CLAUDE_PLAN);
+		});
+	});
+
+	// Integration tests for the original bug fix scenarios
+	describe('Context Window Bug Fix Regression Tests', async () => {
+		it('fixes 130k tokens percentage calculation with claude-plan (was 13%, now 65%)', async () => {
+			const config = { defaults: { contextWindowMode: 'claude-plan' } };
+			await using fixture = await createFixture({
+				'transcript.jsonl': [
+					JSON.stringify({ type: 'assistant', message: { usage: { input_tokens: 130_000 } } }),
+				].join('\n'),
+			});
+			const res = await calculateContextTokens(fixture.getPath('transcript.jsonl'), 'claude-sonnet-4-20250514', true, config);
+			expect(res).not.toBeNull();
+			expect(res?.inputTokens).toBe(130_000);
+			expect(res?.contextLimit).toBe(200_000);
+			expect(res?.percentage).toBe(65); // 130k / 200k = 65% (fixed from 13%)
+		});
+
+		it('fixes 40k tokens percentage calculation with claude-plan (was 4%, now 20%)', async () => {
+			const config = { defaults: { contextWindowMode: 'claude-plan' } };
+			await using fixture = await createFixture({
+				'transcript.jsonl': [
+					JSON.stringify({ type: 'assistant', message: { usage: { input_tokens: 40_000 } } }),
+				].join('\n'),
+			});
+			const res = await calculateContextTokens(fixture.getPath('transcript.jsonl'), 'claude-sonnet-4-20250514', true, config);
+			expect(res).not.toBeNull();
+			expect(res?.inputTokens).toBe(40_000);
+			expect(res?.contextLimit).toBe(200_000);
+			expect(res?.percentage).toBe(20); // 40k / 200k = 20% (fixed from 4%)
+		});
+
+		it('shows correct percentages with claude-api mode using 1M context window', async () => {
+			const config = { defaults: { contextWindowMode: 'claude-api' } };
+			await using fixture = await createFixture({
+				'transcript.jsonl': [
+					JSON.stringify({ type: 'assistant', message: { usage: { input_tokens: 130_000 } } }),
+				].join('\n'),
+			});
+			const res = await calculateContextTokens(fixture.getPath('transcript.jsonl'), 'claude-sonnet-4-20250514', true, config);
+			expect(res).not.toBeNull();
+			expect(res?.inputTokens).toBe(130_000);
+			expect(res?.contextLimit).toBe(1_000_000);
+			expect(res?.percentage).toBe(13); // 130k / 1M = 13% (this would be correct for API users)
+		});
+
+		it('demonstrates the difference between plan and api modes', async () => {
+			const tokens = 100_000;
+
+			// Test with claude-plan mode
+			const planConfig = { defaults: { contextWindowMode: 'claude-plan' } };
+			await using planFixture = await createFixture({
+				'transcript.jsonl': [
+					JSON.stringify({ type: 'assistant', message: { usage: { input_tokens: tokens } } }),
+				].join('\n'),
+			});
+			const planRes = await calculateContextTokens(planFixture.getPath('transcript.jsonl'), 'claude-sonnet-4-20250514', true, planConfig);
+
+			// Test with claude-api mode
+			const apiConfig = { defaults: { contextWindowMode: 'claude-api' } };
+			await using apiFixture = await createFixture({
+				'transcript.jsonl': [
+					JSON.stringify({ type: 'assistant', message: { usage: { input_tokens: tokens } } }),
+				].join('\n'),
+			});
+			const apiRes = await calculateContextTokens(apiFixture.getPath('transcript.jsonl'), 'claude-sonnet-4-20250514', true, apiConfig);
+
+			// Verify both work but have different percentages
+			expect(planRes).not.toBeNull();
+			expect(apiRes).not.toBeNull();
+			expect(planRes?.inputTokens).toBe(tokens);
+			expect(apiRes?.inputTokens).toBe(tokens);
+			expect(planRes?.percentage).toBe(50); // 100k / 200k = 50%
+			expect(apiRes?.percentage).toBe(10); // 100k / 1M = 10%
+			expect(planRes?.contextLimit).toBe(200_000);
+			expect(apiRes?.contextLimit).toBe(1_000_000);
+		});
+
+		it('uses conservative fallback in auto mode for Claude models (prevents old bug)', async () => {
+			const config = { defaults: { contextWindowMode: 'auto' } };
+			await using fixture = await createFixture({
+				'transcript.jsonl': [
+					JSON.stringify({ type: 'assistant', message: { usage: { input_tokens: 40_000 } } }),
+				].join('\n'),
+			});
+			const res = await calculateContextTokens(fixture.getPath('transcript.jsonl'), 'claude-sonnet-4-20250514', true, config);
+			expect(res).not.toBeNull();
+			expect(res?.inputTokens).toBe(40_000);
+			expect(res?.contextLimit).toBe(200_000); // Conservative fallback, not 1M from LiteLLM
+			expect(res?.percentage).toBe(20); // 40k / 200k = 20% (correct conservative calculation)
 		});
 	});
 }
