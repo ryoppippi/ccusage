@@ -1102,7 +1102,7 @@ export async function loadSessionUsageById(
 	// Find the JSONL file for this session ID
 	// On Windows, replace backslashes from path.join with forward slashes for tinyglobby compatibility
 	const patterns = claudePaths.map(p => path.join(p, 'projects', '**', `${sessionId}.jsonl`).replace(/\\/g, '/'));
-	const jsonlFiles = await glob(patterns);
+	const jsonlFiles = await glob(patterns, { caseSensitiveMatch: false });
 
 	if (jsonlFiles.length === 0) {
 		return null;
@@ -1576,6 +1576,99 @@ if (import.meta.vitest != null) {
 			const result = await loadSessionUsageById('non-existent', { mode: 'display' });
 
 			expect(result).toBeNull();
+		});
+
+		it('loads session with uppercase ID when file is lowercase', async () => {
+			await using fixture = await createFixture({
+				'.claude': {
+					projects: {
+						'test-project': {
+							'session-abc.jsonl': JSON.stringify({
+								timestamp: '2024-01-01T00:00:00Z',
+								sessionId: 'session-abc',
+								message: {
+									usage: {
+										input_tokens: 100,
+										output_tokens: 50,
+									},
+									model: 'claude-sonnet-4-20250514',
+								},
+								costUSD: 0.5,
+							}),
+						},
+					},
+				},
+			});
+
+			vi.stubEnv('CLAUDE_CONFIG_DIR', fixture.getPath('.claude'));
+
+			const result = await loadSessionUsageById('SESSION-ABC', { mode: 'display' });
+
+			expect(result).not.toBeNull();
+			expect(result?.totalCost).toBe(0.5);
+			expect(result?.entries).toHaveLength(1);
+		});
+
+		it('loads session with lowercase ID when file is uppercase', async () => {
+			await using fixture = await createFixture({
+				'.claude': {
+					projects: {
+						'test-project': {
+							'SESSION-XYZ.jsonl': JSON.stringify({
+								timestamp: '2024-01-01T00:00:00Z',
+								sessionId: 'SESSION-XYZ',
+								message: {
+									usage: {
+										input_tokens: 200,
+										output_tokens: 100,
+									},
+									model: 'claude-sonnet-4-20250514',
+								},
+								costUSD: 1.0,
+							}),
+						},
+					},
+				},
+			});
+
+			vi.stubEnv('CLAUDE_CONFIG_DIR', fixture.getPath('.claude'));
+
+			const result = await loadSessionUsageById('session-xyz', { mode: 'display' });
+
+			expect(result).not.toBeNull();
+			expect(result?.totalCost).toBe(1.0);
+			expect(result?.entries).toHaveLength(1);
+		});
+
+		it('loads session with mixed-case ID', async () => {
+			await using fixture = await createFixture({
+				'.claude': {
+					projects: {
+						'test-project': {
+							'MixedCase-123.jsonl': JSON.stringify({
+								timestamp: '2024-01-01T00:00:00Z',
+								sessionId: 'MixedCase-123',
+								message: {
+									usage: {
+										input_tokens: 150,
+										output_tokens: 75,
+									},
+									model: 'claude-sonnet-4-20250514',
+								},
+								costUSD: 0.75,
+							}),
+						},
+					},
+				},
+			});
+
+			vi.stubEnv('CLAUDE_CONFIG_DIR', fixture.getPath('.claude'));
+
+			const result = await loadSessionUsageById('mixedcase-123', { mode: 'display' });
+
+			expect(result).not.toBeNull();
+			expect(result?.totalCost).toBe(0.75);
+			expect(result?.entries).toHaveLength(1);
 		});
 	});
 
