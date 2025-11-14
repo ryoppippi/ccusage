@@ -191,7 +191,7 @@ export class ResponsiveTable {
 
 				// Apply minimum widths based on column type
 				if (align === 'right') {
-					adjustedWidth = Math.max(adjustedWidth, 14); // Increased to accommodate large token numbers (e.g., 536,073,421)
+					adjustedWidth = Math.max(adjustedWidth, 10);
 				}
 				else if (index === 0) {
 					adjustedWidth = Math.max(adjustedWidth, 10);
