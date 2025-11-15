@@ -5,6 +5,7 @@ import { Result } from '@praha/byethrow';
 import { define } from 'gunshi';
 import pc from 'picocolors';
 import { loadConfig, mergeConfigWithArgs } from '../_config-loader-tokens.ts';
+import { DEFAULT_LOCALE } from '../_consts.ts';
 import { processWithJq } from '../_jq-processor.ts';
 import { formatProjectName } from '../_project-names.ts';
 import { sharedCommandConfig } from '../_shared-args.ts';
@@ -80,7 +81,7 @@ export const hourlyCommand = define({
 		if (mergedOptions.today) {
 			// Get today's date in the configured timezone
 			const now = new Date();
-			const formatter = new Intl.DateTimeFormat(mergedOptions.locale ?? 'en-CA', {
+			const formatter = new Intl.DateTimeFormat(mergedOptions.locale ?? DEFAULT_LOCALE, {
 				year: 'numeric',
 				month: '2-digit',
 				day: '2-digit',
@@ -187,7 +188,7 @@ export const hourlyCommand = define({
 				let isFirstProject = true;
 				for (const [projectName, projectData] of Object.entries(projectGroups)) {
 					if (!isFirstProject) {
-						table.push(['', '', '', '', '', '', '', '']);
+						addEmptySeparatorRow(table, 8);
 					}
 
 					table.push([

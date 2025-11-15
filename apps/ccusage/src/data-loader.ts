@@ -1144,19 +1144,20 @@ export async function loadHourlyUsageData(
 	const nowMs = Date.now();
 	const sinceMs = nowMs - 24 * 60 * 60 * 1000;
 
+	// Create formatter once for all hour keys (performance optimization for large datasets)
+	const hourFormatter = new Intl.DateTimeFormat(options?.locale ?? DEFAULT_LOCALE, {
+		year: 'numeric',
+		month: '2-digit',
+		day: '2-digit',
+		hour: '2-digit',
+		hour12: false,
+		timeZone: options?.timezone,
+	});
+
 	// Helper to format hour key with timezone awareness
 	function formatHourKey(timestamp: string): string {
 		const d = new Date(timestamp);
-		// Use Intl with timezone if provided to extract local parts
-		const formatter = new Intl.DateTimeFormat(options?.locale ?? DEFAULT_LOCALE, {
-			year: 'numeric',
-			month: '2-digit',
-			day: '2-digit',
-			hour: '2-digit',
-			hour12: false,
-			timeZone: options?.timezone,
-		});
-		const parts = formatter.formatToParts(d);
+		const parts = hourFormatter.formatToParts(d);
 		const year = parts.find(p => p.type === 'year')?.value ?? '';
 		const month = parts.find(p => p.type === 'month')?.value ?? '';
 		const day = parts.find(p => p.type === 'day')?.value ?? '';
@@ -1259,8 +1260,8 @@ export async function loadHourlyUsageData(
 		})
 		.filter(item => item != null);
 
-	// Sort ascending by hour for a chronological 24h view
-	return sortByDate(results, item => item.hour, 'asc');
+	// Sort by hour for a chronological 24h view (respects --order flag)
+	return sortByDate(results, item => item.hour, options?.order ?? 'asc');
 }
 
 /**
@@ -1675,9 +1676,7 @@ if (import.meta.vitest != null) {
 		});
 	});
 
-	describe('loadSessionUsageById', async () => {
-		const { createFixture } = await import('fs-fixture');
-
+	describe('loadSessionUsageById', () => {
 		afterEach(() => {
 			vi.unstubAllEnvs();
 		});
@@ -5125,12 +5124,12 @@ if (import.meta.vitest != null) {
 	});
 
 	// Test for calculateContextTokens
-	describe('calculateContextTokens', async () => {
+	describe('calculateContextTokens', () => {
 		it('returns null when transcript cannot be read', async () => {
 			const result = await calculateContextTokens('/nonexistent/path.jsonl');
 			expect(result).toBeNull();
 		});
-		const { createFixture } = await import('fs-fixture');
+
 		it('parses latest assistant line and excludes output tokens', async () => {
 			await using fixture = await createFixture({
 				'transcript.jsonl': [
