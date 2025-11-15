@@ -170,7 +170,7 @@ export const hourlyCommand = define({
 			// Create table with compact mode support
 			const tableConfig: UsageReportConfig = {
 				firstColumnName: 'Hour',
-				forceCompact: ctx.values.compact,
+				forceCompact: mergedOptions.compact,
 			};
 			const table = createUsageReportTable(tableConfig);
 
