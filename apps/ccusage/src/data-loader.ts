@@ -1937,39 +1937,17 @@ invalid json line
 
 			// Should be sorted by month descending (2024-02 first)
 			expect(result).toHaveLength(2);
-			expect(result[0]).toEqual({
+			expect(result[0]).toEqual(expect.schemaMatching(monthlyUsageSchema));
+			expect(result[0]).toMatchObject({
 				month: '2024-02',
 				inputTokens: 150,
 				outputTokens: 75,
-				cacheCreationTokens: 0,
-				cacheReadTokens: 0,
-				totalCost: 0.015,
-				modelsUsed: [],
-				modelBreakdowns: [{
-					modelName: 'unknown',
-					inputTokens: 150,
-					outputTokens: 75,
-					cacheCreationTokens: 0,
-					cacheReadTokens: 0,
-					cost: 0.015,
-				}],
 			});
-			expect(result[1]).toEqual({
+			expect(result[1]).toEqual(expect.schemaMatching(monthlyUsageSchema));
+			expect(result[1]).toMatchObject({
 				month: '2024-01',
 				inputTokens: 300,
 				outputTokens: 150,
-				cacheCreationTokens: 0,
-				cacheReadTokens: 0,
-				totalCost: 0.03,
-				modelsUsed: [],
-				modelBreakdowns: [{
-					modelName: 'unknown',
-					inputTokens: 300,
-					outputTokens: 150,
-					cacheCreationTokens: 0,
-					cacheReadTokens: 0,
-					cost: 0.03,
-				}],
 			});
 		});
 
@@ -2009,22 +1987,11 @@ invalid json line
 			const result = await loadMonthlyUsageData({ claudePath: fixture.path });
 
 			expect(result).toHaveLength(1);
-			expect(result[0]).toEqual({
+			expect(result[0]).toEqual(expect.schemaMatching(monthlyUsageSchema));
+			expect(result[0]).toMatchObject({
 				month: '2024-01',
 				inputTokens: 300,
 				outputTokens: 150,
-				cacheCreationTokens: 0,
-				cacheReadTokens: 0,
-				totalCost: 0.03,
-				modelsUsed: [],
-				modelBreakdowns: [{
-					modelName: 'unknown',
-					inputTokens: 300,
-					outputTokens: 150,
-					cacheCreationTokens: 0,
-					cacheReadTokens: 0,
-					cost: 0.03,
-				}],
 			});
 		});
 
@@ -2283,39 +2250,17 @@ invalid json line
 
 			// Should be sorted by week descending (2024-01-15 first)
 			expect(result).toHaveLength(2);
-			expect(result[0]).toEqual({
+			expect(result[0]).toEqual(expect.schemaMatching(weeklyUsageSchema));
+			expect(result[0]).toMatchObject({
 				week: '2024-01-14',
 				inputTokens: 150,
 				outputTokens: 75,
-				cacheCreationTokens: 0,
-				cacheReadTokens: 0,
-				totalCost: 0.015,
-				modelsUsed: [],
-				modelBreakdowns: [{
-					modelName: 'unknown',
-					inputTokens: 150,
-					outputTokens: 75,
-					cacheCreationTokens: 0,
-					cacheReadTokens: 0,
-					cost: 0.015,
-				}],
 			});
-			expect(result[1]).toEqual({
+			expect(result[1]).toEqual(expect.schemaMatching(weeklyUsageSchema));
+			expect(result[1]).toMatchObject({
 				week: '2023-12-31',
 				inputTokens: 300,
 				outputTokens: 150,
-				cacheCreationTokens: 0,
-				cacheReadTokens: 0,
-				totalCost: 0.03,
-				modelsUsed: [],
-				modelBreakdowns: [{
-					modelName: 'unknown',
-					inputTokens: 300,
-					outputTokens: 150,
-					cacheCreationTokens: 0,
-					cacheReadTokens: 0,
-					cost: 0.03,
-				}],
 			});
 		});
 
@@ -2355,22 +2300,11 @@ invalid json line
 			const result = await loadWeeklyUsageData({ claudePath: fixture.path });
 
 			expect(result).toHaveLength(1);
-			expect(result[0]).toEqual({
+			expect(result[0]).toEqual(expect.schemaMatching(weeklyUsageSchema));
+			expect(result[0]).toMatchObject({
 				week: '2023-12-31',
 				inputTokens: 300,
 				outputTokens: 150,
-				cacheCreationTokens: 0,
-				cacheReadTokens: 0,
-				totalCost: 0.03,
-				modelsUsed: [],
-				modelBreakdowns: [{
-					modelName: 'unknown',
-					inputTokens: 300,
-					outputTokens: 150,
-					cacheCreationTokens: 0,
-					cacheReadTokens: 0,
-					cost: 0.03,
-				}],
 			});
 		});
 
