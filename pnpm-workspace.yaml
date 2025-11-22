@@ -68,7 +68,7 @@ catalogs:
     '@types/bun': ^1.3.2
     '@types/node': ^24.10.1
     '@types/react': ^19.1.13
-    '@typescript/native-preview': ^7.0.0-dev.20251104.1
+    '@typescript/native-preview': ^7.0.0-dev.20251119.1
 
 enablePrePostScripts: true
 
