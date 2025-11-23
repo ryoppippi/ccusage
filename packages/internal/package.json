@@ -5,11 +5,26 @@
 	"private": true,
 	"description": "Shared internal utilities for ccusage toolchain",
 	"exports": {
-		"./pricing": "./src/pricing.ts",
-		"./pricing-fetch-utils": "./src/pricing-fetch-utils.ts",
-		"./logger": "./src/logger.ts",
-		"./format": "./src/format.ts",
-		"./constants": "./src/constants.ts"
+		"./pricing": {
+			"types": "./src/pricing.ts",
+			"default": "./src/pricing.ts"
+		},
+		"./pricing-fetch-utils": {
+			"types": "./src/pricing-fetch-utils.ts",
+			"default": "./src/pricing-fetch-utils.ts"
+		},
+		"./logger": {
+			"types": "./src/logger.ts",
+			"default": "./src/logger.ts"
+		},
+		"./format": {
+			"types": "./src/format.ts",
+			"default": "./src/format.ts"
+		},
+		"./constants": {
+			"types": "./src/constants.ts",
+			"default": "./src/constants.ts"
+		}
 	},
 	"scripts": {
 		"format": "pnpm run lint --fix",
