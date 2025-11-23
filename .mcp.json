@@ -8,15 +8,6 @@
 			"type": "http",
 			"url": "https://mcp.grep.app"
 		},
-		"lsmcp": {
-			"command": "npx",
-			"args": [
-				"--no-install",
-				"lsmcp",
-				"-p",
-				"tsgo"
-			]
-		},
 		"@praha/byethrow": {
 			"type": "stdio",
 			"command": "npx",
