@@ -6,7 +6,6 @@ export default ryoppippi({
 		'apps',
 		'packages',
 		'docs',
-		'.lsmcp',
 		'.claude/settings.local.json',
 	],
 });
