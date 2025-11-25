@@ -12,6 +12,7 @@ export default defineConfig({
 	dts: false,
 	publint: true,
 	unused: true,
+	fixedExtension: false,
 	nodeProtocol: true,
 	plugins: [
 		Macros({

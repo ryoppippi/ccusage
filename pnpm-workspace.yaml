@@ -8,7 +8,7 @@ catalogMode: strict
 catalogs:
   build:
     '@oxc-project/runtime': ^0.82.3
-    tsdown: ^0.14.1
+    tsdown: ^0.16.6
     unplugin-macros: ^0.18.0
     unplugin-unused: ^0.5.2
   docs:
@@ -68,7 +68,7 @@ catalogs:
     '@types/bun': ^1.3.2
     '@types/node': ^24.10.1
     '@types/react': ^19.1.13
-    '@typescript/native-preview': ^7.0.0-dev.20251104.1
+    '@typescript/native-preview': ^7.0.0-dev.20251123.1
 
 enablePrePostScripts: true
 
