@@ -23,7 +23,7 @@ catalogs:
   lint:
     '@ryoppippi/eslint-config': ^0.4.0
     eslint: ^9.33.0
-    eslint-plugin-format: ^1.0.1
+    eslint-plugin-format: ^1.0.2
     publint: ^0.3.12
   mcp:
     '@mizchi/lsmcp': ^0.10.0
