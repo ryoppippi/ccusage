@@ -15,6 +15,7 @@
 		"url": "https://github.com/ryoppippi/ccusage/issues"
 	},
 	"main": "./dist/index.js",
+	"module": "./dist/index.js",
 	"bin": {
 		"ccusage-codex": "./src/index.ts"
 	},
