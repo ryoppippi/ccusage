@@ -6,7 +6,7 @@ on:
 
 jobs:
   lint-check:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
 
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
@@ -16,7 +16,7 @@ jobs:
       - run: pnpm typecheck
 
   test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
 
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
@@ -31,7 +31,7 @@ jobs:
       - run: pnpm run test
 
   npm-publish-dry-run-and-upload-pkg-pr-now:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
 
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
@@ -50,7 +50,7 @@ jobs:
           config: ./typos.toml
 
   schema-check:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
       - uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda # v4.1.0
