@@ -7,7 +7,7 @@ on:
 
 jobs:
   npm:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     timeout-minutes: 10
     permissions:
       contents: read
