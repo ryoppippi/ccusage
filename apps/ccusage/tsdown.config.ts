@@ -13,6 +13,7 @@ export default defineConfig({
 	sourcemap: false,
 	minify: 'dce-only',
 	treeshake: true,
+	fixedExtension: false,
 	dts: {
 		tsgo: false,
 		resolve: [
