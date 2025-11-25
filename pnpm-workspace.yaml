@@ -26,7 +26,6 @@ catalogs:
     eslint-plugin-format: ^1.0.2
     publint: ^0.3.12
   mcp:
-    '@mizchi/lsmcp': ^0.10.0
     '@praha/byethrow-mcp': ^0.1.7
     sitemcp: ^0.5.9
   release:
