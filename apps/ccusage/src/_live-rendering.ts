@@ -349,6 +349,30 @@ export function renderLiveDisplay(terminal: TerminalManager, block: SessionBlock
 	}
 
 	terminal.write(`${marginStr}│${' '.repeat(boxWidth - 2)}│\n`);
+
+	// Subagent section (if present)
+	if (block.subagentUsage != null) {
+		terminal.write(`${marginStr}├${'─'.repeat(boxWidth - 2)}┤\n`);
+		terminal.write(`${marginStr}│${' '.repeat(boxWidth - 2)}│\n`);
+
+		const subagentLabel = pc.bold('SUBAGENTS');
+		const subagentInfo = `${block.subagentUsage.taskCount} tasks • ${formatTokensShort(block.subagentUsage.totalTokens)} tokens • ${formatCurrency(block.subagentUsage.totalCost)}`;
+		const subagentLine = `${subagentLabel}  ${pc.cyan(subagentInfo)}`;
+		const subagentLinePadded = subagentLine + ' '.repeat(Math.max(0, boxWidth - 3 - stringWidth(subagentLine)));
+		terminal.write(`${marginStr}│ ${subagentLinePadded}│\n`);
+
+		// Subagent details (indented)
+		const inputStr = `${pc.gray('Input:')} ${formatTokensShort(block.subagentUsage.inputTokens)}`;
+		const outputStr = `${pc.gray('Output:')} ${formatTokensShort(block.subagentUsage.outputTokens)}`;
+		const cacheTotal = block.subagentUsage.cacheCreationTokens + block.subagentUsage.cacheReadTokens;
+		const cacheStr = `${pc.gray('Cache:')} ${formatTokensShort(cacheTotal)}`;
+		const subagentDetails = `${' '.repeat(detailsIndent)}${inputStr}  ${outputStr}  ${cacheStr}`;
+		const subagentDetailsPadded = subagentDetails + ' '.repeat(Math.max(0, boxWidth - 3 - stringWidth(subagentDetails)));
+		terminal.write(`${marginStr}│ ${subagentDetailsPadded}│\n`);
+
+		terminal.write(`${marginStr}│${' '.repeat(boxWidth - 2)}│\n`);
+	}
+
 	terminal.write(`${marginStr}├${'─'.repeat(boxWidth - 2)}┤\n`);
 	terminal.write(`${marginStr}│${' '.repeat(boxWidth - 2)}│\n`);
 
@@ -482,6 +506,11 @@ export function renderCompactLiveDisplay(
 
 	// Cost
 	terminal.write(`Cost: ${formatCurrency(block.costUSD)}\n`);
+
+	// Subagent info (if present)
+	if (block.subagentUsage != null) {
+		terminal.write(pc.cyan(`Subagents: ${block.subagentUsage.taskCount} tasks, ${formatTokensShort(block.subagentUsage.totalTokens)}, ${formatCurrency(block.subagentUsage.totalCost)}\n`));
+	}
 
 	// Burn rate
 	const burnRate = calculateBurnRate(block);

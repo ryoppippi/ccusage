@@ -365,6 +365,7 @@ export function formatModelsDisplayMultiline(models: string[]): string {
  * @param breakdowns - Array of model breakdowns
  * @param extraColumns - Number of extra empty columns before the data (default: 1 for models column)
  * @param trailingColumns - Number of extra empty columns after the data (default: 0)
+ * @param showSubagentsSeparately - Whether to show subagents as separate rows (default: false)
  */
 export function pushBreakdownRows(
 	table: { push: (row: (string | number)[]) => void },
@@ -375,12 +376,38 @@ export function pushBreakdownRows(
 		cacheCreationTokens: number;
 		cacheReadTokens: number;
 		cost: number;
+		isSubagent?: boolean;
 	}>,
 	extraColumns = 1,
 	trailingColumns = 0,
+	showSubagentsSeparately = false,
 ): void {
-	for (const breakdown of breakdowns) {
-		const row: (string | number)[] = [`  └─ ${formatModelName(breakdown.modelName)}`];
+	// Aggregate by model name if not showing subagents separately
+	const aggregatedBreakdowns = showSubagentsSeparately
+		? breakdowns
+		: Object.values(
+				breakdowns.reduce(
+					(acc, breakdown) => {
+						const key = breakdown.modelName;
+						if (acc[key] == null) {
+							acc[key] = { ...breakdown, isSubagent: false };
+						}
+						else {
+							acc[key].inputTokens += breakdown.inputTokens;
+							acc[key].outputTokens += breakdown.outputTokens;
+							acc[key].cacheCreationTokens += breakdown.cacheCreationTokens;
+							acc[key].cacheReadTokens += breakdown.cacheReadTokens;
+							acc[key].cost += breakdown.cost;
+						}
+						return acc;
+					},
+					{} as Record<string, typeof breakdowns[0]>,
+				),
+			);
+
+	for (const breakdown of aggregatedBreakdowns) {
+		const subagentIndicator = breakdown.isSubagent === true && showSubagentsSeparately ? ' [subagent]' : '';
+		const row: (string | number)[] = [`  └─ ${formatModelName(breakdown.modelName)}${subagentIndicator}`];
 
 		// Add extra empty columns before data
 		for (let i = 0; i < extraColumns; i++) {
@@ -407,6 +434,60 @@ export function pushBreakdownRows(
 
 		table.push(row);
 	}
+}
+
+/**
+ * Pushes a subagent usage summary row to a table
+ * @param table - The table to push the row to
+ * @param table.push - Method to add rows to the table
+ * @param subagentUsage - Subagent usage summary data
+ * @param subagentUsage.totalTokens - Total tokens used by subagents
+ * @param subagentUsage.inputTokens - Input tokens used by subagents
+ * @param subagentUsage.outputTokens - Output tokens used by subagents
+ * @param subagentUsage.cacheCreationTokens - Cache creation tokens used by subagents
+ * @param subagentUsage.cacheReadTokens - Cache read tokens used by subagents
+ * @param subagentUsage.totalCost - Total cost of subagent usage
+ * @param subagentUsage.taskCount - Number of subagent tasks executed
+ * @param extraColumns - Number of extra empty columns before the data (default: 1 for models column)
+ * @param trailingColumns - Number of extra empty columns after the data (default: 0)
+ */
+export function pushSubagentSummaryRow(
+	table: { push: (row: (string | number)[]) => void },
+	subagentUsage: {
+		totalTokens: number;
+		inputTokens: number;
+		outputTokens: number;
+		cacheCreationTokens: number;
+		cacheReadTokens: number;
+		totalCost: number;
+		taskCount: number;
+	},
+	extraColumns = 1,
+	trailingColumns = 0,
+): void {
+	const row: (string | number)[] = [pc.cyan(`Subagents (${subagentUsage.taskCount} tasks)`)];
+
+	// Add extra empty columns before data
+	for (let i = 0; i < extraColumns; i++) {
+		row.push('');
+	}
+
+	// Add data columns with cyan styling to highlight subagent usage
+	row.push(
+		pc.cyan(formatNumber(subagentUsage.inputTokens)),
+		pc.cyan(formatNumber(subagentUsage.outputTokens)),
+		pc.cyan(formatNumber(subagentUsage.cacheCreationTokens)),
+		pc.cyan(formatNumber(subagentUsage.cacheReadTokens)),
+		pc.cyan(formatNumber(subagentUsage.totalTokens)),
+		pc.cyan(formatCurrency(subagentUsage.totalCost)),
+	);
+
+	// Add trailing empty columns
+	for (let i = 0; i < trailingColumns; i++) {
+		row.push('');
+	}
+
+	table.push(row);
 }
 
 /**
@@ -979,6 +1060,154 @@ if (import.meta.vitest != null) {
 		it('formats mixed model versions', () => {
 			const models = ['claude-sonnet-4-20250514', 'claude-sonnet-4-5-20250929', 'claude-opus-4-1-20250805'];
 			expect(formatModelsDisplayMultiline(models)).toBe('- opus-4-1\n- sonnet-4\n- sonnet-4-5');
+		});
+	});
+
+	describe('pushSubagentSummaryRow', () => {
+		it('pushes subagent summary row with correct formatting', () => {
+			const mockTable: { push: (row: (string | number)[]) => void; rows: (string | number)[][] } = {
+				rows: [],
+				push(row: (string | number)[]) {
+					this.rows.push(row);
+				},
+			};
+
+			const subagentUsage = {
+				totalTokens: 1500,
+				inputTokens: 1000,
+				outputTokens: 500,
+				cacheCreationTokens: 100,
+				cacheReadTokens: 200,
+				totalCost: 0.5,
+				taskCount: 5,
+			};
+
+			pushSubagentSummaryRow(mockTable, subagentUsage);
+
+			expect(mockTable.rows).toHaveLength(1);
+			const row = mockTable.rows[0];
+			expect(row).toBeDefined();
+			expect(row![0]).toContain('Subagents');
+			expect(row![0]).toContain('5 tasks');
+		});
+
+		it('respects extraColumns parameter', () => {
+			const mockTable: { push: (row: (string | number)[]) => void; rows: (string | number)[][] } = {
+				rows: [],
+				push(row: (string | number)[]) {
+					this.rows.push(row);
+				},
+			};
+
+			const subagentUsage = {
+				totalTokens: 1000,
+				inputTokens: 600,
+				outputTokens: 400,
+				cacheCreationTokens: 0,
+				cacheReadTokens: 0,
+				totalCost: 0.3,
+				taskCount: 3,
+			};
+
+			pushSubagentSummaryRow(mockTable, subagentUsage, 2, 0);
+
+			expect(mockTable.rows).toHaveLength(1);
+			const row = mockTable.rows[0];
+			expect(row).toBeDefined();
+			// First column is label, next 2 are empty (extraColumns=2)
+			expect(row![1]).toBe('');
+			expect(row![2]).toBe('');
+		});
+
+		it('respects trailingColumns parameter', () => {
+			const mockTable: { push: (row: (string | number)[]) => void; rows: (string | number)[][] } = {
+				rows: [],
+				push(row: (string | number)[]) {
+					this.rows.push(row);
+				},
+			};
+
+			const subagentUsage = {
+				totalTokens: 1000,
+				inputTokens: 600,
+				outputTokens: 400,
+				cacheCreationTokens: 0,
+				cacheReadTokens: 0,
+				totalCost: 0.3,
+				taskCount: 3,
+			};
+
+			pushSubagentSummaryRow(mockTable, subagentUsage, 1, 2);
+
+			expect(mockTable.rows).toHaveLength(1);
+			const row = mockTable.rows[0];
+			expect(row).toBeDefined();
+			// Last 2 columns should be empty (trailingColumns=2)
+			expect(row![row!.length - 1]).toBe('');
+			expect(row![row!.length - 2]).toBe('');
+		});
+	});
+
+	describe('pushBreakdownRows with isSubagent', () => {
+		it('adds 🤖 emoji for subagent models', () => {
+			const mockTable: { push: (row: (string | number)[]) => void; rows: (string | number)[][] } = {
+				rows: [],
+				push(row: (string | number)[]) {
+					this.rows.push(row);
+				},
+			};
+
+			const breakdowns = [
+				{
+					modelName: 'claude-opus-4-20250514',
+					inputTokens: 100,
+					outputTokens: 50,
+					cacheCreationTokens: 10,
+					cacheReadTokens: 20,
+					cost: 0.5,
+					isSubagent: false,
+				},
+				{
+					modelName: 'claude-sonnet-4-20250514',
+					inputTokens: 200,
+					outputTokens: 100,
+					cacheCreationTokens: 0,
+					cacheReadTokens: 50,
+					cost: 0.2,
+					isSubagent: true,
+				},
+			];
+
+			pushBreakdownRows(mockTable, breakdowns, 1, 0, true);
+
+			expect(mockTable.rows).toHaveLength(2);
+			expect(mockTable.rows[0]![0]).not.toContain('[subagent]');
+			expect(mockTable.rows[1]![0]).toContain('[subagent]');
+		});
+
+		it('handles models without isSubagent flag', () => {
+			const mockTable: { push: (row: (string | number)[]) => void; rows: (string | number)[][] } = {
+				rows: [],
+				push(row: (string | number)[]) {
+					this.rows.push(row);
+				},
+			};
+
+			const breakdowns = [
+				{
+					modelName: 'claude-opus-4-20250514',
+					inputTokens: 100,
+					outputTokens: 50,
+					cacheCreationTokens: 10,
+					cacheReadTokens: 20,
+					cost: 0.5,
+				},
+			];
+
+			pushBreakdownRows(mockTable, breakdowns);
+
+			expect(mockTable.rows).toHaveLength(1);
+			expect(mockTable.rows[0]![0]).not.toContain('[subagent]');
 		});
 	});
 }

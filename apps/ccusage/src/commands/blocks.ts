@@ -295,6 +295,7 @@ export const blocksCommand = define({
 								})()
 							: undefined,
 						usageLimitResetTime: block.usageLimitResetTime,
+						...(block.subagentUsage != null && { subagentUsage: block.subagentUsage }),
 					};
 				}),
 			};
@@ -352,7 +353,18 @@ export const blocksCommand = define({
 					log(pc.bold('Projected Usage (if current rate continues):'));
 					log(`  Total Tokens:     ${formatNumber(projection.totalTokens)}`);
 					log(`  Total Cost:       ${formatCurrency(projection.totalCost)}\n`);
+				}
 
+				// Show subagent usage summary if present and flag enabled
+				if (block.subagentUsage != null && ctx.values.subagents) {
+					log(pc.bold('Subagent Usage:'));
+					log(`  Tasks Executed:   ${block.subagentUsage.taskCount}`);
+					log(`  Input Tokens:     ${formatNumber(block.subagentUsage.inputTokens)}`);
+					log(`  Output Tokens:    ${formatNumber(block.subagentUsage.outputTokens)}`);
+					log(`  Total Cost:       ${formatCurrency(block.subagentUsage.totalCost)}\n`);
+				}
+
+				if (projection != null) {
 					if (ctx.values.tokenLimit != null) {
 						// Parse token limit
 						const limit = parseTokenLimit(ctx.values.tokenLimit, maxTokensFromAll);
@@ -444,6 +456,24 @@ export const blocksCommand = define({
 
 						row.push(formatCurrency(block.costUSD));
 						table.push(row);
+
+						// Add subagent usage row if present and flag enabled (show actual data before predictions)
+						if (block.subagentUsage != null && ctx.values.subagents) {
+							const subagentRow = [
+								'',
+								pc.cyan(`  └─ Subagents (${block.subagentUsage.taskCount})`),
+								'',
+								formatNumber(block.subagentUsage.totalTokens),
+							];
+
+							// Add empty cell if token limit column is present
+							if (actualTokenLimit != null && actualTokenLimit > 0) {
+								subagentRow.push('');
+							}
+
+							subagentRow.push(formatCurrency(block.subagentUsage.totalCost));
+							table.push(subagentRow);
+						}
 
 						// Add REMAINING and PROJECTED rows for active blocks
 						if (block.isActive) {

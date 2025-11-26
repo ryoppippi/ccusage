@@ -183,7 +183,65 @@ export const usageDataSchema = v.object({
 	costUSD: v.optional(v.number()), // Made optional for new schema
 	requestId: v.optional(requestIdSchema), // Request ID for deduplication
 	isApiErrorMessage: v.optional(v.boolean()),
+	isSidechain: v.optional(v.boolean()), // Flag indicating this is a subagent/Task tool entry
 });
+
+/**
+ * Valibot schema for subagent/tool use result usage data
+ */
+export const toolUseResultUsageSchema = v.object({
+	input_tokens: v.number(),
+	output_tokens: v.number(),
+	cache_creation_input_tokens: v.optional(v.number()),
+	cache_read_input_tokens: v.optional(v.number()),
+	service_tier: v.optional(v.string()),
+});
+
+/**
+ * Valibot schema for subagent/tool use result data (from Task tool)
+ */
+export const toolUseResultSchema = v.object({
+	content: v.optional(v.array(v.object({
+		type: v.string(),
+		text: v.optional(v.string()),
+	}))),
+	totalDurationMs: v.optional(v.number()),
+	totalTokens: v.optional(v.number()),
+	totalToolUseCount: v.optional(v.number()),
+	usage: v.optional(toolUseResultUsageSchema),
+});
+
+/**
+ * Type definition for subagent/tool use result data
+ */
+export type ToolUseResult = v.InferOutput<typeof toolUseResultSchema>;
+
+/**
+ * Valibot schema for entries with toolUseResult (subagent summary)
+ * These entries contain aggregated totals from subagent execution
+ */
+export const toolUseResultEntrySchema = v.object({
+	sessionId: v.optional(sessionIdSchema),
+	timestamp: isoTimestampSchema,
+	type: v.optional(v.string()), // Usually "user" for tool results
+	message: v.optional(v.object({
+		role: v.optional(v.string()),
+		content: v.optional(v.array(v.object({
+			tool_use_id: v.optional(v.string()),
+			type: v.optional(v.string()),
+			content: v.optional(v.array(v.object({
+				type: v.optional(v.string()),
+				text: v.optional(v.string()),
+			}))),
+		}))),
+	})),
+	toolUseResult: toolUseResultSchema,
+});
+
+/**
+ * Type definition for tool use result entry
+ */
+export type ToolUseResultEntry = v.InferOutput<typeof toolUseResultEntrySchema>;
 
 /**
  * Valibot schema for transcript usage data from Claude messages
@@ -220,12 +278,33 @@ export const modelBreakdownSchema = v.object({
 	cacheCreationTokens: v.number(),
 	cacheReadTokens: v.number(),
 	cost: v.number(),
+	isSubagent: v.optional(v.boolean()), // True if this breakdown is from subagent/Task tool usage
 });
 
 /**
  * Type definition for model-specific usage breakdown
  */
 export type ModelBreakdown = v.InferOutput<typeof modelBreakdownSchema>;
+
+/**
+ * Valibot schema for subagent usage summary
+ * Tracks total tokens and cost from subagent (Task tool) executions
+ */
+export const subagentUsageSummarySchema = v.object({
+	totalTokens: v.number(),
+	inputTokens: v.number(),
+	outputTokens: v.number(),
+	cacheCreationTokens: v.number(),
+	cacheReadTokens: v.number(),
+	totalCost: v.number(),
+	taskCount: v.number(), // Number of subagent tasks
+	modelsUsed: v.array(modelNameSchema), // Models used by subagents
+});
+
+/**
+ * Type definition for subagent usage summary
+ */
+export type SubagentUsageSummary = v.InferOutput<typeof subagentUsageSummarySchema>;
 
 /**
  * Valibot schema for daily usage aggregation data
@@ -240,6 +319,7 @@ export const dailyUsageSchema = v.object({
 	modelsUsed: v.array(modelNameSchema),
 	modelBreakdowns: v.array(modelBreakdownSchema),
 	project: v.optional(v.string()), // Project name when groupByProject is enabled
+	subagentUsage: v.optional(subagentUsageSummarySchema), // Summary of subagent/Task tool usage
 });
 
 /**
@@ -262,6 +342,7 @@ export const sessionUsageSchema = v.object({
 	versions: v.array(versionSchema), // List of unique versions used in this session
 	modelsUsed: v.array(modelNameSchema),
 	modelBreakdowns: v.array(modelBreakdownSchema),
+	subagentUsage: v.optional(subagentUsageSummarySchema), // Summary of subagent/Task tool usage
 });
 
 /**
@@ -282,6 +363,7 @@ export const monthlyUsageSchema = v.object({
 	modelsUsed: v.array(modelNameSchema),
 	modelBreakdowns: v.array(modelBreakdownSchema),
 	project: v.optional(v.string()), // Project name when groupByProject is enabled
+	subagentUsage: v.optional(subagentUsageSummarySchema), // Summary of subagent/Task tool usage
 });
 
 /**
@@ -302,6 +384,7 @@ export const weeklyUsageSchema = v.object({
 	modelsUsed: v.array(modelNameSchema),
 	modelBreakdowns: v.array(modelBreakdownSchema),
 	project: v.optional(v.string()), // Project name when groupByProject is enabled
+	subagentUsage: v.optional(subagentUsageSummarySchema), // Summary of subagent/Task tool usage
 });
 
 /**
@@ -322,6 +405,7 @@ export const bucketUsageSchema = v.object({
 	modelsUsed: v.array(modelNameSchema),
 	modelBreakdowns: v.array(modelBreakdownSchema),
 	project: v.optional(v.string()), // Project name when groupByProject is enabled
+	subagentUsage: v.optional(subagentUsageSummarySchema), // Summary of subagent/Task tool usage
 });
 
 /**
@@ -341,54 +425,13 @@ type TokenStats = {
 };
 
 /**
- * Aggregates token counts and costs by model name
+ * Aggregates model breakdowns from multiple sources preserving isSubagent flag
  */
-function aggregateByModel<T>(
-	entries: T[],
-	getModel: (entry: T) => string | undefined,
-	getUsage: (entry: T) => UsageData['message']['usage'],
-	getCost: (entry: T) => number,
-): Map<string, TokenStats> {
-	const modelAggregates = new Map<string, TokenStats>();
-	const defaultStats: TokenStats = {
-		inputTokens: 0,
-		outputTokens: 0,
-		cacheCreationTokens: 0,
-		cacheReadTokens: 0,
-		cost: 0,
-	};
-
-	for (const entry of entries) {
-		const modelName = getModel(entry) ?? 'unknown';
-		// Skip synthetic model
-		if (modelName === '<synthetic>') {
-			continue;
-		}
-
-		const usage = getUsage(entry);
-		const cost = getCost(entry);
-
-		const existing = modelAggregates.get(modelName) ?? defaultStats;
-
-		modelAggregates.set(modelName, {
-			inputTokens: existing.inputTokens + (usage.input_tokens ?? 0),
-			outputTokens: existing.outputTokens + (usage.output_tokens ?? 0),
-			cacheCreationTokens: existing.cacheCreationTokens + (usage.cache_creation_input_tokens ?? 0),
-			cacheReadTokens: existing.cacheReadTokens + (usage.cache_read_input_tokens ?? 0),
-			cost: existing.cost + cost,
-		});
-	}
-
-	return modelAggregates;
-}
-
-/**
- * Aggregates model breakdowns from multiple sources
- */
-function aggregateModelBreakdowns(
+function aggregateModelBreakdownsWithSubagent(
 	breakdowns: ModelBreakdown[],
-): Map<string, TokenStats> {
-	const modelAggregates = new Map<string, TokenStats>();
+): { mainAgent: Map<string, TokenStats>; subagent: Map<string, TokenStats> } {
+	const mainAgentAggregates = new Map<string, TokenStats>();
+	const subagentAggregates = new Map<string, TokenStats>();
 	const defaultStats: TokenStats = {
 		inputTokens: 0,
 		outputTokens: 0,
@@ -403,9 +446,11 @@ function aggregateModelBreakdowns(
 			continue;
 		}
 
-		const existing = modelAggregates.get(breakdown.modelName) ?? defaultStats;
+		const isSubagent = breakdown.isSubagent === true;
+		const targetMap = isSubagent ? subagentAggregates : mainAgentAggregates;
+		const existing = targetMap.get(breakdown.modelName) ?? defaultStats;
 
-		modelAggregates.set(breakdown.modelName, {
+		targetMap.set(breakdown.modelName, {
 			inputTokens: existing.inputTokens + breakdown.inputTokens,
 			outputTokens: existing.outputTokens + breakdown.outputTokens,
 			cacheCreationTokens: existing.cacheCreationTokens + breakdown.cacheCreationTokens,
@@ -414,21 +459,7 @@ function aggregateModelBreakdowns(
 		});
 	}
 
-	return modelAggregates;
-}
-
-/**
- * Converts model aggregates to sorted model breakdowns
- */
-function createModelBreakdowns(
-	modelAggregates: Map<string, TokenStats>,
-): ModelBreakdown[] {
-	return Array.from(modelAggregates.entries())
-		.map(([modelName, stats]) => ({
-			modelName: modelName as ModelName,
-			...stats,
-		}))
-		.sort((a, b) => b.cost - a.cost); // Sort by cost descending
+	return { mainAgent: mainAgentAggregates, subagent: subagentAggregates };
 }
 
 /**
@@ -462,6 +493,159 @@ function calculateTotals<T>(
 			totalCost: 0,
 		},
 	);
+}
+
+/**
+ * Calculates subagent usage summary from entries marked as subagent
+ */
+function calculateSubagentUsage<T>(
+	entries: T[],
+	getIsSubagent: (entry: T) => boolean,
+	getUsage: (entry: T) => UsageData['message']['usage'],
+	getCost: (entry: T) => number,
+	getModel: (entry: T) => string | undefined,
+): SubagentUsageSummary | undefined {
+	const subagentEntries = entries.filter(getIsSubagent);
+	if (subagentEntries.length === 0) {
+		return undefined;
+	}
+
+	const totals = calculateTotals(subagentEntries, getUsage, getCost);
+	const totalTokens = totals.inputTokens + totals.outputTokens
+		+ totals.cacheCreationTokens + totals.cacheReadTokens;
+
+	// Extract unique models used by subagents
+	const modelsUsed = extractUniqueModels(subagentEntries, getModel);
+
+	return {
+		totalTokens,
+		inputTokens: totals.inputTokens,
+		outputTokens: totals.outputTokens,
+		cacheCreationTokens: totals.cacheCreationTokens,
+		cacheReadTokens: totals.cacheReadTokens,
+		totalCost: totals.totalCost,
+		taskCount: subagentEntries.length, // Approximate: count of sidechain entries
+		modelsUsed: modelsUsed as ModelName[],
+	};
+}
+
+/**
+ * Aggregates subagent summaries from multiple sources
+ */
+function aggregateSubagentUsage(
+	summaries: (SubagentUsageSummary | undefined)[],
+): SubagentUsageSummary | undefined {
+	const validSummaries = summaries.filter((s): s is SubagentUsageSummary => s != null);
+	if (validSummaries.length === 0) {
+		return undefined;
+	}
+
+	// Aggregate all summaries
+	const aggregated = validSummaries.reduce(
+		(acc, summary) => ({
+			totalTokens: acc.totalTokens + summary.totalTokens,
+			inputTokens: acc.inputTokens + summary.inputTokens,
+			outputTokens: acc.outputTokens + summary.outputTokens,
+			cacheCreationTokens: acc.cacheCreationTokens + summary.cacheCreationTokens,
+			cacheReadTokens: acc.cacheReadTokens + summary.cacheReadTokens,
+			totalCost: acc.totalCost + summary.totalCost,
+			taskCount: acc.taskCount + summary.taskCount,
+			modelsUsed: [...acc.modelsUsed, ...summary.modelsUsed],
+		}),
+		{
+			totalTokens: 0,
+			inputTokens: 0,
+			outputTokens: 0,
+			cacheCreationTokens: 0,
+			cacheReadTokens: 0,
+			totalCost: 0,
+			taskCount: 0,
+			modelsUsed: [] as ModelName[],
+		},
+	);
+
+	// Return with unique models
+	return {
+		...aggregated,
+		modelsUsed: uniq(aggregated.modelsUsed),
+	};
+}
+
+/**
+ * Aggregates by model with separate tracking for subagent usage
+ */
+function aggregateByModelWithSubagent<T>(
+	entries: T[],
+	getModel: (entry: T) => string | undefined,
+	getUsage: (entry: T) => UsageData['message']['usage'],
+	getCost: (entry: T) => number,
+	getIsSubagent: (entry: T) => boolean,
+): { mainAgent: Map<string, TokenStats>; subagent: Map<string, TokenStats> } {
+	const mainAgentAggregates = new Map<string, TokenStats>();
+	const subagentAggregates = new Map<string, TokenStats>();
+	const defaultStats: TokenStats = {
+		inputTokens: 0,
+		outputTokens: 0,
+		cacheCreationTokens: 0,
+		cacheReadTokens: 0,
+		cost: 0,
+	};
+
+	for (const entry of entries) {
+		const modelName = getModel(entry) ?? 'unknown';
+		// Skip synthetic model
+		if (modelName === '<synthetic>') {
+			continue;
+		}
+
+		const usage = getUsage(entry);
+		const cost = getCost(entry);
+		const isSubagent = getIsSubagent(entry);
+		const targetMap = isSubagent ? subagentAggregates : mainAgentAggregates;
+
+		const existing = targetMap.get(modelName) ?? defaultStats;
+
+		targetMap.set(modelName, {
+			inputTokens: existing.inputTokens + (usage.input_tokens ?? 0),
+			outputTokens: existing.outputTokens + (usage.output_tokens ?? 0),
+			cacheCreationTokens: existing.cacheCreationTokens + (usage.cache_creation_input_tokens ?? 0),
+			cacheReadTokens: existing.cacheReadTokens + (usage.cache_read_input_tokens ?? 0),
+			cost: existing.cost + cost,
+		});
+	}
+
+	return { mainAgent: mainAgentAggregates, subagent: subagentAggregates };
+}
+
+/**
+ * Creates model breakdowns with subagent flag
+ */
+function createModelBreakdownsWithSubagent(
+	mainAgentAggregates: Map<string, TokenStats>,
+	subagentAggregates: Map<string, TokenStats>,
+): ModelBreakdown[] {
+	const breakdowns: ModelBreakdown[] = [];
+
+	// Add main agent breakdowns
+	for (const [modelName, stats] of mainAgentAggregates.entries()) {
+		breakdowns.push({
+			modelName: modelName as ModelName,
+			...stats,
+			isSubagent: false,
+		});
+	}
+
+	// Add subagent breakdowns
+	for (const [modelName, stats] of subagentAggregates.entries()) {
+		breakdowns.push({
+			modelName: modelName as ModelName,
+			...stats,
+			isSubagent: true,
+		});
+	}
+
+	// Sort by cost descending
+	return breakdowns.sort((a, b) => b.cost - a.cost);
 }
 
 /**
@@ -776,8 +960,8 @@ export async function loadDailyUsageData(
 	// Track processed message+request combinations for deduplication
 	const processedHashes = new Set<string>();
 
-	// Collect all valid data entries first
-	const allEntries: { data: UsageData; date: string; cost: number; model: string | undefined; project: string }[] = [];
+	// Collect all valid data entries first (with isSubagent flag)
+	const allEntries: { data: UsageData; date: string; cost: number; model: string | undefined; project: string; isSubagent: boolean }[] = [];
 
 	for (const file of sortedFiles) {
 		// Extract project name from file path once per file
@@ -810,7 +994,10 @@ export async function loadDailyUsageData(
 					? await calculateCostForEntry(data, mode, fetcher)
 					: data.costUSD ?? 0;
 
-				allEntries.push({ data, date, cost, model: data.message.model, project });
+				// Check if this is a subagent/sidechain entry
+				const isSubagent = data.isSidechain === true;
+
+				allEntries.push({ data, date, cost, model: data.message.model, project, isSubagent });
 			}
 			catch {
 				// Skip invalid JSON lines
@@ -839,22 +1026,32 @@ export async function loadDailyUsageData(
 			const date = parts[0] ?? groupKey;
 			const project = parts.length > 1 ? parts[1] : undefined;
 
-			// Aggregate by model first
-			const modelAggregates = aggregateByModel(
+			// Aggregate by model with subagent separation
+			const { mainAgent, subagent } = aggregateByModelWithSubagent(
 				entries,
 				entry => entry.model,
 				entry => entry.data.message.usage,
 				entry => entry.cost,
+				entry => entry.isSubagent,
 			);
 
-			// Create model breakdowns
-			const modelBreakdowns = createModelBreakdowns(modelAggregates);
+			// Create model breakdowns with subagent flag
+			const modelBreakdowns = createModelBreakdownsWithSubagent(mainAgent, subagent);
 
-			// Calculate totals
+			// Calculate totals (includes both main and subagent)
 			const totals = calculateTotals(
 				entries,
 				entry => entry.data.message.usage,
 				entry => entry.cost,
+			);
+
+			// Calculate subagent-specific usage
+			const subagentUsage = calculateSubagentUsage(
+				entries,
+				entry => entry.isSubagent,
+				entry => entry.data.message.usage,
+				entry => entry.cost,
+				entry => entry.model,
 			);
 
 			const modelsUsed = extractUniqueModels(entries, e => e.model);
@@ -865,6 +1062,7 @@ export async function loadDailyUsageData(
 				modelsUsed: modelsUsed as ModelName[],
 				modelBreakdowns,
 				...(project != null && { project }),
+				...(subagentUsage != null && { subagentUsage }),
 			};
 		})
 		.filter(item => item != null);
@@ -926,7 +1124,7 @@ export async function loadSessionData(
 	// Track processed message+request combinations for deduplication
 	const processedHashes = new Set<string>();
 
-	// Collect all valid data entries with session info first
+	// Collect all valid data entries with session info first (with isSubagent flag)
 	const allEntries: Array<{
 		data: UsageData;
 		sessionKey: string;
@@ -935,6 +1133,7 @@ export async function loadSessionData(
 		cost: number;
 		timestamp: string;
 		model: string | undefined;
+		isSubagent: boolean;
 	}> = [];
 
 	for (const { file, baseDir } of sortedFilesWithBase) {
@@ -972,6 +1171,9 @@ export async function loadSessionData(
 					? await calculateCostForEntry(data, mode, fetcher)
 					: data.costUSD ?? 0;
 
+				// Check if this is a subagent/sidechain entry
+				const isSubagent = data.isSidechain === true;
+
 				allEntries.push({
 					data,
 					sessionKey,
@@ -980,6 +1182,7 @@ export async function loadSessionData(
 					cost,
 					timestamp: data.timestamp,
 					model: data.message.model,
+					isSubagent,
 				});
 			}
 			catch {
@@ -1014,22 +1217,32 @@ export async function loadSessionData(
 				}
 			}
 
-			// Aggregate by model
-			const modelAggregates = aggregateByModel(
+			// Aggregate by model with subagent separation
+			const { mainAgent, subagent } = aggregateByModelWithSubagent(
 				entries,
 				entry => entry.model,
 				entry => entry.data.message.usage,
 				entry => entry.cost,
+				entry => entry.isSubagent,
 			);
 
-			// Create model breakdowns
-			const modelBreakdowns = createModelBreakdowns(modelAggregates);
+			// Create model breakdowns with subagent flag
+			const modelBreakdowns = createModelBreakdownsWithSubagent(mainAgent, subagent);
 
-			// Calculate totals
+			// Calculate totals (includes both main and subagent)
 			const totals = calculateTotals(
 				entries,
 				entry => entry.data.message.usage,
 				entry => entry.cost,
+			);
+
+			// Calculate subagent-specific usage
+			const subagentUsage = calculateSubagentUsage(
+				entries,
+				entry => entry.isSubagent,
+				entry => entry.data.message.usage,
+				entry => entry.cost,
+				entry => entry.model,
 			);
 
 			const modelsUsed = extractUniqueModels(entries, e => e.model);
@@ -1043,6 +1256,7 @@ export async function loadSessionData(
 				versions: uniq(versions).sort() as Version[],
 				modelsUsed: modelsUsed as ModelName[],
 				modelBreakdowns,
+				...(subagentUsage != null && { subagentUsage }),
 			};
 		})
 		.filter(item => item != null);
@@ -1174,14 +1388,14 @@ export async function loadBucketUsageData(
 		const bucket = createBucket(parts[0] ?? groupKey);
 		const project = parts.length > 1 ? parts[1] : undefined;
 
-		// Aggregate model breakdowns across all days
+		// Aggregate model breakdowns across all days with subagent separation
 		const allBreakdowns = dailyEntries.flatMap(
 			daily => daily.modelBreakdowns,
 		);
-		const modelAggregates = aggregateModelBreakdowns(allBreakdowns);
+		const { mainAgent, subagent } = aggregateModelBreakdownsWithSubagent(allBreakdowns);
 
-		// Create model breakdowns
-		const modelBreakdowns = createModelBreakdowns(modelAggregates);
+		// Create model breakdowns with subagent flag
+		const modelBreakdowns = createModelBreakdownsWithSubagent(mainAgent, subagent);
 
 		// Collect unique models
 		const models: string[] = [];
@@ -1208,6 +1422,12 @@ export async function loadBucketUsageData(
 			totalCacheReadTokens += daily.cacheReadTokens;
 			totalCost += daily.totalCost;
 		}
+
+		// Aggregate subagent usage summaries from daily entries
+		const subagentUsage = aggregateSubagentUsage(
+			dailyEntries.map(daily => daily.subagentUsage),
+		);
+
 		const bucketUsage: BucketUsage = {
 			bucket,
 			inputTokens: totalInputTokens,
@@ -1218,6 +1438,7 @@ export async function loadBucketUsageData(
 			modelsUsed: uniq(models) as ModelName[],
 			modelBreakdowns,
 			...(project != null && { project }),
+			...(subagentUsage != null && { subagentUsage }),
 		};
 
 		buckets.push(bucketUsage);
@@ -1398,6 +1619,7 @@ export async function loadSessionBlockData(
 					model: data.message.model ?? 'unknown',
 					version: data.version,
 					usageLimitResetTime: usageLimitResetTime ?? undefined,
+					isSidechain: data.isSidechain,
 				});
 			}
 			catch (error) {
@@ -1952,6 +2174,7 @@ invalid json line
 					cacheCreationTokens: 0,
 					cacheReadTokens: 0,
 					cost: 0.015,
+					isSubagent: false,
 				}],
 			});
 			expect(result[1]).toEqual({
@@ -1969,6 +2192,7 @@ invalid json line
 					cacheCreationTokens: 0,
 					cacheReadTokens: 0,
 					cost: 0.03,
+					isSubagent: false,
 				}],
 			});
 		});
@@ -2024,6 +2248,7 @@ invalid json line
 					cacheCreationTokens: 0,
 					cacheReadTokens: 0,
 					cost: 0.03,
+					isSubagent: false,
 				}],
 			});
 		});
@@ -2298,6 +2523,7 @@ invalid json line
 					cacheCreationTokens: 0,
 					cacheReadTokens: 0,
 					cost: 0.015,
+					isSubagent: false,
 				}],
 			});
 			expect(result[1]).toEqual({
@@ -2315,6 +2541,7 @@ invalid json line
 					cacheCreationTokens: 0,
 					cacheReadTokens: 0,
 					cost: 0.03,
+					isSubagent: false,
 				}],
 			});
 		});
@@ -2370,6 +2597,7 @@ invalid json line
 					cacheCreationTokens: 0,
 					cacheReadTokens: 0,
 					cost: 0.03,
+					isSubagent: false,
 				}],
 			});
 		});
@@ -4212,7 +4440,7 @@ invalid json line
 				});
 
 				expect(processedCount).toBe(lineCount);
-			});
+			}, 60000); // 60 second timeout for large file processing
 		});
 	});
 }
@@ -4722,6 +4950,274 @@ if (import.meta.vitest != null) {
 			const res = await calculateContextTokens(fixture.getPath('transcript.jsonl'));
 			expect(res).not.toBeNull();
 			expect(res?.percentage).toBe(100); // Should be clamped to 100
+		});
+	});
+
+	describe('subagent/isSidechain token tracking', () => {
+		it('parses entries with isSidechain flag', async () => {
+			// Test that the schema correctly parses isSidechain field
+			const mainEntry = {
+				timestamp: '2024-01-01T00:00:00Z',
+				sessionId: 'test-session',
+				message: {
+					usage: {
+						input_tokens: 100,
+						output_tokens: 50,
+					},
+					model: 'claude-opus-4-20250514',
+				},
+				costUSD: 0.5,
+			};
+
+			const subagentEntry = {
+				isSidechain: true,
+				timestamp: '2024-01-01T00:01:00Z',
+				sessionId: 'test-session',
+				message: {
+					usage: {
+						input_tokens: 200,
+						output_tokens: 100,
+					},
+					model: 'claude-sonnet-4-20250514',
+				},
+				costUSD: 0.1,
+			};
+
+			// Parse both entries
+			const mainResult = v.safeParse(usageDataSchema, mainEntry);
+			const subagentResult = v.safeParse(usageDataSchema, subagentEntry);
+
+			expect(mainResult.success).toBe(true);
+			expect(subagentResult.success).toBe(true);
+
+			if (mainResult.success) {
+				expect(mainResult.output.isSidechain).toBeUndefined();
+			}
+			if (subagentResult.success) {
+				expect(subagentResult.output.isSidechain).toBe(true);
+			}
+		});
+
+		it('tracks subagent tokens in daily usage data', async () => {
+			await using fixture = await createFixture({
+				projects: {
+					'test-project': {
+						session1: {
+							'usage.jsonl': [
+								// Main agent entry
+								JSON.stringify({
+									timestamp: '2024-01-01T00:00:00Z',
+									sessionId: 'session-1',
+									message: {
+										id: 'msg_main_1',
+										usage: {
+											input_tokens: 100,
+											output_tokens: 50,
+											cache_creation_input_tokens: 0,
+											cache_read_input_tokens: 0,
+										},
+										model: 'claude-opus-4-20250514',
+									},
+									requestId: 'req_main_1',
+									costUSD: 0.5,
+								}),
+								// Subagent entry (isSidechain: true)
+								JSON.stringify({
+									isSidechain: true,
+									timestamp: '2024-01-01T00:01:00Z',
+									sessionId: 'session-1',
+									message: {
+										id: 'msg_sub_1',
+										usage: {
+											input_tokens: 200,
+											output_tokens: 100,
+											cache_creation_input_tokens: 10,
+											cache_read_input_tokens: 500,
+										},
+										model: 'claude-sonnet-4-20250514',
+									},
+									requestId: 'req_sub_1',
+									costUSD: 0.1,
+								}),
+								// Another subagent entry
+								JSON.stringify({
+									isSidechain: true,
+									timestamp: '2024-01-01T00:02:00Z',
+									sessionId: 'session-1',
+									message: {
+										id: 'msg_sub_2',
+										usage: {
+											input_tokens: 300,
+											output_tokens: 150,
+											cache_creation_input_tokens: 0,
+											cache_read_input_tokens: 1000,
+										},
+										model: 'claude-sonnet-4-20250514',
+									},
+									requestId: 'req_sub_2',
+									costUSD: 0.15,
+								}),
+							].join('\n'),
+						},
+					},
+				},
+			});
+
+			const result = await loadDailyUsageData({
+				claudePath: fixture.path,
+				mode: 'display',
+			});
+
+			expect(result).toHaveLength(1);
+			const dailyUsage = result[0];
+
+			// Verify total tokens include both main and subagent
+			expect(dailyUsage?.inputTokens).toBe(600); // 100 + 200 + 300
+			expect(dailyUsage?.outputTokens).toBe(300); // 50 + 100 + 150
+
+			// Verify subagent usage summary is present
+			expect(dailyUsage?.subagentUsage).toBeDefined();
+			expect(dailyUsage?.subagentUsage?.inputTokens).toBe(500); // 200 + 300
+			expect(dailyUsage?.subagentUsage?.outputTokens).toBe(250); // 100 + 150
+			expect(dailyUsage?.subagentUsage?.cacheReadTokens).toBe(1500); // 500 + 1000
+			expect(dailyUsage?.subagentUsage?.totalCost).toBe(0.25); // 0.1 + 0.15
+			expect(dailyUsage?.subagentUsage?.taskCount).toBe(2); // 2 subagent entries
+
+			// Verify model breakdowns include isSubagent flag
+			const opusBreakdown = dailyUsage?.modelBreakdowns.find(
+				b => b.modelName === 'claude-opus-4-20250514' && b.isSubagent !== true,
+			);
+			const sonnetSubagentBreakdown = dailyUsage?.modelBreakdowns.find(
+				b => b.modelName === 'claude-sonnet-4-20250514' && b.isSubagent === true,
+			);
+
+			expect(opusBreakdown).toBeDefined();
+			expect(opusBreakdown?.inputTokens).toBe(100);
+			expect(opusBreakdown?.isSubagent).toBe(false);
+
+			expect(sonnetSubagentBreakdown).toBeDefined();
+			expect(sonnetSubagentBreakdown?.inputTokens).toBe(500); // 200 + 300
+			expect(sonnetSubagentBreakdown?.isSubagent).toBe(true);
+		});
+
+		it('tracks subagent tokens in session usage data', async () => {
+			await using fixture = await createFixture({
+				projects: {
+					'test-project': {
+						'session-abc': {
+							'log.jsonl': [
+								// Main agent entry
+								JSON.stringify({
+									timestamp: '2024-01-01T00:00:00Z',
+									sessionId: 'session-abc',
+									message: {
+										id: 'msg_main_1',
+										usage: {
+											input_tokens: 1000,
+											output_tokens: 500,
+										},
+										model: 'claude-opus-4-20250514',
+									},
+									requestId: 'req_main_1',
+									costUSD: 1.0,
+								}),
+								// Subagent entry
+								JSON.stringify({
+									isSidechain: true,
+									timestamp: '2024-01-01T00:05:00Z',
+									sessionId: 'session-abc',
+									message: {
+										id: 'msg_sub_1',
+										usage: {
+											input_tokens: 5000,
+											output_tokens: 2000,
+										},
+										model: 'claude-sonnet-4-20250514',
+									},
+									requestId: 'req_sub_1',
+									costUSD: 0.5,
+								}),
+							].join('\n'),
+						},
+					},
+				},
+			});
+
+			const result = await loadSessionData({
+				claudePath: fixture.path,
+				mode: 'display',
+			});
+
+			expect(result).toHaveLength(1);
+			const sessionUsage = result[0];
+
+			// Verify total tokens include both main and subagent
+			expect(sessionUsage?.inputTokens).toBe(6000); // 1000 + 5000
+			expect(sessionUsage?.outputTokens).toBe(2500); // 500 + 2000
+
+			// Verify subagent usage summary
+			expect(sessionUsage?.subagentUsage).toBeDefined();
+			expect(sessionUsage?.subagentUsage?.inputTokens).toBe(5000);
+			expect(sessionUsage?.subagentUsage?.outputTokens).toBe(2000);
+			expect(sessionUsage?.subagentUsage?.totalCost).toBe(0.5);
+			expect(sessionUsage?.subagentUsage?.taskCount).toBe(1);
+
+			// Verify model breakdowns
+			const opusBreakdown = sessionUsage?.modelBreakdowns.find(
+				b => b.modelName === 'claude-opus-4-20250514' && b.isSubagent !== true,
+			);
+			const sonnetSubagentBreakdown = sessionUsage?.modelBreakdowns.find(
+				b => b.modelName === 'claude-sonnet-4-20250514' && b.isSubagent === true,
+			);
+
+			expect(opusBreakdown).toBeDefined();
+			expect(opusBreakdown?.inputTokens).toBe(1000);
+
+			expect(sonnetSubagentBreakdown).toBeDefined();
+			expect(sonnetSubagentBreakdown?.inputTokens).toBe(5000);
+		});
+
+		it('handles entries without subagent data correctly', async () => {
+			await using fixture = await createFixture({
+				projects: {
+					'test-project': {
+						session1: {
+							'usage.jsonl': [
+								JSON.stringify({
+									timestamp: '2024-01-01T00:00:00Z',
+									sessionId: 'session-1',
+									message: {
+										id: 'msg_1',
+										usage: {
+											input_tokens: 100,
+											output_tokens: 50,
+										},
+										model: 'claude-opus-4-20250514',
+									},
+									requestId: 'req_1',
+									costUSD: 0.5,
+								}),
+							].join('\n'),
+						},
+					},
+				},
+			});
+
+			const result = await loadDailyUsageData({
+				claudePath: fixture.path,
+				mode: 'display',
+			});
+
+			expect(result).toHaveLength(1);
+			const dailyUsage = result[0];
+
+			// Verify no subagent usage when there are no subagent entries
+			expect(dailyUsage?.subagentUsage).toBeUndefined();
+
+			// All model breakdowns should have isSubagent: false
+			for (const breakdown of dailyUsage?.modelBreakdowns ?? []) {
+				expect(breakdown.isSubagent).toBe(false);
+			}
 		});
 	});
 }

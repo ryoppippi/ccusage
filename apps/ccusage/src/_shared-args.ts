@@ -108,6 +108,11 @@ export const sharedArgs = {
 		description: 'Force compact mode for narrow displays (better for screenshots)',
 		default: false,
 	},
+	subagents: {
+		type: 'boolean',
+		description: 'Show subagent usage breakdown',
+		default: false,
+	},
 } as const satisfies Args;
 
 /**
