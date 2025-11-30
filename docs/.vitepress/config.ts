@@ -94,6 +94,7 @@ export default defineConfig({
 						{ text: 'Library Usage', link: '/guide/library-usage' },
 						{ text: 'MCP Server', link: '/guide/mcp-server' },
 						{ text: 'JSON Output', link: '/guide/json-output' },
+						{ text: 'Claude Status', link: '/guide/status' },
 						{ text: 'Statusline Integration', link: '/guide/statusline' },
 					],
 				},

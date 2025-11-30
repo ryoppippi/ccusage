@@ -58,6 +58,10 @@ Unlike other CLI tools, we pay extreme attention to bundle size. ccusage achieve
 - Token limit warnings and projections
 - Automatic refresh with configurable intervals
 
+### 🌐 Service Status
+
+- **Claude Status** - Check current operational status of Claude services
+
 ### 🔧 Flexible Configuration
 
 - **JSON Configuration Files** - Set defaults for all commands or customize per-command
