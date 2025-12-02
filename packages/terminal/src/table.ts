@@ -380,7 +380,8 @@ export function pushBreakdownRows(
 	trailingColumns = 0,
 ): void {
 	for (const breakdown of breakdowns) {
-		const row: (string | number)[] = [`  └─ ${formatModelName(breakdown.modelName)}`];
+		// Simple indented model name without tree characters
+		const row: (string | number)[] = [`  ${formatModelName(breakdown.modelName)}`];
 
 		// Add extra empty columns before data
 		for (let i = 0; i < extraColumns; i++) {
@@ -500,22 +501,42 @@ export function createUsageReportTable(config: UsageReportConfig): ResponsiveTab
 }
 
 /**
+ * Options for formatting usage data rows
+ */
+export type FormatUsageDataRowOptions = {
+	/** Optional last activity value (for session reports) */
+	lastActivity?: string;
+	/** Hide models column (useful when showing breakdown rows) */
+	hideModels?: boolean;
+};
+
+/**
  * Formats a usage data row for display in the table
  * @param firstColumnValue - Value for the first column (date, month, etc.)
  * @param data - Usage data containing tokens and cost information
- * @param lastActivity - Optional last activity value (for session reports)
+ * @param options - Optional formatting options
  * @returns Formatted table row
  */
 export function formatUsageDataRow(
 	firstColumnValue: string,
 	data: UsageData,
-	lastActivity?: string,
+	options?: FormatUsageDataRowOptions | string,
 ): (string | number)[] {
+	// Support legacy string parameter for backward compatibility
+	const opts: FormatUsageDataRowOptions = typeof options === 'string'
+		? { lastActivity: options }
+		: options ?? {};
+
 	const totalTokens = data.inputTokens + data.outputTokens + data.cacheCreationTokens + data.cacheReadTokens;
+
+	// When hideModels is true, don't show models in this row (they'll be shown in breakdown rows)
+	const modelsDisplay = opts.hideModels === true
+		? ''
+		: (data.modelsUsed != null ? formatModelsDisplayMultiline(data.modelsUsed) : '');
 
 	const row: (string | number)[] = [
 		firstColumnValue,
-		data.modelsUsed != null ? formatModelsDisplayMultiline(data.modelsUsed) : '',
+		modelsDisplay,
 		formatNumber(data.inputTokens),
 		formatNumber(data.outputTokens),
 		formatNumber(data.cacheCreationTokens),
@@ -524,8 +545,8 @@ export function formatUsageDataRow(
 		formatCurrency(data.totalCost),
 	];
 
-	if (lastActivity !== undefined) {
-		row.push(lastActivity);
+	if (opts.lastActivity !== undefined) {
+		row.push(opts.lastActivity);
 	}
 
 	return row;

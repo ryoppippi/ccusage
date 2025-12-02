@@ -15,7 +15,7 @@ import {
 	createTotalsObject,
 	getTotalTokens,
 } from '../calculate-cost.ts';
-import { loadDailyUsageData } from '../data-loader.ts';
+import { fillMissingDates, loadDailyUsageData } from '../data-loader.ts';
 import { detectMismatches, printMismatchReport } from '../debug.ts';
 import { log, logger } from '../logger.ts';
 
@@ -40,6 +40,20 @@ export const dailyCommand = define({
 			type: 'string',
 			description: 'Comma-separated project aliases (e.g., \'ccusage=Usage Tracker,myproject=My Project\')',
 			hidden: true,
+		},
+		fillGaps: {
+			type: 'boolean',
+			short: 'f',
+			negatable: true,
+			description: 'Fill in missing dates with zero values (default: true)',
+			default: true,
+		},
+		breakdown: {
+			type: 'boolean',
+			short: 'b',
+			negatable: true,
+			description: 'Show per-model cost breakdown (default: true)',
+			default: true,
 		},
 	},
 	async run(ctx) {
@@ -69,7 +83,7 @@ export const dailyCommand = define({
 			logger.level = 0;
 		}
 
-		const dailyData = await loadDailyUsageData({
+		let dailyData = await loadDailyUsageData({
 			...mergedOptions,
 			groupByProject: mergedOptions.instances,
 		});
@@ -82,6 +96,12 @@ export const dailyCommand = define({
 				logger.warn('No Claude usage data found.');
 			}
 			process.exit(0);
+		}
+
+		// Fill in missing dates with zero values if enabled (default: true)
+		// Only apply when not grouping by project, as project grouping has separate data per project
+		if (mergedOptions.fillGaps && !mergedOptions.instances) {
+			dailyData = fillMissingDates(dailyData, mergedOptions.timezone);
 		}
 
 		// Calculate totals
@@ -175,7 +195,7 @@ export const dailyCommand = define({
 							cacheReadTokens: data.cacheReadTokens,
 							totalCost: data.totalCost,
 							modelsUsed: data.modelsUsed,
-						});
+						}, { hideModels: mergedOptions.breakdown });
 						table.push(row);
 
 						// Add model breakdown rows if flag is set
@@ -190,7 +210,7 @@ export const dailyCommand = define({
 			else {
 				// Standard display without project grouping
 				for (const data of dailyData) {
-					// Main row
+					// Main row - hide models column if breakdown is enabled (models shown in breakdown rows)
 					const row = formatUsageDataRow(data.date, {
 						inputTokens: data.inputTokens,
 						outputTokens: data.outputTokens,
@@ -198,7 +218,7 @@ export const dailyCommand = define({
 						cacheReadTokens: data.cacheReadTokens,
 						totalCost: data.totalCost,
 						modelsUsed: data.modelsUsed,
-					});
+					}, { hideModels: mergedOptions.breakdown });
 					table.push(row);
 
 					// Add model breakdown rows if flag is set

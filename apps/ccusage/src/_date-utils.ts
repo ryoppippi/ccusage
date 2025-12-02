@@ -47,6 +47,19 @@ function createDatePartsFormatter(timezone: string | undefined, locale: string):
 }
 
 /**
+ * Creates a weekday formatter with the specified timezone and locale
+ * @param timezone - Timezone to use
+ * @param locale - Locale to use for formatting
+ * @returns Intl.DateTimeFormat instance
+ */
+function createWeekdayFormatter(timezone: string | undefined, locale: string): Intl.DateTimeFormat {
+	return new Intl.DateTimeFormat(locale, {
+		weekday: 'short',
+		timeZone: timezone,
+	});
+}
+
+/**
  * Formats a date string to YYYY-MM-DD format
  * @param dateStr - Input date string
  * @param timezone - Optional timezone to use for formatting
@@ -61,11 +74,11 @@ export function formatDate(dateStr: string, timezone?: string, locale?: string):
 }
 
 /**
- * Formats a date string to compact format with year on first line and month-day on second
+ * Formats a date string to compact format with year on first line and month-day with weekday on second
  * @param dateStr - Input date string
  * @param timezone - Timezone to use for formatting (pass undefined to use system timezone)
  * @param locale - Locale to use for formatting
- * @returns Formatted date string with newline separator (YYYY\nMM-DD)
+ * @returns Formatted date string with newline separator (YYYY\nMM-DD Day)
  */
 export function formatDateCompact(dateStr: string, timezone: string | undefined, locale: string): string {
 	// For YYYY-MM-DD format, append T00:00:00 to parse as local date
@@ -81,7 +94,9 @@ export function formatDateCompact(dateStr: string, timezone: string | undefined,
 	const year = parts.find(p => p.type === 'year')?.value ?? '';
 	const month = parts.find(p => p.type === 'month')?.value ?? '';
 	const day = parts.find(p => p.type === 'day')?.value ?? '';
-	return `${year}\n${month}-${day}`;
+	const weekdayFormatter = createWeekdayFormatter(timezone, locale);
+	const weekday = weekdayFormatter.format(date);
+	return `${year}\n${month}-${day} ${weekday}`;
 }
 
 /**
@@ -170,6 +185,44 @@ export function getDayNumber(day: WeekDay): DayOfWeek {
 	return dayMap[day];
 }
 
+/**
+ * Get today's date as YYYY-MM-DD string
+ * @param timezone - Optional timezone to use
+ * @returns Today's date string in YYYY-MM-DD format
+ */
+export function getTodayDate(timezone?: string): string {
+	const now = new Date();
+	const formatter = new Intl.DateTimeFormat('en-CA', {
+		year: 'numeric',
+		month: '2-digit',
+		day: '2-digit',
+		timeZone: timezone,
+	});
+	return formatter.format(now);
+}
+
+/**
+ * Generate all dates between start and end (inclusive) in YYYY-MM-DD format
+ * @param startDate - Start date string in YYYY-MM-DD format
+ * @param endDate - End date string in YYYY-MM-DD format
+ * @returns Array of date strings in YYYY-MM-DD format
+ */
+export function generateDateRange(startDate: string, endDate: string): string[] {
+	const dates: string[] = [];
+	const start = new Date(`${startDate}T00:00:00`);
+	const endTime = new Date(`${endDate}T00:00:00`).getTime();
+
+	for (let currentTime = start.getTime(); currentTime <= endTime; currentTime += 24 * 60 * 60 * 1000) {
+		const current = new Date(currentTime);
+		const year = current.getFullYear();
+		const month = String(current.getMonth() + 1).padStart(2, '0');
+		const day = String(current.getDate()).padStart(2, '0');
+		dates.push(`${year}-${month}-${day}`);
+	}
+
+	return dates;
+}
+
 if (import.meta.vitest != null) {
 	describe('formatDate', () => {
 		it('should format date string to YYYY-MM-DD format', () => {
@@ -194,24 +247,24 @@ if (import.meta.vitest != null) {
 	});
 
 	describe('formatDateCompact', () => {
-		it('should format date to compact format with newline', () => {
+		it('should format date to compact format with newline and weekday', () => {
 			const result = formatDateCompact('2024-08-04', undefined, 'en-US');
-			expect(result).toBe('2024\n08-04');
+			expect(result).toBe('2024\n08-04 Sun');
 		});
 
 		it('should handle timezone parameter', () => {
 			const result = formatDateCompact('2024-08-04T12:00:00Z', 'UTC', 'en-US');
-			expect(result).toBe('2024\n08-04');
+			expect(result).toBe('2024\n08-04 Sun');
 		});
 
 		it('should handle YYYY-MM-DD format dates', () => {
 			const result = formatDateCompact('2024-08-04', undefined, 'en-US');
-			expect(result).toBe('2024\n08-04');
+			expect(result).toBe('2024\n08-04 Sun');
 		});
 
 		it('should handle timezone with YYYY-MM-DD format', () => {
 			const result = formatDateCompact('2024-08-04', 'UTC', 'en-US');
-			expect(result).toBe('2024\n08-04');
+			expect(result).toBe('2024\n08-04 Sun');
 		});
 	});
 

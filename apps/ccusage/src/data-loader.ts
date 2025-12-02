@@ -36,8 +36,10 @@ import {
 	filterByDateRange,
 	formatDate,
 	formatDateCompact,
+	generateDateRange,
 	getDateWeek,
 	getDayNumber,
+	getTodayDate,
 	sortByDate,
 } from './_date-utils.ts';
 import { PricingFetcher } from './_pricing-fetcher.ts';
@@ -530,6 +532,76 @@ export function createUniqueHash(data: UsageData): string | null {
 
 	// Create a hash using simple concatenation
 	return `${messageId}:${requestId}`;
+}
+
+/**
+ * Create an empty DailyUsage entry for a given date
+ * @param date - Date string in YYYY-MM-DD format
+ * @returns Empty DailyUsage entry with zero values
+ */
+function createEmptyDailyUsage(date: string): DailyUsage {
+	return {
+		date: createDailyDate(date),
+		inputTokens: 0,
+		outputTokens: 0,
+		cacheCreationTokens: 0,
+		cacheReadTokens: 0,
+		totalCost: 0,
+		modelsUsed: [],
+		modelBreakdowns: [],
+	};
+}
+
+/**
+ * Fill in missing dates between the first and last date in the data with zero values
+ * Also includes today's date if it falls within the range
+ * @param dailyData - Array of daily usage data
+ * @param timezone - Optional timezone for determining today's date
+ * @returns Array with missing dates filled in
+ */
+export function fillMissingDates(dailyData: DailyUsage[], timezone?: string): DailyUsage[] {
+	if (dailyData.length === 0) {
+		return [];
+	}
+
+	// Get existing dates as a Set for O(1) lookup
+	const existingDates = new Set(dailyData.map(d => d.date));
+
+	// Sort to find first and last dates
+	const sortedDates = [...existingDates].sort();
+	const firstDate = sortedDates[0];
+	const lastDate = sortedDates[sortedDates.length - 1];
+
+	// Safety check for undefined (should not happen if dailyData.length > 0)
+	if (firstDate == null || lastDate == null) {
+		return dailyData;
+	}
+
+	// Get today's date
+	const today = getTodayDate(timezone);
+
+	// Determine the end date: include today if it's after or equal to the last data date
+	const endDate = today >= lastDate ? today : lastDate;
+
+	// Generate all dates in range
+	const allDates = generateDateRange(firstDate, endDate);
+
+	// Create result array with all dates
+	const result: DailyUsage[] = [];
+	// Use string key for Map to handle DailyDate brand type
+	const dataMap = new Map(dailyData.map(d => [d.date as string, d]));
+
+	for (const date of allDates) {
+		const existing = dataMap.get(date);
+		if (existing != null) {
+			result.push(existing);
+		}
+		else {
+			result.push(createEmptyDailyUsage(date));
+		}
+	}
+
+	return result;
 }
 
 /**
@@ -1461,16 +1533,16 @@ if (import.meta.vitest != null) {
 			const testTimestamp = '2024-01-01T15:00:00Z';
 
 			// UTC timezone
-			expect(formatDateCompact(testTimestamp, 'UTC', 'en-US')).toBe('2024\n01-01');
+			expect(formatDateCompact(testTimestamp, 'UTC', 'en-US')).toBe('2024\n01-01 Mon');
 
 			// Asia/Tokyo timezone (crosses to next day)
-			expect(formatDateCompact(testTimestamp, 'Asia/Tokyo', 'en-US')).toBe('2024\n01-02');
+			expect(formatDateCompact(testTimestamp, 'Asia/Tokyo', 'en-US')).toBe('2024\n01-02 Tue');
 
 			// Daily date defined as UTC is preserved
-			expect(formatDateCompact('2024-01-01', 'UTC', 'en-US')).toBe('2024\n01-01');
+			expect(formatDateCompact('2024-01-01', 'UTC', 'en-US')).toBe('2024\n01-01 Mon');
 
 			// Daily date already in local time is preserved instead of being interpreted as UTC
-			expect(formatDateCompact('2024-01-01', undefined, 'en-US')).toBe('2024\n01-01');
+			expect(formatDateCompact('2024-01-01', undefined, 'en-US')).toBe('2024\n01-01 Mon');
 		});
 
 		it('handles various date formats', () => {
@@ -1580,31 +1652,31 @@ if (import.meta.vitest != null) {
 	});
 
 	describe('formatDateCompact', () => {
-		it('formats UTC timestamp to local date with line break', () => {
-			expect(formatDateCompact('2024-01-01T00:00:00Z', undefined, 'en-US')).toBe('2024\n01-01');
+		it('formats UTC timestamp to local date with line break and weekday', () => {
+			expect(formatDateCompact('2024-01-01T00:00:00Z', undefined, 'en-US')).toBe('2024\n01-01 Mon');
 		});
 
 		it('handles various date formats', () => {
-			expect(formatDateCompact('2024-12-31T23:59:59Z', undefined, 'en-US')).toBe('2024\n12-31');
-			expect(formatDateCompact('2024-01-01', undefined, 'en-US')).toBe('2024\n01-01');
-			expect(formatDateCompact('2024-01-01T12:00:00', undefined, 'en-US')).toBe('2024\n01-01');
-			expect(formatDateCompact('2024-01-01T12:00:00.000Z', undefined, 'en-US')).toBe('2024\n01-01');
+			expect(formatDateCompact('2024-12-31T23:59:59Z', undefined, 'en-US')).toBe('2024\n12-31 Tue');
+			expect(formatDateCompact('2024-01-01', undefined, 'en-US')).toBe('2024\n01-01 Mon');
+			expect(formatDateCompact('2024-01-01T12:00:00', undefined, 'en-US')).toBe('2024\n01-01 Mon');
+			expect(formatDateCompact('2024-01-01T12:00:00.000Z', undefined, 'en-US')).toBe('2024\n01-01 Mon');
 		});
 
 		it('pads single digit months and days', () => {
 			// Use UTC noon to avoid timezone issues
-			expect(formatDateCompact('2024-01-05T12:00:00Z', undefined, 'en-US')).toBe('2024\n01-05');
-			expect(formatDateCompact('2024-10-01T12:00:00Z', undefined, 'en-US')).toBe('2024\n10-01');
+			expect(formatDateCompact('2024-01-05T12:00:00Z', undefined, 'en-US')).toBe('2024\n01-05 Fri');
+			expect(formatDateCompact('2024-10-01T12:00:00Z', undefined, 'en-US')).toBe('2024\n10-01 Tue');
 		});
 
 		it('respects locale parameter', () => {
 			const testDate = '2024-08-04T12:00:00Z';
 
 			// Different locales format dates differently
-			expect(formatDateCompact(testDate, 'UTC', 'en-US')).toBe('2024\n08-04');
-			expect(formatDateCompact(testDate, 'UTC', 'en-CA')).toBe('2024\n08-04');
-			expect(formatDateCompact(testDate, 'UTC', 'ja-JP')).toBe('2024\n08-04');
-			// All locales should produce similar compact format
+			expect(formatDateCompact(testDate, 'UTC', 'en-US')).toBe('2024\n08-04 Sun');
+			expect(formatDateCompact(testDate, 'UTC', 'en-CA')).toBe('2024\n08-04 Sun');
+			expect(formatDateCompact(testDate, 'UTC', 'ja-JP')).toBe('2024\n08-04 日');
+			// All locales should produce similar compact format with localized weekday
 		});
 	});
 
