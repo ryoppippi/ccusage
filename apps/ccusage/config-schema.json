@@ -657,6 +657,18 @@
 							},
 							"additionalProperties": false
 						},
+						"status": {
+							"type": "object",
+							"properties": {
+								"json": {
+									"type": "boolean",
+									"description": "Output in JSON format",
+									"markdownDescription": "Output in JSON format",
+									"default": false
+								}
+							},
+							"additionalProperties": false
+						},
 						"statusline": {
 							"type": "object",
 							"properties": {
