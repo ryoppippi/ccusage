@@ -41,6 +41,11 @@ export const dailyCommand = define({
 			description: 'Comma-separated project aliases (e.g., \'ccusage=Usage Tracker,myproject=My Project\')',
 			hidden: true,
 		},
+		prompts: {
+			type: 'boolean',
+			description: 'Show prompt count column',
+			default: false,
+		},
 	},
 	async run(ctx) {
 		// Load configuration and merge with CLI arguments
@@ -87,6 +92,9 @@ export const dailyCommand = define({
 		// Calculate totals
 		const totals = calculateTotals(dailyData);
 
+		// Calculate total prompt count
+		const totalPromptCount = dailyData.reduce((sum, day) => sum + (day.promptCount || 0), 0);
+
 		// Show debug information if requested
 		if (mergedOptions.debug && !useJson) {
 			const mismatchStats = await detectMismatches(undefined);
@@ -111,6 +119,7 @@ export const dailyCommand = define({
 							totalCost: data.totalCost,
 							modelsUsed: data.modelsUsed,
 							modelBreakdowns: data.modelBreakdowns,
+							...(mergedOptions.prompts && { promptCount: data.promptCount }),
 							...(data.project != null && { project: data.project }),
 						})),
 						totals: createTotalsObject(totals),
@@ -138,8 +147,12 @@ export const dailyCommand = define({
 				firstColumnName: 'Date',
 				dateFormatter: (dateStr: string) => formatDateCompact(dateStr, mergedOptions.timezone, mergedOptions.locale ?? undefined),
 				forceCompact: ctx.values.compact,
+				includePrompts: Boolean(mergedOptions.prompts),
 			};
 			const table = createUsageReportTable(tableConfig);
+
+			// Calculate column count based on configuration
+			const columnCount = 8 + (mergedOptions.prompts ? 1 : 0); // Base columns + optional Prompts column
 
 			// Add daily data - group by project if instances flag is used
 			if (Boolean(mergedOptions.instances) && dailyData.some(d => d.project != null)) {
@@ -151,20 +164,20 @@ export const dailyCommand = define({
 					// Add project section header
 					if (!isFirstProject) {
 						// Add empty row for visual separation between projects
-						table.push(['', '', '', '', '', '', '', '']);
+						const projectSeparatorRow: (string | number)[] = Array.from({ length: columnCount }, () => '');
+						table.push(projectSeparatorRow);
 					}
 
 					// Add project header row
-					table.push([
+					const projectHeaderRow: (string | number)[] = [
 						pc.cyan(`Project: ${formatProjectName(projectName, projectAliases)}`),
 						'',
-						'',
-						'',
-						'',
-						'',
-						'',
-						'',
-					]);
+					];
+					// Fill remaining columns with empty strings
+					while (projectHeaderRow.length < columnCount) {
+						projectHeaderRow.push('');
+					}
+					table.push(projectHeaderRow);
 
 					// Add data rows for this project
 					for (const data of projectData) {
@@ -175,7 +188,8 @@ export const dailyCommand = define({
 							cacheReadTokens: data.cacheReadTokens,
 							totalCost: data.totalCost,
 							modelsUsed: data.modelsUsed,
-						});
+							promptCount: data.promptCount,
+						}, Boolean(mergedOptions.prompts));
 						table.push(row);
 
 						// Add model breakdown rows if flag is set
@@ -198,7 +212,8 @@ export const dailyCommand = define({
 						cacheReadTokens: data.cacheReadTokens,
 						totalCost: data.totalCost,
 						modelsUsed: data.modelsUsed,
-					});
+						promptCount: data.promptCount,
+					}, Boolean(mergedOptions.prompts));
 					table.push(row);
 
 					// Add model breakdown rows if flag is set
@@ -209,7 +224,7 @@ export const dailyCommand = define({
 			}
 
 			// Add empty row for visual separation before totals
-			addEmptySeparatorRow(table, 8);
+			addEmptySeparatorRow(table, columnCount);
 
 			// Add totals
 			const totalsRow = formatTotalsRow({
@@ -218,7 +233,8 @@ export const dailyCommand = define({
 				cacheCreationTokens: totals.cacheCreationTokens,
 				cacheReadTokens: totals.cacheReadTokens,
 				totalCost: totals.totalCost,
-			});
+				promptCount: totalPromptCount,
+			}, Boolean(mergedOptions.prompts));
 			table.push(totalsRow);
 
 			log(table.toString());
