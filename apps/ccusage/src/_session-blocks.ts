@@ -1,3 +1,5 @@
+import type { ModelName } from './_types.ts';
+import type { SubagentUsageSummary } from './data-loader.ts';
 import { uniq } from 'es-toolkit';
 import { DEFAULT_RECENT_DAYS } from './_consts.ts';
 import { getTotalTokens } from './_token-utils.ts';
@@ -33,6 +35,7 @@ export type LoadedUsageEntry = {
 	model: string;
 	version?: string;
 	usageLimitResetTime?: Date; // Claude API usage limit reset time
+	isSidechain?: boolean; // Flag indicating this is a subagent/Task tool entry
 };
 
 /**
@@ -60,6 +63,7 @@ export type SessionBlock = {
 	costUSD: number;
 	models: string[];
 	usageLimitResetTime?: Date; // Claude API usage limit reset time
+	subagentUsage?: SubagentUsageSummary; // Subagent usage summary
 };
 
 /**
@@ -179,7 +183,20 @@ function createBlock(startTime: Date, entries: LoadedUsageEntry[], now: Date, se
 	const models: string[] = [];
 	let usageLimitResetTime: Date | undefined;
 
+	// Track subagent entries in single loop
+	const subagentTokenCounts: TokenCounts = {
+		inputTokens: 0,
+		outputTokens: 0,
+		cacheCreationInputTokens: 0,
+		cacheReadInputTokens: 0,
+	};
+	let subagentCost = 0;
+	let subagentCount = 0;
+	const subagentModels: string[] = [];
+
+	// Single loop to aggregate both total and subagent counts
 	for (const entry of entries) {
+		// Aggregate all entries
 		tokenCounts.inputTokens += entry.usage.inputTokens;
 		tokenCounts.outputTokens += entry.usage.outputTokens;
 		tokenCounts.cacheCreationInputTokens += entry.usage.cacheCreationInputTokens;
@@ -187,7 +204,33 @@ function createBlock(startTime: Date, entries: LoadedUsageEntry[], now: Date, se
 		costUSD += entry.costUSD ?? 0;
 		usageLimitResetTime = entry.usageLimitResetTime ?? usageLimitResetTime;
 		models.push(entry.model);
+
+		// Aggregate subagent entries
+		if (entry.isSidechain === true) {
+			subagentTokenCounts.inputTokens += entry.usage.inputTokens;
+			subagentTokenCounts.outputTokens += entry.usage.outputTokens;
+			subagentTokenCounts.cacheCreationInputTokens += entry.usage.cacheCreationInputTokens;
+			subagentTokenCounts.cacheReadInputTokens += entry.usage.cacheReadInputTokens;
+			subagentCost += entry.costUSD ?? 0;
+			subagentCount++;
+			subagentModels.push(entry.model);
+		}
 	}
+
+	// Create subagent usage summary if there are subagent entries
+	const subagentUsage = subagentCount > 0
+		? {
+				totalTokens: subagentTokenCounts.inputTokens + subagentTokenCounts.outputTokens
+					+ subagentTokenCounts.cacheCreationInputTokens + subagentTokenCounts.cacheReadInputTokens,
+				inputTokens: subagentTokenCounts.inputTokens,
+				outputTokens: subagentTokenCounts.outputTokens,
+				cacheCreationTokens: subagentTokenCounts.cacheCreationInputTokens,
+				cacheReadTokens: subagentTokenCounts.cacheReadInputTokens,
+				totalCost: subagentCost,
+				taskCount: subagentCount,
+				modelsUsed: uniq(subagentModels) as ModelName[],
+			}
+		: undefined;
 
 	return {
 		id: startTime.toISOString(),
@@ -200,6 +243,7 @@ function createBlock(startTime: Date, entries: LoadedUsageEntry[], now: Date, se
 		costUSD,
 		models: uniq(models),
 		usageLimitResetTime,
+		...(subagentUsage != null && { subagentUsage }),
 	};
 }
 
@@ -1001,6 +1045,91 @@ if (import.meta.vitest != null) {
 			expect(blocksExplicit).toHaveLength(1);
 			expect(blocksDefault[0]!.endTime).toEqual(blocksExplicit[0]!.endTime);
 			expect(blocksDefault[0]!.endTime).toEqual(new Date(baseTime.getTime() + 5 * 60 * 60 * 1000));
+		});
+
+		it('calculates subagent usage when isSidechain entries are present', () => {
+			const baseTime = new Date('2024-01-01T10:00:00Z');
+			const entries: LoadedUsageEntry[] = [
+				createMockEntry(baseTime),
+				{
+					...createMockEntry(new Date(baseTime.getTime() + 60 * 1000)),
+					isSidechain: true,
+					usage: {
+						inputTokens: 500,
+						outputTokens: 250,
+						cacheCreationInputTokens: 50,
+						cacheReadInputTokens: 100,
+					},
+					costUSD: 0.3,
+				},
+				{
+					...createMockEntry(new Date(baseTime.getTime() + 120 * 1000)),
+					isSidechain: true,
+					usage: {
+						inputTokens: 300,
+						outputTokens: 150,
+						cacheCreationInputTokens: 0,
+						cacheReadInputTokens: 50,
+					},
+					costUSD: 0.2,
+				},
+			];
+
+			const blocks = identifySessionBlocks(entries);
+
+			expect(blocks).toHaveLength(1);
+			const block = blocks[0];
+			expect(block?.subagentUsage).toBeDefined();
+			expect(block?.subagentUsage?.taskCount).toBe(2);
+			expect(block?.subagentUsage?.inputTokens).toBe(800); // 500 + 300
+			expect(block?.subagentUsage?.outputTokens).toBe(400); // 250 + 150
+			expect(block?.subagentUsage?.cacheCreationTokens).toBe(50);
+			expect(block?.subagentUsage?.cacheReadTokens).toBe(150); // 100 + 50
+			expect(block?.subagentUsage?.totalTokens).toBe(1400); // 800 + 400 + 50 + 150
+			expect(block?.subagentUsage?.totalCost).toBe(0.5); // 0.3 + 0.2
+		});
+
+		it('does not include subagentUsage when no subagent entries', () => {
+			const baseTime = new Date('2024-01-01T10:00:00Z');
+			const entries: LoadedUsageEntry[] = [
+				createMockEntry(baseTime),
+				createMockEntry(new Date(baseTime.getTime() + 60 * 1000)),
+			];
+
+			const blocks = identifySessionBlocks(entries);
+
+			expect(blocks).toHaveLength(1);
+			const block = blocks[0];
+			expect(block?.subagentUsage).toBeUndefined();
+		});
+
+		it('aggregates both main and subagent tokens in total counts', () => {
+			const baseTime = new Date('2024-01-01T10:00:00Z');
+			const mainEntry = createMockEntry(baseTime);
+			const subagentEntry = {
+				...createMockEntry(new Date(baseTime.getTime() + 60 * 1000)),
+				isSidechain: true,
+				usage: {
+					inputTokens: 500,
+					outputTokens: 250,
+					cacheCreationInputTokens: 0,
+					cacheReadInputTokens: 0,
+				},
+				costUSD: 0.3,
+			};
+
+			const blocks = identifySessionBlocks([mainEntry, subagentEntry]);
+
+			expect(blocks).toHaveLength(1);
+			const block = blocks[0];
+			// Total should include both main and subagent
+			expect(block?.tokenCounts.inputTokens).toBe(mainEntry.usage.inputTokens + 500);
+			expect(block?.tokenCounts.outputTokens).toBe(mainEntry.usage.outputTokens + 250);
+			expect(block?.costUSD).toBe((mainEntry.costUSD ?? 0) + 0.3);
+			// Subagent usage should only include subagent entry
+			expect(block?.subagentUsage?.inputTokens).toBe(500);
+			expect(block?.subagentUsage?.outputTokens).toBe(250);
+			expect(block?.subagentUsage?.totalCost).toBe(0.3);
 		});
 	});
 }

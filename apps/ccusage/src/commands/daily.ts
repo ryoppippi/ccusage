@@ -1,6 +1,6 @@
 import type { UsageReportConfig } from '@ccusage/terminal/table';
 import process from 'node:process';
-import { addEmptySeparatorRow, createUsageReportTable, formatTotalsRow, formatUsageDataRow, pushBreakdownRows } from '@ccusage/terminal/table';
+import { addEmptySeparatorRow, createUsageReportTable, formatTotalsRow, formatUsageDataRow, pushBreakdownRows, pushSubagentSummaryRow } from '@ccusage/terminal/table';
 import { Result } from '@praha/byethrow';
 import { define } from 'gunshi';
 import pc from 'picocolors';
@@ -112,6 +112,7 @@ export const dailyCommand = define({
 							modelsUsed: data.modelsUsed,
 							modelBreakdowns: data.modelBreakdowns,
 							...(data.project != null && { project: data.project }),
+							...(data.subagentUsage != null && { subagentUsage: data.subagentUsage }),
 						})),
 						totals: createTotalsObject(totals),
 					};
@@ -180,7 +181,12 @@ export const dailyCommand = define({
 
 						// Add model breakdown rows if flag is set
 						if (mergedOptions.breakdown) {
-							pushBreakdownRows(table, data.modelBreakdowns);
+							pushBreakdownRows(table, data.modelBreakdowns, 1, 0, mergedOptions.subagents);
+						}
+
+						// Add subagent usage summary if present and flag enabled
+						if (data.subagentUsage != null && mergedOptions.subagents) {
+							pushSubagentSummaryRow(table, data.subagentUsage);
 						}
 					}
 
@@ -203,7 +209,12 @@ export const dailyCommand = define({
 
 					// Add model breakdown rows if flag is set
 					if (mergedOptions.breakdown) {
-						pushBreakdownRows(table, data.modelBreakdowns);
+						pushBreakdownRows(table, data.modelBreakdowns, 1, 0, mergedOptions.subagents);
+					}
+
+					// Add subagent usage summary if present and flag enabled
+					if (data.subagentUsage != null && mergedOptions.subagents) {
+						pushSubagentSummaryRow(table, data.subagentUsage);
 					}
 				}
 			}

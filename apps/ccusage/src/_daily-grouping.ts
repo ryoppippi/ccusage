@@ -31,6 +31,7 @@ export function groupByProject(dailyData: DailyData): Record<string, DailyProjec
 			totalCost: data.totalCost,
 			modelsUsed: data.modelsUsed,
 			modelBreakdowns: data.modelBreakdowns,
+			...(data.subagentUsage != null && { subagentUsage: data.subagentUsage }),
 		});
 	}
 

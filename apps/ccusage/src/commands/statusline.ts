@@ -347,7 +347,7 @@ export const statuslineCommand = define({
 					);
 
 					// Load session block data to find active block
-					const { blockInfo, burnRateInfo } = await Result.pipe(
+					const { blockInfo, burnRateInfo, subagentInfo } = await Result.pipe(
 						Result.try({
 							try: async () => loadSessionBlockData({
 								mode: 'auto',
@@ -421,13 +421,18 @@ export const statuslineCommand = define({
 										})()
 									: '';
 
-								return { blockInfo, burnRateInfo };
+								// Get subagent info from active block (only if tasks > 0)
+								const subagentInfo = activeBlock.subagentUsage != null && activeBlock.subagentUsage.taskCount > 0
+									? ` (+${activeBlock.subagentUsage.taskCount} subagents)`
+									: '';
+
+								return { blockInfo, burnRateInfo, subagentInfo };
 							}
 
-							return { blockInfo: 'No active block', burnRateInfo: '' };
+							return { blockInfo: 'No active block', burnRateInfo: '', subagentInfo: '' };
 						}),
 						Result.inspectError(error => logger.error('Failed to load block data:', error)),
-						Result.unwrap({ blockInfo: 'No active block', burnRateInfo: '' }),
+						Result.unwrap({ blockInfo: 'No active block', burnRateInfo: '', subagentInfo: '' }),
 					);
 
 					// Calculate context tokens from transcript with model-specific limits
@@ -471,7 +476,7 @@ export const statuslineCommand = define({
 						// Single cost display
 						return sessionCost != null ? formatCurrency(sessionCost) : 'N/A';
 					})();
-					const statusLine = `🤖 ${modelName} | 💰 ${sessionDisplay} session / ${formatCurrency(todayCost)} today / ${blockInfo}${burnRateInfo} | 🧠 ${contextInfo ?? 'N/A'}`;
+					const statusLine = `🤖 ${modelName}${subagentInfo} | 💰 ${sessionDisplay} session / ${formatCurrency(todayCost)} today / ${blockInfo}${burnRateInfo} | 🧠 ${contextInfo ?? 'N/A'}`;
 					return statusLine;
 				},
 				catch: error => error,
