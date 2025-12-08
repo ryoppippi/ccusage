@@ -123,7 +123,7 @@ catalogs:
       specifier: ^4.9.2
       version: 4.9.7
     nano-spawn:
-      specifier: ^1.0.2
+      specifier: ^1.0.3
       version: 1.0.3
     p-limit:
       specifier: ^7.1.0
