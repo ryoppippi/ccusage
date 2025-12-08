@@ -7,7 +7,9 @@ import {
 } from '@ccusage/internal/pricing-fetch-utils';
 
 function isClaudeModel(modelName: string, _pricing: LiteLLMModelPricing): boolean {
-	return modelName.startsWith('claude-');
+	return modelName.startsWith('claude-')
+		|| modelName.startsWith('anthropic.claude-')
+		|| modelName.startsWith('anthropic/claude-');
 }
 
 export async function prefetchClaudePricing(): Promise<Record<string, LiteLLMModelPricing>> {
