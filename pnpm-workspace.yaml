@@ -49,7 +49,7 @@ catalogs:
     get-stdin: ^9.0.0
     gunshi: ^0.26.3
     hono: ^4.9.2
-    nano-spawn: ^1.0.2
+    nano-spawn: ^1.0.3
     p-limit: ^7.1.0
     path-type: ^6.0.0
     picocolors: ^1.1.1
