@@ -37,7 +37,7 @@ catalogs:
     '@antfu/utils': ^9.2.1
     '@hono/mcp': ^0.1.5
     '@hono/node-server': ^1.19.6
-    '@modelcontextprotocol/sdk': ^1.18.1
+    '@modelcontextprotocol/sdk': ^1.24.3
     '@praha/byethrow': ^0.6.3
     '@ryoppippi/limo': jsr:^0.2.2
     '@std/async': jsr:^1.0.14
@@ -59,7 +59,7 @@ catalogs:
     type-fest: ^4.41.0
     valibot: ^1.1.0
     xdg-basedir: ^5.1.0
-    zod: ^3.25.67
+    zod: ^4.1.13
   testing:
     fs-fixture: ^2.8.1
     vitest: ^3.2.4

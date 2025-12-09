@@ -25,6 +25,7 @@
 		"ccusage-mcp": "./src/index.ts"
 	},
 	"files": [
+		"README.md",
 		"dist"
 	],
 	"engines": {
