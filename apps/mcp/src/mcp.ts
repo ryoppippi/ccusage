@@ -616,11 +616,18 @@ if (import.meta.vitest != null) {
 					server.connect(serverTransport),
 				]);
 
-				// Test with invalid mode enum value
-				await expect(client.callTool({
+				// Test with invalid mode enum value - MCP SDK returns isError response
+				const result = await client.callTool({
 					name: 'daily',
 					arguments: { mode: 'invalid_mode' },
-				})).rejects.toThrow('Invalid enum value');
+				});
+
+				expect(result.isError).toBe(true);
+				expect(result.content).toBeDefined();
+				expect(Array.isArray(result.content)).toBe(true);
+				const textContent = result.content[0] as { type: string; text: string };
+				expect(textContent.type).toBe('text');
+				expect(textContent.text).toContain('Invalid');
 
 				await client.close();
 				await server.close();
@@ -649,11 +656,18 @@ if (import.meta.vitest != null) {
 					server.connect(serverTransport),
 				]);
 
-				// Test with invalid date format
-				await expect(client.callTool({
+				// Test with invalid date format - MCP SDK returns isError response
+				const result = await client.callTool({
 					name: 'daily',
 					arguments: { since: 'not-a-date', until: '2024-invalid' },
-				})).rejects.toThrow('Date must be in YYYYMMDD format');
+				});
+
+				expect(result.isError).toBe(true);
+				expect(result.content).toBeDefined();
+				expect(Array.isArray(result.content)).toBe(true);
+				const textContent = result.content[0] as { type: string; text: string };
+				expect(textContent.type).toBe('text');
+				expect(textContent.text).toContain('Date must be in YYYYMMDD format');
 
 				await client.close();
 				await server.close();
@@ -682,11 +696,18 @@ if (import.meta.vitest != null) {
 					server.connect(serverTransport),
 				]);
 
-				// Test with unknown tool name
-				await expect(client.callTool({
+				// Test with unknown tool name - MCP SDK returns isError response
+				const result = await client.callTool({
 					name: 'unknown-tool',
 					arguments: {},
-				})).rejects.toThrow('Tool unknown-tool not found');
+				});
+
+				expect(result.isError).toBe(true);
+				expect(result.content).toBeDefined();
+				expect(Array.isArray(result.content)).toBe(true);
+				const textContent = result.content[0] as { type: string; text: string };
+				expect(textContent.type).toBe('text');
+				expect(textContent.text).toContain('Tool unknown-tool not found');
 
 				await client.close();
 				await server.close();
