@@ -188,9 +188,9 @@ function createConfigSchemaJson() {
 /**
  * Generate JSON Schema and write to files
  */
-async function runLint(files: string[]) {
+async function runFormat(files: string[]) {
 	return Result.try({
-		try: $`bun run lint --fix ${files}`,
+		try: $`pnpm exec oxfmt ${files}`,
 		catch: error => error,
 	});
 }
@@ -270,17 +270,17 @@ async function generateJsonSchema() {
 	// Copy to docs/public using Bun shell
 	await copySchemaToDocsPublic();
 
-	// Run lint on the root schema file that was changed
+	// Run format on the root schema file that was changed
 	await Result.pipe(
 		Result.try({
-			try: runLint([SCHEMA_FILENAME]),
+			try: runFormat([SCHEMA_FILENAME]),
 			safe: true,
 		}),
 		Result.inspectError((error) => {
-			logger.error('Failed to lint generated files:', error);
+			logger.error('Failed to format generated files:', error);
 			process.exit(1);
 		}),
-		Result.inspect(() => logger.info('✓ Linted generated files')),
+		Result.inspect(() => logger.info('✓ Formatted generated files')),
 	);
 
 	logger.info('JSON Schema generation completed successfully!');

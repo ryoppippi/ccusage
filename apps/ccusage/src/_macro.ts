@@ -1,5 +1,4 @@
 import type { LiteLLMModelPricing } from '@ccusage/internal/pricing';
-import process from 'node:process';
 import {
 	createPricingDataset,
 	fetchLiteLLMPricingDataset,
@@ -13,10 +12,6 @@ function isClaudeModel(modelName: string, _pricing: LiteLLMModelPricing): boolea
 }
 
 export async function prefetchClaudePricing(): Promise<Record<string, LiteLLMModelPricing>> {
-	if (process.env.OFFLINE === 'true') {
-		return createPricingDataset();
-	}
-
 	try {
 		const dataset = await fetchLiteLLMPricingDataset();
 		return filterPricingDataset(dataset, isClaudeModel);
