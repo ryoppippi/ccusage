@@ -624,7 +624,7 @@ if (import.meta.vitest != null) {
 
 				expect(result.isError).toBe(true);
 				expect(result.content).toBeDefined();
-				expect(Array.isArray(result.content)).toBe(true);
+				assert(Array.isArray(result.content));
 				const textContent = result.content[0] as { type: string; text: string };
 				expect(textContent.type).toBe('text');
 				expect(textContent.text).toContain('Invalid');
@@ -664,7 +664,7 @@ if (import.meta.vitest != null) {
 
 				expect(result.isError).toBe(true);
 				expect(result.content).toBeDefined();
-				expect(Array.isArray(result.content)).toBe(true);
+				assert(Array.isArray(result.content));
 				const textContent = result.content[0] as { type: string; text: string };
 				expect(textContent.type).toBe('text');
 				expect(textContent.text).toContain('Date must be in YYYYMMDD format');
@@ -704,7 +704,7 @@ if (import.meta.vitest != null) {
 
 				expect(result.isError).toBe(true);
 				expect(result.content).toBeDefined();
-				expect(Array.isArray(result.content)).toBe(true);
+				assert(Array.isArray(result.content));
 				const textContent = result.content[0] as { type: string; text: string };
 				expect(textContent.type).toBe('text');
 				expect(textContent.text).toContain('Tool unknown-tool not found');
