@@ -1,5 +1,4 @@
 import type { LiteLLMModelPricing } from '@ccusage/internal/pricing';
-import process from 'node:process';
 import {
 	createPricingDataset,
 	fetchLiteLLMPricingDataset,
@@ -19,10 +18,6 @@ function isCodexModel(modelName: string, _pricing: LiteLLMModelPricing): boolean
 }
 
 export async function prefetchCodexPricing(): Promise<Record<string, LiteLLMModelPricing>> {
-	if (process.env.OFFLINE === 'true') {
-		return createPricingDataset();
-	}
-
 	try {
 		const dataset = await fetchLiteLLMPricingDataset();
 		return filterPricingDataset(dataset, isCodexModel);
