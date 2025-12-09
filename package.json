@@ -32,6 +32,7 @@
 		"bumpp": "catalog:release",
 		"eslint": "catalog:lint",
 		"lint-staged": "catalog:release",
+		"oxfmt": "catalog:lint",
 		"sitemcp": "catalog:mcp",
 		"sort-package-json": "catalog:release"
 	},
