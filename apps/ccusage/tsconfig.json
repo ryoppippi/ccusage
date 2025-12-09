@@ -12,6 +12,7 @@
 		"moduleResolution": "bundler",
 		"resolveJsonModule": true,
 		"types": [
+			"@types/bun",
 			"vitest/globals",
 			"vitest/importMeta"
 		],
