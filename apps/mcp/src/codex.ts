@@ -28,7 +28,7 @@ const codexDailyRowSchema = z.object({
 	reasoningOutputTokens: z.number(),
 	totalTokens: z.number(),
 	costUSD: z.number(),
-	models: z.record(codexModelUsageSchema),
+	models: z.record(z.string(), codexModelUsageSchema),
 });
 
 const codexMonthlyRowSchema = z.object({
@@ -39,7 +39,7 @@ const codexMonthlyRowSchema = z.object({
 	reasoningOutputTokens: z.number(),
 	totalTokens: z.number(),
 	costUSD: z.number(),
-	models: z.record(codexModelUsageSchema),
+	models: z.record(z.string(), codexModelUsageSchema),
 });
 
 // Response schemas for internal parsing only - not exported
