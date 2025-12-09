@@ -61,12 +61,13 @@ export const sessionCommand = define({
 
 		// Original session listing logic
 		const sessionData = await loadSessionData({
-			since: ctx.values.since,
-			until: ctx.values.until,
-			mode: ctx.values.mode,
-			offline: ctx.values.offline,
-			timezone: ctx.values.timezone,
-			locale: ctx.values.locale,
+			since: mergedOptions.since,
+			until: mergedOptions.until,
+			mode: mergedOptions.mode,
+			offline: mergedOptions.offline,
+			pricingSource: mergedOptions.pricingSource,
+			timezone: mergedOptions.timezone,
+			locale: mergedOptions.locale,
 		});
 
 		if (sessionData.length === 0) {

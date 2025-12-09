@@ -164,14 +164,15 @@ export const blocksCommand = define({
 		}
 
 		let blocks = await loadSessionBlockData({
-			since: ctx.values.since,
-			until: ctx.values.until,
-			mode: ctx.values.mode,
-			order: ctx.values.order,
-			offline: ctx.values.offline,
+			since: mergedOptions.since,
+			until: mergedOptions.until,
+			mode: mergedOptions.mode,
+			order: mergedOptions.order,
+			offline: mergedOptions.offline,
+			pricingSource: mergedOptions.pricingSource,
 			sessionDurationHours: ctx.values.sessionLength,
-			timezone: ctx.values.timezone,
-			locale: ctx.values.locale,
+			timezone: mergedOptions.timezone,
+			locale: mergedOptions.locale,
 		});
 
 		if (blocks.length === 0) {
@@ -252,8 +253,9 @@ export const blocksCommand = define({
 				tokenLimit: parseTokenLimit(tokenLimitValue, maxTokensFromAll),
 				refreshInterval: refreshInterval * 1000, // Convert to milliseconds
 				sessionDurationHours: ctx.values.sessionLength,
-				mode: ctx.values.mode,
-				order: ctx.values.order,
+				mode: mergedOptions.mode,
+				order: mergedOptions.order,
+				pricingSource: mergedOptions.pricingSource,
 			});
 			return; // Exit early, don't show table
 		}

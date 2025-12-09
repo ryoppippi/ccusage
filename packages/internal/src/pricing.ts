@@ -1,5 +1,6 @@
 import { Result } from '@praha/byethrow';
 import * as v from 'valibot';
+import { fetchModelsDevPricing } from './models-dev-pricing.ts';
 
 export const LITELLM_PRICING_URL
 	= 'https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json';
@@ -61,6 +62,12 @@ export type LiteLLMPricingFetcherOptions = {
 	offlineLoader?: () => Promise<Record<string, LiteLLMModelPricing>>;
 	url?: string;
 	providerPrefixes?: string[];
+	/**
+	 * Enable models.dev as an additional pricing data source
+	 * When enabled, pricing data from models.dev will be merged with LiteLLM data
+	 * @default false
+	 */
+	useModelsDev?: boolean;
 };
 
 const DEFAULT_PROVIDER_PREFIXES = [
@@ -93,6 +100,7 @@ export class LiteLLMPricingFetcher implements Disposable {
 	private readonly offlineLoader?: () => Promise<Record<string, LiteLLMModelPricing>>;
 	private readonly url: string;
 	private readonly providerPrefixes: string[];
+	private readonly useModelsDev: boolean;
 
 	constructor(options: LiteLLMPricingFetcherOptions = {}) {
 		this.logger = createLogger(options.logger);
@@ -100,6 +108,7 @@ export class LiteLLMPricingFetcher implements Disposable {
 		this.offlineLoader = options.offlineLoader;
 		this.url = options.url ?? LITELLM_PRICING_URL;
 		this.providerPrefixes = options.providerPrefixes ?? DEFAULT_PROVIDER_PREFIXES;
+		this.useModelsDev = Boolean(options.useModelsDev);
 	}
 
 	[Symbol.dispose](): void {
@@ -136,6 +145,33 @@ export class LiteLLMPricingFetcher implements Disposable {
 				this.logger.error('Original fetch error:', originalError);
 			}),
 		);
+	}
+
+	private fetchModelsDevPricing = Result.try({
+		try: async () => {
+			this.logger.info('Fetching pricing data from models.dev...');
+			const result = await fetchModelsDevPricing();
+			if (Result.isFailure(result)) {
+				throw result.error;
+			}
+			this.logger.info(`Loaded pricing for ${result.value.size} models from models.dev`);
+			return result.value;
+		},
+		catch: error => new Error('Failed to fetch pricing from models.dev', { cause: error }),
+	});
+
+	private mergePricingMaps(
+		base: Map<string, LiteLLMModelPricing>,
+		additional: Map<string, LiteLLMModelPricing>,
+	): Map<string, LiteLLMModelPricing> {
+		const merged = new Map(base);
+		for (const [key, value] of additional) {
+			// Only add if not already present (LiteLLM data takes precedence)
+			if (!merged.has(key)) {
+				merged.set(key, value);
+			}
+		}
+		return merged;
 	}
 
 	private async ensurePricingLoaded(): Result.ResultAsync<Map<string, LiteLLMModelPricing>, Error> {
@@ -177,6 +213,21 @@ export class LiteLLMPricingFetcher implements Disposable {
 							pricing.set(modelName, parsed.output);
 						}
 						return pricing;
+					}),
+					Result.andThen(async (liteLLMPricing) => {
+						if (!this.useModelsDev) {
+							return Result.succeed(liteLLMPricing);
+						}
+
+						const modelsDevResult = await this.fetchModelsDevPricing();
+						if (Result.isFailure(modelsDevResult)) {
+							this.logger.warn('Failed to fetch models.dev pricing, using only LiteLLM data');
+							return Result.succeed(liteLLMPricing);
+						}
+
+						const merged = this.mergePricingMaps(liteLLMPricing, modelsDevResult.value);
+						this.logger.info(`Merged pricing data: ${merged.size} total models (LiteLLM: ${liteLLMPricing.size}, models.dev: ${modelsDevResult.value.size})`);
+						return Result.succeed(merged);
 					}),
 					Result.inspect((pricing) => {
 						this.cachedPricing = pricing;

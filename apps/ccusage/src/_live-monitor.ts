@@ -9,7 +9,7 @@
  */
 
 import type { LoadedUsageEntry, SessionBlock } from './_session-blocks.ts';
-import type { CostMode, SortOrder } from './_types.ts';
+import type { CostMode, PricingSource, SortOrder } from './_types.ts';
 import { readFile, stat } from 'node:fs/promises';
 import { Result } from '@praha/byethrow';
 import pLimit from 'p-limit';
@@ -34,6 +34,7 @@ export type LiveMonitorConfig = {
 	sessionDurationHours: number;
 	mode: CostMode;
 	order: SortOrder;
+	pricingSource: PricingSource;
 };
 
 /**
@@ -72,7 +73,7 @@ async function isRecentFile(filePath: string, cutoffTime: Date): Promise<boolean
  * Creates a new live monitoring state
  */
 export function createLiveMonitorState(config: LiveMonitorConfig): LiveMonitorState {
-	const fetcher = config.mode !== 'display' ? new PricingFetcher() : null;
+	const fetcher = config.mode !== 'display' ? new PricingFetcher(false, config.pricingSource) : null;
 
 	return {
 		fetcher,
@@ -296,6 +297,7 @@ if (import.meta.vitest != null) {
 				sessionDurationHours: 5,
 				mode: 'display',
 				order: 'desc',
+				pricingSource: 'auto',
 			};
 
 			state = createLiveMonitorState(config);
@@ -333,6 +335,7 @@ if (import.meta.vitest != null) {
 				sessionDurationHours: 5,
 				mode: 'display' as const,
 				order: 'desc' as const,
+				pricingSource: 'auto' as const,
 			};
 
 			using emptyState = createLiveMonitorState(emptyConfig);

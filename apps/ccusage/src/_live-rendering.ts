@@ -8,7 +8,7 @@
 
 import type { TerminalManager } from '@ccusage/terminal/utils';
 import type { SessionBlock } from './_session-blocks.ts';
-import type { CostMode, SortOrder } from './_types.ts';
+import type { CostMode, PricingSource, SortOrder } from './_types.ts';
 import { formatCurrency, formatModelsDisplay, formatNumber } from '@ccusage/terminal/table';
 import { centerText, createProgressBar, drawEmoji } from '@ccusage/terminal/utils';
 import { delay } from '@std/async';
@@ -49,6 +49,7 @@ export type LiveMonitoringConfig = {
 	sessionDurationHours: number;
 	mode: CostMode;
 	order: SortOrder;
+	pricingSource: PricingSource;
 };
 
 /**

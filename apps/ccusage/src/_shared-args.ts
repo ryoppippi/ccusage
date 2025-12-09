@@ -1,8 +1,13 @@
 import type { Args } from 'gunshi';
-import type { CostMode, SortOrder } from './_types.ts';
+import type { CostMode, PricingSource, SortOrder } from './_types.ts';
 import * as v from 'valibot';
 import { DEFAULT_LOCALE } from './_consts.ts';
-import { CostModes, filterDateSchema, SortOrders } from './_types.ts';
+import {
+	CostModes,
+	filterDateSchema,
+	PricingSources,
+	SortOrders,
+} from './_types.ts';
 
 /**
  * Parses and validates a date argument in YYYYMMDD format
@@ -39,7 +44,7 @@ export const sharedArgs = {
 		type: 'enum',
 		short: 'm',
 		description:
-			'Cost calculation mode: auto (use costUSD if exists, otherwise calculate), calculate (always calculate), display (always use costUSD)',
+      'Cost calculation mode: auto (use costUSD if exists, otherwise calculate), calculate (always calculate), display (always use costUSD)',
 		default: 'auto' as const satisfies CostMode,
 		choices: CostModes,
 	},
@@ -52,7 +57,7 @@ export const sharedArgs = {
 	debugSamples: {
 		type: 'number',
 		description:
-			'Number of sample discrepancies to show in debug output (default: 5)',
+      'Number of sample discrepancies to show in debug output (default: 5)',
 		default: 5,
 	},
 	order: {
@@ -72,21 +77,35 @@ export const sharedArgs = {
 		type: 'boolean',
 		negatable: true,
 		short: 'O',
-		description: 'Use cached pricing data for Claude models instead of fetching from API',
+		description:
+      'Use cached pricing data for Claude models instead of fetching from API',
 		default: false,
 	},
-	color: { // --color and FORCE_COLOR=1 is handled by picocolors
-		type: 'boolean',
-		description: 'Enable colored output (default: auto). FORCE_COLOR=1 has the same effect.',
+	pricingSource: {
+		type: 'enum',
+		short: 'p',
+		description:
+      'Pricing data source: auto (merge LiteLLM + models.dev), litellm (LiteLLM only), modelsdev (models.dev only)',
+		default: 'auto' as const satisfies PricingSource,
+		choices: PricingSources,
 	},
-	noColor: { // --no-color and NO_COLOR=1 is handled by picocolors
+	color: {
+		// --color and FORCE_COLOR=1 is handled by picocolors
 		type: 'boolean',
-		description: 'Disable colored output (default: auto). NO_COLOR=1 has the same effect.',
+		description:
+      'Enable colored output (default: auto). FORCE_COLOR=1 has the same effect.',
+	},
+	noColor: {
+		// --no-color and NO_COLOR=1 is handled by picocolors
+		type: 'boolean',
+		description:
+      'Disable colored output (default: auto). NO_COLOR=1 has the same effect.',
 	},
 	timezone: {
 		type: 'string',
 		short: 'z',
-		description: 'Timezone for date grouping (e.g., UTC, America/New_York, Asia/Tokyo). Default: system timezone',
+		description:
+      'Timezone for date grouping (e.g., UTC, America/New_York, Asia/Tokyo). Default: system timezone',
 	},
 	locale: {
 		type: 'string',
@@ -97,7 +116,8 @@ export const sharedArgs = {
 	jq: {
 		type: 'string',
 		short: 'q',
-		description: 'Process JSON output with jq command (requires jq binary, implies --json)',
+		description:
+      'Process JSON output with jq command (requires jq binary, implies --json)',
 	},
 	config: {
 		type: 'string',
@@ -105,7 +125,8 @@ export const sharedArgs = {
 	},
 	compact: {
 		type: 'boolean',
-		description: 'Force compact mode for narrow displays (better for screenshots)',
+		description:
+      'Force compact mode for narrow displays (better for screenshots)',
 		default: false,
 	},
 } as const satisfies Args;
