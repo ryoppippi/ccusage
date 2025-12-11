@@ -24,3 +24,7 @@ runs:
       with:
         name: ryoppippi
         authToken: ${{ inputs.cachix-auth-token }}
+
+    - name: Load Nix development environment
+      shell: bash
+      run: nix develop --command true
