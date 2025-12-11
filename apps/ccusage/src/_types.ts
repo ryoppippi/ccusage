@@ -1,5 +1,6 @@
 import type { TupleToUnion } from 'type-fest';
 import * as v from 'valibot';
+import { CONTEXT_WINDOW_MODES } from './_consts.ts';
 
 /**
  * Branded Valibot schemas for type safety using brand markers.
@@ -149,6 +150,11 @@ export const SortOrders = ['desc', 'asc'] as const;
  * Union type for sort order options
  */
 export type SortOrder = TupleToUnion<typeof SortOrders>;
+
+/**
+ * Union type for context window mode options
+ */
+export type ContextWindowMode = TupleToUnion<typeof CONTEXT_WINDOW_MODES>;
 
 /**
  * Valibot schema for Claude Code statusline hook JSON data
