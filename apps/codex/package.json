@@ -1,7 +1,7 @@
 {
 	"name": "@ccusage/codex",
 	"type": "module",
-	"version": "17.1.8",
+	"version": "17.2.0",
 	"description": "Usage analysis tool for OpenAI Codex sessions",
 	"author": "ryoppippi",
 	"license": "MIT",

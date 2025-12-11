@@ -1,7 +1,7 @@
 {
 	"name": "@ccusage/docs",
 	"type": "module",
-	"version": "17.1.8",
+	"version": "17.2.0",
 	"private": true,
 	"description": "Documentation for ccusage",
 	"scripts": {
