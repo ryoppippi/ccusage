@@ -105,6 +105,7 @@ When using `--cost-source both`, the session cost shows both Claude Code and ccu
   - Green text: Low usage (< 50% by default)
   - Yellow text: Medium usage (50-80% by default)
   - Red text: High usage (> 80% by default)
+  - Uses Claude Code's [`context_window` data](https://code.claude.com/docs/en/statusline) when available for accurate token counts
 
 When no active block exists:
 

@@ -430,28 +430,40 @@ export const statuslineCommand = define({
 						Result.unwrap({ blockInfo: 'No active block', burnRateInfo: '' }),
 					);
 
-					// Calculate context tokens from transcript with model-specific limits
-					const contextInfo = await Result.pipe(
-						Result.try({
-							try: calculateContextTokens(hookData.transcript_path, hookData.model.id, mergedOptions.offline),
-							catch: error => error,
-						}),
+					// Helper function to format context info with color coding
+					const formatContextInfo = (inputTokens: number, contextLimit: number): string => {
+						const percentage = Math.round((inputTokens / contextLimit) * 100);
+						const color = percentage < ctx.values.contextLowThreshold
+							? pc.green
+							: percentage < ctx.values.contextMediumThreshold
+								? pc.yellow
+								: pc.red;
+						const coloredPercentage = color(`${percentage}%`);
+						const tokenDisplay = inputTokens.toLocaleString();
+						return `${tokenDisplay} (${coloredPercentage})`;
+					};
+
+					// Get context tokens from Claude Code hook data, or fall back to calculating from transcript
+					const contextDataResult = hookData.context_window != null
+						// Prefer context_window data from Claude Code hook if available
+						? Result.succeed({
+								inputTokens: hookData.context_window.total_input_tokens,
+								contextLimit: hookData.context_window.context_window_size,
+							})
+						// Fall back to calculating context tokens from transcript
+						: await Result.try({
+								try: async () => calculateContextTokens(hookData.transcript_path, hookData.model.id, mergedOptions.offline),
+								catch: error => error,
+							})();
+
+					const contextInfo = Result.pipe(
+						contextDataResult,
 						Result.inspectError(error => logger.debug(`Failed to calculate context tokens: ${error instanceof Error ? error.message : String(error)}`)),
 						Result.map((contextResult) => {
 							if (contextResult == null) {
 								return undefined;
 							}
-							// Format context percentage with color coding using option thresholds
-							const color = contextResult.percentage < ctx.values.contextLowThreshold
-								? pc.green
-								: contextResult.percentage < ctx.values.contextMediumThreshold
-									? pc.yellow
-									: pc.red;
-							const coloredPercentage = color(`${contextResult.percentage}%`);
-
-							// Format token count with thousand separators
-							const tokenDisplay = contextResult.inputTokens.toLocaleString();
-							return `${tokenDisplay} (${coloredPercentage})`;
+							return formatContextInfo(contextResult.inputTokens, contextResult.contextLimit);
 						}),
 						Result.unwrap(undefined),
 					);
