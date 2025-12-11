@@ -148,6 +148,26 @@ npx ccusage monthly --compact  # Compact monthly report
 
 Full documentation is available at **[ccusage.com](https://ccusage.com/)**
 
+## Development Setup
+
+### Using Nix (Recommended for Contributors)
+
+For contributors and developers working on ccusage, we provide a Nix flake-based development environment:
+
+```bash
+# Clone the repository
+git clone https://github.com/ryoppippi/ccusage.git
+cd ccusage
+
+# Allow direnv (automatically loads Nix environment)
+direnv allow
+
+# Or manually enter the development shell
+nix develop
+```
+
+This ensures consistent tooling versions across all contributors and CI systems. The development environment is defined in `flake.nix` and automatically activated via direnv when entering the project directory.
+
 ## Sponsors
 
 ### Featured Sponsor
