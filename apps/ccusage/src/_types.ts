@@ -141,6 +141,19 @@ export const CostModes = ['auto', 'calculate', 'display'] as const;
 export type CostMode = TupleToUnion<typeof CostModes>;
 
 /**
+ * Available pricing data sources
+ * - auto: Use both LiteLLM and models.dev (merged, LiteLLM takes precedence)
+ * - litellm: Use only LiteLLM pricing data
+ * - modelsdev: Use only models.dev pricing data
+ */
+export const PricingSources = ['auto', 'litellm', 'modelsdev'] as const;
+
+/**
+ * Union type for pricing sources
+ */
+export type PricingSource = TupleToUnion<typeof PricingSources>;
+
+/**
  * Available sort orders for data presentation
  */
 export const SortOrders = ['desc', 'asc'] as const;

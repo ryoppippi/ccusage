@@ -1,19 +1,19 @@
 {
 	"name": "@ccusage/codex",
-	"type": "module",
 	"version": "17.1.8",
 	"description": "Usage analysis tool for OpenAI Codex sessions",
-	"author": "ryoppippi",
-	"license": "MIT",
-	"funding": "https://github.com/ryoppippi/ccusage?sponsor=1",
 	"homepage": "https://github.com/ryoppippi/ccusage#readme",
+	"bugs": {
+		"url": "https://github.com/ryoppippi/ccusage/issues"
+	},
 	"repository": {
 		"type": "git",
 		"url": "git+https://github.com/ryoppippi/ccusage.git"
 	},
-	"bugs": {
-		"url": "https://github.com/ryoppippi/ccusage/issues"
-	},
+	"funding": "https://github.com/ryoppippi/ccusage?sponsor=1",
+	"license": "MIT",
+	"author": "ryoppippi",
+	"type": "module",
 	"main": "./dist/index.js",
 	"module": "./dist/index.js",
 	"bin": {
@@ -22,9 +22,6 @@
 	"files": [
 		"dist"
 	],
-	"engines": {
-		"node": ">=20.19.4"
-	},
 	"scripts": {
 		"build": "tsdown",
 		"format": "pnpm run lint --fix",
@@ -54,6 +51,9 @@
 		"unplugin-unused": "catalog:build",
 		"valibot": "catalog:runtime",
 		"vitest": "catalog:testing"
+	},
+	"engines": {
+		"node": ">=20.19.4"
 	},
 	"publishConfig": {
 		"bin": {

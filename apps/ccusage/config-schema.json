@@ -73,6 +73,17 @@
 							"markdownDescription": "Use cached pricing data for Claude models instead of fetching from API",
 							"default": false
 						},
+						"pricingSource": {
+							"type": "string",
+							"enum": [
+								"auto",
+								"litellm",
+								"modelsdev"
+							],
+							"description": "Pricing data source: auto (merge LiteLLM + models.dev), litellm (LiteLLM only), modelsdev (models.dev only)",
+							"markdownDescription": "Pricing data source: auto (merge LiteLLM + models.dev), litellm (LiteLLM only), modelsdev (models.dev only)",
+							"default": "auto"
+						},
 						"color": {
 							"type": "boolean",
 							"description": "Enable colored output (default: auto). FORCE_COLOR=1 has the same effect.",
@@ -176,6 +187,17 @@
 									"description": "Use cached pricing data for Claude models instead of fetching from API",
 									"markdownDescription": "Use cached pricing data for Claude models instead of fetching from API",
 									"default": false
+								},
+								"pricingSource": {
+									"type": "string",
+									"enum": [
+										"auto",
+										"litellm",
+										"modelsdev"
+									],
+									"description": "Pricing data source: auto (merge LiteLLM + models.dev), litellm (LiteLLM only), modelsdev (models.dev only)",
+									"markdownDescription": "Pricing data source: auto (merge LiteLLM + models.dev), litellm (LiteLLM only), modelsdev (models.dev only)",
+									"default": "auto"
 								},
 								"color": {
 									"type": "boolean",
@@ -292,6 +314,17 @@
 									"markdownDescription": "Use cached pricing data for Claude models instead of fetching from API",
 									"default": false
 								},
+								"pricingSource": {
+									"type": "string",
+									"enum": [
+										"auto",
+										"litellm",
+										"modelsdev"
+									],
+									"description": "Pricing data source: auto (merge LiteLLM + models.dev), litellm (LiteLLM only), modelsdev (models.dev only)",
+									"markdownDescription": "Pricing data source: auto (merge LiteLLM + models.dev), litellm (LiteLLM only), modelsdev (models.dev only)",
+									"default": "auto"
+								},
 								"color": {
 									"type": "boolean",
 									"description": "Enable colored output (default: auto). FORCE_COLOR=1 has the same effect.",
@@ -390,6 +423,17 @@
 									"description": "Use cached pricing data for Claude models instead of fetching from API",
 									"markdownDescription": "Use cached pricing data for Claude models instead of fetching from API",
 									"default": false
+								},
+								"pricingSource": {
+									"type": "string",
+									"enum": [
+										"auto",
+										"litellm",
+										"modelsdev"
+									],
+									"description": "Pricing data source: auto (merge LiteLLM + models.dev), litellm (LiteLLM only), modelsdev (models.dev only)",
+									"markdownDescription": "Pricing data source: auto (merge LiteLLM + models.dev), litellm (LiteLLM only), modelsdev (models.dev only)",
+									"default": "auto"
 								},
 								"color": {
 									"type": "boolean",
@@ -495,6 +539,17 @@
 									"markdownDescription": "Use cached pricing data for Claude models instead of fetching from API",
 									"default": false
 								},
+								"pricingSource": {
+									"type": "string",
+									"enum": [
+										"auto",
+										"litellm",
+										"modelsdev"
+									],
+									"description": "Pricing data source: auto (merge LiteLLM + models.dev), litellm (LiteLLM only), modelsdev (models.dev only)",
+									"markdownDescription": "Pricing data source: auto (merge LiteLLM + models.dev), litellm (LiteLLM only), modelsdev (models.dev only)",
+									"default": "auto"
+								},
 								"color": {
 									"type": "boolean",
 									"description": "Enable colored output (default: auto). FORCE_COLOR=1 has the same effect.",
@@ -599,6 +654,17 @@
 									"markdownDescription": "Use cached pricing data for Claude models instead of fetching from API",
 									"default": false
 								},
+								"pricingSource": {
+									"type": "string",
+									"enum": [
+										"auto",
+										"litellm",
+										"modelsdev"
+									],
+									"description": "Pricing data source: auto (merge LiteLLM + models.dev), litellm (LiteLLM only), modelsdev (models.dev only)",
+									"markdownDescription": "Pricing data source: auto (merge LiteLLM + models.dev), litellm (LiteLLM only), modelsdev (models.dev only)",
+									"default": "auto"
+								},
 								"color": {
 									"type": "boolean",
 									"description": "Enable colored output (default: auto). FORCE_COLOR=1 has the same effect.",
@@ -665,6 +731,17 @@
 									"description": "Use cached pricing data for Claude models instead of fetching from API",
 									"markdownDescription": "Use cached pricing data for Claude models instead of fetching from API",
 									"default": true
+								},
+								"pricingSource": {
+									"type": "string",
+									"enum": [
+										"auto",
+										"litellm",
+										"modelsdev"
+									],
+									"description": "Pricing data source: auto (merge LiteLLM + models.dev), litellm (LiteLLM only), modelsdev (models.dev only)",
+									"markdownDescription": "Pricing data source: auto (merge LiteLLM + models.dev), litellm (LiteLLM only), modelsdev (models.dev only)",
+									"default": "auto"
 								},
 								"visualBurnRate": {
 									"type": "string",

@@ -35,6 +35,7 @@ export async function startLiveMonitoring(config: LiveMonitoringConfig): Promise
 		sessionDurationHours: config.sessionDurationHours,
 		mode: config.mode,
 		order: config.order,
+		pricingSource: config.pricingSource,
 	};
 	using monitorState = createLiveMonitorState(monitorConfig);
 

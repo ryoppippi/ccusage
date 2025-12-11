@@ -107,6 +107,7 @@ export const statuslineCommand = define({
 			...sharedArgs.offline,
 			default: true, // Default to offline mode for faster performance
 		},
+		pricingSource: sharedArgs.pricingSource,
 		visualBurnRate: {
 			type: 'enum',
 			choices: visualBurnRateChoices,
@@ -433,7 +434,7 @@ export const statuslineCommand = define({
 					// Calculate context tokens from transcript with model-specific limits
 					const contextInfo = await Result.pipe(
 						Result.try({
-							try: calculateContextTokens(hookData.transcript_path, hookData.model.id, mergedOptions.offline),
+							try: calculateContextTokens(hookData.transcript_path, hookData.model.id, mergedOptions.offline, mergedOptions.pricingSource),
 							catch: error => error,
 						}),
 						Result.inspectError(error => logger.debug(`Failed to calculate context tokens: ${error instanceof Error ? error.message : String(error)}`)),

@@ -92,7 +92,7 @@ export async function detectMismatches(
 	});
 
 	// Use PricingFetcher with using statement for automatic cleanup
-	using fetcher = new PricingFetcher();
+	using fetcher = new PricingFetcher(false, 'auto');
 
 	const stats: MismatchStats = {
 		totalEntries: 0,

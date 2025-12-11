@@ -75,6 +75,28 @@ ccusage daily --offline
 ccusage daily -O
 ```
 
+### Pricing Source
+
+Choose the pricing data source:
+
+```bash
+# Auto mode (default) - merge LiteLLM and models.dev
+ccusage daily --pricing-source auto
+ccusage daily -p auto
+
+# Use LiteLLM only
+ccusage daily --pricing-source litellm
+ccusage daily -p litellm
+
+# Use models.dev only
+ccusage daily --pricing-source modelsdev
+ccusage daily -p modelsdev
+```
+
+::: tip
+The `auto` mode provides the most comprehensive model coverage by merging data from both LiteLLM and models.dev. See the [Pricing Sources guide](/guide/pricing-sources) for more details.
+:::
+
 ### Timezone
 
 Set the timezone for date calculations:

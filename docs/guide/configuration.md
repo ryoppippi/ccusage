@@ -83,7 +83,8 @@ For individual developers working on multiple projects:
 	"$schema": "https://ccusage.com/config-schema.json",
 	"defaults": {
 		"breakdown": true,
-		"timezone": "local"
+		"timezone": "local",
+		"pricingSource": "auto"
 	},
 	"commands": {
 		"daily": {
@@ -139,12 +140,15 @@ ccusage daily
 Control how costs are calculated:
 
 - **Mode**: `auto` (default), `calculate`, or `display`
+- **Pricing Source**: `auto` (default), `litellm`, or `modelsdev`
 - **Offline**: Use cached pricing data
 - **Breakdown**: Show per-model costs
 
 ```bash
-ccusage daily --mode calculate --breakdown --offline
+ccusage daily --mode calculate --pricing-source auto --breakdown --offline
 ```
+
+Learn more about [pricing sources](/guide/pricing-sources).
 
 ### Date and Time
 
