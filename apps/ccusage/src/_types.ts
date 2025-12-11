@@ -173,6 +173,11 @@ export const statuslineHookJsonSchema = v.object({
 		total_lines_added: v.optional(v.number()),
 		total_lines_removed: v.optional(v.number()),
 	})),
+	context_window: v.optional(v.object({
+		total_input_tokens: v.number(),
+		total_output_tokens: v.optional(v.number()),
+		context_window_size: v.number(),
+	})),
 });
 
 /**

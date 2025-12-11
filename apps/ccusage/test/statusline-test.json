@@ -21,5 +21,10 @@
 		"total_lines_added": 0,
 		"total_lines_removed": 0
 	},
+	"context_window": {
+		"total_input_tokens": 42500,
+		"total_output_tokens": 3200,
+		"context_window_size": 200000
+	},
 	"exceeds_200k_tokens": false
 }
