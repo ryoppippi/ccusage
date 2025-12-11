@@ -7,7 +7,7 @@ on:
 
 jobs:
   npm:
-    runs-on: ubuntu-slim
+    runs-on: ubuntu-24.04-arm
     timeout-minutes: 10
     permissions:
       contents: read
@@ -16,18 +16,17 @@ jobs:
       - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
         with:
           fetch-depth: 0
-      - uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda # v4.1.0
+      - uses: ./.github/actions/setup-nix
       - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
           registry-url: 'https://registry.npmjs.org'
           node-version: lts/*
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter='./apps/**' publish --provenance --no-git-checks --access public
+      - run: nix develop --command pnpm --filter='./apps/**' publish --provenance --no-git-checks --access public
 
   release:
     needs:
       - npm
-    runs-on: ubuntu-slim
+    runs-on: ubuntu-24.04-arm
     permissions:
       contents: write
     steps:
