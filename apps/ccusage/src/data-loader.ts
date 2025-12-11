@@ -239,6 +239,7 @@ export const dailyUsageSchema = v.object({
 	totalCost: v.number(),
 	modelsUsed: v.array(modelNameSchema),
 	modelBreakdowns: v.array(modelBreakdownSchema),
+	promptCount: v.number(), // Number of prompts/messages for this day
 	project: v.optional(v.string()), // Project name when groupByProject is enabled
 });
 
@@ -281,6 +282,7 @@ export const monthlyUsageSchema = v.object({
 	totalCost: v.number(),
 	modelsUsed: v.array(modelNameSchema),
 	modelBreakdowns: v.array(modelBreakdownSchema),
+	promptCount: v.number(),
 	project: v.optional(v.string()), // Project name when groupByProject is enabled
 });
 
@@ -301,6 +303,7 @@ export const weeklyUsageSchema = v.object({
 	totalCost: v.number(),
 	modelsUsed: v.array(modelNameSchema),
 	modelBreakdowns: v.array(modelBreakdownSchema),
+	promptCount: v.number(),
 	project: v.optional(v.string()), // Project name when groupByProject is enabled
 });
 
@@ -321,6 +324,7 @@ export const bucketUsageSchema = v.object({
 	totalCost: v.number(),
 	modelsUsed: v.array(modelNameSchema),
 	modelBreakdowns: v.array(modelBreakdownSchema),
+	promptCount: v.number(),
 	project: v.optional(v.string()), // Project name when groupByProject is enabled
 });
 
@@ -864,6 +868,7 @@ export async function loadDailyUsageData(
 				...totals,
 				modelsUsed: modelsUsed as ModelName[],
 				modelBreakdowns,
+				promptCount: entries.length, // Number of prompts/messages for this day
 				...(project != null && { project }),
 			};
 		})
@@ -1200,6 +1205,7 @@ export async function loadBucketUsageData(
 		let totalCacheCreationTokens = 0;
 		let totalCacheReadTokens = 0;
 		let totalCost = 0;
+		let totalPromptCount = 0;
 
 		for (const daily of dailyEntries) {
 			totalInputTokens += daily.inputTokens;
@@ -1207,6 +1213,7 @@ export async function loadBucketUsageData(
 			totalCacheCreationTokens += daily.cacheCreationTokens;
 			totalCacheReadTokens += daily.cacheReadTokens;
 			totalCost += daily.totalCost;
+			totalPromptCount += daily.promptCount || 0;
 		}
 		const bucketUsage: BucketUsage = {
 			bucket,
@@ -1217,6 +1224,7 @@ export async function loadBucketUsageData(
 			totalCost,
 			modelsUsed: uniq(models) as ModelName[],
 			modelBreakdowns,
+			promptCount: totalPromptCount,
 			...(project != null && { project }),
 		};
 
@@ -1691,6 +1699,67 @@ if (import.meta.vitest != null) {
 			expect(result[0]?.cacheReadTokens).toBe(10);
 		});
 
+		it('calculates prompt count correctly', async () => {
+			const mockData1: UsageData[] = [
+				{
+					timestamp: createISOTimestamp('2024-01-01T10:00:00Z'),
+					message: { usage: { input_tokens: 100, output_tokens: 50 } },
+					costUSD: 0.01,
+				},
+				{
+					timestamp: createISOTimestamp('2024-01-01T12:00:00Z'),
+					message: { usage: { input_tokens: 200, output_tokens: 100 } },
+					costUSD: 0.02,
+				},
+				{
+					timestamp: createISOTimestamp('2024-01-01T14:00:00Z'),
+					message: { usage: { input_tokens: 150, output_tokens: 75 } },
+					costUSD: 0.015,
+				},
+			];
+
+			const mockData2: UsageData[] = [
+				{
+					timestamp: createISOTimestamp('2024-01-02T09:00:00Z'),
+					message: { usage: { input_tokens: 300, output_tokens: 150 } },
+					costUSD: 0.03,
+				},
+				{
+					timestamp: createISOTimestamp('2024-01-02T11:00:00Z'),
+					message: { usage: { input_tokens: 250, output_tokens: 125 } },
+					costUSD: 0.025,
+				},
+			];
+
+			await using fixture = await createFixture({
+				projects: {
+					project1: {
+						session1: {
+							'file1.jsonl': mockData1.map(d => JSON.stringify(d)).join('\n'),
+							'file2.jsonl': mockData2.map(d => JSON.stringify(d)).join('\n'),
+						},
+					},
+				},
+			});
+
+			const result = await loadDailyUsageData({ claudePath: fixture.path });
+
+			expect(result).toHaveLength(2);
+
+			// Results are sorted by date descending by default, so 2024-01-02 comes first
+			// First result (newest day) should have 2 prompts (2 entries in mockData2)
+			expect(result[0]?.date).toBe('2024-01-02');
+			expect(result[0]?.promptCount).toBe(2);
+			expect(result[0]?.inputTokens).toBe(550); // 300 + 250
+			expect(result[0]?.outputTokens).toBe(275); // 150 + 125
+
+			// Second result (older day) should have 3 prompts (3 entries in mockData1)
+			expect(result[1]?.date).toBe('2024-01-01');
+			expect(result[1]?.promptCount).toBe(3);
+			expect(result[1]?.inputTokens).toBe(450); // 100 + 200 + 150
+			expect(result[1]?.outputTokens).toBe(225); // 50 + 100 + 75
+		});
+
 		it('filters by date range', async () => {
 			const mockData: UsageData[] = [
 				{
@@ -1953,6 +2022,7 @@ invalid json line
 					cacheReadTokens: 0,
 					cost: 0.015,
 				}],
+				promptCount: 1,
 			});
 			expect(result[1]).toEqual({
 				month: '2024-01',
@@ -1970,6 +2040,7 @@ invalid json line
 					cacheReadTokens: 0,
 					cost: 0.03,
 				}],
+				promptCount: 2,
 			});
 		});
 
@@ -2025,6 +2096,7 @@ invalid json line
 					cacheReadTokens: 0,
 					cost: 0.03,
 				}],
+				promptCount: 2,
 			});
 		});
 
@@ -2247,6 +2319,180 @@ invalid json line
 			expect(result[0]?.cacheCreationTokens).toBe(75); // 25 + 50
 			expect(result[0]?.cacheReadTokens).toBe(30); // 10 + 20
 		});
+
+		it('detects massive prompt count inflation bug', async () => {
+			// Create many entries to see if there's a multiplication bug
+			const mockData: UsageData[] = [];
+			for (let i = 0; i < 100; i++) {
+				const hour = Math.floor(i / 60);
+				const minute = i % 60;
+				mockData.push({
+					timestamp: createISOTimestamp(`2024-01-01T${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}:00Z`),
+					message: { usage: { input_tokens: 100, output_tokens: 50 } },
+					costUSD: 0.01,
+				});
+			}
+
+			await using fixture = await createFixture({
+				projects: {
+					project1: {
+						session1: {
+							'file.jsonl': mockData.map(d => JSON.stringify(d)).join('\n'),
+						},
+					},
+				},
+			});
+
+			// Test daily aggregation first
+			const dailyResult = await loadDailyUsageData({ claudePath: fixture.path });
+
+			expect(dailyResult).toHaveLength(1);
+
+			// All 100 entries should be aggregated into 1 day with 100 prompts
+			expect(dailyResult[0]?.promptCount).toBe(100);
+
+			// Test monthly aggregation
+			const monthlyResult = await loadMonthlyUsageData({ claudePath: fixture.path });
+
+			expect(monthlyResult).toHaveLength(1);
+
+			// Monthly should have exactly 100 prompts (same as daily)
+			expect(monthlyResult[0]?.promptCount).toBe(100);
+		});
+
+		it('correctly aggregates prompt counts across multiple entries on same day', async () => {
+			const mockData: UsageData[] = [
+				// Multiple entries on the same day - should count as separate prompts
+				{
+					timestamp: createISOTimestamp('2024-01-01T12:00:00Z'),
+					message: { usage: { input_tokens: 100, output_tokens: 50 } },
+					costUSD: 0.01,
+				},
+				{
+					timestamp: createISOTimestamp('2024-01-01T13:00:00Z'),
+					message: { usage: { input_tokens: 200, output_tokens: 100 } },
+					costUSD: 0.02,
+				},
+				{
+					timestamp: createISOTimestamp('2024-01-01T14:00:00Z'),
+					message: { usage: { input_tokens: 150, output_tokens: 75 } },
+					costUSD: 0.015,
+				},
+			];
+
+			await using fixture = await createFixture({
+				projects: {
+					project1: {
+						session1: {
+							'file.jsonl': mockData.map(d => JSON.stringify(d)).join('\n'),
+						},
+					},
+				},
+			});
+
+			// First test daily aggregation
+			const dailyResult = await loadDailyUsageData({ claudePath: fixture.path });
+
+			expect(dailyResult).toHaveLength(1);
+			expect(dailyResult[0]?.date).toBe('2024-01-01');
+			// Should have 3 prompts for 3 entries on the same day
+			expect(dailyResult[0]?.promptCount).toBe(3);
+			expect(dailyResult[0]?.inputTokens).toBe(450); // 100+200+150
+			expect(dailyResult[0]?.outputTokens).toBe(225); // 50+100+75
+
+			// Then test monthly aggregation
+			const monthlyResult = await loadMonthlyUsageData({ claudePath: fixture.path });
+
+			expect(monthlyResult).toHaveLength(1);
+			expect(monthlyResult[0]?.month).toBe('2024-01');
+			// Should have the same 3 prompts
+			expect(monthlyResult[0]?.promptCount).toBe(3);
+			expect(monthlyResult[0]?.inputTokens).toBe(450);
+			expect(monthlyResult[0]?.outputTokens).toBe(225);
+		});
+
+		it('correctly aggregates prompt counts across multiple entries in same month', async () => {
+			const mockData: UsageData[] = [
+				// January: 7 entries, with 3 on the same day to test daily aggregation
+				{
+					timestamp: createISOTimestamp('2024-01-01T12:00:00Z'),
+					message: { usage: { input_tokens: 100, output_tokens: 50 } },
+					costUSD: 0.01,
+				},
+				{
+					timestamp: createISOTimestamp('2024-01-01T13:00:00Z'),
+					message: { usage: { input_tokens: 200, output_tokens: 100 } },
+					costUSD: 0.02,
+				},
+				{
+					timestamp: createISOTimestamp('2024-01-01T14:00:00Z'),
+					message: { usage: { input_tokens: 150, output_tokens: 75 } },
+					costUSD: 0.015,
+				},
+				{
+					timestamp: createISOTimestamp('2024-01-15T12:00:00Z'),
+					message: { usage: { input_tokens: 300, output_tokens: 150 } },
+					costUSD: 0.03,
+				},
+				{
+					timestamp: createISOTimestamp('2024-01-20T09:00:00Z'),
+					message: { usage: { input_tokens: 120, output_tokens: 60 } },
+					costUSD: 0.012,
+				},
+				{
+					timestamp: createISOTimestamp('2024-01-25T16:30:00Z'),
+					message: { usage: { input_tokens: 180, output_tokens: 90 } },
+					costUSD: 0.018,
+				},
+				{
+					timestamp: createISOTimestamp('2024-01-30T11:00:00Z'),
+					message: { usage: { input_tokens: 220, output_tokens: 110 } },
+					costUSD: 0.022,
+				},
+				// February: 2 entries
+				{
+					timestamp: createISOTimestamp('2024-02-05T10:00:00Z'),
+					message: { usage: { input_tokens: 180, output_tokens: 90 } },
+					costUSD: 0.018,
+				},
+				{
+					timestamp: createISOTimestamp('2024-02-10T14:15:00Z'),
+					message: { usage: { input_tokens: 220, output_tokens: 110 } },
+					costUSD: 0.022,
+				},
+			];
+
+			await using fixture = await createFixture({
+				projects: {
+					project1: {
+						session1: {
+							'file.jsonl': mockData.map(d => JSON.stringify(d)).join('\n'),
+						},
+					},
+				},
+			});
+
+			const result = await loadMonthlyUsageData({ claudePath: fixture.path });
+
+			// Should have 2 months
+			expect(result).toHaveLength(2);
+
+			// Find January and February results
+			const january = result.find(r => r.month === '2024-01');
+			const february = result.find(r => r.month === '2024-02');
+
+			// January should have 7 prompts (one for each entry, including 3 on same day)
+			expect(january).toBeDefined();
+			expect(january!.promptCount).toBe(7);
+			expect(january!.inputTokens).toBe(1270); // 100+200+150+300+120+180+220
+			expect(january!.outputTokens).toBe(635); // 50+100+75+150+60+90+110
+
+			// February should have 2 prompts
+			expect(february).toBeDefined();
+			expect(february!.promptCount).toBe(2);
+			expect(february!.inputTokens).toBe(400); // 180+220
+			expect(february!.outputTokens).toBe(200); // 90+110
+		});
 	});
 
 	describe('loadWeeklyUsageData', () => {
@@ -2299,6 +2545,7 @@ invalid json line
 					cacheReadTokens: 0,
 					cost: 0.015,
 				}],
+				promptCount: 1,
 			});
 			expect(result[1]).toEqual({
 				week: '2023-12-31',
@@ -2316,6 +2563,7 @@ invalid json line
 					cacheReadTokens: 0,
 					cost: 0.03,
 				}],
+				promptCount: 2,
 			});
 		});
 
@@ -2371,6 +2619,7 @@ invalid json line
 					cacheReadTokens: 0,
 					cost: 0.03,
 				}],
+				promptCount: 2,
 			});
 		});
 
