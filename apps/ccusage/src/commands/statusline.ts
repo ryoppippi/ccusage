@@ -430,7 +430,7 @@ export const statuslineCommand = define({
 						Result.unwrap({ blockInfo: 'No active block', burnRateInfo: '' }),
 					);
 
-					// Helper function to format context info with colour coding
+					// Helper function to format context info with color coding
 					const formatContextInfo = (inputTokens: number, contextLimit: number): string => {
 						const percentage = Math.round((inputTokens / contextLimit) * 100);
 						const color = percentage < ctx.values.contextLowThreshold
