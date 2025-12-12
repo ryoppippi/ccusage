@@ -132,11 +132,11 @@ export const weeklyCommand = define({
 
 				// Add model breakdown rows if flag is set
 				if (mergedOptions.breakdown) {
-					pushBreakdownRows(table, data.modelBreakdowns, 1, 0, mergedOptions.subagents);
+					pushBreakdownRows(table, data.modelBreakdowns, 1, 0, mergedOptions.breakdownSubagents);
 				}
 
 				// Add subagent usage summary if present and flag enabled
-				if (data.subagentUsage != null && mergedOptions.subagents) {
+				if (data.subagentUsage != null && mergedOptions.breakdownSubagents) {
 					pushSubagentSummaryRow(table, data.subagentUsage);
 				}
 			}

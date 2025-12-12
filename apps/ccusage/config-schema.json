@@ -105,10 +105,10 @@
 							"markdownDescription": "Force compact mode for narrow displays (better for screenshots)",
 							"default": false
 						},
-						"subagents": {
+						"breakdownSubagents": {
 							"type": "boolean",
-							"description": "Show subagent usage breakdown",
-							"markdownDescription": "Show subagent usage breakdown",
+							"description": "Show subagent usage as separate breakdown rows (default: aggregated with main usage)",
+							"markdownDescription": "Show subagent usage as separate breakdown rows (default: aggregated with main usage)",
 							"default": false
 						}
 					},
@@ -215,10 +215,10 @@
 									"markdownDescription": "Force compact mode for narrow displays (better for screenshots)",
 									"default": false
 								},
-								"subagents": {
+								"breakdownSubagents": {
 									"type": "boolean",
-									"description": "Show subagent usage breakdown",
-									"markdownDescription": "Show subagent usage breakdown",
+									"description": "Show subagent usage as separate breakdown rows (default: aggregated with main usage)",
+									"markdownDescription": "Show subagent usage as separate breakdown rows (default: aggregated with main usage)",
 									"default": false
 								},
 								"instances": {
@@ -336,10 +336,10 @@
 									"markdownDescription": "Force compact mode for narrow displays (better for screenshots)",
 									"default": false
 								},
-								"subagents": {
+								"breakdownSubagents": {
 									"type": "boolean",
-									"description": "Show subagent usage breakdown",
-									"markdownDescription": "Show subagent usage breakdown",
+									"description": "Show subagent usage as separate breakdown rows (default: aggregated with main usage)",
+									"markdownDescription": "Show subagent usage as separate breakdown rows (default: aggregated with main usage)",
 									"default": false
 								}
 							},
@@ -441,10 +441,10 @@
 									"markdownDescription": "Force compact mode for narrow displays (better for screenshots)",
 									"default": false
 								},
-								"subagents": {
+								"breakdownSubagents": {
 									"type": "boolean",
-									"description": "Show subagent usage breakdown",
-									"markdownDescription": "Show subagent usage breakdown",
+									"description": "Show subagent usage as separate breakdown rows (default: aggregated with main usage)",
+									"markdownDescription": "Show subagent usage as separate breakdown rows (default: aggregated with main usage)",
 									"default": false
 								},
 								"startOfWeek": {
@@ -551,10 +551,10 @@
 									"markdownDescription": "Force compact mode for narrow displays (better for screenshots)",
 									"default": false
 								},
-								"subagents": {
+								"breakdownSubagents": {
 									"type": "boolean",
-									"description": "Show subagent usage breakdown",
-									"markdownDescription": "Show subagent usage breakdown",
+									"description": "Show subagent usage as separate breakdown rows (default: aggregated with main usage)",
+									"markdownDescription": "Show subagent usage as separate breakdown rows (default: aggregated with main usage)",
 									"default": false
 								},
 								"id": {
@@ -661,10 +661,10 @@
 									"markdownDescription": "Force compact mode for narrow displays (better for screenshots)",
 									"default": false
 								},
-								"subagents": {
+								"breakdownSubagents": {
 									"type": "boolean",
-									"description": "Show subagent usage breakdown",
-									"markdownDescription": "Show subagent usage breakdown",
+									"description": "Show subagent usage as separate breakdown rows (default: aggregated with main usage)",
+									"markdownDescription": "Show subagent usage as separate breakdown rows (default: aggregated with main usage)",
 									"default": false
 								},
 								"active": {

@@ -155,11 +155,11 @@ export const sessionCommand = define({
 				// Add model breakdown rows if flag is set
 				if (ctx.values.breakdown) {
 					// Session has 1 extra column before data and 1 trailing column
-					pushBreakdownRows(table, data.modelBreakdowns, 1, 1, ctx.values.subagents);
+					pushBreakdownRows(table, data.modelBreakdowns, 1, 1, ctx.values.breakdownSubagents);
 				}
 
 				// Add subagent usage summary if present and flag enabled
-				if (data.subagentUsage != null && ctx.values.subagents) {
+				if (data.subagentUsage != null && ctx.values.breakdownSubagents) {
 					// Session has 1 extra column before data and 1 trailing column
 					pushSubagentSummaryRow(table, data.subagentUsage, 1, 1);
 				}

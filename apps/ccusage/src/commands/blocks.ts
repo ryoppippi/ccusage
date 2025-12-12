@@ -356,7 +356,7 @@ export const blocksCommand = define({
 				}
 
 				// Show subagent usage summary if present and flag enabled
-				if (block.subagentUsage != null && ctx.values.subagents) {
+				if (block.subagentUsage != null && ctx.values.breakdownSubagents) {
 					log(pc.bold('Subagent Usage:'));
 					log(`  Tasks Executed:   ${block.subagentUsage.taskCount}`);
 					log(`  Input Tokens:     ${formatNumber(block.subagentUsage.inputTokens)}`);
@@ -458,7 +458,7 @@ export const blocksCommand = define({
 						table.push(row);
 
 						// Add subagent usage row if present and flag enabled (show actual data before predictions)
-						if (block.subagentUsage != null && ctx.values.subagents) {
+						if (block.subagentUsage != null && ctx.values.breakdownSubagents) {
 							const subagentRow = [
 								'',
 								pc.cyan(`  └─ Subagents (${block.subagentUsage.taskCount})`),
