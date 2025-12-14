@@ -19,6 +19,7 @@
 
             # Development tools
             typos
+            typos-lsp
             jq
             git
             gh
