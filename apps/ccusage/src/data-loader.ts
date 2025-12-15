@@ -558,6 +558,75 @@ async function processJSONLFileByLine(
 }
 
 /**
+ * Entry type with unique hash for deduplication
+ */
+type EntryWithHash<T> = {
+	entry: T;
+	uniqueHash: string | null;
+	timestamp: string;
+};
+
+/**
+ * Process multiple JSONL files in parallel with deduplication
+ * Each file is processed concurrently, then results are merged and deduplicated
+ * @param files - Array of file paths to process
+ * @param processEntry - Function to transform raw UsageData into the desired entry type
+ * @returns Array of deduplicated entries sorted by timestamp
+ */
+async function processFilesInParallel<T>(
+	files: string[],
+	processEntry: (data: UsageData, filePath: string, lineNumber: number) => Promise<EntryWithHash<T> | null>,
+): Promise<T[]> {
+	// Process all files in parallel
+	const fileResults = await Promise.all(
+		files.map(async (filePath) => {
+			const entries: EntryWithHash<T>[] = [];
+
+			await processJSONLFileByLine(filePath, async (line, lineNumber) => {
+				try {
+					const parsed = JSON.parse(line) as unknown;
+					const result = v.safeParse(usageDataSchema, parsed);
+					if (!result.success) {
+						return;
+					}
+					const data = result.output;
+
+					const entryWithHash = await processEntry(data, filePath, lineNumber);
+					if (entryWithHash != null) {
+						entries.push(entryWithHash);
+					}
+				}
+				catch {
+					// Skip invalid JSON lines
+				}
+			});
+
+			return entries;
+		}),
+	);
+
+	// Flatten all results
+	const allEntries = fileResults.flat();
+
+	// Sort by timestamp to ensure consistent ordering
+	allEntries.sort((a, b) => a.timestamp.localeCompare(b.timestamp));
+
+	// Deduplicate after sorting
+	const processedHashes = new Set<string>();
+	const dedupedEntries: T[] = [];
+
+	for (const { entry, uniqueHash } of allEntries) {
+		if (isDuplicateEntry(uniqueHash, processedHashes)) {
+			continue;
+		}
+		markAsProcessed(uniqueHash, processedHashes);
+		dedupedEntries.push(entry);
+	}
+
+	return dedupedEntries;
+}
+
+/**
  * Extract the earliest timestamp from a JSONL file
  * Scans through the file until it finds a valid timestamp
  * Uses streaming to handle large files without loading entire content into memory
@@ -764,59 +833,35 @@ export async function loadDailyUsageData(
 		options?.project,
 	);
 
-	// Sort files by timestamp to ensure chronological processing
-	const sortedFiles = await sortFilesByTimestamp(projectFilteredFiles);
-
 	// Fetch pricing data for cost calculation only when needed
 	const mode = options?.mode ?? 'auto';
 
 	// Use PricingFetcher with using statement for automatic cleanup
 	using fetcher = mode === 'display' ? null : new PricingFetcher(options?.offline);
 
-	// Track processed message+request combinations for deduplication
-	const processedHashes = new Set<string>();
+	// Entry type for daily usage data
+	type DailyEntry = { data: UsageData; date: string; cost: number; model: string | undefined; project: string };
 
-	// Collect all valid data entries first
-	const allEntries: { data: UsageData; date: string; cost: number; model: string | undefined; project: string }[] = [];
+	// Process files in parallel with deduplication
+	const allEntries = await processFilesInParallel<DailyEntry>(
+		projectFilteredFiles,
+		async (data, filePath) => {
+			// Always use DEFAULT_LOCALE for date grouping to ensure YYYY-MM-DD format
+			const date = formatDate(data.timestamp, options?.timezone, DEFAULT_LOCALE);
+			// If fetcher is available, calculate cost based on mode and tokens
+			// If fetcher is null, use pre-calculated costUSD or default to 0
+			const cost = fetcher != null
+				? await calculateCostForEntry(data, mode, fetcher)
+				: data.costUSD ?? 0;
+			const project = extractProjectFromPath(filePath);
 
-	for (const file of sortedFiles) {
-		// Extract project name from file path once per file
-		const project = extractProjectFromPath(file);
-
-		await processJSONLFileByLine(file, async (line) => {
-			try {
-				const parsed = JSON.parse(line) as unknown;
-				const result = v.safeParse(usageDataSchema, parsed);
-				if (!result.success) {
-					return;
-				}
-				const data = result.output;
-
-				// Check for duplicate message + request ID combination
-				const uniqueHash = createUniqueHash(data);
-				if (isDuplicateEntry(uniqueHash, processedHashes)) {
-					// Skip duplicate message
-					return;
-				}
-
-				// Mark this combination as processed
-				markAsProcessed(uniqueHash, processedHashes);
-
-				// Always use DEFAULT_LOCALE for date grouping to ensure YYYY-MM-DD format
-				const date = formatDate(data.timestamp, options?.timezone, DEFAULT_LOCALE);
-				// If fetcher is available, calculate cost based on mode and tokens
-				// If fetcher is null, use pre-calculated costUSD or default to 0
-				const cost = fetcher != null
-					? await calculateCostForEntry(data, mode, fetcher)
-					: data.costUSD ?? 0;
-
-				allEntries.push({ data, date, cost, model: data.message.model, project });
-			}
-			catch {
-				// Skip invalid JSON lines
-			}
-		});
-	}
+			return {
+				entry: { data, date, cost, model: data.message.model, project },
+				uniqueHash: createUniqueHash(data),
+				timestamp: data.timestamp,
+			};
+		},
+	);
 
 	// Group by date, optionally including project
 	// Automatically enable project grouping when project filter is specified

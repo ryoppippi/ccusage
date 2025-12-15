@@ -26,9 +26,9 @@ catalogs:
     eslint-plugin-format: ^1.0.2
     oxfmt: ^0.16.0
     publint: ^0.3.12
-  mcp:
-    '@praha/byethrow-mcp': ^0.1.7
-    sitemcp: ^0.5.9
+  package-docs:
+    '@gunshi/docs': 0.27.0
+    '@praha/byethrow-docs': 0.8.2
   release:
     bumpp: ^10.2.3
     changelogithub: ^13.16.0
@@ -41,7 +41,7 @@ catalogs:
     '@hono/mcp': ^0.1.5
     '@hono/node-server': ^1.19.7
     '@modelcontextprotocol/sdk': ^1.24.3
-    '@praha/byethrow': ^0.6.3
+    '@praha/byethrow': 0.8.2
     '@ryoppippi/limo': jsr:^0.2.2
     '@std/async': jsr:^1.0.14
     ansi-escapes: ^7.0.0
@@ -50,7 +50,7 @@ catalogs:
     es-toolkit: ^1.39.10
     fast-sort: ^3.4.1
     get-stdin: ^9.0.0
-    gunshi: ^0.26.3
+    gunshi: 0.27.0
     hono: ^4.9.2
     nano-spawn: ^1.0.3
     p-limit: ^7.1.0
@@ -79,6 +79,7 @@ minimumReleaseAge: 2880
 onlyBuiltDependencies:
   - esbuild
   - sharp
+  - sqlite3
   - workerd
 
 shellEmulator: true
