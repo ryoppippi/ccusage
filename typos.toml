@@ -11,7 +11,10 @@ extend-ignore-re = [
 color = "color"
 
 [files]
+ignore-hidden = false
 extend-exclude = [
+  ".git",
   "node_modules",
-  "biome.json"
+  "pnpm-lock.yaml",
+  "pnpm-workspace.yaml",
 ]
