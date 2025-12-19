@@ -194,6 +194,24 @@ export const sessionCommand = define({
 						formatCurrency(subSession.totalCost),
 					]);
 				}
+
+				const subtotalInputTokens = parentSession.inputTokens + subSessions.reduce((sum, s) => sum + s.inputTokens, 0);
+				const subtotalOutputTokens = parentSession.outputTokens + subSessions.reduce((sum, s) => sum + s.outputTokens, 0);
+				const subtotalCacheCreationTokens = parentSession.cacheCreationTokens + subSessions.reduce((sum, s) => sum + s.cacheCreationTokens, 0);
+				const subtotalCacheReadTokens = parentSession.cacheReadTokens + subSessions.reduce((sum, s) => sum + s.cacheReadTokens, 0);
+				const subtotalTotalTokens = parentSession.totalTokens + subSessions.reduce((sum, s) => sum + s.totalTokens, 0);
+				const subtotalCost = parentSession.totalCost + subSessions.reduce((sum, s) => sum + s.totalCost, 0);
+
+				table.push([
+					pc.dim('  Total (with subagents)'),
+					'',
+					pc.yellow(formatNumber(subtotalInputTokens)),
+					pc.yellow(formatNumber(subtotalOutputTokens)),
+					pc.yellow(formatNumber(subtotalCacheCreationTokens)),
+					pc.yellow(formatNumber(subtotalCacheReadTokens)),
+					pc.yellow(formatNumber(subtotalTotalTokens)),
+					pc.yellow(formatCurrency(subtotalCost)),
+				]);
 			}
 		}
 
