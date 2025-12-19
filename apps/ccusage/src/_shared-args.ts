@@ -108,6 +108,15 @@ export const sharedArgs = {
 		description: 'Force compact mode for narrow displays (better for screenshots)',
 		default: false,
 	},
+	piAgent: {
+		type: 'boolean',
+		description: 'Include pi-agent usage data from ~/.pi/agent/sessions',
+		default: false,
+	},
+	piAgentPath: {
+		type: 'string',
+		description: 'Custom path to pi-agent sessions directory',
+	},
 } as const satisfies Args;
 
 /**

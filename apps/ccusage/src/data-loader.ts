@@ -40,6 +40,13 @@ import {
 	getDayNumber,
 	sortByDate,
 } from './_date-utils.ts';
+import {
+	extractPiAgentProject,
+	extractPiAgentSessionId,
+	getPiAgentPaths,
+	piAgentMessageSchema,
+	transformPiAgentUsage,
+} from './_pi-agent.ts';
 import { PricingFetcher } from './_pricing-fetcher.ts';
 import {
 	identifySessionBlocks,
@@ -714,6 +721,23 @@ export async function globUsageFiles(claudePaths: string[]): Promise<GlobResult[
 }
 
 /**
+ * Glob files from pi-agent sessions directories
+ * Unlike Claude Code, pi-agent doesn't have a 'projects' subdirectory
+ * @param piAgentPaths - Array of pi-agent sessions paths
+ * @returns Array of file paths with their base directories
+ */
+export async function globPiAgentFiles(piAgentPaths: string[]): Promise<GlobResult[]> {
+	const filePromises = piAgentPaths.map(async (basePath) => {
+		const files = await glob([USAGE_DATA_GLOB_PATTERN], {
+			cwd: basePath,
+			absolute: true,
+		}).catch(() => []);
+		return files.map(file => ({ file, baseDir: basePath }));
+	});
+	return (await Promise.all(filePromises)).flat();
+}
+
+/**
  * Date range filter for limiting usage data by date
  */
 export type DateFilter = {
@@ -735,6 +759,8 @@ export type LoadOptions = {
 	startOfWeek?: WeekDay; // Start of week for weekly aggregation
 	timezone?: string; // Timezone for date grouping (e.g., 'UTC', 'America/New_York'). Defaults to system timezone
 	locale?: string; // Locale for date/time formatting (e.g., 'en-US', 'ja-JP'). Defaults to 'en-US'
+	piAgent?: boolean; // Include pi-agent usage data
+	piAgentPath?: string; // Custom path to pi-agent sessions directory
 } & DateFilter;
 
 /**
@@ -753,7 +779,10 @@ export async function loadDailyUsageData(
 	const allFiles = await globUsageFiles(claudePaths);
 	const fileList = allFiles.map(f => f.file);
 
-	if (fileList.length === 0) {
+	// Check if pi-agent data should be included
+	const includePiAgent = options?.piAgent === true || options?.piAgentPath != null;
+
+	if (fileList.length === 0 && !includePiAgent) {
 		return [];
 	}
 
@@ -816,6 +845,59 @@ export async function loadDailyUsageData(
 				// Skip invalid JSON lines
 			}
 		});
+	}
+
+	if (includePiAgent) {
+		const piPaths = options?.piAgentPath != null
+			? [path.resolve(options.piAgentPath)]
+			: getPiAgentPaths();
+		const piFiles = await globPiAgentFiles(piPaths);
+		const sortedPiFiles = await sortFilesByTimestamp(piFiles.map(f => f.file));
+
+		for (const file of sortedPiFiles) {
+			const project = extractPiAgentProject(file);
+
+			await processJSONLFileByLine(file, (line) => {
+				try {
+					const parsed = JSON.parse(line) as unknown;
+					const result = v.safeParse(piAgentMessageSchema, parsed);
+					if (!result.success) {
+						return;
+					}
+
+					const transformed = transformPiAgentUsage(result.output);
+					if (transformed == null) {
+						return;
+					}
+
+					const dedupeKey = `pi:${result.output.timestamp}:${transformed.totalTokens}`;
+					if (isDuplicateEntry(dedupeKey, processedHashes)) {
+						return;
+					}
+					markAsProcessed(dedupeKey, processedHashes);
+
+					const date = formatDate(result.output.timestamp, options?.timezone, DEFAULT_LOCALE);
+					const cost = transformed.costUSD ?? 0;
+
+					allEntries.push({
+						data: {
+							timestamp: result.output.timestamp,
+							message: {
+								usage: transformed.usage,
+								model: transformed.model,
+							},
+						} as UsageData,
+						date,
+						cost,
+						model: transformed.model,
+						project,
+					});
+				}
+				catch {
+					// Skip invalid lines
+				}
+			});
+		}
 	}
 
 	// Group by date, optionally including project
@@ -894,7 +976,10 @@ export async function loadSessionData(
 	// Collect files from all paths with their base directories in parallel
 	const filesWithBase = await globUsageFiles(claudePaths);
 
-	if (filesWithBase.length === 0) {
+	// Check if pi-agent data should be included
+	const includePiAgent = options?.piAgent === true || options?.piAgentPath != null;
+
+	if (filesWithBase.length === 0 && !includePiAgent) {
 		return [];
 	}
 
@@ -986,6 +1071,62 @@ export async function loadSessionData(
 				// Skip invalid JSON lines
 			}
 		});
+	}
+
+	if (includePiAgent) {
+		const piPaths = options?.piAgentPath != null
+			? [path.resolve(options.piAgentPath)]
+			: getPiAgentPaths();
+		const piFiles = await globPiAgentFiles(piPaths);
+		const sortedPiFiles = await sortFilesByTimestamp(piFiles.map(f => f.file));
+
+		for (const file of sortedPiFiles) {
+			const projectPath = extractPiAgentProject(file);
+			const sessionId = extractPiAgentSessionId(file);
+			const sessionKey = `${projectPath}/${sessionId}`;
+
+			await processJSONLFileByLine(file, (line) => {
+				try {
+					const parsed = JSON.parse(line) as unknown;
+					const result = v.safeParse(piAgentMessageSchema, parsed);
+					if (!result.success) {
+						return;
+					}
+
+					const transformed = transformPiAgentUsage(result.output);
+					if (transformed == null) {
+						return;
+					}
+
+					const dedupeKey = `pi:${result.output.timestamp}:${transformed.totalTokens}`;
+					if (isDuplicateEntry(dedupeKey, processedHashes)) {
+						return;
+					}
+					markAsProcessed(dedupeKey, processedHashes);
+
+					const cost = transformed.costUSD ?? 0;
+
+					allEntries.push({
+						data: {
+							timestamp: result.output.timestamp,
+							message: {
+								usage: transformed.usage,
+								model: transformed.model,
+							},
+						} as UsageData,
+						sessionKey,
+						sessionId,
+						projectPath,
+						cost,
+						timestamp: result.output.timestamp,
+						model: transformed.model,
+					});
+				}
+				catch {
+					// Skip invalid lines
+				}
+			});
+		}
 	}
 
 	// Group by session using Object.groupBy
@@ -1333,7 +1474,10 @@ export async function loadSessionBlockData(
 		allFiles.push(...files);
 	}
 
-	if (allFiles.length === 0) {
+	// Check if pi-agent data should be included
+	const includePiAgent = options?.piAgent === true || options?.piAgentPath != null;
+
+	if (allFiles.length === 0 && !includePiAgent) {
 		return [];
 	}
 
@@ -1405,6 +1549,52 @@ export async function loadSessionBlockData(
 				logger.debug(`Skipping invalid JSON line in 5-hour blocks: ${error instanceof Error ? error.message : String(error)}`);
 			}
 		});
+	}
+
+	if (includePiAgent) {
+		const piPaths = options?.piAgentPath != null
+			? [path.resolve(options.piAgentPath)]
+			: getPiAgentPaths();
+		const piFiles = await globPiAgentFiles(piPaths);
+		const sortedPiFiles = await sortFilesByTimestamp(piFiles.map(f => f.file));
+
+		for (const file of sortedPiFiles) {
+			await processJSONLFileByLine(file, (line) => {
+				try {
+					const parsed = JSON.parse(line) as unknown;
+					const result = v.safeParse(piAgentMessageSchema, parsed);
+					if (!result.success) {
+						return;
+					}
+
+					const transformed = transformPiAgentUsage(result.output);
+					if (transformed == null) {
+						return;
+					}
+
+					const dedupeKey = `pi:${result.output.timestamp}:${transformed.totalTokens}`;
+					if (isDuplicateEntry(dedupeKey, processedHashes)) {
+						return;
+					}
+					markAsProcessed(dedupeKey, processedHashes);
+
+					allEntries.push({
+						timestamp: new Date(result.output.timestamp),
+						usage: {
+							inputTokens: transformed.usage.input_tokens,
+							outputTokens: transformed.usage.output_tokens,
+							cacheCreationInputTokens: transformed.usage.cache_creation_input_tokens,
+							cacheReadInputTokens: transformed.usage.cache_read_input_tokens,
+						},
+						costUSD: transformed.costUSD ?? 0,
+						model: transformed.model ?? 'unknown',
+					});
+				}
+				catch {
+					// Skip invalid lines
+				}
+			});
+		}
 	}
 
 	// Identify session blocks
