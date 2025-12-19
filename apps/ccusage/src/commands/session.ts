@@ -67,8 +67,8 @@ export const sessionCommand = define({
 			offline: ctx.values.offline,
 			timezone: ctx.values.timezone,
 			locale: ctx.values.locale,
-			piAgent: mergedOptions.piAgent,
-			piAgentPath: mergedOptions.piAgentPath,
+			pi: mergedOptions.pi,
+			piPath: mergedOptions.piPath,
 		});
 
 		if (sessionData.length === 0) {

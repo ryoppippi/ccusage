@@ -112,7 +112,7 @@ export function transformPiAgentUsage(data: PiAgentMessage): {
 			cache_creation_input_tokens: usage.cacheWrite ?? 0,
 			cache_read_input_tokens: usage.cacheRead ?? 0,
 		},
-		model: data.message.model != null ? `[pi-agent] ${data.message.model}` : undefined,
+		model: data.message.model != null ? `[pi] ${data.message.model}` : undefined,
 		costUSD: usage.cost?.total,
 		totalTokens,
 	};
@@ -245,7 +245,7 @@ if (import.meta.vitest != null) {
 			expect(result?.usage.output_tokens).toBe(50);
 			expect(result?.usage.cache_read_input_tokens).toBe(10);
 			expect(result?.usage.cache_creation_input_tokens).toBe(20);
-			expect(result?.model).toBe('[pi-agent] claude-opus-4-5');
+			expect(result?.model).toBe('[pi] claude-opus-4-5');
 			expect(result?.costUSD).toBe(0.05);
 			expect(result?.totalTokens).toBe(180);
 		});

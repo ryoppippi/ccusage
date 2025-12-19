@@ -172,8 +172,8 @@ export const blocksCommand = define({
 			sessionDurationHours: ctx.values.sessionLength,
 			timezone: ctx.values.timezone,
 			locale: ctx.values.locale,
-			piAgent: mergedOptions.piAgent,
-			piAgentPath: mergedOptions.piAgentPath,
+			pi: mergedOptions.pi,
+			piPath: mergedOptions.piPath,
 		});
 
 		if (blocks.length === 0) {
