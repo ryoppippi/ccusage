@@ -92,6 +92,7 @@ export const openCodeMessageSchema = v.object({
  */
 export type LoadedUsageEntry = {
 	timestamp: Date;
+	sessionID: string;
 	usage: {
 		inputTokens: number;
 		outputTokens: number;
@@ -155,6 +156,7 @@ function convertOpenCodeMessageToUsageEntry(
 
 	return {
 		timestamp: new Date(createdMs),
+		sessionID: message.sessionID ?? 'unknown',
 		usage: {
 			inputTokens: message.tokens?.input ?? 0,
 			outputTokens: message.tokens?.output ?? 0,
@@ -257,6 +259,7 @@ if (import.meta.vitest != null) {
 
 			const entry = convertOpenCodeMessageToUsageEntry(message);
 
+			expect(entry.sessionID).toBe('ses_456');
 			expect(entry.usage.inputTokens).toBe(100);
 			expect(entry.usage.outputTokens).toBe(200);
 			expect(entry.usage.cacheReadInputTokens).toBe(50);
