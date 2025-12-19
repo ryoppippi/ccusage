@@ -1,66 +1,40 @@
-# CLAUDE.md - OpenCode Package
+# OpenCode CLI Notes
 
-This package provides usage analysis for OpenCode, following the same patterns as the codex package.
+## Log Sources
 
-## Package Overview
+- OpenCode session usage is recorded under `${OPENCODE_DATA_DIR:-~/.local/share/opencode}/storage/message/` (the CLI resolves `OPENCODE_DATA_DIR` and falls back to `~/.local/share/opencode`).
+- Each message is stored as an individual JSON file (not JSONL like Claude or Codex).
+- Message structure includes `tokens.input`, `tokens.output`, `tokens.cache.read`, and `tokens.cache.write`.
 
-**Name**: `@ccusage/opencode`
-**Description**: Usage analysis tool for OpenCode sessions
-**Type**: CLI tool (bundled)
+## Token Fields
 
-## Development Commands
+- `input`: total input tokens sent to the model.
+- `output`: output tokens (completion text).
+- `cache.read`: cached portion of the input (prompt-caching).
+- `cache.write`: cache creation tokens.
+- Pre-calculated `cost` field may be present in OpenCode messages.
 
-**Testing and Quality:**
+## Cost Calculation
 
-- `pnpm run test` - Run all tests with vitest
-- `pnpm run lint` - Lint code using ESLint
-- `pnpm run format` - Format and auto-fix code with ESLint
-- `pnpm typecheck` - Type check with TypeScript
+- OpenCode messages may include pre-calculated `cost` field in USD.
+- When `cost` is not present, costs should be calculated using model pricing data.
+- Token mapping:
+  - `inputTokens` ← `tokens.input`
+  - `outputTokens` ← `tokens.output`
+  - `cacheReadInputTokens` ← `tokens.cache.read`
+  - `cacheCreationInputTokens` ← `tokens.cache.write`
 
-**Build and Release:**
+## CLI Usage
 
-- `pnpm run build` - Build distribution files with tsdown
-- `pnpm run prerelease` - Full release workflow (lint + typecheck + build)
+- Treat OpenCode as a sibling to `apps/ccusage` and `apps/codex`.
+- Reuse shared packages (`@ccusage/terminal`, `@ccusage/internal`) wherever possible.
+- OpenCode is packaged as a bundled CLI. Keep every runtime dependency in `devDependencies`.
+- Entry point uses Gunshi framework.
+- Data discovery relies on `OPENCODE_DATA_DIR` environment variable.
+- Default path: `~/.local/share/opencode`.
 
-**Development Usage:**
+## Testing Notes
 
-- `pnpm run start daily` - Show daily usage report
-- Add `--json` flag for JSON output format
-
-## Architecture
-
-This package mirrors the codex package structure:
-
-**Key Modules:**
-
-- `src/data-loader.ts` - Loads OpenCode message JSON files
-- `src/commands/daily.ts` - Daily usage reports
-- `src/commands/index.ts` - Command exports
-
-**Data Flow:**
-
-1. Loads JSON files from `~/.local/share/opencode/storage/message/`
-2. Converts to common `LoadedUsageEntry` format
-3. Aggregates by date
-4. Outputs formatted tables or JSON
-
-## Testing Guidelines
-
-- **In-Source Testing**: Tests written in same files using `if (import.meta.vitest != null)` blocks
-- **Vitest Globals Enabled**: Use `describe`, `it`, `expect` directly without imports
-- **Mock Data**: Uses `fs-fixture` with `using` for test data
-- **CRITICAL**: NEVER use `await import()` dynamic imports anywhere
-
-## Code Style
-
-- **Error Handling**: Skip malformed files silently, no Result type needed for simple cases
-- **Imports**: Use workspace packages (`@ccusage/terminal`, `@ccusage/internal`)
-- **Dependencies**: All runtime deps in `devDependencies` (bundled CLI)
-
-## Environment Variables
-
-- `OPENCODE_DATA_DIR` - Custom OpenCode data directory path (defaults to `~/.local/share/opencode`)
-
-## Package Exports
-
-Minimal exports for CLI usage - primarily the command interface through gunshi.
+- Tests rely on `fs-fixture` with `using` to ensure cleanup.
+- All vitest blocks live alongside implementation files via `if (import.meta.vitest != null)`.
+- Vitest globals are enabled - use `describe`, `it`, `expect` directly without imports.
