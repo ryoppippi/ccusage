@@ -1,4 +1,3 @@
-import type { LoadedUsageEntry } from '../data-loader';
 import { LiteLLMPricingFetcher } from '@ccusage/internal/pricing';
 import {
 	addEmptySeparatorRow,
@@ -7,34 +6,13 @@ import {
 	formatNumber,
 	ResponsiveTable,
 } from '@ccusage/terminal/table';
-import { Result } from '@praha/byethrow';
 import { groupBy } from 'es-toolkit';
 import { define } from 'gunshi';
 import pc from 'picocolors';
+import { calculateCostForEntry } from '../cost-utils';
 import { loadOpenCodeMessages, loadOpenCodeSessions } from '../data-loader';
 
 const TABLE_COLUMN_COUNT = 8;
-
-async function calculateCostForEntry(
-	entry: LoadedUsageEntry,
-	fetcher: LiteLLMPricingFetcher,
-): Promise<number> {
-	if (entry.costUSD != null && entry.costUSD > 0) {
-		return entry.costUSD;
-	}
-
-	const result = await fetcher.calculateCostFromTokens(
-		{
-			input_tokens: entry.usage.inputTokens,
-			output_tokens: entry.usage.outputTokens,
-			cache_creation_input_tokens: entry.usage.cacheCreationInputTokens,
-			cache_read_input_tokens: entry.usage.cacheReadInputTokens,
-		},
-		entry.model,
-	);
-
-	return Result.unwrap(result, 0);
-}
 
 export const sessionCommand = define({
 	name: 'session',
