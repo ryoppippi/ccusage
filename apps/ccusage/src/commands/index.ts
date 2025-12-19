@@ -4,13 +4,12 @@ import { description, name, version } from '../../package.json';
 import { blocksCommand } from './blocks.ts';
 import { dailyCommand } from './daily.ts';
 import { monthlyCommand } from './monthly.ts';
-import { opencodeCommand } from './opencode.ts';
 import { sessionCommand } from './session.ts';
 import { statuslineCommand } from './statusline.ts';
 import { weeklyCommand } from './weekly.ts';
 
 // Re-export all commands for easy importing
-export { blocksCommand, dailyCommand, monthlyCommand, opencodeCommand, sessionCommand, statuslineCommand, weeklyCommand };
+export { blocksCommand, dailyCommand, monthlyCommand, sessionCommand, statuslineCommand, weeklyCommand };
 
 /**
  * Command entries as tuple array
@@ -20,7 +19,6 @@ export const subCommandUnion = [
 	['monthly', monthlyCommand],
 	['weekly', weeklyCommand],
 	['session', sessionCommand],
-	['opencode', opencodeCommand],
 	['blocks', blocksCommand],
 	['statusline', statuslineCommand],
 ] as const;

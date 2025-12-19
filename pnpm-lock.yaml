@@ -473,6 +473,75 @@ importers:
         specifier: catalog:testing
         version: 4.0.15(@types/node@24.5.1)(happy-dom@16.8.1)(jiti@2.6.1)(yaml@2.8.1)
 
+  apps/opencode:
+    devDependencies:
+      '@ccusage/internal':
+        specifier: workspace:*
+        version: link:../../packages/internal
+      '@ccusage/terminal':
+        specifier: workspace:*
+        version: link:../../packages/terminal
+      '@praha/byethrow':
+        specifier: catalog:runtime
+        version: 0.6.3
+      '@ryoppippi/eslint-config':
+        specifier: catalog:lint
+        version: 0.4.0(@vue/compiler-sfc@3.5.21)(eslint-plugin-format@1.0.2(eslint@9.35.0(jiti@2.6.1)))(eslint@9.35.0(jiti@2.6.1))(typescript@5.9.2)(vitest@4.0.15(@types/node@24.5.1)(happy-dom@16.8.1)(jiti@2.6.1)(yaml@2.8.1))
+      '@typescript/native-preview':
+        specifier: catalog:types
+        version: 7.0.0-dev.20251205.1
+      bun:
+        specifier: runtime:^1.3.2
+        version: runtime:1.3.5
+      clean-pkg-json:
+        specifier: catalog:release
+        version: 1.3.0
+      es-toolkit:
+        specifier: catalog:runtime
+        version: 1.39.10
+      eslint:
+        specifier: catalog:lint
+        version: 9.35.0(jiti@2.6.1)
+      fast-sort:
+        specifier: catalog:runtime
+        version: 3.4.1
+      fs-fixture:
+        specifier: catalog:testing
+        version: 2.8.1
+      gunshi:
+        specifier: catalog:runtime
+        version: 0.26.3
+      node:
+        specifier: runtime:^24.11.0
+        version: runtime:24.12.0
+      path-type:
+        specifier: catalog:runtime
+        version: 6.0.0
+      picocolors:
+        specifier: catalog:runtime
+        version: 1.1.1
+      sort-package-json:
+        specifier: catalog:release
+        version: 3.4.0
+      tinyglobby:
+        specifier: catalog:runtime
+        version: 0.2.15
+      tsdown:
+        specifier: catalog:build
+        version: 0.16.6(@typescript/native-preview@7.0.0-dev.20251205.1)(publint@0.3.12)(synckit@0.11.11)(typescript@5.9.2)(unplugin-unused@0.5.3)
+      unplugin-macros:
+        specifier: catalog:build
+        version: 0.18.2(@types/node@24.5.1)(jiti@2.6.1)(yaml@2.8.1)
+      unplugin-unused:
+        specifier: catalog:build
+        version: 0.5.3
+      valibot:
+        specifier: catalog:runtime
+        version: 1.1.0(typescript@5.9.2)
+      vitest:
+        specifier: catalog:testing
+        version: 4.0.15(@types/node@24.5.1)(happy-dom@16.8.1)(jiti@2.6.1)(yaml@2.8.1)
+
   docs:
     devDependencies:
       '@ryoppippi/eslint-config':
@@ -2552,6 +2621,85 @@ packages:
             - cpu: x64
               os: win32
     version: 1.3.4
+    hasBin: true
+
+  bun@runtime:1.3.5:
+    resolution:
+      type: variations
+      variants:
+        - resolution:
+            archive: zip
+            bin: bun
+            integrity: sha256-2xdYikrqiASFaCXUvq0/BeHzcnbKYG8342m09y810/s=
+            prefix: bun-darwin-aarch64
+            type: binary
+            url: https://github.com/oven-sh/bun/releases/download/bun-v1.3.5/bun-darwin-aarch64.zip
+          targets:
+            - cpu: arm64
+              os: darwin
+        - resolution:
+            archive: zip
+            bin: bun
+            integrity: sha256-9f/AMDD+UnqGKV+1hSuwjF6ZtwdWABHR1QmrAokCvyk=
+            prefix: bun-darwin-x64
+            type: binary
+            url: https://github.com/oven-sh/bun/releases/download/bun-v1.3.5/bun-darwin-x64.zip
+          targets:
+            - cpu: x64
+              os: darwin
+        - resolution:
+            archive: zip
+            bin: bun
+            integrity: sha256-mAtWe+7Kh1t5d21go1sXgwlYPfPwlzs7rmL3JE3Ehq0=
+            prefix: bun-linux-aarch64-musl
+            type: binary
+            url: https://github.com/oven-sh/bun/releases/download/bun-v1.3.5/bun-linux-aarch64-musl.zip
+          targets:
+            - cpu: arm64
+              os: linux
+              libc: musl
+        - resolution:
+            archive: zip
+            bin: bun
+            integrity: sha256-7QEAD4W9l3hSKK0oRdySoYYLgFSFaCbXMXaQrI+O50s=
+            prefix: bun-linux-aarch64
+            type: binary
+            url: https://github.com/oven-sh/bun/releases/download/bun-v1.3.5/bun-linux-aarch64.zip
+          targets:
+            - cpu: arm64
+              os: linux
+        - resolution:
+            archive: zip
+            bin: bun
+            integrity: sha256-cg2I4OX0BFCh2pHAIm9iaxVuqiJIdteU+pX26/dPRrY=
+            prefix: bun-linux-x64-musl
+            type: binary
+            url: https://github.com/oven-sh/bun/releases/download/bun-v1.3.5/bun-linux-x64-musl.zip
+          targets:
+            - cpu: x64
+              os: linux
+              libc: musl
+        - resolution:
+            archive: zip
+            bin: bun
+            integrity: sha256-cFHYapJK7+o+C5YhO1/Y95wHk/nK5lNCM+Yn5cPbRmk=
+            prefix: bun-linux-x64
+            type: binary
+            url: https://github.com/oven-sh/bun/releases/download/bun-v1.3.5/bun-linux-x64.zip
+          targets:
+            - cpu: x64
+              os: linux
+        - resolution:
+            archive: zip
+            bin: bun.exe
+            integrity: sha256-kiz/3VFDzRGMbM7Gph389daeAGiwSOoA8KBhUBZTAII=
+            prefix: bun-windows-x64
+            type: binary
+            url: https://github.com/oven-sh/bun/releases/download/bun-v1.3.5/bun-windows-x64.zip
+          targets:
+            - cpu: x64
+              os: win32
+    version: 1.3.5
     hasBin: true
 
   bundle-name@4.1.0:
@@ -6900,6 +7048,8 @@ snapshots:
       '@types/node': 24.5.1
 
   bun@runtime:1.3.4: {}
+
+  bun@runtime:1.3.5: {}
 
   bundle-name@4.1.0:
     dependencies:

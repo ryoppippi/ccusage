@@ -146,24 +146,3 @@ export const CONFIG_FILE_NAME = 'ccusage.json';
  * Used consistently across the application for date parsing and display
  */
 export const DEFAULT_LOCALE = 'en-CA';
-
-/**
- * OpenCode data directory path (~/.local/share/opencode)
- * Used as base path for loading OpenCode usage data
- */
-export const DEFAULT_OPENCODE_PATH = '.local/share/opencode';
-
-/**
- * OpenCode storage subdirectory containing message data
- */
-export const OPENCODE_STORAGE_DIR_NAME = 'storage';
-
-/**
- * OpenCode messages subdirectory within storage
- */
-export const OPENCODE_MESSAGES_DIR_NAME = 'message';
-
-/**
- * Environment variable for specifying custom OpenCode data directory
- */
-export const OPENCODE_CONFIG_DIR_ENV = 'OPENCODE_DATA_DIR';

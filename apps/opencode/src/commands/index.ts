@@ -1,0 +1,1 @@
+export { dailyCommand } from './daily';

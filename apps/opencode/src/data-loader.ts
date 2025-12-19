@@ -5,20 +5,58 @@
  * from JSON message files stored in OpenCode data directories.
  * OpenCode stores usage data in ~/.local/share/opencode/storage/message/
  *
- * @module _opencode-data-loader
+ * @module data-loader
  */
 
-import type { LoadedUsageEntry } from './_session-blocks.ts';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
-import { Result } from '@praha/byethrow';
+import { isDirectorySync } from 'path-type';
 import { glob } from 'tinyglobby';
 import * as v from 'valibot';
-import { DEFAULT_OPENCODE_PATH, OPENCODE_CONFIG_DIR_ENV, OPENCODE_MESSAGES_DIR_NAME, OPENCODE_STORAGE_DIR_NAME, USER_HOME_DIR } from './_consts.ts';
-import { isDirectorySync } from 'path-type';
-import { createModelName, createSessionId, modelNameSchema, sessionIdSchema } from './_types.ts';
-import { logger } from './logger.ts';
+
+/**
+ * Default OpenCode data directory path (~/.local/share/opencode)
+ */
+const DEFAULT_OPENCODE_PATH = '.local/share/opencode';
+
+/**
+ * OpenCode storage subdirectory containing message data
+ */
+const OPENCODE_STORAGE_DIR_NAME = 'storage';
+
+/**
+ * OpenCode messages subdirectory within storage
+ */
+const OPENCODE_MESSAGES_DIR_NAME = 'message';
+
+/**
+ * Environment variable for specifying custom OpenCode data directory
+ */
+const OPENCODE_CONFIG_DIR_ENV = 'OPENCODE_DATA_DIR';
+
+/**
+ * User home directory
+ */
+const USER_HOME_DIR = process.env.HOME ?? process.env.USERPROFILE ?? process.cwd();
+
+/**
+ * Branded Valibot schema for model names
+ */
+const modelNameSchema = v.pipe(
+	v.string(),
+	v.minLength(1, 'Model name cannot be empty'),
+	v.brand('ModelName'),
+);
+
+/**
+ * Branded Valibot schema for session IDs
+ */
+const sessionIdSchema = v.pipe(
+	v.string(),
+	v.minLength(1, 'Session ID cannot be empty'),
+	v.brand('SessionId'),
+);
 
 /**
  * OpenCode message token structure
@@ -50,13 +88,28 @@ export const openCodeMessageSchema = v.object({
 });
 
 /**
+ * Represents a single usage data entry loaded from OpenCode files
+ */
+export type LoadedUsageEntry = {
+	timestamp: Date;
+	usage: {
+		inputTokens: number;
+		outputTokens: number;
+		cacheCreationInputTokens: number;
+		cacheReadInputTokens: number;
+	};
+	model: string;
+	costUSD: number | null;
+};
+
+/**
  * Get OpenCode data directory
  * @returns Path to OpenCode data directory, or null if not found
  */
 export function getOpenCodePath(): string | null {
 	// Check environment variable first
 	const envPath = process.env[OPENCODE_CONFIG_DIR_ENV];
-	if (envPath && envPath.trim() !== '') {
+	if (envPath != null && envPath.trim() !== '') {
 		const normalizedPath = path.resolve(envPath);
 		if (isDirectorySync(normalizedPath)) {
 			return normalizedPath;
@@ -82,9 +135,10 @@ async function loadOpenCodeMessage(
 ): Promise<v.InferOutput<typeof openCodeMessageSchema> | null> {
 	try {
 		const content = await readFile(filePath, 'utf-8');
-		const data = JSON.parse(content);
+		const data: unknown = JSON.parse(content);
 		return v.parse(openCodeMessageSchema, data);
-	} catch {
+	}
+	catch {
 		return null;
 	}
 }
@@ -118,8 +172,7 @@ function convertOpenCodeMessageToUsageEntry(
  */
 export async function loadOpenCodeMessages(): Promise<LoadedUsageEntry[]> {
 	const openCodePath = getOpenCodePath();
-	if (!openCodePath) {
-		logger.warn('OpenCode data directory not found. Skipping OpenCode data.');
+	if (openCodePath == null) {
 		return [];
 	}
 
@@ -130,7 +183,6 @@ export async function loadOpenCodeMessages(): Promise<LoadedUsageEntry[]> {
 	);
 
 	if (!isDirectorySync(messagesDir)) {
-		logger.debug('OpenCode messages directory not found');
 		return [];
 	}
 
@@ -147,22 +199,19 @@ export async function loadOpenCodeMessages(): Promise<LoadedUsageEntry[]> {
 		const message = await loadOpenCodeMessage(filePath);
 
 		if (message == null) {
-			logger.debug(
-				`Failed to load OpenCode message: ${filePath}`,
-			);
 			continue;
 		}
 
 		// Skip messages with no tokens
 		if (
-			message.tokens == null ||
-			(message.tokens.input === 0 && message.tokens.output === 0)
+			message.tokens == null
+			|| (message.tokens.input === 0 && message.tokens.output === 0)
 		) {
 			continue;
 		}
 
 		// Skip if no provider or model
-		if (!message.providerID || !message.modelID) {
+		if (message.providerID == null || message.modelID == null) {
 			continue;
 		}
 
@@ -177,20 +226,19 @@ export async function loadOpenCodeMessages(): Promise<LoadedUsageEntry[]> {
 		entries.push(entry);
 	}
 
-	logger.info(`Loaded ${entries.length} OpenCode messages`);
 	return entries;
 }
 
 if (import.meta.vitest != null) {
 	const { describe, it, expect } = import.meta.vitest;
 
-	describe('_opencode-data-loader', () => {
+	describe('data-loader', () => {
 		it('should convert OpenCode message to LoadedUsageEntry', () => {
 			const message = {
 				id: 'msg_123',
-				sessionID: createSessionId('ses_456'),
+				sessionID: 'ses_456' as v.InferOutput<typeof sessionIdSchema>,
 				providerID: 'anthropic',
-				modelID: createModelName('claude-sonnet-4-5'),
+				modelID: 'claude-sonnet-4-5' as v.InferOutput<typeof modelNameSchema>,
 				time: {
 					created: 1700000000000,
 					completed: 1700000010000,
@@ -220,7 +268,7 @@ if (import.meta.vitest != null) {
 			const message = {
 				id: 'msg_123',
 				providerID: 'openai',
-				modelID: createModelName('gpt-5.1'),
+				modelID: 'gpt-5.1' as v.InferOutput<typeof modelNameSchema>,
 				time: {
 					created: 1700000000000,
 				},
