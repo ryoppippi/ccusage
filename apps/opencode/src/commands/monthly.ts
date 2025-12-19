@@ -147,7 +147,7 @@ export const monthlyCommand = define({
 		for (const data of monthlyData) {
 			table.push([
 				data.month,
-				formatModelsDisplayMultiline(data.modelsUsed.map(m => `• ${m}`)),
+				formatModelsDisplayMultiline(data.modelsUsed),
 				formatNumber(data.inputTokens),
 				formatNumber(data.outputTokens),
 				formatNumber(data.cacheCreationTokens),

@@ -147,7 +147,7 @@ export const dailyCommand = define({
 		for (const data of dailyData) {
 			table.push([
 				data.date,
-				formatModelsDisplayMultiline(data.modelsUsed.map(m => `• ${m}`)),
+				formatModelsDisplayMultiline(data.modelsUsed),
 				formatNumber(data.inputTokens),
 				formatNumber(data.outputTokens),
 				formatNumber(data.cacheCreationTokens),

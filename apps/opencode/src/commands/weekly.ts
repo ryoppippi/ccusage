@@ -172,7 +172,7 @@ export const weeklyCommand = define({
 		for (const data of weeklyData) {
 			table.push([
 				data.week,
-				formatModelsDisplayMultiline(data.modelsUsed.map(m => `• ${m}`)),
+				formatModelsDisplayMultiline(data.modelsUsed),
 				formatNumber(data.inputTokens),
 				formatNumber(data.outputTokens),
 				formatNumber(data.cacheCreationTokens),
