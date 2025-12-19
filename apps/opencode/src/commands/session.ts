@@ -171,7 +171,7 @@ export const sessionCommand = define({
 
 			table.push([
 				displayTitle,
-				formatModelsDisplayMultiline(parentSession.modelsUsed.map(m => `• ${m}`)),
+				formatModelsDisplayMultiline(parentSession.modelsUsed),
 				formatNumber(parentSession.inputTokens),
 				formatNumber(parentSession.outputTokens),
 				formatNumber(parentSession.cacheCreationTokens),
@@ -185,7 +185,7 @@ export const sessionCommand = define({
 				for (const subSession of subSessions) {
 					table.push([
 						`  ↳ ${subSession.sessionTitle}`,
-						formatModelsDisplayMultiline(subSession.modelsUsed.map(m => `• ${m}`)),
+						formatModelsDisplayMultiline(subSession.modelsUsed),
 						formatNumber(subSession.inputTokens),
 						formatNumber(subSession.outputTokens),
 						formatNumber(subSession.cacheCreationTokens),
