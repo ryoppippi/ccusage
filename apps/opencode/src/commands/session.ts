@@ -11,7 +11,7 @@ import { Result } from '@praha/byethrow';
 import { groupBy } from 'es-toolkit';
 import { define } from 'gunshi';
 import pc from 'picocolors';
-import { loadOpenCodeMessages } from '../data-loader';
+import { loadOpenCodeMessages, loadOpenCodeSessions } from '../data-loader';
 
 const TABLE_COLUMN_COUNT = 8;
 
@@ -53,7 +53,10 @@ export const sessionCommand = define({
 	async run(ctx) {
 		const jsonOutput = Boolean(ctx.values.json);
 
-		const entries = await loadOpenCodeMessages();
+		const [entries, sessionMetadataMap] = await Promise.all([
+			loadOpenCodeMessages(),
+			loadOpenCodeSessions(),
+		]);
 
 		if (entries.length === 0) {
 			const output = jsonOutput ? JSON.stringify({ sessions: [], totals: null }) : 'No OpenCode usage data found.';
@@ -66,8 +69,10 @@ export const sessionCommand = define({
 
 		const entriesBySession = groupBy(entries, entry => entry.sessionID);
 
-		const sessionData: Array<{
+		type SessionData = {
 			sessionID: string;
+			sessionTitle: string;
+			parentID: string | null;
 			inputTokens: number;
 			outputTokens: number;
 			cacheCreationTokens: number;
@@ -76,7 +81,9 @@ export const sessionCommand = define({
 			totalCost: number;
 			modelsUsed: string[];
 			lastActivity: Date;
-		}> = [];
+		};
+
+		const sessionData: SessionData[] = [];
 
 		for (const [sessionID, sessionEntries] of Object.entries(entriesBySession)) {
 			let inputTokens = 0;
@@ -102,8 +109,12 @@ export const sessionCommand = define({
 
 			const totalTokens = inputTokens + outputTokens + cacheCreationTokens + cacheReadTokens;
 
+			const metadata = sessionMetadataMap.get(sessionID);
+
 			sessionData.push({
 				sessionID,
+				sessionTitle: metadata?.title ?? sessionID,
+				parentID: metadata?.parentID ?? null,
 				inputTokens,
 				outputTokens,
 				cacheCreationTokens,
@@ -139,28 +150,51 @@ export const sessionCommand = define({
 		console.log('\n📊 OpenCode Token Usage Report - Sessions\n');
 
 		const table: ResponsiveTable = new ResponsiveTable({
-			head: ['Session ID', 'Models', 'Input', 'Output', 'Cache Create', 'Cache Read', 'Total Tokens', 'Cost (USD)'],
+			head: ['Session', 'Models', 'Input', 'Output', 'Cache Create', 'Cache Read', 'Total Tokens', 'Cost (USD)'],
 			colAligns: ['left', 'left', 'right', 'right', 'right', 'right', 'right', 'right'],
-			compactHead: ['Session ID', 'Models', 'Input', 'Output', 'Cost (USD)'],
+			compactHead: ['Session', 'Models', 'Input', 'Output', 'Cost (USD)'],
 			compactColAligns: ['left', 'left', 'right', 'right', 'right'],
 			compactThreshold: 100,
 			forceCompact: Boolean(ctx.values.compact),
 			style: { head: ['cyan'] },
 		});
 
-		for (const data of sessionData) {
-			const shortSessionID = data.sessionID.length > 12 ? `…${data.sessionID.slice(-12)}` : data.sessionID;
+		const sessionsByParent = groupBy(sessionData, s => s.parentID ?? 'root');
+		const parentSessions = sessionsByParent.root ?? [];
+		delete sessionsByParent.root;
+
+		for (const parentSession of parentSessions) {
+			const isParent = sessionsByParent[parentSession.sessionID] != null;
+			const displayTitle = isParent
+				? pc.bold(parentSession.sessionTitle)
+				: parentSession.sessionTitle;
 
 			table.push([
-				shortSessionID,
-				formatModelsDisplayMultiline(data.modelsUsed.map(m => `• ${m}`)),
-				formatNumber(data.inputTokens),
-				formatNumber(data.outputTokens),
-				formatNumber(data.cacheCreationTokens),
-				formatNumber(data.cacheReadTokens),
-				formatNumber(data.totalTokens),
-				formatCurrency(data.totalCost),
+				displayTitle,
+				formatModelsDisplayMultiline(parentSession.modelsUsed.map(m => `• ${m}`)),
+				formatNumber(parentSession.inputTokens),
+				formatNumber(parentSession.outputTokens),
+				formatNumber(parentSession.cacheCreationTokens),
+				formatNumber(parentSession.cacheReadTokens),
+				formatNumber(parentSession.totalTokens),
+				formatCurrency(parentSession.totalCost),
 			]);
+
+			const subSessions = sessionsByParent[parentSession.sessionID];
+			if (subSessions != null && subSessions.length > 0) {
+				for (const subSession of subSessions) {
+					table.push([
+						`  ↳ ${subSession.sessionTitle}`,
+						formatModelsDisplayMultiline(subSession.modelsUsed.map(m => `• ${m}`)),
+						formatNumber(subSession.inputTokens),
+						formatNumber(subSession.outputTokens),
+						formatNumber(subSession.cacheCreationTokens),
+						formatNumber(subSession.cacheReadTokens),
+						formatNumber(subSession.totalTokens),
+						formatCurrency(subSession.totalCost),
+					]);
+				}
+			}
 		}
 
 		addEmptySeparatorRow(table, TABLE_COLUMN_COUNT);

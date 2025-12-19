@@ -29,6 +29,7 @@ const OPENCODE_STORAGE_DIR_NAME = 'storage';
  * OpenCode messages subdirectory within storage
  */
 const OPENCODE_MESSAGES_DIR_NAME = 'message';
+const OPENCODE_SESSIONS_DIR_NAME = 'session';
 
 /**
  * Environment variable for specifying custom OpenCode data directory
@@ -87,6 +88,14 @@ export const openCodeMessageSchema = v.object({
 	cost: v.optional(v.number()),
 });
 
+export const openCodeSessionSchema = v.object({
+	id: sessionIdSchema,
+	parentID: v.optional(v.nullable(sessionIdSchema)),
+	title: v.optional(v.string()),
+	projectID: v.optional(v.string()),
+	directory: v.optional(v.string()),
+});
+
 /**
  * Represents a single usage data entry loaded from OpenCode files
  */
@@ -101,6 +110,14 @@ export type LoadedUsageEntry = {
 	};
 	model: string;
 	costUSD: number | null;
+};
+
+export type LoadedSessionMetadata = {
+	id: string;
+	parentID: string | null;
+	title: string;
+	projectID: string;
+	directory: string;
 };
 
 /**
@@ -166,6 +183,68 @@ function convertOpenCodeMessageToUsageEntry(
 		model: message.modelID ?? 'unknown',
 		costUSD: message.cost ?? null,
 	};
+}
+
+async function loadOpenCodeSession(
+	filePath: string,
+): Promise<v.InferOutput<typeof openCodeSessionSchema> | null> {
+	try {
+		const content = await readFile(filePath, 'utf-8');
+		const data: unknown = JSON.parse(content);
+		return v.parse(openCodeSessionSchema, data);
+	}
+	catch {
+		return null;
+	}
+}
+
+function convertOpenCodeSessionToMetadata(
+	session: v.InferOutput<typeof openCodeSessionSchema>,
+): LoadedSessionMetadata {
+	return {
+		id: session.id,
+		parentID: session.parentID ?? null,
+		title: session.title ?? session.id,
+		projectID: session.projectID ?? 'unknown',
+		directory: session.directory ?? 'unknown',
+	};
+}
+
+export async function loadOpenCodeSessions(): Promise<Map<string, LoadedSessionMetadata>> {
+	const openCodePath = getOpenCodePath();
+	if (openCodePath == null) {
+		return new Map();
+	}
+
+	const sessionsDir = path.join(
+		openCodePath,
+		OPENCODE_STORAGE_DIR_NAME,
+		OPENCODE_SESSIONS_DIR_NAME,
+	);
+
+	if (!isDirectorySync(sessionsDir)) {
+		return new Map();
+	}
+
+	const sessionFiles = await glob('**/*.json', {
+		cwd: sessionsDir,
+		absolute: true,
+	});
+
+	const sessionMap = new Map<string, LoadedSessionMetadata>();
+
+	for (const filePath of sessionFiles) {
+		const session = await loadOpenCodeSession(filePath);
+
+		if (session == null) {
+			continue;
+		}
+
+		const metadata = convertOpenCodeSessionToMetadata(session);
+		sessionMap.set(metadata.id, metadata);
+	}
+
+	return sessionMap;
 }
 
 /**
