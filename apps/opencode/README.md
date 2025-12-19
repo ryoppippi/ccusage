@@ -88,12 +88,14 @@ Useful environment variables:
 OpenCode stores `cost: 0` in message files, so this CLI calculates accurate costs from token usage data using the LiteLLM pricing database.
 
 **Supported models**:
+
 - ✅ Claude models (opus-4-5, haiku-4-5, sonnet-4-5, etc.) - Accurate pricing from LiteLLM
 - ⚠️ Non-Claude models (grok-code, gpt-5.1-codex-max, glm-4.6) - May show $0.00 if not in LiteLLM database
 
 ## Data Location
 
 OpenCode stores usage data in:
+
 - **Messages**: `~/.local/share/opencode/storage/message/{sessionID}/msg_{messageID}.json`
 - **Sessions**: `~/.local/share/opencode/storage/session/{projectHash}/{sessionID}.json`
 
