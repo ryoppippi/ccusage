@@ -181,8 +181,7 @@ export async function loadPiAgentData(options?: LoadOptions): Promise<EntryData[
 					return;
 				}
 
-				const usage = transformed.usage;
-				const hash = `pi:${file}:${sessionId}:${data.timestamp}:${usage.input_tokens}:${usage.output_tokens}:${usage.cache_read_input_tokens}:${usage.cache_creation_input_tokens}:${transformed.model ?? ''}`;
+				const hash = `pi:${data.timestamp}:${transformed.totalTokens}`;
 				if (processedHashes.has(hash)) {
 					return;
 				}
