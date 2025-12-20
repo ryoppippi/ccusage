@@ -76,9 +76,7 @@ export const dailyCommand = define({
 		}
 
 		combined.sort((a, b) => {
-			const dateA = 'date' in a ? a.date : '';
-			const dateB = 'date' in b ? b.date : '';
-			const cmp = dateA.localeCompare(dateB);
+			const cmp = a.date.localeCompare(b.date);
 			if (cmp !== 0) {
 				return options.order === 'asc' ? cmp : -cmp;
 			}
@@ -117,12 +115,11 @@ export const dailyCommand = define({
 
 			let prevDate = '';
 			for (const data of combined) {
-				const dateStr = 'date' in data ? data.date : '';
-				const isNewDate = dateStr !== prevDate;
-				prevDate = dateStr;
+				const isNewDate = data.date !== prevDate;
+				prevDate = data.date;
 
 				const sourceLabel = data.source === 'pi-agent' ? pc.cyan('[pi]') : pc.green('[cc]');
-				const firstCol = isNewDate ? `${dateStr} ${sourceLabel}` : sourceLabel;
+				const firstCol = isNewDate ? `${data.date} ${sourceLabel}` : sourceLabel;
 
 				const row = formatUsageDataRow(firstCol, {
 					inputTokens: data.inputTokens,
