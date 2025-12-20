@@ -36,8 +36,9 @@ export const piAgentMessageSchema = v.object({
 export type PiAgentMessage = v.InferOutput<typeof piAgentMessageSchema>;
 
 export function isPiAgentUsageEntry(data: PiAgentMessage): boolean {
+	const isMessage = data.type == null || data.type === 'message';
 	return (
-		data.type === 'message'
+		isMessage
 		&& data.message?.role === 'assistant'
 		&& data.message?.usage != null
 		&& typeof data.message.usage.input === 'number'
@@ -192,6 +193,24 @@ if (import.meta.vitest != null) {
 				},
 			};
 			expect(isPiAgentUsageEntry(data)).toBe(false);
+		});
+
+		it('returns true when type is undefined but has assistant with usage', () => {
+			const data: PiAgentMessage = {
+				type: undefined,
+				timestamp: '2024-01-01T00:00:00Z' as v.InferOutput<
+					typeof isoTimestampSchema
+				>,
+				message: {
+					role: 'assistant',
+					model: 'claude-opus-4-5',
+					usage: {
+						input: 100,
+						output: 50,
+					},
+				},
+			};
+			expect(isPiAgentUsageEntry(data)).toBe(true);
 		});
 	});
 

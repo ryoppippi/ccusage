@@ -999,5 +999,22 @@ if (import.meta.vitest != null) {
 			const models = ['claude-sonnet-4-20250514', 'claude-sonnet-4-5-20250929', 'claude-opus-4-1-20250805'];
 			expect(formatModelsDisplayMultiline(models)).toBe('- opus-4-1\n- sonnet-4\n- sonnet-4-5');
 		});
+
+		it('formats pi-agent prefixed models', () => {
+			expect(formatModelsDisplayMultiline(['[pi] claude-opus-4-5'])).toBe('- [pi] opus-4-5');
+		});
+
+		it('formats anthropic/ prefixed models with dot notation', () => {
+			expect(formatModelsDisplayMultiline(['anthropic/claude-opus-4.5'])).toBe('- opus-4.5');
+		});
+
+		it('formats models without date suffix', () => {
+			expect(formatModelsDisplayMultiline(['claude-opus-4-5'])).toBe('- opus-4-5');
+			expect(formatModelsDisplayMultiline(['claude-haiku-4-5'])).toBe('- haiku-4-5');
+		});
+
+		it('formats pi-agent model with anthropic prefix', () => {
+			expect(formatModelsDisplayMultiline(['[pi] anthropic/claude-opus-4.5'])).toBe('- [pi] opus-4.5');
+		});
 	});
 }

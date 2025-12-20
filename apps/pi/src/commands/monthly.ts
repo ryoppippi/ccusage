@@ -115,11 +115,11 @@ export const monthlyCommand = define({
 
 			let prevMonth = '';
 			for (const data of combined) {
-				const displayMonth = data.month !== prevMonth ? data.month : '';
+				const isNewMonth = data.month !== prevMonth;
 				prevMonth = data.month;
 
 				const sourceLabel = data.source === 'pi-agent' ? pc.cyan('[pi]') : pc.green('[cc]');
-				const firstCol = displayMonth !== '' ? `${displayMonth} ${sourceLabel}` : `         ${sourceLabel}`;
+				const firstCol = isNewMonth ? `${data.month} ${sourceLabel}` : sourceLabel;
 
 				const row = formatUsageDataRow(firstCol, {
 					inputTokens: data.inputTokens,

@@ -118,11 +118,11 @@ export const dailyCommand = define({
 			let prevDate = '';
 			for (const data of combined) {
 				const dateStr = 'date' in data ? data.date : '';
-				const displayDate = dateStr !== prevDate ? dateStr : '';
+				const isNewDate = dateStr !== prevDate;
 				prevDate = dateStr;
 
 				const sourceLabel = data.source === 'pi-agent' ? pc.cyan('[pi]') : pc.green('[cc]');
-				const firstCol = displayDate !== '' ? `${displayDate} ${sourceLabel}` : `           ${sourceLabel}`;
+				const firstCol = isNewDate ? `${dateStr} ${sourceLabel}` : sourceLabel;
 
 				const row = formatUsageDataRow(firstCol, {
 					inputTokens: data.inputTokens,

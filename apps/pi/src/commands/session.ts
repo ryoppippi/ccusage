@@ -1,3 +1,4 @@
+import path from 'node:path';
 import process from 'node:process';
 import { addEmptySeparatorRow, createUsageReportTable, formatTotalsRow, formatUsageDataRow, pushBreakdownRows } from '@ccusage/terminal/table';
 import { loadSessionData } from 'ccusage/data-loader';
@@ -112,7 +113,7 @@ export const sessionCommand = define({
 
 			for (const data of combined) {
 				const sourceLabel = data.source === 'pi-agent' ? pc.cyan('[pi]') : pc.green('[cc]');
-				const projectName = data.projectPath.split('/').pop() ?? data.projectPath;
+				const projectName = path.basename(data.projectPath);
 				const truncatedName = projectName.length > 25 ? `${projectName.slice(0, 22)}...` : projectName;
 				const firstCol = `${truncatedName} ${sourceLabel}`;
 

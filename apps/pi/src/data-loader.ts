@@ -122,11 +122,16 @@ function formatMonth(timestamp: string, timezone?: string): string {
 	return formatted.slice(0, 7);
 }
 
+function normalizeDate(value: string): string {
+	return value.replace(/-/g, '');
+}
+
 function isInDateRange(date: string, since?: string, until?: string): boolean {
-	if (since != null && date < since) {
+	const dateKey = normalizeDate(date);
+	if (since != null && dateKey < normalizeDate(since)) {
 		return false;
 	}
-	if (until != null && date > until) {
+	if (until != null && dateKey > normalizeDate(until)) {
 		return false;
 	}
 	return true;
@@ -176,7 +181,8 @@ export async function loadPiAgentData(options?: LoadOptions): Promise<EntryData[
 					return;
 				}
 
-				const hash = `pi:${data.timestamp}:${transformed.totalTokens}`;
+				const usage = transformed.usage;
+				const hash = `pi:${file}:${sessionId}:${data.timestamp}:${usage.input_tokens}:${usage.output_tokens}:${usage.cache_read_input_tokens}:${usage.cache_creation_input_tokens}:${transformed.model ?? ''}`;
 				if (processedHashes.has(hash)) {
 					return;
 				}
