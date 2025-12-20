@@ -104,17 +104,6 @@
 							"description": "Force compact mode for narrow displays (better for screenshots)",
 							"markdownDescription": "Force compact mode for narrow displays (better for screenshots)",
 							"default": false
-						},
-						"pi": {
-							"type": "boolean",
-							"description": "Include pi-agent usage data (grouped by source) from ~/.pi/agent/sessions",
-							"markdownDescription": "Include pi-agent usage data (grouped by source) from ~/.pi/agent/sessions",
-							"default": false
-						},
-						"piPath": {
-							"type": "string",
-							"description": "Custom path to pi-agent sessions directory",
-							"markdownDescription": "Custom path to pi-agent sessions directory"
 						}
 					},
 					"additionalProperties": false,
@@ -219,17 +208,6 @@
 									"description": "Force compact mode for narrow displays (better for screenshots)",
 									"markdownDescription": "Force compact mode for narrow displays (better for screenshots)",
 									"default": false
-								},
-								"pi": {
-									"type": "boolean",
-									"description": "Include pi-agent usage data (grouped by source) from ~/.pi/agent/sessions",
-									"markdownDescription": "Include pi-agent usage data (grouped by source) from ~/.pi/agent/sessions",
-									"default": false
-								},
-								"piPath": {
-									"type": "string",
-									"description": "Custom path to pi-agent sessions directory",
-									"markdownDescription": "Custom path to pi-agent sessions directory"
 								},
 								"instances": {
 									"type": "boolean",
@@ -345,17 +323,6 @@
 									"description": "Force compact mode for narrow displays (better for screenshots)",
 									"markdownDescription": "Force compact mode for narrow displays (better for screenshots)",
 									"default": false
-								},
-								"pi": {
-									"type": "boolean",
-									"description": "Include pi-agent usage data (grouped by source) from ~/.pi/agent/sessions",
-									"markdownDescription": "Include pi-agent usage data (grouped by source) from ~/.pi/agent/sessions",
-									"default": false
-								},
-								"piPath": {
-									"type": "string",
-									"description": "Custom path to pi-agent sessions directory",
-									"markdownDescription": "Custom path to pi-agent sessions directory"
 								}
 							},
 							"additionalProperties": false
@@ -455,17 +422,6 @@
 									"description": "Force compact mode for narrow displays (better for screenshots)",
 									"markdownDescription": "Force compact mode for narrow displays (better for screenshots)",
 									"default": false
-								},
-								"pi": {
-									"type": "boolean",
-									"description": "Include pi-agent usage data (grouped by source) from ~/.pi/agent/sessions",
-									"markdownDescription": "Include pi-agent usage data (grouped by source) from ~/.pi/agent/sessions",
-									"default": false
-								},
-								"piPath": {
-									"type": "string",
-									"description": "Custom path to pi-agent sessions directory",
-									"markdownDescription": "Custom path to pi-agent sessions directory"
 								},
 								"startOfWeek": {
 									"type": "string",
@@ -571,17 +527,6 @@
 									"markdownDescription": "Force compact mode for narrow displays (better for screenshots)",
 									"default": false
 								},
-								"pi": {
-									"type": "boolean",
-									"description": "Include pi-agent usage data (grouped by source) from ~/.pi/agent/sessions",
-									"markdownDescription": "Include pi-agent usage data (grouped by source) from ~/.pi/agent/sessions",
-									"default": false
-								},
-								"piPath": {
-									"type": "string",
-									"description": "Custom path to pi-agent sessions directory",
-									"markdownDescription": "Custom path to pi-agent sessions directory"
-								},
 								"id": {
 									"type": "string",
 									"description": "Load usage data for a specific session ID",
@@ -685,17 +630,6 @@
 									"description": "Force compact mode for narrow displays (better for screenshots)",
 									"markdownDescription": "Force compact mode for narrow displays (better for screenshots)",
 									"default": false
-								},
-								"pi": {
-									"type": "boolean",
-									"description": "Include pi-agent usage data (grouped by source) from ~/.pi/agent/sessions",
-									"markdownDescription": "Include pi-agent usage data (grouped by source) from ~/.pi/agent/sessions",
-									"default": false
-								},
-								"piPath": {
-									"type": "string",
-									"description": "Custom path to pi-agent sessions directory",
-									"markdownDescription": "Custom path to pi-agent sessions directory"
 								},
 								"active": {
 									"type": "boolean",

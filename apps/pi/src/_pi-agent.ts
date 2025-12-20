@@ -61,7 +61,14 @@ export function extractPiAgentProject(filePath: string): string {
 	return segments[idx + 1] ?? 'unknown';
 }
 
-export function getPiAgentPaths(): string[] {
+export function getPiAgentPaths(customPath?: string): string[] {
+	if (customPath != null && customPath !== '') {
+		const resolved = path.resolve(customPath);
+		if (isDirectorySync(resolved)) {
+			return [resolved];
+		}
+	}
+
 	const envPath = (process.env[PI_AGENT_DIR_ENV] ?? '').trim();
 	if (envPath !== '') {
 		const resolved = path.resolve(envPath);

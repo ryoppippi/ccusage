@@ -40,13 +40,6 @@ import {
 	getDayNumber,
 	sortByDate,
 } from './_date-utils.ts';
-import {
-	extractPiAgentProject,
-	extractPiAgentSessionId,
-	getPiAgentPaths,
-	piAgentMessageSchema,
-	transformPiAgentUsage,
-} from './_pi-agent.ts';
 import { PricingFetcher } from './_pricing-fetcher.ts';
 import {
 	identifySessionBlocks,
@@ -237,9 +230,6 @@ export type ModelBreakdown = v.InferOutput<typeof modelBreakdownSchema>;
 /**
  * Valibot schema for daily usage aggregation data
  */
-export const sourceSchema = v.picklist(['claude-code', 'pi-agent']);
-export type Source = v.InferOutput<typeof sourceSchema>;
-
 export const dailyUsageSchema = v.object({
 	date: dailyDateSchema, // YYYY-MM-DD format
 	inputTokens: v.number(),
@@ -250,7 +240,6 @@ export const dailyUsageSchema = v.object({
 	modelsUsed: v.array(modelNameSchema),
 	modelBreakdowns: v.array(modelBreakdownSchema),
 	project: v.optional(v.string()), // Project name when groupByProject is enabled
-	source: v.optional(sourceSchema), // Data source when --pi is enabled
 });
 
 /**
@@ -333,7 +322,6 @@ export const bucketUsageSchema = v.object({
 	modelsUsed: v.array(modelNameSchema),
 	modelBreakdowns: v.array(modelBreakdownSchema),
 	project: v.optional(v.string()), // Project name when groupByProject is enabled
-	source: v.optional(sourceSchema), // Data source when --pi is enabled
 });
 
 /**
@@ -726,23 +714,6 @@ export async function globUsageFiles(claudePaths: string[]): Promise<GlobResult[
 }
 
 /**
- * Glob files from pi-agent sessions directories
- * Unlike Claude Code, pi-agent doesn't have a 'projects' subdirectory
- * @param piAgentPaths - Array of pi-agent sessions paths
- * @returns Array of file paths with their base directories
- */
-export async function globPiAgentFiles(piAgentPaths: string[]): Promise<GlobResult[]> {
-	const filePromises = piAgentPaths.map(async (basePath) => {
-		const files = await glob([USAGE_DATA_GLOB_PATTERN], {
-			cwd: basePath,
-			absolute: true,
-		}).catch(() => []);
-		return files.map(file => ({ file, baseDir: basePath }));
-	});
-	return (await Promise.all(filePromises)).flat();
-}
-
-/**
  * Date range filter for limiting usage data by date
  */
 export type DateFilter = {
@@ -764,8 +735,6 @@ export type LoadOptions = {
 	startOfWeek?: WeekDay; // Start of week for weekly aggregation
 	timezone?: string; // Timezone for date grouping (e.g., 'UTC', 'America/New_York'). Defaults to system timezone
 	locale?: string; // Locale for date/time formatting (e.g., 'en-US', 'ja-JP'). Defaults to 'en-US'
-	pi?: boolean; // Include pi-agent usage data (grouped by source)
-	piPath?: string; // Custom path to pi-agent sessions directory
 } & DateFilter;
 
 /**
@@ -784,10 +753,7 @@ export async function loadDailyUsageData(
 	const allFiles = await globUsageFiles(claudePaths);
 	const fileList = allFiles.map(f => f.file);
 
-	// Check if pi-agent data should be included
-	const includePiAgent = options?.pi === true || options?.piPath != null;
-
-	if (fileList.length === 0 && !includePiAgent) {
+	if (fileList.length === 0) {
 		return [];
 	}
 
@@ -811,7 +777,7 @@ export async function loadDailyUsageData(
 	const processedHashes = new Set<string>();
 
 	// Collect all valid data entries first
-	const allEntries: { data: UsageData; date: string; cost: number; model: string | undefined; project: string; source: 'claude-code' | 'pi-agent' }[] = [];
+	const allEntries: { data: UsageData; date: string; cost: number; model: string | undefined; project: string }[] = [];
 
 	for (const file of sortedFiles) {
 		// Extract project name from file path once per file
@@ -844,7 +810,7 @@ export async function loadDailyUsageData(
 					? await calculateCostForEntry(data, mode, fetcher)
 					: data.costUSD ?? 0;
 
-				allEntries.push({ data, date, cost, model: data.message.model, project, source: 'claude-code' });
+				allEntries.push({ data, date, cost, model: data.message.model, project });
 			}
 			catch {
 				// Skip invalid JSON lines
@@ -852,74 +818,12 @@ export async function loadDailyUsageData(
 		});
 	}
 
-	if (includePiAgent) {
-		const piPaths = options?.piPath != null
-			? [path.resolve(options.piPath)]
-			: getPiAgentPaths();
-		const piFiles = await globPiAgentFiles(piPaths);
-		const sortedPiFiles = await sortFilesByTimestamp(piFiles.map(f => f.file));
-
-		for (const file of sortedPiFiles) {
-			const project = extractPiAgentProject(file);
-
-			await processJSONLFileByLine(file, (line) => {
-				try {
-					const parsed = JSON.parse(line) as unknown;
-					const result = v.safeParse(piAgentMessageSchema, parsed);
-					if (!result.success) {
-						return;
-					}
-
-					const transformed = transformPiAgentUsage(result.output);
-					if (transformed == null) {
-						return;
-					}
-
-					const dedupeKey = `pi:${result.output.timestamp}:${transformed.totalTokens}`;
-					if (isDuplicateEntry(dedupeKey, processedHashes)) {
-						return;
-					}
-					markAsProcessed(dedupeKey, processedHashes);
-
-					const date = formatDate(result.output.timestamp, options?.timezone, DEFAULT_LOCALE);
-					const cost = transformed.costUSD ?? 0;
-
-					allEntries.push({
-						data: {
-							timestamp: result.output.timestamp,
-							message: {
-								usage: transformed.usage,
-								model: transformed.model,
-							},
-						} as UsageData,
-						date,
-						cost,
-						model: transformed.model,
-						project,
-						source: 'pi-agent',
-					});
-				}
-				catch {
-					// Skip invalid lines
-				}
-			});
-		}
-	}
-
-	// Group by date, optionally including project and source
+	// Group by date, optionally including project
 	// Automatically enable project grouping when project filter is specified
-	// When pi-agent data is included, also group by source
 	const needsProjectGrouping = options?.groupByProject === true || options?.project != null;
-	const groupingKey = (entry: typeof allEntries[0]): string => {
-		const parts = [entry.date];
-		if (includePiAgent) {
-			parts.push(entry.source);
-		}
-		if (needsProjectGrouping) {
-			parts.push(entry.project);
-		}
-		return parts.join('\x00');
-	};
+	const groupingKey = needsProjectGrouping
+		? (entry: typeof allEntries[0]) => `${entry.date}\x00${entry.project}`
+		: (entry: typeof allEntries[0]) => entry.date;
 
 	const groupedData = groupBy(allEntries, groupingKey);
 
@@ -930,12 +834,10 @@ export async function loadDailyUsageData(
 				return undefined;
 			}
 
-			// Extract date, source, and project from groupKey
+			// Extract date and project from groupKey (format: "date" or "date\x00project")
 			const parts = groupKey.split('\x00');
-			let idx = 0;
-			const date = parts[idx++] ?? groupKey;
-			const source = includePiAgent ? parts[idx++] : undefined;
-			const project = needsProjectGrouping ? parts[idx] : undefined;
+			const date = parts[0] ?? groupKey;
+			const project = parts.length > 1 ? parts[1] : undefined;
 
 			// Aggregate by model first
 			const modelAggregates = aggregateByModel(
@@ -963,7 +865,6 @@ export async function loadDailyUsageData(
 				modelsUsed: modelsUsed as ModelName[],
 				modelBreakdowns,
 				...(project != null && { project }),
-				...(source != null && { source: source as Source }),
 			};
 		})
 		.filter(item => item != null);
@@ -993,10 +894,7 @@ export async function loadSessionData(
 	// Collect files from all paths with their base directories in parallel
 	const filesWithBase = await globUsageFiles(claudePaths);
 
-	// Check if pi-agent data should be included
-	const includePiAgent = options?.pi === true || options?.piPath != null;
-
-	if (filesWithBase.length === 0 && !includePiAgent) {
+	if (filesWithBase.length === 0) {
 		return [];
 	}
 
@@ -1088,62 +986,6 @@ export async function loadSessionData(
 				// Skip invalid JSON lines
 			}
 		});
-	}
-
-	if (includePiAgent) {
-		const piPaths = options?.piPath != null
-			? [path.resolve(options.piPath)]
-			: getPiAgentPaths();
-		const piFiles = await globPiAgentFiles(piPaths);
-		const sortedPiFiles = await sortFilesByTimestamp(piFiles.map(f => f.file));
-
-		for (const file of sortedPiFiles) {
-			const projectPath = extractPiAgentProject(file);
-			const sessionId = extractPiAgentSessionId(file);
-			const sessionKey = `${projectPath}/${sessionId}`;
-
-			await processJSONLFileByLine(file, (line) => {
-				try {
-					const parsed = JSON.parse(line) as unknown;
-					const result = v.safeParse(piAgentMessageSchema, parsed);
-					if (!result.success) {
-						return;
-					}
-
-					const transformed = transformPiAgentUsage(result.output);
-					if (transformed == null) {
-						return;
-					}
-
-					const dedupeKey = `pi:${result.output.timestamp}:${transformed.totalTokens}`;
-					if (isDuplicateEntry(dedupeKey, processedHashes)) {
-						return;
-					}
-					markAsProcessed(dedupeKey, processedHashes);
-
-					const cost = transformed.costUSD ?? 0;
-
-					allEntries.push({
-						data: {
-							timestamp: result.output.timestamp,
-							message: {
-								usage: transformed.usage,
-								model: transformed.model,
-							},
-						} as UsageData,
-						sessionKey,
-						sessionId,
-						projectPath,
-						cost,
-						timestamp: result.output.timestamp,
-						model: transformed.model,
-					});
-				}
-				catch {
-					// Skip invalid lines
-				}
-			});
-		}
 	}
 
 	// Group by session using Object.groupBy
@@ -1307,22 +1149,18 @@ export async function loadBucketUsageData(
 ): Promise<BucketUsage[]> {
 	const dailyData = await loadDailyUsageData(options);
 
-	// Group daily data by week, optionally including project and source
+	// Group daily data by week, optionally including project
 	// Automatically enable project grouping when project filter is specified
 	const needsProjectGrouping
 		= options?.groupByProject === true || options?.project != null;
-	const includePiAgent = options?.pi === true || options?.piPath != null;
 
-	const groupingKey = (data: DailyUsage): string => {
-		const parts: string[] = [groupingFn(data)];
-		if (includePiAgent) {
-			parts.push(data.source ?? 'claude-code');
-		}
-		if (needsProjectGrouping) {
-			parts.push(data.project ?? 'unknown');
-		}
-		return parts.join('\x00');
-	};
+	const groupingKey = needsProjectGrouping
+		? (data: DailyUsage) => {
+				const bucketValue = groupingFn(data);
+				const projectSegment = data.project ?? 'unknown';
+				return `${bucketValue}\x00${projectSegment}`;
+			}
+		: (data: DailyUsage) => `${groupingFn(data)}`;
 
 	const grouped = groupBy(dailyData, groupingKey);
 
@@ -1333,10 +1171,8 @@ export async function loadBucketUsageData(
 		}
 
 		const parts = groupKey.split('\x00');
-		let idx = 0;
-		const bucket = createBucket(parts[idx++] ?? groupKey);
-		const source = includePiAgent ? (parts[idx++] as Source | undefined) : undefined;
-		const project = needsProjectGrouping ? parts[idx] : undefined;
+		const bucket = createBucket(parts[0] ?? groupKey);
+		const project = parts.length > 1 ? parts[1] : undefined;
 
 		// Aggregate model breakdowns across all days
 		const allBreakdowns = dailyEntries.flatMap(
@@ -1382,7 +1218,6 @@ export async function loadBucketUsageData(
 			modelsUsed: uniq(models) as ModelName[],
 			modelBreakdowns,
 			...(project != null && { project }),
-			...(source != null && { source }),
 		};
 
 		buckets.push(bucketUsage);
@@ -1498,10 +1333,7 @@ export async function loadSessionBlockData(
 		allFiles.push(...files);
 	}
 
-	// Check if pi-agent data should be included
-	const includePiAgent = options?.pi === true || options?.piPath != null;
-
-	if (allFiles.length === 0 && !includePiAgent) {
+	if (allFiles.length === 0) {
 		return [];
 	}
 
@@ -1573,52 +1405,6 @@ export async function loadSessionBlockData(
 				logger.debug(`Skipping invalid JSON line in 5-hour blocks: ${error instanceof Error ? error.message : String(error)}`);
 			}
 		});
-	}
-
-	if (includePiAgent) {
-		const piPaths = options?.piPath != null
-			? [path.resolve(options.piPath)]
-			: getPiAgentPaths();
-		const piFiles = await globPiAgentFiles(piPaths);
-		const sortedPiFiles = await sortFilesByTimestamp(piFiles.map(f => f.file));
-
-		for (const file of sortedPiFiles) {
-			await processJSONLFileByLine(file, (line) => {
-				try {
-					const parsed = JSON.parse(line) as unknown;
-					const result = v.safeParse(piAgentMessageSchema, parsed);
-					if (!result.success) {
-						return;
-					}
-
-					const transformed = transformPiAgentUsage(result.output);
-					if (transformed == null) {
-						return;
-					}
-
-					const dedupeKey = `pi:${result.output.timestamp}:${transformed.totalTokens}`;
-					if (isDuplicateEntry(dedupeKey, processedHashes)) {
-						return;
-					}
-					markAsProcessed(dedupeKey, processedHashes);
-
-					allEntries.push({
-						timestamp: new Date(result.output.timestamp),
-						usage: {
-							inputTokens: transformed.usage.input_tokens,
-							outputTokens: transformed.usage.output_tokens,
-							cacheCreationInputTokens: transformed.usage.cache_creation_input_tokens,
-							cacheReadInputTokens: transformed.usage.cache_read_input_tokens,
-						},
-						costUSD: transformed.costUSD ?? 0,
-						model: transformed.model ?? 'unknown',
-					});
-				}
-				catch {
-					// Skip invalid lines
-				}
-			});
-		}
 	}
 
 	// Identify session blocks

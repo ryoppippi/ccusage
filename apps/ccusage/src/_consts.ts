@@ -146,18 +146,3 @@ export const CONFIG_FILE_NAME = 'ccusage.json';
  * Used consistently across the application for date parsing and display
  */
 export const DEFAULT_LOCALE = 'en-CA';
-
-/**
- * Environment variable for specifying pi-agent data directory
- */
-export const PI_AGENT_DIR_ENV = 'PI_AGENT_DIR';
-
-/**
- * Pi-agent sessions directory name
- */
-export const PI_AGENT_SESSIONS_DIR_NAME = 'sessions';
-
-/**
- * Default pi-agent data directory path (~/.pi/agent)
- */
-export const DEFAULT_PI_AGENT_PATH = '.pi/agent';
