@@ -1,6 +1,19 @@
 import type { LiteLLMPricingFetcher } from '@ccusage/internal/pricing';
-import type { LoadedUsageEntry } from './data-loader';
+import type { LoadedUsageEntry } from './data-loader.ts';
 import { Result } from '@praha/byethrow';
+
+/**
+ * Model aliases for OpenCode-specific model names that don't exist in LiteLLM.
+ * Maps OpenCode model names to their LiteLLM equivalents for pricing lookup.
+ */
+const MODEL_ALIASES: Record<string, string> = {
+	// OpenCode uses -high suffix for higher tier/thinking mode variants
+	'gemini-3-pro-high': 'gemini-3-pro-preview',
+};
+
+function resolveModelName(modelName: string): string {
+	return MODEL_ALIASES[modelName] ?? modelName;
+}
 
 /**
  * Calculate cost for a single usage entry
@@ -14,6 +27,7 @@ export async function calculateCostForEntry(
 		return entry.costUSD;
 	}
 
+	const resolvedModel = resolveModelName(entry.model);
 	const result = await fetcher.calculateCostFromTokens(
 		{
 			input_tokens: entry.usage.inputTokens,
@@ -21,7 +35,7 @@ export async function calculateCostForEntry(
 			cache_creation_input_tokens: entry.usage.cacheCreationInputTokens,
 			cache_read_input_tokens: entry.usage.cacheReadInputTokens,
 		},
-		entry.model,
+		resolvedModel,
 	);
 
 	return Result.unwrap(result, 0);
