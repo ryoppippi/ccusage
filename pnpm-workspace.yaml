@@ -70,7 +70,7 @@ catalogs:
     '@types/bun': ^1.3.5
     '@types/node': ^24.10.1
     '@types/react': ^19.1.13
-    '@typescript/native-preview': ^7.0.0-dev.20251204.1
+    '@typescript/native-preview': ^7.0.0-dev.20251219.1
 
 enablePrePostScripts: true
 
