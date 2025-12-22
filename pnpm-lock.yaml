@@ -173,8 +173,8 @@ catalogs:
       version: 4.0.15
   types:
     '@types/bun':
-      specifier: ^1.3.4
-      version: 1.3.4
+      specifier: ^1.3.5
+      version: 1.3.5
     '@types/react':
       specifier: ^19.1.13
       version: 19.1.13
@@ -200,7 +200,7 @@ importers:
         version: 10.2.3
       bun:
         specifier: runtime:^1.3.2
-        version: runtime:1.3.4
+        version: runtime:1.3.5
       changelogithub:
         specifier: catalog:release
         version: 13.16.1
@@ -254,7 +254,7 @@ importers:
         version: '@jsr/std__async@1.0.14'
       '@types/bun':
         specifier: catalog:types
-        version: 1.3.4
+        version: 1.3.5
       '@typescript/native-preview':
         specifier: catalog:types
         version: 7.0.0-dev.20251205.1
@@ -266,7 +266,7 @@ importers:
         version: 10.2.3
       bun:
         specifier: runtime:^1.3.2
-        version: runtime:1.3.4
+        version: runtime:1.3.5
       clean-pkg-json:
         specifier: catalog:release
         version: 1.3.0
@@ -362,7 +362,7 @@ importers:
         version: 7.0.0-dev.20251205.1
       bun:
         specifier: runtime:^1.3.2
-        version: runtime:1.3.4
+        version: runtime:1.3.5
       clean-pkg-json:
         specifier: catalog:release
         version: 1.3.0
@@ -447,7 +447,7 @@ importers:
         version: 7.0.0-dev.20251205.1
       bun:
         specifier: runtime:^1.3.2
-        version: runtime:1.3.4
+        version: runtime:1.3.5
       clean-pkg-json:
         specifier: catalog:release
         version: 1.3.0
@@ -483,7 +483,7 @@ importers:
         version: 1.1.2(vite@7.1.5(@types/node@24.5.1)(jiti@2.6.1)(yaml@2.8.1))
       '@types/bun':
         specifier: catalog:types
-        version: 1.3.4
+        version: 1.3.5
       '@types/react':
         specifier: catalog:types
         version: 19.1.13
@@ -492,7 +492,7 @@ importers:
         version: 7.0.0-dev.20251205.1
       bun:
         specifier: runtime:^1.3.2
-        version: runtime:1.3.4
+        version: runtime:1.3.5
       ccusage:
         specifier: workspace:^
         version: link:../apps/ccusage
@@ -2043,8 +2043,8 @@ packages:
   '@tybys/wasm-util@0.10.1':
     resolution: {integrity: sha512-9tTaPJLSiejZKx+Bmog4uSubteqTvFrVrURwkmHixBo0G4seD0zUxp98E1DzUBJxLQ3NPwXrGKDiVjwx/DpPsg==}
 
-  '@types/bun@1.3.4':
-    resolution: {integrity: sha512-EEPTKXHP+zKGPkhRLv+HI0UEX8/o+65hqARxLy8Ov5rIxMBPNTjeZww00CIihrIQGEQBYg+0roO5qOnS/7boGA==}
+  '@types/bun@1.3.5':
+    resolution: {integrity: sha512-RnygCqNrd3srIPEWBd5LFeUYG7plCoH2Yw9WaZGyNmdTEei+gWaHqydbaIRkIkcbXwhBT94q78QljxN0Sk838w==}
 
   '@types/chai@5.2.2':
     resolution: {integrity: sha512-8kB30R7Hwqf40JPiKhVzodJs2Qc1ZJ5zuT3uzw5Hq/dhNCl3G3l83jfpdI1e20BP348+fV7VIL/+FxaXkqBmWg==}
@@ -2472,40 +2472,40 @@ packages:
     engines: {node: '>=18'}
     hasBin: true
 
-  bun-types@1.3.4:
-    resolution: {integrity: sha512-5ua817+BZPZOlNaRgGBpZJOSAQ9RQ17pkwPD0yR7CfJg+r8DgIILByFifDTa+IPDDxzf5VNhtNlcKqFzDgJvlQ==}
+  bun-types@1.3.5:
+    resolution: {integrity: sha512-inmAYe2PFLs0SUbFOWSVD24sg1jFlMPxOjOSSCYqUgn4Hsc3rDc7dFvfVYjFPNHtov6kgUeulV4SxbuIV/stPw==}
 
-  bun@runtime:1.3.4:
+  bun@runtime:1.3.5:
     resolution:
       type: variations
       variants:
         - resolution:
             archive: zip
             bin: bun
-            integrity: sha256-iAN3TkxsVcilF0ZMUI8Cgh5ttX+Uyhu1zCo59NIyalE=
+            integrity: sha256-2xdYikrqiASFaCXUvq0/BeHzcnbKYG8342m09y810/s=
             prefix: bun-darwin-aarch64
             type: binary
-            url: https://github.com/oven-sh/bun/releases/download/bun-v1.3.4/bun-darwin-aarch64.zip
+            url: https://github.com/oven-sh/bun/releases/download/bun-v1.3.5/bun-darwin-aarch64.zip
           targets:
             - cpu: arm64
               os: darwin
         - resolution:
             archive: zip
             bin: bun
-            integrity: sha256-M5D55qgqnHGOGHUTscVkBdDentP2sJIiKxW01LpuME0=
+            integrity: sha256-9f/AMDD+UnqGKV+1hSuwjF6ZtwdWABHR1QmrAokCvyk=
             prefix: bun-darwin-x64
             type: binary
-            url: https://github.com/oven-sh/bun/releases/download/bun-v1.3.4/bun-darwin-x64.zip
+            url: https://github.com/oven-sh/bun/releases/download/bun-v1.3.5/bun-darwin-x64.zip
           targets:
             - cpu: x64
               os: darwin
         - resolution:
             archive: zip
             bin: bun
-            integrity: sha256-w9rCmRKxRHiaKk7iEI5ZXmUn8PbBsPboA7sxncdC4d4=
+            integrity: sha256-mAtWe+7Kh1t5d21go1sXgwlYPfPwlzs7rmL3JE3Ehq0=
             prefix: bun-linux-aarch64-musl
             type: binary
-            url: https://github.com/oven-sh/bun/releases/download/bun-v1.3.4/bun-linux-aarch64-musl.zip
+            url: https://github.com/oven-sh/bun/releases/download/bun-v1.3.5/bun-linux-aarch64-musl.zip
           targets:
             - cpu: arm64
               os: linux
@@ -2513,20 +2513,20 @@ packages:
         - resolution:
             archive: zip
             bin: bun
-            integrity: sha256-xG6EH+2FNHUhkVsbOQTW0XXY4v2RXhjgHBETGCGRFaQ=
+            integrity: sha256-7QEAD4W9l3hSKK0oRdySoYYLgFSFaCbXMXaQrI+O50s=
             prefix: bun-linux-aarch64
             type: binary
-            url: https://github.com/oven-sh/bun/releases/download/bun-v1.3.4/bun-linux-aarch64.zip
+            url: https://github.com/oven-sh/bun/releases/download/bun-v1.3.5/bun-linux-aarch64.zip
           targets:
             - cpu: arm64
               os: linux
         - resolution:
             archive: zip
             bin: bun
-            integrity: sha256-nx4N0siLZfkCofsQE3NwSmcGO7fvoUucdT8vvSdhAKM=
+            integrity: sha256-cg2I4OX0BFCh2pHAIm9iaxVuqiJIdteU+pX26/dPRrY=
             prefix: bun-linux-x64-musl
             type: binary
-            url: https://github.com/oven-sh/bun/releases/download/bun-v1.3.4/bun-linux-x64-musl.zip
+            url: https://github.com/oven-sh/bun/releases/download/bun-v1.3.5/bun-linux-x64-musl.zip
           targets:
             - cpu: x64
               os: linux
@@ -2534,24 +2534,24 @@ packages:
         - resolution:
             archive: zip
             bin: bun
-            integrity: sha256-M8aZYEno036LgVlZsUsF5bb0lhITUr8RuufQRxk8KL8=
+            integrity: sha256-cFHYapJK7+o+C5YhO1/Y95wHk/nK5lNCM+Yn5cPbRmk=
             prefix: bun-linux-x64
             type: binary
-            url: https://github.com/oven-sh/bun/releases/download/bun-v1.3.4/bun-linux-x64.zip
+            url: https://github.com/oven-sh/bun/releases/download/bun-v1.3.5/bun-linux-x64.zip
           targets:
             - cpu: x64
               os: linux
         - resolution:
             archive: zip
             bin: bun.exe
-            integrity: sha256-KpwKnmrXfQwx/Y+x9Za2Gvp/Ly9YC6rVl/F+eg262WA=
+            integrity: sha256-kiz/3VFDzRGMbM7Gph389daeAGiwSOoA8KBhUBZTAII=
             prefix: bun-windows-x64
             type: binary
-            url: https://github.com/oven-sh/bun/releases/download/bun-v1.3.4/bun-windows-x64.zip
+            url: https://github.com/oven-sh/bun/releases/download/bun-v1.3.5/bun-windows-x64.zip
           targets:
             - cpu: x64
               os: win32
-    version: 1.3.4
+    version: 1.3.5
     hasBin: true
 
   bundle-name@4.1.0:
@@ -6408,9 +6408,9 @@ snapshots:
       tslib: 2.8.1
     optional: true
 
-  '@types/bun@1.3.4':
+  '@types/bun@1.3.5':
     dependencies:
-      bun-types: 1.3.4
+      bun-types: 1.3.5
 
   '@types/chai@5.2.2':
     dependencies:
@@ -6895,11 +6895,11 @@ snapshots:
     transitivePeerDependencies:
       - magicast
 
-  bun-types@1.3.4:
+  bun-types@1.3.5:
     dependencies:
       '@types/node': 24.5.1
 
-  bun@runtime:1.3.4: {}
+  bun@runtime:1.3.5: {}
 
   bundle-name@4.1.0:
     dependencies:
