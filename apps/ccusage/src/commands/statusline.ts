@@ -1,6 +1,6 @@
 import type { Formatter } from 'picocolors/types';
 import { mkdirSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { tmpdir, userInfo } from 'node:os';
 import { join } from 'node:path';
 import process from 'node:process';
 import { formatCurrency } from '@ccusage/terminal/table';
@@ -39,8 +39,17 @@ function formatRemainingTime(remaining: number): string {
  * Gets semaphore file for session-specific caching and process coordination
  * Uses time-based expiry and transcript file modification detection for cache invalidation
  */
+function getSemaphoreDirName(uid: number): string {
+	return uid === -1 ? 'ccusage-semaphore' : `ccusage-semaphore-${uid}`;
+}
+
+function getSemaphoreDir(): string {
+	const { uid } = userInfo();
+	return join(tmpdir(), getSemaphoreDirName(uid));
+}
+
 function getSemaphore(sessionId: string): ReturnType<typeof createLimoJson<SemaphoreType | undefined>> {
-	const semaphoreDir = join(tmpdir(), 'ccusage-semaphore');
+	const semaphoreDir = getSemaphoreDir();
 	const semaphorePath = join(semaphoreDir, `${sessionId}.lock`);
 
 	// Ensure semaphore directory exists
@@ -538,3 +547,27 @@ export const statuslineCommand = define({
 		}
 	},
 });
+
+if (import.meta.vitest != null) {
+	describe('getSemaphoreDirName', () => {
+		it('includes uid in directory name on Unix (uid >= 0)', () => {
+			const result = getSemaphoreDirName(1000);
+			expect(result).toBe('ccusage-semaphore-1000');
+		});
+
+		it('excludes uid in directory name on Windows (uid === -1)', () => {
+			const result = getSemaphoreDirName(-1);
+			expect(result).toBe('ccusage-semaphore');
+		});
+
+		it('handles root uid (0) correctly', () => {
+			const result = getSemaphoreDirName(0);
+			expect(result).toBe('ccusage-semaphore-0');
+		});
+
+		it('handles various positive uid values', () => {
+			expect(getSemaphoreDirName(501)).toBe('ccusage-semaphore-501');
+			expect(getSemaphoreDirName(65534)).toBe('ccusage-semaphore-65534');
+		});
+	});
+}
