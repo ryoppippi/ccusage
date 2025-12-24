@@ -7,9 +7,10 @@ import { monthlyCommand } from './monthly.ts';
 import { sessionCommand } from './session.ts';
 import { statuslineCommand } from './statusline.ts';
 import { weeklyCommand } from './weekly.ts';
+import { wrappedCommand, yearCommand } from './year.ts';
 
 // Re-export all commands for easy importing
-export { blocksCommand, dailyCommand, monthlyCommand, sessionCommand, statuslineCommand, weeklyCommand };
+export { blocksCommand, dailyCommand, monthlyCommand, sessionCommand, statuslineCommand, weeklyCommand, wrappedCommand, yearCommand };
 
 /**
  * Command entries as tuple array
@@ -21,6 +22,8 @@ export const subCommandUnion = [
 	['session', sessionCommand],
 	['blocks', blocksCommand],
 	['statusline', statuslineCommand],
+	['year', yearCommand],
+	['wrapped', wrappedCommand],
 ] as const;
 
 /**
