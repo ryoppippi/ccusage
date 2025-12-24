@@ -306,7 +306,6 @@ export function generateYearHTML(stats: YearStats): string {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>${stats.year} Claude Code Wrapped</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -369,7 +368,7 @@ export function generateYearHTML(stats: YearStats): string {
 
         .stats-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            grid-template-columns: repeat(4, 1fr);
             gap: 20px;
             margin-bottom: 30px;
         }
@@ -650,6 +649,12 @@ export function generateYearHTML(stats: YearStats): string {
             }
 
             .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 480px) {
+            .stats-grid {
                 grid-template-columns: 1fr;
             }
 
@@ -713,23 +718,8 @@ export function generateYearHTML(stats: YearStats): string {
                     <div class="stat-card">
                         <div class="stat-label">MOST ACTIVE DAY</div>
                         <div class="stat-value">${stats.peakDayOfWeek}</div>
-                        <div class="stat-unit">of the week</div>
                     </div>
                 </div>
-            </div>
-
-            <!-- Monthly Trend -->
-            <div class="section">
-                <h2 class="section-title">📈 Monthly Trend</h2>
-                <div class="chart-container">
-                    <canvas id="monthlyChart"></canvas>
-                </div>
-            </div>
-
-            <!-- Activity Heatmap -->
-            <div class="section">
-                <h2 class="section-title">🔥 Activity Heatmap</h2>
-                ${generateHeatmapHTML()}
             </div>
 
         </div>
@@ -741,58 +731,6 @@ export function generateYearHTML(stats: YearStats): string {
             </p>
         </div>
     </div>
-
-    <script>
-        // Monthly trend chart
-        const ctx = document.getElementById('monthlyChart').getContext('2d');
-        new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: ${JSON.stringify(chartData.labels)},
-                datasets: [{
-                    label: 'Tokens',
-                    data: ${JSON.stringify(chartData.data)},
-                    backgroundColor: 'rgba(255, 140, 66, 0.7)',
-                    borderColor: 'rgba(255, 140, 66, 1)',
-                    borderWidth: 2,
-                    borderRadius: 6,
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        display: false
-                    }
-                },
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        grid: {
-                            color: '#3a3a3a'
-                        },
-                        ticks: {
-                            color: '#999',
-                            callback: function(value) {
-                                if (value >= 1000000) return (value / 1000000).toFixed(1) + 'M';
-                                if (value >= 1000) return (value / 1000).toFixed(1) + 'K';
-                                return value;
-                            }
-                        }
-                    },
-                    x: {
-                        grid: {
-                            display: false
-                        },
-                        ticks: {
-                            color: '#999'
-                        }
-                    }
-                }
-            }
-        });
-    </script>
 </body>
 </html>`;
 
