@@ -32,6 +32,13 @@ function escapeHtml(text: string): string {
 }
 
 /**
+ * Format currency with 2 decimal places
+ */
+function formatCost(amount: number): string {
+	return `$${amount.toFixed(2)}`;
+}
+
+/**
  * Create ASCII bar chart for monthly trend
  */
 function createMonthlyBarChart(stats: YearStats): string {
@@ -176,7 +183,7 @@ export function formatYearTerminal(stats: YearStats): string {
 	output += pc.bold(pc.cyan('📊 OVERVIEW\n'));
 	output += pc.cyan('━'.repeat(60)) + '\n';
 	output += `  Total Tokens:        ${pc.bold(formatLargeNumber(stats.totalTokens.total))} tokens\n`;
-	output += `  Total Cost:          ${pc.bold(formatCurrency(stats.totalCost))} USD\n`;
+	output += `  Total Cost:          ${pc.bold(formatCost(stats.totalCost))} USD\n`;
 	output += `  Active Days:         ${pc.bold(stats.activeDays.toString())} days\n`;
 	output += `  Current Streak:      ${pc.bold(stats.currentStreak.toString())} days ${stats.currentStreak > 0 ? '🔥' : ''}\n`;
 	output += `  Longest Streak:      ${pc.bold(stats.longestStreak.toString())} days\n`;
@@ -190,7 +197,7 @@ export function formatYearTerminal(stats: YearStats): string {
 		for (const model of stats.modelBreakdown.slice(0, 5)) {
 			const tokensStr = formatLargeNumber(model.tokens).padStart(10);
 			const percentStr = model.percentage.toFixed(1).padStart(5);
-			const costStr = formatCurrency(model.cost).padStart(10);
+			const costStr = formatCost(model.cost).padStart(10);
 
 			output += `  • ${pc.bold(model.model.padEnd(25))} ${tokensStr} tokens  ${percentStr}%  ${costStr}\n`;
 		}
@@ -452,53 +459,54 @@ export function generateYearHTML(stats: YearStats): string {
 
         .heatmap-container {
             background: #1e1e1e;
-            padding: 30px;
+            padding: 20px;
             border-radius: 12px;
-            overflow-x: auto;
+            overflow-x: visible;
         }
 
         .heatmap-months {
             display: grid;
             grid-template-columns: repeat(12, 1fr);
-            gap: 10px;
-            margin-bottom: 15px;
-            padding-left: 50px;
-            font-size: 0.85em;
+            gap: 5px;
+            margin-bottom: 10px;
+            padding-left: 35px;
+            font-size: 0.75em;
             color: #999;
         }
 
         .heatmap-grid {
             display: flex;
-            gap: 10px;
+            gap: 5px;
         }
 
         .heatmap-days {
             display: flex;
             flex-direction: column;
-            gap: 3px;
-            font-size: 0.75em;
+            gap: 2px;
+            font-size: 0.7em;
             color: #999;
-            padding-top: 2px;
+            padding-top: 1px;
         }
 
         .heatmap-days span {
-            height: 12px;
+            height: 10px;
             display: flex;
             align-items: center;
         }
 
         .heatmap-cells {
             display: grid;
-            grid-template-columns: repeat(53, 12px);
+            grid-template-columns: repeat(53, 10px);
             grid-auto-flow: column;
-            gap: 3px;
+            gap: 2px;
         }
 
         .heatmap-cell {
-            width: 12px;
-            height: 12px;
+            width: 10px;
+            height: 10px;
             border-radius: 2px;
             transition: transform 0.2s;
+            cursor: pointer;
         }
 
         .heatmap-cell:hover {
@@ -668,7 +676,7 @@ export function generateYearHTML(stats: YearStats): string {
                     </div>
                     <div class="stat-card">
                         <div class="stat-label">Total Cost</div>
-                        <div class="stat-value">${formatCurrency(stats.totalCost)}</div>
+                        <div class="stat-value">${formatCost(stats.totalCost)}</div>
                         <div class="stat-unit">USD</div>
                     </div>
                     <div class="stat-card">
@@ -713,7 +721,7 @@ export function generateYearHTML(stats: YearStats): string {
                             </div>
                             <div class="model-stat-item">
                                 <span class="model-stat-label">Cost</span>
-                                <span class="model-stat-value">${formatCurrency(model.cost)}</span>
+                                <span class="model-stat-value">${formatCost(model.cost)}</span>
                             </div>
                         </div>
                     </li>
@@ -736,47 +744,17 @@ export function generateYearHTML(stats: YearStats): string {
                 ${generateHeatmapHTML()}
             </div>
 
-            <!-- Top Projects -->
-            ${stats.topProjects.length > 0 ? `
-            <div class="section">
-                <h2 class="section-title">🏆 Top Projects</h2>
-                <ul class="project-list">
-                    ${stats.topProjects.map((project, index) => `
-                    <li class="project-item">
-                        <span class="project-rank">${index + 1}</span>
-                        <span class="project-name">${escapeHtml(project.project)}</span>
-                        <span class="project-tokens">${formatLargeNumber(project.tokens)} tokens</span>
-                    </li>
-                    `).join('')}
-                </ul>
-            </div>
-            ` : ''}
-
             <!-- Insights -->
             <div class="section">
                 <h2 class="section-title">💡 Insights</h2>
                 <div class="insights-grid">
                     <div class="insight-card">
-                        <div class="insight-label">Most Active Hour</div>
-                        <div class="insight-value">${formatHour(stats.peakHour)}</div>
-                    </div>
-                    <div class="insight-card">
                         <div class="insight-label">Most Active Day</div>
                         <div class="insight-value">${stats.peakDayOfWeek}</div>
                     </div>
-                    ${stats.totalTokens.cache_read > 0 ? `
-                    <div class="insight-card">
-                        <div class="insight-label">Cache Read Rate</div>
-                        <div class="insight-value">${(((stats.totalTokens.cache_read / (stats.totalTokens.input + stats.totalTokens.cache_read)) * 100).toFixed(1))}%</div>
-                    </div>
-                    ` : ''}
                 </div>
             </div>
 
-            <div class="buttons">
-                <button class="btn btn-primary" onclick="window.print()">📄 Download PDF</button>
-                <button class="btn btn-secondary" onclick="shareOnTwitter()">🐦 Share on Twitter</button>
-            </div>
         </div>
 
         <div class="footer">
@@ -837,12 +815,6 @@ export function generateYearHTML(stats: YearStats): string {
                 }
             }
         });
-
-        function shareOnTwitter() {
-            const text = 'I used ${formatLargeNumber(stats.totalTokens.total)} tokens with Claude Code in ${stats.year}! Check out my year wrapped:';
-            const url = encodeURIComponent(window.location.href);
-            window.open('https://twitter.com/intent/tweet?text=' + encodeURIComponent(text) + '&url=' + url, '_blank');
-        }
     </script>
 </body>
 </html>`;
