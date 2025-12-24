@@ -461,49 +461,53 @@ export function generateYearHTML(stats: YearStats): string {
             background: #1e1e1e;
             padding: 20px;
             border-radius: 12px;
-            overflow-x: visible;
+            overflow-x: auto;
+            overflow-y: hidden;
+            max-width: 100%;
         }
 
         .heatmap-months {
             display: grid;
             grid-template-columns: repeat(12, 1fr);
-            gap: 5px;
-            margin-bottom: 10px;
-            padding-left: 35px;
-            font-size: 0.75em;
+            gap: 3px;
+            margin-bottom: 8px;
+            padding-left: 28px;
+            font-size: 0.7em;
             color: #999;
+            min-width: 700px;
         }
 
         .heatmap-grid {
             display: flex;
-            gap: 5px;
+            gap: 4px;
+            min-width: 700px;
         }
 
         .heatmap-days {
             display: flex;
             flex-direction: column;
-            gap: 2px;
-            font-size: 0.7em;
+            gap: 1.5px;
+            font-size: 0.65em;
             color: #999;
             padding-top: 1px;
         }
 
         .heatmap-days span {
-            height: 10px;
+            height: 9px;
             display: flex;
             align-items: center;
         }
 
         .heatmap-cells {
             display: grid;
-            grid-template-columns: repeat(53, 10px);
+            grid-template-columns: repeat(53, 9px);
             grid-auto-flow: column;
-            gap: 2px;
+            gap: 1.5px;
         }
 
         .heatmap-cell {
-            width: 10px;
-            height: 10px;
+            width: 9px;
+            height: 9px;
             border-radius: 2px;
             transition: transform 0.2s;
             cursor: pointer;
@@ -670,65 +674,49 @@ export function generateYearHTML(stats: YearStats): string {
                 <h2 class="section-title">📊 Overview</h2>
                 <div class="stats-grid">
                     <div class="stat-card">
-                        <div class="stat-label">Total Tokens</div>
+                        <div class="stat-label">TOTAL TOKENS</div>
                         <div class="stat-value">${formatLargeNumber(stats.totalTokens.total)}</div>
                         <div class="stat-unit">tokens</div>
                     </div>
                     <div class="stat-card">
-                        <div class="stat-label">Total Cost</div>
+                        <div class="stat-label">TOTAL COST</div>
                         <div class="stat-value">${formatCost(stats.totalCost)}</div>
                         <div class="stat-unit">USD</div>
                     </div>
                     <div class="stat-card">
-                        <div class="stat-label">Active Days</div>
+                        <div class="stat-label">ACTIVE DAYS</div>
                         <div class="stat-value">${stats.activeDays}</div>
                         <div class="stat-unit">days</div>
                     </div>
                     <div class="stat-card">
-                        <div class="stat-label">Current Streak</div>
+                        <div class="stat-label">CURRENT STREAK</div>
                         <div class="stat-value">${stats.currentStreak} ${stats.currentStreak > 0 ? '🔥' : ''}</div>
                         <div class="stat-unit">days</div>
                     </div>
                     <div class="stat-card">
-                        <div class="stat-label">Longest Streak</div>
+                        <div class="stat-label">LONGEST STREAK</div>
                         <div class="stat-value">${stats.longestStreak}</div>
                         <div class="stat-unit">days</div>
                     </div>
                     <div class="stat-card">
-                        <div class="stat-label">Sessions</div>
+                        <div class="stat-label">SESSIONS</div>
                         <div class="stat-value">${stats.totalSessions}</div>
                         <div class="stat-unit">total</div>
                     </div>
+                    ${stats.modelBreakdown.length > 0 && stats.modelBreakdown[0] ? `
+                    <div class="stat-card">
+                        <div class="stat-label">PRIMARY MODEL</div>
+                        <div class="stat-value" style="font-size: 1.2em;">${stats.modelBreakdown[0]!.model.replace('claude-', '').replace('-20250929', '').replace('-20251001', '')}</div>
+                        <div class="stat-unit">${stats.modelBreakdown[0]!.percentage.toFixed(1)}% usage</div>
+                    </div>
+                    ` : ''}
+                    <div class="stat-card">
+                        <div class="stat-label">MOST ACTIVE DAY</div>
+                        <div class="stat-value">${stats.peakDayOfWeek}</div>
+                        <div class="stat-unit">of the week</div>
+                    </div>
                 </div>
             </div>
-
-            <!-- Models -->
-            ${stats.modelBreakdown.length > 0 ? `
-            <div class="section">
-                <h2 class="section-title">🤖 Models Used</h2>
-                <ul class="model-list">
-                    ${stats.modelBreakdown.slice(0, 5).map(model => `
-                    <li class="model-item">
-                        <div class="model-name">${model.model}</div>
-                        <div class="model-stats">
-                            <div class="model-stat-item">
-                                <span class="model-stat-label">Tokens</span>
-                                <span class="model-stat-value">${formatLargeNumber(model.tokens)}</span>
-                            </div>
-                            <div class="model-stat-item">
-                                <span class="model-stat-label">Share</span>
-                                <span class="model-stat-value">${model.percentage.toFixed(1)}%</span>
-                            </div>
-                            <div class="model-stat-item">
-                                <span class="model-stat-label">Cost</span>
-                                <span class="model-stat-value">${formatCost(model.cost)}</span>
-                            </div>
-                        </div>
-                    </li>
-                    `).join('')}
-                </ul>
-            </div>
-            ` : ''}
 
             <!-- Monthly Trend -->
             <div class="section">
@@ -742,17 +730,6 @@ export function generateYearHTML(stats: YearStats): string {
             <div class="section">
                 <h2 class="section-title">🔥 Activity Heatmap</h2>
                 ${generateHeatmapHTML()}
-            </div>
-
-            <!-- Insights -->
-            <div class="section">
-                <h2 class="section-title">💡 Insights</h2>
-                <div class="insights-grid">
-                    <div class="insight-card">
-                        <div class="insight-label">Most Active Day</div>
-                        <div class="insight-value">${stats.peakDayOfWeek}</div>
-                    </div>
-                </div>
             </div>
 
         </div>
