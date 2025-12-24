@@ -85,10 +85,10 @@ export const yearCommand = define({
 		// Generate output based on format
 		switch (format) {
 			case 'json': {
-				// Convert Map to array for JSON serialization
+				// Convert Map to object for JSON serialization (preserves date keys)
 				const jsonStats = {
 					...stats,
-					dailyActivity: Array.from(stats.dailyActivity.values()),
+					dailyActivity: Object.fromEntries(stats.dailyActivity),
 				};
 				const jsonOutput = JSON.stringify({ year: targetYear, stats: jsonStats }, null, 2);
 				if (outputPath) {
