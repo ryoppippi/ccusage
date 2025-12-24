@@ -85,7 +85,12 @@ export const yearCommand = define({
 		// Generate output based on format
 		switch (format) {
 			case 'json': {
-				const jsonOutput = JSON.stringify({ year: targetYear, stats }, null, 2);
+				// Convert Map to array for JSON serialization
+				const jsonStats = {
+					...stats,
+					dailyActivity: Array.from(stats.dailyActivity.values()),
+				};
+				const jsonOutput = JSON.stringify({ year: targetYear, stats: jsonStats }, null, 2);
 				if (outputPath) {
 					await writeFile(outputPath, jsonOutput, 'utf-8');
 					logger.success(`Report saved to ${outputPath}`);

@@ -96,6 +96,8 @@ npx ccusage monthly  # Monthly aggregated report
 npx ccusage session  # Usage by conversation session
 npx ccusage blocks   # 5-hour billing windows
 npx ccusage statusline  # Compact status line for hooks (Beta)
+npx ccusage year     # Annual usage report (Year Wrapped)
+npx ccusage wrapped  # Alias for year command
 
 # Live monitoring
 npx ccusage blocks --live  # Real-time usage dashboard
@@ -115,6 +117,13 @@ npx ccusage daily --instances --project myproject --json  # Combined usage
 # Compact mode for screenshots/sharing
 npx ccusage --compact  # Force compact table mode
 npx ccusage monthly --compact  # Compact monthly report
+
+# Year Wrapped - Annual usage report
+npx ccusage year              # Terminal output for current year
+npx ccusage year --year 2024  # Specific year
+npx ccusage year --format html --output my-2025-wrapped.html  # HTML export
+npx ccusage year --format json  # JSON export
+npx ccusage wrapped           # Alias for year command
 ```
 
 ## Features
@@ -125,6 +134,7 @@ npx ccusage monthly --compact  # Compact monthly report
 - ⏰ **5-Hour Blocks Report**: Track usage within Claude's billing windows with active block monitoring
 - 📈 **Live Monitoring**: Real-time dashboard showing active session progress, token burn rate, and cost projections with `blocks --live`
 - 🚀 **Statusline Integration**: Compact usage display for Claude Code status bar hooks (Beta)
+- 🎉 **Year Wrapped**: Spotify-style annual usage report with heatmaps, charts, and shareable HTML export
 - 🤖 **Model Tracking**: See which Claude models you're using (Opus, Sonnet, etc.)
 - 📊 **Model Breakdown**: View per-model cost breakdown with `--breakdown` flag
 - 📅 **Date Filtering**: Filter reports by date range using `--since` and `--until`

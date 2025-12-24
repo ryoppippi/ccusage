@@ -43,7 +43,7 @@ function calculateStreaks(sortedDates: string[]): {
 
 	// Calculate longest streak
 	for (const dateStr of sortedDates) {
-		const currentDate = new Date(dateStr + 'T00:00:00Z');
+		const currentDate = new Date(dateStr + 'T00:00:00');
 
 		if (previousDate === null) {
 			tempStreak = 1;
@@ -69,8 +69,8 @@ function calculateStreaks(sortedDates: string[]): {
 
 	// Calculate current streak (ending today or most recent day)
 	const lastDate = sortedDates[sortedDates.length - 1]!;
-	const lastDateObj = new Date(lastDate + 'T00:00:00Z');
-	const todayObj = new Date(todayStr + 'T00:00:00Z');
+	const lastDateObj = new Date(lastDate + 'T00:00:00');
+	const todayObj = new Date(todayStr + 'T00:00:00');
 	const daysSinceLastActivity = Math.round(
 		(todayObj.getTime() - lastDateObj.getTime()) / (1000 * 60 * 60 * 24),
 	);
@@ -85,8 +85,8 @@ function calculateStreaks(sortedDates: string[]): {
 		for (let i = sortedDates.length - 2; i >= 0; i--) {
 			const prevDateStr = sortedDates[i]!;
 			const currDateStr = sortedDates[i + 1]!;
-			const prev = new Date(prevDateStr + 'T00:00:00Z');
-			const curr = new Date(currDateStr + 'T00:00:00Z');
+			const prev = new Date(prevDateStr + 'T00:00:00');
+			const curr = new Date(currDateStr + 'T00:00:00');
 			const diff = Math.round((curr.getTime() - prev.getTime()) / (1000 * 60 * 60 * 24));
 
 			if (diff === 1) {
@@ -169,7 +169,6 @@ export function buildYearReport(
 	const monthlyActivity = new Map<string, MonthlyData>();
 	const modelActivity = new Map<string, { tokens: number; cost: number }>();
 	const projectActivity = new Map<string, number>();
-	const sessions = new Set<string>();
 
 	let totalInputTokens = 0;
 	let totalOutputTokens = 0;

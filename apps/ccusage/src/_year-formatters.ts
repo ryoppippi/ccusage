@@ -20,6 +20,18 @@ function formatLargeNumber(num: number): string {
 }
 
 /**
+ * Escape HTML special characters
+ */
+function escapeHtml(text: string): string {
+	return text
+		.replace(/&/g, '&amp;')
+		.replace(/</g, '&lt;')
+		.replace(/>/g, '&gt;')
+		.replace(/"/g, '&quot;')
+		.replace(/'/g, '&#039;');
+}
+
+/**
  * Create ASCII bar chart for monthly trend
  */
 function createMonthlyBarChart(stats: YearStats): string {
@@ -732,7 +744,7 @@ export function generateYearHTML(stats: YearStats): string {
                     ${stats.topProjects.map((project, index) => `
                     <li class="project-item">
                         <span class="project-rank">${index + 1}</span>
-                        <span class="project-name">${project.project}</span>
+                        <span class="project-name">${escapeHtml(project.project)}</span>
                         <span class="project-tokens">${formatLargeNumber(project.tokens)} tokens</span>
                     </li>
                     `).join('')}
@@ -827,9 +839,9 @@ export function generateYearHTML(stats: YearStats): string {
         });
 
         function shareOnTwitter() {
-            const text = \`I used \${${formatLargeNumber(stats.totalTokens.total)}} tokens with Claude Code in ${stats.year}! Check out my year wrapped:\`;
+            const text = 'I used ${formatLargeNumber(stats.totalTokens.total)} tokens with Claude Code in ${stats.year}! Check out my year wrapped:';
             const url = encodeURIComponent(window.location.href);
-            window.open(\`https://twitter.com/intent/tweet?text=\${encodeURIComponent(text)}&url=\${url}\`, '_blank');
+            window.open('https://twitter.com/intent/tweet?text=' + encodeURIComponent(text) + '&url=' + url, '_blank');
         }
     </script>
 </body>
