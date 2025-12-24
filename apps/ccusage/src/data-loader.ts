@@ -45,6 +45,10 @@ import {
 	identifySessionBlocks,
 } from './_session-blocks.ts';
 import {
+	filterFilesByDateRange,
+	sortFilesByTimestampCached,
+} from './_timestamp-cache.ts';
+import {
 	activityDateSchema,
 	createBucket,
 	createDailyDate,
@@ -764,8 +768,16 @@ export async function loadDailyUsageData(
 		options?.project,
 	);
 
-	// Sort files by timestamp to ensure chronological processing
-	const sortedFiles = await sortFilesByTimestamp(projectFilteredFiles);
+	// Early filter by date range using cached timestamps (major performance optimization)
+	// This reduces the number of files we need to process significantly
+	const dateFilteredFiles = await filterFilesByDateRange(
+		projectFilteredFiles,
+		options?.since,
+		options?.until,
+	);
+
+	// Sort files by timestamp to ensure chronological processing (using cache)
+	const sortedFiles = await sortFilesByTimestampCached(dateFilteredFiles);
 
 	// Fetch pricing data for cost calculation only when needed
 	const mode = options?.mode ?? 'auto';
@@ -905,11 +917,20 @@ export async function loadSessionData(
 		options?.project,
 	);
 
-	// Sort files by timestamp to ensure chronological processing
-	// Create a map for O(1) lookup instead of O(N) find operations
-	const fileToBaseMap = new Map(projectFilteredWithBase.map(f => [f.file, f.baseDir]));
-	const sortedFilesWithBase = await sortFilesByTimestamp(
+	// Early filter by date range using cached timestamps
+	const dateFilteredFiles = await filterFilesByDateRange(
 		projectFilteredWithBase.map(f => f.file),
+		options?.since,
+		options?.until,
+	);
+	const dateFilteredSet = new Set(dateFilteredFiles);
+	const dateFilteredWithBase = projectFilteredWithBase.filter(f => dateFilteredSet.has(f.file));
+
+	// Sort files by timestamp to ensure chronological processing (using cache)
+	// Create a map for O(1) lookup instead of O(N) find operations
+	const fileToBaseMap = new Map(dateFilteredWithBase.map(f => [f.file, f.baseDir]));
+	const sortedFilesWithBase = await sortFilesByTimestampCached(
+		dateFilteredWithBase.map(f => f.file),
 	).then(sortedFiles =>
 		sortedFiles.map(file => ({
 			file,
@@ -1344,8 +1365,15 @@ export async function loadSessionBlockData(
 		options?.project,
 	);
 
-	// Sort files by timestamp to ensure chronological processing
-	const sortedFiles = await sortFilesByTimestamp(blocksFilteredFiles);
+	// Early filter by date range using cached timestamps
+	const dateFilteredFiles = await filterFilesByDateRange(
+		blocksFilteredFiles,
+		options?.since,
+		options?.until,
+	);
+
+	// Sort files by timestamp to ensure chronological processing (using cache)
+	const sortedFiles = await sortFilesByTimestampCached(dateFilteredFiles);
 
 	// Fetch pricing data for cost calculation only when needed
 	const mode = options?.mode ?? 'auto';
