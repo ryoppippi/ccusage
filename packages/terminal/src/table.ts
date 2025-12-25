@@ -365,6 +365,7 @@ export function formatModelsDisplayMultiline(models: string[]): string {
  * @param breakdowns - Array of model breakdowns
  * @param extraColumns - Number of extra empty columns before the data (default: 1 for models column)
  * @param trailingColumns - Number of extra empty columns after the data (default: 0)
+ * @param hideCost - Whether to hide the cost column (default: false)
  */
 export function pushBreakdownRows(
 	table: { push: (row: (string | number)[]) => void },
@@ -378,6 +379,7 @@ export function pushBreakdownRows(
 	}>,
 	extraColumns = 1,
 	trailingColumns = 0,
+	hideCost = false,
 ): void {
 	for (const breakdown of breakdowns) {
 		const row: (string | number)[] = [`  └─ ${formatModelName(breakdown.modelName)}`];
@@ -397,8 +399,11 @@ export function pushBreakdownRows(
 			pc.gray(formatNumber(breakdown.cacheCreationTokens)),
 			pc.gray(formatNumber(breakdown.cacheReadTokens)),
 			pc.gray(formatNumber(totalTokens)),
-			pc.gray(formatCurrency(breakdown.cost)),
 		);
+
+		if (!hideCost) {
+			row.push(pc.gray(formatCurrency(breakdown.cost)));
+		}
 
 		// Add trailing empty columns
 		for (let i = 0; i < trailingColumns; i++) {
@@ -421,6 +426,8 @@ export type UsageReportConfig = {
 	dateFormatter?: (dateStr: string) => string;
 	/** Force compact mode regardless of terminal width */
 	forceCompact?: boolean;
+	/** Hide cost column from output */
+	hideCost?: boolean;
 };
 
 /**
@@ -441,6 +448,8 @@ export type UsageData = {
  * @returns Configured ResponsiveTable instance
  */
 export function createUsageReportTable(config: UsageReportConfig): ResponsiveTable {
+	const hideCost = config.hideCost ?? false;
+
 	const baseHeaders = [
 		config.firstColumnName,
 		'Models',
@@ -449,7 +458,7 @@ export function createUsageReportTable(config: UsageReportConfig): ResponsiveTab
 		'Cache Create',
 		'Cache Read',
 		'Total Tokens',
-		'Cost (USD)',
+		...(hideCost ? [] : ['Cost (USD)']),
 	];
 
 	const baseAligns: TableCellAlign[] = [
@@ -460,7 +469,7 @@ export function createUsageReportTable(config: UsageReportConfig): ResponsiveTab
 		'right',
 		'right',
 		'right',
-		'right',
+		...(hideCost ? [] : ['right' as TableCellAlign]),
 	];
 
 	const compactHeaders = [
@@ -468,7 +477,7 @@ export function createUsageReportTable(config: UsageReportConfig): ResponsiveTab
 		'Models',
 		'Input',
 		'Output',
-		'Cost (USD)',
+		...(hideCost ? [] : ['Cost (USD)']),
 	];
 
 	const compactAligns: TableCellAlign[] = [
@@ -476,7 +485,7 @@ export function createUsageReportTable(config: UsageReportConfig): ResponsiveTab
 		'left',
 		'right',
 		'right',
-		'right',
+		...(hideCost ? [] : ['right' as TableCellAlign]),
 	];
 
 	// Add Last Activity column for session reports
@@ -500,18 +509,29 @@ export function createUsageReportTable(config: UsageReportConfig): ResponsiveTab
 }
 
 /**
+ * Options for formatting usage data rows
+ */
+export type FormatRowOptions = {
+	/** Optional last activity value (for session reports) */
+	lastActivity?: string;
+	/** Hide cost from the row */
+	hideCost?: boolean;
+};
+
+/**
  * Formats a usage data row for display in the table
  * @param firstColumnValue - Value for the first column (date, month, etc.)
  * @param data - Usage data containing tokens and cost information
- * @param lastActivity - Optional last activity value (for session reports)
+ * @param options - Optional formatting options
  * @returns Formatted table row
  */
 export function formatUsageDataRow(
 	firstColumnValue: string,
 	data: UsageData,
-	lastActivity?: string,
+	options?: FormatRowOptions,
 ): (string | number)[] {
 	const totalTokens = data.inputTokens + data.outputTokens + data.cacheCreationTokens + data.cacheReadTokens;
+	const hideCost = options?.hideCost ?? false;
 
 	const row: (string | number)[] = [
 		firstColumnValue,
@@ -521,24 +541,35 @@ export function formatUsageDataRow(
 		formatNumber(data.cacheCreationTokens),
 		formatNumber(data.cacheReadTokens),
 		formatNumber(totalTokens),
-		formatCurrency(data.totalCost),
+		...(hideCost ? [] : [formatCurrency(data.totalCost)]),
 	];
 
-	if (lastActivity !== undefined) {
-		row.push(lastActivity);
+	if (options?.lastActivity !== undefined) {
+		row.push(options.lastActivity);
 	}
 
 	return row;
 }
 
 /**
+ * Options for formatting totals row
+ */
+export type FormatTotalsOptions = {
+	/** Whether to include an empty last activity column */
+	includeLastActivity?: boolean;
+	/** Hide cost from the row */
+	hideCost?: boolean;
+};
+
+/**
  * Creates a totals row with yellow highlighting
  * @param totals - Totals data to display
- * @param includeLastActivity - Whether to include an empty last activity column
+ * @param options - Optional formatting options
  * @returns Formatted totals row
  */
-export function formatTotalsRow(totals: UsageData, includeLastActivity = false): (string | number)[] {
+export function formatTotalsRow(totals: UsageData, options?: FormatTotalsOptions): (string | number)[] {
 	const totalTokens = totals.inputTokens + totals.outputTokens + totals.cacheCreationTokens + totals.cacheReadTokens;
+	const hideCost = options?.hideCost ?? false;
 
 	const row: (string | number)[] = [
 		pc.yellow('Total'),
@@ -548,10 +579,10 @@ export function formatTotalsRow(totals: UsageData, includeLastActivity = false):
 		pc.yellow(formatNumber(totals.cacheCreationTokens)),
 		pc.yellow(formatNumber(totals.cacheReadTokens)),
 		pc.yellow(formatNumber(totalTokens)),
-		pc.yellow(formatCurrency(totals.totalCost)),
+		...(hideCost ? [] : [pc.yellow(formatCurrency(totals.totalCost))]),
 	];
 
-	if (includeLastActivity) {
+	if (options?.includeLastActivity ?? false) {
 		row.push(''); // Empty for Last Activity column in totals
 	}
 
