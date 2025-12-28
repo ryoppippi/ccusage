@@ -485,10 +485,10 @@ function filterByProject<T>(
 /**
  * Tracking data for deduplication with highest output_tokens priority
  */
-interface DedupeEntry {
+type DedupeEntry = {
 	index: number;
 	outputTokens: number;
-}
+};
 
 /**
  * Checks if an entry should be skipped based on deduplication rules.
@@ -4457,7 +4457,7 @@ if (import.meta.vitest != null) {
 				expect(data[0]?.outputTokens).toBe(50);
 			});
 
-			it('should process files in chronological order', async () => {
+			it('should keep entry with highest output_tokens regardless of file order', async () => {
 				await using fixture = await createFixture({
 					projects: {
 						'newer.jsonl': JSON.stringify({
@@ -4492,11 +4492,12 @@ if (import.meta.vitest != null) {
 					mode: 'display',
 				});
 
-				// Should keep the older entry (100/50 tokens) not the newer one (200/100)
+				// Should keep the entry with higher output_tokens (100) not the lower one (50)
+				// This fixes streaming artifacts where the same message has multiple entries
 				expect(data).toHaveLength(1);
-				expect(data[0]?.date).toBe('2025-01-10');
-				expect(data[0]?.inputTokens).toBe(100);
-				expect(data[0]?.outputTokens).toBe(50);
+				expect(data[0]?.date).toBe('2025-01-15');
+				expect(data[0]?.inputTokens).toBe(200);
+				expect(data[0]?.outputTokens).toBe(100);
 			});
 		});
 
