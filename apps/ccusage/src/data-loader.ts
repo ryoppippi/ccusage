@@ -4460,30 +4460,36 @@ if (import.meta.vitest != null) {
 			it('should keep entry with highest output_tokens regardless of file order', async () => {
 				await using fixture = await createFixture({
 					projects: {
-						'newer.jsonl': JSON.stringify({
-							timestamp: '2025-01-15T10:00:00Z',
-							message: {
-								id: 'msg_123',
-								usage: {
-									input_tokens: 200,
-									output_tokens: 100,
-								},
+						project1: {
+							session1: {
+								'newer.jsonl': JSON.stringify({
+									timestamp: '2025-01-15T10:00:00Z',
+									message: {
+										id: 'msg_123',
+										usage: {
+											input_tokens: 200,
+											output_tokens: 100,
+										},
+									},
+									requestId: 'req_456',
+									costUSD: 0.002,
+								}),
 							},
-							requestId: 'req_456',
-							costUSD: 0.002,
-						}),
-						'older.jsonl': JSON.stringify({
-							timestamp: '2025-01-10T10:00:00Z',
-							message: {
-								id: 'msg_123',
-								usage: {
-									input_tokens: 100,
-									output_tokens: 50,
-								},
+							session2: {
+								'older.jsonl': JSON.stringify({
+									timestamp: '2025-01-10T10:00:00Z',
+									message: {
+										id: 'msg_123',
+										usage: {
+											input_tokens: 100,
+											output_tokens: 50,
+										},
+									},
+									requestId: 'req_456',
+									costUSD: 0.001,
+								}),
 							},
-							requestId: 'req_456',
-							costUSD: 0.001,
-						}),
+						},
 					},
 				});
 
