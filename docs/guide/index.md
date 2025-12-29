@@ -6,7 +6,7 @@
 
 ## The Problem
 
-Claude Code's Max plan offers unlimited usage, which is fantastic! But many users are curious:
+Claude Code's Max plan offers generous usage, which is fantastic! But many users are curious:
 
 - How much am I actually using Claude Code?
 - Which conversations are the most expensive?
