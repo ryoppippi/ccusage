@@ -7,6 +7,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 This is a monorepo containing multiple packages. For package-specific guidance, refer to the individual CLAUDE.md files:
 
 - **Main CLI Package**: @apps/ccusage/CLAUDE.md - Core ccusage CLI tool and library
+- **Codex CLI Package**: @apps/codex/CLAUDE.md - OpenAI Codex usage tracking CLI
+- **OpenCode CLI Package**: @apps/opencode/CLAUDE.md - OpenCode usage tracking CLI
 - **MCP Server Package**: @apps/mcp/CLAUDE.md - MCP server implementation for ccusage data
 - **Documentation**: @docs/CLAUDE.md - VitePress-based documentation website
 
