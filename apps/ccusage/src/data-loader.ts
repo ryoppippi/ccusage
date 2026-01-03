@@ -519,17 +519,23 @@ function extractUniqueModels<T>(
 
 /**
  * Create a unique identifier for deduplication using message ID and request ID
+ * Some API proxies may not include requestId, so we fall back to using only messageId
  */
 export function createUniqueHash(data: UsageData): string | null {
 	const messageId = data.message.id;
 	const requestId = data.requestId;
 
-	if (messageId == null || requestId == null) {
+	if (messageId == null) {
 		return null;
 	}
 
-	// Create a hash using simple concatenation
-	return `${messageId}:${requestId}`;
+	// Create a hash using message ID and request ID if available
+	// Fall back to message ID only for API proxies that don't include request ID
+	if (requestId != null) {
+		return `${messageId}:${requestId}`;
+	}
+
+	return messageId;
 }
 
 /**
@@ -4254,7 +4260,7 @@ if (import.meta.vitest != null) {
 				expect(hash).toBeNull();
 			});
 
-			it('should return null when request id is missing', () => {
+			it('should return message id only when request id is missing', () => {
 				const data = {
 					timestamp: createISOTimestamp('2025-01-10T10:00:00Z'),
 					message: {
@@ -4267,7 +4273,7 @@ if (import.meta.vitest != null) {
 				};
 
 				const hash = createUniqueHash(data);
-				expect(hash).toBeNull();
+				expect(hash).toBe('msg_123');
 			});
 		});
 
