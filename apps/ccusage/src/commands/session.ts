@@ -124,14 +124,20 @@ export const sessionCommand = define({
 			// Print header
 			logger.box('Claude Code Token Usage Report - By Session');
 
+			const hideCost = Boolean(ctx.values.noCost);
+
 			// Create table with compact mode support
 			const tableConfig: UsageReportConfig = {
 				firstColumnName: 'Session',
 				includeLastActivity: true,
 				dateFormatter: (dateStr: string) => formatDateCompact(dateStr, ctx.values.timezone, ctx.values.locale),
 				forceCompact: ctx.values.compact,
+				hideCost,
 			};
 			const table = createUsageReportTable(tableConfig);
+
+			// Calculate column count based on hideCost (session has Last Activity column)
+			const columnCount = hideCost ? 8 : 9;
 
 			// Add session data
 			let maxSessionLength = 0;
@@ -148,18 +154,18 @@ export const sessionCommand = define({
 					cacheReadTokens: data.cacheReadTokens,
 					totalCost: data.totalCost,
 					modelsUsed: data.modelsUsed,
-				}, data.lastActivity);
+				}, { lastActivity: data.lastActivity, hideCost });
 				table.push(row);
 
 				// Add model breakdown rows if flag is set
 				if (ctx.values.breakdown) {
 					// Session has 1 extra column before data and 1 trailing column
-					pushBreakdownRows(table, data.modelBreakdowns, 1, 1);
+					pushBreakdownRows(table, data.modelBreakdowns, 1, 1, hideCost);
 				}
 			}
 
 			// Add empty row for visual separation before totals
-			addEmptySeparatorRow(table, 9);
+			addEmptySeparatorRow(table, columnCount);
 
 			// Add totals
 			const totalsRow = formatTotalsRow({
@@ -168,7 +174,7 @@ export const sessionCommand = define({
 				cacheCreationTokens: totals.cacheCreationTokens,
 				cacheReadTokens: totals.cacheReadTokens,
 				totalCost: totals.totalCost,
-			}, true); // Include Last Activity column
+			}, { includeLastActivity: true, hideCost });
 			table.push(totalsRow);
 
 			log(table.toString());
