@@ -6,10 +6,12 @@
 import type { DayOfWeek, WeekDay } from './_consts.ts';
 import type { WeeklyDate } from './_types.ts';
 import { sort } from 'fast-sort';
-import * as v from 'valibot';
 import { DEFAULT_LOCALE } from './_consts.ts';
-import { createWeeklyDate, dailyDateSchema } from './_types.ts';
+import { createWeeklyDate } from './_types.ts';
 import { unreachable } from './_utils.ts';
+
+// Re-export formatDateCompact from shared package
+export { formatDateCompact } from '@ccusage/terminal/table';
 
 /**
  * Sort order for date-based sorting
@@ -32,24 +34,6 @@ function createDateFormatter(timezone: string | undefined, locale: string): Intl
 }
 
 /**
- * Creates a date parts formatter with the specified timezone and locale
- * @param timezone - Timezone to use
- * @param locale - Locale to use for formatting
- * @returns Intl.DateTimeFormat instance
- */
-function createDatePartsFormatter(
-	timezone: string | undefined,
-	locale: string,
-): Intl.DateTimeFormat {
-	return new Intl.DateTimeFormat(locale, {
-		year: 'numeric',
-		month: '2-digit',
-		day: '2-digit',
-		timeZone: timezone,
-	});
-}
-
-/**
  * Formats a date string to YYYY-MM-DD format
  * @param dateStr - Input date string
  * @param timezone - Optional timezone to use for formatting
@@ -61,34 +45,6 @@ export function formatDate(dateStr: string, timezone?: string, locale?: string):
 	// Use DEFAULT_LOCALE as default for consistent YYYY-MM-DD format
 	const formatter = createDateFormatter(timezone, locale ?? DEFAULT_LOCALE);
 	return formatter.format(date);
-}
-
-/**
- * Formats a date string to compact format with year on first line and month-day on second
- * @param dateStr - Input date string
- * @param timezone - Timezone to use for formatting (pass undefined to use system timezone)
- * @param locale - Locale to use for formatting
- * @returns Formatted date string with newline separator (YYYY\nMM-DD)
- */
-export function formatDateCompact(
-	dateStr: string,
-	timezone: string | undefined,
-	locale: string,
-): string {
-	// For YYYY-MM-DD format, append T00:00:00 to parse as local date
-	// Without this, new Date('YYYY-MM-DD') interprets as UTC midnight
-	const parseResult = v.safeParse(dailyDateSchema, dateStr);
-	const date = parseResult.success
-		? timezone != null
-			? new Date(`${dateStr}T00:00:00Z`)
-			: new Date(`${dateStr}T00:00:00`)
-		: new Date(dateStr);
-	const formatter = createDatePartsFormatter(timezone, locale);
-	const parts = formatter.formatToParts(date);
-	const year = parts.find((p) => p.type === 'year')?.value ?? '';
-	const month = parts.find((p) => p.type === 'month')?.value ?? '';
-	const day = parts.find((p) => p.type === 'day')?.value ?? '';
-	return `${year}\n${month}-${day}`;
 }
 
 /**
@@ -200,27 +156,7 @@ if (import.meta.vitest != null) {
 		});
 	});
 
-	describe('formatDateCompact', () => {
-		it('should format date to compact format with newline', () => {
-			const result = formatDateCompact('2024-08-04', undefined, 'en-US');
-			expect(result).toBe('2024\n08-04');
-		});
-
-		it('should handle timezone parameter', () => {
-			const result = formatDateCompact('2024-08-04T12:00:00Z', 'UTC', 'en-US');
-			expect(result).toBe('2024\n08-04');
-		});
-
-		it('should handle YYYY-MM-DD format dates', () => {
-			const result = formatDateCompact('2024-08-04', undefined, 'en-US');
-			expect(result).toBe('2024\n08-04');
-		});
-
-		it('should handle timezone with YYYY-MM-DD format', () => {
-			const result = formatDateCompact('2024-08-04', 'UTC', 'en-US');
-			expect(result).toBe('2024\n08-04');
-		});
-	});
+	// formatDateCompact tests are in @ccusage/terminal/table.ts
 
 	describe('sortByDate', () => {
 		const testData = [
