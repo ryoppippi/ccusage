@@ -194,11 +194,11 @@ type TokenCosts = {
 #### Calculation Formula
 
 ```typescript
-totalCost
-	= (inputTokens * inputPrice)
-		+ (outputTokens * outputPrice)
-		+ (cacheCreateTokens * cacheCreatePrice)
-		+ (cacheReadTokens * cacheReadPrice);
+totalCost =
+	inputTokens * inputPrice +
+	outputTokens * outputPrice +
+	cacheCreateTokens * cacheCreatePrice +
+	cacheReadTokens * cacheReadPrice;
 ```
 
 ### Pre-calculated Costs

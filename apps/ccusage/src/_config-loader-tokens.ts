@@ -55,11 +55,8 @@ export type ConfigData = {
  * 2. User config directories from getClaudePaths() + ccusage.json
  */
 function getConfigSearchPaths(): string[] {
-	const claudeConfigDirs = [
-		join(process.cwd(), '.ccusage'),
-		...toArray(getClaudePaths()),
-	];
-	return claudeConfigDirs.map(dir => join(dir, CONFIG_FILE_NAME));
+	const claudeConfigDirs = [join(process.cwd(), '.ccusage'), ...toArray(getClaudePaths())];
+	return claudeConfigDirs.map((dir) => join(dir, CONFIG_FILE_NAME));
 }
 
 /**
@@ -78,12 +75,18 @@ function validateConfigJson(data: unknown): data is ConfigData {
 	}
 
 	// Optional defaults property
-	if (config.defaults != null && (typeof config.defaults !== 'object' || config.defaults === null)) {
+	if (
+		config.defaults != null &&
+		(typeof config.defaults !== 'object' || config.defaults === null)
+	) {
 		return false;
 	}
 
 	// Optional commands property
-	if (config.commands != null && (typeof config.commands !== 'object' || config.commands === null)) {
+	if (
+		config.commands != null &&
+		(typeof config.commands !== 'object' || config.commands === null)
+	) {
 		return false;
 	}
 
@@ -113,10 +116,10 @@ function loadConfigFile(filePath: string, debug = false): ConfigData | undefined
 					throw new Error('Invalid configuration structure');
 				}
 				// Add source path to the config for debug display
-				(data).source = filePath;
+				data.source = filePath;
 				return data;
 			},
-			catch: error => error,
+			catch: (error) => error,
 		})(),
 		Result.inspect(() => {
 			logger.debug(`Parsed configuration file: ${filePath}`);
@@ -157,13 +160,16 @@ export function loadConfig(configPath?: string, debug = false): ConfigData | und
 		const config = loadConfigFile(configPath, debug);
 		if (config == null) {
 			logger.warn(`Configuration file not found or invalid: ${configPath}`);
-		}
-		else if (debug) {
+		} else if (debug) {
 			logger.info('');
 			logger.info(`Loaded config from: ${configPath}`);
 			logger.info(`  • Schema: ${config.$schema ?? 'none'}`);
-			logger.info(`  • Has defaults: ${config.defaults != null ? 'yes' : 'no'}${config.defaults != null ? ` (${Object.keys(config.defaults).length} options)` : ''}`);
-			logger.info(`  • Has command configs: ${config.commands != null ? 'yes' : 'no'}${config.commands != null ? ` (${Object.keys(config.commands).join(', ')})` : ''}`);
+			logger.info(
+				`  • Has defaults: ${config.defaults != null ? 'yes' : 'no'}${config.defaults != null ? ` (${Object.keys(config.defaults).length} options)` : ''}`,
+			);
+			logger.info(
+				`  • Has command configs: ${config.commands != null ? 'yes' : 'no'}${config.commands != null ? ` (${Object.keys(config.commands).join(', ')})` : ''}`,
+			);
 		}
 		return config;
 	}
@@ -180,8 +186,12 @@ export function loadConfig(configPath?: string, debug = false): ConfigData | und
 				logger.info('');
 				logger.info(`Loaded config from: ${searchPath}`);
 				logger.info(`  • Schema: ${config.$schema ?? 'none'}`);
-				logger.info(`  • Has defaults: ${config.defaults != null ? 'yes' : 'no'}${config.defaults != null ? ` (${Object.keys(config.defaults).length} options)` : ''}`);
-				logger.info(`  • Has command configs: ${config.commands != null ? 'yes' : 'no'}${config.commands != null ? ` (${Object.keys(config.commands).join(', ')})` : ''}`);
+				logger.info(
+					`  • Has defaults: ${config.defaults != null ? 'yes' : 'no'}${config.defaults != null ? ` (${Object.keys(config.defaults).length} options)` : ''}`,
+				);
+				logger.info(
+					`  • Has command configs: ${config.commands != null ? 'yes' : 'no'}${config.commands != null ? ` (${Object.keys(config.commands).join(', ')})` : ''}`,
+				);
 			}
 			return config;
 		}
@@ -217,7 +227,9 @@ export function mergeConfigWithArgs<T extends Record<string, unknown>>(
 	if (config == null) {
 		if (debug) {
 			logger.info('');
-			logger.info(`No config file loaded, using CLI args only for '${ctx.name ?? 'unknown'}' command`);
+			logger.info(
+				`No config file loaded, using CLI args only for '${ctx.name ?? 'unknown'}' command`,
+			);
 		}
 		return ctx.values;
 	}
@@ -264,9 +276,9 @@ export function mergeConfigWithArgs<T extends Record<string, unknown>>(
 
 		// Group options by source
 		const bySource: Record<string, string[]> = {
-			'defaults': [],
+			defaults: [],
 			'command config': [],
-			'CLI': [],
+			CLI: [],
 		};
 
 		for (const [key, source] of Object.entries(sources)) {
@@ -302,7 +314,9 @@ export function mergeConfigWithArgs<T extends Record<string, unknown>>(
  * @param configPath - Path to configuration file
  * @returns Validation result
  */
-export function validateConfigFile(configPath: string): { success: true; data: ConfigData } | { success: false; error: Error } {
+export function validateConfigFile(
+	configPath: string,
+): { success: true; data: ConfigData } | { success: false; error: Error } {
 	if (!existsSync(configPath)) {
 		return { success: false, error: new Error(`Configuration file does not exist: ${configPath}`) };
 	}
@@ -316,14 +330,13 @@ export function validateConfigFile(configPath: string): { success: true; data: C
 			}
 			return data;
 		},
-		catch: error => error instanceof Error ? error : new Error(String(error)),
+		catch: (error) => (error instanceof Error ? error : new Error(String(error))),
 	});
 
 	const result = parseConfig();
 	if (Result.isSuccess(result)) {
 		return { success: true, data: result.value };
-	}
-	else {
+	} else {
 		return { success: false, error: result.error };
 	}
 }
@@ -548,7 +561,9 @@ if (import.meta.vitest != null) {
 			const validResult = validateConfigFile(fixture.getPath('.ccusage/ccusage.json'));
 			expect(validResult.success).toBe(true);
 			expect((validResult as { success: true; data: ConfigData }).data.defaults?.json).toBe(true);
-			expect((validResult as { success: true; data: ConfigData }).data.commands?.daily?.instances).toBe(true);
+			expect(
+				(validResult as { success: true; data: ConfigData }).data.commands?.daily?.instances,
+			).toBe(true);
 
 			const invalidResult = validateConfigFile(fixture.getPath('invalid.json'));
 			expect(invalidResult.success).toBe(false);
@@ -560,7 +575,9 @@ if (import.meta.vitest != null) {
 
 			const nonExistentResult = validateConfigFile(fixture.getPath('non-existent.json'));
 			expect(nonExistentResult.success).toBe(false);
-			expect((nonExistentResult as { success: false; error: Error }).error.message).toContain('does not exist');
+			expect((nonExistentResult as { success: false; error: Error }).error.message).toContain(
+				'does not exist',
+			);
 		});
 	});
 
@@ -586,10 +603,17 @@ if (import.meta.vitest != null) {
 				breakdown: true, // Not in config
 			};
 
-			const merged = mergeConfigWithArgs({ values: cliArgs, tokens: [
-				{ kind: 'option', name: 'json' },
-				{ kind: 'option', name: 'breakdown' },
-			], name: 'daily' }, config);
+			const merged = mergeConfigWithArgs(
+				{
+					values: cliArgs,
+					tokens: [
+						{ kind: 'option', name: 'json' },
+						{ kind: 'option', name: 'breakdown' },
+					],
+					name: 'daily',
+				},
+				config,
+			);
 
 			expect(merged).toEqual({
 				json: true, // From CLI (overrides config)
@@ -603,10 +627,14 @@ if (import.meta.vitest != null) {
 
 		it('should work without config', () => {
 			const cliArgs = { json: true, debug: false };
-			const merged = mergeConfigWithArgs({ values: cliArgs, tokens: [
-				{ kind: 'option', name: 'json' },
-				{ kind: 'option', name: 'debug' },
-			], name: 'daily' });
+			const merged = mergeConfigWithArgs({
+				values: cliArgs,
+				tokens: [
+					{ kind: 'option', name: 'json' },
+					{ kind: 'option', name: 'debug' },
+				],
+				name: 'daily',
+			});
 			expect(merged).toEqual(cliArgs);
 		});
 
@@ -617,10 +645,17 @@ if (import.meta.vitest != null) {
 			};
 
 			const cliArgs = { json: true, instances: true };
-			const merged = mergeConfigWithArgs({ values: cliArgs, tokens: [
-				{ kind: 'option', name: 'json' },
-				{ kind: 'option', name: 'instances' },
-			], name: 'daily' }, config);
+			const merged = mergeConfigWithArgs(
+				{
+					values: cliArgs,
+					tokens: [
+						{ kind: 'option', name: 'json' },
+						{ kind: 'option', name: 'instances' },
+					],
+					name: 'daily',
+				},
+				config,
+			);
 
 			expect(merged.json).toBe(true);
 			expect(merged.instances).toBe(true);
@@ -646,9 +681,16 @@ if (import.meta.vitest != null) {
 				instances: false, // This also has a value but wasn't explicitly provided
 			};
 
-			const merged = mergeConfigWithArgs({ values: cliArgs, tokens: [
-				{ kind: 'option', name: 'json' }, // Only json was explicitly provided
-			], name: 'daily' }, config);
+			const merged = mergeConfigWithArgs(
+				{
+					values: cliArgs,
+					tokens: [
+						{ kind: 'option', name: 'json' }, // Only json was explicitly provided
+					],
+					name: 'daily',
+				},
+				config,
+			);
 
 			expect(merged).toEqual({
 				json: true, // From CLI (explicitly provided)
@@ -668,9 +710,10 @@ if (import.meta.vitest != null) {
 				project: null, // Explicitly set to null
 			};
 
-			const merged = mergeConfigWithArgs({ values: cliArgs, tokens: [
-				{ kind: 'option', name: 'project' },
-			], name: 'daily' }, config);
+			const merged = mergeConfigWithArgs(
+				{ values: cliArgs, tokens: [{ kind: 'option', name: 'project' }], name: 'daily' },
+				config,
+			);
 
 			// null value in CLI args should not override config even if explicit
 			expect(merged).toEqual({
@@ -737,12 +780,20 @@ if (import.meta.vitest != null) {
 				const config = loadConfig(undefined, true);
 
 				expect(config).toBeDefined();
-				expect(loggerInfoSpy).toHaveBeenCalledWith('Debug mode enabled - showing config loading details\n');
+				expect(loggerInfoSpy).toHaveBeenCalledWith(
+					'Debug mode enabled - showing config loading details\n',
+				);
 				expect(loggerInfoSpy).toHaveBeenCalledWith('Searching for config files:');
-				expect(loggerInfoSpy).toHaveBeenCalledWith(`  • Checking: ${fixture.getPath('.ccusage/ccusage.json')} (found ✓)`);
+				expect(loggerInfoSpy).toHaveBeenCalledWith(
+					`  • Checking: ${fixture.getPath('.ccusage/ccusage.json')} (found ✓)`,
+				);
 				expect(loggerInfoSpy).toHaveBeenCalledWith('');
-				expect(loggerInfoSpy).toHaveBeenCalledWith(`Loaded config from: ${fixture.getPath('.ccusage/ccusage.json')}`);
-				expect(loggerInfoSpy).toHaveBeenCalledWith('  • Schema: https://ccusage.com/config-schema.json');
+				expect(loggerInfoSpy).toHaveBeenCalledWith(
+					`Loaded config from: ${fixture.getPath('.ccusage/ccusage.json')}`,
+				);
+				expect(loggerInfoSpy).toHaveBeenCalledWith(
+					'  • Schema: https://ccusage.com/config-schema.json',
+				);
 				expect(loggerInfoSpy).toHaveBeenCalledWith('  • Has defaults: yes (2 options)');
 				expect(loggerInfoSpy).toHaveBeenCalledWith('  • Has command configs: yes (daily)');
 			});
@@ -757,7 +808,9 @@ if (import.meta.vitest != null) {
 				const config = loadConfig(undefined, true);
 
 				expect(config).toBeUndefined();
-				expect(loggerInfoSpy).toHaveBeenCalledWith('Debug mode enabled - showing config loading details\n');
+				expect(loggerInfoSpy).toHaveBeenCalledWith(
+					'Debug mode enabled - showing config loading details\n',
+				);
 				expect(loggerInfoSpy).toHaveBeenCalledWith('Searching for config files:');
 				expect(loggerInfoSpy).toHaveBeenCalledWith('');
 				expect(loggerInfoSpy).toHaveBeenCalledWith('No valid configuration file found');
@@ -774,7 +827,9 @@ if (import.meta.vitest != null) {
 				const config = loadConfig(configPath, true);
 
 				expect(config).toBeDefined();
-				expect(loggerInfoSpy).toHaveBeenCalledWith('Debug mode enabled - showing config loading details\n');
+				expect(loggerInfoSpy).toHaveBeenCalledWith(
+					'Debug mode enabled - showing config loading details\n',
+				);
 				expect(loggerInfoSpy).toHaveBeenCalledWith('Using specified config file:');
 				expect(loggerInfoSpy).toHaveBeenCalledWith(`  • Path: ${configPath}`);
 				expect(loggerInfoSpy).toHaveBeenCalledWith('');
@@ -805,14 +860,18 @@ if (import.meta.vitest != null) {
 					since: '20250101',
 				};
 
-				const merged = mergeConfigWithArgs({
-					values: cliArgs,
-					tokens: [
-						{ kind: 'option', name: 'debug' },
-						{ kind: 'option', name: 'since' },
-					],
-					name: 'daily',
-				}, config, true);
+				const merged = mergeConfigWithArgs(
+					{
+						values: cliArgs,
+						tokens: [
+							{ kind: 'option', name: 'debug' },
+							{ kind: 'option', name: 'since' },
+						],
+						name: 'daily',
+					},
+					config,
+					true,
+				);
 
 				expect(merged).toEqual({
 					mode: 'auto',
@@ -826,26 +885,36 @@ if (import.meta.vitest != null) {
 				expect(loggerInfoSpy).toHaveBeenCalledWith('');
 				expect(loggerInfoSpy).toHaveBeenCalledWith(`Merging options for 'daily' command:`);
 				expect(loggerInfoSpy).toHaveBeenCalledWith('  • From defaults: mode="auto", offline=false');
-				expect(loggerInfoSpy).toHaveBeenCalledWith('  • From command config: instances=true, project="test-project"');
-				expect(loggerInfoSpy).toHaveBeenCalledWith('  • From CLI args: debug=true, since="20250101"');
+				expect(loggerInfoSpy).toHaveBeenCalledWith(
+					'  • From command config: instances=true, project="test-project"',
+				);
+				expect(loggerInfoSpy).toHaveBeenCalledWith(
+					'  • From CLI args: debug=true, since="20250101"',
+				);
 				expect(loggerInfoSpy).toHaveBeenCalledWith('  • Final merged options: {');
 			});
 
 			it('should log no config message with debug=true when config is null', () => {
 				const cliArgs = { json: true, debug: false };
 
-				const merged = mergeConfigWithArgs({
-					values: cliArgs,
-					tokens: [
-						{ kind: 'option', name: 'json' },
-						{ kind: 'option', name: 'debug' },
-					],
-					name: 'daily',
-				}, undefined, true);
+				const merged = mergeConfigWithArgs(
+					{
+						values: cliArgs,
+						tokens: [
+							{ kind: 'option', name: 'json' },
+							{ kind: 'option', name: 'debug' },
+						],
+						name: 'daily',
+					},
+					undefined,
+					true,
+				);
 
 				expect(merged).toEqual(cliArgs);
 				expect(loggerInfoSpy).toHaveBeenCalledWith('');
-				expect(loggerInfoSpy).toHaveBeenCalledWith(`No config file loaded, using CLI args only for 'daily' command`);
+				expect(loggerInfoSpy).toHaveBeenCalledWith(
+					`No config file loaded, using CLI args only for 'daily' command`,
+				);
 			});
 		});
 	});

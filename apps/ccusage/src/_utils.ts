@@ -15,9 +15,9 @@ export async function getFileModifiedTime(filePath: string): Promise<number> {
 	return Result.pipe(
 		Result.try({
 			try: stat(filePath),
-			catch: error => error,
+			catch: (error) => error,
 		}),
-		Result.map(stats => stats.mtime.getTime()),
+		Result.map((stats) => stats.mtime.getTime()),
 		Result.unwrap(0), // Default to 0 if file doesn't exist or can't be accessed
 	);
 }

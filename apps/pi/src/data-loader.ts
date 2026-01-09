@@ -198,8 +198,7 @@ export async function loadPiAgentData(options?: LoadOptions): Promise<EntryData[
 					project,
 					sessionId,
 				});
-			}
-			catch {
+			} catch {
 				// Skip invalid lines
 			}
 		});
@@ -208,20 +207,26 @@ export async function loadPiAgentData(options?: LoadOptions): Promise<EntryData[
 	return entries;
 }
 
-function aggregateByModel(entries: EntryData[]): Map<string, {
-	inputTokens: number;
-	outputTokens: number;
-	cacheCreationTokens: number;
-	cacheReadTokens: number;
-	cost: number;
-}> {
-	const modelMap = new Map<string, {
+function aggregateByModel(entries: EntryData[]): Map<
+	string,
+	{
 		inputTokens: number;
 		outputTokens: number;
 		cacheCreationTokens: number;
 		cacheReadTokens: number;
 		cost: number;
-	}>();
+	}
+> {
+	const modelMap = new Map<
+		string,
+		{
+			inputTokens: number;
+			outputTokens: number;
+			cacheCreationTokens: number;
+			cacheReadTokens: number;
+			cost: number;
+		}
+	>();
 
 	for (const entry of entries) {
 		const model = entry.model ?? 'unknown';
@@ -245,13 +250,18 @@ function aggregateByModel(entries: EntryData[]): Map<string, {
 	return modelMap;
 }
 
-function createBreakdowns(modelMap: Map<string, {
-	inputTokens: number;
-	outputTokens: number;
-	cacheCreationTokens: number;
-	cacheReadTokens: number;
-	cost: number;
-}>): Array<{
+function createBreakdowns(
+	modelMap: Map<
+		string,
+		{
+			inputTokens: number;
+			outputTokens: number;
+			cacheCreationTokens: number;
+			cacheReadTokens: number;
+			cost: number;
+		}
+	>,
+): Array<{
 	modelName: string;
 	inputTokens: number;
 	outputTokens: number;
@@ -321,12 +331,16 @@ export async function loadPiAgentDailyData(options?: LoadOptions): Promise<Daily
 	}
 
 	const order = options?.order ?? 'desc';
-	results.sort((a, b) => order === 'asc' ? a.date.localeCompare(b.date) : b.date.localeCompare(a.date));
+	results.sort((a, b) =>
+		order === 'asc' ? a.date.localeCompare(b.date) : b.date.localeCompare(a.date),
+	);
 
 	return results;
 }
 
-export async function loadPiAgentSessionData(options?: LoadOptions): Promise<SessionUsageWithSource[]> {
+export async function loadPiAgentSessionData(
+	options?: LoadOptions,
+): Promise<SessionUsageWithSource[]> {
 	const entries = await loadPiAgentData(options);
 
 	const grouped = new Map<string, EntryData[]>();
@@ -366,14 +380,18 @@ export async function loadPiAgentSessionData(options?: LoadOptions): Promise<Ses
 	}
 
 	const order = options?.order ?? 'desc';
-	results.sort((a, b) => order === 'asc'
-		? a.lastActivity.localeCompare(b.lastActivity)
-		: b.lastActivity.localeCompare(a.lastActivity));
+	results.sort((a, b) =>
+		order === 'asc'
+			? a.lastActivity.localeCompare(b.lastActivity)
+			: b.lastActivity.localeCompare(a.lastActivity),
+	);
 
 	return results;
 }
 
-export async function loadPiAgentMonthlyData(options?: LoadOptions): Promise<MonthlyUsageWithSource[]> {
+export async function loadPiAgentMonthlyData(
+	options?: LoadOptions,
+): Promise<MonthlyUsageWithSource[]> {
 	const entries = await loadPiAgentData(options);
 
 	const grouped = new Map<string, EntryData[]>();
@@ -406,7 +424,9 @@ export async function loadPiAgentMonthlyData(options?: LoadOptions): Promise<Mon
 	}
 
 	const order = options?.order ?? 'desc';
-	results.sort((a, b) => order === 'asc' ? a.month.localeCompare(b.month) : b.month.localeCompare(a.month));
+	results.sort((a, b) =>
+		order === 'asc' ? a.month.localeCompare(b.month) : b.month.localeCompare(a.month),
+	);
 
 	return results;
 }

@@ -39,20 +39,17 @@ export type AnyTokenCounts = TokenCounts | AggregatedTokenCounts;
  */
 export function getTotalTokens(tokenCounts: AnyTokenCounts): number {
 	// Support both property naming conventions
-	const cacheCreation = 'cacheCreationInputTokens' in tokenCounts
-		? tokenCounts.cacheCreationInputTokens
-		: (tokenCounts).cacheCreationTokens;
+	const cacheCreation =
+		'cacheCreationInputTokens' in tokenCounts
+			? tokenCounts.cacheCreationInputTokens
+			: tokenCounts.cacheCreationTokens;
 
-	const cacheRead = 'cacheReadInputTokens' in tokenCounts
-		? tokenCounts.cacheReadInputTokens
-		: (tokenCounts).cacheReadTokens;
+	const cacheRead =
+		'cacheReadInputTokens' in tokenCounts
+			? tokenCounts.cacheReadInputTokens
+			: tokenCounts.cacheReadTokens;
 
-	return (
-		tokenCounts.inputTokens
-		+ tokenCounts.outputTokens
-		+ cacheCreation
-		+ cacheRead
-	);
+	return tokenCounts.inputTokens + tokenCounts.outputTokens + cacheCreation + cacheRead;
 }
 
 // In-source testing

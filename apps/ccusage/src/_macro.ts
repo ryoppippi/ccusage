@@ -6,17 +6,18 @@ import {
 } from '@ccusage/internal/pricing-fetch-utils';
 
 function isClaudeModel(modelName: string, _pricing: LiteLLMModelPricing): boolean {
-	return modelName.startsWith('claude-')
-		|| modelName.startsWith('anthropic.claude-')
-		|| modelName.startsWith('anthropic/claude-');
+	return (
+		modelName.startsWith('claude-') ||
+		modelName.startsWith('anthropic.claude-') ||
+		modelName.startsWith('anthropic/claude-')
+	);
 }
 
 export async function prefetchClaudePricing(): Promise<Record<string, LiteLLMModelPricing>> {
 	try {
 		const dataset = await fetchLiteLLMPricingDataset();
 		return filterPricingDataset(dataset, isClaudeModel);
-	}
-	catch (error) {
+	} catch (error) {
 		console.warn('Failed to prefetch Claude pricing data, proceeding with empty cache.', error);
 		return createPricingDataset();
 	}

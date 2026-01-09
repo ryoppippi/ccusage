@@ -34,7 +34,9 @@ export const monthlyCommand = define({
 		const entries = await loadOpenCodeMessages();
 
 		if (entries.length === 0) {
-			const output = jsonOutput ? JSON.stringify({ monthly: [], totals: null }) : 'No OpenCode usage data found.';
+			const output = jsonOutput
+				? JSON.stringify({ monthly: [], totals: null })
+				: 'No OpenCode usage data found.';
 			// eslint-disable-next-line no-console
 			console.log(output);
 			return;
@@ -42,10 +44,7 @@ export const monthlyCommand = define({
 
 		using fetcher = new LiteLLMPricingFetcher({ offline: false });
 
-		const entriesByMonth = groupBy(
-			entries,
-			entry => entry.timestamp.toISOString().slice(0, 7),
-		);
+		const entriesByMonth = groupBy(entries, (entry) => entry.timestamp.toISOString().slice(0, 7));
 
 		const monthlyData: Array<{
 			month: string;
@@ -101,11 +100,17 @@ export const monthlyCommand = define({
 		};
 
 		if (jsonOutput) {
-		// eslint-disable-next-line no-console
-			console.log(JSON.stringify({
-				monthly: monthlyData,
-				totals,
-			}, null, 2));
+			// eslint-disable-next-line no-console
+			console.log(
+				JSON.stringify(
+					{
+						monthly: monthlyData,
+						totals,
+					},
+					null,
+					2,
+				),
+			);
 			return;
 		}
 
@@ -113,7 +118,16 @@ export const monthlyCommand = define({
 		console.log('\n📊 OpenCode Token Usage Report - Monthly\n');
 
 		const table: ResponsiveTable = new ResponsiveTable({
-			head: ['Month', 'Models', 'Input', 'Output', 'Cache Create', 'Cache Read', 'Total Tokens', 'Cost (USD)'],
+			head: [
+				'Month',
+				'Models',
+				'Input',
+				'Output',
+				'Cache Create',
+				'Cache Read',
+				'Total Tokens',
+				'Cost (USD)',
+			],
 			colAligns: ['left', 'left', 'right', 'right', 'right', 'right', 'right', 'right'],
 			compactHead: ['Month', 'Models', 'Input', 'Output', 'Cost (USD)'],
 			compactColAligns: ['left', 'left', 'right', 'right', 'right'],
@@ -151,7 +165,7 @@ export const monthlyCommand = define({
 		console.log(table.toString());
 
 		if (table.isCompactMode()) {
-		// eslint-disable-next-line no-console
+			// eslint-disable-next-line no-console
 			console.log('\nRunning in Compact Mode');
 			// eslint-disable-next-line no-console
 			console.log('Expand terminal width to see cache metrics and total tokens');

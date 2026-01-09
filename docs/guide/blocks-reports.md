@@ -190,7 +190,7 @@ ccusage blocks --json
 				"cacheCreationInputTokens": 512,
 				"cacheReadInputTokens": 1024
 			},
-			"costUSD": 156.40,
+			"costUSD": 156.4,
 			"models": ["opus-4", "sonnet-4"]
 		}
 	]

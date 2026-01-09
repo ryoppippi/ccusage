@@ -156,7 +156,7 @@ ccusage daily --project my-frontend-app --json
 			"cacheCreationTokens": 512,
 			"cacheReadTokens": 1024,
 			"totalTokens": 356894,
-			"costUSD": 156.40,
+			"costUSD": 156.4,
 			"lastActivity": "2025-05-24"
 		}
 	],
@@ -191,7 +191,7 @@ ccusage daily --project my-frontend-app --json
 			"costUSD": 8.75,
 			"burnRate": 2400,
 			"projectedTotal": 25000,
-			"projectedCost": 12.50
+			"projectedCost": 12.5
 		}
 	],
 	"summary": {
@@ -408,7 +408,7 @@ const output = execSync('ccusage session --json', { encoding: 'utf-8' });
 const data = JSON.parse(output);
 
 // Find sessions over $10
-const expensiveSessions = data.data.filter(session => session.costUSD > 10);
+const expensiveSessions = data.data.filter((session) => session.costUSD > 10);
 console.log(`Found ${expensiveSessions.length} expensive sessions`);
 
 expensiveSessions.forEach((session) => {
@@ -424,7 +424,7 @@ if (projectData.projects) {
 	const projectCosts = Object.entries(projectData.projects).map(([name, days]) => ({
 		name,
 		totalCost: days.reduce((sum, day) => sum + day.totalCost, 0),
-		totalTokens: days.reduce((sum, day) => sum + day.totalTokens, 0)
+		totalTokens: days.reduce((sum, day) => sum + day.totalTokens, 0),
 	}));
 
 	// Sort by cost descending
@@ -432,7 +432,9 @@ if (projectData.projects) {
 
 	console.log('Project Usage Summary:');
 	projectCosts.forEach((project) => {
-		console.log(`${project.name}: $${project.totalCost.toFixed(2)} (${project.totalTokens.toLocaleString()} tokens)`);
+		console.log(
+			`${project.name}: $${project.totalCost.toFixed(2)} (${project.totalTokens.toLocaleString()} tokens)`,
+		);
 	});
 }
 ```

@@ -66,10 +66,12 @@ export const openCodeTokensSchema = v.object({
 	input: v.optional(v.number()),
 	output: v.optional(v.number()),
 	reasoning: v.optional(v.number()),
-	cache: v.optional(v.object({
-		read: v.optional(v.number()),
-		write: v.optional(v.number()),
-	})),
+	cache: v.optional(
+		v.object({
+			read: v.optional(v.number()),
+			write: v.optional(v.number()),
+		}),
+	),
 });
 
 /**
@@ -155,8 +157,7 @@ async function loadOpenCodeMessage(
 		const content = await readFile(filePath, 'utf-8');
 		const data: unknown = JSON.parse(content);
 		return v.parse(openCodeMessageSchema, data);
-	}
-	catch {
+	} catch {
 		return null;
 	}
 }
@@ -192,8 +193,7 @@ async function loadOpenCodeSession(
 		const content = await readFile(filePath, 'utf-8');
 		const data: unknown = JSON.parse(content);
 		return v.parse(openCodeSessionSchema, data);
-	}
-	catch {
+	} catch {
 		return null;
 	}
 }
@@ -284,10 +284,7 @@ export async function loadOpenCodeMessages(): Promise<LoadedUsageEntry[]> {
 		}
 
 		// Skip messages with no tokens
-		if (
-			message.tokens == null
-			|| (message.tokens.input === 0 && message.tokens.output === 0)
-		) {
+		if (message.tokens == null || (message.tokens.input === 0 && message.tokens.output === 0)) {
 			continue;
 		}
 

@@ -27,7 +27,9 @@ export function splitUsageTokens(usage: UsageGroup): {
 	};
 }
 
-export function formatModelsList(models: Record<string, { totalTokens: number; isFallback?: boolean }>): string[] {
+export function formatModelsList(
+	models: Record<string, { totalTokens: number; isFallback?: boolean }>,
+): string[] {
 	return sort(Object.entries(models))
 		.asc(([model]) => model)
 		.map(([model, data]) => (data.isFallback === true ? `${model} (fallback)` : model));

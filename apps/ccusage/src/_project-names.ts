@@ -40,7 +40,7 @@ function parseProjectName(projectName: string): string {
 	// Handle Windows-style paths: C:\Users\... or \Users\...
 	if (cleaned.match(/^[A-Z]:\\Users\\|^\\Users\\/) != null) {
 		const segments = cleaned.split('\\');
-		const userIndex = segments.findIndex(seg => seg === 'Users');
+		const userIndex = segments.findIndex((seg) => seg === 'Users');
 		if (userIndex !== -1 && userIndex + 3 < segments.length) {
 			// Take everything after Users/username/Projects or similar
 			cleaned = segments.slice(userIndex + 3).join('-');
@@ -50,8 +50,8 @@ function parseProjectName(projectName: string): string {
 	// Handle Unix-style paths: /Users/... or -Users-...
 	if (cleaned.startsWith('-Users-') || cleaned.startsWith('/Users/')) {
 		const separator = cleaned.startsWith('-Users-') ? '-' : '/';
-		const segments = cleaned.split(separator).filter(s => s.length > 0);
-		const userIndex = segments.findIndex(seg => seg === 'Users');
+		const segments = cleaned.split(separator).filter((s) => s.length > 0);
+		const userIndex = segments.findIndex((seg) => seg === 'Users');
 
 		if (userIndex !== -1 && userIndex + 3 < segments.length) {
 			// Take everything after Users/username/Development or similar
@@ -90,9 +90,12 @@ function parseProjectName(projectName: string): string {
 		const segments = cleaned.split('-');
 
 		// Look for common meaningful patterns
-		const meaningfulSegments = segments.filter(seg =>
-			seg.length > 2
-			&& seg.match(/^(?:dev|development|feat|feature|fix|bug|test|staging|prod|production|main|master|branch)$/i) == null,
+		const meaningfulSegments = segments.filter(
+			(seg) =>
+				seg.length > 2 &&
+				seg.match(
+					/^(?:dev|development|feat|feature|fix|bug|test|staging|prod|production|main|master|branch)$/i,
+				) == null,
 		);
 
 		// If we have compound project names like "adminifi-edugakko-api"
@@ -102,8 +105,7 @@ function parseProjectName(projectName: string): string {
 			const lastSegments = meaningfulSegments.slice(-2);
 			if (lastSegments.join('-').length >= 6) {
 				cleaned = lastSegments.join('-');
-			}
-			else if (meaningfulSegments.length >= 3) {
+			} else if (meaningfulSegments.length >= 3) {
 				cleaned = meaningfulSegments.slice(-3).join('-');
 			}
 		}
@@ -112,7 +114,7 @@ function parseProjectName(projectName: string): string {
 	// Final cleanup
 	cleaned = cleaned.replace(/^[/\\-]+|[/\\-]+$/g, '');
 
-	return cleaned !== '' ? cleaned : (projectName !== '' ? projectName : 'Unknown Project');
+	return cleaned !== '' ? cleaned : projectName !== '' ? projectName : 'Unknown Project';
 }
 
 /**
@@ -167,7 +169,8 @@ if (import.meta.vitest != null) {
 			});
 
 			it('handles complex project names with features', () => {
-				const complexName = '-Users-phaedrus-Development-adminifi-edugakko-api--feature-ticket-002-configure-dependabot';
+				const complexName =
+					'-Users-phaedrus-Development-adminifi-edugakko-api--feature-ticket-002-configure-dependabot';
 				const result = formatProjectName(complexName);
 				// Current logic processes the name and extracts meaningful segments
 				expect(result).toBe('configure-dependabot');
@@ -200,7 +203,9 @@ if (import.meta.vitest != null) {
 			it('applies aliases to parsed project names', () => {
 				const aliases = new Map([['ccusage', 'Usage Tracker']]);
 
-				expect(formatProjectName('-Users-phaedrus-Development-ccusage', aliases)).toBe('Usage Tracker');
+				expect(formatProjectName('-Users-phaedrus-Development-ccusage', aliases)).toBe(
+					'Usage Tracker',
+				);
 			});
 
 			it('works without aliases', () => {

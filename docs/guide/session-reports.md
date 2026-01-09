@@ -181,7 +181,7 @@ ccusage session --json
 			"cacheCreationTokens": 512,
 			"cacheReadTokens": 1024,
 			"totalTokens": 356894,
-			"totalCost": 156.40,
+			"totalCost": 156.4,
 			"lastActivity": "2025-06-21",
 			"modelsUsed": ["opus-4", "sonnet-4"],
 			"modelBreakdowns": [
@@ -189,7 +189,7 @@ ccusage session --json
 					"model": "opus-4",
 					"inputTokens": 2000,
 					"outputTokens": 200000,
-					"totalCost": 95.50
+					"totalCost": 95.5
 				}
 			]
 		}

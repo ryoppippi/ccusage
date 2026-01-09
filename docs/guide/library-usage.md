@@ -67,7 +67,13 @@ const data = await loadDailyUsageData({
 The library is fully typed with TypeScript definitions:
 
 ```typescript
-import type { DailyUsage, ModelBreakdown, MonthlyUsage, SessionUsage, UsageData } from 'ccusage/data-loader';
+import type {
+	DailyUsage,
+	ModelBreakdown,
+	MonthlyUsage,
+	SessionUsage,
+	UsageData,
+} from 'ccusage/data-loader';
 
 // Use the types in your application
 function processUsageData(data: UsageData[]): void {
@@ -118,7 +124,7 @@ import { calculateTotals, loadSessionData } from 'ccusage';
 async function generateCustomReport() {
 	const sessions = await loadSessionData();
 
-	const report = sessions.map(session => ({
+	const report = sessions.map((session) => ({
 		project: session.project,
 		session: session.session,
 		totalCost: calculateTotals(session.usage).costUSD,

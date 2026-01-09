@@ -3,18 +3,13 @@
 		"target": "ESNext",
 		"jsx": "react-jsx",
 		// Environment setup & latest features
-		"lib": [
-			"ESNext"
-		],
+		"lib": ["ESNext"],
 		"moduleDetection": "force",
 		"module": "Preserve",
 		// Bundler mode
 		"moduleResolution": "bundler",
 		"resolveJsonModule": true,
-		"types": [
-			"vitest/globals",
-			"vitest/importMeta"
-		],
+		"types": ["vitest/globals", "vitest/importMeta"],
 		"allowImportingTsExtensions": true,
 		"allowJs": true,
 		// Best practices
@@ -32,7 +27,5 @@
 		"skipLibCheck": true
 	},
 	"include": ["src/**/*.ts", "vitest.config.ts"],
-	"exclude": [
-		"dist"
-	]
+	"exclude": ["dist"]
 }

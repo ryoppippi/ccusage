@@ -15,31 +15,35 @@ export type CliInvocation = {
 /**
  * Resolves the binary path for a package
  */
-export function resolveBinaryPath(
-	packageName: string,
-	binName?: string,
-): string {
+export function resolveBinaryPath(packageName: string, binName?: string): string {
 	let packageJsonPath: string;
 	try {
 		packageJsonPath = nodeRequire.resolve(`${packageName}/package.json`);
-	}
-	catch (error) {
-		throw new Error(`Unable to resolve ${packageName}. Install the package alongside @ccusage/mcp to enable ${packageName} tools.`, { cause: error });
+	} catch (error) {
+		throw new Error(
+			`Unable to resolve ${packageName}. Install the package alongside @ccusage/mcp to enable ${packageName} tools.`,
+			{ cause: error },
+		);
 	}
 
-	const packageJson = nodeRequire(packageJsonPath) as { bin?: BinField; publishConfig?: { bin?: BinField } };
+	const packageJson = nodeRequire(packageJsonPath) as {
+		bin?: BinField;
+		publishConfig?: { bin?: BinField };
+	};
 	const binField: BinField = packageJson.bin ?? packageJson.publishConfig?.bin;
 
 	let binRelative: string | undefined;
 	if (typeof binField === 'string') {
 		binRelative = binField;
-	}
-	else if (binField != null && typeof binField === 'object') {
-		binRelative = (binName != null && binName !== '') ? binField[binName] : Object.values(binField)[0];
+	} else if (binField != null && typeof binField === 'object') {
+		binRelative =
+			binName != null && binName !== '' ? binField[binName] : Object.values(binField)[0];
 	}
 
 	if (binRelative == null) {
-		throw new Error(`Unable to locate ${binName ?? packageName} binary entry in ${packageName}/package.json`);
+		throw new Error(
+			`Unable to locate ${binName ?? packageName} binary entry in ${packageName}/package.json`,
+		);
 	}
 
 	const packageDir = path.dirname(packageJsonPath);
@@ -87,8 +91,7 @@ export async function executeCliCommand(
 			throw new Error('CLI command returned empty output');
 		}
 		return output;
-	}
-	catch (error: unknown) {
+	} catch (error: unknown) {
 		if (error instanceof SubprocessError) {
 			const message = (error.stderr ?? error.stdout ?? error.output ?? error.message).trim();
 			throw new Error(message);

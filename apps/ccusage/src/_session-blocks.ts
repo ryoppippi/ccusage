@@ -110,8 +110,7 @@ export function identifySessionBlocks(
 			// First entry - start a new block (floored to the hour)
 			currentBlockStart = floorToHour(entryTime);
 			currentBlockEntries = [entry];
-		}
-		else {
+		} else {
 			const timeSinceBlockStart = entryTime.getTime() - currentBlockStart.getTime();
 			const lastEntry = currentBlockEntries.at(-1);
 			if (lastEntry == null) {
@@ -136,8 +135,7 @@ export function identifySessionBlocks(
 				// Start new block (floored to the hour)
 				currentBlockStart = floorToHour(entryTime);
 				currentBlockEntries = [entry];
-			}
-			else {
+			} else {
 				// Add to current block
 				currentBlockEntries.push(entry);
 			}
@@ -161,7 +159,12 @@ export function identifySessionBlocks(
  * @param sessionDurationMs - Session duration in milliseconds
  * @returns Session block with aggregated data
  */
-function createBlock(startTime: Date, entries: LoadedUsageEntry[], now: Date, sessionDurationMs: number): SessionBlock {
+function createBlock(
+	startTime: Date,
+	entries: LoadedUsageEntry[],
+	now: Date,
+	sessionDurationMs: number,
+): SessionBlock {
 	const endTime = new Date(startTime.getTime() + sessionDurationMs);
 	const lastEntry = entries[entries.length - 1];
 	const actualEndTime = lastEntry != null ? lastEntry.timestamp : startTime;
@@ -210,7 +213,11 @@ function createBlock(startTime: Date, entries: LoadedUsageEntry[], now: Date, se
  * @param sessionDurationMs - Session duration in milliseconds
  * @returns Gap block or null if gap is too short
  */
-function createGapBlock(lastActivityTime: Date, nextActivityTime: Date, sessionDurationMs: number): SessionBlock | null {
+function createGapBlock(
+	lastActivityTime: Date,
+	nextActivityTime: Date,
+	sessionDurationMs: number,
+): SessionBlock | null {
 	// Only create gap blocks for gaps longer than the session duration
 	const gapDuration = nextActivityTime.getTime() - lastActivityTime.getTime();
 	if (gapDuration <= sessionDurationMs) {
@@ -267,7 +274,8 @@ export function calculateBurnRate(block: SessionBlock): BurnRate | null {
 
 	// For burn rate indicator (HIGH/MODERATE/NORMAL), use only input and output tokens
 	// to maintain consistent thresholds with pre-cache behavior
-	const nonCacheTokens = (block.tokenCounts.inputTokens ?? 0) + (block.tokenCounts.outputTokens ?? 0);
+	const nonCacheTokens =
+		(block.tokenCounts.inputTokens ?? 0) + (block.tokenCounts.outputTokens ?? 0);
 	const tokensPerMinuteForIndicator = nonCacheTokens / durationMinutes;
 
 	const costPerHour = (block.costUSD / durationMinutes) * 60;
@@ -318,7 +326,10 @@ export function projectBlockUsage(block: SessionBlock): ProjectedUsage | null {
  * @param days - Number of recent days to include (default: 3)
  * @returns Filtered array of recent or active blocks
  */
-export function filterRecentBlocks(blocks: SessionBlock[], days: number = DEFAULT_RECENT_DAYS): SessionBlock[] {
+export function filterRecentBlocks(
+	blocks: SessionBlock[],
+	days: number = DEFAULT_RECENT_DAYS,
+): SessionBlock[] {
 	const now = new Date();
 	const cutoffTime = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
 
@@ -415,15 +426,24 @@ if (import.meta.vitest != null) {
 			const blocks = identifySessionBlocks(entries);
 			expect(blocks).toHaveLength(1);
 			expect(blocks[0]?.entries[0]?.timestamp).toEqual(baseTime);
-			expect(blocks[0]?.entries[1]?.timestamp).toEqual(new Date(baseTime.getTime() + 1 * 60 * 60 * 1000));
-			expect(blocks[0]?.entries[2]?.timestamp).toEqual(new Date(baseTime.getTime() + 2 * 60 * 60 * 1000));
+			expect(blocks[0]?.entries[1]?.timestamp).toEqual(
+				new Date(baseTime.getTime() + 1 * 60 * 60 * 1000),
+			);
+			expect(blocks[0]?.entries[2]?.timestamp).toEqual(
+				new Date(baseTime.getTime() + 2 * 60 * 60 * 1000),
+			);
 		});
 
 		it('aggregates different models correctly', () => {
 			const baseTime = new Date('2024-01-01T10:00:00Z');
 			const entries: LoadedUsageEntry[] = [
 				createMockEntry(baseTime, 1000, 500, 'claude-sonnet-4-20250514'),
-				createMockEntry(new Date(baseTime.getTime() + 60 * 60 * 1000), 2000, 1000, 'claude-opus-4-20250514'),
+				createMockEntry(
+					new Date(baseTime.getTime() + 60 * 60 * 1000),
+					2000,
+					1000,
+					'claude-opus-4-20250514',
+				),
 			];
 
 			const blocks = identifySessionBlocks(entries);
@@ -598,13 +618,23 @@ if (import.meta.vitest != null) {
 				entries: [
 					{
 						timestamp: baseTime,
-						usage: { inputTokens: 1000, outputTokens: 500, cacheCreationInputTokens: 0, cacheReadInputTokens: 0 },
+						usage: {
+							inputTokens: 1000,
+							outputTokens: 500,
+							cacheCreationInputTokens: 0,
+							cacheReadInputTokens: 0,
+						},
 						costUSD: 0.01,
 						model: 'claude-sonnet-4-20250514',
 					},
 					{
 						timestamp: new Date(baseTime.getTime() + 60 * 1000),
-						usage: { inputTokens: 500, outputTokens: 200, cacheCreationInputTokens: 2000, cacheReadInputTokens: 8000 },
+						usage: {
+							inputTokens: 500,
+							outputTokens: 200,
+							cacheCreationInputTokens: 2000,
+							cacheReadInputTokens: 8000,
+						},
 						costUSD: 0.02,
 						model: 'claude-sonnet-4-20250514',
 					},
@@ -972,7 +1002,9 @@ if (import.meta.vitest != null) {
 			// Gap block should start 3 hours after last activity in first block
 			const gapBlock = blocks[1];
 			expect(gapBlock?.isGap).toBe(true);
-			expect(gapBlock?.startTime).toEqual(new Date(baseTime.getTime() + 1 * 60 * 60 * 1000 + 3 * 60 * 60 * 1000)); // 1h + 3h
+			expect(gapBlock?.startTime).toEqual(
+				new Date(baseTime.getTime() + 1 * 60 * 60 * 1000 + 3 * 60 * 60 * 1000),
+			); // 1h + 3h
 			expect(gapBlock?.endTime).toEqual(new Date(baseTime.getTime() + 5 * 60 * 60 * 1000)); // 5h
 		});
 
@@ -990,9 +1022,7 @@ if (import.meta.vitest != null) {
 
 		it('defaults to 5 hours when no duration specified', () => {
 			const baseTime = new Date('2024-01-01T10:00:00Z');
-			const entries: LoadedUsageEntry[] = [
-				createMockEntry(baseTime),
-			];
+			const entries: LoadedUsageEntry[] = [createMockEntry(baseTime)];
 
 			const blocksDefault = identifySessionBlocks(entries);
 			const blocksExplicit = identifySessionBlocks(entries, 5);

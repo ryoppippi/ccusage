@@ -1,10 +1,10 @@
 [default]
 locale = 'en-us'
 extend-ignore-re = [
-  "(?s)(#|//)\\s*spellchecker:off.*?\\n\\s*(#|//)\\s*spellchecker:on",
-  "(?s)<!--\\s*spellchecker:off.*?\\n\\s*spellchecker:on\\s*-->",
-  "(?Rm)^.*#\\s*spellchecker:disable-line$",
-  "(?m)^.*<!--\\s*spellchecker:disable-line\\s*-->\\n.*$"
+	"(?s)(#|//)\\s*spellchecker:off.*?\\n\\s*(#|//)\\s*spellchecker:on",
+	"(?s)<!--\\s*spellchecker:off.*?\\n\\s*spellchecker:on\\s*-->",
+	"(?Rm)^.*#\\s*spellchecker:disable-line$",
+	"(?m)^.*<!--\\s*spellchecker:disable-line\\s*-->\\n.*$",
 ]
 
 [default.extend-words]
@@ -12,9 +12,4 @@ color = "color"
 
 [files]
 ignore-hidden = false
-extend-exclude = [
-  ".git",
-  "node_modules",
-  "pnpm-lock.yaml",
-  "pnpm-workspace.yaml",
-]
+extend-exclude = [".git", "node_modules", "pnpm-lock.yaml", "pnpm-workspace.yaml"]

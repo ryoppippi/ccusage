@@ -75,7 +75,10 @@ function getCodexInvocation(): CliInvocation {
 	return cachedCodexInvocation;
 }
 
-async function runCodexCliJson(command: 'daily' | 'monthly', parameters: z.infer<typeof codexParametersSchema>): Promise<string> {
+async function runCodexCliJson(
+	command: 'daily' | 'monthly',
+	parameters: z.infer<typeof codexParametersSchema>,
+): Promise<string> {
 	const { executable, prefixArgs } = getCodexInvocation();
 	const cliArgs: string[] = [...prefixArgs, command, '--json'];
 
@@ -97,8 +100,7 @@ async function runCodexCliJson(command: 'daily' | 'monthly', parameters: z.infer
 	}
 	if (parameters.offline === true) {
 		cliArgs.push('--offline');
-	}
-	else if (parameters.offline === false) {
+	} else if (parameters.offline === false) {
 		cliArgs.push('--no-offline');
 	}
 

@@ -13,7 +13,11 @@ import { Result } from '@praha/byethrow';
 import { createFixture } from 'fs-fixture';
 import { glob } from 'tinyglobby';
 import * as v from 'valibot';
-import { CLAUDE_PROJECTS_DIR_NAME, DEBUG_MATCH_THRESHOLD_PERCENT, USAGE_DATA_GLOB_PATTERN } from './_consts.ts';
+import {
+	CLAUDE_PROJECTS_DIR_NAME,
+	DEBUG_MATCH_THRESHOLD_PERCENT,
+	USAGE_DATA_GLOB_PATTERN,
+} from './_consts.ts';
 import { PricingFetcher } from './_pricing-fetcher.ts';
 import { getClaudePaths, usageDataSchema } from './data-loader.ts';
 import { logger } from './logger.ts';
@@ -72,14 +76,11 @@ type MismatchStats = {
  * @param claudePath - Optional path to Claude data directory
  * @returns Statistics about pricing mismatches found
  */
-export async function detectMismatches(
-	claudePath?: string,
-): Promise<MismatchStats> {
+export async function detectMismatches(claudePath?: string): Promise<MismatchStats> {
 	let claudeDir: string;
 	if (claudePath != null && claudePath !== '') {
 		claudeDir = claudePath;
-	}
-	else {
+	} else {
 		const paths = getClaudePaths();
 		if (paths.length === 0) {
 			throw new Error('No valid Claude data directory found');
@@ -109,7 +110,7 @@ export async function detectMismatches(
 		const lines = content
 			.trim()
 			.split('\n')
-			.filter(line => line.length > 0);
+			.filter((line) => line.length > 0);
 
 		for (const line of lines) {
 			const parseParser = Result.try({
@@ -133,22 +134,20 @@ export async function detectMismatches(
 
 			// Check if we have both costUSD and model
 			if (
-				data.costUSD !== undefined
-				&& data.message.model != null
-				&& data.message.model !== '<synthetic>'
+				data.costUSD !== undefined &&
+				data.message.model != null &&
+				data.message.model !== '<synthetic>'
 			) {
 				stats.entriesWithBoth++;
 
 				const model = data.message.model;
-				const calculatedCost = await Result.unwrap(fetcher.calculateCostFromTokens(
-					data.message.usage,
-					model,
-				));
+				const calculatedCost = await Result.unwrap(
+					fetcher.calculateCostFromTokens(data.message.usage, model),
+				);
 
 				// Only compare if we could calculate a cost
 				const difference = Math.abs(data.costUSD - calculatedCost);
-				const percentDiff
-					= data.costUSD > 0 ? (difference / data.costUSD) * 100 : 0;
+				const percentDiff = data.costUSD > 0 ? (difference / data.costUSD) * 100 : 0;
 
 				// Update model statistics
 				const modelStat = stats.modelStats.get(model) ?? {
@@ -172,16 +171,14 @@ export async function detectMismatches(
 					// Consider it a match if within the defined threshold (to account for floating point)
 					if (percentDiff < DEBUG_MATCH_THRESHOLD_PERCENT) {
 						versionStat.matches++;
-					}
-					else {
+					} else {
 						versionStat.mismatches++;
 					}
 
 					// Update average percent difference for version
-					versionStat.avgPercentDiff
-						= (versionStat.avgPercentDiff * (versionStat.total - 1)
-							+ percentDiff)
-						/ versionStat.total;
+					versionStat.avgPercentDiff =
+						(versionStat.avgPercentDiff * (versionStat.total - 1) + percentDiff) /
+						versionStat.total;
 					stats.versionStats.set(data.version, versionStat);
 				}
 
@@ -189,8 +186,7 @@ export async function detectMismatches(
 				if (percentDiff < 0.1) {
 					stats.matches++;
 					modelStat.matches++;
-				}
-				else {
+				} else {
 					stats.mismatches++;
 					modelStat.mismatches++;
 					stats.discrepancies.push({
@@ -206,9 +202,8 @@ export async function detectMismatches(
 				}
 
 				// Update average percent difference
-				modelStat.avgPercentDiff
-					= (modelStat.avgPercentDiff * (modelStat.total - 1) + percentDiff)
-						/ modelStat.total;
+				modelStat.avgPercentDiff =
+					(modelStat.avgPercentDiff * (modelStat.total - 1) + percentDiff) / modelStat.total;
 				stats.modelStats.set(model, modelStat);
 			}
 		}
@@ -222,10 +217,7 @@ export async function detectMismatches(
  * @param stats - Mismatch statistics to report
  * @param sampleCount - Number of sample discrepancies to show (default: 5)
  */
-export function printMismatchReport(
-	stats: MismatchStats,
-	sampleCount = 5,
-): void {
+export function printMismatchReport(stats: MismatchStats, sampleCount = 5): void {
 	if (stats.entriesWithBoth === 0) {
 		logger.info('No pricing data found to analyze.');
 		return;
@@ -234,12 +226,8 @@ export function printMismatchReport(
 	const matchRate = (stats.matches / stats.entriesWithBoth) * 100;
 
 	logger.info('\n=== Pricing Mismatch Debug Report ===');
-	logger.info(
-		`Total entries processed: ${stats.totalEntries.toLocaleString()}`,
-	);
-	logger.info(
-		`Entries with both costUSD and model: ${stats.entriesWithBoth.toLocaleString()}`,
-	);
+	logger.info(`Total entries processed: ${stats.totalEntries.toLocaleString()}`);
+	logger.info(`Entries with both costUSD and model: ${stats.entriesWithBoth.toLocaleString()}`);
 	logger.info(`Matches (within 0.1%): ${stats.matches.toLocaleString()}`);
 	logger.info(`Mismatches: ${stats.mismatches.toLocaleString()}`);
 	logger.info(`Match rate: ${matchRate.toFixed(2)}%`);
@@ -260,9 +248,7 @@ export function printMismatchReport(
 					`  Matches: ${modelStat.matches.toLocaleString()} (${modelMatchRate.toFixed(1)}%)`,
 				);
 				logger.info(`  Mismatches: ${modelStat.mismatches.toLocaleString()}`);
-				logger.info(
-					`  Avg % difference: ${modelStat.avgPercentDiff.toFixed(1)}%`,
-				);
+				logger.info(`  Avg % difference: ${modelStat.avgPercentDiff.toFixed(1)}%`);
 			}
 		}
 	}
@@ -282,9 +268,7 @@ export function printMismatchReport(
 				`  Matches: ${versionStat.matches.toLocaleString()} (${versionMatchRate.toFixed(1)}%)`,
 			);
 			logger.info(`  Mismatches: ${versionStat.mismatches.toLocaleString()}`);
-			logger.info(
-				`  Avg % difference: ${versionStat.avgPercentDiff.toFixed(1)}%`,
-			);
+			logger.info(`  Avg % difference: ${versionStat.avgPercentDiff.toFixed(1)}%`);
 		}
 	}
 
@@ -299,9 +283,7 @@ export function printMismatchReport(
 			logger.info(`Model: ${disc.model}`);
 			logger.info(`Original cost: $${disc.originalCost.toFixed(6)}`);
 			logger.info(`Calculated cost: $${disc.calculatedCost.toFixed(6)}`);
-			logger.info(
-				`Difference: $${disc.difference.toFixed(6)} (${disc.percentDiff.toFixed(2)}%)`,
-			);
+			logger.info(`Difference: $${disc.difference.toFixed(6)} (${disc.percentDiff.toFixed(2)}%)`);
 			logger.info(`Tokens: ${JSON.stringify(disc.usage)}`);
 			logger.info('---');
 		}
@@ -383,7 +365,7 @@ if (import.meta.vitest != null) {
 							timestamp: '2024-01-01T12:00:00Z',
 							costUSD: 0.001,
 							message: {
-							// No model
+								// No model
 								usage: { input_tokens: 50, output_tokens: 10 },
 							},
 						}),

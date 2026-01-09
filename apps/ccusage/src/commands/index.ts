@@ -9,7 +9,14 @@ import { statuslineCommand } from './statusline.ts';
 import { weeklyCommand } from './weekly.ts';
 
 // Re-export all commands for easy importing
-export { blocksCommand, dailyCommand, monthlyCommand, sessionCommand, statuslineCommand, weeklyCommand };
+export {
+	blocksCommand,
+	dailyCommand,
+	monthlyCommand,
+	sessionCommand,
+	statuslineCommand,
+	weeklyCommand,
+};
 
 /**
  * Command entries as tuple array
@@ -26,7 +33,7 @@ export const subCommandUnion = [
 /**
  * Available command names extracted from union
  */
-export type CommandName = typeof subCommandUnion[number][0];
+export type CommandName = (typeof subCommandUnion)[number][0];
 
 /**
  * Map of available CLI subcommands

@@ -1,6 +1,12 @@
 import type { UsageReportConfig } from '@ccusage/terminal/table';
 import process from 'node:process';
-import { addEmptySeparatorRow, createUsageReportTable, formatTotalsRow, formatUsageDataRow, pushBreakdownRows } from '@ccusage/terminal/table';
+import {
+	addEmptySeparatorRow,
+	createUsageReportTable,
+	formatTotalsRow,
+	formatUsageDataRow,
+	pushBreakdownRows,
+} from '@ccusage/terminal/table';
 import { Result } from '@praha/byethrow';
 import { define } from 'gunshi';
 import { loadConfig, mergeConfigWithArgs } from '../_config-loader-tokens.ts';
@@ -8,11 +14,7 @@ import { WEEK_DAYS } from '../_consts.ts';
 import { formatDateCompact } from '../_date-utils.ts';
 import { processWithJq } from '../_jq-processor.ts';
 import { sharedArgs } from '../_shared-args.ts';
-import {
-	calculateTotals,
-	createTotalsObject,
-	getTotalTokens,
-} from '../calculate-cost.ts';
+import { calculateTotals, createTotalsObject, getTotalTokens } from '../calculate-cost.ts';
 import { loadWeeklyUsageData } from '../data-loader.ts';
 import { detectMismatches, printMismatchReport } from '../debug.ts';
 import { log, logger } from '../logger.ts';
@@ -58,8 +60,7 @@ export const weeklyCommand = define({
 					},
 				};
 				log(JSON.stringify(emptyOutput, null, 2));
-			}
-			else {
+			} else {
 				logger.warn('No Claude usage data found.');
 			}
 			process.exit(0);
@@ -77,7 +78,7 @@ export const weeklyCommand = define({
 		if (useJson) {
 			// Output JSON format
 			const jsonOutput = {
-				weekly: weeklyData.map(data => ({
+				weekly: weeklyData.map((data) => ({
 					week: data.week,
 					inputTokens: data.inputTokens,
 					outputTokens: data.outputTokens,
@@ -95,23 +96,22 @@ export const weeklyCommand = define({
 			if (mergedOptions.jq != null) {
 				const jqResult = await processWithJq(jsonOutput, mergedOptions.jq);
 				if (Result.isFailure(jqResult)) {
-					logger.error((jqResult.error).message);
+					logger.error(jqResult.error.message);
 					process.exit(1);
 				}
 				log(jqResult.value);
-			}
-			else {
+			} else {
 				log(JSON.stringify(jsonOutput, null, 2));
 			}
-		}
-		else {
+		} else {
 			// Print header
 			logger.box('Claude Code Token Usage Report - Weekly');
 
 			// Create table with compact mode support
 			const tableConfig: UsageReportConfig = {
 				firstColumnName: 'Week',
-				dateFormatter: (dateStr: string) => formatDateCompact(dateStr, mergedOptions.timezone, mergedOptions.locale ?? undefined),
+				dateFormatter: (dateStr: string) =>
+					formatDateCompact(dateStr, mergedOptions.timezone, mergedOptions.locale ?? undefined),
 				forceCompact: ctx.values.compact,
 			};
 			const table = createUsageReportTable(tableConfig);

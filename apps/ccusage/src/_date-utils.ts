@@ -37,7 +37,10 @@ function createDateFormatter(timezone: string | undefined, locale: string): Intl
  * @param locale - Locale to use for formatting
  * @returns Intl.DateTimeFormat instance
  */
-function createDatePartsFormatter(timezone: string | undefined, locale: string): Intl.DateTimeFormat {
+function createDatePartsFormatter(
+	timezone: string | undefined,
+	locale: string,
+): Intl.DateTimeFormat {
 	return new Intl.DateTimeFormat(locale, {
 		year: 'numeric',
 		month: '2-digit',
@@ -67,7 +70,11 @@ export function formatDate(dateStr: string, timezone?: string, locale?: string):
  * @param locale - Locale to use for formatting
  * @returns Formatted date string with newline separator (YYYY\nMM-DD)
  */
-export function formatDateCompact(dateStr: string, timezone: string | undefined, locale: string): string {
+export function formatDateCompact(
+	dateStr: string,
+	timezone: string | undefined,
+	locale: string,
+): string {
 	// For YYYY-MM-DD format, append T00:00:00 to parse as local date
 	// Without this, new Date('YYYY-MM-DD') interprets as UTC midnight
 	const parseResult = v.safeParse(dailyDateSchema, dateStr);
@@ -78,9 +85,9 @@ export function formatDateCompact(dateStr: string, timezone: string | undefined,
 		: new Date(dateStr);
 	const formatter = createDatePartsFormatter(timezone, locale);
 	const parts = formatter.formatToParts(date);
-	const year = parts.find(p => p.type === 'year')?.value ?? '';
-	const month = parts.find(p => p.type === 'month')?.value ?? '';
-	const day = parts.find(p => p.type === 'day')?.value ?? '';
+	const year = parts.find((p) => p.type === 'year')?.value ?? '';
+	const month = parts.find((p) => p.type === 'month')?.value ?? '';
+	const day = parts.find((p) => p.type === 'day')?.value ?? '';
 	return `${year}\n${month}-${day}`;
 }
 
@@ -99,9 +106,9 @@ export function sortByDate<T>(
 	const sorted = sort(items);
 	switch (order) {
 		case 'desc':
-			return sorted.desc(item => new Date(getDate(item)).getTime());
+			return sorted.desc((item) => new Date(getDate(item)).getTime());
 		case 'asc':
-			return sorted.asc(item => new Date(getDate(item)).getTime());
+			return sorted.asc((item) => new Date(getDate(item)).getTime());
 		default:
 			unreachable(order);
 	}
@@ -223,18 +230,18 @@ if (import.meta.vitest != null) {
 		];
 
 		it('should sort by date in descending order by default', () => {
-			const result = sortByDate(testData, item => item.date);
-			expect(result.map(item => item.id)).toEqual([2, 3, 1]);
+			const result = sortByDate(testData, (item) => item.date);
+			expect(result.map((item) => item.id)).toEqual([2, 3, 1]);
 		});
 
 		it('should sort by date in ascending order when specified', () => {
-			const result = sortByDate(testData, item => item.date, 'asc');
-			expect(result.map(item => item.id)).toEqual([1, 3, 2]);
+			const result = sortByDate(testData, (item) => item.date, 'asc');
+			expect(result.map((item) => item.id)).toEqual([1, 3, 2]);
 		});
 
 		it('should sort by date in descending order when explicitly specified', () => {
-			const result = sortByDate(testData, item => item.date, 'desc');
-			expect(result.map(item => item.id)).toEqual([2, 3, 1]);
+			const result = sortByDate(testData, (item) => item.date, 'desc');
+			expect(result.map((item) => item.id)).toEqual([2, 3, 1]);
 		});
 
 		it('should handle Date objects', () => {
@@ -243,8 +250,8 @@ if (import.meta.vitest != null) {
 				{ id: 2, date: new Date('2024-01-03T10:00:00Z') },
 				{ id: 3, date: new Date('2024-01-02T10:00:00Z') },
 			];
-			const result = sortByDate(dateData, item => item.date);
-			expect(result.map(item => item.id)).toEqual([2, 3, 1]);
+			const result = sortByDate(dateData, (item) => item.date);
+			expect(result.map((item) => item.id)).toEqual([2, 3, 1]);
 		});
 	});
 
@@ -258,23 +265,23 @@ if (import.meta.vitest != null) {
 		];
 
 		it('should return all items when no date filters are provided', () => {
-			const result = filterByDateRange(testData, item => item.date);
+			const result = filterByDateRange(testData, (item) => item.date);
 			expect(result).toEqual(testData);
 		});
 
 		it('should filter by since date', () => {
-			const result = filterByDateRange(testData, item => item.date, '20240103');
-			expect(result.map(item => item.id)).toEqual([3, 4, 5]);
+			const result = filterByDateRange(testData, (item) => item.date, '20240103');
+			expect(result.map((item) => item.id)).toEqual([3, 4, 5]);
 		});
 
 		it('should filter by until date', () => {
-			const result = filterByDateRange(testData, item => item.date, undefined, '20240103');
-			expect(result.map(item => item.id)).toEqual([1, 2, 3]);
+			const result = filterByDateRange(testData, (item) => item.date, undefined, '20240103');
+			expect(result.map((item) => item.id)).toEqual([1, 2, 3]);
 		});
 
 		it('should filter by both since and until dates', () => {
-			const result = filterByDateRange(testData, item => item.date, '20240102', '20240104');
-			expect(result.map(item => item.id)).toEqual([2, 3, 4]);
+			const result = filterByDateRange(testData, (item) => item.date, '20240102', '20240104');
+			expect(result.map((item) => item.id)).toEqual([2, 3, 4]);
 		});
 
 		it('should handle timestamp format dates', () => {
@@ -283,8 +290,8 @@ if (import.meta.vitest != null) {
 				{ id: 2, date: '2024-01-02T10:00:00Z' },
 				{ id: 3, date: '2024-01-03T10:00:00Z' },
 			];
-			const result = filterByDateRange(timestampData, item => item.date, '20240102');
-			expect(result.map(item => item.id)).toEqual([2, 3]);
+			const result = filterByDateRange(timestampData, (item) => item.date, '20240102');
+			expect(result.map((item) => item.id)).toEqual([2, 3]);
 		});
 	});
 

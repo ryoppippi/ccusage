@@ -1,18 +1,27 @@
 import type { SessionBlock } from '../_session-blocks.ts';
 import process from 'node:process';
-import { formatCurrency, formatModelsDisplayMultiline, formatNumber, ResponsiveTable } from '@ccusage/terminal/table';
+import {
+	formatCurrency,
+	formatModelsDisplayMultiline,
+	formatNumber,
+	ResponsiveTable,
+} from '@ccusage/terminal/table';
 import { Result } from '@praha/byethrow';
 import { define } from 'gunshi';
 import pc from 'picocolors';
 import { loadConfig, mergeConfigWithArgs } from '../_config-loader-tokens.ts';
-import { BLOCKS_COMPACT_WIDTH_THRESHOLD, BLOCKS_DEFAULT_TERMINAL_WIDTH, BLOCKS_WARNING_THRESHOLD, DEFAULT_RECENT_DAYS } from '../_consts.ts';
+import {
+	BLOCKS_COMPACT_WIDTH_THRESHOLD,
+	BLOCKS_DEFAULT_TERMINAL_WIDTH,
+	BLOCKS_WARNING_THRESHOLD,
+	DEFAULT_RECENT_DAYS,
+} from '../_consts.ts';
 import { processWithJq } from '../_jq-processor.ts';
 import {
 	calculateBurnRate,
 	DEFAULT_SESSION_DURATION_HOURS,
 	filterRecentBlocks,
 	projectBlockUsage,
-
 } from '../_session-blocks.ts';
 import { sharedCommandConfig } from '../_shared-args.ts';
 import { getTotalTokens } from '../_token-utils.ts';
@@ -43,13 +52,16 @@ function formatBlockTime(block: SessionBlock, compact = false, locale?: string):
 					minute: '2-digit',
 				})
 			: block.endTime.toLocaleString(locale);
-		const duration = Math.round((block.endTime.getTime() - block.startTime.getTime()) / (1000 * 60 * 60));
+		const duration = Math.round(
+			(block.endTime.getTime() - block.startTime.getTime()) / (1000 * 60 * 60),
+		);
 		return compact ? `${start}-${end}\n(${duration}h gap)` : `${start} - ${end} (${duration}h gap)`;
 	}
 
-	const duration = block.actualEndTime != null
-		? Math.round((block.actualEndTime.getTime() - block.startTime.getTime()) / (1000 * 60))
-		: 0;
+	const duration =
+		block.actualEndTime != null
+			? Math.round((block.actualEndTime.getTime() - block.startTime.getTime()) / (1000 * 60))
+			: 0;
 
 	if (block.isActive) {
 		const now = new Date();
@@ -166,8 +178,7 @@ export const blocksCommand = define({
 		if (blocks.length === 0) {
 			if (useJson) {
 				log(JSON.stringify({ blocks: [] }));
-			}
-			else {
+			} else {
 				logger.warn('No Claude usage data found.');
 			}
 			process.exit(0);
@@ -175,7 +186,11 @@ export const blocksCommand = define({
 
 		// Calculate max tokens from ALL blocks before applying filters
 		let maxTokensFromAll = 0;
-		if (ctx.values.tokenLimit === 'max' || ctx.values.tokenLimit == null || ctx.values.tokenLimit === '') {
+		if (
+			ctx.values.tokenLimit === 'max' ||
+			ctx.values.tokenLimit == null ||
+			ctx.values.tokenLimit === ''
+		) {
 			for (const block of blocks) {
 				if (!(block.isGap ?? false) && !block.isActive) {
 					const blockTokens = getTotalTokens(block.tokenCounts);
@@ -199,8 +214,7 @@ export const blocksCommand = define({
 			if (blocks.length === 0) {
 				if (useJson) {
 					log(JSON.stringify({ blocks: [], message: 'No active block' }));
-				}
-				else {
+				} else {
 					logger.info('No active session block found.');
 				}
 				process.exit(0);
@@ -228,21 +242,25 @@ export const blocksCommand = define({
 						models: block.models,
 						burnRate,
 						projection,
-						tokenLimitStatus: projection != null && ctx.values.tokenLimit != null
-							? (() => {
-									const limit = parseTokenLimit(ctx.values.tokenLimit, maxTokensFromAll);
-									return limit != null
-										? {
-												limit,
-												projectedUsage: projection.totalTokens,
-												percentUsed: (projection.totalTokens / limit) * 100,
-												status: projection.totalTokens > limit
-													? 'exceeds'
-													: projection.totalTokens > limit * BLOCKS_WARNING_THRESHOLD ? 'warning' : 'ok',
-											}
-										: undefined;
-								})()
-							: undefined,
+						tokenLimitStatus:
+							projection != null && ctx.values.tokenLimit != null
+								? (() => {
+										const limit = parseTokenLimit(ctx.values.tokenLimit, maxTokensFromAll);
+										return limit != null
+											? {
+													limit,
+													projectedUsage: projection.totalTokens,
+													percentUsed: (projection.totalTokens / limit) * 100,
+													status:
+														projection.totalTokens > limit
+															? 'exceeds'
+															: projection.totalTokens > limit * BLOCKS_WARNING_THRESHOLD
+																? 'warning'
+																: 'ok',
+												}
+											: undefined;
+									})()
+								: undefined,
 						usageLimitResetTime: block.usageLimitResetTime,
 					};
 				}),
@@ -252,16 +270,14 @@ export const blocksCommand = define({
 			if (ctx.values.jq != null) {
 				const jqResult = await processWithJq(jsonOutput, ctx.values.jq);
 				if (Result.isFailure(jqResult)) {
-					logger.error((jqResult.error).message);
+					logger.error(jqResult.error.message);
 					process.exit(1);
 				}
 				log(jqResult.value);
-			}
-			else {
+			} else {
 				log(JSON.stringify(jsonOutput, null, 2));
 			}
-		}
-		else {
+		} else {
 			// Table output
 			if (ctx.values.active && blocks.length === 1) {
 				// Detailed active block view
@@ -276,14 +292,12 @@ export const blocksCommand = define({
 				logger.box('Current Session Block Status');
 
 				const now = new Date();
-				const elapsed = Math.round(
-					(now.getTime() - block.startTime.getTime()) / (1000 * 60),
-				);
-				const remaining = Math.round(
-					(block.endTime.getTime() - now.getTime()) / (1000 * 60),
-				);
+				const elapsed = Math.round((now.getTime() - block.startTime.getTime()) / (1000 * 60));
+				const remaining = Math.round((block.endTime.getTime() - now.getTime()) / (1000 * 60));
 
-				log(`Block Started: ${pc.cyan(block.startTime.toLocaleString())} (${pc.yellow(`${Math.floor(elapsed / 60)}h ${elapsed % 60}m`)} ago)`);
+				log(
+					`Block Started: ${pc.cyan(block.startTime.toLocaleString())} (${pc.yellow(`${Math.floor(elapsed / 60)}h ${elapsed % 60}m`)} ago)`,
+				);
 				log(`Time Remaining: ${pc.green(`${Math.floor(remaining / 60)}h ${remaining % 60}m`)}\n`);
 
 				log(pc.bold('Current Usage:'));
@@ -309,22 +323,24 @@ export const blocksCommand = define({
 							const currentTokens = getTotalTokens(block.tokenCounts);
 							const remainingTokens = Math.max(0, limit - currentTokens);
 							const percentUsed = (projection.totalTokens / limit) * 100;
-							const status = percentUsed > 100
-								? pc.red('EXCEEDS LIMIT')
-								: percentUsed > BLOCKS_WARNING_THRESHOLD * 100
-									? pc.yellow('WARNING')
-									: pc.green('OK');
+							const status =
+								percentUsed > 100
+									? pc.red('EXCEEDS LIMIT')
+									: percentUsed > BLOCKS_WARNING_THRESHOLD * 100
+										? pc.yellow('WARNING')
+										: pc.green('OK');
 
 							log(pc.bold('Token Limit Status:'));
 							log(`  Limit:            ${formatNumber(limit)} tokens`);
-							log(`  Current Usage:    ${formatNumber(currentTokens)} (${((currentTokens / limit) * 100).toFixed(1)}%)`);
+							log(
+								`  Current Usage:    ${formatNumber(currentTokens)} (${((currentTokens / limit) * 100).toFixed(1)}%)`,
+							);
 							log(`  Remaining:        ${formatNumber(remainingTokens)} tokens`);
 							log(`  Projected Usage:  ${percentUsed.toFixed(1)}% ${status}`);
 						}
 					}
 				}
-			}
-			else {
+			} else {
 				// Table view for multiple blocks
 				logger.box('Claude Code Token Usage Report - Session Blocks');
 
@@ -371,10 +387,8 @@ export const blocksCommand = define({
 						}
 						gapRow.push(pc.gray('-'));
 						table.push(gapRow);
-					}
-					else {
-						const totalTokens
-							= getTotalTokens(block.tokenCounts);
+					} else {
+						const totalTokens = getTotalTokens(block.tokenCounts);
 						const status = block.isActive ? pc.green('ACTIVE') : '';
 
 						const row = [
@@ -400,18 +414,20 @@ export const blocksCommand = define({
 							if (actualTokenLimit != null && actualTokenLimit > 0) {
 								const currentTokens = getTotalTokens(block.tokenCounts);
 								const remainingTokens = Math.max(0, actualTokenLimit - currentTokens);
-								const remainingText = remainingTokens > 0
-									? formatNumber(remainingTokens)
-									: pc.red('0');
+								const remainingText =
+									remainingTokens > 0 ? formatNumber(remainingTokens) : pc.red('0');
 
 								// Calculate remaining percentage (how much of limit is left)
-								const remainingPercent = ((actualTokenLimit - currentTokens) / actualTokenLimit) * 100;
-								const remainingPercentText = remainingPercent > 0
-									? `${remainingPercent.toFixed(1)}%`
-									: pc.red('0.0%');
+								const remainingPercent =
+									((actualTokenLimit - currentTokens) / actualTokenLimit) * 100;
+								const remainingPercentText =
+									remainingPercent > 0 ? `${remainingPercent.toFixed(1)}%` : pc.red('0.0%');
 
 								const remainingRow = [
-									{ content: pc.gray(`(assuming ${formatNumber(actualTokenLimit)} token limit)`), hAlign: 'right' as const },
+									{
+										content: pc.gray(`(assuming ${formatNumber(actualTokenLimit)} token limit)`),
+										hAlign: 'right' as const,
+									},
 									pc.blue('REMAINING'),
 									'',
 									remainingText,
@@ -425,9 +441,12 @@ export const blocksCommand = define({
 							const projection = projectBlockUsage(block);
 							if (projection != null) {
 								const projectedTokens = formatNumber(projection.totalTokens);
-								const projectedText = actualTokenLimit != null && actualTokenLimit > 0 && projection.totalTokens > actualTokenLimit
-									? pc.red(projectedTokens)
-									: projectedTokens;
+								const projectedText =
+									actualTokenLimit != null &&
+									actualTokenLimit > 0 &&
+									projection.totalTokens > actualTokenLimit
+										? pc.red(projectedTokens)
+										: projectedTokens;
 
 								const projectedRow = [
 									{ content: pc.gray('(assuming current burn rate)'), hAlign: 'right' as const },

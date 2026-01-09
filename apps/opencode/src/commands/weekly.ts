@@ -33,7 +33,7 @@ function getISOWeek(date: Date): string {
 	const yearStart = new Date(d.getFullYear(), 0, 1);
 
 	// Calculate full weeks to nearest Thursday
-	const weekNo = Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+	const weekNo = Math.ceil(((d.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
 
 	// Return formatted string
 	return `${d.getFullYear()}-W${String(weekNo).padStart(2, '0')}`;
@@ -59,7 +59,9 @@ export const weeklyCommand = define({
 		const entries = await loadOpenCodeMessages();
 
 		if (entries.length === 0) {
-			const output = jsonOutput ? JSON.stringify({ weekly: [], totals: null }) : 'No OpenCode usage data found.';
+			const output = jsonOutput
+				? JSON.stringify({ weekly: [], totals: null })
+				: 'No OpenCode usage data found.';
 			// eslint-disable-next-line no-console
 			console.log(output);
 			return;
@@ -67,10 +69,7 @@ export const weeklyCommand = define({
 
 		using fetcher = new LiteLLMPricingFetcher({ offline: false });
 
-		const entriesByWeek = groupBy(
-			entries,
-			entry => getISOWeek(entry.timestamp),
-		);
+		const entriesByWeek = groupBy(entries, (entry) => getISOWeek(entry.timestamp));
 
 		const weeklyData: Array<{
 			week: string;
@@ -126,11 +125,17 @@ export const weeklyCommand = define({
 		};
 
 		if (jsonOutput) {
-		// eslint-disable-next-line no-console
-			console.log(JSON.stringify({
-				weekly: weeklyData,
-				totals,
-			}, null, 2));
+			// eslint-disable-next-line no-console
+			console.log(
+				JSON.stringify(
+					{
+						weekly: weeklyData,
+						totals,
+					},
+					null,
+					2,
+				),
+			);
 			return;
 		}
 
@@ -138,7 +143,16 @@ export const weeklyCommand = define({
 		console.log('\n📊 OpenCode Token Usage Report - Weekly\n');
 
 		const table: ResponsiveTable = new ResponsiveTable({
-			head: ['Week', 'Models', 'Input', 'Output', 'Cache Create', 'Cache Read', 'Total Tokens', 'Cost (USD)'],
+			head: [
+				'Week',
+				'Models',
+				'Input',
+				'Output',
+				'Cache Create',
+				'Cache Read',
+				'Total Tokens',
+				'Cost (USD)',
+			],
 			colAligns: ['left', 'left', 'right', 'right', 'right', 'right', 'right', 'right'],
 			compactHead: ['Week', 'Models', 'Input', 'Output', 'Cost (USD)'],
 			compactColAligns: ['left', 'left', 'right', 'right', 'right'],
@@ -176,7 +190,7 @@ export const weeklyCommand = define({
 		console.log(table.toString());
 
 		if (table.isCompactMode()) {
-		// eslint-disable-next-line no-console
+			// eslint-disable-next-line no-console
 			console.log('\nRunning in Compact Mode');
 			// eslint-disable-next-line no-console
 			console.log('Expand terminal width to see cache metrics and total tokens');

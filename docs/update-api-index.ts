@@ -13,9 +13,9 @@ const descriptions = {
 	'\\_consts': 'Internal constants (not exported in public API)',
 	'calculate-cost': 'Cost calculation utilities for usage data analysis',
 	'data-loader': 'Data loading utilities for Claude Code usage analysis',
-	'debug': 'Debug utilities for cost calculation validation',
-	'index': 'Main entry point for ccusage CLI tool',
-	'logger': 'Logging utilities for the ccusage application',
+	debug: 'Debug utilities for cost calculation validation',
+	index: 'Main entry point for ccusage CLI tool',
+	logger: 'Logging utilities for the ccusage application',
 	'pricing-fetcher': 'Model pricing data fetcher for cost calculations',
 } as const;
 
@@ -33,14 +33,16 @@ async function updateApiIndex() {
 				linkPath = 'consts/index.md';
 			}
 
-			const oldPattern = new RegExp(`\\|\\s*\\[${module}\\]\\(${linkPath}\\)\\s*\\|\\s*-\\s*\\|`, 'g');
+			const oldPattern = new RegExp(
+				`\\|\\s*\\[${module}\\]\\(${linkPath}\\)\\s*\\|\\s*-\\s*\\|`,
+				'g',
+			);
 			content = content.replace(oldPattern, `| [${module}](${linkPath}) | ${description} |`);
 		}
 
 		await Bun.write(apiIndexPath, content);
 		console.log('✅ Updated API index with module descriptions');
-	}
-	catch (error) {
+	} catch (error) {
 		console.error('❌ Failed to update API index:', error);
 		process.exit(1);
 	}
@@ -53,7 +55,8 @@ async function updateConstsPage() {
 		let content = await Bun.file(constsIndexPath).text();
 
 		// Add note about constants not being exported (only if not already present)
-		const noteText = '> **Note**: These constants are internal implementation details and are not exported in the public API. They are documented here for reference purposes only.';
+		const noteText =
+			'> **Note**: These constants are internal implementation details and are not exported in the public API. They are documented here for reference purposes only.';
 
 		if (!content.includes(noteText)) {
 			const oldHeader = '# \\_consts';
@@ -66,8 +69,7 @@ ${noteText}`;
 
 		await Bun.write(constsIndexPath, content);
 		console.log('✅ Updated constants page with disclaimer');
-	}
-	catch (error) {
+	} catch (error) {
 		console.error('❌ Failed to update constants page:', error);
 		// Don't exit here as this is optional
 	}

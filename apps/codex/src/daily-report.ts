@@ -1,4 +1,11 @@
-import type { DailyReportRow, DailyUsageSummary, ModelPricing, ModelUsage, PricingSource, TokenUsageEvent } from './_types.ts';
+import type {
+	DailyReportRow,
+	DailyUsageSummary,
+	ModelPricing,
+	ModelUsage,
+	PricingSource,
+	TokenUsageEvent,
+} from './_types.ts';
 import { formatDisplayDate, isWithinRange, toDateKey } from './date-utils.ts';
 import { addUsage, calculateCostUSD, createEmptyUsage } from './token-utils.ts';
 
@@ -53,7 +60,10 @@ export async function buildDailyReport(
 		}
 
 		addUsage(summary, event);
-		const modelUsage: ModelUsage = summary.models.get(modelName) ?? { ...createEmptyUsage(), isFallback: false };
+		const modelUsage: ModelUsage = summary.models.get(modelName) ?? {
+			...createEmptyUsage(),
+			isFallback: false,
+		};
 		if (!summary.models.has(modelName)) {
 			summary.models.set(modelName, modelUsage);
 		}
@@ -77,7 +87,9 @@ export async function buildDailyReport(
 
 	const rows: DailyReportRow[] = [];
 
-	const sortedSummaries = Array.from(summaries.values()).sort((a, b) => a.date.localeCompare(b.date));
+	const sortedSummaries = Array.from(summaries.values()).sort((a, b) =>
+		a.date.localeCompare(b.date),
+	);
 	for (const summary of sortedSummaries) {
 		let cost = 0;
 		for (const [modelName, usage] of summary.models) {
@@ -113,8 +125,14 @@ if (import.meta.vitest != null) {
 	describe('buildDailyReport', () => {
 		it('aggregates events by day and calculates costs', async () => {
 			const pricing = new Map([
-				['gpt-5', { inputCostPerMToken: 1.25, cachedInputCostPerMToken: 0.125, outputCostPerMToken: 10 }],
-				['gpt-5-mini', { inputCostPerMToken: 0.6, cachedInputCostPerMToken: 0.06, outputCostPerMToken: 2 }],
+				[
+					'gpt-5',
+					{ inputCostPerMToken: 1.25, cachedInputCostPerMToken: 0.125, outputCostPerMToken: 10 },
+				],
+				[
+					'gpt-5-mini',
+					{ inputCostPerMToken: 0.6, cachedInputCostPerMToken: 0.06, outputCostPerMToken: 2 },
+				],
 			]);
 			const stubPricingSource: PricingSource = {
 				async getPricing(model: string): Promise<ModelPricing> {
@@ -125,42 +143,45 @@ if (import.meta.vitest != null) {
 					return value;
 				},
 			};
-			const report = await buildDailyReport([
+			const report = await buildDailyReport(
+				[
+					{
+						sessionId: 'session-1',
+						timestamp: '2025-09-11T03:00:00.000Z',
+						model: 'gpt-5',
+						inputTokens: 1_000,
+						cachedInputTokens: 200,
+						outputTokens: 500,
+						reasoningOutputTokens: 0,
+						totalTokens: 1_500,
+					},
+					{
+						sessionId: 'session-1',
+						timestamp: '2025-09-11T05:00:00.000Z',
+						model: 'gpt-5-mini',
+						inputTokens: 400,
+						cachedInputTokens: 100,
+						outputTokens: 200,
+						reasoningOutputTokens: 50,
+						totalTokens: 750,
+					},
+					{
+						sessionId: 'session-2',
+						timestamp: '2025-09-12T01:00:00.000Z',
+						model: 'gpt-5',
+						inputTokens: 2_000,
+						cachedInputTokens: 0,
+						outputTokens: 800,
+						reasoningOutputTokens: 0,
+						totalTokens: 2_800,
+					},
+				],
 				{
-					sessionId: 'session-1',
-					timestamp: '2025-09-11T03:00:00.000Z',
-					model: 'gpt-5',
-					inputTokens: 1_000,
-					cachedInputTokens: 200,
-					outputTokens: 500,
-					reasoningOutputTokens: 0,
-					totalTokens: 1_500,
+					pricingSource: stubPricingSource,
+					since: '2025-09-11',
+					until: '2025-09-12',
 				},
-				{
-					sessionId: 'session-1',
-					timestamp: '2025-09-11T05:00:00.000Z',
-					model: 'gpt-5-mini',
-					inputTokens: 400,
-					cachedInputTokens: 100,
-					outputTokens: 200,
-					reasoningOutputTokens: 50,
-					totalTokens: 750,
-				},
-				{
-					sessionId: 'session-2',
-					timestamp: '2025-09-12T01:00:00.000Z',
-					model: 'gpt-5',
-					inputTokens: 2_000,
-					cachedInputTokens: 0,
-					outputTokens: 800,
-					reasoningOutputTokens: 0,
-					totalTokens: 2_800,
-				},
-			], {
-				pricingSource: stubPricingSource,
-				since: '2025-09-11',
-				until: '2025-09-12',
-			});
+			);
 
 			expect(report).toHaveLength(2);
 			const first = report[0]!;
@@ -171,12 +192,13 @@ if (import.meta.vitest != null) {
 			expect(first.reasoningOutputTokens).toBe(50);
 			// gpt-5: 800 non-cached input @ 1.25, 200 cached @ 0.125, 500 output @ 10
 			// gpt-5-mini: 300 non-cached input @ 0.6, 100 cached @ 0.06, 200 output @ 2 (reasoning already included)
-			const expectedCost = (800 / 1_000_000) * 1.25
-				+ (200 / 1_000_000) * 0.125
-				+ (500 / 1_000_000) * 10
-				+ (300 / 1_000_000) * 0.6
-				+ (100 / 1_000_000) * 0.06
-				+ (200 / 1_000_000) * 2;
+			const expectedCost =
+				(800 / 1_000_000) * 1.25 +
+				(200 / 1_000_000) * 0.125 +
+				(500 / 1_000_000) * 10 +
+				(300 / 1_000_000) * 0.6 +
+				(100 / 1_000_000) * 0.06 +
+				(200 / 1_000_000) * 2;
 			expect(first.costUSD).toBeCloseTo(expectedCost, 10);
 		});
 	});

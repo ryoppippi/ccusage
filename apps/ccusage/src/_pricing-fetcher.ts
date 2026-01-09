@@ -35,11 +35,14 @@ if (import.meta.vitest != null) {
 		it('calculates cost for Claude model tokens', async () => {
 			using fetcher = new PricingFetcher(true);
 			const pricing = await Result.unwrap(fetcher.getModelPricing('claude-sonnet-4-20250514'));
-			const cost = fetcher.calculateCostFromPricing({
-				input_tokens: 1000,
-				output_tokens: 500,
-				cache_read_input_tokens: 300,
-			}, pricing!);
+			const cost = fetcher.calculateCostFromPricing(
+				{
+					input_tokens: 1000,
+					output_tokens: 500,
+					cache_read_input_tokens: 300,
+				},
+				pricing!,
+			);
 
 			expect(cost).toBeGreaterThan(0);
 		});

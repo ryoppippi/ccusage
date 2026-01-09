@@ -75,8 +75,7 @@ export class TerminalManager {
 	write(text: string): void {
 		if (this.useBuffering) {
 			this.buffer.push(text);
-		}
-		else {
+		} else {
 			this.stream.write(text);
 		}
 	}
@@ -99,8 +98,7 @@ export class TerminalManager {
 			// Wrap output in sync mode for truly atomic screen updates
 			if (this.syncMode && this.stream.isTTY) {
 				this.stream.write(SYNC_START + this.buffer.join('') + SYNC_END);
-			}
-			else {
+			} else {
 				this.stream.write(this.buffer.join(''));
 			}
 			this.buffer = [];
@@ -242,14 +240,11 @@ export function createProgressBar(
 	let color = '';
 	if (colors.critical != null && percentage >= 90) {
 		color = colors.critical;
-	}
-	else if (colors.high != null && percentage >= 80) {
+	} else if (colors.high != null && percentage >= 80) {
 		color = colors.high;
-	}
-	else if (colors.medium != null && percentage >= 50) {
+	} else if (colors.medium != null && percentage >= 50) {
 		color = colors.medium;
-	}
-	else if (colors.low != null) {
+	} else if (colors.low != null) {
 		color = colors.low;
 	}
 

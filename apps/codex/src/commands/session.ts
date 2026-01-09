@@ -12,7 +12,12 @@ import { DEFAULT_TIMEZONE } from '../_consts.ts';
 import { sharedArgs } from '../_shared-args.ts';
 import { formatModelsList, splitUsageTokens } from '../command-utils.ts';
 import { loadTokenUsageEvents } from '../data-loader.ts';
-import { formatDisplayDate, formatDisplayDateTime, normalizeFilterDate, toDateKey } from '../date-utils.ts';
+import {
+	formatDisplayDate,
+	formatDisplayDateTime,
+	normalizeFilterDate,
+	toDateKey,
+} from '../date-utils.ts';
 import { log, logger } from '../logger.ts';
 import { CodexPricingSource } from '../pricing.ts';
 import { buildSessionReport } from '../session-report.ts';
@@ -35,8 +40,7 @@ export const sessionCommand = define({
 		try {
 			since = normalizeFilterDate(ctx.values.since);
 			until = normalizeFilterDate(ctx.values.until);
-		}
-		catch (error) {
+		} catch (error) {
 			logger.error(String(error));
 			process.exit(1);
 		}
@@ -48,7 +52,9 @@ export const sessionCommand = define({
 		}
 
 		if (events.length === 0) {
-			log(jsonOutput ? JSON.stringify({ sessions: [], totals: null }) : 'No Codex usage data found.');
+			log(
+				jsonOutput ? JSON.stringify({ sessions: [], totals: null }) : 'No Codex usage data found.',
+			);
 			return;
 		}
 
@@ -65,40 +71,79 @@ export const sessionCommand = define({
 			});
 
 			if (rows.length === 0) {
-				log(jsonOutput ? JSON.stringify({ sessions: [], totals: null }) : 'No Codex usage data found for provided filters.');
+				log(
+					jsonOutput
+						? JSON.stringify({ sessions: [], totals: null })
+						: 'No Codex usage data found for provided filters.',
+				);
 				return;
 			}
 
-			const totals = rows.reduce((acc, row) => {
-				acc.inputTokens += row.inputTokens;
-				acc.cachedInputTokens += row.cachedInputTokens;
-				acc.outputTokens += row.outputTokens;
-				acc.reasoningOutputTokens += row.reasoningOutputTokens;
-				acc.totalTokens += row.totalTokens;
-				acc.costUSD += row.costUSD;
-				return acc;
-			}, {
-				inputTokens: 0,
-				cachedInputTokens: 0,
-				outputTokens: 0,
-				reasoningOutputTokens: 0,
-				totalTokens: 0,
-				costUSD: 0,
-			});
+			const totals = rows.reduce(
+				(acc, row) => {
+					acc.inputTokens += row.inputTokens;
+					acc.cachedInputTokens += row.cachedInputTokens;
+					acc.outputTokens += row.outputTokens;
+					acc.reasoningOutputTokens += row.reasoningOutputTokens;
+					acc.totalTokens += row.totalTokens;
+					acc.costUSD += row.costUSD;
+					return acc;
+				},
+				{
+					inputTokens: 0,
+					cachedInputTokens: 0,
+					outputTokens: 0,
+					reasoningOutputTokens: 0,
+					totalTokens: 0,
+					costUSD: 0,
+				},
+			);
 
 			if (jsonOutput) {
-				log(JSON.stringify({
-					sessions: rows,
-					totals,
-				}, null, 2));
+				log(
+					JSON.stringify(
+						{
+							sessions: rows,
+							totals,
+						},
+						null,
+						2,
+					),
+				);
 				return;
 			}
 
-			logger.box(`Codex Token Usage Report - Sessions (Timezone: ${ctx.values.timezone ?? DEFAULT_TIMEZONE})`);
+			logger.box(
+				`Codex Token Usage Report - Sessions (Timezone: ${ctx.values.timezone ?? DEFAULT_TIMEZONE})`,
+			);
 
 			const table: ResponsiveTable = new ResponsiveTable({
-				head: ['Date', 'Directory', 'Session', 'Models', 'Input', 'Output', 'Reasoning', 'Cache Read', 'Total Tokens', 'Cost (USD)', 'Last Activity'],
-				colAligns: ['left', 'left', 'left', 'left', 'right', 'right', 'right', 'right', 'right', 'right', 'left'],
+				head: [
+					'Date',
+					'Directory',
+					'Session',
+					'Models',
+					'Input',
+					'Output',
+					'Reasoning',
+					'Cache Read',
+					'Total Tokens',
+					'Cost (USD)',
+					'Last Activity',
+				],
+				colAligns: [
+					'left',
+					'left',
+					'left',
+					'left',
+					'right',
+					'right',
+					'right',
+					'right',
+					'right',
+					'right',
+					'left',
+				],
 				compactHead: ['Date', 'Directory', 'Session', 'Input', 'Output', 'Cost (USD)'],
 				compactColAligns: ['left', 'left', 'left', 'right', 'right', 'right'],
 				compactThreshold: 100,
@@ -164,10 +209,11 @@ export const sessionCommand = define({
 
 			if (table.isCompactMode()) {
 				logger.info('\nRunning in Compact Mode');
-				logger.info('Expand terminal width to see directories, cache metrics, total tokens, and last activity');
+				logger.info(
+					'Expand terminal width to see directories, cache metrics, total tokens, and last activity',
+				);
 			}
-		}
-		finally {
+		} finally {
 			pricingSource[Symbol.dispose]();
 		}
 	},

@@ -110,9 +110,13 @@ export const createModelName = (value: string): ModelName => v.parse(modelNameSc
 export const createSessionId = (value: string): SessionId => v.parse(sessionIdSchema, value);
 export const createRequestId = (value: string): RequestId => v.parse(requestIdSchema, value);
 export const createMessageId = (value: string): MessageId => v.parse(messageIdSchema, value);
-export const createISOTimestamp = (value: string): ISOTimestamp => v.parse(isoTimestampSchema, value);
+export function createISOTimestamp(value: string): ISOTimestamp {
+	return v.parse(isoTimestampSchema, value);
+}
 export const createDailyDate = (value: string): DailyDate => v.parse(dailyDateSchema, value);
-export const createActivityDate = (value: string): ActivityDate => v.parse(activityDateSchema, value);
+export function createActivityDate(value: string): ActivityDate {
+	return v.parse(activityDateSchema, value);
+}
 export const createMonthlyDate = (value: string): MonthlyDate => v.parse(monthlyDateSchema, value);
 export const createWeeklyDate = (value: string): WeeklyDate => v.parse(weeklyDateSchema, value);
 export const createFilterDate = (value: string): FilterDate => v.parse(filterDateSchema, value);
@@ -125,7 +129,7 @@ export function createBucket(value: string): Bucket {
 		return weeklyResult.output;
 	}
 	return createMonthlyDate(value);
-};
+}
 
 /**
  * Available cost calculation modes
@@ -166,18 +170,22 @@ export const statuslineHookJsonSchema = v.object({
 		project_dir: v.string(),
 	}),
 	version: v.optional(v.string()),
-	cost: v.optional(v.object({
-		total_cost_usd: v.number(),
-		total_duration_ms: v.optional(v.number()),
-		total_api_duration_ms: v.optional(v.number()),
-		total_lines_added: v.optional(v.number()),
-		total_lines_removed: v.optional(v.number()),
-	})),
-	context_window: v.optional(v.object({
-		total_input_tokens: v.number(),
-		total_output_tokens: v.optional(v.number()),
-		context_window_size: v.number(),
-	})),
+	cost: v.optional(
+		v.object({
+			total_cost_usd: v.number(),
+			total_duration_ms: v.optional(v.number()),
+			total_api_duration_ms: v.optional(v.number()),
+			total_lines_added: v.optional(v.number()),
+			total_lines_removed: v.optional(v.number()),
+		}),
+	),
+	context_window: v.optional(
+		v.object({
+			total_input_tokens: v.number(),
+			total_output_tokens: v.optional(v.number()),
+			context_window_size: v.number(),
+		}),
+	),
 });
 
 /**

@@ -122,7 +122,7 @@ ccusage weekly --json
 				"claude-opus-4-20250514": {
 					"inputTokens": 800,
 					"outputTokens": 80000,
-					"totalCost": 54.80
+					"totalCost": 54.8
 				},
 				"claude-sonnet-4-20250514": {
 					"inputTokens": 434,

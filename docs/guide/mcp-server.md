@@ -126,15 +126,7 @@ Need custom paths or cost modes? Pass them as arguments:
 	"mcpServers": {
 		"ccusage": {
 			"command": "bunx",
-			"args": [
-				"@ccusage/mcp@latest",
-				"--mode",
-				"calculate",
-				"--type",
-				"http",
-				"--port",
-				"8080"
-			],
+			"args": ["@ccusage/mcp@latest", "--mode", "calculate", "--type", "http", "--port", "8080"],
 			"env": {
 				"CLAUDE_CONFIG_DIR": "/path/to/claude/data"
 			}

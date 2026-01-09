@@ -1,6 +1,12 @@
 import type { UsageReportConfig } from '@ccusage/terminal/table';
 import process from 'node:process';
-import { addEmptySeparatorRow, createUsageReportTable, formatTotalsRow, formatUsageDataRow, pushBreakdownRows } from '@ccusage/terminal/table';
+import {
+	addEmptySeparatorRow,
+	createUsageReportTable,
+	formatTotalsRow,
+	formatUsageDataRow,
+	pushBreakdownRows,
+} from '@ccusage/terminal/table';
 import { Result } from '@praha/byethrow';
 import { define } from 'gunshi';
 import { loadConfig, mergeConfigWithArgs } from '../_config-loader-tokens.ts';
@@ -8,11 +14,7 @@ import { DEFAULT_LOCALE } from '../_consts.ts';
 import { formatDateCompact } from '../_date-utils.ts';
 import { processWithJq } from '../_jq-processor.ts';
 import { sharedCommandConfig } from '../_shared-args.ts';
-import {
-	calculateTotals,
-	createTotalsObject,
-	getTotalTokens,
-} from '../calculate-cost.ts';
+import { calculateTotals, createTotalsObject, getTotalTokens } from '../calculate-cost.ts';
 import { loadMonthlyUsageData } from '../data-loader.ts';
 import { detectMismatches, printMismatchReport } from '../debug.ts';
 import { log, logger } from '../logger.ts';
@@ -48,8 +50,7 @@ export const monthlyCommand = define({
 					},
 				};
 				log(JSON.stringify(emptyOutput, null, 2));
-			}
-			else {
+			} else {
 				logger.warn('No Claude usage data found.');
 			}
 			process.exit(0);
@@ -67,7 +68,7 @@ export const monthlyCommand = define({
 		if (useJson) {
 			// Output JSON format
 			const jsonOutput = {
-				monthly: monthlyData.map(data => ({
+				monthly: monthlyData.map((data) => ({
 					month: data.month,
 					inputTokens: data.inputTokens,
 					outputTokens: data.outputTokens,
@@ -85,23 +86,26 @@ export const monthlyCommand = define({
 			if (mergedOptions.jq != null) {
 				const jqResult = await processWithJq(jsonOutput, mergedOptions.jq);
 				if (Result.isFailure(jqResult)) {
-					logger.error((jqResult.error).message);
+					logger.error(jqResult.error.message);
 					process.exit(1);
 				}
 				log(jqResult.value);
-			}
-			else {
+			} else {
 				log(JSON.stringify(jsonOutput, null, 2));
 			}
-		}
-		else {
+		} else {
 			// Print header
 			logger.box('Claude Code Token Usage Report - Monthly');
 
 			// Create table with compact mode support
 			const tableConfig: UsageReportConfig = {
 				firstColumnName: 'Month',
-				dateFormatter: (dateStr: string) => formatDateCompact(dateStr, mergedOptions.timezone, mergedOptions.locale ?? DEFAULT_LOCALE),
+				dateFormatter: (dateStr: string) =>
+					formatDateCompact(
+						dateStr,
+						mergedOptions.timezone,
+						mergedOptions.locale ?? DEFAULT_LOCALE,
+					),
 				forceCompact: ctx.values.compact,
 			};
 			const table = createUsageReportTable(tableConfig);
