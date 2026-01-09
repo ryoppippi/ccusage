@@ -1,36 +1,36 @@
 {
 	"name": "@ccusage/pi",
-	"version": "18.0.0",
+	"type": "module",
+	"version": "17.2.0",
 	"description": "Pi-agent usage tracking - unified Claude Max usage across Claude Code and pi-agent",
-	"homepage": "https://github.com/ryoppippi/ccusage#readme",
-	"bugs": {
-		"url": "https://github.com/ryoppippi/ccusage/issues"
-	},
-	"license": "MIT",
 	"author": "ryoppippi",
 	"contributors": [
 		"nicobailon"
 	],
+	"license": "MIT",
+	"funding": "https://github.com/ryoppippi/ccusage?sponsor=1",
+	"homepage": "https://github.com/ryoppippi/ccusage#readme",
 	"repository": {
 		"type": "git",
 		"url": "git+https://github.com/ryoppippi/ccusage.git"
 	},
-	"funding": "https://github.com/ryoppippi/ccusage?sponsor=1",
-	"bin": {
-		"ccusage-pi": "./src/index.ts"
+	"bugs": {
+		"url": "https://github.com/ryoppippi/ccusage/issues"
 	},
-	"files": [
-		"dist",
-		"README.md"
-	],
-	"type": "module",
-	"main": "./dist/index.js",
-	"module": "./dist/index.js",
-	"types": "./dist/index.d.ts",
 	"exports": {
 		".": "./src/index.ts",
 		"./package.json": "./package.json"
 	},
+	"main": "./dist/index.js",
+	"module": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"bin": {
+		"ccusage-pi": "./src/index.ts"
+	},
+	"files": [
+		"README.md",
+		"dist"
+	],
 	"publishConfig": {
 		"bin": {
 			"ccusage-pi": "./dist/index.js"
@@ -42,5 +42,50 @@
 	},
 	"engines": {
 		"node": ">=20.19.4"
+	},
+	"scripts": {
+		"build": "tsdown",
+		"dev": "bun -b --watch ./src/index.ts",
+		"format": "pnpm run lint --fix",
+		"lint": "eslint --cache .",
+		"prepack": "pnpm run build && clean-pkg-json",
+		"prerelease": "pnpm run lint && pnpm run typecheck && pnpm run build",
+		"start": "bun ./src/index.ts",
+		"test": "TZ=UTC vitest",
+		"typecheck": "tsgo --noEmit"
+	},
+	"devDependencies": {
+		"@ccusage/internal": "workspace:*",
+		"@ccusage/terminal": "workspace:*",
+		"@praha/byethrow": "catalog:runtime",
+		"@ryoppippi/eslint-config": "catalog:lint",
+		"@typescript/native-preview": "catalog:types",
+		"ccusage": "workspace:*",
+		"clean-pkg-json": "catalog:release",
+		"es-toolkit": "catalog:runtime",
+		"eslint": "catalog:lint",
+		"fs-fixture": "catalog:testing",
+		"gunshi": "catalog:runtime",
+		"path-type": "catalog:runtime",
+		"picocolors": "catalog:runtime",
+		"publint": "catalog:lint",
+		"tinyglobby": "catalog:runtime",
+		"tsdown": "catalog:build",
+		"valibot": "catalog:runtime",
+		"vitest": "catalog:testing"
+	},
+	"devEngines": {
+		"runtime": [
+			{
+				"name": "node",
+				"onFail": "download",
+				"version": "^24.11.0"
+			},
+			{
+				"name": "bun",
+				"onFail": "download",
+				"version": "^1.3.2"
+			}
+		]
 	}
 }
