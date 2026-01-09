@@ -71,9 +71,9 @@ Now that you have your first report, explore these features:
 
 1. **[Weekly Reports](/guide/weekly-reports)** - Track usage patterns by week
 2. **[Monthly Reports](/guide/monthly-reports)** - See usage aggregated by month
-3. **[Session Reports](/guide/session-reports)** - Analyze individual conversations
-4. **[Live Monitoring](/guide/live-monitoring)** - Real-time usage tracking
-5. **[Configuration](/guide/configuration)** - Customize ccusage behavior
+3. **[Session Reports](/guide/session-reports)** - Analyse individual conversations
+4. **[Statusline](/guide/statusline)** - Real-time usage display for Claude Code status bar
+5. **[Configuration](/guide/configuration)** - Customise ccusage behaviour
 
 ## Common Use Cases
 
@@ -95,10 +95,10 @@ ccusage session
 ccusage monthly --json > usage-data.json
 ```
 
-### Live Session Monitoring
+### Real-time Status Display
 
 ```bash
-ccusage blocks --live
+ccusage statusline
 ```
 
 ## Colors
