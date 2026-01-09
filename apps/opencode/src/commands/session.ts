@@ -9,8 +9,9 @@ import {
 import { groupBy } from 'es-toolkit';
 import { define } from 'gunshi';
 import pc from 'picocolors';
-import { calculateCostForEntry } from '../cost-utils';
-import { loadOpenCodeMessages, loadOpenCodeSessions } from '../data-loader';
+import { calculateCostForEntry } from '../cost-utils.ts';
+import { loadOpenCodeMessages, loadOpenCodeSessions } from '../data-loader.ts';
+import { logger } from '../logger.ts';
 
 const TABLE_COLUMN_COUNT = 8;
 
@@ -45,7 +46,7 @@ export const sessionCommand = define({
 			return;
 		}
 
-		using fetcher = new LiteLLMPricingFetcher({ offline: false });
+		using fetcher = new LiteLLMPricingFetcher({ offline: false, logger });
 
 		const entriesBySession = groupBy(entries, (entry) => entry.sessionID);
 
