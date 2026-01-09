@@ -1,5 +1,8 @@
 {
 	"$schema": "./node_modules/oxfmt/configuration_schema.json",
 	"useTabs": true,
-	"singleQuote": true
+	"singleQuote": true,
+	"files": {
+		"ignore": ["**/node_modules/**", "**/dist/**", "**/.git/**", "**/pnpm-lock.yaml"],
+	},
 }

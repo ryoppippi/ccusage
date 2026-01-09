@@ -28,6 +28,15 @@
 		"README.md",
 		"dist"
 	],
+	"publishConfig": {
+		"bin": {
+			"ccusage-mcp": "./dist/index.js"
+		},
+		"exports": {
+			".": "./dist/index.js",
+			"./package.json": "./package.json"
+		}
+	},
 	"engines": {
 		"node": ">=20.19.4"
 	},
@@ -61,18 +70,8 @@
 		"eslint": "catalog:lint",
 		"fs-fixture": "catalog:testing",
 		"publint": "catalog:lint",
-		"sort-package-json": "catalog:release",
 		"tsdown": "catalog:build",
 		"vitest": "catalog:testing"
-	},
-	"publishConfig": {
-		"bin": {
-			"ccusage-mcp": "./dist/index.js"
-		},
-		"exports": {
-			".": "./dist/index.js",
-			"./package.json": "./package.json"
-		}
 	},
 	"devEngines": {
 		"runtime": [

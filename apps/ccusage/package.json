@@ -32,6 +32,19 @@
 		"config-schema.json",
 		"dist"
 	],
+	"publishConfig": {
+		"bin": {
+			"ccusage": "./dist/index.js"
+		},
+		"exports": {
+			".": "./dist/index.js",
+			"./calculate-cost": "./dist/calculate-cost.js",
+			"./data-loader": "./dist/data-loader.js",
+			"./debug": "./dist/debug.js",
+			"./logger": "./dist/logger.js",
+			"./package.json": "./package.json"
+		}
+	},
 	"engines": {
 		"node": ">=20.19.4"
 	},
@@ -79,7 +92,6 @@
 		"picocolors": "catalog:runtime",
 		"pretty-ms": "catalog:runtime",
 		"publint": "catalog:lint",
-		"sort-package-json": "catalog:release",
 		"string-width": "catalog:runtime",
 		"tinyglobby": "catalog:runtime",
 		"tsdown": "catalog:build",
@@ -89,19 +101,6 @@
 		"valibot": "catalog:runtime",
 		"vitest": "catalog:testing",
 		"xdg-basedir": "catalog:runtime"
-	},
-	"publishConfig": {
-		"bin": {
-			"ccusage": "./dist/index.js"
-		},
-		"exports": {
-			".": "./dist/index.js",
-			"./calculate-cost": "./dist/calculate-cost.js",
-			"./data-loader": "./dist/data-loader.js",
-			"./debug": "./dist/debug.js",
-			"./logger": "./dist/logger.js",
-			"./package.json": "./package.json"
-		}
 	},
 	"devEngines": {
 		"runtime": [

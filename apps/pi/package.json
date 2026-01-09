@@ -31,6 +31,15 @@
 		"README.md",
 		"dist"
 	],
+	"publishConfig": {
+		"bin": {
+			"ccusage-pi": "./dist/index.js"
+		},
+		"exports": {
+			".": "./dist/index.js",
+			"./package.json": "./package.json"
+		}
+	},
 	"engines": {
 		"node": ">=20.19.4"
 	},
@@ -60,20 +69,10 @@
 		"path-type": "catalog:runtime",
 		"picocolors": "catalog:runtime",
 		"publint": "catalog:lint",
-		"sort-package-json": "catalog:release",
 		"tinyglobby": "catalog:runtime",
 		"tsdown": "catalog:build",
 		"valibot": "catalog:runtime",
 		"vitest": "catalog:testing"
-	},
-	"publishConfig": {
-		"bin": {
-			"ccusage-pi": "./dist/index.js"
-		},
-		"exports": {
-			".": "./dist/index.js",
-			"./package.json": "./package.json"
-		}
 	},
 	"devEngines": {
 		"runtime": [
