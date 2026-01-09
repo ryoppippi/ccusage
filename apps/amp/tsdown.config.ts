@@ -8,4 +8,5 @@ export default defineConfig({
 	shims: true,
 	platform: 'node',
 	target: 'node20',
+	fixedExtension: false,
 });
