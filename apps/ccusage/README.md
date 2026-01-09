@@ -31,7 +31,7 @@ Companion tool for analyzing OpenAI Codex usage. Same powerful features as ccusa
 
 ### 🚀 [@ccusage/opencode](https://www.npmjs.com/package/@ccusage/opencode) - OpenCode Usage Analyzer
 
-Companion tool for analyzing OpenCode (Claude Code fork) usage. Track token usage and costs from OpenCode sessions with the same reporting capabilities as ccusage.
+Companion tool for analyzing [OpenCode](https://github.com/opencode-ai/opencode) usage. Track token usage and costs from OpenCode sessions with the same reporting capabilities as ccusage.
 
 ### 🥧 [@ccusage/pi](https://www.npmjs.com/package/@ccusage/pi) - Pi-agent Usage Analyzer
 
