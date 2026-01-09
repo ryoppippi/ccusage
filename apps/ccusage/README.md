@@ -29,6 +29,10 @@ The main CLI tool for analyzing Claude Code usage from local JSONL files. Track 
 
 Companion tool for analyzing OpenAI Codex usage. Same powerful features as ccusage but tailored for Codex users, including GPT-5 support and 1M token context windows.
 
+### 🚀 [@ccusage/opencode](https://www.npmjs.com/package/@ccusage/opencode) - OpenCode Usage Analyzer
+
+Companion tool for analyzing OpenCode (Claude Code fork) usage. Track token usage and costs from OpenCode sessions with the same reporting capabilities as ccusage.
+
 ### 🔌 [@ccusage/mcp](https://www.npmjs.com/package/@ccusage/mcp) - MCP Server Integration
 
 Model Context Protocol server that exposes ccusage data to Claude Desktop and other MCP-compatible tools. Enable real-time usage tracking directly in your AI workflows.

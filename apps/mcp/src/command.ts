@@ -78,8 +78,8 @@ export const mcpCommand = define({
 				return;
 			}
 			default: {
-        mcpType satisfies never;
-        throw new Error(`Unsupported MCP type: ${mcpType as string}`);
+				mcpType satisfies never;
+				throw new Error(`Unsupported MCP type: ${mcpType as string}`);
 			}
 		}
 	},

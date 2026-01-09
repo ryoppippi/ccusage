@@ -77,12 +77,9 @@ export default defineConfig({
 					],
 				},
 				{
-					text: 'Pi-Agent',
+					text: 'OpenCode (Beta)',
 					items: [
-						{ text: 'Overview', link: '/guide/pi/' },
-						{ text: 'Daily Report', link: '/guide/pi/daily' },
-						{ text: 'Monthly Report', link: '/guide/pi/monthly' },
-						{ text: 'Session Report', link: '/guide/pi/session' },
+						{ text: 'Overview', link: '/guide/opencode/' },
 					],
 				},
 				{

@@ -1,8 +1,8 @@
 {
-	"name": "@ccusage/codex",
+	"name": "@ccusage/opencode",
 	"type": "module",
-	"version": "17.2.1",
-	"description": "Usage analysis tool for OpenAI Codex sessions",
+	"version": "0.1.0",
+	"description": "Usage analysis tool for OpenCode sessions",
 	"author": "ryoppippi",
 	"license": "MIT",
 	"funding": "https://github.com/ryoppippi/ccusage?sponsor=1",
@@ -17,7 +17,7 @@
 	"main": "./dist/index.js",
 	"module": "./dist/index.js",
 	"bin": {
-		"ccusage-codex": "./src/index.ts"
+		"ccusage-opencode": "./src/index.ts"
 	},
 	"files": [
 		"dist"
@@ -42,10 +42,12 @@
 		"@ryoppippi/eslint-config": "catalog:lint",
 		"@typescript/native-preview": "catalog:types",
 		"clean-pkg-json": "catalog:release",
+		"es-toolkit": "catalog:runtime",
 		"eslint": "catalog:lint",
 		"fast-sort": "catalog:runtime",
 		"fs-fixture": "catalog:testing",
 		"gunshi": "catalog:runtime",
+		"path-type": "catalog:runtime",
 		"picocolors": "catalog:runtime",
 		"sort-package-json": "catalog:release",
 		"tinyglobby": "catalog:runtime",
@@ -57,7 +59,7 @@
 	},
 	"publishConfig": {
 		"bin": {
-			"ccusage-codex": "./dist/index.js"
+			"ccusage-opencode": "./dist/index.js"
 		}
 	},
 	"devEngines": {
