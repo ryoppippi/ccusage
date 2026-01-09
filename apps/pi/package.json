@@ -3,7 +3,10 @@
 	"type": "module",
 	"version": "17.2.0",
 	"description": "Pi-agent usage tracking - unified Claude Max usage across Claude Code and pi-agent",
-	"author": "nicobailon",
+	"author": "ryoppippi",
+	"contributors": [
+		"nicobailon"
+	],
 	"license": "MIT",
 	"funding": "https://github.com/ryoppippi/ccusage?sponsor=1",
 	"homepage": "https://github.com/ryoppippi/ccusage#readme",
