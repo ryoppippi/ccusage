@@ -36,7 +36,6 @@
 		"lint-staged": "catalog:release",
 		"oxfmt": "catalog:lint",
 		"pkg-pr-new": "catalog:release",
-		"sitemcp": "catalog:mcp",
 		"sort-package-json": "catalog:release"
 	},
 	"lint-staged": {

@@ -30,7 +30,6 @@ catalogs:
     '@gunshi/docs': ^0.27.5
   mcp:
     '@praha/byethrow-mcp': ^0.1.7
-    sitemcp: ^0.5.9
   release:
     bumpp: ^10.2.3
     changelogithub: ^13.16.1

@@ -16,16 +16,6 @@
 				"byethrow-mcp"
 			],
 			"env": {}
-		},
-		"gunshi-doc": {
-			"command": "npx",
-			"args": [
-				"--no-install",
-				"sitemcp",
-				"https://gunshi.dev/",
-				"--concurrency 10",
-				"--no-cache"
-			]
 		}
 	}
 }
