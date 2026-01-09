@@ -2,6 +2,7 @@ import { LiteLLMPricingFetcher } from '@ccusage/internal/pricing';
 import {
 	addEmptySeparatorRow,
 	formatCurrency,
+	formatDateCompact,
 	formatModelsDisplayMultiline,
 	formatNumber,
 	ResponsiveTable,
@@ -134,6 +135,7 @@ export const dailyCommand = define({
 			compactThreshold: 100,
 			forceCompact: Boolean(ctx.values.compact),
 			style: { head: ['cyan'] },
+			dateFormatter: (dateStr: string) => formatDateCompact(dateStr),
 		});
 
 		for (const data of dailyData) {
