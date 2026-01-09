@@ -6,9 +6,9 @@ import {
 	formatUsageDataRow,
 	pushBreakdownRows,
 } from '@ccusage/terminal/table';
-import { log, logger } from 'ccusage/logger';
 import { define } from 'gunshi';
 import { loadPiAgentDailyData } from '../data-loader.ts';
+import { log, logger } from '../logger.ts';
 
 export const dailyCommand = define({
 	name: 'daily',
