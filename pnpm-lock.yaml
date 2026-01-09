@@ -66,10 +66,6 @@ catalogs:
     '@praha/byethrow-docs':
       specifier: ^0.9.0
       version: 0.9.0
-  mcp:
-    '@praha/byethrow-mcp':
-      specifier: ^0.1.7
-      version: 0.1.7
   release:
     bumpp:
       specifier: ^10.2.3
@@ -196,9 +192,6 @@ importers:
       '@praha/byethrow-docs':
         specifier: catalog:llm-docs
         version: 0.9.0(@praha/byethrow@0.6.3)
-      '@praha/byethrow-mcp':
-        specifier: catalog:mcp
-        version: 0.1.7
       '@ryoppippi/eslint-config':
         specifier: catalog:lint
         version: 0.4.0(@vue/compiler-sfc@3.5.21)(eslint-plugin-format@1.0.2(eslint@9.35.0(jiti@2.6.1)))(eslint@9.35.0(jiti@2.6.1))(typescript@5.9.2)(vitest@4.0.15(@types/node@24.5.1)(happy-dom@16.8.1)(jiti@2.6.1)(yaml@2.8.1))
@@ -1893,10 +1886,6 @@ packages:
     hasBin: true
     peerDependencies:
       '@praha/byethrow': 0.9.0
-
-  '@praha/byethrow-mcp@0.1.7':
-    resolution: {integrity: sha512-Muv6ERicRqj/+xycVPoYf47GhDqxkaji4BQoTpkGUI7wFAIRusb3xi/rydzlL/IOG1AObKnp5A9+euUsGz8d+A==}
-    hasBin: true
 
   '@praha/byethrow@0.6.3':
     resolution: {integrity: sha512-WeHnDRzan8Zx4Lj3wCKy88K0zFZqnGKBho2QuTAM94yutkLDOsDSIYDbu/OXgnc+bQnnomCOteJNtE53o7l+Zw==}
@@ -6421,25 +6410,6 @@ snapshots:
 
   '@jsr/std__yaml@1.0.9': {}
 
-  '@modelcontextprotocol/sdk@1.24.3(zod@3.25.76)':
-    dependencies:
-      ajv: 8.17.1
-      ajv-formats: 3.0.1(ajv@8.17.1)
-      content-type: 1.0.5
-      cors: 2.8.5
-      cross-spawn: 7.0.6
-      eventsource: 3.0.7
-      eventsource-parser: 3.0.6
-      express: 5.2.1
-      express-rate-limit: 7.5.1(express@5.2.1)
-      jose: 6.1.3
-      pkce-challenge: 5.0.1
-      raw-body: 3.0.2
-      zod: 3.25.76
-      zod-to-json-schema: 3.25.0(zod@3.25.76)
-    transitivePeerDependencies:
-      - supports-color
-
   '@modelcontextprotocol/sdk@1.24.3(zod@4.1.13)':
     dependencies:
       ajv: 8.17.1
@@ -6619,16 +6589,6 @@ snapshots:
       sqlite3: 5.1.7
     transitivePeerDependencies:
       - bluebird
-      - supports-color
-
-  '@praha/byethrow-mcp@0.1.7':
-    dependencies:
-      '@modelcontextprotocol/sdk': 1.24.3(zod@3.25.76)
-      citty: 0.1.6
-      consola: 3.4.2
-      zod: 3.25.76
-    transitivePeerDependencies:
-      - '@cfworker/json-schema'
       - supports-color
 
   '@praha/byethrow@0.6.3':
@@ -10695,10 +10655,6 @@ snapshots:
       youch-core: 0.3.3
 
   zod-package-json@1.2.0:
-    dependencies:
-      zod: 3.25.76
-
-  zod-to-json-schema@3.25.0(zod@3.25.76):
     dependencies:
       zod: 3.25.76
 

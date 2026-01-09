@@ -7,15 +7,6 @@
 		"grep": {
 			"type": "http",
 			"url": "https://mcp.grep.app"
-		},
-		"@praha/byethrow": {
-			"type": "stdio",
-			"command": "npx",
-			"args": [
-				"--no-install",
-				"byethrow-mcp"
-			],
-			"env": {}
 		}
 	}
 }
