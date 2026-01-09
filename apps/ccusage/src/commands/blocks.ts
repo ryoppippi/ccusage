@@ -5,7 +5,7 @@ import { Result } from '@praha/byethrow';
 import { define } from 'gunshi';
 import pc from 'picocolors';
 import { loadConfig, mergeConfigWithArgs } from '../_config-loader-tokens.ts';
-import { BLOCKS_COMPACT_WIDTH_THRESHOLD, BLOCKS_DEFAULT_TERMINAL_WIDTH, BLOCKS_WARNING_THRESHOLD, DEFAULT_RECENT_DAYS, DEFAULT_REFRESH_INTERVAL_SECONDS, MAX_REFRESH_INTERVAL_SECONDS, MIN_REFRESH_INTERVAL_SECONDS } from '../_consts.ts';
+import { BLOCKS_COMPACT_WIDTH_THRESHOLD, BLOCKS_DEFAULT_TERMINAL_WIDTH, BLOCKS_WARNING_THRESHOLD, DEFAULT_RECENT_DAYS } from '../_consts.ts';
 import { processWithJq } from '../_jq-processor.ts';
 import {
 	calculateBurnRate,
@@ -16,9 +16,8 @@ import {
 } from '../_session-blocks.ts';
 import { sharedCommandConfig } from '../_shared-args.ts';
 import { getTotalTokens } from '../_token-utils.ts';
-import { getClaudePaths, loadSessionBlockData } from '../data-loader.ts';
+import { loadSessionBlockData } from '../data-loader.ts';
 import { log, logger } from '../logger.ts';
-import { startLiveMonitoring } from './_blocks.live.ts';
 
 /**
  * Formats the time display for a session block
@@ -134,16 +133,6 @@ export const blocksCommand = define({
 			description: `Session block duration in hours (default: ${DEFAULT_SESSION_DURATION_HOURS})`,
 			default: DEFAULT_SESSION_DURATION_HOURS,
 		},
-		live: {
-			type: 'boolean',
-			description: 'Live monitoring mode with real-time updates',
-			default: false,
-		},
-		refreshInterval: {
-			type: 'number',
-			description: `Refresh interval in seconds for live mode (default: ${DEFAULT_REFRESH_INTERVAL_SECONDS})`,
-			default: DEFAULT_REFRESH_INTERVAL_SECONDS,
-		},
 	},
 	toKebab: true,
 	async run(ctx) {
@@ -216,46 +205,6 @@ export const blocksCommand = define({
 				}
 				process.exit(0);
 			}
-		}
-
-		// Live monitoring mode
-		if (ctx.values.live && !useJson) {
-			// Live mode only shows active blocks
-			if (!ctx.values.active) {
-				logger.info('Live mode automatically shows only active blocks.');
-			}
-
-			// Default to 'max' if no token limit specified in live mode
-			let tokenLimitValue = ctx.values.tokenLimit;
-			if (tokenLimitValue == null || tokenLimitValue === '') {
-				tokenLimitValue = 'max';
-				if (maxTokensFromAll > 0) {
-					logger.info(`No token limit specified, using max from previous sessions: ${formatNumber(maxTokensFromAll)}`);
-				}
-			}
-
-			// Validate refresh interval
-			const refreshInterval = Math.max(MIN_REFRESH_INTERVAL_SECONDS, Math.min(MAX_REFRESH_INTERVAL_SECONDS, ctx.values.refreshInterval));
-			if (refreshInterval !== ctx.values.refreshInterval) {
-				logger.warn(`Refresh interval adjusted to ${refreshInterval} seconds (valid range: ${MIN_REFRESH_INTERVAL_SECONDS}-${MAX_REFRESH_INTERVAL_SECONDS})`);
-			}
-
-			// Start live monitoring
-			const paths = getClaudePaths();
-			if (paths.length === 0) {
-				logger.error('No valid Claude data directory found');
-				throw new Error('No valid Claude data directory found');
-			}
-
-			await startLiveMonitoring({
-				claudePaths: paths,
-				tokenLimit: parseTokenLimit(tokenLimitValue, maxTokensFromAll),
-				refreshInterval: refreshInterval * 1000, // Convert to milliseconds
-				sessionDurationHours: ctx.values.sessionLength,
-				mode: ctx.values.mode,
-				order: ctx.values.order,
-			});
-			return; // Exit early, don't show table
 		}
 
 		if (useJson) {

@@ -101,13 +101,13 @@ When limits are set, blocks display:
 - 🚨 **Alert indicators** when exceeding limits
 - **Progress bars** showing usage relative to limit
 
-### Live Monitoring
+### Live Monitoring (Removed)
 
-::: warning DEPRECATED
-The `blocks --live` monitor feature is deprecated and will be removed in a future version. Please use the [statusline command](/guide/statusline) instead for real-time monitoring.
+::: danger REMOVED IN v18
+The `blocks --live` monitor feature has been removed in v18.0.0. This feature is available in v17.x. Please use the [statusline command](/guide/statusline) instead for real-time monitoring.
 :::
 
-Real-time dashboard with automatic updates:
+Previously available options (v17.x only):
 
 ```bash
 # Basic live monitoring (uses -t max automatically)
@@ -119,15 +119,6 @@ ccusage blocks --live --token-limit 500000
 # Custom refresh interval (1-60 seconds)
 ccusage blocks --live --refresh-interval 5
 ```
-
-Live monitoring features:
-
-- **Real-time updates** every 1-60 seconds (configurable)
-- **Automatic token limit** detection from usage history
-- **Progress bars** with color coding (green/yellow/red)
-- **Burn rate calculations** with trend analysis
-- **Time remaining** in current block
-- **Graceful shutdown** with Ctrl+C
 
 ### Custom Session Duration
 
@@ -242,11 +233,11 @@ ccusage blocks -t max --recent
 - **Efficiency Patterns**: Compare block efficiency (tokens per hour)
 - **Model Selection Impact**: How model choice affects block costs
 
-### Live Session Tracking
+### Real-time Session Tracking
 
 ```bash
 # Monitor active sessions in real-time
-ccusage blocks --live -t max
+ccusage statusline
 ```
 
 Perfect for:
@@ -346,12 +337,12 @@ When using token limits, blocks show visual progress:
 - [Daily Reports](/guide/daily-reports) - Usage aggregated by calendar date
 - [Monthly Reports](/guide/monthly-reports) - Monthly usage summaries
 - [Session Reports](/guide/session-reports) - Individual conversation analysis
-- [Live Monitoring](/guide/live-monitoring) - Real-time session tracking
+- [Statusline](/guide/statusline) - Real-time session tracking (replacement for live monitoring)
 
 ## Next Steps
 
 After understanding block patterns, consider:
 
-1. [Live Monitoring](/guide/live-monitoring) for real-time active session tracking
-2. [Session Reports](/guide/session-reports) to analyze individual conversations within blocks
+1. [Statusline](/guide/statusline) for real-time active session tracking
+2. [Session Reports](/guide/session-reports) to analyse individual conversations within blocks
 3. [Daily Reports](/guide/daily-reports) to see how blocks aggregate across days
