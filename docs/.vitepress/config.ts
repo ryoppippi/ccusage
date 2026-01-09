@@ -77,6 +77,12 @@ export default defineConfig({
 					],
 				},
 				{
+					text: 'OpenCode (Beta)',
+					items: [
+						{ text: 'Overview', link: '/guide/opencode/' },
+					],
+				},
+				{
 					text: 'Configuration',
 					items: [
 						{ text: 'Overview', link: '/guide/configuration' },
