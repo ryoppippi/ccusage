@@ -35,8 +35,7 @@ export const monthlyCommand = define({
 		try {
 			since = normalizeFilterDate(ctx.values.since);
 			until = normalizeFilterDate(ctx.values.until);
-		}
-		catch (error) {
+		} catch (error) {
 			logger.error(String(error));
 			process.exit(1);
 		}
@@ -48,7 +47,9 @@ export const monthlyCommand = define({
 		}
 
 		if (events.length === 0) {
-			log(jsonOutput ? JSON.stringify({ monthly: [], totals: null }) : 'No Codex usage data found.');
+			log(
+				jsonOutput ? JSON.stringify({ monthly: [], totals: null }) : 'No Codex usage data found.',
+			);
 			return;
 		}
 
@@ -65,39 +66,63 @@ export const monthlyCommand = define({
 			});
 
 			if (rows.length === 0) {
-				log(jsonOutput ? JSON.stringify({ monthly: [], totals: null }) : 'No Codex usage data found for provided filters.');
+				log(
+					jsonOutput
+						? JSON.stringify({ monthly: [], totals: null })
+						: 'No Codex usage data found for provided filters.',
+				);
 				return;
 			}
 
-			const totals = rows.reduce((acc, row) => {
-				acc.inputTokens += row.inputTokens;
-				acc.cachedInputTokens += row.cachedInputTokens;
-				acc.outputTokens += row.outputTokens;
-				acc.reasoningOutputTokens += row.reasoningOutputTokens;
-				acc.totalTokens += row.totalTokens;
-				acc.costUSD += row.costUSD;
-				return acc;
-			}, {
-				inputTokens: 0,
-				cachedInputTokens: 0,
-				outputTokens: 0,
-				reasoningOutputTokens: 0,
-				totalTokens: 0,
-				costUSD: 0,
-			});
+			const totals = rows.reduce(
+				(acc, row) => {
+					acc.inputTokens += row.inputTokens;
+					acc.cachedInputTokens += row.cachedInputTokens;
+					acc.outputTokens += row.outputTokens;
+					acc.reasoningOutputTokens += row.reasoningOutputTokens;
+					acc.totalTokens += row.totalTokens;
+					acc.costUSD += row.costUSD;
+					return acc;
+				},
+				{
+					inputTokens: 0,
+					cachedInputTokens: 0,
+					outputTokens: 0,
+					reasoningOutputTokens: 0,
+					totalTokens: 0,
+					costUSD: 0,
+				},
+			);
 
 			if (jsonOutput) {
-				log(JSON.stringify({
-					monthly: rows,
-					totals,
-				}, null, 2));
+				log(
+					JSON.stringify(
+						{
+							monthly: rows,
+							totals,
+						},
+						null,
+						2,
+					),
+				);
 				return;
 			}
 
-			logger.box(`Codex Token Usage Report - Monthly (Timezone: ${ctx.values.timezone ?? DEFAULT_TIMEZONE})`);
+			logger.box(
+				`Codex Token Usage Report - Monthly (Timezone: ${ctx.values.timezone ?? DEFAULT_TIMEZONE})`,
+			);
 
 			const table: ResponsiveTable = new ResponsiveTable({
-				head: ['Month', 'Models', 'Input', 'Output', 'Reasoning', 'Cache Read', 'Total Tokens', 'Cost (USD)'],
+				head: [
+					'Month',
+					'Models',
+					'Input',
+					'Output',
+					'Reasoning',
+					'Cache Read',
+					'Total Tokens',
+					'Cost (USD)',
+				],
 				colAligns: ['left', 'left', 'right', 'right', 'right', 'right', 'right', 'right'],
 				compactHead: ['Month', 'Models', 'Input', 'Output', 'Cost (USD)'],
 				compactColAligns: ['left', 'left', 'right', 'right', 'right'],
@@ -154,8 +179,7 @@ export const monthlyCommand = define({
 				logger.info('\nRunning in Compact Mode');
 				logger.info('Expand terminal width to see cache metrics and total tokens');
 			}
-		}
-		finally {
+		} finally {
 			pricingSource[Symbol.dispose]();
 		}
 	},

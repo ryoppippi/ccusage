@@ -22,7 +22,10 @@ export type SessionIdContext = {
 /**
  * Handles the session ID lookup and displays usage data.
  */
-export async function handleSessionIdLookup(ctx: SessionIdContext, useJson: boolean): Promise<void> {
+export async function handleSessionIdLookup(
+	ctx: SessionIdContext,
+	useJson: boolean,
+): Promise<void> {
 	const sessionUsage = await loadSessionUsageById(ctx.values.id, {
 		mode: ctx.values.mode,
 		offline: ctx.values.offline,
@@ -31,8 +34,7 @@ export async function handleSessionIdLookup(ctx: SessionIdContext, useJson: bool
 	if (sessionUsage == null) {
 		if (useJson) {
 			log(JSON.stringify(null));
-		}
-		else {
+		} else {
 			logger.warn(`No session found with ID: ${ctx.values.id}`);
 		}
 		process.exit(0);
@@ -43,7 +45,7 @@ export async function handleSessionIdLookup(ctx: SessionIdContext, useJson: bool
 			sessionId: ctx.values.id,
 			totalCost: sessionUsage.totalCost,
 			totalTokens: calculateSessionTotalTokens(sessionUsage.entries),
-			entries: sessionUsage.entries.map(entry => ({
+			entries: sessionUsage.entries.map((entry) => ({
 				timestamp: entry.timestamp,
 				inputTokens: entry.message.usage.input_tokens,
 				outputTokens: entry.message.usage.output_tokens,
@@ -61,12 +63,10 @@ export async function handleSessionIdLookup(ctx: SessionIdContext, useJson: bool
 				process.exit(1);
 			}
 			log(jqResult.value);
-		}
-		else {
+		} else {
 			log(JSON.stringify(jsonOutput, null, 2));
 		}
-	}
-	else {
+	} else {
 		logger.box(`Claude Code Session Usage - ${ctx.values.id}`);
 
 		const totalTokens = calculateSessionTotalTokens(sessionUsage.entries);
@@ -78,15 +78,7 @@ export async function handleSessionIdLookup(ctx: SessionIdContext, useJson: bool
 
 		if (sessionUsage.entries.length > 0) {
 			const table = new ResponsiveTable({
-				head: [
-					'Timestamp',
-					'Model',
-					'Input',
-					'Output',
-					'Cache Create',
-					'Cache Read',
-					'Cost (USD)',
-				],
+				head: ['Timestamp', 'Model', 'Input', 'Output', 'Cache Create', 'Cache Read', 'Cost (USD)'],
 				style: { head: ['cyan'] },
 				colAligns: ['left', 'left', 'right', 'right', 'right', 'right', 'right'],
 			});
@@ -112,11 +104,11 @@ function calculateSessionTotalTokens(entries: UsageData[]): number {
 	return entries.reduce((sum, entry) => {
 		const usage = entry.message.usage;
 		return (
-			sum
-			+ usage.input_tokens
-			+ usage.output_tokens
-			+ (usage.cache_creation_input_tokens ?? 0)
-			+ (usage.cache_read_input_tokens ?? 0)
+			sum +
+			usage.input_tokens +
+			usage.output_tokens +
+			(usage.cache_creation_input_tokens ?? 0) +
+			(usage.cache_read_input_tokens ?? 0)
 		);
 	}, 0);
 }

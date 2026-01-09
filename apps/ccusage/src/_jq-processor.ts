@@ -7,7 +7,10 @@ import spawn from 'nano-spawn';
  * @param jqCommand - The jq command/filter to apply
  * @returns The processed output from jq
  */
-export async function processWithJq(jsonData: unknown, jqCommand: string): Result.ResultAsync<string, Error> {
+export async function processWithJq(
+	jsonData: unknown,
+	jqCommand: string,
+): Result.ResultAsync<string, Error> {
 	// Convert JSON data to string
 	const jsonString = JSON.stringify(jsonData);
 

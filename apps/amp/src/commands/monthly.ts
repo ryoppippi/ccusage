@@ -20,8 +20,7 @@ function groupByMonth(events: TokenUsageEvent[]): Map<string, TokenUsageEvent[]>
 		const existing = grouped.get(month);
 		if (existing != null) {
 			existing.push(event);
-		}
-		else {
+		} else {
 			grouped.set(month, [event]);
 		}
 	}
@@ -48,7 +47,9 @@ export const monthlyCommand = define({
 		const { events } = await loadAmpUsageEvents();
 
 		if (events.length === 0) {
-			const output = jsonOutput ? JSON.stringify({ monthly: [], totals: null }) : 'No Amp usage data found.';
+			const output = jsonOutput
+				? JSON.stringify({ monthly: [], totals: null })
+				: 'No Amp usage data found.';
 			// eslint-disable-next-line no-console
 			console.log(output);
 			return;
@@ -125,10 +126,16 @@ export const monthlyCommand = define({
 
 		if (jsonOutput) {
 			// eslint-disable-next-line no-console
-			console.log(JSON.stringify({
-				monthly: monthlyData,
-				totals,
-			}, null, 2));
+			console.log(
+				JSON.stringify(
+					{
+						monthly: monthlyData,
+						totals,
+					},
+					null,
+					2,
+				),
+			);
 			return;
 		}
 
@@ -136,7 +143,17 @@ export const monthlyCommand = define({
 		console.log('\n📊 Amp Token Usage Report - Monthly\n');
 
 		const table: ResponsiveTable = new ResponsiveTable({
-			head: ['Month', 'Models', 'Input', 'Output', 'Cache Create', 'Cache Read', 'Total Tokens', 'Credits', 'Cost (USD)'],
+			head: [
+				'Month',
+				'Models',
+				'Input',
+				'Output',
+				'Cache Create',
+				'Cache Read',
+				'Total Tokens',
+				'Credits',
+				'Cost (USD)',
+			],
 			colAligns: ['left', 'left', 'right', 'right', 'right', 'right', 'right', 'right', 'right'],
 			compactHead: ['Month', 'Models', 'Input', 'Output', 'Credits', 'Cost (USD)'],
 			compactColAligns: ['left', 'left', 'right', 'right', 'right', 'right'],

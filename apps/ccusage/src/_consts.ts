@@ -96,12 +96,20 @@ export const DEFAULT_CONTEXT_USAGE_THRESHOLDS = {
 /**
  * Days of the week for weekly aggregation
  */
-export const WEEK_DAYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'] as const;
+export const WEEK_DAYS = [
+	'sunday',
+	'monday',
+	'tuesday',
+	'wednesday',
+	'thursday',
+	'friday',
+	'saturday',
+] as const;
 
 /**
  * Week day names type
  */
-export type WeekDay = typeof WEEK_DAYS[number];
+export type WeekDay = (typeof WEEK_DAYS)[number];
 
 /**
  * Day of week as number (0 = Sunday, 1 = Monday, ..., 6 = Saturday)

@@ -51,8 +51,7 @@ export const sharedArgs = {
 	},
 	debugSamples: {
 		type: 'number',
-		description:
-			'Number of sample discrepancies to show in debug output (default: 5)',
+		description: 'Number of sample discrepancies to show in debug output (default: 5)',
 		default: 5,
 	},
 	order: {
@@ -75,18 +74,21 @@ export const sharedArgs = {
 		description: 'Use cached pricing data for Claude models instead of fetching from API',
 		default: false,
 	},
-	color: { // --color and FORCE_COLOR=1 is handled by picocolors
+	color: {
+		// --color and FORCE_COLOR=1 is handled by picocolors
 		type: 'boolean',
 		description: 'Enable colored output (default: auto). FORCE_COLOR=1 has the same effect.',
 	},
-	noColor: { // --no-color and NO_COLOR=1 is handled by picocolors
+	noColor: {
+		// --no-color and NO_COLOR=1 is handled by picocolors
 		type: 'boolean',
 		description: 'Disable colored output (default: auto). NO_COLOR=1 has the same effect.',
 	},
 	timezone: {
 		type: 'string',
 		short: 'z',
-		description: 'Timezone for date grouping (e.g., UTC, America/New_York, Asia/Tokyo). Default: system timezone',
+		description:
+			'Timezone for date grouping (e.g., UTC, America/New_York, Asia/Tokyo). Default: system timezone',
 	},
 	locale: {
 		type: 'string',

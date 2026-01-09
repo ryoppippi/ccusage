@@ -1,5 +1,11 @@
 import process from 'node:process';
-import { addEmptySeparatorRow, createUsageReportTable, formatTotalsRow, formatUsageDataRow, pushBreakdownRows } from '@ccusage/terminal/table';
+import {
+	addEmptySeparatorRow,
+	createUsageReportTable,
+	formatTotalsRow,
+	formatUsageDataRow,
+	pushBreakdownRows,
+} from '@ccusage/terminal/table';
 import { log, logger } from 'ccusage/logger';
 import { define } from 'gunshi';
 import { loadPiAgentMonthlyData } from '../data-loader.ts';
@@ -56,8 +62,7 @@ export const monthlyCommand = define({
 		if (piData.length === 0) {
 			if (ctx.values.json) {
 				log(JSON.stringify([]));
-			}
-			else {
+			} else {
 				logger.warn('No usage data found.');
 			}
 			process.exit(0);
@@ -80,12 +85,17 @@ export const monthlyCommand = define({
 		}
 
 		if (ctx.values.json) {
-			log(JSON.stringify({
-				monthly: piData,
-				totals,
-			}, null, 2));
-		}
-		else {
+			log(
+				JSON.stringify(
+					{
+						monthly: piData,
+						totals,
+					},
+					null,
+					2,
+				),
+			);
+		} else {
 			logger.box('Pi-Agent Usage Report - Monthly');
 
 			const table = createUsageReportTable({

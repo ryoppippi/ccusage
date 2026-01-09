@@ -41,7 +41,8 @@ function nonCachedInputTokens(usage: TokenUsageDelta): number {
  */
 export function calculateCostUSD(usage: TokenUsageDelta, pricing: ModelPricing): number {
 	const nonCachedInput = nonCachedInputTokens(usage);
-	const cachedInput = usage.cachedInputTokens > usage.inputTokens ? usage.inputTokens : usage.cachedInputTokens;
+	const cachedInput =
+		usage.cachedInputTokens > usage.inputTokens ? usage.inputTokens : usage.cachedInputTokens;
 	const outputTokens = usage.outputTokens;
 
 	const inputCost = (nonCachedInput / MILLION) * pricing.inputCostPerMToken;

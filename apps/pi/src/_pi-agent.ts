@@ -38,11 +38,11 @@ export type PiAgentMessage = v.InferOutput<typeof piAgentMessageSchema>;
 export function isPiAgentUsageEntry(data: PiAgentMessage): boolean {
 	const isMessage = data.type == null || data.type === 'message';
 	return (
-		isMessage
-		&& data.message?.role === 'assistant'
-		&& data.message?.usage != null
-		&& typeof data.message.usage.input === 'number'
-		&& typeof data.message.usage.output === 'number'
+		isMessage &&
+		data.message?.role === 'assistant' &&
+		data.message?.usage != null &&
+		typeof data.message.usage.input === 'number' &&
+		typeof data.message.usage.output === 'number'
 	);
 }
 
@@ -55,7 +55,7 @@ export function extractPiAgentSessionId(filePath: string): string {
 export function extractPiAgentProject(filePath: string): string {
 	const normalizedPath = filePath.replace(/[/\\]/g, path.sep);
 	const segments = normalizedPath.split(path.sep);
-	const idx = segments.findIndex(s => s === 'sessions');
+	const idx = segments.findIndex((s) => s === 'sessions');
 	if (idx === -1 || idx + 1 >= segments.length) {
 		return 'unknown';
 	}
@@ -78,11 +78,7 @@ export function getPiAgentPaths(customPath?: string): string[] {
 		}
 	}
 
-	const defaultPath = path.join(
-		USER_HOME_DIR,
-		DEFAULT_PI_AGENT_PATH,
-		PI_AGENT_SESSIONS_DIR_NAME,
-	);
+	const defaultPath = path.join(USER_HOME_DIR, DEFAULT_PI_AGENT_PATH, PI_AGENT_SESSIONS_DIR_NAME);
 	if (isDirectorySync(defaultPath)) {
 		return [defaultPath];
 	}
@@ -106,12 +102,9 @@ export function transformPiAgentUsage(data: PiAgentMessage): {
 	}
 
 	const usage = data.message.usage!;
-	const totalTokens
-		= usage.totalTokens
-			?? usage.input
-			+ usage.output
-			+ (usage.cacheRead ?? 0)
-			+ (usage.cacheWrite ?? 0);
+	const totalTokens =
+		usage.totalTokens ??
+		usage.input + usage.output + (usage.cacheRead ?? 0) + (usage.cacheWrite ?? 0);
 
 	return {
 		usage: {
@@ -131,9 +124,7 @@ if (import.meta.vitest != null) {
 		it('returns true for valid assistant message with usage', () => {
 			const data: PiAgentMessage = {
 				type: 'message',
-				timestamp: '2024-01-01T00:00:00Z' as v.InferOutput<
-					typeof isoTimestampSchema
-				>,
+				timestamp: '2024-01-01T00:00:00Z' as v.InferOutput<typeof isoTimestampSchema>,
 				message: {
 					role: 'assistant',
 					model: 'claude-opus-4-5',
@@ -151,9 +142,7 @@ if (import.meta.vitest != null) {
 		it('returns false for user message', () => {
 			const data: PiAgentMessage = {
 				type: 'message',
-				timestamp: '2024-01-01T00:00:00Z' as v.InferOutput<
-					typeof isoTimestampSchema
-				>,
+				timestamp: '2024-01-01T00:00:00Z' as v.InferOutput<typeof isoTimestampSchema>,
 				message: {
 					role: 'user',
 					usage: {
@@ -168,9 +157,7 @@ if (import.meta.vitest != null) {
 		it('returns false for non-message type', () => {
 			const data: PiAgentMessage = {
 				type: 'tool_use',
-				timestamp: '2024-01-01T00:00:00Z' as v.InferOutput<
-					typeof isoTimestampSchema
-				>,
+				timestamp: '2024-01-01T00:00:00Z' as v.InferOutput<typeof isoTimestampSchema>,
 				message: {
 					role: 'assistant',
 					usage: {
@@ -185,9 +172,7 @@ if (import.meta.vitest != null) {
 		it('returns false when usage is missing', () => {
 			const data: PiAgentMessage = {
 				type: 'message',
-				timestamp: '2024-01-01T00:00:00Z' as v.InferOutput<
-					typeof isoTimestampSchema
-				>,
+				timestamp: '2024-01-01T00:00:00Z' as v.InferOutput<typeof isoTimestampSchema>,
 				message: {
 					role: 'assistant',
 				},
@@ -198,9 +183,7 @@ if (import.meta.vitest != null) {
 		it('returns true when type is undefined but has assistant with usage', () => {
 			const data: PiAgentMessage = {
 				type: undefined,
-				timestamp: '2024-01-01T00:00:00Z' as v.InferOutput<
-					typeof isoTimestampSchema
-				>,
+				timestamp: '2024-01-01T00:00:00Z' as v.InferOutput<typeof isoTimestampSchema>,
 				message: {
 					role: 'assistant',
 					model: 'claude-opus-4-5',
@@ -216,11 +199,9 @@ if (import.meta.vitest != null) {
 
 	describe('extractPiAgentSessionId', () => {
 		it('extracts session ID from filename with timestamp prefix', () => {
-			const filePath
-				= '/path/to/sessions/project/2025-12-19T08-12-33-794Z_2c16ab69-02b4-46e1-96ad-5b19ef6be8c4.jsonl';
-			expect(extractPiAgentSessionId(filePath)).toBe(
-				'2c16ab69-02b4-46e1-96ad-5b19ef6be8c4',
-			);
+			const filePath =
+				'/path/to/sessions/project/2025-12-19T08-12-33-794Z_2c16ab69-02b4-46e1-96ad-5b19ef6be8c4.jsonl';
+			expect(extractPiAgentSessionId(filePath)).toBe('2c16ab69-02b4-46e1-96ad-5b19ef6be8c4');
 		});
 
 		it('returns full filename when no underscore', () => {
@@ -231,8 +212,7 @@ if (import.meta.vitest != null) {
 
 	describe('extractPiAgentProject', () => {
 		it('extracts project name from path', () => {
-			const filePath
-				= '/Users/test/.pi/agent/sessions/--Users-test-project--/file.jsonl';
+			const filePath = '/Users/test/.pi/agent/sessions/--Users-test-project--/file.jsonl';
 			expect(extractPiAgentProject(filePath)).toBe('--Users-test-project--');
 		});
 
@@ -246,9 +226,7 @@ if (import.meta.vitest != null) {
 		it('transforms valid pi-agent usage to ccusage format', () => {
 			const data: PiAgentMessage = {
 				type: 'message',
-				timestamp: '2024-01-01T00:00:00Z' as v.InferOutput<
-					typeof isoTimestampSchema
-				>,
+				timestamp: '2024-01-01T00:00:00Z' as v.InferOutput<typeof isoTimestampSchema>,
 				message: {
 					role: 'assistant',
 					model: 'claude-opus-4-5',
@@ -279,9 +257,7 @@ if (import.meta.vitest != null) {
 		it('calculates totalTokens when not provided', () => {
 			const data: PiAgentMessage = {
 				type: 'message',
-				timestamp: '2024-01-01T00:00:00Z' as v.InferOutput<
-					typeof isoTimestampSchema
-				>,
+				timestamp: '2024-01-01T00:00:00Z' as v.InferOutput<typeof isoTimestampSchema>,
 				message: {
 					role: 'assistant',
 					model: 'claude-opus-4-5',
@@ -301,9 +277,7 @@ if (import.meta.vitest != null) {
 		it('returns null for invalid entry', () => {
 			const data: PiAgentMessage = {
 				type: 'tool_use',
-				timestamp: '2024-01-01T00:00:00Z' as v.InferOutput<
-					typeof isoTimestampSchema
-				>,
+				timestamp: '2024-01-01T00:00:00Z' as v.InferOutput<typeof isoTimestampSchema>,
 				message: {
 					role: 'assistant',
 				},

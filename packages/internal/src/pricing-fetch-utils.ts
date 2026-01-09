@@ -1,10 +1,6 @@
 import type { LiteLLMModelPricing } from './pricing.ts';
 import * as v from 'valibot';
-import {
-	LITELLM_PRICING_URL,
-
-	liteLLMModelPricingSchema,
-} from './pricing.ts';
+import { LITELLM_PRICING_URL, liteLLMModelPricingSchema } from './pricing.ts';
 
 export type PricingDataset = Record<string, LiteLLMModelPricing>;
 
@@ -18,7 +14,7 @@ export async function fetchLiteLLMPricingDataset(): Promise<PricingDataset> {
 		throw new Error(`Failed to fetch pricing data: ${response.status} ${response.statusText}`);
 	}
 
-	const rawDataset = await response.json() as Record<string, unknown>;
+	const rawDataset = (await response.json()) as Record<string, unknown>;
 	const dataset = createPricingDataset();
 
 	for (const [modelName, modelData] of Object.entries(rawDataset)) {

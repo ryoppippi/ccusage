@@ -5,14 +5,17 @@ import { globSync } from 'tinyglobby';
 type TypedocConfig = TypeDocOptions & PluginOptions & { docsRoot?: string };
 
 const entryPoints = [
-	...globSync([
-		'./node_modules/ccusage/src/*.ts',
-		'!./node_modules/ccusage/src/**/*.test.ts', // Exclude test files
-		'!./node_modules/ccusage/src/_*.ts', // Exclude internal files with underscore prefix
-	], {
-		absolute: false,
-		onlyFiles: true,
-	}),
+	...globSync(
+		[
+			'./node_modules/ccusage/src/*.ts',
+			'!./node_modules/ccusage/src/**/*.test.ts', // Exclude test files
+			'!./node_modules/ccusage/src/_*.ts', // Exclude internal files with underscore prefix
+		],
+		{
+			absolute: false,
+			onlyFiles: true,
+		},
+	),
 	'./node_modules/ccusage/src/_consts.ts', // Include constants for documentation
 ];
 

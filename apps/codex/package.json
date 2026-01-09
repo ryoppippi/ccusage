@@ -22,6 +22,11 @@
 	"files": [
 		"dist"
 	],
+	"publishConfig": {
+		"bin": {
+			"ccusage-codex": "./dist/index.js"
+		}
+	},
 	"engines": {
 		"node": ">=20.19.4"
 	},
@@ -47,18 +52,12 @@
 		"fs-fixture": "catalog:testing",
 		"gunshi": "catalog:runtime",
 		"picocolors": "catalog:runtime",
-		"sort-package-json": "catalog:release",
 		"tinyglobby": "catalog:runtime",
 		"tsdown": "catalog:build",
 		"unplugin-macros": "catalog:build",
 		"unplugin-unused": "catalog:build",
 		"valibot": "catalog:runtime",
 		"vitest": "catalog:testing"
-	},
-	"publishConfig": {
-		"bin": {
-			"ccusage-codex": "./dist/index.js"
-		}
 	},
 	"devEngines": {
 		"runtime": [

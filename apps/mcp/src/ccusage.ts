@@ -3,7 +3,8 @@ import { z } from 'zod';
 import { createCliInvocation, executeCliCommand, resolveBinaryPath } from './cli-utils.ts';
 import { DATE_FILTER_REGEX } from './consts.ts';
 
-export const filterDateSchema = z.string()
+export const filterDateSchema = z
+	.string()
 	.regex(DATE_FILTER_REGEX, 'Date must be in YYYYMMDD format');
 
 export const ccusageParametersShape = {
@@ -63,7 +64,10 @@ async function runCcusageCliJson(
 	});
 }
 
-export async function getCcusageDaily(parameters: z.infer<typeof ccusageParametersSchema>, claudePath: string): Promise<unknown> {
+export async function getCcusageDaily(
+	parameters: z.infer<typeof ccusageParametersSchema>,
+	claudePath: string,
+): Promise<unknown> {
 	try {
 		const raw = await runCcusageCliJson('daily', parameters, claudePath);
 		const parsed = JSON.parse(raw) as unknown;
@@ -72,14 +76,16 @@ export async function getCcusageDaily(parameters: z.infer<typeof ccusageParamete
 			return { daily: [], totals: {} };
 		}
 		return parsed;
-	}
-	catch {
+	} catch {
 		// Return empty result on error
 		return { daily: [], totals: {} };
 	}
 }
 
-export async function getCcusageMonthly(parameters: z.infer<typeof ccusageParametersSchema>, claudePath: string): Promise<unknown> {
+export async function getCcusageMonthly(
+	parameters: z.infer<typeof ccusageParametersSchema>,
+	claudePath: string,
+): Promise<unknown> {
 	try {
 		const raw = await runCcusageCliJson('monthly', parameters, claudePath);
 		const parsed = JSON.parse(raw) as unknown;
@@ -88,14 +94,16 @@ export async function getCcusageMonthly(parameters: z.infer<typeof ccusageParame
 			return { monthly: [], totals: {} };
 		}
 		return parsed;
-	}
-	catch {
+	} catch {
 		// Return empty result on error
 		return { monthly: [], totals: {} };
 	}
 }
 
-export async function getCcusageSession(parameters: z.infer<typeof ccusageParametersSchema>, claudePath: string): Promise<unknown> {
+export async function getCcusageSession(
+	parameters: z.infer<typeof ccusageParametersSchema>,
+	claudePath: string,
+): Promise<unknown> {
 	try {
 		const raw = await runCcusageCliJson('session', parameters, claudePath);
 		const parsed = JSON.parse(raw) as unknown;
@@ -104,14 +112,16 @@ export async function getCcusageSession(parameters: z.infer<typeof ccusageParame
 			return { sessions: [], totals: {} };
 		}
 		return parsed;
-	}
-	catch {
+	} catch {
 		// Return empty result on error
 		return { sessions: [], totals: {} };
 	}
 }
 
-export async function getCcusageBlocks(parameters: z.infer<typeof ccusageParametersSchema>, claudePath: string): Promise<unknown> {
+export async function getCcusageBlocks(
+	parameters: z.infer<typeof ccusageParametersSchema>,
+	claudePath: string,
+): Promise<unknown> {
 	try {
 		const raw = await runCcusageCliJson('blocks', parameters, claudePath);
 		const parsed = JSON.parse(raw) as unknown;
@@ -120,8 +130,7 @@ export async function getCcusageBlocks(parameters: z.infer<typeof ccusageParamet
 			return { blocks: [] };
 		}
 		return parsed;
-	}
-	catch {
+	} catch {
 		// Return empty result on error
 		return { blocks: [] };
 	}

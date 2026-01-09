@@ -37,7 +37,9 @@ export const sessionCommand = define({
 		]);
 
 		if (entries.length === 0) {
-			const output = jsonOutput ? JSON.stringify({ sessions: [], totals: null }) : 'No OpenCode usage data found.';
+			const output = jsonOutput
+				? JSON.stringify({ sessions: [], totals: null })
+				: 'No OpenCode usage data found.';
 			// eslint-disable-next-line no-console
 			console.log(output);
 			return;
@@ -45,7 +47,7 @@ export const sessionCommand = define({
 
 		using fetcher = new LiteLLMPricingFetcher({ offline: false });
 
-		const entriesBySession = groupBy(entries, entry => entry.sessionID);
+		const entriesBySession = groupBy(entries, (entry) => entry.sessionID);
 
 		type SessionData = {
 			sessionID: string;
@@ -117,10 +119,16 @@ export const sessionCommand = define({
 
 		if (jsonOutput) {
 			// eslint-disable-next-line no-console
-			console.log(JSON.stringify({
-				sessions: sessionData,
-				totals,
-			}, null, 2));
+			console.log(
+				JSON.stringify(
+					{
+						sessions: sessionData,
+						totals,
+					},
+					null,
+					2,
+				),
+			);
 			return;
 		}
 
@@ -128,7 +136,16 @@ export const sessionCommand = define({
 		console.log('\n📊 OpenCode Token Usage Report - Sessions\n');
 
 		const table: ResponsiveTable = new ResponsiveTable({
-			head: ['Session', 'Models', 'Input', 'Output', 'Cache Create', 'Cache Read', 'Total Tokens', 'Cost (USD)'],
+			head: [
+				'Session',
+				'Models',
+				'Input',
+				'Output',
+				'Cache Create',
+				'Cache Read',
+				'Total Tokens',
+				'Cost (USD)',
+			],
 			colAligns: ['left', 'left', 'right', 'right', 'right', 'right', 'right', 'right'],
 			compactHead: ['Session', 'Models', 'Input', 'Output', 'Cost (USD)'],
 			compactColAligns: ['left', 'left', 'right', 'right', 'right'],
@@ -137,7 +154,7 @@ export const sessionCommand = define({
 			style: { head: ['cyan'] },
 		});
 
-		const sessionsByParent = groupBy(sessionData, s => s.parentID ?? 'root');
+		const sessionsByParent = groupBy(sessionData, (s) => s.parentID ?? 'root');
 		const parentSessions = sessionsByParent.root ?? [];
 		delete sessionsByParent.root;
 
@@ -173,12 +190,20 @@ export const sessionCommand = define({
 					]);
 				}
 
-				const subtotalInputTokens = parentSession.inputTokens + subSessions.reduce((sum, s) => sum + s.inputTokens, 0);
-				const subtotalOutputTokens = parentSession.outputTokens + subSessions.reduce((sum, s) => sum + s.outputTokens, 0);
-				const subtotalCacheCreationTokens = parentSession.cacheCreationTokens + subSessions.reduce((sum, s) => sum + s.cacheCreationTokens, 0);
-				const subtotalCacheReadTokens = parentSession.cacheReadTokens + subSessions.reduce((sum, s) => sum + s.cacheReadTokens, 0);
-				const subtotalTotalTokens = parentSession.totalTokens + subSessions.reduce((sum, s) => sum + s.totalTokens, 0);
-				const subtotalCost = parentSession.totalCost + subSessions.reduce((sum, s) => sum + s.totalCost, 0);
+				const subtotalInputTokens =
+					parentSession.inputTokens + subSessions.reduce((sum, s) => sum + s.inputTokens, 0);
+				const subtotalOutputTokens =
+					parentSession.outputTokens + subSessions.reduce((sum, s) => sum + s.outputTokens, 0);
+				const subtotalCacheCreationTokens =
+					parentSession.cacheCreationTokens +
+					subSessions.reduce((sum, s) => sum + s.cacheCreationTokens, 0);
+				const subtotalCacheReadTokens =
+					parentSession.cacheReadTokens +
+					subSessions.reduce((sum, s) => sum + s.cacheReadTokens, 0);
+				const subtotalTotalTokens =
+					parentSession.totalTokens + subSessions.reduce((sum, s) => sum + s.totalTokens, 0);
+				const subtotalCost =
+					parentSession.totalCost + subSessions.reduce((sum, s) => sum + s.totalCost, 0);
 
 				table.push([
 					pc.dim('  Total (with subagents)'),

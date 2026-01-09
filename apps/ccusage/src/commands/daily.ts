@@ -1,6 +1,12 @@
 import type { UsageReportConfig } from '@ccusage/terminal/table';
 import process from 'node:process';
-import { addEmptySeparatorRow, createUsageReportTable, formatTotalsRow, formatUsageDataRow, pushBreakdownRows } from '@ccusage/terminal/table';
+import {
+	addEmptySeparatorRow,
+	createUsageReportTable,
+	formatTotalsRow,
+	formatUsageDataRow,
+	pushBreakdownRows,
+} from '@ccusage/terminal/table';
 import { Result } from '@praha/byethrow';
 import { define } from 'gunshi';
 import pc from 'picocolors';
@@ -10,11 +16,7 @@ import { formatDateCompact } from '../_date-utils.ts';
 import { processWithJq } from '../_jq-processor.ts';
 import { formatProjectName } from '../_project-names.ts';
 import { sharedCommandConfig } from '../_shared-args.ts';
-import {
-	calculateTotals,
-	createTotalsObject,
-	getTotalTokens,
-} from '../calculate-cost.ts';
+import { calculateTotals, createTotalsObject, getTotalTokens } from '../calculate-cost.ts';
 import { loadDailyUsageData } from '../data-loader.ts';
 import { detectMismatches, printMismatchReport } from '../debug.ts';
 import { log, logger } from '../logger.ts';
@@ -38,7 +40,8 @@ export const dailyCommand = define({
 		},
 		projectAliases: {
 			type: 'string',
-			description: 'Comma-separated project aliases (e.g., \'ccusage=Usage Tracker,myproject=My Project\')',
+			description:
+				"Comma-separated project aliases (e.g., 'ccusage=Usage Tracker,myproject=My Project')",
 			hidden: true,
 		},
 	},
@@ -52,9 +55,12 @@ export const dailyCommand = define({
 		let projectAliases: Map<string, string> | undefined;
 		if (mergedOptions.projectAliases != null && typeof mergedOptions.projectAliases === 'string') {
 			projectAliases = new Map();
-			const pairs = mergedOptions.projectAliases.split(',').map(pair => pair.trim()).filter(pair => pair !== '');
+			const pairs = mergedOptions.projectAliases
+				.split(',')
+				.map((pair) => pair.trim())
+				.filter((pair) => pair !== '');
 			for (const pair of pairs) {
-				const parts = pair.split('=').map(s => s.trim());
+				const parts = pair.split('=').map((s) => s.trim());
 				const rawName = parts[0];
 				const alias = parts[1];
 				if (rawName != null && alias != null && rawName !== '' && alias !== '') {
@@ -77,8 +83,7 @@ export const dailyCommand = define({
 		if (dailyData.length === 0) {
 			if (useJson) {
 				log(JSON.stringify([]));
-			}
-			else {
+			} else {
 				logger.warn('No Claude usage data found.');
 			}
 			process.exit(0);
@@ -95,54 +100,54 @@ export const dailyCommand = define({
 
 		if (useJson) {
 			// Output JSON format - group by project if instances flag is used
-			const jsonOutput = Boolean(mergedOptions.instances) && dailyData.some(d => d.project != null)
-				? {
-						projects: groupByProject(dailyData),
-						totals: createTotalsObject(totals),
-					}
-				: {
-						daily: dailyData.map(data => ({
-							date: data.date,
-							inputTokens: data.inputTokens,
-							outputTokens: data.outputTokens,
-							cacheCreationTokens: data.cacheCreationTokens,
-							cacheReadTokens: data.cacheReadTokens,
-							totalTokens: getTotalTokens(data),
-							totalCost: data.totalCost,
-							modelsUsed: data.modelsUsed,
-							modelBreakdowns: data.modelBreakdowns,
-							...(data.project != null && { project: data.project }),
-						})),
-						totals: createTotalsObject(totals),
-					};
+			const jsonOutput =
+				Boolean(mergedOptions.instances) && dailyData.some((d) => d.project != null)
+					? {
+							projects: groupByProject(dailyData),
+							totals: createTotalsObject(totals),
+						}
+					: {
+							daily: dailyData.map((data) => ({
+								date: data.date,
+								inputTokens: data.inputTokens,
+								outputTokens: data.outputTokens,
+								cacheCreationTokens: data.cacheCreationTokens,
+								cacheReadTokens: data.cacheReadTokens,
+								totalTokens: getTotalTokens(data),
+								totalCost: data.totalCost,
+								modelsUsed: data.modelsUsed,
+								modelBreakdowns: data.modelBreakdowns,
+								...(data.project != null && { project: data.project }),
+							})),
+							totals: createTotalsObject(totals),
+						};
 
 			// Process with jq if specified
 			if (mergedOptions.jq != null) {
 				const jqResult = await processWithJq(jsonOutput, mergedOptions.jq);
 				if (Result.isFailure(jqResult)) {
-					logger.error((jqResult.error).message);
+					logger.error(jqResult.error.message);
 					process.exit(1);
 				}
 				log(jqResult.value);
-			}
-			else {
+			} else {
 				log(JSON.stringify(jsonOutput, null, 2));
 			}
-		}
-		else {
+		} else {
 			// Print header
 			logger.box('Claude Code Token Usage Report - Daily');
 
 			// Create table with compact mode support
 			const tableConfig: UsageReportConfig = {
 				firstColumnName: 'Date',
-				dateFormatter: (dateStr: string) => formatDateCompact(dateStr, mergedOptions.timezone, mergedOptions.locale ?? undefined),
+				dateFormatter: (dateStr: string) =>
+					formatDateCompact(dateStr, mergedOptions.timezone, mergedOptions.locale ?? undefined),
 				forceCompact: ctx.values.compact,
 			};
 			const table = createUsageReportTable(tableConfig);
 
 			// Add daily data - group by project if instances flag is used
-			if (Boolean(mergedOptions.instances) && dailyData.some(d => d.project != null)) {
+			if (Boolean(mergedOptions.instances) && dailyData.some((d) => d.project != null)) {
 				// Group data by project for visual separation
 				const projectGroups = groupDataByProject(dailyData);
 
@@ -186,8 +191,7 @@ export const dailyCommand = define({
 
 					isFirstProject = false;
 				}
-			}
-			else {
+			} else {
 				// Standard display without project grouping
 				for (const data of dailyData) {
 					// Main row

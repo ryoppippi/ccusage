@@ -6,7 +6,12 @@ import { Result } from '@praha/byethrow';
 import { createFixture } from 'fs-fixture';
 import { glob } from 'tinyglobby';
 import * as v from 'valibot';
-import { CODEX_HOME_ENV, DEFAULT_CODEX_DIR, DEFAULT_SESSION_SUBDIR, SESSION_GLOB } from './_consts.ts';
+import {
+	CODEX_HOME_ENV,
+	DEFAULT_CODEX_DIR,
+	DEFAULT_SESSION_SUBDIR,
+	SESSION_GLOB,
+} from './_consts.ts';
 import { logger } from './logger.ts';
 
 type RawUsage = {
@@ -61,9 +66,15 @@ function normalizeRawUsage(value: unknown): RawUsage | null {
 function subtractRawUsage(current: RawUsage, previous: RawUsage | null): RawUsage {
 	return {
 		input_tokens: Math.max(current.input_tokens - (previous?.input_tokens ?? 0), 0),
-		cached_input_tokens: Math.max(current.cached_input_tokens - (previous?.cached_input_tokens ?? 0), 0),
+		cached_input_tokens: Math.max(
+			current.cached_input_tokens - (previous?.cached_input_tokens ?? 0),
+			0,
+		),
 		output_tokens: Math.max(current.output_tokens - (previous?.output_tokens ?? 0), 0),
-		reasoning_output_tokens: Math.max(current.reasoning_output_tokens - (previous?.reasoning_output_tokens ?? 0), 0),
+		reasoning_output_tokens: Math.max(
+			current.reasoning_output_tokens - (previous?.reasoning_output_tokens ?? 0),
+			0,
+		),
 		total_tokens: Math.max(current.total_tokens - (previous?.total_tokens ?? 0), 0),
 	};
 }
@@ -77,9 +88,7 @@ function subtractRawUsage(current: RawUsage, previous: RawUsage | null): RawUsag
  * fallback to `input + output`.
  */
 function convertToDelta(raw: RawUsage): TokenUsageDelta {
-	const total = raw.total_tokens > 0
-		? raw.total_tokens
-		: raw.input_tokens + raw.output_tokens;
+	const total = raw.total_tokens > 0 ? raw.total_tokens : raw.input_tokens + raw.output_tokens;
 
 	const cached = Math.min(raw.cached_input_tokens, raw.input_tokens);
 
@@ -176,14 +185,14 @@ export type LoadResult = {
 };
 
 export async function loadTokenUsageEvents(options: LoadOptions = {}): Promise<LoadResult> {
-	const providedDirs = options.sessionDirs != null && options.sessionDirs.length > 0
-		? options.sessionDirs.map(dir => path.resolve(dir))
-		: undefined;
+	const providedDirs =
+		options.sessionDirs != null && options.sessionDirs.length > 0
+			? options.sessionDirs.map((dir) => path.resolve(dir))
+			: undefined;
 
 	const codexHomeEnv = process.env[CODEX_HOME_ENV]?.trim();
-	const codexHome = codexHomeEnv != null && codexHomeEnv !== ''
-		? path.resolve(codexHomeEnv)
-		: DEFAULT_CODEX_DIR;
+	const codexHome =
+		codexHomeEnv != null && codexHomeEnv !== '' ? path.resolve(codexHomeEnv) : DEFAULT_CODEX_DIR;
 	const defaultSessionsDir = path.join(codexHome, DEFAULT_SESSION_SUBDIR);
 	const sessionDirs = providedDirs ?? [defaultSessionsDir];
 
@@ -194,7 +203,7 @@ export async function loadTokenUsageEvents(options: LoadOptions = {}): Promise<L
 		const directoryPath = path.resolve(dir);
 		const statResult = await Result.try({
 			try: stat(directoryPath),
-			catch: error => error,
+			catch: (error) => error,
 		});
 
 		if (Result.isFailure(statResult)) {
@@ -218,7 +227,7 @@ export async function loadTokenUsageEvents(options: LoadOptions = {}): Promise<L
 			const sessionId = normalizedSessionPath.replace(/\.jsonl$/i, '');
 			const fileContentResult = await Result.try({
 				try: readFile(file, 'utf8'),
-				catch: error => error,
+				catch: (error) => error,
 			});
 
 			if (Result.isFailure(fileContentResult)) {
@@ -239,7 +248,7 @@ export async function loadTokenUsageEvents(options: LoadOptions = {}): Promise<L
 
 				const parseLine = Result.try({
 					try: () => JSON.parse(trimmed) as unknown,
-					catch: error => error,
+					catch: (error) => error,
 				});
 				const parsedResult = parseLine();
 
@@ -298,10 +307,10 @@ export async function loadTokenUsageEvents(options: LoadOptions = {}): Promise<L
 
 				const delta = convertToDelta(raw);
 				if (
-					delta.inputTokens === 0
-					&& delta.cachedInputTokens === 0
-					&& delta.outputTokens === 0
-					&& delta.reasoningOutputTokens === 0
+					delta.inputTokens === 0 &&
+					delta.cachedInputTokens === 0 &&
+					delta.outputTokens === 0 &&
+					delta.reasoningOutputTokens === 0
 				) {
 					continue;
 				}
@@ -324,8 +333,7 @@ export async function loadTokenUsageEvents(options: LoadOptions = {}): Promise<L
 					legacyFallbackUsed = true;
 					currentModel = model;
 					currentModelIsFallback = true;
-				}
-				else if (extractedModel == null && currentModelIsFallback) {
+				} else if (extractedModel == null && currentModelIsFallback) {
 					isFallbackModel = true;
 				}
 
@@ -350,7 +358,10 @@ export async function loadTokenUsageEvents(options: LoadOptions = {}): Promise<L
 			}
 
 			if (legacyFallbackUsed) {
-				logger.debug('Legacy Codex session lacked model metadata; applied fallback', { file, model: LEGACY_FALLBACK_MODEL });
+				logger.debug('Legacy Codex session lacked model metadata; applied fallback', {
+					file,
+					model: LEGACY_FALLBACK_MODEL,
+				});
 			}
 		}
 	}

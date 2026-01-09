@@ -7,8 +7,7 @@ function safeTimeZone(timezone?: string): string {
 		// Validate timezone by creating a formatter
 		Intl.DateTimeFormat('en-US', { timeZone: timezone });
 		return timezone;
-	}
-	catch {
+	} catch {
 		return 'UTC';
 	}
 }
@@ -98,7 +97,11 @@ export function formatDisplayMonth(monthKey: string, locale?: string, _timezone?
 	return formatter.format(date);
 }
 
-export function formatDisplayDateTime(timestamp: string, locale?: string, timezone?: string): string {
+export function formatDisplayDateTime(
+	timestamp: string,
+	locale?: string,
+	timezone?: string,
+): string {
 	const tz = safeTimeZone(timezone);
 	const date = new Date(timestamp);
 	const formatter = new Intl.DateTimeFormat(locale ?? 'en-US', {

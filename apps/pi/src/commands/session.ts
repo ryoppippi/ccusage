@@ -1,6 +1,12 @@
 import path from 'node:path';
 import process from 'node:process';
-import { addEmptySeparatorRow, createUsageReportTable, formatTotalsRow, formatUsageDataRow, pushBreakdownRows } from '@ccusage/terminal/table';
+import {
+	addEmptySeparatorRow,
+	createUsageReportTable,
+	formatTotalsRow,
+	formatUsageDataRow,
+	pushBreakdownRows,
+} from '@ccusage/terminal/table';
 import { log, logger } from 'ccusage/logger';
 import { define } from 'gunshi';
 import { loadPiAgentSessionData } from '../data-loader.ts';
@@ -57,8 +63,7 @@ export const sessionCommand = define({
 		if (piData.length === 0) {
 			if (ctx.values.json) {
 				log(JSON.stringify([]));
-			}
-			else {
+			} else {
 				logger.warn('No usage data found.');
 			}
 			process.exit(0);
@@ -81,12 +86,17 @@ export const sessionCommand = define({
 		}
 
 		if (ctx.values.json) {
-			log(JSON.stringify({
-				sessions: piData,
-				totals,
-			}, null, 2));
-		}
-		else {
+			log(
+				JSON.stringify(
+					{
+						sessions: piData,
+						totals,
+					},
+					null,
+					2,
+				),
+			);
+		} else {
 			logger.box('Pi-Agent Usage Report - Sessions');
 
 			const table = createUsageReportTable({
@@ -96,7 +106,8 @@ export const sessionCommand = define({
 
 			for (const data of piData) {
 				const projectName = path.basename(data.projectPath);
-				const truncatedName = projectName.length > 25 ? `${projectName.slice(0, 22)}...` : projectName;
+				const truncatedName =
+					projectName.length > 25 ? `${projectName.slice(0, 22)}...` : projectName;
 
 				const row = formatUsageDataRow(truncatedName, {
 					inputTokens: data.inputTokens,

@@ -34,7 +34,9 @@ export const dailyCommand = define({
 		const entries = await loadOpenCodeMessages();
 
 		if (entries.length === 0) {
-			const output = jsonOutput ? JSON.stringify({ daily: [], totals: null }) : 'No OpenCode usage data found.';
+			const output = jsonOutput
+				? JSON.stringify({ daily: [], totals: null })
+				: 'No OpenCode usage data found.';
 			// eslint-disable-next-line no-console
 			console.log(output);
 			return;
@@ -42,10 +44,7 @@ export const dailyCommand = define({
 
 		using fetcher = new LiteLLMPricingFetcher({ offline: false });
 
-		const entriesByDate = groupBy(
-			entries,
-			entry => entry.timestamp.toISOString().split('T')[0]!,
-		);
+		const entriesByDate = groupBy(entries, (entry) => entry.timestamp.toISOString().split('T')[0]!);
 
 		const dailyData: Array<{
 			date: string;
@@ -101,11 +100,17 @@ export const dailyCommand = define({
 		};
 
 		if (jsonOutput) {
-		// eslint-disable-next-line no-console
-			console.log(JSON.stringify({
-				daily: dailyData,
-				totals,
-			}, null, 2));
+			// eslint-disable-next-line no-console
+			console.log(
+				JSON.stringify(
+					{
+						daily: dailyData,
+						totals,
+					},
+					null,
+					2,
+				),
+			);
 			return;
 		}
 
@@ -113,7 +118,16 @@ export const dailyCommand = define({
 		console.log('\n📊 OpenCode Token Usage Report - Daily\n');
 
 		const table: ResponsiveTable = new ResponsiveTable({
-			head: ['Date', 'Models', 'Input', 'Output', 'Cache Create', 'Cache Read', 'Total Tokens', 'Cost (USD)'],
+			head: [
+				'Date',
+				'Models',
+				'Input',
+				'Output',
+				'Cache Create',
+				'Cache Read',
+				'Total Tokens',
+				'Cost (USD)',
+			],
 			colAligns: ['left', 'left', 'right', 'right', 'right', 'right', 'right', 'right'],
 			compactHead: ['Date', 'Models', 'Input', 'Output', 'Cost (USD)'],
 			compactColAligns: ['left', 'left', 'right', 'right', 'right'],
@@ -151,7 +165,7 @@ export const dailyCommand = define({
 		console.log(table.toString());
 
 		if (table.isCompactMode()) {
-		// eslint-disable-next-line no-console
+			// eslint-disable-next-line no-console
 			console.log('\nRunning in Compact Mode');
 			// eslint-disable-next-line no-console
 			console.log('Expand terminal width to see cache metrics and total tokens');

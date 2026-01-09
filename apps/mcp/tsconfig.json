@@ -2,17 +2,12 @@
 	"compilerOptions": {
 		"target": "ESNext",
 		"jsx": "react-jsx",
-		"lib": [
-			"ESNext"
-		],
+		"lib": ["ESNext"],
 		"moduleDetection": "force",
 		"module": "Preserve",
 		"moduleResolution": "bundler",
 		"resolveJsonModule": true,
-		"types": [
-			"vitest/globals",
-			"vitest/importMeta"
-		],
+		"types": ["vitest/globals", "vitest/importMeta"],
 		"allowImportingTsExtensions": true,
 		"allowJs": true,
 		"strict": true,
@@ -27,7 +22,5 @@
 		"erasableSyntaxOnly": true,
 		"skipLibCheck": true
 	},
-	"exclude": [
-		"dist"
-	]
+	"exclude": ["dist"]
 }

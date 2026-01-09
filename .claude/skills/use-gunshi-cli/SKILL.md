@@ -1,7 +1,7 @@
 ---
 name: use-gunshi-cli
 description: Use the Gunshi library to create command-line interfaces in JavaScript/TypeScript.
-globs: "*.ts, *.tsx, *.js, *.jsx, package.json"
+globs: '*.ts, *.tsx, *.js, *.jsx, package.json'
 alwaysApply: false
 ---
 

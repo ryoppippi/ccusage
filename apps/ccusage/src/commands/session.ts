@@ -1,6 +1,12 @@
 import type { UsageReportConfig } from '@ccusage/terminal/table';
 import process from 'node:process';
-import { addEmptySeparatorRow, createUsageReportTable, formatTotalsRow, formatUsageDataRow, pushBreakdownRows } from '@ccusage/terminal/table';
+import {
+	addEmptySeparatorRow,
+	createUsageReportTable,
+	formatTotalsRow,
+	formatUsageDataRow,
+	pushBreakdownRows,
+} from '@ccusage/terminal/table';
 import { Result } from '@praha/byethrow';
 import { define } from 'gunshi';
 import { loadConfig, mergeConfigWithArgs } from '../_config-loader-tokens.ts';
@@ -8,11 +14,7 @@ import { DEFAULT_LOCALE } from '../_consts.ts';
 import { formatDateCompact } from '../_date-utils.ts';
 import { processWithJq } from '../_jq-processor.ts';
 import { sharedCommandConfig } from '../_shared-args.ts';
-import {
-	calculateTotals,
-	createTotalsObject,
-	getTotalTokens,
-} from '../calculate-cost.ts';
+import { calculateTotals, createTotalsObject, getTotalTokens } from '../calculate-cost.ts';
 import { loadSessionData } from '../data-loader.ts';
 import { detectMismatches, printMismatchReport } from '../debug.ts';
 import { log, logger } from '../logger.ts';
@@ -47,16 +49,19 @@ export const sessionCommand = define({
 
 		// Handle specific session ID lookup
 		if (mergedOptions.id != null) {
-			return handleSessionIdLookup({
-				values: {
-					id: mergedOptions.id,
-					mode: mergedOptions.mode,
-					offline: mergedOptions.offline,
-					jq: mergedOptions.jq,
-					timezone: mergedOptions.timezone,
-					locale: mergedOptions.locale ?? DEFAULT_LOCALE,
+			return handleSessionIdLookup(
+				{
+					values: {
+						id: mergedOptions.id,
+						mode: mergedOptions.mode,
+						offline: mergedOptions.offline,
+						jq: mergedOptions.jq,
+						timezone: mergedOptions.timezone,
+						locale: mergedOptions.locale ?? DEFAULT_LOCALE,
+					},
 				},
-			}, useJson);
+				useJson,
+			);
 		}
 
 		// Original session listing logic
@@ -72,8 +77,7 @@ export const sessionCommand = define({
 		if (sessionData.length === 0) {
 			if (useJson) {
 				log(JSON.stringify([]));
-			}
-			else {
+			} else {
 				logger.warn('No Claude usage data found.');
 			}
 			process.exit(0);
@@ -91,7 +95,7 @@ export const sessionCommand = define({
 		if (useJson) {
 			// Output JSON format
 			const jsonOutput = {
-				sessions: sessionData.map(data => ({
+				sessions: sessionData.map((data) => ({
 					sessionId: data.sessionId,
 					inputTokens: data.inputTokens,
 					outputTokens: data.outputTokens,
@@ -111,16 +115,14 @@ export const sessionCommand = define({
 			if (ctx.values.jq != null) {
 				const jqResult = await processWithJq(jsonOutput, ctx.values.jq);
 				if (Result.isFailure(jqResult)) {
-					logger.error((jqResult.error).message);
+					logger.error(jqResult.error.message);
 					process.exit(1);
 				}
 				log(jqResult.value);
-			}
-			else {
+			} else {
 				log(JSON.stringify(jsonOutput, null, 2));
 			}
-		}
-		else {
+		} else {
 			// Print header
 			logger.box('Claude Code Token Usage Report - By Session');
 
@@ -128,7 +130,8 @@ export const sessionCommand = define({
 			const tableConfig: UsageReportConfig = {
 				firstColumnName: 'Session',
 				includeLastActivity: true,
-				dateFormatter: (dateStr: string) => formatDateCompact(dateStr, ctx.values.timezone, ctx.values.locale),
+				dateFormatter: (dateStr: string) =>
+					formatDateCompact(dateStr, ctx.values.timezone, ctx.values.locale),
 				forceCompact: ctx.values.compact,
 			};
 			const table = createUsageReportTable(tableConfig);
@@ -141,14 +144,18 @@ export const sessionCommand = define({
 				maxSessionLength = Math.max(maxSessionLength, sessionDisplay.length);
 
 				// Main row
-				const row = formatUsageDataRow(sessionDisplay, {
-					inputTokens: data.inputTokens,
-					outputTokens: data.outputTokens,
-					cacheCreationTokens: data.cacheCreationTokens,
-					cacheReadTokens: data.cacheReadTokens,
-					totalCost: data.totalCost,
-					modelsUsed: data.modelsUsed,
-				}, data.lastActivity);
+				const row = formatUsageDataRow(
+					sessionDisplay,
+					{
+						inputTokens: data.inputTokens,
+						outputTokens: data.outputTokens,
+						cacheCreationTokens: data.cacheCreationTokens,
+						cacheReadTokens: data.cacheReadTokens,
+						totalCost: data.totalCost,
+						modelsUsed: data.modelsUsed,
+					},
+					data.lastActivity,
+				);
 				table.push(row);
 
 				// Add model breakdown rows if flag is set
@@ -162,13 +169,16 @@ export const sessionCommand = define({
 			addEmptySeparatorRow(table, 9);
 
 			// Add totals
-			const totalsRow = formatTotalsRow({
-				inputTokens: totals.inputTokens,
-				outputTokens: totals.outputTokens,
-				cacheCreationTokens: totals.cacheCreationTokens,
-				cacheReadTokens: totals.cacheReadTokens,
-				totalCost: totals.totalCost,
-			}, true); // Include Last Activity column
+			const totalsRow = formatTotalsRow(
+				{
+					inputTokens: totals.inputTokens,
+					outputTokens: totals.outputTokens,
+					cacheCreationTokens: totals.cacheCreationTokens,
+					cacheReadTokens: totals.cacheReadTokens,
+					totalCost: totals.totalCost,
+				},
+				true,
+			); // Include Last Activity column
 			table.push(totalsRow);
 
 			log(table.toString());

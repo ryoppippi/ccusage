@@ -1,8 +1,8 @@
 import { Result } from '@praha/byethrow';
 import * as v from 'valibot';
 
-export const LITELLM_PRICING_URL
-	= 'https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json';
+export const LITELLM_PRICING_URL =
+	'https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json';
 
 /**
  * Default token threshold for tiered pricing in 1M context window models.
@@ -120,11 +120,15 @@ export class LiteLLMPricingFetcher implements Disposable {
 			this.cachedPricing = pricing;
 			return pricing;
 		},
-		catch: error => new Error('Failed to load offline pricing data', { cause: error }),
+		catch: (error) => new Error('Failed to load offline pricing data', { cause: error }),
 	});
 
-	private async handleFallbackToCachedPricing(originalError: unknown): Result.ResultAsync<Map<string, LiteLLMModelPricing>, Error> {
-		this.logger.warn('Failed to fetch model pricing from LiteLLM, falling back to cached pricing data');
+	private async handleFallbackToCachedPricing(
+		originalError: unknown,
+	): Result.ResultAsync<Map<string, LiteLLMModelPricing>, Error> {
+		this.logger.warn(
+			'Failed to fetch model pricing from LiteLLM, falling back to cached pricing data',
+		);
 		this.logger.debug('Fetch error details:', originalError);
 		return Result.pipe(
 			this.loadOfflinePricing(),
@@ -140,7 +144,9 @@ export class LiteLLMPricingFetcher implements Disposable {
 
 	private async ensurePricingLoaded(): Result.ResultAsync<Map<string, LiteLLMModelPricing>, Error> {
 		return Result.pipe(
-			this.cachedPricing != null ? Result.succeed(this.cachedPricing) : Result.fail(new Error('Cached pricing not available')),
+			this.cachedPricing != null
+				? Result.succeed(this.cachedPricing)
+				: Result.fail(new Error('Cached pricing not available')),
 			Result.orElse(async () => {
 				if (this.offline) {
 					return this.loadOfflinePricing();
@@ -150,7 +156,8 @@ export class LiteLLMPricingFetcher implements Disposable {
 				return Result.pipe(
 					Result.try({
 						try: fetch(this.url),
-						catch: error => new Error('Failed to fetch model pricing from LiteLLM', { cause: error }),
+						catch: (error) =>
+							new Error('Failed to fetch model pricing from LiteLLM', { cause: error }),
 					}),
 					Result.andThrough((response) => {
 						if (!response.ok) {
@@ -158,10 +165,12 @@ export class LiteLLMPricingFetcher implements Disposable {
 						}
 						return Result.succeed();
 					}),
-					Result.andThen(async response => Result.try({
-						try: response.json() as Promise<Record<string, unknown>>,
-						catch: error => new Error('Failed to parse pricing data', { cause: error }),
-					})),
+					Result.andThen(async (response) =>
+						Result.try({
+							try: response.json() as Promise<Record<string, unknown>>,
+							catch: (error) => new Error('Failed to parse pricing data', { cause: error }),
+						}),
+					),
 					Result.map((data) => {
 						const pricing = new Map<string, LiteLLMModelPricing>();
 						for (const [modelName, modelData] of Object.entries(data)) {
@@ -182,7 +191,7 @@ export class LiteLLMPricingFetcher implements Disposable {
 						this.cachedPricing = pricing;
 						this.logger.info(`Loaded pricing for ${pricing.size} models`);
 					}),
-					Result.orElse(async error => this.handleFallbackToCachedPricing(error)),
+					Result.orElse(async (error) => this.handleFallbackToCachedPricing(error)),
 				);
 			}),
 		);
@@ -230,7 +239,7 @@ export class LiteLLMPricingFetcher implements Disposable {
 	async getModelContextLimit(modelName: string): Result.ResultAsync<number | null, Error> {
 		return Result.pipe(
 			this.getModelPricing(modelName),
-			Result.map(pricing => pricing?.max_input_tokens ?? null),
+			Result.map((pricing) => pricing?.max_input_tokens ?? null),
 		);
 	}
 
@@ -346,9 +355,7 @@ export class LiteLLMPricingFetcher implements Disposable {
 				if (pricing == null) {
 					return Result.fail(new Error(`Model pricing not found for ${modelName}`));
 				}
-				return Result.succeed(
-					this.calculateCostFromPricing(tokens, pricing),
-				);
+				return Result.succeed(this.calculateCostFromPricing(tokens, pricing));
 			}),
 		);
 	}
@@ -384,13 +391,18 @@ if (import.meta.vitest != null) {
 				}),
 			});
 
-			const cost = await Result.unwrap(fetcher.calculateCostFromTokens({
-				input_tokens: 1000,
-				output_tokens: 500,
-				cache_read_input_tokens: 200,
-			}, 'gpt-5'));
+			const cost = await Result.unwrap(
+				fetcher.calculateCostFromTokens(
+					{
+						input_tokens: 1000,
+						output_tokens: 500,
+						cache_read_input_tokens: 200,
+					},
+					'gpt-5',
+				),
+			);
 
-			expect(cost).toBeCloseTo((1000 * 1.25e-6) + (500 * 1e-5) + (200 * 1.25e-7));
+			expect(cost).toBeCloseTo(1000 * 1.25e-6 + 500 * 1e-5 + 200 * 1.25e-7);
 		});
 
 		it('calculates tiered pricing for tokens exceeding 200k threshold (300k input, 250k output, 300k cache creation, 250k cache read)', async () => {
@@ -411,18 +423,27 @@ if (import.meta.vitest != null) {
 			});
 
 			// Test comprehensive scenario with all token types above 200k threshold
-			const cost = await Result.unwrap(fetcher.calculateCostFromTokens({
-				input_tokens: 300_000,
-				output_tokens: 250_000,
-				cache_creation_input_tokens: 300_000,
-				cache_read_input_tokens: 250_000,
-			}, 'anthropic/claude-4-sonnet-20250514'));
+			const cost = await Result.unwrap(
+				fetcher.calculateCostFromTokens(
+					{
+						input_tokens: 300_000,
+						output_tokens: 250_000,
+						cache_creation_input_tokens: 300_000,
+						cache_read_input_tokens: 250_000,
+					},
+					'anthropic/claude-4-sonnet-20250514',
+				),
+			);
 
-			const expectedCost
-				= (200_000 * 3e-6) + (100_000 * 6e-6) // input
-					+ (200_000 * 1.5e-5) + (50_000 * 2.25e-5) // output
-					+ (200_000 * 3.75e-6) + (100_000 * 7.5e-6) // cache creation
-					+ (200_000 * 3e-7) + (50_000 * 6e-7); // cache read
+			const expectedCost =
+				200_000 * 3e-6 +
+				100_000 * 6e-6 + // input
+				200_000 * 1.5e-5 +
+				50_000 * 2.25e-5 + // output
+				200_000 * 3.75e-6 +
+				100_000 * 7.5e-6 + // cache creation
+				200_000 * 3e-7 +
+				50_000 * 6e-7; // cache read
 			expect(cost).toBeCloseTo(expectedCost);
 		});
 
@@ -438,12 +459,17 @@ if (import.meta.vitest != null) {
 			});
 
 			// Should use normal pricing for all tokens
-			const cost = await Result.unwrap(fetcher.calculateCostFromTokens({
-				input_tokens: 300_000,
-				output_tokens: 250_000,
-			}, 'gpt-5'));
+			const cost = await Result.unwrap(
+				fetcher.calculateCostFromTokens(
+					{
+						input_tokens: 300_000,
+						output_tokens: 250_000,
+					},
+					'gpt-5',
+				),
+			);
 
-			expect(cost).toBeCloseTo((300_000 * 1e-6) + (250_000 * 2e-6));
+			expect(cost).toBeCloseTo(300_000 * 1e-6 + 250_000 * 2e-6);
 		});
 
 		it('correctly applies pricing at 200k boundary (200k uses base, 200,001 uses tiered, 0 returns 0)', async () => {
@@ -458,24 +484,39 @@ if (import.meta.vitest != null) {
 			});
 
 			// Test with exactly 200k tokens (should use only base price)
-			const cost200k = await Result.unwrap(fetcher.calculateCostFromTokens({
-				input_tokens: 200_000,
-				output_tokens: 0,
-			}, 'claude-4-sonnet-20250514'));
+			const cost200k = await Result.unwrap(
+				fetcher.calculateCostFromTokens(
+					{
+						input_tokens: 200_000,
+						output_tokens: 0,
+					},
+					'claude-4-sonnet-20250514',
+				),
+			);
 			expect(cost200k).toBeCloseTo(200_000 * 3e-6);
 
 			// Test with 200,001 tokens (should use tiered pricing for 1 token)
-			const cost200k1 = await Result.unwrap(fetcher.calculateCostFromTokens({
-				input_tokens: 200_001,
-				output_tokens: 0,
-			}, 'claude-4-sonnet-20250514'));
-			expect(cost200k1).toBeCloseTo((200_000 * 3e-6) + (1 * 6e-6));
+			const cost200k1 = await Result.unwrap(
+				fetcher.calculateCostFromTokens(
+					{
+						input_tokens: 200_001,
+						output_tokens: 0,
+					},
+					'claude-4-sonnet-20250514',
+				),
+			);
+			expect(cost200k1).toBeCloseTo(200_000 * 3e-6 + 1 * 6e-6);
 
 			// Test with 0 tokens (should return 0)
-			const costZero = await Result.unwrap(fetcher.calculateCostFromTokens({
-				input_tokens: 0,
-				output_tokens: 0,
-			}, 'claude-4-sonnet-20250514'));
+			const costZero = await Result.unwrap(
+				fetcher.calculateCostFromTokens(
+					{
+						input_tokens: 0,
+						output_tokens: 0,
+					},
+					'claude-4-sonnet-20250514',
+				),
+			);
 			expect(costZero).toBe(0);
 		});
 
@@ -492,20 +533,30 @@ if (import.meta.vitest != null) {
 			});
 
 			// Test with 300k tokens - should only charge for tokens above 200k
-			const cost = await Result.unwrap(fetcher.calculateCostFromTokens({
-				input_tokens: 300_000,
-				output_tokens: 250_000,
-			}, 'theoretical-model'));
+			const cost = await Result.unwrap(
+				fetcher.calculateCostFromTokens(
+					{
+						input_tokens: 300_000,
+						output_tokens: 250_000,
+					},
+					'theoretical-model',
+				),
+			);
 
 			// Only 100k input tokens above 200k are charged
 			// Only 50k output tokens above 200k are charged
-			expect(cost).toBeCloseTo((100_000 * 6e-6) + (50_000 * 2.25e-5));
+			expect(cost).toBeCloseTo(100_000 * 6e-6 + 50_000 * 2.25e-5);
 
 			// Test with tokens below threshold - should return 0 (no base price)
-			const costBelow = await Result.unwrap(fetcher.calculateCostFromTokens({
-				input_tokens: 100_000,
-				output_tokens: 100_000,
-			}, 'theoretical-model'));
+			const costBelow = await Result.unwrap(
+				fetcher.calculateCostFromTokens(
+					{
+						input_tokens: 100_000,
+						output_tokens: 100_000,
+					},
+					'theoretical-model',
+				),
+			);
 			expect(costBelow).toBe(0);
 		});
 	});
