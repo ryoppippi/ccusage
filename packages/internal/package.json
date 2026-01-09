@@ -1,7 +1,7 @@
 {
 	"name": "@ccusage/internal",
 	"type": "module",
-	"version": "17.2.1",
+	"version": "18.0.1",
 	"private": true,
 	"description": "Shared internal utilities for ccusage toolchain",
 	"exports": {
