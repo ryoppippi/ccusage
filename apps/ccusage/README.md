@@ -33,6 +33,10 @@ Companion tool for analyzing OpenAI Codex usage. Same powerful features as ccusa
 
 Companion tool for analyzing OpenCode (Claude Code fork) usage. Track token usage and costs from OpenCode sessions with the same reporting capabilities as ccusage.
 
+### 🥧 [@ccusage/pi](https://www.npmjs.com/package/@ccusage/pi) - Pi-agent Usage Analyzer
+
+Unified usage tracking across Claude Code and [pi-agent](https://github.com/badlogic/pi-mono). Combines data from both sources with clear labels (`[cc]` for Claude Code, `[pi]` for pi-agent) to give you a complete picture of your Claude Max usage.
+
 ### 🔌 [@ccusage/mcp](https://www.npmjs.com/package/@ccusage/mcp) - MCP Server Integration
 
 Model Context Protocol server that exposes ccusage data to Claude Desktop and other MCP-compatible tools. Enable real-time usage tracking directly in your AI workflows.
@@ -60,35 +64,12 @@ deno run -E -R=$HOME/.claude/projects/ -S=homedir -N='raw.githubusercontent.com:
 
 ### Related Tools
 
-#### Codex CLI
-
-Analyze OpenAI Codex usage with our companion tool [@ccusage/codex](https://www.npmjs.com/package/@ccusage/codex):
-
 ```bash
-# Recommended - always include @latest
-npx @ccusage/codex@latest
-bunx @ccusage/codex@latest  # ⚠️ MUST include @latest with bunx
-
-# Alternative package runners
-pnpm dlx @ccusage/codex
-pnpx @ccusage/codex
-
-# Using deno (with security flags)
-deno run -E -R=$HOME/.codex/ -S=homedir -N='raw.githubusercontent.com:443' npm:@ccusage/codex@latest
+npx @ccusage/codex@latest       # OpenAI Codex usage tracking
+npx @ccusage/opencode@latest    # OpenCode usage tracking
+npx @ccusage/pi@latest          # Unified Claude Code + pi-agent usage
+npx @ccusage/mcp@latest         # MCP Server
 ```
-
-> ⚠️ **Critical for bunx users**: Bun 1.2.x's bunx prioritizes binaries matching the package name suffix when given a scoped package. For `@ccusage/codex`, it looks for a `codex` binary in PATH first. If you have an existing `codex` command installed (e.g., GitHub Copilot's codex), that will be executed instead. **Always use `bunx @ccusage/codex@latest` with the version tag** to force bunx to fetch and run the correct package.
-
-#### MCP Server
-
-Integrate ccusage with Claude Desktop using [@ccusage/mcp](https://www.npmjs.com/package/@ccusage/mcp):
-
-```bash
-# Start MCP server for Claude Desktop integration
-npx @ccusage/mcp@latest --type http --port 8080
-```
-
-This enables real-time usage tracking and analysis directly within Claude Desktop conversations.
 
 ## Usage
 
