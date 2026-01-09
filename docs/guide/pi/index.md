@@ -1,10 +1,10 @@
 # Pi-Agent Integration
 
-The `@ccusage/pi` package provides unified usage tracking across Claude Code and [pi-agent](https://github.com/badlogic/pi-mono), an alternative Claude coding agent from [shittycodingagent.ai](https://shittycodingagent.ai).
+The `@ccusage/pi` package provides usage tracking for [pi-agent](https://github.com/badlogic/pi-mono), an alternative Claude coding agent from [shittycodingagent.ai](https://shittycodingagent.ai).
 
 ## What is Pi-Agent?
 
-Pi-agent is a third-party Claude coding agent that stores usage data in a similar JSONL format to Claude Code but in a different directory structure. The `@ccusage/pi` package combines data from both sources to give you a complete view of your Claude Max usage.
+Pi-agent is a third-party Claude coding agent that stores usage data in JSONL format. The `@ccusage/pi` package analyses this data to give you a view of your pi-agent usage.
 
 ## Installation & Launch
 
@@ -39,27 +39,24 @@ ccusage-pi monthly --json
 After adding the alias to your shell config file (`.bashrc`, `.zshrc`, or `config.fish`), restart your shell or run `source` on the config file to apply the changes.
 :::
 
-## Data Sources
+## Data Source
 
-The CLI combines usage data from two sources:
+The CLI reads usage data from pi-agent:
 
-| Source      | Label  | Default Path                                          |
-| ----------- | ------ | ----------------------------------------------------- |
-| Claude Code | `[cc]` | `~/.claude/projects/` or `~/.config/claude/projects/` |
-| Pi-agent    | `[pi]` | `~/.pi/agent/sessions/`                               |
-
-Reports display data from both sources with clear labels so you can identify where each entry originated.
+| Source   | Default Path            |
+| -------- | ----------------------- |
+| Pi-agent | `~/.pi/agent/sessions/` |
 
 ## Available Commands
 
 ```bash
-# Show daily combined usage (Claude Code + pi-agent)
+# Show daily pi-agent usage
 ccusage-pi daily
 
-# Show monthly combined usage
+# Show monthly pi-agent usage
 ccusage-pi monthly
 
-# Show session-based usage
+# Show session-based pi-agent usage
 ccusage-pi session
 
 # JSON output for automation
@@ -77,15 +74,14 @@ ccusage-pi daily --breakdown
 
 ## Environment Variables
 
-| Variable            | Description                                    |
-| ------------------- | ---------------------------------------------- |
-| `PI_AGENT_DIR`      | Custom path to pi-agent sessions directory     |
-| `CLAUDE_CONFIG_DIR` | Custom path(s) to Claude Code data directories |
-| `LOG_LEVEL`         | Adjust logging verbosity (0 silent … 5 trace)  |
+| Variable       | Description                                   |
+| -------------- | --------------------------------------------- |
+| `PI_AGENT_DIR` | Custom path to pi-agent sessions directory    |
+| `LOG_LEVEL`    | Adjust logging verbosity (0 silent … 5 trace) |
 
 ## Daily Report
 
-The `daily` command shows combined daily usage from both Claude Code and pi-agent.
+The `daily` command shows daily usage from pi-agent.
 
 ```bash
 # Recommended (fastest)
@@ -109,20 +105,14 @@ npx @ccusage/pi@latest daily
 
 ### Example Output
 
-The output displays entries from both sources with clear labels:
-
-- `[cc]` - Claude Code entries (green)
-- `[pi]` - Pi-agent entries (cyan)
-
 ```
-┌────────────────────┬────────────┬─────────────┬───────────┬───────────┬────────┬─────────┐
-│ Date               │ Input      │ Output      │ Cache Cr. │ Cache Rd. │ Cost   │ Models  │
-├────────────────────┼────────────┼─────────────┼───────────┼───────────┼────────┼─────────┤
-│ 2025-01-09 [cc]    │ 1,234,567  │ 234,567     │ 12,345    │ 98,765    │ $1.23  │ opus-4  │
-│            [pi]    │ 567,890    │ 123,456     │ 5,678     │ 45,678    │ $0.89  │ opus-4  │
-├────────────────────┼────────────┼─────────────┼───────────┼───────────┼────────┼─────────┤
-│ Total              │ 1,802,457  │ 358,023     │ 18,023    │ 144,443   │ $2.12  │         │
-└────────────────────┴────────────┴─────────────┴───────────┴───────────┴────────┴─────────┘
+┌────────────┬────────────┬─────────────┬───────────┬───────────┬────────┬─────────┐
+│ Date       │ Input      │ Output      │ Cache Cr. │ Cache Rd. │ Cost   │ Models  │
+├────────────┼────────────┼─────────────┼───────────┼───────────┼────────┼─────────┤
+│ 2025-01-09 │ 567,890    │ 123,456     │ 5,678     │ 45,678    │ $0.89  │ opus-4  │
+├────────────┼────────────┼─────────────┼───────────┼───────────┼────────┼─────────┤
+│ Total      │ 567,890    │ 123,456     │ 5,678     │ 45,678    │ $0.89  │         │
+└────────────┴────────────┴─────────────┴───────────┴───────────┴────────┴─────────┘
 ```
 
 ### JSON Output
@@ -142,28 +132,22 @@ Returns structured data:
   "daily": [
     {
       "date": "2025-01-09",
-      "source": "claude-code",
-      "inputTokens": 1234567,
-      "outputTokens": 234567,
-      "cacheCreationTokens": 12345,
-      "cacheReadTokens": 98765,
-      "totalCost": 1.23,
-      "modelsUsed": ["claude-opus-4-5-20251101"],
-      "modelBreakdowns": [...]
-    },
-    {
-      "date": "2025-01-09",
       "source": "pi-agent",
       "inputTokens": 567890,
-      ...
+      "outputTokens": 123456,
+      "cacheCreationTokens": 5678,
+      "cacheReadTokens": 45678,
+      "totalCost": 0.89,
+      "modelsUsed": ["claude-opus-4-5-20251101"],
+      "modelBreakdowns": [...]
     }
   ],
   "totals": {
-    "inputTokens": 1802457,
-    "outputTokens": 358023,
-    "cacheCreationTokens": 18023,
-    "cacheReadTokens": 144443,
-    "totalCost": 2.12
+    "inputTokens": 567890,
+    "outputTokens": 123456,
+    "cacheCreationTokens": 5678,
+    "cacheReadTokens": 45678,
+    "totalCost": 0.89
   }
 }
 ```
@@ -182,7 +166,7 @@ ccusage-pi daily --since 2025-01-09 --until 2025-01-09
 
 ## Monthly Report
 
-The `monthly` command shows combined monthly usage from both Claude Code and pi-agent.
+The `monthly` command shows monthly usage from pi-agent.
 
 ```bash
 # Recommended (fastest)
@@ -206,22 +190,14 @@ npx @ccusage/pi@latest monthly
 
 ### Example Output
 
-The output groups usage by month with source labels:
-
-- `[cc]` - Claude Code entries (green)
-- `[pi]` - Pi-agent entries (cyan)
-
 ```
-┌────────────────────┬────────────┬─────────────┬───────────┬───────────┬─────────┬─────────┐
-│ Month              │ Input      │ Output      │ Cache Cr. │ Cache Rd. │ Cost    │ Models  │
-├────────────────────┼────────────┼─────────────┼───────────┼───────────┼─────────┼─────────┤
-│ 2025-01 [cc]       │ 45,678,901 │ 8,901,234   │ 456,789   │ 3,456,789 │ $45.67  │ opus-4  │
-│         [pi]       │ 12,345,678 │ 2,345,678   │ 123,456   │ 987,654   │ $12.34  │ opus-4  │
-├────────────────────┼────────────┼─────────────┼───────────┼───────────┼─────────┼─────────┤
-│ 2024-12 [cc]       │ 34,567,890 │ 6,789,012   │ 345,678   │ 2,678,901 │ $34.56  │ sonnet-4│
-├────────────────────┼────────────┼─────────────┼───────────┼───────────┼─────────┼─────────┤
-│ Total              │ 92,592,469 │ 18,035,924  │ 925,923   │ 7,123,344 │ $92.57  │         │
-└────────────────────┴────────────┴─────────────┴───────────┴───────────┴─────────┴─────────┘
+┌─────────┬────────────┬─────────────┬───────────┬───────────┬─────────┬─────────┐
+│ Month   │ Input      │ Output      │ Cache Cr. │ Cache Rd. │ Cost    │ Models  │
+├─────────┼────────────┼─────────────┼───────────┼───────────┼─────────┼─────────┤
+│ 2025-01 │ 12,345,678 │ 2,345,678   │ 123,456   │ 987,654   │ $12.34  │ opus-4  │
+├─────────┼────────────┼─────────────┼───────────┼───────────┼─────────┼─────────┤
+│ Total   │ 12,345,678 │ 2,345,678   │ 123,456   │ 987,654   │ $12.34  │         │
+└─────────┴────────────┴─────────────┴───────────┴───────────┴─────────┴─────────┘
 ```
 
 ### JSON Output
@@ -241,27 +217,22 @@ Returns structured data:
   "monthly": [
     {
       "month": "2025-01",
-      "source": "claude-code",
-      "inputTokens": 45678901,
-      "outputTokens": 8901234,
-      "cacheCreationTokens": 456789,
-      "cacheReadTokens": 3456789,
-      "totalCost": 45.67,
+      "source": "pi-agent",
+      "inputTokens": 12345678,
+      "outputTokens": 2345678,
+      "cacheCreationTokens": 123456,
+      "cacheReadTokens": 987654,
+      "totalCost": 12.34,
       "modelsUsed": ["claude-opus-4-5-20251101"],
       "modelBreakdowns": [...]
-    },
-    {
-      "month": "2025-01",
-      "source": "pi-agent",
-      ...
     }
   ],
   "totals": {
-    "inputTokens": 92592469,
-    "outputTokens": 18035924,
-    "cacheCreationTokens": 925923,
-    "cacheReadTokens": 7123344,
-    "totalCost": 92.57
+    "inputTokens": 12345678,
+    "outputTokens": 2345678,
+    "cacheCreationTokens": 123456,
+    "cacheReadTokens": 987654,
+    "totalCost": 12.34
   }
 }
 ```
@@ -280,7 +251,7 @@ ccusage-pi monthly --since 2024-10-01 --until 2024-12-31
 
 ## Session Report
 
-The `session` command shows combined usage grouped by individual sessions from both Claude Code and pi-agent.
+The `session` command shows usage grouped by individual pi-agent sessions.
 
 ```bash
 # Recommended (fastest)
@@ -304,31 +275,22 @@ npx @ccusage/pi@latest session
 
 ### Example Output
 
-Sessions are sorted by last activity and labeled by source:
-
-- `[cc]` - Claude Code sessions (green)
-- `[pi]` - Pi-agent sessions (cyan)
+Sessions are sorted by last activity:
 
 ```
 ┌──────────────────────────────┬────────────┬───────────┬───────────┬───────────┬────────┬─────────┐
 │ Session                      │ Input      │ Output    │ Cache Cr. │ Cache Rd. │ Cost   │ Models  │
 ├──────────────────────────────┼────────────┼───────────┼───────────┼───────────┼────────┼─────────┤
-│ ccusage [cc]                 │ 234,567    │ 45,678    │ 2,345     │ 19,876    │ $0.23  │ opus-4  │
-│ my-project [pi]              │ 123,456    │ 23,456    │ 1,234     │ 9,876     │ $0.12  │ opus-4  │
-│ another-repo [cc]            │ 345,678    │ 67,890    │ 3,456     │ 29,876    │ $0.34  │ sonnet-4│
+│ my-project                   │ 123,456    │ 23,456    │ 1,234     │ 9,876     │ $0.12  │ opus-4  │
+│ another-repo                 │ 345,678    │ 67,890    │ 3,456     │ 29,876    │ $0.34  │ sonnet-4│
 ├──────────────────────────────┼────────────┼───────────┼───────────┼───────────┼────────┼─────────┤
-│ Total                        │ 703,701    │ 137,024   │ 7,035     │ 59,628    │ $0.69  │         │
+│ Total                        │ 469,134    │ 91,346    │ 4,690     │ 39,752    │ $0.46  │         │
 └──────────────────────────────┴────────────┴───────────┴───────────┴───────────┴────────┴─────────┘
 ```
 
 ### Session Identification
 
-Sessions are identified differently for each source:
-
-| Source      | Session Name                                               |
-| ----------- | ---------------------------------------------------------- |
-| Claude Code | Project directory name                                     |
-| Pi-agent    | Project folder name from `~/.pi/agent/sessions/{project}/` |
+Sessions are identified by the project folder name from `~/.pi/agent/sessions/{project}/`.
 
 Long project names are truncated to 25 characters with `...` suffix for readability.
 
@@ -349,30 +311,24 @@ Returns structured data including full paths:
   "sessions": [
     {
       "sessionId": "abc123-def456",
-      "projectPath": "/Users/you/projects/ccusage",
-      "source": "claude-code",
-      "inputTokens": 234567,
-      "outputTokens": 45678,
-      "cacheCreationTokens": 2345,
-      "cacheReadTokens": 19876,
-      "totalCost": 0.23,
+      "projectPath": "my-project",
+      "source": "pi-agent",
+      "inputTokens": 123456,
+      "outputTokens": 23456,
+      "cacheCreationTokens": 1234,
+      "cacheReadTokens": 9876,
+      "totalCost": 0.12,
       "lastActivity": "2025-01-09",
       "modelsUsed": ["claude-opus-4-5-20251101"],
       "modelBreakdowns": [...]
-    },
-    {
-      "sessionId": "xyz789",
-      "projectPath": "my-project",
-      "source": "pi-agent",
-      ...
     }
   ],
   "totals": {
-    "inputTokens": 703701,
-    "outputTokens": 137024,
-    "cacheCreationTokens": 7035,
-    "cacheReadTokens": 59628,
-    "totalCost": 0.69
+    "inputTokens": 123456,
+    "outputTokens": 23456,
+    "cacheCreationTokens": 1234,
+    "cacheReadTokens": 9876,
+    "totalCost": 0.12
   }
 }
 ```

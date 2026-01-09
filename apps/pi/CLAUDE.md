@@ -1,11 +1,11 @@
 # CLAUDE.md - Pi Package
 
-This package provides unified usage tracking across Claude Code and pi-agent.
+This package provides usage tracking for pi-agent.
 
 ## Package Overview
 
 **Name**: `@ccusage/pi`
-**Description**: Pi-agent usage tracking - unified Claude Max usage across Claude Code and pi-agent
+**Description**: Pi-agent usage tracking
 **Type**: CLI tool with TypeScript exports
 
 ## Development Commands
@@ -25,13 +25,13 @@ This package provides unified usage tracking across Claude Code and pi-agent.
 ## Usage
 
 ```bash
-# Show daily combined usage (Claude Code + pi-agent)
+# Show daily pi-agent usage
 ccusage-pi daily
 
-# Show monthly combined usage
+# Show monthly pi-agent usage
 ccusage-pi monthly
 
-# Show session-based usage
+# Show session-based pi-agent usage
 ccusage-pi session
 
 # JSON output
@@ -43,11 +43,10 @@ ccusage-pi daily --pi-path /path/to/sessions
 
 ## Architecture
 
-This package combines usage data from two sources:
+This package reads usage data from pi-agent only.
 
-**Data Sources:**
+**Data Source:**
 
-- **Claude Code**: `~/.claude/projects/` or `~/.config/claude/projects/`
 - **Pi-agent**: `~/.pi/agent/sessions/`
 
 **Key Modules:**
@@ -56,11 +55,6 @@ This package combines usage data from two sources:
 - `src/data-loader.ts` - Loads and aggregates pi-agent JSONL data
 - `src/_pi-agent.ts` - Pi-agent data parsing and transformation
 - `src/commands/` - CLI subcommands (daily, monthly, session)
-
-**Output Labels:**
-
-- `[cc]` - Claude Code entries
-- `[pi]` - Pi-agent entries
 
 ## Dependencies
 
@@ -104,11 +98,10 @@ Always run these commands in parallel after code changes:
 
 ## Environment Variables
 
-| Variable            | Description                                    |
-| ------------------- | ---------------------------------------------- |
-| `PI_AGENT_DIR`      | Custom path to pi-agent sessions directory     |
-| `CLAUDE_CONFIG_DIR` | Custom path(s) to Claude Code data directories |
-| `LOG_LEVEL`         | Adjust logging verbosity (0 silent … 5 trace)  |
+| Variable       | Description                                   |
+| -------------- | --------------------------------------------- |
+| `PI_AGENT_DIR` | Custom path to pi-agent sessions directory    |
+| `LOG_LEVEL`    | Adjust logging verbosity (0 silent … 5 trace) |
 
 ## Package Exports
 
