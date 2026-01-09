@@ -97,8 +97,12 @@ ccusage monthly --json > usage-data.json
 
 ### Real-time Status Display
 
+Add statusline to your Claude Code settings:
+
 ```bash
-ccusage statusline
+# Using jq to add statusline configuration
+jq '.statusLine = {"type": "command", "command": "bun x ccusage statusline", "padding": 0}' \
+  ~/.config/claude/settings.json > tmp.json && mv tmp.json ~/.config/claude/settings.json
 ```
 
 ## Colors
