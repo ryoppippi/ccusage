@@ -37,6 +37,10 @@ Companion tool for analyzing OpenCode (Claude Code fork) usage. Track token usag
 
 Unified usage tracking across Claude Code and [pi-agent](https://github.com/badlogic/pi-mono). Combines data from both sources with clear labels (`[cc]` for Claude Code, `[pi]` for pi-agent) to give you a complete picture of your Claude Max usage.
 
+### ⚡ [@ccusage/amp](https://www.npmjs.com/package/@ccusage/amp) - Amp Usage Analyzer
+
+Companion tool for analyzing [Amp](https://ampcode.com/) session usage. Track token usage, costs, and credits from your Amp CLI sessions with daily, monthly, and session-based reports.
+
 ### 🔌 [@ccusage/mcp](https://www.npmjs.com/package/@ccusage/mcp) - MCP Server Integration
 
 Model Context Protocol server that exposes ccusage data to Claude Desktop and other MCP-compatible tools. Enable real-time usage tracking directly in your AI workflows.
@@ -68,6 +72,7 @@ deno run -E -R=$HOME/.claude/projects/ -S=homedir -N='raw.githubusercontent.com:
 npx @ccusage/codex@latest       # OpenAI Codex usage tracking
 npx @ccusage/opencode@latest    # OpenCode usage tracking
 npx @ccusage/pi@latest          # Unified Claude Code + pi-agent usage
+npx @ccusage/amp@latest         # Amp usage tracking
 npx @ccusage/mcp@latest         # MCP Server
 ```
 
