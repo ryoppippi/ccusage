@@ -3,6 +3,7 @@ import process from 'node:process';
 import {
 	addEmptySeparatorRow,
 	createUsageReportTable,
+	formatDateCompact,
 	formatTotalsRow,
 	formatUsageDataRow,
 	pushBreakdownRows,
@@ -101,7 +102,7 @@ export const sessionCommand = define({
 
 			const table = createUsageReportTable({
 				firstColumnName: 'Session',
-				dateFormatter: (str: string) => str,
+				dateFormatter: (dateStr: string) => formatDateCompact(dateStr),
 			});
 
 			for (const data of piData) {

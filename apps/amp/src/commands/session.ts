@@ -2,6 +2,7 @@ import type { TokenUsageEvent } from '../_types.ts';
 import {
 	addEmptySeparatorRow,
 	formatCurrency,
+	formatDateCompact,
 	formatModelsDisplayMultiline,
 	formatNumber,
 	ResponsiveTable,
@@ -169,6 +170,7 @@ export const sessionCommand = define({
 			compactThreshold: 100,
 			forceCompact: Boolean(ctx.values.compact),
 			style: { head: ['cyan'] },
+			dateFormatter: (dateStr: string) => formatDateCompact(dateStr),
 		});
 
 		for (const data of sessionData) {

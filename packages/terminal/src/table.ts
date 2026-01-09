@@ -5,6 +5,55 @@ import pc from 'picocolors';
 import stringWidth from 'string-width';
 
 /**
+ * Default locale used for date formatting when not specified
+ * en-CA provides YYYY-MM-DD ISO format
+ */
+const DEFAULT_LOCALE = 'en-CA';
+
+/**
+ * Creates a date parts formatter with the specified timezone and locale
+ * @param timezone - Timezone to use
+ * @param locale - Locale to use for formatting
+ * @returns Intl.DateTimeFormat instance
+ */
+function createDatePartsFormatter(
+	timezone: string | undefined,
+	locale: string,
+): Intl.DateTimeFormat {
+	return new Intl.DateTimeFormat(locale, {
+		year: 'numeric',
+		month: '2-digit',
+		day: '2-digit',
+		timeZone: timezone,
+	});
+}
+
+/**
+ * Formats a date string to compact format with year on first line and month-day on second
+ * @param dateStr - Input date string (YYYY-MM-DD or ISO timestamp)
+ * @param timezone - Timezone to use for formatting (pass undefined to use system timezone)
+ * @param locale - Locale to use for formatting (defaults to sv-SE for YYYY-MM-DD format)
+ * @returns Formatted date string with newline separator (YYYY\nMM-DD)
+ */
+export function formatDateCompact(dateStr: string, timezone?: string, locale?: string): string {
+	// Check if input is in YYYY-MM-DD format
+	const isSimpleDateFormat = /^\d{4}-\d{2}-\d{2}$/.test(dateStr);
+	// For YYYY-MM-DD format, append T00:00:00 to parse as local date
+	// Without this, new Date('YYYY-MM-DD') interprets as UTC midnight
+	const date = isSimpleDateFormat
+		? timezone != null
+			? new Date(`${dateStr}T00:00:00Z`)
+			: new Date(`${dateStr}T00:00:00`)
+		: new Date(dateStr);
+	const formatter = createDatePartsFormatter(timezone, locale ?? DEFAULT_LOCALE);
+	const parts = formatter.formatToParts(date);
+	const year = parts.find((p) => p.type === 'year')?.value ?? '';
+	const month = parts.find((p) => p.type === 'month')?.value ?? '';
+	const day = parts.find((p) => p.type === 'day')?.value ?? '';
+	return `${year}\n${month}-${day}`;
+}
+
+/**
  * Horizontal alignment options for table cells
  */
 export type TableCellAlign = 'left' | 'right' | 'center';
@@ -1027,6 +1076,33 @@ if (import.meta.vitest != null) {
 			expect(formatModelsDisplayMultiline(['[pi] anthropic/claude-opus-4.5'])).toBe(
 				'- [pi] opus-4.5',
 			);
+		});
+	});
+
+	describe('formatDateCompact', () => {
+		it('should format date to compact format with newline', () => {
+			const result = formatDateCompact('2024-08-04', undefined, 'en-US');
+			expect(result).toBe('2024\n08-04');
+		});
+
+		it('should handle timezone parameter', () => {
+			const result = formatDateCompact('2024-08-04T12:00:00Z', 'UTC', 'en-US');
+			expect(result).toBe('2024\n08-04');
+		});
+
+		it('should handle YYYY-MM-DD format dates', () => {
+			const result = formatDateCompact('2024-08-04', undefined, 'en-US');
+			expect(result).toBe('2024\n08-04');
+		});
+
+		it('should handle timezone with YYYY-MM-DD format', () => {
+			const result = formatDateCompact('2024-08-04', 'UTC', 'en-US');
+			expect(result).toBe('2024\n08-04');
+		});
+
+		it('should use default locale when not specified', () => {
+			const result = formatDateCompact('2024-08-04');
+			expect(result).toBe('2024\n08-04');
 		});
 	});
 }
