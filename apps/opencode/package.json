@@ -3,7 +3,10 @@
 	"type": "module",
 	"version": "0.1.0",
 	"description": "Usage analysis tool for OpenCode sessions",
-	"author": "ryoppippi",
+	"contributors": [
+		"ryoppippi",
+		"AnishDe12020"
+	],
 	"license": "MIT",
 	"funding": "https://github.com/ryoppippi/ccusage?sponsor=1",
 	"homepage": "https://github.com/ryoppippi/ccusage#readme",
