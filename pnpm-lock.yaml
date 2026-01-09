@@ -607,9 +607,6 @@ importers:
       bun:
         specifier: runtime:^1.3.2
         version: runtime:1.3.5
-      ccusage:
-        specifier: workspace:*
-        version: link:../ccusage
       clean-pkg-json:
         specifier: catalog:release
         version: 1.3.0
