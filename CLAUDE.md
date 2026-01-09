@@ -128,8 +128,9 @@ This is a CLI tool that analyzes Claude Code usage data from local JSONL files s
 - **External MCP Servers Available:**
   - **ESLint MCP**: Lint TypeScript/JavaScript files directly through Claude Code tools
   - **Context7 MCP**: Look up documentation for libraries and frameworks
-  - **Gunshi MCP**: Access gunshi.dev documentation and examples
-  - **Byethrow MCP**: Access @praha/byethrow documentation and examples for functional error handling
+- **Claude Code Skills Available:**
+  - **use-gunshi-cli**: Guide for using gunshi CLI framework (via @gunshi/docs)
+  - **byethrow**: Guide for using @praha/byethrow Result type (via @praha/byethrow-docs)
 
 ## Git Commit and PR Conventions
 
@@ -210,7 +211,7 @@ docs: comprehensive API documentation update
 **Error Handling:**
 
 - **Prefer @praha/byethrow Result type** over traditional try-catch for functional error handling
-  - Documentation: Available via byethrow MCP server
+  - Documentation: Available via byethrow skill (use `/byethrow` or check `.claude/skills/byethrow/`)
 - Use `Result.try()` for wrapping operations that may throw (JSON parsing, etc.)
 - Use `Result.isFailure()` for checking errors (more readable than `!Result.isSuccess()`)
 - Use early return pattern (`if (Result.isFailure(result)) continue;`) instead of ternary operators
@@ -294,8 +295,9 @@ This ensures code quality and catches issues immediately after changes.
 
 # Tips for Claude Code
 
-- [gunshi](https://gunshi.dev/llms.txt) - Documentation available via Gunshi MCP server
 - Context7 MCP server available for library documentation lookup
+- use-gunshi-cli skill available for gunshi CLI framework documentation
+- byethrow skill available for @praha/byethrow Result type documentation
 - do not use console.log. use logger.ts instead
 - **CRITICAL VITEST REMINDER**: Vitest globals are enabled - use `describe`, `it`, `expect` directly WITHOUT imports. NEVER use `await import()` dynamic imports anywhere, especially in test blocks.
 
