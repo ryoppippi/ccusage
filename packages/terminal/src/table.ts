@@ -322,14 +322,33 @@ export function formatCurrency(amount: number): string {
  * @returns Shortened model name (e.g., "sonnet-4" or "sonnet-4-5") or original if pattern doesn't match
  */
 function formatModelName(modelName: string): string {
-	// Extract model type from full model name
+	// Handle [pi] prefix - preserve prefix, format the rest
+	const piMatch = modelName.match(/^\[pi\] (.+)$/);
+	if (piMatch?.[1] != null) {
+		return `[pi] ${formatModelName(piMatch[1])}`;
+	}
+
+	// Handle anthropic/ prefix with dot notation (e.g., "anthropic/claude-opus-4.5" -> "opus-4.5")
+	const anthropicMatch = modelName.match(/^anthropic\/claude-(\w+)-([\d.]+)$/);
+	if (anthropicMatch != null) {
+		return `${anthropicMatch[1]}-${anthropicMatch[2]}`;
+	}
+
+	// Extract model type from full model name with date suffix (must check before no-date pattern)
 	// e.g., "claude-sonnet-4-20250514" -> "sonnet-4"
 	// e.g., "claude-opus-4-20250514" -> "opus-4"
 	// e.g., "claude-sonnet-4-5-20250929" -> "sonnet-4-5"
-	const match = modelName.match(/claude-(\w+)-([\d-]+)-(\d{8})/);
+	const match = modelName.match(/^claude-(\w+)-([\d-]+)-(\d{8})$/);
 	if (match != null) {
 		return `${match[1]}-${match[2]}`;
 	}
+
+	// Handle claude- without date suffix (e.g., "claude-opus-4-5" -> "opus-4-5")
+	const noDateMatch = modelName.match(/^claude-(\w+)-([\d-]+)$/);
+	if (noDateMatch != null) {
+		return `${noDateMatch[1]}-${noDateMatch[2]}`;
+	}
+
 	// Return original if pattern doesn't match
 	return modelName;
 }
@@ -979,6 +998,23 @@ if (import.meta.vitest != null) {
 		it('formats mixed model versions', () => {
 			const models = ['claude-sonnet-4-20250514', 'claude-sonnet-4-5-20250929', 'claude-opus-4-1-20250805'];
 			expect(formatModelsDisplayMultiline(models)).toBe('- opus-4-1\n- sonnet-4\n- sonnet-4-5');
+		});
+
+		it('formats pi-agent prefixed models', () => {
+			expect(formatModelsDisplayMultiline(['[pi] claude-opus-4-5'])).toBe('- [pi] opus-4-5');
+		});
+
+		it('formats anthropic/ prefixed models with dot notation', () => {
+			expect(formatModelsDisplayMultiline(['anthropic/claude-opus-4.5'])).toBe('- opus-4.5');
+		});
+
+		it('formats models without date suffix', () => {
+			expect(formatModelsDisplayMultiline(['claude-opus-4-5'])).toBe('- opus-4-5');
+			expect(formatModelsDisplayMultiline(['claude-haiku-4-5'])).toBe('- haiku-4-5');
+		});
+
+		it('formats pi-agent model with anthropic prefix', () => {
+			expect(formatModelsDisplayMultiline(['[pi] anthropic/claude-opus-4.5'])).toBe('- [pi] opus-4.5');
 		});
 	});
 }
