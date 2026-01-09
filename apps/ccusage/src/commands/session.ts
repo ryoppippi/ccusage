@@ -1,6 +1,6 @@
 import type { UsageReportConfig } from '@ccusage/terminal/table';
 import process from 'node:process';
-import { addEmptySeparatorRow, createUsageReportTable, formatTotalsRow, formatUsageDataRow, pushBreakdownRows } from '@ccusage/terminal/table';
+import { addEmptySeparatorRow, createUsageReportTable, formatTotalsRow, formatUsageDataRow, pushBreakdownRows, pushSubagentSummaryRow } from '@ccusage/terminal/table';
 import { Result } from '@praha/byethrow';
 import { define } from 'gunshi';
 import { loadConfig, mergeConfigWithArgs } from '../_config-loader-tokens.ts';
@@ -103,6 +103,7 @@ export const sessionCommand = define({
 					modelsUsed: data.modelsUsed,
 					modelBreakdowns: data.modelBreakdowns,
 					projectPath: data.projectPath,
+					...(data.subagentUsage != null && { subagentUsage: data.subagentUsage }),
 				})),
 				totals: createTotalsObject(totals),
 			};
@@ -154,7 +155,13 @@ export const sessionCommand = define({
 				// Add model breakdown rows if flag is set
 				if (ctx.values.breakdown) {
 					// Session has 1 extra column before data and 1 trailing column
-					pushBreakdownRows(table, data.modelBreakdowns, 1, 1);
+					pushBreakdownRows(table, data.modelBreakdowns, 1, 1, ctx.values.breakdownSubagents);
+				}
+
+				// Add subagent usage summary if present and flag enabled
+				if (data.subagentUsage != null && ctx.values.breakdownSubagents) {
+					// Session has 1 extra column before data and 1 trailing column
+					pushSubagentSummaryRow(table, data.subagentUsage, 1, 1);
 				}
 			}
 

@@ -1,6 +1,6 @@
 import type { UsageReportConfig } from '@ccusage/terminal/table';
 import process from 'node:process';
-import { addEmptySeparatorRow, createUsageReportTable, formatTotalsRow, formatUsageDataRow, pushBreakdownRows } from '@ccusage/terminal/table';
+import { addEmptySeparatorRow, createUsageReportTable, formatTotalsRow, formatUsageDataRow, pushBreakdownRows, pushSubagentSummaryRow } from '@ccusage/terminal/table';
 import { Result } from '@praha/byethrow';
 import { define } from 'gunshi';
 import { loadConfig, mergeConfigWithArgs } from '../_config-loader-tokens.ts';
@@ -77,6 +77,7 @@ export const monthlyCommand = define({
 					totalCost: data.totalCost,
 					modelsUsed: data.modelsUsed,
 					modelBreakdowns: data.modelBreakdowns,
+					...(data.subagentUsage != null && { subagentUsage: data.subagentUsage }),
 				})),
 				totals: createTotalsObject(totals),
 			};
@@ -121,7 +122,12 @@ export const monthlyCommand = define({
 
 				// Add model breakdown rows if flag is set
 				if (mergedOptions.breakdown) {
-					pushBreakdownRows(table, data.modelBreakdowns);
+					pushBreakdownRows(table, data.modelBreakdowns, 1, 0, mergedOptions.breakdownSubagents);
+				}
+
+				// Add subagent usage summary if present and flag enabled
+				if (data.subagentUsage != null && mergedOptions.breakdownSubagents) {
+					pushSubagentSummaryRow(table, data.subagentUsage);
 				}
 			}
 
