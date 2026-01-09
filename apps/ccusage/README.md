@@ -23,7 +23,7 @@
 
 ### 📊 [ccusage](https://www.npmjs.com/package/ccusage) - Claude Code Usage Analyzer
 
-The main CLI tool for analyzing Claude Code usage from local JSONL files. Track daily, monthly, and session-based usage with beautiful tables and live monitoring.
+The main CLI tool for analyzing Claude Code usage from local JSONL files. Track daily, monthly, and session-based usage with beautiful tables.
 
 ### 🤖 [@ccusage/codex](https://www.npmjs.com/package/@ccusage/codex) - OpenAI Codex Usage Analyzer
 
@@ -71,7 +71,7 @@ deno run -E -R=$HOME/.claude/projects/ -S=homedir -N='raw.githubusercontent.com:
 ```bash
 npx @ccusage/codex@latest       # OpenAI Codex usage tracking
 npx @ccusage/opencode@latest    # OpenCode usage tracking
-npx @ccusage/pi@latest          # Unified Claude Code + pi-agent usage
+npx @ccusage/pi@latest          # Pi-agent usage tracking
 npx @ccusage/amp@latest         # Amp usage tracking
 npx @ccusage/mcp@latest         # MCP Server
 ```
