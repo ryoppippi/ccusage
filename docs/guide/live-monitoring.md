@@ -28,7 +28,7 @@ The dashboard refreshes every second, showing:
 - **Token burn rate** (tokens per minute)
 - **Time remaining** in current 5-hour block
 - **Cost projections** based on current usage patterns
-- **Quota warnings** with colour-coded alerts
+- **Quota warnings** with color-coded alerts
 
 ### Command Options
 

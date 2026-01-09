@@ -344,5 +344,5 @@ When using token limits, blocks show visual progress:
 After understanding block patterns, consider:
 
 1. [Statusline](/guide/statusline) for real-time active session tracking
-2. [Session Reports](/guide/session-reports) to analyse individual conversations within blocks
+2. [Session Reports](/guide/session-reports) to analyze individual conversations within blocks
 3. [Daily Reports](/guide/daily-reports) to see how blocks aggregate across days
