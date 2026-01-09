@@ -1,14 +1,12 @@
 import process from 'node:process';
 import { addEmptySeparatorRow, createUsageReportTable, formatTotalsRow, formatUsageDataRow, pushBreakdownRows } from '@ccusage/terminal/table';
-import { loadDailyUsageData } from 'ccusage/data-loader';
 import { log, logger } from 'ccusage/logger';
 import { define } from 'gunshi';
-import pc from 'picocolors';
 import { loadPiAgentDailyData } from '../data-loader.ts';
 
 export const dailyCommand = define({
 	name: 'daily',
-	description: 'Show combined Claude Code + pi-agent usage by date',
+	description: 'Show pi-agent usage by date',
 	args: {
 		json: {
 			type: 'boolean',
@@ -53,19 +51,9 @@ export const dailyCommand = define({
 			piPath: ctx.values.piPath,
 		};
 
-		const [ccData, piData] = await Promise.all([
-			loadDailyUsageData(options),
-			loadPiAgentDailyData(options),
-		]);
+		const piData = await loadPiAgentDailyData(options);
 
-		const ccDataWithSource = ccData.map(d => ({
-			...d,
-			source: 'claude-code' as const,
-		}));
-
-		const combined = [...ccDataWithSource, ...piData];
-
-		if (combined.length === 0) {
+		if (piData.length === 0) {
 			if (ctx.values.json) {
 				log(JSON.stringify([]));
 			}
@@ -75,14 +63,6 @@ export const dailyCommand = define({
 			process.exit(0);
 		}
 
-		combined.sort((a, b) => {
-			const cmp = a.date.localeCompare(b.date);
-			if (cmp !== 0) {
-				return options.order === 'asc' ? cmp : -cmp;
-			}
-			return a.source === 'claude-code' ? -1 : 1;
-		});
-
 		const totals = {
 			inputTokens: 0,
 			outputTokens: 0,
@@ -91,7 +71,7 @@ export const dailyCommand = define({
 			totalCost: 0,
 		};
 
-		for (const d of combined) {
+		for (const d of piData) {
 			totals.inputTokens += d.inputTokens;
 			totals.outputTokens += d.outputTokens;
 			totals.cacheCreationTokens += d.cacheCreationTokens;
@@ -101,27 +81,20 @@ export const dailyCommand = define({
 
 		if (ctx.values.json) {
 			log(JSON.stringify({
-				daily: combined,
+				daily: piData,
 				totals,
 			}, null, 2));
 		}
 		else {
-			logger.box('Claude Code + Pi-Agent Usage Report - Daily');
+			logger.box('Pi-Agent Usage Report - Daily');
 
 			const table = createUsageReportTable({
 				firstColumnName: 'Date',
 				dateFormatter: (str: string) => str,
 			});
 
-			let prevDate = '';
-			for (const data of combined) {
-				const isNewDate = data.date !== prevDate;
-				prevDate = data.date;
-
-				const sourceLabel = data.source === 'pi-agent' ? pc.cyan('[pi]') : pc.green('[cc]');
-				const firstCol = isNewDate ? `${data.date} ${sourceLabel}` : sourceLabel;
-
-				const row = formatUsageDataRow(firstCol, {
+			for (const data of piData) {
+				const row = formatUsageDataRow(data.date, {
 					inputTokens: data.inputTokens,
 					outputTokens: data.outputTokens,
 					cacheCreationTokens: data.cacheCreationTokens,

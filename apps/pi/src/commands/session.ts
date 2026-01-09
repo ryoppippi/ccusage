@@ -1,15 +1,13 @@
 import path from 'node:path';
 import process from 'node:process';
 import { addEmptySeparatorRow, createUsageReportTable, formatTotalsRow, formatUsageDataRow, pushBreakdownRows } from '@ccusage/terminal/table';
-import { loadSessionData } from 'ccusage/data-loader';
 import { log, logger } from 'ccusage/logger';
 import { define } from 'gunshi';
-import pc from 'picocolors';
 import { loadPiAgentSessionData } from '../data-loader.ts';
 
 export const sessionCommand = define({
 	name: 'session',
-	description: 'Show combined Claude Code + pi-agent usage by session',
+	description: 'Show pi-agent usage by session',
 	args: {
 		json: {
 			type: 'boolean',
@@ -54,19 +52,9 @@ export const sessionCommand = define({
 			piPath: ctx.values.piPath,
 		};
 
-		const [ccData, piData] = await Promise.all([
-			loadSessionData(options),
-			loadPiAgentSessionData(options),
-		]);
+		const piData = await loadPiAgentSessionData(options);
 
-		const ccDataWithSource = ccData.map(d => ({
-			...d,
-			source: 'claude-code' as const,
-		}));
-
-		const combined = [...ccDataWithSource, ...piData];
-
-		if (combined.length === 0) {
+		if (piData.length === 0) {
 			if (ctx.values.json) {
 				log(JSON.stringify([]));
 			}
@@ -76,11 +64,6 @@ export const sessionCommand = define({
 			process.exit(0);
 		}
 
-		combined.sort((a, b) => {
-			const cmp = a.lastActivity.localeCompare(b.lastActivity);
-			return options.order === 'asc' ? cmp : -cmp;
-		});
-
 		const totals = {
 			inputTokens: 0,
 			outputTokens: 0,
@@ -89,7 +72,7 @@ export const sessionCommand = define({
 			totalCost: 0,
 		};
 
-		for (const d of combined) {
+		for (const d of piData) {
 			totals.inputTokens += d.inputTokens;
 			totals.outputTokens += d.outputTokens;
 			totals.cacheCreationTokens += d.cacheCreationTokens;
@@ -99,25 +82,23 @@ export const sessionCommand = define({
 
 		if (ctx.values.json) {
 			log(JSON.stringify({
-				sessions: combined,
+				sessions: piData,
 				totals,
 			}, null, 2));
 		}
 		else {
-			logger.box('Claude Code + Pi-Agent Usage Report - Sessions');
+			logger.box('Pi-Agent Usage Report - Sessions');
 
 			const table = createUsageReportTable({
 				firstColumnName: 'Session',
 				dateFormatter: (str: string) => str,
 			});
 
-			for (const data of combined) {
-				const sourceLabel = data.source === 'pi-agent' ? pc.cyan('[pi]') : pc.green('[cc]');
+			for (const data of piData) {
 				const projectName = path.basename(data.projectPath);
 				const truncatedName = projectName.length > 25 ? `${projectName.slice(0, 22)}...` : projectName;
-				const firstCol = `${truncatedName} ${sourceLabel}`;
 
-				const row = formatUsageDataRow(firstCol, {
+				const row = formatUsageDataRow(truncatedName, {
 					inputTokens: data.inputTokens,
 					outputTokens: data.outputTokens,
 					cacheCreationTokens: data.cacheCreationTokens,
