@@ -272,6 +272,7 @@ export const blocksCommand = define({
 				}
 				const burnRate = calculateBurnRate(block);
 				const projection = projectBlockUsage(block);
+				const hideCost = Boolean(ctx.values.noCost);
 
 				logger.box('Current Session Block Status');
 
@@ -289,18 +290,33 @@ export const blocksCommand = define({
 				log(pc.bold('Current Usage:'));
 				log(`  Input Tokens:     ${formatNumber(block.tokenCounts.inputTokens)}`);
 				log(`  Output Tokens:    ${formatNumber(block.tokenCounts.outputTokens)}`);
-				log(`  Total Cost:       ${formatCurrency(block.costUSD)}\n`);
+				if (!hideCost) {
+					log(`  Total Cost:       ${formatCurrency(block.costUSD)}\n`);
+				}
+				else {
+					log('');
+				}
 
 				if (burnRate != null) {
 					log(pc.bold('Burn Rate:'));
 					log(`  Tokens/minute:    ${formatNumber(burnRate.tokensPerMinute)}`);
-					log(`  Cost/hour:        ${formatCurrency(burnRate.costPerHour)}\n`);
+					if (!hideCost) {
+						log(`  Cost/hour:        ${formatCurrency(burnRate.costPerHour)}\n`);
+					}
+					else {
+						log('');
+					}
 				}
 
 				if (projection != null) {
 					log(pc.bold('Projected Usage (if current rate continues):'));
 					log(`  Total Tokens:     ${formatNumber(projection.totalTokens)}`);
-					log(`  Total Cost:       ${formatCurrency(projection.totalCost)}\n`);
+					if (!hideCost) {
+						log(`  Total Cost:       ${formatCurrency(projection.totalCost)}\n`);
+					}
+					else {
+						log('');
+					}
 
 					if (ctx.values.tokenLimit != null) {
 						// Parse token limit
@@ -330,6 +346,7 @@ export const blocksCommand = define({
 
 				// Calculate token limit if "max" is specified
 				const actualTokenLimit = parseTokenLimit(ctx.values.tokenLimit, maxTokensFromAll);
+				const hideCost = Boolean(ctx.values.noCost);
 
 				const tableHeaders = ['Block Start', 'Duration/Status', 'Models', 'Tokens'];
 				const tableAligns: ('left' | 'right' | 'center')[] = ['left', 'left', 'left', 'right'];
@@ -340,8 +357,10 @@ export const blocksCommand = define({
 					tableAligns.push('right');
 				}
 
-				tableHeaders.push('Cost');
-				tableAligns.push('right');
+				if (!hideCost) {
+					tableHeaders.push('Cost');
+					tableAligns.push('right');
+				}
 
 				const table = new ResponsiveTable({
 					head: tableHeaders,
@@ -369,7 +388,9 @@ export const blocksCommand = define({
 						if (actualTokenLimit != null && actualTokenLimit > 0) {
 							gapRow.push(pc.gray('-'));
 						}
-						gapRow.push(pc.gray('-'));
+						if (!hideCost) {
+							gapRow.push(pc.gray('-'));
+						}
 						table.push(gapRow);
 					}
 					else {
@@ -391,7 +412,9 @@ export const blocksCommand = define({
 							row.push(percentage > 100 ? pc.red(percentText) : percentText);
 						}
 
-						row.push(formatCurrency(block.costUSD));
+						if (!hideCost) {
+							row.push(formatCurrency(block.costUSD));
+						}
 						table.push(row);
 
 						// Add REMAINING and PROJECTED rows for active blocks
@@ -410,14 +433,16 @@ export const blocksCommand = define({
 									? `${remainingPercent.toFixed(1)}%`
 									: pc.red('0.0%');
 
-								const remainingRow = [
+								const remainingRow: (string | { content: string; hAlign: 'right' })[] = [
 									{ content: pc.gray(`(assuming ${formatNumber(actualTokenLimit)} token limit)`), hAlign: 'right' as const },
 									pc.blue('REMAINING'),
 									'',
 									remainingText,
 									remainingPercentText,
-									'', // No cost for remaining - it's about token limit, not cost
 								];
+								if (!hideCost) {
+									remainingRow.push(''); // No cost for remaining - it's about token limit, not cost
+								}
 								table.push(remainingRow);
 							}
 
@@ -429,7 +454,7 @@ export const blocksCommand = define({
 									? pc.red(projectedTokens)
 									: projectedTokens;
 
-								const projectedRow = [
+								const projectedRow: (string | { content: string; hAlign: 'right' })[] = [
 									{ content: pc.gray('(assuming current burn rate)'), hAlign: 'right' as const },
 									pc.yellow('PROJECTED'),
 									'',
@@ -443,7 +468,9 @@ export const blocksCommand = define({
 									projectedRow.push(percentText);
 								}
 
-								projectedRow.push(formatCurrency(projection.totalCost));
+								if (!hideCost) {
+									projectedRow.push(formatCurrency(projection.totalCost));
+								}
 								table.push(projectedRow);
 							}
 						}

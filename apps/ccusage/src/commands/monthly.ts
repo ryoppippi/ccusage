@@ -98,13 +98,19 @@ export const monthlyCommand = define({
 			// Print header
 			logger.box('Claude Code Token Usage Report - Monthly');
 
+			const hideCost = Boolean(mergedOptions.noCost);
+
 			// Create table with compact mode support
 			const tableConfig: UsageReportConfig = {
 				firstColumnName: 'Month',
 				dateFormatter: (dateStr: string) => formatDateCompact(dateStr, mergedOptions.timezone, mergedOptions.locale ?? DEFAULT_LOCALE),
 				forceCompact: ctx.values.compact,
+				hideCost,
 			};
 			const table = createUsageReportTable(tableConfig);
+
+			// Calculate column count based on hideCost
+			const columnCount = hideCost ? 7 : 8;
 
 			// Add monthly data
 			for (const data of monthlyData) {
@@ -116,17 +122,17 @@ export const monthlyCommand = define({
 					cacheReadTokens: data.cacheReadTokens,
 					totalCost: data.totalCost,
 					modelsUsed: data.modelsUsed,
-				});
+				}, { hideCost });
 				table.push(row);
 
 				// Add model breakdown rows if flag is set
 				if (mergedOptions.breakdown) {
-					pushBreakdownRows(table, data.modelBreakdowns);
+					pushBreakdownRows(table, data.modelBreakdowns, 1, 0, hideCost);
 				}
 			}
 
 			// Add empty row for visual separation before totals
-			addEmptySeparatorRow(table, 8);
+			addEmptySeparatorRow(table, columnCount);
 
 			// Add totals
 			const totalsRow = formatTotalsRow({
@@ -135,7 +141,7 @@ export const monthlyCommand = define({
 				cacheCreationTokens: totals.cacheCreationTokens,
 				cacheReadTokens: totals.cacheReadTokens,
 				totalCost: totals.totalCost,
-			});
+			}, { hideCost });
 			table.push(totalsRow);
 
 			log(table.toString());

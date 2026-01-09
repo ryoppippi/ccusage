@@ -133,13 +133,19 @@ export const dailyCommand = define({
 			// Print header
 			logger.box('Claude Code Token Usage Report - Daily');
 
+			const hideCost = Boolean(mergedOptions.noCost);
+
 			// Create table with compact mode support
 			const tableConfig: UsageReportConfig = {
 				firstColumnName: 'Date',
 				dateFormatter: (dateStr: string) => formatDateCompact(dateStr, mergedOptions.timezone, mergedOptions.locale ?? undefined),
 				forceCompact: ctx.values.compact,
+				hideCost,
 			};
 			const table = createUsageReportTable(tableConfig);
+
+			// Calculate column count based on hideCost
+			const columnCount = hideCost ? 7 : 8;
 
 			// Add daily data - group by project if instances flag is used
 			if (Boolean(mergedOptions.instances) && dailyData.some(d => d.project != null)) {
@@ -151,19 +157,13 @@ export const dailyCommand = define({
 					// Add project section header
 					if (!isFirstProject) {
 						// Add empty row for visual separation between projects
-						table.push(['', '', '', '', '', '', '', '']);
+						table.push(Array.from({ length: columnCount }, () => ''));
 					}
 
 					// Add project header row
 					table.push([
 						pc.cyan(`Project: ${formatProjectName(projectName, projectAliases)}`),
-						'',
-						'',
-						'',
-						'',
-						'',
-						'',
-						'',
+						...Array.from({ length: columnCount - 1 }, () => ''),
 					]);
 
 					// Add data rows for this project
@@ -175,12 +175,12 @@ export const dailyCommand = define({
 							cacheReadTokens: data.cacheReadTokens,
 							totalCost: data.totalCost,
 							modelsUsed: data.modelsUsed,
-						});
+						}, { hideCost });
 						table.push(row);
 
 						// Add model breakdown rows if flag is set
 						if (mergedOptions.breakdown) {
-							pushBreakdownRows(table, data.modelBreakdowns);
+							pushBreakdownRows(table, data.modelBreakdowns, 1, 0, hideCost);
 						}
 					}
 
@@ -198,18 +198,18 @@ export const dailyCommand = define({
 						cacheReadTokens: data.cacheReadTokens,
 						totalCost: data.totalCost,
 						modelsUsed: data.modelsUsed,
-					});
+					}, { hideCost });
 					table.push(row);
 
 					// Add model breakdown rows if flag is set
 					if (mergedOptions.breakdown) {
-						pushBreakdownRows(table, data.modelBreakdowns);
+						pushBreakdownRows(table, data.modelBreakdowns, 1, 0, hideCost);
 					}
 				}
 			}
 
 			// Add empty row for visual separation before totals
-			addEmptySeparatorRow(table, 8);
+			addEmptySeparatorRow(table, columnCount);
 
 			// Add totals
 			const totalsRow = formatTotalsRow({
@@ -218,7 +218,7 @@ export const dailyCommand = define({
 				cacheCreationTokens: totals.cacheCreationTokens,
 				cacheReadTokens: totals.cacheReadTokens,
 				totalCost: totals.totalCost,
-			});
+			}, { hideCost });
 			table.push(totalsRow);
 
 			log(table.toString());
