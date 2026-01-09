@@ -77,6 +77,15 @@ export default defineConfig({
 					],
 				},
 				{
+					text: 'Pi-Agent',
+					items: [
+						{ text: 'Overview', link: '/guide/pi/' },
+						{ text: 'Daily Report', link: '/guide/pi/daily' },
+						{ text: 'Monthly Report', link: '/guide/pi/monthly' },
+						{ text: 'Session Report', link: '/guide/pi/session' },
+					],
+				},
+				{
 					text: 'Configuration',
 					items: [
 						{ text: 'Overview', link: '/guide/configuration' },
