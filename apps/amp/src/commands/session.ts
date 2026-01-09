@@ -19,8 +19,7 @@ function groupByThread(events: TokenUsageEvent[]): Map<string, TokenUsageEvent[]
 		const existing = grouped.get(event.threadId);
 		if (existing != null) {
 			existing.push(event);
-		}
-		else {
+		} else {
 			grouped.set(event.threadId, [event]);
 		}
 	}
@@ -47,7 +46,9 @@ export const sessionCommand = define({
 		const { events, threads } = await loadAmpUsageEvents();
 
 		if (events.length === 0) {
-			const output = jsonOutput ? JSON.stringify({ sessions: [], totals: null }) : 'No Amp usage data found.';
+			const output = jsonOutput
+				? JSON.stringify({ sessions: [], totals: null })
+				: 'No Amp usage data found.';
 			// eslint-disable-next-line no-console
 			console.log(output);
 			return;
@@ -134,10 +135,16 @@ export const sessionCommand = define({
 
 		if (jsonOutput) {
 			// eslint-disable-next-line no-console
-			console.log(JSON.stringify({
-				sessions: sessionData,
-				totals,
-			}, null, 2));
+			console.log(
+				JSON.stringify(
+					{
+						sessions: sessionData,
+						totals,
+					},
+					null,
+					2,
+				),
+			);
 			return;
 		}
 
@@ -145,7 +152,17 @@ export const sessionCommand = define({
 		console.log('\n📊 Amp Token Usage Report - Sessions (Threads)\n');
 
 		const table: ResponsiveTable = new ResponsiveTable({
-			head: ['Thread', 'Models', 'Input', 'Output', 'Cache Create', 'Cache Read', 'Total Tokens', 'Credits', 'Cost (USD)'],
+			head: [
+				'Thread',
+				'Models',
+				'Input',
+				'Output',
+				'Cache Create',
+				'Cache Read',
+				'Total Tokens',
+				'Credits',
+				'Cost (USD)',
+			],
 			colAligns: ['left', 'left', 'right', 'right', 'right', 'right', 'right', 'right', 'right'],
 			compactHead: ['Thread', 'Models', 'Input', 'Output', 'Credits', 'Cost (USD)'],
 			compactColAligns: ['left', 'left', 'right', 'right', 'right', 'right'],
@@ -156,9 +173,7 @@ export const sessionCommand = define({
 
 		for (const data of sessionData) {
 			// Truncate title for display
-			const displayTitle = data.title.length > 30
-				? `${data.title.slice(0, 27)}...`
-				: data.title;
+			const displayTitle = data.title.length > 30 ? `${data.title.slice(0, 27)}...` : data.title;
 
 			table.push([
 				displayTitle,

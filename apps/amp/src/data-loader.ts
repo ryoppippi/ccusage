@@ -72,9 +72,11 @@ const threadSchema = v.object({
 	created: v.optional(v.number()),
 	title: v.optional(v.string()),
 	messages: v.optional(v.array(messageSchema)),
-	usageLedger: v.optional(v.object({
-		events: v.optional(v.array(usageLedgerEventSchema)),
-	})),
+	usageLedger: v.optional(
+		v.object({
+			events: v.optional(v.array(usageLedgerEventSchema)),
+		}),
+	),
 });
 
 type ParsedThread = v.InferOutput<typeof threadSchema>;
@@ -116,9 +118,7 @@ function findCacheTokensForEvent(
 	}
 
 	// Find the assistant message that corresponds to this event
-	const message = messages.find(
-		m => m.role === 'assistant' && m.messageId === toMessageId,
-	);
+	const message = messages.find((m) => m.role === 'assistant' && m.messageId === toMessageId);
 
 	if (message?.usage == null) {
 		return { cacheCreationInputTokens: 0, cacheReadInputTokens: 0 };
@@ -167,7 +167,7 @@ function convertLedgerEventToUsageEvent(
 async function loadThreadFile(filePath: string): Promise<ParsedThread | null> {
 	const readResult = await Result.try({
 		try: readFile(filePath, 'utf-8'),
-		catch: error => error,
+		catch: (error) => error,
 	});
 
 	if (Result.isFailure(readResult)) {
@@ -177,7 +177,7 @@ async function loadThreadFile(filePath: string): Promise<ParsedThread | null> {
 
 	const parseResult = Result.try({
 		try: () => JSON.parse(readResult.value) as unknown,
-		catch: error => error,
+		catch: (error) => error,
 	})();
 
 	if (Result.isFailure(parseResult)) {
@@ -187,7 +187,10 @@ async function loadThreadFile(filePath: string): Promise<ParsedThread | null> {
 
 	const validationResult = v.safeParse(threadSchema, parseResult.value);
 	if (!validationResult.success) {
-		logger.debug('Failed to validate Amp thread schema', { filePath, issues: validationResult.issues });
+		logger.debug('Failed to validate Amp thread schema', {
+			filePath,
+			issues: validationResult.issues,
+		});
 		return null;
 	}
 
@@ -209,13 +212,12 @@ export type LoadResult = {
  */
 export async function loadAmpUsageEvents(options: LoadOptions = {}): Promise<LoadResult> {
 	const ampPath = getAmpPath();
-	const providedDirs = options.threadDirs != null && options.threadDirs.length > 0
-		? options.threadDirs.map(dir => path.resolve(dir))
-		: undefined;
+	const providedDirs =
+		options.threadDirs != null && options.threadDirs.length > 0
+			? options.threadDirs.map((dir) => path.resolve(dir))
+			: undefined;
 
-	const defaultThreadsDir = ampPath != null
-		? path.join(ampPath, AMP_THREADS_DIR_NAME)
-		: null;
+	const defaultThreadsDir = ampPath != null ? path.join(ampPath, AMP_THREADS_DIR_NAME) : null;
 
 	const threadDirs = providedDirs ?? (defaultThreadsDir != null ? [defaultThreadsDir] : []);
 
@@ -248,11 +250,7 @@ export async function loadAmpUsageEvents(options: LoadOptions = {}): Promise<Loa
 
 			const ledgerEvents = thread.usageLedger?.events ?? [];
 			for (const ledgerEvent of ledgerEvents) {
-				const event = convertLedgerEventToUsageEvent(
-					threadId,
-					ledgerEvent,
-					thread.messages,
-				);
+				const event = convertLedgerEventToUsageEvent(threadId, ledgerEvent, thread.messages);
 				events.push(event);
 			}
 		}

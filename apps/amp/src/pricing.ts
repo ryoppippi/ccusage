@@ -49,8 +49,14 @@ export class AmpPricingSource implements PricingSource, Disposable {
 
 		return {
 			inputCostPerMToken: toPerMillion(pricing.input_cost_per_token),
-			cachedInputCostPerMToken: toPerMillion(pricing.cache_read_input_token_cost, pricing.input_cost_per_token),
-			cacheCreationCostPerMToken: toPerMillion(pricing.cache_creation_input_token_cost, pricing.input_cost_per_token),
+			cachedInputCostPerMToken: toPerMillion(
+				pricing.cache_read_input_token_cost,
+				pricing.input_cost_per_token,
+			),
+			cacheCreationCostPerMToken: toPerMillion(
+				pricing.cache_creation_input_token_cost,
+				pricing.input_cost_per_token,
+			),
 			outputCostPerMToken: toPerMillion(pricing.output_cost_per_token),
 		};
 	}
@@ -125,7 +131,7 @@ if (import.meta.vitest != null) {
 				cacheCreationInputTokens: 100,
 			});
 
-			const expected = (1000 * 1e-6) + (500 * 5e-6) + (200 * 1e-7) + (100 * 1.25e-6);
+			const expected = 1000 * 1e-6 + 500 * 5e-6 + 200 * 1e-7 + 100 * 1.25e-6;
 			expect(cost).toBeCloseTo(expected);
 		});
 	});

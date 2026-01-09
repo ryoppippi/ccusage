@@ -264,9 +264,6 @@ importers:
       picocolors:
         specifier: catalog:runtime
         version: 1.1.1
-      sort-package-json:
-        specifier: catalog:release
-        version: 3.4.0
       tinyglobby:
         specifier: catalog:runtime
         version: 0.2.15
