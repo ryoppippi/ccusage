@@ -56,7 +56,7 @@ Unlike other CLI tools, we pay extreme attention to bundle size. ccusage achieve
 - Compact real-time usage display for Claude Code status bar hooks
 - Session cost, daily cost, and block cost tracking
 - Burn rate calculations with visual indicators
-- Context usage percentage with colour-coded alerts
+- Context usage percentage with color-coded alerts
 
 ### 🔧 Flexible Configuration
 
