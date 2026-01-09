@@ -19,7 +19,7 @@ pnpx @ccusage/pi --help
 ```
 
 ::: warning ⚠️ Critical for bunx users
-Bun's bunx prioritises binaries matching the package name suffix when given a scoped package. **Always use `bunx @ccusage/pi@latest` with the version tag** to force bunx to fetch and run the correct package.
+Bun's bunx prioritizes binaries matching the package name suffix when given a scoped package. **Always use `bunx @ccusage/pi@latest` with the version tag** to force bunx to fetch and run the correct package.
 :::
 
 ### Recommended: Shell Alias
@@ -304,7 +304,7 @@ npx @ccusage/pi@latest session
 
 ### Example Output
 
-Sessions are sorted by last activity and labelled by source:
+Sessions are sorted by last activity and labeled by source:
 
 - `[cc]` - Claude Code sessions (green)
 - `[pi]` - Pi-agent sessions (cyan)
