@@ -101,9 +101,6 @@ npx ccusage session  # Usage by conversation session
 npx ccusage blocks   # 5-hour billing windows
 npx ccusage statusline  # Compact status line for hooks (Beta)
 
-# Live monitoring
-npx ccusage blocks --live  # Real-time usage dashboard
-
 # Filters and options
 npx ccusage daily --since 20250525 --until 20250530
 npx ccusage daily --json  # JSON output
@@ -127,7 +124,6 @@ npx ccusage monthly --compact  # Compact monthly report
 - 📅 **Monthly Report**: View token usage and costs aggregated by month
 - 💬 **Session Report**: View usage grouped by conversation sessions
 - ⏰ **5-Hour Blocks Report**: Track usage within Claude's billing windows with active block monitoring
-- 📈 **Live Monitoring**: Real-time dashboard showing active session progress, token burn rate, and cost projections with `blocks --live`
 - 🚀 **Statusline Integration**: Compact usage display for Claude Code status bar hooks (Beta)
 - 🤖 **Model Tracking**: See which Claude models you're using (Opus, Sonnet, etc.)
 - 📊 **Model Breakdown**: View per-model cost breakdown with `--breakdown` flag

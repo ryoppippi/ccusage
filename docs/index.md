@@ -37,10 +37,6 @@ features:
     title: 5-Hour Blocks
     details: Track usage within Claude's billing windows with active monitoring
     link: /guide/blocks-reports
-  - icon: 📈
-    title: Live Monitoring
-    details: Real-time dashboard with progress bars and cost projections
-    link: /guide/live-monitoring
   - icon: 🤖
     title: Model Tracking
     details: See which Claude models you're using (Opus, Sonnet, etc.)

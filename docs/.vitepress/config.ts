@@ -64,7 +64,7 @@ export default defineConfig({
 						{ text: 'Monthly Reports', link: '/guide/monthly-reports' },
 						{ text: 'Session Reports', link: '/guide/session-reports' },
 						{ text: 'Blocks Reports', link: '/guide/blocks-reports' },
-						{ text: 'Live Monitoring', link: '/guide/live-monitoring' },
+						{ text: 'Live Monitoring (Removed)', link: '/guide/live-monitoring' },
 					],
 				},
 				{
