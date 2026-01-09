@@ -8,9 +8,9 @@ import {
 	formatUsageDataRow,
 	pushBreakdownRows,
 } from '@ccusage/terminal/table';
-import { log, logger } from 'ccusage/logger';
 import { define } from 'gunshi';
 import { loadPiAgentSessionData } from '../data-loader.ts';
+import { log, logger } from '../logger.ts';
 
 export const sessionCommand = define({
 	name: 'session',

@@ -60,7 +60,6 @@
 		"@praha/byethrow": "catalog:runtime",
 		"@ryoppippi/eslint-config": "catalog:lint",
 		"@typescript/native-preview": "catalog:types",
-		"ccusage": "workspace:*",
 		"clean-pkg-json": "catalog:release",
 		"es-toolkit": "catalog:runtime",
 		"eslint": "catalog:lint",
