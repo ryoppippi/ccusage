@@ -24,6 +24,7 @@
 		"prepare:git": "git config --local core.hooksPath .githooks",
 		"prerelease": "pnpm run --filter '*' prerelease",
 		"release": "pnpm bumpp -r",
+		"postrelease": "git checkout ./**/package.json package.json",
 		"test": "pnpm run --filter '*' test",
 		"typecheck": "pnpm run --filter '*' typecheck"
 	},
