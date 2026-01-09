@@ -26,6 +26,7 @@
 		"typecheck": "pnpm run --filter '*' typecheck"
 	},
 	"devDependencies": {
+		"@gunshi/docs": "catalog:llm-docs",
 		"@praha/byethrow-mcp": "catalog:mcp",
 		"@ryoppippi/eslint-config": "catalog:lint",
 		"@typescript/native-preview": "catalog:types",

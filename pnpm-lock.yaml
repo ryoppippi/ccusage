@@ -59,6 +59,10 @@ catalogs:
     publint:
       specifier: ^0.3.12
       version: 0.3.12
+  llm-docs:
+    '@gunshi/docs':
+      specifier: ^0.27.5
+      version: 0.27.5
   mcp:
     '@praha/byethrow-mcp':
       specifier: ^0.1.7
@@ -186,6 +190,9 @@ importers:
 
   .:
     devDependencies:
+      '@gunshi/docs':
+        specifier: catalog:llm-docs
+        version: 0.27.5
       '@praha/byethrow-mcp':
         specifier: catalog:mcp
         version: 0.1.7
@@ -200,7 +207,7 @@ importers:
         version: 10.2.3
       bun:
         specifier: runtime:^1.3.2
-        version: runtime:1.3.4
+        version: runtime:1.3.5
       changelogithub:
         specifier: catalog:release
         version: 13.16.1
@@ -266,7 +273,7 @@ importers:
         version: 10.2.3
       bun:
         specifier: runtime:^1.3.2
-        version: runtime:1.3.4
+        version: runtime:1.3.5
       clean-pkg-json:
         specifier: catalog:release
         version: 1.3.0
@@ -362,7 +369,7 @@ importers:
         version: 7.0.0-dev.20260107.1
       bun:
         specifier: runtime:^1.3.2
-        version: runtime:1.3.4
+        version: runtime:1.3.5
       clean-pkg-json:
         specifier: catalog:release
         version: 1.3.0
@@ -447,7 +454,7 @@ importers:
         version: 7.0.0-dev.20260107.1
       bun:
         specifier: runtime:^1.3.2
-        version: runtime:1.3.4
+        version: runtime:1.3.5
       clean-pkg-json:
         specifier: catalog:release
         version: 1.3.0
@@ -627,7 +634,7 @@ importers:
         version: 7.0.0-dev.20260107.1
       bun:
         specifier: runtime:^1.3.2
-        version: runtime:1.3.4
+        version: runtime:1.3.5
       ccusage:
         specifier: workspace:^
         version: link:../apps/ccusage
@@ -1506,6 +1513,10 @@ packages:
 
   '@gerrit0/mini-shiki@3.12.2':
     resolution: {integrity: sha512-HKZPmO8OSSAAo20H2B3xgJdxZaLTwtlMwxg0967scnrDlPwe6j5+ULGHyIqwgTbFCn9yv/ff8CmfWZLE9YKBzA==}
+
+  '@gunshi/docs@0.27.5':
+    resolution: {integrity: sha512-u2m4FtssSli8Z3xWxICG0nGQpycPaxEs3/zWkvqLNAPAiHQlWg/Sbr7/RIO3A6hmf2BXG0I2wKN75SHlL1PIkw==}
+    hasBin: true
 
   '@hono/mcp@0.1.5':
     resolution: {integrity: sha512-q6Yurx9VUwVEpqnwVXtzIYaq4kgQgWWq9lYLM7NFS2W0sg1RzL+RdKh6jO4/dGyvBLKrahPd2v+NC6rr0XWBvQ==}
@@ -2609,85 +2620,6 @@ packages:
 
   bun-types@1.3.5:
     resolution: {integrity: sha512-inmAYe2PFLs0SUbFOWSVD24sg1jFlMPxOjOSSCYqUgn4Hsc3rDc7dFvfVYjFPNHtov6kgUeulV4SxbuIV/stPw==}
-
-  bun@runtime:1.3.4:
-    resolution:
-      type: variations
-      variants:
-        - resolution:
-            archive: zip
-            bin: bun
-            integrity: sha256-iAN3TkxsVcilF0ZMUI8Cgh5ttX+Uyhu1zCo59NIyalE=
-            prefix: bun-darwin-aarch64
-            type: binary
-            url: https://github.com/oven-sh/bun/releases/download/bun-v1.3.4/bun-darwin-aarch64.zip
-          targets:
-            - cpu: arm64
-              os: darwin
-        - resolution:
-            archive: zip
-            bin: bun
-            integrity: sha256-M5D55qgqnHGOGHUTscVkBdDentP2sJIiKxW01LpuME0=
-            prefix: bun-darwin-x64
-            type: binary
-            url: https://github.com/oven-sh/bun/releases/download/bun-v1.3.4/bun-darwin-x64.zip
-          targets:
-            - cpu: x64
-              os: darwin
-        - resolution:
-            archive: zip
-            bin: bun
-            integrity: sha256-w9rCmRKxRHiaKk7iEI5ZXmUn8PbBsPboA7sxncdC4d4=
-            prefix: bun-linux-aarch64-musl
-            type: binary
-            url: https://github.com/oven-sh/bun/releases/download/bun-v1.3.4/bun-linux-aarch64-musl.zip
-          targets:
-            - cpu: arm64
-              os: linux
-              libc: musl
-        - resolution:
-            archive: zip
-            bin: bun
-            integrity: sha256-xG6EH+2FNHUhkVsbOQTW0XXY4v2RXhjgHBETGCGRFaQ=
-            prefix: bun-linux-aarch64
-            type: binary
-            url: https://github.com/oven-sh/bun/releases/download/bun-v1.3.4/bun-linux-aarch64.zip
-          targets:
-            - cpu: arm64
-              os: linux
-        - resolution:
-            archive: zip
-            bin: bun
-            integrity: sha256-nx4N0siLZfkCofsQE3NwSmcGO7fvoUucdT8vvSdhAKM=
-            prefix: bun-linux-x64-musl
-            type: binary
-            url: https://github.com/oven-sh/bun/releases/download/bun-v1.3.4/bun-linux-x64-musl.zip
-          targets:
-            - cpu: x64
-              os: linux
-              libc: musl
-        - resolution:
-            archive: zip
-            bin: bun
-            integrity: sha256-M8aZYEno036LgVlZsUsF5bb0lhITUr8RuufQRxk8KL8=
-            prefix: bun-linux-x64
-            type: binary
-            url: https://github.com/oven-sh/bun/releases/download/bun-v1.3.4/bun-linux-x64.zip
-          targets:
-            - cpu: x64
-              os: linux
-        - resolution:
-            archive: zip
-            bin: bun.exe
-            integrity: sha256-KpwKnmrXfQwx/Y+x9Za2Gvp/Ly9YC6rVl/F+eg262WA=
-            prefix: bun-windows-x64
-            type: binary
-            url: https://github.com/oven-sh/bun/releases/download/bun-v1.3.4/bun-windows-x64.zip
-          targets:
-            - cpu: x64
-              os: win32
-    version: 1.3.4
-    hasBin: true
 
   bun@runtime:1.3.5:
     resolution:
@@ -5274,6 +5206,7 @@ packages:
   whatwg-encoding@3.1.1:
     resolution: {integrity: sha512-6qN4hJdMwfYBtE3YBTTHhoeuUrDBPZmbQaxWAqSALV/MeEnR5z1xd8UKud2RAkFoPkmB+hli1TZSnyi84xz1vQ==}
     engines: {node: '>=18'}
+    deprecated: Use @exodus/bytes instead for a more spec-conformant and faster implementation
 
   whatwg-mimetype@3.0.0:
     resolution: {integrity: sha512-nt+N2dzIutVRxARx1nghPKGv1xHikU7HKdfafKkLNLindmPU/ch3U31NOCGGA/dmPcmb1VlofO0vnKAcsm0o/Q==}
@@ -6021,6 +5954,11 @@ snapshots:
       '@shikijs/themes': 3.12.2
       '@shikijs/types': 3.12.2
       '@shikijs/vscode-textmate': 10.0.2
+
+  '@gunshi/docs@0.27.5':
+    dependencies:
+      '@antfu/install-pkg': 1.1.0
+      tinyexec: 1.0.2
 
   '@hono/mcp@0.1.5(@modelcontextprotocol/sdk@1.24.3(zod@4.1.13))(hono@4.9.7)':
     dependencies:
@@ -7112,8 +7050,6 @@ snapshots:
   bun-types@1.3.5:
     dependencies:
       '@types/node': 24.5.1
-
-  bun@runtime:1.3.4: {}
 
   bun@runtime:1.3.5: {}
 

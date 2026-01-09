@@ -26,6 +26,8 @@ catalogs:
     eslint-plugin-format: ^1.0.2
     oxfmt: ^0.16.0
     publint: ^0.3.12
+  llm-docs:
+    '@gunshi/docs': ^0.27.5
   mcp:
     '@praha/byethrow-mcp': ^0.1.7
     sitemcp: ^0.5.9
