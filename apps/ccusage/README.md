@@ -35,7 +35,7 @@ Companion tool for analyzing OpenCode (Claude Code fork) usage. Track token usag
 
 ### 🥧 [@ccusage/pi](https://www.npmjs.com/package/@ccusage/pi) - Pi-agent Usage Analyzer
 
-Unified usage tracking across Claude Code and [pi-agent](https://github.com/badlogic/pi-mono). Combines data from both sources with clear labels (`[cc]` for Claude Code, `[pi]` for pi-agent) to give you a complete picture of your Claude Max usage.
+Companion tool for analyzing [pi-agent](https://github.com/nicobailon/pi-agent) session usage. Track token usage and costs from your pi-agent sessions with daily, monthly, and session-based reports.
 
 ### ⚡ [@ccusage/amp](https://www.npmjs.com/package/@ccusage/amp) - Amp Usage Analyzer
 
