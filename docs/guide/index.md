@@ -19,6 +19,7 @@ ccusage analyzes the local JSONL files that Claude Code automatically generates 
 
 - **Detailed Usage Reports** - Daily, monthly, and session-based breakdowns
 - **Cost Analysis** - Estimated costs based on token usage and model pricing
+- **Multi-provider model coverage** - Supports Anthropic defaults plus additional LiteLLM providers such as DeepSeek, Dashscope, and GLM 4.5 variants
 - **Live Monitoring** - Real-time tracking of active sessions
 - **Multiple Formats** - Beautiful tables or JSON for further analysis
 

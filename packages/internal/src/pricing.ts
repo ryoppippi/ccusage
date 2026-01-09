@@ -71,6 +71,11 @@ const DEFAULT_PROVIDER_PREFIXES = [
 	'openai/',
 	'azure/',
 	'openrouter/openai/',
+	'zai/',
+	'deepseek/',
+	'dashscope/',
+	'deepinfra/',
+	'deepinfra/zai-org/',
 ];
 
 function createLogger(logger?: PricingLogger): PricingLogger {
@@ -84,6 +89,74 @@ function createLogger(logger?: PricingLogger): PricingLogger {
 		info: () => {},
 		warn: () => {},
 	};
+}
+
+const normalizeModelName = (modelName: string): string => modelName.toLowerCase();
+
+function getBaseModelName(modelName: string): string {
+	const normalized = normalizeModelName(modelName);
+	const segments = normalized.split('/');
+	return segments[segments.length - 1] ?? normalized;
+}
+
+/**
+ * Heuristic scoring so we can prioritize the “right” pricing row when multiple
+ * candidate keys partially match (e.g. glm-4.5 vs glm-4.5-air vs zai/glm-4.5).
+ * LiteLLM exposes dozens of provider/model variations, and a plain substring
+ * check tends to grab the wrong variant (for example the slower “air” edition).
+ * This mirrors the better-ccusage matching order while keeping the logic lightweight.
+ */
+function calculateModelMatchScore(targetModel: string, candidateModel: string): number {
+	const normalizedTarget = normalizeModelName(targetModel);
+	const normalizedCandidate = normalizeModelName(candidateModel);
+
+	if (normalizedCandidate === normalizedTarget) {
+		return 200;
+	}
+
+	if (normalizedCandidate.endsWith(`/${normalizedTarget}`)) {
+		return 190;
+	}
+
+	const targetBase = getBaseModelName(targetModel);
+	const candidateBase = getBaseModelName(candidateModel);
+
+	if (candidateBase === targetBase) {
+		let score = 150;
+
+		if (!normalizedCandidate.includes('air')) {
+			score += 10;
+		}
+
+		if (normalizedCandidate.startsWith('zai/')) {
+			score += 5;
+		}
+
+		return score;
+	}
+
+	if (normalizedCandidate.includes(targetBase)) {
+		let score = 80;
+
+		if (!normalizedCandidate.includes('air')) {
+			score += 5;
+		}
+
+		return score;
+	}
+
+	if (targetBase.includes(candidateBase)) {
+		return 40;
+	}
+
+	if (
+		normalizedCandidate.includes(normalizedTarget)
+		|| normalizedTarget.includes(normalizedCandidate)
+	) {
+		return 20;
+	}
+
+	return 0;
 }
 
 export class LiteLLMPricingFetcher implements Disposable {
@@ -223,15 +296,29 @@ export class LiteLLMPricingFetcher implements Disposable {
 					}
 				}
 
-				const lower = modelName.toLowerCase();
+				const normalizedTarget = normalizeModelName(modelName);
+
+				let bestMatch: LiteLLMModelPricing | null = null;
+				let bestMatchScore = 0;
+
 				for (const [key, value] of pricing) {
-					const comparison = key.toLowerCase();
-					if (comparison.includes(lower) || lower.includes(comparison)) {
+					const normalizedCandidate = normalizeModelName(key);
+
+					if (
+						normalizedCandidate === normalizedTarget
+						|| normalizedCandidate.endsWith(`/${normalizedTarget}`)
+					) {
 						return value;
+					}
+
+					const score = calculateModelMatchScore(modelName, key);
+					if (score > bestMatchScore) {
+						bestMatch = value;
+						bestMatchScore = score;
 					}
 				}
 
-				return null;
+				return bestMatchScore > 0 ? bestMatch : null;
 			}),
 		);
 	}
@@ -558,6 +645,52 @@ if (import.meta.vitest != null) {
 				),
 			);
 			expect(costBelow).toBe(0);
+		});
+
+		it('matches GLM models with provider prefixes and selects primary variants over air versions', async () => {
+			using fetcher = new LiteLLMPricingFetcher({
+				offline: true,
+				offlineLoader: async () => ({
+					'deepinfra/zai-org/GLM-4.5': {
+						input_cost_per_token: 1e-6,
+						output_cost_per_token: 2e-6,
+					},
+					'zai/glm-4.5-air': {
+						input_cost_per_token: 5e-7,
+						output_cost_per_token: 1e-6,
+					},
+				}),
+			});
+
+			const basePricing = await Result.unwrap(fetcher.getModelPricing('glm-4.5'));
+			expect(basePricing).not.toBeNull();
+			expect(basePricing?.input_cost_per_token).toBeCloseTo(1e-6);
+
+			const providerPricing = await Result.unwrap(fetcher.getModelPricing('zai/glm-4.5'));
+			expect(providerPricing).not.toBeNull();
+			expect(providerPricing?.output_cost_per_token).toBeCloseTo(2e-6);
+
+			const airPricing = await Result.unwrap(fetcher.getModelPricing('glm-4.5-air'));
+			expect(airPricing).not.toBeNull();
+			expect(airPricing?.output_cost_per_token).toBeCloseTo(1e-6);
+		});
+
+		describe('model match scoring', () => {
+			it('prefers exact matches over provider-suffixed variants', () => {
+				expect(calculateModelMatchScore('glm-4.5', 'glm-4.5')).toBeGreaterThan(
+					calculateModelMatchScore('glm-4.5', 'provider/glm-4.5'),
+				);
+			});
+
+			it('prefers main variants over air editions', () => {
+				expect(calculateModelMatchScore('glm-4.5', 'provider/glm-4.5')).toBeGreaterThan(
+					calculateModelMatchScore('glm-4.5', 'provider/glm-4.5-air'),
+				);
+			});
+
+			it('assigns zero to unrelated models', () => {
+				expect(calculateModelMatchScore('glm-4.5', 'gpt-4.1-mini')).toBe(0);
+			});
 		});
 	});
 }
