@@ -937,16 +937,11 @@ export async function loadSessionData(
 		model: string | undefined;
 	}> = [];
 
-	for (const { file, baseDir } of sortedFilesWithBase) {
-		// Extract session info from file path using its specific base directory
-		const relativePath = path.relative(baseDir, file);
-		const parts = relativePath.split(path.sep);
-
-		// Session ID is the directory name containing the JSONL file
-		const sessionId = parts[parts.length - 2] ?? 'unknown';
-		// Project path is everything before the session ID
-		const joinedPath = parts.slice(0, -2).join(path.sep);
-		const projectPath = joinedPath.length > 0 ? joinedPath : 'Unknown Project';
+	for (const { file } of sortedFilesWithBase) {
+		// Extract session ID from the filename (without .jsonl extension)
+		const sessionId = path.basename(file, '.jsonl');
+		// Extract project path using the dedicated helper
+		const projectPath = extractProjectFromPath(file);
 
 		await processJSONLFileByLine(file, async (line) => {
 			try {
@@ -2611,15 +2606,11 @@ invalid json line
 
 			await using fixture = await createFixture({
 				projects: {
-					'project1/subfolder': {
-						session123: {
-							'chat.jsonl': JSON.stringify(mockData),
-						},
+					project1: {
+						'session123.jsonl': JSON.stringify(mockData),
 					},
-					'project2': {
-						session456: {
-							'chat.jsonl': JSON.stringify(mockData),
-						},
+					project2: {
+						'session456.jsonl': JSON.stringify(mockData),
 					},
 				},
 			});
@@ -2628,11 +2619,33 @@ invalid json line
 
 			expect(result).toHaveLength(2);
 			expect(result.find(s => s.sessionId === 'session123')).toBeTruthy();
-			expect(
-				result.find(s => s.projectPath === 'project1/subfolder'),
-			).toBeTruthy();
+			expect(result.find(s => s.projectPath === 'project1')).toBeTruthy();
 			expect(result.find(s => s.sessionId === 'session456')).toBeTruthy();
 			expect(result.find(s => s.projectPath === 'project2')).toBeTruthy();
+		});
+
+		it('correctly handles project directories starting with hyphens', async () => {
+			// Regression test for issue #560
+			const mockData: UsageData = {
+				timestamp: createISOTimestamp('2024-01-01T12:00:00Z'),
+				message: { usage: { input_tokens: 100, output_tokens: 50 } },
+				costUSD: 0.01,
+			};
+
+			await using fixture = await createFixture({
+				projects: {
+					'-home-claude-user': {
+						'7890f8b2-813b-4175-baa5-e5d18534c89d.jsonl': JSON.stringify(mockData),
+					},
+				},
+			});
+
+			const result = await loadSessionData({ claudePath: fixture.path });
+
+			expect(result).toHaveLength(1);
+			const session = result[0];
+			expect(session?.sessionId).toBe('7890f8b2-813b-4175-baa5-e5d18534c89d');
+			expect(session?.projectPath).toBe('-home-claude-user');
 		});
 
 		it('aggregates session usage data', async () => {
@@ -2666,9 +2679,7 @@ invalid json line
 			await using fixture = await createFixture({
 				projects: {
 					project1: {
-						session1: {
-							'chat.jsonl': mockData.map(d => JSON.stringify(d)).join('\n'),
-						},
+						'session1.jsonl': mockData.map(d => JSON.stringify(d)).join('\n'),
 					},
 				},
 			});
@@ -2712,9 +2723,7 @@ invalid json line
 			await using fixture = await createFixture({
 				projects: {
 					project1: {
-						session1: {
-							'chat.jsonl': mockData.map(d => JSON.stringify(d)).join('\n'),
-						},
+						'session1.jsonl': mockData.map(d => JSON.stringify(d)).join('\n'),
 					},
 				},
 			});
@@ -2757,8 +2766,8 @@ invalid json line
 				projects: {
 					project1: Object.fromEntries(
 						sessions.map(s => [
-							s.sessionId,
-							{ 'chat.jsonl': JSON.stringify(s.data) },
+							`${s.sessionId}.jsonl`,
+							JSON.stringify(s.data),
 						]),
 					),
 				},
@@ -2803,8 +2812,8 @@ invalid json line
 				projects: {
 					project1: Object.fromEntries(
 						sessions.map(s => [
-							s.sessionId,
-							{ 'chat.jsonl': JSON.stringify(s.data) },
+							`${s.sessionId}.jsonl`,
+							JSON.stringify(s.data),
 						]),
 					),
 				},
@@ -2852,8 +2861,8 @@ invalid json line
 				projects: {
 					project1: Object.fromEntries(
 						sessions.map(s => [
-							s.sessionId,
-							{ 'chat.jsonl': JSON.stringify(s.data) },
+							`${s.sessionId}.jsonl`,
+							JSON.stringify(s.data),
 						]),
 					),
 				},
@@ -2901,8 +2910,8 @@ invalid json line
 				projects: {
 					project1: Object.fromEntries(
 						sessions.map(s => [
-							s.sessionId,
-							{ 'chat.jsonl': JSON.stringify(s.data) },
+							`${s.sessionId}.jsonl`,
+							JSON.stringify(s.data),
 						]),
 					),
 				},
@@ -3119,12 +3128,8 @@ invalid json line
 				await using fixture = await createFixture({
 					projects: {
 						'test-project': {
-							session1: {
-								'usage.jsonl': JSON.stringify(session1Data),
-							},
-							session2: {
-								'usage.jsonl': JSON.stringify(session2Data),
-							},
+							'session1.jsonl': JSON.stringify(session1Data),
+							'session2.jsonl': JSON.stringify(session2Data),
 						},
 					},
 				});
@@ -4448,34 +4453,30 @@ if (import.meta.vitest != null) {
 				await using fixture = await createFixture({
 					projects: {
 						project1: {
-							session1: {
-								'file1.jsonl': JSON.stringify({
-									timestamp: '2025-01-10T10:00:00Z',
-									message: {
-										id: 'msg_123',
-										usage: {
-											input_tokens: 100,
-											output_tokens: 50,
-										},
+							'session1.jsonl': JSON.stringify({
+								timestamp: '2025-01-10T10:00:00Z',
+								message: {
+									id: 'msg_123',
+									usage: {
+										input_tokens: 100,
+										output_tokens: 50,
 									},
-									requestId: 'req_456',
-									costUSD: 0.001,
-								}),
-							},
-							session2: {
-								'file2.jsonl': JSON.stringify({
-									timestamp: '2025-01-15T10:00:00Z',
-									message: {
-										id: 'msg_123',
-										usage: {
-											input_tokens: 100,
-											output_tokens: 50,
-										},
+								},
+								requestId: 'req_456',
+								costUSD: 0.001,
+							}),
+							'session2.jsonl': JSON.stringify({
+								timestamp: '2025-01-15T10:00:00Z',
+								message: {
+									id: 'msg_123',
+									usage: {
+										input_tokens: 100,
+										output_tokens: 50,
 									},
-									requestId: 'req_456',
-									costUSD: 0.001,
-								}),
-							},
+								},
+								requestId: 'req_456',
+								costUSD: 0.001,
+							}),
 						},
 					},
 				});
