@@ -4,6 +4,7 @@ import {
 	fetchLiteLLMPricingDataset,
 	filterPricingDataset,
 } from '@ccusage/internal/pricing-fetch-utils';
+import { logger } from './logger.ts';
 
 const FACTORY_MODEL_PREFIXES = [
 	'openai/',
@@ -26,7 +27,7 @@ export async function prefetchFactoryPricing(): Promise<Record<string, LiteLLMMo
 		const dataset = await fetchLiteLLMPricingDataset();
 		return filterPricingDataset(dataset, isFactoryModel);
 	} catch (error) {
-		console.warn('Failed to prefetch Factory pricing data, proceeding with empty cache.', error);
+		logger.warn('Failed to prefetch Factory pricing data, proceeding with empty cache.', error);
 		return createPricingDataset();
 	}
 }
