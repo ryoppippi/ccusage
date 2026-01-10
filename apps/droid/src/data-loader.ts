@@ -20,6 +20,9 @@ import { loadFactoryCustomModels, resolveFactoryDir } from './factory-settings.t
 import { logger } from './logger.ts';
 import { createEmptyUsage, subtractUsage, toTotalTokens } from './token-utils.ts';
 
+/**
+ * Normalizes unknown errors into `Error` instances.
+ */
 function toError(error: unknown): Error {
 	return error instanceof Error ? error : new Error(String(error));
 }
@@ -64,6 +67,9 @@ const sessionSettingsSchema = v.object({
 	model: v.optional(v.string()),
 });
 
+/**
+ * Returns a trimmed string if it is non-empty, otherwise `undefined`.
+ */
 function asNonEmptyString(value: unknown): string | undefined {
 	if (typeof value !== 'string') {
 		return undefined;
@@ -73,6 +79,9 @@ function asNonEmptyString(value: unknown): string | undefined {
 	return trimmed === '' ? undefined : trimmed;
 }
 
+/**
+ * Extracts an ISO timestamp from a log line prefix like `[2026-01-01T00:00:00Z]`.
+ */
 function extractTimestampFromLogLine(line: string): string | undefined {
 	if (!line.startsWith('[')) {
 		return undefined;
@@ -85,6 +94,9 @@ function extractTimestampFromLogLine(line: string): string | undefined {
 	return raw === '' ? undefined : raw;
 }
 
+/**
+ * Derives a stable "project key" from a settings path under `.../sessions/<project>/...`.
+ */
 function extractProjectKeyFromSettingsPath(settingsPath: string): string {
 	const normalized = path.normalize(settingsPath);
 	const segments = normalized.split(path.sep);
@@ -102,6 +114,11 @@ type ModelIdCacheEntry = {
 	modelId: string | null;
 };
 
+/**
+ * Loads the model ID from a per-session settings file (`*.settings.json`).
+ *
+ * Results are cached by `(settingsPath, mtimeMs)`.
+ */
 async function loadModelIdFromSessionSettings(
 	settingsPath: string,
 	cache: Map<string, ModelIdCacheEntry>,

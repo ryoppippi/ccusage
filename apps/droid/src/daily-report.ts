@@ -27,6 +27,9 @@ export type DailyReportResult = {
 	missingPricingModels: string[];
 };
 
+/**
+ * Formats a model identifier for display, including custom/inferred labels.
+ */
 function formatModelDisplay(event: TokenUsageEvent): string {
 	const suffix = event.modelIdSource === 'settings' ? ' [inferred]' : '';
 	if (event.modelId.startsWith('custom:')) {
@@ -37,6 +40,9 @@ function formatModelDisplay(event: TokenUsageEvent): string {
 	return `${event.modelId}${suffix}`;
 }
 
+/**
+ * Adds a single event's token usage to an aggregate.
+ */
 function addEventUsage(target: ModelUsage, event: TokenUsageEvent): void {
 	addUsage(target, {
 		inputTokens: event.inputTokens,
@@ -47,6 +53,9 @@ function addEventUsage(target: ModelUsage, event: TokenUsageEvent): void {
 	});
 }
 
+/**
+ * Gets an existing model usage aggregate or inserts a new empty one.
+ */
 function getOrCreateModelUsage(map: Map<string, ModelUsage>, key: string): ModelUsage {
 	const existing = map.get(key);
 	if (existing != null) {

@@ -15,6 +15,9 @@ const subCommands = new Map([
 
 const mainCommand = dailyCommand;
 
+/**
+ * Runs the CLI.
+ */
 export async function run(): Promise<void> {
 	// When invoked through npx, the binary name might be passed as the first argument
 	// Filter it out if it matches the expected binary name

@@ -14,10 +14,16 @@ import * as v from 'valibot';
 import { DEFAULT_FACTORY_DIR, FACTORY_DIR_ENV } from './_consts.ts';
 import { logger } from './logger.ts';
 
+/**
+ * Normalizes unknown errors into `Error` instances.
+ */
 function toError(error: unknown): Error {
 	return error instanceof Error ? error : new Error(String(error));
 }
 
+/**
+ * Type guard for Node.js `ErrnoException` errors.
+ */
 function isErrnoException(error: unknown): error is NodeJS.ErrnoException {
 	return error instanceof Error && 'code' in error;
 }

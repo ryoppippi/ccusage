@@ -7,10 +7,16 @@
 
 import type { ModelUsage } from './_types.ts';
 
+/**
+ * Coerces unknown values into a non-negative finite number.
+ */
 function ensureNonNegativeNumber(value: unknown): number {
 	return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : 0;
 }
 
+/**
+ * Computes `totalTokens` for a usage record.
+ */
 export function toTotalTokens(usage: {
 	inputTokens: number;
 	outputTokens: number;

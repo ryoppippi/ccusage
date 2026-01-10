@@ -23,6 +23,9 @@ import { FactoryPricingSource } from '../pricing.ts';
 
 const TABLE_COLUMN_COUNT = 9;
 
+/**
+ * Logs a short warning for models that could not be priced (treated as $0).
+ */
 function summarizeMissingPricing(models: string[]): void {
 	if (models.length === 0) {
 		return;

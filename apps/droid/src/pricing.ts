@@ -34,6 +34,9 @@ const EMPTY_PRICING_DATASET: Record<string, LiteLLMModelPricing> = createPricing
 
 let prefetchedPricingPromise: Promise<Record<string, LiteLLMModelPricing>> | null = null;
 
+/**
+ * Loads a prefetched pricing dataset and caches the promise.
+ */
 async function loadPrefetchedFactoryPricing(): Promise<Record<string, LiteLLMModelPricing>> {
 	if (prefetchedPricingPromise == null) {
 		prefetchedPricingPromise = prefetchFactoryPricing();
@@ -41,6 +44,9 @@ async function loadPrefetchedFactoryPricing(): Promise<Record<string, LiteLLMMod
 	return prefetchedPricingPromise;
 }
 
+/**
+ * Generates candidate model identifiers to maximize LiteLLM pricing match rate.
+ */
 function normalizeModelCandidates(rawModel: string): string[] {
 	const trimmed = rawModel.trim();
 	if (trimmed === '') {

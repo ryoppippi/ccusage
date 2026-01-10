@@ -27,6 +27,9 @@ import { buildSessionReport } from '../session-report.ts';
 
 const TABLE_COLUMN_COUNT = 12;
 
+/**
+ * Logs a short warning for models that could not be priced (treated as $0).
+ */
 function summarizeMissingPricing(models: string[]): void {
 	if (models.length === 0) {
 		return;
