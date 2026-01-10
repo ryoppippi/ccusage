@@ -9,7 +9,8 @@
 	"homepage": "https://github.com/ryoppippi/ccusage#readme",
 	"repository": {
 		"type": "git",
-		"url": "git+https://github.com/ryoppippi/ccusage.git"
+		"url": "git+https://github.com/ryoppippi/ccusage.git",
+		"directory": "apps/ccusage"
 	},
 	"bugs": {
 		"url": "https://github.com/ryoppippi/ccusage/issues"
