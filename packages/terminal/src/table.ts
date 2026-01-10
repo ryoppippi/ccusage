@@ -4,6 +4,15 @@ import { uniq } from 'es-toolkit';
 import pc from 'picocolors';
 import stringWidth from 'string-width';
 
+function getCellDisplayWidth(value: string): number {
+	const lines = value.split(/\r?\n/);
+	let maxWidth = 0;
+	for (const line of lines) {
+		maxWidth = Math.max(maxWidth, stringWidth(line));
+	}
+	return maxWidth;
+}
+
 /**
  * Default locale used for date formatting when not specified
  * en-CA provides YYYY-MM-DD ISO format
@@ -212,7 +221,9 @@ export class ResponsiveTable {
 		];
 
 		const contentWidths = head.map((_, colIndex) => {
-			const maxLength = Math.max(...allRows.map((row) => stringWidth(String(row[colIndex] ?? ''))));
+			const maxLength = Math.max(
+				...allRows.map((row) => getCellDisplayWidth(String(row[colIndex] ?? ''))),
+			);
 			return maxLength;
 		});
 
@@ -1076,6 +1087,17 @@ if (import.meta.vitest != null) {
 			expect(formatModelsDisplayMultiline(['[pi] anthropic/claude-opus-4.5'])).toBe(
 				'- [pi] opus-4.5',
 			);
+		});
+	});
+
+	describe('getCellDisplayWidth', () => {
+		it('uses max line width for multiline cells', () => {
+			expect(getCellDisplayWidth('aaa\nb')).toBe(3);
+			expect(getCellDisplayWidth('a\nbbbb')).toBe(4);
+		});
+
+		it('matches stringWidth for single-line cells', () => {
+			expect(getCellDisplayWidth('hello')).toBe(stringWidth('hello'));
 		});
 	});
 
