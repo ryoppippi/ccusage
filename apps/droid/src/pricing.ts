@@ -1,3 +1,10 @@
+/**
+ * @fileoverview Pricing adapter for Factory Droid.
+ *
+ * Resolves per-token costs using the shared LiteLLM pricing fetcher, scoped to
+ * provider prefixes typically used by Factory.
+ */
+
 import type { LiteLLMModelPricing } from '@ccusage/internal/pricing';
 import type { ModelUsage, PricingResult, PricingSource } from './_types.ts';
 import { LiteLLMPricingFetcher } from '@ccusage/internal/pricing';
@@ -62,6 +69,11 @@ function normalizeModelCandidates(rawModel: string): string[] {
 export class FactoryPricingSource implements PricingSource, Disposable {
 	private readonly fetcher: LiteLLMPricingFetcher;
 
+	/**
+	 * Creates a pricing source.
+	 *
+	 * When `offline` is enabled, the source uses `offlineLoader` if provided.
+	 */
 	constructor(options: FactoryPricingSourceOptions = {}) {
 		const offline = options.offline ?? false;
 		this.fetcher = new LiteLLMPricingFetcher({
@@ -78,6 +90,12 @@ export class FactoryPricingSource implements PricingSource, Disposable {
 		this.fetcher[Symbol.dispose]();
 	}
 
+	/**
+	 * Calculates cost for a model usage payload.
+	 *
+	 * This attempts a few normalized model candidates (e.g., stripping parentheses)
+	 * to match LiteLLM pricing entries.
+	 */
 	async calculateCost(pricingModel: string, usage: ModelUsage): Promise<PricingResult> {
 		const candidates = normalizeModelCandidates(pricingModel);
 		if (candidates.length === 0) {

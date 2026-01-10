@@ -1,3 +1,7 @@
+/**
+ * @fileoverview Default paths and constants for Factory Droid usage tracking.
+ */
+
 import os from 'node:os';
 import path from 'node:path';
 

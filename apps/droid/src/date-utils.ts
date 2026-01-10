@@ -1,3 +1,10 @@
+/**
+ * @fileoverview Date utilities for grouping Factory Droid events.
+ *
+ * Input timestamps are ISO strings from logs; these helpers normalize them into
+ * date/month keys and format display labels.
+ */
+
 function safeTimeZone(timezone?: string): string {
 	if (timezone == null || timezone.trim() === '') {
 		return Intl.DateTimeFormat().resolvedOptions().timeZone ?? 'UTC';
@@ -11,6 +18,9 @@ function safeTimeZone(timezone?: string): string {
 	}
 }
 
+/**
+ * Converts a timestamp into a `YYYY-MM-DD` key in the given timezone.
+ */
 export function toDateKey(timestamp: string, timezone?: string): string {
 	const tz = safeTimeZone(timezone);
 	const date = new Date(timestamp);
@@ -23,6 +33,9 @@ export function toDateKey(timestamp: string, timezone?: string): string {
 	return formatter.format(date);
 }
 
+/**
+ * Converts a timestamp into a `YYYY-MM` key in the given timezone.
+ */
 export function toMonthKey(timestamp: string, timezone?: string): string {
 	const tz = safeTimeZone(timezone);
 	const date = new Date(timestamp);
@@ -35,6 +48,11 @@ export function toMonthKey(timestamp: string, timezone?: string): string {
 	return `${year}-${month}`;
 }
 
+/**
+ * Normalizes filter inputs into `YYYY-MM-DD`.
+ *
+ * Accepts `YYYYMMDD` or `YYYY-MM-DD`.
+ */
 export function normalizeFilterDate(value?: string): string | undefined {
 	if (value == null) {
 		return undefined;
@@ -48,6 +66,9 @@ export function normalizeFilterDate(value?: string): string | undefined {
 	return `${compact.slice(0, 4)}-${compact.slice(4, 6)}-${compact.slice(6, 8)}`;
 }
 
+/**
+ * Returns true if `dateKey` (YYYY-MM-DD) is within the inclusive range.
+ */
 export function isWithinRange(dateKey: string, since?: string, until?: string): boolean {
 	const value = dateKey.replaceAll('-', '');
 	const sinceValue = since?.replaceAll('-', '');
@@ -64,6 +85,9 @@ export function isWithinRange(dateKey: string, since?: string, until?: string): 
 	return true;
 }
 
+/**
+ * Formats a `YYYY-MM-DD` key for display (timezone-independent).
+ */
 export function formatDisplayDate(dateKey: string, locale?: string, _timezone?: string): string {
 	const [yearStr = '0', monthStr = '1', dayStr = '1'] = dateKey.split('-');
 	const year = Number.parseInt(yearStr, 10);
@@ -79,6 +103,9 @@ export function formatDisplayDate(dateKey: string, locale?: string, _timezone?: 
 	return formatter.format(date);
 }
 
+/**
+ * Formats a `YYYY-MM` key for display (timezone-independent).
+ */
 export function formatDisplayMonth(monthKey: string, locale?: string, _timezone?: string): string {
 	const [yearStr = '0', monthStr = '1'] = monthKey.split('-');
 	const year = Number.parseInt(yearStr, 10);
@@ -92,6 +119,9 @@ export function formatDisplayMonth(monthKey: string, locale?: string, _timezone?
 	return formatter.format(date);
 }
 
+/**
+ * Formats an ISO timestamp for display in a given timezone.
+ */
 export function formatDisplayDateTime(
 	timestamp: string,
 	locale?: string,

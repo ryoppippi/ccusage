@@ -1,3 +1,10 @@
+/**
+ * @fileoverview Token-usage helpers for Factory Droid reports.
+ *
+ * Factory logs expose cumulative token counters; these utilities normalize raw values,
+ * compute deltas, and keep totals consistent.
+ */
+
 import type { ModelUsage } from './_types.ts';
 
 function ensureNonNegativeNumber(value: unknown): number {
@@ -20,6 +27,9 @@ export function toTotalTokens(usage: {
 	);
 }
 
+/**
+ * Creates an empty, zeroed token usage structure.
+ */
 export function createEmptyUsage(): ModelUsage {
 	return {
 		inputTokens: 0,
@@ -31,6 +41,11 @@ export function createEmptyUsage(): ModelUsage {
 	};
 }
 
+/**
+ * Normalizes an unknown token usage payload into a numeric token usage structure.
+ *
+ * Missing/invalid values are treated as `0`.
+ */
 export function normalizeUsage(value: unknown): Omit<ModelUsage, 'totalTokens'> {
 	if (value == null || typeof value !== 'object') {
 		return {
@@ -52,6 +67,9 @@ export function normalizeUsage(value: unknown): Omit<ModelUsage, 'totalTokens'> 
 	};
 }
 
+/**
+ * Adds token usage values to a mutable target and updates `totalTokens`.
+ */
 export function addUsage(target: ModelUsage, add: Omit<ModelUsage, 'totalTokens'>): void {
 	target.inputTokens += add.inputTokens;
 	target.outputTokens += add.outputTokens;
@@ -61,6 +79,11 @@ export function addUsage(target: ModelUsage, add: Omit<ModelUsage, 'totalTokens'
 	target.totalTokens = toTotalTokens(target);
 }
 
+/**
+ * Computes a delta between current cumulative counters and the last known totals.
+ *
+ * If any counter decreases (reset), returns the current counters as the delta.
+ */
 export function subtractUsage(
 	current: Omit<ModelUsage, 'totalTokens'>,
 	previous: ModelUsage,

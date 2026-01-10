@@ -1,3 +1,7 @@
+/**
+ * @fileoverview Lightweight helper for prefetching Factory model pricing.
+ */
+
 import type { LiteLLMModelPricing } from '@ccusage/internal/pricing';
 import {
 	createPricingDataset,

@@ -1,3 +1,10 @@
+/**
+ * @fileoverview Factory settings loader.
+ *
+ * Factory stores global configuration under `~/.factory/settings.json`, including
+ * `customModels[]` mappings used to resolve `custom:*` model IDs.
+ */
+
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
@@ -28,10 +35,20 @@ const settingsSchema = v.object({
 
 export type FactoryCustomModel = v.InferOutput<typeof customModelSchema>;
 
+/**
+ * Resolves the Factory data directory.
+ *
+ * Precedence: CLI `--factoryDir` → `FACTORY_DIR` → `~/.factory`.
+ */
 export function resolveFactoryDir(cliFactoryDir?: string): string {
 	return cliFactoryDir ?? process.env[FACTORY_DIR_ENV] ?? DEFAULT_FACTORY_DIR;
 }
 
+/**
+ * Loads Factory custom model mappings from `settings.json`.
+ *
+ * Returns an empty map if the file is missing or invalid.
+ */
 export async function loadFactoryCustomModels(
 	factoryDir: string,
 ): Promise<Map<string, FactoryCustomModel>> {

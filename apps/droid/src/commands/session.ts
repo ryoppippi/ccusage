@@ -1,3 +1,7 @@
+/**
+ * @fileoverview `session` command for Factory Droid usage.
+ */
+
 import process from 'node:process';
 import {
 	addEmptySeparatorRow,

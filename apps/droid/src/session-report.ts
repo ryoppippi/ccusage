@@ -1,3 +1,7 @@
+/**
+ * @fileoverview Session aggregation for Factory Droid token usage.
+ */
+
 import type { ModelUsage, PricingSource, SessionReportRow, TokenUsageEvent } from './_types.ts';
 import { sort } from 'fast-sort';
 import { isWithinRange, toDateKey } from './date-utils.ts';
@@ -55,6 +59,11 @@ function getOrCreateModelUsage(map: Map<string, ModelUsage>, key: string): Model
 	return created;
 }
 
+/**
+ * Builds a session report from raw token usage events.
+ *
+ * Rows are grouped by `(projectKey, sessionId)` and sorted by most recent activity.
+ */
 export async function buildSessionReport(
 	events: TokenUsageEvent[],
 	options: SessionReportOptions,

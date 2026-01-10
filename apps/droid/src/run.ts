@@ -1,3 +1,7 @@
+/**
+ * @fileoverview CLI runner for `@ccusage/droid`.
+ */
+
 import process from 'node:process';
 import { cli } from 'gunshi';
 import { description, name, version } from '../package.json';

@@ -1,3 +1,7 @@
+/**
+ * @fileoverview Monthly aggregation for Factory Droid token usage.
+ */
+
 import type { ModelUsage, MonthlyReportRow, PricingSource, TokenUsageEvent } from './_types.ts';
 import { sort } from 'fast-sort';
 import { formatDisplayMonth, isWithinRange, toDateKey, toMonthKey } from './date-utils.ts';
@@ -53,6 +57,9 @@ function getOrCreateModelUsage(map: Map<string, ModelUsage>, key: string): Model
 	return created;
 }
 
+/**
+ * Builds a monthly report from raw token usage events.
+ */
 export async function buildMonthlyReport(
 	events: TokenUsageEvent[],
 	options: MonthlyReportOptions,

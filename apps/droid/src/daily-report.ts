@@ -1,3 +1,7 @@
+/**
+ * @fileoverview Daily aggregation for Factory Droid token usage.
+ */
+
 import type { DailyReportRow, ModelUsage, PricingSource, TokenUsageEvent } from './_types.ts';
 import { sort } from 'fast-sort';
 import { formatDisplayDate, isWithinRange, toDateKey } from './date-utils.ts';
@@ -53,6 +57,12 @@ function getOrCreateModelUsage(map: Map<string, ModelUsage>, key: string): Model
 	return created;
 }
 
+/**
+ * Builds a daily report from raw token usage events.
+ *
+ * Events are grouped by day (timezone-aware), aggregated per model, and priced
+ * via the provided `PricingSource`.
+ */
 export async function buildDailyReport(
 	events: TokenUsageEvent[],
 	options: DailyReportOptions,

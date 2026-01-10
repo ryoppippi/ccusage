@@ -1,3 +1,10 @@
+/**
+ * @fileoverview Factory Droid log loader.
+ *
+ * Parses `droid-log-*.log` files, extracts cumulative token counters, converts them
+ * into per-interval deltas, and resolves model identifiers (including custom models).
+ */
+
 import type { ModelIdSource, TokenUsageEvent } from './_types.ts';
 import { createReadStream } from 'node:fs';
 import { readFile, stat, writeFile } from 'node:fs/promises';
@@ -139,6 +146,11 @@ async function loadModelIdFromSessionSettings(
 	return modelId ?? undefined;
 }
 
+/**
+ * Parses a single Factory Droid log line that contains session settings.
+ *
+ * Returns `null` for unrelated lines or malformed payloads.
+ */
 export function parseSessionSettingsLogLine(line: string): ParsedSessionSettings | null {
 	if (!line.includes('[Session] Saving session settings')) {
 		return null;
@@ -200,15 +212,28 @@ export function parseSessionSettingsLogLine(line: string): ParsedSessionSettings
 	};
 }
 
+/**
+ * Options for loading Factory Droid events.
+ */
 export type LoadFactoryOptions = {
 	factoryDir?: string;
 };
 
+/**
+ * Result of loading Factory Droid events.
+ */
 export type LoadFactoryResult = {
 	events: TokenUsageEvent[];
 	missingLogsDirectory: string | null;
 };
 
+/**
+ * Loads token usage events from Factory Droid logs.
+ *
+ * - Reads log files from `~/.factory/logs` (or a provided `factoryDir`)
+ * - Parses session settings lines with cumulative counters
+ * - Computes deltas per session, treating counter decreases as resets
+ */
 export async function loadFactoryTokenUsageEvents(
 	options: LoadFactoryOptions = {},
 ): Promise<LoadFactoryResult> {

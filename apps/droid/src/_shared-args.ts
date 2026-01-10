@@ -1,6 +1,13 @@
+/**
+ * @fileoverview Shared CLI arguments for `@ccusage/droid` commands.
+ */
+
 import type { Args } from 'gunshi';
 import { DEFAULT_LOCALE, DEFAULT_TIMEZONE } from './_consts.ts';
 
+/**
+ * Common CLI args shared by `daily`, `monthly`, and `session` commands.
+ */
 export const sharedArgs = {
 	json: {
 		type: 'boolean',
