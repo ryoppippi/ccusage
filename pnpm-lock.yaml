@@ -493,8 +493,8 @@ importers:
         specifier: catalog:runtime
         version: 0.26.3
       node:
-        specifier: runtime:^24.11.0
-        version: runtime:24.12.0
+        specifier: runtime:>=20.19.4
+        version: runtime:25.2.1
       path-type:
         specifier: catalog:runtime
         version: 6.0.0
@@ -4474,6 +4474,96 @@ packages:
             - cpu: x64
               os: win32
     version: 24.12.0
+    hasBin: true
+
+  node@runtime:25.2.1:
+    resolution:
+      type: variations
+      variants:
+        - resolution:
+            archive: tarball
+            bin: bin/node
+            integrity: sha256-/NtF/ktuWCsL7pudQN7rY5H1+nvpWp3yCkptSiqY1dM=
+            type: binary
+            url: https://nodejs.org/download/release/v25.2.1/node-v25.2.1-aix-ppc64.tar.gz
+          targets:
+            - cpu: ppc64
+              os: aix
+        - resolution:
+            archive: tarball
+            bin: bin/node
+            integrity: sha256-vofiG9I1pFH60CyJ5b98sX4gbkzYndVmTyDRnn395vk=
+            type: binary
+            url: https://nodejs.org/download/release/v25.2.1/node-v25.2.1-darwin-arm64.tar.gz
+          targets:
+            - cpu: arm64
+              os: darwin
+        - resolution:
+            archive: tarball
+            bin: bin/node
+            integrity: sha256-wmbaWpB1pW4aoCRgzo35b8qeeWw4ir6UqN9JSZRd9rY=
+            type: binary
+            url: https://nodejs.org/download/release/v25.2.1/node-v25.2.1-darwin-x64.tar.gz
+          targets:
+            - cpu: x64
+              os: darwin
+        - resolution:
+            archive: tarball
+            bin: bin/node
+            integrity: sha256-kFI4oXvprmLBbllgGSaNjKnw/DFCYCofhg3Ep8Hdv4I=
+            type: binary
+            url: https://nodejs.org/download/release/v25.2.1/node-v25.2.1-linux-arm64.tar.gz
+          targets:
+            - cpu: arm64
+              os: linux
+        - resolution:
+            archive: tarball
+            bin: bin/node
+            integrity: sha256-D/271DVfQCIUI69vBDqTcOG20u+z7CfrThDket/6Qn8=
+            type: binary
+            url: https://nodejs.org/download/release/v25.2.1/node-v25.2.1-linux-ppc64le.tar.gz
+          targets:
+            - cpu: ppc64le
+              os: linux
+        - resolution:
+            archive: tarball
+            bin: bin/node
+            integrity: sha256-uotgbaWipo56krjlfAo6T3J/aP2NPMlst2VhM1OoygQ=
+            type: binary
+            url: https://nodejs.org/download/release/v25.2.1/node-v25.2.1-linux-s390x.tar.gz
+          targets:
+            - cpu: s390x
+              os: linux
+        - resolution:
+            archive: tarball
+            bin: bin/node
+            integrity: sha256-IJTs3IROoR6Xd8rEJnKw2JzWPScgQZOlh9xaLSdruUA=
+            type: binary
+            url: https://nodejs.org/download/release/v25.2.1/node-v25.2.1-linux-x64.tar.gz
+          targets:
+            - cpu: x64
+              os: linux
+        - resolution:
+            archive: zip
+            bin: node.exe
+            integrity: sha256-4qPtqfq/l5KSdMycu/TzdHQ3ZWMMuxaRoi0BBAsM8jo=
+            prefix: node-v25.2.1-win-arm64
+            type: binary
+            url: https://nodejs.org/download/release/v25.2.1/node-v25.2.1-win-arm64.zip
+          targets:
+            - cpu: arm64
+              os: win32
+        - resolution:
+            archive: zip
+            bin: node.exe
+            integrity: sha256-+XunXq13IGUvOSXZz4Zh4IOijGuY6nesyDkD13qd1og=
+            prefix: node-v25.2.1-win-x64
+            type: binary
+            url: https://nodejs.org/download/release/v25.2.1/node-v25.2.1-win-x64.zip
+          targets:
+            - cpu: x64
+              os: win32
+    version: 25.2.1
     hasBin: true
 
   nopt@5.0.0:
@@ -9352,6 +9442,8 @@ snapshots:
   node-releases@2.0.21: {}
 
   node@runtime:24.12.0: {}
+
+  node@runtime:25.2.1: {}
 
   nopt@5.0.0:
     dependencies:
