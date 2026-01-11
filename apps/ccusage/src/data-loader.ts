@@ -21,6 +21,7 @@ import { toArray } from '@antfu/utils';
 import { Result } from '@praha/byethrow';
 import { groupBy, uniq } from 'es-toolkit'; // TODO: after node20 is deprecated, switch to native Object.groupBy
 import { createFixture } from 'fs-fixture';
+import pLimit from 'p-limit';
 import { isDirectorySync } from 'path-type';
 import { glob } from 'tinyglobby';
 import * as v from 'valibot';
@@ -594,11 +595,15 @@ export async function getEarliestTimestamp(filePath: string): Promise<Date | nul
  * Files without valid timestamps are placed at the end
  */
 export async function sortFilesByTimestamp(files: string[]): Promise<string[]> {
+	// limit concurrency to avoid I/O saturation when scanning many files
+	const limit = pLimit(20);
 	const filesWithTimestamps = await Promise.all(
-		files.map(async (file) => ({
-			file,
-			timestamp: await getEarliestTimestamp(file),
-		})),
+		files.map(async (file) =>
+			limit(async () => ({
+				file,
+				timestamp: await getEarliestTimestamp(file),
+			})),
+		),
 	);
 
 	return filesWithTimestamps
@@ -732,6 +737,7 @@ export type LoadOptions = {
 	mode?: CostMode; // Cost calculation mode
 	order?: SortOrder; // Sort order for dates
 	offline?: boolean; // Use offline mode for pricing
+	refreshPricing?: boolean; // Force refresh pricing from network (ignores 24-hour disk cache)
 	sessionDurationHours?: number; // Session block duration in hours
 	groupByProject?: boolean; // Group data by project instead of aggregating
 	project?: string; // Filter to specific project name
@@ -772,12 +778,68 @@ export async function loadDailyUsageData(options?: LoadOptions): Promise<DailyUs
 	const mode = options?.mode ?? 'auto';
 
 	// Use PricingFetcher with using statement for automatic cleanup
-	using fetcher = mode === 'display' ? null : new PricingFetcher(options?.offline);
+	using fetcher =
+		mode === 'display'
+			? null
+			: new PricingFetcher({ offline: options?.offline, refreshPricing: options?.refreshPricing });
 
 	// Track processed message+request combinations for deduplication
 	const processedHashes = new Set<string>();
 
-	// Collect all valid data entries first
+	// pre-load pricing data before parallel processing to avoid race conditions
+	if (fetcher != null) {
+		await fetcher.fetchModelPricing();
+	}
+
+	// limit concurrent file reads to avoid I/O saturation
+	const fileLimit = pLimit(20);
+
+	// process files in parallel and collect entries with their hash keys
+	const fileResults = await Promise.all(
+		sortedFiles.map(async (file) =>
+			fileLimit(async () => {
+				const project = extractProjectFromPath(file);
+				const entries: {
+					data: UsageData;
+					date: string;
+					cost: number;
+					model: string | undefined;
+					project: string;
+					hashKey: string;
+				}[] = [];
+
+				await processJSONLFileByLine(file, async (line) => {
+					try {
+						const parsed = JSON.parse(line) as unknown;
+						const result = v.safeParse(usageDataSchema, parsed);
+						if (!result.success) {
+							return;
+						}
+						const data = result.output;
+
+						// create hash key for deduplication (null means no deduplication key)
+						const hashKey = createUniqueHash(data) ?? '';
+
+						// Always use DEFAULT_LOCALE for date grouping to ensure YYYY-MM-DD format
+						const date = formatDate(data.timestamp, options?.timezone, DEFAULT_LOCALE);
+						// If fetcher is available, calculate cost based on mode and tokens
+						// If fetcher is null, use pre-calculated costUSD or default to 0
+						const cost =
+							fetcher != null
+								? await calculateCostForEntry(data, mode, fetcher)
+								: (data.costUSD ?? 0);
+
+						entries.push({ data, date, cost, model: data.message.model, project, hashKey });
+					} catch {
+						// Skip invalid JSON lines
+					}
+				});
+				return entries;
+			}),
+		),
+	);
+
+	// flatten and deduplicate
 	const allEntries: {
 		data: UsageData;
 		date: string;
@@ -786,41 +848,23 @@ export async function loadDailyUsageData(options?: LoadOptions): Promise<DailyUs
 		project: string;
 	}[] = [];
 
-	for (const file of sortedFiles) {
-		// Extract project name from file path once per file
-		const project = extractProjectFromPath(file);
-
-		await processJSONLFileByLine(file, async (line) => {
-			try {
-				const parsed = JSON.parse(line) as unknown;
-				const result = v.safeParse(usageDataSchema, parsed);
-				if (!result.success) {
-					return;
-				}
-				const data = result.output;
-
-				// Check for duplicate message + request ID combination
-				const uniqueHash = createUniqueHash(data);
-				if (isDuplicateEntry(uniqueHash, processedHashes)) {
-					// Skip duplicate message
-					return;
-				}
-
-				// Mark this combination as processed
-				markAsProcessed(uniqueHash, processedHashes);
-
-				// Always use DEFAULT_LOCALE for date grouping to ensure YYYY-MM-DD format
-				const date = formatDate(data.timestamp, options?.timezone, DEFAULT_LOCALE);
-				// If fetcher is available, calculate cost based on mode and tokens
-				// If fetcher is null, use pre-calculated costUSD or default to 0
-				const cost =
-					fetcher != null ? await calculateCostForEntry(data, mode, fetcher) : (data.costUSD ?? 0);
-
-				allEntries.push({ data, date, cost, model: data.message.model, project });
-			} catch {
-				// Skip invalid JSON lines
+	for (const entries of fileResults) {
+		for (const entry of entries) {
+			// empty hashKey means no deduplication key available
+			if (entry.hashKey !== '' && isDuplicateEntry(entry.hashKey, processedHashes)) {
+				continue;
 			}
-		});
+			if (entry.hashKey !== '') {
+				markAsProcessed(entry.hashKey, processedHashes);
+			}
+			allEntries.push({
+				data: entry.data,
+				date: entry.date,
+				cost: entry.cost,
+				model: entry.model,
+				project: entry.project,
+			});
+		}
 	}
 
 	// Group by date, optionally including project
@@ -929,7 +973,10 @@ export async function loadSessionData(options?: LoadOptions): Promise<SessionUsa
 	const mode = options?.mode ?? 'auto';
 
 	// Use PricingFetcher with using statement for automatic cleanup
-	using fetcher = mode === 'display' ? null : new PricingFetcher(options?.offline);
+	using fetcher =
+		mode === 'display'
+			? null
+			: new PricingFetcher({ offline: options?.offline, refreshPricing: options?.refreshPricing });
 
 	// Track processed message+request combinations for deduplication
 	const processedHashes = new Set<string>();
@@ -1112,11 +1159,12 @@ export async function loadWeeklyUsageData(options?: LoadOptions): Promise<Weekly
  * @param options - Options for loading data
  * @param options.mode - Cost calculation mode (auto, calculate, display)
  * @param options.offline - Whether to use offline pricing data
+ * @param options.refreshPricing - Force refresh pricing from network (ignores 24-hour disk cache)
  * @returns Usage data for the specific session or null if not found
  */
 export async function loadSessionUsageById(
 	sessionId: string,
-	options?: { mode?: CostMode; offline?: boolean },
+	options?: { mode?: CostMode; offline?: boolean; refreshPricing?: boolean },
 ): Promise<{ totalCost: number; entries: UsageData[] } | null> {
 	const claudePaths = getClaudePaths();
 
@@ -1137,7 +1185,10 @@ export async function loadSessionUsageById(
 	}
 
 	const mode = options?.mode ?? 'auto';
-	using fetcher = mode === 'display' ? null : new PricingFetcher(options?.offline);
+	using fetcher =
+		mode === 'display'
+			? null
+			: new PricingFetcher({ offline: options?.offline, refreshPricing: options?.refreshPricing });
 
 	const entries: UsageData[] = [];
 	let totalCost = 0;
@@ -1162,6 +1213,161 @@ export async function loadSessionUsageById(
 	});
 
 	return { totalCost, entries };
+}
+
+/**
+ * Entry with timestamp for activity grid visualization
+ */
+export type ActivityEntry = {
+	timestamp: string;
+	cost: number;
+	outputTokens: number;
+	model?: string;
+};
+
+/**
+ * Load entries for a single day with their timestamps for activity grid visualization
+ * @param date - Date in YYYY-MM-DD format (defaults to today)
+ * @param options - Options for loading data
+ * @param options.claudePath - Custom path to Claude data directory
+ * @param options.mode - Cost calculation mode (auto, calculate, display)
+ * @param options.offline - Whether to use offline pricing data
+ * @param options.refreshPricing - Force refresh pricing from network (ignores 24-hour disk cache)
+ * @param options.timezone - Timezone for date grouping
+ * @returns Array of entries with timestamps, costs, and output tokens
+ */
+export async function loadDayActivityData(
+	date?: string,
+	options?: {
+		claudePath?: string;
+		mode?: CostMode;
+		offline?: boolean;
+		refreshPricing?: boolean;
+		timezone?: string;
+	},
+): Promise<ActivityEntry[]> {
+	const targetDate = date ?? new Date().toISOString().slice(0, 10);
+	const targetDateTime = new Date(targetDate).getTime();
+	const claudePaths = toArray(options?.claudePath ?? getClaudePaths());
+	const allFiles = await globUsageFiles(claudePaths);
+
+	if (allFiles.length === 0) {
+		return [];
+	}
+
+	// filter files by modification time - only check files modified on or after target date
+	// use limited concurrency to avoid overwhelming filesystem
+	const { stat } = await import('node:fs/promises');
+	const recentFiles: string[] = [];
+	const oneDayMs = 24 * 60 * 60 * 1000;
+	const statLimit = pLimit(100); // limit concurrent stat calls
+
+	await Promise.all(
+		allFiles.map(async ({ file }) =>
+			statLimit(async () => {
+				try {
+					const stats = await stat(file);
+					// include files modified within 2 days of target date (to handle timezone edge cases)
+					if (stats.mtimeMs >= targetDateTime - oneDayMs) {
+						recentFiles.push(file);
+					}
+				} catch {
+					// skip files that can't be stat'd
+				}
+			}),
+		),
+	);
+
+	if (recentFiles.length === 0) {
+		return [];
+	}
+
+	const mode = options?.mode ?? 'auto';
+	using fetcher =
+		mode === 'display'
+			? null
+			: new PricingFetcher({ offline: options?.offline, refreshPricing: options?.refreshPricing });
+
+	// pre-load pricing data before parallel processing to avoid race conditions
+	if (fetcher != null) {
+		await fetcher.fetchModelPricing();
+	}
+
+	const processedHashes = new Set<string>();
+
+	// regex for fast timestamp extraction - avoid full JSON parse for non-matching dates
+	const timestampRegex = /"timestamp"\s*:\s*"(\d{4}-\d{2}-\d{2})/;
+
+	// limit concurrent file reads to avoid I/O saturation
+	const fileLimit = pLimit(20);
+
+	const fileResults = await Promise.all(
+		recentFiles.map(async (file) =>
+			fileLimit(async () => {
+				const entries: ActivityEntry[] = [];
+				await processJSONLFileByLine(file, async (line) => {
+					try {
+						// fast-path: extract timestamp with regex before full JSON parse
+						const timestampMatch = timestampRegex.exec(line);
+						if (timestampMatch == null || timestampMatch[1] !== targetDate) {
+							return;
+						}
+
+						// only parse and validate lines that match the target date
+						const parsed = JSON.parse(line) as unknown;
+						const result = v.safeParse(usageDataSchema, parsed);
+						if (!result.success) {
+							return;
+						}
+						const data = result.output;
+
+						// calculate cost
+						const cost =
+							fetcher != null
+								? await calculateCostForEntry(data, mode, fetcher)
+								: (data.costUSD ?? 0);
+
+						entries.push({
+							timestamp: data.timestamp,
+							cost,
+							outputTokens: data.message.usage.output_tokens,
+							model: data.message.model,
+							_messageId: data.message.id,
+							_requestId: data.requestId,
+						} as ActivityEntry & { _messageId?: string; _requestId?: string });
+					} catch {
+						// skip invalid JSON lines
+					}
+				});
+				return entries;
+			}),
+		),
+	);
+
+	// flatten and deduplicate
+	const allEntries: ActivityEntry[] = [];
+	for (const entries of fileResults) {
+		for (const entry of entries) {
+			const e = entry as ActivityEntry & { _messageId?: string; _requestId?: string };
+			const messageId = e._messageId ?? '';
+			const requestId = e._requestId ?? '';
+			const hashKey = `${messageId}:${requestId}`;
+			if (hashKey !== ':' && processedHashes.has(hashKey)) {
+				continue;
+			}
+			if (hashKey !== ':') {
+				processedHashes.add(hashKey);
+			}
+			allEntries.push({
+				timestamp: entry.timestamp,
+				cost: entry.cost,
+				outputTokens: entry.outputTokens,
+				model: entry.model,
+			});
+		}
+	}
+
+	return allEntries;
 }
 
 export async function loadBucketUsageData(
@@ -1254,6 +1460,7 @@ export async function calculateContextTokens(
 	transcriptPath: string,
 	modelId?: string,
 	offline = false,
+	refreshPricing = false,
 ): Promise<{
 	inputTokens: number;
 	percentage: number;
@@ -1299,7 +1506,7 @@ export async function calculateContextTokens(
 				// Get context limit from PricingFetcher
 				let contextLimit = 200_000; // Fallback for when modelId is not provided
 				if (modelId != null && modelId !== '') {
-					using fetcher = new PricingFetcher(offline);
+					using fetcher = new PricingFetcher({ offline, refreshPricing });
 					const contextLimitResult = await fetcher.getModelContextLimit(modelId);
 					if (Result.isSuccess(contextLimitResult) && contextLimitResult.value != null) {
 						contextLimit = contextLimitResult.value;
@@ -1374,7 +1581,10 @@ export async function loadSessionBlockData(options?: LoadOptions): Promise<Sessi
 	const mode = options?.mode ?? 'auto';
 
 	// Use PricingFetcher with using statement for automatic cleanup
-	using fetcher = mode === 'display' ? null : new PricingFetcher(options?.offline);
+	using fetcher =
+		mode === 'display'
+			? null
+			: new PricingFetcher({ offline: options?.offline, refreshPricing: options?.refreshPricing });
 
 	// Track processed message+request combinations for deduplication
 	const processedHashes = new Set<string>();

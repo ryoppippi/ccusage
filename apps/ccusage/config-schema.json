@@ -94,9 +94,15 @@
 						},
 						"compact": {
 							"type": "boolean",
-							"description": "Force compact mode for narrow displays (better for screenshots)",
-							"markdownDescription": "Force compact mode for narrow displays (better for screenshots)",
+							"description": "[Deprecated: use --visual compact] Force compact mode for narrow displays",
+							"markdownDescription": "[Deprecated: use --visual compact] Force compact mode for narrow displays",
 							"default": false
+						},
+						"visual": {
+							"type": "string",
+							"enum": ["compact", "bar", "spark", "heatmap"],
+							"description": "Visual output mode: compact (dense table with sparklines), bar (horizontal bars), spark (full-width sparkline), heatmap (calendar grid)",
+							"markdownDescription": "Visual output mode: compact (dense table with sparklines), bar (horizontal bars), spark (full-width sparkline), heatmap (calendar grid)"
 						}
 					},
 					"additionalProperties": false,
@@ -191,9 +197,15 @@
 								},
 								"compact": {
 									"type": "boolean",
-									"description": "Force compact mode for narrow displays (better for screenshots)",
-									"markdownDescription": "Force compact mode for narrow displays (better for screenshots)",
+									"description": "[Deprecated: use --visual compact] Force compact mode for narrow displays",
+									"markdownDescription": "[Deprecated: use --visual compact] Force compact mode for narrow displays",
 									"default": false
+								},
+								"visual": {
+									"type": "string",
+									"enum": ["compact", "bar", "spark", "heatmap"],
+									"description": "Visual output mode: compact (dense table with sparklines), bar (horizontal bars), spark (full-width sparkline), heatmap (calendar grid)",
+									"markdownDescription": "Visual output mode: compact (dense table with sparklines), bar (horizontal bars), spark (full-width sparkline), heatmap (calendar grid)"
 								},
 								"instances": {
 									"type": "boolean",
@@ -299,9 +311,15 @@
 								},
 								"compact": {
 									"type": "boolean",
-									"description": "Force compact mode for narrow displays (better for screenshots)",
-									"markdownDescription": "Force compact mode for narrow displays (better for screenshots)",
+									"description": "[Deprecated: use --visual compact] Force compact mode for narrow displays",
+									"markdownDescription": "[Deprecated: use --visual compact] Force compact mode for narrow displays",
 									"default": false
+								},
+								"visual": {
+									"type": "string",
+									"enum": ["compact", "bar", "spark", "heatmap"],
+									"description": "Visual output mode: compact (dense table with sparklines), bar (horizontal bars), spark (full-width sparkline), heatmap (calendar grid)",
+									"markdownDescription": "Visual output mode: compact (dense table with sparklines), bar (horizontal bars), spark (full-width sparkline), heatmap (calendar grid)"
 								}
 							},
 							"additionalProperties": false
@@ -391,9 +409,15 @@
 								},
 								"compact": {
 									"type": "boolean",
-									"description": "Force compact mode for narrow displays (better for screenshots)",
-									"markdownDescription": "Force compact mode for narrow displays (better for screenshots)",
+									"description": "[Deprecated: use --visual compact] Force compact mode for narrow displays",
+									"markdownDescription": "[Deprecated: use --visual compact] Force compact mode for narrow displays",
 									"default": false
+								},
+								"visual": {
+									"type": "string",
+									"enum": ["compact", "bar", "spark", "heatmap"],
+									"description": "Visual output mode: compact (dense table with sparklines), bar (horizontal bars), spark (full-width sparkline), heatmap (calendar grid)",
+									"markdownDescription": "Visual output mode: compact (dense table with sparklines), bar (horizontal bars), spark (full-width sparkline), heatmap (calendar grid)"
 								},
 								"startOfWeek": {
 									"type": "string",
@@ -491,9 +515,15 @@
 								},
 								"compact": {
 									"type": "boolean",
-									"description": "Force compact mode for narrow displays (better for screenshots)",
-									"markdownDescription": "Force compact mode for narrow displays (better for screenshots)",
+									"description": "[Deprecated: use --visual compact] Force compact mode for narrow displays",
+									"markdownDescription": "[Deprecated: use --visual compact] Force compact mode for narrow displays",
 									"default": false
+								},
+								"visual": {
+									"type": "string",
+									"enum": ["compact", "bar", "spark", "heatmap"],
+									"description": "Visual output mode: compact (dense table with sparklines), bar (horizontal bars), spark (full-width sparkline), heatmap (calendar grid)",
+									"markdownDescription": "Visual output mode: compact (dense table with sparklines), bar (horizontal bars), spark (full-width sparkline), heatmap (calendar grid)"
 								},
 								"id": {
 									"type": "string",
@@ -588,9 +618,15 @@
 								},
 								"compact": {
 									"type": "boolean",
-									"description": "Force compact mode for narrow displays (better for screenshots)",
-									"markdownDescription": "Force compact mode for narrow displays (better for screenshots)",
+									"description": "[Deprecated: use --visual compact] Force compact mode for narrow displays",
+									"markdownDescription": "[Deprecated: use --visual compact] Force compact mode for narrow displays",
 									"default": false
+								},
+								"visual": {
+									"type": "string",
+									"enum": ["compact", "bar", "spark", "heatmap"],
+									"description": "Visual output mode: compact (dense table with sparklines), bar (horizontal bars), spark (full-width sparkline), heatmap (calendar grid)",
+									"markdownDescription": "Visual output mode: compact (dense table with sparklines), bar (horizontal bars), spark (full-width sparkline), heatmap (calendar grid)"
 								},
 								"active": {
 									"type": "boolean",

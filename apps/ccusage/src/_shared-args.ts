@@ -71,7 +71,13 @@ export const sharedArgs = {
 		type: 'boolean',
 		negatable: true,
 		short: 'O',
-		description: 'Use cached pricing data for Claude models instead of fetching from API',
+		description: 'Use bundled offline pricing data (ignores disk cache and network)',
+		default: false,
+	},
+	refreshPricing: {
+		type: 'boolean',
+		short: 'R',
+		description: 'Force refresh pricing data from network (ignores 24-hour disk cache)',
 		default: false,
 	},
 	color: {
@@ -107,7 +113,13 @@ export const sharedArgs = {
 	},
 	compact: {
 		type: 'boolean',
-		description: 'Force compact mode for narrow displays (better for screenshots)',
+		description: '[Deprecated: use --visual] Force compact mode for narrow displays',
+		default: false,
+	},
+	visual: {
+		type: 'boolean',
+		short: 'V',
+		description: 'Visual output mode with compact table, sparklines, and heatmap',
 		default: false,
 	},
 } as const satisfies Args;
