@@ -9,7 +9,7 @@
       forAllSystems = f: nixpkgs.lib.genAttrs systems (system: f nixpkgs.legacyPackages.${system});
     in {
       devShells = forAllSystems (pkgs: {
-        default = pkgs.mkShell {
+        default = pkgs.mkShellNoCC {
           buildInputs = with pkgs; [
             # Package manager
             pnpm_10
