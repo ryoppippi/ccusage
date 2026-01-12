@@ -160,7 +160,7 @@ export function createFullSparkline(
 	}
 
 	const formatDate = (dateStr: string): string => {
-		const date = new Date(dateStr);
+		const date = parseLocalDate(dateStr);
 		return date.toLocaleDateString('en-US', { month: 'short', day: '2-digit' });
 	};
 
@@ -275,13 +275,15 @@ export function createHeatmap(data: ChartDataEntry[], options: HeatmapOptions = 
 	const weeks: Map<string, Map<number, ChartDataEntry>> = new Map();
 
 	for (const entry of data) {
-		const date = parseLocalDate(entry.date);
-		const dayOfWeek = date.getDay(); // 0 = Sunday
+		// parse date parts and construct UTC date for consistent week grouping across timezones
+		const [year, month, day] = entry.date.split('-').map(Number);
+		const date = new Date(Date.UTC(year ?? 0, (month ?? 1) - 1, day ?? 1));
+		const dayOfWeek = date.getUTCDay(); // 0 = Sunday
 
-		// get the Monday of this week
+		// get the Monday of this week using UTC methods
 		const monday = new Date(date);
 		const daysSinceMonday = (dayOfWeek + 6) % 7; // convert Sunday=0 to Monday=0
-		monday.setDate(date.getDate() - daysSinceMonday);
+		monday.setUTCDate(date.getUTCDate() - daysSinceMonday);
 		const weekKey = monday.toISOString().slice(0, 10);
 
 		if (!weeks.has(weekKey)) {
@@ -305,10 +307,12 @@ export function createHeatmap(data: ChartDataEntry[], options: HeatmapOptions = 
 	const sortedWeeks = [...weeks.entries()].sort((a, b) => a[0].localeCompare(b[0]));
 
 	for (const [weekKey, days] of sortedWeeks) {
-		const weekDate = new Date(weekKey);
+		// parse weekKey as UTC to avoid timezone shifts in label
+		const weekDate = new Date(`${weekKey}T00:00:00Z`);
 		const weekLabel = weekDate.toLocaleDateString('en-US', {
 			month: 'short',
 			day: '2-digit',
+			timeZone: 'UTC',
 		});
 
 		const dayCells: string[] = [];
@@ -478,7 +482,9 @@ export function createDayActivityGrid(
 	};
 
 	// determine current time position for indicator
-	const isToday = targetDate === now.toISOString().slice(0, 10);
+	// use local date for comparison since targetDate and currentHour/currentMinute are local
+	const localDateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+	const isToday = targetDate === localDateStr;
 	const currentHour = now.getHours();
 	const currentMinute = now.getMinutes();
 
