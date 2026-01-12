@@ -532,23 +532,24 @@ export function createDayActivityGrid(
 			}
 		}
 
-		// format hourly cost with semantic coloring (rounded to nearest dollar)
+		// format hourly cost with intensity-based coloring (rounded to nearest dollar)
 		const hourCost = hourlyCost[hour] ?? 0;
 		let costStr: string;
 		if (hourCost > 0) {
 			const roundedCost = Math.round(hourCost);
 			const formattedCost = `$${roundedCost}`.padStart(8);
-			// color cost based on relative value to max hourly cost
+			// color cost based on relative value - use same cyan color with bold for high values
 			const maxHourlyCost = Math.max(...hourlyCost, 1);
 			const costRatio = hourCost / maxHourlyCost;
-			if (costRatio >= 0.8) {
-				costStr = colors.semantic.error(formattedCost);
-			} else if (costRatio >= 0.5) {
-				costStr = colors.semantic.warning(formattedCost);
-			} else if (costRatio >= 0.25) {
-				costStr = colors.semantic.info(formattedCost);
+			if (costRatio >= 0.7) {
+				// peak hours - bold cyan
+				costStr = colors.text.emphasis(ACTIVITY_COLOR(formattedCost));
+			} else if (costRatio >= 0.3) {
+				// moderate hours - regular cyan
+				costStr = ACTIVITY_COLOR(formattedCost);
 			} else {
-				costStr = colors.semantic.success(formattedCost);
+				// low hours - dim
+				costStr = colors.text.secondary(formattedCost);
 			}
 		} else {
 			costStr = colors.text.secondary('       -');
@@ -588,8 +589,11 @@ export function createDayActivityGrid(
 	const totalValue = buckets.reduce((a, b) => a + b, 0);
 	const activeCount = buckets.filter((v) => v > 0).length;
 	// format total - round cost to nearest dollar, tokens use compact format
+	// highlight total cost with bold cyan
 	const totalStr =
-		metric === 'cost' ? `$${Math.round(totalValue)}` : formatTokensCompact(totalValue);
+		metric === 'cost'
+			? colors.text.emphasis(ACTIVITY_COLOR(`$${Math.round(totalValue)}`))
+			: formatTokensCompact(totalValue);
 
 	lines.push('');
 	lines.push(
