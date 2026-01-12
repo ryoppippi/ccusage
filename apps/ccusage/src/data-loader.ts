@@ -13,7 +13,7 @@ import type { LoadedUsageEntry, SessionBlock } from './_session-blocks.ts';
 import type { ActivityDate, Bucket, CostMode, ModelName, SortOrder, Version } from './_types.ts';
 import { Buffer } from 'node:buffer';
 import { createReadStream, createWriteStream } from 'node:fs';
-import { readFile } from 'node:fs/promises';
+import { readFile, stat } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
 import { createInterface } from 'node:readline';
@@ -1257,7 +1257,6 @@ export async function loadDayActivityData(
 
 	// filter files by modification time - only check files modified on or after target date
 	// use limited concurrency to avoid overwhelming filesystem
-	const { stat } = await import('node:fs/promises');
 	const recentFiles: string[] = [];
 	const oneDayMs = 24 * 60 * 60 * 1000;
 	const statLimit = pLimit(100); // limit concurrent stat calls

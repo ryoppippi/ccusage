@@ -92,16 +92,14 @@ function resizeSparkline(sparkline: string, targetWidth: number): string {
 	const sourceLength = chars.length;
 
 	if (targetWidth >= sourceLength) {
-		// expand: repeat characters
+		// expand: repeat characters to fill target width
+		// baseRepeat is the minimum times each char repeats
+		// first extraChars positions get one more repeat to fill remaining space
+		const baseRepeat = Math.floor(targetWidth / sourceLength);
+		const extraChars = targetWidth - baseRepeat * sourceLength;
 		return chars
-			.map((char, i) => {
-				const repeatCount = Math.ceil(targetWidth / sourceLength);
-				return i < targetWidth % sourceLength
-					? char.repeat(repeatCount)
-					: char.repeat(repeatCount - 1 || 1);
-			})
-			.join('')
-			.slice(0, targetWidth);
+			.map((char, i) => char.repeat(i < extraChars ? baseRepeat + 1 : baseRepeat))
+			.join('');
 	}
 
 	// shrink: sample characters

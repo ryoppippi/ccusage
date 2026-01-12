@@ -7,6 +7,16 @@ import { createSparkline, formatCostCompact, formatTokensCompact } from './spark
  */
 
 /**
+ * Parse YYYY-MM-DD date string as local timezone date.
+ * Using new Date('YYYY-MM-DD') treats the string as UTC, which can shift
+ * dates for users in negative UTC offset timezones.
+ */
+function parseLocalDate(dateStr: string): Date {
+	const [year, month, day] = dateStr.split('-').map(Number);
+	return new Date(year ?? 0, (month ?? 1) - 1, day ?? 1);
+}
+
+/**
  * Daily data entry for chart rendering.
  */
 export type ChartDataEntry = {
@@ -74,7 +84,7 @@ export function createBarChart(data: ChartDataEntry[], options: BarChartOptions 
 		const bar = '\u2588'.repeat(barLength);
 
 		// format date as "Mon DD"
-		const date = new Date(entry.date);
+		const date = parseLocalDate(entry.date);
 		const dateStr = date.toLocaleDateString('en-US', {
 			month: 'short',
 			day: '2-digit',
@@ -265,7 +275,7 @@ export function createHeatmap(data: ChartDataEntry[], options: HeatmapOptions = 
 	const weeks: Map<string, Map<number, ChartDataEntry>> = new Map();
 
 	for (const entry of data) {
-		const date = new Date(entry.date);
+		const date = parseLocalDate(entry.date);
 		const dayOfWeek = date.getDay(); // 0 = Sunday
 
 		// get the Monday of this week

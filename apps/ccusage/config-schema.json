@@ -99,10 +99,10 @@
 							"default": false
 						},
 						"visual": {
-							"type": "string",
-							"enum": ["compact", "bar", "spark", "heatmap"],
-							"description": "Visual output mode: compact (dense table with sparklines), bar (horizontal bars), spark (full-width sparkline), heatmap (calendar grid)",
-							"markdownDescription": "Visual output mode: compact (dense table with sparklines), bar (horizontal bars), spark (full-width sparkline), heatmap (calendar grid)"
+							"type": "boolean",
+							"description": "Visual output mode with compact table, sparklines, and heatmap",
+							"markdownDescription": "Visual output mode with compact table, sparklines, and heatmap",
+							"default": false
 						}
 					},
 					"additionalProperties": false,
