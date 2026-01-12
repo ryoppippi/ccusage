@@ -1,3 +1,4 @@
+import { colors } from './colors.ts';
 import { createSparkline, formatCostCompact, formatTokensCompact } from './sparkline.ts';
 
 /**
@@ -382,6 +383,14 @@ const ACTIVITY_CHARS = [
 ] as const;
 
 /**
+ * Single-hue color for activity blocks.
+ * Uses cyan for all intensity levels - the block density (░▒▓█) already
+ * conveys intensity. Adding multiple colors creates visual noise.
+ * Following Tufte: let the data speak, minimize chartjunk.
+ */
+const ACTIVITY_COLOR = colors.text.accent; // cyan for all blocks
+
+/**
  * Create a day activity grid showing 1-minute resolution.
  * Each row is one hour (0-23), each character is one minute (60 per hour).
  * Labels at :00, :15, :30, :45 help with visual orientation.
@@ -503,39 +512,61 @@ export function createDayActivityGrid(
 			const bucketIndex = hour * 60 + minute;
 			const value = buckets[bucketIndex];
 			const intensity = getIntensity(value ?? 0);
-			let char: string = ACTIVITY_CHARS[intensity] ?? ACTIVITY_CHARS[0];
+			const baseChar: string = ACTIVITY_CHARS[intensity] ?? ACTIVITY_CHARS[0];
 
 			// add current time indicator
 			if (isToday && hour === currentHour && minute === currentMinute) {
-				char = '\u25BC'; // BLACK DOWN-POINTING TRIANGLE
+				cells += colors.semantic.warning('\u25BC'); // current time marker in yellow
 			} else if (isToday && hour === currentHour && minute > currentMinute) {
 				// future minutes in current hour show as dim
-				char = '\u00B7'; // MIDDLE DOT
+				cells += colors.text.secondary('\u00B7');
 			} else if (isToday && hour > currentHour) {
 				// future hours show as dim
-				char = '\u00B7';
+				cells += colors.text.secondary('\u00B7');
+			} else if (intensity === 0) {
+				// no activity - dim dot
+				cells += colors.text.secondary(baseChar);
+			} else {
+				// activity blocks - single cyan color, density shows intensity
+				cells += ACTIVITY_COLOR(baseChar);
 			}
-
-			cells += char;
 		}
 
-		// format hourly cost
+		// format hourly cost with semantic coloring (rounded to nearest dollar)
 		const hourCost = hourlyCost[hour] ?? 0;
-		const costStr = hourCost > 0 ? formatCostCompact(hourCost).padStart(8) : '       -';
+		let costStr: string;
+		if (hourCost > 0) {
+			const roundedCost = Math.round(hourCost);
+			const formattedCost = `$${roundedCost}`.padStart(8);
+			// color cost based on relative value to max hourly cost
+			const maxHourlyCost = Math.max(...hourlyCost, 1);
+			const costRatio = hourCost / maxHourlyCost;
+			if (costRatio >= 0.8) {
+				costStr = colors.semantic.error(formattedCost);
+			} else if (costRatio >= 0.5) {
+				costStr = colors.semantic.warning(formattedCost);
+			} else if (costRatio >= 0.25) {
+				costStr = colors.semantic.info(formattedCost);
+			} else {
+				costStr = colors.semantic.success(formattedCost);
+			}
+		} else {
+			costStr = colors.text.secondary('       -');
+		}
 
 		lines.push(`  ${hourLabel}  ${cells}  ${costStr}`);
 	}
 
 	lines.push('\u2500'.repeat(header.length));
 
-	// legend with single blocks (and current time if today)
+	// legend with single blocks in single color (and current time if today)
 	lines.push('');
 	const legendParts = [
-		`${ACTIVITY_CHARS[0]} none`,
-		`${ACTIVITY_CHARS[1]} low`,
-		`${ACTIVITY_CHARS[2]} medium`,
-		`${ACTIVITY_CHARS[3]} high`,
-		`${ACTIVITY_CHARS[4]} peak`,
+		`${colors.text.secondary(ACTIVITY_CHARS[0])} none`,
+		`${ACTIVITY_COLOR(ACTIVITY_CHARS[1])} low`,
+		`${ACTIVITY_COLOR(ACTIVITY_CHARS[2])} medium`,
+		`${ACTIVITY_COLOR(ACTIVITY_CHARS[3])} high`,
+		`${ACTIVITY_COLOR(ACTIVITY_CHARS[4])} peak`,
 	];
 	const legendText = `Legend: ${legendParts.join('  ')}`;
 
@@ -556,11 +587,13 @@ export function createDayActivityGrid(
 	// summary stats
 	const totalValue = buckets.reduce((a, b) => a + b, 0);
 	const activeCount = buckets.filter((v) => v > 0).length;
-	const formatValue = metric === 'cost' ? formatCostCompact : formatTokensCompact;
+	// format total - round cost to nearest dollar, tokens use compact format
+	const totalStr =
+		metric === 'cost' ? `$${Math.round(totalValue)}` : formatTokensCompact(totalValue);
 
 	lines.push('');
 	lines.push(
-		`Total: ${formatValue(totalValue)}  Active minutes: ${activeCount}/1440 (${Math.round((activeCount / 1440) * 100)}%)`,
+		`Total: ${totalStr}  Active minutes: ${activeCount}/1440 (${Math.round((activeCount / 1440) * 100)}%)`,
 	);
 
 	return lines.join('\n');
