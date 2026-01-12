@@ -369,6 +369,7 @@ export type ActivityEntry = {
 	timestamp: string; // ISO timestamp
 	cost: number;
 	outputTokens: number;
+	model?: string;
 };
 
 /**

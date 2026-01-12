@@ -1,4 +1,3 @@
-import type { ActivityEntry as ChartActivityEntry } from '@ccusage/terminal/charts';
 import process from 'node:process';
 import { createDayActivityGrid } from '@ccusage/terminal/charts';
 import { Result } from '@praha/byethrow';
@@ -117,15 +116,8 @@ export const dayCommand = define({
 			// Print header
 			logger.box('Claude Code Activity Heatmap');
 
-			// Convert to chart format
-			const chartEntries: ChartActivityEntry[] = entries.map((e) => ({
-				timestamp: e.timestamp,
-				cost: e.cost,
-				outputTokens: e.outputTokens,
-			}));
-
 			// Render the activity grid
-			const grid = createDayActivityGrid(chartEntries, {
+			const grid = createDayActivityGrid(entries, {
 				date: targetDate,
 				timezone: mergedOptions.timezone,
 				metric: ctx.values.metric,

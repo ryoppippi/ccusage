@@ -8,6 +8,7 @@
  * @module data-loader
  */
 
+import type { ActivityEntry } from '@ccusage/terminal/charts';
 import type { WeekDay } from './_consts.ts';
 import type { LoadedUsageEntry, SessionBlock } from './_session-blocks.ts';
 import type { ActivityDate, Bucket, CostMode, ModelName, SortOrder, Version } from './_types.ts';
@@ -1216,14 +1217,10 @@ export async function loadSessionUsageById(
 }
 
 /**
- * Entry with timestamp for activity grid visualization
+ * Entry with timestamp for activity grid visualization.
+ * Re-exported from @ccusage/terminal/charts for convenience.
  */
-export type ActivityEntry = {
-	timestamp: string;
-	cost: number;
-	outputTokens: number;
-	model?: string;
-};
+export type { ActivityEntry } from '@ccusage/terminal/charts';
 
 /**
  * Load entries for a single day with their timestamps for activity grid visualization
