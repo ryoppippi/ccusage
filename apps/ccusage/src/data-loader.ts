@@ -1731,9 +1731,7 @@ if (import.meta.vitest != null) {
 		});
 	});
 
-	describe('loadSessionUsageById', async () => {
-		const { createFixture } = await import('fs-fixture');
-
+	describe('loadSessionUsageById', () => {
 		afterEach(() => {
 			vi.unstubAllEnvs();
 		});
@@ -4900,12 +4898,12 @@ if (import.meta.vitest != null) {
 	});
 
 	// Test for calculateContextTokens
-	describe('calculateContextTokens', async () => {
+	describe('calculateContextTokens', () => {
 		it('returns null when transcript cannot be read', async () => {
 			const result = await calculateContextTokens('/nonexistent/path.jsonl');
 			expect(result).toBeNull();
 		});
-		const { createFixture } = await import('fs-fixture');
+
 		it('parses latest assistant line and excludes output tokens', async () => {
 			await using fixture = await createFixture({
 				'transcript.jsonl': [
