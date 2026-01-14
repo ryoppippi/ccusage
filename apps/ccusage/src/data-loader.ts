@@ -1294,6 +1294,13 @@ export async function loadDayActivityData(
 	// regex for fast timestamp extraction - avoid full JSON parse for non-matching dates
 	const timestampRegex = /"timestamp"\s*:\s*"(\d{4}-\d{2}-\d{2})/;
 
+	// Calculate adjacent UTC dates that could contain entries matching local target date.
+	// Due to timezone differences (up to ±14 hours), a local date can span 2 UTC dates.
+	// For example: 4PM Pacific on Jan 13 local = midnight UTC Jan 14
+	const prevDate = new Date(targetDateTime - oneDayMs).toISOString().slice(0, 10);
+	const nextDate = new Date(targetDateTime + oneDayMs).toISOString().slice(0, 10);
+	const validUtcDates = new Set([targetDate, prevDate, nextDate]);
+
 	// limit concurrent file reads to avoid I/O saturation
 	const fileLimit = pLimit(20);
 
@@ -1303,19 +1310,31 @@ export async function loadDayActivityData(
 				const entries: ActivityEntry[] = [];
 				await processJSONLFileByLine(file, async (line) => {
 					try {
-						// fast-path: extract timestamp with regex before full JSON parse
+						// fast-path: extract UTC date with regex before full JSON parse
+						// Accept ±1 day to handle timezone edge cases
 						const timestampMatch = timestampRegex.exec(line);
-						if (timestampMatch == null || timestampMatch[1] !== targetDate) {
+						if (timestampMatch == null || !validUtcDates.has(timestampMatch[1] ?? '')) {
 							return;
 						}
 
-						// only parse and validate lines that match the target date
+						// parse and validate the entry
 						const parsed = JSON.parse(line) as unknown;
 						const result = v.safeParse(usageDataSchema, parsed);
 						if (!result.success) {
 							return;
 						}
 						const data = result.output;
+
+						// verify the timestamp matches target date in local timezone
+						// (the fast-path above accepts ±1 day to handle timezone edge cases)
+						const entryDate = new Date(data.timestamp);
+						const localYear = entryDate.getFullYear();
+						const localMonth = String(entryDate.getMonth() + 1).padStart(2, '0');
+						const localDay = String(entryDate.getDate()).padStart(2, '0');
+						const entryLocalDate = `${localYear}-${localMonth}-${localDay}`;
+						if (entryLocalDate !== targetDate) {
+							return;
+						}
 
 						// calculate cost
 						const cost =
@@ -4436,6 +4455,122 @@ invalid json line
 
 				expect(processedCount).toBe(lineCount);
 			});
+		});
+	});
+
+	describe('loadDayActivityData', () => {
+		afterEach(() => {
+			vi.unstubAllEnvs();
+		});
+
+		it('loads activity data for entries matching local date', async () => {
+			await using fixture = await createFixture({
+				'.claude': {
+					projects: {
+						'test-project': {
+							'session-123.jsonl': `${JSON.stringify({
+								timestamp: '2024-01-15T10:00:00Z',
+								sessionId: 'session-123',
+								message: {
+									id: 'msg_001',
+									usage: {
+										input_tokens: 100,
+										output_tokens: 50,
+									},
+									model: 'claude-sonnet-4-20250514',
+								},
+								requestId: 'req_001',
+								costUSD: 0.5,
+							})}\n`,
+						},
+					},
+				},
+			});
+
+			vi.stubEnv('CLAUDE_CONFIG_DIR', fixture.getPath('.claude'));
+
+			const result = await loadDayActivityData('2024-01-15', { mode: 'display' });
+
+			expect(result.length).toBeGreaterThan(0);
+			expect(result[0]?.cost).toBe(0.5);
+		});
+
+		it('handles timezone edge case where UTC date differs from local date', async () => {
+			// Create an entry with a UTC timestamp that would be filtered out
+			// if we only checked the UTC date portion from the ISO string.
+			// This timestamp (Jan 14 at 23:00 UTC) is Jan 15 in UTC+2 timezone,
+			// but the regex would extract "2024-01-14" from the ISO string.
+			// After the fix, we accept ±1 day in the fast-path and filter by local date.
+			const lateNightUtc = '2024-01-14T23:00:00Z'; // Could be Jan 15 locally for UTC+ timezones
+
+			await using fixture = await createFixture({
+				'.claude': {
+					projects: {
+						'test-project': {
+							'session-456.jsonl': `${JSON.stringify({
+								timestamp: lateNightUtc,
+								sessionId: 'session-456',
+								message: {
+									id: 'msg_002',
+									usage: {
+										input_tokens: 200,
+										output_tokens: 100,
+									},
+									model: 'claude-sonnet-4-20250514',
+								},
+								requestId: 'req_002',
+								costUSD: 1.0,
+							})}\n`,
+						},
+					},
+				},
+			});
+
+			vi.stubEnv('CLAUDE_CONFIG_DIR', fixture.getPath('.claude'));
+
+			// When run in the test environment (system timezone), the local date
+			// is derived from the timestamp. For most timezones, this should work.
+			// The entry should be included if its local date matches target date.
+			const entryDate = new Date(lateNightUtc);
+			const localDateStr = `${entryDate.getFullYear()}-${String(entryDate.getMonth() + 1).padStart(2, '0')}-${String(entryDate.getDate()).padStart(2, '0')}`;
+
+			const result = await loadDayActivityData(localDateStr, { mode: 'display' });
+
+			// The entry should be found when searching for its local date
+			expect(result.length).toBe(1);
+			expect(result[0]?.cost).toBe(1.0);
+		});
+
+		it('returns empty array when no files match target date', async () => {
+			await using fixture = await createFixture({
+				'.claude': {
+					projects: {
+						'test-project': {
+							'session-789.jsonl': `${JSON.stringify({
+								timestamp: '2024-01-10T10:00:00Z',
+								sessionId: 'session-789',
+								message: {
+									id: 'msg_003',
+									usage: {
+										input_tokens: 100,
+										output_tokens: 50,
+									},
+									model: 'claude-sonnet-4-20250514',
+								},
+								requestId: 'req_003',
+								costUSD: 0.5,
+							})}\n`,
+						},
+					},
+				},
+			});
+
+			vi.stubEnv('CLAUDE_CONFIG_DIR', fixture.getPath('.claude'));
+
+			// Search for a date that doesn't exist in the data
+			const result = await loadDayActivityData('2024-01-20', { mode: 'display' });
+
+			expect(result).toHaveLength(0);
 		});
 	});
 }
