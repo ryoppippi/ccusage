@@ -765,8 +765,7 @@ export async function loadDailyUsageData(options?: LoadOptions): Promise<DailyUs
 		options?.project,
 	);
 
-	// Sort files by timestamp to ensure chronological processing
-	const sortedFiles = await sortFilesByTimestamp(projectFilteredFiles);
+	const sortedFiles = projectFilteredFiles;
 
 	// Fetch pricing data for cost calculation only when needed
 	const mode = options?.mode ?? 'auto';
@@ -775,7 +774,10 @@ export async function loadDailyUsageData(options?: LoadOptions): Promise<DailyUs
 	using fetcher = mode === 'display' ? null : new PricingFetcher(options?.offline);
 
 	// Track processed message+request combinations for deduplication
-	const processedHashes = new Set<string>();
+	const processedEntries = new Map<string, { timestamp: number; index: number }>();
+	const since = options?.since?.replace(/-/g, '');
+	const until = options?.until?.replace(/-/g, '');
+	const hasDateFilter = since != null || until != null;
 
 	// Collect all valid data entries first
 	const allEntries: {
@@ -799,24 +801,51 @@ export async function loadDailyUsageData(options?: LoadOptions): Promise<DailyUs
 				}
 				const data = result.output;
 
-				// Check for duplicate message + request ID combination
-				const uniqueHash = createUniqueHash(data);
-				if (isDuplicateEntry(uniqueHash, processedHashes)) {
-					// Skip duplicate message
-					return;
-				}
-
-				// Mark this combination as processed
-				markAsProcessed(uniqueHash, processedHashes);
-
 				// Always use DEFAULT_LOCALE for date grouping to ensure YYYY-MM-DD format
 				const date = formatDate(data.timestamp, options?.timezone, DEFAULT_LOCALE);
+				if (hasDateFilter) {
+					const dateKey = date.replace(/-/g, '');
+					if (since != null && dateKey < since) {
+						return;
+					}
+					if (until != null && dateKey > until) {
+						return;
+					}
+				}
+
+				const uniqueHash = createUniqueHash(data);
+				const timestampMs = new Date(data.timestamp).getTime();
+				if (uniqueHash != null) {
+					const existing = processedEntries.get(uniqueHash);
+					if (existing != null) {
+						// Keep the oldest entry for this message+request combination
+						if (!Number.isNaN(timestampMs) && timestampMs < existing.timestamp) {
+							const cost =
+								fetcher != null
+									? await calculateCostForEntry(data, mode, fetcher)
+									: (data.costUSD ?? 0);
+							allEntries[existing.index] = {
+								data,
+								date,
+								cost,
+								model: data.message.model,
+								project,
+							};
+							processedEntries.set(uniqueHash, { timestamp: timestampMs, index: existing.index });
+						}
+						return;
+					}
+				}
+
 				// If fetcher is available, calculate cost based on mode and tokens
 				// If fetcher is null, use pre-calculated costUSD or default to 0
 				const cost =
 					fetcher != null ? await calculateCostForEntry(data, mode, fetcher) : (data.costUSD ?? 0);
 
-				allEntries.push({ data, date, cost, model: data.message.model, project });
+				const index = allEntries.push({ data, date, cost, model: data.message.model, project }) - 1;
+				if (uniqueHash != null && !Number.isNaN(timestampMs)) {
+					processedEntries.set(uniqueHash, { timestamp: timestampMs, index });
+				}
 			} catch {
 				// Skip invalid JSON lines
 			}
