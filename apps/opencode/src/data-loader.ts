@@ -8,7 +8,7 @@
  * @module data-loader
  */
 
-import { readFile, stat } from 'node:fs/promises';
+import { readdir, readFile, stat } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
 import { isDirectorySync } from 'path-type';
@@ -302,17 +302,46 @@ export async function loadOpenCodeMessages(
 		return [];
 	}
 
-	// Find all message JSON files
-	const messageFiles = await glob('**/*.json', {
-		cwd: messagesDir,
-		absolute: true,
-	});
+	let messageFiles: string[] = [];
 
 	const entries: LoadedUsageEntry[] = [];
 	const since = normalizeDateInput(options.since);
 	const until = normalizeDateInput(options.until);
 	const hasDateFilter = since != null || until != null;
 	const dedupeSet = new Set<string>();
+
+	if (hasDateFilter) {
+		const sessionEntries = await readdir(messagesDir, { withFileTypes: true }).catch(() => []);
+		const sessionDirs = sessionEntries
+			.filter((entry) => entry.isDirectory())
+			.map((entry) => path.join(messagesDir, entry.name));
+
+		for (const sessionDir of sessionDirs) {
+			if (since != null) {
+				try {
+					const dirStat = await stat(sessionDir);
+					const dirDateKey = getDateKeyFromTimestamp(dirStat.mtimeMs);
+					if (dirDateKey < since) {
+						continue;
+					}
+				} catch {
+					// Continue to scan the session directory when stat fails.
+				}
+			}
+
+			const sessionFiles = await glob('**/*.json', {
+				cwd: sessionDir,
+				absolute: true,
+			}).catch(() => []);
+			messageFiles.push(...sessionFiles);
+		}
+	} else {
+		// Find all message JSON files
+		messageFiles = await glob('**/*.json', {
+			cwd: messagesDir,
+			absolute: true,
+		});
+	}
 
 	for (const filePath of messageFiles) {
 		if (hasDateFilter) {
