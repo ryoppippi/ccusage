@@ -8,7 +8,7 @@
  * @module data-loader
  */
 
-import { readFile } from 'node:fs/promises';
+import { readFile, stat } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
 import { isDirectorySync } from 'path-type';
@@ -315,6 +315,18 @@ export async function loadOpenCodeMessages(
 	const dedupeSet = new Set<string>();
 
 	for (const filePath of messageFiles) {
+		if (hasDateFilter) {
+			try {
+				const fileStat = await stat(filePath);
+				const fileDateKey = getDateKeyFromTimestamp(fileStat.mtimeMs);
+				if (!isWithinRange(fileDateKey, since, until)) {
+					continue;
+				}
+			} catch {
+				// Fall back to reading file contents when stat fails.
+			}
+		}
+
 		const message = await loadOpenCodeMessage(filePath);
 
 		if (message == null) {
