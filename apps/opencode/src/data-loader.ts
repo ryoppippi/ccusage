@@ -122,6 +122,39 @@ export type LoadedSessionMetadata = {
 	directory: string;
 };
 
+export type OpenCodeMessageLoadOptions = {
+	since?: string; // YYYY-MM-DD or YYYYMMDD
+	until?: string; // YYYY-MM-DD or YYYYMMDD
+};
+
+function normalizeDateInput(value?: string): string | undefined {
+	if (value == null) {
+		return undefined;
+	}
+
+	const trimmed = value.trim();
+	if (trimmed === '') {
+		return undefined;
+	}
+
+	const compact = trimmed.replace(/-/g, '');
+	return /^\d{8}$/.test(compact) ? compact : undefined;
+}
+
+function getDateKeyFromTimestamp(timestampMs: number): string {
+	return new Date(timestampMs).toISOString().slice(0, 10).replace(/-/g, '');
+}
+
+function isWithinRange(dateKey: string, since?: string, until?: string): boolean {
+	if (since != null && dateKey < since) {
+		return false;
+	}
+	if (until != null && dateKey > until) {
+		return false;
+	}
+	return true;
+}
+
 /**
  * Get OpenCode data directory
  * @returns Path to OpenCode data directory, or null if not found
@@ -251,7 +284,9 @@ export async function loadOpenCodeSessions(): Promise<Map<string, LoadedSessionM
  * Load all OpenCode messages
  * @returns Array of LoadedUsageEntry for aggregation
  */
-export async function loadOpenCodeMessages(): Promise<LoadedUsageEntry[]> {
+export async function loadOpenCodeMessages(
+	options: OpenCodeMessageLoadOptions = {},
+): Promise<LoadedUsageEntry[]> {
 	const openCodePath = getOpenCodePath();
 	if (openCodePath == null) {
 		return [];
@@ -274,6 +309,9 @@ export async function loadOpenCodeMessages(): Promise<LoadedUsageEntry[]> {
 	});
 
 	const entries: LoadedUsageEntry[] = [];
+	const since = normalizeDateInput(options.since);
+	const until = normalizeDateInput(options.until);
+	const hasDateFilter = since != null || until != null;
 	const dedupeSet = new Set<string>();
 
 	for (const filePath of messageFiles) {
@@ -281,6 +319,14 @@ export async function loadOpenCodeMessages(): Promise<LoadedUsageEntry[]> {
 
 		if (message == null) {
 			continue;
+		}
+
+		const createdMs = message.time.created ?? Date.now();
+		if (hasDateFilter) {
+			const dateKey = getDateKeyFromTimestamp(createdMs);
+			if (!isWithinRange(dateKey, since, until)) {
+				continue;
+			}
 		}
 
 		// Skip messages with no tokens

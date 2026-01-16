@@ -176,9 +176,12 @@ export async function loadCombinedDailyData(
 
 	if (isSourceEnabled('opencode', selectedSources)) {
 		try {
-			const entries = await loadOpenCodeMessages();
+			const entries = await loadOpenCodeMessages({
+				since: options.since,
+				until: options.until,
+			});
 			if (entries.length > 0) {
-				using fetcher = new LiteLLMPricingFetcher({ offline: false, logger });
+				using fetcher = new LiteLLMPricingFetcher({ offline: options.offline, logger });
 				const rows = await buildOpenCodeDailyReport(entries, { pricingFetcher: fetcher });
 				for (const row of rows) {
 					results.push(normalizeOpenCodeDaily(row));
@@ -280,9 +283,12 @@ export async function loadCombinedMonthlyData(
 
 	if (isSourceEnabled('opencode', selectedSources)) {
 		try {
-			const entries = await loadOpenCodeMessages();
+			const entries = await loadOpenCodeMessages({
+				since: options.since,
+				until: options.until,
+			});
 			if (entries.length > 0) {
-				using fetcher = new LiteLLMPricingFetcher({ offline: false, logger });
+				using fetcher = new LiteLLMPricingFetcher({ offline: options.offline, logger });
 				const rows = await buildOpenCodeMonthlyReport(entries, { pricingFetcher: fetcher });
 				for (const row of rows) {
 					results.push(normalizeOpenCodeMonthly(row));
@@ -384,12 +390,15 @@ export async function loadCombinedSessionData(
 	if (isSourceEnabled('opencode', selectedSources)) {
 		try {
 			const [entries, sessionMetadata] = await Promise.all([
-				loadOpenCodeMessages(),
+				loadOpenCodeMessages({
+					since: options.since,
+					until: options.until,
+				}),
 				loadOpenCodeSessions(),
 			]);
 
 			if (entries.length > 0) {
-				using fetcher = new LiteLLMPricingFetcher({ offline: false, logger });
+				using fetcher = new LiteLLMPricingFetcher({ offline: options.offline, logger });
 				const rows = await buildOpenCodeSessionReport(entries, {
 					pricingFetcher: fetcher,
 					sessionMetadata,
