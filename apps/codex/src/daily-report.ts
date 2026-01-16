@@ -15,6 +15,7 @@ export type DailyReportOptions = {
 	since?: string;
 	until?: string;
 	pricingSource: PricingSource;
+	formatDate?: boolean;
 };
 
 function createSummary(date: string, initialTimestamp: string): DailyUsageSummary {
@@ -40,6 +41,7 @@ export async function buildDailyReport(
 	const since = options.since;
 	const until = options.until;
 	const pricingSource = options.pricingSource;
+	const formatDate = options.formatDate ?? true;
 
 	const summaries = new Map<string, DailyUsageSummary>();
 
@@ -107,7 +109,7 @@ export async function buildDailyReport(
 		}
 
 		rows.push({
-			date: formatDisplayDate(summary.date, locale, timezone),
+			date: formatDate ? formatDisplayDate(summary.date, locale, timezone) : summary.date,
 			inputTokens: summary.inputTokens,
 			cachedInputTokens: summary.cachedInputTokens,
 			outputTokens: summary.outputTokens,
