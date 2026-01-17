@@ -13,7 +13,7 @@ import type { LoadedUsageEntry, SessionBlock } from './_session-blocks.ts';
 import type { ActivityDate, Bucket, CostMode, ModelName, SortOrder, Version } from './_types.ts';
 import { Buffer } from 'node:buffer';
 import { createReadStream, createWriteStream } from 'node:fs';
-import { readFile } from 'node:fs/promises';
+import { readFile, stat } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
 import { createInterface } from 'node:readline';
@@ -716,6 +716,27 @@ export async function globUsageFiles(claudePaths: string[]): Promise<GlobResult[
 	return (await Promise.all(filePromises)).flat();
 }
 
+async function filterFilesBySince(files: string[], since?: string): Promise<string[]> {
+	if (since == null || since.trim() === '') {
+		return files;
+	}
+
+	const sinceKey = since.replace(/-/g, '');
+	return (
+		await Promise.all(
+			files.map(async (file) => {
+				try {
+					const fileStat = await stat(file);
+					const dateKey = new Date(fileStat.mtimeMs).toISOString().slice(0, 10).replace(/-/g, '');
+					return dateKey >= sinceKey ? file : null;
+				} catch {
+					return file;
+				}
+			}),
+		)
+	).filter((file): file is string => file != null);
+}
+
 /**
  * Date range filter for limiting usage data by date
  */
@@ -765,7 +786,7 @@ export async function loadDailyUsageData(options?: LoadOptions): Promise<DailyUs
 		options?.project,
 	);
 
-	const sortedFiles = projectFilteredFiles;
+	const sortedFiles = await filterFilesBySince(projectFilteredFiles, options?.since);
 
 	// Fetch pricing data for cost calculation only when needed
 	const mode = options?.mode ?? 'auto';

@@ -145,7 +145,10 @@ export async function loadCombinedDailyData(
 
 	if (isSourceEnabled('codex', selectedSources)) {
 		try {
-			const { events, missingDirectories } = await loadTokenUsageEvents();
+			const { events, missingDirectories } = await loadTokenUsageEvents({
+				since: options.since,
+				until: options.until,
+			});
 			for (const missing of missingDirectories) {
 				logger.debug(`Codex session directory not found: ${missing}`);
 			}
@@ -252,7 +255,10 @@ export async function loadCombinedMonthlyData(
 
 	if (isSourceEnabled('codex', selectedSources)) {
 		try {
-			const { events, missingDirectories } = await loadTokenUsageEvents();
+			const { events, missingDirectories } = await loadTokenUsageEvents({
+				since: options.since,
+				until: options.until,
+			});
 			for (const missing of missingDirectories) {
 				logger.debug(`Codex session directory not found: ${missing}`);
 			}
@@ -359,7 +365,10 @@ export async function loadCombinedSessionData(
 
 	if (isSourceEnabled('codex', selectedSources)) {
 		try {
-			const { events, missingDirectories } = await loadTokenUsageEvents();
+			const { events, missingDirectories } = await loadTokenUsageEvents({
+				since: options.since,
+				until: options.until,
+			});
 			for (const missing of missingDirectories) {
 				logger.debug(`Codex session directory not found: ${missing}`);
 			}
