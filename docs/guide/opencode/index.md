@@ -1,8 +1,8 @@
 # OpenCode CLI Overview (Beta)
 
-> The OpenCode companion CLI is experimental. Expect breaking changes while both ccusage and [OpenCode](https://github.com/sst/opencode) continue to evolve.
+> The OpenCode companion CLI is experimental. Expect breaking changes while both ccusage and [OpenCode](https://github.com/anomalyco/opencode) continue to evolve.
 
-The `@ccusage/opencode` package reuses ccusage's responsive tables, pricing cache, and token accounting to analyze [OpenCode](https://github.com/sst/opencode) session logs. OpenCode is a terminal-based AI coding assistant that supports multiple AI providers.
+The `@ccusage/opencode` package reuses ccusage's responsive tables, pricing cache, and token accounting to analyze [OpenCode](https://github.com/anomalyco/opencode) session logs. OpenCode is a terminal-based AI coding assistant that supports multiple AI providers.
 
 ## Installation & Launch
 
