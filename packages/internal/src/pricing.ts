@@ -89,6 +89,8 @@ function createLogger(logger?: PricingLogger): PricingLogger {
 }
 
 export class LiteLLMPricingFetcher implements Disposable {
+	private static sharedOnlinePricing = new Map<string, Map<string, LiteLLMModelPricing>>();
+	private static sharedOnlineFetches = new Map<string, Promise<Map<string, LiteLLMModelPricing>>>();
 	private cachedPricing: Map<string, LiteLLMModelPricing> | null = null;
 	private readonly logger: PricingLogger;
 	private readonly offline: boolean;
@@ -146,6 +148,114 @@ export class LiteLLMPricingFetcher implements Disposable {
 		);
 	}
 
+	private async fetchOnlinePricing(): Result.ResultAsync<Map<string, LiteLLMModelPricing>, Error> {
+		this.logger.warn('Fetching latest model pricing from LiteLLM...');
+		return Result.pipe(
+			Result.try({
+				try: (async () => {
+					const controller = new AbortController();
+					const timeout = setTimeout(() => controller.abort(), this.timeoutMs);
+					try {
+						return await fetch(this.url, { signal: controller.signal });
+					} catch (error) {
+						const message =
+							error instanceof Error && error.name === 'AbortError'
+								? `Timed out fetching pricing after ${this.timeoutMs}ms`
+								: 'Failed to fetch model pricing from LiteLLM';
+						throw new Error(message, { cause: error });
+					} finally {
+						clearTimeout(timeout);
+					}
+				})(),
+				catch: (error) => new Error('Failed to fetch model pricing from LiteLLM', { cause: error }),
+			}),
+			Result.andThrough((response) => {
+				if (!response.ok) {
+					return Result.fail(new Error(`Failed to fetch pricing data: ${response.statusText}`));
+				}
+				return Result.succeed();
+			}),
+			Result.andThen(async (response) =>
+				Result.try({
+					try: response.json() as Promise<Record<string, unknown>>,
+					catch: (error) => new Error('Failed to parse pricing data', { cause: error }),
+				}),
+			),
+			Result.map((data) => {
+				const pricing = new Map<string, LiteLLMModelPricing>();
+				for (const [modelName, modelData] of Object.entries(data)) {
+					if (typeof modelData !== 'object' || modelData == null) {
+						continue;
+					}
+
+					const parsed = v.safeParse(liteLLMModelPricingSchema, modelData);
+					if (!parsed.success) {
+						continue;
+					}
+
+					pricing.set(modelName, parsed.output);
+				}
+				return pricing;
+			}),
+			Result.inspect((pricing) => {
+				this.logger.info(`Loaded pricing for ${pricing.size} models`);
+			}),
+		);
+	}
+
+	private async loadSharedOnlinePricing(): Result.ResultAsync<
+		Map<string, LiteLLMModelPricing>,
+		Error
+	> {
+		const cached = LiteLLMPricingFetcher.sharedOnlinePricing.get(this.url);
+		if (cached != null) {
+			this.cachedPricing = cached;
+			return Result.succeed(cached);
+		}
+
+		const inFlight = LiteLLMPricingFetcher.sharedOnlineFetches.get(this.url);
+		if (inFlight != null) {
+			return Result.try({
+				try: (async () => {
+					const pricing = await inFlight;
+					this.cachedPricing = pricing;
+					return pricing;
+				})(),
+				catch: (error) =>
+					error instanceof Error
+						? error
+						: new Error('Failed to fetch model pricing from LiteLLM', { cause: error }),
+			});
+		}
+
+		const fetchPromise = (async () => {
+			try {
+				const result = await this.fetchOnlinePricing();
+				if (Result.isFailure(result)) {
+					throw result.error;
+				}
+				LiteLLMPricingFetcher.sharedOnlinePricing.set(this.url, result.value);
+				return result.value;
+			} finally {
+				LiteLLMPricingFetcher.sharedOnlineFetches.delete(this.url);
+			}
+		})();
+
+		LiteLLMPricingFetcher.sharedOnlineFetches.set(this.url, fetchPromise);
+
+		return Result.try({
+			try: (async () => {
+				const pricing = await fetchPromise;
+				this.cachedPricing = pricing;
+				return pricing;
+			})(),
+			catch: (error) =>
+				error instanceof Error
+					? error
+					: new Error('Failed to fetch model pricing from LiteLLM', { cause: error }),
+		});
+	}
+
 	private async ensurePricingLoaded(): Result.ResultAsync<Map<string, LiteLLMModelPricing>, Error> {
 		return Result.pipe(
 			this.cachedPricing != null
@@ -156,59 +266,8 @@ export class LiteLLMPricingFetcher implements Disposable {
 					return this.loadOfflinePricing();
 				}
 
-				this.logger.warn('Fetching latest model pricing from LiteLLM...');
 				return Result.pipe(
-					Result.try({
-						try: (async () => {
-							const controller = new AbortController();
-							const timeout = setTimeout(() => controller.abort(), this.timeoutMs);
-							try {
-								return await fetch(this.url, { signal: controller.signal });
-							} catch (error) {
-								const message =
-									error instanceof Error && error.name === 'AbortError'
-										? `Timed out fetching pricing after ${this.timeoutMs}ms`
-										: 'Failed to fetch model pricing from LiteLLM';
-								throw new Error(message, { cause: error });
-							} finally {
-								clearTimeout(timeout);
-							}
-						})(),
-						catch: (error) =>
-							new Error('Failed to fetch model pricing from LiteLLM', { cause: error }),
-					}),
-					Result.andThrough((response) => {
-						if (!response.ok) {
-							return Result.fail(new Error(`Failed to fetch pricing data: ${response.statusText}`));
-						}
-						return Result.succeed();
-					}),
-					Result.andThen(async (response) =>
-						Result.try({
-							try: response.json() as Promise<Record<string, unknown>>,
-							catch: (error) => new Error('Failed to parse pricing data', { cause: error }),
-						}),
-					),
-					Result.map((data) => {
-						const pricing = new Map<string, LiteLLMModelPricing>();
-						for (const [modelName, modelData] of Object.entries(data)) {
-							if (typeof modelData !== 'object' || modelData == null) {
-								continue;
-							}
-
-							const parsed = v.safeParse(liteLLMModelPricingSchema, modelData);
-							if (!parsed.success) {
-								continue;
-							}
-
-							pricing.set(modelName, parsed.output);
-						}
-						return pricing;
-					}),
-					Result.inspect((pricing) => {
-						this.cachedPricing = pricing;
-						this.logger.info(`Loaded pricing for ${pricing.size} models`);
-					}),
+					this.loadSharedOnlinePricing(),
 					Result.orElse(async (error) => this.handleFallbackToCachedPricing(error)),
 				);
 			}),
