@@ -716,7 +716,11 @@ export async function globUsageFiles(claudePaths: string[]): Promise<GlobResult[
 	return (await Promise.all(filePromises)).flat();
 }
 
-async function filterFilesBySince(files: string[], since?: string): Promise<string[]> {
+async function filterFilesBySince(
+	files: string[],
+	since?: string,
+	timezone?: string,
+): Promise<string[]> {
 	if (since == null || since.trim() === '') {
 		return files;
 	}
@@ -727,7 +731,10 @@ async function filterFilesBySince(files: string[], since?: string): Promise<stri
 			files.map(async (file) => {
 				try {
 					const fileStat = await stat(file);
-					const dateKey = new Date(fileStat.mtimeMs).toISOString().slice(0, 10).replace(/-/g, '');
+					const dateKey = formatDate(new Date(fileStat.mtimeMs).toISOString(), timezone).replace(
+						/-/g,
+						'',
+					);
 					return dateKey >= sinceKey ? file : null;
 				} catch {
 					return file;
@@ -786,7 +793,11 @@ export async function loadDailyUsageData(options?: LoadOptions): Promise<DailyUs
 		options?.project,
 	);
 
-	const sortedFiles = await filterFilesBySince(projectFilteredFiles, options?.since);
+	const sortedFiles = await filterFilesBySince(
+		projectFilteredFiles,
+		options?.since,
+		options?.timezone,
+	);
 
 	// Fetch pricing data for cost calculation only when needed
 	const mode = options?.mode ?? 'auto';

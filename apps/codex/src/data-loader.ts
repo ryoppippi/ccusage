@@ -12,6 +12,7 @@ import {
 	DEFAULT_SESSION_SUBDIR,
 	SESSION_GLOB,
 } from './_consts.ts';
+import { toDateKey } from './date-utils.ts';
 import { logger } from './logger.ts';
 
 type RawUsage = {
@@ -179,6 +180,7 @@ export type LoadOptions = {
 	sessionDirs?: string[];
 	since?: string; // YYYY-MM-DD or YYYYMMDD
 	until?: string; // YYYY-MM-DD or YYYYMMDD
+	timezone?: string;
 };
 
 export type LoadResult = {
@@ -242,7 +244,10 @@ export async function loadTokenUsageEvents(options: LoadOptions = {}): Promise<L
 			if (since != null) {
 				try {
 					const fileStat = await stat(file);
-					const dateKey = new Date(fileStat.mtimeMs).toISOString().slice(0, 10).replace(/-/g, '');
+					const dateKey = toDateKey(
+						new Date(fileStat.mtimeMs).toISOString(),
+						options.timezone,
+					).replace(/-/g, '');
 					if (dateKey < since) {
 						continue;
 					}
@@ -316,7 +321,7 @@ export async function loadTokenUsageEvents(options: LoadOptions = {}): Promise<L
 				if (timestamp == null) {
 					continue;
 				}
-				const dateKey = timestamp.slice(0, 10).replace(/-/g, '');
+				const dateKey = toDateKey(timestamp, options.timezone).replace(/-/g, '');
 				if (since != null && dateKey < since) {
 					continue;
 				}

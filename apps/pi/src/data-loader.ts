@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import { stat } from 'node:fs/promises';
 import readline from 'node:readline';
 import { glob } from 'tinyglobby';
 import * as v from 'valibot';
@@ -126,6 +127,33 @@ function normalizeDate(value: string): string {
 	return value.replace(/-/g, '');
 }
 
+async function filterFilesBySince(
+	files: string[],
+	since?: string,
+	timezone?: string,
+): Promise<string[]> {
+	if (since == null || since.trim() === '') {
+		return files;
+	}
+
+	const sinceKey = normalizeDate(since);
+	return (
+		await Promise.all(
+			files.map(async (file) => {
+				try {
+					const fileStat = await stat(file);
+					const dateKey = normalizeDate(
+						formatDate(new Date(fileStat.mtimeMs).toISOString(), timezone),
+					);
+					return dateKey >= sinceKey ? file : null;
+				} catch {
+					return file;
+				}
+			}),
+		)
+	).filter((file): file is string => file != null);
+}
+
 function isInDateRange(date: string, since?: string, until?: string): boolean {
 	const dateKey = normalizeDate(date);
 	if (since != null && dateKey < normalizeDate(since)) {
@@ -159,11 +187,15 @@ export async function loadPiAgentData(options?: LoadOptions): Promise<EntryData[
 	if (files.length === 0) {
 		return [];
 	}
+	const filteredFiles = await filterFilesBySince(files, options?.since, options?.timezone);
+	if (filteredFiles.length === 0) {
+		return [];
+	}
 
 	const processedHashes = new Set<string>();
 	const entries: EntryData[] = [];
 
-	for (const file of files) {
+	for (const file of filteredFiles) {
 		const project = extractPiAgentProject(file);
 		const sessionId = extractPiAgentSessionId(file);
 

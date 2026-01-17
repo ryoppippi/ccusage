@@ -155,6 +155,7 @@ export async function loadCombinedDailyData(
 					const { events, missingDirectories } = await loadTokenUsageEvents({
 						since: options.since,
 						until: options.until,
+						timezone: options.timezone,
 					});
 					for (const missing of missingDirectories) {
 						logger.debug(`Codex session directory not found: ${missing}`);
@@ -288,6 +289,7 @@ export async function loadCombinedMonthlyData(
 					const { events, missingDirectories } = await loadTokenUsageEvents({
 						since: options.since,
 						until: options.until,
+						timezone: options.timezone,
 					});
 					for (const missing of missingDirectories) {
 						logger.debug(`Codex session directory not found: ${missing}`);
@@ -421,6 +423,7 @@ export async function loadCombinedSessionData(
 					const { events, missingDirectories } = await loadTokenUsageEvents({
 						since: options.since,
 						until: options.until,
+						timezone: options.timezone,
 					});
 					for (const missing of missingDirectories) {
 						logger.debug(`Codex session directory not found: ${missing}`);
