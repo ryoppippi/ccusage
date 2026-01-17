@@ -2,35 +2,38 @@ import type { DailyReportRow, MonthlyReportRow, SessionReportRow } from '@ccusag
 import type { UnifiedDailyUsage, UnifiedMonthlyUsage, UnifiedSessionUsage } from '../_types.ts';
 
 export function normalizeCodexDaily(data: DailyReportRow): UnifiedDailyUsage {
+	const cacheReadTokens = Math.min(data.cachedInputTokens, data.inputTokens);
 	return {
 		source: 'codex',
 		date: data.date,
 		inputTokens: data.inputTokens,
 		outputTokens: data.outputTokens,
-		cacheReadTokens: data.cachedInputTokens,
+		cacheReadTokens,
 		cacheCreationTokens: 0,
-		totalTokens: data.totalTokens,
-		costUSD: data.costUSD,
-		models: Object.keys(data.models),
+		totalTokens: data.totalTokens ?? data.inputTokens + data.outputTokens,
+		costUSD: data.costUSD ?? 0,
+		models: Object.keys(data.models ?? {}),
 	};
 }
 
 export function normalizeCodexMonthly(data: MonthlyReportRow): UnifiedMonthlyUsage {
+	const cacheReadTokens = Math.min(data.cachedInputTokens, data.inputTokens);
 	return {
 		source: 'codex',
 		month: data.month,
 		inputTokens: data.inputTokens,
 		outputTokens: data.outputTokens,
-		cacheReadTokens: data.cachedInputTokens,
+		cacheReadTokens,
 		cacheCreationTokens: 0,
-		totalTokens: data.totalTokens,
-		costUSD: data.costUSD,
-		models: Object.keys(data.models),
+		totalTokens: data.totalTokens ?? data.inputTokens + data.outputTokens,
+		costUSD: data.costUSD ?? 0,
+		models: Object.keys(data.models ?? {}),
 	};
 }
 
 export function normalizeCodexSession(data: SessionReportRow): UnifiedSessionUsage {
 	const displayName = data.sessionFile.trim() === '' ? data.sessionId : data.sessionFile;
+	const cacheReadTokens = Math.min(data.cachedInputTokens, data.inputTokens);
 	return {
 		source: 'codex',
 		sessionId: data.sessionId,
@@ -39,11 +42,11 @@ export function normalizeCodexSession(data: SessionReportRow): UnifiedSessionUsa
 		lastTimestamp: data.lastActivity,
 		inputTokens: data.inputTokens,
 		outputTokens: data.outputTokens,
-		cacheReadTokens: data.cachedInputTokens,
+		cacheReadTokens,
 		cacheCreationTokens: 0,
-		totalTokens: data.totalTokens,
-		costUSD: data.costUSD,
-		models: Object.keys(data.models),
+		totalTokens: data.totalTokens ?? data.inputTokens + data.outputTokens,
+		costUSD: data.costUSD ?? 0,
+		models: Object.keys(data.models ?? {}),
 	};
 }
 

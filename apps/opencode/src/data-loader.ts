@@ -138,7 +138,10 @@ function normalizeDateInput(value?: string): string | undefined {
 	}
 
 	const compact = trimmed.replace(/-/g, '');
-	return /^\d{8}$/.test(compact) ? compact : undefined;
+	if (!/^\d{8}$/.test(compact)) {
+		throw new Error(`Invalid date filter: "${value}"`);
+	}
+	return compact;
 }
 
 function getDateKeyFromTimestamp(timestampMs: number): string {
@@ -344,10 +347,12 @@ export async function loadOpenCodeMessages(
 	}
 
 	for (const filePath of messageFiles) {
+		let fileModifiedMs: number | null = null;
 		if (hasDateFilter) {
 			try {
 				const fileStat = await stat(filePath);
-				const fileDateKey = getDateKeyFromTimestamp(fileStat.mtimeMs);
+				fileModifiedMs = fileStat.mtimeMs;
+				const fileDateKey = getDateKeyFromTimestamp(fileModifiedMs);
 				if (!isWithinRange(fileDateKey, since, until)) {
 					continue;
 				}
@@ -362,8 +367,11 @@ export async function loadOpenCodeMessages(
 			continue;
 		}
 
-		const createdMs = message.time.created ?? Date.now();
 		if (hasDateFilter) {
+			const createdMs = message.time.created ?? fileModifiedMs;
+			if (createdMs == null) {
+				continue;
+			}
 			const dateKey = getDateKeyFromTimestamp(createdMs);
 			if (!isWithinRange(dateKey, since, until)) {
 				continue;

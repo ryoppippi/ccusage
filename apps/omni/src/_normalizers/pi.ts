@@ -64,7 +64,7 @@ if (import.meta.vitest != null) {
 				cacheCreationTokens: 3,
 				cacheReadTokens: 2,
 				totalCost: 0.5,
-				modelsUsed: ['[pi] claude-opus-4-5'],
+				modelsUsed: ['[pi] claude-opus-4-20250514'],
 				modelBreakdowns: [],
 			} satisfies DailyUsageWithSource;
 
