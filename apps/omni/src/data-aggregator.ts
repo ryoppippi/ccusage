@@ -123,94 +123,117 @@ export async function loadCombinedDailyData(
 	const selectedSources = options.sources;
 	const claudeSince = toCompactDate(options.since);
 	const claudeUntil = toCompactDate(options.until);
+	const tasks: Promise<void>[] = [];
 
 	if (isSourceEnabled('claude', selectedSources)) {
-		try {
-			const dailyData = await loadDailyUsageData({
-				since: claudeSince,
-				until: claudeUntil,
-				timezone: options.timezone,
-				locale: options.locale,
-				order: 'asc',
-				offline: options.offline,
-			});
+		tasks.push(
+			(async () => {
+				try {
+					const dailyData = await loadDailyUsageData({
+						since: claudeSince,
+						until: claudeUntil,
+						timezone: options.timezone,
+						locale: options.locale,
+						order: 'asc',
+						offline: options.offline,
+					});
 
-			for (const entry of dailyData) {
-				results.push(normalizeClaudeDaily(entry));
-			}
-		} catch (error) {
-			logger.warn('Failed to load Claude daily usage data.', error);
-		}
+					for (const entry of dailyData) {
+						results.push(normalizeClaudeDaily(entry));
+					}
+				} catch (error) {
+					logger.warn('Failed to load Claude daily usage data.', error);
+				}
+			})(),
+		);
 	}
 
 	if (isSourceEnabled('codex', selectedSources)) {
-		try {
-			const { events, missingDirectories } = await loadTokenUsageEvents({
-				since: options.since,
-				until: options.until,
-			});
-			for (const missing of missingDirectories) {
-				logger.debug(`Codex session directory not found: ${missing}`);
-			}
-
-			if (events.length > 0) {
-				const pricingSource = new CodexPricingSource({ offline: options.offline });
+		tasks.push(
+			(async () => {
 				try {
-					const rows = await buildCodexDailyReport(events, {
-						pricingSource,
-						timezone: options.timezone,
-						locale: options.locale,
+					const { events, missingDirectories } = await loadTokenUsageEvents({
 						since: options.since,
 						until: options.until,
-						formatDate: false,
 					});
-
-					for (const row of rows) {
-						results.push(normalizeCodexDaily(row));
+					for (const missing of missingDirectories) {
+						logger.debug(`Codex session directory not found: ${missing}`);
 					}
-				} finally {
-					pricingSource[Symbol.dispose]();
+
+					if (events.length > 0) {
+						const pricingSource = new CodexPricingSource({ offline: options.offline });
+						try {
+							const rows = await buildCodexDailyReport(events, {
+								pricingSource,
+								timezone: options.timezone,
+								locale: options.locale,
+								since: options.since,
+								until: options.until,
+								formatDate: false,
+							});
+
+							for (const row of rows) {
+								results.push(normalizeCodexDaily(row));
+							}
+						} finally {
+							pricingSource[Symbol.dispose]();
+						}
+					}
+				} catch (error) {
+					logger.warn('Failed to load Codex daily usage data.', error);
 				}
-			}
-		} catch (error) {
-			logger.warn('Failed to load Codex daily usage data.', error);
-		}
+			})(),
+		);
 	}
 
 	if (isSourceEnabled('opencode', selectedSources)) {
-		try {
-			const entries = await loadOpenCodeMessages({
-				since: options.since,
-				until: options.until,
-			});
-			if (entries.length > 0) {
-				using fetcher = new LiteLLMPricingFetcher({ offline: options.offline, logger });
-				const rows = await buildOpenCodeDailyReport(entries, { pricingFetcher: fetcher });
-				for (const row of rows) {
-					results.push(normalizeOpenCodeDaily(row));
+		tasks.push(
+			(async () => {
+				try {
+					const entries = await loadOpenCodeMessages({
+						since: options.since,
+						until: options.until,
+					});
+					if (entries.length > 0) {
+						using fetcher = new LiteLLMPricingFetcher({
+							offline: options.offline === true,
+							offlineLoader: options.offline === true ? async () => ({}) : undefined,
+							logger,
+						});
+						const rows = await buildOpenCodeDailyReport(entries, { pricingFetcher: fetcher });
+						for (const row of rows) {
+							results.push(normalizeOpenCodeDaily(row));
+						}
+					}
+				} catch (error) {
+					logger.warn('Failed to load OpenCode daily usage data.', error);
 				}
-			}
-		} catch (error) {
-			logger.warn('Failed to load OpenCode daily usage data.', error);
-		}
+			})(),
+		);
 	}
 
 	if (isSourceEnabled('pi', selectedSources)) {
-		try {
-			const piData = await loadPiAgentDailyData({
-				since: options.since,
-				until: options.until,
-				timezone: options.timezone,
-				order: 'asc',
-			});
+		tasks.push(
+			(async () => {
+				try {
+					const piData = await loadPiAgentDailyData({
+						since: options.since,
+						until: options.until,
+						timezone: options.timezone,
+						order: 'asc',
+					});
 
-			for (const entry of piData) {
-				results.push(normalizePiDaily(entry));
-			}
-		} catch (error) {
-			logger.warn('Failed to load Pi daily usage data.', error);
-		}
+					for (const entry of piData) {
+						results.push(normalizePiDaily(entry));
+					}
+				} catch (error) {
+					logger.warn('Failed to load Pi daily usage data.', error);
+				}
+			})(),
+		);
 	}
+
+	await Promise.all(tasks);
 
 	results.sort((a, b) => {
 		const dateCompare = a.date.localeCompare(b.date);
@@ -233,94 +256,117 @@ export async function loadCombinedMonthlyData(
 	const selectedSources = options.sources;
 	const claudeSince = toCompactDate(options.since);
 	const claudeUntil = toCompactDate(options.until);
+	const tasks: Promise<void>[] = [];
 
 	if (isSourceEnabled('claude', selectedSources)) {
-		try {
-			const monthlyData = await loadMonthlyUsageData({
-				since: claudeSince,
-				until: claudeUntil,
-				timezone: options.timezone,
-				locale: options.locale,
-				order: 'asc',
-				offline: options.offline,
-			});
+		tasks.push(
+			(async () => {
+				try {
+					const monthlyData = await loadMonthlyUsageData({
+						since: claudeSince,
+						until: claudeUntil,
+						timezone: options.timezone,
+						locale: options.locale,
+						order: 'asc',
+						offline: options.offline,
+					});
 
-			for (const entry of monthlyData) {
-				results.push(normalizeClaudeMonthly(entry));
-			}
-		} catch (error) {
-			logger.warn('Failed to load Claude monthly usage data.', error);
-		}
+					for (const entry of monthlyData) {
+						results.push(normalizeClaudeMonthly(entry));
+					}
+				} catch (error) {
+					logger.warn('Failed to load Claude monthly usage data.', error);
+				}
+			})(),
+		);
 	}
 
 	if (isSourceEnabled('codex', selectedSources)) {
-		try {
-			const { events, missingDirectories } = await loadTokenUsageEvents({
-				since: options.since,
-				until: options.until,
-			});
-			for (const missing of missingDirectories) {
-				logger.debug(`Codex session directory not found: ${missing}`);
-			}
-
-			if (events.length > 0) {
-				const pricingSource = new CodexPricingSource({ offline: options.offline });
+		tasks.push(
+			(async () => {
 				try {
-					const rows = await buildCodexMonthlyReport(events, {
-						pricingSource,
-						timezone: options.timezone,
-						locale: options.locale,
+					const { events, missingDirectories } = await loadTokenUsageEvents({
 						since: options.since,
 						until: options.until,
-						formatDate: false,
 					});
-
-					for (const row of rows) {
-						results.push(normalizeCodexMonthly(row));
+					for (const missing of missingDirectories) {
+						logger.debug(`Codex session directory not found: ${missing}`);
 					}
-				} finally {
-					pricingSource[Symbol.dispose]();
+
+					if (events.length > 0) {
+						const pricingSource = new CodexPricingSource({ offline: options.offline });
+						try {
+							const rows = await buildCodexMonthlyReport(events, {
+								pricingSource,
+								timezone: options.timezone,
+								locale: options.locale,
+								since: options.since,
+								until: options.until,
+								formatDate: false,
+							});
+
+							for (const row of rows) {
+								results.push(normalizeCodexMonthly(row));
+							}
+						} finally {
+							pricingSource[Symbol.dispose]();
+						}
+					}
+				} catch (error) {
+					logger.warn('Failed to load Codex monthly usage data.', error);
 				}
-			}
-		} catch (error) {
-			logger.warn('Failed to load Codex monthly usage data.', error);
-		}
+			})(),
+		);
 	}
 
 	if (isSourceEnabled('opencode', selectedSources)) {
-		try {
-			const entries = await loadOpenCodeMessages({
-				since: options.since,
-				until: options.until,
-			});
-			if (entries.length > 0) {
-				using fetcher = new LiteLLMPricingFetcher({ offline: options.offline, logger });
-				const rows = await buildOpenCodeMonthlyReport(entries, { pricingFetcher: fetcher });
-				for (const row of rows) {
-					results.push(normalizeOpenCodeMonthly(row));
+		tasks.push(
+			(async () => {
+				try {
+					const entries = await loadOpenCodeMessages({
+						since: options.since,
+						until: options.until,
+					});
+					if (entries.length > 0) {
+						using fetcher = new LiteLLMPricingFetcher({
+							offline: options.offline === true,
+							offlineLoader: options.offline === true ? async () => ({}) : undefined,
+							logger,
+						});
+						const rows = await buildOpenCodeMonthlyReport(entries, { pricingFetcher: fetcher });
+						for (const row of rows) {
+							results.push(normalizeOpenCodeMonthly(row));
+						}
+					}
+				} catch (error) {
+					logger.warn('Failed to load OpenCode monthly usage data.', error);
 				}
-			}
-		} catch (error) {
-			logger.warn('Failed to load OpenCode monthly usage data.', error);
-		}
+			})(),
+		);
 	}
 
 	if (isSourceEnabled('pi', selectedSources)) {
-		try {
-			const piData = await loadPiAgentMonthlyData({
-				since: options.since,
-				until: options.until,
-				timezone: options.timezone,
-				order: 'asc',
-			});
+		tasks.push(
+			(async () => {
+				try {
+					const piData = await loadPiAgentMonthlyData({
+						since: options.since,
+						until: options.until,
+						timezone: options.timezone,
+						order: 'asc',
+					});
 
-			for (const entry of piData) {
-				results.push(normalizePiMonthly(entry));
-			}
-		} catch (error) {
-			logger.warn('Failed to load Pi monthly usage data.', error);
-		}
+					for (const entry of piData) {
+						results.push(normalizePiMonthly(entry));
+					}
+				} catch (error) {
+					logger.warn('Failed to load Pi monthly usage data.', error);
+				}
+			})(),
+		);
 	}
+
+	await Promise.all(tasks);
 
 	results.sort((a, b) => {
 		const monthCompare = a.month.localeCompare(b.month);
@@ -343,100 +389,123 @@ export async function loadCombinedSessionData(
 	const selectedSources = options.sources;
 	const claudeSince = toCompactDate(options.since);
 	const claudeUntil = toCompactDate(options.until);
+	const tasks: Promise<void>[] = [];
 
 	if (isSourceEnabled('claude', selectedSources)) {
-		try {
-			const sessionData = await loadSessionData({
-				since: claudeSince,
-				until: claudeUntil,
-				timezone: options.timezone,
-				locale: options.locale,
-				order: 'asc',
-				offline: options.offline,
-			});
+		tasks.push(
+			(async () => {
+				try {
+					const sessionData = await loadSessionData({
+						since: claudeSince,
+						until: claudeUntil,
+						timezone: options.timezone,
+						locale: options.locale,
+						order: 'asc',
+						offline: options.offline,
+					});
 
-			for (const entry of sessionData) {
-				results.push(normalizeClaudeSession(entry));
-			}
-		} catch (error) {
-			logger.warn('Failed to load Claude session usage data.', error);
-		}
+					for (const entry of sessionData) {
+						results.push(normalizeClaudeSession(entry));
+					}
+				} catch (error) {
+					logger.warn('Failed to load Claude session usage data.', error);
+				}
+			})(),
+		);
 	}
 
 	if (isSourceEnabled('codex', selectedSources)) {
-		try {
-			const { events, missingDirectories } = await loadTokenUsageEvents({
-				since: options.since,
-				until: options.until,
-			});
-			for (const missing of missingDirectories) {
-				logger.debug(`Codex session directory not found: ${missing}`);
-			}
-
-			if (events.length > 0) {
-				const pricingSource = new CodexPricingSource({ offline: options.offline });
+		tasks.push(
+			(async () => {
 				try {
-					const rows = await buildCodexSessionReport(events, {
-						pricingSource,
-						timezone: options.timezone,
-						locale: options.locale,
+					const { events, missingDirectories } = await loadTokenUsageEvents({
 						since: options.since,
 						until: options.until,
 					});
-
-					for (const row of rows) {
-						results.push(normalizeCodexSession(row));
+					for (const missing of missingDirectories) {
+						logger.debug(`Codex session directory not found: ${missing}`);
 					}
-				} finally {
-					pricingSource[Symbol.dispose]();
+
+					if (events.length > 0) {
+						const pricingSource = new CodexPricingSource({ offline: options.offline });
+						try {
+							const rows = await buildCodexSessionReport(events, {
+								pricingSource,
+								timezone: options.timezone,
+								locale: options.locale,
+								since: options.since,
+								until: options.until,
+							});
+
+							for (const row of rows) {
+								results.push(normalizeCodexSession(row));
+							}
+						} finally {
+							pricingSource[Symbol.dispose]();
+						}
+					}
+				} catch (error) {
+					logger.warn('Failed to load Codex session usage data.', error);
 				}
-			}
-		} catch (error) {
-			logger.warn('Failed to load Codex session usage data.', error);
-		}
+			})(),
+		);
 	}
 
 	if (isSourceEnabled('opencode', selectedSources)) {
-		try {
-			const [entries, sessionMetadata] = await Promise.all([
-				loadOpenCodeMessages({
-					since: options.since,
-					until: options.until,
-				}),
-				loadOpenCodeSessions(),
-			]);
+		tasks.push(
+			(async () => {
+				try {
+					const [entries, sessionMetadata] = await Promise.all([
+						loadOpenCodeMessages({
+							since: options.since,
+							until: options.until,
+						}),
+						loadOpenCodeSessions(),
+					]);
 
-			if (entries.length > 0) {
-				using fetcher = new LiteLLMPricingFetcher({ offline: options.offline, logger });
-				const rows = await buildOpenCodeSessionReport(entries, {
-					pricingFetcher: fetcher,
-					sessionMetadata,
-				});
-				for (const row of rows) {
-					results.push(normalizeOpenCodeSession(row));
+					if (entries.length > 0) {
+						using fetcher = new LiteLLMPricingFetcher({
+							offline: options.offline === true,
+							offlineLoader: options.offline === true ? async () => ({}) : undefined,
+							logger,
+						});
+						const rows = await buildOpenCodeSessionReport(entries, {
+							pricingFetcher: fetcher,
+							sessionMetadata,
+						});
+						for (const row of rows) {
+							results.push(normalizeOpenCodeSession(row));
+						}
+					}
+				} catch (error) {
+					logger.warn('Failed to load OpenCode session usage data.', error);
 				}
-			}
-		} catch (error) {
-			logger.warn('Failed to load OpenCode session usage data.', error);
-		}
+			})(),
+		);
 	}
 
 	if (isSourceEnabled('pi', selectedSources)) {
-		try {
-			const piData = await loadPiAgentSessionData({
-				since: options.since,
-				until: options.until,
-				timezone: options.timezone,
-				order: 'asc',
-			});
+		tasks.push(
+			(async () => {
+				try {
+					const piData = await loadPiAgentSessionData({
+						since: options.since,
+						until: options.until,
+						timezone: options.timezone,
+						order: 'asc',
+					});
 
-			for (const entry of piData) {
-				results.push(normalizePiSession(entry));
-			}
-		} catch (error) {
-			logger.warn('Failed to load Pi session usage data.', error);
-		}
+					for (const entry of piData) {
+						results.push(normalizePiSession(entry));
+					}
+				} catch (error) {
+					logger.warn('Failed to load Pi session usage data.', error);
+				}
+			})(),
+		);
 	}
+
+	await Promise.all(tasks);
 
 	results.sort((a, b) => {
 		const timeCompare = a.lastTimestamp.localeCompare(b.lastTimestamp);

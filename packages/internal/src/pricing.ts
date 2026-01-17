@@ -61,6 +61,7 @@ export type LiteLLMPricingFetcherOptions = {
 	offlineLoader?: () => Promise<Record<string, LiteLLMModelPricing>>;
 	url?: string;
 	providerPrefixes?: string[];
+	timeoutMs?: number;
 };
 
 const DEFAULT_PROVIDER_PREFIXES = [
@@ -72,6 +73,7 @@ const DEFAULT_PROVIDER_PREFIXES = [
 	'azure/',
 	'openrouter/openai/',
 ];
+const DEFAULT_FETCH_TIMEOUT_MS = 10_000;
 
 function createLogger(logger?: PricingLogger): PricingLogger {
 	if (logger != null) {
@@ -93,6 +95,7 @@ export class LiteLLMPricingFetcher implements Disposable {
 	private readonly offlineLoader?: () => Promise<Record<string, LiteLLMModelPricing>>;
 	private readonly url: string;
 	private readonly providerPrefixes: string[];
+	private readonly timeoutMs: number;
 
 	constructor(options: LiteLLMPricingFetcherOptions = {}) {
 		this.logger = createLogger(options.logger);
@@ -100,6 +103,7 @@ export class LiteLLMPricingFetcher implements Disposable {
 		this.offlineLoader = options.offlineLoader;
 		this.url = options.url ?? LITELLM_PRICING_URL;
 		this.providerPrefixes = options.providerPrefixes ?? DEFAULT_PROVIDER_PREFIXES;
+		this.timeoutMs = options.timeoutMs ?? DEFAULT_FETCH_TIMEOUT_MS;
 	}
 
 	[Symbol.dispose](): void {
@@ -155,7 +159,21 @@ export class LiteLLMPricingFetcher implements Disposable {
 				this.logger.warn('Fetching latest model pricing from LiteLLM...');
 				return Result.pipe(
 					Result.try({
-						try: fetch(this.url),
+						try: (async () => {
+							const controller = new AbortController();
+							const timeout = setTimeout(() => controller.abort(), this.timeoutMs);
+							try {
+								return await fetch(this.url, { signal: controller.signal });
+							} catch (error) {
+								const message =
+									error instanceof Error && error.name === 'AbortError'
+										? `Timed out fetching pricing after ${this.timeoutMs}ms`
+										: 'Failed to fetch model pricing from LiteLLM';
+								throw new Error(message, { cause: error });
+							} finally {
+								clearTimeout(timeout);
+							}
+						})(),
 						catch: (error) =>
 							new Error('Failed to fetch model pricing from LiteLLM', { cause: error }),
 					}),
