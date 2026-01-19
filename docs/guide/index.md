@@ -34,7 +34,7 @@ ccusage analyzes the local JSONL files that Claude Code automatically generates 
 
 ### 🚀 Ultra-Small Bundle Size
 
-Unlike other CLI tools, we pay extreme attention to bundle size. ccusage achieves an incredibly small footprint even without minification, which means you can run it directly without installation using `bunx ccusage` for instant access.
+Unlike other CLI tools, we pay extreme attention to bundle size. ccusage achieves an incredibly small footprint even without minification, which means you can run it directly without installation using `bunx ccusage` or `BUN_BE_BUN=1 claude x ccusage` for instant access.
 
 ### 📊 Multiple Report Types
 
