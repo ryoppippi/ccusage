@@ -35,7 +35,7 @@ Companion tool for analyzing [OpenCode](https://github.com/opencode-ai/opencode)
 
 ### 🥧 [@ccusage/pi](https://www.npmjs.com/package/@ccusage/pi) - Pi-agent Usage Analyzer
 
-Companion tool for analyzing [pi-agent](https://github.com/nicobailon/pi-agent) session usage. Track token usage and costs from your pi-agent sessions with daily, monthly, and session-based reports.
+Companion tool for analyzing [pi-agent](https://github.com/badlogic/pi-mono) session usage. Track token usage and costs from your pi-agent sessions with daily, monthly, and session-based reports.
 
 ### ⚡ [@ccusage/amp](https://www.npmjs.com/package/@ccusage/amp) - Amp Usage Analyzer
 
