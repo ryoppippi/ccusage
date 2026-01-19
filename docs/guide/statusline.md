@@ -18,15 +18,43 @@ The `statusline` command provides a compact, real-time view of your Claude Code 
 
 Add this to your `~/.claude/settings.json` or `~/.config/claude/settings.json`:
 
-```json
+::: code-group
+
+```json [bun x (Recommended)]
 {
 	"statusLine": {
 		"type": "command",
-		"command": "bun x ccusage statusline", // Use "npx -y ccusage statusline" if you prefer npm
-		"padding": 0 // Optional: set to 0 to let status line go to edge
+		"command": "bun x ccusage statusline",
+		"padding": 0
 	}
 }
 ```
+
+```json [claude x]
+{
+	"statusLine": {
+		"type": "command",
+		"command": "BUN_BE_BUN=1 claude x ccusage statusline",
+		"padding": 0
+	}
+}
+```
+
+```json [npx]
+{
+	"statusLine": {
+		"type": "command",
+		"command": "npx -y ccusage statusline",
+		"padding": 0
+	}
+}
+```
+
+:::
+
+::: tip claude x option
+The `claude x` option requires the native version of Claude Code (not the npm version). If you installed Claude Code via npm, use the `bun x` or `npx` options instead.
+:::
 
 By default, statusline uses **offline mode** with cached pricing data for optimal performance.
 

@@ -25,6 +25,10 @@ bunx ccusage
 pnpm dlx ccusage
 ```
 
+```bash [claude x]
+BUN_BE_BUN=1 claude x ccusage
+```
+
 :::
 
 This will show your daily usage report by default.

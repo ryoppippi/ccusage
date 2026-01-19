@@ -33,6 +33,10 @@ pnpm dlx ccusage
 deno run -E -R=$HOME/.claude/projects/ -S=homedir -N='raw.githubusercontent.com:443' npm:ccusage@latest
 ```
 
+```bash [claude x]
+BUN_BE_BUN=1 claude x ccusage
+```
+
 :::
 
 ::: tip Speed Recommendation
@@ -41,6 +45,33 @@ We strongly recommend using `bunx` instead of `npx` due to the massive speed dif
 
 ::: info Deno Security
 Consider using `deno run` if you want additional security controls. Deno allows you to specify exact permissions, making it safer to run tools you haven't audited.
+:::
+
+::: details Running with `claude x`
+
+If you have the **native version** of Claude Code installed, you can run ccusage directly using the `claude x` command:
+
+```bash
+BUN_BE_BUN=1 claude x ccusage
+```
+
+**How it works:**
+
+The native Claude Code binary is built with [Bun's standalone executable](https://bun.sh/docs/bundler/executables) feature. When you set `BUN_BE_BUN=1`, the Claude Code executable exposes the full Bun CLI capabilities instead of running its bundled entry point. This allows you to use `claude x` as a drop-in replacement for `bunx`.
+
+**Requirements:**
+
+- **Native Claude Code installation** (installed via `curl -fsSL https://claude.ai/install.sh | bash` or Homebrew/WinGet)
+- This does **NOT** work with the npm version (`npm install -g @anthropic-ai/claude-code`)
+- Run `claude doctor` to verify whether you have the native version installed
+
+**Why use this?**
+
+- No need to install Bun separately
+- Uses the same Bun runtime bundled with Claude Code
+- Convenient for Claude Code users who want to check their usage without additional tools
+
+For more details, see the [Bun documentation on BUN_BE_BUN](https://bun.sh/docs/bundler/executables#act-as-the-bun-cli) and [Claude Code setup guide](https://code.claude.com/docs/en/setup).
 :::
 
 ### Performance Comparison

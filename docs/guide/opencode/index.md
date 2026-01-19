@@ -6,14 +6,29 @@ The `@ccusage/opencode` package reuses ccusage's responsive tables, pricing cach
 
 ## Installation & Launch
 
-```bash
-# Recommended - always include @latest
-npx @ccusage/opencode@latest --help
-bunx @ccusage/opencode@latest --help
+::: code-group
 
-# Alternative package runners
+```bash [bunx (Recommended)]
+bunx @ccusage/opencode@latest --help
+```
+
+```bash [npx]
+npx @ccusage/opencode@latest --help
+```
+
+```bash [pnpm]
 pnpm dlx @ccusage/opencode --help
 ```
+
+```bash [opencode x]
+BUN_BE_BUN=1 opencode x @ccusage/opencode@latest --help
+```
+
+:::
+
+::: tip opencode x option
+The `opencode x` option requires the native version of OpenCode. If you installed OpenCode via npm, use the `bunx` or `npx` options instead.
+:::
 
 ### Recommended: Shell Alias
 
