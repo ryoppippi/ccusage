@@ -535,7 +535,7 @@ export function createUniqueHash(data: UsageData): string | null {
  * @param filePath - Path to the JSONL file
  * @param processLine - Callback function to process each line
  */
-async function processJSONLFileByLine(
+export async function processJSONLFileByLine(
 	filePath: string,
 	processLine: (line: string, lineNumber: number) => void | Promise<void>,
 ): Promise<void> {
