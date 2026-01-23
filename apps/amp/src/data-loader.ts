@@ -26,7 +26,7 @@ import {
 import { logger } from './logger.ts';
 
 /**
- * Amp usageLedger event schema
+ * Amp usageLedger event schema (legacy format, used before ~Jan 13, 2026)
  */
 const usageLedgerEventSchema = v.object({
 	id: v.string(),
@@ -43,7 +43,7 @@ const usageLedgerEventSchema = v.object({
 });
 
 /**
- * Amp message usage schema (for cache tokens)
+ * Amp message usage schema (primary format, used since ~Jan 13, 2026)
  */
 const messageUsageSchema = v.object({
 	model: v.optional(v.string()),
@@ -53,6 +53,7 @@ const messageUsageSchema = v.object({
 	cacheReadInputTokens: v.optional(v.number()),
 	totalInputTokens: v.optional(v.number()),
 	credits: v.optional(v.number()),
+	timestamp: v.optional(v.string()),
 });
 
 /**
@@ -132,6 +133,7 @@ function findCacheTokensForEvent(
 
 /**
  * Convert usageLedger event to TokenUsageEvent
+ * Legacy format used before ~Jan 13, 2026
  */
 function convertLedgerEventToUsageEvent(
 	threadId: string,
@@ -153,6 +155,44 @@ function convertLedgerEventToUsageEvent(
 		model: event.model,
 		credits: event.credits,
 		operationType: event.operationType ?? 'unknown',
+		inputTokens,
+		outputTokens,
+		cacheCreationInputTokens,
+		cacheReadInputTokens,
+		totalTokens: inputTokens + outputTokens,
+	};
+}
+
+/**
+ * Convert message-level usage to TokenUsageEvent
+ * Primary format used since ~Jan 13, 2026
+ */
+function convertMessageUsageToUsageEvent(
+	threadId: string,
+	message: ParsedMessage,
+	threadCreated: number | undefined,
+): TokenUsageEvent | null {
+	if (message.usage == null) {
+		return null;
+	}
+
+	const usage = message.usage;
+	const inputTokens = usage.inputTokens ?? 0;
+	const outputTokens = usage.outputTokens ?? 0;
+	const cacheCreationInputTokens = usage.cacheCreationInputTokens ?? 0;
+	const cacheReadInputTokens = usage.cacheReadInputTokens ?? 0;
+
+	// Use timestamp from usage if available, otherwise estimate from thread created time
+	const timestamp =
+		usage.timestamp ??
+		(threadCreated != null ? new Date(threadCreated).toISOString() : new Date().toISOString());
+
+	return {
+		timestamp,
+		threadId,
+		model: usage.model ?? 'unknown',
+		credits: usage.credits ?? 0,
+		operationType: 'inference',
 		inputTokens,
 		outputTokens,
 		cacheCreationInputTokens,
@@ -248,10 +288,27 @@ export async function loadAmpUsageEvents(options: LoadOptions = {}): Promise<Loa
 				created: thread.created,
 			});
 
-			const ledgerEvents = thread.usageLedger?.events ?? [];
-			for (const ledgerEvent of ledgerEvents) {
-				const event = convertLedgerEventToUsageEvent(threadId, ledgerEvent, thread.messages);
-				events.push(event);
+			// Primary: extract usage from message-level usage data (used since ~Jan 13, 2026)
+			const messages = thread.messages ?? [];
+			const messageEvents: TokenUsageEvent[] = [];
+			for (const message of messages) {
+				if (message.role === 'assistant' && message.usage != null) {
+					const event = convertMessageUsageToUsageEvent(threadId, message, thread.created);
+					if (event != null) {
+						messageEvents.push(event);
+					}
+				}
+			}
+
+			// Fallback: use usageLedger when message.usage is not available (legacy, pre-Jan 13, 2026)
+			if (messageEvents.length > 0) {
+				events.push(...messageEvents);
+			} else {
+				const ledgerEvents = thread.usageLedger?.events ?? [];
+				for (const ledgerEvent of ledgerEvents) {
+					const event = convertLedgerEventToUsageEvent(threadId, ledgerEvent, thread.messages);
+					events.push(event);
+				}
 			}
 		}
 	}
@@ -359,6 +416,81 @@ if (import.meta.vitest != null) {
 			});
 
 			expect(events).toEqual([]);
+		});
+
+		it('extracts usage from message-level usage when usageLedger is absent', async () => {
+			const threadData = {
+				v: 294,
+				id: 'T-message-usage-test',
+				created: 1700000000000,
+				title: 'Message Usage Test',
+				messages: [
+					{
+						role: 'user',
+						messageId: 0,
+						content: [{ type: 'text', text: 'hi' }],
+					},
+					{
+						role: 'assistant',
+						messageId: 1,
+						content: [{ type: 'text', text: 'Hello!' }],
+						usage: {
+							model: 'claude-opus-4-5-20251101',
+							inputTokens: 10,
+							outputTokens: 220,
+							cacheCreationInputTokens: 6904,
+							cacheReadInputTokens: 16371,
+							totalInputTokens: 23285,
+							timestamp: '2026-01-22T22:42:32.743Z',
+						},
+					},
+					{
+						role: 'assistant',
+						messageId: 3,
+						content: [{ type: 'text', text: 'More response' }],
+						usage: {
+							model: 'claude-opus-4-5-20251101',
+							inputTokens: 15,
+							outputTokens: 157,
+							cacheCreationInputTokens: 379,
+							cacheReadInputTokens: 23275,
+							totalInputTokens: 23669,
+							timestamp: '2026-01-22T22:42:38.840Z',
+						},
+					},
+				],
+				// No usageLedger field
+			};
+
+			await using fixture = await createFixture({
+				threads: {
+					'T-message-usage-test.json': JSON.stringify(threadData),
+				},
+			});
+
+			const { events, threads } = await loadAmpUsageEvents({
+				threadDirs: [fixture.getPath('threads')],
+			});
+
+			expect(events).toHaveLength(2);
+
+			const event1 = events[0]!;
+			expect(event1.threadId).toBe('T-message-usage-test');
+			expect(event1.model).toBe('claude-opus-4-5-20251101');
+			expect(event1.inputTokens).toBe(10);
+			expect(event1.outputTokens).toBe(220);
+			expect(event1.cacheCreationInputTokens).toBe(6904);
+			expect(event1.cacheReadInputTokens).toBe(16371);
+			expect(event1.timestamp).toBe('2026-01-22T22:42:32.743Z');
+
+			const event2 = events[1]!;
+			expect(event2.inputTokens).toBe(15);
+			expect(event2.outputTokens).toBe(157);
+
+			expect(threads.get('T-message-usage-test')).toEqual({
+				title: 'Message Usage Test',
+				created: 1700000000000,
+			});
 		});
 	});
 }
