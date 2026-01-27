@@ -12,6 +12,7 @@ import {
 	DEFAULT_SESSION_SUBDIR,
 	SESSION_GLOB,
 } from './_consts.ts';
+import { toDateKey } from './date-utils.ts';
 import { logger } from './logger.ts';
 
 type RawUsage = {
@@ -177,6 +178,9 @@ function asNonEmptyString(value: unknown): string | undefined {
 
 export type LoadOptions = {
 	sessionDirs?: string[];
+	since?: string; // YYYY-MM-DD or YYYYMMDD
+	until?: string; // YYYY-MM-DD or YYYYMMDD
+	timezone?: string;
 };
 
 export type LoadResult = {
@@ -185,6 +189,21 @@ export type LoadResult = {
 };
 
 export async function loadTokenUsageEvents(options: LoadOptions = {}): Promise<LoadResult> {
+	const normalizeDateInput = (value?: string): string | undefined => {
+		if (value == null) {
+			return undefined;
+		}
+		const trimmed = value.trim();
+		if (trimmed === '') {
+			return undefined;
+		}
+		const compact = trimmed.replace(/-/g, '');
+		return /^\d{8}$/.test(compact) ? compact : undefined;
+	};
+
+	const since = normalizeDateInput(options.since);
+	const until = normalizeDateInput(options.until);
+
 	const providedDirs =
 		options.sessionDirs != null && options.sessionDirs.length > 0
 			? options.sessionDirs.map((dir) => path.resolve(dir))
@@ -222,6 +241,21 @@ export async function loadTokenUsageEvents(options: LoadOptions = {}): Promise<L
 		});
 
 		for (const file of files) {
+			if (since != null) {
+				try {
+					const fileStat = await stat(file);
+					const dateKey = toDateKey(
+						new Date(fileStat.mtimeMs).toISOString(),
+						options.timezone,
+					).replace(/-/g, '');
+					if (dateKey < since) {
+						continue;
+					}
+				} catch {
+					// Continue when file stat fails.
+				}
+			}
+
 			const relativeSessionPath = path.relative(directoryPath, file);
 			const normalizedSessionPath = relativeSessionPath.split(path.sep).join('/');
 			const sessionId = normalizedSessionPath.replace(/\.jsonl$/i, '');
@@ -285,6 +319,13 @@ export async function loadTokenUsageEvents(options: LoadOptions = {}): Promise<L
 				}
 
 				if (timestamp == null) {
+					continue;
+				}
+				const dateKey = toDateKey(timestamp, options.timezone).replace(/-/g, '');
+				if (since != null && dateKey < since) {
+					continue;
+				}
+				if (until != null && dateKey > until) {
 					continue;
 				}
 

@@ -211,8 +211,22 @@ export class ResponsiveTable {
 			),
 		];
 
+		const modelsIndex = head.findIndex((label) => label.toLowerCase().includes('model'));
+		const getCellWidth = (value: unknown): number => {
+			const text = String(value ?? '');
+			const lines = text.split('\n');
+			let maxWidth = 0;
+			for (const line of lines) {
+				const width = stringWidth(line);
+				if (width > maxWidth) {
+					maxWidth = width;
+				}
+			}
+			return maxWidth;
+		};
+
 		const contentWidths = head.map((_, colIndex) => {
-			const maxLength = Math.max(...allRows.map((row) => stringWidth(String(row[colIndex] ?? ''))));
+			const maxLength = Math.max(...allRows.map((row) => getCellWidth(row[colIndex])));
 			return maxLength;
 		});
 
@@ -227,7 +241,7 @@ export class ResponsiveTable {
 			// For numeric columns, ensure generous width to prevent truncation
 			if (align === 'right') {
 				return Math.max(width + 3, 11); // At least 11 chars for numbers, +3 padding
-			} else if (index === 1) {
+			} else if (index === modelsIndex) {
 				// Models column - can be longer
 				return Math.max(width + 2, 15);
 			}
@@ -249,7 +263,7 @@ export class ResponsiveTable {
 					adjustedWidth = Math.max(adjustedWidth, 10);
 				} else if (index === 0) {
 					adjustedWidth = Math.max(adjustedWidth, 10);
-				} else if (index === 1) {
+				} else if (index === modelsIndex) {
 					adjustedWidth = Math.max(adjustedWidth, 12);
 				} else {
 					adjustedWidth = Math.max(adjustedWidth, 8);

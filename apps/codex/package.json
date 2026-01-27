@@ -15,6 +15,16 @@
 	"bugs": {
 		"url": "https://github.com/ryoppippi/ccusage/issues"
 	},
+	"exports": {
+		".": "./src/index.ts",
+		"./data-loader": "./src/data-loader.ts",
+		"./daily-report": "./src/daily-report.ts",
+		"./monthly-report": "./src/monthly-report.ts",
+		"./session-report": "./src/session-report.ts",
+		"./pricing": "./src/pricing.ts",
+		"./types": "./src/_types.ts",
+		"./package.json": "./package.json"
+	},
 	"main": "./dist/index.js",
 	"module": "./dist/index.js",
 	"bin": {
@@ -26,6 +36,16 @@
 	"publishConfig": {
 		"bin": {
 			"ccusage-codex": "./dist/index.js"
+		},
+		"exports": {
+			".": "./dist/index.js",
+			"./data-loader": "./dist/data-loader.js",
+			"./daily-report": "./dist/daily-report.js",
+			"./monthly-report": "./dist/monthly-report.js",
+			"./session-report": "./dist/session-report.js",
+			"./pricing": "./dist/pricing.js",
+			"./types": "./dist/_types.js",
+			"./package.json": "./package.json"
 		}
 	},
 	"engines": {

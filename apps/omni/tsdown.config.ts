@@ -1,13 +1,7 @@
 import { defineConfig } from 'tsdown';
 
 export default defineConfig({
-	entry: [
-		'src/index.ts',
-		'src/data-loader.ts',
-		'src/daily-report.ts',
-		'src/monthly-report.ts',
-		'src/session-report.ts',
-	],
+	entry: ['src/index.ts'],
 	format: ['esm'],
 	clean: true,
 	dts: false,
@@ -15,4 +9,7 @@ export default defineConfig({
 	platform: 'node',
 	target: 'node20',
 	fixedExtension: false,
+	define: {
+		'import.meta.vitest': 'undefined',
+	},
 });

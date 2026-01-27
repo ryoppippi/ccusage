@@ -15,6 +15,7 @@ export type MonthlyReportOptions = {
 	since?: string;
 	until?: string;
 	pricingSource: PricingSource;
+	formatDate?: boolean;
 };
 
 function createSummary(month: string, initialTimestamp: string): MonthlyUsageSummary {
@@ -40,6 +41,7 @@ export async function buildMonthlyReport(
 	const since = options.since;
 	const until = options.until;
 	const pricingSource = options.pricingSource;
+	const formatDate = options.formatDate ?? true;
 
 	const summaries = new Map<string, MonthlyUsageSummary>();
 
@@ -108,7 +110,7 @@ export async function buildMonthlyReport(
 		}
 
 		rows.push({
-			month: formatDisplayMonth(summary.month, locale, timezone),
+			month: formatDate ? formatDisplayMonth(summary.month, locale, timezone) : summary.month,
 			inputTokens: summary.inputTokens,
 			cachedInputTokens: summary.cachedInputTokens,
 			outputTokens: summary.outputTokens,

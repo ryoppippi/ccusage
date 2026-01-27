@@ -7,10 +7,9 @@ import {
 	formatNumber,
 	ResponsiveTable,
 } from '@ccusage/terminal/table';
-import { groupBy } from 'es-toolkit';
 import { define } from 'gunshi';
 import pc from 'picocolors';
-import { calculateCostForEntry } from '../cost-utils.ts';
+import { buildDailyReport } from '../daily-report.ts';
 import { loadOpenCodeMessages } from '../data-loader.ts';
 import { logger } from '../logger.ts';
 
@@ -46,51 +45,7 @@ export const dailyCommand = define({
 
 		using fetcher = new LiteLLMPricingFetcher({ offline: false, logger });
 
-		const entriesByDate = groupBy(entries, (entry) => entry.timestamp.toISOString().split('T')[0]!);
-
-		const dailyData: Array<{
-			date: string;
-			inputTokens: number;
-			outputTokens: number;
-			cacheCreationTokens: number;
-			cacheReadTokens: number;
-			totalTokens: number;
-			totalCost: number;
-			modelsUsed: string[];
-		}> = [];
-
-		for (const [date, dayEntries] of Object.entries(entriesByDate)) {
-			let inputTokens = 0;
-			let outputTokens = 0;
-			let cacheCreationTokens = 0;
-			let cacheReadTokens = 0;
-			let totalCost = 0;
-			const modelsSet = new Set<string>();
-
-			for (const entry of dayEntries) {
-				inputTokens += entry.usage.inputTokens;
-				outputTokens += entry.usage.outputTokens;
-				cacheCreationTokens += entry.usage.cacheCreationInputTokens;
-				cacheReadTokens += entry.usage.cacheReadInputTokens;
-				totalCost += await calculateCostForEntry(entry, fetcher);
-				modelsSet.add(entry.model);
-			}
-
-			const totalTokens = inputTokens + outputTokens + cacheCreationTokens + cacheReadTokens;
-
-			dailyData.push({
-				date,
-				inputTokens,
-				outputTokens,
-				cacheCreationTokens,
-				cacheReadTokens,
-				totalTokens,
-				totalCost,
-				modelsUsed: Array.from(modelsSet),
-			});
-		}
-
-		dailyData.sort((a, b) => a.date.localeCompare(b.date));
+		const dailyData = await buildDailyReport(entries, { pricingFetcher: fetcher });
 
 		const totals = {
 			inputTokens: dailyData.reduce((sum, d) => sum + d.inputTokens, 0),

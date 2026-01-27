@@ -7,12 +7,11 @@ import {
 	formatNumber,
 	ResponsiveTable,
 } from '@ccusage/terminal/table';
-import { groupBy } from 'es-toolkit';
 import { define } from 'gunshi';
 import pc from 'picocolors';
-import { calculateCostForEntry } from '../cost-utils.ts';
 import { loadOpenCodeMessages } from '../data-loader.ts';
 import { logger } from '../logger.ts';
+import { buildMonthlyReport } from '../monthly-report.ts';
 
 const TABLE_COLUMN_COUNT = 8;
 
@@ -46,51 +45,7 @@ export const monthlyCommand = define({
 
 		using fetcher = new LiteLLMPricingFetcher({ offline: false, logger });
 
-		const entriesByMonth = groupBy(entries, (entry) => entry.timestamp.toISOString().slice(0, 7));
-
-		const monthlyData: Array<{
-			month: string;
-			inputTokens: number;
-			outputTokens: number;
-			cacheCreationTokens: number;
-			cacheReadTokens: number;
-			totalTokens: number;
-			totalCost: number;
-			modelsUsed: string[];
-		}> = [];
-
-		for (const [month, monthEntries] of Object.entries(entriesByMonth)) {
-			let inputTokens = 0;
-			let outputTokens = 0;
-			let cacheCreationTokens = 0;
-			let cacheReadTokens = 0;
-			let totalCost = 0;
-			const modelsSet = new Set<string>();
-
-			for (const entry of monthEntries) {
-				inputTokens += entry.usage.inputTokens;
-				outputTokens += entry.usage.outputTokens;
-				cacheCreationTokens += entry.usage.cacheCreationInputTokens;
-				cacheReadTokens += entry.usage.cacheReadInputTokens;
-				totalCost += await calculateCostForEntry(entry, fetcher);
-				modelsSet.add(entry.model);
-			}
-
-			const totalTokens = inputTokens + outputTokens + cacheCreationTokens + cacheReadTokens;
-
-			monthlyData.push({
-				month,
-				inputTokens,
-				outputTokens,
-				cacheCreationTokens,
-				cacheReadTokens,
-				totalTokens,
-				totalCost,
-				modelsUsed: Array.from(modelsSet),
-			});
-		}
-
-		monthlyData.sort((a, b) => a.month.localeCompare(b.month));
+		const monthlyData = await buildMonthlyReport(entries, { pricingFetcher: fetcher });
 
 		const totals = {
 			inputTokens: monthlyData.reduce((sum, d) => sum + d.inputTokens, 0),

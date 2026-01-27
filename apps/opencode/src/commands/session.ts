@@ -10,9 +10,9 @@ import {
 import { groupBy } from 'es-toolkit';
 import { define } from 'gunshi';
 import pc from 'picocolors';
-import { calculateCostForEntry } from '../cost-utils.ts';
 import { loadOpenCodeMessages, loadOpenCodeSessions } from '../data-loader.ts';
 import { logger } from '../logger.ts';
+import { buildSessionReport } from '../session-report.ts';
 
 const TABLE_COLUMN_COUNT = 8;
 
@@ -49,66 +49,10 @@ export const sessionCommand = define({
 
 		using fetcher = new LiteLLMPricingFetcher({ offline: false, logger });
 
-		const entriesBySession = groupBy(entries, (entry) => entry.sessionID);
-
-		type SessionData = {
-			sessionID: string;
-			sessionTitle: string;
-			parentID: string | null;
-			inputTokens: number;
-			outputTokens: number;
-			cacheCreationTokens: number;
-			cacheReadTokens: number;
-			totalTokens: number;
-			totalCost: number;
-			modelsUsed: string[];
-			lastActivity: Date;
-		};
-
-		const sessionData: SessionData[] = [];
-
-		for (const [sessionID, sessionEntries] of Object.entries(entriesBySession)) {
-			let inputTokens = 0;
-			let outputTokens = 0;
-			let cacheCreationTokens = 0;
-			let cacheReadTokens = 0;
-			let totalCost = 0;
-			const modelsSet = new Set<string>();
-			let lastActivity = sessionEntries[0]!.timestamp;
-
-			for (const entry of sessionEntries) {
-				inputTokens += entry.usage.inputTokens;
-				outputTokens += entry.usage.outputTokens;
-				cacheCreationTokens += entry.usage.cacheCreationInputTokens;
-				cacheReadTokens += entry.usage.cacheReadInputTokens;
-				totalCost += await calculateCostForEntry(entry, fetcher);
-				modelsSet.add(entry.model);
-
-				if (entry.timestamp > lastActivity) {
-					lastActivity = entry.timestamp;
-				}
-			}
-
-			const totalTokens = inputTokens + outputTokens + cacheCreationTokens + cacheReadTokens;
-
-			const metadata = sessionMetadataMap.get(sessionID);
-
-			sessionData.push({
-				sessionID,
-				sessionTitle: metadata?.title ?? sessionID,
-				parentID: metadata?.parentID ?? null,
-				inputTokens,
-				outputTokens,
-				cacheCreationTokens,
-				cacheReadTokens,
-				totalTokens,
-				totalCost,
-				modelsUsed: Array.from(modelsSet),
-				lastActivity,
-			});
-		}
-
-		sessionData.sort((a, b) => a.lastActivity.getTime() - b.lastActivity.getTime());
+		const sessionData = await buildSessionReport(entries, {
+			pricingFetcher: fetcher,
+			sessionMetadata: sessionMetadataMap,
+		});
 
 		const totals = {
 			inputTokens: sessionData.reduce((sum, s) => sum + s.inputTokens, 0),

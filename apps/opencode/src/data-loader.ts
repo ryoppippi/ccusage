@@ -8,7 +8,7 @@
  * @module data-loader
  */
 
-import { readFile } from 'node:fs/promises';
+import { readdir, readFile, stat } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
 import { isDirectorySync } from 'path-type';
@@ -121,6 +121,42 @@ export type LoadedSessionMetadata = {
 	projectID: string;
 	directory: string;
 };
+
+export type OpenCodeMessageLoadOptions = {
+	since?: string; // YYYY-MM-DD or YYYYMMDD
+	until?: string; // YYYY-MM-DD or YYYYMMDD
+};
+
+function normalizeDateInput(value?: string): string | undefined {
+	if (value == null) {
+		return undefined;
+	}
+
+	const trimmed = value.trim();
+	if (trimmed === '') {
+		return undefined;
+	}
+
+	const compact = trimmed.replace(/-/g, '');
+	if (!/^\d{8}$/.test(compact)) {
+		throw new Error(`Invalid date filter: "${value}"`);
+	}
+	return compact;
+}
+
+function getDateKeyFromTimestamp(timestampMs: number): string {
+	return new Date(timestampMs).toISOString().slice(0, 10).replace(/-/g, '');
+}
+
+function isWithinRange(dateKey: string, since?: string, until?: string): boolean {
+	if (since != null && dateKey < since) {
+		return false;
+	}
+	if (until != null && dateKey > until) {
+		return false;
+	}
+	return true;
+}
 
 /**
  * Get OpenCode data directory
@@ -251,7 +287,9 @@ export async function loadOpenCodeSessions(): Promise<Map<string, LoadedSessionM
  * Load all OpenCode messages
  * @returns Array of LoadedUsageEntry for aggregation
  */
-export async function loadOpenCodeMessages(): Promise<LoadedUsageEntry[]> {
+export async function loadOpenCodeMessages(
+	options: OpenCodeMessageLoadOptions = {},
+): Promise<LoadedUsageEntry[]> {
 	const openCodePath = getOpenCodePath();
 	if (openCodePath == null) {
 		return [];
@@ -267,20 +305,77 @@ export async function loadOpenCodeMessages(): Promise<LoadedUsageEntry[]> {
 		return [];
 	}
 
-	// Find all message JSON files
-	const messageFiles = await glob('**/*.json', {
-		cwd: messagesDir,
-		absolute: true,
-	});
+	let messageFiles: string[] = [];
 
 	const entries: LoadedUsageEntry[] = [];
+	const since = normalizeDateInput(options.since);
+	const until = normalizeDateInput(options.until);
+	const hasDateFilter = since != null || until != null;
 	const dedupeSet = new Set<string>();
 
+	if (hasDateFilter) {
+		const sessionEntries = await readdir(messagesDir, { withFileTypes: true }).catch(() => []);
+		const sessionDirs = sessionEntries
+			.filter((entry) => entry.isDirectory())
+			.map((entry) => path.join(messagesDir, entry.name));
+
+		for (const sessionDir of sessionDirs) {
+			if (since != null) {
+				try {
+					const dirStat = await stat(sessionDir);
+					const dirDateKey = getDateKeyFromTimestamp(dirStat.mtimeMs);
+					if (dirDateKey < since) {
+						continue;
+					}
+				} catch {
+					// Continue to scan the session directory when stat fails.
+				}
+			}
+
+			const sessionFiles = await glob('**/*.json', {
+				cwd: sessionDir,
+				absolute: true,
+			}).catch(() => []);
+			messageFiles.push(...sessionFiles);
+		}
+	} else {
+		// Find all message JSON files
+		messageFiles = await glob('**/*.json', {
+			cwd: messagesDir,
+			absolute: true,
+		});
+	}
+
 	for (const filePath of messageFiles) {
+		let fileModifiedMs: number | null = null;
+		if (hasDateFilter) {
+			try {
+				const fileStat = await stat(filePath);
+				fileModifiedMs = fileStat.mtimeMs;
+				const fileDateKey = getDateKeyFromTimestamp(fileModifiedMs);
+				if (!isWithinRange(fileDateKey, since, until)) {
+					continue;
+				}
+			} catch {
+				// Fall back to reading file contents when stat fails.
+			}
+		}
+
 		const message = await loadOpenCodeMessage(filePath);
 
 		if (message == null) {
 			continue;
+		}
+
+		if (hasDateFilter) {
+			const createdMs = message.time.created ?? fileModifiedMs;
+			if (createdMs == null) {
+				continue;
+			}
+			const dateKey = getDateKeyFromTimestamp(createdMs);
+			if (!isWithinRange(dateKey, since, until)) {
+				continue;
+			}
 		}
 
 		// Skip messages with no tokens

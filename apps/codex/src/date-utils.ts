@@ -1,27 +1,66 @@
+const DEFAULT_TIMEZONE = Intl.DateTimeFormat().resolvedOptions().timeZone ?? 'UTC';
+const TIMEZONE_CACHE = new Map<string, string>();
+const DATE_KEY_FORMATTER_CACHE = new Map<string, Intl.DateTimeFormat>();
+const MONTH_KEY_FORMATTER_CACHE = new Map<string, Intl.DateTimeFormat>();
+
 function safeTimeZone(timezone?: string): string {
 	if (timezone == null || timezone.trim() === '') {
-		return Intl.DateTimeFormat().resolvedOptions().timeZone ?? 'UTC';
+		return DEFAULT_TIMEZONE;
+	}
+
+	const trimmed = timezone.trim();
+	const cached = TIMEZONE_CACHE.get(trimmed);
+	if (cached != null) {
+		return cached;
 	}
 
 	try {
 		// Validate timezone by creating a formatter
-		Intl.DateTimeFormat('en-US', { timeZone: timezone });
-		return timezone;
+		Intl.DateTimeFormat('en-US', { timeZone: trimmed });
+		TIMEZONE_CACHE.set(trimmed, trimmed);
+		return trimmed;
 	} catch {
+		TIMEZONE_CACHE.set(trimmed, 'UTC');
 		return 'UTC';
 	}
 }
 
-export function toDateKey(timestamp: string, timezone?: string): string {
+function getDateKeyFormatter(timezone?: string): Intl.DateTimeFormat {
 	const tz = safeTimeZone(timezone);
-	const date = new Date(timestamp);
+	const cached = DATE_KEY_FORMATTER_CACHE.get(tz);
+	if (cached != null) {
+		return cached;
+	}
+
 	const formatter = new Intl.DateTimeFormat('en-CA', {
 		year: 'numeric',
 		month: '2-digit',
 		day: '2-digit',
 		timeZone: tz,
 	});
-	return formatter.format(date);
+	DATE_KEY_FORMATTER_CACHE.set(tz, formatter);
+	return formatter;
+}
+
+function getMonthKeyFormatter(timezone?: string): Intl.DateTimeFormat {
+	const tz = safeTimeZone(timezone);
+	const cached = MONTH_KEY_FORMATTER_CACHE.get(tz);
+	if (cached != null) {
+		return cached;
+	}
+
+	const formatter = new Intl.DateTimeFormat('en-CA', {
+		year: 'numeric',
+		month: '2-digit',
+		timeZone: tz,
+	});
+	MONTH_KEY_FORMATTER_CACHE.set(tz, formatter);
+	return formatter;
+}
+
+export function toDateKey(timestamp: string, timezone?: string): string {
+	const date = new Date(timestamp);
+	return getDateKeyFormatter(timezone).format(date);
 }
 
 export function normalizeFilterDate(value?: string): string | undefined {
@@ -71,14 +110,8 @@ export function formatDisplayDate(dateKey: string, locale?: string, _timezone?: 
 }
 
 export function toMonthKey(timestamp: string, timezone?: string): string {
-	const tz = safeTimeZone(timezone);
 	const date = new Date(timestamp);
-	const formatter = new Intl.DateTimeFormat('en-CA', {
-		year: 'numeric',
-		month: '2-digit',
-		timeZone: tz,
-	});
-	const [year, month] = formatter.format(date).split('-');
+	const [year, month] = getMonthKeyFormatter(timezone).format(date).split('-');
 	return `${year}-${month}`;
 }
 
