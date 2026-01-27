@@ -8,12 +8,13 @@
  * @module data-loader
  */
 
+import type { ActivityEntry } from '@ccusage/terminal/charts';
 import type { WeekDay } from './_consts.ts';
 import type { LoadedUsageEntry, SessionBlock } from './_session-blocks.ts';
 import type { ActivityDate, Bucket, CostMode, ModelName, SortOrder, Version } from './_types.ts';
 import { Buffer } from 'node:buffer';
 import { createReadStream, createWriteStream } from 'node:fs';
-import { readFile } from 'node:fs/promises';
+import { readFile, stat } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
 import { createInterface } from 'node:readline';
@@ -21,6 +22,7 @@ import { toArray } from '@antfu/utils';
 import { Result } from '@praha/byethrow';
 import { groupBy, uniq } from 'es-toolkit'; // TODO: after node20 is deprecated, switch to native Object.groupBy
 import { createFixture } from 'fs-fixture';
+import pLimit from 'p-limit';
 import { isDirectorySync } from 'path-type';
 import { glob } from 'tinyglobby';
 import * as v from 'valibot';
@@ -594,11 +596,15 @@ export async function getEarliestTimestamp(filePath: string): Promise<Date | nul
  * Files without valid timestamps are placed at the end
  */
 export async function sortFilesByTimestamp(files: string[]): Promise<string[]> {
+	// limit concurrency to avoid I/O saturation when scanning many files
+	const limit = pLimit(20);
 	const filesWithTimestamps = await Promise.all(
-		files.map(async (file) => ({
-			file,
-			timestamp: await getEarliestTimestamp(file),
-		})),
+		files.map(async (file) =>
+			limit(async () => ({
+				file,
+				timestamp: await getEarliestTimestamp(file),
+			})),
+		),
 	);
 
 	return filesWithTimestamps
@@ -732,6 +738,7 @@ export type LoadOptions = {
 	mode?: CostMode; // Cost calculation mode
 	order?: SortOrder; // Sort order for dates
 	offline?: boolean; // Use offline mode for pricing
+	refreshPricing?: boolean; // Force refresh pricing from network (ignores 24-hour disk cache)
 	sessionDurationHours?: number; // Session block duration in hours
 	groupByProject?: boolean; // Group data by project instead of aggregating
 	project?: string; // Filter to specific project name
@@ -772,12 +779,68 @@ export async function loadDailyUsageData(options?: LoadOptions): Promise<DailyUs
 	const mode = options?.mode ?? 'auto';
 
 	// Use PricingFetcher with using statement for automatic cleanup
-	using fetcher = mode === 'display' ? null : new PricingFetcher(options?.offline);
+	using fetcher =
+		mode === 'display'
+			? null
+			: new PricingFetcher({ offline: options?.offline, refreshPricing: options?.refreshPricing });
 
 	// Track processed message+request combinations for deduplication
 	const processedHashes = new Set<string>();
 
-	// Collect all valid data entries first
+	// pre-load pricing data before parallel processing to avoid race conditions
+	if (fetcher != null) {
+		await fetcher.fetchModelPricing();
+	}
+
+	// limit concurrent file reads to avoid I/O saturation
+	const fileLimit = pLimit(20);
+
+	// process files in parallel and collect entries with their hash keys
+	const fileResults = await Promise.all(
+		sortedFiles.map(async (file) =>
+			fileLimit(async () => {
+				const project = extractProjectFromPath(file);
+				const entries: {
+					data: UsageData;
+					date: string;
+					cost: number;
+					model: string | undefined;
+					project: string;
+					hashKey: string;
+				}[] = [];
+
+				await processJSONLFileByLine(file, async (line) => {
+					try {
+						const parsed = JSON.parse(line) as unknown;
+						const result = v.safeParse(usageDataSchema, parsed);
+						if (!result.success) {
+							return;
+						}
+						const data = result.output;
+
+						// create hash key for deduplication (null means no deduplication key)
+						const hashKey = createUniqueHash(data) ?? '';
+
+						// Always use DEFAULT_LOCALE for date grouping to ensure YYYY-MM-DD format
+						const date = formatDate(data.timestamp, options?.timezone, DEFAULT_LOCALE);
+						// If fetcher is available, calculate cost based on mode and tokens
+						// If fetcher is null, use pre-calculated costUSD or default to 0
+						const cost =
+							fetcher != null
+								? await calculateCostForEntry(data, mode, fetcher)
+								: (data.costUSD ?? 0);
+
+						entries.push({ data, date, cost, model: data.message.model, project, hashKey });
+					} catch {
+						// Skip invalid JSON lines
+					}
+				});
+				return entries;
+			}),
+		),
+	);
+
+	// flatten and deduplicate
 	const allEntries: {
 		data: UsageData;
 		date: string;
@@ -786,41 +849,23 @@ export async function loadDailyUsageData(options?: LoadOptions): Promise<DailyUs
 		project: string;
 	}[] = [];
 
-	for (const file of sortedFiles) {
-		// Extract project name from file path once per file
-		const project = extractProjectFromPath(file);
-
-		await processJSONLFileByLine(file, async (line) => {
-			try {
-				const parsed = JSON.parse(line) as unknown;
-				const result = v.safeParse(usageDataSchema, parsed);
-				if (!result.success) {
-					return;
-				}
-				const data = result.output;
-
-				// Check for duplicate message + request ID combination
-				const uniqueHash = createUniqueHash(data);
-				if (isDuplicateEntry(uniqueHash, processedHashes)) {
-					// Skip duplicate message
-					return;
-				}
-
-				// Mark this combination as processed
-				markAsProcessed(uniqueHash, processedHashes);
-
-				// Always use DEFAULT_LOCALE for date grouping to ensure YYYY-MM-DD format
-				const date = formatDate(data.timestamp, options?.timezone, DEFAULT_LOCALE);
-				// If fetcher is available, calculate cost based on mode and tokens
-				// If fetcher is null, use pre-calculated costUSD or default to 0
-				const cost =
-					fetcher != null ? await calculateCostForEntry(data, mode, fetcher) : (data.costUSD ?? 0);
-
-				allEntries.push({ data, date, cost, model: data.message.model, project });
-			} catch {
-				// Skip invalid JSON lines
+	for (const entries of fileResults) {
+		for (const entry of entries) {
+			// empty hashKey means no deduplication key available
+			if (entry.hashKey !== '' && isDuplicateEntry(entry.hashKey, processedHashes)) {
+				continue;
 			}
-		});
+			if (entry.hashKey !== '') {
+				markAsProcessed(entry.hashKey, processedHashes);
+			}
+			allEntries.push({
+				data: entry.data,
+				date: entry.date,
+				cost: entry.cost,
+				model: entry.model,
+				project: entry.project,
+			});
+		}
 	}
 
 	// Group by date, optionally including project
@@ -929,7 +974,10 @@ export async function loadSessionData(options?: LoadOptions): Promise<SessionUsa
 	const mode = options?.mode ?? 'auto';
 
 	// Use PricingFetcher with using statement for automatic cleanup
-	using fetcher = mode === 'display' ? null : new PricingFetcher(options?.offline);
+	using fetcher =
+		mode === 'display'
+			? null
+			: new PricingFetcher({ offline: options?.offline, refreshPricing: options?.refreshPricing });
 
 	// Track processed message+request combinations for deduplication
 	const processedHashes = new Set<string>();
@@ -1112,11 +1160,12 @@ export async function loadWeeklyUsageData(options?: LoadOptions): Promise<Weekly
  * @param options - Options for loading data
  * @param options.mode - Cost calculation mode (auto, calculate, display)
  * @param options.offline - Whether to use offline pricing data
+ * @param options.refreshPricing - Force refresh pricing from network (ignores 24-hour disk cache)
  * @returns Usage data for the specific session or null if not found
  */
 export async function loadSessionUsageById(
 	sessionId: string,
-	options?: { mode?: CostMode; offline?: boolean },
+	options?: { mode?: CostMode; offline?: boolean; refreshPricing?: boolean },
 ): Promise<{ totalCost: number; entries: UsageData[] } | null> {
 	const claudePaths = getClaudePaths();
 
@@ -1137,7 +1186,10 @@ export async function loadSessionUsageById(
 	}
 
 	const mode = options?.mode ?? 'auto';
-	using fetcher = mode === 'display' ? null : new PricingFetcher(options?.offline);
+	using fetcher =
+		mode === 'display'
+			? null
+			: new PricingFetcher({ offline: options?.offline, refreshPricing: options?.refreshPricing });
 
 	const entries: UsageData[] = [];
 	let totalCost = 0;
@@ -1162,6 +1214,175 @@ export async function loadSessionUsageById(
 	});
 
 	return { totalCost, entries };
+}
+
+/**
+ * Entry with timestamp for activity grid visualization.
+ * Re-exported from @ccusage/terminal/charts for convenience.
+ */
+export type { ActivityEntry } from '@ccusage/terminal/charts';
+
+/**
+ * Load entries for a single day with their timestamps for activity grid visualization
+ * @param date - Date in YYYY-MM-DD format (defaults to today)
+ * @param options - Options for loading data
+ * @param options.claudePath - Custom path to Claude data directory
+ * @param options.mode - Cost calculation mode (auto, calculate, display)
+ * @param options.offline - Whether to use offline pricing data
+ * @param options.refreshPricing - Force refresh pricing from network (ignores 24-hour disk cache)
+ * @param options.timezone - Timezone for date grouping
+ * @returns Array of entries with timestamps, costs, and output tokens
+ */
+export async function loadDayActivityData(
+	date?: string,
+	options?: {
+		claudePath?: string;
+		mode?: CostMode;
+		offline?: boolean;
+		refreshPricing?: boolean;
+		timezone?: string;
+	},
+): Promise<ActivityEntry[]> {
+	const targetDate = date ?? new Date().toISOString().slice(0, 10);
+	const targetDateTime = new Date(targetDate).getTime();
+	const claudePaths = toArray(options?.claudePath ?? getClaudePaths());
+	const allFiles = await globUsageFiles(claudePaths);
+
+	if (allFiles.length === 0) {
+		return [];
+	}
+
+	// filter files by modification time - only check files modified on or after target date
+	// use limited concurrency to avoid overwhelming filesystem
+	const recentFiles: string[] = [];
+	const oneDayMs = 24 * 60 * 60 * 1000;
+	const statLimit = pLimit(100); // limit concurrent stat calls
+
+	await Promise.all(
+		allFiles.map(async ({ file }) =>
+			statLimit(async () => {
+				try {
+					const stats = await stat(file);
+					// include files modified within 2 days of target date (to handle timezone edge cases)
+					if (stats.mtimeMs >= targetDateTime - oneDayMs) {
+						recentFiles.push(file);
+					}
+				} catch {
+					// skip files that can't be stat'd
+				}
+			}),
+		),
+	);
+
+	if (recentFiles.length === 0) {
+		return [];
+	}
+
+	const mode = options?.mode ?? 'auto';
+	using fetcher =
+		mode === 'display'
+			? null
+			: new PricingFetcher({ offline: options?.offline, refreshPricing: options?.refreshPricing });
+
+	// pre-load pricing data before parallel processing to avoid race conditions
+	if (fetcher != null) {
+		await fetcher.fetchModelPricing();
+	}
+
+	const processedHashes = new Set<string>();
+
+	// regex for fast timestamp extraction - avoid full JSON parse for non-matching dates
+	const timestampRegex = /"timestamp"\s*:\s*"(\d{4}-\d{2}-\d{2})/;
+
+	// Calculate adjacent UTC dates that could contain entries matching local target date.
+	// Due to timezone differences (up to ±14 hours), a local date can span 2 UTC dates.
+	// For example: 4PM Pacific on Jan 13 local = midnight UTC Jan 14
+	const prevDate = new Date(targetDateTime - oneDayMs).toISOString().slice(0, 10);
+	const nextDate = new Date(targetDateTime + oneDayMs).toISOString().slice(0, 10);
+	const validUtcDates = new Set([targetDate, prevDate, nextDate]);
+
+	// limit concurrent file reads to avoid I/O saturation
+	const fileLimit = pLimit(20);
+
+	const fileResults = await Promise.all(
+		recentFiles.map(async (file) =>
+			fileLimit(async () => {
+				const entries: ActivityEntry[] = [];
+				await processJSONLFileByLine(file, async (line) => {
+					try {
+						// fast-path: extract UTC date with regex before full JSON parse
+						// Accept ±1 day to handle timezone edge cases
+						const timestampMatch = timestampRegex.exec(line);
+						if (timestampMatch == null || !validUtcDates.has(timestampMatch[1] ?? '')) {
+							return;
+						}
+
+						// parse and validate the entry
+						const parsed = JSON.parse(line) as unknown;
+						const result = v.safeParse(usageDataSchema, parsed);
+						if (!result.success) {
+							return;
+						}
+						const data = result.output;
+
+						// verify the timestamp matches target date in local timezone
+						// (the fast-path above accepts ±1 day to handle timezone edge cases)
+						const entryDate = new Date(data.timestamp);
+						const localYear = entryDate.getFullYear();
+						const localMonth = String(entryDate.getMonth() + 1).padStart(2, '0');
+						const localDay = String(entryDate.getDate()).padStart(2, '0');
+						const entryLocalDate = `${localYear}-${localMonth}-${localDay}`;
+						if (entryLocalDate !== targetDate) {
+							return;
+						}
+
+						// calculate cost
+						const cost =
+							fetcher != null
+								? await calculateCostForEntry(data, mode, fetcher)
+								: (data.costUSD ?? 0);
+
+						entries.push({
+							timestamp: data.timestamp,
+							cost,
+							outputTokens: data.message.usage.output_tokens,
+							model: data.message.model,
+							_messageId: data.message.id,
+							_requestId: data.requestId,
+						} as ActivityEntry & { _messageId?: string; _requestId?: string });
+					} catch {
+						// skip invalid JSON lines
+					}
+				});
+				return entries;
+			}),
+		),
+	);
+
+	// flatten and deduplicate
+	const allEntries: ActivityEntry[] = [];
+	for (const entries of fileResults) {
+		for (const entry of entries) {
+			const e = entry as ActivityEntry & { _messageId?: string; _requestId?: string };
+			const messageId = e._messageId ?? '';
+			const requestId = e._requestId ?? '';
+			const hashKey = `${messageId}:${requestId}`;
+			if (hashKey !== ':' && processedHashes.has(hashKey)) {
+				continue;
+			}
+			if (hashKey !== ':') {
+				processedHashes.add(hashKey);
+			}
+			allEntries.push({
+				timestamp: entry.timestamp,
+				cost: entry.cost,
+				outputTokens: entry.outputTokens,
+				model: entry.model,
+			});
+		}
+	}
+
+	return allEntries;
 }
 
 export async function loadBucketUsageData(
@@ -1254,6 +1475,7 @@ export async function calculateContextTokens(
 	transcriptPath: string,
 	modelId?: string,
 	offline = false,
+	refreshPricing = false,
 ): Promise<{
 	inputTokens: number;
 	percentage: number;
@@ -1299,7 +1521,7 @@ export async function calculateContextTokens(
 				// Get context limit from PricingFetcher
 				let contextLimit = 200_000; // Fallback for when modelId is not provided
 				if (modelId != null && modelId !== '') {
-					using fetcher = new PricingFetcher(offline);
+					using fetcher = new PricingFetcher({ offline, refreshPricing });
 					const contextLimitResult = await fetcher.getModelContextLimit(modelId);
 					if (Result.isSuccess(contextLimitResult) && contextLimitResult.value != null) {
 						contextLimit = contextLimitResult.value;
@@ -1374,7 +1596,10 @@ export async function loadSessionBlockData(options?: LoadOptions): Promise<Sessi
 	const mode = options?.mode ?? 'auto';
 
 	// Use PricingFetcher with using statement for automatic cleanup
-	using fetcher = mode === 'display' ? null : new PricingFetcher(options?.offline);
+	using fetcher =
+		mode === 'display'
+			? null
+			: new PricingFetcher({ offline: options?.offline, refreshPricing: options?.refreshPricing });
 
 	// Track processed message+request combinations for deduplication
 	const processedHashes = new Set<string>();
@@ -1525,9 +1750,7 @@ if (import.meta.vitest != null) {
 		});
 	});
 
-	describe('loadSessionUsageById', async () => {
-		const { createFixture } = await import('fs-fixture');
-
+	describe('loadSessionUsageById', () => {
 		afterEach(() => {
 			vi.unstubAllEnvs();
 		});
@@ -4234,6 +4457,122 @@ invalid json line
 			});
 		});
 	});
+
+	describe('loadDayActivityData', () => {
+		afterEach(() => {
+			vi.unstubAllEnvs();
+		});
+
+		it('loads activity data for entries matching local date', async () => {
+			await using fixture = await createFixture({
+				'.claude': {
+					projects: {
+						'test-project': {
+							'session-123.jsonl': `${JSON.stringify({
+								timestamp: '2024-01-15T10:00:00Z',
+								sessionId: 'session-123',
+								message: {
+									id: 'msg_001',
+									usage: {
+										input_tokens: 100,
+										output_tokens: 50,
+									},
+									model: 'claude-sonnet-4-20250514',
+								},
+								requestId: 'req_001',
+								costUSD: 0.5,
+							})}\n`,
+						},
+					},
+				},
+			});
+
+			vi.stubEnv('CLAUDE_CONFIG_DIR', fixture.getPath('.claude'));
+
+			const result = await loadDayActivityData('2024-01-15', { mode: 'display' });
+
+			expect(result.length).toBeGreaterThan(0);
+			expect(result[0]?.cost).toBe(0.5);
+		});
+
+		it('handles timezone edge case where UTC date differs from local date', async () => {
+			// Create an entry with a UTC timestamp that would be filtered out
+			// if we only checked the UTC date portion from the ISO string.
+			// This timestamp (Jan 14 at 23:00 UTC) is Jan 15 in UTC+2 timezone,
+			// but the regex would extract "2024-01-14" from the ISO string.
+			// After the fix, we accept ±1 day in the fast-path and filter by local date.
+			const lateNightUtc = '2024-01-14T23:00:00Z'; // Could be Jan 15 locally for UTC+ timezones
+
+			await using fixture = await createFixture({
+				'.claude': {
+					projects: {
+						'test-project': {
+							'session-456.jsonl': `${JSON.stringify({
+								timestamp: lateNightUtc,
+								sessionId: 'session-456',
+								message: {
+									id: 'msg_002',
+									usage: {
+										input_tokens: 200,
+										output_tokens: 100,
+									},
+									model: 'claude-sonnet-4-20250514',
+								},
+								requestId: 'req_002',
+								costUSD: 1.0,
+							})}\n`,
+						},
+					},
+				},
+			});
+
+			vi.stubEnv('CLAUDE_CONFIG_DIR', fixture.getPath('.claude'));
+
+			// When run in the test environment (system timezone), the local date
+			// is derived from the timestamp. For most timezones, this should work.
+			// The entry should be included if its local date matches target date.
+			const entryDate = new Date(lateNightUtc);
+			const localDateStr = `${entryDate.getFullYear()}-${String(entryDate.getMonth() + 1).padStart(2, '0')}-${String(entryDate.getDate()).padStart(2, '0')}`;
+
+			const result = await loadDayActivityData(localDateStr, { mode: 'display' });
+
+			// The entry should be found when searching for its local date
+			expect(result.length).toBe(1);
+			expect(result[0]?.cost).toBe(1.0);
+		});
+
+		it('returns empty array when no files match target date', async () => {
+			await using fixture = await createFixture({
+				'.claude': {
+					projects: {
+						'test-project': {
+							'session-789.jsonl': `${JSON.stringify({
+								timestamp: '2024-01-10T10:00:00Z',
+								sessionId: 'session-789',
+								message: {
+									id: 'msg_003',
+									usage: {
+										input_tokens: 100,
+										output_tokens: 50,
+									},
+									model: 'claude-sonnet-4-20250514',
+								},
+								requestId: 'req_003',
+								costUSD: 0.5,
+							})}\n`,
+						},
+					},
+				},
+			});
+
+			vi.stubEnv('CLAUDE_CONFIG_DIR', fixture.getPath('.claude'));
+
+			// Search for a date that doesn't exist in the data
+			const result = await loadDayActivityData('2024-01-20', { mode: 'display' });
+
+			expect(result).toHaveLength(0);
+		});
+	});
 }
 
 // duplication functionality tests
@@ -4694,12 +5033,12 @@ if (import.meta.vitest != null) {
 	});
 
 	// Test for calculateContextTokens
-	describe('calculateContextTokens', async () => {
+	describe('calculateContextTokens', () => {
 		it('returns null when transcript cannot be read', async () => {
 			const result = await calculateContextTokens('/nonexistent/path.jsonl');
 			expect(result).toBeNull();
 		});
-		const { createFixture } = await import('fs-fixture');
+
 		it('parses latest assistant line and excludes output tokens', async () => {
 			await using fixture = await createFixture({
 				'transcript.jsonl': [

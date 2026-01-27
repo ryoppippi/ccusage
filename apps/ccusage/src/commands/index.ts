@@ -3,6 +3,7 @@ import { cli } from 'gunshi';
 import { description, name, version } from '../../package.json';
 import { blocksCommand } from './blocks.ts';
 import { dailyCommand } from './daily.ts';
+import { dayCommand } from './day.ts';
 import { monthlyCommand } from './monthly.ts';
 import { sessionCommand } from './session.ts';
 import { statuslineCommand } from './statusline.ts';
@@ -12,6 +13,7 @@ import { weeklyCommand } from './weekly.ts';
 export {
 	blocksCommand,
 	dailyCommand,
+	dayCommand,
 	monthlyCommand,
 	sessionCommand,
 	statuslineCommand,
@@ -23,6 +25,7 @@ export {
  */
 export const subCommandUnion = [
 	['daily', dailyCommand],
+	['day', dayCommand],
 	['monthly', monthlyCommand],
 	['weekly', weeklyCommand],
 	['session', sessionCommand],

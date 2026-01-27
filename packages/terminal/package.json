@@ -6,7 +6,10 @@
 	"description": "Terminal utilities for ccusage",
 	"exports": {
 		"./table": "./src/table.ts",
-		"./utils": "./src/utils.ts"
+		"./utils": "./src/utils.ts",
+		"./colors": "./src/colors.ts",
+		"./sparkline": "./src/sparkline.ts",
+		"./charts": "./src/charts.ts"
 	},
 	"scripts": {
 		"format": "pnpm run lint --fix",
