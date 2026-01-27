@@ -155,8 +155,9 @@ export class LiteLLMPricingFetcher implements Disposable {
 				this.logger.warn('Fetching latest model pricing from LiteLLM...');
 				return Result.pipe(
 					Result.try({
-						try: fetch(this.url),
-						catch: (error) =>
+						immediate: true,
+						try: async () => fetch(this.url),
+						catch: (error: unknown) =>
 							new Error('Failed to fetch model pricing from LiteLLM', { cause: error }),
 					}),
 					Result.andThrough((response) => {
@@ -167,8 +168,10 @@ export class LiteLLMPricingFetcher implements Disposable {
 					}),
 					Result.andThen(async (response) =>
 						Result.try({
-							try: response.json() as Promise<Record<string, unknown>>,
-							catch: (error) => new Error('Failed to parse pricing data', { cause: error }),
+							immediate: true,
+							try: async () => response.json() as Promise<Record<string, unknown>>,
+							catch: (error: unknown) =>
+								new Error('Failed to parse pricing data', { cause: error }),
 						}),
 					),
 					Result.map((data) => {

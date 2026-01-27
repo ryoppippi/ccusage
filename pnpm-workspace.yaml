@@ -40,7 +40,7 @@ catalogs:
     '@hono/mcp': ^0.1.5
     '@hono/node-server': ^1.19.7
     '@modelcontextprotocol/sdk': ^1.24.3
-    '@praha/byethrow': ^0.6.3
+    '@praha/byethrow': ^0.9.0
     '@ryoppippi/limo': jsr:^0.2.2
     '@std/async': jsr:^1.0.14
     ansi-escapes: ^7.0.0
@@ -49,7 +49,7 @@ catalogs:
     es-toolkit: ^1.39.10
     fast-sort: ^3.4.1
     get-stdin: ^9.0.0
-    gunshi: ^0.26.3
+    gunshi: ^0.27.5
     hono: ^4.9.2
     nano-spawn: ^1.0.3
     p-limit: ^7.1.0

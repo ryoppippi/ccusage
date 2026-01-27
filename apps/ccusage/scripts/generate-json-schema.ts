@@ -190,8 +190,9 @@ function createConfigSchemaJson() {
  */
 async function runFormat(files: string[]) {
 	return Result.try({
-		try: $`pnpm exec oxfmt ${files}`,
-		catch: (error) => error,
+		immediate: true,
+		try: async () => $`pnpm exec oxfmt ${files}`,
+		catch: (error: unknown) => error,
 	});
 }
 
@@ -256,10 +257,7 @@ async function generateJsonSchema() {
 	const schemaJson = JSON.stringify(schemaObject, null, '\t');
 
 	await Result.pipe(
-		Result.try({
-			try: writeFile(SCHEMA_FILENAME, schemaJson),
-			safe: true,
-		}),
+		writeFile(SCHEMA_FILENAME, schemaJson),
 		Result.inspectError((error) => {
 			logger.error(`Failed to write ${SCHEMA_FILENAME}:`, error);
 			process.exit(1);
@@ -272,10 +270,7 @@ async function generateJsonSchema() {
 
 	// Run format on the root schema file that was changed
 	await Result.pipe(
-		Result.try({
-			try: runFormat([SCHEMA_FILENAME]),
-			safe: true,
-		}),
+		runFormat([SCHEMA_FILENAME]),
 		Result.inspectError((error) => {
 			logger.error('Failed to format generated files:', error);
 			process.exit(1);
