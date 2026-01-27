@@ -487,22 +487,12 @@ function filterByProject<T>(
 }
 
 /**
- * Checks if an entry is a duplicate based on hash
+ * Check if new entry should replace existing entry based on token count
+ * Returns true if new entry has more tokens than existing entry
  */
-function isDuplicateEntry(uniqueHash: string | null, processedHashes: Set<string>): boolean {
-	if (uniqueHash == null) {
-		return false;
-	}
-	return processedHashes.has(uniqueHash);
-}
-
-/**
- * Marks an entry as processed
- */
-function markAsProcessed(uniqueHash: string | null, processedHashes: Set<string>): void {
-	if (uniqueHash != null) {
-		processedHashes.add(uniqueHash);
-	}
+function shouldReplaceExisting(newData: UsageData, existingTokens: number): boolean {
+	const newTokens = getTotalTokensFromUsageData(newData);
+	return newTokens > existingTokens;
 }
 
 /**
@@ -522,12 +512,34 @@ export function createUniqueHash(data: UsageData): string | null {
 	const messageId = data.message.id;
 	const requestId = data.requestId;
 
-	if (messageId == null || requestId == null) {
+	// If messageId is missing, cannot deduplicate
+	if (messageId == null) {
 		return null;
+	}
+
+	// If requestId is missing, fall back to messageId only
+	if (requestId == null) {
+		return messageId;
 	}
 
 	// Create a hash using simple concatenation
 	return `${messageId}:${requestId}`;
+}
+
+/**
+ * Calculate total tokens from UsageData for deduplication comparison
+ * Uses complete formula: input + output + cache_creation + cache_read
+ * @param data - UsageData object
+ * @returns Total number of tokens
+ */
+export function getTotalTokensFromUsageData(data: UsageData): number {
+	const usage = data.message.usage;
+	return (
+		usage.input_tokens +
+		usage.output_tokens +
+		(usage.cache_creation_input_tokens ?? 0) +
+		(usage.cache_read_input_tokens ?? 0)
+	);
 }
 
 /**
@@ -775,7 +787,8 @@ export async function loadDailyUsageData(options?: LoadOptions): Promise<DailyUs
 	using fetcher = mode === 'display' ? null : new PricingFetcher(options?.offline);
 
 	// Track processed message+request combinations for deduplication
-	const processedHashes = new Set<string>();
+	// Map stores hash -> {index in allEntries, token count}
+	const processedHashes = new Map<string, { index: number; tokens: number }>();
 
 	// Collect all valid data entries first
 	const allEntries: {
@@ -801,22 +814,44 @@ export async function loadDailyUsageData(options?: LoadOptions): Promise<DailyUs
 
 				// Check for duplicate message + request ID combination
 				const uniqueHash = createUniqueHash(data);
-				if (isDuplicateEntry(uniqueHash, processedHashes)) {
-					// Skip duplicate message
+
+				// If no hash (missing messageId), process without deduplication
+				if (uniqueHash == null) {
+					const date = formatDate(data.timestamp, options?.timezone, DEFAULT_LOCALE);
+					const cost =
+						fetcher != null
+							? await calculateCostForEntry(data, mode, fetcher)
+							: (data.costUSD ?? 0);
+					allEntries.push({ data, date, cost, model: data.message.model, project });
 					return;
 				}
 
-				// Mark this combination as processed
-				markAsProcessed(uniqueHash, processedHashes);
+				const newTokens = getTotalTokensFromUsageData(data);
+				const existing = processedHashes.get(uniqueHash);
 
-				// Always use DEFAULT_LOCALE for date grouping to ensure YYYY-MM-DD format
+				if (existing != null) {
+					// Duplicate found - keep the one with more tokens
+					if (newTokens > existing.tokens) {
+						// Replace existing entry with new one that has more tokens
+						const date = formatDate(data.timestamp, options?.timezone, DEFAULT_LOCALE);
+						const cost =
+							fetcher != null
+								? await calculateCostForEntry(data, mode, fetcher)
+								: (data.costUSD ?? 0);
+						allEntries[existing.index] = { data, date, cost, model: data.message.model, project };
+						processedHashes.set(uniqueHash, { index: existing.index, tokens: newTokens });
+					}
+					// If new tokens <= existing tokens, skip (keep existing)
+					return;
+				}
+
+				// New entry - add to allEntries and track in map
 				const date = formatDate(data.timestamp, options?.timezone, DEFAULT_LOCALE);
-				// If fetcher is available, calculate cost based on mode and tokens
-				// If fetcher is null, use pre-calculated costUSD or default to 0
 				const cost =
 					fetcher != null ? await calculateCostForEntry(data, mode, fetcher) : (data.costUSD ?? 0);
-
+				const index = allEntries.length;
 				allEntries.push({ data, date, cost, model: data.message.model, project });
+				processedHashes.set(uniqueHash, { index, tokens: newTokens });
 			} catch {
 				// Skip invalid JSON lines
 			}
@@ -932,7 +967,8 @@ export async function loadSessionData(options?: LoadOptions): Promise<SessionUsa
 	using fetcher = mode === 'display' ? null : new PricingFetcher(options?.offline);
 
 	// Track processed message+request combinations for deduplication
-	const processedHashes = new Set<string>();
+	// Map stores hash -> {index in allEntries, token count}
+	const processedHashes = new Map<string, { index: number; tokens: number }>();
 
 	// Collect all valid data entries with session info first
 	const allEntries: Array<{
@@ -967,18 +1003,54 @@ export async function loadSessionData(options?: LoadOptions): Promise<SessionUsa
 
 				// Check for duplicate message + request ID combination
 				const uniqueHash = createUniqueHash(data);
-				if (isDuplicateEntry(uniqueHash, processedHashes)) {
-					// Skip duplicate message
+				const sessionKey = `${projectPath}/${sessionId}`;
+
+				// If no hash (missing messageId), process without deduplication
+				if (uniqueHash == null) {
+					const cost =
+						fetcher != null
+							? await calculateCostForEntry(data, mode, fetcher)
+							: (data.costUSD ?? 0);
+					allEntries.push({
+						data,
+						sessionKey,
+						sessionId,
+						projectPath,
+						cost,
+						timestamp: data.timestamp,
+						model: data.message.model,
+					});
 					return;
 				}
 
-				// Mark this combination as processed
-				markAsProcessed(uniqueHash, processedHashes);
+				const newTokens = getTotalTokensFromUsageData(data);
+				const existing = processedHashes.get(uniqueHash);
 
-				const sessionKey = `${projectPath}/${sessionId}`;
+				if (existing != null) {
+					// Duplicate found - keep the one with more tokens
+					if (newTokens > existing.tokens) {
+						const cost =
+							fetcher != null
+								? await calculateCostForEntry(data, mode, fetcher)
+								: (data.costUSD ?? 0);
+						allEntries[existing.index] = {
+							data,
+							sessionKey,
+							sessionId,
+							projectPath,
+							cost,
+							timestamp: data.timestamp,
+							model: data.message.model,
+						};
+						processedHashes.set(uniqueHash, { index: existing.index, tokens: newTokens });
+					}
+					return;
+				}
+
+				// New entry - add to allEntries and track in map
 				const cost =
 					fetcher != null ? await calculateCostForEntry(data, mode, fetcher) : (data.costUSD ?? 0);
-
+				const index = allEntries.length;
 				allEntries.push({
 					data,
 					sessionKey,
@@ -988,6 +1060,7 @@ export async function loadSessionData(options?: LoadOptions): Promise<SessionUsa
 					timestamp: data.timestamp,
 					model: data.message.model,
 				});
+				processedHashes.set(uniqueHash, { index, tokens: newTokens });
 			} catch {
 				// Skip invalid JSON lines
 			}
@@ -1377,7 +1450,8 @@ export async function loadSessionBlockData(options?: LoadOptions): Promise<Sessi
 	using fetcher = mode === 'display' ? null : new PricingFetcher(options?.offline);
 
 	// Track processed message+request combinations for deduplication
-	const processedHashes = new Set<string>();
+	// Map stores hash -> {index in allEntries, token count}
+	const processedHashes = new Map<string, { index: number; tokens: number }>();
 
 	// Collect all valid data entries first
 	const allEntries: LoadedUsageEntry[] = [];
@@ -1394,21 +1468,9 @@ export async function loadSessionBlockData(options?: LoadOptions): Promise<Sessi
 
 				// Check for duplicate message + request ID combination
 				const uniqueHash = createUniqueHash(data);
-				if (isDuplicateEntry(uniqueHash, processedHashes)) {
-					// Skip duplicate message
-					return;
-				}
 
-				// Mark this combination as processed
-				markAsProcessed(uniqueHash, processedHashes);
-
-				const cost =
-					fetcher != null ? await calculateCostForEntry(data, mode, fetcher) : (data.costUSD ?? 0);
-
-				// Get Claude Code usage limit expiration date
-				const usageLimitResetTime = getUsageLimitResetTime(data);
-
-				allEntries.push({
+				// Helper to create entry object
+				const createEntry = (costValue: number): LoadedUsageEntry => ({
 					timestamp: new Date(data.timestamp),
 					usage: {
 						inputTokens: data.message.usage.input_tokens,
@@ -1416,11 +1478,44 @@ export async function loadSessionBlockData(options?: LoadOptions): Promise<Sessi
 						cacheCreationInputTokens: data.message.usage.cache_creation_input_tokens ?? 0,
 						cacheReadInputTokens: data.message.usage.cache_read_input_tokens ?? 0,
 					},
-					costUSD: cost,
+					costUSD: costValue,
 					model: data.message.model ?? 'unknown',
 					version: data.version,
-					usageLimitResetTime: usageLimitResetTime ?? undefined,
+					usageLimitResetTime: getUsageLimitResetTime(data) ?? undefined,
 				});
+
+				// If no hash (missing messageId), process without deduplication
+				if (uniqueHash == null) {
+					const cost =
+						fetcher != null
+							? await calculateCostForEntry(data, mode, fetcher)
+							: (data.costUSD ?? 0);
+					allEntries.push(createEntry(cost));
+					return;
+				}
+
+				const newTokens = getTotalTokensFromUsageData(data);
+				const existing = processedHashes.get(uniqueHash);
+
+				if (existing != null) {
+					// Duplicate found - keep the one with more tokens
+					if (newTokens > existing.tokens) {
+						const cost =
+							fetcher != null
+								? await calculateCostForEntry(data, mode, fetcher)
+								: (data.costUSD ?? 0);
+						allEntries[existing.index] = createEntry(cost);
+						processedHashes.set(uniqueHash, { index: existing.index, tokens: newTokens });
+					}
+					return;
+				}
+
+				// New entry - add to allEntries and track in map
+				const cost =
+					fetcher != null ? await calculateCostForEntry(data, mode, fetcher) : (data.costUSD ?? 0);
+				const index = allEntries.length;
+				allEntries.push(createEntry(cost));
+				processedHashes.set(uniqueHash, { index, tokens: newTokens });
 			} catch (error) {
 				// Skip invalid JSON lines but log for debugging purposes
 				logger.debug(
@@ -4273,7 +4368,7 @@ if (import.meta.vitest != null) {
 				expect(hash).toBeNull();
 			});
 
-			it('should return null when request id is missing', () => {
+			it('should return messageId when request id is missing', () => {
 				const data = {
 					timestamp: createISOTimestamp('2025-01-10T10:00:00Z'),
 					message: {
@@ -4286,7 +4381,93 @@ if (import.meta.vitest != null) {
 				};
 
 				const hash = createUniqueHash(data);
-				expect(hash).toBeNull();
+				expect(hash).toBe('msg_123');
+			});
+		});
+
+		describe('getTotalTokensFromUsageData', () => {
+			it('should calculate total tokens including all four types', () => {
+				const data = {
+					timestamp: createISOTimestamp('2025-01-10T10:00:00Z'),
+					message: {
+						id: createMessageId('msg_123'),
+						usage: {
+							input_tokens: 100,
+							output_tokens: 50,
+							cache_creation_input_tokens: 200,
+							cache_read_input_tokens: 150,
+						},
+					},
+				};
+
+				const total = getTotalTokensFromUsageData(data);
+				expect(total).toBe(500);
+			});
+
+			it('should handle undefined cache tokens as zero', () => {
+				const data = {
+					timestamp: createISOTimestamp('2025-01-10T10:00:00Z'),
+					message: {
+						id: createMessageId('msg_123'),
+						usage: {
+							input_tokens: 100,
+							output_tokens: 50,
+						},
+					},
+				};
+
+				const total = getTotalTokensFromUsageData(data);
+				expect(total).toBe(150);
+			});
+		});
+
+		describe('shouldReplaceExisting', () => {
+			it('should return true when new entry has more tokens', () => {
+				const newData = {
+					timestamp: createISOTimestamp('2025-01-10T10:00:00Z'),
+					message: {
+						id: createMessageId('msg_123'),
+						usage: {
+							input_tokens: 200,
+							output_tokens: 100,
+						},
+					},
+				};
+
+				const result = shouldReplaceExisting(newData, 100);
+				expect(result).toBe(true);
+			});
+
+			it('should return false when new entry has fewer tokens', () => {
+				const newData = {
+					timestamp: createISOTimestamp('2025-01-10T10:00:00Z'),
+					message: {
+						id: createMessageId('msg_123'),
+						usage: {
+							input_tokens: 50,
+							output_tokens: 30,
+						},
+					},
+				};
+
+				const result = shouldReplaceExisting(newData, 200);
+				expect(result).toBe(false);
+			});
+
+			it('should return false when tokens are equal', () => {
+				const newData = {
+					timestamp: createISOTimestamp('2025-01-10T10:00:00Z'),
+					message: {
+						id: createMessageId('msg_123'),
+						usage: {
+							input_tokens: 100,
+							output_tokens: 50,
+						},
+					},
+				};
+
+				const result = shouldReplaceExisting(newData, 150);
+				expect(result).toBe(false);
 			});
 		});
 
@@ -4454,11 +4635,11 @@ if (import.meta.vitest != null) {
 					mode: 'display',
 				});
 
-				// Should keep the older entry (100/50 tokens) not the newer one (200/100)
+				// Should keep the entry with more tokens (200/100) not the one with fewer (100/50)
 				expect(data).toHaveLength(1);
-				expect(data[0]?.date).toBe('2025-01-10');
-				expect(data[0]?.inputTokens).toBe(100);
-				expect(data[0]?.outputTokens).toBe(50);
+				expect(data[0]?.date).toBe('2025-01-15');
+				expect(data[0]?.inputTokens).toBe(200);
+				expect(data[0]?.outputTokens).toBe(100);
 			});
 		});
 
