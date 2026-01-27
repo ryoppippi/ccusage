@@ -75,10 +75,17 @@ enablePrePostScripts: true
 
 minimumReleaseAge: 2880
 
-onlyBuiltDependencies:
-  - esbuild
-  - sharp
-  - sqlite3
-  - workerd
+# Security settings for supply chain attack prevention
+strictDepBuilds: true
+blockExoticSubdeps: true
+trustPolicy: no-downgrade
+
+# Explicitly allow build scripts for packages that require them
+# (replaces onlyBuiltDependencies)
+allowBuilds:
+  esbuild: true
+  sharp: true
+  sqlite3: true
+  workerd: true
 
 shellEmulator: true
