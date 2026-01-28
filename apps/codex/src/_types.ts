@@ -20,14 +20,16 @@ export type ModelUsage = TokenUsageDelta & {
 export type DailyUsageSummary = {
 	date: string;
 	firstTimestamp: string;
-	costUSD: number;
+	totalCost: number;
+	costUSD: number; // Legacy field, use totalCost instead
 	models: Map<string, ModelUsage>;
 } & TokenUsageDelta;
 
 export type MonthlyUsageSummary = {
 	month: string;
 	firstTimestamp: string;
-	costUSD: number;
+	totalCost: number;
+	costUSD: number; // Legacy field, use totalCost instead
 	models: Map<string, ModelUsage>;
 } & TokenUsageDelta;
 
@@ -35,7 +37,8 @@ export type SessionUsageSummary = {
 	sessionId: string;
 	firstTimestamp: string;
 	lastTimestamp: string;
-	costUSD: number;
+	totalCost: number;
+	costUSD: number; // Legacy field, use totalCost instead
 	models: Map<string, ModelUsage>;
 } & TokenUsageDelta;
 
@@ -61,7 +64,8 @@ export type DailyReportRow = {
 	outputTokens: number;
 	reasoningOutputTokens: number;
 	totalTokens: number;
-	costUSD: number;
+	totalCost: number;
+	costUSD: number; // Legacy field, use totalCost instead
 	models: Record<string, ModelUsage>;
 };
 
@@ -72,7 +76,8 @@ export type MonthlyReportRow = {
 	outputTokens: number;
 	reasoningOutputTokens: number;
 	totalTokens: number;
-	costUSD: number;
+	totalCost: number;
+	costUSD: number; // Legacy field, use totalCost instead
 	models: Record<string, ModelUsage>;
 };
 
@@ -86,6 +91,7 @@ export type SessionReportRow = {
 	outputTokens: number;
 	reasoningOutputTokens: number;
 	totalTokens: number;
-	costUSD: number;
+	totalCost: number;
+	costUSD: number; // Legacy field, use totalCost instead
 	models: Record<string, ModelUsage>;
 };

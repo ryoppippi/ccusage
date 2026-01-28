@@ -27,6 +27,7 @@ function createSummary(sessionId: string, initialTimestamp: string): SessionUsag
 		outputTokens: 0,
 		reasoningOutputTokens: 0,
 		totalTokens: 0,
+		totalCost: 0,
 		costUSD: 0,
 		models: new Map(),
 	};
@@ -120,6 +121,7 @@ export async function buildSessionReport(
 			}
 			cost += calculateCostUSD(usage, pricing);
 		}
+		summary.totalCost = cost;
 		summary.costUSD = cost;
 
 		const rowModels: Record<string, ModelUsage> = {};
@@ -142,6 +144,7 @@ export async function buildSessionReport(
 			outputTokens: summary.outputTokens,
 			reasoningOutputTokens: summary.reasoningOutputTokens,
 			totalTokens: summary.totalTokens,
+			totalCost: cost,
 			costUSD: cost,
 			models: rowModels,
 		});
@@ -231,6 +234,7 @@ if (import.meta.vitest != null) {
 				(300 / 1_000_000) * 0.6 +
 				(100 / 1_000_000) * 0.06 +
 				(200 / 1_000_000) * 2;
+			expect(second.totalCost).toBeCloseTo(expectedCost, 10);
 			expect(second.costUSD).toBeCloseTo(expectedCost, 10);
 		});
 	});
