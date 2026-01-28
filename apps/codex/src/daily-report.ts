@@ -22,7 +22,8 @@ function createSummary(date: string, initialTimestamp: string): DailyUsageSummar
 		date,
 		firstTimestamp: initialTimestamp,
 		inputTokens: 0,
-		cachedInputTokens: 0,
+		cacheCreationTokens: 0,
+		cacheReadTokens: 0,
 		outputTokens: 0,
 		reasoningOutputTokens: 0,
 		totalTokens: 0,
@@ -105,13 +106,19 @@ export async function buildDailyReport(
 
 		const rowModels: Record<string, ModelUsage> = {};
 		for (const [modelName, usage] of summary.models) {
-			rowModels[modelName] = { ...usage };
+			const modelEntry: ModelUsage = { ...usage };
+			if (usage.cacheReadTokens != null) {
+				modelEntry.cachedInputTokens = usage.cacheReadTokens;
+			}
+			rowModels[modelName] = modelEntry;
 		}
 
 		rows.push({
 			date: formatDisplayDate(summary.date, locale, timezone),
 			inputTokens: summary.inputTokens,
-			cachedInputTokens: summary.cachedInputTokens,
+			cacheCreationTokens: summary.cacheCreationTokens,
+			cacheReadTokens: summary.cacheReadTokens,
+			cachedInputTokens: summary.cacheReadTokens,
 			outputTokens: summary.outputTokens,
 			reasoningOutputTokens: summary.reasoningOutputTokens,
 			totalTokens: summary.totalTokens,
@@ -153,6 +160,8 @@ if (import.meta.vitest != null) {
 						timestamp: '2025-09-11T03:00:00.000Z',
 						model: 'gpt-5',
 						inputTokens: 1_000,
+						cacheCreationTokens: 0,
+						cacheReadTokens: 200,
 						cachedInputTokens: 200,
 						outputTokens: 500,
 						reasoningOutputTokens: 0,
@@ -163,6 +172,8 @@ if (import.meta.vitest != null) {
 						timestamp: '2025-09-11T05:00:00.000Z',
 						model: 'gpt-5-mini',
 						inputTokens: 400,
+						cacheCreationTokens: 0,
+						cacheReadTokens: 100,
 						cachedInputTokens: 100,
 						outputTokens: 200,
 						reasoningOutputTokens: 50,
@@ -173,6 +184,8 @@ if (import.meta.vitest != null) {
 						timestamp: '2025-09-12T01:00:00.000Z',
 						model: 'gpt-5',
 						inputTokens: 2_000,
+						cacheCreationTokens: 0,
+						cacheReadTokens: 0,
 						cachedInputTokens: 0,
 						outputTokens: 800,
 						reasoningOutputTokens: 0,
@@ -190,6 +203,7 @@ if (import.meta.vitest != null) {
 			const first = report[0]!;
 			expect(first.date).toContain('2025');
 			expect(first.inputTokens).toBe(1_400);
+			expect(first.cacheReadTokens).toBe(300);
 			expect(first.cachedInputTokens).toBe(300);
 			expect(first.outputTokens).toBe(700);
 			expect(first.reasoningOutputTokens).toBe(50);

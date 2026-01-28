@@ -1,6 +1,8 @@
 export type TokenUsageDelta = {
 	inputTokens: number;
-	cachedInputTokens: number;
+	cacheCreationTokens: number;
+	cacheReadTokens: number;
+	cachedInputTokens?: number;
 	outputTokens: number;
 	reasoningOutputTokens: number;
 	totalTokens: number;
@@ -15,6 +17,7 @@ export type TokenUsageEvent = TokenUsageDelta & {
 
 export type ModelUsage = TokenUsageDelta & {
 	isFallback?: boolean;
+	cachedInputTokens?: number; // Legacy field, now split into cacheCreationTokens + cacheReadTokens
 };
 
 export type DailyUsageSummary = {
@@ -60,25 +63,29 @@ export type PricingSource = {
 export type DailyReportRow = {
 	date: string;
 	inputTokens: number;
-	cachedInputTokens: number;
+	cacheCreationTokens: number;
+	cacheReadTokens: number;
 	outputTokens: number;
 	reasoningOutputTokens: number;
 	totalTokens: number;
 	totalCost: number;
 	costUSD: number; // Legacy field, use totalCost instead
 	models: Record<string, ModelUsage>;
+	cachedInputTokens?: number; // Legacy field for backward compatibility
 };
 
 export type MonthlyReportRow = {
 	month: string;
 	inputTokens: number;
-	cachedInputTokens: number;
+	cacheCreationTokens: number;
+	cacheReadTokens: number;
 	outputTokens: number;
 	reasoningOutputTokens: number;
 	totalTokens: number;
 	totalCost: number;
 	costUSD: number; // Legacy field, use totalCost instead
 	models: Record<string, ModelUsage>;
+	cachedInputTokens?: number; // Legacy field for backward compatibility
 };
 
 export type SessionReportRow = {
@@ -87,11 +94,13 @@ export type SessionReportRow = {
 	sessionFile: string;
 	directory: string;
 	inputTokens: number;
-	cachedInputTokens: number;
+	cacheCreationTokens: number;
+	cacheReadTokens: number;
 	outputTokens: number;
 	reasoningOutputTokens: number;
 	totalTokens: number;
 	totalCost: number;
 	costUSD: number; // Legacy field, use totalCost instead
 	models: Record<string, ModelUsage>;
+	cachedInputTokens?: number; // Legacy field for backward compatibility
 };
