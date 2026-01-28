@@ -75,6 +75,7 @@ export const sessionCommand = define({
 			outputTokens: 0,
 			cacheCreationTokens: 0,
 			cacheReadTokens: 0,
+			totalTokens: 0,
 			totalCost: 0,
 		};
 
@@ -83,6 +84,8 @@ export const sessionCommand = define({
 			totals.outputTokens += d.outputTokens;
 			totals.cacheCreationTokens += d.cacheCreationTokens;
 			totals.cacheReadTokens += d.cacheReadTokens;
+			totals.totalTokens +=
+				d.inputTokens + d.outputTokens + d.cacheCreationTokens + d.cacheReadTokens;
 			totals.totalCost += d.totalCost;
 		}
 
