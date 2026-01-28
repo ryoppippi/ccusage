@@ -76,7 +76,8 @@ export const dailyCommand = define({
 			const totals = rows.reduce(
 				(acc, row) => {
 					acc.inputTokens += row.inputTokens;
-					acc.cachedInputTokens += row.cachedInputTokens;
+					acc.cacheCreationTokens += row.cacheCreationTokens;
+					acc.cacheReadTokens += row.cacheReadTokens;
 					acc.outputTokens += row.outputTokens;
 					acc.reasoningOutputTokens += row.reasoningOutputTokens;
 					acc.totalTokens += row.totalTokens;
@@ -85,7 +86,8 @@ export const dailyCommand = define({
 				},
 				{
 					inputTokens: 0,
-					cachedInputTokens: 0,
+					cacheCreationTokens: 0,
+					cacheReadTokens: 0,
 					outputTokens: 0,
 					reasoningOutputTokens: 0,
 					totalTokens: 0,
