@@ -39,11 +39,21 @@ export const monthlyCommand = define({
 		}
 
 		if (entries.length === 0) {
-			const output = jsonOutput
-				? JSON.stringify({ monthly: [], totals: null })
-				: 'No OpenCode usage data found.';
-			// eslint-disable-next-line no-console
-			console.log(output);
+			if (jsonOutput) {
+				const emptyTotals = {
+					inputTokens: 0,
+					outputTokens: 0,
+					cacheCreationTokens: 0,
+					cacheReadTokens: 0,
+					totalTokens: 0,
+					totalCost: 0,
+				};
+				// eslint-disable-next-line no-console
+				console.log(JSON.stringify({ monthly: [], totals: emptyTotals }, null, 2));
+			} else {
+				// eslint-disable-next-line no-console
+				console.log('No OpenCode usage data found.');
+			}
 			return;
 		}
 

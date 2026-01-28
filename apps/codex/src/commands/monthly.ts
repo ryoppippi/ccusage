@@ -48,9 +48,20 @@ export const monthlyCommand = define({
 		}
 
 		if (events.length === 0) {
-			log(
-				jsonOutput ? JSON.stringify({ monthly: [], totals: null }) : 'No Codex usage data found.',
-			);
+			if (jsonOutput) {
+				const emptyTotals = {
+					inputTokens: 0,
+					cacheCreationTokens: 0,
+					cacheReadTokens: 0,
+					outputTokens: 0,
+					reasoningOutputTokens: 0,
+					totalTokens: 0,
+					totalCost: 0,
+				};
+				log(JSON.stringify({ monthly: [], totals: emptyTotals }, null, 2));
+			} else {
+				log('No Codex usage data found.');
+			}
 			return;
 		}
 
@@ -69,7 +80,22 @@ export const monthlyCommand = define({
 			if (rows.length === 0) {
 				log(
 					jsonOutput
-						? JSON.stringify({ monthly: [], totals: null })
+						? JSON.stringify(
+								{
+									monthly: [],
+									totals: {
+										inputTokens: 0,
+										cacheCreationTokens: 0,
+										cacheReadTokens: 0,
+										outputTokens: 0,
+										reasoningOutputTokens: 0,
+										totalTokens: 0,
+										totalCost: 0,
+									},
+								},
+								null,
+								2,
+							)
 						: 'No Codex usage data found for provided filters.',
 				);
 				return;

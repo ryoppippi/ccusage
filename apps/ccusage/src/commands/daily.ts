@@ -82,7 +82,17 @@ export const dailyCommand = define({
 
 		if (dailyData.length === 0) {
 			if (useJson) {
-				log(JSON.stringify([]));
+				const totals = createTotalsObject({
+					inputTokens: 0,
+					outputTokens: 0,
+					cacheCreationTokens: 0,
+					cacheReadTokens: 0,
+					totalCost: 0,
+				});
+				const jsonOutput = mergedOptions.instances
+					? { projects: {}, totals }
+					: { daily: [], totals };
+				log(JSON.stringify(jsonOutput, null, 2));
 			} else {
 				logger.warn('No Claude usage data found.');
 			}
