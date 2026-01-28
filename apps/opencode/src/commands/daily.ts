@@ -10,8 +10,10 @@ import {
 import { groupBy } from 'es-toolkit';
 import { define } from 'gunshi';
 import pc from 'picocolors';
+import { sharedArgs } from '../_shared-args.ts';
 import { calculateCostForEntry } from '../cost-utils.ts';
 import { loadOpenCodeMessages } from '../data-loader.ts';
+import { isDateInRange } from '../date-utils.ts';
 import { logger } from '../logger.ts';
 
 const TABLE_COLUMN_COUNT = 8;
@@ -19,17 +21,7 @@ const TABLE_COLUMN_COUNT = 8;
 export const dailyCommand = define({
 	name: 'daily',
 	description: 'Show OpenCode token usage grouped by day',
-	args: {
-		json: {
-			type: 'boolean',
-			short: 'j',
-			description: 'Output in JSON format',
-		},
-		compact: {
-			type: 'boolean',
-			description: 'Force compact table mode',
-		},
-	},
+	args: sharedArgs,
 	async run(ctx) {
 		const jsonOutput = Boolean(ctx.values.json);
 
@@ -38,6 +30,13 @@ export const dailyCommand = define({
 		}
 
 		let entries = await loadOpenCodeMessages();
+
+		const since = ctx.values.since ?? null;
+		const until = ctx.values.until ?? null;
+
+		if (since != null || until != null) {
+			entries = entries.filter((entry) => isDateInRange(entry.timestamp, since, until));
+		}
 
 		if (entries.length === 0) {
 			const output = jsonOutput
