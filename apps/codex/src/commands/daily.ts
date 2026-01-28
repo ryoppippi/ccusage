@@ -80,7 +80,7 @@ export const dailyCommand = define({
 					acc.outputTokens += row.outputTokens;
 					acc.reasoningOutputTokens += row.reasoningOutputTokens;
 					acc.totalTokens += row.totalTokens;
-					acc.costUSD += row.costUSD;
+					acc.totalCost += row.totalCost;
 					return acc;
 				},
 				{
@@ -89,7 +89,7 @@ export const dailyCommand = define({
 					outputTokens: 0,
 					reasoningOutputTokens: 0,
 					totalTokens: 0,
-					costUSD: 0,
+					totalCost: 0,
 				},
 			);
 
