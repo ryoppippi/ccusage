@@ -33,10 +33,13 @@ export const sessionCommand = define({
 	async run(ctx) {
 		const jsonOutput = Boolean(ctx.values.json);
 
-		const [entries, sessionMetadataMap] = await Promise.all([
-			loadOpenCodeMessages(),
-			loadOpenCodeSessions(),
-		]);
+		if (jsonOutput) {
+			logger.level = 0;
+		}
+
+		let entries = await loadOpenCodeMessages();
+
+		const sessionMetadataMap = await loadOpenCodeSessions();
 
 		if (entries.length === 0) {
 			const output = jsonOutput

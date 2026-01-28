@@ -33,7 +33,11 @@ export const monthlyCommand = define({
 	async run(ctx) {
 		const jsonOutput = Boolean(ctx.values.json);
 
-		const entries = await loadOpenCodeMessages();
+		if (jsonOutput) {
+			logger.level = 0;
+		}
+
+		let entries = await loadOpenCodeMessages();
 
 		if (entries.length === 0) {
 			const output = jsonOutput
