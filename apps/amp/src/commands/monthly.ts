@@ -48,11 +48,25 @@ export const monthlyCommand = define({
 		const { events } = await loadAmpUsageEvents();
 
 		if (events.length === 0) {
-			const output = jsonOutput
-				? JSON.stringify({ monthly: [], totals: null })
-				: 'No Amp usage data found.';
-			// eslint-disable-next-line no-console
-			console.log(output);
+			if (jsonOutput) {
+				const emptyOutput = {
+					monthly: [],
+					totals: {
+						inputTokens: 0,
+						outputTokens: 0,
+						cacheCreationTokens: 0,
+						cacheReadTokens: 0,
+						totalTokens: 0,
+						credits: 0,
+						totalCost: 0,
+					},
+				};
+				// eslint-disable-next-line no-console
+				console.log(JSON.stringify(emptyOutput, null, 2));
+			} else {
+				// eslint-disable-next-line no-console
+				console.log('No Amp usage data found.');
+			}
 			return;
 		}
 
