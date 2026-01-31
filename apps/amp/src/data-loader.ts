@@ -157,7 +157,7 @@ function convertLedgerEventToUsageEvent(
 		outputTokens,
 		cacheCreationInputTokens,
 		cacheReadInputTokens,
-		totalTokens: inputTokens + outputTokens,
+		totalTokens: inputTokens + outputTokens + cacheCreationInputTokens + cacheReadInputTokens,
 	};
 }
 
@@ -330,6 +330,7 @@ if (import.meta.vitest != null) {
 			expect(event.outputTokens).toBe(50);
 			expect(event.cacheCreationInputTokens).toBe(500);
 			expect(event.cacheReadInputTokens).toBe(200);
+			expect(event.totalTokens).toBe(850);
 			expect(event.credits).toBe(1.5);
 
 			expect(threads.get('T-test-thread-123')).toEqual({

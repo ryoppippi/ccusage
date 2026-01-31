@@ -104,7 +104,7 @@ export const sessionCommand = define({
 				}
 			}
 
-			const totalTokens = inputTokens + outputTokens;
+			const totalTokens = inputTokens + outputTokens + cacheCreationTokens + cacheReadTokens;
 			const threadInfo = threads.get(threadId);
 
 			sessionData.push({

@@ -98,7 +98,7 @@ export const dailyCommand = define({
 				modelsSet.add(event.model);
 			}
 
-			const totalTokens = inputTokens + outputTokens;
+			const totalTokens = inputTokens + outputTokens + cacheCreationTokens + cacheReadTokens;
 
 			dailyData.push({
 				date,
