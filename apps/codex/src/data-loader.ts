@@ -94,7 +94,8 @@ function convertToDelta(raw: RawUsage): TokenUsageDelta {
 
 	return {
 		inputTokens: raw.input_tokens,
-		cachedInputTokens: cached,
+		cacheCreationTokens: 0,
+		cacheReadTokens: cached,
 		outputTokens: raw.output_tokens,
 		reasoningOutputTokens: raw.reasoning_output_tokens,
 		totalTokens: total,
@@ -342,7 +343,11 @@ export async function loadTokenUsageEvents(options: LoadOptions = {}): Promise<L
 					timestamp,
 					model,
 					inputTokens: delta.inputTokens,
-					cachedInputTokens: delta.cachedInputTokens,
+					// New fields (ccusage-compatible naming)
+					cacheCreationTokens: 0,
+					cacheReadTokens: delta.cacheReadTokens,
+					// Legacy field for backward compatibility
+					cachedInputTokens: delta.cacheReadTokens,
 					outputTokens: delta.outputTokens,
 					reasoningOutputTokens: delta.reasoningOutputTokens,
 					totalTokens: delta.totalTokens,

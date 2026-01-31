@@ -76,7 +76,14 @@ export const sessionCommand = define({
 
 		if (sessionData.length === 0) {
 			if (useJson) {
-				log(JSON.stringify([]));
+				const totals = createTotalsObject({
+					inputTokens: 0,
+					outputTokens: 0,
+					cacheCreationTokens: 0,
+					cacheReadTokens: 0,
+					totalCost: 0,
+				});
+				log(JSON.stringify({ sessions: [], totals }, null, 2));
 			} else {
 				logger.warn('No Claude usage data found.');
 			}

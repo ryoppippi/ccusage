@@ -10,8 +10,10 @@ import {
 import { groupBy } from 'es-toolkit';
 import { define } from 'gunshi';
 import pc from 'picocolors';
+import { sharedArgs } from '../_shared-args.ts';
 import { calculateCostForEntry } from '../cost-utils.ts';
 import { loadOpenCodeMessages } from '../data-loader.ts';
+import { isDateInRange } from '../date-utils.ts';
 import { logger } from '../logger.ts';
 
 const TABLE_COLUMN_COUNT = 8;
@@ -44,28 +46,39 @@ function getISOWeek(date: Date): string {
 export const weeklyCommand = define({
 	name: 'weekly',
 	description: 'Show OpenCode token usage grouped by week (ISO week format)',
-	args: {
-		json: {
-			type: 'boolean',
-			short: 'j',
-			description: 'Output in JSON format',
-		},
-		compact: {
-			type: 'boolean',
-			description: 'Force compact table mode',
-		},
-	},
+	args: sharedArgs,
 	async run(ctx) {
 		const jsonOutput = Boolean(ctx.values.json);
 
-		const entries = await loadOpenCodeMessages();
+		if (jsonOutput) {
+			logger.level = 0;
+		}
+
+		let entries = await loadOpenCodeMessages();
+
+		const since = ctx.values.since ?? null;
+		const until = ctx.values.until ?? null;
+
+		if (since != null || until != null) {
+			entries = entries.filter((entry) => isDateInRange(entry.timestamp, since, until));
+		}
 
 		if (entries.length === 0) {
-			const output = jsonOutput
-				? JSON.stringify({ weekly: [], totals: null })
-				: 'No OpenCode usage data found.';
-			// eslint-disable-next-line no-console
-			console.log(output);
+			if (jsonOutput) {
+				const emptyTotals = {
+					inputTokens: 0,
+					outputTokens: 0,
+					cacheCreationTokens: 0,
+					cacheReadTokens: 0,
+					totalTokens: 0,
+					totalCost: 0,
+				};
+				// eslint-disable-next-line no-console
+				console.log(JSON.stringify({ weekly: [], totals: emptyTotals }, null, 2));
+			} else {
+				// eslint-disable-next-line no-console
+				console.log('No OpenCode usage data found.');
+			}
 			return;
 		}
 
