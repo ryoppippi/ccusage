@@ -98,7 +98,7 @@ export const monthlyCommand = define({
 				modelsSet.add(event.model);
 			}
 
-			const totalTokens = inputTokens + outputTokens;
+			const totalTokens = inputTokens + outputTokens + cacheCreationTokens + cacheReadTokens;
 
 			monthlyData.push({
 				month,
