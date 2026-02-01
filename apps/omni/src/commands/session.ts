@@ -19,7 +19,10 @@ import {
 	formatCostSummary,
 	formatSourceLabel,
 	formatSourcesTitle,
+	pushBreakdownRows,
 } from './_shared.ts';
+
+const TABLE_COLUMN_COUNT = 8;
 
 function formatActivity(value: string): string {
 	return value.length >= 10 ? value.slice(0, 10) : value;
@@ -44,6 +47,12 @@ export const sessionCommand = define({
 			type: 'boolean',
 			short: 'c',
 			description: 'Force compact table mode',
+			default: false,
+		},
+		breakdown: {
+			type: 'boolean',
+			short: 'b',
+			description: 'Show per-model cost breakdown',
 			default: false,
 		},
 		since: {
@@ -149,6 +158,8 @@ export const sessionCommand = define({
 		});
 
 		let hasCodex = false;
+		const showBreakdown = Boolean(ctx.values.breakdown);
+
 		for (const row of data) {
 			const cacheTokens = row.cacheReadTokens + row.cacheCreationTokens;
 			if (row.source === 'codex') {
@@ -165,6 +176,10 @@ export const sessionCommand = define({
 				formatCurrency(row.costUSD),
 				formatModelsDisplayMultiline(row.models),
 			]);
+
+			if (showBreakdown && row.modelBreakdowns.length > 0) {
+				pushBreakdownRows(table, row.modelBreakdowns, TABLE_COLUMN_COUNT);
+			}
 		}
 
 		log(table.toString());

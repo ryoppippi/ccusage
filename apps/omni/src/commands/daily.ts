@@ -1,4 +1,3 @@
-import type { UnifiedModelBreakdown } from '../_types.ts';
 import process from 'node:process';
 import {
 	formatCurrency,
@@ -8,7 +7,6 @@ import {
 	ResponsiveTable,
 } from '@ccusage/terminal/table';
 import { define } from 'gunshi';
-import pc from 'picocolors';
 import { CODEX_CACHE_NOTE } from '../_consts.ts';
 import {
 	loadCombinedDailyData,
@@ -22,48 +20,10 @@ import {
 	formatCostSummary,
 	formatSourceLabel,
 	formatSourcesTitle,
+	pushBreakdownRows,
 } from './_shared.ts';
 
-function formatModelNameShort(modelName: string): string {
-	// Handle [pi] prefix - preserve prefix, format the rest
-	const piMatch = modelName.match(/^\[pi\] (.+)$/);
-	if (piMatch?.[1] != null) {
-		return `[pi] ${formatModelNameShort(piMatch[1])}`;
-	}
-
-	// Handle claude- with date suffix (e.g., "claude-sonnet-4-5-20250929" -> "sonnet-4-5")
-	const match = modelName.match(/^claude-(\w+)-([\d-]+)-(\d{8})$/);
-	if (match != null) {
-		return `${match[1]}-${match[2]}`;
-	}
-
-	// Handle claude- without date suffix (e.g., "claude-opus-4-5" -> "opus-4-5")
-	const noDateMatch = modelName.match(/^claude-(\w+)-([\d-]+)$/);
-	if (noDateMatch != null) {
-		return `${noDateMatch[1]}-${noDateMatch[2]}`;
-	}
-
-	// Return original if pattern doesn't match
-	return modelName;
-}
-
-function pushBreakdownRows(
-	table: { push: (row: (string | number)[]) => void },
-	breakdowns: UnifiedModelBreakdown[],
-): void {
-	for (const breakdown of breakdowns) {
-		const cacheTokens = breakdown.cacheReadTokens + breakdown.cacheCreationTokens;
-		table.push([
-			`  └─ ${formatModelNameShort(breakdown.modelName)}`,
-			'',
-			pc.gray(formatNumber(breakdown.inputTokens)),
-			pc.gray(formatNumber(breakdown.outputTokens)),
-			pc.gray(formatNumber(cacheTokens)),
-			pc.gray(formatCurrency(breakdown.cost)),
-			'',
-		]);
-	}
-}
+const TABLE_COLUMN_COUNT = 7;
 
 export const dailyCommand = define({
 	name: 'daily',
@@ -207,7 +167,7 @@ export const dailyCommand = define({
 			]);
 
 			if (showBreakdown && row.modelBreakdowns.length > 0) {
-				pushBreakdownRows(table, row.modelBreakdowns);
+				pushBreakdownRows(table, row.modelBreakdowns, TABLE_COLUMN_COUNT);
 			}
 		}
 
