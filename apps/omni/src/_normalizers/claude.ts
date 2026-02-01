@@ -1,5 +1,30 @@
 import type { DailyUsage, MonthlyUsage, SessionUsage } from 'ccusage/data-loader';
-import type { UnifiedDailyUsage, UnifiedMonthlyUsage, UnifiedSessionUsage } from '../_types.ts';
+import type {
+	UnifiedDailyUsage,
+	UnifiedModelBreakdown,
+	UnifiedMonthlyUsage,
+	UnifiedSessionUsage,
+} from '../_types.ts';
+
+function normalizeBreakdowns(
+	breakdowns: Array<{
+		modelName: string;
+		inputTokens: number;
+		outputTokens: number;
+		cacheCreationTokens: number;
+		cacheReadTokens: number;
+		cost: number;
+	}>,
+): UnifiedModelBreakdown[] {
+	return breakdowns.map((b) => ({
+		modelName: b.modelName,
+		inputTokens: b.inputTokens,
+		outputTokens: b.outputTokens,
+		cacheCreationTokens: b.cacheCreationTokens,
+		cacheReadTokens: b.cacheReadTokens,
+		cost: b.cost,
+	}));
+}
 
 export function normalizeClaudeDaily(data: DailyUsage): UnifiedDailyUsage {
 	return {
@@ -13,6 +38,7 @@ export function normalizeClaudeDaily(data: DailyUsage): UnifiedDailyUsage {
 			data.inputTokens + data.outputTokens + data.cacheReadTokens + data.cacheCreationTokens,
 		costUSD: data.totalCost,
 		models: data.modelsUsed,
+		modelBreakdowns: normalizeBreakdowns(data.modelBreakdowns),
 	};
 }
 
@@ -28,6 +54,7 @@ export function normalizeClaudeMonthly(data: MonthlyUsage): UnifiedMonthlyUsage 
 			data.inputTokens + data.outputTokens + data.cacheReadTokens + data.cacheCreationTokens,
 		costUSD: data.totalCost,
 		models: data.modelsUsed,
+		modelBreakdowns: normalizeBreakdowns(data.modelBreakdowns),
 	};
 }
 
@@ -46,6 +73,7 @@ export function normalizeClaudeSession(data: SessionUsage): UnifiedSessionUsage 
 			data.inputTokens + data.outputTokens + data.cacheReadTokens + data.cacheCreationTokens,
 		costUSD: data.totalCost,
 		models: data.modelsUsed,
+		modelBreakdowns: normalizeBreakdowns(data.modelBreakdowns),
 	};
 }
 

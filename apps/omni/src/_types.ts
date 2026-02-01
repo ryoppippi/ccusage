@@ -7,6 +7,18 @@ export const Sources = ['claude', 'codex', 'opencode', 'pi'] as const;
 export type Source = TupleToUnion<typeof Sources>;
 
 /**
+ * Model breakdown for per-model cost and token details
+ */
+export type UnifiedModelBreakdown = {
+	modelName: string;
+	inputTokens: number;
+	outputTokens: number;
+	cacheCreationTokens: number;
+	cacheReadTokens: number;
+	cost: number;
+};
+
+/**
  * Unified token usage (normalized across all sources)
  *
  * IMPORTANT: Token semantics differ by source - totals are SOURCE-FAITHFUL:
@@ -32,6 +44,7 @@ export type UnifiedDailyUsage = UnifiedTokenUsage & {
 	date: string; // YYYY-MM-DD
 	costUSD: number;
 	models: string[];
+	modelBreakdowns: UnifiedModelBreakdown[];
 };
 
 /**
@@ -42,6 +55,7 @@ export type UnifiedMonthlyUsage = UnifiedTokenUsage & {
 	month: string; // YYYY-MM
 	costUSD: number;
 	models: string[];
+	modelBreakdowns: UnifiedModelBreakdown[];
 };
 
 /**
@@ -55,6 +69,7 @@ export type UnifiedSessionUsage = UnifiedTokenUsage & {
 	lastTimestamp: string;
 	costUSD: number;
 	models: string[];
+	modelBreakdowns: UnifiedModelBreakdown[];
 };
 
 /**

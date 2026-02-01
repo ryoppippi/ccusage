@@ -1,3 +1,4 @@
+import type { UnifiedModelBreakdown } from '../_types.ts';
 import process from 'node:process';
 import {
 	formatCurrency,
@@ -7,6 +8,7 @@ import {
 	ResponsiveTable,
 } from '@ccusage/terminal/table';
 import { define } from 'gunshi';
+import pc from 'picocolors';
 import { CODEX_CACHE_NOTE } from '../_consts.ts';
 import {
 	loadCombinedDailyData,
@@ -21,6 +23,47 @@ import {
 	formatSourceLabel,
 	formatSourcesTitle,
 } from './_shared.ts';
+
+function formatModelNameShort(modelName: string): string {
+	// Handle [pi] prefix - preserve prefix, format the rest
+	const piMatch = modelName.match(/^\[pi\] (.+)$/);
+	if (piMatch?.[1] != null) {
+		return `[pi] ${formatModelNameShort(piMatch[1])}`;
+	}
+
+	// Handle claude- with date suffix (e.g., "claude-sonnet-4-5-20250929" -> "sonnet-4-5")
+	const match = modelName.match(/^claude-(\w+)-([\d-]+)-(\d{8})$/);
+	if (match != null) {
+		return `${match[1]}-${match[2]}`;
+	}
+
+	// Handle claude- without date suffix (e.g., "claude-opus-4-5" -> "opus-4-5")
+	const noDateMatch = modelName.match(/^claude-(\w+)-([\d-]+)$/);
+	if (noDateMatch != null) {
+		return `${noDateMatch[1]}-${noDateMatch[2]}`;
+	}
+
+	// Return original if pattern doesn't match
+	return modelName;
+}
+
+function pushBreakdownRows(
+	table: { push: (row: (string | number)[]) => void },
+	breakdowns: UnifiedModelBreakdown[],
+): void {
+	for (const breakdown of breakdowns) {
+		const cacheTokens = breakdown.cacheReadTokens + breakdown.cacheCreationTokens;
+		table.push([
+			`  └─ ${formatModelNameShort(breakdown.modelName)}`,
+			'',
+			pc.gray(formatNumber(breakdown.inputTokens)),
+			pc.gray(formatNumber(breakdown.outputTokens)),
+			pc.gray(formatNumber(cacheTokens)),
+			pc.gray(formatCurrency(breakdown.cost)),
+			'',
+		]);
+	}
+}
 
 export const dailyCommand = define({
 	name: 'daily',
@@ -41,6 +84,12 @@ export const dailyCommand = define({
 			type: 'boolean',
 			short: 'c',
 			description: 'Force compact table mode',
+			default: false,
+		},
+		breakdown: {
+			type: 'boolean',
+			short: 'b',
+			description: 'Show per-model cost breakdown',
 			default: false,
 		},
 		since: {
@@ -139,6 +188,8 @@ export const dailyCommand = define({
 		});
 
 		let hasCodex = false;
+		const showBreakdown = Boolean(ctx.values.breakdown);
+
 		for (const row of data) {
 			const cacheTokens = row.cacheReadTokens + row.cacheCreationTokens;
 			if (row.source === 'codex') {
@@ -154,6 +205,10 @@ export const dailyCommand = define({
 				formatCurrency(row.costUSD),
 				formatModelsDisplayMultiline(row.models),
 			]);
+
+			if (showBreakdown && row.modelBreakdowns.length > 0) {
+				pushBreakdownRows(table, row.modelBreakdowns);
+			}
 		}
 
 		log(table.toString());

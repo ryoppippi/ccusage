@@ -14,6 +14,7 @@ export function normalizeOpenCodeDaily(data: DailyReportRow): UnifiedDailyUsage 
 		totalTokens: data.totalTokens,
 		costUSD: data.totalCost,
 		models: data.modelsUsed,
+		modelBreakdowns: [], // OpenCode doesn't provide per-model breakdowns
 	};
 }
 
@@ -28,6 +29,7 @@ export function normalizeOpenCodeMonthly(data: MonthlyReportRow): UnifiedMonthly
 		totalTokens: data.totalTokens,
 		costUSD: data.totalCost,
 		models: data.modelsUsed,
+		modelBreakdowns: [], // OpenCode doesn't provide per-model breakdowns
 	};
 }
 
@@ -45,6 +47,7 @@ export function normalizeOpenCodeSession(data: SessionReportRow): UnifiedSession
 		totalTokens: data.totalTokens,
 		costUSD: data.totalCost,
 		models: data.modelsUsed,
+		modelBreakdowns: [], // OpenCode doesn't provide per-model breakdowns
 	};
 }
 

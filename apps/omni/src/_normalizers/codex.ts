@@ -1,5 +1,36 @@
 import type { DailyReportRow, MonthlyReportRow, SessionReportRow } from '@ccusage/codex/types';
-import type { UnifiedDailyUsage, UnifiedMonthlyUsage, UnifiedSessionUsage } from '../_types.ts';
+import type {
+	UnifiedDailyUsage,
+	UnifiedModelBreakdown,
+	UnifiedMonthlyUsage,
+	UnifiedSessionUsage,
+} from '../_types.ts';
+
+type ModelUsageRecord = Record<
+	string,
+	{
+		inputTokens: number;
+		cachedInputTokens: number;
+		outputTokens: number;
+		reasoningOutputTokens: number;
+		totalTokens: number;
+		isFallback?: boolean;
+	}
+>;
+
+function normalizeCodexBreakdowns(models: ModelUsageRecord | undefined): UnifiedModelBreakdown[] {
+	if (models == null) {
+		return [];
+	}
+	return Object.entries(models).map(([modelName, usage]) => ({
+		modelName,
+		inputTokens: usage.inputTokens,
+		outputTokens: usage.outputTokens,
+		cacheCreationTokens: 0,
+		cacheReadTokens: Math.min(usage.cachedInputTokens, usage.inputTokens),
+		cost: 0, // Codex doesn't provide per-model cost
+	}));
+}
 
 export function normalizeCodexDaily(data: DailyReportRow): UnifiedDailyUsage {
 	const cacheReadTokens = Math.min(data.cachedInputTokens, data.inputTokens);
@@ -13,6 +44,7 @@ export function normalizeCodexDaily(data: DailyReportRow): UnifiedDailyUsage {
 		totalTokens: data.totalTokens ?? data.inputTokens + data.outputTokens,
 		costUSD: data.costUSD ?? 0,
 		models: Object.keys(data.models ?? {}),
+		modelBreakdowns: normalizeCodexBreakdowns(data.models),
 	};
 }
 
@@ -28,6 +60,7 @@ export function normalizeCodexMonthly(data: MonthlyReportRow): UnifiedMonthlyUsa
 		totalTokens: data.totalTokens ?? data.inputTokens + data.outputTokens,
 		costUSD: data.costUSD ?? 0,
 		models: Object.keys(data.models ?? {}),
+		modelBreakdowns: normalizeCodexBreakdowns(data.models),
 	};
 }
 
@@ -47,6 +80,7 @@ export function normalizeCodexSession(data: SessionReportRow): UnifiedSessionUsa
 		totalTokens: data.totalTokens ?? data.inputTokens + data.outputTokens,
 		costUSD: data.costUSD ?? 0,
 		models: Object.keys(data.models ?? {}),
+		modelBreakdowns: normalizeCodexBreakdowns(data.models),
 	};
 }
 

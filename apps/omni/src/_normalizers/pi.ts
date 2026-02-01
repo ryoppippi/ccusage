@@ -3,7 +3,32 @@ import type {
 	MonthlyUsageWithSource,
 	SessionUsageWithSource,
 } from '@ccusage/pi/data-loader';
-import type { UnifiedDailyUsage, UnifiedMonthlyUsage, UnifiedSessionUsage } from '../_types.ts';
+import type {
+	UnifiedDailyUsage,
+	UnifiedModelBreakdown,
+	UnifiedMonthlyUsage,
+	UnifiedSessionUsage,
+} from '../_types.ts';
+
+function normalizeBreakdowns(
+	breakdowns: Array<{
+		modelName: string;
+		inputTokens: number;
+		outputTokens: number;
+		cacheCreationTokens: number;
+		cacheReadTokens: number;
+		cost: number;
+	}>,
+): UnifiedModelBreakdown[] {
+	return breakdowns.map((b) => ({
+		modelName: b.modelName,
+		inputTokens: b.inputTokens,
+		outputTokens: b.outputTokens,
+		cacheCreationTokens: b.cacheCreationTokens,
+		cacheReadTokens: b.cacheReadTokens,
+		cost: b.cost,
+	}));
+}
 
 export function normalizePiDaily(data: DailyUsageWithSource): UnifiedDailyUsage {
 	return {
@@ -17,6 +42,7 @@ export function normalizePiDaily(data: DailyUsageWithSource): UnifiedDailyUsage 
 			data.inputTokens + data.outputTokens + data.cacheReadTokens + data.cacheCreationTokens,
 		costUSD: data.totalCost,
 		models: data.modelsUsed,
+		modelBreakdowns: normalizeBreakdowns(data.modelBreakdowns),
 	};
 }
 
@@ -32,6 +58,7 @@ export function normalizePiMonthly(data: MonthlyUsageWithSource): UnifiedMonthly
 			data.inputTokens + data.outputTokens + data.cacheReadTokens + data.cacheCreationTokens,
 		costUSD: data.totalCost,
 		models: data.modelsUsed,
+		modelBreakdowns: normalizeBreakdowns(data.modelBreakdowns),
 	};
 }
 
@@ -50,6 +77,7 @@ export function normalizePiSession(data: SessionUsageWithSource): UnifiedSession
 			data.inputTokens + data.outputTokens + data.cacheReadTokens + data.cacheCreationTokens,
 		costUSD: data.totalCost,
 		models: data.modelsUsed,
+		modelBreakdowns: normalizeBreakdowns(data.modelBreakdowns),
 	};
 }
 
