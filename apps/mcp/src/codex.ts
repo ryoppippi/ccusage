@@ -8,6 +8,7 @@ const codexModelUsageSchema = z.object({
 	outputTokens: z.number(),
 	reasoningOutputTokens: z.number(),
 	totalTokens: z.number(),
+	costUSD: z.number().optional(),
 	isFallback: z.boolean().optional(),
 });
 

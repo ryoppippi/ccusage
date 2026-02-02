@@ -65,6 +65,7 @@ export async function buildMonthlyReport(
 		addUsage(summary, event);
 		const modelUsage: ModelUsage = summary.models.get(modelName) ?? {
 			...createEmptyUsage(),
+			costUSD: 0,
 			isFallback: false,
 		};
 		if (!summary.models.has(modelName)) {
@@ -100,7 +101,9 @@ export async function buildMonthlyReport(
 			if (pricing == null) {
 				continue;
 			}
-			cost += calculateCostUSD(usage, pricing);
+			const modelCost = calculateCostUSD(usage, pricing);
+			usage.costUSD = modelCost;
+			cost += modelCost;
 		}
 		summary.costUSD = cost;
 
@@ -202,6 +205,12 @@ if (import.meta.vitest != null) {
 				(100 / 1_000_000) * 0.06 +
 				(200 / 1_000_000) * 2;
 			expect(first.costUSD).toBeCloseTo(expectedCost, 10);
+			const expectedGpt5Cost =
+				(800 / 1_000_000) * 1.25 + (200 / 1_000_000) * 0.125 + (500 / 1_000_000) * 10;
+			const expectedMiniCost =
+				(300 / 1_000_000) * 0.6 + (100 / 1_000_000) * 0.06 + (200 / 1_000_000) * 2;
+			expect(first.models['gpt-5']?.costUSD).toBeCloseTo(expectedGpt5Cost, 10);
+			expect(first.models['gpt-5-mini']?.costUSD).toBeCloseTo(expectedMiniCost, 10);
 		});
 	});
 }

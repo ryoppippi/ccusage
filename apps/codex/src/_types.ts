@@ -15,6 +15,7 @@ export type TokenUsageEvent = TokenUsageDelta & {
 
 export type ModelUsage = TokenUsageDelta & {
 	isFallback?: boolean;
+	costUSD: number;
 };
 
 export type DailyUsageSummary = {

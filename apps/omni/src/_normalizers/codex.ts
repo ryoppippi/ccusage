@@ -15,27 +15,22 @@ type ModelUsageRecord = Record<
 		reasoningOutputTokens: number;
 		totalTokens: number;
 		isFallback?: boolean;
+		costUSD?: number;
 	}
 >;
 
-function normalizeCodexBreakdowns(
-	models: ModelUsageRecord | undefined,
-	totalCost: number,
-): UnifiedModelBreakdown[] {
+function normalizeCodexBreakdowns(models: ModelUsageRecord | undefined): UnifiedModelBreakdown[] {
 	if (models == null) {
 		return [];
 	}
-	const entries = Object.entries(models);
-	// If there's only one model, assign the full cost to it
-	const singleModelCost = entries.length === 1 ? totalCost : 0;
 
-	return entries.map(([modelName, usage]) => ({
+	return Object.entries(models).map(([modelName, usage]) => ({
 		modelName,
 		inputTokens: usage.inputTokens,
 		outputTokens: usage.outputTokens,
 		cacheCreationTokens: 0,
 		cacheReadTokens: Math.min(usage.cachedInputTokens, usage.inputTokens),
-		cost: singleModelCost,
+		cost: usage.costUSD ?? 0,
 	}));
 }
 
@@ -52,7 +47,7 @@ export function normalizeCodexDaily(data: DailyReportRow): UnifiedDailyUsage {
 		totalTokens: data.totalTokens ?? data.inputTokens + data.outputTokens,
 		costUSD,
 		models: Object.keys(data.models ?? {}),
-		modelBreakdowns: normalizeCodexBreakdowns(data.models, costUSD),
+		modelBreakdowns: normalizeCodexBreakdowns(data.models),
 	};
 }
 
@@ -69,7 +64,7 @@ export function normalizeCodexMonthly(data: MonthlyReportRow): UnifiedMonthlyUsa
 		totalTokens: data.totalTokens ?? data.inputTokens + data.outputTokens,
 		costUSD,
 		models: Object.keys(data.models ?? {}),
-		modelBreakdowns: normalizeCodexBreakdowns(data.models, costUSD),
+		modelBreakdowns: normalizeCodexBreakdowns(data.models),
 	};
 }
 
@@ -90,7 +85,7 @@ export function normalizeCodexSession(data: SessionReportRow): UnifiedSessionUsa
 		totalTokens: data.totalTokens ?? data.inputTokens + data.outputTokens,
 		costUSD,
 		models: Object.keys(data.models ?? {}),
-		modelBreakdowns: normalizeCodexBreakdowns(data.models, costUSD),
+		modelBreakdowns: normalizeCodexBreakdowns(data.models),
 	};
 }
 
@@ -112,6 +107,7 @@ if (import.meta.vitest != null) {
 						outputTokens: 100,
 						reasoningOutputTokens: 0,
 						totalTokens: 300,
+						costUSD: 2.5,
 					},
 				},
 			} satisfies DailyReportRow;
@@ -122,7 +118,7 @@ if (import.meta.vitest != null) {
 			expect(normalized.totalTokens).toBe(300);
 		});
 
-		it('assigns full cost to single model breakdown', () => {
+		it('uses per-model cost for single model breakdown', () => {
 			const data = {
 				date: '2025-01-02',
 				inputTokens: 200,
@@ -138,6 +134,7 @@ if (import.meta.vitest != null) {
 						outputTokens: 100,
 						reasoningOutputTokens: 0,
 						totalTokens: 300,
+						costUSD: 2.5,
 					},
 				},
 			} satisfies DailyReportRow;
@@ -148,7 +145,7 @@ if (import.meta.vitest != null) {
 			expect(normalized.modelBreakdowns[0]?.cost).toBe(2.5);
 		});
 
-		it('assigns zero cost when multiple models (cannot determine per-model cost)', () => {
+		it('uses per-model costs when multiple models are present', () => {
 			const data = {
 				date: '2025-01-02',
 				inputTokens: 400,
@@ -164,6 +161,7 @@ if (import.meta.vitest != null) {
 						outputTokens: 100,
 						reasoningOutputTokens: 0,
 						totalTokens: 300,
+						costUSD: 2.0,
 					},
 					'gpt-5.1': {
 						inputTokens: 200,
@@ -171,6 +169,7 @@ if (import.meta.vitest != null) {
 						outputTokens: 100,
 						reasoningOutputTokens: 0,
 						totalTokens: 300,
+						costUSD: 3.0,
 					},
 				},
 			} satisfies DailyReportRow;
@@ -178,8 +177,11 @@ if (import.meta.vitest != null) {
 			const normalized = normalizeCodexDaily(data);
 
 			expect(normalized.modelBreakdowns).toHaveLength(2);
-			expect(normalized.modelBreakdowns[0]?.cost).toBe(0);
-			expect(normalized.modelBreakdowns[1]?.cost).toBe(0);
+			const breakdownCosts = Object.fromEntries(
+				normalized.modelBreakdowns.map((entry) => [entry.modelName, entry.cost]),
+			);
+			expect(breakdownCosts['gpt-5']).toBe(2.0);
+			expect(breakdownCosts['gpt-5.1']).toBe(3.0);
 		});
 	});
 }
