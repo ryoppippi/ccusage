@@ -12,7 +12,7 @@
  * @param dateStr - Date string in YYYYMMDD format
  * @returns Date object or null if invalid
  */
-function parseYYYYMMDD(dateStr: string): Date | null {
+export function parseYYYYMMDD(dateStr: string): Date | null {
 	if (dateStr.length !== 8) {
 		return null;
 	}
@@ -33,9 +33,9 @@ function parseYYYYMMDD(dateStr: string): Date | null {
 		return null;
 	}
 
-	const date = new Date(year, month, day);
+	const date = new Date(Date.UTC(year, month, day));
 	// Check if the date is valid (e.g., not Feb 30)
-	if (date.getFullYear() !== year || date.getMonth() !== month || date.getDate() !== day) {
+	if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month || date.getUTCDate() !== day) {
 		return null;
 	}
 
@@ -51,7 +51,9 @@ function parseYYYYMMDD(dateStr: string): Date | null {
  */
 export function isDateInRange(date: Date, since: string | null, until: string | null): boolean {
 	// Normalize date to midnight UTC for consistent comparison
-	const normalizedDate = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+	const normalizedDate = new Date(
+		Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()),
+	);
 
 	if (since != null) {
 		const sinceDate = parseYYYYMMDD(since);
@@ -59,7 +61,7 @@ export function isDateInRange(date: Date, since: string | null, until: string | 
 			return false;
 		}
 		const normalizedSince = new Date(
-			Date.UTC(sinceDate.getFullYear(), sinceDate.getMonth(), sinceDate.getDate()),
+			Date.UTC(sinceDate.getUTCFullYear(), sinceDate.getUTCMonth(), sinceDate.getUTCDate()),
 		);
 		if (normalizedDate < normalizedSince) {
 			return false;
@@ -72,7 +74,7 @@ export function isDateInRange(date: Date, since: string | null, until: string | 
 			return false;
 		}
 		const normalizedUntil = new Date(
-			Date.UTC(untilDate.getFullYear(), untilDate.getMonth(), untilDate.getDate()),
+			Date.UTC(untilDate.getUTCFullYear(), untilDate.getUTCMonth(), untilDate.getUTCDate()),
 		);
 		if (normalizedDate > normalizedUntil) {
 			return false;
@@ -90,17 +92,17 @@ if (import.meta.vitest != null) {
 			it('should parse valid dates', () => {
 				const date = parseYYYYMMDD('20250128');
 				expect(date).not.toBeNull();
-				expect(date?.getFullYear()).toBe(2025);
-				expect(date?.getMonth()).toBe(0); // January
-				expect(date?.getDate()).toBe(28);
+				expect(date?.getUTCFullYear()).toBe(2025);
+				expect(date?.getUTCMonth()).toBe(0); // January
+				expect(date?.getUTCDate()).toBe(28);
 			});
 
 			it('should handle leap years', () => {
 				const date = parseYYYYMMDD('20240229');
 				expect(date).not.toBeNull();
-				expect(date?.getFullYear()).toBe(2024);
-				expect(date?.getMonth()).toBe(1); // February
-				expect(date?.getDate()).toBe(29);
+				expect(date?.getUTCFullYear()).toBe(2024);
+				expect(date?.getUTCMonth()).toBe(1); // February
+				expect(date?.getUTCDate()).toBe(29);
 			});
 
 			it('should reject invalid dates', () => {

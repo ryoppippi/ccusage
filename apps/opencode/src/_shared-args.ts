@@ -1,5 +1,6 @@
 import type { Args } from 'gunshi';
 import * as v from 'valibot';
+import { parseYYYYMMDD } from './date-utils.ts';
 
 /**
  * Filter date schema for YYYYMMDD format (e.g., 20250125)
@@ -17,7 +18,11 @@ export const filterDateSchema = v.pipe(
  * @returns Validated date string
  */
 function parseDateArg(value: string): string {
-	return v.parse(filterDateSchema, value);
+	const parsed = v.parse(filterDateSchema, value);
+	if (parseYYYYMMDD(parsed) == null) {
+		throw new Error('Date must be a valid calendar date (YYYYMMDD).');
+	}
+	return parsed;
 }
 
 /**
@@ -46,3 +51,15 @@ export const sharedArgs = {
 		description: 'Force compact table mode',
 	},
 } as const satisfies Args;
+
+if (import.meta.vitest != null) {
+	describe('parseDateArg', () => {
+		it('accepts valid calendar dates', () => {
+			expect(parseDateArg('20250125')).toBe('20250125');
+		});
+
+		it('rejects invalid calendar dates', () => {
+			expect(() => parseDateArg('20240230')).toThrow('Date must be a valid calendar date');
+		});
+	});
+}
