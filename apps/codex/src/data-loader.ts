@@ -309,7 +309,8 @@ export async function loadTokenUsageEvents(options: LoadOptions = {}): Promise<L
 				const delta = convertToDelta(raw);
 				if (
 					delta.inputTokens === 0 &&
-					delta.cachedInputTokens === 0 &&
+					delta.cacheCreationTokens === 0 &&
+					delta.cacheReadTokens === 0 &&
 					delta.outputTokens === 0 &&
 					delta.reasoningOutputTokens === 0
 				) {
@@ -456,6 +457,45 @@ if (import.meta.vitest != null) {
 			expect(second.model).toBe('gpt-5');
 			expect(second.inputTokens).toBe(800);
 			expect(second.cachedInputTokens).toBe(100);
+		});
+
+		it('skips zero-usage deltas', async () => {
+			await using fixture = await createFixture({
+				sessions: {
+					'zero-usage.jsonl': [
+						JSON.stringify({
+							timestamp: '2025-09-20T10:00:00.000Z',
+							type: 'turn_context',
+							payload: {
+								model: 'gpt-5',
+							},
+						}),
+						JSON.stringify({
+							timestamp: '2025-09-20T10:00:05.000Z',
+							type: 'event_msg',
+							payload: {
+								type: 'token_count',
+								info: {
+									last_token_usage: {
+										input_tokens: 0,
+										cached_input_tokens: 0,
+										output_tokens: 0,
+										reasoning_output_tokens: 0,
+										total_tokens: 0,
+									},
+									model: 'gpt-5',
+								},
+							},
+						}),
+					].join('\n'),
+				},
+			});
+
+			const { events } = await loadTokenUsageEvents({
+				sessionDirs: [fixture.getPath('sessions')],
+			});
+
+			expect(events).toHaveLength(0);
 		});
 
 		it('falls back to legacy model when metadata is missing entirely', async () => {
