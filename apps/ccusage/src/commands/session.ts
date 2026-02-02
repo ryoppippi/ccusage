@@ -1,4 +1,5 @@
 import type { UsageReportConfig } from '@ccusage/terminal/table';
+import type { SessionUsage } from '../data-loader.ts';
 import process from 'node:process';
 import {
 	addEmptySeparatorRow,
@@ -22,6 +23,59 @@ import { handleSessionIdLookup } from './_session_id.ts';
 
 // eslint-disable-next-line ts/no-unused-vars
 const { order: _, ...sharedArgs } = sharedCommandConfig.args;
+
+type SessionJsonOutput = {
+	sessions: Array<{
+		sessionId: string;
+		inputTokens: number;
+		outputTokens: number;
+		cacheCreationTokens: number;
+		cacheReadTokens: number;
+		totalTokens: number;
+		totalCost: number;
+		lastActivity: string;
+		modelsUsed: string[];
+		modelBreakdowns: SessionUsage['modelBreakdowns'];
+		projectPath: string;
+	}>;
+	totals: ReturnType<typeof createTotalsObject>;
+};
+
+function buildSessionJsonOutput(
+	sessionData: SessionUsage[],
+	totals: Parameters<typeof createTotalsObject>[0],
+): SessionJsonOutput {
+	return {
+		sessions: sessionData.map((data) => ({
+			sessionId: data.sessionId,
+			inputTokens: data.inputTokens,
+			outputTokens: data.outputTokens,
+			cacheCreationTokens: data.cacheCreationTokens,
+			cacheReadTokens: data.cacheReadTokens,
+			totalTokens: getTotalTokens(data),
+			totalCost: data.totalCost,
+			lastActivity: data.lastActivity,
+			modelsUsed: data.modelsUsed,
+			modelBreakdowns: data.modelBreakdowns,
+			projectPath: data.projectPath,
+		})),
+		totals: createTotalsObject(totals),
+	};
+}
+
+async function renderSessionJsonOutput(
+	sessionData: SessionUsage[],
+	totals: Parameters<typeof createTotalsObject>[0],
+	jq: string | null | undefined,
+): Result.ResultAsync<string, Error> {
+	const jsonOutput = buildSessionJsonOutput(sessionData, totals);
+
+	if (jq != null) {
+		return processWithJq(jsonOutput, jq);
+	}
+
+	return Result.succeed(JSON.stringify(jsonOutput, null, 2));
+}
 
 export const sessionCommand = define({
 	name: 'session',
@@ -76,14 +130,19 @@ export const sessionCommand = define({
 
 		if (sessionData.length === 0) {
 			if (useJson) {
-				const totals = createTotalsObject({
+				const totals = {
 					inputTokens: 0,
 					outputTokens: 0,
 					cacheCreationTokens: 0,
 					cacheReadTokens: 0,
 					totalCost: 0,
-				});
-				log(JSON.stringify({ sessions: [], totals }, null, 2));
+				};
+				const jsonResult = await renderSessionJsonOutput([], totals, ctx.values.jq);
+				if (Result.isFailure(jsonResult)) {
+					logger.error(jsonResult.error.message);
+					process.exit(1);
+				}
+				log(jsonResult.value);
 			} else {
 				logger.warn('No Claude usage data found.');
 			}
@@ -100,35 +159,12 @@ export const sessionCommand = define({
 		}
 
 		if (useJson) {
-			// Output JSON format
-			const jsonOutput = {
-				sessions: sessionData.map((data) => ({
-					sessionId: data.sessionId,
-					inputTokens: data.inputTokens,
-					outputTokens: data.outputTokens,
-					cacheCreationTokens: data.cacheCreationTokens,
-					cacheReadTokens: data.cacheReadTokens,
-					totalTokens: getTotalTokens(data),
-					totalCost: data.totalCost,
-					lastActivity: data.lastActivity,
-					modelsUsed: data.modelsUsed,
-					modelBreakdowns: data.modelBreakdowns,
-					projectPath: data.projectPath,
-				})),
-				totals: createTotalsObject(totals),
-			};
-
-			// Process with jq if specified
-			if (ctx.values.jq != null) {
-				const jqResult = await processWithJq(jsonOutput, ctx.values.jq);
-				if (Result.isFailure(jqResult)) {
-					logger.error(jqResult.error.message);
-					process.exit(1);
-				}
-				log(jqResult.value);
-			} else {
-				log(JSON.stringify(jsonOutput, null, 2));
+			const jsonResult = await renderSessionJsonOutput(sessionData, totals, ctx.values.jq);
+			if (Result.isFailure(jsonResult)) {
+				logger.error(jsonResult.error.message);
+				process.exit(1);
 			}
+			log(jsonResult.value);
 		} else {
 			// Print header
 			logger.box('Claude Code Token Usage Report - By Session');
@@ -198,6 +234,27 @@ export const sessionCommand = define({
 		}
 	},
 });
+
+if (import.meta.vitest != null) {
+	describe('renderSessionJsonOutput', () => {
+		it('applies jq to empty session payloads', async () => {
+			const result = await renderSessionJsonOutput(
+				[],
+				{
+					inputTokens: 0,
+					outputTokens: 0,
+					cacheCreationTokens: 0,
+					cacheReadTokens: 0,
+					totalCost: 0,
+				},
+				'.totals.totalTokens',
+			);
+
+			const output = Result.unwrap(result);
+			expect(output).toBe('0');
+		});
+	});
+}
 
 // Note: Tests for --id functionality are covered by the existing loadSessionUsageById tests
 // in data-loader.ts, since this command directly uses that function.
