@@ -30,6 +30,9 @@ type MonthlyDisplayTotals = {
 	totalCost: number;
 };
 
+/**
+ * Create a zeroed display totals accumulator for monthly table output.
+ */
 function createMonthlyDisplayTotals(): MonthlyDisplayTotals {
 	return {
 		inputTokens: 0,
@@ -41,6 +44,9 @@ function createMonthlyDisplayTotals(): MonthlyDisplayTotals {
 	};
 }
 
+/**
+ * Update display totals using a pre-split row for monthly output.
+ */
 function updateMonthlyDisplayTotals(
 	totals: MonthlyDisplayTotals,
 	row: MonthlyReportRow,

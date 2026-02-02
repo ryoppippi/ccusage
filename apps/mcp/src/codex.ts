@@ -128,6 +128,9 @@ async function runCodexCliJson(
 	});
 }
 
+/**
+ * Parse Codex CLI JSON output with a helpful error when parsing fails.
+ */
 function parseCodexJsonOutput(raw: string, command: 'daily' | 'monthly'): unknown {
 	const parseResult = Result.try({
 		try: () => JSON.parse(raw) as unknown,

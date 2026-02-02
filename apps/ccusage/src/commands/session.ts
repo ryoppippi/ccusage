@@ -41,6 +41,9 @@ type SessionJsonOutput = {
 	totals: ReturnType<typeof createTotalsObject>;
 };
 
+/**
+ * Build the JSON output payload for session usage reports.
+ */
 function buildSessionJsonOutput(
 	sessionData: SessionUsage[],
 	totals: Parameters<typeof createTotalsObject>[0],
@@ -63,6 +66,9 @@ function buildSessionJsonOutput(
 	};
 }
 
+/**
+ * Render session usage JSON output, applying jq when requested.
+ */
 async function renderSessionJsonOutput(
 	sessionData: SessionUsage[],
 	totals: Parameters<typeof createTotalsObject>[0],
