@@ -72,18 +72,23 @@ export function pushBreakdownRows(
 	table: { push: (row: (string | number)[]) => void },
 	breakdowns: UnifiedModelBreakdown[],
 	columnCount: number,
+	leadingEmptyColumns = 1,
 ): void {
 	for (const breakdown of breakdowns) {
 		const cacheTokens = breakdown.cacheReadTokens + breakdown.cacheCreationTokens;
-		const row: (string | number)[] = [
-			`  └─ ${formatModelNameShort(breakdown.modelName)}`,
-			'',
+		const row: (string | number)[] = [`  └─ ${formatModelNameShort(breakdown.modelName)}`];
+		// Add leading empty columns (for Session, Last Activity, etc.)
+		for (let i = 0; i < leadingEmptyColumns; i++) {
+			row.push('');
+		}
+		// Add the data columns
+		row.push(
 			pc.gray(formatNumber(breakdown.inputTokens)),
 			pc.gray(formatNumber(breakdown.outputTokens)),
 			pc.gray(formatNumber(cacheTokens)),
 			pc.gray(formatCurrency(breakdown.cost)),
-		];
-		// Add empty columns to match table width
+		);
+		// Add trailing empty columns to match table width
 		while (row.length < columnCount) {
 			row.push('');
 		}

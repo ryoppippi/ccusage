@@ -178,7 +178,7 @@ export const sessionCommand = define({
 			]);
 
 			if (showBreakdown && row.modelBreakdowns.length > 0) {
-				pushBreakdownRows(table, row.modelBreakdowns, TABLE_COLUMN_COUNT);
+				pushBreakdownRows(table, row.modelBreakdowns, TABLE_COLUMN_COUNT, 2);
 			}
 		}
 
