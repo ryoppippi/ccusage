@@ -1,8 +1,9 @@
 import type { CliInvocation } from './cli-utils.ts';
 import process from 'node:process';
+import { Result } from '@praha/byethrow';
 import { createFixture } from 'fs-fixture';
 import { z } from 'zod';
-import { createCliInvocation, executeCliCommand, resolveBinaryPath } from './cli-utils.ts';
+import * as cliUtils from './cli-utils.ts';
 
 const codexModelUsageSchema = z.object({
 	inputTokens: z.number(),
@@ -88,8 +89,8 @@ function getCodexInvocation(): CliInvocation {
 		return cachedCodexInvocation;
 	}
 
-	const entryPath = resolveBinaryPath('@ccusage/codex', 'ccusage-codex');
-	cachedCodexInvocation = createCliInvocation(entryPath);
+	const entryPath = cliUtils.resolveBinaryPath('@ccusage/codex', 'ccusage-codex');
+	cachedCodexInvocation = cliUtils.createCliInvocation(entryPath);
 	return cachedCodexInvocation;
 }
 
@@ -122,14 +123,28 @@ async function runCodexCliJson(
 		cliArgs.push('--no-offline');
 	}
 
-	return executeCliCommand(executable, cliArgs, {
+	return cliUtils.executeCliCommand(executable, cliArgs, {
 		// Keep default log level to allow JSON output
 	});
 }
 
+function parseCodexJsonOutput(raw: string, command: 'daily' | 'monthly'): unknown {
+	const parseResult = Result.try({
+		try: () => JSON.parse(raw) as unknown,
+		catch: (error) => error,
+	});
+	const parsed = parseResult();
+	if (Result.isFailure(parsed)) {
+		const errorMessage =
+			parsed.error instanceof Error ? parsed.error.message : String(parsed.error);
+		throw new Error(`Failed to parse Codex ${command} output: ${errorMessage}. Raw output: ${raw}`);
+	}
+	return parsed.value;
+}
+
 export async function getCodexDaily(parameters: z.infer<typeof codexParametersSchema>) {
 	const raw = await runCodexCliJson('daily', parameters);
-	const parsed = JSON.parse(raw) as unknown;
+	const parsed = parseCodexJsonOutput(raw, 'daily');
 	const normalized = codexDailyResponseSchema.parse(parsed);
 	if (Array.isArray(normalized)) {
 		return {
@@ -150,11 +165,17 @@ export async function getCodexDaily(parameters: z.infer<typeof codexParametersSc
 
 export async function getCodexMonthly(parameters: z.infer<typeof codexParametersSchema>) {
 	const raw = await runCodexCliJson('monthly', parameters);
-	return codexMonthlyResponseSchema.parse(JSON.parse(raw));
+	const parsed = parseCodexJsonOutput(raw, 'monthly');
+	return codexMonthlyResponseSchema.parse(parsed);
 }
 
 if (import.meta.vitest != null) {
 	describe('getCodexDaily/getCodexMonthly', () => {
+		afterEach(() => {
+			vi.restoreAllMocks();
+			cachedCodexInvocation = null;
+		});
+
 		it('parses empty daily output (no data)', async () => {
 			const originalCodexHome = process.env.CODEX_HOME;
 			await using fixture = await createFixture({ sessions: {} });
@@ -207,6 +228,16 @@ if (import.meta.vitest != null) {
 					process.env.CODEX_HOME = originalCodexHome;
 				}
 			}
+		});
+
+		it('throws a helpful error for invalid daily JSON output', async () => {
+			vi.spyOn(cliUtils, 'executeCliCommand').mockResolvedValue('not-json');
+			await expect(getCodexDaily({})).rejects.toThrow('Failed to parse Codex daily output');
+		});
+
+		it('throws a helpful error for invalid monthly JSON output', async () => {
+			vi.spyOn(cliUtils, 'executeCliCommand').mockResolvedValue('not-json');
+			await expect(getCodexMonthly({})).rejects.toThrow('Failed to parse Codex monthly output');
 		});
 	});
 }

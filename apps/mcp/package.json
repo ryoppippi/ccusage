@@ -65,6 +65,7 @@
 	},
 	"devDependencies": {
 		"@ccusage/internal": "workspace:*",
+		"@praha/byethrow": "catalog:runtime",
 		"@ryoppippi/eslint-config": "catalog:lint",
 		"@typescript/native-preview": "catalog:types",
 		"clean-pkg-json": "catalog:release",
