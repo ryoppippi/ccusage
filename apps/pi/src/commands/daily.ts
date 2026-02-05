@@ -91,10 +91,13 @@ export const dailyCommand = define({
 			totals.outputTokens += d.outputTokens;
 			totals.cacheCreationTokens += d.cacheCreationTokens;
 			totals.cacheReadTokens += d.cacheReadTokens;
-			totals.totalTokens +=
-				d.inputTokens + d.outputTokens + d.cacheCreationTokens + d.cacheReadTokens;
 			totals.totalCost += d.totalCost;
 		}
+		totals.totalTokens =
+			totals.inputTokens +
+			totals.outputTokens +
+			totals.cacheCreationTokens +
+			totals.cacheReadTokens;
 
 		if (ctx.values.json) {
 			log(

@@ -12,6 +12,17 @@ import { define } from 'gunshi';
 import { loadPiAgentSessionData } from '../data-loader.ts';
 import { log, logger } from '../logger.ts';
 
+function createEmptyTotals () {
+  return {
+	inputTokens: 0,
+	outputTokens: 0,
+	cacheCreationTokens: 0,
+	cacheReadTokens: 0,
+	totalTokens: 0,
+	totalCost: 0,
+}
+}
+
 export const sessionCommand = define({
 	name: 'session',
 	description: 'Show pi-agent usage by session',
@@ -63,14 +74,7 @@ export const sessionCommand = define({
 
 		if (piData.length === 0) {
 			if (ctx.values.json) {
-				const totals = {
-					inputTokens: 0,
-					outputTokens: 0,
-					cacheCreationTokens: 0,
-					cacheReadTokens: 0,
-					totalTokens: 0,
-					totalCost: 0,
-				};
+				const totals = createEmptyTotals();
 				log(JSON.stringify({ sessions: [], totals }, null, 2));
 			} else {
 				logger.warn('No usage data found.');
@@ -78,14 +82,7 @@ export const sessionCommand = define({
 			process.exit(0);
 		}
 
-		const totals = {
-			inputTokens: 0,
-			outputTokens: 0,
-			cacheCreationTokens: 0,
-			cacheReadTokens: 0,
-			totalTokens: 0,
-			totalCost: 0,
-		};
+		const totals = createEmptyTotals();
 
 		for (const d of piData) {
 			totals.inputTokens += d.inputTokens;
