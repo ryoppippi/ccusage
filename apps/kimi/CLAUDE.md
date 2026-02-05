@@ -147,4 +147,4 @@ This format allows session reports to show both the directory and session file s
 1. **Reasoning tokens are estimated**: Kimi CLI reports reasoning content in `ContentPart` messages but not token counts. We estimate tokens using a ~4 chars/token heuristic, which may differ from actual tokenization.
 2. **No pre-calculated costs**: Unlike OpenCode, Kimi doesn't provide cost metadata, so we rely on hardcoded pricing.
 3. **Single model per session**: Model detection relies on config.toml, not per-message metadata.
-4. **No weekly command**: Implemented (unlike other apps).
+4. **Weekly command**: Implemented for Kimi (unlike some other apps).
