@@ -257,7 +257,7 @@ if (import.meta.vitest != null) {
 				totalCost: 1.5,
 				costUSD: 99,
 				models: {
-					'gpt-5': {
+					'claude-sonnet-4-20250514': {
 						inputTokens: 100,
 						cacheCreationTokens: 0,
 						cacheReadTokens: 0,

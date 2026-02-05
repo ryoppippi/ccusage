@@ -165,11 +165,11 @@ if (import.meta.vitest != null) {
 		it('groups events by session and calculates costs', async () => {
 			const pricing = new Map([
 				[
-					'gpt-5',
+					'claude-sonnet-4-20250514',
 					{ inputCostPerMToken: 1.25, cachedInputCostPerMToken: 0.125, outputCostPerMToken: 10 },
 				],
 				[
-					'gpt-5-mini',
+					'claude-opus-4-20250514',
 					{ inputCostPerMToken: 0.6, cachedInputCostPerMToken: 0.06, outputCostPerMToken: 2 },
 				],
 			]);
@@ -188,7 +188,7 @@ if (import.meta.vitest != null) {
 					{
 						sessionId: 'session-a',
 						timestamp: '2025-09-12T01:00:00.000Z',
-						model: 'gpt-5',
+						model: 'claude-sonnet-4-20250514',
 						inputTokens: 1_000,
 						cacheCreationTokens: 0,
 						cacheReadTokens: 100,
@@ -200,7 +200,7 @@ if (import.meta.vitest != null) {
 					{
 						sessionId: 'session-a',
 						timestamp: '2025-09-12T02:00:00.000Z',
-						model: 'gpt-5-mini',
+						model: 'claude-opus-4-20250514',
 						inputTokens: 400,
 						cacheCreationTokens: 0,
 						cacheReadTokens: 100,
@@ -212,7 +212,7 @@ if (import.meta.vitest != null) {
 					{
 						sessionId: 'session-b',
 						timestamp: '2025-09-11T23:30:00.000Z',
-						model: 'gpt-5',
+						model: 'claude-sonnet-4-20250514',
 						inputTokens: 800,
 						cacheCreationTokens: 0,
 						cacheReadTokens: 0,
@@ -239,7 +239,7 @@ if (import.meta.vitest != null) {
 			expect(second.sessionFile).toBe('session-a');
 			expect(second.directory).toBe('');
 			expect(second.totalTokens).toBe(2_130);
-			expect(second.models['gpt-5']?.totalTokens).toBe(1_500);
+			expect(second.models['claude-sonnet-4-20250514']?.totalTokens).toBe(1_500);
 			const expectedCost =
 				(900 / 1_000_000) * 1.25 +
 				(100 / 1_000_000) * 0.125 +
