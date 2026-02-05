@@ -117,6 +117,9 @@ function parseTokenLimit(value: string | undefined, maxFromAll: number): number 
 	return Number.isNaN(limit) ? undefined : limit;
 }
 
+/**
+ * CLI command for 5-hour billing block reports.
+ */
 export const blocksCommand = define({
 	name: 'blocks',
 	description: 'Show usage report grouped by session billing blocks',

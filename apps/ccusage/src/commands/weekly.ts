@@ -19,6 +19,9 @@ import { loadWeeklyUsageData } from '../data-loader.ts';
 import { detectMismatches, printMismatchReport } from '../debug.ts';
 import { log, logger } from '../logger.ts';
 
+/**
+ * CLI command for weekly usage reports.
+ */
 export const weeklyCommand = define({
 	name: 'weekly',
 	description: 'Show usage report grouped by week',

@@ -83,6 +83,9 @@ async function renderSessionJsonOutput(
 	return Result.succeed(JSON.stringify(jsonOutput, null, 2));
 }
 
+/**
+ * CLI command for session-based usage reports.
+ */
 export const sessionCommand = define({
 	name: 'session',
 	description: 'Show usage report grouped by conversation session',

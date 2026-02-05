@@ -21,6 +21,9 @@ import { loadDailyUsageData } from '../data-loader.ts';
 import { detectMismatches, printMismatchReport } from '../debug.ts';
 import { log, logger } from '../logger.ts';
 
+/**
+ * CLI command for daily usage reports.
+ */
 export const dailyCommand = define({
 	name: 'daily',
 	description: 'Show usage report grouped by date',
