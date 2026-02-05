@@ -1,5 +1,5 @@
 <div align="center">
-    <img src="https://cdn.jsdelivr.net/gh/ryoppippi/ccusage@main/docs/public/logo.svg" alt="ccusage logo" width="256" height="256">
+    <img src="/logo.svg" alt="ccusage logo" width="256" height="256">
     <h1>@ccusage/kimi</h1>
 </div>
 
@@ -114,7 +114,7 @@ Check out [ccusage: The Claude Code cost scorecard that went viral](https://www.
 
 <p align="center">
     <a href="https://www.youtube.com/watch?v=Ak6qpQ5qdgk">
-        <img src="https://cdn.jsdelivr.net/gh/ryoppippi/ccusage@main/docs/public/ccusage_thumbnail.png" alt="ccusage: The Claude Code cost scorecard that went viral" width="600">
+        <img src="/ccusage_thumbnail.png" alt="ccusage: The Claude Code cost scorecard that went viral" width="600">
     </a>
 </p>
 
