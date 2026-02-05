@@ -37,9 +37,9 @@ Companion tool for analyzing OpenAI Codex usage. Same powerful features as ccusa
 
 Companion tool for analyzing [OpenCode](https://github.com/opencode-ai/opencode) usage. Track token usage and costs from OpenCode sessions with the same reporting capabilities as ccusage.
 
-### 🌙 [@ccusage/kimi](https://www.npmjs.com/package/@ccusage/kimi) - Kimi CLI Usage Analyzer
+### 🌙 [`@ccusage/kimi`](https://www.npmjs.com/package/@ccusage/kimi) - Kimi CLI Usage Analyzer
 
-Companion tool for analyzing [Kimi CLI](https://github.com/MoonshotAI/kimi-cli) sessions. Track daily, monthly, and session-based token usage and costs from your local `~/.kimi/sessions` logs.
+Companion tool for analyzing [Kimi CLI](https://github.com/MoonshotAI/kimi-cli) sessions. Track daily, weekly, monthly, and session-based token usage and costs from your local `~/.kimi/sessions` logs.
 
 ### 🥧 [@ccusage/pi](https://www.npmjs.com/package/@ccusage/pi) - Pi-agent Usage Analyzer
 
