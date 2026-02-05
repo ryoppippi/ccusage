@@ -457,11 +457,74 @@ importers:
         specifier: catalog:testing
         version: 4.0.15(@types/node@24.5.1)(happy-dom@16.8.1)(jiti@2.6.1)(yaml@2.8.1)
 
+  apps/kimi:
+    devDependencies:
+      '@ccusage/internal':
+        specifier: workspace:*
+        version: link:../../packages/internal
+      '@ccusage/terminal':
+        specifier: workspace:*
+        version: link:../../packages/terminal
+      '@praha/byethrow':
+        specifier: catalog:runtime
+        version: 0.6.3
+      '@ryoppippi/eslint-config':
+        specifier: catalog:lint
+        version: 0.4.0(@vue/compiler-sfc@3.5.21)(eslint-plugin-format@1.0.2(eslint@9.35.0(jiti@2.6.1)))(eslint@9.35.0(jiti@2.6.1))(typescript@5.9.2)(vitest@4.0.15(@types/node@24.5.1)(happy-dom@16.8.1)(jiti@2.6.1)(yaml@2.8.1))
+      '@typescript/native-preview':
+        specifier: catalog:types
+        version: 7.0.0-dev.20260107.1
+      bun:
+        specifier: runtime:^1.3.2
+        version: runtime:1.3.8
+      clean-pkg-json:
+        specifier: catalog:release
+        version: 1.3.0
+      eslint:
+        specifier: catalog:lint
+        version: 9.35.0(jiti@2.6.1)
+      fast-sort:
+        specifier: catalog:runtime
+        version: 3.4.1
+      fs-fixture:
+        specifier: catalog:testing
+        version: 2.8.1
+      gunshi:
+        specifier: catalog:runtime
+        version: 0.26.3
+      node:
+        specifier: runtime:^24.11.0
+        version: runtime:24.13.0
+      picocolors:
+        specifier: catalog:runtime
+        version: 1.1.1
+      tinyglobby:
+        specifier: catalog:runtime
+        version: 0.2.15
+      tsdown:
+        specifier: catalog:build
+        version: 0.16.6(@typescript/native-preview@7.0.0-dev.20260107.1)(publint@0.3.12)(synckit@0.11.11)(typescript@5.9.2)(unplugin-unused@0.5.3)
+      unplugin-macros:
+        specifier: catalog:build
+        version: 0.18.2(@types/node@24.5.1)(jiti@2.6.1)(yaml@2.8.1)
+      unplugin-unused:
+        specifier: catalog:build
+        version: 0.5.3
+      valibot:
+        specifier: catalog:runtime
+        version: 1.1.0(typescript@5.9.2)
+      vitest:
+        specifier: catalog:testing
+        version: 4.0.15(@types/node@24.5.1)(happy-dom@16.8.1)(jiti@2.6.1)(yaml@2.8.1)
+
   apps/mcp:
     dependencies:
       '@ccusage/codex':
         specifier: workspace:*
         version: link:../codex
+      '@ccusage/kimi':
+        specifier: workspace:*
+        version: link:../kimi
       '@hono/mcp':
         specifier: catalog:runtime
         version: 0.1.5(@modelcontextprotocol/sdk@1.24.3(zod@4.1.13))(hono@4.9.7)
@@ -2777,6 +2840,85 @@ packages:
     version: 1.3.5
     hasBin: true
 
+  bun@runtime:1.3.8:
+    resolution:
+      type: variations
+      variants:
+        - resolution:
+            archive: zip
+            bin: bun
+            integrity: sha256-ZyoKmnt0TQhaHSIZypB+Pib1V5/Knng6lRCk+Yo2IS8=
+            prefix: bun-darwin-aarch64
+            type: binary
+            url: https://github.com/oven-sh/bun/releases/download/bun-v1.3.8/bun-darwin-aarch64.zip
+          targets:
+            - cpu: arm64
+              os: darwin
+        - resolution:
+            archive: zip
+            bin: bun
+            integrity: sha256-Sg7NcDs31mq69R5bwk/RJJ6Nw5LBfuYjVxDPUaCYi4U=
+            prefix: bun-darwin-x64
+            type: binary
+            url: https://github.com/oven-sh/bun/releases/download/bun-v1.3.8/bun-darwin-x64.zip
+          targets:
+            - cpu: x64
+              os: darwin
+        - resolution:
+            archive: zip
+            bin: bun
+            integrity: sha256-dt3ev9jAEci3dJkeuLpH2ncOTOBt3CsEWqDWWe9fvkQ=
+            prefix: bun-linux-aarch64-musl
+            type: binary
+            url: https://github.com/oven-sh/bun/releases/download/bun-v1.3.8/bun-linux-aarch64-musl.zip
+          targets:
+            - cpu: arm64
+              os: linux
+              libc: musl
+        - resolution:
+            archive: zip
+            bin: bun
+            integrity: sha256-Tp3raBSn7H9ocl3dl9DXtAZbzamoUPadSXVn6ZWn+jM=
+            prefix: bun-linux-aarch64
+            type: binary
+            url: https://github.com/oven-sh/bun/releases/download/bun-v1.3.8/bun-linux-aarch64.zip
+          targets:
+            - cpu: arm64
+              os: linux
+        - resolution:
+            archive: zip
+            bin: bun
+            integrity: sha256-qBC1CDqDBZbP83FUAjcZF6IAlA797tYYm83hkeedRjM=
+            prefix: bun-linux-x64-musl
+            type: binary
+            url: https://github.com/oven-sh/bun/releases/download/bun-v1.3.8/bun-linux-x64-musl.zip
+          targets:
+            - cpu: x64
+              os: linux
+              libc: musl
+        - resolution:
+            archive: zip
+            bin: bun
+            integrity: sha256-AyKxfwci2namQpiq1JgiWu3L9t8QCKHe5F4W7LImo/E=
+            prefix: bun-linux-x64
+            type: binary
+            url: https://github.com/oven-sh/bun/releases/download/bun-v1.3.8/bun-linux-x64.zip
+          targets:
+            - cpu: x64
+              os: linux
+        - resolution:
+            archive: zip
+            bin: bun.exe
+            integrity: sha256-TAqChmQk4j0b2qlRcwfsLxQ+1RPBVUbboLhZxsVcR8c=
+            prefix: bun-windows-x64
+            type: binary
+            url: https://github.com/oven-sh/bun/releases/download/bun-v1.3.8/bun-windows-x64.zip
+          targets:
+            - cpu: x64
+              os: win32
+    version: 1.3.8
+    hasBin: true
+
   bundle-name@4.1.0:
     resolution: {integrity: sha512-tjwM5exMg6BGRI+kNmTntNsvdZS1X8BFYS6tnJ2hdH0kVxM6/eVZ2xy+FqStSWvYmtfFMDLIxurorHwDKfDz5Q==}
     engines: {node: '>=18'}
@@ -4411,6 +4553,96 @@ packages:
             - cpu: x64
               os: win32
     version: 24.12.0
+    hasBin: true
+
+  node@runtime:24.13.0:
+    resolution:
+      type: variations
+      variants:
+        - resolution:
+            archive: tarball
+            bin: bin/node
+            integrity: sha256-rCHprwik1UsFfYAMA7yVMilGlSuNqoEcramL+2aozo8=
+            type: binary
+            url: https://nodejs.org/download/release/v24.13.0/node-v24.13.0-aix-ppc64.tar.gz
+          targets:
+            - cpu: ppc64
+              os: aix
+        - resolution:
+            archive: tarball
+            bin: bin/node
+            integrity: sha256-1ZWWHlY/yuBX1KD7mS8XWlTZf8xKFNwtR02S3e6jufg=
+            type: binary
+            url: https://nodejs.org/download/release/v24.13.0/node-v24.13.0-darwin-arm64.tar.gz
+          targets:
+            - cpu: arm64
+              os: darwin
+        - resolution:
+            archive: tarball
+            bin: bin/node
+            integrity: sha256-bwPBtI3b4bEppvgDi+COCJnwXxcYW00+Q1AYCrZpp/M=
+            type: binary
+            url: https://nodejs.org/download/release/v24.13.0/node-v24.13.0-darwin-x64.tar.gz
+          targets:
+            - cpu: x64
+              os: darwin
+        - resolution:
+            archive: tarball
+            bin: bin/node
+            integrity: sha256-D21AuUxqLra0wkD/yLn9Otp6sETBd91BPAbh75pj8IE=
+            type: binary
+            url: https://nodejs.org/download/release/v24.13.0/node-v24.13.0-linux-arm64.tar.gz
+          targets:
+            - cpu: arm64
+              os: linux
+        - resolution:
+            archive: tarball
+            bin: bin/node
+            integrity: sha256-GAEZMLGCocW0nSMmGR/bpYJwvfe0W4x9+FXvMZMbFIo=
+            type: binary
+            url: https://nodejs.org/download/release/v24.13.0/node-v24.13.0-linux-ppc64le.tar.gz
+          targets:
+            - cpu: ppc64le
+              os: linux
+        - resolution:
+            archive: tarball
+            bin: bin/node
+            integrity: sha256-V0RhC2JPLoKuHKJ52OznuMpGZDcjlTPS0DNWUwO8HTk=
+            type: binary
+            url: https://nodejs.org/download/release/v24.13.0/node-v24.13.0-linux-s390x.tar.gz
+          targets:
+            - cpu: s390x
+              os: linux
+        - resolution:
+            archive: tarball
+            bin: bin/node
+            integrity: sha256-YiOq0agfnR57aCxZ0S4t4jP3tMN0dc1A0cicQrc3/6g=
+            type: binary
+            url: https://nodejs.org/download/release/v24.13.0/node-v24.13.0-linux-x64.tar.gz
+          targets:
+            - cpu: x64
+              os: linux
+        - resolution:
+            archive: zip
+            bin: node.exe
+            integrity: sha256-krn5sMDBI+EeSvxTXw7BnNmHRl7qUGQnVTpJlxNkFYo=
+            prefix: node-v24.13.0-win-arm64
+            type: binary
+            url: https://nodejs.org/download/release/v24.13.0/node-v24.13.0-win-arm64.zip
+          targets:
+            - cpu: arm64
+              os: win32
+        - resolution:
+            archive: zip
+            bin: node.exe
+            integrity: sha256-yidCaVvo3kQCfXGz9TpL2zYAm5VXX+Gub38LXOCRy4g=
+            prefix: node-v24.13.0-win-x64
+            type: binary
+            url: https://nodejs.org/download/release/v24.13.0/node-v24.13.0-win-x64.zip
+          targets:
+            - cpu: x64
+              os: win32
+    version: 24.13.0
     hasBin: true
 
   nopt@5.0.0:
@@ -7394,6 +7626,8 @@ snapshots:
 
   bun@runtime:1.3.5: {}
 
+  bun@runtime:1.3.8: {}
+
   bundle-name@4.1.0:
     dependencies:
       run-applescript: 7.1.0
@@ -9289,6 +9523,8 @@ snapshots:
   node-releases@2.0.21: {}
 
   node@runtime:24.12.0: {}
+
+  node@runtime:24.13.0: {}
 
   nopt@5.0.0:
     dependencies:
