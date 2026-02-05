@@ -143,7 +143,7 @@ export const sessionCommand = define({
 					cacheReadTokens: 0,
 					totalCost: 0,
 				};
-				const jsonResult = await renderSessionJsonOutput([], totals, ctx.values.jq);
+				const jsonResult = await renderSessionJsonOutput([], totals, mergedOptions.jq);
 				if (Result.isFailure(jsonResult)) {
 					logger.error(jsonResult.error.message);
 					process.exit(1);
@@ -165,7 +165,7 @@ export const sessionCommand = define({
 		}
 
 		if (useJson) {
-			const jsonResult = await renderSessionJsonOutput(sessionData, totals, ctx.values.jq);
+			const jsonResult = await renderSessionJsonOutput(sessionData, totals, mergedOptions.jq);
 			if (Result.isFailure(jsonResult)) {
 				logger.error(jsonResult.error.message);
 				process.exit(1);
