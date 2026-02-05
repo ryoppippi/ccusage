@@ -17,7 +17,6 @@ export type TokenUsageEvent = TokenUsageDelta & {
 
 export type ModelUsage = TokenUsageDelta & {
 	isFallback?: boolean;
-	cachedInputTokens?: number; // Legacy field, now split into cacheCreationTokens + cacheReadTokens
 };
 
 export type DailyUsageSummary = {
