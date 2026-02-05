@@ -161,7 +161,7 @@ export const dailyCommand = define({
 				reasoningTokens: 0,
 				cacheReadTokens: 0,
 				totalTokens: 0,
-				costUSD: 0,
+				totalCost: 0,
 			};
 
 			for (const row of rows) {
@@ -171,7 +171,7 @@ export const dailyCommand = define({
 				totalsForDisplay.reasoningTokens += split.reasoningTokens;
 				totalsForDisplay.cacheReadTokens += split.cacheReadTokens;
 				totalsForDisplay.totalTokens += row.totalTokens;
-				totalsForDisplay.costUSD += row.costUSD;
+				totalsForDisplay.totalCost += row.totalCost;
 
 				table.push([
 					row.date,
@@ -181,7 +181,7 @@ export const dailyCommand = define({
 					formatNumber(split.reasoningTokens),
 					formatNumber(split.cacheReadTokens),
 					formatNumber(row.totalTokens),
-					formatCurrency(row.costUSD),
+					formatCurrency(row.totalCost),
 				]);
 			}
 
@@ -194,7 +194,7 @@ export const dailyCommand = define({
 				pc.yellow(formatNumber(totalsForDisplay.reasoningTokens)),
 				pc.yellow(formatNumber(totalsForDisplay.cacheReadTokens)),
 				pc.yellow(formatNumber(totalsForDisplay.totalTokens)),
-				pc.yellow(formatCurrency(totalsForDisplay.costUSD)),
+				pc.yellow(formatCurrency(totalsForDisplay.totalCost)),
 			]);
 
 			log(table.toString());
