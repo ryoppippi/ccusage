@@ -43,8 +43,8 @@ export const dailyCommand = define({
 				const emptyTotals = {
 					inputTokens: 0,
 					outputTokens: 0,
-					cacheCreationTokens: 0,
-					cacheReadTokens: 0,
+					cacheCreationInputTokens: 0,
+					cacheReadInputTokens: 0,
 					totalTokens: 0,
 					totalCost: 0,
 				};
@@ -65,8 +65,8 @@ export const dailyCommand = define({
 			date: string;
 			inputTokens: number;
 			outputTokens: number;
-			cacheCreationTokens: number;
-			cacheReadTokens: number;
+			cacheCreationInputTokens: number;
+			cacheReadInputTokens: number;
 			totalTokens: number;
 			totalCost: number;
 			modelsUsed: string[];
@@ -75,28 +75,29 @@ export const dailyCommand = define({
 		for (const [date, dayEntries] of Object.entries(entriesByDate)) {
 			let inputTokens = 0;
 			let outputTokens = 0;
-			let cacheCreationTokens = 0;
-			let cacheReadTokens = 0;
+			let cacheCreationInputTokens = 0;
+			let cacheReadInputTokens = 0;
 			let totalCost = 0;
 			const modelsSet = new Set<string>();
 
 			for (const entry of dayEntries) {
 				inputTokens += entry.usage.inputTokens;
 				outputTokens += entry.usage.outputTokens;
-				cacheCreationTokens += entry.usage.cacheCreationInputTokens;
-				cacheReadTokens += entry.usage.cacheReadInputTokens;
+				cacheCreationInputTokens += entry.usage.cacheCreationInputTokens;
+				cacheReadInputTokens += entry.usage.cacheReadInputTokens;
 				totalCost += await calculateCostForEntry(entry, fetcher);
 				modelsSet.add(entry.model);
 			}
 
-			const totalTokens = inputTokens + outputTokens + cacheCreationTokens + cacheReadTokens;
+			const totalTokens =
+				inputTokens + outputTokens + cacheCreationInputTokens + cacheReadInputTokens;
 
 			dailyData.push({
 				date,
 				inputTokens,
 				outputTokens,
-				cacheCreationTokens,
-				cacheReadTokens,
+				cacheCreationInputTokens,
+				cacheReadInputTokens,
 				totalTokens,
 				totalCost,
 				modelsUsed: Array.from(modelsSet),
@@ -108,8 +109,8 @@ export const dailyCommand = define({
 		const totals = {
 			inputTokens: dailyData.reduce((sum, d) => sum + d.inputTokens, 0),
 			outputTokens: dailyData.reduce((sum, d) => sum + d.outputTokens, 0),
-			cacheCreationTokens: dailyData.reduce((sum, d) => sum + d.cacheCreationTokens, 0),
-			cacheReadTokens: dailyData.reduce((sum, d) => sum + d.cacheReadTokens, 0),
+			cacheCreationInputTokens: dailyData.reduce((sum, d) => sum + d.cacheCreationInputTokens, 0),
+			cacheReadInputTokens: dailyData.reduce((sum, d) => sum + d.cacheReadInputTokens, 0),
 			totalTokens: dailyData.reduce((sum, d) => sum + d.totalTokens, 0),
 			totalCost: dailyData.reduce((sum, d) => sum + d.totalCost, 0),
 		};
@@ -158,8 +159,8 @@ export const dailyCommand = define({
 				formatModelsDisplayMultiline(data.modelsUsed),
 				formatNumber(data.inputTokens),
 				formatNumber(data.outputTokens),
-				formatNumber(data.cacheCreationTokens),
-				formatNumber(data.cacheReadTokens),
+				formatNumber(data.cacheCreationInputTokens),
+				formatNumber(data.cacheReadInputTokens),
 				formatNumber(data.totalTokens),
 				formatCurrency(data.totalCost),
 			]);
@@ -171,8 +172,8 @@ export const dailyCommand = define({
 			'',
 			pc.yellow(formatNumber(totals.inputTokens)),
 			pc.yellow(formatNumber(totals.outputTokens)),
-			pc.yellow(formatNumber(totals.cacheCreationTokens)),
-			pc.yellow(formatNumber(totals.cacheReadTokens)),
+			pc.yellow(formatNumber(totals.cacheCreationInputTokens)),
+			pc.yellow(formatNumber(totals.cacheReadInputTokens)),
 			pc.yellow(formatNumber(totals.totalTokens)),
 			pc.yellow(formatCurrency(totals.totalCost)),
 		]);
