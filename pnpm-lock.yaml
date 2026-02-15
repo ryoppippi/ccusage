@@ -96,8 +96,8 @@ catalogs:
       specifier: ^1.24.3
       version: 1.24.3
     '@praha/byethrow':
-      specifier: ^0.6.3
-      version: 0.6.3
+      specifier: ^0.9.0
+      version: 0.9.0
     '@ryoppippi/limo':
       specifier: jsr:^0.2.2
       version: 0.2.3
@@ -123,8 +123,8 @@ catalogs:
       specifier: ^9.0.0
       version: 9.0.0
     gunshi:
-      specifier: ^0.26.3
-      version: 0.26.3
+      specifier: ^0.27.5
+      version: 0.27.5
     hono:
       specifier: ^4.9.2
       version: 4.9.7
@@ -188,7 +188,7 @@ importers:
         version: 0.27.5
       '@praha/byethrow-docs':
         specifier: catalog:llm-docs
-        version: 0.9.0(@praha/byethrow@0.6.3)
+        version: 0.9.0(@praha/byethrow@0.9.0(typescript@5.9.2))
       '@ryoppippi/eslint-config':
         specifier: catalog:lint
         version: 0.4.0(@vue/compiler-sfc@3.5.21)(eslint-plugin-format@1.0.2(eslint@9.35.0(jiti@2.6.1)))(eslint@9.35.0(jiti@2.6.1))(typescript@5.9.2)(vitest@4.0.15(@types/node@24.5.1)(happy-dom@16.8.1)(jiti@2.6.1)(yaml@2.8.1))
@@ -230,7 +230,7 @@ importers:
         version: link:../../packages/terminal
       '@praha/byethrow':
         specifier: catalog:runtime
-        version: 0.6.3
+        version: 0.9.0(typescript@5.9.2)
       '@ryoppippi/eslint-config':
         specifier: catalog:lint
         version: 0.4.0(@vue/compiler-sfc@3.5.21)(eslint-plugin-format@1.0.2(eslint@9.35.0(jiti@2.6.1)))(eslint@9.35.0(jiti@2.6.1))(typescript@5.9.2)(vitest@4.0.15(@types/node@24.5.1)(happy-dom@16.8.1)(jiti@2.6.1)(yaml@2.8.1))
@@ -254,7 +254,7 @@ importers:
         version: 2.8.1
       gunshi:
         specifier: catalog:runtime
-        version: 0.26.3
+        version: 0.27.5
       node:
         specifier: runtime:^24.11.0
         version: runtime:24.12.0
@@ -299,7 +299,7 @@ importers:
         version: 0.82.3
       '@praha/byethrow':
         specifier: catalog:runtime
-        version: 0.6.3
+        version: 0.9.0(typescript@5.9.2)
       '@ryoppippi/eslint-config':
         specifier: catalog:lint
         version: 0.4.0(@vue/compiler-sfc@3.5.21)(eslint-plugin-format@1.0.2(eslint@9.35.0(jiti@2.6.1)))(eslint@9.35.0(jiti@2.6.1))(typescript@5.9.2)(vitest@4.0.15(@types/node@24.5.1)(happy-dom@16.8.1)(jiti@2.6.1)(yaml@2.8.1))
@@ -347,7 +347,7 @@ importers:
         version: 9.0.0
       gunshi:
         specifier: catalog:runtime
-        version: 0.26.3
+        version: 0.27.5
       nano-spawn:
         specifier: catalog:runtime
         version: 1.0.3
@@ -407,7 +407,7 @@ importers:
         version: link:../../packages/terminal
       '@praha/byethrow':
         specifier: catalog:runtime
-        version: 0.6.3
+        version: 0.9.0(typescript@5.9.2)
       '@ryoppippi/eslint-config':
         specifier: catalog:lint
         version: 0.4.0(@vue/compiler-sfc@3.5.21)(eslint-plugin-format@1.0.2(eslint@9.35.0(jiti@2.6.1)))(eslint@9.35.0(jiti@2.6.1))(typescript@5.9.2)(vitest@4.0.15(@types/node@24.5.1)(happy-dom@16.8.1)(jiti@2.6.1)(yaml@2.8.1))
@@ -431,7 +431,7 @@ importers:
         version: 2.8.1
       gunshi:
         specifier: catalog:runtime
-        version: 0.26.3
+        version: 0.27.5
       node:
         specifier: runtime:^24.11.0
         version: runtime:24.12.0
@@ -476,7 +476,7 @@ importers:
         version: link:../ccusage
       gunshi:
         specifier: catalog:runtime
-        version: 0.26.3
+        version: 0.27.5
       hono:
         specifier: catalog:runtime
         version: 4.9.7
@@ -531,7 +531,7 @@ importers:
         version: link:../../packages/terminal
       '@praha/byethrow':
         specifier: catalog:runtime
-        version: 0.6.3
+        version: 0.9.0(typescript@5.9.2)
       '@ryoppippi/eslint-config':
         specifier: catalog:lint
         version: 0.4.0(@vue/compiler-sfc@3.5.21)(eslint-plugin-format@1.0.2(eslint@9.35.0(jiti@2.6.1)))(eslint@9.35.0(jiti@2.6.1))(typescript@5.9.2)(vitest@4.0.15(@types/node@24.5.1)(happy-dom@16.8.1)(jiti@2.6.1)(yaml@2.8.1))
@@ -558,7 +558,7 @@ importers:
         version: 2.8.1
       gunshi:
         specifier: catalog:runtime
-        version: 0.26.3
+        version: 0.27.5
       node:
         specifier: runtime:^24.11.0
         version: runtime:24.12.0
@@ -597,7 +597,7 @@ importers:
         version: link:../../packages/terminal
       '@praha/byethrow':
         specifier: catalog:runtime
-        version: 0.6.3
+        version: 0.9.0(typescript@5.9.2)
       '@ryoppippi/eslint-config':
         specifier: catalog:lint
         version: 0.4.0(@vue/compiler-sfc@3.5.21)(eslint-plugin-format@1.0.2(eslint@9.35.0(jiti@2.6.1)))(eslint@9.35.0(jiti@2.6.1))(typescript@5.9.2)(vitest@4.0.15(@types/node@24.5.1)(happy-dom@16.8.1)(jiti@2.6.1)(yaml@2.8.1))
@@ -621,7 +621,7 @@ importers:
         version: 2.8.1
       gunshi:
         specifier: catalog:runtime
-        version: 0.26.3
+        version: 0.27.5
       node:
         specifier: runtime:^24.11.0
         version: runtime:24.12.0
@@ -708,7 +708,7 @@ importers:
     dependencies:
       '@praha/byethrow':
         specifier: catalog:runtime
-        version: 0.6.3
+        version: 0.9.0(typescript@5.9.2)
       consola:
         specifier: catalog:runtime
         version: 3.4.2
@@ -1926,8 +1926,10 @@ packages:
     peerDependencies:
       '@praha/byethrow': 0.9.0
 
-  '@praha/byethrow@0.6.3':
-    resolution: {integrity: sha512-WeHnDRzan8Zx4Lj3wCKy88K0zFZqnGKBho2QuTAM94yutkLDOsDSIYDbu/OXgnc+bQnnomCOteJNtE53o7l+Zw==}
+  '@praha/byethrow@0.9.0':
+    resolution: {integrity: sha512-D8XhQ40RsGkwcJdKYqoQ2RUfoqgzztHWXZNpMaRE5P5U+D1c1YboFPc8hysJWQhqloQ32kCXB0XPwM3dFiNyIg==}
+    peerDependencies:
+      typescript: '>=5.0.0'
 
   '@publint/pack@0.1.2':
     resolution: {integrity: sha512-S+9ANAvUmjutrshV4jZjaiG8XQyuJIZ8a4utWmN/vW1sgQ9IfBnPndwkmQYw53QmouOIytT874u65HEmu6H5jw==}
@@ -2621,8 +2623,8 @@ packages:
   args-tokenizer@0.3.0:
     resolution: {integrity: sha512-xXAd7G2Mll5W8uo37GETpQ2VrE84M181Z7ugHFGQnJZ50M2mbOv0osSZ9VsSgPfJQ+LVG0prSi0th+ELMsno7Q==}
 
-  args-tokens@0.20.1:
-    resolution: {integrity: sha512-pQ5R5TsJyx94zsgSCCQ9kzOgUfMmI4bkqNjgSSt2C92mzPCvovoUMMW6HqR+35mHZ0cb1++MD2uAOLm62sGC+Q==}
+  args-tokens@0.23.0:
+    resolution: {integrity: sha512-VZETsQmpEGO7A9adjfIOTyZuxKzurUas9kh1Hm0WGhFq8dOyw50P6OjiTwKyURwnmDabw0DbFjI+BUucJfCtnQ==}
     engines: {node: '>= 20'}
 
   ast-kit@2.2.0:
@@ -3684,8 +3686,8 @@ packages:
     resolution: {integrity: sha512-5v6yZd4JK3eMI3FqqCouswVqwugaA9r4dNZB1wwcmrD02QkV5H0y7XBQW8QwQqEaZY1pM9aqORSORhJRdNK44Q==}
     engines: {node: '>=6.0'}
 
-  gunshi@0.26.3:
-    resolution: {integrity: sha512-x/CaxovzDA3KMkrjqow7M1dnsO1CxGMNabBaeGTGdVNtjOMN1G/eK7vjKeJ+zHdFIsWHmo47YQ2DQIESUut2+A==}
+  gunshi@0.27.5:
+    resolution: {integrity: sha512-ExdnmI90hQ/eR1wnUc5rVom+K16F1hSpbYrplpt6rrJhXLprVGK9/E63bk7Rju27hAqc3WvpCa8PeY95R165fw==}
     engines: {node: '>= 20'}
 
   happy-dom@16.8.1:
@@ -6602,9 +6604,9 @@ snapshots:
 
   '@poppinss/exception@1.2.2': {}
 
-  '@praha/byethrow-docs@0.9.0(@praha/byethrow@0.6.3)':
+  '@praha/byethrow-docs@0.9.0(@praha/byethrow@0.9.0(typescript@5.9.2))':
     dependencies:
-      '@praha/byethrow': 0.6.3
+      '@praha/byethrow': 0.9.0(typescript@5.9.2)
       citty: 0.1.6
       find-up: 8.0.0
       flexsearch: 0.8.212
@@ -6615,9 +6617,10 @@ snapshots:
       - bluebird
       - supports-color
 
-  '@praha/byethrow@0.6.3':
+  '@praha/byethrow@0.9.0(typescript@5.9.2)':
     dependencies:
       '@standard-schema/spec': 1.0.0
+      typescript: 5.9.2
 
   '@publint/pack@0.1.2': {}
 
@@ -7295,7 +7298,7 @@ snapshots:
 
   args-tokenizer@0.3.0: {}
 
-  args-tokens@0.20.1: {}
+  args-tokens@0.23.0: {}
 
   ast-kit@2.2.0:
     dependencies:
@@ -8455,9 +8458,9 @@ snapshots:
       section-matter: 1.0.0
       strip-bom-string: 1.0.0
 
-  gunshi@0.26.3:
+  gunshi@0.27.5:
     dependencies:
-      args-tokens: 0.20.1
+      args-tokens: 0.23.0
 
   happy-dom@16.8.1:
     dependencies:

@@ -166,8 +166,9 @@ function convertLedgerEventToUsageEvent(
  */
 async function loadThreadFile(filePath: string): Promise<ParsedThread | null> {
 	const readResult = await Result.try({
-		try: readFile(filePath, 'utf-8'),
-		catch: (error) => error,
+		immediate: true,
+		try: async () => readFile(filePath, 'utf-8'),
+		catch: (error: unknown) => error,
 	});
 
 	if (Result.isFailure(readResult)) {

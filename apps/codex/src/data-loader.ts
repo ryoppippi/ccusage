@@ -202,8 +202,9 @@ export async function loadTokenUsageEvents(options: LoadOptions = {}): Promise<L
 	for (const dir of sessionDirs) {
 		const directoryPath = path.resolve(dir);
 		const statResult = await Result.try({
-			try: stat(directoryPath),
-			catch: (error) => error,
+			immediate: true,
+			try: async () => stat(directoryPath),
+			catch: (error: unknown) => error,
 		});
 
 		if (Result.isFailure(statResult)) {
@@ -226,8 +227,9 @@ export async function loadTokenUsageEvents(options: LoadOptions = {}): Promise<L
 			const normalizedSessionPath = relativeSessionPath.split(path.sep).join('/');
 			const sessionId = normalizedSessionPath.replace(/\.jsonl$/i, '');
 			const fileContentResult = await Result.try({
-				try: readFile(file, 'utf8'),
-				catch: (error) => error,
+				immediate: true,
+				try: async () => readFile(file, 'utf8'),
+				catch: (error: unknown) => error,
 			});
 
 			if (Result.isFailure(fileContentResult)) {
