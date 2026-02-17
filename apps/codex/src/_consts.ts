@@ -4,6 +4,7 @@ import path from 'node:path';
 export const CODEX_HOME_ENV = 'CODEX_HOME';
 export const DEFAULT_CODEX_DIR = path.join(os.homedir(), '.codex');
 export const DEFAULT_SESSION_SUBDIR = 'sessions';
+export const DEFAULT_ARCHIVED_SESSION_SUBDIR = 'archived_sessions';
 export const SESSION_GLOB = '**/*.jsonl';
 export const DEFAULT_TIMEZONE = Intl.DateTimeFormat().resolvedOptions().timeZone ?? 'UTC';
 export const DEFAULT_LOCALE = 'en-CA';
