@@ -203,7 +203,7 @@ export async function loadTokenUsageEvents(options: LoadOptions = {}): Promise<L
 
 	const events: TokenUsageEvent[] = [];
 	const missingDirectories: string[] = [];
-	const processedSessionBasenames = new Set<string>();
+	const processedSessionPaths = new Set<string>();
 	let existingDirectoryCount = 0;
 
 	for (const dir of sessionDirs) {
@@ -230,18 +230,18 @@ export async function loadTokenUsageEvents(options: LoadOptions = {}): Promise<L
 		});
 
 		for (const file of files) {
-			const basename = path.basename(file);
-			if (processedSessionBasenames.has(basename)) {
-				logger.debug('Skipping duplicate Codex session file by basename', {
+			const relativeSessionPath = path.relative(directoryPath, file);
+			const normalizedSessionPath = relativeSessionPath.split(path.sep).join('/');
+
+			if (processedSessionPaths.has(normalizedSessionPath)) {
+				logger.debug('Skipping duplicate Codex session file by relative path', {
 					file,
-					basename,
+					relativeSessionPath: normalizedSessionPath,
 				});
 				continue;
 			}
-			processedSessionBasenames.add(basename);
+			processedSessionPaths.add(normalizedSessionPath);
 
-			const relativeSessionPath = path.relative(directoryPath, file);
-			const normalizedSessionPath = relativeSessionPath.split(path.sep).join('/');
 			const sessionId = normalizedSessionPath.replace(/\.jsonl$/i, '');
 			const fileContentResult = await Result.try({
 				try: readFile(file, 'utf8'),
@@ -535,6 +535,70 @@ if (import.meta.vitest != null) {
 					process.env[CODEX_HOME_ENV] = previousCodexHome;
 				}
 			}
+		});
+
+		it('does not deduplicate different sessions that share basename in nested paths', async () => {
+			await using fixture = await createFixture({
+				sessions: {
+					a: {
+						'duplicate.jsonl': [
+							JSON.stringify({
+								timestamp: '2025-09-12T00:00:00.000Z',
+								type: 'turn_context',
+								payload: { model: 'gpt-5' },
+							}),
+							JSON.stringify({
+								timestamp: '2025-09-12T00:00:01.000Z',
+								type: 'event_msg',
+								payload: {
+									type: 'token_count',
+									info: {
+										last_token_usage: {
+											input_tokens: 111,
+											cached_input_tokens: 0,
+											output_tokens: 10,
+											reasoning_output_tokens: 0,
+											total_tokens: 121,
+										},
+									},
+								},
+							}),
+						].join('\n'),
+					},
+					b: {
+						'duplicate.jsonl': [
+							JSON.stringify({
+								timestamp: '2025-09-12T00:00:00.000Z',
+								type: 'turn_context',
+								payload: { model: 'gpt-5' },
+							}),
+							JSON.stringify({
+								timestamp: '2025-09-12T00:00:01.000Z',
+								type: 'event_msg',
+								payload: {
+									type: 'token_count',
+									info: {
+										last_token_usage: {
+											input_tokens: 222,
+											cached_input_tokens: 0,
+											output_tokens: 10,
+											reasoning_output_tokens: 0,
+											total_tokens: 232,
+										},
+									},
+								},
+							}),
+						].join('\n'),
+					},
+				},
+			});
+
+			const { events } = await loadTokenUsageEvents({
+				sessionDirs: [fixture.getPath('sessions')],
+			});
+			expect(events).toHaveLength(2);
+			expect(events.map((event) => event.sessionId).sort()).toEqual(['a/duplicate', 'b/duplicate']);
+			expect(events.map((event) => event.inputTokens).sort((a, b) => a - b)).toEqual([111, 222]);
 		});
 
 		it('respects explicit sessionDirs and does not auto-include archived sessions', async () => {
