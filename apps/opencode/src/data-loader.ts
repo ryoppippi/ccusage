@@ -1,67 +1,43 @@
 /**
  * @fileoverview Data loading utilities for OpenCode usage analysis
  *
- * This module provides functions for loading and parsing OpenCode usage data
- * from JSON message files stored in OpenCode data directories.
- * OpenCode stores usage data in ~/.local/share/opencode/storage/message/
+ * This module provides functions for loading and parsing OpenCode usage data.
+ * OpenCode >= 1.2.2 stores data in a SQLite database at ~/.local/share/opencode/opencode.db
+ * Older versions stored data as JSON files in ~/.local/share/opencode/storage/message/
  *
  * @module data-loader
  */
 
 import { readFile } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 import { isDirectorySync } from 'path-type';
 import { glob } from 'tinyglobby';
 import * as v from 'valibot';
 
-/**
- * Default OpenCode data directory path (~/.local/share/opencode)
- */
 const DEFAULT_OPENCODE_PATH = '.local/share/opencode';
 
-/**
- * OpenCode storage subdirectory containing message data
- */
 const OPENCODE_STORAGE_DIR_NAME = 'storage';
-
-/**
- * OpenCode messages subdirectory within storage
- */
 const OPENCODE_MESSAGES_DIR_NAME = 'message';
 const OPENCODE_SESSIONS_DIR_NAME = 'session';
-
-/**
- * Environment variable for specifying custom OpenCode data directory
- */
+const OPENCODE_DB_FILENAME = 'opencode.db';
 const OPENCODE_CONFIG_DIR_ENV = 'OPENCODE_DATA_DIR';
 
-/**
- * User home directory
- */
 const USER_HOME_DIR = process.env.HOME ?? process.env.USERPROFILE ?? process.cwd();
 
-/**
- * Branded Valibot schema for model names
- */
 const modelNameSchema = v.pipe(
 	v.string(),
 	v.minLength(1, 'Model name cannot be empty'),
 	v.brand('ModelName'),
 );
 
-/**
- * Branded Valibot schema for session IDs
- */
 const sessionIdSchema = v.pipe(
 	v.string(),
 	v.minLength(1, 'Session ID cannot be empty'),
 	v.brand('SessionId'),
 );
 
-/**
- * OpenCode message token structure
- */
 export const openCodeTokensSchema = v.object({
 	input: v.optional(v.number()),
 	output: v.optional(v.number()),
@@ -74,9 +50,6 @@ export const openCodeTokensSchema = v.object({
 	),
 });
 
-/**
- * OpenCode message data structure
- */
 export const openCodeMessageSchema = v.object({
 	id: v.string(),
 	sessionID: v.optional(sessionIdSchema),
@@ -98,9 +71,6 @@ export const openCodeSessionSchema = v.object({
 	directory: v.optional(v.string()),
 });
 
-/**
- * Represents a single usage data entry loaded from OpenCode files
- */
 export type LoadedUsageEntry = {
 	timestamp: Date;
 	sessionID: string;
@@ -122,10 +92,6 @@ export type LoadedSessionMetadata = {
 	directory: string;
 };
 
-/**
- * Get OpenCode data directory
- * @returns Path to OpenCode data directory, or null if not found
- */
 export function getOpenCodePath(): string | null {
 	// Check environment variable first
 	const envPath = process.env[OPENCODE_CONFIG_DIR_ENV];
@@ -145,11 +111,166 @@ export function getOpenCodePath(): string | null {
 	return null;
 }
 
-/**
- * Load OpenCode message from JSON file
- * @param filePath - Path to message JSON file
- * @returns Parsed message data or null on failure
- */
+function getDbPath(openCodePath: string): string | null {
+	const dbPath = path.join(openCodePath, OPENCODE_DB_FILENAME);
+	return existsSync(dbPath) ? dbPath : null;
+}
+
+// ─── SQLite-based loading (OpenCode >= 1.2.2) ───────────────────────────────
+
+const sqliteMessageDataSchema = v.object({
+	role: v.optional(v.string()),
+	providerID: v.optional(v.string()),
+	modelID: v.optional(v.string()),
+	tokens: v.optional(openCodeTokensSchema),
+	cost: v.optional(v.number()),
+	time: v.optional(
+		v.object({
+			created: v.optional(v.number()),
+			completed: v.optional(v.number()),
+		}),
+	),
+});
+
+interface SqliteRow {
+	[key: string]: unknown;
+}
+
+interface SqliteAdapter {
+	queryAll(sql: string): SqliteRow[];
+	close(): void;
+}
+
+function openSqliteDb(dbPath: string): SqliteAdapter {
+	try {
+		// eslint-disable-next-line @typescript-eslint/no-require-imports
+		const Database = require('better-sqlite3') as typeof import('better-sqlite3');
+		const db = new Database(dbPath, { readonly: true });
+		return {
+			queryAll(sql: string) {
+				return db.prepare(sql).all() as SqliteRow[];
+			},
+			close() {
+				db.close();
+			},
+		};
+	} catch {
+		// better-sqlite3 not available or failed to load
+	}
+
+	// eslint-disable-next-line @typescript-eslint/no-require-imports
+	const { Database } = require('bun:sqlite') as { Database: new (path: string, opts?: { readonly?: boolean }) => { query(sql: string): { all(): SqliteRow[] }; close(): void } };
+	const db = new Database(dbPath, { readonly: true });
+	return {
+		queryAll(sql: string) {
+			return db.query(sql).all();
+		},
+		close() {
+			db.close();
+		},
+	};
+}
+
+function loadMessagesFromSqlite(dbPath: string): LoadedUsageEntry[] {
+	const db = openSqliteDb(dbPath);
+
+	try {
+		const rows = db.queryAll('SELECT id, session_id, time_created, data FROM message') as Array<{
+			id: string;
+			session_id: string;
+			time_created: number;
+			data: string;
+		}>;
+
+		const entries: LoadedUsageEntry[] = [];
+		const dedupeSet = new Set<string>();
+
+		for (const row of rows) {
+			if (dedupeSet.has(row.id)) {
+				continue;
+			}
+			dedupeSet.add(row.id);
+
+			let parsed: unknown;
+			try {
+				parsed = JSON.parse(row.data);
+			} catch {
+				continue;
+			}
+
+			const result = v.safeParse(sqliteMessageDataSchema, parsed);
+			if (!result.success) {
+				continue;
+			}
+
+			const data = result.output;
+
+			if (data.role !== 'assistant') {
+				continue;
+			}
+
+			if (data.tokens == null || (data.tokens.input === 0 && data.tokens.output === 0)) {
+				continue;
+			}
+
+			if (data.providerID == null || data.modelID == null) {
+				continue;
+			}
+
+			const createdMs = data.time?.created ?? row.time_created;
+
+			entries.push({
+				timestamp: new Date(createdMs),
+				sessionID: row.session_id,
+				usage: {
+					inputTokens: data.tokens.input ?? 0,
+					outputTokens: data.tokens.output ?? 0,
+					cacheCreationInputTokens: data.tokens.cache?.write ?? 0,
+					cacheReadInputTokens: data.tokens.cache?.read ?? 0,
+				},
+				model: data.modelID,
+				costUSD: data.cost ?? null,
+			});
+		}
+
+		return entries;
+	} finally {
+		db.close();
+	}
+}
+
+function loadSessionsFromSqlite(dbPath: string): Map<string, LoadedSessionMetadata> {
+	const db = openSqliteDb(dbPath);
+
+	try {
+		const rows = db.queryAll('SELECT id, project_id, parent_id, title, directory FROM session') as Array<{
+			id: string;
+			project_id: string;
+			parent_id: string | null;
+			title: string;
+			directory: string;
+		}>;
+
+		const sessionMap = new Map<string, LoadedSessionMetadata>();
+
+		for (const row of rows) {
+			sessionMap.set(row.id, {
+				id: row.id,
+				parentID: row.parent_id ?? null,
+				title: row.title || row.id,
+				projectID: row.project_id || 'unknown',
+				directory: row.directory || 'unknown',
+			});
+		}
+
+		return sessionMap;
+	} finally {
+		db.close();
+	}
+}
+
+// ─── Legacy JSON file-based loading (OpenCode < 1.2.2) ──────────────────────
+
 async function loadOpenCodeMessage(
 	filePath: string,
 ): Promise<v.InferOutput<typeof openCodeMessageSchema> | null> {
@@ -162,11 +283,6 @@ async function loadOpenCodeMessage(
 	}
 }
 
-/**
- * Convert OpenCode message to LoadedUsageEntry
- * @param message - Parsed OpenCode message
- * @returns LoadedUsageEntry suitable for aggregation
- */
 function convertOpenCodeMessageToUsageEntry(
 	message: v.InferOutput<typeof openCodeMessageSchema>,
 ): LoadedUsageEntry {
@@ -216,6 +332,15 @@ export async function loadOpenCodeSessions(): Promise<Map<string, LoadedSessionM
 		return new Map();
 	}
 
+	const dbPath = getDbPath(openCodePath);
+	if (dbPath != null) {
+		try {
+			return loadSessionsFromSqlite(dbPath);
+		} catch {
+			// Fall through to legacy JSON loading
+		}
+	}
+
 	const sessionsDir = path.join(
 		openCodePath,
 		OPENCODE_STORAGE_DIR_NAME,
@@ -247,14 +372,19 @@ export async function loadOpenCodeSessions(): Promise<Map<string, LoadedSessionM
 	return sessionMap;
 }
 
-/**
- * Load all OpenCode messages
- * @returns Array of LoadedUsageEntry for aggregation
- */
 export async function loadOpenCodeMessages(): Promise<LoadedUsageEntry[]> {
 	const openCodePath = getOpenCodePath();
 	if (openCodePath == null) {
 		return [];
+	}
+
+	const dbPath = getDbPath(openCodePath);
+	if (dbPath != null) {
+		try {
+			return loadMessagesFromSqlite(dbPath);
+		} catch {
+			// Fall through to legacy JSON loading
+		}
 	}
 
 	const messagesDir = path.join(
@@ -267,7 +397,6 @@ export async function loadOpenCodeMessages(): Promise<LoadedUsageEntry[]> {
 		return [];
 	}
 
-	// Find all message JSON files
 	const messageFiles = await glob('**/*.json', {
 		cwd: messagesDir,
 		absolute: true,
@@ -283,17 +412,14 @@ export async function loadOpenCodeMessages(): Promise<LoadedUsageEntry[]> {
 			continue;
 		}
 
-		// Skip messages with no tokens
 		if (message.tokens == null || (message.tokens.input === 0 && message.tokens.output === 0)) {
 			continue;
 		}
 
-		// Skip if no provider or model
 		if (message.providerID == null || message.modelID == null) {
 			continue;
 		}
 
-		// Deduplicate by message ID
 		const dedupeKey = `${message.id}`;
 		if (dedupeSet.has(dedupeKey)) {
 			continue;
