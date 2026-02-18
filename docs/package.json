@@ -4,6 +4,20 @@
 	"version": "18.0.5",
 	"private": true,
 	"description": "Documentation for ccusage",
+	"engines": {
+		"runtime": [
+			{
+				"name": "node",
+				"version": "^24.11.0",
+				"onFail": "download"
+			},
+			{
+				"name": "bun",
+				"version": "^1.3.9",
+				"onFail": "download"
+			}
+		]
+	},
 	"scripts": {
 		"build": "pnpm run docs:api && cp ../apps/ccusage/config-schema.json public/config-schema.json && vitepress build",
 		"deploy": "wrangler deploy",
@@ -14,6 +28,7 @@
 		"preview": "vitepress preview",
 		"typecheck": "tsgo --noEmit"
 	},
+	"dependencies": {},
 	"devDependencies": {
 		"@ryoppippi/eslint-config": "catalog:lint",
 		"@ryoppippi/vite-plugin-cloudflare-redirect": "catalog:docs",
@@ -31,19 +46,5 @@
 		"vitepress-plugin-group-icons": "catalog:docs",
 		"vitepress-plugin-llms": "catalog:docs",
 		"wrangler": "catalog:docs"
-	},
-	"devEngines": {
-		"runtime": [
-			{
-				"name": "node",
-				"version": "^24.11.0",
-				"onFail": "download"
-			},
-			{
-				"name": "bun",
-				"version": "^1.3.2",
-				"onFail": "download"
-			}
-		]
 	}
 }
