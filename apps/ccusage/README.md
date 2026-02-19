@@ -47,11 +47,11 @@ Model Context Protocol server that exposes ccusage data to Claude Desktop and ot
 
 ## Community Projects
 
-### 🗓️ [ai-heatmap](https://github.com/seunggabi/ai-heatmap) - GitHub-style Heatmap for AI Usage
+### 🗓️ [ai-heatmap](https://github.com/seunggabi/ai-heatmap) ([npm](https://www.npmjs.com/package/ai-heatmap)) - GitHub-style Heatmap for AI Usage
 
 Visualize your Claude Code spending as a GitHub-style contribution heatmap. Generates interactive dashboards (GitHub Pages) and embeddable SVG images (Vercel) from ccusage data.
 
-![ai-heatmap](https://seunggabi.github.io/ai-heatmap/heatmap.svg)
+![GitHub-style heatmap showing AI usage costs by day](https://seunggabi.github.io/ai-heatmap/heatmap.svg)
 
 ```bash
 npx ai-heatmap@latest init
