@@ -61,6 +61,8 @@ export const sessionCommand = define({
 
 		const pricingSource = new CodexPricingSource({
 			offline: ctx.values.offline,
+			allowFuzzyPricing: ctx.values.allowFuzzyPricing,
+			unknownModelFallback: ctx.values.unknownModelFallback,
 		});
 		try {
 			const rows = await buildSessionReport(events, {

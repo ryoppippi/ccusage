@@ -104,7 +104,12 @@ export async function buildMonthlyReport(
 
 		const rowModels: Record<string, ModelUsage> = {};
 		for (const [modelName, usage] of summary.models) {
-			rowModels[modelName] = { ...usage };
+			const pricing = modelPricing.get(modelName);
+			rowModels[modelName] = {
+				...usage,
+				pricingResolution: pricing?.pricingResolution,
+				pricingModel: pricing?.pricingModel,
+			};
 		}
 
 		rows.push({
@@ -128,11 +133,23 @@ if (import.meta.vitest != null) {
 			const pricing = new Map([
 				[
 					'gpt-5',
-					{ inputCostPerMToken: 1.25, cachedInputCostPerMToken: 0.125, outputCostPerMToken: 10 },
+					{
+						inputCostPerMToken: 1.25,
+						cachedInputCostPerMToken: 0.125,
+						outputCostPerMToken: 10,
+						pricingResolution: 'direct' as const,
+						pricingModel: 'gpt-5',
+					},
 				],
 				[
 					'gpt-5-mini',
-					{ inputCostPerMToken: 0.6, cachedInputCostPerMToken: 0.06, outputCostPerMToken: 2 },
+					{
+						inputCostPerMToken: 0.6,
+						cachedInputCostPerMToken: 0.06,
+						outputCostPerMToken: 2,
+						pricingResolution: 'direct' as const,
+						pricingModel: 'gpt-5-mini',
+					},
 				],
 			]);
 			const stubPricingSource: PricingSource = {

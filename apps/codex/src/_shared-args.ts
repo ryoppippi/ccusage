@@ -37,6 +37,17 @@ export const sharedArgs = {
 		default: false,
 		negatable: true,
 	},
+	allowFuzzyPricing: {
+		type: 'boolean',
+		description:
+			'Allow fuzzy pricing model matching when direct or alias match fails (default: false)',
+		default: false,
+	},
+	unknownModelFallback: {
+		type: 'string',
+		description:
+			'Fallback model to use when pricing for a model cannot be resolved (e.g. gpt-5.2-codex)',
+	},
 	compact: {
 		type: 'boolean',
 		description: 'Force compact table layout for narrow terminals',

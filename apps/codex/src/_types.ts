@@ -15,7 +15,11 @@ export type TokenUsageEvent = TokenUsageDelta & {
 
 export type ModelUsage = TokenUsageDelta & {
 	isFallback?: boolean;
+	pricingResolution?: PricingResolution;
+	pricingModel?: string;
 };
+
+export type PricingResolution = 'direct' | 'alias' | 'fuzzy' | 'fallback';
 
 export type DailyUsageSummary = {
 	date: string;
@@ -43,6 +47,8 @@ export type ModelPricing = {
 	inputCostPerMToken: number;
 	cachedInputCostPerMToken: number;
 	outputCostPerMToken: number;
+	pricingResolution: PricingResolution;
+	pricingModel: string;
 };
 
 export type PricingLookupResult = {
