@@ -8,6 +8,20 @@ import { logger } from './logger.ts';
 
 const CODEX_PROVIDER_PREFIXES = ['openai/', 'azure/', 'openrouter/openai/'];
 const CODEX_MODEL_ALIASES_MAP = new Map<string, string>([['gpt-5-codex', 'gpt-5']]);
+const FREE_MODEL_PRICING: ModelPricing = {
+	inputCostPerMToken: 0,
+	cachedInputCostPerMToken: 0,
+	outputCostPerMToken: 0,
+};
+
+function isOpenRouterFreeModel(model: string): boolean {
+	const normalized = model.trim().toLowerCase();
+	if (normalized === 'openrouter/free') {
+		return true;
+	}
+
+	return normalized.startsWith('openrouter/') && normalized.endsWith(':free');
+}
 
 function toPerMillion(value: number | undefined, fallback?: number): number {
 	const perToken = value ?? fallback ?? 0;
@@ -38,6 +52,10 @@ export class CodexPricingSource implements PricingSource, Disposable {
 	}
 
 	async getPricing(model: string): Promise<ModelPricing> {
+		if (isOpenRouterFreeModel(model)) {
+			return FREE_MODEL_PRICING;
+		}
+
 		const directLookup = await this.fetcher.getModelPricing(model);
 		if (Result.isFailure(directLookup)) {
 			throw directLookup.error;
@@ -56,7 +74,8 @@ export class CodexPricingSource implements PricingSource, Disposable {
 		}
 
 		if (pricing == null) {
-			throw new Error(`Pricing not found for model ${model}`);
+			logger.warn(`Pricing not found for model ${model}; defaulting to zero-cost pricing.`);
+			return FREE_MODEL_PRICING;
 		}
 
 		return {
@@ -88,6 +107,29 @@ if (import.meta.vitest != null) {
 			expect(pricing.inputCostPerMToken).toBeCloseTo(1.25);
 			expect(pricing.outputCostPerMToken).toBeCloseTo(10);
 			expect(pricing.cachedInputCostPerMToken).toBeCloseTo(0.125);
+		});
+
+		it('returns zero pricing for OpenRouter free routes', async () => {
+			using source = new CodexPricingSource({
+				offline: true,
+				offlineLoader: async () => ({}),
+			});
+
+			const directFree = await source.getPricing('openrouter/free');
+			expect(directFree).toEqual(FREE_MODEL_PRICING);
+
+			const modelFree = await source.getPricing('openrouter/openai/gpt-5:free');
+			expect(modelFree).toEqual(FREE_MODEL_PRICING);
+		});
+
+		it('falls back to zero pricing for unknown non-free models', async () => {
+			using source = new CodexPricingSource({
+				offline: true,
+				offlineLoader: async () => ({}),
+			});
+
+			const pricing = await source.getPricing('openrouter/unknown');
+			expect(pricing).toEqual(FREE_MODEL_PRICING);
 		});
 	});
 }
