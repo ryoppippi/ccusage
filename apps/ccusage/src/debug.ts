@@ -7,7 +7,6 @@
  * @module debug
  */
 
-import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { Result } from '@praha/byethrow';
 import { createFixture } from 'fs-fixture';
@@ -19,7 +18,7 @@ import {
 	USAGE_DATA_GLOB_PATTERN,
 } from './_consts.ts';
 import { PricingFetcher } from './_pricing-fetcher.ts';
-import { getClaudePaths, usageDataSchema } from './data-loader.ts';
+import { getClaudePaths, processJSONLFileByLine, usageDataSchema } from './data-loader.ts';
 import { logger } from './logger.ts';
 
 /**
@@ -106,13 +105,8 @@ export async function detectMismatches(claudePath?: string): Promise<MismatchSta
 	};
 
 	for (const file of files) {
-		const content = await readFile(file, 'utf-8');
-		const lines = content
-			.trim()
-			.split('\n')
-			.filter((line) => line.length > 0);
-
-		for (const line of lines) {
+		// Use streaming to avoid memory issues with large files
+		await processJSONLFileByLine(file, async (line) => {
 			const parseParser = Result.try({
 				try: () => JSON.parse(line) as unknown,
 				catch: () => new Error('Invalid JSON'),
@@ -120,13 +114,13 @@ export async function detectMismatches(claudePath?: string): Promise<MismatchSta
 
 			const parseResult = parseParser();
 			if (Result.isFailure(parseResult)) {
-				continue;
+				return;
 			}
 
 			const schemaResult = v.safeParse(usageDataSchema, parseResult.value);
 
 			if (!schemaResult.success) {
-				continue;
+				return;
 			}
 
 			const data = schemaResult.output;
@@ -206,7 +200,7 @@ export async function detectMismatches(claudePath?: string): Promise<MismatchSta
 					(modelStat.avgPercentDiff * (modelStat.total - 1) + percentDiff) / modelStat.total;
 				stats.modelStats.set(model, modelStat);
 			}
-		}
+		});
 	}
 
 	return stats;
