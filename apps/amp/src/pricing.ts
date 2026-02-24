@@ -7,12 +7,12 @@ import { prefetchAmpPricing } from './_macro.ts' with { type: 'macro' };
 import { logger } from './logger.ts';
 
 const AMP_PROVIDER_PREFIXES = ['anthropic/'];
-const ZERO_MODEL_PRICING: ModelPricing = {
+const ZERO_MODEL_PRICING = {
 	inputCostPerMToken: 0,
 	cachedInputCostPerMToken: 0,
 	cacheCreationCostPerMToken: 0,
 	outputCostPerMToken: 0,
-};
+} as const satisfies ModelPricing;
 
 function toPerMillion(value: number | undefined, fallback?: number): number {
 	const perToken = value ?? fallback ?? 0;

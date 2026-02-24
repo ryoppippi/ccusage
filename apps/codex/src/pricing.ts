@@ -11,11 +11,11 @@ const CODEX_MODEL_ALIASES_MAP = new Map<string, string>([
 	['gpt-5-codex', 'gpt-5'],
 	['gpt-5.3-codex', 'gpt-5.2-codex'],
 ]);
-const FREE_MODEL_PRICING: ModelPricing = {
+const FREE_MODEL_PRICING = {
 	inputCostPerMToken: 0,
 	cachedInputCostPerMToken: 0,
 	outputCostPerMToken: 0,
-};
+} as const satisfies ModelPricing;
 
 function isOpenRouterFreeModel(model: string): boolean {
 	const normalized = model.trim().toLowerCase();
