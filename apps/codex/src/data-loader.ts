@@ -8,6 +8,7 @@ import { glob } from 'tinyglobby';
 import * as v from 'valibot';
 import {
 	CODEX_HOME_ENV,
+	DEFAULT_ARCHIVED_SESSION_SUBDIR,
 	DEFAULT_CODEX_DIR,
 	DEFAULT_SESSION_SUBDIR,
 	SESSION_GLOB,
@@ -189,15 +190,21 @@ export async function loadTokenUsageEvents(options: LoadOptions = {}): Promise<L
 		options.sessionDirs != null && options.sessionDirs.length > 0
 			? options.sessionDirs.map((dir) => path.resolve(dir))
 			: undefined;
+	const usingDefaultDirectories = providedDirs == null;
 
 	const codexHomeEnv = process.env[CODEX_HOME_ENV]?.trim();
 	const codexHome =
 		codexHomeEnv != null && codexHomeEnv !== '' ? path.resolve(codexHomeEnv) : DEFAULT_CODEX_DIR;
-	const defaultSessionsDir = path.join(codexHome, DEFAULT_SESSION_SUBDIR);
-	const sessionDirs = providedDirs ?? [defaultSessionsDir];
+	const defaultSessionDirectories = [
+		path.join(codexHome, DEFAULT_SESSION_SUBDIR),
+		path.join(codexHome, DEFAULT_ARCHIVED_SESSION_SUBDIR),
+	];
+	const sessionDirs = providedDirs ?? defaultSessionDirectories;
 
 	const events: TokenUsageEvent[] = [];
 	const missingDirectories: string[] = [];
+	const processedSessionPaths = new Set<string>();
+	let existingDirectoryCount = 0;
 
 	for (const dir of sessionDirs) {
 		const directoryPath = path.resolve(dir);
@@ -215,6 +222,7 @@ export async function loadTokenUsageEvents(options: LoadOptions = {}): Promise<L
 			missingDirectories.push(directoryPath);
 			continue;
 		}
+		existingDirectoryCount += 1;
 
 		const files = await glob(SESSION_GLOB, {
 			cwd: directoryPath,
@@ -224,6 +232,16 @@ export async function loadTokenUsageEvents(options: LoadOptions = {}): Promise<L
 		for (const file of files) {
 			const relativeSessionPath = path.relative(directoryPath, file);
 			const normalizedSessionPath = relativeSessionPath.split(path.sep).join('/');
+
+			if (processedSessionPaths.has(normalizedSessionPath)) {
+				logger.debug('Skipping duplicate Codex session file by relative path', {
+					file,
+					relativeSessionPath: normalizedSessionPath,
+				});
+				continue;
+			}
+			processedSessionPaths.add(normalizedSessionPath);
+
 			const sessionId = normalizedSessionPath.replace(/\.jsonl$/i, '');
 			const fileContentResult = await Result.try({
 				try: readFile(file, 'utf8'),
@@ -368,11 +386,294 @@ export async function loadTokenUsageEvents(options: LoadOptions = {}): Promise<L
 
 	events.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
 
-	return { events, missingDirectories };
+	return {
+		events,
+		missingDirectories:
+			usingDefaultDirectories && existingDirectoryCount > 0 ? [] : missingDirectories,
+	};
 }
 
 if (import.meta.vitest != null) {
 	describe('loadTokenUsageEvents', () => {
+		it('includes archived sessions by default when CODEX_HOME is set', async () => {
+			await using fixture = await createFixture({
+				sessions: {
+					'active.jsonl': [
+						JSON.stringify({
+							timestamp: '2025-09-12T00:00:00.000Z',
+							type: 'turn_context',
+							payload: { model: 'gpt-5' },
+						}),
+						JSON.stringify({
+							timestamp: '2025-09-12T00:00:01.000Z',
+							type: 'event_msg',
+							payload: {
+								type: 'token_count',
+								info: {
+									last_token_usage: {
+										input_tokens: 100,
+										cached_input_tokens: 10,
+										output_tokens: 50,
+										reasoning_output_tokens: 0,
+										total_tokens: 150,
+									},
+								},
+							},
+						}),
+					].join('\n'),
+				},
+				archived_sessions: {
+					'archived.jsonl': [
+						JSON.stringify({
+							timestamp: '2025-09-13T00:00:00.000Z',
+							type: 'turn_context',
+							payload: { model: 'gpt-5' },
+						}),
+						JSON.stringify({
+							timestamp: '2025-09-13T00:00:01.000Z',
+							type: 'event_msg',
+							payload: {
+								type: 'token_count',
+								info: {
+									last_token_usage: {
+										input_tokens: 200,
+										cached_input_tokens: 20,
+										output_tokens: 80,
+										reasoning_output_tokens: 0,
+										total_tokens: 280,
+									},
+								},
+							},
+						}),
+					].join('\n'),
+				},
+			});
+
+			const previousCodexHome = process.env[CODEX_HOME_ENV];
+			process.env[CODEX_HOME_ENV] = path.dirname(fixture.getPath('sessions'));
+
+			try {
+				const { events, missingDirectories } = await loadTokenUsageEvents();
+				expect(missingDirectories).toEqual([]);
+				expect(events).toHaveLength(2);
+				expect(events[0]!.inputTokens).toBe(100);
+				expect(events[1]!.inputTokens).toBe(200);
+			} finally {
+				if (previousCodexHome == null) {
+					delete process.env[CODEX_HOME_ENV];
+				} else {
+					process.env[CODEX_HOME_ENV] = previousCodexHome;
+				}
+			}
+		});
+
+		it('deduplicates sessions by basename across active and archived directories', async () => {
+			await using fixture = await createFixture({
+				sessions: {
+					'duplicate.jsonl': [
+						JSON.stringify({
+							timestamp: '2025-09-12T00:00:00.000Z',
+							type: 'turn_context',
+							payload: { model: 'gpt-5' },
+						}),
+						JSON.stringify({
+							timestamp: '2025-09-12T00:00:01.000Z',
+							type: 'event_msg',
+							payload: {
+								type: 'token_count',
+								info: {
+									last_token_usage: {
+										input_tokens: 111,
+										cached_input_tokens: 0,
+										output_tokens: 10,
+										reasoning_output_tokens: 0,
+										total_tokens: 121,
+									},
+								},
+							},
+						}),
+					].join('\n'),
+				},
+				archived_sessions: {
+					'duplicate.jsonl': [
+						JSON.stringify({
+							timestamp: '2025-09-12T00:00:00.000Z',
+							type: 'turn_context',
+							payload: { model: 'gpt-5' },
+						}),
+						JSON.stringify({
+							timestamp: '2025-09-12T00:00:01.000Z',
+							type: 'event_msg',
+							payload: {
+								type: 'token_count',
+								info: {
+									last_token_usage: {
+										input_tokens: 999,
+										cached_input_tokens: 0,
+										output_tokens: 10,
+										reasoning_output_tokens: 0,
+										total_tokens: 1_009,
+									},
+								},
+							},
+						}),
+					].join('\n'),
+				},
+			});
+
+			const previousCodexHome = process.env[CODEX_HOME_ENV];
+			process.env[CODEX_HOME_ENV] = path.dirname(fixture.getPath('sessions'));
+
+			try {
+				const { events } = await loadTokenUsageEvents();
+				expect(events).toHaveLength(1);
+				expect(events[0]!.inputTokens).toBe(111);
+			} finally {
+				if (previousCodexHome == null) {
+					delete process.env[CODEX_HOME_ENV];
+				} else {
+					process.env[CODEX_HOME_ENV] = previousCodexHome;
+				}
+			}
+		});
+
+		it('does not deduplicate different sessions that share basename in nested paths', async () => {
+			await using fixture = await createFixture({
+				sessions: {
+					a: {
+						'duplicate.jsonl': [
+							JSON.stringify({
+								timestamp: '2025-09-12T00:00:00.000Z',
+								type: 'turn_context',
+								payload: { model: 'gpt-5' },
+							}),
+							JSON.stringify({
+								timestamp: '2025-09-12T00:00:01.000Z',
+								type: 'event_msg',
+								payload: {
+									type: 'token_count',
+									info: {
+										last_token_usage: {
+											input_tokens: 111,
+											cached_input_tokens: 0,
+											output_tokens: 10,
+											reasoning_output_tokens: 0,
+											total_tokens: 121,
+										},
+									},
+								},
+							}),
+						].join('\n'),
+					},
+					b: {
+						'duplicate.jsonl': [
+							JSON.stringify({
+								timestamp: '2025-09-12T00:00:00.000Z',
+								type: 'turn_context',
+								payload: { model: 'gpt-5' },
+							}),
+							JSON.stringify({
+								timestamp: '2025-09-12T00:00:01.000Z',
+								type: 'event_msg',
+								payload: {
+									type: 'token_count',
+									info: {
+										last_token_usage: {
+											input_tokens: 222,
+											cached_input_tokens: 0,
+											output_tokens: 10,
+											reasoning_output_tokens: 0,
+											total_tokens: 232,
+										},
+									},
+								},
+							}),
+						].join('\n'),
+					},
+				},
+			});
+
+			const { events } = await loadTokenUsageEvents({
+				sessionDirs: [fixture.getPath('sessions')],
+			});
+			expect(events).toHaveLength(2);
+			expect(events.map((event) => event.sessionId).sort()).toEqual(['a/duplicate', 'b/duplicate']);
+			expect(events.map((event) => event.inputTokens).sort((a, b) => a - b)).toEqual([111, 222]);
+		});
+
+		it('respects explicit sessionDirs and does not auto-include archived sessions', async () => {
+			await using fixture = await createFixture({
+				sessions: {
+					'active.jsonl': [
+						JSON.stringify({
+							timestamp: '2025-09-12T00:00:00.000Z',
+							type: 'turn_context',
+							payload: { model: 'gpt-5' },
+						}),
+						JSON.stringify({
+							timestamp: '2025-09-12T00:00:01.000Z',
+							type: 'event_msg',
+							payload: {
+								type: 'token_count',
+								info: {
+									last_token_usage: {
+										input_tokens: 300,
+										cached_input_tokens: 0,
+										output_tokens: 20,
+										reasoning_output_tokens: 0,
+										total_tokens: 320,
+									},
+								},
+							},
+						}),
+					].join('\n'),
+				},
+				archived_sessions: {
+					'archived.jsonl': [
+						JSON.stringify({
+							timestamp: '2025-09-13T00:00:00.000Z',
+							type: 'turn_context',
+							payload: { model: 'gpt-5' },
+						}),
+						JSON.stringify({
+							timestamp: '2025-09-13T00:00:01.000Z',
+							type: 'event_msg',
+							payload: {
+								type: 'token_count',
+								info: {
+									last_token_usage: {
+										input_tokens: 700,
+										cached_input_tokens: 0,
+										output_tokens: 20,
+										reasoning_output_tokens: 0,
+										total_tokens: 720,
+									},
+								},
+							},
+						}),
+					].join('\n'),
+				},
+			});
+
+			const previousCodexHome = process.env[CODEX_HOME_ENV];
+			process.env[CODEX_HOME_ENV] = path.dirname(fixture.getPath('sessions'));
+
+			try {
+				const { events, missingDirectories } = await loadTokenUsageEvents({
+					sessionDirs: [fixture.getPath('sessions')],
+				});
+				expect(missingDirectories).toEqual([]);
+				expect(events).toHaveLength(1);
+				expect(events[0]!.inputTokens).toBe(300);
+			} finally {
+				if (previousCodexHome == null) {
+					delete process.env[CODEX_HOME_ENV];
+				} else {
+					process.env[CODEX_HOME_ENV] = previousCodexHome;
+				}
+			}
+		});
+
 		it('parses token_count events and skips entries without model metadata', async () => {
 			await using fixture = await createFixture({
 				sessions: {
