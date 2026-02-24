@@ -45,6 +45,18 @@ Companion tool for analyzing [Amp](https://ampcode.com/) session usage. Track to
 
 Model Context Protocol server that exposes ccusage data to Claude Desktop and other MCP-compatible tools. Enable real-time usage tracking directly in your AI workflows.
 
+## Community Projects
+
+### 🗓️ [ai-heatmap](https://github.com/seunggabi/ai-heatmap) ([npm](https://www.npmjs.com/package/ai-heatmap)) - GitHub-style Heatmap for AI Usage
+
+Visualize your Claude Code spending as a GitHub-style contribution heatmap. Generates interactive dashboards (GitHub Pages) and embeddable SVG images (Vercel) from ccusage data.
+
+![GitHub-style heatmap showing AI usage costs by day](https://seunggabi.github.io/ai-heatmap/heatmap.svg)
+
+```bash
+npx ai-heatmap@latest init
+```
+
 ## Installation
 
 ### Quick Start (Recommended)
