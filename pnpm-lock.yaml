@@ -182,6 +182,13 @@ catalogs:
 importers:
 
   .:
+    dependencies:
+      bun:
+        specifier: runtime:^1.3.2
+        version: runtime:1.3.5
+      node:
+        specifier: runtime:^24.11.0
+        version: runtime:24.12.0
     devDependencies:
       '@gunshi/docs':
         specifier: catalog:llm-docs
@@ -198,9 +205,6 @@ importers:
       bumpp:
         specifier: catalog:release
         version: 10.2.3
-      bun:
-        specifier: runtime:^1.3.2
-        version: runtime:1.3.5
       changelogithub:
         specifier: catalog:release
         version: 13.16.1
@@ -210,9 +214,6 @@ importers:
       lint-staged:
         specifier: catalog:release
         version: 16.1.6
-      node:
-        specifier: runtime:^24.11.0
-        version: runtime:24.12.0
       oxfmt:
         specifier: catalog:lint
         version: 0.23.0

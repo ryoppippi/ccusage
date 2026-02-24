@@ -73,19 +73,5 @@
 		"tsdown": "catalog:build",
 		"valibot": "catalog:runtime",
 		"vitest": "catalog:testing"
-	},
-	"devEngines": {
-		"runtime": [
-			{
-				"name": "node",
-				"onFail": "download",
-				"version": "^24.11.0"
-			},
-			{
-				"name": "bun",
-				"onFail": "download",
-				"version": "^1.3.2"
-			}
-		]
 	}
 }
