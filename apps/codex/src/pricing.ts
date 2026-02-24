@@ -7,7 +7,10 @@ import { prefetchCodexPricing } from './_macro.ts' with { type: 'macro' };
 import { logger } from './logger.ts';
 
 const CODEX_PROVIDER_PREFIXES = ['openai/', 'azure/', 'openrouter/openai/'];
-const CODEX_MODEL_ALIASES_MAP = new Map<string, string>([['gpt-5-codex', 'gpt-5']]);
+const CODEX_MODEL_ALIASES_MAP = new Map<string, string>([
+	['gpt-5-codex', 'gpt-5'],
+	['gpt-5.3-codex', 'gpt-5.2-codex'],
+]);
 const FREE_MODEL_PRICING: ModelPricing = {
 	inputCostPerMToken: 0,
 	cachedInputCostPerMToken: 0,
@@ -21,6 +24,14 @@ function isOpenRouterFreeModel(model: string): boolean {
 	}
 
 	return normalized.startsWith('openrouter/') && normalized.endsWith(':free');
+}
+
+function hasNonZeroTokenPricing(pricing: LiteLLMModelPricing): boolean {
+	return (
+		(pricing.input_cost_per_token ?? 0) > 0 ||
+		(pricing.output_cost_per_token ?? 0) > 0 ||
+		(pricing.cache_read_input_token_cost ?? 0) > 0
+	);
 }
 
 function toPerMillion(value: number | undefined, fallback?: number): number {
@@ -62,13 +73,13 @@ export class CodexPricingSource implements PricingSource, Disposable {
 		}
 
 		let pricing = directLookup.value;
-		if (pricing == null) {
-			const alias = CODEX_MODEL_ALIASES_MAP.get(model);
-			if (alias != null) {
-				const aliasLookup = await this.fetcher.getModelPricing(alias);
-				if (Result.isFailure(aliasLookup)) {
-					throw aliasLookup.error;
-				}
+		const alias = CODEX_MODEL_ALIASES_MAP.get(model);
+		if (alias != null && (pricing == null || !hasNonZeroTokenPricing(pricing))) {
+			const aliasLookup = await this.fetcher.getModelPricing(alias);
+			if (Result.isFailure(aliasLookup)) {
+				throw aliasLookup.error;
+			}
+			if (aliasLookup.value != null && hasNonZeroTokenPricing(aliasLookup.value)) {
 				pricing = aliasLookup.value;
 			}
 		}
@@ -130,6 +141,52 @@ if (import.meta.vitest != null) {
 
 			const pricing = await source.getPricing('openrouter/unknown');
 			expect(pricing).toEqual(FREE_MODEL_PRICING);
+		});
+
+		it('falls back to alias pricing when direct model pricing is all zeros', async () => {
+			using source = new CodexPricingSource({
+				offline: true,
+				offlineLoader: async () => ({
+					'gpt-5.3-codex': {
+						input_cost_per_token: 0,
+						output_cost_per_token: 0,
+						cache_read_input_token_cost: 0,
+					},
+					'gpt-5.2-codex': {
+						input_cost_per_token: 1.75e-6,
+						output_cost_per_token: 1.4e-5,
+						cache_read_input_token_cost: 1.75e-7,
+					},
+				}),
+			});
+
+			const pricing = await source.getPricing('gpt-5.3-codex');
+			expect(pricing.inputCostPerMToken).toBeCloseTo(1.75);
+			expect(pricing.outputCostPerMToken).toBeCloseTo(14);
+			expect(pricing.cachedInputCostPerMToken).toBeCloseTo(0.175);
+		});
+
+		it('prefers direct pricing when non-zero pricing is available', async () => {
+			using source = new CodexPricingSource({
+				offline: true,
+				offlineLoader: async () => ({
+					'gpt-5.3-codex': {
+						input_cost_per_token: 1.9e-6,
+						output_cost_per_token: 1.5e-5,
+						cache_read_input_token_cost: 1.9e-7,
+					},
+					'gpt-5.2-codex': {
+						input_cost_per_token: 1.75e-6,
+						output_cost_per_token: 1.4e-5,
+						cache_read_input_token_cost: 1.75e-7,
+					},
+				}),
+			});
+
+			const pricing = await source.getPricing('gpt-5.3-codex');
+			expect(pricing.inputCostPerMToken).toBeCloseTo(1.9);
+			expect(pricing.outputCostPerMToken).toBeCloseTo(15);
+			expect(pricing.cachedInputCostPerMToken).toBeCloseTo(0.19);
 		});
 	});
 }

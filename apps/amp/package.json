@@ -1,7 +1,7 @@
 {
 	"name": "@ccusage/amp",
 	"type": "module",
-	"version": "18.0.5",
+	"version": "18.0.7",
 	"description": "Usage analysis tool for Amp CLI sessions",
 	"author": "ryoppippi",
 	"license": "MIT",
@@ -29,19 +29,7 @@
 		}
 	},
 	"engines": {
-		"node": ">=20.19.4",
-		"runtime": [
-			{
-				"name": "node",
-				"version": "^24.11.0",
-				"onFail": "download"
-			},
-			{
-				"name": "bun",
-				"version": "^1.3.9",
-				"onFail": "download"
-			}
-		]
+		"node": ">=20.19.4"
 	},
 	"scripts": {
 		"build": "tsdown",
@@ -53,7 +41,6 @@
 		"test": "TZ=UTC vitest",
 		"typecheck": "tsgo --noEmit"
 	},
-	"dependencies": {},
 	"devDependencies": {
 		"@ccusage/internal": "workspace:*",
 		"@ccusage/terminal": "workspace:*",
