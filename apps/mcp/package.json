@@ -39,7 +39,6 @@
 		}
 	},
 	"engines": {
-		"bun": ">=1.3.9",
 		"node": ">=20.19.4"
 	},
 	"scripts": {
@@ -74,5 +73,19 @@
 		"publint": "catalog:lint",
 		"tsdown": "catalog:build",
 		"vitest": "catalog:testing"
+	},
+	"devEngines": {
+		"runtime": [
+			{
+				"name": "node",
+				"onFail": "download",
+				"version": "^24.11.0"
+			},
+			{
+				"name": "bun",
+				"onFail": "download",
+				"version": "^1.3.2"
+			}
+		]
 	}
 }

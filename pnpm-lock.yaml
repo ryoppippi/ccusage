@@ -182,13 +182,6 @@ catalogs:
 importers:
 
   .:
-    dependencies:
-      bun:
-        specifier: runtime:^1.3.9
-        version: runtime:1.3.9
-      node:
-        specifier: runtime:^24.11.0
-        version: runtime:24.12.0
     devDependencies:
       '@gunshi/docs':
         specifier: catalog:llm-docs
@@ -205,6 +198,9 @@ importers:
       bumpp:
         specifier: catalog:release
         version: 10.2.3
+      bun:
+        specifier: runtime:^1.3.2
+        version: runtime:1.3.5
       changelogithub:
         specifier: catalog:release
         version: 13.16.1
@@ -214,6 +210,9 @@ importers:
       lint-staged:
         specifier: catalog:release
         version: 16.1.6
+      node:
+        specifier: runtime:^24.11.0
+        version: runtime:24.12.0
       oxfmt:
         specifier: catalog:lint
         version: 0.23.0
@@ -222,13 +221,6 @@ importers:
         version: 0.0.60
 
   apps/amp:
-    dependencies:
-      bun:
-        specifier: runtime:^1.3.9
-        version: runtime:1.3.9
-      node:
-        specifier: runtime:^24.11.0
-        version: runtime:24.12.0
     devDependencies:
       '@ccusage/internal':
         specifier: workspace:*
@@ -245,6 +237,9 @@ importers:
       '@typescript/native-preview':
         specifier: catalog:types
         version: 7.0.0-dev.20260107.1
+      bun:
+        specifier: runtime:^1.3.2
+        version: runtime:1.3.5
       clean-pkg-json:
         specifier: catalog:release
         version: 1.3.0
@@ -260,6 +255,9 @@ importers:
       gunshi:
         specifier: catalog:runtime
         version: 0.26.3
+      node:
+        specifier: runtime:^24.11.0
+        version: runtime:24.12.0
       path-type:
         specifier: catalog:runtime
         version: 6.0.0
@@ -286,13 +284,6 @@ importers:
         version: 4.0.15(@types/node@24.5.1)(happy-dom@16.8.1)(jiti@2.6.1)(yaml@2.8.1)
 
   apps/ccusage:
-    dependencies:
-      bun:
-        specifier: runtime:^1.3.9
-        version: runtime:1.3.9
-      node:
-        specifier: runtime:^24.11.0
-        version: runtime:24.12.0
     devDependencies:
       '@antfu/utils':
         specifier: catalog:runtime
@@ -330,6 +321,9 @@ importers:
       bumpp:
         specifier: catalog:release
         version: 10.2.3
+      bun:
+        specifier: runtime:^1.3.2
+        version: runtime:1.3.5
       clean-pkg-json:
         specifier: catalog:release
         version: 1.3.0
@@ -357,6 +351,9 @@ importers:
       nano-spawn:
         specifier: catalog:runtime
         version: 1.0.3
+      node:
+        specifier: runtime:^24.11.0
+        version: runtime:24.12.0
       p-limit:
         specifier: catalog:runtime
         version: 7.1.1
@@ -401,13 +398,6 @@ importers:
         version: 5.1.0
 
   apps/codex:
-    dependencies:
-      bun:
-        specifier: runtime:^1.3.9
-        version: runtime:1.3.9
-      node:
-        specifier: runtime:^24.11.0
-        version: runtime:24.12.0
     devDependencies:
       '@ccusage/internal':
         specifier: workspace:*
@@ -424,6 +414,9 @@ importers:
       '@typescript/native-preview':
         specifier: catalog:types
         version: 7.0.0-dev.20260107.1
+      bun:
+        specifier: runtime:^1.3.2
+        version: runtime:1.3.5
       clean-pkg-json:
         specifier: catalog:release
         version: 1.3.0
@@ -439,6 +432,9 @@ importers:
       gunshi:
         specifier: catalog:runtime
         version: 0.26.3
+      node:
+        specifier: runtime:^24.11.0
+        version: runtime:24.12.0
       picocolors:
         specifier: catalog:runtime
         version: 1.1.1
@@ -475,9 +471,6 @@ importers:
       '@modelcontextprotocol/sdk':
         specifier: catalog:runtime
         version: 1.24.3(zod@4.1.13)
-      bun:
-        specifier: runtime:^1.3.9
-        version: runtime:1.3.9
       ccusage:
         specifier: workspace:*
         version: link:../ccusage
@@ -490,9 +483,6 @@ importers:
       nano-spawn:
         specifier: catalog:runtime
         version: 1.0.3
-      node:
-        specifier: runtime:^24.11.0
-        version: runtime:24.12.0
       zod:
         specifier: catalog:runtime
         version: 4.1.13
@@ -506,6 +496,9 @@ importers:
       '@typescript/native-preview':
         specifier: catalog:types
         version: 7.0.0-dev.20260107.1
+      bun:
+        specifier: runtime:^1.3.2
+        version: runtime:1.3.5
       clean-pkg-json:
         specifier: catalog:release
         version: 1.3.0
@@ -515,6 +508,9 @@ importers:
       fs-fixture:
         specifier: catalog:testing
         version: 2.8.1
+      node:
+        specifier: runtime:^24.11.0
+        version: runtime:24.12.0
       publint:
         specifier: catalog:lint
         version: 0.3.12
@@ -526,13 +522,6 @@ importers:
         version: 4.0.15(@types/node@24.5.1)(happy-dom@16.8.1)(jiti@2.6.1)(yaml@2.8.1)
 
   apps/opencode:
-    dependencies:
-      bun:
-        specifier: runtime:^1.3.9
-        version: runtime:1.3.9
-      node:
-        specifier: runtime:^24.11.0
-        version: runtime:24.12.0
     devDependencies:
       '@ccusage/internal':
         specifier: workspace:*
@@ -549,6 +538,9 @@ importers:
       '@typescript/native-preview':
         specifier: catalog:types
         version: 7.0.0-dev.20260107.1
+      bun:
+        specifier: runtime:^1.3.2
+        version: runtime:1.3.5
       clean-pkg-json:
         specifier: catalog:release
         version: 1.3.0
@@ -567,6 +559,9 @@ importers:
       gunshi:
         specifier: catalog:runtime
         version: 0.26.3
+      node:
+        specifier: runtime:^24.11.0
+        version: runtime:24.12.0
       path-type:
         specifier: catalog:runtime
         version: 6.0.0
@@ -593,13 +588,6 @@ importers:
         version: 4.0.15(@types/node@24.5.1)(happy-dom@16.8.1)(jiti@2.6.1)(yaml@2.8.1)
 
   apps/pi:
-    dependencies:
-      bun:
-        specifier: runtime:^1.3.9
-        version: runtime:1.3.9
-      node:
-        specifier: runtime:^24.11.0
-        version: runtime:24.12.0
     devDependencies:
       '@ccusage/internal':
         specifier: workspace:*
@@ -616,6 +604,9 @@ importers:
       '@typescript/native-preview':
         specifier: catalog:types
         version: 7.0.0-dev.20260107.1
+      bun:
+        specifier: runtime:^1.3.2
+        version: runtime:1.3.5
       clean-pkg-json:
         specifier: catalog:release
         version: 1.3.0
@@ -631,6 +622,9 @@ importers:
       gunshi:
         specifier: catalog:runtime
         version: 0.26.3
+      node:
+        specifier: runtime:^24.11.0
+        version: runtime:24.12.0
       path-type:
         specifier: catalog:runtime
         version: 6.0.0
@@ -654,13 +648,6 @@ importers:
         version: 4.0.15(@types/node@24.5.1)(happy-dom@16.8.1)(jiti@2.6.1)(yaml@2.8.1)
 
   docs:
-    dependencies:
-      bun:
-        specifier: runtime:^1.3.9
-        version: runtime:1.3.9
-      node:
-        specifier: runtime:^24.11.0
-        version: runtime:24.12.0
     devDependencies:
       '@ryoppippi/eslint-config':
         specifier: catalog:lint
@@ -677,6 +664,9 @@ importers:
       '@typescript/native-preview':
         specifier: catalog:types
         version: 7.0.0-dev.20260107.1
+      bun:
+        specifier: runtime:^1.3.2
+        version: runtime:1.3.5
       ccusage:
         specifier: workspace:^
         version: link:../apps/ccusage
@@ -686,6 +676,9 @@ importers:
       eslint-plugin-format:
         specifier: catalog:lint
         version: 1.0.2(eslint@9.35.0(jiti@2.6.1))
+      node:
+        specifier: runtime:^24.11.0
+        version: runtime:24.12.0
       tinyglobby:
         specifier: catalog:runtime
         version: 0.2.15
@@ -2705,37 +2698,37 @@ packages:
   bun-types@1.3.5:
     resolution: {integrity: sha512-inmAYe2PFLs0SUbFOWSVD24sg1jFlMPxOjOSSCYqUgn4Hsc3rDc7dFvfVYjFPNHtov6kgUeulV4SxbuIV/stPw==}
 
-  bun@runtime:1.3.9:
+  bun@runtime:1.3.5:
     resolution:
       type: variations
       variants:
         - resolution:
             archive: zip
             bin: bun
-            integrity: sha256-zeak7fGc9kkJFY+lpGShICb9fw15pKlQwQzwrwQmbYU=
+            integrity: sha256-2xdYikrqiASFaCXUvq0/BeHzcnbKYG8342m09y810/s=
             prefix: bun-darwin-aarch64
             type: binary
-            url: https://github.com/oven-sh/bun/releases/download/bun-v1.3.9/bun-darwin-aarch64.zip
+            url: https://github.com/oven-sh/bun/releases/download/bun-v1.3.5/bun-darwin-aarch64.zip
           targets:
             - cpu: arm64
               os: darwin
         - resolution:
             archive: zip
             bin: bun
-            integrity: sha256-WI9KSHQLmgw2agD4eIEKs6teZzTSm3w8vdlIS3SgB94=
+            integrity: sha256-9f/AMDD+UnqGKV+1hSuwjF6ZtwdWABHR1QmrAokCvyk=
             prefix: bun-darwin-x64
             type: binary
-            url: https://github.com/oven-sh/bun/releases/download/bun-v1.3.9/bun-darwin-x64.zip
+            url: https://github.com/oven-sh/bun/releases/download/bun-v1.3.5/bun-darwin-x64.zip
           targets:
             - cpu: x64
               os: darwin
         - resolution:
             archive: zip
             bin: bun
-            integrity: sha256-QS6bJzLRSMsSenU9Y4mbAzPE9PG9jd55MW7Pt+8XAnA=
+            integrity: sha256-mAtWe+7Kh1t5d21go1sXgwlYPfPwlzs7rmL3JE3Ehq0=
             prefix: bun-linux-aarch64-musl
             type: binary
-            url: https://github.com/oven-sh/bun/releases/download/bun-v1.3.9/bun-linux-aarch64-musl.zip
+            url: https://github.com/oven-sh/bun/releases/download/bun-v1.3.5/bun-linux-aarch64-musl.zip
           targets:
             - cpu: arm64
               os: linux
@@ -2743,20 +2736,20 @@ packages:
         - resolution:
             archive: zip
             bin: bun
-            integrity: sha256-osKGK8wf0cCzqNzcjH77XirNhx6yDtLxdheITt6ByEQ=
+            integrity: sha256-7QEAD4W9l3hSKK0oRdySoYYLgFSFaCbXMXaQrI+O50s=
             prefix: bun-linux-aarch64
             type: binary
-            url: https://github.com/oven-sh/bun/releases/download/bun-v1.3.9/bun-linux-aarch64.zip
+            url: https://github.com/oven-sh/bun/releases/download/bun-v1.3.5/bun-linux-aarch64.zip
           targets:
             - cpu: arm64
               os: linux
         - resolution:
             archive: zip
             bin: bun
-            integrity: sha256-BLcYQxiTdiPTF95rJegr73v1zOCyQVAcXQSZUTIBxy0=
+            integrity: sha256-cg2I4OX0BFCh2pHAIm9iaxVuqiJIdteU+pX26/dPRrY=
             prefix: bun-linux-x64-musl
             type: binary
-            url: https://github.com/oven-sh/bun/releases/download/bun-v1.3.9/bun-linux-x64-musl.zip
+            url: https://github.com/oven-sh/bun/releases/download/bun-v1.3.5/bun-linux-x64-musl.zip
           targets:
             - cpu: x64
               os: linux
@@ -2764,24 +2757,24 @@ packages:
         - resolution:
             archive: zip
             bin: bun
-            integrity: sha256-RoDoDkTjKqcYVgzq6F0i7Pvy77jzZBeC415Lfv1loao=
+            integrity: sha256-cFHYapJK7+o+C5YhO1/Y95wHk/nK5lNCM+Yn5cPbRmk=
             prefix: bun-linux-x64
             type: binary
-            url: https://github.com/oven-sh/bun/releases/download/bun-v1.3.9/bun-linux-x64.zip
+            url: https://github.com/oven-sh/bun/releases/download/bun-v1.3.5/bun-linux-x64.zip
           targets:
             - cpu: x64
               os: linux
         - resolution:
             archive: zip
             bin: bun.exe
-            integrity: sha256-9MHPNUn2r5htxlNcQLR4X/Gn54BeWWN+xFD8Ea2wyHQ=
+            integrity: sha256-kiz/3VFDzRGMbM7Gph389daeAGiwSOoA8KBhUBZTAII=
             prefix: bun-windows-x64
             type: binary
-            url: https://github.com/oven-sh/bun/releases/download/bun-v1.3.9/bun-windows-x64.zip
+            url: https://github.com/oven-sh/bun/releases/download/bun-v1.3.5/bun-windows-x64.zip
           targets:
             - cpu: x64
               os: win32
-    version: 1.3.9
+    version: 1.3.5
     hasBin: true
 
   bundle-name@4.1.0:
@@ -7399,7 +7392,7 @@ snapshots:
     dependencies:
       '@types/node': 24.5.1
 
-  bun@runtime:1.3.9: {}
+  bun@runtime:1.3.5: {}
 
   bundle-name@4.1.0:
     dependencies:

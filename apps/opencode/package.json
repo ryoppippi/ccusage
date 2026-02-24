@@ -32,7 +32,6 @@
 		}
 	},
 	"engines": {
-		"bun": ">=1.3.9",
 		"node": ">=20.19.4"
 	},
 	"scripts": {
@@ -45,7 +44,6 @@
 		"test": "TZ=UTC vitest",
 		"typecheck": "tsgo --noEmit"
 	},
-	"dependencies": {},
 	"devDependencies": {
 		"@ccusage/internal": "workspace:*",
 		"@ccusage/terminal": "workspace:*",
@@ -66,5 +64,19 @@
 		"unplugin-unused": "catalog:build",
 		"valibot": "catalog:runtime",
 		"vitest": "catalog:testing"
+	},
+	"devEngines": {
+		"runtime": [
+			{
+				"name": "node",
+				"version": "^24.11.0",
+				"onFail": "download"
+			},
+			{
+				"name": "bun",
+				"version": "^1.3.2",
+				"onFail": "download"
+			}
+		]
 	}
 }
