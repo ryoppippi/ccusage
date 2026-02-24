@@ -33,6 +33,14 @@ import {
 	getCodexDaily,
 	getCodexMonthly,
 } from './codex.ts';
+import {
+	getKimiDaily,
+	getKimiMonthly,
+	getKimiSession,
+	getKimiWeekly,
+	kimiParametersSchema,
+	kimiParametersShape,
+} from './kimi.ts';
 import { defaultOptions } from './mcp-utils.ts';
 
 /**
@@ -180,6 +188,90 @@ export function createMcpServer(options?: LoadOptions): McpServer {
 		},
 	);
 
+	// Register Kimi daily tool
+	server.registerTool(
+		'kimi-daily',
+		{
+			description: 'Show Kimi usage grouped by day',
+			inputSchema: kimiParametersShape,
+		},
+		async (args) => {
+			const parameters = kimiParametersSchema.parse(args);
+			const kimiDaily = await getKimiDaily(parameters);
+			return {
+				content: [
+					{
+						type: 'text',
+						text: JSON.stringify(kimiDaily, null, 2),
+					},
+				],
+			};
+		},
+	);
+
+	// Register Kimi monthly tool
+	server.registerTool(
+		'kimi-monthly',
+		{
+			description: 'Show Kimi usage grouped by month',
+			inputSchema: kimiParametersShape,
+		},
+		async (args) => {
+			const parameters = kimiParametersSchema.parse(args);
+			const kimiMonthly = await getKimiMonthly(parameters);
+			return {
+				content: [
+					{
+						type: 'text',
+						text: JSON.stringify(kimiMonthly, null, 2),
+					},
+				],
+			};
+		},
+	);
+
+	// Register Kimi session tool
+	server.registerTool(
+		'kimi-session',
+		{
+			description: 'Show Kimi usage grouped by session',
+			inputSchema: kimiParametersShape,
+		},
+		async (args) => {
+			const parameters = kimiParametersSchema.parse(args);
+			const kimiSession = await getKimiSession(parameters);
+			return {
+				content: [
+					{
+						type: 'text',
+						text: JSON.stringify(kimiSession, null, 2),
+					},
+				],
+			};
+		},
+	);
+
+	// Register Kimi weekly tool
+	server.registerTool(
+		'kimi-weekly',
+		{
+			description: 'Show Kimi usage grouped by week (ISO week format)',
+			inputSchema: kimiParametersShape,
+		},
+		async (args) => {
+			const parameters = kimiParametersSchema.parse(args);
+			const kimiWeekly = await getKimiWeekly(parameters);
+			return {
+				content: [
+					{
+						type: 'text',
+						text: JSON.stringify(kimiWeekly, null, 2),
+					},
+				],
+			};
+		},
+	);
+
 	return server;
 }
 
@@ -254,7 +346,7 @@ if (import.meta.vitest != null) {
 				await Promise.all([client.connect(clientTransport), server.connect(serverTransport)]);
 
 				const result = await client.listTools();
-				expect(result.tools).toHaveLength(6);
+				expect(result.tools).toHaveLength(10);
 
 				const toolNames = result.tools.map((tool) => tool.name);
 				expect(toolNames).toContain('daily');
@@ -263,6 +355,146 @@ if (import.meta.vitest != null) {
 				expect(toolNames).toContain('blocks');
 				expect(toolNames).toContain('codex-daily');
 				expect(toolNames).toContain('codex-monthly');
+				expect(toolNames).toContain('kimi-daily');
+				expect(toolNames).toContain('kimi-monthly');
+				expect(toolNames).toContain('kimi-session');
+				expect(toolNames).toContain('kimi-weekly');
+
+				await client.close();
+				await server.close();
+			});
+
+			it('should call kimi-daily tool successfully', async () => {
+				await using fixture = await createFixture({
+					'projects/test-project/session1/usage.jsonl': JSON.stringify({
+						timestamp: '2024-01-01T12:00:00Z',
+						costUSD: 0.001,
+						version: '1.0.0',
+						message: {
+							model: 'claude-sonnet-4-20250514',
+							usage: { input_tokens: 50, output_tokens: 10 },
+						},
+					}),
+					'.kimi': {
+						'config.toml': 'default_model = "kimi-k2.5"\n',
+						sessions: {
+							abc123: {
+								'session-1': {
+									'wire.jsonl': [
+										JSON.stringify({ type: 'metadata', protocol_version: '1.1' }),
+										JSON.stringify({
+											timestamp: 1735689600.5,
+											message: {
+												type: 'StatusUpdate',
+												payload: {
+													message_id: 'msg-1',
+													token_usage: {
+														input_other: 10,
+														input_cache_read: 5,
+														input_cache_creation: 2,
+														output: 7,
+													},
+												},
+											},
+										}),
+									].join('\n'),
+								},
+							},
+						},
+					},
+				});
+
+				const client = new Client({ name: 'test-client', version: '1.0.0' });
+				const server = createMcpServer({ claudePath: fixture.path });
+				const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+
+				await Promise.all([client.connect(clientTransport), server.connect(serverTransport)]);
+
+				const result = await client.callTool({
+					name: 'kimi-daily',
+					arguments: { shareDir: fixture.getPath('.kimi') },
+				});
+
+				expect(result).toHaveProperty('content');
+				expect(result.content).toHaveLength(1);
+				expect((result.content as any)[0]).toHaveProperty('type', 'text');
+				expect((result.content as any)[0]).toHaveProperty('text');
+
+				const data = JSON.parse((result.content as any)[0].text as string);
+				expect(data).toHaveProperty('daily');
+				expect(data).toHaveProperty('totals');
+				expect(Array.isArray(data.daily)).toBe(true);
+				expect(data.daily).toHaveLength(1);
+				expect(data.daily[0]).toMatchObject({
+					inputTokens: 17,
+					cachedInputTokens: 5,
+					outputTokens: 7,
+					totalTokens: 24,
+				});
+
+				await client.close();
+				await server.close();
+			});
+
+			it('should call kimi-weekly tool successfully', async () => {
+				await using fixture = await createFixture({
+					'.kimi': {
+						'config.toml': 'default_model = "kimi-k2.5"\n',
+						sessions: {
+							abc123: {
+								'session-1': {
+									'wire.jsonl': [
+										JSON.stringify({ type: 'metadata', protocol_version: '1.1' }),
+										JSON.stringify({
+											timestamp: 1735689600.5, // 2025-01-01
+											message: {
+												type: 'StatusUpdate',
+												payload: {
+													message_id: 'msg-1',
+													token_usage: {
+														input_other: 10,
+														input_cache_read: 5,
+														input_cache_creation: 2,
+														output: 7,
+													},
+												},
+											},
+										}),
+									].join('\n'),
+								},
+							},
+						},
+					},
+				});
+
+				const client = new Client({ name: 'test-client', version: '1.0.0' });
+				const server = createMcpServer({ claudePath: fixture.path });
+				const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+
+				await Promise.all([client.connect(clientTransport), server.connect(serverTransport)]);
+
+				const result = await client.callTool({
+					name: 'kimi-weekly',
+					arguments: { shareDir: fixture.getPath('.kimi') },
+				});
+
+				expect(result).toHaveProperty('content');
+				expect(result.content).toHaveLength(1);
+				expect((result.content as any)[0]).toHaveProperty('type', 'text');
+				expect((result.content as any)[0]).toHaveProperty('text');
+
+				const data = JSON.parse((result.content as any)[0].text as string);
+				expect(data).toHaveProperty('weekly');
+				expect(data).toHaveProperty('totals');
+				expect(Array.isArray(data.weekly)).toBe(true);
+				expect(data.weekly).toHaveLength(1);
+				expect(data.weekly[0]).toMatchObject({
+					week: '2025-W01',
+					inputTokens: 17,
+					cachedInputTokens: 5,
+					outputTokens: 7,
+					totalTokens: 24,
+				});
 
 				await client.close();
 				await server.close();

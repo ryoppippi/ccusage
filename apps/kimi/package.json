@@ -1,8 +1,8 @@
 {
-	"name": "@ccusage/mcp",
+	"name": "@ccusage/kimi",
 	"type": "module",
-	"version": "18.0.6",
-	"description": "MCP server implementation for ccusage data",
+	"version": "18.0.5",
+	"description": "Usage analysis tool for Kimi CLI sessions",
 	"author": "ryoppippi",
 	"license": "MIT",
 	"funding": "https://github.com/ryoppippi/ccusage?sponsor=1",
@@ -10,52 +10,29 @@
 	"repository": {
 		"type": "git",
 		"url": "git+https://github.com/ryoppippi/ccusage.git",
-		"directory": "apps/mcp"
+		"directory": "apps/kimi"
 	},
 	"bugs": {
 		"url": "https://github.com/ryoppippi/ccusage/issues"
 	},
-	"exports": {
-		".": "./src/index.ts",
-		"./package.json": "./package.json"
-	},
 	"main": "./dist/index.js",
 	"module": "./dist/index.js",
-	"types": "./dist/index.d.ts",
 	"bin": {
-		"ccusage-mcp": "./src/index.ts"
+		"ccusage-kimi": "./src/index.ts"
 	},
 	"files": [
-		"README.md",
 		"dist"
 	],
 	"publishConfig": {
 		"bin": {
-			"ccusage-mcp": "./dist/index.js"
-		},
-		"exports": {
-			".": "./dist/index.js",
-			"./package.json": "./package.json"
+			"ccusage-kimi": "./dist/index.js"
 		}
 	},
 	"engines": {
-		"node": ">=20.19.4",
-		"runtime": [
-			{
-				"name": "node",
-				"version": "^24.11.0",
-				"onFail": "download"
-			},
-			{
-				"name": "bun",
-				"version": "^1.3.9",
-				"onFail": "download"
-			}
-		]
+		"node": ">=20.19.4"
 	},
 	"scripts": {
 		"build": "tsdown",
-		"dev": "bun -b --watch ./src/index.ts",
 		"format": "pnpm run lint --fix",
 		"lint": "eslint --cache .",
 		"prepack": "pnpm run build && clean-pkg-json",
@@ -64,27 +41,37 @@
 		"test": "TZ=UTC vitest",
 		"typecheck": "tsgo --noEmit"
 	},
-	"dependencies": {
-		"@ccusage/codex": "workspace:*",
-		"@ccusage/kimi": "workspace:*",
-		"@hono/mcp": "catalog:runtime",
-		"@hono/node-server": "catalog:runtime",
-		"@modelcontextprotocol/sdk": "catalog:runtime",
-		"ccusage": "workspace:*",
-		"gunshi": "catalog:runtime",
-		"hono": "catalog:runtime",
-		"nano-spawn": "catalog:runtime",
-		"zod": "catalog:runtime"
-	},
 	"devDependencies": {
 		"@ccusage/internal": "workspace:*",
+		"@ccusage/terminal": "workspace:*",
+		"@praha/byethrow": "catalog:runtime",
 		"@ryoppippi/eslint-config": "catalog:lint",
 		"@typescript/native-preview": "catalog:types",
 		"clean-pkg-json": "catalog:release",
 		"eslint": "catalog:lint",
+		"fast-sort": "catalog:runtime",
 		"fs-fixture": "catalog:testing",
-		"publint": "catalog:lint",
+		"gunshi": "catalog:runtime",
+		"picocolors": "catalog:runtime",
+		"tinyglobby": "catalog:runtime",
 		"tsdown": "catalog:build",
+		"unplugin-macros": "catalog:build",
+		"unplugin-unused": "catalog:build",
+		"valibot": "catalog:runtime",
 		"vitest": "catalog:testing"
+	},
+	"devEngines": {
+		"runtime": [
+			{
+				"name": "node",
+				"version": "^24.11.0",
+				"onFail": "download"
+			},
+			{
+				"name": "bun",
+				"version": "^1.3.2",
+				"onFail": "download"
+			}
+		]
 	}
 }
