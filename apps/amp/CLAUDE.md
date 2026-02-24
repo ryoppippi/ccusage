@@ -4,8 +4,8 @@
 
 - Amp session usage is recorded under `${AMP_DATA_DIR:-~/.local/share/amp}/threads/` (the CLI resolves `AMP_DATA_DIR` and falls back to `~/.local/share/amp`).
 - Each thread is stored as a JSON file (not JSONL) named `T-{uuid}.json`.
-- Token usage is extracted from the `usageLedger.events[]` array in each thread file.
-- Cache token information (creation/read) is extracted from `messages[].usage` for detailed breakdown.
+- **Primary source** (since ~Jan 13, 2026): Token usage is extracted from `messages[].usage` for each assistant message.
+- **Fallback** (legacy, pre-Jan 13, 2026): Uses `usageLedger.events[]` when `messages[].usage` is not available.
 
 ## Token Fields
 
@@ -59,6 +59,7 @@
 
 Amp thread files have the following structure:
 
+**Current format (since ~Jan 13, 2026):**
 ```json
 {
 	"id": "T-{uuid}",
@@ -69,15 +70,24 @@ Amp thread files have the following structure:
 			"role": "assistant",
 			"messageId": 1,
 			"usage": {
-				"model": "claude-haiku-4-5-20251001",
-				"inputTokens": 100,
-				"outputTokens": 50,
-				"cacheCreationInputTokens": 500,
-				"cacheReadInputTokens": 200,
-				"credits": 1.5
+				"model": "claude-opus-4-5-20251101",
+				"inputTokens": 10,
+				"outputTokens": 220,
+				"cacheCreationInputTokens": 6904,
+				"cacheReadInputTokens": 16371,
+				"totalInputTokens": 23285,
+				"timestamp": "2026-01-22T22:42:32.743Z"
 			}
 		}
-	],
+	]
+}
+```
+
+**Legacy format (before ~Jan 13, 2026):**
+```json
+{
+	"id": "T-{uuid}",
+	"messages": [],
 	"usageLedger": {
 		"events": [
 			{
@@ -97,6 +107,8 @@ Amp thread files have the following structure:
 	}
 }
 ```
+
+Note: Cache token information (`cacheCreationInputTokens`, `cacheReadInputTokens`) is only available in the current format via `messages[].usage`.
 
 ## Environment Variables
 
