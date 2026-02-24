@@ -2,7 +2,9 @@ import { sort } from 'fast-sort';
 
 export type UsageGroup = {
 	inputTokens: number;
-	cachedInputTokens: number;
+	cacheCreationTokens: number;
+	cacheReadTokens: number;
+	cachedInputTokens?: number;
 	outputTokens: number;
 	reasoningOutputTokens: number;
 };
@@ -13,7 +15,8 @@ export function splitUsageTokens(usage: UsageGroup): {
 	cacheReadTokens: number;
 	outputTokens: number;
 } {
-	const cacheReadTokens = Math.min(usage.cachedInputTokens, usage.inputTokens);
+	const cacheReadTokens =
+		usage.cacheReadTokens ?? Math.min(usage.cachedInputTokens ?? 0, usage.inputTokens);
 	const inputTokens = Math.max(usage.inputTokens - cacheReadTokens, 0);
 	const outputTokens = Math.max(usage.outputTokens, 0);
 	const rawReasoning = usage.reasoningOutputTokens ?? 0;

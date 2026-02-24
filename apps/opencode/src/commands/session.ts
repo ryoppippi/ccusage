@@ -10,8 +10,10 @@ import {
 import { groupBy } from 'es-toolkit';
 import { define } from 'gunshi';
 import pc from 'picocolors';
+import { sharedArgs } from '../_shared-args.ts';
 import { calculateCostForEntry } from '../cost-utils.ts';
 import { loadOpenCodeMessages, loadOpenCodeSessions } from '../data-loader.ts';
+import { isDateInRange } from '../date-utils.ts';
 import { logger } from '../logger.ts';
 
 const TABLE_COLUMN_COUNT = 8;
@@ -19,31 +21,41 @@ const TABLE_COLUMN_COUNT = 8;
 export const sessionCommand = define({
 	name: 'session',
 	description: 'Show OpenCode token usage grouped by session',
-	args: {
-		json: {
-			type: 'boolean',
-			short: 'j',
-			description: 'Output in JSON format',
-		},
-		compact: {
-			type: 'boolean',
-			description: 'Force compact table mode',
-		},
-	},
+	args: sharedArgs,
 	async run(ctx) {
 		const jsonOutput = Boolean(ctx.values.json);
 
-		const [entries, sessionMetadataMap] = await Promise.all([
-			loadOpenCodeMessages(),
-			loadOpenCodeSessions(),
-		]);
+		if (jsonOutput) {
+			logger.level = 0;
+		}
+
+		let entries = await loadOpenCodeMessages();
+
+		const since = ctx.values.since ?? null;
+		const until = ctx.values.until ?? null;
+
+		if (since != null || until != null) {
+			entries = entries.filter((entry) => isDateInRange(entry.timestamp, since, until));
+		}
+
+		const sessionMetadataMap = await loadOpenCodeSessions();
 
 		if (entries.length === 0) {
-			const output = jsonOutput
-				? JSON.stringify({ sessions: [], totals: null })
-				: 'No OpenCode usage data found.';
-			// eslint-disable-next-line no-console
-			console.log(output);
+			if (jsonOutput) {
+				const emptyTotals = {
+					inputTokens: 0,
+					outputTokens: 0,
+					cacheCreationInputTokens: 0,
+					cacheReadInputTokens: 0,
+					totalTokens: 0,
+					totalCost: 0,
+				};
+				// eslint-disable-next-line no-console
+				console.log(JSON.stringify({ sessions: [], totals: emptyTotals }, null, 2));
+			} else {
+				// eslint-disable-next-line no-console
+				console.log('No OpenCode usage data found.');
+			}
 			return;
 		}
 
@@ -57,8 +69,8 @@ export const sessionCommand = define({
 			parentID: string | null;
 			inputTokens: number;
 			outputTokens: number;
-			cacheCreationTokens: number;
-			cacheReadTokens: number;
+			cacheCreationInputTokens: number;
+			cacheReadInputTokens: number;
 			totalTokens: number;
 			totalCost: number;
 			modelsUsed: string[];
@@ -70,8 +82,8 @@ export const sessionCommand = define({
 		for (const [sessionID, sessionEntries] of Object.entries(entriesBySession)) {
 			let inputTokens = 0;
 			let outputTokens = 0;
-			let cacheCreationTokens = 0;
-			let cacheReadTokens = 0;
+			let cacheCreationInputTokens = 0;
+			let cacheReadInputTokens = 0;
 			let totalCost = 0;
 			const modelsSet = new Set<string>();
 			let lastActivity = sessionEntries[0]!.timestamp;
@@ -79,8 +91,8 @@ export const sessionCommand = define({
 			for (const entry of sessionEntries) {
 				inputTokens += entry.usage.inputTokens;
 				outputTokens += entry.usage.outputTokens;
-				cacheCreationTokens += entry.usage.cacheCreationInputTokens;
-				cacheReadTokens += entry.usage.cacheReadInputTokens;
+				cacheCreationInputTokens += entry.usage.cacheCreationInputTokens;
+				cacheReadInputTokens += entry.usage.cacheReadInputTokens;
 				totalCost += await calculateCostForEntry(entry, fetcher);
 				modelsSet.add(entry.model);
 
@@ -89,7 +101,8 @@ export const sessionCommand = define({
 				}
 			}
 
-			const totalTokens = inputTokens + outputTokens + cacheCreationTokens + cacheReadTokens;
+			const totalTokens =
+				inputTokens + outputTokens + cacheCreationInputTokens + cacheReadInputTokens;
 
 			const metadata = sessionMetadataMap.get(sessionID);
 
@@ -99,8 +112,8 @@ export const sessionCommand = define({
 				parentID: metadata?.parentID ?? null,
 				inputTokens,
 				outputTokens,
-				cacheCreationTokens,
-				cacheReadTokens,
+				cacheCreationInputTokens,
+				cacheReadInputTokens,
 				totalTokens,
 				totalCost,
 				modelsUsed: Array.from(modelsSet),
@@ -113,8 +126,8 @@ export const sessionCommand = define({
 		const totals = {
 			inputTokens: sessionData.reduce((sum, s) => sum + s.inputTokens, 0),
 			outputTokens: sessionData.reduce((sum, s) => sum + s.outputTokens, 0),
-			cacheCreationTokens: sessionData.reduce((sum, s) => sum + s.cacheCreationTokens, 0),
-			cacheReadTokens: sessionData.reduce((sum, s) => sum + s.cacheReadTokens, 0),
+			cacheCreationInputTokens: sessionData.reduce((sum, s) => sum + s.cacheCreationInputTokens, 0),
+			cacheReadInputTokens: sessionData.reduce((sum, s) => sum + s.cacheReadInputTokens, 0),
 			totalTokens: sessionData.reduce((sum, s) => sum + s.totalTokens, 0),
 			totalCost: sessionData.reduce((sum, s) => sum + s.totalCost, 0),
 		};
@@ -172,8 +185,8 @@ export const sessionCommand = define({
 				formatModelsDisplayMultiline(parentSession.modelsUsed),
 				formatNumber(parentSession.inputTokens),
 				formatNumber(parentSession.outputTokens),
-				formatNumber(parentSession.cacheCreationTokens),
-				formatNumber(parentSession.cacheReadTokens),
+				formatNumber(parentSession.cacheCreationInputTokens),
+				formatNumber(parentSession.cacheReadInputTokens),
 				formatNumber(parentSession.totalTokens),
 				formatCurrency(parentSession.totalCost),
 			]);
@@ -186,8 +199,8 @@ export const sessionCommand = define({
 						formatModelsDisplayMultiline(subSession.modelsUsed),
 						formatNumber(subSession.inputTokens),
 						formatNumber(subSession.outputTokens),
-						formatNumber(subSession.cacheCreationTokens),
-						formatNumber(subSession.cacheReadTokens),
+						formatNumber(subSession.cacheCreationInputTokens),
+						formatNumber(subSession.cacheReadInputTokens),
 						formatNumber(subSession.totalTokens),
 						formatCurrency(subSession.totalCost),
 					]);
@@ -197,12 +210,12 @@ export const sessionCommand = define({
 					parentSession.inputTokens + subSessions.reduce((sum, s) => sum + s.inputTokens, 0);
 				const subtotalOutputTokens =
 					parentSession.outputTokens + subSessions.reduce((sum, s) => sum + s.outputTokens, 0);
-				const subtotalCacheCreationTokens =
-					parentSession.cacheCreationTokens +
-					subSessions.reduce((sum, s) => sum + s.cacheCreationTokens, 0);
-				const subtotalCacheReadTokens =
-					parentSession.cacheReadTokens +
-					subSessions.reduce((sum, s) => sum + s.cacheReadTokens, 0);
+				const subtotalCacheCreationInputTokens =
+					parentSession.cacheCreationInputTokens +
+					subSessions.reduce((sum, s) => sum + s.cacheCreationInputTokens, 0);
+				const subtotalCacheReadInputTokens =
+					parentSession.cacheReadInputTokens +
+					subSessions.reduce((sum, s) => sum + s.cacheReadInputTokens, 0);
 				const subtotalTotalTokens =
 					parentSession.totalTokens + subSessions.reduce((sum, s) => sum + s.totalTokens, 0);
 				const subtotalCost =
@@ -213,8 +226,8 @@ export const sessionCommand = define({
 					'',
 					pc.yellow(formatNumber(subtotalInputTokens)),
 					pc.yellow(formatNumber(subtotalOutputTokens)),
-					pc.yellow(formatNumber(subtotalCacheCreationTokens)),
-					pc.yellow(formatNumber(subtotalCacheReadTokens)),
+					pc.yellow(formatNumber(subtotalCacheCreationInputTokens)),
+					pc.yellow(formatNumber(subtotalCacheReadInputTokens)),
 					pc.yellow(formatNumber(subtotalTotalTokens)),
 					pc.yellow(formatCurrency(subtotalCost)),
 				]);
@@ -227,8 +240,8 @@ export const sessionCommand = define({
 			'',
 			pc.yellow(formatNumber(totals.inputTokens)),
 			pc.yellow(formatNumber(totals.outputTokens)),
-			pc.yellow(formatNumber(totals.cacheCreationTokens)),
-			pc.yellow(formatNumber(totals.cacheReadTokens)),
+			pc.yellow(formatNumber(totals.cacheCreationInputTokens)),
+			pc.yellow(formatNumber(totals.cacheReadInputTokens)),
 			pc.yellow(formatNumber(totals.totalTokens)),
 			pc.yellow(formatCurrency(totals.totalCost)),
 		]);

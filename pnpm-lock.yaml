@@ -500,6 +500,9 @@ importers:
       '@ccusage/internal':
         specifier: workspace:*
         version: link:../../packages/internal
+      '@praha/byethrow':
+        specifier: catalog:runtime
+        version: 0.6.3
       '@ryoppippi/eslint-config':
         specifier: catalog:lint
         version: 0.4.0(@vue/compiler-sfc@3.5.21)(eslint-plugin-format@1.0.2(eslint@9.35.0(jiti@2.6.1)))(eslint@9.35.0(jiti@2.6.1))(typescript@5.9.2)(vitest@4.0.15(@types/node@24.5.1)(happy-dom@16.8.1)(jiti@2.6.1)(yaml@2.8.1))

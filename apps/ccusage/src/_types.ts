@@ -12,18 +12,27 @@ export const modelNameSchema = v.pipe(
 	v.brand('ModelName'),
 );
 
+/**
+ * Schema for Claude session identifiers.
+ */
 export const sessionIdSchema = v.pipe(
 	v.string(),
 	v.minLength(1, 'Session ID cannot be empty'),
 	v.brand('SessionId'),
 );
 
+/**
+ * Schema for API request identifiers.
+ */
 export const requestIdSchema = v.pipe(
 	v.string(),
 	v.minLength(1, 'Request ID cannot be empty'),
 	v.brand('RequestId'),
 );
 
+/**
+ * Schema for Claude message identifiers.
+ */
 export const messageIdSchema = v.pipe(
 	v.string(),
 	v.minLength(1, 'Message ID cannot be empty'),
@@ -32,6 +41,9 @@ export const messageIdSchema = v.pipe(
 
 // Date and timestamp schemas
 const isoTimestampRegex = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/;
+/**
+ * Schema for ISO-8601 timestamps stored in usage entries.
+ */
 export const isoTimestampSchema = v.pipe(
 	v.string(),
 	v.regex(isoTimestampRegex, 'Invalid ISO timestamp'),
@@ -39,12 +51,18 @@ export const isoTimestampSchema = v.pipe(
 );
 
 const yyyymmddRegex = /^\d{4}-\d{2}-\d{2}$/;
+/**
+ * Schema for daily usage date keys (YYYY-MM-DD).
+ */
 export const dailyDateSchema = v.pipe(
 	v.string(),
 	v.regex(yyyymmddRegex, 'Date must be in YYYY-MM-DD format'),
 	v.brand('DailyDate'),
 );
 
+/**
+ * Schema for activity date values (YYYY-MM-DD).
+ */
 export const activityDateSchema = v.pipe(
 	v.string(),
 	v.regex(yyyymmddRegex, 'Date must be in YYYY-MM-DD format'),
@@ -52,12 +70,18 @@ export const activityDateSchema = v.pipe(
 );
 
 const yyyymmRegex = /^\d{4}-\d{2}$/;
+/**
+ * Schema for monthly usage date keys (YYYY-MM).
+ */
 export const monthlyDateSchema = v.pipe(
 	v.string(),
 	v.regex(yyyymmRegex, 'Date must be in YYYY-MM format'),
 	v.brand('MonthlyDate'),
 );
 
+/**
+ * Schema for weekly usage date keys (week start date).
+ */
 export const weeklyDateSchema = v.pipe(
 	v.string(),
 	v.regex(yyyymmddRegex, 'Date must be in YYYY-MM-DD format'),
@@ -65,6 +89,9 @@ export const weeklyDateSchema = v.pipe(
 );
 
 const filterDateRegex = /^\d{8}$/;
+/**
+ * Schema for CLI filter dates in YYYYMMDD format.
+ */
 export const filterDateSchema = v.pipe(
 	v.string(),
 	v.regex(filterDateRegex, 'Date must be in YYYYMMDD format'),
@@ -72,6 +99,9 @@ export const filterDateSchema = v.pipe(
 );
 
 // Other domain-specific schemas
+/**
+ * Schema for local project paths used to group sessions.
+ */
 export const projectPathSchema = v.pipe(
 	v.string(),
 	v.minLength(1, 'Project path cannot be empty'),
@@ -79,6 +109,9 @@ export const projectPathSchema = v.pipe(
 );
 
 const versionRegex = /^\d+\.\d+\.\d+/;
+/**
+ * Schema for Claude Code version strings.
+ */
 export const versionSchema = v.pipe(
 	v.string(),
 	v.regex(versionRegex, 'Invalid version format'),
@@ -107,22 +140,58 @@ export type Version = v.InferOutput<typeof versionSchema>;
  * These functions should be used when converting plain strings to branded types
  */
 export const createModelName = (value: string): ModelName => v.parse(modelNameSchema, value);
+/**
+ * Parse and brand a session identifier string.
+ */
 export const createSessionId = (value: string): SessionId => v.parse(sessionIdSchema, value);
+/**
+ * Parse and brand a request identifier string.
+ */
 export const createRequestId = (value: string): RequestId => v.parse(requestIdSchema, value);
+/**
+ * Parse and brand a message identifier string.
+ */
 export const createMessageId = (value: string): MessageId => v.parse(messageIdSchema, value);
+/**
+ * Parse and brand an ISO timestamp string.
+ */
 export function createISOTimestamp(value: string): ISOTimestamp {
 	return v.parse(isoTimestampSchema, value);
 }
+/**
+ * Parse and brand a daily date (YYYY-MM-DD).
+ */
 export const createDailyDate = (value: string): DailyDate => v.parse(dailyDateSchema, value);
+/**
+ * Parse and brand an activity date (YYYY-MM-DD).
+ */
 export function createActivityDate(value: string): ActivityDate {
 	return v.parse(activityDateSchema, value);
 }
+/**
+ * Parse and brand a monthly date (YYYY-MM).
+ */
 export const createMonthlyDate = (value: string): MonthlyDate => v.parse(monthlyDateSchema, value);
+/**
+ * Parse and brand a weekly date (week start).
+ */
 export const createWeeklyDate = (value: string): WeeklyDate => v.parse(weeklyDateSchema, value);
+/**
+ * Parse and brand a filter date (YYYYMMDD).
+ */
 export const createFilterDate = (value: string): FilterDate => v.parse(filterDateSchema, value);
+/**
+ * Parse and brand a project path string.
+ */
 export const createProjectPath = (value: string): ProjectPath => v.parse(projectPathSchema, value);
+/**
+ * Parse and brand a Claude Code version string.
+ */
 export const createVersion = (value: string): Version => v.parse(versionSchema, value);
 
+/**
+ * Parse a bucket key into a weekly or monthly date bucket.
+ */
 export function createBucket(value: string): Bucket {
 	const weeklyResult = v.safeParse(weeklyDateSchema, value);
 	if (weeklyResult.success) {

@@ -22,10 +22,12 @@ function createSummary(date: string, initialTimestamp: string): DailyUsageSummar
 		date,
 		firstTimestamp: initialTimestamp,
 		inputTokens: 0,
-		cachedInputTokens: 0,
+		cacheCreationTokens: 0,
+		cacheReadTokens: 0,
 		outputTokens: 0,
 		reasoningOutputTokens: 0,
 		totalTokens: 0,
+		totalCost: 0,
 		costUSD: 0,
 		models: new Map(),
 	};
@@ -99,20 +101,28 @@ export async function buildDailyReport(
 			}
 			cost += calculateCostUSD(usage, pricing);
 		}
+		summary.totalCost = cost;
 		summary.costUSD = cost;
 
 		const rowModels: Record<string, ModelUsage> = {};
 		for (const [modelName, usage] of summary.models) {
-			rowModels[modelName] = { ...usage };
+			const modelEntry: ModelUsage = { ...usage };
+			if (usage.cacheReadTokens != null) {
+				modelEntry.cachedInputTokens = usage.cacheReadTokens;
+			}
+			rowModels[modelName] = modelEntry;
 		}
 
 		rows.push({
 			date: formatDisplayDate(summary.date, locale, timezone),
 			inputTokens: summary.inputTokens,
-			cachedInputTokens: summary.cachedInputTokens,
+			cacheCreationTokens: summary.cacheCreationTokens,
+			cacheReadTokens: summary.cacheReadTokens,
+			cachedInputTokens: summary.cacheReadTokens,
 			outputTokens: summary.outputTokens,
 			reasoningOutputTokens: summary.reasoningOutputTokens,
 			totalTokens: summary.totalTokens,
+			totalCost: cost,
 			costUSD: cost,
 			models: rowModels,
 		});
@@ -126,11 +136,11 @@ if (import.meta.vitest != null) {
 		it('aggregates events by day and calculates costs', async () => {
 			const pricing = new Map([
 				[
-					'gpt-5',
+					'claude-sonnet-4-20250514',
 					{ inputCostPerMToken: 1.25, cachedInputCostPerMToken: 0.125, outputCostPerMToken: 10 },
 				],
 				[
-					'gpt-5-mini',
+					'claude-opus-4-20250514',
 					{ inputCostPerMToken: 0.6, cachedInputCostPerMToken: 0.06, outputCostPerMToken: 2 },
 				],
 			]);
@@ -148,8 +158,10 @@ if (import.meta.vitest != null) {
 					{
 						sessionId: 'session-1',
 						timestamp: '2025-09-11T03:00:00.000Z',
-						model: 'gpt-5',
+						model: 'claude-sonnet-4-20250514',
 						inputTokens: 1_000,
+						cacheCreationTokens: 0,
+						cacheReadTokens: 200,
 						cachedInputTokens: 200,
 						outputTokens: 500,
 						reasoningOutputTokens: 0,
@@ -158,8 +170,10 @@ if (import.meta.vitest != null) {
 					{
 						sessionId: 'session-1',
 						timestamp: '2025-09-11T05:00:00.000Z',
-						model: 'gpt-5-mini',
+						model: 'claude-opus-4-20250514',
 						inputTokens: 400,
+						cacheCreationTokens: 0,
+						cacheReadTokens: 100,
 						cachedInputTokens: 100,
 						outputTokens: 200,
 						reasoningOutputTokens: 50,
@@ -168,8 +182,10 @@ if (import.meta.vitest != null) {
 					{
 						sessionId: 'session-2',
 						timestamp: '2025-09-12T01:00:00.000Z',
-						model: 'gpt-5',
+						model: 'claude-sonnet-4-20250514',
 						inputTokens: 2_000,
+						cacheCreationTokens: 0,
+						cacheReadTokens: 0,
 						cachedInputTokens: 0,
 						outputTokens: 800,
 						reasoningOutputTokens: 0,
@@ -187,11 +203,12 @@ if (import.meta.vitest != null) {
 			const first = report[0]!;
 			expect(first.date).toContain('2025');
 			expect(first.inputTokens).toBe(1_400);
+			expect(first.cacheReadTokens).toBe(300);
 			expect(first.cachedInputTokens).toBe(300);
 			expect(first.outputTokens).toBe(700);
 			expect(first.reasoningOutputTokens).toBe(50);
-			// gpt-5: 800 non-cached input @ 1.25, 200 cached @ 0.125, 500 output @ 10
-			// gpt-5-mini: 300 non-cached input @ 0.6, 100 cached @ 0.06, 200 output @ 2 (reasoning already included)
+			// claude-sonnet-4-20250514: 800 non-cached input @ 1.25, 200 cached @ 0.125, 500 output @ 10
+			// claude-opus-4-20250514: 300 non-cached input @ 0.6, 100 cached @ 0.06, 200 output @ 2 (reasoning already included)
 			const expectedCost =
 				(800 / 1_000_000) * 1.25 +
 				(200 / 1_000_000) * 0.125 +
@@ -199,6 +216,7 @@ if (import.meta.vitest != null) {
 				(300 / 1_000_000) * 0.6 +
 				(100 / 1_000_000) * 0.06 +
 				(200 / 1_000_000) * 2;
+			expect(first.totalCost).toBeCloseTo(expectedCost, 10);
 			expect(first.costUSD).toBeCloseTo(expectedCost, 10);
 		});
 	});

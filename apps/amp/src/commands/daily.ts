@@ -48,11 +48,22 @@ export const dailyCommand = define({
 		const { events } = await loadAmpUsageEvents();
 
 		if (events.length === 0) {
-			const output = jsonOutput
-				? JSON.stringify({ daily: [], totals: null })
-				: 'No Amp usage data found.';
-			// eslint-disable-next-line no-console
-			console.log(output);
+			if (jsonOutput) {
+				const emptyTotals = {
+					inputTokens: 0,
+					outputTokens: 0,
+					cacheCreationTokens: 0,
+					cacheReadTokens: 0,
+					totalTokens: 0,
+					credits: 0,
+					totalCost: 0,
+				};
+				// eslint-disable-next-line no-console
+				console.log(JSON.stringify({ daily: [], totals: emptyTotals }, null, 2));
+			} else {
+				// eslint-disable-next-line no-console
+				console.log('No Amp usage data found.');
+			}
 			return;
 		}
 
@@ -98,7 +109,7 @@ export const dailyCommand = define({
 				modelsSet.add(event.model);
 			}
 
-			const totalTokens = inputTokens + outputTokens;
+			const totalTokens = inputTokens + outputTokens + cacheCreationTokens + cacheReadTokens;
 
 			dailyData.push({
 				date,

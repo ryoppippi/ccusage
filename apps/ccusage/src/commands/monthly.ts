@@ -19,6 +19,9 @@ import { loadMonthlyUsageData } from '../data-loader.ts';
 import { detectMismatches, printMismatchReport } from '../debug.ts';
 import { log, logger } from '../logger.ts';
 
+/**
+ * CLI command for monthly usage reports.
+ */
 export const monthlyCommand = define({
 	name: 'monthly',
 	description: 'Show usage report grouped by month',

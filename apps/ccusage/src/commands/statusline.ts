@@ -102,6 +102,9 @@ function parseContextThreshold(value: string): number {
 	return v.parse(contextThresholdSchema, value);
 }
 
+/**
+ * CLI command for compact statusline output.
+ */
 export const statuslineCommand = define({
 	name: 'statusline',
 	description:
