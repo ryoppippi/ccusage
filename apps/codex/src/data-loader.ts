@@ -22,6 +22,20 @@ type RawUsage = {
 	total_tokens: number;
 };
 
+function isSameRawUsage(left: RawUsage | null, right: RawUsage | null): boolean {
+	if (left == null || right == null) {
+		return false;
+	}
+
+	return (
+		left.input_tokens === right.input_tokens &&
+		left.cached_input_tokens === right.cached_input_tokens &&
+		left.output_tokens === right.output_tokens &&
+		left.reasoning_output_tokens === right.reasoning_output_tokens &&
+		left.total_tokens === right.total_tokens
+	);
+}
+
 function ensureNumber(value: unknown): number {
 	return typeof value === 'number' && Number.isFinite(value) ? value : 0;
 }
@@ -291,9 +305,12 @@ export async function loadTokenUsageEvents(options: LoadOptions = {}): Promise<L
 				const info = tokenPayloadResult.output.info;
 				const lastUsage = normalizeRawUsage(info?.last_token_usage);
 				const totalUsage = normalizeRawUsage(info?.total_token_usage);
+				const isDuplicateTotal = isSameRawUsage(totalUsage, previousTotals);
 
-				let raw = lastUsage;
-				if (raw == null && totalUsage != null) {
+				let raw: RawUsage | null = null;
+				if (lastUsage != null && !isDuplicateTotal) {
+					raw = lastUsage;
+				} else if (lastUsage == null && totalUsage != null) {
 					raw = subtractRawUsage(totalUsage, previousTotals);
 				}
 
@@ -451,6 +468,78 @@ if (import.meta.vitest != null) {
 			expect(second.model).toBe('gpt-5');
 			expect(second.inputTokens).toBe(800);
 			expect(second.cachedInputTokens).toBe(100);
+		});
+
+		it('ignores duplicate token_count events with unchanged totals', async () => {
+			await using fixture = await createFixture({
+				sessions: {
+					'duplicate.jsonl': [
+						JSON.stringify({
+							timestamp: '2025-09-11T18:25:30.000Z',
+							type: 'turn_context',
+							payload: {
+								model: 'gpt-5',
+							},
+						}),
+						JSON.stringify({
+							timestamp: '2025-09-11T18:25:40.000Z',
+							type: 'event_msg',
+							payload: {
+								type: 'token_count',
+								info: {
+									total_token_usage: {
+										input_tokens: 1_000,
+										cached_input_tokens: 250,
+										output_tokens: 200,
+										reasoning_output_tokens: 0,
+										total_tokens: 1_200,
+									},
+									last_token_usage: {
+										input_tokens: 1_000,
+										cached_input_tokens: 250,
+										output_tokens: 200,
+										reasoning_output_tokens: 0,
+										total_tokens: 1_200,
+									},
+								},
+							},
+						}),
+						JSON.stringify({
+							timestamp: '2025-09-11T18:25:41.000Z',
+							type: 'event_msg',
+							payload: {
+								type: 'token_count',
+								info: {
+									total_token_usage: {
+										input_tokens: 1_000,
+										cached_input_tokens: 250,
+										output_tokens: 200,
+										reasoning_output_tokens: 0,
+										total_tokens: 1_200,
+									},
+									last_token_usage: {
+										input_tokens: 1_000,
+										cached_input_tokens: 250,
+										output_tokens: 200,
+										reasoning_output_tokens: 0,
+										total_tokens: 1_200,
+									},
+								},
+							},
+						}),
+					].join('\n'),
+				},
+			});
+
+			const { events } = await loadTokenUsageEvents({
+				sessionDirs: [fixture.getPath('sessions')],
+			});
+
+			expect(events).toHaveLength(1);
+			expect(events[0]!.inputTokens).toBe(1_000);
+			expect(events[0]!.cachedInputTokens).toBe(250);
+			expect(events[0]!.outputTokens).toBe(200);
+			expect(events[0]!.totalTokens).toBe(1_200);
 		});
 
 		it('falls back to legacy model when metadata is missing entirely', async () => {
