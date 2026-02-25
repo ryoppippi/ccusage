@@ -9,6 +9,13 @@ import { Result } from '@praha/byethrow';
 const MODEL_ALIASES: Record<string, string> = {
 	// OpenCode uses -high suffix for higher tier/thinking mode variants
 	'gemini-3-pro-high': 'gemini-3-pro-preview',
+	// OpenCode uses dot notation for Claude version numbers (e.g. 4.5),
+	// but LiteLLM uses hyphens (e.g. 4-5)
+	'claude-haiku-4.5': 'claude-haiku-4-5',
+	'claude-opus-4.5': 'claude-opus-4-5',
+	'claude-opus-4.6': 'claude-opus-4-6',
+	'claude-sonnet-4.5': 'claude-sonnet-4-5',
+	'claude-sonnet-4.6': 'claude-sonnet-4-6',
 };
 
 function resolveModelName(modelName: string): string {
