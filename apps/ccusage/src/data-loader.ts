@@ -13,7 +13,7 @@ import type { LoadedUsageEntry, SessionBlock } from './_session-blocks.ts';
 import type { ActivityDate, Bucket, CostMode, ModelName, SortOrder, Version } from './_types.ts';
 import { Buffer } from 'node:buffer';
 import { createReadStream, createWriteStream } from 'node:fs';
-import { readFile } from 'node:fs/promises';
+import { readFile, stat, utimes } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
 import { createInterface } from 'node:readline';
@@ -716,6 +716,51 @@ export async function globUsageFiles(claudePaths: string[]): Promise<GlobResult[
 	return (await Promise.all(filePromises)).flat();
 }
 
+function parseSinceDate(since: string): Date {
+	const y = Number(since.slice(0, 4));
+	const m = Number(since.slice(4, 6)) - 1;
+	const d = Number(since.slice(6, 8));
+	return new Date(y, m, d);
+}
+
+async function filterFilesByMtime(files: string[], since?: string): Promise<string[]> {
+	if (since == null || since.trim() === '' || !/^\d{8}$/.test(since)) {
+		return files;
+	}
+
+	const sinceDate = parseSinceDate(since);
+	sinceDate.setDate(sinceDate.getDate() - 1);
+	const sinceMs = sinceDate.getTime();
+
+	const results = await Promise.all(
+		files.map(async (file) => {
+			const s = await stat(file).catch(() => null);
+			if (s == null) {
+				return file;
+			}
+			return s.mtimeMs >= sinceMs ? file : null;
+		}),
+	);
+	return results.filter((f): f is string => f != null);
+}
+
+function isOutsideDateRange(date: string, since?: string, until?: string): boolean {
+	const dateCompact = date.substring(0, 10).replace(/-/g, '');
+	if (since != null && since !== '' && dateCompact < since) {
+		return true;
+	}
+	if (until != null && until !== '' && dateCompact > until) {
+		return true;
+	}
+	return false;
+}
+
+/**
+ * Substring marker used to quickly skip non-usage lines without JSON.parse.
+ * Every valid usage entry must contain "input_tokens" in the message.usage object.
+ */
+const USAGE_LINE_MARKER = '"input_tokens"';
+
 /**
  * Date range filter for limiting usage data by date
  */
@@ -765,8 +810,11 @@ export async function loadDailyUsageData(options?: LoadOptions): Promise<DailyUs
 		options?.project,
 	);
 
+	// Pre-filter files by mtime to skip files that can't contain entries for the requested date range
+	const mtimeFiltered = await filterFilesByMtime(projectFilteredFiles, options?.since);
+
 	// Sort files by timestamp to ensure chronological processing
-	const sortedFiles = await sortFilesByTimestamp(projectFilteredFiles);
+	const sortedFiles = await sortFilesByTimestamp(mtimeFiltered);
 
 	// Fetch pricing data for cost calculation only when needed
 	const mode = options?.mode ?? 'auto';
@@ -791,6 +839,9 @@ export async function loadDailyUsageData(options?: LoadOptions): Promise<DailyUs
 		const project = extractProjectFromPath(file);
 
 		await processJSONLFileByLine(file, async (line) => {
+			if (!line.includes(USAGE_LINE_MARKER)) {
+				return;
+			}
 			try {
 				const parsed = JSON.parse(line) as unknown;
 				const result = v.safeParse(usageDataSchema, parsed);
@@ -802,7 +853,6 @@ export async function loadDailyUsageData(options?: LoadOptions): Promise<DailyUs
 				// Check for duplicate message + request ID combination
 				const uniqueHash = createUniqueHash(data);
 				if (isDuplicateEntry(uniqueHash, processedHashes)) {
-					// Skip duplicate message
 					return;
 				}
 
@@ -811,12 +861,21 @@ export async function loadDailyUsageData(options?: LoadOptions): Promise<DailyUs
 
 				// Always use DEFAULT_LOCALE for date grouping to ensure YYYY-MM-DD format
 				const date = formatDate(data.timestamp, options?.timezone, DEFAULT_LOCALE);
-				// If fetcher is available, calculate cost based on mode and tokens
-				// If fetcher is null, use pre-calculated costUSD or default to 0
+
+				if (isOutsideDateRange(date, options?.since, options?.until)) {
+					return;
+				}
+
 				const cost =
 					fetcher != null ? await calculateCostForEntry(data, mode, fetcher) : (data.costUSD ?? 0);
 
-				allEntries.push({ data, date, cost, model: data.message.model, project });
+				allEntries.push({
+					data,
+					date,
+					cost,
+					model: data.message.model,
+					project,
+				});
 			} catch {
 				// Skip invalid JSON lines
 			}
@@ -913,12 +972,15 @@ export async function loadSessionData(options?: LoadOptions): Promise<SessionUsa
 		options?.project,
 	);
 
-	// Sort files by timestamp to ensure chronological processing
-	// Create a map for O(1) lookup instead of O(N) find operations
+	// Pre-filter files by mtime to skip files that can't contain entries for the requested date range
 	const fileToBaseMap = new Map(projectFilteredWithBase.map((f) => [f.file, f.baseDir]));
-	const sortedFilesWithBase = await sortFilesByTimestamp(
+	const mtimeFilteredFiles = await filterFilesByMtime(
 		projectFilteredWithBase.map((f) => f.file),
-	).then((sortedFiles) =>
+		options?.since,
+	);
+
+	// Sort files by timestamp to ensure chronological processing
+	const sortedFilesWithBase = await sortFilesByTimestamp(mtimeFilteredFiles).then((sortedFiles) =>
 		sortedFiles.map((file) => ({
 			file,
 			baseDir: fileToBaseMap.get(file) ?? '',
@@ -957,6 +1019,9 @@ export async function loadSessionData(options?: LoadOptions): Promise<SessionUsa
 		const projectPath = joinedPath.length > 0 ? joinedPath : 'Unknown Project';
 
 		await processJSONLFileByLine(file, async (line) => {
+			if (!line.includes(USAGE_LINE_MARKER)) {
+				return;
+			}
 			try {
 				const parsed = JSON.parse(line) as unknown;
 				const result = v.safeParse(usageDataSchema, parsed);
@@ -968,7 +1033,6 @@ export async function loadSessionData(options?: LoadOptions): Promise<SessionUsa
 				// Check for duplicate message + request ID combination
 				const uniqueHash = createUniqueHash(data);
 				if (isDuplicateEntry(uniqueHash, processedHashes)) {
-					// Skip duplicate message
 					return;
 				}
 
@@ -976,6 +1040,12 @@ export async function loadSessionData(options?: LoadOptions): Promise<SessionUsa
 				markAsProcessed(uniqueHash, processedHashes);
 
 				const sessionKey = `${projectPath}/${sessionId}`;
+
+				const entryDate = formatDate(data.timestamp, options?.timezone, DEFAULT_LOCALE);
+				if (isOutsideDateRange(entryDate, options?.since, options?.until)) {
+					return;
+				}
+
 				const cost =
 					fetcher != null ? await calculateCostForEntry(data, mode, fetcher) : (data.costUSD ?? 0);
 
@@ -1367,8 +1437,9 @@ export async function loadSessionBlockData(options?: LoadOptions): Promise<Sessi
 		options?.project,
 	);
 
-	// Sort files by timestamp to ensure chronological processing
-	const sortedFiles = await sortFilesByTimestamp(blocksFilteredFiles);
+	const mtimeFilteredFiles = await filterFilesByMtime(blocksFilteredFiles, options?.since);
+
+	const sortedFiles = await sortFilesByTimestamp(mtimeFilteredFiles);
 
 	// Fetch pricing data for cost calculation only when needed
 	const mode = options?.mode ?? 'auto';
@@ -1384,6 +1455,10 @@ export async function loadSessionBlockData(options?: LoadOptions): Promise<Sessi
 
 	for (const file of sortedFiles) {
 		await processJSONLFileByLine(file, async (line) => {
+			if (!line.includes(USAGE_LINE_MARKER)) {
+				return;
+			}
+
 			try {
 				const parsed = JSON.parse(line) as unknown;
 				const result = v.safeParse(usageDataSchema, parsed);
@@ -1395,12 +1470,16 @@ export async function loadSessionBlockData(options?: LoadOptions): Promise<Sessi
 				// Check for duplicate message + request ID combination
 				const uniqueHash = createUniqueHash(data);
 				if (isDuplicateEntry(uniqueHash, processedHashes)) {
-					// Skip duplicate message
 					return;
 				}
 
 				// Mark this combination as processed
 				markAsProcessed(uniqueHash, processedHashes);
+
+				const date = formatDate(data.timestamp, options?.timezone, DEFAULT_LOCALE);
+				if (isOutsideDateRange(date, options?.since, options?.until)) {
+					return;
+				}
 
 				const cost =
 					fetcher != null ? await calculateCostForEntry(data, mode, fetcher) : (data.costUSD ?? 0);
@@ -1571,7 +1650,9 @@ if (import.meta.vitest != null) {
 
 			vi.stubEnv('CLAUDE_CONFIG_DIR', fixture.getPath('.claude'));
 
-			const result = await loadSessionUsageById('session-123', { mode: 'display' });
+			const result = await loadSessionUsageById('session-123', {
+				mode: 'display',
+			});
 
 			expect(result).not.toBeNull();
 			expect(result?.totalCost).toBe(1.5);
@@ -1602,7 +1683,9 @@ if (import.meta.vitest != null) {
 
 			vi.stubEnv('CLAUDE_CONFIG_DIR', fixture.getPath('.claude'));
 
-			const result = await loadSessionUsageById('non-existent', { mode: 'display' });
+			const result = await loadSessionUsageById('non-existent', {
+				mode: 'display',
+			});
 
 			expect(result).toBeNull();
 		});
@@ -2489,7 +2572,10 @@ invalid json line
 				},
 			});
 
-			const result = await loadWeeklyUsageData({ claudePath: fixture.path, order: 'asc' });
+			const result = await loadWeeklyUsageData({
+				claudePath: fixture.path,
+				order: 'asc',
+			});
 			const weeks = result.map((r) => r.week);
 
 			expect(weeks).toEqual(['2023-12-31', '2024-01-07', '2024-01-14', '2024-01-21']);
@@ -3651,7 +3737,10 @@ invalid json line
 			it('should return 0 when model pricing not found', async () => {
 				const dataWithUnknownModel = {
 					...mockUsageData,
-					message: { ...mockUsageData.message, model: createModelName('unknown-model') },
+					message: {
+						...mockUsageData.message,
+						model: createModelName('unknown-model'),
+					},
 				};
 
 				using fetcher = new PricingFetcher();
@@ -4293,9 +4382,18 @@ if (import.meta.vitest != null) {
 		describe('getEarliestTimestamp', () => {
 			it('should extract earliest timestamp from JSONL file', async () => {
 				const content = [
-					JSON.stringify({ timestamp: '2025-01-15T12:00:00Z', message: { usage: {} } }),
-					JSON.stringify({ timestamp: '2025-01-10T10:00:00Z', message: { usage: {} } }),
-					JSON.stringify({ timestamp: '2025-01-12T11:00:00Z', message: { usage: {} } }),
+					JSON.stringify({
+						timestamp: '2025-01-15T12:00:00Z',
+						message: { usage: {} },
+					}),
+					JSON.stringify({
+						timestamp: '2025-01-10T10:00:00Z',
+						message: { usage: {} },
+					}),
+					JSON.stringify({
+						timestamp: '2025-01-12T11:00:00Z',
+						message: { usage: {} },
+					}),
 				].join('\n');
 
 				await using fixture = await createFixture({
@@ -4323,7 +4421,10 @@ if (import.meta.vitest != null) {
 			it('should skip invalid JSON lines', async () => {
 				const content = [
 					'invalid json',
-					JSON.stringify({ timestamp: '2025-01-10T10:00:00Z', message: { usage: {} } }),
+					JSON.stringify({
+						timestamp: '2025-01-10T10:00:00Z',
+						message: { usage: {} },
+					}),
 					'{ broken: json',
 				].join('\n');
 
@@ -4730,7 +4831,10 @@ if (import.meta.vitest != null) {
 		it('handles missing cache fields gracefully', async () => {
 			await using fixture = await createFixture({
 				'transcript.jsonl': [
-					JSON.stringify({ type: 'assistant', message: { usage: { input_tokens: 1000 } } }),
+					JSON.stringify({
+						type: 'assistant',
+						message: { usage: { input_tokens: 1000 } },
+					}),
 				].join('\n'),
 			});
 			const res = await calculateContextTokens(fixture.getPath('transcript.jsonl'));
@@ -4742,12 +4846,392 @@ if (import.meta.vitest != null) {
 		it('clamps percentage to 0-100 range', async () => {
 			await using fixture = await createFixture({
 				'transcript.jsonl': [
-					JSON.stringify({ type: 'assistant', message: { usage: { input_tokens: 300_000 } } }),
+					JSON.stringify({
+						type: 'assistant',
+						message: { usage: { input_tokens: 300_000 } },
+					}),
 				].join('\n'),
 			});
 			const res = await calculateContextTokens(fixture.getPath('transcript.jsonl'));
 			expect(res).not.toBeNull();
 			expect(res?.percentage).toBe(100); // Should be clamped to 100
+		});
+	});
+}
+
+if (import.meta.vitest != null) {
+	describe('parseSinceDate', () => {
+		it('parses YYYYMMDD correctly', () => {
+			const d = parseSinceDate('20240115');
+			expect(d.getFullYear()).toBe(2024);
+			expect(d.getMonth()).toBe(0);
+			expect(d.getDate()).toBe(15);
+		});
+
+		it('handles first day of year', () => {
+			const d = parseSinceDate('20240101');
+			expect(d.getFullYear()).toBe(2024);
+			expect(d.getMonth()).toBe(0);
+			expect(d.getDate()).toBe(1);
+		});
+
+		it('handles last day of year', () => {
+			const d = parseSinceDate('20241231');
+			expect(d.getMonth()).toBe(11);
+			expect(d.getDate()).toBe(31);
+		});
+
+		it('handles leap year date', () => {
+			const d = parseSinceDate('20240229');
+			expect(d.getMonth()).toBe(1);
+			expect(d.getDate()).toBe(29);
+		});
+	});
+
+	describe('filterFilesByMtime', () => {
+		it('returns all files when since is undefined', async () => {
+			const files = ['/a.jsonl', '/b.jsonl'];
+			const result = await filterFilesByMtime(files, undefined);
+			expect(result).toEqual(files);
+		});
+
+		it('returns all files when since is empty string', async () => {
+			const files = ['/a.jsonl', '/b.jsonl'];
+			const result = await filterFilesByMtime(files, '');
+			expect(result).toEqual(files);
+		});
+
+		it('returns all files when since is invalid format', async () => {
+			const files = ['/a.jsonl', '/b.jsonl'];
+			const result = await filterFilesByMtime(files, 'not-a-date');
+			expect(result).toEqual(files);
+		});
+
+		it('keeps files newer than since', async () => {
+			await using fixture = await createFixture({
+				'new.jsonl': 'test',
+			});
+			const filePath = fixture.getPath('new.jsonl');
+			const result = await filterFilesByMtime([filePath], '20200101');
+			expect(result).toEqual([filePath]);
+		});
+
+		it('filters out files older than since', async () => {
+			await using fixture = await createFixture({
+				'old.jsonl': 'test',
+			});
+			const filePath = fixture.getPath('old.jsonl');
+			await utimes(filePath, new Date('2020-01-01'), new Date('2020-01-01'));
+			const result = await filterFilesByMtime([filePath], '20250101');
+			expect(result).toEqual([]);
+		});
+
+		it('1-day buffer keeps files on the boundary', async () => {
+			await using fixture = await createFixture({
+				'boundary.jsonl': 'test',
+			});
+			const filePath = fixture.getPath('boundary.jsonl');
+			await utimes(filePath, new Date('2024-02-10'), new Date('2024-02-10'));
+			const result = await filterFilesByMtime([filePath], '20240210');
+			expect(result).toEqual([filePath]);
+		});
+
+		it('keeps files when stat() fails', async () => {
+			const result = await filterFilesByMtime(['/nonexistent/file.jsonl'], '20240101');
+			expect(result).toEqual(['/nonexistent/file.jsonl']);
+		});
+
+		it('returns empty for empty input', async () => {
+			const result = await filterFilesByMtime([], '20240101');
+			expect(result).toEqual([]);
+		});
+	});
+
+	describe('isOutsideDateRange', () => {
+		it('returns false when no filters', () => {
+			expect(isOutsideDateRange('2024-01-15')).toBe(false);
+		});
+
+		it('returns true when date is before since', () => {
+			expect(isOutsideDateRange('2024-01-01', '20240110')).toBe(true);
+		});
+
+		it('returns false when date equals since', () => {
+			expect(isOutsideDateRange('2024-01-10', '20240110')).toBe(false);
+		});
+
+		it('returns true when date is after until', () => {
+			expect(isOutsideDateRange('2024-01-31', undefined, '20240120')).toBe(true);
+		});
+
+		it('returns false when date equals until', () => {
+			expect(isOutsideDateRange('2024-01-20', undefined, '20240120')).toBe(false);
+		});
+
+		it('handles both since and until', () => {
+			expect(isOutsideDateRange('2024-01-15', '20240110', '20240120')).toBe(false);
+			expect(isOutsideDateRange('2024-01-05', '20240110', '20240120')).toBe(true);
+			expect(isOutsideDateRange('2024-01-25', '20240110', '20240120')).toBe(true);
+		});
+
+		it('ignores empty string since/until', () => {
+			expect(isOutsideDateRange('2024-01-01', '')).toBe(false);
+			expect(isOutsideDateRange('2024-01-01', undefined, '')).toBe(false);
+		});
+	});
+
+	describe('USAGE_LINE_MARKER pre-check', () => {
+		it('lines without input_tokens are skipped', async () => {
+			const usageLine = JSON.stringify({
+				timestamp: '2024-01-15T12:00:00Z',
+				message: { usage: { input_tokens: 100, output_tokens: 50 } },
+				costUSD: 0.01,
+			});
+			const nonUsageLine = JSON.stringify({
+				type: 'file_history_snapshot',
+				data: { path: '/foo.ts', content: 'bar' },
+			});
+
+			expect(usageLine.includes(USAGE_LINE_MARKER)).toBe(true);
+			expect(nonUsageLine.includes(USAGE_LINE_MARKER)).toBe(false);
+		});
+
+		it('loadDailyUsageData skips non-usage lines correctly', async () => {
+			const usageEntry = {
+				timestamp: createISOTimestamp('2024-01-15T12:00:00Z'),
+				message: { usage: { input_tokens: 100, output_tokens: 50 } },
+				costUSD: 0.01,
+			};
+			const nonUsageEntry = {
+				type: 'progress',
+				data: { message: 'Working...' },
+			};
+
+			await using fixture = await createFixture({
+				projects: {
+					project1: {
+						session1: {
+							'file.jsonl': [
+								JSON.stringify(nonUsageEntry),
+								JSON.stringify(nonUsageEntry),
+								JSON.stringify(usageEntry),
+								JSON.stringify(nonUsageEntry),
+							].join('\n'),
+						},
+					},
+				},
+			});
+
+			const result = await loadDailyUsageData({
+				claudePath: fixture.path,
+				mode: 'display',
+			});
+
+			expect(result).toHaveLength(1);
+			expect(result[0]?.inputTokens).toBe(100);
+		});
+	});
+
+	describe('early date filtering integration', () => {
+		it('loadDailyUsageData with mtime filter produces correct results', async () => {
+			const oldEntry = {
+				timestamp: createISOTimestamp('2024-01-01T12:00:00Z'),
+				message: { usage: { input_tokens: 100, output_tokens: 50 } },
+				costUSD: 0.01,
+			};
+			const newEntry = {
+				timestamp: createISOTimestamp('2024-02-01T12:00:00Z'),
+				message: { usage: { input_tokens: 200, output_tokens: 100 } },
+				costUSD: 0.02,
+			};
+
+			await using fixture = await createFixture({
+				projects: {
+					project1: {
+						session1: {
+							'old.jsonl': JSON.stringify(oldEntry),
+							'new.jsonl': JSON.stringify(newEntry),
+						},
+					},
+				},
+			});
+
+			await utimes(
+				fixture.getPath('projects/project1/session1/old.jsonl'),
+				new Date('2024-01-01'),
+				new Date('2024-01-01'),
+			);
+
+			const result = await loadDailyUsageData({
+				claudePath: fixture.path,
+				since: '20240115',
+				mode: 'display',
+			});
+
+			expect(result).toHaveLength(1);
+			expect(result[0]?.date).toBe('2024-02-01');
+			expect(result[0]?.inputTokens).toBe(200);
+		});
+
+		it('loadDailyUsageData without date filters returns all data', async () => {
+			const entries = [
+				{
+					timestamp: createISOTimestamp('2024-01-01T12:00:00Z'),
+					message: { usage: { input_tokens: 100, output_tokens: 50 } },
+					costUSD: 0.01,
+				},
+				{
+					timestamp: createISOTimestamp('2024-02-01T12:00:00Z'),
+					message: { usage: { input_tokens: 200, output_tokens: 100 } },
+					costUSD: 0.02,
+				},
+			];
+
+			await using fixture = await createFixture({
+				projects: {
+					project1: {
+						session1: {
+							'file.jsonl': entries.map((e) => JSON.stringify(e)).join('\n'),
+						},
+					},
+				},
+			});
+
+			const result = await loadDailyUsageData({
+				claudePath: fixture.path,
+				mode: 'display',
+			});
+
+			expect(result).toHaveLength(2);
+		});
+
+		it('loadSessionData with mtime filter produces correct results', async () => {
+			const oldEntry = {
+				timestamp: createISOTimestamp('2024-01-01T12:00:00Z'),
+				sessionId: 'old-session',
+				message: { usage: { input_tokens: 100, output_tokens: 50 } },
+				costUSD: 0.01,
+			};
+			const newEntry = {
+				timestamp: createISOTimestamp('2024-02-01T12:00:00Z'),
+				sessionId: 'new-session',
+				message: { usage: { input_tokens: 200, output_tokens: 100 } },
+				costUSD: 0.02,
+			};
+
+			await using fixture = await createFixture({
+				projects: {
+					project1: {
+						'old-session': {
+							'file.jsonl': JSON.stringify(oldEntry),
+						},
+						'new-session': {
+							'file.jsonl': JSON.stringify(newEntry),
+						},
+					},
+				},
+			});
+
+			await utimes(
+				fixture.getPath('projects/project1/old-session/file.jsonl'),
+				new Date('2024-01-01'),
+				new Date('2024-01-01'),
+			);
+
+			const result = await loadSessionData({
+				claudePath: fixture.path,
+				since: '20240115',
+				mode: 'display',
+			});
+
+			expect(result.every((s) => s.sessionId !== 'old-session')).toBe(true);
+			expect(result.some((s) => s.sessionId === 'new-session')).toBe(true);
+		});
+
+		it('loadSessionBlockData with mtime filter produces correct results', async () => {
+			const oldEntry = {
+				timestamp: createISOTimestamp('2024-01-01T12:00:00Z'),
+				message: { usage: { input_tokens: 100, output_tokens: 50 } },
+				costUSD: 0.01,
+			};
+			const newEntry = {
+				timestamp: createISOTimestamp('2024-02-01T12:00:00Z'),
+				message: { usage: { input_tokens: 200, output_tokens: 100 } },
+				costUSD: 0.02,
+			};
+
+			await using fixture = await createFixture({
+				projects: {
+					project1: {
+						session1: {
+							'old.jsonl': JSON.stringify(oldEntry),
+							'new.jsonl': JSON.stringify(newEntry),
+						},
+					},
+				},
+			});
+
+			await utimes(
+				fixture.getPath('projects/project1/session1/old.jsonl'),
+				new Date('2024-01-01'),
+				new Date('2024-01-01'),
+			);
+
+			const result = await loadSessionBlockData({
+				claudePath: fixture.path,
+				since: '20240115',
+				mode: 'display',
+			});
+
+			const hasOldData = result.some((b) =>
+				b.entries.some((e) => e.timestamp.getTime() === new Date('2024-01-01T12:00:00Z').getTime()),
+			);
+			const hasNewData = result.some((b) =>
+				b.entries.some((e) => e.timestamp.getTime() === new Date('2024-02-01T12:00:00Z').getTime()),
+			);
+			expect(hasOldData).toBe(false);
+			expect(hasNewData).toBe(true);
+		});
+
+		it('entry-level date skip matches existing filterByDateRange behavior', async () => {
+			const entries = [
+				{
+					timestamp: createISOTimestamp('2024-01-01T12:00:00Z'),
+					message: { usage: { input_tokens: 100, output_tokens: 50 } },
+					costUSD: 0.01,
+				},
+				{
+					timestamp: createISOTimestamp('2024-01-15T12:00:00Z'),
+					message: { usage: { input_tokens: 200, output_tokens: 100 } },
+					costUSD: 0.02,
+				},
+				{
+					timestamp: createISOTimestamp('2024-01-31T12:00:00Z'),
+					message: { usage: { input_tokens: 300, output_tokens: 150 } },
+					costUSD: 0.03,
+				},
+			];
+
+			await using fixture = await createFixture({
+				projects: {
+					project1: {
+						session1: {
+							'file.jsonl': entries.map((e) => JSON.stringify(e)).join('\n'),
+						},
+					},
+				},
+			});
+
+			const result = await loadDailyUsageData({
+				claudePath: fixture.path,
+				since: '20240110',
+				until: '20240120',
+				mode: 'display',
+			});
+
+			expect(result).toHaveLength(1);
+			expect(result[0]?.date).toBe('2024-01-15');
+			expect(result[0]?.inputTokens).toBe(200);
 		});
 	});
 }
