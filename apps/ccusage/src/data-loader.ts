@@ -729,6 +729,16 @@ async function filterFilesByMtime(files: string[], since?: string): Promise<stri
 	}
 
 	const sinceDate = parseSinceDate(since);
+	const y = Number(since.slice(0, 4));
+	const m = Number(since.slice(4, 6));
+	const d = Number(since.slice(6, 8));
+	if (
+		sinceDate.getFullYear() !== y ||
+		sinceDate.getMonth() !== m - 1 ||
+		sinceDate.getDate() !== d
+	) {
+		return files;
+	}
 	sinceDate.setDate(sinceDate.getDate() - 1);
 	const sinceMs = sinceDate.getTime();
 
@@ -4893,6 +4903,13 @@ if (import.meta.vitest != null) {
 			const files = ['/a.jsonl', '/b.jsonl'];
 			const result = await filterFilesByMtime(files, 'not-a-date');
 			expect(result).toEqual(files);
+		});
+
+		it('returns all files when since is impossible calendar date', async () => {
+			const files = ['/a.jsonl', '/b.jsonl'];
+			expect(await filterFilesByMtime(files, '20230231')).toEqual(files);
+			expect(await filterFilesByMtime(files, '20231301')).toEqual(files);
+			expect(await filterFilesByMtime(files, '20230000')).toEqual(files);
 		});
 
 		it('keeps files newer than since', async () => {
