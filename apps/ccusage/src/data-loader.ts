@@ -1041,11 +1041,6 @@ export async function loadSessionData(options?: LoadOptions): Promise<SessionUsa
 
 				const sessionKey = `${projectPath}/${sessionId}`;
 
-				const entryDate = formatDate(data.timestamp, options?.timezone, DEFAULT_LOCALE);
-				if (isOutsideDateRange(entryDate, options?.since, options?.until)) {
-					return;
-				}
-
 				const cost =
 					fetcher != null ? await calculateCostForEntry(data, mode, fetcher) : (data.costUSD ?? 0);
 
@@ -1476,11 +1471,6 @@ export async function loadSessionBlockData(options?: LoadOptions): Promise<Sessi
 				// Mark this combination as processed
 				markAsProcessed(uniqueHash, processedHashes);
 
-				const date = formatDate(data.timestamp, options?.timezone, DEFAULT_LOCALE);
-				if (isOutsideDateRange(date, options?.since, options?.until)) {
-					return;
-				}
-
 				const cost =
 					fetcher != null ? await calculateCostForEntry(data, mode, fetcher) : (data.costUSD ?? 0);
 
@@ -1604,9 +1594,7 @@ if (import.meta.vitest != null) {
 		});
 	});
 
-	describe('loadSessionUsageById', async () => {
-		const { createFixture } = await import('fs-fixture');
-
+	describe('loadSessionUsageById', () => {
 		afterEach(() => {
 			vi.unstubAllEnvs();
 		});
@@ -4795,12 +4783,12 @@ if (import.meta.vitest != null) {
 	});
 
 	// Test for calculateContextTokens
-	describe('calculateContextTokens', async () => {
+	describe('calculateContextTokens', () => {
 		it('returns null when transcript cannot be read', async () => {
 			const result = await calculateContextTokens('/nonexistent/path.jsonl');
 			expect(result).toBeNull();
 		});
-		const { createFixture } = await import('fs-fixture');
+
 		it('parses latest assistant line and excludes output tokens', async () => {
 			await using fixture = await createFixture({
 				'transcript.jsonl': [
