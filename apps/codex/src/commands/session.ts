@@ -1,12 +1,9 @@
-import type { TableCellAlign } from '@ccusage/terminal/table';
 import process from 'node:process';
 import {
 	addEmptySeparatorRow,
 	formatCurrency,
-	formatDateCompact,
 	formatModelsDisplayMultiline,
 	formatNumber,
-	ResponsiveTable,
 } from '@ccusage/terminal/table';
 import { define } from 'gunshi';
 import pc from 'picocolors';
@@ -24,6 +21,7 @@ import { log, logger } from '../logger.ts';
 import { CodexPricingSource } from '../pricing.ts';
 import { buildSessionReport } from '../session-report.ts';
 import { resolveSessionSources } from '../session-sources.ts';
+import { createUsageResponsiveTable } from './usage-table.ts';
 
 export const sessionCommand = define({
 	name: 'session',
@@ -125,79 +123,10 @@ export const sessionCommand = define({
 			);
 
 			const includeAccountColumn = byAccount;
-			const head = includeAccountColumn
-				? [
-						'Date',
-						'Account',
-						'Directory',
-						'Session',
-						'Models',
-						'Input',
-						'Output',
-						'Reasoning',
-						'Cache Read',
-						'Total Tokens',
-						'Cost (USD)',
-						'Last Activity',
-					]
-				: [
-						'Date',
-						'Directory',
-						'Session',
-						'Models',
-						'Input',
-						'Output',
-						'Reasoning',
-						'Cache Read',
-						'Total Tokens',
-						'Cost (USD)',
-						'Last Activity',
-					];
-			const colAligns: TableCellAlign[] = includeAccountColumn
-				? [
-						'left',
-						'left',
-						'left',
-						'left',
-						'left',
-						'right',
-						'right',
-						'right',
-						'right',
-						'right',
-						'right',
-						'left',
-					]
-				: [
-						'left',
-						'left',
-						'left',
-						'left',
-						'right',
-						'right',
-						'right',
-						'right',
-						'right',
-						'right',
-						'left',
-					];
-			const compactHead = includeAccountColumn
-				? ['Date', 'Account', 'Directory', 'Session', 'Input', 'Output', 'Cost (USD)']
-				: ['Date', 'Directory', 'Session', 'Input', 'Output', 'Cost (USD)'];
-			const compactColAligns: TableCellAlign[] = includeAccountColumn
-				? ['left', 'left', 'left', 'left', 'right', 'right', 'right']
-				: ['left', 'left', 'left', 'right', 'right', 'right'];
-			const tableColumnCount = head.length;
-
-			const table: ResponsiveTable = new ResponsiveTable({
-				head,
-				colAligns,
-				compactHead,
-				compactColAligns,
-				compactThreshold: 100,
+			const { table, tableColumnCount } = createUsageResponsiveTable({
+				mode: 'session',
+				includeAccountColumn,
 				forceCompact: ctx.values.compact,
-				style: { head: ['cyan'] },
-				dateFormatter: (dateStr: string) => formatDateCompact(dateStr),
 			});
 
 			const totalsForDisplay = {

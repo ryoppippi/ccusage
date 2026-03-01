@@ -82,7 +82,7 @@ npx @ccusage/codex@latest sessions
 Useful environment variables:
 
 - `CODEX_HOME` – override Codex home(s). Supports single path or comma-separated list for multi-account aggregation (e.g. `work=~/.codex-work,personal=~/.codex-personal`)
-- `LOG_LEVEL` – controla consola log verbosity (0 silent … 5 trace)
+- `LOG_LEVEL` – controls console log verbosity (0 silent … 5 trace)
 
 ℹ️ The CLI now relies on the model metadata recorded in each `turn_context`. Sessions emitted during early September 2025 that lack this metadata are skipped to avoid mispricing. Newer builds of the Codex CLI restore the model field, and aliases such as `gpt-5-codex` automatically resolve to the correct LiteLLM pricing entry.
 📦 For legacy JSONL files that never emitted `turn_context` metadata, the CLI falls back to treating the tokens as `gpt-5` so that usage still appears in reports (pricing is therefore approximate for those sessions). In JSON output you will also see `"isFallback": true` on those model entries.

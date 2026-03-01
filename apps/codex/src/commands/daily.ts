@@ -1,12 +1,9 @@
-import type { TableCellAlign } from '@ccusage/terminal/table';
 import process from 'node:process';
 import {
 	addEmptySeparatorRow,
 	formatCurrency,
-	formatDateCompact,
 	formatModelsDisplayMultiline,
 	formatNumber,
-	ResponsiveTable,
 } from '@ccusage/terminal/table';
 import { define } from 'gunshi';
 import pc from 'picocolors';
@@ -19,6 +16,7 @@ import { normalizeFilterDate } from '../date-utils.ts';
 import { log, logger } from '../logger.ts';
 import { CodexPricingSource } from '../pricing.ts';
 import { resolveSessionSources } from '../session-sources.ts';
+import { createUsageResponsiveTable } from './usage-table.ts';
 
 export const dailyCommand = define({
 	name: 'daily',
@@ -124,48 +122,10 @@ export const dailyCommand = define({
 			}
 
 			const includeAccountColumn = byAccount;
-			const head = includeAccountColumn
-				? [
-						'Date',
-						'Account',
-						'Models',
-						'Input',
-						'Output',
-						'Reasoning',
-						'Cache Read',
-						'Total Tokens',
-						'Cost (USD)',
-					]
-				: [
-						'Date',
-						'Models',
-						'Input',
-						'Output',
-						'Reasoning',
-						'Cache Read',
-						'Total Tokens',
-						'Cost (USD)',
-					];
-			const colAligns: TableCellAlign[] = includeAccountColumn
-				? ['left', 'left', 'left', 'right', 'right', 'right', 'right', 'right', 'right']
-				: ['left', 'left', 'right', 'right', 'right', 'right', 'right', 'right'];
-			const compactHead = includeAccountColumn
-				? ['Date', 'Account', 'Models', 'Input', 'Output', 'Cost (USD)']
-				: ['Date', 'Models', 'Input', 'Output', 'Cost (USD)'];
-			const compactColAligns: TableCellAlign[] = includeAccountColumn
-				? ['left', 'left', 'left', 'right', 'right', 'right']
-				: ['left', 'left', 'right', 'right', 'right'];
-			const tableColumnCount = head.length;
-
-			const table: ResponsiveTable = new ResponsiveTable({
-				head,
-				colAligns,
-				compactHead,
-				compactColAligns,
-				compactThreshold: 100,
+			const { table, tableColumnCount } = createUsageResponsiveTable({
+				mode: 'daily',
+				includeAccountColumn,
 				forceCompact: ctx.values.compact,
-				style: { head: ['cyan'] },
-				dateFormatter: (dateStr: string) => formatDateCompact(dateStr),
 			});
 
 			const totalsForDisplay = {

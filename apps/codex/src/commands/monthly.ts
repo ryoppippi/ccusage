@@ -1,12 +1,9 @@
-import type { TableCellAlign } from '@ccusage/terminal/table';
 import process from 'node:process';
 import {
 	addEmptySeparatorRow,
 	formatCurrency,
-	formatDateCompact,
 	formatModelsDisplayMultiline,
 	formatNumber,
-	ResponsiveTable,
 } from '@ccusage/terminal/table';
 import { define } from 'gunshi';
 import pc from 'picocolors';
@@ -19,6 +16,7 @@ import { log, logger } from '../logger.ts';
 import { buildMonthlyReport } from '../monthly-report.ts';
 import { CodexPricingSource } from '../pricing.ts';
 import { resolveSessionSources } from '../session-sources.ts';
+import { createUsageResponsiveTable } from './usage-table.ts';
 
 export const monthlyCommand = define({
 	name: 'monthly',
@@ -126,48 +124,10 @@ export const monthlyCommand = define({
 			}
 
 			const includeAccountColumn = byAccount;
-			const head = includeAccountColumn
-				? [
-						'Month',
-						'Account',
-						'Models',
-						'Input',
-						'Output',
-						'Reasoning',
-						'Cache Read',
-						'Total Tokens',
-						'Cost (USD)',
-					]
-				: [
-						'Month',
-						'Models',
-						'Input',
-						'Output',
-						'Reasoning',
-						'Cache Read',
-						'Total Tokens',
-						'Cost (USD)',
-					];
-			const colAligns: TableCellAlign[] = includeAccountColumn
-				? ['left', 'left', 'left', 'right', 'right', 'right', 'right', 'right', 'right']
-				: ['left', 'left', 'right', 'right', 'right', 'right', 'right', 'right'];
-			const compactHead = includeAccountColumn
-				? ['Month', 'Account', 'Models', 'Input', 'Output', 'Cost (USD)']
-				: ['Month', 'Models', 'Input', 'Output', 'Cost (USD)'];
-			const compactColAligns: TableCellAlign[] = includeAccountColumn
-				? ['left', 'left', 'left', 'right', 'right', 'right']
-				: ['left', 'left', 'right', 'right', 'right'];
-			const tableColumnCount = head.length;
-
-			const table: ResponsiveTable = new ResponsiveTable({
-				head,
-				colAligns,
-				compactHead,
-				compactColAligns,
-				compactThreshold: 100,
+			const { table, tableColumnCount } = createUsageResponsiveTable({
+				mode: 'monthly',
+				includeAccountColumn,
 				forceCompact: ctx.values.compact,
-				style: { head: ['cyan'] },
-				dateFormatter: (dateStr: string) => formatDateCompact(dateStr),
 			});
 
 			const totalsForDisplay = {

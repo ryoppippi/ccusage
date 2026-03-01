@@ -67,7 +67,7 @@ Each home is resolved to its `sessions/` directory and aggregated into one repor
 | Variable     | Description                                                                                             |
 | ------------ | ------------------------------------------------------------------------------------------------------- |
 | `CODEX_HOME` | Override Codex home(s). Supports single path or comma-separated list with optional `label=path` entries |
-| `LOG_LEVEL`  | Adjust consola verbosity (0 silent … 5 trace)                                                           |
+| `LOG_LEVEL`  | Adjust console verbosity (0 silent … 5 trace)                                                           |
 
 When Codex emits a model alias (for example `gpt-5-codex`), the CLI automatically resolves it to the canonical LiteLLM pricing entry. No manual override is needed.
 

@@ -175,6 +175,21 @@ function asNonEmptyString(value: unknown): string | undefined {
 	return trimmed === '' ? undefined : trimmed;
 }
 
+function normalizeAccountLabel(account: string | undefined, fallback: string): string {
+	const normalized = account?.trim();
+	return normalized == null || normalized === '' ? fallback : normalized;
+}
+
+function makeUniqueAccountLabel(base: string, usedAccounts: Map<string, number>): string {
+	const seenCount = usedAccounts.get(base) ?? 0;
+	usedAccounts.set(base, seenCount + 1);
+	if (seenCount === 0) {
+		return base;
+	}
+
+	return `${base}-${seenCount + 1}`;
+}
+
 export type LoadOptions = {
 	sessionDirs?: string[];
 	sessionSources?: SessionSource[];
@@ -188,24 +203,34 @@ export type LoadResult = {
 export async function loadTokenUsageEvents(options: LoadOptions = {}): Promise<LoadResult> {
 	const providedSources =
 		options.sessionSources != null && options.sessionSources.length > 0
-			? options.sessionSources.map((source) => ({
-					account: source.account.trim() === '' ? 'default' : source.account.trim(),
-					directory: path.resolve(source.directory),
-				}))
+			? (() => {
+					const usedAccounts = new Map<string, number>();
+					return options.sessionSources.map((source, index, allSources) => {
+						const fallbackAccount = allSources.length <= 1 ? 'default' : `account-${index + 1}`;
+						const accountCandidate = normalizeAccountLabel(source.account, fallbackAccount);
+						return {
+							account: makeUniqueAccountLabel(accountCandidate, usedAccounts),
+							directory: path.resolve(source.directory),
+						};
+					});
+				})()
 			: undefined;
 
 	const providedDirs =
 		options.sessionDirs != null && options.sessionDirs.length > 0
-			? options.sessionDirs.map((dir, index, allDirs) => {
-					const basename = path.basename(path.resolve(dir));
-					const fallbackAccount = `account-${index + 1}`;
-					const account =
-						allDirs.length <= 1 ? 'default' : basename === '' ? fallbackAccount : basename;
-					return {
-						account,
-						directory: path.resolve(dir),
-					};
-				})
+			? (() => {
+					const usedAccounts = new Map<string, number>();
+					return options.sessionDirs.map((dir, index, allDirs) => {
+						const basename = path.basename(path.resolve(dir));
+						const fallbackAccount = `account-${index + 1}`;
+						const accountCandidate =
+							allDirs.length <= 1 ? 'default' : basename === '' ? fallbackAccount : basename;
+						return {
+							account: makeUniqueAccountLabel(accountCandidate, usedAccounts),
+							directory: path.resolve(dir),
+						};
+					});
+				})()
 			: undefined;
 
 	const codexHomeEnv = process.env[CODEX_HOME_ENV]?.trim();
@@ -586,6 +611,82 @@ if (import.meta.vitest != null) {
 			expect(events).toHaveLength(2);
 			expect(events.map((event) => event.account)).toEqual(['work', 'personal']);
 			expect(events.map((event) => event.sessionId)).toEqual(['shared', 'shared']);
+		});
+
+		it('deduplicates account labels when session directory names collide', async () => {
+			await using fixture = await createFixture({
+				accounts: {
+					first: {
+						sessions: {
+							'first.jsonl': [
+								JSON.stringify({
+									timestamp: '2025-09-11T10:00:00.000Z',
+									type: 'turn_context',
+									payload: {
+										model: 'gpt-5',
+									},
+								}),
+								JSON.stringify({
+									timestamp: '2025-09-11T10:01:00.000Z',
+									type: 'event_msg',
+									payload: {
+										type: 'token_count',
+										info: {
+											total_token_usage: {
+												input_tokens: 100,
+												cached_input_tokens: 0,
+												output_tokens: 20,
+												reasoning_output_tokens: 0,
+												total_tokens: 120,
+											},
+										},
+									},
+								}),
+							].join('\n'),
+						},
+					},
+					second: {
+						sessions: {
+							'second.jsonl': [
+								JSON.stringify({
+									timestamp: '2025-09-11T11:00:00.000Z',
+									type: 'turn_context',
+									payload: {
+										model: 'gpt-5',
+									},
+								}),
+								JSON.stringify({
+									timestamp: '2025-09-11T11:01:00.000Z',
+									type: 'event_msg',
+									payload: {
+										type: 'token_count',
+										info: {
+											total_token_usage: {
+												input_tokens: 200,
+												cached_input_tokens: 0,
+												output_tokens: 40,
+												reasoning_output_tokens: 0,
+												total_tokens: 240,
+											},
+										},
+									},
+								}),
+							].join('\n'),
+						},
+					},
+				},
+			});
+
+			const { events, missingDirectories } = await loadTokenUsageEvents({
+				sessionDirs: [
+					fixture.getPath('accounts/first/sessions'),
+					fixture.getPath('accounts/second/sessions'),
+				],
+			});
+
+			expect(missingDirectories).toEqual([]);
+			expect(events).toHaveLength(2);
+			expect(events.map((event) => event.account)).toEqual(['sessions', 'sessions-2']);
 		});
 	});
 }

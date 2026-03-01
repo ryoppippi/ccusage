@@ -1,4 +1,5 @@
 import type { SessionSource } from './_types.ts';
+import os from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
 import { CODEX_HOME_ENV, DEFAULT_CODEX_DIR, DEFAULT_SESSION_SUBDIR } from './_consts.ts';
@@ -17,6 +18,10 @@ function toNonEmpty(value: string | undefined): string | undefined {
 
 	const trimmed = value.trim();
 	return trimmed === '' ? undefined : trimmed;
+}
+
+function expandHomeDirectory(pathValue: string): string {
+	return pathValue.replace(/^~(?=$|[\\/])/, os.homedir());
 }
 
 function parseCodexHomeEntry(entry: string): ParsedCodexHome | null {
@@ -67,7 +72,8 @@ function fallbackAccountLabel(codexHome: string, index: number, total: number): 
 		return DEFAULT_ACCOUNT;
 	}
 
-	const baseName = path.basename(path.resolve(codexHome));
+	const resolvedCodexHome = path.resolve(expandHomeDirectory(codexHome));
+	const baseName = path.basename(resolvedCodexHome);
 	const normalizedBase = toNonEmpty(baseName);
 	return normalizedBase ?? `account-${index + 1}`;
 }
@@ -93,15 +99,31 @@ export function resolveSessionSources(codexHomeArg?: string): SessionSource[] {
 	return parsedHomes.map((entry, index) => {
 		const accountBase =
 			entry.account ?? fallbackAccountLabel(entry.codexHome, index, parsedHomes.length);
+		const resolvedCodexHome = path.resolve(expandHomeDirectory(entry.codexHome));
 		return {
 			account: makeUniqueAccountLabel(accountBase, usedAccounts),
-			directory: path.join(path.resolve(entry.codexHome), DEFAULT_SESSION_SUBDIR),
+			directory: path.join(resolvedCodexHome, DEFAULT_SESSION_SUBDIR),
 		};
 	});
 }
 
 if (import.meta.vitest != null) {
 	describe('resolveSessionSources', () => {
+		let originalCodexHome: string | undefined;
+
+		beforeEach(() => {
+			originalCodexHome = process.env[CODEX_HOME_ENV];
+		});
+
+		afterEach(() => {
+			if (originalCodexHome == null) {
+				delete process.env[CODEX_HOME_ENV];
+				return;
+			}
+
+			process.env[CODEX_HOME_ENV] = originalCodexHome;
+		});
+
 		it('uses default CODEX_HOME when no override is provided', () => {
 			delete process.env[CODEX_HOME_ENV];
 			const sources = resolveSessionSources();
@@ -137,6 +159,16 @@ if (import.meta.vitest != null) {
 				{
 					account: 'work-2',
 					directory: path.resolve('/tmp/work-b', DEFAULT_SESSION_SUBDIR),
+				},
+			]);
+		});
+
+		it('expands tilde paths in codex homes', () => {
+			const sources = resolveSessionSources('work=~/.codex-work');
+			expect(sources).toEqual([
+				{
+					account: 'work',
+					directory: path.resolve(os.homedir(), '.codex-work', DEFAULT_SESSION_SUBDIR),
 				},
 			]);
 		});
