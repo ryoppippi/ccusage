@@ -6,13 +6,9 @@ import { Result } from '@praha/byethrow';
 import { createFixture } from 'fs-fixture';
 import { glob } from 'tinyglobby';
 import * as v from 'valibot';
-import {
-	CODEX_HOME_ENV,
-	DEFAULT_CODEX_DIR,
-	DEFAULT_SESSION_SUBDIR,
-	SESSION_GLOB,
-} from './_consts.ts';
+import { CODEX_HOME_ENV, SESSION_GLOB } from './_consts.ts';
 import { logger } from './logger.ts';
+import { resolveSessionSources } from './session-sources.ts';
 
 type RawUsage = {
 	input_tokens: number;
@@ -233,12 +229,7 @@ export async function loadTokenUsageEvents(options: LoadOptions = {}): Promise<L
 				})()
 			: undefined;
 
-	const codexHomeEnv = process.env[CODEX_HOME_ENV]?.trim();
-	const codexHome =
-		codexHomeEnv != null && codexHomeEnv !== '' ? path.resolve(codexHomeEnv) : DEFAULT_CODEX_DIR;
-	const defaultSessionsDir = path.join(codexHome, DEFAULT_SESSION_SUBDIR);
-	const sessionSources = providedSources ??
-		providedDirs ?? [{ account: 'default', directory: defaultSessionsDir }];
+	const sessionSources = providedSources ?? providedDirs ?? resolveSessionSources();
 
 	const events: TokenUsageEvent[] = [];
 	const missingDirectories: string[] = [];
@@ -418,6 +409,21 @@ export async function loadTokenUsageEvents(options: LoadOptions = {}): Promise<L
 
 if (import.meta.vitest != null) {
 	describe('loadTokenUsageEvents', () => {
+		let originalCodexHome: string | undefined;
+
+		beforeEach(() => {
+			originalCodexHome = process.env[CODEX_HOME_ENV];
+		});
+
+		afterEach(() => {
+			if (originalCodexHome == null) {
+				delete process.env[CODEX_HOME_ENV];
+				return;
+			}
+
+			process.env[CODEX_HOME_ENV] = originalCodexHome;
+		});
+
 		it('parses token_count events and skips entries without model metadata', async () => {
 			await using fixture = await createFixture({
 				sessions: {
@@ -687,6 +693,81 @@ if (import.meta.vitest != null) {
 			expect(missingDirectories).toEqual([]);
 			expect(events).toHaveLength(2);
 			expect(events.map((event) => event.account)).toEqual(['sessions', 'sessions-2']);
+		});
+
+		it('parses multi-account CODEX_HOME env when no options are provided', async () => {
+			await using fixture = await createFixture({
+				homes: {
+					work: {
+						sessions: {
+							'work.jsonl': [
+								JSON.stringify({
+									timestamp: '2025-09-12T10:00:00.000Z',
+									type: 'turn_context',
+									payload: {
+										model: 'gpt-5',
+									},
+								}),
+								JSON.stringify({
+									timestamp: '2025-09-12T10:01:00.000Z',
+									type: 'event_msg',
+									payload: {
+										type: 'token_count',
+										info: {
+											total_token_usage: {
+												input_tokens: 100,
+												cached_input_tokens: 0,
+												output_tokens: 20,
+												reasoning_output_tokens: 0,
+												total_tokens: 120,
+											},
+										},
+									},
+								}),
+							].join('\n'),
+						},
+					},
+					personal: {
+						sessions: {
+							'personal.jsonl': [
+								JSON.stringify({
+									timestamp: '2025-09-12T11:00:00.000Z',
+									type: 'turn_context',
+									payload: {
+										model: 'gpt-5',
+									},
+								}),
+								JSON.stringify({
+									timestamp: '2025-09-12T11:01:00.000Z',
+									type: 'event_msg',
+									payload: {
+										type: 'token_count',
+										info: {
+											total_token_usage: {
+												input_tokens: 200,
+												cached_input_tokens: 0,
+												output_tokens: 40,
+												reasoning_output_tokens: 0,
+												total_tokens: 240,
+											},
+										},
+									},
+								}),
+							].join('\n'),
+						},
+					},
+				},
+			});
+
+			process.env[CODEX_HOME_ENV] = [
+				`work=${fixture.getPath('homes/work')}`,
+				`personal=${fixture.getPath('homes/personal')}`,
+			].join(',');
+
+			const { events, missingDirectories } = await loadTokenUsageEvents();
+			expect(missingDirectories).toEqual([]);
+			expect(events).toHaveLength(2);
+			expect(events.map((event) => event.account)).toEqual(['work', 'personal']);
 		});
 	});
 }
