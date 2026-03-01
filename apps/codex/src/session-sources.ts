@@ -56,15 +56,34 @@ function parseCodexHomes(raw: string): ParsedCodexHome[] {
 		.filter((item): item is ParsedCodexHome => item != null);
 }
 
-function makeUniqueAccountLabel(base: string, usedAccounts: Map<string, number>): string {
-	const normalizedBase = base.trim() === '' ? DEFAULT_ACCOUNT : base.trim();
-	const seenCount = usedAccounts.get(normalizedBase) ?? 0;
-	usedAccounts.set(normalizedBase, seenCount + 1);
-	if (seenCount === 0) {
-		return normalizedBase;
-	}
+function normalizeAccountLabel(base: string): string {
+	const normalizedBase = base.trim();
+	return normalizedBase === '' ? DEFAULT_ACCOUNT : normalizedBase;
+}
 
-	return `${normalizedBase}-${seenCount + 1}`;
+function makeUniqueAccountLabels(accountBases: string[]): string[] {
+	const normalizedBases = accountBases.map(normalizeAccountLabel);
+	const reservedLabels = new Set(normalizedBases);
+	const usedLabels = new Set<string>();
+
+	return normalizedBases.map((base) => {
+		if (!usedLabels.has(base)) {
+			usedLabels.add(base);
+			return base;
+		}
+
+		let suffix = 2;
+		for (;;) {
+			const candidate = `${base}-${suffix}`;
+			const reservedByFutureEntry = reservedLabels.has(candidate) && !usedLabels.has(candidate);
+			if (!usedLabels.has(candidate) && !reservedByFutureEntry) {
+				usedLabels.add(candidate);
+				return candidate;
+			}
+
+			suffix += 1;
+		}
+	});
 }
 
 function fallbackAccountLabel(codexHome: string, index: number, total: number): string {
@@ -94,14 +113,16 @@ export function resolveSessionSources(codexHomeArg?: string): SessionSource[] {
 		];
 	}
 
-	const usedAccounts = new Map<string, number>();
+	const accountBases = parsedHomes.map(
+		(entry, index) =>
+			entry.account ?? fallbackAccountLabel(entry.codexHome, index, parsedHomes.length),
+	);
+	const uniqueAccounts = makeUniqueAccountLabels(accountBases);
 
 	return parsedHomes.map((entry, index) => {
-		const accountBase =
-			entry.account ?? fallbackAccountLabel(entry.codexHome, index, parsedHomes.length);
 		const resolvedCodexHome = path.resolve(expandHomeDirectory(entry.codexHome));
 		return {
-			account: makeUniqueAccountLabel(accountBase, usedAccounts),
+			account: uniqueAccounts[index]!,
 			directory: path.join(resolvedCodexHome, DEFAULT_SESSION_SUBDIR),
 		};
 	});
@@ -159,6 +180,24 @@ if (import.meta.vitest != null) {
 				{
 					account: 'work-2',
 					directory: path.resolve('/tmp/work-b', DEFAULT_SESSION_SUBDIR),
+				},
+			]);
+		});
+
+		it('avoids collisions with explicit suffix-style account labels', () => {
+			const sources = resolveSessionSources('work=/tmp/work-a,work=/tmp/work-b,work-2=/tmp/work-c');
+			expect(sources).toEqual([
+				{
+					account: 'work',
+					directory: path.resolve('/tmp/work-a', DEFAULT_SESSION_SUBDIR),
+				},
+				{
+					account: 'work-3',
+					directory: path.resolve('/tmp/work-b', DEFAULT_SESSION_SUBDIR),
+				},
+				{
+					account: 'work-2',
+					directory: path.resolve('/tmp/work-c', DEFAULT_SESSION_SUBDIR),
 				},
 			]);
 		});
