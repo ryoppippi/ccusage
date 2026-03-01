@@ -1,4 +1,4 @@
-import type { TokenUsageDelta, TokenUsageEvent } from './_types.ts';
+import type { SessionSource, TokenUsageDelta, TokenUsageEvent } from './_types.ts';
 import { readFile, stat } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
@@ -177,6 +177,7 @@ function asNonEmptyString(value: unknown): string | undefined {
 
 export type LoadOptions = {
 	sessionDirs?: string[];
+	sessionSources?: SessionSource[];
 };
 
 export type LoadResult = {
@@ -185,22 +186,40 @@ export type LoadResult = {
 };
 
 export async function loadTokenUsageEvents(options: LoadOptions = {}): Promise<LoadResult> {
+	const providedSources =
+		options.sessionSources != null && options.sessionSources.length > 0
+			? options.sessionSources.map((source) => ({
+					account: source.account.trim() === '' ? 'default' : source.account.trim(),
+					directory: path.resolve(source.directory),
+				}))
+			: undefined;
+
 	const providedDirs =
 		options.sessionDirs != null && options.sessionDirs.length > 0
-			? options.sessionDirs.map((dir) => path.resolve(dir))
+			? options.sessionDirs.map((dir, index, allDirs) => {
+					const basename = path.basename(path.resolve(dir));
+					const fallbackAccount = `account-${index + 1}`;
+					const account =
+						allDirs.length <= 1 ? 'default' : basename === '' ? fallbackAccount : basename;
+					return {
+						account,
+						directory: path.resolve(dir),
+					};
+				})
 			: undefined;
 
 	const codexHomeEnv = process.env[CODEX_HOME_ENV]?.trim();
 	const codexHome =
 		codexHomeEnv != null && codexHomeEnv !== '' ? path.resolve(codexHomeEnv) : DEFAULT_CODEX_DIR;
 	const defaultSessionsDir = path.join(codexHome, DEFAULT_SESSION_SUBDIR);
-	const sessionDirs = providedDirs ?? [defaultSessionsDir];
+	const sessionSources = providedSources ??
+		providedDirs ?? [{ account: 'default', directory: defaultSessionsDir }];
 
 	const events: TokenUsageEvent[] = [];
 	const missingDirectories: string[] = [];
 
-	for (const dir of sessionDirs) {
-		const directoryPath = path.resolve(dir);
+	for (const source of sessionSources) {
+		const directoryPath = path.resolve(source.directory);
 		const statResult = await Result.try({
 			try: stat(directoryPath),
 			catch: (error) => error,
@@ -339,6 +358,7 @@ export async function loadTokenUsageEvents(options: LoadOptions = {}): Promise<L
 
 				const event: TokenUsageEvent = {
 					sessionId,
+					account: source.account,
 					timestamp,
 					model,
 					inputTokens: delta.inputTokens,
@@ -483,6 +503,89 @@ if (import.meta.vitest != null) {
 			expect(events).toHaveLength(1);
 			expect(events[0]!.model).toBe('gpt-5');
 			expect(events[0]!.isFallbackModel).toBe(true);
+		});
+
+		it('loads events from multiple account sources', async () => {
+			await using fixture = await createFixture({
+				accounts: {
+					work: {
+						sessions: {
+							'shared.jsonl': [
+								JSON.stringify({
+									timestamp: '2025-09-11T10:00:00.000Z',
+									type: 'turn_context',
+									payload: {
+										model: 'gpt-5',
+									},
+								}),
+								JSON.stringify({
+									timestamp: '2025-09-11T10:01:00.000Z',
+									type: 'event_msg',
+									payload: {
+										type: 'token_count',
+										info: {
+											total_token_usage: {
+												input_tokens: 100,
+												cached_input_tokens: 0,
+												output_tokens: 20,
+												reasoning_output_tokens: 0,
+												total_tokens: 120,
+											},
+										},
+									},
+								}),
+							].join('\n'),
+						},
+					},
+					personal: {
+						sessions: {
+							'shared.jsonl': [
+								JSON.stringify({
+									timestamp: '2025-09-11T11:00:00.000Z',
+									type: 'turn_context',
+									payload: {
+										model: 'gpt-5',
+									},
+								}),
+								JSON.stringify({
+									timestamp: '2025-09-11T11:01:00.000Z',
+									type: 'event_msg',
+									payload: {
+										type: 'token_count',
+										info: {
+											total_token_usage: {
+												input_tokens: 200,
+												cached_input_tokens: 0,
+												output_tokens: 40,
+												reasoning_output_tokens: 0,
+												total_tokens: 240,
+											},
+										},
+									},
+								}),
+							].join('\n'),
+						},
+					},
+				},
+			});
+
+			const { events, missingDirectories } = await loadTokenUsageEvents({
+				sessionSources: [
+					{
+						account: 'work',
+						directory: fixture.getPath('accounts/work/sessions'),
+					},
+					{
+						account: 'personal',
+						directory: fixture.getPath('accounts/personal/sessions'),
+					},
+				],
+			});
+
+			expect(missingDirectories).toEqual([]);
+			expect(events).toHaveLength(2);
+			expect(events.map((event) => event.account)).toEqual(['work', 'personal']);
+			expect(events.map((event) => event.sessionId)).toEqual(['shared', 'shared']);
 		});
 	});
 }

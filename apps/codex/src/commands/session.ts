@@ -1,3 +1,4 @@
+import type { TableCellAlign } from '@ccusage/terminal/table';
 import process from 'node:process';
 import {
 	addEmptySeparatorRow,
@@ -22,8 +23,7 @@ import {
 import { log, logger } from '../logger.ts';
 import { CodexPricingSource } from '../pricing.ts';
 import { buildSessionReport } from '../session-report.ts';
-
-const TABLE_COLUMN_COUNT = 11;
+import { resolveSessionSources } from '../session-sources.ts';
 
 export const sessionCommand = define({
 	name: 'session',
@@ -46,7 +46,12 @@ export const sessionCommand = define({
 			process.exit(1);
 		}
 
-		const { events, missingDirectories } = await loadTokenUsageEvents();
+		const sessionSources = resolveSessionSources(ctx.values.codexHome);
+		const hasMultipleAccounts = sessionSources.length > 1;
+		const byAccount = ctx.values.byAccount === true || hasMultipleAccounts;
+		const { events, missingDirectories } = await loadTokenUsageEvents({
+			sessionSources,
+		});
 
 		for (const missing of missingDirectories) {
 			logger.warn(`Codex session directory not found: ${missing}`);
@@ -69,6 +74,7 @@ export const sessionCommand = define({
 				locale: ctx.values.locale,
 				since,
 				until,
+				byAccount,
 			});
 
 			if (rows.length === 0) {
@@ -118,35 +124,76 @@ export const sessionCommand = define({
 				`Codex Token Usage Report - Sessions (Timezone: ${ctx.values.timezone ?? DEFAULT_TIMEZONE})`,
 			);
 
+			const includeAccountColumn = byAccount;
+			const head = includeAccountColumn
+				? [
+						'Date',
+						'Account',
+						'Directory',
+						'Session',
+						'Models',
+						'Input',
+						'Output',
+						'Reasoning',
+						'Cache Read',
+						'Total Tokens',
+						'Cost (USD)',
+						'Last Activity',
+					]
+				: [
+						'Date',
+						'Directory',
+						'Session',
+						'Models',
+						'Input',
+						'Output',
+						'Reasoning',
+						'Cache Read',
+						'Total Tokens',
+						'Cost (USD)',
+						'Last Activity',
+					];
+			const colAligns: TableCellAlign[] = includeAccountColumn
+				? [
+						'left',
+						'left',
+						'left',
+						'left',
+						'left',
+						'right',
+						'right',
+						'right',
+						'right',
+						'right',
+						'right',
+						'left',
+					]
+				: [
+						'left',
+						'left',
+						'left',
+						'left',
+						'right',
+						'right',
+						'right',
+						'right',
+						'right',
+						'right',
+						'left',
+					];
+			const compactHead = includeAccountColumn
+				? ['Date', 'Account', 'Directory', 'Session', 'Input', 'Output', 'Cost (USD)']
+				: ['Date', 'Directory', 'Session', 'Input', 'Output', 'Cost (USD)'];
+			const compactColAligns: TableCellAlign[] = includeAccountColumn
+				? ['left', 'left', 'left', 'left', 'right', 'right', 'right']
+				: ['left', 'left', 'left', 'right', 'right', 'right'];
+			const tableColumnCount = head.length;
+
 			const table: ResponsiveTable = new ResponsiveTable({
-				head: [
-					'Date',
-					'Directory',
-					'Session',
-					'Models',
-					'Input',
-					'Output',
-					'Reasoning',
-					'Cache Read',
-					'Total Tokens',
-					'Cost (USD)',
-					'Last Activity',
-				],
-				colAligns: [
-					'left',
-					'left',
-					'left',
-					'left',
-					'right',
-					'right',
-					'right',
-					'right',
-					'right',
-					'right',
-					'left',
-				],
-				compactHead: ['Date', 'Directory', 'Session', 'Input', 'Output', 'Cost (USD)'],
-				compactColAligns: ['left', 'left', 'left', 'right', 'right', 'right'],
+				head,
+				colAligns,
+				compactHead,
+				compactColAligns,
 				compactThreshold: 100,
 				forceCompact: ctx.values.compact,
 				style: { head: ['cyan'] },
@@ -177,42 +224,76 @@ export const sessionCommand = define({
 				const sessionFile = row.sessionFile;
 				const shortSession = sessionFile.length > 8 ? `…${sessionFile.slice(-8)}` : sessionFile;
 
-				table.push([
-					displayDate,
-					directoryDisplay,
-					shortSession,
-					formatModelsDisplayMultiline(formatModelsList(row.models)),
-					formatNumber(split.inputTokens),
-					formatNumber(split.outputTokens),
-					formatNumber(split.reasoningTokens),
-					formatNumber(split.cacheReadTokens),
-					formatNumber(row.totalTokens),
-					formatCurrency(row.costUSD),
-					formatDisplayDateTime(row.lastActivity, ctx.values.locale, ctx.values.timezone),
-				]);
+				if (includeAccountColumn) {
+					table.push([
+						displayDate,
+						row.account ?? 'default',
+						directoryDisplay,
+						shortSession,
+						formatModelsDisplayMultiline(formatModelsList(row.models)),
+						formatNumber(split.inputTokens),
+						formatNumber(split.outputTokens),
+						formatNumber(split.reasoningTokens),
+						formatNumber(split.cacheReadTokens),
+						formatNumber(row.totalTokens),
+						formatCurrency(row.costUSD),
+						formatDisplayDateTime(row.lastActivity, ctx.values.locale, ctx.values.timezone),
+					]);
+				} else {
+					table.push([
+						displayDate,
+						directoryDisplay,
+						shortSession,
+						formatModelsDisplayMultiline(formatModelsList(row.models)),
+						formatNumber(split.inputTokens),
+						formatNumber(split.outputTokens),
+						formatNumber(split.reasoningTokens),
+						formatNumber(split.cacheReadTokens),
+						formatNumber(row.totalTokens),
+						formatCurrency(row.costUSD),
+						formatDisplayDateTime(row.lastActivity, ctx.values.locale, ctx.values.timezone),
+					]);
+				}
 			}
 
-			addEmptySeparatorRow(table, TABLE_COLUMN_COUNT);
-			table.push([
-				'',
-				'',
-				pc.yellow('Total'),
-				'',
-				pc.yellow(formatNumber(totalsForDisplay.inputTokens)),
-				pc.yellow(formatNumber(totalsForDisplay.outputTokens)),
-				pc.yellow(formatNumber(totalsForDisplay.reasoningTokens)),
-				pc.yellow(formatNumber(totalsForDisplay.cacheReadTokens)),
-				pc.yellow(formatNumber(totalsForDisplay.totalTokens)),
-				pc.yellow(formatCurrency(totalsForDisplay.costUSD)),
-				'',
-			]);
+			addEmptySeparatorRow(table, tableColumnCount);
+			if (includeAccountColumn) {
+				table.push([
+					'',
+					'',
+					'',
+					pc.yellow('Total'),
+					'',
+					pc.yellow(formatNumber(totalsForDisplay.inputTokens)),
+					pc.yellow(formatNumber(totalsForDisplay.outputTokens)),
+					pc.yellow(formatNumber(totalsForDisplay.reasoningTokens)),
+					pc.yellow(formatNumber(totalsForDisplay.cacheReadTokens)),
+					pc.yellow(formatNumber(totalsForDisplay.totalTokens)),
+					pc.yellow(formatCurrency(totalsForDisplay.costUSD)),
+					'',
+				]);
+			} else {
+				table.push([
+					'',
+					'',
+					pc.yellow('Total'),
+					'',
+					pc.yellow(formatNumber(totalsForDisplay.inputTokens)),
+					pc.yellow(formatNumber(totalsForDisplay.outputTokens)),
+					pc.yellow(formatNumber(totalsForDisplay.reasoningTokens)),
+					pc.yellow(formatNumber(totalsForDisplay.cacheReadTokens)),
+					pc.yellow(formatNumber(totalsForDisplay.totalTokens)),
+					pc.yellow(formatCurrency(totalsForDisplay.costUSD)),
+					'',
+				]);
+			}
 
 			log(table.toString());
 
 			if (table.isCompactMode()) {
 				logger.info('\nRunning in Compact Mode');
 				logger.info(
-					'Expand terminal width to see directories, cache metrics, total tokens, and last activity',
+					'Expand terminal width to see details, cache metrics, total tokens, and last activity',
 				);
 			}
 		} finally {

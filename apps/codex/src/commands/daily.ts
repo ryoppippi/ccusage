@@ -1,3 +1,4 @@
+import type { TableCellAlign } from '@ccusage/terminal/table';
 import process from 'node:process';
 import {
 	addEmptySeparatorRow,
@@ -17,8 +18,7 @@ import { loadTokenUsageEvents } from '../data-loader.ts';
 import { normalizeFilterDate } from '../date-utils.ts';
 import { log, logger } from '../logger.ts';
 import { CodexPricingSource } from '../pricing.ts';
-
-const TABLE_COLUMN_COUNT = 8;
+import { resolveSessionSources } from '../session-sources.ts';
 
 export const dailyCommand = define({
 	name: 'daily',
@@ -41,7 +41,12 @@ export const dailyCommand = define({
 			process.exit(1);
 		}
 
-		const { events, missingDirectories } = await loadTokenUsageEvents();
+		const sessionSources = resolveSessionSources(ctx.values.codexHome);
+		const byAccount = ctx.values.byAccount === true;
+		const hasMultipleAccounts = sessionSources.length > 1;
+		const { events, missingDirectories } = await loadTokenUsageEvents({
+			sessionSources,
+		});
 
 		for (const missing of missingDirectories) {
 			logger.warn(`Codex session directory not found: ${missing}`);
@@ -62,6 +67,7 @@ export const dailyCommand = define({
 				locale: ctx.values.locale,
 				since,
 				until,
+				byAccount,
 			});
 
 			if (rows.length === 0) {
@@ -111,20 +117,51 @@ export const dailyCommand = define({
 				`Codex Token Usage Report - Daily (Timezone: ${ctx.values.timezone ?? DEFAULT_TIMEZONE})`,
 			);
 
+			if (hasMultipleAccounts && !byAccount) {
+				logger.info(
+					'Aggregating usage across multiple accounts. Use --by-account to split rows by account.',
+				);
+			}
+
+			const includeAccountColumn = byAccount;
+			const head = includeAccountColumn
+				? [
+						'Date',
+						'Account',
+						'Models',
+						'Input',
+						'Output',
+						'Reasoning',
+						'Cache Read',
+						'Total Tokens',
+						'Cost (USD)',
+					]
+				: [
+						'Date',
+						'Models',
+						'Input',
+						'Output',
+						'Reasoning',
+						'Cache Read',
+						'Total Tokens',
+						'Cost (USD)',
+					];
+			const colAligns: TableCellAlign[] = includeAccountColumn
+				? ['left', 'left', 'left', 'right', 'right', 'right', 'right', 'right', 'right']
+				: ['left', 'left', 'right', 'right', 'right', 'right', 'right', 'right'];
+			const compactHead = includeAccountColumn
+				? ['Date', 'Account', 'Models', 'Input', 'Output', 'Cost (USD)']
+				: ['Date', 'Models', 'Input', 'Output', 'Cost (USD)'];
+			const compactColAligns: TableCellAlign[] = includeAccountColumn
+				? ['left', 'left', 'left', 'right', 'right', 'right']
+				: ['left', 'left', 'right', 'right', 'right'];
+			const tableColumnCount = head.length;
+
 			const table: ResponsiveTable = new ResponsiveTable({
-				head: [
-					'Date',
-					'Models',
-					'Input',
-					'Output',
-					'Reasoning',
-					'Cache Read',
-					'Total Tokens',
-					'Cost (USD)',
-				],
-				colAligns: ['left', 'left', 'right', 'right', 'right', 'right', 'right', 'right'],
-				compactHead: ['Date', 'Models', 'Input', 'Output', 'Cost (USD)'],
-				compactColAligns: ['left', 'left', 'right', 'right', 'right'],
+				head,
+				colAligns,
+				compactHead,
+				compactColAligns,
 				compactThreshold: 100,
 				forceCompact: ctx.values.compact,
 				style: { head: ['cyan'] },
@@ -149,29 +186,57 @@ export const dailyCommand = define({
 				totalsForDisplay.totalTokens += row.totalTokens;
 				totalsForDisplay.costUSD += row.costUSD;
 
-				table.push([
-					row.date,
-					formatModelsDisplayMultiline(formatModelsList(row.models)),
-					formatNumber(split.inputTokens),
-					formatNumber(split.outputTokens),
-					formatNumber(split.reasoningTokens),
-					formatNumber(split.cacheReadTokens),
-					formatNumber(row.totalTokens),
-					formatCurrency(row.costUSD),
-				]);
+				if (includeAccountColumn) {
+					table.push([
+						row.date,
+						row.account ?? 'default',
+						formatModelsDisplayMultiline(formatModelsList(row.models)),
+						formatNumber(split.inputTokens),
+						formatNumber(split.outputTokens),
+						formatNumber(split.reasoningTokens),
+						formatNumber(split.cacheReadTokens),
+						formatNumber(row.totalTokens),
+						formatCurrency(row.costUSD),
+					]);
+				} else {
+					table.push([
+						row.date,
+						formatModelsDisplayMultiline(formatModelsList(row.models)),
+						formatNumber(split.inputTokens),
+						formatNumber(split.outputTokens),
+						formatNumber(split.reasoningTokens),
+						formatNumber(split.cacheReadTokens),
+						formatNumber(row.totalTokens),
+						formatCurrency(row.costUSD),
+					]);
+				}
 			}
 
-			addEmptySeparatorRow(table, TABLE_COLUMN_COUNT);
-			table.push([
-				pc.yellow('Total'),
-				'',
-				pc.yellow(formatNumber(totalsForDisplay.inputTokens)),
-				pc.yellow(formatNumber(totalsForDisplay.outputTokens)),
-				pc.yellow(formatNumber(totalsForDisplay.reasoningTokens)),
-				pc.yellow(formatNumber(totalsForDisplay.cacheReadTokens)),
-				pc.yellow(formatNumber(totalsForDisplay.totalTokens)),
-				pc.yellow(formatCurrency(totalsForDisplay.costUSD)),
-			]);
+			addEmptySeparatorRow(table, tableColumnCount);
+			if (includeAccountColumn) {
+				table.push([
+					pc.yellow('Total'),
+					'',
+					'',
+					pc.yellow(formatNumber(totalsForDisplay.inputTokens)),
+					pc.yellow(formatNumber(totalsForDisplay.outputTokens)),
+					pc.yellow(formatNumber(totalsForDisplay.reasoningTokens)),
+					pc.yellow(formatNumber(totalsForDisplay.cacheReadTokens)),
+					pc.yellow(formatNumber(totalsForDisplay.totalTokens)),
+					pc.yellow(formatCurrency(totalsForDisplay.costUSD)),
+				]);
+			} else {
+				table.push([
+					pc.yellow('Total'),
+					'',
+					pc.yellow(formatNumber(totalsForDisplay.inputTokens)),
+					pc.yellow(formatNumber(totalsForDisplay.outputTokens)),
+					pc.yellow(formatNumber(totalsForDisplay.reasoningTokens)),
+					pc.yellow(formatNumber(totalsForDisplay.cacheReadTokens)),
+					pc.yellow(formatNumber(totalsForDisplay.totalTokens)),
+					pc.yellow(formatCurrency(totalsForDisplay.costUSD)),
+				]);
+			}
 
 			log(table.toString());
 
