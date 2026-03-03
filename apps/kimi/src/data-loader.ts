@@ -173,8 +173,21 @@ export async function loadTokenUsageEvents(options: LoadOptions = {}): Promise<L
 	const events: TokenUsageEvent[] = [];
 	const seenMessageIds = new Set<string>();
 
-	// Accumulate reasoning content per session that will be distributed to events
-	const sessionReasoningBuffers = new Map<string, { content: string[]; lastFlushIndex: number }>();
+	// Accumulate reasoning content per (session + stream) that will be distributed to events.
+	// Stream is either "main" or "subagent:{task_tool_call_id}" to avoid mixing reasoning across parallel subagents.
+	type ReasoningBuffer = { content: string[]; lastFlushIndex: number };
+	const reasoningBuffers = new Map<string, ReasoningBuffer>();
+
+	function getReasoningBuffer(sessionId: string, streamId: string): ReasoningBuffer {
+		const key = `${sessionId}:${streamId}`;
+		const existing = reasoningBuffers.get(key);
+		if (existing != null) {
+			return existing;
+		}
+		const created: ReasoningBuffer = { content: [], lastFlushIndex: 0 };
+		reasoningBuffers.set(key, created);
+		return created;
+	}
 
 	const statusUpdateSchema = v.object({
 		timestamp: v.number(),
@@ -191,6 +204,22 @@ export async function loadTokenUsageEvents(options: LoadOptions = {}): Promise<L
 			payload: v.object({
 				type: v.string(),
 				think: v.optional(v.string()),
+			}),
+		}),
+	});
+
+	const subagentEventSchema = v.object({
+		timestamp: v.number(),
+		message: v.object({
+			type: v.literal('SubagentEvent'),
+			payload: v.object({
+				task_tool_call_id: v.optional(v.string()),
+				event: v.optional(
+					v.object({
+						type: v.string(),
+						payload: v.optional(v.unknown()),
+					}),
+				),
 			}),
 		}),
 	});
@@ -217,13 +246,6 @@ export async function loadTokenUsageEvents(options: LoadOptions = {}): Promise<L
 
 		const lines = fileContentResult.value.split(/\r?\n/);
 
-		// Get or create reasoning buffer for this session
-		let reasoningBuffer = sessionReasoningBuffers.get(sessionId);
-		if (reasoningBuffer == null) {
-			reasoningBuffer = { content: [], lastFlushIndex: 0 };
-			sessionReasoningBuffers.set(sessionId, reasoningBuffer);
-		}
-
 		// Single pass: process lines in order, accumulating reasoning and attributing to StatusUpdates
 		for (const line of lines) {
 			const trimmed = line.trim();
@@ -239,95 +261,141 @@ export async function loadTokenUsageEvents(options: LoadOptions = {}): Promise<L
 				continue;
 			}
 
-			// Check if this is a ContentPart with thinking content (process inline)
-			const contentPart = v.safeParse(contentPartSchema, parsedResult.value);
-			if (contentPart.success) {
-				if (contentPart.output.message.payload.type === 'think') {
-					const thinkContent = contentPart.output.message.payload.think;
-					if (thinkContent != null && thinkContent.trim() !== '') {
-						reasoningBuffer.content.push(thinkContent);
+			const processContentPart = (
+				contentPart: v.InferOutput<typeof contentPartSchema>,
+				streamId: string,
+			) => {
+				if (contentPart.message.payload.type !== 'think') {
+					return;
+				}
+				const thinkContent = contentPart.message.payload.think;
+				if (thinkContent == null || thinkContent.trim() === '') {
+					return;
+				}
+				getReasoningBuffer(sessionId, streamId).content.push(thinkContent);
+			};
+
+			const processStatusUpdate = (
+				update: v.InferOutput<typeof statusUpdateSchema>,
+				streamId: string,
+			) => {
+				const payload = update.message.payload;
+				if (payload == null) {
+					return;
+				}
+
+				const messageId = asNonEmptyString(payload.message_id);
+				let isDuplicate = false;
+				if (messageId != null) {
+					const dedupeKey = `${sessionId}:${streamId}:${messageId}`;
+					if (seenMessageIds.has(dedupeKey)) {
+						isDuplicate = true;
+					} else {
+						seenMessageIds.add(dedupeKey);
 					}
 				}
+
+				const tokenUsageRaw = payload.token_usage;
+				const tokenUsage = v.safeParse(recordSchema, tokenUsageRaw);
+				if (!tokenUsage.success) {
+					return;
+				}
+
+				const inputOther = ensureNumber(tokenUsage.output.input_other);
+				const cacheRead = ensureNumber(tokenUsage.output.input_cache_read);
+				const cacheCreation = ensureNumber(tokenUsage.output.input_cache_creation);
+				const output = ensureNumber(tokenUsage.output.output);
+
+				const inputTokens = inputOther + cacheRead + cacheCreation;
+				const totalTokens = inputTokens + output;
+
+				if (inputTokens === 0 && output === 0) {
+					return;
+				}
+
+				const timestamp = toIsoTimestamp(update.timestamp);
+				if (timestamp == null) {
+					return;
+				}
+
+				const reasoningBuffer = getReasoningBuffer(sessionId, streamId);
+
+				// Calculate reasoning tokens from accumulated content since last StatusUpdate
+				let reasoningTokens = 0;
+				const newContentCount = reasoningBuffer.content.length - reasoningBuffer.lastFlushIndex;
+				if (newContentCount > 0) {
+					// Calculate tokens from new reasoning content since last event
+					const newContent = reasoningBuffer.content.slice(reasoningBuffer.lastFlushIndex);
+					const reasoningText = newContent.join('\n');
+					reasoningTokens = estimateTokensFromText(reasoningText);
+
+					// Update buffer position (even for duplicates to keep tracking accurate)
+					reasoningBuffer.lastFlushIndex = reasoningBuffer.content.length;
+				}
+
+				// Skip duplicate events after capturing reasoning to avoid double-counting
+				if (isDuplicate) {
+					return;
+				}
+
+				// Ensure reasoning doesn't exceed total output for this event
+				// (actual tokenization may differ from our 4-char estimate)
+				reasoningTokens = Math.min(reasoningTokens, output);
+
+				events.push({
+					sessionId,
+					timestamp,
+					model: defaultModel.model,
+					isFallbackModel: defaultModel.isFallback ? true : undefined,
+					inputTokens,
+					cachedInputTokens: cacheRead,
+					outputTokens: output,
+					reasoningOutputTokens: reasoningTokens,
+					totalTokens,
+				});
+			};
+
+			const contentPart = v.safeParse(contentPartSchema, parsedResult.value);
+			if (contentPart.success) {
+				processContentPart(contentPart.output, 'main');
 				continue; // Move to next line
 			}
 
 			const update = v.safeParse(statusUpdateSchema, parsedResult.value);
-			if (!update.success) {
+			if (update.success) {
+				processStatusUpdate(update.output, 'main');
+				continue; // Move to next line
+			}
+
+			const subagentEvent = v.safeParse(subagentEventSchema, parsedResult.value);
+			if (!subagentEvent.success) {
 				continue;
 			}
 
-			const payload = update.output.message.payload;
-			if (payload == null) {
+			const nestedEvent = subagentEvent.output.message.payload.event;
+			if (nestedEvent == null) {
 				continue;
 			}
 
-			const messageId = asNonEmptyString(payload.message_id);
-			let isDuplicate = false;
-			if (messageId != null) {
-				const dedupeKey = `${sessionId}:${messageId}`;
-				if (seenMessageIds.has(dedupeKey)) {
-					isDuplicate = true;
-				} else {
-					seenMessageIds.add(dedupeKey);
-				}
+			const taskToolCallId =
+				asNonEmptyString(subagentEvent.output.message.payload.task_tool_call_id) ?? 'unknown';
+			const streamId = `subagent:${taskToolCallId}`;
+
+			const synthetic = {
+				timestamp: subagentEvent.output.timestamp,
+				message: nestedEvent,
+			};
+
+			const subContentPart = v.safeParse(contentPartSchema, synthetic);
+			if (subContentPart.success) {
+				processContentPart(subContentPart.output, streamId);
+				continue; // Move to next line
 			}
 
-			const tokenUsageRaw = payload.token_usage;
-			const tokenUsage = v.safeParse(recordSchema, tokenUsageRaw);
-			if (!tokenUsage.success) {
-				continue;
+			const subUpdate = v.safeParse(statusUpdateSchema, synthetic);
+			if (subUpdate.success) {
+				processStatusUpdate(subUpdate.output, streamId);
 			}
-
-			const inputOther = ensureNumber(tokenUsage.output.input_other);
-			const cacheRead = ensureNumber(tokenUsage.output.input_cache_read);
-			const cacheCreation = ensureNumber(tokenUsage.output.input_cache_creation);
-			const output = ensureNumber(tokenUsage.output.output);
-
-			const inputTokens = inputOther + cacheRead + cacheCreation;
-			const totalTokens = inputTokens + output;
-
-			if (inputTokens === 0 && output === 0) {
-				continue;
-			}
-
-			const timestamp = toIsoTimestamp(update.output.timestamp);
-			if (timestamp == null) {
-				continue;
-			}
-
-			// Calculate reasoning tokens from accumulated content since last StatusUpdate
-			let reasoningTokens = 0;
-			const newContentCount = reasoningBuffer.content.length - reasoningBuffer.lastFlushIndex;
-			if (newContentCount > 0) {
-				// Calculate tokens from new reasoning content since last event
-				const newContent = reasoningBuffer.content.slice(reasoningBuffer.lastFlushIndex);
-				const reasoningText = newContent.join('\n');
-				reasoningTokens = estimateTokensFromText(reasoningText);
-
-				// Update buffer position (even for duplicates to keep tracking accurate)
-				reasoningBuffer.lastFlushIndex = reasoningBuffer.content.length;
-			}
-
-			// Skip duplicate events after capturing reasoning to avoid double-counting
-			if (isDuplicate) {
-				continue;
-			}
-
-			// Ensure reasoning doesn't exceed total output for this event
-			// (actual tokenization may differ from our 4-char estimate)
-			reasoningTokens = Math.min(reasoningTokens, output);
-
-			events.push({
-				sessionId,
-				timestamp,
-				model: defaultModel.model,
-				isFallbackModel: defaultModel.isFallback ? true : undefined,
-				inputTokens,
-				cachedInputTokens: cacheRead,
-				outputTokens: output,
-				reasoningOutputTokens: reasoningTokens,
-				totalTokens,
-			});
 		}
 	}
 
@@ -384,6 +452,142 @@ if (import.meta.vitest != null) {
 			expect(event.sessionId).toContain('abc123');
 			expect(event.sessionId).toContain('session-1');
 			expect(event.timestamp).toBe('2025-01-01T00:00:00.500Z');
+		});
+
+		it('parses StatusUpdate token_usage from SubagentEvent wrappers', async () => {
+			await using fixture = await createFixture({
+				'.kimi': {
+					'config.toml': 'default_model = \"kimi-code/kimi-for-coding\"\n',
+					sessions: {
+						abc123: {
+							'session-4': {
+								'wire.jsonl': [
+									JSON.stringify({
+										timestamp: 1735689600,
+										message: {
+											type: 'StatusUpdate',
+											payload: {
+												message_id: 'main-1',
+												token_usage: {
+													input_other: 1,
+													input_cache_read: 2,
+													input_cache_creation: 3,
+													output: 4,
+												},
+											},
+										},
+									}),
+									JSON.stringify({
+										timestamp: 1735689601,
+										message: {
+											type: 'SubagentEvent',
+											payload: {
+												task_tool_call_id: 'tool-1',
+												event: {
+													type: 'StatusUpdate',
+													payload: {
+														message_id: 'sub-1',
+														token_usage: {
+															input_other: 10,
+															input_cache_read: 0,
+															input_cache_creation: 0,
+															output: 1,
+														},
+													},
+												},
+											},
+										},
+									}),
+								].join('\n'),
+							},
+						},
+					},
+				},
+			});
+
+			const { events } = await loadTokenUsageEvents({ shareDir: fixture.getPath('.kimi') });
+			expect(events).toHaveLength(2);
+			expect(events.map((e) => e.totalTokens)).toEqual([10, 11]);
+		});
+
+		it('keeps reasoning attribution separate for main vs subagent streams', async () => {
+			// 8 chars -> 2 tokens
+			const subThinkContent = '12345678';
+			const expectedReasoningTokens = Math.ceil(subThinkContent.length / 4);
+
+			await using fixture = await createFixture({
+				'.kimi': {
+					'config.toml': 'default_model = \"kimi-code/kimi-for-coding\"\n',
+					sessions: {
+						abc123: {
+							'session-5': {
+								'wire.jsonl': [
+									// Subagent think content should not be attributed to main StatusUpdate
+									JSON.stringify({
+										timestamp: 1735689600,
+										message: {
+											type: 'SubagentEvent',
+											payload: {
+												task_tool_call_id: 'tool-2',
+												event: {
+													type: 'ContentPart',
+													payload: {
+														type: 'think',
+														think: subThinkContent,
+													},
+												},
+											},
+										},
+									}),
+									// Main status update: should have 0 reasoning from subagent
+									JSON.stringify({
+										timestamp: 1735689601,
+										message: {
+											type: 'StatusUpdate',
+											payload: {
+												message_id: 'main-1',
+												token_usage: {
+													input_other: 0,
+													input_cache_read: 0,
+													input_cache_creation: 0,
+													output: 20,
+												},
+											},
+										},
+									}),
+									// Subagent status update: should pick up its own reasoning
+									JSON.stringify({
+										timestamp: 1735689602,
+										message: {
+											type: 'SubagentEvent',
+											payload: {
+												task_tool_call_id: 'tool-2',
+												event: {
+													type: 'StatusUpdate',
+													payload: {
+														message_id: 'sub-1',
+														token_usage: {
+															input_other: 0,
+															input_cache_read: 0,
+															input_cache_creation: 0,
+															output: 20,
+														},
+													},
+												},
+											},
+										},
+									}),
+								].join('\n'),
+							},
+						},
+					},
+				},
+			});
+
+			const { events } = await loadTokenUsageEvents({ shareDir: fixture.getPath('.kimi') });
+			expect(events).toHaveLength(2);
+			expect(events[0]!.reasoningOutputTokens).toBe(0);
+			expect(events[1]!.reasoningOutputTokens).toBe(expectedReasoningTokens);
 		});
 
 		it('maps work dir hashes back to their original paths and dedupes message_id entries', async () => {
