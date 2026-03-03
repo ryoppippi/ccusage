@@ -7,6 +7,12 @@ import { prefetchAmpPricing } from './_macro.ts' with { type: 'macro' };
 import { logger } from './logger.ts';
 
 const AMP_PROVIDER_PREFIXES = ['anthropic/'];
+const ZERO_MODEL_PRICING = {
+	inputCostPerMToken: 0,
+	cachedInputCostPerMToken: 0,
+	cacheCreationCostPerMToken: 0,
+	outputCostPerMToken: 0,
+} as const satisfies ModelPricing;
 
 function toPerMillion(value: number | undefined, fallback?: number): number {
 	const perToken = value ?? fallback ?? 0;
@@ -44,7 +50,8 @@ export class AmpPricingSource implements PricingSource, Disposable {
 
 		const pricing = directLookup.value;
 		if (pricing == null) {
-			throw new Error(`Pricing not found for model ${model}`);
+			logger.warn(`Pricing not found for model ${model}; defaulting to zero-cost pricing.`);
+			return ZERO_MODEL_PRICING;
 		}
 
 		return {
@@ -133,6 +140,16 @@ if (import.meta.vitest != null) {
 
 			const expected = 1000 * 1e-6 + 500 * 5e-6 + 200 * 1e-7 + 100 * 1.25e-6;
 			expect(cost).toBeCloseTo(expected);
+		});
+
+		it('falls back to zero pricing for unknown models', async () => {
+			using source = new AmpPricingSource({
+				offline: true,
+				offlineLoader: async () => ({}),
+			});
+
+			const pricing = await source.getPricing('anthropic/unknown');
+			expect(pricing).toEqual(ZERO_MODEL_PRICING);
 		});
 	});
 }
