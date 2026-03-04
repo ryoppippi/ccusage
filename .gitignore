@@ -38,3 +38,5 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 # nix
 .direnv
 !.envrc
+
+.claude
