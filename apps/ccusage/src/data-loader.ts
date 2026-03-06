@@ -13,7 +13,6 @@ import type { LoadedUsageEntry, SessionBlock } from './_session-blocks.ts';
 import type { ActivityDate, Bucket, CostMode, ModelName, SortOrder, Version } from './_types.ts';
 import { Buffer } from 'node:buffer';
 import { createReadStream, createWriteStream } from 'node:fs';
-import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
 import { createInterface } from 'node:readline';
@@ -1259,80 +1258,100 @@ export async function calculateContextTokens(
 	percentage: number;
 	contextLimit: number;
 } | null> {
-	let content: string;
+	let latestUsage: {
+		input_tokens: number;
+		cache_creation_input_tokens?: number;
+		cache_read_input_tokens?: number;
+	} | null = null;
+	let firstNonEmptyLineSeen = false;
+
 	try {
-		content = await readFile(transcriptPath, 'utf-8');
+		const stream = createReadStream(transcriptPath, { encoding: 'utf-8' });
+		const reader = createInterface({
+			input: stream,
+			crlfDelay: Number.POSITIVE_INFINITY,
+		});
+
+		for await (const line of reader) {
+			const trimmedLine = line.trim();
+			if (trimmedLine === '') {
+				continue;
+			}
+
+			if (!firstNonEmptyLineSeen) {
+				firstNonEmptyLineSeen = true;
+
+				try {
+					const parsed = JSON.parse(trimmedLine) as { type?: string };
+					if (parsed.type === 'file-history-snapshot') {
+						logger.debug('Skipping file-history-snapshot transcript file for context tokens');
+						return null;
+					}
+				} catch {
+					// Continue to normal parsing for malformed first lines
+				}
+			}
+
+			try {
+				const parsed = JSON.parse(trimmedLine) as unknown;
+				const result = v.safeParse(transcriptMessageSchema, parsed);
+				if (!result.success) {
+					continue;
+				}
+
+				const obj = result.output;
+				if (
+					obj.type === 'assistant' &&
+					obj.message != null &&
+					obj.message.usage != null &&
+					obj.message.usage.input_tokens != null
+				) {
+					latestUsage = obj.message.usage;
+				}
+			} catch {
+				// Skip malformed JSON lines
+			}
+		}
 	} catch (error: unknown) {
 		logger.debug(`Failed to read transcript file: ${String(error)}`);
 		return null;
 	}
 
-	const lines = content.split('\n').reverse(); // Iterate from last line to first line
+	if (latestUsage == null) {
+		logger.debug('No usage information found in transcript');
+		return null;
+	}
 
-	for (const line of lines) {
-		const trimmedLine = line.trim();
-		if (trimmedLine === '') {
-			continue;
-		}
+	const inputTokens =
+		latestUsage.input_tokens +
+		(latestUsage.cache_creation_input_tokens ?? 0) +
+		(latestUsage.cache_read_input_tokens ?? 0);
 
-		try {
-			const parsed = JSON.parse(trimmedLine) as unknown;
-			const result = v.safeParse(transcriptMessageSchema, parsed);
-			if (!result.success) {
-				continue; // Skip malformed JSON lines
-			}
-			const obj = result.output;
-
-			// Check if this line contains the required token usage fields
-			if (
-				obj.type === 'assistant' &&
-				obj.message != null &&
-				obj.message.usage != null &&
-				obj.message.usage.input_tokens != null
-			) {
-				const usage = obj.message.usage;
-				const inputTokens =
-					usage.input_tokens! +
-					(usage.cache_creation_input_tokens ?? 0) +
-					(usage.cache_read_input_tokens ?? 0);
-
-				// Get context limit from PricingFetcher
-				let contextLimit = 200_000; // Fallback for when modelId is not provided
-				if (modelId != null && modelId !== '') {
-					using fetcher = new PricingFetcher(offline);
-					const contextLimitResult = await fetcher.getModelContextLimit(modelId);
-					if (Result.isSuccess(contextLimitResult) && contextLimitResult.value != null) {
-						contextLimit = contextLimitResult.value;
-					} else if (Result.isSuccess(contextLimitResult)) {
-						// Context limit not available for this model in LiteLLM
-						logger.debug(`No context limit data available for model ${modelId} in LiteLLM`);
-					} else {
-						// Error occurred
-						logger.debug(
-							`Failed to get context limit for model ${modelId}: ${contextLimitResult.error.message}`,
-						);
-					}
-				}
-
-				const percentage = Math.min(
-					100,
-					Math.max(0, Math.round((inputTokens / contextLimit) * 100)),
-				);
-
-				return {
-					inputTokens,
-					percentage,
-					contextLimit,
-				};
-			}
-		} catch {
-			continue; // Skip malformed JSON lines
+	// Get context limit from PricingFetcher
+	let contextLimit = 200_000; // Fallback for when modelId is not provided
+	if (modelId != null && modelId !== '') {
+		using fetcher = new PricingFetcher(offline);
+		const contextLimitResult = await fetcher.getModelContextLimit(modelId);
+		if (Result.isSuccess(contextLimitResult) && contextLimitResult.value != null) {
+			contextLimit = contextLimitResult.value;
+		} else if (Result.isSuccess(contextLimitResult)) {
+			// Context limit not available for this model in LiteLLM
+			logger.debug(`No context limit data available for model ${modelId} in LiteLLM`);
+		} else {
+			// Error occurred
+			logger.debug(
+				`Failed to get context limit for model ${modelId}: ${contextLimitResult.error.message}`,
+			);
 		}
 	}
 
-	// No valid usage information found
-	logger.debug('No usage information found in transcript');
-	return null;
+	const percentage = Math.min(100, Math.max(0, Math.round((inputTokens / contextLimit) * 100)));
+
+	return {
+		inputTokens,
+		percentage,
+		contextLimit,
+	};
 }
 
 /**
@@ -4748,6 +4767,27 @@ if (import.meta.vitest != null) {
 			const res = await calculateContextTokens(fixture.getPath('transcript.jsonl'));
 			expect(res).not.toBeNull();
 			expect(res?.percentage).toBe(100); // Should be clamped to 100
+		});
+
+		it('skips file-history-snapshot transcripts early', async () => {
+			await using fixture = await createFixture({
+				'transcript.jsonl': [
+					JSON.stringify({
+						type: 'file-history-snapshot',
+						entries: Array.from({ length: 10_000 }, (_, i) => ({
+							path: `src/file-${i}.ts`,
+							hash: `hash-${i}`,
+						})),
+					}),
+					JSON.stringify({
+						type: 'assistant',
+						message: { usage: { input_tokens: 1234 } },
+					}),
+				].join('\n'),
+			});
+
+			const res = await calculateContextTokens(fixture.getPath('transcript.jsonl'));
+			expect(res).toBeNull();
 		});
 	});
 }
