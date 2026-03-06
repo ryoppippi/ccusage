@@ -673,6 +673,45 @@
 								}
 							},
 							"additionalProperties": false
+						},
+						"limits": {
+							"type": "object",
+							"properties": {
+								"limit": {
+									"type": "number",
+									"description": "Maximum number of events to show (default: 10)",
+									"markdownDescription": "Maximum number of events to show (default: 10)",
+									"default": 10
+								},
+								"since": {
+									"type": "string",
+									"description": "Filter from date (YYYYMMDD format)",
+									"markdownDescription": "Filter from date (YYYYMMDD format)"
+								},
+								"json": {
+									"type": "boolean",
+									"description": "Output in JSON format",
+									"markdownDescription": "Output in JSON format",
+									"default": false
+								},
+								"jq": {
+									"type": "string",
+									"description": "Process JSON output with jq command (requires jq binary, implies --json)",
+									"markdownDescription": "Process JSON output with jq command (requires jq binary, implies --json)"
+								},
+								"timezone": {
+									"type": "string",
+									"description": "Timezone for date grouping (e.g., UTC, America/New_York, Asia/Tokyo). Default: system timezone",
+									"markdownDescription": "Timezone for date grouping (e.g., UTC, America/New_York, Asia/Tokyo). Default: system timezone"
+								},
+								"locale": {
+									"type": "string",
+									"description": "Locale for date/time formatting (e.g., en-US, ja-JP, de-DE)",
+									"markdownDescription": "Locale for date/time formatting (e.g., en-US, ja-JP, de-DE)",
+									"default": "en-CA"
+								}
+							},
+							"additionalProperties": false
 						}
 					},
 					"additionalProperties": false,
