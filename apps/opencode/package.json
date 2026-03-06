@@ -1,7 +1,7 @@
 {
 	"name": "@ccusage/opencode",
 	"type": "module",
-	"version": "18.0.8",
+	"version": "18.0.9",
 	"description": "Usage analysis tool for OpenCode sessions",
 	"contributors": [
 		"ryoppippi",
