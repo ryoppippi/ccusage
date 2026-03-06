@@ -41,7 +41,7 @@ export const dailyCommand = define({
 			process.exit(1);
 		}
 
-		const { events, missingDirectories } = await loadTokenUsageEvents();
+		const { events, missingDirectories } = await loadTokenUsageEvents({ since, until });
 
 		for (const missing of missingDirectories) {
 			logger.warn(`Codex session directory not found: ${missing}`);
