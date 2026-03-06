@@ -1306,7 +1306,11 @@ export async function calculateContextTokens(
 					obj.message.usage != null &&
 					obj.message.usage.input_tokens != null
 				) {
-					latestUsage = obj.message.usage;
+					latestUsage = {
+						input_tokens: obj.message.usage.input_tokens,
+						cache_creation_input_tokens: obj.message.usage.cache_creation_input_tokens,
+						cache_read_input_tokens: obj.message.usage.cache_read_input_tokens,
+					};
 				}
 			} catch {
 				// Skip malformed JSON lines
