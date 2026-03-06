@@ -2669,7 +2669,7 @@ invalid json line
 
 			expect(result).toHaveLength(2);
 			expect(result.find((s) => s.sessionId === 'session123')).toBeTruthy();
-			expect(result.find((s) => s.projectPath === 'project1/subfolder')).toBeTruthy();
+			expect(result.find((s) => s.projectPath === path.join('project1', 'subfolder'))).toBeTruthy();
 			expect(result.find((s) => s.sessionId === 'session456')).toBeTruthy();
 			expect(result.find((s) => s.projectPath === 'project2')).toBeTruthy();
 		});
@@ -4648,7 +4648,7 @@ if (import.meta.vitest != null) {
 
 			// Check base directories are included
 			const result1 = results.find((r) => r.file.includes('project1'));
-			expect(result1?.baseDir).toContain('path1/projects');
+			expect(result1?.baseDir).toContain(path.join('path1', 'projects'));
 		});
 
 		it('should handle errors gracefully and return empty array for failed paths', async () => {
@@ -4689,7 +4689,7 @@ if (import.meta.vitest != null) {
 			const results = await globUsageFiles(paths);
 
 			expect(results).toHaveLength(3);
-			expect(results.every((r) => r.baseDir.includes('path1/projects'))).toBe(true);
+			expect(results.every((r) => r.baseDir.includes(path.join('path1', 'projects')))).toBe(true);
 		});
 	});
 

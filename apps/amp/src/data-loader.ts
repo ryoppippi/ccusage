@@ -344,7 +344,7 @@ if (import.meta.vitest != null) {
 			});
 
 			expect(events).toEqual([]);
-			expect(missingDirectories).toContain('/nonexistent/path');
+			expect(missingDirectories).toContain(path.resolve('/nonexistent/path'));
 		});
 
 		it('handles malformed JSON gracefully', async () => {
