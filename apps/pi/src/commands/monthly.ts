@@ -62,7 +62,15 @@ export const monthlyCommand = define({
 
 		if (piData.length === 0) {
 			if (ctx.values.json) {
-				log(JSON.stringify([]));
+				const emptyTotals = {
+					inputTokens: 0,
+					outputTokens: 0,
+					cacheCreationTokens: 0,
+					cacheReadTokens: 0,
+					totalTokens: 0,
+					totalCost: 0,
+				};
+				log(JSON.stringify({ monthly: [], totals: emptyTotals }, null, 2));
 			} else {
 				logger.warn('No usage data found.');
 			}
@@ -74,6 +82,7 @@ export const monthlyCommand = define({
 			outputTokens: 0,
 			cacheCreationTokens: 0,
 			cacheReadTokens: 0,
+			totalTokens: 0,
 			totalCost: 0,
 		};
 
@@ -84,6 +93,12 @@ export const monthlyCommand = define({
 			totals.cacheReadTokens += d.cacheReadTokens;
 			totals.totalCost += d.totalCost;
 		}
+
+		totals.totalTokens =
+			totals.inputTokens +
+			totals.outputTokens +
+			totals.cacheCreationTokens +
+			totals.cacheReadTokens;
 
 		if (ctx.values.json) {
 			log(
