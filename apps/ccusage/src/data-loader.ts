@@ -12,7 +12,7 @@ import type { WeekDay } from './_consts.ts';
 import type { LoadedUsageEntry, SessionBlock } from './_session-blocks.ts';
 import type { ActivityDate, Bucket, CostMode, ModelName, SortOrder, Version } from './_types.ts';
 import { Buffer } from 'node:buffer';
-import { createReadStream, createWriteStream } from 'node:fs';
+import { closeSync, createReadStream, createWriteStream, openSync, readSync } from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 import { createInterface } from 'node:readline';
@@ -1263,9 +1263,27 @@ export async function calculateContextTokens(
 		cache_creation_input_tokens?: number;
 		cache_read_input_tokens?: number;
 	} | null = null;
-	let firstNonEmptyLineSeen = false;
-
 	try {
+		// Fast-path: read a small prefix to detect file-history-snapshot without
+		// buffering a potentially huge first line via readline (see #873).
+		const PREFIX_SIZE = 4096;
+		const prefixBuf = Buffer.alloc(PREFIX_SIZE);
+		const fd = openSync(transcriptPath, 'r');
+		let bytesRead: number;
+		try {
+			bytesRead = readSync(fd, prefixBuf, 0, PREFIX_SIZE, 0);
+		} finally {
+			closeSync(fd);
+		}
+		if (bytesRead > 0) {
+			const prefix = prefixBuf.subarray(0, bytesRead).toString('utf-8').trimStart();
+			const typeMatch = prefix.match(/^\s*\{\s*"type"\s*:\s*"([^"]+)"/);
+			if (typeMatch != null && typeMatch[1] === 'file-history-snapshot') {
+				logger.debug('Skipping file-history-snapshot transcript file for context tokens');
+				return null;
+			}
+		}
+
 		const stream = createReadStream(transcriptPath, { encoding: 'utf-8' });
 		const reader = createInterface({
 			input: stream,
@@ -1276,20 +1294,6 @@ export async function calculateContextTokens(
 			const trimmedLine = line.trim();
 			if (trimmedLine === '') {
 				continue;
-			}
-
-			if (!firstNonEmptyLineSeen) {
-				firstNonEmptyLineSeen = true;
-
-				try {
-					const parsed = JSON.parse(trimmedLine) as { type?: string };
-					if (parsed.type === 'file-history-snapshot') {
-						logger.debug('Skipping file-history-snapshot transcript file for context tokens');
-						return null;
-					}
-				} catch {
-					// Continue to normal parsing for malformed first lines
-				}
 			}
 
 			try {
