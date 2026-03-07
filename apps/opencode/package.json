@@ -55,6 +55,7 @@
 		"eslint": "catalog:lint",
 		"fs-fixture": "catalog:testing",
 		"gunshi": "catalog:runtime",
+		"path-type": "catalog:runtime",
 		"picocolors": "catalog:runtime",
 		"tsdown": "catalog:build",
 		"unplugin-macros": "catalog:build",
