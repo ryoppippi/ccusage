@@ -1276,9 +1276,11 @@ export async function calculateContextTokens(
 			closeSync(fd);
 		}
 		if (bytesRead > 0) {
-			const prefix = prefixBuf.subarray(0, bytesRead).toString('utf-8').trimStart();
-			const typeMatch = prefix.match(/^\s*\{\s*"type"\s*:\s*"([^"]+)"/);
-			if (typeMatch != null && typeMatch[1] === 'file-history-snapshot') {
+			const prefix = prefixBuf.subarray(0, bytesRead).toString('utf-8');
+			// Extract the first line (up to the first newline) and look for the
+			// type field anywhere in it — not just as the first key.
+			const firstLine = prefix.split('\n', 1)[0] ?? '';
+			if (/^\s*\{/.test(firstLine) && /"type"\s*:\s*"file-history-snapshot"/.test(firstLine)) {
 				logger.debug('Skipping file-history-snapshot transcript file for context tokens');
 				return null;
 			}
@@ -4790,6 +4792,25 @@ if (import.meta.vitest != null) {
 					JSON.stringify({
 						type: 'assistant',
 						message: { usage: { input_tokens: 1234 } },
+					}),
+				].join('\n'),
+			});
+
+			const res = await calculateContextTokens(fixture.getPath('transcript.jsonl'));
+			expect(res).toBeNull();
+		});
+
+		it('skips file-history-snapshot even when type is not the first key', async () => {
+			await using fixture = await createFixture({
+				'transcript.jsonl': [
+					JSON.stringify({
+						version: 1,
+						type: 'file-history-snapshot',
+						entries: [{ path: 'a.ts', hash: 'h' }],
+					}),
+					JSON.stringify({
+						type: 'assistant',
+						message: { usage: { input_tokens: 500 } },
 					}),
 				].join('\n'),
 			});
