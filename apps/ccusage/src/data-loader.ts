@@ -1279,7 +1279,8 @@ export async function calculateContextTokens(
 			const prefix = prefixBuf.subarray(0, bytesRead).toString('utf-8');
 			// Extract the first line (up to the first newline) and look for the
 			// type field anywhere in it — not just as the first key.
-			const firstLine = prefix.split('\n', 1)[0] ?? '';
+			// Find the first non-empty line so leading blank lines don't hide the snapshot record.
+			const firstLine = prefix.split('\n').find((l) => l.trim() !== '') ?? '';
 			if (/^\s*\{/.test(firstLine) && /"type"\s*:\s*"file-history-snapshot"/.test(firstLine)) {
 				logger.debug('Skipping file-history-snapshot transcript file for context tokens');
 				return null;
