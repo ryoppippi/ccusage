@@ -567,6 +567,47 @@ if (import.meta.vitest != null) {
 			expect(events[0]!.inputTokens).toBe(1_000);
 		});
 
+		it('includes root-level *.jsonl files when date filters are active', async () => {
+			const makeEvent = (timestamp: string, input_tokens: number) =>
+				JSON.stringify({
+					timestamp,
+					type: 'event_msg',
+					payload: {
+						type: 'token_count',
+						info: {
+							last_token_usage: {
+								input_tokens,
+								cached_input_tokens: 0,
+								output_tokens: 100,
+								reasoning_output_tokens: 0,
+								total_tokens: input_tokens + 100,
+							},
+							model: 'gpt-5',
+						},
+					},
+				});
+
+			// Mix of flat root-level file (legacy layout) and dated subdir file.
+			await using fixture = await createFixture({
+				'flat.jsonl': makeEvent('2026-03-05T10:00:00.000Z', 500),
+				'2026': {
+					'03': {
+						'05': { 'dated.jsonl': makeEvent('2026-03-05T11:00:00.000Z', 1_000) },
+					},
+				},
+			});
+
+			// With since set, both the flat file and the dated file should be returned.
+			const { events } = await loadTokenUsageEvents({
+				sessionDirs: [fixture.getPath('.')],
+				since: '2026-03-01',
+			});
+
+			expect(events).toHaveLength(2);
+			const tokens = events.map((e) => e.inputTokens).sort((a, b) => a - b);
+			expect(tokens).toEqual([500, 1_000]);
+		});
+
 		it('falls back to legacy model when metadata is missing entirely', async () => {
 			await using fixture = await createFixture({
 				sessions: {
