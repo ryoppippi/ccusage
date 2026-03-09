@@ -209,7 +209,10 @@ async function listSessionFiles(
 		return Result.isFailure(result) ? [] : result.value;
 	};
 
-	const files: string[] = [];
+	// Preserve support for legacy flat layouts: include any *.jsonl files
+	// stored directly under sessionsDir (not inside YYYY/MM/DD subdirs).
+	const rootFiles = await glob('*.jsonl', { cwd: sessionsDir, absolute: true }).catch(() => []);
+	const files: string[] = [...rootFiles];
 
 	for (const year of (await tryReaddir(sessionsDir)).filter((e) => /^\d{4}$/.test(e))) {
 		if (sinceKey != null && `${year}1231` < sinceKey) {
