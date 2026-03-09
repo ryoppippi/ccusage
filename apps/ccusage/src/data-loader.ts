@@ -13,7 +13,7 @@ import type { LoadedUsageEntry, SessionBlock } from './_session-blocks.ts';
 import type { ActivityDate, Bucket, CostMode, ModelName, SortOrder, Version } from './_types.ts';
 import { Buffer } from 'node:buffer';
 import { createReadStream, createWriteStream } from 'node:fs';
-import { readFile } from 'node:fs/promises';
+import { readFile, stat } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
 import { createInterface } from 'node:readline';
@@ -698,11 +698,54 @@ export type GlobResult = {
 };
 
 /**
- * Glob files from multiple Claude paths in parallel
+ * Convert a YYYYMMDD string to a Date at midnight local time.
+ */
+function parseDateKey(yyyymmdd: string): Date {
+	const year = Number.parseInt(yyyymmdd.slice(0, 4), 10);
+	const month = Number.parseInt(yyyymmdd.slice(4, 6), 10) - 1;
+	const day = Number.parseInt(yyyymmdd.slice(6, 8), 10);
+	return new Date(year, month, day);
+}
+
+/**
+ * Filter files by filesystem mtime using a 1-day buffer before `since`.
+ *
+ * Claude session files have no date directory hierarchy, so we rely on mtime
+ * (last write time) as a cheap O(stat) proxy. A file whose mtime is more than
+ * one day before `since` cannot contain entries in [since, ∞) — skip it.
+ * The 1-day buffer absorbs timezone differences between local clock and UTC.
+ *
+ * `until` is intentionally NOT used for mtime pruning: a file updated after
+ * `until` may still contain entries from before `until`.
+ */
+async function filterFilesByMtime(files: string[], since: string | undefined): Promise<string[]> {
+	if (since == null) {
+		return files;
+	}
+	const threshold = parseDateKey(since).getTime() - 24 * 60 * 60 * 1000;
+	const results = await Promise.all(
+		files.map(async (file) => {
+			try {
+				const { mtimeMs } = await stat(file);
+				return mtimeMs >= threshold ? file : null;
+			} catch {
+				return file; // Include on stat error to avoid silent data loss
+			}
+		}),
+	);
+	return results.filter((f): f is string => f !== null);
+}
+
+/**
+ * Glob files from multiple Claude paths in parallel, optionally pruning by mtime.
  * @param claudePaths - Array of Claude base paths
+ * @param filter - Optional date range; `since` is used to skip stale files via mtime
  * @returns Array of file paths with their base directories
  */
-export async function globUsageFiles(claudePaths: string[]): Promise<GlobResult[]> {
+export async function globUsageFiles(
+	claudePaths: string[],
+	filter?: DateFilter,
+): Promise<GlobResult[]> {
 	const filePromises = claudePaths.map(async (claudePath) => {
 		const claudeDir = path.join(claudePath, CLAUDE_PROJECTS_DIR_NAME);
 		const files = await glob([USAGE_DATA_GLOB_PATTERN], {
@@ -710,8 +753,9 @@ export async function globUsageFiles(claudePaths: string[]): Promise<GlobResult[
 			absolute: true,
 		}).catch(() => []); // Gracefully handle errors for individual paths
 
+		const filtered = await filterFilesByMtime(files, filter?.since);
 		// Map each file to include its base directory
-		return files.map((file) => ({ file, baseDir: claudeDir }));
+		return filtered.map((file) => ({ file, baseDir: claudeDir }));
 	});
 	return (await Promise.all(filePromises)).flat();
 }
@@ -750,8 +794,11 @@ export async function loadDailyUsageData(options?: LoadOptions): Promise<DailyUs
 	// Get all Claude paths or use the specific one from options
 	const claudePaths = toArray(options?.claudePath ?? getClaudePaths());
 
-	// Collect files from all paths in parallel
-	const allFiles = await globUsageFiles(claudePaths);
+	// Collect files from all paths in parallel, pruning by mtime when since is set
+	const allFiles = await globUsageFiles(claudePaths, {
+		since: options?.since,
+		until: options?.until,
+	});
 	const fileList = allFiles.map((f) => f.file);
 
 	if (fileList.length === 0) {
@@ -899,8 +946,11 @@ export async function loadSessionData(options?: LoadOptions): Promise<SessionUsa
 	// Get all Claude paths or use the specific one from options
 	const claudePaths = toArray(options?.claudePath ?? getClaudePaths());
 
-	// Collect files from all paths with their base directories in parallel
-	const filesWithBase = await globUsageFiles(claudePaths);
+	// Collect files from all paths with their base directories in parallel, pruning by mtime
+	const filesWithBase = await globUsageFiles(claudePaths, {
+		since: options?.since,
+		until: options?.until,
+	});
 
 	if (filesWithBase.length === 0) {
 		return [];
@@ -1345,7 +1395,7 @@ export async function loadSessionBlockData(options?: LoadOptions): Promise<Sessi
 	// Get all Claude paths or use the specific one from options
 	const claudePaths = toArray(options?.claudePath ?? getClaudePaths());
 
-	// Collect files from all paths
+	// Collect files from all paths, pruning by mtime when since is set
 	const allFiles: string[] = [];
 	for (const claudePath of claudePaths) {
 		const claudeDir = path.join(claudePath, CLAUDE_PROJECTS_DIR_NAME);
@@ -1353,7 +1403,8 @@ export async function loadSessionBlockData(options?: LoadOptions): Promise<Sessi
 			cwd: claudeDir,
 			absolute: true,
 		});
-		allFiles.push(...files);
+		const filtered = await filterFilesByMtime(files, options?.since);
+		allFiles.push(...filtered);
 	}
 
 	if (allFiles.length === 0) {
@@ -4690,6 +4741,31 @@ if (import.meta.vitest != null) {
 
 			expect(results).toHaveLength(3);
 			expect(results.every((r) => r.baseDir.includes(path.join('path1', 'projects')))).toBe(true);
+		});
+
+		it('skips files whose mtime is more than one day before since', async () => {
+			const { utimes } = await import('node:fs/promises');
+
+			await using fixture = await createFixture({
+				'base/projects/proj/old/usage.jsonl': 'old-data',
+				'base/projects/proj/new/usage.jsonl': 'new-data',
+			});
+
+			const oldFile = fixture.getPath('base/projects/proj/old/usage.jsonl');
+			const newFile = fixture.getPath('base/projects/proj/new/usage.jsonl');
+
+			// Set old file mtime to 5 days before since, new file mtime to 1 day before since.
+			const since = new Date('2026-03-05');
+			const oldMtime = new Date(since.getTime() - 5 * 24 * 60 * 60 * 1000);
+			const newMtime = new Date(since.getTime() - 12 * 60 * 60 * 1000); // 12h before (within buffer)
+			await utimes(oldFile, oldMtime, oldMtime);
+			await utimes(newFile, newMtime, newMtime);
+
+			const results = await globUsageFiles([fixture.getPath('base')], { since: '20260305' });
+
+			// Old file (5d before since) should be pruned; new file (12h before, within 1d buffer) kept.
+			expect(results).toHaveLength(1);
+			expect(results[0]!.file).toContain('new');
 		});
 	});
 
