@@ -202,6 +202,21 @@ type BetterSqliteDatabaseConstructor = new (
 	opts?: { readonly?: boolean },
 ) => BetterSqliteDatabase;
 
+function hasOpenCodeUsageTokens(
+	tokens: v.InferOutput<typeof openCodeTokensSchema> | undefined,
+): boolean {
+	if (tokens == null) {
+		return false;
+	}
+
+	return (
+		(tokens.input ?? 0) > 0 ||
+		(tokens.output ?? 0) > 0 ||
+		(tokens.cache?.read ?? 0) > 0 ||
+		(tokens.cache?.write ?? 0) > 0
+	);
+}
+
 function requireBetterSqlite3(): BetterSqliteDatabaseConstructor {
 	return require('better-sqlite3') as BetterSqliteDatabaseConstructor;
 }
@@ -275,11 +290,6 @@ function loadMessagesFromSqlite(db: SqliteAdapter): LoadedUsageEntry[] {
 	const dedupeSet = new Set<string>();
 
 	for (const row of rows) {
-		if (dedupeSet.has(row.id)) {
-			continue;
-		}
-		dedupeSet.add(row.id);
-
 		let parsed: unknown;
 		try {
 			parsed = JSON.parse(row.data);
@@ -298,13 +308,18 @@ function loadMessagesFromSqlite(db: SqliteAdapter): LoadedUsageEntry[] {
 			continue;
 		}
 
-		if (data.tokens == null || (data.tokens.input === 0 && data.tokens.output === 0)) {
+		if (!hasOpenCodeUsageTokens(data.tokens)) {
 			continue;
 		}
 
 		if (data.providerID == null || data.modelID == null) {
 			continue;
 		}
+
+		if (dedupeSet.has(row.id)) {
+			continue;
+		}
+		dedupeSet.add(row.id);
 
 		const createdMs = data.time?.created ?? row.time_created;
 
@@ -506,7 +521,7 @@ async function loadOpenCodeMessagesFromJson(openCodePath: string): Promise<Loade
 		}
 
 		// Skip messages with no tokens
-		if (message.tokens == null || (message.tokens.input === 0 && message.tokens.output === 0)) {
+		if (!hasOpenCodeUsageTokens(message.tokens)) {
 			continue;
 		}
 
@@ -652,9 +667,15 @@ if (import.meta.vitest != null) {
 			expect(entry.costUSD).toBe(null);
 		});
 
-		it('loads SQLite messages with filtering, dedupe, and timestamp fallback', () => {
+		it('loads SQLite messages with filtering, valid-row dedupe, cache-only usage, and timestamp fallback', () => {
 			const db = createSqliteAdapter({
 				messageRows: [
+					{
+						id: 'msg_primary',
+						session_id: 'ses_root',
+						time_created: 1400,
+						data: '{invalid-json',
+					},
 					{
 						id: 'msg_primary',
 						session_id: 'ses_root',
@@ -697,6 +718,22 @@ if (import.meta.vitest != null) {
 						}),
 					},
 					{
+						id: 'msg_cache_only',
+						session_id: 'ses_child',
+						time_created: 3333,
+						data: JSON.stringify({
+							role: 'assistant',
+							providerID: 'openai',
+							modelID: 'gpt-5.4',
+							tokens: {
+								input: 0,
+								output: 0,
+								cache: { read: 40, write: 2 },
+							},
+							cost: 0.05,
+						}),
+					},
+					{
 						id: 'msg_user',
 						session_id: 'ses_root',
 						time_created: 4444,
@@ -707,18 +744,12 @@ if (import.meta.vitest != null) {
 							tokens: { input: 999, output: 999 },
 						}),
 					},
-					{
-						id: 'msg_invalid',
-						session_id: 'ses_root',
-						time_created: 5555,
-						data: '{invalid-json',
-					},
 				],
 			});
 
 			const entries = loadMessagesFromSqlite(db);
 
-			expect(entries).toHaveLength(2);
+			expect(entries).toHaveLength(3);
 			expect(entries).toEqual([
 				{
 					timestamp: new Date(1111),
@@ -743,6 +774,18 @@ if (import.meta.vitest != null) {
 					},
 					model: 'claude-sonnet-4-20250514',
 					costUSD: null,
+				},
+				{
+					timestamp: new Date(3333),
+					sessionID: 'ses_child',
+					usage: {
+						inputTokens: 0,
+						outputTokens: 0,
+						cacheCreationInputTokens: 2,
+						cacheReadInputTokens: 40,
+					},
+					model: 'gpt-5.4',
+					costUSD: 0.05,
 				},
 			]);
 		});
