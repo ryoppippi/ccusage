@@ -292,9 +292,14 @@ export async function loadTokenUsageEvents(options: LoadOptions = {}): Promise<L
 				const lastUsage = normalizeRawUsage(info?.last_token_usage);
 				const totalUsage = normalizeRawUsage(info?.total_token_usage);
 
-				let raw = lastUsage;
-				if (raw == null && totalUsage != null) {
+				let raw: RawUsage | null = null;
+				if (totalUsage != null) {
+					// Prefer cumulative totals when available. Codex can emit duplicate token_count
+					// snapshots (e.g. with different rate-limit buckets) where last_token_usage repeats.
+					// Diffing totals collapses those duplicates into zero-delta events.
 					raw = subtractRawUsage(totalUsage, previousTotals);
+				} else {
+					raw = lastUsage;
 				}
 
 				if (totalUsage != null) {
@@ -483,6 +488,112 @@ if (import.meta.vitest != null) {
 			expect(events).toHaveLength(1);
 			expect(events[0]!.model).toBe('gpt-5');
 			expect(events[0]!.isFallbackModel).toBe(true);
+		});
+
+		it('deduplicates repeated total snapshots even when last usage repeats', async () => {
+			await using fixture = await createFixture({
+				sessions: {
+					'duplicate-snapshots.jsonl': [
+						JSON.stringify({
+							timestamp: '2026-02-28T22:27:54.110Z',
+							type: 'turn_context',
+							payload: {
+								model: 'gpt-5',
+							},
+						}),
+						JSON.stringify({
+							timestamp: '2026-02-28T22:27:57.957Z',
+							type: 'event_msg',
+							payload: {
+								type: 'token_count',
+								info: {
+									total_token_usage: {
+										input_tokens: 1_000,
+										cached_input_tokens: 400,
+										output_tokens: 100,
+										reasoning_output_tokens: 30,
+										total_tokens: 1_100,
+									},
+									last_token_usage: {
+										input_tokens: 1_000,
+										cached_input_tokens: 400,
+										output_tokens: 100,
+										reasoning_output_tokens: 30,
+										total_tokens: 1_100,
+									},
+								},
+								rate_limits: {
+									limit_id: 'codex_bengalfox',
+								},
+							},
+						}),
+						JSON.stringify({
+							timestamp: '2026-02-28T22:27:58.828Z',
+							type: 'event_msg',
+							payload: {
+								type: 'token_count',
+								info: {
+									total_token_usage: {
+										input_tokens: 1_000,
+										cached_input_tokens: 400,
+										output_tokens: 100,
+										reasoning_output_tokens: 30,
+										total_tokens: 1_100,
+									},
+									last_token_usage: {
+										input_tokens: 1_000,
+										cached_input_tokens: 400,
+										output_tokens: 100,
+										reasoning_output_tokens: 30,
+										total_tokens: 1_100,
+									},
+								},
+								rate_limits: {
+									limit_id: 'codex',
+								},
+							},
+						}),
+						JSON.stringify({
+							timestamp: '2026-02-28T22:28:08.579Z',
+							type: 'event_msg',
+							payload: {
+								type: 'token_count',
+								info: {
+									total_token_usage: {
+										input_tokens: 1_300,
+										cached_input_tokens: 500,
+										output_tokens: 140,
+										reasoning_output_tokens: 45,
+										total_tokens: 1_440,
+									},
+									last_token_usage: {
+										input_tokens: 300,
+										cached_input_tokens: 100,
+										output_tokens: 40,
+										reasoning_output_tokens: 15,
+										total_tokens: 340,
+									},
+								},
+							},
+						}),
+					].join('\n'),
+				},
+			});
+
+			const { events } = await loadTokenUsageEvents({
+				sessionDirs: [fixture.getPath('sessions')],
+			});
+
+			expect(events).toHaveLength(2);
+			expect(events[0]!.inputTokens).toBe(1_000);
+			expect(events[0]!.cachedInputTokens).toBe(400);
+			expect(events[0]!.outputTokens).toBe(100);
+			expect(events[0]!.totalTokens).toBe(1_100);
+
+			expect(events[1]!.inputTokens).toBe(300);
+			expect(events[1]!.cachedInputTokens).toBe(100);
+			expect(events[1]!.outputTokens).toBe(40);
+			expect(events[1]!.totalTokens).toBe(340);
 		});
 	});
 }
