@@ -205,7 +205,11 @@ function openSqliteDb(dbPath: string): SqliteAdapter {
 	}
 
 	if (BetterSqlite3 != null) {
-		return createBetterSqliteAdapter(new BetterSqlite3(dbPath, { readonly: true }));
+		try {
+			return createBetterSqliteAdapter(new BetterSqlite3(dbPath, { readonly: true }));
+		} catch {
+			// Fall back to Bun's SQLite adapter when better-sqlite3 cannot open in Bun.
+		}
 	}
 
 	const { Database } = require('bun:sqlite') as {
