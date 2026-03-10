@@ -11,7 +11,7 @@ import { groupBy } from 'es-toolkit';
 import { define } from 'gunshi';
 import pc from 'picocolors';
 import { calculateCostForEntry } from '../cost-utils.ts';
-import { loadOpenCodeData } from '../data-loader.ts';
+import { loadOpenCodeMessages, loadOpenCodeSessions } from '../data-loader.ts';
 import { logger } from '../logger.ts';
 
 const TABLE_COLUMN_COUNT = 8;
@@ -33,7 +33,10 @@ export const sessionCommand = define({
 	async run(ctx) {
 		const jsonOutput = Boolean(ctx.values.json);
 
-		const { entries, sessionMetadataMap } = await loadOpenCodeData();
+		const [entries, sessionMetadataMap] = await Promise.all([
+			loadOpenCodeMessages(),
+			loadOpenCodeSessions(),
+		]);
 
 		if (entries.length === 0) {
 			const output = jsonOutput

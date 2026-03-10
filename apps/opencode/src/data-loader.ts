@@ -513,38 +513,9 @@ async function loadOpenCodeMessagesFromJson(openCodePath: string): Promise<Loade
 	return entries;
 }
 
-function logSqliteFallback(context: 'messages' | 'sessions' | 'data', error: unknown): void {
+function logSqliteFallback(context: 'messages' | 'sessions', error: unknown): void {
 	logger.warn(`Falling back to legacy OpenCode JSON ${context} after SQLite read failed.`);
 	logger.warn(error);
-}
-
-export async function loadOpenCodeData(): Promise<LoadedOpenCodeData> {
-	const openCodePath = getOpenCodePath();
-	if (openCodePath == null) {
-		return {
-			entries: [],
-			sessionMetadataMap: new Map(),
-		};
-	}
-
-	const dbPath = getDbPath(openCodePath);
-	if (dbPath != null) {
-		try {
-			return loadOpenCodeDataFromSqlite(dbPath);
-		} catch (error) {
-			logSqliteFallback('data', error);
-		}
-	}
-
-	const [entries, sessionMetadataMap] = await Promise.all([
-		loadOpenCodeMessagesFromJson(openCodePath),
-		loadOpenCodeSessionsFromJson(openCodePath),
-	]);
-
-	return {
-		entries,
-		sessionMetadataMap,
-	};
 }
 
 export async function loadOpenCodeSessions(): Promise<Map<string, LoadedSessionMetadata>> {
