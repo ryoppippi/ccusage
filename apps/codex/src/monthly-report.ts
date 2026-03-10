@@ -14,12 +14,18 @@ export type MonthlyReportOptions = {
 	locale?: string;
 	since?: string;
 	until?: string;
+	byAccount?: boolean;
 	pricingSource: PricingSource;
 };
 
-function createSummary(month: string, initialTimestamp: string): MonthlyUsageSummary {
+function createSummary(
+	month: string,
+	initialTimestamp: string,
+	account?: string,
+): MonthlyUsageSummary {
 	return {
 		month,
+		account,
 		firstTimestamp: initialTimestamp,
 		inputTokens: 0,
 		cachedInputTokens: 0,
@@ -39,6 +45,7 @@ export async function buildMonthlyReport(
 	const locale = options.locale;
 	const since = options.since;
 	const until = options.until;
+	const byAccount = options.byAccount === true;
 	const pricingSource = options.pricingSource;
 
 	const summaries = new Map<string, MonthlyUsageSummary>();
@@ -55,9 +62,15 @@ export async function buildMonthlyReport(
 		}
 
 		const monthKey = toMonthKey(event.timestamp, timezone);
-		const summary = summaries.get(monthKey) ?? createSummary(monthKey, event.timestamp);
-		if (!summaries.has(monthKey)) {
-			summaries.set(monthKey, summary);
+		const accountCandidate = event.account?.trim();
+		const account =
+			accountCandidate == null || accountCandidate === '' ? 'default' : accountCandidate;
+		const summaryKey = byAccount ? `${monthKey}\x00${account}` : monthKey;
+		const summary =
+			summaries.get(summaryKey) ??
+			createSummary(monthKey, event.timestamp, byAccount ? account : undefined);
+		if (!summaries.has(summaryKey)) {
+			summaries.set(summaryKey, summary);
 		}
 
 		addUsage(summary, event);
@@ -88,9 +101,13 @@ export async function buildMonthlyReport(
 
 	const rows: MonthlyReportRow[] = [];
 
-	const sortedSummaries = Array.from(summaries.values()).sort((a, b) =>
-		a.month.localeCompare(b.month),
-	);
+	const sortedSummaries = Array.from(summaries.values()).sort((a, b) => {
+		const monthCompare = a.month.localeCompare(b.month);
+		if (monthCompare !== 0) {
+			return monthCompare;
+		}
+		return (a.account ?? '').localeCompare(b.account ?? '');
+	});
 	for (const summary of sortedSummaries) {
 		let cost = 0;
 		for (const [modelName, usage] of summary.models) {
@@ -109,6 +126,7 @@ export async function buildMonthlyReport(
 
 		rows.push({
 			month: formatDisplayMonth(summary.month, locale, timezone),
+			account: summary.account,
 			inputTokens: summary.inputTokens,
 			cachedInputTokens: summary.cachedInputTokens,
 			outputTokens: summary.outputTokens,
@@ -200,6 +218,52 @@ if (import.meta.vitest != null) {
 				(100 / 1_000_000) * 0.06 +
 				(200 / 1_000_000) * 2;
 			expect(first.costUSD).toBeCloseTo(expectedCost, 10);
+		});
+
+		it('groups by account when enabled', async () => {
+			const stubPricingSource: PricingSource = {
+				async getPricing(): Promise<ModelPricing> {
+					return {
+						inputCostPerMToken: 1,
+						cachedInputCostPerMToken: 0.1,
+						outputCostPerMToken: 10,
+					};
+				},
+			};
+
+			const report = await buildMonthlyReport(
+				[
+					{
+						account: 'work',
+						sessionId: 'session-1',
+						timestamp: '2025-09-11T03:00:00.000Z',
+						model: 'gpt-5',
+						inputTokens: 1_000,
+						cachedInputTokens: 0,
+						outputTokens: 500,
+						reasoningOutputTokens: 0,
+						totalTokens: 1_500,
+					},
+					{
+						account: 'personal',
+						sessionId: 'session-2',
+						timestamp: '2025-09-20T05:00:00.000Z',
+						model: 'gpt-5',
+						inputTokens: 500,
+						cachedInputTokens: 0,
+						outputTokens: 100,
+						reasoningOutputTokens: 0,
+						totalTokens: 600,
+					},
+				],
+				{
+					pricingSource: stubPricingSource,
+					byAccount: true,
+				},
+			);
+
+			expect(report).toHaveLength(2);
+			expect(report.map((row) => row.account)).toEqual(['personal', 'work']);
 		});
 	});
 }

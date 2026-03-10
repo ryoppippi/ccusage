@@ -18,6 +18,16 @@ export const sharedArgs = {
 		short: 'u',
 		description: 'Filter until date (inclusive)',
 	},
+	codexHome: {
+		type: 'string',
+		description:
+			'Codex home path(s). Accept comma-separated values and optional label=path entries for multi-account usage',
+	},
+	byAccount: {
+		type: 'boolean',
+		description: 'Group report rows by account when multiple Codex homes are configured',
+		default: false,
+	},
 	timezone: {
 		type: 'string',
 		short: 'z',
