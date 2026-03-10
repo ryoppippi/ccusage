@@ -359,6 +359,11 @@ function loadOpenCodeDataFromSqlite(dbPath: string): LoadedOpenCodeData {
 
 // ─── Legacy JSON file-based loading (OpenCode < 1.2.2) ──────────────────────
 
+/**
+ * Load OpenCode message from JSON file
+ * @param filePath - Path to message JSON file
+ * @returns Parsed message data or null on failure
+ */
 async function loadOpenCodeMessage(
 	filePath: string,
 ): Promise<v.InferOutput<typeof openCodeMessageSchema> | null> {
@@ -371,6 +376,11 @@ async function loadOpenCodeMessage(
 	}
 }
 
+/**
+ * Convert OpenCode message to LoadedUsageEntry
+ * @param message - Parsed OpenCode message
+ * @returns LoadedUsageEntry suitable for aggregation
+ */
 function convertOpenCodeMessageToUsageEntry(
 	message: v.InferOutput<typeof openCodeMessageSchema>,
 ): LoadedUsageEntry {
@@ -448,6 +458,10 @@ async function loadOpenCodeSessionsFromJson(
 	return sessionMap;
 }
 
+/**
+ * Load all OpenCode messages
+ * @returns Array of LoadedUsageEntry for aggregation
+ */
 async function loadOpenCodeMessagesFromJson(openCodePath: string): Promise<LoadedUsageEntry[]> {
 	const messagesDir = path.join(
 		openCodePath,
@@ -459,6 +473,7 @@ async function loadOpenCodeMessagesFromJson(openCodePath: string): Promise<Loade
 		return [];
 	}
 
+	// Find all message JSON files
 	const messageFiles = await glob('**/*.json', {
 		cwd: messagesDir,
 		absolute: true,
@@ -474,14 +489,17 @@ async function loadOpenCodeMessagesFromJson(openCodePath: string): Promise<Loade
 			continue;
 		}
 
+		// Skip messages with no tokens
 		if (message.tokens == null || (message.tokens.input === 0 && message.tokens.output === 0)) {
 			continue;
 		}
 
+		// Skip if no provider or model
 		if (message.providerID == null || message.modelID == null) {
 			continue;
 		}
 
+		// Deduplicate by message ID
 		const dedupeKey = `${message.id}`;
 		if (dedupeSet.has(dedupeKey)) {
 			continue;
