@@ -231,6 +231,10 @@ function createBunSqliteAdapter(db: BunSqliteDatabase): SqliteAdapter {
 	};
 }
 
+function isBunRuntime(): boolean {
+	return typeof globalThis.Bun !== 'undefined' || process.versions.bun != null;
+}
+
 function openSqliteDb(dbPath: string): SqliteAdapter {
 	let BetterSqlite3: BetterSqliteDatabaseConstructor | null = null;
 
@@ -246,6 +250,12 @@ function openSqliteDb(dbPath: string): SqliteAdapter {
 		} catch {
 			// Fall back to Bun's SQLite adapter when better-sqlite3 cannot open in Bun.
 		}
+	}
+
+	if (!isBunRuntime()) {
+		throw new Error(
+			'OpenCode SQLite loading requires better-sqlite3 in Node.js or bun:sqlite in Bun.',
+		);
 	}
 
 	const { Database } = require('bun:sqlite') as {
