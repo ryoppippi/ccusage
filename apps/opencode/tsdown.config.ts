@@ -7,6 +7,6 @@ export default defineConfig({
 	dts: false,
 	shims: true,
 	platform: 'node',
-	target: 'node20',
+	target: 'node22',
 	fixedExtension: false,
 });
