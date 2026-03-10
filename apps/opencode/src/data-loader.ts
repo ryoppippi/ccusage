@@ -19,29 +19,55 @@ import { glob } from 'tinyglobby';
 import * as v from 'valibot';
 import { logger } from './logger.ts';
 
+/**
+ * Default OpenCode data directory path (~/.local/share/opencode)
+ */
 const DEFAULT_OPENCODE_PATH = '.local/share/opencode';
 
+/**
+ * OpenCode storage subdirectory containing message data
+ */
 const OPENCODE_STORAGE_DIR_NAME = 'storage';
+
+/**
+ * OpenCode messages subdirectory within storage
+ */
 const OPENCODE_MESSAGES_DIR_NAME = 'message';
 const OPENCODE_SESSIONS_DIR_NAME = 'session';
 const OPENCODE_DB_FILENAME = 'opencode.db';
+
+/**
+ * Environment variable for specifying custom OpenCode data directory
+ */
 const OPENCODE_CONFIG_DIR_ENV = 'OPENCODE_DATA_DIR';
 
+/**
+ * User home directory
+ */
 const USER_HOME_DIR = homedir();
 const require = createRequire(import.meta.url);
 
+/**
+ * Branded Valibot schema for model names
+ */
 const modelNameSchema = v.pipe(
 	v.string(),
 	v.minLength(1, 'Model name cannot be empty'),
 	v.brand('ModelName'),
 );
 
+/**
+ * Branded Valibot schema for session IDs
+ */
 const sessionIdSchema = v.pipe(
 	v.string(),
 	v.minLength(1, 'Session ID cannot be empty'),
 	v.brand('SessionId'),
 );
 
+/**
+ * OpenCode message token structure
+ */
 export const openCodeTokensSchema = v.object({
 	input: v.optional(v.number()),
 	output: v.optional(v.number()),
@@ -54,6 +80,9 @@ export const openCodeTokensSchema = v.object({
 	),
 });
 
+/**
+ * OpenCode message data structure
+ */
 export const openCodeMessageSchema = v.object({
 	id: v.string(),
 	sessionID: v.optional(sessionIdSchema),
@@ -75,6 +104,9 @@ export const openCodeSessionSchema = v.object({
 	directory: v.optional(v.string()),
 });
 
+/**
+ * Represents a single usage data entry loaded from OpenCode files
+ */
 export type LoadedUsageEntry = {
 	timestamp: Date;
 	sessionID: string;
@@ -96,6 +128,10 @@ export type LoadedSessionMetadata = {
 	directory: string;
 };
 
+/**
+ * Get OpenCode data directory
+ * @returns Path to OpenCode data directory, or null if not found
+ */
 export function getOpenCodePath(): string | null {
 	// Check environment variable first
 	const envPath = process.env[OPENCODE_CONFIG_DIR_ENV];
