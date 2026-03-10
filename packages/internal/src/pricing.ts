@@ -44,6 +44,12 @@ export const liteLLMModelPricingSchema = v.object({
 	// Gemini: Tiered pricing (128k threshold) - NOT implemented in calculations
 	input_cost_per_token_above_128k_tokens: v.optional(v.number()),
 	output_cost_per_token_above_128k_tokens: v.optional(v.number()),
+	// Provider-specific pricing multipliers (e.g., fast mode, regional pricing)
+	provider_specific_entry: v.optional(
+		v.object({
+			fast: v.optional(v.number()),
+		}),
+	),
 });
 
 export type LiteLLMModelPricing = v.InferOutput<typeof liteLLMModelPricingSchema>;
@@ -344,6 +350,7 @@ export class LiteLLMPricingFetcher implements Disposable {
 			cache_read_input_tokens?: number;
 		},
 		modelName?: string,
+		options?: { speed?: 'standard' | 'fast' },
 	): Result.ResultAsync<number, Error> {
 		if (modelName == null || modelName === '') {
 			return Result.succeed(0);
@@ -355,7 +362,10 @@ export class LiteLLMPricingFetcher implements Disposable {
 				if (pricing == null) {
 					return Result.fail(new Error(`Model pricing not found for ${modelName}`));
 				}
-				return Result.succeed(this.calculateCostFromPricing(tokens, pricing));
+				const baseCost = this.calculateCostFromPricing(tokens, pricing);
+				const multiplier =
+					options?.speed === 'fast' ? (pricing.provider_specific_entry?.fast ?? 1) : 1;
+				return Result.succeed(baseCost * multiplier);
 			}),
 		);
 	}
@@ -558,6 +568,79 @@ if (import.meta.vitest != null) {
 				),
 			);
 			expect(costBelow).toBe(0);
+		});
+
+		it('applies fast speed multiplier from provider_specific_entry', async () => {
+			using fetcher = new LiteLLMPricingFetcher({
+				offline: true,
+				offlineLoader: async () => ({
+					'claude-opus-4-6': {
+						input_cost_per_token: 5e-6,
+						output_cost_per_token: 2.5e-5,
+						provider_specific_entry: { fast: 6.0 },
+					},
+				}),
+			});
+
+			const tokens = { input_tokens: 1000, output_tokens: 500 };
+
+			const standardCost = await Result.unwrap(
+				fetcher.calculateCostFromTokens(tokens, 'claude-opus-4-6'),
+			);
+			const fastCost = await Result.unwrap(
+				fetcher.calculateCostFromTokens(tokens, 'claude-opus-4-6', { speed: 'fast' }),
+			);
+
+			const expectedStandard = 1000 * 5e-6 + 500 * 2.5e-5;
+			expect(standardCost).toBeCloseTo(expectedStandard);
+			expect(fastCost).toBeCloseTo(expectedStandard * 6);
+		});
+
+		it('defaults to 1x multiplier when provider_specific_entry has no fast field', async () => {
+			using fetcher = new LiteLLMPricingFetcher({
+				offline: true,
+				offlineLoader: async () => ({
+					'claude-sonnet-4-6': {
+						input_cost_per_token: 3e-6,
+						output_cost_per_token: 1.5e-5,
+					},
+				}),
+			});
+
+			const tokens = { input_tokens: 1000, output_tokens: 500 };
+
+			const standardCost = await Result.unwrap(
+				fetcher.calculateCostFromTokens(tokens, 'claude-sonnet-4-6'),
+			);
+			const fastCost = await Result.unwrap(
+				fetcher.calculateCostFromTokens(tokens, 'claude-sonnet-4-6', { speed: 'fast' }),
+			);
+
+			expect(fastCost).toBeCloseTo(standardCost);
+		});
+
+		it('does not apply multiplier when speed is standard', async () => {
+			using fetcher = new LiteLLMPricingFetcher({
+				offline: true,
+				offlineLoader: async () => ({
+					'claude-opus-4-6': {
+						input_cost_per_token: 5e-6,
+						output_cost_per_token: 2.5e-5,
+						provider_specific_entry: { fast: 6.0 },
+					},
+				}),
+			});
+
+			const tokens = { input_tokens: 1000, output_tokens: 500 };
+
+			const noSpeedCost = await Result.unwrap(
+				fetcher.calculateCostFromTokens(tokens, 'claude-opus-4-6'),
+			);
+			const standardCost = await Result.unwrap(
+				fetcher.calculateCostFromTokens(tokens, 'claude-opus-4-6', { speed: 'standard' }),
+			);
+
+			expect(standardCost).toBeCloseTo(noSpeedCost);
 		});
 	});
 }
