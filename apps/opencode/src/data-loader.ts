@@ -195,10 +195,7 @@ type BunSqliteDatabase = {
 	close: () => void;
 };
 
-type LoadedOpenCodeData = {
-	entries: LoadedUsageEntry[];
-	sessionMetadataMap: Map<string, LoadedSessionMetadata>;
-};
+type OpenCodeSqliteLoadMode = 'messages' | 'sessions';
 
 type BetterSqliteDatabaseConstructor = new (
 	path: string,
@@ -232,7 +229,7 @@ function createBunSqliteAdapter(db: BunSqliteDatabase): SqliteAdapter {
 }
 
 function isBunRuntime(): boolean {
-	return typeof globalThis.Bun !== 'undefined' || process.versions.bun != null;
+	return 'Bun' in globalThis || process.versions.bun != null;
 }
 
 function openSqliteDb(dbPath: string): SqliteAdapter {
@@ -354,14 +351,23 @@ function loadSessionsFromSqlite(db: SqliteAdapter): Map<string, LoadedSessionMet
 	return sessionMap;
 }
 
-function loadOpenCodeDataFromSqlite(dbPath: string): LoadedOpenCodeData {
+function loadOpenCodeDataFromSqlite(dbPath: string, mode: 'messages'): LoadedUsageEntry[];
+function loadOpenCodeDataFromSqlite(
+	dbPath: string,
+	mode: 'sessions',
+): Map<string, LoadedSessionMetadata>;
+function loadOpenCodeDataFromSqlite(
+	dbPath: string,
+	mode: OpenCodeSqliteLoadMode,
+): LoadedUsageEntry[] | Map<string, LoadedSessionMetadata> {
 	const db = openSqliteDb(dbPath);
 
 	try {
-		return {
-			entries: loadMessagesFromSqlite(db),
-			sessionMetadataMap: loadSessionsFromSqlite(db),
-		};
+		if (mode === 'messages') {
+			return loadMessagesFromSqlite(db);
+		}
+
+		return loadSessionsFromSqlite(db);
 	} finally {
 		db.close();
 	}
@@ -537,7 +543,7 @@ export async function loadOpenCodeSessions(): Promise<Map<string, LoadedSessionM
 	const dbPath = getDbPath(openCodePath);
 	if (dbPath != null) {
 		try {
-			return loadOpenCodeDataFromSqlite(dbPath).sessionMetadataMap;
+			return loadOpenCodeDataFromSqlite(dbPath, 'sessions');
 		} catch (error) {
 			logSqliteFallback('sessions', error);
 		}
@@ -555,7 +561,7 @@ export async function loadOpenCodeMessages(): Promise<LoadedUsageEntry[]> {
 	const dbPath = getDbPath(openCodePath);
 	if (dbPath != null) {
 		try {
-			return loadOpenCodeDataFromSqlite(dbPath).entries;
+			return loadOpenCodeDataFromSqlite(dbPath, 'messages');
 		} catch (error) {
 			logSqliteFallback('messages', error);
 		}
