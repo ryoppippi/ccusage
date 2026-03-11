@@ -43,6 +43,10 @@ export type ModelPricing = {
 	inputCostPerMToken: number;
 	cachedInputCostPerMToken: number;
 	outputCostPerMToken: number;
+	tieredThresholdTokens?: number;
+	inputCostPerMTokenAboveThreshold?: number;
+	cachedInputCostPerMTokenAboveThreshold?: number;
+	outputCostPerMTokenAboveThreshold?: number;
 };
 
 export type PricingLookupResult = {
