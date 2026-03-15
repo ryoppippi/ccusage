@@ -186,7 +186,13 @@ export const setupStatuslineCommand = define({
 		const existingSettings: Record<string, unknown> | null = existsSync(settingsPath)
 			? Result.pipe(
 					Result.try({
-						try: () => JSON.parse(readFileSync(settingsPath, 'utf-8')) as Record<string, unknown>,
+						try: () => {
+							const parsed: unknown = JSON.parse(readFileSync(settingsPath, 'utf-8'));
+							if (parsed == null || typeof parsed !== 'object' || Array.isArray(parsed)) {
+								throw new Error('settings.json must contain a JSON object at the root');
+							}
+							return parsed as Record<string, unknown>;
+						},
 						catch: (error) => error,
 					})(),
 					Result.inspectError((error) => {

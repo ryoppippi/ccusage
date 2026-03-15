@@ -32,11 +32,12 @@ import { log, logger } from '../logger.ts';
  * @returns Compact time string (e.g., "4h30m")
  */
 function formatRemainingTime(remaining: number): string {
-	const remainingHours = Math.floor(remaining / 60);
-	const remainingMins = remaining % 60;
+	const safeRemaining = Math.max(0, remaining);
+	const remainingHours = Math.floor(safeRemaining / 60);
+	const remainingMins = safeRemaining % 60;
 
 	if (remainingHours > 0) {
-		return `${remainingHours}h${remainingMins}m`;
+		return remainingMins === 0 ? `${remainingHours}h` : `${remainingHours}h${remainingMins}m`;
 	}
 	return `${remainingMins}m`;
 }
@@ -193,16 +194,16 @@ export const statuslineCommand = define({
 		// Set logger to silent for statusline output
 		logger.level = 0;
 
-		// Validate threshold ordering constraint: LOW must be less than MEDIUM
-		if (ctx.values.contextLowThreshold >= ctx.values.contextMediumThreshold) {
-			throw new Error(
-				`Context low threshold (${ctx.values.contextLowThreshold}) must be less than medium threshold (${ctx.values.contextMediumThreshold})`,
-			);
-		}
-
 		// Load configuration and merge with CLI args
 		const config = loadConfig(ctx.values.config, ctx.values.debug);
 		const mergedOptions = mergeConfigWithArgs(ctx, config, ctx.values.debug);
+
+		// Validate threshold ordering constraint: LOW must be less than MEDIUM (after merge)
+		if (mergedOptions.contextLowThreshold >= mergedOptions.contextMediumThreshold) {
+			throw new Error(
+				`Context low threshold (${mergedOptions.contextLowThreshold}) must be less than medium threshold (${mergedOptions.contextMediumThreshold})`,
+			);
+		}
 
 		// Use refresh interval from merged options
 		const refreshInterval = mergedOptions.refreshInterval;
@@ -482,9 +483,9 @@ export const statuslineCommand = define({
 					const formatContextPercentage = (inputTokens: number, contextLimit: number): string => {
 						const percentage = Math.round((inputTokens / contextLimit) * 100);
 						const color =
-							percentage < ctx.values.contextLowThreshold
+							percentage < mergedOptions.contextLowThreshold
 								? pc.green
-								: percentage < ctx.values.contextMediumThreshold
+								: percentage < mergedOptions.contextMediumThreshold
 									? pc.yellow
 									: pc.red;
 						return `${color(`${percentage}%`)} ${pc.dim('ctx')}`;
