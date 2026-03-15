@@ -89,3 +89,5 @@ allowBuilds:
   workerd: true
 
 shellEmulator: true
+
+enableGlobalVirtualStore: true
