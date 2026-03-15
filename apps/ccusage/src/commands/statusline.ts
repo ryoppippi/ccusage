@@ -3,7 +3,7 @@ import { mkdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import process from 'node:process';
-import { formatCurrency } from '@ccusage/terminal/table';
+import { formatCompactTokens, formatCurrency } from '@ccusage/terminal/table';
 import { Result } from '@praha/byethrow';
 import { createLimoJson } from '@ryoppippi/limo';
 import getStdin from 'get-stdin';
@@ -12,6 +12,7 @@ import pc from 'picocolors';
 import * as v from 'valibot';
 import { loadConfig, mergeConfigWithArgs } from '../_config-loader-tokens.ts';
 import { DEFAULT_CONTEXT_USAGE_THRESHOLDS, DEFAULT_REFRESH_INTERVAL_SECONDS } from '../_consts.ts';
+import { getEnhancedPromotionSegment, getPromotionStatuslineSegment } from '../_promotions.ts';
 import { calculateBurnRate } from '../_session-blocks.ts';
 import { sharedArgs } from '../_shared-args.ts';
 import { statuslineHookJsonSchema } from '../_types.ts';
@@ -26,18 +27,18 @@ import {
 import { log, logger } from '../logger.ts';
 
 /**
- * Formats the remaining time for display
+ * Formats the remaining time for compact display
  * @param remaining - Remaining minutes
- * @returns Formatted time string
+ * @returns Compact time string (e.g., "4h30m")
  */
 function formatRemainingTime(remaining: number): string {
 	const remainingHours = Math.floor(remaining / 60);
 	const remainingMins = remaining % 60;
 
 	if (remainingHours > 0) {
-		return `${remainingHours}h ${remainingMins}m left`;
+		return `${remainingHours}h${remainingMins}m`;
 	}
-	return `${remainingMins}m left`;
+	return `${remainingMins}m`;
 }
 
 /**
@@ -80,6 +81,7 @@ type SemaphoreType = {
 
 const visualBurnRateChoices = ['off', 'emoji', 'text', 'emoji-text'] as const;
 const costSourceChoices = ['auto', 'ccusage', 'cc', 'both'] as const;
+const promotionDisplayChoices = ['auto', 'active-only', 'off'] as const;
 
 // Valibot schema for context threshold validation
 const contextThresholdSchema = v.pipe(
@@ -153,6 +155,36 @@ export const statuslineCommand = define({
 			description: 'Context usage percentage below which status is shown in yellow (0-100)',
 			parse: (value) => parseContextThreshold(value),
 			default: DEFAULT_CONTEXT_USAGE_THRESHOLDS.MEDIUM,
+		},
+		showPromotions: {
+			type: 'boolean',
+			description: 'Show active promotions in statusline (default: true)',
+			negatable: true,
+			default: true,
+			toKebab: true,
+		},
+		promotionDisplay: {
+			type: 'enum',
+			choices: promotionDisplayChoices,
+			description:
+				'Promotion display mode: auto (always show with countdown during peak), active-only (only during off-peak), off (disable)',
+			default: 'auto',
+			negatable: false,
+			toKebab: true,
+		},
+		showSessionDuration: {
+			type: 'boolean',
+			description: 'Show session duration in statusline (default: true)',
+			negatable: true,
+			default: true,
+			toKebab: true,
+		},
+		showLinesChanged: {
+			type: 'boolean',
+			description: 'Show lines added/removed in statusline (default: true)',
+			negatable: true,
+			default: true,
+			toKebab: true,
 		},
 		config: sharedArgs.config,
 		debug: sharedArgs.debug,
@@ -359,7 +391,7 @@ export const statuslineCommand = define({
 					);
 
 					// Load session block data to find active block
-					const { blockInfo, burnRateInfo } = await Result.pipe(
+					const { blockCostStr, blockTimeStr, burnRateInfo } = await Result.pipe(
 						Result.try({
 							try: async () =>
 								loadSessionBlockData({
@@ -371,29 +403,19 @@ export const statuslineCommand = define({
 						Result.map((blocks) => {
 							// Only identify blocks if we have data
 							if (blocks.length === 0) {
-								return { blockInfo: 'No active block', burnRateInfo: '' };
+								return { blockCostStr: '$0.00', blockTimeStr: '', burnRateInfo: '' };
 							}
 
-							// Find active block that contains our session
-							const activeBlock = blocks.find((block) => {
-								if (!block.isActive) {
-									return false;
-								}
-
-								// Check if any entry in this block matches our session
-								// Since we don't have direct session mapping in entries,
-								// we use the active block that's currently running
-								return true;
-							});
+							// Find active block
+							const activeBlock = blocks.find((block) => block.isActive);
 
 							if (activeBlock != null) {
 								const now = new Date();
 								const remaining = Math.round(
 									(activeBlock.endTime.getTime() - now.getTime()) / (1000 * 60),
 								);
-								const blockCost = activeBlock.costUSD;
-
-								const blockInfo = `${formatCurrency(blockCost)} block (${formatRemainingTime(remaining)})`;
+								const blockCostStr = formatCurrency(activeBlock.costUSD);
+								const blockTimeStr = formatRemainingTime(remaining);
 
 								// Calculate burn rate
 								const burnRate = calculateBurnRate(activeBlock);
@@ -443,21 +465,21 @@ export const statuslineCommand = define({
 													burnRateOutputSegments.push(coloredString(`(${textValue})`));
 												}
 
-												return ` | 🔥 ${burnRateOutputSegments.join(' ')}`;
+												return ` ${burnRateOutputSegments.join(' ')}`;
 											})()
 										: '';
 
-								return { blockInfo, burnRateInfo };
+								return { blockCostStr, blockTimeStr, burnRateInfo };
 							}
 
-							return { blockInfo: 'No active block', burnRateInfo: '' };
+							return { blockCostStr: '$0.00', blockTimeStr: '', burnRateInfo: '' };
 						}),
 						Result.inspectError((error) => logger.error('Failed to load block data:', error)),
-						Result.unwrap({ blockInfo: 'No active block', burnRateInfo: '' }),
+						Result.unwrap({ blockCostStr: '$0.00', blockTimeStr: '', burnRateInfo: '' }),
 					);
 
-					// Helper function to format context info with color coding
-					const formatContextInfo = (inputTokens: number, contextLimit: number): string => {
+					// Helper function to format context percentage with color coding
+					const formatContextPercentage = (inputTokens: number, contextLimit: number): string => {
 						const percentage = Math.round((inputTokens / contextLimit) * 100);
 						const color =
 							percentage < ctx.values.contextLowThreshold
@@ -465,9 +487,7 @@ export const statuslineCommand = define({
 								: percentage < ctx.values.contextMediumThreshold
 									? pc.yellow
 									: pc.red;
-						const coloredPercentage = color(`${percentage}%`);
-						const tokenDisplay = inputTokens.toLocaleString();
-						return `${tokenDisplay} (${coloredPercentage})`;
+						return `${color(`${percentage}%`)} ${pc.dim('ctx')}`;
 					};
 
 					// Get context tokens from Claude Code hook data, or fall back to calculating from transcript
@@ -476,51 +496,113 @@ export const statuslineCommand = define({
 							? // Prefer context_window data from Claude Code hook if available
 								Result.succeed({
 									inputTokens: hookData.context_window.total_input_tokens,
+									outputTokens: hookData.context_window.total_output_tokens ?? 0,
 									contextLimit: hookData.context_window.context_window_size,
 								})
 							: // Fall back to calculating context tokens from transcript
 								await Result.try({
-									try: async () =>
-										calculateContextTokens(
+									try: async () => {
+										const result = await calculateContextTokens(
 											hookData.transcript_path,
 											hookData.model.id,
 											mergedOptions.offline,
-										),
+										);
+										return result != null ? { ...result, outputTokens: 0 } : null;
+									},
 									catch: (error) => error,
 								})();
 
-					const contextInfo = Result.pipe(
+					const contextData = Result.pipe(
 						contextDataResult,
 						Result.inspectError((error) =>
 							logger.debug(
 								`Failed to calculate context tokens: ${error instanceof Error ? error.message : String(error)}`,
 							),
 						),
-						Result.map((contextResult) => {
-							if (contextResult == null) {
-								return undefined;
-							}
-							return formatContextInfo(contextResult.inputTokens, contextResult.contextLimit);
-						}),
-						Result.unwrap(undefined),
+						Result.unwrap(null),
 					);
+
+					// Build token breakdown segment: ↑35K ↓2.5K
+					const tokenSegment =
+						contextData != null
+							? `${pc.green(`\u2191${formatCompactTokens(contextData.inputTokens)}`)} ${pc.magenta(`\u2193${formatCompactTokens(contextData.outputTokens)}`)}`
+							: '';
+
+					// Build context percentage segment: 17% ctx
+					const contextSegment =
+						contextData != null
+							? formatContextPercentage(contextData.inputTokens, contextData.contextLimit)
+							: '';
 
 					// Get model display name
 					const modelName = hookData.model.display_name;
 
-					// Format and output the status line
-					// Format: 🤖 model | 💰 session / today / block | 🔥 burn | 🧠 context
+					// Build session cost display
 					const sessionDisplay = (() => {
-						// If both costs are available, show them side by side
 						if (ccCost != null || ccusageCost != null) {
 							const ccDisplay = ccCost != null ? formatCurrency(ccCost) : 'N/A';
 							const ccusageDisplay = ccusageCost != null ? formatCurrency(ccusageCost) : 'N/A';
-							return `(${ccDisplay} cc / ${ccusageDisplay} ccusage)`;
+							return `(${pc.cyan(ccDisplay)} ${pc.dim('cc')} / ${pc.cyan(ccusageDisplay)} ${pc.dim('ccusage')})`;
 						}
-						// Single cost display
-						return sessionCost != null ? formatCurrency(sessionCost) : 'N/A';
+						return sessionCost != null ? pc.cyan(formatCurrency(sessionCost)) : 'N/A';
 					})();
-					const statusLine = `🤖 ${modelName} | 💰 ${sessionDisplay} session / ${formatCurrency(todayCost)} today / ${blockInfo}${burnRateInfo} | 🧠 ${contextInfo ?? 'N/A'}`;
+
+					// Build cost segment with burn rate separated by pipe
+					const dot = pc.dim(' · ');
+					const costParts = `${sessionDisplay} ${pc.dim('session')}${dot}${pc.cyan(formatCurrency(todayCost))} ${pc.dim('today')}${dot}${pc.cyan(blockCostStr)} ${pc.dim('block')} ${pc.dim(blockTimeStr)}`;
+					const costSegment =
+						burnRateInfo !== '' ? `${costParts} ${pc.dim('|')}${burnRateInfo}` : costParts;
+
+					// Build session activity segment: duration + lines changed
+					const sessionActivityParts: string[] = [];
+					if (ctx.values.showSessionDuration && hookData.cost?.total_duration_ms != null) {
+						const durationMin = Math.round(hookData.cost.total_duration_ms / 60_000);
+						if (durationMin > 0) {
+							sessionActivityParts.push(pc.dim(formatRemainingTime(durationMin)));
+						}
+					}
+					if (ctx.values.showLinesChanged) {
+						const added = hookData.cost?.total_lines_added;
+						const removed = hookData.cost?.total_lines_removed;
+						if (added != null || removed != null) {
+							const parts: string[] = [];
+							if (added != null && added > 0) {
+								parts.push(pc.green(`+${added}`));
+							}
+							if (removed != null && removed > 0) {
+								parts.push(pc.red(`-${removed}`));
+							}
+							if (parts.length > 0) {
+								sessionActivityParts.push(parts.join(' '));
+							}
+						}
+					}
+					const sessionActivitySegment = sessionActivityParts.join(' ');
+
+					// Build promotion segment with configurable display mode
+					const promotionSegment = (() => {
+						if (!ctx.values.showPromotions || ctx.values.promotionDisplay === 'off') {
+							return '';
+						}
+						if (ctx.values.promotionDisplay === 'active-only') {
+							return getPromotionStatuslineSegment();
+						}
+						// 'auto' mode — show enhanced promotion with countdown during peak
+						return getEnhancedPromotionSegment();
+					})();
+
+					// Assemble status line from segments
+					const segments = [
+						pc.bold(modelName),
+						costSegment,
+						tokenSegment,
+						contextSegment,
+						sessionActivitySegment,
+						promotionSegment,
+					].filter((s) => s !== '');
+
+					const pipe = pc.dim(' | ');
+					const statusLine = segments.join(pipe);
 					return statusLine;
 				},
 				catch: (error) => error,
