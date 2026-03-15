@@ -366,12 +366,12 @@ export function formatNumber(num: number): string {
  * @returns Compact token string
  */
 export function formatCompactTokens(tokens: number): string {
-	if (tokens >= 1_000_000) {
-		const m = tokens / 1_000_000;
+	if (tokens >= 999_950) {
+		const m = Number((tokens / 1_000_000).toFixed(1));
 		return m % 1 === 0 ? `${m}M` : `${m.toFixed(1)}M`;
 	}
 	if (tokens >= 1_000) {
-		const k = tokens / 1_000;
+		const k = Number((tokens / 1_000).toFixed(1));
 		return k % 1 === 0 ? `${k}K` : `${k.toFixed(1)}K`;
 	}
 	return `${tokens}`;

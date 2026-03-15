@@ -183,9 +183,24 @@ export const setupStatuslineCommand = define({
 		log(`${pc.dim('Settings:')} ${settingsPath}`);
 
 		// Read existing settings
-		const existingSettings: Record<string, unknown> = existsSync(settingsPath)
-			? (JSON.parse(readFileSync(settingsPath, 'utf-8')) as Record<string, unknown>)
+		const existingSettings: Record<string, unknown> | null = existsSync(settingsPath)
+			? Result.pipe(
+					Result.try({
+						try: () => JSON.parse(readFileSync(settingsPath, 'utf-8')) as Record<string, unknown>,
+						catch: (error) => error,
+					})(),
+					Result.inspectError((error) => {
+						log(`\n${pc.red('✗')} Malformed settings.json at ${settingsPath}`);
+						log(`  ${error instanceof Error ? error.message : String(error)}`);
+						log(`  Please fix or remove the file and try again.`);
+					}),
+					Result.unwrap(null),
+				)
 			: {};
+
+		if (existingSettings == null) {
+			return;
+		}
 
 		// Check if statusLine already exists
 		if ('statusLine' in existingSettings && !ctx.values.force) {

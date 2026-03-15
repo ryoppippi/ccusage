@@ -507,7 +507,7 @@ export const statuslineCommand = define({
 											hookData.model.id,
 											mergedOptions.offline,
 										);
-										return result != null ? { ...result, outputTokens: 0 } : null;
+										return result != null ? { ...result, outputTokens: undefined } : null;
 									},
 									catch: (error) => error,
 								})();
@@ -525,7 +525,14 @@ export const statuslineCommand = define({
 					// Build token breakdown segment: ↑35K ↓2.5K
 					const tokenSegment =
 						contextData != null
-							? `${pc.green(`\u2191${formatCompactTokens(contextData.inputTokens)}`)} ${pc.magenta(`\u2193${formatCompactTokens(contextData.outputTokens)}`)}`
+							? [
+									pc.green(`\u2191${formatCompactTokens(contextData.inputTokens)}`),
+									contextData.outputTokens != null && contextData.outputTokens > 0
+										? pc.magenta(`\u2193${formatCompactTokens(contextData.outputTokens)}`)
+										: '',
+								]
+									.filter(Boolean)
+									.join(' ')
 							: '';
 
 					// Build context percentage segment: 17% ctx
@@ -555,13 +562,13 @@ export const statuslineCommand = define({
 
 					// Build session activity segment: duration + lines changed
 					const sessionActivityParts: string[] = [];
-					if (ctx.values.showSessionDuration && hookData.cost?.total_duration_ms != null) {
+					if (mergedOptions.showSessionDuration && hookData.cost?.total_duration_ms != null) {
 						const durationMin = Math.round(hookData.cost.total_duration_ms / 60_000);
 						if (durationMin > 0) {
 							sessionActivityParts.push(pc.dim(formatRemainingTime(durationMin)));
 						}
 					}
-					if (ctx.values.showLinesChanged) {
+					if (mergedOptions.showLinesChanged) {
 						const added = hookData.cost?.total_lines_added;
 						const removed = hookData.cost?.total_lines_removed;
 						if (added != null || removed != null) {
@@ -581,10 +588,10 @@ export const statuslineCommand = define({
 
 					// Build promotion segment with configurable display mode
 					const promotionSegment = (() => {
-						if (!ctx.values.showPromotions || ctx.values.promotionDisplay === 'off') {
+						if (!mergedOptions.showPromotions || mergedOptions.promotionDisplay === 'off') {
 							return '';
 						}
-						if (ctx.values.promotionDisplay === 'active-only') {
+						if (mergedOptions.promotionDisplay === 'active-only') {
 							return getPromotionStatuslineSegment();
 						}
 						// 'auto' mode — show enhanced promotion with countdown during peak

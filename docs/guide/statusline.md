@@ -140,19 +140,19 @@ See [Cost Source Options](#cost-source-options) section for all available modes.
 
 The statusline displays a compact, single-line summary:
 
-```
-Opus 4 | $0.23 session · $1.23 today · $0.45 block 2h45m | $8.50/hr | ↑25K ↓3.2K | 12% ctx | 45m +23 -5 | ⚡2x
+```text
+Opus 4 | $0.23 session · $1.23 today · $0.45 block 2h45m | $8.50/hr | ↑25K ↓3.2K | 12% ctx | 45m +23 -5 | ⚡2x · 12d left
 ```
 
 During peak hours, a countdown to off-peak is shown instead:
 
-```
-Opus 4 | $0.23 session · $1.23 today · $0.45 block 2h45m | $8.50/hr | ↑25K ↓3.2K | 12% ctx | 45m +23 -5 | ⚡2x in 2h15m 12d
+```text
+Opus 4 | $0.23 session · $1.23 today · $0.45 block 2h45m | $8.50/hr | ↑25K ↓3.2K | 12% ctx | 45m +23 -5 | ⚡2x in 2h15m · 12d left
 ```
 
 When using `--cost-source both`, the session cost shows both Claude Code and ccusage calculations:
 
-```
+```text
 Opus 4 | ($0.25 cc / $0.23 ccusage) session · $1.23 today · $0.45 block 2h45m | ↑25K ↓3.2K | 12% ctx
 ```
 
@@ -172,11 +172,11 @@ Opus 4 | ($0.25 cc / $0.23 ccusage) session · $1.23 today · $0.45 block 2h45m 
   - Uses Claude Code's [`context_window` data](https://code.claude.com/docs/en/statusline) when available for accurate token counts
 - **Session Duration** (`45m`): How long the current session has been running (dim)
 - **Lines Changed** (`+23 -5`): Lines added (green) and removed (red) during the session
-- **Promotion** (`⚡2x`): Active promotion indicator — bold yellow during off-peak, with countdown during peak hours (`⚡2x in 2h15m`), and days remaining (`12d`)
+- **Promotion** (`⚡2x · 12d left`): Active promotion indicator — bold yellow during off-peak with days remaining, with countdown during peak hours (`⚡2x in 2h15m · 12d left`)
 
 When no active block exists:
 
-```
+```text
 Opus 4 | $0.00 session · $0.00 today · $0.00 block | ↑0 ↓0 | 0% ctx
 ```
 
@@ -338,8 +338,8 @@ bun x ccusage statusline --visual-burn-rate emoji
 
 The statusline shows active Claude usage promotions (e.g., 2x off-peak capacity). By default (`--promotion-display auto`), it shows:
 
-- **Off-peak hours**: `⚡2x 12d` — promotion active, with days remaining
-- **Peak hours**: `⚡2x in 2h15m 12d` — countdown to when off-peak starts
+- **Off-peak hours**: `⚡2x · 12d left` — promotion active, with days remaining
+- **Peak hours**: `⚡2x in 2h15m · 12d left` — countdown to when off-peak starts
 
 **Promotion display modes (`--promotion-display`):**
 
