@@ -30,15 +30,6 @@ Add this to your `~/.claude/settings.json` or `~/.config/claude/settings.json`:
 }
 ```
 
-```json [claude x]
-{
-	"statusLine": {
-		"type": "command",
-		"command": "BUN_BE_BUN=1 claude x ccusage statusline",
-		"padding": 0
-	}
-}
-```
 
 ```json [npx]
 {
@@ -52,9 +43,6 @@ Add this to your `~/.claude/settings.json` or `~/.config/claude/settings.json`:
 
 :::
 
-::: tip claude x option
-The `claude x` option requires the native version of Claude Code (not the npm version). If you installed Claude Code via npm, use the `bun x` or `npx` options instead.
-:::
 
 By default, statusline uses **offline mode** with cached pricing data for optimal performance.
 
