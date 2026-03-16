@@ -17,7 +17,7 @@ catalogs:
     typedoc-plugin-markdown: ^4.8.1
     typedoc-vitepress-theme: ^1.1.2
     vitepress: ^1.6.4
-    vitepress-plugin-group-icons: ^1.6.3
+    vitepress-plugin-group-icons: ^1.7.1
     vitepress-plugin-llms: ^1.7.3
     wrangler: ^4.32.0
   lint:
