@@ -149,8 +149,8 @@ function getPromotionStatuslineSegment(now: Date = new Date()): string {
 
 /**
  * Returns an enhanced promotion segment that shows status during both peak and off-peak:
- * - Off-peak: "⚡2x" (bold yellow) with optional days remaining
- * - Peak: "⚡2x in 2h15m" (yellow, showing countdown to off-peak)
+ * - Off-peak (2x active): "⚡2x ON" (bold green) with optional days remaining
+ * - Peak (2x inactive): "⚡2x in 2h15m" (dim, showing countdown to off-peak)
  * - No promotion: empty string
  */
 function getEnhancedPromotionSegment(now: Date = new Date()): string {
@@ -163,17 +163,18 @@ function getEnhancedPromotionSegment(now: Date = new Date()): string {
 	const daysStr = daysLeft > 0 ? pc.dim(` · ${daysLeft}d left`) : '';
 
 	if (isOffPeakHours(promotion, now)) {
-		return `${pc.bold(pc.yellow(promotion.statuslineLabel))}${daysStr}`;
+		// Green = 2x is active right now
+		return `${pc.bold(pc.green(promotion.statuslineLabel))} ${pc.bold(pc.green('ON'))}${daysStr}`;
 	}
 
-	// During peak hours — show countdown to off-peak
+	// During peak hours — dim to signal 2x is not active, show countdown
 	const minutesToOffPeak = getMinutesToOffPeak(promotion, now);
 	if (minutesToOffPeak != null && minutesToOffPeak > 0) {
 		const countdown = formatCompactDuration(minutesToOffPeak);
-		return `${pc.yellow(promotion.statuslineLabel)} ${pc.dim(`in ${countdown}`)}${daysStr}`;
+		return `${pc.dim(promotion.statuslineLabel)} ${pc.dim(`in ${countdown}`)}${daysStr}`;
 	}
 
-	return pc.bold(pc.yellow(promotion.statuslineLabel));
+	return pc.bold(pc.green(promotion.statuslineLabel));
 }
 
 export {
@@ -337,20 +338,22 @@ if (import.meta.vitest != null) {
 	});
 
 	describe('getEnhancedPromotionSegment', () => {
-		it('should return label with days during off-peak', () => {
+		it('should return label with ON and days during off-peak', () => {
 			// Off-peak: 8 PM PT on March 15 (12 days left)
 			const date = new Date('2026-03-16T03:00:00Z');
 			const segment = getEnhancedPromotionSegment(date);
 			expect(segment).toContain('2x');
+			expect(segment).toContain('ON');
 			expect(segment).toContain('12d left');
 		});
 
-		it('should return countdown during peak hours', () => {
+		it('should return dim countdown during peak hours', () => {
 			// Peak: 8 AM PT on March 15 → 3h to off-peak
 			const date = new Date('2026-03-15T15:00:00Z');
 			const segment = getEnhancedPromotionSegment(date);
 			expect(segment).toContain('2x');
 			expect(segment).toContain('in 3h0m');
+			expect(segment).not.toContain('ON');
 		});
 
 		it('should return empty string outside promotion dates', () => {

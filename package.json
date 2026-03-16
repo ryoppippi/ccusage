@@ -56,8 +56,8 @@
 		"pkg-pr-new": "catalog:release"
 	},
 	"lint-staged": {
-		"*": [
-			"pnpm run format"
+		"*.{js,ts,json,md}": [
+			"npx --no-install eslint --fix --cache"
 		]
 	}
 }
