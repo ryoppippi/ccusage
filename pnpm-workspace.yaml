@@ -14,7 +14,7 @@ catalogs:
   docs:
     '@ryoppippi/vite-plugin-cloudflare-redirect': ^1.1.2
     typedoc: ^0.28.10
-    typedoc-plugin-markdown: ^4.8.1
+    typedoc-plugin-markdown: ^4.10.0
     typedoc-vitepress-theme: ^1.1.2
     vitepress: ^1.6.4
     vitepress-plugin-group-icons: ^1.6.3
