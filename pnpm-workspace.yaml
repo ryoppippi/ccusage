@@ -52,7 +52,7 @@ catalogs:
     gunshi: ^0.26.3
     hono: ^4.9.2
     nano-spawn: ^1.0.3
-    p-limit: ^7.1.0
+    p-limit: ^7.3.0
     path-type: ^6.0.0
     picocolors: ^1.1.1
     pretty-ms: ^9.2.0
