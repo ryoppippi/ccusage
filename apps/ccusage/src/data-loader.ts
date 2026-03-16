@@ -13,7 +13,7 @@ import type { LoadedUsageEntry, SessionBlock } from './_session-blocks.ts';
 import type { ActivityDate, Bucket, CostMode, ModelName, SortOrder, Version } from './_types.ts';
 import { Buffer } from 'node:buffer';
 import { createReadStream, createWriteStream } from 'node:fs';
-import { readFile } from 'node:fs/promises';
+import { readFile, stat } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
 import { createInterface } from 'node:readline';
@@ -67,6 +67,7 @@ import {
 	weeklyDateSchema,
 } from './_types.ts';
 import { unreachable } from './_utils.ts';
+import { deriveAgentId } from './agent-id.ts';
 import { logger } from './logger.ts';
 
 /**
@@ -169,6 +170,8 @@ export const usageDataSchema = v.object({
 	sessionId: v.optional(sessionIdSchema), // Session ID for deduplication
 	timestamp: isoTimestampSchema,
 	version: v.optional(versionSchema), // Claude Code version
+	teamName: v.optional(v.string()), // Team name for agent tracking
+	agentName: v.optional(v.string()), // Agent name for agent tracking
 	message: v.object({
 		usage: v.object({
 			input_tokens: v.number(),
@@ -1467,6 +1470,220 @@ export async function loadSessionBlockData(options?: LoadOptions): Promise<Sessi
 
 	// Sort by start time based on order option
 	return sortByDate(dateFiltered, (block) => block.startTime, options?.order);
+}
+
+/**
+ * Agent-level usage aggregation type
+ */
+export type AgentUsage = {
+	agentId: string;
+	agentName: string | undefined;
+	teamName: string | undefined;
+	sessionId: string | undefined;
+	inputTokens: number;
+	outputTokens: number;
+	cacheCreationTokens: number;
+	cacheReadTokens: number;
+	totalCost: number;
+	modelsUsed: ModelName[];
+	modelBreakdowns: ModelBreakdown[];
+	project?: string;
+};
+
+/**
+ * Options for filtering agent usage data
+ */
+type AgentLoadOptions = LoadOptions & {
+	teamFilter?: string;
+	sessionFilter?: string;
+	onProgress?: (step: string) => void;
+};
+
+/**
+ * Loads usage data grouped by agent identity
+ * Processes JSONL files and aggregates token usage per unique agent
+ * @param options - Configuration for loading, filtering, and date ranges
+ * @returns Array of agent usage summaries
+ */
+export async function loadAgentUsageData(options?: AgentLoadOptions): Promise<AgentUsage[]> {
+	const onProgress = options?.onProgress;
+
+	const mode = options?.mode ?? 'auto';
+	// Pricing fetch is the slowest step — report it first
+	onProgress?.('Fetching model pricing...');
+	using fetcher = mode === 'display' ? null : new PricingFetcher(options?.offline);
+
+	onProgress?.('Scanning session files...');
+	const claudePaths = toArray(options?.claudePath ?? getClaudePaths());
+	const filesWithBase = await globUsageFiles(claudePaths);
+
+	if (filesWithBase.length === 0) {
+		return [];
+	}
+
+	const projectFilteredWithBase = filterByProject(
+		filesWithBase,
+		(item) => extractProjectFromPath(item.file),
+		options?.project,
+	);
+
+	// Fast pre-filter: skip files not modified on or after `since` date
+	// Uses file mtime (cheap stat) to avoid parsing old sessions
+	let dateFilteredWithBase = projectFilteredWithBase;
+	if (options?.since != null && options.since !== '') {
+		const y = Number.parseInt(options.since.slice(0, 4), 10);
+		const m = Number.parseInt(options.since.slice(4, 6), 10) - 1;
+		const d = Number.parseInt(options.since.slice(6, 8), 10);
+		const cutoff = new Date(y, m, d, 0, 0, 0, 0);
+		const statResults = await Promise.all(
+			projectFilteredWithBase.map(async (item) => {
+				try {
+					const s = await stat(item.file);
+					return s.mtimeMs >= cutoff.getTime() ? item : null;
+				} catch {
+					return item; // keep files we can't stat
+				}
+			}),
+		);
+		dateFilteredWithBase = statResults.filter((item) => item != null);
+	}
+
+	const fileToBaseMap = new Map(dateFilteredWithBase.map((f) => [f.file, f.baseDir]));
+	const sortedFilesWithBase = await sortFilesByTimestamp(
+		dateFilteredWithBase.map((f) => f.file),
+	).then((sortedFiles) =>
+		sortedFiles.map((file) => ({
+			file,
+			baseDir: fileToBaseMap.get(file) ?? '',
+		})),
+	);
+
+	const processedHashes = new Set<string>();
+
+	onProgress?.(`Processing ${sortedFilesWithBase.length} session files...`);
+
+	const allEntries: Array<{
+		data: UsageData;
+		agentId: string;
+		agentName: string | undefined;
+		teamName: string | undefined;
+		sessionId: string | undefined;
+		project: string | undefined;
+		cost: number;
+		timestamp: string;
+		model: string | undefined;
+	}> = [];
+
+	for (const { file } of sortedFilesWithBase) {
+		await processJSONLFileByLine(file, async (line) => {
+			try {
+				const parsed = JSON.parse(line) as unknown;
+				const result = v.safeParse(usageDataSchema, parsed);
+				if (!result.success) {
+					return;
+				}
+				const data = result.output;
+
+				const uniqueHash = createUniqueHash(data);
+				if (isDuplicateEntry(uniqueHash, processedHashes)) {
+					return;
+				}
+				markAsProcessed(uniqueHash, processedHashes);
+
+				// Filter by date range at entry level
+				if (options?.since != null || options?.until != null) {
+					const dateStr = formatDate(data.timestamp, options?.timezone, DEFAULT_LOCALE).replace(
+						/-/g,
+						'',
+					);
+					if (options.since != null && options.since !== '' && dateStr < options.since) {
+						return;
+					}
+					if (options.until != null && options.until !== '' && dateStr > options.until) {
+						return;
+					}
+				}
+
+				const agentId = deriveAgentId({
+					teamName: data.teamName,
+					agentName: data.agentName,
+					sessionId: data.sessionId,
+				});
+
+				// Apply team/session filters
+				if (options?.teamFilter != null && data.teamName !== options.teamFilter) {
+					return;
+				}
+				if (options?.sessionFilter != null && data.sessionId !== options.sessionFilter) {
+					return;
+				}
+
+				const cost =
+					fetcher != null ? await calculateCostForEntry(data, mode, fetcher) : (data.costUSD ?? 0);
+
+				allEntries.push({
+					data,
+					agentId,
+					agentName: data.agentName,
+					teamName: data.teamName,
+					sessionId: data.sessionId,
+					project: extractProjectFromPath(file),
+					cost,
+					timestamp: data.timestamp,
+					model: getDisplayModelName(data),
+				});
+			} catch {
+				// Skip invalid JSON lines
+			}
+		});
+	}
+
+	const groupedByAgent = groupBy(allEntries, (entry) => entry.agentId);
+
+	const results: AgentUsage[] = [];
+
+	for (const [agentId, entries] of Object.entries(groupedByAgent)) {
+		if (entries == null) {
+			continue;
+		}
+
+		const modelAggregates = aggregateByModel(
+			entries,
+			(entry) => entry.model,
+			(entry) => entry.data.message.usage,
+			(entry) => entry.cost,
+		);
+		const modelBreakdowns = createModelBreakdowns(modelAggregates);
+
+		const totalsFull = calculateTotals(
+			entries,
+			(entry) => entry.data.message.usage,
+			(entry) => entry.cost,
+		);
+		const totals = {
+			inputTokens: totalsFull.inputTokens,
+			outputTokens: totalsFull.outputTokens,
+			cacheCreationTokens: totalsFull.cacheCreationTokens,
+			cacheReadTokens: totalsFull.cacheReadTokens,
+			totalCost: totalsFull.totalCost,
+		};
+
+		const modelsUsed = extractUniqueModels(entries, (e) => e.model);
+		const first = entries[0];
+
+		results.push({
+			agentId,
+			agentName: first?.agentName,
+			teamName: first?.teamName,
+			sessionId: first?.sessionId,
+			project: first?.project,
+			...totals,
+			modelsUsed: modelsUsed as ModelName[],
+			modelBreakdowns,
+		});
+	}
+
+	return results;
 }
 
 if (import.meta.vitest != null) {

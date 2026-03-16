@@ -248,7 +248,7 @@ export class ResponsiveTable {
 				if (align === 'right') {
 					adjustedWidth = Math.max(adjustedWidth, 10);
 				} else if (index === 0) {
-					adjustedWidth = Math.max(adjustedWidth, 10);
+					adjustedWidth = Math.max(adjustedWidth, 28);
 				} else if (index === 1) {
 					adjustedWidth = Math.max(adjustedWidth, 12);
 				} else {
