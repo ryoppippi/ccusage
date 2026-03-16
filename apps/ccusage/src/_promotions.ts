@@ -111,6 +111,31 @@ function getMinutesToOffPeak(promotion: Promotion, now: Date = new Date()): numb
 }
 
 /**
+ * Calculates minutes until peak hours start (i.e., until 2x off-peak window ends)
+ * Returns null if currently in peak hours or no peak hours defined
+ */
+function getMinutesToPeak(promotion: Promotion, now: Date = new Date()): number | null {
+	if (promotion.peakHours == null) {
+		return null;
+	}
+	if (!isOffPeakHours(promotion, now)) {
+		return null;
+	}
+	const tz = promotion.peakHours.timezone;
+	const currentHour = getHourInTimezone(now, tz);
+	const currentMinute = getMinuteInTimezone(now, tz);
+	const startHour = promotion.peakHours.startHour;
+
+	// If before peak start today (e.g. 2 AM, peak starts at 5 AM)
+	if (currentHour < startHour) {
+		return (startHour - currentHour) * 60 - currentMinute;
+	}
+
+	// After peak end (e.g. 3 PM, next peak starts at 5 AM tomorrow)
+	return (24 - currentHour + startHour) * 60 - currentMinute;
+}
+
+/**
  * Calculates days remaining until promotion ends (inclusive of end date)
  */
 function getDaysUntilPromotionEnd(promotion: Promotion, now: Date = new Date()): number {
@@ -163,8 +188,13 @@ function getEnhancedPromotionSegment(now: Date = new Date()): string {
 	const daysStr = daysLeft > 0 ? pc.dim(` · ${daysLeft}d left`) : '';
 
 	if (isOffPeakHours(promotion, now)) {
-		// Green = 2x is active right now
-		return `${pc.bold(pc.green(promotion.statuslineLabel))} ${pc.bold(pc.green('ON'))}${daysStr}`;
+		// Green = 2x is active right now, show countdown until peak starts
+		const minutesToPeak = getMinutesToPeak(promotion, now);
+		const countdownStr =
+			minutesToPeak != null && minutesToPeak > 0
+				? ` ${pc.bold(pc.green(formatCompactDuration(minutesToPeak)))}`
+				: '';
+		return `${pc.bold(pc.green(promotion.statuslineLabel))} ${pc.bold(pc.green('ON'))}${countdownStr}${daysStr}`;
 	}
 
 	// During peak hours — dim to signal 2x is not active, show countdown
@@ -182,6 +212,7 @@ export {
 	getDaysUntilPromotionEnd,
 	getEnhancedPromotionSegment,
 	getMinutesToOffPeak,
+	getMinutesToPeak,
 	getPromotionStatuslineSegment,
 	isOffPeakHours,
 };
@@ -337,8 +368,37 @@ if (import.meta.vitest != null) {
 		});
 	});
 
+	describe('getMinutesToPeak', () => {
+		const promo = ACTIVE_PROMOTIONS[0]!;
+
+		it('should return null during peak hours', () => {
+			// 8 AM PT (peak)
+			const date = new Date('2026-03-15T15:00:00Z');
+			expect(getMinutesToPeak(promo, date)).toBeNull();
+		});
+
+		it('should return minutes until peak when before peak start same day', () => {
+			// 2 AM PT → 3h until 5 AM peak start
+			const date = new Date('2026-03-15T10:00:00Z'); // 3 AM UTC = 2 AM PT (PDT -7)
+			const minutes = getMinutesToPeak(promo, date);
+			expect(minutes).toBeGreaterThan(0);
+		});
+
+		it('should return minutes until next peak when after peak end', () => {
+			// 8 PM PT → 9h until 5 AM peak start next day
+			const date = new Date('2026-03-16T03:00:00Z'); // 8 PM PT
+			const minutes = getMinutesToPeak(promo, date);
+			expect(minutes).toBeGreaterThan(0);
+		});
+
+		it('should return null when peakHours is undefined', () => {
+			const nopeakPromo: Promotion = { ...promo, peakHours: undefined };
+			expect(getMinutesToPeak(nopeakPromo)).toBeNull();
+		});
+	});
+
 	describe('getEnhancedPromotionSegment', () => {
-		it('should return label with ON and days during off-peak', () => {
+		it('should return label with ON, countdown, and days during off-peak', () => {
 			// Off-peak: 8 PM PT on March 15 (12 days left)
 			const date = new Date('2026-03-16T03:00:00Z');
 			const segment = getEnhancedPromotionSegment(date);
