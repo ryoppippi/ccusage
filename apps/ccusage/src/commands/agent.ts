@@ -477,18 +477,31 @@ async function resolveSessionTitle(
 			if (summaryTitle == null && parsed.type === 'summary' && typeof parsed.summary === 'string') {
 				summaryTitle = parsed.summary.slice(0, 60).trim();
 			}
-			if (parsed.type === 'user' && parsed.isCompactSummary !== true) {
+			if (parsed.type === 'user' && parsed.isCompactSummary !== true && parsed.isMeta !== true) {
 				const msg = parsed.message as Record<string, unknown> | undefined;
 				if (msg?.role === 'user') {
 					const content = msg.content;
-					if (typeof content === 'string' && !/^<[a-z]/i.test(content)) {
+					// Extract text from string or array content (multimodal messages use [{type:"text",text:"..."}])
+					let textContent: string | undefined;
+					if (typeof content === 'string') {
+						textContent = content;
+					} else if (Array.isArray(content)) {
+						const textBlock = content.find(
+							(b: unknown) =>
+								typeof b === 'object' &&
+								b != null &&
+								(b as Record<string, unknown>).type === 'text',
+						) as Record<string, unknown> | undefined;
+						if (typeof textBlock?.text === 'string') {textContent = textBlock.text;}
+					}
+					if (textContent != null && !/^<[a-z]/i.test(textContent)) {
 						// Collect first user message as title fallback
 						if (userMessageTitle == null) {
-							userMessageTitle = truncateAtWord(content.split('\n')[0]!.trim(), 60);
+							userMessageTitle = truncateAtWord(textContent.split('\n')[0]!.trim(), 60);
 						}
 						// Collect up to 3 user messages for AI title generation
 						if (userMessages.length < 3) {
-							userMessages.push(truncateAtWord(content.split('\n')[0]!.trim(), 120));
+							userMessages.push(truncateAtWord(textContent.split('\n')[0]!.trim(), 120));
 						}
 					}
 				}
