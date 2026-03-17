@@ -172,8 +172,22 @@ function truncateAtWord(str: string, maxLen: number): string {
 		return str;
 	}
 	const lastSpace = str.lastIndexOf(' ', maxLen);
-	const truncated = lastSpace > 0 ? str.slice(0, lastSpace) : str.slice(0, maxLen);
-	return `${truncated}…`;
+	return lastSpace > 0 ? str.slice(0, lastSpace) : str.slice(0, maxLen);
+}
+
+/**
+ * Checks whether a title is valid (non-empty, not a bracketed placeholder like "[No content provided]").
+ */
+function isValidTitle(title: string): boolean {
+	return title.length > 0 && !/^\[.*\]$/.test(title);
+}
+
+/**
+ * Joins non-empty parts with ' · ' separator — prevents trailing/leading separators
+ * when some parts are empty or undefined.
+ */
+function joinParts(parts: (string | undefined)[]): string {
+	return parts.filter((p) => p != null && p !== '').join(' · ');
 }
 
 /**
@@ -373,7 +387,7 @@ async function generateAITitlesBatch(
 			if (match != null) {
 				const idx = Number.parseInt(match[1]!, 10);
 				const title = match[2]!.trim();
-				if (title.length > 0 && title.length <= 80) {
+				if (title.length > 0 && title.length <= 80 && !/^\[.*\]$/.test(title)) {
 					result.set(idx, title);
 				}
 			}
@@ -401,7 +415,7 @@ async function resolveSessionTitle(
 	const cachePath = path.join(cacheDir, sessionId);
 
 	// Check cache — versioned format: "v12\n<title>\n<startTime>"
-	// v12: ellipsis truncation on long titles
+	// v12: invalidate caches from v11 (filter bracketed AI placeholders)
 	const CACHE_VERSION = 'v12';
 	try {
 		const cached = await readFile(cachePath, 'utf-8');
@@ -411,6 +425,7 @@ async function resolveSessionTitle(
 			lines.length >= 3 &&
 			lines[1] != null &&
 			lines[1] !== '' &&
+			isValidTitle(lines[1]) &&
 			lines[2] != null &&
 			lines[2] !== ''
 		) {
@@ -555,7 +570,9 @@ async function resolveSessionTitle(
 	}
 
 	// Only compaction/summary titles are deterministic — use directly
-	const title = compactionTitle ?? summaryTitle;
+	// Filter out bracketed placeholders like "[No content provided]"
+	const rawTitle = compactionTitle ?? summaryTitle;
+	const title = rawTitle != null && isValidTitle(rawTitle) ? rawTitle : null;
 
 	if (title != null && startTime != null) {
 		try {
@@ -625,7 +642,11 @@ async function resolveLeadDisplayNames(agents: AgentUsage[], timezone?: string):
 			agent.agentId = `${prefix}${deriveAgentId({ sessionId: agent.sessionId })}`;
 		} else if (titleInfo.title != null) {
 			// Got a resolved title (cached, compaction, or user message)
-			agent.agentId = `${titleInfo.title} · ${formatStartTime(titleInfo.startTime, timezone)} · ${agent.sessionId}`;
+			agent.agentId = joinParts([
+				titleInfo.title,
+				formatStartTime(titleInfo.startTime, timezone),
+				agent.sessionId,
+			]);
 		} else {
 			// Needs AI title generation — collect for batch
 			needsAI.push({
@@ -649,7 +670,11 @@ async function resolveLeadDisplayNames(agents: AgentUsage[], timezone?: string):
 			const aiTitle = aiTitles.get(needsAI.indexOf(item) + 1);
 
 			if (aiTitle != null) {
-				agent.agentId = `${aiTitle} · ${formatStartTime(item.startTime, timezone)}${agent.sessionId != null ? ` · ${agent.sessionId}` : ''}`;
+				agent.agentId = joinParts([
+					aiTitle,
+					formatStartTime(item.startTime, timezone),
+					agent.sessionId,
+				]);
 
 				// Cache only real AI-generated titles
 				if (agent.sessionId != null) {
@@ -667,7 +692,7 @@ async function resolveLeadDisplayNames(agents: AgentUsage[], timezone?: string):
 			} else {
 				// No AI title (no substantive messages) — show truncated ID + time only
 				const shortId = agent.sessionId?.slice(0, 8) ?? 'Untitled';
-				agent.agentId = `${shortId} · ${formatStartTime(item.startTime, timezone)}`;
+				agent.agentId = joinParts([shortId, formatStartTime(item.startTime, timezone)]);
 			}
 		}
 	}
@@ -989,14 +1014,26 @@ function groupByTeamLead(
 		.sort((a, b) => b.totalCost - a.totalCost);
 
 	const rows: DisplayRow[] = [];
+	// Track sessionIds already emitted to prevent duplicate header rows
+	const emittedSessionIds = new Set<string>();
 
 	for (const group of sortedGroups) {
+		if (emittedSessionIds.has(group.sessionId)) {
+			// Already emitted — just add members under existing lead
+			group.members.sort((a, b) => b.totalCost - a.totalCost);
+			for (const m of group.members) {
+				rows.push({ data: m, isLeadHeader: false, indent: true });
+			}
+			continue;
+		}
+		emittedSessionIds.add(group.sessionId);
+
 		if (group.lead != null) {
 			rows.push({ data: group.lead, isLeadHeader: false, indent: false });
 		} else {
 			// Orphan lead — create header-only row from cached title
 			const cachedTitle = leadTitleCache.get(group.sessionId);
-			const title = cachedTitle != null ? `${cachedTitle} · ${group.sessionId}` : group.sessionId;
+			const title = joinParts([cachedTitle, group.sessionId]);
 			rows.push({
 				data: {
 					agentId: title,
@@ -1066,7 +1103,7 @@ async function loadLeadTitleCache(teamLeadMap: Map<string, string>): Promise<Map
 		try {
 			const raw = await readFile(path.join(cacheDir, sessionId), 'utf-8');
 			const lines = raw.trim().split('\n');
-			if (lines.length >= 2 && lines[1] != null && lines[1] !== '') {
+			if (lines.length >= 2 && lines[1] != null && lines[1] !== '' && isValidTitle(lines[1])) {
 				cache.set(sessionId, lines[1]);
 			}
 		} catch {
