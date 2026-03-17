@@ -172,7 +172,8 @@ function truncateAtWord(str: string, maxLen: number): string {
 		return str;
 	}
 	const lastSpace = str.lastIndexOf(' ', maxLen);
-	return lastSpace > 0 ? str.slice(0, lastSpace) : str.slice(0, maxLen);
+	const truncated = lastSpace > 0 ? str.slice(0, lastSpace) : str.slice(0, maxLen);
+	return `${truncated}…`;
 }
 
 /**
@@ -399,9 +400,9 @@ async function resolveSessionTitle(
 	const cacheDir = path.join(os.homedir(), '.claude', 'session-titles');
 	const cachePath = path.join(cacheDir, sessionId);
 
-	// Check cache — versioned format: "v11\n<title>\n<startTime>"
-	// v11: invalidate caches from v10 (fixed trivial message filtering)
-	const CACHE_VERSION = 'v11';
+	// Check cache — versioned format: "v12\n<title>\n<startTime>"
+	// v12: ellipsis truncation on long titles
+	const CACHE_VERSION = 'v12';
 	try {
 		const cached = await readFile(cachePath, 'utf-8');
 		const lines = cached.trim().split('\n');
@@ -641,7 +642,7 @@ async function resolveLeadDisplayNames(agents: AgentUsage[], timezone?: string):
 		const aiTitles = await generateAITitlesBatch(batchInput);
 
 		const cacheDir = path.join(os.homedir(), '.claude', 'session-titles');
-		const CACHE_VERSION = 'v11';
+		const CACHE_VERSION = 'v12';
 
 		for (const item of needsAI) {
 			const agent = agents[item.agentIdx]!;
