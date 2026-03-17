@@ -385,7 +385,7 @@ async function generateAITitlesBatch(
 /**
  * Resolves a session title from JSONL file content.
  * Priority: cached title > compaction summary (isCompactSummary user entry)
- * > legacy summary > AI-generated title > slug (last resort).
+ * > legacy summary > AI-generated title > truncated sessionId (last resort).
  */
 async function resolveSessionTitle(
 	sessionId: string,
@@ -393,14 +393,14 @@ async function resolveSessionTitle(
 	claudePaths: string[],
 ): Promise<
 	| { title: string; startTime: string }
-	| { title: null; startTime: string; userMessages: string[]; slug: string | null }
+	| { title: null; startTime: string; userMessages: string[] }
 	| null
 > {
 	const cacheDir = path.join(os.homedir(), '.claude', 'session-titles');
 	const cachePath = path.join(cacheDir, sessionId);
 
 	// Check cache — versioned format: "v8\n<title>\n<startTime>"
-	const CACHE_VERSION = 'v9';
+	const CACHE_VERSION = 'v10';
 	try {
 		const cached = await readFile(cachePath, 'utf-8');
 		const lines = cached.trim().split('\n');
@@ -438,14 +438,13 @@ async function resolveSessionTitle(
 		return null;
 	}
 
-	let slug: string | null = null;
 	let compactionTitle: string | null = null;
 	let summaryTitle: string | null = null;
 	let userMessageTitle: string | null = null;
 	const userMessages: string[] = [];
 	let startTime: string | null = null;
 
-	// Phase 1: quick scan of first 50 lines for slug, startTime, userMessages, and early compaction
+	// Phase 1: quick scan of first 50 lines for startTime, userMessages, and early compaction
 	const fileStream1 = createReadStream(jsonlPath, { encoding: 'utf-8' });
 	const rl1 = createInterface({
 		input: fileStream1,
@@ -467,9 +466,6 @@ async function resolveSessionTitle(
 
 			if (startTime == null && typeof parsed.timestamp === 'string') {
 				startTime = parsed.timestamp;
-			}
-			if (slug == null && typeof parsed.slug === 'string') {
-				slug = parsed.slug;
 			}
 			// Check for compaction summary in early lines too
 			if (compactionTitle == null && parsed.type === 'user' && parsed.isCompactSummary === true) {
@@ -553,12 +549,12 @@ async function resolveSessionTitle(
 
 	// No deterministic title — return messages for AI generation
 	if (startTime != null && userMessages.length > 0) {
-		return { title: null, startTime, userMessages, slug };
+		return { title: null, startTime, userMessages };
 	}
 
-	// Absolute fallback: slug only (no user messages to generate from)
-	if (slug != null && startTime != null) {
-		return { title: slug, startTime };
+	// Absolute fallback: truncated sessionId (no user messages to generate from)
+	if (startTime != null) {
+		return { title: sessionId.slice(0, 8), startTime };
 	}
 
 	return null;
@@ -578,7 +574,7 @@ function formatStartTime(timestamp: string, timezone?: string): string {
 /**
  * Replaces temporary `lead:sessionId` agentIds with meaningful session titles.
  * Falls back to project/lead-hash when title can't be derived.
- * Batches all AI title requests into a single `claude -p` call.
+ * Batches all AI title requests into a single API call.
  */
 async function resolveLeadDisplayNames(agents: AgentUsage[], timezone?: string): Promise<void> {
 	let claudePaths: string[] | null = null;
@@ -586,7 +582,6 @@ async function resolveLeadDisplayNames(agents: AgentUsage[], timezone?: string):
 		agentIdx: number;
 		startTime: string;
 		messages: string[];
-		slug: string | null;
 	}> = [];
 
 	for (let i = 0; i < agents.length; i++) {
@@ -617,7 +612,6 @@ async function resolveLeadDisplayNames(agents: AgentUsage[], timezone?: string):
 				agentIdx: i,
 				startTime: titleInfo.startTime,
 				messages: titleInfo.userMessages,
-				slug: titleInfo.slug,
 			});
 		}
 	}
@@ -628,12 +622,12 @@ async function resolveLeadDisplayNames(agents: AgentUsage[], timezone?: string):
 		const aiTitles = await generateAITitlesBatch(batchInput);
 
 		const cacheDir = path.join(os.homedir(), '.claude', 'session-titles');
-		const CACHE_VERSION = 'v9';
+		const CACHE_VERSION = 'v10';
 
 		for (const item of needsAI) {
 			const agent = agents[item.agentIdx]!;
 			const aiTitle = aiTitles.get(needsAI.indexOf(item) + 1);
-			const finalTitle = aiTitle ?? item.slug ?? 'Untitled session';
+			const finalTitle = aiTitle ?? agent.sessionId?.slice(0, 8) ?? 'Untitled';
 
 			agent.agentId = `${finalTitle} · ${formatStartTime(item.startTime, timezone)}`;
 
