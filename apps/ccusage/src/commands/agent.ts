@@ -15,6 +15,7 @@ import {
 import { Result } from '@praha/byethrow';
 import { uniq } from 'es-toolkit';
 import { define } from 'gunshi';
+import spawn from 'nano-spawn';
 import pc from 'picocolors';
 import { loadConfig, mergeConfigWithArgs } from '../_config-loader-tokens.ts';
 import { processWithJq } from '../_jq-processor.ts';
@@ -210,21 +211,196 @@ function extractCompactionTitle(text: string): string | null {
 	return null;
 }
 
+const OAUTH_CLIENT_ID = '9d1c250a-e61b-44d9-88ed-5944d1962f5e';
+const OAUTH_REFRESH_URL = 'https://console.anthropic.com/v1/oauth/token';
+
+/**
+ * Reads Claude Code credentials from macOS Keychain (preferred) or file fallback.
+ * Handles token refresh for expired OAuth tokens.
+ */
+async function getClaudeAuthHeaders(): Promise<Record<string, string> | null> {
+	// Try ANTHROPIC_API_KEY first (API subscribers)
+	const apiKey = process.env.ANTHROPIC_API_KEY;
+	if (apiKey != null && apiKey !== '') {
+		return {
+			'x-api-key': apiKey,
+			'anthropic-version': '2023-06-01',
+		};
+	}
+
+	// Read credentials: Keychain first, then file
+	let creds: Record<string, unknown> | null = null;
+
+	// macOS Keychain (has the freshest tokens)
+	for (const service of ['Claude Code-credentials', 'Claude Code - credentials', 'Claude Code']) {
+		try {
+			const proc = await spawn('security', ['find-generic-password', '-s', service, '-w']);
+			const raw = proc.stdout.trim();
+			if (raw !== '') {
+				creds = JSON.parse(raw) as Record<string, unknown>;
+				break;
+			}
+		} catch {
+			// Keychain entry not found
+		}
+	}
+
+	// File fallback
+	if (creds == null) {
+		try {
+			const credsPath = path.join(os.homedir(), '.claude', '.credentials.json');
+			const raw = await readFile(credsPath, 'utf-8');
+			creds = JSON.parse(raw) as Record<string, unknown>;
+		} catch {
+			// File not available
+		}
+	}
+
+	if (creds == null) {
+		return null;
+	}
+
+	const oauth = creds.claudeAiOauth as Record<string, unknown> | undefined;
+	if (oauth == null) {
+		return null;
+	}
+
+	// Direct API key stored by Claude Code
+	if (typeof oauth.apiKey === 'string' && oauth.apiKey !== '') {
+		return {
+			'x-api-key': oauth.apiKey,
+			'anthropic-version': '2023-06-01',
+		};
+	}
+
+	let accessToken = typeof oauth.accessToken === 'string' ? oauth.accessToken : null;
+	const expiresAt = typeof oauth.expiresAt === 'number' ? oauth.expiresAt : 0;
+	const refreshToken = typeof oauth.refreshToken === 'string' ? oauth.refreshToken : null;
+
+	// Refresh if expired or expiring within 5 minutes
+	if (expiresAt > 0 && expiresAt / 1000 < Date.now() / 1000 + 300 && refreshToken != null) {
+		try {
+			const response = await fetch(OAUTH_REFRESH_URL, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					grant_type: 'refresh_token',
+					refresh_token: refreshToken,
+					client_id: OAUTH_CLIENT_ID,
+				}),
+			});
+			const res = response as unknown as { ok: boolean; json: () => Promise<unknown> };
+			if (res.ok) {
+				const data = (await res.json()) as { access_token?: string };
+				if (typeof data.access_token === 'string') {
+					accessToken = data.access_token;
+				}
+			}
+		} catch {
+			// Refresh failed — try with existing token anyway
+		}
+	}
+
+	if (accessToken != null && accessToken !== '') {
+		return {
+			Authorization: `Bearer ${accessToken}`,
+			'anthropic-version': '2023-06-01',
+			'anthropic-beta': 'oauth-2025-04-20',
+		};
+	}
+
+	return null;
+}
+
+/**
+ * Generates AI titles for multiple sessions in a single API call.
+ * Auth: Claude Code OAuth credentials > ANTHROPIC_API_KEY > claude CLI fallback.
+ */
+async function generateAITitlesBatch(
+	sessions: Array<{ index: number; messages: string[] }>,
+): Promise<Map<number, string>> {
+	const result = new Map<number, string>();
+	if (sessions.length === 0) {
+		return result;
+	}
+
+	const numbered = sessions.map((s) => `${s.index}. ${s.messages.join(' | ')}`).join('\n');
+
+	const prompt = `Generate concise titles (max 8 words each) for these ${sessions.length} Claude Code sessions. Output ONLY numbered titles matching the input numbers, one per line. No other text.\n\n${numbered}`;
+
+	let output: string | null = null;
+
+	// Try direct API with OAuth/API key (no session pollution)
+	const authHeaders = await getClaudeAuthHeaders();
+	if (authHeaders != null) {
+		try {
+			const response = await fetch('https://api.anthropic.com/v1/messages', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					...authHeaders,
+				},
+				body: JSON.stringify({
+					model: 'claude-haiku-4-5-20251001',
+					max_tokens: 1024,
+					messages: [{ role: 'user', content: prompt }],
+				}),
+			});
+			const res = response as unknown as { ok: boolean; json: () => Promise<unknown> };
+			if (res.ok) {
+				const data = (await res.json()) as { content?: Array<{ text?: string }> };
+				output = data.content?.[0]?.text ?? null;
+			}
+		} catch {
+			// API call failed — fall through to CLI
+		}
+	}
+
+	// Fallback: claude CLI (creates a session entry but works without credentials file)
+	if (output == null) {
+		try {
+			const proc = await spawn('claude', ['-p', prompt, '--model', 'haiku']);
+			output = proc.stdout.trim();
+		} catch {
+			// CLI not available
+		}
+	}
+
+	if (output != null) {
+		for (const line of output.split('\n')) {
+			const match = line.match(/^(\d+)\.\s*(.+)/);
+			if (match != null) {
+				const idx = Number.parseInt(match[1]!, 10);
+				const title = match[2]!.trim();
+				if (title.length > 0 && title.length <= 80) {
+					result.set(idx, title);
+				}
+			}
+		}
+	}
+
+	return result;
+}
+
 /**
  * Resolves a session title from JSONL file content.
  * Priority: cached title > compaction summary (isCompactSummary user entry)
- * > legacy summary > slug > first user message.
+ * > legacy summary > AI-generated title > slug (last resort).
  */
 async function resolveSessionTitle(
 	sessionId: string,
 	project: string | undefined,
 	claudePaths: string[],
-): Promise<{ title: string; startTime: string } | null> {
+): Promise<
+	| { title: string; startTime: string }
+	| { title: null; startTime: string; userMessages: string[]; slug: string | null }
+	| null
+> {
 	const cacheDir = path.join(os.homedir(), '.claude', 'session-titles');
 	const cachePath = path.join(cacheDir, sessionId);
 
-	// Check cache — versioned format: "v6\n<title>\n<startTime>"
-	const CACHE_VERSION = 'v6';
+	// Check cache — versioned format: "v8\n<title>\n<startTime>"
+	const CACHE_VERSION = 'v9';
 	try {
 		const cached = await readFile(cachePath, 'utf-8');
 		const lines = cached.trim().split('\n');
@@ -266,9 +442,10 @@ async function resolveSessionTitle(
 	let compactionTitle: string | null = null;
 	let summaryTitle: string | null = null;
 	let userMessageTitle: string | null = null;
+	const userMessages: string[] = [];
 	let startTime: string | null = null;
 
-	// Phase 1: quick scan of first 50 lines for slug, startTime, userMessage, and early compaction
+	// Phase 1: quick scan of first 50 lines for slug, startTime, userMessages, and early compaction
 	const fileStream1 = createReadStream(jsonlPath, { encoding: 'utf-8' });
 	const rl1 = createInterface({
 		input: fileStream1,
@@ -304,12 +481,19 @@ async function resolveSessionTitle(
 			if (summaryTitle == null && parsed.type === 'summary' && typeof parsed.summary === 'string') {
 				summaryTitle = parsed.summary.slice(0, 60).trim();
 			}
-			if (userMessageTitle == null && parsed.type === 'user') {
+			if (parsed.type === 'user' && parsed.isCompactSummary !== true) {
 				const msg = parsed.message as Record<string, unknown> | undefined;
 				if (msg?.role === 'user') {
 					const content = msg.content;
 					if (typeof content === 'string' && !/^<[a-z]/i.test(content)) {
-						userMessageTitle = content.split('\n')[0]!.slice(0, 60).trim();
+						// Collect first user message as title fallback
+						if (userMessageTitle == null) {
+							userMessageTitle = truncateAtWord(content.split('\n')[0]!.trim(), 60);
+						}
+						// Collect up to 3 user messages for AI title generation
+						if (userMessages.length < 3) {
+							userMessages.push(truncateAtWord(content.split('\n')[0]!.trim(), 120));
+						}
 					}
 				}
 			}
@@ -354,21 +538,30 @@ async function resolveSessionTitle(
 		fileStream2.destroy();
 	}
 
-	// Pick best title: compaction summary > legacy summary > slug > user message
-	const title = compactionTitle ?? summaryTitle ?? slug ?? userMessageTitle;
-	if (title == null || startTime == null) {
-		return null;
+	// Only compaction/summary titles are deterministic — use directly
+	const title = compactionTitle ?? summaryTitle;
+
+	if (title != null && startTime != null) {
+		try {
+			await mkdir(cacheDir, { recursive: true });
+			await writeFile(cachePath, `${CACHE_VERSION}\n${title}\n${startTime}`, 'utf-8');
+		} catch {
+			// Cache write failure is non-fatal
+		}
+		return { title, startTime };
 	}
 
-	// Cache the derived title (versioned format)
-	try {
-		await mkdir(cacheDir, { recursive: true });
-		await writeFile(cachePath, `${CACHE_VERSION}\n${title}\n${startTime}`, 'utf-8');
-	} catch {
-		// Cache write failure is non-fatal
+	// No deterministic title — return messages for AI generation
+	if (startTime != null && userMessages.length > 0) {
+		return { title: null, startTime, userMessages, slug };
 	}
 
-	return { title, startTime };
+	// Absolute fallback: slug only (no user messages to generate from)
+	if (slug != null && startTime != null) {
+		return { title: slug, startTime };
+	}
+
+	return null;
 }
 
 function formatStartTime(timestamp: string, timezone?: string): string {
@@ -385,16 +578,23 @@ function formatStartTime(timestamp: string, timezone?: string): string {
 /**
  * Replaces temporary `lead:sessionId` agentIds with meaningful session titles.
  * Falls back to project/lead-hash when title can't be derived.
+ * Batches all AI title requests into a single `claude -p` call.
  */
 async function resolveLeadDisplayNames(agents: AgentUsage[], timezone?: string): Promise<void> {
 	let claudePaths: string[] | null = null;
+	const needsAI: Array<{
+		agentIdx: number;
+		startTime: string;
+		messages: string[];
+		slug: string | null;
+	}> = [];
 
-	for (const agent of agents) {
+	for (let i = 0; i < agents.length; i++) {
+		const agent = agents[i]!;
 		if (!agent.agentId.startsWith('lead:') || agent.sessionId == null) {
 			continue;
 		}
 
-		// Lazy-load claude paths
 		if (claudePaths == null) {
 			try {
 				claudePaths = getClaudePaths();
@@ -404,12 +604,52 @@ async function resolveLeadDisplayNames(agents: AgentUsage[], timezone?: string):
 		}
 
 		const titleInfo = await resolveSessionTitle(agent.sessionId, agent.project, claudePaths);
-		if (titleInfo != null) {
-			agent.agentId = `${titleInfo.title} · ${formatStartTime(titleInfo.startTime, timezone)}`;
-		} else {
-			// Fallback: project/lead-hash
+		if (titleInfo == null) {
+			// No data at all — fallback to project/lead-hash
 			const prefix = agent.project != null ? `${shortProjectName(agent.project)}/` : '';
 			agent.agentId = `${prefix}${deriveAgentId({ sessionId: agent.sessionId })}`;
+		} else if (titleInfo.title != null) {
+			// Got a resolved title (cached, compaction, or user message)
+			agent.agentId = `${titleInfo.title} · ${formatStartTime(titleInfo.startTime, timezone)}`;
+		} else {
+			// Needs AI title generation — collect for batch
+			needsAI.push({
+				agentIdx: i,
+				startTime: titleInfo.startTime,
+				messages: titleInfo.userMessages,
+				slug: titleInfo.slug,
+			});
+		}
+	}
+
+	// Batch AI title generation in a single claude call
+	if (needsAI.length > 0) {
+		const batchInput = needsAI.map((item, idx) => ({ index: idx + 1, messages: item.messages }));
+		const aiTitles = await generateAITitlesBatch(batchInput);
+
+		const cacheDir = path.join(os.homedir(), '.claude', 'session-titles');
+		const CACHE_VERSION = 'v9';
+
+		for (const item of needsAI) {
+			const agent = agents[item.agentIdx]!;
+			const aiTitle = aiTitles.get(needsAI.indexOf(item) + 1);
+			const finalTitle = aiTitle ?? item.slug ?? 'Untitled session';
+
+			agent.agentId = `${finalTitle} · ${formatStartTime(item.startTime, timezone)}`;
+
+			// Cache the AI-generated title
+			if (agent.sessionId != null) {
+				try {
+					await mkdir(cacheDir, { recursive: true });
+					await writeFile(
+						path.join(cacheDir, agent.sessionId),
+						`${CACHE_VERSION}\n${finalTitle}\n${item.startTime}`,
+						'utf-8',
+					);
+				} catch {
+					// Cache write failure is non-fatal
+				}
+			}
 		}
 	}
 }
