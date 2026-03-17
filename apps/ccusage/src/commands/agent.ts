@@ -25,7 +25,7 @@ import { createTotalsObject, getTotalTokens } from '../calculate-cost.ts';
 import { getClaudePaths, loadAgentUsageData } from '../data-loader.ts';
 import { log, logger } from '../logger.ts';
 
-const CACHE_VERSION = 'v15';
+const CACHE_VERSION = 'v16';
 
 /**
  * Formats a number in compact form: 999, 1.2K, 12.4K, 1.2M, 12.4M, 1.2B
@@ -358,7 +358,21 @@ async function generateAITitlesBatch(
 
 	const numbered = sessions.map((s) => `${s.index}. ${s.messages.join(' | ')}`).join('\n');
 
-	const prompt = `Generate a short noun-phrase title (max 30 characters, 3-5 words) for each Claude Code session below. Focus on the task or goal. No verbs at the start, no "User asked to..." framing. Output ONLY numbered titles matching the input numbers, one per line.\n\n${numbered}`;
+	const prompt = `Generate a short noun-phrase title (max 30 characters, 3-5 words) for each Claude Code session below.
+
+Rules:
+- Start with a NOUN, not a verb or gerund. "Investigate", "Fix", "Debugging", "Add" are NOT valid starts.
+- Valid starts: "PR Review", "API Key Setup", "Configuration Update", "Bug Fix for X", etc.
+- No "User asked to..." framing.
+
+Examples of BAD → GOOD:
+- "Investigate and fix" → "Bug Investigation"
+- "Debugging the API" → "API Debug Session"
+- "Add new feature" → "New Feature Addition"
+
+Output ONLY numbered titles matching the input numbers, one per line.
+
+${numbered}`;
 
 	let output: string | null = null;
 
