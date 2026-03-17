@@ -575,7 +575,14 @@ async function resolveSessionTitle(
 						if (textContent == null) {
 							continue;
 						}
-						const firstLine = textContent.split('\n')[0]!.trim();
+						// Find first non-empty line that isn't a bare UUID/hash
+						const uuidPattern = /^[\da-f-]{8,}$/i;
+						const firstLine =
+							textContent
+								.split('\n')
+								.map((l) => l.trim())
+								.find((l) => l.length > 0 && !uuidPattern.test(l)) ??
+							textContent.split('\n')[0]!.trim();
 						if (firstLine.length > 0) {
 							// Only set deterministic title from substantive messages
 							if (firstLine.length >= 10 && firstLine.includes(' ') && userMessageTitle == null) {
