@@ -326,7 +326,7 @@ async function generateAITitlesBatch(
 
 	const numbered = sessions.map((s) => `${s.index}. ${s.messages.join(' | ')}`).join('\n');
 
-	const prompt = `Generate concise titles (max 8 words each) for these ${sessions.length} Claude Code sessions. Output ONLY numbered titles matching the input numbers, one per line. No other text.\n\n${numbered}`;
+	const prompt = `Generate concise titles (max 8 words each) for these ${sessions.length} Claude Code sessions based on what the user asked for. Focus on the TASK or GOAL, not greetings. Output ONLY numbered titles matching the input numbers, one per line. No other text.\n\n${numbered}`;
 
 	let output: string | null = null;
 
@@ -399,8 +399,9 @@ async function resolveSessionTitle(
 	const cacheDir = path.join(os.homedir(), '.claude', 'session-titles');
 	const cachePath = path.join(cacheDir, sessionId);
 
-	// Check cache — versioned format: "v8\n<title>\n<startTime>"
-	const CACHE_VERSION = 'v10';
+	// Check cache — versioned format: "v11\n<title>\n<startTime>"
+	// v11: invalidate caches from v10 (fixed trivial message filtering)
+	const CACHE_VERSION = 'v11';
 	try {
 		const cached = await readFile(cachePath, 'utf-8');
 		const lines = cached.trim().split('\n');
@@ -497,13 +498,16 @@ async function resolveSessionTitle(
 						}
 					}
 					if (textContent != null && !/^<[a-z]/i.test(textContent)) {
-						// Collect first user message as title fallback
-						if (userMessageTitle == null) {
-							userMessageTitle = truncateAtWord(textContent.split('\n')[0]!.trim(), 60);
-						}
-						// Collect up to 3 user messages for AI title generation
-						if (userMessages.length < 3) {
-							userMessages.push(truncateAtWord(textContent.split('\n')[0]!.trim(), 120));
+						const firstLine = textContent.split('\n')[0]!.trim();
+						// Skip trivially short messages ("hello", "ok", "yes", etc.)
+						const isSubstantive = firstLine.length >= 10 && firstLine.includes(' ');
+						if (isSubstantive) {
+							if (userMessageTitle == null) {
+								userMessageTitle = truncateAtWord(firstLine, 60);
+							}
+							if (userMessages.length < 3) {
+								userMessages.push(truncateAtWord(firstLine, 120));
+							}
 						}
 					}
 				}
@@ -637,7 +641,7 @@ async function resolveLeadDisplayNames(agents: AgentUsage[], timezone?: string):
 		const aiTitles = await generateAITitlesBatch(batchInput);
 
 		const cacheDir = path.join(os.homedir(), '.claude', 'session-titles');
-		const CACHE_VERSION = 'v10';
+		const CACHE_VERSION = 'v11';
 
 		for (const item of needsAI) {
 			const agent = agents[item.agentIdx]!;
