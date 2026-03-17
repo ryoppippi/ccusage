@@ -356,7 +356,12 @@ async function generateAITitlesBatch(
 		return result;
 	}
 
-	const numbered = sessions.map((s) => `${s.index}. ${s.messages.join(' | ')}`).join('\n');
+	const numbered = sessions
+		.map((s) => {
+			const joined = s.messages.join(' | ');
+			return `${s.index}. ${joined.length > 1000 ? `${joined.slice(0, 1000)}…` : joined}`;
+		})
+		.join('\n');
 
 	const prompt = `Generate a short noun-phrase title (max 30 characters, 3-5 words) for each Claude Code session below.
 
@@ -589,7 +594,7 @@ async function resolveSessionTitle(
 								userMessageTitle = firstLine;
 							}
 							// Collect ALL non-empty messages for AI title generation
-							if (userMessages.length < 3) {
+							if (userMessages.length < 5) {
 								userMessages.push(truncateAtWord(firstLine, 120));
 							}
 						}
@@ -763,7 +768,8 @@ async function resolveLeadDisplayNames(
 			} else {
 				// No AI title (no substantive messages) — show truncated ID + time + hint
 				const shortId = agent.sessionId?.slice(0, 8) ?? 'Untitled';
-				const firstMsg = item.messages[0];
+				const uuidLike = /^[\da-f-]{8,}$/i;
+				const firstMsg = item.messages.find((m) => !uuidLike.test(m));
 				const hint =
 					firstMsg != null
 						? ` ("${firstMsg.length > 30 ? `${firstMsg.slice(0, 30)}…` : firstMsg}")`
@@ -777,7 +783,8 @@ async function resolveLeadDisplayNames(
 		for (const item of needsAI) {
 			const agent = agents[item.agentIdx]!;
 			const shortId = agent.sessionId?.slice(0, 8) ?? 'Untitled';
-			const firstMsg = item.messages[0];
+			const uuidLike = /^[\da-f-]{8,}$/i;
+			const firstMsg = item.messages.find((m) => !uuidLike.test(m));
 			const hint =
 				firstMsg != null
 					? ` ("${firstMsg.length > 30 ? `${firstMsg.slice(0, 30)}…` : firstMsg}")`
