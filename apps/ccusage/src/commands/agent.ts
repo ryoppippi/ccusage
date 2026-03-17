@@ -25,6 +25,8 @@ import { createTotalsObject, getTotalTokens } from '../calculate-cost.ts';
 import { getClaudePaths, loadAgentUsageData } from '../data-loader.ts';
 import { log, logger } from '../logger.ts';
 
+const CACHE_VERSION = 'v15';
+
 /**
  * Formats a number in compact form: 999, 1.2K, 12.4K, 1.2M, 12.4M, 1.2B
  * Keeps output short (max ~6 chars) so table columns don't overflow.
@@ -43,6 +45,14 @@ function formatCompact(num: number): string {
 	}
 	const b = num / 1_000_000_000;
 	return b < 10 ? `${b.toFixed(1)}B` : `${Math.round(b)}B`;
+}
+
+/**
+ * Sanitizes a string for safe use as a filesystem path component.
+ * Strips path traversal sequences and replaces invalid characters.
+ */
+function sanitizePathComponent(name: string): string {
+	return path.basename(name.replace(/[^\w-]/g, '_'));
 }
 
 /**
@@ -260,14 +270,20 @@ async function getClaudeAuthHeaders(): Promise<Record<string, string> | null> {
 		}
 	}
 
-	// File fallback
+	// File fallback — try both config locations
 	if (creds == null) {
-		try {
-			const credsPath = path.join(os.homedir(), '.claude', '.credentials.json');
-			const raw = await readFile(credsPath, 'utf-8');
-			creds = JSON.parse(raw) as Record<string, unknown>;
-		} catch {
-			// File not available
+		const credsDirs = [
+			path.join(os.homedir(), '.claude'),
+			path.join(os.homedir(), '.config', 'claude'),
+		];
+		for (const dir of credsDirs) {
+			try {
+				const raw = await readFile(path.join(dir, '.credentials.json'), 'utf-8');
+				creds = JSON.parse(raw) as Record<string, unknown>;
+				break;
+			} catch {
+				// File not available
+			}
 		}
 	}
 
@@ -303,6 +319,7 @@ async function getClaudeAuthHeaders(): Promise<Record<string, string> | null> {
 					refresh_token: refreshToken,
 					client_id: OAUTH_CLIENT_ID,
 				}),
+				signal: AbortSignal.timeout(10_000),
 			});
 			const res = response as unknown as { ok: boolean; json: () => Promise<unknown> };
 			if (res.ok) {
@@ -360,6 +377,7 @@ async function generateAITitlesBatch(
 					max_tokens: 1024,
 					messages: [{ role: 'user', content: prompt }],
 				}),
+				signal: AbortSignal.timeout(30_000),
 			});
 			const res = response as unknown as { ok: boolean; json: () => Promise<unknown> };
 			if (res.ok) {
@@ -414,9 +432,7 @@ async function resolveSessionTitle(
 	const cacheDir = path.join(os.homedir(), '.claude', 'session-titles');
 	const cachePath = path.join(cacheDir, sessionId);
 
-	// Check cache — versioned format: "v12\n<title>\n<startTime>"
-	// v12: invalidate caches from v11 (filter bracketed AI placeholders)
-	const CACHE_VERSION = 'v15';
+	// Check cache — versioned format: "v15\n<title>\n<startTime>"
 	try {
 		const cached = await readFile(cachePath, 'utf-8');
 		const lines = cached.trim().split('\n');
@@ -640,10 +656,14 @@ function formatStartTime(timestamp: string, timezone?: string): string {
 
 /**
  * Replaces temporary `lead:sessionId` agentIds with meaningful session titles.
- * Falls back to project/lead-hash when title can't be derived.
+ * Falls back to project/lead-xxxx (4-char session prefix) when title can't be derived.
  * Batches all AI title requests into a single API call.
  */
-async function resolveLeadDisplayNames(agents: AgentUsage[], timezone?: string): Promise<void> {
+async function resolveLeadDisplayNames(
+	agents: AgentUsage[],
+	timezone?: string,
+	offline = false,
+): Promise<void> {
 	let claudePaths: string[] | null = null;
 	const needsAI: Array<{
 		agentIdx: number;
@@ -665,9 +685,14 @@ async function resolveLeadDisplayNames(agents: AgentUsage[], timezone?: string):
 			}
 		}
 
-		const titleInfo = await resolveSessionTitle(agent.sessionId, agent.project, claudePaths);
+		let titleInfo: Awaited<ReturnType<typeof resolveSessionTitle>> = null;
+		try {
+			titleInfo = await resolveSessionTitle(agent.sessionId, agent.project, claudePaths);
+		} catch {
+			// Skip unreadable JSONL files — don't abort the whole report
+		}
 		if (titleInfo == null) {
-			// No data at all — fallback to project/lead-hash
+			// No data at all — fallback to project/lead-xxxx (4-char session prefix)
 			const prefix = agent.project != null ? `${shortProjectName(agent.project)}/` : '';
 			agent.agentId = `${prefix}${deriveAgentId({ sessionId: agent.sessionId })}`;
 		} else if (titleInfo.title != null) {
@@ -685,13 +710,12 @@ async function resolveLeadDisplayNames(agents: AgentUsage[], timezone?: string):
 		}
 	}
 
-	// Batch AI title generation in a single claude call
-	if (needsAI.length > 0) {
+	// Batch AI title generation in a single claude call (skip in offline mode)
+	if (needsAI.length > 0 && !offline) {
 		const batchInput = needsAI.map((item, idx) => ({ index: idx + 1, messages: item.messages }));
 		const aiTitles = await generateAITitlesBatch(batchInput);
 
 		const cacheDir = path.join(os.homedir(), '.claude', 'session-titles');
-		const CACHE_VERSION = 'v15';
 
 		for (const item of needsAI) {
 			const agent = agents[item.agentIdx]!;
@@ -726,6 +750,19 @@ async function resolveLeadDisplayNames(agents: AgentUsage[], timezone?: string):
 				const line1 = joinParts([shortId, formatStartTime(item.startTime, timezone)]) + hint;
 				agent.agentId = agent.sessionId != null ? `${line1}\n${agent.sessionId}` : line1;
 			}
+		}
+	} else if (needsAI.length > 0) {
+		// Offline mode — use fallback display for sessions that need AI
+		for (const item of needsAI) {
+			const agent = agents[item.agentIdx]!;
+			const shortId = agent.sessionId?.slice(0, 8) ?? 'Untitled';
+			const firstMsg = item.messages[0];
+			const hint =
+				firstMsg != null
+					? ` ("${firstMsg.length > 30 ? `${firstMsg.slice(0, 30)}…` : firstMsg}")`
+					: '';
+			const line1 = joinParts([shortId, formatStartTime(item.startTime, timezone)]) + hint;
+			agent.agentId = agent.sessionId != null ? `${line1}\n${agent.sessionId}` : line1;
 		}
 	}
 }
@@ -953,7 +990,11 @@ async function discoverOrphanTeams(
 		try {
 			await mkdir(cacheDir, { recursive: true });
 			for (const [teamName, leadSessionId] of newlyDiscovered) {
-				await writeFile(path.join(cacheDir, teamName), leadSessionId, 'utf-8');
+				await writeFile(
+					path.join(cacheDir, sanitizePathComponent(teamName)),
+					leadSessionId,
+					'utf-8',
+				);
 			}
 		} catch {
 			// cache write failure is non-fatal
@@ -1133,7 +1174,13 @@ async function loadLeadTitleCache(teamLeadMap: Map<string, string>): Promise<Map
 		try {
 			const raw = await readFile(path.join(cacheDir, sessionId), 'utf-8');
 			const lines = raw.trim().split('\n');
-			if (lines.length >= 2 && lines[1] != null && lines[1] !== '' && isValidTitle(lines[1])) {
+			if (
+				lines[0] === CACHE_VERSION &&
+				lines.length >= 2 &&
+				lines[1] != null &&
+				lines[1] !== '' &&
+				isValidTitle(lines[1])
+			) {
 				cache.set(sessionId, lines[1]);
 			}
 		} catch {
@@ -1187,18 +1234,19 @@ export const agentCommand = define({
 		}
 
 		// Resolve date range: explicit --since/--until > --days > --all > default (today)
-		let since = ctx.values.since;
-		const until = ctx.values.until;
+		let since = mergedOptions.since;
+		const until = mergedOptions.until;
 
 		if (since == null && until == null) {
-			if (ctx.values.days != null) {
+			if (mergedOptions.days != null) {
+				const days = Math.max(1, Math.floor(mergedOptions.days));
 				const now = new Date();
 				const daysAgo = new Date(now);
-				daysAgo.setDate(daysAgo.getDate() - (ctx.values.days - 1));
-				since = formatLocalDateYYYYMMDD(daysAgo, ctx.values.timezone);
-			} else if (!ctx.values.all) {
+				daysAgo.setDate(daysAgo.getDate() - (days - 1));
+				since = formatLocalDateYYYYMMDD(daysAgo, mergedOptions.timezone);
+			} else if (!mergedOptions.all) {
 				// Default: today only
-				since = formatLocalDateYYYYMMDD(new Date(), ctx.values.timezone);
+				since = formatLocalDateYYYYMMDD(new Date(), mergedOptions.timezone);
 			}
 		}
 
@@ -1207,12 +1255,12 @@ export const agentCommand = define({
 		const agentData = await loadAgentUsageData({
 			since,
 			until,
-			mode: ctx.values.mode,
-			offline: ctx.values.offline,
-			timezone: ctx.values.timezone,
-			locale: ctx.values.locale,
-			teamFilter: ctx.values.team,
-			sessionFilter: ctx.values.session,
+			mode: mergedOptions.mode,
+			offline: mergedOptions.offline,
+			timezone: mergedOptions.timezone,
+			locale: mergedOptions.locale,
+			teamFilter: mergedOptions.team,
+			sessionFilter: mergedOptions.session,
 			onProgress: (step) => logger.start(step),
 		});
 
@@ -1228,11 +1276,11 @@ export const agentCommand = define({
 		}
 
 		// Role-level grouping (default) vs per-instance view
-		const displayData = ctx.values.instances ? agentData : aggregateByRole(agentData);
+		const displayData = mergedOptions.instances ? agentData : aggregateByRole(agentData);
 
 		// Resolve lead display names (session titles) for aggregated view
-		if (!ctx.values.instances) {
-			await resolveLeadDisplayNames(displayData, ctx.values.timezone);
+		if (!mergedOptions.instances) {
+			await resolveLeadDisplayNames(displayData, mergedOptions.timezone, mergedOptions.offline);
 		}
 
 		// Sort by cost descending (top spenders first)
@@ -1240,7 +1288,7 @@ export const agentCommand = define({
 
 		// Group team members under their lead sessions
 		let groupedRows: DisplayRow[] | null = null;
-		if (!ctx.values.instances) {
+		if (!mergedOptions.instances) {
 			let claudePaths: string[];
 			try {
 				claudePaths = getClaudePaths();
@@ -1292,8 +1340,8 @@ export const agentCommand = define({
 				totals: createTotalsObject(totals),
 			};
 
-			if (ctx.values.jq != null) {
-				const jqResult = await processWithJq(jsonOutput, ctx.values.jq);
+			if (mergedOptions.jq != null) {
+				const jqResult = await processWithJq(jsonOutput, mergedOptions.jq);
 				if (Result.isFailure(jqResult)) {
 					logger.error(jqResult.error.message);
 					process.exit(1);
@@ -1345,7 +1393,7 @@ export const agentCommand = define({
 				compactHead: compactHeaders,
 				compactColAligns: compactAligns,
 				compactThreshold: 100,
-				forceCompact: ctx.values.compact,
+				forceCompact: mergedOptions.compact,
 			});
 
 			const rows =
@@ -1374,7 +1422,7 @@ export const agentCommand = define({
 					displayName = data.agentId;
 				}
 				const pct = totals.totalCost > 0 ? (data.totalCost / totals.totalCost) * 100 : 0;
-				const pctStr = pct < 0.1 ? '<0.1' : pct.toFixed(1);
+				const pctStr = data.totalCost === 0 ? '-' : pct < 0.1 ? '<0.1' : pct.toFixed(1);
 				table.push([
 					displayName,
 					data.modelsUsed.length > 0 ? formatModelsDisplayMultiline(data.modelsUsed) : '',
@@ -1387,7 +1435,7 @@ export const agentCommand = define({
 					pctStr,
 				]);
 
-				if (ctx.values.breakdown) {
+				if (mergedOptions.breakdown) {
 					pushBreakdownRows(table, data.modelBreakdowns);
 				}
 			}
@@ -1408,7 +1456,7 @@ export const agentCommand = define({
 				pc.yellow(formatCompact(totals.cacheReadTokens)),
 				pc.yellow(formatCompact(grandTotal)),
 				pc.yellow(formatCurrency(totals.totalCost)),
-				pc.yellow('100'),
+				pc.yellow(totals.totalCost > 0 ? '100' : '-'),
 			]);
 
 			log(table.toString());

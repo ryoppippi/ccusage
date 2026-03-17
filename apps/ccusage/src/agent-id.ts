@@ -55,8 +55,11 @@ export function deriveAgentRole(entry: AgentEntry): string {
 
 // Common parent/container directories that don't identify a specific project
 const CONTAINER_DIRS = new Set([
+	'Users',
+	'home',
 	'Projects',
 	'projects',
+	'IdeaProjects',
 	'repos',
 	'Repos',
 	'repositories',
@@ -81,8 +84,13 @@ const CONTAINER_DIRS = new Set([
  */
 export function shortProjectName(encoded: string): string {
 	const parts = encoded.split('-').filter(Boolean);
+	// Find the last non-container segment
 	for (let i = parts.length - 1; i >= 0; i--) {
 		if (!CONTAINER_DIRS.has(parts[i]!)) {
+			// Include the preceding non-container segment for disambiguation
+			if (i > 0 && !CONTAINER_DIRS.has(parts[i - 1]!)) {
+				return `${parts[i - 1]}-${parts[i]}`;
+			}
 			return parts[i]!;
 		}
 	}
@@ -153,8 +161,8 @@ if (import.meta.vitest != null) {
 			expect(shortProjectName('-Users-thomas-IdeaProjects-diana')).toBe('diana');
 		});
 
-		it('returns IdeaProjects as a normal directory name', () => {
-			expect(shortProjectName('-Users-thomas-IdeaProjects')).toBe('IdeaProjects');
+		it('skips container directory IdeaProjects', () => {
+			expect(shortProjectName('-Users-thomas-IdeaProjects')).toBe('thomas');
 		});
 
 		it('skips container directory Projects', () => {
@@ -166,7 +174,11 @@ if (import.meta.vitest != null) {
 		});
 
 		it('returns last segment when not a container', () => {
-			expect(shortProjectName('-Users-thomas-myapp')).toBe('myapp');
+			expect(shortProjectName('-Users-thomas-myapp')).toBe('thomas-myapp');
+		});
+
+		it('joins last two non-container segments for disambiguation', () => {
+			expect(shortProjectName('-Users-me-IdeaProjects-ccusage-fork')).toBe('ccusage-fork');
 		});
 
 		it('falls back to last segment when all are containers', () => {
