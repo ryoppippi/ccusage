@@ -307,6 +307,24 @@ export class ResponsiveTable {
 						processedRow = this.filterRowToCompact(processedRow, compactIndices);
 					}
 
+					// Truncate left-aligned text columns that exceed their column width
+					processedRow = processedRow.map((cell, index) => {
+						const colWidth = adjustedWidths[index];
+						if (colWidth == null || typeof cell !== 'string') {
+							return cell;
+						}
+						const align = colAligns[index];
+						if (align === 'right') {
+							return cell;
+						}
+						// Skip truncation for multiline cells — wordWrap handles them
+						if (cell.includes('\n')) {
+							return cell;
+						}
+						// Subtract 2 for cell padding
+						return this.truncateWithEllipsis(cell, colWidth - 2);
+					});
+
 					table.push(processedRow);
 				}
 			}
@@ -339,6 +357,35 @@ export class ResponsiveTable {
 
 			return table.toString();
 		}
+	}
+
+	/**
+	 * Truncates a string to fit within a column width, adding ellipsis if needed
+	 * @param text - Text to truncate
+	 * @param maxWidth - Maximum visual width (excluding cell padding)
+	 * @returns Truncated text with ellipsis if it was cut
+	 */
+	private truncateWithEllipsis(text: string, maxWidth: number): string {
+		if (maxWidth <= 0 || stringWidth(text) <= maxWidth) {
+			return text;
+		}
+		// Find the last space before the max width for word-boundary truncation
+		let truncated = '';
+		let width = 0;
+		for (const char of text) {
+			const charWidth = stringWidth(char);
+			if (width + charWidth > maxWidth - 1) {
+				break;
+			}
+			truncated += char;
+			width += charWidth;
+		}
+		// Try to break at a word boundary
+		const lastSpace = truncated.lastIndexOf(' ');
+		if (lastSpace > truncated.length * 0.5) {
+			truncated = truncated.slice(0, lastSpace);
+		}
+		return `${truncated}…`;
 	}
 
 	/**

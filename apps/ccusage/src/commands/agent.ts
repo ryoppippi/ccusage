@@ -513,7 +513,24 @@ async function resolveSessionTitle(
 							textContent = textBlock.text;
 						}
 					}
-					if (textContent != null && !/^<[a-z]/i.test(textContent)) {
+					if (textContent != null) {
+						// Extract inner text from <teammate-message> blocks
+						if (/^<teammate-message\b/i.test(textContent)) {
+							const innerMatch = textContent.match(
+								/<teammate-message[^>]*>([\s\S]*?)<\/teammate-message>/i,
+							);
+							if (innerMatch?.[1] != null) {
+								textContent = innerMatch[1].trim();
+							} else {
+								textContent = undefined;
+							}
+						} else if (/^<[a-z]/i.test(textContent)) {
+							// Skip other XML/HTML system content
+							textContent = undefined;
+						}
+						if (textContent == null) {
+							continue;
+						}
 						const firstLine = textContent.split('\n')[0]!.trim();
 						// Skip trivially short messages ("hello", "ok", "yes", etc.)
 						const isSubstantive = firstLine.length >= 10 && firstLine.includes(' ');
@@ -642,11 +659,9 @@ async function resolveLeadDisplayNames(agents: AgentUsage[], timezone?: string):
 			agent.agentId = `${prefix}${deriveAgentId({ sessionId: agent.sessionId })}`;
 		} else if (titleInfo.title != null) {
 			// Got a resolved title (cached, compaction, or user message)
-			agent.agentId = joinParts([
-				titleInfo.title,
-				formatStartTime(titleInfo.startTime, timezone),
-				agent.sessionId,
-			]);
+			// Line 1: title · timestamp, Line 2: full UUID
+			const line1 = joinParts([titleInfo.title, formatStartTime(titleInfo.startTime, timezone)]);
+			agent.agentId = agent.sessionId != null ? `${line1}\n${agent.sessionId}` : line1;
 		} else {
 			// Needs AI title generation — collect for batch
 			needsAI.push({
@@ -670,11 +685,9 @@ async function resolveLeadDisplayNames(agents: AgentUsage[], timezone?: string):
 			const aiTitle = aiTitles.get(needsAI.indexOf(item) + 1);
 
 			if (aiTitle != null) {
-				agent.agentId = joinParts([
-					aiTitle,
-					formatStartTime(item.startTime, timezone),
-					agent.sessionId,
-				]);
+				// Line 1: title · timestamp, Line 2: full UUID
+				const line1 = joinParts([aiTitle, formatStartTime(item.startTime, timezone)]);
+				agent.agentId = agent.sessionId != null ? `${line1}\n${agent.sessionId}` : line1;
 
 				// Cache only real AI-generated titles
 				if (agent.sessionId != null) {
@@ -945,14 +958,12 @@ function groupByTeamLead(
 	leadTitleCache: Map<string, string>,
 ): DisplayRow[] {
 	// Map leadSessionId → lead entry (if present in data)
+	// Leads are identified by having sessionId set. They may have teamName set (team-aware leads)
+	// or teamName null (standalone leads). Both are valid lead entries.
 	const leadBySession = new Map<string, AgentUsage>();
 	for (const d of displayData) {
-		if (d.agentId.startsWith('lead:') || d.sessionId != null) {
-			// After resolveLeadDisplayNames, leads no longer start with "lead:" —
-			// they have resolved titles. Identify leads by having sessionId + no teamName.
-			if (d.teamName == null && d.sessionId != null) {
-				leadBySession.set(d.sessionId, d);
-			}
+		if (d.sessionId != null && d.agentName == null) {
+			leadBySession.set(d.sessionId, d);
 		}
 	}
 
@@ -983,8 +994,8 @@ function groupByTeamLead(
 					teamNameGroups.set(d.teamName, [d]);
 				}
 			}
-		} else if (d.teamName == null && d.sessionId != null) {
-			// Lead entry — ensure group exists
+		} else if (d.sessionId != null && d.agentName == null) {
+			// Lead entry (with or without teamName) — ensure group exists
 			const existingGroup = leadGroups.get(d.sessionId);
 			if (existingGroup != null) {
 				existingGroup.lead = d;
