@@ -1,6 +1,6 @@
 import type { AgentUsage, ModelBreakdown } from '../data-loader.ts';
 import { createReadStream } from 'node:fs';
-import { mkdir, readFile, stat, writeFile } from 'node:fs/promises';
+import { mkdir, readdir, readFile, stat, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
@@ -648,6 +648,167 @@ async function resolveLeadDisplayNames(agents: AgentUsage[], timezone?: string):
 	}
 }
 
+/**
+ * Loads team configs from ~/.claude/teams/ to build a teamName → leadSessionId map.
+ */
+async function loadTeamLeadMap(claudePaths: string[]): Promise<Map<string, string>> {
+	const map = new Map<string, string>();
+	for (const cp of claudePaths) {
+		const teamsDir = path.join(cp, 'teams');
+		let entries: string[];
+		try {
+			entries = await readdir(teamsDir);
+		} catch {
+			continue;
+		}
+		for (const entry of entries) {
+			if (map.has(entry)) {
+				continue;
+			}
+			try {
+				const raw = await readFile(path.join(teamsDir, entry, 'config.json'), 'utf-8');
+				const config = JSON.parse(raw) as { leadSessionId?: string };
+				if (typeof config.leadSessionId === 'string') {
+					map.set(entry, config.leadSessionId);
+				}
+			} catch {
+				// Skip invalid configs
+			}
+		}
+	}
+	return map;
+}
+
+type DisplayRow = {
+	data: AgentUsage;
+	isLeadHeader: boolean; // header-only row for orphan leads (no usage data in current range)
+	indent: boolean; // team member indented under lead
+};
+
+/**
+ * Groups team members under their lead sessions using tree-style display.
+ * Leads with members appear first (sorted by total group cost), then ungrouped entries.
+ */
+function groupByTeamLead(
+	displayData: AgentUsage[],
+	teamLeadMap: Map<string, string>,
+	leadTitleCache: Map<string, string>,
+): DisplayRow[] {
+	// Map leadSessionId → lead entry (if present in data)
+	const leadBySession = new Map<string, AgentUsage>();
+	for (const d of displayData) {
+		if (d.agentId.startsWith('lead:') || d.sessionId != null) {
+			// After resolveLeadDisplayNames, leads no longer start with "lead:" —
+			// they have resolved titles. Identify leads by having sessionId + no teamName.
+			if (d.teamName == null && d.sessionId != null) {
+				leadBySession.set(d.sessionId, d);
+			}
+		}
+	}
+
+	// Group team members under leads
+	const leadGroups = new Map<string, { lead: AgentUsage | null; members: AgentUsage[] }>();
+	const ungrouped: AgentUsage[] = [];
+
+	for (const d of displayData) {
+		if (d.teamName != null && d.agentName != null) {
+			// Team member — find its lead
+			const leadSessionId = teamLeadMap.get(d.teamName);
+			if (leadSessionId != null) {
+				const group = leadGroups.get(leadSessionId);
+				if (group != null) {
+					group.members.push(d);
+				} else {
+					const lead = leadBySession.get(leadSessionId) ?? null;
+					leadGroups.set(leadSessionId, { lead, members: [d] });
+				}
+			} else {
+				ungrouped.push(d);
+			}
+		} else if (d.teamName == null && d.sessionId != null) {
+			// Lead entry — ensure group exists
+			const existingGroup = leadGroups.get(d.sessionId);
+			if (existingGroup != null) {
+				existingGroup.lead = d;
+			} else {
+				leadGroups.set(d.sessionId, { lead: d, members: [] });
+			}
+		} else {
+			ungrouped.push(d);
+		}
+	}
+
+	// Build sorted output: groups by total cost (lead + members), then ungrouped
+	const sortedGroups = Array.from(leadGroups.entries())
+		.map(([sessionId, group]) => {
+			const leadCost = group.lead?.totalCost ?? 0;
+			const memberCost = group.members.reduce((sum, m) => sum + m.totalCost, 0);
+			return { sessionId, ...group, totalCost: leadCost + memberCost };
+		})
+		.sort((a, b) => b.totalCost - a.totalCost);
+
+	const rows: DisplayRow[] = [];
+
+	for (const group of sortedGroups) {
+		if (group.lead != null) {
+			rows.push({ data: group.lead, isLeadHeader: false, indent: false });
+		} else {
+			// Orphan lead — create header-only row from cached title
+			const title = leadTitleCache.get(group.sessionId) ?? group.sessionId.slice(0, 8);
+			rows.push({
+				data: {
+					agentId: title,
+					agentName: undefined,
+					teamName: undefined,
+					sessionId: group.sessionId,
+					inputTokens: 0,
+					outputTokens: 0,
+					cacheCreationTokens: 0,
+					cacheReadTokens: 0,
+					totalCost: 0,
+					modelsUsed: [],
+					modelBreakdowns: [],
+				},
+				isLeadHeader: true,
+				indent: false,
+			});
+		}
+		// Sort members by cost descending
+		group.members.sort((a, b) => b.totalCost - a.totalCost);
+		for (const m of group.members) {
+			rows.push({ data: m, isLeadHeader: false, indent: true });
+		}
+	}
+
+	// Ungrouped entries (no team, or team not in config)
+	ungrouped.sort((a, b) => b.totalCost - a.totalCost);
+	for (const d of ungrouped) {
+		rows.push({ data: d, isLeadHeader: false, indent: false });
+	}
+
+	return rows;
+}
+
+/**
+ * Loads cached session titles for lead sessions (used for orphan lead headers).
+ */
+async function loadLeadTitleCache(teamLeadMap: Map<string, string>): Promise<Map<string, string>> {
+	const cache = new Map<string, string>();
+	const cacheDir = path.join(os.homedir(), '.claude', 'session-titles');
+	for (const sessionId of new Set(teamLeadMap.values())) {
+		try {
+			const raw = await readFile(path.join(cacheDir, sessionId), 'utf-8');
+			const lines = raw.trim().split('\n');
+			if (lines.length >= 2 && lines[1] != null && lines[1] !== '') {
+				cache.set(sessionId, lines[1]);
+			}
+		} catch {
+			// No cached title
+		}
+	}
+	return cache;
+}
+
 export const agentCommand = define({
 	name: 'agent',
 	description: 'Show usage report grouped by agent identity',
@@ -743,7 +904,23 @@ export const agentCommand = define({
 		// Sort by cost descending (top spenders first)
 		displayData.sort((a, b) => b.totalCost - a.totalCost);
 
-		// Calculate totals
+		// Group team members under their lead sessions
+		let groupedRows: DisplayRow[] | null = null;
+		if (!ctx.values.instances) {
+			let claudePaths: string[];
+			try {
+				claudePaths = getClaudePaths();
+			} catch {
+				claudePaths = [];
+			}
+			const teamLeadMap = await loadTeamLeadMap(claudePaths);
+			if (teamLeadMap.size > 0) {
+				const leadTitleCache = await loadLeadTitleCache(teamLeadMap);
+				groupedRows = groupByTeamLead(displayData, teamLeadMap, leadTitleCache);
+			}
+		}
+
+		// Calculate totals (from original data, not grouped rows which may include header-only rows)
 		const totals = displayData.reduce(
 			(acc, item) => ({
 				inputTokens: acc.inputTokens + item.inputTokens,
@@ -828,13 +1005,31 @@ export const agentCommand = define({
 				forceCompact: ctx.values.compact,
 			});
 
-			for (const data of displayData) {
+			const rows =
+				groupedRows ?? displayData.map((d) => ({ data: d, isLeadHeader: false, indent: false }));
+
+			for (const row of rows) {
+				const { data, isLeadHeader, indent } = row;
+
+				if (isLeadHeader) {
+					// Orphan lead header — title only, no usage columns
+					table.push([pc.dim(data.agentId), '', '', '', '', '', '', '']);
+					continue;
+				}
+
 				const totalTokens =
 					data.inputTokens + data.outputTokens + data.cacheCreationTokens + data.cacheReadTokens;
-				// Insert newline after '/' so team/member names wrap at semantic boundary
-				const displayName = data.agentId.includes('/')
-					? data.agentId.replace('/', '/\n')
-					: data.agentId;
+				let displayName: string;
+				if (indent) {
+					// Team member — show just the agent name with tree prefix
+					const name = data.agentName ?? data.agentId;
+					displayName = `  └─ ${name}`;
+				} else if (data.agentId.includes('/')) {
+					// Ungrouped team/member — wrap at '/' boundary
+					displayName = data.agentId.replace('/', '/\n');
+				} else {
+					displayName = data.agentId;
+				}
 				table.push([
 					displayName,
 					data.modelsUsed.length > 0 ? formatModelsDisplayMultiline(data.modelsUsed) : '',
