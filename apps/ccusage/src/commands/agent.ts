@@ -1264,7 +1264,7 @@ export const agentCommand = define({
 				head: headers,
 				style: { head: ['cyan'] },
 				colAligns: aligns,
-				colWidthOverrides: { 0: 36 },
+				colWidthOverrides: { 0: 46 },
 				compactHead: compactHeaders,
 				compactColAligns: compactAligns,
 				compactThreshold: 100,

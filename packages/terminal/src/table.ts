@@ -257,7 +257,8 @@ export class ResponsiveTable {
 				if (align === 'right') {
 					adjustedWidth = Math.max(adjustedWidth, 10);
 				} else if (index === 0) {
-					adjustedWidth = Math.max(adjustedWidth, 28);
+					// 38 = UUID (36) + 2 padding; ensures session IDs aren't truncated
+					adjustedWidth = Math.max(adjustedWidth, 38);
 				} else if (index === 1) {
 					adjustedWidth = Math.max(adjustedWidth, 12);
 				} else {
