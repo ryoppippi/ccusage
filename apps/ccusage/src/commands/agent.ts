@@ -694,6 +694,206 @@ async function loadTeamLeadMap(claudePaths: string[]): Promise<Map<string, strin
 	return map;
 }
 
+/**
+ * Reads the first few lines of a JSONL file to extract the teamName field.
+ */
+async function peekTeamName(filePath: string): Promise<string | null> {
+	const fileStream = createReadStream(filePath, { encoding: 'utf-8' });
+	const rl = createInterface({ input: fileStream, crlfDelay: Number.POSITIVE_INFINITY });
+	let lineCount = 0;
+	let teamName: string | null = null;
+
+	for await (const line of rl) {
+		if (line.trim().length === 0) {
+			continue;
+		}
+		lineCount++;
+		if (lineCount > 5) {
+			break;
+		}
+
+		try {
+			const parsed = JSON.parse(line) as Record<string, unknown>;
+			if (typeof parsed.teamName === 'string') {
+				teamName = parsed.teamName;
+				break;
+			}
+		} catch {
+			// skip unparseable lines
+		}
+	}
+
+	rl.close();
+	fileStream.destroy();
+	return teamName;
+}
+
+/**
+ * Discovers team→lead mappings for teams without configs by scanning subagent directories.
+ * Files in {project}/{leadSessionId}/subagents/*.jsonl contain team member data
+ * whose teamName may not have a ~/.claude/teams/ config entry.
+ */
+async function discoverOrphanTeams(
+	displayData: AgentUsage[],
+	teamLeadMap: Map<string, string>,
+	claudePaths: string[],
+): Promise<void> {
+	// Find teams not in the config-based map
+	const orphanTeams = new Set<string>();
+	for (const d of displayData) {
+		if (d.teamName != null && !teamLeadMap.has(d.teamName)) {
+			orphanTeams.add(d.teamName);
+		}
+	}
+	if (orphanTeams.size === 0) {
+		return;
+	}
+
+	// Phase 0: Load cached team→lead mappings (survives JSONL compaction)
+	const cacheDir = path.join(os.homedir(), '.claude', 'team-lead-cache');
+	try {
+		const cacheFiles = await readdir(cacheDir);
+		for (const file of cacheFiles) {
+			if (!orphanTeams.has(file)) {
+				continue;
+			}
+			try {
+				const leadSessionId = (await readFile(path.join(cacheDir, file), 'utf-8')).trim();
+				if (leadSessionId !== '') {
+					teamLeadMap.set(file, leadSessionId);
+					orphanTeams.delete(file);
+				}
+			} catch {
+				// skip unreadable cache entries
+			}
+		}
+	} catch {
+		// cache dir doesn't exist yet
+	}
+	if (orphanTeams.size === 0) {
+		return;
+	}
+
+	const leads = displayData.filter(
+		(d) => d.teamName == null && d.sessionId != null && d.project != null,
+	);
+	const newlyDiscovered = new Map<string, string>();
+
+	// Phase 1: Scan subagent directories of known lead sessions
+	for (const lead of leads) {
+		if (orphanTeams.size === 0) {
+			break;
+		}
+		for (const cp of claudePaths) {
+			const subagentsDir = path.join(cp, 'projects', lead.project!, lead.sessionId!, 'subagents');
+			let files: string[];
+			try {
+				files = await readdir(subagentsDir);
+			} catch {
+				continue;
+			}
+
+			for (const file of files) {
+				if (!file.endsWith('.jsonl')) {
+					continue;
+				}
+				const teamName = await peekTeamName(path.join(subagentsDir, file));
+				if (teamName != null && orphanTeams.has(teamName) && !teamLeadMap.has(teamName)) {
+					teamLeadMap.set(teamName, lead.sessionId!);
+					newlyDiscovered.set(teamName, lead.sessionId!);
+					orphanTeams.delete(teamName);
+					if (orphanTeams.size === 0) {
+						break;
+					}
+				}
+			}
+		}
+	}
+
+	if (orphanTeams.size > 0) {
+		// Phase 2: Scan lead JSONL files for TeamCreate tool uses referencing orphan teams.
+		// Some teams (e.g. spawned via TeamCreate) have no subagent files under the lead —
+		// the only link is the TeamCreate tool_use entry in the lead's conversation.
+		// After compaction, these entries are lost — that's why Phase 0 caches discoveries.
+		for (const lead of leads) {
+			if (orphanTeams.size === 0) {
+				break;
+			}
+			for (const cp of claudePaths) {
+				if (lead.project == null) {
+					continue;
+				}
+				const jsonlPath = path.join(cp, 'projects', lead.project, `${lead.sessionId}.jsonl`);
+				try {
+					await stat(jsonlPath);
+				} catch {
+					continue;
+				}
+
+				const fileStream = createReadStream(jsonlPath, { encoding: 'utf-8' });
+				const rl = createInterface({
+					input: fileStream,
+					crlfDelay: Number.POSITIVE_INFINITY,
+				});
+
+				for await (const line of rl) {
+					// Cheap string check before JSON parse
+					if (!line.includes('TeamCreate')) {
+						continue;
+					}
+
+					try {
+						const parsed = JSON.parse(line) as Record<string, unknown>;
+						if (parsed.type !== 'assistant') {
+							continue;
+						}
+						const msg = parsed.message as Record<string, unknown> | undefined;
+						const content = msg?.content;
+						if (!Array.isArray(content)) {
+							continue;
+						}
+
+						for (const block of content) {
+							const b = block as Record<string, unknown>;
+							if (b.type !== 'tool_use' || b.name !== 'TeamCreate') {
+								continue;
+							}
+							const input = b.input as Record<string, unknown> | undefined;
+							const tn = input?.team_name;
+							if (typeof tn === 'string' && orphanTeams.has(tn) && !teamLeadMap.has(tn)) {
+								teamLeadMap.set(tn, lead.sessionId!);
+								newlyDiscovered.set(tn, lead.sessionId!);
+								orphanTeams.delete(tn);
+							}
+						}
+					} catch {
+						// skip unparseable lines
+					}
+
+					if (orphanTeams.size === 0) {
+						break;
+					}
+				}
+
+				rl.close();
+				fileStream.destroy();
+			}
+		}
+	}
+
+	// Persist newly discovered mappings so they survive JSONL compaction
+	if (newlyDiscovered.size > 0) {
+		try {
+			await mkdir(cacheDir, { recursive: true });
+			for (const [teamName, leadSessionId] of newlyDiscovered) {
+				await writeFile(path.join(cacheDir, teamName), leadSessionId, 'utf-8');
+			}
+		} catch {
+			// cache write failure is non-fatal
+		}
+	}
+}
+
 type DisplayRow = {
 	data: AgentUsage;
 	isLeadHeader: boolean; // header-only row for orphan leads (no usage data in current range)
@@ -970,10 +1170,10 @@ export const agentCommand = define({
 				claudePaths = [];
 			}
 			const teamLeadMap = await loadTeamLeadMap(claudePaths);
-			if (teamLeadMap.size > 0) {
-				const leadTitleCache = await loadLeadTitleCache(teamLeadMap);
-				groupedRows = groupByTeamLead(displayData, teamLeadMap, leadTitleCache);
-			}
+			// Discover orphan teams (no config) by scanning subagent directories
+			await discoverOrphanTeams(displayData, teamLeadMap, claudePaths);
+			const leadTitleCache = await loadLeadTitleCache(teamLeadMap);
+			groupedRows = groupByTeamLead(displayData, teamLeadMap, leadTitleCache);
 		}
 
 		// Calculate totals (from original data, not grouped rows which may include header-only rows)
