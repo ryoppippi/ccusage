@@ -571,9 +571,9 @@ async function resolveSessionTitle(
 		return { title: null, startTime, userMessages };
 	}
 
-	// Absolute fallback: truncated sessionId (no user messages to generate from)
+	// Absolute fallback: no user messages to generate from
 	if (startTime != null) {
-		return { title: sessionId.slice(0, 8), startTime };
+		return { title: null, startTime, userMessages: [] };
 	}
 
 	return null;
@@ -646,22 +646,27 @@ async function resolveLeadDisplayNames(agents: AgentUsage[], timezone?: string):
 		for (const item of needsAI) {
 			const agent = agents[item.agentIdx]!;
 			const aiTitle = aiTitles.get(needsAI.indexOf(item) + 1);
-			const finalTitle = aiTitle ?? agent.sessionId?.slice(0, 8) ?? 'Untitled';
 
-			agent.agentId = `${finalTitle} · ${formatStartTime(item.startTime, timezone)}${agent.sessionId != null ? ` · ${agent.sessionId}` : ''}`;
+			if (aiTitle != null) {
+				agent.agentId = `${aiTitle} · ${formatStartTime(item.startTime, timezone)}${agent.sessionId != null ? ` · ${agent.sessionId}` : ''}`;
 
-			// Cache the AI-generated title
-			if (agent.sessionId != null) {
-				try {
-					await mkdir(cacheDir, { recursive: true });
-					await writeFile(
-						path.join(cacheDir, agent.sessionId),
-						`${CACHE_VERSION}\n${finalTitle}\n${item.startTime}`,
-						'utf-8',
-					);
-				} catch {
-					// Cache write failure is non-fatal
+				// Cache only real AI-generated titles
+				if (agent.sessionId != null) {
+					try {
+						await mkdir(cacheDir, { recursive: true });
+						await writeFile(
+							path.join(cacheDir, agent.sessionId),
+							`${CACHE_VERSION}\n${aiTitle}\n${item.startTime}`,
+							'utf-8',
+						);
+					} catch {
+						// Cache write failure is non-fatal
+					}
 				}
+			} else {
+				// No AI title (no substantive messages) — show truncated ID + time only
+				const shortId = agent.sessionId?.slice(0, 8) ?? 'Untitled';
+				agent.agentId = `${shortId} · ${formatStartTime(item.startTime, timezone)}`;
 			}
 		}
 	}
