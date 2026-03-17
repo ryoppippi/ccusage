@@ -352,14 +352,14 @@ export const statuslineCommand = define({
 							return { sessionCost: cost };
 						}
 
-						// If 'auto' mode (default), prefer Claude Code cost, fallback to ccusage
+						// If 'auto' mode (default), prefer ccusage calculation for consistency
+						// with today/block costs (same pricing engine), fallback to Claude Code cost
 						if (costSource === 'auto') {
-							if (hookData.cost?.total_cost_usd != null) {
-								return { sessionCost: hookData.cost.total_cost_usd };
-							}
-							// Fallback to ccusage calculation
 							const cost = await getCcusageCost();
-							return { sessionCost: cost };
+							if (cost != null) {
+								return { sessionCost: cost };
+							}
+							return { sessionCost: hookData.cost?.total_cost_usd };
 						}
 						unreachable(costSource);
 						return {}; // This line should never be reached
