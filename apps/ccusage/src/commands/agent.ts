@@ -1468,7 +1468,7 @@ export const agentCommand = define({
 				}
 			}
 
-			addEmptySeparatorRow(table, 9);
+			addEmptySeparatorRow(table, headers.length);
 
 			const grandTotal =
 				totals.inputTokens +
