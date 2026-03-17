@@ -195,13 +195,13 @@ function joinParts(parts: (string | undefined)[]): string {
  * Compaction summaries are plain text starting with "This session is being continued..."
  * followed by "Summary:\n1. Primary Request and Intent:\n   - <description>".
  */
-function extractCompactionTitle(text: string): string | null {
+function extractCompactionSummary(text: string): string | null {
 	// Look for "Primary Request and Intent:" section and grab the first content line after it
 	const primaryMatch = text.match(/Primary Request and Intent[:\s]*\n(.+)/i);
 	if (primaryMatch?.[1] != null) {
 		const line = primaryMatch[1].replace(/^[-\s*]+/, '').trim();
 		if (line.length > 0) {
-			return truncateAtWord(line, 60);
+			return line;
 		}
 	}
 
@@ -219,7 +219,7 @@ function extractCompactionTitle(text: string): string | null {
 			if (/^(?:Primary|Key|Current|Important)\s/i.test(line)) {
 				continue;
 			}
-			return truncateAtWord(line, 60);
+			return line;
 		}
 	}
 
@@ -341,7 +341,7 @@ async function generateAITitlesBatch(
 
 	const numbered = sessions.map((s) => `${s.index}. ${s.messages.join(' | ')}`).join('\n');
 
-	const prompt = `Generate concise titles (max 40 characters each) for these ${sessions.length} Claude Code sessions based on what the user asked for. Focus on the TASK or GOAL, not greetings. Output ONLY numbered titles matching the input numbers, one per line. No other text.\n\n${numbered}`;
+	const prompt = `Generate a short noun-phrase title (max 30 characters, 3-5 words) for each Claude Code session below. Focus on the task or goal. No verbs at the start, no "User asked to..." framing. Output ONLY numbered titles matching the input numbers, one per line.\n\n${numbered}`;
 
 	let output: string | null = null;
 
@@ -387,7 +387,7 @@ async function generateAITitlesBatch(
 			if (match != null) {
 				const idx = Number.parseInt(match[1]!, 10);
 				const title = match[2]!.trim();
-				if (title.length > 0 && title.length <= 50 && !/^\[.*\]$/.test(title)) {
+				if (title.length > 0 && !/^\[.*\]$/.test(title)) {
 					result.set(idx, title);
 				}
 			}
@@ -416,7 +416,7 @@ async function resolveSessionTitle(
 
 	// Check cache — versioned format: "v12\n<title>\n<startTime>"
 	// v12: invalidate caches from v11 (filter bracketed AI placeholders)
-	const CACHE_VERSION = 'v13';
+	const CACHE_VERSION = 'v15';
 	try {
 		const cached = await readFile(cachePath, 'utf-8');
 		const lines = cached.trim().split('\n');
@@ -455,7 +455,7 @@ async function resolveSessionTitle(
 		return null;
 	}
 
-	let compactionTitle: string | null = null;
+	let hasCompactionSummary = false;
 	let summaryTitle: string | null = null;
 	let userMessageTitle: string | null = null;
 	const userMessages: string[] = [];
@@ -484,11 +484,15 @@ async function resolveSessionTitle(
 			if (startTime == null && typeof parsed.timestamp === 'string') {
 				startTime = parsed.timestamp;
 			}
-			// Check for compaction summary in early lines too
-			if (compactionTitle == null && parsed.type === 'user' && parsed.isCompactSummary === true) {
+			// Check for compaction summary — feed to AI as high-quality input
+			if (!hasCompactionSummary && parsed.type === 'user' && parsed.isCompactSummary === true) {
 				const msg = parsed.message as Record<string, unknown> | undefined;
 				if (msg?.role === 'user' && typeof msg.content === 'string') {
-					compactionTitle = extractCompactionTitle(msg.content);
+					const summary = extractCompactionSummary(msg.content);
+					if (summary != null) {
+						userMessages.unshift(summary);
+						hasCompactionSummary = true;
+					}
 				}
 			}
 			if (summaryTitle == null && parsed.type === 'summary' && typeof parsed.summary === 'string') {
@@ -521,6 +525,16 @@ async function resolveSessionTitle(
 							);
 							if (innerMatch?.[1] != null) {
 								textContent = innerMatch[1].trim();
+								// Strip "You are a ... on team ..." preamble
+								textContent = textContent.replace(/^You are\b[^.]+\bon team [\w-]+\.\s*/i, '');
+							} else {
+								textContent = undefined;
+							}
+						} else if (/^<command-message\b/i.test(textContent)) {
+							// Extract user's actual input from <command-args>
+							const argsMatch = textContent.match(/<command-args>([\s\S]*?)<\/command-args>/i);
+							if (argsMatch?.[1] != null) {
+								textContent = argsMatch[1].trim();
 							} else {
 								textContent = undefined;
 							}
@@ -535,7 +549,7 @@ async function resolveSessionTitle(
 						if (firstLine.length > 0) {
 							// Only set deterministic title from substantive messages
 							if (firstLine.length >= 10 && firstLine.includes(' ') && userMessageTitle == null) {
-								userMessageTitle = truncateAtWord(firstLine, 60);
+								userMessageTitle = firstLine;
 							}
 							// Collect ALL non-empty messages for AI title generation
 							if (userMessages.length < 3) {
@@ -553,8 +567,8 @@ async function resolveSessionTitle(
 	rl1.close();
 	fileStream1.destroy();
 
-	// Phase 2: if no compaction title yet, fast-scan the whole file for isCompactSummary lines
-	if (compactionTitle == null) {
+	// Phase 2: if no compaction summary yet, fast-scan the whole file for isCompactSummary lines
+	if (!hasCompactionSummary) {
 		const fileStream2 = createReadStream(jsonlPath, { encoding: 'utf-8' });
 		const rl2 = createInterface({
 			input: fileStream2,
@@ -571,8 +585,10 @@ async function resolveSessionTitle(
 				if (parsed.type === 'user' && parsed.isCompactSummary === true) {
 					const msg = parsed.message as Record<string, unknown> | undefined;
 					if (msg?.role === 'user' && typeof msg.content === 'string') {
-						compactionTitle = extractCompactionTitle(msg.content);
-						if (compactionTitle != null) {
+						const summary = extractCompactionSummary(msg.content);
+						if (summary != null) {
+							userMessages.unshift(summary);
+							hasCompactionSummary = true;
 							break;
 						}
 					}
@@ -586,19 +602,16 @@ async function resolveSessionTitle(
 		fileStream2.destroy();
 	}
 
-	// Only compaction/summary titles are deterministic — use directly
+	// Legacy summary titles are deterministic — use directly
 	// Filter out bracketed placeholders like "[No content provided]"
-	const rawTitle = compactionTitle ?? summaryTitle;
-	const title = rawTitle != null && isValidTitle(rawTitle) ? rawTitle : null;
-
-	if (title != null && startTime != null) {
+	if (summaryTitle != null && isValidTitle(summaryTitle) && startTime != null) {
 		try {
 			await mkdir(cacheDir, { recursive: true });
-			await writeFile(cachePath, `${CACHE_VERSION}\n${title}\n${startTime}`, 'utf-8');
+			await writeFile(cachePath, `${CACHE_VERSION}\n${summaryTitle}\n${startTime}`, 'utf-8');
 		} catch {
 			// Cache write failure is non-fatal
 		}
-		return { title, startTime };
+		return { title: summaryTitle, startTime };
 	}
 
 	// No deterministic title — return messages for AI generation
@@ -678,7 +691,7 @@ async function resolveLeadDisplayNames(agents: AgentUsage[], timezone?: string):
 		const aiTitles = await generateAITitlesBatch(batchInput);
 
 		const cacheDir = path.join(os.homedir(), '.claude', 'session-titles');
-		const CACHE_VERSION = 'v13';
+		const CACHE_VERSION = 'v15';
 
 		for (const item of needsAI) {
 			const agent = agents[item.agentIdx]!;
