@@ -620,8 +620,7 @@ async function resolveLeadDisplayNames(agents: AgentUsage[], timezone?: string):
 			agent.agentId = `${prefix}${deriveAgentId({ sessionId: agent.sessionId })}`;
 		} else if (titleInfo.title != null) {
 			// Got a resolved title (cached, compaction, or user message)
-			const sid = agent.sessionId.slice(0, 8);
-			agent.agentId = `${titleInfo.title} · ${formatStartTime(titleInfo.startTime, timezone)} · ${sid}`;
+			agent.agentId = `${titleInfo.title} · ${formatStartTime(titleInfo.startTime, timezone)} · ${agent.sessionId}`;
 		} else {
 			// Needs AI title generation — collect for batch
 			needsAI.push({
@@ -645,8 +644,7 @@ async function resolveLeadDisplayNames(agents: AgentUsage[], timezone?: string):
 			const aiTitle = aiTitles.get(needsAI.indexOf(item) + 1);
 			const finalTitle = aiTitle ?? agent.sessionId?.slice(0, 8) ?? 'Untitled';
 
-			const sid = agent.sessionId?.slice(0, 8) ?? '';
-			agent.agentId = `${finalTitle} · ${formatStartTime(item.startTime, timezone)}${sid !== '' ? ` · ${sid}` : ''}`;
+			agent.agentId = `${finalTitle} · ${formatStartTime(item.startTime, timezone)}${agent.sessionId != null ? ` · ${agent.sessionId}` : ''}`;
 
 			// Cache the AI-generated title
 			if (agent.sessionId != null) {
@@ -988,8 +986,7 @@ function groupByTeamLead(
 		} else {
 			// Orphan lead — create header-only row from cached title
 			const cachedTitle = leadTitleCache.get(group.sessionId);
-			const sid = group.sessionId.slice(0, 8);
-			const title = cachedTitle != null ? `${cachedTitle} · ${sid}` : sid;
+			const title = cachedTitle != null ? `${cachedTitle} · ${group.sessionId}` : group.sessionId;
 			rows.push({
 				data: {
 					agentId: title,
