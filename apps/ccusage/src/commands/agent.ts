@@ -341,7 +341,7 @@ async function generateAITitlesBatch(
 
 	const numbered = sessions.map((s) => `${s.index}. ${s.messages.join(' | ')}`).join('\n');
 
-	const prompt = `Generate concise titles (max 8 words each) for these ${sessions.length} Claude Code sessions based on what the user asked for. Focus on the TASK or GOAL, not greetings. Output ONLY numbered titles matching the input numbers, one per line. No other text.\n\n${numbered}`;
+	const prompt = `Generate concise titles (max 40 characters each) for these ${sessions.length} Claude Code sessions based on what the user asked for. Focus on the TASK or GOAL, not greetings. Output ONLY numbered titles matching the input numbers, one per line. No other text.\n\n${numbered}`;
 
 	let output: string | null = null;
 
@@ -387,7 +387,7 @@ async function generateAITitlesBatch(
 			if (match != null) {
 				const idx = Number.parseInt(match[1]!, 10);
 				const title = match[2]!.trim();
-				if (title.length > 0 && title.length <= 80 && !/^\[.*\]$/.test(title)) {
+				if (title.length > 0 && title.length <= 50 && !/^\[.*\]$/.test(title)) {
 					result.set(idx, title);
 				}
 			}
@@ -416,7 +416,7 @@ async function resolveSessionTitle(
 
 	// Check cache — versioned format: "v12\n<title>\n<startTime>"
 	// v12: invalidate caches from v11 (filter bracketed AI placeholders)
-	const CACHE_VERSION = 'v12';
+	const CACHE_VERSION = 'v13';
 	try {
 		const cached = await readFile(cachePath, 'utf-8');
 		const lines = cached.trim().split('\n');
@@ -532,12 +532,12 @@ async function resolveSessionTitle(
 							continue;
 						}
 						const firstLine = textContent.split('\n')[0]!.trim();
-						// Skip trivially short messages ("hello", "ok", "yes", etc.)
-						const isSubstantive = firstLine.length >= 10 && firstLine.includes(' ');
-						if (isSubstantive) {
-							if (userMessageTitle == null) {
+						if (firstLine.length > 0) {
+							// Only set deterministic title from substantive messages
+							if (firstLine.length >= 10 && firstLine.includes(' ') && userMessageTitle == null) {
 								userMessageTitle = truncateAtWord(firstLine, 60);
 							}
+							// Collect ALL non-empty messages for AI title generation
 							if (userMessages.length < 3) {
 								userMessages.push(truncateAtWord(firstLine, 120));
 							}
@@ -678,7 +678,7 @@ async function resolveLeadDisplayNames(agents: AgentUsage[], timezone?: string):
 		const aiTitles = await generateAITitlesBatch(batchInput);
 
 		const cacheDir = path.join(os.homedir(), '.claude', 'session-titles');
-		const CACHE_VERSION = 'v12';
+		const CACHE_VERSION = 'v13';
 
 		for (const item of needsAI) {
 			const agent = agents[item.agentIdx]!;
@@ -703,9 +703,15 @@ async function resolveLeadDisplayNames(agents: AgentUsage[], timezone?: string):
 					}
 				}
 			} else {
-				// No AI title (no substantive messages) — show truncated ID + time only
+				// No AI title (no substantive messages) — show truncated ID + time + hint
 				const shortId = agent.sessionId?.slice(0, 8) ?? 'Untitled';
-				agent.agentId = joinParts([shortId, formatStartTime(item.startTime, timezone)]);
+				const firstMsg = item.messages[0];
+				const hint =
+					firstMsg != null
+						? ` ("${firstMsg.length > 30 ? `${firstMsg.slice(0, 30)}…` : firstMsg}")`
+						: '';
+				const line1 = joinParts([shortId, formatStartTime(item.startTime, timezone)]) + hint;
+				agent.agentId = agent.sessionId != null ? `${line1}\n${agent.sessionId}` : line1;
 			}
 		}
 	}
