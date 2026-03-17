@@ -164,52 +164,56 @@ function aggregateByRole(agentData: AgentUsage[]): AgentUsage[] {
 }
 
 /**
+ * Truncates a string to maxLen, breaking at the last space before the limit.
+ */
+function truncateAtWord(str: string, maxLen: number): string {
+	if (str.length <= maxLen) {
+		return str;
+	}
+	const lastSpace = str.lastIndexOf(' ', maxLen);
+	return lastSpace > 0 ? str.slice(0, lastSpace) : str.slice(0, maxLen);
+}
+
+/**
  * Extracts a short descriptive title from a compaction summary text.
- * Looks for content between <summary> tags, then extracts the first meaningful
- * line after "Primary Request and Intent:" or the first ~50 chars.
+ * Compaction summaries are plain text starting with "This session is being continued..."
+ * followed by "Summary:\n1. Primary Request and Intent:\n   - <description>".
  */
 function extractCompactionTitle(text: string): string | null {
-	// Extract content between <summary> tags
-	const summaryMatch = text.match(/<summary>([\s\S]*?)<\/summary>/);
-	if (summaryMatch?.[1] == null) {
-		return null;
-	}
-
-	const summaryContent = summaryMatch[1].trim();
-	if (summaryContent.length === 0) {
-		return null;
-	}
-
-	// Look for "Primary Request and Intent:" section and grab the line after it
-	const primaryMatch = summaryContent.match(/Primary Request and Intent[:\s]*\n(.+)/i);
+	// Look for "Primary Request and Intent:" section and grab the first content line after it
+	const primaryMatch = text.match(/Primary Request and Intent[:\s]*\n(.+)/i);
 	if (primaryMatch?.[1] != null) {
 		const line = primaryMatch[1].replace(/^[-\s*]+/, '').trim();
 		if (line.length > 0) {
-			return line.slice(0, 60).trim();
+			return truncateAtWord(line, 60);
 		}
 	}
 
-	// Fallback: first non-header line with meaningful content
-	const lines = summaryContent.split('\n');
-	for (const rawLine of lines) {
-		const line = rawLine.replace(/^[\d.)\-*\s#]+/, '').trim();
-		// Skip headers, numbered section titles, and empty lines
-		if (line.length === 0) {
-			continue;
+	// Fallback: find "Summary:" section and grab first meaningful line
+	const summaryIdx = text.indexOf('Summary:');
+	if (summaryIdx >= 0) {
+		const afterSummary = text.slice(summaryIdx + 'Summary:'.length);
+		const lines = afterSummary.split('\n');
+		for (const rawLine of lines) {
+			const line = rawLine.replace(/^[\d.)\-*\s#]+/, '').trim();
+			if (line.length === 0) {
+				continue;
+			}
+			// Skip section headers
+			if (/^(?:Primary|Key|Current|Important)\s/i.test(line)) {
+				continue;
+			}
+			return truncateAtWord(line, 60);
 		}
-		if (/^(?:Primary|Key|Current|Important)\s/i.test(line)) {
-			continue;
-		}
-		return line.slice(0, 60).trim();
 	}
 
-	return summaryContent.slice(0, 60).trim();
+	return null;
 }
 
 /**
  * Resolves a session title from JSONL file content.
- * Priority: cached title > slug > compaction summary (acompact- assistant entry)
- * > legacy summary > first user message.
+ * Priority: cached title > compaction summary (isCompactSummary user entry)
+ * > legacy summary > slug > first user message.
  */
 async function resolveSessionTitle(
 	sessionId: string,
@@ -219,8 +223,8 @@ async function resolveSessionTitle(
 	const cacheDir = path.join(os.homedir(), '.claude', 'session-titles');
 	const cachePath = path.join(cacheDir, sessionId);
 
-	// Check cache — versioned format: "v3\n<title>\n<startTime>"
-	const CACHE_VERSION = 'v3';
+	// Check cache — versioned format: "v6\n<title>\n<startTime>"
+	const CACHE_VERSION = 'v6';
 	try {
 		const cached = await readFile(cachePath, 'utf-8');
 		const lines = cached.trim().split('\n');
@@ -264,61 +268,42 @@ async function resolveSessionTitle(
 	let userMessageTitle: string | null = null;
 	let startTime: string | null = null;
 
-	const fileStream = createReadStream(jsonlPath, { encoding: 'utf-8' });
-	const rl = createInterface({
-		input: fileStream,
+	// Phase 1: quick scan of first 50 lines for slug, startTime, userMessage, and early compaction
+	const fileStream1 = createReadStream(jsonlPath, { encoding: 'utf-8' });
+	const rl1 = createInterface({
+		input: fileStream1,
 		crlfDelay: Number.POSITIVE_INFINITY,
 	});
 
 	let lineCount = 0;
-	for await (const line of rl) {
+	for await (const line of rl1) {
 		if (line.trim().length === 0) {
 			continue;
 		}
 		lineCount++;
-
-		// Early exit: compaction summary is top priority — if found with startTime, done
-		if (compactionTitle != null && startTime != null) {
-			break;
-		}
-		// Cap scan: stop after 500 lines (compaction summaries can appear deep in the file)
-		if (lineCount > 500) {
+		if (lineCount > 50) {
 			break;
 		}
 
 		try {
 			const parsed = JSON.parse(line) as Record<string, unknown>;
 
-			// Start time from first entry with a timestamp
 			if (startTime == null && typeof parsed.timestamp === 'string') {
 				startTime = parsed.timestamp;
 			}
-
-			// Slug field — Claude Code's session name (highest priority)
 			if (slug == null && typeof parsed.slug === 'string') {
 				slug = parsed.slug;
 			}
-
-			// Compaction summary from assistant entries with acompact- agentId
-			if (compactionTitle == null && parsed.type === 'assistant') {
-				const agentId = parsed.agentId;
-				if (typeof agentId === 'string' && agentId.startsWith('acompact-')) {
-					const msg = parsed.message as Record<string, unknown> | undefined;
-					if (msg?.role === 'assistant' && Array.isArray(msg.content)) {
-						const firstBlock = msg.content[0] as Record<string, unknown> | undefined;
-						if (firstBlock?.type === 'text' && typeof firstBlock.text === 'string') {
-							compactionTitle = extractCompactionTitle(firstBlock.text);
-						}
-					}
+			// Check for compaction summary in early lines too
+			if (compactionTitle == null && parsed.type === 'user' && parsed.isCompactSummary === true) {
+				const msg = parsed.message as Record<string, unknown> | undefined;
+				if (msg?.role === 'user' && typeof msg.content === 'string') {
+					compactionTitle = extractCompactionTitle(msg.content);
 				}
 			}
-
-			// Legacy summary type (third priority)
 			if (summaryTitle == null && parsed.type === 'summary' && typeof parsed.summary === 'string') {
 				summaryTitle = parsed.summary.slice(0, 60).trim();
 			}
-
-			// First real user message (last resort)
 			if (userMessageTitle == null && parsed.type === 'user') {
 				const msg = parsed.message as Record<string, unknown> | undefined;
 				if (msg?.role === 'user') {
@@ -333,8 +318,41 @@ async function resolveSessionTitle(
 		}
 	}
 
-	rl.close();
-	fileStream.destroy();
+	rl1.close();
+	fileStream1.destroy();
+
+	// Phase 2: if no compaction title yet, fast-scan the whole file for isCompactSummary lines
+	if (compactionTitle == null) {
+		const fileStream2 = createReadStream(jsonlPath, { encoding: 'utf-8' });
+		const rl2 = createInterface({
+			input: fileStream2,
+			crlfDelay: Number.POSITIVE_INFINITY,
+		});
+
+		for await (const line of rl2) {
+			// Cheap string check before expensive JSON.parse
+			if (!line.includes('"isCompactSummary"')) {
+				continue;
+			}
+			try {
+				const parsed = JSON.parse(line) as Record<string, unknown>;
+				if (parsed.type === 'user' && parsed.isCompactSummary === true) {
+					const msg = parsed.message as Record<string, unknown> | undefined;
+					if (msg?.role === 'user' && typeof msg.content === 'string') {
+						compactionTitle = extractCompactionTitle(msg.content);
+						if (compactionTitle != null) {
+							break;
+						}
+					}
+				}
+			} catch {
+				// Skip unparseable lines
+			}
+		}
+
+		rl2.close();
+		fileStream2.destroy();
+	}
 
 	// Pick best title: compaction summary > legacy summary > slug > user message
 	const title = compactionTitle ?? summaryTitle ?? slug ?? userMessageTitle;
@@ -475,7 +493,7 @@ export const agentCommand = define({
 			if (useJson) {
 				log(JSON.stringify([]));
 			} else {
-				logger.warn('No agent usage data found.');
+				logger.debug('No agent usage data found.');
 			}
 			process.exit(0);
 		}
