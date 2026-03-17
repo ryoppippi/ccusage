@@ -492,7 +492,9 @@ async function resolveSessionTitle(
 								b != null &&
 								(b as Record<string, unknown>).type === 'text',
 						) as Record<string, unknown> | undefined;
-						if (typeof textBlock?.text === 'string') {textContent = textBlock.text;}
+						if (typeof textBlock?.text === 'string') {
+							textContent = textBlock.text;
+						}
 					}
 					if (textContent != null && !/^<[a-z]/i.test(textContent)) {
 						// Collect first user message as title fallback
@@ -719,13 +721,15 @@ function groupByTeamLead(
 		}
 	}
 
-	// Group team members under leads
+	// Group team members under leads (by leadSessionId) or by teamName (when no config exists)
 	const leadGroups = new Map<string, { lead: AgentUsage | null; members: AgentUsage[] }>();
+	// Teams without a config — group by teamName directly
+	const teamNameGroups = new Map<string, AgentUsage[]>();
 	const ungrouped: AgentUsage[] = [];
 
 	for (const d of displayData) {
 		if (d.teamName != null && d.agentName != null) {
-			// Team member — find its lead
+			// Team member — find its lead via config
 			const leadSessionId = teamLeadMap.get(d.teamName);
 			if (leadSessionId != null) {
 				const group = leadGroups.get(leadSessionId);
@@ -736,7 +740,13 @@ function groupByTeamLead(
 					leadGroups.set(leadSessionId, { lead, members: [d] });
 				}
 			} else {
-				ungrouped.push(d);
+				// No config for this team — group by teamName
+				const existing = teamNameGroups.get(d.teamName);
+				if (existing != null) {
+					existing.push(d);
+				} else {
+					teamNameGroups.set(d.teamName, [d]);
+				}
 			}
 		} else if (d.teamName == null && d.sessionId != null) {
 			// Lead entry — ensure group exists
@@ -751,13 +761,21 @@ function groupByTeamLead(
 		}
 	}
 
-	// Build sorted output: groups by total cost (lead + members), then ungrouped
+	// Build sorted output: groups by total cost (lead + members), then teamName groups, then ungrouped
 	const sortedGroups = Array.from(leadGroups.entries())
 		.map(([sessionId, group]) => {
 			const leadCost = group.lead?.totalCost ?? 0;
 			const memberCost = group.members.reduce((sum, m) => sum + m.totalCost, 0);
 			return { sessionId, ...group, totalCost: leadCost + memberCost };
 		})
+		.sort((a, b) => b.totalCost - a.totalCost);
+
+	const sortedTeamNameGroups = Array.from(teamNameGroups.entries())
+		.map(([teamName, members]) => ({
+			teamName,
+			members,
+			totalCost: members.reduce((sum, m) => sum + m.totalCost, 0),
+		}))
 		.sort((a, b) => b.totalCost - a.totalCost);
 
 	const rows: DisplayRow[] = [];
@@ -793,7 +811,32 @@ function groupByTeamLead(
 		}
 	}
 
-	// Ungrouped entries (no team, or team not in config)
+	// Teams without configs — use teamName as header
+	for (const group of sortedTeamNameGroups) {
+		rows.push({
+			data: {
+				agentId: group.teamName,
+				agentName: undefined,
+				teamName: undefined,
+				sessionId: undefined,
+				inputTokens: 0,
+				outputTokens: 0,
+				cacheCreationTokens: 0,
+				cacheReadTokens: 0,
+				totalCost: 0,
+				modelsUsed: [],
+				modelBreakdowns: [],
+			},
+			isLeadHeader: true,
+			indent: false,
+		});
+		group.members.sort((a, b) => b.totalCost - a.totalCost);
+		for (const m of group.members) {
+			rows.push({ data: m, isLeadHeader: false, indent: true });
+		}
+	}
+
+	// Ungrouped entries (no team at all)
 	ungrouped.sort((a, b) => b.totalCost - a.totalCost);
 	for (const d of ungrouped) {
 		rows.push({ data: d, isLeadHeader: false, indent: false });
@@ -993,8 +1036,9 @@ export const agentCommand = define({
 				'Cache Read',
 				'Total',
 				'Cost (USD)',
+				'%',
 			];
-			const compactHeaders = ['Agent', 'Models', 'Input', 'Output', 'Cost (USD)'];
+			const compactHeaders = ['Agent', 'Models', 'Input', 'Output', 'Cost (USD)', '%'];
 			const aligns: Array<'left' | 'right'> = [
 				'left',
 				'left',
@@ -1004,8 +1048,16 @@ export const agentCommand = define({
 				'right',
 				'right',
 				'right',
+				'right',
 			];
-			const compactAligns: Array<'left' | 'right'> = ['left', 'left', 'right', 'right', 'right'];
+			const compactAligns: Array<'left' | 'right'> = [
+				'left',
+				'left',
+				'right',
+				'right',
+				'right',
+				'right',
+			];
 
 			const table = new ResponsiveTable({
 				head: headers,
@@ -1026,7 +1078,7 @@ export const agentCommand = define({
 
 				if (isLeadHeader) {
 					// Orphan lead header — title only, no usage columns
-					table.push([pc.dim(data.agentId), '', '', '', '', '', '', '']);
+					table.push([pc.dim(data.agentId), '', '', '', '', '', '', '', '']);
 					continue;
 				}
 
@@ -1043,6 +1095,8 @@ export const agentCommand = define({
 				} else {
 					displayName = data.agentId;
 				}
+				const pct = totals.totalCost > 0 ? (data.totalCost / totals.totalCost) * 100 : 0;
+				const pctStr = pct < 0.1 ? '<0.1' : pct.toFixed(1);
 				table.push([
 					displayName,
 					data.modelsUsed.length > 0 ? formatModelsDisplayMultiline(data.modelsUsed) : '',
@@ -1052,6 +1106,7 @@ export const agentCommand = define({
 					formatCompact(data.cacheReadTokens),
 					formatCompact(totalTokens),
 					formatCurrency(data.totalCost),
+					pctStr,
 				]);
 
 				if (ctx.values.breakdown) {
@@ -1059,7 +1114,7 @@ export const agentCommand = define({
 				}
 			}
 
-			addEmptySeparatorRow(table, 8);
+			addEmptySeparatorRow(table, 9);
 
 			const grandTotal =
 				totals.inputTokens +
@@ -1075,6 +1130,7 @@ export const agentCommand = define({
 				pc.yellow(formatCompact(totals.cacheReadTokens)),
 				pc.yellow(formatCompact(grandTotal)),
 				pc.yellow(formatCurrency(totals.totalCost)),
+				pc.yellow('100'),
 			]);
 
 			log(table.toString());

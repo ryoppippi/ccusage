@@ -55,7 +55,6 @@ export function deriveAgentRole(entry: AgentEntry): string {
 
 // Common parent/container directories that don't identify a specific project
 const CONTAINER_DIRS = new Set([
-	'IdeaProjects',
 	'Projects',
 	'projects',
 	'repos',
@@ -154,8 +153,8 @@ if (import.meta.vitest != null) {
 			expect(shortProjectName('-Users-thomas-IdeaProjects-diana')).toBe('diana');
 		});
 
-		it('skips container directory IdeaProjects', () => {
-			expect(shortProjectName('-Users-thomas-IdeaProjects')).toBe('thomas');
+		it('returns IdeaProjects as a normal directory name', () => {
+			expect(shortProjectName('-Users-thomas-IdeaProjects')).toBe('IdeaProjects');
 		});
 
 		it('skips container directory Projects', () => {

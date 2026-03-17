@@ -69,6 +69,8 @@ export type TableRow = (string | number | { content: string; hAlign?: TableCellA
 export type TableOptions = {
 	head: string[];
 	colAligns?: TableCellAlign[];
+	/** Per-column max width overrides. Sparse array — only indices with values are applied. */
+	colWidthOverrides?: Record<number, number>;
 	style?: {
 		head?: string[];
 	};
@@ -88,6 +90,7 @@ export class ResponsiveTable {
 	private head: string[];
 	private rows: TableRow[] = [];
 	private colAligns: TableCellAlign[];
+	private colWidthOverrides: Record<number, number>;
 	private style?: { head?: string[] };
 	private dateFormatter?: (dateStr: string) => string;
 	private compactHead?: string[];
@@ -104,6 +107,7 @@ export class ResponsiveTable {
 	constructor(options: TableOptions) {
 		this.head = options.head;
 		this.colAligns = options.colAligns ?? Array.from({ length: this.head.length }, () => 'left');
+		this.colWidthOverrides = options.colWidthOverrides ?? {};
 		this.style = options.style;
 		this.dateFormatter = options.dateFormatter;
 		this.compactHead = options.compactHead;
@@ -224,6 +228,11 @@ export class ResponsiveTable {
 		// Always use content-based widths with generous padding for numeric columns
 		const columnWidths = contentWidths.map((width, index) => {
 			const align = colAligns[index];
+			// Apply explicit max-width overrides — caps content-based width
+			const override = this.colWidthOverrides[index];
+			if (override != null) {
+				return Math.min(Math.max(width + 2, 10), override);
+			}
 			// For numeric columns, ensure generous width to prevent truncation
 			if (align === 'right') {
 				return Math.max(width + 3, 11); // At least 11 chars for numbers, +3 padding
@@ -253,6 +262,12 @@ export class ResponsiveTable {
 					adjustedWidth = Math.max(adjustedWidth, 12);
 				} else {
 					adjustedWidth = Math.max(adjustedWidth, 8);
+				}
+
+				// Apply explicit max-width overrides
+				const override = this.colWidthOverrides[index];
+				if (override != null) {
+					adjustedWidth = Math.min(adjustedWidth, override);
 				}
 
 				return adjustedWidth;
