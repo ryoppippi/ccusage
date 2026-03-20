@@ -62,6 +62,12 @@ This package contains the core ccusage functionality:
 3. Calculates costs using LiteLLM pricing database
 4. Outputs formatted tables or JSON
 
+## Agent Command Notes
+
+- **Pre-filter files by mtime**: The agent command scans session JSONL files. When a date filter is active (e.g., today only), check file modification time before parsing — avoids loading 3800+ files when only a handful are relevant.
+- **Lead identifiability**: `lead-xxxx` entries (4-char session hash) are unidentifiable without project/directory context. Include the project name or working directory so users can map each lead to what they were working on.
+- **Agent column width**: Must accommodate `team/agent-name` format (e.g., `ccusage-fork/cli-dev`) — test with realistic team names, not just short placeholders.
+
 ## Testing Guidelines
 
 - **In-Source Testing**: Tests are written in the same files using `if (import.meta.vitest != null)` blocks
