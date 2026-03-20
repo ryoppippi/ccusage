@@ -524,24 +524,15 @@ importers:
       eslint:
         specifier: catalog:lint
         version: 9.35.0(jiti@2.6.1)
-      fast-sort:
-        specifier: catalog:runtime
-        version: 3.4.1
       fs-fixture:
         specifier: catalog:testing
         version: 2.8.1
       gunshi:
         specifier: catalog:runtime
         version: 0.26.3
-      path-type:
-        specifier: catalog:runtime
-        version: 6.0.0
       picocolors:
         specifier: catalog:runtime
         version: 1.1.1
-      tinyglobby:
-        specifier: catalog:runtime
-        version: 0.2.15
       tsdown:
         specifier: catalog:build
         version: 0.16.6(@typescript/native-preview@7.0.0-dev.20260107.1)(publint@0.3.12)(synckit@0.11.11)(typescript@5.9.2)(unplugin-unused@0.5.3)
