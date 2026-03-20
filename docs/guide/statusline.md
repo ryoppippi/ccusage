@@ -1,4 +1,4 @@
-# Statusline Integration (Beta) 🚀
+# Statusline Integration (Beta)
 
 Display real-time usage statistics in your Claude Code status line.
 
@@ -6,15 +6,47 @@ Display real-time usage statistics in your Claude Code status line.
 
 The `statusline` command provides a compact, real-time view of your Claude Code usage, designed to integrate with Claude Code's status line hooks. It shows:
 
-- 💬 **Current session cost** - Cost for your active conversation session
-- 💰 **Today's total cost** - Your cumulative spending for the current day
-- 🚀 **Current session block** - Cost and time remaining in your active 5-hour billing block
-- 🔥 **Burn rate** - Token consumption rate with visual indicators
-- 🤖 **Active model** - The Claude model you're currently using
+- **Active model** - The Claude model you're currently using
+- **Current session cost** - Cost for your active conversation session
+- **Today's total cost** - Your cumulative spending for the current day
+- **Current session block** - Cost and time remaining in your active 5-hour billing block
+- **Token breakdown** - Input/output tokens in compact format
+- **Context usage** - Percentage of context window used with color coding
+- **Promotion indicator** - Active promotions (e.g., 2x off-peak)
 
 ## Setup
 
-### Configure settings.json
+### Quick Setup (Recommended)
+
+Run the setup command to automatically configure your Claude Code settings:
+
+```bash
+npx -y ccusage setup-statusline
+```
+
+This will:
+
+- Detect the best package runner (`bun` or `npx`)
+- Find your Claude Code settings file
+- Write the statusline configuration automatically
+
+**Options:**
+
+```bash
+# Preview changes without writing
+npx -y ccusage setup-statusline --dry-run
+
+# Overwrite existing configuration
+npx -y ccusage setup-statusline --force
+
+# Specify runner explicitly
+npx -y ccusage setup-statusline --runner bun
+
+# Configure options during setup
+npx -y ccusage setup-statusline --visual-burn-rate emoji --cost-source both
+```
+
+### Manual Configuration
 
 Add this to your `~/.claude/settings.json` or `~/.config/claude/settings.json`:
 
@@ -108,38 +140,67 @@ See [Cost Source Options](#cost-source-options) section for all available modes.
 
 The statusline displays a compact, single-line summary:
 
+```text
+Opus 4 | $0.23 session · $1.23 today · $0.45 block 2h45m | $8.50/hr | ↑25K ↓3.2K | 12% ctx | 45m +23 -5 | ⚡2x · 12d left
 ```
-🤖 Opus | 💰 $0.23 session / $1.23 today / $0.45 block (2h 45m left) | 🔥 $0.12/hr | 🧠 25,000 (12%)
+
+During peak hours, a countdown to off-peak is shown instead:
+
+```text
+Opus 4 | $0.23 session · $1.23 today · $0.45 block 2h45m | $8.50/hr | ↑25K ↓3.2K | 12% ctx | 45m +23 -5 | ⚡2x in 2h15m · 12d left
 ```
 
 When using `--cost-source both`, the session cost shows both Claude Code and ccusage calculations:
 
-```
-🤖 Opus | 💰 ($0.25 cc / $0.23 ccusage) session / $1.23 today / $0.45 block (2h 45m left) | 🔥 $0.12/hr | 🧠 25,000 (12%)
+```text
+Opus 4 | ($0.25 cc / $0.23 ccusage) session · $1.23 today · $0.45 block 2h45m | ↑25K ↓3.2K | 12% ctx
 ```
 
 ### Components Explained
 
-- **Model** (`🤖 Opus`): Currently active Claude model
-- **Session Cost** (`💰 $0.23 session`): Cost for the current conversation session (see [Cost Source Options](#cost-source-options) for different calculation modes)
-- **Today's Cost** (`$1.23 today`): Total cost for the current day across all sessions
-- **Session Block** (`$0.45 block (2h 45m left)`): Current 5-hour block cost with remaining time
-- **Burn Rate** (`🔥 $0.12/hr`): Cost burn rate per hour with color-coded indicators:
-  - Green text: Normal (< 2,000 tokens/min)
-  - Yellow text: Moderate (2,000-5,000 tokens/min)
-  - Red text: High (> 5,000 tokens/min)
-  - Optional visual status indicators (see [Visual Burn Rate](#visual-burn-rate))
-- **Context Usage** (`🧠 25,000 (12%)`): Shows input tokens with percentage of context limit:
+- **Model** (`Opus 4`): Currently active Claude model (bold)
+- **Session Cost** (`$0.23 session`): Cost for the current conversation session in cyan (see [Cost Source Options](#cost-source-options) for different calculation modes)
+- **Today's Cost** (`$1.23 today`): Total cost for the current day across all sessions in cyan
+- **Session Block** (`$0.45 block 2h45m`): Current 5-hour block cost with remaining time
+- **Burn Rate** (`$8.50/hr`): Current spending rate, separated by pipe for visual clarity
+- **Input Tokens** (`↑25K`): Input tokens sent to the model in green, compact format (K/M)
+- **Output Tokens** (`↓3.2K`): Output tokens from the model in magenta, compact format (K/M)
+- **Context Usage** (`12% ctx`): Percentage of context window used:
   - Green text: Low usage (< 50% by default)
   - Yellow text: Medium usage (50-80% by default)
   - Red text: High usage (> 80% by default)
   - Uses Claude Code's [`context_window` data](https://code.claude.com/docs/en/statusline) when available for accurate token counts
+- **Session Duration** (`45m`): How long the current session has been running (dim)
+- **Lines Changed** (`+23 -5`): Lines added (green) and removed (red) during the session
+- **Promotion** (`⚡2x · 12d left`): Active promotion indicator — bold yellow during off-peak with days remaining, with countdown during peak hours (`⚡2x in 2h15m · 12d left`)
 
 When no active block exists:
 
+```text
+Opus 4 | $0.00 session · $0.00 today · $0.00 block | ↑0 ↓0 | 0% ctx
 ```
-🤖 Opus | 💰 $0.00 session / $0.00 today / No active block
-```
+
+### Color Scheme
+
+| Element                      | Color       | Purpose                         |
+| ---------------------------- | ----------- | ------------------------------- |
+| Model name                   | Bold        | Visual anchor                   |
+| Pipe separator               | Dim         | Reduces visual noise            |
+| Cost values                  | Cyan        | Standard info color             |
+| Labels (session/today/block) | Dim         | Secondary info                  |
+| Dot separator (·)            | Dim         | Visual separation between costs |
+| Remaining time               | Dim         | Supplementary info              |
+| Input tokens (↑)             | Green       | Data flowing to model           |
+| Output tokens (↓)            | Magenta     | Contrast to input               |
+| Context (low)                | Green       | < 50%                           |
+| Context (medium)             | Yellow      | 50-80%                          |
+| Context (high)               | Red         | > 80%                           |
+| Session duration             | Dim         | Background metric               |
+| Lines added (+N)             | Green       | Matches git convention          |
+| Lines removed (-N)           | Red         | Matches git convention          |
+| Promotion (off-peak)         | Bold yellow | Active promotion                |
+| Promotion (peak)             | Yellow      | Countdown to off-peak           |
+| Promotion days remaining     | Dim         | Days until promotion ends       |
 
 ## Technical Details
 
@@ -154,7 +215,7 @@ The statusline command:
 
 ## Beta Notice
 
-⚠️ This feature is currently in **beta**. More customization options and features are coming soon:
+This feature is currently in **beta**. More customization options and features are coming soon:
 
 - Custom format templates
 - Configurable burn rate thresholds
@@ -209,8 +270,8 @@ bun x ccusage statusline --cost-source both
 
 **Output differences:**
 
-- **Single cost modes** (`auto`, `ccusage`, `cc`): `💰 $0.23 session`
-- **Both mode**: `💰 ($0.25 cc / $0.23 ccusage) session`
+- **Single cost modes** (`auto`, `ccusage`, `cc`): `$0.23 session`
+- **Both mode**: `($0.25 cc / $0.23 ccusage) session`
 
 ## Configuration
 
@@ -262,32 +323,54 @@ bun x ccusage statusline --visual-burn-rate emoji
 
 **Available options:**
 
-- `off` (default): No visual indicators, only colored text
-- `emoji`: Add emoji indicators (🟢/⚠️/🚨)
+- `off` (default): No visual indicators, only colored cost/hr in cost section
+- `emoji`: Add emoji indicators
 - `text`: Add text status in parentheses (Normal/Moderate/High)
 - `emoji-text`: Combine both emoji and text indicators
 
-**Examples:**
+**Status thresholds:**
+
+- Normal (green): < 2,000 tokens/min
+- Moderate (yellow): 2,000-5,000 tokens/min
+- High (red): > 5,000 tokens/min
+
+### Promotion Display
+
+The statusline shows active Claude usage promotions (e.g., 2x off-peak capacity). By default (`--promotion-display auto`), it shows:
+
+- **Off-peak hours**: `⚡2x · 12d left` — promotion active, with days remaining
+- **Peak hours**: `⚡2x in 2h15m · 12d left` — countdown to when off-peak starts
+
+**Promotion display modes (`--promotion-display`):**
+
+- `auto` (default): Always show promotion when active, with countdown during peak hours
+- `active-only`: Only show during off-peak hours (no countdown)
+- `off`: Disable promotion display entirely
 
 ```bash
-# Default (off)
-🔥 $0.12/hr
+# Show countdown during peak (default)
+bun x ccusage statusline --promotion-display auto
 
-# With emoji
-🔥 $0.12/hr 🟢
+# Only show when off-peak is active
+bun x ccusage statusline --promotion-display active-only
 
-# With text
-🔥 $0.12/hr (Normal)
-
-# With both emoji and text
-🔥 $0.12/hr 🟢 (Normal)
+# Disable promotions
+bun x ccusage statusline --no-show-promotions
 ```
 
-**Status Indicators:**
+### Session Activity
 
-- 🟢 Normal (Green)
-- ⚠️ Moderate (Yellow)
-- 🚨 High (Red)
+The statusline can display session duration and lines changed from Claude Code hook data.
+
+**Session duration** shows how long the current session has been active (e.g., `45m`, `2h15m`).
+
+**Lines changed** shows lines added and removed during the session in git-style format (e.g., `+23 -5`).
+
+Both are enabled by default. To disable:
+
+```bash
+bun x ccusage statusline --no-show-session-duration --no-show-lines-changed
+```
 
 ## Troubleshooting
 
