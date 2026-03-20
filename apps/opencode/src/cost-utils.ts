@@ -11,8 +11,13 @@ const MODEL_ALIASES: Record<string, string> = {
 	'gemini-3-pro-high': 'gemini-3-pro-preview',
 };
 
+function normalizeClaudeModelName(modelName: string): string {
+	return modelName.replace(/^claude-(opus|sonnet|haiku)-(\d+)\.(\d+)$/, 'claude-$1-$2-$3');
+}
+
 function resolveModelName(modelName: string): string {
-	return MODEL_ALIASES[modelName] ?? modelName;
+	const normalizedModelName = normalizeClaudeModelName(modelName);
+	return MODEL_ALIASES[normalizedModelName] ?? normalizedModelName;
 }
 
 /**
@@ -39,4 +44,45 @@ export async function calculateCostForEntry(
 	);
 
 	return Result.unwrap(result, 0);
+}
+
+if (import.meta.vitest != null) {
+	describe('calculateCostForEntry', () => {
+		it('normalizes dotted Claude model names before pricing lookup', async () => {
+			let lookedUpModel: string | undefined;
+			const fetcher = {
+				calculateCostFromTokens: async (
+					_tokens: {
+						input_tokens: number;
+						output_tokens: number;
+						cache_creation_input_tokens?: number;
+						cache_read_input_tokens?: number;
+					},
+					modelName?: string,
+				) => {
+					lookedUpModel = modelName;
+					return Result.succeed(1.25);
+				},
+			} as unknown as LiteLLMPricingFetcher;
+
+			const cost = await calculateCostForEntry(
+				{
+					timestamp: new Date('2026-03-10T00:00:00.000Z'),
+					sessionID: 'ses_test',
+					usage: {
+						inputTokens: 100,
+						outputTokens: 200,
+						cacheCreationInputTokens: 0,
+						cacheReadInputTokens: 0,
+					},
+					model: 'claude-opus-4.5',
+					costUSD: null,
+				},
+				fetcher,
+			);
+
+			expect(cost).toBe(1.25);
+			expect(lookedUpModel).toBe('claude-opus-4-5');
+		});
+	});
 }
