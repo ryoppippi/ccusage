@@ -5,7 +5,8 @@ import { MILLION } from './_consts.ts';
 export function createEmptyUsage(): TokenUsageDelta {
 	return {
 		inputTokens: 0,
-		cachedInputTokens: 0,
+		cacheCreationTokens: 0,
+		cacheReadTokens: 0,
 		outputTokens: 0,
 		reasoningOutputTokens: 0,
 		totalTokens: 0,
@@ -14,14 +15,16 @@ export function createEmptyUsage(): TokenUsageDelta {
 
 export function addUsage(target: TokenUsageDelta, delta: TokenUsageDelta): void {
 	target.inputTokens += delta.inputTokens;
-	target.cachedInputTokens += delta.cachedInputTokens;
+	target.cacheCreationTokens += delta.cacheCreationTokens;
+	target.cacheReadTokens += delta.cacheReadTokens;
 	target.outputTokens += delta.outputTokens;
 	target.reasoningOutputTokens += delta.reasoningOutputTokens;
 	target.totalTokens += delta.totalTokens;
 }
 
 function nonCachedInputTokens(usage: TokenUsageDelta): number {
-	const nonCached = usage.inputTokens - usage.cachedInputTokens;
+	const cached = usage.cacheReadTokens ?? 0;
+	const nonCached = usage.inputTokens - cached;
 	return nonCached > 0 ? nonCached : 0;
 }
 
@@ -41,8 +44,7 @@ function nonCachedInputTokens(usage: TokenUsageDelta): number {
  */
 export function calculateCostUSD(usage: TokenUsageDelta, pricing: ModelPricing): number {
 	const nonCachedInput = nonCachedInputTokens(usage);
-	const cachedInput =
-		usage.cachedInputTokens > usage.inputTokens ? usage.inputTokens : usage.cachedInputTokens;
+	const cachedInput = usage.cacheReadTokens ?? 0;
 	const outputTokens = usage.outputTokens;
 
 	const inputCost = (nonCachedInput / MILLION) * pricing.inputCostPerMToken;

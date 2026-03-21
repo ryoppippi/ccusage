@@ -23,10 +23,12 @@ function createSummary(sessionId: string, initialTimestamp: string): SessionUsag
 		firstTimestamp: initialTimestamp,
 		lastTimestamp: initialTimestamp,
 		inputTokens: 0,
-		cachedInputTokens: 0,
+		cacheCreationTokens: 0,
+		cacheReadTokens: 0,
 		outputTokens: 0,
 		reasoningOutputTokens: 0,
 		totalTokens: 0,
+		totalCost: 0,
 		costUSD: 0,
 		models: new Map(),
 	};
@@ -120,11 +122,16 @@ export async function buildSessionReport(
 			}
 			cost += calculateCostUSD(usage, pricing);
 		}
+		summary.totalCost = cost;
 		summary.costUSD = cost;
 
 		const rowModels: Record<string, ModelUsage> = {};
 		for (const [modelName, usage] of summary.models) {
-			rowModels[modelName] = { ...usage };
+			const modelEntry: ModelUsage = { ...usage };
+			if (usage.cacheReadTokens != null) {
+				modelEntry.cachedInputTokens = usage.cacheReadTokens;
+			}
+			rowModels[modelName] = modelEntry;
 		}
 
 		const separatorIndex = summary.sessionId.lastIndexOf('/');
@@ -138,10 +145,13 @@ export async function buildSessionReport(
 			sessionFile,
 			directory,
 			inputTokens: summary.inputTokens,
-			cachedInputTokens: summary.cachedInputTokens,
+			cacheCreationTokens: summary.cacheCreationTokens,
+			cacheReadTokens: summary.cacheReadTokens,
+			cachedInputTokens: summary.cacheReadTokens,
 			outputTokens: summary.outputTokens,
 			reasoningOutputTokens: summary.reasoningOutputTokens,
 			totalTokens: summary.totalTokens,
+			totalCost: cost,
 			costUSD: cost,
 			models: rowModels,
 		});
@@ -155,11 +165,11 @@ if (import.meta.vitest != null) {
 		it('groups events by session and calculates costs', async () => {
 			const pricing = new Map([
 				[
-					'gpt-5',
+					'claude-sonnet-4-20250514',
 					{ inputCostPerMToken: 1.25, cachedInputCostPerMToken: 0.125, outputCostPerMToken: 10 },
 				],
 				[
-					'gpt-5-mini',
+					'claude-opus-4-20250514',
 					{ inputCostPerMToken: 0.6, cachedInputCostPerMToken: 0.06, outputCostPerMToken: 2 },
 				],
 			]);
@@ -178,8 +188,10 @@ if (import.meta.vitest != null) {
 					{
 						sessionId: 'session-a',
 						timestamp: '2025-09-12T01:00:00.000Z',
-						model: 'gpt-5',
+						model: 'claude-sonnet-4-20250514',
 						inputTokens: 1_000,
+						cacheCreationTokens: 0,
+						cacheReadTokens: 100,
 						cachedInputTokens: 100,
 						outputTokens: 500,
 						reasoningOutputTokens: 0,
@@ -188,8 +200,10 @@ if (import.meta.vitest != null) {
 					{
 						sessionId: 'session-a',
 						timestamp: '2025-09-12T02:00:00.000Z',
-						model: 'gpt-5-mini',
+						model: 'claude-opus-4-20250514',
 						inputTokens: 400,
+						cacheCreationTokens: 0,
+						cacheReadTokens: 100,
 						cachedInputTokens: 100,
 						outputTokens: 200,
 						reasoningOutputTokens: 30,
@@ -198,8 +212,10 @@ if (import.meta.vitest != null) {
 					{
 						sessionId: 'session-b',
 						timestamp: '2025-09-11T23:30:00.000Z',
-						model: 'gpt-5',
+						model: 'claude-sonnet-4-20250514',
 						inputTokens: 800,
+						cacheCreationTokens: 0,
+						cacheReadTokens: 0,
 						cachedInputTokens: 0,
 						outputTokens: 300,
 						reasoningOutputTokens: 0,
@@ -223,7 +239,7 @@ if (import.meta.vitest != null) {
 			expect(second.sessionFile).toBe('session-a');
 			expect(second.directory).toBe('');
 			expect(second.totalTokens).toBe(2_130);
-			expect(second.models['gpt-5']?.totalTokens).toBe(1_500);
+			expect(second.models['claude-sonnet-4-20250514']?.totalTokens).toBe(1_500);
 			const expectedCost =
 				(900 / 1_000_000) * 1.25 +
 				(100 / 1_000_000) * 0.125 +
@@ -231,6 +247,7 @@ if (import.meta.vitest != null) {
 				(300 / 1_000_000) * 0.6 +
 				(100 / 1_000_000) * 0.06 +
 				(200 / 1_000_000) * 2;
+			expect(second.totalCost).toBeCloseTo(expectedCost, 10);
 			expect(second.costUSD).toBeCloseTo(expectedCost, 10);
 		});
 	});

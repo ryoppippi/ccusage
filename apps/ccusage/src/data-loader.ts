@@ -1101,6 +1101,12 @@ export async function loadMonthlyUsageData(options?: LoadOptions): Promise<Month
 	);
 }
 
+/**
+ * Loads and aggregates Claude usage data by week.
+ * Uses daily usage data as the source and groups by week boundaries.
+ * @param options - Optional configuration for loading and filtering data
+ * @returns Array of weekly usage summaries sorted by week
+ */
 export async function loadWeeklyUsageData(options?: LoadOptions): Promise<WeeklyUsage[]> {
 	const startDay =
 		options?.startOfWeek != null ? getDayNumber(options.startOfWeek) : getDayNumber('sunday');
@@ -1175,6 +1181,13 @@ export async function loadSessionUsageById(
 	return { totalCost, entries };
 }
 
+/**
+ * Loads usage data and aggregates it into bucketed summaries.
+ * Buckets are determined by the provided grouping function (monthly/weekly).
+ * @param groupingFn - Function that maps a daily usage entry to a bucket key
+ * @param options - Optional configuration for loading and filtering data
+ * @returns Aggregated usage summaries keyed by bucket and optional project
+ */
 export async function loadBucketUsageData(
 	groupingFn: (data: DailyUsage) => Bucket,
 	options?: LoadOptions,

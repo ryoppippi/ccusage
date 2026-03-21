@@ -21,6 +21,9 @@ import { loadDailyUsageData } from '../data-loader.ts';
 import { detectMismatches, printMismatchReport } from '../debug.ts';
 import { log, logger } from '../logger.ts';
 
+/**
+ * CLI command for daily usage reports.
+ */
 export const dailyCommand = define({
 	name: 'daily',
 	description: 'Show usage report grouped by date',
@@ -82,7 +85,17 @@ export const dailyCommand = define({
 
 		if (dailyData.length === 0) {
 			if (useJson) {
-				log(JSON.stringify([]));
+				const totals = createTotalsObject({
+					inputTokens: 0,
+					outputTokens: 0,
+					cacheCreationTokens: 0,
+					cacheReadTokens: 0,
+					totalCost: 0,
+				});
+				const jsonOutput = mergedOptions.instances
+					? { projects: {}, totals }
+					: { daily: [], totals };
+				log(JSON.stringify(jsonOutput, null, 2));
 			} else {
 				logger.warn('No Claude usage data found.');
 			}
