@@ -57,6 +57,9 @@ export const weeklyCommand = define({
 	},
 	async run(ctx) {
 		const jsonOutput = Boolean(ctx.values.json);
+		if (jsonOutput) {
+			logger.level = 0;
+		}
 
 		const entries = await loadOpenCodeMessages();
 
