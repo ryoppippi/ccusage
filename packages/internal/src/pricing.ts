@@ -4,28 +4,49 @@ import * as v from 'valibot';
 export const LITELLM_PRICING_URL =
 	'https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json';
 
-/**
- * Default token threshold for tiered pricing in 1M context window models.
- * LiteLLM's pricing schema hard-codes this threshold in field names
- * (e.g., `input_cost_per_token_above_200k_tokens`).
- * The threshold parameter in calculateTieredCost allows flexibility for
- * future models that may use different thresholds.
- */
-const DEFAULT_TIERED_THRESHOLD = 200_000;
+const TIERED_PRICING_CONFIGS = [
+	{
+		threshold: 272_000,
+		inputField: 'input_cost_per_token_above_272k_tokens',
+		outputField: 'output_cost_per_token_above_272k_tokens',
+		cacheCreationField: 'cache_creation_input_token_cost_above_272k_tokens',
+		cacheReadField: 'cache_read_input_token_cost_above_272k_tokens',
+	},
+	{
+		threshold: 200_000,
+		inputField: 'input_cost_per_token_above_200k_tokens',
+		outputField: 'output_cost_per_token_above_200k_tokens',
+		cacheCreationField: 'cache_creation_input_token_cost_above_200k_tokens',
+		cacheReadField: 'cache_read_input_token_cost_above_200k_tokens',
+	},
+	{
+		threshold: 128_000,
+		inputField: 'input_cost_per_token_above_128k_tokens',
+		outputField: 'output_cost_per_token_above_128k_tokens',
+		cacheCreationField: undefined,
+		cacheReadField: undefined,
+	},
+] as const satisfies ReadonlyArray<{
+	threshold: number;
+	inputField: keyof LiteLLMModelPricing;
+	outputField: keyof LiteLLMModelPricing;
+	cacheCreationField?: keyof LiteLLMModelPricing;
+	cacheReadField?: keyof LiteLLMModelPricing;
+}>;
 
 /**
  * LiteLLM Model Pricing Schema
  *
  * ⚠️ TIERED PRICING NOTE:
  * Different models use different token thresholds for tiered pricing:
- * - Claude/Anthropic: 200k tokens (implemented in calculateTieredCost)
- * - Gemini: 128k tokens (schema fields only, NOT implemented in calculations)
- * - GPT/OpenAI: No tiered pricing (flat rate)
+ * - OpenAI GPT-5.4: 272k tokens
+ * - Claude/Anthropic: 200k tokens
+ * - Gemini: 128k tokens
  *
  * When adding support for new models:
  * 1. Check if model has tiered pricing in LiteLLM data
  * 2. Verify the threshold value
- * 3. Update calculateTieredCost logic if threshold differs from 200k
+ * 3. Add the corresponding threshold config when LiteLLM introduces a new tier field
  * 4. Add tests for tiered pricing boundaries
  */
 export const liteLLMModelPricingSchema = v.object({
@@ -36,12 +57,17 @@ export const liteLLMModelPricingSchema = v.object({
 	max_tokens: v.optional(v.number()),
 	max_input_tokens: v.optional(v.number()),
 	max_output_tokens: v.optional(v.number()),
+	// OpenAI GPT-5.4: 1M context window pricing (272k threshold)
+	input_cost_per_token_above_272k_tokens: v.optional(v.number()),
+	output_cost_per_token_above_272k_tokens: v.optional(v.number()),
+	cache_creation_input_token_cost_above_272k_tokens: v.optional(v.number()),
+	cache_read_input_token_cost_above_272k_tokens: v.optional(v.number()),
 	// Claude/Anthropic: 1M context window pricing (200k threshold)
 	input_cost_per_token_above_200k_tokens: v.optional(v.number()),
 	output_cost_per_token_above_200k_tokens: v.optional(v.number()),
 	cache_creation_input_token_cost_above_200k_tokens: v.optional(v.number()),
 	cache_read_input_token_cost_above_200k_tokens: v.optional(v.number()),
-	// Gemini: Tiered pricing (128k threshold) - NOT implemented in calculations
+	// Gemini: Tiered pricing (128k threshold)
 	input_cost_per_token_above_128k_tokens: v.optional(v.number()),
 	output_cost_per_token_above_128k_tokens: v.optional(v.number()),
 	// Provider-specific pricing multipliers (e.g., fast mode, regional pricing)
@@ -273,31 +299,36 @@ export class LiteLLMPricingFetcher implements Disposable {
 		},
 		pricing: LiteLLMModelPricing,
 	): number {
+		const getTieredPricingConfig = (): (typeof TIERED_PRICING_CONFIGS)[number] | null => {
+			for (const config of TIERED_PRICING_CONFIGS) {
+				if (
+					pricing[config.inputField] != null ||
+					pricing[config.outputField] != null ||
+					(config.cacheCreationField != null && pricing[config.cacheCreationField] != null) ||
+					(config.cacheReadField != null && pricing[config.cacheReadField] != null)
+				) {
+					return config;
+				}
+			}
+
+			return null;
+		};
+
 		/**
-		 * Calculate cost with tiered pricing for 1M context window models
-		 *
-		 * @param totalTokens - Total number of tokens to calculate cost for
-		 * @param basePrice - Price per token for tokens up to the threshold
-		 * @param tieredPrice - Price per token for tokens above the threshold
-		 * @param threshold - Token threshold for tiered pricing (default 200k)
-		 * @returns Total cost applying tiered pricing when applicable
-		 *
-		 * @example
-		 * // 300k tokens with base price $3/M and tiered price $6/M
-		 * calculateTieredCost(300_000, 3e-6, 6e-6)
-		 * // Returns: (200_000 * 3e-6) + (100_000 * 6e-6) = $1.2
+		 * Calculate cost with tiered pricing for models that expose a second rate
+		 * above a token threshold via LiteLLM's pricing schema.
 		 */
 		const calculateTieredCost = (
 			totalTokens: number | undefined,
 			basePrice: number | undefined,
 			tieredPrice: number | undefined,
-			threshold: number = DEFAULT_TIERED_THRESHOLD,
+			threshold?: number,
 		): number => {
 			if (totalTokens == null || totalTokens <= 0) {
 				return 0;
 			}
 
-			if (totalTokens > threshold && tieredPrice != null) {
+			if (threshold != null && totalTokens > threshold && tieredPrice != null) {
 				const tokensBelowThreshold = Math.min(totalTokens, threshold);
 				const tokensAboveThreshold = Math.max(0, totalTokens - threshold);
 
@@ -315,28 +346,39 @@ export class LiteLLMPricingFetcher implements Disposable {
 			return 0;
 		};
 
+		const tieredPricingConfig = getTieredPricingConfig();
+		const threshold = tieredPricingConfig?.threshold;
+
 		const inputCost = calculateTieredCost(
 			tokens.input_tokens,
 			pricing.input_cost_per_token,
-			pricing.input_cost_per_token_above_200k_tokens,
+			tieredPricingConfig == null ? undefined : pricing[tieredPricingConfig.inputField],
+			threshold,
 		);
 
 		const outputCost = calculateTieredCost(
 			tokens.output_tokens,
 			pricing.output_cost_per_token,
-			pricing.output_cost_per_token_above_200k_tokens,
+			tieredPricingConfig == null ? undefined : pricing[tieredPricingConfig.outputField],
+			threshold,
 		);
 
 		const cacheCreationCost = calculateTieredCost(
 			tokens.cache_creation_input_tokens,
 			pricing.cache_creation_input_token_cost,
-			pricing.cache_creation_input_token_cost_above_200k_tokens,
+			tieredPricingConfig?.cacheCreationField == null
+				? undefined
+				: pricing[tieredPricingConfig.cacheCreationField],
+			threshold,
 		);
 
 		const cacheReadCost = calculateTieredCost(
 			tokens.cache_read_input_tokens,
 			pricing.cache_read_input_token_cost,
-			pricing.cache_read_input_token_cost_above_200k_tokens,
+			tieredPricingConfig?.cacheReadField == null
+				? undefined
+				: pricing[tieredPricingConfig.cacheReadField],
+			threshold,
 		);
 
 		return inputCost + outputCost + cacheCreationCost + cacheReadCost;
@@ -568,6 +610,42 @@ if (import.meta.vitest != null) {
 				),
 			);
 			expect(costBelow).toBe(0);
+		});
+
+		it('calculates tiered pricing for 272k threshold models', async () => {
+			using fetcher = new LiteLLMPricingFetcher({
+				offline: true,
+				offlineLoader: async () => ({
+					'gpt-5.4': {
+						input_cost_per_token: 2.5e-6,
+						output_cost_per_token: 1.5e-5,
+						cache_read_input_token_cost: 2.5e-7,
+						input_cost_per_token_above_272k_tokens: 5e-6,
+						output_cost_per_token_above_272k_tokens: 2.25e-5,
+						cache_read_input_token_cost_above_272k_tokens: 5e-7,
+					},
+				}),
+			});
+
+			const cost = await Result.unwrap(
+				fetcher.calculateCostFromTokens(
+					{
+						input_tokens: 300_000,
+						output_tokens: 280_000,
+						cache_read_input_tokens: 290_000,
+					},
+					'gpt-5.4',
+				),
+			);
+
+			const expectedCost =
+				272_000 * 2.5e-6 +
+				28_000 * 5e-6 +
+				272_000 * 1.5e-5 +
+				8_000 * 2.25e-5 +
+				272_000 * 2.5e-7 +
+				18_000 * 5e-7;
+			expect(cost).toBeCloseTo(expectedCost);
 		});
 
 		it('applies fast speed multiplier from provider_specific_entry', async () => {
