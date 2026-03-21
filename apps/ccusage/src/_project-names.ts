@@ -47,6 +47,24 @@ function parseProjectName(projectName: string): string {
 		}
 	}
 
+	// Handle Windows-style arbitrary paths: C:\work\projectd
+	if (cleaned.match(/^[A-Z]:/) != null) {
+		const segments = cleaned.split('\\');
+		const projectIndex = segments.length - 1;
+		if (projectIndex >= 0) {
+			cleaned = segments.slice(projectIndex).join('-');
+		}
+	}
+
+	// Handle Windows-style arbitrary paths: C--src--data--db
+	if (cleaned.match(/^[A-Z]--/) != null) {
+		const segments = cleaned.split('--');
+		const projectIndex = segments.length - 1;
+		if (projectIndex >= 0) {
+			cleaned = segments.slice(projectIndex).join('-');
+		}
+	}
+
 	// Handle Unix-style paths: /Users/... or -Users-...
 	if (cleaned.startsWith('-Users-') || cleaned.startsWith('/Users/')) {
 		const separator = cleaned.startsWith('-Users-') ? '-' : '/';
@@ -185,6 +203,16 @@ if (import.meta.vitest != null) {
 			it('returns original name for simple names', () => {
 				expect(formatProjectName('simple-project')).toBe('simple-project');
 				expect(formatProjectName('project')).toBe('project');
+			});
+
+			it('handles windows project names in C:\\Users\\Projects dir', () => {
+				expect(formatProjectName('C:\\Users\\user\\Projects\\project')).toBe('project');
+				expect(formatProjectName('D--Users--user--Projects--project')).toBe('project');
+			});
+
+			it('handles windows project names in arbitrary dir', () => {
+				expect(formatProjectName('C:\\work\\project')).toBe('project');
+				expect(formatProjectName('Z--src--data--project')).toBe('project');
 			});
 		});
 
