@@ -5,6 +5,7 @@ import {
 	formatModelsDisplayMultiline,
 	formatNumber,
 	ResponsiveTable,
+	setHumanReadableNumbers,
 } from '@ccusage/terminal/table';
 import { Result } from '@praha/byethrow';
 import { define } from 'gunshi';
@@ -278,6 +279,11 @@ export const blocksCommand = define({
 				log(JSON.stringify(jsonOutput, null, 2));
 			}
 		} else {
+			// Enable human-readable numbers if requested
+			if (mergedOptions.human) {
+				setHumanReadableNumbers(true);
+			}
+
 			// Table output
 			if (ctx.values.active && blocks.length === 1) {
 				// Detailed active block view

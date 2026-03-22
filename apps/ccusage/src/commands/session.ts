@@ -6,6 +6,7 @@ import {
 	formatTotalsRow,
 	formatUsageDataRow,
 	pushBreakdownRows,
+	setHumanReadableNumbers,
 } from '@ccusage/terminal/table';
 import { Result } from '@praha/byethrow';
 import { define } from 'gunshi';
@@ -45,6 +46,11 @@ export const sessionCommand = define({
 		const useJson = mergedOptions.json || mergedOptions.jq != null;
 		if (useJson) {
 			logger.level = 0;
+		}
+
+		// Enable human-readable numbers if requested (before any output)
+		if (mergedOptions.human) {
+			setHumanReadableNumbers(true);
 		}
 
 		// Handle specific session ID lookup

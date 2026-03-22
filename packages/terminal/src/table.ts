@@ -351,12 +351,48 @@ export class ResponsiveTable {
 	}
 }
 
+let _humanReadable = false;
+
+/**
+ * Enables or disables human-readable number formatting (K/M/B suffixes)
+ * @param human - Whether to use human-readable format
+ */
+export function setHumanReadableNumbers(human: boolean): void {
+	_humanReadable = human;
+}
+
+/**
+ * Formats a number with human-readable suffixes (K, M, B)
+ * Numbers below 1000 are displayed as-is with locale formatting
+ * @param num - The number to format
+ * @returns Formatted string with suffix (e.g., "1.23M", "456K")
+ */
+export function formatNumberHuman(num: number): string {
+	const absNum = Math.abs(num);
+	const sign = num < 0 ? '-' : '';
+
+	if (absNum >= 1_000_000_000) {
+		return `${sign}${(absNum / 1_000_000_000).toFixed(2)}B`;
+	}
+	if (absNum >= 1_000_000) {
+		return `${sign}${(absNum / 1_000_000).toFixed(2)}M`;
+	}
+	if (absNum >= 1_000) {
+		return `${sign}${(absNum / 1_000).toFixed(2)}K`;
+	}
+	return num.toLocaleString('en-US');
+}
+
 /**
  * Formats a number with locale-specific thousand separators
+ * When human-readable mode is enabled, uses K/M/B suffixes instead
  * @param num - The number to format
- * @returns Formatted number string with commas as thousand separators
+ * @returns Formatted number string
  */
 export function formatNumber(num: number): string {
+	if (_humanReadable) {
+		return formatNumberHuman(num);
+	}
 	return num.toLocaleString('en-US');
 }
 
@@ -981,6 +1017,58 @@ if (import.meta.vitest != null) {
 		it('handles edge cases', () => {
 			expect(formatNumber(Number.MAX_SAFE_INTEGER)).toBe('9,007,199,254,740,991');
 			expect(formatNumber(Number.MIN_SAFE_INTEGER)).toBe('-9,007,199,254,740,991');
+		});
+	});
+
+	describe('formatNumberHuman', () => {
+		it('formats billions', () => {
+			expect(formatNumberHuman(1_000_000_000)).toBe('1.00B');
+			expect(formatNumberHuman(2_500_000_000)).toBe('2.50B');
+			expect(formatNumberHuman(1_234_567_890)).toBe('1.23B');
+		});
+
+		it('formats millions', () => {
+			expect(formatNumberHuman(1_000_000)).toBe('1.00M');
+			expect(formatNumberHuman(1_500_000)).toBe('1.50M');
+			expect(formatNumberHuman(12_345_678)).toBe('12.35M');
+		});
+
+		it('formats thousands', () => {
+			expect(formatNumberHuman(1_000)).toBe('1.00K');
+			expect(formatNumberHuman(1_500)).toBe('1.50K');
+			expect(formatNumberHuman(999_999)).toBe('1000.00K');
+		});
+
+		it('keeps numbers below 1000 as-is', () => {
+			expect(formatNumberHuman(0)).toBe('0');
+			expect(formatNumberHuman(1)).toBe('1');
+			expect(formatNumberHuman(999)).toBe('999');
+			expect(formatNumberHuman(500)).toBe('500');
+		});
+
+		it('handles negative numbers', () => {
+			expect(formatNumberHuman(-1_500_000)).toBe('-1.50M');
+			expect(formatNumberHuman(-2_500)).toBe('-2.50K');
+			expect(formatNumberHuman(-500)).toBe('-500');
+		});
+	});
+
+	describe('setHumanReadableNumbers', () => {
+		afterEach(() => {
+			setHumanReadableNumbers(false);
+		});
+
+		it('formatNumber uses human-readable format when enabled', () => {
+			setHumanReadableNumbers(true);
+			expect(formatNumber(1_500_000)).toBe('1.50M');
+			expect(formatNumber(2_500)).toBe('2.50K');
+			expect(formatNumber(500)).toBe('500');
+		});
+
+		it('formatNumber uses default format when disabled', () => {
+			setHumanReadableNumbers(false);
+			expect(formatNumber(1_500_000)).toBe('1,500,000');
+			expect(formatNumber(2_500)).toBe('2,500');
 		});
 	});
 

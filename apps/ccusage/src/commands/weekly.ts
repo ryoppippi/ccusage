@@ -6,6 +6,7 @@ import {
 	formatTotalsRow,
 	formatUsageDataRow,
 	pushBreakdownRows,
+	setHumanReadableNumbers,
 } from '@ccusage/terminal/table';
 import { Result } from '@praha/byethrow';
 import { define } from 'gunshi';
@@ -104,6 +105,11 @@ export const weeklyCommand = define({
 				log(JSON.stringify(jsonOutput, null, 2));
 			}
 		} else {
+			// Enable human-readable numbers if requested
+			if (mergedOptions.human) {
+				setHumanReadableNumbers(true);
+			}
+
 			// Print header
 			logger.box('Claude Code Token Usage Report - Weekly');
 
