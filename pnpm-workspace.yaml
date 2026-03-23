@@ -61,7 +61,7 @@ catalogs:
     type-fest: ^4.41.0
     valibot: ^1.1.0
     xdg-basedir: ^5.1.0
-    zod: ^4.1.13
+    zod: ^4.3.6
   testing:
     fs-fixture: ^2.8.1
     vitest: ^4.0.15
