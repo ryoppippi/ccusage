@@ -48,7 +48,7 @@ catalogs:
     consola: ^3.4.2
     es-toolkit: ^1.39.10
     fast-sort: ^3.4.1
-    get-stdin: ^9.0.0
+    get-stdin: ^10.0.0
     gunshi: ^0.26.3
     hono: ^4.9.2
     nano-spawn: ^1.0.3
