@@ -1,20 +1,23 @@
 /**
  * @fileoverview Data loading utilities for OpenCode usage analysis
  *
- * This module provides functions for loading and parsing OpenCode usage data
- * from JSON message files stored in OpenCode data directories.
- * OpenCode stores usage data in ~/.local/share/opencode/storage/message/
+ * This module provides functions for loading and parsing OpenCode usage data.
+ * OpenCode >= 1.2.2 stores data in a SQLite database at ~/.local/share/opencode/opencode.db
+ * Older versions stored data as JSON files in ~/.local/share/opencode/storage/message/
  *
  * @module data-loader
  */
 
+import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
+import { createRequire } from 'node:module';
 import { homedir } from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
 import { isDirectorySync } from 'path-type';
 import { glob } from 'tinyglobby';
 import * as v from 'valibot';
+import { logger } from './logger.ts';
 
 /**
  * Default OpenCode data directory path (~/.local/share/opencode)
@@ -31,6 +34,7 @@ const OPENCODE_STORAGE_DIR_NAME = 'storage';
  */
 const OPENCODE_MESSAGES_DIR_NAME = 'message';
 const OPENCODE_SESSIONS_DIR_NAME = 'session';
+const OPENCODE_DB_FILENAME = 'opencode.db';
 
 /**
  * Environment variable for specifying custom OpenCode data directory
@@ -41,6 +45,7 @@ const OPENCODE_CONFIG_DIR_ENV = 'OPENCODE_DATA_DIR';
  * User home directory
  */
 const USER_HOME_DIR = homedir();
+const require = createRequire(import.meta.url);
 
 /**
  * Branded Valibot schema for model names
@@ -146,6 +151,245 @@ export function getOpenCodePath(): string | null {
 	return null;
 }
 
+function getDbPath(openCodePath: string): string | null {
+	const dbPath = path.join(openCodePath, OPENCODE_DB_FILENAME);
+	return existsSync(dbPath) ? dbPath : null;
+}
+
+// ─── SQLite-based loading (OpenCode >= 1.2.2) ───────────────────────────────
+
+const sqliteMessageDataSchema = v.object({
+	role: v.optional(v.string()),
+	providerID: v.optional(v.string()),
+	modelID: v.optional(v.string()),
+	tokens: v.optional(openCodeTokensSchema),
+	cost: v.optional(v.number()),
+	time: v.optional(
+		v.object({
+			created: v.optional(v.number()),
+			completed: v.optional(v.number()),
+		}),
+	),
+});
+
+type SqliteRow = {
+	[key: string]: unknown;
+};
+
+type SqliteAdapter = {
+	queryAll: (sql: string) => SqliteRow[];
+	close: () => void;
+};
+
+type BetterSqliteDatabase = {
+	exec: (sql: string) => void;
+	prepare: (sql: string) => {
+		all: () => SqliteRow[];
+		run: (...params: unknown[]) => unknown;
+	};
+	close: () => void;
+};
+
+type BunSqliteDatabase = {
+	query: (sql: string) => { all: () => SqliteRow[] };
+	close: () => void;
+};
+
+type OpenCodeSqliteLoadMode = 'messages' | 'sessions';
+
+type BetterSqliteDatabaseConstructor = new (
+	path: string,
+	opts?: { readonly?: boolean },
+) => BetterSqliteDatabase;
+
+function hasOpenCodeUsageTokens(
+	tokens: v.InferOutput<typeof openCodeTokensSchema> | undefined,
+): boolean {
+	if (tokens == null) {
+		return false;
+	}
+
+	return (
+		(tokens.input ?? 0) > 0 ||
+		(tokens.output ?? 0) > 0 ||
+		(tokens.cache?.read ?? 0) > 0 ||
+		(tokens.cache?.write ?? 0) > 0
+	);
+}
+
+function requireBetterSqlite3(): BetterSqliteDatabaseConstructor {
+	return require('better-sqlite3') as BetterSqliteDatabaseConstructor;
+}
+
+function createBetterSqliteAdapter(db: BetterSqliteDatabase): SqliteAdapter {
+	return {
+		queryAll(sql: string) {
+			return db.prepare(sql).all();
+		},
+		close() {
+			db.close();
+		},
+	};
+}
+
+function createBunSqliteAdapter(db: BunSqliteDatabase): SqliteAdapter {
+	return {
+		queryAll(sql: string) {
+			return db.query(sql).all();
+		},
+		close() {
+			db.close();
+		},
+	};
+}
+
+function isBunRuntime(): boolean {
+	return 'Bun' in globalThis || process.versions.bun != null;
+}
+
+function openSqliteDb(dbPath: string): SqliteAdapter {
+	let BetterSqlite3: BetterSqliteDatabaseConstructor | null = null;
+
+	try {
+		BetterSqlite3 = requireBetterSqlite3();
+	} catch {
+		// Fall back to Bun's SQLite adapter when better-sqlite3 is unavailable.
+	}
+
+	if (BetterSqlite3 != null) {
+		try {
+			return createBetterSqliteAdapter(new BetterSqlite3(dbPath, { readonly: true }));
+		} catch {
+			// Fall back to Bun's SQLite adapter when better-sqlite3 cannot open in Bun.
+		}
+	}
+
+	if (!isBunRuntime()) {
+		throw new Error(
+			'OpenCode SQLite loading requires better-sqlite3 in Node.js or bun:sqlite in Bun.',
+		);
+	}
+
+	const { Database } = require('bun:sqlite') as {
+		Database: new (path: string, opts?: { readonly?: boolean }) => BunSqliteDatabase;
+	};
+	return createBunSqliteAdapter(new Database(dbPath, { readonly: true }));
+}
+
+function loadMessagesFromSqlite(db: SqliteAdapter): LoadedUsageEntry[] {
+	const rows = db.queryAll(
+		'SELECT id, session_id, time_created, data FROM message ORDER BY time_created ASC, id ASC',
+	) as Array<{
+		id: string;
+		session_id: string;
+		time_created: number;
+		data: string;
+	}>;
+
+	const entries: LoadedUsageEntry[] = [];
+	const dedupeSet = new Set<string>();
+
+	for (const row of rows) {
+		let parsed: unknown;
+		try {
+			parsed = JSON.parse(row.data);
+		} catch {
+			continue;
+		}
+
+		const result = v.safeParse(sqliteMessageDataSchema, parsed);
+		if (!result.success) {
+			continue;
+		}
+
+		const data = result.output;
+
+		if (data.role !== 'assistant') {
+			continue;
+		}
+
+		if (!hasOpenCodeUsageTokens(data.tokens)) {
+			continue;
+		}
+
+		if (data.providerID == null || data.modelID == null) {
+			continue;
+		}
+
+		if (dedupeSet.has(row.id)) {
+			continue;
+		}
+		dedupeSet.add(row.id);
+
+		const createdMs = data.time?.created ?? row.time_created;
+
+		entries.push({
+			timestamp: new Date(createdMs),
+			sessionID: row.session_id,
+			usage: {
+				inputTokens: data.tokens?.input ?? 0,
+				outputTokens: data.tokens?.output ?? 0,
+				cacheCreationInputTokens: data.tokens?.cache?.write ?? 0,
+				cacheReadInputTokens: data.tokens?.cache?.read ?? 0,
+			},
+			model: data.modelID,
+			costUSD: data.cost ?? null,
+		});
+	}
+
+	return entries;
+}
+
+function loadSessionsFromSqlite(db: SqliteAdapter): Map<string, LoadedSessionMetadata> {
+	const rows = db.queryAll(
+		'SELECT id, project_id, parent_id, title, directory FROM session ORDER BY time_created ASC, id ASC',
+	) as Array<{
+		id: string;
+		project_id: string;
+		parent_id: string | null;
+		title: string;
+		directory: string;
+	}>;
+
+	const sessionMap = new Map<string, LoadedSessionMetadata>();
+
+	for (const row of rows) {
+		sessionMap.set(row.id, {
+			id: row.id,
+			parentID: row.parent_id ?? null,
+			title: row.title !== '' ? row.title : row.id,
+			projectID: row.project_id !== '' ? row.project_id : 'unknown',
+			directory: row.directory !== '' ? row.directory : 'unknown',
+		});
+	}
+
+	return sessionMap;
+}
+
+function loadOpenCodeDataFromSqlite(dbPath: string, mode: 'messages'): LoadedUsageEntry[];
+function loadOpenCodeDataFromSqlite(
+	dbPath: string,
+	mode: 'sessions',
+): Map<string, LoadedSessionMetadata>;
+function loadOpenCodeDataFromSqlite(
+	dbPath: string,
+	mode: OpenCodeSqliteLoadMode,
+): LoadedUsageEntry[] | Map<string, LoadedSessionMetadata> {
+	const db = openSqliteDb(dbPath);
+
+	try {
+		if (mode === 'messages') {
+			return loadMessagesFromSqlite(db);
+		}
+
+		return loadSessionsFromSqlite(db);
+	} finally {
+		db.close();
+	}
+}
+
+// ─── Legacy JSON file-based loading (OpenCode < 1.2.2) ──────────────────────
+
 /**
  * Load OpenCode message from JSON file
  * @param filePath - Path to message JSON file
@@ -211,12 +455,9 @@ function convertOpenCodeSessionToMetadata(
 	};
 }
 
-export async function loadOpenCodeSessions(): Promise<Map<string, LoadedSessionMetadata>> {
-	const openCodePath = getOpenCodePath();
-	if (openCodePath == null) {
-		return new Map();
-	}
-
+async function loadOpenCodeSessionsFromJson(
+	openCodePath: string,
+): Promise<Map<string, LoadedSessionMetadata>> {
 	const sessionsDir = path.join(
 		openCodePath,
 		OPENCODE_STORAGE_DIR_NAME,
@@ -252,12 +493,7 @@ export async function loadOpenCodeSessions(): Promise<Map<string, LoadedSessionM
  * Load all OpenCode messages
  * @returns Array of LoadedUsageEntry for aggregation
  */
-export async function loadOpenCodeMessages(): Promise<LoadedUsageEntry[]> {
-	const openCodePath = getOpenCodePath();
-	if (openCodePath == null) {
-		return [];
-	}
-
+async function loadOpenCodeMessagesFromJson(openCodePath: string): Promise<LoadedUsageEntry[]> {
 	const messagesDir = path.join(
 		openCodePath,
 		OPENCODE_STORAGE_DIR_NAME,
@@ -285,7 +521,7 @@ export async function loadOpenCodeMessages(): Promise<LoadedUsageEntry[]> {
 		}
 
 		// Skip messages with no tokens
-		if (message.tokens == null || (message.tokens.input === 0 && message.tokens.output === 0)) {
+		if (!hasOpenCodeUsageTokens(message.tokens)) {
 			continue;
 		}
 
@@ -308,8 +544,72 @@ export async function loadOpenCodeMessages(): Promise<LoadedUsageEntry[]> {
 	return entries;
 }
 
+function logSqliteFallback(context: 'messages' | 'sessions', error: unknown): void {
+	logger.warn(`Falling back to legacy OpenCode JSON ${context} after SQLite read failed.`);
+	logger.warn(error);
+}
+
+export async function loadOpenCodeSessions(): Promise<Map<string, LoadedSessionMetadata>> {
+	const openCodePath = getOpenCodePath();
+	if (openCodePath == null) {
+		return new Map();
+	}
+
+	const dbPath = getDbPath(openCodePath);
+	if (dbPath != null) {
+		try {
+			return loadOpenCodeDataFromSqlite(dbPath, 'sessions');
+		} catch (error) {
+			logSqliteFallback('sessions', error);
+		}
+	}
+
+	return loadOpenCodeSessionsFromJson(openCodePath);
+}
+
+export async function loadOpenCodeMessages(): Promise<LoadedUsageEntry[]> {
+	const openCodePath = getOpenCodePath();
+	if (openCodePath == null) {
+		return [];
+	}
+
+	const dbPath = getDbPath(openCodePath);
+	if (dbPath != null) {
+		try {
+			return loadOpenCodeDataFromSqlite(dbPath, 'messages');
+		} catch (error) {
+			logSqliteFallback('messages', error);
+		}
+	}
+
+	return loadOpenCodeMessagesFromJson(openCodePath);
+}
+
 if (import.meta.vitest != null) {
 	const { describe, it, expect } = import.meta.vitest;
+
+	function createSqliteAdapter({
+		messageRows = [],
+		sessionRows = [],
+	}: {
+		messageRows?: SqliteRow[];
+		sessionRows?: SqliteRow[];
+	}): SqliteAdapter {
+		return {
+			queryAll(sql: string) {
+				if (sql.includes('FROM message')) {
+					return messageRows;
+				}
+
+				if (sql.includes('FROM session')) {
+					return sessionRows;
+				}
+
+				throw new Error(`Unexpected SQL in test adapter: ${sql}`);
+			},
+			close() {},
+		};
+	}
 
 	describe('data-loader', () => {
 		it('should convert OpenCode message to LoadedUsageEntry', () => {
@@ -365,6 +665,167 @@ if (import.meta.vitest != null) {
 			expect(entry.usage.cacheReadInputTokens).toBe(0);
 			expect(entry.usage.cacheCreationInputTokens).toBe(0);
 			expect(entry.costUSD).toBe(null);
+		});
+
+		it('loads SQLite messages with filtering, valid-row dedupe, cache-only usage, and timestamp fallback', () => {
+			const db = createSqliteAdapter({
+				messageRows: [
+					{
+						id: 'msg_primary',
+						session_id: 'ses_root',
+						time_created: 1400,
+						data: '{invalid-json',
+					},
+					{
+						id: 'msg_primary',
+						session_id: 'ses_root',
+						time_created: 1500,
+						data: JSON.stringify({
+							role: 'assistant',
+							providerID: 'openai',
+							modelID: 'gpt-5.4',
+							time: { created: 1111 },
+							tokens: {
+								input: 10,
+								output: 20,
+								cache: { read: 5, write: 1 },
+							},
+							cost: 0.25,
+						}),
+					},
+					{
+						id: 'msg_primary',
+						session_id: 'ses_root',
+						time_created: 1999,
+						data: JSON.stringify({
+							role: 'assistant',
+							providerID: 'openai',
+							modelID: 'gpt-5.4',
+							time: { created: 1999 },
+							tokens: { input: 999, output: 999 },
+							cost: 9.99,
+						}),
+					},
+					{
+						id: 'msg_row_fallback',
+						session_id: 'ses_child',
+						time_created: 2222,
+						data: JSON.stringify({
+							role: 'assistant',
+							providerID: 'anthropic',
+							modelID: 'claude-sonnet-4-20250514',
+							tokens: { input: 7, output: 3 },
+						}),
+					},
+					{
+						id: 'msg_cache_only',
+						session_id: 'ses_child',
+						time_created: 3333,
+						data: JSON.stringify({
+							role: 'assistant',
+							providerID: 'openai',
+							modelID: 'gpt-5.4',
+							tokens: {
+								input: 0,
+								output: 0,
+								cache: { read: 40, write: 2 },
+							},
+							cost: 0.05,
+						}),
+					},
+					{
+						id: 'msg_user',
+						session_id: 'ses_root',
+						time_created: 4444,
+						data: JSON.stringify({
+							role: 'user',
+							providerID: 'openai',
+							modelID: 'gpt-5.4',
+							tokens: { input: 999, output: 999 },
+						}),
+					},
+				],
+			});
+
+			const entries = loadMessagesFromSqlite(db);
+
+			expect(entries).toHaveLength(3);
+			expect(entries).toEqual([
+				{
+					timestamp: new Date(1111),
+					sessionID: 'ses_root',
+					usage: {
+						inputTokens: 10,
+						outputTokens: 20,
+						cacheCreationInputTokens: 1,
+						cacheReadInputTokens: 5,
+					},
+					model: 'gpt-5.4',
+					costUSD: 0.25,
+				},
+				{
+					timestamp: new Date(2222),
+					sessionID: 'ses_child',
+					usage: {
+						inputTokens: 7,
+						outputTokens: 3,
+						cacheCreationInputTokens: 0,
+						cacheReadInputTokens: 0,
+					},
+					model: 'claude-sonnet-4-20250514',
+					costUSD: null,
+				},
+				{
+					timestamp: new Date(3333),
+					sessionID: 'ses_child',
+					usage: {
+						inputTokens: 0,
+						outputTokens: 0,
+						cacheCreationInputTokens: 2,
+						cacheReadInputTokens: 40,
+					},
+					model: 'gpt-5.4',
+					costUSD: 0.05,
+				},
+			]);
+		});
+
+		it('loads SQLite sessions with fallback metadata', () => {
+			const db = createSqliteAdapter({
+				sessionRows: [
+					{
+						id: 'ses_root',
+						project_id: 'proj_1',
+						parent_id: null,
+						title: 'Root Session',
+						directory: '/tmp/project',
+					},
+					{
+						id: 'ses_child',
+						project_id: '',
+						parent_id: 'ses_root',
+						title: '',
+						directory: '',
+					},
+				],
+			});
+
+			const sessionMetadataMap = loadSessionsFromSqlite(db);
+
+			expect(sessionMetadataMap.get('ses_root')).toEqual({
+				id: 'ses_root',
+				parentID: null,
+				title: 'Root Session',
+				projectID: 'proj_1',
+				directory: '/tmp/project',
+			});
+			expect(sessionMetadataMap.get('ses_child')).toEqual({
+				id: 'ses_child',
+				parentID: 'ses_root',
+				title: 'ses_child',
+				projectID: 'unknown',
+				directory: 'unknown',
+			});
 		});
 	});
 }
