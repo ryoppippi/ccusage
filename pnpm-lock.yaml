@@ -147,7 +147,7 @@ catalogs:
       specifier: ^7.2.0
       version: 7.2.0
     tinyglobby:
-      specifier: ^0.2.14
+      specifier: ^0.2.15
       version: 0.2.15
     type-fest:
       specifier: ^4.41.0
