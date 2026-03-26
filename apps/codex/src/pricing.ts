@@ -11,6 +11,31 @@ const CODEX_MODEL_ALIASES_MAP = new Map<string, string>([
 	['gpt-5-codex', 'gpt-5'],
 	['gpt-5.3-codex', 'gpt-5.2-codex'],
 ]);
+const TIERED_PRICING_CONFIGS = [
+	{
+		thresholdTokens: 272_000,
+		inputField: 'input_cost_per_token_above_272k_tokens',
+		cachedInputField: 'cache_read_input_token_cost_above_272k_tokens',
+		outputField: 'output_cost_per_token_above_272k_tokens',
+	},
+	{
+		thresholdTokens: 200_000,
+		inputField: 'input_cost_per_token_above_200k_tokens',
+		cachedInputField: 'cache_read_input_token_cost_above_200k_tokens',
+		outputField: 'output_cost_per_token_above_200k_tokens',
+	},
+	{
+		thresholdTokens: 128_000,
+		inputField: 'input_cost_per_token_above_128k_tokens',
+		cachedInputField: undefined,
+		outputField: 'output_cost_per_token_above_128k_tokens',
+	},
+] as const satisfies ReadonlyArray<{
+	thresholdTokens: number;
+	inputField: keyof LiteLLMModelPricing;
+	cachedInputField?: keyof LiteLLMModelPricing;
+	outputField: keyof LiteLLMModelPricing;
+}>;
 const FREE_MODEL_PRICING = {
 	inputCostPerMToken: 0,
 	cachedInputCostPerMToken: 0,
@@ -37,6 +62,45 @@ function hasNonZeroTokenPricing(pricing: LiteLLMModelPricing): boolean {
 function toPerMillion(value: number | undefined, fallback?: number): number {
 	const perToken = value ?? fallback ?? 0;
 	return perToken * MILLION;
+}
+
+function getTieredPricing(
+	pricing: LiteLLMModelPricing,
+): Pick<
+	ModelPricing,
+	| 'tieredThresholdTokens'
+	| 'inputCostPerMTokenAboveThreshold'
+	| 'cachedInputCostPerMTokenAboveThreshold'
+	| 'outputCostPerMTokenAboveThreshold'
+> {
+	for (const config of TIERED_PRICING_CONFIGS) {
+		const tieredInputPrice = pricing[config.inputField];
+		const tieredCachedInputPrice =
+			config.cachedInputField == null ? undefined : pricing[config.cachedInputField];
+		const tieredOutputPrice = pricing[config.outputField];
+
+		if (tieredInputPrice == null && tieredCachedInputPrice == null && tieredOutputPrice == null) {
+			continue;
+		}
+
+		return {
+			tieredThresholdTokens: config.thresholdTokens,
+			inputCostPerMTokenAboveThreshold: toPerMillion(
+				tieredInputPrice,
+				pricing.input_cost_per_token,
+			),
+			cachedInputCostPerMTokenAboveThreshold: toPerMillion(
+				tieredCachedInputPrice,
+				tieredInputPrice ?? pricing.input_cost_per_token,
+			),
+			outputCostPerMTokenAboveThreshold: toPerMillion(
+				tieredOutputPrice,
+				pricing.output_cost_per_token,
+			),
+		};
+	}
+
+	return {};
 }
 
 export type CodexPricingSourceOptions = {
@@ -96,6 +160,7 @@ export class CodexPricingSource implements PricingSource, Disposable {
 				pricing.input_cost_per_token,
 			),
 			outputCostPerMToken: toPerMillion(pricing.output_cost_per_token),
+			...getTieredPricing(pricing),
 		};
 	}
 }
@@ -187,6 +252,28 @@ if (import.meta.vitest != null) {
 			expect(pricing.inputCostPerMToken).toBeCloseTo(1.9);
 			expect(pricing.outputCostPerMToken).toBeCloseTo(15);
 			expect(pricing.cachedInputCostPerMToken).toBeCloseTo(0.19);
+		});
+
+		it('preserves tiered pricing metadata when LiteLLM exposes it', async () => {
+			using source = new CodexPricingSource({
+				offline: true,
+				offlineLoader: async () => ({
+					'gpt-5.4': {
+						input_cost_per_token: 2.5e-6,
+						output_cost_per_token: 1.5e-5,
+						cache_read_input_token_cost: 2.5e-7,
+						input_cost_per_token_above_272k_tokens: 5e-6,
+						output_cost_per_token_above_272k_tokens: 2.25e-5,
+						cache_read_input_token_cost_above_272k_tokens: 5e-7,
+					},
+				}),
+			});
+
+			const pricing = await source.getPricing('gpt-5.4');
+			expect(pricing.tieredThresholdTokens).toBe(272_000);
+			expect(pricing.inputCostPerMTokenAboveThreshold).toBeCloseTo(5);
+			expect(pricing.outputCostPerMTokenAboveThreshold).toBeCloseTo(22.5);
+			expect(pricing.cachedInputCostPerMTokenAboveThreshold).toBeCloseTo(0.5);
 		});
 	});
 }
