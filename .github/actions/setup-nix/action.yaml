@@ -25,6 +25,12 @@ runs:
         name: ryoppippi
         authToken: ${{ inputs.cachix-auth-token }}
 
+    - name: Cache Nix store
+      uses: nix-community/cache-nix-action@7df957e333c1e5da7721f60227dbba6d06080569 # v7.0.2
+      with:
+        primary-key: nix-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('flake.lock') }}
+        restore-prefixes-first-match: nix-${{ runner.os }}-${{ runner.arch }}-
+
     - name: Load Nix development environment
       shell: bash
       run: nix develop --command true
