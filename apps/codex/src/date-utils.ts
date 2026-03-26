@@ -53,6 +53,17 @@ export function isWithinRange(dateKey: string, since?: string, until?: string): 
 	return true;
 }
 
+export function toWeekKey(timestamp: string, timezone?: string): string {
+	const dateKey = toDateKey(timestamp, timezone);
+	const [yearStr = '0', monthStr = '1', dayStr = '1'] = dateKey.split('-');
+	const year = Number.parseInt(yearStr, 10);
+	const month = Number.parseInt(monthStr, 10);
+	const day = Number.parseInt(dayStr, 10);
+	const date = new Date(Date.UTC(year, month - 1, day));
+	date.setUTCDate(date.getUTCDate() - date.getUTCDay());
+	return date.toISOString().slice(0, 10);
+}
+
 export function formatDisplayDate(dateKey: string, locale?: string, _timezone?: string): string {
 	// dateKey is already computed for the target timezone via toDateKey().
 	// Treat it as a plain calendar date and avoid shifting it by applying a timezone.

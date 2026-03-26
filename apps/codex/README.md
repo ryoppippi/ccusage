@@ -63,6 +63,9 @@ npx @ccusage/codex@latest daily --since 20250911 --until 20250917
 # JSON output for scripting
 npx @ccusage/codex@latest daily --json
 
+# Weekly usage grouped by week
+npx @ccusage/codex@latest weekly
+
 # Monthly usage grouped by month
 npx @ccusage/codex@latest monthly
 
@@ -86,7 +89,7 @@ Useful environment variables:
 - 📊 Responsive terminal tables shared with the `ccusage` CLI
 - 💵 Offline-first pricing cache with automatic LiteLLM refresh when needed
 - 🤖 Per-model token and cost aggregation, including cached token accounting
-- 📅 Daily and monthly rollups with identical CLI options
+- 📅 Daily, weekly, and monthly rollups with identical CLI options
 - 📄 JSON output for further processing or scripting
 
 ## Documentation
