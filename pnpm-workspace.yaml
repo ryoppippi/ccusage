@@ -12,13 +12,13 @@ catalogs:
     unplugin-macros: ^0.18.0
     unplugin-unused: ^0.5.2
   docs:
-    '@ryoppippi/vite-plugin-cloudflare-redirect': ^1.1.2
-    typedoc: ^0.28.10
-    typedoc-plugin-markdown: ^4.8.1
+    '@ryoppippi/vite-plugin-cloudflare-redirect': ^1.1.3
+    typedoc: ^0.28.18
+    typedoc-plugin-markdown: ^4.11.0
     typedoc-vitepress-theme: ^1.1.2
-    vitepress: ^1.6.4
-    vitepress-plugin-group-icons: ^1.6.3
-    vitepress-plugin-llms: ^1.7.3
+    vitepress: 2.0.0-alpha.17
+    vitepress-plugin-group-icons: ^1.7.2
+    vitepress-plugin-llms: ^1.12.0
     wrangler: ^4.32.0
   lint:
     '@ryoppippi/eslint-config': ^0.4.0
@@ -74,6 +74,13 @@ catalogs:
 enablePrePostScripts: true
 
 minimumReleaseAge: 2880
+minimumReleaseAgeExclude:
+  - '@ryoppippi/vite-plugin-cloudflare-redirect'
+  - vitepress
+  - vitepress-plugin-group-icons
+  - vitepress-plugin-llms
+  - typedoc
+  - typedoc-plugin-markdown
 
 # Security settings for supply chain attack prevention
 strictDepBuilds: true
@@ -89,5 +96,3 @@ allowBuilds:
   workerd: true
 
 shellEmulator: true
-
-enableGlobalVirtualStore: true
