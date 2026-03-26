@@ -16,6 +16,27 @@ import { logger } from '../logger.ts';
 
 const TABLE_COLUMN_COUNT = 8;
 
+type TokenStats = {
+	inputTokens: number;
+	outputTokens: number;
+	cacheCreationTokens: number;
+	cacheReadTokens: number;
+	cost: number;
+};
+
+type ModelBreakdown = TokenStats & {
+	modelName: string;
+};
+
+function createModelBreakdowns(modelAggregates: Map<string, TokenStats>): ModelBreakdown[] {
+	return Array.from(modelAggregates.entries())
+		.map(([modelName, stats]) => ({
+			modelName,
+			...stats,
+		}))
+		.sort((a, b) => b.cost - a.cost);
+}
+
 export const monthlyCommand = define({
 	name: 'monthly',
 	description: 'Show OpenCode token usage grouped by month',
@@ -57,6 +78,7 @@ export const monthlyCommand = define({
 			totalTokens: number;
 			totalCost: number;
 			modelsUsed: string[];
+			modelBreakdowns: ModelBreakdown[];
 		}> = [];
 
 		for (const [month, monthEntries] of Object.entries(entriesByMonth)) {
@@ -66,17 +88,47 @@ export const monthlyCommand = define({
 			let cacheReadTokens = 0;
 			let totalCost = 0;
 			const modelsSet = new Set<string>();
+			const modelAggregates = new Map<string, TokenStats>();
+			const defaultStats: TokenStats = {
+				inputTokens: 0,
+				outputTokens: 0,
+				cacheCreationTokens: 0,
+				cacheReadTokens: 0,
+				cost: 0,
+			};
 
 			for (const entry of monthEntries) {
-				inputTokens += entry.usage.inputTokens;
-				outputTokens += entry.usage.outputTokens;
-				cacheCreationTokens += entry.usage.cacheCreationInputTokens;
-				cacheReadTokens += entry.usage.cacheReadInputTokens;
-				totalCost += await calculateCostForEntry(entry, fetcher);
-				modelsSet.add(entry.model);
+				const modelName = entry.model ?? 'unknown';
+				if (modelName === '<synthetic>') {
+					continue;
+				}
+
+				const entryInputTokens = entry.usage.inputTokens;
+				const entryOutputTokens = entry.usage.outputTokens;
+				const entryCacheCreation = entry.usage.cacheCreationInputTokens;
+				const entryCacheRead = entry.usage.cacheReadInputTokens;
+				const entryCost = await calculateCostForEntry(entry, fetcher);
+
+				inputTokens += entryInputTokens;
+				outputTokens += entryOutputTokens;
+				cacheCreationTokens += entryCacheCreation;
+				cacheReadTokens += entryCacheRead;
+				totalCost += entryCost;
+				modelsSet.add(modelName);
+
+				const existing = modelAggregates.get(modelName) ?? defaultStats;
+
+				modelAggregates.set(modelName, {
+					inputTokens: existing.inputTokens + entryInputTokens,
+					outputTokens: existing.outputTokens + entryOutputTokens,
+					cacheCreationTokens: existing.cacheCreationTokens + entryCacheCreation,
+					cacheReadTokens: existing.cacheReadTokens + entryCacheRead,
+					cost: existing.cost + entryCost,
+				});
 			}
 
 			const totalTokens = inputTokens + outputTokens + cacheCreationTokens + cacheReadTokens;
+			const modelBreakdowns = createModelBreakdowns(modelAggregates);
 
 			monthlyData.push({
 				month,
@@ -87,6 +139,7 @@ export const monthlyCommand = define({
 				totalTokens,
 				totalCost,
 				modelsUsed: Array.from(modelsSet),
+				modelBreakdowns,
 			});
 		}
 
