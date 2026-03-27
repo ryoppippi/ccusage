@@ -39,6 +39,18 @@ type SessionFileCandidate = {
 	sessionId: string;
 };
 
+type SessionFileEntry = SessionFileCandidate & {
+	fileStats: Stats;
+	metadataId: string;
+	forkedFromId?: string;
+	shouldCollectEvents: boolean;
+};
+
+type ParsedTokenUsageResult = {
+	event?: TokenUsageEvent;
+	cumulativeTotalTokens?: number;
+};
+
 function isRecord(value: unknown): value is JsonRecord {
 	return value != null && typeof value === 'object' && !Array.isArray(value);
 }
@@ -232,7 +244,7 @@ function parseTokenUsageEvent(
 	sessionId: string,
 	line: string,
 	state: SessionParseState,
-): TokenUsageEvent | undefined {
+): ParsedTokenUsageResult | undefined {
 	const trimmed = line.trim();
 	if (trimmed === '' || !isRelevantLogLine(trimmed)) {
 		return undefined;
@@ -280,6 +292,7 @@ function parseTokenUsageEvent(
 	const info = isRecord(payload.info) ? payload.info : undefined;
 	const lastUsage = normalizeRawUsage(info?.last_token_usage);
 	const totalUsage = normalizeRawUsage(info?.total_token_usage);
+	const cumulativeTotalTokens = totalUsage?.total_tokens;
 
 	let raw = lastUsage;
 	if (raw == null && totalUsage != null) {
@@ -291,7 +304,9 @@ function parseTokenUsageEvent(
 	}
 
 	if (raw == null) {
-		return undefined;
+		return {
+			cumulativeTotalTokens,
+		};
 	}
 
 	const delta = convertToDelta(raw);
@@ -301,7 +316,9 @@ function parseTokenUsageEvent(
 		delta.outputTokens === 0 &&
 		delta.reasoningOutputTokens === 0
 	) {
-		return undefined;
+		return {
+			cumulativeTotalTokens,
+		};
 	}
 
 	const extractedModel = extractModel(payload, info);
@@ -339,7 +356,10 @@ function parseTokenUsageEvent(
 		event.isFallbackModel = true;
 	}
 
-	return event;
+	return {
+		event,
+		cumulativeTotalTokens,
+	};
 }
 
 async function listSessionFiles(directoryPath: string): Promise<SessionFileCandidate[]> {
@@ -348,7 +368,8 @@ async function listSessionFiles(directoryPath: string): Promise<SessionFileCandi
 		absolute: true,
 	});
 
-	return files.map((file) => {
+	return files
+		.map((file) => {
 		const relativeSessionPath = path.relative(directoryPath, file);
 		const normalizedSessionPath = relativeSessionPath.split(path.sep).join('/');
 		return {
@@ -356,7 +377,122 @@ async function listSessionFiles(directoryPath: string): Promise<SessionFileCandi
 			relativeSessionPath: normalizedSessionPath,
 			sessionId: normalizedSessionPath.replace(/\.jsonl$/i, ''),
 		};
+		})
+		.sort((a, b) => a.relativeSessionPath.localeCompare(b.relativeSessionPath));
+}
+
+async function readSessionFileMetadata(
+	candidate: SessionFileCandidate,
+	fileStats: Stats,
+	shouldCollectEvents: boolean,
+): Promise<SessionFileEntry> {
+	let metadataId = candidate.sessionId;
+	let forkedFromId: string | undefined;
+
+	const lines = createInterface({
+		input: createReadStream(candidate.file, { encoding: 'utf8' }),
+		crlfDelay: Infinity,
 	});
+
+	try {
+		for await (const line of lines) {
+			const trimmed = line.trim();
+			if (trimmed === '') {
+				continue;
+			}
+
+			let parsed: unknown;
+			try {
+				parsed = JSON.parse(trimmed);
+			} catch {
+				continue;
+			}
+
+			if (!isRecord(parsed) || asNonEmptyString(parsed.type) !== 'session_meta') {
+				continue;
+			}
+
+			const payload = isRecord(parsed.payload) ? parsed.payload : undefined;
+			const id = asNonEmptyString(payload?.id);
+			if (id != null) {
+				metadataId = id;
+			}
+
+			forkedFromId = asNonEmptyString(payload?.forked_from_id);
+			break;
+		}
+	} catch (error) {
+		logger.debug('Failed to read Codex session metadata', error);
+	} finally {
+		lines.close();
+	}
+
+	return {
+		...candidate,
+		fileStats,
+		metadataId,
+		forkedFromId,
+		shouldCollectEvents,
+	};
+}
+
+function collectRequiredSessionIds(
+	entries: SessionFileEntry[],
+	entriesByMetadataId: Map<string, SessionFileEntry>,
+): Set<string> {
+	const required = new Set<string>();
+
+	for (const entry of entries) {
+		if (!entry.shouldCollectEvents) {
+			continue;
+		}
+
+		let current: SessionFileEntry | undefined = entry;
+		while (current != null && !required.has(current.metadataId)) {
+			required.add(current.metadataId);
+			current =
+				current.forkedFromId != null ? entriesByMetadataId.get(current.forkedFromId) : undefined;
+		}
+	}
+
+	return required;
+}
+
+function orderSessionEntries(
+	entries: SessionFileEntry[],
+	requiredIds: Set<string>,
+	entriesByMetadataId: Map<string, SessionFileEntry>,
+): SessionFileEntry[] {
+	const ordered: SessionFileEntry[] = [];
+	const visiting = new Set<string>();
+	const visited = new Set<string>();
+
+	const visit = (entry: SessionFileEntry): void => {
+		if (!requiredIds.has(entry.metadataId) || visited.has(entry.metadataId)) {
+			return;
+		}
+
+		if (visiting.has(entry.metadataId)) {
+			return;
+		}
+
+		visiting.add(entry.metadataId);
+		if (entry.forkedFromId != null) {
+			const parent = entriesByMetadataId.get(entry.forkedFromId);
+			if (parent != null) {
+				visit(parent);
+			}
+		}
+		visiting.delete(entry.metadataId);
+		visited.add(entry.metadataId);
+		ordered.push(entry);
+	};
+
+	for (const entry of entries) {
+		visit(entry);
+	}
+
+	return ordered;
 }
 
 export type LoadOptions = {
@@ -390,6 +526,7 @@ export async function loadTokenUsageEvents(options: LoadOptions = {}): Promise<L
 	const missingDirectories: string[] = [];
 	const collectEvents = options.collectEvents ?? options.onEvent == null;
 	const sortEvents = collectEvents && (options.sortEvents ?? true);
+	const rawTotalsByMetadataId = new Map<string, number[]>();
 
 	for (const dir of sessionDirs) {
 		const directoryPath = path.resolve(dir);
@@ -408,26 +545,36 @@ export async function loadTokenUsageEvents(options: LoadOptions = {}): Promise<L
 		}
 
 		const files = await listSessionFiles(directoryPath);
-		for (const { file, relativeSessionPath, sessionId } of files) {
+		const indexedFiles: SessionFileEntry[] = [];
+		const entriesByMetadataId = new Map<string, SessionFileEntry>();
+		for (const candidate of files) {
 			let fileStats: Stats;
 			try {
-				fileStats = await stat(file);
+				fileStats = await stat(candidate.file);
 			} catch (error) {
 				logger.debug('Failed to stat Codex session file', error);
 				continue;
 			}
 
-			if (
-				!shouldReadSessionFile(
-					relativeSessionPath,
-					fileStats,
-					options.since,
-					options.until,
-					options.timezone,
-				)
-			) {
-				continue;
+			const shouldCollectEvents = shouldReadSessionFile(
+				candidate.relativeSessionPath,
+				fileStats,
+				options.since,
+				options.until,
+				options.timezone,
+			);
+			const entry = await readSessionFileMetadata(candidate, fileStats, shouldCollectEvents);
+			indexedFiles.push(entry);
+			if (!entriesByMetadataId.has(entry.metadataId)) {
+				entriesByMetadataId.set(entry.metadataId, entry);
 			}
+		}
+
+		const requiredIds = collectRequiredSessionIds(indexedFiles, entriesByMetadataId);
+		const filesToParse = orderSessionEntries(indexedFiles, requiredIds, entriesByMetadataId);
+
+		for (const entry of filesToParse) {
+			const { file, sessionId, metadataId, forkedFromId, shouldCollectEvents } = entry;
 
 			const state: SessionParseState = {
 				previousTotals: null,
@@ -435,6 +582,11 @@ export async function loadTokenUsageEvents(options: LoadOptions = {}): Promise<L
 				currentModelIsFallback: false,
 				legacyFallbackUsed: false,
 			};
+			const ancestorTotals =
+				forkedFromId != null ? rawTotalsByMetadataId.get(forkedFromId) : undefined;
+			let replayPrefixDone = ancestorTotals == null || ancestorTotals.length === 0;
+			let replayPrefixIndex = 0;
+			const rawTotals: number[] = [];
 
 			const lines = createInterface({
 				input: createReadStream(file, { encoding: 'utf8' }),
@@ -443,8 +595,32 @@ export async function loadTokenUsageEvents(options: LoadOptions = {}): Promise<L
 
 			try {
 				for await (const line of lines) {
-					const event = parseTokenUsageEvent(sessionId, line, state);
-					if (event == null) {
+					const parsed = parseTokenUsageEvent(sessionId, line, state);
+					if (parsed == null) {
+						continue;
+					}
+
+					const cumulativeTotalTokens = parsed.cumulativeTotalTokens;
+					if (cumulativeTotalTokens != null) {
+						rawTotals.push(cumulativeTotalTokens);
+					}
+
+					const nextAncestorTotal =
+						!replayPrefixDone && ancestorTotals != null
+							? ancestorTotals[replayPrefixIndex]
+							: undefined;
+					if (
+						nextAncestorTotal != null &&
+						cumulativeTotalTokens != null &&
+						cumulativeTotalTokens === nextAncestorTotal
+					) {
+						replayPrefixIndex += 1;
+						continue;
+					}
+					replayPrefixDone = true;
+
+					const event = parsed.event;
+					if (event == null || !shouldCollectEvents) {
 						continue;
 					}
 
@@ -468,6 +644,7 @@ export async function loadTokenUsageEvents(options: LoadOptions = {}): Promise<L
 			} finally {
 				lines.close();
 			}
+			rawTotalsByMetadataId.set(metadataId, rawTotals);
 
 			if (state.legacyFallbackUsed) {
 				logger.debug('Legacy Codex session lacked model metadata; applied fallback', {
@@ -726,6 +903,307 @@ if (import.meta.vitest != null) {
 			expect(events).toHaveLength(1);
 			expect(events[0]!.sessionId).toBe('2025/09/12/new');
 			expect(events[0]!.model).toBe('gpt-5-mini');
+		});
+
+		it('deduplicates replayed fork prefixes from child sessions', async () => {
+			await using fixture = await createFixture({
+				sessions: {
+					'a-child.jsonl': [
+						JSON.stringify({
+							timestamp: '2025-09-12T10:00:00.000Z',
+							type: 'session_meta',
+							payload: {
+								id: 'child-session',
+								forked_from_id: 'parent-session',
+							},
+						}),
+						JSON.stringify({
+							timestamp: '2025-09-12T10:00:00.100Z',
+							type: 'turn_context',
+							payload: {
+								model: 'gpt-5',
+							},
+						}),
+						JSON.stringify({
+							timestamp: '2025-09-12T10:00:01.000Z',
+							type: 'event_msg',
+							payload: {
+								type: 'token_count',
+								info: {
+									total_token_usage: {
+										input_tokens: 80,
+										cached_input_tokens: 0,
+										output_tokens: 20,
+										reasoning_output_tokens: 0,
+										total_tokens: 100,
+									},
+									last_token_usage: {
+										input_tokens: 80,
+										cached_input_tokens: 0,
+										output_tokens: 20,
+										reasoning_output_tokens: 0,
+										total_tokens: 100,
+									},
+								},
+							},
+						}),
+						JSON.stringify({
+							timestamp: '2025-09-12T10:00:02.000Z',
+							type: 'event_msg',
+							payload: {
+								type: 'token_count',
+								info: {
+									total_token_usage: {
+										input_tokens: 120,
+										cached_input_tokens: 0,
+										output_tokens: 30,
+										reasoning_output_tokens: 0,
+										total_tokens: 150,
+									},
+									last_token_usage: {
+										input_tokens: 40,
+										cached_input_tokens: 0,
+										output_tokens: 10,
+										reasoning_output_tokens: 0,
+										total_tokens: 50,
+									},
+								},
+							},
+						}),
+						JSON.stringify({
+							timestamp: '2025-09-12T10:00:03.000Z',
+							type: 'event_msg',
+							payload: {
+								type: 'token_count',
+								info: {
+									total_token_usage: {
+										input_tokens: 144,
+										cached_input_tokens: 0,
+										output_tokens: 36,
+										reasoning_output_tokens: 0,
+										total_tokens: 180,
+									},
+									last_token_usage: {
+										input_tokens: 24,
+										cached_input_tokens: 0,
+										output_tokens: 6,
+										reasoning_output_tokens: 0,
+										total_tokens: 30,
+									},
+								},
+							},
+						}),
+					].join('\n'),
+					'z-parent.jsonl': [
+						JSON.stringify({
+							timestamp: '2025-09-12T09:00:00.000Z',
+							type: 'session_meta',
+							payload: {
+								id: 'parent-session',
+							},
+						}),
+						JSON.stringify({
+							timestamp: '2025-09-12T09:00:00.100Z',
+							type: 'turn_context',
+							payload: {
+								model: 'gpt-5',
+							},
+						}),
+						JSON.stringify({
+							timestamp: '2025-09-12T09:00:01.000Z',
+							type: 'event_msg',
+							payload: {
+								type: 'token_count',
+								info: {
+									total_token_usage: {
+										input_tokens: 80,
+										cached_input_tokens: 0,
+										output_tokens: 20,
+										reasoning_output_tokens: 0,
+										total_tokens: 100,
+									},
+									last_token_usage: {
+										input_tokens: 80,
+										cached_input_tokens: 0,
+										output_tokens: 20,
+										reasoning_output_tokens: 0,
+										total_tokens: 100,
+									},
+								},
+							},
+						}),
+						JSON.stringify({
+							timestamp: '2025-09-12T09:00:02.000Z',
+							type: 'event_msg',
+							payload: {
+								type: 'token_count',
+								info: {
+									total_token_usage: {
+										input_tokens: 120,
+										cached_input_tokens: 0,
+										output_tokens: 30,
+										reasoning_output_tokens: 0,
+										total_tokens: 150,
+									},
+									last_token_usage: {
+										input_tokens: 40,
+										cached_input_tokens: 0,
+										output_tokens: 10,
+										reasoning_output_tokens: 0,
+										total_tokens: 50,
+									},
+								},
+							},
+						}),
+					].join('\n'),
+				},
+			});
+
+			const { events } = await loadTokenUsageEvents({
+				sessionDirs: [fixture.getPath('sessions')],
+			});
+
+			expect(events).toHaveLength(3);
+			expect(events.map((event) => [event.sessionId, event.totalTokens])).toEqual([
+				['z-parent', 100],
+				['z-parent', 50],
+				['a-child', 30],
+			]);
+		});
+
+		it('loads fork ancestors outside the requested date range for deduplication', async () => {
+			await using fixture = await createFixture({
+				sessions: {
+					'2025': {
+						'09': {
+							'10': {
+								'parent.jsonl': [
+									JSON.stringify({
+										timestamp: '2025-09-10T09:00:00.000Z',
+										type: 'session_meta',
+										payload: {
+											id: 'parent-range',
+										},
+									}),
+									JSON.stringify({
+										timestamp: '2025-09-10T09:00:00.100Z',
+										type: 'turn_context',
+										payload: {
+											model: 'gpt-5',
+										},
+									}),
+									JSON.stringify({
+										timestamp: '2025-09-10T09:00:01.000Z',
+										type: 'event_msg',
+										payload: {
+											type: 'token_count',
+											info: {
+												total_token_usage: {
+													input_tokens: 80,
+													cached_input_tokens: 0,
+													output_tokens: 20,
+													reasoning_output_tokens: 0,
+													total_tokens: 100,
+												},
+												last_token_usage: {
+													input_tokens: 80,
+													cached_input_tokens: 0,
+													output_tokens: 20,
+													reasoning_output_tokens: 0,
+													total_tokens: 100,
+												},
+											},
+										},
+									}),
+								].join('\n'),
+							},
+							'12': {
+								'child.jsonl': [
+									JSON.stringify({
+										timestamp: '2025-09-12T10:00:00.000Z',
+										type: 'session_meta',
+										payload: {
+											id: 'child-range',
+											forked_from_id: 'parent-range',
+										},
+									}),
+									JSON.stringify({
+										timestamp: '2025-09-12T10:00:00.100Z',
+										type: 'turn_context',
+										payload: {
+											model: 'gpt-5',
+										},
+									}),
+									JSON.stringify({
+										timestamp: '2025-09-12T10:00:01.000Z',
+										type: 'event_msg',
+										payload: {
+											type: 'token_count',
+											info: {
+												total_token_usage: {
+													input_tokens: 80,
+													cached_input_tokens: 0,
+													output_tokens: 20,
+													reasoning_output_tokens: 0,
+													total_tokens: 100,
+												},
+												last_token_usage: {
+													input_tokens: 80,
+													cached_input_tokens: 0,
+													output_tokens: 20,
+													reasoning_output_tokens: 0,
+													total_tokens: 100,
+												},
+											},
+										},
+									}),
+									JSON.stringify({
+										timestamp: '2025-09-12T10:00:02.000Z',
+										type: 'event_msg',
+										payload: {
+											type: 'token_count',
+											info: {
+												total_token_usage: {
+													input_tokens: 104,
+													cached_input_tokens: 0,
+													output_tokens: 26,
+													reasoning_output_tokens: 0,
+													total_tokens: 130,
+												},
+												last_token_usage: {
+													input_tokens: 24,
+													cached_input_tokens: 0,
+													output_tokens: 6,
+													reasoning_output_tokens: 0,
+													total_tokens: 30,
+												},
+											},
+										},
+									}),
+								].join('\n'),
+							},
+						},
+					},
+				},
+			});
+
+			const parentPath = fixture.getPath('sessions/2025/09/10/parent.jsonl');
+			await utimes(
+				parentPath,
+				new Date('2025-09-10T09:00:01.000Z'),
+				new Date('2025-09-10T09:00:01.000Z'),
+			);
+
+			const { events } = await loadTokenUsageEvents({
+				sessionDirs: [fixture.getPath('sessions')],
+				since: '2025-09-12',
+				until: '2025-09-12',
+				timezone: 'UTC',
+			});
+
+			expect(events).toHaveLength(1);
+			expect(events[0]!.sessionId).toBe('2025/09/12/child');
+			expect(events[0]!.totalTokens).toBe(30);
 		});
 	});
 }
