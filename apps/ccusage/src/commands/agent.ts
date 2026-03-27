@@ -580,22 +580,25 @@ async function resolveSessionTitle(
 						if (textContent == null) {
 							continue;
 						}
-						// Find first non-empty line that isn't a bare UUID/hash
+						// Filter out bare UUIDs/hashes and bare URLs, keep substantive lines
 						const uuidPattern = /^[\da-f-]{8,}$/i;
-						const firstLine =
-							textContent
-								.split('\n')
-								.map((l) => l.trim())
-								.find((l) => l.length > 0 && !uuidPattern.test(l)) ??
-							textContent.split('\n')[0]!.trim();
-						if (firstLine.length > 0) {
+						const bareUrlPattern = /^https?:\/\/\S+$/i;
+						const substantiveLines = textContent
+							.split('\n')
+							.map((l) => l.trim())
+							.filter((l) => l.length > 0 && !uuidPattern.test(l) && !bareUrlPattern.test(l));
+						const condensed =
+							substantiveLines.length > 0
+								? substantiveLines.join(' ')
+								: textContent.split('\n')[0]!.trim();
+						if (condensed.length > 0) {
 							// Only set deterministic title from substantive messages
-							if (firstLine.length >= 10 && firstLine.includes(' ') && userMessageTitle == null) {
-								userMessageTitle = firstLine;
+							if (condensed.length >= 10 && condensed.includes(' ') && userMessageTitle == null) {
+								userMessageTitle = truncateAtWord(condensed, 120);
 							}
-							// Collect ALL non-empty messages for AI title generation
+							// Collect full message content for AI title generation
 							if (userMessages.length < 5) {
-								userMessages.push(truncateAtWord(firstLine, 120));
+								userMessages.push(truncateAtWord(condensed, 200));
 							}
 						}
 					}
