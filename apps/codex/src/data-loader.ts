@@ -1,17 +1,19 @@
+import type { Stats } from 'node:fs';
 import type { TokenUsageDelta, TokenUsageEvent } from './_types.ts';
-import { readFile, stat } from 'node:fs/promises';
+import { createReadStream } from 'node:fs';
+import { stat, utimes } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
-import { Result } from '@praha/byethrow';
+import { createInterface } from 'node:readline';
 import { createFixture } from 'fs-fixture';
 import { glob } from 'tinyglobby';
-import * as v from 'valibot';
 import {
 	CODEX_HOME_ENV,
 	DEFAULT_CODEX_DIR,
 	DEFAULT_SESSION_SUBDIR,
 	SESSION_GLOB,
 } from './_consts.ts';
+import { isWithinRange, toDateKey } from './date-utils.ts';
 import { logger } from './logger.ts';
 
 type RawUsage = {
@@ -21,6 +23,25 @@ type RawUsage = {
 	reasoning_output_tokens: number;
 	total_tokens: number;
 };
+
+type JsonRecord = Record<string, unknown>;
+
+type SessionParseState = {
+	previousTotals: RawUsage | null;
+	currentModel?: string;
+	currentModelIsFallback: boolean;
+	legacyFallbackUsed: boolean;
+};
+
+type SessionFileCandidate = {
+	file: string;
+	relativeSessionPath: string;
+	sessionId: string;
+};
+
+function isRecord(value: unknown): value is JsonRecord {
+	return value != null && typeof value === 'object' && !Array.isArray(value);
+}
 
 function ensureNumber(value: unknown): number {
 	return typeof value === 'number' && Number.isFinite(value) ? value : 0;
@@ -40,16 +61,15 @@ function ensureNumber(value: unknown): number {
  * `input + output` (reasoning is treated as part of output, not an extra charge).
  */
 function normalizeRawUsage(value: unknown): RawUsage | null {
-	if (value == null || typeof value !== 'object') {
+	if (!isRecord(value)) {
 		return null;
 	}
 
-	const record = value as Record<string, unknown>;
-	const input = ensureNumber(record.input_tokens);
-	const cached = ensureNumber(record.cached_input_tokens ?? record.cache_read_input_tokens);
-	const output = ensureNumber(record.output_tokens);
-	const reasoning = ensureNumber(record.reasoning_output_tokens);
-	const total = ensureNumber(record.total_tokens);
+	const input = ensureNumber(value.input_tokens);
+	const cached = ensureNumber(value.cached_input_tokens ?? value.cache_read_input_tokens);
+	const output = ensureNumber(value.output_tokens);
+	const reasoning = ensureNumber(value.reasoning_output_tokens);
+	const total = ensureNumber(value.total_tokens);
 
 	return {
 		input_tokens: input,
@@ -101,69 +121,42 @@ function convertToDelta(raw: RawUsage): TokenUsageDelta {
 	};
 }
 
-const recordSchema = v.record(v.string(), v.unknown());
 const LEGACY_FALLBACK_MODEL = 'gpt-5';
 
-const entrySchema = v.object({
-	type: v.string(),
-	payload: v.optional(v.unknown()),
-	timestamp: v.optional(v.string()),
-});
-
-const tokenCountPayloadSchema = v.object({
-	type: v.literal('token_count'),
-	info: v.optional(recordSchema),
-});
-
-function extractModel(value: unknown): string | undefined {
-	const parsed = v.safeParse(recordSchema, value);
-	if (!parsed.success) {
+function extractModelMetadata(value: unknown): string | undefined {
+	if (!isRecord(value)) {
 		return undefined;
 	}
 
-	const payload = parsed.output;
+	return asNonEmptyString(value.model);
+}
 
-	const infoCandidate = payload.info;
-	if (infoCandidate != null) {
-		const infoParsed = v.safeParse(recordSchema, infoCandidate);
-		if (infoParsed.success) {
-			const info = infoParsed.output;
-			const directCandidates = [info.model, info.model_name];
-			for (const candidate of directCandidates) {
-				const model = asNonEmptyString(candidate);
-				if (model != null) {
-					return model;
-				}
-			}
-
-			if (info.metadata != null) {
-				const metadataParsed = v.safeParse(recordSchema, info.metadata);
-				if (metadataParsed.success) {
-					const model = asNonEmptyString(metadataParsed.output.model);
-					if (model != null) {
-						return model;
-					}
-				}
-			}
-		}
+function extractModel(value: unknown, infoOverride?: JsonRecord): string | undefined {
+	if (!isRecord(value)) {
+		return undefined;
 	}
 
-	const fallbackModel = asNonEmptyString(payload.model);
-	if (fallbackModel != null) {
-		return fallbackModel;
-	}
-
-	if (payload.metadata != null) {
-		const metadataParsed = v.safeParse(recordSchema, payload.metadata);
-		if (metadataParsed.success) {
-			const model = asNonEmptyString(metadataParsed.output.model);
+	const info = infoOverride ?? (isRecord(value.info) ? value.info : undefined);
+	if (info != null) {
+		for (const candidate of [info.model, info.model_name]) {
+			const model = asNonEmptyString(candidate);
 			if (model != null) {
 				return model;
 			}
 		}
+
+		const metadataModel = extractModelMetadata(info.metadata);
+		if (metadataModel != null) {
+			return metadataModel;
+		}
 	}
 
-	return undefined;
+	const fallbackModel = asNonEmptyString(value.model);
+	if (fallbackModel != null) {
+		return fallbackModel;
+	}
+
+	return extractModelMetadata(value.metadata);
 }
 
 function asNonEmptyString(value: unknown): string | undefined {
@@ -175,8 +168,205 @@ function asNonEmptyString(value: unknown): string | undefined {
 	return trimmed === '' ? undefined : trimmed;
 }
 
+function dateToDateKey(value: Date, timezone?: string): string | undefined {
+	if (!(value instanceof Date) || Number.isNaN(value.getTime())) {
+		return undefined;
+	}
+
+	return toDateKey(value.toISOString(), timezone);
+}
+
+function sessionPathDateKey(relativeSessionPath: string): string | undefined {
+	const match = relativeSessionPath.match(/(?:^|\/)(\d{4})\/(\d{2})\/(\d{2})\//);
+	if (match == null) {
+		return undefined;
+	}
+
+	const [, year, month, day] = match;
+	return `${year}-${month}-${day}`;
+}
+
+function shouldReadSessionFile(
+	relativeSessionPath: string,
+	fileStats: Stats,
+	since?: string,
+	until?: string,
+	timezone?: string,
+): boolean {
+	if (since == null && until == null) {
+		return true;
+	}
+
+	const endDateKey = dateToDateKey(fileStats.mtime, timezone);
+	if (since != null && endDateKey != null && endDateKey < since) {
+		return false;
+	}
+
+	const startDateKey =
+		sessionPathDateKey(relativeSessionPath) ?? dateToDateKey(fileStats.birthtime, timezone);
+	if (until != null && startDateKey != null && startDateKey > until) {
+		return false;
+	}
+
+	return true;
+}
+
+function isRelevantLogLine(line: string): boolean {
+	return line.includes('"type"') && (line.includes('turn_context') || line.includes('event_msg'));
+}
+
+function isEventWithinRange(
+	timestamp: string,
+	since?: string,
+	until?: string,
+	timezone?: string,
+): boolean {
+	if (since == null && until == null) {
+		return true;
+	}
+
+	return isWithinRange(toDateKey(timestamp, timezone), since, until);
+}
+
+function parseTokenUsageEvent(
+	sessionId: string,
+	line: string,
+	state: SessionParseState,
+): TokenUsageEvent | undefined {
+	const trimmed = line.trim();
+	if (trimmed === '' || !isRelevantLogLine(trimmed)) {
+		return undefined;
+	}
+
+	let parsed: unknown;
+	try {
+		parsed = JSON.parse(trimmed);
+	} catch {
+		return undefined;
+	}
+
+	if (!isRecord(parsed)) {
+		return undefined;
+	}
+
+	const entryType = asNonEmptyString(parsed.type);
+	if (entryType == null) {
+		return undefined;
+	}
+
+	const payload = isRecord(parsed.payload) ? parsed.payload : undefined;
+	if (entryType === 'turn_context') {
+		const contextModel = extractModel(payload);
+		if (contextModel != null) {
+			state.currentModel = contextModel;
+			state.currentModelIsFallback = false;
+		}
+		return undefined;
+	}
+
+	if (entryType !== 'event_msg' || payload == null) {
+		return undefined;
+	}
+
+	if (asNonEmptyString(payload.type) !== 'token_count') {
+		return undefined;
+	}
+
+	const timestamp = asNonEmptyString(parsed.timestamp);
+	if (timestamp == null) {
+		return undefined;
+	}
+
+	const info = isRecord(payload.info) ? payload.info : undefined;
+	const lastUsage = normalizeRawUsage(info?.last_token_usage);
+	const totalUsage = normalizeRawUsage(info?.total_token_usage);
+
+	let raw = lastUsage;
+	if (raw == null && totalUsage != null) {
+		raw = subtractRawUsage(totalUsage, state.previousTotals);
+	}
+
+	if (totalUsage != null) {
+		state.previousTotals = totalUsage;
+	}
+
+	if (raw == null) {
+		return undefined;
+	}
+
+	const delta = convertToDelta(raw);
+	if (
+		delta.inputTokens === 0 &&
+		delta.cachedInputTokens === 0 &&
+		delta.outputTokens === 0 &&
+		delta.reasoningOutputTokens === 0
+	) {
+		return undefined;
+	}
+
+	const extractedModel = extractModel(payload, info);
+	let isFallbackModel = false;
+	if (extractedModel != null) {
+		state.currentModel = extractedModel;
+		state.currentModelIsFallback = false;
+	}
+
+	let model = extractedModel ?? state.currentModel;
+	if (model == null) {
+		model = LEGACY_FALLBACK_MODEL;
+		isFallbackModel = true;
+		state.legacyFallbackUsed = true;
+		state.currentModel = model;
+		state.currentModelIsFallback = true;
+	} else if (extractedModel == null && state.currentModelIsFallback) {
+		isFallbackModel = true;
+	}
+
+	const event: TokenUsageEvent = {
+		sessionId,
+		timestamp,
+		model,
+		inputTokens: delta.inputTokens,
+		cachedInputTokens: delta.cachedInputTokens,
+		outputTokens: delta.outputTokens,
+		reasoningOutputTokens: delta.reasoningOutputTokens,
+		totalTokens: delta.totalTokens,
+	};
+
+	if (isFallbackModel) {
+		// Surface the fallback so both table + JSON outputs can annotate pricing that was
+		// inferred rather than sourced from the log metadata.
+		event.isFallbackModel = true;
+	}
+
+	return event;
+}
+
+async function listSessionFiles(directoryPath: string): Promise<SessionFileCandidate[]> {
+	const files = await glob(SESSION_GLOB, {
+		cwd: directoryPath,
+		absolute: true,
+	});
+
+	return files.map((file) => {
+		const relativeSessionPath = path.relative(directoryPath, file);
+		const normalizedSessionPath = relativeSessionPath.split(path.sep).join('/');
+		return {
+			file,
+			relativeSessionPath: normalizedSessionPath,
+			sessionId: normalizedSessionPath.replace(/\.jsonl$/i, ''),
+		};
+	});
+}
+
 export type LoadOptions = {
 	sessionDirs?: string[];
+	since?: string;
+	until?: string;
+	timezone?: string;
+	onEvent?: (event: TokenUsageEvent) => void | Promise<void>;
+	collectEvents?: boolean;
+	sortEvents?: boolean;
 };
 
 export type LoadResult = {
@@ -198,166 +388,88 @@ export async function loadTokenUsageEvents(options: LoadOptions = {}): Promise<L
 
 	const events: TokenUsageEvent[] = [];
 	const missingDirectories: string[] = [];
+	const collectEvents = options.collectEvents ?? options.onEvent == null;
+	const sortEvents = collectEvents && (options.sortEvents ?? true);
 
 	for (const dir of sessionDirs) {
 		const directoryPath = path.resolve(dir);
-		const statResult = await Result.try({
-			try: stat(directoryPath),
-			catch: (error) => error,
-		});
 
-		if (Result.isFailure(statResult)) {
+		let directoryStats: Stats;
+		try {
+			directoryStats = await stat(directoryPath);
+		} catch {
 			missingDirectories.push(directoryPath);
 			continue;
 		}
 
-		if (!statResult.value.isDirectory()) {
+		if (!directoryStats.isDirectory()) {
 			missingDirectories.push(directoryPath);
 			continue;
 		}
 
-		const files = await glob(SESSION_GLOB, {
-			cwd: directoryPath,
-			absolute: true,
-		});
-
-		for (const file of files) {
-			const relativeSessionPath = path.relative(directoryPath, file);
-			const normalizedSessionPath = relativeSessionPath.split(path.sep).join('/');
-			const sessionId = normalizedSessionPath.replace(/\.jsonl$/i, '');
-			const fileContentResult = await Result.try({
-				try: readFile(file, 'utf8'),
-				catch: (error) => error,
-			});
-
-			if (Result.isFailure(fileContentResult)) {
-				logger.debug('Failed to read Codex session file', fileContentResult.error);
+		const files = await listSessionFiles(directoryPath);
+		for (const { file, relativeSessionPath, sessionId } of files) {
+			let fileStats: Stats;
+			try {
+				fileStats = await stat(file);
+			} catch (error) {
+				logger.debug('Failed to stat Codex session file', error);
 				continue;
 			}
 
-			let previousTotals: RawUsage | null = null;
-			let currentModel: string | undefined;
-			let currentModelIsFallback = false;
-			let legacyFallbackUsed = false;
-			const lines = fileContentResult.value.split(/\r?\n/);
-			for (const line of lines) {
-				const trimmed = line.trim();
-				if (trimmed === '') {
-					continue;
-				}
-
-				const parseLine = Result.try({
-					try: () => JSON.parse(trimmed) as unknown,
-					catch: (error) => error,
-				});
-				const parsedResult = parseLine();
-
-				if (Result.isFailure(parsedResult)) {
-					continue;
-				}
-
-				const entryParse = v.safeParse(entrySchema, parsedResult.value);
-				if (!entryParse.success) {
-					continue;
-				}
-
-				const { type: entryType, payload, timestamp } = entryParse.output;
-
-				if (entryType === 'turn_context') {
-					const contextPayload = v.safeParse(recordSchema, payload ?? null);
-					if (contextPayload.success) {
-						const contextModel = extractModel(contextPayload.output);
-						if (contextModel != null) {
-							currentModel = contextModel;
-							currentModelIsFallback = false;
-						}
-					}
-					continue;
-				}
-
-				if (entryType !== 'event_msg') {
-					continue;
-				}
-
-				const tokenPayloadResult = v.safeParse(tokenCountPayloadSchema, payload ?? undefined);
-				if (!tokenPayloadResult.success) {
-					continue;
-				}
-
-				if (timestamp == null) {
-					continue;
-				}
-
-				const info = tokenPayloadResult.output.info;
-				const lastUsage = normalizeRawUsage(info?.last_token_usage);
-				const totalUsage = normalizeRawUsage(info?.total_token_usage);
-
-				let raw = lastUsage;
-				if (raw == null && totalUsage != null) {
-					raw = subtractRawUsage(totalUsage, previousTotals);
-				}
-
-				if (totalUsage != null) {
-					previousTotals = totalUsage;
-				}
-
-				if (raw == null) {
-					continue;
-				}
-
-				const delta = convertToDelta(raw);
-				if (
-					delta.inputTokens === 0 &&
-					delta.cachedInputTokens === 0 &&
-					delta.outputTokens === 0 &&
-					delta.reasoningOutputTokens === 0
-				) {
-					continue;
-				}
-
-				const payloadRecordResult = v.safeParse(recordSchema, payload ?? undefined);
-				const extractionSource = payloadRecordResult.success
-					? Object.assign({}, payloadRecordResult.output, { info })
-					: { info };
-				const extractedModel = extractModel(extractionSource);
-				let isFallbackModel = false;
-				if (extractedModel != null) {
-					currentModel = extractedModel;
-					currentModelIsFallback = false;
-				}
-
-				let model = extractedModel ?? currentModel;
-				if (model == null) {
-					model = LEGACY_FALLBACK_MODEL;
-					isFallbackModel = true;
-					legacyFallbackUsed = true;
-					currentModel = model;
-					currentModelIsFallback = true;
-				} else if (extractedModel == null && currentModelIsFallback) {
-					isFallbackModel = true;
-				}
-
-				const event: TokenUsageEvent = {
-					sessionId,
-					timestamp,
-					model,
-					inputTokens: delta.inputTokens,
-					cachedInputTokens: delta.cachedInputTokens,
-					outputTokens: delta.outputTokens,
-					reasoningOutputTokens: delta.reasoningOutputTokens,
-					totalTokens: delta.totalTokens,
-				};
-
-				if (isFallbackModel) {
-					// Surface the fallback so both table + JSON outputs can annotate pricing that was
-					// inferred rather than sourced from the log metadata.
-					event.isFallbackModel = true;
-				}
-
-				events.push(event);
+			if (
+				!shouldReadSessionFile(
+					relativeSessionPath,
+					fileStats,
+					options.since,
+					options.until,
+					options.timezone,
+				)
+			) {
+				continue;
 			}
 
-			if (legacyFallbackUsed) {
+			const state: SessionParseState = {
+				previousTotals: null,
+				currentModel: undefined,
+				currentModelIsFallback: false,
+				legacyFallbackUsed: false,
+			};
+
+			const lines = createInterface({
+				input: createReadStream(file, { encoding: 'utf8' }),
+				crlfDelay: Infinity,
+			});
+
+			try {
+				for await (const line of lines) {
+					const event = parseTokenUsageEvent(sessionId, line, state);
+					if (event == null) {
+						continue;
+					}
+
+					if (
+						!isEventWithinRange(event.timestamp, options.since, options.until, options.timezone)
+					) {
+						continue;
+					}
+
+					if (collectEvents) {
+						events.push(event);
+					}
+
+					if (options.onEvent != null) {
+						await options.onEvent(event);
+					}
+				}
+			} catch (error) {
+				logger.debug('Failed to stream Codex session file', error);
+				continue;
+			} finally {
+				lines.close();
+			}
+
+			if (state.legacyFallbackUsed) {
 				logger.debug('Legacy Codex session lacked model metadata; applied fallback', {
 					file,
 					model: LEGACY_FALLBACK_MODEL,
@@ -366,7 +478,9 @@ export async function loadTokenUsageEvents(options: LoadOptions = {}): Promise<L
 		}
 	}
 
-	events.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+	if (sortEvents && events.length > 1) {
+		events.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+	}
 
 	return { events, missingDirectories };
 }
@@ -483,6 +597,135 @@ if (import.meta.vitest != null) {
 			expect(events).toHaveLength(1);
 			expect(events[0]!.model).toBe('gpt-5');
 			expect(events[0]!.isFallbackModel).toBe(true);
+		});
+
+		it('supports streaming callbacks without collecting events', async () => {
+			await using fixture = await createFixture({
+				sessions: {
+					'streamed.jsonl': [
+						JSON.stringify({
+							timestamp: '2025-09-15T13:00:00.000Z',
+							type: 'turn_context',
+							payload: {
+								model: 'gpt-5',
+							},
+						}),
+						JSON.stringify({
+							timestamp: '2025-09-15T13:00:01.000Z',
+							type: 'event_msg',
+							payload: {
+								type: 'token_count',
+								info: {
+									last_token_usage: {
+										input_tokens: 10,
+										cached_input_tokens: 0,
+										output_tokens: 5,
+										reasoning_output_tokens: 0,
+										total_tokens: 15,
+									},
+								},
+							},
+						}),
+					].join('\n'),
+				},
+			});
+
+			const seen: TokenUsageEvent[] = [];
+			const { events } = await loadTokenUsageEvents({
+				sessionDirs: [fixture.getPath('sessions')],
+				collectEvents: false,
+				sortEvents: false,
+				onEvent: (event) => {
+					seen.push(event);
+				},
+			});
+
+			expect(events).toEqual([]);
+			expect(seen).toHaveLength(1);
+			expect(seen[0]!.totalTokens).toBe(15);
+		});
+
+		it('skips files that cannot overlap the requested date range', async () => {
+			await using fixture = await createFixture({
+				sessions: {
+					'2025': {
+						'09': {
+							'10': {
+								'old.jsonl': [
+									JSON.stringify({
+										timestamp: '2025-09-10T08:00:00.000Z',
+										type: 'turn_context',
+										payload: {
+											model: 'gpt-5',
+										},
+									}),
+									JSON.stringify({
+										timestamp: '2025-09-10T08:00:01.000Z',
+										type: 'event_msg',
+										payload: {
+											type: 'token_count',
+											info: {
+												last_token_usage: {
+													input_tokens: 1,
+													cached_input_tokens: 0,
+													output_tokens: 1,
+													reasoning_output_tokens: 0,
+													total_tokens: 2,
+												},
+											},
+										},
+									}),
+								].join('\n'),
+							},
+							'12': {
+								'new.jsonl': [
+									JSON.stringify({
+										timestamp: '2025-09-12T08:00:00.000Z',
+										type: 'turn_context',
+										payload: {
+											model: 'gpt-5-mini',
+										},
+									}),
+									JSON.stringify({
+										timestamp: '2025-09-12T08:00:01.000Z',
+										type: 'event_msg',
+										payload: {
+											type: 'token_count',
+											info: {
+												last_token_usage: {
+													input_tokens: 3,
+													cached_input_tokens: 0,
+													output_tokens: 2,
+													reasoning_output_tokens: 0,
+													total_tokens: 5,
+												},
+											},
+										},
+									}),
+								].join('\n'),
+							},
+						},
+					},
+				},
+			});
+
+			const oldPath = fixture.getPath('sessions/2025/09/10/old.jsonl');
+			await utimes(
+				oldPath,
+				new Date('2025-09-10T08:00:01.000Z'),
+				new Date('2025-09-10T08:00:01.000Z'),
+			);
+
+			const { events } = await loadTokenUsageEvents({
+				sessionDirs: [fixture.getPath('sessions')],
+				since: '2025-09-12',
+				until: '2025-09-12',
+				timezone: 'UTC',
+			});
+
+			expect(events).toHaveLength(1);
+			expect(events[0]!.sessionId).toBe('2025/09/12/new');
+			expect(events[0]!.model).toBe('gpt-5-mini');
 		});
 	});
 }

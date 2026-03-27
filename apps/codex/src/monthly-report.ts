@@ -17,6 +17,8 @@ export type MonthlyReportOptions = {
 	pricingSource: PricingSource;
 };
 
+export type MonthlySummaries = Map<string, MonthlyUsageSummary>;
+
 function createSummary(month: string, initialTimestamp: string): MonthlyUsageSummary {
 	return {
 		month,
@@ -31,47 +33,46 @@ function createSummary(month: string, initialTimestamp: string): MonthlyUsageSum
 	};
 }
 
-export async function buildMonthlyReport(
-	events: TokenUsageEvent[],
-	options: MonthlyReportOptions,
+export function accumulateMonthlyUsage(
+	summaries: MonthlySummaries,
+	event: TokenUsageEvent,
+	timezone?: string,
+): void {
+	const modelName = event.model?.trim();
+	if (modelName == null || modelName === '') {
+		return;
+	}
+
+	const monthKey = toMonthKey(event.timestamp, timezone);
+	const summary = summaries.get(monthKey) ?? createSummary(monthKey, event.timestamp);
+	if (!summaries.has(monthKey)) {
+		summaries.set(monthKey, summary);
+	}
+
+	addUsage(summary, event);
+	const modelUsage: ModelUsage = summary.models.get(modelName) ?? {
+		...createEmptyUsage(),
+		isFallback: false,
+	};
+	if (!summary.models.has(modelName)) {
+		summary.models.set(modelName, modelUsage);
+	}
+	addUsage(modelUsage, event);
+	if (event.isFallbackModel === true) {
+		modelUsage.isFallback = true;
+	}
+}
+
+export async function buildMonthlyReportRows(
+	summaries: MonthlySummaries,
+	options: Omit<MonthlyReportOptions, 'since' | 'until'>,
 ): Promise<MonthlyReportRow[]> {
-	const timezone = options.timezone;
 	const locale = options.locale;
-	const since = options.since;
-	const until = options.until;
+	const timezone = options.timezone;
 	const pricingSource = options.pricingSource;
 
-	const summaries = new Map<string, MonthlyUsageSummary>();
-
-	for (const event of events) {
-		const modelName = event.model?.trim();
-		if (modelName == null || modelName === '') {
-			continue;
-		}
-
-		const dateKey = toDateKey(event.timestamp, timezone);
-		if (!isWithinRange(dateKey, since, until)) {
-			continue;
-		}
-
-		const monthKey = toMonthKey(event.timestamp, timezone);
-		const summary = summaries.get(monthKey) ?? createSummary(monthKey, event.timestamp);
-		if (!summaries.has(monthKey)) {
-			summaries.set(monthKey, summary);
-		}
-
-		addUsage(summary, event);
-		const modelUsage: ModelUsage = summary.models.get(modelName) ?? {
-			...createEmptyUsage(),
-			isFallback: false,
-		};
-		if (!summary.models.has(modelName)) {
-			summary.models.set(modelName, modelUsage);
-		}
-		addUsage(modelUsage, event);
-		if (event.isFallbackModel === true) {
-			modelUsage.isFallback = true;
-		}
+	if (summaries.size === 0) {
+		return [];
 	}
 
 	const uniqueModels = new Set<string>();
@@ -87,7 +88,6 @@ export async function buildMonthlyReport(
 	}
 
 	const rows: MonthlyReportRow[] = [];
-
 	const sortedSummaries = Array.from(summaries.values()).sort((a, b) =>
 		a.month.localeCompare(b.month),
 	);
@@ -120,6 +120,26 @@ export async function buildMonthlyReport(
 	}
 
 	return rows;
+}
+
+export async function buildMonthlyReport(
+	events: TokenUsageEvent[],
+	options: MonthlyReportOptions,
+): Promise<MonthlyReportRow[]> {
+	const timezone = options.timezone;
+	const since = options.since;
+	const until = options.until;
+	const summaries: MonthlySummaries = new Map();
+
+	for (const event of events) {
+		const dateKey = toDateKey(event.timestamp, timezone);
+		if (!isWithinRange(dateKey, since, until)) {
+			continue;
+		}
+		accumulateMonthlyUsage(summaries, event, timezone);
+	}
+
+	return buildMonthlyReportRows(summaries, options);
 }
 
 if (import.meta.vitest != null) {

@@ -17,6 +17,8 @@ export type DailyReportOptions = {
 	pricingSource: PricingSource;
 };
 
+export type DailySummaries = Map<string, DailyUsageSummary>;
+
 function createSummary(date: string, initialTimestamp: string): DailyUsageSummary {
 	return {
 		date,
@@ -31,46 +33,46 @@ function createSummary(date: string, initialTimestamp: string): DailyUsageSummar
 	};
 }
 
-export async function buildDailyReport(
-	events: TokenUsageEvent[],
-	options: DailyReportOptions,
+export function accumulateDailyUsage(
+	summaries: DailySummaries,
+	event: TokenUsageEvent,
+	timezone?: string,
+): void {
+	const modelName = event.model?.trim();
+	if (modelName == null || modelName === '') {
+		return;
+	}
+
+	const dateKey = toDateKey(event.timestamp, timezone);
+	const summary = summaries.get(dateKey) ?? createSummary(dateKey, event.timestamp);
+	if (!summaries.has(dateKey)) {
+		summaries.set(dateKey, summary);
+	}
+
+	addUsage(summary, event);
+	const modelUsage: ModelUsage = summary.models.get(modelName) ?? {
+		...createEmptyUsage(),
+		isFallback: false,
+	};
+	if (!summary.models.has(modelName)) {
+		summary.models.set(modelName, modelUsage);
+	}
+	addUsage(modelUsage, event);
+	if (event.isFallbackModel === true) {
+		modelUsage.isFallback = true;
+	}
+}
+
+export async function buildDailyReportRows(
+	summaries: DailySummaries,
+	options: Omit<DailyReportOptions, 'since' | 'until'>,
 ): Promise<DailyReportRow[]> {
-	const timezone = options.timezone;
 	const locale = options.locale;
-	const since = options.since;
-	const until = options.until;
+	const timezone = options.timezone;
 	const pricingSource = options.pricingSource;
 
-	const summaries = new Map<string, DailyUsageSummary>();
-
-	for (const event of events) {
-		const modelName = event.model?.trim();
-		if (modelName == null || modelName === '') {
-			continue;
-		}
-
-		const dateKey = toDateKey(event.timestamp, timezone);
-		if (!isWithinRange(dateKey, since, until)) {
-			continue;
-		}
-
-		const summary = summaries.get(dateKey) ?? createSummary(dateKey, event.timestamp);
-		if (!summaries.has(dateKey)) {
-			summaries.set(dateKey, summary);
-		}
-
-		addUsage(summary, event);
-		const modelUsage: ModelUsage = summary.models.get(modelName) ?? {
-			...createEmptyUsage(),
-			isFallback: false,
-		};
-		if (!summary.models.has(modelName)) {
-			summary.models.set(modelName, modelUsage);
-		}
-		addUsage(modelUsage, event);
-		if (event.isFallbackModel === true) {
-			modelUsage.isFallback = true;
-		}
+	if (summaries.size === 0) {
+		return [];
 	}
 
 	const uniqueModels = new Set<string>();
@@ -86,7 +88,6 @@ export async function buildDailyReport(
 	}
 
 	const rows: DailyReportRow[] = [];
-
 	const sortedSummaries = Array.from(summaries.values()).sort((a, b) =>
 		a.date.localeCompare(b.date),
 	);
@@ -119,6 +120,26 @@ export async function buildDailyReport(
 	}
 
 	return rows;
+}
+
+export async function buildDailyReport(
+	events: TokenUsageEvent[],
+	options: DailyReportOptions,
+): Promise<DailyReportRow[]> {
+	const timezone = options.timezone;
+	const since = options.since;
+	const until = options.until;
+	const summaries: DailySummaries = new Map();
+
+	for (const event of events) {
+		const dateKey = toDateKey(event.timestamp, timezone);
+		if (!isWithinRange(dateKey, since, until)) {
+			continue;
+		}
+		accumulateDailyUsage(summaries, event, timezone);
+	}
+
+	return buildDailyReportRows(summaries, options);
 }
 
 if (import.meta.vitest != null) {
