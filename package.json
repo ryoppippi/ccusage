@@ -39,7 +39,7 @@
 		"prerelease": "pnpm run --filter '*' prerelease",
 		"release": "pnpm bumpp -r",
 		"postrelease": "git checkout ./**/package.json package.json",
-		"test": "pnpm run --filter '*' test",
+		"test": "TZ=UTC vitest run",
 		"typecheck": "pnpm run --filter '*' typecheck"
 	},
 	"dependencies": {},
@@ -53,7 +53,8 @@
 		"eslint": "catalog:lint",
 		"lint-staged": "catalog:release",
 		"oxfmt": "catalog:lint",
-		"pkg-pr-new": "catalog:release"
+		"pkg-pr-new": "catalog:release",
+		"vitest": "catalog:testing"
 	},
 	"lint-staged": {
 		"*": [
