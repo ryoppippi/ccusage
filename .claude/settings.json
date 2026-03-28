@@ -1,0 +1,26 @@
+{
+	"permissions": {
+		"allow": [
+			"mcp__sentry__*",
+			"Bash(pnpm typecheck*)",
+			"Bash(pnpm run typecheck*)",
+			"Bash(pnpm test*)",
+			"Bash(pnpm run test*)",
+			"Bash(vitest*)",
+			"Bash(bun test*)",
+			"Bash(bun run test*)"
+		]
+	},
+	"hooks": {
+		"WorktreeCreate": [
+			{
+				"hooks": [
+					{
+						"type": "command",
+						"command": "command -v direnv >/dev/null 2>&1 && direnv allow"
+					}
+				]
+			}
+		]
+	}
+}
