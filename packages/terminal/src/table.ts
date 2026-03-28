@@ -69,6 +69,8 @@ export type TableRow = (string | number | { content: string; hAlign?: TableCellA
 export type TableOptions = {
 	head: string[];
 	colAligns?: TableCellAlign[];
+	/** Per-column max width overrides. Sparse array — only indices with values are applied. */
+	colWidthOverrides?: Record<number, number>;
 	style?: {
 		head?: string[];
 	};
@@ -88,6 +90,7 @@ export class ResponsiveTable {
 	private head: string[];
 	private rows: TableRow[] = [];
 	private colAligns: TableCellAlign[];
+	private colWidthOverrides: Record<number, number>;
 	private style?: { head?: string[] };
 	private dateFormatter?: (dateStr: string) => string;
 	private compactHead?: string[];
@@ -104,6 +107,7 @@ export class ResponsiveTable {
 	constructor(options: TableOptions) {
 		this.head = options.head;
 		this.colAligns = options.colAligns ?? Array.from({ length: this.head.length }, () => 'left');
+		this.colWidthOverrides = options.colWidthOverrides ?? {};
 		this.style = options.style;
 		this.dateFormatter = options.dateFormatter;
 		this.compactHead = options.compactHead;
@@ -224,6 +228,11 @@ export class ResponsiveTable {
 		// Always use content-based widths with generous padding for numeric columns
 		const columnWidths = contentWidths.map((width, index) => {
 			const align = colAligns[index];
+			// Apply explicit max-width overrides — caps content-based width
+			const override = this.colWidthOverrides[index];
+			if (override != null) {
+				return Math.min(Math.max(width + 2, 10), override);
+			}
 			// For numeric columns, ensure generous width to prevent truncation
 			if (align === 'right') {
 				return Math.max(width + 3, 11); // At least 11 chars for numbers, +3 padding
@@ -248,11 +257,18 @@ export class ResponsiveTable {
 				if (align === 'right') {
 					adjustedWidth = Math.max(adjustedWidth, 10);
 				} else if (index === 0) {
-					adjustedWidth = Math.max(adjustedWidth, 10);
+					// 38 = UUID (36) + 2 padding; ensures session IDs aren't truncated
+					adjustedWidth = Math.max(adjustedWidth, 38);
 				} else if (index === 1) {
 					adjustedWidth = Math.max(adjustedWidth, 12);
 				} else {
 					adjustedWidth = Math.max(adjustedWidth, 8);
+				}
+
+				// Apply explicit max-width overrides
+				const override = this.colWidthOverrides[index];
+				if (override != null) {
+					adjustedWidth = Math.min(adjustedWidth, override);
 				}
 
 				return adjustedWidth;
@@ -291,6 +307,24 @@ export class ResponsiveTable {
 						processedRow = this.filterRowToCompact(processedRow, compactIndices);
 					}
 
+					// Truncate left-aligned text columns that exceed their column width
+					processedRow = processedRow.map((cell, index) => {
+						const colWidth = adjustedWidths[index];
+						if (colWidth == null || typeof cell !== 'string') {
+							return cell;
+						}
+						const align = colAligns[index];
+						if (align === 'right') {
+							return cell;
+						}
+						// Skip truncation for multiline cells — wordWrap handles them
+						if (cell.includes('\n')) {
+							return cell;
+						}
+						// Subtract 2 for cell padding
+						return this.truncateWithEllipsis(cell, colWidth - 2);
+					});
+
 					table.push(processedRow);
 				}
 			}
@@ -323,6 +357,35 @@ export class ResponsiveTable {
 
 			return table.toString();
 		}
+	}
+
+	/**
+	 * Truncates a string to fit within a column width, adding ellipsis if needed
+	 * @param text - Text to truncate
+	 * @param maxWidth - Maximum visual width (excluding cell padding)
+	 * @returns Truncated text with ellipsis if it was cut
+	 */
+	private truncateWithEllipsis(text: string, maxWidth: number): string {
+		if (maxWidth <= 0 || stringWidth(text) <= maxWidth) {
+			return text;
+		}
+		// Find the last space before the max width for word-boundary truncation
+		let truncated = '';
+		let width = 0;
+		for (const char of text) {
+			const charWidth = stringWidth(char);
+			if (width + charWidth > maxWidth - 1) {
+				break;
+			}
+			truncated += char;
+			width += charWidth;
+		}
+		// Try to break at a word boundary
+		const lastSpace = truncated.lastIndexOf(' ');
+		if (lastSpace > truncated.length * 0.5) {
+			truncated = truncated.slice(0, lastSpace);
+		}
+		return `${truncated}…`;
 	}
 
 	/**
