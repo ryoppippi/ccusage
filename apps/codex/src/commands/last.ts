@@ -44,6 +44,14 @@ function createEmptyJsonResult(range: { since: string; until: string }) {
 	};
 }
 
+function formatDateRangeLine(
+	range: { since: string; until: string },
+	displaySince: string,
+	displayUntil: string,
+): string {
+	return `Date range: ${displaySince} ~ ${displayUntil} (${range.since} to ${range.until})`;
+}
+
 export const lastCommand = define({
 	name: 'last',
 	description: 'Show Codex token usage for the last N days (excluding today)',
@@ -66,6 +74,7 @@ export const lastCommand = define({
 		const range = getLastNDaysRange(dayCount, ctx.values.timezone);
 		const displaySince = formatDisplayDate(range.since, ctx.values.locale, ctx.values.timezone);
 		const displayUntil = formatDisplayDate(range.until, ctx.values.locale, ctx.values.timezone);
+		const dateRangeLine = formatDateRangeLine(range, displaySince, displayUntil);
 
 		const { events, missingDirectories } = await loadTokenUsageEvents();
 
@@ -78,9 +87,7 @@ export const lastCommand = define({
 				log(JSON.stringify(createEmptyJsonResult(range)));
 				return;
 			}
-			logger.info(
-				`Date range: ${displaySince} ~ ${displayUntil} (${range.since} to ${range.until})`,
-			);
+			logger.info(dateRangeLine);
 			log('No Codex usage data found.');
 			return;
 		}
@@ -102,9 +109,7 @@ export const lastCommand = define({
 					log(JSON.stringify(createEmptyJsonResult(range)));
 					return;
 				}
-				logger.info(
-					`Date range: ${displaySince} ~ ${displayUntil} (${range.since} to ${range.until})`,
-				);
+				logger.info(dateRangeLine);
 				log('No Codex usage data found for provided filters.');
 				return;
 			}
@@ -147,9 +152,7 @@ export const lastCommand = define({
 			logger.box(
 				`Codex Token Usage Report - Last ${dayCount} Days (Timezone: ${ctx.values.timezone ?? DEFAULT_TIMEZONE})`,
 			);
-			logger.info(
-				`Date range: ${displaySince} ~ ${displayUntil} (${range.since} to ${range.until})`,
-			);
+			logger.info(dateRangeLine);
 
 			const table: ResponsiveTable = new ResponsiveTable({
 				head: [
