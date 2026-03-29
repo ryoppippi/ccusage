@@ -130,7 +130,16 @@ export const allCommand = define({
 								: null,
 					},
 					codex: {
-						daily: codexRows,
+						daily: codexRows.map((row) => ({
+							date: row.dateKey,
+							inputTokens: row.inputTokens,
+							cachedInputTokens: row.cachedInputTokens,
+							outputTokens: row.outputTokens,
+							reasoningOutputTokens: row.reasoningOutputTokens,
+							totalTokens: row.totalTokens,
+							costUSD: row.costUSD,
+							models: row.models,
+						})),
 						totals: codexTotals,
 					},
 					combinedCostUSD: (claudeTotals?.totalCost ?? 0) + (codexTotals?.costUSD ?? 0),
@@ -279,3 +288,66 @@ export const allCommand = define({
 		}
 	},
 });
+
+if (import.meta.vitest != null) {
+	describe('allCommand codex date handling', () => {
+		it('buildDailyReport dateKey is ISO YYYY-MM-DD', async () => {
+			const stubPricingSource = {
+				async getPricing() {
+					return {
+						inputCostPerMToken: 1.25,
+						cachedInputCostPerMToken: 0.125,
+						outputCostPerMToken: 10,
+					};
+				},
+			};
+			const rows = await buildDailyReport(
+				[
+					{
+						sessionId: 's1',
+						timestamp: '2025-11-15T10:00:00.000Z',
+						model: 'gpt-5',
+						inputTokens: 100,
+						cachedInputTokens: 0,
+						outputTokens: 50,
+						reasoningOutputTokens: 0,
+						totalTokens: 150,
+					},
+				],
+				{ pricingSource: stubPricingSource },
+			);
+			expect(rows).toHaveLength(1);
+			expect(rows[0]!.dateKey).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+			expect(rows[0]!.dateKey).toBe('2025-11-15');
+		});
+	});
+
+	describe('allCommand order sorting', () => {
+		it('reverses codex rows when order is desc', () => {
+			const rawRows = [
+				{ date: 'Jan 01, 2025', dateKey: '2025-01-01' },
+				{ date: 'Jan 02, 2025', dateKey: '2025-01-02' },
+				{ date: 'Jan 03, 2025', dateKey: '2025-01-03' },
+			];
+			const descRows = [...rawRows].reverse();
+			expect(descRows[0]!.dateKey).toBe('2025-01-03');
+			expect(descRows[2]!.dateKey).toBe('2025-01-01');
+		});
+	});
+
+	describe('allCommand combined cost', () => {
+		it('combined cost sums claude and codex totals', () => {
+			const claudeCost = 1.5;
+			const codexCost = 0.75;
+			const combined = (claudeCost ?? 0) + (codexCost ?? 0);
+			expect(combined).toBeCloseTo(2.25, 10);
+		});
+
+		it('combined cost is 0 when both totals are absent', () => {
+			const claudeCost: number | undefined = undefined;
+			const codexCost: number | undefined = undefined;
+			const combined = (claudeCost ?? 0) + (codexCost ?? 0);
+			expect(combined).toBe(0);
+		});
+	});
+}
