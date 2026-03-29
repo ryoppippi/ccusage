@@ -1,3 +1,4 @@
+import type { DailyUsageSummary } from '../_types.ts';
 import process from 'node:process';
 import {
 	addEmptySeparatorRow,
@@ -12,7 +13,7 @@ import pc from 'picocolors';
 import { DEFAULT_TIMEZONE } from '../_consts.ts';
 import { sharedArgs } from '../_shared-args.ts';
 import { formatModelsList, splitUsageTokens } from '../command-utils.ts';
-import { buildDailyReport } from '../daily-report.ts';
+import { accumulateDailyUsage, buildDailyReportRows } from '../daily-report.ts';
 import { loadTokenUsageEvents } from '../data-loader.ts';
 import { normalizeFilterDate } from '../date-utils.ts';
 import { log, logger } from '../logger.ts';
@@ -41,13 +42,23 @@ export const dailyCommand = define({
 			process.exit(1);
 		}
 
-		const { events, missingDirectories } = await loadTokenUsageEvents();
+		const summaries = new Map<string, DailyUsageSummary>();
+		const { missingDirectories } = await loadTokenUsageEvents({
+			since,
+			until,
+			timezone: ctx.values.timezone,
+			collectEvents: false,
+			sortEvents: false,
+			onEvent: (event) => {
+				accumulateDailyUsage(summaries, event, ctx.values.timezone);
+			},
+		});
 
 		for (const missing of missingDirectories) {
 			logger.warn(`Codex session directory not found: ${missing}`);
 		}
 
-		if (events.length === 0) {
+		if (summaries.size === 0) {
 			log(jsonOutput ? JSON.stringify({ daily: [], totals: null }) : 'No Codex usage data found.');
 			return;
 		}
@@ -56,12 +67,10 @@ export const dailyCommand = define({
 			offline: ctx.values.offline,
 		});
 		try {
-			const rows = await buildDailyReport(events, {
+			const rows = await buildDailyReportRows(summaries, {
 				pricingSource,
 				timezone: ctx.values.timezone,
 				locale: ctx.values.locale,
-				since,
-				until,
 			});
 
 			if (rows.length === 0) {
