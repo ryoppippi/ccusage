@@ -130,16 +130,7 @@ export const allCommand = define({
 								: null,
 					},
 					codex: {
-						daily: codexRows.map((row) => ({
-							date: row.dateKey,
-							inputTokens: row.inputTokens,
-							cachedInputTokens: row.cachedInputTokens,
-							outputTokens: row.outputTokens,
-							reasoningOutputTokens: row.reasoningOutputTokens,
-							totalTokens: row.totalTokens,
-							costUSD: row.costUSD,
-							models: row.models,
-						})),
+						daily: codexRows,
 						totals: codexTotals,
 					},
 					combinedCostUSD: (claudeTotals?.totalCost ?? 0) + (codexTotals?.costUSD ?? 0),
