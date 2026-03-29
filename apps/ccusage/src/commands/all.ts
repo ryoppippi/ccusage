@@ -44,10 +44,15 @@ export const allCommand = define({
 		}
 
 		// ── Claude Code ──────────────────────────────────────────────────────
+		// Note: loadDailyUsageData accepts since/until as raw user input (YYYYMMDD or YYYY-MM-DD)
+		// and handles normalization internally via string comparison.
 		const claudeData = await loadDailyUsageData({ ...mergedOptions, groupByProject: false });
 		const claudeTotals = claudeData.length > 0 ? calculateTotals(claudeData) : null;
 
 		// ── Codex ────────────────────────────────────────────────────────────
+		// Note: Codex normalizeFilterDate explicitly converts YYYYMMDD → YYYY-MM-DD before passing
+		// to buildDailyReport, whereas Claude side handles both formats internally. The behavior is
+		// equivalent for valid inputs.
 		const normalizeDate = Result.try({
 			try: (date: string | undefined) => normalizeFilterDate(date),
 			catch: (error) => (error instanceof Error ? error : new Error(String(error))),
@@ -79,12 +84,10 @@ export const allCommand = define({
 				since: codexSince,
 				until: codexUntil,
 			});
-			// Apply same sort order as Claude section
-			const codexRows = mergedOptions.order === 'desc' ? [...codexRowsRaw].reverse() : codexRowsRaw;
-
+			// Compute totals from the unsorted raw rows so that sort order never affects aggregation.
 			const codexTotals =
-				codexRows.length > 0
-					? codexRows.reduce(
+				codexRowsRaw.length > 0
+					? codexRowsRaw.reduce(
 							(acc, row) => {
 								acc.inputTokens += row.inputTokens;
 								acc.cachedInputTokens += row.cachedInputTokens;
@@ -104,6 +107,8 @@ export const allCommand = define({
 							},
 						)
 					: null;
+			// Apply sort order after totals are computed.
+			const codexRows = mergedOptions.order === 'desc' ? [...codexRowsRaw].reverse() : codexRowsRaw;
 
 			if (useJson) {
 				const output = {
@@ -161,7 +166,7 @@ export const allCommand = define({
 						formatDateCompact(
 							dateStr,
 							mergedOptions.timezone,
-							(mergedOptions.locale as string | undefined) ?? undefined,
+							mergedOptions.locale as string | undefined,
 						),
 					forceCompact: Boolean(mergedOptions.compact),
 				};
@@ -225,24 +230,8 @@ export const allCommand = define({
 					dateFormatter: (dateStr: string) => formatDateCompactCodex(dateStr),
 				});
 
-				const codexDisplayTotals = {
-					inputTokens: 0,
-					outputTokens: 0,
-					reasoningTokens: 0,
-					cacheReadTokens: 0,
-					totalTokens: 0,
-					costUSD: 0,
-				};
-
 				for (const row of codexRows) {
 					const split = splitUsageTokens(row);
-					codexDisplayTotals.inputTokens += split.inputTokens;
-					codexDisplayTotals.outputTokens += split.outputTokens;
-					codexDisplayTotals.reasoningTokens += split.reasoningTokens;
-					codexDisplayTotals.cacheReadTokens += split.cacheReadTokens;
-					codexDisplayTotals.totalTokens += row.totalTokens;
-					codexDisplayTotals.costUSD += row.costUSD;
-
 					codexTable.push([
 						row.date,
 						formatModelsDisplayMultiline(formatModelsList(row.models)),
@@ -255,16 +244,18 @@ export const allCommand = define({
 					]);
 				}
 
+				// Derive display totals from the already-computed codexTotals (same source of truth).
+				const totalSplit = codexTotals != null ? splitUsageTokens(codexTotals) : null;
 				addEmptySeparatorRow(codexTable, CODEX_TABLE_COLUMN_COUNT);
 				codexTable.push([
 					pc.yellow('Total'),
 					'',
-					pc.yellow(formatNumber(codexDisplayTotals.inputTokens)),
-					pc.yellow(formatNumber(codexDisplayTotals.outputTokens)),
-					pc.yellow(formatNumber(codexDisplayTotals.reasoningTokens)),
-					pc.yellow(formatNumber(codexDisplayTotals.cacheReadTokens)),
-					pc.yellow(formatNumber(codexDisplayTotals.totalTokens)),
-					pc.yellow(formatCurrency(codexDisplayTotals.costUSD)),
+					pc.yellow(formatNumber(totalSplit?.inputTokens ?? 0)),
+					pc.yellow(formatNumber(totalSplit?.outputTokens ?? 0)),
+					pc.yellow(formatNumber(totalSplit?.reasoningTokens ?? 0)),
+					pc.yellow(formatNumber(totalSplit?.cacheReadTokens ?? 0)),
+					pc.yellow(formatNumber(codexTotals?.totalTokens ?? 0)),
+					pc.yellow(formatCurrency(codexTotals?.costUSD ?? 0)),
 				]);
 
 				log(codexTable.toString());
