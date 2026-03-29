@@ -1,3 +1,4 @@
+import type { MonthlyReportRow } from '../_types.ts';
 import process from 'node:process';
 import {
 	addEmptySeparatorRow,
@@ -19,6 +20,45 @@ import { buildMonthlyReport } from '../monthly-report.ts';
 import { CodexPricingSource } from '../pricing.ts';
 
 const TABLE_COLUMN_COUNT = 8;
+
+type MonthlyDisplayTotals = {
+	inputTokens: number;
+	outputTokens: number;
+	reasoningTokens: number;
+	cacheReadTokens: number;
+	totalTokens: number;
+	totalCost: number;
+};
+
+/**
+ * Create a zeroed display totals accumulator for monthly table output.
+ */
+function createMonthlyDisplayTotals(): MonthlyDisplayTotals {
+	return {
+		inputTokens: 0,
+		outputTokens: 0,
+		reasoningTokens: 0,
+		cacheReadTokens: 0,
+		totalTokens: 0,
+		totalCost: 0,
+	};
+}
+
+/**
+ * Update display totals using a pre-split row for monthly output.
+ */
+function updateMonthlyDisplayTotals(
+	totals: MonthlyDisplayTotals,
+	row: MonthlyReportRow,
+	split: ReturnType<typeof splitUsageTokens>,
+): void {
+	totals.inputTokens += split.inputTokens;
+	totals.outputTokens += split.outputTokens;
+	totals.reasoningTokens += split.reasoningTokens;
+	totals.cacheReadTokens += split.cacheReadTokens;
+	totals.totalTokens += row.totalTokens;
+	totals.totalCost += row.totalCost;
+}
 
 export const monthlyCommand = define({
 	name: 'monthly',
@@ -48,9 +88,20 @@ export const monthlyCommand = define({
 		}
 
 		if (events.length === 0) {
-			log(
-				jsonOutput ? JSON.stringify({ monthly: [], totals: null }) : 'No Codex usage data found.',
-			);
+			if (jsonOutput) {
+				const emptyTotals = {
+					inputTokens: 0,
+					cacheCreationTokens: 0,
+					cacheReadTokens: 0,
+					outputTokens: 0,
+					reasoningOutputTokens: 0,
+					totalTokens: 0,
+					totalCost: 0,
+				};
+				log(JSON.stringify({ monthly: [], totals: emptyTotals }, null, 2));
+			} else {
+				log('No Codex usage data found.');
+			}
 			return;
 		}
 
@@ -69,7 +120,22 @@ export const monthlyCommand = define({
 			if (rows.length === 0) {
 				log(
 					jsonOutput
-						? JSON.stringify({ monthly: [], totals: null })
+						? JSON.stringify(
+								{
+									monthly: [],
+									totals: {
+										inputTokens: 0,
+										cacheCreationTokens: 0,
+										cacheReadTokens: 0,
+										outputTokens: 0,
+										reasoningOutputTokens: 0,
+										totalTokens: 0,
+										totalCost: 0,
+									},
+								},
+								null,
+								2,
+							)
 						: 'No Codex usage data found for provided filters.',
 				);
 				return;
@@ -78,20 +144,22 @@ export const monthlyCommand = define({
 			const totals = rows.reduce(
 				(acc, row) => {
 					acc.inputTokens += row.inputTokens;
-					acc.cachedInputTokens += row.cachedInputTokens;
+					acc.cacheCreationTokens += row.cacheCreationTokens;
+					acc.cacheReadTokens += row.cacheReadTokens;
 					acc.outputTokens += row.outputTokens;
 					acc.reasoningOutputTokens += row.reasoningOutputTokens;
 					acc.totalTokens += row.totalTokens;
-					acc.costUSD += row.costUSD;
+					acc.totalCost += row.totalCost;
 					return acc;
 				},
 				{
 					inputTokens: 0,
-					cachedInputTokens: 0,
+					cacheCreationTokens: 0,
+					cacheReadTokens: 0,
 					outputTokens: 0,
 					reasoningOutputTokens: 0,
 					totalTokens: 0,
-					costUSD: 0,
+					totalCost: 0,
 				},
 			);
 
@@ -133,23 +201,11 @@ export const monthlyCommand = define({
 				dateFormatter: (dateStr: string) => formatDateCompact(dateStr),
 			});
 
-			const totalsForDisplay = {
-				inputTokens: 0,
-				outputTokens: 0,
-				reasoningTokens: 0,
-				cacheReadTokens: 0,
-				totalTokens: 0,
-				costUSD: 0,
-			};
+			const totalsForDisplay = createMonthlyDisplayTotals();
 
 			for (const row of rows) {
 				const split = splitUsageTokens(row);
-				totalsForDisplay.inputTokens += split.inputTokens;
-				totalsForDisplay.outputTokens += split.outputTokens;
-				totalsForDisplay.reasoningTokens += split.reasoningTokens;
-				totalsForDisplay.cacheReadTokens += split.cacheReadTokens;
-				totalsForDisplay.totalTokens += row.totalTokens;
-				totalsForDisplay.costUSD += row.costUSD;
+				updateMonthlyDisplayTotals(totalsForDisplay, row, split);
 
 				table.push([
 					row.month,
@@ -159,7 +215,7 @@ export const monthlyCommand = define({
 					formatNumber(split.reasoningTokens),
 					formatNumber(split.cacheReadTokens),
 					formatNumber(row.totalTokens),
-					formatCurrency(row.costUSD),
+					formatCurrency(row.totalCost),
 				]);
 			}
 
@@ -172,7 +228,7 @@ export const monthlyCommand = define({
 				pc.yellow(formatNumber(totalsForDisplay.reasoningTokens)),
 				pc.yellow(formatNumber(totalsForDisplay.cacheReadTokens)),
 				pc.yellow(formatNumber(totalsForDisplay.totalTokens)),
-				pc.yellow(formatCurrency(totalsForDisplay.costUSD)),
+				pc.yellow(formatCurrency(totalsForDisplay.totalCost)),
 			]);
 
 			log(table.toString());
@@ -186,3 +242,38 @@ export const monthlyCommand = define({
 		}
 	},
 });
+
+if (import.meta.vitest != null) {
+	describe('updateMonthlyDisplayTotals', () => {
+		it('tracks totalCost instead of legacy costUSD', () => {
+			const row: MonthlyReportRow = {
+				month: '2025-01',
+				inputTokens: 100,
+				cacheCreationTokens: 0,
+				cacheReadTokens: 0,
+				outputTokens: 50,
+				reasoningOutputTokens: 10,
+				totalTokens: 150,
+				totalCost: 1.5,
+				costUSD: 99,
+				models: {
+					'claude-sonnet-4-20250514': {
+						inputTokens: 100,
+						cacheCreationTokens: 0,
+						cacheReadTokens: 0,
+						outputTokens: 50,
+						reasoningOutputTokens: 10,
+						totalTokens: 150,
+					},
+				},
+			};
+
+			const totals = createMonthlyDisplayTotals();
+			const split = splitUsageTokens(row);
+			updateMonthlyDisplayTotals(totals, row, split);
+
+			expect(totals.totalCost).toBe(1.5);
+			expect(totals.totalCost).not.toBe(row.costUSD);
+		});
+	});
+}
