@@ -60,6 +60,9 @@ npx @ccusage/codex@latest daily
 # Date range filtering
 npx @ccusage/codex@latest daily --since 20250911 --until 20250917
 
+# Last N days (excluding today)
+npx @ccusage/codex@latest last --day 10
+
 # JSON output for scripting
 npx @ccusage/codex@latest daily --json
 
