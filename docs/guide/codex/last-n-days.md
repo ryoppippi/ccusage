@@ -33,15 +33,6 @@ The CLI prints the computed start/end dates in terminal output, and `--json` out
 }
 ```
 
-## Validation rules for `--day`
-
-`--day` must be a positive integer:
-
-- ✅ valid: `1`, `7`, `30`
-- ❌ invalid: `abc`, `0`, `-3`
-
-Invalid input exits with an explicit error message.
-
 ## Related commands
 
 - [Daily report command](./daily.md)

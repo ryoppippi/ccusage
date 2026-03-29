@@ -20,6 +20,30 @@ import { CodexPricingSource } from '../pricing.ts';
 
 const TABLE_COLUMN_COUNT = 8;
 
+function parseDayCount(rawDay: unknown): number {
+	const value = String(rawDay ?? '').trim();
+	if (!/^\d+$/.test(value)) {
+		logger.error(`Invalid --day value: ${value}. Expected a positive integer.`);
+		process.exit(1);
+	}
+
+	const dayCount = Number.parseInt(value, 10);
+	if (!Number.isSafeInteger(dayCount) || dayCount <= 0) {
+		logger.error(`Invalid --day value: ${value}. Expected a positive integer greater than 0.`);
+		process.exit(1);
+	}
+
+	return dayCount;
+}
+
+function createEmptyJsonResult(range: { since: string; until: string }) {
+	return {
+		range,
+		daily: [],
+		totals: null,
+	};
+}
+
 export const lastCommand = define({
 	name: 'last',
 	description: 'Show Codex token usage for the last N days (excluding today)',
@@ -37,17 +61,7 @@ export const lastCommand = define({
 			logger.level = 0;
 		}
 
-		const rawDay = String(ctx.values.day ?? '').trim();
-		if (!/^\d+$/.test(rawDay)) {
-			logger.error(`Invalid --day value: ${rawDay}. Expected a positive integer.`);
-			process.exit(1);
-		}
-
-		const dayCount = Number.parseInt(rawDay, 10);
-		if (!Number.isSafeInteger(dayCount) || dayCount <= 0) {
-			logger.error(`Invalid --day value: ${rawDay}. Expected a positive integer greater than 0.`);
-			process.exit(1);
-		}
+		const dayCount = parseDayCount(ctx.values.day);
 
 		const range = getLastNDaysRange(dayCount, ctx.values.timezone);
 		const displaySince = formatDisplayDate(range.since, ctx.values.locale, ctx.values.timezone);
@@ -61,13 +75,7 @@ export const lastCommand = define({
 
 		if (events.length === 0) {
 			if (jsonOutput) {
-				log(
-					JSON.stringify({
-						range,
-						daily: [],
-						totals: null,
-					}),
-				);
+				log(JSON.stringify(createEmptyJsonResult(range)));
 				return;
 			}
 			logger.info(
@@ -91,13 +99,7 @@ export const lastCommand = define({
 
 			if (rows.length === 0) {
 				if (jsonOutput) {
-					log(
-						JSON.stringify({
-							range,
-							daily: [],
-							totals: null,
-						}),
-					);
+					log(JSON.stringify(createEmptyJsonResult(range)));
 					return;
 				}
 				logger.info(
