@@ -16,10 +16,12 @@ import {
 	pushBreakdownRows,
 	ResponsiveTable,
 } from '@ccusage/terminal/table';
+import { Result } from '@praha/byethrow';
 import { define } from 'gunshi';
 import pc from 'picocolors';
 import { loadConfig, mergeConfigWithArgs } from '../_config-loader-tokens.ts';
 import { formatDateCompact } from '../_date-utils.ts';
+import { processWithJq } from '../_jq-processor.ts';
 import { sharedCommandConfig } from '../_shared-args.ts';
 import { calculateTotals, getTotalTokens } from '../calculate-cost.ts';
 import { loadDailyUsageData } from '../data-loader.ts';
@@ -63,13 +65,15 @@ export const allCommand = define({
 
 		const pricingSource = new CodexPricingSource({ offline: Boolean(mergedOptions.offline) });
 		try {
-			const codexRows = await buildDailyReport(codexEvents, {
+			const codexRowsRaw = await buildDailyReport(codexEvents, {
 				pricingSource,
 				timezone: mergedOptions.timezone,
 				locale: mergedOptions.locale as string | undefined,
 				since: codexSince,
 				until: codexUntil,
 			});
+			// Apply same sort order as Claude section
+			const codexRows = mergedOptions.order === 'desc' ? [...codexRowsRaw].reverse() : codexRowsRaw;
 
 			const codexTotals =
 				codexRows.length > 0
@@ -124,7 +128,17 @@ export const allCommand = define({
 					},
 					combinedCostUSD: (claudeTotals?.totalCost ?? 0) + (codexTotals?.costUSD ?? 0),
 				};
-				log(JSON.stringify(output, null, 2));
+
+				if (mergedOptions.jq != null) {
+					const jqResult = await processWithJq(output, mergedOptions.jq);
+					if (Result.isFailure(jqResult)) {
+						logger.error(jqResult.error.message);
+						process.exit(1);
+					}
+					log(jqResult.value);
+				} else {
+					log(JSON.stringify(output, null, 2));
+				}
 				return;
 			}
 
@@ -142,7 +156,7 @@ export const allCommand = define({
 							mergedOptions.timezone,
 							(mergedOptions.locale as string | undefined) ?? undefined,
 						),
-					forceCompact: ctx.values.compact,
+					forceCompact: Boolean(mergedOptions.compact),
 				};
 				const claudeTable = createUsageReportTable(tableConfig);
 
@@ -199,7 +213,7 @@ export const allCommand = define({
 					compactHead: ['Date', 'Models', 'Input', 'Output', 'Cost (USD)'],
 					compactColAligns: ['left', 'left', 'right', 'right', 'right'],
 					compactThreshold: 100,
-					forceCompact: ctx.values.compact,
+					forceCompact: Boolean(mergedOptions.compact),
 					style: { head: ['cyan'] },
 					dateFormatter: (dateStr: string) => formatDateCompactCodex(dateStr),
 				});
