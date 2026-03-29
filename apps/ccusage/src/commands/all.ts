@@ -48,15 +48,22 @@ export const allCommand = define({
 		const claudeTotals = claudeData.length > 0 ? calculateTotals(claudeData) : null;
 
 		// ── Codex ────────────────────────────────────────────────────────────
-		let codexSince: string | undefined;
-		let codexUntil: string | undefined;
-		try {
-			codexSince = normalizeFilterDate(mergedOptions.since);
-			codexUntil = normalizeFilterDate(mergedOptions.until);
-		} catch (error) {
-			logger.error(String(error));
+		const normalizeDate = Result.try({
+			try: (date: string | undefined) => normalizeFilterDate(date),
+			catch: (error) => (error instanceof Error ? error : new Error(String(error))),
+		});
+		const codexSinceResult = normalizeDate(mergedOptions.since);
+		if (Result.isFailure(codexSinceResult)) {
+			logger.error(codexSinceResult.error.message);
 			process.exit(1);
 		}
+		const codexUntilResult = normalizeDate(mergedOptions.until);
+		if (Result.isFailure(codexUntilResult)) {
+			logger.error(codexUntilResult.error.message);
+			process.exit(1);
+		}
+		const codexSince = codexSinceResult.value;
+		const codexUntil = codexUntilResult.value;
 
 		const { events: codexEvents, missingDirectories } = await loadTokenUsageEvents();
 		for (const missing of missingDirectories) {
