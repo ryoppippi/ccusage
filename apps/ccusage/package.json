@@ -68,6 +68,7 @@
 	},
 	"devDependencies": {
 		"@antfu/utils": "catalog:runtime",
+		"@ccusage/codex": "workspace:*",
 		"@ccusage/internal": "workspace:*",
 		"@ccusage/terminal": "workspace:*",
 		"@oxc-project/runtime": "catalog:build",
