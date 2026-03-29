@@ -230,8 +230,25 @@ export const allCommand = define({
 					dateFormatter: (dateStr: string) => formatDateCompactCodex(dateStr),
 				});
 
+				// Accumulate display totals by summing per-row splits. splitUsageTokens clamps
+				// reasoning to output per row, so summing splits (not splitting the aggregate)
+				// keeps the Total row consistent with the visible per-row values.
+				const codexDisplayTotals = {
+					inputTokens: 0,
+					outputTokens: 0,
+					reasoningTokens: 0,
+					cacheReadTokens: 0,
+					totalTokens: 0,
+					costUSD: 0,
+				};
 				for (const row of codexRows) {
 					const split = splitUsageTokens(row);
+					codexDisplayTotals.inputTokens += split.inputTokens;
+					codexDisplayTotals.outputTokens += split.outputTokens;
+					codexDisplayTotals.reasoningTokens += split.reasoningTokens;
+					codexDisplayTotals.cacheReadTokens += split.cacheReadTokens;
+					codexDisplayTotals.totalTokens += row.totalTokens;
+					codexDisplayTotals.costUSD += row.costUSD;
 					codexTable.push([
 						row.date,
 						formatModelsDisplayMultiline(formatModelsList(row.models)),
@@ -244,18 +261,16 @@ export const allCommand = define({
 					]);
 				}
 
-				// Derive display totals from the already-computed codexTotals (same source of truth).
-				const totalSplit = codexTotals != null ? splitUsageTokens(codexTotals) : null;
 				addEmptySeparatorRow(codexTable, CODEX_TABLE_COLUMN_COUNT);
 				codexTable.push([
 					pc.yellow('Total'),
 					'',
-					pc.yellow(formatNumber(totalSplit?.inputTokens ?? 0)),
-					pc.yellow(formatNumber(totalSplit?.outputTokens ?? 0)),
-					pc.yellow(formatNumber(totalSplit?.reasoningTokens ?? 0)),
-					pc.yellow(formatNumber(totalSplit?.cacheReadTokens ?? 0)),
-					pc.yellow(formatNumber(codexTotals?.totalTokens ?? 0)),
-					pc.yellow(formatCurrency(codexTotals?.costUSD ?? 0)),
+					pc.yellow(formatNumber(codexDisplayTotals.inputTokens)),
+					pc.yellow(formatNumber(codexDisplayTotals.outputTokens)),
+					pc.yellow(formatNumber(codexDisplayTotals.reasoningTokens)),
+					pc.yellow(formatNumber(codexDisplayTotals.cacheReadTokens)),
+					pc.yellow(formatNumber(codexDisplayTotals.totalTokens)),
+					pc.yellow(formatCurrency(codexDisplayTotals.costUSD)),
 				]);
 
 				log(codexTable.toString());
