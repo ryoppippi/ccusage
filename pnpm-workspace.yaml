@@ -23,7 +23,7 @@ catalogs:
   lint:
     '@ryoppippi/eslint-config': ^0.4.0
     eslint: ^9.33.0
-    eslint-plugin-format: ^1.0.2
+    eslint-plugin-format: ^1.5.0
     oxfmt: ^0.23.0
     publint: ^0.3.12
   llm-docs:
