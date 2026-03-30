@@ -56,7 +56,7 @@ catalogs:
     path-type: ^6.0.0
     picocolors: ^1.1.1
     pretty-ms: ^9.2.0
-    string-width: ^7.2.0
+    string-width: ^8.2.0
     tinyglobby: ^0.2.14
     type-fest: ^4.41.0
     valibot: ^1.1.0
