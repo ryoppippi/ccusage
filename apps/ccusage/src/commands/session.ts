@@ -135,6 +135,7 @@ export const sessionCommand = define({
 				dateFormatter: (dateStr: string) =>
 					formatDateCompact(dateStr, ctx.values.timezone, ctx.values.locale),
 				forceCompact: ctx.values.compact,
+				noTruncate: ctx.values.full,
 			};
 			const table = createUsageReportTable(tableConfig);
 

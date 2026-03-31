@@ -77,6 +77,7 @@ export type TableOptions = {
 	compactColAligns?: TableCellAlign[];
 	compactThreshold?: number;
 	forceCompact?: boolean;
+	noTruncate?: boolean;
 	logger?: (message: string) => void;
 };
 
@@ -95,6 +96,7 @@ export class ResponsiveTable {
 	private compactThreshold: number;
 	private compactMode = false;
 	private forceCompact: boolean;
+	private noTruncate: boolean;
 	private logger: (message: string) => void;
 
 	/**
@@ -110,6 +112,7 @@ export class ResponsiveTable {
 		this.compactColAligns = options.compactColAligns;
 		this.compactThreshold = options.compactThreshold ?? 100;
 		this.forceCompact = options.forceCompact ?? false;
+		this.noTruncate = options.noTruncate ?? false;
 		this.logger = options.logger ?? console.warn;
 	}
 
@@ -183,9 +186,10 @@ export class ResponsiveTable {
 		const terminalWidth =
 			Number.parseInt(process.env.COLUMNS ?? '', 10) || process.stdout.columns || 120;
 
-		// Determine if we should use compact mode
+		// Determine if we should use compact mode (--full overrides compact)
 		this.compactMode =
-			this.forceCompact || (terminalWidth < this.compactThreshold && this.compactHead != null);
+			!this.noTruncate &&
+			(this.forceCompact || (terminalWidth < this.compactThreshold && this.compactHead != null));
 
 		// Get current table configuration
 		const { head, colAligns } = this.getCurrentTableConfig();
@@ -237,7 +241,7 @@ export class ResponsiveTable {
 		// Check if this fits in the terminal
 		const totalRequiredWidth = columnWidths.reduce((sum, width) => sum + width, 0) + tableOverhead;
 
-		if (totalRequiredWidth > terminalWidth) {
+		if (totalRequiredWidth > terminalWidth && !this.noTruncate) {
 			// Apply responsive resizing and use compact date format if available
 			const scaleFactor = availableWidth / columnWidths.reduce((sum, width) => sum + width, 0);
 			const adjustedWidths = columnWidths.map((width, index) => {
@@ -303,8 +307,8 @@ export class ResponsiveTable {
 				style: this.style,
 				colAligns,
 				colWidths: columnWidths,
-				wordWrap: true,
-				wrapOnWordBoundary: true,
+				wordWrap: !this.noTruncate,
+				wrapOnWordBoundary: !this.noTruncate,
 			});
 
 			// Add rows with special handling for separators
@@ -501,6 +505,8 @@ export type UsageReportConfig = {
 	dateFormatter?: (dateStr: string) => string;
 	/** Force compact mode regardless of terminal width */
 	forceCompact?: boolean;
+	/** Disable column truncation/scaling */
+	noTruncate?: boolean;
 };
 
 /**
@@ -609,6 +615,7 @@ export function createUsageReportTable(config: UsageReportConfig): ResponsiveTab
 		compactColAligns: compactAligns,
 		compactThreshold: 100,
 		forceCompact: config.forceCompact,
+		noTruncate: config.noTruncate,
 	});
 }
 

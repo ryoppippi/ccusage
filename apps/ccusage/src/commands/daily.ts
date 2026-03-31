@@ -145,6 +145,7 @@ export const dailyCommand = define({
 				dateFormatter: (dateStr: string) =>
 					formatDateCompact(dateStr, mergedOptions.timezone, mergedOptions.locale ?? undefined),
 				forceCompact: ctx.values.compact,
+				noTruncate: ctx.values.full,
 			};
 			const table = createUsageReportTable(tableConfig);
 

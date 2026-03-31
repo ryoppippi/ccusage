@@ -109,6 +109,7 @@ export const monthlyCommand = define({
 						mergedOptions.locale ?? DEFAULT_LOCALE,
 					),
 				forceCompact: ctx.values.compact,
+				noTruncate: ctx.values.full,
 			};
 			const table = createUsageReportTable(tableConfig);
 
