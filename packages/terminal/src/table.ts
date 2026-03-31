@@ -475,6 +475,7 @@ export function pushBreakdownRows(
 			pc.gray(formatNumber(breakdown.outputTokens)),
 			pc.gray(formatNumber(breakdown.cacheCreationTokens)),
 			pc.gray(formatNumber(breakdown.cacheReadTokens)),
+			pc.gray(formatCacheHitRate(breakdown)),
 			pc.gray(formatNumber(totalTokens)),
 			pc.gray(formatCurrency(breakdown.cost)),
 		);
@@ -515,6 +516,42 @@ export type UsageData = {
 };
 
 /**
+ * Calculates and formats cache hit rate with color coding
+ * @param data - Usage data containing token counts
+ * @returns Color-coded percentage string
+ */
+export function formatCacheHitRate(data: {
+	inputTokens: number;
+	cacheCreationTokens: number;
+	cacheReadTokens: number;
+}): string {
+	const totalInput = data.inputTokens + data.cacheCreationTokens + data.cacheReadTokens;
+	const rate = totalInput > 0 ? data.cacheReadTokens / totalInput : 0;
+	const pct = `${(rate * 100).toFixed(1)}%`;
+	if (rate >= 0.7) {
+		return pc.green(pct);
+	}
+	if (rate >= 0.4) {
+		return pc.yellow(pct);
+	}
+	return pc.red(pct);
+}
+
+/**
+ * Calculates cache hit rate as a number
+ * @param data - Usage data containing token counts
+ * @returns Cache hit rate between 0 and 1
+ */
+export function calculateCacheHitRate(data: {
+	inputTokens: number;
+	cacheCreationTokens: number;
+	cacheReadTokens: number;
+}): number {
+	const totalInput = data.inputTokens + data.cacheCreationTokens + data.cacheReadTokens;
+	return totalInput > 0 ? data.cacheReadTokens / totalInput : 0;
+}
+
+/**
  * Creates a standard usage report table with consistent styling and layout
  * @param config - Configuration options for the table
  * @returns Configured ResponsiveTable instance
@@ -527,6 +564,7 @@ export function createUsageReportTable(config: UsageReportConfig): ResponsiveTab
 		'Output',
 		'Cache Create',
 		'Cache Read',
+		'Hit Rate',
 		'Total Tokens',
 		'Cost (USD)',
 	];
@@ -540,11 +578,19 @@ export function createUsageReportTable(config: UsageReportConfig): ResponsiveTab
 		'right',
 		'right',
 		'right',
+		'right',
 	];
 
-	const compactHeaders = [config.firstColumnName, 'Models', 'Input', 'Output', 'Cost (USD)'];
+	const compactHeaders = [
+		config.firstColumnName,
+		'Models',
+		'Input',
+		'Output',
+		'Hit Rate',
+		'Cost (USD)',
+	];
 
-	const compactAligns: TableCellAlign[] = ['left', 'left', 'right', 'right', 'right'];
+	const compactAligns: TableCellAlign[] = ['left', 'left', 'right', 'right', 'right', 'right'];
 
 	// Add Last Activity column for session reports
 	if (config.includeLastActivity ?? false) {
@@ -588,6 +634,7 @@ export function formatUsageDataRow(
 		formatNumber(data.outputTokens),
 		formatNumber(data.cacheCreationTokens),
 		formatNumber(data.cacheReadTokens),
+		formatCacheHitRate(data),
 		formatNumber(totalTokens),
 		formatCurrency(data.totalCost),
 	];
@@ -619,6 +666,7 @@ export function formatTotalsRow(
 		pc.yellow(formatNumber(totals.outputTokens)),
 		pc.yellow(formatNumber(totals.cacheCreationTokens)),
 		pc.yellow(formatNumber(totals.cacheReadTokens)),
+		pc.yellow(formatCacheHitRate(totals)),
 		pc.yellow(formatNumber(totalTokens)),
 		pc.yellow(formatCurrency(totals.totalCost)),
 	];
