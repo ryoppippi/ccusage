@@ -292,6 +292,9 @@ importers:
       '@ccusage/terminal':
         specifier: workspace:*
         version: link:../../packages/terminal
+      '@hono/node-server':
+        specifier: catalog:runtime
+        version: 1.19.7(hono@4.9.7)
       '@oxc-project/runtime':
         specifier: catalog:build
         version: 0.82.3
@@ -343,6 +346,9 @@ importers:
       gunshi:
         specifier: catalog:runtime
         version: 0.26.3
+      hono:
+        specifier: catalog:runtime
+        version: 4.9.7
       nano-spawn:
         specifier: catalog:runtime
         version: 1.0.3
