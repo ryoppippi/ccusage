@@ -184,7 +184,7 @@ export const statuslineHookJsonSchema = v.object({
 			total_input_tokens: v.number(),
 			total_output_tokens: v.optional(v.number()),
 			context_window_size: v.number(),
-			current_usage: v.optional(
+			current_usage: v.nullable(
 				v.object({
 					input_tokens: v.number(),
 					output_tokens: v.number(),
@@ -192,8 +192,8 @@ export const statuslineHookJsonSchema = v.object({
 					cache_read_input_tokens: v.number(),
 				}),
 			),
-			used_percentage: v.optional(v.number()),
-			remaining_percentage: v.optional(v.number()),
+			used_percentage: v.nullable(v.number()),
+			remaining_percentage: v.nullable(v.number()),
 		}),
 	),
 });

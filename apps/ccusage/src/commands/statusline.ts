@@ -501,6 +501,10 @@ export const statuslineCommand = define({
 						),
 						Result.map((contextResult) => {
 							if (contextResult == null) {
+								// If transcript calculation failed but we have context_window_size, show 0 tokens
+								if (hookData.context_window?.context_window_size != null) {
+									return formatContextInfo(0, hookData.context_window.context_window_size);
+								}
 								return undefined;
 							}
 							return formatContextInfo(contextResult.inputTokens, contextResult.contextLimit);
