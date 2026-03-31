@@ -472,10 +472,10 @@ export const statuslineCommand = define({
 
 					// Get context tokens from Claude Code hook data, or fall back to calculating from transcript
 					const contextDataResult =
-						hookData.context_window != null
+						hookData.context_window?.current_usage != null
 							? // Prefer context_window data from Claude Code hook if available
 								Result.succeed({
-									inputTokens: hookData.context_window.total_input_tokens,
+									inputTokens: hookData.context_window.current_usage.input_tokens + hookData.context_window.current_usage.cache_creation_input_tokens + hookData.context_window.current_usage.cache_read_input_tokens,
 									contextLimit: hookData.context_window.context_window_size,
 								})
 							: // Fall back to calculating context tokens from transcript
