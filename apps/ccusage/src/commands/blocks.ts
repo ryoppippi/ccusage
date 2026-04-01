@@ -296,13 +296,13 @@ export const blocksCommand = define({
 					formattedValue: formatCurrency(block.costUSD),
 				};
 			});
-			const { output, labelWidth } = renderBarChart(chartData, {
+			const { output, labelWidth, barWidth } = renderBarChart(chartData, {
 				forceCompact: ctx.values.compact,
 			});
 			log(output);
 			log(renderChartSeparator());
 			const totalCost = nonGapBlocks.reduce((sum: number, b: SessionBlock) => sum + b.costUSD, 0);
-			log(renderChartTotals('Total', formatCurrency(totalCost), labelWidth));
+			log(renderChartTotals('Total', formatCurrency(totalCost), labelWidth, barWidth));
 		} else {
 			// Table output
 			if (ctx.values.active && blocks.length === 1) {

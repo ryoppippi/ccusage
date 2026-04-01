@@ -214,14 +214,27 @@ export function renderChartSeparator(width?: number): string {
  * @param labelWidth - Width used for labels in the chart (from renderBarChart result)
  * @returns Formatted totals string
  */
+/**
+ * Renders a totals line right-aligned with the chart cost column
+ * @param label - Label for the totals line (e.g., "Total")
+ * @param formattedValue - Pre-formatted value string (e.g., "$35.10")
+ * @param labelWidth - Width used for labels in the chart (from renderBarChart result)
+ * @param barWidth - Width used for bars in the chart (from renderBarChart result)
+ * @returns Formatted totals string
+ */
 export function renderChartTotals(
 	label: string,
 	formattedValue: string,
 	labelWidth: number,
+	barWidth: number,
 ): string {
-	const padWidth = labelWidth - stringWidth(label);
-	const paddedLabel = ' '.repeat(Math.max(0, padWidth)) + pc.bold(pc.yellow(label));
-	return `${paddedLabel} ${pc.bold(pc.yellow(formattedValue))}`;
+	// Right-align: fill label area + bar area with spaces, then label + value at the end
+	const totalText = `${pc.bold(pc.yellow(label))}  ${pc.bold(pc.yellow(formattedValue))}`;
+	const totalTextWidth = stringWidth(label) + 2 + stringWidth(formattedValue);
+	// Total line width = labelWidth + 1 (space) + barWidth + 1 (space) + value
+	const fullWidth = labelWidth + 1 + barWidth + 1;
+	const leftPad = Math.max(0, fullWidth - totalTextWidth);
+	return `${' '.repeat(leftPad)}${totalText}`;
 }
 
 /**
@@ -439,10 +452,12 @@ if (import.meta.vitest != null) {
 	});
 
 	describe('renderChartTotals', () => {
-		it('should render bold yellow label and value together', () => {
-			const totals = renderChartTotals('Total', '$100.00', 12);
+		it('should right-align totals with the cost column', () => {
+			const totals = renderChartTotals('Total', '$100.00', 12, 40);
 			expect(totals).toContain('Total');
 			expect(totals).toContain('$100.00');
+			// Should have left padding to push it right
+			expect(totals.startsWith(' ')).toBe(true);
 		});
 	});
 
