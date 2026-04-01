@@ -1,5 +1,6 @@
 import type { SessionBlock } from '../_session-blocks.ts';
 import process from 'node:process';
+import { renderBarChart, renderChartSeparator, renderChartTotals } from '@ccusage/terminal/chart';
 import {
 	formatCurrency,
 	formatModelsDisplayMultiline,
@@ -277,6 +278,30 @@ export const blocksCommand = define({
 			} else {
 				log(JSON.stringify(jsonOutput, null, 2));
 			}
+		} else if (ctx.values.chart) {
+			// Chart output
+			logger.box('Claude Code Token Usage Report - Session Blocks');
+
+			const nonGapBlocks = blocks.filter((b: SessionBlock) => !(b.isGap ?? false));
+			const chartData = nonGapBlocks.map((block: SessionBlock) => {
+				const label = block.startTime.toLocaleString(ctx.values.locale, {
+					month: '2-digit',
+					day: '2-digit',
+					hour: '2-digit',
+					minute: '2-digit',
+				});
+				return {
+					label,
+					value: block.costUSD,
+					formattedValue: formatCurrency(block.costUSD),
+				};
+			});
+			const chart = renderBarChart(chartData, { forceCompact: ctx.values.compact });
+			log(chart);
+			log(renderChartSeparator());
+			const totalCost = nonGapBlocks.reduce((sum: number, b: SessionBlock) => sum + b.costUSD, 0);
+			const maxLabelWidth = Math.max(...chartData.map((d) => d.label.length));
+			log(renderChartTotals('Total', formatCurrency(totalCost), maxLabelWidth + 2));
 		} else {
 			// Table output
 			if (ctx.values.active && blocks.length === 1) {

@@ -1,8 +1,15 @@
 import type { UsageReportConfig } from '@ccusage/terminal/table';
 import process from 'node:process';
 import {
+	createCostChartData,
+	renderBarChart,
+	renderChartSeparator,
+	renderChartTotals,
+} from '@ccusage/terminal/chart';
+import {
 	addEmptySeparatorRow,
 	createUsageReportTable,
+	formatCurrency,
 	formatTotalsRow,
 	formatUsageDataRow,
 	pushBreakdownRows,
@@ -133,6 +140,16 @@ export const dailyCommand = define({
 			} else {
 				log(JSON.stringify(jsonOutput, null, 2));
 			}
+		} else if (ctx.values.chart) {
+			// Chart output
+			logger.box('Claude Code Token Usage Report - Daily');
+
+			const chartData = createCostChartData(dailyData, 'date');
+			const chart = renderBarChart(chartData, { forceCompact: ctx.values.compact });
+			log(chart);
+			log(renderChartSeparator());
+			const maxLabelWidth = Math.max(...dailyData.map((d) => d.date.length));
+			log(renderChartTotals('Total', formatCurrency(totals.totalCost), maxLabelWidth + 2));
 		} else {
 			// Print header
 			logger.box('Claude Code Token Usage Report - Daily');

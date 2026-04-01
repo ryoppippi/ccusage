@@ -1,8 +1,10 @@
 import type { UsageReportConfig } from '@ccusage/terminal/table';
 import process from 'node:process';
+import { renderBarChart, renderChartSeparator, renderChartTotals } from '@ccusage/terminal/chart';
 import {
 	addEmptySeparatorRow,
 	createUsageReportTable,
+	formatCurrency,
 	formatTotalsRow,
 	formatUsageDataRow,
 	pushBreakdownRows,
@@ -122,6 +124,25 @@ export const sessionCommand = define({
 			} else {
 				log(JSON.stringify(jsonOutput, null, 2));
 			}
+		} else if (ctx.values.chart) {
+			// Chart output
+			logger.box('Claude Code Token Usage Report - By Session');
+
+			const chartData = sessionData.map((data) => {
+				const sessionDisplay = data.sessionId.split('-').slice(-2).join('-');
+				return {
+					label: sessionDisplay,
+					value: data.totalCost,
+					formattedValue: formatCurrency(data.totalCost),
+				};
+			});
+			const chart = renderBarChart(chartData, { forceCompact: ctx.values.compact });
+			log(chart);
+			log(renderChartSeparator());
+			const maxLabelWidth = Math.max(
+				...sessionData.map((d) => d.sessionId.split('-').slice(-2).join('-').length),
+			);
+			log(renderChartTotals('Total', formatCurrency(totals.totalCost), maxLabelWidth + 2));
 		} else {
 			// Print header
 			logger.box('Claude Code Token Usage Report - By Session');
