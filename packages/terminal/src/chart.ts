@@ -9,6 +9,8 @@ export type ChartDataPoint = {
 	label: string;
 	value: number;
 	formattedValue?: string;
+	/** Optional group key for visual separators (e.g., "2026-03" for month grouping) */
+	group?: string;
 };
 
 /**
@@ -21,8 +23,6 @@ export type ChartOptions = {
 	maxBarWidth?: number;
 	/** Character used for filled portion of bars */
 	fillChar?: string;
-	/** Character used for the bar tip (partial block) */
-	tipChar?: string;
 	/** Whether to show value labels to the right of bars */
 	showValues?: boolean;
 	/** Suffix appended to formatted values (e.g., " tokens") */
@@ -40,7 +40,8 @@ function formatCurrencyValue(amount: number): string {
 
 /**
  * Picks a color based on where a value falls within the range [0, max].
- * Low values get dim blue, mid gets cyan, high gets yellow, top gets bold green.
+ * Uses bright colors that read well on dark terminal backgrounds.
+ * Low = magenta, mid = cyan, high = yellow, peak = bold green.
  */
 function colorForValue(value: number, maxValue: number): (text: string) => string {
 	if (maxValue <= 0) {
@@ -57,7 +58,7 @@ function colorForValue(value: number, maxValue: number): (text: string) => strin
 		return pc.cyan;
 	}
 	if (ratio > 0) {
-		return pc.blue;
+		return pc.magenta;
 	}
 	return pc.gray;
 }
@@ -66,10 +67,11 @@ function colorForValue(value: number, maxValue: number): (text: string) => strin
  * Renders a horizontal bar chart as a string for terminal output
  *
  * Features:
- * - Color gradient: bars transition from blue (low) -> cyan -> yellow -> bold green (peak)
+ * - Color gradient: magenta (low) -> cyan (mid) -> yellow (high) -> bold green (peak)
  * - Non-zero values always show at least a thin bar (▏) so nothing is invisible
- * - Cost values are placed right next to bars for easy reading
- * - Fractional block characters (▏▎▍▌▋▊▉█) for sub-character precision
+ * - Cost values placed immediately after the bar for easy scanning
+ * - Automatic month/group separators when data spans multiple groups
+ * - Background track (░) for visual reference of the scale
  *
  * @param data - Array of data points to render
  * @param options - Chart display options
@@ -80,10 +82,7 @@ export function renderBarChart(data: ChartDataPoint[], options: ChartOptions = {
 		return '';
 	}
 
-	const { fillChar = '█', tipChar = '▏', showValues = true, forceCompact = false } = options;
-
-	// Sub-character block elements for fractional widths (⅛ increments)
-	const fractionalBlocks = ['', '▏', '▎', '▍', '▌', '▋', '▊', '▉'];
+	const { fillChar = '█', showValues = true, forceCompact = false } = options;
 
 	// Determine terminal width
 	const terminalWidth =
@@ -96,10 +95,9 @@ export function renderBarChart(data: ChartDataPoint[], options: ChartOptions = {
 	// Calculate value width
 	const formattedValues = data.map((d) => d.formattedValue ?? formatCurrencyValue(d.value));
 	const maxValueWidth = Math.max(...formattedValues.map((v) => stringWidth(v)));
-	const valueWidth = showValues ? maxValueWidth + 2 : 0; // 2 chars padding
 
-	// Calculate available bar width
-	const overhead = labelWidth + valueWidth + 4; // spacing between sections
+	// Calculate available bar width — leave room for label + gap + bar + gap + value
+	const overhead = labelWidth + 3 + maxValueWidth + 1; // "label  bar value"
 	const maxBarWidth =
 		options.maxBarWidth ??
 		Math.max(10, (forceCompact ? Math.min(terminalWidth, 60) : terminalWidth) - overhead);
@@ -108,47 +106,47 @@ export function renderBarChart(data: ChartDataPoint[], options: ChartOptions = {
 	const maxValue = Math.max(...data.map((d) => d.value), 0);
 
 	const lines: string[] = [];
+	let lastGroup: string | undefined;
 
 	for (let i = 0; i < data.length; i++) {
 		const point = data[i]!;
 		const formattedValue = formattedValues[i]!;
 
-		// Pad label to consistent width (right-align)
-		const labelPad = labelWidth - stringWidth(point.label);
-		const paddedLabel = ' '.repeat(labelPad) + pc.white(point.label);
-
-		// Calculate bar length with fractional precision
-		const exactBarWidth = maxValue > 0 ? (point.value / maxValue) * maxBarWidth : 0;
-		const fullBlocks = Math.floor(exactBarWidth);
-		const fractionalIndex = Math.round((exactBarWidth - fullBlocks) * 8);
-		const fractional = fractionalBlocks[fractionalIndex] ?? '';
-
-		// Ensure non-zero values always show at least a minimal bar
-		let bar: string;
-		if (point.value === 0) {
-			bar = '';
-		} else if (fullBlocks === 0 && fractional === '') {
-			bar = tipChar; // minimum visible bar for tiny values
-		} else {
-			bar = fillChar.repeat(fullBlocks) + fractional;
+		// Insert group separator when group changes
+		if (point.group != null && point.group !== lastGroup) {
+			if (lastGroup != null) {
+				// Blank line between groups
+				lines.push('');
+			}
+			lastGroup = point.group;
 		}
 
-		const barVisualWidth = stringWidth(bar);
-		const barPadding = ' '.repeat(Math.max(0, maxBarWidth - barVisualWidth));
+		// Pad label to consistent width (right-align), dim the label
+		const labelPad = labelWidth - stringWidth(point.label);
+		const paddedLabel = ' '.repeat(labelPad) + pc.dim(pc.white(point.label));
+
+		// Calculate bar length (integer only — no fractional blocks to avoid stripy look)
+		const barLength = maxValue > 0 ? Math.round((point.value / maxValue) * maxBarWidth) : 0;
+
+		// Ensure non-zero values always show at least 1 block
+		const effectiveBarLength = point.value > 0 ? Math.max(1, barLength) : 0;
+
+		// Build bar with background track
+		const bar = fillChar.repeat(effectiveBarLength);
+		const track = pc.gray('░'.repeat(Math.max(0, maxBarWidth - effectiveBarLength)));
 
 		// Apply gradient color based on value
 		const colorFn = colorForValue(point.value, maxValue);
 		const coloredBar = bar.length > 0 ? colorFn(bar) : '';
 
-		// Color the value based on magnitude too
+		// Color the value to match the bar
 		const valueColorFn = point.value === 0 ? pc.gray : colorFn;
 		const coloredValue = valueColorFn(formattedValue);
 
-		// Build line
-		let line = `${paddedLabel}  ${coloredBar}${barPadding}`;
+		// Build line — value immediately after bar (no right-align to edge)
+		let line = `${paddedLabel} ${coloredBar}${track}`;
 		if (showValues) {
-			const valuePad = maxValueWidth - stringWidth(formattedValue);
-			line += `  ${' '.repeat(valuePad)}${coloredValue}`;
+			line += ` ${coloredValue}`;
 		}
 
 		lines.push(line);
@@ -187,13 +185,15 @@ export function renderChartTotals(
 }
 
 /**
- * Creates chart data from usage data with cost as the displayed metric
+ * Creates chart data from usage data with cost as the displayed metric.
+ * Automatically groups by month when the label looks like a date (YYYY-MM-DD).
  *
  * @param items - Array of usage items with a label key and cost
  * @param labelKey - Key to use for the chart label
  * @param options - Additional options
  * @param options.costKey - Key to use for the cost value (default: 'totalCost')
  * @param options.labelFormatter - Function to format label values
+ * @param options.groupBy - Function to extract group key for visual separators
  * @returns Array of ChartDataPoint for rendering
  */
 export function createCostChartData<T extends Record<string, unknown>>(
@@ -202,19 +202,36 @@ export function createCostChartData<T extends Record<string, unknown>>(
 	options?: {
 		costKey?: keyof T & string;
 		labelFormatter?: (value: string) => string;
+		groupBy?: (value: string) => string;
 	},
 ): ChartDataPoint[] {
 	const costKey = options?.costKey ?? ('totalCost' as keyof T & string);
 	const labelFormatter = options?.labelFormatter;
 
+	// Auto-detect date labels for month grouping
+	const autoGroupByMonth = (val: string): string | undefined => {
+		const match = val.match(/^(\d{4}-\d{2})/);
+		return match?.[1];
+	};
+
 	return items.map((item) => {
 		const rawLabel = String(item[labelKey]);
 		const label = labelFormatter != null ? labelFormatter(rawLabel) : rawLabel;
 		const value = Number(item[costKey]);
+
+		// Determine group
+		let group: string | undefined;
+		if (options?.groupBy != null) {
+			group = options.groupBy(rawLabel);
+		} else {
+			group = autoGroupByMonth(rawLabel);
+		}
+
 		return {
 			label,
 			value,
 			formattedValue: formatCurrencyValue(value),
+			group,
 		};
 	});
 }
@@ -231,7 +248,6 @@ if (import.meta.vitest != null) {
 			const originalColumns = process.env.COLUMNS;
 			process.env.COLUMNS = '80';
 
-			// Strip ANSI codes for content assertions
 			const output = renderBarChart(data);
 
 			expect(output).toContain('2026-03-28');
@@ -258,7 +274,6 @@ if (import.meta.vitest != null) {
 			const output = renderBarChart(data);
 			expect(output).toContain('Jan');
 			expect(output).toContain('$10.00');
-			// Single data point should get full bar width
 			expect((output.match(/█/g) ?? []).length).toBeGreaterThan(0);
 
 			process.env.COLUMNS = originalColumns;
@@ -275,8 +290,8 @@ if (import.meta.vitest != null) {
 
 			const output = renderBarChart(data);
 			const lines = output.split('\n');
-			// First line (tiny value) should still have a visible bar character
-			expect(lines[0]).toMatch(/[▏▎▍▌▋▊▉█]/);
+			// First line (tiny value) should still have at least one filled block
+			expect(lines[0]).toMatch(/█/);
 
 			process.env.COLUMNS = originalColumns;
 		});
@@ -292,10 +307,44 @@ if (import.meta.vitest != null) {
 
 			const output = renderBarChart(data);
 			const lines = output.split('\n');
-			// First line (value=0) should have no bar characters
-			expect(lines[0]).not.toMatch(/[▏▎▍▌▋▊▉█]/);
+			// First line (value=0) should have no filled bar characters
+			expect(lines[0]).not.toMatch(/█/);
 			// Second line should have bars
 			expect(lines[1]).toMatch(/█/);
+
+			process.env.COLUMNS = originalColumns;
+		});
+
+		it('should render background track', () => {
+			const data: ChartDataPoint[] = [
+				{ label: 'A', value: 5, formattedValue: '$5.00' },
+				{ label: 'B', value: 10, formattedValue: '$10.00' },
+			];
+
+			const originalColumns = process.env.COLUMNS;
+			process.env.COLUMNS = '80';
+
+			const output = renderBarChart(data);
+			// Should contain track characters
+			expect(output).toContain('░');
+
+			process.env.COLUMNS = originalColumns;
+		});
+
+		it('should insert group separators', () => {
+			const data: ChartDataPoint[] = [
+				{ label: '2026-01-15', value: 5, group: '2026-01' },
+				{ label: '2026-02-01', value: 10, group: '2026-02' },
+				{ label: '2026-02-02', value: 8, group: '2026-02' },
+			];
+
+			const originalColumns = process.env.COLUMNS;
+			process.env.COLUMNS = '80';
+
+			const output = renderBarChart(data);
+			const lines = output.split('\n');
+			// Should have a blank line between groups
+			expect(lines.includes('')).toBe(true);
 
 			process.env.COLUMNS = originalColumns;
 		});
@@ -309,7 +358,6 @@ if (import.meta.vitest != null) {
 			const normalOutput = renderBarChart(data);
 			const compactOutput = renderBarChart(data, { forceCompact: true });
 
-			// Compact output should be shorter or equal
 			expect(stringWidth(normalOutput)).toBeGreaterThanOrEqual(stringWidth(compactOutput));
 
 			process.env.COLUMNS = originalColumns;
@@ -327,9 +375,9 @@ if (import.meta.vitest != null) {
 			expect(color('test')).toBe(pc.bold(pc.green('test')));
 		});
 
-		it('should return blue for low values', () => {
+		it('should return magenta for low values', () => {
 			const color = colorForValue(10, 100);
-			expect(color('test')).toBe(pc.blue('test'));
+			expect(color('test')).toBe(pc.magenta('test'));
 		});
 
 		it('should return cyan for mid values', () => {
@@ -376,6 +424,18 @@ if (import.meta.vitest != null) {
 			expect(data[1]?.formattedValue).toBe('$8.20');
 		});
 
+		it('should auto-detect month groups from date labels', () => {
+			const items = [
+				{ date: '2026-01-15', totalCost: 5 },
+				{ date: '2026-02-01', totalCost: 10 },
+			];
+
+			const data = createCostChartData(items, 'date');
+
+			expect(data[0]?.group).toBe('2026-01');
+			expect(data[1]?.group).toBe('2026-02');
+		});
+
 		it('should apply label formatter', () => {
 			const items = [{ month: '2026-03', totalCost: 50.0 }];
 
@@ -392,6 +452,20 @@ if (import.meta.vitest != null) {
 			const data = createCostChartData(items, 'label', { costKey: 'costUSD' });
 
 			expect(data[0]?.value).toBe(25.0);
+		});
+
+		it('should use custom groupBy function', () => {
+			const items = [
+				{ week: '2026-W01', totalCost: 5 },
+				{ week: '2026-W05', totalCost: 10 },
+			];
+
+			const data = createCostChartData(items, 'week', {
+				groupBy: (v) => v.slice(0, 4),
+			});
+
+			expect(data[0]?.group).toBe('2026');
+			expect(data[1]?.group).toBe('2026');
 		});
 	});
 }
