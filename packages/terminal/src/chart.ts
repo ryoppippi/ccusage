@@ -208,24 +208,20 @@ export function renderChartSeparator(width?: number): string {
 }
 
 /**
- * Renders a totals line aligned with chart bar output
+ * Renders a totals line with label and value together on the left
  * @param label - Label for the totals line (e.g., "Total")
  * @param formattedValue - Pre-formatted value string (e.g., "$35.10")
  * @param labelWidth - Width used for labels in the chart (from renderBarChart result)
- * @param barWidth - Width used for bars in the chart (from renderBarChart result)
  * @returns Formatted totals string
  */
 export function renderChartTotals(
 	label: string,
 	formattedValue: string,
 	labelWidth: number,
-	barWidth: number,
 ): string {
 	const padWidth = labelWidth - stringWidth(label);
 	const paddedLabel = ' '.repeat(Math.max(0, padWidth)) + pc.bold(pc.yellow(label));
-	// Align value at the same position as chart values: after label + space + bar + space
-	const barPadding = ' '.repeat(barWidth);
-	return `${paddedLabel} ${barPadding} ${pc.bold(pc.yellow(formattedValue))}`;
+	return `${paddedLabel} ${pc.bold(pc.yellow(formattedValue))}`;
 }
 
 /**
@@ -443,12 +439,10 @@ if (import.meta.vitest != null) {
 	});
 
 	describe('renderChartTotals', () => {
-		it('should render bold yellow totals aligned with bar width', () => {
-			const totals = renderChartTotals('Total', '$100.00', 12, 40);
+		it('should render bold yellow label and value together', () => {
+			const totals = renderChartTotals('Total', '$100.00', 12);
 			expect(totals).toContain('Total');
 			expect(totals).toContain('$100.00');
-			// Should have spacing for the bar area
-			expect(stringWidth(totals)).toBeGreaterThan(50);
 		});
 	});
 
