@@ -105,6 +105,39 @@ export function renderBarChart(data: ChartDataPoint[], options: ChartOptions = {
 	// Find max value for scaling
 	const maxValue = Math.max(...data.map((d) => d.value), 0);
 
+	// Month name lookup for group headers
+	const monthNames = [
+		'January',
+		'February',
+		'March',
+		'April',
+		'May',
+		'June',
+		'July',
+		'August',
+		'September',
+		'October',
+		'November',
+		'December',
+	];
+
+	/**
+	 * Converts a YYYY-MM group key to a readable month label (e.g., "March 2026")
+	 */
+	function formatGroupLabel(group: string): string | undefined {
+		const match = group.match(/^(\d{4})-(\d{2})$/);
+		if (match == null) {
+			return undefined;
+		}
+		const year = match[1];
+		const monthIndex = Number.parseInt(match[2]!, 10) - 1;
+		const name = monthNames[monthIndex];
+		if (name == null) {
+			return undefined;
+		}
+		return `${name} ${year}`;
+	}
+
 	const lines: string[] = [];
 	let lastGroup: string | undefined;
 
@@ -112,11 +145,15 @@ export function renderBarChart(data: ChartDataPoint[], options: ChartOptions = {
 		const point = data[i]!;
 		const formattedValue = formattedValues[i]!;
 
-		// Insert group separator when group changes
+		// Insert group separator with month label when group changes
 		if (point.group != null && point.group !== lastGroup) {
 			if (lastGroup != null) {
-				// Blank line between groups
-				lines.push('');
+				lines.push(''); // blank line
+			}
+			const groupLabel = formatGroupLabel(point.group);
+			if (groupLabel != null) {
+				const pad = ' '.repeat(Math.max(0, labelWidth - stringWidth(groupLabel)));
+				lines.push(`${pad}${pc.bold(pc.white(groupLabel))}`);
 			}
 			lastGroup = point.group;
 		}
