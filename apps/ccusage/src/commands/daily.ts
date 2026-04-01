@@ -145,12 +145,20 @@ export const dailyCommand = define({
 			logger.box('Claude Code Token Usage Report - Daily');
 
 			const chartData = createCostChartData(dailyData, 'date');
-			const { output, labelWidth, barWidth } = renderBarChart(chartData, {
+			const { output, labelWidth, barWidth, valueWidth } = renderBarChart(chartData, {
 				forceCompact: ctx.values.compact,
 			});
 			log(output);
 			log(renderChartSeparator());
-			log(renderChartTotals('Total', formatCurrency(totals.totalCost), labelWidth, barWidth));
+			log(
+				renderChartTotals(
+					'Total',
+					formatCurrency(totals.totalCost),
+					labelWidth,
+					barWidth,
+					valueWidth,
+				),
+			);
 		} else {
 			// Print header
 			logger.box('Claude Code Token Usage Report - Daily');

@@ -80,9 +80,9 @@ function colorForValue(value: number, maxValue: number): (text: string) => strin
 export function renderBarChart(
 	data: ChartDataPoint[],
 	options: ChartOptions = {},
-): { output: string; labelWidth: number; barWidth: number } {
+): { output: string; labelWidth: number; barWidth: number; valueWidth: number } {
 	if (data.length === 0) {
-		return { output: '', labelWidth: 0, barWidth: 0 };
+		return { output: '', labelWidth: 0, barWidth: 0, valueWidth: 0 };
 	}
 
 	const { fillChar = '█', showValues = true, forceCompact = false } = options;
@@ -192,7 +192,7 @@ export function renderBarChart(
 		lines.push(line);
 	}
 
-	return { output: lines.join('\n'), labelWidth, barWidth: maxBarWidth };
+	return { output: lines.join('\n'), labelWidth, barWidth: maxBarWidth, valueWidth: maxValueWidth };
 }
 
 /**
@@ -215,11 +215,12 @@ export function renderChartSeparator(width?: number): string {
  * @returns Formatted totals string
  */
 /**
- * Renders a totals line right-aligned with the chart cost column
+ * Renders a totals line right-aligned so the value ends at the same column as chart cost values
  * @param label - Label for the totals line (e.g., "Total")
  * @param formattedValue - Pre-formatted value string (e.g., "$35.10")
  * @param labelWidth - Width used for labels in the chart (from renderBarChart result)
  * @param barWidth - Width used for bars in the chart (from renderBarChart result)
+ * @param valueWidth - Width of the widest value in the chart (from renderBarChart result)
  * @returns Formatted totals string
  */
 export function renderChartTotals(
@@ -227,14 +228,16 @@ export function renderChartTotals(
 	formattedValue: string,
 	labelWidth: number,
 	barWidth: number,
+	valueWidth: number,
 ): string {
-	// Right-align: fill label area + bar area with spaces, then label + value at the end
-	const totalText = `${pc.bold(pc.yellow(label))}  ${pc.bold(pc.yellow(formattedValue))}`;
-	const totalTextWidth = stringWidth(label) + 2 + stringWidth(formattedValue);
-	// Total line width = labelWidth + 1 (space) + barWidth + 1 (space) + value
-	const fullWidth = labelWidth + 1 + barWidth + 1;
-	const leftPad = Math.max(0, fullWidth - totalTextWidth);
-	return `${' '.repeat(leftPad)}${totalText}`;
+	// Chart row end position: labelWidth(pad+label) + " " + barWidth(bar+track) + " " + valueWidth
+	const rowEndCol = labelWidth + 1 + barWidth + 1 + valueWidth;
+	// Right-pad value to match valueWidth so the last char aligns
+	const valuePad = Math.max(0, valueWidth - stringWidth(formattedValue));
+	const paddedValue = ' '.repeat(valuePad) + formattedValue;
+	const paddedTotalWidth = stringWidth(label) + 2 + valueWidth;
+	const leftPad = Math.max(0, rowEndCol - paddedTotalWidth);
+	return `${' '.repeat(leftPad)}${pc.bold(pc.yellow(label))}  ${pc.bold(pc.yellow(paddedValue))}`;
 }
 
 /**
@@ -453,7 +456,7 @@ if (import.meta.vitest != null) {
 
 	describe('renderChartTotals', () => {
 		it('should right-align totals with the cost column', () => {
-			const totals = renderChartTotals('Total', '$100.00', 12, 40);
+			const totals = renderChartTotals('Total', '$100.00', 12, 40, 7);
 			expect(totals).toContain('Total');
 			expect(totals).toContain('$100.00');
 			// Should have left padding to push it right
