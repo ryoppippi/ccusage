@@ -105,11 +105,12 @@ export const monthlyCommand = define({
 			logger.box('Claude Code Token Usage Report - Monthly');
 
 			const chartData = createCostChartData(monthlyData, 'month');
-			const chart = renderBarChart(chartData, { forceCompact: ctx.values.compact });
-			log(chart);
+			const { output, labelWidth, barWidth } = renderBarChart(chartData, {
+				forceCompact: ctx.values.compact,
+			});
+			log(output);
 			log(renderChartSeparator());
-			const maxLabelWidth = Math.max(...monthlyData.map((d) => d.month.length));
-			log(renderChartTotals('Total', formatCurrency(totals.totalCost), maxLabelWidth + 2));
+			log(renderChartTotals('Total', formatCurrency(totals.totalCost), labelWidth, barWidth));
 		} else {
 			// Print header
 			logger.box('Claude Code Token Usage Report - Monthly');

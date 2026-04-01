@@ -75,11 +75,14 @@ function colorForValue(value: number, maxValue: number): (text: string) => strin
  *
  * @param data - Array of data points to render
  * @param options - Chart display options
- * @returns Formatted chart string ready for terminal output
+ * @returns Object with the chart string and layout metrics for aligning totals
  */
-export function renderBarChart(data: ChartDataPoint[], options: ChartOptions = {}): string {
+export function renderBarChart(
+	data: ChartDataPoint[],
+	options: ChartOptions = {},
+): { output: string; labelWidth: number; barWidth: number } {
 	if (data.length === 0) {
-		return '';
+		return { output: '', labelWidth: 0, barWidth: 0 };
 	}
 
 	const { fillChar = '█', showValues = true, forceCompact = false } = options;
@@ -189,7 +192,7 @@ export function renderBarChart(data: ChartDataPoint[], options: ChartOptions = {
 		lines.push(line);
 	}
 
-	return lines.join('\n');
+	return { output: lines.join('\n'), labelWidth, barWidth: maxBarWidth };
 }
 
 /**
@@ -205,20 +208,24 @@ export function renderChartSeparator(width?: number): string {
 }
 
 /**
- * Renders a totals line aligned with chart output
+ * Renders a totals line aligned with chart bar output
  * @param label - Label for the totals line (e.g., "Total")
  * @param formattedValue - Pre-formatted value string (e.g., "$35.10")
- * @param labelWidth - Width to use for label alignment
+ * @param labelWidth - Width used for labels in the chart (from renderBarChart result)
+ * @param barWidth - Width used for bars in the chart (from renderBarChart result)
  * @returns Formatted totals string
  */
 export function renderChartTotals(
 	label: string,
 	formattedValue: string,
-	labelWidth?: number,
+	labelWidth: number,
+	barWidth: number,
 ): string {
-	const padWidth = (labelWidth ?? 12) - stringWidth(label);
+	const padWidth = labelWidth - stringWidth(label);
 	const paddedLabel = ' '.repeat(Math.max(0, padWidth)) + pc.bold(pc.yellow(label));
-	return `${paddedLabel}  ${pc.bold(pc.yellow(formattedValue))}`;
+	// Align value at the same position as chart values: after label + space + bar + space
+	const barPadding = ' '.repeat(barWidth);
+	return `${paddedLabel} ${barPadding} ${pc.bold(pc.yellow(formattedValue))}`;
 }
 
 /**
@@ -285,7 +292,7 @@ if (import.meta.vitest != null) {
 			const originalColumns = process.env.COLUMNS;
 			process.env.COLUMNS = '80';
 
-			const output = renderBarChart(data);
+			const { output } = renderBarChart(data);
 
 			expect(output).toContain('2026-03-28');
 			expect(output).toContain('2026-03-29');
@@ -298,7 +305,7 @@ if (import.meta.vitest != null) {
 		});
 
 		it('should handle empty data', () => {
-			const output = renderBarChart([]);
+			const { output } = renderBarChart([]);
 			expect(output).toBe('');
 		});
 
@@ -308,7 +315,7 @@ if (import.meta.vitest != null) {
 			const originalColumns = process.env.COLUMNS;
 			process.env.COLUMNS = '80';
 
-			const output = renderBarChart(data);
+			const { output } = renderBarChart(data);
 			expect(output).toContain('Jan');
 			expect(output).toContain('$10.00');
 			expect((output.match(/█/g) ?? []).length).toBeGreaterThan(0);
@@ -325,7 +332,7 @@ if (import.meta.vitest != null) {
 			const originalColumns = process.env.COLUMNS;
 			process.env.COLUMNS = '80';
 
-			const output = renderBarChart(data);
+			const { output } = renderBarChart(data);
 			const lines = output.split('\n');
 			// First line (tiny value) should still have at least one filled block
 			expect(lines[0]).toMatch(/█/);
@@ -342,7 +349,7 @@ if (import.meta.vitest != null) {
 			const originalColumns = process.env.COLUMNS;
 			process.env.COLUMNS = '80';
 
-			const output = renderBarChart(data);
+			const { output } = renderBarChart(data);
 			const lines = output.split('\n');
 			// First line (value=0) should have no filled bar characters
 			expect(lines[0]).not.toMatch(/█/);
@@ -361,7 +368,7 @@ if (import.meta.vitest != null) {
 			const originalColumns = process.env.COLUMNS;
 			process.env.COLUMNS = '80';
 
-			const output = renderBarChart(data);
+			const { output } = renderBarChart(data);
 			// Should contain track characters
 			expect(output).toContain('░');
 
@@ -378,7 +385,7 @@ if (import.meta.vitest != null) {
 			const originalColumns = process.env.COLUMNS;
 			process.env.COLUMNS = '80';
 
-			const output = renderBarChart(data);
+			const { output } = renderBarChart(data);
 			const lines = output.split('\n');
 			// Should have a blank line between groups
 			expect(lines.includes('')).toBe(true);
@@ -392,10 +399,10 @@ if (import.meta.vitest != null) {
 			const originalColumns = process.env.COLUMNS;
 			process.env.COLUMNS = '120';
 
-			const normalOutput = renderBarChart(data);
-			const compactOutput = renderBarChart(data, { forceCompact: true });
+			const normal = renderBarChart(data);
+			const compact = renderBarChart(data, { forceCompact: true });
 
-			expect(stringWidth(normalOutput)).toBeGreaterThanOrEqual(stringWidth(compactOutput));
+			expect(stringWidth(normal.output)).toBeGreaterThanOrEqual(stringWidth(compact.output));
 
 			process.env.COLUMNS = originalColumns;
 		});
@@ -436,10 +443,12 @@ if (import.meta.vitest != null) {
 	});
 
 	describe('renderChartTotals', () => {
-		it('should render bold yellow totals', () => {
-			const totals = renderChartTotals('Total', '$100.00', 12);
+		it('should render bold yellow totals aligned with bar width', () => {
+			const totals = renderChartTotals('Total', '$100.00', 12, 40);
 			expect(totals).toContain('Total');
 			expect(totals).toContain('$100.00');
+			// Should have spacing for the bar area
+			expect(stringWidth(totals)).toBeGreaterThan(50);
 		});
 	});
 
