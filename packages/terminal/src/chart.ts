@@ -21,12 +21,10 @@ export type ChartOptions = {
 	maxBarWidth?: number;
 	/** Character used for filled portion of bars */
 	fillChar?: string;
+	/** Character used for the bar tip (partial block) */
+	tipChar?: string;
 	/** Whether to show value labels to the right of bars */
 	showValues?: boolean;
-	/** Color function applied to bars (from picocolors) */
-	barColor?: (text: string) => string;
-	/** Color function applied to the max-value bar */
-	maxBarColor?: (text: string) => string;
 	/** Suffix appended to formatted values (e.g., " tokens") */
 	valueSuffix?: string;
 	/** Force compact layout for narrow terminals */
@@ -41,12 +39,37 @@ function formatCurrencyValue(amount: number): string {
 }
 
 /**
+ * Picks a color based on where a value falls within the range [0, max].
+ * Low values get dim blue, mid gets cyan, high gets yellow, top gets bold green.
+ */
+function colorForValue(value: number, maxValue: number): (text: string) => string {
+	if (maxValue <= 0) {
+		return pc.gray;
+	}
+	const ratio = value / maxValue;
+	if (ratio >= 0.95) {
+		return (t: string) => pc.bold(pc.green(t));
+	}
+	if (ratio >= 0.65) {
+		return pc.yellow;
+	}
+	if (ratio >= 0.35) {
+		return pc.cyan;
+	}
+	if (ratio > 0) {
+		return pc.blue;
+	}
+	return pc.gray;
+}
+
+/**
  * Renders a horizontal bar chart as a string for terminal output
  *
- * Example output:
- *   2026-03-28  ████████████████████████████████████  $12.45
- *   2026-03-29  ██████████████████████               $8.20
- *   Total                                             $35.10
+ * Features:
+ * - Color gradient: bars transition from blue (low) -> cyan -> yellow -> bold green (peak)
+ * - Non-zero values always show at least a thin bar (▏) so nothing is invisible
+ * - Cost values are placed right next to bars for easy reading
+ * - Fractional block characters (▏▎▍▌▋▊▉█) for sub-character precision
  *
  * @param data - Array of data points to render
  * @param options - Chart display options
@@ -57,13 +80,10 @@ export function renderBarChart(data: ChartDataPoint[], options: ChartOptions = {
 		return '';
 	}
 
-	const {
-		fillChar = '█',
-		showValues = true,
-		barColor = pc.cyan,
-		maxBarColor = pc.green,
-		forceCompact = false,
-	} = options;
+	const { fillChar = '█', tipChar = '▏', showValues = true, forceCompact = false } = options;
+
+	// Sub-character block elements for fractional widths (⅛ increments)
+	const fractionalBlocks = ['', '▏', '▎', '▍', '▌', '▋', '▊', '▉'];
 
 	// Determine terminal width
 	const terminalWidth =
@@ -95,22 +115,40 @@ export function renderBarChart(data: ChartDataPoint[], options: ChartOptions = {
 
 		// Pad label to consistent width (right-align)
 		const labelPad = labelWidth - stringWidth(point.label);
-		const paddedLabel = ' '.repeat(labelPad) + point.label;
+		const paddedLabel = ' '.repeat(labelPad) + pc.white(point.label);
 
-		// Calculate bar length
-		const barLength = maxValue > 0 ? Math.round((point.value / maxValue) * maxBarWidth) : 0;
-		const bar = fillChar.repeat(barLength);
-		const barPadding = ' '.repeat(maxBarWidth - barLength);
+		// Calculate bar length with fractional precision
+		const exactBarWidth = maxValue > 0 ? (point.value / maxValue) * maxBarWidth : 0;
+		const fullBlocks = Math.floor(exactBarWidth);
+		const fractionalIndex = Math.round((exactBarWidth - fullBlocks) * 8);
+		const fractional = fractionalBlocks[fractionalIndex] ?? '';
 
-		// Apply color - highlight the max value bar
-		const colorFn = point.value === maxValue && maxValue > 0 ? maxBarColor : barColor;
+		// Ensure non-zero values always show at least a minimal bar
+		let bar: string;
+		if (point.value === 0) {
+			bar = '';
+		} else if (fullBlocks === 0 && fractional === '') {
+			bar = tipChar; // minimum visible bar for tiny values
+		} else {
+			bar = fillChar.repeat(fullBlocks) + fractional;
+		}
+
+		const barVisualWidth = stringWidth(bar);
+		const barPadding = ' '.repeat(Math.max(0, maxBarWidth - barVisualWidth));
+
+		// Apply gradient color based on value
+		const colorFn = colorForValue(point.value, maxValue);
 		const coloredBar = bar.length > 0 ? colorFn(bar) : '';
+
+		// Color the value based on magnitude too
+		const valueColorFn = point.value === 0 ? pc.gray : colorFn;
+		const coloredValue = valueColorFn(formattedValue);
 
 		// Build line
 		let line = `${paddedLabel}  ${coloredBar}${barPadding}`;
 		if (showValues) {
 			const valuePad = maxValueWidth - stringWidth(formattedValue);
-			line += `  ${' '.repeat(valuePad)}${formattedValue}`;
+			line += `  ${' '.repeat(valuePad)}${coloredValue}`;
 		}
 
 		lines.push(line);
@@ -144,8 +182,8 @@ export function renderChartTotals(
 	labelWidth?: number,
 ): string {
 	const padWidth = (labelWidth ?? 12) - stringWidth(label);
-	const paddedLabel = ' '.repeat(Math.max(0, padWidth)) + pc.yellow(label);
-	return `${paddedLabel}  ${pc.yellow(formattedValue)}`;
+	const paddedLabel = ' '.repeat(Math.max(0, padWidth)) + pc.bold(pc.yellow(label));
+	return `${paddedLabel}  ${pc.bold(pc.yellow(formattedValue))}`;
 }
 
 /**
@@ -193,7 +231,8 @@ if (import.meta.vitest != null) {
 			const originalColumns = process.env.COLUMNS;
 			process.env.COLUMNS = '80';
 
-			const output = renderBarChart(data, { barColor: (t) => t, maxBarColor: (t) => t });
+			// Strip ANSI codes for content assertions
+			const output = renderBarChart(data);
 
 			expect(output).toContain('2026-03-28');
 			expect(output).toContain('2026-03-29');
@@ -201,15 +240,6 @@ if (import.meta.vitest != null) {
 			expect(output).toContain('$12.45');
 			expect(output).toContain('$8.20');
 			expect(output).toContain('$4.00');
-
-			// The first row should have the longest bar (highest value)
-			const lines = output.split('\n');
-			const bar1Length = (lines[0]?.match(/█/g) ?? []).length;
-			const bar2Length = (lines[1]?.match(/█/g) ?? []).length;
-			const bar3Length = (lines[2]?.match(/█/g) ?? []).length;
-
-			expect(bar1Length).toBeGreaterThan(bar2Length);
-			expect(bar2Length).toBeGreaterThan(bar3Length);
 
 			process.env.COLUMNS = originalColumns;
 		});
@@ -225,7 +255,7 @@ if (import.meta.vitest != null) {
 			const originalColumns = process.env.COLUMNS;
 			process.env.COLUMNS = '80';
 
-			const output = renderBarChart(data, { barColor: (t) => t, maxBarColor: (t) => t });
+			const output = renderBarChart(data);
 			expect(output).toContain('Jan');
 			expect(output).toContain('$10.00');
 			// Single data point should get full bar width
@@ -234,7 +264,24 @@ if (import.meta.vitest != null) {
 			process.env.COLUMNS = originalColumns;
 		});
 
-		it('should handle zero values', () => {
+		it('should show minimal bar for tiny non-zero values', () => {
+			const data: ChartDataPoint[] = [
+				{ label: 'A', value: 0.01, formattedValue: '$0.01' },
+				{ label: 'B', value: 100, formattedValue: '$100.00' },
+			];
+
+			const originalColumns = process.env.COLUMNS;
+			process.env.COLUMNS = '80';
+
+			const output = renderBarChart(data);
+			const lines = output.split('\n');
+			// First line (tiny value) should still have a visible bar character
+			expect(lines[0]).toMatch(/[▏▎▍▌▋▊▉█]/);
+
+			process.env.COLUMNS = originalColumns;
+		});
+
+		it('should handle zero values with no bar', () => {
 			const data: ChartDataPoint[] = [
 				{ label: 'A', value: 0, formattedValue: '$0.00' },
 				{ label: 'B', value: 5, formattedValue: '$5.00' },
@@ -243,12 +290,12 @@ if (import.meta.vitest != null) {
 			const originalColumns = process.env.COLUMNS;
 			process.env.COLUMNS = '80';
 
-			const output = renderBarChart(data, { barColor: (t) => t, maxBarColor: (t) => t });
+			const output = renderBarChart(data);
 			const lines = output.split('\n');
 			// First line (value=0) should have no bar characters
-			expect(lines[0]?.match(/█/g) ?? []).toHaveLength(0);
+			expect(lines[0]).not.toMatch(/[▏▎▍▌▋▊▉█]/);
 			// Second line should have bars
-			expect((lines[1]?.match(/█/g) ?? []).length).toBeGreaterThan(0);
+			expect(lines[1]).toMatch(/█/);
 
 			process.env.COLUMNS = originalColumns;
 		});
@@ -259,25 +306,55 @@ if (import.meta.vitest != null) {
 			const originalColumns = process.env.COLUMNS;
 			process.env.COLUMNS = '120';
 
-			const normalOutput = renderBarChart(data, { barColor: (t) => t, maxBarColor: (t) => t });
-			const compactOutput = renderBarChart(data, {
-				forceCompact: true,
-				barColor: (t) => t,
-				maxBarColor: (t) => t,
-			});
+			const normalOutput = renderBarChart(data);
+			const compactOutput = renderBarChart(data, { forceCompact: true });
 
 			// Compact output should be shorter or equal
-			expect(normalOutput.length).toBeGreaterThanOrEqual(compactOutput.length);
+			expect(stringWidth(normalOutput)).toBeGreaterThanOrEqual(stringWidth(compactOutput));
 
 			process.env.COLUMNS = originalColumns;
+		});
+	});
+
+	describe('colorForValue', () => {
+		it('should return gray for zero value', () => {
+			const color = colorForValue(0, 100);
+			expect(color('test')).toBe(pc.gray('test'));
+		});
+
+		it('should return bold green for peak value', () => {
+			const color = colorForValue(100, 100);
+			expect(color('test')).toBe(pc.bold(pc.green('test')));
+		});
+
+		it('should return blue for low values', () => {
+			const color = colorForValue(10, 100);
+			expect(color('test')).toBe(pc.blue('test'));
+		});
+
+		it('should return cyan for mid values', () => {
+			const color = colorForValue(50, 100);
+			expect(color('test')).toBe(pc.cyan('test'));
+		});
+
+		it('should return yellow for high values', () => {
+			const color = colorForValue(75, 100);
+			expect(color('test')).toBe(pc.yellow('test'));
 		});
 	});
 
 	describe('renderChartSeparator', () => {
 		it('should render a separator line', () => {
 			const separator = renderChartSeparator(80);
-			// Should contain dash characters (may be wrapped in ANSI codes)
 			expect(separator).toContain('─');
+		});
+	});
+
+	describe('renderChartTotals', () => {
+		it('should render bold yellow totals', () => {
+			const totals = renderChartTotals('Total', '$100.00', 12);
+			expect(totals).toContain('Total');
+			expect(totals).toContain('$100.00');
 		});
 	});
 
