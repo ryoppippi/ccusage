@@ -11,7 +11,12 @@ import { define } from 'gunshi';
 import pc from 'picocolors';
 import { DEFAULT_TIMEZONE } from '../_consts.ts';
 import { sharedArgs } from '../_shared-args.ts';
-import { formatModelsList, splitUsageTokens } from '../command-utils.ts';
+import {
+	createEmptyReportPayload,
+	formatModelsList,
+	groupRowsByProject,
+	splitUsageTokens,
+} from '../command-utils.ts';
 import { loadTokenUsageEvents } from '../data-loader.ts';
 import {
 	formatDisplayDate,
@@ -23,7 +28,8 @@ import { log, logger } from '../logger.ts';
 import { CodexPricingSource } from '../pricing.ts';
 import { buildSessionReport } from '../session-report.ts';
 
-const TABLE_COLUMN_COUNT = 11;
+const TABLE_COLUMN_COUNT_DEFAULT = 11;
+const TABLE_COLUMN_COUNT_WITH_PROJECT = 12;
 
 export const sessionCommand = define({
 	name: 'session',
@@ -46,6 +52,8 @@ export const sessionCommand = define({
 			process.exit(1);
 		}
 
+		const projectFilter = ctx.values.project;
+		const useInstances = Boolean(ctx.values.instances);
 		const { events, missingDirectories } = await loadTokenUsageEvents();
 
 		for (const missing of missingDirectories) {
@@ -54,7 +62,9 @@ export const sessionCommand = define({
 
 		if (events.length === 0) {
 			log(
-				jsonOutput ? JSON.stringify({ sessions: [], totals: null }) : 'No Codex usage data found.',
+				jsonOutput
+					? JSON.stringify(createEmptyReportPayload('sessions', useInstances))
+					: 'No Codex usage data found.',
 			);
 			return;
 		}
@@ -69,12 +79,14 @@ export const sessionCommand = define({
 				locale: ctx.values.locale,
 				since,
 				until,
+				project: projectFilter,
+				groupByProject: useInstances,
 			});
 
 			if (rows.length === 0) {
 				log(
 					jsonOutput
-						? JSON.stringify({ sessions: [], totals: null })
+						? JSON.stringify(createEmptyReportPayload('sessions', useInstances))
 						: 'No Codex usage data found for provided filters.',
 				);
 				return;
@@ -101,16 +113,11 @@ export const sessionCommand = define({
 			);
 
 			if (jsonOutput) {
-				log(
-					JSON.stringify(
-						{
-							sessions: rows,
-							totals,
-						},
-						null,
-						2,
-					),
-				);
+				if (useInstances) {
+					log(JSON.stringify({ projects: groupRowsByProject(rows), totals }, null, 2));
+				} else {
+					log(JSON.stringify({ sessions: rows, totals }, null, 2));
+				}
 				return;
 			}
 
@@ -118,11 +125,26 @@ export const sessionCommand = define({
 				`Codex Token Usage Report - Sessions (Timezone: ${ctx.values.timezone ?? DEFAULT_TIMEZONE})`,
 			);
 
+			const showProject = useInstances && rows.some((r) => r.project != null);
+			const columnCount = showProject
+				? TABLE_COLUMN_COUNT_WITH_PROJECT
+				: TABLE_COLUMN_COUNT_DEFAULT;
+
+			const baseHead = ['Date', 'Directory', 'Session'];
+			const baseAligns: ('left' | 'right')[] = ['left', 'left', 'left'];
+			const baseCompactHead = ['Date', 'Directory', 'Session'];
+			const baseCompactAligns: ('left' | 'right')[] = ['left', 'left', 'left'];
+
+			if (showProject) {
+				baseHead.splice(1, 0, 'Project');
+				baseAligns.splice(1, 0, 'left');
+				baseCompactHead.splice(1, 0, 'Project');
+				baseCompactAligns.splice(1, 0, 'left');
+			}
+
 			const table: ResponsiveTable = new ResponsiveTable({
 				head: [
-					'Date',
-					'Directory',
-					'Session',
+					...baseHead,
 					'Models',
 					'Input',
 					'Output',
@@ -133,9 +155,7 @@ export const sessionCommand = define({
 					'Last Activity',
 				],
 				colAligns: [
-					'left',
-					'left',
-					'left',
+					...baseAligns,
 					'left',
 					'right',
 					'right',
@@ -145,8 +165,8 @@ export const sessionCommand = define({
 					'right',
 					'left',
 				],
-				compactHead: ['Date', 'Directory', 'Session', 'Input', 'Output', 'Cost (USD)'],
-				compactColAligns: ['left', 'left', 'left', 'right', 'right', 'right'],
+				compactHead: [...baseCompactHead, 'Input', 'Output', 'Cost (USD)'],
+				compactColAligns: [...baseCompactAligns, 'right', 'right', 'right'],
 				compactThreshold: 100,
 				forceCompact: ctx.values.compact,
 				style: { head: ['cyan'] },
@@ -177,10 +197,14 @@ export const sessionCommand = define({
 				const sessionFile = row.sessionFile;
 				const shortSession = sessionFile.length > 8 ? `…${sessionFile.slice(-8)}` : sessionFile;
 
+				const baseColumns = [displayDate];
+				if (showProject) {
+					baseColumns.push(row.project ?? '(unknown)');
+				}
+				baseColumns.push(directoryDisplay, shortSession);
+
 				table.push([
-					displayDate,
-					directoryDisplay,
-					shortSession,
+					...baseColumns,
 					formatModelsDisplayMultiline(formatModelsList(row.models)),
 					formatNumber(split.inputTokens),
 					formatNumber(split.outputTokens),
@@ -192,11 +216,12 @@ export const sessionCommand = define({
 				]);
 			}
 
-			addEmptySeparatorRow(table, TABLE_COLUMN_COUNT);
+			addEmptySeparatorRow(table, columnCount);
+			const totalPrefix = showProject
+				? ['', '', '', pc.yellow('Total')]
+				: ['', '', pc.yellow('Total')];
 			table.push([
-				'',
-				'',
-				pc.yellow('Total'),
+				...totalPrefix,
 				'',
 				pc.yellow(formatNumber(totalsForDisplay.inputTokens)),
 				pc.yellow(formatNumber(totalsForDisplay.outputTokens)),

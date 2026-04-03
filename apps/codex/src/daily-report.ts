@@ -6,7 +6,9 @@ import type {
 	PricingSource,
 	TokenUsageEvent,
 } from './_types.ts';
+import os from 'node:os';
 import { formatDisplayDate, isWithinRange, toDateKey } from './date-utils.ts';
+import { normalizeProjectFilter, UNKNOWN_PROJECT_LABEL } from './project-utils.ts';
 import { addUsage, calculateCostUSD, createEmptyUsage } from './token-utils.ts';
 
 export type DailyReportOptions = {
@@ -15,6 +17,8 @@ export type DailyReportOptions = {
 	since?: string;
 	until?: string;
 	pricingSource: PricingSource;
+	project?: string;
+	groupByProject?: boolean;
 };
 
 function createSummary(date: string, initialTimestamp: string): DailyUsageSummary {
@@ -43,9 +47,18 @@ export async function buildDailyReport(
 
 	const summaries = new Map<string, DailyUsageSummary>();
 
+	const projectFilter = normalizeProjectFilter(options.project);
+	const groupByProject = options.groupByProject === true;
+
 	for (const event of events) {
 		const modelName = event.model?.trim();
 		if (modelName == null || modelName === '') {
+			continue;
+		}
+
+		const project = normalizeProjectFilter(event.project);
+
+		if (projectFilter != null && project !== projectFilter) {
 			continue;
 		}
 
@@ -54,9 +67,14 @@ export async function buildDailyReport(
 			continue;
 		}
 
-		const summary = summaries.get(dateKey) ?? createSummary(dateKey, event.timestamp);
-		if (!summaries.has(dateKey)) {
-			summaries.set(dateKey, summary);
+		const groupKey = groupByProject ? `${project ?? UNKNOWN_PROJECT_LABEL}::${dateKey}` : dateKey;
+		const summary = summaries.get(groupKey) ?? createSummary(dateKey, event.timestamp);
+		if (!summaries.has(groupKey)) {
+			summaries.set(groupKey, summary);
+		}
+		if (groupByProject) {
+			(summary as DailyUsageSummary & { project?: string }).project =
+				project ?? UNKNOWN_PROJECT_LABEL;
 		}
 
 		addUsage(summary, event);
@@ -87,9 +105,17 @@ export async function buildDailyReport(
 
 	const rows: DailyReportRow[] = [];
 
-	const sortedSummaries = Array.from(summaries.values()).sort((a, b) =>
-		a.date.localeCompare(b.date),
-	);
+	const sortedSummaries = Array.from(summaries.values()).sort((a, b) => {
+		if (groupByProject) {
+			const projA = (a as DailyUsageSummary & { project?: string }).project ?? '';
+			const projB = (b as DailyUsageSummary & { project?: string }).project ?? '';
+			const projCmp = projA.localeCompare(projB);
+			if (projCmp !== 0) {
+				return projCmp;
+			}
+		}
+		return a.date.localeCompare(b.date);
+	});
 	for (const summary of sortedSummaries) {
 		let cost = 0;
 		for (const [modelName, usage] of summary.models) {
@@ -108,6 +134,7 @@ export async function buildDailyReport(
 
 		rows.push({
 			date: formatDisplayDate(summary.date, locale, timezone),
+			project: (summary as DailyUsageSummary & { project?: string }).project,
 			inputTokens: summary.inputTokens,
 			cachedInputTokens: summary.cachedInputTokens,
 			outputTokens: summary.outputTokens,
@@ -200,6 +227,41 @@ if (import.meta.vitest != null) {
 				(100 / 1_000_000) * 0.06 +
 				(200 / 1_000_000) * 2;
 			expect(first.costUSD).toBeCloseTo(expectedCost, 10);
+		});
+
+		it('normalizes the project filter before exact matching', async () => {
+			const stubPricingSource: PricingSource = {
+				async getPricing(): Promise<ModelPricing> {
+					return {
+						inputCostPerMToken: 1,
+						cachedInputCostPerMToken: 0.1,
+						outputCostPerMToken: 2,
+					};
+				},
+			};
+
+			const home = os.homedir();
+			const report = await buildDailyReport(
+				[
+					{
+						sessionId: 'session-1',
+						timestamp: '2025-09-11T03:00:00.000Z',
+						model: 'gpt-5',
+						project: '~/workspace/repo',
+						inputTokens: 100,
+						cachedInputTokens: 0,
+						outputTokens: 50,
+						reasoningOutputTokens: 0,
+						totalTokens: 150,
+					},
+				],
+				{
+					pricingSource: stubPricingSource,
+					project: `${home}/workspace/repo`,
+				},
+			);
+
+			expect(report).toHaveLength(1);
 		});
 	});
 }

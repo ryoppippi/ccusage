@@ -1,5 +1,6 @@
 import type { TokenUsageDelta, TokenUsageEvent } from './_types.ts';
 import { readFile, stat } from 'node:fs/promises';
+import os from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
 import { Result } from '@praha/byethrow';
@@ -7,12 +8,14 @@ import { createFixture } from 'fs-fixture';
 import { glob } from 'tinyglobby';
 import * as v from 'valibot';
 import {
+	ARCHIVED_SESSION_SUBDIR,
 	CODEX_HOME_ENV,
 	DEFAULT_CODEX_DIR,
 	DEFAULT_SESSION_SUBDIR,
 	SESSION_GLOB,
 } from './_consts.ts';
 import { logger } from './logger.ts';
+import { normalizeProjectPath } from './project-utils.ts';
 
 type RawUsage = {
 	input_tokens: number;
@@ -175,6 +178,10 @@ function asNonEmptyString(value: unknown): string | undefined {
 	return trimmed === '' ? undefined : trimmed;
 }
 
+function extractCwd(payload: Record<string, unknown>): string | undefined {
+	return asNonEmptyString(payload.cwd);
+}
+
 export type LoadOptions = {
 	sessionDirs?: string[];
 };
@@ -194,7 +201,8 @@ export async function loadTokenUsageEvents(options: LoadOptions = {}): Promise<L
 	const codexHome =
 		codexHomeEnv != null && codexHomeEnv !== '' ? path.resolve(codexHomeEnv) : DEFAULT_CODEX_DIR;
 	const defaultSessionsDir = path.join(codexHome, DEFAULT_SESSION_SUBDIR);
-	const sessionDirs = providedDirs ?? [defaultSessionsDir];
+	const archivedSessionsDir = path.join(codexHome, ARCHIVED_SESSION_SUBDIR);
+	const sessionDirs = providedDirs ?? [defaultSessionsDir, archivedSessionsDir];
 
 	const events: TokenUsageEvent[] = [];
 	const missingDirectories: string[] = [];
@@ -239,6 +247,7 @@ export async function loadTokenUsageEvents(options: LoadOptions = {}): Promise<L
 			let currentModel: string | undefined;
 			let currentModelIsFallback = false;
 			let legacyFallbackUsed = false;
+			let sessionCwd: string | undefined;
 			const lines = fileContentResult.value.split(/\r?\n/);
 			for (const line of lines) {
 				const trimmed = line.trim();
@@ -263,6 +272,17 @@ export async function loadTokenUsageEvents(options: LoadOptions = {}): Promise<L
 
 				const { type: entryType, payload, timestamp } = entryParse.output;
 
+				if (entryType === 'session_meta') {
+					const metaPayload = v.safeParse(recordSchema, payload ?? null);
+					if (metaPayload.success) {
+						const cwd = extractCwd(metaPayload.output);
+						if (cwd != null) {
+							sessionCwd = cwd;
+						}
+					}
+					continue;
+				}
+
 				if (entryType === 'turn_context') {
 					const contextPayload = v.safeParse(recordSchema, payload ?? null);
 					if (contextPayload.success) {
@@ -270,6 +290,10 @@ export async function loadTokenUsageEvents(options: LoadOptions = {}): Promise<L
 						if (contextModel != null) {
 							currentModel = contextModel;
 							currentModelIsFallback = false;
+						}
+						const cwd = extractCwd(contextPayload.output);
+						if (cwd != null) {
+							sessionCwd = cwd;
 						}
 					}
 					continue;
@@ -346,6 +370,7 @@ export async function loadTokenUsageEvents(options: LoadOptions = {}): Promise<L
 					outputTokens: delta.outputTokens,
 					reasoningOutputTokens: delta.reasoningOutputTokens,
 					totalTokens: delta.totalTokens,
+					project: sessionCwd != null ? normalizeProjectPath(sessionCwd) : undefined,
 				};
 
 				if (isFallbackModel) {
@@ -451,6 +476,115 @@ if (import.meta.vitest != null) {
 			expect(second.model).toBe('gpt-5');
 			expect(second.inputTokens).toBe(800);
 			expect(second.cachedInputTokens).toBe(100);
+		});
+
+		it('extracts project from session_meta cwd', async () => {
+			const home = os.homedir();
+			await using fixture = await createFixture({
+				sessions: {
+					'with-project.jsonl': [
+						JSON.stringify({
+							timestamp: '2025-09-11T18:25:00.000Z',
+							type: 'session_meta',
+							payload: { cwd: `${home}/workspace/my-project` },
+						}),
+						JSON.stringify({
+							timestamp: '2025-09-11T18:25:30.000Z',
+							type: 'turn_context',
+							payload: { model: 'gpt-5', cwd: `${home}/workspace/my-project` },
+						}),
+						JSON.stringify({
+							timestamp: '2025-09-11T18:25:40.000Z',
+							type: 'event_msg',
+							payload: {
+								type: 'token_count',
+								info: {
+									last_token_usage: {
+										input_tokens: 100,
+										cached_input_tokens: 0,
+										output_tokens: 50,
+										reasoning_output_tokens: 0,
+										total_tokens: 150,
+									},
+									model: 'gpt-5',
+								},
+							},
+						}),
+					].join('\n'),
+				},
+			});
+
+			const { events } = await loadTokenUsageEvents({
+				sessionDirs: [fixture.getPath('sessions')],
+			});
+			expect(events).toHaveLength(1);
+			expect(events[0]!.project).toBe('~/workspace/my-project');
+		});
+
+		it('updates project when turn_context cwd changes mid-session', async () => {
+			const home = os.homedir();
+			await using fixture = await createFixture({
+				sessions: {
+					'cd-mid-session.jsonl': [
+						JSON.stringify({
+							timestamp: '2025-09-11T18:00:00.000Z',
+							type: 'session_meta',
+							payload: { cwd: `${home}/project-a` },
+						}),
+						JSON.stringify({
+							timestamp: '2025-09-11T18:00:10.000Z',
+							type: 'turn_context',
+							payload: { model: 'gpt-5', cwd: `${home}/project-a` },
+						}),
+						JSON.stringify({
+							timestamp: '2025-09-11T18:00:20.000Z',
+							type: 'event_msg',
+							payload: {
+								type: 'token_count',
+								info: {
+									last_token_usage: {
+										input_tokens: 100,
+										cached_input_tokens: 0,
+										output_tokens: 50,
+										reasoning_output_tokens: 0,
+										total_tokens: 150,
+									},
+									model: 'gpt-5',
+								},
+							},
+						}),
+						JSON.stringify({
+							timestamp: '2025-09-11T18:01:00.000Z',
+							type: 'turn_context',
+							payload: { model: 'gpt-5', cwd: `${home}/project-b` },
+						}),
+						JSON.stringify({
+							timestamp: '2025-09-11T18:01:10.000Z',
+							type: 'event_msg',
+							payload: {
+								type: 'token_count',
+								info: {
+									last_token_usage: {
+										input_tokens: 200,
+										cached_input_tokens: 0,
+										output_tokens: 100,
+										reasoning_output_tokens: 0,
+										total_tokens: 300,
+									},
+									model: 'gpt-5',
+								},
+							},
+						}),
+					].join('\n'),
+				},
+			});
+
+			const { events } = await loadTokenUsageEvents({
+				sessionDirs: [fixture.getPath('sessions')],
+			});
+			expect(events).toHaveLength(2);
+			expect(events[0]!.project).toBe('~/project-a');
+			expect(events[1]!.project).toBe('~/project-b');
 		});
 
 		it('falls back to legacy model when metadata is missing entirely', async () => {
