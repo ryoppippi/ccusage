@@ -22,6 +22,7 @@ import {
 	loadDailyUsageData,
 	loadSessionBlockData,
 	loadSessionUsageById,
+	loadWeeklyUsageData,
 } from '../data-loader.ts';
 import { log, logger } from '../logger.ts';
 
@@ -76,6 +77,8 @@ type SemaphoreType = {
 	isUpdating?: boolean;
 	/** Process ID of updating process for deadlock detection */
 	pid?: number;
+	/** Timestamp (milliseconds) of the last observed transcript file change, used for expiry time visibility */
+	lastFileChangeTime?: number;
 };
 
 const visualBurnRateChoices = ['off', 'emoji', 'text', 'emoji-text'] as const;
@@ -207,6 +210,15 @@ export const statuslineCommand = define({
 		// Get current file modification time for cache validation and semaphore update
 		const currentMtime = await getFileModifiedTime(hookData.transcript_path);
 
+		// Determine file modification status unconditionally so it can be used in rendering logic
+		const isFileModified =
+			initialSemaphoreState != null ? initialSemaphoreState.transcriptMtime !== currentMtime : true; // First run: treat as change to show expiry immediately
+
+		// Track when the transcript was last modified; carry forward from semaphore if unchanged
+		const lastFileChangeTime = isFileModified
+			? Date.now()
+			: (initialSemaphoreState?.lastFileChangeTime ?? Date.now());
+
 		if (mergedOptions.cache && initialSemaphoreState != null) {
 			/**
 			 * Hybrid cache validation:
@@ -217,7 +229,6 @@ export const statuslineCommand = define({
 			const now = Date.now();
 			const timeElapsed = now - (initialSemaphoreState.lastUpdateTime ?? 0);
 			const isExpired = timeElapsed >= refreshInterval * 1000;
-			const isFileModified = initialSemaphoreState.transcriptMtime !== currentMtime;
 
 			if (!isExpired && !isFileModified) {
 				// Cache is still valid, return cached output
@@ -358,6 +369,27 @@ export const statuslineCommand = define({
 						Result.unwrap(0),
 					);
 
+					// Load this week's usage data (Sunday-based week)
+					const weekStart = new Date(today);
+					weekStart.setDate(today.getDate() - today.getDay());
+					const weekStartStr = weekStart.toISOString().split('T')[0]?.replace(/-/g, '') ?? '';
+
+					const weeklyCost = await Result.pipe(
+						Result.try({
+							try: async () =>
+								loadWeeklyUsageData({
+									since: weekStartStr,
+									until: todayStr,
+									mode: 'auto',
+									offline: mergedOptions.offline,
+								}),
+							catch: (error) => error,
+						})(),
+						Result.map((weeklyData) => weeklyData.reduce((sum, w) => sum + w.totalCost, 0)),
+						Result.inspectError((error) => logger.error('Failed to load weekly data:', error)),
+						Result.unwrap(0),
+					);
+
 					// Load session block data to find active block
 					const { blockInfo, burnRateInfo } = await Result.pipe(
 						Result.try({
@@ -393,7 +425,20 @@ export const statuslineCommand = define({
 								);
 								const blockCost = activeBlock.costUSD;
 
-								const blockInfo = `${formatCurrency(blockCost)} block (${formatRemainingTime(remaining)})`;
+								// Show expiry time for 30s after last file change; flash briefly on update
+								const EXPIRY_SHOW_MS = 30_000;
+								const EXPIRY_FLASH_MS = 3_000;
+								const timeSinceChange = Date.now() - lastFileChangeTime;
+								const showExpiry = remaining > 0 && timeSinceChange < EXPIRY_SHOW_MS;
+								const flashExpiry = showExpiry && timeSinceChange < EXPIRY_FLASH_MS;
+
+								const blockInfo = showExpiry
+									? (() => {
+											const timeStr = formatRemainingTime(remaining);
+											const formattedTime = flashExpiry ? pc.bold(`⚡ ${timeStr}`) : timeStr;
+											return `${formatCurrency(blockCost)} block (${formattedTime})`;
+										})()
+									: `${formatCurrency(blockCost)} block`;
 
 								// Calculate burn rate
 								const burnRate = calculateBurnRate(activeBlock);
@@ -520,7 +565,7 @@ export const statuslineCommand = define({
 						// Single cost display
 						return sessionCost != null ? formatCurrency(sessionCost) : 'N/A';
 					})();
-					const statusLine = `🤖 ${modelName} | 💰 ${sessionDisplay} session / ${formatCurrency(todayCost)} today / ${blockInfo}${burnRateInfo} | 🧠 ${contextInfo ?? 'N/A'}`;
+					const statusLine = `🤖 ${modelName} | 💰 ${sessionDisplay} session / ${formatCurrency(todayCost)} today / ${formatCurrency(weeklyCost)} week / ${blockInfo}${burnRateInfo} | 🧠 ${contextInfo ?? 'N/A'}`;
 					return statusLine;
 				},
 				catch: (error) => error,
@@ -543,6 +588,7 @@ export const statuslineCommand = define({
 				transcriptMtime: currentMtime, // Use mtime from when we started processing
 				isUpdating: false,
 				pid: undefined,
+				lastFileChangeTime,
 			};
 			return;
 		}
