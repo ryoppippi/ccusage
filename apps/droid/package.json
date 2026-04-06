@@ -1,0 +1,78 @@
+{
+	"name": "@ccusage/droid",
+	"type": "module",
+	"version": "18.0.5",
+	"description": "Usage analysis tool for Factory Droid sessions",
+	"author": "ryoppippi",
+	"license": "MIT",
+	"funding": "https://github.com/ryoppippi/ccusage?sponsor=1",
+	"homepage": "https://github.com/ryoppippi/ccusage#readme",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/ryoppippi/ccusage.git",
+		"directory": "apps/droid"
+	},
+	"bugs": {
+		"url": "https://github.com/ryoppippi/ccusage/issues"
+	},
+	"main": "./dist/index.js",
+	"module": "./dist/index.js",
+	"bin": {
+		"ccusage-droid": "./src/index.ts"
+	},
+	"files": [
+		"dist"
+	],
+	"publishConfig": {
+		"bin": {
+			"ccusage-droid": "./dist/index.js"
+		}
+	},
+	"engines": {
+		"node": ">=20.19.4"
+	},
+	"scripts": {
+		"build": "tsdown",
+		"format": "pnpm run lint --fix",
+		"lint": "eslint --cache .",
+		"prepack": "pnpm run build && clean-pkg-json",
+		"prerelease": "pnpm run lint && pnpm run typecheck && pnpm run build",
+		"start": "bun ./src/index.ts",
+		"test": "TZ=UTC vitest",
+		"typecheck": "tsgo --noEmit"
+	},
+	"devDependencies": {
+		"@ccusage/internal": "workspace:*",
+		"@ccusage/terminal": "workspace:*",
+		"@praha/byethrow": "catalog:runtime",
+		"@ryoppippi/eslint-config": "catalog:lint",
+		"@typescript/native-preview": "catalog:types",
+		"clean-pkg-json": "catalog:release",
+		"eslint": "catalog:lint",
+		"fast-sort": "catalog:runtime",
+		"fs-fixture": "catalog:testing",
+		"gunshi": "catalog:runtime",
+		"path-type": "catalog:runtime",
+		"picocolors": "catalog:runtime",
+		"tinyglobby": "catalog:runtime",
+		"tsdown": "catalog:build",
+		"unplugin-macros": "catalog:build",
+		"unplugin-unused": "catalog:build",
+		"valibot": "catalog:runtime",
+		"vitest": "catalog:testing"
+	},
+	"devEngines": {
+		"runtime": [
+			{
+				"name": "node",
+				"version": ">=20.19.4",
+				"onFail": "download"
+			},
+			{
+				"name": "bun",
+				"version": "^1.3.2",
+				"onFail": "download"
+			}
+		]
+	}
+}
