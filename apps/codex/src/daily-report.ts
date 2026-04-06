@@ -108,6 +108,7 @@ export async function buildDailyReport(
 
 		rows.push({
 			date: formatDisplayDate(summary.date, locale, timezone),
+			dateKey: summary.date,
 			inputTokens: summary.inputTokens,
 			cachedInputTokens: summary.cachedInputTokens,
 			outputTokens: summary.outputTokens,
@@ -186,6 +187,7 @@ if (import.meta.vitest != null) {
 			expect(report).toHaveLength(2);
 			const first = report[0]!;
 			expect(first.date).toContain('2025');
+			expect(first.dateKey).toBe('2025-09-11');
 			expect(first.inputTokens).toBe(1_400);
 			expect(first.cachedInputTokens).toBe(300);
 			expect(first.outputTokens).toBe(700);

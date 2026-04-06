@@ -56,6 +56,7 @@ export type PricingSource = {
 
 export type DailyReportRow = {
 	date: string;
+	dateKey: string;
 	inputTokens: number;
 	cachedInputTokens: number;
 	outputTokens: number;
