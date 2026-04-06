@@ -2,6 +2,7 @@ import type { UsageReportConfig } from '@ccusage/terminal/table';
 import process from 'node:process';
 import {
 	addEmptySeparatorRow,
+	calculateCacheHitRate,
 	createUsageReportTable,
 	formatTotalsRow,
 	formatUsageDataRow,
@@ -84,6 +85,7 @@ export const weeklyCommand = define({
 					outputTokens: data.outputTokens,
 					cacheCreationTokens: data.cacheCreationTokens,
 					cacheReadTokens: data.cacheReadTokens,
+					cacheHitRate: calculateCacheHitRate(data),
 					totalTokens: getTotalTokens(data),
 					totalCost: data.totalCost,
 					modelsUsed: data.modelsUsed,
@@ -113,6 +115,7 @@ export const weeklyCommand = define({
 				dateFormatter: (dateStr: string) =>
 					formatDateCompact(dateStr, mergedOptions.timezone, mergedOptions.locale ?? undefined),
 				forceCompact: ctx.values.compact,
+				noTruncate: ctx.values.full,
 			};
 			const table = createUsageReportTable(tableConfig);
 
@@ -136,7 +139,7 @@ export const weeklyCommand = define({
 			}
 
 			// Add empty row for visual separation before totals
-			addEmptySeparatorRow(table, 8);
+			addEmptySeparatorRow(table, 9);
 
 			// Add totals
 			const totalsRow = formatTotalsRow({
