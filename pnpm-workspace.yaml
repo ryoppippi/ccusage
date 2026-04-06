@@ -19,7 +19,7 @@ catalogs:
     vitepress: 2.0.0-alpha.17
     vitepress-plugin-group-icons: ^1.7.2
     vitepress-plugin-llms: ^1.12.0
-    wrangler: ^4.32.0
+    wrangler: ^4.80.0
   lint:
     '@ryoppippi/eslint-config': ^0.4.0
     eslint: ^9.33.0
