@@ -20,6 +20,7 @@ import { createInterface } from 'node:readline';
 import { toArray } from '@antfu/utils';
 import { Result } from '@praha/byethrow';
 import { groupBy, uniq } from 'es-toolkit'; // TODO: after node20 is deprecated, switch to native Object.groupBy
+import { sort } from 'fast-sort';
 import { createFixture } from 'fs-fixture';
 import { isDirectorySync } from 'path-type';
 import { glob } from 'tinyglobby';
@@ -904,7 +905,7 @@ export async function loadDailyUsageData(options?: LoadOptions): Promise<DailyUs
  * Loads and aggregates Claude usage data by session
  * Groups usage data by project path and session ID based on file structure
  * @param options - Optional configuration for loading and filtering data
- * @returns Array of session usage summaries sorted by last activity
+ * @returns Array of session usage summaries sorted by cost (highest first)
  */
 export async function loadSessionData(options?: LoadOptions): Promise<SessionUsage[]> {
 	// Get all Claude paths or use the specific one from options
@@ -1080,7 +1081,17 @@ export async function loadSessionData(options?: LoadOptions): Promise<SessionUsa
 		options?.project,
 	);
 
-	return sortByDate(sessionFiltered, (item) => item.lastActivity, options?.order);
+	// Sort sessions by cost (highest first by default), as documented
+	const sorted = sort(sessionFiltered);
+	const order = options?.order ?? 'desc';
+	switch (order) {
+		case 'asc':
+			return sorted.asc((item) => item.totalCost);
+		case 'desc':
+			return sorted.desc((item) => item.totalCost);
+		default:
+			unreachable(order);
+	}
 }
 
 /**
@@ -2820,14 +2831,14 @@ invalid json line
 			expect(session?.versions).toEqual(['1.0.0', '1.1.0']); // Sorted and unique
 		});
 
-		it('sorts by last activity descending', async () => {
+		it('sorts by cost descending by default', async () => {
 			const sessions = [
 				{
 					sessionId: 'session1',
 					data: {
 						timestamp: createISOTimestamp('2024-01-15T12:00:00Z'),
 						message: { usage: { input_tokens: 100, output_tokens: 50 } },
-						costUSD: 0.01,
+						costUSD: 0.05,
 					},
 				},
 				{
@@ -2843,7 +2854,7 @@ invalid json line
 					data: {
 						timestamp: createISOTimestamp('2024-01-31T12:00:00Z'),
 						message: { usage: { input_tokens: 100, output_tokens: 50 } },
-						costUSD: 0.01,
+						costUSD: 0.1,
 					},
 				},
 			];
@@ -2856,21 +2867,21 @@ invalid json line
 				},
 			});
 
-			const result = await loadSessionData({ claudePath: fixture.path });
+			const result = await loadSessionData({ claudePath: fixture.path, mode: 'display' });
 
-			expect(result[0]?.sessionId).toBe('session3');
+			expect(result[0]?.sessionId).toBe('session3'); // highest cost
 			expect(result[1]?.sessionId).toBe('session1');
-			expect(result[2]?.sessionId).toBe('session2');
+			expect(result[2]?.sessionId).toBe('session2'); // lowest cost
 		});
 
-		it("sorts by last activity ascending when order is 'asc'", async () => {
+		it("sorts by cost ascending when order is 'asc'", async () => {
 			const sessions = [
 				{
 					sessionId: 'session1',
 					data: {
 						timestamp: createISOTimestamp('2024-01-15T12:00:00Z'),
 						message: { usage: { input_tokens: 100, output_tokens: 50 } },
-						costUSD: 0.01,
+						costUSD: 0.05,
 					},
 				},
 				{
@@ -2886,7 +2897,7 @@ invalid json line
 					data: {
 						timestamp: createISOTimestamp('2024-01-31T12:00:00Z'),
 						message: { usage: { input_tokens: 100, output_tokens: 50 } },
-						costUSD: 0.01,
+						costUSD: 0.1,
 					},
 				},
 			];
@@ -2902,21 +2913,22 @@ invalid json line
 			const result = await loadSessionData({
 				claudePath: fixture.path,
 				order: 'asc',
+				mode: 'display',
 			});
 
-			expect(result[0]?.sessionId).toBe('session2'); // oldest first
+			expect(result[0]?.sessionId).toBe('session2'); // lowest cost first
 			expect(result[1]?.sessionId).toBe('session1');
-			expect(result[2]?.sessionId).toBe('session3'); // newest last
+			expect(result[2]?.sessionId).toBe('session3'); // highest cost last
 		});
 
-		it("sorts by last activity descending when order is 'desc'", async () => {
+		it("sorts by cost descending when order is 'desc'", async () => {
 			const sessions = [
 				{
 					sessionId: 'session1',
 					data: {
 						timestamp: createISOTimestamp('2024-01-15T12:00:00Z'),
 						message: { usage: { input_tokens: 100, output_tokens: 50 } },
-						costUSD: 0.01,
+						costUSD: 0.05,
 					},
 				},
 				{
@@ -2932,7 +2944,7 @@ invalid json line
 					data: {
 						timestamp: createISOTimestamp('2024-01-31T12:00:00Z'),
 						message: { usage: { input_tokens: 100, output_tokens: 50 } },
-						costUSD: 0.01,
+						costUSD: 0.1,
 					},
 				},
 			];
@@ -2948,11 +2960,12 @@ invalid json line
 			const result = await loadSessionData({
 				claudePath: fixture.path,
 				order: 'desc',
+				mode: 'display',
 			});
 
-			expect(result[0]?.sessionId).toBe('session3'); // newest first (same as default)
+			expect(result[0]?.sessionId).toBe('session3'); // highest cost (same as default)
 			expect(result[1]?.sessionId).toBe('session1');
-			expect(result[2]?.sessionId).toBe('session2'); // oldest last
+			expect(result[2]?.sessionId).toBe('session2'); // lowest cost
 		});
 
 		it('filters by date range based on last activity', async () => {
