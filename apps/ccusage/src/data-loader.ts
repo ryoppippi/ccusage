@@ -1136,7 +1136,8 @@ export async function loadSessionUsageById(
 	const patterns = claudePaths.map((p) =>
 		path.join(p, 'projects', '**', `${sessionId}.jsonl`).replace(/\\/g, '/'),
 	);
-	const jsonlFiles = await glob(patterns);
+	// Absolute paths important on Windows - relative paths will break if session file is on different disk.
+	const jsonlFiles = await glob(patterns, { absolute: true });
 
 	if (jsonlFiles.length === 0) {
 		return null;
