@@ -8,7 +8,7 @@ catalogMode: strict
 catalogs:
   build:
     '@oxc-project/runtime': ^0.82.3
-    tsdown: ^0.16.6
+    tsdown: ^0.21.7
     unplugin-macros: ^0.18.0
     unplugin-unused: ^0.5.2
   docs:
