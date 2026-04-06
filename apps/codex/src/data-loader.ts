@@ -1,4 +1,4 @@
-import type { TokenUsageDelta, TokenUsageEvent } from './_types.ts';
+import type { SessionSource, TokenUsageDelta, TokenUsageEvent } from './_types.ts';
 import { readFile, stat } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
@@ -6,13 +6,9 @@ import { Result } from '@praha/byethrow';
 import { createFixture } from 'fs-fixture';
 import { glob } from 'tinyglobby';
 import * as v from 'valibot';
-import {
-	CODEX_HOME_ENV,
-	DEFAULT_CODEX_DIR,
-	DEFAULT_SESSION_SUBDIR,
-	SESSION_GLOB,
-} from './_consts.ts';
+import { CODEX_HOME_ENV, SESSION_GLOB } from './_consts.ts';
 import { logger } from './logger.ts';
+import { resolveSessionSources } from './session-sources.ts';
 
 type RawUsage = {
 	input_tokens: number;
@@ -175,8 +171,38 @@ function asNonEmptyString(value: unknown): string | undefined {
 	return trimmed === '' ? undefined : trimmed;
 }
 
+function normalizeAccountLabel(account: string | undefined, fallback: string): string {
+	const normalized = account?.trim();
+	return normalized == null || normalized === '' ? fallback : normalized;
+}
+
+function makeUniqueAccountLabels(accountCandidates: string[]): string[] {
+	const reservedLabels = new Set(accountCandidates);
+	const usedLabels = new Set<string>();
+
+	return accountCandidates.map((base) => {
+		if (!usedLabels.has(base)) {
+			usedLabels.add(base);
+			return base;
+		}
+
+		let suffix = 2;
+		for (;;) {
+			const candidate = `${base}-${suffix}`;
+			const reservedByFutureEntry = reservedLabels.has(candidate) && !usedLabels.has(candidate);
+			if (!usedLabels.has(candidate) && !reservedByFutureEntry) {
+				usedLabels.add(candidate);
+				return candidate;
+			}
+
+			suffix += 1;
+		}
+	});
+}
+
 export type LoadOptions = {
 	sessionDirs?: string[];
+	sessionSources?: SessionSource[];
 };
 
 export type LoadResult = {
@@ -185,22 +211,47 @@ export type LoadResult = {
 };
 
 export async function loadTokenUsageEvents(options: LoadOptions = {}): Promise<LoadResult> {
-	const providedDirs =
-		options.sessionDirs != null && options.sessionDirs.length > 0
-			? options.sessionDirs.map((dir) => path.resolve(dir))
+	const providedSources =
+		options.sessionSources != null && options.sessionSources.length > 0
+			? (() => {
+					const accountCandidates = options.sessionSources.map((source, index, allSources) => {
+						const fallbackAccount = allSources.length <= 1 ? 'default' : `account-${index + 1}`;
+						return normalizeAccountLabel(source.account, fallbackAccount);
+					});
+					const uniqueAccounts = makeUniqueAccountLabels(accountCandidates);
+					return options.sessionSources.map((source, index) => ({
+						account: uniqueAccounts[index]!,
+						directory: path.resolve(source.directory),
+					}));
+				})()
 			: undefined;
 
-	const codexHomeEnv = process.env[CODEX_HOME_ENV]?.trim();
-	const codexHome =
-		codexHomeEnv != null && codexHomeEnv !== '' ? path.resolve(codexHomeEnv) : DEFAULT_CODEX_DIR;
-	const defaultSessionsDir = path.join(codexHome, DEFAULT_SESSION_SUBDIR);
-	const sessionDirs = providedDirs ?? [defaultSessionsDir];
+	const providedDirs =
+		options.sessionDirs != null && options.sessionDirs.length > 0
+			? (() => {
+					const entries = options.sessionDirs.map((dir, index, allDirs) => {
+						const directory = path.resolve(dir);
+						const basename = path.basename(directory);
+						const fallbackAccount = `account-${index + 1}`;
+						const account =
+							allDirs.length <= 1 ? 'default' : basename === '' ? fallbackAccount : basename;
+						return { account, directory };
+					});
+					const uniqueAccounts = makeUniqueAccountLabels(entries.map((entry) => entry.account));
+					return entries.map((entry, index) => ({
+						account: uniqueAccounts[index]!,
+						directory: entry.directory,
+					}));
+				})()
+			: undefined;
+
+	const sessionSources = providedSources ?? providedDirs ?? resolveSessionSources();
 
 	const events: TokenUsageEvent[] = [];
 	const missingDirectories: string[] = [];
 
-	for (const dir of sessionDirs) {
-		const directoryPath = path.resolve(dir);
+	for (const source of sessionSources) {
+		const directoryPath = path.resolve(source.directory);
 		const statResult = await Result.try({
 			try: stat(directoryPath),
 			catch: (error) => error,
@@ -339,6 +390,7 @@ export async function loadTokenUsageEvents(options: LoadOptions = {}): Promise<L
 
 				const event: TokenUsageEvent = {
 					sessionId,
+					account: source.account,
 					timestamp,
 					model,
 					inputTokens: delta.inputTokens,
@@ -373,6 +425,21 @@ export async function loadTokenUsageEvents(options: LoadOptions = {}): Promise<L
 
 if (import.meta.vitest != null) {
 	describe('loadTokenUsageEvents', () => {
+		let originalCodexHome: string | undefined;
+
+		beforeEach(() => {
+			originalCodexHome = process.env[CODEX_HOME_ENV];
+		});
+
+		afterEach(() => {
+			if (originalCodexHome == null) {
+				delete process.env[CODEX_HOME_ENV];
+				return;
+			}
+
+			process.env[CODEX_HOME_ENV] = originalCodexHome;
+		});
+
 		it('parses token_count events and skips entries without model metadata', async () => {
 			await using fixture = await createFixture({
 				sessions: {
@@ -483,6 +550,340 @@ if (import.meta.vitest != null) {
 			expect(events).toHaveLength(1);
 			expect(events[0]!.model).toBe('gpt-5');
 			expect(events[0]!.isFallbackModel).toBe(true);
+		});
+
+		it('loads events from multiple account sources', async () => {
+			await using fixture = await createFixture({
+				accounts: {
+					work: {
+						sessions: {
+							'shared.jsonl': [
+								JSON.stringify({
+									timestamp: '2025-09-11T10:00:00.000Z',
+									type: 'turn_context',
+									payload: {
+										model: 'gpt-5',
+									},
+								}),
+								JSON.stringify({
+									timestamp: '2025-09-11T10:01:00.000Z',
+									type: 'event_msg',
+									payload: {
+										type: 'token_count',
+										info: {
+											total_token_usage: {
+												input_tokens: 100,
+												cached_input_tokens: 0,
+												output_tokens: 20,
+												reasoning_output_tokens: 0,
+												total_tokens: 120,
+											},
+										},
+									},
+								}),
+							].join('\n'),
+						},
+					},
+					personal: {
+						sessions: {
+							'shared.jsonl': [
+								JSON.stringify({
+									timestamp: '2025-09-11T11:00:00.000Z',
+									type: 'turn_context',
+									payload: {
+										model: 'gpt-5',
+									},
+								}),
+								JSON.stringify({
+									timestamp: '2025-09-11T11:01:00.000Z',
+									type: 'event_msg',
+									payload: {
+										type: 'token_count',
+										info: {
+											total_token_usage: {
+												input_tokens: 200,
+												cached_input_tokens: 0,
+												output_tokens: 40,
+												reasoning_output_tokens: 0,
+												total_tokens: 240,
+											},
+										},
+									},
+								}),
+							].join('\n'),
+						},
+					},
+				},
+			});
+
+			const { events, missingDirectories } = await loadTokenUsageEvents({
+				sessionSources: [
+					{
+						account: 'work',
+						directory: fixture.getPath('accounts/work/sessions'),
+					},
+					{
+						account: 'personal',
+						directory: fixture.getPath('accounts/personal/sessions'),
+					},
+				],
+			});
+
+			expect(missingDirectories).toEqual([]);
+			expect(events).toHaveLength(2);
+			expect(events.map((event) => event.account)).toEqual(['work', 'personal']);
+			expect(events.map((event) => event.sessionId)).toEqual(['shared', 'shared']);
+		});
+
+		it('avoids collisions with explicit suffix-style account labels', async () => {
+			await using fixture = await createFixture({
+				accounts: {
+					a: {
+						sessions: {
+							'a.jsonl': [
+								JSON.stringify({
+									timestamp: '2025-09-11T10:00:00.000Z',
+									type: 'turn_context',
+									payload: { model: 'gpt-5' },
+								}),
+								JSON.stringify({
+									timestamp: '2025-09-11T10:01:00.000Z',
+									type: 'event_msg',
+									payload: {
+										type: 'token_count',
+										info: {
+											total_token_usage: {
+												input_tokens: 100,
+												cached_input_tokens: 0,
+												output_tokens: 20,
+												reasoning_output_tokens: 0,
+												total_tokens: 120,
+											},
+										},
+									},
+								}),
+							].join('\n'),
+						},
+					},
+					b: {
+						sessions: {
+							'b.jsonl': [
+								JSON.stringify({
+									timestamp: '2025-09-11T11:00:00.000Z',
+									type: 'turn_context',
+									payload: { model: 'gpt-5' },
+								}),
+								JSON.stringify({
+									timestamp: '2025-09-11T11:01:00.000Z',
+									type: 'event_msg',
+									payload: {
+										type: 'token_count',
+										info: {
+											total_token_usage: {
+												input_tokens: 200,
+												cached_input_tokens: 0,
+												output_tokens: 40,
+												reasoning_output_tokens: 0,
+												total_tokens: 240,
+											},
+										},
+									},
+								}),
+							].join('\n'),
+						},
+					},
+					c: {
+						sessions: {
+							'c.jsonl': [
+								JSON.stringify({
+									timestamp: '2025-09-11T12:00:00.000Z',
+									type: 'turn_context',
+									payload: { model: 'gpt-5' },
+								}),
+								JSON.stringify({
+									timestamp: '2025-09-11T12:01:00.000Z',
+									type: 'event_msg',
+									payload: {
+										type: 'token_count',
+										info: {
+											total_token_usage: {
+												input_tokens: 300,
+												cached_input_tokens: 0,
+												output_tokens: 60,
+												reasoning_output_tokens: 0,
+												total_tokens: 360,
+											},
+										},
+									},
+								}),
+							].join('\n'),
+						},
+					},
+				},
+			});
+
+			const { events, missingDirectories } = await loadTokenUsageEvents({
+				sessionSources: [
+					{ account: 'work', directory: fixture.getPath('accounts/a/sessions') },
+					{ account: 'work', directory: fixture.getPath('accounts/b/sessions') },
+					{ account: 'work-2', directory: fixture.getPath('accounts/c/sessions') },
+				],
+			});
+
+			expect(missingDirectories).toEqual([]);
+			expect(events).toHaveLength(3);
+			expect(events.map((event) => event.account)).toEqual(['work', 'work-3', 'work-2']);
+		});
+
+		it('deduplicates account labels when session directory names collide', async () => {
+			await using fixture = await createFixture({
+				accounts: {
+					first: {
+						sessions: {
+							'first.jsonl': [
+								JSON.stringify({
+									timestamp: '2025-09-11T10:00:00.000Z',
+									type: 'turn_context',
+									payload: {
+										model: 'gpt-5',
+									},
+								}),
+								JSON.stringify({
+									timestamp: '2025-09-11T10:01:00.000Z',
+									type: 'event_msg',
+									payload: {
+										type: 'token_count',
+										info: {
+											total_token_usage: {
+												input_tokens: 100,
+												cached_input_tokens: 0,
+												output_tokens: 20,
+												reasoning_output_tokens: 0,
+												total_tokens: 120,
+											},
+										},
+									},
+								}),
+							].join('\n'),
+						},
+					},
+					second: {
+						sessions: {
+							'second.jsonl': [
+								JSON.stringify({
+									timestamp: '2025-09-11T11:00:00.000Z',
+									type: 'turn_context',
+									payload: {
+										model: 'gpt-5',
+									},
+								}),
+								JSON.stringify({
+									timestamp: '2025-09-11T11:01:00.000Z',
+									type: 'event_msg',
+									payload: {
+										type: 'token_count',
+										info: {
+											total_token_usage: {
+												input_tokens: 200,
+												cached_input_tokens: 0,
+												output_tokens: 40,
+												reasoning_output_tokens: 0,
+												total_tokens: 240,
+											},
+										},
+									},
+								}),
+							].join('\n'),
+						},
+					},
+				},
+			});
+
+			const { events, missingDirectories } = await loadTokenUsageEvents({
+				sessionDirs: [
+					fixture.getPath('accounts/first/sessions'),
+					fixture.getPath('accounts/second/sessions'),
+				],
+			});
+
+			expect(missingDirectories).toEqual([]);
+			expect(events).toHaveLength(2);
+			expect(events.map((event) => event.account)).toEqual(['sessions', 'sessions-2']);
+		});
+
+		it('parses multi-account CODEX_HOME env when no options are provided', async () => {
+			await using fixture = await createFixture({
+				homes: {
+					work: {
+						sessions: {
+							'work.jsonl': [
+								JSON.stringify({
+									timestamp: '2025-09-12T10:00:00.000Z',
+									type: 'turn_context',
+									payload: {
+										model: 'gpt-5',
+									},
+								}),
+								JSON.stringify({
+									timestamp: '2025-09-12T10:01:00.000Z',
+									type: 'event_msg',
+									payload: {
+										type: 'token_count',
+										info: {
+											total_token_usage: {
+												input_tokens: 100,
+												cached_input_tokens: 0,
+												output_tokens: 20,
+												reasoning_output_tokens: 0,
+												total_tokens: 120,
+											},
+										},
+									},
+								}),
+							].join('\n'),
+						},
+					},
+					personal: {
+						sessions: {
+							'personal.jsonl': [
+								JSON.stringify({
+									timestamp: '2025-09-12T11:00:00.000Z',
+									type: 'turn_context',
+									payload: {
+										model: 'gpt-5',
+									},
+								}),
+								JSON.stringify({
+									timestamp: '2025-09-12T11:01:00.000Z',
+									type: 'event_msg',
+									payload: {
+										type: 'token_count',
+										info: {
+											total_token_usage: {
+												input_tokens: 200,
+												cached_input_tokens: 0,
+												output_tokens: 40,
+												reasoning_output_tokens: 0,
+												total_tokens: 240,
+											},
+										},
+									},
+								}),
+							].join('\n'),
+						},
+					},
+				},
+			});
+
+			process.env[CODEX_HOME_ENV] = [
+				`work=${fixture.getPath('homes/work')}`,
+				`personal=${fixture.getPath('homes/personal')}`,
+			].join(',');
+
+			const { events, missingDirectories } = await loadTokenUsageEvents();
+			expect(missingDirectories).toEqual([]);
+			expect(events).toHaveLength(2);
+			expect(events.map((event) => event.account)).toEqual(['work', 'personal']);
 		});
 	});
 }

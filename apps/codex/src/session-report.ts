@@ -14,12 +14,18 @@ export type SessionReportOptions = {
 	locale?: string;
 	since?: string;
 	until?: string;
+	byAccount?: boolean;
 	pricingSource: PricingSource;
 };
 
-function createSummary(sessionId: string, initialTimestamp: string): SessionUsageSummary {
+function createSummary(
+	sessionId: string,
+	initialTimestamp: string,
+	account?: string,
+): SessionUsageSummary {
 	return {
 		sessionId,
+		account,
 		firstTimestamp: initialTimestamp,
 		lastTimestamp: initialTimestamp,
 		inputTokens: 0,
@@ -40,6 +46,7 @@ export async function buildSessionReport(
 	const since = options.since;
 	const until = options.until;
 	const pricingSource = options.pricingSource;
+	const byAccount = options.byAccount === true;
 
 	const summaries = new Map<string, SessionUsageSummary>();
 
@@ -67,9 +74,15 @@ export async function buildSessionReport(
 			continue;
 		}
 
-		const summary = summaries.get(sessionId) ?? createSummary(sessionId, event.timestamp);
-		if (!summaries.has(sessionId)) {
-			summaries.set(sessionId, summary);
+		const accountCandidate = event.account?.trim();
+		const account =
+			accountCandidate == null || accountCandidate === '' ? 'default' : accountCandidate;
+		const summaryKey = `${account}\x00${sessionId}`;
+		const summary =
+			summaries.get(summaryKey) ??
+			createSummary(sessionId, event.timestamp, byAccount ? account : undefined);
+		if (!summaries.has(summaryKey)) {
+			summaries.set(summaryKey, summary);
 		}
 
 		addUsage(summary, event);
@@ -106,9 +119,17 @@ export async function buildSessionReport(
 		modelPricing.set(modelName, await pricingSource.getPricing(modelName));
 	}
 
-	const sortedSummaries = Array.from(summaries.values()).sort((a, b) =>
-		a.lastTimestamp.localeCompare(b.lastTimestamp),
-	);
+	const sortedSummaries = Array.from(summaries.values()).sort((a, b) => {
+		const timestampCompare = a.lastTimestamp.localeCompare(b.lastTimestamp);
+		if (timestampCompare !== 0) {
+			return timestampCompare;
+		}
+		const accountCompare = (a.account ?? '').localeCompare(b.account ?? '');
+		if (accountCompare !== 0) {
+			return accountCompare;
+		}
+		return a.sessionId.localeCompare(b.sessionId);
+	});
 
 	const rows: SessionReportRow[] = [];
 	for (const summary of sortedSummaries) {
@@ -134,6 +155,7 @@ export async function buildSessionReport(
 
 		rows.push({
 			sessionId: summary.sessionId,
+			account: summary.account,
 			lastActivity: summary.lastTimestamp,
 			sessionFile,
 			directory,
@@ -177,6 +199,7 @@ if (import.meta.vitest != null) {
 				[
 					{
 						sessionId: 'session-a',
+						account: 'work',
 						timestamp: '2025-09-12T01:00:00.000Z',
 						model: 'gpt-5',
 						inputTokens: 1_000,
@@ -187,6 +210,7 @@ if (import.meta.vitest != null) {
 					},
 					{
 						sessionId: 'session-a',
+						account: 'work',
 						timestamp: '2025-09-12T02:00:00.000Z',
 						model: 'gpt-5-mini',
 						inputTokens: 400,
@@ -197,6 +221,7 @@ if (import.meta.vitest != null) {
 					},
 					{
 						sessionId: 'session-b',
+						account: 'personal',
 						timestamp: '2025-09-11T23:30:00.000Z',
 						model: 'gpt-5',
 						inputTokens: 800,
@@ -232,6 +257,53 @@ if (import.meta.vitest != null) {
 				(100 / 1_000_000) * 0.06 +
 				(200 / 1_000_000) * 2;
 			expect(second.costUSD).toBeCloseTo(expectedCost, 10);
+		});
+
+		it('keeps same session id separate across accounts', async () => {
+			const stubPricingSource: PricingSource = {
+				async getPricing(): Promise<ModelPricing> {
+					return {
+						inputCostPerMToken: 1,
+						cachedInputCostPerMToken: 0.1,
+						outputCostPerMToken: 10,
+					};
+				},
+			};
+
+			const report = await buildSessionReport(
+				[
+					{
+						account: 'work',
+						sessionId: 'shared-session',
+						timestamp: '2025-09-11T10:00:00.000Z',
+						model: 'gpt-5',
+						inputTokens: 100,
+						cachedInputTokens: 0,
+						outputTokens: 20,
+						reasoningOutputTokens: 0,
+						totalTokens: 120,
+					},
+					{
+						account: 'personal',
+						sessionId: 'shared-session',
+						timestamp: '2025-09-11T11:00:00.000Z',
+						model: 'gpt-5',
+						inputTokens: 200,
+						cachedInputTokens: 0,
+						outputTokens: 30,
+						reasoningOutputTokens: 0,
+						totalTokens: 230,
+					},
+				],
+				{
+					pricingSource: stubPricingSource,
+					byAccount: true,
+				},
+			);
+
+			expect(report).toHaveLength(2);
+			expect(report.map((row) => row.account)).toEqual(['work', 'personal']);
+			expect(report.map((row) => row.sessionId)).toEqual(['shared-session', 'shared-session']);
 		});
 	});
 }
