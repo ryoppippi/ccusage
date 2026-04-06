@@ -472,10 +472,13 @@ export const statuslineCommand = define({
 
 					// Get context tokens from Claude Code hook data, or fall back to calculating from transcript
 					const contextDataResult =
-						hookData.context_window != null
+						hookData.context_window?.current_usage != null
 							? // Prefer context_window data from Claude Code hook if available
 								Result.succeed({
-									inputTokens: hookData.context_window.total_input_tokens,
+									inputTokens:
+										(hookData.context_window.current_usage.input_tokens ?? 0) +
+										(hookData.context_window.current_usage.cache_creation_input_tokens ?? 0) +
+										(hookData.context_window.current_usage.cache_read_input_tokens ?? 0),
 									contextLimit: hookData.context_window.context_window_size,
 								})
 							: // Fall back to calculating context tokens from transcript
@@ -498,6 +501,10 @@ export const statuslineCommand = define({
 						),
 						Result.map((contextResult) => {
 							if (contextResult == null) {
+								// If transcript calculation failed but we have context_window_size, show 0 tokens
+								if (hookData.context_window?.context_window_size != null) {
+									return formatContextInfo(0, hookData.context_window.context_window_size);
+								}
 								return undefined;
 							}
 							return formatContextInfo(contextResult.inputTokens, contextResult.contextLimit);
