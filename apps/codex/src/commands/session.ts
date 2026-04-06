@@ -1,3 +1,4 @@
+import type { SessionUsageSummary } from '../_types.ts';
 import process from 'node:process';
 import {
 	addEmptySeparatorRow,
@@ -21,7 +22,7 @@ import {
 } from '../date-utils.ts';
 import { log, logger } from '../logger.ts';
 import { CodexPricingSource } from '../pricing.ts';
-import { buildSessionReport } from '../session-report.ts';
+import { accumulateSessionUsage, buildSessionReportRows } from '../session-report.ts';
 
 const TABLE_COLUMN_COUNT = 11;
 
@@ -46,13 +47,23 @@ export const sessionCommand = define({
 			process.exit(1);
 		}
 
-		const { events, missingDirectories } = await loadTokenUsageEvents();
+		const summaries = new Map<string, SessionUsageSummary>();
+		const { missingDirectories } = await loadTokenUsageEvents({
+			since,
+			until,
+			timezone: ctx.values.timezone,
+			collectEvents: false,
+			sortEvents: false,
+			onEvent: (event) => {
+				accumulateSessionUsage(summaries, event);
+			},
+		});
 
 		for (const missing of missingDirectories) {
 			logger.warn(`Codex session directory not found: ${missing}`);
 		}
 
-		if (events.length === 0) {
+		if (summaries.size === 0) {
 			log(
 				jsonOutput ? JSON.stringify({ sessions: [], totals: null }) : 'No Codex usage data found.',
 			);
@@ -63,13 +74,7 @@ export const sessionCommand = define({
 			offline: ctx.values.offline,
 		});
 		try {
-			const rows = await buildSessionReport(events, {
-				pricingSource,
-				timezone: ctx.values.timezone,
-				locale: ctx.values.locale,
-				since,
-				until,
-			});
+			const rows = await buildSessionReportRows(summaries, { pricingSource });
 
 			if (rows.length === 0) {
 				log(
