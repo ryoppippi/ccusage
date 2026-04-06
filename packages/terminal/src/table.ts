@@ -361,6 +361,23 @@ export function formatNumber(num: number): string {
 }
 
 /**
+ * Formats a token count into a compact string (e.g., 35000 → "35K", 2500 → "2.5K")
+ * @param tokens - The number of tokens
+ * @returns Compact token string
+ */
+export function formatCompactTokens(tokens: number): string {
+	if (tokens >= 999_950) {
+		const m = Number((tokens / 1_000_000).toFixed(1));
+		return m % 1 === 0 ? `${m}M` : `${m.toFixed(1)}M`;
+	}
+	if (tokens >= 1_000) {
+		const k = Number((tokens / 1_000).toFixed(1));
+		return k % 1 === 0 ? `${k}K` : `${k.toFixed(1)}K`;
+	}
+	return `${tokens}`;
+}
+
+/**
  * Formats a number as USD currency with dollar sign and 2 decimal places
  * @param amount - The amount to format
  * @returns Formatted currency string (e.g., "$12.34")
