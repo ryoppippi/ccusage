@@ -13,6 +13,10 @@ function isClaudeModel(modelName: string, _pricing: LiteLLMModelPricing): boolea
 	);
 }
 
+/**
+ * Fetch and cache Claude model pricing data from LiteLLM.
+ * @returns Pricing dataset filtered to Claude models
+ */
 export async function prefetchClaudePricing(): Promise<Record<string, LiteLLMModelPricing>> {
 	try {
 		const dataset = await fetchLiteLLMPricingDataset();

@@ -1,6 +1,8 @@
 export type TokenUsageDelta = {
 	inputTokens: number;
-	cachedInputTokens: number;
+	cacheCreationTokens: number;
+	cacheReadTokens: number;
+	cachedInputTokens?: number;
 	outputTokens: number;
 	reasoningOutputTokens: number;
 	totalTokens: number;
@@ -20,14 +22,16 @@ export type ModelUsage = TokenUsageDelta & {
 export type DailyUsageSummary = {
 	date: string;
 	firstTimestamp: string;
-	costUSD: number;
+	totalCost: number;
+	costUSD: number; // Legacy field, use totalCost instead
 	models: Map<string, ModelUsage>;
 } & TokenUsageDelta;
 
 export type MonthlyUsageSummary = {
 	month: string;
 	firstTimestamp: string;
-	costUSD: number;
+	totalCost: number;
+	costUSD: number; // Legacy field, use totalCost instead
 	models: Map<string, ModelUsage>;
 } & TokenUsageDelta;
 
@@ -35,7 +39,8 @@ export type SessionUsageSummary = {
 	sessionId: string;
 	firstTimestamp: string;
 	lastTimestamp: string;
-	costUSD: number;
+	totalCost: number;
+	costUSD: number; // Legacy field, use totalCost instead
 	models: Map<string, ModelUsage>;
 } & TokenUsageDelta;
 
@@ -57,23 +62,29 @@ export type PricingSource = {
 export type DailyReportRow = {
 	date: string;
 	inputTokens: number;
-	cachedInputTokens: number;
+	cacheCreationTokens: number;
+	cacheReadTokens: number;
 	outputTokens: number;
 	reasoningOutputTokens: number;
 	totalTokens: number;
-	costUSD: number;
+	totalCost: number;
+	costUSD: number; // Legacy field, use totalCost instead
 	models: Record<string, ModelUsage>;
+	cachedInputTokens?: number; // Legacy field for backward compatibility
 };
 
 export type MonthlyReportRow = {
 	month: string;
 	inputTokens: number;
-	cachedInputTokens: number;
+	cacheCreationTokens: number;
+	cacheReadTokens: number;
 	outputTokens: number;
 	reasoningOutputTokens: number;
 	totalTokens: number;
-	costUSD: number;
+	totalCost: number;
+	costUSD: number; // Legacy field, use totalCost instead
 	models: Record<string, ModelUsage>;
+	cachedInputTokens?: number; // Legacy field for backward compatibility
 };
 
 export type SessionReportRow = {
@@ -82,10 +93,13 @@ export type SessionReportRow = {
 	sessionFile: string;
 	directory: string;
 	inputTokens: number;
-	cachedInputTokens: number;
+	cacheCreationTokens: number;
+	cacheReadTokens: number;
 	outputTokens: number;
 	reasoningOutputTokens: number;
 	totalTokens: number;
-	costUSD: number;
+	totalCost: number;
+	costUSD: number; // Legacy field, use totalCost instead
 	models: Record<string, ModelUsage>;
+	cachedInputTokens?: number; // Legacy field for backward compatibility
 };

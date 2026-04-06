@@ -53,9 +53,20 @@ export const sessionCommand = define({
 		}
 
 		if (events.length === 0) {
-			log(
-				jsonOutput ? JSON.stringify({ sessions: [], totals: null }) : 'No Codex usage data found.',
-			);
+			if (jsonOutput) {
+				const emptyTotals = {
+					inputTokens: 0,
+					cacheCreationTokens: 0,
+					cacheReadTokens: 0,
+					outputTokens: 0,
+					reasoningOutputTokens: 0,
+					totalTokens: 0,
+					totalCost: 0,
+				};
+				log(JSON.stringify({ sessions: [], totals: emptyTotals }, null, 2));
+			} else {
+				log('No Codex usage data found.');
+			}
 			return;
 		}
 
@@ -72,31 +83,42 @@ export const sessionCommand = define({
 			});
 
 			if (rows.length === 0) {
-				log(
-					jsonOutput
-						? JSON.stringify({ sessions: [], totals: null })
-						: 'No Codex usage data found for provided filters.',
-				);
+				if (jsonOutput) {
+					const emptyTotals = {
+						inputTokens: 0,
+						cacheCreationTokens: 0,
+						cacheReadTokens: 0,
+						outputTokens: 0,
+						reasoningOutputTokens: 0,
+						totalTokens: 0,
+						totalCost: 0,
+					};
+					log(JSON.stringify({ sessions: [], totals: emptyTotals }, null, 2));
+				} else {
+					log('No Codex usage data found for provided filters.');
+				}
 				return;
 			}
 
 			const totals = rows.reduce(
 				(acc, row) => {
 					acc.inputTokens += row.inputTokens;
-					acc.cachedInputTokens += row.cachedInputTokens;
+					acc.cacheCreationTokens += row.cacheCreationTokens;
+					acc.cacheReadTokens += row.cacheReadTokens;
 					acc.outputTokens += row.outputTokens;
 					acc.reasoningOutputTokens += row.reasoningOutputTokens;
 					acc.totalTokens += row.totalTokens;
-					acc.costUSD += row.costUSD;
+					acc.totalCost += row.totalCost;
 					return acc;
 				},
 				{
 					inputTokens: 0,
-					cachedInputTokens: 0,
+					cacheCreationTokens: 0,
+					cacheReadTokens: 0,
 					outputTokens: 0,
 					reasoningOutputTokens: 0,
 					totalTokens: 0,
-					costUSD: 0,
+					totalCost: 0,
 				},
 			);
 
@@ -159,7 +181,7 @@ export const sessionCommand = define({
 				reasoningTokens: 0,
 				cacheReadTokens: 0,
 				totalTokens: 0,
-				costUSD: 0,
+				totalCost: 0,
 			};
 
 			for (const row of rows) {
@@ -169,7 +191,7 @@ export const sessionCommand = define({
 				totalsForDisplay.reasoningTokens += split.reasoningTokens;
 				totalsForDisplay.cacheReadTokens += split.cacheReadTokens;
 				totalsForDisplay.totalTokens += row.totalTokens;
-				totalsForDisplay.costUSD += row.costUSD;
+				totalsForDisplay.totalCost += row.totalCost;
 
 				const dateKey = toDateKey(row.lastActivity, ctx.values.timezone);
 				const displayDate = formatDisplayDate(dateKey, ctx.values.locale, ctx.values.timezone);
@@ -187,7 +209,7 @@ export const sessionCommand = define({
 					formatNumber(split.reasoningTokens),
 					formatNumber(split.cacheReadTokens),
 					formatNumber(row.totalTokens),
-					formatCurrency(row.costUSD),
+					formatCurrency(row.totalCost),
 					formatDisplayDateTime(row.lastActivity, ctx.values.locale, ctx.values.timezone),
 				]);
 			}
@@ -203,7 +225,7 @@ export const sessionCommand = define({
 				pc.yellow(formatNumber(totalsForDisplay.reasoningTokens)),
 				pc.yellow(formatNumber(totalsForDisplay.cacheReadTokens)),
 				pc.yellow(formatNumber(totalsForDisplay.totalTokens)),
-				pc.yellow(formatCurrency(totalsForDisplay.costUSD)),
+				pc.yellow(formatCurrency(totalsForDisplay.totalCost)),
 				'',
 			]);
 

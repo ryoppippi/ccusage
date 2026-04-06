@@ -2,6 +2,10 @@ import { stat, utimes, writeFile } from 'node:fs/promises';
 import { Result } from '@praha/byethrow';
 import { createFixture } from 'fs-fixture';
 
+/**
+ * Exhaustive-check helper for unreachable code paths.
+ * @param value - Value that should never occur
+ */
 export function unreachable(value: never): never {
 	throw new Error(`Unreachable code reached with value: ${value as any}`);
 }
