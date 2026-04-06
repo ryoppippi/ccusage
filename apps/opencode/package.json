@@ -32,7 +32,7 @@
 		}
 	},
 	"engines": {
-		"node": ">=20.19.4"
+		"node": ">=22.13.0"
 	},
 	"scripts": {
 		"build": "tsdown",
@@ -53,12 +53,10 @@
 		"clean-pkg-json": "catalog:release",
 		"es-toolkit": "catalog:runtime",
 		"eslint": "catalog:lint",
-		"fast-sort": "catalog:runtime",
 		"fs-fixture": "catalog:testing",
 		"gunshi": "catalog:runtime",
 		"path-type": "catalog:runtime",
 		"picocolors": "catalog:runtime",
-		"tinyglobby": "catalog:runtime",
 		"tsdown": "catalog:build",
 		"unplugin-macros": "catalog:build",
 		"unplugin-unused": "catalog:build",
