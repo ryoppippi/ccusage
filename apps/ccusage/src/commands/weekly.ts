@@ -110,7 +110,7 @@ export const weeklyCommand = define({
 			} else {
 				log(JSON.stringify(jsonOutput, null, 2));
 			}
-		} else if (ctx.values.chart) {
+		} else if (mergedOptions.chart) {
 			// Chart output
 			logger.box('Claude Code Token Usage Report - Weekly');
 
@@ -119,7 +119,8 @@ export const weeklyCommand = define({
 					formatDate(v, mergedOptions.timezone, mergedOptions.locale ?? undefined),
 			});
 			const { output, labelWidth, barWidth, valueWidth } = renderBarChart(chartData, {
-				forceCompact: ctx.values.compact,
+				forceCompact: mergedOptions.compact,
+				locale: mergedOptions.locale ?? undefined,
 			});
 			log(output);
 			log(renderChartSeparator());

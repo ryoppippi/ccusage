@@ -278,17 +278,18 @@ export const blocksCommand = define({
 			} else {
 				log(JSON.stringify(jsonOutput, null, 2));
 			}
-		} else if (ctx.values.chart) {
+		} else if (mergedOptions.chart) {
 			// Chart output
 			logger.box('Claude Code Token Usage Report - Session Blocks');
 
 			const nonGapBlocks = blocks.filter((b: SessionBlock) => !(b.isGap ?? false));
 			const chartData = nonGapBlocks.map((block: SessionBlock) => {
-				const label = block.startTime.toLocaleString(ctx.values.locale, {
+				const label = block.startTime.toLocaleString(mergedOptions.locale, {
 					month: '2-digit',
 					day: '2-digit',
 					hour: '2-digit',
 					minute: '2-digit',
+					...(mergedOptions.timezone != null && { timeZone: mergedOptions.timezone }),
 				});
 				return {
 					label,
@@ -297,7 +298,7 @@ export const blocksCommand = define({
 				};
 			});
 			const { output, labelWidth, barWidth, valueWidth } = renderBarChart(chartData, {
-				forceCompact: ctx.values.compact,
+				forceCompact: mergedOptions.compact,
 			});
 			log(output);
 			log(renderChartSeparator());

@@ -29,6 +29,8 @@ export type ChartOptions = {
 	valueSuffix?: string;
 	/** Force compact layout for narrow terminals */
 	forceCompact?: boolean;
+	/** Locale for formatting group headers (e.g., "en-US", "ja-JP") */
+	locale?: string;
 };
 
 /**
@@ -91,7 +93,7 @@ export function renderBarChart(
 		return { output: '', labelWidth: 0, barWidth: 0, valueWidth: 0 };
 	}
 
-	const { fillChar = '█', showValues = true, forceCompact = false } = options;
+	const { fillChar = '█', showValues = true, forceCompact = false, locale } = options;
 
 	// Determine terminal width
 	const terminalWidth =
@@ -114,37 +116,18 @@ export function renderBarChart(
 	// Find max value for scaling
 	const maxValue = Math.max(...data.map((d) => d.value), 0);
 
-	// Month name lookup for group headers
-	const monthNames = [
-		'January',
-		'February',
-		'March',
-		'April',
-		'May',
-		'June',
-		'July',
-		'August',
-		'September',
-		'October',
-		'November',
-		'December',
-	];
-
 	/**
-	 * Converts a YYYY-MM group key to a readable month label (e.g., "March 2026")
+	 * Converts a YYYY-MM group key to a localized month label (e.g., "March 2026")
 	 */
 	function formatGroupLabel(group: string): string | undefined {
 		const match = group.match(/^(\d{4})-(\d{2})$/);
 		if (match == null) {
 			return undefined;
 		}
-		const year = match[1];
+		const year = Number.parseInt(match[1]!, 10);
 		const monthIndex = Number.parseInt(match[2]!, 10) - 1;
-		const name = monthNames[monthIndex];
-		if (name == null) {
-			return undefined;
-		}
-		return `${name} ${year}`;
+		const date = new Date(year, monthIndex);
+		return new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric' }).format(date);
 	}
 
 	const lines: string[] = [];
@@ -270,9 +253,10 @@ export function createCostChartData<T extends Record<string, unknown>>(
 	const costKey = options?.costKey ?? ('totalCost' as keyof T & string);
 	const labelFormatter = options?.labelFormatter;
 
-	// Auto-detect date labels for month grouping
+	// Auto-detect full date labels (YYYY-MM-DD) for month grouping
+	// Intentionally excludes YYYY-MM (monthly keys) to avoid redundant per-row headers
 	const autoGroupByMonth = (val: string): string | undefined => {
-		const match = val.match(/^(\d{4}-\d{2})/);
+		const match = val.match(/^(\d{4}-\d{2})-\d{2}/);
 		return match?.[1];
 	};
 
@@ -508,6 +492,18 @@ if (import.meta.vitest != null) {
 
 			expect(data[0]?.group).toBe('2026-01');
 			expect(data[1]?.group).toBe('2026-02');
+		});
+
+		it('should not auto-group monthly keys (YYYY-MM)', () => {
+			const items = [
+				{ month: '2026-01', totalCost: 5 },
+				{ month: '2026-02', totalCost: 10 },
+			];
+
+			const data = createCostChartData(items, 'month');
+
+			expect(data[0]?.group).toBeUndefined();
+			expect(data[1]?.group).toBeUndefined();
 		});
 
 		it('should apply label formatter', () => {

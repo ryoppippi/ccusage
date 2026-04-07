@@ -124,7 +124,7 @@ export const sessionCommand = define({
 			} else {
 				log(JSON.stringify(jsonOutput, null, 2));
 			}
-		} else if (ctx.values.chart) {
+		} else if (mergedOptions.chart) {
 			// Chart output
 			logger.box('Claude Code Token Usage Report - By Session');
 
@@ -137,7 +137,7 @@ export const sessionCommand = define({
 				};
 			});
 			const { output, labelWidth, barWidth, valueWidth } = renderBarChart(chartData, {
-				forceCompact: ctx.values.compact,
+				forceCompact: mergedOptions.compact,
 			});
 			log(output);
 			log(renderChartSeparator());
