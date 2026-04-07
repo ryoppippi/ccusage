@@ -97,6 +97,12 @@
 							"description": "Force compact mode for narrow displays (better for screenshots)",
 							"markdownDescription": "Force compact mode for narrow displays (better for screenshots)",
 							"default": false
+						},
+						"chart": {
+							"type": "boolean",
+							"description": "Display usage as a horizontal bar chart instead of a table",
+							"markdownDescription": "Display usage as a horizontal bar chart instead of a table",
+							"default": false
 						}
 					},
 					"additionalProperties": false,
@@ -193,6 +199,12 @@
 									"type": "boolean",
 									"description": "Force compact mode for narrow displays (better for screenshots)",
 									"markdownDescription": "Force compact mode for narrow displays (better for screenshots)",
+									"default": false
+								},
+								"chart": {
+									"type": "boolean",
+									"description": "Display usage as a horizontal bar chart instead of a table",
+									"markdownDescription": "Display usage as a horizontal bar chart instead of a table",
 									"default": false
 								},
 								"instances": {
@@ -302,6 +314,12 @@
 									"description": "Force compact mode for narrow displays (better for screenshots)",
 									"markdownDescription": "Force compact mode for narrow displays (better for screenshots)",
 									"default": false
+								},
+								"chart": {
+									"type": "boolean",
+									"description": "Display usage as a horizontal bar chart instead of a table",
+									"markdownDescription": "Display usage as a horizontal bar chart instead of a table",
+									"default": false
 								}
 							},
 							"additionalProperties": false
@@ -393,6 +411,12 @@
 									"type": "boolean",
 									"description": "Force compact mode for narrow displays (better for screenshots)",
 									"markdownDescription": "Force compact mode for narrow displays (better for screenshots)",
+									"default": false
+								},
+								"chart": {
+									"type": "boolean",
+									"description": "Display usage as a horizontal bar chart instead of a table",
+									"markdownDescription": "Display usage as a horizontal bar chart instead of a table",
 									"default": false
 								},
 								"startOfWeek": {
@@ -495,6 +519,12 @@
 									"markdownDescription": "Force compact mode for narrow displays (better for screenshots)",
 									"default": false
 								},
+								"chart": {
+									"type": "boolean",
+									"description": "Display usage as a horizontal bar chart instead of a table",
+									"markdownDescription": "Display usage as a horizontal bar chart instead of a table",
+									"default": false
+								},
 								"id": {
 									"type": "string",
 									"description": "Load usage data for a specific session ID",
@@ -590,6 +620,12 @@
 									"type": "boolean",
 									"description": "Force compact mode for narrow displays (better for screenshots)",
 									"markdownDescription": "Force compact mode for narrow displays (better for screenshots)",
+									"default": false
+								},
+								"chart": {
+									"type": "boolean",
+									"description": "Display usage as a horizontal bar chart instead of a table",
+									"markdownDescription": "Display usage as a horizontal bar chart instead of a table",
 									"default": false
 								},
 								"active": {
