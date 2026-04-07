@@ -18,7 +18,7 @@ import { Result } from '@praha/byethrow';
 import { define } from 'gunshi';
 import { loadConfig, mergeConfigWithArgs } from '../_config-loader-tokens.ts';
 import { WEEK_DAYS } from '../_consts.ts';
-import { formatDateCompact } from '../_date-utils.ts';
+import { formatDate, formatDateCompact } from '../_date-utils.ts';
 import { processWithJq } from '../_jq-processor.ts';
 import { sharedArgs } from '../_shared-args.ts';
 import { calculateTotals, createTotalsObject, getTotalTokens } from '../calculate-cost.ts';
@@ -114,7 +114,10 @@ export const weeklyCommand = define({
 			// Chart output
 			logger.box('Claude Code Token Usage Report - Weekly');
 
-			const chartData = createCostChartData(weeklyData, 'week');
+			const chartData = createCostChartData(weeklyData, 'week', {
+				labelFormatter: (v) =>
+					formatDate(v, mergedOptions.timezone, mergedOptions.locale ?? undefined),
+			});
 			const { output, labelWidth, barWidth, valueWidth } = renderBarChart(chartData, {
 				forceCompact: ctx.values.compact,
 			});

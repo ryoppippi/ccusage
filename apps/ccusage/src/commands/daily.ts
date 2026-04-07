@@ -19,7 +19,7 @@ import { define } from 'gunshi';
 import pc from 'picocolors';
 import { loadConfig, mergeConfigWithArgs } from '../_config-loader-tokens.ts';
 import { groupByProject, groupDataByProject } from '../_daily-grouping.ts';
-import { formatDateCompact } from '../_date-utils.ts';
+import { formatDate, formatDateCompact } from '../_date-utils.ts';
 import { processWithJq } from '../_jq-processor.ts';
 import { formatProjectName } from '../_project-names.ts';
 import { sharedCommandConfig } from '../_shared-args.ts';
@@ -144,7 +144,10 @@ export const dailyCommand = define({
 			// Chart output
 			logger.box('Claude Code Token Usage Report - Daily');
 
-			const chartData = createCostChartData(dailyData, 'date');
+			const chartData = createCostChartData(dailyData, 'date', {
+				labelFormatter: (v) =>
+					formatDate(v, mergedOptions.timezone, mergedOptions.locale ?? undefined),
+			});
 			const { output, labelWidth, barWidth, valueWidth } = renderBarChart(chartData, {
 				forceCompact: ctx.values.compact,
 			});

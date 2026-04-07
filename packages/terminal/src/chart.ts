@@ -40,8 +40,8 @@ function formatCurrencyValue(amount: number): string {
 
 /**
  * Picks a color based on where a value falls within the range [0, max].
- * Uses bright colors that read well on dark terminal backgrounds.
- * Low = magenta, mid = cyan, high = yellow, peak = bold green.
+ * Uses a cold-to-hot thermal gradient that reads well on dark terminals:
+ * dim cyan (cold/low) → cyan → green → yellow → red → bold red (hot/peak).
  */
 function colorForValue(value: number, maxValue: number): (text: string) => string {
 	if (maxValue <= 0) {
@@ -49,16 +49,22 @@ function colorForValue(value: number, maxValue: number): (text: string) => strin
 	}
 	const ratio = value / maxValue;
 	if (ratio >= 0.95) {
-		return (t: string) => pc.bold(pc.green(t));
+		return (t: string) => pc.bold(pc.red(t));
 	}
-	if (ratio >= 0.65) {
+	if (ratio >= 0.75) {
+		return pc.red;
+	}
+	if (ratio >= 0.55) {
 		return pc.yellow;
 	}
 	if (ratio >= 0.35) {
+		return pc.green;
+	}
+	if (ratio >= 0.15) {
 		return pc.cyan;
 	}
 	if (ratio > 0) {
-		return pc.magenta;
+		return (t: string) => pc.dim(pc.cyan(t));
 	}
 	return pc.gray;
 }
@@ -67,7 +73,7 @@ function colorForValue(value: number, maxValue: number): (text: string) => strin
  * Renders a horizontal bar chart as a string for terminal output
  *
  * Features:
- * - Color gradient: magenta (low) -> cyan (mid) -> yellow (high) -> bold green (peak)
+ * - Color gradient: dim cyan (cold) -> cyan -> green -> yellow -> red -> bold red (hot)
  * - Non-zero values always show at least a thin bar (▏) so nothing is invisible
  * - Cost values placed immediately after the bar for easy scanning
  * - Automatic month/group separators when data spans multiple groups
@@ -426,24 +432,34 @@ if (import.meta.vitest != null) {
 			expect(color('test')).toBe(pc.gray('test'));
 		});
 
-		it('should return bold green for peak value', () => {
+		it('should return bold red for peak value', () => {
 			const color = colorForValue(100, 100);
-			expect(color('test')).toBe(pc.bold(pc.green('test')));
+			expect(color('test')).toBe(pc.bold(pc.red('test')));
 		});
 
-		it('should return magenta for low values', () => {
+		it('should return dim cyan for low values', () => {
 			const color = colorForValue(10, 100);
-			expect(color('test')).toBe(pc.magenta('test'));
+			expect(color('test')).toBe(pc.dim(pc.cyan('test')));
 		});
 
-		it('should return cyan for mid values', () => {
-			const color = colorForValue(50, 100);
+		it('should return cyan for low-mid values', () => {
+			const color = colorForValue(25, 100);
 			expect(color('test')).toBe(pc.cyan('test'));
 		});
 
+		it('should return green for mid values', () => {
+			const color = colorForValue(45, 100);
+			expect(color('test')).toBe(pc.green('test'));
+		});
+
 		it('should return yellow for high values', () => {
-			const color = colorForValue(75, 100);
+			const color = colorForValue(65, 100);
 			expect(color('test')).toBe(pc.yellow('test'));
+		});
+
+		it('should return red for very high values', () => {
+			const color = colorForValue(85, 100);
+			expect(color('test')).toBe(pc.red('test'));
 		});
 	});
 
