@@ -299,6 +299,7 @@ export const blocksCommand = define({
 			});
 			const { output, labelWidth, barWidth, valueWidth } = renderBarChart(chartData, {
 				forceCompact: mergedOptions.compact,
+				locale: mergedOptions.locale ?? undefined,
 			});
 			log(output);
 			log(renderChartSeparator());
