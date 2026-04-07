@@ -219,7 +219,11 @@ export async function loadTokenUsageEvents(options: LoadOptions = {}): Promise<L
 		});
 
 		if (Result.isFailure(statResult)) {
-			if (!optionalDirs.has(directoryPath)) {
+			// Optional dirs suppress only ENOENT (not found). Permission errors and
+			// other failures still surface so users can diagnose real problems.
+			const errno = (statResult.error as NodeJS.ErrnoException | undefined)?.code;
+			const isNotFound = errno === 'ENOENT' || errno === 'ENOTDIR';
+			if (!(optionalDirs.has(directoryPath) && isNotFound)) {
 				missingDirectories.push(directoryPath);
 			}
 			continue;
