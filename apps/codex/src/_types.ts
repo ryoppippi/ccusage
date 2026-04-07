@@ -11,6 +11,7 @@ export type TokenUsageEvent = TokenUsageDelta & {
 	sessionId: string;
 	model?: string;
 	isFallbackModel?: boolean;
+	project?: string;
 };
 
 export type ModelUsage = TokenUsageDelta & {
@@ -56,6 +57,7 @@ export type PricingSource = {
 
 export type DailyReportRow = {
 	date: string;
+	project?: string;
 	inputTokens: number;
 	cachedInputTokens: number;
 	outputTokens: number;
@@ -67,6 +69,7 @@ export type DailyReportRow = {
 
 export type MonthlyReportRow = {
 	month: string;
+	project?: string;
 	inputTokens: number;
 	cachedInputTokens: number;
 	outputTokens: number;
@@ -78,6 +81,7 @@ export type MonthlyReportRow = {
 
 export type SessionReportRow = {
 	sessionId: string;
+	project?: string;
 	lastActivity: string;
 	sessionFile: string;
 	directory: string;

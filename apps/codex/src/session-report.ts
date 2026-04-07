@@ -6,7 +6,13 @@ import type {
 	SessionUsageSummary,
 	TokenUsageEvent,
 } from './_types.ts';
+import os from 'node:os';
 import { isWithinRange, toDateKey } from './date-utils.ts';
+import {
+	MIXED_PROJECT_LABEL,
+	normalizeProjectFilter,
+	UNKNOWN_PROJECT_LABEL,
+} from './project-utils.ts';
 import { addUsage, calculateCostUSD, createEmptyUsage } from './token-utils.ts';
 
 export type SessionReportOptions = {
@@ -15,6 +21,8 @@ export type SessionReportOptions = {
 	since?: string;
 	until?: string;
 	pricingSource: PricingSource;
+	project?: string;
+	groupByProject?: boolean;
 };
 
 function createSummary(sessionId: string, initialTimestamp: string): SessionUsageSummary {
@@ -40,8 +48,14 @@ export async function buildSessionReport(
 	const since = options.since;
 	const until = options.until;
 	const pricingSource = options.pricingSource;
+	const projectFilter = normalizeProjectFilter(options.project);
+	const groupByProject = options.groupByProject === true;
 
-	const summaries = new Map<string, SessionUsageSummary>();
+	type SessionSummaryWithProject = SessionUsageSummary & {
+		project?: string;
+		projectKeys: Set<string>;
+	};
+	const summaries = new Map<string, SessionSummaryWithProject>();
 
 	for (const event of events) {
 		const rawSessionId = event.sessionId;
@@ -62,14 +76,29 @@ export async function buildSessionReport(
 			continue;
 		}
 
+		const project = normalizeProjectFilter(event.project);
+
+		if (projectFilter != null && project !== projectFilter) {
+			continue;
+		}
+
 		const dateKey = toDateKey(event.timestamp, timezone);
 		if (!isWithinRange(dateKey, since, until)) {
 			continue;
 		}
 
-		const summary = summaries.get(sessionId) ?? createSummary(sessionId, event.timestamp);
-		if (!summaries.has(sessionId)) {
-			summaries.set(sessionId, summary);
+		const projectKey = project ?? UNKNOWN_PROJECT_LABEL;
+		const groupKey = groupByProject ? `${sessionId}::${projectKey}` : sessionId;
+		const summary: SessionSummaryWithProject = summaries.get(groupKey) ?? {
+			...createSummary(sessionId, event.timestamp),
+			projectKeys: new Set<string>(),
+		};
+		if (!summaries.has(groupKey)) {
+			summaries.set(groupKey, summary);
+		}
+		summary.projectKeys.add(projectKey);
+		if (groupByProject) {
+			summary.project = projectKey;
 		}
 
 		addUsage(summary, event);
@@ -134,6 +163,13 @@ export async function buildSessionReport(
 
 		rows.push({
 			sessionId: summary.sessionId,
+			project: groupByProject
+				? summary.project
+				: summary.projectKeys.size === 1
+					? Array.from(summary.projectKeys)[0] === UNKNOWN_PROJECT_LABEL
+						? undefined
+						: Array.from(summary.projectKeys)[0]
+					: MIXED_PROJECT_LABEL,
 			lastActivity: summary.lastTimestamp,
 			sessionFile,
 			directory,
@@ -232,6 +268,134 @@ if (import.meta.vitest != null) {
 				(100 / 1_000_000) * 0.06 +
 				(200 / 1_000_000) * 2;
 			expect(second.costUSD).toBeCloseTo(expectedCost, 10);
+		});
+
+		it('normalizes the project filter before exact matching', async () => {
+			const stubPricingSource: PricingSource = {
+				async getPricing(): Promise<ModelPricing> {
+					return {
+						inputCostPerMToken: 1,
+						cachedInputCostPerMToken: 0.1,
+						outputCostPerMToken: 2,
+					};
+				},
+			};
+
+			const home = os.homedir();
+			const report = await buildSessionReport(
+				[
+					{
+						sessionId: 'session-a',
+						timestamp: '2025-09-12T01:00:00.000Z',
+						model: 'gpt-5',
+						project: '~/workspace/repo',
+						inputTokens: 100,
+						cachedInputTokens: 0,
+						outputTokens: 50,
+						reasoningOutputTokens: 0,
+						totalTokens: 150,
+					},
+				],
+				{
+					pricingSource: stubPricingSource,
+					project: `${home}/workspace/repo`,
+				},
+			);
+
+			expect(report).toHaveLength(1);
+		});
+
+		it('marks mixed-project sessions explicitly when not grouping by project', async () => {
+			const stubPricingSource: PricingSource = {
+				async getPricing(): Promise<ModelPricing> {
+					return {
+						inputCostPerMToken: 1,
+						cachedInputCostPerMToken: 0.1,
+						outputCostPerMToken: 2,
+					};
+				},
+			};
+
+			const report = await buildSessionReport(
+				[
+					{
+						sessionId: 'session-a',
+						timestamp: '2025-09-12T01:00:00.000Z',
+						model: 'gpt-5',
+						project: '~/repo-a',
+						inputTokens: 100,
+						cachedInputTokens: 0,
+						outputTokens: 50,
+						reasoningOutputTokens: 0,
+						totalTokens: 150,
+					},
+					{
+						sessionId: 'session-a',
+						timestamp: '2025-09-12T02:00:00.000Z',
+						model: 'gpt-5',
+						project: '~/repo-b',
+						inputTokens: 200,
+						cachedInputTokens: 0,
+						outputTokens: 100,
+						reasoningOutputTokens: 0,
+						totalTokens: 300,
+					},
+				],
+				{
+					pricingSource: stubPricingSource,
+				},
+			);
+
+			expect(report).toHaveLength(1);
+			expect(report[0]?.project).toBe('(mixed)');
+			expect(report[0]?.totalTokens).toBe(450);
+		});
+
+		it('splits mixed-project sessions when grouping by project', async () => {
+			const stubPricingSource: PricingSource = {
+				async getPricing(): Promise<ModelPricing> {
+					return {
+						inputCostPerMToken: 1,
+						cachedInputCostPerMToken: 0.1,
+						outputCostPerMToken: 2,
+					};
+				},
+			};
+
+			const report = await buildSessionReport(
+				[
+					{
+						sessionId: 'session-a',
+						timestamp: '2025-09-12T01:00:00.000Z',
+						model: 'gpt-5',
+						project: '~/repo-a',
+						inputTokens: 100,
+						cachedInputTokens: 0,
+						outputTokens: 50,
+						reasoningOutputTokens: 0,
+						totalTokens: 150,
+					},
+					{
+						sessionId: 'session-a',
+						timestamp: '2025-09-12T02:00:00.000Z',
+						model: 'gpt-5',
+						project: '~/repo-b',
+						inputTokens: 200,
+						cachedInputTokens: 0,
+						outputTokens: 100,
+						reasoningOutputTokens: 0,
+						totalTokens: 300,
+					},
+				],
+				{
+					pricingSource: stubPricingSource,
+					groupByProject: true,
+				},
+			);
+
+			expect(report).toHaveLength(2);
+			expect(report.map((row) => row.project)).toEqual(['~/repo-a', '~/repo-b']);
+			expect(report.map((row) => row.totalTokens)).toEqual([150, 300]);
 		});
 	});
 }
