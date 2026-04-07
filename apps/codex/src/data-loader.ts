@@ -203,6 +203,10 @@ export async function loadTokenUsageEvents(options: LoadOptions = {}): Promise<L
 	const defaultSessionsDir = path.join(codexHome, DEFAULT_SESSION_SUBDIR);
 	const archivedSessionsDir = path.join(codexHome, ARCHIVED_SESSION_SUBDIR);
 	const sessionDirs = providedDirs ?? [defaultSessionsDir, archivedSessionsDir];
+	// When auto-discovering, the archived directory is optional: missing it
+	// is normal (most users have never archived) and should not surface as a warning.
+	const optionalDirs =
+		providedDirs != null ? new Set<string>() : new Set([path.resolve(archivedSessionsDir)]);
 
 	const events: TokenUsageEvent[] = [];
 	const missingDirectories: string[] = [];
@@ -215,12 +219,16 @@ export async function loadTokenUsageEvents(options: LoadOptions = {}): Promise<L
 		});
 
 		if (Result.isFailure(statResult)) {
-			missingDirectories.push(directoryPath);
+			if (!optionalDirs.has(directoryPath)) {
+				missingDirectories.push(directoryPath);
+			}
 			continue;
 		}
 
 		if (!statResult.value.isDirectory()) {
-			missingDirectories.push(directoryPath);
+			if (!optionalDirs.has(directoryPath)) {
+				missingDirectories.push(directoryPath);
+			}
 			continue;
 		}
 

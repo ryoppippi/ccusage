@@ -37,7 +37,9 @@ export function formatModelsList(
 }
 
 export function groupRowsByProject<T extends { project?: string }>(rows: T[]): Record<string, T[]> {
-	const projects: Record<string, T[]> = {};
+	// Use a null-prototype object so project names like `__proto__` or `constructor`
+	// cannot collide with inherited Object members.
+	const projects = Object.create(null) as Record<string, T[]>;
 
 	for (const row of rows) {
 		const project = row.project ?? UNKNOWN_PROJECT_LABEL;
@@ -67,13 +69,24 @@ if (import.meta.vitest != null) {
 				{ project: '~/repo-a', totalTokens: 3 },
 			]);
 
-			expect(grouped).toEqual({
+			expect({ ...grouped }).toEqual({
 				'~/repo-a': [
 					{ project: '~/repo-a', totalTokens: 1 },
 					{ project: '~/repo-a', totalTokens: 3 },
 				],
 				'(unknown)': [{ totalTokens: 2 }],
 			});
+		});
+
+		it('is immune to prototype-polluting project names', () => {
+			const grouped = groupRowsByProject([
+				{ project: '__proto__', totalTokens: 1 },
+				{ project: 'constructor', totalTokens: 2 },
+			]);
+
+			expect(Object.getPrototypeOf(grouped)).toBeNull();
+			const protoKey = '__proto__';
+			expect(grouped[protoKey]).toEqual([{ project: '__proto__', totalTokens: 1 }]);
 		});
 	});
 

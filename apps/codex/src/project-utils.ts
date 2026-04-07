@@ -1,5 +1,6 @@
 import os from 'node:os';
 import path from 'node:path';
+import process from 'node:process';
 
 export const UNKNOWN_PROJECT_LABEL = '(unknown)';
 export const MIXED_PROJECT_LABEL = '(mixed)';
@@ -16,6 +17,14 @@ function expandHomeDirectory(value: string): string {
 	return value;
 }
 
+// On Windows, the filesystem is case-insensitive, so we compare the home prefix
+// case-insensitively while preserving the original casing in the returned path.
+const IS_CASE_INSENSITIVE_FS = process.platform === 'win32';
+
+function equalsPathSegment(a: string, b: string): boolean {
+	return IS_CASE_INSENSITIVE_FS ? a.toLowerCase() === b.toLowerCase() : a === b;
+}
+
 export function normalizeProjectPath(value: string): string {
 	let normalized = path.normalize(expandHomeDirectory(value.trim()));
 	const home = path.normalize(os.homedir());
@@ -25,12 +34,16 @@ export function normalizeProjectPath(value: string): string {
 		normalized = normalized.slice(0, -path.sep.length);
 	}
 
-	if (normalized === home) {
+	if (equalsPathSegment(normalized, home)) {
 		return '~';
 	}
 
-	if (normalized.startsWith(home + path.sep)) {
-		return `~${normalized.slice(home.length)}`;
+	const homePrefix = home + path.sep;
+	if (
+		normalized.length > homePrefix.length &&
+		equalsPathSegment(normalized.slice(0, homePrefix.length), homePrefix)
+	) {
+		return `~${path.sep}${normalized.slice(homePrefix.length)}`;
 	}
 
 	return normalized;
