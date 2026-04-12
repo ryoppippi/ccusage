@@ -9,7 +9,7 @@ export default defineConfig({
 	},
 	plugins: [
 		Macros({
-			include: ['src/index.ts', 'src/pricing-fetcher.ts'],
+			include: ['src/index.ts', 'src/_pricing-fetcher.ts'],
 		}) as any, // vitest bundles its own vite types, so relax plugin typing here
 	],
 });

@@ -9,7 +9,11 @@ function isClaudeModel(modelName: string, _pricing: LiteLLMModelPricing): boolea
 	return (
 		modelName.startsWith('claude-') ||
 		modelName.startsWith('anthropic.claude-') ||
-		modelName.startsWith('anthropic/claude-')
+		modelName.startsWith('anthropic/claude-') ||
+		modelName.startsWith('gpt-') ||
+		modelName.startsWith('openai/gpt-') ||
+		modelName.startsWith('gemini-') ||
+		modelName.startsWith('google/gemini-')
 	);
 }
 

@@ -500,6 +500,8 @@ export type UsageReportConfig = {
 	dateFormatter?: (dateStr: string) => string;
 	/** Force compact mode regardless of terminal width */
 	forceCompact?: boolean;
+	/** Optional comparison model name */
+	comparisonModelName?: string;
 };
 
 /**
@@ -512,7 +514,24 @@ export type UsageData = {
 	cacheReadTokens: number;
 	totalCost: number;
 	modelsUsed?: string[];
+	comparisonCost?: number;
 };
+
+/**
+ * Formats a percentage difference between two costs
+ * @param original - Original cost
+ * @param comparison - Comparison cost
+ * @returns Formatted percentage string (e.g., "+10.5%" or "-5.2%")
+ */
+function formatCostDiff(original: number, comparison: number): string {
+	if (original === 0) {
+		return comparison === 0 ? '0.0%' : '+100.0%';
+	}
+	const diff = ((comparison - original) / original) * 100;
+	const sign = diff >= 0 ? '+' : '';
+	const color = diff > 0 ? pc.red : diff < 0 ? pc.green : pc.gray;
+	return color(`${sign}${diff.toFixed(1)}%`);
+}
 
 /**
  * Creates a standard usage report table with consistent styling and layout
@@ -545,6 +564,15 @@ export function createUsageReportTable(config: UsageReportConfig): ResponsiveTab
 	const compactHeaders = [config.firstColumnName, 'Models', 'Input', 'Output', 'Cost (USD)'];
 
 	const compactAligns: TableCellAlign[] = ['left', 'left', 'right', 'right', 'right'];
+
+	// Add comparison columns if model name provided
+	if (config.comparisonModelName != null) {
+		const shortenedModel = formatModelName(config.comparisonModelName);
+		baseHeaders.push(`${shortenedModel} Cost`, 'Diff (%)');
+		baseAligns.push('right', 'right');
+		compactHeaders.push(`${shortenedModel} Cost`);
+		compactAligns.push('right');
+	}
 
 	// Add Last Activity column for session reports
 	if (config.includeLastActivity ?? false) {
@@ -592,6 +620,13 @@ export function formatUsageDataRow(
 		formatCurrency(data.totalCost),
 	];
 
+	if (data.comparisonCost !== undefined) {
+		row.push(
+			formatCurrency(data.comparisonCost),
+			formatCostDiff(data.totalCost, data.comparisonCost),
+		);
+	}
+
 	if (lastActivity !== undefined) {
 		row.push(lastActivity);
 	}
@@ -622,6 +657,13 @@ export function formatTotalsRow(
 		pc.yellow(formatNumber(totalTokens)),
 		pc.yellow(formatCurrency(totals.totalCost)),
 	];
+
+	if (totals.comparisonCost !== undefined) {
+		row.push(
+			pc.yellow(formatCurrency(totals.comparisonCost)),
+			pc.yellow(formatCostDiff(totals.totalCost, totals.comparisonCost)),
+		);
+	}
 
 	if (includeLastActivity) {
 		row.push(''); // Empty for Last Activity column in totals

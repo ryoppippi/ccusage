@@ -211,8 +211,15 @@ export class LiteLLMPricingFetcher implements Disposable {
 		const candidates = new Set<string>();
 		candidates.add(modelName);
 
-		for (const prefix of this.providerPrefixes) {
-			candidates.add(`${prefix}${modelName}`);
+		if (modelName.includes('/')) {
+			// Also try without the provider prefix (e.g., "google/gemini-..." → "gemini-...")
+			const withoutPrefix = modelName.slice(modelName.indexOf('/') + 1);
+			candidates.add(withoutPrefix);
+		} else {
+			// Try adding known provider prefixes
+			for (const prefix of this.providerPrefixes) {
+				candidates.add(`${prefix}${modelName}`);
+			}
 		}
 
 		return Array.from(candidates);
@@ -226,14 +233,6 @@ export class LiteLLMPricingFetcher implements Disposable {
 					const direct = pricing.get(candidate);
 					if (direct != null) {
 						return direct;
-					}
-				}
-
-				const lower = modelName.toLowerCase();
-				for (const [key, value] of pricing) {
-					const comparison = key.toLowerCase();
-					if (comparison.includes(lower) || lower.includes(comparison)) {
-						return value;
 					}
 				}
 

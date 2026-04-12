@@ -9,6 +9,7 @@ import {
 } from '@ccusage/terminal/table';
 import { Result } from '@praha/byethrow';
 import { define } from 'gunshi';
+import { withComparisonCosts } from '../_compare-model.ts';
 import { loadConfig, mergeConfigWithArgs } from '../_config-loader-tokens.ts';
 import { WEEK_DAYS } from '../_consts.ts';
 import { formatDateCompact } from '../_date-utils.ts';
@@ -44,7 +45,12 @@ export const weeklyCommand = define({
 			logger.level = 0;
 		}
 
-		const weeklyData = await loadWeeklyUsageData(mergedOptions);
+		const rawWeeklyData = await loadWeeklyUsageData(mergedOptions);
+		const weeklyData = await withComparisonCosts(
+			rawWeeklyData,
+			mergedOptions.compareModel,
+			mergedOptions.offline,
+		);
 
 		if (weeklyData.length === 0) {
 			if (useJson) {
@@ -57,6 +63,10 @@ export const weeklyCommand = define({
 						cacheReadTokens: 0,
 						totalTokens: 0,
 						totalCost: 0,
+						...(mergedOptions.compareModel != null && {
+							comparisonCost: 0,
+							comparisonModelName: mergedOptions.compareModel,
+						}),
 					},
 				};
 				log(JSON.stringify(emptyOutput, null, 2));
@@ -88,8 +98,18 @@ export const weeklyCommand = define({
 					totalCost: data.totalCost,
 					modelsUsed: data.modelsUsed,
 					modelBreakdowns: data.modelBreakdowns,
+					...(data.comparisonCost != null && { comparisonCost: data.comparisonCost }),
+					...(data.comparisonModelName != null && {
+						comparisonModelName: data.comparisonModelName,
+					}),
 				})),
-				totals: createTotalsObject(totals),
+				totals: {
+					...createTotalsObject(totals),
+					...(mergedOptions.compareModel != null && {
+						comparisonCost: weeklyData.reduce((sum, d) => sum + (d.comparisonCost ?? 0), 0),
+						comparisonModelName: mergedOptions.compareModel,
+					}),
+				},
 			};
 
 			// Process with jq if specified
@@ -113,6 +133,7 @@ export const weeklyCommand = define({
 				dateFormatter: (dateStr: string) =>
 					formatDateCompact(dateStr, mergedOptions.timezone, mergedOptions.locale ?? undefined),
 				forceCompact: ctx.values.compact,
+				comparisonModelName: mergedOptions.compareModel,
 			};
 			const table = createUsageReportTable(tableConfig);
 
@@ -126,17 +147,23 @@ export const weeklyCommand = define({
 					cacheReadTokens: data.cacheReadTokens,
 					totalCost: data.totalCost,
 					modelsUsed: data.modelsUsed,
+					comparisonCost: data.comparisonCost,
 				});
 				table.push(row);
 
 				// Add model breakdown rows if flag is set
 				if (mergedOptions.breakdown) {
-					pushBreakdownRows(table, data.modelBreakdowns);
+					pushBreakdownRows(
+						table,
+						data.modelBreakdowns,
+						1,
+						tableConfig.comparisonModelName != null ? 2 : 0,
+					);
 				}
 			}
 
 			// Add empty row for visual separation before totals
-			addEmptySeparatorRow(table, 8);
+			addEmptySeparatorRow(table, tableConfig.comparisonModelName != null ? 10 : 8);
 
 			// Add totals
 			const totalsRow = formatTotalsRow({
@@ -145,6 +172,9 @@ export const weeklyCommand = define({
 				cacheCreationTokens: totals.cacheCreationTokens,
 				cacheReadTokens: totals.cacheReadTokens,
 				totalCost: totals.totalCost,
+				...(mergedOptions.compareModel != null && {
+					comparisonCost: weeklyData.reduce((sum, d) => sum + (d.comparisonCost ?? 0), 0),
+				}),
 			});
 			table.push(totalsRow);
 
