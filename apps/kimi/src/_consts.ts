@@ -9,8 +9,7 @@ export const KIMI_WIRE_FILE_NAME = 'wire.jsonl';
 export const KIMI_CONFIG_FILE_NAME = 'config.toml';
 export const KIMI_METADATA_FILE_NAME = 'kimi.json';
 
-export const WIRE_GLOB = `*/${KIMI_WIRE_FILE_NAME}`;
-export const SESSION_GLOB = `*/${WIRE_GLOB}`;
+export const SESSION_WIRE_GLOB = `**/${KIMI_WIRE_FILE_NAME}`;
 
 export const DEFAULT_TIMEZONE = Intl.DateTimeFormat().resolvedOptions().timeZone ?? 'UTC';
 export const DEFAULT_LOCALE = 'en-CA';
