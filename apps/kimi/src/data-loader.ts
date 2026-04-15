@@ -15,7 +15,7 @@ import {
 	KIMI_SESSIONS_DIR_NAME,
 	KIMI_SHARE_DIR_ENV,
 	KIMI_WIRE_FILE_NAME,
-	SESSION_GLOB,
+	SESSION_WIRE_GLOB,
 } from './_consts.ts';
 import { logger } from './logger.ts';
 
@@ -141,6 +141,65 @@ export type LoadResult = {
 	missingDirectories: string[];
 };
 
+function combineStreamId(parentStreamId: string, childStreamId: string): string {
+	if (childStreamId === 'main') {
+		return parentStreamId;
+	}
+
+	return parentStreamId === 'main' ? childStreamId : `${parentStreamId}/${childStreamId}`;
+}
+
+type WireFileContext = {
+	sessionId: string;
+	streamId: string;
+};
+
+function resolveWireFileContext(
+	sessionsDir: string,
+	file: string,
+	workDirLookup: Map<string, string>,
+): WireFileContext | null {
+	const relativePath = path.relative(sessionsDir, file);
+	const parts = relativePath.split(path.sep);
+	if (parts.length < 3 || parts.at(-1) !== KIMI_WIRE_FILE_NAME) {
+		return null;
+	}
+
+	const workDirBasename = parts[0];
+	const sessionFileId = parts[1];
+	if (workDirBasename == null || sessionFileId == null) {
+		return null;
+	}
+
+	const resolvedWorkDir = workDirLookup.get(workDirBasename) ?? workDirBasename;
+	const sessionId = `${resolvedWorkDir}/${sessionFileId}`;
+
+	const nestedParts = parts.slice(2, -1);
+	if (nestedParts.length === 0) {
+		return { sessionId, streamId: 'main' };
+	}
+
+	if (nestedParts.length % 2 !== 0) {
+		return null;
+	}
+
+	let streamId = 'main';
+	for (let index = 0; index < nestedParts.length; index += 2) {
+		if (nestedParts[index] !== 'subagents') {
+			return null;
+		}
+
+		const agentId = asNonEmptyString(nestedParts[index + 1]);
+		if (agentId == null) {
+			return null;
+		}
+
+		streamId = combineStreamId(streamId, `subagent:${agentId}`);
+	}
+
+	return { sessionId, streamId };
+}
+
 export async function loadTokenUsageEvents(options: LoadOptions = {}): Promise<LoadResult> {
 	const shareDir =
 		options.shareDir != null && options.shareDir.trim() !== ''
@@ -165,7 +224,7 @@ export async function loadTokenUsageEvents(options: LoadOptions = {}): Promise<L
 	const workDirLookup = await loadWorkDirLookup(shareDir);
 	const defaultModel = await loadDefaultModel(shareDir);
 
-	const files = await glob(SESSION_GLOB, {
+	const files = await glob(SESSION_WIRE_GLOB, {
 		cwd: sessionsDir,
 		absolute: true,
 	});
@@ -225,15 +284,13 @@ export async function loadTokenUsageEvents(options: LoadOptions = {}): Promise<L
 	});
 
 	for (const file of files) {
-		if (!file.endsWith(`${path.sep}${KIMI_WIRE_FILE_NAME}`)) {
+		const wireFileContext = resolveWireFileContext(sessionsDir, file, workDirLookup);
+		if (wireFileContext == null) {
 			continue;
 		}
 
-		const sessionDir = path.dirname(file);
-		const sessionFileId = path.basename(sessionDir);
-		const workDirBasename = path.basename(path.dirname(sessionDir));
-		const resolvedWorkDir = workDirLookup.get(workDirBasename) ?? workDirBasename;
-		const sessionId = `${resolvedWorkDir}/${sessionFileId}`;
+		const sessionId = wireFileContext.sessionId;
+		const baseStreamId = wireFileContext.streamId;
 
 		const fileContentResult = await Result.try({
 			try: readFile(file, 'utf8'),
@@ -265,6 +322,7 @@ export async function loadTokenUsageEvents(options: LoadOptions = {}): Promise<L
 				contentPart: v.InferOutput<typeof contentPartSchema>,
 				streamId: string,
 			) => {
+				const resolvedStreamId = combineStreamId(baseStreamId, streamId);
 				if (contentPart.message.payload.type !== 'think') {
 					return;
 				}
@@ -272,13 +330,14 @@ export async function loadTokenUsageEvents(options: LoadOptions = {}): Promise<L
 				if (thinkContent == null || thinkContent.trim() === '') {
 					return;
 				}
-				getReasoningBuffer(sessionId, streamId).content.push(thinkContent);
+				getReasoningBuffer(sessionId, resolvedStreamId).content.push(thinkContent);
 			};
 
 			const processStatusUpdate = (
 				update: v.InferOutput<typeof statusUpdateSchema>,
 				streamId: string,
 			) => {
+				const resolvedStreamId = combineStreamId(baseStreamId, streamId);
 				const payload = update.message.payload;
 				if (payload == null) {
 					return;
@@ -287,7 +346,7 @@ export async function loadTokenUsageEvents(options: LoadOptions = {}): Promise<L
 				const messageId = asNonEmptyString(payload.message_id);
 				let isDuplicate = false;
 				if (messageId != null) {
-					const dedupeKey = `${sessionId}:${streamId}:${messageId}`;
+					const dedupeKey = `${sessionId}:${resolvedStreamId}:${messageId}`;
 					if (seenMessageIds.has(dedupeKey)) {
 						isDuplicate = true;
 					} else {
@@ -318,7 +377,7 @@ export async function loadTokenUsageEvents(options: LoadOptions = {}): Promise<L
 					return;
 				}
 
-				const reasoningBuffer = getReasoningBuffer(sessionId, streamId);
+				const reasoningBuffer = getReasoningBuffer(sessionId, resolvedStreamId);
 
 				// Calculate reasoning tokens from accumulated content since last StatusUpdate
 				let reasoningTokens = 0;
@@ -643,6 +702,76 @@ if (import.meta.vitest != null) {
 			expect(events).toHaveLength(1);
 			expect(events[0]!.sessionId).toBe(`${workDir}/session-2`);
 			expect(events[0]!.totalTokens).toBe(2);
+		});
+
+		it('includes subagent wire files under the parent session without cross-stream dedupe', async () => {
+			const workDir = '/tmp/project-b';
+			const workDirBasename = computeWorkDirBasename(workDir, 'local');
+
+			await using fixture = await createFixture({
+				'.kimi': {
+					'config.toml': 'default_model = "kimi-code/kimi-for-coding"\n',
+					'kimi.json': JSON.stringify({ work_dirs: [{ path: workDir, kaos: 'local' }] }),
+					sessions: {
+						[workDirBasename]: {
+							'session-6': {
+								'wire.jsonl': JSON.stringify({
+									timestamp: 1735689600,
+									message: {
+										type: 'StatusUpdate',
+										payload: {
+											message_id: 'shared-id',
+											token_usage: {
+												input_other: 10,
+												input_cache_read: 5,
+												input_cache_creation: 0,
+												output: 3,
+											},
+										},
+									},
+								}),
+								subagents: {
+									'agent-1': {
+										'wire.jsonl': [
+											JSON.stringify({
+												timestamp: 1735689601,
+												message: {
+													type: 'ContentPart',
+													payload: {
+														type: 'think',
+														think: 'abcdefgh',
+													},
+												},
+											}),
+											JSON.stringify({
+												timestamp: 1735689602,
+												message: {
+													type: 'StatusUpdate',
+													payload: {
+														message_id: 'shared-id',
+														token_usage: {
+															input_other: 20,
+															input_cache_read: 1,
+															input_cache_creation: 0,
+															output: 5,
+														},
+													},
+												},
+											}),
+										].join('\n'),
+									},
+								},
+							},
+						},
+					},
+				},
+			});
+
+			const { events } = await loadTokenUsageEvents({ shareDir: fixture.getPath('.kimi') });
+			expect(events).toHaveLength(2);
+			expect(events.every((event) => event.sessionId === `${workDir}/session-6`)).toBe(true);
+			expect(events.map((event) => event.totalTokens)).toEqual([18, 26]);
+			expect(events[1]!.reasoningOutputTokens).toBe(2);
 		});
 
 		it('extracts reasoning tokens from ContentPart think messages', async () => {
