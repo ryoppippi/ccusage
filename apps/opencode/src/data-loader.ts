@@ -10,7 +10,7 @@
  * @module data-loader
  */
 
-import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { homedir, tmpdir } from 'node:os';
 import path from 'node:path';
@@ -273,8 +273,21 @@ function getOpenCodeDbPath(): string | null {
 	if (openCodePath == null) {
 		return null;
 	}
-	const dbPath = path.join(openCodePath, 'opencode.db');
-	return existsSync(dbPath) ? dbPath : null;
+	const defaultDbPath = path.join(openCodePath, 'opencode.db');
+	if (existsSync(defaultDbPath)) {
+		return defaultDbPath;
+	}
+	let dirEntries: string[];
+	try {
+		dirEntries = readdirSync(openCodePath);
+	} catch {
+		return null;
+	}
+	const channelDb = dirEntries.find((entry) => /^opencode-.+\.db$/.test(entry));
+	if (channelDb != null) {
+		return path.join(openCodePath, channelDb);
+	}
+	return null;
 }
 
 function loadFromDb(dbPath: string): DbResult | null {
@@ -787,6 +800,27 @@ if (import.meta.vitest != null) {
 
 			expect(entries).toHaveLength(0);
 			expect(sessions.size).toBe(0);
+		});
+
+		it('should load from channel-variant DB (opencode-beta.db)', async () => {
+			const db = createTestDb(path.join(testDir, 'opencode-beta.db'));
+			db.prepare('INSERT INTO message VALUES (?, ?, ?, ?, ?)').run(
+				'msg_001',
+				'ses_001',
+				1700000000000,
+				1700000010000,
+				JSON.stringify({
+					time: { created: 1700000000000 },
+					modelID: 'claude-sonnet-4-20250514',
+					providerID: 'anthropic',
+					tokens: { input: 100, output: 50 },
+				}),
+			);
+			db.close();
+
+			const entries = await loadOpenCodeMessages();
+			expect(entries).toHaveLength(1);
+			expect(entries[0]?.sessionID).toBe('ses_001');
 		});
 	});
 }
