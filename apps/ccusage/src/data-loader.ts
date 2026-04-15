@@ -496,22 +496,27 @@ function filterByProject<T>(
 }
 
 /**
- * Checks if an entry is a duplicate based on hash
+ * Registers an entry for deduplication tracking, or returns the index of an existing
+ * entry that should be replaced. Uses last-wins strategy so that streaming responses —
+ * which emit multiple JSONL lines per (messageId, requestId) with output_tokens growing
+ * with each chunk — always resolve to the final complete output_tokens value.
+ *
+ * Returns the index of the existing entry to replace, or -1 if this is a new entry.
  */
-function isDuplicateEntry(uniqueHash: string | null, processedHashes: Set<string>): boolean {
+function registerOrReplace(
+	uniqueHash: string | null,
+	processedEntries: Map<string, number>,
+	nextIndex: number,
+): number {
 	if (uniqueHash == null) {
-		return false;
+		return -1;
 	}
-	return processedHashes.has(uniqueHash);
-}
-
-/**
- * Marks an entry as processed
- */
-function markAsProcessed(uniqueHash: string | null, processedHashes: Set<string>): void {
-	if (uniqueHash != null) {
-		processedHashes.add(uniqueHash);
+	const existing = processedEntries.get(uniqueHash);
+	if (existing !== undefined) {
+		return existing;
 	}
+	processedEntries.set(uniqueHash, nextIndex);
+	return -1;
 }
 
 /**
@@ -785,8 +790,8 @@ export async function loadDailyUsageData(options?: LoadOptions): Promise<DailyUs
 	// Use PricingFetcher with using statement for automatic cleanup
 	using fetcher = mode === 'display' ? null : new PricingFetcher(options?.offline);
 
-	// Track processed message+request combinations for deduplication
-	const processedHashes = new Set<string>();
+	// Track processed message+request combinations for deduplication (hash → index in allEntries)
+	const processedEntries = new Map<string, number>();
 
 	// Collect all valid data entries first
 	const allEntries: {
@@ -810,15 +815,9 @@ export async function loadDailyUsageData(options?: LoadOptions): Promise<DailyUs
 				}
 				const data = result.output;
 
-				// Check for duplicate message + request ID combination
+				// Streaming responses emit multiple JSONL entries per (messageId, requestId) with
+				// output_tokens growing with each chunk. Use last-wins so we keep the final count.
 				const uniqueHash = createUniqueHash(data);
-				if (isDuplicateEntry(uniqueHash, processedHashes)) {
-					// Skip duplicate message
-					return;
-				}
-
-				// Mark this combination as processed
-				markAsProcessed(uniqueHash, processedHashes);
 
 				// Always use DEFAULT_LOCALE for date grouping to ensure YYYY-MM-DD format
 				const date = formatDate(data.timestamp, options?.timezone, DEFAULT_LOCALE);
@@ -826,8 +825,14 @@ export async function loadDailyUsageData(options?: LoadOptions): Promise<DailyUs
 				// If fetcher is null, use pre-calculated costUSD or default to 0
 				const cost =
 					fetcher != null ? await calculateCostForEntry(data, mode, fetcher) : (data.costUSD ?? 0);
+				const entry = { data, date, cost, model: getDisplayModelName(data), project };
 
-				allEntries.push({ data, date, cost, model: getDisplayModelName(data), project });
+				const existingIndex = registerOrReplace(uniqueHash, processedEntries, allEntries.length);
+				if (existingIndex >= 0) {
+					allEntries[existingIndex] = entry;
+					return;
+				}
+				allEntries.push(entry);
 			} catch {
 				// Skip invalid JSON lines
 			}
@@ -942,8 +947,8 @@ export async function loadSessionData(options?: LoadOptions): Promise<SessionUsa
 	// Use PricingFetcher with using statement for automatic cleanup
 	using fetcher = mode === 'display' ? null : new PricingFetcher(options?.offline);
 
-	// Track processed message+request combinations for deduplication
-	const processedHashes = new Set<string>();
+	// Track processed message+request combinations for deduplication (hash → index in allEntries)
+	const processedEntries = new Map<string, number>();
 
 	// Collect all valid data entries with session info first
 	const allEntries: Array<{
@@ -976,21 +981,14 @@ export async function loadSessionData(options?: LoadOptions): Promise<SessionUsa
 				}
 				const data = result.output;
 
-				// Check for duplicate message + request ID combination
+				// Streaming responses emit multiple JSONL entries per (messageId, requestId) with
+				// output_tokens growing with each chunk. Use last-wins so we keep the final count.
 				const uniqueHash = createUniqueHash(data);
-				if (isDuplicateEntry(uniqueHash, processedHashes)) {
-					// Skip duplicate message
-					return;
-				}
-
-				// Mark this combination as processed
-				markAsProcessed(uniqueHash, processedHashes);
 
 				const sessionKey = `${projectPath}/${sessionId}`;
 				const cost =
 					fetcher != null ? await calculateCostForEntry(data, mode, fetcher) : (data.costUSD ?? 0);
-
-				allEntries.push({
+				const entry = {
 					data,
 					sessionKey,
 					sessionId,
@@ -998,7 +996,14 @@ export async function loadSessionData(options?: LoadOptions): Promise<SessionUsa
 					cost,
 					timestamp: data.timestamp,
 					model: getDisplayModelName(data),
-				});
+				};
+
+				const existingIndex = registerOrReplace(uniqueHash, processedEntries, allEntries.length);
+				if (existingIndex >= 0) {
+					allEntries[existingIndex] = entry;
+					return;
+				}
+				allEntries.push(entry);
 			} catch {
 				// Skip invalid JSON lines
 			}
@@ -1387,8 +1392,8 @@ export async function loadSessionBlockData(options?: LoadOptions): Promise<Sessi
 	// Use PricingFetcher with using statement for automatic cleanup
 	using fetcher = mode === 'display' ? null : new PricingFetcher(options?.offline);
 
-	// Track processed message+request combinations for deduplication
-	const processedHashes = new Set<string>();
+	// Track processed message+request combinations for deduplication (hash → index in allEntries)
+	const processedEntries = new Map<string, number>();
 
 	// Collect all valid data entries first
 	const allEntries: LoadedUsageEntry[] = [];
@@ -1403,15 +1408,9 @@ export async function loadSessionBlockData(options?: LoadOptions): Promise<Sessi
 				}
 				const data = result.output;
 
-				// Check for duplicate message + request ID combination
+				// Streaming responses emit multiple JSONL entries per (messageId, requestId) with
+				// output_tokens growing with each chunk. Use last-wins so we keep the final count.
 				const uniqueHash = createUniqueHash(data);
-				if (isDuplicateEntry(uniqueHash, processedHashes)) {
-					// Skip duplicate message
-					return;
-				}
-
-				// Mark this combination as processed
-				markAsProcessed(uniqueHash, processedHashes);
 
 				const cost =
 					fetcher != null ? await calculateCostForEntry(data, mode, fetcher) : (data.costUSD ?? 0);
@@ -1419,7 +1418,7 @@ export async function loadSessionBlockData(options?: LoadOptions): Promise<Sessi
 				// Get Claude Code usage limit expiration date
 				const usageLimitResetTime = getUsageLimitResetTime(data);
 
-				allEntries.push({
+				const entry: LoadedUsageEntry = {
 					timestamp: new Date(data.timestamp),
 					usage: {
 						inputTokens: data.message.usage.input_tokens,
@@ -1431,7 +1430,14 @@ export async function loadSessionBlockData(options?: LoadOptions): Promise<Sessi
 					model: getDisplayModelName(data) ?? 'unknown',
 					version: data.version,
 					usageLimitResetTime: usageLimitResetTime ?? undefined,
-				});
+				};
+
+				const existingIndex = registerOrReplace(uniqueHash, processedEntries, allEntries.length);
+				if (existingIndex >= 0) {
+					allEntries[existingIndex] = entry;
+					return;
+				}
+				allEntries.push(entry);
 			} catch (error) {
 				// Skip invalid JSON lines but log for debugging purposes
 				logger.debug(
@@ -4599,14 +4605,15 @@ if (import.meta.vitest != null) {
 					mode: 'display',
 				});
 
-				// Should only have one entry for 2025-01-10
+				// Both files have the same tokens; last-wins means session2 (2025-01-15) replaces session1.
+				// In practice cross-file duplicates have identical tokens, so only the date shifts.
 				expect(data).toHaveLength(1);
-				expect(data[0]?.date).toBe('2025-01-10');
+				expect(data[0]?.date).toBe('2025-01-15');
 				expect(data[0]?.inputTokens).toBe(100);
 				expect(data[0]?.outputTokens).toBe(50);
 			});
 
-			it('should process files in chronological order', async () => {
+			it('uses last-wins for duplicate hashes across files (later file replaces earlier)', async () => {
 				await using fixture = await createFixture({
 					projects: {
 						'newer.jsonl': JSON.stringify({
@@ -4641,11 +4648,57 @@ if (import.meta.vitest != null) {
 					mode: 'display',
 				});
 
-				// Should keep the older entry (100/50 tokens) not the newer one (200/100)
+				// Files are sorted by entry timestamp; older.jsonl (2025-01-10) is processed first,
+				// then newer.jsonl (2025-01-15). Last-wins means the later file replaces the earlier.
 				expect(data).toHaveLength(1);
-				expect(data[0]?.date).toBe('2025-01-10');
+				expect(data[0]?.date).toBe('2025-01-15');
+				expect(data[0]?.inputTokens).toBe(200);
+				expect(data[0]?.outputTokens).toBe(100);
+			});
+
+			it('keeps final output_tokens from streaming snapshots in a single file (fixes #938)', async () => {
+				// Streaming responses write multiple JSONL lines per (messageId, requestId).
+				// output_tokens grows with each chunk; only the last line has the complete count.
+				// input_tokens and cache tokens are identical across all snapshots.
+				const snapshot = (outputTokens: number) =>
+					JSON.stringify({
+						timestamp: '2025-01-10T10:00:00Z',
+						message: {
+							id: 'msg_stream',
+							usage: {
+								input_tokens: 100,
+								output_tokens: outputTokens,
+								cache_creation_input_tokens: 500,
+								cache_read_input_tokens: 1000,
+							},
+						},
+						requestId: 'req_stream',
+						costUSD: 0.005,
+					});
+
+				await using fixture = await createFixture({
+					projects: {
+						session1: {
+							'session.jsonl': [
+								snapshot(3),
+								snapshot(3),
+								snapshot(3),
+								snapshot(619),
+							].join('\n'),
+						},
+					},
+				});
+
+				const data = await loadDailyUsageData({
+					claudePath: fixture.path,
+					mode: 'display',
+				});
+
+				expect(data).toHaveLength(1);
+				expect(data[0]?.outputTokens).toBe(619);
 				expect(data[0]?.inputTokens).toBe(100);
-				expect(data[0]?.outputTokens).toBe(50);
+				expect(data[0]?.cacheCreationTokens).toBe(500);
+				expect(data[0]?.cacheReadTokens).toBe(1000);
 			});
 		});
 
@@ -4691,19 +4744,19 @@ if (import.meta.vitest != null) {
 					mode: 'display',
 				});
 
-				// Session 1 should have the entry
-				const session1 = sessions.find((s) => s.sessionId === 'session1');
-				expect(session1).toBeDefined();
-				expect(session1?.inputTokens).toBe(100);
-				expect(session1?.outputTokens).toBe(50);
-
-				// Session 2 should either not exist or have 0 tokens (duplicate was skipped)
+				// With last-wins, session2 (timestamp 2025-01-15, processed after session1) holds
+				// the deduplicated entry. Both sessions have identical tokens.
 				const session2 = sessions.find((s) => s.sessionId === 'session2');
-				if (session2 != null) {
-					expect(session2.inputTokens).toBe(0);
-					expect(session2.outputTokens).toBe(0);
+				expect(session2).toBeDefined();
+				expect(session2?.inputTokens).toBe(100);
+				expect(session2?.outputTokens).toBe(50);
+
+				// Session 1's entry was replaced, so it should be absent or have 0 tokens
+				const session1 = sessions.find((s) => s.sessionId === 'session1');
+				if (session1 != null) {
+					expect(session1.inputTokens).toBe(0);
+					expect(session1.outputTokens).toBe(0);
 				} else {
-					// It's also valid for session2 to not be included if it has no entries
 					expect(sessions.length).toBe(1);
 				}
 			});
