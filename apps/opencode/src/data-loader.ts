@@ -2,16 +2,19 @@
  * @fileoverview Data loading utilities for OpenCode usage analysis
  *
  * This module provides functions for loading and parsing OpenCode usage data
- * from JSON message files stored in OpenCode data directories.
- * OpenCode stores usage data in ~/.local/share/opencode/storage/message/
+ * from JSON message files or a SQLite database stored in OpenCode data directories.
+ * OpenCode stores usage data in ~/.local/share/opencode/opencode.db (newer versions)
+ * or ~/.local/share/opencode/storage/message/ (older versions).
  *
  * @module data-loader
  */
 
+import { existsSync, mkdirSync, rmSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
-import { homedir } from 'node:os';
+import { homedir, tmpdir } from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
+import { Database } from 'bun:sqlite';
 import { isDirectorySync } from 'path-type';
 import { glob } from 'tinyglobby';
 import * as v from 'valibot';
@@ -123,6 +126,21 @@ export type LoadedSessionMetadata = {
 	directory: string;
 };
 
+type DbMessageRow = {
+	id: string;
+	session_id: string;
+	time_created: number;
+	data: string;
+};
+
+type DbSessionRow = {
+	id: string;
+	project_id: string;
+	parent_id: string | null;
+	title: string;
+	directory: string;
+};
+
 /**
  * Get OpenCode data directory
  * @returns Path to OpenCode data directory, or null if not found
@@ -211,7 +229,109 @@ function convertOpenCodeSessionToMetadata(
 	};
 }
 
+/**
+ * Get path to OpenCode SQLite database, or null if it doesn't exist
+ */
+function getOpenCodeDbPath(): string | null {
+	const openCodePath = getOpenCodePath();
+	if (openCodePath == null) {
+		return null;
+	}
+	const dbPath = path.join(openCodePath, 'opencode.db');
+	return existsSync(dbPath) ? dbPath : null;
+}
+
+/**
+ * Load usage entries from OpenCode SQLite database
+ */
+function loadOpenCodeMessagesFromDb(dbPath: string): LoadedUsageEntry[] {
+	const db = new Database(dbPath, { readonly: true });
+	try {
+		const stmt = db.prepare(`
+			SELECT id, session_id, time_created, data
+			FROM message
+			WHERE json_extract(data, '$.tokens') IS NOT NULL
+			  AND json_extract(data, '$.modelID') IS NOT NULL
+			  AND json_extract(data, '$.providerID') IS NOT NULL
+		`);
+		const rows = stmt.all() as DbMessageRow[];
+		const entries: LoadedUsageEntry[] = [];
+		const dedupeSet = new Set<string>();
+
+		for (const row of rows) {
+			if (dedupeSet.has(row.id)) {
+				continue;
+			}
+			dedupeSet.add(row.id);
+
+			let parsedData: unknown;
+			try {
+				parsedData = JSON.parse(row.data);
+			} catch {
+				continue;
+			}
+
+			const merged =
+				typeof parsedData === 'object' && parsedData !== null
+					? { id: row.id, sessionID: row.session_id, ...parsedData }
+					: { id: row.id, sessionID: row.session_id };
+
+			const result = v.safeParse(openCodeMessageSchema, merged);
+			if (!result.success) {
+				continue;
+			}
+
+			const message = result.output;
+			if (message.tokens == null || (message.tokens.input === 0 && message.tokens.output === 0)) {
+				continue;
+			}
+
+			entries.push(convertOpenCodeMessageToUsageEntry(message));
+		}
+
+		return entries;
+	} finally {
+		db.close();
+	}
+}
+
+/**
+ * Load session metadata from OpenCode SQLite database
+ */
+function loadOpenCodeSessionsFromDb(dbPath: string): Map<string, LoadedSessionMetadata> {
+	const db = new Database(dbPath, { readonly: true });
+	try {
+		const stmt = db.prepare('SELECT id, project_id, parent_id, title, directory FROM session');
+		const rows = stmt.all() as DbSessionRow[];
+		const sessionMap = new Map<string, LoadedSessionMetadata>();
+
+		for (const row of rows) {
+			const result = v.safeParse(openCodeSessionSchema, {
+				id: row.id,
+				parentID: row.parent_id ?? null,
+				title: row.title,
+				projectID: row.project_id,
+				directory: row.directory,
+			});
+			if (!result.success) {
+				continue;
+			}
+			const metadata = convertOpenCodeSessionToMetadata(result.output);
+			sessionMap.set(metadata.id, metadata);
+		}
+
+		return sessionMap;
+	} finally {
+		db.close();
+	}
+}
+
 export async function loadOpenCodeSessions(): Promise<Map<string, LoadedSessionMetadata>> {
+	const dbPath = getOpenCodeDbPath();
+	if (dbPath != null) {
+		return loadOpenCodeSessionsFromDb(dbPath);
+	}
+
 	const openCodePath = getOpenCodePath();
 	if (openCodePath == null) {
 		return new Map();
@@ -253,6 +373,11 @@ export async function loadOpenCodeSessions(): Promise<Map<string, LoadedSessionM
  * @returns Array of LoadedUsageEntry for aggregation
  */
 export async function loadOpenCodeMessages(): Promise<LoadedUsageEntry[]> {
+	const dbPath = getOpenCodeDbPath();
+	if (dbPath != null) {
+		return loadOpenCodeMessagesFromDb(dbPath);
+	}
+
 	const openCodePath = getOpenCodePath();
 	if (openCodePath == null) {
 		return [];
@@ -309,15 +434,15 @@ export async function loadOpenCodeMessages(): Promise<LoadedUsageEntry[]> {
 }
 
 if (import.meta.vitest != null) {
-	const { describe, it, expect } = import.meta.vitest;
+	const { describe, it, expect, beforeEach, afterEach } = import.meta.vitest;
 
-	describe('data-loader', () => {
+	describe('convertOpenCodeMessageToUsageEntry', () => {
 		it('should convert OpenCode message to LoadedUsageEntry', () => {
 			const message = {
 				id: 'msg_123',
 				sessionID: 'ses_456' as v.InferOutput<typeof sessionIdSchema>,
 				providerID: 'anthropic',
-				modelID: 'claude-sonnet-4-5' as v.InferOutput<typeof modelNameSchema>,
+				modelID: 'claude-sonnet-4-20250514' as v.InferOutput<typeof modelNameSchema>,
 				time: {
 					created: 1700000000000,
 					completed: 1700000010000,
@@ -341,7 +466,7 @@ if (import.meta.vitest != null) {
 			expect(entry.usage.outputTokens).toBe(200);
 			expect(entry.usage.cacheReadInputTokens).toBe(50);
 			expect(entry.usage.cacheCreationInputTokens).toBe(25);
-			expect(entry.model).toBe('claude-sonnet-4-5');
+			expect(entry.model).toBe('claude-sonnet-4-20250514');
 		});
 
 		it('should handle missing optional fields', () => {
@@ -365,6 +490,174 @@ if (import.meta.vitest != null) {
 			expect(entry.usage.cacheReadInputTokens).toBe(0);
 			expect(entry.usage.cacheCreationInputTokens).toBe(0);
 			expect(entry.costUSD).toBe(null);
+		});
+	});
+
+	describe('loadOpenCodeMessages (SQLite)', () => {
+		let testDir: string;
+		let origEnv: string | undefined;
+
+		const createTestDb = (dbPath: string) => {
+			const db = new Database(dbPath);
+			db.exec(`
+				CREATE TABLE message (
+					id TEXT PRIMARY KEY,
+					session_id TEXT NOT NULL,
+					time_created INTEGER NOT NULL,
+					time_updated INTEGER NOT NULL,
+					data TEXT NOT NULL
+				)
+			`);
+			db.exec(`
+				CREATE TABLE session (
+					id TEXT PRIMARY KEY,
+					project_id TEXT NOT NULL,
+					parent_id TEXT,
+					slug TEXT NOT NULL,
+					directory TEXT NOT NULL,
+					title TEXT NOT NULL
+				)
+			`);
+			return db;
+		};
+
+		beforeEach(() => {
+			testDir = path.join(tmpdir(), `opencode-test-${Date.now()}`);
+			mkdirSync(testDir, { recursive: true });
+			origEnv = process.env[OPENCODE_CONFIG_DIR_ENV];
+			process.env[OPENCODE_CONFIG_DIR_ENV] = testDir;
+		});
+
+		afterEach(() => {
+			if (origEnv === undefined) {
+				delete process.env[OPENCODE_CONFIG_DIR_ENV];
+			} else {
+				process.env[OPENCODE_CONFIG_DIR_ENV] = origEnv;
+			}
+			rmSync(testDir, { recursive: true, force: true });
+		});
+
+		it('should load messages from SQLite database', async () => {
+			const db = createTestDb(path.join(testDir, 'opencode.db'));
+			db.prepare('INSERT INTO message VALUES (?, ?, ?, ?, ?)').run(
+				'msg_001',
+				'ses_001',
+				1700000000000,
+				1700000010000,
+				JSON.stringify({
+					time: { created: 1700000000000, completed: 1700000010000 },
+					modelID: 'claude-sonnet-4-20250514',
+					providerID: 'anthropic',
+					tokens: { input: 100, output: 200, cache: { read: 50, write: 25 } },
+					cost: 0.001,
+				}),
+			);
+			db.close();
+
+			const entries = await loadOpenCodeMessages();
+
+			expect(entries).toHaveLength(1);
+			expect(entries[0]?.sessionID).toBe('ses_001');
+			expect(entries[0]?.usage.inputTokens).toBe(100);
+			expect(entries[0]?.usage.outputTokens).toBe(200);
+			expect(entries[0]?.usage.cacheReadInputTokens).toBe(50);
+			expect(entries[0]?.usage.cacheCreationInputTokens).toBe(25);
+			expect(entries[0]?.costUSD).toBe(0.001);
+			expect(entries[0]?.model).toBe('claude-sonnet-4-20250514');
+			expect(entries[0]?.timestamp).toEqual(new Date(1700000000000));
+		});
+
+		it('should skip messages with no tokens', async () => {
+			const db = createTestDb(path.join(testDir, 'opencode.db'));
+			const insert = db.prepare('INSERT INTO message VALUES (?, ?, ?, ?, ?)');
+			insert.run(
+				'msg_001',
+				'ses_001',
+				1700000000000,
+				1700000010000,
+				JSON.stringify({
+					time: { created: 1700000000000 },
+					modelID: 'claude-sonnet-4-20250514',
+					providerID: 'anthropic',
+					tokens: { input: 100, output: 50 },
+				}),
+			);
+			insert.run(
+				'msg_002',
+				'ses_001',
+				1700000001000,
+				1700000001000,
+				JSON.stringify({ role: 'user', time: { created: 1700000001000 } }),
+			);
+			insert.run(
+				'msg_003',
+				'ses_001',
+				1700000002000,
+				1700000002000,
+				JSON.stringify({
+					time: { created: 1700000002000 },
+					modelID: 'claude-sonnet-4-20250514',
+					providerID: 'anthropic',
+					tokens: { input: 0, output: 0 },
+				}),
+			);
+			db.close();
+
+			const entries = await loadOpenCodeMessages();
+			expect(entries).toHaveLength(1);
+			expect(entries[0]?.sessionID).toBe('ses_001');
+		});
+
+		it('should deduplicate messages with the same id', async () => {
+			const db = createTestDb(path.join(testDir, 'opencode.db'));
+			const data = JSON.stringify({
+				time: { created: 1700000000000 },
+				modelID: 'claude-sonnet-4-20250514',
+				providerID: 'anthropic',
+				tokens: { input: 100, output: 50 },
+			});
+			db.prepare('INSERT INTO message VALUES (?, ?, ?, ?, ?)').run(
+				'msg_001',
+				'ses_001',
+				1700000000000,
+				1700000010000,
+				data,
+			);
+			db.close();
+
+			const entries = await loadOpenCodeMessages();
+			expect(entries).toHaveLength(1);
+		});
+
+		it('should load sessions from SQLite database', async () => {
+			const db = createTestDb(path.join(testDir, 'opencode.db'));
+			db.prepare('INSERT INTO session VALUES (?, ?, ?, ?, ?, ?)').run(
+				'ses_001',
+				'proj_abc',
+				null,
+				'my-session',
+				'/home/user/myproject',
+				'My Session',
+			);
+			db.close();
+
+			const sessions = await loadOpenCodeSessions();
+
+			expect(sessions.size).toBe(1);
+			const session = sessions.get('ses_001');
+			expect(session?.title).toBe('My Session');
+			expect(session?.directory).toBe('/home/user/myproject');
+			expect(session?.projectID).toBe('proj_abc');
+			expect(session?.parentID).toBeNull();
+		});
+
+		it('should return empty arrays when no database exists in the data directory', async () => {
+			// testDir is set by beforeEach but contains no opencode.db and no storage/message dir
+			const entries = await loadOpenCodeMessages();
+			const sessions = await loadOpenCodeSessions();
+
+			expect(entries).toHaveLength(0);
+			expect(sessions.size).toBe(0);
 		});
 	});
 }
