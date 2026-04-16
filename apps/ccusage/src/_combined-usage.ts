@@ -19,7 +19,7 @@ import {
 import { loadTokenUsageEvents as loadCodexTokenUsageEvents } from '../../codex/src/data-loader.ts';
 import { logger as codexLogger } from '../../codex/src/logger.ts';
 import { CodexPricingSource } from '../../codex/src/pricing.ts';
-import { calculateCostUSD as calculateCodexCostUSD } from '../../codex/src/token-utils.ts';
+import { calculateCostUSDForEvent as calculateCodexCostUSDForEvent } from '../../codex/src/token-utils.ts';
 import {
 	DEFAULT_KIMI_DIR,
 	KIMI_CONFIG_FILE_NAME,
@@ -98,7 +98,7 @@ type CombinedSourceRowsCacheEntry = {
 	rows: SourceDailyUsage[];
 };
 
-const COMBINED_SOURCE_CACHE_VERSION = 1;
+const COMBINED_SOURCE_CACHE_VERSION = 2;
 
 function hashValue(value: string): string {
 	return createHash('sha256').update(value, 'utf8').digest('hex');
@@ -576,7 +576,7 @@ async function loadCodexSourceRows(options: CombinedDailyLoadOptions): Promise<S
 			const pricing = await getCachedValue(pricingCache, model, async () =>
 				pricingSource.getPricing(model),
 			);
-			const totalCost = calculateCodexCostUSD(event, pricing);
+			const totalCost = calculateCodexCostUSDForEvent(event, pricing);
 
 			rows.push({
 				date,

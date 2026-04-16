@@ -7,7 +7,7 @@ import type {
 	TokenUsageEvent,
 } from './_types.ts';
 import { formatDisplayMonth, isWithinRange, toDateKey, toMonthKey } from './date-utils.ts';
-import { addUsage, calculateCostUSD, createEmptyUsage } from './token-utils.ts';
+import { addUsage, calculateCostUSDForEvent, createEmptyUsage } from './token-utils.ts';
 
 export type MonthlyReportOptions = {
 	timezone?: string;
@@ -42,6 +42,17 @@ export async function buildMonthlyReport(
 	const pricingSource = options.pricingSource;
 
 	const summaries = new Map<string, MonthlyUsageSummary>();
+	const modelPricing = new Map<string, Promise<ModelPricing>>();
+	const getPricing = async (modelName: string): Promise<ModelPricing> => {
+		const cached = modelPricing.get(modelName);
+		if (cached != null) {
+			return cached;
+		}
+
+		const loaded = pricingSource.getPricing(modelName);
+		modelPricing.set(modelName, loaded);
+		return loaded;
+	};
 
 	for (const event of events) {
 		const modelName = event.model?.trim();
@@ -72,18 +83,8 @@ export async function buildMonthlyReport(
 		if (event.isFallbackModel === true) {
 			modelUsage.isFallback = true;
 		}
-	}
 
-	const uniqueModels = new Set<string>();
-	for (const summary of summaries.values()) {
-		for (const modelName of summary.models.keys()) {
-			uniqueModels.add(modelName);
-		}
-	}
-
-	const modelPricing = new Map<string, Awaited<ReturnType<PricingSource['getPricing']>>>();
-	for (const modelName of uniqueModels) {
-		modelPricing.set(modelName, await pricingSource.getPricing(modelName));
+		summary.costUSD += calculateCostUSDForEvent(event, await getPricing(modelName));
 	}
 
 	const rows: MonthlyReportRow[] = [];
@@ -92,15 +93,7 @@ export async function buildMonthlyReport(
 		a.month.localeCompare(b.month),
 	);
 	for (const summary of sortedSummaries) {
-		let cost = 0;
-		for (const [modelName, usage] of summary.models) {
-			const pricing = modelPricing.get(modelName);
-			if (pricing == null) {
-				continue;
-			}
-			cost += calculateCostUSD(usage, pricing);
-		}
-		summary.costUSD = cost;
+		const cost = summary.costUSD;
 
 		const rowModels: Record<string, ModelUsage> = {};
 		for (const [modelName, usage] of summary.models) {

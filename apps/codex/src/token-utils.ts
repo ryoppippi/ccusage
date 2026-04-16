@@ -1,6 +1,10 @@
-import type { ModelPricing, TokenUsageDelta } from './_types.ts';
+import type { ModelPricing, TokenUsageDelta, TokenUsageEvent } from './_types.ts';
 import { formatCurrency, formatTokens } from '@ccusage/internal/format';
 import { MILLION } from './_consts.ts';
+
+export const CODEX_FAST_COST_MULTIPLIER_START = '2026-04-07T00:00:00.000Z';
+const CODEX_FAST_COST_MULTIPLIER = 2;
+const CODEX_FAST_COST_MULTIPLIER_START_MS = Date.parse(CODEX_FAST_COST_MULTIPLIER_START);
 
 export function createEmptyUsage(): TokenUsageDelta {
 	return {
@@ -52,4 +56,53 @@ export function calculateCostUSD(usage: TokenUsageDelta, pricing: ModelPricing):
 	return inputCost + cachedCost + outputCost;
 }
 
+export function getCostMultiplierForTimestamp(timestamp: string): number {
+	const timestampMs = Date.parse(timestamp);
+	if (Number.isNaN(timestampMs)) {
+		return 1;
+	}
+
+	return timestampMs >= CODEX_FAST_COST_MULTIPLIER_START_MS ? CODEX_FAST_COST_MULTIPLIER : 1;
+}
+
+export function calculateCostUSDForEvent(event: TokenUsageEvent, pricing: ModelPricing): number {
+	return calculateCostUSD(event, pricing) * getCostMultiplierForTimestamp(event.timestamp);
+}
+
 export { formatCurrency, formatTokens };
+
+if (import.meta.vitest != null) {
+	describe('Codex fast cost multiplier', () => {
+		const pricing: ModelPricing = {
+			inputCostPerMToken: 1,
+			cachedInputCostPerMToken: 0.1,
+			outputCostPerMToken: 10,
+		};
+		const event: TokenUsageEvent = {
+			sessionId: 'session-1',
+			timestamp: '2026-04-07T00:00:00.000Z',
+			inputTokens: 1_000_000,
+			cachedInputTokens: 100_000,
+			outputTokens: 10_000,
+			reasoningOutputTokens: 0,
+			totalTokens: 1_010_000,
+		};
+
+		it('does not multiply Codex costs before April 7 2026', () => {
+			const beforeFast = {
+				...event,
+				timestamp: '2026-04-06T23:59:59.999Z',
+			};
+
+			expect(calculateCostUSDForEvent(beforeFast, pricing)).toBeCloseTo(
+				calculateCostUSD(beforeFast, pricing),
+			);
+		});
+
+		it('doubles Codex costs from April 7 2026 onward', () => {
+			expect(calculateCostUSDForEvent(event, pricing)).toBeCloseTo(
+				calculateCostUSD(event, pricing) * 2,
+			);
+		});
+	});
+}
