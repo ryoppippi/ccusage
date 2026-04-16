@@ -45,6 +45,17 @@ type CombinedJsonRow = {
 	project?: string;
 };
 
+function formatOriginCosts(
+	row: Awaited<ReturnType<typeof loadCombinedDailyUsage>>[number],
+): string {
+	return row.originsUsed
+		.map((origin) => {
+			const breakdown = row.originBreakdowns[origin];
+			return formatCurrency(breakdown?.totalCost ?? 0);
+		})
+		.join('\n');
+}
+
 function calculateCombinedTotals(
 	data: Array<{
 		inputTokens: number;
@@ -242,6 +253,7 @@ export const combinedCommand = define({
 			head: [
 				'Date',
 				'Origins',
+				'Origin Cost',
 				'Input',
 				'Output',
 				'Cache Create',
@@ -249,7 +261,7 @@ export const combinedCommand = define({
 				'Total Tokens',
 				'Cost (USD)',
 			],
-			colAligns: ['left', 'left', 'right', 'right', 'right', 'right', 'right', 'right'],
+			colAligns: ['left', 'left', 'right', 'right', 'right', 'right', 'right', 'right', 'right'],
 			compactHead: ['Date', 'Origins', 'Input', 'Output', 'Cost (USD)'],
 			compactColAligns: ['left', 'left', 'right', 'right', 'right'],
 			compactThreshold: 110,
@@ -263,6 +275,7 @@ export const combinedCommand = define({
 			table.push([
 				row.date,
 				formatModelsDisplayMultiline(row.originsUsed),
+				formatOriginCosts(row),
 				formatNumber(row.inputTokens),
 				formatNumber(row.outputTokens),
 				formatNumber(row.cacheCreationTokens),
@@ -282,11 +295,12 @@ export const combinedCommand = define({
 
 			for (const [projectName, projectRows] of Object.entries(projectGroups)) {
 				if (!isFirstProject) {
-					table.push(['', '', '', '', '', '', '', '']);
+					table.push(['', '', '', '', '', '', '', '', '']);
 				}
 
 				table.push([
 					pc.cyan(`Project: ${formatProjectName(projectName, projectAliases)}`),
+					'',
 					'',
 					'',
 					'',
@@ -308,9 +322,10 @@ export const combinedCommand = define({
 			}
 		}
 
-		addEmptySeparatorRow(table, 8);
+		addEmptySeparatorRow(table, 9);
 		table.push([
 			pc.yellow('Total'),
+			'',
 			'',
 			pc.yellow(formatNumber(totals.inputTokens)),
 			pc.yellow(formatNumber(totals.outputTokens)),
@@ -324,7 +339,9 @@ export const combinedCommand = define({
 
 		if (table.isCompactMode()) {
 			logger.info('\nRunning in Compact Mode');
-			logger.info('Expand terminal width to see origins, cache metrics, and total tokens');
+			logger.info(
+				'Expand terminal width to see origins, origin costs, cache metrics, and total tokens',
+			);
 		}
 	},
 });
