@@ -10,23 +10,34 @@
  * @module data-loader
  */
 
+import type {
+	BetterSqlite3,
+	DbMessageRow,
+	DbResult,
+	DbSessionRow,
+	LoadedSessionMetadata,
+	LoadedUsageEntry,
+	SqliteAdapter,
+} from './_types.ts';
 import { existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
-import { homedir, tmpdir } from 'node:os';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
 import { Result } from '@praha/byethrow';
 import { isDirectorySync } from 'path-type';
 import { glob } from 'tinyglobby';
 import * as v from 'valibot';
+import {
+	CHANNEL_DB_PATTERN,
+	DEFAULT_OPENCODE_PATH,
+	OPENCODE_CONFIG_DIR_ENV,
+	OPENCODE_MESSAGES_DIR_NAME,
+	OPENCODE_SESSIONS_DIR_NAME,
+	OPENCODE_STORAGE_DIR_NAME,
+	USER_HOME_DIR,
+} from './_consts.ts';
 import { logger } from './logger.ts';
-
-const DEFAULT_OPENCODE_PATH = '.local/share/opencode';
-const OPENCODE_STORAGE_DIR_NAME = 'storage';
-const OPENCODE_MESSAGES_DIR_NAME = 'message';
-const OPENCODE_SESSIONS_DIR_NAME = 'session';
-const OPENCODE_CONFIG_DIR_ENV = 'OPENCODE_DATA_DIR';
-const USER_HOME_DIR = homedir();
 
 const modelNameSchema = v.pipe(
 	v.string(),
@@ -40,7 +51,7 @@ const sessionIdSchema = v.pipe(
 	v.brand('SessionId'),
 );
 
-export const openCodeTokensSchema = v.object({
+const openCodeTokensSchema = v.object({
 	input: v.optional(v.number()),
 	output: v.optional(v.number()),
 	reasoning: v.optional(v.number()),
@@ -52,7 +63,7 @@ export const openCodeTokensSchema = v.object({
 	),
 });
 
-export const openCodeMessageSchema = v.object({
+const openCodeMessageSchema = v.object({
 	id: v.string(),
 	sessionID: v.optional(sessionIdSchema),
 	providerID: v.optional(v.string()),
@@ -65,63 +76,13 @@ export const openCodeMessageSchema = v.object({
 	cost: v.optional(v.number()),
 });
 
-export const openCodeSessionSchema = v.object({
+const openCodeSessionSchema = v.object({
 	id: sessionIdSchema,
 	parentID: v.optional(v.nullable(sessionIdSchema)),
 	title: v.optional(v.string()),
 	projectID: v.optional(v.string()),
 	directory: v.optional(v.string()),
 });
-
-export type LoadedUsageEntry = {
-	timestamp: Date;
-	sessionID: string;
-	usage: {
-		inputTokens: number;
-		outputTokens: number;
-		cacheCreationInputTokens: number;
-		cacheReadInputTokens: number;
-	};
-	model: string;
-	costUSD: number | null;
-};
-
-export type LoadedSessionMetadata = {
-	id: string;
-	parentID: string | null;
-	title: string;
-	projectID: string;
-	directory: string;
-};
-
-type DbMessageRow = {
-	id: string;
-	session_id: string;
-	time_created: number;
-	data: string;
-};
-
-type DbSessionRow = {
-	id: string;
-	project_id: string;
-	parent_id: string | null;
-	title: string;
-	directory: string;
-};
-
-type DbResult = {
-	dbEntries: LoadedUsageEntry[];
-	dbSessionMap: Map<string, LoadedSessionMetadata>;
-	dbMessageIds: Set<string>;
-	dbSessionIds: Set<string>;
-};
-
-type SqliteAdapter = {
-	prepareAll: (sql: string) => Array<Record<string, unknown>>;
-	close: () => void;
-};
-
-type BetterSqlite3 = typeof import('better-sqlite3');
 
 let cachedOpenCodePath: string | null | undefined;
 
@@ -339,18 +300,19 @@ function getOpenCodeDbPath(): string | null {
 	let dirEntries: string[];
 	try {
 		dirEntries = readdirSync(openCodePath);
-	} catch {
+	} catch (error) {
+		logger.debug('Failed to read OpenCode data directory', { openCodePath, error: String(error) });
 		return null;
 	}
-	const channelDb = dirEntries.find((entry) => /^opencode-.+\.db$/.test(entry));
+	const channelDb = dirEntries.find((entry) => CHANNEL_DB_PATTERN.test(entry));
 	if (channelDb != null) {
 		return path.join(openCodePath, channelDb);
 	}
 	return null;
 }
 
-function loadFromDb(dbPath: string): DbResult | null {
-	const db = openSqliteDb(dbPath);
+function loadFromDb(dbPath: string, adapter?: SqliteAdapter): DbResult | null {
+	const db = adapter ?? openSqliteDb(dbPath);
 	if (db == null) {
 		logger.debug('No SQLite adapter available (tried better-sqlite3 and bun:sqlite)');
 		return null;
@@ -377,7 +339,8 @@ function loadFromDb(dbPath: string): DbResult | null {
 			let parsedData: unknown;
 			try {
 				parsedData = JSON.parse(row.data);
-			} catch {
+			} catch (error) {
+				logger.debug('Failed to parse message data JSON', { id: row.id, error: String(error) });
 				continue;
 			}
 
@@ -541,7 +504,6 @@ export async function loadOpenCodeMessages(): Promise<LoadedUsageEntry[]> {
 }
 
 if (import.meta.vitest != null) {
-	const { describe, it, expect, beforeEach, afterEach } = import.meta.vitest;
 	// eslint-disable-next-line ts/no-require-imports -- test-only native module import
 	const Database = require('better-sqlite3') as BetterSqlite3;
 
@@ -564,84 +526,6 @@ if (import.meta.vitest != null) {
 			},
 			close() {},
 		};
-	}
-
-	function loadFromDbWithAdapter(adapter: SqliteAdapter): DbResult | null {
-		try {
-			const dbEntries: LoadedUsageEntry[] = [];
-			const dbMessageIds = new Set<string>();
-			const dbSessionMap = new Map<string, LoadedSessionMetadata>();
-			const dbSessionIds = new Set<string>();
-
-			const rows = adapter.prepareAll(`
-				SELECT id, session_id, time_created, data
-				FROM message
-				WHERE json_extract(data, '$.tokens') IS NOT NULL
-				  AND json_extract(data, '$.modelID') IS NOT NULL
-				  AND json_extract(data, '$.providerID') IS NOT NULL
-				  AND json_extract(data, '$.role') = 'assistant'
-			`) as DbMessageRow[];
-
-			for (const row of rows) {
-				dbMessageIds.add(row.id);
-
-				let parsedData: unknown;
-				try {
-					parsedData = JSON.parse(row.data);
-				} catch {
-					continue;
-				}
-
-				const merged =
-					typeof parsedData === 'object' && parsedData !== null
-						? { id: row.id, sessionID: row.session_id, ...parsedData }
-						: { id: row.id, sessionID: row.session_id };
-
-				const schemaResult = v.safeParse(openCodeMessageSchema, merged);
-				if (!schemaResult.success) {
-					continue;
-				}
-
-				const message = schemaResult.output;
-				if (message.tokens == null || (message.tokens.input === 0 && message.tokens.output === 0)) {
-					continue;
-				}
-
-				if (message.providerID == null || message.modelID == null) {
-					continue;
-				}
-
-				dbEntries.push(convertOpenCodeMessageToUsageEntry(message));
-			}
-
-			const sessionRows = adapter.prepareAll(
-				'SELECT id, project_id, parent_id, title, directory FROM session',
-			) as DbSessionRow[];
-
-			for (const row of sessionRows) {
-				dbSessionIds.add(row.id);
-
-				const schemaResult = v.safeParse(openCodeSessionSchema, {
-					id: row.id,
-					parentID: row.parent_id ?? null,
-					title: row.title,
-					projectID: row.project_id,
-					directory: row.directory,
-				});
-				if (!schemaResult.success) {
-					continue;
-				}
-				const metadata = convertOpenCodeSessionToMetadata(schemaResult.output);
-				dbSessionMap.set(metadata.id, metadata);
-			}
-
-			return { dbEntries, dbSessionMap, dbMessageIds, dbSessionIds };
-		} catch (error) {
-			logger.debug('Failed to load from mock adapter', { error: String(error) });
-			return null;
-		} finally {
-			adapter.close();
-		}
 	}
 
 	describe('convertOpenCodeMessageToUsageEntry', () => {
@@ -1016,7 +900,7 @@ if (import.meta.vitest != null) {
 				],
 				sessionRows: [],
 			});
-			const result = loadFromDbWithAdapter(mockAdapter);
+			const result = loadFromDb(':memory:', mockAdapter);
 			expect(result).not.toBeNull();
 			expect(result!.dbEntries).toHaveLength(1);
 			expect(result!.dbEntries[0]?.model).toBe('claude-sonnet-4-20250514');
@@ -1046,7 +930,7 @@ if (import.meta.vitest != null) {
 				],
 				sessionRows: [],
 			});
-			const result = loadFromDbWithAdapter(mockAdapter);
+			const result = loadFromDb(':memory:', mockAdapter);
 			expect(result).not.toBeNull();
 			expect(result!.dbEntries).toHaveLength(1);
 			expect(result!.dbMessageIds).toContain('msg_bad');
@@ -1081,7 +965,7 @@ if (import.meta.vitest != null) {
 				],
 				sessionRows: [],
 			});
-			const result = loadFromDbWithAdapter(mockAdapter);
+			const result = loadFromDb(':memory:', mockAdapter);
 			expect(result).not.toBeNull();
 			expect(result!.dbEntries).toHaveLength(0);
 		});
@@ -1104,7 +988,7 @@ if (import.meta.vitest != null) {
 				],
 				sessionRows: [],
 			});
-			const result = loadFromDbWithAdapter(mockAdapter);
+			const result = loadFromDb(':memory:', mockAdapter);
 			expect(result).not.toBeNull();
 			expect(result!.dbEntries).toHaveLength(0);
 		});
@@ -1122,7 +1006,7 @@ if (import.meta.vitest != null) {
 					},
 				],
 			});
-			const result = loadFromDbWithAdapter(mockAdapter);
+			const result = loadFromDb(':memory:', mockAdapter);
 			expect(result).not.toBeNull();
 			expect(result!.dbSessionMap.size).toBe(1);
 			expect(result!.dbSessionMap.get('ses_001')?.title).toBe('Test Session');
@@ -1135,7 +1019,7 @@ if (import.meta.vitest != null) {
 				},
 				close() {},
 			};
-			const result = loadFromDbWithAdapter(mockAdapter);
+			const result = loadFromDb(':memory:', mockAdapter);
 			expect(result).toBeNull();
 		});
 	});
