@@ -85,16 +85,17 @@ Useful environment variables:
 
 ## Cost Calculation
 
-OpenCode stores `cost: 0` in message files, so this CLI calculates accurate costs from token usage data using the LiteLLM pricing database. All models supported by LiteLLM will have accurate pricing.
+OpenCode stores `cost: 0` in its database, so this CLI calculates accurate costs from token usage data using the LiteLLM pricing database. All models supported by LiteLLM will have accurate pricing.
 
 ## Data Location
 
-OpenCode stores usage data in:
+OpenCode >= 1.2.2 stores usage data in a SQLite database:
 
-- **Messages**: `~/.local/share/opencode/storage/message/{sessionID}/msg_{messageID}.json`
-- **Sessions**: `~/.local/share/opencode/storage/session/{projectHash}/{sessionID}.json`
+- **Database**: `~/.local/share/opencode/opencode.db` (messages in `message` table, sessions in `session` table)
+- **Legacy files** (< 1.2.2): `~/.local/share/opencode/storage/message/{sessionID}/msg_{messageID}.json`
+- **Channel variants**: Non-stable channel installs use `opencode-{channel}.db` (e.g., `opencode-canary.db`)
 
-Each message file contains token counts (`input`, `output`, `cache.read`, `cache.write`) and model information.
+When both the database and legacy files exist, data is merged with DB entries taking precedence.
 
 ## Documentation
 
