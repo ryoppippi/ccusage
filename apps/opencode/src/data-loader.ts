@@ -396,6 +396,10 @@ function loadFromDb(dbPath: string): DbResult | null {
 				continue;
 			}
 
+			if (message.providerID == null || message.modelID == null) {
+				continue;
+			}
+
 			dbEntries.push(convertOpenCodeMessageToUsageEntry(message));
 		}
 
@@ -540,6 +544,105 @@ if (import.meta.vitest != null) {
 	const { describe, it, expect, beforeEach, afterEach } = import.meta.vitest;
 	// eslint-disable-next-line ts/no-require-imports -- test-only native module import
 	const Database = require('better-sqlite3') as BetterSqlite3;
+
+	function createMockAdapter({
+		messageRows,
+		sessionRows,
+	}: {
+		messageRows: DbMessageRow[];
+		sessionRows: DbSessionRow[];
+	}): SqliteAdapter {
+		return {
+			prepareAll(sql: string) {
+				if (sql.includes('FROM message')) {
+					return messageRows as unknown as Array<Record<string, unknown>>;
+				}
+				if (sql.includes('FROM session')) {
+					return sessionRows as unknown as Array<Record<string, unknown>>;
+				}
+				return [];
+			},
+			close() {},
+		};
+	}
+
+	function loadFromDbWithAdapter(adapter: SqliteAdapter): DbResult | null {
+		try {
+			const dbEntries: LoadedUsageEntry[] = [];
+			const dbMessageIds = new Set<string>();
+			const dbSessionMap = new Map<string, LoadedSessionMetadata>();
+			const dbSessionIds = new Set<string>();
+
+			const rows = adapter.prepareAll(`
+				SELECT id, session_id, time_created, data
+				FROM message
+				WHERE json_extract(data, '$.tokens') IS NOT NULL
+				  AND json_extract(data, '$.modelID') IS NOT NULL
+				  AND json_extract(data, '$.providerID') IS NOT NULL
+				  AND json_extract(data, '$.role') = 'assistant'
+			`) as DbMessageRow[];
+
+			for (const row of rows) {
+				dbMessageIds.add(row.id);
+
+				let parsedData: unknown;
+				try {
+					parsedData = JSON.parse(row.data);
+				} catch {
+					continue;
+				}
+
+				const merged =
+					typeof parsedData === 'object' && parsedData !== null
+						? { id: row.id, sessionID: row.session_id, ...parsedData }
+						: { id: row.id, sessionID: row.session_id };
+
+				const schemaResult = v.safeParse(openCodeMessageSchema, merged);
+				if (!schemaResult.success) {
+					continue;
+				}
+
+				const message = schemaResult.output;
+				if (message.tokens == null || (message.tokens.input === 0 && message.tokens.output === 0)) {
+					continue;
+				}
+
+				if (message.providerID == null || message.modelID == null) {
+					continue;
+				}
+
+				dbEntries.push(convertOpenCodeMessageToUsageEntry(message));
+			}
+
+			const sessionRows = adapter.prepareAll(
+				'SELECT id, project_id, parent_id, title, directory FROM session',
+			) as DbSessionRow[];
+
+			for (const row of sessionRows) {
+				dbSessionIds.add(row.id);
+
+				const schemaResult = v.safeParse(openCodeSessionSchema, {
+					id: row.id,
+					parentID: row.parent_id ?? null,
+					title: row.title,
+					projectID: row.project_id,
+					directory: row.directory,
+				});
+				if (!schemaResult.success) {
+					continue;
+				}
+				const metadata = convertOpenCodeSessionToMetadata(schemaResult.output);
+				dbSessionMap.set(metadata.id, metadata);
+			}
+
+			return { dbEntries, dbSessionMap, dbMessageIds, dbSessionIds };
+		} catch (error) {
+			logger.debug('Failed to load from mock adapter', { error: String(error) });
+			return null;
+		} finally {
+			adapter.close();
+		}
+	}
 
 	describe('convertOpenCodeMessageToUsageEntry', () => {
 		it('should convert OpenCode message to LoadedUsageEntry', () => {
@@ -882,6 +985,158 @@ if (import.meta.vitest != null) {
 			const entries = await loadOpenCodeMessages();
 			expect(entries).toHaveLength(1);
 			expect(entries[0]?.sessionID).toBe('ses_001');
+		});
+	});
+
+	describe('loadFromDb with mock adapter', () => {
+		it('should filter to assistant-role messages only', () => {
+			const mockAdapter = createMockAdapter({
+				messageRows: [
+					{
+						id: 'msg_user',
+						session_id: 'ses_001',
+						time_created: 1700000000000,
+						data: JSON.stringify({
+							role: 'user',
+							time: { created: 1700000000000 },
+						}),
+					},
+					{
+						id: 'msg_asst',
+						session_id: 'ses_001',
+						time_created: 1700000001000,
+						data: JSON.stringify({
+							role: 'assistant',
+							modelID: 'claude-sonnet-4-20250514',
+							providerID: 'anthropic',
+							tokens: { input: 50, output: 10 },
+							time: { created: 1700000001000 },
+						}),
+					},
+				],
+				sessionRows: [],
+			});
+			const result = loadFromDbWithAdapter(mockAdapter);
+			expect(result).not.toBeNull();
+			expect(result!.dbEntries).toHaveLength(1);
+			expect(result!.dbEntries[0]?.model).toBe('claude-sonnet-4-20250514');
+		});
+
+		it('should skip messages with malformed JSON data', () => {
+			const mockAdapter = createMockAdapter({
+				messageRows: [
+					{
+						id: 'msg_bad',
+						session_id: 'ses_001',
+						time_created: 1700000000000,
+						data: 'not-json',
+					},
+					{
+						id: 'msg_good',
+						session_id: 'ses_001',
+						time_created: 1700000001000,
+						data: JSON.stringify({
+							role: 'assistant',
+							modelID: 'claude-sonnet-4-20250514',
+							providerID: 'anthropic',
+							tokens: { input: 50, output: 10 },
+							time: { created: 1700000001000 },
+						}),
+					},
+				],
+				sessionRows: [],
+			});
+			const result = loadFromDbWithAdapter(mockAdapter);
+			expect(result).not.toBeNull();
+			expect(result!.dbEntries).toHaveLength(1);
+			expect(result!.dbMessageIds).toContain('msg_bad');
+			expect(result!.dbMessageIds).toContain('msg_good');
+		});
+
+		it('should skip messages missing modelID or providerID', () => {
+			const mockAdapter = createMockAdapter({
+				messageRows: [
+					{
+						id: 'msg_no_model',
+						session_id: 'ses_001',
+						time_created: 1700000000000,
+						data: JSON.stringify({
+							role: 'assistant',
+							providerID: 'anthropic',
+							tokens: { input: 50, output: 10 },
+							time: { created: 1700000000000 },
+						}),
+					},
+					{
+						id: 'msg_no_provider',
+						session_id: 'ses_001',
+						time_created: 1700000001000,
+						data: JSON.stringify({
+							role: 'assistant',
+							modelID: 'claude-sonnet-4-20250514',
+							tokens: { input: 50, output: 10 },
+							time: { created: 1700000001000 },
+						}),
+					},
+				],
+				sessionRows: [],
+			});
+			const result = loadFromDbWithAdapter(mockAdapter);
+			expect(result).not.toBeNull();
+			expect(result!.dbEntries).toHaveLength(0);
+		});
+
+		it('should skip messages with zero tokens', () => {
+			const mockAdapter = createMockAdapter({
+				messageRows: [
+					{
+						id: 'msg_zero',
+						session_id: 'ses_001',
+						time_created: 1700000000000,
+						data: JSON.stringify({
+							role: 'assistant',
+							modelID: 'claude-sonnet-4-20250514',
+							providerID: 'anthropic',
+							tokens: { input: 0, output: 0 },
+							time: { created: 1700000000000 },
+						}),
+					},
+				],
+				sessionRows: [],
+			});
+			const result = loadFromDbWithAdapter(mockAdapter);
+			expect(result).not.toBeNull();
+			expect(result!.dbEntries).toHaveLength(0);
+		});
+
+		it('should load session metadata from session table', () => {
+			const mockAdapter = createMockAdapter({
+				messageRows: [],
+				sessionRows: [
+					{
+						id: 'ses_001',
+						project_id: 'proj_abc',
+						parent_id: null,
+						title: 'Test Session',
+						directory: '/home/user/project',
+					},
+				],
+			});
+			const result = loadFromDbWithAdapter(mockAdapter);
+			expect(result).not.toBeNull();
+			expect(result!.dbSessionMap.size).toBe(1);
+			expect(result!.dbSessionMap.get('ses_001')?.title).toBe('Test Session');
+		});
+
+		it('should handle adapter that throws on query', () => {
+			const mockAdapter: SqliteAdapter = {
+				prepareAll() {
+					throw new Error('database disk image is malformed');
+				},
+				close() {},
+			};
+			const result = loadFromDbWithAdapter(mockAdapter);
+			expect(result).toBeNull();
 		});
 	});
 }
