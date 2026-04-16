@@ -9,5 +9,5 @@ export default defineConfig({
 	platform: 'node',
 	target: 'node20',
 	fixedExtension: false,
-	external: ['better-sqlite3'],
+	external: ['better-sqlite3', 'bun:sqlite'],
 });

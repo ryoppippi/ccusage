@@ -116,19 +116,78 @@ type DbResult = {
 	dbSessionIds: Set<string>;
 };
 
-type BetterSqlite3 = typeof import('better-sqlite3');
+type SqliteAdapter = {
+	prepareAll: (sql: string) => Array<Record<string, unknown>>;
+	close: () => void;
+};
 
-type BetterSqlite3Database = InstanceType<BetterSqlite3>;
+type BetterSqlite3 = typeof import('better-sqlite3');
 
 let cachedOpenCodePath: string | null | undefined;
 
-function getOpenCodeDbModule(): BetterSqlite3 | null {
-	try {
-		// eslint-disable-next-line ts/no-require-imports -- native addon, must use require for runtime resolution
-		return require('better-sqlite3') as BetterSqlite3;
-	} catch {
+function isBunRuntime(): boolean {
+	return 'Bun' in globalThis || process.versions.bun != null;
+}
+
+function createBetterSqlite3Adapter(DbModule: BetterSqlite3, dbPath: string): SqliteAdapter {
+	const db = new DbModule(dbPath, { readonly: true });
+	return {
+		prepareAll(sql: string) {
+			return db.prepare(sql).all() as Array<Record<string, unknown>>;
+		},
+		close() {
+			db.close();
+		},
+	};
+}
+
+function createBunSqliteAdapter(dbPath: string): SqliteAdapter | null {
+	if (!isBunRuntime()) {
 		return null;
 	}
+	try {
+		// eslint-disable-next-line ts/no-require-imports -- Bun built-in, must use require for runtime resolution
+		const { Database } = require('bun:sqlite') as {
+			Database: new (
+				path: string,
+				opts?: { readonly?: boolean },
+			) => {
+				query: (sql: string) => { all: () => Array<Record<string, unknown>> };
+				close: () => void;
+			};
+		};
+		const db = new Database(dbPath, { readonly: true });
+		return {
+			prepareAll(sql: string) {
+				return db.query(sql).all();
+			},
+			close() {
+				db.close();
+			},
+		};
+	} catch (error) {
+		logger.debug('Failed to open bun:sqlite fallback', { error: String(error) });
+		return null;
+	}
+}
+
+function openSqliteDb(dbPath: string): SqliteAdapter | null {
+	try {
+		// eslint-disable-next-line ts/no-require-imports -- native addon, must use require for runtime resolution
+		const DbModule = require('better-sqlite3') as BetterSqlite3;
+		try {
+			return createBetterSqlite3Adapter(DbModule, dbPath);
+		} catch (error) {
+			logger.debug('better-sqlite3 failed to open DB, trying bun:sqlite', {
+				dbPath,
+				error: String(error),
+			});
+		}
+	} catch {
+		logger.debug('better-sqlite3 module not available, trying bun:sqlite fallback');
+	}
+
+	return createBunSqliteAdapter(dbPath);
 }
 
 export function getOpenCodePath(): string | null {
@@ -291,30 +350,26 @@ function getOpenCodeDbPath(): string | null {
 }
 
 function loadFromDb(dbPath: string): DbResult | null {
-	const DbModule = getOpenCodeDbModule();
-	if (DbModule == null) {
-		logger.debug('better-sqlite3 module not available, skipping SQLite data source');
+	const db = openSqliteDb(dbPath);
+	if (db == null) {
+		logger.debug('No SQLite adapter available (tried better-sqlite3 and bun:sqlite)');
 		return null;
 	}
 
-	let db: BetterSqlite3Database | null = null;
 	try {
-		db = new DbModule(dbPath, { readonly: true });
-
 		const dbEntries: LoadedUsageEntry[] = [];
 		const dbMessageIds = new Set<string>();
 		const dbSessionMap = new Map<string, LoadedSessionMetadata>();
 		const dbSessionIds = new Set<string>();
 
-		const rows = db
-			.prepare(`
+		const rows = db.prepareAll(`
 			SELECT id, session_id, time_created, data
 			FROM message
 			WHERE json_extract(data, '$.tokens') IS NOT NULL
 			  AND json_extract(data, '$.modelID') IS NOT NULL
 			  AND json_extract(data, '$.providerID') IS NOT NULL
-		`)
-			.all() as DbMessageRow[];
+			  AND json_extract(data, '$.role') = 'assistant'
+		`) as DbMessageRow[];
 
 		for (const row of rows) {
 			dbMessageIds.add(row.id);
@@ -344,9 +399,9 @@ function loadFromDb(dbPath: string): DbResult | null {
 			dbEntries.push(convertOpenCodeMessageToUsageEntry(message));
 		}
 
-		const sessionRows = db
-			.prepare('SELECT id, project_id, parent_id, title, directory FROM session')
-			.all() as DbSessionRow[];
+		const sessionRows = db.prepareAll(
+			'SELECT id, project_id, parent_id, title, directory FROM session',
+		) as DbSessionRow[];
 
 		for (const row of sessionRows) {
 			dbSessionIds.add(row.id);
@@ -370,7 +425,7 @@ function loadFromDb(dbPath: string): DbResult | null {
 		logger.debug('Failed to load from OpenCode SQLite database', { dbPath, error: String(error) });
 		return null;
 	} finally {
-		db?.close();
+		db.close();
 	}
 }
 
@@ -597,6 +652,7 @@ if (import.meta.vitest != null) {
 				1700000000000,
 				1700000010000,
 				JSON.stringify({
+					role: 'assistant',
 					time: { created: 1700000000000, completed: 1700000010000 },
 					modelID: 'claude-sonnet-4-20250514',
 					providerID: 'anthropic',
@@ -628,6 +684,7 @@ if (import.meta.vitest != null) {
 				1700000000000,
 				1700000010000,
 				JSON.stringify({
+					role: 'assistant',
 					time: { created: 1700000000000 },
 					modelID: 'claude-sonnet-4-20250514',
 					providerID: 'anthropic',
@@ -647,6 +704,7 @@ if (import.meta.vitest != null) {
 				1700000002000,
 				1700000002000,
 				JSON.stringify({
+					role: 'assistant',
 					time: { created: 1700000002000 },
 					modelID: 'claude-sonnet-4-20250514',
 					providerID: 'anthropic',
@@ -681,6 +739,7 @@ if (import.meta.vitest != null) {
 				1700000000000,
 				1700000010000,
 				JSON.stringify({
+					role: 'assistant',
 					time: { created: 1700000000000 },
 					modelID: 'claude-sonnet-4-20250514',
 					providerID: 'anthropic',
@@ -715,6 +774,7 @@ if (import.meta.vitest != null) {
 				1700000000000,
 				1700000010000,
 				JSON.stringify({
+					role: 'assistant',
 					time: { created: 1700000000000 },
 					modelID: 'claude-sonnet-4-20250514',
 					providerID: 'anthropic',
@@ -810,6 +870,7 @@ if (import.meta.vitest != null) {
 				1700000000000,
 				1700000010000,
 				JSON.stringify({
+					role: 'assistant',
 					time: { created: 1700000000000 },
 					modelID: 'claude-sonnet-4-20250514',
 					providerID: 'anthropic',
