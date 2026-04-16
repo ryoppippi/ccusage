@@ -1,22 +1,46 @@
 import type { LoadOptions as ClaudeLoadOptions, ModelBreakdown } from './data-loader.ts';
+import { createHash } from 'node:crypto';
+import { mkdir, readFile, stat, writeFile } from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+import process from 'node:process';
 import { LiteLLMPricingFetcher } from '@ccusage/internal/pricing';
 import { uniq } from 'es-toolkit';
+import { glob } from 'tinyglobby';
 import { loadAmpUsageEvents } from '../../amp/src/data-loader.ts';
 import { logger as ampLogger } from '../../amp/src/logger.ts';
 import { AmpPricingSource } from '../../amp/src/pricing.ts';
+import {
+	CODEX_HOME_ENV,
+	DEFAULT_CODEX_DIR,
+	DEFAULT_SESSION_SUBDIR,
+	SESSION_GLOB,
+} from '../../codex/src/_consts.ts';
 import { loadTokenUsageEvents as loadCodexTokenUsageEvents } from '../../codex/src/data-loader.ts';
 import { logger as codexLogger } from '../../codex/src/logger.ts';
 import { CodexPricingSource } from '../../codex/src/pricing.ts';
 import { calculateCostUSD as calculateCodexCostUSD } from '../../codex/src/token-utils.ts';
+import {
+	DEFAULT_KIMI_DIR,
+	KIMI_CONFIG_FILE_NAME,
+	KIMI_METADATA_FILE_NAME,
+	KIMI_SESSIONS_DIR_NAME,
+	KIMI_SHARE_DIR_ENV,
+	SESSION_WIRE_GLOB,
+} from '../../kimi/src/_consts.ts';
 import { loadTokenUsageEvents as loadKimiTokenUsageEvents } from '../../kimi/src/data-loader.ts';
 import { logger as kimiLogger } from '../../kimi/src/logger.ts';
 import { KimiPricingSource } from '../../kimi/src/pricing.ts';
 import { calculateCostUSD as calculateKimiCostUSD } from '../../kimi/src/token-utils.ts';
 import { calculateCostForEntry as calculateOpenCodeCostForEntry } from '../../opencode/src/cost-utils.ts';
-import { loadOpenCodeMessages, loadOpenCodeSessions } from '../../opencode/src/data-loader.ts';
+import {
+	getOpenCodePath,
+	loadOpenCodeMessages,
+	loadOpenCodeSessions,
+} from '../../opencode/src/data-loader.ts';
 import { loadPiAgentData } from '../../pi/src/data-loader.ts';
 import { createDailyDate, createModelName } from './_types.ts';
-import { loadDailyUsageData } from './data-loader.ts';
+import { getClaudePaths, globUsageFiles, loadDailyUsageData } from './data-loader.ts';
 import { logger } from './logger.ts';
 
 export const ALL_COMBINED_ORIGINS = ['claude', 'codex', 'kimi', 'opencode', 'amp', 'pi'] as const;
@@ -67,6 +91,186 @@ type SourceDailyUsage = {
 	project?: string;
 	modelBreakdowns: ModelBreakdown[];
 };
+
+type CombinedSourceRowsCacheEntry = {
+	version: number;
+	signature: string;
+	rows: SourceDailyUsage[];
+};
+
+const COMBINED_SOURCE_CACHE_VERSION = 1;
+
+function hashValue(value: string): string {
+	return createHash('sha256').update(value, 'utf8').digest('hex');
+}
+
+function getCombinedSourceCacheDir(): string {
+	const xdgCacheHome = process.env.XDG_CACHE_HOME?.trim();
+	const cacheRoot =
+		xdgCacheHome != null && xdgCacheHome !== '' ? xdgCacheHome : path.join(os.homedir(), '.cache');
+	return path.join(cacheRoot, 'ccusage', 'combined');
+}
+
+function getCombinedSourceCachePath(
+	origin: CombinedOrigin,
+	options: CombinedDailyLoadOptions,
+): string {
+	const needsProjectGrouping = options.groupByProject === true || options.project != null;
+	const key = hashValue(
+		JSON.stringify({
+			origin,
+			mode: options.mode ?? 'auto',
+			offline: options.offline ?? false,
+			project: options.project ?? null,
+			since: options.since ?? null,
+			timezone: options.timezone ?? null,
+			until: options.until ?? null,
+			needsProjectGrouping,
+		}),
+	);
+	return path.join(getCombinedSourceCacheDir(), `${origin}-${key}.json`);
+}
+
+async function createFileStateSignature(paths: string[]): Promise<string> {
+	const states = await Promise.all(
+		uniq(paths)
+			.sort((left, right) => left.localeCompare(right))
+			.map(async (filePath) => {
+				try {
+					const fileStat = await stat(filePath);
+					return `${filePath}|${fileStat.size}|${fileStat.mtimeMs}`;
+				} catch {
+					return `${filePath}|missing`;
+				}
+			}),
+	);
+
+	return hashValue(states.join('\\n'));
+}
+
+async function readCombinedSourceRowsCache(
+	cachePath: string,
+	signature: string,
+): Promise<SourceDailyUsage[] | null> {
+	try {
+		const raw = await readFile(cachePath, 'utf8');
+		const parsed = JSON.parse(raw) as Partial<CombinedSourceRowsCacheEntry>;
+		if (
+			parsed.version !== COMBINED_SOURCE_CACHE_VERSION ||
+			parsed.signature !== signature ||
+			!Array.isArray(parsed.rows)
+		) {
+			return null;
+		}
+
+		return parsed.rows;
+	} catch {
+		return null;
+	}
+}
+
+async function writeCombinedSourceRowsCache(
+	cachePath: string,
+	signature: string,
+	rows: SourceDailyUsage[],
+): Promise<void> {
+	try {
+		await mkdir(path.dirname(cachePath), { recursive: true });
+		await writeFile(
+			cachePath,
+			JSON.stringify({
+				version: COMBINED_SOURCE_CACHE_VERSION,
+				signature,
+				rows,
+			} satisfies CombinedSourceRowsCacheEntry),
+			'utf8',
+		);
+	} catch (error) {
+		logger.debug('Failed to write combined source rows cache', error);
+	}
+}
+
+async function loadCombinedSourceRowsWithCache(
+	origin: CombinedOrigin,
+	options: CombinedDailyLoadOptions,
+	getSignature: () => Promise<string>,
+	loadRows: () => Promise<SourceDailyUsage[]>,
+): Promise<SourceDailyUsage[]> {
+	try {
+		const signature = await getSignature();
+		const cachePath = getCombinedSourceCachePath(origin, options);
+		const cachedRows = await readCombinedSourceRowsCache(cachePath, signature);
+		if (cachedRows != null) {
+			logger.debug(`Combined ${origin} source rows cache hit`);
+			return cachedRows;
+		}
+
+		logger.debug(`Combined ${origin} source rows cache miss`);
+		const rows = await loadRows();
+		await writeCombinedSourceRowsCache(cachePath, signature, rows);
+		return rows;
+	} catch (error) {
+		logger.debug(`Combined ${origin} source rows cache unavailable`, error);
+		return loadRows();
+	}
+}
+
+async function getClaudeSourceSignature(): Promise<string> {
+	const filesWithBase = await globUsageFiles(getClaudePaths());
+	return createFileStateSignature(filesWithBase.map((entry) => entry.file));
+}
+
+async function getCodexSourceSignature(): Promise<string> {
+	const codexHomeEnv = process.env[CODEX_HOME_ENV]?.trim();
+	const codexHome =
+		codexHomeEnv != null && codexHomeEnv !== '' ? path.resolve(codexHomeEnv) : DEFAULT_CODEX_DIR;
+	const sessionsDir = path.join(codexHome, DEFAULT_SESSION_SUBDIR);
+	const files = await glob(SESSION_GLOB, {
+		cwd: sessionsDir,
+		absolute: true,
+	}).catch(() => []);
+	return createFileStateSignature([sessionsDir, ...files]);
+}
+
+async function getKimiSourceSignature(): Promise<string> {
+	const shareDir = (() => {
+		const envPath = process.env[KIMI_SHARE_DIR_ENV]?.trim();
+		return envPath != null && envPath !== '' ? path.resolve(envPath) : DEFAULT_KIMI_DIR;
+	})();
+	const sessionsDir = path.join(shareDir, KIMI_SESSIONS_DIR_NAME);
+	const files = await glob(SESSION_WIRE_GLOB, {
+		cwd: sessionsDir,
+		absolute: true,
+	}).catch(() => []);
+	return createFileStateSignature([
+		sessionsDir,
+		path.join(shareDir, KIMI_CONFIG_FILE_NAME),
+		path.join(shareDir, KIMI_METADATA_FILE_NAME),
+		...files,
+	]);
+}
+
+async function getOpenCodeSourceSignature(): Promise<string> {
+	const openCodePath = getOpenCodePath();
+	if (openCodePath == null) {
+		return createFileStateSignature([]);
+	}
+
+	const sessionsDir = path.join(openCodePath, 'storage', 'session');
+	const messagesDir = path.join(openCodePath, 'storage', 'message');
+	const [sessionFiles, messageFiles] = await Promise.all([
+		glob('**/*.json', {
+			cwd: sessionsDir,
+			absolute: true,
+		}).catch(() => []),
+		glob('**/*.json', {
+			cwd: messagesDir,
+			absolute: true,
+		}).catch(() => []),
+	]);
+
+	return createFileStateSignature([sessionsDir, messagesDir, ...sessionFiles, ...messageFiles]);
+}
 
 type MutableCombinedUsage = {
 	date: string;
@@ -300,217 +504,233 @@ function aggregateCombinedUsage(
 async function loadClaudeSourceRows(
 	options: CombinedDailyLoadOptions,
 ): Promise<SourceDailyUsage[]> {
-	const needsProjectGrouping = options.groupByProject === true || options.project != null;
-	const dailyUsage = await loadDailyUsageData({
-		mode: options.mode,
-		offline: options.offline,
-		order: options.order,
-		groupByProject: needsProjectGrouping,
-		project: options.project,
-		since: options.since,
-		timezone: options.timezone,
-		until: options.until,
-	});
+	return loadCombinedSourceRowsWithCache('claude', options, getClaudeSourceSignature, async () => {
+		const needsProjectGrouping = options.groupByProject === true || options.project != null;
+		const dailyUsage = await loadDailyUsageData({
+			mode: options.mode,
+			offline: options.offline,
+			order: options.order,
+			groupByProject: needsProjectGrouping,
+			project: options.project,
+			since: options.since,
+			timezone: options.timezone,
+			until: options.until,
+		});
 
-	return dailyUsage.map((row) => ({
-		date: row.date,
-		origin: 'claude',
-		inputTokens: row.inputTokens,
-		outputTokens: row.outputTokens,
-		cacheCreationTokens: row.cacheCreationTokens,
-		cacheReadTokens: row.cacheReadTokens,
-		totalCost: row.totalCost,
-		project: normalizeProject(row.project),
-		modelBreakdowns: row.modelBreakdowns.map((breakdown) => ({
-			...breakdown,
-			modelName: createModelName(prefixModel('claude', breakdown.modelName)),
-		})),
-	}));
+		return dailyUsage.map((row) => ({
+			date: row.date,
+			origin: 'claude',
+			inputTokens: row.inputTokens,
+			outputTokens: row.outputTokens,
+			cacheCreationTokens: row.cacheCreationTokens,
+			cacheReadTokens: row.cacheReadTokens,
+			totalCost: row.totalCost,
+			project: normalizeProject(row.project),
+			modelBreakdowns: row.modelBreakdowns.map((breakdown) => ({
+				...breakdown,
+				modelName: createModelName(prefixModel('claude', breakdown.modelName)),
+			})),
+		}));
+	});
 }
 
 async function loadCodexSourceRows(options: CombinedDailyLoadOptions): Promise<SourceDailyUsage[]> {
-	const needsProjectGrouping = options.groupByProject === true || options.project != null;
-	const { events } = await loadCodexTokenUsageEvents();
-	if (events.length === 0) {
-		return [];
-	}
-
-	using pricingSource = new CodexPricingSource({
-		offline: options.offline,
-	});
-	const pricingCache = new Map<
-		string,
-		Promise<Awaited<ReturnType<CodexPricingSource['getPricing']>>>
-	>();
-	const rows: SourceDailyUsage[] = [];
-
-	for (const event of events) {
-		const model = event.model?.trim();
-		if (model == null || model === '') {
-			continue;
+	return loadCombinedSourceRowsWithCache('codex', options, getCodexSourceSignature, async () => {
+		const needsProjectGrouping = options.groupByProject === true || options.project != null;
+		const { events } = await loadCodexTokenUsageEvents();
+		if (events.length === 0) {
+			return [];
 		}
 
-		const date = formatDateKey(event.timestamp, options.timezone);
-		if (!isWithinDateRange(date, options.since, options.until)) {
-			continue;
-		}
-
-		const project = selectProject(
-			event.projectPath ?? extractSessionDirectory(event.sessionId),
-			options.project,
-			needsProjectGrouping,
-		);
-		if (project === null) {
-			continue;
-		}
-
-		const cacheReadTokens = Math.min(event.cachedInputTokens, event.inputTokens);
-		const inputTokens = Math.max(event.inputTokens - cacheReadTokens, 0);
-		const pricing = await getCachedValue(pricingCache, model, async () =>
-			pricingSource.getPricing(model),
-		);
-		const totalCost = calculateCodexCostUSD(event, pricing);
-
-		rows.push({
-			date,
-			origin: 'codex',
-			inputTokens,
-			outputTokens: event.outputTokens,
-			cacheCreationTokens: 0,
-			cacheReadTokens,
-			totalCost,
-			...(project != null && { project }),
-			modelBreakdowns: [
-				createBreakdown('codex', model, {
-					inputTokens,
-					outputTokens: event.outputTokens,
-					cacheCreationTokens: 0,
-					cacheReadTokens,
-					cost: totalCost,
-				}),
-			],
+		using pricingSource = new CodexPricingSource({
+			offline: options.offline,
 		});
-	}
+		const pricingCache = new Map<
+			string,
+			Promise<Awaited<ReturnType<CodexPricingSource['getPricing']>>>
+		>();
+		const rows: SourceDailyUsage[] = [];
 
-	return rows;
+		for (const event of events) {
+			const model = event.model?.trim();
+			if (model == null || model === '') {
+				continue;
+			}
+
+			const date = formatDateKey(event.timestamp, options.timezone);
+			if (!isWithinDateRange(date, options.since, options.until)) {
+				continue;
+			}
+
+			const project = selectProject(
+				event.projectPath ?? extractSessionDirectory(event.sessionId),
+				options.project,
+				needsProjectGrouping,
+			);
+			if (project === null) {
+				continue;
+			}
+
+			const cacheReadTokens = Math.min(event.cachedInputTokens, event.inputTokens);
+			const inputTokens = Math.max(event.inputTokens - cacheReadTokens, 0);
+			const pricing = await getCachedValue(pricingCache, model, async () =>
+				pricingSource.getPricing(model),
+			);
+			const totalCost = calculateCodexCostUSD(event, pricing);
+
+			rows.push({
+				date,
+				origin: 'codex',
+				inputTokens,
+				outputTokens: event.outputTokens,
+				cacheCreationTokens: 0,
+				cacheReadTokens,
+				totalCost,
+				...(project != null && { project }),
+				modelBreakdowns: [
+					createBreakdown('codex', model, {
+						inputTokens,
+						outputTokens: event.outputTokens,
+						cacheCreationTokens: 0,
+						cacheReadTokens,
+						cost: totalCost,
+					}),
+				],
+			});
+		}
+
+		return rows;
+	});
 }
 
 async function loadKimiSourceRows(options: CombinedDailyLoadOptions): Promise<SourceDailyUsage[]> {
-	const needsProjectGrouping = options.groupByProject === true || options.project != null;
-	const { events } = await loadKimiTokenUsageEvents();
-	if (events.length === 0) {
-		return [];
-	}
-
-	const pricingSource = new KimiPricingSource();
-	const pricingCache = new Map<
-		string,
-		Promise<Awaited<ReturnType<KimiPricingSource['getPricing']>>>
-	>();
-	const rows: SourceDailyUsage[] = [];
-
-	for (const event of events) {
-		const model = event.model?.trim();
-		if (model == null || model === '') {
-			continue;
+	return loadCombinedSourceRowsWithCache('kimi', options, getKimiSourceSignature, async () => {
+		const needsProjectGrouping = options.groupByProject === true || options.project != null;
+		const { events } = await loadKimiTokenUsageEvents();
+		if (events.length === 0) {
+			return [];
 		}
 
-		const date = formatDateKey(event.timestamp, options.timezone);
-		if (!isWithinDateRange(date, options.since, options.until)) {
-			continue;
+		const pricingSource = new KimiPricingSource();
+		const pricingCache = new Map<
+			string,
+			Promise<Awaited<ReturnType<KimiPricingSource['getPricing']>>>
+		>();
+		const rows: SourceDailyUsage[] = [];
+
+		for (const event of events) {
+			const model = event.model?.trim();
+			if (model == null || model === '') {
+				continue;
+			}
+
+			const date = formatDateKey(event.timestamp, options.timezone);
+			if (!isWithinDateRange(date, options.since, options.until)) {
+				continue;
+			}
+
+			const project = selectProject(
+				extractSessionDirectory(event.sessionId),
+				options.project,
+				needsProjectGrouping,
+			);
+			if (project === null) {
+				continue;
+			}
+
+			const cacheReadTokens = Math.min(event.cachedInputTokens, event.inputTokens);
+			const inputTokens = Math.max(event.inputTokens - cacheReadTokens, 0);
+			const pricing = await getCachedValue(pricingCache, model, async () =>
+				pricingSource.getPricing(model),
+			);
+			const totalCost = calculateKimiCostUSD(event, pricing);
+
+			rows.push({
+				date,
+				origin: 'kimi',
+				inputTokens,
+				outputTokens: event.outputTokens,
+				cacheCreationTokens: 0,
+				cacheReadTokens,
+				totalCost,
+				...(project != null && { project }),
+				modelBreakdowns: [
+					createBreakdown('kimi', model, {
+						inputTokens,
+						outputTokens: event.outputTokens,
+						cacheCreationTokens: 0,
+						cacheReadTokens,
+						cost: totalCost,
+					}),
+				],
+			});
 		}
 
-		const project = selectProject(
-			extractSessionDirectory(event.sessionId),
-			options.project,
-			needsProjectGrouping,
-		);
-		if (project === null) {
-			continue;
-		}
-
-		const cacheReadTokens = Math.min(event.cachedInputTokens, event.inputTokens);
-		const inputTokens = Math.max(event.inputTokens - cacheReadTokens, 0);
-		const pricing = await getCachedValue(pricingCache, model, async () =>
-			pricingSource.getPricing(model),
-		);
-		const totalCost = calculateKimiCostUSD(event, pricing);
-
-		rows.push({
-			date,
-			origin: 'kimi',
-			inputTokens,
-			outputTokens: event.outputTokens,
-			cacheCreationTokens: 0,
-			cacheReadTokens,
-			totalCost,
-			...(project != null && { project }),
-			modelBreakdowns: [
-				createBreakdown('kimi', model, {
-					inputTokens,
-					outputTokens: event.outputTokens,
-					cacheCreationTokens: 0,
-					cacheReadTokens,
-					cost: totalCost,
-				}),
-			],
-		});
-	}
-
-	return rows;
+		return rows;
+	});
 }
 
 async function loadOpenCodeSourceRows(
 	options: CombinedDailyLoadOptions,
 ): Promise<SourceDailyUsage[]> {
-	const needsProjectGrouping = options.groupByProject === true || options.project != null;
-	const [entries, sessions] = await Promise.all([loadOpenCodeMessages(), loadOpenCodeSessions()]);
-	if (entries.length === 0) {
-		return [];
-	}
+	return loadCombinedSourceRowsWithCache(
+		'opencode',
+		options,
+		getOpenCodeSourceSignature,
+		async () => {
+			const needsProjectGrouping = options.groupByProject === true || options.project != null;
+			const [entries, sessions] = await Promise.all([
+				loadOpenCodeMessages(),
+				loadOpenCodeSessions(),
+			]);
+			if (entries.length === 0) {
+				return [];
+			}
 
-	using fetcher = new LiteLLMPricingFetcher({
-		offline: options.offline ?? false,
-		logger,
-	});
-	const rows: SourceDailyUsage[] = [];
+			using fetcher = new LiteLLMPricingFetcher({
+				offline: options.offline ?? false,
+				logger,
+			});
+			const rows: SourceDailyUsage[] = [];
 
-	for (const entry of entries) {
-		const date = formatDateKey(entry.timestamp, options.timezone);
-		if (!isWithinDateRange(date, options.since, options.until)) {
-			continue;
-		}
+			for (const entry of entries) {
+				const date = formatDateKey(entry.timestamp, options.timezone);
+				if (!isWithinDateRange(date, options.since, options.until)) {
+					continue;
+				}
 
-		const metadata = sessions.get(entry.sessionID);
-		const rawProject = normalizeProject(metadata?.directory ?? metadata?.projectID);
-		const project = selectProject(rawProject, options.project, needsProjectGrouping);
-		if (project === null) {
-			continue;
-		}
+				const metadata = sessions.get(entry.sessionID);
+				const rawProject = normalizeProject(metadata?.directory ?? metadata?.projectID);
+				const project = selectProject(rawProject, options.project, needsProjectGrouping);
+				if (project === null) {
+					continue;
+				}
 
-		const totalCost = await calculateOpenCodeCostForEntry(entry, fetcher);
-		rows.push({
-			date,
-			origin: 'opencode',
-			inputTokens: entry.usage.inputTokens,
-			outputTokens: entry.usage.outputTokens,
-			cacheCreationTokens: entry.usage.cacheCreationInputTokens,
-			cacheReadTokens: entry.usage.cacheReadInputTokens,
-			totalCost,
-			...(project != null && { project }),
-			modelBreakdowns: [
-				createBreakdown('opencode', entry.model, {
+				const totalCost = await calculateOpenCodeCostForEntry(entry, fetcher);
+				rows.push({
+					date,
+					origin: 'opencode',
 					inputTokens: entry.usage.inputTokens,
 					outputTokens: entry.usage.outputTokens,
 					cacheCreationTokens: entry.usage.cacheCreationInputTokens,
 					cacheReadTokens: entry.usage.cacheReadInputTokens,
-					cost: totalCost,
-				}),
-			],
-		});
-	}
+					totalCost,
+					...(project != null && { project }),
+					modelBreakdowns: [
+						createBreakdown('opencode', entry.model, {
+							inputTokens: entry.usage.inputTokens,
+							outputTokens: entry.usage.outputTokens,
+							cacheCreationTokens: entry.usage.cacheCreationInputTokens,
+							cacheReadTokens: entry.usage.cacheReadInputTokens,
+							cost: totalCost,
+						}),
+					],
+				});
+			}
 
-	return rows;
+			return rows;
+		},
+	);
 }
 
 async function loadPiSourceRows(options: CombinedDailyLoadOptions): Promise<SourceDailyUsage[]> {

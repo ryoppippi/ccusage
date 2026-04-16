@@ -1,8 +1,10 @@
 import type { TokenUsageEvent } from './_types.ts';
 import { createHash } from 'node:crypto';
+import { createReadStream } from 'node:fs';
 import { readFile, stat } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
+import { createInterface } from 'node:readline';
 import { Result } from '@praha/byethrow';
 import { createFixture } from 'fs-fixture';
 import { glob } from 'tinyglobby';
@@ -130,6 +132,26 @@ function toIsoTimestamp(seconds: number): string | null {
 	const date = new Date(ms);
 	const iso = date.toISOString();
 	return iso === 'Invalid Date' ? null : iso;
+}
+
+async function processJSONLFileByLine(
+	filePath: string,
+	processLine: (line: string) => void | Promise<void>,
+): Promise<void> {
+	const fileStream = createReadStream(filePath, { encoding: 'utf8' });
+	const rl = createInterface({
+		input: fileStream,
+		crlfDelay: Number.POSITIVE_INFINITY,
+	});
+
+	for await (const line of rl) {
+		const trimmed = line.trim();
+		if (trimmed === '') {
+			continue;
+		}
+
+		await processLine(trimmed);
+	}
 }
 
 export type LoadOptions = {
@@ -292,169 +314,152 @@ export async function loadTokenUsageEvents(options: LoadOptions = {}): Promise<L
 		const sessionId = wireFileContext.sessionId;
 		const baseStreamId = wireFileContext.streamId;
 
-		const fileContentResult = await Result.try({
-			try: readFile(file, 'utf8'),
+		const processResult = await Result.try({
+			try: processJSONLFileByLine(file, async (trimmed) => {
+				const parsedResult = Result.try({
+					try: () => JSON.parse(trimmed) as unknown,
+					catch: (error) => error,
+				})();
+				if (Result.isFailure(parsedResult)) {
+					return;
+				}
+
+				const processContentPart = (
+					contentPart: v.InferOutput<typeof contentPartSchema>,
+					streamId: string,
+				) => {
+					const resolvedStreamId = combineStreamId(baseStreamId, streamId);
+					if (contentPart.message.payload.type !== 'think') {
+						return;
+					}
+					const thinkContent = contentPart.message.payload.think;
+					if (thinkContent == null || thinkContent.trim() === '') {
+						return;
+					}
+					getReasoningBuffer(sessionId, resolvedStreamId).content.push(thinkContent);
+				};
+
+				const processStatusUpdate = (
+					update: v.InferOutput<typeof statusUpdateSchema>,
+					streamId: string,
+				) => {
+					const resolvedStreamId = combineStreamId(baseStreamId, streamId);
+					const payload = update.message.payload;
+					if (payload == null) {
+						return;
+					}
+
+					const messageId = asNonEmptyString(payload.message_id);
+					let isDuplicate = false;
+					if (messageId != null) {
+						const dedupeKey = `${sessionId}:${resolvedStreamId}:${messageId}`;
+						if (seenMessageIds.has(dedupeKey)) {
+							isDuplicate = true;
+						} else {
+							seenMessageIds.add(dedupeKey);
+						}
+					}
+
+					const tokenUsageRaw = payload.token_usage;
+					const tokenUsage = v.safeParse(recordSchema, tokenUsageRaw);
+					if (!tokenUsage.success) {
+						return;
+					}
+
+					const inputOther = ensureNumber(tokenUsage.output.input_other);
+					const cacheRead = ensureNumber(tokenUsage.output.input_cache_read);
+					const cacheCreation = ensureNumber(tokenUsage.output.input_cache_creation);
+					const output = ensureNumber(tokenUsage.output.output);
+
+					const inputTokens = inputOther + cacheRead + cacheCreation;
+					const totalTokens = inputTokens + output;
+
+					if (inputTokens === 0 && output === 0) {
+						return;
+					}
+
+					const timestamp = toIsoTimestamp(update.timestamp);
+					if (timestamp == null) {
+						return;
+					}
+
+					const reasoningBuffer = getReasoningBuffer(sessionId, resolvedStreamId);
+
+					let reasoningTokens = 0;
+					const newContentCount = reasoningBuffer.content.length - reasoningBuffer.lastFlushIndex;
+					if (newContentCount > 0) {
+						const newContent = reasoningBuffer.content.slice(reasoningBuffer.lastFlushIndex);
+						const reasoningText = newContent.join('\n');
+						reasoningTokens = estimateTokensFromText(reasoningText);
+						reasoningBuffer.lastFlushIndex = reasoningBuffer.content.length;
+					}
+
+					if (isDuplicate) {
+						return;
+					}
+
+					reasoningTokens = Math.min(reasoningTokens, output);
+
+					events.push({
+						sessionId,
+						timestamp,
+						model: defaultModel.model,
+						isFallbackModel: defaultModel.isFallback ? true : undefined,
+						inputTokens,
+						cachedInputTokens: cacheRead,
+						outputTokens: output,
+						reasoningOutputTokens: reasoningTokens,
+						totalTokens,
+					});
+				};
+
+				const contentPart = v.safeParse(contentPartSchema, parsedResult.value);
+				if (contentPart.success) {
+					processContentPart(contentPart.output, 'main');
+					return;
+				}
+
+				const update = v.safeParse(statusUpdateSchema, parsedResult.value);
+				if (update.success) {
+					processStatusUpdate(update.output, 'main');
+					return;
+				}
+
+				const subagentEvent = v.safeParse(subagentEventSchema, parsedResult.value);
+				if (!subagentEvent.success) {
+					return;
+				}
+
+				const nestedEvent = subagentEvent.output.message.payload.event;
+				if (nestedEvent == null) {
+					return;
+				}
+
+				const taskToolCallId =
+					asNonEmptyString(subagentEvent.output.message.payload.task_tool_call_id) ?? 'unknown';
+				const streamId = `subagent:${taskToolCallId}`;
+
+				const synthetic = {
+					timestamp: subagentEvent.output.timestamp,
+					message: nestedEvent,
+				};
+
+				const subContentPart = v.safeParse(contentPartSchema, synthetic);
+				if (subContentPart.success) {
+					processContentPart(subContentPart.output, streamId);
+					return;
+				}
+
+				const subUpdate = v.safeParse(statusUpdateSchema, synthetic);
+				if (subUpdate.success) {
+					processStatusUpdate(subUpdate.output, streamId);
+				}
+			}),
 			catch: (error) => error,
 		});
-		if (Result.isFailure(fileContentResult)) {
-			logger.debug('Failed to read Kimi session wire file', fileContentResult.error);
+		if (Result.isFailure(processResult)) {
+			logger.debug('Failed to read Kimi session wire file', processResult.error);
 			continue;
-		}
-
-		const lines = fileContentResult.value.split(/\r?\n/);
-
-		// Single pass: process lines in order, accumulating reasoning and attributing to StatusUpdates
-		for (const line of lines) {
-			const trimmed = line.trim();
-			if (trimmed === '') {
-				continue;
-			}
-
-			const parsedResult = Result.try({
-				try: () => JSON.parse(trimmed) as unknown,
-				catch: (error) => error,
-			})();
-			if (Result.isFailure(parsedResult)) {
-				continue;
-			}
-
-			const processContentPart = (
-				contentPart: v.InferOutput<typeof contentPartSchema>,
-				streamId: string,
-			) => {
-				const resolvedStreamId = combineStreamId(baseStreamId, streamId);
-				if (contentPart.message.payload.type !== 'think') {
-					return;
-				}
-				const thinkContent = contentPart.message.payload.think;
-				if (thinkContent == null || thinkContent.trim() === '') {
-					return;
-				}
-				getReasoningBuffer(sessionId, resolvedStreamId).content.push(thinkContent);
-			};
-
-			const processStatusUpdate = (
-				update: v.InferOutput<typeof statusUpdateSchema>,
-				streamId: string,
-			) => {
-				const resolvedStreamId = combineStreamId(baseStreamId, streamId);
-				const payload = update.message.payload;
-				if (payload == null) {
-					return;
-				}
-
-				const messageId = asNonEmptyString(payload.message_id);
-				let isDuplicate = false;
-				if (messageId != null) {
-					const dedupeKey = `${sessionId}:${resolvedStreamId}:${messageId}`;
-					if (seenMessageIds.has(dedupeKey)) {
-						isDuplicate = true;
-					} else {
-						seenMessageIds.add(dedupeKey);
-					}
-				}
-
-				const tokenUsageRaw = payload.token_usage;
-				const tokenUsage = v.safeParse(recordSchema, tokenUsageRaw);
-				if (!tokenUsage.success) {
-					return;
-				}
-
-				const inputOther = ensureNumber(tokenUsage.output.input_other);
-				const cacheRead = ensureNumber(tokenUsage.output.input_cache_read);
-				const cacheCreation = ensureNumber(tokenUsage.output.input_cache_creation);
-				const output = ensureNumber(tokenUsage.output.output);
-
-				const inputTokens = inputOther + cacheRead + cacheCreation;
-				const totalTokens = inputTokens + output;
-
-				if (inputTokens === 0 && output === 0) {
-					return;
-				}
-
-				const timestamp = toIsoTimestamp(update.timestamp);
-				if (timestamp == null) {
-					return;
-				}
-
-				const reasoningBuffer = getReasoningBuffer(sessionId, resolvedStreamId);
-
-				// Calculate reasoning tokens from accumulated content since last StatusUpdate
-				let reasoningTokens = 0;
-				const newContentCount = reasoningBuffer.content.length - reasoningBuffer.lastFlushIndex;
-				if (newContentCount > 0) {
-					// Calculate tokens from new reasoning content since last event
-					const newContent = reasoningBuffer.content.slice(reasoningBuffer.lastFlushIndex);
-					const reasoningText = newContent.join('\n');
-					reasoningTokens = estimateTokensFromText(reasoningText);
-
-					// Update buffer position (even for duplicates to keep tracking accurate)
-					reasoningBuffer.lastFlushIndex = reasoningBuffer.content.length;
-				}
-
-				// Skip duplicate events after capturing reasoning to avoid double-counting
-				if (isDuplicate) {
-					return;
-				}
-
-				// Ensure reasoning doesn't exceed total output for this event
-				// (actual tokenization may differ from our 4-char estimate)
-				reasoningTokens = Math.min(reasoningTokens, output);
-
-				events.push({
-					sessionId,
-					timestamp,
-					model: defaultModel.model,
-					isFallbackModel: defaultModel.isFallback ? true : undefined,
-					inputTokens,
-					cachedInputTokens: cacheRead,
-					outputTokens: output,
-					reasoningOutputTokens: reasoningTokens,
-					totalTokens,
-				});
-			};
-
-			const contentPart = v.safeParse(contentPartSchema, parsedResult.value);
-			if (contentPart.success) {
-				processContentPart(contentPart.output, 'main');
-				continue; // Move to next line
-			}
-
-			const update = v.safeParse(statusUpdateSchema, parsedResult.value);
-			if (update.success) {
-				processStatusUpdate(update.output, 'main');
-				continue; // Move to next line
-			}
-
-			const subagentEvent = v.safeParse(subagentEventSchema, parsedResult.value);
-			if (!subagentEvent.success) {
-				continue;
-			}
-
-			const nestedEvent = subagentEvent.output.message.payload.event;
-			if (nestedEvent == null) {
-				continue;
-			}
-
-			const taskToolCallId =
-				asNonEmptyString(subagentEvent.output.message.payload.task_tool_call_id) ?? 'unknown';
-			const streamId = `subagent:${taskToolCallId}`;
-
-			const synthetic = {
-				timestamp: subagentEvent.output.timestamp,
-				message: nestedEvent,
-			};
-
-			const subContentPart = v.safeParse(contentPartSchema, synthetic);
-			if (subContentPart.success) {
-				processContentPart(subContentPart.output, streamId);
-				continue; // Move to next line
-			}
-
-			const subUpdate = v.safeParse(statusUpdateSchema, synthetic);
-			if (subUpdate.success) {
-				processStatusUpdate(subUpdate.output, streamId);
-			}
 		}
 	}
 

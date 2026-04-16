@@ -86,8 +86,42 @@ function createLogger(logger?: PricingLogger): PricingLogger {
 	};
 }
 
+const sharedRemotePricingCache = new Map<string, Map<string, LiteLLMModelPricing>>();
+const sharedRemotePricingPromises = new Map<string, Promise<Map<string, LiteLLMModelPricing>>>();
+
+async function getOrLoadSharedRemotePricing(
+	url: string,
+	load: () => Promise<Map<string, LiteLLMModelPricing>>,
+): Promise<Map<string, LiteLLMModelPricing>> {
+	const cached = sharedRemotePricingCache.get(url);
+	if (cached != null) {
+		return cached;
+	}
+
+	const inFlight = sharedRemotePricingPromises.get(url);
+	if (inFlight != null) {
+		return inFlight;
+	}
+
+	const created = load().then(
+		(pricing) => {
+			sharedRemotePricingCache.set(url, pricing);
+			sharedRemotePricingPromises.delete(url);
+			return pricing;
+		},
+		(error) => {
+			sharedRemotePricingPromises.delete(url);
+			throw error;
+		},
+	);
+
+	sharedRemotePricingPromises.set(url, created);
+	return created;
+}
+
 export class LiteLLMPricingFetcher implements Disposable {
 	private cachedPricing: Map<string, LiteLLMModelPricing> | null = null;
+	private readonly resolvedModelPricing = new Map<string, LiteLLMModelPricing | null>();
 	private readonly logger: PricingLogger;
 	private readonly offline: boolean;
 	private readonly offlineLoader?: () => Promise<Record<string, LiteLLMModelPricing>>;
@@ -108,6 +142,7 @@ export class LiteLLMPricingFetcher implements Disposable {
 
 	clearCache(): void {
 		this.cachedPricing = null;
+		this.resolvedModelPricing.clear();
 	}
 
 	private loadOfflinePricing = Result.try({
@@ -142,6 +177,31 @@ export class LiteLLMPricingFetcher implements Disposable {
 		);
 	}
 
+	private async loadRemotePricing(): Promise<Map<string, LiteLLMModelPricing>> {
+		const response = await fetch(this.url);
+		if (!response.ok) {
+			throw new Error(`Failed to fetch pricing data: ${response.statusText}`);
+		}
+
+		const data = (await response.json()) as Record<string, unknown>;
+		const pricing = new Map<string, LiteLLMModelPricing>();
+		for (const [modelName, modelData] of Object.entries(data)) {
+			if (typeof modelData !== 'object' || modelData == null) {
+				continue;
+			}
+
+			const parsed = v.safeParse(liteLLMModelPricingSchema, modelData);
+			if (!parsed.success) {
+				continue;
+			}
+
+			pricing.set(modelName, parsed.output);
+		}
+
+		this.logger.info(`Loaded pricing for ${pricing.size} models`);
+		return pricing;
+	}
+
 	private async ensurePricingLoaded(): Result.ResultAsync<Map<string, LiteLLMModelPricing>, Error> {
 		return Result.pipe(
 			this.cachedPricing != null
@@ -152,47 +212,16 @@ export class LiteLLMPricingFetcher implements Disposable {
 					return this.loadOfflinePricing();
 				}
 
-				this.logger.warn('Fetching latest model pricing from LiteLLM...');
-				return Result.pipe(
-					Result.try({
-						try: fetch(this.url),
-						catch: (error) =>
-							new Error('Failed to fetch model pricing from LiteLLM', { cause: error }),
-					}),
-					Result.andThrough((response) => {
-						if (!response.ok) {
-							return Result.fail(new Error(`Failed to fetch pricing data: ${response.statusText}`));
-						}
-						return Result.succeed();
-					}),
-					Result.andThen(async (response) =>
-						Result.try({
-							try: response.json() as Promise<Record<string, unknown>>,
-							catch: (error) => new Error('Failed to parse pricing data', { cause: error }),
-						}),
-					),
-					Result.map((data) => {
-						const pricing = new Map<string, LiteLLMModelPricing>();
-						for (const [modelName, modelData] of Object.entries(data)) {
-							if (typeof modelData !== 'object' || modelData == null) {
-								continue;
-							}
-
-							const parsed = v.safeParse(liteLLMModelPricingSchema, modelData);
-							if (!parsed.success) {
-								continue;
-							}
-
-							pricing.set(modelName, parsed.output);
-						}
-						return pricing;
-					}),
-					Result.inspect((pricing) => {
-						this.cachedPricing = pricing;
-						this.logger.info(`Loaded pricing for ${pricing.size} models`);
-					}),
-					Result.orElse(async (error) => this.handleFallbackToCachedPricing(error)),
-				);
+				try {
+					const pricing = await getOrLoadSharedRemotePricing(this.url, async () => {
+						this.logger.warn('Fetching latest model pricing from LiteLLM...');
+						return this.loadRemotePricing();
+					});
+					this.cachedPricing = pricing;
+					return Result.succeed(pricing);
+				} catch (error) {
+					return this.handleFallbackToCachedPricing(error);
+				}
 			}),
 		);
 	}
@@ -213,12 +242,18 @@ export class LiteLLMPricingFetcher implements Disposable {
 	}
 
 	async getModelPricing(modelName: string): Result.ResultAsync<LiteLLMModelPricing | null, Error> {
+		const cached = this.resolvedModelPricing.get(modelName);
+		if (cached !== undefined || this.resolvedModelPricing.has(modelName)) {
+			return Result.succeed(cached ?? null);
+		}
+
 		return Result.pipe(
 			this.ensurePricingLoaded(),
 			Result.map((pricing) => {
 				for (const candidate of this.createMatchingCandidates(modelName)) {
 					const direct = pricing.get(candidate);
 					if (direct != null) {
+						this.resolvedModelPricing.set(modelName, direct);
 						return direct;
 					}
 				}
@@ -227,10 +262,12 @@ export class LiteLLMPricingFetcher implements Disposable {
 				for (const [key, value] of pricing) {
 					const comparison = key.toLowerCase();
 					if (comparison.includes(lower) || lower.includes(comparison)) {
+						this.resolvedModelPricing.set(modelName, value);
 						return value;
 					}
 				}
 
+				this.resolvedModelPricing.set(modelName, null);
 				return null;
 			}),
 		);
