@@ -19,7 +19,7 @@ import type {
 	LoadedUsageEntry,
 	SqliteAdapter,
 } from './_types.ts';
-import { existsSync, mkdirSync, readdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, realpathSync, writeFileSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
@@ -62,6 +62,7 @@ const openCodeMessageSchema = v.object({
 	}),
 	tokens: v.optional(openCodeTokensSchema),
 	cost: v.optional(v.number()),
+	role: v.optional(v.string()),
 });
 
 const openCodeSessionSchema = v.object({
@@ -72,17 +73,26 @@ const openCodeSessionSchema = v.object({
 	directory: v.optional(v.string()),
 });
 
+// undefined = not yet resolved, null = resolved but not found, string = resolved path
 let cachedOpenCodePath: string | null | undefined;
 
+const MAX_MESSAGE_DATA_LENGTH = 1024 * 1024; // 1MB limit per row.data JSON field
+
+/**
+ * Detects if running in the Bun JavaScript runtime.
+ */
 function isBunRuntime(): boolean {
 	return 'Bun' in globalThis || process.versions.bun != null;
 }
 
+/**
+ * Creates a SqliteAdapter wrapping better-sqlite3 with a readonly connection.
+ */
 function createBetterSqlite3Adapter(DbModule: BetterSqlite3, dbPath: string): SqliteAdapter {
 	const db = new DbModule(dbPath, { readonly: true });
 	return {
-		prepareAll(sql: string) {
-			return db.prepare(sql).all() as Array<Record<string, unknown>>;
+		prepareAll<T>(sql: string): Array<T> {
+			return db.prepare(sql).all() as Array<T>;
 		},
 		close() {
 			db.close();
@@ -90,6 +100,10 @@ function createBetterSqlite3Adapter(DbModule: BetterSqlite3, dbPath: string): Sq
 	};
 }
 
+/**
+ * Creates a SqliteAdapter wrapping bun:sqlite with a readonly connection.
+ * Returns null if not running in Bun or if bun:sqlite fails to load.
+ */
 function createBunSqliteAdapter(dbPath: string): SqliteAdapter | null {
 	if (!isBunRuntime()) {
 		return null;
@@ -101,14 +115,14 @@ function createBunSqliteAdapter(dbPath: string): SqliteAdapter | null {
 				path: string,
 				opts?: { readonly?: boolean },
 			) => {
-				query: (sql: string) => { all: () => Array<Record<string, unknown>> };
+				query: <T>(sql: string) => { all: () => Array<T> };
 				close: () => void;
 			};
 		};
 		const db = new Database(dbPath, { readonly: true });
 		return {
-			prepareAll(sql: string) {
-				return db.query(sql).all();
+			prepareAll<T>(sql: string): Array<T> {
+				return db.query<T>(sql).all();
 			},
 			close() {
 				db.close();
@@ -120,17 +134,27 @@ function createBunSqliteAdapter(dbPath: string): SqliteAdapter | null {
 	}
 }
 
+/**
+ * Opens a SQLite database using the best available driver.
+ * Tries better-sqlite3 first (Node.js), falls back to bun:sqlite (Bun runtime).
+ * Returns null if no adapter is available or the DB cannot be opened.
+ */
 function openSqliteDb(dbPath: string): SqliteAdapter | null {
 	try {
 		// eslint-disable-next-line ts/no-require-imports -- native addon, must use require for runtime resolution
-		const DbModule = require('better-sqlite3') as BetterSqlite3;
-		try {
-			return createBetterSqlite3Adapter(DbModule, dbPath);
-		} catch (error) {
-			logger.debug('better-sqlite3 failed to open DB, trying bun:sqlite', {
-				dbPath,
-				error: String(error),
-			});
+		const DbModule = require('better-sqlite3') as unknown;
+		if (typeof DbModule !== 'function') {
+			logger.debug('better-sqlite3 module has unexpected shape, trying bun:sqlite fallback');
+		} else {
+			try {
+				return createBetterSqlite3Adapter(DbModule as BetterSqlite3, dbPath);
+			} catch (error) {
+				logger.debug('better-sqlite3 failed to open DB, not falling back to bun:sqlite', {
+					dbPath,
+					error: String(error),
+				});
+				return null;
+			}
 		}
 	} catch {
 		logger.debug('better-sqlite3 module not available, trying bun:sqlite fallback');
@@ -139,6 +163,12 @@ function openSqliteDb(dbPath: string): SqliteAdapter | null {
 	return createBunSqliteAdapter(dbPath);
 }
 
+/**
+ * Gets the OpenCode data directory path.
+ * Checks OPENCODE_DATA_DIR env var first, then ~/.local/share/opencode.
+ * Result is cached; call resetOpenCodePathCache() to clear.
+ * @returns Path to OpenCode data directory, or null if not found
+ */
 export function getOpenCodePath(): string | null {
 	if (cachedOpenCodePath !== undefined) {
 		return cachedOpenCodePath;
@@ -163,8 +193,13 @@ export function getOpenCodePath(): string | null {
 	return null;
 }
 
+/**
+ * Clears the cached OpenCode path and DB result caches.
+ * Exported for use in tests to reset state between test cases.
+ */
 export function resetOpenCodePathCache(): void {
 	cachedOpenCodePath = undefined;
+	_clearOpenCodeDbCache();
 }
 
 async function loadOpenCodeMessage(
@@ -276,6 +311,11 @@ function convertOpenCodeSessionToMetadata(
 	};
 }
 
+/**
+ * Finds the SQLite database path in the OpenCode data directory.
+ * Prefers opencode.db; falls back to channel-variant DBs (opencode-beta.db, etc.).
+ * Validates symlinks to prevent path traversal attacks.
+ */
 function getOpenCodeDbPath(): string | null {
 	const openCodePath = getOpenCodePath();
 	if (openCodePath == null) {
@@ -292,13 +332,36 @@ function getOpenCodeDbPath(): string | null {
 		logger.debug('Failed to read OpenCode data directory', { openCodePath, error: String(error) });
 		return null;
 	}
-	const channelDb = dirEntries.find((entry) => CHANNEL_DB_PATTERN.test(entry));
-	if (channelDb != null) {
-		return path.join(openCodePath, channelDb);
+	const matchingDbs = dirEntries.filter((entry) => CHANNEL_DB_PATTERN.test(entry)).sort();
+	if (matchingDbs.length > 1) {
+		logger.debug('Multiple channel DBs found, selecting first alphabetically', {
+			openCodePath,
+			matchingDbs,
+		});
+	}
+	if (matchingDbs.length > 0) {
+		const channelDb = matchingDbs[0]!;
+		const fullPath = path.join(openCodePath, channelDb);
+		const resolvedPath = realpathSync(fullPath);
+		if (!resolvedPath.startsWith(openCodePath)) {
+			logger.debug('Channel DB resolved to path outside OpenCode directory, skipping', {
+				fullPath,
+				resolvedPath,
+				openCodePath,
+			});
+			return null;
+		}
+		return fullPath;
 	}
 	return null;
 }
 
+/**
+ * Loads all usage messages and session metadata from a SQLite database.
+ * Filters to assistant-role messages with valid tokens and model/provider.
+ * Closes the adapter before returning (caller should not close).
+ * Returns null on adapter failure or query error.
+ */
 function loadFromDb(dbPath: string, adapter?: SqliteAdapter): DbResult | null {
 	const db = adapter ?? openSqliteDb(dbPath);
 	if (db == null) {
@@ -312,16 +375,23 @@ function loadFromDb(dbPath: string, adapter?: SqliteAdapter): DbResult | null {
 		const dbSessionMap = new Map<string, LoadedSessionMetadata>();
 		const dbSessionIds = new Set<string>();
 
-		const rows = db.prepareAll(`
+		const rows = db.prepareAll<DbMessageRow>(`
 			SELECT id, session_id, time_created, data
 			FROM message
 			WHERE json_extract(data, '$.tokens') IS NOT NULL
 			  AND json_extract(data, '$.modelID') IS NOT NULL
 			  AND json_extract(data, '$.providerID') IS NOT NULL
 			  AND json_extract(data, '$.role') = 'assistant'
-		`) as DbMessageRow[];
+		`);
 
 		for (const row of rows) {
+			if (row.data.length > MAX_MESSAGE_DATA_LENGTH) {
+				logger.debug('Message data exceeds size limit, skipping', {
+					id: row.id,
+					length: row.data.length,
+				});
+				continue;
+			}
 			let parsedData: unknown;
 			try {
 				parsedData = JSON.parse(row.data);
@@ -332,7 +402,7 @@ function loadFromDb(dbPath: string, adapter?: SqliteAdapter): DbResult | null {
 
 			const merged =
 				typeof parsedData === 'object' && parsedData !== null
-					? { id: row.id, sessionID: row.session_id, ...parsedData }
+					? { ...parsedData, id: row.id, sessionID: row.session_id }
 					: { id: row.id, sessionID: row.session_id };
 
 			const schemaResult = v.safeParse(openCodeMessageSchema, merged);
@@ -341,6 +411,10 @@ function loadFromDb(dbPath: string, adapter?: SqliteAdapter): DbResult | null {
 			}
 
 			const message = schemaResult.output;
+			if (message.role !== 'assistant') {
+				continue;
+			}
+
 			if (message.tokens == null || (message.tokens.input === 0 && message.tokens.output === 0)) {
 				continue;
 			}
@@ -349,13 +423,13 @@ function loadFromDb(dbPath: string, adapter?: SqliteAdapter): DbResult | null {
 				continue;
 			}
 
-			dbMessageIds.add(row.id);
 			dbEntries.push(convertOpenCodeMessageToUsageEntry(message));
+			dbMessageIds.add(row.id);
 		}
 
-		const sessionRows = db.prepareAll(
+		const sessionRows = db.prepareAll<DbSessionRow>(
 			'SELECT id, project_id, parent_id, title, directory FROM session',
-		) as DbSessionRow[];
+		);
 
 		for (const row of sessionRows) {
 			const schemaResult = v.safeParse(openCodeSessionSchema, {
@@ -382,6 +456,24 @@ function loadFromDb(dbPath: string, adapter?: SqliteAdapter): DbResult | null {
 	}
 }
 
+let _cachedDbResult: { dbPath: string; result: DbResult } | null = null;
+
+function _getOpenCodeDataFromDb(dbPath: string): DbResult | null {
+	if (_cachedDbResult != null && _cachedDbResult.dbPath === dbPath) {
+		return _cachedDbResult.result;
+	}
+	_cachedDbResult = null;
+	const result = loadFromDb(dbPath);
+	if (result != null) {
+		_cachedDbResult = { dbPath, result };
+	}
+	return result;
+}
+
+function _clearOpenCodeDbCache(): void {
+	_cachedDbResult = null;
+}
+
 export async function loadOpenCodeSessions(): Promise<Map<string, LoadedSessionMetadata>> {
 	const openCodePath = getOpenCodePath();
 	if (openCodePath == null) {
@@ -390,11 +482,15 @@ export async function loadOpenCodeSessions(): Promise<Map<string, LoadedSessionM
 
 	const dbPath = getOpenCodeDbPath();
 	let sessionMap = new Map<string, LoadedSessionMetadata>();
+	const dbSessionIds = new Set<string>();
 
 	if (dbPath != null) {
-		const dbResult = loadFromDb(dbPath);
+		const dbResult = _getOpenCodeDataFromDb(dbPath);
 		if (dbResult != null) {
 			sessionMap = dbResult.dbSessionMap;
+			for (const id of dbResult.dbSessionIds) {
+				dbSessionIds.add(id);
+			}
 		}
 	}
 
@@ -411,9 +507,6 @@ export async function loadOpenCodeSessions(): Promise<Map<string, LoadedSessionM
 		cwd: sessionsDir,
 		absolute: true,
 	});
-
-	const dbSessionIds =
-		dbPath != null && sessionMap.size > 0 ? new Set(sessionMap.keys()) : new Set<string>();
 
 	for (const filePath of sessionFiles) {
 		const session = await loadOpenCodeSession(filePath);
@@ -441,7 +534,7 @@ export async function loadOpenCodeMessages(): Promise<LoadedUsageEntry[]> {
 	const seenIds = new Set<string>();
 
 	if (dbPath != null) {
-		const dbResult = loadFromDb(dbPath);
+		const dbResult = _getOpenCodeDataFromDb(dbPath);
 		if (dbResult != null) {
 			entries = dbResult.dbEntries;
 			for (const id of dbResult.dbMessageIds) {
@@ -503,14 +596,14 @@ if (import.meta.vitest != null) {
 		sessionRows: DbSessionRow[];
 	}): SqliteAdapter {
 		return {
-			prepareAll(sql: string) {
+			prepareAll<T>(sql: string): Array<T> {
 				if (sql.includes('FROM message')) {
-					return messageRows as unknown as Array<Record<string, unknown>>;
+					return messageRows as unknown as Array<T>;
 				}
 				if (sql.includes('FROM session')) {
-					return sessionRows as unknown as Array<Record<string, unknown>>;
+					return sessionRows as unknown as Array<T>;
 				}
-				return [];
+				return [] as Array<T>;
 			},
 			close() {},
 		};
