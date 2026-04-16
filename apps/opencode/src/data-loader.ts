@@ -334,8 +334,6 @@ function loadFromDb(dbPath: string, adapter?: SqliteAdapter): DbResult | null {
 		`) as DbMessageRow[];
 
 		for (const row of rows) {
-			dbMessageIds.add(row.id);
-
 			let parsedData: unknown;
 			try {
 				parsedData = JSON.parse(row.data);
@@ -363,6 +361,7 @@ function loadFromDb(dbPath: string, adapter?: SqliteAdapter): DbResult | null {
 				continue;
 			}
 
+			dbMessageIds.add(row.id);
 			dbEntries.push(convertOpenCodeMessageToUsageEntry(message));
 		}
 
@@ -371,8 +370,6 @@ function loadFromDb(dbPath: string, adapter?: SqliteAdapter): DbResult | null {
 		) as DbSessionRow[];
 
 		for (const row of sessionRows) {
-			dbSessionIds.add(row.id);
-
 			const schemaResult = v.safeParse(openCodeSessionSchema, {
 				id: row.id,
 				parentID: row.parent_id ?? null,
@@ -384,6 +381,7 @@ function loadFromDb(dbPath: string, adapter?: SqliteAdapter): DbResult | null {
 				continue;
 			}
 			const metadata = convertOpenCodeSessionToMetadata(schemaResult.output);
+			dbSessionIds.add(row.id);
 			dbSessionMap.set(metadata.id, metadata);
 		}
 
@@ -933,7 +931,7 @@ if (import.meta.vitest != null) {
 			const result = loadFromDb(':memory:', mockAdapter);
 			expect(result).not.toBeNull();
 			expect(result!.dbEntries).toHaveLength(1);
-			expect(result!.dbMessageIds).toContain('msg_bad');
+			expect(result!.dbMessageIds).not.toContain('msg_bad');
 			expect(result!.dbMessageIds).toContain('msg_good');
 		});
 
