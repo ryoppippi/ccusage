@@ -1,3 +1,25 @@
+import * as v from 'valibot';
+
+const modelNameSchema = v.pipe(
+	v.string(),
+	v.minLength(1, 'Model name cannot be empty'),
+	v.brand('ModelName'),
+);
+
+const sessionIdSchema = v.pipe(
+	v.string(),
+	v.minLength(1, 'Session ID cannot be empty'),
+	v.brand('SessionId'),
+);
+
+export type ModelName = v.InferOutput<typeof modelNameSchema>;
+export type SessionId = v.InferOutput<typeof sessionIdSchema>;
+
+export const createModelName = (value: string): ModelName => v.parse(modelNameSchema, value);
+export const createSessionId = (value: string): SessionId => v.parse(sessionIdSchema, value);
+
+export { modelNameSchema, sessionIdSchema };
+
 export type LoadedUsageEntry = {
 	timestamp: Date;
 	sessionID: string;

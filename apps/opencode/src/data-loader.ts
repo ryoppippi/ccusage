@@ -37,19 +37,8 @@ import {
 	OPENCODE_STORAGE_DIR_NAME,
 	USER_HOME_DIR,
 } from './_consts.ts';
+import { modelNameSchema, sessionIdSchema } from './_types.ts';
 import { logger } from './logger.ts';
-
-const modelNameSchema = v.pipe(
-	v.string(),
-	v.minLength(1, 'Model name cannot be empty'),
-	v.brand('ModelName'),
-);
-
-const sessionIdSchema = v.pipe(
-	v.string(),
-	v.minLength(1, 'Session ID cannot be empty'),
-	v.brand('SessionId'),
-);
 
 const openCodeTokensSchema = v.object({
 	input: v.optional(v.number()),
@@ -184,24 +173,24 @@ async function loadOpenCodeMessage(
 ): Promise<v.InferOutput<typeof openCodeMessageSchema> | null> {
 	const readResult = await Result.try({
 		try: readFile(filePath, 'utf-8'),
-		catch: (error) => new Error(String(error), { cause: error }),
+		catch: (error) => error,
 	});
 	if (Result.isFailure(readResult)) {
 		logger.debug('Failed to read OpenCode message file', {
 			filePath,
-			error: readResult.error.message,
+			error: String(readResult.error),
 		});
 		return null;
 	}
 
 	const parseResult = Result.try({
 		try: () => JSON.parse(readResult.value) as unknown,
-		catch: (error) => new Error(String(error), { cause: error }),
+		catch: (error) => error,
 	})();
 	if (Result.isFailure(parseResult)) {
 		logger.debug('Failed to parse OpenCode message JSON', {
 			filePath,
-			error: parseResult.error.message,
+			error: String(parseResult.error),
 		});
 		return null;
 	}
@@ -242,24 +231,24 @@ async function loadOpenCodeSession(
 ): Promise<v.InferOutput<typeof openCodeSessionSchema> | null> {
 	const readResult = await Result.try({
 		try: readFile(filePath, 'utf-8'),
-		catch: (error) => new Error(String(error), { cause: error }),
+		catch: (error) => error,
 	});
 	if (Result.isFailure(readResult)) {
 		logger.debug('Failed to read OpenCode session file', {
 			filePath,
-			error: readResult.error.message,
+			error: String(readResult.error),
 		});
 		return null;
 	}
 
 	const parseResult = Result.try({
 		try: () => JSON.parse(readResult.value) as unknown,
-		catch: (error) => new Error(String(error), { cause: error }),
+		catch: (error) => error,
 	})();
 	if (Result.isFailure(parseResult)) {
 		logger.debug('Failed to parse OpenCode session JSON', {
 			filePath,
-			error: parseResult.error.message,
+			error: String(parseResult.error),
 		});
 		return null;
 	}
