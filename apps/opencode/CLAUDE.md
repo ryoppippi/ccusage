@@ -2,9 +2,11 @@
 
 ## Log Sources
 
-- OpenCode session usage is recorded under `${OPENCODE_DATA_DIR:-~/.local/share/opencode}/storage/message/` (the CLI resolves `OPENCODE_DATA_DIR` and falls back to `~/.local/share/opencode`).
-- Each message is stored as an individual JSON file (not JSONL like Claude or Codex).
-- Message structure includes `tokens.input`, `tokens.output`, `tokens.cache.read`, and `tokens.cache.write`.
+- OpenCode >= 1.2.2 stores usage data in a SQLite database at `${OPENCODE_DATA_DIR:-~/.local/share/opencode}/opencode.db` (table `message` with JSON `data` column, table `session` with metadata).
+- Older OpenCode versions stored data as individual JSON files under `storage/message/`.
+- The data loader reads from the SQLite database when present and merges with any legacy JSON files. DB entries take precedence by ID when both exist.
+- For non-stable channel installs, the DB filename is `opencode-{channel}.db` (e.g., `opencode-canary.db`).
+- Message structure includes `tokens.input`, `tokens.output`, `tokens.cache.read`, `tokens.cache.write`, `modelID`, `providerID`, and `role` (only `role: 'assistant'` messages carry usage data).
 
 ## Token Fields
 
