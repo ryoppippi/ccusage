@@ -166,6 +166,15 @@ function extractModel(value: unknown): string | undefined {
 	return undefined;
 }
 
+function extractProjectPath(value: unknown): string | undefined {
+	const parsed = v.safeParse(recordSchema, value);
+	if (!parsed.success) {
+		return undefined;
+	}
+
+	return asNonEmptyString(parsed.output.cwd);
+}
+
 function asNonEmptyString(value: unknown): string | undefined {
 	if (typeof value !== 'string') {
 		return undefined;
@@ -238,6 +247,7 @@ export async function loadTokenUsageEvents(options: LoadOptions = {}): Promise<L
 			let previousTotals: RawUsage | null = null;
 			let currentModel: string | undefined;
 			let currentModelIsFallback = false;
+			let currentProjectPath: string | undefined;
 			let legacyFallbackUsed = false;
 			const lines = fileContentResult.value.split(/\r?\n/);
 			for (const line of lines) {
@@ -262,11 +272,17 @@ export async function loadTokenUsageEvents(options: LoadOptions = {}): Promise<L
 				}
 
 				const { type: entryType, payload, timestamp } = entryParse.output;
+				const payloadRecordResult = v.safeParse(recordSchema, payload ?? undefined);
+				if (payloadRecordResult.success) {
+					const projectPath = extractProjectPath(payloadRecordResult.output);
+					if (projectPath != null) {
+						currentProjectPath = projectPath;
+					}
+				}
 
 				if (entryType === 'turn_context') {
-					const contextPayload = v.safeParse(recordSchema, payload ?? null);
-					if (contextPayload.success) {
-						const contextModel = extractModel(contextPayload.output);
+					if (payloadRecordResult.success) {
+						const contextModel = extractModel(payloadRecordResult.output);
 						if (contextModel != null) {
 							currentModel = contextModel;
 							currentModelIsFallback = false;
@@ -315,7 +331,6 @@ export async function loadTokenUsageEvents(options: LoadOptions = {}): Promise<L
 					continue;
 				}
 
-				const payloadRecordResult = v.safeParse(recordSchema, payload ?? undefined);
 				const extractionSource = payloadRecordResult.success
 					? Object.assign({}, payloadRecordResult.output, { info })
 					: { info };
@@ -346,6 +361,7 @@ export async function loadTokenUsageEvents(options: LoadOptions = {}): Promise<L
 					outputTokens: delta.outputTokens,
 					reasoningOutputTokens: delta.reasoningOutputTokens,
 					totalTokens: delta.totalTokens,
+					...(currentProjectPath != null && { projectPath: currentProjectPath }),
 				};
 
 				if (isFallbackModel) {
@@ -378,9 +394,17 @@ if (import.meta.vitest != null) {
 				sessions: {
 					'project-1.jsonl': [
 						JSON.stringify({
+							timestamp: '2025-09-11T18:25:20.000Z',
+							type: 'session_meta',
+							payload: {
+								cwd: '/workspace/project-1',
+							},
+						}),
+						JSON.stringify({
 							timestamp: '2025-09-11T18:25:30.000Z',
 							type: 'turn_context',
 							payload: {
+								cwd: '/workspace/project-1',
 								model: 'gpt-5',
 							},
 						}),
@@ -445,10 +469,12 @@ if (import.meta.vitest != null) {
 			expect(events).toHaveLength(2);
 			const first = events[0]!;
 			expect(first.model).toBe('gpt-5');
+			expect(first.projectPath).toBe('/workspace/project-1');
 			expect(first.inputTokens).toBe(1_200);
 			expect(first.cachedInputTokens).toBe(200);
 			const second = events[1]!;
 			expect(second.model).toBe('gpt-5');
+			expect(second.projectPath).toBe('/workspace/project-1');
 			expect(second.inputTokens).toBe(800);
 			expect(second.cachedInputTokens).toBe(100);
 		});

@@ -69,7 +69,13 @@ export async function buildSessionReport(
 
 		const summary = summaries.get(sessionId) ?? createSummary(sessionId, event.timestamp);
 		if (!summaries.has(sessionId)) {
+			if (event.projectPath != null) {
+				summary.projectPath = event.projectPath;
+			}
 			summaries.set(sessionId, summary);
+		}
+		if (summary.projectPath == null && event.projectPath != null) {
+			summary.projectPath = event.projectPath;
 		}
 
 		addUsage(summary, event);
@@ -128,7 +134,9 @@ export async function buildSessionReport(
 		}
 
 		const separatorIndex = summary.sessionId.lastIndexOf('/');
-		const directory = separatorIndex >= 0 ? summary.sessionId.slice(0, separatorIndex) : '';
+		const directory =
+			summary.projectPath ??
+			(separatorIndex >= 0 ? summary.sessionId.slice(0, separatorIndex) : '');
 		const sessionFile =
 			separatorIndex >= 0 ? summary.sessionId.slice(separatorIndex + 1) : summary.sessionId;
 
@@ -178,6 +186,7 @@ if (import.meta.vitest != null) {
 					{
 						sessionId: 'session-a',
 						timestamp: '2025-09-12T01:00:00.000Z',
+						projectPath: '/workspace/project-a',
 						model: 'gpt-5',
 						inputTokens: 1_000,
 						cachedInputTokens: 100,
@@ -221,7 +230,7 @@ if (import.meta.vitest != null) {
 			const second = report[1]!;
 			expect(second.sessionId).toBe('session-a');
 			expect(second.sessionFile).toBe('session-a');
-			expect(second.directory).toBe('');
+			expect(second.directory).toBe('/workspace/project-a');
 			expect(second.totalTokens).toBe(2_130);
 			expect(second.models['gpt-5']?.totalTokens).toBe(1_500);
 			const expectedCost =

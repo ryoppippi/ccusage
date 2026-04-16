@@ -2,6 +2,7 @@ import process from 'node:process';
 import { cli } from 'gunshi';
 import { description, name, version } from '../../package.json';
 import { blocksCommand } from './blocks.ts';
+import { combinedCommand } from './combined.ts';
 import { dailyCommand } from './daily.ts';
 import { monthlyCommand } from './monthly.ts';
 import { sessionCommand } from './session.ts';
@@ -11,6 +12,7 @@ import { weeklyCommand } from './weekly.ts';
 // Re-export all commands for easy importing
 export {
 	blocksCommand,
+	combinedCommand,
 	dailyCommand,
 	monthlyCommand,
 	sessionCommand,
@@ -23,6 +25,7 @@ export {
  */
 export const subCommandUnion = [
 	['daily', dailyCommand],
+	['combined', combinedCommand],
 	['monthly', monthlyCommand],
 	['weekly', weeklyCommand],
 	['session', sessionCommand],

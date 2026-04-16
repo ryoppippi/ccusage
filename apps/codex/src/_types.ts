@@ -9,6 +9,7 @@ export type TokenUsageDelta = {
 export type TokenUsageEvent = TokenUsageDelta & {
 	timestamp: string;
 	sessionId: string;
+	projectPath?: string;
 	model?: string;
 	isFallbackModel?: boolean;
 };
@@ -37,6 +38,7 @@ export type SessionUsageSummary = {
 	lastTimestamp: string;
 	costUSD: number;
 	models: Map<string, ModelUsage>;
+	projectPath?: string;
 } & TokenUsageDelta;
 
 export type ModelPricing = {
