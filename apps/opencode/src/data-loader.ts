@@ -19,9 +19,8 @@ import type {
 	LoadedUsageEntry,
 	SqliteAdapter,
 } from './_types.ts';
-import { existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, writeFileSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
 import { Result } from '@praha/byethrow';
@@ -493,6 +492,8 @@ export async function loadOpenCodeMessages(): Promise<LoadedUsageEntry[]> {
 if (import.meta.vitest != null) {
 	// eslint-disable-next-line ts/no-require-imports -- test-only native module import
 	const Database = require('better-sqlite3') as BetterSqlite3;
+	// eslint-disable-next-line ts/no-require-imports -- test-only module import
+	const { createFixture } = require('fs-fixture') as typeof import('fs-fixture');
 
 	function createMockAdapter({
 		messageRows,
@@ -514,6 +515,54 @@ if (import.meta.vitest != null) {
 			close() {},
 		};
 	}
+
+	const createTestDb = (dbPath: string) => {
+		const db = new Database(dbPath);
+		db.exec(`
+			CREATE TABLE message (
+				id TEXT PRIMARY KEY,
+				session_id TEXT NOT NULL,
+				time_created INTEGER NOT NULL,
+				time_updated INTEGER NOT NULL,
+				data TEXT NOT NULL
+			)
+		`);
+		db.exec(`
+			CREATE TABLE session (
+				id TEXT PRIMARY KEY,
+				project_id TEXT NOT NULL,
+				parent_id TEXT,
+				slug TEXT NOT NULL,
+				directory TEXT NOT NULL,
+				title TEXT NOT NULL
+			)
+		`);
+		return db;
+	};
+
+	const withEnv = async <T>(
+		envVar: string,
+		value: string | undefined,
+		fn: () => Promise<T>,
+	): Promise<T> => {
+		const orig = process.env[envVar];
+		resetOpenCodePathCache();
+		if (value === undefined) {
+			delete process.env[envVar];
+		} else {
+			process.env[envVar] = value;
+		}
+		try {
+			return await fn();
+		} finally {
+			if (orig === undefined) {
+				delete process.env[envVar];
+			} else {
+				process.env[envVar] = orig;
+			}
+			resetOpenCodePathCache();
+		}
+	};
 
 	describe('convertOpenCodeMessageToUsageEntry', () => {
 		it('should convert OpenCode message to LoadedUsageEntry', () => {
@@ -573,53 +622,9 @@ if (import.meta.vitest != null) {
 	});
 
 	describe('loadOpenCodeMessages (SQLite)', () => {
-		let testDir: string;
-		let origEnv: string | undefined;
-
-		const createTestDb = (dbPath: string) => {
-			const db = new Database(dbPath);
-			db.exec(`
-				CREATE TABLE message (
-					id TEXT PRIMARY KEY,
-					session_id TEXT NOT NULL,
-					time_created INTEGER NOT NULL,
-					time_updated INTEGER NOT NULL,
-					data TEXT NOT NULL
-				)
-			`);
-			db.exec(`
-				CREATE TABLE session (
-					id TEXT PRIMARY KEY,
-					project_id TEXT NOT NULL,
-					parent_id TEXT,
-					slug TEXT NOT NULL,
-					directory TEXT NOT NULL,
-					title TEXT NOT NULL
-				)
-			`);
-			return db;
-		};
-
-		beforeEach(() => {
-			resetOpenCodePathCache();
-			testDir = path.join(tmpdir(), `opencode-test-${Date.now()}`);
-			mkdirSync(testDir, { recursive: true });
-			origEnv = process.env[OPENCODE_CONFIG_DIR_ENV];
-			process.env[OPENCODE_CONFIG_DIR_ENV] = testDir;
-		});
-
-		afterEach(() => {
-			if (origEnv === undefined) {
-				delete process.env[OPENCODE_CONFIG_DIR_ENV];
-			} else {
-				process.env[OPENCODE_CONFIG_DIR_ENV] = origEnv;
-			}
-			rmSync(testDir, { recursive: true, force: true });
-			resetOpenCodePathCache();
-		});
-
 		it('should load messages from SQLite database', async () => {
-			const db = createTestDb(path.join(testDir, 'opencode.db'));
+			await using fixture = await createFixture({});
+			const db = createTestDb(fixture.getPath('opencode.db'));
 			db.prepare('INSERT INTO message VALUES (?, ?, ?, ?, ?)').run(
 				'msg_001',
 				'ses_001',
@@ -636,7 +641,11 @@ if (import.meta.vitest != null) {
 			);
 			db.close();
 
-			const entries = await loadOpenCodeMessages();
+			const entries = await withEnv(
+				OPENCODE_CONFIG_DIR_ENV,
+				fixture.getPath(),
+				loadOpenCodeMessages,
+			);
 
 			expect(entries).toHaveLength(1);
 			expect(entries[0]?.sessionID).toBe('ses_001');
@@ -650,7 +659,8 @@ if (import.meta.vitest != null) {
 		});
 
 		it('should skip messages with no tokens', async () => {
-			const db = createTestDb(path.join(testDir, 'opencode.db'));
+			await using fixture = await createFixture({});
+			const db = createTestDb(fixture.getPath('opencode.db'));
 			const insert = db.prepare('INSERT INTO message VALUES (?, ?, ?, ?, ?)');
 			insert.run(
 				'msg_001',
@@ -687,26 +697,41 @@ if (import.meta.vitest != null) {
 			);
 			db.close();
 
-			const entries = await loadOpenCodeMessages();
+			const entries = await withEnv(
+				OPENCODE_CONFIG_DIR_ENV,
+				fixture.getPath(),
+				loadOpenCodeMessages,
+			);
 			expect(entries).toHaveLength(1);
 			expect(entries[0]?.sessionID).toBe('ses_001');
 		});
 
 		it('should return empty when database fails to open', async () => {
-			const entries = await loadOpenCodeMessages();
+			await using fixture = await createFixture({});
+			const entries = await withEnv(
+				OPENCODE_CONFIG_DIR_ENV,
+				fixture.getPath(),
+				loadOpenCodeMessages,
+			);
 			expect(entries).toHaveLength(0);
 		});
 
 		it('should return empty when database is corrupt', async () => {
-			const corruptPath = path.join(testDir, 'opencode.db');
-			writeFileSync(corruptPath, 'not a sqlite database');
+			await using fixture = await createFixture({
+				'opencode.db': 'not a sqlite database',
+			});
 
-			const entries = await loadOpenCodeMessages();
+			const entries = await withEnv(
+				OPENCODE_CONFIG_DIR_ENV,
+				fixture.getPath(),
+				loadOpenCodeMessages,
+			);
 			expect(entries).toHaveLength(0);
 		});
 
 		it('should merge DB and legacy file messages', async () => {
-			const db = createTestDb(path.join(testDir, 'opencode.db'));
+			await using fixture = await createFixture({});
+			const db = createTestDb(fixture.getPath('opencode.db'));
 			db.prepare('INSERT INTO message VALUES (?, ?, ?, ?, ?)').run(
 				'msg_db_001',
 				'ses_001',
@@ -722,7 +747,11 @@ if (import.meta.vitest != null) {
 			);
 			db.close();
 
-			const messagesDir = path.join(testDir, OPENCODE_STORAGE_DIR_NAME, OPENCODE_MESSAGES_DIR_NAME);
+			const messagesDir = path.join(
+				fixture.getPath(),
+				OPENCODE_STORAGE_DIR_NAME,
+				OPENCODE_MESSAGES_DIR_NAME,
+			);
 			mkdirSync(messagesDir, { recursive: true });
 			writeFileSync(
 				path.join(messagesDir, 'msg_file_001.json'),
@@ -736,12 +765,17 @@ if (import.meta.vitest != null) {
 				}),
 			);
 
-			const entries = await loadOpenCodeMessages();
+			const entries = await withEnv(
+				OPENCODE_CONFIG_DIR_ENV,
+				fixture.getPath(),
+				loadOpenCodeMessages,
+			);
 			expect(entries).toHaveLength(2);
 		});
 
 		it('should not duplicate messages present in both DB and legacy files', async () => {
-			const db = createTestDb(path.join(testDir, 'opencode.db'));
+			await using fixture = await createFixture({});
+			const db = createTestDb(fixture.getPath('opencode.db'));
 			db.prepare('INSERT INTO message VALUES (?, ?, ?, ?, ?)').run(
 				'msg_shared',
 				'ses_001',
@@ -757,7 +791,11 @@ if (import.meta.vitest != null) {
 			);
 			db.close();
 
-			const messagesDir = path.join(testDir, OPENCODE_STORAGE_DIR_NAME, OPENCODE_MESSAGES_DIR_NAME);
+			const messagesDir = path.join(
+				fixture.getPath(),
+				OPENCODE_STORAGE_DIR_NAME,
+				OPENCODE_MESSAGES_DIR_NAME,
+			);
 			mkdirSync(messagesDir, { recursive: true });
 			writeFileSync(
 				path.join(messagesDir, 'msg_shared.json'),
@@ -771,12 +809,17 @@ if (import.meta.vitest != null) {
 				}),
 			);
 
-			const entries = await loadOpenCodeMessages();
+			const entries = await withEnv(
+				OPENCODE_CONFIG_DIR_ENV,
+				fixture.getPath(),
+				loadOpenCodeMessages,
+			);
 			expect(entries).toHaveLength(1);
 		});
 
 		it('should load sessions from SQLite database', async () => {
-			const db = createTestDb(path.join(testDir, 'opencode.db'));
+			await using fixture = await createFixture({});
+			const db = createTestDb(fixture.getPath('opencode.db'));
 			db.prepare('INSERT INTO session VALUES (?, ?, ?, ?, ?, ?)').run(
 				'ses_001',
 				'proj_abc',
@@ -787,7 +830,11 @@ if (import.meta.vitest != null) {
 			);
 			db.close();
 
-			const sessions = await loadOpenCodeSessions();
+			const sessions = await withEnv(
+				OPENCODE_CONFIG_DIR_ENV,
+				fixture.getPath(),
+				loadOpenCodeSessions,
+			);
 
 			expect(sessions.size).toBe(1);
 			const session = sessions.get('ses_001');
@@ -798,7 +845,8 @@ if (import.meta.vitest != null) {
 		});
 
 		it('should merge DB and legacy file sessions', async () => {
-			const db = createTestDb(path.join(testDir, 'opencode.db'));
+			await using fixture = await createFixture({});
+			const db = createTestDb(fixture.getPath('opencode.db'));
 			db.prepare('INSERT INTO session VALUES (?, ?, ?, ?, ?, ?)').run(
 				'ses_db_001',
 				'proj_abc',
@@ -809,7 +857,11 @@ if (import.meta.vitest != null) {
 			);
 			db.close();
 
-			const sessionsDir = path.join(testDir, OPENCODE_STORAGE_DIR_NAME, OPENCODE_SESSIONS_DIR_NAME);
+			const sessionsDir = path.join(
+				fixture.getPath(),
+				OPENCODE_STORAGE_DIR_NAME,
+				OPENCODE_SESSIONS_DIR_NAME,
+			);
 			mkdirSync(sessionsDir, { recursive: true });
 			writeFileSync(
 				path.join(sessionsDir, 'ses_file_001.json'),
@@ -822,22 +874,33 @@ if (import.meta.vitest != null) {
 				}),
 			);
 
-			const sessions = await loadOpenCodeSessions();
+			const sessions = await withEnv(
+				OPENCODE_CONFIG_DIR_ENV,
+				fixture.getPath(),
+				loadOpenCodeSessions,
+			);
 			expect(sessions.size).toBe(2);
 			expect(sessions.get('ses_db_001')?.title).toBe('DB Session');
 			expect(sessions.get('ses_file_001')?.title).toBe('File Session');
 		});
 
 		it('should return empty when no database or legacy files exist', async () => {
-			const entries = await loadOpenCodeMessages();
-			const sessions = await loadOpenCodeSessions();
+			await using fixture = await createFixture({});
+			const [entries, sessions] = await withEnv(
+				OPENCODE_CONFIG_DIR_ENV,
+				fixture.getPath(),
+				async () => {
+					return [await loadOpenCodeMessages(), await loadOpenCodeSessions()] as const;
+				},
+			);
 
 			expect(entries).toHaveLength(0);
 			expect(sessions.size).toBe(0);
 		});
 
 		it('should load from channel-variant DB (opencode-beta.db)', async () => {
-			const db = createTestDb(path.join(testDir, 'opencode-beta.db'));
+			await using fixture = await createFixture({});
+			const db = createTestDb(fixture.getPath('opencode-beta.db'));
 			db.prepare('INSERT INTO message VALUES (?, ?, ?, ?, ?)').run(
 				'msg_001',
 				'ses_001',
@@ -853,7 +916,11 @@ if (import.meta.vitest != null) {
 			);
 			db.close();
 
-			const entries = await loadOpenCodeMessages();
+			const entries = await withEnv(
+				OPENCODE_CONFIG_DIR_ENV,
+				fixture.getPath(),
+				loadOpenCodeMessages,
+			);
 			expect(entries).toHaveLength(1);
 			expect(entries[0]?.sessionID).toBe('ses_001');
 		});
