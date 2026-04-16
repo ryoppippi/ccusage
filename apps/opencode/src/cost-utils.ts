@@ -1,5 +1,5 @@
 import type { LiteLLMPricingFetcher } from '@ccusage/internal/pricing';
-import type { LoadedUsageEntry } from './data-loader.ts';
+import type { LoadedUsageEntry } from './_types.ts';
 import { Result } from '@praha/byethrow';
 
 /**
