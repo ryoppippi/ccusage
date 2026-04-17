@@ -74,9 +74,11 @@ const openCodeSessionSchema = v.object({
 });
 
 // undefined = not yet resolved, null = resolved but not found, string = resolved path
-let cachedOpenCodePath: string | null | undefined;
+let _cachedOpenCodePath: string | null | undefined;
 
 const MAX_MESSAGE_DATA_LENGTH = 1024 * 1024; // 1MB limit per row.data JSON field
+
+const UNKNOWN_MODEL = 'unknown' as const;
 
 /**
  * Detects if running in the Bun JavaScript runtime.
@@ -149,11 +151,10 @@ function openSqliteDb(dbPath: string): SqliteAdapter | null {
 			try {
 				return createBetterSqlite3Adapter(DbModule as BetterSqlite3, dbPath);
 			} catch (error) {
-				logger.debug('better-sqlite3 failed to open DB, not falling back to bun:sqlite', {
+				logger.debug('better-sqlite3 failed to open DB, falling back to bun:sqlite', {
 					dbPath,
 					error: String(error),
 				});
-				return null;
 			}
 		}
 	} catch {
@@ -170,26 +171,26 @@ function openSqliteDb(dbPath: string): SqliteAdapter | null {
  * @returns Path to OpenCode data directory, or null if not found
  */
 export function getOpenCodePath(): string | null {
-	if (cachedOpenCodePath !== undefined) {
-		return cachedOpenCodePath;
+	if (_cachedOpenCodePath !== undefined) {
+		return _cachedOpenCodePath;
 	}
 
 	const envPath = process.env[OPENCODE_CONFIG_DIR_ENV];
 	if (envPath != null && envPath.trim() !== '') {
 		const normalizedPath = path.resolve(envPath);
 		if (isDirectorySync(normalizedPath)) {
-			cachedOpenCodePath = normalizedPath;
+			_cachedOpenCodePath = normalizedPath;
 			return normalizedPath;
 		}
 	}
 
 	const defaultPath = path.join(USER_HOME_DIR, DEFAULT_OPENCODE_PATH);
 	if (isDirectorySync(defaultPath)) {
-		cachedOpenCodePath = defaultPath;
+		_cachedOpenCodePath = defaultPath;
 		return defaultPath;
 	}
 
-	cachedOpenCodePath = null;
+	_cachedOpenCodePath = null;
 	return null;
 }
 
@@ -198,7 +199,7 @@ export function getOpenCodePath(): string | null {
  * Exported for use in tests to reset state between test cases.
  */
 export function resetOpenCodePathCache(): void {
-	cachedOpenCodePath = undefined;
+	_cachedOpenCodePath = undefined;
 	_clearOpenCodeDbCache();
 }
 
@@ -248,14 +249,14 @@ function convertOpenCodeMessageToUsageEntry(
 
 	return {
 		timestamp: new Date(createdMs),
-		sessionID: message.sessionID ?? 'unknown',
+		sessionID: message.sessionID ?? UNKNOWN_MODEL,
 		usage: {
 			inputTokens: message.tokens?.input ?? 0,
 			outputTokens: message.tokens?.output ?? 0,
 			cacheCreationInputTokens: message.tokens?.cache?.write ?? 0,
 			cacheReadInputTokens: message.tokens?.cache?.read ?? 0,
 		},
-		model: message.modelID ?? 'unknown',
+		model: message.modelID ?? UNKNOWN_MODEL,
 		costUSD: message.cost ?? null,
 	};
 }
@@ -306,8 +307,8 @@ function convertOpenCodeSessionToMetadata(
 		id: session.id,
 		parentID: session.parentID ?? null,
 		title: session.title ?? session.id,
-		projectID: session.projectID ?? 'unknown',
-		directory: session.directory ?? 'unknown',
+		projectID: session.projectID ?? UNKNOWN_MODEL,
+		directory: session.directory ?? UNKNOWN_MODEL,
 	};
 }
 
@@ -323,7 +324,26 @@ function getOpenCodeDbPath(): string | null {
 	}
 	const defaultDbPath = path.join(openCodePath, 'opencode.db');
 	if (existsSync(defaultDbPath)) {
-		return defaultDbPath;
+		let resolvedPath: string | undefined;
+		try {
+			resolvedPath = realpathSync(defaultDbPath);
+		} catch (error) {
+			logger.debug('Failed to resolve default DB symlink, skipping', {
+				defaultDbPath,
+				error: String(error),
+			});
+		}
+		if (resolvedPath !== undefined) {
+			if (!resolvedPath.startsWith(openCodePath + path.sep) && resolvedPath !== openCodePath) {
+				logger.debug('Default DB resolved to path outside OpenCode directory, skipping', {
+					defaultDbPath,
+					resolvedPath,
+					openCodePath,
+				});
+			} else {
+				return defaultDbPath;
+			}
+		}
 	}
 	let dirEntries: string[];
 	try {
@@ -342,8 +362,17 @@ function getOpenCodeDbPath(): string | null {
 	if (matchingDbs.length > 0) {
 		const channelDb = matchingDbs[0]!;
 		const fullPath = path.join(openCodePath, channelDb);
-		const resolvedPath = realpathSync(fullPath);
-		if (!resolvedPath.startsWith(openCodePath)) {
+		let resolvedPath: string;
+		try {
+			resolvedPath = realpathSync(fullPath);
+		} catch (error) {
+			logger.debug('Failed to resolve channel DB symlink, skipping', {
+				fullPath,
+				error: String(error),
+			});
+			return null;
+		}
+		if (!resolvedPath.startsWith(openCodePath + path.sep)) {
 			logger.debug('Channel DB resolved to path outside OpenCode directory, skipping', {
 				fullPath,
 				resolvedPath,
@@ -415,7 +444,12 @@ function loadFromDb(dbPath: string, adapter?: SqliteAdapter): DbResult | null {
 				continue;
 			}
 
-			if (message.tokens == null || (message.tokens.input === 0 && message.tokens.output === 0)) {
+			const hasUsage =
+				(message.tokens?.input ?? 0) > 0 ||
+				(message.tokens?.output ?? 0) > 0 ||
+				(message.tokens?.cache?.read ?? 0) > 0 ||
+				(message.tokens?.cache?.write ?? 0) > 0;
+			if (!hasUsage) {
 				continue;
 			}
 
@@ -474,6 +508,11 @@ function _clearOpenCodeDbCache(): void {
 	_cachedDbResult = null;
 }
 
+/**
+ * Loads OpenCode session metadata from SQLite database and legacy JSON files.
+ * DB entries take precedence by ID when both sources contain the same session.
+ * Returns an empty Map if no OpenCode data directory is found.
+ */
 export async function loadOpenCodeSessions(): Promise<Map<string, LoadedSessionMetadata>> {
 	const openCodePath = getOpenCodePath();
 	if (openCodePath == null) {
@@ -523,6 +562,12 @@ export async function loadOpenCodeSessions(): Promise<Map<string, LoadedSessionM
 	return sessionMap;
 }
 
+/**
+ * Loads OpenCode usage entries from SQLite database and legacy JSON files.
+ * Filters to assistant-role messages with non-zero tokens and valid modelID/providerID.
+ * DB entries take precedence by ID when both sources contain the same message.
+ * Returns an empty array if no OpenCode data directory is found.
+ */
 export async function loadOpenCodeMessages(): Promise<LoadedUsageEntry[]> {
 	const openCodePath = getOpenCodePath();
 	if (openCodePath == null) {
@@ -563,7 +608,12 @@ export async function loadOpenCodeMessages(): Promise<LoadedUsageEntry[]> {
 			continue;
 		}
 
-		if (message.tokens == null || (message.tokens.input === 0 && message.tokens.output === 0)) {
+		const hasUsage =
+			(message.tokens?.input ?? 0) > 0 ||
+			(message.tokens?.output ?? 0) > 0 ||
+			(message.tokens?.cache?.read ?? 0) > 0 ||
+			(message.tokens?.cache?.write ?? 0) > 0;
+		if (!hasUsage) {
 			continue;
 		}
 
