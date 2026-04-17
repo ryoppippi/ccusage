@@ -78,7 +78,29 @@ let _cachedOpenCodePath: string | null | undefined;
 
 const MAX_MESSAGE_DATA_LENGTH = 1024 * 1024; // 1MB limit per row.data JSON field
 
+/**
+ * Fallback value used when a message or database row has no model information.
+ * This appears in output data when modelID is missing or invalid.
+ */
 const UNKNOWN_MODEL = 'unknown' as const;
+
+/**
+ * Fallback value used when a message has no session ID.
+ * This appears in output data when sessionID is missing.
+ */
+const UNKNOWN_SESSION_ID = 'unknown' as const;
+
+/**
+ * Fallback value used when session metadata has no project ID.
+ * This appears in output data when projectID is missing.
+ */
+const UNKNOWN_PROJECT = 'unknown' as const;
+
+/**
+ * Fallback value used when session metadata has no directory information.
+ * This appears in output data when directory is missing.
+ */
+const UNKNOWN_DIRECTORY = 'unknown' as const;
 
 /**
  * Detects if running in the Bun JavaScript runtime.
@@ -249,7 +271,7 @@ function convertOpenCodeMessageToUsageEntry(
 
 	return {
 		timestamp: new Date(createdMs),
-		sessionID: message.sessionID ?? UNKNOWN_MODEL,
+		sessionID: message.sessionID ?? UNKNOWN_SESSION_ID,
 		usage: {
 			inputTokens: message.tokens?.input ?? 0,
 			outputTokens: message.tokens?.output ?? 0,
@@ -307,8 +329,8 @@ function convertOpenCodeSessionToMetadata(
 		id: session.id,
 		parentID: session.parentID ?? null,
 		title: session.title ?? session.id,
-		projectID: session.projectID ?? UNKNOWN_MODEL,
-		directory: session.directory ?? UNKNOWN_MODEL,
+		projectID: session.projectID ?? UNKNOWN_PROJECT,
+		directory: session.directory ?? UNKNOWN_DIRECTORY,
 	};
 }
 
@@ -322,6 +344,8 @@ function getOpenCodeDbPath(): string | null {
 	if (openCodePath == null) {
 		return null;
 	}
+	// Resolve the base path once to handle symlinks in the path
+	const resolvedOpenCodePath = realpathSync(openCodePath);
 	const defaultDbPath = path.join(openCodePath, 'opencode.db');
 	if (existsSync(defaultDbPath)) {
 		let resolvedPath: string | undefined;
@@ -334,7 +358,10 @@ function getOpenCodeDbPath(): string | null {
 			});
 		}
 		if (resolvedPath !== undefined) {
-			if (!resolvedPath.startsWith(openCodePath + path.sep) && resolvedPath !== openCodePath) {
+			if (
+				!resolvedPath.startsWith(resolvedOpenCodePath + path.sep) &&
+				resolvedPath !== resolvedOpenCodePath
+			) {
 				logger.debug('Default DB resolved to path outside OpenCode directory, skipping', {
 					defaultDbPath,
 					resolvedPath,
@@ -372,7 +399,7 @@ function getOpenCodeDbPath(): string | null {
 			});
 			return null;
 		}
-		if (!resolvedPath.startsWith(openCodePath + path.sep)) {
+		if (!resolvedPath.startsWith(resolvedOpenCodePath + path.sep)) {
 			logger.debug('Channel DB resolved to path outside OpenCode directory, skipping', {
 				fullPath,
 				resolvedPath,
@@ -390,6 +417,12 @@ function getOpenCodeDbPath(): string | null {
  * Filters to assistant-role messages with valid tokens and model/provider.
  * Closes the adapter before returning (caller should not close).
  * Returns null on adapter failure or query error.
+ *
+ * @param dbPath - Path to the SQLite database file
+ * @param adapter - Optional SqliteAdapter for database access; typically created by
+ *                  createBetterSqlite3Adapter() or createBunSqliteAdapter().
+ *                  If not provided, the function will attempt to open the database
+ *                  using the best available driver (better-sqlite3 or bun:sqlite).
  */
 function loadFromDb(dbPath: string, adapter?: SqliteAdapter): DbResult | null {
 	const db = adapter ?? openSqliteDb(dbPath);
@@ -490,6 +523,7 @@ function loadFromDb(dbPath: string, adapter?: SqliteAdapter): DbResult | null {
 	}
 }
 
+// null = not yet loaded, { dbPath, result } = loaded data (invalidated by resetOpenCodePathCache())
 let _cachedDbResult: { dbPath: string; result: DbResult } | null = null;
 
 function _getOpenCodeDataFromDb(dbPath: string): DbResult | null {
@@ -512,6 +546,8 @@ function _clearOpenCodeDbCache(): void {
  * Loads OpenCode session metadata from SQLite database and legacy JSON files.
  * DB entries take precedence by ID when both sources contain the same session.
  * Returns an empty Map if no OpenCode data directory is found.
+ *
+ * Results from the SQLite database are cached; call resetOpenCodePathCache() to force a fresh read.
  */
 export async function loadOpenCodeSessions(): Promise<Map<string, LoadedSessionMetadata>> {
 	const openCodePath = getOpenCodePath();
@@ -567,6 +603,8 @@ export async function loadOpenCodeSessions(): Promise<Map<string, LoadedSessionM
  * Filters to assistant-role messages with non-zero tokens and valid modelID/providerID.
  * DB entries take precedence by ID when both sources contain the same message.
  * Returns an empty array if no OpenCode data directory is found.
+ *
+ * Results from the SQLite database are cached; call resetOpenCodePathCache() to force a fresh read.
  */
 export async function loadOpenCodeMessages(): Promise<LoadedUsageEntry[]> {
 	const openCodePath = getOpenCodePath();
