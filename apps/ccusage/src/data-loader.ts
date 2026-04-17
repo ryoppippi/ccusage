@@ -496,27 +496,39 @@ function filterByProject<T>(
 }
 
 /**
- * Registers an entry for deduplication tracking, or returns the index of an existing
- * entry that should be replaced. Uses last-wins strategy so that streaming responses —
- * which emit multiple JSONL lines per (messageId, requestId) with output_tokens growing
- * with each chunk — always resolve to the final complete output_tokens value.
- *
- * Returns the index of the existing entry to replace, or -1 if this is a new entry.
+ * Result of registering a streaming entry for deduplication.
+ *   - 'new'     : no prior entry; caller should push.
+ *   - 'replace' : incoming entry is newer than the stored one; caller should overwrite at index.
+ *   - 'skip'    : stored entry is newer; caller should drop the incoming entry.
+ */
+type RegisterResult = { kind: 'new' } | { kind: 'replace'; index: number } | { kind: 'skip' };
+
+/**
+ * Registers an entry for deduplication tracking. Uses last-wins by timestamp so that
+ * streaming responses, which emit multiple JSONL lines per (messageId, requestId) with
+ * output_tokens growing per chunk, always resolve to the final complete output_tokens
+ * value. Visit order is only used as a tiebreaker when timestamps are equal; a later
+ * file visit never overwrites a strictly newer snapshot from an earlier file.
  */
 function registerOrReplace(
 	uniqueHash: string | null,
-	processedEntries: Map<string, number>,
+	timestamp: string,
+	processedEntries: Map<string, { index: number; timestamp: string }>,
 	nextIndex: number,
-): number {
+): RegisterResult {
 	if (uniqueHash == null) {
-		return -1;
+		return { kind: 'new' };
 	}
 	const existing = processedEntries.get(uniqueHash);
 	if (existing !== undefined) {
-		return existing;
+		if (timestamp >= existing.timestamp) {
+			processedEntries.set(uniqueHash, { index: existing.index, timestamp });
+			return { kind: 'replace', index: existing.index };
+		}
+		return { kind: 'skip' };
 	}
-	processedEntries.set(uniqueHash, nextIndex);
-	return -1;
+	processedEntries.set(uniqueHash, { index: nextIndex, timestamp });
+	return { kind: 'new' };
 }
 
 /**
@@ -790,8 +802,8 @@ export async function loadDailyUsageData(options?: LoadOptions): Promise<DailyUs
 	// Use PricingFetcher with using statement for automatic cleanup
 	using fetcher = mode === 'display' ? null : new PricingFetcher(options?.offline);
 
-	// Track processed message+request combinations for deduplication (hash → index in allEntries)
-	const processedEntries = new Map<string, number>();
+	// Track processed message+request combinations for deduplication (hash → { index, timestamp })
+	const processedEntries = new Map<string, { index: number; timestamp: string }>();
 
 	// Collect all valid data entries first
 	const allEntries: {
@@ -827,9 +839,17 @@ export async function loadDailyUsageData(options?: LoadOptions): Promise<DailyUs
 					fetcher != null ? await calculateCostForEntry(data, mode, fetcher) : (data.costUSD ?? 0);
 				const entry = { data, date, cost, model: getDisplayModelName(data), project };
 
-				const existingIndex = registerOrReplace(uniqueHash, processedEntries, allEntries.length);
-				if (existingIndex >= 0) {
-					allEntries[existingIndex] = entry;
+				const outcome = registerOrReplace(
+					uniqueHash,
+					data.timestamp,
+					processedEntries,
+					allEntries.length,
+				);
+				if (outcome.kind === 'replace') {
+					allEntries[outcome.index] = entry;
+					return;
+				}
+				if (outcome.kind === 'skip') {
 					return;
 				}
 				allEntries.push(entry);
@@ -947,8 +967,8 @@ export async function loadSessionData(options?: LoadOptions): Promise<SessionUsa
 	// Use PricingFetcher with using statement for automatic cleanup
 	using fetcher = mode === 'display' ? null : new PricingFetcher(options?.offline);
 
-	// Track processed message+request combinations for deduplication (hash → index in allEntries)
-	const processedEntries = new Map<string, number>();
+	// Track processed message+request combinations for deduplication (hash → { index, timestamp })
+	const processedEntries = new Map<string, { index: number; timestamp: string }>();
 
 	// Collect all valid data entries with session info first
 	const allEntries: Array<{
@@ -998,9 +1018,17 @@ export async function loadSessionData(options?: LoadOptions): Promise<SessionUsa
 					model: getDisplayModelName(data),
 				};
 
-				const existingIndex = registerOrReplace(uniqueHash, processedEntries, allEntries.length);
-				if (existingIndex >= 0) {
-					allEntries[existingIndex] = entry;
+				const outcome = registerOrReplace(
+					uniqueHash,
+					data.timestamp,
+					processedEntries,
+					allEntries.length,
+				);
+				if (outcome.kind === 'replace') {
+					allEntries[outcome.index] = entry;
+					return;
+				}
+				if (outcome.kind === 'skip') {
 					return;
 				}
 				allEntries.push(entry);
@@ -1155,8 +1183,12 @@ export async function loadSessionUsageById(
 	const mode = options?.mode ?? 'auto';
 	using fetcher = mode === 'display' ? null : new PricingFetcher(options?.offline);
 
+	// Track processed message+request combinations for deduplication (hash → { index, timestamp }).
+	// Streaming snapshots share (messageId, requestId) and must resolve to the final chunk so
+	// totalCost and entries reflect the latest output_tokens, not the partial earlier snapshots.
+	const processedEntries = new Map<string, { index: number; timestamp: string }>();
 	const entries: UsageData[] = [];
-	let totalCost = 0;
+	const costs: number[] = [];
 
 	await processJSONLFileByLine(file, async (line) => {
 		try {
@@ -1170,13 +1202,29 @@ export async function loadSessionUsageById(
 			const cost =
 				fetcher != null ? await calculateCostForEntry(data, mode, fetcher) : (data.costUSD ?? 0);
 
-			totalCost += cost;
+			const uniqueHash = createUniqueHash(data);
+			const outcome = registerOrReplace(
+				uniqueHash,
+				data.timestamp,
+				processedEntries,
+				entries.length,
+			);
+			if (outcome.kind === 'replace') {
+				entries[outcome.index] = data;
+				costs[outcome.index] = cost;
+				return;
+			}
+			if (outcome.kind === 'skip') {
+				return;
+			}
 			entries.push(data);
+			costs.push(cost);
 		} catch {
 			// Skip invalid JSON lines
 		}
 	});
 
+	const totalCost = costs.reduce((sum, c) => sum + c, 0);
 	return { totalCost, entries };
 }
 
@@ -1392,8 +1440,8 @@ export async function loadSessionBlockData(options?: LoadOptions): Promise<Sessi
 	// Use PricingFetcher with using statement for automatic cleanup
 	using fetcher = mode === 'display' ? null : new PricingFetcher(options?.offline);
 
-	// Track processed message+request combinations for deduplication (hash → index in allEntries)
-	const processedEntries = new Map<string, number>();
+	// Track processed message+request combinations for deduplication (hash → { index, timestamp })
+	const processedEntries = new Map<string, { index: number; timestamp: string }>();
 
 	// Collect all valid data entries first
 	const allEntries: LoadedUsageEntry[] = [];
@@ -1432,9 +1480,17 @@ export async function loadSessionBlockData(options?: LoadOptions): Promise<Sessi
 					usageLimitResetTime: usageLimitResetTime ?? undefined,
 				};
 
-				const existingIndex = registerOrReplace(uniqueHash, processedEntries, allEntries.length);
-				if (existingIndex >= 0) {
-					allEntries[existingIndex] = entry;
+				const outcome = registerOrReplace(
+					uniqueHash,
+					data.timestamp,
+					processedEntries,
+					allEntries.length,
+				);
+				if (outcome.kind === 'replace') {
+					allEntries[outcome.index] = entry;
+					return;
+				}
+				if (outcome.kind === 'skip') {
 					return;
 				}
 				allEntries.push(entry);
@@ -4660,7 +4716,7 @@ if (import.meta.vitest != null) {
 				// Streaming responses write multiple JSONL lines per (messageId, requestId).
 				// output_tokens grows with each chunk; only the last line has the complete count.
 				// input_tokens and cache tokens are identical across all snapshots.
-				const snapshot = (outputTokens: number) =>
+				const snapshot = (outputTokens: number): string =>
 					JSON.stringify({
 						timestamp: '2025-01-10T10:00:00Z',
 						message: {
@@ -4679,12 +4735,7 @@ if (import.meta.vitest != null) {
 				await using fixture = await createFixture({
 					projects: {
 						session1: {
-							'session.jsonl': [
-								snapshot(3),
-								snapshot(3),
-								snapshot(3),
-								snapshot(619),
-							].join('\n'),
+							'session.jsonl': [snapshot(3), snapshot(3), snapshot(3), snapshot(619)].join('\n'),
 						},
 					},
 				});
