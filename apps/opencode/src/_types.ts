@@ -46,6 +46,7 @@ export type LoadedSessionMetadata = {
 	directory: string;
 };
 
+/** Raw database row from the OpenCode message table. `data` is a JSON-encoded string that must be parsed before use; `time_created` is a Unix timestamp in milliseconds. */
 export type DbMessageRow = {
 	id: string;
 	session_id: string;
@@ -73,6 +74,10 @@ export type DbResult = {
 	dbSessionIds: Set<string>;
 };
 
+/**
+ * Adapter interface abstracting over better-sqlite3 (Node) and bun:sqlite (Bun) runtimes.
+ * Implementations must provide prepareAll for query execution and close for cleanup.
+ */
 export type SqliteAdapter = {
 	prepareAll: <T>(sql: string) => Array<T>;
 	close: () => void;
