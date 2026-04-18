@@ -1,3 +1,4 @@
+import * as fs from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import process from 'node:process';
@@ -11,6 +12,29 @@ export type CliInvocation = {
 	executable: string;
 	prefixArgs: string[];
 };
+
+function resolveBunExecutable(entryPath: string): string {
+	const currentExecutable = process.execPath;
+	if (path.basename(currentExecutable).toLowerCase() === 'bun') {
+		return currentExecutable;
+	}
+
+	let currentDir = path.dirname(entryPath);
+	for (;;) {
+		const candidate = path.join(currentDir, 'node_modules', '.bin', 'bun');
+		if (fs.existsSync(candidate)) {
+			return candidate;
+		}
+
+		const parentDir = path.dirname(currentDir);
+		if (parentDir === currentDir) {
+			break;
+		}
+		currentDir = parentDir;
+	}
+
+	return 'bun';
+}
 
 /**
  * Resolves the binary path for a package
@@ -57,7 +81,7 @@ export function createCliInvocation(entryPath: string): CliInvocation {
 	// Use bun for TypeScript files in development
 	if (entryPath.endsWith('.ts')) {
 		return {
-			executable: 'bun',
+			executable: resolveBunExecutable(entryPath),
 			prefixArgs: [entryPath],
 		};
 	}
