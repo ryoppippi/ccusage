@@ -6,7 +6,8 @@
 		"timezone": "Asia/Tokyo",
 		"locale": "ja-JP",
 		"offline": false,
-		"breakdown": false
+		"breakdown": false,
+		"customDirs": "~/.claude-work,~/.claude-personal"
 	},
 	"commands": {
 		"daily": {

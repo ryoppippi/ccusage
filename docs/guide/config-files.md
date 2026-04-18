@@ -149,10 +149,13 @@ The `defaults` section sets default values for all commands:
 		"offline": false,
 		"timezone": "UTC",
 		"locale": "en-CA",
-		"jq": ".data[]"
+		"jq": ".data[]",
+		"customDirs": "~/.claude-work,~/.claude-personal"
 	}
 }
 ```
+
+`customDirs` accepts a comma-separated string of additional Claude data directories (paths starting with `~/` are expanded). It behaves the same as the `--custom-dirs` CLI flag and composes with `CLAUDE_CONFIG_DIR`. See [Custom Paths](/guide/custom-paths#custom-dirs-cli-flag) for details.
 
 ### Command-Specific Configuration
 

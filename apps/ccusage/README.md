@@ -102,7 +102,13 @@ npx ccusage daily --instances --project myproject --json  # Combined usage
 # Compact mode for screenshots/sharing
 npx ccusage --compact  # Force compact table mode
 npx ccusage monthly --compact  # Compact monthly report
+
+# Include extra Claude data directories
+npx ccusage daily --custom-dirs ~/.claude-work
+npx ccusage daily --custom-dirs ~/.claude-work,~/.claude-personal
 ```
+
+> `--custom-dirs` takes a comma-separated list of extra directories to merge in alongside the defaults (`~/.config/claude`, `~/.claude`) and anything set via `CLAUDE_CONFIG_DIR`. Each entry must contain a `projects/` subdirectory. Paths starting with `~/` are expanded to your home directory; shell globs like `~/.claude*` are **not** expanded — pass each path explicitly.
 
 ## Features
 
@@ -114,7 +120,7 @@ npx ccusage monthly --compact  # Compact monthly report
 - 🤖 **Model Tracking**: See which Claude models you're using (Opus, Sonnet, etc.)
 - 📊 **Model Breakdown**: View per-model cost breakdown with `--breakdown` flag
 - 📅 **Date Filtering**: Filter reports by date range using `--since` and `--until`
-- 📁 **Custom Path**: Support for custom Claude data directory locations
+- 📁 **Custom Path**: Support for custom Claude data directory locations, including merging multiple directories with `--custom-dirs`
 - 🎨 **Beautiful Output**: Colorful table-formatted display with automatic responsive layout
 - 📱 **Smart Tables**: Automatic compact mode for narrow terminals (< 100 characters) with essential columns
 - 📸 **Compact Mode**: Use `--compact` flag to force compact table layout, perfect for screenshots and sharing

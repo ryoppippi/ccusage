@@ -155,6 +155,24 @@ ccusage daily --config ./my-config.json
 ccusage monthly --config /path/to/team-config.json
 ```
 
+### Custom Data Directories
+
+Add extra Claude data directories inline, alongside the defaults (`~/.config/claude`, `~/.claude`) and anything from `CLAUDE_CONFIG_DIR`:
+
+```bash
+# Single extra directory
+ccusage daily --custom-dirs ~/.claude-work
+
+# Multiple directories (comma-separated)
+ccusage daily --custom-dirs ~/.claude-work,~/.claude-personal
+
+# Works with every data command
+ccusage monthly --custom-dirs ~/.claude-archive
+ccusage blocks --active --custom-dirs ~/.claude-work
+```
+
+Paths starting with `~/` are expanded to the user's home directory. Entries without a `projects/` subdirectory are silently skipped. See [Custom Paths](/guide/custom-paths#custom-dirs-cli-flag) for details on how this composes with `CLAUDE_CONFIG_DIR`.
+
 ## Command-Specific Options
 
 ### Daily Command

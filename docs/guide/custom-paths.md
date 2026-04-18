@@ -63,6 +63,31 @@ When multiple paths are specified:
 - ✅ **Automatic filtering** - Invalid or empty directories are silently skipped
 - ✅ **Consistent reporting** - All reports show unified data across paths
 
+## `--custom-dirs` CLI Flag
+
+The `--custom-dirs` flag is a per-invocation alternative to the `CLAUDE_CONFIG_DIR` environment variable. It accepts a comma-separated list of additional directories and merges them with whatever is already being loaded.
+
+```bash
+# Use alongside defaults (no env var set)
+ccusage daily --custom-dirs ~/.claude-work
+
+# Merge several dirs in one call
+ccusage daily --custom-dirs ~/.claude-work,~/.claude-personal
+
+# Combine with CLAUDE_CONFIG_DIR — both sources are merged and deduplicated
+CLAUDE_CONFIG_DIR=/backup/claude-archive ccusage monthly --custom-dirs ~/.claude-work
+```
+
+Behavior:
+
+- Paths starting with `~/` are expanded to the user's home directory.
+- Entries without a `projects/` subdirectory are silently dropped.
+- Duplicate paths (from env var ∪ `--custom-dirs`) are deduplicated.
+- When `CLAUDE_CONFIG_DIR` points at a non-existent dir, `--custom-dirs` alone is enough to keep ccusage working (no error).
+- Shell globs like `~/.claude*` are **not** expanded — pass each directory explicitly.
+
+Use the env var for defaults that should apply to every invocation; use `--custom-dirs` for one-off analysis without modifying your shell configuration. Both work in every data command (`daily`, `monthly`, `weekly`, `session`, `blocks`, `statusline`) and can be set as a default in `ccusage.json`.
+
 ## Default Path Detection
 
 ### Standard Locations

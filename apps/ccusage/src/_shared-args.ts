@@ -105,6 +105,11 @@ export const sharedArgs = {
 		type: 'string',
 		description: 'Path to configuration file (default: auto-discovery)',
 	},
+	customDirs: {
+		type: 'string',
+		description:
+			'Additional Claude data directories to include (comma-separated paths). Each must contain a projects/ subdirectory.',
+	},
 	compact: {
 		type: 'boolean',
 		description: 'Force compact mode for narrow displays (better for screenshots)',
