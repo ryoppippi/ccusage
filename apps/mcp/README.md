@@ -60,6 +60,7 @@ claude mcp add ccusage npx -- @ccusage/mcp@latest
 This MCP server also exposes Codex tools:
 
 - `codex-daily`
+- `codex-session`
 - `codex-monthly`
 
 These tools read Codex session data from `CODEX_HOME` (default: `~/.codex`), matching `@ccusage/codex`.

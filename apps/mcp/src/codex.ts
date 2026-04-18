@@ -42,6 +42,20 @@ const codexMonthlyRowSchema = z.object({
 	models: z.record(z.string(), codexModelUsageSchema),
 });
 
+const codexSessionRowSchema = z.object({
+	sessionId: z.string(),
+	lastActivity: z.string(),
+	sessionFile: z.string(),
+	directory: z.string(),
+	inputTokens: z.number(),
+	cachedInputTokens: z.number(),
+	outputTokens: z.number(),
+	reasoningOutputTokens: z.number(),
+	totalTokens: z.number(),
+	costUSD: z.number(),
+	models: z.record(z.string(), codexModelUsageSchema),
+});
+
 // Response schemas for internal parsing only - not exported
 const codexDailyResponseSchema = z.object({
 	daily: z.array(codexDailyRowSchema),
@@ -50,6 +64,11 @@ const codexDailyResponseSchema = z.object({
 
 const codexMonthlyResponseSchema = z.object({
 	monthly: z.array(codexMonthlyRowSchema),
+	totals: codexTotalsSchema.nullable(),
+});
+
+const codexSessionResponseSchema = z.object({
+	sessions: z.array(codexSessionRowSchema),
 	totals: codexTotalsSchema.nullable(),
 });
 
@@ -76,7 +95,7 @@ function getCodexInvocation(): CliInvocation {
 }
 
 async function runCodexCliJson(
-	command: 'daily' | 'monthly',
+	command: 'daily' | 'monthly' | 'session',
 	parameters: z.infer<typeof codexParametersSchema>,
 ): Promise<string> {
 	const { executable, prefixArgs } = getCodexInvocation();
@@ -117,4 +136,9 @@ export async function getCodexDaily(parameters: z.infer<typeof codexParametersSc
 export async function getCodexMonthly(parameters: z.infer<typeof codexParametersSchema>) {
 	const raw = await runCodexCliJson('monthly', parameters);
 	return codexMonthlyResponseSchema.parse(JSON.parse(raw));
+}
+
+export async function getCodexSession(parameters: z.infer<typeof codexParametersSchema>) {
+	const raw = await runCodexCliJson('session', parameters);
+	return codexSessionResponseSchema.parse(JSON.parse(raw));
 }
