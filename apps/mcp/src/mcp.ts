@@ -32,6 +32,7 @@ import {
 	codexParametersShape,
 	getCodexDaily,
 	getCodexMonthly,
+	getCodexSession,
 } from './codex.ts';
 import { defaultOptions } from './mcp-utils.ts';
 
@@ -171,6 +172,27 @@ export function createMcpServer(options?: LoadOptions): McpServer {
 					{
 						type: 'text',
 						text: JSON.stringify(codexMonthly, null, 2),
+					},
+				],
+			};
+		},
+	);
+
+	// Register Codex session tool
+	server.registerTool(
+		'codex-session',
+		{
+			description: 'Show Codex usage grouped by conversation session',
+			inputSchema: codexParametersShape,
+		},
+		async (args) => {
+			const parameters = codexParametersSchema.parse(args);
+			const codexSession = await getCodexSession(parameters);
+			return {
+				content: [
+					{
+						type: 'text',
+						text: JSON.stringify(codexSession, null, 2),
 					},
 				],
 			};
