@@ -278,7 +278,7 @@ if (import.meta.vitest != null) {
 				await Promise.all([client.connect(clientTransport), server.connect(serverTransport)]);
 
 				const result = await client.listTools();
-				expect(result.tools).toHaveLength(6);
+				expect(result.tools).toHaveLength(7);
 
 				const toolNames = result.tools.map((tool) => tool.name);
 				expect(toolNames).toContain('daily');
@@ -287,6 +287,7 @@ if (import.meta.vitest != null) {
 				expect(toolNames).toContain('blocks');
 				expect(toolNames).toContain('codex-daily');
 				expect(toolNames).toContain('codex-monthly');
+				expect(toolNames).toContain('codex-session');
 
 				await client.close();
 				await server.close();

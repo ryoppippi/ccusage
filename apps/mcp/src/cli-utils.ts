@@ -13,6 +13,10 @@ export type CliInvocation = {
 	prefixArgs: string[];
 };
 
+export function pathExists(candidate: string): boolean {
+	return fs.existsSync(candidate);
+}
+
 function resolveBunExecutable(entryPath: string): string {
 	const currentExecutable = process.execPath;
 	if (path.basename(currentExecutable).toLowerCase() === 'bun') {
@@ -22,7 +26,7 @@ function resolveBunExecutable(entryPath: string): string {
 	let currentDir = path.dirname(entryPath);
 	for (;;) {
 		const candidate = path.join(currentDir, 'node_modules', '.bin', 'bun');
-		if (fs.existsSync(candidate)) {
+		if (pathExists(candidate)) {
 			return candidate;
 		}
 
