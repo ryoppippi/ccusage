@@ -50,9 +50,6 @@ export function createMcpServer(options?: LoadOptions): McpServer {
 	});
 
 	const { claudePath = '' } = options ?? defaultOptions();
-	if (claudePath === '') {
-		throw new Error('Claude path is required');
-	}
 
 	// Register daily tool
 	server.registerTool(
@@ -228,6 +225,11 @@ if (import.meta.vitest != null) {
 
 			it('should create MCP server with custom options', () => {
 				const server = createMcpServer({ claudePath: '/custom/path' });
+				expect(server).toBeDefined();
+			});
+
+			it('should create MCP server without Claude path', () => {
+				const server = createMcpServer({ claudePath: '' });
 				expect(server).toBeDefined();
 			});
 		});

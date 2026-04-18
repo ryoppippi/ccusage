@@ -16,7 +16,7 @@
     <img src="https://cdn.jsdelivr.net/gh/ryoppippi/ccusage@main/docs/public/mcp-claude-desktop.avif" alt="Claude Desktop MCP integration screenshot" width="640">
 </div>
 
-> MCP (Model Context Protocol) server implementation for ccusage - provides Claude Code usage data through the MCP protocol.
+> MCP (Model Context Protocol) server implementation for ccusage - provides Claude Code and Codex usage data through the MCP protocol.
 
 ## Quick Start
 
@@ -54,6 +54,17 @@ Add to your Claude Desktop MCP configuration:
 ```sh
 claude mcp add ccusage npx -- @ccusage/mcp@latest
 ```
+
+### Codex Usage Data
+
+This MCP server also exposes Codex tools:
+
+- `codex-daily`
+- `codex-monthly`
+
+These tools read Codex session data from `CODEX_HOME` (default: `~/.codex`), matching `@ccusage/codex`.
+
+If no valid Claude data directory is found, Claude-specific tools (`daily`, `session`, `monthly`, `blocks`) may return empty results, but Codex tools continue to work.
 
 ## Documentation
 

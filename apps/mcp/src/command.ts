@@ -52,13 +52,15 @@ export const mcpCommand = define({
 		}
 
 		const paths = getClaudePaths();
-		if (paths.length === 0) {
-			logger.error('No valid Claude data directory found');
-			throw new Error('No valid Claude data directory found');
+		const claudePath = paths.at(0) ?? '';
+		if (claudePath === '') {
+			logger.warn(
+				'No valid Claude data directory found; Claude usage tools may return empty results.',
+			);
 		}
 
 		const options: CommandOptions = {
-			claudePath: paths.at(0),
+			claudePath,
 			mode,
 		};
 
