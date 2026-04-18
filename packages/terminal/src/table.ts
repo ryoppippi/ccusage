@@ -351,16 +351,6 @@ export class ResponsiveTable {
 	}
 }
 
-let _humanReadable = false;
-
-/**
- * Enables or disables human-readable number formatting (K/M/B suffixes)
- * @param human - Whether to use human-readable format
- */
-export function setHumanReadableNumbers(human: boolean): void {
-	_humanReadable = human;
-}
-
 /**
  * Formats a number with human-readable suffixes (K, M, B)
  * Numbers below 1000 are displayed as-is with locale formatting
@@ -389,8 +379,8 @@ export function formatNumberHuman(num: number): string {
  * @param num - The number to format
  * @returns Formatted number string
  */
-export function formatNumber(num: number): string {
-	if (_humanReadable) {
+export function formatNumber(num: number, humanReadable = false): string {
+	if (humanReadable) {
 		return formatNumberHuman(num);
 	}
 	return num.toLocaleString('en-US');
@@ -490,6 +480,7 @@ export function pushBreakdownRows(
 	}>,
 	extraColumns = 1,
 	trailingColumns = 0,
+	humanReadable = false,
 ): void {
 	for (const breakdown of breakdowns) {
 		const row: (string | number)[] = [`  └─ ${formatModelName(breakdown.modelName)}`];
@@ -507,11 +498,11 @@ export function pushBreakdownRows(
 			breakdown.cacheReadTokens;
 
 		row.push(
-			pc.gray(formatNumber(breakdown.inputTokens)),
-			pc.gray(formatNumber(breakdown.outputTokens)),
-			pc.gray(formatNumber(breakdown.cacheCreationTokens)),
-			pc.gray(formatNumber(breakdown.cacheReadTokens)),
-			pc.gray(formatNumber(totalTokens)),
+			pc.gray(formatNumber(breakdown.inputTokens, humanReadable)),
+			pc.gray(formatNumber(breakdown.outputTokens, humanReadable)),
+			pc.gray(formatNumber(breakdown.cacheCreationTokens, humanReadable)),
+			pc.gray(formatNumber(breakdown.cacheReadTokens, humanReadable)),
+			pc.gray(formatNumber(totalTokens, humanReadable)),
 			pc.gray(formatCurrency(breakdown.cost)),
 		);
 
@@ -613,6 +604,7 @@ export function formatUsageDataRow(
 	firstColumnValue: string,
 	data: UsageData,
 	lastActivity?: string,
+	humanReadable = false,
 ): (string | number)[] {
 	const totalTokens =
 		data.inputTokens + data.outputTokens + data.cacheCreationTokens + data.cacheReadTokens;
@@ -620,11 +612,11 @@ export function formatUsageDataRow(
 	const row: (string | number)[] = [
 		firstColumnValue,
 		data.modelsUsed != null ? formatModelsDisplayMultiline(data.modelsUsed) : '',
-		formatNumber(data.inputTokens),
-		formatNumber(data.outputTokens),
-		formatNumber(data.cacheCreationTokens),
-		formatNumber(data.cacheReadTokens),
-		formatNumber(totalTokens),
+		formatNumber(data.inputTokens, humanReadable),
+		formatNumber(data.outputTokens, humanReadable),
+		formatNumber(data.cacheCreationTokens, humanReadable),
+		formatNumber(data.cacheReadTokens, humanReadable),
+		formatNumber(totalTokens, humanReadable),
 		formatCurrency(data.totalCost),
 	];
 
@@ -644,6 +636,7 @@ export function formatUsageDataRow(
 export function formatTotalsRow(
 	totals: UsageData,
 	includeLastActivity = false,
+	humanReadable = false,
 ): (string | number)[] {
 	const totalTokens =
 		totals.inputTokens + totals.outputTokens + totals.cacheCreationTokens + totals.cacheReadTokens;
@@ -651,11 +644,11 @@ export function formatTotalsRow(
 	const row: (string | number)[] = [
 		pc.yellow('Total'),
 		'', // Empty for Models column in totals
-		pc.yellow(formatNumber(totals.inputTokens)),
-		pc.yellow(formatNumber(totals.outputTokens)),
-		pc.yellow(formatNumber(totals.cacheCreationTokens)),
-		pc.yellow(formatNumber(totals.cacheReadTokens)),
-		pc.yellow(formatNumber(totalTokens)),
+		pc.yellow(formatNumber(totals.inputTokens, humanReadable)),
+		pc.yellow(formatNumber(totals.outputTokens, humanReadable)),
+		pc.yellow(formatNumber(totals.cacheCreationTokens, humanReadable)),
+		pc.yellow(formatNumber(totals.cacheReadTokens, humanReadable)),
+		pc.yellow(formatNumber(totalTokens, humanReadable)),
 		pc.yellow(formatCurrency(totals.totalCost)),
 	];
 
@@ -1053,20 +1046,19 @@ if (import.meta.vitest != null) {
 		});
 	});
 
-	describe('setHumanReadableNumbers', () => {
-		afterEach(() => {
-			setHumanReadableNumbers(false);
-		});
-
+	describe('formatNumber with humanReadable parameter', () => {
 		it('formatNumber uses human-readable format when enabled', () => {
-			setHumanReadableNumbers(true);
-			expect(formatNumber(1_500_000)).toBe('1.50M');
-			expect(formatNumber(2_500)).toBe('2.50K');
-			expect(formatNumber(500)).toBe('500');
+			expect(formatNumber(1_500_000, true)).toBe('1.50M');
+			expect(formatNumber(2_500, true)).toBe('2.50K');
+			expect(formatNumber(500, true)).toBe('500');
 		});
 
 		it('formatNumber uses default format when disabled', () => {
-			setHumanReadableNumbers(false);
+			expect(formatNumber(1_500_000, false)).toBe('1,500,000');
+			expect(formatNumber(2_500, false)).toBe('2,500');
+		});
+
+		it('formatNumber defaults to non-human-readable', () => {
 			expect(formatNumber(1_500_000)).toBe('1,500,000');
 			expect(formatNumber(2_500)).toBe('2,500');
 		});

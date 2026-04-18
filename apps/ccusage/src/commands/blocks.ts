@@ -5,7 +5,6 @@ import {
 	formatModelsDisplayMultiline,
 	formatNumber,
 	ResponsiveTable,
-	setHumanReadableNumbers,
 } from '@ccusage/terminal/table';
 import { Result } from '@praha/byethrow';
 import { define } from 'gunshi';
@@ -155,6 +154,7 @@ export const blocksCommand = define({
 
 		// --jq implies --json
 		const useJson = mergedOptions.json || mergedOptions.jq != null;
+		const humanReadable = Boolean(mergedOptions.human);
 		if (useJson) {
 			logger.level = 0;
 		}
@@ -201,7 +201,9 @@ export const blocksCommand = define({
 				}
 			}
 			if (!useJson && maxTokensFromAll > 0) {
-				logger.info(`Using max tokens from previous sessions: ${formatNumber(maxTokensFromAll)}`);
+				logger.info(
+					`Using max tokens from previous sessions: ${formatNumber(maxTokensFromAll, humanReadable)}`,
+				);
 			}
 		}
 
@@ -279,11 +281,6 @@ export const blocksCommand = define({
 				log(JSON.stringify(jsonOutput, null, 2));
 			}
 		} else {
-			// Enable human-readable numbers if requested
-			if (mergedOptions.human) {
-				setHumanReadableNumbers(true);
-			}
-
 			// Table output
 			if (ctx.values.active && blocks.length === 1) {
 				// Detailed active block view
@@ -307,19 +304,19 @@ export const blocksCommand = define({
 				log(`Time Remaining: ${pc.green(`${Math.floor(remaining / 60)}h ${remaining % 60}m`)}\n`);
 
 				log(pc.bold('Current Usage:'));
-				log(`  Input Tokens:     ${formatNumber(block.tokenCounts.inputTokens)}`);
-				log(`  Output Tokens:    ${formatNumber(block.tokenCounts.outputTokens)}`);
+				log(`  Input Tokens:     ${formatNumber(block.tokenCounts.inputTokens, humanReadable)}`);
+				log(`  Output Tokens:    ${formatNumber(block.tokenCounts.outputTokens, humanReadable)}`);
 				log(`  Total Cost:       ${formatCurrency(block.costUSD)}\n`);
 
 				if (burnRate != null) {
 					log(pc.bold('Burn Rate:'));
-					log(`  Tokens/minute:    ${formatNumber(burnRate.tokensPerMinute)}`);
+					log(`  Tokens/minute:    ${formatNumber(burnRate.tokensPerMinute, humanReadable)}`);
 					log(`  Cost/hour:        ${formatCurrency(burnRate.costPerHour)}\n`);
 				}
 
 				if (projection != null) {
 					log(pc.bold('Projected Usage (if current rate continues):'));
-					log(`  Total Tokens:     ${formatNumber(projection.totalTokens)}`);
+					log(`  Total Tokens:     ${formatNumber(projection.totalTokens, humanReadable)}`);
 					log(`  Total Cost:       ${formatCurrency(projection.totalCost)}\n`);
 
 					if (ctx.values.tokenLimit != null) {
@@ -337,11 +334,11 @@ export const blocksCommand = define({
 										: pc.green('OK');
 
 							log(pc.bold('Token Limit Status:'));
-							log(`  Limit:            ${formatNumber(limit)} tokens`);
+							log(`  Limit:            ${formatNumber(limit, humanReadable)} tokens`);
 							log(
-								`  Current Usage:    ${formatNumber(currentTokens)} (${((currentTokens / limit) * 100).toFixed(1)}%)`,
+								`  Current Usage:    ${formatNumber(currentTokens, humanReadable)} (${((currentTokens / limit) * 100).toFixed(1)}%)`,
 							);
-							log(`  Remaining:        ${formatNumber(remainingTokens)} tokens`);
+							log(`  Remaining:        ${formatNumber(remainingTokens, humanReadable)} tokens`);
 							log(`  Projected Usage:  ${percentUsed.toFixed(1)}% ${status}`);
 						}
 					}
@@ -401,7 +398,7 @@ export const blocksCommand = define({
 							formatBlockTime(block, useCompactFormat, ctx.values.locale),
 							status,
 							formatModels(block.models),
-							formatNumber(totalTokens),
+							formatNumber(totalTokens, humanReadable),
 						];
 
 						// Add percentage if token limit is set
@@ -421,7 +418,7 @@ export const blocksCommand = define({
 								const currentTokens = getTotalTokens(block.tokenCounts);
 								const remainingTokens = Math.max(0, actualTokenLimit - currentTokens);
 								const remainingText =
-									remainingTokens > 0 ? formatNumber(remainingTokens) : pc.red('0');
+									remainingTokens > 0 ? formatNumber(remainingTokens, humanReadable) : pc.red('0');
 
 								// Calculate remaining percentage (how much of limit is left)
 								const remainingPercent =
@@ -431,7 +428,9 @@ export const blocksCommand = define({
 
 								const remainingRow = [
 									{
-										content: pc.gray(`(assuming ${formatNumber(actualTokenLimit)} token limit)`),
+										content: pc.gray(
+											`(assuming ${formatNumber(actualTokenLimit, humanReadable)} token limit)`,
+										),
 										hAlign: 'right' as const,
 									},
 									pc.blue('REMAINING'),
@@ -446,7 +445,7 @@ export const blocksCommand = define({
 							// PROJECTED row
 							const projection = projectBlockUsage(block);
 							if (projection != null) {
-								const projectedTokens = formatNumber(projection.totalTokens);
+								const projectedTokens = formatNumber(projection.totalTokens, humanReadable);
 								const projectedText =
 									actualTokenLimit != null &&
 									actualTokenLimit > 0 &&

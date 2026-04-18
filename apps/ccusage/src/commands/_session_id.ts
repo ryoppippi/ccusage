@@ -25,6 +25,7 @@ export type SessionIdContext = {
 export async function handleSessionIdLookup(
 	ctx: SessionIdContext,
 	useJson: boolean,
+	humanReadable = false,
 ): Promise<void> {
 	const sessionUsage = await loadSessionUsageById(ctx.values.id, {
 		mode: ctx.values.mode,
@@ -72,7 +73,7 @@ export async function handleSessionIdLookup(
 		const totalTokens = calculateSessionTotalTokens(sessionUsage.entries);
 
 		log(`Total Cost: ${formatCurrency(sessionUsage.totalCost)}`);
-		log(`Total Tokens: ${formatNumber(totalTokens)}`);
+		log(`Total Tokens: ${formatNumber(totalTokens, humanReadable)}`);
 		log(`Total Entries: ${sessionUsage.entries.length}`);
 		log('');
 
@@ -87,10 +88,10 @@ export async function handleSessionIdLookup(
 				table.push([
 					formatDateCompact(entry.timestamp, ctx.values.timezone, ctx.values.locale),
 					entry.message.model ?? 'unknown',
-					formatNumber(entry.message.usage.input_tokens),
-					formatNumber(entry.message.usage.output_tokens),
-					formatNumber(entry.message.usage.cache_creation_input_tokens ?? 0),
-					formatNumber(entry.message.usage.cache_read_input_tokens ?? 0),
+					formatNumber(entry.message.usage.input_tokens, humanReadable),
+					formatNumber(entry.message.usage.output_tokens, humanReadable),
+					formatNumber(entry.message.usage.cache_creation_input_tokens ?? 0, humanReadable),
+					formatNumber(entry.message.usage.cache_read_input_tokens ?? 0, humanReadable),
 					formatCurrency(entry.costUSD ?? 0),
 				]);
 			}

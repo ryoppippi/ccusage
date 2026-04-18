@@ -6,7 +6,6 @@ import {
 	formatTotalsRow,
 	formatUsageDataRow,
 	pushBreakdownRows,
-	setHumanReadableNumbers,
 } from '@ccusage/terminal/table';
 import { Result } from '@praha/byethrow';
 import { define } from 'gunshi';
@@ -95,10 +94,7 @@ export const monthlyCommand = define({
 				log(JSON.stringify(jsonOutput, null, 2));
 			}
 		} else {
-			// Enable human-readable numbers if requested
-			if (mergedOptions.human) {
-				setHumanReadableNumbers(true);
-			}
+			const humanReadable = Boolean(mergedOptions.human);
 
 			// Print header
 			logger.box('Claude Code Token Usage Report - Monthly');
@@ -119,19 +115,24 @@ export const monthlyCommand = define({
 			// Add monthly data
 			for (const data of monthlyData) {
 				// Main row
-				const row = formatUsageDataRow(data.month, {
-					inputTokens: data.inputTokens,
-					outputTokens: data.outputTokens,
-					cacheCreationTokens: data.cacheCreationTokens,
-					cacheReadTokens: data.cacheReadTokens,
-					totalCost: data.totalCost,
-					modelsUsed: data.modelsUsed,
-				});
+				const row = formatUsageDataRow(
+					data.month,
+					{
+						inputTokens: data.inputTokens,
+						outputTokens: data.outputTokens,
+						cacheCreationTokens: data.cacheCreationTokens,
+						cacheReadTokens: data.cacheReadTokens,
+						totalCost: data.totalCost,
+						modelsUsed: data.modelsUsed,
+					},
+					undefined,
+					humanReadable,
+				);
 				table.push(row);
 
 				// Add model breakdown rows if flag is set
 				if (mergedOptions.breakdown) {
-					pushBreakdownRows(table, data.modelBreakdowns);
+					pushBreakdownRows(table, data.modelBreakdowns, 1, 0, humanReadable);
 				}
 			}
 
@@ -139,13 +140,17 @@ export const monthlyCommand = define({
 			addEmptySeparatorRow(table, 8);
 
 			// Add totals
-			const totalsRow = formatTotalsRow({
-				inputTokens: totals.inputTokens,
-				outputTokens: totals.outputTokens,
-				cacheCreationTokens: totals.cacheCreationTokens,
-				cacheReadTokens: totals.cacheReadTokens,
-				totalCost: totals.totalCost,
-			});
+			const totalsRow = formatTotalsRow(
+				{
+					inputTokens: totals.inputTokens,
+					outputTokens: totals.outputTokens,
+					cacheCreationTokens: totals.cacheCreationTokens,
+					cacheReadTokens: totals.cacheReadTokens,
+					totalCost: totals.totalCost,
+				},
+				false,
+				humanReadable,
+			);
 			table.push(totalsRow);
 
 			log(table.toString());
