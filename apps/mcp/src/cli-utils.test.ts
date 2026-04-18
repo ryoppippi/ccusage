@@ -1,7 +1,7 @@
-import * as fs from 'node:fs';
+import path from 'node:path';
 import process from 'node:process';
-import { afterEach, describe, expect, it, vi } from 'vitest';
-import { createCliInvocation } from './cli-utils.ts';
+import { createFixture } from 'fs-fixture';
+import * as cliUtils from './cli-utils.ts';
 
 const fixtureEntryPath = '/tmp/example/packages/mcp/src/index.ts';
 
@@ -12,23 +12,26 @@ afterEach(() => {
 describe('createCliInvocation', () => {
 	it('prefers the current bun executable when already running under bun', () => {
 		vi.spyOn(process, 'execPath', 'get').mockReturnValue('/opt/tools/bun');
-		vi.spyOn(fs, 'existsSync').mockReturnValue(false);
+		vi.spyOn(cliUtils, 'pathExists').mockReturnValue(false);
 
-		expect(createCliInvocation(fixtureEntryPath)).toEqual({
+		expect(cliUtils.createCliInvocation(fixtureEntryPath)).toEqual({
 			executable: '/opt/tools/bun',
 			prefixArgs: [fixtureEntryPath],
 		});
 	});
 
-	it('falls back to a workspace-local bun shim for TypeScript entrypoints', () => {
-		vi.spyOn(process, 'execPath', 'get').mockReturnValue('/usr/bin/node');
-		vi.spyOn(fs, 'existsSync').mockImplementation(
-			(candidate) => candidate === '/tmp/example/packages/node_modules/.bin/bun',
-		);
+	it('falls back to a workspace-local bun shim for TypeScript entrypoints', async () => {
+		await using fixture = await createFixture({
+			'packages/mcp/src/index.ts': '',
+			'packages/node_modules/.bin/bun': '',
+		});
+		const entryPath = path.join(fixture.path, 'packages', 'mcp', 'src', 'index.ts');
 
-		expect(createCliInvocation(fixtureEntryPath)).toEqual({
-			executable: '/tmp/example/packages/node_modules/.bin/bun',
-			prefixArgs: [fixtureEntryPath],
+		vi.spyOn(process, 'execPath', 'get').mockReturnValue('/usr/bin/node');
+
+		expect(cliUtils.createCliInvocation(entryPath)).toEqual({
+			executable: path.join(fixture.path, 'packages', 'node_modules', '.bin', 'bun'),
+			prefixArgs: [entryPath],
 		});
 	});
 });
