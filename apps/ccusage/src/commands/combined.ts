@@ -56,6 +56,23 @@ function formatOriginCosts(
 		.join('\n');
 }
 
+function formatOriginMetric(
+	row: Awaited<ReturnType<typeof loadCombinedDailyUsage>>[number],
+	metric:
+		| 'inputTokens'
+		| 'outputTokens'
+		| 'cacheCreationTokens'
+		| 'cacheReadTokens'
+		| 'totalTokens',
+): string {
+	return row.originsUsed
+		.map((origin) => {
+			const breakdown = row.originBreakdowns[origin];
+			return formatNumber(breakdown?.[metric] ?? 0);
+		})
+		.join('\n');
+}
+
 function calculateCombinedTotals(
 	data: Array<{
 		inputTokens: number;
@@ -276,11 +293,11 @@ export const combinedCommand = define({
 				row.date,
 				formatModelsDisplayMultiline(row.originsUsed),
 				formatOriginCosts(row),
-				formatNumber(row.inputTokens),
-				formatNumber(row.outputTokens),
-				formatNumber(row.cacheCreationTokens),
-				formatNumber(row.cacheReadTokens),
-				formatNumber(getTotalTokens(row)),
+				formatOriginMetric(row, 'inputTokens'),
+				formatOriginMetric(row, 'outputTokens'),
+				formatOriginMetric(row, 'cacheCreationTokens'),
+				formatOriginMetric(row, 'cacheReadTokens'),
+				formatOriginMetric(row, 'totalTokens'),
 				formatCurrency(row.totalCost),
 			]);
 
