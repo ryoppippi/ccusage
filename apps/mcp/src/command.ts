@@ -51,8 +51,13 @@ export const mcpCommand = define({
 			logger.level = 0;
 		}
 
-		const paths = getClaudePaths();
-		const claudePath = paths.at(0) ?? '';
+		let claudePath = '';
+		try {
+			const paths = getClaudePaths();
+			claudePath = paths.at(0) ?? '';
+		} catch {
+			claudePath = '';
+		}
 		if (claudePath === '') {
 			logger.warn(
 				'No valid Claude data directory found; Claude usage tools may return empty results.',
@@ -95,10 +100,14 @@ export async function run(argv: string[] = process.argv.slice(2)): Promise<void>
 		args = args.slice(1);
 	}
 
+	const stdioIndex = args.findIndex((arg) => arg === '--type' || arg === '-t');
+	const suppressHeader = stdioIndex >= 0 && args[stdioIndex + 1] === 'stdio';
+
 	await cli(args, mcpCommand, {
 		name,
 		version,
 		description,
+		renderHeader: suppressHeader ? null : undefined,
 		subCommands: new Map(),
 	});
 }
