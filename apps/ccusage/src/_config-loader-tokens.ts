@@ -55,7 +55,13 @@ export type ConfigData = {
  * 2. User config directories from getClaudePaths() + ccusage.json
  */
 function getConfigSearchPaths(): string[] {
-	const claudeConfigDirs = [join(process.cwd(), '.ccusage'), ...toArray(getClaudePaths())];
+	let claudePathDirs: string[] = [];
+	try {
+		claudePathDirs = toArray(getClaudePaths());
+	} catch {
+		// No Claude data dirs found — still allow local config discovery
+	}
+	const claudeConfigDirs = [join(process.cwd(), '.ccusage'), ...claudePathDirs];
 	return claudeConfigDirs.map((dir) => join(dir, CONFIG_FILE_NAME));
 }
 
