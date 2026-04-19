@@ -173,32 +173,32 @@ ccusage session --json
 
 ```json
 {
-	"sessions": [
-		{
-			"sessionId": "abc123-def",
-			"inputTokens": 4512,
-			"outputTokens": 350846,
-			"cacheCreationTokens": 512,
-			"cacheReadTokens": 1024,
-			"totalTokens": 356894,
-			"totalCost": 156.4,
-			"lastActivity": "2025-06-21",
-			"modelsUsed": ["opus-4", "sonnet-4"],
-			"modelBreakdowns": [
-				{
-					"model": "opus-4",
-					"inputTokens": 2000,
-					"outputTokens": 200000,
-					"totalCost": 95.5
-				}
-			]
-		}
-	],
-	"totals": {
-		"inputTokens": 9174,
-		"outputTokens": 720546,
-		"totalCost": 336.58
-	}
+  "sessions": [
+    {
+      "sessionId": "abc123-def",
+      "inputTokens": 4512,
+      "outputTokens": 350846,
+      "cacheCreationTokens": 512,
+      "cacheReadTokens": 1024,
+      "totalTokens": 356894,
+      "totalCost": 156.4,
+      "lastActivity": "2025-06-21",
+      "modelsUsed": ["opus-4", "sonnet-4"],
+      "modelBreakdowns": [
+        {
+          "model": "opus-4",
+          "inputTokens": 2000,
+          "outputTokens": 200000,
+          "totalCost": 95.5
+        }
+      ]
+    }
+  ],
+  "totals": {
+    "inputTokens": 9174,
+    "outputTokens": 720546,
+    "totalCost": 336.58
+  }
 }
 ```
 

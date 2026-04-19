@@ -4,7 +4,7 @@
  * @returns Formatted token string
  */
 export function formatTokens(value: number): string {
-	return new Intl.NumberFormat('en-US').format(Math.round(value));
+  return new Intl.NumberFormat("en-US").format(Math.round(value));
 }
 
 /**
@@ -14,10 +14,10 @@ export function formatTokens(value: number): string {
  * @returns Formatted currency string
  */
 export function formatCurrency(value: number, locale?: string): string {
-	return new Intl.NumberFormat(locale ?? 'en-US', {
-		style: 'currency',
-		currency: 'USD',
-		minimumFractionDigits: 4,
-		maximumFractionDigits: 4,
-	}).format(value);
+  return new Intl.NumberFormat(locale ?? "en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 4,
+    maximumFractionDigits: 4,
+  }).format(value);
 }

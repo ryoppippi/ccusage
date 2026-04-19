@@ -184,10 +184,10 @@ When calculating costs from tokens, ccusage uses:
 
 ```typescript
 type TokenCosts = {
-	input: number; // Input tokens
-	output: number; // Output tokens
-	cacheCreate: number; // Cache creation tokens
-	cacheRead: number; // Cache read tokens
+  input: number; // Input tokens
+  output: number; // Output tokens
+  cacheCreate: number; // Cache creation tokens
+  cacheRead: number; // Cache read tokens
 };
 ```
 
@@ -195,10 +195,10 @@ type TokenCosts = {
 
 ```typescript
 totalCost =
-	inputTokens * inputPrice +
-	outputTokens * outputPrice +
-	cacheCreateTokens * cacheCreatePrice +
-	cacheReadTokens * cacheReadPrice;
+  inputTokens * inputPrice +
+  outputTokens * outputPrice +
+  cacheCreateTokens * cacheCreatePrice +
+  cacheReadTokens * cacheReadPrice;
 ```
 
 ### Pre-calculated Costs
@@ -207,15 +207,15 @@ Claude Code provides `costUSD` values in JSONL files:
 
 ```json
 {
-	"timestamp": "2025-01-15T10:30:00Z",
-	"model": "claude-opus-4-20250514",
-	"usage": {
-		"input_tokens": 1245,
-		"output_tokens": 28756,
-		"cache_creation_input_tokens": 512,
-		"cache_read_input_tokens": 256
-	},
-	"costUSD": 12.45
+  "timestamp": "2025-01-15T10:30:00Z",
+  "model": "claude-opus-4-20250514",
+  "usage": {
+    "input_tokens": 1245,
+    "output_tokens": 28756,
+    "cache_creation_input_tokens": 512,
+    "cache_read_input_tokens": 256
+  },
+  "costUSD": 12.45
 }
 ```
 

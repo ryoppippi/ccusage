@@ -1,6 +1,6 @@
-import { homedir } from 'node:os';
-import path from 'node:path';
-import { xdgConfig } from 'xdg-basedir';
+import { homedir } from "node:os";
+import path from "node:path";
+import { xdgConfig } from "xdg-basedir";
 
 /**
  * Default number of recent days to include when filtering blocks
@@ -42,37 +42,37 @@ export const USER_HOME_DIR = homedir();
  * XDG config directory path
  * Uses XDG_CONFIG_HOME if set, otherwise falls back to ~/.config
  */
-const XDG_CONFIG_DIR = xdgConfig ?? path.join(USER_HOME_DIR, '.config');
+const XDG_CONFIG_DIR = xdgConfig ?? path.join(USER_HOME_DIR, ".config");
 
 /**
  * Default Claude data directory path (~/.claude)
  * Used as base path for loading usage data from JSONL files
  */
-export const DEFAULT_CLAUDE_CODE_PATH = '.claude';
+export const DEFAULT_CLAUDE_CODE_PATH = ".claude";
 
 /**
  * Default Claude data directory path using XDG config directory
  * Uses XDG_CONFIG_HOME if set, otherwise falls back to ~/.config/claude
  */
-export const DEFAULT_CLAUDE_CONFIG_PATH = path.join(XDG_CONFIG_DIR, 'claude');
+export const DEFAULT_CLAUDE_CONFIG_PATH = path.join(XDG_CONFIG_DIR, "claude");
 
 /**
  * Environment variable for specifying multiple Claude data directories
  * Supports comma-separated paths for multiple locations
  */
-export const CLAUDE_CONFIG_DIR_ENV = 'CLAUDE_CONFIG_DIR';
+export const CLAUDE_CONFIG_DIR_ENV = "CLAUDE_CONFIG_DIR";
 
 /**
  * Claude projects directory name within the data directory
  * Contains subdirectories for each project with usage data
  */
-export const CLAUDE_PROJECTS_DIR_NAME = 'projects';
+export const CLAUDE_PROJECTS_DIR_NAME = "projects";
 
 /**
  * JSONL file glob pattern for finding usage data files
  * Used to recursively find all JSONL files in project directories
  */
-export const USAGE_DATA_GLOB_PATTERN = '**/*.jsonl';
+export const USAGE_DATA_GLOB_PATTERN = "**/*.jsonl";
 
 /**
  * Default port for MCP server HTTP transport
@@ -89,22 +89,22 @@ export const DEFAULT_REFRESH_INTERVAL_SECONDS = 1;
  * Context usage percentage thresholds for color coding
  */
 export const DEFAULT_CONTEXT_USAGE_THRESHOLDS = {
-	LOW: 50, // Below 50% - green
-	MEDIUM: 80, // 50-80% - yellow
-	// Above 80% - red
+  LOW: 50, // Below 50% - green
+  MEDIUM: 80, // 50-80% - yellow
+  // Above 80% - red
 } as const;
 
 /**
  * Days of the week for weekly aggregation
  */
 export const WEEK_DAYS = [
-	'sunday',
-	'monday',
-	'tuesday',
-	'wednesday',
-	'thursday',
-	'friday',
-	'saturday',
+  "sunday",
+  "monday",
+  "tuesday",
+  "wednesday",
+  "thursday",
+  "friday",
+  "saturday",
 ] as const;
 
 /**
@@ -121,10 +121,10 @@ export type DayOfWeek = 0 | 1 | 2 | 3 | 4 | 5 | 6;
  * Default configuration file name for storing usage data
  * Used to load and save configuration settings
  */
-export const CONFIG_FILE_NAME = 'ccusage.json';
+export const CONFIG_FILE_NAME = "ccusage.json";
 
 /**
  * Default locale for date formatting (en-CA provides YYYY-MM-DD ISO format)
  * Used consistently across the application for date parsing and display
  */
-export const DEFAULT_LOCALE = 'en-CA';
+export const DEFAULT_LOCALE = "en-CA";

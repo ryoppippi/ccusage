@@ -1,3 +1,3 @@
-import { createLogger } from '@ccusage/internal/logger';
+import { createLogger } from "@ccusage/internal/logger";
 
-export const logger = createLogger('@ccusage/amp');
+export const logger = createLogger("@ccusage/amp");

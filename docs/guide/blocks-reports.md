@@ -177,23 +177,23 @@ ccusage blocks --json
 
 ```json
 {
-	"blocks": [
-		{
-			"id": "2025-06-21T09:00:00.000Z",
-			"startTime": "2025-06-21T09:00:00.000Z",
-			"endTime": "2025-06-21T14:00:00.000Z",
-			"actualEndTime": "2025-06-21T11:15:00.000Z",
-			"isActive": true,
-			"tokenCounts": {
-				"inputTokens": 4512,
-				"outputTokens": 285846,
-				"cacheCreationInputTokens": 512,
-				"cacheReadInputTokens": 1024
-			},
-			"costUSD": 156.4,
-			"models": ["opus-4", "sonnet-4"]
-		}
-	]
+  "blocks": [
+    {
+      "id": "2025-06-21T09:00:00.000Z",
+      "startTime": "2025-06-21T09:00:00.000Z",
+      "endTime": "2025-06-21T14:00:00.000Z",
+      "actualEndTime": "2025-06-21T11:15:00.000Z",
+      "isActive": true,
+      "tokenCounts": {
+        "inputTokens": 4512,
+        "outputTokens": 285846,
+        "cacheCreationInputTokens": 512,
+        "cacheReadInputTokens": 1024
+      },
+      "costUSD": 156.4,
+      "models": ["opus-4", "sonnet-4"]
+    }
+  ]
 }
 ```
 

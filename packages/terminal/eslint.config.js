@@ -1,5 +1,5 @@
-import { ryoppippi } from '@ryoppippi/eslint-config';
+import { ryoppippi } from "@ryoppippi/eslint-config";
 
 export default ryoppippi({
-	stylistic: false,
+  stylistic: false,
 });

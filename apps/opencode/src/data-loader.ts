@@ -170,14 +170,7 @@ function openSqliteDb(dbPath: string): SqliteAdapter | null {
     if (typeof DbModule !== "function") {
       logger.debug("better-sqlite3 module has unexpected shape, trying bun:sqlite fallback");
     } else {
-      try {
-        return createBetterSqlite3Adapter(DbModule as BetterSqlite3, dbPath);
-      } catch (error) {
-        logger.debug("better-sqlite3 failed to open DB, falling back to bun:sqlite", {
-          dbPath,
-          error: String(error),
-        });
-      }
+      return createBetterSqlite3Adapter(DbModule as BetterSqlite3, dbPath);
     }
   } catch {
     logger.debug("better-sqlite3 module not available, trying bun:sqlite fallback");
@@ -421,24 +414,7 @@ function getOpenCodeDbPath(): string | null {
   return null;
 }
 
-/**
- * Helper function to parse database rows into LoadedUsageEntry and LoadedSessionMetadata objects.
- * This function encapsulates the parsing logic that's used by both loadFromDb and mock adapters in tests.
- */
-/**
- * Helper function to parse database rows into LoadedUsageEntry and LoadedSessionMetadata objects.
- * This function encapsulates the parsing logic that's used by both loadFromDb and mock adapters in tests.
- */
-export function parseDbRows(
-  rows: DbMessageRow[],
-  sessionRows: DbSessionRow[],
-  MAX_MESSAGE_DATA_LENGTH: number,
-  logger: typeof import("./logger.js").logger,
-  openCodeMessageSchema: typeof import("./_types.js").openCodeMessageSchema,
-  openCodeSessionSchema: typeof import("./_types.js").openCodeSessionSchema,
-  convertOpenCodeMessageToUsageEntry: (message: v.InferOutput<typeof openCodeMessageSchema>) => LoadedUsageEntry,
-  convertOpenCodeSessionToMetadata: (session: v.InferOutput<typeof openCodeSessionSchema>) => LoadedSessionMetadata,
-): DbResult {
+function parseDbRows(rows: DbMessageRow[], sessionRows: DbSessionRow[]): DbResult {
   const dbEntries: LoadedUsageEntry[] = [];
   const dbMessageIds = new Set<string>();
   const dbSessionMap = new Map<string, LoadedSessionMetadata>();
@@ -460,22 +436,29 @@ export function parseDbRows(
       continue;
     }
 
-      const merged =
-        typeof parsedData === "object" && parsedData !== null
-          ? { 
-              id: row.id, 
-              sessionID: row.session_id,
-              ...parsedData,
-              time: {
-                ...(typeof parsedData === "object" && parsedData !== null && "time" in parsedData ? parsedData.time : {}),
-                created: row.time_created,
-              }
-            }
-          : { 
-              id: row.id, 
-              sessionID: row.session_id,
-              time: { created: row.time_created }
-            };
+    const parsedObj =
+      typeof parsedData === "object" && parsedData !== null
+        ? (parsedData as Record<string, unknown>)
+        : null;
+    const parsedTime =
+      parsedObj != null &&
+      "time" in parsedObj &&
+      typeof parsedObj.time === "object" &&
+      parsedObj.time !== null
+        ? (parsedObj.time as Record<string, unknown>)
+        : null;
+    const merged =
+      parsedObj != null
+        ? {
+            ...parsedObj,
+            id: row.id,
+            sessionID: row.session_id,
+            time: {
+              ...(parsedTime ?? {}),
+              created: row.time_created,
+            },
+          }
+        : { id: row.id, sessionID: row.session_id, time: { created: row.time_created } };
 
     const schemaResult = v.safeParse(openCodeMessageSchema, merged);
     if (!schemaResult.success) {
@@ -486,7 +469,7 @@ export function parseDbRows(
       continue;
     }
 
-    const message = schemaResult.output as v.InferOutput<typeof openCodeMessageSchema>;
+    const message = schemaResult.output;
     if (message.role !== "assistant") {
       continue;
     }
@@ -523,7 +506,7 @@ export function parseDbRows(
       });
       continue;
     }
-    const metadata = convertOpenCodeSessionToMetadata(schemaResult.output as v.InferOutput<typeof openCodeSessionSchema>);
+    const metadata = convertOpenCodeSessionToMetadata(schemaResult.output);
     dbSessionIds.add(row.id);
     dbSessionMap.set(metadata.id, metadata);
   }
@@ -565,17 +548,7 @@ function loadFromDb(dbPath: string, adapter?: SqliteAdapter): DbResult | null {
       "SELECT id, project_id, parent_id, title, directory FROM session",
     );
 
-    // Use the helper function to parse the rows
-    return parseDbRows(
-      rows,
-      sessionRows,
-      MAX_MESSAGE_DATA_LENGTH,
-      logger,
-      openCodeMessageSchema,
-      openCodeSessionSchema,
-      convertOpenCodeMessageToUsageEntry,
-      convertOpenCodeSessionToMetadata,
-    );
+    return parseDbRows(rows, sessionRows);
   } catch (error) {
     logger.debug("Failed to load from OpenCode SQLite database", { dbPath, error: String(error) });
     return null;
@@ -707,7 +680,7 @@ export async function loadOpenCodeMessages(): Promise<LoadedUsageEntry[]> {
       continue;
     }
 
-    if (message.role != null && message.role !== "assistant") {
+    if (message.role !== "assistant") {
       continue;
     }
 
@@ -952,6 +925,47 @@ if (import.meta.vitest != null) {
       expect(entries[0]?.sessionID).toBe("ses_001");
     });
 
+    it("should skip legacy JSON messages without explicit assistant role", async () => {
+      await using fixture = await createFixture({});
+      const messagesDir = path.join(
+        fixture.getPath(),
+        OPENCODE_STORAGE_DIR_NAME,
+        OPENCODE_MESSAGES_DIR_NAME,
+      );
+      mkdirSync(messagesDir, { recursive: true });
+      writeFileSync(
+        path.join(messagesDir, "msg_no_role.json"),
+        JSON.stringify({
+          id: "msg_no_role",
+          sessionID: "ses_001",
+          providerID: "anthropic",
+          modelID: "claude-sonnet-4-20250514",
+          time: { created: 1700000000000 },
+          tokens: { input: 200, output: 100 },
+        }),
+      );
+      writeFileSync(
+        path.join(messagesDir, "msg_explicit_assistant.json"),
+        JSON.stringify({
+          id: "msg_explicit_assistant",
+          sessionID: "ses_001",
+          role: "assistant",
+          providerID: "anthropic",
+          modelID: "claude-sonnet-4-20250514",
+          time: { created: 1700000000000 },
+          tokens: { input: 200, output: 100 },
+        }),
+      );
+
+      const entries = await withEnv(
+        OPENCODE_CONFIG_DIR_ENV,
+        fixture.getPath(),
+        loadOpenCodeMessages,
+      );
+      expect(entries).toHaveLength(1);
+      expect(entries[0]?.sessionID).toBe("ses_001");
+    });
+
     it("should return empty when database fails to open", async () => {
       await using fixture = await createFixture({});
       const entries = await withEnv(
@@ -1004,6 +1018,7 @@ if (import.meta.vitest != null) {
         JSON.stringify({
           id: "msg_file_001",
           sessionID: "ses_002",
+          role: "assistant",
           providerID: "anthropic",
           modelID: "claude-sonnet-4-20250514",
           time: { created: 1700000000000 },
@@ -1048,6 +1063,7 @@ if (import.meta.vitest != null) {
         JSON.stringify({
           id: "msg_shared",
           sessionID: "ses_001",
+          role: "assistant",
           providerID: "anthropic",
           modelID: "claude-sonnet-4-20250514",
           time: { created: 1700000000000 },
@@ -1316,6 +1332,108 @@ if (import.meta.vitest != null) {
       const mockAdapter: SqliteAdapter = {
         prepareAll() {
           throw new Error("database disk image is malformed");
+        },
+        close() {},
+      };
+      const result = loadFromDb(":memory:", mockAdapter);
+      expect(result).toBeNull();
+    });
+
+    it("should use DB column values over JSON data for id and sessionID", () => {
+      const mockAdapter = createMockAdapter({
+        messageRows: [
+          {
+            id: "msg_from_column",
+            session_id: "ses_from_column",
+            time_created: 1700000000000,
+            data: JSON.stringify({
+              id: "msg_from_json",
+              sessionID: "ses_from_json",
+              role: "assistant",
+              modelID: "claude-sonnet-4-20250514",
+              providerID: "anthropic",
+              tokens: { input: 50, output: 10 },
+              time: { created: 1234567890000 },
+            }),
+          },
+        ],
+        sessionRows: [],
+      });
+      const result = loadFromDb(":memory:", mockAdapter);
+      expect(result).not.toBeNull();
+      expect(result!.dbEntries).toHaveLength(1);
+      expect(result!.dbEntries[0]?.sessionID).toBe("ses_from_column");
+      expect(result!.dbMessageIds).toContain("msg_from_column");
+      expect(result!.dbMessageIds).not.toContain("msg_from_json");
+    });
+
+    it("should use DB time_created over JSON time.created", () => {
+      const mockAdapter = createMockAdapter({
+        messageRows: [
+          {
+            id: "msg_time",
+            session_id: "ses_001",
+            time_created: 1700000000000,
+            data: JSON.stringify({
+              role: "assistant",
+              modelID: "claude-sonnet-4-20250514",
+              providerID: "anthropic",
+              tokens: { input: 50, output: 10 },
+              time: { created: 9999999999999 },
+            }),
+          },
+        ],
+        sessionRows: [],
+      });
+      const result = loadFromDb(":memory:", mockAdapter);
+      expect(result).not.toBeNull();
+      expect(result!.dbEntries).toHaveLength(1);
+      expect(result!.dbEntries[0]?.timestamp).toEqual(new Date(1700000000000));
+    });
+
+    it("should treat cost of 0 as null (no pre-calculated cost)", () => {
+      const mockAdapter = createMockAdapter({
+        messageRows: [
+          {
+            id: "msg_zero_cost",
+            session_id: "ses_001",
+            time_created: 1700000000000,
+            data: JSON.stringify({
+              role: "assistant",
+              modelID: "claude-sonnet-4-20250514",
+              providerID: "anthropic",
+              tokens: { input: 100, output: 50 },
+              cost: 0,
+              time: { created: 1700000000000 },
+            }),
+          },
+          {
+            id: "msg_real_cost",
+            session_id: "ses_002",
+            time_created: 1700000001000,
+            data: JSON.stringify({
+              role: "assistant",
+              modelID: "claude-sonnet-4-20250514",
+              providerID: "anthropic",
+              tokens: { input: 100, output: 50 },
+              cost: 0.003,
+              time: { created: 1700000001000 },
+            }),
+          },
+        ],
+        sessionRows: [],
+      });
+      const result = loadFromDb(":memory:", mockAdapter);
+      expect(result).not.toBeNull();
+      expect(result!.dbEntries).toHaveLength(2);
+      expect(result!.dbEntries[0]?.costUSD).toBeNull();
+      expect(result!.dbEntries[1]?.costUSD).toBe(0.003);
+    });
+
+    it("should propagate open errors from adapter instead of swallowing them", () => {
+      const mockAdapter: SqliteAdapter = {
+        prepareAll() {
+          throw new Error("SQLITE_CANTOPEN: unable to open database file");
         },
         close() {},
       };

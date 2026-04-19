@@ -61,40 +61,40 @@ Amp thread files have the following structure:
 
 ```json
 {
-	"id": "T-{uuid}",
-	"created": 1700000000000,
-	"title": "Thread Title",
-	"messages": [
-		{
-			"role": "assistant",
-			"messageId": 1,
-			"usage": {
-				"model": "claude-haiku-4-5-20251001",
-				"inputTokens": 100,
-				"outputTokens": 50,
-				"cacheCreationInputTokens": 500,
-				"cacheReadInputTokens": 200,
-				"credits": 1.5
-			}
-		}
-	],
-	"usageLedger": {
-		"events": [
-			{
-				"id": "event-uuid",
-				"timestamp": "2025-11-23T10:00:00.000Z",
-				"model": "claude-haiku-4-5-20251001",
-				"credits": 1.5,
-				"tokens": {
-					"input": 100,
-					"output": 50
-				},
-				"operationType": "inference",
-				"fromMessageId": 0,
-				"toMessageId": 1
-			}
-		]
-	}
+  "id": "T-{uuid}",
+  "created": 1700000000000,
+  "title": "Thread Title",
+  "messages": [
+    {
+      "role": "assistant",
+      "messageId": 1,
+      "usage": {
+        "model": "claude-haiku-4-5-20251001",
+        "inputTokens": 100,
+        "outputTokens": 50,
+        "cacheCreationInputTokens": 500,
+        "cacheReadInputTokens": 200,
+        "credits": 1.5
+      }
+    }
+  ],
+  "usageLedger": {
+    "events": [
+      {
+        "id": "event-uuid",
+        "timestamp": "2025-11-23T10:00:00.000Z",
+        "model": "claude-haiku-4-5-20251001",
+        "credits": 1.5,
+        "tokens": {
+          "input": 100,
+          "output": 50
+        },
+        "operationType": "inference",
+        "fromMessageId": 0,
+        "toMessageId": 1
+      }
+    ]
+  }
 }
 ```
 

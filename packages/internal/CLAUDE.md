@@ -48,7 +48,7 @@ When adding new shared utilities:
    ```
 4. Use the utility:
    ```typescript
-   import { createLogger } from '@ccusage/internal/logger';
+   import { createLogger } from "@ccusage/internal/logger";
    ```
 
 ## Dependencies

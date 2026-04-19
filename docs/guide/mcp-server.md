@@ -95,13 +95,13 @@ Update your Claude Desktop configuration to use direct execution:
 
 ```json
 {
-	"mcpServers": {
-		"ccusage": {
-			"command": "bunx",
-			"args": ["@ccusage/mcp@latest"],
-			"env": {}
-		}
-	}
+  "mcpServers": {
+    "ccusage": {
+      "command": "bunx",
+      "args": ["@ccusage/mcp@latest"],
+      "env": {}
+    }
+  }
 }
 ```
 
@@ -109,13 +109,13 @@ Or using `npx`:
 
 ```json
 {
-	"mcpServers": {
-		"ccusage": {
-			"command": "npx",
-			"args": ["@ccusage/mcp@latest"],
-			"env": {}
-		}
-	}
+  "mcpServers": {
+    "ccusage": {
+      "command": "npx",
+      "args": ["@ccusage/mcp@latest"],
+      "env": {}
+    }
+  }
 }
 ```
 
@@ -123,15 +123,15 @@ Need custom paths or cost modes? Pass them as arguments:
 
 ```json
 {
-	"mcpServers": {
-		"ccusage": {
-			"command": "bunx",
-			"args": ["@ccusage/mcp@latest", "--mode", "calculate", "--type", "http", "--port", "8080"],
-			"env": {
-				"CLAUDE_CONFIG_DIR": "/path/to/claude/data"
-			}
-		}
-	}
+  "mcpServers": {
+    "ccusage": {
+      "command": "bunx",
+      "args": ["@ccusage/mcp@latest", "--mode", "calculate", "--type", "http", "--port", "8080"],
+      "env": {
+        "CLAUDE_CONFIG_DIR": "/path/to/claude/data"
+      }
+    }
+  }
 }
 ```
 
@@ -148,7 +148,7 @@ After updating the file, restart Claude Desktop so it picks up the new MCP serve
 Prefer to embed the MCP server directly? Import it from the library just like before:
 
 ```ts
-import { createMcpServer } from '@ccusage/mcp';
+import { createMcpServer } from "@ccusage/mcp";
 
 const server = createMcpServer();
 // ...connect it to the transport of your choice

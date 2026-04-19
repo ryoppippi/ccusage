@@ -7,9 +7,9 @@
  * @module logger
  */
 
-import { createLogger, log as internalLog } from '@ccusage/internal/logger';
+import { createLogger, log as internalLog } from "@ccusage/internal/logger";
 
-import { name } from '../package.json';
+import { name } from "../package.json";
 
 /**
  * Application logger instance with package name tag
