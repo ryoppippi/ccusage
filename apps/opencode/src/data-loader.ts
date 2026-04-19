@@ -267,7 +267,7 @@ async function loadOpenCodeMessage(
 function convertOpenCodeMessageToUsageEntry(
 	message: v.InferOutput<typeof openCodeMessageSchema>,
 ): LoadedUsageEntry {
-	const createdMs = message.time.created ?? Date.now();
+	const createdMs = message.time.created ?? Date.now(); // Falls back to current time when timestamp is missing
 
 	return {
 		timestamp: new Date(createdMs),
@@ -562,7 +562,7 @@ export async function loadOpenCodeSessions(): Promise<Map<string, LoadedSessionM
 	if (dbPath != null) {
 		const dbResult = _getOpenCodeDataFromDb(dbPath);
 		if (dbResult != null) {
-			sessionMap = dbResult.dbSessionMap;
+			sessionMap = new Map(dbResult.dbSessionMap);
 			for (const id of dbResult.dbSessionIds) {
 				dbSessionIds.add(id);
 			}
@@ -619,7 +619,7 @@ export async function loadOpenCodeMessages(): Promise<LoadedUsageEntry[]> {
 	if (dbPath != null) {
 		const dbResult = _getOpenCodeDataFromDb(dbPath);
 		if (dbResult != null) {
-			entries = dbResult.dbEntries;
+			entries = [...dbResult.dbEntries];
 			for (const id of dbResult.dbMessageIds) {
 				seenIds.add(id);
 			}
@@ -643,6 +643,10 @@ export async function loadOpenCodeMessages(): Promise<LoadedUsageEntry[]> {
 	for (const filePath of messageFiles) {
 		const message = await loadOpenCodeMessage(filePath);
 		if (message == null) {
+			continue;
+		}
+
+		if (message.role != null && message.role !== 'assistant') {
 			continue;
 		}
 
