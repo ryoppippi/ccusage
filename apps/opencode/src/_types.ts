@@ -38,6 +38,10 @@ export type LoadedUsageEntry = {
 	costUSD: number | null;
 };
 
+/**
+ * Metadata for an OpenCode session. parentID is null for root sessions (no parent).
+ * title defaults to the session id when absent; projectID and directory default to 'unknown'.
+ */
 export type LoadedSessionMetadata = {
 	id: string;
 	parentID: string | null;
@@ -54,6 +58,7 @@ export type DbMessageRow = {
 	data: string;
 };
 
+/** Raw database row from the OpenCode session table. parent_id is null for root sessions. */
 export type DbSessionRow = {
 	id: string;
 	project_id: string;
