@@ -1,64 +1,65 @@
 {
-	"name": "ccusage-monorepo",
-	"type": "module",
-	"version": "18.0.10",
-	"private": true,
-	"workspaces": [
-		"apps/*",
-		"docs"
-	],
-	"packageManager": "pnpm@10.30.1",
-	"engines": {
-		"runtime": [
-			{
-				"name": "node",
-				"version": "^24.13.0",
-				"onFail": "download"
-			},
-			{
-				"name": "bun",
-				"version": "^1.3.9",
-				"onFail": "download"
-			}
-		]
-	},
-	"scripts": {
-		"build": "pnpm run --filter '*' build",
-		"docs:dev": "pnpm run --filter docs dev",
-		"format": "pnpm --aggregate-output /^format:/",
-		"format:oxfmt": "oxfmt --write .",
-		"format:root": "pnpm run lint:root --fix",
-		"format:submodules": "pnpm --parallel -r --aggregate-output /^format/",
-		"preinstall": "npx only-allow pnpm",
-		"lint": "pnpm --no-bail --aggregate-output /^lint:/",
-		"lint:oxfmt": "oxfmt --check .",
-		"lint:root": "eslint --cache eslint.config.js .",
-		"lint:submodules": "pnpm --parallel -r --no-bail /^lint/",
-		"prepare": "pnpm run /^prepare:/",
-		"prepare:git": "git config --local core.hooksPath .githooks",
-		"prerelease": "pnpm run --filter '*' prerelease",
-		"release": "pnpm bumpp -r",
-		"postrelease": "git checkout ./**/package.json package.json",
-		"test": "TZ=UTC vitest run",
-		"typecheck": "pnpm run --filter '*' typecheck"
-	},
-	"dependencies": {},
-	"devDependencies": {
-		"@gunshi/docs": "catalog:llm-docs",
-		"@praha/byethrow-docs": "catalog:llm-docs",
-		"@ryoppippi/eslint-config": "catalog:lint",
-		"@typescript/native-preview": "catalog:types",
-		"bumpp": "catalog:release",
-		"changelogithub": "catalog:release",
-		"eslint": "catalog:lint",
-		"lint-staged": "catalog:release",
-		"oxfmt": "catalog:lint",
-		"pkg-pr-new": "catalog:release",
-		"vitest": "catalog:testing"
-	},
-	"lint-staged": {
-		"*": [
-			"pnpm run format"
-		]
-	}
+  "name": "ccusage-monorepo",
+  "type": "module",
+  "version": "18.0.11",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "docs"
+  ],
+  "packageManager": "pnpm@10.30.1",
+  "engines": {
+    "runtime": [
+      {
+        "name": "node",
+        "version": "^24.13.0",
+        "onFail": "download"
+      },
+      {
+        "name": "bun",
+        "version": "^1.3.9",
+        "onFail": "download"
+      }
+    ]
+  },
+  "scripts": {
+    "build": "pnpm run --filter '*' build",
+    "docs:dev": "pnpm run --filter docs dev",
+    "format": "pnpm --aggregate-output /^format:/",
+    "format:oxfmt": "oxfmt --write .",
+    "format:root": "pnpm run lint:root --fix",
+    "format:submodules": "pnpm --parallel -r --aggregate-output /^format/",
+    "preinstall": "npx only-allow pnpm",
+    "lint": "pnpm --no-bail --aggregate-output /^lint:/",
+    "lint:oxfmt": "oxfmt --check .",
+    "lint:root": "eslint --cache eslint.config.js .",
+    "lint:submodules": "pnpm --parallel -r --no-bail /^lint/",
+    "prepare": "pnpm run /^prepare:/",
+    "prepare:git": "git config --local core.hooksPath .githooks",
+    "prerelease": "pnpm run --filter '*' prerelease",
+    "release": "pnpm bumpp -r",
+    "postrelease": "git checkout ./**/package.json package.json",
+    "test": "TZ=UTC vitest run",
+    "typecheck": "pnpm run --filter '*' typecheck"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@gunshi/docs": "catalog:llm-docs",
+    "@praha/byethrow-docs": "catalog:llm-docs",
+    "@ryoppippi/eslint-config": "catalog:lint",
+    "@typescript/native-preview": "catalog:types",
+    "bumpp": "catalog:release",
+    "changelogithub": "catalog:release",
+    "eslint": "catalog:lint",
+    "lint-staged": "catalog:release",
+    "oxfmt": "catalog:lint",
+    "pkg-pr-new": "catalog:release",
+    "vitest": "catalog:testing"
+  },
+  "lint-staged": {
+    "*": [
+      "pnpm run format",
+      "pnpm vitest run --changed"
+    ]
+  }
 }
