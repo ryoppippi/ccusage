@@ -58,7 +58,8 @@
 	},
 	"lint-staged": {
 		"*": [
-			"pnpm run format"
+			"pnpm run format",
+			"pnpm vitest run --changed"
 		]
 	}
 }
