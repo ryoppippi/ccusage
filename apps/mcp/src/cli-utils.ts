@@ -2,6 +2,7 @@ import * as fs from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import process from 'node:process';
+import { createFixture } from 'fs-fixture';
 import spawn, { SubprocessError } from 'nano-spawn';
 
 const nodeRequire = createRequire(import.meta.url);
@@ -13,21 +14,25 @@ export type CliInvocation = {
 	prefixArgs: string[];
 };
 
-export function pathExists(candidate: string): boolean {
+const BUN_EXECUTABLE_NAMES = process.platform === 'win32' ? ['bun.exe', 'bun.cmd', 'bun'] : ['bun'];
+
+function pathExists(candidate: string): boolean {
 	return fs.existsSync(candidate);
 }
 
 function resolveBunExecutable(entryPath: string): string {
 	const currentExecutable = process.execPath;
-	if (path.basename(currentExecutable).toLowerCase() === 'bun') {
+	if (BUN_EXECUTABLE_NAMES.includes(path.basename(currentExecutable).toLowerCase())) {
 		return currentExecutable;
 	}
 
 	let currentDir = path.dirname(entryPath);
 	for (;;) {
-		const candidate = path.join(currentDir, 'node_modules', '.bin', 'bun');
-		if (pathExists(candidate)) {
-			return candidate;
+		for (const executableName of BUN_EXECUTABLE_NAMES) {
+			const candidate = path.join(currentDir, 'node_modules', '.bin', executableName);
+			if (pathExists(candidate)) {
+				return candidate;
+			}
 		}
 
 		const parentDir = path.dirname(currentDir);
@@ -126,4 +131,38 @@ export async function executeCliCommand(
 		}
 		throw error;
 	}
+}
+
+if (import.meta.vitest != null) {
+	const fixtureEntryPath = '/tmp/example/packages/mcp/src/index.ts';
+
+	afterEach(() => {
+		vi.restoreAllMocks();
+	});
+
+	describe('createCliInvocation', () => {
+		it('prefers the current bun executable when already running under bun', () => {
+			vi.spyOn(process, 'execPath', 'get').mockReturnValue('/opt/tools/bun');
+
+			expect(createCliInvocation(fixtureEntryPath)).toEqual({
+				executable: '/opt/tools/bun',
+				prefixArgs: [fixtureEntryPath],
+			});
+		});
+
+		it('falls back to a workspace-local bun shim for TypeScript entrypoints', async () => {
+			await using fixture = await createFixture({
+				'packages/mcp/src/index.ts': '',
+				'packages/node_modules/.bin/bun': '',
+			});
+			const entryPath = path.join(fixture.path, 'packages', 'mcp', 'src', 'index.ts');
+
+			vi.spyOn(process, 'execPath', 'get').mockReturnValue('/usr/bin/node');
+
+			expect(createCliInvocation(entryPath)).toEqual({
+				executable: path.join(fixture.path, 'packages', 'node_modules', '.bin', 'bun'),
+				prefixArgs: [entryPath],
+			});
+		});
+	});
 }

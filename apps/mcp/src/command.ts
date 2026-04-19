@@ -92,6 +92,28 @@ export const mcpCommand = define({
 	},
 });
 
+function shouldSuppressHeader(args: string[]): boolean {
+	const isHelpOrVersion = args.some(
+		(arg) => arg === '--help' || arg === '-h' || arg === '--version' || arg === '-v',
+	);
+	if (isHelpOrVersion) {
+		return false;
+	}
+
+	const typeIndex = args.findIndex((arg) => arg === '--type' || arg === '-t');
+	if (typeIndex >= 0) {
+		return args[typeIndex + 1] === 'stdio';
+	}
+
+	const inlineType = args.find((arg) => arg.startsWith('--type=') || arg.startsWith('-t='));
+	if (inlineType != null) {
+		const [, value = ''] = inlineType.split('=', 2);
+		return value === 'stdio';
+	}
+
+	return true;
+}
+
 export async function run(argv: string[] = process.argv.slice(2)): Promise<void> {
 	// When invoked through npx/bunx, the binary name might be passed as the first argument
 	// Filter it out if it matches the expected binary name
@@ -100,8 +122,7 @@ export async function run(argv: string[] = process.argv.slice(2)): Promise<void>
 		args = args.slice(1);
 	}
 
-	const stdioIndex = args.findIndex((arg) => arg === '--type' || arg === '-t');
-	const suppressHeader = stdioIndex >= 0 && args[stdioIndex + 1] === 'stdio';
+	const suppressHeader = shouldSuppressHeader(args);
 
 	await cli(args, mcpCommand, {
 		name,
@@ -109,5 +130,27 @@ export async function run(argv: string[] = process.argv.slice(2)): Promise<void>
 		description,
 		renderHeader: suppressHeader ? null : undefined,
 		subCommands: new Map(),
+	});
+}
+
+if (import.meta.vitest != null) {
+	describe('shouldSuppressHeader', () => {
+		it('suppresses the header when no transport type is provided', () => {
+			expect(shouldSuppressHeader([])).toBe(true);
+		});
+
+		it('suppresses the header for explicit stdio transport flags', () => {
+			expect(shouldSuppressHeader(['--type', 'stdio'])).toBe(true);
+			expect(shouldSuppressHeader(['-t', 'stdio'])).toBe(true);
+			expect(shouldSuppressHeader(['--type=stdio'])).toBe(true);
+			expect(shouldSuppressHeader(['-t=stdio'])).toBe(true);
+		});
+
+		it('does not suppress the header for non-stdio transport or help/version flags', () => {
+			expect(shouldSuppressHeader(['--type', 'http'])).toBe(false);
+			expect(shouldSuppressHeader(['--type=http'])).toBe(false);
+			expect(shouldSuppressHeader(['--help'])).toBe(false);
+			expect(shouldSuppressHeader(['-v'])).toBe(false);
+		});
 	});
 }

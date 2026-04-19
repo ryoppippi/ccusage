@@ -63,7 +63,7 @@ This MCP server also exposes Codex tools:
 - `codex-session`
 - `codex-monthly`
 
-These tools read Codex session data from `CODEX_HOME` (default: `~/.codex`), matching `@ccusage/codex`.
+These tools read Codex session data from `${CODEX_HOME:-~/.codex}/sessions/`, matching `@ccusage/codex`.
 
 If no valid Claude data directory is found, Claude-specific tools (`daily`, `session`, `monthly`, `blocks`) may return empty results, but Codex tools continue to work.
 

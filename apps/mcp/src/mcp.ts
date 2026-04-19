@@ -254,6 +254,30 @@ if (import.meta.vitest != null) {
 				const server = createMcpServer({ claudePath: '' });
 				expect(server).toBeDefined();
 			});
+
+			it('should return structured daily results when Claude path is empty', async () => {
+				const client = new Client({ name: 'test-client', version: '1.0.0' });
+				const server = createMcpServer({ claudePath: '' });
+
+				const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+				await Promise.all([client.connect(clientTransport), server.connect(serverTransport)]);
+
+				const result = await client.callTool({
+					name: 'daily',
+					arguments: { mode: 'auto' },
+				});
+
+				expect(result).toHaveProperty('content');
+				expect(Array.isArray(result.content)).toBe(true);
+				expect(result.content).toHaveLength(1);
+
+				const data = JSON.parse((result.content as any).at(0).text as string);
+				expect(data).toHaveProperty('daily');
+				expect(data).toHaveProperty('totals');
+
+				await client.close();
+				await server.close();
+			});
 		});
 
 		describe('stdio transport', () => {
