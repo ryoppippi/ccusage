@@ -1,8 +1,0 @@
-{
-	"$schema": "https://unpkg.com/oxfmt/configuration_schema.json",
-	"useTabs": true,
-	"singleQuote": true,
-	"files": {
-		"ignore": ["**/node_modules/**", "**/dist/**", "**/.git/**", "**/pnpm-lock.yaml"],
-	},
-}
