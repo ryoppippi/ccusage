@@ -47,7 +47,7 @@
 		}
 	},
 	"engines": {
-		"node": ">=20.19.4"
+		"node": ">=24.15.0"
 	},
 	"scripts": {
 		"build": "pnpm run generate:schema && tsdown",
