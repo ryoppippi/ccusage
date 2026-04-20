@@ -5,7 +5,7 @@
 	"private": true,
 	"description": "Documentation for ccusage",
 	"engines": {
-		"node": ">=20.19.4"
+		"node": ">=20.20.2"
 	},
 	"scripts": {
 		"build": "pnpm run docs:api && cp ../apps/ccusage/config-schema.json public/config-schema.json && vitepress build",
