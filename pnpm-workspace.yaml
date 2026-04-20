@@ -18,7 +18,7 @@ catalogs:
     typedoc-vitepress-theme: ^1.1.2
     vitepress: 2.0.0-alpha.17
     vitepress-plugin-group-icons: ^1.7.2
-    vitepress-plugin-llms: ^1.12.0
+    vitepress-plugin-llms: ^1.12.1
     wrangler: ^4.32.0
   lint:
     '@ryoppippi/eslint-config': ^0.4.0
