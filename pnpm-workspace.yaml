@@ -9,7 +9,7 @@ catalogs:
   build:
     '@oxc-project/runtime': ^0.82.3
     tsdown: ^0.16.6
-    unplugin-macros: ^0.18.0
+    unplugin-macros: ^0.19.1
     unplugin-unused: ^0.5.2
   docs:
     '@ryoppippi/vite-plugin-cloudflare-redirect': ^1.1.3
