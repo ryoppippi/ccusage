@@ -36,7 +36,7 @@ catalogs:
     lint-staged: ^16.1.5
     pkg-pr-new: ^0.0.60
   runtime:
-    '@antfu/utils': ^9.2.1
+    '@antfu/utils': ^9.3.0
     '@hono/mcp': ^0.1.5
     '@hono/node-server': ^1.19.7
     '@modelcontextprotocol/sdk': ^1.24.3
