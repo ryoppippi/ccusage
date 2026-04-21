@@ -175,6 +175,7 @@ export const usageDataSchema = v.object({
 			output_tokens: v.number(),
 			cache_creation_input_tokens: v.optional(v.number()),
 			cache_read_input_tokens: v.optional(v.number()),
+			speed: v.optional(v.picklist(['standard', 'fast'])),
 		}),
 		model: v.optional(modelNameSchema), // Model is inside message object
 		id: v.optional(messageIdSchema), // Message ID for deduplication
@@ -347,6 +348,14 @@ type TokenStats = {
 	cacheReadTokens: number;
 	cost: number;
 };
+
+function getDisplayModelName(data: UsageData): string | undefined {
+	const model = data.message.model;
+	if (model == null) {
+		return undefined;
+	}
+	return data.message.usage.speed === 'fast' ? `${model}-fast` : model;
+}
 
 /**
  * Aggregates token counts and costs by model name
@@ -671,6 +680,8 @@ export async function calculateCostForEntry(
 	mode: CostMode,
 	fetcher: PricingFetcher,
 ): Promise<number> {
+	const speed = data.message.usage.speed;
+
 	if (mode === 'display') {
 		// Always use costUSD, even if undefined
 		return data.costUSD ?? 0;
@@ -680,7 +691,7 @@ export async function calculateCostForEntry(
 		// Always calculate from tokens
 		if (data.message.model != null) {
 			return Result.unwrap(
-				fetcher.calculateCostFromTokens(data.message.usage, data.message.model),
+				fetcher.calculateCostFromTokens(data.message.usage, data.message.model, { speed }),
 				0,
 			);
 		}
@@ -695,7 +706,7 @@ export async function calculateCostForEntry(
 
 		if (data.message.model != null) {
 			return Result.unwrap(
-				fetcher.calculateCostFromTokens(data.message.usage, data.message.model),
+				fetcher.calculateCostFromTokens(data.message.usage, data.message.model, { speed }),
 				0,
 			);
 		}
@@ -848,7 +859,7 @@ export async function loadDailyUsageData(options?: LoadOptions): Promise<DailyUs
 					data,
 					date,
 					cost,
-					model: data.message.model,
+					model: getDisplayModelName(data),
 					project,
 					timestamp: data.timestamp,
 					uniqueHash,
@@ -1006,7 +1017,7 @@ export async function loadSessionData(options?: LoadOptions): Promise<SessionUsa
 					projectPath,
 					cost,
 					timestamp: data.timestamp,
-					model: data.message.model,
+					model: getDisplayModelName(data),
 					uniqueHash,
 				});
 			} catch {
@@ -1444,7 +1455,7 @@ export async function loadSessionBlockData(options?: LoadOptions): Promise<Sessi
 						cacheReadInputTokens: data.message.usage.cache_read_input_tokens ?? 0,
 					},
 					costUSD: cost,
-					model: data.message.model ?? 'unknown',
+					model: getDisplayModelName(data) ?? 'unknown',
 					version: data.version,
 					usageLimitResetTime: usageLimitResetTime ?? undefined,
 				});
@@ -1661,6 +1672,51 @@ if (import.meta.vitest != null) {
 			expect(formatDateCompact(testDate, 'UTC', 'en-CA')).toBe('2024\n08-04');
 			expect(formatDateCompact(testDate, 'UTC', 'ja-JP')).toBe('2024\n08-04');
 			// All locales should produce similar compact format
+		});
+	});
+
+	describe('getDisplayModelName', () => {
+		it('returns model name as-is for standard speed', () => {
+			const data: UsageData = {
+				timestamp: createISOTimestamp('2024-01-01T10:00:00Z'),
+				message: {
+					usage: { input_tokens: 100, output_tokens: 50, speed: 'standard' },
+					model: createModelName('claude-opus-4-6'),
+				},
+			};
+			expect(getDisplayModelName(data)).toBe('claude-opus-4-6');
+		});
+
+		it('appends (fast) suffix for fast speed', () => {
+			const data: UsageData = {
+				timestamp: createISOTimestamp('2024-01-01T10:00:00Z'),
+				message: {
+					usage: { input_tokens: 100, output_tokens: 50, speed: 'fast' },
+					model: createModelName('claude-opus-4-6'),
+				},
+			};
+			expect(getDisplayModelName(data)).toBe('claude-opus-4-6-fast');
+		});
+
+		it('returns model name as-is when speed is undefined', () => {
+			const data: UsageData = {
+				timestamp: createISOTimestamp('2024-01-01T10:00:00Z'),
+				message: {
+					usage: { input_tokens: 100, output_tokens: 50 },
+					model: createModelName('claude-opus-4-6'),
+				},
+			};
+			expect(getDisplayModelName(data)).toBe('claude-opus-4-6');
+		});
+
+		it('returns undefined when model is undefined', () => {
+			const data: UsageData = {
+				timestamp: createISOTimestamp('2024-01-01T10:00:00Z'),
+				message: {
+					usage: { input_tokens: 100, output_tokens: 50, speed: 'fast' },
+				},
+			};
+			expect(getDisplayModelName(data)).toBeUndefined();
 		});
 	});
 
@@ -2696,7 +2752,7 @@ invalid json line
 
 			expect(result).toHaveLength(2);
 			expect(result.find((s) => s.sessionId === 'session123')).toBeTruthy();
-			expect(result.find((s) => s.projectPath === 'project1/subfolder')).toBeTruthy();
+			expect(result.find((s) => s.projectPath === path.join('project1', 'subfolder'))).toBeTruthy();
 			expect(result.find((s) => s.sessionId === 'session456')).toBeTruthy();
 			expect(result.find((s) => s.projectPath === 'project2')).toBeTruthy();
 		});
@@ -2970,6 +3026,81 @@ invalid json line
 
 			expect(result).toHaveLength(1);
 			expect(result[0]?.lastActivity).toBe('2024-01-15');
+		});
+	});
+
+	describe('loadDailyUsageData with fast mode', () => {
+		it('should separate fast and standard entries into different model breakdowns', async () => {
+			const standardEntry = JSON.stringify({
+				timestamp: '2024-01-01T10:00:00Z',
+				message: {
+					usage: { input_tokens: 100, output_tokens: 50, speed: 'standard' },
+					model: 'claude-opus-4-6',
+				},
+				costUSD: 0.01,
+			});
+			const fastEntry = JSON.stringify({
+				timestamp: '2024-01-01T12:00:00Z',
+				message: {
+					usage: { input_tokens: 200, output_tokens: 100, speed: 'fast' },
+					model: 'claude-opus-4-6',
+				},
+				costUSD: 0.05,
+			});
+
+			await using fixture = await createFixture({
+				projects: {
+					project1: {
+						session1: {
+							'file1.jsonl': `${standardEntry}\n${fastEntry}`,
+						},
+					},
+				},
+			});
+
+			const result = await loadDailyUsageData({ claudePath: fixture.path });
+
+			expect(result).toHaveLength(1);
+			expect(result[0]?.modelBreakdowns).toHaveLength(2);
+
+			const standardBreakdown = result[0]?.modelBreakdowns.find(
+				(b) => b.modelName === 'claude-opus-4-6',
+			);
+			const fastBreakdown = result[0]?.modelBreakdowns.find(
+				(b) => b.modelName === 'claude-opus-4-6-fast',
+			);
+
+			expect(standardBreakdown).toBeDefined();
+			expect(fastBreakdown).toBeDefined();
+			expect(standardBreakdown?.inputTokens).toBe(100);
+			expect(fastBreakdown?.inputTokens).toBe(200);
+		});
+
+		it('should treat entries without speed field as standard', async () => {
+			const noSpeedEntry = JSON.stringify({
+				timestamp: '2024-01-01T10:00:00Z',
+				message: {
+					usage: { input_tokens: 100, output_tokens: 50 },
+					model: 'claude-opus-4-6',
+				},
+				costUSD: 0.01,
+			});
+
+			await using fixture = await createFixture({
+				projects: {
+					project1: {
+						session1: {
+							'file1.jsonl': noSpeedEntry,
+						},
+					},
+				},
+			});
+
+			const result = await loadDailyUsageData({ claudePath: fixture.path });
+
+			expect(result).toHaveLength(1);
+			expect(result[0]?.modelBreakdowns).toHaveLength(1);
+			expect(result[0]?.modelBreakdowns[0]?.modelName).toBe('claude-opus-4-6');
 		});
 	});
 
@@ -3789,6 +3920,62 @@ invalid json line
 				using fetcher = new PricingFetcher();
 				const result = await calculateCostForEntry(dataWithNegativeCost, 'display', fetcher);
 				expect(result).toBe(-0.01);
+			});
+		});
+
+		describe('fast mode', () => {
+			it('should apply fast multiplier in calculate mode', async () => {
+				const standardData: UsageData = {
+					timestamp: createISOTimestamp('2024-01-01T10:00:00Z'),
+					message: {
+						usage: { input_tokens: 1000, output_tokens: 500 },
+						model: createModelName('claude-opus-4-6'),
+					},
+				};
+				const fastData: UsageData = {
+					timestamp: createISOTimestamp('2024-01-01T10:00:00Z'),
+					message: {
+						usage: { input_tokens: 1000, output_tokens: 500, speed: 'fast' },
+						model: createModelName('claude-opus-4-6'),
+					},
+				};
+
+				using fetcher = new PricingFetcher();
+				const standardCost = await calculateCostForEntry(standardData, 'calculate', fetcher);
+				const fastCost = await calculateCostForEntry(fastData, 'calculate', fetcher);
+
+				expect(standardCost).toBeGreaterThan(0);
+				expect(fastCost).toBeGreaterThan(standardCost);
+				expect(fastCost).toBeCloseTo(standardCost * 6, 5);
+			});
+
+			it('should apply fast multiplier in auto mode when costUSD is absent', async () => {
+				const fastData: UsageData = {
+					timestamp: createISOTimestamp('2024-01-01T10:00:00Z'),
+					message: {
+						usage: { input_tokens: 1000, output_tokens: 500, speed: 'fast' },
+						model: createModelName('claude-opus-4-6'),
+					},
+				};
+
+				using fetcher = new PricingFetcher();
+				const fastCost = await calculateCostForEntry(fastData, 'auto', fetcher);
+				expect(fastCost).toBeGreaterThan(0);
+			});
+
+			it('should not apply fast multiplier in display mode', async () => {
+				const fastData: UsageData = {
+					timestamp: createISOTimestamp('2024-01-01T10:00:00Z'),
+					message: {
+						usage: { input_tokens: 1000, output_tokens: 500, speed: 'fast' },
+						model: createModelName('claude-opus-4-6'),
+					},
+					costUSD: 0.05,
+				};
+
+				using fetcher = new PricingFetcher();
+				const result = await calculateCostForEntry(fastData, 'display', fetcher);
+				expect(result).toBe(0.05);
 			});
 		});
 
@@ -4675,7 +4862,7 @@ if (import.meta.vitest != null) {
 
 			// Check base directories are included
 			const result1 = results.find((r) => r.file.includes('project1'));
-			expect(result1?.baseDir).toContain('path1/projects');
+			expect(result1?.baseDir).toContain(path.join('path1', 'projects'));
 		});
 
 		it('should handle errors gracefully and return empty array for failed paths', async () => {
@@ -4716,7 +4903,7 @@ if (import.meta.vitest != null) {
 			const results = await globUsageFiles(paths);
 
 			expect(results).toHaveLength(3);
-			expect(results.every((r) => r.baseDir.includes('path1/projects'))).toBe(true);
+			expect(results.every((r) => r.baseDir.includes(path.join('path1', 'projects')))).toBe(true);
 		});
 	});
 

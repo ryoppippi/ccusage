@@ -9,6 +9,7 @@
  */
 
 import { readFile } from 'node:fs/promises';
+import { homedir } from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
 import { isDirectorySync } from 'path-type';
@@ -39,7 +40,7 @@ const OPENCODE_CONFIG_DIR_ENV = 'OPENCODE_DATA_DIR';
 /**
  * User home directory
  */
-const USER_HOME_DIR = process.env.HOME ?? process.env.USERPROFILE ?? process.cwd();
+const USER_HOME_DIR = homedir();
 
 /**
  * Branded Valibot schema for model names

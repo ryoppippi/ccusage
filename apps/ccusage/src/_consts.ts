@@ -1,4 +1,5 @@
 import { homedir } from 'node:os';
+import path from 'node:path';
 import { xdgConfig } from 'xdg-basedir';
 
 /**
@@ -41,7 +42,7 @@ export const USER_HOME_DIR = homedir();
  * XDG config directory path
  * Uses XDG_CONFIG_HOME if set, otherwise falls back to ~/.config
  */
-const XDG_CONFIG_DIR = xdgConfig ?? `${USER_HOME_DIR}/.config`;
+const XDG_CONFIG_DIR = xdgConfig ?? path.join(USER_HOME_DIR, '.config');
 
 /**
  * Default Claude data directory path (~/.claude)
@@ -53,7 +54,7 @@ export const DEFAULT_CLAUDE_CODE_PATH = '.claude';
  * Default Claude data directory path using XDG config directory
  * Uses XDG_CONFIG_HOME if set, otherwise falls back to ~/.config/claude
  */
-export const DEFAULT_CLAUDE_CONFIG_PATH = `${XDG_CONFIG_DIR}/claude`;
+export const DEFAULT_CLAUDE_CONFIG_PATH = path.join(XDG_CONFIG_DIR, 'claude');
 
 /**
  * Environment variable for specifying multiple Claude data directories

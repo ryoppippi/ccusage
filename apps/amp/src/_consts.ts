@@ -1,5 +1,5 @@
+import { homedir } from 'node:os';
 import path from 'node:path';
-import process from 'node:process';
 
 /**
  * Environment variable name for custom Amp data directory
@@ -14,7 +14,7 @@ const DEFAULT_AMP_PATH = '.local/share/amp';
 /**
  * User home directory
  */
-const USER_HOME_DIR = process.env.HOME ?? process.env.USERPROFILE ?? process.cwd();
+const USER_HOME_DIR = homedir();
 
 /**
  * Default Amp data directory (absolute path)

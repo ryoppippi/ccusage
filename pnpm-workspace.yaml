@@ -12,19 +12,19 @@ catalogs:
     unplugin-macros: ^0.18.0
     unplugin-unused: ^0.5.2
   docs:
-    '@ryoppippi/vite-plugin-cloudflare-redirect': ^1.1.2
-    typedoc: ^0.28.10
-    typedoc-plugin-markdown: ^4.8.1
+    '@ryoppippi/vite-plugin-cloudflare-redirect': ^1.1.3
+    typedoc: ^0.28.18
+    typedoc-plugin-markdown: ^4.11.0
     typedoc-vitepress-theme: ^1.1.2
-    vitepress: ^1.6.4
-    vitepress-plugin-group-icons: ^1.6.3
-    vitepress-plugin-llms: ^1.7.3
+    vitepress: 2.0.0-alpha.17
+    vitepress-plugin-group-icons: ^1.7.2
+    vitepress-plugin-llms: ^1.12.0
     wrangler: ^4.32.0
   lint:
     '@ryoppippi/eslint-config': ^0.4.0
     eslint: ^9.33.0
-    eslint-plugin-format: ^1.0.2
-    oxfmt: ^0.23.0
+    eslint-plugin-format: ^2.0.1
+    oxfmt: ^0.45.0
     publint: ^0.3.12
   llm-docs:
     '@gunshi/docs': ^0.27.5
@@ -64,7 +64,7 @@ catalogs:
     zod: ^4.1.13
   testing:
     fs-fixture: ^2.8.1
-    vitest: ^4.0.15
+    vitest: ^4.1.2
   types:
     '@types/bun': ^1.3.5
     '@types/node': ^24.10.1
@@ -74,6 +74,13 @@ catalogs:
 enablePrePostScripts: true
 
 minimumReleaseAge: 2880
+minimumReleaseAgeExclude:
+  - '@ryoppippi/vite-plugin-cloudflare-redirect'
+  - vitepress
+  - vitepress-plugin-group-icons
+  - vitepress-plugin-llms
+  - typedoc
+  - typedoc-plugin-markdown
 
 # Security settings for supply chain attack prevention
 strictDepBuilds: true
