@@ -140,9 +140,9 @@ const chatMessageSchema = v.object({
 type ParsedChatMessage = v.InferOutput<typeof chatMessageSchema>;
 
 function pickNumber(...vals: Array<number | undefined>): number | undefined {
-	for (const v of vals) {
-		if (typeof v === 'number' && Number.isFinite(v)) {
-			return v;
+	for (const candidate of vals) {
+		if (typeof candidate === 'number' && Number.isFinite(candidate)) {
+			return candidate;
 		}
 	}
 	return undefined;
@@ -192,20 +192,30 @@ function extractUsage(usage: ParsedUsage | undefined): {
 }
 
 /**
- * Merge two usage extractions, preferring non-zero values from the second if
- * the first is empty. Used when a per-message `metadata.usage` is absent but
- * the RunState history has equivalent numbers in `providerOptions`.
+ * Merge two usage extractions with per-field fallback: for each token class we
+ * prefer the primary value when non-zero and fall through to the fallback
+ * otherwise. This matters when the two sources are complementary — e.g.,
+ * `metadata.usage` carries only input/output while `metadata.codebuff.usage`
+ * is the only place cache tokens are recorded (or vice versa for the
+ * RunState providerOptions fallback). An all-or-nothing merge would silently
+ * drop the cache tokens in that case.
  */
 function mergeUsageFallback(
 	primary: ReturnType<typeof extractUsage>,
 	fallback: ReturnType<typeof extractUsage>,
 ): ReturnType<typeof extractUsage> {
-	const hasPrimary =
-		primary.inputTokens > 0 ||
-		primary.outputTokens > 0 ||
-		primary.cacheReadInputTokens > 0 ||
-		primary.cacheCreationInputTokens > 0;
-	return hasPrimary ? primary : fallback;
+	return {
+		inputTokens: primary.inputTokens > 0 ? primary.inputTokens : fallback.inputTokens,
+		outputTokens: primary.outputTokens > 0 ? primary.outputTokens : fallback.outputTokens,
+		cacheReadInputTokens:
+			primary.cacheReadInputTokens > 0
+				? primary.cacheReadInputTokens
+				: fallback.cacheReadInputTokens,
+		cacheCreationInputTokens:
+			primary.cacheCreationInputTokens > 0
+				? primary.cacheCreationInputTokens
+				: fallback.cacheCreationInputTokens,
+	};
 }
 
 /**
@@ -338,6 +348,9 @@ export function getCodebuffChannelRoots(customBaseDir?: string): CodebuffChannel
 			const channel = basename !== '' ? basename : 'manicode';
 			return { roots: [{ channel, root: normalized }], invalidOverride: null };
 		}
+		logger.warn(
+			`Codebuff baseDir "${customBaseDir}" is not a directory; no channel roots will be scanned.`,
+		);
 		return {
 			roots: [],
 			invalidOverride: { source: 'baseDir', path: normalized },
