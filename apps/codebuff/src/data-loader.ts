@@ -19,6 +19,7 @@
 
 import type { ChatMetadata, TokenUsageEvent } from './_types.ts';
 import { readFile } from 'node:fs/promises';
+import os from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
 import { Result } from '@praha/byethrow';
@@ -319,6 +320,24 @@ function extractCwdFromRunState(runState: ParsedRunState | null): string | null 
 	);
 }
 
+/**
+ * Resolve a user-supplied path, expanding a leading `~` or `~/` to the current
+ * user's home directory before falling through to `path.resolve`. Node's
+ * `path.resolve` does not expand `~` on its own, so docs examples like
+ * `CODEBUFF_DATA_DIR=~/.config/manicode-dev` would otherwise resolve to
+ * `<cwd>/~/.config/manicode-dev`.
+ */
+function resolveCodebuffPath(input: string): string {
+	const trimmed = input.trim();
+	if (trimmed === '~') {
+		return os.homedir();
+	}
+	if (trimmed.startsWith('~/')) {
+		return path.join(os.homedir(), trimmed.slice(2));
+	}
+	return path.resolve(trimmed);
+}
+
 export type CodebuffChannelRoot = { channel: string; root: string };
 
 export type CodebuffChannelRootsResult = {
@@ -342,7 +361,7 @@ export type CodebuffChannelRootsResult = {
  */
 export function getCodebuffChannelRoots(customBaseDir?: string): CodebuffChannelRootsResult {
 	if (customBaseDir != null && customBaseDir.trim() !== '') {
-		const normalized = path.resolve(customBaseDir);
+		const normalized = resolveCodebuffPath(customBaseDir);
 		if (isDirectorySync(normalized)) {
 			const basename = path.basename(normalized);
 			const channel = basename !== '' ? basename : 'manicode';
@@ -359,7 +378,7 @@ export function getCodebuffChannelRoots(customBaseDir?: string): CodebuffChannel
 
 	const envPath = process.env[CODEBUFF_DATA_DIR_ENV];
 	if (envPath != null && envPath.trim() !== '') {
-		const normalized = path.resolve(envPath);
+		const normalized = resolveCodebuffPath(envPath);
 		if (isDirectorySync(normalized)) {
 			const basename = path.basename(normalized);
 			const channel = basename !== '' ? basename : 'manicode';
@@ -505,11 +524,9 @@ export async function loadCodebuffUsageEvents(options: LoadOptions = {}): Promis
 			let ingested = 0;
 
 			for (const msg of messages) {
-				const variant = msg.variant ?? msg.role;
-				if (variant !== 'ai' && variant !== 'agent' && variant !== 'assistant') {
-					continue;
-				}
-
+				// Track session bounds across *all* messages (user + assistant) so
+				// chats that start or end with a user message still report accurate
+				// firstTimestamp/lastTimestamp in their ChatMetadata.
 				const messageTs =
 					coerceTimestamp(msg.timestamp ?? msg.createdAt ?? msg.metadata?.timestamp) ?? fallbackTs;
 				if (messageTs < firstTs) {
@@ -517,6 +534,11 @@ export async function loadCodebuffUsageEvents(options: LoadOptions = {}): Promis
 				}
 				if (messageTs > lastTs) {
 					lastTs = messageTs;
+				}
+
+				const variant = msg.variant ?? msg.role;
+				if (variant !== 'ai' && variant !== 'agent' && variant !== 'assistant') {
+					continue;
 				}
 
 				const {
@@ -721,6 +743,26 @@ if (import.meta.vitest != null) {
 					source: 'env',
 					path: path.resolve('/nonexistent/codebuff-env-override'),
 				});
+			} finally {
+				if (previous == null) {
+					delete process.env[CODEBUFF_DATA_DIR_ENV];
+				} else {
+					process.env[CODEBUFF_DATA_DIR_ENV] = previous;
+				}
+			}
+		});
+
+		it('expands a leading ~ in CODEBUFF_DATA_DIR before resolving', async () => {
+			const previous = process.env[CODEBUFF_DATA_DIR_ENV];
+			process.env[CODEBUFF_DATA_DIR_ENV] = '~/__codebuff_does_not_exist__';
+			try {
+				const { invalidOverride } = getCodebuffChannelRoots();
+				const home = os.homedir();
+				expect(invalidOverride).toEqual({
+					source: 'env',
+					path: path.join(home, '__codebuff_does_not_exist__'),
+				});
+				expect(invalidOverride?.path.startsWith(home)).toBe(true);
 			} finally {
 				if (previous == null) {
 					delete process.env[CODEBUFF_DATA_DIR_ENV];
