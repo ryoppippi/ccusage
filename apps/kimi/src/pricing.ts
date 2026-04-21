@@ -14,7 +14,7 @@ function normalizeModelName(model: string): string {
 		return idx >= 0 ? trimmed.slice(idx + 1) : trimmed;
 	})();
 
-	return lastSegment;
+	return lastSegment.toLowerCase();
 }
 
 const KIMI_K2_5_PRICING: ModelPricing = {
@@ -26,11 +26,21 @@ const KIMI_K2_5_PRICING: ModelPricing = {
 	outputCostPerMToken: 3,
 };
 
+const KIMI_K2_6_PRICING: ModelPricing = {
+	// Official docs pricing (unit: 1M tokens)
+	inputCostPerMToken: 0.95,
+	cachedInputCostPerMToken: 0.16,
+	outputCostPerMToken: 4,
+};
+
 const PRICING_TABLE = new Map<string, ModelPricing>([
 	['kimi-k2.5', KIMI_K2_5_PRICING],
-	// Kimi CLI model aliases are "powered by kimi-k2.5" (see kimi-cli `model_display_name`).
+	// Kimi CLI historical aliases are priced as K2.5; post-K2.6 entries are rewritten by the loader.
 	['kimi-for-coding', KIMI_K2_5_PRICING],
 	['kimi-code', KIMI_K2_5_PRICING],
+	['kimi-k2.6', KIMI_K2_6_PRICING],
+	['kimi-k2p6', KIMI_K2_6_PRICING],
+	['kimi-k2-6', KIMI_K2_6_PRICING],
 
 	[
 		'kimi-k2-0905-preview',
@@ -94,6 +104,18 @@ if (import.meta.vitest != null) {
 				inputCostPerMToken: 0.6,
 				cachedInputCostPerMToken: 0.1,
 				outputCostPerMToken: 3,
+			});
+
+			await expect(source.getPricing('kimi-code/Kimi-k2.6')).resolves.toEqual({
+				inputCostPerMToken: 0.95,
+				cachedInputCostPerMToken: 0.16,
+				outputCostPerMToken: 4,
+			});
+
+			await expect(source.getPricing('kimi-k2p6')).resolves.toEqual({
+				inputCostPerMToken: 0.95,
+				cachedInputCostPerMToken: 0.16,
+				outputCostPerMToken: 4,
 			});
 
 			await expect(source.getPricing('kimi-k2-turbo-preview')).resolves.toEqual({

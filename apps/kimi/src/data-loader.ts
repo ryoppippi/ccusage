@@ -22,6 +22,9 @@ import {
 import { logger } from './logger.ts';
 
 const recordSchema = v.record(v.string(), v.unknown());
+const KIMI_K2_6_MODEL = 'kimi-k2.6';
+const KIMI_K2_6_EFFECTIVE_FROM_MS = Date.parse('2026-04-20T00:00:00.000Z');
+const KIMI_CODE_ALIAS_MODELS = new Set(['kimi-for-coding', 'kimi-code']);
 
 // Estimate tokens from text content using ~4 chars per token heuristic
 function estimateTokensFromText(text: string): number {
@@ -57,7 +60,83 @@ function parseDefaultModelFromConfig(content: string): string | undefined {
 	return trimmed === '' ? undefined : trimmed;
 }
 
-async function loadDefaultModel(shareDir: string): Promise<{ model: string; isFallback: boolean }> {
+function parseDefaultModelDisplayNameFromConfig(
+	content: string,
+	defaultModel: string,
+): string | undefined {
+	const header = `[models."${defaultModel}"]`;
+	const headerIndex = content.indexOf(header);
+	if (headerIndex === -1) {
+		return undefined;
+	}
+
+	const bodyStart = headerIndex + header.length;
+	const rest = content.slice(bodyStart);
+	const nextHeaderMatch = /\n\[/.exec(rest);
+	const body = nextHeaderMatch == null ? rest : rest.slice(0, nextHeaderMatch.index);
+	const displayNameMatch = /^display_name\s*=\s*"([^"]+)"\s*$/m.exec(body);
+	const value = displayNameMatch?.[1];
+	if (value == null) {
+		return undefined;
+	}
+
+	const trimmed = value.trim();
+	return trimmed === '' ? undefined : trimmed;
+}
+
+type DefaultModel = {
+	model: string;
+	displayName?: string;
+	isFallback: boolean;
+};
+
+function normalizeModelSegment(model: string): string {
+	const trimmed = model.trim();
+	if (trimmed === '') {
+		return 'unknown';
+	}
+
+	const idx = trimmed.lastIndexOf('/');
+	const lastSegment = idx >= 0 ? trimmed.slice(idx + 1) : trimmed;
+	return lastSegment.toLowerCase();
+}
+
+function isKimiK26Name(model: string | undefined): boolean {
+	if (model == null) {
+		return false;
+	}
+
+	const normalized = normalizeModelSegment(model);
+	return normalized === KIMI_K2_6_MODEL || normalized === 'kimi-k2p6' || normalized === 'kimi-k2-6';
+}
+
+function shouldUseKimiK26ForAlias(timestamp: string): boolean {
+	const timestampMs = Date.parse(timestamp);
+	return !Number.isNaN(timestampMs) && timestampMs >= KIMI_K2_6_EFFECTIVE_FROM_MS;
+}
+
+function resolveEffectiveModel(defaultModel: DefaultModel, timestamp: string): string {
+	if (defaultModel.isFallback) {
+		return defaultModel.model;
+	}
+
+	if (isKimiK26Name(defaultModel.model)) {
+		return KIMI_K2_6_MODEL;
+	}
+
+	const normalizedModel = normalizeModelSegment(defaultModel.model);
+	if (
+		KIMI_CODE_ALIAS_MODELS.has(normalizedModel) &&
+		isKimiK26Name(defaultModel.displayName) &&
+		shouldUseKimiK26ForAlias(timestamp)
+	) {
+		return KIMI_K2_6_MODEL;
+	}
+
+	return defaultModel.model;
+}
+
+async function loadDefaultModel(shareDir: string): Promise<DefaultModel> {
 	const envModel = asNonEmptyString(process.env[KIMI_MODEL_NAME_ENV]);
 	if (envModel != null) {
 		return { model: envModel, isFallback: false };
@@ -74,7 +153,12 @@ async function loadDefaultModel(shareDir: string): Promise<{ model: string; isFa
 
 	const parsed = parseDefaultModelFromConfig(configResult.value);
 	if (parsed != null) {
-		return { model: parsed, isFallback: false };
+		const displayName = parseDefaultModelDisplayNameFromConfig(configResult.value, parsed);
+		return {
+			model: parsed,
+			isFallback: false,
+			...(displayName != null && { displayName }),
+		};
 	}
 
 	return { model: 'unknown', isFallback: true };
@@ -403,7 +487,7 @@ export async function loadTokenUsageEvents(options: LoadOptions = {}): Promise<L
 					events.push({
 						sessionId,
 						timestamp,
-						model: defaultModel.model,
+						model: resolveEffectiveModel(defaultModel, timestamp),
 						isFallbackModel: defaultModel.isFallback ? true : undefined,
 						inputTokens,
 						cachedInputTokens: cacheRead,
@@ -572,6 +656,86 @@ if (import.meta.vitest != null) {
 			const { events } = await loadTokenUsageEvents({ shareDir: fixture.getPath('.kimi') });
 			expect(events).toHaveLength(2);
 			expect(events.map((e) => e.totalTokens)).toEqual([10, 11]);
+		});
+
+		it('uses K2.6 model identity for kimi-for-coding entries after the K2.6 cutoff', async () => {
+			await using fixture = await createFixture({
+				'.kimi': {
+					'config.toml': [
+						'default_model = "kimi-code/kimi-for-coding"',
+						'',
+						'[models."kimi-code/kimi-for-coding"]',
+						'display_name = "Kimi-k2.6"',
+						'',
+					].join('\n'),
+					sessions: {
+						abc123: {
+							'session-k26': {
+								'wire.jsonl': JSON.stringify({
+									timestamp: Date.parse('2026-04-20T00:00:00.000Z') / 1000,
+									message: {
+										type: 'StatusUpdate',
+										payload: {
+											message_id: 'msg-k26',
+											token_usage: {
+												input_other: 10,
+												input_cache_read: 5,
+												input_cache_creation: 2,
+												output: 7,
+											},
+										},
+									},
+								}),
+							},
+						},
+					},
+				},
+			});
+
+			const { events } = await loadTokenUsageEvents({ shareDir: fixture.getPath('.kimi') });
+
+			expect(events).toHaveLength(1);
+			expect(events[0]?.model).toBe('kimi-k2.6');
+		});
+
+		it('keeps kimi-for-coding on the configured alias before the K2.6 cutoff', async () => {
+			await using fixture = await createFixture({
+				'.kimi': {
+					'config.toml': [
+						'default_model = "kimi-code/kimi-for-coding"',
+						'',
+						'[models."kimi-code/kimi-for-coding"]',
+						'display_name = "Kimi-k2.6"',
+						'',
+					].join('\n'),
+					sessions: {
+						abc123: {
+							'session-k25': {
+								'wire.jsonl': JSON.stringify({
+									timestamp: Date.parse('2026-04-19T23:59:59.000Z') / 1000,
+									message: {
+										type: 'StatusUpdate',
+										payload: {
+											message_id: 'msg-k25',
+											token_usage: {
+												input_other: 10,
+												input_cache_read: 5,
+												input_cache_creation: 2,
+												output: 7,
+											},
+										},
+									},
+								}),
+							},
+						},
+					},
+				},
+			});
+
+			const { events } = await loadTokenUsageEvents({ shareDir: fixture.getPath('.kimi') });
+
+			expect(events).toHaveLength(1);
+			expect(events[0]?.model).toBe('kimi-code/kimi-for-coding');
 		});
 
 		it('keeps reasoning attribution separate for main vs subagent streams', async () => {

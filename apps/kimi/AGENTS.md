@@ -89,11 +89,14 @@ Since Kimi CLI does not provide pre-calculated costs in the log files, we use ha
 | kimi-k2.5              | $0.60     | $0.10      | $3.00      |
 | kimi-for-coding        | $0.60     | $0.10      | $3.00      |
 | kimi-code              | $0.60     | $0.10      | $3.00      |
+| kimi-k2.6              | $0.95     | $0.16      | $4.00      |
 | kimi-k2-0905-preview   | $0.60     | $0.15      | $2.50      |
 | kimi-k2-0711-preview   | $0.60     | $0.15      | $2.50      |
 | kimi-k2-turbo-preview  | $1.15     | $0.15      | $8.00      |
 | kimi-k2-thinking       | $0.60     | $0.15      | $2.50      |
 | kimi-k2-thinking-turbo | $1.15     | $0.15      | $8.00      |
+
+Kimi CLI keeps using the stable `kimi-code/kimi-for-coding` model id while its display name changes. Entries at or after the K2.6 cutoff are rewritten to `kimi-k2.6` when the config display name indicates K2.6, so old alias history remains on K2.5 pricing.
 
 For unknown models, we return zero pricing and emit a warning (once per unknown model). This ensures usage data is still visible even when pricing is unavailable.
 
