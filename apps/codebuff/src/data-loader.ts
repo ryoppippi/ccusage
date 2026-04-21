@@ -55,6 +55,7 @@ const usageSchema = v.object({
 	cacheCreationInputTokens: v.optional(v.number()),
 	cache_creation_input_tokens: v.optional(v.number()),
 	cachedTokensCreated: v.optional(v.number()),
+	cached_tokens_created: v.optional(v.number()),
 	cacheReadInputTokens: v.optional(v.number()),
 	cache_read_input_tokens: v.optional(v.number()),
 	promptTokensDetails: v.optional(
@@ -185,6 +186,7 @@ function extractUsage(usage: ParsedUsage | undefined): {
 				usage.cacheCreationInputTokens,
 				usage.cache_creation_input_tokens,
 				usage.cachedTokensCreated,
+				usage.cached_tokens_created,
 			) ?? 0,
 	};
 }
@@ -223,7 +225,10 @@ function extractAssistantUsage(msg: ParsedChatMessage): {
 	let model: string | undefined = meta?.model ?? meta?.modelId ?? meta?.codebuff?.model;
 	const credits = msg.credits ?? 0;
 
-	const directUsage = extractUsage(meta?.usage ?? meta?.codebuff?.usage);
+	const directUsage = mergeUsageFallback(
+		extractUsage(meta?.usage),
+		extractUsage(meta?.codebuff?.usage),
+	);
 
 	let providerUsage = {
 		inputTokens: 0,
@@ -242,7 +247,10 @@ function extractAssistantUsage(msg: ParsedChatMessage): {
 			if (providerOptions == null) {
 				continue;
 			}
-			const found = extractUsage(providerOptions.usage ?? providerOptions.codebuff?.usage);
+			const found = mergeUsageFallback(
+				extractUsage(providerOptions.usage),
+				extractUsage(providerOptions.codebuff?.usage),
+			);
 			if (
 				found.inputTokens > 0 ||
 				found.outputTokens > 0 ||
@@ -440,7 +448,8 @@ export async function loadCodebuffUsageEvents(options: LoadOptions = {}): Promis
 			const cwd = extractCwdFromRunState(runState);
 
 			const firstUser = messages.find(
-				(m) => m.variant === 'user' && typeof m.content === 'string' && m.content.length > 0,
+				(m) =>
+					(m.variant ?? m.role) === 'user' && typeof m.content === 'string' && m.content.length > 0,
 			);
 			const rawTitle = (firstUser?.content ?? '').replace(/\s+/g, ' ').trim().slice(0, 80);
 			const title = rawTitle !== '' ? rawTitle : 'Untitled';
@@ -495,7 +504,7 @@ export async function loadCodebuffUsageEvents(options: LoadOptions = {}): Promis
 					outputTokens,
 					cacheCreationInputTokens,
 					cacheReadInputTokens,
-					totalTokens: inputTokens + outputTokens,
+					totalTokens: inputTokens + outputTokens + cacheCreationInputTokens + cacheReadInputTokens,
 				});
 				ingested += 1;
 			}
@@ -536,7 +545,7 @@ if (import.meta.vitest != null) {
 					timestamp: '2025-12-14T10:00:00.000Z',
 					credits: 1.25,
 					metadata: {
-						model: 'claude-haiku-4-5-20251001',
+						model: 'claude-sonnet-4-20250514',
 						usage: {
 							inputTokens: 500,
 							outputTokens: 200,
@@ -575,13 +584,13 @@ if (import.meta.vitest != null) {
 			expect(events).toHaveLength(1);
 
 			const event = events[0]!;
-			expect(event.model).toBe('claude-haiku-4-5-20251001');
+			expect(event.model).toBe('claude-sonnet-4-20250514');
 			expect(event.inputTokens).toBe(500);
 			expect(event.outputTokens).toBe(200);
 			expect(event.cacheCreationInputTokens).toBe(300);
 			expect(event.cacheReadInputTokens).toBe(100);
 			expect(event.credits).toBe(1.25);
-			expect(event.totalTokens).toBe(700);
+			expect(event.totalTokens).toBe(1100);
 			expect(event.projectBasename).toBe('agentlytics');
 
 			const chatMeta = chats.get(event.chatId);

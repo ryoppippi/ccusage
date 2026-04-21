@@ -77,6 +77,7 @@ export const monthlyCommand = define({
 			let outputTokens = 0;
 			let cacheCreationTokens = 0;
 			let cacheReadTokens = 0;
+			let totalTokens = 0;
 			let credits = 0;
 			let totalCost = 0;
 			const modelsSet = new Set<string>();
@@ -86,6 +87,7 @@ export const monthlyCommand = define({
 				outputTokens += event.outputTokens;
 				cacheCreationTokens += event.cacheCreationInputTokens;
 				cacheReadTokens += event.cacheReadInputTokens;
+				totalTokens += event.totalTokens;
 				credits += event.credits;
 
 				const cost = await pricingSource.calculateCost(event.model, {
@@ -97,8 +99,6 @@ export const monthlyCommand = define({
 				totalCost += cost;
 				modelsSet.add(event.model);
 			}
-
-			const totalTokens = inputTokens + outputTokens;
 
 			monthlyData.push({
 				month,

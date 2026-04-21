@@ -79,6 +79,7 @@ export const sessionCommand = define({
 			let outputTokens = 0;
 			let cacheCreationTokens = 0;
 			let cacheReadTokens = 0;
+			let totalTokens = 0;
 			let credits = 0;
 			let totalCost = 0;
 			const modelsSet = new Set<string>();
@@ -89,6 +90,7 @@ export const sessionCommand = define({
 				outputTokens += event.outputTokens;
 				cacheCreationTokens += event.cacheCreationInputTokens;
 				cacheReadTokens += event.cacheReadInputTokens;
+				totalTokens += event.totalTokens;
 				credits += event.credits;
 
 				const cost = await pricingSource.calculateCost(event.model, {
@@ -105,7 +107,6 @@ export const sessionCommand = define({
 				}
 			}
 
-			const totalTokens = inputTokens + outputTokens;
 			const chatInfo = chats.get(chatId);
 
 			sessionData.push({

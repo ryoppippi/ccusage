@@ -7,11 +7,19 @@ import { prefetchCodebuffPricing } from './_macro.ts' with { type: 'macro' };
 import { logger } from './logger.ts';
 
 const CODEBUFF_PROVIDER_PREFIXES = [
+	'claude-',
 	'anthropic/',
+	'gpt-',
+	'o1',
+	'o3',
+	'o4',
 	'openai/',
 	'azure/',
+	'gemini-',
 	'google/',
+	'grok-',
 	'xai/',
+	'mistral',
 	'mistralai/',
 	'deepseek/',
 	'qwen/',
@@ -113,7 +121,7 @@ if (import.meta.vitest != null) {
 			using source = new CodebuffPricingSource({
 				offline: true,
 				offlineLoader: async () => ({
-					'claude-haiku-4-5-20251001': {
+					'claude-sonnet-4-20250514': {
 						input_cost_per_token: 1e-6,
 						output_cost_per_token: 5e-6,
 						cache_read_input_token_cost: 1e-7,
@@ -122,7 +130,7 @@ if (import.meta.vitest != null) {
 				}),
 			});
 
-			const pricing = await source.getPricing('claude-haiku-4-5-20251001');
+			const pricing = await source.getPricing('claude-sonnet-4-20250514');
 			expect(pricing.inputCostPerMToken).toBeCloseTo(1);
 			expect(pricing.outputCostPerMToken).toBeCloseTo(5);
 			expect(pricing.cachedInputCostPerMToken).toBeCloseTo(0.1);

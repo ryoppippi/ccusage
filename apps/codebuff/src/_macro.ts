@@ -4,6 +4,7 @@ import {
 	fetchLiteLLMPricingDataset,
 	filterPricingDataset,
 } from '@ccusage/internal/pricing-fetch-utils';
+import { logger } from './logger.ts';
 
 /**
  * Codebuff routes to several upstream providers via OpenRouter, so we retain a
@@ -38,7 +39,9 @@ export async function prefetchCodebuffPricing(): Promise<Record<string, LiteLLMM
 		const dataset = await fetchLiteLLMPricingDataset();
 		return filterPricingDataset(dataset, isCodebuffModel);
 	} catch (error) {
-		console.warn('Failed to prefetch Codebuff pricing data, proceeding with empty cache.', error);
+		logger.warn('Failed to prefetch Codebuff pricing data, proceeding with empty cache.', {
+			error,
+		});
 		return createPricingDataset();
 	}
 }

@@ -60,7 +60,7 @@ Credits live directly on `message.credits` and are surfaced alongside the USD co
 		"timestamp": "2025-12-14T10:00:00.000Z",
 		"credits": 1.25,
 		"metadata": {
-			"model": "claude-haiku-4-5-20251001",
+			"model": "claude-sonnet-4-20250514",
 			"usage": {
 				"inputTokens": 500,
 				"outputTokens": 200,
