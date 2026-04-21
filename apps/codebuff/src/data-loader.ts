@@ -309,22 +309,39 @@ function extractCwdFromRunState(runState: ParsedRunState | null): string | null 
 	);
 }
 
+export type CodebuffChannelRoot = { channel: string; root: string };
+
+export type CodebuffChannelRootsResult = {
+	roots: CodebuffChannelRoot[];
+	/**
+	 * An explicitly-set but invalid override (either the `baseDir` option or
+	 * the `CODEBUFF_DATA_DIR` env var). Callers should surface this to the
+	 * user so a typo'd path doesn't silently fall through to the default
+	 * channels.
+	 */
+	invalidOverride: { source: 'baseDir' | 'env'; path: string } | null;
+};
+
 /**
  * Discover all Codebuff channel roots on disk (`~/.config/manicode`,
  * `-dev`, `-staging`). Honors `CODEBUFF_DATA_DIR` for a single custom root.
+ *
+ * When the explicit `customBaseDir` or `CODEBUFF_DATA_DIR` env var is set but
+ * does not resolve to an existing directory, the invalid path is returned in
+ * `invalidOverride` and a warning is logged so the mismatch is discoverable.
  */
-export function getCodebuffChannelRoots(customBaseDir?: string): Array<{
-	channel: string;
-	root: string;
-}> {
+export function getCodebuffChannelRoots(customBaseDir?: string): CodebuffChannelRootsResult {
 	if (customBaseDir != null && customBaseDir.trim() !== '') {
 		const normalized = path.resolve(customBaseDir);
 		if (isDirectorySync(normalized)) {
 			const basename = path.basename(normalized);
 			const channel = basename !== '' ? basename : 'manicode';
-			return [{ channel, root: normalized }];
+			return { roots: [{ channel, root: normalized }], invalidOverride: null };
 		}
-		return [];
+		return {
+			roots: [],
+			invalidOverride: { source: 'baseDir', path: normalized },
+		};
 	}
 
 	const envPath = process.env[CODEBUFF_DATA_DIR_ENV];
@@ -333,11 +350,26 @@ export function getCodebuffChannelRoots(customBaseDir?: string): Array<{
 		if (isDirectorySync(normalized)) {
 			const basename = path.basename(normalized);
 			const channel = basename !== '' ? basename : 'manicode';
-			return [{ channel, root: normalized }];
+			return { roots: [{ channel, root: normalized }], invalidOverride: null };
 		}
+		logger.warn(
+			`${CODEBUFF_DATA_DIR_ENV} is set to "${envPath}" but it is not a directory; falling back to default channels.`,
+		);
+		const roots: CodebuffChannelRoot[] = [];
+		const configDir = path.dirname(DEFAULT_CODEBUFF_DIR);
+		for (const channel of CODEBUFF_CHANNELS) {
+			const root = path.join(configDir, channel);
+			if (isDirectorySync(root)) {
+				roots.push({ channel, root });
+			}
+		}
+		return {
+			roots,
+			invalidOverride: { source: 'env', path: normalized },
+		};
 	}
 
-	const roots: Array<{ channel: string; root: string }> = [];
+	const roots: CodebuffChannelRoot[] = [];
 	const configDir = path.dirname(DEFAULT_CODEBUFF_DIR);
 	for (const channel of CODEBUFF_CHANNELS) {
 		const root = path.join(configDir, channel);
@@ -345,7 +377,7 @@ export function getCodebuffChannelRoots(customBaseDir?: string): Array<{
 			roots.push({ channel, root });
 		}
 	}
-	return roots;
+	return { roots, invalidOverride: null };
 }
 
 async function loadJsonFile<T>(
@@ -399,19 +431,19 @@ export type LoadResult = {
  * Load all Codebuff usage events from local chat-messages files.
  */
 export async function loadCodebuffUsageEvents(options: LoadOptions = {}): Promise<LoadResult> {
-	const roots = getCodebuffChannelRoots(options.baseDir);
+	const { roots, invalidOverride } = getCodebuffChannelRoots(options.baseDir);
 
 	const events: TokenUsageEvent[] = [];
 	const chats = new Map<string, ChatMetadata>();
 	const missingDirectories: string[] = [];
 
+	// Surface an explicit-but-invalid override so callers see the typo'd path
+	// rather than silently falling back to (or missing) the defaults.
+	if (invalidOverride != null) {
+		missingDirectories.push(invalidOverride.path);
+	}
+
 	if (roots.length === 0) {
-		// Only surface a missing-directory error when the user explicitly
-		// pointed at a non-existent path; leaving it implicit for the default
-		// case matches how @ccusage/amp behaves.
-		if (options.baseDir != null && options.baseDir.trim() !== '') {
-			missingDirectories.push(path.resolve(options.baseDir));
-		}
 		return { events, chats, missingDirectories };
 	}
 
@@ -665,6 +697,24 @@ if (import.meta.vitest != null) {
 			expect(events).toEqual([]);
 			expect(chats.size).toBe(0);
 			expect(missingDirectories).toContain(path.resolve('/nonexistent/codebuff-path'));
+		});
+
+		it('records CODEBUFF_DATA_DIR in missingDirectories when it points at a non-directory', async () => {
+			const previous = process.env[CODEBUFF_DATA_DIR_ENV];
+			process.env[CODEBUFF_DATA_DIR_ENV] = '/nonexistent/codebuff-env-override';
+			try {
+				const { invalidOverride } = getCodebuffChannelRoots();
+				expect(invalidOverride).toEqual({
+					source: 'env',
+					path: path.resolve('/nonexistent/codebuff-env-override'),
+				});
+			} finally {
+				if (previous == null) {
+					delete process.env[CODEBUFF_DATA_DIR_ENV];
+				} else {
+					process.env[CODEBUFF_DATA_DIR_ENV] = previous;
+				}
+			}
 		});
 
 		it('skips malformed chat-messages files gracefully', async () => {
