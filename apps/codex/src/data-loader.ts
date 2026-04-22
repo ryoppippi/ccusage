@@ -231,6 +231,7 @@ export async function loadTokenUsageEvents(options: LoadOptions = {}): Promise<L
 			let currentModel: string | undefined;
 			let currentModelIsFallback = false;
 			let legacyFallbackUsed = false;
+			const fileEvents: TokenUsageEvent[] = [];
 			const lineReader = createInterface({
 				input: createReadStream(file, { encoding: 'utf8' }),
 				crlfDelay: Number.POSITIVE_INFINITY,
@@ -351,19 +352,21 @@ export async function loadTokenUsageEvents(options: LoadOptions = {}): Promise<L
 						event.isFallbackModel = true;
 					}
 
-					events.push(event);
+						fileEvents.push(event);
+					}
+				} catch (error) {
+					logger.debug('Failed to read Codex session file', error);
+					continue;
 				}
-			} catch (error) {
-				logger.debug('Failed to read Codex session file', error);
-				continue;
-			}
 
-			if (legacyFallbackUsed) {
-				logger.debug('Legacy Codex session lacked model metadata; applied fallback', {
-					file,
-					model: LEGACY_FALLBACK_MODEL,
-				});
-			}
+				events.push(...fileEvents);
+
+				if (legacyFallbackUsed) {
+					logger.debug('Legacy Codex session lacked model metadata; applied fallback', {
+						file,
+						model: LEGACY_FALLBACK_MODEL,
+					});
+				}
 		}
 	}
 
