@@ -6,8 +6,10 @@ import os from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
 import { LiteLLMPricingFetcher } from '@ccusage/internal/pricing';
+import { Result } from '@praha/byethrow';
 import { uniq } from 'es-toolkit';
 import { glob } from 'tinyglobby';
+import * as v from 'valibot';
 import { loadAmpUsageEvents } from '../../amp/src/data-loader.ts';
 import { logger as ampLogger } from '../../amp/src/logger.ts';
 import { AmpPricingSource } from '../../amp/src/pricing.ts';
@@ -21,27 +23,35 @@ import { loadTokenUsageEventsFromFiles as loadCodexTokenUsageEventsFromFiles } f
 import { logger as codexLogger } from '../../codex/src/logger.ts';
 import { CodexPricingSource } from '../../codex/src/pricing.ts';
 import { calculateCostUSDForEvent as calculateCodexCostUSDForEvent } from '../../codex/src/token-utils.ts';
+import { KIMI_CONFIG_FILE_NAME, KIMI_METADATA_FILE_NAME } from '../../kimi/src/_consts.ts';
 import {
-	DEFAULT_KIMI_DIR,
-	KIMI_CONFIG_FILE_NAME,
-	KIMI_METADATA_FILE_NAME,
-	KIMI_SESSIONS_DIR_NAME,
-	KIMI_SHARE_DIR_ENV,
-	SESSION_WIRE_GLOB,
-} from '../../kimi/src/_consts.ts';
-import { loadTokenUsageEvents as loadKimiTokenUsageEvents } from '../../kimi/src/data-loader.ts';
+	createKimiTokenUsageLoadContext,
+	dedupeKimiTokenUsageEvents,
+	getKimiTokenUsageFiles,
+	loadTokenUsageEventsFromWireFiles,
+	resolveKimiShareDir,
+} from '../../kimi/src/data-loader.ts';
 import { logger as kimiLogger } from '../../kimi/src/logger.ts';
 import { KimiPricingSource } from '../../kimi/src/pricing.ts';
 import { calculateCostUSD as calculateKimiCostUSD } from '../../kimi/src/token-utils.ts';
 import { calculateCostForEntry as calculateOpenCodeCostForEntry } from '../../opencode/src/cost-utils.ts';
 import {
 	getOpenCodePath,
-	loadOpenCodeMessages,
 	loadOpenCodeSessions,
+	openCodeMessageSchema,
 } from '../../opencode/src/data-loader.ts';
 import { loadPiAgentData } from '../../pi/src/data-loader.ts';
+import { PricingFetcher } from './_pricing-fetcher.ts';
 import { createDailyDate, createModelName } from './_types.ts';
-import { getClaudePaths, globUsageFiles, loadDailyUsageData } from './data-loader.ts';
+import {
+	calculateCostForEntry,
+	createUniqueHash,
+	extractProjectFromPath,
+	getClaudePaths,
+	globUsageFiles,
+	processJSONLFileByLine,
+	usageDataSchema,
+} from './data-loader.ts';
 import { logger } from './logger.ts';
 
 export const ALL_COMBINED_ORIGINS = ['claude', 'codex', 'kimi', 'opencode', 'amp', 'pi'] as const;
@@ -89,6 +99,8 @@ type SourceDailyUsage = {
 	cacheCreationTokens: number;
 	cacheReadTokens: number;
 	totalCost: number;
+	timestamp?: string;
+	uniqueHash?: string | null;
 	project?: string;
 	modelBreakdowns: ModelBreakdown[];
 };
@@ -99,15 +111,15 @@ type CombinedSourceRowsCacheEntry = {
 	rows: SourceDailyUsage[];
 };
 
-type CombinedFileRowsCacheFileEntry = {
+type CombinedFileRowsCacheFileEntry<TRow = SourceDailyUsage> = {
 	size: number;
 	mtimeMs: number;
-	rows: SourceDailyUsage[];
+	rows: TRow[];
 };
 
-type CombinedFileRowsCacheEntry = {
+type CombinedFileRowsCacheEntry<TRow = SourceDailyUsage> = {
 	version: number;
-	files: Record<string, CombinedFileRowsCacheFileEntry>;
+	files: Record<string, CombinedFileRowsCacheFileEntry<TRow>>;
 };
 
 type SourceFileReference = {
@@ -151,11 +163,13 @@ function getCombinedSourceCachePath(
 function getCombinedFileRowsCachePath(
 	origin: CombinedOrigin,
 	options: CombinedDailyLoadOptions,
+	cacheDiscriminator?: string,
 ): string {
 	const needsProjectGrouping = options.groupByProject === true || options.project != null;
 	const key = hashValue(
 		JSON.stringify({
 			origin,
+			...(cacheDiscriminator != null && { cacheDiscriminator }),
 			mode: options.mode ?? 'auto',
 			offline: options.offline ?? false,
 			project: options.project ?? null,
@@ -227,12 +241,12 @@ async function writeCombinedSourceRowsCache(
 	}
 }
 
-async function readCombinedFileRowsCache(
+async function readCombinedFileRowsCache<TRow>(
 	cachePath: string,
-): Promise<Record<string, CombinedFileRowsCacheFileEntry>> {
+): Promise<Record<string, CombinedFileRowsCacheFileEntry<TRow>>> {
 	try {
 		const raw = await readFile(cachePath, 'utf8');
-		const parsed = JSON.parse(raw) as Partial<CombinedFileRowsCacheEntry>;
+		const parsed = JSON.parse(raw) as Partial<CombinedFileRowsCacheEntry<TRow>>;
 		if (parsed.version !== COMBINED_FILE_ROWS_CACHE_VERSION || parsed.files == null) {
 			return {};
 		}
@@ -243,9 +257,9 @@ async function readCombinedFileRowsCache(
 	}
 }
 
-async function writeCombinedFileRowsCache(
+async function writeCombinedFileRowsCache<TRow>(
 	cachePath: string,
-	files: Record<string, CombinedFileRowsCacheFileEntry>,
+	files: Record<string, CombinedFileRowsCacheFileEntry<TRow>>,
 ): Promise<void> {
 	try {
 		await mkdir(path.dirname(cachePath), { recursive: true });
@@ -254,7 +268,7 @@ async function writeCombinedFileRowsCache(
 			JSON.stringify({
 				version: COMBINED_FILE_ROWS_CACHE_VERSION,
 				files,
-			} satisfies CombinedFileRowsCacheEntry),
+			} satisfies CombinedFileRowsCacheEntry<TRow>),
 			'utf8',
 		);
 	} catch (error) {
@@ -262,19 +276,24 @@ async function writeCombinedFileRowsCache(
 	}
 }
 
-async function loadCombinedFileRowsWithCache<TFile extends SourceFileReference>(
+async function loadCombinedFileRowsWithCache<TFile extends SourceFileReference, TRow>(
 	origin: CombinedOrigin,
 	options: CombinedDailyLoadOptions,
 	files: TFile[],
-	loadRowsForFile: (file: TFile) => Promise<SourceDailyUsage[]>,
-): Promise<SourceDailyUsage[]> {
+	loadRowsForFile: (file: TFile) => Promise<TRow[]>,
+	cacheOptions: {
+		cacheDiscriminator?: string;
+		compactRows?: (rows: TRow[]) => TRow[];
+	} = {},
+): Promise<TRow[]> {
 	const sortedFiles = [...files].sort((left, right) => left.file.localeCompare(right.file));
-	const cachePath = getCombinedFileRowsCachePath(origin, options);
+	const cachePath = getCombinedFileRowsCachePath(origin, options, cacheOptions.cacheDiscriminator);
+	const compactRows = cacheOptions.compactRows ?? ((rows: TRow[]) => rows);
 
 	try {
-		const cachedFiles = await readCombinedFileRowsCache(cachePath);
-		const nextFiles: Record<string, CombinedFileRowsCacheFileEntry> = {};
-		const rows: SourceDailyUsage[] = [];
+		const cachedFiles = await readCombinedFileRowsCache<TRow>(cachePath);
+		const nextFiles: Record<string, CombinedFileRowsCacheFileEntry<TRow>> = {};
+		const rows: TRow[] = [];
 		const fileStates = await Promise.all(
 			sortedFiles.map(async (sourceFile) => {
 				const fileStat = await stat(sourceFile.file).catch(() => null);
@@ -308,7 +327,7 @@ async function loadCombinedFileRowsWithCache<TFile extends SourceFileReference>(
 				continue;
 			}
 
-			const loadedRows = compactSourceRows(await loadRowsForFile(sourceFile));
+			const loadedRows = compactRows(await loadRowsForFile(sourceFile));
 			rows.push(...loadedRows);
 			nextFiles[sourceFile.file] = {
 				size: fileStat.size,
@@ -325,14 +344,14 @@ async function loadCombinedFileRowsWithCache<TFile extends SourceFileReference>(
 		logger.debug(
 			`Combined ${origin} file rows cache: ${cacheHits} hit(s), ${cacheMisses} miss(es)`,
 		);
-		return compactSourceRows(rows);
+		return compactRows(rows);
 	} catch (error) {
 		logger.debug(`Combined ${origin} file rows cache unavailable`, error);
-		const rows: SourceDailyUsage[] = [];
+		const rows: TRow[] = [];
 		for (const sourceFile of sortedFiles) {
 			rows.push(...(await loadRowsForFile(sourceFile)));
 		}
-		return compactSourceRows(rows);
+		return compactRows(rows);
 	}
 }
 
@@ -361,11 +380,6 @@ async function loadCombinedSourceRowsWithCache(
 	}
 }
 
-async function getClaudeSourceSignature(): Promise<string> {
-	const filesWithBase = await globUsageFiles(getClaudePaths());
-	return createFileStateSignature(filesWithBase.map((entry) => entry.file));
-}
-
 async function getCodexSessionFiles(): Promise<TokenUsageSessionFile[]> {
 	const codexHomeEnv = process.env[CODEX_HOME_ENV]?.trim();
 	const codexHome =
@@ -378,22 +392,55 @@ async function getCodexSessionFiles(): Promise<TokenUsageSessionFile[]> {
 	return files.map((file) => ({ file, sessionDir: sessionsDir }));
 }
 
-async function getKimiSourceSignature(): Promise<string> {
-	const shareDir = (() => {
-		const envPath = process.env[KIMI_SHARE_DIR_ENV]?.trim();
-		return envPath != null && envPath !== '' ? path.resolve(envPath) : DEFAULT_KIMI_DIR;
-	})();
-	const sessionsDir = path.join(shareDir, KIMI_SESSIONS_DIR_NAME);
-	const files = await glob(SESSION_WIRE_GLOB, {
-		cwd: sessionsDir,
-		absolute: true,
-	}).catch(() => []);
+async function getClaudeSourceSignature(): Promise<string> {
+	const filesWithBase = await globUsageFiles(getClaudePaths());
+	return createFileStateSignature(filesWithBase.map((entry) => entry.file));
+}
+
+async function getKimiCacheDependencySignature(shareDir: string): Promise<string> {
 	return createFileStateSignature([
-		sessionsDir,
 		path.join(shareDir, KIMI_CONFIG_FILE_NAME),
 		path.join(shareDir, KIMI_METADATA_FILE_NAME),
-		...files,
 	]);
+}
+
+async function getKimiSourceSignature(): Promise<string> {
+	const shareDir = resolveKimiShareDir();
+	const { context } = await createKimiTokenUsageLoadContext(shareDir);
+	if (context == null) {
+		return createFileStateSignature([
+			path.join(shareDir, KIMI_CONFIG_FILE_NAME),
+			path.join(shareDir, KIMI_METADATA_FILE_NAME),
+		]);
+	}
+
+	const files = await getKimiTokenUsageFiles(context);
+	return createFileStateSignature([
+		path.join(shareDir, KIMI_CONFIG_FILE_NAME),
+		path.join(shareDir, KIMI_METADATA_FILE_NAME),
+		...files.map((entry) => entry.file),
+	]);
+}
+
+type OpenCodeSourceFiles = {
+	messageFiles: SourceFileReference[];
+};
+
+async function getOpenCodeSourceFiles(): Promise<OpenCodeSourceFiles | null> {
+	const openCodePath = getOpenCodePath();
+	if (openCodePath == null) {
+		return null;
+	}
+
+	const messagesDir = path.join(openCodePath, 'storage', 'message');
+	const messageFiles = await glob('**/*.json', {
+		cwd: messagesDir,
+		absolute: true,
+	}).catch(() => []);
+
+	return {
+		messageFiles: messageFiles.map((file) => ({ file })),
+	};
 }
 
 async function getOpenCodeSourceSignature(): Promise<string> {
@@ -591,6 +638,54 @@ function selectProject(
 	return (normalized ?? 'unknown') === projectFilter ? groupedProject : null;
 }
 
+function compareTimestamps(left: string, right: string): number {
+	const leftMs = Date.parse(left);
+	const rightMs = Date.parse(right);
+
+	if (Number.isNaN(leftMs) || Number.isNaN(rightMs)) {
+		return left.localeCompare(right);
+	}
+
+	return leftMs - rightMs;
+}
+
+function dedupeSourceRowsByEarliestTimestamp(rows: SourceDailyUsage[]): SourceDailyUsage[] {
+	const earliestByHash = new Map<string, SourceDailyUsage>();
+
+	for (const row of rows) {
+		const uniqueHash = row.uniqueHash;
+		const timestamp = row.timestamp;
+		if (uniqueHash == null || timestamp == null) {
+			continue;
+		}
+
+		const existing = earliestByHash.get(uniqueHash);
+		if (
+			existing == null ||
+			existing.timestamp == null ||
+			compareTimestamps(timestamp, existing.timestamp) < 0
+		) {
+			earliestByHash.set(uniqueHash, row);
+		}
+	}
+
+	return rows.filter((row) => {
+		const uniqueHash = row.uniqueHash;
+		return uniqueHash == null || earliestByHash.get(uniqueHash) === row;
+	});
+}
+
+function getClaudeDisplayModelName(
+	data: v.InferOutput<typeof usageDataSchema>,
+): string | undefined {
+	const model = data.message.model;
+	if (model == null) {
+		return undefined;
+	}
+
+	return data.message.usage.speed === 'fast' ? `${model}-fast` : model;
+}
+
 export function setCombinedOriginLoggerLevel(level: number): void {
 	codexLogger.level = level;
 	kimiLogger.level = level;
@@ -724,32 +819,86 @@ async function loadClaudeSourceRows(
 	options: CombinedDailyLoadOptions,
 ): Promise<SourceDailyUsage[]> {
 	return loadCombinedSourceRowsWithCache('claude', options, getClaudeSourceSignature, async () => {
-		const needsProjectGrouping = options.groupByProject === true || options.project != null;
-		const dailyUsage = await loadDailyUsageData({
-			mode: options.mode,
-			offline: options.offline,
-			order: options.order,
-			groupByProject: needsProjectGrouping,
-			project: options.project,
-			since: options.since,
-			timezone: options.timezone,
-			until: options.until,
-		});
+		const filesWithBase = await globUsageFiles(getClaudePaths());
+		if (filesWithBase.length === 0) {
+			return [];
+		}
 
-		return dailyUsage.map((row) => ({
-			date: row.date,
-			origin: 'claude',
-			inputTokens: row.inputTokens,
-			outputTokens: row.outputTokens,
-			cacheCreationTokens: row.cacheCreationTokens,
-			cacheReadTokens: row.cacheReadTokens,
-			totalCost: row.totalCost,
-			project: normalizeProject(row.project),
-			modelBreakdowns: row.modelBreakdowns.map((breakdown) => ({
-				...breakdown,
-				modelName: createModelName(prefixModel('claude', breakdown.modelName)),
-			})),
-		}));
+		const needsProjectGrouping = options.groupByProject === true || options.project != null;
+		const mode = options.mode ?? 'auto';
+		using fetcher = mode === 'display' ? null : new PricingFetcher(options.offline);
+
+		const rows = await loadCombinedFileRowsWithCache(
+			'claude',
+			options,
+			filesWithBase,
+			async ({ file }) => {
+				const project = selectProject(
+					extractProjectFromPath(file),
+					options.project,
+					needsProjectGrouping,
+				);
+				if (project === null) {
+					return [];
+				}
+
+				const sourceRows: SourceDailyUsage[] = [];
+				await processJSONLFileByLine(file, async (line) => {
+					try {
+						const parsed = JSON.parse(line) as unknown;
+						const result = v.safeParse(usageDataSchema, parsed);
+						if (!result.success) {
+							return;
+						}
+
+						const data = result.output;
+						const date = formatDateKey(data.timestamp, options.timezone);
+						if (!isWithinDateRange(date, options.since, options.until)) {
+							return;
+						}
+
+						const cost =
+							fetcher != null
+								? await calculateCostForEntry(data, mode, fetcher)
+								: (data.costUSD ?? 0);
+						const usage = data.message.usage;
+						const model = getClaudeDisplayModelName(data) ?? 'unknown';
+						const modelBreakdowns =
+							model === '<synthetic>'
+								? []
+								: [
+										createBreakdown('claude', model, {
+											inputTokens: usage.input_tokens,
+											outputTokens: usage.output_tokens,
+											cacheCreationTokens: usage.cache_creation_input_tokens ?? 0,
+											cacheReadTokens: usage.cache_read_input_tokens ?? 0,
+											cost,
+										}),
+									];
+
+						sourceRows.push({
+							date,
+							origin: 'claude',
+							inputTokens: usage.input_tokens,
+							outputTokens: usage.output_tokens,
+							cacheCreationTokens: usage.cache_creation_input_tokens ?? 0,
+							cacheReadTokens: usage.cache_read_input_tokens ?? 0,
+							totalCost: cost,
+							timestamp: data.timestamp,
+							uniqueHash: createUniqueHash(data),
+							...(project != null && { project }),
+							modelBreakdowns,
+						});
+					} catch {
+						// Skip invalid JSON lines, matching the Claude data loader behavior.
+					}
+				});
+
+				return sourceRows;
+			},
+		);
+
+		return compactSourceRows(dedupeSourceRowsByEarliestTimestamp(rows));
 	});
 }
 
@@ -826,16 +975,33 @@ async function loadCodexSourceRows(options: CombinedDailyLoadOptions): Promise<S
 
 			return rows;
 		},
+		{ compactRows: compactSourceRows },
 	);
 }
 
 async function loadKimiSourceRows(options: CombinedDailyLoadOptions): Promise<SourceDailyUsage[]> {
 	return loadCombinedSourceRowsWithCache('kimi', options, getKimiSourceSignature, async () => {
 		const needsProjectGrouping = options.groupByProject === true || options.project != null;
-		const { events } = await loadKimiTokenUsageEvents();
-		if (events.length === 0) {
+		const shareDir = resolveKimiShareDir();
+		const { context } = await createKimiTokenUsageLoadContext(shareDir);
+		if (context == null) {
 			return [];
 		}
+
+		const files = await getKimiTokenUsageFiles(context);
+		if (files.length === 0) {
+			return [];
+		}
+
+		const cacheDiscriminator = await getKimiCacheDependencySignature(shareDir);
+		const cachedEvents = await loadCombinedFileRowsWithCache(
+			'kimi',
+			options,
+			files,
+			async (file) => loadTokenUsageEventsFromWireFiles([file], context),
+			{ cacheDiscriminator },
+		);
+		const events = dedupeKimiTokenUsageEvents(cachedEvents);
 
 		const pricingSource = new KimiPricingSource();
 		const pricingCache = new Map<
@@ -879,6 +1045,8 @@ async function loadKimiSourceRows(options: CombinedDailyLoadOptions): Promise<So
 				cacheCreationTokens: 0,
 				cacheReadTokens,
 				totalCost,
+				timestamp: event.timestamp,
+				uniqueHash: event.dedupeKey ?? null,
 				...(project != null && { project }),
 				modelBreakdowns: [
 					createBreakdown('kimi', model, {
@@ -892,7 +1060,7 @@ async function loadKimiSourceRows(options: CombinedDailyLoadOptions): Promise<So
 			});
 		}
 
-		return rows;
+		return compactSourceRows(dedupeSourceRowsByEarliestTimestamp(rows));
 	});
 }
 
@@ -904,12 +1072,21 @@ async function loadOpenCodeSourceRows(
 		options,
 		getOpenCodeSourceSignature,
 		async () => {
-			const needsProjectGrouping = options.groupByProject === true || options.project != null;
-			const [entries, sessions] = await Promise.all([
-				loadOpenCodeMessages(),
-				loadOpenCodeSessions(),
-			]);
-			if (entries.length === 0) {
+			type OpenCodeCachedUsage = {
+				date: string;
+				timestamp: string;
+				sessionID: string;
+				model: string;
+				inputTokens: number;
+				outputTokens: number;
+				cacheCreationTokens: number;
+				cacheReadTokens: number;
+				totalCost: number;
+				uniqueHash: string | null;
+			};
+
+			const sourceFiles = await getOpenCodeSourceFiles();
+			if (sourceFiles == null || sourceFiles.messageFiles.length === 0) {
 				return [];
 			}
 
@@ -917,14 +1094,81 @@ async function loadOpenCodeSourceRows(
 				offline: options.offline ?? false,
 				logger,
 			});
-			const rows: SourceDailyUsage[] = [];
 
-			for (const entry of entries) {
-				const date = formatDateKey(entry.timestamp, options.timezone);
-				if (!isWithinDateRange(date, options.since, options.until)) {
-					continue;
+			const cachedEntries = await loadCombinedFileRowsWithCache<
+				SourceFileReference,
+				OpenCodeCachedUsage
+			>('opencode', options, sourceFiles.messageFiles, async ({ file }) => {
+				const content = await readFile(file, 'utf-8').catch(() => null);
+				if (content == null) {
+					return [];
 				}
 
+				const parsed = Result.try({
+					try: () => JSON.parse(content) as unknown,
+					catch: (error) => error,
+				})();
+				if (Result.isFailure(parsed)) {
+					return [];
+				}
+
+				const message = v.safeParse(openCodeMessageSchema, parsed.value);
+				if (!message.success) {
+					return [];
+				}
+
+				if (
+					message.output.tokens == null ||
+					(message.output.tokens.input === 0 && message.output.tokens.output === 0)
+				) {
+					return [];
+				}
+
+				if (message.output.providerID == null || message.output.modelID == null) {
+					return [];
+				}
+
+				const timestamp = new Date(message.output.time.created ?? Date.now());
+				const date = formatDateKey(timestamp, options.timezone);
+				if (!isWithinDateRange(date, options.since, options.until)) {
+					return [];
+				}
+
+				const entry = {
+					timestamp,
+					sessionID: message.output.sessionID ?? 'unknown',
+					usage: {
+						inputTokens: message.output.tokens.input ?? 0,
+						outputTokens: message.output.tokens.output ?? 0,
+						cacheCreationInputTokens: message.output.tokens.cache?.write ?? 0,
+						cacheReadInputTokens: message.output.tokens.cache?.read ?? 0,
+					},
+					model: message.output.modelID,
+					costUSD: message.output.cost ?? null,
+				};
+				const totalCost = await calculateOpenCodeCostForEntry(entry, fetcher);
+
+				return [
+					{
+						date,
+						timestamp: timestamp.toISOString(),
+						sessionID: entry.sessionID,
+						model: entry.model,
+						inputTokens: entry.usage.inputTokens,
+						outputTokens: entry.usage.outputTokens,
+						cacheCreationTokens: entry.usage.cacheCreationInputTokens,
+						cacheReadTokens: entry.usage.cacheReadInputTokens,
+						totalCost,
+						uniqueHash: message.output.id,
+					},
+				];
+			});
+
+			const needsProjectGrouping = options.groupByProject === true || options.project != null;
+			const sessions = await loadOpenCodeSessions();
+			const rows: SourceDailyUsage[] = [];
+
+			for (const entry of cachedEntries) {
 				const metadata = sessions.get(entry.sessionID);
 				const rawProject = normalizeProject(metadata?.directory ?? metadata?.projectID);
 				const project = selectProject(rawProject, options.project, needsProjectGrouping);
@@ -932,29 +1176,30 @@ async function loadOpenCodeSourceRows(
 					continue;
 				}
 
-				const totalCost = await calculateOpenCodeCostForEntry(entry, fetcher);
 				rows.push({
-					date,
+					date: entry.date,
 					origin: 'opencode',
-					inputTokens: entry.usage.inputTokens,
-					outputTokens: entry.usage.outputTokens,
-					cacheCreationTokens: entry.usage.cacheCreationInputTokens,
-					cacheReadTokens: entry.usage.cacheReadInputTokens,
-					totalCost,
+					inputTokens: entry.inputTokens,
+					outputTokens: entry.outputTokens,
+					cacheCreationTokens: entry.cacheCreationTokens,
+					cacheReadTokens: entry.cacheReadTokens,
+					totalCost: entry.totalCost,
+					timestamp: entry.timestamp,
+					uniqueHash: entry.uniqueHash,
 					...(project != null && { project }),
 					modelBreakdowns: [
 						createBreakdown('opencode', entry.model, {
-							inputTokens: entry.usage.inputTokens,
-							outputTokens: entry.usage.outputTokens,
-							cacheCreationTokens: entry.usage.cacheCreationInputTokens,
-							cacheReadTokens: entry.usage.cacheReadInputTokens,
-							cost: totalCost,
+							inputTokens: entry.inputTokens,
+							outputTokens: entry.outputTokens,
+							cacheCreationTokens: entry.cacheCreationTokens,
+							cacheReadTokens: entry.cacheReadTokens,
+							cost: entry.totalCost,
 						}),
 					],
 				});
 			}
 
-			return rows;
+			return compactSourceRows(dedupeSourceRowsByEarliestTimestamp(rows));
 		},
 	);
 }

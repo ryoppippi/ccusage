@@ -84,7 +84,7 @@ function parseDefaultModelDisplayNameFromConfig(
 	return trimmed === '' ? undefined : trimmed;
 }
 
-type DefaultModel = {
+export type DefaultModel = {
 	model: string;
 	displayName?: string;
 	isFallback: boolean;
@@ -306,15 +306,66 @@ function resolveWireFileContext(
 	return { sessionId, streamId };
 }
 
-export async function loadTokenUsageEvents(options: LoadOptions = {}): Promise<LoadResult> {
-	const shareDir =
-		options.shareDir != null && options.shareDir.trim() !== ''
-			? path.resolve(options.shareDir)
-			: (() => {
-					const envPath = process.env[KIMI_SHARE_DIR_ENV]?.trim();
-					return envPath != null && envPath !== '' ? path.resolve(envPath) : DEFAULT_KIMI_DIR;
-				})();
+export type KimiWireFileReference = {
+	file: string;
+};
 
+export type KimiTokenUsageLoadContext = {
+	shareDir: string;
+	sessionsDir: string;
+	workDirLookup: Map<string, string>;
+	defaultModel: DefaultModel;
+};
+
+type ReasoningBuffer = { content: string[]; lastFlushIndex: number };
+
+const statusUpdateSchema = v.object({
+	timestamp: v.number(),
+	message: v.object({
+		type: v.literal('StatusUpdate'),
+		payload: v.optional(recordSchema),
+	}),
+});
+
+const contentPartSchema = v.object({
+	timestamp: v.number(),
+	message: v.object({
+		type: v.literal('ContentPart'),
+		payload: v.object({
+			type: v.string(),
+			think: v.optional(v.string()),
+		}),
+	}),
+});
+
+const subagentEventSchema = v.object({
+	timestamp: v.number(),
+	message: v.object({
+		type: v.literal('SubagentEvent'),
+		payload: v.object({
+			task_tool_call_id: v.optional(v.string()),
+			event: v.optional(
+				v.object({
+					type: v.string(),
+					payload: v.optional(v.unknown()),
+				}),
+			),
+		}),
+	}),
+});
+
+export function resolveKimiShareDir(options: LoadOptions = {}): string {
+	if (options.shareDir != null && options.shareDir.trim() !== '') {
+		return path.resolve(options.shareDir);
+	}
+
+	const envPath = process.env[KIMI_SHARE_DIR_ENV]?.trim();
+	return envPath != null && envPath !== '' ? path.resolve(envPath) : DEFAULT_KIMI_DIR;
+}
+
+export async function createKimiTokenUsageLoadContext(
+	shareDir: string,
+): Promise<{ context?: KimiTokenUsageLoadContext; missingDirectories: string[] }> {
 	const sessionsDir = path.join(shareDir, KIMI_SESSIONS_DIR_NAME);
 	const missingDirectories: string[] = [];
 
@@ -324,23 +375,67 @@ export async function loadTokenUsageEvents(options: LoadOptions = {}): Promise<L
 	});
 	if (Result.isFailure(statResult) || !statResult.value.isDirectory()) {
 		missingDirectories.push(sessionsDir);
-		return { events: [], missingDirectories };
+		return { missingDirectories };
 	}
 
 	const workDirLookup = await loadWorkDirLookup(shareDir);
 	const defaultModel = await loadDefaultModel(shareDir);
 
+	return {
+		context: {
+			shareDir,
+			sessionsDir,
+			workDirLookup,
+			defaultModel,
+		},
+		missingDirectories,
+	};
+}
+
+export async function getKimiTokenUsageFiles(
+	context: KimiTokenUsageLoadContext,
+): Promise<KimiWireFileReference[]> {
 	const files = await glob(SESSION_WIRE_GLOB, {
-		cwd: sessionsDir,
+		cwd: context.sessionsDir,
 		absolute: true,
 	});
 
+	return files.map((file) => ({ file }));
+}
+
+export function dedupeKimiTokenUsageEvents<T extends TokenUsageEvent>(events: T[]): T[] {
+	const firstByKey = new Map<string, T>();
+
+	for (const event of events) {
+		const dedupeKey = event.dedupeKey;
+		if (dedupeKey == null) {
+			continue;
+		}
+
+		const existing = firstByKey.get(dedupeKey);
+		if (
+			existing == null ||
+			new Date(event.timestamp).getTime() < new Date(existing.timestamp).getTime()
+		) {
+			firstByKey.set(dedupeKey, event);
+		}
+	}
+
+	return events.filter((event) => {
+		const dedupeKey = event.dedupeKey;
+		return dedupeKey == null || firstByKey.get(dedupeKey) === event;
+	});
+}
+
+export async function loadTokenUsageEventsFromWireFiles(
+	files: KimiWireFileReference[],
+	context: KimiTokenUsageLoadContext,
+): Promise<TokenUsageEvent[]> {
 	const events: TokenUsageEvent[] = [];
 	const seenMessageIds = new Set<string>();
 
 	// Accumulate reasoning content per (session + stream) that will be distributed to events.
 	// Stream is either "main" or "subagent:{task_tool_call_id}" to avoid mixing reasoning across parallel subagents.
-	type ReasoningBuffer = { content: string[]; lastFlushIndex: number };
 	const reasoningBuffers = new Map<string, ReasoningBuffer>();
 
 	function getReasoningBuffer(sessionId: string, streamId: string): ReasoningBuffer {
@@ -354,43 +449,12 @@ export async function loadTokenUsageEvents(options: LoadOptions = {}): Promise<L
 		return created;
 	}
 
-	const statusUpdateSchema = v.object({
-		timestamp: v.number(),
-		message: v.object({
-			type: v.literal('StatusUpdate'),
-			payload: v.optional(recordSchema),
-		}),
-	});
-
-	const contentPartSchema = v.object({
-		timestamp: v.number(),
-		message: v.object({
-			type: v.literal('ContentPart'),
-			payload: v.object({
-				type: v.string(),
-				think: v.optional(v.string()),
-			}),
-		}),
-	});
-
-	const subagentEventSchema = v.object({
-		timestamp: v.number(),
-		message: v.object({
-			type: v.literal('SubagentEvent'),
-			payload: v.object({
-				task_tool_call_id: v.optional(v.string()),
-				event: v.optional(
-					v.object({
-						type: v.string(),
-						payload: v.optional(v.unknown()),
-					}),
-				),
-			}),
-		}),
-	});
-
-	for (const file of files) {
-		const wireFileContext = resolveWireFileContext(sessionsDir, file, workDirLookup);
+	for (const { file } of files) {
+		const wireFileContext = resolveWireFileContext(
+			context.sessionsDir,
+			file,
+			context.workDirLookup,
+		);
 		if (wireFileContext == null) {
 			continue;
 		}
@@ -434,9 +498,10 @@ export async function loadTokenUsageEvents(options: LoadOptions = {}): Promise<L
 					}
 
 					const messageId = asNonEmptyString(payload.message_id);
+					const dedupeKey =
+						messageId == null ? undefined : `${sessionId}:${resolvedStreamId}:${messageId}`;
 					let isDuplicate = false;
-					if (messageId != null) {
-						const dedupeKey = `${sessionId}:${resolvedStreamId}:${messageId}`;
+					if (dedupeKey != null) {
 						if (seenMessageIds.has(dedupeKey)) {
 							isDuplicate = true;
 						} else {
@@ -487,8 +552,9 @@ export async function loadTokenUsageEvents(options: LoadOptions = {}): Promise<L
 					events.push({
 						sessionId,
 						timestamp,
-						model: resolveEffectiveModel(defaultModel, timestamp),
-						isFallbackModel: defaultModel.isFallback ? true : undefined,
+						model: resolveEffectiveModel(context.defaultModel, timestamp),
+						...(context.defaultModel.isFallback && { isFallbackModel: true }),
+						...(dedupeKey != null && { dedupeKey }),
 						inputTokens,
 						cachedInputTokens: cacheRead,
 						outputTokens: output,
@@ -548,6 +614,19 @@ export async function loadTokenUsageEvents(options: LoadOptions = {}): Promise<L
 	}
 
 	events.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+
+	return events;
+}
+
+export async function loadTokenUsageEvents(options: LoadOptions = {}): Promise<LoadResult> {
+	const shareDir = resolveKimiShareDir(options);
+	const { context, missingDirectories } = await createKimiTokenUsageLoadContext(shareDir);
+	if (context == null) {
+		return { events: [], missingDirectories };
+	}
+
+	const files = await getKimiTokenUsageFiles(context);
+	const events = await loadTokenUsageEventsFromWireFiles(files, context);
 
 	return { events, missingDirectories };
 }
