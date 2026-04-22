@@ -4,6 +4,7 @@ import { stat } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
 import { createInterface } from 'node:readline';
+import { PassThrough } from 'node:stream';
 import { Result } from '@praha/byethrow';
 import { createFixture } from 'fs-fixture';
 import { glob } from 'tinyglobby';
@@ -105,6 +106,11 @@ function convertToDelta(raw: RawUsage): TokenUsageDelta {
 
 const recordSchema = v.record(v.string(), v.unknown());
 const LEGACY_FALLBACK_MODEL = 'gpt-5';
+const sessionStreamFactory = {
+	create(file: string) {
+		return createReadStream(file, { encoding: 'utf8' });
+	},
+};
 
 const entrySchema = v.object({
 	type: v.string(),
@@ -233,7 +239,7 @@ export async function loadTokenUsageEvents(options: LoadOptions = {}): Promise<L
 			let legacyFallbackUsed = false;
 			const fileEvents: TokenUsageEvent[] = [];
 			const lineReader = createInterface({
-				input: createReadStream(file, { encoding: 'utf8' }),
+				input: sessionStreamFactory.create(file),
 				crlfDelay: Number.POSITIVE_INFINITY,
 			});
 
@@ -352,21 +358,21 @@ export async function loadTokenUsageEvents(options: LoadOptions = {}): Promise<L
 						event.isFallbackModel = true;
 					}
 
-						fileEvents.push(event);
-					}
-				} catch (error) {
-					logger.debug('Failed to read Codex session file', error);
-					continue;
+					fileEvents.push(event);
 				}
+			} catch (error) {
+				logger.debug('Failed to read Codex session file', error);
+				continue;
+			}
 
-				events.push(...fileEvents);
+			events.push(...fileEvents);
 
-				if (legacyFallbackUsed) {
-					logger.debug('Legacy Codex session lacked model metadata; applied fallback', {
-						file,
-						model: LEGACY_FALLBACK_MODEL,
-					});
-				}
+			if (legacyFallbackUsed) {
+				logger.debug('Legacy Codex session lacked model metadata; applied fallback', {
+					file,
+					model: LEGACY_FALLBACK_MODEL,
+				});
+			}
 		}
 	}
 
@@ -543,7 +549,61 @@ if (import.meta.vitest != null) {
 					reasoningOutputTokens: 1,
 					totalTokens: 50,
 				}),
-			]);
+				]);
+			});
+
+			it('rolls back events when a session stream fails', async () => {
+				await using fixture = await createFixture({
+					sessions: {
+						'stream-fail.jsonl': 'placeholder',
+					},
+				});
+
+				const failingSessionPath = fixture.getPath('sessions/stream-fail.jsonl');
+				const streamError = new Error('synthetic stream failure');
+				const validLine = JSON.stringify({
+					timestamp: '2025-09-15T13:00:11.000Z',
+					type: 'event_msg',
+					payload: {
+						type: 'token_count',
+						info: {
+							last_token_usage: {
+								input_tokens: 42,
+								cached_input_tokens: 2,
+								output_tokens: 8,
+								reasoning_output_tokens: 1,
+								total_tokens: 50,
+							},
+							model: 'gpt-5.4',
+						},
+					},
+				});
+				const actualCreateReadStream = sessionStreamFactory.create;
+				const createReadStreamSpy = vi
+					.spyOn(sessionStreamFactory, 'create')
+					.mockImplementation((file) => {
+						if (file !== failingSessionPath) {
+							return actualCreateReadStream(file);
+						}
+
+						const stream = new PassThrough();
+						stream.write(`${validLine}\n`);
+						queueMicrotask(() => stream.destroy(streamError));
+						return stream as unknown as ReturnType<typeof actualCreateReadStream>;
+					});
+				const debugSpy = vi.spyOn(logger, 'debug').mockImplementation(() => undefined);
+
+				try {
+					const { events } = await loadTokenUsageEvents({
+						sessionDirs: [fixture.getPath('sessions')],
+					});
+
+					expect(events).toEqual([]);
+					expect(debugSpy).toHaveBeenCalledWith('Failed to read Codex session file', streamError);
+				} finally {
+					createReadStreamSpy.mockRestore();
+					debugSpy.mockRestore();
+				}
+			});
 		});
-	});
-}
+	}
