@@ -73,10 +73,6 @@ export const sessionCommand = define({
 
 		using pricingSource = new CopilotPricingSource({ offline: Boolean(ctx.values.offline) });
 
-		if (jsonOutput) {
-			logger.level = 0;
-		}
-
 		// Group events by session, filtering by date range
 		const eventsBySession = new Map<string, TokenUsageEvent[]>();
 		for (const event of events) {

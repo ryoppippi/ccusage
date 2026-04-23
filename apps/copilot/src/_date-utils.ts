@@ -92,37 +92,6 @@ export function isWithinRange(dateKey: string, since?: string, until?: string): 
 	return true;
 }
 
-/**
- * Format a date key for display using locale
- */
-export function formatDisplayDate(dateKey: string, locale?: string, timezone?: string): string {
-	const tz = safeTimeZone(timezone);
-	const date = new Date(`${dateKey}T00:00:00`);
-	const formatter = new Intl.DateTimeFormat(locale ?? 'en-US', {
-		year: 'numeric',
-		month: 'short',
-		day: 'numeric',
-		timeZone: tz,
-	});
-	return formatter.format(date);
-}
-
-/**
- * Format a month key for display using locale
- */
-export function formatDisplayMonth(monthKey: string, locale?: string): string {
-	const [yearStr = '0', monthStr = '1'] = monthKey.split('-');
-	const year = Number.parseInt(yearStr, 10);
-	const month = Number.parseInt(monthStr, 10);
-	const date = new Date(Date.UTC(year, month - 1, 1));
-	const formatter = new Intl.DateTimeFormat(locale ?? 'en-US', {
-		year: 'numeric',
-		month: 'short',
-		timeZone: 'UTC',
-	});
-	return formatter.format(date);
-}
-
 if (import.meta.vitest != null) {
 	describe('normalizeFilterDate', () => {
 		it('normalizes YYYYMMDD to YYYY-MM-DD', () => {

@@ -41,6 +41,10 @@ Companion tool for analyzing [pi-agent](https://github.com/badlogic/pi-mono) ses
 
 Companion tool for analyzing [Amp](https://ampcode.com/) session usage. Track token usage, costs, and credits from your Amp CLI sessions with daily, monthly, and session-based reports.
 
+### 🤖 [@ccusage/copilot](https://www.npmjs.com/package/@ccusage/copilot) - GitHub Copilot CLI Usage Analyzer
+
+Companion tool for analyzing [GitHub Copilot CLI](https://docs.github.com/en/copilot/github-copilot-in-the-cli) session usage. Track token usage and costs with dual pricing modes: premium request costs or API-equivalent rates.
+
 ### 🔌 [@ccusage/mcp](https://www.npmjs.com/package/@ccusage/mcp) - MCP Server Integration
 
 Model Context Protocol server that exposes ccusage data to Claude Desktop and other MCP-compatible tools. Enable real-time usage tracking directly in your AI workflows.
@@ -73,6 +77,7 @@ npx @ccusage/codex@latest       # OpenAI Codex usage tracking
 npx @ccusage/opencode@latest    # OpenCode usage tracking
 npx @ccusage/pi@latest          # Pi-agent usage tracking
 npx @ccusage/amp@latest         # Amp usage tracking
+npx @ccusage/copilot@latest     # GitHub Copilot CLI usage tracking
 npx @ccusage/mcp@latest         # MCP Server
 ```
 

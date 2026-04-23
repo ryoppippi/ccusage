@@ -11,12 +11,12 @@ export const sharedArgs = {
 	since: {
 		type: 'string',
 		short: 's',
-		description: 'Filter from date (YYYY-MM-DD or YYYYMMDD)',
+		description: 'Filter from date (YYYY-MM, YYYY-MM-DD, or YYYYMMDD)',
 	},
 	until: {
 		type: 'string',
 		short: 'u',
-		description: 'Filter until date (inclusive)',
+		description: 'Filter until date (inclusive, YYYY-MM, YYYY-MM-DD, or YYYYMMDD)',
 	},
 	timezone: {
 		type: 'string',

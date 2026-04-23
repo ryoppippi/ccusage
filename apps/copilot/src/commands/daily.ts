@@ -39,7 +39,6 @@ export const dailyCommand = define({
 		}
 		const pricingMode: PricingMode = modeValue;
 		const timezone = ctx.values.timezone;
-		// locale reserved for future formatting
 		const sortOrder = ctx.values.order === 'desc' ? 'desc' : 'asc';
 		const showBreakdown = Boolean(ctx.values.breakdown);
 
@@ -72,10 +71,6 @@ export const dailyCommand = define({
 		}
 
 		using pricingSource = new CopilotPricingSource({ offline: Boolean(ctx.values.offline) });
-
-		if (jsonOutput) {
-			logger.level = 0;
-		}
 
 		// Group events by date
 		const eventsByDate = new Map<string, TokenUsageEvent[]>();

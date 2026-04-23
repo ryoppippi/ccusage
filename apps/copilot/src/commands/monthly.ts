@@ -74,10 +74,6 @@ export const monthlyCommand = define({
 
 		using pricingSource = new CopilotPricingSource({ offline: Boolean(ctx.values.offline) });
 
-		if (jsonOutput) {
-			logger.level = 0;
-		}
-
 		// Group events by month, filtering by full date range first
 		const eventsByMonth = new Map<string, TokenUsageEvent[]>();
 		for (const event of events) {
