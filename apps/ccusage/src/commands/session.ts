@@ -47,6 +47,8 @@ export const sessionCommand = define({
 			logger.level = 0;
 		}
 
+		const humanReadable = Boolean(mergedOptions.human);
+
 		// Handle specific session ID lookup
 		if (mergedOptions.id != null) {
 			return handleSessionIdLookup(
@@ -61,6 +63,7 @@ export const sessionCommand = define({
 					},
 				},
 				useJson,
+				humanReadable,
 			);
 		}
 
@@ -155,13 +158,14 @@ export const sessionCommand = define({
 						modelsUsed: data.modelsUsed,
 					},
 					data.lastActivity,
+					humanReadable,
 				);
 				table.push(row);
 
 				// Add model breakdown rows if flag is set
 				if (ctx.values.breakdown) {
 					// Session has 1 extra column before data and 1 trailing column
-					pushBreakdownRows(table, data.modelBreakdowns, 1, 1);
+					pushBreakdownRows(table, data.modelBreakdowns, 1, 1, humanReadable);
 				}
 			}
 
@@ -178,6 +182,7 @@ export const sessionCommand = define({
 					totalCost: totals.totalCost,
 				},
 				true,
+				humanReadable,
 			); // Include Last Activity column
 			table.push(totalsRow);
 

@@ -110,6 +110,12 @@ export const sharedArgs = {
 		description: 'Force compact mode for narrow displays (better for screenshots)',
 		default: false,
 	},
+	human: {
+		type: 'boolean',
+		short: 'H',
+		description: 'Display token counts in human-readable format (K/M/B suffixes)',
+		default: false,
+	},
 } as const satisfies Args;
 
 /**

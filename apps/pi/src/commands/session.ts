@@ -49,6 +49,12 @@ export const sessionCommand = define({
 			description: 'Show model breakdown for each entry',
 			default: false,
 		},
+		human: {
+			type: 'boolean',
+			short: 'H',
+			description: 'Display token counts in human-readable format (K/M/B suffixes)',
+			default: false,
+		},
 	},
 	async run(ctx) {
 		const options = {
@@ -98,6 +104,8 @@ export const sessionCommand = define({
 				),
 			);
 		} else {
+			const humanReadable = Boolean(ctx.values.human);
+
 			logger.box('Pi-Agent Usage Report - Sessions');
 
 			const table = createUsageReportTable({
@@ -110,30 +118,39 @@ export const sessionCommand = define({
 				const truncatedName =
 					projectName.length > 25 ? `${projectName.slice(0, 22)}...` : projectName;
 
-				const row = formatUsageDataRow(truncatedName, {
-					inputTokens: data.inputTokens,
-					outputTokens: data.outputTokens,
-					cacheCreationTokens: data.cacheCreationTokens,
-					cacheReadTokens: data.cacheReadTokens,
-					totalCost: data.totalCost,
-					modelsUsed: data.modelsUsed,
-				});
+				const row = formatUsageDataRow(
+					truncatedName,
+					{
+						inputTokens: data.inputTokens,
+						outputTokens: data.outputTokens,
+						cacheCreationTokens: data.cacheCreationTokens,
+						cacheReadTokens: data.cacheReadTokens,
+						totalCost: data.totalCost,
+						modelsUsed: data.modelsUsed,
+					},
+					undefined,
+					humanReadable,
+				);
 				table.push(row);
 
 				if (ctx.values.breakdown) {
-					pushBreakdownRows(table, data.modelBreakdowns);
+					pushBreakdownRows(table, data.modelBreakdowns, 1, 0, humanReadable);
 				}
 			}
 
 			addEmptySeparatorRow(table, 8);
 
-			const totalsRow = formatTotalsRow({
-				inputTokens: totals.inputTokens,
-				outputTokens: totals.outputTokens,
-				cacheCreationTokens: totals.cacheCreationTokens,
-				cacheReadTokens: totals.cacheReadTokens,
-				totalCost: totals.totalCost,
-			});
+			const totalsRow = formatTotalsRow(
+				{
+					inputTokens: totals.inputTokens,
+					outputTokens: totals.outputTokens,
+					cacheCreationTokens: totals.cacheCreationTokens,
+					cacheReadTokens: totals.cacheReadTokens,
+					totalCost: totals.totalCost,
+				},
+				false,
+				humanReadable,
+			);
 			table.push(totalsRow);
 
 			log(table.toString());

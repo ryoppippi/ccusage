@@ -352,11 +352,33 @@ export class ResponsiveTable {
 }
 
 /**
+ * Cached compact number formatter for human-readable display
+ */
+const compactFormatter = new Intl.NumberFormat('en-US', {
+	notation: 'compact',
+	compactDisplay: 'short',
+	maximumFractionDigits: 2,
+});
+
+/**
+ * Formats a number in human-readable compact notation (e.g., 1.23M, 500K)
+ * @param num - The number to format
+ * @returns Formatted number string with K/M/B/T suffixes
+ */
+export function formatNumberHuman(num: number): string {
+	return compactFormatter.format(num);
+}
+
+/**
  * Formats a number with locale-specific thousand separators
  * @param num - The number to format
+ * @param humanReadable - When true, uses compact notation (K/M/B suffixes)
  * @returns Formatted number string with commas as thousand separators
  */
-export function formatNumber(num: number): string {
+export function formatNumber(num: number, humanReadable = false): string {
+	if (humanReadable) {
+		return formatNumberHuman(num);
+	}
 	return num.toLocaleString('en-US');
 }
 
@@ -454,6 +476,7 @@ export function pushBreakdownRows(
 	}>,
 	extraColumns = 1,
 	trailingColumns = 0,
+	humanReadable = false,
 ): void {
 	for (const breakdown of breakdowns) {
 		const row: (string | number)[] = [`  └─ ${formatModelName(breakdown.modelName)}`];
@@ -471,11 +494,11 @@ export function pushBreakdownRows(
 			breakdown.cacheReadTokens;
 
 		row.push(
-			pc.gray(formatNumber(breakdown.inputTokens)),
-			pc.gray(formatNumber(breakdown.outputTokens)),
-			pc.gray(formatNumber(breakdown.cacheCreationTokens)),
-			pc.gray(formatNumber(breakdown.cacheReadTokens)),
-			pc.gray(formatNumber(totalTokens)),
+			pc.gray(formatNumber(breakdown.inputTokens, humanReadable)),
+			pc.gray(formatNumber(breakdown.outputTokens, humanReadable)),
+			pc.gray(formatNumber(breakdown.cacheCreationTokens, humanReadable)),
+			pc.gray(formatNumber(breakdown.cacheReadTokens, humanReadable)),
+			pc.gray(formatNumber(totalTokens, humanReadable)),
 			pc.gray(formatCurrency(breakdown.cost)),
 		);
 
@@ -577,6 +600,7 @@ export function formatUsageDataRow(
 	firstColumnValue: string,
 	data: UsageData,
 	lastActivity?: string,
+	humanReadable = false,
 ): (string | number)[] {
 	const totalTokens =
 		data.inputTokens + data.outputTokens + data.cacheCreationTokens + data.cacheReadTokens;
@@ -584,11 +608,11 @@ export function formatUsageDataRow(
 	const row: (string | number)[] = [
 		firstColumnValue,
 		data.modelsUsed != null ? formatModelsDisplayMultiline(data.modelsUsed) : '',
-		formatNumber(data.inputTokens),
-		formatNumber(data.outputTokens),
-		formatNumber(data.cacheCreationTokens),
-		formatNumber(data.cacheReadTokens),
-		formatNumber(totalTokens),
+		formatNumber(data.inputTokens, humanReadable),
+		formatNumber(data.outputTokens, humanReadable),
+		formatNumber(data.cacheCreationTokens, humanReadable),
+		formatNumber(data.cacheReadTokens, humanReadable),
+		formatNumber(totalTokens, humanReadable),
 		formatCurrency(data.totalCost),
 	];
 
@@ -608,6 +632,7 @@ export function formatUsageDataRow(
 export function formatTotalsRow(
 	totals: UsageData,
 	includeLastActivity = false,
+	humanReadable = false,
 ): (string | number)[] {
 	const totalTokens =
 		totals.inputTokens + totals.outputTokens + totals.cacheCreationTokens + totals.cacheReadTokens;
@@ -615,11 +640,11 @@ export function formatTotalsRow(
 	const row: (string | number)[] = [
 		pc.yellow('Total'),
 		'', // Empty for Models column in totals
-		pc.yellow(formatNumber(totals.inputTokens)),
-		pc.yellow(formatNumber(totals.outputTokens)),
-		pc.yellow(formatNumber(totals.cacheCreationTokens)),
-		pc.yellow(formatNumber(totals.cacheReadTokens)),
-		pc.yellow(formatNumber(totalTokens)),
+		pc.yellow(formatNumber(totals.inputTokens, humanReadable)),
+		pc.yellow(formatNumber(totals.outputTokens, humanReadable)),
+		pc.yellow(formatNumber(totals.cacheCreationTokens, humanReadable)),
+		pc.yellow(formatNumber(totals.cacheReadTokens, humanReadable)),
+		pc.yellow(formatNumber(totalTokens, humanReadable)),
 		pc.yellow(formatCurrency(totals.totalCost)),
 	];
 
@@ -1103,6 +1128,49 @@ if (import.meta.vitest != null) {
 		it('should use default locale when not specified', () => {
 			const result = formatDateCompact('2024-08-04');
 			expect(result).toBe('2024\n08-04');
+		});
+	});
+
+	describe('formatNumber', () => {
+		it('should format with comma separators by default', () => {
+			expect(formatNumber(1234567)).toBe('1,234,567');
+			expect(formatNumber(0)).toBe('0');
+			expect(formatNumber(999)).toBe('999');
+		});
+
+		it('should format in compact notation when humanReadable is true', () => {
+			expect(formatNumber(1234567, true)).toBe('1.23M');
+			expect(formatNumber(500000, true)).toBe('500K');
+			expect(formatNumber(999, true)).toBe('999');
+			expect(formatNumber(0, true)).toBe('0');
+		});
+
+		it('should use comma separators when humanReadable is false', () => {
+			expect(formatNumber(1234567, false)).toBe('1,234,567');
+		});
+	});
+
+	describe('formatNumberHuman', () => {
+		it('should format small numbers as-is', () => {
+			expect(formatNumberHuman(0)).toBe('0');
+			expect(formatNumberHuman(999)).toBe('999');
+		});
+
+		it('should format thousands with K suffix', () => {
+			expect(formatNumberHuman(1000)).toBe('1K');
+			expect(formatNumberHuman(2500)).toBe('2.5K');
+			expect(formatNumberHuman(99999)).toBe('100K');
+		});
+
+		it('should format millions with M suffix', () => {
+			expect(formatNumberHuman(1000000)).toBe('1M');
+			expect(formatNumberHuman(1500000)).toBe('1.5M');
+			expect(formatNumberHuman(1234567)).toBe('1.23M');
+		});
+
+		it('should format billions with B suffix', () => {
+			expect(formatNumberHuman(1000000000)).toBe('1B');
+			expect(formatNumberHuman(2500000000)).toBe('2.5B');
 		});
 	});
 }

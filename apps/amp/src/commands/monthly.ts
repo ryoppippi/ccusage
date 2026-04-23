@@ -41,9 +41,15 @@ export const monthlyCommand = define({
 			type: 'boolean',
 			description: 'Force compact table mode',
 		},
+		human: {
+			type: 'boolean',
+			short: 'H',
+			description: 'Display token counts in human-readable format (K/M/B suffixes)',
+		},
 	},
 	async run(ctx) {
 		const jsonOutput = Boolean(ctx.values.json);
+		const humanReadable = Boolean(ctx.values.human);
 
 		const { events } = await loadAmpUsageEvents();
 
@@ -168,11 +174,11 @@ export const monthlyCommand = define({
 			table.push([
 				data.month,
 				formatModelsDisplayMultiline(data.modelsUsed),
-				formatNumber(data.inputTokens),
-				formatNumber(data.outputTokens),
-				formatNumber(data.cacheCreationTokens),
-				formatNumber(data.cacheReadTokens),
-				formatNumber(data.totalTokens),
+				formatNumber(data.inputTokens, humanReadable),
+				formatNumber(data.outputTokens, humanReadable),
+				formatNumber(data.cacheCreationTokens, humanReadable),
+				formatNumber(data.cacheReadTokens, humanReadable),
+				formatNumber(data.totalTokens, humanReadable),
 				data.credits.toFixed(2),
 				formatCurrency(data.totalCost),
 			]);
@@ -182,11 +188,11 @@ export const monthlyCommand = define({
 		table.push([
 			pc.yellow('Total'),
 			'',
-			pc.yellow(formatNumber(totals.inputTokens)),
-			pc.yellow(formatNumber(totals.outputTokens)),
-			pc.yellow(formatNumber(totals.cacheCreationTokens)),
-			pc.yellow(formatNumber(totals.cacheReadTokens)),
-			pc.yellow(formatNumber(totals.totalTokens)),
+			pc.yellow(formatNumber(totals.inputTokens, humanReadable)),
+			pc.yellow(formatNumber(totals.outputTokens, humanReadable)),
+			pc.yellow(formatNumber(totals.cacheCreationTokens, humanReadable)),
+			pc.yellow(formatNumber(totals.cacheReadTokens, humanReadable)),
+			pc.yellow(formatNumber(totals.totalTokens, humanReadable)),
 			pc.yellow(totals.credits.toFixed(2)),
 			pc.yellow(formatCurrency(totals.totalCost)),
 		]);

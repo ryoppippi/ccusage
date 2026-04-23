@@ -29,9 +29,15 @@ export const sessionCommand = define({
 			type: 'boolean',
 			description: 'Force compact table mode',
 		},
+		human: {
+			type: 'boolean',
+			short: 'H',
+			description: 'Display token counts in human-readable format (K/M/B suffixes)',
+		},
 	},
 	async run(ctx) {
 		const jsonOutput = Boolean(ctx.values.json);
+		const humanReadable = Boolean(ctx.values.human);
 
 		const [entries, sessionMetadataMap] = await Promise.all([
 			loadOpenCodeMessages(),
@@ -170,11 +176,11 @@ export const sessionCommand = define({
 			table.push([
 				displayTitle,
 				formatModelsDisplayMultiline(parentSession.modelsUsed),
-				formatNumber(parentSession.inputTokens),
-				formatNumber(parentSession.outputTokens),
-				formatNumber(parentSession.cacheCreationTokens),
-				formatNumber(parentSession.cacheReadTokens),
-				formatNumber(parentSession.totalTokens),
+				formatNumber(parentSession.inputTokens, humanReadable),
+				formatNumber(parentSession.outputTokens, humanReadable),
+				formatNumber(parentSession.cacheCreationTokens, humanReadable),
+				formatNumber(parentSession.cacheReadTokens, humanReadable),
+				formatNumber(parentSession.totalTokens, humanReadable),
 				formatCurrency(parentSession.totalCost),
 			]);
 
@@ -184,11 +190,11 @@ export const sessionCommand = define({
 					table.push([
 						`  ↳ ${subSession.sessionTitle}`,
 						formatModelsDisplayMultiline(subSession.modelsUsed),
-						formatNumber(subSession.inputTokens),
-						formatNumber(subSession.outputTokens),
-						formatNumber(subSession.cacheCreationTokens),
-						formatNumber(subSession.cacheReadTokens),
-						formatNumber(subSession.totalTokens),
+						formatNumber(subSession.inputTokens, humanReadable),
+						formatNumber(subSession.outputTokens, humanReadable),
+						formatNumber(subSession.cacheCreationTokens, humanReadable),
+						formatNumber(subSession.cacheReadTokens, humanReadable),
+						formatNumber(subSession.totalTokens, humanReadable),
 						formatCurrency(subSession.totalCost),
 					]);
 				}
@@ -211,11 +217,11 @@ export const sessionCommand = define({
 				table.push([
 					pc.dim('  Total (with subagents)'),
 					'',
-					pc.yellow(formatNumber(subtotalInputTokens)),
-					pc.yellow(formatNumber(subtotalOutputTokens)),
-					pc.yellow(formatNumber(subtotalCacheCreationTokens)),
-					pc.yellow(formatNumber(subtotalCacheReadTokens)),
-					pc.yellow(formatNumber(subtotalTotalTokens)),
+					pc.yellow(formatNumber(subtotalInputTokens, humanReadable)),
+					pc.yellow(formatNumber(subtotalOutputTokens, humanReadable)),
+					pc.yellow(formatNumber(subtotalCacheCreationTokens, humanReadable)),
+					pc.yellow(formatNumber(subtotalCacheReadTokens, humanReadable)),
+					pc.yellow(formatNumber(subtotalTotalTokens, humanReadable)),
 					pc.yellow(formatCurrency(subtotalCost)),
 				]);
 			}
@@ -225,11 +231,11 @@ export const sessionCommand = define({
 		table.push([
 			pc.yellow('Total'),
 			'',
-			pc.yellow(formatNumber(totals.inputTokens)),
-			pc.yellow(formatNumber(totals.outputTokens)),
-			pc.yellow(formatNumber(totals.cacheCreationTokens)),
-			pc.yellow(formatNumber(totals.cacheReadTokens)),
-			pc.yellow(formatNumber(totals.totalTokens)),
+			pc.yellow(formatNumber(totals.inputTokens, humanReadable)),
+			pc.yellow(formatNumber(totals.outputTokens, humanReadable)),
+			pc.yellow(formatNumber(totals.cacheCreationTokens, humanReadable)),
+			pc.yellow(formatNumber(totals.cacheReadTokens, humanReadable)),
+			pc.yellow(formatNumber(totals.totalTokens, humanReadable)),
 			pc.yellow(formatCurrency(totals.totalCost)),
 		]);
 
