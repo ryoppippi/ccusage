@@ -1,0 +1,34 @@
+{
+	"name": "@ccusage/copilot",
+	"version": "18.0.11",
+	"description": "Usage analysis tool for GitHub Copilot CLI sessions",
+	"homepage": "https://github.com/ryoppippi/ccusage#readme",
+	"bugs": {
+		"url": "https://github.com/ryoppippi/ccusage/issues"
+	},
+	"license": "MIT",
+	"author": "ryoppippi",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/ryoppippi/ccusage.git",
+		"directory": "apps/copilot"
+	},
+	"funding": "https://github.com/ryoppippi/ccusage?sponsor=1",
+	"bin": {
+		"ccusage-copilot": "./src/index.ts"
+	},
+	"files": [
+		"dist"
+	],
+	"type": "module",
+	"main": "./dist/index.js",
+	"module": "./dist/index.js",
+	"publishConfig": {
+		"bin": {
+			"ccusage-copilot": "./dist/index.js"
+		}
+	},
+	"engines": {
+		"node": ">=20.19.4"
+	}
+}
