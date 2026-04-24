@@ -123,6 +123,12 @@ export type LoadedSessionMetadata = {
 	directory: string;
 };
 
+/**
+ * Date range options for loading OpenCode messages.
+ *
+ * `since` and `until` use `YYYYMMDD` strings so the loader can apply the same
+ * lexicographic date comparison semantics as the main CLI.
+ */
 export type LoadOpenCodeMessagesOptions = {
 	since?: string;
 	until?: string;
@@ -495,6 +501,27 @@ if (import.meta.vitest != null) {
 				});
 
 				expect(getSortedIsoTimestamps(entries)).toEqual(['2024-01-02T12:00:00.000Z']);
+			} finally {
+				await rm(root, { recursive: true, force: true });
+			}
+		});
+
+		it('should return no OpenCode messages for non-overlapping date ranges', async () => {
+			const root = await createOpenCodeMessageFixture([
+				createTestMessage('msg_20240101', '2024-01-01T12:00:00.000Z'),
+				createTestMessage('msg_20240102', '2024-01-02T12:00:00.000Z'),
+				createTestMessage('msg_20240103', '2024-01-03T12:00:00.000Z'),
+			]);
+
+			try {
+				vi.stubEnv(OPENCODE_CONFIG_DIR_ENV, root);
+
+				const entries = await loadOpenCodeMessages({
+					since: '20240104',
+					until: '20240105',
+				});
+
+				expect(getSortedIsoTimestamps(entries)).toEqual([]);
 			} finally {
 				await rm(root, { recursive: true, force: true });
 			}
