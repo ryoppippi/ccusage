@@ -2,9 +2,11 @@
 
 ## Log Sources
 
-- OpenCode session usage is recorded under `${OPENCODE_DATA_DIR:-~/.local/share/opencode}/storage/message/` (the CLI resolves `OPENCODE_DATA_DIR` and falls back to `~/.local/share/opencode`).
-- Each message is stored as an individual JSON file (not JSONL like Claude or Codex).
-- Message structure includes `tokens.input`, `tokens.output`, `tokens.cache.read`, and `tokens.cache.write`.
+- OpenCode session usage is recorded in **two storage formats** depending on OpenCode version:
+  1. **File-based (pre-Feb 2026):** Individual JSON files under `${OPENCODE_DATA_DIR:-~/.local/share/opencode}/storage/message/`
+  2. **SQLite (post-Feb 2026):** `${OPENCODE_DATA_DIR:-~/.local/share/opencode}/opencode.db` — assistant messages in the `message` table with token data embedded as JSON in the `data` column
+- Both sources are read and merged automatically. The SQLite DB is opened read-only.
+- `OPENCODE_DATA_DIR` environment variable overrides the default path for both sources.
 
 ## Token Fields
 
