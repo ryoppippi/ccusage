@@ -10,6 +10,7 @@ import {
 import { groupBy } from 'es-toolkit';
 import { define } from 'gunshi';
 import pc from 'picocolors';
+import { dateFilterArgs } from '../_shared-args.ts';
 import { calculateCostForEntry } from '../cost-utils.ts';
 import { loadOpenCodeMessages, loadOpenCodeSessions } from '../data-loader.ts';
 import { logger } from '../logger.ts';
@@ -20,6 +21,7 @@ export const sessionCommand = define({
 	name: 'session',
 	description: 'Show OpenCode token usage grouped by session',
 	args: {
+		...dateFilterArgs,
 		json: {
 			type: 'boolean',
 			short: 'j',
@@ -34,7 +36,10 @@ export const sessionCommand = define({
 		const jsonOutput = Boolean(ctx.values.json);
 
 		const [entries, sessionMetadataMap] = await Promise.all([
-			loadOpenCodeMessages(),
+			loadOpenCodeMessages({
+				since: ctx.values.since,
+				until: ctx.values.until,
+			}),
 			loadOpenCodeSessions(),
 		]);
 

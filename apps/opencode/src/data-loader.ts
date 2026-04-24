@@ -8,8 +8,8 @@
  * @module data-loader
  */
 
-import { readFile } from 'node:fs/promises';
-import { homedir } from 'node:os';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { homedir, tmpdir } from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
 import { isDirectorySync } from 'path-type';
@@ -123,6 +123,11 @@ export type LoadedSessionMetadata = {
 	directory: string;
 };
 
+export type LoadOpenCodeMessagesOptions = {
+	since?: string;
+	until?: string;
+};
+
 /**
  * Get OpenCode data directory
  * @returns Path to OpenCode data directory, or null if not found
@@ -185,6 +190,26 @@ function convertOpenCodeMessageToUsageEntry(
 		model: message.modelID ?? 'unknown',
 		costUSD: message.cost ?? null,
 	};
+}
+
+function filterOpenCodeMessagesByDateRange(
+	entries: LoadedUsageEntry[],
+	options?: LoadOpenCodeMessagesOptions,
+): LoadedUsageEntry[] {
+	if (options?.since == null && options?.until == null) {
+		return entries;
+	}
+
+	return entries.filter((entry) => {
+		const dateStr = entry.timestamp.toISOString().substring(0, 10).replace(/-/g, '');
+		if (options.since != null && dateStr < options.since) {
+			return false;
+		}
+		if (options.until != null && dateStr > options.until) {
+			return false;
+		}
+		return true;
+	});
 }
 
 async function loadOpenCodeSession(
@@ -252,7 +277,9 @@ export async function loadOpenCodeSessions(): Promise<Map<string, LoadedSessionM
  * Load all OpenCode messages
  * @returns Array of LoadedUsageEntry for aggregation
  */
-export async function loadOpenCodeMessages(): Promise<LoadedUsageEntry[]> {
+export async function loadOpenCodeMessages(
+	options?: LoadOpenCodeMessagesOptions,
+): Promise<LoadedUsageEntry[]> {
 	const openCodePath = getOpenCodePath();
 	if (openCodePath == null) {
 		return [];
@@ -305,11 +332,54 @@ export async function loadOpenCodeMessages(): Promise<LoadedUsageEntry[]> {
 		entries.push(entry);
 	}
 
-	return entries;
+	return filterOpenCodeMessagesByDateRange(entries, options);
 }
 
 if (import.meta.vitest != null) {
-	const { describe, it, expect } = import.meta.vitest;
+	const { describe, it, expect, afterEach, vi } = import.meta.vitest;
+
+	afterEach(() => {
+		vi.unstubAllEnvs();
+	});
+
+	async function createOpenCodeMessageFixture(
+		messages: Array<v.InferOutput<typeof openCodeMessageSchema>>,
+	): Promise<string> {
+		const root = await mkdtemp(path.join(tmpdir(), 'opencode-data-'));
+		const messagesDir = path.join(root, 'storage', 'message');
+		await mkdir(messagesDir, { recursive: true });
+
+		await Promise.all(
+			messages.map(async (message) =>
+				writeFile(path.join(messagesDir, `${message.id}.json`), JSON.stringify(message)),
+			),
+		);
+
+		return root;
+	}
+
+	function createTestMessage(
+		id: string,
+		timestamp: string,
+	): v.InferOutput<typeof openCodeMessageSchema> {
+		return {
+			id,
+			sessionID: 'session-test' as v.InferOutput<typeof sessionIdSchema>,
+			providerID: 'anthropic',
+			modelID: 'claude-sonnet-4-5' as v.InferOutput<typeof modelNameSchema>,
+			time: {
+				created: Date.parse(timestamp),
+			},
+			tokens: {
+				input: 100,
+				output: 50,
+			},
+		};
+	}
+
+	function getSortedIsoTimestamps(entries: LoadedUsageEntry[]): string[] {
+		return entries.map((entry) => entry.timestamp.toISOString()).sort();
+	}
 
 	describe('data-loader', () => {
 		it('should convert OpenCode message to LoadedUsageEntry', () => {
@@ -365,6 +435,69 @@ if (import.meta.vitest != null) {
 			expect(entry.usage.cacheReadInputTokens).toBe(0);
 			expect(entry.usage.cacheCreationInputTokens).toBe(0);
 			expect(entry.costUSD).toBe(null);
+		});
+
+		it('should filter OpenCode messages by since date', async () => {
+			const root = await createOpenCodeMessageFixture([
+				createTestMessage('msg_20240101', '2024-01-01T12:00:00.000Z'),
+				createTestMessage('msg_20240102', '2024-01-02T12:00:00.000Z'),
+				createTestMessage('msg_20240103', '2024-01-03T12:00:00.000Z'),
+			]);
+
+			try {
+				vi.stubEnv(OPENCODE_CONFIG_DIR_ENV, root);
+
+				const entries = await loadOpenCodeMessages({ since: '20240102' });
+
+				expect(getSortedIsoTimestamps(entries)).toEqual([
+					'2024-01-02T12:00:00.000Z',
+					'2024-01-03T12:00:00.000Z',
+				]);
+			} finally {
+				await rm(root, { recursive: true, force: true });
+			}
+		});
+
+		it('should filter OpenCode messages by until date', async () => {
+			const root = await createOpenCodeMessageFixture([
+				createTestMessage('msg_20240101', '2024-01-01T12:00:00.000Z'),
+				createTestMessage('msg_20240102', '2024-01-02T12:00:00.000Z'),
+				createTestMessage('msg_20240103', '2024-01-03T12:00:00.000Z'),
+			]);
+
+			try {
+				vi.stubEnv(OPENCODE_CONFIG_DIR_ENV, root);
+
+				const entries = await loadOpenCodeMessages({ until: '20240102' });
+
+				expect(getSortedIsoTimestamps(entries)).toEqual([
+					'2024-01-01T12:00:00.000Z',
+					'2024-01-02T12:00:00.000Z',
+				]);
+			} finally {
+				await rm(root, { recursive: true, force: true });
+			}
+		});
+
+		it('should filter OpenCode messages by since and until dates', async () => {
+			const root = await createOpenCodeMessageFixture([
+				createTestMessage('msg_20240101', '2024-01-01T12:00:00.000Z'),
+				createTestMessage('msg_20240102', '2024-01-02T12:00:00.000Z'),
+				createTestMessage('msg_20240103', '2024-01-03T12:00:00.000Z'),
+			]);
+
+			try {
+				vi.stubEnv(OPENCODE_CONFIG_DIR_ENV, root);
+
+				const entries = await loadOpenCodeMessages({
+					since: '20240102',
+					until: '20240102',
+				});
+
+				expect(getSortedIsoTimestamps(entries)).toEqual(['2024-01-02T12:00:00.000Z']);
+			} finally {
+				await rm(root, { recursive: true, force: true });
+			}
 		});
 	});
 }
