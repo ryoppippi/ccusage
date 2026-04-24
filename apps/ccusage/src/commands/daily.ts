@@ -7,6 +7,7 @@ import {
 	formatUsageDataRow,
 	pushBreakdownRows,
 } from '@ccusage/terminal/table';
+import { createWatchSession } from '@ccusage/terminal/watch';
 import { Result } from '@praha/byethrow';
 import { define } from 'gunshi';
 import pc from 'picocolors';
@@ -134,8 +135,10 @@ export const dailyCommand = define({
 				log(JSON.stringify(jsonOutput, null, 2));
 			}
 		} else {
-			// Print header
-			logger.box('Claude Code Token Usage Report - Daily');
+			// Print header (only in static mode, not watch mode)
+			if (!mergedOptions.watch) {
+				logger.box('Claude Code Token Usage Report - Daily');
+			}
 
 			// Create table with compact mode support
 			const tableConfig: UsageReportConfig = {
@@ -144,35 +147,63 @@ export const dailyCommand = define({
 					formatDateCompact(dateStr, mergedOptions.timezone, mergedOptions.locale ?? undefined),
 				forceCompact: ctx.values.compact,
 			};
-			const table = createUsageReportTable(tableConfig);
 
-			// Add daily data - group by project if instances flag is used
-			if (Boolean(mergedOptions.instances) && dailyData.some((d) => d.project != null)) {
-				// Group data by project for visual separation
-				const projectGroups = groupDataByProject(dailyData);
+			/**
+			 * Builds a populated table string from the loaded data.
+			 * Called once for static output, or on each resize in watch mode.
+			 */
+			const buildTable = (): string => {
+				const table = createUsageReportTable(tableConfig);
 
-				let isFirstProject = true;
-				for (const [projectName, projectData] of Object.entries(projectGroups)) {
-					// Add project section header
-					if (!isFirstProject) {
-						// Add empty row for visual separation between projects
-						table.push(['', '', '', '', '', '', '', '']);
+				// Add daily data - group by project if instances flag is used
+				if (Boolean(mergedOptions.instances) && dailyData.some((d) => d.project != null)) {
+					// Group data by project for visual separation
+					const projectGroups = groupDataByProject(dailyData);
+
+					let isFirstProject = true;
+					for (const [projectName, projectData] of Object.entries(projectGroups)) {
+						// Add project section header
+						if (!isFirstProject) {
+							// Add empty row for visual separation between projects
+							table.push(['', '', '', '', '', '', '', '']);
+						}
+
+						// Add project header row
+						table.push([
+							pc.cyan(`Project: ${formatProjectName(projectName, projectAliases)}`),
+							'',
+							'',
+							'',
+							'',
+							'',
+							'',
+							'',
+						]);
+
+						// Add data rows for this project
+						for (const data of projectData) {
+							const row = formatUsageDataRow(data.date, {
+								inputTokens: data.inputTokens,
+								outputTokens: data.outputTokens,
+								cacheCreationTokens: data.cacheCreationTokens,
+								cacheReadTokens: data.cacheReadTokens,
+								totalCost: data.totalCost,
+								modelsUsed: data.modelsUsed,
+							});
+							table.push(row);
+
+							// Add model breakdown rows if flag is set
+							if (mergedOptions.breakdown) {
+								pushBreakdownRows(table, data.modelBreakdowns);
+							}
+						}
+
+						isFirstProject = false;
 					}
-
-					// Add project header row
-					table.push([
-						pc.cyan(`Project: ${formatProjectName(projectName, projectAliases)}`),
-						'',
-						'',
-						'',
-						'',
-						'',
-						'',
-						'',
-					]);
-
-					// Add data rows for this project
-					for (const data of projectData) {
+				} else {
+					// Standard display without project grouping
+					for (const data of dailyData) {
+						// Main row
 						const row = formatUsageDataRow(data.date, {
 							inputTokens: data.inputTokens,
 							outputTokens: data.outputTokens,
@@ -188,49 +219,39 @@ export const dailyCommand = define({
 							pushBreakdownRows(table, data.modelBreakdowns);
 						}
 					}
-
-					isFirstProject = false;
 				}
+
+				// Add empty row for visual separation before totals
+				addEmptySeparatorRow(table, 8);
+
+				// Add totals
+				const totalsRow = formatTotalsRow({
+					inputTokens: totals.inputTokens,
+					outputTokens: totals.outputTokens,
+					cacheCreationTokens: totals.cacheCreationTokens,
+					cacheReadTokens: totals.cacheReadTokens,
+					totalCost: totals.totalCost,
+				});
+				table.push(totalsRow);
+
+				return table.toString();
+			};
+
+			if (mergedOptions.watch) {
+				// Watch mode — re-render on terminal resize
+				await createWatchSession(buildTable, { showHelpHint: true });
 			} else {
-				// Standard display without project grouping
-				for (const data of dailyData) {
-					// Main row
-					const row = formatUsageDataRow(data.date, {
-						inputTokens: data.inputTokens,
-						outputTokens: data.outputTokens,
-						cacheCreationTokens: data.cacheCreationTokens,
-						cacheReadTokens: data.cacheReadTokens,
-						totalCost: data.totalCost,
-						modelsUsed: data.modelsUsed,
-					});
-					table.push(row);
+				const output = buildTable();
+				log(output);
 
-					// Add model breakdown rows if flag is set
-					if (mergedOptions.breakdown) {
-						pushBreakdownRows(table, data.modelBreakdowns);
-					}
+				// Show guidance message if in compact mode
+				// Check terminal width directly since compact mode is determined during toString()
+				const terminalWidth =
+					Number.parseInt(process.env.COLUMNS ?? '', 10) || process.stdout.columns || 120;
+				if (ctx.values.compact || terminalWidth < 100) {
+					logger.info('\nRunning in Compact Mode');
+					logger.info('Expand terminal width to see cache metrics and total tokens');
 				}
-			}
-
-			// Add empty row for visual separation before totals
-			addEmptySeparatorRow(table, 8);
-
-			// Add totals
-			const totalsRow = formatTotalsRow({
-				inputTokens: totals.inputTokens,
-				outputTokens: totals.outputTokens,
-				cacheCreationTokens: totals.cacheCreationTokens,
-				cacheReadTokens: totals.cacheReadTokens,
-				totalCost: totals.totalCost,
-			});
-			table.push(totalsRow);
-
-			log(table.toString());
-
-			// Show guidance message if in compact mode
-			if (table.isCompactMode()) {
-				logger.info('\nRunning in Compact Mode');
-				logger.info('Expand terminal width to see cache metrics and total tokens');
 			}
 		}
 	},
