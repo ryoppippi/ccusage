@@ -13,6 +13,10 @@
     <a href="https://github.com/hesreallyhim/awesome-claude-code"><img src="https://awesome.re/mentioned-badge.svg" alt="Mentioned in Awesome Claude Code" /></a>
 </p>
 
+<p align="center">
+    <a href="https://trendshift.io/repositories/18533" target="_blank"><img src="https://trendshift.io/api/badge/repositories/18533" alt="ryoppippi%2Fccusage | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
+</p>
+
 <div align="center">
     <img src="https://cdn.jsdelivr.net/gh/ryoppippi/ccusage@main/docs/public/screenshot.png">
 </div>
