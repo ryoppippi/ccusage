@@ -521,7 +521,12 @@ function registerOrReplace(
 	}
 	const existing = processedEntries.get(uniqueHash);
 	if (existing !== undefined) {
-		if (timestamp >= existing.timestamp) {
+		const incomingMs = Date.parse(timestamp);
+		const existingMs = Date.parse(existing.timestamp);
+		const isNewerOrEqual = Number.isNaN(incomingMs) || Number.isNaN(existingMs)
+			? timestamp >= existing.timestamp
+			: incomingMs >= existingMs;
+		if (isNewerOrEqual) {
 			processedEntries.set(uniqueHash, { index: existing.index, timestamp });
 			return { kind: 'replace', index: existing.index };
 		}
