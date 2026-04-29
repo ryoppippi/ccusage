@@ -111,3 +111,44 @@ export function formatDisplayDateTime(
 	});
 	return formatter.format(date);
 }
+
+function shiftDateKey(dateKey: string, offsetDays: number): string {
+	const [yearStr = '0', monthStr = '1', dayStr = '1'] = dateKey.split('-');
+	const year = Number.parseInt(yearStr, 10);
+	const month = Number.parseInt(monthStr, 10);
+	const day = Number.parseInt(dayStr, 10);
+	const date = new Date(Date.UTC(year, month - 1, day));
+	date.setUTCDate(date.getUTCDate() + offsetDays);
+	return date.toISOString().slice(0, 10);
+}
+
+export function getLastNDaysRange(
+	dayCount: number,
+	timezone?: string,
+): { since: string; until: string } {
+	const todayDateKey = toDateKey(new Date().toISOString(), timezone);
+	const until = shiftDateKey(todayDateKey, -1);
+	const since = shiftDateKey(until, -(dayCount - 1));
+
+	return {
+		since,
+		until,
+	};
+}
+
+if (import.meta.vitest != null) {
+	describe('getLastNDaysRange', () => {
+		it('returns yesterday as end date and excludes today', () => {
+			vi.useFakeTimers();
+			vi.setSystemTime(new Date('2026-03-29T12:00:00.000Z'));
+
+			const range = getLastNDaysRange(10, 'UTC');
+			expect(range).toEqual({
+				since: '2026-03-19',
+				until: '2026-03-28',
+			});
+
+			vi.useRealTimers();
+		});
+	});
+}

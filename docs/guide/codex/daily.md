@@ -24,3 +24,5 @@ npx @ccusage/codex@latest daily
 The output uses the same responsive table component as ccusage, including compact mode support and per-model token summaries.
 
 Need higher-level trends? Switch to the [monthly report](./monthly.md) for month-by-month rollups with the same flag set.
+
+Need a fixed rolling window? See the [last N days report](./last-n-days.md).
