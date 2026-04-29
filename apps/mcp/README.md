@@ -39,13 +39,13 @@ Add to your Claude Desktop MCP configuration:
 
 ```json
 {
-	"mcpServers": {
-		"ccusage": {
-			"command": "npx",
-			"args": ["@ccusage/mcp@latest"],
-			"type": "stdio"
-		}
-	}
+  "mcpServers": {
+    "ccusage": {
+      "command": "npx",
+      "args": ["@ccusage/mcp@latest"],
+      "type": "stdio"
+    }
+  }
 }
 ```
 

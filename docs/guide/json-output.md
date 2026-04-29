@@ -118,27 +118,27 @@ ccusage daily --project my-frontend-app --json
 
 ```json
 {
-	"type": "monthly",
-	"data": [
-		{
-			"month": "2025-05",
-			"models": ["claude-opus-4-20250514", "claude-sonnet-4-20250514"],
-			"inputTokens": 11174,
-			"outputTokens": 720366,
-			"cacheCreationTokens": 896,
-			"cacheReadTokens": 2304,
-			"totalTokens": 734740,
-			"costUSD": 336.47
-		}
-	],
-	"summary": {
-		"totalInputTokens": 11174,
-		"totalOutputTokens": 720366,
-		"totalCacheCreationTokens": 896,
-		"totalCacheReadTokens": 2304,
-		"totalTokens": 734740,
-		"totalCostUSD": 336.47
-	}
+  "type": "monthly",
+  "data": [
+    {
+      "month": "2025-05",
+      "models": ["claude-opus-4-20250514", "claude-sonnet-4-20250514"],
+      "inputTokens": 11174,
+      "outputTokens": 720366,
+      "cacheCreationTokens": 896,
+      "cacheReadTokens": 2304,
+      "totalTokens": 734740,
+      "costUSD": 336.47
+    }
+  ],
+  "summary": {
+    "totalInputTokens": 11174,
+    "totalOutputTokens": 720366,
+    "totalCacheCreationTokens": 896,
+    "totalCacheReadTokens": 2304,
+    "totalTokens": 734740,
+    "totalCostUSD": 336.47
+  }
 }
 ```
 
@@ -146,28 +146,28 @@ ccusage daily --project my-frontend-app --json
 
 ```json
 {
-	"type": "session",
-	"data": [
-		{
-			"session": "session-1",
-			"models": ["claude-opus-4-20250514", "claude-sonnet-4-20250514"],
-			"inputTokens": 4512,
-			"outputTokens": 350846,
-			"cacheCreationTokens": 512,
-			"cacheReadTokens": 1024,
-			"totalTokens": 356894,
-			"costUSD": 156.4,
-			"lastActivity": "2025-05-24"
-		}
-	],
-	"summary": {
-		"totalInputTokens": 11174,
-		"totalOutputTokens": 720445,
-		"totalCacheCreationTokens": 768,
-		"totalCacheReadTokens": 1792,
-		"totalTokens": 734179,
-		"totalCostUSD": 336.68
-	}
+  "type": "session",
+  "data": [
+    {
+      "session": "session-1",
+      "models": ["claude-opus-4-20250514", "claude-sonnet-4-20250514"],
+      "inputTokens": 4512,
+      "outputTokens": 350846,
+      "cacheCreationTokens": 512,
+      "cacheReadTokens": 1024,
+      "totalTokens": 356894,
+      "costUSD": 156.4,
+      "lastActivity": "2025-05-24"
+    }
+  ],
+  "summary": {
+    "totalInputTokens": 11174,
+    "totalOutputTokens": 720445,
+    "totalCacheCreationTokens": 768,
+    "totalCacheReadTokens": 1792,
+    "totalTokens": 734179,
+    "totalCostUSD": 336.68
+  }
 }
 ```
 
@@ -175,33 +175,33 @@ ccusage daily --project my-frontend-app --json
 
 ```json
 {
-	"type": "blocks",
-	"data": [
-		{
-			"blockStart": "2025-05-30T10:00:00.000Z",
-			"blockEnd": "2025-05-30T15:00:00.000Z",
-			"isActive": true,
-			"timeRemaining": "2h 15m",
-			"models": ["claude-sonnet-4-20250514"],
-			"inputTokens": 1250,
-			"outputTokens": 15000,
-			"cacheCreationTokens": 256,
-			"cacheReadTokens": 512,
-			"totalTokens": 17018,
-			"costUSD": 8.75,
-			"burnRate": 2400,
-			"projectedTotal": 25000,
-			"projectedCost": 12.5
-		}
-	],
-	"summary": {
-		"totalInputTokens": 11174,
-		"totalOutputTokens": 720366,
-		"totalCacheCreationTokens": 896,
-		"totalCacheReadTokens": 2304,
-		"totalTokens": 734740,
-		"totalCostUSD": 336.47
-	}
+  "type": "blocks",
+  "data": [
+    {
+      "blockStart": "2025-05-30T10:00:00.000Z",
+      "blockEnd": "2025-05-30T15:00:00.000Z",
+      "isActive": true,
+      "timeRemaining": "2h 15m",
+      "models": ["claude-sonnet-4-20250514"],
+      "inputTokens": 1250,
+      "outputTokens": 15000,
+      "cacheCreationTokens": 256,
+      "cacheReadTokens": 512,
+      "totalTokens": 17018,
+      "costUSD": 8.75,
+      "burnRate": 2400,
+      "projectedTotal": 25000,
+      "projectedCost": 12.5
+    }
+  ],
+  "summary": {
+    "totalInputTokens": 11174,
+    "totalOutputTokens": 720366,
+    "totalCacheCreationTokens": 896,
+    "totalCacheReadTokens": 2304,
+    "totalTokens": 734740,
+    "totalCostUSD": 336.47
+  }
 }
 ```
 
@@ -272,35 +272,35 @@ When using `--breakdown`, the JSON includes per-model details:
 
 ```json
 {
-	"type": "daily",
-	"data": [
-		{
-			"date": "2025-05-30",
-			"models": ["claude-opus-4-20250514", "claude-sonnet-4-20250514"],
-			"inputTokens": 277,
-			"outputTokens": 31456,
-			"totalTokens": 33269,
-			"costUSD": 17.58,
-			"breakdown": {
-				"claude-opus-4-20250514": {
-					"inputTokens": 100,
-					"outputTokens": 15000,
-					"cacheCreationTokens": 256,
-					"cacheReadTokens": 512,
-					"totalTokens": 15868,
-					"costUSD": 10.25
-				},
-				"claude-sonnet-4-20250514": {
-					"inputTokens": 177,
-					"outputTokens": 16456,
-					"cacheCreationTokens": 256,
-					"cacheReadTokens": 512,
-					"totalTokens": 17401,
-					"costUSD": 7.33
-				}
-			}
-		}
-	]
+  "type": "daily",
+  "data": [
+    {
+      "date": "2025-05-30",
+      "models": ["claude-opus-4-20250514", "claude-sonnet-4-20250514"],
+      "inputTokens": 277,
+      "outputTokens": 31456,
+      "totalTokens": 33269,
+      "costUSD": 17.58,
+      "breakdown": {
+        "claude-opus-4-20250514": {
+          "inputTokens": 100,
+          "outputTokens": 15000,
+          "cacheCreationTokens": 256,
+          "cacheReadTokens": 512,
+          "totalTokens": 15868,
+          "costUSD": 10.25
+        },
+        "claude-sonnet-4-20250514": {
+          "inputTokens": 177,
+          "outputTokens": 16456,
+          "cacheCreationTokens": 256,
+          "cacheReadTokens": 512,
+          "totalTokens": 17401,
+          "costUSD": 7.33
+        }
+      }
+    }
+  ]
 }
 ```
 
@@ -401,10 +401,10 @@ if 'projects' in project_data:
 ### Using with Node.js
 
 ```javascript
-import { execSync } from 'node:child_process';
+import { execSync } from "node:child_process";
 
 // Get session usage data
-const output = execSync('ccusage session --json', { encoding: 'utf-8' });
+const output = execSync("ccusage session --json", { encoding: "utf-8" });
 const data = JSON.parse(output);
 
 // Find sessions over $10
@@ -412,30 +412,30 @@ const expensiveSessions = data.data.filter((session) => session.costUSD > 10);
 console.log(`Found ${expensiveSessions.length} expensive sessions`);
 
 expensiveSessions.forEach((session) => {
-	console.log(`${session.session}: $${session.costUSD.toFixed(2)}`);
+  console.log(`${session.session}: $${session.costUSD.toFixed(2)}`);
 });
 
 // Project analysis example
-const projectOutput = execSync('ccusage daily --instances --json', { encoding: 'utf-8' });
+const projectOutput = execSync("ccusage daily --instances --json", { encoding: "utf-8" });
 const projectData = JSON.parse(projectOutput);
 
 if (projectData.projects) {
-	// Calculate total cost per project
-	const projectCosts = Object.entries(projectData.projects).map(([name, days]) => ({
-		name,
-		totalCost: days.reduce((sum, day) => sum + day.totalCost, 0),
-		totalTokens: days.reduce((sum, day) => sum + day.totalTokens, 0),
-	}));
+  // Calculate total cost per project
+  const projectCosts = Object.entries(projectData.projects).map(([name, days]) => ({
+    name,
+    totalCost: days.reduce((sum, day) => sum + day.totalCost, 0),
+    totalTokens: days.reduce((sum, day) => sum + day.totalTokens, 0),
+  }));
 
-	// Sort by cost descending
-	projectCosts.sort((a, b) => b.totalCost - a.totalCost);
+  // Sort by cost descending
+  projectCosts.sort((a, b) => b.totalCost - a.totalCost);
 
-	console.log('Project Usage Summary:');
-	projectCosts.forEach((project) => {
-		console.log(
-			`${project.name}: $${project.totalCost.toFixed(2)} (${project.totalTokens.toLocaleString()} tokens)`,
-		);
-	});
+  console.log("Project Usage Summary:");
+  projectCosts.forEach((project) => {
+    console.log(
+      `${project.name}: $${project.totalCost.toFixed(2)} (${project.totalTokens.toLocaleString()} tokens)`,
+    );
+  });
 }
 ```
 

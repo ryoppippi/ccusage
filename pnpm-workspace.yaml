@@ -7,12 +7,12 @@ catalogMode: strict
 
 catalogs:
   build:
-    '@oxc-project/runtime': ^0.82.3
+    "@oxc-project/runtime": ^0.82.3
     tsdown: ^0.16.6
     unplugin-macros: ^0.18.0
     unplugin-unused: ^0.5.2
   docs:
-    '@ryoppippi/vite-plugin-cloudflare-redirect': ^1.1.3
+    "@ryoppippi/vite-plugin-cloudflare-redirect": ^1.1.3
     typedoc: ^0.28.18
     typedoc-plugin-markdown: ^4.11.0
     typedoc-vitepress-theme: ^1.1.2
@@ -21,14 +21,14 @@ catalogs:
     vitepress-plugin-llms: ^1.12.0
     wrangler: ^4.32.0
   lint:
-    '@ryoppippi/eslint-config': ^0.4.0
+    "@ryoppippi/eslint-config": ^0.4.0
     eslint: ^9.33.0
     eslint-plugin-format: ^2.0.1
     oxfmt: ^0.45.0
     publint: ^0.3.12
   llm-docs:
-    '@gunshi/docs': ^0.27.5
-    '@praha/byethrow-docs': ^0.9.0
+    "@gunshi/docs": ^0.27.5
+    "@praha/byethrow-docs": ^0.9.0
   release:
     bumpp: ^10.2.3
     changelogithub: ^13.16.1
@@ -36,14 +36,15 @@ catalogs:
     lint-staged: ^16.1.5
     pkg-pr-new: ^0.0.60
   runtime:
-    '@antfu/utils': ^9.2.1
-    '@hono/mcp': ^0.1.5
-    '@hono/node-server': ^1.19.7
-    '@modelcontextprotocol/sdk': ^1.24.3
-    '@praha/byethrow': ^0.6.3
-    '@ryoppippi/limo': jsr:^0.2.2
-    '@std/async': jsr:^1.0.14
+    "@antfu/utils": ^9.2.1
+    "@hono/mcp": ^0.1.5
+    "@hono/node-server": ^1.19.7
+    "@modelcontextprotocol/sdk": ^1.24.3
+    "@praha/byethrow": ^0.6.3
+    "@ryoppippi/limo": jsr:^0.2.2
+    "@std/async": jsr:^1.0.14
     ansi-escapes: ^7.0.0
+    better-sqlite3: ^11.10.0
     cli-table3: ^0.6.5
     consola: ^3.4.2
     es-toolkit: ^1.39.10
@@ -66,16 +67,17 @@ catalogs:
     fs-fixture: ^2.8.1
     vitest: ^4.1.2
   types:
-    '@types/bun': ^1.3.5
-    '@types/node': ^24.10.1
-    '@types/react': ^19.1.13
-    '@typescript/native-preview': ^7.0.0-dev.20251225.1
+    "@types/better-sqlite3": ^7.6.13
+    "@types/bun": ^1.3.5
+    "@types/node": ^24.10.1
+    "@types/react": ^19.1.13
+    "@typescript/native-preview": ^7.0.0-dev.20251225.1
 
 enablePrePostScripts: true
 
 minimumReleaseAge: 2880
 minimumReleaseAgeExclude:
-  - '@ryoppippi/vite-plugin-cloudflare-redirect'
+  - "@ryoppippi/vite-plugin-cloudflare-redirect"
   - vitepress
   - vitepress-plugin-group-icons
   - vitepress-plugin-llms
@@ -90,9 +92,9 @@ trustPolicy: no-downgrade
 # Explicitly allow build scripts for packages that require them
 # (replaces onlyBuiltDependencies)
 allowBuilds:
+  better-sqlite3: true
   esbuild: true
   sharp: true
-  sqlite3: true
   workerd: true
 
 shellEmulator: true

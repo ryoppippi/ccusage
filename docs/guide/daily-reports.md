@@ -118,27 +118,27 @@ ccusage daily --json
 
 ```json
 {
-	"type": "daily",
-	"data": [
-		{
-			"date": "2025-06-21",
-			"models": ["claude-opus-4-20250514", "claude-sonnet-4-20250514"],
-			"inputTokens": 277,
-			"outputTokens": 31456,
-			"cacheCreationTokens": 512,
-			"cacheReadTokens": 1024,
-			"totalTokens": 33269,
-			"costUSD": 17.58
-		}
-	],
-	"summary": {
-		"totalInputTokens": 277,
-		"totalOutputTokens": 31456,
-		"totalCacheCreationTokens": 512,
-		"totalCacheReadTokens": 1024,
-		"totalTokens": 33269,
-		"totalCostUSD": 17.58
-	}
+  "type": "daily",
+  "data": [
+    {
+      "date": "2025-06-21",
+      "models": ["claude-opus-4-20250514", "claude-sonnet-4-20250514"],
+      "inputTokens": 277,
+      "outputTokens": 31456,
+      "cacheCreationTokens": 512,
+      "cacheReadTokens": 1024,
+      "totalTokens": 33269,
+      "costUSD": 17.58
+    }
+  ],
+  "summary": {
+    "totalInputTokens": 277,
+    "totalOutputTokens": 31456,
+    "totalCacheCreationTokens": 512,
+    "totalCacheReadTokens": 1024,
+    "totalTokens": 33269,
+    "totalCostUSD": 17.58
+  }
 }
 ```
 
@@ -249,11 +249,11 @@ Use project aliases to replace cryptic or long project directory names with read
 ```json
 // .ccusage/ccusage.json - Set custom project names for better reporting
 {
-	"commands": {
-		"daily": {
-			"projectAliases": "uuid-project=Frontend App,long-name=Backend API"
-		}
-	}
+  "commands": {
+    "daily": {
+      "projectAliases": "uuid-project=Frontend App,long-name=Backend API"
+    }
+  }
 }
 ```
 

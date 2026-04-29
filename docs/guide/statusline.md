@@ -22,31 +22,31 @@ Add this to your `~/.claude/settings.json` or `~/.config/claude/settings.json`:
 
 ```json [bun x (Recommended)]
 {
-	"statusLine": {
-		"type": "command",
-		"command": "bun x ccusage statusline",
-		"padding": 0
-	}
+  "statusLine": {
+    "type": "command",
+    "command": "bun x ccusage statusline",
+    "padding": 0
+  }
 }
 ```
 
 ```json [claude x]
 {
-	"statusLine": {
-		"type": "command",
-		"command": "BUN_BE_BUN=1 claude x ccusage statusline",
-		"padding": 0
-	}
+  "statusLine": {
+    "type": "command",
+    "command": "BUN_BE_BUN=1 claude x ccusage statusline",
+    "padding": 0
+  }
 }
 ```
 
 ```json [npx]
 {
-	"statusLine": {
-		"type": "command",
-		"command": "npx -y ccusage statusline",
-		"padding": 0
-	}
+  "statusLine": {
+    "type": "command",
+    "command": "npx -y ccusage statusline",
+    "padding": 0
+  }
 }
 ```
 
@@ -64,11 +64,11 @@ If you need the latest pricing data from LiteLLM API, you can explicitly enable 
 
 ```json
 {
-	"statusLine": {
-		"type": "command",
-		"command": "bun x ccusage statusline --no-offline", // Fetches latest pricing from API
-		"padding": 0
-	}
+  "statusLine": {
+    "type": "command",
+    "command": "bun x ccusage statusline --no-offline", // Fetches latest pricing from API
+    "padding": 0
+  }
 }
 ```
 
@@ -78,11 +78,11 @@ You can enhance the burn rate display with visual indicators:
 
 ```json
 {
-	"statusLine": {
-		"type": "command",
-		"command": "bun x ccusage statusline --visual-burn-rate emoji", // Add emoji indicators
-		"padding": 0
-	}
+  "statusLine": {
+    "type": "command",
+    "command": "bun x ccusage statusline --visual-burn-rate emoji", // Add emoji indicators
+    "padding": 0
+  }
 }
 ```
 
@@ -94,11 +94,11 @@ You can control how session costs are calculated and displayed:
 
 ```json
 {
-	"statusLine": {
-		"type": "command",
-		"command": "bun x ccusage statusline --cost-source both", // Show both CC and ccusage costs
-		"padding": 0
-	}
+  "statusLine": {
+    "type": "command",
+    "command": "bun x ccusage statusline --cost-source both", // Show both CC and ccusage costs
+    "padding": 0
+  }
 }
 ```
 
@@ -192,11 +192,11 @@ bun x ccusage statusline --cost-source both
 
 ```json
 {
-	"statusLine": {
-		"type": "command",
-		"command": "bun x ccusage statusline --cost-source both",
-		"padding": 0
-	}
+  "statusLine": {
+    "type": "command",
+    "command": "bun x ccusage statusline --cost-source both",
+    "padding": 0
+  }
 }
 ```
 
@@ -246,8 +246,8 @@ With these settings:
 
 ```json
 {
-	"command": "bun x ccusage statusline --context-low-threshold 60 --context-medium-threshold 90",
-	"timeout": 5000
+  "command": "bun x ccusage statusline --context-low-threshold 60 --context-medium-threshold 90",
+  "timeout": 5000
 }
 ```
 

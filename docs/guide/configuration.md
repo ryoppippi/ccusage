@@ -56,12 +56,12 @@ export CLAUDE_CONFIG_DIR="$HOME/.config/claude"
 
 ```json
 {
-	"$schema": "https://ccusage.com/config-schema.json",
-	"defaults": {
-		"timezone": "America/New_York",
-		"locale": "en-US",
-		"breakdown": true
-	}
+  "$schema": "https://ccusage.com/config-schema.json",
+  "defaults": {
+    "timezone": "America/New_York",
+    "locale": "en-US",
+    "breakdown": true
+  }
 }
 ```
 
@@ -80,16 +80,16 @@ For individual developers working on multiple projects:
 ```json
 // ~/.config/claude/ccusage.json
 {
-	"$schema": "https://ccusage.com/config-schema.json",
-	"defaults": {
-		"breakdown": true,
-		"timezone": "local"
-	},
-	"commands": {
-		"daily": {
-			"instances": true
-		}
-	}
+  "$schema": "https://ccusage.com/config-schema.json",
+  "defaults": {
+    "breakdown": true,
+    "timezone": "local"
+  },
+  "commands": {
+    "daily": {
+      "instances": true
+    }
+  }
 }
 ```
 
@@ -100,12 +100,12 @@ For teams sharing configuration:
 ```json
 // .ccusage/ccusage.json (committed to repo)
 {
-	"$schema": "https://ccusage.com/config-schema.json",
-	"defaults": {
-		"timezone": "UTC",
-		"locale": "en-CA",
-		"mode": "auto"
-	}
+  "$schema": "https://ccusage.com/config-schema.json",
+  "defaults": {
+    "timezone": "UTC",
+    "locale": "en-CA",
+    "mode": "auto"
+  }
 }
 ```
 
@@ -181,11 +181,11 @@ Analyze usage by project:
 ```json
 // .ccusage/ccusage.json
 {
-	"commands": {
-		"daily": {
-			"projectAliases": "uuid-123=My App,long-name=Backend"
-		}
-	}
+  "commands": {
+    "daily": {
+      "projectAliases": "uuid-123=My App,long-name=Backend"
+    }
+  }
 }
 ```
 
@@ -258,7 +258,7 @@ Use the schema for validation:
 
 ```json
 {
-	"$schema": "https://ccusage.com/config-schema.json"
+  "$schema": "https://ccusage.com/config-schema.json"
 }
 ```
 

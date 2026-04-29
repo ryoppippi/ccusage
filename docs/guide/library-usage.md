@@ -19,7 +19,7 @@ bun add ccusage
 The library provides functions to load and analyze Claude Code usage data:
 
 ```typescript
-import { loadDailyUsageData, loadMonthlyUsageData, loadSessionData } from 'ccusage/data-loader';
+import { loadDailyUsageData, loadMonthlyUsageData, loadSessionData } from "ccusage/data-loader";
 
 // Load daily usage data
 const dailyData = await loadDailyUsageData();
@@ -39,7 +39,7 @@ console.log(sessionData);
 Use the cost calculation utilities to work with token costs:
 
 ```typescript
-import { calculateTotals, getTotalTokens } from 'ccusage/calculate-cost';
+import { calculateTotals, getTotalTokens } from "ccusage/calculate-cost";
 
 // Assume 'usageEntries' is an array of usage data objects
 const totals = calculateTotals(usageEntries);
@@ -53,12 +53,12 @@ const totalTokens = getTotalTokens(usageEntries);
 You can customize the data loading behavior:
 
 ```typescript
-import { loadDailyUsageData } from 'ccusage/data-loader';
+import { loadDailyUsageData } from "ccusage/data-loader";
 
 // Load data with custom options
 const data = await loadDailyUsageData({
-	mode: 'calculate', // Force cost calculation
-	claudePaths: ['/custom/path/to/claude'], // Custom Claude data paths
+  mode: "calculate", // Force cost calculation
+  claudePaths: ["/custom/path/to/claude"], // Custom Claude data paths
 });
 ```
 
@@ -68,16 +68,16 @@ The library is fully typed with TypeScript definitions:
 
 ```typescript
 import type {
-	DailyUsage,
-	ModelBreakdown,
-	MonthlyUsage,
-	SessionUsage,
-	UsageData,
-} from 'ccusage/data-loader';
+  DailyUsage,
+  ModelBreakdown,
+  MonthlyUsage,
+  SessionUsage,
+  UsageData,
+} from "ccusage/data-loader";
 
 // Use the types in your application
 function processUsageData(data: UsageData[]): void {
-	// Your processing logic here
+  // Your processing logic here
 }
 ```
 
@@ -88,7 +88,7 @@ You can also create your own MCP server using the dedicated `@ccusage/mcp` packa
 > **Note**: Install `ccusage` and `@ccusage/mcp` together, for example with `pnpm add ccusage @ccusage/mcp`.
 
 ```typescript
-import { createMcpServer } from '@ccusage/mcp';
+import { createMcpServer } from "@ccusage/mcp";
 
 // Create an MCP server instance
 const server = createMcpServer();
@@ -108,44 +108,44 @@ Here are some common use cases:
 ### Building a Web Dashboard
 
 ```typescript
-import { loadDailyUsageData } from 'ccusage/data-loader';
+import { loadDailyUsageData } from "ccusage/data-loader";
 
 export async function GET() {
-	const data = await loadDailyUsageData();
-	return Response.json(data);
+  const data = await loadDailyUsageData();
+  return Response.json(data);
 }
 ```
 
 ### Creating Custom Reports
 
 ```typescript
-import { calculateTotals, loadSessionData } from 'ccusage';
+import { calculateTotals, loadSessionData } from "ccusage";
 
 async function generateCustomReport() {
-	const sessions = await loadSessionData();
+  const sessions = await loadSessionData();
 
-	const report = sessions.map((session) => ({
-		project: session.project,
-		session: session.session,
-		totalCost: calculateTotals(session.usage).costUSD,
-	}));
+  const report = sessions.map((session) => ({
+    project: session.project,
+    session: session.session,
+    totalCost: calculateTotals(session.usage).costUSD,
+  }));
 
-	return report;
+  return report;
 }
 ```
 
 ### Monitoring Usage Programmatically
 
 ```typescript
-import { loadDailyUsageData } from 'ccusage/data-loader';
+import { loadDailyUsageData } from "ccusage/data-loader";
 
 async function checkUsageAlert() {
-	const dailyData = await loadDailyUsageData();
-	const today = dailyData[0]; // Most recent day
+  const dailyData = await loadDailyUsageData();
+  const today = dailyData[0]; // Most recent day
 
-	if (today.totalCostUSD > 10) {
-		console.warn(`High usage detected: $${today.totalCostUSD}`);
-	}
+  if (today.totalCostUSD > 10) {
+    console.warn(`High usage detected: $${today.totalCostUSD}`);
+  }
 }
 ```
 

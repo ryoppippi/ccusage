@@ -3,7 +3,7 @@ name: npm publish
 on:
   push:
     tags:
-      - '*'
+      - "*"
 
 jobs:
   npm:
@@ -19,7 +19,7 @@ jobs:
       - uses: ./.github/actions/setup-nix
       - uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
         with:
-          registry-url: 'https://registry.npmjs.org'
+          registry-url: "https://registry.npmjs.org"
           node-version: lts/*
       - run: nix develop --command pnpm --filter='./apps/**' publish --provenance --no-git-checks --access public
 

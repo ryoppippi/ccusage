@@ -10,7 +10,7 @@ Always include the schema for autocomplete and validation:
 
 ```json
 {
-	"$schema": "https://ccusage.com/config-schema.json"
+  "$schema": "https://ccusage.com/config-schema.json"
 }
 ```
 
@@ -20,12 +20,12 @@ Put frequently used options in `defaults`:
 
 ```json
 {
-	"$schema": "https://ccusage.com/config-schema.json",
-	"defaults": {
-		"timezone": "UTC",
-		"locale": "en-CA",
-		"breakdown": true
-	}
+  "$schema": "https://ccusage.com/config-schema.json",
+  "defaults": {
+    "timezone": "UTC",
+    "locale": "en-CA",
+    "breakdown": true
+  }
 }
 ```
 
@@ -33,15 +33,15 @@ Put frequently used options in `defaults`:
 
 ```json
 {
-	"$schema": "https://ccusage.com/config-schema.json",
-	"defaults": {
-		"breakdown": false
-	},
-	"commands": {
-		"daily": {
-			"breakdown": true // Only daily needs breakdown
-		}
-	}
+  "$schema": "https://ccusage.com/config-schema.json",
+  "defaults": {
+    "breakdown": false
+  },
+  "commands": {
+    "daily": {
+      "breakdown": true // Only daily needs breakdown
+    }
+  }
 }
 ```
 
@@ -60,16 +60,16 @@ Convert them to a config file:
 ```json
 // ccusage.json
 {
-	"$schema": "https://ccusage.com/config-schema.json",
-	"defaults": {
-		"breakdown": true,
-		"timezone": "UTC"
-	},
-	"commands": {
-		"daily": {
-			"instances": true
-		}
-	}
+  "$schema": "https://ccusage.com/config-schema.json",
+  "defaults": {
+    "breakdown": true,
+    "timezone": "UTC"
+  },
+  "commands": {
+    "daily": {
+      "instances": true
+    }
+  }
 }
 ```
 
@@ -98,15 +98,15 @@ Create a `ccusage.json` file with your preferred defaults:
 
 ```json
 {
-	"$schema": "https://ccusage.com/config-schema.json",
-	"defaults": {
-		"json": false,
-		"mode": "auto",
-		"offline": false,
-		"timezone": "Asia/Tokyo",
-		"locale": "ja-JP",
-		"breakdown": true
-	}
+  "$schema": "https://ccusage.com/config-schema.json",
+  "defaults": {
+    "json": false,
+    "mode": "auto",
+    "offline": false,
+    "timezone": "Asia/Tokyo",
+    "locale": "ja-JP",
+    "breakdown": true
+  }
 }
 ```
 
@@ -118,7 +118,7 @@ Add the `$schema` property to get IntelliSense and validation in your IDE:
 
 ```json
 {
-	"$schema": "https://ccusage.com/config-schema.json"
+  "$schema": "https://ccusage.com/config-schema.json"
 }
 ```
 
@@ -126,7 +126,7 @@ You can also reference a local schema file after installing ccusage:
 
 ```json
 {
-	"$schema": "./node_modules/ccusage/config-schema.json"
+  "$schema": "./node_modules/ccusage/config-schema.json"
 }
 ```
 
@@ -136,21 +136,21 @@ The `defaults` section sets default values for all commands:
 
 ```json
 {
-	"$schema": "https://ccusage.com/config-schema.json",
-	"defaults": {
-		"since": "20250101",
-		"until": "20250630",
-		"json": false,
-		"mode": "auto",
-		"debug": false,
-		"debugSamples": 5,
-		"order": "asc",
-		"breakdown": false,
-		"offline": false,
-		"timezone": "UTC",
-		"locale": "en-CA",
-		"jq": ".data[]"
-	}
+  "$schema": "https://ccusage.com/config-schema.json",
+  "defaults": {
+    "since": "20250101",
+    "until": "20250630",
+    "json": false,
+    "mode": "auto",
+    "debug": false,
+    "debugSamples": 5,
+    "order": "asc",
+    "breakdown": false,
+    "offline": false,
+    "timezone": "UTC",
+    "locale": "en-CA",
+    "jq": ".data[]"
+  }
 }
 ```
 
@@ -160,21 +160,21 @@ Override defaults for specific commands using the `commands` section:
 
 ```json
 {
-	"$schema": "https://ccusage.com/config-schema.json",
-	"defaults": {
-		"mode": "auto",
-		"offline": false
-	},
-	"commands": {
-		"daily": {
-			"instances": true,
-			"breakdown": true
-		},
-		"blocks": {
-			"active": true,
-			"tokenLimit": "500000"
-		}
-	}
+  "$schema": "https://ccusage.com/config-schema.json",
+  "defaults": {
+    "mode": "auto",
+    "offline": false
+  },
+  "commands": {
+    "daily": {
+      "instances": true,
+      "breakdown": true
+    },
+    "blocks": {
+      "active": true,
+      "tokenLimit": "500000"
+    }
+  }
 }
 ```
 
@@ -184,15 +184,15 @@ Override defaults for specific commands using the `commands` section:
 
 ```json
 {
-	"commands": {
-		"daily": {
-			"instances": true,
-			"project": "my-project",
-			"breakdown": true,
-			"since": "20250101",
-			"until": "20250630"
-		}
-	}
+  "commands": {
+    "daily": {
+      "instances": true,
+      "project": "my-project",
+      "breakdown": true,
+      "since": "20250101",
+      "until": "20250630"
+    }
+  }
 }
 ```
 
@@ -200,13 +200,13 @@ Override defaults for specific commands using the `commands` section:
 
 ```json
 {
-	"commands": {
-		"weekly": {
-			"startOfWeek": "monday",
-			"breakdown": true,
-			"timezone": "Europe/London"
-		}
-	}
+  "commands": {
+    "weekly": {
+      "startOfWeek": "monday",
+      "breakdown": true,
+      "timezone": "Europe/London"
+    }
+  }
 }
 ```
 
@@ -214,13 +214,13 @@ Override defaults for specific commands using the `commands` section:
 
 ```json
 {
-	"commands": {
-		"monthly": {
-			"breakdown": true,
-			"mode": "calculate",
-			"locale": "en-US"
-		}
-	}
+  "commands": {
+    "monthly": {
+      "breakdown": true,
+      "mode": "calculate",
+      "locale": "en-US"
+    }
+  }
 }
 ```
 
@@ -228,13 +228,13 @@ Override defaults for specific commands using the `commands` section:
 
 ```json
 {
-	"commands": {
-		"session": {
-			"id": "abc123-session",
-			"project": "my-project",
-			"json": true
-		}
-	}
+  "commands": {
+    "session": {
+      "id": "abc123-session",
+      "project": "my-project",
+      "json": true
+    }
+  }
 }
 ```
 
@@ -242,16 +242,16 @@ Override defaults for specific commands using the `commands` section:
 
 ```json
 {
-	"commands": {
-		"blocks": {
-			"active": true,
-			"recent": false,
-			"tokenLimit": "max",
-			"sessionLength": 5,
-			"live": false,
-			"refreshInterval": 1
-		}
-	}
+  "commands": {
+    "blocks": {
+      "active": true,
+      "recent": false,
+      "tokenLimit": "max",
+      "sessionLength": 5,
+      "live": false,
+      "refreshInterval": 1
+    }
+  }
 }
 ```
 
@@ -259,13 +259,13 @@ Override defaults for specific commands using the `commands` section:
 
 ```json
 {
-	"commands": {
-		"statusline": {
-			"offline": true,
-			"cache": true,
-			"refreshInterval": 2
-		}
-	}
+  "commands": {
+    "statusline": {
+      "offline": true,
+      "cache": true,
+      "refreshInterval": 2
+    }
+  }
 }
 ```
 
@@ -311,9 +311,9 @@ Example:
 ```json
 // .ccusage/ccusage.json
 {
-	"defaults": {
-		"mode": "calculate"
-	}
+  "defaults": {
+    "mode": "calculate"
+  }
 }
 ```
 
@@ -417,11 +417,11 @@ Ensure option values match expected types:
 
 ```json
 {
-	"defaults": {
-		"tokenLimit": "500000", // ✅ String or number
-		"active": true, // ✅ Boolean
-		"refreshInterval": 2 // ✅ Number
-	}
+  "defaults": {
+    "tokenLimit": "500000", // ✅ String or number
+    "active": true, // ✅ Boolean
+    "refreshInterval": 2 // ✅ Number
+  }
 }
 ```
 

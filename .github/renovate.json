@@ -1,7 +1,7 @@
 {
-	"$schema": "https://docs.renovatebot.com/renovate-schema.json",
-	"nix": {
-		"enabled": true
-	},
-	"extends": ["github>ryoppippi/renovate-config:no-group"]
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "nix": {
+    "enabled": true
+  },
+  "extends": ["github>ryoppippi/renovate-config:no-group"]
 }

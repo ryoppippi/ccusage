@@ -126,16 +126,16 @@ ccusage monthly --json
 
 ```json
 [
-	{
-		"month": "2025-06",
-		"models": ["opus-4", "sonnet-4"],
-		"inputTokens": 45231,
-		"outputTokens": 892456,
-		"cacheCreationTokens": 2048,
-		"cacheReadTokens": 4096,
-		"totalTokens": 943831,
-		"totalCost": 1247.92
-	}
+  {
+    "month": "2025-06",
+    "models": ["opus-4", "sonnet-4"],
+    "inputTokens": 45231,
+    "outputTokens": 892456,
+    "cacheCreationTokens": 2048,
+    "cacheReadTokens": 4096,
+    "totalTokens": 943831,
+    "totalCost": 1247.92
+  }
 ]
 ```
 

@@ -1,7 +1,7 @@
-import { ryoppippi } from '@ryoppippi/eslint-config';
+import { ryoppippi } from "@ryoppippi/eslint-config";
 
 export default ryoppippi({
-	type: 'app',
-	markdown: true,
-	stylistic: false,
+  type: "app",
+  markdown: true,
+  stylistic: false,
 });
