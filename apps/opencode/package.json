@@ -49,6 +49,7 @@
 		"@ccusage/terminal": "workspace:*",
 		"@praha/byethrow": "catalog:runtime",
 		"@ryoppippi/eslint-config": "catalog:lint",
+		"@types/bun": "catalog:types",
 		"@typescript/native-preview": "catalog:types",
 		"clean-pkg-json": "catalog:release",
 		"es-toolkit": "catalog:runtime",

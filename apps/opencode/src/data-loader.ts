@@ -2,8 +2,9 @@
  * @fileoverview Data loading utilities for OpenCode usage analysis
  *
  * This module provides functions for loading and parsing OpenCode usage data
- * from JSON message files stored in OpenCode data directories.
- * OpenCode stores usage data in ~/.local/share/opencode/storage/message/
+ * from two sources:
+ *   1. JSON message files in ~/.local/share/opencode/storage/message/ (pre-Feb 2026)
+ *   2. SQLite database at ~/.local/share/opencode/opencode.db (post-Feb 2026 migration)
  *
  * @module data-loader
  */
@@ -12,9 +13,12 @@ import { readFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
-import { isDirectorySync } from 'path-type';
+import { Result } from '@praha/byethrow';
+import { Database } from 'bun:sqlite';
+import { isDirectorySync, isFileSync } from 'path-type';
 import { glob } from 'tinyglobby';
 import * as v from 'valibot';
+import { logger } from './logger.ts';
 
 /**
  * Default OpenCode data directory path (~/.local/share/opencode)
@@ -31,6 +35,11 @@ const OPENCODE_STORAGE_DIR_NAME = 'storage';
  */
 const OPENCODE_MESSAGES_DIR_NAME = 'message';
 const OPENCODE_SESSIONS_DIR_NAME = 'session';
+
+/**
+ * OpenCode SQLite database filename (introduced ~Feb 2026, replacing file-based storage)
+ */
+const OPENCODE_DB_NAME = 'opencode.db';
 
 /**
  * Environment variable for specifying custom OpenCode data directory
@@ -147,6 +156,151 @@ export function getOpenCodePath(): string | null {
 }
 
 /**
+ * Get path to the OpenCode SQLite database, or null if it doesn't exist.
+ */
+function getOpenCodeDbPath(): string | null {
+	const openCodePath = getOpenCodePath();
+	if (openCodePath == null) {
+		return null;
+	}
+	const dbPath = path.join(openCodePath, OPENCODE_DB_NAME);
+	return isFileSync(dbPath) ? dbPath : null;
+}
+
+/** Row shape returned by the SQLite message query */
+type DbMessageRow = {
+	id: string;
+	session_id: string;
+	provider_id: string | null;
+	model_id: string | null;
+	time_created: number | null;
+	input_tokens: number | null;
+	output_tokens: number | null;
+	cache_read: number | null;
+	cache_write: number | null;
+	cost: number | null;
+};
+
+/** Row shape returned by the SQLite session query */
+type DbSessionRow = {
+	id: string;
+	parent_id: string | null;
+	title: string | null;
+	project_id: string | null;
+	directory: string | null;
+};
+
+/**
+ * Load usage entries from the OpenCode SQLite database.
+ * Returns an empty array if the DB is absent or unreadable.
+ */
+async function loadOpenCodeMessagesFromDb(): Promise<Array<LoadedUsageEntry & { id: string }>> {
+	const dbPath = getOpenCodeDbPath();
+	if (dbPath == null) {
+		return [];
+	}
+
+	const queryResult = Result.try({
+		try: (): DbMessageRow[] => {
+			const db = new Database(dbPath, { readonly: true });
+			try {
+				return db
+					.query<DbMessageRow, []>(
+						`SELECT
+							id,
+							session_id,
+							json_extract(data, '$.providerID') AS provider_id,
+							json_extract(data, '$.modelID')    AS model_id,
+							json_extract(data, '$.time.created') AS time_created,
+							json_extract(data, '$.tokens.input')       AS input_tokens,
+							json_extract(data, '$.tokens.output')      AS output_tokens,
+							json_extract(data, '$.tokens.cache.read')  AS cache_read,
+							json_extract(data, '$.tokens.cache.write') AS cache_write,
+							json_extract(data, '$.cost') AS cost
+						FROM message
+						WHERE json_extract(data, '$.role') = 'assistant'
+						  AND json_extract(data, '$.modelID') IS NOT NULL
+						  AND json_extract(data, '$.time.created') IS NOT NULL
+						  AND (
+						        json_extract(data, '$.tokens.input')  > 0
+						     OR json_extract(data, '$.tokens.output') > 0
+						  )`,
+					)
+					.all();
+			} finally {
+				db.close();
+			}
+		},
+		catch: (error) => error,
+	})();
+
+	if (Result.isFailure(queryResult)) {
+		logger.warn('Failed to load usage from OpenCode SQLite database', queryResult.error);
+		return [];
+	}
+
+	return queryResult.value
+		.filter((row) => row.provider_id != null && row.model_id != null)
+		.map((row) => ({
+			id: row.id,
+			timestamp: new Date(row.time_created!),
+			sessionID: row.session_id,
+			usage: {
+				inputTokens: row.input_tokens ?? 0,
+				outputTokens: row.output_tokens ?? 0,
+				cacheCreationInputTokens: row.cache_write ?? 0,
+				cacheReadInputTokens: row.cache_read ?? 0,
+			},
+			model: row.model_id!,
+			costUSD: row.cost ?? null,
+		}));
+}
+
+/**
+ * Load session metadata from the OpenCode SQLite database.
+ * Returns an empty map if the DB is absent or unreadable.
+ */
+async function loadOpenCodeSessionsFromDb(): Promise<Map<string, LoadedSessionMetadata>> {
+	const dbPath = getOpenCodeDbPath();
+	if (dbPath == null) {
+		return new Map();
+	}
+
+	const queryResult = Result.try({
+		try: (): DbSessionRow[] => {
+			const db = new Database(dbPath, { readonly: true });
+			try {
+				return db
+					.query<DbSessionRow, []>(
+						`SELECT id, parent_id, title, project_id, directory FROM session`,
+					)
+					.all();
+			} finally {
+				db.close();
+			}
+		},
+		catch: (error) => error,
+	})();
+
+	if (Result.isFailure(queryResult)) {
+		logger.warn('Failed to load sessions from OpenCode SQLite database', queryResult.error);
+		return new Map();
+	}
+
+	const sessionMap = new Map<string, LoadedSessionMetadata>();
+	for (const row of queryResult.value) {
+		sessionMap.set(row.id, {
+			id: row.id,
+			parentID: row.parent_id ?? null,
+			title: row.title ?? row.id,
+			projectID: row.project_id ?? 'unknown',
+			directory: row.directory ?? 'unknown',
+		});
+	}
+	return sessionMap;
+}
+
+/**
  * Load OpenCode message from JSON file
  * @param filePath - Path to message JSON file
  * @returns Parsed message data or null on failure
@@ -213,99 +367,99 @@ function convertOpenCodeSessionToMetadata(
 
 export async function loadOpenCodeSessions(): Promise<Map<string, LoadedSessionMetadata>> {
 	const openCodePath = getOpenCodePath();
-	if (openCodePath == null) {
-		return new Map();
-	}
 
-	const sessionsDir = path.join(
-		openCodePath,
-		OPENCODE_STORAGE_DIR_NAME,
-		OPENCODE_SESSIONS_DIR_NAME,
-	);
+	const [fileSessionMap, dbSessionMap] = await Promise.all([
+		// File-based sessions (pre-Feb 2026)
+		(async () => {
+			if (openCodePath == null) {
+				return new Map<string, LoadedSessionMetadata>();
+			}
+			const sessionsDir = path.join(
+				openCodePath,
+				OPENCODE_STORAGE_DIR_NAME,
+				OPENCODE_SESSIONS_DIR_NAME,
+			);
+			if (!isDirectorySync(sessionsDir)) {
+				return new Map<string, LoadedSessionMetadata>();
+			}
 
-	if (!isDirectorySync(sessionsDir)) {
-		return new Map();
-	}
+			const sessionFiles = await glob('**/*.json', { cwd: sessionsDir, absolute: true });
+			const sessionMap = new Map<string, LoadedSessionMetadata>();
+			for (const filePath of sessionFiles) {
+				const session = await loadOpenCodeSession(filePath);
+				if (session == null) {
+					continue;
+				}
+				const metadata = convertOpenCodeSessionToMetadata(session);
+				sessionMap.set(metadata.id, metadata);
+			}
+			return sessionMap;
+		})(),
+		// SQLite-based sessions (post-Feb 2026 migration)
+		loadOpenCodeSessionsFromDb(),
+	]);
 
-	const sessionFiles = await glob('**/*.json', {
-		cwd: sessionsDir,
-		absolute: true,
-	});
-
-	const sessionMap = new Map<string, LoadedSessionMetadata>();
-
-	for (const filePath of sessionFiles) {
-		const session = await loadOpenCodeSession(filePath);
-
-		if (session == null) {
-			continue;
-		}
-
-		const metadata = convertOpenCodeSessionToMetadata(session);
-		sessionMap.set(metadata.id, metadata);
-	}
-
-	return sessionMap;
+	// Merge: DB entries take precedence for any ID that appears in both
+	return new Map([...fileSessionMap, ...dbSessionMap]);
 }
 
 /**
- * Load all OpenCode messages
+ * Load all OpenCode messages from both file-based storage and SQLite database.
  * @returns Array of LoadedUsageEntry for aggregation
  */
 export async function loadOpenCodeMessages(): Promise<LoadedUsageEntry[]> {
 	const openCodePath = getOpenCodePath();
-	if (openCodePath == null) {
-		return [];
-	}
 
-	const messagesDir = path.join(
-		openCodePath,
-		OPENCODE_STORAGE_DIR_NAME,
-		OPENCODE_MESSAGES_DIR_NAME,
-	);
+	const [fileEntries, dbEntries] = await Promise.all([
+		// File-based messages (pre-Feb 2026)
+		(async () => {
+			if (openCodePath == null) {
+				return [];
+			}
+			const messagesDir = path.join(
+				openCodePath,
+				OPENCODE_STORAGE_DIR_NAME,
+				OPENCODE_MESSAGES_DIR_NAME,
+			);
+			if (!isDirectorySync(messagesDir)) {
+				return [];
+			}
 
-	if (!isDirectorySync(messagesDir)) {
-		return [];
-	}
+			const messageFiles = await glob('**/*.json', { cwd: messagesDir, absolute: true });
+			const entries: Array<LoadedUsageEntry & { id: string }> = [];
 
-	// Find all message JSON files
-	const messageFiles = await glob('**/*.json', {
-		cwd: messagesDir,
-		absolute: true,
-	});
+			for (const filePath of messageFiles) {
+				const message = await loadOpenCodeMessage(filePath);
+				if (message == null) {
+					continue;
+				}
+				if (message.tokens == null || (message.tokens.input === 0 && message.tokens.output === 0)) {
+					continue;
+				}
+				if (message.providerID == null || message.modelID == null) {
+					continue;
+				}
+				entries.push({ id: message.id, ...convertOpenCodeMessageToUsageEntry(message) });
+			}
+			return entries;
+		})(),
+		// SQLite-based messages (post-Feb 2026 migration)
+		loadOpenCodeMessagesFromDb(),
+	]);
 
-	const entries: LoadedUsageEntry[] = [];
+	// Deduplicate by message ID — DB entries take precedence over file entries
 	const dedupeSet = new Set<string>();
+	const result: LoadedUsageEntry[] = [];
 
-	for (const filePath of messageFiles) {
-		const message = await loadOpenCodeMessage(filePath);
-
-		if (message == null) {
+	for (const { id, ...usageEntry } of [...dbEntries, ...fileEntries]) {
+		if (dedupeSet.has(id)) {
 			continue;
 		}
-
-		// Skip messages with no tokens
-		if (message.tokens == null || (message.tokens.input === 0 && message.tokens.output === 0)) {
-			continue;
-		}
-
-		// Skip if no provider or model
-		if (message.providerID == null || message.modelID == null) {
-			continue;
-		}
-
-		// Deduplicate by message ID
-		const dedupeKey = `${message.id}`;
-		if (dedupeSet.has(dedupeKey)) {
-			continue;
-		}
-		dedupeSet.add(dedupeKey);
-
-		const entry = convertOpenCodeMessageToUsageEntry(message);
-		entries.push(entry);
+		dedupeSet.add(id);
+		result.push(usageEntry);
 	}
 
-	return entries;
+	return result;
 }
 
 if (import.meta.vitest != null) {

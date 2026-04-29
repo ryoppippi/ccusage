@@ -6,7 +6,7 @@
 		"module": "Preserve",
 		"moduleResolution": "bundler",
 		"resolveJsonModule": true,
-		"types": ["vitest/globals", "vitest/importMeta"],
+		"types": ["vitest/globals", "vitest/importMeta", "bun"],
 		"allowImportingTsExtensions": true,
 		"allowJs": false,
 		"strict": true,
