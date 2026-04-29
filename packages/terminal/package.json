@@ -6,7 +6,8 @@
 	"description": "Terminal utilities for ccusage",
 	"exports": {
 		"./table": "./src/table.ts",
-		"./utils": "./src/utils.ts"
+		"./utils": "./src/utils.ts",
+		"./watch": "./src/watch.ts"
 	},
 	"scripts": {
 		"format": "pnpm run lint --fix",

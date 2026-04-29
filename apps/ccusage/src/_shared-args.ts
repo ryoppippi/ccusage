@@ -110,6 +110,12 @@ export const sharedArgs = {
 		description: 'Force compact mode for narrow displays (better for screenshots)',
 		default: false,
 	},
+	watch: {
+		type: 'boolean',
+		short: 'w',
+		description: 'Watch mode — re-renders table on terminal resize (alternate screen)',
+		default: false,
+	},
 } as const satisfies Args;
 
 /**
