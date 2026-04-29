@@ -10,6 +10,7 @@ import {
 import { groupBy } from 'es-toolkit';
 import { define } from 'gunshi';
 import pc from 'picocolors';
+import { dateFilterArgs } from '../_shared-args.ts';
 import { calculateCostForEntry } from '../cost-utils.ts';
 import { loadOpenCodeMessages } from '../data-loader.ts';
 import { logger } from '../logger.ts';
@@ -20,6 +21,7 @@ export const monthlyCommand = define({
 	name: 'monthly',
 	description: 'Show OpenCode token usage grouped by month',
 	args: {
+		...dateFilterArgs,
 		json: {
 			type: 'boolean',
 			short: 'j',
@@ -33,7 +35,10 @@ export const monthlyCommand = define({
 	async run(ctx) {
 		const jsonOutput = Boolean(ctx.values.json);
 
-		const entries = await loadOpenCodeMessages();
+		const entries = await loadOpenCodeMessages({
+			since: ctx.values.since,
+			until: ctx.values.until,
+		});
 
 		if (entries.length === 0) {
 			const output = jsonOutput
