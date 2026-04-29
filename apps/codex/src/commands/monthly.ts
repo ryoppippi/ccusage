@@ -30,6 +30,8 @@ export const monthlyCommand = define({
 			logger.level = 0;
 		}
 
+		const humanReadable = Boolean(ctx.values.human);
+
 		let since: string | undefined;
 		let until: string | undefined;
 
@@ -154,11 +156,11 @@ export const monthlyCommand = define({
 				table.push([
 					row.month,
 					formatModelsDisplayMultiline(formatModelsList(row.models)),
-					formatNumber(split.inputTokens),
-					formatNumber(split.outputTokens),
-					formatNumber(split.reasoningTokens),
-					formatNumber(split.cacheReadTokens),
-					formatNumber(row.totalTokens),
+					formatNumber(split.inputTokens, humanReadable),
+					formatNumber(split.outputTokens, humanReadable),
+					formatNumber(split.reasoningTokens, humanReadable),
+					formatNumber(split.cacheReadTokens, humanReadable),
+					formatNumber(row.totalTokens, humanReadable),
 					formatCurrency(row.costUSD),
 				]);
 			}
@@ -167,11 +169,11 @@ export const monthlyCommand = define({
 			table.push([
 				pc.yellow('Total'),
 				'',
-				pc.yellow(formatNumber(totalsForDisplay.inputTokens)),
-				pc.yellow(formatNumber(totalsForDisplay.outputTokens)),
-				pc.yellow(formatNumber(totalsForDisplay.reasoningTokens)),
-				pc.yellow(formatNumber(totalsForDisplay.cacheReadTokens)),
-				pc.yellow(formatNumber(totalsForDisplay.totalTokens)),
+				pc.yellow(formatNumber(totalsForDisplay.inputTokens, humanReadable)),
+				pc.yellow(formatNumber(totalsForDisplay.outputTokens, humanReadable)),
+				pc.yellow(formatNumber(totalsForDisplay.reasoningTokens, humanReadable)),
+				pc.yellow(formatNumber(totalsForDisplay.cacheReadTokens, humanReadable)),
+				pc.yellow(formatNumber(totalsForDisplay.totalTokens, humanReadable)),
 				pc.yellow(formatCurrency(totalsForDisplay.costUSD)),
 			]);
 

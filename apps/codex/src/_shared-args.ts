@@ -42,6 +42,12 @@ export const sharedArgs = {
 		description: 'Force compact table layout for narrow terminals',
 		default: false,
 	},
+	human: {
+		type: 'boolean',
+		short: 'H',
+		description: 'Display token counts in human-readable format (K/M/B suffixes)',
+		default: false,
+	},
 	color: {
 		// --color and FORCE_COLOR=1 is handled by picocolors
 		type: 'boolean',
