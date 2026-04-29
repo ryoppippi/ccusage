@@ -89,6 +89,10 @@ export default defineConfig({
 					items: [{ text: 'Overview', link: '/guide/opencode/' }],
 				},
 				{
+					text: 'Copilot CLI (Beta)',
+					items: [{ text: 'Overview', link: '/guide/copilot/' }],
+				},
+				{
 					text: 'Configuration',
 					items: [
 						{ text: 'Overview', link: '/guide/configuration' },
