@@ -1,3 +1,4 @@
+import type { MonthlyUsageSummary } from '../_types.ts';
 import process from 'node:process';
 import {
 	addEmptySeparatorRow,
@@ -15,7 +16,7 @@ import { formatModelsList, splitUsageTokens } from '../command-utils.ts';
 import { loadTokenUsageEvents } from '../data-loader.ts';
 import { normalizeFilterDate } from '../date-utils.ts';
 import { log, logger } from '../logger.ts';
-import { buildMonthlyReport } from '../monthly-report.ts';
+import { accumulateMonthlyUsage, buildMonthlyReportRows } from '../monthly-report.ts';
 import { CodexPricingSource } from '../pricing.ts';
 
 const TABLE_COLUMN_COUNT = 8;
@@ -41,13 +42,23 @@ export const monthlyCommand = define({
 			process.exit(1);
 		}
 
-		const { events, missingDirectories } = await loadTokenUsageEvents();
+		const summaries = new Map<string, MonthlyUsageSummary>();
+		const { missingDirectories } = await loadTokenUsageEvents({
+			since,
+			until,
+			timezone: ctx.values.timezone,
+			collectEvents: false,
+			sortEvents: false,
+			onEvent: (event) => {
+				accumulateMonthlyUsage(summaries, event, ctx.values.timezone);
+			},
+		});
 
 		for (const missing of missingDirectories) {
 			logger.warn(`Codex session directory not found: ${missing}`);
 		}
 
-		if (events.length === 0) {
+		if (summaries.size === 0) {
 			log(
 				jsonOutput ? JSON.stringify({ monthly: [], totals: null }) : 'No Codex usage data found.',
 			);
@@ -58,12 +69,10 @@ export const monthlyCommand = define({
 			offline: ctx.values.offline,
 		});
 		try {
-			const rows = await buildMonthlyReport(events, {
+			const rows = await buildMonthlyReportRows(summaries, {
 				pricingSource,
 				timezone: ctx.values.timezone,
 				locale: ctx.values.locale,
-				since,
-				until,
 			});
 
 			if (rows.length === 0) {

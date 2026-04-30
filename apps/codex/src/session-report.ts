@@ -17,6 +17,8 @@ export type SessionReportOptions = {
 	pricingSource: PricingSource;
 };
 
+export type SessionSummaries = Map<string, SessionUsageSummary>;
+
 function createSummary(sessionId: string, initialTimestamp: string): SessionUsageSummary {
 	return {
 		sessionId,
@@ -32,63 +34,53 @@ function createSummary(sessionId: string, initialTimestamp: string): SessionUsag
 	};
 }
 
-export async function buildSessionReport(
-	events: TokenUsageEvent[],
-	options: SessionReportOptions,
-): Promise<SessionReportRow[]> {
-	const timezone = options.timezone;
-	const since = options.since;
-	const until = options.until;
-	const pricingSource = options.pricingSource;
-
-	const summaries = new Map<string, SessionUsageSummary>();
-
-	for (const event of events) {
-		const rawSessionId = event.sessionId;
-		if (rawSessionId == null) {
-			continue;
-		}
-		const sessionId = rawSessionId.trim();
-		if (sessionId === '') {
-			continue;
-		}
-
-		const rawModelName = event.model;
-		if (rawModelName == null) {
-			continue;
-		}
-		const modelName = rawModelName.trim();
-		if (modelName === '') {
-			continue;
-		}
-
-		const dateKey = toDateKey(event.timestamp, timezone);
-		if (!isWithinRange(dateKey, since, until)) {
-			continue;
-		}
-
-		const summary = summaries.get(sessionId) ?? createSummary(sessionId, event.timestamp);
-		if (!summaries.has(sessionId)) {
-			summaries.set(sessionId, summary);
-		}
-
-		addUsage(summary, event);
-		if (event.timestamp > summary.lastTimestamp) {
-			summary.lastTimestamp = event.timestamp;
-		}
-
-		const modelUsage: ModelUsage = summary.models.get(modelName) ?? {
-			...createEmptyUsage(),
-			isFallback: false,
-		};
-		if (!summary.models.has(modelName)) {
-			summary.models.set(modelName, modelUsage);
-		}
-		addUsage(modelUsage, event);
-		if (event.isFallbackModel === true) {
-			modelUsage.isFallback = true;
-		}
+export function accumulateSessionUsage(summaries: SessionSummaries, event: TokenUsageEvent): void {
+	const rawSessionId = event.sessionId;
+	if (rawSessionId == null) {
+		return;
 	}
+	const sessionId = rawSessionId.trim();
+	if (sessionId === '') {
+		return;
+	}
+
+	const rawModelName = event.model;
+	if (rawModelName == null) {
+		return;
+	}
+	const modelName = rawModelName.trim();
+	if (modelName === '') {
+		return;
+	}
+
+	const summary = summaries.get(sessionId) ?? createSummary(sessionId, event.timestamp);
+	if (!summaries.has(sessionId)) {
+		summaries.set(sessionId, summary);
+	}
+
+	addUsage(summary, event);
+	if (event.timestamp > summary.lastTimestamp) {
+		summary.lastTimestamp = event.timestamp;
+	}
+
+	const modelUsage: ModelUsage = summary.models.get(modelName) ?? {
+		...createEmptyUsage(),
+		isFallback: false,
+	};
+	if (!summary.models.has(modelName)) {
+		summary.models.set(modelName, modelUsage);
+	}
+	addUsage(modelUsage, event);
+	if (event.isFallbackModel === true) {
+		modelUsage.isFallback = true;
+	}
+}
+
+export async function buildSessionReportRows(
+	summaries: SessionSummaries,
+	options: Pick<SessionReportOptions, 'pricingSource'>,
+): Promise<SessionReportRow[]> {
+	const pricingSource = options.pricingSource;
 
 	if (summaries.size === 0) {
 		return [];
@@ -148,6 +140,26 @@ export async function buildSessionReport(
 	}
 
 	return rows;
+}
+
+export async function buildSessionReport(
+	events: TokenUsageEvent[],
+	options: SessionReportOptions,
+): Promise<SessionReportRow[]> {
+	const timezone = options.timezone;
+	const since = options.since;
+	const until = options.until;
+	const summaries: SessionSummaries = new Map();
+
+	for (const event of events) {
+		const dateKey = toDateKey(event.timestamp, timezone);
+		if (!isWithinRange(dateKey, since, until)) {
+			continue;
+		}
+		accumulateSessionUsage(summaries, event);
+	}
+
+	return buildSessionReportRows(summaries, options);
 }
 
 if (import.meta.vitest != null) {
