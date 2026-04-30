@@ -11,7 +11,12 @@ import { define } from 'gunshi';
 import pc from 'picocolors';
 import { DEFAULT_TIMEZONE } from '../_consts.ts';
 import { sharedArgs } from '../_shared-args.ts';
-import { formatModelsList, splitUsageTokens } from '../command-utils.ts';
+import {
+	createEmptyReportPayload,
+	formatModelsList,
+	groupRowsByProject,
+	splitUsageTokens,
+} from '../command-utils.ts';
 import { loadTokenUsageEvents } from '../data-loader.ts';
 import { normalizeFilterDate } from '../date-utils.ts';
 import { log, logger } from '../logger.ts';
@@ -41,6 +46,8 @@ export const monthlyCommand = define({
 			process.exit(1);
 		}
 
+		const useInstances = Boolean(ctx.values.instances);
+		const projectFilter = ctx.values.project;
 		const { events, missingDirectories } = await loadTokenUsageEvents();
 
 		for (const missing of missingDirectories) {
@@ -49,7 +56,9 @@ export const monthlyCommand = define({
 
 		if (events.length === 0) {
 			log(
-				jsonOutput ? JSON.stringify({ monthly: [], totals: null }) : 'No Codex usage data found.',
+				jsonOutput
+					? JSON.stringify(createEmptyReportPayload('monthly', useInstances))
+					: 'No Codex usage data found.',
 			);
 			return;
 		}
@@ -64,12 +73,14 @@ export const monthlyCommand = define({
 				locale: ctx.values.locale,
 				since,
 				until,
+				project: projectFilter,
+				groupByProject: useInstances,
 			});
 
 			if (rows.length === 0) {
 				log(
 					jsonOutput
-						? JSON.stringify({ monthly: [], totals: null })
+						? JSON.stringify(createEmptyReportPayload('monthly', useInstances))
 						: 'No Codex usage data found for provided filters.',
 				);
 				return;
@@ -96,16 +107,11 @@ export const monthlyCommand = define({
 			);
 
 			if (jsonOutput) {
-				log(
-					JSON.stringify(
-						{
-							monthly: rows,
-							totals,
-						},
-						null,
-						2,
-					),
-				);
+				if (useInstances) {
+					log(JSON.stringify({ projects: groupRowsByProject(rows), totals }, null, 2));
+				} else {
+					log(JSON.stringify({ monthly: rows, totals }, null, 2));
+				}
 				return;
 			}
 
@@ -142,25 +148,61 @@ export const monthlyCommand = define({
 				costUSD: 0,
 			};
 
-			for (const row of rows) {
-				const split = splitUsageTokens(row);
-				totalsForDisplay.inputTokens += split.inputTokens;
-				totalsForDisplay.outputTokens += split.outputTokens;
-				totalsForDisplay.reasoningTokens += split.reasoningTokens;
-				totalsForDisplay.cacheReadTokens += split.cacheReadTokens;
-				totalsForDisplay.totalTokens += row.totalTokens;
-				totalsForDisplay.costUSD += row.costUSD;
+			if (useInstances && rows.some((r) => r.project != null)) {
+				const projectGroups = groupRowsByProject(rows);
+				const sortedProjects = Object.entries(projectGroups).sort(([, a], [, b]) => {
+					const costA = a.reduce((s, r) => s + r.costUSD, 0);
+					const costB = b.reduce((s, r) => s + r.costUSD, 0);
+					return costB - costA;
+				});
+				let isFirst = true;
+				for (const [projectName, projectRows] of sortedProjects) {
+					if (!isFirst) {
+						addEmptySeparatorRow(table, TABLE_COLUMN_COUNT);
+					}
+					table.push([pc.cyan(`Project: ${projectName}`), '', '', '', '', '', '', '']);
+					for (const row of projectRows) {
+						const split = splitUsageTokens(row);
+						totalsForDisplay.inputTokens += split.inputTokens;
+						totalsForDisplay.outputTokens += split.outputTokens;
+						totalsForDisplay.reasoningTokens += split.reasoningTokens;
+						totalsForDisplay.cacheReadTokens += split.cacheReadTokens;
+						totalsForDisplay.totalTokens += row.totalTokens;
+						totalsForDisplay.costUSD += row.costUSD;
+						table.push([
+							row.month,
+							formatModelsDisplayMultiline(formatModelsList(row.models)),
+							formatNumber(split.inputTokens),
+							formatNumber(split.outputTokens),
+							formatNumber(split.reasoningTokens),
+							formatNumber(split.cacheReadTokens),
+							formatNumber(row.totalTokens),
+							formatCurrency(row.costUSD),
+						]);
+					}
+					isFirst = false;
+				}
+			} else {
+				for (const row of rows) {
+					const split = splitUsageTokens(row);
+					totalsForDisplay.inputTokens += split.inputTokens;
+					totalsForDisplay.outputTokens += split.outputTokens;
+					totalsForDisplay.reasoningTokens += split.reasoningTokens;
+					totalsForDisplay.cacheReadTokens += split.cacheReadTokens;
+					totalsForDisplay.totalTokens += row.totalTokens;
+					totalsForDisplay.costUSD += row.costUSD;
 
-				table.push([
-					row.month,
-					formatModelsDisplayMultiline(formatModelsList(row.models)),
-					formatNumber(split.inputTokens),
-					formatNumber(split.outputTokens),
-					formatNumber(split.reasoningTokens),
-					formatNumber(split.cacheReadTokens),
-					formatNumber(row.totalTokens),
-					formatCurrency(row.costUSD),
-				]);
+					table.push([
+						row.month,
+						formatModelsDisplayMultiline(formatModelsList(row.models)),
+						formatNumber(split.inputTokens),
+						formatNumber(split.outputTokens),
+						formatNumber(split.reasoningTokens),
+						formatNumber(split.cacheReadTokens),
+						formatNumber(row.totalTokens),
+						formatCurrency(row.costUSD),
+					]);
+				}
 			}
 
 			addEmptySeparatorRow(table, TABLE_COLUMN_COUNT);

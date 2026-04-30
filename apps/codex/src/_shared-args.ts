@@ -52,4 +52,15 @@ export const sharedArgs = {
 		type: 'boolean',
 		description: 'Disable colored output (default: auto). NO_COLOR=1 has the same effect.',
 	},
+	instances: {
+		type: 'boolean',
+		short: 'i',
+		description: 'Show usage breakdown by project',
+		default: false,
+	},
+	project: {
+		type: 'string',
+		short: 'p',
+		description: 'Filter to a specific project (exact match on normalized path)',
+	},
 } as const satisfies Args;
