@@ -1,7 +1,10 @@
 import type { TokenUsageDelta, TokenUsageEvent } from './_types.ts';
-import { readFile, stat } from 'node:fs/promises';
+import { createReadStream } from 'node:fs';
+import { stat } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
+import { createInterface } from 'node:readline';
+import { PassThrough } from 'node:stream';
 import { Result } from '@praha/byethrow';
 import { createFixture } from 'fs-fixture';
 import { glob } from 'tinyglobby';
@@ -103,6 +106,11 @@ function convertToDelta(raw: RawUsage): TokenUsageDelta {
 
 const recordSchema = v.record(v.string(), v.unknown());
 const LEGACY_FALLBACK_MODEL = 'gpt-5';
+const sessionStreamFactory = {
+	create(file: string) {
+		return createReadStream(file, { encoding: 'utf8' });
+	},
+};
 
 const entrySchema = v.object({
 	type: v.string(),
@@ -225,137 +233,139 @@ export async function loadTokenUsageEvents(options: LoadOptions = {}): Promise<L
 			const relativeSessionPath = path.relative(directoryPath, file);
 			const normalizedSessionPath = relativeSessionPath.split(path.sep).join('/');
 			const sessionId = normalizedSessionPath.replace(/\.jsonl$/i, '');
-			const fileContentResult = await Result.try({
-				try: readFile(file, 'utf8'),
-				catch: (error) => error,
-			});
-
-			if (Result.isFailure(fileContentResult)) {
-				logger.debug('Failed to read Codex session file', fileContentResult.error);
-				continue;
-			}
-
 			let previousTotals: RawUsage | null = null;
 			let currentModel: string | undefined;
 			let currentModelIsFallback = false;
 			let legacyFallbackUsed = false;
-			const lines = fileContentResult.value.split(/\r?\n/);
-			for (const line of lines) {
-				const trimmed = line.trim();
-				if (trimmed === '') {
-					continue;
-				}
+			const fileEvents: TokenUsageEvent[] = [];
+			const lineReader = createInterface({
+				input: sessionStreamFactory.create(file),
+				crlfDelay: Number.POSITIVE_INFINITY,
+			});
 
-				const parseLine = Result.try({
-					try: () => JSON.parse(trimmed) as unknown,
-					catch: (error) => error,
-				});
-				const parsedResult = parseLine();
-
-				if (Result.isFailure(parsedResult)) {
-					continue;
-				}
-
-				const entryParse = v.safeParse(entrySchema, parsedResult.value);
-				if (!entryParse.success) {
-					continue;
-				}
-
-				const { type: entryType, payload, timestamp } = entryParse.output;
-
-				if (entryType === 'turn_context') {
-					const contextPayload = v.safeParse(recordSchema, payload ?? null);
-					if (contextPayload.success) {
-						const contextModel = extractModel(contextPayload.output);
-						if (contextModel != null) {
-							currentModel = contextModel;
-							currentModelIsFallback = false;
-						}
+			try {
+				for await (const line of lineReader) {
+					const trimmed = line.trim();
+					if (trimmed === '') {
+						continue;
 					}
-					continue;
+
+					const parseLine = Result.try({
+						try: () => JSON.parse(trimmed) as unknown,
+						catch: (error) => error,
+					});
+					const parsedResult = parseLine();
+
+					if (Result.isFailure(parsedResult)) {
+						continue;
+					}
+
+					const entryParse = v.safeParse(entrySchema, parsedResult.value);
+					if (!entryParse.success) {
+						continue;
+					}
+
+					const { type: entryType, payload, timestamp } = entryParse.output;
+
+					if (entryType === 'turn_context') {
+						const contextPayload = v.safeParse(recordSchema, payload ?? null);
+						if (contextPayload.success) {
+							const contextModel = extractModel(contextPayload.output);
+							if (contextModel != null) {
+								currentModel = contextModel;
+								currentModelIsFallback = false;
+							}
+						}
+						continue;
+					}
+
+					if (entryType !== 'event_msg') {
+						continue;
+					}
+
+					const tokenPayloadResult = v.safeParse(tokenCountPayloadSchema, payload ?? undefined);
+					if (!tokenPayloadResult.success) {
+						continue;
+					}
+
+					if (timestamp == null) {
+						continue;
+					}
+
+					const info = tokenPayloadResult.output.info;
+					const lastUsage = normalizeRawUsage(info?.last_token_usage);
+					const totalUsage = normalizeRawUsage(info?.total_token_usage);
+
+					let raw = lastUsage;
+					if (raw == null && totalUsage != null) {
+						raw = subtractRawUsage(totalUsage, previousTotals);
+					}
+
+					if (totalUsage != null) {
+						previousTotals = totalUsage;
+					}
+
+					if (raw == null) {
+						continue;
+					}
+
+					const delta = convertToDelta(raw);
+					if (
+						delta.inputTokens === 0 &&
+						delta.cachedInputTokens === 0 &&
+						delta.outputTokens === 0 &&
+						delta.reasoningOutputTokens === 0
+					) {
+						continue;
+					}
+
+					const payloadRecordResult = v.safeParse(recordSchema, payload ?? undefined);
+					const extractionSource = payloadRecordResult.success
+						? Object.assign({}, payloadRecordResult.output, { info })
+						: { info };
+					const extractedModel = extractModel(extractionSource);
+					let isFallbackModel = false;
+					if (extractedModel != null) {
+						currentModel = extractedModel;
+						currentModelIsFallback = false;
+					}
+
+					let model = extractedModel ?? currentModel;
+					if (model == null) {
+						model = LEGACY_FALLBACK_MODEL;
+						isFallbackModel = true;
+						legacyFallbackUsed = true;
+						currentModel = model;
+						currentModelIsFallback = true;
+					} else if (extractedModel == null && currentModelIsFallback) {
+						isFallbackModel = true;
+					}
+
+					const event: TokenUsageEvent = {
+						sessionId,
+						timestamp,
+						model,
+						inputTokens: delta.inputTokens,
+						cachedInputTokens: delta.cachedInputTokens,
+						outputTokens: delta.outputTokens,
+						reasoningOutputTokens: delta.reasoningOutputTokens,
+						totalTokens: delta.totalTokens,
+					};
+
+					if (isFallbackModel) {
+						// Surface the fallback so both table + JSON outputs can annotate pricing that was
+						// inferred rather than sourced from the log metadata.
+						event.isFallbackModel = true;
+					}
+
+					fileEvents.push(event);
 				}
-
-				if (entryType !== 'event_msg') {
-					continue;
-				}
-
-				const tokenPayloadResult = v.safeParse(tokenCountPayloadSchema, payload ?? undefined);
-				if (!tokenPayloadResult.success) {
-					continue;
-				}
-
-				if (timestamp == null) {
-					continue;
-				}
-
-				const info = tokenPayloadResult.output.info;
-				const lastUsage = normalizeRawUsage(info?.last_token_usage);
-				const totalUsage = normalizeRawUsage(info?.total_token_usage);
-
-				let raw = lastUsage;
-				if (raw == null && totalUsage != null) {
-					raw = subtractRawUsage(totalUsage, previousTotals);
-				}
-
-				if (totalUsage != null) {
-					previousTotals = totalUsage;
-				}
-
-				if (raw == null) {
-					continue;
-				}
-
-				const delta = convertToDelta(raw);
-				if (
-					delta.inputTokens === 0 &&
-					delta.cachedInputTokens === 0 &&
-					delta.outputTokens === 0 &&
-					delta.reasoningOutputTokens === 0
-				) {
-					continue;
-				}
-
-				const payloadRecordResult = v.safeParse(recordSchema, payload ?? undefined);
-				const extractionSource = payloadRecordResult.success
-					? Object.assign({}, payloadRecordResult.output, { info })
-					: { info };
-				const extractedModel = extractModel(extractionSource);
-				let isFallbackModel = false;
-				if (extractedModel != null) {
-					currentModel = extractedModel;
-					currentModelIsFallback = false;
-				}
-
-				let model = extractedModel ?? currentModel;
-				if (model == null) {
-					model = LEGACY_FALLBACK_MODEL;
-					isFallbackModel = true;
-					legacyFallbackUsed = true;
-					currentModel = model;
-					currentModelIsFallback = true;
-				} else if (extractedModel == null && currentModelIsFallback) {
-					isFallbackModel = true;
-				}
-
-				const event: TokenUsageEvent = {
-					sessionId,
-					timestamp,
-					model,
-					inputTokens: delta.inputTokens,
-					cachedInputTokens: delta.cachedInputTokens,
-					outputTokens: delta.outputTokens,
-					reasoningOutputTokens: delta.reasoningOutputTokens,
-					totalTokens: delta.totalTokens,
-				};
-
-				if (isFallbackModel) {
-					// Surface the fallback so both table + JSON outputs can annotate pricing that was
-					// inferred rather than sourced from the log metadata.
-					event.isFallbackModel = true;
-				}
-
-				events.push(event);
+			} catch (error) {
+				logger.debug('Failed to read Codex session file', error);
+				continue;
 			}
+
+			events.push(...fileEvents);
 
 			if (legacyFallbackUsed) {
 				logger.debug('Legacy Codex session lacked model metadata; applied fallback', {
@@ -484,5 +494,116 @@ if (import.meta.vitest != null) {
 			expect(events[0]!.model).toBe('gpt-5');
 			expect(events[0]!.isFallbackModel).toBe(true);
 		});
-	});
-}
+
+		it('parses compacted-heavy sessions', async () => {
+			const hugeCompactedPayload = 'x'.repeat(2_000_000);
+			await using fixture = await createFixture({
+				sessions: {
+					'compacted.jsonl': [
+						JSON.stringify({
+							timestamp: '2025-09-15T13:00:00.000Z',
+							type: 'compacted',
+							payload: {
+								replacement_history: hugeCompactedPayload,
+							},
+						}),
+						JSON.stringify({
+							timestamp: '2025-09-15T13:00:10.000Z',
+							type: 'turn_context',
+							payload: {
+								model: 'gpt-5.4',
+							},
+						}),
+						JSON.stringify({
+							timestamp: '2025-09-15T13:00:11.000Z',
+							type: 'event_msg',
+							payload: {
+								type: 'token_count',
+								info: {
+									last_token_usage: {
+										input_tokens: 42,
+										cached_input_tokens: 2,
+										output_tokens: 8,
+										reasoning_output_tokens: 1,
+										total_tokens: 50,
+									},
+								},
+							},
+						}),
+					].join('\n'),
+				},
+			});
+
+			const { events } = await loadTokenUsageEvents({
+				sessionDirs: [fixture.getPath('sessions')],
+			});
+
+			expect(events).toEqual([
+				expect.objectContaining({
+					sessionId: 'compacted',
+					timestamp: '2025-09-15T13:00:11.000Z',
+					model: 'gpt-5.4',
+					inputTokens: 42,
+					cachedInputTokens: 2,
+					outputTokens: 8,
+					reasoningOutputTokens: 1,
+					totalTokens: 50,
+				}),
+				]);
+			});
+
+			it('rolls back events when a session stream fails', async () => {
+				await using fixture = await createFixture({
+					sessions: {
+						'stream-fail.jsonl': 'placeholder',
+					},
+				});
+
+				const failingSessionPath = fixture.getPath('sessions/stream-fail.jsonl');
+				const streamError = new Error('synthetic stream failure');
+				const validLine = JSON.stringify({
+					timestamp: '2025-09-15T13:00:11.000Z',
+					type: 'event_msg',
+					payload: {
+						type: 'token_count',
+						info: {
+							last_token_usage: {
+								input_tokens: 42,
+								cached_input_tokens: 2,
+								output_tokens: 8,
+								reasoning_output_tokens: 1,
+								total_tokens: 50,
+							},
+							model: 'gpt-5.4',
+						},
+					},
+				});
+				const actualCreateReadStream = sessionStreamFactory.create;
+				const createReadStreamSpy = vi
+					.spyOn(sessionStreamFactory, 'create')
+					.mockImplementation((file) => {
+						if (file !== failingSessionPath) {
+							return actualCreateReadStream(file);
+						}
+
+						const stream = new PassThrough();
+						stream.write(`${validLine}\n`);
+						queueMicrotask(() => stream.destroy(streamError));
+						return stream as unknown as ReturnType<typeof actualCreateReadStream>;
+					});
+				const debugSpy = vi.spyOn(logger, 'debug').mockImplementation(() => undefined);
+
+				try {
+					const { events } = await loadTokenUsageEvents({
+						sessionDirs: [fixture.getPath('sessions')],
+					});
+
+					expect(events).toEqual([]);
+					expect(debugSpy).toHaveBeenCalledWith('Failed to read Codex session file', streamError);
+				} finally {
+					createReadStreamSpy.mockRestore();
+					debugSpy.mockRestore();
+				}
+			});
+		});
+	}
