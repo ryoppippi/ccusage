@@ -6,9 +6,15 @@ export type TokenUsageDelta = {
 	totalTokens: number;
 };
 
+export type SessionSource = {
+	account: string;
+	directory: string;
+};
+
 export type TokenUsageEvent = TokenUsageDelta & {
 	timestamp: string;
 	sessionId: string;
+	account?: string;
 	model?: string;
 	isFallbackModel?: boolean;
 };
@@ -19,6 +25,7 @@ export type ModelUsage = TokenUsageDelta & {
 
 export type DailyUsageSummary = {
 	date: string;
+	account?: string;
 	firstTimestamp: string;
 	costUSD: number;
 	models: Map<string, ModelUsage>;
@@ -26,6 +33,7 @@ export type DailyUsageSummary = {
 
 export type MonthlyUsageSummary = {
 	month: string;
+	account?: string;
 	firstTimestamp: string;
 	costUSD: number;
 	models: Map<string, ModelUsage>;
@@ -33,6 +41,7 @@ export type MonthlyUsageSummary = {
 
 export type SessionUsageSummary = {
 	sessionId: string;
+	account?: string;
 	firstTimestamp: string;
 	lastTimestamp: string;
 	costUSD: number;
@@ -56,6 +65,7 @@ export type PricingSource = {
 
 export type DailyReportRow = {
 	date: string;
+	account?: string;
 	inputTokens: number;
 	cachedInputTokens: number;
 	outputTokens: number;
@@ -67,6 +77,7 @@ export type DailyReportRow = {
 
 export type MonthlyReportRow = {
 	month: string;
+	account?: string;
 	inputTokens: number;
 	cachedInputTokens: number;
 	outputTokens: number;
@@ -78,6 +89,7 @@ export type MonthlyReportRow = {
 
 export type SessionReportRow = {
 	sessionId: string;
+	account?: string;
 	lastActivity: string;
 	sessionFile: string;
 	directory: string;

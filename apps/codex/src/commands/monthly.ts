@@ -2,10 +2,8 @@ import process from 'node:process';
 import {
 	addEmptySeparatorRow,
 	formatCurrency,
-	formatDateCompact,
 	formatModelsDisplayMultiline,
 	formatNumber,
-	ResponsiveTable,
 } from '@ccusage/terminal/table';
 import { define } from 'gunshi';
 import pc from 'picocolors';
@@ -17,8 +15,8 @@ import { normalizeFilterDate } from '../date-utils.ts';
 import { log, logger } from '../logger.ts';
 import { buildMonthlyReport } from '../monthly-report.ts';
 import { CodexPricingSource } from '../pricing.ts';
-
-const TABLE_COLUMN_COUNT = 8;
+import { resolveSessionSources } from '../session-sources.ts';
+import { createUsageResponsiveTable } from './usage-table.ts';
 
 export const monthlyCommand = define({
 	name: 'monthly',
@@ -41,7 +39,12 @@ export const monthlyCommand = define({
 			process.exit(1);
 		}
 
-		const { events, missingDirectories } = await loadTokenUsageEvents();
+		const sessionSources = resolveSessionSources(ctx.values.codexHome);
+		const byAccount = ctx.values.byAccount === true;
+		const hasMultipleAccounts = sessionSources.length > 1;
+		const { events, missingDirectories } = await loadTokenUsageEvents({
+			sessionSources,
+		});
 
 		for (const missing of missingDirectories) {
 			logger.warn(`Codex session directory not found: ${missing}`);
@@ -64,6 +67,7 @@ export const monthlyCommand = define({
 				locale: ctx.values.locale,
 				since,
 				until,
+				byAccount,
 			});
 
 			if (rows.length === 0) {
@@ -113,24 +117,17 @@ export const monthlyCommand = define({
 				`Codex Token Usage Report - Monthly (Timezone: ${ctx.values.timezone ?? DEFAULT_TIMEZONE})`,
 			);
 
-			const table: ResponsiveTable = new ResponsiveTable({
-				head: [
-					'Month',
-					'Models',
-					'Input',
-					'Output',
-					'Reasoning',
-					'Cache Read',
-					'Total Tokens',
-					'Cost (USD)',
-				],
-				colAligns: ['left', 'left', 'right', 'right', 'right', 'right', 'right', 'right'],
-				compactHead: ['Month', 'Models', 'Input', 'Output', 'Cost (USD)'],
-				compactColAligns: ['left', 'left', 'right', 'right', 'right'],
-				compactThreshold: 100,
+			if (hasMultipleAccounts && !byAccount) {
+				logger.info(
+					'Aggregating usage across multiple accounts. Use --by-account to split rows by account.',
+				);
+			}
+
+			const includeAccountColumn = byAccount;
+			const { table, tableColumnCount } = createUsageResponsiveTable({
+				mode: 'monthly',
+				includeAccountColumn,
 				forceCompact: ctx.values.compact,
-				style: { head: ['cyan'] },
-				dateFormatter: (dateStr: string) => formatDateCompact(dateStr),
 			});
 
 			const totalsForDisplay = {
@@ -151,29 +148,57 @@ export const monthlyCommand = define({
 				totalsForDisplay.totalTokens += row.totalTokens;
 				totalsForDisplay.costUSD += row.costUSD;
 
-				table.push([
-					row.month,
-					formatModelsDisplayMultiline(formatModelsList(row.models)),
-					formatNumber(split.inputTokens),
-					formatNumber(split.outputTokens),
-					formatNumber(split.reasoningTokens),
-					formatNumber(split.cacheReadTokens),
-					formatNumber(row.totalTokens),
-					formatCurrency(row.costUSD),
-				]);
+				if (includeAccountColumn) {
+					table.push([
+						row.month,
+						row.account ?? 'default',
+						formatModelsDisplayMultiline(formatModelsList(row.models)),
+						formatNumber(split.inputTokens),
+						formatNumber(split.outputTokens),
+						formatNumber(split.reasoningTokens),
+						formatNumber(split.cacheReadTokens),
+						formatNumber(row.totalTokens),
+						formatCurrency(row.costUSD),
+					]);
+				} else {
+					table.push([
+						row.month,
+						formatModelsDisplayMultiline(formatModelsList(row.models)),
+						formatNumber(split.inputTokens),
+						formatNumber(split.outputTokens),
+						formatNumber(split.reasoningTokens),
+						formatNumber(split.cacheReadTokens),
+						formatNumber(row.totalTokens),
+						formatCurrency(row.costUSD),
+					]);
+				}
 			}
 
-			addEmptySeparatorRow(table, TABLE_COLUMN_COUNT);
-			table.push([
-				pc.yellow('Total'),
-				'',
-				pc.yellow(formatNumber(totalsForDisplay.inputTokens)),
-				pc.yellow(formatNumber(totalsForDisplay.outputTokens)),
-				pc.yellow(formatNumber(totalsForDisplay.reasoningTokens)),
-				pc.yellow(formatNumber(totalsForDisplay.cacheReadTokens)),
-				pc.yellow(formatNumber(totalsForDisplay.totalTokens)),
-				pc.yellow(formatCurrency(totalsForDisplay.costUSD)),
-			]);
+			addEmptySeparatorRow(table, tableColumnCount);
+			if (includeAccountColumn) {
+				table.push([
+					pc.yellow('Total'),
+					'',
+					'',
+					pc.yellow(formatNumber(totalsForDisplay.inputTokens)),
+					pc.yellow(formatNumber(totalsForDisplay.outputTokens)),
+					pc.yellow(formatNumber(totalsForDisplay.reasoningTokens)),
+					pc.yellow(formatNumber(totalsForDisplay.cacheReadTokens)),
+					pc.yellow(formatNumber(totalsForDisplay.totalTokens)),
+					pc.yellow(formatCurrency(totalsForDisplay.costUSD)),
+				]);
+			} else {
+				table.push([
+					pc.yellow('Total'),
+					'',
+					pc.yellow(formatNumber(totalsForDisplay.inputTokens)),
+					pc.yellow(formatNumber(totalsForDisplay.outputTokens)),
+					pc.yellow(formatNumber(totalsForDisplay.reasoningTokens)),
+					pc.yellow(formatNumber(totalsForDisplay.cacheReadTokens)),
+					pc.yellow(formatNumber(totalsForDisplay.totalTokens)),
+					pc.yellow(formatCurrency(totalsForDisplay.costUSD)),
+				]);
+			}
 
 			log(table.toString());
 
