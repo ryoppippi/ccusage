@@ -17,6 +17,7 @@
 	},
 	"exports": {
 		".": "./src/index.ts",
+		"./agent-id": "./src/agent-id.ts",
 		"./calculate-cost": "./src/calculate-cost.ts",
 		"./data-loader": "./src/data-loader.ts",
 		"./debug": "./src/debug.ts",
@@ -39,6 +40,7 @@
 		},
 		"exports": {
 			".": "./dist/index.js",
+			"./agent-id": "./dist/agent-id.js",
 			"./calculate-cost": "./dist/calculate-cost.js",
 			"./data-loader": "./dist/data-loader.js",
 			"./debug": "./dist/debug.js",
