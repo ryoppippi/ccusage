@@ -9,6 +9,7 @@ import {
 } from '@ccusage/terminal/table';
 import { Result } from '@praha/byethrow';
 import { define } from 'gunshi';
+import { withComparisonCosts } from '../_compare-model.ts';
 import { loadConfig, mergeConfigWithArgs } from '../_config-loader-tokens.ts';
 import { DEFAULT_LOCALE } from '../_consts.ts';
 import { formatDateCompact } from '../_date-utils.ts';
@@ -65,14 +66,12 @@ export const sessionCommand = define({
 		}
 
 		// Original session listing logic
-		const sessionData = await loadSessionData({
-			since: ctx.values.since,
-			until: ctx.values.until,
-			mode: ctx.values.mode,
-			offline: ctx.values.offline,
-			timezone: ctx.values.timezone,
-			locale: ctx.values.locale,
-		});
+		const rawSessionData = await loadSessionData(mergedOptions);
+		const sessionData = await withComparisonCosts(
+			rawSessionData,
+			mergedOptions.compareModel,
+			mergedOptions.offline,
+		);
 
 		if (sessionData.length === 0) {
 			if (useJson) {
@@ -87,9 +86,9 @@ export const sessionCommand = define({
 		const totals = calculateTotals(sessionData);
 
 		// Show debug information if requested
-		if (ctx.values.debug && !useJson) {
+		if (mergedOptions.debug && !useJson) {
 			const mismatchStats = await detectMismatches(undefined);
-			printMismatchReport(mismatchStats, ctx.values.debugSamples);
+			printMismatchReport(mismatchStats, mergedOptions.debugSamples as number | undefined);
 		}
 
 		if (useJson) {
@@ -107,13 +106,23 @@ export const sessionCommand = define({
 					modelsUsed: data.modelsUsed,
 					modelBreakdowns: data.modelBreakdowns,
 					projectPath: data.projectPath,
+					...(data.comparisonCost != null && { comparisonCost: data.comparisonCost }),
+					...(data.comparisonModelName != null && {
+						comparisonModelName: data.comparisonModelName,
+					}),
 				})),
-				totals: createTotalsObject(totals),
+				totals: {
+					...createTotalsObject(totals),
+					...(mergedOptions.compareModel != null && {
+						comparisonCost: sessionData.reduce((sum, d) => sum + (d.comparisonCost ?? 0), 0),
+						comparisonModelName: mergedOptions.compareModel,
+					}),
+				},
 			};
 
 			// Process with jq if specified
-			if (ctx.values.jq != null) {
-				const jqResult = await processWithJq(jsonOutput, ctx.values.jq);
+			if (mergedOptions.jq != null) {
+				const jqResult = await processWithJq(jsonOutput, mergedOptions.jq);
 				if (Result.isFailure(jqResult)) {
 					logger.error(jqResult.error.message);
 					process.exit(1);
@@ -131,8 +140,9 @@ export const sessionCommand = define({
 				firstColumnName: 'Session',
 				includeLastActivity: true,
 				dateFormatter: (dateStr: string) =>
-					formatDateCompact(dateStr, ctx.values.timezone, ctx.values.locale),
+					formatDateCompact(dateStr, mergedOptions.timezone, mergedOptions.locale ?? undefined),
 				forceCompact: ctx.values.compact,
+				comparisonModelName: mergedOptions.compareModel,
 			};
 			const table = createUsageReportTable(tableConfig);
 
@@ -153,20 +163,26 @@ export const sessionCommand = define({
 						cacheReadTokens: data.cacheReadTokens,
 						totalCost: data.totalCost,
 						modelsUsed: data.modelsUsed,
+						comparisonCost: data.comparisonCost,
 					},
 					data.lastActivity,
 				);
 				table.push(row);
 
 				// Add model breakdown rows if flag is set
-				if (ctx.values.breakdown) {
+				if (mergedOptions.breakdown) {
 					// Session has 1 extra column before data and 1 trailing column
-					pushBreakdownRows(table, data.modelBreakdowns, 1, 1);
+					pushBreakdownRows(
+						table,
+						data.modelBreakdowns,
+						1,
+						tableConfig.comparisonModelName != null ? 3 : 1, // Last Activity column + 2 comparison columns
+					);
 				}
 			}
 
 			// Add empty row for visual separation before totals
-			addEmptySeparatorRow(table, 9);
+			addEmptySeparatorRow(table, tableConfig.comparisonModelName != null ? 11 : 9);
 
 			// Add totals
 			const totalsRow = formatTotalsRow(
@@ -176,6 +192,9 @@ export const sessionCommand = define({
 					cacheCreationTokens: totals.cacheCreationTokens,
 					cacheReadTokens: totals.cacheReadTokens,
 					totalCost: totals.totalCost,
+					...(mergedOptions.compareModel != null && {
+						comparisonCost: sessionData.reduce((sum, d) => sum + (d.comparisonCost ?? 0), 0),
+					}),
 				},
 				true,
 			); // Include Last Activity column

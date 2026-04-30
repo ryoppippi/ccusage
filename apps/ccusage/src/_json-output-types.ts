@@ -25,4 +25,6 @@ export type DailyProjectOutput = {
 	totalCost: number;
 	modelsUsed: ModelName[];
 	modelBreakdowns: ModelBreakdown[];
+	comparisonCost?: number;
+	comparisonModelName?: string;
 };

@@ -11,7 +11,9 @@ type DailyData = Awaited<ReturnType<typeof loadDailyUsageData>>;
 /**
  * Group daily usage data by project for JSON output
  */
-export function groupByProject(dailyData: DailyData): Record<string, DailyProjectOutput[]> {
+export function groupByProject<T extends DailyData[number]>(
+	dailyData: T[],
+): Record<string, DailyProjectOutput[]> {
 	const projects: Record<string, DailyProjectOutput[]> = {};
 
 	for (const data of dailyData) {
@@ -21,7 +23,7 @@ export function groupByProject(dailyData: DailyData): Record<string, DailyProjec
 			projects[projectName] = [];
 		}
 
-		projects[projectName].push({
+		const entry: DailyProjectOutput = {
 			date: data.date,
 			inputTokens: data.inputTokens,
 			outputTokens: data.outputTokens,
@@ -31,7 +33,21 @@ export function groupByProject(dailyData: DailyData): Record<string, DailyProjec
 			totalCost: data.totalCost,
 			modelsUsed: data.modelsUsed,
 			modelBreakdowns: data.modelBreakdowns,
-		});
+		};
+
+		// Copy comparison fields if present
+		const dataWithComparison = data as T & {
+			comparisonCost?: number;
+			comparisonModelName?: string;
+		};
+		if (dataWithComparison.comparisonCost != null) {
+			entry.comparisonCost = dataWithComparison.comparisonCost;
+		}
+		if (dataWithComparison.comparisonModelName != null) {
+			entry.comparisonModelName = dataWithComparison.comparisonModelName;
+		}
+
+		projects[projectName].push(entry);
 	}
 
 	return projects;
@@ -40,8 +56,10 @@ export function groupByProject(dailyData: DailyData): Record<string, DailyProjec
 /**
  * Group daily usage data by project for table display
  */
-export function groupDataByProject(dailyData: DailyData): Record<string, DailyData> {
-	const projects: Record<string, DailyData> = {};
+export function groupDataByProject<T extends DailyData[number]>(
+	dailyData: T[],
+): Record<string, T[]> {
+	const projects: Record<string, T[]> = {};
 
 	for (const data of dailyData) {
 		const projectName = data.project ?? 'unknown';

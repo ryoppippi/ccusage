@@ -10,6 +10,7 @@ import {
 import { Result } from '@praha/byethrow';
 import { define } from 'gunshi';
 import pc from 'picocolors';
+import { withComparisonCosts } from '../_compare-model.ts';
 import { loadConfig, mergeConfigWithArgs } from '../_config-loader-tokens.ts';
 import { groupByProject, groupDataByProject } from '../_daily-grouping.ts';
 import { formatDateCompact } from '../_date-utils.ts';
@@ -75,10 +76,15 @@ export const dailyCommand = define({
 			logger.level = 0;
 		}
 
-		const dailyData = await loadDailyUsageData({
+		const rawDailyData = await loadDailyUsageData({
 			...mergedOptions,
 			groupByProject: mergedOptions.instances,
 		});
+		const dailyData = await withComparisonCosts(
+			rawDailyData,
+			mergedOptions.compareModel,
+			mergedOptions.offline,
+		);
 
 		if (dailyData.length === 0) {
 			if (useJson) {
@@ -104,7 +110,13 @@ export const dailyCommand = define({
 				Boolean(mergedOptions.instances) && dailyData.some((d) => d.project != null)
 					? {
 							projects: groupByProject(dailyData),
-							totals: createTotalsObject(totals),
+							totals: {
+								...createTotalsObject(totals),
+								...(mergedOptions.compareModel != null && {
+									comparisonCost: dailyData.reduce((sum, d) => sum + (d.comparisonCost ?? 0), 0),
+									comparisonModelName: mergedOptions.compareModel,
+								}),
+							},
 						}
 					: {
 							daily: dailyData.map((data) => ({
@@ -118,8 +130,18 @@ export const dailyCommand = define({
 								modelsUsed: data.modelsUsed,
 								modelBreakdowns: data.modelBreakdowns,
 								...(data.project != null && { project: data.project }),
+								...(data.comparisonCost != null && { comparisonCost: data.comparisonCost }),
+								...(data.comparisonModelName != null && {
+									comparisonModelName: data.comparisonModelName,
+								}),
 							})),
-							totals: createTotalsObject(totals),
+							totals: {
+								...createTotalsObject(totals),
+								...(mergedOptions.compareModel != null && {
+									comparisonCost: dailyData.reduce((sum, d) => sum + (d.comparisonCost ?? 0), 0),
+									comparisonModelName: mergedOptions.compareModel,
+								}),
+							},
 						};
 
 			// Process with jq if specified
@@ -143,6 +165,7 @@ export const dailyCommand = define({
 				dateFormatter: (dateStr: string) =>
 					formatDateCompact(dateStr, mergedOptions.timezone, mergedOptions.locale ?? undefined),
 				forceCompact: ctx.values.compact,
+				comparisonModelName: mergedOptions.compareModel,
 			};
 			const table = createUsageReportTable(tableConfig);
 
@@ -156,7 +179,7 @@ export const dailyCommand = define({
 					// Add project section header
 					if (!isFirstProject) {
 						// Add empty row for visual separation between projects
-						table.push(['', '', '', '', '', '', '', '']);
+						addEmptySeparatorRow(table, tableConfig.comparisonModelName != null ? 10 : 8);
 					}
 
 					// Add project header row
@@ -169,6 +192,7 @@ export const dailyCommand = define({
 						'',
 						'',
 						'',
+						...(tableConfig.comparisonModelName != null ? ['', ''] : []),
 					]);
 
 					// Add data rows for this project
@@ -180,12 +204,18 @@ export const dailyCommand = define({
 							cacheReadTokens: data.cacheReadTokens,
 							totalCost: data.totalCost,
 							modelsUsed: data.modelsUsed,
+							comparisonCost: data.comparisonCost,
 						});
 						table.push(row);
 
 						// Add model breakdown rows if flag is set
 						if (mergedOptions.breakdown) {
-							pushBreakdownRows(table, data.modelBreakdowns);
+							pushBreakdownRows(
+								table,
+								data.modelBreakdowns,
+								1,
+								tableConfig.comparisonModelName != null ? 2 : 0,
+							);
 						}
 					}
 
@@ -202,18 +232,24 @@ export const dailyCommand = define({
 						cacheReadTokens: data.cacheReadTokens,
 						totalCost: data.totalCost,
 						modelsUsed: data.modelsUsed,
+						comparisonCost: data.comparisonCost,
 					});
 					table.push(row);
 
 					// Add model breakdown rows if flag is set
 					if (mergedOptions.breakdown) {
-						pushBreakdownRows(table, data.modelBreakdowns);
+						pushBreakdownRows(
+							table,
+							data.modelBreakdowns,
+							1,
+							tableConfig.comparisonModelName != null ? 2 : 0,
+						);
 					}
 				}
 			}
 
 			// Add empty row for visual separation before totals
-			addEmptySeparatorRow(table, 8);
+			addEmptySeparatorRow(table, tableConfig.comparisonModelName != null ? 10 : 8);
 
 			// Add totals
 			const totalsRow = formatTotalsRow({
@@ -222,6 +258,9 @@ export const dailyCommand = define({
 				cacheCreationTokens: totals.cacheCreationTokens,
 				cacheReadTokens: totals.cacheReadTokens,
 				totalCost: totals.totalCost,
+				...(mergedOptions.compareModel != null && {
+					comparisonCost: dailyData.reduce((sum, d) => sum + (d.comparisonCost ?? 0), 0),
+				}),
 			});
 			table.push(totalsRow);
 

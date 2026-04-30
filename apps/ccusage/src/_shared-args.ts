@@ -110,6 +110,12 @@ export const sharedArgs = {
 		description: 'Force compact mode for narrow displays (better for screenshots)',
 		default: false,
 	},
+	compareModel: {
+		type: 'string',
+		short: 'C',
+		description:
+			'Compare costs with another model from LiteLLM (e.g., "gpt-4o", "anthropic/claude-3-5-sonnet-20240620", "gemini-1.5-pro")',
+	},
 } as const satisfies Args;
 
 /**
