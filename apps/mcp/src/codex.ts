@@ -1,56 +1,75 @@
 import type { CliInvocation } from './cli-utils.ts';
+import process from 'node:process';
+import { Result } from '@praha/byethrow';
+import { createFixture } from 'fs-fixture';
 import { z } from 'zod';
-import { createCliInvocation, executeCliCommand, resolveBinaryPath } from './cli-utils.ts';
+import * as cliUtils from './cli-utils.ts';
 
 const codexModelUsageSchema = z.object({
 	inputTokens: z.number(),
-	cachedInputTokens: z.number(),
+	cacheCreationTokens: z.number(),
+	cacheReadTokens: z.number(),
 	outputTokens: z.number(),
 	reasoningOutputTokens: z.number(),
 	totalTokens: z.number(),
+	// Legacy field (Codex used `cachedInputTokens` before splitting cache fields)
+	cachedInputTokens: z.number().optional(),
 	isFallback: z.boolean().optional(),
 });
 
 const codexTotalsSchema = z.object({
 	inputTokens: z.number(),
-	cachedInputTokens: z.number(),
+	cacheCreationTokens: z.number(),
+	cacheReadTokens: z.number(),
 	outputTokens: z.number(),
 	reasoningOutputTokens: z.number(),
 	totalTokens: z.number(),
-	costUSD: z.number(),
+	totalCost: z.number(),
 });
 
 const codexDailyRowSchema = z.object({
 	date: z.string(),
 	inputTokens: z.number(),
-	cachedInputTokens: z.number(),
+	cacheCreationTokens: z.number(),
+	cacheReadTokens: z.number(),
 	outputTokens: z.number(),
 	reasoningOutputTokens: z.number(),
 	totalTokens: z.number(),
-	costUSD: z.number(),
+	totalCost: z.number(),
 	models: z.record(z.string(), codexModelUsageSchema),
+	// Legacy fields (kept for backward compatibility)
+	cachedInputTokens: z.number().optional(),
+	costUSD: z.number().optional(),
 });
 
 const codexMonthlyRowSchema = z.object({
 	month: z.string(),
 	inputTokens: z.number(),
-	cachedInputTokens: z.number(),
+	cacheCreationTokens: z.number(),
+	cacheReadTokens: z.number(),
 	outputTokens: z.number(),
 	reasoningOutputTokens: z.number(),
 	totalTokens: z.number(),
-	costUSD: z.number(),
+	totalCost: z.number(),
 	models: z.record(z.string(), codexModelUsageSchema),
+	// Legacy fields (kept for backward compatibility)
+	cachedInputTokens: z.number().optional(),
+	costUSD: z.number().optional(),
 });
 
 // Response schemas for internal parsing only - not exported
-const codexDailyResponseSchema = z.object({
-	daily: z.array(codexDailyRowSchema),
-	totals: codexTotalsSchema.nullable(),
-});
+const codexDailyResponseSchema = z.union([
+	z.object({
+		daily: z.array(codexDailyRowSchema),
+		totals: codexTotalsSchema,
+	}),
+	// Legacy behavior: some versions returned `[]` when filters yielded no rows
+	z.array(z.never()),
+]);
 
 const codexMonthlyResponseSchema = z.object({
 	monthly: z.array(codexMonthlyRowSchema),
-	totals: codexTotalsSchema.nullable(),
+	totals: codexTotalsSchema,
 });
 
 export const codexParametersShape = {
@@ -70,8 +89,8 @@ function getCodexInvocation(): CliInvocation {
 		return cachedCodexInvocation;
 	}
 
-	const entryPath = resolveBinaryPath('@ccusage/codex', 'ccusage-codex');
-	cachedCodexInvocation = createCliInvocation(entryPath);
+	const entryPath = cliUtils.resolveBinaryPath('@ccusage/codex', 'ccusage-codex');
+	cachedCodexInvocation = cliUtils.createCliInvocation(entryPath);
 	return cachedCodexInvocation;
 }
 
@@ -104,17 +123,124 @@ async function runCodexCliJson(
 		cliArgs.push('--no-offline');
 	}
 
-	return executeCliCommand(executable, cliArgs, {
+	return cliUtils.executeCliCommand(executable, cliArgs, {
 		// Keep default log level to allow JSON output
 	});
 }
 
+/**
+ * Parse Codex CLI JSON output with a helpful error when parsing fails.
+ */
+function parseCodexJsonOutput(raw: string, command: 'daily' | 'monthly'): unknown {
+	const parseResult = Result.try({
+		try: () => JSON.parse(raw) as unknown,
+		catch: (error) => error,
+	});
+	const parsed = parseResult();
+	if (Result.isFailure(parsed)) {
+		const errorMessage =
+			parsed.error instanceof Error ? parsed.error.message : String(parsed.error);
+		throw new Error(`Failed to parse Codex ${command} output: ${errorMessage}. Raw output: ${raw}`);
+	}
+	return parsed.value;
+}
+
 export async function getCodexDaily(parameters: z.infer<typeof codexParametersSchema>) {
 	const raw = await runCodexCliJson('daily', parameters);
-	return codexDailyResponseSchema.parse(JSON.parse(raw));
+	const parsed = parseCodexJsonOutput(raw, 'daily');
+	const normalized = codexDailyResponseSchema.parse(parsed);
+	if (Array.isArray(normalized)) {
+		return {
+			daily: [],
+			totals: {
+				inputTokens: 0,
+				cacheCreationTokens: 0,
+				cacheReadTokens: 0,
+				outputTokens: 0,
+				reasoningOutputTokens: 0,
+				totalTokens: 0,
+				totalCost: 0,
+			},
+		};
+	}
+	return normalized;
 }
 
 export async function getCodexMonthly(parameters: z.infer<typeof codexParametersSchema>) {
 	const raw = await runCodexCliJson('monthly', parameters);
-	return codexMonthlyResponseSchema.parse(JSON.parse(raw));
+	const parsed = parseCodexJsonOutput(raw, 'monthly');
+	return codexMonthlyResponseSchema.parse(parsed);
+}
+
+if (import.meta.vitest != null) {
+	describe('getCodexDaily/getCodexMonthly', () => {
+		afterEach(() => {
+			vi.restoreAllMocks();
+			cachedCodexInvocation = null;
+		});
+
+		it('parses empty daily output (no data)', async () => {
+			const originalCodexHome = process.env.CODEX_HOME;
+			await using fixture = await createFixture({ sessions: {} });
+			process.env.CODEX_HOME = fixture.path;
+			try {
+				const result = await getCodexDaily({ offline: true });
+				expect(result).toEqual({
+					daily: [],
+					totals: {
+						inputTokens: 0,
+						cacheCreationTokens: 0,
+						cacheReadTokens: 0,
+						outputTokens: 0,
+						reasoningOutputTokens: 0,
+						totalTokens: 0,
+						totalCost: 0,
+					},
+				});
+			} finally {
+				if (originalCodexHome == null) {
+					delete process.env.CODEX_HOME;
+				} else {
+					process.env.CODEX_HOME = originalCodexHome;
+				}
+			}
+		});
+
+		it('parses empty monthly output (no data)', async () => {
+			const originalCodexHome = process.env.CODEX_HOME;
+			await using fixture = await createFixture({ sessions: {} });
+			process.env.CODEX_HOME = fixture.path;
+			try {
+				const result = await getCodexMonthly({ offline: true });
+				expect(result).toEqual({
+					monthly: [],
+					totals: {
+						inputTokens: 0,
+						cacheCreationTokens: 0,
+						cacheReadTokens: 0,
+						outputTokens: 0,
+						reasoningOutputTokens: 0,
+						totalTokens: 0,
+						totalCost: 0,
+					},
+				});
+			} finally {
+				if (originalCodexHome == null) {
+					delete process.env.CODEX_HOME;
+				} else {
+					process.env.CODEX_HOME = originalCodexHome;
+				}
+			}
+		});
+
+		it('throws a helpful error for invalid daily JSON output', async () => {
+			vi.spyOn(cliUtils, 'executeCliCommand').mockResolvedValue('not-json');
+			await expect(getCodexDaily({})).rejects.toThrow('Failed to parse Codex daily output');
+		});
+
+		it('throws a helpful error for invalid monthly JSON output', async () => {
+			vi.spyOn(cliUtils, 'executeCliCommand').mockResolvedValue('not-json');
+			await expect(getCodexMonthly({})).rejects.toThrow('Failed to parse Codex monthly output');
+		});
+	});
 }

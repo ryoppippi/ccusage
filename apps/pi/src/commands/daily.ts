@@ -62,7 +62,15 @@ export const dailyCommand = define({
 
 		if (piData.length === 0) {
 			if (ctx.values.json) {
-				log(JSON.stringify([]));
+				const totals = {
+					inputTokens: 0,
+					outputTokens: 0,
+					cacheCreationTokens: 0,
+					cacheReadTokens: 0,
+					totalTokens: 0,
+					totalCost: 0,
+				};
+				log(JSON.stringify({ daily: [], totals }, null, 2));
 			} else {
 				logger.warn('No usage data found.');
 			}
@@ -74,6 +82,7 @@ export const dailyCommand = define({
 			outputTokens: 0,
 			cacheCreationTokens: 0,
 			cacheReadTokens: 0,
+			totalTokens: 0,
 			totalCost: 0,
 		};
 
@@ -84,6 +93,11 @@ export const dailyCommand = define({
 			totals.cacheReadTokens += d.cacheReadTokens;
 			totals.totalCost += d.totalCost;
 		}
+		totals.totalTokens =
+			totals.inputTokens +
+			totals.outputTokens +
+			totals.cacheCreationTokens +
+			totals.cacheReadTokens;
 
 		if (ctx.values.json) {
 			log(
