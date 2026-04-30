@@ -1,5 +1,5 @@
 import type { TokenUsageDelta, TokenUsageEvent } from './_types.ts';
-import { readFile, stat } from 'node:fs/promises';
+import { readdir, readFile, stat } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
 import { Result } from '@praha/byethrow';
@@ -177,7 +177,79 @@ function asNonEmptyString(value: unknown): string | undefined {
 
 export type LoadOptions = {
 	sessionDirs?: string[];
+	since?: string;
+	until?: string;
 };
+
+/**
+ * List session JSONL files, skipping date directories outside [since, until].
+ *
+ * Codex stores sessions as `YYYY/MM/DD/*.jsonl`. When a date range is provided
+ * we enumerate the directory tree and prune entire year/month/day subtrees that
+ * cannot contain matching sessions, avoiding the cost of a full recursive glob
+ * over potentially large historical archives.
+ */
+async function listSessionFiles(
+	sessionsDir: string,
+	since: string | undefined,
+	until: string | undefined,
+): Promise<string[]> {
+	if (since == null && until == null) {
+		return glob(SESSION_GLOB, { cwd: sessionsDir, absolute: true });
+	}
+
+	const sinceKey = since?.replaceAll('-', '');
+	const untilKey = until?.replaceAll('-', '');
+
+	const tryReaddir = async (dir: string): Promise<string[]> => {
+		const result = await Result.try({
+			try: readdir(dir),
+			catch: (error) => error,
+		});
+		return Result.isFailure(result) ? [] : result.value;
+	};
+
+	// Preserve support for legacy flat layouts: include any *.jsonl files
+	// stored directly under sessionsDir (not inside YYYY/MM/DD subdirs).
+	const rootFiles = await glob('*.jsonl', { cwd: sessionsDir, absolute: true }).catch(() => []);
+	const files: string[] = [...rootFiles];
+
+	for (const year of (await tryReaddir(sessionsDir)).filter((e) => /^\d{4}$/.test(e))) {
+		if (sinceKey != null && `${year}1231` < sinceKey) {
+			continue;
+		}
+		if (untilKey != null && `${year}0101` > untilKey) {
+			continue;
+		}
+
+		const yearDir = path.join(sessionsDir, year);
+		for (const month of (await tryReaddir(yearDir)).filter((e) => /^\d{2}$/.test(e))) {
+			if (sinceKey != null && `${year + month}31` < sinceKey) {
+				continue;
+			}
+			if (untilKey != null && `${year + month}01` > untilKey) {
+				continue;
+			}
+
+			const monthDir = path.join(yearDir, month);
+			for (const day of (await tryReaddir(monthDir)).filter((e) => /^\d{2}$/.test(e))) {
+				const dateKey = year + month + day;
+				if (sinceKey != null && dateKey < sinceKey) {
+					continue;
+				}
+				if (untilKey != null && dateKey > untilKey) {
+					continue;
+				}
+
+				const dayDir = path.join(monthDir, day);
+				const dayFiles = await glob('*.jsonl', { cwd: dayDir, absolute: true }).catch(() => []);
+				files.push(...dayFiles);
+			}
+		}
+	}
+
+	return files;
+}
 
 export type LoadResult = {
 	events: TokenUsageEvent[];
@@ -185,6 +257,7 @@ export type LoadResult = {
 };
 
 export async function loadTokenUsageEvents(options: LoadOptions = {}): Promise<LoadResult> {
+	const { since, until } = options;
 	const providedDirs =
 		options.sessionDirs != null && options.sessionDirs.length > 0
 			? options.sessionDirs.map((dir) => path.resolve(dir))
@@ -216,10 +289,7 @@ export async function loadTokenUsageEvents(options: LoadOptions = {}): Promise<L
 			continue;
 		}
 
-		const files = await glob(SESSION_GLOB, {
-			cwd: directoryPath,
-			absolute: true,
-		});
+		const files = await listSessionFiles(directoryPath, since, until);
 
 		for (const file of files) {
 			const relativeSessionPath = path.relative(directoryPath, file);
@@ -451,6 +521,91 @@ if (import.meta.vitest != null) {
 			expect(second.model).toBe('gpt-5');
 			expect(second.inputTokens).toBe(800);
 			expect(second.cachedInputTokens).toBe(100);
+		});
+
+		it('skips date directories outside the since/until range', async () => {
+			const makeEvent = (timestamp: string, input_tokens: number) =>
+				JSON.stringify({
+					timestamp,
+					type: 'event_msg',
+					payload: {
+						type: 'token_count',
+						info: {
+							last_token_usage: {
+								input_tokens,
+								cached_input_tokens: 0,
+								output_tokens: 100,
+								reasoning_output_tokens: 0,
+								total_tokens: input_tokens + 100,
+							},
+							model: 'gpt-5',
+						},
+					},
+				});
+
+			// Fixture mirrors real Codex layout: YYYY/MM/DD/*.jsonl
+			await using fixture = await createFixture({
+				'2025': {
+					'12': {
+						'31': { 'old.jsonl': makeEvent('2025-12-31T12:00:00.000Z', 999) },
+					},
+				},
+				'2026': {
+					'03': {
+						'01': { 'new.jsonl': makeEvent('2026-03-01T12:00:00.000Z', 1_000) },
+					},
+				},
+			});
+
+			// With since=2026-03-01 the 2025/12/31 file should be skipped entirely.
+			const { events } = await loadTokenUsageEvents({
+				sessionDirs: [fixture.getPath('.')],
+				since: '2026-03-01',
+			});
+
+			expect(events).toHaveLength(1);
+			expect(events[0]!.inputTokens).toBe(1_000);
+		});
+
+		it('includes root-level *.jsonl files when date filters are active', async () => {
+			const makeEvent = (timestamp: string, input_tokens: number) =>
+				JSON.stringify({
+					timestamp,
+					type: 'event_msg',
+					payload: {
+						type: 'token_count',
+						info: {
+							last_token_usage: {
+								input_tokens,
+								cached_input_tokens: 0,
+								output_tokens: 100,
+								reasoning_output_tokens: 0,
+								total_tokens: input_tokens + 100,
+							},
+							model: 'gpt-5',
+						},
+					},
+				});
+
+			// Mix of flat root-level file (legacy layout) and dated subdir file.
+			await using fixture = await createFixture({
+				'flat.jsonl': makeEvent('2026-03-05T10:00:00.000Z', 500),
+				'2026': {
+					'03': {
+						'05': { 'dated.jsonl': makeEvent('2026-03-05T11:00:00.000Z', 1_000) },
+					},
+				},
+			});
+
+			// With since set, both the flat file and the dated file should be returned.
+			const { events } = await loadTokenUsageEvents({
+				sessionDirs: [fixture.getPath('.')],
+				since: '2026-03-01',
+			});
+
+			expect(events).toHaveLength(2);
+			const tokens = events.map((e) => e.inputTokens).sort((a, b) => a - b);
+			expect(tokens).toEqual([500, 1_000]);
 		});
 
 		it('falls back to legacy model when metadata is missing entirely', async () => {
