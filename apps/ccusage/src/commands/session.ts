@@ -2,6 +2,7 @@ import type { UsageReportConfig } from '@ccusage/terminal/table';
 import process from 'node:process';
 import {
 	addEmptySeparatorRow,
+	calculateCacheHitRate,
 	createUsageReportTable,
 	formatTotalsRow,
 	formatUsageDataRow,
@@ -101,6 +102,7 @@ export const sessionCommand = define({
 					outputTokens: data.outputTokens,
 					cacheCreationTokens: data.cacheCreationTokens,
 					cacheReadTokens: data.cacheReadTokens,
+					cacheHitRate: calculateCacheHitRate(data),
 					totalTokens: getTotalTokens(data),
 					totalCost: data.totalCost,
 					lastActivity: data.lastActivity,
@@ -166,7 +168,7 @@ export const sessionCommand = define({
 			}
 
 			// Add empty row for visual separation before totals
-			addEmptySeparatorRow(table, 9);
+			addEmptySeparatorRow(table, 10);
 
 			// Add totals
 			const totalsRow = formatTotalsRow(
