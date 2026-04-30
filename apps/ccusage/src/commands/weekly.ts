@@ -1,8 +1,15 @@
 import type { UsageReportConfig } from '@ccusage/terminal/table';
 import process from 'node:process';
 import {
+	createCostChartData,
+	renderBarChart,
+	renderChartSeparator,
+	renderChartTotals,
+} from '@ccusage/terminal/chart';
+import {
 	addEmptySeparatorRow,
 	createUsageReportTable,
+	formatCurrency,
 	formatTotalsRow,
 	formatUsageDataRow,
 	pushBreakdownRows,
@@ -11,7 +18,7 @@ import { Result } from '@praha/byethrow';
 import { define } from 'gunshi';
 import { loadConfig, mergeConfigWithArgs } from '../_config-loader-tokens.ts';
 import { WEEK_DAYS } from '../_consts.ts';
-import { formatDateCompact } from '../_date-utils.ts';
+import { formatDate, formatDateCompact } from '../_date-utils.ts';
 import { processWithJq } from '../_jq-processor.ts';
 import { sharedArgs } from '../_shared-args.ts';
 import { calculateTotals, createTotalsObject, getTotalTokens } from '../calculate-cost.ts';
@@ -103,6 +110,29 @@ export const weeklyCommand = define({
 			} else {
 				log(JSON.stringify(jsonOutput, null, 2));
 			}
+		} else if (mergedOptions.chart) {
+			// Chart output
+			logger.box('Claude Code Token Usage Report - Weekly');
+
+			const chartData = createCostChartData(weeklyData, 'week', {
+				labelFormatter: (v) =>
+					formatDate(v, mergedOptions.timezone, mergedOptions.locale ?? undefined),
+			});
+			const { output, labelWidth, barWidth, valueWidth } = renderBarChart(chartData, {
+				forceCompact: mergedOptions.compact,
+				locale: mergedOptions.locale ?? undefined,
+			});
+			log(output);
+			log(renderChartSeparator());
+			log(
+				renderChartTotals(
+					'Total',
+					formatCurrency(totals.totalCost),
+					labelWidth,
+					barWidth,
+					valueWidth,
+				),
+			);
 		} else {
 			// Print header
 			logger.box('Claude Code Token Usage Report - Weekly');

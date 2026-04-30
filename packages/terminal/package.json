@@ -6,6 +6,7 @@
 	"description": "Terminal utilities for ccusage",
 	"exports": {
 		"./table": "./src/table.ts",
+		"./chart": "./src/chart.ts",
 		"./utils": "./src/utils.ts"
 	},
 	"scripts": {

@@ -110,6 +110,12 @@ export const sharedArgs = {
 		description: 'Force compact mode for narrow displays (better for screenshots)',
 		default: false,
 	},
+	chart: {
+		type: 'boolean',
+		short: 'c',
+		description: 'Display usage as a horizontal bar chart instead of a table',
+		default: false,
+	},
 } as const satisfies Args;
 
 /**
