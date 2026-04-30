@@ -70,7 +70,7 @@ npx @ccusage/codex@latest monthly
 npx @ccusage/codex@latest monthly --json
 
 # Session-level detailed report
-npx @ccusage/codex@latest sessions
+npx @ccusage/codex@latest session
 ```
 
 Useful environment variables:
