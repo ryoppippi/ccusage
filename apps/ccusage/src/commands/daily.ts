@@ -134,6 +134,8 @@ export const dailyCommand = define({
 				log(JSON.stringify(jsonOutput, null, 2));
 			}
 		} else {
+			const humanReadable = Boolean(mergedOptions.human);
+
 			// Print header
 			logger.box('Claude Code Token Usage Report - Daily');
 
@@ -173,19 +175,24 @@ export const dailyCommand = define({
 
 					// Add data rows for this project
 					for (const data of projectData) {
-						const row = formatUsageDataRow(data.date, {
-							inputTokens: data.inputTokens,
-							outputTokens: data.outputTokens,
-							cacheCreationTokens: data.cacheCreationTokens,
-							cacheReadTokens: data.cacheReadTokens,
-							totalCost: data.totalCost,
-							modelsUsed: data.modelsUsed,
-						});
+						const row = formatUsageDataRow(
+							data.date,
+							{
+								inputTokens: data.inputTokens,
+								outputTokens: data.outputTokens,
+								cacheCreationTokens: data.cacheCreationTokens,
+								cacheReadTokens: data.cacheReadTokens,
+								totalCost: data.totalCost,
+								modelsUsed: data.modelsUsed,
+							},
+							undefined,
+							humanReadable,
+						);
 						table.push(row);
 
 						// Add model breakdown rows if flag is set
 						if (mergedOptions.breakdown) {
-							pushBreakdownRows(table, data.modelBreakdowns);
+							pushBreakdownRows(table, data.modelBreakdowns, 1, 0, humanReadable);
 						}
 					}
 
@@ -195,19 +202,24 @@ export const dailyCommand = define({
 				// Standard display without project grouping
 				for (const data of dailyData) {
 					// Main row
-					const row = formatUsageDataRow(data.date, {
-						inputTokens: data.inputTokens,
-						outputTokens: data.outputTokens,
-						cacheCreationTokens: data.cacheCreationTokens,
-						cacheReadTokens: data.cacheReadTokens,
-						totalCost: data.totalCost,
-						modelsUsed: data.modelsUsed,
-					});
+					const row = formatUsageDataRow(
+						data.date,
+						{
+							inputTokens: data.inputTokens,
+							outputTokens: data.outputTokens,
+							cacheCreationTokens: data.cacheCreationTokens,
+							cacheReadTokens: data.cacheReadTokens,
+							totalCost: data.totalCost,
+							modelsUsed: data.modelsUsed,
+						},
+						undefined,
+						humanReadable,
+					);
 					table.push(row);
 
 					// Add model breakdown rows if flag is set
 					if (mergedOptions.breakdown) {
-						pushBreakdownRows(table, data.modelBreakdowns);
+						pushBreakdownRows(table, data.modelBreakdowns, 1, 0, humanReadable);
 					}
 				}
 			}
@@ -216,13 +228,17 @@ export const dailyCommand = define({
 			addEmptySeparatorRow(table, 8);
 
 			// Add totals
-			const totalsRow = formatTotalsRow({
-				inputTokens: totals.inputTokens,
-				outputTokens: totals.outputTokens,
-				cacheCreationTokens: totals.cacheCreationTokens,
-				cacheReadTokens: totals.cacheReadTokens,
-				totalCost: totals.totalCost,
-			});
+			const totalsRow = formatTotalsRow(
+				{
+					inputTokens: totals.inputTokens,
+					outputTokens: totals.outputTokens,
+					cacheCreationTokens: totals.cacheCreationTokens,
+					cacheReadTokens: totals.cacheReadTokens,
+					totalCost: totals.totalCost,
+				},
+				false,
+				humanReadable,
+			);
 			table.push(totalsRow);
 
 			log(table.toString());
