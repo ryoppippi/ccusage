@@ -6,6 +6,7 @@ import { dailyCommand } from './daily.ts';
 import { monthlyCommand } from './monthly.ts';
 import { sessionCommand } from './session.ts';
 import { statuslineCommand } from './statusline.ts';
+import { webCommand } from './web.ts';
 import { weeklyCommand } from './weekly.ts';
 
 // Re-export all commands for easy importing
@@ -15,6 +16,7 @@ export {
 	monthlyCommand,
 	sessionCommand,
 	statuslineCommand,
+	webCommand,
 	weeklyCommand,
 };
 
@@ -27,6 +29,7 @@ export const subCommandUnion = [
 	['weekly', weeklyCommand],
 	['session', sessionCommand],
 	['blocks', blocksCommand],
+	['web', webCommand],
 	['statusline', statuslineCommand],
 ] as const;
 

@@ -110,6 +110,11 @@ export const sharedArgs = {
 		description: 'Force compact mode for narrow displays (better for screenshots)',
 		default: false,
 	},
+	full: {
+		type: 'boolean',
+		description: 'Show all columns at full width without truncation (allows horizontal overflow)',
+		default: false,
+	},
 } as const satisfies Args;
 
 /**
