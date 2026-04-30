@@ -51,14 +51,21 @@ export const mcpCommand = define({
 			logger.level = 0;
 		}
 
-		const paths = getClaudePaths();
-		if (paths.length === 0) {
-			logger.error('No valid Claude data directory found');
-			throw new Error('No valid Claude data directory found');
+		let claudePath = '';
+		try {
+			const paths = getClaudePaths();
+			claudePath = paths.at(0) ?? '';
+		} catch {
+			claudePath = '';
+		}
+		if (claudePath === '') {
+			logger.warn(
+				'No valid Claude data directory found; Claude usage tools may return empty results.',
+			);
 		}
 
 		const options: CommandOptions = {
-			claudePath: paths.at(0),
+			claudePath,
 			mode,
 		};
 
@@ -85,6 +92,28 @@ export const mcpCommand = define({
 	},
 });
 
+function shouldSuppressHeader(args: string[]): boolean {
+	const isHelpOrVersion = args.some(
+		(arg) => arg === '--help' || arg === '-h' || arg === '--version' || arg === '-v',
+	);
+	if (isHelpOrVersion) {
+		return false;
+	}
+
+	const typeIndex = args.findIndex((arg) => arg === '--type' || arg === '-t');
+	if (typeIndex >= 0) {
+		return args[typeIndex + 1] === 'stdio';
+	}
+
+	const inlineType = args.find((arg) => arg.startsWith('--type=') || arg.startsWith('-t='));
+	if (inlineType != null) {
+		const [, value = ''] = inlineType.split('=', 2);
+		return value === 'stdio';
+	}
+
+	return true;
+}
+
 export async function run(argv: string[] = process.argv.slice(2)): Promise<void> {
 	// When invoked through npx/bunx, the binary name might be passed as the first argument
 	// Filter it out if it matches the expected binary name
@@ -93,10 +122,35 @@ export async function run(argv: string[] = process.argv.slice(2)): Promise<void>
 		args = args.slice(1);
 	}
 
+	const suppressHeader = shouldSuppressHeader(args);
+
 	await cli(args, mcpCommand, {
 		name,
 		version,
 		description,
+		renderHeader: suppressHeader ? null : undefined,
 		subCommands: new Map(),
+	});
+}
+
+if (import.meta.vitest != null) {
+	describe('shouldSuppressHeader', () => {
+		it('suppresses the header when no transport type is provided', () => {
+			expect(shouldSuppressHeader([])).toBe(true);
+		});
+
+		it('suppresses the header for explicit stdio transport flags', () => {
+			expect(shouldSuppressHeader(['--type', 'stdio'])).toBe(true);
+			expect(shouldSuppressHeader(['-t', 'stdio'])).toBe(true);
+			expect(shouldSuppressHeader(['--type=stdio'])).toBe(true);
+			expect(shouldSuppressHeader(['-t=stdio'])).toBe(true);
+		});
+
+		it('does not suppress the header for non-stdio transport or help/version flags', () => {
+			expect(shouldSuppressHeader(['--type', 'http'])).toBe(false);
+			expect(shouldSuppressHeader(['--type=http'])).toBe(false);
+			expect(shouldSuppressHeader(['--help'])).toBe(false);
+			expect(shouldSuppressHeader(['-v'])).toBe(false);
+		});
 	});
 }

@@ -32,6 +32,7 @@ import {
 	codexParametersShape,
 	getCodexDaily,
 	getCodexMonthly,
+	getCodexSession,
 } from './codex.ts';
 import { defaultOptions } from './mcp-utils.ts';
 
@@ -50,9 +51,6 @@ export function createMcpServer(options?: LoadOptions): McpServer {
 	});
 
 	const { claudePath = '' } = options ?? defaultOptions();
-	if (claudePath === '') {
-		throw new Error('Claude path is required');
-	}
 
 	// Register daily tool
 	server.registerTool(
@@ -180,6 +178,27 @@ export function createMcpServer(options?: LoadOptions): McpServer {
 		},
 	);
 
+	// Register Codex session tool
+	server.registerTool(
+		'codex-session',
+		{
+			description: 'Show Codex usage grouped by conversation session',
+			inputSchema: codexParametersShape,
+		},
+		async (args) => {
+			const parameters = codexParametersSchema.parse(args);
+			const codexSession = await getCodexSession(parameters);
+			return {
+				content: [
+					{
+						type: 'text',
+						text: JSON.stringify(codexSession, null, 2),
+					},
+				],
+			};
+		},
+	);
+
 	return server;
 }
 
@@ -230,6 +249,35 @@ if (import.meta.vitest != null) {
 				const server = createMcpServer({ claudePath: '/custom/path' });
 				expect(server).toBeDefined();
 			});
+
+			it('should create MCP server without Claude path', () => {
+				const server = createMcpServer({ claudePath: '' });
+				expect(server).toBeDefined();
+			});
+
+			it('should return structured daily results when Claude path is empty', async () => {
+				const client = new Client({ name: 'test-client', version: '1.0.0' });
+				const server = createMcpServer({ claudePath: '' });
+
+				const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+				await Promise.all([client.connect(clientTransport), server.connect(serverTransport)]);
+
+				const result = await client.callTool({
+					name: 'daily',
+					arguments: { mode: 'auto' },
+				});
+
+				expect(result).toHaveProperty('content');
+				expect(Array.isArray(result.content)).toBe(true);
+				expect(result.content).toHaveLength(1);
+
+				const data = JSON.parse((result.content as any).at(0).text as string);
+				expect(data).toHaveProperty('daily');
+				expect(data).toHaveProperty('totals');
+
+				await client.close();
+				await server.close();
+			});
 		});
 
 		describe('stdio transport', () => {
@@ -254,7 +302,7 @@ if (import.meta.vitest != null) {
 				await Promise.all([client.connect(clientTransport), server.connect(serverTransport)]);
 
 				const result = await client.listTools();
-				expect(result.tools).toHaveLength(6);
+				expect(result.tools).toHaveLength(7);
 
 				const toolNames = result.tools.map((tool) => tool.name);
 				expect(toolNames).toContain('daily');
@@ -263,6 +311,7 @@ if (import.meta.vitest != null) {
 				expect(toolNames).toContain('blocks');
 				expect(toolNames).toContain('codex-daily');
 				expect(toolNames).toContain('codex-monthly');
+				expect(toolNames).toContain('codex-session');
 
 				await client.close();
 				await server.close();
