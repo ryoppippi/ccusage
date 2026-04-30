@@ -92,6 +92,11 @@
 							"description": "Process JSON output with jq command (requires jq binary, implies --json)",
 							"markdownDescription": "Process JSON output with jq command (requires jq binary, implies --json)"
 						},
+						"customDirs": {
+							"type": "string",
+							"description": "Additional Claude data directories to include (comma-separated paths). Each must contain a projects/ subdirectory.",
+							"markdownDescription": "Additional Claude data directories to include (comma-separated paths). Each must contain a projects/ subdirectory."
+						},
 						"compact": {
 							"type": "boolean",
 							"description": "Force compact mode for narrow displays (better for screenshots)",
@@ -188,6 +193,11 @@
 									"type": "string",
 									"description": "Process JSON output with jq command (requires jq binary, implies --json)",
 									"markdownDescription": "Process JSON output with jq command (requires jq binary, implies --json)"
+								},
+								"customDirs": {
+									"type": "string",
+									"description": "Additional Claude data directories to include (comma-separated paths). Each must contain a projects/ subdirectory.",
+									"markdownDescription": "Additional Claude data directories to include (comma-separated paths). Each must contain a projects/ subdirectory."
 								},
 								"compact": {
 									"type": "boolean",
@@ -297,6 +307,11 @@
 									"description": "Process JSON output with jq command (requires jq binary, implies --json)",
 									"markdownDescription": "Process JSON output with jq command (requires jq binary, implies --json)"
 								},
+								"customDirs": {
+									"type": "string",
+									"description": "Additional Claude data directories to include (comma-separated paths). Each must contain a projects/ subdirectory.",
+									"markdownDescription": "Additional Claude data directories to include (comma-separated paths). Each must contain a projects/ subdirectory."
+								},
 								"compact": {
 									"type": "boolean",
 									"description": "Force compact mode for narrow displays (better for screenshots)",
@@ -388,6 +403,11 @@
 									"type": "string",
 									"description": "Process JSON output with jq command (requires jq binary, implies --json)",
 									"markdownDescription": "Process JSON output with jq command (requires jq binary, implies --json)"
+								},
+								"customDirs": {
+									"type": "string",
+									"description": "Additional Claude data directories to include (comma-separated paths). Each must contain a projects/ subdirectory.",
+									"markdownDescription": "Additional Claude data directories to include (comma-separated paths). Each must contain a projects/ subdirectory."
 								},
 								"compact": {
 									"type": "boolean",
@@ -489,6 +509,11 @@
 									"description": "Process JSON output with jq command (requires jq binary, implies --json)",
 									"markdownDescription": "Process JSON output with jq command (requires jq binary, implies --json)"
 								},
+								"customDirs": {
+									"type": "string",
+									"description": "Additional Claude data directories to include (comma-separated paths). Each must contain a projects/ subdirectory.",
+									"markdownDescription": "Additional Claude data directories to include (comma-separated paths). Each must contain a projects/ subdirectory."
+								},
 								"compact": {
 									"type": "boolean",
 									"description": "Force compact mode for narrow displays (better for screenshots)",
@@ -585,6 +610,11 @@
 									"type": "string",
 									"description": "Process JSON output with jq command (requires jq binary, implies --json)",
 									"markdownDescription": "Process JSON output with jq command (requires jq binary, implies --json)"
+								},
+								"customDirs": {
+									"type": "string",
+									"description": "Additional Claude data directories to include (comma-separated paths). Each must contain a projects/ subdirectory.",
+									"markdownDescription": "Additional Claude data directories to include (comma-separated paths). Each must contain a projects/ subdirectory."
 								},
 								"compact": {
 									"type": "boolean",

@@ -16,6 +16,7 @@ export type SessionIdContext = {
 		jq?: string;
 		timezone?: string;
 		locale: string; // normalized to non-optional to avoid touching data-loader
+		customDirs?: string;
 	};
 };
 
@@ -29,6 +30,7 @@ export async function handleSessionIdLookup(
 	const sessionUsage = await loadSessionUsageById(ctx.values.id, {
 		mode: ctx.values.mode,
 		offline: ctx.values.offline,
+		customDirs: ctx.values.customDirs,
 	});
 
 	if (sessionUsage == null) {

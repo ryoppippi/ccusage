@@ -155,6 +155,7 @@ export const statuslineCommand = define({
 			default: DEFAULT_CONTEXT_USAGE_THRESHOLDS.MEDIUM,
 		},
 		config: sharedArgs.config,
+		customDirs: sharedArgs.customDirs,
 		debug: sharedArgs.debug,
 	},
 	async run(ctx) {
@@ -292,6 +293,7 @@ export const statuslineCommand = define({
 										loadSessionUsageById(sessionId, {
 											mode: 'auto',
 											offline: mergedOptions.offline,
+											customDirs: ctx.values.customDirs,
 										}),
 									catch: (error) => error,
 								})(),
@@ -344,6 +346,7 @@ export const statuslineCommand = define({
 									until: todayStr,
 									mode: 'auto',
 									offline: mergedOptions.offline,
+									customDirs: ctx.values.customDirs,
 								}),
 							catch: (error) => error,
 						})(),
@@ -365,6 +368,7 @@ export const statuslineCommand = define({
 								loadSessionBlockData({
 									mode: 'auto',
 									offline: mergedOptions.offline,
+									customDirs: ctx.values.customDirs,
 								}),
 							catch: (error) => error,
 						})(),
