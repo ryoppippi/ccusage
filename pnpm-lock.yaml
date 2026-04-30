@@ -286,6 +286,9 @@ importers:
       '@antfu/utils':
         specifier: catalog:runtime
         version: 9.2.1
+      '@ccusage/codex':
+        specifier: workspace:*
+        version: link:../codex
       '@ccusage/internal':
         specifier: workspace:*
         version: link:../../packages/internal
