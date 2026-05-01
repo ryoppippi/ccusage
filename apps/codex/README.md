@@ -76,7 +76,7 @@ npx @ccusage/codex@latest sessions
 Useful environment variables:
 
 - `CODEX_HOME` – override the root directory that contains Codex session folders, or provide multiple homes as a comma-separated list
-- `LOG_LEVEL` – controla consola log verbosity (0 silent … 5 trace)
+- `LOG_LEVEL` – controls consola log verbosity (0 silent … 5 trace)
 
 ```bash
 # Aggregate multiple Codex homes in one report

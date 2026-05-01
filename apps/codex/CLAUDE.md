@@ -15,7 +15,7 @@
 - `reasoning_output_tokens`: structured reasoning tokens counted separately by OpenAI.
 - `total_tokens`: either provided directly or, for legacy entries, recomputed as `input + output` (reasoning is informational and already included in `output`).
 
--## Cost Calculation
+## Cost Calculation
 
 - Pricing is pulled from LiteLLM's public JSON (`model_prices_and_context_window.json`).
 - The CLI trusts the model metadata emitted in each `turn_context`. Sessions missing that metadata (observed in early September 2025 builds) fall back to `gpt-5` so the tokens remain visible, but the pricing should be considered approximate. These events are tagged with `isFallbackModel === true` and surface as `isFallback` in aggregated JSON.
