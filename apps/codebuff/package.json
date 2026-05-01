@@ -18,16 +18,11 @@
 	"main": "./dist/index.js",
 	"module": "./dist/index.js",
 	"bin": {
-		"ccusage-codebuff": "./src/index.ts"
+		"ccusage-codebuff": "./dist/index.js"
 	},
 	"files": [
 		"dist"
 	],
-	"publishConfig": {
-		"bin": {
-			"ccusage-codebuff": "./dist/index.js"
-		}
-	},
 	"engines": {
 		"node": ">=20.19.4"
 	},
