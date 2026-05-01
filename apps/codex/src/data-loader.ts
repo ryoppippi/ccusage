@@ -184,23 +184,95 @@ export type LoadResult = {
 	missingDirectories: string[];
 };
 
-export async function loadTokenUsageEvents(options: LoadOptions = {}): Promise<LoadResult> {
-	const providedDirs =
-		options.sessionDirs != null && options.sessionDirs.length > 0
-			? options.sessionDirs.map((dir) => path.resolve(dir))
-			: undefined;
+type SessionDirectory = {
+	path: string;
+	sourceRoot?: string;
+};
 
-	const codexHomeEnv = process.env[CODEX_HOME_ENV]?.trim();
-	const codexHome =
-		codexHomeEnv != null && codexHomeEnv !== '' ? path.resolve(codexHomeEnv) : DEFAULT_CODEX_DIR;
-	const defaultSessionsDir = path.join(codexHome, DEFAULT_SESSION_SUBDIR);
-	const sessionDirs = providedDirs ?? [defaultSessionsDir];
+function splitConfiguredPaths(value: string): string[] {
+	return value
+		.split(',')
+		.map((entry) => entry.trim())
+		.filter((entry) => entry !== '');
+}
+
+function dedupeSessionDirectories(directories: SessionDirectory[]): SessionDirectory[] {
+	const seen = new Set<string>();
+	const deduped: SessionDirectory[] = [];
+
+	for (const directory of directories) {
+		const normalizedPath = path.resolve(directory.path);
+		if (seen.has(normalizedPath)) {
+			continue;
+		}
+
+		seen.add(normalizedPath);
+		deduped.push({
+			path: normalizedPath,
+			sourceRoot: directory.sourceRoot,
+		});
+	}
+
+	return deduped;
+}
+
+function buildSourceRootLabels(rootPaths: string[]): Map<string, string> {
+	if (rootPaths.length < 2) {
+		return new Map();
+	}
+
+	const basenameCounts = new Map<string, number>();
+	for (const rootPath of rootPaths) {
+		const resolvedBasename = path.basename(rootPath);
+		const basename = resolvedBasename === '' ? rootPath : resolvedBasename;
+		basenameCounts.set(basename, (basenameCounts.get(basename) ?? 0) + 1);
+	}
+
+	return new Map(
+		rootPaths.map((rootPath) => {
+			const resolvedBasename = path.basename(rootPath);
+			const basename = resolvedBasename === '' ? rootPath : resolvedBasename;
+			const label = (basenameCounts.get(basename) ?? 0) > 1 ? rootPath : basename;
+			return [rootPath, label];
+		}),
+	);
+}
+
+function resolveSessionDirectories(options: LoadOptions = {}): SessionDirectory[] {
+	if (options.sessionDirs != null && options.sessionDirs.length > 0) {
+		return dedupeSessionDirectories(options.sessionDirs.map((dir) => ({ path: dir })));
+	}
+
+	const codexHomeEnv = process.env[CODEX_HOME_ENV]?.trim() ?? '';
+	if (codexHomeEnv !== '') {
+		const rootPaths = Array.from(
+			new Set(splitConfiguredPaths(codexHomeEnv).map((rootPath) => path.resolve(rootPath))),
+		);
+		const sourceLabels = buildSourceRootLabels(rootPaths);
+
+		return dedupeSessionDirectories(
+			rootPaths.map((rootPath) => ({
+				path: path.join(rootPath, DEFAULT_SESSION_SUBDIR),
+				sourceRoot: sourceLabels.get(rootPath),
+			})),
+		);
+	}
+
+	return [
+		{
+			path: path.join(DEFAULT_CODEX_DIR, DEFAULT_SESSION_SUBDIR),
+		},
+	];
+}
+
+export async function loadTokenUsageEvents(options: LoadOptions = {}): Promise<LoadResult> {
+	const sessionDirs = resolveSessionDirectories(options);
 
 	const events: TokenUsageEvent[] = [];
 	const missingDirectories: string[] = [];
 
-	for (const dir of sessionDirs) {
-		const directoryPath = path.resolve(dir);
+	for (const sessionDir of sessionDirs) {
+		const directoryPath = sessionDir.path;
 		const statResult = await Result.try({
 			try: stat(directoryPath),
 			catch: (error) => error,
@@ -339,6 +411,7 @@ export async function loadTokenUsageEvents(options: LoadOptions = {}): Promise<L
 
 				const event: TokenUsageEvent = {
 					sessionId,
+					sourceRoot: sessionDir.sourceRoot,
 					timestamp,
 					model,
 					inputTokens: delta.inputTokens,
@@ -483,6 +556,69 @@ if (import.meta.vitest != null) {
 			expect(events).toHaveLength(1);
 			expect(events[0]!.model).toBe('gpt-5');
 			expect(events[0]!.isFallbackModel).toBe(true);
+		});
+
+		it('aggregates multiple codex homes from CODEX_HOME and deduplicates roots', async () => {
+			await using firstHome = await createFixture({
+				sessions: {
+					'alpha.jsonl': JSON.stringify({
+						timestamp: '2025-09-15T13:00:00.000Z',
+						type: 'event_msg',
+						payload: {
+							type: 'token_count',
+							info: {
+								model: 'gpt-5',
+								last_token_usage: {
+									input_tokens: 1_000,
+									cached_input_tokens: 0,
+									output_tokens: 200,
+									reasoning_output_tokens: 0,
+									total_tokens: 1_200,
+								},
+							},
+						},
+					}),
+				},
+			});
+			await using secondHome = await createFixture({
+				sessions: {
+					'beta.jsonl': JSON.stringify({
+						timestamp: '2025-09-16T13:00:00.000Z',
+						type: 'event_msg',
+						payload: {
+							type: 'token_count',
+							info: {
+								model: 'gpt-5-mini',
+								last_token_usage: {
+									input_tokens: 500,
+									cached_input_tokens: 50,
+									output_tokens: 100,
+									reasoning_output_tokens: 0,
+									total_tokens: 600,
+								},
+							},
+						},
+					}),
+				},
+			});
+
+			try {
+				vi.stubEnv(
+					CODEX_HOME_ENV,
+					`${firstHome.path},${secondHome.path},${firstHome.path},/nonexistent/codex-home`,
+				);
+
+				const { events, missingDirectories } = await loadTokenUsageEvents();
+
+				expect(events).toHaveLength(2);
+				expect(new Set(events.map((event) => event.sessionId))).toEqual(new Set(['alpha', 'beta']));
+				expect(new Set(events.map((event) => event.sourceRoot)).size).toBe(2);
+				expect(missingDirectories).toEqual([
+					path.resolve('/nonexistent/codex-home', DEFAULT_SESSION_SUBDIR),
+				]);
+			} finally {
+				vi.unstubAllEnvs();
+			}
 		});
 	});
 }

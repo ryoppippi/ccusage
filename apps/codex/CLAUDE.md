@@ -2,7 +2,7 @@
 
 ## Log Sources
 
-- Codex session usage is recorded under `${CODEX_HOME:-~/.codex}/sessions/` (the CLI resolves `CODEX_HOME` and falls back to `~/.codex`).
+- Codex session usage is recorded under `${CODEX_HOME:-~/.codex}/sessions/` (the CLI resolves `CODEX_HOME` and falls back to `~/.codex`). `CODEX_HOME` may be a comma-separated list of Codex home roots for aggregate reports.
 - Each JSONL line is an `event_msg` with `payload.type === "token_count"`.
 - `payload.info.total_token_usage` holds cumulative totals; `payload.info.last_token_usage` is the delta for the most recent turn.
 - When only cumulative totals are present, we subtract the previous totals to recover a per-event delta.
@@ -47,7 +47,7 @@ Parsing normalizes every event through these rules. When we have to synthesize t
 - Treat Codex as a sibling to `apps/ccusage`; whenever possible reuse the same shared packages (`@ccusage/terminal`, pricing helpers, logging), command names, and flag semantics. Diverge only when Codex-specific data forces it and document the reason inline.
 - Codex is packaged as a bundled CLI. Keep every runtime dependency in `devDependencies` so the bundle includes the code that ships.
 - Entry point remains Gunshi-based; only `daily` subcommand is wired for now.
-- Session discovery relies solely on `CODEX_HOME`; there is no explicit `--dir` override.
+- Session discovery relies solely on `CODEX_HOME`; there is no explicit `--dir` override, but `CODEX_HOME` itself may contain multiple comma-separated roots.
 - `--json` toggles structured output; totals include aggregated tokens and USD cost.
 - Table view lists models per day with their token totals in parentheses.
 
