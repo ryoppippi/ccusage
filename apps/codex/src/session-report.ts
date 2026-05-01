@@ -17,9 +17,14 @@ export type SessionReportOptions = {
 	pricingSource: PricingSource;
 };
 
-function createSummary(sessionId: string, initialTimestamp: string): SessionUsageSummary {
+function createSummary(
+	sessionId: string,
+	sourceRoot: string | undefined,
+	initialTimestamp: string,
+): SessionUsageSummary {
 	return {
 		sessionId,
+		sourceRoot,
 		firstTimestamp: initialTimestamp,
 		lastTimestamp: initialTimestamp,
 		inputTokens: 0,
@@ -52,6 +57,9 @@ export async function buildSessionReport(
 		if (sessionId === '') {
 			continue;
 		}
+		const trimmedSourceRoot = event.sourceRoot?.trim();
+		const sourceRoot =
+			trimmedSourceRoot == null || trimmedSourceRoot === '' ? undefined : trimmedSourceRoot;
 
 		const rawModelName = event.model;
 		if (rawModelName == null) {
@@ -67,9 +75,11 @@ export async function buildSessionReport(
 			continue;
 		}
 
-		const summary = summaries.get(sessionId) ?? createSummary(sessionId, event.timestamp);
-		if (!summaries.has(sessionId)) {
-			summaries.set(sessionId, summary);
+		const summaryKey = sourceRoot == null ? sessionId : `${sourceRoot}\u0000${sessionId}`;
+		const summary =
+			summaries.get(summaryKey) ?? createSummary(sessionId, sourceRoot, event.timestamp);
+		if (!summaries.has(summaryKey)) {
+			summaries.set(summaryKey, summary);
 		}
 
 		addUsage(summary, event);
@@ -128,12 +138,19 @@ export async function buildSessionReport(
 		}
 
 		const separatorIndex = summary.sessionId.lastIndexOf('/');
-		const directory = separatorIndex >= 0 ? summary.sessionId.slice(0, separatorIndex) : '';
+		const relativeDirectory = separatorIndex >= 0 ? summary.sessionId.slice(0, separatorIndex) : '';
+		const directory =
+			summary.sourceRoot == null || summary.sourceRoot === ''
+				? relativeDirectory
+				: relativeDirectory === ''
+					? summary.sourceRoot
+					: `${summary.sourceRoot}/${relativeDirectory}`;
 		const sessionFile =
 			separatorIndex >= 0 ? summary.sessionId.slice(separatorIndex + 1) : summary.sessionId;
 
 		rows.push({
 			sessionId: summary.sessionId,
+			sourceRoot: summary.sourceRoot,
 			lastActivity: summary.lastTimestamp,
 			sessionFile,
 			directory,
@@ -232,6 +249,54 @@ if (import.meta.vitest != null) {
 				(100 / 1_000_000) * 0.06 +
 				(200 / 1_000_000) * 2;
 			expect(second.costUSD).toBeCloseTo(expectedCost, 10);
+		});
+
+		it('keeps identical session ids from different codex homes separate', async () => {
+			const stubPricingSource: PricingSource = {
+				async getPricing(): Promise<ModelPricing> {
+					return {
+						inputCostPerMToken: 1.25,
+						cachedInputCostPerMToken: 0.125,
+						outputCostPerMToken: 10,
+					};
+				},
+			};
+
+			const report = await buildSessionReport(
+				[
+					{
+						sessionId: 'project/shared-session',
+						sourceRoot: 'codex-a',
+						timestamp: '2025-09-12T01:00:00.000Z',
+						model: 'gpt-5',
+						inputTokens: 1_000,
+						cachedInputTokens: 0,
+						outputTokens: 500,
+						reasoningOutputTokens: 0,
+						totalTokens: 1_500,
+					},
+					{
+						sessionId: 'project/shared-session',
+						sourceRoot: 'codex-b',
+						timestamp: '2025-09-12T02:00:00.000Z',
+						model: 'gpt-5',
+						inputTokens: 400,
+						cachedInputTokens: 0,
+						outputTokens: 200,
+						reasoningOutputTokens: 0,
+						totalTokens: 600,
+					},
+				],
+				{
+					pricingSource: stubPricingSource,
+				},
+			);
+
+			expect(report).toHaveLength(2);
+			expect(report[0]?.directory).toBe('codex-a/project');
+			expect(report[0]?.sessionFile).toBe('shared-session');
+			expect(report[1]?.directory).toBe('codex-b/project');
+			expect(report[1]?.sessionFile).toBe('shared-session');
 		});
 	});
 }

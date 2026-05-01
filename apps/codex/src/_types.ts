@@ -9,6 +9,7 @@ export type TokenUsageDelta = {
 export type TokenUsageEvent = TokenUsageDelta & {
 	timestamp: string;
 	sessionId: string;
+	sourceRoot?: string;
 	model?: string;
 	isFallbackModel?: boolean;
 };
@@ -33,6 +34,7 @@ export type MonthlyUsageSummary = {
 
 export type SessionUsageSummary = {
 	sessionId: string;
+	sourceRoot?: string;
 	firstTimestamp: string;
 	lastTimestamp: string;
 	costUSD: number;
@@ -78,6 +80,7 @@ export type MonthlyReportRow = {
 
 export type SessionReportRow = {
 	sessionId: string;
+	sourceRoot?: string;
 	lastActivity: string;
 	sessionFile: string;
 	directory: string;

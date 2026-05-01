@@ -49,7 +49,7 @@ ccusage-codex daily
 ccusage-codex monthly --json
 ```
 
-> 💡 The CLI looks for Codex session JSONL files under `CODEX_HOME` (defaults to `~/.codex`).
+> 💡 The CLI looks for Codex session JSONL files under `CODEX_HOME` (defaults to `~/.codex`). You can aggregate multiple Codex homes by setting `CODEX_HOME` to a comma-separated list.
 
 ## Common Commands
 
@@ -75,8 +75,13 @@ npx @ccusage/codex@latest sessions
 
 Useful environment variables:
 
-- `CODEX_HOME` – override the root directory that contains Codex session folders
-- `LOG_LEVEL` – controla consola log verbosity (0 silent … 5 trace)
+- `CODEX_HOME` – override the root directory that contains Codex session folders, or provide multiple homes as a comma-separated list
+- `LOG_LEVEL` – controls consola log verbosity (0 silent … 5 trace)
+
+```bash
+# Aggregate multiple Codex homes in one report
+CODEX_HOME="$HOME/.codex,$HOME/.codex-work,/Volumes/archive/codex" ccusage-codex daily
+```
 
 ℹ️ The CLI now relies on the model metadata recorded in each `turn_context`. Sessions emitted during early September 2025 that lack this metadata are skipped to avoid mispricing. Newer builds of the Codex CLI restore the model field, and aliases such as `gpt-5-codex` automatically resolve to the correct LiteLLM pricing entry.
 📦 For legacy JSONL files that never emitted `turn_context` metadata, the CLI falls back to treating the tokens as `gpt-5` so that usage still appears in reports (pricing is therefore approximate for those sessions). In JSON output you will also see `"isFallback": true` on those model entries.
