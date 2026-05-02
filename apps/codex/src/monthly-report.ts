@@ -1,13 +1,6 @@
-import type {
-	ModelPricing,
-	ModelUsage,
-	MonthlyReportRow,
-	MonthlyUsageSummary,
-	PricingSource,
-	TokenUsageEvent,
-} from './_types.ts';
-import { formatDisplayMonth, isWithinRange, toDateKey, toMonthKey } from './date-utils.ts';
-import { addUsage, calculateCostUSD, createEmptyUsage } from './token-utils.ts';
+import type { ModelPricing, MonthlyReportRow, PricingSource, TokenUsageEvent } from './_types.ts';
+import { buildBucketedReport } from './bucketed-report.ts';
+import { toDateKey, toMonthKey } from './date-utils.ts';
 
 export type MonthlyReportOptions = {
 	timezone?: string;
@@ -17,109 +10,20 @@ export type MonthlyReportOptions = {
 	pricingSource: PricingSource;
 };
 
-function createSummary(month: string, initialTimestamp: string): MonthlyUsageSummary {
-	return {
-		month,
-		firstTimestamp: initialTimestamp,
-		inputTokens: 0,
-		cachedInputTokens: 0,
-		outputTokens: 0,
-		reasoningOutputTokens: 0,
-		totalTokens: 0,
-		costUSD: 0,
-		models: new Map(),
-	};
-}
-
 export async function buildMonthlyReport(
 	events: TokenUsageEvent[],
 	options: MonthlyReportOptions,
 ): Promise<MonthlyReportRow[]> {
-	const timezone = options.timezone;
-	const locale = options.locale;
-	const since = options.since;
-	const until = options.until;
-	const pricingSource = options.pricingSource;
-
-	const summaries = new Map<string, MonthlyUsageSummary>();
-
-	for (const event of events) {
-		const modelName = event.model?.trim();
-		if (modelName == null || modelName === '') {
-			continue;
-		}
-
-		const dateKey = toDateKey(event.timestamp, timezone);
-		if (!isWithinRange(dateKey, since, until)) {
-			continue;
-		}
-
-		const monthKey = toMonthKey(event.timestamp, timezone);
-		const summary = summaries.get(monthKey) ?? createSummary(monthKey, event.timestamp);
-		if (!summaries.has(monthKey)) {
-			summaries.set(monthKey, summary);
-		}
-
-		addUsage(summary, event);
-		const modelUsage: ModelUsage = summary.models.get(modelName) ?? {
-			...createEmptyUsage(),
-			isFallback: false,
-		};
-		if (!summary.models.has(modelName)) {
-			summary.models.set(modelName, modelUsage);
-		}
-		addUsage(modelUsage, event);
-		if (event.isFallbackModel === true) {
-			modelUsage.isFallback = true;
-		}
-	}
-
-	const uniqueModels = new Set<string>();
-	for (const summary of summaries.values()) {
-		for (const modelName of summary.models.keys()) {
-			uniqueModels.add(modelName);
-		}
-	}
-
-	const modelPricing = new Map<string, Awaited<ReturnType<PricingSource['getPricing']>>>();
-	for (const modelName of uniqueModels) {
-		modelPricing.set(modelName, await pricingSource.getPricing(modelName));
-	}
-
-	const rows: MonthlyReportRow[] = [];
-
-	const sortedSummaries = Array.from(summaries.values()).sort((a, b) =>
-		a.month.localeCompare(b.month),
-	);
-	for (const summary of sortedSummaries) {
-		let cost = 0;
-		for (const [modelName, usage] of summary.models) {
-			const pricing = modelPricing.get(modelName);
-			if (pricing == null) {
-				continue;
-			}
-			cost += calculateCostUSD(usage, pricing);
-		}
-		summary.costUSD = cost;
-
-		const rowModels: Record<string, ModelUsage> = {};
-		for (const [modelName, usage] of summary.models) {
-			rowModels[modelName] = { ...usage };
-		}
-
-		rows.push({
-			month: formatDisplayMonth(summary.month, locale, timezone),
-			inputTokens: summary.inputTokens,
-			cachedInputTokens: summary.cachedInputTokens,
-			outputTokens: summary.outputTokens,
-			reasoningOutputTokens: summary.reasoningOutputTokens,
-			totalTokens: summary.totalTokens,
-			costUSD: cost,
-			models: rowModels,
-		});
-	}
-
-	return rows;
+	return buildBucketedReport({
+		bucketField: 'month',
+		events,
+		getBucketKey: toMonthKey,
+		getFilterDateKey: toDateKey,
+		pricingSource: options.pricingSource,
+		since: options.since,
+		timezone: options.timezone,
+		until: options.until,
+	});
 }
 
 if (import.meta.vitest != null) {
@@ -180,12 +84,14 @@ if (import.meta.vitest != null) {
 				{
 					pricingSource: stubPricingSource,
 					since: '2025-08-01',
+					timezone: 'UTC',
 					until: '2025-09-30',
 				},
 			);
 
 			expect(report).toHaveLength(2);
 			const first = report[0]!;
+			expect(first.month).toBe('2025-08');
 			expect(first.inputTokens).toBe(1_400);
 			expect(first.cachedInputTokens).toBe(300);
 			expect(first.outputTokens).toBe(700);
