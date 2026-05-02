@@ -665,6 +665,11 @@
 									"markdownDescription": "Context usage percentage below which status is shown in yellow (0-100)",
 									"default": 80
 								},
+								"timezone": {
+									"type": "string",
+									"description": "Timezone for date grouping (e.g., UTC, America/New_York, Asia/Tokyo). Default: system timezone",
+									"markdownDescription": "Timezone for date grouping (e.g., UTC, America/New_York, Asia/Tokyo). Default: system timezone"
+								},
 								"debug": {
 									"type": "boolean",
 									"description": "Show pricing mismatch information for debugging",

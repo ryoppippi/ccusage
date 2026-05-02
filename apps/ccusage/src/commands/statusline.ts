@@ -1,5 +1,5 @@
 import type { Formatter } from 'picocolors/types';
-import { mkdirSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import process from 'node:process';
@@ -11,7 +11,12 @@ import { define } from 'gunshi';
 import pc from 'picocolors';
 import * as v from 'valibot';
 import { loadConfig, mergeConfigWithArgs } from '../_config-loader-tokens.ts';
-import { DEFAULT_CONTEXT_USAGE_THRESHOLDS, DEFAULT_REFRESH_INTERVAL_SECONDS } from '../_consts.ts';
+import {
+	DEFAULT_CONTEXT_USAGE_THRESHOLDS,
+	DEFAULT_LOCALE,
+	DEFAULT_REFRESH_INTERVAL_SECONDS,
+} from '../_consts.ts';
+import { formatDate } from '../_date-utils.ts';
 import { calculateBurnRate } from '../_session-blocks.ts';
 import { sharedArgs } from '../_shared-args.ts';
 import { statuslineHookJsonSchema } from '../_types.ts';
@@ -102,6 +107,87 @@ function parseContextThreshold(value: string): number {
 	return v.parse(contextThresholdSchema, value);
 }
 
+function getTodayDateFilter(timezone?: string): string {
+	// Keep this aligned with loadDailyUsageData's day bucketing; UTC would regress #778.
+	return formatDate(new Date().toISOString(), timezone, DEFAULT_LOCALE).replace(/-/g, '');
+}
+
+if (import.meta.vitest != null) {
+	describe('getTodayDateFilter', () => {
+		afterEach(() => {
+			vi.useRealTimers();
+		});
+
+		it('uses the configured timezone when today differs from UTC', () => {
+			vi.useFakeTimers();
+			vi.setSystemTime(new Date('2026-01-15T22:00:00Z'));
+
+			expect(getTodayDateFilter('UTC')).toBe('20260115');
+			expect(getTodayDateFilter('Australia/Perth')).toBe('20260116');
+		});
+
+		it('handles negative-offset timezones on the other side of the UTC boundary', () => {
+			vi.useFakeTimers();
+			vi.setSystemTime(new Date('2026-01-16T02:00:00Z'));
+
+			expect(getTodayDateFilter('UTC')).toBe('20260116');
+			expect(getTodayDateFilter('America/Los_Angeles')).toBe('20260115');
+		});
+
+		it('keeps today cost when the filter and daily bucket share the configured timezone', async () => {
+			vi.useFakeTimers();
+			vi.setSystemTime(new Date('2026-01-15T22:00:00Z'));
+
+			const fixtureRoot = mkdtempSync(join(tmpdir(), 'ccusage-statusline-'));
+			try {
+				const claudePath = join(fixtureRoot, '.claude');
+				const projectPath = join(claudePath, 'projects', 'test-project');
+				mkdirSync(projectPath, { recursive: true });
+				writeFileSync(
+					join(projectPath, 'session-123.jsonl'),
+					`${JSON.stringify({
+						timestamp: '2026-01-15T22:30:00Z',
+						sessionId: 'session-123',
+						message: {
+							usage: {
+								input_tokens: 100,
+								output_tokens: 50,
+							},
+							model: 'claude-sonnet-4-20250514',
+						},
+						costUSD: 0.25,
+					})}\n`,
+				);
+
+				const timezone = 'Australia/Perth';
+				const todayStr = getTodayDateFilter(timezone);
+				const dailyData = await loadDailyUsageData({
+					claudePath,
+					since: todayStr,
+					until: todayStr,
+					mode: 'display',
+					timezone,
+				});
+
+				expect(calculateTotals(dailyData).totalCost).toBe(0.25);
+
+				const utcTodayStr = getTodayDateFilter('UTC');
+				const utcFilteredData = await loadDailyUsageData({
+					claudePath,
+					since: utcTodayStr,
+					until: utcTodayStr,
+					mode: 'display',
+					timezone,
+				});
+
+				expect(calculateTotals(utcFilteredData).totalCost).toBe(0);
+			} finally {
+				rmSync(fixtureRoot, { recursive: true, force: true });
+			}
+		});
+	});
+}
+
 export const statuslineCommand = define({
 	name: 'statusline',
 	description:
@@ -154,6 +240,7 @@ export const statuslineCommand = define({
 			parse: (value) => parseContextThreshold(value),
 			default: DEFAULT_CONTEXT_USAGE_THRESHOLDS.MEDIUM,
 		},
+		timezone: sharedArgs.timezone,
 		config: sharedArgs.config,
 		debug: sharedArgs.debug,
 	},
@@ -332,9 +419,7 @@ export const statuslineCommand = define({
 						return {}; // This line should never be reached
 					})();
 
-					// Load today's usage data
-					const today = new Date();
-					const todayStr = today.toISOString().split('T')[0]?.replace(/-/g, '') ?? ''; // Convert to YYYYMMDD format
+					const todayStr = getTodayDateFilter(mergedOptions.timezone);
 
 					const todayCost = await Result.pipe(
 						Result.try({
@@ -344,6 +429,7 @@ export const statuslineCommand = define({
 									until: todayStr,
 									mode: 'auto',
 									offline: mergedOptions.offline,
+									timezone: mergedOptions.timezone,
 								}),
 							catch: (error) => error,
 						})(),
