@@ -26,152 +26,157 @@ export const sessionCommand = define({
 	args: sharedArgs,
 	async run(ctx) {
 		const jsonOutput = Boolean(ctx.values.json);
+		const previousLogLevel = logger.level;
 		if (jsonOutput) {
 			logger.level = 0;
 		}
 
-		let since: string | undefined;
-		let until: string | undefined;
-
 		try {
-			since = normalizeFilterDate(ctx.values.since);
-			until = normalizeFilterDate(ctx.values.until);
-		} catch (error) {
-			logger.error(String(error));
-			process.exit(1);
-		}
+			let since: string | undefined;
+			let until: string | undefined;
 
-		const { events, missingDirectories } = await loadTokenUsageEvents();
+			try {
+				since = normalizeFilterDate(ctx.values.since);
+				until = normalizeFilterDate(ctx.values.until);
+			} catch (error) {
+				logger.error(String(error));
+				process.exit(1);
+			}
 
-		for (const missing of missingDirectories) {
-			logger.warn(`Kimi session directory not found: ${missing}`);
-		}
+			const { events, missingDirectories } = await loadTokenUsageEvents();
 
-		if (events.length === 0) {
-			log(
-				jsonOutput ? JSON.stringify({ sessions: [], totals: null }) : 'No Kimi usage data found.',
+			for (const missing of missingDirectories) {
+				logger.warn(`Kimi session directory not found: ${missing}`);
+			}
+
+			if (events.length === 0) {
+				log(
+					jsonOutput ? JSON.stringify({ sessions: [], totals: null }) : 'No Kimi usage data found.',
+				);
+				return;
+			}
+
+			const pricingSource = new KimiPricingSource();
+			const rows = await buildSessionReport(events, {
+				pricingSource,
+				timezone: ctx.values.timezone,
+				locale: ctx.values.locale,
+				since,
+				until,
+			});
+
+			if (rows.length === 0) {
+				log(
+					jsonOutput
+						? JSON.stringify({ sessions: [], totals: null })
+						: 'No Kimi usage data found for provided filters.',
+				);
+				return;
+			}
+
+			const totals = rows.reduce(
+				(acc, row) => {
+					acc.inputTokens += row.inputTokens;
+					acc.cachedInputTokens += row.cachedInputTokens;
+					acc.outputTokens += row.outputTokens;
+					acc.reasoningOutputTokens += row.reasoningOutputTokens;
+					acc.totalTokens += row.totalTokens;
+					acc.costUSD += row.costUSD;
+					return acc;
+				},
+				{
+					inputTokens: 0,
+					cachedInputTokens: 0,
+					outputTokens: 0,
+					reasoningOutputTokens: 0,
+					totalTokens: 0,
+					costUSD: 0,
+				},
 			);
-			return;
-		}
 
-		const pricingSource = new KimiPricingSource();
-		const rows = await buildSessionReport(events, {
-			pricingSource,
-			timezone: ctx.values.timezone,
-			locale: ctx.values.locale,
-			since,
-			until,
-		});
+			if (jsonOutput) {
+				log(JSON.stringify({ sessions: rows, totals }, null, 2));
+				return;
+			}
 
-		if (rows.length === 0) {
-			log(
-				jsonOutput
-					? JSON.stringify({ sessions: [], totals: null })
-					: 'No Kimi usage data found for provided filters.',
+			logger.box(
+				`Kimi Token Usage Report - Session (Timezone: ${ctx.values.timezone ?? DEFAULT_TIMEZONE})`,
 			);
-			return;
-		}
 
-		const totals = rows.reduce(
-			(acc, row) => {
-				acc.inputTokens += row.inputTokens;
-				acc.cachedInputTokens += row.cachedInputTokens;
-				acc.outputTokens += row.outputTokens;
-				acc.reasoningOutputTokens += row.reasoningOutputTokens;
-				acc.totalTokens += row.totalTokens;
-				acc.costUSD += row.costUSD;
-				return acc;
-			},
-			{
+			const table: ResponsiveTable = new ResponsiveTable({
+				head: [
+					'Last Activity',
+					'Directory',
+					'Session',
+					'Models',
+					'Input',
+					'Output',
+					'Reasoning',
+					'Cache Read',
+					'Cost (USD)',
+				],
+				colAligns: ['left', 'left', 'left', 'left', 'right', 'right', 'right', 'right', 'right'],
+				compactHead: [
+					'Last Activity',
+					'Directory',
+					'Session',
+					'Models',
+					'Input',
+					'Output',
+					'Cost (USD)',
+				],
+				compactColAligns: ['left', 'left', 'left', 'left', 'right', 'right', 'right'],
+				compactThreshold: 120,
+				forceCompact: ctx.values.compact,
+				style: { head: ['cyan'] },
+				dateFormatter: (dateStr: string) => formatDateCompact(dateStr),
+			});
+
+			const totalsForDisplay = {
 				inputTokens: 0,
-				cachedInputTokens: 0,
 				outputTokens: 0,
-				reasoningOutputTokens: 0,
-				totalTokens: 0,
+				reasoningTokens: 0,
+				cacheReadTokens: 0,
 				costUSD: 0,
-			},
-		);
+			};
 
-		if (jsonOutput) {
-			log(JSON.stringify({ sessions: rows, totals }, null, 2));
-			return;
-		}
+			for (const row of rows) {
+				const split = splitUsageTokens(row);
+				totalsForDisplay.inputTokens += split.inputTokens;
+				totalsForDisplay.outputTokens += split.outputTokens;
+				totalsForDisplay.reasoningTokens += split.reasoningTokens;
+				totalsForDisplay.cacheReadTokens += split.cacheReadTokens;
+				totalsForDisplay.costUSD += row.costUSD;
 
-		logger.box(
-			`Kimi Token Usage Report - Session (Timezone: ${ctx.values.timezone ?? DEFAULT_TIMEZONE})`,
-		);
+				table.push([
+					row.lastActivity,
+					row.directory,
+					row.sessionFile,
+					formatModelsDisplayMultiline(formatModelsList(row.models)),
+					formatNumber(split.inputTokens),
+					formatNumber(split.outputTokens),
+					formatNumber(split.reasoningTokens),
+					formatNumber(split.cacheReadTokens),
+					formatCurrency(row.costUSD),
+				]);
+			}
 
-		const table: ResponsiveTable = new ResponsiveTable({
-			head: [
-				'Last Activity',
-				'Directory',
-				'Session',
-				'Models',
-				'Input',
-				'Output',
-				'Reasoning',
-				'Cache Read',
-				'Cost (USD)',
-			],
-			colAligns: ['left', 'left', 'left', 'left', 'right', 'right', 'right', 'right', 'right'],
-			compactHead: [
-				'Last Activity',
-				'Directory',
-				'Session',
-				'Models',
-				'Input',
-				'Output',
-				'Cost (USD)',
-			],
-			compactColAligns: ['left', 'left', 'left', 'left', 'right', 'right', 'right'],
-			compactThreshold: 120,
-			forceCompact: ctx.values.compact,
-			style: { head: ['cyan'] },
-			dateFormatter: (dateStr: string) => formatDateCompact(dateStr),
-		});
-
-		const totalsForDisplay = {
-			inputTokens: 0,
-			outputTokens: 0,
-			reasoningTokens: 0,
-			cacheReadTokens: 0,
-			costUSD: 0,
-		};
-
-		for (const row of rows) {
-			const split = splitUsageTokens(row);
-			totalsForDisplay.inputTokens += split.inputTokens;
-			totalsForDisplay.outputTokens += split.outputTokens;
-			totalsForDisplay.reasoningTokens += split.reasoningTokens;
-			totalsForDisplay.cacheReadTokens += split.cacheReadTokens;
-			totalsForDisplay.costUSD += row.costUSD;
-
+			addEmptySeparatorRow(table, TABLE_COLUMN_COUNT);
 			table.push([
-				row.lastActivity,
-				row.directory,
-				row.sessionFile,
-				formatModelsDisplayMultiline(formatModelsList(row.models)),
-				formatNumber(split.inputTokens),
-				formatNumber(split.outputTokens),
-				formatNumber(split.reasoningTokens),
-				formatNumber(split.cacheReadTokens),
-				formatCurrency(row.costUSD),
+				pc.yellow('Total'),
+				'',
+				'',
+				'',
+				pc.yellow(formatNumber(totalsForDisplay.inputTokens)),
+				pc.yellow(formatNumber(totalsForDisplay.outputTokens)),
+				pc.yellow(formatNumber(totalsForDisplay.reasoningTokens)),
+				pc.yellow(formatNumber(totalsForDisplay.cacheReadTokens)),
+				pc.yellow(formatCurrency(totalsForDisplay.costUSD)),
 			]);
+
+			log(formatTerminalOutput(table.toString(), ctx.values));
+		} finally {
+			logger.level = previousLogLevel;
 		}
-
-		addEmptySeparatorRow(table, TABLE_COLUMN_COUNT);
-		table.push([
-			pc.yellow('Total'),
-			'',
-			'',
-			'',
-			pc.yellow(formatNumber(totalsForDisplay.inputTokens)),
-			pc.yellow(formatNumber(totalsForDisplay.outputTokens)),
-			pc.yellow(formatNumber(totalsForDisplay.reasoningTokens)),
-			pc.yellow(formatNumber(totalsForDisplay.cacheReadTokens)),
-			pc.yellow(formatCurrency(totalsForDisplay.costUSD)),
-		]);
-
-		log(formatTerminalOutput(table.toString(), ctx.values));
 	},
 });

@@ -26,146 +26,153 @@ export const monthlyCommand = define({
 	args: sharedArgs,
 	async run(ctx) {
 		const jsonOutput = Boolean(ctx.values.json);
+		const previousLogLevel = logger.level;
 		if (jsonOutput) {
 			logger.level = 0;
 		}
 
-		let since: string | undefined;
-		let until: string | undefined;
-
 		try {
-			since = normalizeFilterDate(ctx.values.since);
-			until = normalizeFilterDate(ctx.values.until);
-		} catch (error) {
-			logger.error(String(error));
-			process.exit(1);
-		}
+			let since: string | undefined;
+			let until: string | undefined;
 
-		const { events, missingDirectories } = await loadTokenUsageEvents();
+			try {
+				since = normalizeFilterDate(ctx.values.since);
+				until = normalizeFilterDate(ctx.values.until);
+			} catch (error) {
+				logger.error(String(error));
+				process.exit(1);
+			}
 
-		for (const missing of missingDirectories) {
-			logger.warn(`Kimi session directory not found: ${missing}`);
-		}
+			const { events, missingDirectories } = await loadTokenUsageEvents();
 
-		if (events.length === 0) {
-			log(jsonOutput ? JSON.stringify({ monthly: [], totals: null }) : 'No Kimi usage data found.');
-			return;
-		}
+			for (const missing of missingDirectories) {
+				logger.warn(`Kimi session directory not found: ${missing}`);
+			}
 
-		const pricingSource = new KimiPricingSource();
-		const rows = await buildMonthlyReport(events, {
-			pricingSource,
-			timezone: ctx.values.timezone,
-			locale: ctx.values.locale,
-			since,
-			until,
-		});
+			if (events.length === 0) {
+				log(
+					jsonOutput ? JSON.stringify({ monthly: [], totals: null }) : 'No Kimi usage data found.',
+				);
+				return;
+			}
 
-		if (rows.length === 0) {
-			log(
-				jsonOutput
-					? JSON.stringify({ monthly: [], totals: null })
-					: 'No Kimi usage data found for provided filters.',
+			const pricingSource = new KimiPricingSource();
+			const rows = await buildMonthlyReport(events, {
+				pricingSource,
+				timezone: ctx.values.timezone,
+				locale: ctx.values.locale,
+				since,
+				until,
+			});
+
+			if (rows.length === 0) {
+				log(
+					jsonOutput
+						? JSON.stringify({ monthly: [], totals: null })
+						: 'No Kimi usage data found for provided filters.',
+				);
+				return;
+			}
+
+			const totals = rows.reduce(
+				(acc, row) => {
+					acc.inputTokens += row.inputTokens;
+					acc.cachedInputTokens += row.cachedInputTokens;
+					acc.outputTokens += row.outputTokens;
+					acc.reasoningOutputTokens += row.reasoningOutputTokens;
+					acc.totalTokens += row.totalTokens;
+					acc.costUSD += row.costUSD;
+					return acc;
+				},
+				{
+					inputTokens: 0,
+					cachedInputTokens: 0,
+					outputTokens: 0,
+					reasoningOutputTokens: 0,
+					totalTokens: 0,
+					costUSD: 0,
+				},
 			);
-			return;
-		}
 
-		const totals = rows.reduce(
-			(acc, row) => {
-				acc.inputTokens += row.inputTokens;
-				acc.cachedInputTokens += row.cachedInputTokens;
-				acc.outputTokens += row.outputTokens;
-				acc.reasoningOutputTokens += row.reasoningOutputTokens;
-				acc.totalTokens += row.totalTokens;
-				acc.costUSD += row.costUSD;
-				return acc;
-			},
-			{
+			if (jsonOutput) {
+				log(JSON.stringify({ monthly: rows, totals }, null, 2));
+				return;
+			}
+
+			logger.box(
+				`Kimi Token Usage Report - Monthly (Timezone: ${ctx.values.timezone ?? DEFAULT_TIMEZONE})`,
+			);
+
+			const table: ResponsiveTable = new ResponsiveTable({
+				head: [
+					'Month',
+					'Models',
+					'Input',
+					'Output',
+					'Reasoning',
+					'Cache Read',
+					'Total Tokens',
+					'Cost (USD)',
+				],
+				colAligns: ['left', 'left', 'right', 'right', 'right', 'right', 'right', 'right'],
+				compactHead: ['Month', 'Models', 'Input', 'Output', 'Cost (USD)'],
+				compactColAligns: ['left', 'left', 'right', 'right', 'right'],
+				compactThreshold: 100,
+				forceCompact: ctx.values.compact,
+				style: { head: ['cyan'] },
+				dateFormatter: (dateStr: string) => formatDateCompact(dateStr),
+			});
+
+			const totalsForDisplay = {
 				inputTokens: 0,
-				cachedInputTokens: 0,
 				outputTokens: 0,
-				reasoningOutputTokens: 0,
+				reasoningTokens: 0,
+				cacheReadTokens: 0,
 				totalTokens: 0,
 				costUSD: 0,
-			},
-		);
+			};
 
-		if (jsonOutput) {
-			log(JSON.stringify({ monthly: rows, totals }, null, 2));
-			return;
-		}
+			for (const row of rows) {
+				const split = splitUsageTokens(row);
+				totalsForDisplay.inputTokens += split.inputTokens;
+				totalsForDisplay.outputTokens += split.outputTokens;
+				totalsForDisplay.reasoningTokens += split.reasoningTokens;
+				totalsForDisplay.cacheReadTokens += split.cacheReadTokens;
+				totalsForDisplay.totalTokens += row.totalTokens;
+				totalsForDisplay.costUSD += row.costUSD;
 
-		logger.box(
-			`Kimi Token Usage Report - Monthly (Timezone: ${ctx.values.timezone ?? DEFAULT_TIMEZONE})`,
-		);
+				table.push([
+					row.month,
+					formatModelsDisplayMultiline(formatModelsList(row.models)),
+					formatNumber(split.inputTokens),
+					formatNumber(split.outputTokens),
+					formatNumber(split.reasoningTokens),
+					formatNumber(split.cacheReadTokens),
+					formatNumber(row.totalTokens),
+					formatCurrency(row.costUSD),
+				]);
+			}
 
-		const table: ResponsiveTable = new ResponsiveTable({
-			head: [
-				'Month',
-				'Models',
-				'Input',
-				'Output',
-				'Reasoning',
-				'Cache Read',
-				'Total Tokens',
-				'Cost (USD)',
-			],
-			colAligns: ['left', 'left', 'right', 'right', 'right', 'right', 'right', 'right'],
-			compactHead: ['Month', 'Models', 'Input', 'Output', 'Cost (USD)'],
-			compactColAligns: ['left', 'left', 'right', 'right', 'right'],
-			compactThreshold: 100,
-			forceCompact: ctx.values.compact,
-			style: { head: ['cyan'] },
-			dateFormatter: (dateStr: string) => formatDateCompact(dateStr),
-		});
-
-		const totalsForDisplay = {
-			inputTokens: 0,
-			outputTokens: 0,
-			reasoningTokens: 0,
-			cacheReadTokens: 0,
-			totalTokens: 0,
-			costUSD: 0,
-		};
-
-		for (const row of rows) {
-			const split = splitUsageTokens(row);
-			totalsForDisplay.inputTokens += split.inputTokens;
-			totalsForDisplay.outputTokens += split.outputTokens;
-			totalsForDisplay.reasoningTokens += split.reasoningTokens;
-			totalsForDisplay.cacheReadTokens += split.cacheReadTokens;
-			totalsForDisplay.totalTokens += row.totalTokens;
-			totalsForDisplay.costUSD += row.costUSD;
-
+			addEmptySeparatorRow(table, TABLE_COLUMN_COUNT);
 			table.push([
-				row.month,
-				formatModelsDisplayMultiline(formatModelsList(row.models)),
-				formatNumber(split.inputTokens),
-				formatNumber(split.outputTokens),
-				formatNumber(split.reasoningTokens),
-				formatNumber(split.cacheReadTokens),
-				formatNumber(row.totalTokens),
-				formatCurrency(row.costUSD),
+				pc.yellow('Total'),
+				'',
+				pc.yellow(formatNumber(totalsForDisplay.inputTokens)),
+				pc.yellow(formatNumber(totalsForDisplay.outputTokens)),
+				pc.yellow(formatNumber(totalsForDisplay.reasoningTokens)),
+				pc.yellow(formatNumber(totalsForDisplay.cacheReadTokens)),
+				pc.yellow(formatNumber(totalsForDisplay.totalTokens)),
+				pc.yellow(formatCurrency(totalsForDisplay.costUSD)),
 			]);
-		}
 
-		addEmptySeparatorRow(table, TABLE_COLUMN_COUNT);
-		table.push([
-			pc.yellow('Total'),
-			'',
-			pc.yellow(formatNumber(totalsForDisplay.inputTokens)),
-			pc.yellow(formatNumber(totalsForDisplay.outputTokens)),
-			pc.yellow(formatNumber(totalsForDisplay.reasoningTokens)),
-			pc.yellow(formatNumber(totalsForDisplay.cacheReadTokens)),
-			pc.yellow(formatNumber(totalsForDisplay.totalTokens)),
-			pc.yellow(formatCurrency(totalsForDisplay.costUSD)),
-		]);
+			log(formatTerminalOutput(table.toString(), ctx.values));
 
-		log(formatTerminalOutput(table.toString(), ctx.values));
-
-		if (table.isCompactMode()) {
-			logger.info('\nRunning in Compact Mode');
-			logger.info('Expand terminal width to see cache metrics and total tokens');
+			if (table.isCompactMode()) {
+				logger.info('\nRunning in Compact Mode');
+				logger.info('Expand terminal width to see cache metrics and total tokens');
+			}
+		} finally {
+			logger.level = previousLogLevel;
 		}
 	},
 });

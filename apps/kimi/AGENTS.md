@@ -46,7 +46,7 @@ Mapping to our internal format:
 | `output`               | `outputTokens`          | Direct mapping                                |
 | `ContentPart.think`    | `reasoningOutputTokens` | Estimated from think content (~4 chars/token) |
 
-```
+```text
 inputTokens = input_other + input_cache_read + input_cache_creation
 cachedInputTokens = input_cache_read
 outputTokens = output
@@ -127,7 +127,7 @@ if (seenMessageIds.has(dedupeKey)) {
 
 Session IDs are constructed as:
 
-```
+```text
 {work_directory_path}/{session_file_id}
 ```
 
