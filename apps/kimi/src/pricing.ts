@@ -16,7 +16,10 @@ function normalizeModelName(model: string): string {
 }
 
 const KIMI_K2_5_PRICING: ModelPricing = {
-	// Official docs pricing (unit: 1M tokens)
+	// Kimi Code logs expose "kimi-for-coding", a dynamic latest-model alias.
+	// LiteLLM pricing is keyed by concrete model IDs, so use Kimi's official
+	// pricing docs here and let data-loader.ts resolve the alias by release date.
+	// Unit: 1M tokens.
 	// Input Price (Cache Miss) -> non-cached input tokens
 	// Input Price (Cache Hit)  -> cached input tokens (input_cache_read)
 	inputCostPerMToken: 0.6,

@@ -23,8 +23,9 @@ import { logger } from './logger.ts';
 
 const recordSchema = v.record(v.string(), v.unknown());
 const KIMI_K2_6_MODEL = 'kimi-k2.6';
-const KIMI_K2_6_EFFECTIVE_FROM_MS = Date.parse('2026-04-20T00:00:00.000Z');
-const KIMI_CODE_ALIAS_MODELS = new Set(['kimi-for-coding', 'kimi-code']);
+const KIMI_K2_6_RELEASE_TIMESTAMP = '2026-04-20T15:28:10.072Z';
+const KIMI_K2_6_RELEASE_TIME_MS = Date.parse(KIMI_K2_6_RELEASE_TIMESTAMP);
+const KIMI_CODE_LATEST_MODEL_ALIASES = new Set(['kimi-code', 'kimi-for-coding']);
 
 // Estimate tokens from text content using ~4 chars per token heuristic
 function estimateTokensFromText(text: string): number {
@@ -49,47 +50,6 @@ function computeWorkDirBasename(workDir: string, kaos: string): string {
 	return kaos === 'local' ? md5 : `${kaos}_${md5}`;
 }
 
-function parseDefaultModelFromConfig(content: string): string | undefined {
-	const match = /^default_model\s*=\s*"([^"]+)"\s*$/m.exec(content);
-	const value = match?.[1];
-	if (value == null) {
-		return undefined;
-	}
-
-	const trimmed = value.trim();
-	return trimmed === '' ? undefined : trimmed;
-}
-
-function parseDefaultModelDisplayNameFromConfig(
-	content: string,
-	defaultModel: string,
-): string | undefined {
-	const header = `[models."${defaultModel}"]`;
-	const headerIndex = content.indexOf(header);
-	if (headerIndex === -1) {
-		return undefined;
-	}
-
-	const bodyStart = headerIndex + header.length;
-	const rest = content.slice(bodyStart);
-	const nextHeaderMatch = /\n\[/.exec(rest);
-	const body = nextHeaderMatch == null ? rest : rest.slice(0, nextHeaderMatch.index);
-	const displayNameMatch = /^display_name\s*=\s*"([^"]+)"\s*$/m.exec(body);
-	const value = displayNameMatch?.[1];
-	if (value == null) {
-		return undefined;
-	}
-
-	const trimmed = value.trim();
-	return trimmed === '' ? undefined : trimmed;
-}
-
-export type DefaultModel = {
-	model: string;
-	displayName?: string;
-	isFallback: boolean;
-};
-
 function normalizeModelSegment(model: string): string {
 	const trimmed = model.trim();
 	if (trimmed === '') {
@@ -110,10 +70,21 @@ function isKimiK26Name(model: string | undefined): boolean {
 	return normalized === KIMI_K2_6_MODEL || normalized === 'kimi-k2p6' || normalized === 'kimi-k2-6';
 }
 
-function shouldUseKimiK26ForAlias(timestamp: string): boolean {
-	const timestampMs = Date.parse(timestamp);
-	return !Number.isNaN(timestampMs) && timestampMs >= KIMI_K2_6_EFFECTIVE_FROM_MS;
+function parseDefaultModelFromConfig(content: string): string | undefined {
+	const match = /^default_model\s*=\s*"([^"]+)"\s*$/m.exec(content);
+	const value = match?.[1];
+	if (value == null) {
+		return undefined;
+	}
+
+	const trimmed = value.trim();
+	return trimmed === '' ? undefined : trimmed;
 }
+
+export type DefaultModel = {
+	model: string;
+	isFallback: boolean;
+};
 
 function resolveEffectiveModel(defaultModel: DefaultModel, timestamp: string): string {
 	if (defaultModel.isFallback) {
@@ -125,11 +96,18 @@ function resolveEffectiveModel(defaultModel: DefaultModel, timestamp: string): s
 	}
 
 	const normalizedModel = normalizeModelSegment(defaultModel.model);
-	if (
-		KIMI_CODE_ALIAS_MODELS.has(normalizedModel) &&
-		isKimiK26Name(defaultModel.displayName) &&
-		shouldUseKimiK26ForAlias(timestamp)
-	) {
+	if (KIMI_CODE_LATEST_MODEL_ALIASES.has(normalizedModel)) {
+		const eventTimeMs = Date.parse(timestamp);
+		if (!Number.isFinite(eventTimeMs)) {
+			return defaultModel.model;
+		}
+		if (eventTimeMs < KIMI_K2_6_RELEASE_TIME_MS) {
+			return 'kimi-k2.5';
+		}
+
+		// Kimi Code exposes only a stable latest-model alias in config/wire logs.
+		// Use the official Kimi K2.6 release announcement time as the pricing cutoff:
+		// https://x.com/Kimi_Moonshot/status/2046249571882500354
 		return KIMI_K2_6_MODEL;
 	}
 
@@ -153,12 +131,7 @@ async function loadDefaultModel(shareDir: string): Promise<DefaultModel> {
 
 	const parsed = parseDefaultModelFromConfig(configResult.value);
 	if (parsed != null) {
-		const displayName = parseDefaultModelDisplayNameFromConfig(configResult.value, parsed);
-		return {
-			model: parsed,
-			isFallback: false,
-			...(displayName != null && { displayName }),
-		};
+		return { model: parsed, isFallback: false };
 	}
 
 	return { model: 'unknown', isFallback: true };
@@ -673,7 +646,7 @@ if (import.meta.vitest != null) {
 			expect(missingDirectories).toEqual([]);
 			expect(events).toHaveLength(1);
 			const event = events[0]!;
-			expect(event.model).toBe('kimi-code/kimi-for-coding');
+			expect(event.model).toBe('kimi-k2.5');
 			expect(event.inputTokens).toBe(17);
 			expect(event.cachedInputTokens).toBe(5);
 			expect(event.outputTokens).toBe(7);
@@ -681,6 +654,99 @@ if (import.meta.vitest != null) {
 			expect(event.sessionId).toContain('abc123');
 			expect(event.sessionId).toContain('session-1');
 			expect(event.timestamp).toBe('2025-01-01T00:00:00.500Z');
+		});
+
+		it('resolves the Kimi Code latest-model alias across the official K2.6 release cutoff', async () => {
+			const beforeReleaseSeconds = (KIMI_K2_6_RELEASE_TIME_MS - 1000) / 1000;
+			const afterReleaseSeconds = KIMI_K2_6_RELEASE_TIME_MS / 1000;
+
+			await using fixture = await createFixture({
+				'.kimi': {
+					'config.toml': 'default_model = "kimi-code/kimi-for-coding"\n',
+					sessions: {
+						abc123: {
+							'session-release-cutoff': {
+								'wire.jsonl': [
+									JSON.stringify({
+										timestamp: beforeReleaseSeconds,
+										message: {
+											type: 'StatusUpdate',
+											payload: {
+												message_id: 'before-release',
+												token_usage: {
+													input_other: 1,
+													input_cache_read: 0,
+													input_cache_creation: 0,
+													output: 1,
+												},
+											},
+										},
+									}),
+									JSON.stringify({
+										timestamp: afterReleaseSeconds,
+										message: {
+											type: 'StatusUpdate',
+											payload: {
+												message_id: 'after-release',
+												token_usage: {
+													input_other: 1,
+													input_cache_read: 0,
+													input_cache_creation: 0,
+													output: 1,
+												},
+											},
+										},
+									}),
+								].join('\n'),
+							},
+						},
+					},
+				},
+			});
+
+			const { events } = await loadTokenUsageEvents({
+				shareDir: fixture.getPath('.kimi'),
+			});
+
+			expect(events).toHaveLength(2);
+			expect(events[0]!.model).toBe('kimi-k2.5');
+			expect(events[1]!.model).toBe('kimi-k2.6');
+		});
+
+		it('keeps explicit Kimi model IDs unchanged after the K2.6 cutoff', async () => {
+			await using fixture = await createFixture({
+				'.kimi': {
+					'config.toml': 'default_model = "kimi-k2.5"\n',
+					sessions: {
+						abc123: {
+							'session-explicit-model': {
+								'wire.jsonl': JSON.stringify({
+									timestamp: KIMI_K2_6_RELEASE_TIME_MS / 1000,
+									message: {
+										type: 'StatusUpdate',
+										payload: {
+											message_id: 'explicit-model',
+											token_usage: {
+												input_other: 1,
+												input_cache_read: 0,
+												input_cache_creation: 0,
+												output: 1,
+											},
+										},
+									},
+								}),
+							},
+						},
+					},
+				},
+			});
+
+			const { events } = await loadTokenUsageEvents({
+				shareDir: fixture.getPath('.kimi'),
+			});
+
+			expect(events).toHaveLength(1);
+			expect(events[0]!.model).toBe('kimi-k2.5');
 		});
 
 		it('skips StatusUpdate entries with invalid timestamps', async () => {
@@ -788,86 +854,6 @@ if (import.meta.vitest != null) {
 			const { events } = await loadTokenUsageEvents({ shareDir: fixture.getPath('.kimi') });
 			expect(events).toHaveLength(2);
 			expect(events.map((e) => e.totalTokens)).toEqual([10, 11]);
-		});
-
-		it('uses K2.6 model identity for kimi-for-coding entries after the K2.6 cutoff', async () => {
-			await using fixture = await createFixture({
-				'.kimi': {
-					'config.toml': [
-						'default_model = "kimi-code/kimi-for-coding"',
-						'',
-						'[models."kimi-code/kimi-for-coding"]',
-						'display_name = "Kimi-k2.6"',
-						'',
-					].join('\n'),
-					sessions: {
-						abc123: {
-							'session-k26': {
-								'wire.jsonl': JSON.stringify({
-									timestamp: Date.parse('2026-04-20T00:00:00.000Z') / 1000,
-									message: {
-										type: 'StatusUpdate',
-										payload: {
-											message_id: 'msg-k26',
-											token_usage: {
-												input_other: 10,
-												input_cache_read: 5,
-												input_cache_creation: 2,
-												output: 7,
-											},
-										},
-									},
-								}),
-							},
-						},
-					},
-				},
-			});
-
-			const { events } = await loadTokenUsageEvents({ shareDir: fixture.getPath('.kimi') });
-
-			expect(events).toHaveLength(1);
-			expect(events[0]?.model).toBe('kimi-k2.6');
-		});
-
-		it('keeps kimi-for-coding on the configured alias before the K2.6 cutoff', async () => {
-			await using fixture = await createFixture({
-				'.kimi': {
-					'config.toml': [
-						'default_model = "kimi-code/kimi-for-coding"',
-						'',
-						'[models."kimi-code/kimi-for-coding"]',
-						'display_name = "Kimi-k2.6"',
-						'',
-					].join('\n'),
-					sessions: {
-						abc123: {
-							'session-k25': {
-								'wire.jsonl': JSON.stringify({
-									timestamp: Date.parse('2026-04-19T23:59:59.000Z') / 1000,
-									message: {
-										type: 'StatusUpdate',
-										payload: {
-											message_id: 'msg-k25',
-											token_usage: {
-												input_other: 10,
-												input_cache_read: 5,
-												input_cache_creation: 2,
-												output: 7,
-											},
-										},
-									},
-								}),
-							},
-						},
-					},
-				},
-			});
-
-			const { events } = await loadTokenUsageEvents({ shareDir: fixture.getPath('.kimi') });
-
-			expect(events).toHaveLength(1);
-			expect(events[0]?.model).toBe('kimi-code/kimi-for-coding');
 		});
 
 		it('keeps reasoning attribution separate for main vs subagent streams', async () => {
