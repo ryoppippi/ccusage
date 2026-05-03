@@ -9,10 +9,8 @@ function normalizeModelName(model: string): string {
 		return 'unknown';
 	}
 
-	const lastSegment = (() => {
-		const idx = trimmed.lastIndexOf('/');
-		return idx >= 0 ? trimmed.slice(idx + 1) : trimmed;
-	})();
+	const idx = trimmed.lastIndexOf('/');
+	const lastSegment = idx >= 0 ? trimmed.slice(idx + 1) : trimmed;
 
 	return lastSegment.toLowerCase();
 }

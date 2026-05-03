@@ -508,9 +508,6 @@ importers:
       '@ccusage/codex':
         specifier: workspace:*
         version: link:../codex
-      '@ccusage/kimi':
-        specifier: workspace:*
-        version: link:../kimi
       '@hono/mcp':
         specifier: catalog:runtime
         version: 0.1.5(@modelcontextprotocol/sdk@1.24.3(zod@4.1.13))(hono@4.9.7)
@@ -539,6 +536,9 @@ importers:
       '@ccusage/internal':
         specifier: workspace:*
         version: link:../../packages/internal
+      '@ccusage/kimi':
+        specifier: workspace:*
+        version: link:../kimi
       '@ryoppippi/eslint-config':
         specifier: catalog:lint
         version: 0.4.0(@vue/compiler-sfc@3.5.30)(eslint-plugin-format@2.0.1(eslint@9.35.0(jiti@2.6.1)))(eslint@9.35.0(jiti@2.6.1))(typescript@5.9.2)(vitest@4.1.2(@types/node@24.5.1)(happy-dom@16.8.1)(vite@7.3.1(@types/node@24.5.1)(jiti@2.6.1)(yaml@2.8.3)))
