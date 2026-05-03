@@ -1,0 +1,66 @@
+{
+	"name": "@ccusage/hermes",
+	"type": "module",
+	"version": "18.0.11",
+	"description": "Usage analysis tool for Hermes Agent sessions",
+	"contributors": [
+		"ryoppippi"
+	],
+	"license": "MIT",
+	"funding": "https://github.com/ryoppippi/ccusage?sponsor=1",
+	"homepage": "https://github.com/ryoppippi/ccusage#readme",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/ryoppippi/ccusage.git",
+		"directory": "apps/hermes"
+	},
+	"bugs": {
+		"url": "https://github.com/ryoppippi/ccusage/issues"
+	},
+	"main": "./dist/index.js",
+	"module": "./dist/index.js",
+	"bin": {
+		"ccusage-hermes": "./src/index.ts"
+	},
+	"files": [
+		"dist"
+	],
+	"publishConfig": {
+		"bin": {
+			"ccusage-hermes": "./dist/index.js"
+		}
+	},
+	"engines": {
+		"node": ">=22.13.0"
+	},
+	"scripts": {
+		"build": "tsdown",
+		"format": "pnpm run lint --fix",
+		"lint": "eslint --cache .",
+		"prepack": "pnpm run build && clean-pkg-json",
+		"prerelease": "pnpm run lint && pnpm run typecheck && pnpm run build",
+		"start": "bun ./src/index.ts",
+		"test": "TZ=UTC vitest",
+		"typecheck": "tsgo --noEmit"
+	},
+	"devDependencies": {
+		"@ccusage/internal": "workspace:*",
+		"@ccusage/terminal": "workspace:*",
+		"@praha/byethrow": "catalog:runtime",
+		"@ryoppippi/eslint-config": "catalog:lint",
+		"@typescript/native-preview": "catalog:types",
+		"clean-pkg-json": "catalog:release",
+		"es-toolkit": "catalog:runtime",
+		"eslint": "catalog:lint",
+		"fast-sort": "catalog:runtime",
+		"fs-fixture": "catalog:testing",
+		"gunshi": "catalog:runtime",
+		"path-type": "catalog:runtime",
+		"picocolors": "catalog:runtime",
+		"tsdown": "catalog:build",
+		"unplugin-macros": "catalog:build",
+		"unplugin-unused": "catalog:build",
+		"valibot": "catalog:runtime",
+		"vitest": "catalog:testing"
+	}
+}
