@@ -10,11 +10,16 @@ import {
 import { groupBy } from 'es-toolkit';
 import { define } from 'gunshi';
 import pc from 'picocolors';
-import { calculateCostForEntry } from '../cost-utils.ts';
+import { aggregateGroup, computeTotals, TABLE_COLUMN_COUNT } from '../aggregate-utils.ts';
 import { loadHermesSessions } from '../data-loader.ts';
 import { logger } from '../logger.ts';
 
-const TABLE_COLUMN_COUNT = 8;
+function formatDateUTC(date: Date): string {
+	const year = date.getUTCFullYear();
+	const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+	const day = String(date.getUTCDate()).padStart(2, '0');
+	return `${year}-${month}-${day}`;
+}
 
 export const dailyCommand = define({
 	name: 'daily',
@@ -46,7 +51,7 @@ export const dailyCommand = define({
 
 		using fetcher = new LiteLLMPricingFetcher({ offline: false, logger });
 
-		const entriesByDate = groupBy(entries, (entry) => entry.timestamp.toISOString().split('T')[0]!);
+		const entriesByDate = groupBy(entries, (entry) => formatDateUTC(entry.timestamp));
 
 		const dailyData: Array<{
 			date: string;
@@ -60,46 +65,13 @@ export const dailyCommand = define({
 		}> = [];
 
 		for (const [date, dayEntries] of Object.entries(entriesByDate)) {
-			let inputTokens = 0;
-			let outputTokens = 0;
-			let cacheCreationTokens = 0;
-			let cacheReadTokens = 0;
-			let totalCost = 0;
-			const modelsSet = new Set<string>();
-
-			for (const entry of dayEntries) {
-				inputTokens += entry.usage.inputTokens;
-				outputTokens += entry.usage.outputTokens;
-				cacheCreationTokens += entry.usage.cacheCreationInputTokens;
-				cacheReadTokens += entry.usage.cacheReadInputTokens;
-				totalCost += await calculateCostForEntry(entry, fetcher);
-				modelsSet.add(entry.model);
-			}
-
-			const totalTokens = inputTokens + outputTokens + cacheCreationTokens + cacheReadTokens;
-
-			dailyData.push({
-				date,
-				inputTokens,
-				outputTokens,
-				cacheCreationTokens,
-				cacheReadTokens,
-				totalTokens,
-				totalCost,
-				modelsUsed: Array.from(modelsSet),
-			});
+			const agg = await aggregateGroup(dayEntries, fetcher);
+			dailyData.push({ date, ...agg });
 		}
 
 		dailyData.sort((a, b) => a.date.localeCompare(b.date));
 
-		const totals = {
-			inputTokens: dailyData.reduce((sum, d) => sum + d.inputTokens, 0),
-			outputTokens: dailyData.reduce((sum, d) => sum + d.outputTokens, 0),
-			cacheCreationTokens: dailyData.reduce((sum, d) => sum + d.cacheCreationTokens, 0),
-			cacheReadTokens: dailyData.reduce((sum, d) => sum + d.cacheReadTokens, 0),
-			totalTokens: dailyData.reduce((sum, d) => sum + d.totalTokens, 0),
-			totalCost: dailyData.reduce((sum, d) => sum + d.totalCost, 0),
-		};
+		const totals = computeTotals(dailyData);
 
 		if (jsonOutput) {
 			// eslint-disable-next-line no-console

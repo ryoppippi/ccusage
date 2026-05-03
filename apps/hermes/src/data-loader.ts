@@ -54,8 +54,11 @@ export type LoadedSessionMetadata = {
 };
 
 function safeNumber(value: unknown): number {
-	if (typeof value === 'number') return value;
-	if (typeof value === 'string') return Number.parseFloat(value);
+	if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
+	if (typeof value === 'string') {
+		const parsed = Number.parseFloat(value.trim());
+		return Number.isFinite(parsed) ? parsed : 0;
+	}
 	return 0;
 }
 

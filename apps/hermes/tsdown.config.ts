@@ -9,4 +9,7 @@ export default defineConfig({
 	platform: 'node',
 	target: 'node20',
 	fixedExtension: false,
+	define: {
+		'import.meta.vitest': 'undefined',
+	},
 });

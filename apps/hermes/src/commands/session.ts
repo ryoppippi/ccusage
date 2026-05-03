@@ -10,11 +10,25 @@ import {
 import { groupBy } from 'es-toolkit';
 import { define } from 'gunshi';
 import pc from 'picocolors';
-import { calculateCostForEntry } from '../cost-utils.ts';
+import { aggregateGroup, computeTotals, TABLE_COLUMN_COUNT } from '../aggregate-utils.ts';
 import { loadHermesSessions, loadHermesSessionMetadata } from '../data-loader.ts';
 import { logger } from '../logger.ts';
 
-const TABLE_COLUMN_COUNT = 8;
+const ROOT_SENTINEL = Symbol('root');
+
+type SessionData = {
+	sessionID: string;
+	sessionTitle: string;
+	parentID: string | null;
+	inputTokens: number;
+	outputTokens: number;
+	cacheCreationTokens: number;
+	cacheReadTokens: number;
+	totalTokens: number;
+	totalCost: number;
+	modelsUsed: string[];
+	lastActivity: Date;
+};
 
 export const sessionCommand = define({
 	name: 'session',
@@ -51,73 +65,30 @@ export const sessionCommand = define({
 
 		const entriesBySession = groupBy(entries, (entry) => entry.sessionID);
 
-		type SessionData = {
-			sessionID: string;
-			sessionTitle: string;
-			parentID: string | null;
-			inputTokens: number;
-			outputTokens: number;
-			cacheCreationTokens: number;
-			cacheReadTokens: number;
-			totalTokens: number;
-			totalCost: number;
-			modelsUsed: string[];
-			lastActivity: Date;
-		};
-
 		const sessionData: SessionData[] = [];
 
 		for (const [sessionID, sessionEntries] of Object.entries(entriesBySession)) {
-			let inputTokens = 0;
-			let outputTokens = 0;
-			let cacheCreationTokens = 0;
-			let cacheReadTokens = 0;
-			let totalCost = 0;
-			const modelsSet = new Set<string>();
+			const agg = await aggregateGroup(sessionEntries, fetcher);
+			const metadata = sessionMetadataMap.get(sessionID);
 			let lastActivity = sessionEntries[0]!.timestamp;
-
 			for (const entry of sessionEntries) {
-				inputTokens += entry.usage.inputTokens;
-				outputTokens += entry.usage.outputTokens;
-				cacheCreationTokens += entry.usage.cacheCreationInputTokens;
-				cacheReadTokens += entry.usage.cacheReadInputTokens;
-				totalCost += await calculateCostForEntry(entry, fetcher);
-				modelsSet.add(entry.model);
-
 				if (entry.timestamp > lastActivity) {
 					lastActivity = entry.timestamp;
 				}
 			}
 
-			const totalTokens = inputTokens + outputTokens + cacheCreationTokens + cacheReadTokens;
-
-			const metadata = sessionMetadataMap.get(sessionID);
-
 			sessionData.push({
 				sessionID,
 				sessionTitle: metadata?.title ?? sessionID,
 				parentID: metadata?.parentID ?? null,
-				inputTokens,
-				outputTokens,
-				cacheCreationTokens,
-				cacheReadTokens,
-				totalTokens,
-				totalCost,
-				modelsUsed: Array.from(modelsSet),
+				...agg,
 				lastActivity,
 			});
 		}
 
 		sessionData.sort((a, b) => a.lastActivity.getTime() - b.lastActivity.getTime());
 
-		const totals = {
-			inputTokens: sessionData.reduce((sum, s) => sum + s.inputTokens, 0),
-			outputTokens: sessionData.reduce((sum, s) => sum + s.outputTokens, 0),
-			cacheCreationTokens: sessionData.reduce((sum, s) => sum + s.cacheCreationTokens, 0),
-			cacheReadTokens: sessionData.reduce((sum, s) => sum + s.cacheReadTokens, 0),
-			totalTokens: sessionData.reduce((sum, s) => sum + s.totalTokens, 0),
-			totalCost: sessionData.reduce((sum, s) => sum + s.totalCost, 0),
-		};
+		const totals = computeTotals(sessionData);
 
 		if (jsonOutput) {
 			// eslint-disable-next-line no-console
@@ -157,59 +128,49 @@ export const sessionCommand = define({
 			dateFormatter: (dateStr: string) => formatDateCompact(dateStr),
 		});
 
-		const sessionsByParent = groupBy(sessionData, (s) => s.parentID ?? 'root');
-		const parentSessions = sessionsByParent.root ?? [];
-		delete sessionsByParent.root;
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		const sessionsByParent = groupBy(sessionData, (s) => s.parentID ?? (ROOT_SENTINEL as any));
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		const parentSessions: SessionData[] = (sessionsByParent as any)[ROOT_SENTINEL] ?? [];
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		delete (sessionsByParent as any)[ROOT_SENTINEL];
 
-		for (const parentSession of parentSessions) {
-			const isParent = sessionsByParent[parentSession.sessionID] != null;
-			const displayTitle = isParent
-				? pc.bold(parentSession.sessionTitle)
-				: parentSession.sessionTitle;
+		function renderSessionRow(session: SessionData, indent: string): void {
+			const subSessions = (sessionsByParent as Record<string, SessionData[]>)[session.sessionID];
+			const hasChildren = subSessions != null && subSessions.length > 0;
+			const displayTitle = hasChildren ? pc.bold(session.sessionTitle) : session.sessionTitle;
 
 			table.push([
-				displayTitle,
-				formatModelsDisplayMultiline(parentSession.modelsUsed),
-				formatNumber(parentSession.inputTokens),
-				formatNumber(parentSession.outputTokens),
-				formatNumber(parentSession.cacheCreationTokens),
-				formatNumber(parentSession.cacheReadTokens),
-				formatNumber(parentSession.totalTokens),
-				formatCurrency(parentSession.totalCost),
+				`${indent}${displayTitle}`,
+				formatModelsDisplayMultiline(session.modelsUsed),
+				formatNumber(session.inputTokens),
+				formatNumber(session.outputTokens),
+				formatNumber(session.cacheCreationTokens),
+				formatNumber(session.cacheReadTokens),
+				formatNumber(session.totalTokens),
+				formatCurrency(session.totalCost),
 			]);
 
-			const subSessions = sessionsByParent[parentSession.sessionID];
-			if (subSessions != null && subSessions.length > 0) {
-				for (const subSession of subSessions) {
-					table.push([
-						`  ↳ ${subSession.sessionTitle}`,
-						formatModelsDisplayMultiline(subSession.modelsUsed),
-						formatNumber(subSession.inputTokens),
-						formatNumber(subSession.outputTokens),
-						formatNumber(subSession.cacheCreationTokens),
-						formatNumber(subSession.cacheReadTokens),
-						formatNumber(subSession.totalTokens),
-						formatCurrency(subSession.totalCost),
-					]);
+			if (hasChildren) {
+				let subtotalInputTokens = session.inputTokens;
+				let subtotalOutputTokens = session.outputTokens;
+				let subtotalCacheCreationTokens = session.cacheCreationTokens;
+				let subtotalCacheReadTokens = session.cacheReadTokens;
+				let subtotalTotalTokens = session.totalTokens;
+				let subtotalCost = session.totalCost;
+
+				for (const sub of subSessions) {
+					renderSessionRow(sub, `${indent}  ↓ `);
+					subtotalInputTokens += sub.inputTokens;
+					subtotalOutputTokens += sub.outputTokens;
+					subtotalCacheCreationTokens += sub.cacheCreationTokens;
+					subtotalCacheReadTokens += sub.cacheReadTokens;
+					subtotalTotalTokens += sub.totalTokens;
+					subtotalCost += sub.totalCost;
 				}
 
-				const subtotalInputTokens =
-					parentSession.inputTokens + subSessions.reduce((sum, s) => sum + s.inputTokens, 0);
-				const subtotalOutputTokens =
-					parentSession.outputTokens + subSessions.reduce((sum, s) => sum + s.outputTokens, 0);
-				const subtotalCacheCreationTokens =
-					parentSession.cacheCreationTokens +
-					subSessions.reduce((sum, s) => sum + s.cacheCreationTokens, 0);
-				const subtotalCacheReadTokens =
-					parentSession.cacheReadTokens +
-					subSessions.reduce((sum, s) => sum + s.cacheReadTokens, 0);
-				const subtotalTotalTokens =
-					parentSession.totalTokens + subSessions.reduce((sum, s) => sum + s.totalTokens, 0);
-				const subtotalCost =
-					parentSession.totalCost + subSessions.reduce((sum, s) => sum + s.totalCost, 0);
-
 				table.push([
-					pc.dim('  Total (with subagents)'),
+					`${indent}  ${pc.dim('Total (with subagents)')}`,
 					'',
 					pc.yellow(formatNumber(subtotalInputTokens)),
 					pc.yellow(formatNumber(subtotalOutputTokens)),
@@ -218,6 +179,23 @@ export const sessionCommand = define({
 					pc.yellow(formatNumber(subtotalTotalTokens)),
 					pc.yellow(formatCurrency(subtotalCost)),
 				]);
+			}
+		}
+
+		for (const parentSession of parentSessions) {
+			renderSessionRow(parentSession, '');
+		}
+
+		// Render any orphaned sessions that were never attached to a parent
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		const remainingKeys = Object.keys(sessionsByParent).filter((k) => k !== (ROOT_SENTINEL as any).toString());
+		for (const key of remainingKeys) {
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			const orphans = (sessionsByParent as any)[key];
+			if (orphans != null && orphans.length > 0) {
+				for (const orphan of orphans) {
+					renderSessionRow(orphan, '');
+				}
 			}
 		}
 

@@ -9,11 +9,15 @@ import {
 import { groupBy } from 'es-toolkit';
 import { define } from 'gunshi';
 import pc from 'picocolors';
-import { calculateCostForEntry } from '../cost-utils.ts';
+import { aggregateGroup, computeTotals, TABLE_COLUMN_COUNT } from '../aggregate-utils.ts';
 import { loadHermesSessions } from '../data-loader.ts';
 import { logger } from '../logger.ts';
 
-const TABLE_COLUMN_COUNT = 8;
+function formatMonthUTC(date: Date): string {
+	const year = date.getUTCFullYear();
+	const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+	return `${year}-${month}`;
+}
 
 export const monthlyCommand = define({
 	name: 'monthly',
@@ -45,10 +49,7 @@ export const monthlyCommand = define({
 
 		using fetcher = new LiteLLMPricingFetcher({ offline: false, logger });
 
-		const entriesByMonth = groupBy(
-			entries,
-			(entry) => `${entry.timestamp.getFullYear()}-${String(entry.timestamp.getMonth() + 1).padStart(2, '0')}`,
-		);
+		const entriesByMonth = groupBy(entries, (entry) => formatMonthUTC(entry.timestamp));
 
 		const monthlyData: Array<{
 			month: string;
@@ -62,46 +63,13 @@ export const monthlyCommand = define({
 		}> = [];
 
 		for (const [month, monthEntries] of Object.entries(entriesByMonth)) {
-			let inputTokens = 0;
-			let outputTokens = 0;
-			let cacheCreationTokens = 0;
-			let cacheReadTokens = 0;
-			let totalCost = 0;
-			const modelsSet = new Set<string>();
-
-			for (const entry of monthEntries) {
-				inputTokens += entry.usage.inputTokens;
-				outputTokens += entry.usage.outputTokens;
-				cacheCreationTokens += entry.usage.cacheCreationInputTokens;
-				cacheReadTokens += entry.usage.cacheReadInputTokens;
-				totalCost += await calculateCostForEntry(entry, fetcher);
-				modelsSet.add(entry.model);
-			}
-
-			const totalTokens = inputTokens + outputTokens + cacheCreationTokens + cacheReadTokens;
-
-			monthlyData.push({
-				month,
-				inputTokens,
-				outputTokens,
-				cacheCreationTokens,
-				cacheReadTokens,
-				totalTokens,
-				totalCost,
-				modelsUsed: Array.from(modelsSet),
-			});
+			const agg = await aggregateGroup(monthEntries, fetcher);
+			monthlyData.push({ month, ...agg });
 		}
 
 		monthlyData.sort((a, b) => a.month.localeCompare(b.month));
 
-		const totals = {
-			inputTokens: monthlyData.reduce((sum, d) => sum + d.inputTokens, 0),
-			outputTokens: monthlyData.reduce((sum, d) => sum + d.outputTokens, 0),
-			cacheCreationTokens: monthlyData.reduce((sum, d) => sum + d.cacheCreationTokens, 0),
-			cacheReadTokens: monthlyData.reduce((sum, d) => sum + d.cacheReadTokens, 0),
-			totalTokens: monthlyData.reduce((sum, d) => sum + d.totalTokens, 0),
-			totalCost: monthlyData.reduce((sum, d) => sum + d.totalCost, 0),
-		};
+		const totals = computeTotals(monthlyData);
 
 		if (jsonOutput) {
 			// eslint-disable-next-line no-console

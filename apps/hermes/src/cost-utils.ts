@@ -6,10 +6,7 @@ import { Result } from '@praha/byethrow';
  * Model aliases for Hermes-specific model names that don't exist in LiteLLM.
  * Maps Hermes model names to their LiteLLM equivalents for pricing lookup.
  */
-const MODEL_ALIASES: Record<string, string> = {
-	'kimi-k2.6': 'kimi-k2-6',
-	'glm-5.1': 'glm-4-plus',
-};
+const MODEL_ALIASES: Record<string, string> = {};
 
 function resolveModelName(modelName: string): string {
 	return MODEL_ALIASES[modelName] ?? modelName;
@@ -38,5 +35,6 @@ export async function calculateCostForEntry(
 		resolvedModel,
 	);
 
-	return Result.unwrap(result, 0);
+	if (Result.isFailure(result)) return 0;
+	return result.value;
 }

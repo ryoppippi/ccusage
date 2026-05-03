@@ -9,14 +9,12 @@ import {
 import { groupBy } from 'es-toolkit';
 import { define } from 'gunshi';
 import pc from 'picocolors';
-import { calculateCostForEntry } from '../cost-utils.ts';
+import { aggregateGroup, computeTotals, TABLE_COLUMN_COUNT } from '../aggregate-utils.ts';
 import { loadHermesSessions } from '../data-loader.ts';
 import { logger } from '../logger.ts';
 
-const TABLE_COLUMN_COUNT = 8;
-
 function getISOWeek(date: Date): string {
-	const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+	const d = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
 	const dayNum = d.getUTCDay() || 7;
 	d.setUTCDate(d.getUTCDate() + 4 - dayNum);
 	const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
@@ -68,46 +66,13 @@ export const weeklyCommand = define({
 		}> = [];
 
 		for (const [week, weekEntries] of Object.entries(entriesByWeek)) {
-			let inputTokens = 0;
-			let outputTokens = 0;
-			let cacheCreationTokens = 0;
-			let cacheReadTokens = 0;
-			let totalCost = 0;
-			const modelsSet = new Set<string>();
-
-			for (const entry of weekEntries) {
-				inputTokens += entry.usage.inputTokens;
-				outputTokens += entry.usage.outputTokens;
-				cacheCreationTokens += entry.usage.cacheCreationInputTokens;
-				cacheReadTokens += entry.usage.cacheReadInputTokens;
-				totalCost += await calculateCostForEntry(entry, fetcher);
-				modelsSet.add(entry.model);
-			}
-
-			const totalTokens = inputTokens + outputTokens + cacheCreationTokens + cacheReadTokens;
-
-			weeklyData.push({
-				week,
-				inputTokens,
-				outputTokens,
-				cacheCreationTokens,
-				cacheReadTokens,
-				totalTokens,
-				totalCost,
-				modelsUsed: Array.from(modelsSet),
-			});
+			const agg = await aggregateGroup(weekEntries, fetcher);
+			weeklyData.push({ week, ...agg });
 		}
 
 		weeklyData.sort((a, b) => a.week.localeCompare(b.week));
 
-		const totals = {
-			inputTokens: weeklyData.reduce((sum, d) => sum + d.inputTokens, 0),
-			outputTokens: weeklyData.reduce((sum, d) => sum + d.outputTokens, 0),
-			cacheCreationTokens: weeklyData.reduce((sum, d) => sum + d.cacheCreationTokens, 0),
-			cacheReadTokens: weeklyData.reduce((sum, d) => sum + d.cacheReadTokens, 0),
-			totalTokens: weeklyData.reduce((sum, d) => sum + d.totalTokens, 0),
-			totalCost: weeklyData.reduce((sum, d) => sum + d.totalCost, 0),
-		};
+		const totals = computeTotals(weeklyData);
 
 		if (jsonOutput) {
 			// eslint-disable-next-line no-console
