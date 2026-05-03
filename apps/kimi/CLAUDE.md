@@ -89,6 +89,7 @@ Since Kimi CLI does not provide pre-calculated costs in the log files, we use ha
 | kimi-k2.5              | $0.60     | $0.10      | $3.00      |
 | kimi-for-coding        | $0.60     | $0.10      | $3.00      |
 | kimi-code              | $0.60     | $0.10      | $3.00      |
+| kimi-k2.6              | $0.95     | $0.16      | $4.00      |
 | kimi-k2-0905-preview   | $0.60     | $0.15      | $2.50      |
 | kimi-k2-0711-preview   | $0.60     | $0.15      | $2.50      |
 | kimi-k2-turbo-preview  | $1.15     | $0.15      | $8.00      |
@@ -146,5 +147,5 @@ This format allows session reports to show both the directory and session file s
 
 1. **Reasoning tokens are estimated**: Kimi CLI reports reasoning content in `ContentPart` messages but not token counts. We estimate tokens using a ~4 chars/token heuristic, which may differ from actual tokenization.
 2. **No pre-calculated costs**: Unlike OpenCode, Kimi doesn't provide cost metadata, so we rely on hardcoded pricing.
-3. **Single model per session**: Model detection relies on config.toml, not per-message metadata.
+3. **Single model per session**: Model detection relies on config.toml, not per-message metadata. If Kimi CLI keeps a stable alias while the underlying model changes, users can set `KIMI_MODEL_NAME` to the effective model name for accurate pricing.
 4. **Weekly command**: Implemented for Kimi (unlike some other apps).

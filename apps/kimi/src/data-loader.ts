@@ -128,8 +128,10 @@ function toIsoTimestamp(seconds: number): string | null {
 		return null;
 	}
 	const date = new Date(ms);
-	const iso = date.toISOString();
-	return iso === 'Invalid Date' ? null : iso;
+	if (Number.isNaN(date.getTime())) {
+		return null;
+	}
+	return date.toISOString();
 }
 
 export type LoadOptions = {
@@ -513,6 +515,57 @@ if (import.meta.vitest != null) {
 			expect(event.timestamp).toBe('2025-01-01T00:00:00.500Z');
 		});
 
+		it('skips StatusUpdate entries with invalid timestamps', async () => {
+			await using fixture = await createFixture({
+				'.kimi': {
+					'config.toml': 'default_model = "kimi-code/kimi-for-coding"\n',
+					sessions: {
+						abc123: {
+							'session-invalid-date': {
+								'wire.jsonl': [
+									JSON.stringify({
+										timestamp: 1e20,
+										message: {
+											type: 'StatusUpdate',
+											payload: {
+												message_id: 'invalid-date',
+												token_usage: {
+													input_other: 10,
+													input_cache_read: 0,
+													input_cache_creation: 0,
+													output: 5,
+												},
+											},
+										},
+									}),
+									JSON.stringify({
+										timestamp: 1735689600,
+										message: {
+											type: 'StatusUpdate',
+											payload: {
+												message_id: 'valid-date',
+												token_usage: {
+													input_other: 1,
+													input_cache_read: 0,
+													input_cache_creation: 0,
+													output: 1,
+												},
+											},
+										},
+									}),
+								].join('\n'),
+							},
+						},
+					},
+				},
+			});
+
+			const { events } = await loadTokenUsageEvents({ shareDir: fixture.getPath('.kimi') });
+
+			expect(events).toHaveLength(1);
+			expect(events[0]!.totalTokens).toBe(2);
+		});
+
 		it('parses StatusUpdate token_usage from SubagentEvent wrappers', async () => {
 			await using fixture = await createFixture({
 				'.kimi': {
@@ -775,7 +828,7 @@ if (import.meta.vitest != null) {
 		});
 
 		it('extracts reasoning tokens from ContentPart think messages', async () => {
-			// ~40 chars = ~10 tokens at 4 chars per token
+			// 65 chars = 17 tokens at 4 chars per token.
 			const thinkContent = 'This is a test thinking process for the model to reason through.';
 			const expectedReasoningTokens = Math.ceil(thinkContent.length / 4);
 

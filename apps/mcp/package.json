@@ -54,7 +54,6 @@
 	},
 	"dependencies": {
 		"@ccusage/codex": "workspace:*",
-		"@ccusage/kimi": "workspace:*",
 		"@hono/mcp": "catalog:runtime",
 		"@hono/node-server": "catalog:runtime",
 		"@modelcontextprotocol/sdk": "catalog:runtime",
@@ -66,6 +65,7 @@
 	},
 	"devDependencies": {
 		"@ccusage/internal": "workspace:*",
+		"@ccusage/kimi": "workspace:*",
 		"@ryoppippi/eslint-config": "catalog:lint",
 		"@typescript/native-preview": "catalog:types",
 		"clean-pkg-json": "catalog:release",
