@@ -11,7 +11,7 @@ import { define } from 'gunshi';
 import pc from 'picocolors';
 import { DEFAULT_TIMEZONE } from '../_consts.ts';
 import { sharedArgs } from '../_shared-args.ts';
-import { formatModelsList, splitUsageTokens } from '../command-utils.ts';
+import { formatModelsList, formatTerminalOutput, splitUsageTokens } from '../command-utils.ts';
 import { loadTokenUsageEvents } from '../data-loader.ts';
 import { normalizeFilterDate } from '../date-utils.ts';
 import { log, logger } from '../logger.ts';
@@ -172,6 +172,6 @@ export const sessionCommand = define({
 			pc.yellow(formatCurrency(totalsForDisplay.costUSD)),
 		]);
 
-		log(table.toString());
+		log(formatTerminalOutput(table.toString(), ctx.values));
 	},
 });
