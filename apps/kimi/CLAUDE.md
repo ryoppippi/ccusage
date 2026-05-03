@@ -80,9 +80,21 @@ The `config.toml` format:
 default_model = "kimi-code/kimi-for-coding"
 ```
 
+`kimi-code/kimi-for-coding` is a stable latest-model alias rather than the underlying
+model slug. For this alias, events at or after the official Kimi K2.6 release
+announcement timestamp (`2026-04-20T15:28:10.072Z`) are treated as `kimi-k2.6`
+for pricing; older events are treated as `kimi-k2.5`.
+
 ## Cost Calculation
 
 Since Kimi CLI does not provide pre-calculated costs in the log files, we use hardcoded pricing for known models:
+
+The main `ccusage` package normally relies on LiteLLM pricing data for model
+costs. Kimi Code is different because its persisted model name,
+`kimi-code/kimi-for-coding`, is a dynamic latest-model alias instead of a stable
+billable model slug. LiteLLM cannot tell which historical `kimi-for-coding`
+events should use K2.5 versus K2.6 pricing, so this package uses Kimi's official
+pricing pages plus the K2.6 release cutoff described above.
 
 | Model                  | Input $/M | Cached $/M | Output $/M |
 | ---------------------- | --------- | ---------- | ---------- |
@@ -147,5 +159,5 @@ This format allows session reports to show both the directory and session file s
 
 1. **Reasoning tokens are estimated**: Kimi CLI reports reasoning content in `ContentPart` messages but not token counts. We estimate tokens using a ~4 chars/token heuristic, which may differ from actual tokenization.
 2. **No pre-calculated costs**: Unlike OpenCode, Kimi doesn't provide cost metadata, so we rely on hardcoded pricing.
-3. **Single model per session**: Model detection relies on config.toml, not per-message metadata. If Kimi CLI keeps a stable alias while the underlying model changes, users can set `KIMI_MODEL_NAME` to the effective model name for accurate pricing.
+3. **No per-message model slug**: Model detection relies on config.toml, not per-message metadata. For the Kimi Code latest-model alias, K2.6 pricing starts at the official release announcement timestamp. Users can still set `KIMI_MODEL_NAME` to an explicit model for custom histories.
 4. **Weekly command**: Implemented for Kimi (unlike some other apps).

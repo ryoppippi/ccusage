@@ -87,12 +87,12 @@ Kimi CLI's `wire.jsonl` format uses these token fields:
 | `input_cache_creation` | Input (non-cached) | Tokens used to create cache       |
 | `output`               | Output             | Completion tokens                 |
 
-Cost calculation uses hardcoded pricing for known Kimi models. If the model cannot be determined from `config.toml` or `KIMI_MODEL_NAME`, it falls back to "unknown" with zero pricing (usage still appears in reports).
+Cost calculation uses hardcoded pricing for known Kimi models. The main `ccusage` package normally relies on LiteLLM pricing data, but Kimi Code stores `kimi-code/kimi-for-coding` as a dynamic latest-model alias rather than a stable billable model slug. That means historical `kimi-for-coding` events need Kimi's official pricing/release information: alias events before Kimi K2.6's official release announcement (`2026-04-20T15:28:10.072Z`) are treated as K2.5, and events at or after that timestamp are treated as K2.6. If the model cannot be determined from `config.toml` or `KIMI_MODEL_NAME`, it falls back to "unknown" with zero pricing (usage still appears in reports).
 
 ## Features
 
 - 📊 Responsive terminal tables shared with the `ccusage` CLI
-- 💵 Hardcoded pricing for Kimi K2.5 and related models
+- 💵 Hardcoded pricing for Kimi K2.5, K2.6, and related models
 - 🤖 Per-model token and cost aggregation, including cached token accounting
 - 📅 Daily and monthly rollups with identical CLI options
 - 📄 JSON output for further processing or scripting
