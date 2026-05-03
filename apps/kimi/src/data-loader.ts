@@ -400,17 +400,9 @@ export async function loadTokenUsageEvents(options: LoadOptions = {}): Promise<L
 				const inputTokens = inputOther + cacheRead + cacheCreation;
 				const totalTokens = inputTokens + output;
 
-				if (inputTokens === 0 && output === 0) {
-					return;
-				}
-
-				const timestamp = toIsoTimestamp(update.timestamp);
-				if (timestamp == null) {
-					return;
-				}
-
 				const reasoningBuffer = getReasoningBuffer(sessionId, resolvedStreamId);
 
+				// Treat every StatusUpdate as a reasoning boundary, even if the event is skipped below.
 				// Calculate reasoning tokens from accumulated content since last StatusUpdate
 				let reasoningTokens = 0;
 				const newContentCount = reasoningBuffer.content.length - reasoningBuffer.lastFlushIndex;
@@ -422,6 +414,15 @@ export async function loadTokenUsageEvents(options: LoadOptions = {}): Promise<L
 
 					// Update buffer position (even for duplicates to keep tracking accurate)
 					reasoningBuffer.lastFlushIndex = reasoningBuffer.content.length;
+				}
+
+				if (inputTokens === 0 && output === 0) {
+					return;
+				}
+
+				const timestamp = toIsoTimestamp(update.timestamp);
+				if (timestamp == null) {
+					return;
 				}
 
 				// Skip duplicate events after capturing reasoning to avoid double-counting
@@ -687,6 +688,130 @@ if (import.meta.vitest != null) {
 
 			expect(events).toHaveLength(1);
 			expect(events[0]!.totalTokens).toBe(2);
+		});
+
+		it('consumes reasoning before skipping zero-token StatusUpdate entries', async () => {
+			await using fixture = await createFixture({
+				'.kimi': {
+					'config.toml': 'default_model = "kimi-code/kimi-for-coding"\n',
+					sessions: {
+						abc123: {
+							'session-zero-token-reasoning': {
+								'wire.jsonl': [
+									JSON.stringify({
+										timestamp: 1735689600,
+										message: {
+											type: 'ContentPart',
+											payload: {
+												type: 'think',
+												think: '12345678',
+											},
+										},
+									}),
+									JSON.stringify({
+										timestamp: 1735689601,
+										message: {
+											type: 'StatusUpdate',
+											payload: {
+												message_id: 'zero-token',
+												token_usage: {
+													input_other: 0,
+													input_cache_read: 0,
+													input_cache_creation: 0,
+													output: 0,
+												},
+											},
+										},
+									}),
+									JSON.stringify({
+										timestamp: 1735689602,
+										message: {
+											type: 'StatusUpdate',
+											payload: {
+												message_id: 'valid-after-zero',
+												token_usage: {
+													input_other: 1,
+													input_cache_read: 0,
+													input_cache_creation: 0,
+													output: 10,
+												},
+											},
+										},
+									}),
+								].join('\n'),
+							},
+						},
+					},
+				},
+			});
+
+			const { events } = await loadTokenUsageEvents({ shareDir: fixture.getPath('.kimi') });
+
+			expect(events).toHaveLength(1);
+			expect(events[0]!.reasoningOutputTokens).toBe(0);
+			expect(events[0]!.totalTokens).toBe(11);
+		});
+
+		it('consumes reasoning before skipping invalid-timestamp StatusUpdate entries', async () => {
+			await using fixture = await createFixture({
+				'.kimi': {
+					'config.toml': 'default_model = "kimi-code/kimi-for-coding"\n',
+					sessions: {
+						abc123: {
+							'session-invalid-date-reasoning': {
+								'wire.jsonl': [
+									JSON.stringify({
+										timestamp: 1735689600,
+										message: {
+											type: 'ContentPart',
+											payload: {
+												type: 'think',
+												think: '12345678',
+											},
+										},
+									}),
+									JSON.stringify({
+										timestamp: 1e20,
+										message: {
+											type: 'StatusUpdate',
+											payload: {
+												message_id: 'invalid-date',
+												token_usage: {
+													input_other: 1,
+													input_cache_read: 0,
+													input_cache_creation: 0,
+													output: 10,
+												},
+											},
+										},
+									}),
+									JSON.stringify({
+										timestamp: 1735689602,
+										message: {
+											type: 'StatusUpdate',
+											payload: {
+												message_id: 'valid-after-invalid-date',
+												token_usage: {
+													input_other: 1,
+													input_cache_read: 0,
+													input_cache_creation: 0,
+													output: 10,
+												},
+											},
+										},
+									}),
+								].join('\n'),
+							},
+						},
+					},
+				},
+			});
+
+			const { events } = await loadTokenUsageEvents({ shareDir: fixture.getPath('.kimi') });
+
+			expect(events).toHaveLength(1);
+			expect(events[0]!.reasoningOutputTokens).toBe(0);
+			expect(events[0]!.totalTokens).toBe(11);
 		});
 
 		it('parses StatusUpdate token_usage from SubagentEvent wrappers', async () => {
