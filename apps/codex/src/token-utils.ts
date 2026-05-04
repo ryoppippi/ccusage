@@ -2,8 +2,13 @@ import type { ModelPricing, TokenUsageDelta, TokenUsageEvent } from './_types.ts
 import { formatCurrency, formatTokens } from '@ccusage/internal/format';
 import { MILLION } from './_consts.ts';
 
+// Personal workaround: Codex logs do not expose a per-turn fast-mode signal.
+// This cutoff reflects local usage where fast mode was enabled for all turns from this date.
 export const CODEX_FAST_COST_MULTIPLIER_START = '2026-04-07T00:00:00.000Z';
 const CODEX_FAST_COST_MULTIPLIER = 2;
+const CODEX_FAST_COST_MULTIPLIERS_BY_MODEL = new Map([['gpt-5.5', 2.5]]);
+export const CODEX_COST_RULES_CACHE_KEY =
+	'codex-fast-cost-v2:start=2026-04-07T00:00:00.000Z;default=2;gpt-5.5=2.5';
 const CODEX_FAST_COST_MULTIPLIER_START_MS = Date.parse(CODEX_FAST_COST_MULTIPLIER_START);
 
 export function createEmptyUsage(): TokenUsageDelta {
@@ -56,17 +61,43 @@ export function calculateCostUSD(usage: TokenUsageDelta, pricing: ModelPricing):
 	return inputCost + cachedCost + outputCost;
 }
 
-export function getCostMultiplierForTimestamp(timestamp: string): number {
+function normalizeModelName(model: string | undefined): string | undefined {
+	const normalized = model?.trim().toLowerCase();
+	if (normalized == null || normalized === '') {
+		return undefined;
+	}
+
+	for (const prefix of ['openai/', 'azure/', 'openrouter/openai/']) {
+		if (normalized.startsWith(prefix)) {
+			return normalized.slice(prefix.length);
+		}
+	}
+
+	return normalized;
+}
+
+function getFastCostMultiplier(model: string | undefined): number {
+	const normalizedModel = normalizeModelName(model);
+	if (normalizedModel == null) {
+		return CODEX_FAST_COST_MULTIPLIER;
+	}
+
+	return CODEX_FAST_COST_MULTIPLIERS_BY_MODEL.get(normalizedModel) ?? CODEX_FAST_COST_MULTIPLIER;
+}
+
+export function getCostMultiplierForTimestamp(timestamp: string, model?: string): number {
 	const timestampMs = Date.parse(timestamp);
 	if (Number.isNaN(timestampMs)) {
 		return 1;
 	}
 
-	return timestampMs >= CODEX_FAST_COST_MULTIPLIER_START_MS ? CODEX_FAST_COST_MULTIPLIER : 1;
+	return timestampMs >= CODEX_FAST_COST_MULTIPLIER_START_MS ? getFastCostMultiplier(model) : 1;
 }
 
 export function calculateCostUSDForEvent(event: TokenUsageEvent, pricing: ModelPricing): number {
-	return calculateCostUSD(event, pricing) * getCostMultiplierForTimestamp(event.timestamp);
+	return (
+		calculateCostUSD(event, pricing) * getCostMultiplierForTimestamp(event.timestamp, event.model)
+	);
 }
 
 export { formatCurrency, formatTokens };
@@ -99,9 +130,20 @@ if (import.meta.vitest != null) {
 			);
 		});
 
-		it('doubles Codex costs from April 7 2026 onward', () => {
+		it('applies the default 2x Codex fast multiplier from April 7 2026 onward', () => {
 			expect(calculateCostUSDForEvent(event, pricing)).toBeCloseTo(
 				calculateCostUSD(event, pricing) * 2,
+			);
+		});
+
+		it('applies the gpt-5.5 2.5x Codex fast multiplier from April 7 2026 onward', () => {
+			const gpt55Event = {
+				...event,
+				model: 'gpt-5.5',
+			};
+
+			expect(calculateCostUSDForEvent(gpt55Event, pricing)).toBeCloseTo(
+				calculateCostUSD(gpt55Event, pricing) * 2.5,
 			);
 		});
 	});

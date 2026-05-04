@@ -22,7 +22,10 @@ import {
 import { loadTokenUsageEventsFromFiles as loadCodexTokenUsageEventsFromFiles } from '../../codex/src/data-loader.ts';
 import { logger as codexLogger } from '../../codex/src/logger.ts';
 import { CodexPricingSource } from '../../codex/src/pricing.ts';
-import { calculateCostUSDForEvent as calculateCodexCostUSDForEvent } from '../../codex/src/token-utils.ts';
+import {
+	calculateCostUSDForEvent as calculateCodexCostUSDForEvent,
+	CODEX_COST_RULES_CACHE_KEY,
+} from '../../codex/src/token-utils.ts';
 import { KIMI_CONFIG_FILE_NAME, KIMI_METADATA_FILE_NAME } from '../../kimi/src/_consts.ts';
 import {
 	createKimiTokenUsageLoadContext,
@@ -975,7 +978,10 @@ async function loadCodexSourceRows(options: CombinedDailyLoadOptions): Promise<S
 
 			return rows;
 		},
-		{ compactRows: compactSourceRows },
+		{
+			cacheDiscriminator: CODEX_COST_RULES_CACHE_KEY,
+			compactRows: compactSourceRows,
+		},
 	);
 }
 
