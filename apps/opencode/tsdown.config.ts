@@ -10,7 +10,7 @@ export default defineConfig({
   target: "node20",
   fixedExtension: false,
   nodeProtocol: true,
-  external: ["bun:sqlite"],
+  external: ["bun:sqlite", "better-sqlite3"],
   define: {
     "import.meta.vitest": "undefined",
   },
