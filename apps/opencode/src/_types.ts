@@ -1,24 +1,23 @@
 import * as v from 'valibot';
 
+/** Branded Valibot schema for model names, validated to be a non-empty string. */
 export const modelNameSchema = v.pipe(
 	v.string(),
 	v.minLength(1, 'Model name cannot be empty'),
 	v.brand('ModelName'),
 );
 
+/** Branded Valibot schema for session IDs, validated to be a non-empty string. */
 export const sessionIdSchema = v.pipe(
 	v.string(),
 	v.minLength(1, 'Session ID cannot be empty'),
 	v.brand('SessionId'),
 );
 
+/** Branded string type representing a validated model name. */
 export type ModelName = v.InferOutput<typeof modelNameSchema>;
+/** Branded string type representing a validated session ID. */
 export type SessionId = v.InferOutput<typeof sessionIdSchema>;
-
-/** Creates a branded ModelName from a raw string, throwing on invalid input. */
-export const createModelName = (value: string): ModelName => v.parse(modelNameSchema, value);
-/** Creates a branded SessionId from a raw string, throwing on invalid input. */
-export const createSessionId = (value: string): SessionId => v.parse(sessionIdSchema, value);
 
 /**
  * A usage entry loaded from OpenCode data sources (SQLite or JSON files).
@@ -88,4 +87,5 @@ export type SqliteAdapter = {
 	close: () => void;
 };
 
+/** Type representing the better-sqlite3 default export constructor, used for conditional adapter creation. */
 export type BetterSqlite3 = typeof import('better-sqlite3');

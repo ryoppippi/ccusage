@@ -39,6 +39,10 @@ import {
 import { modelNameSchema, sessionIdSchema } from './_types.ts';
 import { logger } from './logger.ts';
 
+/**
+ * Valibot schema for the OpenCode message token structure.
+ * All fields are optional; missing fields default to 0 during conversion.
+ */
 const openCodeTokensSchema = v.object({
 	input: v.optional(v.number()),
 	output: v.optional(v.number()),
@@ -51,6 +55,11 @@ const openCodeTokensSchema = v.object({
 	),
 });
 
+/**
+ * Valibot schema for the OpenCode message data structure.
+ * Validates id, sessionID, role, modelID, providerID, tokens, cost, and time fields.
+ * The role field is optional; messages without it are treated as assistant (legacy compat).
+ */
 const openCodeMessageSchema = v.object({
 	id: v.string(),
 	sessionID: v.optional(sessionIdSchema),
@@ -65,6 +74,11 @@ const openCodeMessageSchema = v.object({
 	role: v.optional(v.string()),
 });
 
+/**
+ * Valibot schema for the OpenCode session metadata structure.
+ * Validates id, parentID, title, projectID, and directory fields from
+ * both SQLite session rows and legacy JSON session files.
+ */
 const openCodeSessionSchema = v.object({
 	id: sessionIdSchema,
 	parentID: v.optional(v.nullable(sessionIdSchema)),
@@ -225,6 +239,13 @@ export function resetOpenCodePathCache(): void {
 	_clearOpenCodeDbCache();
 }
 
+/**
+ * Loads and validates an OpenCode message from a JSON file.
+ * Uses Result.try() for file reading and JSON parsing, then validates
+ * the parsed data against openCodeMessageSchema.
+ * @param filePath - Path to the message JSON file
+ * @returns Parsed message data, or null if reading, parsing, or validation fails
+ */
 async function loadOpenCodeMessage(
 	filePath: string,
 ): Promise<v.InferOutput<typeof openCodeMessageSchema> | null> {
@@ -264,6 +285,13 @@ async function loadOpenCodeMessage(
 	return schemaResult.output;
 }
 
+/**
+ * Converts a parsed OpenCode message into a LoadedUsageEntry for aggregation.
+ * Cost values of 0 are treated as unavailable (null) since OpenCode stores
+ * `cost: 0` as a placeholder for messages without pre-calculated pricing.
+ * @param message - Parsed and validated OpenCode message
+ * @returns LoadedUsageEntry with timestamp, token counts, and cost data
+ */
 function convertOpenCodeMessageToUsageEntry(
 	message: v.InferOutput<typeof openCodeMessageSchema>,
 ): LoadedUsageEntry {
@@ -283,6 +311,13 @@ function convertOpenCodeMessageToUsageEntry(
 	};
 }
 
+/**
+ * Loads and validates an OpenCode session metadata from a JSON file.
+ * Uses Result.try() for file reading and JSON parsing, then validates
+ * the parsed data against openCodeSessionSchema.
+ * @param filePath - Path to the session JSON file
+ * @returns Parsed session data, or null if reading, parsing, or validation fails
+ */
 async function loadOpenCodeSession(
 	filePath: string,
 ): Promise<v.InferOutput<typeof openCodeSessionSchema> | null> {
@@ -377,7 +412,7 @@ function getOpenCodeDbPath(): string | null {
 					openCodePath,
 				});
 			} else {
-				return defaultDbPath;
+				return resolvedPath;
 			}
 		}
 	}
@@ -416,7 +451,7 @@ function getOpenCodeDbPath(): string | null {
 			});
 			return null;
 		}
-		return fullPath;
+		return resolvedPath;
 	}
 	return null;
 }
@@ -464,13 +499,18 @@ function loadFromDb(dbPath: string, adapter?: SqliteAdapter): DbResult | null {
 				});
 				continue;
 			}
-			let parsedData: unknown;
-			try {
-				parsedData = JSON.parse(row.data);
-			} catch (error) {
-				logger.debug('Failed to parse message data JSON', { id: row.id, error: String(error) });
+			const parseResult = Result.try({
+				try: () => JSON.parse(row.data) as unknown,
+				catch: (error) => error,
+			})();
+			if (Result.isFailure(parseResult)) {
+				logger.debug('Failed to parse message data JSON', {
+					id: row.id,
+					error: String(parseResult.error),
+				});
 				continue;
 			}
+			const parsedData = parseResult.value;
 
 			const merged =
 				typeof parsedData === 'object' && parsedData !== null
@@ -559,6 +599,11 @@ function loadFromDb(dbPath: string, adapter?: SqliteAdapter): DbResult | null {
 // null = not yet loaded, { dbPath, result } = loaded data (invalidated by resetOpenCodePathCache())
 let _cachedDbResult: { dbPath: string; result: DbResult } | null = null;
 
+/**
+ * Returns cached DB results for the given path, or loads and caches them on first call.
+ * Does not cache null (failure) results — next call will retry loading.
+ * Invalidated by _clearOpenCodeDbCache() and resetOpenCodePathCache().
+ */
 function _getOpenCodeDataFromDb(dbPath: string): DbResult | null {
 	if (_cachedDbResult != null && _cachedDbResult.dbPath === dbPath) {
 		return _cachedDbResult.result;
@@ -571,6 +616,10 @@ function _getOpenCodeDataFromDb(dbPath: string): DbResult | null {
 	return result;
 }
 
+/**
+ * Clears the cached DB results so the next load will re-read from disk.
+ * Called automatically by resetOpenCodePathCache().
+ */
 function _clearOpenCodeDbCache(): void {
 	_cachedDbResult = null;
 }
@@ -679,7 +728,7 @@ export async function loadOpenCodeMessages(): Promise<LoadedUsageEntry[]> {
 			continue;
 		}
 
-		if (message.role !== 'assistant') {
+		if (message.role != null && message.role !== 'assistant') {
 			continue;
 		}
 
@@ -924,7 +973,7 @@ if (import.meta.vitest != null) {
 			expect(entries[0]?.sessionID).toBe('ses_001');
 		});
 
-		it('should skip legacy JSON messages without explicit assistant role', async () => {
+		it('should include legacy JSON messages without explicit role (treated as assistant)', async () => {
 			await using fixture = await createFixture({});
 			const messagesDir = path.join(
 				fixture.getPath(),
@@ -961,8 +1010,7 @@ if (import.meta.vitest != null) {
 				fixture.getPath(),
 				loadOpenCodeMessages,
 			);
-			expect(entries).toHaveLength(1);
-			expect(entries[0]?.sessionID).toBe('ses_001');
+			expect(entries).toHaveLength(2);
 		});
 
 		it('should return empty when database fails to open', async () => {
