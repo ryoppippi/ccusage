@@ -57,7 +57,6 @@ export const codexParametersShape = {
 	since: z.string().optional(),
 	until: z.string().optional(),
 	timezone: z.string().optional(),
-	locale: z.string().optional(),
 	offline: z.boolean().optional(),
 } as const satisfies Record<string, z.ZodTypeAny>;
 
@@ -93,10 +92,6 @@ async function runCodexCliJson(
 	const timezone = parameters.timezone;
 	if (timezone != null && timezone !== '') {
 		cliArgs.push('--timezone', timezone);
-	}
-	const locale = parameters.locale;
-	if (locale != null && locale !== '') {
-		cliArgs.push('--locale', locale);
 	}
 	if (parameters.offline === true) {
 		cliArgs.push('--offline');

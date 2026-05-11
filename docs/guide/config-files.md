@@ -23,7 +23,6 @@ Put frequently used options in `defaults`:
 	"$schema": "https://ccusage.com/config-schema.json",
 	"defaults": {
 		"timezone": "UTC",
-		"locale": "en-CA",
 		"breakdown": true
 	}
 }
@@ -104,7 +103,6 @@ Create a `ccusage.json` file with your preferred defaults:
 		"mode": "auto",
 		"offline": false,
 		"timezone": "Asia/Tokyo",
-		"locale": "ja-JP",
 		"breakdown": true
 	}
 }
@@ -148,7 +146,6 @@ The `defaults` section sets default values for all commands:
 		"breakdown": false,
 		"offline": false,
 		"timezone": "UTC",
-		"locale": "en-CA",
 		"jq": ".data[]"
 	}
 }
@@ -217,8 +214,7 @@ Override defaults for specific commands using the `commands` section:
 	"commands": {
 		"monthly": {
 			"breakdown": true,
-			"mode": "calculate",
-			"locale": "en-US"
+			"mode": "calculate"
 		}
 	}
 }

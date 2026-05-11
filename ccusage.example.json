@@ -4,7 +4,6 @@
 		"json": true,
 		"mode": "auto",
 		"timezone": "Asia/Tokyo",
-		"locale": "ja-JP",
 		"offline": false,
 		"breakdown": false
 	},
