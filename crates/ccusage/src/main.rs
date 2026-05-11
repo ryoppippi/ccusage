@@ -683,9 +683,6 @@ fn read_usage_file_with(
             if line.trim().is_empty() {
                 return None;
             }
-            if !line.contains("\"input_tokens\"") {
-                return None;
-            }
             let value = serde_json::from_str::<Value>(&line).ok()?;
             if !is_ts_usage_value(&value) {
                 return None;
@@ -985,9 +982,6 @@ fn earliest_timestamp(path: &Path) -> Option<DateTime<Utc>> {
         .lines()
         .map_while(Result::ok)
         .filter_map(|line| {
-            if let Some(timestamp) = timestamp_from_line(&line) {
-                return Some(timestamp);
-            }
             let value = serde_json::from_str::<Value>(&line).ok()?;
             let timestamp = value.get("timestamp")?.as_str()?;
             DateTime::parse_from_rfc3339(timestamp)
@@ -995,14 +989,6 @@ fn earliest_timestamp(path: &Path) -> Option<DateTime<Utc>> {
                 .and_then(|value| DateTime::from_timestamp_millis(value.timestamp_millis()))
         })
         .min()
-}
-
-fn timestamp_from_line(line: &str) -> Option<DateTime<Utc>> {
-    let start = line.find("\"timestamp\":\"")? + "\"timestamp\":\"".len();
-    let end = line[start..].find('"')? + start;
-    DateTime::parse_from_rfc3339(&line[start..end])
-        .ok()
-        .and_then(|value| DateTime::from_timestamp_millis(value.timestamp_millis()))
 }
 
 fn extract_project(path: &Path) -> String {
@@ -2019,15 +2005,5 @@ mod tests {
             week_start("2024-01-03", WeekDay::Monday).unwrap(),
             "2024-01-01"
         );
-    }
-
-    #[test]
-    fn extracts_compact_jsonl_timestamp() {
-        let timestamp =
-            timestamp_from_line(r#"{"timestamp":"2026-05-11T12:34:56.789Z","message":{}}"#)
-                .unwrap();
-
-        assert_eq!(timestamp.to_rfc3339(), "2026-05-11T12:34:56.789+00:00");
-        assert!(timestamp_from_line(r#"{"timestamp": "2026-05-11T12:34:56.789Z"}"#).is_none());
     }
 }
