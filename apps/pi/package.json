@@ -1,7 +1,7 @@
 {
 	"name": "@ccusage/pi",
 	"type": "module",
-	"version": "18.0.10",
+	"version": "18.0.11",
 	"description": "Pi-agent usage tracking - unified Claude Max usage across Claude Code and pi-agent",
 	"author": "ryoppippi",
 	"contributors": [
@@ -42,7 +42,7 @@
 		}
 	},
 	"engines": {
-		"node": ">=20.19.4"
+		"node": ">=22.11.0"
 	},
 	"scripts": {
 		"build": "tsdown",

@@ -13,6 +13,10 @@
     <a href="https://github.com/hesreallyhim/awesome-claude-code"><img src="https://awesome.re/mentioned-badge.svg" alt="Mentioned in Awesome Claude Code" /></a>
 </p>
 
+<p align="center">
+    <a href="https://trendshift.io/repositories/18533" target="_blank"><img src="https://trendshift.io/api/badge/repositories/18533" alt="ryoppippi%2Fccusage | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
+</p>
+
 <div align="center">
     <img src="https://cdn.jsdelivr.net/gh/ryoppippi/ccusage@main/docs/public/screenshot.png">
 </div>
@@ -92,7 +96,6 @@ npx ccusage daily --since 20250525 --until 20250530
 npx ccusage daily --json  # JSON output
 npx ccusage daily --breakdown  # Per-model cost breakdown
 npx ccusage daily --timezone UTC  # Use UTC timezone
-npx ccusage daily --locale ja-JP  # Use Japanese locale for date/time formatting
 
 # Project analysis
 npx ccusage daily --instances  # Group by project/instance
@@ -126,7 +129,6 @@ npx ccusage monthly --compact  # Compact monthly report
 - 🔌 **MCP Integration**: Built-in Model Context Protocol server for integration with other tools
 - 🏗️ **Multi-Instance Support**: Group usage by project with `--instances` flag and filter by specific projects
 - 🌍 **Timezone Support**: Configure timezone for date grouping with `--timezone` option
-- 🌐 **Locale Support**: Customize date/time formatting with `--locale` option (e.g., en-US, ja-JP, de-DE)
 - ⚙️ **Configuration Files**: Set defaults with JSON configuration files, complete with IDE autocomplete and validation
 - 🚀 **Ultra-Small Bundle**: Unlike other CLI tools, we pay extreme attention to bundle size - incredibly small even without minification!
 

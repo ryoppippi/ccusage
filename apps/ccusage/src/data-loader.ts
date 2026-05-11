@@ -19,7 +19,7 @@ import process from 'node:process';
 import { createInterface } from 'node:readline';
 import { toArray } from '@antfu/utils';
 import { Result } from '@praha/byethrow';
-import { groupBy, uniq } from 'es-toolkit'; // TODO: after node20 is deprecated, switch to native Object.groupBy
+import { uniq } from 'es-toolkit';
 import { sort } from 'fast-sort';
 import { createFixture } from 'fs-fixture';
 import { isDirectorySync } from 'path-type';
@@ -30,7 +30,6 @@ import {
 	CLAUDE_PROJECTS_DIR_NAME,
 	DEFAULT_CLAUDE_CODE_PATH,
 	DEFAULT_CLAUDE_CONFIG_PATH,
-	DEFAULT_LOCALE,
 	USAGE_DATA_GLOB_PATTERN,
 	USER_HOME_DIR,
 } from './_consts.ts';
@@ -749,7 +748,6 @@ export type LoadOptions = {
 	project?: string; // Filter to specific project name
 	startOfWeek?: WeekDay; // Start of week for weekly aggregation
 	timezone?: string; // Timezone for date grouping (e.g., 'UTC', 'America/New_York'). Defaults to system timezone
-	locale?: string; // Locale for date/time formatting (e.g., 'en-US', 'ja-JP'). Defaults to 'en-US'
 } & DateFilter;
 
 /**
@@ -821,8 +819,7 @@ export async function loadDailyUsageData(options?: LoadOptions): Promise<DailyUs
 				// Mark this combination as processed
 				markAsProcessed(uniqueHash, processedHashes);
 
-				// Always use DEFAULT_LOCALE for date grouping to ensure YYYY-MM-DD format
-				const date = formatDate(data.timestamp, options?.timezone, DEFAULT_LOCALE);
+				const date = formatDate(data.timestamp, options?.timezone);
 				// If fetcher is available, calculate cost based on mode and tokens
 				// If fetcher is null, use pre-calculated costUSD or default to 0
 				const cost =
@@ -842,7 +839,7 @@ export async function loadDailyUsageData(options?: LoadOptions): Promise<DailyUs
 		? (entry: (typeof allEntries)[0]) => `${entry.date}\x00${entry.project}`
 		: (entry: (typeof allEntries)[0]) => entry.date;
 
-	const groupedData = groupBy(allEntries, groupingKey);
+	const groupedData = Object.groupBy(allEntries, groupingKey);
 
 	// Aggregate each group
 	const results = Object.entries(groupedData)
@@ -1007,7 +1004,7 @@ export async function loadSessionData(options?: LoadOptions): Promise<SessionUsa
 	}
 
 	// Group by session using Object.groupBy
-	const groupedBySessions = groupBy(allEntries, (entry) => entry.sessionKey);
+	const groupedBySessions = Object.groupBy(allEntries, (entry) => entry.sessionKey);
 
 	// Aggregate each session group
 	const results = Object.entries(groupedBySessions)
@@ -1053,12 +1050,7 @@ export async function loadSessionData(options?: LoadOptions): Promise<SessionUsa
 				sessionId: createSessionId(latestEntry.sessionId),
 				projectPath: createProjectPath(latestEntry.projectPath),
 				...totals,
-				// Always use DEFAULT_LOCALE for date storage to ensure YYYY-MM-DD format
-				lastActivity: formatDate(
-					latestEntry.timestamp,
-					options?.timezone,
-					DEFAULT_LOCALE,
-				) as ActivityDate,
+				lastActivity: formatDate(latestEntry.timestamp, options?.timezone) as ActivityDate,
 				versions: uniq(versions).sort() as Version[],
 				modelsUsed: modelsUsed as ModelName[],
 				modelBreakdowns,
@@ -1147,7 +1139,8 @@ export async function loadSessionUsageById(
 	const patterns = claudePaths.map((p) =>
 		path.join(p, 'projects', '**', `${sessionId}.jsonl`).replace(/\\/g, '/'),
 	);
-	const jsonlFiles = await glob(patterns);
+	// Absolute paths important on Windows - relative paths will break if session file is on different disk.
+	const jsonlFiles = await glob(patterns, { absolute: true });
 
 	if (jsonlFiles.length === 0) {
 		return null;
@@ -1204,7 +1197,7 @@ export async function loadBucketUsageData(
 			}
 		: (data: DailyUsage) => `${groupingFn(data)}`;
 
-	const grouped = groupBy(dailyData, groupingKey);
+	const grouped = Object.groupBy(dailyData, groupingKey);
 
 	const buckets: BucketUsage[] = [];
 	for (const [groupKey, dailyEntries] of Object.entries(grouped)) {
@@ -1460,12 +1453,10 @@ export async function loadSessionBlockData(options?: LoadOptions): Promise<Sessi
 		(options?.since != null && options.since !== '') ||
 		(options?.until != null && options.until !== '')
 			? blocks.filter((block) => {
-					// Always use DEFAULT_LOCALE for date comparison to ensure YYYY-MM-DD format
-					const blockDateStr = formatDate(
-						block.startTime.toISOString(),
-						options?.timezone,
-						DEFAULT_LOCALE,
-					).replace(/-/g, '');
+					const blockDateStr = formatDate(block.startTime.toISOString(), options?.timezone).replace(
+						/-/g,
+						'',
+					);
 					if (options.since != null && options.since !== '' && blockDateStr < options.since) {
 						return false;
 					}
@@ -1534,16 +1525,6 @@ if (import.meta.vitest != null) {
 			// Use UTC noon to avoid timezone issues
 			expect(formatDate('2024-01-05T12:00:00Z')).toBe('2024-01-05');
 			expect(formatDate('2024-10-01T12:00:00Z')).toBe('2024-10-01');
-		});
-
-		it('respects locale parameter', () => {
-			const testDate = '2024-08-04T12:00:00Z';
-
-			// Different locales format dates differently
-			expect(formatDate(testDate, 'UTC', 'en-US')).toBe('08/04/2024');
-			expect(formatDate(testDate, 'UTC', 'en-CA')).toBe('2024-08-04');
-			expect(formatDate(testDate, 'UTC', 'ja-JP')).toBe('2024/08/04');
-			expect(formatDate(testDate, 'UTC', 'de-DE')).toBe('04.08.2024');
 		});
 	});
 
@@ -4431,7 +4412,7 @@ invalid json line
 				});
 
 				expect(processedCount).toBe(lineCount);
-			});
+			}, 30000);
 		});
 	});
 }

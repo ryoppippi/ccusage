@@ -178,7 +178,8 @@ export default defineConfig({
 
 	markdown: {
 		config(md) {
-			md.use(groupIconMdPlugin);
+			// eslint-disable-next-line ts/no-unsafe-argument -- markdown-it type mismatch between vitepress and plugin
+			md.use(groupIconMdPlugin as any);
 		},
 	},
 });

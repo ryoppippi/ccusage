@@ -10,7 +10,6 @@ import {
 import { Result } from '@praha/byethrow';
 import { define } from 'gunshi';
 import { loadConfig, mergeConfigWithArgs } from '../_config-loader-tokens.ts';
-import { DEFAULT_LOCALE } from '../_consts.ts';
 import { formatDateCompact } from '../_date-utils.ts';
 import { processWithJq } from '../_jq-processor.ts';
 import { sharedCommandConfig } from '../_shared-args.ts';
@@ -57,7 +56,6 @@ export const sessionCommand = define({
 						offline: mergedOptions.offline,
 						jq: mergedOptions.jq,
 						timezone: mergedOptions.timezone,
-						locale: mergedOptions.locale ?? DEFAULT_LOCALE,
 					},
 				},
 				useJson,
@@ -71,7 +69,6 @@ export const sessionCommand = define({
 			mode: ctx.values.mode,
 			offline: ctx.values.offline,
 			timezone: ctx.values.timezone,
-			locale: ctx.values.locale,
 		});
 
 		if (sessionData.length === 0) {
@@ -130,8 +127,7 @@ export const sessionCommand = define({
 			const tableConfig: UsageReportConfig = {
 				firstColumnName: 'Session',
 				includeLastActivity: true,
-				dateFormatter: (dateStr: string) =>
-					formatDateCompact(dateStr, ctx.values.timezone, ctx.values.locale),
+				dateFormatter: (dateStr: string) => formatDateCompact(dateStr, ctx.values.timezone),
 				forceCompact: ctx.values.compact,
 			};
 			const table = createUsageReportTable(tableConfig);

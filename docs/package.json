@@ -1,11 +1,11 @@
 {
 	"name": "@ccusage/docs",
 	"type": "module",
-	"version": "18.0.10",
+	"version": "18.0.11",
 	"private": true,
 	"description": "Documentation for ccusage",
 	"engines": {
-		"node": ">=20.19.4"
+		"node": ">=22.11.0"
 	},
 	"scripts": {
 		"build": "pnpm run docs:api && cp ../apps/ccusage/config-schema.json public/config-schema.json && vitepress build",

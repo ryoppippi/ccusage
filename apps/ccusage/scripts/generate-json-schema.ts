@@ -170,7 +170,6 @@ function createConfigSchemaJson() {
 					json: false,
 					mode: 'auto',
 					timezone: 'Asia/Tokyo',
-					locale: 'ja-JP',
 				},
 				commands: {
 					daily: {

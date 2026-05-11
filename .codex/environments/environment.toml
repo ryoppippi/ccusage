@@ -1,0 +1,9 @@
+version = 1
+name = "ccusage"
+
+[setup]
+script = """ 
+if command -v direnv >/dev/null 2>&1 && [ -f .envrc ]; then
+  direnv allow
+fi
+"""

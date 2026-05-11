@@ -59,7 +59,6 @@ export const dailyCommand = define({
 			const rows = await buildDailyReport(events, {
 				pricingSource,
 				timezone: ctx.values.timezone,
-				locale: ctx.values.locale,
 				since,
 				until,
 			});

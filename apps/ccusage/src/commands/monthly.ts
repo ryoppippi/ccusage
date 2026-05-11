@@ -10,7 +10,6 @@ import {
 import { Result } from '@praha/byethrow';
 import { define } from 'gunshi';
 import { loadConfig, mergeConfigWithArgs } from '../_config-loader-tokens.ts';
-import { DEFAULT_LOCALE } from '../_consts.ts';
 import { formatDateCompact } from '../_date-utils.ts';
 import { processWithJq } from '../_jq-processor.ts';
 import { sharedCommandConfig } from '../_shared-args.ts';
@@ -100,12 +99,7 @@ export const monthlyCommand = define({
 			// Create table with compact mode support
 			const tableConfig: UsageReportConfig = {
 				firstColumnName: 'Month',
-				dateFormatter: (dateStr: string) =>
-					formatDateCompact(
-						dateStr,
-						mergedOptions.timezone,
-						mergedOptions.locale ?? DEFAULT_LOCALE,
-					),
+				dateFormatter: (dateStr: string) => formatDateCompact(dateStr, mergedOptions.timezone),
 				forceCompact: ctx.values.compact,
 			};
 			const table = createUsageReportTable(tableConfig);

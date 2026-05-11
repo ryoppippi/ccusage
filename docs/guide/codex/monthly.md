@@ -18,7 +18,6 @@ npx @ccusage/codex@latest monthly
 | ---------------------------- | --------------------------------------------------------------------------- |
 | `--since` / `--until`        | Filter to a specific date range (YYYYMMDD or YYYY-MM-DD) before aggregating |
 | `--timezone`                 | Override the timezone used to bucket usage into months                      |
-| `--locale`                   | Adjust month label formatting                                               |
 | `--json`                     | Emit structured JSON instead of a table                                     |
 | `--offline` / `--no-offline` | Force cached LiteLLM pricing or enable live fetching                        |
 | `--compact`                  | Force compact table layout (same columns as a narrow terminal)              |
