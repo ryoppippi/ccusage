@@ -50,6 +50,7 @@
 		"node": ">=20.19.4"
 	},
 	"scripts": {
+		"bench": "node scripts/bench.mjs",
 		"build": "pnpm run generate:schema && tsdown",
 		"format": "pnpm run lint --fix",
 		"generate:schema": "bun scripts/generate-json-schema.ts",
@@ -87,6 +88,7 @@
 		"fs-fixture": "catalog:testing",
 		"get-stdin": "catalog:runtime",
 		"gunshi": "catalog:runtime",
+		"mitata": "catalog:testing",
 		"nano-spawn": "catalog:runtime",
 		"p-limit": "catalog:runtime",
 		"path-type": "catalog:runtime",
