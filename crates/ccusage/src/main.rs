@@ -642,24 +642,47 @@ fn load_entries(shared: &SharedArgs, project_filter: Option<&str>) -> Result<Vec
         .collect::<Vec<_>>();
     entries.sort_by_key(|entry| (entry.file_index, entry.line_number));
 
-    let mut seen = HashSet::new();
-    let mut deduped = Vec::with_capacity(entries.len());
+    let mut deduped_indexes: HashMap<String, usize> = HashMap::new();
+    let mut deduped: Vec<LoadedEntry> = Vec::with_capacity(entries.len());
     for entry in entries {
-        if let (Some(message_id), Some(request_id)) =
-            (&entry.data.message.id, &entry.data.request_id)
-        {
-            if !seen.insert(format!("{message_id}:{request_id}")) {
-                continue;
-            }
-        }
         if let Some(filter) = project_filter {
             if entry.project != filter {
                 continue;
             }
         }
+        if let (Some(message_id), Some(request_id)) =
+            (&entry.data.message.id, &entry.data.request_id)
+        {
+            let key = format!("{message_id}:{request_id}");
+            if let Some(index) = deduped_indexes.get(&key).copied() {
+                if should_replace_deduped_entry(&entry.data, &deduped[index].data) {
+                    deduped[index] = entry;
+                }
+                continue;
+            }
+            deduped_indexes.insert(key, deduped.len());
+        }
         deduped.push(entry);
     }
     Ok(deduped)
+}
+
+fn usage_token_total(data: &UsageEntry) -> u64 {
+    let usage = data.message.usage;
+    usage.input_tokens
+        + usage.output_tokens
+        + usage.cache_creation_input_tokens
+        + usage.cache_read_input_tokens
+}
+
+fn should_replace_deduped_entry(candidate: &UsageEntry, existing: &UsageEntry) -> bool {
+    let candidate_total = usage_token_total(candidate);
+    let existing_total = usage_token_total(existing);
+    if candidate_total != existing_total {
+        return candidate_total > existing_total;
+    }
+
+    candidate.message.usage.speed.is_some() && existing.message.usage.speed.is_none()
 }
 
 fn read_usage_file_with(
@@ -1999,6 +2022,16 @@ fn format_currency(value: f64) -> String {
 mod tests {
     use super::*;
 
+    fn temp_claude_dir(name: &str) -> PathBuf {
+        let mut path = env::temp_dir();
+        let nanos = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        path.push(format!("ccusage-{name}-{nanos}"));
+        path
+    }
+
     #[test]
     fn formats_numbers_with_commas() {
         assert_eq!(format_number(1_234_567), "1,234,567");
@@ -2029,5 +2062,40 @@ mod tests {
 
         assert_eq!(timestamp.to_rfc3339(), "2026-05-11T12:34:56.789+00:00");
         assert!(timestamp_from_line(r#"{"timestamp": "2026-05-11T12:34:56.789Z"}"#).is_none());
+    }
+
+    #[test]
+    fn keeps_most_complete_duplicate_usage_entry() {
+        let claude_dir = temp_claude_dir("dedupe");
+        let session_dir = claude_dir.join("projects/project1/session1");
+        fs::create_dir_all(&session_dir).unwrap();
+        fs::write(
+            session_dir.join("chat.jsonl"),
+            [
+                r#"{"timestamp":"2025-01-10T10:00:00.000Z","message":{"id":"msg_123","model":"claude-opus-4-6","usage":{"input_tokens":100,"output_tokens":25,"cache_creation_input_tokens":10,"cache_read_input_tokens":5}},"requestId":"req_456","costUSD":0.001}"#,
+                r#"{"timestamp":"2025-01-10T10:00:01.000Z","message":{"id":"msg_123","model":"claude-opus-4-6","usage":{"input_tokens":100,"output_tokens":250,"cache_creation_input_tokens":10,"cache_read_input_tokens":5,"speed":"standard"}},"requestId":"req_456","costUSD":0.01}"#,
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+
+        let previous = env::var("CLAUDE_CONFIG_DIR").ok();
+        env::set_var("CLAUDE_CONFIG_DIR", &claude_dir);
+        let shared = SharedArgs {
+            mode: CostMode::Display,
+            ..SharedArgs::default()
+        };
+        let entries = load_entries(&shared, None).unwrap();
+        if let Some(previous) = previous {
+            env::set_var("CLAUDE_CONFIG_DIR", previous);
+        } else {
+            env::remove_var("CLAUDE_CONFIG_DIR");
+        }
+        fs::remove_dir_all(&claude_dir).unwrap();
+
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].data.message.usage.input_tokens, 100);
+        assert_eq!(entries[0].data.message.usage.output_tokens, 250);
+        assert_eq!(entries[0].cost, 0.01);
     }
 }
