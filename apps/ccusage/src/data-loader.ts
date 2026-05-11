@@ -514,6 +514,34 @@ function markAsProcessed(uniqueHash: string | null, processedHashes: Set<string>
 	}
 }
 
+function getDedupedEntryIndex<T extends { data: UsageData }>(
+	uniqueHash: string | null,
+	processedEntries: Map<string, number>,
+	entries: T[],
+	data: UsageData,
+): number | null {
+	if (uniqueHash == null) {
+		return null;
+	}
+
+	const existingIndex = processedEntries.get(uniqueHash);
+	if (existingIndex == null) {
+		return null;
+	}
+
+	return data.timestamp < entries[existingIndex]!.data.timestamp ? existingIndex : -1;
+}
+
+function markDedupedEntry(
+	uniqueHash: string | null,
+	processedEntries: Map<string, number>,
+	entryIndex: number,
+): void {
+	if (uniqueHash != null) {
+		processedEntries.set(uniqueHash, entryIndex);
+	}
+}
+
 /**
  * Extracts unique models from entries, excluding synthetic model
  */
@@ -776,17 +804,11 @@ export async function loadDailyUsageData(options?: LoadOptions): Promise<DailyUs
 		options?.project,
 	);
 
-	// Sort files by timestamp to ensure chronological processing
-	const sortedFiles = await sortFilesByTimestamp(projectFilteredFiles);
-
 	// Fetch pricing data for cost calculation only when needed
 	const mode = options?.mode ?? 'auto';
 
 	// Use PricingFetcher with using statement for automatic cleanup
 	using fetcher = mode === 'display' ? null : new PricingFetcher(options?.offline);
-
-	// Track processed message+request combinations for deduplication
-	const processedHashes = new Set<string>();
 
 	// Collect all valid data entries first
 	const allEntries: {
@@ -796,8 +818,9 @@ export async function loadDailyUsageData(options?: LoadOptions): Promise<DailyUs
 		model: string | undefined;
 		project: string;
 	}[] = [];
+	const processedEntries = new Map<string, number>();
 
-	for (const file of sortedFiles) {
+	for (const file of projectFilteredFiles) {
 		// Extract project name from file path once per file
 		const project = extractProjectFromPath(file);
 
@@ -812,13 +835,15 @@ export async function loadDailyUsageData(options?: LoadOptions): Promise<DailyUs
 
 				// Check for duplicate message + request ID combination
 				const uniqueHash = createUniqueHash(data);
-				if (isDuplicateEntry(uniqueHash, processedHashes)) {
-					// Skip duplicate message
+				const existingEntryIndex = getDedupedEntryIndex(
+					uniqueHash,
+					processedEntries,
+					allEntries,
+					data,
+				);
+				if (existingEntryIndex === -1) {
 					return;
 				}
-
-				// Mark this combination as processed
-				markAsProcessed(uniqueHash, processedHashes);
 
 				// Always use DEFAULT_LOCALE for date grouping to ensure YYYY-MM-DD format
 				const date = formatDate(data.timestamp, options?.timezone, DEFAULT_LOCALE);
@@ -827,7 +852,13 @@ export async function loadDailyUsageData(options?: LoadOptions): Promise<DailyUs
 				const cost =
 					fetcher != null ? await calculateCostForEntry(data, mode, fetcher) : (data.costUSD ?? 0);
 
-				allEntries.push({ data, date, cost, model: getDisplayModelName(data), project });
+				const entry = { data, date, cost, model: getDisplayModelName(data), project };
+				if (existingEntryIndex != null) {
+					allEntries[existingEntryIndex] = entry;
+				} else {
+					allEntries.push(entry);
+					markDedupedEntry(uniqueHash, processedEntries, allEntries.length - 1);
+				}
 			} catch {
 				// Skip invalid JSON lines
 			}
@@ -924,26 +955,11 @@ export async function loadSessionData(options?: LoadOptions): Promise<SessionUsa
 		options?.project,
 	);
 
-	// Sort files by timestamp to ensure chronological processing
-	// Create a map for O(1) lookup instead of O(N) find operations
-	const fileToBaseMap = new Map(projectFilteredWithBase.map((f) => [f.file, f.baseDir]));
-	const sortedFilesWithBase = await sortFilesByTimestamp(
-		projectFilteredWithBase.map((f) => f.file),
-	).then((sortedFiles) =>
-		sortedFiles.map((file) => ({
-			file,
-			baseDir: fileToBaseMap.get(file) ?? '',
-		})),
-	);
-
 	// Fetch pricing data for cost calculation only when needed
 	const mode = options?.mode ?? 'auto';
 
 	// Use PricingFetcher with using statement for automatic cleanup
 	using fetcher = mode === 'display' ? null : new PricingFetcher(options?.offline);
-
-	// Track processed message+request combinations for deduplication
-	const processedHashes = new Set<string>();
 
 	// Collect all valid data entries with session info first
 	const allEntries: Array<{
@@ -955,8 +971,9 @@ export async function loadSessionData(options?: LoadOptions): Promise<SessionUsa
 		timestamp: string;
 		model: string | undefined;
 	}> = [];
+	const processedEntries = new Map<string, number>();
 
-	for (const { file, baseDir } of sortedFilesWithBase) {
+	for (const { file, baseDir } of projectFilteredWithBase) {
 		// Extract session info from file path using its specific base directory
 		const relativePath = path.relative(baseDir, file);
 		const parts = relativePath.split(path.sep);
@@ -978,19 +995,21 @@ export async function loadSessionData(options?: LoadOptions): Promise<SessionUsa
 
 				// Check for duplicate message + request ID combination
 				const uniqueHash = createUniqueHash(data);
-				if (isDuplicateEntry(uniqueHash, processedHashes)) {
-					// Skip duplicate message
+				const existingEntryIndex = getDedupedEntryIndex(
+					uniqueHash,
+					processedEntries,
+					allEntries,
+					data,
+				);
+				if (existingEntryIndex === -1) {
 					return;
 				}
-
-				// Mark this combination as processed
-				markAsProcessed(uniqueHash, processedHashes);
 
 				const sessionKey = `${projectPath}/${sessionId}`;
 				const cost =
 					fetcher != null ? await calculateCostForEntry(data, mode, fetcher) : (data.costUSD ?? 0);
 
-				allEntries.push({
+				const entry = {
 					data,
 					sessionKey,
 					sessionId,
@@ -998,7 +1017,13 @@ export async function loadSessionData(options?: LoadOptions): Promise<SessionUsa
 					cost,
 					timestamp: data.timestamp,
 					model: getDisplayModelName(data),
-				});
+				};
+				if (existingEntryIndex != null) {
+					allEntries[existingEntryIndex] = entry;
+				} else {
+					allEntries.push(entry);
+					markDedupedEntry(uniqueHash, processedEntries, allEntries.length - 1);
+				}
 			} catch {
 				// Skip invalid JSON lines
 			}

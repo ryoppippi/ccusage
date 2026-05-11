@@ -24,13 +24,23 @@ export type SortOrder = 'asc' | 'desc';
  * @param locale - Locale to use for formatting (e.g., 'en-US', 'ja-JP')
  * @returns Intl.DateTimeFormat instance
  */
+const dateFormatterCache = new Map<string, Intl.DateTimeFormat>();
+
 function createDateFormatter(timezone: string | undefined, locale: string): Intl.DateTimeFormat {
-	return new Intl.DateTimeFormat(locale, {
+	const cacheKey = `${timezone ?? ''}\x00${locale}`;
+	const cached = dateFormatterCache.get(cacheKey);
+	if (cached != null) {
+		return cached;
+	}
+
+	const formatter = new Intl.DateTimeFormat(locale, {
 		year: 'numeric',
 		month: '2-digit',
 		day: '2-digit',
 		timeZone: timezone,
 	});
+	dateFormatterCache.set(cacheKey, formatter);
+	return formatter;
 }
 
 /**
