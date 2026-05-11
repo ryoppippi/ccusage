@@ -18,7 +18,6 @@ npx @ccusage/codex@latest session
 | ---------------------------- | ------------------------------------------------------------------------ |
 | `--since` / `--until`        | Filter sessions by their activity date (YYYYMMDD or YYYY-MM-DD)          |
 | `--timezone`                 | Override the timezone used for date grouping and last-activity display   |
-| `--locale`                   | Adjust locale for table and timestamp formatting                         |
 | `--json`                     | Emit structured JSON (`{ sessions: [], totals: {} }`) instead of a table |
 | `--offline` / `--no-offline` | Force cached LiteLLM pricing or enable live fetching                     |
 | `--compact`                  | Force compact table layout (same columns as a narrow terminal)           |

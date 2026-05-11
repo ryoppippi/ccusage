@@ -11,7 +11,6 @@ import { addUsage, calculateCostUSD, createEmptyUsage } from './token-utils.ts';
 
 export type SessionReportOptions = {
 	timezone?: string;
-	locale?: string;
 	since?: string;
 	until?: string;
 	pricingSource: PricingSource;

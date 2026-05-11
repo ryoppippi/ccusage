@@ -12,7 +12,6 @@ export const ccusageParametersShape = {
 	until: filterDateSchema.optional(),
 	mode: z.enum(['auto', 'calculate', 'display']).default('auto').optional(),
 	timezone: z.string().optional(),
-	locale: z.string().optional(),
 } as const satisfies Record<string, z.ZodTypeAny>;
 
 export const ccusageParametersSchema = z.object(ccusageParametersShape);
@@ -52,10 +51,6 @@ async function runCcusageCliJson(
 	const timezone = parameters.timezone;
 	if (timezone != null && timezone !== '') {
 		cliArgs.push('--timezone', timezone);
-	}
-	const locale = parameters.locale;
-	if (locale != null && locale !== '') {
-		cliArgs.push('--locale', locale);
 	}
 
 	return executeCliCommand(executable, cliArgs, {

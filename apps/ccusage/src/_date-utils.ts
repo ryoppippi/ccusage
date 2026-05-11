@@ -18,22 +18,16 @@ export { formatDateCompact } from '@ccusage/terminal/table';
  */
 export type SortOrder = 'asc' | 'desc';
 
-/**
- * Creates a date formatter with the specified timezone and locale
- * @param timezone - Timezone to use (e.g., 'UTC', 'America/New_York')
- * @param locale - Locale to use for formatting (e.g., 'en-US', 'ja-JP')
- * @returns Intl.DateTimeFormat instance
- */
 const dateFormatterCache = new Map<string, Intl.DateTimeFormat>();
 
-function createDateFormatter(timezone: string | undefined, locale: string): Intl.DateTimeFormat {
-	const cacheKey = `${timezone ?? ''}\x00${locale}`;
+function createDateFormatter(timezone: string | undefined): Intl.DateTimeFormat {
+	const cacheKey = timezone ?? '';
 	const cached = dateFormatterCache.get(cacheKey);
 	if (cached != null) {
 		return cached;
 	}
 
-	const formatter = new Intl.DateTimeFormat(locale, {
+	const formatter = new Intl.DateTimeFormat(DEFAULT_LOCALE, {
 		year: 'numeric',
 		month: '2-digit',
 		day: '2-digit',
@@ -47,13 +41,11 @@ function createDateFormatter(timezone: string | undefined, locale: string): Intl
  * Formats a date string to YYYY-MM-DD format
  * @param dateStr - Input date string
  * @param timezone - Optional timezone to use for formatting
- * @param locale - Optional locale to use for formatting (defaults to DEFAULT_LOCALE for YYYY-MM-DD format)
  * @returns Formatted date string in YYYY-MM-DD format
  */
-export function formatDate(dateStr: string, timezone?: string, locale?: string): string {
+export function formatDate(dateStr: string, timezone?: string): string {
 	const date = new Date(dateStr);
-	// Use DEFAULT_LOCALE as default for consistent YYYY-MM-DD format
-	const formatter = createDateFormatter(timezone, locale ?? DEFAULT_LOCALE);
+	const formatter = createDateFormatter(timezone);
 	return formatter.format(date);
 }
 
@@ -155,14 +147,9 @@ if (import.meta.vitest != null) {
 			expect(result).toBe('2024-08-04');
 		});
 
-		it('should use default locale when locale is not provided', () => {
+		it('uses the default YYYY-MM-DD locale', () => {
 			const result = formatDate('2024-08-04T12:00:00Z');
 			expect(result).toMatch(/^\d{4}-\d{2}-\d{2}$/);
-		});
-
-		it('should handle custom locale', () => {
-			const result = formatDate('2024-08-04T12:00:00Z', 'UTC', 'en-US');
-			expect(result).toBe('08/04/2024');
 		});
 	});
 

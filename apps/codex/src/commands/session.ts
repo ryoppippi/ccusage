@@ -66,7 +66,6 @@ export const sessionCommand = define({
 			const rows = await buildSessionReport(events, {
 				pricingSource,
 				timezone: ctx.values.timezone,
-				locale: ctx.values.locale,
 				since,
 				until,
 			});
@@ -172,7 +171,7 @@ export const sessionCommand = define({
 				totalsForDisplay.costUSD += row.costUSD;
 
 				const dateKey = toDateKey(row.lastActivity, ctx.values.timezone);
-				const displayDate = formatDisplayDate(dateKey, ctx.values.locale, ctx.values.timezone);
+				const displayDate = formatDisplayDate(dateKey);
 				const directoryDisplay = row.directory === '' ? '-' : row.directory;
 				const sessionFile = row.sessionFile;
 				const shortSession = sessionFile.length > 8 ? `…${sessionFile.slice(-8)}` : sessionFile;
@@ -188,7 +187,7 @@ export const sessionCommand = define({
 					formatNumber(split.cacheReadTokens),
 					formatNumber(row.totalTokens),
 					formatCurrency(row.costUSD),
-					formatDisplayDateTime(row.lastActivity, ctx.values.locale, ctx.values.timezone),
+					formatDisplayDateTime(row.lastActivity, ctx.values.timezone),
 				]);
 			}
 

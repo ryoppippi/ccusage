@@ -110,8 +110,7 @@ export const weeklyCommand = define({
 			// Create table with compact mode support
 			const tableConfig: UsageReportConfig = {
 				firstColumnName: 'Week',
-				dateFormatter: (dateStr: string) =>
-					formatDateCompact(dateStr, mergedOptions.timezone, mergedOptions.locale ?? undefined),
+				dateFormatter: (dateStr: string) => formatDateCompact(dateStr, mergedOptions.timezone),
 				forceCompact: ctx.values.compact,
 			};
 			const table = createUsageReportTable(tableConfig);
