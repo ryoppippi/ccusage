@@ -13,7 +13,7 @@ import type { LoadedUsageEntry, SessionBlock } from './_session-blocks.ts';
 import type { ActivityDate, Bucket, CostMode, ModelName, SortOrder, Version } from './_types.ts';
 import { Buffer } from 'node:buffer';
 import { createReadStream, createWriteStream } from 'node:fs';
-import { readFile } from 'node:fs/promises';
+import { readFile, stat, utimes } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
 import { createInterface } from 'node:readline';
@@ -68,6 +68,8 @@ import {
 } from './_types.ts';
 import { unreachable } from './_utils.ts';
 import { logger } from './logger.ts';
+
+const USAGE_LINE_MARKER = '"input_tokens"';
 
 /**
  * Get Claude data directories to search for usage data
@@ -495,6 +497,53 @@ function filterByProject<T>(
 	});
 }
 
+function parseCompactDate(value: string | undefined): Date | null {
+	if (value == null || !/^\d{8}$/.test(value)) {
+		return null;
+	}
+
+	const year = Number.parseInt(value.slice(0, 4), 10);
+	const month = Number.parseInt(value.slice(4, 6), 10);
+	const day = Number.parseInt(value.slice(6, 8), 10);
+	const date = new Date(Date.UTC(year, month - 1, day));
+
+	if (
+		date.getUTCFullYear() !== year ||
+		date.getUTCMonth() !== month - 1 ||
+		date.getUTCDate() !== day
+	) {
+		return null;
+	}
+
+	return date;
+}
+
+async function filterFilesByMtime<T>(
+	items: T[],
+	getFilePath: (item: T) => string,
+	since?: string,
+): Promise<T[]> {
+	const sinceDate = parseCompactDate(since);
+	if (sinceDate == null) {
+		return items;
+	}
+
+	sinceDate.setUTCDate(sinceDate.getUTCDate() - 1);
+	const thresholdMs = sinceDate.getTime();
+	const keepFlags = await Promise.all(
+		items.map(async (item) => {
+			try {
+				const stats = await stat(getFilePath(item));
+				return stats.mtimeMs >= thresholdMs;
+			} catch {
+				return true;
+			}
+		}),
+	);
+
+	return items.filter((_, index) => keepFlags[index] === true);
+}
+
 /**
  * Checks if an entry is a duplicate based on hash
  */
@@ -803,6 +852,11 @@ export async function loadDailyUsageData(options?: LoadOptions): Promise<DailyUs
 		(filePath) => extractProjectFromPath(filePath),
 		options?.project,
 	);
+	const mtimeFilteredFiles = await filterFilesByMtime(
+		projectFilteredFiles,
+		(filePath) => filePath,
+		options?.since,
+	);
 
 	// Fetch pricing data for cost calculation only when needed
 	const mode = options?.mode ?? 'auto';
@@ -820,12 +874,16 @@ export async function loadDailyUsageData(options?: LoadOptions): Promise<DailyUs
 	}[] = [];
 	const processedEntries = new Map<string, number>();
 
-	for (const file of projectFilteredFiles) {
+	for (const file of mtimeFilteredFiles) {
 		// Extract project name from file path once per file
 		const project = extractProjectFromPath(file);
 
 		await processJSONLFileByLine(file, async (line) => {
 			try {
+				if (!line.includes(USAGE_LINE_MARKER)) {
+					return;
+				}
+
 				const parsed = JSON.parse(line) as unknown;
 				const result = v.safeParse(usageDataSchema, parsed);
 				if (!result.success) {
@@ -954,6 +1012,11 @@ export async function loadSessionData(options?: LoadOptions): Promise<SessionUsa
 		(item) => extractProjectFromPath(item.file),
 		options?.project,
 	);
+	const mtimeFilteredWithBase = await filterFilesByMtime(
+		projectFilteredWithBase,
+		(item) => item.file,
+		options?.since,
+	);
 
 	// Fetch pricing data for cost calculation only when needed
 	const mode = options?.mode ?? 'auto';
@@ -973,7 +1036,7 @@ export async function loadSessionData(options?: LoadOptions): Promise<SessionUsa
 	}> = [];
 	const processedEntries = new Map<string, number>();
 
-	for (const { file, baseDir } of projectFilteredWithBase) {
+	for (const { file, baseDir } of mtimeFilteredWithBase) {
 		// Extract session info from file path using its specific base directory
 		const relativePath = path.relative(baseDir, file);
 		const parts = relativePath.split(path.sep);
@@ -986,6 +1049,10 @@ export async function loadSessionData(options?: LoadOptions): Promise<SessionUsa
 
 		await processJSONLFileByLine(file, async (line) => {
 			try {
+				if (!line.includes(USAGE_LINE_MARKER)) {
+					return;
+				}
+
 				const parsed = JSON.parse(line) as unknown;
 				const result = v.safeParse(usageDataSchema, parsed);
 				if (!result.success) {
@@ -1180,6 +1247,10 @@ export async function loadSessionUsageById(
 
 	await processJSONLFileByLine(file, async (line) => {
 		try {
+			if (!line.includes(USAGE_LINE_MARKER)) {
+				return;
+			}
+
 			const parsed = JSON.parse(line) as unknown;
 			const result = v.safeParse(usageDataSchema, parsed);
 			if (!result.success) {
@@ -1402,9 +1473,14 @@ export async function loadSessionBlockData(options?: LoadOptions): Promise<Sessi
 		(filePath) => extractProjectFromPath(filePath),
 		options?.project,
 	);
+	const mtimeFilteredFiles = await filterFilesByMtime(
+		blocksFilteredFiles,
+		(filePath) => filePath,
+		options?.since,
+	);
 
 	// Sort files by timestamp to ensure chronological processing
-	const sortedFiles = await sortFilesByTimestamp(blocksFilteredFiles);
+	const sortedFiles = await sortFilesByTimestamp(mtimeFilteredFiles);
 
 	// Fetch pricing data for cost calculation only when needed
 	const mode = options?.mode ?? 'auto';
@@ -1421,6 +1497,10 @@ export async function loadSessionBlockData(options?: LoadOptions): Promise<Sessi
 	for (const file of sortedFiles) {
 		await processJSONLFileByLine(file, async (line) => {
 			try {
+				if (!line.includes(USAGE_LINE_MARKER)) {
+					return;
+				}
+
 				const parsed = JSON.parse(line) as unknown;
 				const result = v.safeParse(usageDataSchema, parsed);
 				if (!result.success) {
@@ -4579,6 +4659,44 @@ if (import.meta.vitest != null) {
 				const sorted = await sortFilesByTimestamp([file1, file2, file3]);
 
 				expect(sorted).toEqual([file3, file1, file2]); // file2 without timestamp goes to end
+			});
+		});
+
+		describe('filterFilesByMtime', () => {
+			it('should keep only files modified near or after since date', async () => {
+				await using fixture = await createFixture({
+					'old.jsonl': '',
+					'recent.jsonl': '',
+				});
+
+				const oldFile = fixture.getPath('old.jsonl');
+				const recentFile = fixture.getPath('recent.jsonl');
+				await utimes(oldFile, new Date('2025-01-08T00:00:00Z'), new Date('2025-01-08T00:00:00Z'));
+				await utimes(
+					recentFile,
+					new Date('2025-01-09T00:00:00Z'),
+					new Date('2025-01-09T00:00:00Z'),
+				);
+
+				const filtered = await filterFilesByMtime(
+					[oldFile, recentFile],
+					(filePath) => filePath,
+					'20250110',
+				);
+
+				expect(filtered).toEqual([recentFile]);
+			});
+
+			it('should leave files unchanged when since is invalid', async () => {
+				await using fixture = await createFixture({
+					'file1.jsonl': '',
+					'file2.jsonl': '',
+				});
+
+				const files = [fixture.getPath('file1.jsonl'), fixture.getPath('file2.jsonl')];
+				const filtered = await filterFilesByMtime(files, (filePath) => filePath, '20250231');
+
+				expect(filtered).toEqual(files);
 			});
 		});
 
