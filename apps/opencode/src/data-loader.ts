@@ -8,13 +8,17 @@
  * @module data-loader
  */
 
-import { readFile } from 'node:fs/promises';
-import { homedir } from 'node:os';
+import { existsSync } from 'node:fs';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { createRequire } from 'node:module';
+import { homedir, tmpdir } from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
 import { isDirectorySync } from 'path-type';
 import { glob } from 'tinyglobby';
 import * as v from 'valibot';
+
+import { logger } from './logger.ts';
 
 /**
  * Default OpenCode data directory path (~/.local/share/opencode)
@@ -41,6 +45,45 @@ const OPENCODE_CONFIG_DIR_ENV = 'OPENCODE_DATA_DIR';
  * User home directory
  */
 const USER_HOME_DIR = homedir();
+
+type SqliteStatement = {
+	all: (...params: unknown[]) => unknown[];
+	run: (...params: unknown[]) => unknown;
+};
+
+type SqliteDatabase = {
+	close: () => void;
+	exec: (sql: string) => unknown;
+	prepare: (sql: string) => SqliteStatement;
+};
+
+type SqliteDatabaseFactory = (
+	location: string,
+	options?: {
+		readOnly?: boolean;
+	},
+) => SqliteDatabase;
+
+type BunSqliteModule = {
+	Database: new (
+		location: string,
+		options?: {
+			readonly?: boolean;
+		},
+	) => SqliteDatabase;
+};
+
+type NodeSqliteModule = {
+	DatabaseSync: new (
+		location: string,
+		options?: {
+			readOnly?: boolean;
+		},
+	) => SqliteDatabase;
+};
+
+const nodeRequire = createRequire(import.meta.url);
+let sqliteDatabaseFactory: SqliteDatabaseFactory | null | undefined;
 
 /**
  * Branded Valibot schema for model names
@@ -99,6 +142,20 @@ export const openCodeSessionSchema = v.object({
 	directory: v.optional(v.string()),
 });
 
+const openCodeDbSessionRowSchema = v.object({
+	id: v.string(),
+	parent_id: v.nullable(v.string()),
+	title: v.nullable(v.string()),
+	project_id: v.nullable(v.string()),
+	directory: v.nullable(v.string()),
+});
+
+const openCodeDbMessageRowSchema = v.object({
+	id: v.string(),
+	session_id: v.string(),
+	data: v.string(),
+});
+
 /**
  * Represents a single usage data entry loaded from OpenCode files
  */
@@ -122,6 +179,102 @@ export type LoadedSessionMetadata = {
 	projectID: string;
 	directory: string;
 };
+
+function isSqliteExperimentalWarning(warning: Error | string): boolean {
+	const message = typeof warning === 'string' ? warning : warning.message;
+	return message.includes('SQLite is an experimental feature');
+}
+
+function loadBunSqliteDatabaseFactory(): SqliteDatabaseFactory | null {
+	try {
+		const sqlite = nodeRequire('bun:sqlite') as BunSqliteModule;
+		return (location, options) =>
+			new sqlite.Database(location, {
+				readonly: options?.readOnly,
+			});
+	} catch (error) {
+		const code = typeof error === 'object' && error != null && 'code' in error ? error.code : null;
+
+		if (code !== 'ERR_UNKNOWN_BUILTIN_MODULE' && code !== 'MODULE_NOT_FOUND') {
+			logger.warn('Failed to load bun:sqlite:', error);
+		}
+
+		return null;
+	}
+}
+
+function loadNodeSqliteDatabaseFactory(): SqliteDatabaseFactory | null {
+	const emitWarning = process.emitWarning.bind(process);
+
+	try {
+		process.emitWarning = ((warning: Error | string) => {
+			if (isSqliteExperimentalWarning(warning)) {
+				return;
+			}
+
+			return emitWarning(warning);
+		}) as typeof process.emitWarning;
+
+		const sqlite = nodeRequire('node:sqlite') as NodeSqliteModule;
+		return (location, options) => new sqlite.DatabaseSync(location, options ?? {});
+	} catch (error) {
+		const code = typeof error === 'object' && error != null && 'code' in error ? error.code : null;
+
+		if (code !== 'ERR_UNKNOWN_BUILTIN_MODULE' && code !== 'MODULE_NOT_FOUND') {
+			logger.warn('Failed to load node:sqlite:', error);
+		}
+
+		return null;
+	} finally {
+		process.emitWarning = emitWarning;
+	}
+}
+
+function getSqliteDatabaseFactory(): SqliteDatabaseFactory | null {
+	if (sqliteDatabaseFactory !== undefined) {
+		return sqliteDatabaseFactory;
+	}
+
+	sqliteDatabaseFactory = loadBunSqliteDatabaseFactory() ?? loadNodeSqliteDatabaseFactory();
+	return sqliteDatabaseFactory;
+}
+
+function parseJsonObject(value: string): Record<string, unknown> | null {
+	try {
+		const parsed: unknown = JSON.parse(value);
+		if (typeof parsed !== 'object' || parsed == null || Array.isArray(parsed)) {
+			return null;
+		}
+
+		return parsed as Record<string, unknown>;
+	} catch {
+		return null;
+	}
+}
+
+function hasBillableTokenUsage(tokens: v.InferOutput<typeof openCodeTokensSchema>): boolean {
+	return (
+		(tokens.input ?? 0) > 0 ||
+		(tokens.output ?? 0) > 0 ||
+		(tokens.reasoning ?? 0) > 0 ||
+		(tokens.cache?.read ?? 0) > 0 ||
+		(tokens.cache?.write ?? 0) > 0
+	);
+}
+
+function shouldLoadOpenCodeMessage(message: v.InferOutput<typeof openCodeMessageSchema>): boolean {
+	if (
+		message.tokens?.input == null ||
+		message.tokens.output == null ||
+		message.tokens.cache?.read == null ||
+		message.tokens.cache.write == null ||
+		!hasBillableTokenUsage(message.tokens)
+	) {
+		return false;
+	}
+
+	return message.providerID != null && message.modelID != null;
+}
 
 /**
  * Get OpenCode data directory
@@ -211,11 +364,58 @@ function convertOpenCodeSessionToMetadata(
 	};
 }
 
+function loadOpenCodeSessionsFromDb(openCodePath: string): Map<string, LoadedSessionMetadata> {
+	const dbPath = path.join(openCodePath, 'opencode.db');
+	if (!existsSync(dbPath)) {
+		return new Map();
+	}
+
+	const openSqliteDatabase = getSqliteDatabaseFactory();
+	if (openSqliteDatabase == null) {
+		return new Map();
+	}
+
+	try {
+		const db = openSqliteDatabase(dbPath, { readOnly: true });
+		try {
+			const rows = db
+				.prepare('SELECT id, parent_id, title, project_id, directory FROM session')
+				.all();
+
+			const sessionMap = new Map<string, LoadedSessionMetadata>();
+			for (const rawRow of rows) {
+				const parsed = v.safeParse(openCodeDbSessionRowSchema, rawRow);
+				if (!parsed.success) {
+					continue;
+				}
+
+				const row = parsed.output;
+				const metadata: LoadedSessionMetadata = {
+					id: row.id,
+					parentID: row.parent_id,
+					title: row.title ?? row.id,
+					projectID: row.project_id ?? 'unknown',
+					directory: row.directory ?? 'unknown',
+				};
+				sessionMap.set(metadata.id, metadata);
+			}
+			return sessionMap;
+		} finally {
+			db.close();
+		}
+	} catch (error) {
+		logger.warn('Failed to load OpenCode sessions from DB:', error);
+		return new Map();
+	}
+}
+
 export async function loadOpenCodeSessions(): Promise<Map<string, LoadedSessionMetadata>> {
 	const openCodePath = getOpenCodePath();
 	if (openCodePath == null) {
 		return new Map();
 	}
+
+	const sessionMap = loadOpenCodeSessionsFromDb(openCodePath);
 
 	const sessionsDir = path.join(
 		openCodePath,
@@ -224,15 +424,13 @@ export async function loadOpenCodeSessions(): Promise<Map<string, LoadedSessionM
 	);
 
 	if (!isDirectorySync(sessionsDir)) {
-		return new Map();
+		return sessionMap;
 	}
 
 	const sessionFiles = await glob('**/*.json', {
 		cwd: sessionsDir,
 		absolute: true,
 	});
-
-	const sessionMap = new Map<string, LoadedSessionMetadata>();
 
 	for (const filePath of sessionFiles) {
 		const session = await loadOpenCodeSession(filePath);
@@ -242,10 +440,71 @@ export async function loadOpenCodeSessions(): Promise<Map<string, LoadedSessionM
 		}
 
 		const metadata = convertOpenCodeSessionToMetadata(session);
-		sessionMap.set(metadata.id, metadata);
+		if (!sessionMap.has(metadata.id)) {
+			sessionMap.set(metadata.id, metadata);
+		}
 	}
 
 	return sessionMap;
+}
+
+function loadOpenCodeMessagesFromDb(openCodePath: string): {
+	entries: LoadedUsageEntry[];
+	seenIds: Set<string>;
+} {
+	const dbPath = path.join(openCodePath, 'opencode.db');
+	if (!existsSync(dbPath)) {
+		return { entries: [], seenIds: new Set() };
+	}
+
+	const openSqliteDatabase = getSqliteDatabaseFactory();
+	if (openSqliteDatabase == null) {
+		return { entries: [], seenIds: new Set() };
+	}
+
+	try {
+		const db = openSqliteDatabase(dbPath, { readOnly: true });
+		try {
+			const rows = db.prepare('SELECT id, session_id, data FROM message').all();
+
+			const entries: LoadedUsageEntry[] = [];
+			const seenIds = new Set<string>();
+
+			for (const rawRow of rows) {
+				const rowResult = v.safeParse(openCodeDbMessageRowSchema, rawRow);
+				if (!rowResult.success) {
+					continue;
+				}
+
+				const row = rowResult.output;
+				const data = parseJsonObject(row.data);
+				if (data == null) {
+					continue;
+				}
+
+				const message = {
+					...data,
+					id: row.id,
+					sessionID: row.session_id,
+				};
+
+				const parsed = v.safeParse(openCodeMessageSchema, message);
+				if (!parsed.success || !shouldLoadOpenCodeMessage(parsed.output)) {
+					continue;
+				}
+
+				seenIds.add(parsed.output.id);
+				entries.push(convertOpenCodeMessageToUsageEntry(parsed.output));
+			}
+
+			return { entries, seenIds };
+		} finally {
+			db.close();
+		}
+	} catch (error) {
+		logger.warn('Failed to load OpenCode messages from DB:', error);
+		return { entries: [], seenIds: new Set() };
+	}
 }
 
 /**
@@ -264,8 +523,10 @@ export async function loadOpenCodeMessages(): Promise<LoadedUsageEntry[]> {
 		OPENCODE_MESSAGES_DIR_NAME,
 	);
 
+	const { entries, seenIds } = loadOpenCodeMessagesFromDb(openCodePath);
+
 	if (!isDirectorySync(messagesDir)) {
-		return [];
+		return entries;
 	}
 
 	// Find all message JSON files
@@ -274,9 +535,6 @@ export async function loadOpenCodeMessages(): Promise<LoadedUsageEntry[]> {
 		absolute: true,
 	});
 
-	const entries: LoadedUsageEntry[] = [];
-	const dedupeSet = new Set<string>();
-
 	for (const filePath of messageFiles) {
 		const message = await loadOpenCodeMessage(filePath);
 
@@ -284,22 +542,16 @@ export async function loadOpenCodeMessages(): Promise<LoadedUsageEntry[]> {
 			continue;
 		}
 
-		// Skip messages with no tokens
-		if (message.tokens == null || (message.tokens.input === 0 && message.tokens.output === 0)) {
+		if (!shouldLoadOpenCodeMessage(message)) {
 			continue;
 		}
 
-		// Skip if no provider or model
-		if (message.providerID == null || message.modelID == null) {
-			continue;
-		}
-
-		// Deduplicate by message ID
+		// Deduplicate by message ID (DB entries take precedence)
 		const dedupeKey = `${message.id}`;
-		if (dedupeSet.has(dedupeKey)) {
+		if (seenIds.has(dedupeKey)) {
 			continue;
 		}
-		dedupeSet.add(dedupeKey);
+		seenIds.add(dedupeKey);
 
 		const entry = convertOpenCodeMessageToUsageEntry(message);
 		entries.push(entry);
@@ -312,12 +564,123 @@ if (import.meta.vitest != null) {
 	const { describe, it, expect } = import.meta.vitest;
 
 	describe('data-loader', () => {
+		type FixtureValue = FixtureTree | string;
+
+		type FixtureTree = {
+			[name: string]: FixtureValue;
+		};
+
+		async function writeFixtureTree(baseDir: string, tree: FixtureTree): Promise<void> {
+			for (const [name, value] of Object.entries(tree)) {
+				const target = path.join(baseDir, name);
+				if (typeof value === 'string') {
+					await mkdir(path.dirname(target), { recursive: true });
+					await writeFile(target, value);
+					continue;
+				}
+
+				await mkdir(target, { recursive: true });
+				await writeFixtureTree(target, value);
+			}
+		}
+
+		async function createTempFixture(tree: FixtureTree): Promise<{
+			getPath: (...segments: string[]) => string;
+			path: string;
+			[Symbol.asyncDispose]: () => Promise<void>;
+		}> {
+			const fixturePath = await mkdtemp(path.join(tmpdir(), 'ccusage-opencode-'));
+			await writeFixtureTree(fixturePath, tree);
+
+			return {
+				path: fixturePath,
+				getPath: (...segments) => path.join(fixturePath, ...segments),
+				[Symbol.asyncDispose]: async () => rm(fixturePath, { force: true, recursive: true }),
+			};
+		}
+
+		async function withOpenCodeDataDir<T>(dir: string, callback: () => Promise<T>): Promise<T> {
+			const original = process.env[OPENCODE_CONFIG_DIR_ENV];
+			process.env[OPENCODE_CONFIG_DIR_ENV] = dir;
+
+			return callback().finally(() => {
+				if (original == null) {
+					delete process.env[OPENCODE_CONFIG_DIR_ENV];
+					return;
+				}
+
+				process.env[OPENCODE_CONFIG_DIR_ENV] = original;
+			});
+		}
+
+		function createOpenCodeDb(dbPath: string): void {
+			const openSqliteDatabase = getSqliteDatabaseFactory();
+			if (openSqliteDatabase == null) {
+				return;
+			}
+
+			const db = openSqliteDatabase(dbPath);
+			try {
+				db.exec(`
+					CREATE TABLE session (
+						id text PRIMARY KEY,
+						project_id text NOT NULL,
+						parent_id text,
+						directory text NOT NULL,
+						title text NOT NULL
+					);
+
+					CREATE TABLE message (
+						id text PRIMARY KEY,
+						session_id text NOT NULL,
+						data text NOT NULL
+					);
+				`);
+
+				db.prepare(
+					'INSERT INTO session (id, project_id, parent_id, directory, title) VALUES (?, ?, ?, ?, ?)',
+				).run('ses_db', 'project_db', null, '/tmp/project-db', 'DB Session');
+
+				db.prepare('INSERT INTO message (id, session_id, data) VALUES (?, ?, ?)').run(
+					'msg_db',
+					'ses_db',
+					JSON.stringify({
+						role: 'assistant',
+						providerID: 'anthropic',
+						modelID: 'claude-sonnet-4-20250514',
+						time: {
+							created: 1700000000000,
+							completed: 1700000010000,
+						},
+						tokens: {
+							input: 10,
+							output: 20,
+							reasoning: 5,
+							cache: {
+								read: 30,
+								write: 40,
+							},
+						},
+						cost: 0.123,
+					}),
+				);
+
+				db.prepare('INSERT INTO message (id, session_id, data) VALUES (?, ?, ?)').run(
+					'msg_bad',
+					'ses_db',
+					'not json',
+				);
+			} finally {
+				db.close();
+			}
+		}
+
 		it('should convert OpenCode message to LoadedUsageEntry', () => {
 			const message = {
 				id: 'msg_123',
 				sessionID: 'ses_456' as v.InferOutput<typeof sessionIdSchema>,
 				providerID: 'anthropic',
-				modelID: 'claude-sonnet-4-5' as v.InferOutput<typeof modelNameSchema>,
+				modelID: 'claude-sonnet-4-20250514' as v.InferOutput<typeof modelNameSchema>,
 				time: {
 					created: 1700000000000,
 					completed: 1700000010000,
@@ -341,7 +704,7 @@ if (import.meta.vitest != null) {
 			expect(entry.usage.outputTokens).toBe(200);
 			expect(entry.usage.cacheReadInputTokens).toBe(50);
 			expect(entry.usage.cacheCreationInputTokens).toBe(25);
-			expect(entry.model).toBe('claude-sonnet-4-5');
+			expect(entry.model).toBe('claude-sonnet-4-20250514');
 		});
 
 		it('should handle missing optional fields', () => {
@@ -365,6 +728,74 @@ if (import.meta.vitest != null) {
 			expect(entry.usage.cacheReadInputTokens).toBe(0);
 			expect(entry.usage.cacheCreationInputTokens).toBe(0);
 			expect(entry.costUSD).toBe(null);
+		});
+
+		it('should load OpenCode messages and sessions from SQLite', async () => {
+			await using fixture = await createTempFixture({});
+			createOpenCodeDb(fixture.getPath('opencode.db'));
+
+			await withOpenCodeDataDir(fixture.path, async () => {
+				const messages = await loadOpenCodeMessages();
+				const sessions = await loadOpenCodeSessions();
+
+				expect(messages).toHaveLength(1);
+				expect(messages[0]).toMatchObject({
+					sessionID: 'ses_db',
+					model: 'claude-sonnet-4-20250514',
+					costUSD: 0.123,
+					usage: {
+						inputTokens: 10,
+						outputTokens: 20,
+						cacheReadInputTokens: 30,
+						cacheCreationInputTokens: 40,
+					},
+				});
+
+				expect(sessions.get('ses_db')).toEqual({
+					id: 'ses_db',
+					parentID: null,
+					title: 'DB Session',
+					projectID: 'project_db',
+					directory: '/tmp/project-db',
+				});
+			});
+		});
+
+		it('should prefer SQLite messages over legacy JSON with the same ID', async () => {
+			await using fixture = await createTempFixture({
+				storage: {
+					message: {
+						ses_db: {
+							'msg_db.json': JSON.stringify({
+								id: 'msg_db',
+								sessionID: 'ses_json',
+								providerID: 'anthropic',
+								modelID: 'claude-opus-4-20250514',
+								time: {
+									created: 1700000000000,
+								},
+								tokens: {
+									input: 999,
+									output: 999,
+									cache: {
+										read: 0,
+										write: 0,
+									},
+								},
+							}),
+						},
+					},
+				},
+			});
+			createOpenCodeDb(fixture.getPath('opencode.db'));
+
+			await withOpenCodeDataDir(fixture.path, async () => {
+				const messages = await loadOpenCodeMessages();
+
+				expect(messages).toHaveLength(1);
+				expect(messages[0]?.sessionID).toBe('ses_db');
+				expect(messages[0]?.usage.inputTokens).toBe(10);
+			});
 		});
 	});
 }
