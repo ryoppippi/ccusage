@@ -19,7 +19,7 @@ import process from 'node:process';
 import { createInterface } from 'node:readline';
 import { toArray } from '@antfu/utils';
 import { Result } from '@praha/byethrow';
-import { groupBy, uniq } from 'es-toolkit'; // TODO: after node20 is deprecated, switch to native Object.groupBy
+import { uniq } from 'es-toolkit';
 import { createFixture } from 'fs-fixture';
 import { isDirectorySync } from 'path-type';
 import { glob } from 'tinyglobby';
@@ -841,7 +841,7 @@ export async function loadDailyUsageData(options?: LoadOptions): Promise<DailyUs
 		? (entry: (typeof allEntries)[0]) => `${entry.date}\x00${entry.project}`
 		: (entry: (typeof allEntries)[0]) => entry.date;
 
-	const groupedData = groupBy(allEntries, groupingKey);
+	const groupedData = Object.groupBy(allEntries, groupingKey);
 
 	// Aggregate each group
 	const results = Object.entries(groupedData)
@@ -1006,7 +1006,7 @@ export async function loadSessionData(options?: LoadOptions): Promise<SessionUsa
 	}
 
 	// Group by session using Object.groupBy
-	const groupedBySessions = groupBy(allEntries, (entry) => entry.sessionKey);
+	const groupedBySessions = Object.groupBy(allEntries, (entry) => entry.sessionKey);
 
 	// Aggregate each session group
 	const results = Object.entries(groupedBySessions)
@@ -1193,7 +1193,7 @@ export async function loadBucketUsageData(
 			}
 		: (data: DailyUsage) => `${groupingFn(data)}`;
 
-	const grouped = groupBy(dailyData, groupingKey);
+	const grouped = Object.groupBy(dailyData, groupingKey);
 
 	const buckets: BucketUsage[] = [];
 	for (const [groupKey, dailyEntries] of Object.entries(grouped)) {
