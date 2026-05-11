@@ -33,24 +33,6 @@ function createDateFormatter(timezone: string | undefined, locale: string): Intl
 	});
 }
 
-const dateFormatterCache = new Map<string, Intl.DateTimeFormat>();
-
-function getDateFormatter(timezone: string | undefined, locale: string): Intl.DateTimeFormat {
-	const key = `${timezone ?? ''}\0${locale}`;
-	const cached = dateFormatterCache.get(key);
-	if (cached != null) {
-		return cached;
-	}
-
-	const formatter = createDateFormatter(timezone, locale);
-	dateFormatterCache.set(key, formatter);
-	return formatter;
-}
-
-function formatDateParts(year: number, month: number, day: number): string {
-	return `${year.toString().padStart(4, '0')}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
-}
-
 /**
  * Formats a date string to YYYY-MM-DD format
  * @param dateStr - Input date string
@@ -61,17 +43,7 @@ function formatDateParts(year: number, month: number, day: number): string {
 export function formatDate(dateStr: string, timezone?: string, locale?: string): string {
 	const date = new Date(dateStr);
 	// Use DEFAULT_LOCALE as default for consistent YYYY-MM-DD format
-	const resolvedLocale = locale ?? DEFAULT_LOCALE;
-	if (resolvedLocale === DEFAULT_LOCALE) {
-		if (timezone == null) {
-			return formatDateParts(date.getFullYear(), date.getMonth() + 1, date.getDate());
-		}
-		if (timezone === 'UTC') {
-			return formatDateParts(date.getUTCFullYear(), date.getUTCMonth() + 1, date.getUTCDate());
-		}
-	}
-
-	const formatter = getDateFormatter(timezone, resolvedLocale);
+	const formatter = createDateFormatter(timezone, locale ?? DEFAULT_LOCALE);
 	return formatter.format(date);
 }
 
