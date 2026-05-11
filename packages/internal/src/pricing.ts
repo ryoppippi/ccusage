@@ -92,6 +92,10 @@ function createLogger(logger?: PricingLogger): PricingLogger {
 	};
 }
 
+function isFirstPartyClaudeModel(modelName: string): boolean {
+	return modelName.toLowerCase().startsWith('claude-');
+}
+
 export class LiteLLMPricingFetcher implements Disposable {
 	private cachedPricing: Map<string, LiteLLMModelPricing> | null = null;
 	private readonly logger: PricingLogger;
@@ -218,6 +222,18 @@ export class LiteLLMPricingFetcher implements Disposable {
 		return Array.from(candidates);
 	}
 
+	private createSubstringMatchingEntries(
+		pricing: Map<string, LiteLLMModelPricing>,
+		modelName: string,
+	): Array<[string, LiteLLMModelPricing]> {
+		const entries = Array.from(pricing.entries());
+		if (!isFirstPartyClaudeModel(modelName)) {
+			return entries;
+		}
+
+		return entries.filter(([key]) => isFirstPartyClaudeModel(key));
+	}
+
 	async getModelPricing(modelName: string): Result.ResultAsync<LiteLLMModelPricing | null, Error> {
 		return Result.pipe(
 			this.ensurePricingLoaded(),
@@ -230,7 +246,7 @@ export class LiteLLMPricingFetcher implements Disposable {
 				}
 
 				const lower = modelName.toLowerCase();
-				for (const [key, value] of pricing) {
+				for (const [key, value] of this.createSubstringMatchingEntries(pricing, modelName)) {
 					const comparison = key.toLowerCase();
 					if (comparison.includes(lower) || lower.includes(comparison)) {
 						return value;
@@ -480,6 +496,46 @@ if (import.meta.vitest != null) {
 			);
 
 			expect(cost).toBeCloseTo(300_000 * 1e-6 + 250_000 * 2e-6);
+		});
+
+		it('prefers first-party Claude substring matches over provider-specific entries', async () => {
+			using fetcher = new LiteLLMPricingFetcher({
+				offline: true,
+				offlineLoader: async () => ({
+					'anthropic.claude-opus-4-6-v1': {
+						input_cost_per_token: 5e-6,
+						output_cost_per_token: 2.5e-5,
+						input_cost_per_token_above_200k_tokens: 1e-5,
+						output_cost_per_token_above_200k_tokens: 5e-5,
+					},
+					'claude-opus-4-6-20260205': {
+						input_cost_per_token: 5e-6,
+						output_cost_per_token: 2.5e-5,
+					},
+				}),
+			});
+
+			const pricing = await Result.unwrap(fetcher.getModelPricing('claude-opus-4-6'));
+
+			expect(pricing?.input_cost_per_token_above_200k_tokens).toBeUndefined();
+		});
+
+		it('does not use provider-specific substring matches for first-party Claude models', async () => {
+			using fetcher = new LiteLLMPricingFetcher({
+				offline: true,
+				offlineLoader: async () => ({
+					'anthropic.claude-opus-4-6-v1': {
+						input_cost_per_token: 5e-6,
+						output_cost_per_token: 2.5e-5,
+						input_cost_per_token_above_200k_tokens: 1e-5,
+						output_cost_per_token_above_200k_tokens: 5e-5,
+					},
+				}),
+			});
+
+			const pricing = await Result.unwrap(fetcher.getModelPricing('claude-opus-4-6'));
+
+			expect(pricing).toBeNull();
 		});
 
 		it('correctly applies pricing at 200k boundary (200k uses base, 200,001 uses tiered, 0 returns 0)', async () => {
