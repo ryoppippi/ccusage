@@ -522,14 +522,23 @@ async function filterFilesByMtime<T>(
 	items: T[],
 	getFilePath: (item: T) => string,
 	since?: string,
+	minUpdateTime?: Date,
 ): Promise<T[]> {
 	const sinceDate = parseCompactDate(since);
-	if (sinceDate == null) {
+	const thresholdMsList: number[] = [];
+
+	if (sinceDate != null) {
+		sinceDate.setUTCDate(sinceDate.getUTCDate() - 1);
+		thresholdMsList.push(sinceDate.getTime());
+	}
+	if (minUpdateTime != null && !Number.isNaN(minUpdateTime.getTime())) {
+		thresholdMsList.push(minUpdateTime.getTime());
+	}
+	if (thresholdMsList.length === 0) {
 		return items;
 	}
 
-	sinceDate.setUTCDate(sinceDate.getUTCDate() - 1);
-	const thresholdMs = sinceDate.getTime();
+	const thresholdMs = Math.max(...thresholdMsList);
 	const keepFlags = await Promise.all(
 		items.map(async (item) => {
 			try {
@@ -826,6 +835,7 @@ export type LoadOptions = {
 	startOfWeek?: WeekDay; // Start of week for weekly aggregation
 	timezone?: string; // Timezone for date grouping (e.g., 'UTC', 'America/New_York'). Defaults to system timezone
 	locale?: string; // Locale for date/time formatting (e.g., 'en-US', 'ja-JP'). Defaults to 'en-US'
+	minUpdateTime?: Date; // Only process files modified after this timestamp
 } & DateFilter;
 
 /**
@@ -856,6 +866,7 @@ export async function loadDailyUsageData(options?: LoadOptions): Promise<DailyUs
 		projectFilteredFiles,
 		(filePath) => filePath,
 		options?.since,
+		options?.minUpdateTime,
 	);
 
 	// Fetch pricing data for cost calculation only when needed
@@ -1016,6 +1027,7 @@ export async function loadSessionData(options?: LoadOptions): Promise<SessionUsa
 		projectFilteredWithBase,
 		(item) => item.file,
 		options?.since,
+		options?.minUpdateTime,
 	);
 
 	// Fetch pricing data for cost calculation only when needed
@@ -1477,6 +1489,7 @@ export async function loadSessionBlockData(options?: LoadOptions): Promise<Sessi
 		blocksFilteredFiles,
 		(filePath) => filePath,
 		options?.since,
+		options?.minUpdateTime,
 	);
 
 	// Sort files by timestamp to ensure chronological processing
@@ -4697,6 +4710,31 @@ if (import.meta.vitest != null) {
 				const filtered = await filterFilesByMtime(files, (filePath) => filePath, '20250231');
 
 				expect(filtered).toEqual(files);
+			});
+
+			it('should use explicit minimum update time when provided', async () => {
+				await using fixture = await createFixture({
+					'old.jsonl': '',
+					'recent.jsonl': '',
+				});
+
+				const oldFile = fixture.getPath('old.jsonl');
+				const recentFile = fixture.getPath('recent.jsonl');
+				await utimes(oldFile, new Date('2025-01-10T00:00:00Z'), new Date('2025-01-10T00:00:00Z'));
+				await utimes(
+					recentFile,
+					new Date('2025-01-10T12:00:00Z'),
+					new Date('2025-01-10T12:00:00Z'),
+				);
+
+				const filtered = await filterFilesByMtime(
+					[oldFile, recentFile],
+					(filePath) => filePath,
+					undefined,
+					new Date('2025-01-10T06:00:00Z'),
+				);
+
+				expect(filtered).toEqual([recentFile]);
 			});
 		});
 

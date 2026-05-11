@@ -335,6 +335,8 @@ export const statuslineCommand = define({
 					// Load today's usage data
 					const today = new Date();
 					const todayStr = today.toISOString().split('T')[0]?.replace(/-/g, '') ?? ''; // Convert to YYYYMMDD format
+					const midnightToday = new Date();
+					midnightToday.setHours(0, 0, 0, 0);
 
 					const todayCost = await Result.pipe(
 						Result.try({
@@ -344,6 +346,7 @@ export const statuslineCommand = define({
 									until: todayStr,
 									mode: 'auto',
 									offline: mergedOptions.offline,
+									minUpdateTime: midnightToday,
 								}),
 							catch: (error) => error,
 						})(),
@@ -359,12 +362,14 @@ export const statuslineCommand = define({
 					);
 
 					// Load session block data to find active block
+					const lastBlocksTime = new Date(Date.now() - 24 * 60 * 60 * 1000);
 					const { blockInfo, burnRateInfo } = await Result.pipe(
 						Result.try({
 							try: async () =>
 								loadSessionBlockData({
 									mode: 'auto',
 									offline: mergedOptions.offline,
+									minUpdateTime: lastBlocksTime,
 								}),
 							catch: (error) => error,
 						})(),
