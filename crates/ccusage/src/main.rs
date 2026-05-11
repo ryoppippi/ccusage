@@ -1,7 +1,7 @@
 use std::{
     collections::{BTreeMap, BTreeSet, HashMap, HashSet},
     env,
-    fs::File,
+    fs::{self, File},
     io::{self, BufRead, BufReader, Read},
     path::{Path, PathBuf},
 };
@@ -9,187 +9,21 @@ use std::{
 use anyhow::{bail, Context, Result};
 use chrono::{DateTime, Datelike, Local, NaiveDate, TimeZone, Timelike, Utc};
 use chrono_tz::Tz;
-use clap::{Args, Parser, Subcommand, ValueEnum};
-use jwalk::WalkDir;
+use clap::Parser;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
+mod cli;
+
+use cli::{
+    BlocksArgs, Cli, Command, CostMode, CostSource, DailyArgs, SessionArgs, SharedArgs, SortOrder,
+    StatuslineArgs, VisualBurnRate, WeekDay, WeeklyArgs,
+};
+
 const DEFAULT_SESSION_DURATION_HOURS: f64 = 5.0;
 const DEFAULT_RECENT_DAYS: i64 = 3;
 const BLOCKS_WARNING_THRESHOLD: f64 = 0.8;
-
-#[derive(Parser)]
-#[command(
-    name = "ccusage",
-    version,
-    about = "Usage analysis tool for Claude Code"
-)]
-struct Cli {
-    #[command(subcommand)]
-    command: Option<Command>,
-
-    #[command(flatten)]
-    shared: SharedArgs,
-}
-
-#[derive(Subcommand)]
-enum Command {
-    Daily(DailyArgs),
-    Monthly(SharedArgs),
-    Weekly(WeeklyArgs),
-    Session(SessionArgs),
-    Blocks(BlocksArgs),
-    Statusline(StatuslineArgs),
-}
-
-#[derive(Clone, Args, Default)]
-struct SharedArgs {
-    #[arg(short, long)]
-    since: Option<String>,
-    #[arg(short, long)]
-    until: Option<String>,
-    #[arg(short, long)]
-    json: bool,
-    #[arg(short, long, value_enum, default_value_t = CostMode::Auto)]
-    mode: CostMode,
-    #[arg(short, long)]
-    debug: bool,
-    #[arg(long, default_value_t = 5)]
-    debug_samples: usize,
-    #[arg(short, long, value_enum, default_value_t = SortOrder::Asc)]
-    order: SortOrder,
-    #[arg(short, long)]
-    breakdown: bool,
-    #[arg(short = 'O', long)]
-    offline: bool,
-    #[arg(long)]
-    no_offline: bool,
-    #[arg(long)]
-    color: bool,
-    #[arg(long)]
-    no_color: bool,
-    #[arg(short = 'z', long)]
-    timezone: Option<String>,
-    #[arg(short, long, default_value = "en-CA")]
-    locale: String,
-    #[arg(short = 'q', long)]
-    jq: Option<String>,
-    #[arg(long)]
-    config: Option<PathBuf>,
-    #[arg(long)]
-    compact: bool,
-}
-
-#[derive(Clone, Args)]
-struct DailyArgs {
-    #[command(flatten)]
-    shared: SharedArgs,
-    #[arg(short = 'i', long)]
-    instances: bool,
-    #[arg(short, long)]
-    project: Option<String>,
-    #[arg(long)]
-    project_aliases: Option<String>,
-}
-
-#[derive(Clone, Args)]
-struct WeeklyArgs {
-    #[command(flatten)]
-    shared: SharedArgs,
-    #[arg(short = 'w', long, value_enum, default_value_t = WeekDay::Sunday)]
-    start_of_week: WeekDay,
-}
-
-#[derive(Clone, Args)]
-struct SessionArgs {
-    #[command(flatten)]
-    shared: SharedArgs,
-    #[arg(short, long)]
-    id: Option<String>,
-}
-
-#[derive(Clone, Args)]
-struct BlocksArgs {
-    #[command(flatten)]
-    shared: SharedArgs,
-    #[arg(short, long)]
-    active: bool,
-    #[arg(short, long)]
-    recent: bool,
-    #[arg(short = 't', long)]
-    token_limit: Option<String>,
-    #[arg(short = 'n', long, default_value_t = DEFAULT_SESSION_DURATION_HOURS)]
-    session_length: f64,
-}
-
-#[derive(Clone, Args)]
-struct StatuslineArgs {
-    #[arg(short = 'O', long, default_value_t = true)]
-    offline: bool,
-    #[arg(long)]
-    no_offline: bool,
-    #[arg(short = 'B', long, value_enum, default_value_t = VisualBurnRate::Off)]
-    visual_burn_rate: VisualBurnRate,
-    #[arg(long, value_enum, default_value_t = CostSource::Auto)]
-    cost_source: CostSource,
-    #[arg(long, default_value_t = true)]
-    cache: bool,
-    #[arg(long)]
-    no_cache: bool,
-    #[arg(long, default_value_t = 1)]
-    refresh_interval: u64,
-    #[arg(long, default_value_t = 50)]
-    context_low_threshold: u8,
-    #[arg(long, default_value_t = 80)]
-    context_medium_threshold: u8,
-    #[arg(long)]
-    config: Option<PathBuf>,
-    #[arg(long)]
-    debug: bool,
-}
-
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, ValueEnum)]
-enum CostMode {
-    #[default]
-    Auto,
-    Calculate,
-    Display,
-}
-
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, ValueEnum)]
-enum SortOrder {
-    Desc,
-    #[default]
-    Asc,
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq, ValueEnum)]
-enum WeekDay {
-    Sunday,
-    Monday,
-    Tuesday,
-    Wednesday,
-    Thursday,
-    Friday,
-    Saturday,
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq, ValueEnum)]
-enum VisualBurnRate {
-    Off,
-    Emoji,
-    Text,
-    EmojiText,
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq, ValueEnum)]
-enum CostSource {
-    Auto,
-    Ccusage,
-    Cc,
-    Both,
-}
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -494,13 +328,19 @@ async fn run_session(args: SessionArgs) -> Result<()> {
         return run_session_id(&id, &shared).await;
     }
 
-    let entries = load_entries(&shared, None)?;
-    let mut grouped: BTreeMap<String, Vec<&LoadedEntry>> = BTreeMap::new();
+    let mut session_shared = shared.clone();
+    session_shared.order = SortOrder::Desc;
+    let entries = load_entries(&session_shared, None)?;
+    let mut grouped = Vec::<(String, Vec<&LoadedEntry>)>::new();
+    let mut group_indexes = HashMap::<String, usize>::new();
     for entry in &entries {
-        grouped
-            .entry(format!("{}/{}", entry.project_path, entry.session_id))
-            .or_default()
-            .push(entry);
+        let key = format!("{}/{}", entry.project_path, entry.session_id);
+        let index = *group_indexes.entry(key.clone()).or_insert_with(|| {
+            let index = grouped.len();
+            grouped.push((key, Vec::new()));
+            index
+        });
+        grouped[index].1.push(entry);
     }
 
     let mut rows = Vec::with_capacity(grouped.len());
@@ -512,7 +352,10 @@ async fn run_session(args: SessionArgs) -> Result<()> {
         let mut summary = aggregate_entries(&group);
         summary.session_id = Some(latest.session_id.clone());
         summary.project_path = Some(latest.project_path.clone());
-        summary.last_activity = Some(format_date(latest.timestamp, shared.timezone.as_deref()));
+        summary.last_activity = Some(format_date(
+            latest.timestamp,
+            session_shared.timezone.as_deref(),
+        ));
         let versions = group
             .iter()
             .filter_map(|entry| entry.data.version.clone())
@@ -522,16 +365,16 @@ async fn run_session(args: SessionArgs) -> Result<()> {
         summary.versions = Some(versions);
         rows.push(summary);
     }
-    filter_and_sort_summaries(&mut rows, &shared, |row| {
+    filter_and_sort_summaries(&mut rows, &session_shared, |row| {
         row.last_activity.as_deref().unwrap_or_default()
     });
 
-    if wants_json(&shared) {
+    if wants_json(&session_shared) {
         let output = json!({
             "sessions": rows.iter().map(session_summary_json).collect::<Vec<_>>(),
             "totals": totals_json(&rows),
         });
-        print_json_or_jq(output, shared.jq.as_deref())?;
+        print_json_or_jq(output, session_shared.jq.as_deref())?;
         return Ok(());
     }
 
@@ -810,7 +653,7 @@ fn load_entries(shared: &SharedArgs, project_filter: Option<&str>) -> Result<Vec
             }
         }
         if let Some(filter) = project_filter {
-            if entry.project != filter && !entry.project.contains(filter) {
+            if entry.project != filter {
                 continue;
             }
         }
@@ -840,7 +683,11 @@ fn read_usage_file_with(
             if line.trim().is_empty() {
                 return None;
             }
-            let data = serde_json::from_str::<UsageEntry>(&line).ok()?;
+            let value = serde_json::from_str::<Value>(&line).ok()?;
+            if !is_ts_usage_value(&value) {
+                return None;
+            }
+            let data = serde_json::from_value::<UsageEntry>(value).ok()?;
             if !is_valid_usage_entry(&data) {
                 return None;
             }
@@ -849,11 +696,15 @@ fn read_usage_file_with(
                 .with_timezone(&Utc);
             let date = format_date_tz(timestamp, tz);
             let cost = calculate_cost(&data, mode);
-            let model = data
-                .message
-                .model
-                .clone()
-                .filter(|model| model != "<synthetic>");
+            let model = data.message.model.as_ref().and_then(|model| {
+                if model == "<synthetic>" {
+                    None
+                } else if matches!(data.message.usage.speed, Some(Speed::Fast)) {
+                    Some(format!("{model}-fast"))
+                } else {
+                    Some(model.clone())
+                }
+            });
             Some(LoadedEntry {
                 data,
                 timestamp,
@@ -868,6 +719,108 @@ fn read_usage_file_with(
             })
         })
         .collect()
+}
+
+fn is_ts_usage_value(value: &Value) -> bool {
+    let Some(object) = value.as_object() else {
+        return false;
+    };
+    if !optional_string(object, "cwd")
+        || !optional_string(object, "sessionId")
+        || !optional_string(object, "version")
+        || !optional_string(object, "requestId")
+        || !optional_number(object, "costUSD")
+        || !optional_bool(object, "isApiErrorMessage")
+    {
+        return false;
+    }
+    if object
+        .get("version")
+        .and_then(Value::as_str)
+        .is_some_and(|version| !is_semver_prefix(version))
+    {
+        return false;
+    }
+    let Some(timestamp) = object.get("timestamp").and_then(Value::as_str) else {
+        return false;
+    };
+    if !is_ts_timestamp(timestamp) {
+        return false;
+    }
+    let Some(message) = object.get("message").and_then(Value::as_object) else {
+        return false;
+    };
+    if !optional_string(message, "model") || !optional_string(message, "id") {
+        return false;
+    }
+    if let Some(content) = message.get("content") {
+        let Some(parts) = content.as_array() else {
+            return false;
+        };
+        for part in parts {
+            let Some(part) = part.as_object() else {
+                return false;
+            };
+            if !optional_string(part, "text") {
+                return false;
+            }
+        }
+    }
+    let Some(usage) = message.get("usage").and_then(Value::as_object) else {
+        return false;
+    };
+    usage.get("input_tokens").is_some_and(Value::is_number)
+        && usage.get("output_tokens").is_some_and(Value::is_number)
+        && optional_number(usage, "cache_creation_input_tokens")
+        && optional_number(usage, "cache_read_input_tokens")
+        && usage
+            .get("speed")
+            .is_none_or(|speed| matches!(speed.as_str(), Some("standard" | "fast")))
+}
+
+fn optional_string(object: &serde_json::Map<String, Value>, key: &str) -> bool {
+    object.get(key).is_none_or(Value::is_string)
+}
+
+fn optional_number(object: &serde_json::Map<String, Value>, key: &str) -> bool {
+    object.get(key).is_none_or(Value::is_number)
+}
+
+fn optional_bool(object: &serde_json::Map<String, Value>, key: &str) -> bool {
+    object.get(key).is_none_or(Value::is_boolean)
+}
+
+fn is_ts_timestamp(value: &str) -> bool {
+    let bytes = value.as_bytes();
+    let valid_base = bytes.len() == 20
+        && bytes[4] == b'-'
+        && bytes[7] == b'-'
+        && bytes[10] == b'T'
+        && bytes[13] == b':'
+        && bytes[16] == b':'
+        && bytes[19] == b'Z'
+        && bytes[..4].iter().all(u8::is_ascii_digit)
+        && bytes[5..7].iter().all(u8::is_ascii_digit)
+        && bytes[8..10].iter().all(u8::is_ascii_digit)
+        && bytes[11..13].iter().all(u8::is_ascii_digit)
+        && bytes[14..16].iter().all(u8::is_ascii_digit)
+        && bytes[17..19].iter().all(u8::is_ascii_digit);
+    let valid_millis = bytes.len() == 24
+        && bytes[4] == b'-'
+        && bytes[7] == b'-'
+        && bytes[10] == b'T'
+        && bytes[13] == b':'
+        && bytes[16] == b':'
+        && bytes[19] == b'.'
+        && bytes[23] == b'Z'
+        && bytes[..4].iter().all(u8::is_ascii_digit)
+        && bytes[5..7].iter().all(u8::is_ascii_digit)
+        && bytes[8..10].iter().all(u8::is_ascii_digit)
+        && bytes[11..13].iter().all(u8::is_ascii_digit)
+        && bytes[14..16].iter().all(u8::is_ascii_digit)
+        && bytes[17..19].iter().all(u8::is_ascii_digit)
+        && bytes[20..23].iter().all(u8::is_ascii_digit);
+    valid_base || valid_millis
 }
 
 fn is_valid_usage_entry(data: &UsageEntry) -> bool {
@@ -975,19 +928,32 @@ fn claude_paths() -> Result<Vec<PathBuf>> {
 }
 
 fn usage_files(paths: &[PathBuf]) -> Vec<PathBuf> {
-    paths
-        .par_iter()
-        .flat_map_iter(|path| {
-            let projects = path.join("projects");
-            WalkDir::new(projects)
-                .into_iter()
-                .filter_map(Result::ok)
-                .filter(|entry| entry.file_type().is_file())
-                .map(|entry| entry.path())
-                .filter(|path| path.extension().is_some_and(|ext| ext == "jsonl"))
-                .collect::<Vec<_>>()
-        })
-        .collect()
+    let mut files = Vec::new();
+    for path in paths {
+        collect_usage_files(&path.join("projects"), &mut files);
+    }
+    files
+}
+
+fn collect_usage_files(dir: &Path, files: &mut Vec<PathBuf>) {
+    let Ok(entries) = fs::read_dir(dir) else {
+        return;
+    };
+    let entries = entries.filter_map(Result::ok).collect::<Vec<_>>();
+
+    for entry in &entries {
+        let path = entry.path();
+        if path.is_file() && path.extension().is_some_and(|ext| ext == "jsonl") {
+            files.push(path);
+        }
+    }
+
+    for entry in entries {
+        let path = entry.path();
+        if path.is_dir() {
+            collect_usage_files(&path, files);
+        }
+    }
 }
 
 fn sorted_usage_files(paths: &[PathBuf]) -> Vec<PathBuf> {
@@ -1020,7 +986,7 @@ fn earliest_timestamp(path: &Path) -> Option<DateTime<Utc>> {
             let timestamp = value.get("timestamp")?.as_str()?;
             DateTime::parse_from_rfc3339(timestamp)
                 .ok()
-                .map(|value| value.with_timezone(&Utc))
+                .and_then(|value| DateTime::from_timestamp_millis(value.timestamp_millis()))
         })
         .min()
 }
@@ -1055,13 +1021,13 @@ fn extract_session_parts(path: &Path) -> (String, String) {
     let relative = projects_index
         .map(|index| &parts[index + 1..])
         .unwrap_or(&parts);
-    let session_id = path
-        .file_stem()
-        .and_then(|stem| stem.to_str())
+    let session_id = relative
+        .get(relative.len().saturating_sub(2))
+        .copied()
         .unwrap_or("unknown")
         .to_string();
-    let project_path = if relative.len() > 1 {
-        relative[..relative.len() - 1].join(std::path::MAIN_SEPARATOR_STR)
+    let project_path = if relative.len() > 2 {
+        relative[..relative.len() - 2].join(std::path::MAIN_SEPARATOR_STR)
     } else {
         "Unknown Project".to_string()
     };
@@ -1297,21 +1263,28 @@ where
 fn aggregate_entries(entries: &[&LoadedEntry]) -> UsageSummary {
     let mut counts = TokenCounts::default();
     let mut cost = 0.0;
-    let mut models = BTreeSet::new();
-    let mut breakdowns: HashMap<String, ModelBreakdown> = HashMap::new();
+    let mut models = Vec::new();
+    let mut seen_models = HashSet::new();
+    let mut breakdowns = Vec::<ModelBreakdown>::new();
+    let mut breakdown_indexes = HashMap::<String, usize>::new();
 
     for entry in entries {
         let usage = entry.data.message.usage;
         counts.add_usage(usage);
         cost += entry.cost;
         if let Some(model) = &entry.model {
-            models.insert(model.clone());
-            let breakdown = breakdowns
-                .entry(model.clone())
-                .or_insert_with(|| ModelBreakdown {
+            if seen_models.insert(model.clone()) {
+                models.push(model.clone());
+            }
+            let index = *breakdown_indexes.entry(model.clone()).or_insert_with(|| {
+                let index = breakdowns.len();
+                breakdowns.push(ModelBreakdown {
                     model_name: model.clone(),
                     ..ModelBreakdown::default()
                 });
+                index
+            });
+            let breakdown = &mut breakdowns[index];
             breakdown.input_tokens += usage.input_tokens;
             breakdown.output_tokens += usage.output_tokens;
             breakdown.cache_creation_tokens += usage.cache_creation_input_tokens;
@@ -1320,12 +1293,7 @@ fn aggregate_entries(entries: &[&LoadedEntry]) -> UsageSummary {
         }
     }
 
-    let mut model_breakdowns = breakdowns.into_values().collect::<Vec<_>>();
-    model_breakdowns.sort_by(|a, b| {
-        b.cost
-            .total_cmp(&a.cost)
-            .then_with(|| a.model_name.cmp(&b.model_name))
-    });
+    breakdowns.sort_by(|a, b| b.cost.total_cmp(&a.cost));
 
     UsageSummary {
         date: None,
@@ -1339,8 +1307,8 @@ fn aggregate_entries(entries: &[&LoadedEntry]) -> UsageSummary {
         cache_creation_tokens: counts.cache_creation_tokens,
         cache_read_tokens: counts.cache_read_tokens,
         total_cost: cost,
-        models_used: models.into_iter().collect(),
-        model_breakdowns,
+        models_used: models,
+        model_breakdowns: breakdowns,
         project: None,
         versions: None,
     }
@@ -1400,8 +1368,8 @@ fn aggregate_summaries(rows: &[&UsageSummary]) -> UsageSummary {
         project: None,
         versions: None,
     };
-    let mut models = BTreeSet::new();
-    let mut breakdowns: HashMap<String, ModelBreakdown> = HashMap::new();
+    let mut seen_models = HashSet::new();
+    let mut breakdown_indexes = HashMap::<String, usize>::new();
 
     for row in rows {
         summary.input_tokens += row.input_tokens;
@@ -1409,14 +1377,23 @@ fn aggregate_summaries(rows: &[&UsageSummary]) -> UsageSummary {
         summary.cache_creation_tokens += row.cache_creation_tokens;
         summary.cache_read_tokens += row.cache_read_tokens;
         summary.total_cost += row.total_cost;
-        models.extend(row.models_used.iter().cloned());
+        for model in &row.models_used {
+            if seen_models.insert(model.clone()) {
+                summary.models_used.push(model.clone());
+            }
+        }
         for item in &row.model_breakdowns {
-            let breakdown = breakdowns
+            let index = *breakdown_indexes
                 .entry(item.model_name.clone())
-                .or_insert_with(|| ModelBreakdown {
-                    model_name: item.model_name.clone(),
-                    ..ModelBreakdown::default()
+                .or_insert_with(|| {
+                    let index = summary.model_breakdowns.len();
+                    summary.model_breakdowns.push(ModelBreakdown {
+                        model_name: item.model_name.clone(),
+                        ..ModelBreakdown::default()
+                    });
+                    index
                 });
+            let breakdown = &mut summary.model_breakdowns[index];
             breakdown.input_tokens += item.input_tokens;
             breakdown.output_tokens += item.output_tokens;
             breakdown.cache_creation_tokens += item.cache_creation_tokens;
@@ -1424,13 +1401,9 @@ fn aggregate_summaries(rows: &[&UsageSummary]) -> UsageSummary {
             breakdown.cost += item.cost;
         }
     }
-    summary.models_used = models.into_iter().collect();
-    summary.model_breakdowns = breakdowns.into_values().collect();
-    summary.model_breakdowns.sort_by(|a, b| {
-        b.cost
-            .total_cmp(&a.cost)
-            .then_with(|| a.model_name.cmp(&b.model_name))
-    });
+    summary
+        .model_breakdowns
+        .sort_by(|a, b| b.cost.total_cmp(&a.cost));
     summary
 }
 
@@ -1710,13 +1683,16 @@ fn create_block(
     let is_active = actual_end.is_some_and(|last| now - last < duration && now < end);
     let mut token_counts = TokenCounts::default();
     let mut cost = 0.0;
-    let mut models = BTreeSet::new();
+    let mut models = Vec::new();
+    let mut seen_models = HashSet::new();
     let mut usage_limit_reset_time = None;
     for entry in &entries {
         token_counts.add_usage(entry.data.message.usage);
         cost += entry.cost;
         if let Some(model) = &entry.model {
-            models.insert(model.clone());
+            if seen_models.insert(model.clone()) {
+                models.push(model.clone());
+            }
         }
         usage_limit_reset_time =
             usage_limit_reset_time.or_else(|| usage_limit_reset_time_from_entry(&entry.data));
@@ -1731,7 +1707,7 @@ fn create_block(
         entries,
         token_counts,
         cost_usd: cost,
-        models: models.into_iter().collect(),
+        models,
         usage_limit_reset_time,
     }
 }
@@ -1810,16 +1786,16 @@ fn block_json(block: &SessionBlock, token_limit: Option<&str>, max_tokens: u64) 
         None
     };
     let token_limit_status = projection.and_then(|projection| {
-		let limit = parse_token_limit(token_limit, max_tokens)?;
-		let percent = projection.total_tokens as f64 / limit as f64 * 100.0;
-		Some(json!({
-			"limit": limit,
-			"projectedUsage": projection.total_tokens,
-			"percentUsed": percent,
-			"status": if projection.total_tokens > limit { "exceeds" } else if projection.total_tokens as f64 > limit as f64 * BLOCKS_WARNING_THRESHOLD { "warning" } else { "ok" },
-		}))
-	});
-    json!({
+        let limit = token_limit.and_then(|_| parse_token_limit(token_limit, max_tokens))?;
+        let percent = projection.total_tokens as f64 / limit as f64 * 100.0;
+        Some(json!({
+            "limit": limit,
+            "projectedUsage": projection.total_tokens,
+            "percentUsed": percent,
+            "status": if projection.total_tokens > limit { "exceeds" } else if projection.total_tokens as f64 > limit as f64 * BLOCKS_WARNING_THRESHOLD { "warning" } else { "ok" },
+        }))
+    });
+    let mut value = json!({
         "id": block.id,
         "startTime": block.start_time.to_rfc3339_opts(chrono::SecondsFormat::Millis, true),
         "endTime": block.end_time.to_rfc3339_opts(chrono::SecondsFormat::Millis, true),
@@ -1834,13 +1810,31 @@ fn block_json(block: &SessionBlock, token_limit: Option<&str>, max_tokens: u64) 
             "cacheReadInputTokens": block.token_counts.cache_read_tokens,
         },
         "totalTokens": block.token_counts.total(),
-        "costUSD": block.cost_usd,
+        "costUSD": json_float(block.cost_usd),
         "models": block.models,
         "burnRate": burn_rate,
         "projection": projection,
-        "tokenLimitStatus": token_limit_status,
-        "usageLimitResetTime": block.usage_limit_reset_time.map(|time| time.to_rfc3339_opts(chrono::SecondsFormat::Millis, true)),
-    })
+    });
+    if let Some(status) = token_limit_status {
+        value["tokenLimitStatus"] = status;
+    }
+    if let Some(reset_time) = block.usage_limit_reset_time {
+        value["usageLimitResetTime"] =
+            json!(reset_time.to_rfc3339_opts(chrono::SecondsFormat::Millis, true));
+    }
+    value
+}
+
+fn json_float(value: f64) -> Value {
+    if value.is_finite()
+        && value.fract() == 0.0
+        && value >= i64::MIN as f64
+        && value <= i64::MAX as f64
+    {
+        json!(value as i64)
+    } else {
+        json!(value)
+    }
 }
 
 fn print_blocks_table(blocks: &[SessionBlock], token_limit: Option<&str>, max_tokens: u64) {
