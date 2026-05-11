@@ -8,7 +8,7 @@
  * @module data-loader
  */
 
-import { existsSync } from 'node:fs';
+import { existsSync, readdirSync, realpathSync } from 'node:fs';
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { homedir, tmpdir } from 'node:os';
@@ -35,6 +35,8 @@ const OPENCODE_STORAGE_DIR_NAME = 'storage';
  */
 const OPENCODE_MESSAGES_DIR_NAME = 'message';
 const OPENCODE_SESSIONS_DIR_NAME = 'session';
+const OPENCODE_DB_FILE_NAME = 'opencode.db';
+const OPENCODE_CHANNEL_DB_PATTERN = /^opencode-[\w-]+\.db$/u;
 
 /**
  * Environment variable for specifying custom OpenCode data directory
@@ -169,6 +171,7 @@ export type LoadedUsageEntry = {
 		cacheReadInputTokens: number;
 	};
 	model: string;
+	providerID: string;
 	costUSD: number | null;
 };
 
@@ -336,6 +339,7 @@ function convertOpenCodeMessageToUsageEntry(
 			cacheReadInputTokens: message.tokens?.cache?.read ?? 0,
 		},
 		model: message.modelID ?? 'unknown',
+		providerID: message.providerID ?? 'unknown',
 		costUSD: message.cost ?? null,
 	};
 }
@@ -364,9 +368,65 @@ function convertOpenCodeSessionToMetadata(
 	};
 }
 
+function isPathInsideDirectory(targetPath: string, directoryPath: string): boolean {
+	const relativePath = path.relative(directoryPath, targetPath);
+	return relativePath === '' || (!relativePath.startsWith('..') && !path.isAbsolute(relativePath));
+}
+
+function resolveOpenCodeDbCandidate(dbPath: string, resolvedOpenCodePath: string): string | null {
+	try {
+		const resolvedDbPath = realpathSync(dbPath);
+		if (!isPathInsideDirectory(resolvedDbPath, resolvedOpenCodePath)) {
+			return null;
+		}
+
+		return resolvedDbPath;
+	} catch {
+		return null;
+	}
+}
+
+function getOpenCodeDbPath(openCodePath: string): string | null {
+	let resolvedOpenCodePath: string;
+	try {
+		resolvedOpenCodePath = realpathSync(openCodePath);
+	} catch (error) {
+		logger.warn('Failed to resolve OpenCode data directory:', error);
+		return null;
+	}
+
+	const defaultDbPath = path.join(openCodePath, OPENCODE_DB_FILE_NAME);
+	if (existsSync(defaultDbPath)) {
+		const resolvedDefaultDbPath = resolveOpenCodeDbCandidate(defaultDbPath, resolvedOpenCodePath);
+		if (resolvedDefaultDbPath != null) {
+			return resolvedDefaultDbPath;
+		}
+	}
+
+	let entries: string[];
+	try {
+		entries = readdirSync(openCodePath);
+	} catch (error) {
+		logger.warn('Failed to read OpenCode data directory:', error);
+		return null;
+	}
+
+	for (const entry of entries.filter((name) => OPENCODE_CHANNEL_DB_PATTERN.test(name)).sort()) {
+		const resolvedDbPath = resolveOpenCodeDbCandidate(
+			path.join(openCodePath, entry),
+			resolvedOpenCodePath,
+		);
+		if (resolvedDbPath != null) {
+			return resolvedDbPath;
+		}
+	}
+
+	return null;
+}
+
 function loadOpenCodeSessionsFromDb(openCodePath: string): Map<string, LoadedSessionMetadata> {
-	const dbPath = path.join(openCodePath, 'opencode.db');
-	if (!existsSync(dbPath)) {
+	const dbPath = getOpenCodeDbPath(openCodePath);
+	if (dbPath == null) {
 		return new Map();
 	}
 
@@ -452,8 +512,8 @@ function loadOpenCodeMessagesFromDb(openCodePath: string): {
 	entries: LoadedUsageEntry[];
 	seenIds: Set<string>;
 } {
-	const dbPath = path.join(openCodePath, 'opencode.db');
-	if (!existsSync(dbPath)) {
+	const dbPath = getOpenCodeDbPath(openCodePath);
+	if (dbPath == null) {
 		return { entries: [], seenIds: new Set() };
 	}
 
@@ -705,6 +765,7 @@ if (import.meta.vitest != null) {
 			expect(entry.usage.cacheReadInputTokens).toBe(50);
 			expect(entry.usage.cacheCreationInputTokens).toBe(25);
 			expect(entry.model).toBe('claude-sonnet-4-20250514');
+			expect(entry.providerID).toBe('anthropic');
 		});
 
 		it('should handle missing optional fields', () => {
@@ -727,6 +788,7 @@ if (import.meta.vitest != null) {
 			expect(entry.usage.outputTokens).toBe(100);
 			expect(entry.usage.cacheReadInputTokens).toBe(0);
 			expect(entry.usage.cacheCreationInputTokens).toBe(0);
+			expect(entry.providerID).toBe('openai');
 			expect(entry.costUSD).toBe(null);
 		});
 
@@ -742,6 +804,7 @@ if (import.meta.vitest != null) {
 				expect(messages[0]).toMatchObject({
 					sessionID: 'ses_db',
 					model: 'claude-sonnet-4-20250514',
+					providerID: 'anthropic',
 					costUSD: 0.123,
 					usage: {
 						inputTokens: 10,
@@ -758,6 +821,68 @@ if (import.meta.vitest != null) {
 					projectID: 'project_db',
 					directory: '/tmp/project-db',
 				});
+			});
+		});
+
+		it('should load OpenCode messages from channel SQLite databases', async () => {
+			await using fixture = await createTempFixture({});
+			createOpenCodeDb(fixture.getPath('opencode-beta.db'));
+
+			await withOpenCodeDataDir(fixture.path, async () => {
+				const messages = await loadOpenCodeMessages();
+				const sessions = await loadOpenCodeSessions();
+
+				expect(messages).toHaveLength(1);
+				expect(messages[0]?.sessionID).toBe('ses_db');
+				expect(sessions.get('ses_db')?.title).toBe('DB Session');
+			});
+		});
+
+		it('should keep legacy JSON messages that are not present in SQLite', async () => {
+			await using fixture = await createTempFixture({
+				storage: {
+					message: {
+						ses_json: {
+							'msg_json.json': JSON.stringify({
+								id: 'msg_json',
+								sessionID: 'ses_json',
+								providerID: 'anthropic',
+								modelID: 'claude-opus-4-20250514',
+								time: {
+									created: 1700000020000,
+								},
+								tokens: {
+									input: 111,
+									output: 222,
+									cache: {
+										read: 0,
+										write: 0,
+									},
+								},
+							}),
+						},
+					},
+					session: {
+						'ses_json.json': JSON.stringify({
+							id: 'ses_json',
+							title: 'Legacy Session',
+							projectID: 'project_json',
+							directory: '/tmp/project-json',
+						}),
+					},
+				},
+			});
+			createOpenCodeDb(fixture.getPath('opencode.db'));
+
+			await withOpenCodeDataDir(fixture.path, async () => {
+				const messages = await loadOpenCodeMessages();
+				const sessions = await loadOpenCodeSessions();
+
+				expect(messages).toHaveLength(2);
+				expect(messages.some((message) => message.sessionID === 'ses_db')).toBe(true);
+				expect(messages.some((message) => message.sessionID === 'ses_json')).toBe(true);
+				expect(sessions.get('ses_db')?.title).toBe('DB Session');
+				expect(sessions.get('ses_json')?.title).toBe('Legacy Session');
 			});
 		});
 
