@@ -112,6 +112,7 @@ export type LoadedUsageEntry = {
 		cacheReadInputTokens: number;
 	};
 	model: string;
+	providerID: string;
 	costUSD: number | null;
 };
 
@@ -183,6 +184,7 @@ function convertOpenCodeMessageToUsageEntry(
 			cacheReadInputTokens: message.tokens?.cache?.read ?? 0,
 		},
 		model: message.modelID ?? 'unknown',
+		providerID: message.providerID ?? 'unknown',
 		costUSD: message.cost ?? null,
 	};
 }
@@ -342,6 +344,7 @@ if (import.meta.vitest != null) {
 			expect(entry.usage.cacheReadInputTokens).toBe(50);
 			expect(entry.usage.cacheCreationInputTokens).toBe(25);
 			expect(entry.model).toBe('claude-sonnet-4-5');
+			expect(entry.providerID).toBe('anthropic');
 		});
 
 		it('should handle missing optional fields', () => {
@@ -364,6 +367,7 @@ if (import.meta.vitest != null) {
 			expect(entry.usage.outputTokens).toBe(100);
 			expect(entry.usage.cacheReadInputTokens).toBe(0);
 			expect(entry.usage.cacheCreationInputTokens).toBe(0);
+			expect(entry.providerID).toBe('openai');
 			expect(entry.costUSD).toBe(null);
 		});
 	});
