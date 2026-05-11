@@ -39,7 +39,8 @@
 		"prerelease": "pnpm run --filter '*' prerelease",
 		"release": "pnpm bumpp -r",
 		"postrelease": "git checkout ./**/package.json package.json",
-		"test": "TZ=UTC vitest run",
+		"test": "TZ=UTC vitest run && pnpm run test:rust",
+		"test:rust": "cargo test --workspace",
 		"typecheck": "pnpm run --filter '*' typecheck"
 	},
 	"dependencies": {},

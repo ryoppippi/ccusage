@@ -50,7 +50,8 @@
 		"node": ">=20.19.4"
 	},
 	"scripts": {
-		"build": "pnpm run generate:schema && tsdown",
+		"build": "pnpm run generate:schema && pnpm run build:rust && tsdown",
+		"build:rust": "cargo build --release --bin ccusage",
 		"format": "pnpm run lint --fix",
 		"generate:schema": "bun scripts/generate-json-schema.ts",
 		"lint": "eslint --cache .",
@@ -59,6 +60,7 @@
 		"prerelease": "pnpm run lint && pnpm run typecheck && pnpm run build",
 		"start": "bun ./src/index.ts",
 		"test": "TZ=UTC vitest",
+		"test:rust": "cargo test --workspace",
 		"test:statusline": "cat test/statusline-test.json | node ./src/index.ts statusline",
 		"test:statusline:all": "echo 'Testing Sonnet 4:' && pnpm run test:statusline:sonnet4 && echo 'Testing Opus 4.1:' && pnpm run test:statusline:opus4 && echo 'Testing Sonnet 4.1:' && pnpm run test:statusline:sonnet41",
 		"test:statusline:opus4": "cat test/statusline-test-opus4.json | node ./src/index.ts statusline --offline",

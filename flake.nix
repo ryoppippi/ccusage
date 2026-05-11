@@ -9,20 +9,29 @@
       forAllSystems = f: nixpkgs.lib.genAttrs systems (system: f nixpkgs.legacyPackages.${system});
     in {
       devShells = forAllSystems (pkgs: {
-        default = pkgs.mkShellNoCC {
+        default = pkgs.mkShell {
           buildInputs = with pkgs; [
             # Package manager
             pnpm_10
 
             # Development tools
+            cargo
+            rustc
+            rustfmt
             typos
             typos-lsp
             jq
             git
             gh
+          ] ++ pkgs.lib.optionals pkgs.stdenv.isDarwin [
+            apple-sdk_15
           ];
 
           shellHook = ''
+            ${pkgs.lib.optionalString pkgs.stdenv.isDarwin ''
+              export SDKROOT="${pkgs.apple-sdk_15}/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk"
+            ''}
+
             # Install dependencies only if node_modules/.pnpm/lock.yaml is older than pnpm-lock.yaml
             if [ ! -f node_modules/.pnpm/lock.yaml ] || [ pnpm-lock.yaml -nt node_modules/.pnpm/lock.yaml ]; then
               echo "📦 Installing dependencies..."
