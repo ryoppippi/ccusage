@@ -69,6 +69,8 @@ import {
 import { unreachable } from './_utils.ts';
 import { logger } from './logger.ts';
 
+const USAGE_LINE_MARKER = '"input_tokens"';
+
 /**
  * Get Claude data directories to search for usage data
  * When CLAUDE_CONFIG_DIR is set: uses only those paths
@@ -191,6 +193,87 @@ export const usageDataSchema = v.object({
 	requestId: v.optional(requestIdSchema), // Request ID for deduplication
 	isApiErrorMessage: v.optional(v.boolean()),
 });
+
+const isoTimestampPattern = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/;
+const versionPattern = /^\d+\.\d+\.\d+/;
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function isOptionalString(value: unknown): value is string | undefined {
+	return value == null || typeof value === 'string';
+}
+
+function isOptionalNonEmptyString(value: unknown): value is string | undefined {
+	return value == null || (typeof value === 'string' && value.length > 0);
+}
+
+function isOptionalNumber(value: unknown): value is number | undefined {
+	return value == null || typeof value === 'number';
+}
+
+function isOptionalBoolean(value: unknown): value is boolean | undefined {
+	return value == null || typeof value === 'boolean';
+}
+
+function parseUsageDataFast(value: unknown): UsageData | null {
+	if (!isRecord(value)) {
+		return null;
+	}
+	if (
+		!isOptionalString(value.cwd) ||
+		!isOptionalNonEmptyString(value.sessionId) ||
+		!isOptionalNonEmptyString(value.requestId) ||
+		!isOptionalNumber(value.costUSD) ||
+		!isOptionalBoolean(value.isApiErrorMessage)
+	) {
+		return null;
+	}
+	if (
+		value.version != null &&
+		(typeof value.version !== 'string' || !versionPattern.test(value.version))
+	) {
+		return null;
+	}
+	if (typeof value.timestamp !== 'string' || !isoTimestampPattern.test(value.timestamp)) {
+		return null;
+	}
+	if (!isRecord(value.message)) {
+		return null;
+	}
+	if (
+		!isOptionalNonEmptyString(value.message.model) ||
+		!isOptionalNonEmptyString(value.message.id)
+	) {
+		return null;
+	}
+	if (value.message.content != null) {
+		if (!Array.isArray(value.message.content)) {
+			return null;
+		}
+		for (const part of value.message.content) {
+			if (!isRecord(part) || !isOptionalString(part.text)) {
+				return null;
+			}
+		}
+	}
+	if (!isRecord(value.message.usage)) {
+		return null;
+	}
+	const { usage } = value.message;
+	if (
+		typeof usage.input_tokens !== 'number' ||
+		typeof usage.output_tokens !== 'number' ||
+		!isOptionalNumber(usage.cache_creation_input_tokens) ||
+		!isOptionalNumber(usage.cache_read_input_tokens) ||
+		(usage.speed != null && usage.speed !== 'standard' && usage.speed !== 'fast')
+	) {
+		return null;
+	}
+
+	return value as UsageData;
+}
 
 /**
  * Valibot schema for transcript usage data from Claude messages
@@ -514,6 +597,34 @@ function markAsProcessed(uniqueHash: string | null, processedHashes: Set<string>
 	}
 }
 
+function getDedupedEntryIndex<T extends { data: UsageData }>(
+	uniqueHash: string | null,
+	processedEntries: Map<string, number>,
+	entries: T[],
+	data: UsageData,
+): number | null {
+	if (uniqueHash == null) {
+		return null;
+	}
+
+	const existingIndex = processedEntries.get(uniqueHash);
+	if (existingIndex == null) {
+		return null;
+	}
+
+	return data.timestamp < entries[existingIndex]!.data.timestamp ? existingIndex : -1;
+}
+
+function markDedupedEntry(
+	uniqueHash: string | null,
+	processedEntries: Map<string, number>,
+	entryIndex: number,
+): void {
+	if (uniqueHash != null) {
+		processedEntries.set(uniqueHash, entryIndex);
+	}
+}
+
 /**
  * Extracts unique models from entries, excluding synthetic model
  */
@@ -776,17 +887,11 @@ export async function loadDailyUsageData(options?: LoadOptions): Promise<DailyUs
 		options?.project,
 	);
 
-	// Sort files by timestamp to ensure chronological processing
-	const sortedFiles = await sortFilesByTimestamp(projectFilteredFiles);
-
 	// Fetch pricing data for cost calculation only when needed
 	const mode = options?.mode ?? 'auto';
 
 	// Use PricingFetcher with using statement for automatic cleanup
 	using fetcher = mode === 'display' ? null : new PricingFetcher(options?.offline);
-
-	// Track processed message+request combinations for deduplication
-	const processedHashes = new Set<string>();
 
 	// Collect all valid data entries first
 	const allEntries: {
@@ -796,29 +901,35 @@ export async function loadDailyUsageData(options?: LoadOptions): Promise<DailyUs
 		model: string | undefined;
 		project: string;
 	}[] = [];
+	const processedEntries = new Map<string, number>();
 
-	for (const file of sortedFiles) {
+	for (const file of projectFilteredFiles) {
 		// Extract project name from file path once per file
 		const project = extractProjectFromPath(file);
 
 		await processJSONLFileByLine(file, async (line) => {
 			try {
-				const parsed = JSON.parse(line) as unknown;
-				const result = v.safeParse(usageDataSchema, parsed);
-				if (!result.success) {
+				if (!line.includes(USAGE_LINE_MARKER)) {
 					return;
 				}
-				const data = result.output;
+
+				const parsed = JSON.parse(line) as unknown;
+				const data = parseUsageDataFast(parsed);
+				if (data == null) {
+					return;
+				}
 
 				// Check for duplicate message + request ID combination
 				const uniqueHash = createUniqueHash(data);
-				if (isDuplicateEntry(uniqueHash, processedHashes)) {
-					// Skip duplicate message
+				const existingEntryIndex = getDedupedEntryIndex(
+					uniqueHash,
+					processedEntries,
+					allEntries,
+					data,
+				);
+				if (existingEntryIndex === -1) {
 					return;
 				}
-
-				// Mark this combination as processed
-				markAsProcessed(uniqueHash, processedHashes);
 
 				// Always use DEFAULT_LOCALE for date grouping to ensure YYYY-MM-DD format
 				const date = formatDate(data.timestamp, options?.timezone, DEFAULT_LOCALE);
@@ -827,7 +938,13 @@ export async function loadDailyUsageData(options?: LoadOptions): Promise<DailyUs
 				const cost =
 					fetcher != null ? await calculateCostForEntry(data, mode, fetcher) : (data.costUSD ?? 0);
 
-				allEntries.push({ data, date, cost, model: getDisplayModelName(data), project });
+				const entry = { data, date, cost, model: getDisplayModelName(data), project };
+				if (existingEntryIndex != null) {
+					allEntries[existingEntryIndex] = entry;
+				} else {
+					allEntries.push(entry);
+					markDedupedEntry(uniqueHash, processedEntries, allEntries.length - 1);
+				}
 			} catch {
 				// Skip invalid JSON lines
 			}
@@ -924,26 +1041,11 @@ export async function loadSessionData(options?: LoadOptions): Promise<SessionUsa
 		options?.project,
 	);
 
-	// Sort files by timestamp to ensure chronological processing
-	// Create a map for O(1) lookup instead of O(N) find operations
-	const fileToBaseMap = new Map(projectFilteredWithBase.map((f) => [f.file, f.baseDir]));
-	const sortedFilesWithBase = await sortFilesByTimestamp(
-		projectFilteredWithBase.map((f) => f.file),
-	).then((sortedFiles) =>
-		sortedFiles.map((file) => ({
-			file,
-			baseDir: fileToBaseMap.get(file) ?? '',
-		})),
-	);
-
 	// Fetch pricing data for cost calculation only when needed
 	const mode = options?.mode ?? 'auto';
 
 	// Use PricingFetcher with using statement for automatic cleanup
 	using fetcher = mode === 'display' ? null : new PricingFetcher(options?.offline);
-
-	// Track processed message+request combinations for deduplication
-	const processedHashes = new Set<string>();
 
 	// Collect all valid data entries with session info first
 	const allEntries: Array<{
@@ -955,8 +1057,9 @@ export async function loadSessionData(options?: LoadOptions): Promise<SessionUsa
 		timestamp: string;
 		model: string | undefined;
 	}> = [];
+	const processedEntries = new Map<string, number>();
 
-	for (const { file, baseDir } of sortedFilesWithBase) {
+	for (const { file, baseDir } of projectFilteredWithBase) {
 		// Extract session info from file path using its specific base directory
 		const relativePath = path.relative(baseDir, file);
 		const parts = relativePath.split(path.sep);
@@ -969,28 +1072,33 @@ export async function loadSessionData(options?: LoadOptions): Promise<SessionUsa
 
 		await processJSONLFileByLine(file, async (line) => {
 			try {
-				const parsed = JSON.parse(line) as unknown;
-				const result = v.safeParse(usageDataSchema, parsed);
-				if (!result.success) {
+				if (!line.includes(USAGE_LINE_MARKER)) {
 					return;
 				}
-				const data = result.output;
+
+				const parsed = JSON.parse(line) as unknown;
+				const data = parseUsageDataFast(parsed);
+				if (data == null) {
+					return;
+				}
 
 				// Check for duplicate message + request ID combination
 				const uniqueHash = createUniqueHash(data);
-				if (isDuplicateEntry(uniqueHash, processedHashes)) {
-					// Skip duplicate message
+				const existingEntryIndex = getDedupedEntryIndex(
+					uniqueHash,
+					processedEntries,
+					allEntries,
+					data,
+				);
+				if (existingEntryIndex === -1) {
 					return;
 				}
-
-				// Mark this combination as processed
-				markAsProcessed(uniqueHash, processedHashes);
 
 				const sessionKey = `${projectPath}/${sessionId}`;
 				const cost =
 					fetcher != null ? await calculateCostForEntry(data, mode, fetcher) : (data.costUSD ?? 0);
 
-				allEntries.push({
+				const entry = {
 					data,
 					sessionKey,
 					sessionId,
@@ -998,7 +1106,13 @@ export async function loadSessionData(options?: LoadOptions): Promise<SessionUsa
 					cost,
 					timestamp: data.timestamp,
 					model: getDisplayModelName(data),
-				});
+				};
+				if (existingEntryIndex != null) {
+					allEntries[existingEntryIndex] = entry;
+				} else {
+					allEntries.push(entry);
+					markDedupedEntry(uniqueHash, processedEntries, allEntries.length - 1);
+				}
 			} catch {
 				// Skip invalid JSON lines
 			}
@@ -1156,11 +1270,10 @@ export async function loadSessionUsageById(
 	await processJSONLFileByLine(file, async (line) => {
 		try {
 			const parsed = JSON.parse(line) as unknown;
-			const result = v.safeParse(usageDataSchema, parsed);
-			if (!result.success) {
+			const data = parseUsageDataFast(parsed);
+			if (data == null) {
 				return;
 			}
-			const data = result.output;
 
 			const cost =
 				fetcher != null ? await calculateCostForEntry(data, mode, fetcher) : (data.costUSD ?? 0);
@@ -1397,11 +1510,10 @@ export async function loadSessionBlockData(options?: LoadOptions): Promise<Sessi
 		await processJSONLFileByLine(file, async (line) => {
 			try {
 				const parsed = JSON.parse(line) as unknown;
-				const result = v.safeParse(usageDataSchema, parsed);
-				if (!result.success) {
+				const data = parseUsageDataFast(parsed);
+				if (data == null) {
 					return;
 				}
-				const data = result.output;
 
 				// Check for duplicate message + request ID combination
 				const uniqueHash = createUniqueHash(data);
@@ -1985,6 +2097,50 @@ invalid json line
 			expect(result).toHaveLength(1);
 			expect(result[0]?.inputTokens).toBe(400); // 100 + 300
 			expect(result[0]?.totalCost).toBe(0.04); // 0.01 + 0.03
+		});
+
+		it('does not parse lines without usage tokens', async () => {
+			const parseSpy = vi.spyOn(JSON, 'parse');
+			const mockData = [
+				JSON.stringify({
+					timestamp: '2024-01-01T12:00:00Z',
+					message: { usage: { input_tokens: 100, output_tokens: 50 } },
+					costUSD: 0.01,
+				}),
+				JSON.stringify({
+					timestamp: '2024-01-01T12:30:00Z',
+					type: 'user',
+					message: { content: 'hello' },
+				}),
+				JSON.stringify({
+					timestamp: '2024-01-01T13:00:00Z',
+					message: { usage: { input_tokens: 200, output_tokens: 100 } },
+					costUSD: 0.02,
+				}),
+			].join('\n');
+
+			await using fixture = await createFixture({
+				projects: {
+					project1: {
+						session1: {
+							'file.jsonl': mockData,
+						},
+					},
+				},
+			});
+
+			try {
+				const result = await loadDailyUsageData({
+					claudePath: fixture.path,
+					mode: 'display',
+				});
+
+				expect(result).toHaveLength(1);
+				expect(result[0]?.inputTokens).toBe(300);
+				expect(parseSpy).toHaveBeenCalledTimes(2);
+			} finally {
+				parseSpy.mockRestore();
+			}
 		});
 	});
 
