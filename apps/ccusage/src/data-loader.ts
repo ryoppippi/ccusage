@@ -553,23 +553,24 @@ async function filterFilesByMtime<T>(
 	return items.filter((_, index) => keepFlags[index] === true);
 }
 
-/**
- * Checks if an entry is a duplicate based on hash
- */
-function isDuplicateEntry(uniqueHash: string | null, processedHashes: Set<string>): boolean {
-	if (uniqueHash == null) {
-		return false;
-	}
-	return processedHashes.has(uniqueHash);
+function getUsageTokenTotal(data: UsageData): number {
+	const usage = data.message.usage;
+	return (
+		usage.input_tokens +
+		usage.output_tokens +
+		(usage.cache_creation_input_tokens ?? 0) +
+		(usage.cache_read_input_tokens ?? 0)
+	);
 }
 
-/**
- * Marks an entry as processed
- */
-function markAsProcessed(uniqueHash: string | null, processedHashes: Set<string>): void {
-	if (uniqueHash != null) {
-		processedHashes.add(uniqueHash);
+function shouldReplaceDedupedEntry(candidate: UsageData, existing: UsageData): boolean {
+	const candidateTotal = getUsageTokenTotal(candidate);
+	const existingTotal = getUsageTokenTotal(existing);
+	if (candidateTotal !== existingTotal) {
+		return candidateTotal > existingTotal;
 	}
+
+	return candidate.message.usage.speed != null && existing.message.usage.speed == null;
 }
 
 function getDedupedEntryIndex<T extends { data: UsageData }>(
@@ -587,7 +588,7 @@ function getDedupedEntryIndex<T extends { data: UsageData }>(
 		return null;
 	}
 
-	return data.timestamp < entries[existingIndex]!.data.timestamp ? existingIndex : -1;
+	return shouldReplaceDedupedEntry(data, entries[existingIndex]!.data) ? existingIndex : -1;
 }
 
 function markDedupedEntry(
@@ -1501,11 +1502,9 @@ export async function loadSessionBlockData(options?: LoadOptions): Promise<Sessi
 	// Use PricingFetcher with using statement for automatic cleanup
 	using fetcher = mode === 'display' ? null : new PricingFetcher(options?.offline);
 
-	// Track processed message+request combinations for deduplication
-	const processedHashes = new Set<string>();
-
 	// Collect all valid data entries first
 	const allEntries: LoadedUsageEntry[] = [];
+	const processedEntries = new Map<string, { data: UsageData; index: number }>();
 
 	for (const file of sortedFiles) {
 		await processJSONLFileByLine(file, async (line) => {
@@ -1521,15 +1520,7 @@ export async function loadSessionBlockData(options?: LoadOptions): Promise<Sessi
 				}
 				const data = result.output;
 
-				// Check for duplicate message + request ID combination
 				const uniqueHash = createUniqueHash(data);
-				if (isDuplicateEntry(uniqueHash, processedHashes)) {
-					// Skip duplicate message
-					return;
-				}
-
-				// Mark this combination as processed
-				markAsProcessed(uniqueHash, processedHashes);
 
 				const cost =
 					fetcher != null ? await calculateCostForEntry(data, mode, fetcher) : (data.costUSD ?? 0);
@@ -1537,7 +1528,7 @@ export async function loadSessionBlockData(options?: LoadOptions): Promise<Sessi
 				// Get Claude Code usage limit expiration date
 				const usageLimitResetTime = getUsageLimitResetTime(data);
 
-				allEntries.push({
+				const entry: LoadedUsageEntry = {
 					timestamp: new Date(data.timestamp),
 					usage: {
 						inputTokens: data.message.usage.input_tokens,
@@ -1549,7 +1540,22 @@ export async function loadSessionBlockData(options?: LoadOptions): Promise<Sessi
 					model: getDisplayModelName(data) ?? 'unknown',
 					version: data.version,
 					usageLimitResetTime: usageLimitResetTime ?? undefined,
-				});
+				};
+				if (uniqueHash == null) {
+					allEntries.push(entry);
+					return;
+				}
+
+				const existing = processedEntries.get(uniqueHash);
+				if (existing == null) {
+					allEntries.push(entry);
+					processedEntries.set(uniqueHash, { data, index: allEntries.length - 1 });
+					return;
+				}
+				if (shouldReplaceDedupedEntry(data, existing.data)) {
+					allEntries[existing.index] = entry;
+					processedEntries.set(uniqueHash, { data, index: existing.index });
+				}
 			} catch (error) {
 				// Skip invalid JSON lines but log for debugging purposes
 				logger.debug(
@@ -4205,6 +4211,60 @@ invalid json line
 			expect(calculateResult[0]?.costUSD).toBeGreaterThan(0);
 		});
 
+		it('keeps the most complete duplicate usage entry', async () => {
+			await using fixture = await createFixture({
+				projects: {
+					project1: {
+						session1: {
+							'chat.jsonl': [
+								JSON.stringify({
+									timestamp: '2025-01-10T10:00:00.000Z',
+									message: {
+										id: 'msg_123',
+										model: 'claude-opus-4-6',
+										usage: {
+											input_tokens: 100,
+											output_tokens: 25,
+											cache_creation_input_tokens: 10,
+											cache_read_input_tokens: 5,
+										},
+									},
+									requestId: 'req_456',
+									costUSD: 0.001,
+								}),
+								JSON.stringify({
+									timestamp: '2025-01-10T10:00:01.000Z',
+									message: {
+										id: 'msg_123',
+										model: 'claude-opus-4-6',
+										usage: {
+											input_tokens: 100,
+											output_tokens: 250,
+											cache_creation_input_tokens: 10,
+											cache_read_input_tokens: 5,
+											speed: 'standard',
+										},
+									},
+									requestId: 'req_456',
+									costUSD: 0.01,
+								}),
+							].join('\n'),
+						},
+					},
+				},
+			});
+
+			const result = await loadSessionBlockData({
+				claudePath: fixture.path,
+				mode: 'display',
+			});
+
+			const usageBlock = result.find((block) => block.isGap !== true);
+			expect(usageBlock?.tokenCounts.inputTokens).toBe(100);
+			expect(usageBlock?.tokenCounts.outputTokens).toBe(250);
+			expect(usageBlock?.costUSD).toBe(0.01);
+		});
+
 		it('filters by date range correctly', async () => {
 			const date1 = new Date('2024-01-01T10:00:00Z');
 			const date2 = new Date('2024-01-02T10:00:00Z');
@@ -4787,7 +4847,7 @@ if (import.meta.vitest != null) {
 				expect(data[0]?.outputTokens).toBe(50);
 			});
 
-			it('should process files in chronological order', async () => {
+			it('keeps the duplicate with more usage tokens across files', async () => {
 				await using fixture = await createFixture({
 					projects: {
 						'newer.jsonl': JSON.stringify({
@@ -4822,11 +4882,64 @@ if (import.meta.vitest != null) {
 					mode: 'display',
 				});
 
-				// Should keep the older entry (100/50 tokens) not the newer one (200/100)
 				expect(data).toHaveLength(1);
-				expect(data[0]?.date).toBe('2025-01-10');
+				expect(data[0]?.date).toBe('2025-01-15');
+				expect(data[0]?.inputTokens).toBe(200);
+				expect(data[0]?.outputTokens).toBe(100);
+			});
+
+			it('keeps the most complete duplicate usage entry', async () => {
+				await using fixture = await createFixture({
+					projects: {
+						project1: {
+							session1: {
+								'chat.jsonl': [
+									JSON.stringify({
+										timestamp: '2025-01-10T10:00:00.000Z',
+										message: {
+											id: 'msg_123',
+											model: 'claude-opus-4-6',
+											usage: {
+												input_tokens: 100,
+												output_tokens: 25,
+												cache_creation_input_tokens: 10,
+												cache_read_input_tokens: 5,
+											},
+										},
+										requestId: 'req_456',
+										costUSD: 0.001,
+									}),
+									JSON.stringify({
+										timestamp: '2025-01-10T10:00:01.000Z',
+										message: {
+											id: 'msg_123',
+											model: 'claude-opus-4-6',
+											usage: {
+												input_tokens: 100,
+												output_tokens: 250,
+												cache_creation_input_tokens: 10,
+												cache_read_input_tokens: 5,
+												speed: 'standard',
+											},
+										},
+										requestId: 'req_456',
+										costUSD: 0.01,
+									}),
+								].join('\n'),
+							},
+						},
+					},
+				});
+
+				const data = await loadDailyUsageData({
+					claudePath: fixture.path,
+					mode: 'display',
+				});
+
+				expect(data).toHaveLength(1);
 				expect(data[0]?.inputTokens).toBe(100);
-				expect(data[0]?.outputTokens).toBe(50);
+				expect(data[0]?.outputTokens).toBe(250);
+				expect(data[0]?.totalCost).toBe(0.01);
 			});
 		});
 
@@ -4872,21 +4985,9 @@ if (import.meta.vitest != null) {
 					mode: 'display',
 				});
 
-				// Session 1 should have the entry
-				const session1 = sessions.find((s) => s.sessionId === 'session1');
-				expect(session1).toBeDefined();
-				expect(session1?.inputTokens).toBe(100);
-				expect(session1?.outputTokens).toBe(50);
-
-				// Session 2 should either not exist or have 0 tokens (duplicate was skipped)
-				const session2 = sessions.find((s) => s.sessionId === 'session2');
-				if (session2 != null) {
-					expect(session2.inputTokens).toBe(0);
-					expect(session2.outputTokens).toBe(0);
-				} else {
-					// It's also valid for session2 to not be included if it has no entries
-					expect(sessions.length).toBe(1);
-				}
+				expect(sessions).toHaveLength(1);
+				expect(sessions[0]?.inputTokens).toBe(100);
+				expect(sessions[0]?.outputTokens).toBe(50);
 			});
 		});
 	});
