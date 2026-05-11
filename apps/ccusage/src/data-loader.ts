@@ -1044,6 +1044,74 @@ export type GlobResult = {
 	baseDir: string;
 };
 
+type BunGlobOptions = {
+	cwd: string;
+	absolute?: boolean;
+};
+
+type BunGlobInstance = {
+	scan: (options: BunGlobOptions) => AsyncIterable<string> | Iterable<string>;
+};
+
+type BunGlobConstructor = new (pattern: string) => BunGlobInstance;
+
+type BunRuntime = typeof globalThis & {
+	Bun?: {
+		Glob?: BunGlobConstructor;
+	};
+};
+
+function getBunGlobConstructor(): BunGlobConstructor | undefined {
+	return (globalThis as BunRuntime).Bun?.Glob;
+}
+
+async function scanWithBunGlob(pattern: string, cwd: string): Promise<string[] | null> {
+	const BunGlob = getBunGlobConstructor();
+	if (BunGlob == null) {
+		return null;
+	}
+
+	const files: string[] = [];
+	try {
+		for await (const file of new BunGlob(pattern).scan({ cwd, absolute: true })) {
+			files.push(file);
+		}
+		return files;
+	} catch {
+		return [];
+	}
+}
+
+async function globUsageFilesInDir(claudeDir: string): Promise<string[]> {
+	const bunFiles = await scanWithBunGlob(USAGE_DATA_GLOB_PATTERN, claudeDir);
+	if (bunFiles != null) {
+		return bunFiles;
+	}
+
+	return glob([USAGE_DATA_GLOB_PATTERN], {
+		cwd: claudeDir,
+		absolute: true,
+	}).catch(() => []);
+}
+
+async function globSessionFiles(claudePaths: string[], sessionId: string): Promise<string[]> {
+	const BunGlob = getBunGlobConstructor();
+	if (BunGlob != null) {
+		const fileGroups = await Promise.all(
+			claudePaths.map(async (claudePath) => {
+				const claudeDir = path.join(claudePath, CLAUDE_PROJECTS_DIR_NAME);
+				return scanWithBunGlob(`**/${sessionId}.jsonl`, claudeDir).then((files) => files ?? []);
+			}),
+		);
+		return fileGroups.flat();
+	}
+
+	const patterns = claudePaths.map((p) =>
+		path.join(p, CLAUDE_PROJECTS_DIR_NAME, '**', `${sessionId}.jsonl`).replace(/\\/g, '/'),
+	);
+	return glob(patterns, { absolute: true });
+}
+
 /**
  * Glob files from multiple Claude paths in parallel
  * @param claudePaths - Array of Claude base paths
@@ -1052,10 +1120,7 @@ export type GlobResult = {
 export async function globUsageFiles(claudePaths: string[]): Promise<GlobResult[]> {
 	const filePromises = claudePaths.map(async (claudePath) => {
 		const claudeDir = path.join(claudePath, CLAUDE_PROJECTS_DIR_NAME);
-		const files = await glob([USAGE_DATA_GLOB_PATTERN], {
-			cwd: claudeDir,
-			absolute: true,
-		}).catch(() => []); // Gracefully handle errors for individual paths
+		const files = await globUsageFilesInDir(claudeDir);
 
 		// Map each file to include its base directory
 		return files.map((file) => ({ file, baseDir: claudeDir }));
@@ -1494,13 +1559,7 @@ export async function loadSessionUsageById(
 ): Promise<{ totalCost: number; entries: UsageData[] } | null> {
 	const claudePaths = getClaudePaths();
 
-	// Find the JSONL file for this session ID
-	// On Windows, replace backslashes from path.join with forward slashes for tinyglobby compatibility
-	const patterns = claudePaths.map((p) =>
-		path.join(p, 'projects', '**', `${sessionId}.jsonl`).replace(/\\/g, '/'),
-	);
-	// Absolute paths important on Windows - relative paths will break if session file is on different disk.
-	const jsonlFiles = await glob(patterns, { absolute: true });
+	const jsonlFiles = await globSessionFiles(claudePaths, sessionId);
 
 	if (jsonlFiles.length === 0) {
 		return null;
@@ -1728,15 +1787,7 @@ export async function loadSessionBlockData(options?: LoadOptions): Promise<Sessi
 	const claudePaths = toArray(options?.claudePath ?? getClaudePaths());
 
 	// Collect files from all paths
-	const allFiles: string[] = [];
-	for (const claudePath of claudePaths) {
-		const claudeDir = path.join(claudePath, CLAUDE_PROJECTS_DIR_NAME);
-		const files = await glob([USAGE_DATA_GLOB_PATTERN], {
-			cwd: claudeDir,
-			absolute: true,
-		});
-		allFiles.push(...files);
-	}
+	const allFiles = (await globUsageFiles(claudePaths)).map(({ file }) => file);
 
 	if (allFiles.length === 0) {
 		return [];
