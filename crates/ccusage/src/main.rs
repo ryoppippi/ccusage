@@ -648,7 +648,7 @@ async fn load_entries(
     let mut entries = files
         .par_iter()
         .enumerate()
-        .flat_map_iter(|(file_index, file)| read_usage_file(file, tz, shared.mode, file_index))
+        .flat_map_iter(|(file_index, file)| read_usage_file(file, tz, file_index))
         .collect::<Vec<_>>();
     entries.sort_by_key(|entry| (entry.file_index, entry.line_number));
 
@@ -678,24 +678,20 @@ async fn assign_costs(entries: &mut [LoadedEntry], shared: &SharedArgs) {
         || (shared.mode == CostMode::Auto
             && entries.iter().all(|entry| entry.data.cost_usd.is_some()))
     {
+        for entry in entries {
+            entry.cost = entry.data.cost_usd.unwrap_or(0.0);
+        }
         return;
     }
 
     let pricing =
         PricingRegistry::load(shared.offline && !shared.no_offline, wants_json(shared)).await;
     for entry in entries {
-        if shared.mode == CostMode::Calculate || entry.data.cost_usd.is_none() {
-            entry.cost = calculate_cost(&entry.data, shared.mode, &pricing);
-        }
+        entry.cost = calculate_cost(&entry.data, shared.mode, &pricing);
     }
 }
 
-fn read_usage_file_with(
-    path: &Path,
-    tz: Option<Tz>,
-    mode: CostMode,
-    file_index: usize,
-) -> Vec<LoadedEntry> {
+fn read_usage_file_with(path: &Path, tz: Option<Tz>, file_index: usize) -> Vec<LoadedEntry> {
     let file = match File::open(path) {
         Ok(file) => file,
         Err(_) => return Vec::new(),
@@ -723,10 +719,6 @@ fn read_usage_file_with(
                 .ok()?
                 .with_timezone(&Utc);
             let date = format_date_tz(timestamp, tz);
-            let cost = match mode {
-                CostMode::Auto | CostMode::Display => data.cost_usd.unwrap_or(0.0),
-                CostMode::Calculate => 0.0,
-            };
             let model = data.message.model.as_ref().and_then(|model| {
                 if model == "<synthetic>" {
                     None
@@ -743,7 +735,7 @@ fn read_usage_file_with(
                 project: project.clone(),
                 session_id: session_id.clone(),
                 project_path: project_path.clone(),
-                cost,
+                cost: 0.0,
                 model,
                 file_index,
                 line_number,
@@ -914,13 +906,8 @@ fn is_semver_prefix(value: &str) -> bool {
         && patch.chars().next().is_some_and(|ch| ch.is_ascii_digit())
 }
 
-fn read_usage_file(
-    path: &Path,
-    tz: Option<Tz>,
-    mode: CostMode,
-    file_index: usize,
-) -> Vec<LoadedEntry> {
-    read_usage_file_with(path, tz, mode, file_index)
+fn read_usage_file(path: &Path, tz: Option<Tz>, file_index: usize) -> Vec<LoadedEntry> {
+    read_usage_file_with(path, tz, file_index)
 }
 
 fn claude_paths() -> Result<Vec<PathBuf>> {
