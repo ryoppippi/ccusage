@@ -15,11 +15,15 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
 mod cli;
+mod pricing;
+mod terminal;
 
 use cli::{
     BlocksArgs, Cli, Command, CostMode, CostSource, DailyArgs, SessionArgs, SharedArgs, SortOrder,
     StatuslineArgs, VisualBurnRate, WeekDay, WeeklyArgs,
 };
+use pricing::{calculate_cost, PricingRegistry};
+use terminal::{color_enabled, print_box, Align, Cell, Table};
 
 const DEFAULT_SESSION_DURATION_HOURS: f64 = 5.0;
 const DEFAULT_RECENT_DAYS: i64 = 3;
@@ -27,23 +31,23 @@ const BLOCKS_WARNING_THRESHOLD: f64 = 0.8;
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct UsageEntry {
-    session_id: Option<String>,
-    timestamp: String,
-    version: Option<String>,
-    message: UsageMessage,
+pub(crate) struct UsageEntry {
+    pub(crate) session_id: Option<String>,
+    pub(crate) timestamp: String,
+    pub(crate) version: Option<String>,
+    pub(crate) message: UsageMessage,
     #[serde(rename = "costUSD")]
-    cost_usd: Option<f64>,
-    request_id: Option<String>,
-    is_api_error_message: Option<bool>,
+    pub(crate) cost_usd: Option<f64>,
+    pub(crate) request_id: Option<String>,
+    pub(crate) is_api_error_message: Option<bool>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
-struct UsageMessage {
-    usage: TokenUsageRaw,
-    model: Option<String>,
-    id: Option<String>,
-    content: Option<Vec<ContentPart>>,
+pub(crate) struct UsageMessage {
+    pub(crate) usage: TokenUsageRaw,
+    pub(crate) model: Option<String>,
+    pub(crate) id: Option<String>,
+    pub(crate) content: Option<Vec<ContentPart>>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -52,19 +56,19 @@ struct ContentPart {
 }
 
 #[derive(Debug, Clone, Copy, Default, Deserialize)]
-struct TokenUsageRaw {
-    input_tokens: u64,
-    output_tokens: u64,
+pub(crate) struct TokenUsageRaw {
+    pub(crate) input_tokens: u64,
+    pub(crate) output_tokens: u64,
     #[serde(default)]
-    cache_creation_input_tokens: u64,
+    pub(crate) cache_creation_input_tokens: u64,
     #[serde(default)]
-    cache_read_input_tokens: u64,
-    speed: Option<Speed>,
+    pub(crate) cache_read_input_tokens: u64,
+    pub(crate) speed: Option<Speed>,
 }
 
 #[derive(Debug, Clone, Copy, Deserialize)]
 #[serde(rename_all = "lowercase")]
-enum Speed {
+pub(crate) enum Speed {
     Standard,
     Fast,
 }
@@ -175,19 +179,6 @@ struct Projection {
     remaining_minutes: u64,
 }
 
-#[derive(Debug, Clone, Copy)]
-struct Pricing {
-    input: f64,
-    output: f64,
-    cache_create: f64,
-    cache_read: f64,
-    input_above_200k: Option<f64>,
-    output_above_200k: Option<f64>,
-    cache_create_above_200k: Option<f64>,
-    cache_read_above_200k: Option<f64>,
-    fast_multiplier: f64,
-}
-
 #[tokio::main]
 async fn main() -> Result<()> {
     let cli = Cli::parse();
@@ -212,7 +203,7 @@ async fn main() -> Result<()> {
 
 async fn run_daily(args: DailyArgs) -> Result<()> {
     let shared = args.shared.clone();
-    let entries = load_entries(&shared, args.project.as_deref())?;
+    let entries = load_entries(&shared, args.project.as_deref()).await?;
     let mut rows = summarize_by_key(
         &entries,
         |entry| {
@@ -251,12 +242,18 @@ async fn run_daily(args: DailyArgs) -> Result<()> {
         return Ok(());
     }
 
-    print_usage_table("Claude Code Token Usage Report - Daily", "Date", &rows);
+    print_usage_table(
+        "Claude Code Token Usage Report - Daily",
+        "Date",
+        &rows,
+        &shared,
+        false,
+    );
     Ok(())
 }
 
 async fn run_bucket(shared: SharedArgs, kind: BucketKind) -> Result<()> {
-    let entries = load_entries(&shared, None)?;
+    let entries = load_entries(&shared, None).await?;
     let mut daily = summarize_by_key(
         &entries,
         |entry| entry.date.clone(),
@@ -289,13 +286,13 @@ async fn run_bucket(shared: SharedArgs, kind: BucketKind) -> Result<()> {
         BucketKind::Monthly => ("Claude Code Token Usage Report - Monthly", "Month"),
         BucketKind::Weekly => ("Claude Code Token Usage Report - Weekly", "Week"),
     };
-    print_usage_table(title, col, &buckets);
+    print_usage_table(title, col, &buckets, &shared, false);
     Ok(())
 }
 
 async fn run_weekly(args: WeeklyArgs) -> Result<()> {
     let shared = args.shared.clone();
-    let entries = load_entries(&shared, None)?;
+    let entries = load_entries(&shared, None).await?;
     let mut daily = summarize_by_key(
         &entries,
         |entry| entry.date.clone(),
@@ -318,7 +315,13 @@ async fn run_weekly(args: WeeklyArgs) -> Result<()> {
         return Ok(());
     }
 
-    print_usage_table("Claude Code Token Usage Report - Weekly", "Week", &weekly);
+    print_usage_table(
+        "Claude Code Token Usage Report - Weekly",
+        "Week",
+        &weekly,
+        &shared,
+        false,
+    );
     Ok(())
 }
 
@@ -330,7 +333,7 @@ async fn run_session(args: SessionArgs) -> Result<()> {
 
     let mut session_shared = shared.clone();
     session_shared.order = SortOrder::Desc;
-    let entries = load_entries(&session_shared, None)?;
+    let entries = load_entries(&session_shared, None).await?;
     let mut grouped = Vec::<(String, Vec<&LoadedEntry>)>::new();
     let mut group_indexes = HashMap::<String, usize>::new();
     for entry in &entries {
@@ -382,12 +385,14 @@ async fn run_session(args: SessionArgs) -> Result<()> {
         "Claude Code Token Usage Report - By Session",
         "Session",
         &rows,
+        &session_shared,
+        true,
     );
     Ok(())
 }
 
 async fn run_session_id(id: &str, shared: &SharedArgs) -> Result<()> {
-    let entries = load_entries(shared, None)?;
+    let entries = load_entries(shared, None).await?;
     let mut session_entries = entries
         .into_iter()
         .filter(|entry| entry.data.session_id.as_deref() == Some(id) || entry.session_id == id)
@@ -440,7 +445,7 @@ async fn run_blocks(args: BlocksArgs) -> Result<()> {
         bail!("Session length must be a positive number");
     }
     let shared = args.shared.clone();
-    let entries = load_entries(&shared, None)?;
+    let entries = load_entries(&shared, None).await?;
     let mut blocks = identify_session_blocks(entries, args.session_length);
     filter_blocks_by_date(&mut blocks, &shared);
     sort_blocks(&mut blocks, &shared.order);
@@ -473,7 +478,7 @@ async fn run_blocks(args: BlocksArgs) -> Result<()> {
         println!("No active session block found.");
         return Ok(());
     }
-    print_blocks_table(&blocks, args.token_limit.as_deref(), max_tokens);
+    print_blocks_table(&blocks, args.token_limit.as_deref(), max_tokens, &shared);
     Ok(())
 }
 
@@ -502,17 +507,19 @@ async fn run_statusline(args: StatuslineArgs) -> Result<()> {
 
     let session_cost = match args.cost_source {
         CostSource::Cc => hook.cost.as_ref().map(|cost| cost.total_cost_usd),
-        CostSource::Ccusage => calculate_session_cost(&hook.session_id, &shared).ok(),
-        CostSource::Auto => hook
-            .cost
-            .as_ref()
-            .map(|cost| cost.total_cost_usd)
-            .or_else(|| calculate_session_cost(&hook.session_id, &shared).ok()),
+        CostSource::Ccusage => calculate_session_cost(&hook.session_id, &shared).await.ok(),
+        CostSource::Auto => {
+            if let Some(cost) = hook.cost.as_ref() {
+                Some(cost.total_cost_usd)
+            } else {
+                calculate_session_cost(&hook.session_id, &shared).await.ok()
+            }
+        }
         CostSource::Both => None,
     };
 
     let ccusage_cost = if args.cost_source == CostSource::Both {
-        calculate_session_cost(&hook.session_id, &shared).ok()
+        calculate_session_cost(&hook.session_id, &shared).await.ok()
     } else {
         None
     };
@@ -529,19 +536,19 @@ async fn run_statusline(args: StatuslineArgs) -> Result<()> {
         offline: shared.offline,
         ..SharedArgs::default()
     };
-    let today_cost = load_entries(&today_shared, None)
-        .map(|entries| {
-            entries
-                .iter()
-                .filter(|entry| {
-                    entry.date.replace('-', "") == today_shared.since.as_deref().unwrap_or_default()
-                })
-                .map(|entry| entry.cost)
-                .sum::<f64>()
-        })
-        .unwrap_or(0.0);
+    let today_cost = match load_entries(&today_shared, None).await {
+        Ok(entries) => entries
+            .iter()
+            .filter(|entry| {
+                entry.date.replace('-', "") == today_shared.since.as_deref().unwrap_or_default()
+            })
+            .map(|entry| entry.cost)
+            .sum::<f64>(),
+        Err(_) => 0.0,
+    };
 
     let blocks = load_entries(&shared, None)
+        .await
         .map(|entries| identify_session_blocks(entries, DEFAULT_SESSION_DURATION_HOURS))
         .unwrap_or_default();
     let active_block = blocks.iter().find(|block| block.is_active && !block.is_gap);
@@ -616,8 +623,9 @@ async fn run_statusline(args: StatuslineArgs) -> Result<()> {
     Ok(())
 }
 
-fn calculate_session_cost(session_id: &str, shared: &SharedArgs) -> Result<f64> {
-    Ok(load_entries(shared, None)?
+async fn calculate_session_cost(session_id: &str, shared: &SharedArgs) -> Result<f64> {
+    Ok(load_entries(shared, None)
+        .await?
         .into_iter()
         .filter(|entry| {
             entry.data.session_id.as_deref() == Some(session_id) || entry.session_id == session_id
@@ -626,7 +634,10 @@ fn calculate_session_cost(session_id: &str, shared: &SharedArgs) -> Result<f64> 
         .sum())
 }
 
-fn load_entries(shared: &SharedArgs, project_filter: Option<&str>) -> Result<Vec<LoadedEntry>> {
+async fn load_entries(
+    shared: &SharedArgs,
+    project_filter: Option<&str>,
+) -> Result<Vec<LoadedEntry>> {
     let paths = claude_paths()?;
     let files = sorted_usage_files(&paths);
     if files.is_empty() {
@@ -634,11 +645,10 @@ fn load_entries(shared: &SharedArgs, project_filter: Option<&str>) -> Result<Vec
     }
 
     let tz = parse_tz(shared.timezone.as_deref());
-    let mode = shared.mode;
     let mut entries = files
         .par_iter()
         .enumerate()
-        .flat_map_iter(|(file_index, file)| read_usage_file(file, tz, mode, file_index))
+        .flat_map_iter(|(file_index, file)| read_usage_file(file, tz, file_index))
         .collect::<Vec<_>>();
     entries.sort_by_key(|entry| (entry.file_index, entry.line_number));
 
@@ -659,15 +669,29 @@ fn load_entries(shared: &SharedArgs, project_filter: Option<&str>) -> Result<Vec
         }
         deduped.push(entry);
     }
+    assign_costs(&mut deduped, shared).await;
     Ok(deduped)
 }
 
-fn read_usage_file_with(
-    path: &Path,
-    tz: Option<Tz>,
-    mode: CostMode,
-    file_index: usize,
-) -> Vec<LoadedEntry> {
+async fn assign_costs(entries: &mut [LoadedEntry], shared: &SharedArgs) {
+    if shared.mode == CostMode::Display
+        || (shared.mode == CostMode::Auto
+            && entries.iter().all(|entry| entry.data.cost_usd.is_some()))
+    {
+        for entry in entries {
+            entry.cost = entry.data.cost_usd.unwrap_or(0.0);
+        }
+        return;
+    }
+
+    let pricing =
+        PricingRegistry::load(shared.offline && !shared.no_offline, wants_json(shared)).await;
+    for entry in entries {
+        entry.cost = calculate_cost(&entry.data, shared.mode, &pricing);
+    }
+}
+
+fn read_usage_file_with(path: &Path, tz: Option<Tz>, file_index: usize) -> Vec<LoadedEntry> {
     let file = match File::open(path) {
         Ok(file) => file,
         Err(_) => return Vec::new(),
@@ -695,7 +719,6 @@ fn read_usage_file_with(
                 .ok()?
                 .with_timezone(&Utc);
             let date = format_date_tz(timestamp, tz);
-            let cost = calculate_cost(&data, mode);
             let model = data.message.model.as_ref().and_then(|model| {
                 if model == "<synthetic>" {
                     None
@@ -712,7 +735,7 @@ fn read_usage_file_with(
                 project: project.clone(),
                 session_id: session_id.clone(),
                 project_path: project_path.clone(),
-                cost,
+                cost: 0.0,
                 model,
                 file_index,
                 line_number,
@@ -883,13 +906,8 @@ fn is_semver_prefix(value: &str) -> bool {
         && patch.chars().next().is_some_and(|ch| ch.is_ascii_digit())
 }
 
-fn read_usage_file(
-    path: &Path,
-    tz: Option<Tz>,
-    mode: CostMode,
-    file_index: usize,
-) -> Vec<LoadedEntry> {
-    read_usage_file_with(path, tz, mode, file_index)
+fn read_usage_file(path: &Path, tz: Option<Tz>, file_index: usize) -> Vec<LoadedEntry> {
+    read_usage_file_with(path, tz, file_index)
 }
 
 fn claude_paths() -> Result<Vec<PathBuf>> {
@@ -1050,188 +1068,6 @@ fn format_date_tz(timestamp: DateTime<Utc>, timezone: Option<Tz>) -> String {
             .with_timezone(&Local)
             .format("%Y-%m-%d")
             .to_string()
-    }
-}
-
-fn calculate_cost(data: &UsageEntry, mode: CostMode) -> f64 {
-    match mode {
-        CostMode::Display => data.cost_usd.unwrap_or(0.0),
-        CostMode::Auto => data
-            .cost_usd
-            .unwrap_or_else(|| calculate_cost_from_tokens(data)),
-        CostMode::Calculate => calculate_cost_from_tokens(data),
-    }
-}
-
-fn calculate_cost_from_tokens(data: &UsageEntry) -> f64 {
-    let Some(model) = data.message.model.as_deref() else {
-        return 0.0;
-    };
-    let Some(pricing) = pricing_for_model(model) else {
-        return 0.0;
-    };
-    let usage = data.message.usage;
-    let multiplier = if matches!(usage.speed, Some(Speed::Fast)) {
-        pricing.fast_multiplier
-    } else {
-        1.0
-    };
-    (tiered_cost(usage.input_tokens, pricing.input, pricing.input_above_200k)
-        + tiered_cost(
-            usage.output_tokens,
-            pricing.output,
-            pricing.output_above_200k,
-        )
-        + tiered_cost(
-            usage.cache_creation_input_tokens,
-            pricing.cache_create,
-            pricing.cache_create_above_200k,
-        )
-        + tiered_cost(
-            usage.cache_read_input_tokens,
-            pricing.cache_read,
-            pricing.cache_read_above_200k,
-        ))
-        * multiplier
-}
-
-fn tiered_cost(tokens: u64, base: f64, above: Option<f64>) -> f64 {
-    const THRESHOLD: u64 = 200_000;
-    if tokens == 0 {
-        return 0.0;
-    }
-    if let Some(above) = above {
-        if tokens > THRESHOLD {
-            return (THRESHOLD as f64 * base) + ((tokens - THRESHOLD) as f64 * above);
-        }
-    }
-    tokens as f64 * base
-}
-
-fn pricing_for_model(model: &str) -> Option<Pricing> {
-    let normalized = model
-        .strip_prefix("anthropic/")
-        .or_else(|| model.strip_prefix("claude-"))
-        .unwrap_or(model);
-    let model = if model.starts_with("claude-") {
-        model
-    } else {
-        normalized
-    };
-    if model.contains("opus-4-5") || model.contains("opus-4-6") || model.contains("opus-4-7") {
-        Some(Pricing {
-            input: 5e-6,
-            output: 25e-6,
-            cache_create: 6.25e-6,
-            cache_read: 0.5e-6,
-            input_above_200k: None,
-            output_above_200k: None,
-            cache_create_above_200k: None,
-            cache_read_above_200k: None,
-            fast_multiplier: if model.contains("opus-4-6") || model.contains("opus-4-7") {
-                6.0
-            } else {
-                1.0
-            },
-        })
-    } else if model.contains("haiku-4-5") {
-        Some(Pricing {
-            input: 1e-6,
-            output: 5e-6,
-            cache_create: 1.25e-6,
-            cache_read: 0.1e-6,
-            input_above_200k: None,
-            output_above_200k: None,
-            cache_create_above_200k: None,
-            cache_read_above_200k: None,
-            fast_multiplier: 1.0,
-        })
-    } else if model.contains("opus-4") {
-        Some(Pricing {
-            input: 15e-6,
-            output: 75e-6,
-            cache_create: 18.75e-6,
-            cache_read: 1.5e-6,
-            input_above_200k: None,
-            output_above_200k: None,
-            cache_create_above_200k: None,
-            cache_read_above_200k: None,
-            fast_multiplier: 1.0,
-        })
-    } else if model.contains("sonnet-4-6") {
-        Some(Pricing {
-            input: 3e-6,
-            output: 15e-6,
-            cache_create: 3.75e-6,
-            cache_read: 0.3e-6,
-            input_above_200k: None,
-            output_above_200k: None,
-            cache_create_above_200k: None,
-            cache_read_above_200k: None,
-            fast_multiplier: 1.0,
-        })
-    } else if model.contains("sonnet-4") {
-        Some(Pricing {
-            input: 3e-6,
-            output: 15e-6,
-            cache_create: 3.75e-6,
-            cache_read: 0.3e-6,
-            input_above_200k: Some(6e-6),
-            output_above_200k: Some(22.5e-6),
-            cache_create_above_200k: Some(7.5e-6),
-            cache_read_above_200k: Some(0.6e-6),
-            fast_multiplier: 1.0,
-        })
-    } else if model.contains("haiku-4") || model.contains("haiku-3-5") {
-        Some(Pricing {
-            input: 0.8e-6,
-            output: 4e-6,
-            cache_create: 1.0e-6,
-            cache_read: 0.08e-6,
-            input_above_200k: None,
-            output_above_200k: None,
-            cache_create_above_200k: None,
-            cache_read_above_200k: None,
-            fast_multiplier: 1.0,
-        })
-    } else if model.contains("opus-3") {
-        Some(Pricing {
-            input: 15e-6,
-            output: 75e-6,
-            cache_create: 18.75e-6,
-            cache_read: 1.5e-6,
-            input_above_200k: None,
-            output_above_200k: None,
-            cache_create_above_200k: None,
-            cache_read_above_200k: None,
-            fast_multiplier: 1.0,
-        })
-    } else if model.contains("sonnet-3") {
-        Some(Pricing {
-            input: 3e-6,
-            output: 15e-6,
-            cache_create: 3.75e-6,
-            cache_read: 0.3e-6,
-            input_above_200k: None,
-            output_above_200k: None,
-            cache_create_above_200k: None,
-            cache_read_above_200k: None,
-            fast_multiplier: 1.0,
-        })
-    } else if model.contains("haiku-3") {
-        Some(Pricing {
-            input: 0.25e-6,
-            output: 1.25e-6,
-            cache_create: 0.3e-6,
-            cache_read: 0.03e-6,
-            input_above_200k: None,
-            output_above_200k: None,
-            cache_create_above_200k: None,
-            cache_read_above_200k: None,
-            fast_multiplier: 1.0,
-        })
-    } else {
-        None
     }
 }
 
@@ -1458,31 +1294,31 @@ fn wants_json(shared: &SharedArgs) -> bool {
 fn summary_json(row: &UsageSummary) -> Value {
     let total =
         row.input_tokens + row.output_tokens + row.cache_creation_tokens + row.cache_read_tokens;
-    let mut value = json!({
-        "inputTokens": row.input_tokens,
-        "outputTokens": row.output_tokens,
-        "cacheCreationTokens": row.cache_creation_tokens,
-        "cacheReadTokens": row.cache_read_tokens,
-        "totalTokens": total,
-        "totalCost": row.total_cost,
-        "modelsUsed": row.models_used,
-        "modelBreakdowns": row.model_breakdowns,
-    });
-    if let Some(obj) = value.as_object_mut() {
-        if let Some(date) = &row.date {
-            obj.insert("date".to_string(), json!(date));
-        }
-        if let Some(month) = &row.month {
-            obj.insert("month".to_string(), json!(month));
-        }
-        if let Some(week) = &row.week {
-            obj.insert("week".to_string(), json!(week));
-        }
-        if let Some(project) = &row.project {
-            obj.insert("project".to_string(), json!(project));
-        }
+    let mut obj = serde_json::Map::new();
+    if let Some(date) = &row.date {
+        obj.insert("date".to_string(), json!(date));
     }
-    value
+    if let Some(month) = &row.month {
+        obj.insert("month".to_string(), json!(month));
+    }
+    if let Some(week) = &row.week {
+        obj.insert("week".to_string(), json!(week));
+    }
+    obj.insert("inputTokens".to_string(), json!(row.input_tokens));
+    obj.insert("outputTokens".to_string(), json!(row.output_tokens));
+    obj.insert(
+        "cacheCreationTokens".to_string(),
+        json!(row.cache_creation_tokens),
+    );
+    obj.insert("cacheReadTokens".to_string(), json!(row.cache_read_tokens));
+    obj.insert("totalTokens".to_string(), json!(total));
+    obj.insert("totalCost".to_string(), json!(row.total_cost));
+    obj.insert("modelsUsed".to_string(), json!(row.models_used));
+    obj.insert("modelBreakdowns".to_string(), json!(row.model_breakdowns));
+    if let Some(project) = &row.project {
+        obj.insert("project".to_string(), json!(project));
+    }
+    Value::Object(obj)
 }
 
 fn session_summary_json(row: &UsageSummary) -> Value {
@@ -1514,8 +1350,8 @@ fn totals_json(rows: &[UsageSummary]) -> Value {
         "outputTokens": output,
         "cacheCreationTokens": cache_create,
         "cacheReadTokens": cache_read,
-        "totalTokens": input + output + cache_create + cache_read,
         "totalCost": rows.iter().map(|row| row.total_cost).sum::<f64>(),
+        "totalTokens": input + output + cache_create + cache_read,
     })
 }
 
@@ -1552,58 +1388,194 @@ fn print_json_or_jq(value: Value, jq: Option<&str>) -> Result<()> {
     Ok(())
 }
 
-fn print_usage_table(title: &str, first_column: &str, rows: &[UsageSummary]) {
+fn print_usage_table(
+    title: &str,
+    first_column: &str,
+    rows: &[UsageSummary],
+    shared: &SharedArgs,
+    include_last_activity: bool,
+) {
     if rows.is_empty() {
         eprintln!("No Claude usage data found.");
         return;
     }
-    println!("{title}");
-    println!(
-        "{:<16} {:>12} {:>12} {:>12} {:>12} {:>12} {:>12}  Models",
-        first_column, "Input", "Output", "CacheCreate", "CacheRead", "Total", "Cost"
-    );
+    let color = color_enabled(shared.no_color, shared.color);
+    print_box(title);
+    let mut headers = vec![
+        first_column,
+        "Models",
+        "Input",
+        "Output",
+        "Cache\nCreate",
+        "Cache\nRead",
+        "Total\nTokens",
+        "Cost\n(USD)",
+    ];
+    let mut aligns = vec![
+        Align::Left,
+        Align::Left,
+        Align::Right,
+        Align::Right,
+        Align::Right,
+        Align::Right,
+        Align::Right,
+        Align::Right,
+    ];
+    if include_last_activity {
+        headers.push("Last Activity");
+        aligns.push(Align::Left);
+    }
+    let mut table = Table::new(headers, aligns, color);
     for row in rows {
-        let label = row
+        let mut label = row
             .date
             .as_deref()
             .or(row.month.as_deref())
             .or(row.week.as_deref())
             .or(row.session_id.as_deref())
-            .unwrap_or("");
-        println!(
-            "{:<16} {:>12} {:>12} {:>12} {:>12} {:>12} {:>12}  {}",
+            .unwrap_or("")
+            .to_string();
+        if first_column == "Session" {
+            label = session_display_label(&label);
+        } else if should_compact_table_date(shared) {
+            label = compact_date_label(&label);
+        }
+        let mut cells = usage_cells(
             label,
-            format_number(row.input_tokens),
-            format_number(row.output_tokens),
-            format_number(row.cache_creation_tokens),
-            format_number(row.cache_read_tokens),
-            format_number(
-                row.input_tokens
-                    + row.output_tokens
-                    + row.cache_creation_tokens
-                    + row.cache_read_tokens
-            ),
-            format_currency(row.total_cost),
-            row.models_used.join(", ")
+            format_models_display_multiline(&row.models_used),
+            row.input_tokens,
+            row.output_tokens,
+            row.cache_creation_tokens,
+            row.cache_read_tokens,
+            row.total_cost,
         );
+        if include_last_activity {
+            cells.push(Cell::new(row.last_activity.as_deref().unwrap_or("")));
+        }
+        table.push(cells);
+        if shared.breakdown {
+            for breakdown in &row.model_breakdowns {
+                let mut cells = usage_cells(
+                    format!("  └─ {}", format_model_name(&breakdown.model_name)),
+                    String::new(),
+                    breakdown.input_tokens,
+                    breakdown.output_tokens,
+                    breakdown.cache_creation_tokens,
+                    breakdown.cache_read_tokens,
+                    breakdown.cost,
+                );
+                if include_last_activity {
+                    cells.push(Cell::new(""));
+                }
+                table.push(cells);
+            }
+        }
     }
-    println!(
-        "{:<16} {:>12} {:>12} {:>12} {:>12} {:>12} {:>12}",
-        "Total",
-        format_number(rows.iter().map(|row| row.input_tokens).sum()),
-        format_number(rows.iter().map(|row| row.output_tokens).sum()),
-        format_number(rows.iter().map(|row| row.cache_creation_tokens).sum()),
-        format_number(rows.iter().map(|row| row.cache_read_tokens).sum()),
-        format_number(
-            rows.iter()
-                .map(|row| row.input_tokens
-                    + row.output_tokens
-                    + row.cache_creation_tokens
-                    + row.cache_read_tokens)
-                .sum()
-        ),
-        format_currency(rows.iter().map(|row| row.total_cost).sum())
+
+    let input = rows.iter().map(|row| row.input_tokens).sum();
+    let output = rows.iter().map(|row| row.output_tokens).sum();
+    let cache_create = rows.iter().map(|row| row.cache_creation_tokens).sum();
+    let cache_read = rows.iter().map(|row| row.cache_read_tokens).sum();
+    let total_cost = rows.iter().map(|row| row.total_cost).sum();
+    let mut totals = usage_cells(
+        "Total".to_string(),
+        String::new(),
+        input,
+        output,
+        cache_create,
+        cache_read,
+        total_cost,
     );
+    if include_last_activity {
+        totals.push(Cell::new(""));
+    }
+    table.push(totals);
+    println!("{}", table.render());
+}
+
+fn usage_cells(
+    first: String,
+    models: String,
+    input: u64,
+    output: u64,
+    cache_create: u64,
+    cache_read: u64,
+    cost: f64,
+) -> Vec<Cell> {
+    vec![
+        Cell::new(first),
+        Cell::new(models),
+        Cell::new(format_number(input)),
+        Cell::new(format_number(output)),
+        Cell::new(format_number(cache_create)),
+        Cell::new(format_number(cache_read)),
+        Cell::new(format_number(input + output + cache_create + cache_read)),
+        Cell::new(format_currency(cost)),
+    ]
+}
+
+fn should_compact_table_date(shared: &SharedArgs) -> bool {
+    shared.compact
+        || env::var("COLUMNS")
+            .ok()
+            .and_then(|value| value.parse::<usize>().ok())
+            .is_none_or(|width| width < 140)
+}
+
+fn compact_date_label(value: &str) -> String {
+    if value.len() == 10
+        && value.as_bytes().get(4) == Some(&b'-')
+        && value.as_bytes().get(7) == Some(&b'-')
+    {
+        format!("{}\n{}", &value[..4], &value[5..])
+    } else {
+        value.to_string()
+    }
+}
+
+fn session_display_label(value: &str) -> String {
+    let parts = value.split('-').collect::<Vec<_>>();
+    if parts.len() >= 2 {
+        parts[parts.len() - 2..].join("-")
+    } else {
+        value.to_string()
+    }
+}
+
+fn format_models_display_multiline(models: &[String]) -> String {
+    models
+        .iter()
+        .map(|model| format_model_name(model))
+        .collect::<BTreeSet<_>>()
+        .into_iter()
+        .map(|model| format!("- {model}"))
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+fn format_model_name(model: &str) -> String {
+    if let Some(rest) = model.strip_prefix("[pi] ") {
+        return format!("[pi] {}", format_model_name(rest));
+    }
+    if let Some(rest) = model.strip_prefix("anthropic/claude-") {
+        if rest.chars().last().is_some_and(|ch| ch.is_ascii_digit()) && rest.contains('.') {
+            return rest.to_string();
+        }
+    }
+    if let Some(rest) = model.strip_prefix("claude-") {
+        let parts = rest.split('-').collect::<Vec<_>>();
+        if parts
+            .last()
+            .is_some_and(|part| part.len() == 8 && part.chars().all(|ch| ch.is_ascii_digit()))
+            && parts.len() >= 3
+        {
+            return parts[..parts.len() - 1].join("-");
+        }
+        if parts.len() >= 2 {
+            return rest.to_string();
+        }
+    }
+    model.to_string()
 }
 
 fn identify_session_blocks(
@@ -1837,39 +1809,95 @@ fn json_float(value: f64) -> Value {
     }
 }
 
-fn print_blocks_table(blocks: &[SessionBlock], token_limit: Option<&str>, max_tokens: u64) {
+fn print_blocks_table(
+    blocks: &[SessionBlock],
+    token_limit: Option<&str>,
+    max_tokens: u64,
+    shared: &SharedArgs,
+) {
     if blocks.is_empty() {
         eprintln!("No Claude usage data found.");
         return;
     }
     let actual_limit = parse_token_limit(token_limit, max_tokens);
-    println!("Claude Code Token Usage Report - Session Blocks");
-    println!(
-        "{:<25} {:<12} {:<30} {:>12} {:>8} {:>12}",
-        "Block Start", "Status", "Models", "Tokens", "%", "Cost"
-    );
+    let color = color_enabled(shared.no_color, shared.color);
+    print_box("Claude Code Token Usage Report - Session Blocks");
+    let mut headers = vec!["Block Start", "Duration/Status", "Models", "Tokens"];
+    let mut aligns = vec![Align::Left, Align::Left, Align::Left, Align::Right];
+    if actual_limit.is_some() {
+        headers.push("%");
+        aligns.push(Align::Right);
+    }
+    headers.push("Cost");
+    aligns.push(Align::Right);
+    let mut table = Table::new(headers, aligns, color);
     for block in blocks {
         if block.is_gap {
-            println!(
-                "{:<25} {:<12} {:<30} {:>12} {:>8} {:>12}",
-                block.start_time, "(inactive)", "-", "-", "-", "-"
-            );
+            let mut cells = vec![
+                Cell::new(format_block_time(block)),
+                Cell::new("(inactive)"),
+                Cell::new("-"),
+                Cell::new("-"),
+            ];
+            if actual_limit.is_some() {
+                cells.push(Cell::new("-"));
+            }
+            cells.push(Cell::new("-"));
+            table.push(cells);
             continue;
         }
         let total = block.token_counts.total();
-        let percent = actual_limit
-            .map(|limit| format!("{:.1}%", total as f64 / limit as f64 * 100.0))
-            .unwrap_or_else(|| "-".to_string());
-        println!(
-            "{:<25} {:<12} {:<30} {:>12} {:>8} {:>12}",
-            block.start_time.format("%Y-%m-%d %H:%M"),
-            if block.is_active { "ACTIVE" } else { "" },
-            block.models.join(", "),
-            format_number(total),
-            percent,
-            format_currency(block.cost_usd)
+        let mut cells = vec![
+            Cell::new(format_block_time(block)),
+            Cell::new(if block.is_active { "ACTIVE" } else { "" }),
+            Cell::new(format_models_display_multiline(&block.models)),
+            Cell::new(format_number(total)),
+        ];
+        if let Some(limit) = actual_limit {
+            cells.push(Cell::new(format!(
+                "{:.1}%",
+                total as f64 / limit as f64 * 100.0
+            )));
+        }
+        cells.push(Cell::new(format_currency(block.cost_usd)));
+        table.push(cells);
+    }
+    println!("{}", table.render());
+}
+
+fn format_block_time(block: &SessionBlock) -> String {
+    let start = block.start_time.with_timezone(&Local);
+    if block.is_gap {
+        let end = block.end_time.with_timezone(&Local);
+        let duration = (block.end_time - block.start_time).num_hours();
+        return format!(
+            "{} - {}\n({duration}h gap)",
+            start.format("%-m/%-d/%Y, %-I:%M:%S %p"),
+            end.format("%-m/%-d/%Y, %-I:%M:%S %p")
         );
     }
+    let duration = block
+        .actual_end_time
+        .map(|end| (end - block.start_time).num_minutes())
+        .unwrap_or(0);
+    if block.is_active {
+        let elapsed = (Utc::now() - block.start_time).num_minutes().max(0);
+        let remaining = (block.end_time - Utc::now()).num_minutes().max(0);
+        return format!(
+            "{}\n({}h {}m elapsed, {}h {}m remaining)",
+            start.format("%-m/%-d/%Y, %-I:%M:%S %p"),
+            elapsed / 60,
+            elapsed % 60,
+            remaining / 60,
+            remaining % 60
+        );
+    }
+    format!(
+        "{}\n({}h {}m)",
+        start.format("%-m/%-d/%Y, %-I:%M:%S %p"),
+        duration / 60,
+        duration % 60
+    )
 }
 
 fn calculate_burn_rate(block: &SessionBlock) -> Option<BurnRate> {
@@ -1988,11 +2016,6 @@ mod tests {
     #[test]
     fn formats_numbers_with_commas() {
         assert_eq!(format_number(1_234_567), "1,234,567");
-    }
-
-    #[test]
-    fn calculates_tiered_cost() {
-        assert!((tiered_cost(300_000, 3e-6, Some(6e-6)) - 1.2).abs() < f64::EPSILON);
     }
 
     #[test]
