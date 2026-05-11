@@ -738,6 +738,16 @@ function markAsProcessed(uniqueHash: string | null, processedHashes: Set<string>
 	}
 }
 
+function isBlankJSONLLine(line: string): boolean {
+	for (let i = 0; i < line.length; i++) {
+		const charCode = line.charCodeAt(i);
+		if (charCode !== 9 && charCode !== 10 && charCode !== 13 && charCode !== 32) {
+			return false;
+		}
+	}
+	return true;
+}
+
 /**
  * Extracts unique models from entries, excluding synthetic model
  */
@@ -784,7 +794,7 @@ async function processJSONLFileByLine(
 			if (line.endsWith('\r')) {
 				line = line.slice(0, -1);
 			}
-			if (line.trim().length === 0) {
+			if (isBlankJSONLLine(line)) {
 				continue;
 			}
 			const result = processLine(line, lineNumber);
@@ -804,7 +814,7 @@ async function processJSONLFileByLine(
 	let lineNumber = 0;
 	for await (const line of rl) {
 		lineNumber++;
-		if (line.trim().length === 0) {
+		if (isBlankJSONLLine(line)) {
 			continue;
 		}
 		const result = processLine(line, lineNumber);
