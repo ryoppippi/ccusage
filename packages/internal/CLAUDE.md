@@ -24,7 +24,7 @@ This package contains shared internal utilities for the ccusage monorepo.
 - `./pricing-fetch-utils` - Pricing fetch helper functions
 - `./logger` - Logger factory using consola with LOG_LEVEL support
 - `./format` - Number formatting utilities (formatTokens, formatCurrency)
-- `./constants` - Shared constants (DEFAULT_LOCALE, MILLION)
+- `./constants` - Shared constants (MILLION)
 
 ## Development Commands
 

@@ -11,7 +11,6 @@ import { addUsage, calculateCostUSD, createEmptyUsage } from './token-utils.ts';
 
 export type DailyReportOptions = {
 	timezone?: string;
-	locale?: string;
 	since?: string;
 	until?: string;
 	pricingSource: PricingSource;
@@ -36,7 +35,6 @@ export async function buildDailyReport(
 	options: DailyReportOptions,
 ): Promise<DailyReportRow[]> {
 	const timezone = options.timezone;
-	const locale = options.locale;
 	const since = options.since;
 	const until = options.until;
 	const pricingSource = options.pricingSource;
@@ -107,7 +105,7 @@ export async function buildDailyReport(
 		}
 
 		rows.push({
-			date: formatDisplayDate(summary.date, locale, timezone),
+			date: formatDisplayDate(summary.date),
 			inputTokens: summary.inputTokens,
 			cachedInputTokens: summary.cachedInputTokens,
 			outputTokens: summary.outputTokens,

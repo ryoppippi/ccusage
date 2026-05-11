@@ -59,7 +59,6 @@ export CLAUDE_CONFIG_DIR="$HOME/.config/claude"
 	"$schema": "https://ccusage.com/config-schema.json",
 	"defaults": {
 		"timezone": "America/New_York",
-		"locale": "en-US",
 		"breakdown": true
 	}
 }
@@ -103,7 +102,6 @@ For teams sharing configuration:
 	"$schema": "https://ccusage.com/config-schema.json",
 	"defaults": {
 		"timezone": "UTC",
-		"locale": "en-CA",
 		"mode": "auto"
 	}
 }
@@ -151,11 +149,10 @@ ccusage daily --mode calculate --breakdown --offline
 Customize date/time handling:
 
 - **Timezone**: Any valid timezone (e.g., `UTC`, `America/New_York`)
-- **Locale**: Format preferences (e.g., `en-US`, `ja-JP`)
 - **Date Range**: Filter with `--since` and `--until`
 
 ```bash
-ccusage daily --timezone UTC --locale en-CA --since 20250101
+ccusage daily --timezone UTC --since 20250101
 ```
 
 ### Output Format
@@ -224,7 +221,7 @@ Debug mode shows:
 Use different configuration methods for different scopes:
 
 - **Environment variables**: Machine-specific settings (paths)
-- **User config**: Personal preferences (timezone, locale)
+- **User config**: Personal preferences (timezone)
 - **Project config**: Team standards (mode, formatting)
 - **CLI arguments**: One-off overrides
 

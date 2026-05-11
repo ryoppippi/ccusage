@@ -1,4 +1,3 @@
-import { uniq } from 'es-toolkit';
 import { DEFAULT_RECENT_DAYS } from './_consts.ts';
 import { getTotalTokens } from './_token-utils.ts';
 
@@ -201,7 +200,7 @@ function createBlock(
 		entries,
 		tokenCounts,
 		costUSD,
-		models: uniq(models),
+		models: Array.from(new Set(models)),
 		usageLimitResetTime,
 	};
 }

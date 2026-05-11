@@ -60,7 +60,7 @@ The server still provides four tools with the same schemas as before:
 - **session** – grouped by Claude session ID / project directory
 - **blocks** – 5-hour billing block summaries
 
-Each tool accepts `since`, `until`, and `mode` parameters, plus timezone/locale overrides identical to the ccusage library.
+Each tool accepts `since`, `until`, and `mode` parameters, plus a timezone override identical to the ccusage library.
 
 ## Testing the MCP Server
 

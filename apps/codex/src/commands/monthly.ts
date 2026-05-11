@@ -61,7 +61,6 @@ export const monthlyCommand = define({
 			const rows = await buildMonthlyReport(events, {
 				pricingSource,
 				timezone: ctx.values.timezone,
-				locale: ctx.values.locale,
 				since,
 				until,
 			});

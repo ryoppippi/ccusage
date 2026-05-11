@@ -11,7 +11,6 @@ import { addUsage, calculateCostUSD, createEmptyUsage } from './token-utils.ts';
 
 export type MonthlyReportOptions = {
 	timezone?: string;
-	locale?: string;
 	since?: string;
 	until?: string;
 	pricingSource: PricingSource;
@@ -36,7 +35,6 @@ export async function buildMonthlyReport(
 	options: MonthlyReportOptions,
 ): Promise<MonthlyReportRow[]> {
 	const timezone = options.timezone;
-	const locale = options.locale;
 	const since = options.since;
 	const until = options.until;
 	const pricingSource = options.pricingSource;
@@ -108,7 +106,7 @@ export async function buildMonthlyReport(
 		}
 
 		rows.push({
-			month: formatDisplayMonth(summary.month, locale, timezone),
+			month: formatDisplayMonth(summary.month),
 			inputTokens: summary.inputTokens,
 			cachedInputTokens: summary.cachedInputTokens,
 			outputTokens: summary.outputTokens,
