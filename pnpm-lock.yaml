@@ -322,9 +322,6 @@ importers:
       clean-pkg-json:
         specifier: catalog:release
         version: 1.3.0
-      es-toolkit:
-        specifier: catalog:runtime
-        version: 1.39.10
       eslint:
         specifier: catalog:lint
         version: 9.35.0(jiti@2.6.1)

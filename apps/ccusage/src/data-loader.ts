@@ -19,7 +19,6 @@ import process from 'node:process';
 import { createInterface } from 'node:readline';
 import { toArray } from '@antfu/utils';
 import { Result } from '@praha/byethrow';
-import { uniq } from 'es-toolkit';
 import { sort } from 'fast-sort';
 import { createFixture } from 'fs-fixture';
 import { isDirectorySync } from 'path-type';
@@ -521,7 +520,9 @@ function extractUniqueModels<T>(
 	entries: T[],
 	getModel: (entry: T) => string | undefined,
 ): string[] {
-	return uniq(entries.map(getModel).filter((m): m is string => m != null && m !== '<synthetic>'));
+	return Array.from(
+		new Set(entries.map(getModel).filter((m): m is string => m != null && m !== '<synthetic>')),
+	);
 }
 
 /**
@@ -1051,7 +1052,7 @@ export async function loadSessionData(options?: LoadOptions): Promise<SessionUsa
 				projectPath: createProjectPath(latestEntry.projectPath),
 				...totals,
 				lastActivity: formatDate(latestEntry.timestamp, options?.timezone) as ActivityDate,
-				versions: uniq(versions).sort() as Version[],
+				versions: Array.from(new Set(versions)).sort() as Version[],
 				modelsUsed: modelsUsed as ModelName[],
 				modelBreakdowns,
 			};
@@ -1248,7 +1249,7 @@ export async function loadBucketUsageData(
 			cacheCreationTokens: totalCacheCreationTokens,
 			cacheReadTokens: totalCacheReadTokens,
 			totalCost,
-			modelsUsed: uniq(models) as ModelName[],
+			modelsUsed: Array.from(new Set(models)) as ModelName[],
 			modelBreakdowns,
 			...(project != null && { project }),
 		};

@@ -80,7 +80,6 @@
 		"ansi-escapes": "catalog:runtime",
 		"bumpp": "catalog:release",
 		"clean-pkg-json": "catalog:release",
-		"es-toolkit": "catalog:runtime",
 		"eslint": "catalog:lint",
 		"eslint-plugin-format": "catalog:lint",
 		"fast-sort": "catalog:runtime",
