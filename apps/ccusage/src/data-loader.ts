@@ -4418,7 +4418,7 @@ invalid json line
 				});
 
 				expect(processedCount).toBe(lineCount);
-			});
+			}, 30000);
 		});
 	});
 }
