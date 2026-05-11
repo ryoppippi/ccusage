@@ -103,6 +103,11 @@ export const sharedArgs = {
 		description: 'Force compact mode for narrow displays (better for screenshots)',
 		default: false,
 	},
+	singleThread: {
+		type: 'boolean',
+		description: 'Read usage files sequentially instead of using file-level parallelism',
+		default: false,
+	},
 } as const satisfies Args;
 
 /**

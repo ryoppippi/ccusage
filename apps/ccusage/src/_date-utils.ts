@@ -27,6 +27,24 @@ function createDateFormatter(timezone: string | undefined): Intl.DateTimeFormat 
 	});
 }
 
+const dateFormatterCache = new Map<string, Intl.DateTimeFormat>();
+
+function getDateFormatter(timezone: string | undefined): Intl.DateTimeFormat {
+	const key = timezone ?? '';
+	const cached = dateFormatterCache.get(key);
+	if (cached != null) {
+		return cached;
+	}
+
+	const formatter = createDateFormatter(timezone);
+	dateFormatterCache.set(key, formatter);
+	return formatter;
+}
+
+function formatDateParts(year: number, month: number, day: number): string {
+	return `${year.toString().padStart(4, '0')}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+}
+
 /**
  * Formats a date string to YYYY-MM-DD format
  * @param dateStr - Input date string
@@ -35,7 +53,14 @@ function createDateFormatter(timezone: string | undefined): Intl.DateTimeFormat 
  */
 export function formatDate(dateStr: string, timezone?: string): string {
 	const date = new Date(dateStr);
-	const formatter = createDateFormatter(timezone);
+	if (timezone == null) {
+		return formatDateParts(date.getFullYear(), date.getMonth() + 1, date.getDate());
+	}
+	if (timezone === 'UTC') {
+		return formatDateParts(date.getUTCFullYear(), date.getUTCMonth() + 1, date.getUTCDate());
+	}
+
+	const formatter = getDateFormatter(timezone);
 	return formatter.format(date);
 }
 

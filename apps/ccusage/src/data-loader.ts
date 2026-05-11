@@ -13,7 +13,8 @@ import type { LoadedUsageEntry, SessionBlock } from './_session-blocks.ts';
 import type { ActivityDate, Bucket, CostMode, ModelName, SortOrder, Version } from './_types.ts';
 import { Buffer } from 'node:buffer';
 import { createReadStream, createWriteStream } from 'node:fs';
-import { readFile } from 'node:fs/promises';
+import { readFile, stat } from 'node:fs/promises';
+import os from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
 import { createInterface } from 'node:readline';
@@ -67,6 +68,17 @@ import {
 } from './_types.ts';
 import { unreachable } from './_utils.ts';
 import { logger } from './logger.ts';
+
+const USAGE_LINE_MARKER = '"input_tokens"';
+const MAX_BUFFERED_JSONL_BYTES = 128 * 1024 * 1024;
+const MAX_JSONL_FILE_READ_CONCURRENCY = 16;
+
+function getJSONLFileReadConcurrency(fileCount: number): number {
+	return Math.max(
+		1,
+		Math.min(fileCount, os.availableParallelism(), MAX_JSONL_FILE_READ_CONCURRENCY),
+	);
+}
 
 /**
  * Get Claude data directories to search for usage data
@@ -190,6 +202,219 @@ export const usageDataSchema = v.object({
 	requestId: v.optional(requestIdSchema), // Request ID for deduplication
 	isApiErrorMessage: v.optional(v.boolean()),
 });
+
+const isoTimestampPattern = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/;
+const versionPattern = /^\d+\.\d+\.\d+/;
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function isOptionalString(value: unknown): value is string | undefined {
+	return value === undefined || typeof value === 'string';
+}
+
+function isOptionalNonEmptyString(value: unknown): value is string | undefined {
+	return value === undefined || (typeof value === 'string' && value.length > 0);
+}
+
+function isOptionalNumber(value: unknown): value is number | undefined {
+	return value === undefined || typeof value === 'number';
+}
+
+function isOptionalBoolean(value: unknown): value is boolean | undefined {
+	return value === undefined || typeof value === 'boolean';
+}
+
+function parseUsageDataFast(value: unknown): UsageData | null {
+	if (!isRecord(value)) {
+		return null;
+	}
+	if (
+		!isOptionalString(value.cwd) ||
+		!isOptionalNonEmptyString(value.sessionId) ||
+		!isOptionalNonEmptyString(value.requestId) ||
+		!isOptionalNumber(value.costUSD) ||
+		!isOptionalBoolean(value.isApiErrorMessage)
+	) {
+		return null;
+	}
+	if (
+		value.version !== undefined &&
+		(typeof value.version !== 'string' || !versionPattern.test(value.version))
+	) {
+		return null;
+	}
+	if (typeof value.timestamp !== 'string' || !isoTimestampPattern.test(value.timestamp)) {
+		return null;
+	}
+	if (!isRecord(value.message)) {
+		return null;
+	}
+	if (
+		!isOptionalNonEmptyString(value.message.model) ||
+		!isOptionalNonEmptyString(value.message.id)
+	) {
+		return null;
+	}
+	if (value.message.content !== undefined) {
+		if (!Array.isArray(value.message.content)) {
+			return null;
+		}
+		for (const part of value.message.content) {
+			if (!isRecord(part) || !isOptionalString(part.text)) {
+				return null;
+			}
+		}
+	}
+	if (!isRecord(value.message.usage)) {
+		return null;
+	}
+	const { usage } = value.message;
+	if (
+		typeof usage.input_tokens !== 'number' ||
+		typeof usage.output_tokens !== 'number' ||
+		!isOptionalNumber(usage.cache_creation_input_tokens) ||
+		!isOptionalNumber(usage.cache_read_input_tokens) ||
+		(usage.speed !== undefined && usage.speed !== 'standard' && usage.speed !== 'fast')
+	) {
+		return null;
+	}
+
+	return value as UsageData;
+}
+
+function extractStringField(line: string, field: string, fromIndex = 0): string | undefined {
+	const marker = `"${field}":"`;
+	const start = line.indexOf(marker, fromIndex);
+	if (start === -1) {
+		return undefined;
+	}
+	const valueStart = start + marker.length;
+	const valueEnd = line.indexOf('"', valueStart);
+	return valueEnd === -1 ? undefined : line.slice(valueStart, valueEnd);
+}
+
+function extractNumberField(line: string, field: string, fromIndex = 0): number | undefined {
+	const marker = `"${field}":`;
+	const start = line.indexOf(marker, fromIndex);
+	if (start === -1) {
+		return undefined;
+	}
+	const valueStart = start + marker.length;
+	let valueEnd = valueStart;
+	while (valueEnd < line.length) {
+		const char = line.charCodeAt(valueEnd);
+		if (
+			char !== 45 &&
+			char !== 46 &&
+			(char < 48 || char > 57) &&
+			char !== 101 &&
+			char !== 69 &&
+			char !== 43
+		) {
+			break;
+		}
+		valueEnd++;
+	}
+	if (valueEnd === valueStart) {
+		return undefined;
+	}
+	const value = Number(line.slice(valueStart, valueEnd));
+	return Number.isFinite(value) ? value : undefined;
+}
+
+function parseUsageDataLineFast(line: string): UsageData | null {
+	if (
+		line.includes('"cwd":null') ||
+		line.includes('"sessionId":null') ||
+		line.includes('"requestId":null') ||
+		line.includes('"costUSD":null') ||
+		line.includes('"isApiErrorMessage":null') ||
+		line.includes('"version":null') ||
+		line.includes('"model":null') ||
+		line.includes('"id":null') ||
+		line.includes('"cache_creation_input_tokens":null') ||
+		line.includes('"cache_read_input_tokens":null') ||
+		line.includes('"speed":null') ||
+		line.includes('"type":"progress"')
+	) {
+		return null;
+	}
+
+	const timestamp = extractStringField(line, 'timestamp');
+	if (timestamp == null || !isoTimestampPattern.test(timestamp)) {
+		return null;
+	}
+
+	const messageStart = line.indexOf('"message":{');
+	const usageStart = line.indexOf('"usage":{', messageStart);
+	if (messageStart === -1 || usageStart === -1) {
+		return null;
+	}
+	const roleStart = line.indexOf('"role":"assistant"', messageStart);
+	if (roleStart === -1 || roleStart > usageStart) {
+		return null;
+	}
+
+	const inputTokens = extractNumberField(line, 'input_tokens', usageStart);
+	const outputTokens = extractNumberField(line, 'output_tokens', usageStart);
+	if (inputTokens == null || outputTokens == null) {
+		return null;
+	}
+
+	const speed = extractStringField(line, 'speed', usageStart);
+	if (speed != null && speed !== 'standard' && speed !== 'fast') {
+		return null;
+	}
+
+	const version = extractStringField(line, 'version');
+	if (version != null && !versionPattern.test(version)) {
+		return null;
+	}
+	const model = extractStringField(line, 'model', messageStart);
+	const messageId = extractStringField(line, 'id', messageStart);
+	const requestId = extractStringField(line, 'requestId');
+	const sessionId = extractStringField(line, 'sessionId');
+	if (model === '' || messageId === '' || requestId === '' || sessionId === '') {
+		return null;
+	}
+
+	const data: UsageData = {
+		timestamp: createISOTimestamp(timestamp),
+		message: {
+			usage: {
+				input_tokens: inputTokens,
+				output_tokens: outputTokens,
+				cache_creation_input_tokens: extractNumberField(
+					line,
+					'cache_creation_input_tokens',
+					usageStart,
+				),
+				cache_read_input_tokens: extractNumberField(line, 'cache_read_input_tokens', usageStart),
+				speed,
+			},
+			model: model as ModelName | undefined,
+			id: messageId as UsageData['message']['id'],
+		},
+		costUSD: extractNumberField(line, 'costUSD'),
+		requestId: requestId as UsageData['requestId'],
+		sessionId: sessionId as UsageData['sessionId'],
+		version: version as Version | undefined,
+	};
+
+	return data;
+}
+
+function parseUsageDataLine(line: string): UsageData | null {
+	const fastData = parseUsageDataLineFast(line);
+	if (fastData != null) {
+		return fastData;
+	}
+
+	const parsed = JSON.parse(line) as unknown;
+	return parseUsageDataFast(parsed);
+}
 
 /**
  * Valibot schema for transcript usage data from Claude messages
@@ -549,6 +774,27 @@ async function processJSONLFileByLine(
 	filePath: string,
 	processLine: (line: string, lineNumber: number) => void | Promise<void>,
 ): Promise<void> {
+	const fileStats = await stat(filePath);
+	if (fileStats.size <= MAX_BUFFERED_JSONL_BYTES) {
+		const content = await readFile(filePath, 'utf-8');
+		const lines = content.split('\n');
+		let lineNumber = 0;
+		for (let line of lines) {
+			lineNumber++;
+			if (line.endsWith('\r')) {
+				line = line.slice(0, -1);
+			}
+			if (line.trim().length === 0) {
+				continue;
+			}
+			const result = processLine(line, lineNumber);
+			if (result instanceof Promise) {
+				await result;
+			}
+		}
+		return;
+	}
+
 	const fileStream = createReadStream(filePath, { encoding: 'utf-8' });
 	const rl = createInterface({
 		input: fileStream,
@@ -561,8 +807,65 @@ async function processJSONLFileByLine(
 		if (line.trim().length === 0) {
 			continue;
 		}
-		await processLine(line, lineNumber);
+		const result = processLine(line, lineNumber);
+		if (result instanceof Promise) {
+			await result;
+		}
 	}
+}
+
+async function mapWithConcurrency<T, R>(
+	items: T[],
+	concurrency: number,
+	mapper: (item: T, index: number) => Promise<R>,
+): Promise<R[]> {
+	const results = Array.from<R>({ length: items.length });
+	let nextIndex = 0;
+
+	await Promise.all(
+		Array.from({ length: Math.min(concurrency, items.length) }, async () => {
+			while (true) {
+				const currentIndex = nextIndex++;
+				if (currentIndex >= items.length) {
+					return;
+				}
+				results[currentIndex] = await mapper(items[currentIndex]!, currentIndex);
+			}
+		}),
+	);
+
+	return results;
+}
+
+function extractTimestampFromLine(line: string): string | null {
+	const timestamp = extractStringField(line, 'timestamp');
+	if (timestamp == null || !isoTimestampPattern.test(timestamp)) {
+		return null;
+	}
+	return timestamp;
+}
+
+function updateEarliestTimestamp(current: string | null, line: string): string | null {
+	const lineTimestamp = extractTimestampFromLine(line);
+	if (lineTimestamp == null) {
+		return current;
+	}
+	return current == null || lineTimestamp < current ? lineTimestamp : current;
+}
+
+function sortFileResultsByTimestamp<T extends { timestamp: string | null }>(items: T[]): T[] {
+	return items.toSorted((a, b) => {
+		if (a.timestamp == null && b.timestamp == null) {
+			return 0;
+		}
+		if (a.timestamp == null) {
+			return 1;
+		}
+		if (b.timestamp == null) {
+			return -1;
+		}
+		return a.timestamp.localeCompare(b.timestamp);
+	});
 }
 
 /**
@@ -576,6 +879,14 @@ export async function getEarliestTimestamp(filePath: string): Promise<Date | nul
 
 		await processJSONLFileByLine(filePath, (line) => {
 			try {
+				const fastDate = parseTimestampFromLine(line);
+				if (fastDate != null) {
+					if (earliestDate == null || fastDate < earliestDate) {
+						earliestDate = fastDate;
+					}
+					return;
+				}
+
 				const json = JSON.parse(line) as Record<string, unknown>;
 				if (json.timestamp != null && typeof json.timestamp === 'string') {
 					const date = new Date(json.timestamp);
@@ -597,6 +908,16 @@ export async function getEarliestTimestamp(filePath: string): Promise<Date | nul
 		logger.debug(`Failed to get earliest timestamp for ${filePath}:`, error);
 		return null;
 	}
+}
+
+function parseTimestampFromLine(line: string): Date | null {
+	const timestamp = extractTimestampFromLine(line);
+	if (timestamp == null) {
+		return null;
+	}
+
+	const date = new Date(timestamp);
+	return Number.isNaN(date.getTime()) ? null : date;
 }
 
 /**
@@ -678,6 +999,20 @@ export async function calculateCostForEntry(
 	unreachable(mode);
 }
 
+function calculateCostForEntryMaybe(
+	data: UsageData,
+	mode: CostMode,
+	fetcher: PricingFetcher | null,
+): number | Promise<number> {
+	if (fetcher == null || mode === 'display') {
+		return data.costUSD ?? 0;
+	}
+	if (mode === 'auto' && data.costUSD != null) {
+		return data.costUSD;
+	}
+	return calculateCostForEntry(data, mode, fetcher);
+}
+
 /**
  * Get Claude Code usage limit expiration date
  * @param data - Usage data entry
@@ -749,6 +1084,7 @@ export type LoadOptions = {
 	project?: string; // Filter to specific project name
 	startOfWeek?: WeekDay; // Start of week for weekly aggregation
 	timezone?: string; // Timezone for date grouping (e.g., 'UTC', 'America/New_York'). Defaults to system timezone
+	singleThread?: boolean; // Read JSONL files sequentially instead of file-level parallelism
 } & DateFilter;
 
 /**
@@ -776,9 +1112,6 @@ export async function loadDailyUsageData(options?: LoadOptions): Promise<DailyUs
 		options?.project,
 	);
 
-	// Sort files by timestamp to ensure chronological processing
-	const sortedFiles = await sortFilesByTimestamp(projectFilteredFiles);
-
 	// Fetch pricing data for cost calculation only when needed
 	const mode = options?.mode ?? 'auto';
 
@@ -797,40 +1130,55 @@ export async function loadDailyUsageData(options?: LoadOptions): Promise<DailyUs
 		project: string;
 	}[] = [];
 
-	for (const file of sortedFiles) {
-		// Extract project name from file path once per file
-		const project = extractProjectFromPath(file);
+	const fileResults = await mapWithConcurrency(
+		projectFilteredFiles,
+		options?.singleThread === true ? 1 : getJSONLFileReadConcurrency(projectFilteredFiles.length),
+		async (file) => {
+			const project = extractProjectFromPath(file);
+			const entries: typeof allEntries = [];
+			let timestamp: string | null = null;
 
-		await processJSONLFileByLine(file, async (line) => {
-			try {
-				const parsed = JSON.parse(line) as unknown;
-				const result = v.safeParse(usageDataSchema, parsed);
-				if (!result.success) {
-					return;
+			await processJSONLFileByLine(file, async (line) => {
+				try {
+					timestamp = updateEarliestTimestamp(timestamp, line);
+
+					if (!line.includes(USAGE_LINE_MARKER)) {
+						return;
+					}
+
+					const data = parseUsageDataLine(line);
+					if (data == null) {
+						return;
+					}
+
+					const date = formatDate(data.timestamp, options?.timezone);
+					const addEntry = (cost: number): void => {
+						entries.push({ data, date, cost, model: getDisplayModelName(data), project });
+					};
+					const cost = calculateCostForEntryMaybe(data, mode, fetcher);
+					if (cost instanceof Promise) {
+						await cost.then(addEntry);
+						return;
+					}
+					addEntry(cost);
+				} catch {
+					// Skip invalid JSON lines
 				}
-				const data = result.output;
+			});
+			return { timestamp, entries };
+		},
+	);
 
-				// Check for duplicate message + request ID combination
-				const uniqueHash = createUniqueHash(data);
-				if (isDuplicateEntry(uniqueHash, processedHashes)) {
-					// Skip duplicate message
-					return;
-				}
-
-				// Mark this combination as processed
-				markAsProcessed(uniqueHash, processedHashes);
-
-				const date = formatDate(data.timestamp, options?.timezone);
-				// If fetcher is available, calculate cost based on mode and tokens
-				// If fetcher is null, use pre-calculated costUSD or default to 0
-				const cost =
-					fetcher != null ? await calculateCostForEntry(data, mode, fetcher) : (data.costUSD ?? 0);
-
-				allEntries.push({ data, date, cost, model: getDisplayModelName(data), project });
-			} catch {
-				// Skip invalid JSON lines
+	for (const fileResult of sortFileResultsByTimestamp(fileResults)) {
+		for (const entry of fileResult.entries) {
+			const uniqueHash = createUniqueHash(entry.data);
+			if (isDuplicateEntry(uniqueHash, processedHashes)) {
+				continue;
 			}
-		});
+
+			markAsProcessed(uniqueHash, processedHashes);
+			allEntries.push(entry);
+		}
 	}
 
 	// Group by date, optionally including project
@@ -923,18 +1271,6 @@ export async function loadSessionData(options?: LoadOptions): Promise<SessionUsa
 		options?.project,
 	);
 
-	// Sort files by timestamp to ensure chronological processing
-	// Create a map for O(1) lookup instead of O(N) find operations
-	const fileToBaseMap = new Map(projectFilteredWithBase.map((f) => [f.file, f.baseDir]));
-	const sortedFilesWithBase = await sortFilesByTimestamp(
-		projectFilteredWithBase.map((f) => f.file),
-	).then((sortedFiles) =>
-		sortedFiles.map((file) => ({
-			file,
-			baseDir: fileToBaseMap.get(file) ?? '',
-		})),
-	);
-
 	// Fetch pricing data for cost calculation only when needed
 	const mode = options?.mode ?? 'auto';
 
@@ -955,53 +1291,76 @@ export async function loadSessionData(options?: LoadOptions): Promise<SessionUsa
 		model: string | undefined;
 	}> = [];
 
-	for (const { file, baseDir } of sortedFilesWithBase) {
-		// Extract session info from file path using its specific base directory
-		const relativePath = path.relative(baseDir, file);
-		const parts = relativePath.split(path.sep);
+	const fileResults = await mapWithConcurrency(
+		projectFilteredWithBase,
+		options?.singleThread === true
+			? 1
+			: getJSONLFileReadConcurrency(projectFilteredWithBase.length),
+		async ({ file, baseDir }) => {
+			// Extract session info from file path using its specific base directory
+			const relativePath = path.relative(baseDir, file);
+			const parts = relativePath.split(path.sep);
 
-		// Session ID is the directory name containing the JSONL file
-		const sessionId = parts[parts.length - 2] ?? 'unknown';
-		// Project path is everything before the session ID
-		const joinedPath = parts.slice(0, -2).join(path.sep);
-		const projectPath = joinedPath.length > 0 ? joinedPath : 'Unknown Project';
+			// Session ID is the directory name containing the JSONL file
+			const sessionId = parts[parts.length - 2] ?? 'unknown';
+			// Project path is everything before the session ID
+			const joinedPath = parts.slice(0, -2).join(path.sep);
+			const projectPath = joinedPath.length > 0 ? joinedPath : 'Unknown Project';
+			const entries: typeof allEntries = [];
+			let timestamp: string | null = null;
 
-		await processJSONLFileByLine(file, async (line) => {
-			try {
-				const parsed = JSON.parse(line) as unknown;
-				const result = v.safeParse(usageDataSchema, parsed);
-				if (!result.success) {
-					return;
+			await processJSONLFileByLine(file, async (line) => {
+				try {
+					timestamp = updateEarliestTimestamp(timestamp, line);
+
+					if (!line.includes(USAGE_LINE_MARKER)) {
+						return;
+					}
+
+					const data = parseUsageDataLine(line);
+					if (data == null) {
+						return;
+					}
+
+					const sessionKey = `${projectPath}/${sessionId}`;
+					const addEntry = (cost: number): void => {
+						entries.push({
+							data,
+							sessionKey,
+							sessionId,
+							projectPath,
+							cost,
+							timestamp: data.timestamp,
+							model: getDisplayModelName(data),
+						});
+					};
+					const cost = calculateCostForEntryMaybe(data, mode, fetcher);
+					if (cost instanceof Promise) {
+						await cost.then(addEntry);
+						return;
+					}
+					addEntry(cost);
+				} catch {
+					// Skip invalid JSON lines
 				}
-				const data = result.output;
+			});
 
-				// Check for duplicate message + request ID combination
-				const uniqueHash = createUniqueHash(data);
-				if (isDuplicateEntry(uniqueHash, processedHashes)) {
-					// Skip duplicate message
-					return;
-				}
+			return { timestamp, entries };
+		},
+	);
 
-				// Mark this combination as processed
-				markAsProcessed(uniqueHash, processedHashes);
-
-				const sessionKey = `${projectPath}/${sessionId}`;
-				const cost =
-					fetcher != null ? await calculateCostForEntry(data, mode, fetcher) : (data.costUSD ?? 0);
-
-				allEntries.push({
-					data,
-					sessionKey,
-					sessionId,
-					projectPath,
-					cost,
-					timestamp: data.timestamp,
-					model: getDisplayModelName(data),
-				});
-			} catch {
-				// Skip invalid JSON lines
+	for (const fileResult of sortFileResultsByTimestamp(fileResults)) {
+		for (const entry of fileResult.entries) {
+			// Check for duplicate message + request ID combination
+			const uniqueHash = createUniqueHash(entry.data);
+			if (isDuplicateEntry(uniqueHash, processedHashes)) {
+				continue;
 			}
-		});
+
+			// Mark this combination as processed
+			markAsProcessed(uniqueHash, processedHashes);
+			allEntries.push(entry);
+		}
 	}
 
 	// Group by session using Object.groupBy
@@ -1160,18 +1519,25 @@ export async function loadSessionUsageById(
 
 	await processJSONLFileByLine(file, async (line) => {
 		try {
-			const parsed = JSON.parse(line) as unknown;
-			const result = v.safeParse(usageDataSchema, parsed);
-			if (!result.success) {
+			if (!line.includes(USAGE_LINE_MARKER)) {
 				return;
 			}
-			const data = result.output;
 
-			const cost =
-				fetcher != null ? await calculateCostForEntry(data, mode, fetcher) : (data.costUSD ?? 0);
+			const data = parseUsageDataLine(line);
+			if (data == null) {
+				return;
+			}
 
-			totalCost += cost;
-			entries.push(data);
+			const addEntry = (cost: number): void => {
+				totalCost += cost;
+				entries.push(data);
+			};
+			const cost = calculateCostForEntryMaybe(data, mode, fetcher);
+			if (cost instanceof Promise) {
+				await cost.then(addEntry);
+				return;
+			}
+			addEntry(cost);
 		} catch {
 			// Skip invalid JSON lines
 		}
@@ -1383,9 +1749,6 @@ export async function loadSessionBlockData(options?: LoadOptions): Promise<Sessi
 		options?.project,
 	);
 
-	// Sort files by timestamp to ensure chronological processing
-	const sortedFiles = await sortFilesByTimestamp(blocksFilteredFiles);
-
 	// Fetch pricing data for cost calculation only when needed
 	const mode = options?.mode ?? 'auto';
 
@@ -1398,52 +1761,78 @@ export async function loadSessionBlockData(options?: LoadOptions): Promise<Sessi
 	// Collect all valid data entries first
 	const allEntries: LoadedUsageEntry[] = [];
 
-	for (const file of sortedFiles) {
-		await processJSONLFileByLine(file, async (line) => {
-			try {
-				const parsed = JSON.parse(line) as unknown;
-				const result = v.safeParse(usageDataSchema, parsed);
-				if (!result.success) {
-					return;
+	const fileResults = await mapWithConcurrency(
+		blocksFilteredFiles,
+		options?.singleThread === true ? 1 : getJSONLFileReadConcurrency(blocksFilteredFiles.length),
+		async (file) => {
+			const entries: Array<{ entry: LoadedUsageEntry; uniqueHash: string | null }> = [];
+			let timestamp: string | null = null;
+
+			await processJSONLFileByLine(file, async (line) => {
+				try {
+					timestamp = updateEarliestTimestamp(timestamp, line);
+
+					if (!line.includes(USAGE_LINE_MARKER)) {
+						return;
+					}
+
+					const data = parseUsageDataLine(line);
+					if (data == null) {
+						return;
+					}
+
+					const uniqueHash = createUniqueHash(data);
+
+					// Get Claude Code usage limit expiration date
+					const usageLimitResetTime = getUsageLimitResetTime(data);
+					const addEntry = (cost: number): void => {
+						entries.push({
+							uniqueHash,
+							entry: {
+								timestamp: new Date(data.timestamp),
+								usage: {
+									inputTokens: data.message.usage.input_tokens,
+									outputTokens: data.message.usage.output_tokens,
+									cacheCreationInputTokens: data.message.usage.cache_creation_input_tokens ?? 0,
+									cacheReadInputTokens: data.message.usage.cache_read_input_tokens ?? 0,
+								},
+								costUSD: cost,
+								model: getDisplayModelName(data) ?? 'unknown',
+								version: data.version,
+								usageLimitResetTime: usageLimitResetTime ?? undefined,
+							},
+						});
+					};
+					const cost = calculateCostForEntryMaybe(data, mode, fetcher);
+					if (cost instanceof Promise) {
+						await cost.then(addEntry);
+						return;
+					}
+					addEntry(cost);
+				} catch (error) {
+					// Skip invalid JSON lines but log for debugging purposes
+					logger.debug(
+						`Skipping invalid JSON line in 5-hour blocks: ${error instanceof Error ? error.message : String(error)}`,
+					);
 				}
-				const data = result.output;
+			});
 
-				// Check for duplicate message + request ID combination
-				const uniqueHash = createUniqueHash(data);
-				if (isDuplicateEntry(uniqueHash, processedHashes)) {
-					// Skip duplicate message
-					return;
-				}
+			return { timestamp, entries };
+		},
+	);
 
-				// Mark this combination as processed
-				markAsProcessed(uniqueHash, processedHashes);
-
-				const cost =
-					fetcher != null ? await calculateCostForEntry(data, mode, fetcher) : (data.costUSD ?? 0);
-
-				// Get Claude Code usage limit expiration date
-				const usageLimitResetTime = getUsageLimitResetTime(data);
-
-				allEntries.push({
-					timestamp: new Date(data.timestamp),
-					usage: {
-						inputTokens: data.message.usage.input_tokens,
-						outputTokens: data.message.usage.output_tokens,
-						cacheCreationInputTokens: data.message.usage.cache_creation_input_tokens ?? 0,
-						cacheReadInputTokens: data.message.usage.cache_read_input_tokens ?? 0,
-					},
-					costUSD: cost,
-					model: getDisplayModelName(data) ?? 'unknown',
-					version: data.version,
-					usageLimitResetTime: usageLimitResetTime ?? undefined,
-				});
-			} catch (error) {
-				// Skip invalid JSON lines but log for debugging purposes
-				logger.debug(
-					`Skipping invalid JSON line in 5-hour blocks: ${error instanceof Error ? error.message : String(error)}`,
-				);
+	for (const fileResult of sortFileResultsByTimestamp(fileResults)) {
+		for (const { entry, uniqueHash } of fileResult.entries) {
+			// Check for duplicate message + request ID combination
+			if (isDuplicateEntry(uniqueHash, processedHashes)) {
+				// Skip duplicate message
+				continue;
 			}
-		});
+
+			// Mark this combination as processed
+			markAsProcessed(uniqueHash, processedHashes);
+			allEntries.push(entry);
+		}
 	}
 
 	// Identify session blocks
@@ -1978,6 +2367,50 @@ invalid json line
 			expect(result).toHaveLength(1);
 			expect(result[0]?.inputTokens).toBe(400); // 100 + 300
 			expect(result[0]?.totalCost).toBe(0.04); // 0.01 + 0.03
+		});
+
+		it('does not parse lines without usage tokens', async () => {
+			const parseSpy = vi.spyOn(JSON, 'parse');
+			const mockData = [
+				JSON.stringify({
+					timestamp: '2024-01-01T12:00:00Z',
+					message: { usage: { input_tokens: 100, output_tokens: 50 } },
+					costUSD: 0.01,
+				}),
+				JSON.stringify({
+					timestamp: '2024-01-01T12:30:00Z',
+					type: 'user',
+					message: { content: 'hello' },
+				}),
+				JSON.stringify({
+					timestamp: '2024-01-01T13:00:00Z',
+					message: { usage: { input_tokens: 200, output_tokens: 100 } },
+					costUSD: 0.02,
+				}),
+			].join('\n');
+
+			await using fixture = await createFixture({
+				projects: {
+					project1: {
+						session1: {
+							'file.jsonl': mockData,
+						},
+					},
+				},
+			});
+
+			try {
+				const result = await loadDailyUsageData({
+					claudePath: fixture.path,
+					mode: 'display',
+				});
+
+				expect(result).toHaveLength(1);
+				expect(result[0]?.inputTokens).toBe(300);
+				expect(parseSpy).toHaveBeenCalledTimes(2);
+			} finally {
+				parseSpy.mockRestore();
+			}
 		});
 	});
 

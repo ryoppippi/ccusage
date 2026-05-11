@@ -91,6 +91,12 @@
 							"description": "Force compact mode for narrow displays (better for screenshots)",
 							"markdownDescription": "Force compact mode for narrow displays (better for screenshots)",
 							"default": false
+						},
+						"singleThread": {
+							"type": "boolean",
+							"description": "Read usage files sequentially instead of using file-level parallelism",
+							"markdownDescription": "Read usage files sequentially instead of using file-level parallelism",
+							"default": false
 						}
 					},
 					"additionalProperties": false,
@@ -181,6 +187,12 @@
 									"type": "boolean",
 									"description": "Force compact mode for narrow displays (better for screenshots)",
 									"markdownDescription": "Force compact mode for narrow displays (better for screenshots)",
+									"default": false
+								},
+								"singleThread": {
+									"type": "boolean",
+									"description": "Read usage files sequentially instead of using file-level parallelism",
+									"markdownDescription": "Read usage files sequentially instead of using file-level parallelism",
 									"default": false
 								},
 								"instances": {
@@ -284,6 +296,12 @@
 									"description": "Force compact mode for narrow displays (better for screenshots)",
 									"markdownDescription": "Force compact mode for narrow displays (better for screenshots)",
 									"default": false
+								},
+								"singleThread": {
+									"type": "boolean",
+									"description": "Read usage files sequentially instead of using file-level parallelism",
+									"markdownDescription": "Read usage files sequentially instead of using file-level parallelism",
+									"default": false
 								}
 							},
 							"additionalProperties": false
@@ -369,6 +387,12 @@
 									"type": "boolean",
 									"description": "Force compact mode for narrow displays (better for screenshots)",
 									"markdownDescription": "Force compact mode for narrow displays (better for screenshots)",
+									"default": false
+								},
+								"singleThread": {
+									"type": "boolean",
+									"description": "Read usage files sequentially instead of using file-level parallelism",
+									"markdownDescription": "Read usage files sequentially instead of using file-level parallelism",
 									"default": false
 								},
 								"startOfWeek": {
@@ -465,6 +489,12 @@
 									"markdownDescription": "Force compact mode for narrow displays (better for screenshots)",
 									"default": false
 								},
+								"singleThread": {
+									"type": "boolean",
+									"description": "Read usage files sequentially instead of using file-level parallelism",
+									"markdownDescription": "Read usage files sequentially instead of using file-level parallelism",
+									"default": false
+								},
 								"id": {
 									"type": "string",
 									"description": "Load usage data for a specific session ID",
@@ -554,6 +584,12 @@
 									"type": "boolean",
 									"description": "Force compact mode for narrow displays (better for screenshots)",
 									"markdownDescription": "Force compact mode for narrow displays (better for screenshots)",
+									"default": false
+								},
+								"singleThread": {
+									"type": "boolean",
+									"description": "Read usage files sequentially instead of using file-level parallelism",
+									"markdownDescription": "Read usage files sequentially instead of using file-level parallelism",
 									"default": false
 								},
 								"active": {
