@@ -12,7 +12,9 @@ export default defineConfig({
 	clean: true,
 	sourcemap: false,
 	minify: true,
-	treeshake: true,
+	treeshake: {
+		moduleSideEffects: false,
+	},
 	fixedExtension: false,
 	dts: {
 		tsgo: false,
