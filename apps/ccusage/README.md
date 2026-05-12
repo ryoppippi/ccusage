@@ -66,6 +66,39 @@ deno run -E -R=$HOME/.claude/projects/ -S=homedir -N='raw.githubusercontent.com:
 
 > 💡 **Important**: We strongly recommend using `@latest` suffix with npx (e.g., `npx ccusage@latest`) to ensure you're running the most recent version with the latest features and bug fixes.
 
+### NixOS / Nix flakes
+
+The repository's `flake.nix` exposes `packages.<system>.default`, so you can run it directly:
+
+```bash
+nix run github:ryoppippi/ccusage -- daily
+```
+
+To install it system-wide on NixOS, add the flake as an input and reference its package from `environment.systemPackages`:
+
+```nix
+# flake.nix
+{
+  inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
+  inputs.ccusage.url = "github:ryoppippi/ccusage";
+
+  outputs = { self, nixpkgs, ccusage, ... }: {
+    nixosConfigurations.my-host = nixpkgs.lib.nixosSystem {
+      system = "x86_64-linux";
+      modules = [
+        ({ pkgs, ... }: {
+          environment.systemPackages = [
+            ccusage.packages.${pkgs.system}.default
+          ];
+        })
+      ];
+    };
+  };
+}
+```
+
+For home-manager, drop the same package reference into `home.packages` instead.
+
 ### Related Tools
 
 ```bash
