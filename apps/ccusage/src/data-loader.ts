@@ -441,16 +441,6 @@ function extractStringMarker(line: string, marker: string, fromIndex = 0): strin
 	return valueEnd === -1 ? undefined : line.slice(valueStart, valueEnd);
 }
 
-function extractLastStringMarker(line: string, marker: string): string | undefined {
-	const start = line.lastIndexOf(marker);
-	if (start === -1) {
-		return undefined;
-	}
-	const valueStart = start + marker.length;
-	const valueEnd = line.indexOf('"', valueStart);
-	return valueEnd === -1 ? undefined : line.slice(valueStart, valueEnd);
-}
-
 function extractJsonNumberMarker(line: string, marker: string, fromIndex = 0): number | undefined {
 	const start = line.indexOf(marker, fromIndex);
 	if (start === -1) {
@@ -557,14 +547,6 @@ function extractUnsignedIntegerMarker(
 	return hasDigit ? value : undefined;
 }
 
-function extractLastNumberMarker(line: string, marker: string): number | undefined {
-	const start = line.lastIndexOf(marker);
-	if (start === -1) {
-		return undefined;
-	}
-	return extractJsonNumberMarker(line, marker, start);
-}
-
 function parseUsageDataLineFast(line: string, allowContent = false): UsageData | null {
 	const contentIndex = line.indexOf('"content":');
 	if (
@@ -608,7 +590,7 @@ function parseUsageDataLineFast(line: string, allowContent = false): UsageData |
 	}
 	const model = extractStringMarker(line, MODEL_MARKER, messageStart);
 	const messageId = extractStringMarker(line, MESSAGE_ID_MARKER, messageStart);
-	const requestId = extractLastStringMarker(line, REQUEST_ID_MARKER);
+	const requestId = extractStringMarker(line, REQUEST_ID_MARKER, usageStart);
 	const sessionId = extractStringMarker(line, SESSION_ID_MARKER);
 	if (model === '' || messageId === '' || requestId === '' || sessionId === '') {
 		return null;
@@ -635,7 +617,7 @@ function parseUsageDataLineFast(line: string, allowContent = false): UsageData |
 			model: model as ModelName | undefined,
 			id: messageId as UsageData['message']['id'],
 		},
-		costUSD: extractLastNumberMarker(line, COST_USD_MARKER),
+		costUSD: extractJsonNumberMarker(line, COST_USD_MARKER, usageStart),
 		requestId: requestId as UsageData['requestId'],
 		sessionId: sessionId as UsageData['sessionId'],
 		version: version as Version | undefined,
@@ -645,10 +627,18 @@ function parseUsageDataLineFast(line: string, allowContent = false): UsageData |
 function hasUnsupportedNullField(line: string): boolean {
 	let nullIndex = line.indexOf(':null');
 	while (nullIndex !== -1) {
-		const fieldEnd = line.lastIndexOf('"', nullIndex - 1);
+		let fieldEnd = nullIndex - 1;
+		if (line.charCodeAt(fieldEnd) !== 34) {
+			while (fieldEnd >= 0 && line.charCodeAt(fieldEnd) !== 34) {
+				fieldEnd--;
+			}
+		}
 		if (fieldEnd !== -1) {
-			const fieldStart = line.lastIndexOf('"', fieldEnd - 1);
-			if (fieldStart !== -1 && isUnsupportedNullableField(line.slice(fieldStart + 1, fieldEnd))) {
+			let fieldStart = fieldEnd - 1;
+			while (fieldStart >= 0 && line.charCodeAt(fieldStart) !== 34) {
+				fieldStart--;
+			}
+			if (fieldStart !== -1 && isUnsupportedNullableField(line, fieldStart + 1, fieldEnd)) {
 				return true;
 			}
 		}
@@ -657,20 +647,28 @@ function hasUnsupportedNullField(line: string): boolean {
 	return false;
 }
 
-function isUnsupportedNullableField(field: string): boolean {
-	switch (field) {
-		case 'cwd':
-		case 'sessionId':
-		case 'requestId':
-		case 'costUSD':
-		case 'isApiErrorMessage':
-		case 'version':
-		case 'model':
-		case 'id':
-		case 'cache_creation_input_tokens':
-		case 'cache_read_input_tokens':
-		case 'speed':
-			return true;
+function isFieldAt(line: string, start: number, end: number, field: string): boolean {
+	return end - start === field.length && line.startsWith(field, start);
+}
+
+function isUnsupportedNullableField(line: string, start: number, end: number): boolean {
+	switch (end - start) {
+		case 2:
+			return isFieldAt(line, start, end, 'id');
+		case 3:
+			return isFieldAt(line, start, end, 'cwd');
+		case 5:
+			return isFieldAt(line, start, end, 'model') || isFieldAt(line, start, end, 'speed');
+		case 7:
+			return isFieldAt(line, start, end, 'costUSD') || isFieldAt(line, start, end, 'version');
+		case 9:
+			return isFieldAt(line, start, end, 'sessionId') || isFieldAt(line, start, end, 'requestId');
+		case 17:
+			return isFieldAt(line, start, end, 'isApiErrorMessage');
+		case 23:
+			return isFieldAt(line, start, end, 'cache_read_input_tokens');
+		case 27:
+			return isFieldAt(line, start, end, 'cache_creation_input_tokens');
 		default:
 			return false;
 	}
