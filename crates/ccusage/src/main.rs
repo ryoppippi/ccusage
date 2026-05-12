@@ -1,10 +1,12 @@
 use std::{
     collections::{BTreeMap, BTreeSet, HashMap, HashSet},
-    env,
-    fs::{self, File},
-    io::{self, BufRead, BufReader, Read},
+    env, fs,
+    io::{self, IsTerminal, Read},
     path::{Path, PathBuf},
 };
+
+#[cfg(unix)]
+use std::os::fd::AsRawFd;
 
 use anyhow::{bail, Context, Result};
 use chrono::{DateTime, Datelike, Local, NaiveDate, TimeZone, Timelike, Utc};
@@ -24,6 +26,14 @@ use cli::{
 const DEFAULT_SESSION_DURATION_HOURS: f64 = 5.0;
 const DEFAULT_RECENT_DAYS: i64 = 3;
 const BLOCKS_WARNING_THRESHOLD: f64 = 0.8;
+const DEFAULT_TERMINAL_WIDTH: usize = 120;
+const USAGE_COMPACT_WIDTH_THRESHOLD: usize = 100;
+const BLOCKS_COMPACT_WIDTH_THRESHOLD: usize = 120;
+
+#[cfg(all(unix, target_os = "macos"))]
+const TIOCGWINSZ: usize = 0x4008_7468;
+#[cfg(all(unix, target_os = "linux"))]
+const TIOCGWINSZ: usize = 0x5413;
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -112,8 +122,13 @@ struct LoadedEntry {
     project_path: String,
     cost: f64,
     model: Option<String>,
-    file_index: usize,
-    line_number: usize,
+}
+
+#[derive(Debug)]
+struct LoadedFile {
+    path: PathBuf,
+    timestamp: Option<DateTime<Utc>>,
+    entries: Vec<LoadedEntry>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -188,16 +203,15 @@ struct Pricing {
     fast_multiplier: f64,
 }
 
-#[tokio::main]
-async fn main() -> Result<()> {
+fn main() -> Result<()> {
     let cli = Cli::parse();
     match cli.command {
-        Some(Command::Daily(args)) => run_daily(args).await,
-        Some(Command::Monthly(shared)) => run_bucket(shared, BucketKind::Monthly).await,
-        Some(Command::Weekly(args)) => run_weekly(args).await,
-        Some(Command::Session(args)) => run_session(args).await,
-        Some(Command::Blocks(args)) => run_blocks(args).await,
-        Some(Command::Statusline(args)) => run_statusline(args).await,
+        Some(Command::Daily(args)) => run_daily(args),
+        Some(Command::Monthly(shared)) => run_bucket(shared, BucketKind::Monthly),
+        Some(Command::Weekly(args)) => run_weekly(args),
+        Some(Command::Session(args)) => run_session(args),
+        Some(Command::Blocks(args)) => run_blocks(args),
+        Some(Command::Statusline(args)) => run_statusline(args),
         None => {
             let args = DailyArgs {
                 shared: cli.shared,
@@ -205,12 +219,12 @@ async fn main() -> Result<()> {
                 project: None,
                 project_aliases: None,
             };
-            run_daily(args).await
+            run_daily(args)
         }
     }
 }
 
-async fn run_daily(args: DailyArgs) -> Result<()> {
+fn run_daily(args: DailyArgs) -> Result<()> {
     let shared = args.shared.clone();
     let entries = load_entries(&shared, args.project.as_deref())?;
     let mut rows = summarize_by_key(
@@ -251,11 +265,18 @@ async fn run_daily(args: DailyArgs) -> Result<()> {
         return Ok(());
     }
 
-    print_usage_table("Claude Code Token Usage Report - Daily", "Date", &rows);
+    print_usage_table(
+        "Claude Code Token Usage Report - Daily",
+        "Date",
+        &rows,
+        &shared,
+        args.instances,
+        args.project_aliases.as_deref(),
+    );
     Ok(())
 }
 
-async fn run_bucket(shared: SharedArgs, kind: BucketKind) -> Result<()> {
+fn run_bucket(shared: SharedArgs, kind: BucketKind) -> Result<()> {
     let entries = load_entries(&shared, None)?;
     let mut daily = summarize_by_key(
         &entries,
@@ -289,11 +310,11 @@ async fn run_bucket(shared: SharedArgs, kind: BucketKind) -> Result<()> {
         BucketKind::Monthly => ("Claude Code Token Usage Report - Monthly", "Month"),
         BucketKind::Weekly => ("Claude Code Token Usage Report - Weekly", "Week"),
     };
-    print_usage_table(title, col, &buckets);
+    print_usage_table(title, col, &buckets, &shared, false, None);
     Ok(())
 }
 
-async fn run_weekly(args: WeeklyArgs) -> Result<()> {
+fn run_weekly(args: WeeklyArgs) -> Result<()> {
     let shared = args.shared.clone();
     let entries = load_entries(&shared, None)?;
     let mut daily = summarize_by_key(
@@ -318,14 +339,21 @@ async fn run_weekly(args: WeeklyArgs) -> Result<()> {
         return Ok(());
     }
 
-    print_usage_table("Claude Code Token Usage Report - Weekly", "Week", &weekly);
+    print_usage_table(
+        "Claude Code Token Usage Report - Weekly",
+        "Week",
+        &weekly,
+        &shared,
+        false,
+        None,
+    );
     Ok(())
 }
 
-async fn run_session(args: SessionArgs) -> Result<()> {
+fn run_session(args: SessionArgs) -> Result<()> {
     let shared = args.shared.clone();
     if let Some(id) = args.id {
-        return run_session_id(&id, &shared).await;
+        return run_session_id(&id, &shared);
     }
 
     let mut session_shared = shared.clone();
@@ -382,11 +410,14 @@ async fn run_session(args: SessionArgs) -> Result<()> {
         "Claude Code Token Usage Report - By Session",
         "Session",
         &rows,
+        &session_shared,
+        false,
+        None,
     );
     Ok(())
 }
 
-async fn run_session_id(id: &str, shared: &SharedArgs) -> Result<()> {
+fn run_session_id(id: &str, shared: &SharedArgs) -> Result<()> {
     let entries = load_entries(shared, None)?;
     let mut session_entries = entries
         .into_iter()
@@ -435,7 +466,7 @@ async fn run_session_id(id: &str, shared: &SharedArgs) -> Result<()> {
     Ok(())
 }
 
-async fn run_blocks(args: BlocksArgs) -> Result<()> {
+fn run_blocks(args: BlocksArgs) -> Result<()> {
     if args.session_length <= 0.0 {
         bail!("Session length must be a positive number");
     }
@@ -473,11 +504,15 @@ async fn run_blocks(args: BlocksArgs) -> Result<()> {
         println!("No active session block found.");
         return Ok(());
     }
-    print_blocks_table(&blocks, args.token_limit.as_deref(), max_tokens);
+    if args.active && blocks.len() == 1 {
+        print_active_block_detail(&blocks[0], args.token_limit.as_deref(), max_tokens, &shared);
+        return Ok(());
+    }
+    print_blocks_table(&blocks, args.token_limit.as_deref(), max_tokens, &shared);
     Ok(())
 }
 
-async fn run_statusline(args: StatuslineArgs) -> Result<()> {
+fn run_statusline(args: StatuslineArgs) -> Result<()> {
     if args.context_low_threshold >= args.context_medium_threshold {
         bail!(
             "Context low threshold ({}) must be less than medium threshold ({})",
@@ -628,43 +663,90 @@ fn calculate_session_cost(session_id: &str, shared: &SharedArgs) -> Result<f64> 
 
 fn load_entries(shared: &SharedArgs, project_filter: Option<&str>) -> Result<Vec<LoadedEntry>> {
     let paths = claude_paths()?;
-    let files = sorted_usage_files(&paths);
+    debug_log(
+        shared,
+        format!(
+            "Scanning Claude data directories: {}",
+            paths
+                .iter()
+                .map(|path| path.display().to_string())
+                .collect::<Vec<_>>()
+                .join(", ")
+        ),
+    );
+    let files = usage_files(&paths);
+    debug_log(shared, format!("Found {} JSONL usage files", files.len()));
     if files.is_empty() {
         return Ok(Vec::new());
     }
 
     let tz = parse_tz(shared.timezone.as_deref());
     let mode = shared.mode;
-    let mut entries = files
-        .par_iter()
-        .enumerate()
-        .flat_map_iter(|(file_index, file)| read_usage_file(file, tz, mode, file_index))
-        .collect::<Vec<_>>();
-    entries.sort_by_key(|entry| (entry.file_index, entry.line_number));
+    let mut loaded_files = if shared.single_thread {
+        files
+            .iter()
+            .map(|file| read_usage_file(file, tz, mode))
+            .collect::<Vec<_>>()
+    } else {
+        files
+            .par_iter()
+            .map(|file| read_usage_file(file, tz, mode))
+            .collect::<Vec<_>>()
+    };
+    loaded_files.sort_by(|a, b| match (a.timestamp, b.timestamp) {
+        (Some(a_timestamp), Some(b_timestamp)) => a_timestamp.cmp(&b_timestamp),
+        (Some(_), None) => std::cmp::Ordering::Less,
+        (None, Some(_)) => std::cmp::Ordering::Greater,
+        (None, None) => a.path.cmp(&b.path),
+    });
+    let loaded_entry_count = loaded_files
+        .iter()
+        .map(|file| file.entries.len())
+        .sum::<usize>();
+    debug_log(
+        shared,
+        format!(
+            "Loaded {loaded_entry_count} usage entries from {} JSONL files",
+            loaded_files.len()
+        ),
+    );
 
     let mut deduped_indexes: HashMap<String, usize> = HashMap::new();
-    let mut deduped: Vec<LoadedEntry> = Vec::with_capacity(entries.len());
-    for entry in entries {
-        if let Some(filter) = project_filter {
-            if entry.project != filter {
-                continue;
-            }
-        }
-        if let (Some(message_id), Some(request_id)) =
-            (&entry.data.message.id, &entry.data.request_id)
-        {
-            let key = format!("{message_id}:{request_id}");
-            if let Some(index) = deduped_indexes.get(&key).copied() {
-                if should_replace_deduped_entry(&entry.data, &deduped[index].data) {
-                    deduped[index] = entry;
+    let mut deduped: Vec<LoadedEntry> =
+        Vec::with_capacity(loaded_files.iter().map(|file| file.entries.len()).sum());
+    for loaded_file in loaded_files {
+        for entry in loaded_file.entries {
+            if let Some(filter) = project_filter {
+                if entry.project != filter {
+                    continue;
                 }
-                continue;
             }
-            deduped_indexes.insert(key, deduped.len());
+            if let (Some(message_id), Some(request_id)) =
+                (&entry.data.message.id, &entry.data.request_id)
+            {
+                let key = format!("{message_id}:{request_id}");
+                if let Some(index) = deduped_indexes.get(&key).copied() {
+                    if should_replace_deduped_entry(&entry.data, &deduped[index].data) {
+                        deduped[index] = entry;
+                    }
+                    continue;
+                }
+                deduped_indexes.insert(key, deduped.len());
+            }
+            deduped.push(entry);
         }
-        deduped.push(entry);
     }
+    debug_log(
+        shared,
+        format!("Kept {} usage entries after deduplication", deduped.len()),
+    );
     Ok(deduped)
+}
+
+fn debug_log(shared: &SharedArgs, message: impl AsRef<str>) {
+    if shared.debug {
+        eprintln!("{}", message.as_ref());
+    }
 }
 
 fn usage_token_total(data: &UsageEntry) -> u64 {
@@ -685,132 +767,62 @@ fn should_replace_deduped_entry(candidate: &UsageEntry, existing: &UsageEntry) -
     candidate.message.usage.speed.is_some() && existing.message.usage.speed.is_none()
 }
 
-fn read_usage_file_with(
-    path: &Path,
-    tz: Option<Tz>,
-    mode: CostMode,
-    file_index: usize,
-) -> Vec<LoadedEntry> {
-    let file = match File::open(path) {
-        Ok(file) => file,
-        Err(_) => return Vec::new(),
-    };
+fn read_usage_file(path: &Path, tz: Option<Tz>, mode: CostMode) -> LoadedFile {
     let project = extract_project(path);
     let (session_id, project_path) = extract_session_parts(path);
-    let reader = BufReader::new(file);
-    reader
-        .lines()
-        .enumerate()
-        .filter_map(|(line_number, line)| line.ok().map(|line| (line_number, line)))
-        .filter_map(|(line_number, line)| {
-            if !line.contains("\"input_tokens\"") {
-                return None;
-            }
-            let value = serde_json::from_str::<Value>(&line).ok()?;
-            if !is_ts_usage_value(&value) {
-                return None;
-            }
-            let data = serde_json::from_value::<UsageEntry>(value).ok()?;
-            if !is_valid_usage_entry(&data) {
-                return None;
-            }
-            let timestamp = DateTime::parse_from_rfc3339(&data.timestamp)
-                .ok()?
-                .with_timezone(&Utc);
-            let date = format_date_tz(timestamp, tz);
-            let cost = calculate_cost(&data, mode);
-            let model = data.message.model.as_ref().and_then(|model| {
-                if model == "<synthetic>" {
-                    None
-                } else if matches!(data.message.usage.speed, Some(Speed::Fast)) {
-                    Some(format!("{model}-fast"))
-                } else {
-                    Some(model.clone())
-                }
-            });
-            Some(LoadedEntry {
-                data,
-                timestamp,
-                date,
-                project: project.clone(),
-                session_id: session_id.clone(),
-                project_path: project_path.clone(),
-                cost,
-                model,
-                file_index,
-                line_number,
-            })
-        })
-        .collect()
-}
+    let mut loaded_file = LoadedFile {
+        path: path.to_path_buf(),
+        timestamp: None,
+        entries: Vec::new(),
+    };
+    let Ok(content) = fs::read_to_string(path) else {
+        return loaded_file;
+    };
 
-fn is_ts_usage_value(value: &Value) -> bool {
-    let Some(object) = value.as_object() else {
-        return false;
-    };
-    if !optional_string(object, "cwd")
-        || !optional_string(object, "sessionId")
-        || !optional_string(object, "version")
-        || !optional_string(object, "requestId")
-        || !optional_number(object, "costUSD")
-        || !optional_bool(object, "isApiErrorMessage")
-    {
-        return false;
-    }
-    if object
-        .get("version")
-        .and_then(Value::as_str)
-        .is_some_and(|version| !is_semver_prefix(version))
-    {
-        return false;
-    }
-    let Some(timestamp) = object.get("timestamp").and_then(Value::as_str) else {
-        return false;
-    };
-    if !is_ts_timestamp(timestamp) {
-        return false;
-    }
-    let Some(message) = object.get("message").and_then(Value::as_object) else {
-        return false;
-    };
-    if !optional_string(message, "model") || !optional_string(message, "id") {
-        return false;
-    }
-    if let Some(content) = message.get("content") {
-        let Some(parts) = content.as_array() else {
-            return false;
-        };
-        for part in parts {
-            let Some(part) = part.as_object() else {
-                return false;
-            };
-            if !optional_string(part, "text") {
-                return false;
-            }
+    for line in content.lines() {
+        if let Some(timestamp) = earliest_timestamp_from_line(line) {
+            loaded_file.timestamp = Some(
+                loaded_file
+                    .timestamp
+                    .map_or(timestamp, |current| current.min(timestamp)),
+            );
         }
+        if !line.contains("\"input_tokens\"") {
+            continue;
+        }
+        let Ok(data) = serde_json::from_str::<UsageEntry>(line) else {
+            continue;
+        };
+        if !is_valid_usage_entry(&data) || !is_ts_timestamp(&data.timestamp) {
+            continue;
+        }
+        let Ok(timestamp) = DateTime::parse_from_rfc3339(&data.timestamp) else {
+            continue;
+        };
+        let timestamp = timestamp.with_timezone(&Utc);
+        let date = format_date_tz(timestamp, tz);
+        let cost = calculate_cost(&data, mode);
+        let model = data.message.model.as_ref().and_then(|model| {
+            if model == "<synthetic>" {
+                None
+            } else if matches!(data.message.usage.speed, Some(Speed::Fast)) {
+                Some(format!("{model}-fast"))
+            } else {
+                Some(model.clone())
+            }
+        });
+        loaded_file.entries.push(LoadedEntry {
+            data,
+            timestamp,
+            date,
+            project: project.clone(),
+            session_id: session_id.clone(),
+            project_path: project_path.clone(),
+            cost,
+            model,
+        });
     }
-    let Some(usage) = message.get("usage").and_then(Value::as_object) else {
-        return false;
-    };
-    usage.get("input_tokens").is_some_and(Value::is_number)
-        && usage.get("output_tokens").is_some_and(Value::is_number)
-        && optional_number(usage, "cache_creation_input_tokens")
-        && optional_number(usage, "cache_read_input_tokens")
-        && usage
-            .get("speed")
-            .is_none_or(|speed| matches!(speed.as_str(), Some("standard" | "fast")))
-}
-
-fn optional_string(object: &serde_json::Map<String, Value>, key: &str) -> bool {
-    object.get(key).is_none_or(Value::is_string)
-}
-
-fn optional_number(object: &serde_json::Map<String, Value>, key: &str) -> bool {
-    object.get(key).is_none_or(Value::is_number)
-}
-
-fn optional_bool(object: &serde_json::Map<String, Value>, key: &str) -> bool {
-    object.get(key).is_none_or(Value::is_boolean)
+    loaded_file
 }
 
 fn is_ts_timestamp(value: &str) -> bool {
@@ -906,15 +918,6 @@ fn is_semver_prefix(value: &str) -> bool {
         && patch.chars().next().is_some_and(|ch| ch.is_ascii_digit())
 }
 
-fn read_usage_file(
-    path: &Path,
-    tz: Option<Tz>,
-    mode: CostMode,
-    file_index: usize,
-) -> Vec<LoadedEntry> {
-    read_usage_file_with(path, tz, mode, file_index)
-}
-
 fn claude_paths() -> Result<Vec<PathBuf>> {
     let mut paths = Vec::new();
     let mut seen = HashSet::new();
@@ -962,68 +965,38 @@ fn collect_usage_files(dir: &Path, files: &mut Vec<PathBuf>) {
     let Ok(entries) = fs::read_dir(dir) else {
         return;
     };
-    let entries = entries.filter_map(Result::ok).collect::<Vec<_>>();
 
-    for entry in &entries {
+    for entry in entries.filter_map(Result::ok) {
+        let Ok(file_type) = entry.file_type() else {
+            continue;
+        };
         let path = entry.path();
-        if path.is_file() && path.extension().is_some_and(|ext| ext == "jsonl") {
+        if file_type.is_file() && path.extension().is_some_and(|ext| ext == "jsonl") {
             files.push(path);
-        }
-    }
-
-    for entry in entries {
-        let path = entry.path();
-        if path.is_dir() {
+        } else if file_type.is_dir() {
             collect_usage_files(&path, files);
         }
     }
-}
-
-fn sorted_usage_files(paths: &[PathBuf]) -> Vec<PathBuf> {
-    let mut files = usage_files(paths)
-        .into_par_iter()
-        .map(|file| {
-            let timestamp = earliest_timestamp(&file);
-            (file, timestamp)
-        })
-        .collect::<Vec<_>>();
-    files.sort_by(|(a_file, a_timestamp), (b_file, b_timestamp)| {
-        match (a_timestamp, b_timestamp) {
-            (Some(a), Some(b)) => a.cmp(b),
-            (Some(_), None) => std::cmp::Ordering::Less,
-            (None, Some(_)) => std::cmp::Ordering::Greater,
-            (None, None) => a_file.cmp(b_file),
-        }
-    });
-    files.into_iter().map(|(file, _)| file).collect()
-}
-
-fn earliest_timestamp(path: &Path) -> Option<DateTime<Utc>> {
-    let file = File::open(path).ok()?;
-    let reader = BufReader::new(file);
-    reader
-        .lines()
-        .map_while(Result::ok)
-        .filter_map(|line| {
-            if let Some(timestamp) = timestamp_from_line(&line) {
-                return Some(timestamp);
-            }
-            if !line.contains("\"timestamp\"") {
-                return None;
-            }
-            let value = serde_json::from_str::<Value>(&line).ok()?;
-            let timestamp = value.get("timestamp")?.as_str()?;
-            DateTime::parse_from_rfc3339(timestamp)
-                .ok()
-                .and_then(|value| DateTime::from_timestamp_millis(value.timestamp_millis()))
-        })
-        .min()
 }
 
 fn timestamp_from_line(line: &str) -> Option<DateTime<Utc>> {
     let start = line.find("\"timestamp\":\"")? + "\"timestamp\":\"".len();
     let end = line[start..].find('"')? + start;
     DateTime::parse_from_rfc3339(&line[start..end])
+        .ok()
+        .and_then(|value| DateTime::from_timestamp_millis(value.timestamp_millis()))
+}
+
+fn earliest_timestamp_from_line(line: &str) -> Option<DateTime<Utc>> {
+    if let Some(timestamp) = timestamp_from_line(line) {
+        return Some(timestamp);
+    }
+    if !line.contains("\"timestamp\"") {
+        return None;
+    }
+    let value = serde_json::from_str::<Value>(line).ok()?;
+    let timestamp = value.get("timestamp")?.as_str()?;
+    DateTime::parse_from_rfc3339(timestamp)
         .ok()
         .and_then(|value| DateTime::from_timestamp_millis(value.timestamp_millis()))
 }
@@ -1589,17 +1562,78 @@ fn print_json_or_jq(value: Value, jq: Option<&str>) -> Result<()> {
     Ok(())
 }
 
-fn print_usage_table(title: &str, first_column: &str, rows: &[UsageSummary]) {
+fn print_usage_table(
+    title: &str,
+    first_column: &str,
+    rows: &[UsageSummary],
+    shared: &SharedArgs,
+    group_projects: bool,
+    project_aliases: Option<&str>,
+) {
     if rows.is_empty() {
         eprintln!("No Claude usage data found.");
         return;
     }
-    println!("{title}");
-    println!(
-        "{:<16} {:>12} {:>12} {:>12} {:>12} {:>12} {:>12}  Models",
-        first_column, "Input", "Output", "CacheCreate", "CacheRead", "Total", "Cost"
-    );
+    let compact = shared.compact || terminal_width() < USAGE_COMPACT_WIDTH_THRESHOLD;
+    let include_last_activity = rows.iter().any(|row| row.last_activity.is_some());
+    print_box_title(title, shared);
+    let mut headers = if compact {
+        vec![first_column, "Models", "Input", "Output", "Cost (USD)"]
+    } else {
+        vec![
+            first_column,
+            "Models",
+            "Input",
+            "Output",
+            "Cache Create",
+            "Cache Read",
+            "Total Tokens",
+            "Cost (USD)",
+        ]
+    };
+    let mut aligns = if compact {
+        vec![
+            Align::Left,
+            Align::Left,
+            Align::Right,
+            Align::Right,
+            Align::Right,
+        ]
+    } else {
+        vec![
+            Align::Left,
+            Align::Left,
+            Align::Right,
+            Align::Right,
+            Align::Right,
+            Align::Right,
+            Align::Right,
+            Align::Right,
+        ]
+    };
+    if include_last_activity {
+        headers.push("Last Activity");
+        aligns.push(Align::Left);
+    }
+    let mut table = SimpleTable::new(headers, aligns, shared);
+    let aliases = parse_project_aliases(project_aliases);
+    let mut current_project: Option<&str> = None;
     for row in rows {
+        if group_projects {
+            if let Some(project) = row.project.as_deref() {
+                if current_project != Some(project) {
+                    if current_project.is_some() {
+                        table.separator();
+                    }
+                    table.push(project_header_row(
+                        table.column_count(),
+                        &format_project_name(project, &aliases),
+                        shared,
+                    ));
+                    current_project = Some(project);
+                }
+            }
+        }
         let label = row
             .date
             .as_deref()
@@ -1607,40 +1641,95 @@ fn print_usage_table(title: &str, first_column: &str, rows: &[UsageSummary]) {
             .or(row.week.as_deref())
             .or(row.session_id.as_deref())
             .unwrap_or("");
-        println!(
-            "{:<16} {:>12} {:>12} {:>12} {:>12} {:>12} {:>12}  {}",
-            label,
-            format_number(row.input_tokens),
-            format_number(row.output_tokens),
-            format_number(row.cache_creation_tokens),
-            format_number(row.cache_read_tokens),
-            format_number(
-                row.input_tokens
-                    + row.output_tokens
-                    + row.cache_creation_tokens
-                    + row.cache_read_tokens
-            ),
-            format_currency(row.total_cost),
-            row.models_used.join(", ")
-        );
+        let models = format_models_multiline(&row.models_used);
+        let total_tokens = row.input_tokens
+            + row.output_tokens
+            + row.cache_creation_tokens
+            + row.cache_read_tokens;
+        let mut values = if compact {
+            vec![
+                label.to_string(),
+                models,
+                format_number(row.input_tokens),
+                format_number(row.output_tokens),
+                format_currency(row.total_cost),
+            ]
+        } else {
+            vec![
+                label.to_string(),
+                models,
+                format_number(row.input_tokens),
+                format_number(row.output_tokens),
+                format_number(row.cache_creation_tokens),
+                format_number(row.cache_read_tokens),
+                format_number(total_tokens),
+                format_currency(row.total_cost),
+            ]
+        };
+        if include_last_activity {
+            values.push(row.last_activity.clone().unwrap_or_default());
+        }
+        table.push(values);
+        if shared.breakdown {
+            push_breakdown_rows(&mut table, row, compact, include_last_activity, shared);
+        }
     }
-    println!(
-        "{:<16} {:>12} {:>12} {:>12} {:>12} {:>12} {:>12}",
-        "Total",
-        format_number(rows.iter().map(|row| row.input_tokens).sum()),
-        format_number(rows.iter().map(|row| row.output_tokens).sum()),
-        format_number(rows.iter().map(|row| row.cache_creation_tokens).sum()),
-        format_number(rows.iter().map(|row| row.cache_read_tokens).sum()),
-        format_number(
-            rows.iter()
-                .map(|row| row.input_tokens
-                    + row.output_tokens
-                    + row.cache_creation_tokens
-                    + row.cache_read_tokens)
-                .sum()
-        ),
-        format_currency(rows.iter().map(|row| row.total_cost).sum())
-    );
+
+    let totals = totals_json(rows);
+    let input = totals
+        .get("inputTokens")
+        .and_then(Value::as_u64)
+        .unwrap_or_default();
+    let output = totals
+        .get("outputTokens")
+        .and_then(Value::as_u64)
+        .unwrap_or_default();
+    let cache_create = totals
+        .get("cacheCreationTokens")
+        .and_then(Value::as_u64)
+        .unwrap_or_default();
+    let cache_read = totals
+        .get("cacheReadTokens")
+        .and_then(Value::as_u64)
+        .unwrap_or_default();
+    let total_cost = totals
+        .get("totalCost")
+        .and_then(Value::as_f64)
+        .unwrap_or_default();
+    table.separator();
+    let mut total_row = if compact {
+        vec![
+            colour(shared, "Total", Colour::Yellow),
+            String::new(),
+            colour(shared, format_number(input), Colour::Yellow),
+            colour(shared, format_number(output), Colour::Yellow),
+            colour(shared, format_currency(total_cost), Colour::Yellow),
+        ]
+    } else {
+        vec![
+            colour(shared, "Total", Colour::Yellow),
+            String::new(),
+            colour(shared, format_number(input), Colour::Yellow),
+            colour(shared, format_number(output), Colour::Yellow),
+            colour(shared, format_number(cache_create), Colour::Yellow),
+            colour(shared, format_number(cache_read), Colour::Yellow),
+            colour(
+                shared,
+                format_number(input + output + cache_create + cache_read),
+                Colour::Yellow,
+            ),
+            colour(shared, format_currency(total_cost), Colour::Yellow),
+        ]
+    };
+    if include_last_activity {
+        total_row.push(String::new());
+    }
+    table.push(total_row);
+    table.print();
+    if compact {
+        eprintln!("\nRunning in Compact Mode");
+        eprintln!("Expand terminal width to see cache metrics and total tokens");
+    }
 }
 
 fn identify_session_blocks(
@@ -1874,38 +1963,686 @@ fn json_float(value: f64) -> Value {
     }
 }
 
-fn print_blocks_table(blocks: &[SessionBlock], token_limit: Option<&str>, max_tokens: u64) {
+#[derive(Clone, Copy, Eq, PartialEq)]
+enum Align {
+    Left,
+    Right,
+}
+
+enum Colour {
+    Blue,
+    Green,
+    Grey,
+    Red,
+    Yellow,
+}
+
+struct SimpleTable<'a> {
+    headers: Vec<String>,
+    aligns: Vec<Align>,
+    rows: Vec<Option<Vec<String>>>,
+    shared: &'a SharedArgs,
+}
+
+impl<'a> SimpleTable<'a> {
+    fn new(headers: Vec<&str>, aligns: Vec<Align>, shared: &'a SharedArgs) -> Self {
+        Self {
+            headers: headers.into_iter().map(str::to_string).collect(),
+            aligns,
+            rows: Vec::new(),
+            shared,
+        }
+    }
+
+    fn push(&mut self, row: Vec<String>) {
+        self.rows.push(Some(row));
+    }
+
+    fn separator(&mut self) {
+        self.rows.push(None);
+    }
+
+    fn column_count(&self) -> usize {
+        self.headers.len()
+    }
+
+    fn print(&self) {
+        let widths = self.column_widths();
+        println!("{}", border('┌', '┬', '┐', &widths));
+        println!(
+            "{}",
+            table_line(
+                &self
+                    .headers
+                    .iter()
+                    .map(|header| colour(self.shared, header, Colour::Blue))
+                    .collect::<Vec<_>>(),
+                &self.aligns,
+                &widths,
+            )
+        );
+        println!("{}", border('├', '┼', '┤', &widths));
+        for row in &self.rows {
+            match row {
+                Some(row) => {
+                    for physical_row in expand_multiline_row(row, self.headers.len()) {
+                        println!("{}", table_line(&physical_row, &self.aligns, &widths));
+                    }
+                }
+                None => println!("{}", border('├', '┼', '┤', &widths)),
+            }
+        }
+        println!("{}", border('└', '┴', '┘', &widths));
+    }
+
+    fn column_widths(&self) -> Vec<usize> {
+        let mut widths = self
+            .headers
+            .iter()
+            .enumerate()
+            .map(|(index, header)| {
+                let minimum = if self.aligns.get(index) == Some(&Align::Right) {
+                    11
+                } else if index == 1 {
+                    15
+                } else {
+                    10
+                };
+                visible_width(header).max(minimum)
+            })
+            .collect::<Vec<_>>();
+        for row in self.rows.iter().flatten() {
+            for (index, cell) in row.iter().enumerate() {
+                let max_line_width = cell.lines().map(visible_width).max().unwrap_or_default();
+                if let Some(width) = widths.get_mut(index) {
+                    *width = (*width).max(max_line_width + 2);
+                }
+            }
+        }
+        widths
+    }
+}
+
+fn project_header_row(column_count: usize, project: &str, shared: &SharedArgs) -> Vec<String> {
+    let mut row = vec![String::new(); column_count];
+    if let Some(first) = row.first_mut() {
+        *first = colour(shared, format!("Project: {project}"), Colour::Blue);
+    }
+    row
+}
+
+fn push_breakdown_rows(
+    table: &mut SimpleTable<'_>,
+    row: &UsageSummary,
+    compact: bool,
+    include_last_activity: bool,
+    shared: &SharedArgs,
+) {
+    for breakdown in &row.model_breakdowns {
+        let total = breakdown.input_tokens
+            + breakdown.output_tokens
+            + breakdown.cache_creation_tokens
+            + breakdown.cache_read_tokens;
+        let mut values = if compact {
+            vec![
+                colour(
+                    shared,
+                    format!("  └─ {}", short_model_name(&breakdown.model_name)),
+                    Colour::Grey,
+                ),
+                String::new(),
+                colour(shared, format_number(breakdown.input_tokens), Colour::Grey),
+                colour(shared, format_number(breakdown.output_tokens), Colour::Grey),
+                colour(shared, format_currency(breakdown.cost), Colour::Grey),
+            ]
+        } else {
+            vec![
+                colour(
+                    shared,
+                    format!("  └─ {}", short_model_name(&breakdown.model_name)),
+                    Colour::Grey,
+                ),
+                String::new(),
+                colour(shared, format_number(breakdown.input_tokens), Colour::Grey),
+                colour(shared, format_number(breakdown.output_tokens), Colour::Grey),
+                colour(
+                    shared,
+                    format_number(breakdown.cache_creation_tokens),
+                    Colour::Grey,
+                ),
+                colour(
+                    shared,
+                    format_number(breakdown.cache_read_tokens),
+                    Colour::Grey,
+                ),
+                colour(shared, format_number(total), Colour::Grey),
+                colour(shared, format_currency(breakdown.cost), Colour::Grey),
+            ]
+        };
+        if include_last_activity {
+            values.push(String::new());
+        }
+        table.push(values);
+    }
+}
+
+fn expand_multiline_row(row: &[String], column_count: usize) -> Vec<Vec<String>> {
+    let cells = (0..column_count)
+        .map(|index| {
+            row.get(index)
+                .map(|cell| cell.lines().map(str::to_string).collect::<Vec<_>>())
+                .filter(|lines| !lines.is_empty())
+                .unwrap_or_else(|| vec![String::new()])
+        })
+        .collect::<Vec<_>>();
+    let height = cells.iter().map(Vec::len).max().unwrap_or(1);
+    (0..height)
+        .map(|line_index| {
+            cells
+                .iter()
+                .map(|lines| lines.get(line_index).cloned().unwrap_or_default())
+                .collect::<Vec<_>>()
+        })
+        .collect()
+}
+
+fn table_line(cells: &[String], aligns: &[Align], widths: &[usize]) -> String {
+    let mut line = String::from("│");
+    for (index, width) in widths.iter().enumerate() {
+        let cell = cells.get(index).map(String::as_str).unwrap_or("");
+        line.push(' ');
+        line.push_str(&pad_cell(
+            cell,
+            width.saturating_sub(2),
+            aligns.get(index).copied().unwrap_or(Align::Left),
+        ));
+        line.push(' ');
+        line.push('│');
+    }
+    line
+}
+
+fn pad_cell(cell: &str, width: usize, align: Align) -> String {
+    let visible = visible_width(cell);
+    if visible >= width {
+        return cell.to_string();
+    }
+    let padding = width - visible;
+    match align {
+        Align::Left => format!("{cell}{}", " ".repeat(padding)),
+        Align::Right => format!("{}{cell}", " ".repeat(padding)),
+    }
+}
+
+fn border(left: char, middle: char, right: char, widths: &[usize]) -> String {
+    let mut line = String::new();
+    line.push(left);
+    for (index, width) in widths.iter().enumerate() {
+        line.push_str(&"─".repeat(*width));
+        line.push(if index + 1 == widths.len() {
+            right
+        } else {
+            middle
+        });
+    }
+    line
+}
+
+fn visible_width(value: &str) -> usize {
+    let bytes = value.as_bytes();
+    let mut width = 0;
+    let mut index = 0;
+    while index < bytes.len() {
+        if bytes[index] == 0x1b {
+            index += 1;
+            if index < bytes.len() && bytes[index] == b'[' {
+                index += 1;
+                while index < bytes.len() && !(bytes[index] as char).is_ascii_alphabetic() {
+                    index += 1;
+                }
+                index += usize::from(index < bytes.len());
+            }
+            continue;
+        }
+        let Some(ch) = value[index..].chars().next() else {
+            break;
+        };
+        width += if ch.len_utf8() > 1 { 2 } else { 1 };
+        index += ch.len_utf8();
+    }
+    width
+}
+
+fn terminal_width() -> usize {
+    env::var("COLUMNS")
+        .ok()
+        .and_then(|value| value.parse::<usize>().ok())
+        .filter(|width| *width > 0)
+        .or_else(terminal_width_from_ioctl)
+        .unwrap_or(DEFAULT_TERMINAL_WIDTH)
+}
+
+#[cfg(unix)]
+fn terminal_width_from_ioctl() -> Option<usize> {
+    if !io::stdout().is_terminal() {
+        return None;
+    }
+    #[repr(C)]
+    struct Winsize {
+        rows: u16,
+        cols: u16,
+        xpixel: u16,
+        ypixel: u16,
+    }
+    let mut size = Winsize {
+        rows: 0,
+        cols: 0,
+        xpixel: 0,
+        ypixel: 0,
+    };
+    let rc = unsafe { ioctl(io::stdout().as_raw_fd(), TIOCGWINSZ, &mut size) };
+    if rc == 0 && size.cols > 0 {
+        Some(size.cols as usize)
+    } else {
+        None
+    }
+}
+
+#[cfg(not(unix))]
+fn terminal_width_from_ioctl() -> Option<usize> {
+    None
+}
+
+#[cfg(unix)]
+extern "C" {
+    fn ioctl(fd: i32, request: usize, ...) -> i32;
+}
+
+fn print_box_title(title: &str, shared: &SharedArgs) {
+    println!("┌{}┐", "─".repeat(title.len() + 2));
+    println!("│ {} │", colour(shared, title, Colour::Blue));
+    println!("└{}┘", "─".repeat(title.len() + 2));
+}
+
+fn colour(shared: &SharedArgs, value: impl AsRef<str>, colour: Colour) -> String {
+    let value = value.as_ref();
+    if !use_colour(shared) {
+        return value.to_string();
+    }
+    let code = match colour {
+        Colour::Blue => 34,
+        Colour::Green => 32,
+        Colour::Grey => 90,
+        Colour::Red => 31,
+        Colour::Yellow => 33,
+    };
+    format!("\x1b[{code}m{value}\x1b[0m")
+}
+
+fn use_colour(shared: &SharedArgs) -> bool {
+    if shared.no_color || env::var_os("NO_COLOR").is_some() {
+        return false;
+    }
+    shared.color || env::var_os("FORCE_COLOR").is_some() || io::stdout().is_terminal()
+}
+
+fn format_models_display(models: &[String]) -> String {
+    let mut models = models
+        .iter()
+        .map(|model| short_model_name(model))
+        .collect::<Vec<_>>();
+    models.sort();
+    models.dedup();
+    models.join(", ")
+}
+
+fn format_models_multiline(models: &[String]) -> String {
+    let mut models = models
+        .iter()
+        .map(|model| short_model_name(model))
+        .collect::<Vec<_>>();
+    models.sort();
+    models.dedup();
+    models
+        .into_iter()
+        .map(|model| format!("- {model}"))
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+fn parse_project_aliases(raw: Option<&str>) -> HashMap<String, String> {
+    raw.unwrap_or_default()
+        .split(',')
+        .filter_map(|pair| {
+            let (key, value) = pair.split_once('=')?;
+            let key = key.trim();
+            let value = value.trim();
+            if key.is_empty() || value.is_empty() {
+                None
+            } else {
+                Some((key.to_string(), value.to_string()))
+            }
+        })
+        .collect()
+}
+
+fn format_project_name(project: &str, aliases: &HashMap<String, String>) -> String {
+    if let Some(alias) = aliases.get(project) {
+        return alias.clone();
+    }
+    let parsed = parse_project_name(project);
+    aliases.get(&parsed).cloned().unwrap_or(parsed)
+}
+
+fn parse_project_name(project: &str) -> String {
+    if project.is_empty() || project == "unknown" {
+        return "Unknown Project".to_string();
+    }
+    let mut cleaned = project.to_string();
+    if cleaned.starts_with("-Users-") || cleaned.starts_with("/Users/") {
+        let separator = if cleaned.starts_with("-Users-") {
+            '-'
+        } else {
+            '/'
+        };
+        let segments = cleaned
+            .split(separator)
+            .filter(|segment| !segment.is_empty())
+            .collect::<Vec<_>>();
+        if let Some(index) = segments.iter().position(|segment| *segment == "Users") {
+            if index + 3 < segments.len() {
+                cleaned = segments[index + 3..].join("-");
+            }
+        }
+    } else {
+        cleaned = cleaned
+            .trim_matches(|ch| ch == '/' || ch == '\\' || ch == '-')
+            .to_string();
+    }
+    if cleaned.split('-').count() >= 5
+        && cleaned
+            .chars()
+            .all(|ch| ch.is_ascii_hexdigit() || ch == '-' || ch == '.')
+    {
+        let parts = cleaned.split('-').collect::<Vec<_>>();
+        cleaned = parts[parts.len().saturating_sub(2)..].join("-");
+    }
+    if let Some((main, _)) = cleaned.split_once("--") {
+        cleaned = main.to_string();
+    }
+    if cleaned.contains('-') && cleaned.len() > 20 {
+        let meaningful = cleaned
+            .split('-')
+            .filter(|segment| {
+                segment.len() > 2
+                    && !matches!(
+                        segment.to_ascii_lowercase().as_str(),
+                        "dev"
+                            | "development"
+                            | "feat"
+                            | "feature"
+                            | "fix"
+                            | "bug"
+                            | "test"
+                            | "staging"
+                            | "prod"
+                            | "production"
+                            | "main"
+                            | "master"
+                            | "branch"
+                    )
+            })
+            .collect::<Vec<_>>();
+        if meaningful.len() >= 2 {
+            let last_two = meaningful[meaningful.len() - 2..].join("-");
+            cleaned = if last_two.len() >= 6 {
+                last_two
+            } else if meaningful.len() >= 3 {
+                meaningful[meaningful.len() - 3..].join("-")
+            } else {
+                cleaned
+            };
+        }
+    }
+    let cleaned = cleaned.trim_matches(|ch| ch == '/' || ch == '\\' || ch == '-');
+    if cleaned.is_empty() {
+        project.to_string()
+    } else {
+        cleaned.to_string()
+    }
+}
+
+fn short_model_name(model: &str) -> String {
+    let model = model
+        .strip_prefix("anthropic/claude-")
+        .or_else(|| model.strip_prefix("claude-"))
+        .unwrap_or(model);
+    let parts = model.split('-').collect::<Vec<_>>();
+    if parts.len() >= 3 && parts.last().is_some_and(|part| part.len() == 8) {
+        return parts[..parts.len() - 1].join("-");
+    }
+    model.to_string()
+}
+
+fn format_block_time(block: &SessionBlock, compact: bool) -> String {
+    if compact {
+        format!(
+            "{}\n{}",
+            block.start_time.format("%Y-%m-%d"),
+            block.start_time.format("%H:%M")
+        )
+    } else {
+        block.start_time.format("%Y-%m-%d %H:%M").to_string()
+    }
+}
+
+fn print_blocks_table(
+    blocks: &[SessionBlock],
+    token_limit: Option<&str>,
+    max_tokens: u64,
+    shared: &SharedArgs,
+) {
     if blocks.is_empty() {
         eprintln!("No Claude usage data found.");
         return;
     }
+    let compact = shared.compact || terminal_width() < BLOCKS_COMPACT_WIDTH_THRESHOLD;
     let actual_limit = parse_token_limit(token_limit, max_tokens);
-    println!("Claude Code Token Usage Report - Session Blocks");
-    println!(
-        "{:<25} {:<12} {:<30} {:>12} {:>8} {:>12}",
-        "Block Start", "Status", "Models", "Tokens", "%", "Cost"
-    );
+    print_box_title("Claude Code Token Usage Report - Session Blocks", shared);
+    let mut headers = vec!["Block Start", "Duration/Status", "Models", "Tokens"];
+    let mut aligns = vec![Align::Left, Align::Left, Align::Left, Align::Right];
+    if actual_limit.is_some_and(|limit| limit > 0) {
+        headers.push("%");
+        aligns.push(Align::Right);
+    }
+    headers.push("Cost");
+    aligns.push(Align::Right);
+    let mut table = SimpleTable::new(headers, aligns, shared);
     for block in blocks {
         if block.is_gap {
-            println!(
-                "{:<25} {:<12} {:<30} {:>12} {:>8} {:>12}",
-                block.start_time, "(inactive)", "-", "-", "-", "-"
-            );
+            let mut row = vec![
+                colour(shared, format_block_time(block, compact), Colour::Grey),
+                colour(shared, "(inactive)", Colour::Grey),
+                colour(shared, "-", Colour::Grey),
+                colour(shared, "-", Colour::Grey),
+            ];
+            if actual_limit.is_some_and(|limit| limit > 0) {
+                row.push(colour(shared, "-", Colour::Grey));
+            }
+            row.push(colour(shared, "-", Colour::Grey));
+            table.push(row);
             continue;
         }
         let total = block.token_counts.total();
-        let percent = actual_limit
-            .map(|limit| format!("{:.1}%", total as f64 / limit as f64 * 100.0))
-            .unwrap_or_else(|| "-".to_string());
-        println!(
-            "{:<25} {:<12} {:<30} {:>12} {:>8} {:>12}",
-            block.start_time.format("%Y-%m-%d %H:%M"),
-            if block.is_active { "ACTIVE" } else { "" },
-            block.models.join(", "),
+        let mut row = vec![
+            format_block_time(block, compact),
+            if block.is_active {
+                colour(shared, "ACTIVE", Colour::Green)
+            } else {
+                String::new()
+            },
+            format_models_display(&block.models),
             format_number(total),
-            percent,
-            format_currency(block.cost_usd)
+        ];
+        if let Some(limit) = actual_limit.filter(|limit| *limit > 0) {
+            let percentage = total as f64 / limit as f64 * 100.0;
+            let percent_text = format!("{percentage:.1}%");
+            row.push(if percentage > 100.0 {
+                colour(shared, percent_text, Colour::Red)
+            } else {
+                percent_text
+            });
+        }
+        row.push(format_currency(block.cost_usd));
+        table.push(row);
+
+        if block.is_active {
+            if let Some(limit) = actual_limit.filter(|limit| *limit > 0) {
+                let remaining = limit.saturating_sub(total);
+                let remaining_percent = (limit.saturating_sub(total) as f64 / limit as f64) * 100.0;
+                let mut remaining_row = vec![
+                    colour(
+                        shared,
+                        format!("(assuming {} token limit)", format_number(limit)),
+                        Colour::Grey,
+                    ),
+                    colour(shared, "REMAINING", Colour::Blue),
+                    String::new(),
+                    if remaining > 0 {
+                        format_number(remaining)
+                    } else {
+                        colour(shared, "0", Colour::Red)
+                    },
+                ];
+                remaining_row.push(if remaining_percent > 0.0 {
+                    format!("{remaining_percent:.1}%")
+                } else {
+                    colour(shared, "0.0%", Colour::Red)
+                });
+                remaining_row.push(String::new());
+                table.push(remaining_row);
+            }
+
+            if let Some(projection) = project_block_usage(block) {
+                let mut projected_row = vec![
+                    colour(shared, "(assuming current burn rate)", Colour::Grey),
+                    colour(shared, "PROJECTED", Colour::Yellow),
+                    String::new(),
+                    match actual_limit {
+                        Some(limit) if limit > 0 && projection.total_tokens > limit => {
+                            colour(shared, format_number(projection.total_tokens), Colour::Red)
+                        }
+                        _ => format_number(projection.total_tokens),
+                    },
+                ];
+                if let Some(limit) = actual_limit.filter(|limit| *limit > 0) {
+                    let percentage = projection.total_tokens as f64 / limit as f64 * 100.0;
+                    projected_row.push(format!("{percentage:.1}%"));
+                }
+                projected_row.push(format_currency(projection.total_cost));
+                table.push(projected_row);
+            }
+        }
+    }
+    table.print();
+}
+
+fn print_active_block_detail(
+    block: &SessionBlock,
+    token_limit: Option<&str>,
+    max_tokens: u64,
+    shared: &SharedArgs,
+) {
+    print_box_title("Current Session Block Status", shared);
+    let now = Utc::now();
+    let elapsed = (now - block.start_time).num_minutes().max(0);
+    let remaining = (block.end_time - now).num_minutes().max(0);
+    println!(
+        "Block Started:   {}",
+        block.start_time.format("%Y-%m-%d %H:%M:%S")
+    );
+    println!(
+        "Time Elapsed:    {}h {}m",
+        elapsed / 60,
+        elapsed.rem_euclid(60)
+    );
+    println!(
+        "Time Remaining:  {}",
+        colour(
+            shared,
+            format!("{}h {}m", remaining / 60, remaining.rem_euclid(60)),
+            Colour::Green,
+        )
+    );
+    println!();
+    println!("{}", colour(shared, "Current Usage:", Colour::Blue));
+    println!(
+        "  Input Tokens:     {}",
+        format_number(block.token_counts.input_tokens)
+    );
+    println!(
+        "  Output Tokens:    {}",
+        format_number(block.token_counts.output_tokens)
+    );
+    println!("  Total Cost:       {}", format_currency(block.cost_usd));
+
+    if let Some(rate) = calculate_burn_rate(block) {
+        println!();
+        println!("{}", colour(shared, "Burn Rate:", Colour::Blue));
+        println!(
+            "  Tokens/minute:    {}",
+            format_number(rate.tokens_per_minute.round() as u64)
         );
+        println!(
+            "  Cost/hour:        {}",
+            format_currency(rate.cost_per_hour)
+        );
+    }
+
+    if let Some(projection) = project_block_usage(block) {
+        println!();
+        println!(
+            "{}",
+            colour(
+                shared,
+                "Projected Usage (if current rate continues):",
+                Colour::Blue
+            )
+        );
+        println!(
+            "  Total Tokens:     {}",
+            format_number(projection.total_tokens)
+        );
+        println!(
+            "  Total Cost:       {}",
+            format_currency(projection.total_cost)
+        );
+
+        if let Some(limit) = parse_token_limit(token_limit, max_tokens) {
+            let current = block.token_counts.total();
+            let remaining_tokens = limit.saturating_sub(current);
+            let percent = projection.total_tokens as f64 / limit as f64 * 100.0;
+            let status = if projection.total_tokens > limit {
+                colour(shared, "EXCEEDS LIMIT", Colour::Red)
+            } else if projection.total_tokens as f64 > limit as f64 * BLOCKS_WARNING_THRESHOLD {
+                colour(shared, "WARNING", Colour::Yellow)
+            } else {
+                colour(shared, "OK", Colour::Green)
+            };
+            println!();
+            println!("{}", colour(shared, "Token Limit Status:", Colour::Blue));
+            println!("  Limit:            {} tokens", format_number(limit));
+            println!(
+                "  Current Usage:    {} ({:.1}%)",
+                format_number(current),
+                current as f64 / limit as f64 * 100.0
+            );
+            println!(
+                "  Remaining:        {} tokens",
+                format_number(remaining_tokens)
+            );
+            println!("  Projected Usage:  {percent:.1}% {status}");
+        }
     }
 }
 

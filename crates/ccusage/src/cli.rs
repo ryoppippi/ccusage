@@ -64,6 +64,8 @@ pub(crate) struct SharedArgs {
     pub(crate) config: Option<PathBuf>,
     #[arg(long)]
     pub(crate) compact: bool,
+    #[arg(long)]
+    pub(crate) single_thread: bool,
 }
 
 #[derive(Clone, Args)]
