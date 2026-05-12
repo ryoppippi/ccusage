@@ -875,6 +875,10 @@ function getUsageTokenTotal(data: UsageData): number {
 	);
 }
 
+function compareStrings(a: string, b: string): number {
+	return a < b ? -1 : a > b ? 1 : 0;
+}
+
 /**
  * Create a unique identifier for deduplication using message ID and request ID
  */
@@ -1128,7 +1132,7 @@ export async function collectJsonlFiles(root: string): Promise<string[]> {
 		);
 	};
 	await walk(root);
-	return files.sort((a, b) => a.localeCompare(b));
+	return files.sort(compareStrings);
 }
 
 /**
@@ -2201,7 +2205,7 @@ export async function loadSessionBlockData(options?: LoadOptions): Promise<Sessi
 
 	fileResults.sort((a, b) => {
 		if (a.timestamp == null && b.timestamp == null) {
-			return a.file.localeCompare(b.file);
+			return compareStrings(a.file, b.file);
 		}
 		if (a.timestamp == null) {
 			return 1;
@@ -2210,7 +2214,7 @@ export async function loadSessionBlockData(options?: LoadOptions): Promise<Sessi
 			return -1;
 		}
 		const timestampDiff = a.timestamp.getTime() - b.timestamp.getTime();
-		return timestampDiff === 0 ? a.file.localeCompare(b.file) : timestampDiff;
+		return timestampDiff === 0 ? compareStrings(a.file, b.file) : timestampDiff;
 	});
 
 	for (const { entries } of fileResults) {
