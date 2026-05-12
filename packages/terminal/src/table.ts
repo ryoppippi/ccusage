@@ -2,7 +2,7 @@ import process from 'node:process';
 import Table from 'cli-table3';
 import { uniq } from 'es-toolkit';
 import pc from 'picocolors';
-import stringWidth from 'string-width';
+import { getStringWidth } from './text-width.ts';
 
 /**
  * Default locale used for date formatting when not specified
@@ -212,7 +212,9 @@ export class ResponsiveTable {
 		];
 
 		const contentWidths = head.map((_, colIndex) => {
-			const maxLength = Math.max(...allRows.map((row) => stringWidth(String(row[colIndex] ?? ''))));
+			const maxLength = Math.max(
+				...allRows.map((row) => getStringWidth(String(row[colIndex] ?? ''))),
+			);
 			return maxLength;
 		});
 
