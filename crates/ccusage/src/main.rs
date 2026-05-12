@@ -780,26 +780,26 @@ fn read_usage_file(path: &Path, tz: Option<&JiffTimeZone>, mode: CostMode) -> Lo
     };
 
     for line in content.lines() {
-        if let Some(timestamp) = earliest_timestamp_from_line(line) {
-            loaded_file.timestamp = Some(
-                loaded_file
-                    .timestamp
-                    .map_or(timestamp, |current| current.min(timestamp)),
-            );
-        }
         if !line.contains("\"input_tokens\"") {
+            if let Some(timestamp) = earliest_timestamp_from_line(line) {
+                update_loaded_file_timestamp(&mut loaded_file, timestamp);
+            }
             continue;
         }
         let Ok(data) = serde_json::from_str::<UsageEntry>(line) else {
+            if let Some(timestamp) = earliest_timestamp_from_line(line) {
+                update_loaded_file_timestamp(&mut loaded_file, timestamp);
+            }
             continue;
         };
-        if !is_valid_usage_entry(&data) || !is_ts_timestamp(&data.timestamp) {
-            continue;
-        }
         let Ok(timestamp) = DateTime::parse_from_rfc3339(&data.timestamp) else {
             continue;
         };
         let timestamp = timestamp.with_timezone(&Utc);
+        update_loaded_file_timestamp(&mut loaded_file, timestamp);
+        if !is_valid_usage_entry(&data) || !is_ts_timestamp(&data.timestamp) {
+            continue;
+        }
         let date = format_date_tz(timestamp, tz);
         let cost = calculate_cost(&data, mode);
         let model = data.message.model.as_ref().and_then(|model| {
@@ -823,6 +823,14 @@ fn read_usage_file(path: &Path, tz: Option<&JiffTimeZone>, mode: CostMode) -> Lo
         });
     }
     loaded_file
+}
+
+fn update_loaded_file_timestamp(loaded_file: &mut LoadedFile, timestamp: DateTime<Utc>) {
+    loaded_file.timestamp = Some(
+        loaded_file
+            .timestamp
+            .map_or(timestamp, |current| current.min(timestamp)),
+    );
 }
 
 fn is_ts_timestamp(value: &str) -> bool {
