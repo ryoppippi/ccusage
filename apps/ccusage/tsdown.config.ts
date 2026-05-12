@@ -15,9 +15,6 @@ export default defineConfig({
 	dts: false,
 	publint: true,
 	unused: true,
-	exports: {
-		devExports: true,
-	},
 	nodeProtocol: true,
 	plugins: [
 		Macros({

@@ -17,7 +17,6 @@
 	},
 	"exports": {
 		".": "./src/index.ts",
-		"./data-loader": "./src/data-loader.ts",
 		"./package.json": "./package.json"
 	},
 	"main": "./dist/index.js",
@@ -35,7 +34,6 @@
 		},
 		"exports": {
 			".": "./dist/index.js",
-			"./data-loader": "./dist/data-loader.js",
 			"./package.json": "./package.json"
 		}
 	},
