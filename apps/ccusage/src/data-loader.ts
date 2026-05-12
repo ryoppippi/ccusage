@@ -614,6 +614,12 @@ type TokenStats = {
 	cost: number;
 };
 
+type UsageSummary = TokenStats & {
+	totalCost: number;
+	modelsUsed: ModelName[];
+	modelBreakdowns: ModelBreakdown[];
+};
+
 function getDisplayModelName(data: UsageData): string | undefined {
 	const model = data.message.model;
 	if (model == null) {
@@ -622,46 +628,70 @@ function getDisplayModelName(data: UsageData): string | undefined {
 	return data.message.usage.speed === 'fast' ? `${model}-fast` : model;
 }
 
-/**
- * Aggregates token counts and costs by model name
- */
-function aggregateByModel<T>(
+function createEmptyTokenStats(): TokenStats {
+	return {
+		inputTokens: 0,
+		outputTokens: 0,
+		cacheCreationTokens: 0,
+		cacheReadTokens: 0,
+		cost: 0,
+	};
+}
+
+function addUsageToTokenStats(
+	stats: TokenStats,
+	usage: UsageData['message']['usage'],
+	cost: number,
+): void {
+	stats.inputTokens += usage.input_tokens ?? 0;
+	stats.outputTokens += usage.output_tokens ?? 0;
+	stats.cacheCreationTokens += usage.cache_creation_input_tokens ?? 0;
+	stats.cacheReadTokens += usage.cache_read_input_tokens ?? 0;
+	stats.cost += cost;
+}
+
+function summarizeUsageEntries<T>(
 	entries: T[],
 	getModel: (entry: T) => string | undefined,
 	getUsage: (entry: T) => UsageData['message']['usage'],
 	getCost: (entry: T) => number,
-): Map<string, TokenStats> {
+): UsageSummary {
 	const modelAggregates = new Map<string, TokenStats>();
+	const modelSet = new Set<string>();
+	const totals = {
+		...createEmptyTokenStats(),
+		totalCost: 0,
+	};
 
 	for (const entry of entries) {
-		const modelName = getModel(entry) ?? 'unknown';
-		// Skip synthetic model
+		const model = getModel(entry);
+		const modelName = model ?? 'unknown';
+		const usage = getUsage(entry);
+		const cost = getCost(entry);
+		addUsageToTokenStats(totals, usage, cost);
+		totals.totalCost += cost;
+
 		if (modelName === '<synthetic>') {
 			continue;
 		}
 
-		const usage = getUsage(entry);
-		const cost = getCost(entry);
+		if (model != null) {
+			modelSet.add(modelName);
+		}
 
 		let existing = modelAggregates.get(modelName);
 		if (existing == null) {
-			existing = {
-				inputTokens: 0,
-				outputTokens: 0,
-				cacheCreationTokens: 0,
-				cacheReadTokens: 0,
-				cost: 0,
-			};
+			existing = createEmptyTokenStats();
 			modelAggregates.set(modelName, existing);
 		}
-		existing.inputTokens += usage.input_tokens ?? 0;
-		existing.outputTokens += usage.output_tokens ?? 0;
-		existing.cacheCreationTokens += usage.cache_creation_input_tokens ?? 0;
-		existing.cacheReadTokens += usage.cache_read_input_tokens ?? 0;
-		existing.cost += cost;
+		addUsageToTokenStats(existing, usage, cost);
 	}
 
-	return modelAggregates;
+	return {
+		...totals,
+		modelsUsed: Array.from(modelSet) as ModelName[],
+		modelBreakdowns: createModelBreakdowns(modelAggregates),
+	};
 }
 
 /**
@@ -678,13 +708,7 @@ function aggregateModelBreakdowns(breakdowns: ModelBreakdown[]): Map<string, Tok
 
 		let existing = modelAggregates.get(breakdown.modelName);
 		if (existing == null) {
-			existing = {
-				inputTokens: 0,
-				outputTokens: 0,
-				cacheCreationTokens: 0,
-				cacheReadTokens: 0,
-				cost: 0,
-			};
+			existing = createEmptyTokenStats();
 			modelAggregates.set(breakdown.modelName, existing);
 		}
 		existing.inputTokens += breakdown.inputTokens;
@@ -707,35 +731,6 @@ function createModelBreakdowns(modelAggregates: Map<string, TokenStats>): ModelB
 			...stats,
 		}))
 		.sort((a, b) => b.cost - a.cost); // Sort by cost descending
-}
-
-/**
- * Calculates total token counts and costs from entries
- */
-function calculateTotals<T>(
-	entries: T[],
-	getUsage: (entry: T) => UsageData['message']['usage'],
-	getCost: (entry: T) => number,
-): TokenStats & { totalCost: number } {
-	const totals = {
-		inputTokens: 0,
-		outputTokens: 0,
-		cacheCreationTokens: 0,
-		cacheReadTokens: 0,
-		cost: 0,
-		totalCost: 0,
-	};
-	for (const entry of entries) {
-		const usage = getUsage(entry);
-		const cost = getCost(entry);
-		totals.inputTokens += usage.input_tokens ?? 0;
-		totals.outputTokens += usage.output_tokens ?? 0;
-		totals.cacheCreationTokens += usage.cache_creation_input_tokens ?? 0;
-		totals.cacheReadTokens += usage.cache_read_input_tokens ?? 0;
-		totals.cost += cost;
-		totals.totalCost += cost;
-	}
-	return totals;
 }
 
 /**
@@ -882,18 +877,6 @@ function markDedupedEntry(
 	if (uniqueHash != null) {
 		processedEntries.set(uniqueHash, entryIndex);
 	}
-}
-
-/**
- * Extracts unique models from entries, excluding synthetic model
- */
-function extractUniqueModels<T>(
-	entries: T[],
-	getModel: (entry: T) => string | undefined,
-): string[] {
-	return Array.from(
-		new Set(entries.map(getModel).filter((m): m is string => m != null && m !== '<synthetic>')),
-	);
 }
 
 /**
@@ -1313,43 +1296,26 @@ export async function loadDailyUsageData(options?: LoadOptions): Promise<DailyUs
 
 	const groupedData = Object.groupBy(allEntries, groupingKey);
 
-	// Aggregate each group
 	const results = Object.entries(groupedData)
 		.map(([groupKey, entries]) => {
 			if (entries == null) {
 				return undefined;
 			}
 
-			// Extract date and project from groupKey (format: "date" or "date\x00project")
 			const parts = groupKey.split('\x00');
 			const date = parts[0] ?? groupKey;
 			const project = parts.length > 1 ? parts[1] : undefined;
 
-			// Aggregate by model first
-			const modelAggregates = aggregateByModel(
+			const summary = summarizeUsageEntries(
 				entries,
 				(entry) => entry.model,
 				(entry) => entry.data.message.usage,
 				(entry) => entry.cost,
 			);
 
-			// Create model breakdowns
-			const modelBreakdowns = createModelBreakdowns(modelAggregates);
-
-			// Calculate totals
-			const totals = calculateTotals(
-				entries,
-				(entry) => entry.data.message.usage,
-				(entry) => entry.cost,
-			);
-
-			const modelsUsed = extractUniqueModels(entries, (e) => e.model);
-
 			return {
 				date: createDailyDate(date),
-				...totals,
-				modelsUsed: modelsUsed as ModelName[],
-				modelBreakdowns,
+				...summary,
 				...(project != null && { project }),
 			};
 		})
@@ -1509,22 +1475,18 @@ export async function loadSessionData(options?: LoadOptions): Promise<SessionUsa
 		}
 	}
 
-	// Group by session using Object.groupBy
 	const groupedBySessions = Object.groupBy(allEntries, (entry) => entry.sessionKey);
 
-	// Aggregate each session group
 	const results = Object.entries(groupedBySessions)
 		.map(([_, entries]) => {
 			if (entries == null) {
 				return undefined;
 			}
 
-			// Find the latest timestamp for lastActivity
 			const latestEntry = entries.reduce((latest, current) =>
 				current.timestamp > latest.timestamp ? current : latest,
 			);
 
-			// Collect all unique versions
 			const versions: string[] = [];
 			for (const entry of entries) {
 				if (entry.data.version != null) {
@@ -1532,34 +1494,19 @@ export async function loadSessionData(options?: LoadOptions): Promise<SessionUsa
 				}
 			}
 
-			// Aggregate by model
-			const modelAggregates = aggregateByModel(
+			const summary = summarizeUsageEntries(
 				entries,
 				(entry) => entry.model,
 				(entry) => entry.data.message.usage,
 				(entry) => entry.cost,
 			);
 
-			// Create model breakdowns
-			const modelBreakdowns = createModelBreakdowns(modelAggregates);
-
-			// Calculate totals
-			const totals = calculateTotals(
-				entries,
-				(entry) => entry.data.message.usage,
-				(entry) => entry.cost,
-			);
-
-			const modelsUsed = extractUniqueModels(entries, (e) => e.model);
-
 			return {
 				sessionId: createSessionId(latestEntry.sessionId),
 				projectPath: createProjectPath(latestEntry.projectPath),
-				...totals,
+				...summary,
 				lastActivity: formatUsageDate(latestEntry.timestamp) as ActivityDate,
 				versions: Array.from(new Set(versions)).sort() as Version[],
-				modelsUsed: modelsUsed as ModelName[],
-				modelBreakdowns,
 			};
 		})
 		.filter((item) => item != null);
@@ -2265,6 +2212,85 @@ if (import.meta.vitest != null) {
 				},
 			};
 			expect(getDisplayModelName(data)).toBeUndefined();
+		});
+	});
+
+	describe('summarizeUsageEntries', () => {
+		it('aggregates totals, models, and model breakdowns in one result', () => {
+			const sonnet: UsageData = {
+				timestamp: createISOTimestamp('2024-01-01T10:00:00Z'),
+				message: {
+					usage: {
+						input_tokens: 100,
+						output_tokens: 50,
+						cache_creation_input_tokens: 25,
+						cache_read_input_tokens: 10,
+					},
+					model: createModelName('claude-sonnet-4-20250514'),
+				},
+			};
+			const fastSonnet: UsageData = {
+				timestamp: createISOTimestamp('2024-01-01T11:00:00Z'),
+				message: {
+					usage: {
+						input_tokens: 200,
+						output_tokens: 75,
+						cache_creation_input_tokens: 5,
+						cache_read_input_tokens: 15,
+						speed: 'fast',
+					},
+					model: createModelName('claude-sonnet-4-20250514'),
+				},
+			};
+			const synthetic: UsageData = {
+				timestamp: createISOTimestamp('2024-01-01T12:00:00Z'),
+				message: {
+					usage: {
+						input_tokens: 300,
+						output_tokens: 125,
+					},
+					model: createModelName('<synthetic>'),
+				},
+			};
+
+			const result = summarizeUsageEntries(
+				[
+					{ data: sonnet, cost: 0.01, model: getDisplayModelName(sonnet) },
+					{ data: fastSonnet, cost: 0.02, model: getDisplayModelName(fastSonnet) },
+					{ data: synthetic, cost: 0.03, model: getDisplayModelName(synthetic) },
+				],
+				(entry) => entry.model,
+				(entry) => entry.data.message.usage,
+				(entry) => entry.cost,
+			);
+
+			expect(result.inputTokens).toBe(600);
+			expect(result.outputTokens).toBe(250);
+			expect(result.cacheCreationTokens).toBe(30);
+			expect(result.cacheReadTokens).toBe(25);
+			expect(result.totalCost).toBe(0.06);
+			expect(result.modelsUsed).toEqual([
+				'claude-sonnet-4-20250514',
+				'claude-sonnet-4-20250514-fast',
+			]);
+			expect(result.modelBreakdowns).toEqual([
+				{
+					modelName: 'claude-sonnet-4-20250514-fast',
+					inputTokens: 200,
+					outputTokens: 75,
+					cacheCreationTokens: 5,
+					cacheReadTokens: 15,
+					cost: 0.02,
+				},
+				{
+					modelName: 'claude-sonnet-4-20250514',
+					inputTokens: 100,
+					outputTokens: 50,
+					cacheCreationTokens: 25,
+					cacheReadTokens: 10,
+					cost: 0.01,
+				},
+			]);
 		});
 	});
 
