@@ -10,7 +10,7 @@ use std::{
 use std::os::fd::AsRawFd;
 
 use anyhow::{bail, Context, Result};
-use chrono::{DateTime, Datelike, NaiveDate, TimeZone, Timelike, Utc};
+use chrono::{DateTime, Datelike, Duration, NaiveDate, TimeZone, Timelike, Utc};
 use clap::Parser;
 use jiff::{tz::TimeZone as JiffTimeZone, Timestamp as JiffTimestamp};
 use rayon::prelude::*;
@@ -355,39 +355,24 @@ fn run_session(args: SessionArgs) -> Result<()> {
     let mut session_shared = shared.clone();
     session_shared.order = SortOrder::Desc;
     let entries = load_entries(&session_shared, None)?;
-    let mut grouped = Vec::<(String, Vec<&LoadedEntry>)>::new();
-    let mut group_indexes = HashMap::<String, usize>::new();
+    let mut grouped = Vec::<SessionAccumulator>::new();
+    let mut group_indexes = HashMap::<(Arc<str>, Arc<str>), usize>::new();
     for entry in &entries {
-        let key = format!("{}/{}", entry.project_path, entry.session_id);
-        let index = *group_indexes.entry(key.clone()).or_insert_with(|| {
+        let key = (
+            Arc::clone(&entry.project_path),
+            Arc::clone(&entry.session_id),
+        );
+        let index = *group_indexes.entry(key).or_insert_with(|| {
             let index = grouped.len();
-            grouped.push((key, Vec::new()));
+            grouped.push(SessionAccumulator::default());
             index
         });
-        grouped[index].1.push(entry);
+        grouped[index].add_entry(entry);
     }
 
     let mut rows = Vec::with_capacity(grouped.len());
-    for (_, group) in grouped {
-        let latest = group
-            .iter()
-            .max_by_key(|entry| entry.timestamp)
-            .context("empty session group")?;
-        let mut summary = aggregate_entries(&group);
-        summary.session_id = Some(latest.session_id.to_string());
-        summary.project_path = Some(latest.project_path.to_string());
-        summary.last_activity = Some(format_date(
-            latest.timestamp,
-            session_shared.timezone.as_deref(),
-        ));
-        let versions = group
-            .iter()
-            .filter_map(|entry| entry.data.version.clone())
-            .collect::<BTreeSet<_>>()
-            .into_iter()
-            .collect::<Vec<_>>();
-        summary.versions = Some(versions);
-        rows.push(summary);
+    for group in grouped {
+        rows.push(group.into_summary(session_shared.timezone.as_deref())?);
     }
     filter_and_sort_summaries(&mut rows, &session_shared, |row| {
         row.last_activity.as_deref().unwrap_or_default()
@@ -793,12 +778,11 @@ fn read_usage_file(path: &Path, tz: Option<&JiffTimeZone>, mode: CostMode) -> Lo
             }
             continue;
         };
-        let Ok(timestamp) = DateTime::parse_from_rfc3339(&data.timestamp) else {
+        let Some(timestamp) = parse_ts_timestamp(&data.timestamp) else {
             continue;
         };
-        let timestamp = timestamp.with_timezone(&Utc);
         update_loaded_file_timestamp(&mut loaded_file, timestamp);
-        if !is_valid_usage_entry(&data) || !is_ts_timestamp(&data.timestamp) {
+        if !is_valid_usage_entry(&data) {
             continue;
         }
         let date = format_date_tz(timestamp, tz);
@@ -837,37 +821,41 @@ fn update_loaded_file_timestamp(loaded_file: &mut LoadedFile, timestamp: DateTim
     );
 }
 
-fn is_ts_timestamp(value: &str) -> bool {
+fn parse_ts_timestamp(value: &str) -> Option<DateTime<Utc>> {
     let bytes = value.as_bytes();
-    let valid_base = bytes.len() == 20
-        && bytes[4] == b'-'
-        && bytes[7] == b'-'
-        && bytes[10] == b'T'
-        && bytes[13] == b':'
-        && bytes[16] == b':'
-        && bytes[19] == b'Z'
-        && bytes[..4].iter().all(u8::is_ascii_digit)
-        && bytes[5..7].iter().all(u8::is_ascii_digit)
-        && bytes[8..10].iter().all(u8::is_ascii_digit)
-        && bytes[11..13].iter().all(u8::is_ascii_digit)
-        && bytes[14..16].iter().all(u8::is_ascii_digit)
-        && bytes[17..19].iter().all(u8::is_ascii_digit);
-    let valid_millis = bytes.len() == 24
-        && bytes[4] == b'-'
-        && bytes[7] == b'-'
-        && bytes[10] == b'T'
-        && bytes[13] == b':'
-        && bytes[16] == b':'
-        && bytes[19] == b'.'
-        && bytes[23] == b'Z'
-        && bytes[..4].iter().all(u8::is_ascii_digit)
-        && bytes[5..7].iter().all(u8::is_ascii_digit)
-        && bytes[8..10].iter().all(u8::is_ascii_digit)
-        && bytes[11..13].iter().all(u8::is_ascii_digit)
-        && bytes[14..16].iter().all(u8::is_ascii_digit)
-        && bytes[17..19].iter().all(u8::is_ascii_digit)
-        && bytes[20..23].iter().all(u8::is_ascii_digit);
-    valid_base || valid_millis
+    let millis = match bytes.len() {
+        20 if bytes[19] == b'Z' => 0,
+        24 if bytes[19] == b'.' && bytes[23] == b'Z' => parse_digits(&bytes[20..23])?,
+        _ => return None,
+    };
+    if bytes[4] != b'-'
+        || bytes[7] != b'-'
+        || bytes[10] != b'T'
+        || bytes[13] != b':'
+        || bytes[16] != b':'
+    {
+        return None;
+    }
+    let year = parse_digits(&bytes[0..4])? as i32;
+    let month = parse_digits(&bytes[5..7])?;
+    let day = parse_digits(&bytes[8..10])?;
+    let hour = parse_digits(&bytes[11..13])?;
+    let minute = parse_digits(&bytes[14..16])?;
+    let second = parse_digits(&bytes[17..19])?;
+    Utc.with_ymd_and_hms(year, month, day, hour, minute, second)
+        .single()?
+        .checked_add_signed(Duration::milliseconds(i64::from(millis)))
+}
+
+fn parse_digits(bytes: &[u8]) -> Option<u32> {
+    let mut value = 0;
+    for byte in bytes {
+        if !byte.is_ascii_digit() {
+            return None;
+        }
+        value = value * 10 + u32::from(byte - b'0');
+    }
+    Some(value)
 }
 
 fn is_valid_usage_entry(data: &UsageEntry) -> bool {
@@ -994,9 +982,7 @@ fn collect_usage_files(dir: &Path, files: &mut Vec<PathBuf>) {
 fn timestamp_from_line(line: &str) -> Option<DateTime<Utc>> {
     let start = line.find("\"timestamp\":\"")? + "\"timestamp\":\"".len();
     let end = line[start..].find('"')? + start;
-    DateTime::parse_from_rfc3339(&line[start..end])
-        .ok()
-        .and_then(|value| DateTime::from_timestamp_millis(value.timestamp_millis()))
+    parse_ts_timestamp(&line[start..end])
 }
 
 fn earliest_timestamp_from_line(line: &str) -> Option<DateTime<Utc>> {
@@ -1266,15 +1252,15 @@ where
     F: Fn(&LoadedEntry) -> String,
     M: Fn(&str) -> (String, Option<String>),
 {
-    let mut groups: BTreeMap<String, Vec<&LoadedEntry>> = BTreeMap::new();
+    let mut groups: BTreeMap<String, UsageAccumulator> = BTreeMap::new();
     for entry in entries {
-        groups.entry(key_fn(entry)).or_default().push(entry);
+        groups.entry(key_fn(entry)).or_default().add_entry(entry);
     }
 
     let mut rows = Vec::with_capacity(groups.len());
     for (key, group) in groups {
         let (date, project) = meta_fn(&key);
-        let mut summary = aggregate_entries(&group);
+        let mut summary = group.into_summary();
         summary.date = Some(date);
         summary.project = project;
         rows.push(summary);
@@ -1282,31 +1268,37 @@ where
     Ok(rows)
 }
 
-fn aggregate_entries(entries: &[&LoadedEntry]) -> UsageSummary {
-    let mut counts = TokenCounts::default();
-    let mut cost = 0.0;
-    let mut models = Vec::new();
-    let mut seen_models = HashSet::new();
-    let mut breakdowns = Vec::<ModelBreakdown>::new();
-    let mut breakdown_indexes = HashMap::<String, usize>::new();
+#[derive(Default)]
+struct UsageAccumulator {
+    counts: TokenCounts,
+    cost: f64,
+    models: Vec<String>,
+    seen_models: HashSet<String>,
+    breakdowns: Vec<ModelBreakdown>,
+    breakdown_indexes: HashMap<String, usize>,
+}
 
-    for entry in entries {
+impl UsageAccumulator {
+    fn add_entry(&mut self, entry: &LoadedEntry) {
         let usage = entry.data.message.usage;
-        counts.add_usage(usage);
-        cost += entry.cost;
+        self.counts.add_usage(usage);
+        self.cost += entry.cost;
         if let Some(model) = &entry.model {
-            if seen_models.insert(model.clone()) {
-                models.push(model.clone());
+            if self.seen_models.insert(model.clone()) {
+                self.models.push(model.clone());
             }
-            let index = *breakdown_indexes.entry(model.clone()).or_insert_with(|| {
-                let index = breakdowns.len();
-                breakdowns.push(ModelBreakdown {
-                    model_name: model.clone(),
-                    ..ModelBreakdown::default()
+            let index = *self
+                .breakdown_indexes
+                .entry(model.clone())
+                .or_insert_with(|| {
+                    let index = self.breakdowns.len();
+                    self.breakdowns.push(ModelBreakdown {
+                        model_name: model.clone(),
+                        ..ModelBreakdown::default()
+                    });
+                    index
                 });
-                index
-            });
-            let breakdown = &mut breakdowns[index];
+            let breakdown = &mut self.breakdowns[index];
             breakdown.input_tokens += usage.input_tokens;
             breakdown.output_tokens += usage.output_tokens;
             breakdown.cache_creation_tokens += usage.cache_creation_input_tokens;
@@ -1315,24 +1307,64 @@ fn aggregate_entries(entries: &[&LoadedEntry]) -> UsageSummary {
         }
     }
 
-    breakdowns.sort_by(|a, b| b.cost.total_cmp(&a.cost));
+    fn into_summary(mut self) -> UsageSummary {
+        self.breakdowns.sort_by(|a, b| b.cost.total_cmp(&a.cost));
+        UsageSummary {
+            date: None,
+            month: None,
+            week: None,
+            session_id: None,
+            project_path: None,
+            last_activity: None,
+            input_tokens: self.counts.input_tokens,
+            output_tokens: self.counts.output_tokens,
+            cache_creation_tokens: self.counts.cache_creation_tokens,
+            cache_read_tokens: self.counts.cache_read_tokens,
+            total_cost: self.cost,
+            models_used: self.models,
+            model_breakdowns: self.breakdowns,
+            project: None,
+            versions: None,
+        }
+    }
+}
 
-    UsageSummary {
-        date: None,
-        month: None,
-        week: None,
-        session_id: None,
-        project_path: None,
-        last_activity: None,
-        input_tokens: counts.input_tokens,
-        output_tokens: counts.output_tokens,
-        cache_creation_tokens: counts.cache_creation_tokens,
-        cache_read_tokens: counts.cache_read_tokens,
-        total_cost: cost,
-        models_used: models,
-        model_breakdowns: breakdowns,
-        project: None,
-        versions: None,
+#[derive(Default)]
+struct SessionAccumulator {
+    usage: UsageAccumulator,
+    latest: Option<(DateTime<Utc>, Arc<str>, Arc<str>)>,
+    versions: BTreeSet<String>,
+}
+
+impl SessionAccumulator {
+    fn add_entry(&mut self, entry: &LoadedEntry) {
+        self.usage.add_entry(entry);
+        if self
+            .latest
+            .as_ref()
+            .is_none_or(|(timestamp, _, _)| entry.timestamp > *timestamp)
+        {
+            self.latest = Some((
+                entry.timestamp,
+                Arc::clone(&entry.session_id),
+                Arc::clone(&entry.project_path),
+            ));
+        }
+        if let Some(version) = &entry.data.version {
+            self.versions.insert(version.clone());
+        }
+    }
+
+    fn into_summary(self, timezone: Option<&str>) -> Result<UsageSummary> {
+        let Some((timestamp, session_id, project_path)) = self.latest else {
+            bail!("empty session group");
+        };
+        let mut summary = self.usage.into_summary();
+        summary.session_id = Some(session_id.to_string());
+        summary.project_path = Some(project_path.to_string());
+        summary.last_activity = Some(format_date(timestamp, timezone));
+        summary.versions = Some(self.versions.into_iter().collect());
+        Ok(summary)
     }
 }
 
