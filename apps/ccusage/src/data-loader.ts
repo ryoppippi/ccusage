@@ -856,6 +856,15 @@ type UsageSummaryAccumulator = {
 	modelSet: Set<string>;
 };
 
+type BunFileLike = {
+	size: number;
+	text: () => Promise<string>;
+};
+
+type BunRuntimeLike = {
+	file: (path: string) => BunFileLike;
+};
+
 function getDisplayModelName(data: UsageData): string | undefined {
 	const model = data.message.model;
 	if (model == null) {
@@ -1121,8 +1130,9 @@ function hasNonWhitespace(line: string): boolean {
 	return false;
 }
 
-function isBunRuntime(): boolean {
-	return typeof (globalThis as { Bun?: unknown }).Bun === 'object';
+function getBunRuntime(): BunRuntimeLike | null {
+	const runtime = (globalThis as { Bun?: Partial<BunRuntimeLike> }).Bun;
+	return typeof runtime?.file === 'function' ? (runtime as BunRuntimeLike) : null;
 }
 
 async function processBufferedJSONLContent(
@@ -1162,10 +1172,11 @@ async function processJSONLFileByLine(
 	filePath: string,
 	processLine: (line: string, lineNumber: number) => void | Promise<void>,
 ): Promise<void> {
-	if (isBunRuntime()) {
-		const stats = await stat(filePath);
-		if (stats.size <= MAX_BUFFERED_JSONL_BYTES) {
-			await processBufferedJSONLContent(await readFile(filePath, 'utf8'), processLine);
+	const bun = getBunRuntime();
+	if (bun != null) {
+		const file = bun.file(filePath);
+		if (file.size <= MAX_BUFFERED_JSONL_BYTES) {
+			await processBufferedJSONLContent(await file.text(), processLine);
 			return;
 		}
 	}
