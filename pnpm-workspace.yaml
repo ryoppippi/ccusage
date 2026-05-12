@@ -13,7 +13,7 @@ catalogs:
     unplugin-unused: ^0.5.2
   docs:
     '@ryoppippi/vite-plugin-cloudflare-redirect': ^1.1.3
-    typedoc: ^0.28.18
+    typedoc: ^0.28.19
     typedoc-plugin-markdown: ^4.11.0
     typedoc-vitepress-theme: ^1.1.2
     vitepress: 2.0.0-alpha.17
