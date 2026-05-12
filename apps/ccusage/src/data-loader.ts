@@ -74,8 +74,6 @@ const ISO_TIMESTAMP_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z
 const MAX_BUFFERED_JSONL_BYTES = 128 * 1024 * 1024;
 const DEFAULT_JSONL_WORKER_THREAD_LIMIT = 4;
 const VERSION_PATTERN = /^\d+\.\d+\.\d+/;
-const FAST_PARSE_UNSUPPORTED_NULL_PATTERN =
-	/"(?:cwd|sessionId|requestId|costUSD|isApiErrorMessage|version|model|id|cache_creation_input_tokens|cache_read_input_tokens|speed)":null/;
 
 function getJSONLFileReadConcurrency(fileCount: number, singleThread = false): number {
 	if (singleThread) {
@@ -379,7 +377,7 @@ function parseUsageDataLineFast(line: string, allowContent = false): UsageData |
 		(contentIndex !== -1 &&
 			(!allowContent || line.indexOf('"content":[', contentIndex) !== contentIndex)) ||
 		line.includes('"isApiErrorMessage":true') ||
-		(line.includes(':null') && FAST_PARSE_UNSUPPORTED_NULL_PATTERN.test(line))
+		hasUnsupportedNullField(line)
 	) {
 		return null;
 	}
@@ -444,6 +442,40 @@ function parseUsageDataLineFast(line: string, allowContent = false): UsageData |
 		sessionId: sessionId as UsageData['sessionId'],
 		version: version as Version | undefined,
 	};
+}
+
+function hasUnsupportedNullField(line: string): boolean {
+	let nullIndex = line.indexOf(':null');
+	while (nullIndex !== -1) {
+		const fieldEnd = line.lastIndexOf('"', nullIndex - 1);
+		if (fieldEnd !== -1) {
+			const fieldStart = line.lastIndexOf('"', fieldEnd - 1);
+			if (fieldStart !== -1 && isUnsupportedNullableField(line.slice(fieldStart + 1, fieldEnd))) {
+				return true;
+			}
+		}
+		nullIndex = line.indexOf(':null', nullIndex + 5);
+	}
+	return false;
+}
+
+function isUnsupportedNullableField(field: string): boolean {
+	switch (field) {
+		case 'cwd':
+		case 'sessionId':
+		case 'requestId':
+		case 'costUSD':
+		case 'isApiErrorMessage':
+		case 'version':
+		case 'model':
+		case 'id':
+		case 'cache_creation_input_tokens':
+		case 'cache_read_input_tokens':
+		case 'speed':
+			return true;
+		default:
+			return false;
+	}
 }
 
 function parseUsageDataLine(
