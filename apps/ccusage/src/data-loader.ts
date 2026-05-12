@@ -1203,6 +1203,52 @@ async function processBufferedJSONLContent(
 	}
 }
 
+async function processBufferedJSONLUsageContent(
+	content: string,
+	processLine: (line: string) => void | Promise<void>,
+): Promise<void> {
+	let markerIndex = content.indexOf(USAGE_LINE_MARKER);
+	while (markerIndex !== -1) {
+		const lineStart = content.lastIndexOf('\n', markerIndex) + 1;
+		let lineEnd = content.indexOf('\n', markerIndex);
+		if (lineEnd === -1) {
+			lineEnd = content.length;
+		}
+
+		let line = content.slice(lineStart, lineEnd);
+		if (line.endsWith('\r')) {
+			line = line.slice(0, -1);
+		}
+		const result = processLine(line);
+		if (result != null) {
+			await result;
+		}
+
+		markerIndex = content.indexOf(USAGE_LINE_MARKER, lineEnd + 1);
+	}
+}
+
+async function readBufferedJSONLContent(filePath: string): Promise<string | null> {
+	const bun = getBunRuntime();
+	if (bun != null) {
+		const file = bun.file(filePath);
+		if (file.size <= MAX_BUFFERED_JSONL_BYTES) {
+			return file.text();
+		}
+	}
+
+	const file = await open(filePath, 'r');
+	try {
+		const stats = await file.stat();
+		if (stats.size <= MAX_BUFFERED_JSONL_BYTES) {
+			return (await file.readFile()).toString('utf8');
+		}
+		return null;
+	} finally {
+		await file.close();
+	}
+}
+
 /**
  * Process a JSONL file line by line using streams to avoid memory issues with large files
  * @param filePath - Path to the JSONL file
@@ -1212,25 +1258,10 @@ async function processJSONLFileByLine(
 	filePath: string,
 	processLine: (line: string, lineNumber: number) => void | Promise<void>,
 ): Promise<void> {
-	const bun = getBunRuntime();
-	if (bun != null) {
-		const file = bun.file(filePath);
-		if (file.size <= MAX_BUFFERED_JSONL_BYTES) {
-			await processBufferedJSONLContent(await file.text(), processLine);
-			return;
-		}
-	}
-
-	const file = await open(filePath, 'r');
-	try {
-		const stats = await file.stat();
-		if (stats.size <= MAX_BUFFERED_JSONL_BYTES) {
-			const content = (await file.readFile()).toString('utf8');
-			await processBufferedJSONLContent(content, processLine);
-			return;
-		}
-	} finally {
-		await file.close();
+	const content = await readBufferedJSONLContent(filePath);
+	if (content != null) {
+		await processBufferedJSONLContent(content, processLine);
+		return;
 	}
 
 	const fileStream = createReadStream(filePath, { encoding: 'utf-8' });
@@ -1246,6 +1277,33 @@ async function processJSONLFileByLine(
 			continue;
 		}
 		const result = processLine(line, lineNumber);
+		if (result != null) {
+			await result;
+		}
+	}
+}
+
+async function processJSONLUsageFileByLine(
+	filePath: string,
+	processLine: (line: string) => void | Promise<void>,
+): Promise<void> {
+	const content = await readBufferedJSONLContent(filePath);
+	if (content != null) {
+		await processBufferedJSONLUsageContent(content, processLine);
+		return;
+	}
+
+	const fileStream = createReadStream(filePath, { encoding: 'utf-8' });
+	const rl = createInterface({
+		input: fileStream,
+		crlfDelay: Number.POSITIVE_INFINITY,
+	});
+
+	for await (const line of rl) {
+		if (!line.includes(USAGE_LINE_MARKER)) {
+			continue;
+		}
+		const result = processLine(line);
 		if (result != null) {
 			await result;
 		}
@@ -1812,12 +1870,8 @@ async function collectDailyEntriesFromFile(
 	const project = extractProjectFromPath(file);
 	const entries: Array<DailyDataEntry | undefined> = [];
 
-	await processJSONLFileByLine(file, (line) => {
+	await processJSONLUsageFileByLine(file, (line) => {
 		try {
-			if (!line.includes(USAGE_LINE_MARKER)) {
-				return;
-			}
-
 			const data = parseUsageDataLine(line);
 			if (data == null) {
 				return;
@@ -1862,12 +1916,8 @@ async function collectSessionEntriesFromFile(
 	const projectPath = joinedPath.length > 0 ? joinedPath : 'Unknown Project';
 	const entries: Array<SessionDataEntry | undefined> = [];
 
-	await processJSONLFileByLine(file, (line) => {
+	await processJSONLUsageFileByLine(file, (line) => {
 		try {
-			if (!line.includes(USAGE_LINE_MARKER)) {
-				return;
-			}
-
 			const data = parseUsageDataLine(line);
 			if (data == null) {
 				return;

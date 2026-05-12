@@ -1,6 +1,5 @@
 import process from 'node:process';
 import Table from 'cli-table3';
-import { uniq } from 'es-toolkit';
 import pc from 'picocolors';
 import { getStringWidth } from './text-width.ts';
 
@@ -9,6 +8,111 @@ import { getStringWidth } from './text-width.ts';
  * en-CA provides YYYY-MM-DD ISO format
  */
 const DEFAULT_LOCALE = 'en-CA';
+const NUMBER_FORMATTER = new Intl.NumberFormat('en-US');
+const formattedNumberCache = new Map<number, string>();
+const formattedModelNameCache = new Map<string, string>();
+const COLOR_RESET = '\x1B[39m';
+
+function splitAnsiSequence(text: string, index: number): string | null {
+	if (text.charCodeAt(index) !== 27 || text.charCodeAt(index + 1) !== 91) {
+		return null;
+	}
+	let endIndex = index + 2;
+	while (endIndex < text.length) {
+		const code = text.charCodeAt(endIndex);
+		if (code >= 64 && code <= 126) {
+			return text.slice(index, endIndex + 1);
+		}
+		endIndex++;
+	}
+	return null;
+}
+
+function truncateToWidth(text: string, width: number): string {
+	if (getStringWidth(text) <= width) {
+		return text;
+	}
+	if (width <= 1) {
+		return '…';
+	}
+
+	const targetWidth = width - 1;
+	let visibleWidth = 0;
+	let output = '';
+	let hasAnsi = false;
+	for (let index = 0; index < text.length; ) {
+		const ansiSequence = splitAnsiSequence(text, index);
+		if (ansiSequence != null) {
+			output += ansiSequence;
+			index += ansiSequence.length;
+			hasAnsi = true;
+			continue;
+		}
+
+		const codePoint = text.codePointAt(index);
+		if (codePoint == null) {
+			break;
+		}
+		const char = String.fromCodePoint(codePoint);
+		const charWidth = codePoint < 0x80 ? 1 : getStringWidth(char);
+		if (visibleWidth + charWidth > targetWidth) {
+			break;
+		}
+		output += char;
+		visibleWidth += charWidth;
+		index += char.length;
+	}
+
+	return `${output}…${hasAnsi ? COLOR_RESET : ''}`;
+}
+
+function padToWidth(text: string, width: number, align: TableCellAlign): string {
+	const truncated = truncateToWidth(text, width);
+	const padding = Math.max(0, width - getStringWidth(truncated));
+	switch (align) {
+		case 'right':
+			return `${' '.repeat(padding)}${truncated}`;
+		case 'center': {
+			const left = Math.floor(padding / 2);
+			return `${' '.repeat(left)}${truncated}${' '.repeat(padding - left)}`;
+		}
+		case 'left':
+			return `${truncated}${' '.repeat(padding)}`;
+	}
+}
+
+function wrapHeaderLine(text: string, width: number): string[] {
+	if (getStringWidth(text) <= width) {
+		return [text];
+	}
+
+	const words = text.split(' ');
+	if (words.length <= 1) {
+		return [truncateToWidth(text, width)];
+	}
+
+	const lines: string[] = [];
+	let current = '';
+	for (const word of words) {
+		const candidate = current === '' ? word : `${current} ${word}`;
+		if (getStringWidth(candidate) <= width) {
+			current = candidate;
+		} else {
+			if (current !== '') {
+				lines.push(current);
+			}
+			current = getStringWidth(word) <= width ? word : truncateToWidth(word, width);
+		}
+	}
+	if (current !== '') {
+		lines.push(current);
+	}
+	return lines;
+}
+
+function splitCellContent(content: string): string[] {
+	return content.split('\n');
+}
 
 /**
  * Creates a date parts formatter with the specified timezone and locale
@@ -260,6 +364,25 @@ export class ResponsiveTable {
 				return adjustedWidth;
 			});
 
+			if (!this.compactMode) {
+				const processedRows = this.rows
+					.filter((row) => !this.isSeparatorRow(row))
+					.map((row) =>
+						row.map((cell, index) => {
+							if (
+								index === 0 &&
+								this.dateFormatter != null &&
+								typeof cell === 'string' &&
+								this.isDateString(cell)
+							) {
+								return this.dateFormatter(cell);
+							}
+							return cell;
+						}),
+					);
+				return this.renderFastTable(head, colAligns, adjustedWidths, processedRows);
+			}
+
 			const table = new Table({
 				head,
 				style: this.style,
@@ -299,6 +422,10 @@ export class ResponsiveTable {
 
 			return table.toString();
 		} else {
+			if (!this.compactMode) {
+				return this.renderFastTable(head, colAligns, columnWidths);
+			}
+
 			// Use generous column widths with normal date format
 			const table = new Table({
 				head,
@@ -351,6 +478,68 @@ export class ResponsiveTable {
 		// Check if string matches date format YYYY-MM-DD
 		return /^\d{4}-\d{2}-\d{2}$/.test(text);
 	}
+
+	private renderFastTable(
+		head: string[],
+		colAligns: TableCellAlign[],
+		colWidths: number[],
+		rows: TableRow[] = this.rows.filter((row) => !this.isSeparatorRow(row)),
+	): string {
+		const innerWidths = colWidths.map((width) => Math.max(1, width - 2));
+		const border = {
+			top: this.renderBorder('┌', '┬', '┐', innerWidths),
+			mid: this.renderBorder('├', '┼', '┤', innerWidths),
+			bottom: this.renderBorder('└', '┴', '┘', innerWidths),
+		};
+		const output: string[] = [border.top];
+		output.push(...this.renderFastRow(head, innerWidths, colAligns, true));
+		output.push(border.mid);
+		for (let index = 0; index < rows.length; index++) {
+			output.push(...this.renderFastRow(rows[index]!, innerWidths, colAligns, false));
+			output.push(index === rows.length - 1 ? border.bottom : border.mid);
+		}
+		return output.join('\n');
+	}
+
+	private renderBorder(left: string, middle: string, right: string, innerWidths: number[]): string {
+		const segments = innerWidths.map((width) => '─'.repeat(width + 2));
+		return pc.gray(`${left}${segments.join(middle)}${right}`);
+	}
+
+	private renderFastRow(
+		row: TableRow,
+		innerWidths: number[],
+		colAligns: TableCellAlign[],
+		isHeader: boolean,
+	): string[] {
+		const cellLines = innerWidths.map((width, index) => {
+			const cell = row[index] ?? '';
+			const content =
+				typeof cell === 'object' && cell != null && 'content' in cell ? cell.content : String(cell);
+			const lines = isHeader
+				? splitCellContent(content).flatMap((line) => wrapHeaderLine(line, width))
+				: splitCellContent(content);
+			return lines.length === 0 ? [''] : lines;
+		});
+		const rowHeight = Math.max(...cellLines.map((lines) => lines.length));
+		const lines: string[] = [];
+		for (let lineIndex = 0; lineIndex < rowHeight; lineIndex++) {
+			let line = pc.gray('│');
+			for (let colIndex = 0; colIndex < innerWidths.length; colIndex++) {
+				const cell = row[colIndex] ?? '';
+				const align =
+					typeof cell === 'object' && cell != null && 'content' in cell && cell.hAlign != null
+						? cell.hAlign
+						: (colAligns[colIndex] ?? 'left');
+				const content = cellLines[colIndex]?.[lineIndex] ?? '';
+				const padded = padToWidth(content, innerWidths[colIndex]!, align);
+				line += isHeader ? pc.cyan(` ${padded} `) : ` ${padded} `;
+				line += pc.gray('│');
+			}
+			lines.push(line);
+		}
+		return lines;
+	}
 }
 
 /**
@@ -359,7 +548,13 @@ export class ResponsiveTable {
  * @returns Formatted number string with commas as thousand separators
  */
 export function formatNumber(num: number): string {
-	return num.toLocaleString('en-US');
+	const cached = formattedNumberCache.get(num);
+	if (cached != null) {
+		return cached;
+	}
+	const formatted = NUMBER_FORMATTER.format(num);
+	formattedNumberCache.set(num, formatted);
+	return formatted;
 }
 
 /**
@@ -378,16 +573,26 @@ export function formatCurrency(amount: number): string {
  * @returns Shortened model name (e.g., "sonnet-4" or "sonnet-4-5") or original if pattern doesn't match
  */
 function formatModelName(modelName: string): string {
+	const cached = formattedModelNameCache.get(modelName);
+	if (cached != null) {
+		return cached;
+	}
+
+	let formatted = modelName;
 	// Handle [pi] prefix - preserve prefix, format the rest
 	const piMatch = modelName.match(/^\[pi\] (.+)$/);
 	if (piMatch?.[1] != null) {
-		return `[pi] ${formatModelName(piMatch[1])}`;
+		formatted = `[pi] ${formatModelName(piMatch[1])}`;
+		formattedModelNameCache.set(modelName, formatted);
+		return formatted;
 	}
 
 	// Handle anthropic/ prefix with dot notation (e.g., "anthropic/claude-opus-4.5" -> "opus-4.5")
 	const anthropicMatch = modelName.match(/^anthropic\/claude-(\w+)-([\d.]+)$/);
 	if (anthropicMatch != null) {
-		return `${anthropicMatch[1]}-${anthropicMatch[2]}`;
+		formatted = `${anthropicMatch[1]}-${anthropicMatch[2]}`;
+		formattedModelNameCache.set(modelName, formatted);
+		return formatted;
 	}
 
 	// Extract model type from full model name with date suffix (must check before no-date pattern)
@@ -396,17 +601,19 @@ function formatModelName(modelName: string): string {
 	// e.g., "claude-sonnet-4-5-20250929" -> "sonnet-4-5"
 	const match = modelName.match(/^claude-(\w+)-([\d-]+)-(\d{8})$/);
 	if (match != null) {
-		return `${match[1]}-${match[2]}`;
+		formatted = `${match[1]}-${match[2]}`;
+		formattedModelNameCache.set(modelName, formatted);
+		return formatted;
 	}
 
 	// Handle claude- without date suffix (e.g., "claude-opus-4-5" -> "opus-4-5")
 	const noDateMatch = modelName.match(/^claude-(\w+)-([\d-]+)$/);
 	if (noDateMatch != null) {
-		return `${noDateMatch[1]}-${noDateMatch[2]}`;
+		formatted = `${noDateMatch[1]}-${noDateMatch[2]}`;
 	}
 
-	// Return original if pattern doesn't match
-	return modelName;
+	formattedModelNameCache.set(modelName, formatted);
+	return formatted;
 }
 
 /**
@@ -417,7 +624,7 @@ function formatModelName(modelName: string): string {
  */
 export function formatModelsDisplay(models: string[]): string {
 	// Format array of models for display
-	const uniqueModels = uniq(models.map(formatModelName));
+	const uniqueModels = Array.from(new Set(models.map(formatModelName)));
 	return uniqueModels.sort().join(', ');
 }
 
@@ -429,7 +636,7 @@ export function formatModelsDisplay(models: string[]): string {
  */
 export function formatModelsDisplayMultiline(models: string[]): string {
 	// Format array of models for display with newlines and bullet points
-	const uniqueModels = uniq(models.map(formatModelName));
+	const uniqueModels = Array.from(new Set(models.map(formatModelName)));
 	return uniqueModels
 		.sort()
 		.map((model) => `- ${model}`)
