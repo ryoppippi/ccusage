@@ -66,6 +66,12 @@
 							"markdownDescription": "Use cached pricing data for Claude models instead of fetching from API",
 							"default": false
 						},
+						"singleThread": {
+							"type": "boolean",
+							"description": "Disable parallel JSONL file loading",
+							"markdownDescription": "Disable parallel JSONL file loading",
+							"default": false
+						},
 						"color": {
 							"type": "boolean",
 							"description": "Enable colored output (default: auto). FORCE_COLOR=1 has the same effect.",
@@ -155,6 +161,12 @@
 									"type": "boolean",
 									"description": "Use cached pricing data for Claude models instead of fetching from API",
 									"markdownDescription": "Use cached pricing data for Claude models instead of fetching from API",
+									"default": false
+								},
+								"singleThread": {
+									"type": "boolean",
+									"description": "Disable parallel JSONL file loading",
+									"markdownDescription": "Disable parallel JSONL file loading",
 									"default": false
 								},
 								"color": {
@@ -259,6 +271,12 @@
 									"markdownDescription": "Use cached pricing data for Claude models instead of fetching from API",
 									"default": false
 								},
+								"singleThread": {
+									"type": "boolean",
+									"description": "Disable parallel JSONL file loading",
+									"markdownDescription": "Disable parallel JSONL file loading",
+									"default": false
+								},
 								"color": {
 									"type": "boolean",
 									"description": "Enable colored output (default: auto). FORCE_COLOR=1 has the same effect.",
@@ -343,6 +361,12 @@
 									"type": "boolean",
 									"description": "Use cached pricing data for Claude models instead of fetching from API",
 									"markdownDescription": "Use cached pricing data for Claude models instead of fetching from API",
+									"default": false
+								},
+								"singleThread": {
+									"type": "boolean",
+									"description": "Disable parallel JSONL file loading",
+									"markdownDescription": "Disable parallel JSONL file loading",
 									"default": false
 								},
 								"color": {
@@ -439,6 +463,12 @@
 									"markdownDescription": "Use cached pricing data for Claude models instead of fetching from API",
 									"default": false
 								},
+								"singleThread": {
+									"type": "boolean",
+									"description": "Disable parallel JSONL file loading",
+									"markdownDescription": "Disable parallel JSONL file loading",
+									"default": false
+								},
 								"color": {
 									"type": "boolean",
 									"description": "Enable colored output (default: auto). FORCE_COLOR=1 has the same effect.",
@@ -528,6 +558,12 @@
 									"type": "boolean",
 									"description": "Use cached pricing data for Claude models instead of fetching from API",
 									"markdownDescription": "Use cached pricing data for Claude models instead of fetching from API",
+									"default": false
+								},
+								"singleThread": {
+									"type": "boolean",
+									"description": "Disable parallel JSONL file loading",
+									"markdownDescription": "Disable parallel JSONL file loading",
 									"default": false
 								},
 								"color": {

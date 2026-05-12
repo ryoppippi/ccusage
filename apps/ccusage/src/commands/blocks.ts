@@ -169,6 +169,7 @@ export const blocksCommand = define({
 			mode: ctx.values.mode,
 			order: ctx.values.order,
 			offline: ctx.values.offline,
+			singleThread: ctx.values.singleThread,
 			sessionDurationHours: ctx.values.sessionLength,
 			timezone: ctx.values.timezone,
 		});

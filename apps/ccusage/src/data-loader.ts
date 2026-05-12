@@ -71,14 +71,20 @@ import { logger } from './logger.ts';
 
 const USAGE_LINE_MARKER = '"input_tokens"';
 const ISO_TIMESTAMP_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/;
-const MAX_JSONL_FILE_READ_CONCURRENCY = 16;
+const MAX_BUFFERED_JSONL_BYTES = 32 * 1024 * 1024;
 const VERSION_PATTERN = /^\d+\.\d+\.\d+/;
 
-function getJSONLFileReadConcurrency(fileCount: number): number {
-	return Math.max(
-		1,
-		Math.min(fileCount, os.availableParallelism(), MAX_JSONL_FILE_READ_CONCURRENCY),
-	);
+function getJSONLFileReadConcurrency(fileCount: number, singleThread = false): number {
+	if (singleThread) {
+		return 1;
+	}
+
+	const configured = Number.parseInt(process.env.CCUSAGE_JSONL_READ_CONCURRENCY ?? '', 10);
+	if (Number.isFinite(configured) && configured > 0) {
+		return Math.max(1, Math.min(fileCount, configured));
+	}
+
+	return Math.max(1, Math.min(fileCount, os.availableParallelism()));
 }
 
 /**
@@ -903,6 +909,34 @@ async function processJSONLFileByLine(
 	filePath: string,
 	processLine: (line: string, lineNumber: number) => void | Promise<void>,
 ): Promise<void> {
+	const stats = await stat(filePath);
+	if (stats.size <= MAX_BUFFERED_JSONL_BYTES) {
+		const content = await readFile(filePath, 'utf-8');
+		let lineStart = 0;
+		let lineNumber = 0;
+		while (lineStart < content.length) {
+			let lineEnd = content.indexOf('\n', lineStart);
+			if (lineEnd === -1) {
+				lineEnd = content.length;
+			}
+
+			lineNumber++;
+			let line = content.slice(lineStart, lineEnd);
+			if (line.endsWith('\r')) {
+				line = line.slice(0, -1);
+			}
+			if (line.trim().length !== 0) {
+				const result = processLine(line, lineNumber);
+				if (result != null) {
+					await result;
+				}
+			}
+
+			lineStart = lineEnd + 1;
+		}
+		return;
+	}
+
 	const fileStream = createReadStream(filePath, { encoding: 'utf-8' });
 	const rl = createInterface({
 		input: fileStream,
@@ -915,7 +949,10 @@ async function processJSONLFileByLine(
 		if (line.trim().length === 0) {
 			continue;
 		}
-		await processLine(line, lineNumber);
+		const result = processLine(line, lineNumber);
+		if (result != null) {
+			await result;
+		}
 	}
 }
 
@@ -1032,6 +1069,18 @@ export async function calculateCostForEntry(
 	unreachable(mode);
 }
 
+function getImmediateCostForEntry(data: UsageData, mode: CostMode): number | undefined {
+	if (mode === 'display') {
+		return data.costUSD ?? 0;
+	}
+
+	if (mode === 'auto' && data.costUSD != null) {
+		return data.costUSD;
+	}
+
+	return undefined;
+}
+
 /**
  * Get Claude Code usage limit expiration date
  * @param data - Usage data entry
@@ -1104,6 +1153,7 @@ export type LoadOptions = {
 	startOfWeek?: WeekDay; // Start of week for weekly aggregation
 	timezone?: string; // Timezone for date grouping (e.g., 'UTC', 'America/New_York'). Defaults to system timezone
 	minUpdateTime?: Date; // Only process files modified after this timestamp
+	singleThread?: boolean; // Disable parallel JSONL file loading
 } & DateFilter;
 
 /**
@@ -1155,12 +1205,14 @@ export async function loadDailyUsageData(options?: LoadOptions): Promise<DailyUs
 
 	const fileResults = await mapWithConcurrency(
 		mtimeFilteredFiles,
-		getJSONLFileReadConcurrency(mtimeFilteredFiles.length),
+		getJSONLFileReadConcurrency(mtimeFilteredFiles.length, options?.singleThread),
 		async (file) => {
 			const project = extractProjectFromPath(file);
 			const entries: DailyEntry[] = [];
 
 			await processJSONLFileByLine(file, async (line) => {
+				let deferredData: UsageData | undefined;
+				let deferredDate = '';
 				try {
 					if (!line.includes(USAGE_LINE_MARKER)) {
 						return;
@@ -1172,15 +1224,35 @@ export async function loadDailyUsageData(options?: LoadOptions): Promise<DailyUs
 					}
 
 					const date = formatDate(data.timestamp, options?.timezone);
-					const cost =
-						fetcher != null
-							? await calculateCostForEntry(data, mode, fetcher)
-							: (data.costUSD ?? 0);
+					const immediateCost = getImmediateCostForEntry(data, mode);
+					if (immediateCost !== undefined) {
+						entries.push({
+							data,
+							date,
+							cost: immediateCost,
+							model: getDisplayModelName(data),
+							project,
+						});
+						return;
+					}
 
-					entries.push({ data, date, cost, model: getDisplayModelName(data), project });
+					deferredData = data;
+					deferredDate = date;
 				} catch {
 					// Skip invalid JSON lines
 				}
+				if (deferredData == null) {
+					return;
+				}
+				return calculateCostForEntry(deferredData, mode, fetcher!).then((cost) => {
+					entries.push({
+						data: deferredData,
+						date: deferredDate,
+						cost,
+						model: getDisplayModelName(deferredData),
+						project,
+					});
+				});
 			});
 
 			return entries;
@@ -1323,63 +1395,94 @@ export async function loadSessionData(options?: LoadOptions): Promise<SessionUsa
 	}> = [];
 	const processedEntries = new Map<string, number>();
 
-	for (const { file, baseDir } of mtimeFilteredWithBase) {
-		// Extract session info from file path using its specific base directory
-		const relativePath = path.relative(baseDir, file);
-		const parts = relativePath.split(path.sep);
+	const fileResults = await mapWithConcurrency(
+		mtimeFilteredWithBase,
+		getJSONLFileReadConcurrency(mtimeFilteredWithBase.length, options?.singleThread),
+		async ({ file, baseDir }) => {
+			const relativePath = path.relative(baseDir, file);
+			const parts = relativePath.split(path.sep);
+			const sessionId = parts[parts.length - 2] ?? 'unknown';
+			const joinedPath = parts.slice(0, -2).join(path.sep);
+			const projectPath = joinedPath.length > 0 ? joinedPath : 'Unknown Project';
+			const entries: Array<{
+				data: UsageData;
+				sessionKey: string;
+				sessionId: string;
+				projectPath: string;
+				cost: number;
+				timestamp: string;
+				model: string | undefined;
+			}> = [];
 
-		// Session ID is the directory name containing the JSONL file
-		const sessionId = parts[parts.length - 2] ?? 'unknown';
-		// Project path is everything before the session ID
-		const joinedPath = parts.slice(0, -2).join(path.sep);
-		const projectPath = joinedPath.length > 0 ? joinedPath : 'Unknown Project';
+			await processJSONLFileByLine(file, async (line) => {
+				let deferredData: UsageData | undefined;
+				try {
+					if (!line.includes(USAGE_LINE_MARKER)) {
+						return;
+					}
 
-		await processJSONLFileByLine(file, async (line) => {
-			try {
-				if (!line.includes(USAGE_LINE_MARKER)) {
+					const data = parseUsageDataLine(line);
+					if (data == null) {
+						return;
+					}
+
+					const immediateCost = getImmediateCostForEntry(data, mode);
+					if (immediateCost !== undefined) {
+						entries.push({
+							data,
+							sessionKey: `${projectPath}/${sessionId}`,
+							sessionId,
+							projectPath,
+							cost: immediateCost,
+							timestamp: data.timestamp,
+							model: getDisplayModelName(data),
+						});
+						return;
+					}
+					deferredData = data;
+				} catch {
+					// Skip invalid JSON lines
+				}
+				if (deferredData == null) {
 					return;
 				}
+				return calculateCostForEntry(deferredData, mode, fetcher!).then((cost) => {
+					entries.push({
+						data: deferredData,
+						sessionKey: `${projectPath}/${sessionId}`,
+						sessionId,
+						projectPath,
+						cost,
+						timestamp: deferredData.timestamp,
+						model: getDisplayModelName(deferredData),
+					});
+				});
+			});
 
-				const data = parseUsageDataLine(line);
-				if (data == null) {
-					return;
-				}
+			return entries;
+		},
+	);
 
-				// Check for duplicate message + request ID combination
-				const uniqueHash = createUniqueHash(data);
-				const existingEntryIndex = getDedupedEntryIndex(
-					uniqueHash,
-					processedEntries,
-					allEntries,
-					data,
-				);
-				if (existingEntryIndex === -1) {
-					return;
-				}
-
-				const sessionKey = `${projectPath}/${sessionId}`;
-				const cost =
-					fetcher != null ? await calculateCostForEntry(data, mode, fetcher) : (data.costUSD ?? 0);
-
-				const entry = {
-					data,
-					sessionKey,
-					sessionId,
-					projectPath,
-					cost,
-					timestamp: data.timestamp,
-					model: getDisplayModelName(data),
-				};
-				if (existingEntryIndex != null) {
-					allEntries[existingEntryIndex] = entry;
-				} else {
-					allEntries.push(entry);
-					markDedupedEntry(uniqueHash, processedEntries, allEntries.length - 1);
-				}
-			} catch {
-				// Skip invalid JSON lines
+	for (const entries of fileResults) {
+		for (const entry of entries) {
+			const uniqueHash = createUniqueHash(entry.data);
+			const existingEntryIndex = getDedupedEntryIndex(
+				uniqueHash,
+				processedEntries,
+				allEntries,
+				entry.data,
+			);
+			if (existingEntryIndex === -1) {
+				continue;
 			}
-		});
+
+			if (existingEntryIndex != null) {
+				allEntries[existingEntryIndex] = entry;
+			} else {
+				allEntries.push(entry);
+				markDedupedEntry(uniqueHash, processedEntries, allEntries.length - 1);
+			}
+		}
 	}
 
 	// Group by session using Object.groupBy
@@ -1537,6 +1640,7 @@ export async function loadSessionUsageById(
 	let totalCost = 0;
 
 	await processJSONLFileByLine(file, async (line) => {
+		let deferredData: UsageData | undefined;
 		try {
 			if (!line.includes(USAGE_LINE_MARKER)) {
 				return;
@@ -1547,14 +1651,23 @@ export async function loadSessionUsageById(
 				return;
 			}
 
-			const cost =
-				fetcher != null ? await calculateCostForEntry(data, mode, fetcher) : (data.costUSD ?? 0);
-
-			totalCost += cost;
-			entries.push(data);
+			const immediateCost = getImmediateCostForEntry(data, mode);
+			if (immediateCost !== undefined) {
+				totalCost += immediateCost;
+				entries.push(data);
+				return;
+			}
+			deferredData = data;
 		} catch {
 			// Skip invalid JSON lines
 		}
+		if (deferredData == null) {
+			return;
+		}
+		return calculateCostForEntry(deferredData, mode, fetcher!).then((cost) => {
+			totalCost += cost;
+			entries.push(deferredData);
+		});
 	});
 
 	return { totalCost, entries };
@@ -1782,61 +1895,94 @@ export async function loadSessionBlockData(options?: LoadOptions): Promise<Sessi
 	const allEntries: LoadedUsageEntry[] = [];
 	const processedEntries = new Map<string, { data: UsageData; index: number }>();
 
-	for (const file of sortedFiles) {
-		await processJSONLFileByLine(file, async (line) => {
-			try {
-				if (!line.includes(USAGE_LINE_MARKER)) {
+	const fileResults = await mapWithConcurrency(
+		sortedFiles,
+		getJSONLFileReadConcurrency(sortedFiles.length, options?.singleThread),
+		async (file) => {
+			const entries: Array<{
+				data: UsageData;
+				entry: LoadedUsageEntry;
+				uniqueHash: string | null;
+			}> = [];
+
+			await processJSONLFileByLine(file, async (line) => {
+				let deferred:
+					| {
+							data: UsageData;
+							pushEntry: (cost: number) => void;
+					  }
+					| undefined;
+				try {
+					if (!line.includes(USAGE_LINE_MARKER)) {
+						return;
+					}
+
+					const data = parseUsageDataLine(line);
+					if (data == null) {
+						return;
+					}
+
+					const pushEntry = (cost: number): void => {
+						const usageLimitResetTime = getUsageLimitResetTime(data);
+						entries.push({
+							data,
+							uniqueHash: createUniqueHash(data),
+							entry: {
+								timestamp: new Date(data.timestamp),
+								usage: {
+									inputTokens: data.message.usage.input_tokens,
+									outputTokens: data.message.usage.output_tokens,
+									cacheCreationInputTokens: data.message.usage.cache_creation_input_tokens ?? 0,
+									cacheReadInputTokens: data.message.usage.cache_read_input_tokens ?? 0,
+								},
+								costUSD: cost,
+								model: getDisplayModelName(data) ?? 'unknown',
+								version: data.version,
+								usageLimitResetTime: usageLimitResetTime ?? undefined,
+							},
+						});
+					};
+
+					const immediateCost = getImmediateCostForEntry(data, mode);
+					if (immediateCost !== undefined) {
+						pushEntry(immediateCost);
+						return;
+					}
+					deferred = { data, pushEntry };
+				} catch (error) {
+					// Skip invalid JSON lines but log for debugging purposes
+					logger.debug(
+						`Skipping invalid JSON line in 5-hour blocks: ${error instanceof Error ? error.message : String(error)}`,
+					);
+				}
+				if (deferred == null) {
 					return;
 				}
+				return calculateCostForEntry(deferred.data, mode, fetcher!).then(deferred.pushEntry);
+			});
 
-				const data = parseUsageDataLine(line);
-				if (data == null) {
-					return;
-				}
+			return entries;
+		},
+	);
 
-				const uniqueHash = createUniqueHash(data);
-
-				const cost =
-					fetcher != null ? await calculateCostForEntry(data, mode, fetcher) : (data.costUSD ?? 0);
-
-				// Get Claude Code usage limit expiration date
-				const usageLimitResetTime = getUsageLimitResetTime(data);
-
-				const entry: LoadedUsageEntry = {
-					timestamp: new Date(data.timestamp),
-					usage: {
-						inputTokens: data.message.usage.input_tokens,
-						outputTokens: data.message.usage.output_tokens,
-						cacheCreationInputTokens: data.message.usage.cache_creation_input_tokens ?? 0,
-						cacheReadInputTokens: data.message.usage.cache_read_input_tokens ?? 0,
-					},
-					costUSD: cost,
-					model: getDisplayModelName(data) ?? 'unknown',
-					version: data.version,
-					usageLimitResetTime: usageLimitResetTime ?? undefined,
-				};
-				if (uniqueHash == null) {
-					allEntries.push(entry);
-					return;
-				}
-
-				const existing = processedEntries.get(uniqueHash);
-				if (existing == null) {
-					allEntries.push(entry);
-					processedEntries.set(uniqueHash, { data, index: allEntries.length - 1 });
-					return;
-				}
-				if (shouldReplaceDedupedEntry(data, existing.data)) {
-					allEntries[existing.index] = entry;
-					processedEntries.set(uniqueHash, { data, index: existing.index });
-				}
-			} catch (error) {
-				// Skip invalid JSON lines but log for debugging purposes
-				logger.debug(
-					`Skipping invalid JSON line in 5-hour blocks: ${error instanceof Error ? error.message : String(error)}`,
-				);
+	for (const entries of fileResults) {
+		for (const { data, entry, uniqueHash } of entries) {
+			if (uniqueHash == null) {
+				allEntries.push(entry);
+				continue;
 			}
-		});
+
+			const existing = processedEntries.get(uniqueHash);
+			if (existing == null) {
+				allEntries.push(entry);
+				processedEntries.set(uniqueHash, { data, index: allEntries.length - 1 });
+				continue;
+			}
+			if (shouldReplaceDedupedEntry(data, existing.data)) {
+				allEntries[existing.index] = entry;
+				processedEntries.set(uniqueHash, { data, index: existing.index });
+			}
+		}
 	}
 
 	// Identify session blocks

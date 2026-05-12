@@ -68,6 +68,7 @@ export const sessionCommand = define({
 			until: ctx.values.until,
 			mode: ctx.values.mode,
 			offline: ctx.values.offline,
+			singleThread: ctx.values.singleThread,
 			timezone: ctx.values.timezone,
 		});
 
