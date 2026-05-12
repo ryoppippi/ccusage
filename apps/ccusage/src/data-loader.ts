@@ -894,6 +894,15 @@ export function createUniqueHash(data: UsageData): string | null {
 	return `${messageId}:${requestId}`;
 }
 
+function hasNonWhitespace(line: string): boolean {
+	for (let index = 0; index < line.length; index++) {
+		if (line.charCodeAt(index) > 32) {
+			return true;
+		}
+	}
+	return false;
+}
+
 /**
  * Process a JSONL file line by line using streams to avoid memory issues with large files
  * @param filePath - Path to the JSONL file
@@ -919,7 +928,7 @@ async function processJSONLFileByLine(
 			if (line.endsWith('\r')) {
 				line = line.slice(0, -1);
 			}
-			if (line.trim().length !== 0) {
+			if (hasNonWhitespace(line)) {
 				const result = processLine(line, lineNumber);
 				if (result != null) {
 					await result;
@@ -940,7 +949,7 @@ async function processJSONLFileByLine(
 	let lineNumber = 0;
 	for await (const line of rl) {
 		lineNumber++;
-		if (line.trim().length === 0) {
+		if (!hasNonWhitespace(line)) {
 			continue;
 		}
 		const result = processLine(line, lineNumber);
