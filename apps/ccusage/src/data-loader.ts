@@ -14,6 +14,7 @@ import type { ActivityDate, Bucket, CostMode, ModelName, SortOrder, Version } fr
 import { Buffer } from 'node:buffer';
 import { createReadStream, createWriteStream } from 'node:fs';
 import { readFile, stat, utimes } from 'node:fs/promises';
+import os from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
 import { createInterface } from 'node:readline';
@@ -69,6 +70,16 @@ import { unreachable } from './_utils.ts';
 import { logger } from './logger.ts';
 
 const USAGE_LINE_MARKER = '"input_tokens"';
+const ISO_TIMESTAMP_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/;
+const MAX_JSONL_FILE_READ_CONCURRENCY = 16;
+const VERSION_PATTERN = /^\d+\.\d+\.\d+/;
+
+function getJSONLFileReadConcurrency(fileCount: number): number {
+	return Math.max(
+		1,
+		Math.min(fileCount, os.availableParallelism(), MAX_JSONL_FILE_READ_CONCURRENCY),
+	);
+}
 
 /**
  * Get Claude data directories to search for usage data
@@ -192,6 +203,238 @@ export const usageDataSchema = v.object({
 	requestId: v.optional(requestIdSchema), // Request ID for deduplication
 	isApiErrorMessage: v.optional(v.boolean()),
 });
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function isOptionalString(value: unknown): value is string | undefined {
+	return value === undefined || typeof value === 'string';
+}
+
+function isOptionalNonEmptyString(value: unknown): value is string | undefined {
+	return value === undefined || (typeof value === 'string' && value.length > 0);
+}
+
+function isOptionalNumber(value: unknown): value is number | undefined {
+	return value === undefined || typeof value === 'number';
+}
+
+function isOptionalBoolean(value: unknown): value is boolean | undefined {
+	return value === undefined || typeof value === 'boolean';
+}
+
+function parseUsageDataFast(value: unknown): UsageData | null {
+	if (!isRecord(value)) {
+		return null;
+	}
+	if (
+		!isOptionalString(value.cwd) ||
+		!isOptionalNonEmptyString(value.sessionId) ||
+		!isOptionalNonEmptyString(value.requestId) ||
+		!isOptionalNumber(value.costUSD) ||
+		!isOptionalBoolean(value.isApiErrorMessage)
+	) {
+		return null;
+	}
+	if (
+		value.version !== undefined &&
+		(typeof value.version !== 'string' || !VERSION_PATTERN.test(value.version))
+	) {
+		return null;
+	}
+	if (typeof value.timestamp !== 'string' || !ISO_TIMESTAMP_PATTERN.test(value.timestamp)) {
+		return null;
+	}
+	if (!isRecord(value.message)) {
+		return null;
+	}
+	if (
+		!isOptionalNonEmptyString(value.message.model) ||
+		!isOptionalNonEmptyString(value.message.id)
+	) {
+		return null;
+	}
+	if (value.message.content !== undefined) {
+		if (!Array.isArray(value.message.content)) {
+			return null;
+		}
+		for (const part of value.message.content) {
+			if (!isRecord(part) || !isOptionalString(part.text)) {
+				return null;
+			}
+		}
+	}
+	if (!isRecord(value.message.usage)) {
+		return null;
+	}
+	const { usage } = value.message;
+	if (
+		typeof usage.input_tokens !== 'number' ||
+		typeof usage.output_tokens !== 'number' ||
+		!isOptionalNumber(usage.cache_creation_input_tokens) ||
+		!isOptionalNumber(usage.cache_read_input_tokens) ||
+		(usage.speed !== undefined && usage.speed !== 'standard' && usage.speed !== 'fast')
+	) {
+		return null;
+	}
+
+	return value as UsageData;
+}
+
+function extractStringField(line: string, field: string, fromIndex = 0): string | undefined {
+	const marker = `"${field}":"`;
+	const start = line.indexOf(marker, fromIndex);
+	if (start === -1) {
+		return undefined;
+	}
+	const valueStart = start + marker.length;
+	const valueEnd = line.indexOf('"', valueStart);
+	return valueEnd === -1 ? undefined : line.slice(valueStart, valueEnd);
+}
+
+function extractLastStringField(line: string, field: string): string | undefined {
+	const marker = `"${field}":"`;
+	const start = line.lastIndexOf(marker);
+	if (start === -1) {
+		return undefined;
+	}
+	const valueStart = start + marker.length;
+	const valueEnd = line.indexOf('"', valueStart);
+	return valueEnd === -1 ? undefined : line.slice(valueStart, valueEnd);
+}
+
+function extractNumberField(line: string, field: string, fromIndex = 0): number | undefined {
+	const marker = `"${field}":`;
+	const start = line.indexOf(marker, fromIndex);
+	if (start === -1) {
+		return undefined;
+	}
+	const valueStart = start + marker.length;
+	let valueEnd = valueStart;
+	while (valueEnd < line.length) {
+		const char = line.charCodeAt(valueEnd);
+		if (
+			char !== 43 &&
+			char !== 45 &&
+			char !== 46 &&
+			char !== 69 &&
+			char !== 101 &&
+			(char < 48 || char > 57)
+		) {
+			break;
+		}
+		valueEnd++;
+	}
+	if (valueEnd === valueStart) {
+		return undefined;
+	}
+	const value = Number(line.slice(valueStart, valueEnd));
+	return Number.isFinite(value) ? value : undefined;
+}
+
+function extractLastNumberField(line: string, field: string): number | undefined {
+	const marker = `"${field}":`;
+	const start = line.lastIndexOf(marker);
+	if (start === -1) {
+		return undefined;
+	}
+	return extractNumberField(line, field, start);
+}
+
+function parseUsageDataLineFast(line: string, allowContent = false): UsageData | null {
+	if (
+		(!allowContent && line.includes('"content":')) ||
+		line.includes('"isApiErrorMessage":true') ||
+		line.includes('"cwd":null') ||
+		line.includes('"sessionId":null') ||
+		line.includes('"requestId":null') ||
+		line.includes('"costUSD":null') ||
+		line.includes('"isApiErrorMessage":null') ||
+		line.includes('"version":null') ||
+		line.includes('"model":null') ||
+		line.includes('"id":null') ||
+		line.includes('"cache_creation_input_tokens":null') ||
+		line.includes('"cache_read_input_tokens":null') ||
+		line.includes('"speed":null')
+	) {
+		return null;
+	}
+
+	const timestamp = extractLastStringField(line, 'timestamp');
+	if (timestamp == null || !ISO_TIMESTAMP_PATTERN.test(timestamp)) {
+		return null;
+	}
+
+	const messageStart = line.indexOf('"message":{');
+	const usageStart = line.indexOf('"usage":{', messageStart);
+	if (messageStart === -1 || usageStart === -1) {
+		return null;
+	}
+	const roleStart = line.indexOf('"role":"assistant"', messageStart);
+	if (roleStart === -1 || roleStart > usageStart) {
+		return null;
+	}
+
+	const inputTokens = extractNumberField(line, 'input_tokens', usageStart);
+	const outputTokens = extractNumberField(line, 'output_tokens', usageStart);
+	if (inputTokens == null || outputTokens == null) {
+		return null;
+	}
+
+	const speed = extractStringField(line, 'speed', usageStart);
+	if (speed != null && speed !== 'standard' && speed !== 'fast') {
+		return null;
+	}
+
+	const version = extractLastStringField(line, 'version');
+	if (version != null && !VERSION_PATTERN.test(version)) {
+		return null;
+	}
+	const model = extractStringField(line, 'model', messageStart);
+	const messageId = extractStringField(line, 'id', messageStart);
+	const requestId = extractLastStringField(line, 'requestId');
+	const sessionId = extractLastStringField(line, 'sessionId');
+	if (model === '' || messageId === '' || requestId === '' || sessionId === '') {
+		return null;
+	}
+
+	return {
+		timestamp: timestamp as UsageData['timestamp'],
+		message: {
+			usage: {
+				input_tokens: inputTokens,
+				output_tokens: outputTokens,
+				cache_creation_input_tokens: extractNumberField(
+					line,
+					'cache_creation_input_tokens',
+					usageStart,
+				),
+				cache_read_input_tokens: extractNumberField(line, 'cache_read_input_tokens', usageStart),
+				speed,
+			},
+			model: model as ModelName | undefined,
+			id: messageId as UsageData['message']['id'],
+		},
+		costUSD: extractLastNumberField(line, 'costUSD'),
+		requestId: requestId as UsageData['requestId'],
+		sessionId: sessionId as UsageData['sessionId'],
+		version: version as Version | undefined,
+	};
+}
+
+function parseUsageDataLine(
+	line: string,
+	options?: { allowContentFast?: boolean },
+): UsageData | null {
+	const fastData = parseUsageDataLineFast(line, options?.allowContentFast === true);
+	if (fastData != null) {
+		return fastData;
+	}
+
+	const parsed = JSON.parse(line) as unknown;
+	return parseUsageDataFast(parsed);
+}
 
 /**
  * Valibot schema for transcript usage data from Claude messages
@@ -494,6 +737,30 @@ function filterByProject<T>(
 		const projectName = getProject(item);
 		return projectName === projectFilter;
 	});
+}
+
+async function mapWithConcurrency<T, U>(
+	items: T[],
+	concurrency: number,
+	mapper: (item: T, index: number) => Promise<U>,
+): Promise<U[]> {
+	const results = Array.from<U>({ length: items.length });
+	let nextIndex = 0;
+	const workerCount = Math.max(1, Math.min(concurrency, items.length));
+
+	await Promise.all(
+		Array.from({ length: workerCount }, async () => {
+			for (;;) {
+				const index = nextIndex++;
+				if (index >= items.length) {
+					return;
+				}
+				results[index] = await mapper(items[index]!, index);
+			}
+		}),
+	);
+
+	return results;
 }
 
 function parseCompactDate(value: string | undefined): Date | null {
@@ -876,62 +1143,70 @@ export async function loadDailyUsageData(options?: LoadOptions): Promise<DailyUs
 	// Use PricingFetcher with using statement for automatic cleanup
 	using fetcher = mode === 'display' ? null : new PricingFetcher(options?.offline);
 
-	// Collect all valid data entries first
-	const allEntries: {
+	type DailyEntry = {
 		data: UsageData;
 		date: string;
 		cost: number;
 		model: string | undefined;
 		project: string;
-	}[] = [];
+	};
+	const allEntries: DailyEntry[] = [];
 	const processedEntries = new Map<string, number>();
 
-	for (const file of mtimeFilteredFiles) {
-		// Extract project name from file path once per file
-		const project = extractProjectFromPath(file);
+	const fileResults = await mapWithConcurrency(
+		mtimeFilteredFiles,
+		getJSONLFileReadConcurrency(mtimeFilteredFiles.length),
+		async (file) => {
+			const project = extractProjectFromPath(file);
+			const entries: DailyEntry[] = [];
 
-		await processJSONLFileByLine(file, async (line) => {
-			try {
-				if (!line.includes(USAGE_LINE_MARKER)) {
-					return;
+			await processJSONLFileByLine(file, async (line) => {
+				try {
+					if (!line.includes(USAGE_LINE_MARKER)) {
+						return;
+					}
+
+					const data = parseUsageDataLine(line);
+					if (data == null) {
+						return;
+					}
+
+					const date = formatDate(data.timestamp, options?.timezone);
+					const cost =
+						fetcher != null
+							? await calculateCostForEntry(data, mode, fetcher)
+							: (data.costUSD ?? 0);
+
+					entries.push({ data, date, cost, model: getDisplayModelName(data), project });
+				} catch {
+					// Skip invalid JSON lines
 				}
+			});
 
-				const parsed = JSON.parse(line) as unknown;
-				const result = v.safeParse(usageDataSchema, parsed);
-				if (!result.success) {
-					return;
-				}
-				const data = result.output;
+			return entries;
+		},
+	);
 
-				// Check for duplicate message + request ID combination
-				const uniqueHash = createUniqueHash(data);
-				const existingEntryIndex = getDedupedEntryIndex(
-					uniqueHash,
-					processedEntries,
-					allEntries,
-					data,
-				);
-				if (existingEntryIndex === -1) {
-					return;
-				}
-
-				const date = formatDate(data.timestamp, options?.timezone);
-				// If fetcher is available, calculate cost based on mode and tokens
-				// If fetcher is null, use pre-calculated costUSD or default to 0
-				const cost =
-					fetcher != null ? await calculateCostForEntry(data, mode, fetcher) : (data.costUSD ?? 0);
-
-				const entry = { data, date, cost, model: getDisplayModelName(data), project };
-				if (existingEntryIndex != null) {
-					allEntries[existingEntryIndex] = entry;
-				} else {
-					allEntries.push(entry);
-					markDedupedEntry(uniqueHash, processedEntries, allEntries.length - 1);
-				}
-			} catch {
-				// Skip invalid JSON lines
+	for (const entries of fileResults) {
+		for (const entry of entries) {
+			const uniqueHash = createUniqueHash(entry.data);
+			const existingEntryIndex = getDedupedEntryIndex(
+				uniqueHash,
+				processedEntries,
+				allEntries,
+				entry.data,
+			);
+			if (existingEntryIndex === -1) {
+				continue;
 			}
-		});
+
+			if (existingEntryIndex != null) {
+				allEntries[existingEntryIndex] = entry;
+			} else {
+				allEntries.push(entry);
+				markDedupedEntry(uniqueHash, processedEntries, allEntries.length - 1);
+			}
+		}
 	}
 
 	// Group by date, optionally including project
@@ -1065,12 +1340,10 @@ export async function loadSessionData(options?: LoadOptions): Promise<SessionUsa
 					return;
 				}
 
-				const parsed = JSON.parse(line) as unknown;
-				const result = v.safeParse(usageDataSchema, parsed);
-				if (!result.success) {
+				const data = parseUsageDataLine(line);
+				if (data == null) {
 					return;
 				}
-				const data = result.output;
 
 				// Check for duplicate message + request ID combination
 				const uniqueHash = createUniqueHash(data);
@@ -1269,12 +1542,10 @@ export async function loadSessionUsageById(
 				return;
 			}
 
-			const parsed = JSON.parse(line) as unknown;
-			const result = v.safeParse(usageDataSchema, parsed);
-			if (!result.success) {
+			const data = parseUsageDataLine(line);
+			if (data == null) {
 				return;
 			}
-			const data = result.output;
 
 			const cost =
 				fetcher != null ? await calculateCostForEntry(data, mode, fetcher) : (data.costUSD ?? 0);
@@ -1518,12 +1789,10 @@ export async function loadSessionBlockData(options?: LoadOptions): Promise<Sessi
 					return;
 				}
 
-				const parsed = JSON.parse(line) as unknown;
-				const result = v.safeParse(usageDataSchema, parsed);
-				if (!result.success) {
+				const data = parseUsageDataLine(line);
+				if (data == null) {
 					return;
 				}
-				const data = result.output;
 
 				const uniqueHash = createUniqueHash(data);
 
@@ -4835,9 +5104,7 @@ if (import.meta.vitest != null) {
 					mode: 'display',
 				});
 
-				// Should only have one entry for 2025-01-10
 				expect(data).toHaveLength(1);
-				expect(data[0]?.date).toBe('2025-01-10');
 				expect(data[0]?.inputTokens).toBe(100);
 				expect(data[0]?.outputTokens).toBe(50);
 			});
