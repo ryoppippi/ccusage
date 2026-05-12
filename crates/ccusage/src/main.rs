@@ -16,11 +16,13 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
 mod cli;
+mod pricing;
 
 use cli::{
     BlocksArgs, Cli, Command, CostMode, CostSource, DailyArgs, SessionArgs, SharedArgs, SortOrder,
     StatuslineArgs, VisualBurnRate, WeekDay, WeeklyArgs,
 };
+use pricing::PricingMap;
 
 const DEFAULT_SESSION_DURATION_HOURS: f64 = 5.0;
 const DEFAULT_RECENT_DAYS: i64 = 3;
@@ -325,19 +327,6 @@ struct Projection {
     total_tokens: u64,
     total_cost: f64,
     remaining_minutes: u64,
-}
-
-#[derive(Debug, Clone, Copy)]
-struct Pricing {
-    input: f64,
-    output: f64,
-    cache_create: f64,
-    cache_read: f64,
-    input_above_200k: Option<f64>,
-    output_above_200k: Option<f64>,
-    cache_create_above_200k: Option<f64>,
-    cache_read_above_200k: Option<f64>,
-    fast_multiplier: f64,
 }
 
 fn main() -> Result<()> {
@@ -807,15 +796,20 @@ fn load_entries(shared: &SharedArgs, project_filter: Option<&str>) -> Result<Vec
         return Ok(Vec::new());
     }
 
+    let pricing = if shared.mode == CostMode::Display {
+        None
+    } else {
+        Some(PricingMap::load(shared.offline, log_level() != Some(0)))
+    };
     let tz = parse_tz(shared.timezone.as_deref());
     let mode = shared.mode;
     let mut loaded_files = if shared.single_thread {
         files
             .iter()
-            .map(|file| read_usage_file(file, tz.as_ref(), mode))
+            .map(|file| read_usage_file(file, tz.as_ref(), mode, pricing.as_ref()))
             .collect::<Vec<_>>()
     } else {
-        read_usage_files_parallel(&files, tz.as_ref(), mode)
+        read_usage_files_parallel(&files, tz.as_ref(), mode, pricing.as_ref())
     };
     loaded_files.sort_by(|a, b| match (a.timestamp, b.timestamp) {
         (Some(a_timestamp), Some(b_timestamp)) => a_timestamp.cmp(&b_timestamp),
@@ -871,6 +865,7 @@ fn read_usage_files_parallel(
     files: &[PathBuf],
     tz: Option<&JiffTimeZone>,
     mode: CostMode,
+    pricing: Option<&PricingMap>,
 ) -> Vec<LoadedFile> {
     let worker_count = thread::available_parallelism()
         .map(usize::from)
@@ -879,7 +874,7 @@ fn read_usage_files_parallel(
     if worker_count <= 1 {
         return files
             .iter()
-            .map(|file| read_usage_file(file, tz, mode))
+            .map(|file| read_usage_file(file, tz, mode, pricing))
             .collect();
     }
 
@@ -891,7 +886,7 @@ fn read_usage_files_parallel(
             handles.push(scope.spawn(move || {
                 chunk
                     .iter()
-                    .map(|file| read_usage_file(file, tz.as_ref(), mode))
+                    .map(|file| read_usage_file(file, tz.as_ref(), mode, pricing))
                     .collect::<Vec<_>>()
             }));
         }
@@ -934,7 +929,12 @@ fn should_replace_deduped_entry(candidate: &UsageEntry, existing: &UsageEntry) -
     candidate.message.usage.speed.is_some() && existing.message.usage.speed.is_none()
 }
 
-fn read_usage_file(path: &Path, tz: Option<&JiffTimeZone>, mode: CostMode) -> LoadedFile {
+fn read_usage_file(
+    path: &Path,
+    tz: Option<&JiffTimeZone>,
+    mode: CostMode,
+    pricing: Option<&PricingMap>,
+) -> LoadedFile {
     let project: Arc<str> = Arc::from(extract_project(path));
     let (session_id, project_path) = extract_session_parts(path);
     let session_id: Arc<str> = Arc::from(session_id);
@@ -969,7 +969,7 @@ fn read_usage_file(path: &Path, tz: Option<&JiffTimeZone>, mode: CostMode) -> Lo
             continue;
         }
         let date = format_date_tz(timestamp, tz);
-        let cost = calculate_cost(&data, mode);
+        let cost = calculate_cost(&data, mode, pricing);
         let usage_limit_reset_time =
             usage_limit_reset_time_from_line(line, data.is_api_error_message);
         let model = data.message.model.as_ref().and_then(|model| {
@@ -1333,6 +1333,7 @@ fn format_date_parts(year: i32, month: u32, day: u32) -> String {
     format!("{year:04}-{month:02}-{day:02}")
 }
 
+#[cfg(test)]
 fn format_utc_minute(timestamp: TimestampMs) -> String {
     let parts = timestamp.utc_parts();
     format!(
@@ -1363,21 +1364,21 @@ fn format_rfc3339_millis(timestamp: TimestampMs) -> String {
     )
 }
 
-fn calculate_cost(data: &UsageEntry, mode: CostMode) -> f64 {
+fn calculate_cost(data: &UsageEntry, mode: CostMode, pricing: Option<&PricingMap>) -> f64 {
     match mode {
         CostMode::Display => data.cost_usd.unwrap_or(0.0),
         CostMode::Auto => data
             .cost_usd
-            .unwrap_or_else(|| calculate_cost_from_tokens(data)),
-        CostMode::Calculate => calculate_cost_from_tokens(data),
+            .unwrap_or_else(|| calculate_cost_from_tokens(data, pricing)),
+        CostMode::Calculate => calculate_cost_from_tokens(data, pricing),
     }
 }
 
-fn calculate_cost_from_tokens(data: &UsageEntry) -> f64 {
+fn calculate_cost_from_tokens(data: &UsageEntry, pricing: Option<&PricingMap>) -> f64 {
     let Some(model) = data.message.model.as_deref() else {
         return 0.0;
     };
-    let Some(pricing) = pricing_for_model(model) else {
+    let Some(pricing) = pricing.and_then(|pricing| pricing.find(model)) else {
         return 0.0;
     };
     let usage = data.message.usage;
@@ -1416,133 +1417,6 @@ fn tiered_cost(tokens: u64, base: f64, above: Option<f64>) -> f64 {
         }
     }
     tokens as f64 * base
-}
-
-fn pricing_for_model(model: &str) -> Option<Pricing> {
-    let normalized = model
-        .strip_prefix("anthropic/")
-        .or_else(|| model.strip_prefix("claude-"))
-        .unwrap_or(model);
-    let model = if model.starts_with("claude-") {
-        model
-    } else {
-        normalized
-    };
-    if model.contains("opus-4-5") || model.contains("opus-4-6") || model.contains("opus-4-7") {
-        Some(Pricing {
-            input: 5e-6,
-            output: 25e-6,
-            cache_create: 6.25e-6,
-            cache_read: 0.5e-6,
-            input_above_200k: None,
-            output_above_200k: None,
-            cache_create_above_200k: None,
-            cache_read_above_200k: None,
-            fast_multiplier: if model.contains("opus-4-6") || model.contains("opus-4-7") {
-                6.0
-            } else {
-                1.0
-            },
-        })
-    } else if model.contains("haiku-4-5") {
-        Some(Pricing {
-            input: 1e-6,
-            output: 5e-6,
-            cache_create: 1.25e-6,
-            cache_read: 0.1e-6,
-            input_above_200k: None,
-            output_above_200k: None,
-            cache_create_above_200k: None,
-            cache_read_above_200k: None,
-            fast_multiplier: 1.0,
-        })
-    } else if model.contains("opus-4") {
-        Some(Pricing {
-            input: 15e-6,
-            output: 75e-6,
-            cache_create: 18.75e-6,
-            cache_read: 1.5e-6,
-            input_above_200k: None,
-            output_above_200k: None,
-            cache_create_above_200k: None,
-            cache_read_above_200k: None,
-            fast_multiplier: 1.0,
-        })
-    } else if model.contains("sonnet-4-6") {
-        Some(Pricing {
-            input: 3e-6,
-            output: 15e-6,
-            cache_create: 3.75e-6,
-            cache_read: 0.3e-6,
-            input_above_200k: None,
-            output_above_200k: None,
-            cache_create_above_200k: None,
-            cache_read_above_200k: None,
-            fast_multiplier: 1.0,
-        })
-    } else if model.contains("sonnet-4") {
-        Some(Pricing {
-            input: 3e-6,
-            output: 15e-6,
-            cache_create: 3.75e-6,
-            cache_read: 0.3e-6,
-            input_above_200k: Some(6e-6),
-            output_above_200k: Some(22.5e-6),
-            cache_create_above_200k: Some(7.5e-6),
-            cache_read_above_200k: Some(0.6e-6),
-            fast_multiplier: 1.0,
-        })
-    } else if model.contains("haiku-4") || model.contains("haiku-3-5") {
-        Some(Pricing {
-            input: 0.8e-6,
-            output: 4e-6,
-            cache_create: 1.0e-6,
-            cache_read: 0.08e-6,
-            input_above_200k: None,
-            output_above_200k: None,
-            cache_create_above_200k: None,
-            cache_read_above_200k: None,
-            fast_multiplier: 1.0,
-        })
-    } else if model.contains("opus-3") {
-        Some(Pricing {
-            input: 15e-6,
-            output: 75e-6,
-            cache_create: 18.75e-6,
-            cache_read: 1.5e-6,
-            input_above_200k: None,
-            output_above_200k: None,
-            cache_create_above_200k: None,
-            cache_read_above_200k: None,
-            fast_multiplier: 1.0,
-        })
-    } else if model.contains("sonnet-3") {
-        Some(Pricing {
-            input: 3e-6,
-            output: 15e-6,
-            cache_create: 3.75e-6,
-            cache_read: 0.3e-6,
-            input_above_200k: None,
-            output_above_200k: None,
-            cache_create_above_200k: None,
-            cache_read_above_200k: None,
-            fast_multiplier: 1.0,
-        })
-    } else if model.contains("haiku-3") {
-        Some(Pricing {
-            input: 0.25e-6,
-            output: 1.25e-6,
-            cache_create: 0.3e-6,
-            cache_read: 0.03e-6,
-            input_above_200k: None,
-            output_above_200k: None,
-            cache_create_above_200k: None,
-            cache_read_above_200k: None,
-            fast_multiplier: 1.0,
-        })
-    } else {
-        None
-    }
 }
 
 fn summarize_by_key<F, M>(
@@ -1916,7 +1790,8 @@ fn print_usage_table(
         eprintln!("No Claude usage data found.");
         return;
     }
-    let compact = shared.compact || terminal_width() < USAGE_COMPACT_WIDTH_THRESHOLD;
+    let terminal_width = terminal_width();
+    let compact = shared.compact || terminal_width < USAGE_COMPACT_WIDTH_THRESHOLD;
     let include_last_activity = rows.iter().any(|row| row.last_activity.is_some());
     print_box_title(title, shared);
     let mut headers = if compact {
@@ -1957,7 +1832,9 @@ fn print_usage_table(
         headers.push("Last Activity");
         aligns.push(Align::Left);
     }
-    let mut table = SimpleTable::new(headers, aligns, shared);
+    let mut table = SimpleTable::new(headers, aligns, shared)
+        .with_terminal_width(terminal_width)
+        .with_date_compaction(true);
     let aliases = parse_project_aliases(project_aliases);
     let mut current_project: Option<&str> = None;
     for row in rows {
@@ -2308,6 +2185,8 @@ struct SimpleTable<'a> {
     aligns: Vec<Align>,
     rows: Vec<Option<Vec<String>>>,
     shared: &'a SharedArgs,
+    terminal_width: usize,
+    compact_dates: bool,
 }
 
 impl<'a> SimpleTable<'a> {
@@ -2317,7 +2196,19 @@ impl<'a> SimpleTable<'a> {
             aligns,
             rows: Vec::new(),
             shared,
+            terminal_width: DEFAULT_TERMINAL_WIDTH,
+            compact_dates: false,
         }
+    }
+
+    fn with_terminal_width(mut self, width: usize) -> Self {
+        self.terminal_width = width;
+        self
+    }
+
+    fn with_date_compaction(mut self, compact_dates: bool) -> Self {
+        self.compact_dates = compact_dates;
+        self
     }
 
     fn push(&mut self, row: Vec<String>) {
@@ -2335,57 +2226,96 @@ impl<'a> SimpleTable<'a> {
     fn print(&self) {
         let widths = self.column_widths();
         println!("{}", border('┌', '┬', '┐', &widths));
-        println!(
-            "{}",
-            table_line(
-                &self
-                    .headers
-                    .iter()
-                    .map(|header| colour(self.shared, header, Colour::Blue))
-                    .collect::<Vec<_>>(),
-                &self.aligns,
-                &widths,
-            )
-        );
+        for header_row in expand_multiline_row(&self.headers, self.headers.len(), &widths) {
+            let header_row = header_row
+                .iter()
+                .map(|header| colour(self.shared, header, Colour::Blue))
+                .collect::<Vec<_>>();
+            println!("{}", table_line(&header_row, &self.aligns, &widths));
+        }
         println!("{}", border('├', '┼', '┤', &widths));
-        for row in &self.rows {
+        for (row_index, row) in self.rows.iter().enumerate() {
             match row {
                 Some(row) => {
-                    for physical_row in expand_multiline_row(row, self.headers.len()) {
+                    let row = self.compact_date_row(row, &widths);
+                    for physical_row in expand_multiline_row(&row, self.headers.len(), &widths) {
                         println!("{}", table_line(&physical_row, &self.aligns, &widths));
                     }
                 }
                 None => println!("{}", border('├', '┼', '┤', &widths)),
+            }
+            if matches!(row, Some(_))
+                && row_index + 1 < self.rows.len()
+                && !matches!(self.rows.get(row_index + 1), Some(None))
+            {
+                println!("{}", border('├', '┼', '┤', &widths));
             }
         }
         println!("{}", border('└', '┴', '┘', &widths));
     }
 
     fn column_widths(&self) -> Vec<usize> {
-        let mut widths = self
+        let content_widths = self
             .headers
             .iter()
             .enumerate()
             .map(|(index, header)| {
-                let minimum = if self.aligns.get(index) == Some(&Align::Right) {
-                    11
-                } else if index == 1 {
-                    15
+                if index == 1 {
+                    visible_width_sum(header)
                 } else {
-                    10
-                };
-                visible_width(header).max(minimum)
+                    visible_width_max_line(header)
+                }
             })
             .collect::<Vec<_>>();
+        let mut content_widths = content_widths;
         for row in self.rows.iter().flatten() {
             for (index, cell) in row.iter().enumerate() {
-                let max_line_width = cell.lines().map(visible_width).max().unwrap_or_default();
-                if let Some(width) = widths.get_mut(index) {
-                    *width = (*width).max(max_line_width + 2);
+                let cell_width = if index == 1 {
+                    visible_width_sum(cell)
+                } else {
+                    visible_width_max_line(cell)
+                };
+                if let Some(width) = content_widths.get_mut(index) {
+                    *width = (*width).max(cell_width);
                 }
             }
         }
+        let widths = content_widths
+            .iter()
+            .enumerate()
+            .map(|(index, width)| {
+                if self.aligns.get(index) == Some(&Align::Right) {
+                    (width + 3).max(11)
+                } else if index == 1 {
+                    (width + 2).max(15)
+                } else {
+                    (width + 2).max(10)
+                }
+            })
+            .collect::<Vec<_>>();
+        let total_required = cli_table_required_width(&widths);
+        let first_column_min = if self.compact_dates { 12 } else { 10 };
+        let mut widths =
+            fit_widths_to_terminal(widths, &self.aligns, self.terminal_width, first_column_min);
+        if self.compact_dates && total_required > self.terminal_width {
+            if let Some(width) = widths.first_mut() {
+                *width = (*width).max(10);
+            }
+        }
         widths
+    }
+
+    fn compact_date_row(&self, row: &[String], widths: &[usize]) -> Vec<String> {
+        if !self.compact_dates || widths.first().copied().unwrap_or_default() > 10 {
+            return row.to_vec();
+        }
+        let mut row = row.to_vec();
+        if let Some(first) = row.first_mut() {
+            if let Some(compact) = compact_date_cell(first) {
+                *first = compact;
+            }
+        }
+        row
     }
 }
 
@@ -2452,11 +2382,16 @@ fn push_breakdown_rows(
     }
 }
 
-fn expand_multiline_row(row: &[String], column_count: usize) -> Vec<Vec<String>> {
+fn expand_multiline_row(row: &[String], column_count: usize, widths: &[usize]) -> Vec<Vec<String>> {
     let cells = (0..column_count)
         .map(|index| {
+            let content_width = widths
+                .get(index)
+                .copied()
+                .unwrap_or_default()
+                .saturating_sub(2);
             row.get(index)
-                .map(|cell| cell.lines().map(str::to_string).collect::<Vec<_>>())
+                .map(|cell| wrap_cell_lines(cell, content_width))
                 .filter(|lines| !lines.is_empty())
                 .unwrap_or_else(|| vec![String::new()])
         })
@@ -2472,16 +2407,158 @@ fn expand_multiline_row(row: &[String], column_count: usize) -> Vec<Vec<String>>
         .collect()
 }
 
+fn fit_widths_to_terminal(
+    mut widths: Vec<usize>,
+    aligns: &[Align],
+    terminal_width: usize,
+    first_column_min: usize,
+) -> Vec<usize> {
+    if cli_table_required_width(&widths) <= terminal_width {
+        return widths;
+    }
+
+    let minimums = widths
+        .iter()
+        .enumerate()
+        .map(|(index, _)| {
+            if aligns.get(index) == Some(&Align::Right) {
+                10
+            } else if index == 0 {
+                first_column_min
+            } else if index == 1 {
+                12
+            } else {
+                8
+            }
+        })
+        .collect::<Vec<_>>();
+
+    let available_width = terminal_width.saturating_sub(widths.len() + 1);
+    let total_content_width = widths.iter().sum::<usize>();
+    if total_content_width > 0 {
+        let scale = available_width as f64 / total_content_width as f64;
+        for (index, width) in widths.iter_mut().enumerate() {
+            let scaled = (*width as f64 * scale).floor() as usize;
+            *width = scaled.max(minimums[index]);
+        }
+    }
+
+    while cli_table_required_width(&widths) > terminal_width {
+        let Some(index) = widths
+            .iter()
+            .enumerate()
+            .filter(|(index, width)| **width > minimums[*index])
+            .max_by_key(|(_, width)| **width)
+            .map(|(index, _)| index)
+        else {
+            break;
+        };
+        widths[index] -= 1;
+    }
+    widths
+}
+
+fn cli_table_required_width(widths: &[usize]) -> usize {
+    widths.iter().sum::<usize>() + widths.len() + 1
+}
+
+fn wrap_cell_lines(cell: &str, width: usize) -> Vec<String> {
+    if width == 0 {
+        return vec![String::new()];
+    }
+    let mut lines = Vec::new();
+    for line in cell.lines() {
+        if visible_width(line) <= width {
+            lines.push(line.to_string());
+            continue;
+        }
+        lines.extend(wrap_cell_line(line, width));
+    }
+    lines
+}
+
+fn wrap_cell_line(line: &str, width: usize) -> Vec<String> {
+    if line.split_whitespace().count() <= 1 {
+        return vec![truncate_visible(line, width)];
+    }
+
+    let mut lines = Vec::new();
+    let mut current = String::new();
+    for word in line.split_whitespace() {
+        let candidate_width = if current.is_empty() {
+            visible_width(word)
+        } else {
+            visible_width(&current) + 1 + visible_width(word)
+        };
+        if candidate_width <= width {
+            if !current.is_empty() {
+                current.push(' ');
+            }
+            current.push_str(word);
+        } else {
+            if !current.is_empty() {
+                lines.push(current);
+            }
+            current = if visible_width(word) > width {
+                truncate_visible(word, width)
+            } else {
+                word.to_string()
+            };
+        }
+    }
+    if !current.is_empty() {
+        lines.push(current);
+    }
+    lines
+}
+
+fn truncate_visible(value: &str, width: usize) -> String {
+    if visible_width(value) <= width {
+        return value.to_string();
+    }
+    if width <= 1 {
+        return "…".to_string();
+    }
+    let mut output = String::new();
+    let mut current_width = 0;
+    for ch in value.chars() {
+        let char_width = if ch.len_utf8() > 1 { 2 } else { 1 };
+        if current_width + char_width >= width {
+            break;
+        }
+        output.push(ch);
+        current_width += char_width;
+    }
+    output.push('…');
+    output
+}
+
+fn compact_date_cell(value: &str) -> Option<String> {
+    let bytes = value.as_bytes();
+    if bytes.len() == 10
+        && bytes[4] == b'-'
+        && bytes[7] == b'-'
+        && bytes[..4].iter().all(u8::is_ascii_digit)
+        && bytes[5..7].iter().all(u8::is_ascii_digit)
+        && bytes[8..10].iter().all(u8::is_ascii_digit)
+    {
+        Some(format!("{}\n{}", &value[..4], &value[5..]))
+    } else {
+        None
+    }
+}
+
 fn table_line(cells: &[String], aligns: &[Align], widths: &[usize]) -> String {
     let mut line = String::from("│");
     for (index, width) in widths.iter().enumerate() {
         let cell = cells.get(index).map(String::as_str).unwrap_or("");
+        let align = if index == 0 && cell.starts_with("(assuming ") {
+            Align::Right
+        } else {
+            aligns.get(index).copied().unwrap_or(Align::Left)
+        };
         line.push(' ');
-        line.push_str(&pad_cell(
-            cell,
-            width.saturating_sub(2),
-            aligns.get(index).copied().unwrap_or(Align::Left),
-        ));
+        line.push_str(&pad_cell(cell, width.saturating_sub(2), align));
         line.push(' ');
         line.push('│');
     }
@@ -2539,6 +2616,14 @@ fn visible_width(value: &str) -> usize {
     width
 }
 
+fn visible_width_max_line(value: &str) -> usize {
+    value.lines().map(visible_width).max().unwrap_or_default()
+}
+
+fn visible_width_sum(value: &str) -> usize {
+    value.lines().map(visible_width).sum()
+}
+
 fn terminal_width() -> usize {
     env::var("COLUMNS")
         .ok()
@@ -2585,9 +2670,31 @@ extern "C" {
 }
 
 fn print_box_title(title: &str, shared: &SharedArgs) {
-    println!("┌{}┐", "─".repeat(title.len() + 2));
-    println!("│ {} │", colour(shared, title, Colour::Blue));
-    println!("└{}┘", "─".repeat(title.len() + 2));
+    if log_level() == Some(0) {
+        return;
+    }
+    let content_width = visible_width(title).max(40) + 2;
+    let padding = content_width.saturating_sub(visible_width(title));
+    let left_padding = padding / 2;
+    let right_padding = padding - left_padding;
+    println!();
+    println!("╭{}╮", "─".repeat(content_width + 2));
+    println!("│{}│", " ".repeat(content_width + 2));
+    println!(
+        "│ {}{}{} │",
+        " ".repeat(left_padding),
+        colour(shared, title, Colour::Blue),
+        " ".repeat(right_padding)
+    );
+    println!("│{}│", " ".repeat(content_width + 2));
+    println!("╰{}╯", "─".repeat(content_width + 2));
+    println!();
+}
+
+fn log_level() -> Option<u8> {
+    env::var("LOG_LEVEL")
+        .ok()
+        .and_then(|value| value.parse::<u8>().ok())
 }
 
 fn colour(shared: &SharedArgs, value: impl AsRef<str>, colour: Colour) -> String {
@@ -2612,14 +2719,12 @@ fn use_colour(shared: &SharedArgs) -> bool {
     shared.color || env::var_os("FORCE_COLOR").is_some() || io::stdout().is_terminal()
 }
 
-fn format_models_display(models: &[String]) -> String {
-    let mut models = models
-        .iter()
-        .map(|model| short_model_name(model))
-        .collect::<Vec<_>>();
-    models.sort();
-    models.dedup();
-    models.join(", ")
+fn format_block_models(models: &[String]) -> String {
+    if models.is_empty() {
+        "-".to_string()
+    } else {
+        format_models_multiline(models)
+    }
 }
 
 fn format_models_multiline(models: &[String]) -> String {
@@ -2751,15 +2856,122 @@ fn short_model_name(model: &str) -> String {
 }
 
 fn format_block_time(block: &SessionBlock, compact: bool) -> String {
+    let start = format_local_block_start(block.start_time, compact);
+    if block.is_gap {
+        let end = format_local_block_end(block.end_time, compact);
+        let duration = block.end_time.duration_since(block.start_time) / MILLIS_PER_HOUR;
+        return if compact {
+            format!("{start}-{end}\n({duration}h gap)")
+        } else {
+            format!("{start} - {end} ({duration}h gap)")
+        };
+    }
+
+    if block.is_active {
+        let now = utc_now();
+        let elapsed = now.duration_since(block.start_time) / MILLIS_PER_MINUTE;
+        let remaining = block.end_time.duration_since(now) / MILLIS_PER_MINUTE;
+        let elapsed_hours = elapsed / 60;
+        let elapsed_minutes = elapsed.rem_euclid(60);
+        let remaining_hours = remaining / 60;
+        let remaining_minutes = remaining.rem_euclid(60);
+        return if compact {
+            format!("{start}\n({elapsed_hours}h{elapsed_minutes}m/{remaining_hours}h{remaining_minutes}m)")
+        } else {
+            format!(
+                "{start} ({elapsed_hours}h {elapsed_minutes}m elapsed, {remaining_hours}h {remaining_minutes}m remaining)"
+            )
+        };
+    }
+
+    let duration = block
+        .actual_end_time
+        .map(|end| end.duration_since(block.start_time) / MILLIS_PER_MINUTE)
+        .unwrap_or(0);
+    let hours = duration / 60;
+    let minutes = duration.rem_euclid(60);
     if compact {
-        let parts = block.start_time.utc_parts();
+        if hours > 0 {
+            format!("{start}\n({hours}h{minutes}m)")
+        } else {
+            format!("{start}\n({minutes}m)")
+        }
+    } else if hours > 0 {
+        format!("{start} ({hours}h {minutes}m)")
+    } else {
+        format!("{start} ({minutes}m)")
+    }
+}
+
+fn format_local_block_start(timestamp: TimestampMs, compact: bool) -> String {
+    let parts = local_parts(timestamp);
+    if compact {
         format!(
-            "{}\n{}",
-            format_utc_date(block.start_time),
-            format!("{:02}:{:02}", parts.hour, parts.minute)
+            "{:02}/{:02}, {:02}:{:02} {}",
+            parts.month,
+            parts.day,
+            hour_12(parts.hour),
+            parts.minute,
+            am_pm(parts.hour)
         )
     } else {
-        format_utc_minute(block.start_time)
+        format!(
+            "{}/{}/{}, {}:{:02}:{:02} {}",
+            parts.month,
+            parts.day,
+            parts.year,
+            hour_12(parts.hour),
+            parts.minute,
+            parts.second,
+            am_pm(parts.hour)
+        )
+    }
+}
+
+fn format_local_block_end(timestamp: TimestampMs, compact: bool) -> String {
+    let parts = local_parts(timestamp);
+    if compact {
+        format!(
+            "{:02}:{:02} {}",
+            hour_12(parts.hour),
+            parts.minute,
+            am_pm(parts.hour)
+        )
+    } else {
+        format_local_block_start(timestamp, false)
+    }
+}
+
+fn local_parts(timestamp: TimestampMs) -> UtcParts {
+    let Ok(timestamp) = JiffTimestamp::from_millisecond(timestamp.as_millis()) else {
+        return timestamp.utc_parts();
+    };
+    let zoned = timestamp.to_zoned(JiffTimeZone::system());
+    UtcParts {
+        year: i32::from(zoned.year()),
+        month: u32::from(zoned.month() as u8),
+        day: u32::from(zoned.day() as u8),
+        hour: u32::from(zoned.hour() as u8),
+        minute: u32::from(zoned.minute() as u8),
+        second: u32::from(zoned.second() as u8),
+        millisecond: 0,
+    }
+}
+
+fn hour_12(hour: u32) -> u32 {
+    let hour = hour % 12;
+    if hour == 0 {
+        12
+    } else {
+        hour
+    }
+}
+
+fn am_pm(hour: u32) -> &'static str {
+    if hour < 12 {
+        "AM"
+    } else {
+        "PM"
     }
 }
 
@@ -2773,7 +2985,8 @@ fn print_blocks_table(
         eprintln!("No Claude usage data found.");
         return;
     }
-    let compact = shared.compact || terminal_width() < BLOCKS_COMPACT_WIDTH_THRESHOLD;
+    let terminal_width = terminal_width();
+    let compact = shared.compact || terminal_width < BLOCKS_COMPACT_WIDTH_THRESHOLD;
     let actual_limit = parse_token_limit(token_limit, max_tokens);
     print_box_title("Claude Code Token Usage Report - Session Blocks", shared);
     let mut headers = vec!["Block Start", "Duration/Status", "Models", "Tokens"];
@@ -2784,7 +2997,7 @@ fn print_blocks_table(
     }
     headers.push("Cost");
     aligns.push(Align::Right);
-    let mut table = SimpleTable::new(headers, aligns, shared);
+    let mut table = SimpleTable::new(headers, aligns, shared).with_terminal_width(terminal_width);
     for block in blocks {
         if block.is_gap {
             let mut row = vec![
@@ -2808,7 +3021,7 @@ fn print_blocks_table(
             } else {
                 String::new()
             },
-            format_models_display(&block.models),
+            format_block_models(&block.models),
             format_number(total),
         ];
         if let Some(limit) = actual_limit.filter(|limit| *limit > 0) {
@@ -2825,6 +3038,7 @@ fn print_blocks_table(
 
         if block.is_active {
             if let Some(limit) = actual_limit.filter(|limit| *limit > 0) {
+                table.separator();
                 let remaining = limit.saturating_sub(total);
                 let remaining_percent = (limit.saturating_sub(total) as f64 / limit as f64) * 100.0;
                 let mut remaining_row = vec![
@@ -2851,6 +3065,7 @@ fn print_blocks_table(
             }
 
             if let Some(projection) = project_block_usage(block) {
+                table.separator();
                 let mut projected_row = vec![
                     colour(shared, "(assuming current burn rate)", Colour::Grey),
                     colour(shared, "PROJECTED", Colour::Yellow),
