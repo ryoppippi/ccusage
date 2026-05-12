@@ -189,7 +189,7 @@ function getJSONLFileReadConcurrency(fileCount: number, singleThread = false): n
 }
 
 function getTimestampFromLine(line: string): Date | null {
-	const timestamp = extractLastStringField(line, 'timestamp');
+	const timestamp = extractStringField(line, 'timestamp');
 	if (timestamp != null) {
 		const date = dateFromIsoTimestamp(timestamp);
 		if (date != null) {
@@ -485,7 +485,7 @@ function parseUsageDataLineFast(line: string, allowContent = false): UsageData |
 		return null;
 	}
 
-	const timestamp = extractLastStringField(line, 'timestamp');
+	const timestamp = extractStringField(line, 'timestamp');
 	if (timestamp == null || !ISO_TIMESTAMP_PATTERN.test(timestamp)) {
 		return null;
 	}
