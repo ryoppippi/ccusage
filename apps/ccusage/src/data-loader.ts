@@ -1339,18 +1339,6 @@ type UsageWorkerResponse<TResult> = {
 	}>;
 };
 
-function createUsageEntryMetadata(data: UsageData): {
-	uniqueHash: string | null;
-	tokenTotal: number;
-	hasSpeed: boolean;
-} {
-	return {
-		uniqueHash: createUniqueHash(data),
-		tokenTotal: getUsageTokenTotal(data),
-		hasSpeed: data.message.usage.speed != null,
-	};
-}
-
 function shouldReplaceEntryMetadata(
 	candidate: { tokenTotal: number; hasSpeed: boolean },
 	existing: { tokenTotal: number; hasSpeed: boolean },
@@ -1503,7 +1491,9 @@ async function collectDailyEntriesFromFile(
 			}
 
 			const date = formatUsageDate(data.timestamp);
-			const metadata = createUsageEntryMetadata(data);
+			const uniqueHash = createUniqueHash(data);
+			const tokenTotal = getUsageTokenTotal(data);
+			const hasSpeed = data.message.usage.speed != null;
 			const immediateCost = getImmediateCostForEntry(data, mode);
 			if (immediateCost !== undefined) {
 				entries.push({
@@ -1512,7 +1502,9 @@ async function collectDailyEntriesFromFile(
 					model: getDisplayModelName(data),
 					project,
 					usage: data.message.usage,
-					...metadata,
+					uniqueHash,
+					tokenTotal,
+					hasSpeed,
 				});
 				return;
 			}
@@ -1534,7 +1526,9 @@ async function collectDailyEntriesFromFile(
 					model: getDisplayModelName(deferredData),
 					project,
 					usage: deferredData.message.usage,
-					...createUsageEntryMetadata(deferredData),
+					uniqueHash: createUniqueHash(deferredData),
+					tokenTotal: getUsageTokenTotal(deferredData),
+					hasSpeed: deferredData.message.usage.speed != null,
 				};
 			}),
 		);
@@ -1571,7 +1565,9 @@ async function collectSessionEntriesFromFile(
 			}
 
 			const immediateCost = getImmediateCostForEntry(data, mode);
-			const metadata = createUsageEntryMetadata(data);
+			const uniqueHash = createUniqueHash(data);
+			const tokenTotal = getUsageTokenTotal(data);
+			const hasSpeed = data.message.usage.speed != null;
 			if (immediateCost !== undefined) {
 				entries.push({
 					sessionKey: `${projectPath}/${sessionId}`,
@@ -1582,7 +1578,9 @@ async function collectSessionEntriesFromFile(
 					model: getDisplayModelName(data),
 					usage: data.message.usage,
 					version: data.version,
-					...metadata,
+					uniqueHash,
+					tokenTotal,
+					hasSpeed,
 				});
 				return;
 			}
@@ -1605,7 +1603,9 @@ async function collectSessionEntriesFromFile(
 					model: getDisplayModelName(deferredData),
 					usage: deferredData.message.usage,
 					version: deferredData.version,
-					...createUsageEntryMetadata(deferredData),
+					uniqueHash: createUniqueHash(deferredData),
+					tokenTotal: getUsageTokenTotal(deferredData),
+					hasSpeed: deferredData.message.usage.speed != null,
 				};
 			}),
 		);
@@ -1658,7 +1658,6 @@ async function collectBlockFileResult(
 
 			const createEntry = (cost: number): BlockEntryResult => {
 				const usageLimitResetTime = getUsageLimitResetTime(data);
-				const metadata = createUsageEntryMetadata(data);
 				return {
 					entry: {
 						timestamp: lineTimestamp,
@@ -1673,7 +1672,9 @@ async function collectBlockFileResult(
 						version: data.version,
 						usageLimitResetTime: usageLimitResetTime ?? undefined,
 					},
-					...metadata,
+					uniqueHash: createUniqueHash(data),
+					tokenTotal: getUsageTokenTotal(data),
+					hasSpeed: data.message.usage.speed != null,
 				};
 			};
 
