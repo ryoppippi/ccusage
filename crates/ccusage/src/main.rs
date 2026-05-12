@@ -2285,7 +2285,7 @@ impl<'a> SimpleTable<'a> {
                 }
                 None => println!("{}", border('├', '┼', '┤', &widths)),
             }
-            if matches!(row, Some(_))
+            if row.is_some()
                 && row_index + 1 < self.rows.len()
                 && !matches!(self.rows.get(row_index + 1), Some(None))
             {

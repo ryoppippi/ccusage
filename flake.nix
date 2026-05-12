@@ -2,22 +2,34 @@
   description = "Usage analysis tool for Claude Code";
 
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
+  inputs.rust-overlay = {
+    url = "github:oxalica/rust-overlay";
+    inputs.nixpkgs.follows = "nixpkgs";
+  };
 
-  outputs = { nixpkgs, ... }:
+  outputs = { nixpkgs, rust-overlay, ... }:
     let
       systems = [ "x86_64-linux" "aarch64-linux" "x86_64-darwin" "aarch64-darwin" ];
-      forAllSystems = f: nixpkgs.lib.genAttrs systems (system: f nixpkgs.legacyPackages.${system});
+      forAllSystems = f:
+        nixpkgs.lib.genAttrs systems (system:
+          let
+            pkgs = import nixpkgs {
+              inherit system;
+              overlays = [ rust-overlay.overlays.default ];
+            };
+          in f pkgs);
     in {
       devShells = forAllSystems (pkgs: {
-        default = pkgs.mkShell {
+        default =
+        let
+          rustToolchain = pkgs.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml;
+        in pkgs.mkShell {
           buildInputs = with pkgs; [
             # Package manager
             pnpm_10
 
             # Development tools
-            cargo
-            rustc
-            rustfmt
+            rustToolchain
             pkg-config
             openssl
             typos
