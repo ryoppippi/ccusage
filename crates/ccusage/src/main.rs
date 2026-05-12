@@ -3,6 +3,7 @@ use std::{
     env, fs,
     io::{self, IsTerminal, Read},
     path::{Path, PathBuf},
+    sync::Arc,
 };
 
 #[cfg(unix)]
@@ -111,9 +112,9 @@ struct LoadedEntry {
     data: UsageEntry,
     timestamp: DateTime<Utc>,
     date: String,
-    project: String,
-    session_id: String,
-    project_path: String,
+    project: Arc<str>,
+    session_id: Arc<str>,
+    project_path: Arc<str>,
     cost: f64,
     model: Option<String>,
     usage_limit_reset_time: Option<DateTime<Utc>>,
@@ -373,8 +374,8 @@ fn run_session(args: SessionArgs) -> Result<()> {
             .max_by_key(|entry| entry.timestamp)
             .context("empty session group")?;
         let mut summary = aggregate_entries(&group);
-        summary.session_id = Some(latest.session_id.clone());
-        summary.project_path = Some(latest.project_path.clone());
+        summary.session_id = Some(latest.session_id.to_string());
+        summary.project_path = Some(latest.project_path.to_string());
         summary.last_activity = Some(format_date(
             latest.timestamp,
             session_shared.timezone.as_deref(),
@@ -416,7 +417,9 @@ fn run_session_id(id: &str, shared: &SharedArgs) -> Result<()> {
     let entries = load_entries(shared, None)?;
     let mut session_entries = entries
         .into_iter()
-        .filter(|entry| entry.data.session_id.as_deref() == Some(id) || entry.session_id == id)
+        .filter(|entry| {
+            entry.data.session_id.as_deref() == Some(id) || entry.session_id.as_ref() == id
+        })
         .collect::<Vec<_>>();
     session_entries.sort_by_key(|entry| entry.timestamp);
 
@@ -650,7 +653,8 @@ fn calculate_session_cost(session_id: &str, shared: &SharedArgs) -> Result<f64> 
     Ok(load_entries(shared, None)?
         .into_iter()
         .filter(|entry| {
-            entry.data.session_id.as_deref() == Some(session_id) || entry.session_id == session_id
+            entry.data.session_id.as_deref() == Some(session_id)
+                || entry.session_id.as_ref() == session_id
         })
         .map(|entry| entry.cost)
         .sum())
@@ -712,7 +716,7 @@ fn load_entries(shared: &SharedArgs, project_filter: Option<&str>) -> Result<Vec
     for loaded_file in loaded_files {
         for entry in loaded_file.entries {
             if let Some(filter) = project_filter {
-                if entry.project != filter {
+                if entry.project.as_ref() != filter {
                     continue;
                 }
             }
@@ -763,8 +767,10 @@ fn should_replace_deduped_entry(candidate: &UsageEntry, existing: &UsageEntry) -
 }
 
 fn read_usage_file(path: &Path, tz: Option<&JiffTimeZone>, mode: CostMode) -> LoadedFile {
-    let project = extract_project(path);
+    let project: Arc<str> = Arc::from(extract_project(path));
     let (session_id, project_path) = extract_session_parts(path);
+    let session_id: Arc<str> = Arc::from(session_id);
+    let project_path: Arc<str> = Arc::from(project_path);
     let mut loaded_file = LoadedFile {
         path: path.to_path_buf(),
         timestamp: None,
@@ -812,9 +818,9 @@ fn read_usage_file(path: &Path, tz: Option<&JiffTimeZone>, mode: CostMode) -> Lo
             data,
             timestamp,
             date,
-            project: project.clone(),
-            session_id: session_id.clone(),
-            project_path: project_path.clone(),
+            project: Arc::clone(&project),
+            session_id: Arc::clone(&session_id),
+            project_path: Arc::clone(&project_path),
             cost,
             model,
             usage_limit_reset_time,
