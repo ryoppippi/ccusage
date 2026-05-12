@@ -95,7 +95,6 @@
 		"pretty-ms": "catalog:runtime",
 		"publint": "catalog:lint",
 		"string-width": "catalog:runtime",
-		"tinyglobby": "catalog:runtime",
 		"tsdown": "catalog:build",
 		"type-fest": "catalog:runtime",
 		"unplugin-macros": "catalog:build",

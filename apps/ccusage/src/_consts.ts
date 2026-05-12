@@ -69,12 +69,6 @@ export const CLAUDE_CONFIG_DIR_ENV = 'CLAUDE_CONFIG_DIR';
 export const CLAUDE_PROJECTS_DIR_NAME = 'projects';
 
 /**
- * JSONL file glob pattern for finding usage data files
- * Used to recursively find all JSONL files in project directories
- */
-export const USAGE_DATA_GLOB_PATTERN = '**/*.jsonl';
-
-/**
  * Default port for MCP server HTTP transport
  * Used when no port is specified for MCP server communication
  */

@@ -13,7 +13,7 @@ import type { LoadedUsageEntry, SessionBlock } from './_session-blocks.ts';
 import type { ActivityDate, Bucket, CostMode, ModelName, SortOrder, Version } from './_types.ts';
 import { Buffer } from 'node:buffer';
 import { createReadStream, createWriteStream } from 'node:fs';
-import { readFile, stat, utimes } from 'node:fs/promises';
+import { readdir, readFile, stat, utimes } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
@@ -23,14 +23,12 @@ import { Result } from '@praha/byethrow';
 import { sort } from 'fast-sort';
 import { createFixture } from 'fs-fixture';
 import { isDirectorySync } from 'path-type';
-import { glob } from 'tinyglobby';
 import * as v from 'valibot';
 import {
 	CLAUDE_CONFIG_DIR_ENV,
 	CLAUDE_PROJECTS_DIR_NAME,
 	DEFAULT_CLAUDE_CODE_PATH,
 	DEFAULT_CLAUDE_CONFIG_PATH,
-	USAGE_DATA_GLOB_PATTERN,
 	USER_HOME_DIR,
 } from './_consts.ts';
 import {
@@ -1125,6 +1123,30 @@ export type GlobResult = {
 	baseDir: string;
 };
 
+export async function collectJsonlFiles(root: string): Promise<string[]> {
+	const files: string[] = [];
+	const walk = async (dir: string): Promise<void> => {
+		let entries;
+		try {
+			entries = await readdir(dir, { withFileTypes: true });
+		} catch {
+			return;
+		}
+		await Promise.all(
+			entries.map(async (entry) => {
+				const filePath = path.join(dir, entry.name);
+				if (entry.isDirectory()) {
+					await walk(filePath);
+				} else if (entry.isFile() && entry.name.endsWith('.jsonl')) {
+					files.push(filePath);
+				}
+			}),
+		);
+	};
+	await walk(root);
+	return files.sort((a, b) => a.localeCompare(b));
+}
+
 /**
  * Glob files from multiple Claude paths in parallel
  * @param claudePaths - Array of Claude base paths
@@ -1133,12 +1155,8 @@ export type GlobResult = {
 export async function globUsageFiles(claudePaths: string[]): Promise<GlobResult[]> {
 	const filePromises = claudePaths.map(async (claudePath) => {
 		const claudeDir = path.join(claudePath, CLAUDE_PROJECTS_DIR_NAME);
-		const files = await glob([USAGE_DATA_GLOB_PATTERN], {
-			cwd: claudeDir,
-			absolute: true,
-		}).catch(() => []); // Gracefully handle errors for individual paths
+		const files = await collectJsonlFiles(claudeDir);
 
-		// Map each file to include its base directory
 		return files.map((file) => ({ file, baseDir: claudeDir }));
 	});
 	return (await Promise.all(filePromises)).flat();
@@ -1629,19 +1647,17 @@ export async function loadSessionUsageById(
 ): Promise<{ totalCost: number; entries: UsageData[] } | null> {
 	const claudePaths = getClaudePaths();
 
-	// Find the JSONL file for this session ID
-	// On Windows, replace backslashes from path.join with forward slashes for tinyglobby compatibility
-	const patterns = claudePaths.map((p) =>
-		path.join(p, 'projects', '**', `${sessionId}.jsonl`).replace(/\\/g, '/'),
-	);
-	// Absolute paths important on Windows - relative paths will break if session file is on different disk.
-	const jsonlFiles = await glob(patterns, { absolute: true });
-
-	if (jsonlFiles.length === 0) {
-		return null;
+	const targetFile = `${sessionId}.jsonl`;
+	let file: string | undefined;
+	for (const claudePath of claudePaths) {
+		const claudeDir = path.join(claudePath, CLAUDE_PROJECTS_DIR_NAME);
+		file = (await collectJsonlFiles(claudeDir)).find(
+			(candidate) => path.basename(candidate) === targetFile,
+		);
+		if (file != null) {
+			break;
+		}
 	}
-
-	const file = jsonlFiles[0];
 	if (file == null) {
 		return null;
 	}
@@ -1871,11 +1887,7 @@ export async function loadSessionBlockData(options?: LoadOptions): Promise<Sessi
 	const allFiles: string[] = [];
 	for (const claudePath of claudePaths) {
 		const claudeDir = path.join(claudePath, CLAUDE_PROJECTS_DIR_NAME);
-		const files = await glob([USAGE_DATA_GLOB_PATTERN], {
-			cwd: claudeDir,
-			absolute: true,
-		});
-		allFiles.push(...files);
+		allFiles.push(...(await collectJsonlFiles(claudeDir)));
 	}
 
 	if (allFiles.length === 0) {
