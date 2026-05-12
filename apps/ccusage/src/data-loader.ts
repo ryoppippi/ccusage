@@ -202,7 +202,8 @@ function getJSONLFileReadConcurrency(fileCount: number, singleThread = false): n
 
 function getDefaultJSONLWorkerThreadCount(fileCount: number): number {
 	const available = os.availableParallelism();
-	return Math.min(fileCount, Math.max(1, Math.min(available, JSONL_WORKER_THREAD_LIMIT)));
+	const workerCount = Math.min(Math.ceil(available / 2), JSONL_WORKER_THREAD_LIMIT);
+	return Math.min(fileCount, Math.max(1, workerCount));
 }
 
 function getTimestampFromLine(line: string): Date | null {
