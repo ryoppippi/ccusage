@@ -75,6 +75,106 @@ const MAX_BUFFERED_JSONL_BYTES = 128 * 1024 * 1024;
 const DEFAULT_JSONL_WORKER_THREAD_LIMIT = 4;
 const VERSION_PATTERN = /^\d+\.\d+\.\d+/;
 
+function parseTwoDigits(value: string, offset: number): number {
+	return (value.charCodeAt(offset) - 48) * 10 + value.charCodeAt(offset + 1) - 48;
+}
+
+function parseFourDigits(value: string, offset: number): number {
+	return (
+		(value.charCodeAt(offset) - 48) * 1000 +
+		(value.charCodeAt(offset + 1) - 48) * 100 +
+		(value.charCodeAt(offset + 2) - 48) * 10 +
+		(value.charCodeAt(offset + 3) - 48)
+	);
+}
+
+function hasAsciiDigits(value: string, start: number, end: number): boolean {
+	for (let index = start; index < end; index++) {
+		const code = value.charCodeAt(index);
+		if (code < 48 || code > 57) {
+			return false;
+		}
+	}
+	return true;
+}
+
+function daysInMonth(year: number, month: number): number {
+	switch (month) {
+		case 1:
+		case 3:
+		case 5:
+		case 7:
+		case 8:
+		case 10:
+		case 12:
+			return 31;
+		case 4:
+		case 6:
+		case 9:
+		case 11:
+			return 30;
+		case 2:
+			return year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0) ? 29 : 28;
+		default:
+			return 0;
+	}
+}
+
+function parseIsoTimestampMs(value: string): number {
+	const length = value.length;
+	if (
+		(length !== 20 && length !== 24) ||
+		value.charCodeAt(length - 1) !== 90 ||
+		value.charCodeAt(4) !== 45 ||
+		value.charCodeAt(7) !== 45 ||
+		value.charCodeAt(10) !== 84 ||
+		value.charCodeAt(13) !== 58 ||
+		value.charCodeAt(16) !== 58 ||
+		(length === 24 && value.charCodeAt(19) !== 46) ||
+		!hasAsciiDigits(value, 0, 4) ||
+		!hasAsciiDigits(value, 5, 7) ||
+		!hasAsciiDigits(value, 8, 10) ||
+		!hasAsciiDigits(value, 11, 13) ||
+		!hasAsciiDigits(value, 14, 16) ||
+		!hasAsciiDigits(value, 17, 19) ||
+		(length === 24 && !hasAsciiDigits(value, 20, 23))
+	) {
+		return Number.NaN;
+	}
+
+	const year = parseFourDigits(value, 0);
+	const month = parseTwoDigits(value, 5);
+	const day = parseTwoDigits(value, 8);
+	const hour = parseTwoDigits(value, 11);
+	const minute = parseTwoDigits(value, 14);
+	const second = parseTwoDigits(value, 17);
+	const millisecond =
+		length === 24
+			? (value.charCodeAt(20) - 48) * 100 +
+				(value.charCodeAt(21) - 48) * 10 +
+				(value.charCodeAt(22) - 48)
+			: 0;
+	if (
+		month < 1 ||
+		month > 12 ||
+		day < 1 ||
+		day > daysInMonth(year, month) ||
+		hour > 23 ||
+		minute > 59 ||
+		second > 59 ||
+		millisecond > 999
+	) {
+		return Number.NaN;
+	}
+
+	return Date.UTC(year, month - 1, day, hour, minute, second, millisecond);
+}
+
+function dateFromIsoTimestamp(value: string): Date | null {
+	const timestamp = parseIsoTimestampMs(value);
+	return Number.isNaN(timestamp) ? null : new Date(timestamp);
+}
+
 function getJSONLFileReadConcurrency(fileCount: number, singleThread = false): number {
 	if (singleThread) {
 		return 1;
@@ -90,8 +190,11 @@ function getJSONLFileReadConcurrency(fileCount: number, singleThread = false): n
 
 function getTimestampFromLine(line: string): Date | null {
 	const timestamp = extractLastStringField(line, 'timestamp');
-	if (timestamp != null && ISO_TIMESTAMP_PATTERN.test(timestamp)) {
-		return new Date(timestamp);
+	if (timestamp != null) {
+		const date = dateFromIsoTimestamp(timestamp);
+		if (date != null) {
+			return date;
+		}
 	}
 
 	if (!line.includes('"timestamp"')) {
@@ -103,7 +206,7 @@ function getTimestampFromLine(line: string): Date | null {
 		if (typeof json.timestamp !== 'string') {
 			return null;
 		}
-		const date = new Date(json.timestamp);
+		const date = dateFromIsoTimestamp(json.timestamp) ?? new Date(json.timestamp);
 		return Number.isNaN(date.getTime()) ? null : date;
 	} catch {
 		return null;
@@ -1545,7 +1648,7 @@ async function collectBlockFileResult(
 				}
 				return;
 			}
-			const lineTimestamp = new Date(data.timestamp);
+			const lineTimestamp = dateFromIsoTimestamp(data.timestamp) ?? new Date(data.timestamp);
 			if (
 				!Number.isNaN(lineTimestamp.getTime()) &&
 				(timestamp == null || lineTimestamp < timestamp)
@@ -1558,7 +1661,7 @@ async function collectBlockFileResult(
 				const metadata = createUsageEntryMetadata(data);
 				return {
 					entry: {
-						timestamp: new Date(data.timestamp),
+						timestamp: lineTimestamp,
 						usage: {
 							inputTokens: data.message.usage.input_tokens,
 							outputTokens: data.message.usage.output_tokens,
