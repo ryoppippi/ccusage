@@ -379,7 +379,7 @@ function parseUsageDataLineFast(line: string, allowContent = false): UsageData |
 		(contentIndex !== -1 &&
 			(!allowContent || line.indexOf('"content":[', contentIndex) !== contentIndex)) ||
 		line.includes('"isApiErrorMessage":true') ||
-		FAST_PARSE_UNSUPPORTED_NULL_PATTERN.test(line)
+		(line.includes(':null') && FAST_PARSE_UNSUPPORTED_NULL_PATTERN.test(line))
 	) {
 		return null;
 	}
