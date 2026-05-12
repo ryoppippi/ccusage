@@ -70,9 +70,21 @@ import { unreachable } from './_utils.ts';
 import { logger } from './logger.ts';
 
 const USAGE_LINE_MARKER = '"input_tokens"';
+const CACHE_CREATION_INPUT_TOKENS_MARKER = '"cache_creation_input_tokens":';
+const CACHE_READ_INPUT_TOKENS_MARKER = '"cache_read_input_tokens":';
+const COST_USD_MARKER = '"costUSD":';
+const INPUT_TOKENS_MARKER = '"input_tokens":';
 const ISO_TIMESTAMP_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/;
 const MAX_BUFFERED_JSONL_BYTES = 128 * 1024 * 1024;
 const DEFAULT_JSONL_WORKER_THREAD_LIMIT = 4;
+const MESSAGE_ID_MARKER = '"id":"';
+const MODEL_MARKER = '"model":"';
+const OUTPUT_TOKENS_MARKER = '"output_tokens":';
+const REQUEST_ID_MARKER = '"requestId":"';
+const SESSION_ID_MARKER = '"sessionId":"';
+const SPEED_MARKER = '"speed":"';
+const TIMESTAMP_MARKER = '"timestamp":"';
+const VERSION_MARKER = '"version":"';
 const VERSION_PATTERN = /^\d+\.\d+\.\d+/;
 
 function parseTwoDigits(value: string, offset: number): number {
@@ -189,7 +201,7 @@ function getJSONLFileReadConcurrency(fileCount: number, singleThread = false): n
 }
 
 function getTimestampFromLine(line: string): Date | null {
-	const timestamp = extractStringField(line, 'timestamp');
+	const timestamp = extractStringMarker(line, TIMESTAMP_MARKER);
 	if (timestamp != null) {
 		const date = dateFromIsoTimestamp(timestamp);
 		if (date != null) {
@@ -414,8 +426,7 @@ function parseUsageDataFast(value: unknown): UsageData | null {
 	return value as UsageData;
 }
 
-function extractStringField(line: string, field: string, fromIndex = 0): string | undefined {
-	const marker = `"${field}":"`;
+function extractStringMarker(line: string, marker: string, fromIndex = 0): string | undefined {
 	const start = line.indexOf(marker, fromIndex);
 	if (start === -1) {
 		return undefined;
@@ -425,8 +436,7 @@ function extractStringField(line: string, field: string, fromIndex = 0): string 
 	return valueEnd === -1 ? undefined : line.slice(valueStart, valueEnd);
 }
 
-function extractLastStringField(line: string, field: string): string | undefined {
-	const marker = `"${field}":"`;
+function extractLastStringMarker(line: string, marker: string): string | undefined {
 	const start = line.lastIndexOf(marker);
 	if (start === -1) {
 		return undefined;
@@ -436,8 +446,7 @@ function extractLastStringField(line: string, field: string): string | undefined
 	return valueEnd === -1 ? undefined : line.slice(valueStart, valueEnd);
 }
 
-function extractNumberField(line: string, field: string, fromIndex = 0): number | undefined {
-	const marker = `"${field}":`;
+function extractNumberMarker(line: string, marker: string, fromIndex = 0): number | undefined {
 	const start = line.indexOf(marker, fromIndex);
 	if (start === -1) {
 		return undefined;
@@ -465,13 +474,38 @@ function extractNumberField(line: string, field: string, fromIndex = 0): number 
 	return Number.isFinite(value) ? value : undefined;
 }
 
-function extractLastNumberField(line: string, field: string): number | undefined {
-	const marker = `"${field}":`;
+function extractUnsignedIntegerMarker(
+	line: string,
+	marker: string,
+	fromIndex = 0,
+): number | undefined {
+	const start = line.indexOf(marker, fromIndex);
+	if (start === -1) {
+		return undefined;
+	}
+
+	let valueIndex = start + marker.length;
+	let value = 0;
+	let hasDigit = false;
+	while (valueIndex < line.length) {
+		const digit = line.charCodeAt(valueIndex) - 48;
+		if (digit < 0 || digit > 9) {
+			break;
+		}
+		value = value * 10 + digit;
+		valueIndex++;
+		hasDigit = true;
+	}
+
+	return hasDigit ? value : undefined;
+}
+
+function extractLastNumberMarker(line: string, marker: string): number | undefined {
 	const start = line.lastIndexOf(marker);
 	if (start === -1) {
 		return undefined;
 	}
-	return extractNumberField(line, field, start);
+	return extractNumberMarker(line, marker, start);
 }
 
 function parseUsageDataLineFast(line: string, allowContent = false): UsageData | null {
@@ -485,7 +519,7 @@ function parseUsageDataLineFast(line: string, allowContent = false): UsageData |
 		return null;
 	}
 
-	const timestamp = extractStringField(line, 'timestamp');
+	const timestamp = extractStringMarker(line, TIMESTAMP_MARKER);
 	if (timestamp == null || !ISO_TIMESTAMP_PATTERN.test(timestamp)) {
 		return null;
 	}
@@ -500,25 +534,25 @@ function parseUsageDataLineFast(line: string, allowContent = false): UsageData |
 		return null;
 	}
 
-	const inputTokens = extractNumberField(line, 'input_tokens', usageStart);
-	const outputTokens = extractNumberField(line, 'output_tokens', usageStart);
+	const inputTokens = extractUnsignedIntegerMarker(line, INPUT_TOKENS_MARKER, usageStart);
+	const outputTokens = extractUnsignedIntegerMarker(line, OUTPUT_TOKENS_MARKER, usageStart);
 	if (inputTokens == null || outputTokens == null) {
 		return null;
 	}
 
-	const speed = extractStringField(line, 'speed', usageStart);
+	const speed = extractStringMarker(line, SPEED_MARKER, usageStart);
 	if (speed != null && speed !== 'standard' && speed !== 'fast') {
 		return null;
 	}
 
-	const version = extractStringField(line, 'version');
+	const version = extractStringMarker(line, VERSION_MARKER);
 	if (version != null && !VERSION_PATTERN.test(version)) {
 		return null;
 	}
-	const model = extractStringField(line, 'model', messageStart);
-	const messageId = extractStringField(line, 'id', messageStart);
-	const requestId = extractLastStringField(line, 'requestId');
-	const sessionId = extractStringField(line, 'sessionId');
+	const model = extractStringMarker(line, MODEL_MARKER, messageStart);
+	const messageId = extractStringMarker(line, MESSAGE_ID_MARKER, messageStart);
+	const requestId = extractLastStringMarker(line, REQUEST_ID_MARKER);
+	const sessionId = extractStringMarker(line, SESSION_ID_MARKER);
 	if (model === '' || messageId === '' || requestId === '' || sessionId === '') {
 		return null;
 	}
@@ -529,18 +563,22 @@ function parseUsageDataLineFast(line: string, allowContent = false): UsageData |
 			usage: {
 				input_tokens: inputTokens,
 				output_tokens: outputTokens,
-				cache_creation_input_tokens: extractNumberField(
+				cache_creation_input_tokens: extractUnsignedIntegerMarker(
 					line,
-					'cache_creation_input_tokens',
+					CACHE_CREATION_INPUT_TOKENS_MARKER,
 					usageStart,
 				),
-				cache_read_input_tokens: extractNumberField(line, 'cache_read_input_tokens', usageStart),
+				cache_read_input_tokens: extractUnsignedIntegerMarker(
+					line,
+					CACHE_READ_INPUT_TOKENS_MARKER,
+					usageStart,
+				),
 				speed,
 			},
 			model: model as ModelName | undefined,
 			id: messageId as UsageData['message']['id'],
 		},
-		costUSD: extractLastNumberField(line, 'costUSD'),
+		costUSD: extractLastNumberMarker(line, COST_USD_MARKER),
 		requestId: requestId as UsageData['requestId'],
 		sessionId: sessionId as UsageData['sessionId'],
 		version: version as Version | undefined,
