@@ -51,15 +51,15 @@ Model Context Protocol server that exposes ccusage data to Claude Desktop and ot
 
 ## Community Projects
 
-Community-built tools that consume ccusage data. Please open a PR to add yours.
+Third-party tools built on ccusage data. Open a PR to add yours.
 
-### 🇰🇷🇺🇸 [cc-usage-board](https://github.com/huhjayeon/cc-usage-board) - Local Bilingual Dashboard
+### 📈 [cc-usage-board](https://github.com/huhjayeon/cc-usage-board) - Local Dashboard
 
-A local HTML dashboard that visualizes ccusage `--json` output. Bilingual UI
-(English / Korean) with locale-aware number units (`K/M/B` vs `만/억`), five
-charts (monthly trend, cumulative usage, weekday pattern, model donut, monthly
-model-share stacked bar), a 90-day activity heatmap, and an optional SwiftBar
-plugin for the macOS menu bar. All data stays on your machine.
+Renders ccusage's JSON output as a local HTML dashboard with monthly trends, a 90-day activity heatmap, model breakdown charts, and a SwiftBar plugin for the macOS menu bar. UI available in Korean, Japanese, and English.
+
+### 🟩 [ai-heatmap](https://github.com/seunggabi/ai-heatmap) - Cost Heatmap
+
+Generates a GitHub-style contribution heatmap of AI usage costs from ccusage data, available as a GitHub Pages site or a dynamic SVG via Vercel. Setup with `npx ai-heatmap@latest init`.
 
 ## Installation
 
