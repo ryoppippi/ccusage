@@ -10,13 +10,17 @@ path = "src/main.rs"
 [dependencies]
 anyhow = "1"
 chrono = { version = "0.4", default-features = false, features = ["clock", "std", "serde"] }
-chrono-tz = { version = "0.10", default-features = false }
 clap = { version = "4", default-features = false, features = [
 	"derive",
 	"env",
 	"help",
 	"std",
 	"usage",
+] }
+jiff = { version = "0.2.24", default-features = false, features = [
+	"std",
+	"tz-system",
+	"tzdb-zoneinfo",
 ] }
 rayon = "1"
 serde = { version = "1", features = ["derive"] }

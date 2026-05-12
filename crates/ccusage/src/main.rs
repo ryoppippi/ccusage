@@ -9,9 +9,9 @@ use std::{
 use std::os::fd::AsRawFd;
 
 use anyhow::{bail, Context, Result};
-use chrono::{DateTime, Datelike, Local, NaiveDate, TimeZone, Timelike, Utc};
-use chrono_tz::Tz;
+use chrono::{DateTime, Datelike, NaiveDate, TimeZone, Timelike, Utc};
 use clap::Parser;
+use jiff::{tz::TimeZone as JiffTimeZone, Timestamp as JiffTimestamp};
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -685,12 +685,12 @@ fn load_entries(shared: &SharedArgs, project_filter: Option<&str>) -> Result<Vec
     let mut loaded_files = if shared.single_thread {
         files
             .iter()
-            .map(|file| read_usage_file(file, tz, mode))
+            .map(|file| read_usage_file(file, tz.as_ref(), mode))
             .collect::<Vec<_>>()
     } else {
         files
             .par_iter()
-            .map(|file| read_usage_file(file, tz, mode))
+            .map(|file| read_usage_file(file, tz.as_ref(), mode))
             .collect::<Vec<_>>()
     };
     loaded_files.sort_by(|a, b| match (a.timestamp, b.timestamp) {
@@ -767,7 +767,7 @@ fn should_replace_deduped_entry(candidate: &UsageEntry, existing: &UsageEntry) -
     candidate.message.usage.speed.is_some() && existing.message.usage.speed.is_none()
 }
 
-fn read_usage_file(path: &Path, tz: Option<Tz>, mode: CostMode) -> LoadedFile {
+fn read_usage_file(path: &Path, tz: Option<&JiffTimeZone>, mode: CostMode) -> LoadedFile {
     let project = extract_project(path);
     let (session_id, project_path) = extract_session_parts(path);
     let mut loaded_file = LoadedFile {
@@ -1044,23 +1044,23 @@ fn extract_session_parts(path: &Path) -> (String, String) {
     (session_id, project_path)
 }
 
-fn parse_tz(timezone: Option<&str>) -> Option<Tz> {
-    timezone.and_then(|value| value.parse::<Tz>().ok())
+fn parse_tz(timezone: Option<&str>) -> Option<JiffTimeZone> {
+    timezone.and_then(|value| JiffTimeZone::get(value).ok())
 }
 
 fn format_date(timestamp: DateTime<Utc>, timezone: Option<&str>) -> String {
-    format_date_tz(timestamp, parse_tz(timezone))
+    format_date_tz(timestamp, parse_tz(timezone).as_ref())
 }
 
-fn format_date_tz(timestamp: DateTime<Utc>, timezone: Option<Tz>) -> String {
-    if let Some(tz) = timezone {
-        timestamp.with_timezone(&tz).format("%Y-%m-%d").to_string()
-    } else {
-        timestamp
-            .with_timezone(&Local)
-            .format("%Y-%m-%d")
-            .to_string()
-    }
+fn format_date_tz(timestamp: DateTime<Utc>, timezone: Option<&JiffTimeZone>) -> String {
+    let Ok(timestamp) = JiffTimestamp::from_millisecond(timestamp.timestamp_millis()) else {
+        return timestamp.format("%Y-%m-%d").to_string();
+    };
+    let timezone = timezone.cloned().unwrap_or_else(JiffTimeZone::system);
+    timestamp
+        .to_zoned(timezone)
+        .strftime("%Y-%m-%d")
+        .to_string()
 }
 
 fn calculate_cost(data: &UsageEntry, mode: CostMode) -> f64 {
