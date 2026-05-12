@@ -49,6 +49,18 @@ Companion tool for analyzing [Amp](https://ampcode.com/) session usage. Track to
 
 Model Context Protocol server that exposes ccusage data to Claude Desktop and other MCP-compatible tools. Enable real-time usage tracking directly in your AI workflows.
 
+## Community Projects
+
+Community-built tools that consume ccusage data. Please open a PR to add yours.
+
+### 🇰🇷🇺🇸 [cc-usage-board](https://github.com/huhjayeon/cc-usage-board) - Local Bilingual Dashboard
+
+A local HTML dashboard that visualizes ccusage `--json` output. Bilingual UI
+(English / Korean) with locale-aware number units (`K/M/B` vs `만/억`), five
+charts (monthly trend, cumulative usage, weekday pattern, model donut, monthly
+model-share stacked bar), a 90-day activity heatmap, and an optional SwiftBar
+plugin for the macOS menu bar. All data stays on your machine.
+
 ## Installation
 
 ### Quick Start (Recommended)
