@@ -2521,13 +2521,37 @@ fn truncate_visible(value: &str, width: usize) -> String {
     }
     let mut output = String::new();
     let mut current_width = 0;
-    for ch in value.chars() {
-        let char_width = if ch.len_utf8() > 1 { 2 } else { 1 };
+    let mut index = 0;
+    let bytes = value.as_bytes();
+    while index < bytes.len() {
+        if bytes[index] == 0x1b {
+            let start = index;
+            index += 1;
+            if index < bytes.len() && bytes[index] == b'[' {
+                index += 1;
+                while index < bytes.len() && !(bytes[index] as char).is_ascii_alphabetic() {
+                    index += 1;
+                }
+                if index < bytes.len() {
+                    index += 1;
+                }
+            }
+            output.push_str(&value[start..index]);
+            continue;
+        }
+        let Some(ch) = value[index..].chars().next() else {
+            break;
+        };
+        let char_width = char_display_width(ch);
         if current_width + char_width >= width {
             break;
         }
         output.push(ch);
         current_width += char_width;
+        index += ch.len_utf8();
+    }
+    if contains_ansi(value) && !output.ends_with("\x1b[0m") {
+        output.push_str("\x1b[0m");
     }
     output.push('…');
     output
@@ -2610,10 +2634,22 @@ fn visible_width(value: &str) -> usize {
         let Some(ch) = value[index..].chars().next() else {
             break;
         };
-        width += if ch.len_utf8() > 1 { 2 } else { 1 };
+        width += char_display_width(ch);
         index += ch.len_utf8();
     }
     width
+}
+
+fn contains_ansi(value: &str) -> bool {
+    value.as_bytes().contains(&0x1b)
+}
+
+fn char_display_width(ch: char) -> usize {
+    if ch.is_ascii() {
+        1
+    } else {
+        2
+    }
 }
 
 fn visible_width_max_line(value: &str) -> usize {
