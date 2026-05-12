@@ -32,6 +32,7 @@ import {
 	USER_HOME_DIR,
 } from './_consts.ts';
 import {
+	createCachedDateFormatter,
 	filterByDateRange,
 	formatDate,
 	formatDateCompact,
@@ -1223,6 +1224,7 @@ export async function loadDailyUsageData(options?: LoadOptions): Promise<DailyUs
 
 	// Use PricingFetcher with using statement for automatic cleanup
 	using fetcher = mode === 'display' ? null : new PricingFetcher(options?.offline);
+	const formatUsageDate = createCachedDateFormatter(options?.timezone);
 
 	type DailyEntry = {
 		data: UsageData;
@@ -1254,7 +1256,7 @@ export async function loadDailyUsageData(options?: LoadOptions): Promise<DailyUs
 						return;
 					}
 
-					const date = formatDate(data.timestamp, options?.timezone);
+					const date = formatUsageDate(data.timestamp);
 					const immediateCost = getImmediateCostForEntry(data, mode);
 					if (immediateCost !== undefined) {
 						entries.push({
@@ -1413,6 +1415,7 @@ export async function loadSessionData(options?: LoadOptions): Promise<SessionUsa
 
 	// Use PricingFetcher with using statement for automatic cleanup
 	using fetcher = mode === 'display' ? null : new PricingFetcher(options?.offline);
+	const formatUsageDate = createCachedDateFormatter(options?.timezone);
 
 	// Collect all valid data entries with session info first
 	const allEntries: Array<{
@@ -1563,7 +1566,7 @@ export async function loadSessionData(options?: LoadOptions): Promise<SessionUsa
 				sessionId: createSessionId(latestEntry.sessionId),
 				projectPath: createProjectPath(latestEntry.projectPath),
 				...totals,
-				lastActivity: formatDate(latestEntry.timestamp, options?.timezone) as ActivityDate,
+				lastActivity: formatUsageDate(latestEntry.timestamp) as ActivityDate,
 				versions: Array.from(new Set(versions)).sort() as Version[],
 				modelsUsed: modelsUsed as ModelName[],
 				modelBreakdowns,
@@ -1912,6 +1915,7 @@ export async function loadSessionBlockData(options?: LoadOptions): Promise<Sessi
 
 	// Use PricingFetcher with using statement for automatic cleanup
 	using fetcher = mode === 'display' ? null : new PricingFetcher(options?.offline);
+	const formatUsageDate = createCachedDateFormatter(options?.timezone);
 
 	// Collect all valid data entries first
 	const allEntries: LoadedUsageEntry[] = [];
@@ -2045,10 +2049,7 @@ export async function loadSessionBlockData(options?: LoadOptions): Promise<Sessi
 		(options?.since != null && options.since !== '') ||
 		(options?.until != null && options.until !== '')
 			? blocks.filter((block) => {
-					const blockDateStr = formatDate(block.startTime.toISOString(), options?.timezone).replace(
-						/-/g,
-						'',
-					);
+					const blockDateStr = formatUsageDate(block.startTime.toISOString()).replace(/-/g, '');
 					if (options.since != null && options.since !== '' && blockDateStr < options.since) {
 						return false;
 					}

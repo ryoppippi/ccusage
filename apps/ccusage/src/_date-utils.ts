@@ -49,6 +49,21 @@ export function formatDate(dateStr: string, timezone?: string): string {
 	return formatter.format(date);
 }
 
+export function createCachedDateFormatter(timezone?: string): (dateStr: string) => string {
+	const formatter = createDateFormatter(timezone);
+	const cache = new Map<string, string>();
+	return (dateStr: string): string => {
+		const cacheKey = dateStr.slice(0, 13);
+		const cached = cache.get(cacheKey);
+		if (cached != null) {
+			return cached;
+		}
+		const formatted = formatter.format(new Date(dateStr));
+		cache.set(cacheKey, formatted);
+		return formatted;
+	};
+}
+
 /**
  * Generic function to sort items by date based on sort order
  * @param items - Array of items to sort
