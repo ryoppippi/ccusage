@@ -29,11 +29,22 @@ function splitAnsiSequence(text: string, index: number): string | null {
 }
 
 function truncateToWidth(text: string, width: number): string {
-	if (getStringWidth(text) <= width) {
-		return text;
+	return truncateToWidthWithMeasuredWidth(text, width).text;
+}
+
+function truncateToWidthWithMeasuredWidth(
+	text: string,
+	width: number,
+): {
+	text: string;
+	width: number;
+} {
+	const textWidth = getStringWidth(text);
+	if (textWidth <= width) {
+		return { text, width: textWidth };
 	}
 	if (width <= 1) {
-		return '…';
+		return { text: '…', width: 1 };
 	}
 
 	const targetWidth = width - 1;
@@ -63,21 +74,21 @@ function truncateToWidth(text: string, width: number): string {
 		index += char.length;
 	}
 
-	return `${output}…${hasAnsi ? COLOR_RESET : ''}`;
+	return { text: `${output}…${hasAnsi ? COLOR_RESET : ''}`, width };
 }
 
 function padToWidth(text: string, width: number, align: TableCellAlign): string {
-	const truncated = truncateToWidth(text, width);
-	const padding = Math.max(0, width - getStringWidth(truncated));
+	const truncated = truncateToWidthWithMeasuredWidth(text, width);
+	const padding = Math.max(0, width - truncated.width);
 	switch (align) {
 		case 'right':
-			return `${' '.repeat(padding)}${truncated}`;
+			return `${' '.repeat(padding)}${truncated.text}`;
 		case 'center': {
 			const left = Math.floor(padding / 2);
-			return `${' '.repeat(left)}${truncated}${' '.repeat(padding - left)}`;
+			return `${' '.repeat(left)}${truncated.text}${' '.repeat(padding - left)}`;
 		}
 		case 'left':
-			return `${truncated}${' '.repeat(padding)}`;
+			return `${truncated.text}${' '.repeat(padding)}`;
 	}
 }
 
