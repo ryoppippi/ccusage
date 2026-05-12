@@ -11,7 +11,7 @@ export default defineConfig({
 	format: 'esm',
 	clean: true,
 	sourcemap: false,
-	minify: 'dce-only',
+	minify: true,
 	treeshake: true,
 	fixedExtension: false,
 	dts: {
