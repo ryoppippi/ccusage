@@ -372,7 +372,7 @@ function extractLastNumberField(line: string, field: string): number | undefined
 
 function parseUsageDataLineFast(line: string, allowContent = false): UsageData | null {
 	if (
-		(!allowContent && line.includes('"content":')) ||
+		(line.includes('"content":') && (!allowContent || !line.includes('"content":['))) ||
 		line.includes('"isApiErrorMessage":true') ||
 		line.includes('"cwd":null') ||
 		line.includes('"sessionId":null') ||
@@ -455,7 +455,7 @@ function parseUsageDataLine(
 	line: string,
 	options?: { allowContentFast?: boolean },
 ): UsageData | null {
-	const fastData = parseUsageDataLineFast(line, options?.allowContentFast === true);
+	const fastData = parseUsageDataLineFast(line, options?.allowContentFast !== false);
 	if (fastData != null) {
 		return fastData;
 	}
