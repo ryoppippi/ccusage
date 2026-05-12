@@ -586,7 +586,7 @@ fn run_statusline(args: StatuslineArgs) -> Result<()> {
         None
     };
 
-    let today = utc_now().format("%Y%m%d").to_string();
+    let today = format_compact_chrono_date(utc_now());
     let today_shared = SharedArgs {
         since: Some(today.clone()),
         until: Some(today),
@@ -1106,13 +1106,59 @@ fn format_date(timestamp: DateTime<Utc>, timezone: Option<&str>) -> String {
 
 fn format_date_tz(timestamp: DateTime<Utc>, timezone: Option<&JiffTimeZone>) -> String {
     let Ok(timestamp) = JiffTimestamp::from_millisecond(timestamp.timestamp_millis()) else {
-        return timestamp.format("%Y-%m-%d").to_string();
+        return format_chrono_date(timestamp);
     };
     let timezone = timezone.cloned().unwrap_or_else(JiffTimeZone::system);
-    timestamp
-        .to_zoned(timezone)
-        .strftime("%Y-%m-%d")
-        .to_string()
+    let zoned = timestamp.to_zoned(timezone);
+    format_date_parts(
+        i32::from(zoned.year()),
+        u32::from(zoned.month() as u8),
+        u32::from(zoned.day() as u8),
+    )
+}
+
+fn format_chrono_date(timestamp: DateTime<Utc>) -> String {
+    format_date_parts(timestamp.year(), timestamp.month(), timestamp.day())
+}
+
+fn format_compact_chrono_date(timestamp: DateTime<Utc>) -> String {
+    format!(
+        "{:04}{:02}{:02}",
+        timestamp.year(),
+        timestamp.month(),
+        timestamp.day()
+    )
+}
+
+fn format_naive_date(date: NaiveDate) -> String {
+    format_date_parts(date.year(), date.month(), date.day())
+}
+
+fn format_date_parts(year: i32, month: u32, day: u32) -> String {
+    format!("{year:04}-{month:02}-{day:02}")
+}
+
+fn format_chrono_minute(timestamp: DateTime<Utc>) -> String {
+    format!(
+        "{:04}-{:02}-{:02} {:02}:{:02}",
+        timestamp.year(),
+        timestamp.month(),
+        timestamp.day(),
+        timestamp.hour(),
+        timestamp.minute()
+    )
+}
+
+fn format_chrono_second(timestamp: DateTime<Utc>) -> String {
+    format!(
+        "{:04}-{:02}-{:02} {:02}:{:02}:{:02}",
+        timestamp.year(),
+        timestamp.month(),
+        timestamp.day(),
+        timestamp.hour(),
+        timestamp.minute(),
+        timestamp.second()
+    )
 }
 
 fn calculate_cost(data: &UsageEntry, mode: CostMode) -> f64 {
@@ -1552,11 +1598,7 @@ fn week_start(date: &str, start: WeekDay) -> Option<String> {
     };
     let day = date.weekday().num_days_from_sunday() as i64;
     let shift = (day - start_num + 7) % 7;
-    Some(
-        (date - chrono::Duration::days(shift))
-            .format("%Y-%m-%d")
-            .to_string(),
-    )
+    Some(format_naive_date(date - chrono::Duration::days(shift)))
 }
 
 fn wants_json(shared: &SharedArgs) -> bool {
@@ -2528,11 +2570,15 @@ fn format_block_time(block: &SessionBlock, compact: bool) -> String {
     if compact {
         format!(
             "{}\n{}",
-            block.start_time.format("%Y-%m-%d"),
-            block.start_time.format("%H:%M")
+            format_chrono_date(block.start_time),
+            format!(
+                "{:02}:{:02}",
+                block.start_time.hour(),
+                block.start_time.minute()
+            )
         )
     } else {
-        block.start_time.format("%Y-%m-%d %H:%M").to_string()
+        format_chrono_minute(block.start_time)
     }
 }
 
@@ -2659,7 +2705,7 @@ fn print_active_block_detail(
     let remaining = (block.end_time - now).num_minutes().max(0);
     println!(
         "Block Started:   {}",
-        block.start_time.format("%Y-%m-%d %H:%M:%S")
+        format_chrono_second(block.start_time)
     );
     println!(
         "Time Elapsed:    {}h {}m",
@@ -2889,6 +2935,16 @@ mod tests {
             week_start("2024-01-03", WeekDay::Monday).unwrap(),
             "2024-01-01"
         );
+    }
+
+    #[test]
+    fn formats_dates_with_timezone() {
+        let timestamp = parse_ts_timestamp("2024-08-04T23:30:00.000Z").unwrap();
+
+        assert_eq!(format_date(timestamp, Some("UTC")), "2024-08-04");
+        assert_eq!(format_date(timestamp, Some("Asia/Tokyo")), "2024-08-05");
+        assert_eq!(format_chrono_minute(timestamp), "2024-08-04 23:30");
+        assert_eq!(format_chrono_second(timestamp), "2024-08-04 23:30:00");
     }
 
     #[test]
