@@ -53,12 +53,6 @@ struct UsageMessage {
     usage: TokenUsageRaw,
     model: Option<String>,
     id: Option<String>,
-    content: Option<Vec<ContentPart>>,
-}
-
-#[derive(Debug, Clone, Deserialize)]
-struct ContentPart {
-    text: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, Default, Deserialize)]
@@ -122,6 +116,7 @@ struct LoadedEntry {
     project_path: String,
     cost: f64,
     model: Option<String>,
+    usage_limit_reset_time: Option<DateTime<Utc>>,
 }
 
 #[derive(Debug)]
@@ -802,6 +797,8 @@ fn read_usage_file(path: &Path, tz: Option<&JiffTimeZone>, mode: CostMode) -> Lo
         }
         let date = format_date_tz(timestamp, tz);
         let cost = calculate_cost(&data, mode);
+        let usage_limit_reset_time =
+            usage_limit_reset_time_from_line(line, data.is_api_error_message);
         let model = data.message.model.as_ref().and_then(|model| {
             if model == "<synthetic>" {
                 None
@@ -820,6 +817,7 @@ fn read_usage_file(path: &Path, tz: Option<&JiffTimeZone>, mode: CostMode) -> Lo
             project_path: project_path.clone(),
             cost,
             model,
+            usage_limit_reset_time,
         });
     }
     loaded_file
@@ -1828,8 +1826,7 @@ fn create_block(
                 models.push(model.clone());
             }
         }
-        usage_limit_reset_time =
-            usage_limit_reset_time.or_else(|| usage_limit_reset_time_from_entry(&entry.data));
+        usage_limit_reset_time = usage_limit_reset_time.or(entry.usage_limit_reset_time);
     }
     SessionBlock {
         id: start.to_rfc3339_opts(chrono::SecondsFormat::Millis, true),
@@ -1870,23 +1867,26 @@ fn create_gap_block(
     }
 }
 
-fn usage_limit_reset_time_from_entry(entry: &UsageEntry) -> Option<DateTime<Utc>> {
-    if entry.is_api_error_message != Some(true) {
+fn usage_limit_reset_time_from_line(
+    line: &str,
+    is_api_error_message: Option<bool>,
+) -> Option<DateTime<Utc>> {
+    if is_api_error_message != Some(true) {
         return None;
     }
-    let text = entry
-        .message
-        .content
-        .as_ref()?
-        .iter()
-        .find_map(|part| part.text.as_deref())?;
-    let timestamp = text
-        .split('|')
-        .nth(1)?
-        .split_whitespace()
-        .next()?
-        .parse::<i64>()
-        .ok()?;
+    let marker = "Claude AI usage limit reached";
+    let marker_start = line.find(marker)?;
+    let timestamp_start = line[marker_start..].find('|')? + marker_start + 1;
+    let timestamp_end = line[timestamp_start..]
+        .find(|ch: char| !ch.is_ascii_digit())
+        .map_or(line.len(), |offset| timestamp_start + offset);
+    if timestamp_start == timestamp_end {
+        return None;
+    }
+    let timestamp = line[timestamp_start..timestamp_end].parse::<i64>().ok()?;
+    if timestamp <= 0 {
+        return None;
+    }
     Utc.timestamp_opt(timestamp, 0).single()
 }
 
@@ -2842,5 +2842,19 @@ mod tests {
         assert_eq!(entries[0].data.message.usage.input_tokens, 100);
         assert_eq!(entries[0].data.message.usage.output_tokens, 250);
         assert_eq!(entries[0].cost, 0.01);
+    }
+
+    #[test]
+    fn extracts_usage_limit_reset_time_from_raw_line() {
+        let line = r#"{"timestamp":"2025-01-10T10:00:00.000Z","isApiErrorMessage":true,"message":{"content":[{"text":"Claude AI usage limit reached|1736503200 remaining"}],"usage":{"input_tokens":0,"output_tokens":0}}}"#;
+        let reset_time = usage_limit_reset_time_from_line(line, Some(true)).unwrap();
+
+        assert_eq!(reset_time.to_rfc3339(), "2025-01-10T10:00:00+00:00");
+        assert!(usage_limit_reset_time_from_line(line, Some(false)).is_none());
+        assert!(usage_limit_reset_time_from_line(
+            r#"{"message":{"content":[{"text":"Claude AI usage limit reached|0"}]}}"#,
+            Some(true)
+        )
+        .is_none());
     }
 }
