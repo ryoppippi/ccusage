@@ -632,13 +632,6 @@ function aggregateByModel<T>(
 	getCost: (entry: T) => number,
 ): Map<string, TokenStats> {
 	const modelAggregates = new Map<string, TokenStats>();
-	const defaultStats: TokenStats = {
-		inputTokens: 0,
-		outputTokens: 0,
-		cacheCreationTokens: 0,
-		cacheReadTokens: 0,
-		cost: 0,
-	};
 
 	for (const entry of entries) {
 		const modelName = getModel(entry) ?? 'unknown';
@@ -650,15 +643,22 @@ function aggregateByModel<T>(
 		const usage = getUsage(entry);
 		const cost = getCost(entry);
 
-		const existing = modelAggregates.get(modelName) ?? defaultStats;
-
-		modelAggregates.set(modelName, {
-			inputTokens: existing.inputTokens + (usage.input_tokens ?? 0),
-			outputTokens: existing.outputTokens + (usage.output_tokens ?? 0),
-			cacheCreationTokens: existing.cacheCreationTokens + (usage.cache_creation_input_tokens ?? 0),
-			cacheReadTokens: existing.cacheReadTokens + (usage.cache_read_input_tokens ?? 0),
-			cost: existing.cost + cost,
-		});
+		let existing = modelAggregates.get(modelName);
+		if (existing == null) {
+			existing = {
+				inputTokens: 0,
+				outputTokens: 0,
+				cacheCreationTokens: 0,
+				cacheReadTokens: 0,
+				cost: 0,
+			};
+			modelAggregates.set(modelName, existing);
+		}
+		existing.inputTokens += usage.input_tokens ?? 0;
+		existing.outputTokens += usage.output_tokens ?? 0;
+		existing.cacheCreationTokens += usage.cache_creation_input_tokens ?? 0;
+		existing.cacheReadTokens += usage.cache_read_input_tokens ?? 0;
+		existing.cost += cost;
 	}
 
 	return modelAggregates;
@@ -669,13 +669,6 @@ function aggregateByModel<T>(
  */
 function aggregateModelBreakdowns(breakdowns: ModelBreakdown[]): Map<string, TokenStats> {
 	const modelAggregates = new Map<string, TokenStats>();
-	const defaultStats: TokenStats = {
-		inputTokens: 0,
-		outputTokens: 0,
-		cacheCreationTokens: 0,
-		cacheReadTokens: 0,
-		cost: 0,
-	};
 
 	for (const breakdown of breakdowns) {
 		// Skip synthetic model
@@ -683,15 +676,22 @@ function aggregateModelBreakdowns(breakdowns: ModelBreakdown[]): Map<string, Tok
 			continue;
 		}
 
-		const existing = modelAggregates.get(breakdown.modelName) ?? defaultStats;
-
-		modelAggregates.set(breakdown.modelName, {
-			inputTokens: existing.inputTokens + breakdown.inputTokens,
-			outputTokens: existing.outputTokens + breakdown.outputTokens,
-			cacheCreationTokens: existing.cacheCreationTokens + breakdown.cacheCreationTokens,
-			cacheReadTokens: existing.cacheReadTokens + breakdown.cacheReadTokens,
-			cost: existing.cost + breakdown.cost,
-		});
+		let existing = modelAggregates.get(breakdown.modelName);
+		if (existing == null) {
+			existing = {
+				inputTokens: 0,
+				outputTokens: 0,
+				cacheCreationTokens: 0,
+				cacheReadTokens: 0,
+				cost: 0,
+			};
+			modelAggregates.set(breakdown.modelName, existing);
+		}
+		existing.inputTokens += breakdown.inputTokens;
+		existing.outputTokens += breakdown.outputTokens;
+		existing.cacheCreationTokens += breakdown.cacheCreationTokens;
+		existing.cacheReadTokens += breakdown.cacheReadTokens;
+		existing.cost += breakdown.cost;
 	}
 
 	return modelAggregates;
@@ -717,29 +717,25 @@ function calculateTotals<T>(
 	getUsage: (entry: T) => UsageData['message']['usage'],
 	getCost: (entry: T) => number,
 ): TokenStats & { totalCost: number } {
-	return entries.reduce(
-		(acc, entry) => {
-			const usage = getUsage(entry);
-			const cost = getCost(entry);
-
-			return {
-				inputTokens: acc.inputTokens + (usage.input_tokens ?? 0),
-				outputTokens: acc.outputTokens + (usage.output_tokens ?? 0),
-				cacheCreationTokens: acc.cacheCreationTokens + (usage.cache_creation_input_tokens ?? 0),
-				cacheReadTokens: acc.cacheReadTokens + (usage.cache_read_input_tokens ?? 0),
-				cost: acc.cost + cost,
-				totalCost: acc.totalCost + cost,
-			};
-		},
-		{
-			inputTokens: 0,
-			outputTokens: 0,
-			cacheCreationTokens: 0,
-			cacheReadTokens: 0,
-			cost: 0,
-			totalCost: 0,
-		},
-	);
+	const totals = {
+		inputTokens: 0,
+		outputTokens: 0,
+		cacheCreationTokens: 0,
+		cacheReadTokens: 0,
+		cost: 0,
+		totalCost: 0,
+	};
+	for (const entry of entries) {
+		const usage = getUsage(entry);
+		const cost = getCost(entry);
+		totals.inputTokens += usage.input_tokens ?? 0;
+		totals.outputTokens += usage.output_tokens ?? 0;
+		totals.cacheCreationTokens += usage.cache_creation_input_tokens ?? 0;
+		totals.cacheReadTokens += usage.cache_read_input_tokens ?? 0;
+		totals.cost += cost;
+		totals.totalCost += cost;
+	}
+	return totals;
 }
 
 /**
