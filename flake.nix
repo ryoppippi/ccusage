@@ -18,6 +18,8 @@
             cargo
             rustc
             rustfmt
+            pkg-config
+            openssl
             typos
             typos-lsp
             jq

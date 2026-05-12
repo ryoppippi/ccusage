@@ -1,6 +1,8 @@
 use std::{
+    collections::hash_map::DefaultHasher,
     collections::{BTreeMap, BTreeSet, HashMap, HashSet},
     env, fmt, fs,
+    hash::{Hash, Hasher},
     io::{self, IsTerminal, Read},
     path::{Path, PathBuf},
     sync::Arc,
@@ -829,7 +831,7 @@ fn load_entries(shared: &SharedArgs, project_filter: Option<&str>) -> Result<Vec
         ),
     );
 
-    let mut deduped_indexes: HashMap<String, usize> = HashMap::new();
+    let mut deduped_indexes: HashMap<u64, Vec<usize>> = HashMap::new();
     let mut deduped: Vec<LoadedEntry> =
         Vec::with_capacity(loaded_files.iter().map(|file| file.entries.len()).sum());
     for loaded_file in loaded_files {
@@ -839,19 +841,7 @@ fn load_entries(shared: &SharedArgs, project_filter: Option<&str>) -> Result<Vec
                     continue;
                 }
             }
-            if let (Some(message_id), Some(request_id)) =
-                (&entry.data.message.id, &entry.data.request_id)
-            {
-                let key = format!("{message_id}:{request_id}");
-                if let Some(index) = deduped_indexes.get(&key).copied() {
-                    if should_replace_deduped_entry(&entry.data, &deduped[index].data) {
-                        deduped[index] = entry;
-                    }
-                    continue;
-                }
-                deduped_indexes.insert(key, deduped.len());
-            }
-            deduped.push(entry);
+            push_deduped_entry(entry, &mut deduped_indexes, &mut deduped);
         }
     }
     debug_log(
@@ -927,6 +917,57 @@ fn should_replace_deduped_entry(candidate: &UsageEntry, existing: &UsageEntry) -
     }
 
     candidate.message.usage.speed.is_some() && existing.message.usage.speed.is_none()
+}
+
+fn push_deduped_entry(
+    entry: LoadedEntry,
+    deduped_indexes: &mut HashMap<u64, Vec<usize>>,
+    deduped: &mut Vec<LoadedEntry>,
+) {
+    let dedupe_lookup = entry
+        .data
+        .message
+        .id
+        .as_deref()
+        .zip(entry.data.request_id.as_deref())
+        .map(|(message_id, request_id)| {
+            let hash = usage_dedupe_hash(message_id, request_id);
+            let existing_index = deduped_indexes.get(&hash).and_then(|indexes| {
+                indexes.iter().copied().find(|&index| {
+                    loaded_entry_matches_dedupe_key(&deduped[index], message_id, request_id)
+                })
+            });
+            (hash, existing_index)
+        });
+
+    if let Some((_, Some(index))) = dedupe_lookup {
+        if should_replace_deduped_entry(&entry.data, &deduped[index].data) {
+            deduped[index] = entry;
+        }
+        return;
+    }
+
+    let index = deduped.len();
+    deduped.push(entry);
+    if let Some((hash, None)) = dedupe_lookup {
+        deduped_indexes.entry(hash).or_default().push(index);
+    }
+}
+
+fn usage_dedupe_hash(message_id: &str, request_id: &str) -> u64 {
+    let mut hasher = DefaultHasher::new();
+    message_id.hash(&mut hasher);
+    request_id.hash(&mut hasher);
+    hasher.finish()
+}
+
+fn loaded_entry_matches_dedupe_key(
+    entry: &LoadedEntry,
+    message_id: &str,
+    request_id: &str,
+) -> bool {
+    entry.data.message.id.as_deref() == Some(message_id)
+        && entry.data.request_id.as_deref() == Some(request_id)
 }
 
 fn read_usage_file(
@@ -1918,26 +1959,26 @@ fn print_usage_table(
     table.separator();
     let mut total_row = if compact {
         vec![
-            colour(shared, "Total", Colour::Yellow),
+            color(shared, "Total", Color::Yellow),
             String::new(),
-            colour(shared, format_number(input), Colour::Yellow),
-            colour(shared, format_number(output), Colour::Yellow),
-            colour(shared, format_currency(total_cost), Colour::Yellow),
+            color(shared, format_number(input), Color::Yellow),
+            color(shared, format_number(output), Color::Yellow),
+            color(shared, format_currency(total_cost), Color::Yellow),
         ]
     } else {
         vec![
-            colour(shared, "Total", Colour::Yellow),
+            color(shared, "Total", Color::Yellow),
             String::new(),
-            colour(shared, format_number(input), Colour::Yellow),
-            colour(shared, format_number(output), Colour::Yellow),
-            colour(shared, format_number(cache_create), Colour::Yellow),
-            colour(shared, format_number(cache_read), Colour::Yellow),
-            colour(
+            color(shared, format_number(input), Color::Yellow),
+            color(shared, format_number(output), Color::Yellow),
+            color(shared, format_number(cache_create), Color::Yellow),
+            color(shared, format_number(cache_read), Color::Yellow),
+            color(
                 shared,
                 format_number(input + output + cache_create + cache_read),
-                Colour::Yellow,
+                Color::Yellow,
             ),
-            colour(shared, format_currency(total_cost), Colour::Yellow),
+            color(shared, format_currency(total_cost), Color::Yellow),
         ]
     };
     if include_last_activity {
@@ -2172,7 +2213,7 @@ enum Align {
     Right,
 }
 
-enum Colour {
+enum Color {
     Blue,
     Green,
     Grey,
@@ -2229,7 +2270,7 @@ impl<'a> SimpleTable<'a> {
         for header_row in expand_multiline_row(&self.headers, self.headers.len(), &widths) {
             let header_row = header_row
                 .iter()
-                .map(|header| colour(self.shared, header, Colour::Blue))
+                .map(|header| color(self.shared, header, Color::Blue))
                 .collect::<Vec<_>>();
             println!("{}", table_line(&header_row, &self.aligns, &widths));
         }
@@ -2322,7 +2363,7 @@ impl<'a> SimpleTable<'a> {
 fn project_header_row(column_count: usize, project: &str, shared: &SharedArgs) -> Vec<String> {
     let mut row = vec![String::new(); column_count];
     if let Some(first) = row.first_mut() {
-        *first = colour(shared, format!("Project: {project}"), Colour::Blue);
+        *first = color(shared, format!("Project: {project}"), Color::Blue);
     }
     row
 }
@@ -2341,38 +2382,38 @@ fn push_breakdown_rows(
             + breakdown.cache_read_tokens;
         let mut values = if compact {
             vec![
-                colour(
+                color(
                     shared,
                     format!("  └─ {}", short_model_name(&breakdown.model_name)),
-                    Colour::Grey,
+                    Color::Grey,
                 ),
                 String::new(),
-                colour(shared, format_number(breakdown.input_tokens), Colour::Grey),
-                colour(shared, format_number(breakdown.output_tokens), Colour::Grey),
-                colour(shared, format_currency(breakdown.cost), Colour::Grey),
+                color(shared, format_number(breakdown.input_tokens), Color::Grey),
+                color(shared, format_number(breakdown.output_tokens), Color::Grey),
+                color(shared, format_currency(breakdown.cost), Color::Grey),
             ]
         } else {
             vec![
-                colour(
+                color(
                     shared,
                     format!("  └─ {}", short_model_name(&breakdown.model_name)),
-                    Colour::Grey,
+                    Color::Grey,
                 ),
                 String::new(),
-                colour(shared, format_number(breakdown.input_tokens), Colour::Grey),
-                colour(shared, format_number(breakdown.output_tokens), Colour::Grey),
-                colour(
+                color(shared, format_number(breakdown.input_tokens), Color::Grey),
+                color(shared, format_number(breakdown.output_tokens), Color::Grey),
+                color(
                     shared,
                     format_number(breakdown.cache_creation_tokens),
-                    Colour::Grey,
+                    Color::Grey,
                 ),
-                colour(
+                color(
                     shared,
                     format_number(breakdown.cache_read_tokens),
-                    Colour::Grey,
+                    Color::Grey,
                 ),
-                colour(shared, format_number(total), Colour::Grey),
-                colour(shared, format_currency(breakdown.cost), Colour::Grey),
+                color(shared, format_number(total), Color::Grey),
+                color(shared, format_currency(breakdown.cost), Color::Grey),
             ]
         };
         if include_last_activity {
@@ -2719,7 +2760,7 @@ fn print_box_title(title: &str, shared: &SharedArgs) {
     println!(
         "│ {}{}{} │",
         " ".repeat(left_padding),
-        colour(shared, title, Colour::Blue),
+        color(shared, title, Color::Blue),
         " ".repeat(right_padding)
     );
     println!("│{}│", " ".repeat(content_width + 2));
@@ -2733,22 +2774,22 @@ fn log_level() -> Option<u8> {
         .and_then(|value| value.parse::<u8>().ok())
 }
 
-fn colour(shared: &SharedArgs, value: impl AsRef<str>, colour: Colour) -> String {
+fn color(shared: &SharedArgs, value: impl AsRef<str>, color: Color) -> String {
     let value = value.as_ref();
-    if !use_colour(shared) {
+    if !use_color(shared) {
         return value.to_string();
     }
-    let code = match colour {
-        Colour::Blue => 34,
-        Colour::Green => 32,
-        Colour::Grey => 90,
-        Colour::Red => 31,
-        Colour::Yellow => 33,
+    let code = match color {
+        Color::Blue => 34,
+        Color::Green => 32,
+        Color::Grey => 90,
+        Color::Red => 31,
+        Color::Yellow => 33,
     };
     format!("\x1b[{code}m{value}\x1b[0m")
 }
 
-fn use_colour(shared: &SharedArgs) -> bool {
+fn use_color(shared: &SharedArgs) -> bool {
     if shared.no_color || env::var_os("NO_COLOR").is_some() {
         return false;
     }
@@ -3037,15 +3078,15 @@ fn print_blocks_table(
     for block in blocks {
         if block.is_gap {
             let mut row = vec![
-                colour(shared, format_block_time(block, compact), Colour::Grey),
-                colour(shared, "(inactive)", Colour::Grey),
-                colour(shared, "-", Colour::Grey),
-                colour(shared, "-", Colour::Grey),
+                color(shared, format_block_time(block, compact), Color::Grey),
+                color(shared, "(inactive)", Color::Grey),
+                color(shared, "-", Color::Grey),
+                color(shared, "-", Color::Grey),
             ];
             if actual_limit.is_some_and(|limit| limit > 0) {
-                row.push(colour(shared, "-", Colour::Grey));
+                row.push(color(shared, "-", Color::Grey));
             }
-            row.push(colour(shared, "-", Colour::Grey));
+            row.push(color(shared, "-", Color::Grey));
             table.push(row);
             continue;
         }
@@ -3053,7 +3094,7 @@ fn print_blocks_table(
         let mut row = vec![
             format_block_time(block, compact),
             if block.is_active {
-                colour(shared, "ACTIVE", Colour::Green)
+                color(shared, "ACTIVE", Color::Green)
             } else {
                 String::new()
             },
@@ -3064,7 +3105,7 @@ fn print_blocks_table(
             let percentage = total as f64 / limit as f64 * 100.0;
             let percent_text = format!("{percentage:.1}%");
             row.push(if percentage > 100.0 {
-                colour(shared, percent_text, Colour::Red)
+                color(shared, percent_text, Color::Red)
             } else {
                 percent_text
             });
@@ -3078,23 +3119,23 @@ fn print_blocks_table(
                 let remaining = limit.saturating_sub(total);
                 let remaining_percent = (limit.saturating_sub(total) as f64 / limit as f64) * 100.0;
                 let mut remaining_row = vec![
-                    colour(
+                    color(
                         shared,
                         format!("(assuming {} token limit)", format_number(limit)),
-                        Colour::Grey,
+                        Color::Grey,
                     ),
-                    colour(shared, "REMAINING", Colour::Blue),
+                    color(shared, "REMAINING", Color::Blue),
                     String::new(),
                     if remaining > 0 {
                         format_number(remaining)
                     } else {
-                        colour(shared, "0", Colour::Red)
+                        color(shared, "0", Color::Red)
                     },
                 ];
                 remaining_row.push(if remaining_percent > 0.0 {
                     format!("{remaining_percent:.1}%")
                 } else {
-                    colour(shared, "0.0%", Colour::Red)
+                    color(shared, "0.0%", Color::Red)
                 });
                 remaining_row.push(String::new());
                 table.push(remaining_row);
@@ -3103,12 +3144,12 @@ fn print_blocks_table(
             if let Some(projection) = project_block_usage(block) {
                 table.separator();
                 let mut projected_row = vec![
-                    colour(shared, "(assuming current burn rate)", Colour::Grey),
-                    colour(shared, "PROJECTED", Colour::Yellow),
+                    color(shared, "(assuming current burn rate)", Color::Grey),
+                    color(shared, "PROJECTED", Color::Yellow),
                     String::new(),
                     match actual_limit {
                         Some(limit) if limit > 0 && projection.total_tokens > limit => {
-                            colour(shared, format_number(projection.total_tokens), Colour::Red)
+                            color(shared, format_number(projection.total_tokens), Color::Red)
                         }
                         _ => format_number(projection.total_tokens),
                     },
@@ -3143,14 +3184,14 @@ fn print_active_block_detail(
     );
     println!(
         "Time Remaining:  {}",
-        colour(
+        color(
             shared,
             format!("{}h {}m", remaining / 60, remaining.rem_euclid(60)),
-            Colour::Green,
+            Color::Green,
         )
     );
     println!();
-    println!("{}", colour(shared, "Current Usage:", Colour::Blue));
+    println!("{}", color(shared, "Current Usage:", Color::Blue));
     println!(
         "  Input Tokens:     {}",
         format_number(block.token_counts.input_tokens)
@@ -3163,7 +3204,7 @@ fn print_active_block_detail(
 
     if let Some(rate) = calculate_burn_rate(block) {
         println!();
-        println!("{}", colour(shared, "Burn Rate:", Colour::Blue));
+        println!("{}", color(shared, "Burn Rate:", Color::Blue));
         println!(
             "  Tokens/minute:    {}",
             format_number(rate.tokens_per_minute.round() as u64)
@@ -3178,10 +3219,10 @@ fn print_active_block_detail(
         println!();
         println!(
             "{}",
-            colour(
+            color(
                 shared,
                 "Projected Usage (if current rate continues):",
-                Colour::Blue
+                Color::Blue
             )
         );
         println!(
@@ -3198,14 +3239,14 @@ fn print_active_block_detail(
             let remaining_tokens = limit.saturating_sub(current);
             let percent = projection.total_tokens as f64 / limit as f64 * 100.0;
             let status = if projection.total_tokens > limit {
-                colour(shared, "EXCEEDS LIMIT", Colour::Red)
+                color(shared, "EXCEEDS LIMIT", Color::Red)
             } else if projection.total_tokens as f64 > limit as f64 * BLOCKS_WARNING_THRESHOLD {
-                colour(shared, "WARNING", Colour::Yellow)
+                color(shared, "WARNING", Color::Yellow)
             } else {
-                colour(shared, "OK", Colour::Green)
+                color(shared, "OK", Color::Green)
             };
             println!();
-            println!("{}", colour(shared, "Token Limit Status:", Colour::Blue));
+            println!("{}", color(shared, "Token Limit Status:", Color::Blue));
             println!("  Limit:            {} tokens", format_number(limit));
             println!(
                 "  Current Usage:    {} ({:.1}%)",
