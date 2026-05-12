@@ -8,6 +8,7 @@
  * @module data-loader
  */
 
+import type { LiteLLMModelPricing } from '@ccusage/internal/pricing';
 import type { WeekDay } from './_consts.ts';
 import type { LoadedUsageEntry, SessionBlock } from './_session-blocks.ts';
 import type { ActivityDate, Bucket, CostMode, ModelName, SortOrder, Version } from './_types.ts';
@@ -41,7 +42,7 @@ import {
 	getDayNumber,
 	sortByDate,
 } from './_date-utils.ts';
-import { PricingFetcher } from './_pricing-fetcher.ts';
+import { CLAUDE_PROVIDER_PREFIXES, PricingFetcher } from './_pricing-fetcher.ts';
 import { identifySessionBlocks } from './_session-blocks.ts';
 import {
 	activityDateSchema,
@@ -86,7 +87,6 @@ const SPEED_MARKER = '"speed":"';
 const TIMESTAMP_MARKER = '"timestamp":"';
 const VERSION_MARKER = '"version":"';
 const VERSION_PATTERN = /^\d+\.\d+\.\d+/;
-
 function parseTwoDigits(value: string, offset: number): number {
 	return (value.charCodeAt(offset) - 48) * 10 + value.charCodeAt(offset + 1) - 48;
 }
@@ -1317,6 +1317,81 @@ function getImmediateCostForEntry(data: UsageData, mode: CostMode): number | und
 	return undefined;
 }
 
+type CostCalculator = (data: UsageData) => number;
+
+async function createCostCalculator(
+	mode: CostMode,
+	fetcher: PricingFetcher | null,
+): Promise<CostCalculator> {
+	if (mode === 'display') {
+		return (data) => data.costUSD ?? 0;
+	}
+
+	if (fetcher == null) {
+		return () => 0;
+	}
+
+	const pricing = Result.unwrap(
+		await fetcher.fetchModelPricing(),
+		new Map<string, LiteLLMModelPricing>(),
+	);
+	const modelPricingCache = new Map<string, LiteLLMModelPricing | null>();
+
+	const getModelPricing = (modelName: string): LiteLLMModelPricing | null => {
+		if (modelPricingCache.has(modelName)) {
+			return modelPricingCache.get(modelName) ?? null;
+		}
+
+		const direct = pricing.get(modelName);
+		if (direct != null) {
+			modelPricingCache.set(modelName, direct);
+			return direct;
+		}
+
+		for (const prefix of CLAUDE_PROVIDER_PREFIXES) {
+			const prefixed = pricing.get(`${prefix}${modelName}`);
+			if (prefixed != null) {
+				modelPricingCache.set(modelName, prefixed);
+				return prefixed;
+			}
+		}
+
+		const lower = modelName.toLowerCase();
+		for (const [key, value] of pricing) {
+			const comparison = key.toLowerCase();
+			if (comparison.includes(lower) || lower.includes(comparison)) {
+				modelPricingCache.set(modelName, value);
+				return value;
+			}
+		}
+
+		modelPricingCache.set(modelName, null);
+		return null;
+	};
+
+	return (data) => {
+		if (mode === 'auto' && data.costUSD != null) {
+			return data.costUSD;
+		}
+
+		const model = data.message.model;
+		if (model == null || model === '') {
+			return 0;
+		}
+
+		const modelPricing = getModelPricing(model);
+		if (modelPricing == null) {
+			return 0;
+		}
+
+		const baseCost = fetcher.calculateCostFromPricing(data.message.usage, modelPricing);
+		return (
+			baseCost *
+			(data.message.usage.speed === 'fast' ? (modelPricing.provider_specific_entry?.fast ?? 1) : 1)
+		);
+	};
+}
+
 /**
  * Get Claude Code usage limit expiration date
  * @param data - Usage data entry
@@ -1637,17 +1712,13 @@ async function collectWithUsageWorkers<TItem, TResult>(
 
 async function collectDailyEntriesFromFile(
 	file: string,
-	mode: CostMode,
-	fetcher: PricingFetcher | null,
+	calculateCost: CostCalculator,
 	formatUsageDate: (dateStr: string) => string,
 ): Promise<DailyDataEntry[]> {
 	const project = extractProjectFromPath(file);
 	const entries: Array<DailyDataEntry | undefined> = [];
-	const pendingCosts: Array<Promise<void>> = [];
 
 	await processJSONLFileByLine(file, (line) => {
-		let deferredData: UsageData | undefined;
-		let deferredDate = '';
 		try {
 			if (!line.includes(USAGE_LINE_MARKER)) {
 				return;
@@ -1662,46 +1733,20 @@ async function collectDailyEntriesFromFile(
 			const uniqueHash = createUniqueHash(data);
 			const tokenTotal = getUsageTokenTotal(data);
 			const hasSpeed = data.message.usage.speed != null;
-			const immediateCost = getImmediateCostForEntry(data, mode);
-			if (immediateCost !== undefined) {
-				entries.push({
-					date,
-					cost: immediateCost,
-					model: getDisplayModelName(data),
-					project,
-					usage: data.message.usage,
-					uniqueHash,
-					tokenTotal,
-					hasSpeed,
-				});
-				return;
-			}
-
-			deferredData = data;
-			deferredDate = date;
+			entries.push({
+				date,
+				cost: calculateCost(data),
+				model: getDisplayModelName(data),
+				project,
+				usage: data.message.usage,
+				uniqueHash,
+				tokenTotal,
+				hasSpeed,
+			});
 		} catch {
 			// Skip invalid JSON lines
 		}
-		if (deferredData == null) {
-			return;
-		}
-		const entryIndex = entries.push(undefined) - 1;
-		pendingCosts.push(
-			calculateCostForEntry(deferredData, mode, fetcher!).then((cost) => {
-				entries[entryIndex] = {
-					date: deferredDate,
-					cost,
-					model: getDisplayModelName(deferredData),
-					project,
-					usage: deferredData.message.usage,
-					uniqueHash: createUniqueHash(deferredData),
-					tokenTotal: getUsageTokenTotal(deferredData),
-					hasSpeed: deferredData.message.usage.speed != null,
-				};
-			}),
-		);
 	});
-	await Promise.all(pendingCosts);
 
 	return dedupeEntryMetadataList(entries);
 }
@@ -1709,7 +1754,7 @@ async function collectDailyEntriesFromFile(
 async function collectSessionEntriesFromFile(
 	item: GlobResult,
 	mode: CostMode,
-	fetcher: PricingFetcher | null,
+	calculateCost: CostCalculator,
 ): Promise<SessionDataEntry[]> {
 	const { file, baseDir } = item;
 	const relativePath = path.relative(baseDir, file);
@@ -1718,10 +1763,8 @@ async function collectSessionEntriesFromFile(
 	const joinedPath = parts.slice(0, -2).join(path.sep);
 	const projectPath = joinedPath.length > 0 ? joinedPath : 'Unknown Project';
 	const entries: Array<SessionDataEntry | undefined> = [];
-	const pendingCosts: Array<Promise<void>> = [];
 
 	await processJSONLFileByLine(file, (line) => {
-		let deferredData: UsageData | undefined;
 		try {
 			if (!line.includes(USAGE_LINE_MARKER)) {
 				return;
@@ -1736,69 +1779,35 @@ async function collectSessionEntriesFromFile(
 			const uniqueHash = createUniqueHash(data);
 			const tokenTotal = getUsageTokenTotal(data);
 			const hasSpeed = data.message.usage.speed != null;
-			if (immediateCost !== undefined) {
-				entries.push({
-					sessionKey: `${projectPath}/${sessionId}`,
-					sessionId,
-					projectPath,
-					cost: immediateCost,
-					timestamp: data.timestamp,
-					model: getDisplayModelName(data),
-					usage: data.message.usage,
-					version: data.version,
-					uniqueHash,
-					tokenTotal,
-					hasSpeed,
-				});
-				return;
-			}
-			deferredData = data;
+			entries.push({
+				sessionKey: `${projectPath}/${sessionId}`,
+				sessionId,
+				projectPath,
+				cost: immediateCost ?? calculateCost(data),
+				timestamp: data.timestamp,
+				model: getDisplayModelName(data),
+				usage: data.message.usage,
+				version: data.version,
+				uniqueHash,
+				tokenTotal,
+				hasSpeed,
+			});
 		} catch {
 			// Skip invalid JSON lines
 		}
-		if (deferredData == null) {
-			return;
-		}
-		const entryIndex = entries.push(undefined) - 1;
-		pendingCosts.push(
-			calculateCostForEntry(deferredData, mode, fetcher!).then((cost) => {
-				entries[entryIndex] = {
-					sessionKey: `${projectPath}/${sessionId}`,
-					sessionId,
-					projectPath,
-					cost,
-					timestamp: deferredData.timestamp,
-					model: getDisplayModelName(deferredData),
-					usage: deferredData.message.usage,
-					version: deferredData.version,
-					uniqueHash: createUniqueHash(deferredData),
-					tokenTotal: getUsageTokenTotal(deferredData),
-					hasSpeed: deferredData.message.usage.speed != null,
-				};
-			}),
-		);
 	});
-	await Promise.all(pendingCosts);
 
 	return dedupeEntryMetadataList(entries);
 }
 
 async function collectBlockFileResult(
 	file: string,
-	mode: CostMode,
-	fetcher: PricingFetcher | null,
+	calculateCost: CostCalculator,
 ): Promise<BlockFileResult> {
 	let timestamp: Date | null = null;
 	const entries: Array<BlockEntryResult | undefined> = [];
-	const pendingCosts: Array<Promise<void>> = [];
 
 	await processJSONLFileByLine(file, (line) => {
-		let deferred:
-			| {
-					data: UsageData;
-					createEntry: (cost: number) => BlockEntryResult;
-			  }
-			| undefined;
 		try {
 			if (!line.includes(USAGE_LINE_MARKER)) {
 				const lineTimestamp = getTimestampFromLine(line);
@@ -1846,28 +1855,13 @@ async function collectBlockFileResult(
 				};
 			};
 
-			const immediateCost = getImmediateCostForEntry(data, mode);
-			if (immediateCost !== undefined) {
-				entries.push(createEntry(immediateCost));
-				return;
-			}
-			deferred = { data, createEntry };
+			entries.push(createEntry(calculateCost(data)));
 		} catch (error) {
 			logger.debug(
 				`Skipping invalid JSON line in 5-hour blocks: ${error instanceof Error ? error.message : String(error)}`,
 			);
 		}
-		if (deferred == null) {
-			return;
-		}
-		const entryIndex = entries.push(undefined) - 1;
-		pendingCosts.push(
-			calculateCostForEntry(deferred.data, mode, fetcher!).then((cost) => {
-				entries[entryIndex] = deferred.createEntry(cost);
-			}),
-		);
 	});
-	await Promise.all(pendingCosts);
 
 	return {
 		file,
@@ -1910,26 +1904,31 @@ export async function loadDailyUsageData(options?: LoadOptions): Promise<DailyUs
 	// Fetch pricing data for cost calculation only when needed
 	const mode = options?.mode ?? 'auto';
 
-	// Use PricingFetcher with using statement for automatic cleanup
-	using fetcher = mode === 'display' ? null : new PricingFetcher(options?.offline);
 	const formatUsageDate = createCachedDateFormatter(options?.timezone);
 
 	const allEntries: DailyDataEntry[] = [];
 	const processedEntries = new Map<string, number>();
 
-	const fileResults =
-		(await collectWithUsageWorkers<string, DailyDataEntry[]>('daily', mtimeFilteredFiles, {
+	let fileResults = await collectWithUsageWorkers<string, DailyDataEntry[]>(
+		'daily',
+		mtimeFilteredFiles,
+		{
 			mode,
 			offline: options?.offline,
 			timezone: options?.timezone,
 			singleThread: options?.singleThread,
-		})) ??
-		(await mapWithConcurrency(
+		},
+	);
+	if (fileResults == null) {
+		using fetcher = mode === 'display' ? null : new PricingFetcher(options?.offline);
+		const calculateCost = await createCostCalculator(mode, fetcher);
+		fileResults = await mapWithConcurrency(
 			mtimeFilteredFiles,
 			getJSONLFileReadConcurrency(mtimeFilteredFiles.length, options?.singleThread),
 			async (file): Promise<DailyDataEntry[]> =>
-				collectDailyEntriesFromFile(file, mode, fetcher, formatUsageDate),
-		));
+				collectDailyEntriesFromFile(file, calculateCost, formatUsageDate),
+		);
+	}
 
 	for (const entries of fileResults) {
 		for (const entry of entries) {
@@ -2027,31 +2026,32 @@ export async function loadSessionData(options?: LoadOptions): Promise<SessionUsa
 	// Fetch pricing data for cost calculation only when needed
 	const mode = options?.mode ?? 'auto';
 
-	// Use PricingFetcher with using statement for automatic cleanup
-	using fetcher = mode === 'display' ? null : new PricingFetcher(options?.offline);
 	const formatUsageDate = createCachedDateFormatter(options?.timezone);
 
 	// Collect all valid data entries with session info first
 	const allEntries: SessionDataEntry[] = [];
 	const processedEntries = new Map<string, number>();
 
-	const fileResults =
-		(await collectWithUsageWorkers<GlobResult, SessionDataEntry[]>(
-			'session',
-			mtimeFilteredWithBase,
-			{
-				mode,
-				offline: options?.offline,
-				timezone: options?.timezone,
-				singleThread: options?.singleThread,
-			},
-		)) ??
-		(await mapWithConcurrency(
+	let fileResults = await collectWithUsageWorkers<GlobResult, SessionDataEntry[]>(
+		'session',
+		mtimeFilteredWithBase,
+		{
+			mode,
+			offline: options?.offline,
+			timezone: options?.timezone,
+			singleThread: options?.singleThread,
+		},
+	);
+	if (fileResults == null) {
+		using fetcher = mode === 'display' ? null : new PricingFetcher(options?.offline);
+		const calculateCost = await createCostCalculator(mode, fetcher);
+		fileResults = await mapWithConcurrency(
 			mtimeFilteredWithBase,
 			getJSONLFileReadConcurrency(mtimeFilteredWithBase.length, options?.singleThread),
 			async (item): Promise<SessionDataEntry[]> =>
-				collectSessionEntriesFromFile(item, mode, fetcher),
-		));
+				collectSessionEntriesFromFile(item, mode, calculateCost),
+		);
+	}
 
 	for (const entries of fileResults) {
 		for (const entry of entries) {
@@ -2198,13 +2198,12 @@ export async function loadSessionUsageById(
 
 	const mode = options?.mode ?? 'auto';
 	using fetcher = mode === 'display' ? null : new PricingFetcher(options?.offline);
+	const calculateCost = await createCostCalculator(mode, fetcher);
 
 	const entries: Array<UsageData | undefined> = [];
-	const pendingCosts: Array<Promise<void>> = [];
 	let totalCost = 0;
 
 	await processJSONLFileByLine(file, (line) => {
-		let deferredData: UsageData | undefined;
 		try {
 			if (!line.includes(USAGE_LINE_MARKER)) {
 				return;
@@ -2216,27 +2215,12 @@ export async function loadSessionUsageById(
 			}
 
 			const immediateCost = getImmediateCostForEntry(data, mode);
-			if (immediateCost !== undefined) {
-				totalCost += immediateCost;
-				entries.push(data);
-				return;
-			}
-			deferredData = data;
+			totalCost += immediateCost ?? calculateCost(data);
+			entries.push(data);
 		} catch {
 			// Skip invalid JSON lines
 		}
-		if (deferredData == null) {
-			return;
-		}
-		const entryIndex = entries.push(undefined) - 1;
-		pendingCosts.push(
-			calculateCostForEntry(deferredData, mode, fetcher!).then((cost) => {
-				totalCost += cost;
-				entries[entryIndex] = deferredData;
-			}),
-		);
 	});
-	await Promise.all(pendingCosts);
 
 	return { totalCost, entries: entries.filter((entry): entry is UsageData => entry != null) };
 }
@@ -2449,8 +2433,6 @@ export async function loadSessionBlockData(options?: LoadOptions): Promise<Sessi
 	// Fetch pricing data for cost calculation only when needed
 	const mode = options?.mode ?? 'auto';
 
-	// Use PricingFetcher with using statement for automatic cleanup
-	using fetcher = mode === 'display' ? null : new PricingFetcher(options?.offline);
 	const formatUsageDate = createCachedDateFormatter(options?.timezone);
 
 	// Collect all valid data entries first
@@ -2460,18 +2442,25 @@ export async function loadSessionBlockData(options?: LoadOptions): Promise<Sessi
 		{ tokenTotal: number; hasSpeed: boolean; index: number }
 	>();
 
-	const fileResults =
-		(await collectWithUsageWorkers<string, BlockFileResult>('blocks', mtimeFilteredFiles, {
+	let fileResults = await collectWithUsageWorkers<string, BlockFileResult>(
+		'blocks',
+		mtimeFilteredFiles,
+		{
 			mode,
 			offline: options?.offline,
 			timezone: options?.timezone,
 			singleThread: options?.singleThread,
-		})) ??
-		(await mapWithConcurrency(
+		},
+	);
+	if (fileResults == null) {
+		using fetcher = mode === 'display' ? null : new PricingFetcher(options?.offline);
+		const calculateCost = await createCostCalculator(mode, fetcher);
+		fileResults = await mapWithConcurrency(
 			mtimeFilteredFiles,
 			getJSONLFileReadConcurrency(mtimeFilteredFiles.length, options?.singleThread),
-			async (file): Promise<BlockFileResult> => collectBlockFileResult(file, mode, fetcher),
-		));
+			async (file): Promise<BlockFileResult> => collectBlockFileResult(file, calculateCost),
+		);
+	}
 
 	fileResults.sort((a, b) => {
 		if (a.timestamp == null && b.timestamp == null) {
@@ -2532,6 +2521,7 @@ export async function loadSessionBlockData(options?: LoadOptions): Promise<Sessi
 
 async function runUsageWorker(data: UsageWorkerData): Promise<void> {
 	using fetcher = data.mode === 'display' ? null : new PricingFetcher(data.offline);
+	const calculateCost = await createCostCalculator(data.mode, fetcher);
 	const formatUsageDate = createCachedDateFormatter(data.timezone);
 
 	switch (data.task) {
@@ -2540,7 +2530,7 @@ async function runUsageWorker(data: UsageWorkerData): Promise<void> {
 			for (const { index, item } of data.items as Array<IndexedWorkerItem<string>>) {
 				results.push({
 					index,
-					result: await collectDailyEntriesFromFile(item, data.mode, fetcher, formatUsageDate),
+					result: await collectDailyEntriesFromFile(item, calculateCost, formatUsageDate),
 				});
 			}
 			parentPort!.postMessage({ results } satisfies UsageWorkerResponse<DailyDataEntry[]>);
@@ -2551,7 +2541,7 @@ async function runUsageWorker(data: UsageWorkerData): Promise<void> {
 			for (const { index, item } of data.items as Array<IndexedWorkerItem<GlobResult>>) {
 				results.push({
 					index,
-					result: await collectSessionEntriesFromFile(item, data.mode, fetcher),
+					result: await collectSessionEntriesFromFile(item, data.mode, calculateCost),
 				});
 			}
 			parentPort!.postMessage({ results } satisfies UsageWorkerResponse<SessionDataEntry[]>);
@@ -2562,7 +2552,7 @@ async function runUsageWorker(data: UsageWorkerData): Promise<void> {
 			for (const { index, item } of data.items as Array<IndexedWorkerItem<string>>) {
 				results.push({
 					index,
-					result: await collectBlockFileResult(item, data.mode, fetcher),
+					result: await collectBlockFileResult(item, calculateCost),
 				});
 			}
 			parentPort!.postMessage({ results } satisfies UsageWorkerResponse<BlockFileResult>);

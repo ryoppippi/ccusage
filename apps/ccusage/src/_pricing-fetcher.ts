@@ -3,7 +3,7 @@ import { Result } from '@praha/byethrow';
 import { prefetchClaudePricing } from './_macro.ts' with { type: 'macro' };
 import { logger } from './logger.ts';
 
-const CLAUDE_PROVIDER_PREFIXES = [
+export const CLAUDE_PROVIDER_PREFIXES = [
 	'anthropic/',
 	'claude-3-5-',
 	'claude-3-',
