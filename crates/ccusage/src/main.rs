@@ -11,7 +11,6 @@ use std::{
 #[cfg(unix)]
 use std::os::fd::AsRawFd;
 
-use chrono::{DateTime, Datelike, Duration, NaiveDate, TimeZone, Timelike, Utc};
 use jiff::{tz::TimeZone as JiffTimeZone, Timestamp as JiffTimestamp};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -29,6 +28,10 @@ const BLOCKS_WARNING_THRESHOLD: f64 = 0.8;
 const DEFAULT_TERMINAL_WIDTH: usize = 120;
 const USAGE_COMPACT_WIDTH_THRESHOLD: usize = 100;
 const BLOCKS_COMPACT_WIDTH_THRESHOLD: usize = 120;
+const MILLIS_PER_SECOND: i64 = 1_000;
+const MILLIS_PER_MINUTE: i64 = 60 * MILLIS_PER_SECOND;
+const MILLIS_PER_HOUR: i64 = 60 * MILLIS_PER_MINUTE;
+const MILLIS_PER_DAY: i64 = 24 * MILLIS_PER_HOUR;
 
 #[cfg(all(unix, target_os = "macos"))]
 const TIOCGWINSZ: usize = 0x4008_7468;
@@ -36,6 +39,99 @@ const TIOCGWINSZ: usize = 0x4008_7468;
 const TIOCGWINSZ: usize = 0x5413;
 
 type Result<T> = std::result::Result<T, CliError>;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+struct TimestampMs(i64);
+
+#[derive(Debug, Clone, Copy)]
+struct UtcParts {
+    year: i32,
+    month: u32,
+    day: u32,
+    hour: u32,
+    minute: u32,
+    second: u32,
+    millisecond: u32,
+}
+
+#[derive(Debug, Clone, Copy)]
+struct IsoDate {
+    year: i32,
+    month: u32,
+    day: u32,
+}
+
+impl TimestampMs {
+    const UNIX_EPOCH: Self = Self(0);
+
+    fn from_millis(millis: i64) -> Self {
+        Self(millis)
+    }
+
+    fn from_unix_seconds(seconds: i64) -> Option<Self> {
+        seconds.checked_mul(MILLIS_PER_SECOND).map(Self)
+    }
+
+    fn as_millis(self) -> i64 {
+        self.0
+    }
+
+    fn checked_add_millis(self, millis: i64) -> Option<Self> {
+        self.0.checked_add(millis).map(Self)
+    }
+
+    fn checked_sub_millis(self, millis: i64) -> Option<Self> {
+        self.0.checked_sub(millis).map(Self)
+    }
+
+    fn duration_since(self, earlier: Self) -> i64 {
+        self.0.saturating_sub(earlier.0)
+    }
+
+    fn floor_to_hour(self) -> Self {
+        Self(self.0.div_euclid(MILLIS_PER_HOUR) * MILLIS_PER_HOUR)
+    }
+
+    fn utc_parts(self) -> UtcParts {
+        let seconds = self.0.div_euclid(MILLIS_PER_SECOND);
+        let millisecond = self.0.rem_euclid(MILLIS_PER_SECOND) as u32;
+        let days = seconds.div_euclid(86_400);
+        let second_of_day = seconds.rem_euclid(86_400);
+        let (year, month, day) = civil_from_days(days);
+        UtcParts {
+            year,
+            month,
+            day,
+            hour: (second_of_day / 3_600) as u32,
+            minute: ((second_of_day % 3_600) / 60) as u32,
+            second: (second_of_day % 60) as u32,
+            millisecond,
+        }
+    }
+}
+
+impl IsoDate {
+    fn from_ymd(year: i32, month: u32, day: u32) -> Option<Self> {
+        if !(1..=12).contains(&month) || day == 0 || day > days_in_month(year, month) {
+            return None;
+        }
+        Some(Self { year, month, day })
+    }
+
+    fn days_since_epoch(self) -> i64 {
+        days_from_civil(self.year, self.month, self.day)
+    }
+
+    fn weekday_from_sunday(self) -> u32 {
+        (self.days_since_epoch() + 4).rem_euclid(7) as u32
+    }
+
+    fn checked_add_days(self, days: i64) -> Option<Self> {
+        let days = self.days_since_epoch().checked_add(days)?;
+        let (year, month, day) = civil_from_days(days);
+        Some(Self { year, month, day })
+    }
+}
 
 #[derive(Debug)]
 struct CliError(String);
@@ -155,20 +251,20 @@ struct ModelBreakdown {
 #[derive(Debug, Clone)]
 struct LoadedEntry {
     data: UsageEntry,
-    timestamp: DateTime<Utc>,
+    timestamp: TimestampMs,
     date: String,
     project: Arc<str>,
     session_id: Arc<str>,
     project_path: Arc<str>,
     cost: f64,
     model: Option<String>,
-    usage_limit_reset_time: Option<DateTime<Utc>>,
+    usage_limit_reset_time: Option<TimestampMs>,
 }
 
 #[derive(Debug)]
 struct LoadedFile {
     path: PathBuf,
-    timestamp: Option<DateTime<Utc>>,
+    timestamp: Option<TimestampMs>,
     entries: Vec<LoadedEntry>,
 }
 
@@ -203,16 +299,16 @@ struct UsageSummary {
 #[derive(Debug, Clone)]
 struct SessionBlock {
     id: String,
-    start_time: DateTime<Utc>,
-    end_time: DateTime<Utc>,
-    actual_end_time: Option<DateTime<Utc>>,
+    start_time: TimestampMs,
+    end_time: TimestampMs,
+    actual_end_time: Option<TimestampMs>,
     is_active: bool,
     is_gap: bool,
     entries: Vec<LoadedEntry>,
     token_counts: TokenCounts,
     cost_usd: f64,
     models: Vec<String>,
-    usage_limit_reset_time: Option<DateTime<Utc>>,
+    usage_limit_reset_time: Option<TimestampMs>,
 }
 
 #[derive(Debug, Clone, Copy, Serialize)]
@@ -505,7 +601,9 @@ fn run_blocks(args: BlocksArgs) -> Result<()> {
     sort_blocks(&mut blocks, &shared.order);
 
     if args.recent {
-        let cutoff = utc_now() - chrono::Duration::days(DEFAULT_RECENT_DAYS);
+        let cutoff = utc_now()
+            .checked_sub_millis(DEFAULT_RECENT_DAYS * MILLIS_PER_DAY)
+            .unwrap_or(TimestampMs::UNIX_EPOCH);
         blocks.retain(|block| block.start_time >= cutoff || block.is_active);
     }
 
@@ -585,7 +683,7 @@ fn run_statusline(args: StatuslineArgs) -> Result<()> {
         None
     };
 
-    let today = format_compact_chrono_date(utc_now());
+    let today = format_compact_utc_date(utc_now());
     let today_shared = SharedArgs {
         since: Some(today.clone()),
         until: Some(today),
@@ -609,7 +707,7 @@ fn run_statusline(args: StatuslineArgs) -> Result<()> {
         .unwrap_or_default();
     let active_block = blocks.iter().find(|block| block.is_active && !block.is_gap);
     let (block_info, burn_rate_info) = if let Some(block) = active_block {
-        let remaining = (block.end_time - utc_now()).num_minutes().max(0);
+        let remaining = block.end_time.duration_since(utc_now()) / MILLIS_PER_MINUTE;
         let mut burn = String::new();
         if let Some(rate) = calculate_burn_rate(block) {
             let mut segments = vec![format!("{}/hr", format_currency(rate.cost_per_hour))];
@@ -810,12 +908,12 @@ fn debug_log(shared: &SharedArgs, message: impl AsRef<str>) {
     }
 }
 
-fn utc_now() -> DateTime<Utc> {
+fn utc_now() -> TimestampMs {
     let millis = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map(|duration| duration.as_millis().min(i64::MAX as u128) as i64)
         .unwrap_or(0);
-    DateTime::from_timestamp_millis(millis).unwrap_or(DateTime::<Utc>::UNIX_EPOCH)
+    TimestampMs::from_millis(millis)
 }
 
 fn usage_token_total(data: &UsageEntry) -> u64 {
@@ -898,7 +996,7 @@ fn read_usage_file(path: &Path, tz: Option<&JiffTimeZone>, mode: CostMode) -> Lo
     loaded_file
 }
 
-fn update_loaded_file_timestamp(loaded_file: &mut LoadedFile, timestamp: DateTime<Utc>) {
+fn update_loaded_file_timestamp(loaded_file: &mut LoadedFile, timestamp: TimestampMs) {
     loaded_file.timestamp = Some(
         loaded_file
             .timestamp
@@ -906,7 +1004,7 @@ fn update_loaded_file_timestamp(loaded_file: &mut LoadedFile, timestamp: DateTim
     );
 }
 
-fn parse_ts_timestamp(value: &str) -> Option<DateTime<Utc>> {
+fn parse_ts_timestamp(value: &str) -> Option<TimestampMs> {
     let bytes = value.as_bytes();
     let (millis, timezone_start) = match bytes.len() {
         20 | 25 if bytes[19] == b'Z' || bytes[19] == b'+' || bytes[19] == b'-' => (0, 19),
@@ -927,12 +1025,19 @@ fn parse_ts_timestamp(value: &str) -> Option<DateTime<Utc>> {
     let hour = parse_digits(&bytes[11..13])?;
     let minute = parse_digits(&bytes[14..16])?;
     let second = parse_digits(&bytes[17..19])?;
+    if hour > 23 || minute > 59 || second > 59 {
+        return None;
+    }
     let timezone_offset = parse_timezone_offset(&bytes[timezone_start..])?;
-    let timestamp = Utc
-        .with_ymd_and_hms(year, month, day, hour, minute, second)
-        .single()?
-        .checked_add_signed(Duration::milliseconds(i64::from(millis)))?;
-    timestamp.checked_sub_signed(Duration::minutes(timezone_offset))
+    let date = IsoDate::from_ymd(year, month, day)?;
+    let timestamp = date
+        .days_since_epoch()
+        .checked_mul(MILLIS_PER_DAY)?
+        .checked_add(i64::from(hour) * MILLIS_PER_HOUR)?
+        .checked_add(i64::from(minute) * MILLIS_PER_MINUTE)?
+        .checked_add(i64::from(second) * MILLIS_PER_SECOND)?
+        .checked_add(i64::from(millis))?;
+    TimestampMs::from_millis(timestamp).checked_sub_millis(timezone_offset * MILLIS_PER_MINUTE)
 }
 
 fn parse_timezone_offset(bytes: &[u8]) -> Option<i64> {
@@ -946,7 +1051,7 @@ fn parse_timezone_offset(bytes: &[u8]) -> Option<i64> {
     Some(if bytes[0] == b'+' { offset } else { -offset })
 }
 
-fn parse_iso_date(value: &str) -> Option<NaiveDate> {
+fn parse_iso_date(value: &str) -> Option<IsoDate> {
     let bytes = value.as_bytes();
     if bytes.len() != 10 || bytes[4] != b'-' || bytes[7] != b'-' {
         return None;
@@ -954,7 +1059,7 @@ fn parse_iso_date(value: &str) -> Option<NaiveDate> {
     let year = parse_digits(&bytes[0..4])? as i32;
     let month = parse_digits(&bytes[5..7])?;
     let day = parse_digits(&bytes[8..10])?;
-    NaiveDate::from_ymd_opt(year, month, day)
+    IsoDate::from_ymd(year, month, day)
 }
 
 fn parse_digits(bytes: &[u8]) -> Option<u32> {
@@ -966,6 +1071,45 @@ fn parse_digits(bytes: &[u8]) -> Option<u32> {
         value = value * 10 + u32::from(byte - b'0');
     }
     Some(value)
+}
+
+fn days_in_month(year: i32, month: u32) -> u32 {
+    match month {
+        1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
+        4 | 6 | 9 | 11 => 30,
+        2 if is_leap_year(year) => 29,
+        2 => 28,
+        _ => 0,
+    }
+}
+
+fn is_leap_year(year: i32) -> bool {
+    (year % 4 == 0 && year % 100 != 0) || year % 400 == 0
+}
+
+fn days_from_civil(year: i32, month: u32, day: u32) -> i64 {
+    let year = i64::from(year) - i64::from(month <= 2);
+    let era = year.div_euclid(400);
+    let year_of_era = year - era * 400;
+    let month_prime = i64::from(month) + if month > 2 { -3 } else { 9 };
+    let day_of_year = (153 * month_prime + 2) / 5 + i64::from(day) - 1;
+    let day_of_era = year_of_era * 365 + year_of_era / 4 - year_of_era / 100 + day_of_year;
+    era * 146_097 + day_of_era - 719_468
+}
+
+fn civil_from_days(days: i64) -> (i32, u32, u32) {
+    let days = days + 719_468;
+    let era = days.div_euclid(146_097);
+    let day_of_era = days - era * 146_097;
+    let year_of_era =
+        (day_of_era - day_of_era / 1_460 + day_of_era / 36_524 - day_of_era / 146_096) / 365;
+    let mut year = year_of_era + era * 400;
+    let day_of_year = day_of_era - (365 * year_of_era + year_of_era / 4 - year_of_era / 100);
+    let month_prime = (5 * day_of_year + 2) / 153;
+    let day = day_of_year - (153 * month_prime + 2) / 5 + 1;
+    let month = month_prime + if month_prime < 10 { 3 } else { -9 };
+    year += i64::from(month <= 2);
+    (year as i32, month as u32, day as u32)
 }
 
 fn is_valid_usage_entry(data: &UsageEntry) -> bool {
@@ -1089,13 +1233,13 @@ fn collect_usage_files(dir: &Path, files: &mut Vec<PathBuf>) {
     }
 }
 
-fn timestamp_from_line(line: &str) -> Option<DateTime<Utc>> {
+fn timestamp_from_line(line: &str) -> Option<TimestampMs> {
     let start = line.find("\"timestamp\":\"")? + "\"timestamp\":\"".len();
     let end = line[start..].find('"')? + start;
     parse_ts_timestamp(&line[start..end])
 }
 
-fn earliest_timestamp_from_line(line: &str) -> Option<DateTime<Utc>> {
+fn earliest_timestamp_from_line(line: &str) -> Option<TimestampMs> {
     if let Some(timestamp) = timestamp_from_line(line) {
         return Some(timestamp);
     }
@@ -1154,13 +1298,13 @@ fn parse_tz(timezone: Option<&str>) -> Option<JiffTimeZone> {
     timezone.and_then(|value| JiffTimeZone::get(value).ok())
 }
 
-fn format_date(timestamp: DateTime<Utc>, timezone: Option<&str>) -> String {
+fn format_date(timestamp: TimestampMs, timezone: Option<&str>) -> String {
     format_date_tz(timestamp, parse_tz(timezone).as_ref())
 }
 
-fn format_date_tz(timestamp: DateTime<Utc>, timezone: Option<&JiffTimeZone>) -> String {
-    let Ok(timestamp) = JiffTimestamp::from_millisecond(timestamp.timestamp_millis()) else {
-        return format_chrono_date(timestamp);
+fn format_date_tz(timestamp: TimestampMs, timezone: Option<&JiffTimeZone>) -> String {
+    let Ok(timestamp) = JiffTimestamp::from_millisecond(timestamp.as_millis()) else {
+        return format_utc_date(timestamp);
     };
     let timezone = timezone.cloned().unwrap_or_else(JiffTimeZone::system);
     let zoned = timestamp.to_zoned(timezone);
@@ -1171,60 +1315,51 @@ fn format_date_tz(timestamp: DateTime<Utc>, timezone: Option<&JiffTimeZone>) -> 
     )
 }
 
-fn format_chrono_date(timestamp: DateTime<Utc>) -> String {
-    format_date_parts(timestamp.year(), timestamp.month(), timestamp.day())
+fn format_utc_date(timestamp: TimestampMs) -> String {
+    let parts = timestamp.utc_parts();
+    format_date_parts(parts.year, parts.month, parts.day)
 }
 
-fn format_compact_chrono_date(timestamp: DateTime<Utc>) -> String {
-    format!(
-        "{:04}{:02}{:02}",
-        timestamp.year(),
-        timestamp.month(),
-        timestamp.day()
-    )
+fn format_compact_utc_date(timestamp: TimestampMs) -> String {
+    let parts = timestamp.utc_parts();
+    format!("{:04}{:02}{:02}", parts.year, parts.month, parts.day)
 }
 
-fn format_naive_date(date: NaiveDate) -> String {
-    format_date_parts(date.year(), date.month(), date.day())
+fn format_naive_date(date: IsoDate) -> String {
+    format_date_parts(date.year, date.month, date.day)
 }
 
 fn format_date_parts(year: i32, month: u32, day: u32) -> String {
     format!("{year:04}-{month:02}-{day:02}")
 }
 
-fn format_chrono_minute(timestamp: DateTime<Utc>) -> String {
+fn format_utc_minute(timestamp: TimestampMs) -> String {
+    let parts = timestamp.utc_parts();
     format!(
         "{:04}-{:02}-{:02} {:02}:{:02}",
-        timestamp.year(),
-        timestamp.month(),
-        timestamp.day(),
-        timestamp.hour(),
-        timestamp.minute()
+        parts.year, parts.month, parts.day, parts.hour, parts.minute
     )
 }
 
-fn format_chrono_second(timestamp: DateTime<Utc>) -> String {
+fn format_utc_second(timestamp: TimestampMs) -> String {
+    let parts = timestamp.utc_parts();
     format!(
         "{:04}-{:02}-{:02} {:02}:{:02}:{:02}",
-        timestamp.year(),
-        timestamp.month(),
-        timestamp.day(),
-        timestamp.hour(),
-        timestamp.minute(),
-        timestamp.second()
+        parts.year, parts.month, parts.day, parts.hour, parts.minute, parts.second
     )
 }
 
-fn format_rfc3339_millis(timestamp: DateTime<Utc>) -> String {
+fn format_rfc3339_millis(timestamp: TimestampMs) -> String {
+    let parts = timestamp.utc_parts();
     format!(
         "{:04}-{:02}-{:02}T{:02}:{:02}:{:02}.{:03}Z",
-        timestamp.year(),
-        timestamp.month(),
-        timestamp.day(),
-        timestamp.hour(),
-        timestamp.minute(),
-        timestamp.second(),
-        timestamp.timestamp_subsec_millis()
+        parts.year,
+        parts.month,
+        parts.day,
+        parts.hour,
+        parts.minute,
+        parts.second,
+        parts.millisecond
     )
 }
 
@@ -1499,7 +1634,7 @@ impl UsageAccumulator {
 #[derive(Default)]
 struct SessionAccumulator {
     usage: UsageAccumulator,
-    latest: Option<(DateTime<Utc>, Arc<str>, Arc<str>)>,
+    latest: Option<(TimestampMs, Arc<str>, Arc<str>)>,
     versions: BTreeSet<String>,
 }
 
@@ -1663,9 +1798,9 @@ fn week_start(date: &str, start: WeekDay) -> Option<String> {
         WeekDay::Friday => 5,
         WeekDay::Saturday => 6,
     };
-    let day = date.weekday().num_days_from_sunday() as i64;
+    let day = date.weekday_from_sunday() as i64;
     let shift = (day - start_num + 7) % 7;
-    Some(format_naive_date(date - chrono::Duration::days(shift)))
+    Some(format_naive_date(date.checked_add_days(-shift)?))
 }
 
 fn wants_json(shared: &SharedArgs) -> bool {
@@ -1946,12 +2081,11 @@ fn identify_session_blocks(
     if entries.is_empty() {
         return Vec::new();
     }
-    let session_duration =
-        chrono::Duration::milliseconds((session_duration_hours * 60.0 * 60.0 * 1000.0) as i64);
+    let session_duration = (session_duration_hours * MILLIS_PER_HOUR as f64) as i64;
     entries.sort_by_key(|entry| entry.timestamp);
     let now = utc_now();
     let mut blocks = Vec::new();
-    let mut current_start: Option<DateTime<Utc>> = None;
+    let mut current_start: Option<TimestampMs> = None;
     let mut current_entries = Vec::new();
 
     for entry in entries {
@@ -1960,8 +2094,8 @@ fn identify_session_blocks(
                 .last()
                 .map(|entry: &LoadedEntry| entry.timestamp)
                 .unwrap_or(start);
-            let since_start = entry.timestamp - start;
-            let since_last = entry.timestamp - last_time;
+            let since_start = entry.timestamp.duration_since(start);
+            let since_last = entry.timestamp.duration_since(last_time);
             if since_start > session_duration || since_last > session_duration {
                 blocks.push(create_block(
                     start,
@@ -1992,28 +2126,19 @@ fn identify_session_blocks(
     blocks
 }
 
-fn floor_to_hour(timestamp: DateTime<Utc>) -> DateTime<Utc> {
-    Utc.with_ymd_and_hms(
-        timestamp.year(),
-        timestamp.month(),
-        timestamp.day(),
-        timestamp.hour(),
-        0,
-        0,
-    )
-    .single()
-    .unwrap_or(timestamp)
+fn floor_to_hour(timestamp: TimestampMs) -> TimestampMs {
+    timestamp.floor_to_hour()
 }
 
 fn create_block(
-    start: DateTime<Utc>,
+    start: TimestampMs,
     entries: Vec<LoadedEntry>,
-    now: DateTime<Utc>,
-    duration: chrono::Duration,
+    now: TimestampMs,
+    duration: i64,
 ) -> SessionBlock {
-    let end = start + duration;
+    let end = start.checked_add_millis(duration).unwrap_or(start);
     let actual_end = entries.last().map(|entry| entry.timestamp);
-    let is_active = actual_end.is_some_and(|last| now - last < duration && now < end);
+    let is_active = actual_end.is_some_and(|last| now.duration_since(last) < duration && now < end);
     let mut token_counts = TokenCounts::default();
     let mut cost = 0.0;
     let mut models = Vec::new();
@@ -2044,12 +2169,8 @@ fn create_block(
     }
 }
 
-fn create_gap_block(
-    last: DateTime<Utc>,
-    next: DateTime<Utc>,
-    duration: chrono::Duration,
-) -> SessionBlock {
-    let start = last + duration;
+fn create_gap_block(last: TimestampMs, next: TimestampMs, duration: i64) -> SessionBlock {
+    let start = last.checked_add_millis(duration).unwrap_or(last);
     SessionBlock {
         id: format!("gap-{}", format_rfc3339_millis(start)),
         start_time: start,
@@ -2068,7 +2189,7 @@ fn create_gap_block(
 fn usage_limit_reset_time_from_line(
     line: &str,
     is_api_error_message: Option<bool>,
-) -> Option<DateTime<Utc>> {
+) -> Option<TimestampMs> {
     if is_api_error_message != Some(true) {
         return None;
     }
@@ -2085,7 +2206,7 @@ fn usage_limit_reset_time_from_line(
     if timestamp <= 0 {
         return None;
     }
-    Utc.timestamp_opt(timestamp, 0).single()
+    TimestampMs::from_unix_seconds(timestamp)
 }
 
 fn filter_blocks_by_date(blocks: &mut Vec<SessionBlock>, shared: &SharedArgs) {
@@ -2631,17 +2752,14 @@ fn short_model_name(model: &str) -> String {
 
 fn format_block_time(block: &SessionBlock, compact: bool) -> String {
     if compact {
+        let parts = block.start_time.utc_parts();
         format!(
             "{}\n{}",
-            format_chrono_date(block.start_time),
-            format!(
-                "{:02}:{:02}",
-                block.start_time.hour(),
-                block.start_time.minute()
-            )
+            format_utc_date(block.start_time),
+            format!("{:02}:{:02}", parts.hour, parts.minute)
         )
     } else {
-        format_chrono_minute(block.start_time)
+        format_utc_minute(block.start_time)
     }
 }
 
@@ -2764,12 +2882,9 @@ fn print_active_block_detail(
 ) {
     print_box_title("Current Session Block Status", shared);
     let now = utc_now();
-    let elapsed = (now - block.start_time).num_minutes().max(0);
-    let remaining = (block.end_time - now).num_minutes().max(0);
-    println!(
-        "Block Started:   {}",
-        format_chrono_second(block.start_time)
-    );
+    let elapsed = now.duration_since(block.start_time) / MILLIS_PER_MINUTE;
+    let remaining = block.end_time.duration_since(now) / MILLIS_PER_MINUTE;
+    println!("Block Started:   {}", format_utc_second(block.start_time));
     println!(
         "Time Elapsed:    {}h {}m",
         elapsed / 60,
@@ -2861,7 +2976,7 @@ fn calculate_burn_rate(block: &SessionBlock) -> Option<BurnRate> {
     }
     let first = block.entries.first()?.timestamp;
     let last = block.entries.last()?.timestamp;
-    let duration_minutes = (last - first).num_milliseconds() as f64 / 60_000.0;
+    let duration_minutes = last.duration_since(first) as f64 / MILLIS_PER_MINUTE as f64;
     if duration_minutes <= 0.0 {
         return None;
     }
@@ -2880,7 +2995,7 @@ fn project_block_usage(block: &SessionBlock) -> Option<Projection> {
     }
     let burn = calculate_burn_rate(block)?;
     let remaining_minutes =
-        ((block.end_time - utc_now()).num_milliseconds().max(0) as f64 / 60_000.0).round();
+        (block.end_time.duration_since(utc_now()) as f64 / MILLIS_PER_MINUTE as f64).round();
     let total_tokens =
         block.token_counts.total() as f64 + burn.tokens_per_minute * remaining_minutes;
     let total_cost = block.cost_usd + (burn.cost_per_hour / 60.0) * remaining_minutes;
@@ -3006,8 +3121,8 @@ mod tests {
 
         assert_eq!(format_date(timestamp, Some("UTC")), "2024-08-04");
         assert_eq!(format_date(timestamp, Some("Asia/Tokyo")), "2024-08-05");
-        assert_eq!(format_chrono_minute(timestamp), "2024-08-04 23:30");
-        assert_eq!(format_chrono_second(timestamp), "2024-08-04 23:30:00");
+        assert_eq!(format_utc_minute(timestamp), "2024-08-04 23:30");
+        assert_eq!(format_utc_second(timestamp), "2024-08-04 23:30:00");
         assert_eq!(format_rfc3339_millis(timestamp), "2024-08-04T23:30:00.000Z");
     }
 
@@ -3029,7 +3144,7 @@ mod tests {
             timestamp_from_line(r#"{"timestamp":"2026-05-11T12:34:56.789Z","message":{}}"#)
                 .unwrap();
 
-        assert_eq!(timestamp.to_rfc3339(), "2026-05-11T12:34:56.789+00:00");
+        assert_eq!(format_rfc3339_millis(timestamp), "2026-05-11T12:34:56.789Z");
         assert!(timestamp_from_line(r#"{"timestamp": "2026-05-11T12:34:56.789Z"}"#).is_none());
     }
 
@@ -3073,7 +3188,10 @@ mod tests {
         let line = r#"{"timestamp":"2025-01-10T10:00:00.000Z","isApiErrorMessage":true,"message":{"content":[{"text":"Claude AI usage limit reached|1736503200 remaining"}],"usage":{"input_tokens":0,"output_tokens":0}}}"#;
         let reset_time = usage_limit_reset_time_from_line(line, Some(true)).unwrap();
 
-        assert_eq!(reset_time.to_rfc3339(), "2025-01-10T10:00:00+00:00");
+        assert_eq!(
+            format_rfc3339_millis(reset_time),
+            "2025-01-10T10:00:00.000Z"
+        );
         assert!(usage_limit_reset_time_from_line(line, Some(false)).is_none());
         assert!(usage_limit_reset_time_from_line(
             r#"{"message":{"content":[{"text":"Claude AI usage limit reached|0"}]}}"#,
