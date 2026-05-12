@@ -72,6 +72,7 @@ import { logger } from './logger.ts';
 const USAGE_LINE_MARKER = '"input_tokens"';
 const ISO_TIMESTAMP_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/;
 const MAX_BUFFERED_JSONL_BYTES = 32 * 1024 * 1024;
+const DEFAULT_JSONL_WORKER_THREAD_LIMIT = 4;
 const VERSION_PATTERN = /^\d+\.\d+\.\d+/;
 const FAST_PARSE_UNSUPPORTED_NULL_PATTERN =
 	/"(?:cwd|sessionId|requestId|costUSD|isApiErrorMessage|version|model|id|cache_creation_input_tokens|cache_read_input_tokens|speed)":null/;
@@ -842,44 +843,6 @@ function getUsageTokenTotal(data: UsageData): number {
 	);
 }
 
-function shouldReplaceDedupedEntry(candidate: UsageData, existing: UsageData): boolean {
-	const candidateTotal = getUsageTokenTotal(candidate);
-	const existingTotal = getUsageTokenTotal(existing);
-	if (candidateTotal !== existingTotal) {
-		return candidateTotal > existingTotal;
-	}
-
-	return candidate.message.usage.speed != null && existing.message.usage.speed == null;
-}
-
-function getDedupedEntryIndex<T extends { data: UsageData }>(
-	uniqueHash: string | null,
-	processedEntries: Map<string, number>,
-	entries: T[],
-	data: UsageData,
-): number | null {
-	if (uniqueHash == null) {
-		return null;
-	}
-
-	const existingIndex = processedEntries.get(uniqueHash);
-	if (existingIndex == null) {
-		return null;
-	}
-
-	return shouldReplaceDedupedEntry(data, entries[existingIndex]!.data) ? existingIndex : -1;
-}
-
-function markDedupedEntry(
-	uniqueHash: string | null,
-	processedEntries: Map<string, number>,
-	entryIndex: number,
-): void {
-	if (uniqueHash != null) {
-		processedEntries.set(uniqueHash, entryIndex);
-	}
-}
-
 /**
  * Create a unique identifier for deduplication using message ID and request ID
  */
@@ -1172,27 +1135,35 @@ export type LoadOptions = {
 } & DateFilter;
 
 type DailyDataEntry = {
-	data: UsageData;
 	date: string;
 	cost: number;
 	model: string | undefined;
 	project: string;
+	usage: UsageData['message']['usage'];
+	uniqueHash: string | null;
+	tokenTotal: number;
+	hasSpeed: boolean;
 };
 
 type SessionDataEntry = {
-	data: UsageData;
 	sessionKey: string;
 	sessionId: string;
 	projectPath: string;
 	cost: number;
 	timestamp: string;
 	model: string | undefined;
+	usage: UsageData['message']['usage'];
+	uniqueHash: string | null;
+	tokenTotal: number;
+	hasSpeed: boolean;
+	version: Version | undefined;
 };
 
 type BlockEntryResult = {
-	data: UsageData;
 	entry: LoadedUsageEntry;
 	uniqueHash: string | null;
+	tokenTotal: number;
+	hasSpeed: boolean;
 };
 
 type BlockFileResult = {
@@ -1224,6 +1195,58 @@ type UsageWorkerResponse<TResult> = {
 	}>;
 };
 
+function createUsageEntryMetadata(data: UsageData): {
+	uniqueHash: string | null;
+	tokenTotal: number;
+	hasSpeed: boolean;
+} {
+	return {
+		uniqueHash: createUniqueHash(data),
+		tokenTotal: getUsageTokenTotal(data),
+		hasSpeed: data.message.usage.speed != null,
+	};
+}
+
+function shouldReplaceEntryMetadata(
+	candidate: { tokenTotal: number; hasSpeed: boolean },
+	existing: { tokenTotal: number; hasSpeed: boolean },
+): boolean {
+	if (candidate.tokenTotal !== existing.tokenTotal) {
+		return candidate.tokenTotal > existing.tokenTotal;
+	}
+
+	return candidate.hasSpeed && !existing.hasSpeed;
+}
+
+function getDedupedEntryMetadataIndex<
+	T extends {
+		uniqueHash: string | null;
+		tokenTotal: number;
+		hasSpeed: boolean;
+	},
+>(processedEntries: Map<string, number>, entries: T[], data: T): number | null {
+	if (data.uniqueHash == null) {
+		return null;
+	}
+
+	const existingIndex = processedEntries.get(data.uniqueHash);
+	if (existingIndex == null) {
+		return null;
+	}
+
+	return shouldReplaceEntryMetadata(data, entries[existingIndex]!) ? existingIndex : -1;
+}
+
+function markDedupedEntryMetadata(
+	processedEntries: Map<string, number>,
+	entry: { uniqueHash: string | null },
+	entryIndex: number,
+): void {
+	if (entry.uniqueHash != null) {
+		processedEntries.set(entry.uniqueHash, entryIndex);
+	}
+}
+
 function getJSONLWorkerThreadCount(fileCount: number, singleThread = false): number {
 	if (
 		singleThread ||
@@ -1243,7 +1266,14 @@ function getJSONLWorkerThreadCount(fileCount: number, singleThread = false): num
 		return Math.min(fileCount, configured);
 	}
 
-	return Math.max(0, Math.min(fileCount, Math.max(1, os.availableParallelism() - 1)));
+	return Math.max(
+		0,
+		Math.min(
+			fileCount,
+			Math.max(1, os.availableParallelism() - 1),
+			DEFAULT_JSONL_WORKER_THREAD_LIMIT,
+		),
+	);
 }
 
 function chunkIndexedItems<T>(
@@ -1329,14 +1359,16 @@ async function collectDailyEntriesFromFile(
 			}
 
 			const date = formatUsageDate(data.timestamp);
+			const metadata = createUsageEntryMetadata(data);
 			const immediateCost = getImmediateCostForEntry(data, mode);
 			if (immediateCost !== undefined) {
 				entries.push({
-					data,
 					date,
 					cost: immediateCost,
 					model: getDisplayModelName(data),
 					project,
+					usage: data.message.usage,
+					...metadata,
 				});
 				return;
 			}
@@ -1353,11 +1385,12 @@ async function collectDailyEntriesFromFile(
 		pendingCosts.push(
 			calculateCostForEntry(deferredData, mode, fetcher!).then((cost) => {
 				entries[entryIndex] = {
-					data: deferredData,
 					date: deferredDate,
 					cost,
 					model: getDisplayModelName(deferredData),
 					project,
+					usage: deferredData.message.usage,
+					...createUsageEntryMetadata(deferredData),
 				};
 			}),
 		);
@@ -1394,15 +1427,18 @@ async function collectSessionEntriesFromFile(
 			}
 
 			const immediateCost = getImmediateCostForEntry(data, mode);
+			const metadata = createUsageEntryMetadata(data);
 			if (immediateCost !== undefined) {
 				entries.push({
-					data,
 					sessionKey: `${projectPath}/${sessionId}`,
 					sessionId,
 					projectPath,
 					cost: immediateCost,
 					timestamp: data.timestamp,
 					model: getDisplayModelName(data),
+					usage: data.message.usage,
+					version: data.version,
+					...metadata,
 				});
 				return;
 			}
@@ -1417,13 +1453,15 @@ async function collectSessionEntriesFromFile(
 		pendingCosts.push(
 			calculateCostForEntry(deferredData, mode, fetcher!).then((cost) => {
 				entries[entryIndex] = {
-					data: deferredData,
 					sessionKey: `${projectPath}/${sessionId}`,
 					sessionId,
 					projectPath,
 					cost,
 					timestamp: deferredData.timestamp,
 					model: getDisplayModelName(deferredData),
+					usage: deferredData.message.usage,
+					version: deferredData.version,
+					...createUsageEntryMetadata(deferredData),
 				};
 			}),
 		);
@@ -1476,9 +1514,8 @@ async function collectBlockFileResult(
 
 			const createEntry = (cost: number): BlockEntryResult => {
 				const usageLimitResetTime = getUsageLimitResetTime(data);
+				const metadata = createUsageEntryMetadata(data);
 				return {
-					data,
-					uniqueHash: createUniqueHash(data),
 					entry: {
 						timestamp: new Date(data.timestamp),
 						usage: {
@@ -1492,6 +1529,7 @@ async function collectBlockFileResult(
 						version: data.version,
 						usageLimitResetTime: usageLimitResetTime ?? undefined,
 					},
+					...metadata,
 				};
 			};
 
@@ -1582,13 +1620,7 @@ export async function loadDailyUsageData(options?: LoadOptions): Promise<DailyUs
 
 	for (const entries of fileResults) {
 		for (const entry of entries) {
-			const uniqueHash = createUniqueHash(entry.data);
-			const existingEntryIndex = getDedupedEntryIndex(
-				uniqueHash,
-				processedEntries,
-				allEntries,
-				entry.data,
-			);
+			const existingEntryIndex = getDedupedEntryMetadataIndex(processedEntries, allEntries, entry);
 			if (existingEntryIndex === -1) {
 				continue;
 			}
@@ -1597,7 +1629,7 @@ export async function loadDailyUsageData(options?: LoadOptions): Promise<DailyUs
 				allEntries[existingEntryIndex] = entry;
 			} else {
 				allEntries.push(entry);
-				markDedupedEntry(uniqueHash, processedEntries, allEntries.length - 1);
+				markDedupedEntryMetadata(processedEntries, entry, allEntries.length - 1);
 			}
 		}
 	}
@@ -1624,7 +1656,7 @@ export async function loadDailyUsageData(options?: LoadOptions): Promise<DailyUs
 			const summary = summarizeUsageEntries(
 				entries,
 				(entry) => entry.model,
-				(entry) => entry.data.message.usage,
+				(entry) => entry.usage,
 				(entry) => entry.cost,
 			);
 
@@ -1712,13 +1744,7 @@ export async function loadSessionData(options?: LoadOptions): Promise<SessionUsa
 
 	for (const entries of fileResults) {
 		for (const entry of entries) {
-			const uniqueHash = createUniqueHash(entry.data);
-			const existingEntryIndex = getDedupedEntryIndex(
-				uniqueHash,
-				processedEntries,
-				allEntries,
-				entry.data,
-			);
+			const existingEntryIndex = getDedupedEntryMetadataIndex(processedEntries, allEntries, entry);
 			if (existingEntryIndex === -1) {
 				continue;
 			}
@@ -1727,7 +1753,7 @@ export async function loadSessionData(options?: LoadOptions): Promise<SessionUsa
 				allEntries[existingEntryIndex] = entry;
 			} else {
 				allEntries.push(entry);
-				markDedupedEntry(uniqueHash, processedEntries, allEntries.length - 1);
+				markDedupedEntryMetadata(processedEntries, entry, allEntries.length - 1);
 			}
 		}
 	}
@@ -1746,15 +1772,15 @@ export async function loadSessionData(options?: LoadOptions): Promise<SessionUsa
 
 			const versions: string[] = [];
 			for (const entry of entries) {
-				if (entry.data.version != null) {
-					versions.push(entry.data.version);
+				if (entry.version != null) {
+					versions.push(entry.version);
 				}
 			}
 
 			const summary = summarizeUsageEntries(
 				entries,
 				(entry) => entry.model,
-				(entry) => entry.data.message.usage,
+				(entry) => entry.usage,
 				(entry) => entry.cost,
 			);
 
@@ -2118,7 +2144,10 @@ export async function loadSessionBlockData(options?: LoadOptions): Promise<Sessi
 
 	// Collect all valid data entries first
 	const allEntries: LoadedUsageEntry[] = [];
-	const processedEntries = new Map<string, { data: UsageData; index: number }>();
+	const processedEntries = new Map<
+		string,
+		{ tokenTotal: number; hasSpeed: boolean; index: number }
+	>();
 
 	const fileResults =
 		(await collectWithUsageWorkers<string, BlockFileResult>('blocks', mtimeFilteredFiles, {
@@ -2148,7 +2177,7 @@ export async function loadSessionBlockData(options?: LoadOptions): Promise<Sessi
 	});
 
 	for (const { entries } of fileResults) {
-		for (const { data, entry, uniqueHash } of entries) {
+		for (const { entry, uniqueHash, tokenTotal, hasSpeed } of entries) {
 			if (uniqueHash == null) {
 				allEntries.push(entry);
 				continue;
@@ -2157,12 +2186,12 @@ export async function loadSessionBlockData(options?: LoadOptions): Promise<Sessi
 			const existing = processedEntries.get(uniqueHash);
 			if (existing == null) {
 				allEntries.push(entry);
-				processedEntries.set(uniqueHash, { data, index: allEntries.length - 1 });
+				processedEntries.set(uniqueHash, { tokenTotal, hasSpeed, index: allEntries.length - 1 });
 				continue;
 			}
-			if (shouldReplaceDedupedEntry(data, existing.data)) {
+			if (shouldReplaceEntryMetadata({ tokenTotal, hasSpeed }, existing)) {
 				allEntries[existing.index] = entry;
-				processedEntries.set(uniqueHash, { data, index: existing.index });
+				processedEntries.set(uniqueHash, { tokenTotal, hasSpeed, index: existing.index });
 			}
 		}
 	}
