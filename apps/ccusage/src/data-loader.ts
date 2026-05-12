@@ -1880,11 +1880,6 @@ export async function loadSessionBlockData(options?: LoadOptions): Promise<Sessi
 			}> = [];
 
 			await processJSONLFileByLine(file, async (line) => {
-				const lineTimestamp = getTimestampFromLine(line);
-				if (lineTimestamp != null && (timestamp == null || lineTimestamp < timestamp)) {
-					timestamp = lineTimestamp;
-				}
-
 				let deferred:
 					| {
 							data: UsageData;
@@ -1893,12 +1888,27 @@ export async function loadSessionBlockData(options?: LoadOptions): Promise<Sessi
 					| undefined;
 				try {
 					if (!line.includes(USAGE_LINE_MARKER)) {
+						const lineTimestamp = getTimestampFromLine(line);
+						if (lineTimestamp != null && (timestamp == null || lineTimestamp < timestamp)) {
+							timestamp = lineTimestamp;
+						}
 						return;
 					}
 
 					const data = parseUsageDataLine(line);
 					if (data == null) {
+						const lineTimestamp = getTimestampFromLine(line);
+						if (lineTimestamp != null && (timestamp == null || lineTimestamp < timestamp)) {
+							timestamp = lineTimestamp;
+						}
 						return;
+					}
+					const lineTimestamp = new Date(data.timestamp);
+					if (
+						!Number.isNaN(lineTimestamp.getTime()) &&
+						(timestamp == null || lineTimestamp < timestamp)
+					) {
+						timestamp = lineTimestamp;
 					}
 
 					const pushEntry = (cost: number): void => {
