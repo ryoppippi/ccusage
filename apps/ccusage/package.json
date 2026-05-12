@@ -64,7 +64,16 @@
 		"test:statusline:opus4": "cat test/statusline-test-opus4.json | node ./src/index.ts statusline --offline",
 		"test:statusline:sonnet4": "cat test/statusline-test-sonnet4.json | node ./src/index.ts statusline --offline",
 		"test:statusline:sonnet41": "cat test/statusline-test-sonnet41.json | node ./src/index.ts statusline --offline",
-		"typecheck": "tsgo --noEmit"
+		"typecheck": "tsgo --noEmit",
+		"zig:bench": "node scripts/zig-bench.mjs",
+		"zig:build": "zig build --release=small",
+		"zig:build:fast": "mkdir -p ../../zig-out-fast/bin && zig build-exe src-zig/main.zig -O ReleaseFast --name ccusage -femit-bin=../../zig-out-fast/bin/ccusage",
+		"zig:build:safe": "mkdir -p ../../zig-out-safe/bin && zig build-exe src-zig/main.zig -O ReleaseSafe --name ccusage -femit-bin=../../zig-out-safe/bin/ccusage",
+		"zig:fmt": "zig fmt ../../build.zig src-zig",
+		"zig:fmt:check": "zig fmt --check ../../build.zig src-zig",
+		"zig:parity": "node scripts/zig-parity.mjs",
+		"zig:pricing": "node scripts/fetch-zig-pricing.mjs",
+		"zig:test": "zig build test"
 	},
 	"devDependencies": {
 		"@antfu/utils": "catalog:runtime",

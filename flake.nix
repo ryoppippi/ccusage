@@ -2,24 +2,32 @@
   description = "Usage analysis tool for Claude Code";
 
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
+  inputs.zig-overlay.url = "github:mitchellh/zig-overlay/0cebd9b9215fa121233f9a0799d2acfbbfaee700";
 
-  outputs = { nixpkgs, ... }:
+  outputs = { nixpkgs, zig-overlay, ... }:
     let
       systems = [ "x86_64-linux" "aarch64-linux" "x86_64-darwin" "aarch64-darwin" ];
-      forAllSystems = f: nixpkgs.lib.genAttrs systems (system: f nixpkgs.legacyPackages.${system});
+      forAllSystems = f:
+        nixpkgs.lib.genAttrs systems (system:
+          let
+            pkgs = nixpkgs.legacyPackages.${system};
+            zig = zig-overlay.packages.${system}."0.16.0";
+          in
+          f pkgs zig);
     in {
-      devShells = forAllSystems (pkgs: {
+      devShells = forAllSystems (pkgs: zig: {
         default = pkgs.mkShellNoCC {
-          buildInputs = with pkgs; [
+          buildInputs = [
             # Package manager
-            pnpm_10
+            pkgs.pnpm_10
 
             # Development tools
-            typos
-            typos-lsp
-            jq
-            git
-            gh
+            zig
+            pkgs.typos
+            pkgs.typos-lsp
+            pkgs.jq
+            pkgs.git
+            pkgs.gh
           ];
 
           shellHook = ''

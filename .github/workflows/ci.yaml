@@ -26,6 +26,20 @@ jobs:
           mkdir -p $HOME/.config/claude/projects
       - run: nix develop --command pnpm run test
 
+  zig:
+    runs-on: ubuntu-24.04-arm
+
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: ./.github/actions/setup-nix
+      - run: nix develop --command pnpm --filter ccusage zig:fmt:check
+      - run: nix develop --command pnpm --filter ccusage zig:test
+      - run: nix develop --command pnpm --filter ccusage zig:build
+      - run: nix develop --command pnpm --filter ccusage zig:build:fast
+      - run: nix develop --command pnpm --filter ccusage zig:build:safe
+      - run: nix develop --command pnpm --filter ccusage build
+      - run: nix develop --command pnpm --filter ccusage zig:parity
+
   npm-publish-dry-run-and-upload-pkg-pr-now:
     runs-on: ubuntu-24.04-arm
 
