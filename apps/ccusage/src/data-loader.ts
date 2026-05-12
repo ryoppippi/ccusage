@@ -1513,6 +1513,41 @@ function markDedupedEntryMetadata(
 	}
 }
 
+function dedupeEntryMetadataList<
+	T extends {
+		uniqueHash: string | null;
+		tokenTotal: number;
+		hasSpeed: boolean;
+	},
+>(entries: Array<T | undefined>): T[] {
+	const dedupedEntries: T[] = [];
+	const processedEntries = new Map<string, number>();
+
+	for (const entry of entries) {
+		if (entry == null) {
+			continue;
+		}
+
+		const existingEntryIndex = getDedupedEntryMetadataIndex(
+			processedEntries,
+			dedupedEntries,
+			entry,
+		);
+		if (existingEntryIndex === -1) {
+			continue;
+		}
+
+		if (existingEntryIndex != null) {
+			dedupedEntries[existingEntryIndex] = entry;
+		} else {
+			dedupedEntries.push(entry);
+			markDedupedEntryMetadata(processedEntries, entry, dedupedEntries.length - 1);
+		}
+	}
+
+	return dedupedEntries;
+}
+
 function getJSONLWorkerThreadCount(fileCount: number, singleThread = false): number {
 	if (
 		singleThread ||
@@ -1662,7 +1697,7 @@ async function collectDailyEntriesFromFile(
 	});
 	await Promise.all(pendingCosts);
 
-	return entries.filter((entry): entry is DailyDataEntry => entry != null);
+	return dedupeEntryMetadataList(entries);
 }
 
 async function collectSessionEntriesFromFile(
@@ -1739,7 +1774,7 @@ async function collectSessionEntriesFromFile(
 	});
 	await Promise.all(pendingCosts);
 
-	return entries.filter((entry): entry is SessionDataEntry => entry != null);
+	return dedupeEntryMetadataList(entries);
 }
 
 async function collectBlockFileResult(
@@ -1831,7 +1866,7 @@ async function collectBlockFileResult(
 	return {
 		file,
 		timestamp,
-		entries: entries.filter((entry): entry is BlockEntryResult => entry != null),
+		entries: dedupeEntryMetadataList(entries),
 	};
 }
 
