@@ -13,7 +13,7 @@ This package contains shared internal utilities for the ccusage monorepo.
 **CRITICAL**: This is an internal package that gets bundled into the final applications. Therefore:
 
 - **Always add this package as a `devDependency`** in apps that use it, NOT as a regular dependency
-- Apps in this monorepo (ccusage, mcp, codex) are bundled CLIs, so all their runtime dependencies should be in `devDependencies`
+- Apps in this monorepo are bundled CLIs, so all their runtime dependencies should be in `devDependencies`
 - The bundler will include the code from this package in the final output
 
 ## Available Exports

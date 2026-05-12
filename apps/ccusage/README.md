@@ -45,10 +45,6 @@ Companion tool for analyzing [pi-agent](https://github.com/badlogic/pi-mono) ses
 
 Companion tool for analyzing [Amp](https://ampcode.com/) session usage. Track token usage, costs, and credits from your Amp CLI sessions with daily, monthly, and session-based reports.
 
-### 🔌 [@ccusage/mcp](https://www.npmjs.com/package/@ccusage/mcp) - MCP Server Integration
-
-Model Context Protocol server that exposes ccusage data to Claude Desktop and other MCP-compatible tools. Enable real-time usage tracking directly in your AI workflows.
-
 ## Installation
 
 ### Quick Start (Recommended)
@@ -77,7 +73,6 @@ npx @ccusage/codex@latest       # OpenAI Codex usage tracking
 npx @ccusage/opencode@latest    # OpenCode usage tracking
 npx @ccusage/pi@latest          # Pi-agent usage tracking
 npx @ccusage/amp@latest         # Amp usage tracking
-npx @ccusage/mcp@latest         # MCP Server
 ```
 
 ## Usage
@@ -126,7 +121,6 @@ npx ccusage monthly --compact  # Compact monthly report
 - 💰 **Cost Tracking**: Shows costs in USD for each day/month/session
 - 🔄 **Cache Token Support**: Tracks and displays cache creation and cache read tokens separately
 - 🌐 **Offline Mode**: Use pre-cached pricing data without network connectivity with `--offline` (Claude models only)
-- 🔌 **MCP Integration**: Built-in Model Context Protocol server for integration with other tools
 - 🏗️ **Multi-Instance Support**: Group usage by project with `--instances` flag and filter by specific projects
 - 🌍 **Timezone Support**: Configure timezone for date grouping with `--timezone` option
 - ⚙️ **Configuration Files**: Set defaults with JSON configuration files, complete with IDE autocomplete and validation

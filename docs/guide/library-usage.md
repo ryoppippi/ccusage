@@ -81,22 +81,6 @@ function processUsageData(data: UsageData[]): void {
 }
 ```
 
-## MCP Server Integration
-
-You can also create your own MCP server using the dedicated `@ccusage/mcp` package:
-
-> **Note**: Install `ccusage` and `@ccusage/mcp` together, for example with `pnpm add ccusage @ccusage/mcp`.
-
-```typescript
-import { createMcpServer } from '@ccusage/mcp';
-
-// Create an MCP server instance
-const server = createMcpServer();
-
-// Start the server
-server.start();
-```
-
 ## API Reference
 
 For detailed information about all available functions, types, and options, see the [API Reference](/api/) section.
@@ -152,5 +136,4 @@ async function checkUsageAlert() {
 ## Next Steps
 
 - Explore the [API Reference](/api/) for complete documentation
-- Check out the [MCP Server guide](/guide/mcp-server) for integration examples
 - See [JSON Output](/guide/json-output) for data format details
