@@ -4,6 +4,7 @@ use std::{
     io::{self, IsTerminal, Read},
     path::{Path, PathBuf},
     sync::Arc,
+    thread,
     time::{SystemTime, UNIX_EPOCH},
 };
 
@@ -12,7 +13,6 @@ use std::os::fd::AsRawFd;
 
 use chrono::{DateTime, Datelike, Duration, NaiveDate, TimeZone, Timelike, Utc};
 use jiff::{tz::TimeZone as JiffTimeZone, Timestamp as JiffTimestamp};
-use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
@@ -717,10 +717,7 @@ fn load_entries(shared: &SharedArgs, project_filter: Option<&str>) -> Result<Vec
             .map(|file| read_usage_file(file, tz.as_ref(), mode))
             .collect::<Vec<_>>()
     } else {
-        files
-            .par_iter()
-            .map(|file| read_usage_file(file, tz.as_ref(), mode))
-            .collect::<Vec<_>>()
+        read_usage_files_parallel(&files, tz.as_ref(), mode)
     };
     loaded_files.sort_by(|a, b| match (a.timestamp, b.timestamp) {
         (Some(a_timestamp), Some(b_timestamp)) => a_timestamp.cmp(&b_timestamp),
@@ -770,6 +767,41 @@ fn load_entries(shared: &SharedArgs, project_filter: Option<&str>) -> Result<Vec
         format!("Kept {} usage entries after deduplication", deduped.len()),
     );
     Ok(deduped)
+}
+
+fn read_usage_files_parallel(
+    files: &[PathBuf],
+    tz: Option<&JiffTimeZone>,
+    mode: CostMode,
+) -> Vec<LoadedFile> {
+    let worker_count = thread::available_parallelism()
+        .map(usize::from)
+        .unwrap_or(1)
+        .min(files.len());
+    if worker_count <= 1 {
+        return files
+            .iter()
+            .map(|file| read_usage_file(file, tz, mode))
+            .collect();
+    }
+
+    let chunk_size = files.len().div_ceil(worker_count);
+    thread::scope(|scope| {
+        let mut handles = Vec::with_capacity(worker_count);
+        for chunk in files.chunks(chunk_size) {
+            let tz = tz.cloned();
+            handles.push(scope.spawn(move || {
+                chunk
+                    .iter()
+                    .map(|file| read_usage_file(file, tz.as_ref(), mode))
+                    .collect::<Vec<_>>()
+            }));
+        }
+        handles
+            .into_iter()
+            .flat_map(|handle| handle.join().expect("usage worker panicked"))
+            .collect()
+    })
 }
 
 fn debug_log(shared: &SharedArgs, message: impl AsRef<str>) {
