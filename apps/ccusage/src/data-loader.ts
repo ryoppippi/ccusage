@@ -71,7 +71,7 @@ import { logger } from './logger.ts';
 
 const USAGE_LINE_MARKER = '"input_tokens"';
 const ISO_TIMESTAMP_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/;
-const MAX_BUFFERED_JSONL_BYTES = 32 * 1024 * 1024;
+const MAX_BUFFERED_JSONL_BYTES = 128 * 1024 * 1024;
 const DEFAULT_JSONL_WORKER_THREAD_LIMIT = 4;
 const VERSION_PATTERN = /^\d+\.\d+\.\d+/;
 const FAST_PARSE_UNSUPPORTED_NULL_PATTERN =
