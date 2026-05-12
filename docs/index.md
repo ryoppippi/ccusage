@@ -56,10 +56,6 @@ features:
   - icon: 🌐
     title: Offline Mode
     details: Use pre-cached pricing data without network connectivity
-  - icon: 🔌
-    title: MCP Integration
-    details: Built-in Model Context Protocol server for tool integration
-    link: /guide/mcp-server
 ---
 
 <div style="text-align: center; margin: 2rem 0;">

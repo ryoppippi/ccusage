@@ -284,35 +284,6 @@ ccu-period 202412  # December 2024
 ccu-period 202501  # January 2025
 ```
 
-## MCP Integration with Custom Paths
-
-When using the standalone MCP CLI with custom paths:
-
-### Claude Desktop Configuration
-
-```json
-{
-	"mcpServers": {
-		"ccusage": {
-			"command": "npx",
-			"args": ["@ccusage/mcp@latest"],
-			"env": {
-				"CLAUDE_CONFIG_DIR": "/path/to/your/claude/data"
-			}
-		},
-		"ccusage-archive": {
-			"command": "npx",
-			"args": ["@ccusage/mcp@latest"],
-			"env": {
-				"CLAUDE_CONFIG_DIR": "/archive/claude-2024,/archive/claude-2025"
-			}
-		}
-	}
-}
-```
-
-This allows you to have multiple MCP servers analyzing different data sets.
-
 ## Troubleshooting Custom Paths
 
 ### Path Validation
