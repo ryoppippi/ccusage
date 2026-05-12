@@ -240,4 +240,4 @@ After analyzing monthly trends, consider:
 
 1. [Session Reports](/guide/session-reports) to identify high-cost conversations
 2. [Live Monitoring](/guide/live-monitoring) to track real-time usage
-3. [Library Usage](/guide/library-usage) for programmatic analysis
+3. [JSON Output](/guide/json-output) for programmatic analysis

@@ -49,7 +49,6 @@ This directory contains the VitePress-based documentation website for ccusage.
   - `/docs/guide/index.md` - Main usage screenshot
   - `/docs/guide/daily-reports.md` - Daily report output screenshot
   - `/docs/guide/live-monitoring.md` - Live monitoring dashboard screenshot
-  - `/docs/guide/mcp-server.md` - Claude Desktop integration screenshot
 - **Image Path**: Use relative paths like `/screenshot.png` for images in `/docs/public/`
 - **Alt Text**: Always include descriptive alt text for accessibility
 
