@@ -76,7 +76,7 @@ const COST_USD_MARKER = '"costUSD":';
 const INPUT_TOKENS_MARKER = '"input_tokens":';
 const ISO_TIMESTAMP_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/;
 const MAX_BUFFERED_JSONL_BYTES = 128 * 1024 * 1024;
-const DEFAULT_JSONL_WORKER_THREAD_LIMIT = 4;
+const JSONL_WORKER_THREAD_LIMIT = 8;
 const MESSAGE_ID_MARKER = '"id":"';
 const MODEL_MARKER = '"model":"';
 const OUTPUT_TOKENS_MARKER = '"output_tokens":';
@@ -198,6 +198,11 @@ function getJSONLFileReadConcurrency(fileCount: number, singleThread = false): n
 	}
 
 	return Math.max(1, Math.min(fileCount, os.availableParallelism()));
+}
+
+function getDefaultJSONLWorkerThreadCount(fileCount: number): number {
+	const available = os.availableParallelism();
+	return Math.min(fileCount, Math.max(1, Math.min(available, JSONL_WORKER_THREAD_LIMIT)));
 }
 
 function getTimestampFromLine(line: string): Date | null {
@@ -847,6 +852,12 @@ type UsageSummary = TokenStats & {
 	modelBreakdowns: ModelBreakdown[];
 };
 
+type UsageSummaryAccumulator = {
+	totals: TokenStats & { totalCost: number };
+	modelAggregates: Map<string, TokenStats>;
+	modelSet: Set<string>;
+};
+
 function getDisplayModelName(data: UsageData): string | undefined {
 	const model = data.message.model;
 	if (model == null) {
@@ -877,48 +888,64 @@ function addUsageToTokenStats(
 	stats.cost += cost;
 }
 
+function createUsageSummaryAccumulator(): UsageSummaryAccumulator {
+	return {
+		totals: {
+			...createEmptyTokenStats(),
+			totalCost: 0,
+		},
+		modelAggregates: new Map<string, TokenStats>(),
+		modelSet: new Set<string>(),
+	};
+}
+
+function addUsageToSummaryAccumulator(
+	accumulator: UsageSummaryAccumulator,
+	model: string | undefined,
+	usage: UsageData['message']['usage'],
+	cost: number,
+): void {
+	const modelName = model ?? 'unknown';
+	addUsageToTokenStats(accumulator.totals, usage, cost);
+	accumulator.totals.totalCost += cost;
+
+	if (modelName === '<synthetic>') {
+		return;
+	}
+
+	if (model != null) {
+		accumulator.modelSet.add(modelName);
+	}
+
+	let existing = accumulator.modelAggregates.get(modelName);
+	if (existing == null) {
+		existing = createEmptyTokenStats();
+		accumulator.modelAggregates.set(modelName, existing);
+	}
+	addUsageToTokenStats(existing, usage, cost);
+}
+
+function finalizeUsageSummary(accumulator: UsageSummaryAccumulator): UsageSummary {
+	return {
+		...accumulator.totals,
+		modelsUsed: Array.from(accumulator.modelSet) as ModelName[],
+		modelBreakdowns: createModelBreakdowns(accumulator.modelAggregates),
+	};
+}
+
 function summarizeUsageEntries<T>(
 	entries: T[],
 	getModel: (entry: T) => string | undefined,
 	getUsage: (entry: T) => UsageData['message']['usage'],
 	getCost: (entry: T) => number,
 ): UsageSummary {
-	const modelAggregates = new Map<string, TokenStats>();
-	const modelSet = new Set<string>();
-	const totals = {
-		...createEmptyTokenStats(),
-		totalCost: 0,
-	};
+	const accumulator = createUsageSummaryAccumulator();
 
 	for (const entry of entries) {
-		const model = getModel(entry);
-		const modelName = model ?? 'unknown';
-		const usage = getUsage(entry);
-		const cost = getCost(entry);
-		addUsageToTokenStats(totals, usage, cost);
-		totals.totalCost += cost;
-
-		if (modelName === '<synthetic>') {
-			continue;
-		}
-
-		if (model != null) {
-			modelSet.add(modelName);
-		}
-
-		let existing = modelAggregates.get(modelName);
-		if (existing == null) {
-			existing = createEmptyTokenStats();
-			modelAggregates.set(modelName, existing);
-		}
-		addUsageToTokenStats(existing, usage, cost);
+		addUsageToSummaryAccumulator(accumulator, getModel(entry), getUsage(entry), getCost(entry));
 	}
 
-	return {
-		...totals,
-		modelsUsed: Array.from(modelSet) as ModelName[],
-		modelBreakdowns: createModelBreakdowns(modelAggregates),
-	};
+	return finalizeUsageSummary(accumulator);
 }
 
 /**
@@ -1488,14 +1515,7 @@ function getJSONLWorkerThreadCount(fileCount: number, singleThread = false): num
 		return Math.min(fileCount, configured);
 	}
 
-	return Math.max(
-		0,
-		Math.min(
-			fileCount,
-			Math.max(1, os.availableParallelism() - 1),
-			DEFAULT_JSONL_WORKER_THREAD_LIMIT,
-		),
-	);
+	return getDefaultJSONLWorkerThreadCount(fileCount);
 }
 
 function chunkIndexedItems<T>(
@@ -1872,36 +1892,34 @@ export async function loadDailyUsageData(options?: LoadOptions): Promise<DailyUs
 	// Group by date, optionally including project
 	// Automatically enable project grouping when project filter is specified
 	const needsProjectGrouping = options?.groupByProject === true || options?.project != null;
-	const groupingKey = needsProjectGrouping
-		? (entry: (typeof allEntries)[0]) => `${entry.date}\x00${entry.project}`
-		: (entry: (typeof allEntries)[0]) => entry.date;
+	const groupedData = new Map<
+		string,
+		{
+			date: string;
+			project: string | undefined;
+			summary: UsageSummaryAccumulator;
+		}
+	>();
 
-	const groupedData = Object.groupBy(allEntries, groupingKey);
-
-	const results = Object.entries(groupedData)
-		.map(([groupKey, entries]) => {
-			if (entries == null) {
-				return undefined;
-			}
-
-			const parts = groupKey.split('\x00');
-			const date = parts[0] ?? groupKey;
-			const project = parts.length > 1 ? parts[1] : undefined;
-
-			const summary = summarizeUsageEntries(
-				entries,
-				(entry) => entry.model,
-				(entry) => entry.usage,
-				(entry) => entry.cost,
-			);
-
-			return {
-				date: createDailyDate(date),
-				...summary,
-				...(project != null && { project }),
+	for (const entry of allEntries) {
+		const groupKey = needsProjectGrouping ? `${entry.date}\x00${entry.project}` : entry.date;
+		let group = groupedData.get(groupKey);
+		if (group == null) {
+			group = {
+				date: entry.date,
+				project: needsProjectGrouping ? entry.project : undefined,
+				summary: createUsageSummaryAccumulator(),
 			};
-		})
-		.filter((item) => item != null);
+			groupedData.set(groupKey, group);
+		}
+		addUsageToSummaryAccumulator(group.summary, entry.model, entry.usage, entry.cost);
+	}
+
+	const results = Array.from(groupedData.values(), (group) => ({
+		date: createDailyDate(group.date),
+		...finalizeUsageSummary(group.summary),
+		...(group.project != null && { project: group.project }),
+	}));
 
 	// Filter by date range if specified
 	const dateFiltered = filterByDateRange(
@@ -1993,41 +2011,41 @@ export async function loadSessionData(options?: LoadOptions): Promise<SessionUsa
 		}
 	}
 
-	const groupedBySessions = Object.groupBy(allEntries, (entry) => entry.sessionKey);
+	const groupedBySessions = new Map<
+		string,
+		{
+			latestEntry: SessionDataEntry;
+			summary: UsageSummaryAccumulator;
+			versions: Set<string>;
+		}
+	>();
 
-	const results = Object.entries(groupedBySessions)
-		.map(([_, entries]) => {
-			if (entries == null) {
-				return undefined;
-			}
-
-			const latestEntry = entries.reduce((latest, current) =>
-				current.timestamp > latest.timestamp ? current : latest,
-			);
-
-			const versions: string[] = [];
-			for (const entry of entries) {
-				if (entry.version != null) {
-					versions.push(entry.version);
-				}
-			}
-
-			const summary = summarizeUsageEntries(
-				entries,
-				(entry) => entry.model,
-				(entry) => entry.usage,
-				(entry) => entry.cost,
-			);
-
-			return {
-				sessionId: createSessionId(latestEntry.sessionId),
-				projectPath: createProjectPath(latestEntry.projectPath),
-				...summary,
-				lastActivity: formatUsageDate(latestEntry.timestamp) as ActivityDate,
-				versions: Array.from(new Set(versions)).sort() as Version[],
+	for (const entry of allEntries) {
+		let group = groupedBySessions.get(entry.sessionKey);
+		if (group == null) {
+			group = {
+				latestEntry: entry,
+				summary: createUsageSummaryAccumulator(),
+				versions: new Set<string>(),
 			};
-		})
-		.filter((item) => item != null);
+			groupedBySessions.set(entry.sessionKey, group);
+		} else if (entry.timestamp > group.latestEntry.timestamp) {
+			group.latestEntry = entry;
+		}
+
+		if (entry.version != null) {
+			group.versions.add(entry.version);
+		}
+		addUsageToSummaryAccumulator(group.summary, entry.model, entry.usage, entry.cost);
+	}
+
+	const results = Array.from(groupedBySessions.values(), (group) => ({
+		sessionId: createSessionId(group.latestEntry.sessionId),
+		projectPath: createProjectPath(group.latestEntry.projectPath),
+		...finalizeUsageSummary(group.summary),
+		lastActivity: formatUsageDate(group.latestEntry.timestamp) as ActivityDate,
+		versions: Array.from(group.versions).sort() as Version[],
+	}));
 
 	// Filter by date range if specified
 	const dateFiltered = filterByDateRange(
