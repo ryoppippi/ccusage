@@ -72,6 +72,8 @@ const USAGE_LINE_MARKER = '"input_tokens"';
 const ISO_TIMESTAMP_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/;
 const MAX_BUFFERED_JSONL_BYTES = 32 * 1024 * 1024;
 const VERSION_PATTERN = /^\d+\.\d+\.\d+/;
+const FAST_PARSE_UNSUPPORTED_NULL_PATTERN =
+	/"(?:cwd|sessionId|requestId|costUSD|isApiErrorMessage|version|model|id|cache_creation_input_tokens|cache_read_input_tokens|speed)":null/;
 
 function getJSONLFileReadConcurrency(fileCount: number, singleThread = false): number {
 	if (singleThread) {
@@ -370,20 +372,12 @@ function extractLastNumberField(line: string, field: string): number | undefined
 }
 
 function parseUsageDataLineFast(line: string, allowContent = false): UsageData | null {
+	const contentIndex = line.indexOf('"content":');
 	if (
-		(line.includes('"content":') && (!allowContent || !line.includes('"content":['))) ||
+		(contentIndex !== -1 &&
+			(!allowContent || line.indexOf('"content":[', contentIndex) !== contentIndex)) ||
 		line.includes('"isApiErrorMessage":true') ||
-		line.includes('"cwd":null') ||
-		line.includes('"sessionId":null') ||
-		line.includes('"requestId":null') ||
-		line.includes('"costUSD":null') ||
-		line.includes('"isApiErrorMessage":null') ||
-		line.includes('"version":null') ||
-		line.includes('"model":null') ||
-		line.includes('"id":null') ||
-		line.includes('"cache_creation_input_tokens":null') ||
-		line.includes('"cache_read_input_tokens":null') ||
-		line.includes('"speed":null')
+		FAST_PARSE_UNSUPPORTED_NULL_PATTERN.test(line)
 	) {
 		return null;
 	}
