@@ -446,31 +446,83 @@ function extractLastStringMarker(line: string, marker: string): string | undefin
 	return valueEnd === -1 ? undefined : line.slice(valueStart, valueEnd);
 }
 
-function extractNumberMarker(line: string, marker: string, fromIndex = 0): number | undefined {
+function extractJsonNumberMarker(line: string, marker: string, fromIndex = 0): number | undefined {
 	const start = line.indexOf(marker, fromIndex);
 	if (start === -1) {
 		return undefined;
 	}
-	const valueStart = start + marker.length;
-	let valueEnd = valueStart;
-	while (valueEnd < line.length) {
-		const char = line.charCodeAt(valueEnd);
-		if (
-			char !== 43 &&
-			char !== 45 &&
-			char !== 46 &&
-			char !== 69 &&
-			char !== 101 &&
-			(char < 48 || char > 57)
-		) {
+
+	let valueIndex = start + marker.length;
+	let sign = 1;
+	const signCode = line.charCodeAt(valueIndex);
+	if (signCode === 45) {
+		sign = -1;
+		valueIndex++;
+	} else if (signCode === 43) {
+		valueIndex++;
+	}
+
+	let value = 0;
+	let digitCount = 0;
+	while (valueIndex < line.length) {
+		const digit = line.charCodeAt(valueIndex) - 48;
+		if (digit < 0 || digit > 9) {
 			break;
 		}
-		valueEnd++;
+		value = value * 10 + digit;
+		valueIndex++;
+		digitCount++;
 	}
-	if (valueEnd === valueStart) {
+
+	if (line.charCodeAt(valueIndex) === 46) {
+		valueIndex++;
+		let scale = 0.1;
+		while (valueIndex < line.length) {
+			const digit = line.charCodeAt(valueIndex) - 48;
+			if (digit < 0 || digit > 9) {
+				break;
+			}
+			value += digit * scale;
+			scale *= 0.1;
+			valueIndex++;
+			digitCount++;
+		}
+	}
+
+	if (digitCount === 0) {
 		return undefined;
 	}
-	const value = Number(line.slice(valueStart, valueEnd));
+
+	const exponentMarker = line.charCodeAt(valueIndex);
+	if (exponentMarker === 69 || exponentMarker === 101) {
+		valueIndex++;
+		let exponentSign = 1;
+		const exponentSignCode = line.charCodeAt(valueIndex);
+		if (exponentSignCode === 45) {
+			exponentSign = -1;
+			valueIndex++;
+		} else if (exponentSignCode === 43) {
+			valueIndex++;
+		}
+
+		let exponent = 0;
+		let exponentDigitCount = 0;
+		while (valueIndex < line.length) {
+			const digit = line.charCodeAt(valueIndex) - 48;
+			if (digit < 0 || digit > 9) {
+				break;
+			}
+			exponent = exponent * 10 + digit;
+			valueIndex++;
+			exponentDigitCount++;
+		}
+		if (exponentDigitCount === 0) {
+			return undefined;
+		}
+		value *= 10 ** (exponentSign * exponent);
+	}
+
+	value *= sign;
 	return Number.isFinite(value) ? value : undefined;
 }
 
@@ -505,7 +557,7 @@ function extractLastNumberMarker(line: string, marker: string): number | undefin
 	if (start === -1) {
 		return undefined;
 	}
-	return extractNumberMarker(line, marker, start);
+	return extractJsonNumberMarker(line, marker, start);
 }
 
 function parseUsageDataLineFast(line: string, allowContent = false): UsageData | null {
