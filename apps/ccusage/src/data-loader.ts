@@ -511,14 +511,14 @@ function parseUsageDataLineFast(line: string, allowContent = false): UsageData |
 		return null;
 	}
 
-	const version = extractLastStringField(line, 'version');
+	const version = extractStringField(line, 'version');
 	if (version != null && !VERSION_PATTERN.test(version)) {
 		return null;
 	}
 	const model = extractStringField(line, 'model', messageStart);
 	const messageId = extractStringField(line, 'id', messageStart);
 	const requestId = extractLastStringField(line, 'requestId');
-	const sessionId = extractLastStringField(line, 'sessionId');
+	const sessionId = extractStringField(line, 'sessionId');
 	if (model === '' || messageId === '' || requestId === '' || sessionId === '') {
 		return null;
 	}
