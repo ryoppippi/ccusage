@@ -7,7 +7,7 @@ export default defineConfig({
 	format: 'esm',
 	clean: true,
 	sourcemap: false,
-	minify: true,
+	minify: false,
 	treeshake: {
 		moduleSideEffects: false,
 	},
