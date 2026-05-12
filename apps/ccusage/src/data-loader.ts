@@ -13,7 +13,7 @@ import type { LoadedUsageEntry, SessionBlock } from './_session-blocks.ts';
 import type { ActivityDate, Bucket, CostMode, ModelName, SortOrder, Version } from './_types.ts';
 import { Buffer } from 'node:buffer';
 import { createReadStream, createWriteStream } from 'node:fs';
-import { readdir, readFile, stat, utimes } from 'node:fs/promises';
+import { open, readdir, readFile, stat, utimes } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
@@ -908,32 +908,37 @@ async function processJSONLFileByLine(
 	filePath: string,
 	processLine: (line: string, lineNumber: number) => void | Promise<void>,
 ): Promise<void> {
-	const stats = await stat(filePath);
-	if (stats.size <= MAX_BUFFERED_JSONL_BYTES) {
-		const content = (await readFile(filePath)).toString('utf8');
-		let lineStart = 0;
-		let lineNumber = 0;
-		while (lineStart < content.length) {
-			let lineEnd = content.indexOf('\n', lineStart);
-			if (lineEnd === -1) {
-				lineEnd = content.length;
-			}
-
-			lineNumber++;
-			let line = content.slice(lineStart, lineEnd);
-			if (line.endsWith('\r')) {
-				line = line.slice(0, -1);
-			}
-			if (hasNonWhitespace(line)) {
-				const result = processLine(line, lineNumber);
-				if (result != null) {
-					await result;
+	const file = await open(filePath, 'r');
+	try {
+		const stats = await file.stat();
+		if (stats.size <= MAX_BUFFERED_JSONL_BYTES) {
+			const content = (await file.readFile()).toString('utf8');
+			let lineStart = 0;
+			let lineNumber = 0;
+			while (lineStart < content.length) {
+				let lineEnd = content.indexOf('\n', lineStart);
+				if (lineEnd === -1) {
+					lineEnd = content.length;
 				}
-			}
 
-			lineStart = lineEnd + 1;
+				lineNumber++;
+				let line = content.slice(lineStart, lineEnd);
+				if (line.endsWith('\r')) {
+					line = line.slice(0, -1);
+				}
+				if (hasNonWhitespace(line)) {
+					const result = processLine(line, lineNumber);
+					if (result != null) {
+						await result;
+					}
+				}
+
+				lineStart = lineEnd + 1;
+			}
+			return;
 		}
-		return;
+	} finally {
+		await file.close();
 	}
 
 	const fileStream = createReadStream(filePath, { encoding: 'utf-8' });
