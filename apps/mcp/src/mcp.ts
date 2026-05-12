@@ -8,17 +8,17 @@
  * @module mcp
  */
 
-import type { LoadOptions } from 'ccusage/data-loader';
+import type { LoadOptions } from './mcp-utils.ts';
 import { StreamableHTTPTransport } from '@hono/mcp';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+
 import { createFixture } from 'fs-fixture';
-
 import { Hono } from 'hono/tiny';
-import { name, version } from '../package.json';
 
+import { name, version } from '../package.json';
 import {
 	ccusageParametersSchema,
 	ccusageParametersShape,

@@ -2,11 +2,7 @@ import { defineConfig } from 'tsdown';
 import Macros from 'unplugin-macros/rolldown';
 
 export default defineConfig({
-	entry: [
-		'./src/*.ts',
-		'!./src/**/*.test.ts', // Exclude test files
-		'!./src/_*.ts', // Exclude internal files with underscore prefix
-	],
+	entry: ['./src/index.ts', './src/data-loader.ts'],
 	outDir: 'dist',
 	format: 'esm',
 	clean: true,
@@ -16,10 +12,7 @@ export default defineConfig({
 		moduleSideEffects: false,
 	},
 	fixedExtension: false,
-	dts: {
-		tsgo: false,
-		resolve: ['type-fest', 'valibot', '@ccusage/internal', '@ccusage/terminal'],
-	},
+	dts: false,
 	publint: true,
 	unused: true,
 	exports: {

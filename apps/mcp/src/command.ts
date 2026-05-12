@@ -1,10 +1,10 @@
-import type { LoadOptions } from 'ccusage/data-loader';
+import type { LoadOptions } from './mcp-utils.ts';
 import process from 'node:process';
+import { createLogger } from '@ccusage/internal/logger';
 import { serve } from '@hono/node-server';
-import { getClaudePaths } from 'ccusage/data-loader';
-import { logger } from 'ccusage/logger';
 import { cli, define } from 'gunshi';
 import { description, name, version } from '../package.json';
+import { getClaudePaths } from './mcp-utils.ts';
 import { createMcpHttpApp, createMcpServer, startMcpServerStdio } from './mcp.ts';
 
 type McpType = (typeof MCP_TYPE_CHOICES)[number];
@@ -13,6 +13,7 @@ type Mode = LoadOptions['mode'];
 const MCP_DEFAULT_PORT = 8080;
 const MODE_CHOICES = ['auto', 'calculate', 'display'] as const satisfies readonly Mode[];
 const MCP_TYPE_CHOICES = ['stdio', 'http'] as const satisfies readonly string[];
+const logger = createLogger(name);
 
 type CommandOptions = LoadOptions & {
 	port?: number;
