@@ -1624,9 +1624,15 @@ async function collectWithUsageWorkers<TItem, TResult>(
 			}),
 		);
 	}
-	const results = (await Promise.all(workerResults)).flat();
+	const resultGroups = await Promise.all(workerResults);
+	const orderedResults = Array.from({ length: items.length });
+	for (const results of resultGroups) {
+		for (const { index, result } of results) {
+			orderedResults[index] = result;
+		}
+	}
 
-	return results.sort((a, b) => a.index - b.index).map((item) => item.result);
+	return orderedResults as TResult[];
 }
 
 async function collectDailyEntriesFromFile(
