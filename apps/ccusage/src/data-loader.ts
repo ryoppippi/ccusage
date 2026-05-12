@@ -933,6 +933,45 @@ function addUsageToSummaryAccumulator(
 	addUsageToTokenStats(existing, usage, cost);
 }
 
+function addTokenFieldsToSummaryAccumulator(
+	accumulator: UsageSummaryAccumulator,
+	model: string | undefined,
+	tokens: {
+		inputTokens: number;
+		outputTokens: number;
+		cacheCreationTokens: number;
+		cacheReadTokens: number;
+	},
+	cost: number,
+): void {
+	const modelName = model ?? 'unknown';
+	accumulator.totals.inputTokens += tokens.inputTokens;
+	accumulator.totals.outputTokens += tokens.outputTokens;
+	accumulator.totals.cacheCreationTokens += tokens.cacheCreationTokens;
+	accumulator.totals.cacheReadTokens += tokens.cacheReadTokens;
+	accumulator.totals.cost += cost;
+	accumulator.totals.totalCost += cost;
+
+	if (modelName === '<synthetic>') {
+		return;
+	}
+
+	if (model != null) {
+		accumulator.modelSet.add(modelName);
+	}
+
+	let existing = accumulator.modelAggregates.get(modelName);
+	if (existing == null) {
+		existing = createEmptyTokenStats();
+		accumulator.modelAggregates.set(modelName, existing);
+	}
+	existing.inputTokens += tokens.inputTokens;
+	existing.outputTokens += tokens.outputTokens;
+	existing.cacheCreationTokens += tokens.cacheCreationTokens;
+	existing.cacheReadTokens += tokens.cacheReadTokens;
+	existing.cost += cost;
+}
+
 function finalizeUsageSummary(accumulator: UsageSummaryAccumulator): UsageSummary {
 	return {
 		...accumulator.totals,
@@ -1502,9 +1541,12 @@ export type LoadOptions = {
 type DailyDataEntry = {
 	date: string;
 	cost: number;
+	inputTokens: number;
+	outputTokens: number;
+	cacheCreationTokens: number;
+	cacheReadTokens: number;
 	model: string | undefined;
 	project: string;
-	usage: UsageData['message']['usage'];
 	uniqueHash: string | null;
 	tokenTotal: number;
 	hasSpeed: boolean;
@@ -1517,7 +1559,10 @@ type SessionDataEntry = {
 	cost: number;
 	timestamp: string;
 	model: string | undefined;
-	usage: UsageData['message']['usage'];
+	inputTokens: number;
+	outputTokens: number;
+	cacheCreationTokens: number;
+	cacheReadTokens: number;
 	uniqueHash: string | null;
 	tokenTotal: number;
 	hasSpeed: boolean;
@@ -1745,12 +1790,16 @@ async function collectDailyEntriesFromFile(
 			const uniqueHash = createUniqueHash(data);
 			const tokenTotal = getUsageTokenTotal(data);
 			const hasSpeed = data.message.usage.speed != null;
+			const usage = data.message.usage;
 			entries.push({
 				date,
 				cost: calculateCost(data),
+				inputTokens: usage.input_tokens,
+				outputTokens: usage.output_tokens,
+				cacheCreationTokens: usage.cache_creation_input_tokens ?? 0,
+				cacheReadTokens: usage.cache_read_input_tokens ?? 0,
 				model: getDisplayModelName(data),
 				project,
-				usage: data.message.usage,
 				uniqueHash,
 				tokenTotal,
 				hasSpeed,
@@ -1791,6 +1840,7 @@ async function collectSessionEntriesFromFile(
 			const uniqueHash = createUniqueHash(data);
 			const tokenTotal = getUsageTokenTotal(data);
 			const hasSpeed = data.message.usage.speed != null;
+			const usage = data.message.usage;
 			entries.push({
 				sessionKey: `${projectPath}/${sessionId}`,
 				sessionId,
@@ -1798,7 +1848,10 @@ async function collectSessionEntriesFromFile(
 				cost: immediateCost ?? calculateCost(data),
 				timestamp: data.timestamp,
 				model: getDisplayModelName(data),
-				usage: data.message.usage,
+				inputTokens: usage.input_tokens,
+				outputTokens: usage.output_tokens,
+				cacheCreationTokens: usage.cache_creation_input_tokens ?? 0,
+				cacheReadTokens: usage.cache_read_input_tokens ?? 0,
 				version: data.version,
 				uniqueHash,
 				tokenTotal,
@@ -1981,7 +2034,7 @@ export async function loadDailyUsageData(options?: LoadOptions): Promise<DailyUs
 			};
 			groupedData.set(groupKey, group);
 		}
-		addUsageToSummaryAccumulator(group.summary, entry.model, entry.usage, entry.cost);
+		addTokenFieldsToSummaryAccumulator(group.summary, entry.model, entry, entry.cost);
 	}
 
 	const results = Array.from(groupedData.values(), (group) => ({
@@ -2106,7 +2159,7 @@ export async function loadSessionData(options?: LoadOptions): Promise<SessionUsa
 		if (entry.version != null) {
 			group.versions.add(entry.version);
 		}
-		addUsageToSummaryAccumulator(group.summary, entry.model, entry.usage, entry.cost);
+		addTokenFieldsToSummaryAccumulator(group.summary, entry.model, entry, entry.cost);
 	}
 
 	const results = Array.from(groupedBySessions.values(), (group) => ({
