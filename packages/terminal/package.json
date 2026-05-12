@@ -17,7 +17,6 @@
 	"dependencies": {
 		"@oxc-project/runtime": "catalog:build",
 		"ansi-escapes": "catalog:runtime",
-		"cli-table3": "catalog:runtime",
 		"picocolors": "catalog:runtime",
 		"string-width": "catalog:runtime"
 	},

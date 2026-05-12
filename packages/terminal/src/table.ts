@@ -1,5 +1,4 @@
 import process from 'node:process';
-import Table from 'cli-table3';
 import pc from 'picocolors';
 import { getStringWidth } from './text-width.ts';
 
@@ -121,6 +120,38 @@ function wrapHeaderLine(text: string, width: number): string[] {
 	return lines;
 }
 
+function wrapCellLine(text: string, width: number): string[] {
+	if (getStringWidth(text) <= width) {
+		return [text];
+	}
+
+	const words = text.split(' ');
+	if (words.length <= 1) {
+		return [truncateToWidth(text, width)];
+	}
+
+	const lines: string[] = [];
+	let current = '';
+	for (const word of words) {
+		const candidate = current === '' ? word : `${current} ${word}`;
+		if (getStringWidth(candidate) <= width) {
+			current = candidate;
+			continue;
+		}
+
+		if (current !== '') {
+			lines.push(current);
+		}
+		current =
+			word === '' ? '' : getStringWidth(word) <= width ? word : truncateToWidth(word, width);
+	}
+
+	if (current !== '') {
+		lines.push(current);
+	}
+	return lines.length === 0 ? [''] : lines;
+}
+
 function splitCellContent(content: string): string[] {
 	return content.split('\n');
 }
@@ -203,7 +234,6 @@ export class ResponsiveTable {
 	private head: string[];
 	private rows: TableRow[] = [];
 	private colAligns: TableCellAlign[];
-	private style?: { head?: string[] };
 	private dateFormatter?: (dateStr: string) => string;
 	private compactHead?: string[];
 	private compactColAligns?: TableCellAlign[];
@@ -219,7 +249,6 @@ export class ResponsiveTable {
 	constructor(options: TableOptions) {
 		this.head = options.head;
 		this.colAligns = options.colAligns ?? Array.from({ length: this.head.length }, () => 'left');
-		this.style = options.style;
 		this.dateFormatter = options.dateFormatter;
 		this.compactHead = options.compactHead;
 		this.compactColAligns = options.compactColAligns;
@@ -355,7 +384,6 @@ export class ResponsiveTable {
 		const totalRequiredWidth = columnWidths.reduce((sum, width) => sum + width, 0) + tableOverhead;
 
 		if (totalRequiredWidth > terminalWidth) {
-			// Apply responsive resizing and use compact date format if available
 			const scaleFactor = availableWidth / columnWidths.reduce((sum, width) => sum + width, 0);
 			const adjustedWidths = columnWidths.map((width, index) => {
 				const align = colAligns[index];
@@ -375,42 +403,31 @@ export class ResponsiveTable {
 				return adjustedWidth;
 			});
 
-			if (!this.compactMode) {
-				const processedRows = this.rows
-					.filter((row) => !this.isSeparatorRow(row))
-					.map((row) =>
-						row.map((cell, index) => {
-							if (
-								index === 0 &&
-								this.dateFormatter != null &&
-								typeof cell === 'string' &&
-								this.isDateString(cell)
-							) {
-								return this.dateFormatter(cell);
-							}
-							return cell;
-						}),
-					);
-				return this.renderFastTable(head, colAligns, adjustedWidths, processedRows);
-			}
-
-			const table = new Table({
+			return this.renderFastTable(
 				head,
-				style: this.style,
 				colAligns,
-				colWidths: adjustedWidths,
-				wordWrap: true,
-				wrapOnWordBoundary: true,
-			});
+				adjustedWidths,
+				this.getRenderableRows(compactIndices, true),
+			);
+		} else {
+			return this.renderFastTable(
+				head,
+				colAligns,
+				columnWidths,
+				this.getRenderableRows(compactIndices, false),
+			);
+		}
+	}
 
-			// Add rows with special handling for separators and date formatting
-			for (const row of this.rows) {
-				if (this.isSeparatorRow(row)) {
-					// Skip separator rows - cli-table3 will handle borders automatically
-					continue;
-				} else {
-					// Use compact date format for first column if dateFormatter available
-					let processedRow = row.map((cell, index) => {
+	private getRenderableRows(compactIndices: number[], applyDateFormatter: boolean): TableRow[] {
+		const rows = this.rows.filter((row) => !this.isSeparatorRow(row));
+		if (!this.compactMode && !applyDateFormatter) {
+			return rows;
+		}
+
+		return rows.map((row) => {
+			const processedRow = applyDateFormatter
+				? row.map((cell, index) => {
 						if (
 							index === 0 &&
 							this.dateFormatter != null &&
@@ -420,49 +437,13 @@ export class ResponsiveTable {
 							return this.dateFormatter(cell);
 						}
 						return cell;
-					});
+					})
+				: row;
 
-					// Filter to compact columns if in compact mode
-					if (this.compactMode) {
-						processedRow = this.filterRowToCompact(processedRow, compactIndices);
-					}
-
-					table.push(processedRow);
-				}
-			}
-
-			return table.toString();
-		} else {
-			if (!this.compactMode) {
-				return this.renderFastTable(head, colAligns, columnWidths);
-			}
-
-			// Use generous column widths with normal date format
-			const table = new Table({
-				head,
-				style: this.style,
-				colAligns,
-				colWidths: columnWidths,
-				wordWrap: true,
-				wrapOnWordBoundary: true,
-			});
-
-			// Add rows with special handling for separators
-			for (const row of this.rows) {
-				if (this.isSeparatorRow(row)) {
-					// Skip separator rows - cli-table3 will handle borders automatically
-					continue;
-				} else {
-					// Filter to compact columns if in compact mode
-					const processedRow = this.compactMode
-						? this.filterRowToCompact(row, compactIndices)
-						: row;
-					table.push(processedRow);
-				}
-			}
-
-			return table.toString();
-		}
+			return this.compactMode
+				? this.filterRowToCompact(processedRow, compactIndices)
+				: processedRow;
+		});
 	}
 
 	/**
@@ -503,10 +484,12 @@ export class ResponsiveTable {
 			bottom: this.renderBorder('└', '┴', '┘', innerWidths),
 		};
 		const output: string[] = [border.top];
-		output.push(...this.renderFastRow(head, innerWidths, colAligns, true));
+		output.push(...this.renderFastRow(head, innerWidths, colAligns, true, false));
 		output.push(border.mid);
 		for (let index = 0; index < rows.length; index++) {
-			output.push(...this.renderFastRow(rows[index]!, innerWidths, colAligns, false));
+			output.push(
+				...this.renderFastRow(rows[index]!, innerWidths, colAligns, false, this.compactMode),
+			);
 			output.push(index === rows.length - 1 ? border.bottom : border.mid);
 		}
 		return output.join('\n');
@@ -522,6 +505,7 @@ export class ResponsiveTable {
 		innerWidths: number[],
 		colAligns: TableCellAlign[],
 		isHeader: boolean,
+		wrapCells: boolean,
 	): string[] {
 		const cellLines = innerWidths.map((width, index) => {
 			const cell = row[index] ?? '';
@@ -529,7 +513,9 @@ export class ResponsiveTable {
 				typeof cell === 'object' && cell != null && 'content' in cell ? cell.content : String(cell);
 			const lines = isHeader
 				? splitCellContent(content).flatMap((line) => wrapHeaderLine(line, width))
-				: splitCellContent(content);
+				: splitCellContent(content).flatMap((line) =>
+						wrapCells ? wrapCellLine(line, width) : [line],
+					);
 			return lines.length === 0 ? [''] : lines;
 		});
 		const rowHeight = Math.max(...cellLines.map((lines) => lines.length));
