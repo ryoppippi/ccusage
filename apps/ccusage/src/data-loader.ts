@@ -1214,9 +1214,10 @@ export async function loadDailyUsageData(options?: LoadOptions): Promise<DailyUs
 		getJSONLFileReadConcurrency(mtimeFilteredFiles.length, options?.singleThread),
 		async (file): Promise<DailyEntry[]> => {
 			const project = extractProjectFromPath(file);
-			const entries: DailyEntry[] = [];
+			const entries: Array<DailyEntry | undefined> = [];
+			const pendingCosts: Array<Promise<void>> = [];
 
-			await processJSONLFileByLine(file, async (line) => {
+			await processJSONLFileByLine(file, (line) => {
 				let deferredData: UsageData | undefined;
 				let deferredDate = '';
 				try {
@@ -1250,18 +1251,22 @@ export async function loadDailyUsageData(options?: LoadOptions): Promise<DailyUs
 				if (deferredData == null) {
 					return;
 				}
-				return calculateCostForEntry(deferredData, mode, fetcher!).then((cost) => {
-					entries.push({
-						data: deferredData,
-						date: deferredDate,
-						cost,
-						model: getDisplayModelName(deferredData),
-						project,
-					});
-				});
+				const entryIndex = entries.push(undefined) - 1;
+				pendingCosts.push(
+					calculateCostForEntry(deferredData, mode, fetcher!).then((cost) => {
+						entries[entryIndex] = {
+							data: deferredData,
+							date: deferredDate,
+							cost,
+							model: getDisplayModelName(deferredData),
+							project,
+						};
+					}),
+				);
 			});
+			await Promise.all(pendingCosts);
 
-			return entries;
+			return entries.filter((entry): entry is DailyEntry => entry != null);
 		},
 	);
 
@@ -1394,17 +1399,21 @@ export async function loadSessionData(options?: LoadOptions): Promise<SessionUsa
 			const sessionId = parts[parts.length - 2] ?? 'unknown';
 			const joinedPath = parts.slice(0, -2).join(path.sep);
 			const projectPath = joinedPath.length > 0 ? joinedPath : 'Unknown Project';
-			const entries: Array<{
-				data: UsageData;
-				sessionKey: string;
-				sessionId: string;
-				projectPath: string;
-				cost: number;
-				timestamp: string;
-				model: string | undefined;
-			}> = [];
+			const entries: Array<
+				| {
+						data: UsageData;
+						sessionKey: string;
+						sessionId: string;
+						projectPath: string;
+						cost: number;
+						timestamp: string;
+						model: string | undefined;
+				  }
+				| undefined
+			> = [];
+			const pendingCosts: Array<Promise<void>> = [];
 
-			await processJSONLFileByLine(file, async (line) => {
+			await processJSONLFileByLine(file, (line) => {
 				let deferredData: UsageData | undefined;
 				try {
 					if (!line.includes(USAGE_LINE_MARKER)) {
@@ -1436,20 +1445,26 @@ export async function loadSessionData(options?: LoadOptions): Promise<SessionUsa
 				if (deferredData == null) {
 					return;
 				}
-				return calculateCostForEntry(deferredData, mode, fetcher!).then((cost) => {
-					entries.push({
-						data: deferredData,
-						sessionKey: `${projectPath}/${sessionId}`,
-						sessionId,
-						projectPath,
-						cost,
-						timestamp: deferredData.timestamp,
-						model: getDisplayModelName(deferredData),
-					});
-				});
+				const entryIndex = entries.push(undefined) - 1;
+				pendingCosts.push(
+					calculateCostForEntry(deferredData, mode, fetcher!).then((cost) => {
+						entries[entryIndex] = {
+							data: deferredData,
+							sessionKey: `${projectPath}/${sessionId}`,
+							sessionId,
+							projectPath,
+							cost,
+							timestamp: deferredData.timestamp,
+							model: getDisplayModelName(deferredData),
+						};
+					}),
+				);
 			});
+			await Promise.all(pendingCosts);
 
-			return entries;
+			return entries.filter(
+				(entry): entry is NonNullable<(typeof entries)[number]> => entry != null,
+			);
 		},
 	);
 
@@ -1605,10 +1620,11 @@ export async function loadSessionUsageById(
 	const mode = options?.mode ?? 'auto';
 	using fetcher = mode === 'display' ? null : new PricingFetcher(options?.offline);
 
-	const entries: UsageData[] = [];
+	const entries: Array<UsageData | undefined> = [];
+	const pendingCosts: Array<Promise<void>> = [];
 	let totalCost = 0;
 
-	await processJSONLFileByLine(file, async (line) => {
+	await processJSONLFileByLine(file, (line) => {
 		let deferredData: UsageData | undefined;
 		try {
 			if (!line.includes(USAGE_LINE_MARKER)) {
@@ -1633,13 +1649,17 @@ export async function loadSessionUsageById(
 		if (deferredData == null) {
 			return;
 		}
-		return calculateCostForEntry(deferredData, mode, fetcher!).then((cost) => {
-			totalCost += cost;
-			entries.push(deferredData);
-		});
+		const entryIndex = entries.push(undefined) - 1;
+		pendingCosts.push(
+			calculateCostForEntry(deferredData, mode, fetcher!).then((cost) => {
+				totalCost += cost;
+				entries[entryIndex] = deferredData;
+			}),
+		);
 	});
+	await Promise.all(pendingCosts);
 
-	return { totalCost, entries };
+	return { totalCost, entries: entries.filter((entry): entry is UsageData => entry != null) };
 }
 
 export async function loadBucketUsageData(
@@ -1873,17 +1893,21 @@ export async function loadSessionBlockData(options?: LoadOptions): Promise<Sessi
 		getJSONLFileReadConcurrency(mtimeFilteredFiles.length, options?.singleThread),
 		async (file): Promise<BlockFileResult> => {
 			let timestamp: Date | null = null;
-			const entries: Array<{
-				data: UsageData;
-				entry: LoadedUsageEntry;
-				uniqueHash: string | null;
-			}> = [];
+			const entries: Array<
+				| {
+						data: UsageData;
+						entry: LoadedUsageEntry;
+						uniqueHash: string | null;
+				  }
+				| undefined
+			> = [];
+			const pendingCosts: Array<Promise<void>> = [];
 
-			await processJSONLFileByLine(file, async (line) => {
+			await processJSONLFileByLine(file, (line) => {
 				let deferred:
 					| {
 							data: UsageData;
-							pushEntry: (cost: number) => void;
+							createEntry: (cost: number) => NonNullable<(typeof entries)[number]>;
 					  }
 					| undefined;
 				try {
@@ -1911,9 +1935,9 @@ export async function loadSessionBlockData(options?: LoadOptions): Promise<Sessi
 						timestamp = lineTimestamp;
 					}
 
-					const pushEntry = (cost: number): void => {
+					const createEntry = (cost: number): NonNullable<(typeof entries)[number]> => {
 						const usageLimitResetTime = getUsageLimitResetTime(data);
-						entries.push({
+						return {
 							data,
 							uniqueHash: createUniqueHash(data),
 							entry: {
@@ -1929,15 +1953,15 @@ export async function loadSessionBlockData(options?: LoadOptions): Promise<Sessi
 								version: data.version,
 								usageLimitResetTime: usageLimitResetTime ?? undefined,
 							},
-						});
+						};
 					};
 
 					const immediateCost = getImmediateCostForEntry(data, mode);
 					if (immediateCost !== undefined) {
-						pushEntry(immediateCost);
+						entries.push(createEntry(immediateCost));
 						return;
 					}
-					deferred = { data, pushEntry };
+					deferred = { data, createEntry };
 				} catch (error) {
 					// Skip invalid JSON lines but log for debugging purposes
 					logger.debug(
@@ -1947,10 +1971,22 @@ export async function loadSessionBlockData(options?: LoadOptions): Promise<Sessi
 				if (deferred == null) {
 					return;
 				}
-				return calculateCostForEntry(deferred.data, mode, fetcher!).then(deferred.pushEntry);
+				const entryIndex = entries.push(undefined) - 1;
+				pendingCosts.push(
+					calculateCostForEntry(deferred.data, mode, fetcher!).then((cost) => {
+						entries[entryIndex] = deferred.createEntry(cost);
+					}),
+				);
 			});
+			await Promise.all(pendingCosts);
 
-			return { file, timestamp, entries };
+			return {
+				file,
+				timestamp,
+				entries: entries.filter(
+					(entry): entry is NonNullable<(typeof entries)[number]> => entry != null,
+				),
+			};
 		},
 	);
 
