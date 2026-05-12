@@ -87,6 +87,28 @@ function getJSONLFileReadConcurrency(fileCount: number, singleThread = false): n
 	return Math.max(1, Math.min(fileCount, os.availableParallelism()));
 }
 
+function getTimestampFromLine(line: string): Date | null {
+	const timestamp = extractLastStringField(line, 'timestamp');
+	if (timestamp != null && ISO_TIMESTAMP_PATTERN.test(timestamp)) {
+		return new Date(timestamp);
+	}
+
+	if (!line.includes('"timestamp"')) {
+		return null;
+	}
+
+	try {
+		const json = JSON.parse(line) as Record<string, unknown>;
+		if (typeof json.timestamp !== 'string') {
+			return null;
+		}
+		const date = new Date(json.timestamp);
+		return Number.isNaN(date.getTime()) ? null : date;
+	} catch {
+		return null;
+	}
+}
+
 /**
  * Get Claude data directories to search for usage data
  * When CLAUDE_CONFIG_DIR is set: uses only those paths
@@ -966,18 +988,9 @@ export async function getEarliestTimestamp(filePath: string): Promise<Date | nul
 		let earliestDate: Date | null = null;
 
 		await processJSONLFileByLine(filePath, (line) => {
-			try {
-				const json = JSON.parse(line) as Record<string, unknown>;
-				if (json.timestamp != null && typeof json.timestamp === 'string') {
-					const date = new Date(json.timestamp);
-					if (!Number.isNaN(date.getTime())) {
-						if (earliestDate == null || date < earliestDate) {
-							earliestDate = date;
-						}
-					}
-				}
-			} catch {
-				// Skip invalid JSON lines
+			const date = getTimestampFromLine(line);
+			if (date != null && (earliestDate == null || date < earliestDate)) {
+				earliestDate = date;
 			}
 		});
 
@@ -1206,7 +1219,7 @@ export async function loadDailyUsageData(options?: LoadOptions): Promise<DailyUs
 	const fileResults = await mapWithConcurrency(
 		mtimeFilteredFiles,
 		getJSONLFileReadConcurrency(mtimeFilteredFiles.length, options?.singleThread),
-		async (file) => {
+		async (file): Promise<DailyEntry[]> => {
 			const project = extractProjectFromPath(file);
 			const entries: DailyEntry[] = [];
 
@@ -1882,9 +1895,6 @@ export async function loadSessionBlockData(options?: LoadOptions): Promise<Sessi
 		options?.minUpdateTime,
 	);
 
-	// Sort files by timestamp to ensure chronological processing
-	const sortedFiles = await sortFilesByTimestamp(mtimeFilteredFiles);
-
 	// Fetch pricing data for cost calculation only when needed
 	const mode = options?.mode ?? 'auto';
 
@@ -1895,10 +1905,21 @@ export async function loadSessionBlockData(options?: LoadOptions): Promise<Sessi
 	const allEntries: LoadedUsageEntry[] = [];
 	const processedEntries = new Map<string, { data: UsageData; index: number }>();
 
+	type BlockFileResult = {
+		file: string;
+		timestamp: Date | null;
+		entries: Array<{
+			data: UsageData;
+			entry: LoadedUsageEntry;
+			uniqueHash: string | null;
+		}>;
+	};
+
 	const fileResults = await mapWithConcurrency(
-		sortedFiles,
-		getJSONLFileReadConcurrency(sortedFiles.length, options?.singleThread),
-		async (file) => {
+		mtimeFilteredFiles,
+		getJSONLFileReadConcurrency(mtimeFilteredFiles.length, options?.singleThread),
+		async (file): Promise<BlockFileResult> => {
+			let timestamp: Date | null = null;
 			const entries: Array<{
 				data: UsageData;
 				entry: LoadedUsageEntry;
@@ -1906,6 +1927,11 @@ export async function loadSessionBlockData(options?: LoadOptions): Promise<Sessi
 			}> = [];
 
 			await processJSONLFileByLine(file, async (line) => {
+				const lineTimestamp = getTimestampFromLine(line);
+				if (lineTimestamp != null && (timestamp == null || lineTimestamp < timestamp)) {
+					timestamp = lineTimestamp;
+				}
+
 				let deferred:
 					| {
 							data: UsageData;
@@ -1961,11 +1987,25 @@ export async function loadSessionBlockData(options?: LoadOptions): Promise<Sessi
 				return calculateCostForEntry(deferred.data, mode, fetcher!).then(deferred.pushEntry);
 			});
 
-			return entries;
+			return { file, timestamp, entries };
 		},
 	);
 
-	for (const entries of fileResults) {
+	fileResults.sort((a, b) => {
+		if (a.timestamp == null && b.timestamp == null) {
+			return a.file.localeCompare(b.file);
+		}
+		if (a.timestamp == null) {
+			return 1;
+		}
+		if (b.timestamp == null) {
+			return -1;
+		}
+		const timestampDiff = a.timestamp.getTime() - b.timestamp.getTime();
+		return timestampDiff === 0 ? a.file.localeCompare(b.file) : timestampDiff;
+	});
+
+	for (const { entries } of fileResults) {
 		for (const { data, entry, uniqueHash } of entries) {
 			if (uniqueHash == null) {
 				allEntries.push(entry);
