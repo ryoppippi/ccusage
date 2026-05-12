@@ -910,7 +910,7 @@ async function processJSONLFileByLine(
 ): Promise<void> {
 	const stats = await stat(filePath);
 	if (stats.size <= MAX_BUFFERED_JSONL_BYTES) {
-		const content = await readFile(filePath, 'utf-8');
+		const content = (await readFile(filePath)).toString('utf8');
 		let lineStart = 0;
 		let lineNumber = 0;
 		while (lineStart < content.length) {
