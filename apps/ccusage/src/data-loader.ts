@@ -1713,6 +1713,39 @@ function chunkIndexedItems<T>(
 	return chunks.filter((chunk) => chunk.length > 0);
 }
 
+async function chunkIndexedItemsByFileSize<T>(
+	items: Array<IndexedWorkerItem<T>>,
+	chunkCount: number,
+	getFilePath: (item: T) => string,
+): Promise<Array<Array<IndexedWorkerItem<T>>>> {
+	const weightedItems = await Promise.all(
+		items.map(async (item) => {
+			try {
+				return { item, weight: (await stat(getFilePath(item.item))).size };
+			} catch {
+				return { item, weight: 0 };
+			}
+		}),
+	);
+
+	weightedItems.sort((a, b) => b.weight - a.weight || a.item.index - b.item.index);
+
+	const chunks: Array<Array<IndexedWorkerItem<T>>> = Array.from({ length: chunkCount }, () => []);
+	const chunkWeights = Array.from<number>({ length: chunkCount }).fill(0);
+	for (const { item, weight } of weightedItems) {
+		let targetIndex = 0;
+		for (let index = 1; index < chunkWeights.length; index++) {
+			if (chunkWeights[index]! < chunkWeights[targetIndex]!) {
+				targetIndex = index;
+			}
+		}
+		chunks[targetIndex]!.push(item);
+		chunkWeights[targetIndex]! += weight;
+	}
+
+	return chunks.filter((chunk) => chunk.length > 0);
+}
+
 async function collectWithUsageWorkers<TItem, TResult>(
 	task: UsageWorkerTask,
 	items: TItem[],
@@ -1721,6 +1754,7 @@ async function collectWithUsageWorkers<TItem, TResult>(
 		offline: boolean | undefined;
 		timezone: string | undefined;
 		singleThread: boolean | undefined;
+		getFilePath?: (item: TItem) => string;
 	},
 ): Promise<TResult[] | null> {
 	const workerCount = getJSONLWorkerThreadCount(items.length, options.singleThread);
@@ -1729,7 +1763,10 @@ async function collectWithUsageWorkers<TItem, TResult>(
 	}
 
 	const indexedItems = items.map<IndexedWorkerItem<TItem>>((item, index) => ({ index, item }));
-	const chunks = chunkIndexedItems(indexedItems, workerCount);
+	const chunks =
+		options.getFilePath == null
+			? chunkIndexedItems(indexedItems, workerCount)
+			: await chunkIndexedItemsByFileSize(indexedItems, workerCount, options.getFilePath);
 	const workerResults: Array<Promise<Array<{ index: number; result: TResult }>>> = [];
 	for (const chunk of chunks) {
 		workerResults.push(
@@ -1982,6 +2019,7 @@ export async function loadDailyUsageData(options?: LoadOptions): Promise<DailyUs
 			offline: options?.offline,
 			timezone: options?.timezone,
 			singleThread: options?.singleThread,
+			getFilePath: (file) => file,
 		},
 	);
 	if (fileResults == null) {
@@ -2105,6 +2143,7 @@ export async function loadSessionData(options?: LoadOptions): Promise<SessionUsa
 			offline: options?.offline,
 			timezone: options?.timezone,
 			singleThread: options?.singleThread,
+			getFilePath: (item) => item.file,
 		},
 	);
 	if (fileResults == null) {
