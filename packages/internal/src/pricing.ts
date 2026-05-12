@@ -94,6 +94,7 @@ function createLogger(logger?: PricingLogger): PricingLogger {
 
 export class LiteLLMPricingFetcher implements Disposable {
 	private cachedPricing: Map<string, LiteLLMModelPricing> | null = null;
+	private readonly modelPricingCache = new Map<string, LiteLLMModelPricing | null>();
 	private readonly logger: PricingLogger;
 	private readonly offline: boolean;
 	private readonly offlineLoader?: () => Promise<Record<string, LiteLLMModelPricing>>;
@@ -114,6 +115,7 @@ export class LiteLLMPricingFetcher implements Disposable {
 
 	clearCache(): void {
 		this.cachedPricing = null;
+		this.modelPricingCache.clear();
 	}
 
 	private loadOfflinePricing = Result.try({
@@ -219,12 +221,17 @@ export class LiteLLMPricingFetcher implements Disposable {
 	}
 
 	async getModelPricing(modelName: string): Result.ResultAsync<LiteLLMModelPricing | null, Error> {
+		if (this.modelPricingCache.has(modelName)) {
+			return Result.succeed(this.modelPricingCache.get(modelName) ?? null);
+		}
+
 		return Result.pipe(
 			this.ensurePricingLoaded(),
 			Result.map((pricing) => {
 				for (const candidate of this.createMatchingCandidates(modelName)) {
 					const direct = pricing.get(candidate);
 					if (direct != null) {
+						this.modelPricingCache.set(modelName, direct);
 						return direct;
 					}
 				}
@@ -233,10 +240,12 @@ export class LiteLLMPricingFetcher implements Disposable {
 				for (const [key, value] of pricing) {
 					const comparison = key.toLowerCase();
 					if (comparison.includes(lower) || lower.includes(comparison)) {
+						this.modelPricingCache.set(modelName, value);
 						return value;
 					}
 				}
 
+				this.modelPricingCache.set(modelName, null);
 				return null;
 			}),
 		);
