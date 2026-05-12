@@ -877,9 +877,9 @@ fn update_loaded_file_timestamp(loaded_file: &mut LoadedFile, timestamp: DateTim
 
 fn parse_ts_timestamp(value: &str) -> Option<DateTime<Utc>> {
     let bytes = value.as_bytes();
-    let millis = match bytes.len() {
-        20 if bytes[19] == b'Z' => 0,
-        24 if bytes[19] == b'.' && bytes[23] == b'Z' => parse_digits(&bytes[20..23])?,
+    let (millis, timezone_start) = match bytes.len() {
+        20 | 25 if bytes[19] == b'Z' || bytes[19] == b'+' || bytes[19] == b'-' => (0, 19),
+        24 | 29 if bytes[19] == b'.' => (parse_digits(&bytes[20..23])?, 23),
         _ => return None,
     };
     if bytes[4] != b'-'
@@ -896,9 +896,34 @@ fn parse_ts_timestamp(value: &str) -> Option<DateTime<Utc>> {
     let hour = parse_digits(&bytes[11..13])?;
     let minute = parse_digits(&bytes[14..16])?;
     let second = parse_digits(&bytes[17..19])?;
-    Utc.with_ymd_and_hms(year, month, day, hour, minute, second)
+    let timezone_offset = parse_timezone_offset(&bytes[timezone_start..])?;
+    let timestamp = Utc
+        .with_ymd_and_hms(year, month, day, hour, minute, second)
         .single()?
-        .checked_add_signed(Duration::milliseconds(i64::from(millis)))
+        .checked_add_signed(Duration::milliseconds(i64::from(millis)))?;
+    timestamp.checked_sub_signed(Duration::minutes(timezone_offset))
+}
+
+fn parse_timezone_offset(bytes: &[u8]) -> Option<i64> {
+    if bytes == [b'Z'] {
+        return Some(0);
+    }
+    if bytes.len() != 6 || !matches!(bytes[0], b'+' | b'-') || bytes[3] != b':' {
+        return None;
+    }
+    let offset = i64::from(parse_digits(&bytes[1..3])? * 60 + parse_digits(&bytes[4..6])?);
+    Some(if bytes[0] == b'+' { offset } else { -offset })
+}
+
+fn parse_iso_date(value: &str) -> Option<NaiveDate> {
+    let bytes = value.as_bytes();
+    if bytes.len() != 10 || bytes[4] != b'-' || bytes[7] != b'-' {
+        return None;
+    }
+    let year = parse_digits(&bytes[0..4])? as i32;
+    let month = parse_digits(&bytes[5..7])?;
+    let day = parse_digits(&bytes[8..10])?;
+    NaiveDate::from_ymd_opt(year, month, day)
 }
 
 fn parse_digits(bytes: &[u8]) -> Option<u32> {
@@ -1048,9 +1073,7 @@ fn earliest_timestamp_from_line(line: &str) -> Option<DateTime<Utc>> {
     }
     let value = serde_json::from_str::<Value>(line).ok()?;
     let timestamp = value.get("timestamp")?.as_str()?;
-    DateTime::parse_from_rfc3339(timestamp)
-        .ok()
-        .and_then(|value| DateTime::from_timestamp_millis(value.timestamp_millis()))
+    parse_ts_timestamp(timestamp)
 }
 
 fn extract_project(path: &Path) -> String {
@@ -1158,6 +1181,19 @@ fn format_chrono_second(timestamp: DateTime<Utc>) -> String {
         timestamp.hour(),
         timestamp.minute(),
         timestamp.second()
+    )
+}
+
+fn format_rfc3339_millis(timestamp: DateTime<Utc>) -> String {
+    format!(
+        "{:04}-{:02}-{:02}T{:02}:{:02}:{:02}.{:03}Z",
+        timestamp.year(),
+        timestamp.month(),
+        timestamp.day(),
+        timestamp.hour(),
+        timestamp.minute(),
+        timestamp.second(),
+        timestamp.timestamp_subsec_millis()
     )
 }
 
@@ -1586,7 +1622,7 @@ where
 }
 
 fn week_start(date: &str, start: WeekDay) -> Option<String> {
-    let date = NaiveDate::parse_from_str(date, "%Y-%m-%d").ok()?;
+    let date = parse_iso_date(date)?;
     let start_num = match start {
         WeekDay::Sunday => 0,
         WeekDay::Monday => 1,
@@ -1963,7 +1999,7 @@ fn create_block(
         usage_limit_reset_time = usage_limit_reset_time.or(entry.usage_limit_reset_time);
     }
     SessionBlock {
-        id: start.to_rfc3339_opts(chrono::SecondsFormat::Millis, true),
+        id: format_rfc3339_millis(start),
         start_time: start,
         end_time: end,
         actual_end_time: actual_end,
@@ -1984,10 +2020,7 @@ fn create_gap_block(
 ) -> SessionBlock {
     let start = last + duration;
     SessionBlock {
-        id: format!(
-            "gap-{}",
-            start.to_rfc3339_opts(chrono::SecondsFormat::Millis, true)
-        ),
+        id: format!("gap-{}", format_rfc3339_millis(start)),
         start_time: start,
         end_time: next,
         actual_end_time: None,
@@ -2065,9 +2098,9 @@ fn block_json(block: &SessionBlock, token_limit: Option<&str>, max_tokens: u64) 
     });
     let mut value = json!({
         "id": block.id,
-        "startTime": block.start_time.to_rfc3339_opts(chrono::SecondsFormat::Millis, true),
-        "endTime": block.end_time.to_rfc3339_opts(chrono::SecondsFormat::Millis, true),
-        "actualEndTime": block.actual_end_time.map(|time| time.to_rfc3339_opts(chrono::SecondsFormat::Millis, true)),
+        "startTime": format_rfc3339_millis(block.start_time),
+        "endTime": format_rfc3339_millis(block.end_time),
+        "actualEndTime": block.actual_end_time.map(format_rfc3339_millis),
         "isActive": block.is_active,
         "isGap": block.is_gap,
         "entries": block.entries.len(),
@@ -2087,8 +2120,7 @@ fn block_json(block: &SessionBlock, token_limit: Option<&str>, max_tokens: u64) 
         value["tokenLimitStatus"] = status;
     }
     if let Some(reset_time) = block.usage_limit_reset_time {
-        value["usageLimitResetTime"] =
-            json!(reset_time.to_rfc3339_opts(chrono::SecondsFormat::Millis, true));
+        value["usageLimitResetTime"] = json!(format_rfc3339_millis(reset_time));
     }
     value
 }
@@ -2945,6 +2977,19 @@ mod tests {
         assert_eq!(format_date(timestamp, Some("Asia/Tokyo")), "2024-08-05");
         assert_eq!(format_chrono_minute(timestamp), "2024-08-04 23:30");
         assert_eq!(format_chrono_second(timestamp), "2024-08-04 23:30:00");
+        assert_eq!(format_rfc3339_millis(timestamp), "2024-08-04T23:30:00.000Z");
+    }
+
+    #[test]
+    fn parses_timestamp_offsets() {
+        assert_eq!(
+            parse_ts_timestamp("2024-08-05T08:30:00.000+09:00").unwrap(),
+            parse_ts_timestamp("2024-08-04T23:30:00.000Z").unwrap()
+        );
+        assert_eq!(
+            parse_ts_timestamp("2024-08-04T16:30:00-07:00").unwrap(),
+            parse_ts_timestamp("2024-08-04T23:30:00Z").unwrap()
+        );
     }
 
     #[test]
