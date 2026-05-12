@@ -868,23 +868,60 @@ fn read_usage_files_parallel(
             .collect();
     }
 
-    let chunk_size = files.len().div_ceil(worker_count);
+    let chunks = chunk_file_indexes_by_size(files, worker_count);
     thread::scope(|scope| {
         let mut handles = Vec::with_capacity(worker_count);
-        for chunk in files.chunks(chunk_size) {
+        for chunk in chunks {
             let tz = tz.cloned();
             handles.push(scope.spawn(move || {
                 chunk
-                    .iter()
-                    .map(|file| read_usage_file(file, tz.as_ref(), mode, pricing))
+                    .into_iter()
+                    .map(|index| {
+                        (
+                            index,
+                            read_usage_file(&files[index], tz.as_ref(), mode, pricing),
+                        )
+                    })
                     .collect::<Vec<_>>()
             }));
         }
-        handles
+        let mut loaded_files = handles
             .into_iter()
             .flat_map(|handle| handle.join().expect("usage worker panicked"))
-            .collect()
+            .collect::<Vec<_>>();
+        loaded_files.sort_unstable_by_key(|(index, _)| *index);
+        loaded_files.into_iter().map(|(_, file)| file).collect()
     })
+}
+
+fn chunk_file_indexes_by_size(files: &[PathBuf], chunk_count: usize) -> Vec<Vec<usize>> {
+    let mut weighted_indexes = Vec::with_capacity(files.len());
+    for (index, file) in files.iter().enumerate() {
+        let size = fs::metadata(file).map_or(0, |metadata| metadata.len());
+        weighted_indexes.push((index, size));
+    }
+    weighted_indexes.sort_unstable_by(|a, b| match b.1.cmp(&a.1) {
+        std::cmp::Ordering::Equal => a.0.cmp(&b.0),
+        order => order,
+    });
+
+    let mut chunks = vec![Vec::new(); chunk_count];
+    let mut chunk_sizes = vec![0_u64; chunk_count];
+    for (index, size) in weighted_indexes {
+        let mut target = 0;
+        for candidate in 1..chunk_sizes.len() {
+            if chunk_sizes[candidate] < chunk_sizes[target] {
+                target = candidate;
+            }
+        }
+        chunks[target].push(index);
+        chunk_sizes[target] = chunk_sizes[target].saturating_add(size);
+    }
+
+    chunks
+        .into_iter()
+        .filter(|chunk| !chunk.is_empty())
+        .collect()
 }
 
 fn debug_log(shared: &SharedArgs, message: impl AsRef<str>) {
@@ -3405,6 +3442,44 @@ mod tests {
             week_start("2024-01-03", WeekDay::Monday).unwrap(),
             "2024-01-01"
         );
+    }
+
+    #[test]
+    fn balances_file_chunks_by_size() {
+        let dir = temp_claude_dir("chunks");
+        fs::create_dir_all(&dir).unwrap();
+        let files = [
+            ("large-a.jsonl", 100),
+            ("small-a.jsonl", 1),
+            ("small-b.jsonl", 1),
+            ("large-b.jsonl", 100),
+        ]
+        .into_iter()
+        .map(|(name, size)| {
+            let path = dir.join(name);
+            fs::write(&path, "x".repeat(size)).unwrap();
+            path
+        })
+        .collect::<Vec<_>>();
+
+        let chunks = chunk_file_indexes_by_size(&files, 2);
+        assert_eq!(chunks.len(), 2);
+        let mut indexes = chunks.iter().flatten().copied().collect::<Vec<_>>();
+        indexes.sort_unstable();
+        assert_eq!(indexes, vec![0, 1, 2, 3]);
+
+        let chunk_sizes = chunks
+            .iter()
+            .map(|chunk| {
+                chunk
+                    .iter()
+                    .map(|index| fs::metadata(&files[*index]).unwrap().len())
+                    .sum::<u64>()
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(chunk_sizes, vec![101, 101]);
+
+        fs::remove_dir_all(dir).unwrap();
     }
 
     #[test]
