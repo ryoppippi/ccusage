@@ -1121,6 +1121,38 @@ function hasNonWhitespace(line: string): boolean {
 	return false;
 }
 
+function isBunRuntime(): boolean {
+	return typeof (globalThis as { Bun?: unknown }).Bun === 'object';
+}
+
+async function processBufferedJSONLContent(
+	content: string,
+	processLine: (line: string, lineNumber: number) => void | Promise<void>,
+): Promise<void> {
+	let lineStart = 0;
+	let lineNumber = 0;
+	while (lineStart < content.length) {
+		let lineEnd = content.indexOf('\n', lineStart);
+		if (lineEnd === -1) {
+			lineEnd = content.length;
+		}
+
+		lineNumber++;
+		let line = content.slice(lineStart, lineEnd);
+		if (line.endsWith('\r')) {
+			line = line.slice(0, -1);
+		}
+		if (hasNonWhitespace(line)) {
+			const result = processLine(line, lineNumber);
+			if (result != null) {
+				await result;
+			}
+		}
+
+		lineStart = lineEnd + 1;
+	}
+}
+
 /**
  * Process a JSONL file line by line using streams to avoid memory issues with large files
  * @param filePath - Path to the JSONL file
@@ -1130,33 +1162,20 @@ async function processJSONLFileByLine(
 	filePath: string,
 	processLine: (line: string, lineNumber: number) => void | Promise<void>,
 ): Promise<void> {
+	if (isBunRuntime()) {
+		const stats = await stat(filePath);
+		if (stats.size <= MAX_BUFFERED_JSONL_BYTES) {
+			await processBufferedJSONLContent(await readFile(filePath, 'utf8'), processLine);
+			return;
+		}
+	}
+
 	const file = await open(filePath, 'r');
 	try {
 		const stats = await file.stat();
 		if (stats.size <= MAX_BUFFERED_JSONL_BYTES) {
 			const content = (await file.readFile()).toString('utf8');
-			let lineStart = 0;
-			let lineNumber = 0;
-			while (lineStart < content.length) {
-				let lineEnd = content.indexOf('\n', lineStart);
-				if (lineEnd === -1) {
-					lineEnd = content.length;
-				}
-
-				lineNumber++;
-				let line = content.slice(lineStart, lineEnd);
-				if (line.endsWith('\r')) {
-					line = line.slice(0, -1);
-				}
-				if (hasNonWhitespace(line)) {
-					const result = processLine(line, lineNumber);
-					if (result != null) {
-						await result;
-					}
-				}
-
-				lineStart = lineEnd + 1;
-			}
+			await processBufferedJSONLContent(content, processLine);
 			return;
 		}
 	} finally {
