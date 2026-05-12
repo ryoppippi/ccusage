@@ -9,13 +9,6 @@ path = "src/main.rs"
 
 [dependencies]
 chrono = { version = "0.4", default-features = false, features = ["std"] }
-clap = { version = "4", default-features = false, features = [
-	"derive",
-	"env",
-	"help",
-	"std",
-	"usage",
-] }
 jiff = { version = "0.2.24", default-features = false, features = [
 	"std",
 	"tz-system",

@@ -11,7 +11,6 @@ use std::{
 use std::os::fd::AsRawFd;
 
 use chrono::{DateTime, Datelike, Duration, NaiveDate, TimeZone, Timelike, Utc};
-use clap::Parser;
 use jiff::{tz::TimeZone as JiffTimeZone, Timestamp as JiffTimestamp};
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
