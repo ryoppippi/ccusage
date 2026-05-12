@@ -4,6 +4,7 @@ use std::{
     io::{self, IsTerminal, Read},
     path::{Path, PathBuf},
     sync::Arc,
+    time::{SystemTime, UNIX_EPOCH},
 };
 
 #[cfg(unix)]
@@ -460,7 +461,7 @@ fn run_blocks(args: BlocksArgs) -> Result<()> {
     sort_blocks(&mut blocks, &shared.order);
 
     if args.recent {
-        let cutoff = Utc::now() - chrono::Duration::days(DEFAULT_RECENT_DAYS);
+        let cutoff = utc_now() - chrono::Duration::days(DEFAULT_RECENT_DAYS);
         blocks.retain(|block| block.start_time >= cutoff || block.is_active);
     }
 
@@ -540,7 +541,7 @@ fn run_statusline(args: StatuslineArgs) -> Result<()> {
         None
     };
 
-    let today = Utc::now().format("%Y%m%d").to_string();
+    let today = utc_now().format("%Y%m%d").to_string();
     let today_shared = SharedArgs {
         since: Some(today.clone()),
         until: Some(today),
@@ -564,7 +565,7 @@ fn run_statusline(args: StatuslineArgs) -> Result<()> {
         .unwrap_or_default();
     let active_block = blocks.iter().find(|block| block.is_active && !block.is_gap);
     let (block_info, burn_rate_info) = if let Some(block) = active_block {
-        let remaining = (block.end_time - Utc::now()).num_minutes().max(0);
+        let remaining = (block.end_time - utc_now()).num_minutes().max(0);
         let mut burn = String::new();
         if let Some(rate) = calculate_burn_rate(block) {
             let mut segments = vec![format!("{}/hr", format_currency(rate.cost_per_hour))];
@@ -731,6 +732,14 @@ fn debug_log(shared: &SharedArgs, message: impl AsRef<str>) {
     if shared.debug {
         eprintln!("{}", message.as_ref());
     }
+}
+
+fn utc_now() -> DateTime<Utc> {
+    let millis = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|duration| duration.as_millis().min(i64::MAX as u128) as i64)
+        .unwrap_or(0);
+    DateTime::from_timestamp_millis(millis).unwrap_or(DateTime::<Utc>::UNIX_EPOCH)
 }
 
 fn usage_token_total(data: &UsageEntry) -> u64 {
@@ -1786,7 +1795,7 @@ fn identify_session_blocks(
     let session_duration =
         chrono::Duration::milliseconds((session_duration_hours * 60.0 * 60.0 * 1000.0) as i64);
     entries.sort_by_key(|entry| entry.timestamp);
-    let now = Utc::now();
+    let now = utc_now();
     let mut blocks = Vec::new();
     let mut current_start: Option<DateTime<Utc>> = None;
     let mut current_entries = Vec::new();
@@ -2600,7 +2609,7 @@ fn print_active_block_detail(
     shared: &SharedArgs,
 ) {
     print_box_title("Current Session Block Status", shared);
-    let now = Utc::now();
+    let now = utc_now();
     let elapsed = (now - block.start_time).num_minutes().max(0);
     let remaining = (block.end_time - now).num_minutes().max(0);
     println!(
@@ -2717,7 +2726,7 @@ fn project_block_usage(block: &SessionBlock) -> Option<Projection> {
     }
     let burn = calculate_burn_rate(block)?;
     let remaining_minutes =
-        ((block.end_time - Utc::now()).num_milliseconds().max(0) as f64 / 60_000.0).round();
+        ((block.end_time - utc_now()).num_milliseconds().max(0) as f64 / 60_000.0).round();
     let total_tokens =
         block.token_counts.total() as f64 + burn.tokens_per_minute * remaining_minutes;
     let total_cost = block.cost_usd + (burn.cost_per_hour / 60.0) * remaining_minutes;
