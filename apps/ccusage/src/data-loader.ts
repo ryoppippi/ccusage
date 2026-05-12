@@ -18,6 +18,7 @@ import os from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
 import { createInterface } from 'node:readline';
+import { isMainThread, parentPort, Worker, workerData } from 'node:worker_threads';
 import { toArray } from '@antfu/utils';
 import { Result } from '@praha/byethrow';
 import { sort } from 'fast-sort';
@@ -1170,6 +1171,360 @@ export type LoadOptions = {
 	singleThread?: boolean; // Disable parallel JSONL file loading
 } & DateFilter;
 
+type DailyDataEntry = {
+	data: UsageData;
+	date: string;
+	cost: number;
+	model: string | undefined;
+	project: string;
+};
+
+type SessionDataEntry = {
+	data: UsageData;
+	sessionKey: string;
+	sessionId: string;
+	projectPath: string;
+	cost: number;
+	timestamp: string;
+	model: string | undefined;
+};
+
+type BlockEntryResult = {
+	data: UsageData;
+	entry: LoadedUsageEntry;
+	uniqueHash: string | null;
+};
+
+type BlockFileResult = {
+	file: string;
+	timestamp: Date | null;
+	entries: BlockEntryResult[];
+};
+
+type UsageWorkerTask = 'daily' | 'session' | 'blocks';
+
+type IndexedWorkerItem<T> = {
+	index: number;
+	item: T;
+};
+
+type UsageWorkerData = {
+	kind: 'ccusage:usage-worker';
+	task: UsageWorkerTask;
+	items: Array<IndexedWorkerItem<unknown>>;
+	mode: CostMode;
+	offline: boolean | undefined;
+	timezone: string | undefined;
+};
+
+type UsageWorkerResponse<TResult> = {
+	results: Array<{
+		index: number;
+		result: TResult;
+	}>;
+};
+
+function getJSONLWorkerThreadCount(fileCount: number, singleThread = false): number {
+	if (
+		singleThread ||
+		fileCount < 64 ||
+		!isMainThread ||
+		import.meta.vitest != null ||
+		!import.meta.url.includes('/dist/')
+	) {
+		return 0;
+	}
+
+	const configured = Number.parseInt(process.env.CCUSAGE_JSONL_WORKER_THREADS ?? '', 10);
+	if (Number.isFinite(configured)) {
+		if (configured <= 0) {
+			return 0;
+		}
+		return Math.min(fileCount, configured);
+	}
+
+	return Math.max(0, Math.min(fileCount, Math.max(1, os.availableParallelism() - 1)));
+}
+
+function chunkIndexedItems<T>(
+	items: Array<IndexedWorkerItem<T>>,
+	chunkCount: number,
+): Array<Array<IndexedWorkerItem<T>>> {
+	const chunks: Array<Array<IndexedWorkerItem<T>>> = Array.from({ length: chunkCount }, () => []);
+	for (let index = 0; index < items.length; index++) {
+		chunks[index % chunkCount]!.push(items[index]!);
+	}
+	return chunks.filter((chunk) => chunk.length > 0);
+}
+
+async function collectWithUsageWorkers<TItem, TResult>(
+	task: UsageWorkerTask,
+	items: TItem[],
+	options: {
+		mode: CostMode;
+		offline: boolean | undefined;
+		timezone: string | undefined;
+		singleThread: boolean | undefined;
+	},
+): Promise<TResult[] | null> {
+	const workerCount = getJSONLWorkerThreadCount(items.length, options.singleThread);
+	if (workerCount === 0) {
+		return null;
+	}
+
+	const indexedItems = items.map<IndexedWorkerItem<TItem>>((item, index) => ({ index, item }));
+	const chunks = chunkIndexedItems(indexedItems, workerCount);
+	const workerResults: Array<Promise<Array<{ index: number; result: TResult }>>> = [];
+	for (const chunk of chunks) {
+		workerResults.push(
+			new Promise<Array<{ index: number; result: TResult }>>((resolve, reject) => {
+				const worker = new Worker(new URL(import.meta.url), {
+					workerData: {
+						kind: 'ccusage:usage-worker',
+						task,
+						items: chunk,
+						mode: options.mode,
+						offline: options.offline,
+						timezone: options.timezone,
+					} satisfies UsageWorkerData,
+				});
+				worker.once('message', (message: UsageWorkerResponse<TResult>) => {
+					resolve(message.results);
+				});
+				worker.once('error', reject);
+				worker.once('exit', (code) => {
+					if (code !== 0) {
+						reject(new Error(`ccusage worker exited with code ${code}`));
+					}
+				});
+			}),
+		);
+	}
+	const results = (await Promise.all(workerResults)).flat();
+
+	return results.sort((a, b) => a.index - b.index).map((item) => item.result);
+}
+
+async function collectDailyEntriesFromFile(
+	file: string,
+	mode: CostMode,
+	fetcher: PricingFetcher | null,
+	formatUsageDate: (dateStr: string) => string,
+): Promise<DailyDataEntry[]> {
+	const project = extractProjectFromPath(file);
+	const entries: Array<DailyDataEntry | undefined> = [];
+	const pendingCosts: Array<Promise<void>> = [];
+
+	await processJSONLFileByLine(file, (line) => {
+		let deferredData: UsageData | undefined;
+		let deferredDate = '';
+		try {
+			if (!line.includes(USAGE_LINE_MARKER)) {
+				return;
+			}
+
+			const data = parseUsageDataLine(line);
+			if (data == null) {
+				return;
+			}
+
+			const date = formatUsageDate(data.timestamp);
+			const immediateCost = getImmediateCostForEntry(data, mode);
+			if (immediateCost !== undefined) {
+				entries.push({
+					data,
+					date,
+					cost: immediateCost,
+					model: getDisplayModelName(data),
+					project,
+				});
+				return;
+			}
+
+			deferredData = data;
+			deferredDate = date;
+		} catch {
+			// Skip invalid JSON lines
+		}
+		if (deferredData == null) {
+			return;
+		}
+		const entryIndex = entries.push(undefined) - 1;
+		pendingCosts.push(
+			calculateCostForEntry(deferredData, mode, fetcher!).then((cost) => {
+				entries[entryIndex] = {
+					data: deferredData,
+					date: deferredDate,
+					cost,
+					model: getDisplayModelName(deferredData),
+					project,
+				};
+			}),
+		);
+	});
+	await Promise.all(pendingCosts);
+
+	return entries.filter((entry): entry is DailyDataEntry => entry != null);
+}
+
+async function collectSessionEntriesFromFile(
+	item: GlobResult,
+	mode: CostMode,
+	fetcher: PricingFetcher | null,
+): Promise<SessionDataEntry[]> {
+	const { file, baseDir } = item;
+	const relativePath = path.relative(baseDir, file);
+	const parts = relativePath.split(path.sep);
+	const sessionId = parts[parts.length - 2] ?? 'unknown';
+	const joinedPath = parts.slice(0, -2).join(path.sep);
+	const projectPath = joinedPath.length > 0 ? joinedPath : 'Unknown Project';
+	const entries: Array<SessionDataEntry | undefined> = [];
+	const pendingCosts: Array<Promise<void>> = [];
+
+	await processJSONLFileByLine(file, (line) => {
+		let deferredData: UsageData | undefined;
+		try {
+			if (!line.includes(USAGE_LINE_MARKER)) {
+				return;
+			}
+
+			const data = parseUsageDataLine(line);
+			if (data == null) {
+				return;
+			}
+
+			const immediateCost = getImmediateCostForEntry(data, mode);
+			if (immediateCost !== undefined) {
+				entries.push({
+					data,
+					sessionKey: `${projectPath}/${sessionId}`,
+					sessionId,
+					projectPath,
+					cost: immediateCost,
+					timestamp: data.timestamp,
+					model: getDisplayModelName(data),
+				});
+				return;
+			}
+			deferredData = data;
+		} catch {
+			// Skip invalid JSON lines
+		}
+		if (deferredData == null) {
+			return;
+		}
+		const entryIndex = entries.push(undefined) - 1;
+		pendingCosts.push(
+			calculateCostForEntry(deferredData, mode, fetcher!).then((cost) => {
+				entries[entryIndex] = {
+					data: deferredData,
+					sessionKey: `${projectPath}/${sessionId}`,
+					sessionId,
+					projectPath,
+					cost,
+					timestamp: deferredData.timestamp,
+					model: getDisplayModelName(deferredData),
+				};
+			}),
+		);
+	});
+	await Promise.all(pendingCosts);
+
+	return entries.filter((entry): entry is SessionDataEntry => entry != null);
+}
+
+async function collectBlockFileResult(
+	file: string,
+	mode: CostMode,
+	fetcher: PricingFetcher | null,
+): Promise<BlockFileResult> {
+	let timestamp: Date | null = null;
+	const entries: Array<BlockEntryResult | undefined> = [];
+	const pendingCosts: Array<Promise<void>> = [];
+
+	await processJSONLFileByLine(file, (line) => {
+		let deferred:
+			| {
+					data: UsageData;
+					createEntry: (cost: number) => BlockEntryResult;
+			  }
+			| undefined;
+		try {
+			if (!line.includes(USAGE_LINE_MARKER)) {
+				const lineTimestamp = getTimestampFromLine(line);
+				if (lineTimestamp != null && (timestamp == null || lineTimestamp < timestamp)) {
+					timestamp = lineTimestamp;
+				}
+				return;
+			}
+
+			const data = parseUsageDataLine(line);
+			if (data == null) {
+				const lineTimestamp = getTimestampFromLine(line);
+				if (lineTimestamp != null && (timestamp == null || lineTimestamp < timestamp)) {
+					timestamp = lineTimestamp;
+				}
+				return;
+			}
+			const lineTimestamp = new Date(data.timestamp);
+			if (
+				!Number.isNaN(lineTimestamp.getTime()) &&
+				(timestamp == null || lineTimestamp < timestamp)
+			) {
+				timestamp = lineTimestamp;
+			}
+
+			const createEntry = (cost: number): BlockEntryResult => {
+				const usageLimitResetTime = getUsageLimitResetTime(data);
+				return {
+					data,
+					uniqueHash: createUniqueHash(data),
+					entry: {
+						timestamp: new Date(data.timestamp),
+						usage: {
+							inputTokens: data.message.usage.input_tokens,
+							outputTokens: data.message.usage.output_tokens,
+							cacheCreationInputTokens: data.message.usage.cache_creation_input_tokens ?? 0,
+							cacheReadInputTokens: data.message.usage.cache_read_input_tokens ?? 0,
+						},
+						costUSD: cost,
+						model: getDisplayModelName(data) ?? 'unknown',
+						version: data.version,
+						usageLimitResetTime: usageLimitResetTime ?? undefined,
+					},
+				};
+			};
+
+			const immediateCost = getImmediateCostForEntry(data, mode);
+			if (immediateCost !== undefined) {
+				entries.push(createEntry(immediateCost));
+				return;
+			}
+			deferred = { data, createEntry };
+		} catch (error) {
+			logger.debug(
+				`Skipping invalid JSON line in 5-hour blocks: ${error instanceof Error ? error.message : String(error)}`,
+			);
+		}
+		if (deferred == null) {
+			return;
+		}
+		const entryIndex = entries.push(undefined) - 1;
+		pendingCosts.push(
+			calculateCostForEntry(deferred.data, mode, fetcher!).then((cost) => {
+				entries[entryIndex] = deferred.createEntry(cost);
+			}),
+		);
+	});
+	await Promise.all(pendingCosts);
+
+	return {
+		file,
+		timestamp,
+		entries: entries.filter((entry): entry is BlockEntryResult => entry != null),
+	};
+}
+
 /**
  * Loads and aggregates Claude usage data by day
  * Processes all JSONL files in the Claude projects directory and groups usage by date
@@ -1208,76 +1563,22 @@ export async function loadDailyUsageData(options?: LoadOptions): Promise<DailyUs
 	using fetcher = mode === 'display' ? null : new PricingFetcher(options?.offline);
 	const formatUsageDate = createCachedDateFormatter(options?.timezone);
 
-	type DailyEntry = {
-		data: UsageData;
-		date: string;
-		cost: number;
-		model: string | undefined;
-		project: string;
-	};
-	const allEntries: DailyEntry[] = [];
+	const allEntries: DailyDataEntry[] = [];
 	const processedEntries = new Map<string, number>();
 
-	const fileResults = await mapWithConcurrency(
-		mtimeFilteredFiles,
-		getJSONLFileReadConcurrency(mtimeFilteredFiles.length, options?.singleThread),
-		async (file): Promise<DailyEntry[]> => {
-			const project = extractProjectFromPath(file);
-			const entries: Array<DailyEntry | undefined> = [];
-			const pendingCosts: Array<Promise<void>> = [];
-
-			await processJSONLFileByLine(file, (line) => {
-				let deferredData: UsageData | undefined;
-				let deferredDate = '';
-				try {
-					if (!line.includes(USAGE_LINE_MARKER)) {
-						return;
-					}
-
-					const data = parseUsageDataLine(line);
-					if (data == null) {
-						return;
-					}
-
-					const date = formatUsageDate(data.timestamp);
-					const immediateCost = getImmediateCostForEntry(data, mode);
-					if (immediateCost !== undefined) {
-						entries.push({
-							data,
-							date,
-							cost: immediateCost,
-							model: getDisplayModelName(data),
-							project,
-						});
-						return;
-					}
-
-					deferredData = data;
-					deferredDate = date;
-				} catch {
-					// Skip invalid JSON lines
-				}
-				if (deferredData == null) {
-					return;
-				}
-				const entryIndex = entries.push(undefined) - 1;
-				pendingCosts.push(
-					calculateCostForEntry(deferredData, mode, fetcher!).then((cost) => {
-						entries[entryIndex] = {
-							data: deferredData,
-							date: deferredDate,
-							cost,
-							model: getDisplayModelName(deferredData),
-							project,
-						};
-					}),
-				);
-			});
-			await Promise.all(pendingCosts);
-
-			return entries.filter((entry): entry is DailyEntry => entry != null);
-		},
-	);
+	const fileResults =
+		(await collectWithUsageWorkers<string, DailyDataEntry[]>('daily', mtimeFilteredFiles, {
+			mode,
+			offline: options?.offline,
+			timezone: options?.timezone,
+			singleThread: options?.singleThread,
+		})) ??
+		(await mapWithConcurrency(
+			mtimeFilteredFiles,
+			getJSONLFileReadConcurrency(mtimeFilteredFiles.length, options?.singleThread),
+			async (file): Promise<DailyDataEntry[]> =>
+				collectDailyEntriesFromFile(file, mode, fetcher, formatUsageDate),
+		));
 
 	for (const entries of fileResults) {
 		for (const entry of entries) {
@@ -1388,94 +1689,26 @@ export async function loadSessionData(options?: LoadOptions): Promise<SessionUsa
 	const formatUsageDate = createCachedDateFormatter(options?.timezone);
 
 	// Collect all valid data entries with session info first
-	const allEntries: Array<{
-		data: UsageData;
-		sessionKey: string;
-		sessionId: string;
-		projectPath: string;
-		cost: number;
-		timestamp: string;
-		model: string | undefined;
-	}> = [];
+	const allEntries: SessionDataEntry[] = [];
 	const processedEntries = new Map<string, number>();
 
-	const fileResults = await mapWithConcurrency(
-		mtimeFilteredWithBase,
-		getJSONLFileReadConcurrency(mtimeFilteredWithBase.length, options?.singleThread),
-		async ({ file, baseDir }) => {
-			const relativePath = path.relative(baseDir, file);
-			const parts = relativePath.split(path.sep);
-			const sessionId = parts[parts.length - 2] ?? 'unknown';
-			const joinedPath = parts.slice(0, -2).join(path.sep);
-			const projectPath = joinedPath.length > 0 ? joinedPath : 'Unknown Project';
-			const entries: Array<
-				| {
-						data: UsageData;
-						sessionKey: string;
-						sessionId: string;
-						projectPath: string;
-						cost: number;
-						timestamp: string;
-						model: string | undefined;
-				  }
-				| undefined
-			> = [];
-			const pendingCosts: Array<Promise<void>> = [];
-
-			await processJSONLFileByLine(file, (line) => {
-				let deferredData: UsageData | undefined;
-				try {
-					if (!line.includes(USAGE_LINE_MARKER)) {
-						return;
-					}
-
-					const data = parseUsageDataLine(line);
-					if (data == null) {
-						return;
-					}
-
-					const immediateCost = getImmediateCostForEntry(data, mode);
-					if (immediateCost !== undefined) {
-						entries.push({
-							data,
-							sessionKey: `${projectPath}/${sessionId}`,
-							sessionId,
-							projectPath,
-							cost: immediateCost,
-							timestamp: data.timestamp,
-							model: getDisplayModelName(data),
-						});
-						return;
-					}
-					deferredData = data;
-				} catch {
-					// Skip invalid JSON lines
-				}
-				if (deferredData == null) {
-					return;
-				}
-				const entryIndex = entries.push(undefined) - 1;
-				pendingCosts.push(
-					calculateCostForEntry(deferredData, mode, fetcher!).then((cost) => {
-						entries[entryIndex] = {
-							data: deferredData,
-							sessionKey: `${projectPath}/${sessionId}`,
-							sessionId,
-							projectPath,
-							cost,
-							timestamp: deferredData.timestamp,
-							model: getDisplayModelName(deferredData),
-						};
-					}),
-				);
-			});
-			await Promise.all(pendingCosts);
-
-			return entries.filter(
-				(entry): entry is NonNullable<(typeof entries)[number]> => entry != null,
-			);
-		},
-	);
+	const fileResults =
+		(await collectWithUsageWorkers<GlobResult, SessionDataEntry[]>(
+			'session',
+			mtimeFilteredWithBase,
+			{
+				mode,
+				offline: options?.offline,
+				timezone: options?.timezone,
+				singleThread: options?.singleThread,
+			},
+		)) ??
+		(await mapWithConcurrency(
+			mtimeFilteredWithBase,
+			getJSONLFileReadConcurrency(mtimeFilteredWithBase.length, options?.singleThread),
+			async (item): Promise<SessionDataEntry[]> =>
+				collectSessionEntriesFromFile(item, mode, fetcher),
+		));
 
 	for (const entries of fileResults) {
 		for (const entry of entries) {
@@ -1887,117 +2120,18 @@ export async function loadSessionBlockData(options?: LoadOptions): Promise<Sessi
 	const allEntries: LoadedUsageEntry[] = [];
 	const processedEntries = new Map<string, { data: UsageData; index: number }>();
 
-	type BlockFileResult = {
-		file: string;
-		timestamp: Date | null;
-		entries: Array<{
-			data: UsageData;
-			entry: LoadedUsageEntry;
-			uniqueHash: string | null;
-		}>;
-	};
-
-	const fileResults = await mapWithConcurrency(
-		mtimeFilteredFiles,
-		getJSONLFileReadConcurrency(mtimeFilteredFiles.length, options?.singleThread),
-		async (file): Promise<BlockFileResult> => {
-			let timestamp: Date | null = null;
-			const entries: Array<
-				| {
-						data: UsageData;
-						entry: LoadedUsageEntry;
-						uniqueHash: string | null;
-				  }
-				| undefined
-			> = [];
-			const pendingCosts: Array<Promise<void>> = [];
-
-			await processJSONLFileByLine(file, (line) => {
-				let deferred:
-					| {
-							data: UsageData;
-							createEntry: (cost: number) => NonNullable<(typeof entries)[number]>;
-					  }
-					| undefined;
-				try {
-					if (!line.includes(USAGE_LINE_MARKER)) {
-						const lineTimestamp = getTimestampFromLine(line);
-						if (lineTimestamp != null && (timestamp == null || lineTimestamp < timestamp)) {
-							timestamp = lineTimestamp;
-						}
-						return;
-					}
-
-					const data = parseUsageDataLine(line);
-					if (data == null) {
-						const lineTimestamp = getTimestampFromLine(line);
-						if (lineTimestamp != null && (timestamp == null || lineTimestamp < timestamp)) {
-							timestamp = lineTimestamp;
-						}
-						return;
-					}
-					const lineTimestamp = new Date(data.timestamp);
-					if (
-						!Number.isNaN(lineTimestamp.getTime()) &&
-						(timestamp == null || lineTimestamp < timestamp)
-					) {
-						timestamp = lineTimestamp;
-					}
-
-					const createEntry = (cost: number): NonNullable<(typeof entries)[number]> => {
-						const usageLimitResetTime = getUsageLimitResetTime(data);
-						return {
-							data,
-							uniqueHash: createUniqueHash(data),
-							entry: {
-								timestamp: new Date(data.timestamp),
-								usage: {
-									inputTokens: data.message.usage.input_tokens,
-									outputTokens: data.message.usage.output_tokens,
-									cacheCreationInputTokens: data.message.usage.cache_creation_input_tokens ?? 0,
-									cacheReadInputTokens: data.message.usage.cache_read_input_tokens ?? 0,
-								},
-								costUSD: cost,
-								model: getDisplayModelName(data) ?? 'unknown',
-								version: data.version,
-								usageLimitResetTime: usageLimitResetTime ?? undefined,
-							},
-						};
-					};
-
-					const immediateCost = getImmediateCostForEntry(data, mode);
-					if (immediateCost !== undefined) {
-						entries.push(createEntry(immediateCost));
-						return;
-					}
-					deferred = { data, createEntry };
-				} catch (error) {
-					// Skip invalid JSON lines but log for debugging purposes
-					logger.debug(
-						`Skipping invalid JSON line in 5-hour blocks: ${error instanceof Error ? error.message : String(error)}`,
-					);
-				}
-				if (deferred == null) {
-					return;
-				}
-				const entryIndex = entries.push(undefined) - 1;
-				pendingCosts.push(
-					calculateCostForEntry(deferred.data, mode, fetcher!).then((cost) => {
-						entries[entryIndex] = deferred.createEntry(cost);
-					}),
-				);
-			});
-			await Promise.all(pendingCosts);
-
-			return {
-				file,
-				timestamp,
-				entries: entries.filter(
-					(entry): entry is NonNullable<(typeof entries)[number]> => entry != null,
-				),
-			};
-		},
-	);
+	const fileResults =
+		(await collectWithUsageWorkers<string, BlockFileResult>('blocks', mtimeFilteredFiles, {
+			mode,
+			offline: options?.offline,
+			timezone: options?.timezone,
+			singleThread: options?.singleThread,
+		})) ??
+		(await mapWithConcurrency(
+			mtimeFilteredFiles,
+			getJSONLFileReadConcurrency(mtimeFilteredFiles.length, options?.singleThread),
+			async (file): Promise<BlockFileResult> => collectBlockFileResult(file, mode, fetcher),
+		));
 
 	fileResults.sort((a, b) => {
 		if (a.timestamp == null && b.timestamp == null) {
@@ -2054,6 +2188,55 @@ export async function loadSessionBlockData(options?: LoadOptions): Promise<Sessi
 
 	// Sort by start time based on order option
 	return sortByDate(dateFiltered, (block) => block.startTime, options?.order);
+}
+
+async function runUsageWorker(data: UsageWorkerData): Promise<void> {
+	using fetcher = data.mode === 'display' ? null : new PricingFetcher(data.offline);
+	const formatUsageDate = createCachedDateFormatter(data.timezone);
+
+	switch (data.task) {
+		case 'daily': {
+			const results = [];
+			for (const { index, item } of data.items as Array<IndexedWorkerItem<string>>) {
+				results.push({
+					index,
+					result: await collectDailyEntriesFromFile(item, data.mode, fetcher, formatUsageDate),
+				});
+			}
+			parentPort!.postMessage({ results } satisfies UsageWorkerResponse<DailyDataEntry[]>);
+			return;
+		}
+		case 'session': {
+			const results = [];
+			for (const { index, item } of data.items as Array<IndexedWorkerItem<GlobResult>>) {
+				results.push({
+					index,
+					result: await collectSessionEntriesFromFile(item, data.mode, fetcher),
+				});
+			}
+			parentPort!.postMessage({ results } satisfies UsageWorkerResponse<SessionDataEntry[]>);
+			return;
+		}
+		case 'blocks': {
+			const results = [];
+			for (const { index, item } of data.items as Array<IndexedWorkerItem<string>>) {
+				results.push({
+					index,
+					result: await collectBlockFileResult(item, data.mode, fetcher),
+				});
+			}
+			parentPort!.postMessage({ results } satisfies UsageWorkerResponse<BlockFileResult>);
+			return;
+		}
+		default:
+			unreachable(data.task);
+	}
+}
+
+if (!isMainThread && isRecord(workerData) && workerData.kind === 'ccusage:usage-worker') {
+	void runUsageWorker(workerData as UsageWorkerData).catch(() => {
+		process.exit(1);
+	});
 }
 
 if (import.meta.vitest != null) {
