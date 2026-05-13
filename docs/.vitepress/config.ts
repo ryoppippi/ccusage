@@ -1,15 +1,7 @@
-import type { DefaultTheme } from 'vitepress';
-import * as fs from 'node:fs';
-import * as path from 'node:path';
 import { cloudflareRedirect } from '@ryoppippi/vite-plugin-cloudflare-redirect';
 import { defineConfig } from 'vitepress';
 import { groupIconMdPlugin, groupIconVitePlugin } from 'vitepress-plugin-group-icons';
 import llmstxt from 'vitepress-plugin-llms';
-
-const typedocSidebarJson = fs.readFileSync(
-	path.join(import.meta.dirname, '../api/typedoc-sidebar.json'),
-);
-const typedocSidebar = JSON.parse(typedocSidebarJson.toString()) as DefaultTheme.SidebarItem[];
 
 export default defineConfig({
 	title: 'ccusage',
@@ -40,7 +32,6 @@ export default defineConfig({
 
 		nav: [
 			{ text: 'Guide', link: '/guide/' },
-			{ text: 'API Reference', link: '/api/' },
 			{
 				text: 'Links',
 				items: [
@@ -113,12 +104,6 @@ export default defineConfig({
 						{ text: 'Related Projects', link: '/guide/related-projects' },
 						{ text: 'Sponsors', link: '/guide/sponsors' },
 					],
-				},
-			],
-			'/api/': [
-				{
-					text: 'API Reference',
-					items: [{ text: 'Overview', link: '/api/' }, ...typedocSidebar],
 				},
 			],
 		},

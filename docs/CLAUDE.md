@@ -12,10 +12,9 @@ This directory contains the VitePress-based documentation website for ccusage.
 
 **Documentation Development:**
 
-- `pnpm run dev` - Start development server with API docs generation and schema copy
+- `pnpm run dev` - Start development server with schema copy
 - `pnpm run build` - Build documentation site for production
 - `pnpm run preview` - Preview built documentation locally
-- `pnpm run docs:api` - Generate API documentation from TypeScript source
 - `pnpm run lint` - Lint documentation files using ESLint
 - `pnpm run format` - Format and auto-fix documentation files with ESLint
 - `pnpm typecheck` - Type check TypeScript files
@@ -29,14 +28,11 @@ This directory contains the VitePress-based documentation website for ccusage.
 **Documentation Structure:**
 
 - `guide/` - User guides and tutorials with screenshots
-- `api/` - Auto-generated API documentation from TypeScript source
 - `public/` - Static assets including screenshots and config schema
 - `.vitepress/` - VitePress configuration and theme customization
 
 **Key Files:**
 
-- `update-api-index.ts` - Script to generate API documentation index
-- `typedoc.config.mjs` - TypeDoc configuration for API docs generation
 - `public/config-schema.json` - JSON schema copied from ccusage package during build
 
 ## Documentation Guidelines
@@ -55,26 +51,20 @@ This directory contains the VitePress-based documentation website for ccusage.
 **Content Organization:**
 
 - User-facing guides in `guide/` directory
-- Auto-generated API reference in `api/` directory
 - Static assets and schemas in `public/` directory
 
 ## Build Process
 
-1. **API Documentation**: `./update-api-index.ts` generates API docs from ccusage TypeScript source
-2. **Schema Copy**: `config-schema.json` is copied from the ccusage package to public directory
-3. **VitePress Build**: Standard VitePress build process creates static site
-4. **Deployment**: Built site is deployed to Cloudflare using Wrangler
+1. **Schema Copy**: `config-schema.json` is copied from the ccusage package to public directory
+2. **VitePress Build**: Standard VitePress build process creates static site
+3. **Deployment**: Built site is deployed to Cloudflare using Wrangler
 
 ## Dependencies
 
 **Key Dev Dependencies:**
 
 - `vitepress` - Static site generator
-- `typedoc` - API documentation generation
-- `typedoc-plugin-markdown` - Markdown output for TypeDoc
-- `typedoc-vitepress-theme` - VitePress theme for TypeDoc
 - `wrangler` - Cloudflare deployment tool
-- `ccusage` - Main package (workspace dependency for API docs)
 
 **VitePress Plugins:**
 
@@ -84,8 +74,8 @@ This directory contains the VitePress-based documentation website for ccusage.
 
 ## Development Workflow
 
-1. **Start Development**: `pnpm run dev` automatically generates API docs and starts dev server
-2. **Edit Content**: Modify markdown files in `guide/` or update source code for API changes
+1. **Start Development**: `pnpm run dev` copies the config schema and starts dev server
+2. **Edit Content**: Modify markdown files in `guide/`
 3. **Preview Changes**: Development server automatically reloads on changes
 4. **Build for Production**: `pnpm run build` generates final static site
 5. **Deploy**: `pnpm run deploy` pushes to Cloudflare
@@ -96,7 +86,7 @@ This directory contains the VitePress-based documentation website for ccusage.
 - **Accessibility**: Always include alt text for images and screenshots
 - **Visual First**: Lead with screenshots, then explain with text
 - **Consistency**: Follow established patterns for new documentation pages
-- **Cross-References**: Link between related guides and API documentation
+- **Cross-References**: Link between related guides and JSON output documentation
 - **ESLint in Markdown**: For code blocks that should skip ESLint parsing (e.g., containing `...` syntax), add `<!-- eslint-skip -->` before the code block
 
 ## File Organization
@@ -104,7 +94,6 @@ This directory contains the VitePress-based documentation website for ccusage.
 ```
 docs/
 ├── guide/          # User guides and tutorials
-├── api/            # Auto-generated API docs
 ├── public/         # Static assets (screenshots, schemas)
 ├── .vitepress/     # VitePress configuration
 ├── package.json    # Dependencies and scripts

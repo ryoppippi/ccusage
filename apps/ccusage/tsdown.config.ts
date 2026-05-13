@@ -2,7 +2,13 @@ import { defineConfig } from 'tsdown';
 import Macros from 'unplugin-macros/rolldown';
 
 export default defineConfig({
-	entry: ['./src/index.ts', './src/data-loader.ts'],
+	entry: {
+		cli: './src/cli.ts',
+		index: './src/index.ts',
+		'main.node': './src/main.node.ts',
+		'main.bun': './src/main.bun.ts',
+		'data-loader': './src/data-loader.ts',
+	},
 	outDir: 'dist',
 	format: 'esm',
 	clean: true,
@@ -15,6 +21,9 @@ export default defineConfig({
 	dts: false,
 	publint: true,
 	unused: true,
+	deps: {
+		onlyBundle: false,
+	},
 	nodeProtocol: true,
 	plugins: [
 		Macros({

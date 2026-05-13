@@ -156,6 +156,13 @@ function splitCellContent(content: string): string[] {
 	return content.split('\n');
 }
 
+function stringifyCell(cell: TableRow[number] | undefined): string {
+	if (typeof cell === 'object' && cell != null && 'content' in cell) {
+		return String(cell.content);
+	}
+	return String(cell ?? '');
+}
+
 function formatDateParts(year: number, month: number, day: number): string {
 	return `${year.toString().padStart(4, '0')}\n${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
 }
@@ -345,24 +352,15 @@ export class ResponsiveTable {
 			? dataRows.map((row) => this.filterRowToCompact(row, compactIndices))
 			: dataRows;
 
-		const allRows = [
-			head.map(String),
-			...processedDataRows.map((row) =>
-				row.map((cell) => {
-					if (typeof cell === 'object' && cell != null && 'content' in cell) {
-						return String(cell.content);
-					}
-					return String(cell ?? '');
-				}),
-			),
-		];
-
-		const contentWidths = head.map((_, colIndex) => {
-			const maxLength = Math.max(
-				...allRows.map((row) => getStringWidth(String(row[colIndex] ?? ''))),
-			);
-			return maxLength;
-		});
+		const contentWidths = head.map((header) => getStringWidth(header));
+		for (const row of processedDataRows) {
+			for (let colIndex = 0; colIndex < head.length; colIndex++) {
+				const width = getStringWidth(stringifyCell(row[colIndex]));
+				if (width > contentWidths[colIndex]!) {
+					contentWidths[colIndex] = width;
+				}
+			}
+		}
 
 		// Calculate table overhead
 		const numColumns = head.length;
@@ -409,20 +407,23 @@ export class ResponsiveTable {
 				head,
 				colAligns,
 				adjustedWidths,
-				this.getRenderableRows(compactIndices, true),
+				this.getRenderableRows(dataRows, compactIndices, true),
 			);
 		} else {
 			return this.renderFastTable(
 				head,
 				colAligns,
 				columnWidths,
-				this.getRenderableRows(compactIndices, false),
+				this.getRenderableRows(dataRows, compactIndices, false),
 			);
 		}
 	}
 
-	private getRenderableRows(compactIndices: number[], applyDateFormatter: boolean): TableRow[] {
-		const rows = this.rows.filter((row) => !this.isSeparatorRow(row));
+	private getRenderableRows(
+		rows: TableRow[],
+		compactIndices: number[],
+		applyDateFormatter: boolean,
+	): TableRow[] {
 		if (!this.compactMode && !applyDateFormatter) {
 			return rows;
 		}
@@ -511,8 +512,7 @@ export class ResponsiveTable {
 	): string[] {
 		const cellLines = innerWidths.map((width, index) => {
 			const cell = row[index] ?? '';
-			const content =
-				typeof cell === 'object' && cell != null && 'content' in cell ? cell.content : String(cell);
+			const content = stringifyCell(cell);
 			const lines = isHeader
 				? splitCellContent(content).flatMap((line) => wrapHeaderLine(line, width))
 				: splitCellContent(content).flatMap((line) =>

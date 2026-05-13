@@ -22,7 +22,7 @@
 	"main": "./dist/index.js",
 	"module": "./dist/index.js",
 	"bin": {
-		"ccusage": "./src/index.ts"
+		"ccusage": "./src/cli.ts"
 	},
 	"files": [
 		"config-schema.json",
@@ -30,7 +30,7 @@
 	],
 	"publishConfig": {
 		"bin": {
-			"ccusage": "./dist/index.js"
+			"ccusage": "./dist/cli.js"
 		},
 		"exports": {
 			".": "./dist/index.js",

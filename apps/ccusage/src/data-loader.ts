@@ -994,33 +994,6 @@ function summarizeUsageEntries<T>(
 }
 
 /**
- * Aggregates model breakdowns from multiple sources
- */
-function aggregateModelBreakdowns(breakdowns: ModelBreakdown[]): Map<string, TokenStats> {
-	const modelAggregates = new Map<string, TokenStats>();
-
-	for (const breakdown of breakdowns) {
-		// Skip synthetic model
-		if (breakdown.modelName === '<synthetic>') {
-			continue;
-		}
-
-		let existing = modelAggregates.get(breakdown.modelName);
-		if (existing == null) {
-			existing = createEmptyTokenStats();
-			modelAggregates.set(breakdown.modelName, existing);
-		}
-		existing.inputTokens += breakdown.inputTokens;
-		existing.outputTokens += breakdown.outputTokens;
-		existing.cacheCreationTokens += breakdown.cacheCreationTokens;
-		existing.cacheReadTokens += breakdown.cacheReadTokens;
-		existing.cost += breakdown.cost;
-	}
-
-	return modelAggregates;
-}
-
-/**
  * Converts model aggregates to sorted model breakdowns
  */
 function createModelBreakdowns(modelAggregates: Map<string, TokenStats>): ModelBreakdown[] {
@@ -1429,19 +1402,20 @@ type CostCalculator = (data: UsageData) => number;
 async function createCostCalculator(
 	mode: CostMode,
 	fetcher: PricingFetcher | null,
+	pricingOverride?: Map<string, LiteLLMModelPricing>,
 ): Promise<CostCalculator> {
 	if (mode === 'display') {
 		return (data) => data.costUSD ?? 0;
 	}
 
-	if (fetcher == null) {
+	if (fetcher == null && pricingOverride == null) {
 		return () => 0;
 	}
 
-	const pricing = Result.unwrap(
-		await fetcher.fetchModelPricing(),
-		new Map<string, LiteLLMModelPricing>(),
-	);
+	const pricing =
+		pricingOverride ??
+		Result.unwrap(await fetcher!.fetchModelPricing(), new Map<string, LiteLLMModelPricing>());
+	const pricingCalculator = fetcher ?? new PricingFetcher(true);
 	const modelPricingCache = new Map<string, LiteLLMModelPricing | null>();
 
 	const getModelPricing = (modelName: string): LiteLLMModelPricing | null => {
@@ -1491,7 +1465,7 @@ async function createCostCalculator(
 			return 0;
 		}
 
-		const baseCost = fetcher.calculateCostFromPricing(data.message.usage, modelPricing);
+		const baseCost = pricingCalculator.calculateCostFromPricing(data.message.usage, modelPricing);
 		return (
 			baseCost *
 			(data.message.usage.speed === 'fast' ? (modelPricing.provider_specific_entry?.fast ?? 1) : 1)
@@ -1653,6 +1627,7 @@ type UsageWorkerData = {
 	mode: CostMode;
 	offline: boolean | undefined;
 	timezone: string | undefined;
+	pricing: Map<string, LiteLLMModelPricing> | undefined;
 };
 
 type UsageWorkerResponse<TResult> = {
@@ -1824,6 +1799,14 @@ async function collectWithUsageWorkers<TItem, TResult>(
 		options.getFilePath == null
 			? chunkIndexedItems(indexedItems, workerCount)
 			: await chunkIndexedItemsByFileSize(indexedItems, workerCount, options.getFilePath);
+	let pricing: Map<string, LiteLLMModelPricing> | undefined;
+	if (options.mode !== 'display' && options.offline !== true) {
+		using fetcher = new PricingFetcher(options.offline);
+		pricing = Result.unwrap(
+			await fetcher.fetchModelPricing(),
+			new Map<string, LiteLLMModelPricing>(),
+		);
+	}
 	const workerResults: Array<Promise<Array<{ index: number; result: TResult }>>> = [];
 	for (const chunk of chunks) {
 		workerResults.push(
@@ -1836,6 +1819,7 @@ async function collectWithUsageWorkers<TItem, TResult>(
 						mode: options.mode,
 						offline: options.offline,
 						timezone: options.timezone,
+						pricing,
 					} satisfies UsageWorkerData,
 				});
 				worker.once('message', (message: UsageWorkerResponse<TResult>) => {
@@ -2397,72 +2381,73 @@ export async function loadBucketUsageData(
 	// Automatically enable project grouping when project filter is specified
 	const needsProjectGrouping = options?.groupByProject === true || options?.project != null;
 
-	const groupingKey = needsProjectGrouping
-		? (data: DailyUsage) => {
-				const bucketValue = groupingFn(data);
-				const projectSegment = data.project ?? 'unknown';
-				return `${bucketValue}\x00${projectSegment}`;
-			}
-		: (data: DailyUsage) => `${groupingFn(data)}`;
+	const grouped = new Map<
+		string,
+		{
+			bucket: Bucket;
+			project: string | undefined;
+			summary: UsageSummaryAccumulator;
+		}
+	>();
 
-	const grouped = Object.groupBy(dailyData, groupingKey);
-
-	const buckets: BucketUsage[] = [];
-	for (const [groupKey, dailyEntries] of Object.entries(grouped)) {
-		if (dailyEntries == null) {
-			continue;
+	for (const daily of dailyData) {
+		const bucket = groupingFn(daily);
+		const project = needsProjectGrouping ? (daily.project ?? 'unknown') : undefined;
+		const groupKey = project == null ? bucket : `${bucket}\x00${project}`;
+		let group = grouped.get(groupKey);
+		if (group == null) {
+			group = {
+				bucket,
+				project,
+				summary: createUsageSummaryAccumulator(),
+			};
+			grouped.set(groupKey, group);
 		}
 
-		const parts = groupKey.split('\x00');
-		const bucket = createBucket(parts[0] ?? groupKey);
-		const project = parts.length > 1 ? parts[1] : undefined;
+		group.summary.totals.inputTokens += daily.inputTokens;
+		group.summary.totals.outputTokens += daily.outputTokens;
+		group.summary.totals.cacheCreationTokens += daily.cacheCreationTokens;
+		group.summary.totals.cacheReadTokens += daily.cacheReadTokens;
+		group.summary.totals.cost += daily.totalCost;
+		group.summary.totals.totalCost += daily.totalCost;
 
-		// Aggregate model breakdowns across all days
-		const allBreakdowns = dailyEntries.flatMap((daily) => daily.modelBreakdowns);
-		const modelAggregates = aggregateModelBreakdowns(allBreakdowns);
-
-		// Create model breakdowns
-		const modelBreakdowns = createModelBreakdowns(modelAggregates);
-
-		// Collect unique models
-		const models: string[] = [];
-		for (const data of dailyEntries) {
-			for (const model of data.modelsUsed) {
-				// Skip synthetic model
-				if (model !== '<synthetic>') {
-					models.push(model);
-				}
+		for (const model of daily.modelsUsed) {
+			if (model !== '<synthetic>') {
+				group.summary.modelSet.add(model);
 			}
 		}
 
-		// Calculate totals from daily entries
-		let totalInputTokens = 0;
-		let totalOutputTokens = 0;
-		let totalCacheCreationTokens = 0;
-		let totalCacheReadTokens = 0;
-		let totalCost = 0;
-
-		for (const daily of dailyEntries) {
-			totalInputTokens += daily.inputTokens;
-			totalOutputTokens += daily.outputTokens;
-			totalCacheCreationTokens += daily.cacheCreationTokens;
-			totalCacheReadTokens += daily.cacheReadTokens;
-			totalCost += daily.totalCost;
+		for (const breakdown of daily.modelBreakdowns) {
+			if (breakdown.modelName === '<synthetic>') {
+				continue;
+			}
+			let aggregate = group.summary.modelAggregates.get(breakdown.modelName);
+			if (aggregate == null) {
+				aggregate = createEmptyTokenStats();
+				group.summary.modelAggregates.set(breakdown.modelName, aggregate);
+			}
+			aggregate.inputTokens += breakdown.inputTokens;
+			aggregate.outputTokens += breakdown.outputTokens;
+			aggregate.cacheCreationTokens += breakdown.cacheCreationTokens;
+			aggregate.cacheReadTokens += breakdown.cacheReadTokens;
+			aggregate.cost += breakdown.cost;
 		}
-		const bucketUsage: BucketUsage = {
-			bucket,
-			inputTokens: totalInputTokens,
-			outputTokens: totalOutputTokens,
-			cacheCreationTokens: totalCacheCreationTokens,
-			cacheReadTokens: totalCacheReadTokens,
-			totalCost,
-			modelsUsed: Array.from(new Set(models)) as ModelName[],
-			modelBreakdowns,
-			...(project != null && { project }),
-		};
-
-		buckets.push(bucketUsage);
 	}
+
+	const buckets = Array.from(grouped.values(), (group): BucketUsage => {
+		const summary = finalizeUsageSummary(group.summary);
+		return {
+			bucket: createBucket(group.bucket),
+			inputTokens: summary.inputTokens,
+			outputTokens: summary.outputTokens,
+			cacheCreationTokens: summary.cacheCreationTokens,
+			cacheReadTokens: summary.cacheReadTokens,
+			totalCost: summary.totalCost,
+			modelsUsed: summary.modelsUsed,
+			modelBreakdowns: summary.modelBreakdowns,
+			...(group.project != null && { project: group.project }),
+		};
+	});
 
 	return sortByDate(buckets, (item) => item.bucket, options?.order);
 }
@@ -2683,7 +2668,7 @@ export async function loadSessionBlockData(options?: LoadOptions): Promise<Sessi
 
 async function runUsageWorker(data: UsageWorkerData): Promise<void> {
 	using fetcher = data.mode === 'display' ? null : new PricingFetcher(data.offline);
-	const calculateCost = await createCostCalculator(data.mode, fetcher);
+	const calculateCost = await createCostCalculator(data.mode, fetcher, data.pricing);
 	const formatUsageDate = createCachedDateFormatter(data.timezone);
 
 	switch (data.task) {

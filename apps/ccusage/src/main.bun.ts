@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 
 /* eslint-disable antfu/no-top-level-await */
 

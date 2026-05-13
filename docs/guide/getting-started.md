@@ -146,4 +146,4 @@ ccusage daily
 
 - Use `ccusage --help` for command options
 - Visit our [GitHub repository](https://github.com/ryoppippi/ccusage) for issues
-- Check the [API Reference](/api/) for programmatic usage
+- Use [JSON Output](/guide/json-output) for programmatic usage

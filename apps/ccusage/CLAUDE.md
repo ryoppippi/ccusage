@@ -6,7 +6,7 @@ This is the main ccusage CLI package that provides usage analysis for Claude Cod
 
 **Name**: `ccusage`
 **Description**: Usage analysis tool for Claude Code
-**Type**: CLI tool and library with TypeScript exports
+**Type**: Bundled CLI tool
 
 ## Development Commands
 
@@ -108,13 +108,9 @@ Because `ccusage` is distributed as a bundled CLI, keep all runtime libraries in
 - `eslint` - Linting and formatting
 - `fs-fixture` - Test fixture creation
 
-## Package Exports
+## Package Surface
 
-The package provides multiple exports for library usage:
+The package is distributed as a bundled CLI. Keep the public surface centered on the executable and JSON output instead of library-style TypeScript exports.
 
-- `.` - Main CLI entry point
-- `./calculate-cost` - Cost calculation utilities
-- `./data-loader` - Data loading functions
-- `./debug` - Debug utilities
-- `./logger` - Logging utilities
-- `./pricing-fetcher` - LiteLLM pricing integration
+- `ccusage` - Published CLI command
+- `--json` - Stable programmatic output for integrations

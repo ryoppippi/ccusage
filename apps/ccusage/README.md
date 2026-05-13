@@ -65,6 +65,7 @@ deno run -E -R=$HOME/.claude/projects/ -S=homedir -N='raw.githubusercontent.com:
 ```
 
 > 💡 **Important**: We strongly recommend using `@latest` suffix with npx (e.g., `npx ccusage@latest`) to ensure you're running the most recent version with the latest features and bug fixes.
+> When ccusage starts under Node.js and finds `bun` in `PATH`, it automatically re-runs the bundled entrypoint with Bun for better warm runtime performance. Set `CCUSAGE_BUN_AUTO_RUN=0` to force Node.js.
 
 ### Related Tools
 
