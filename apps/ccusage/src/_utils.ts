@@ -35,6 +35,17 @@ if (import.meta.vitest != null) {
 		});
 	});
 
+	describe('toArray', () => {
+		it('wraps a single value in an array', () => {
+			expect(toArray('claude')).toEqual(['claude']);
+		});
+
+		it('returns array values unchanged', () => {
+			const value = ['claude', 'codex'];
+			expect(toArray(value)).toBe(value);
+		});
+	});
+
 	describe('getFileModifiedTime', () => {
 		it('returns specific modification time when set', async () => {
 			await using fixture = await createFixture({

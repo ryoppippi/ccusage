@@ -211,6 +211,21 @@ if (import.meta.vitest != null) {
 			const result = sortByDate(dateData, (item) => item.date);
 			expect(result.map((item) => item.id)).toEqual([2, 3, 1]);
 		});
+
+		it('keeps original order for equal dates', () => {
+			const tiedData = [
+				{ id: 1, date: '2024-01-01T10:00:00Z' },
+				{ id: 2, date: '2024-01-03T10:00:00Z' },
+				{ id: 3, date: '2024-01-01T10:00:00Z' },
+				{ id: 4, date: '2024-01-03T10:00:00Z' },
+			];
+
+			const descResult = sortByDate(tiedData, (item) => item.date, 'desc');
+			expect(descResult.map((item) => item.id)).toEqual([2, 4, 1, 3]);
+
+			const ascResult = sortByDate(tiedData, (item) => item.date, 'asc');
+			expect(ascResult.map((item) => item.id)).toEqual([1, 3, 2, 4]);
+		});
 	});
 
 	describe('filterByDateRange', () => {
