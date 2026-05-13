@@ -1184,14 +1184,12 @@ async function processBufferedJSONLUsageContent(
 	content: string,
 	processLine: (line: string) => void,
 ): Promise<void> {
-	let lineStart = 0;
-	let markerIndex = content.indexOf(USAGE_LINE_MARKER);
+	let searchStart = 0;
+	let markerIndex = content.indexOf(USAGE_LINE_MARKER, searchStart);
 	while (markerIndex !== -1) {
-		let lineEnd = content.indexOf('\n', lineStart);
-		while (lineEnd !== -1 && lineEnd < markerIndex) {
-			lineStart = lineEnd + 1;
-			lineEnd = content.indexOf('\n', lineStart);
-		}
+		const previousLineEnd = content.lastIndexOf('\n', markerIndex);
+		const lineStart = previousLineEnd === -1 ? 0 : previousLineEnd + 1;
+		let lineEnd = content.indexOf('\n', markerIndex);
 		if (lineEnd === -1) {
 			lineEnd = content.length;
 		}
@@ -1202,8 +1200,8 @@ async function processBufferedJSONLUsageContent(
 		}
 		processLine(line);
 
-		lineStart = lineEnd + 1;
-		markerIndex = content.indexOf(USAGE_LINE_MARKER, lineStart);
+		searchStart = lineEnd + 1;
+		markerIndex = content.indexOf(USAGE_LINE_MARKER, searchStart);
 	}
 }
 
@@ -1214,14 +1212,12 @@ async function processBufferedJSONLUsageBytes(
 	const content = Buffer.isBuffer(bytes)
 		? bytes
 		: Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-	let lineStart = 0;
-	let markerIndex = content.indexOf(USAGE_LINE_MARKER_BUFFER);
+	let searchStart = 0;
+	let markerIndex = content.indexOf(USAGE_LINE_MARKER_BUFFER, searchStart);
 	while (markerIndex !== -1) {
-		let lineEnd = content.indexOf(10, lineStart);
-		while (lineEnd !== -1 && lineEnd < markerIndex) {
-			lineStart = lineEnd + 1;
-			lineEnd = content.indexOf(10, lineStart);
-		}
+		const previousLineEnd = content.lastIndexOf(10, markerIndex);
+		const lineStart = previousLineEnd === -1 ? 0 : previousLineEnd + 1;
+		let lineEnd = content.indexOf(10, markerIndex);
 		if (lineEnd === -1) {
 			lineEnd = content.length;
 		}
@@ -1229,8 +1225,8 @@ async function processBufferedJSONLUsageBytes(
 		const decodeEnd = lineEnd > lineStart && content[lineEnd - 1] === 13 ? lineEnd - 1 : lineEnd;
 		processLine(content.subarray(lineStart, decodeEnd).toString('utf8'));
 
-		lineStart = lineEnd + 1;
-		markerIndex = content.indexOf(USAGE_LINE_MARKER_BUFFER, lineStart);
+		searchStart = lineEnd + 1;
+		markerIndex = content.indexOf(USAGE_LINE_MARKER_BUFFER, searchStart);
 	}
 }
 
