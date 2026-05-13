@@ -2039,6 +2039,9 @@ async function collectBlockFileResult(
 			const entry: BlockEntryResult = {
 				entry: {
 					timestamp: lineTimestamp,
+					timestampMs: Number.isNaN(parsedTimestampMs)
+						? lineTimestamp.getTime()
+						: parsedTimestampMs,
 					usage: {
 						inputTokens: usage.input_tokens,
 						outputTokens: usage.output_tokens,

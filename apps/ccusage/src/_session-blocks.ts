@@ -7,21 +7,11 @@ import { getTotalTokens } from './_token-utils.ts';
 export const DEFAULT_SESSION_DURATION_HOURS = 5;
 
 /**
- * Floors a timestamp to the beginning of the hour in UTC
- * @param timestamp - The timestamp to floor
- * @returns New Date object floored to the UTC hour
- */
-function floorToHour(timestamp: Date): Date {
-	const floored = new Date(timestamp);
-	floored.setUTCMinutes(0, 0, 0);
-	return floored;
-}
-
-/**
  * Represents a single usage data entry loaded from JSONL files
  */
 export type LoadedUsageEntry = {
 	timestamp: Date;
+	timestampMs?: number;
 	usage: {
 		inputTokens: number;
 		outputTokens: number;
@@ -33,6 +23,14 @@ export type LoadedUsageEntry = {
 	version?: string;
 	usageLimitResetTime?: Date; // Claude API usage limit reset time
 };
+
+function getEntryTimestampMs(entry: LoadedUsageEntry): number {
+	return entry.timestampMs ?? entry.timestamp.getTime();
+}
+
+function floorToHourMs(timestampMs: number): number {
+	return Math.floor(timestampMs / (60 * 60 * 1000)) * 60 * 60 * 1000;
+}
 
 /**
  * Aggregated token counts for different token types
@@ -96,43 +94,51 @@ export function identifySessionBlocks(
 
 	const sessionDurationMs = sessionDurationHours * 60 * 60 * 1000;
 	const blocks: SessionBlock[] = [];
-	const sortedEntries = [...entries].sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
+	const sortedEntries = [...entries].sort(
+		(a, b) => getEntryTimestampMs(a) - getEntryTimestampMs(b),
+	);
 
-	let currentBlockStart: Date | null = null;
+	let currentBlockStartMs: number | null = null;
 	let currentBlockEntries: LoadedUsageEntry[] = [];
 	const now = new Date();
+	const nowMs = now.getTime();
 
 	for (const entry of sortedEntries) {
-		const entryTime = entry.timestamp;
+		const entryTimeMs = getEntryTimestampMs(entry);
 
-		if (currentBlockStart == null) {
+		if (currentBlockStartMs == null) {
 			// First entry - start a new block (floored to the hour)
-			currentBlockStart = floorToHour(entryTime);
+			currentBlockStartMs = floorToHourMs(entryTimeMs);
 			currentBlockEntries = [entry];
 		} else {
-			const timeSinceBlockStart = entryTime.getTime() - currentBlockStart.getTime();
+			const timeSinceBlockStart = entryTimeMs - currentBlockStartMs;
 			const lastEntry = currentBlockEntries.at(-1);
 			if (lastEntry == null) {
 				continue;
 			}
-			const lastEntryTime = lastEntry.timestamp;
-			const timeSinceLastEntry = entryTime.getTime() - lastEntryTime.getTime();
+			const lastEntryTimeMs = getEntryTimestampMs(lastEntry);
+			const timeSinceLastEntry = entryTimeMs - lastEntryTimeMs;
 
 			if (timeSinceBlockStart > sessionDurationMs || timeSinceLastEntry > sessionDurationMs) {
 				// Close current block
-				const block = createBlock(currentBlockStart, currentBlockEntries, now, sessionDurationMs);
+				const block = createBlock(
+					currentBlockStartMs,
+					currentBlockEntries,
+					nowMs,
+					sessionDurationMs,
+				);
 				blocks.push(block);
 
 				// Add gap block if there's a significant gap
 				if (timeSinceLastEntry > sessionDurationMs) {
-					const gapBlock = createGapBlock(lastEntryTime, entryTime, sessionDurationMs);
+					const gapBlock = createGapBlock(lastEntryTimeMs, entryTimeMs, sessionDurationMs);
 					if (gapBlock != null) {
 						blocks.push(gapBlock);
 					}
 				}
 
 				// Start new block (floored to the hour)
-				currentBlockStart = floorToHour(entryTime);
+				currentBlockStartMs = floorToHourMs(entryTimeMs);
 				currentBlockEntries = [entry];
 			} else {
 				// Add to current block
@@ -142,8 +148,8 @@ export function identifySessionBlocks(
 	}
 
 	// Close the last block
-	if (currentBlockStart != null && currentBlockEntries.length > 0) {
-		const block = createBlock(currentBlockStart, currentBlockEntries, now, sessionDurationMs);
+	if (currentBlockStartMs != null && currentBlockEntries.length > 0) {
+		const block = createBlock(currentBlockStartMs, currentBlockEntries, nowMs, sessionDurationMs);
 		blocks.push(block);
 	}
 
@@ -152,22 +158,24 @@ export function identifySessionBlocks(
 
 /**
  * Creates a session block from a start time and usage entries
- * @param startTime - When the block started
+ * @param startTimeMs - When the block started
  * @param entries - Usage entries in this block
- * @param now - Current time for active block detection
+ * @param nowMs - Current time for active block detection
  * @param sessionDurationMs - Session duration in milliseconds
  * @returns Session block with aggregated data
  */
 function createBlock(
-	startTime: Date,
+	startTimeMs: number,
 	entries: LoadedUsageEntry[],
-	now: Date,
+	nowMs: number,
 	sessionDurationMs: number,
 ): SessionBlock {
-	const endTime = new Date(startTime.getTime() + sessionDurationMs);
+	const startTime = new Date(startTimeMs);
+	const endTime = new Date(startTimeMs + sessionDurationMs);
 	const lastEntry = entries[entries.length - 1];
 	const actualEndTime = lastEntry != null ? lastEntry.timestamp : startTime;
-	const isActive = now.getTime() - actualEndTime.getTime() < sessionDurationMs && now < endTime;
+	const actualEndTimeMs = lastEntry != null ? getEntryTimestampMs(lastEntry) : startTimeMs;
+	const isActive = nowMs - actualEndTimeMs < sessionDurationMs && nowMs < endTime.getTime();
 
 	// Aggregate token counts
 	const tokenCounts: TokenCounts = {
@@ -207,24 +215,24 @@ function createBlock(
 
 /**
  * Creates a gap block representing periods with no activity
- * @param lastActivityTime - Time of last activity before gap
- * @param nextActivityTime - Time of next activity after gap
+ * @param lastActivityTimeMs - Time of last activity before gap
+ * @param nextActivityTimeMs - Time of next activity after gap
  * @param sessionDurationMs - Session duration in milliseconds
  * @returns Gap block or null if gap is too short
  */
 function createGapBlock(
-	lastActivityTime: Date,
-	nextActivityTime: Date,
+	lastActivityTimeMs: number,
+	nextActivityTimeMs: number,
 	sessionDurationMs: number,
 ): SessionBlock | null {
 	// Only create gap blocks for gaps longer than the session duration
-	const gapDuration = nextActivityTime.getTime() - lastActivityTime.getTime();
+	const gapDuration = nextActivityTimeMs - lastActivityTimeMs;
 	if (gapDuration <= sessionDurationMs) {
 		return null;
 	}
 
-	const gapStart = new Date(lastActivityTime.getTime() + sessionDurationMs);
-	const gapEnd = nextActivityTime;
+	const gapStart = new Date(lastActivityTimeMs + sessionDurationMs);
+	const gapEnd = new Date(nextActivityTimeMs);
 
 	return {
 		id: `gap-${gapStart.toISOString()}`,
@@ -260,9 +268,8 @@ export function calculateBurnRate(block: SessionBlock): BurnRate | null {
 		return null;
 	}
 
-	const firstEntry = firstEntryData.timestamp;
-	const lastEntry = lastEntryData.timestamp;
-	const durationMinutes = (lastEntry.getTime() - firstEntry.getTime()) / (1000 * 60);
+	const durationMinutes =
+		(getEntryTimestampMs(lastEntryData) - getEntryTimestampMs(firstEntryData)) / (1000 * 60);
 
 	if (durationMinutes <= 0) {
 		return null;
@@ -431,6 +438,34 @@ if (import.meta.vitest != null) {
 			expect(blocks[0]?.entries[2]?.timestamp).toEqual(
 				new Date(baseTime.getTime() + 2 * 60 * 60 * 1000),
 			);
+		});
+
+		it('uses timestampMs for block ordering when present', () => {
+			const firstTimestamp = new Date('2024-01-01T10:00:00Z');
+			const secondTimestamp = new Date('2024-01-01T11:00:00Z');
+			firstTimestamp.getTime = () => {
+				throw new Error('timestamp.getTime should not be used');
+			};
+			secondTimestamp.getTime = () => {
+				throw new Error('timestamp.getTime should not be used');
+			};
+			const entries: LoadedUsageEntry[] = [
+				{
+					...createMockEntry(secondTimestamp),
+					timestampMs: Date.parse('2024-01-01T11:00:00Z'),
+				},
+				{
+					...createMockEntry(firstTimestamp),
+					timestampMs: Date.parse('2024-01-01T10:00:00Z'),
+				},
+			];
+
+			const blocks = identifySessionBlocks(entries);
+
+			expect(blocks).toHaveLength(1);
+			expect(blocks[0]?.startTime.toISOString()).toBe('2024-01-01T10:00:00.000Z');
+			expect(blocks[0]?.entries[0]).toBe(entries[1]);
+			expect(blocks[0]?.entries[1]).toBe(entries[0]);
 		});
 
 		it('aggregates different models correctly', () => {
