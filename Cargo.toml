@@ -8,3 +8,6 @@ lto = "fat"
 opt-level = 2
 panic = "abort"
 strip = "symbols"
+
+[profile.release.package."*"]
+opt-level = "s"
