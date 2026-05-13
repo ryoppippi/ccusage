@@ -1027,7 +1027,7 @@ fn read_usage_file(
     };
 
     for line in content.lines() {
-        if !line.contains("\"input_tokens\"") {
+        if !line.contains("\"usage\":{") {
             if let Some(timestamp) = earliest_timestamp_from_line(line) {
                 update_loaded_file_timestamp(&mut loaded_file, timestamp);
             }
