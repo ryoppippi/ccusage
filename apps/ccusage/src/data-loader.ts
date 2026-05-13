@@ -20,9 +20,7 @@ import path from 'node:path';
 import process from 'node:process';
 import { createInterface } from 'node:readline';
 import { isMainThread, parentPort, Worker, workerData } from 'node:worker_threads';
-import { toArray } from '@antfu/utils';
 import { Result } from '@praha/byethrow';
-import { sort } from 'fast-sort';
 import { createFixture } from 'fs-fixture';
 import { isDirectorySync } from 'path-type';
 import * as v from 'valibot';
@@ -37,7 +35,6 @@ import {
 	createCachedDateFormatter,
 	filterByDateRange,
 	formatDate,
-	formatDateCompact,
 	getDateWeek,
 	getDayNumber,
 	sortByDate,
@@ -67,7 +64,7 @@ import {
 	versionSchema,
 	weeklyDateSchema,
 } from './_types.ts';
-import { unreachable } from './_utils.ts';
+import { toArray, unreachable } from './_utils.ts';
 import { logger } from './logger.ts';
 
 const USAGE_LINE_MARKER = '"input_tokens"';
@@ -2275,13 +2272,12 @@ export async function loadSessionData(options?: LoadOptions): Promise<SessionUsa
 	);
 
 	// Sort sessions by cost (highest first by default), as documented
-	const sorted = sort(sessionFiltered);
 	const order = options?.order ?? 'desc';
 	switch (order) {
 		case 'asc':
-			return sorted.asc((item) => item.totalCost);
+			return sessionFiltered.toSorted((a, b) => a.totalCost - b.totalCost);
 		case 'desc':
-			return sorted.desc((item) => item.totalCost);
+			return sessionFiltered.toSorted((a, b) => b.totalCost - a.totalCost);
 		default:
 			unreachable(order);
 	}
@@ -2751,22 +2747,6 @@ if (import.meta.vitest != null) {
 			expect(() => formatDate(testTimestamp, 'Invalid/Timezone')).toThrow(RangeError);
 		});
 
-		it('formatDateCompact respects timezone parameter', () => {
-			const testTimestamp = '2024-01-01T15:00:00Z';
-
-			// UTC timezone
-			expect(formatDateCompact(testTimestamp, 'UTC', 'en-US')).toBe('2024\n01-01');
-
-			// Asia/Tokyo timezone (crosses to next day)
-			expect(formatDateCompact(testTimestamp, 'Asia/Tokyo', 'en-US')).toBe('2024\n01-02');
-
-			// Daily date defined as UTC is preserved
-			expect(formatDateCompact('2024-01-01', 'UTC', 'en-US')).toBe('2024\n01-01');
-
-			// Daily date already in local time is preserved instead of being interpreted as UTC
-			expect(formatDateCompact('2024-01-01', undefined, 'en-US')).toBe('2024\n01-01');
-		});
-
 		it('handles various date formats', () => {
 			expect(formatDate('2024-01-01')).toBe('2024-01-01');
 			expect(formatDate('2024-01-01T12:00:00')).toBe('2024-01-01');
@@ -2860,35 +2840,6 @@ if (import.meta.vitest != null) {
 			const result = await loadSessionUsageById('non-existent', { mode: 'display' });
 
 			expect(result).toBeNull();
-		});
-	});
-
-	describe('formatDateCompact', () => {
-		it('formats UTC timestamp to local date with line break', () => {
-			expect(formatDateCompact('2024-01-01T00:00:00Z', undefined, 'en-US')).toBe('2024\n01-01');
-		});
-
-		it('handles various date formats', () => {
-			expect(formatDateCompact('2024-12-31T23:59:59Z', undefined, 'en-US')).toBe('2024\n12-31');
-			expect(formatDateCompact('2024-01-01', undefined, 'en-US')).toBe('2024\n01-01');
-			expect(formatDateCompact('2024-01-01T12:00:00', undefined, 'en-US')).toBe('2024\n01-01');
-			expect(formatDateCompact('2024-01-01T12:00:00.000Z', undefined, 'en-US')).toBe('2024\n01-01');
-		});
-
-		it('pads single digit months and days', () => {
-			// Use UTC noon to avoid timezone issues
-			expect(formatDateCompact('2024-01-05T12:00:00Z', undefined, 'en-US')).toBe('2024\n01-05');
-			expect(formatDateCompact('2024-10-01T12:00:00Z', undefined, 'en-US')).toBe('2024\n10-01');
-		});
-
-		it('respects locale parameter', () => {
-			const testDate = '2024-08-04T12:00:00Z';
-
-			// Different locales format dates differently
-			expect(formatDateCompact(testDate, 'UTC', 'en-US')).toBe('2024\n08-04');
-			expect(formatDateCompact(testDate, 'UTC', 'en-CA')).toBe('2024\n08-04');
-			expect(formatDateCompact(testDate, 'UTC', 'ja-JP')).toBe('2024\n08-04');
-			// All locales should produce similar compact format
 		});
 	});
 

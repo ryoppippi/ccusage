@@ -5,7 +5,6 @@
 
 import type { DayOfWeek, WeekDay } from './_consts.ts';
 import type { WeeklyDate } from './_types.ts';
-import { sort } from 'fast-sort';
 import { DEFAULT_LOCALE } from './_consts.ts';
 import { createWeeklyDate } from './_types.ts';
 import { unreachable } from './_utils.ts';
@@ -76,12 +75,23 @@ export function sortByDate<T>(
 	getDate: (item: T) => string | Date,
 	order: SortOrder = 'desc',
 ): T[] {
-	const sorted = sort(items);
+	const itemsWithTime = items.map((item, index) => {
+		const date = getDate(item);
+		return {
+			index,
+			item,
+			time: typeof date === 'string' ? Date.parse(date) : date.getTime(),
+		};
+	});
 	switch (order) {
 		case 'desc':
-			return sorted.desc((item) => new Date(getDate(item)).getTime());
+			return itemsWithTime
+				.sort((a, b) => b.time - a.time || a.index - b.index)
+				.map(({ item }) => item);
 		case 'asc':
-			return sorted.asc((item) => new Date(getDate(item)).getTime());
+			return itemsWithTime
+				.sort((a, b) => a.time - b.time || a.index - b.index)
+				.map(({ item }) => item);
 		default:
 			unreachable(order);
 	}

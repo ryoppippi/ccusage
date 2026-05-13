@@ -59,7 +59,6 @@
 		"typecheck": "tsgo --noEmit"
 	},
 	"devDependencies": {
-		"@antfu/utils": "catalog:runtime",
 		"@ccusage/internal": "workspace:*",
 		"@ccusage/terminal": "workspace:*",
 		"@oxc-project/runtime": "catalog:build",
@@ -74,7 +73,6 @@
 		"clean-pkg-json": "catalog:release",
 		"eslint": "catalog:lint",
 		"eslint-plugin-format": "catalog:lint",
-		"fast-sort": "catalog:runtime",
 		"fs-fixture": "catalog:testing",
 		"get-stdin": "catalog:runtime",
 		"gunshi": "catalog:runtime",

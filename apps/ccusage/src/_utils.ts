@@ -6,6 +6,10 @@ export function unreachable(value: never): never {
 	throw new Error(`Unreachable code reached with value: ${value as any}`);
 }
 
+export function toArray<T>(value: T | T[]): T[] {
+	return Array.isArray(value) ? value : [value];
+}
+
 /**
  * Gets the last modified time of a file using Result pattern
  * @param filePath - Path to the file
