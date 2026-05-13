@@ -1109,16 +1109,6 @@ async function filterFilesByMtime<T>(
 	return items.filter((_, index) => keepFlags[index] === true);
 }
 
-function getUsageTokenTotal(data: UsageData): number {
-	const usage = data.message.usage;
-	return (
-		usage.input_tokens +
-		usage.output_tokens +
-		(usage.cache_creation_input_tokens ?? 0) +
-		(usage.cache_read_input_tokens ?? 0)
-	);
-}
-
 function compareStrings(a: string, b: string): number {
 	return a < b ? -1 : a > b ? 1 : 0;
 }
@@ -1879,8 +1869,13 @@ async function collectDailyEntriesFromFile(
 
 			const date = formatUsageDate(data.timestamp);
 			const uniqueHash = createUniqueHash(data);
-			const tokenTotal = getUsageTokenTotal(data);
-			const hasSpeed = data.message.usage.speed != null;
+			const usage = data.message.usage;
+			const tokenTotal =
+				usage.input_tokens +
+				usage.output_tokens +
+				(usage.cache_creation_input_tokens ?? 0) +
+				(usage.cache_read_input_tokens ?? 0);
+			const hasSpeed = usage.speed != null;
 			let existingEntryIndex: number | undefined;
 			if (uniqueHash != null) {
 				existingEntryIndex = processedEntries.get(uniqueHash);
@@ -1892,7 +1887,7 @@ async function collectDailyEntriesFromFile(
 				}
 			}
 
-			const usage = data.message.usage;
+			const model = data.message.model;
 			const entry = {
 				date,
 				cost: calculateCost(data),
@@ -1900,7 +1895,7 @@ async function collectDailyEntriesFromFile(
 				outputTokens: usage.output_tokens,
 				cacheCreationTokens: usage.cache_creation_input_tokens ?? 0,
 				cacheReadTokens: usage.cache_read_input_tokens ?? 0,
-				model: getDisplayModelName(data),
+				model: model == null ? undefined : usage.speed === 'fast' ? `${model}-fast` : model,
 				project,
 				uniqueHash,
 				tokenTotal,
@@ -1943,8 +1938,13 @@ async function collectSessionEntriesFromFile(
 
 			const immediateCost = getImmediateCostForEntry(data, mode);
 			const uniqueHash = createUniqueHash(data);
-			const tokenTotal = getUsageTokenTotal(data);
-			const hasSpeed = data.message.usage.speed != null;
+			const usage = data.message.usage;
+			const tokenTotal =
+				usage.input_tokens +
+				usage.output_tokens +
+				(usage.cache_creation_input_tokens ?? 0) +
+				(usage.cache_read_input_tokens ?? 0);
+			const hasSpeed = usage.speed != null;
 			let existingEntryIndex: number | undefined;
 			if (uniqueHash != null) {
 				existingEntryIndex = processedEntries.get(uniqueHash);
@@ -1956,14 +1956,14 @@ async function collectSessionEntriesFromFile(
 				}
 			}
 
-			const usage = data.message.usage;
+			const model = data.message.model;
 			const entry = {
 				sessionKey: `${projectPath}/${sessionId}`,
 				sessionId,
 				projectPath,
 				cost: immediateCost ?? calculateCost(data),
 				timestamp: data.timestamp,
-				model: getDisplayModelName(data),
+				model: model == null ? undefined : usage.speed === 'fast' ? `${model}-fast` : model,
 				inputTokens: usage.input_tokens,
 				outputTokens: usage.output_tokens,
 				cacheCreationTokens: usage.cache_creation_input_tokens ?? 0,
@@ -2017,8 +2017,13 @@ async function collectBlockFileResult(
 			);
 
 			const uniqueHash = createUniqueHash(data);
-			const tokenTotal = getUsageTokenTotal(data);
-			const hasSpeed = data.message.usage.speed != null;
+			const usage = data.message.usage;
+			const tokenTotal =
+				usage.input_tokens +
+				usage.output_tokens +
+				(usage.cache_creation_input_tokens ?? 0) +
+				(usage.cache_read_input_tokens ?? 0);
+			const hasSpeed = usage.speed != null;
 			let existingEntryIndex: number | undefined;
 			if (uniqueHash != null) {
 				existingEntryIndex = processedEntries.get(uniqueHash);
@@ -2030,8 +2035,8 @@ async function collectBlockFileResult(
 				}
 			}
 
-			const usage = data.message.usage;
 			const usageLimitResetTime = getUsageLimitResetTime(data);
+			const model = data.message.model;
 			const entry: BlockEntryResult = {
 				entry: {
 					timestamp: lineTimestamp,
@@ -2045,7 +2050,7 @@ async function collectBlockFileResult(
 						cacheReadInputTokens: usage.cache_read_input_tokens ?? 0,
 					},
 					costUSD: calculateCost(data),
-					model: getDisplayModelName(data) ?? 'unknown',
+					model: model == null ? 'unknown' : usage.speed === 'fast' ? `${model}-fast` : model,
 					version: data.version,
 					usageLimitResetTime: usageLimitResetTime ?? undefined,
 				},
