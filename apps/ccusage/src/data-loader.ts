@@ -2034,29 +2034,26 @@ async function collectBlockFileResult(
 				}
 			}
 
-			const createEntry = (cost: number): BlockEntryResult => {
-				const usageLimitResetTime = getUsageLimitResetTime(data);
-				return {
-					entry: {
-						timestamp: lineTimestamp,
-						usage: {
-							inputTokens: data.message.usage.input_tokens,
-							outputTokens: data.message.usage.output_tokens,
-							cacheCreationInputTokens: data.message.usage.cache_creation_input_tokens ?? 0,
-							cacheReadInputTokens: data.message.usage.cache_read_input_tokens ?? 0,
-						},
-						costUSD: cost,
-						model: getDisplayModelName(data) ?? 'unknown',
-						version: data.version,
-						usageLimitResetTime: usageLimitResetTime ?? undefined,
+			const usage = data.message.usage;
+			const usageLimitResetTime = getUsageLimitResetTime(data);
+			const entry: BlockEntryResult = {
+				entry: {
+					timestamp: lineTimestamp,
+					usage: {
+						inputTokens: usage.input_tokens,
+						outputTokens: usage.output_tokens,
+						cacheCreationInputTokens: usage.cache_creation_input_tokens ?? 0,
+						cacheReadInputTokens: usage.cache_read_input_tokens ?? 0,
 					},
-					uniqueHash,
-					tokenTotal,
-					hasSpeed,
-				};
+					costUSD: calculateCost(data),
+					model: getDisplayModelName(data) ?? 'unknown',
+					version: data.version,
+					usageLimitResetTime: usageLimitResetTime ?? undefined,
+				},
+				uniqueHash,
+				tokenTotal,
+				hasSpeed,
 			};
-
-			const entry = createEntry(calculateCost(data));
 			if (existingEntryIndex != null) {
 				entries[existingEntryIndex] = entry;
 			} else {
