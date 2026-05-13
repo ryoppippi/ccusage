@@ -13,6 +13,34 @@ export const LITELLM_PRICING_URL =
  */
 const DEFAULT_TIERED_THRESHOLD = 200_000;
 
+function calculateTieredCost(
+	totalTokens: number | undefined,
+	basePrice: number | undefined,
+	tieredPrice: number | undefined,
+	threshold: number = DEFAULT_TIERED_THRESHOLD,
+): number {
+	if (totalTokens == null || totalTokens <= 0) {
+		return 0;
+	}
+
+	if (totalTokens > threshold && tieredPrice != null) {
+		const tokensBelowThreshold = Math.min(totalTokens, threshold);
+		const tokensAboveThreshold = Math.max(0, totalTokens - threshold);
+
+		let tieredCost = tokensAboveThreshold * tieredPrice;
+		if (basePrice != null) {
+			tieredCost += tokensBelowThreshold * basePrice;
+		}
+		return tieredCost;
+	}
+
+	if (basePrice != null) {
+		return totalTokens * basePrice;
+	}
+
+	return 0;
+}
+
 /**
  * LiteLLM Model Pricing Schema
  *
@@ -282,48 +310,6 @@ export class LiteLLMPricingFetcher implements Disposable {
 		},
 		pricing: LiteLLMModelPricing,
 	): number {
-		/**
-		 * Calculate cost with tiered pricing for 1M context window models
-		 *
-		 * @param totalTokens - Total number of tokens to calculate cost for
-		 * @param basePrice - Price per token for tokens up to the threshold
-		 * @param tieredPrice - Price per token for tokens above the threshold
-		 * @param threshold - Token threshold for tiered pricing (default 200k)
-		 * @returns Total cost applying tiered pricing when applicable
-		 *
-		 * @example
-		 * // 300k tokens with base price $3/M and tiered price $6/M
-		 * calculateTieredCost(300_000, 3e-6, 6e-6)
-		 * // Returns: (200_000 * 3e-6) + (100_000 * 6e-6) = $1.2
-		 */
-		const calculateTieredCost = (
-			totalTokens: number | undefined,
-			basePrice: number | undefined,
-			tieredPrice: number | undefined,
-			threshold: number = DEFAULT_TIERED_THRESHOLD,
-		): number => {
-			if (totalTokens == null || totalTokens <= 0) {
-				return 0;
-			}
-
-			if (totalTokens > threshold && tieredPrice != null) {
-				const tokensBelowThreshold = Math.min(totalTokens, threshold);
-				const tokensAboveThreshold = Math.max(0, totalTokens - threshold);
-
-				let tieredCost = tokensAboveThreshold * tieredPrice;
-				if (basePrice != null) {
-					tieredCost += tokensBelowThreshold * basePrice;
-				}
-				return tieredCost;
-			}
-
-			if (basePrice != null) {
-				return totalTokens * basePrice;
-			}
-
-			return 0;
-		};
-
 		const inputCost = calculateTieredCost(
 			tokens.input_tokens,
 			pricing.input_cost_per_token,
