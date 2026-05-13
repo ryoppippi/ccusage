@@ -69,6 +69,7 @@ import { unreachable } from './_utils.ts';
 import { logger } from './logger.ts';
 
 const USAGE_LINE_MARKER = '"usage":{';
+const USAGE_LINE_MARKER_BUFFER = Buffer.from(USAGE_LINE_MARKER);
 const CACHE_CREATION_INPUT_TOKENS_MARKER = '"cache_creation_input_tokens":';
 const CACHE_READ_INPUT_TOKENS_MARKER = '"cache_read_input_tokens":';
 const COST_USD_MARKER = '"costUSD":';
@@ -861,6 +862,7 @@ type UsageSummaryAccumulator = {
 
 type BunFileLike = {
 	size: number;
+	bytes: () => Promise<Uint8Array>;
 	text: () => Promise<string>;
 };
 
@@ -1205,6 +1207,43 @@ async function processBufferedJSONLUsageContent(
 	}
 }
 
+async function processBufferedJSONLUsageBytes(
+	bytes: Uint8Array,
+	processLine: (line: string) => void,
+): Promise<void> {
+	const content = Buffer.isBuffer(bytes)
+		? bytes
+		: Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+	let lineStart = 0;
+	let markerIndex = content.indexOf(USAGE_LINE_MARKER_BUFFER);
+	while (markerIndex !== -1) {
+		let lineEnd = content.indexOf(10, lineStart);
+		while (lineEnd !== -1 && lineEnd < markerIndex) {
+			lineStart = lineEnd + 1;
+			lineEnd = content.indexOf(10, lineStart);
+		}
+		if (lineEnd === -1) {
+			lineEnd = content.length;
+		}
+
+		const decodeEnd = lineEnd > lineStart && content[lineEnd - 1] === 13 ? lineEnd - 1 : lineEnd;
+		processLine(content.subarray(lineStart, decodeEnd).toString('utf8'));
+
+		lineStart = lineEnd + 1;
+		markerIndex = content.indexOf(USAGE_LINE_MARKER_BUFFER, lineStart);
+	}
+}
+
+async function readBufferedJSONLBytes(filePath: string): Promise<Uint8Array | null> {
+	const bun = getBunRuntime();
+	if (bun == null) {
+		return null;
+	}
+
+	const file = bun.file(filePath);
+	return file.size <= MAX_BUFFERED_JSONL_BYTES ? file.bytes() : null;
+}
+
 async function readBufferedJSONLContent(filePath: string): Promise<string | null> {
 	const bun = getBunRuntime();
 	if (bun != null) {
@@ -1264,6 +1303,12 @@ async function processJSONLUsageFileByLine(
 	filePath: string,
 	processLine: (line: string) => void,
 ): Promise<void> {
+	const bytes = await readBufferedJSONLBytes(filePath);
+	if (bytes != null) {
+		await processBufferedJSONLUsageBytes(bytes, processLine);
+		return;
+	}
+
 	const content = await readBufferedJSONLContent(filePath);
 	if (content != null) {
 		await processBufferedJSONLUsageContent(content, processLine);
