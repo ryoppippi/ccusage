@@ -1689,15 +1689,11 @@ function dedupeEntryMetadataList<
 		tokenTotal: number;
 		hasSpeed: boolean;
 	},
->(entries: Array<T | undefined>): T[] {
+>(entries: T[]): T[] {
 	const dedupedEntries: T[] = [];
 	const processedEntries = new Map<string, number>();
 
 	for (const entry of entries) {
-		if (entry == null) {
-			continue;
-		}
-
 		const existingEntryIndex = getDedupedEntryMetadataIndex(
 			processedEntries,
 			dedupedEntries,
@@ -1857,7 +1853,7 @@ async function collectDailyEntriesFromFile(
 	formatUsageDate: (dateStr: string) => string,
 ): Promise<DailyDataEntry[]> {
 	const project = extractProjectFromPath(file);
-	const entries: Array<DailyDataEntry | undefined> = [];
+	const entries: DailyDataEntry[] = [];
 
 	await processJSONLUsageFileByLine(file, (line) => {
 		try {
@@ -1903,7 +1899,7 @@ async function collectSessionEntriesFromFile(
 	const sessionId = parts[parts.length - 2] ?? 'unknown';
 	const joinedPath = parts.slice(0, -2).join(path.sep);
 	const projectPath = joinedPath.length > 0 ? joinedPath : 'Unknown Project';
-	const entries: Array<SessionDataEntry | undefined> = [];
+	const entries: SessionDataEntry[] = [];
 
 	await processJSONLUsageFileByLine(file, (line) => {
 		try {
@@ -1947,7 +1943,7 @@ async function collectBlockFileResult(
 ): Promise<BlockFileResult> {
 	let timestamp: Date | null = null;
 	let timestampMs: number | null = null;
-	const entries: Array<BlockEntryResult | undefined> = [];
+	const entries: BlockEntryResult[] = [];
 
 	const setEarliestTimestamp = (lineTimestamp: Date, lineTimestampMs: number): void => {
 		if (!Number.isNaN(lineTimestampMs) && (timestampMs == null || lineTimestampMs < timestampMs)) {
