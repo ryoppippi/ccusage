@@ -2007,10 +2007,6 @@ async function collectBlockFileResult(
 
 	const processLine = (line: string): void => {
 		try {
-			if (!line.includes(USAGE_LINE_MARKER)) {
-				return;
-			}
-
 			const data = parseUsageDataLine(line);
 			if (data == null) {
 				return;
@@ -2074,28 +2070,7 @@ async function collectBlockFileResult(
 		}
 	};
 
-	const bytes = await readBufferedJSONLBytes(file);
-	if (bytes != null) {
-		const content = Buffer.isBuffer(bytes)
-			? bytes
-			: Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-		let lineStart = 0;
-		let markerIndex = content.indexOf(USAGE_LINE_MARKER_BUFFER);
-		while (lineStart < content.length) {
-			let lineEnd = content.indexOf(10, lineStart);
-			if (lineEnd === -1) {
-				lineEnd = content.length;
-			}
-			const decodeEnd = lineEnd > lineStart && content[lineEnd - 1] === 13 ? lineEnd - 1 : lineEnd;
-			if (markerIndex !== -1 && markerIndex < decodeEnd) {
-				processLine(content.subarray(lineStart, decodeEnd).toString('utf8'));
-				markerIndex = content.indexOf(USAGE_LINE_MARKER_BUFFER, lineEnd + 1);
-			}
-			lineStart = lineEnd + 1;
-		}
-	} else {
-		await processJSONLFileByLine(file, processLine);
-	}
+	await processJSONLUsageFileByLine(file, processLine);
 
 	return {
 		file,
