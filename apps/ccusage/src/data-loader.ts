@@ -1736,7 +1736,8 @@ function encodeDailyDataEntries(entries: DailyDataEntry[]): EncodedDailyDataEntr
 	const count = entries.length;
 	const numbers = new Float64Array(count * 6);
 	const flags = new Uint8Array(count);
-	const strings: Array<string | null> = Array.from({ length: count * 4 });
+	const strings: Array<string | null> = [];
+	strings.length = count * 4;
 
 	for (let index = 0; index < count; index++) {
 		const entry = entries[index]!;
