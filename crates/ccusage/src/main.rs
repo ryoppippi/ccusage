@@ -885,12 +885,18 @@ fn read_usage_files_parallel(
                     .collect::<Vec<_>>()
             }));
         }
-        let mut loaded_files = handles
+        let mut loaded_files = Vec::with_capacity(files.len());
+        loaded_files.resize_with(files.len(), || None);
+        for (index, file) in handles
             .into_iter()
             .flat_map(|handle| handle.join().expect("usage worker panicked"))
-            .collect::<Vec<_>>();
-        loaded_files.sort_unstable_by_key(|(index, _)| *index);
-        loaded_files.into_iter().map(|(_, file)| file).collect()
+        {
+            loaded_files[index] = Some(file);
+        }
+        loaded_files
+            .into_iter()
+            .map(|file| file.expect("usage worker returned every file"))
+            .collect()
     })
 }
 
