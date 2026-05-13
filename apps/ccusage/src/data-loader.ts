@@ -198,9 +198,12 @@ function getJSONLFileReadConcurrency(fileCount: number, singleThread = false): n
 	return Math.max(1, Math.min(fileCount, os.availableParallelism()));
 }
 
-function getDefaultJSONLWorkerThreadCount(fileCount: number): number {
+function getDefaultJSONLWorkerThreadCount(fileCount: number, preferMoreWorkers = false): number {
 	const available = os.availableParallelism();
-	const workerCount = Math.min(Math.ceil(available / 2), JSONL_WORKER_THREAD_LIMIT);
+	const workerCount = Math.min(
+		preferMoreWorkers ? Math.ceil(available * 0.75) : Math.ceil(available / 2),
+		JSONL_WORKER_THREAD_LIMIT,
+	);
 	return Math.min(fileCount, Math.max(1, workerCount));
 }
 
@@ -1708,7 +1711,11 @@ function dedupeEntryMetadataList<
 	return dedupedEntries;
 }
 
-function getJSONLWorkerThreadCount(fileCount: number, singleThread = false): number {
+function getJSONLWorkerThreadCount(
+	fileCount: number,
+	singleThread = false,
+	preferMoreWorkers = false,
+): number {
 	if (
 		singleThread ||
 		fileCount < 64 ||
@@ -1727,7 +1734,7 @@ function getJSONLWorkerThreadCount(fileCount: number, singleThread = false): num
 		return Math.min(fileCount, configured);
 	}
 
-	return getDefaultJSONLWorkerThreadCount(fileCount);
+	return getDefaultJSONLWorkerThreadCount(fileCount, preferMoreWorkers);
 }
 
 function chunkIndexedItems<T>(
@@ -1785,7 +1792,11 @@ async function collectWithUsageWorkers<TItem, TResult>(
 		getFilePath?: (item: TItem) => string;
 	},
 ): Promise<TResult[] | null> {
-	const workerCount = getJSONLWorkerThreadCount(items.length, options.singleThread);
+	const workerCount = getJSONLWorkerThreadCount(
+		items.length,
+		options.singleThread,
+		task === 'daily' || task === 'session',
+	);
 	if (workerCount === 0) {
 		return null;
 	}
@@ -6239,6 +6250,27 @@ if (import.meta.vitest != null) {
 			expect(targetDate?.outputTokens).toBe(150);
 			expect(targetDate?.totalCost).toBe(0.03);
 		}, 30000);
+	});
+
+	describe('JSONL worker count', () => {
+		it('uses more workers for daily and session tasks than block-style defaults', () => {
+			const availableParallelism = vi.spyOn(os, 'availableParallelism').mockReturnValue(11);
+			try {
+				expect(getDefaultJSONLWorkerThreadCount(100)).toBe(6);
+				expect(getDefaultJSONLWorkerThreadCount(100, true)).toBe(8);
+			} finally {
+				availableParallelism.mockRestore();
+			}
+		});
+
+		it('does not exceed the number of files', () => {
+			const availableParallelism = vi.spyOn(os, 'availableParallelism').mockReturnValue(11);
+			try {
+				expect(getDefaultJSONLWorkerThreadCount(5, true)).toBe(5);
+			} finally {
+				availableParallelism.mockRestore();
+			}
+		});
 	});
 
 	describe('globUsageFiles', () => {
