@@ -1178,10 +1178,14 @@ async function processBufferedJSONLUsageContent(
 	content: string,
 	processLine: (line: string) => void | Promise<void>,
 ): Promise<void> {
+	let lineStart = 0;
 	let markerIndex = content.indexOf(USAGE_LINE_MARKER);
 	while (markerIndex !== -1) {
-		const lineStart = content.lastIndexOf('\n', markerIndex) + 1;
-		let lineEnd = content.indexOf('\n', markerIndex);
+		let lineEnd = content.indexOf('\n', lineStart);
+		while (lineEnd !== -1 && lineEnd < markerIndex) {
+			lineStart = lineEnd + 1;
+			lineEnd = content.indexOf('\n', lineStart);
+		}
 		if (lineEnd === -1) {
 			lineEnd = content.length;
 		}
@@ -1195,7 +1199,8 @@ async function processBufferedJSONLUsageContent(
 			await result;
 		}
 
-		markerIndex = content.indexOf(USAGE_LINE_MARKER, lineEnd + 1);
+		lineStart = lineEnd + 1;
+		markerIndex = content.indexOf(USAGE_LINE_MARKER, lineStart);
 	}
 }
 
