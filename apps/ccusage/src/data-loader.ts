@@ -1223,7 +1223,7 @@ async function processBufferedJSONLUsageBytes(
 		}
 
 		const decodeEnd = lineEnd > lineStart && content[lineEnd - 1] === 13 ? lineEnd - 1 : lineEnd;
-		processLine(content.subarray(lineStart, decodeEnd).toString('utf8'));
+		processLine(content.toString('utf8', lineStart, decodeEnd));
 
 		searchStart = lineEnd + 1;
 		markerIndex = content.indexOf(USAGE_LINE_MARKER_BUFFER, searchStart);
