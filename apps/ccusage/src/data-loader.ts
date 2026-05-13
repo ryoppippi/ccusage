@@ -68,7 +68,7 @@ import {
 import { unreachable } from './_utils.ts';
 import { logger } from './logger.ts';
 
-const USAGE_LINE_MARKER = '"input_tokens"';
+const USAGE_LINE_MARKER = '"usage":{';
 const CACHE_CREATION_INPUT_TOKENS_MARKER = '"cache_creation_input_tokens":';
 const CACHE_READ_INPUT_TOKENS_MARKER = '"cache_read_input_tokens":';
 const COST_USD_MARKER = '"costUSD":';
