@@ -1656,7 +1656,6 @@ type BlockEntryResult = {
 
 type BlockFileResult = {
 	file: string;
-	timestamp: Date | null;
 	timestampMs: number | null;
 	entries: BlockEntryResult[];
 };
@@ -1996,14 +1995,12 @@ async function collectBlockFileResult(
 	file: string,
 	calculateCost: CostCalculator,
 ): Promise<BlockFileResult> {
-	let timestamp: Date | null = null;
 	let timestampMs: number | null = null;
 	const entries: BlockEntryResult[] = [];
 	const processedEntries = new Map<string, number>();
 
 	const setEarliestTimestamp = (lineTimestamp: Date, lineTimestampMs: number): void => {
 		if (!Number.isNaN(lineTimestampMs) && (timestampMs == null || lineTimestampMs < timestampMs)) {
-			timestamp = lineTimestamp;
 			timestampMs = lineTimestampMs;
 		}
 	};
@@ -2102,7 +2099,6 @@ async function collectBlockFileResult(
 
 	return {
 		file,
-		timestamp,
 		timestampMs,
 		entries,
 	};
