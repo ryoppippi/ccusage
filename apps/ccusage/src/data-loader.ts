@@ -1613,19 +1613,13 @@ type DailyDataEntry = {
 	hasSpeed: boolean;
 };
 
-type DailyDataEntryTuple = [
-	date: string,
-	cost: number,
-	inputTokens: number,
-	outputTokens: number,
-	cacheCreationTokens: number,
-	cacheReadTokens: number,
-	model: string | undefined,
-	project: string,
-	uniqueHash: string | null,
-	tokenTotal: number,
-	hasSpeed: boolean,
-];
+type EncodedDailyDataEntries = {
+	kind: 'daily-columns';
+	count: number;
+	numbers: Float64Array;
+	flags: Uint8Array;
+	strings: Array<string | null>;
+};
 
 type SessionDataEntry = {
 	sessionKey: string;
@@ -1738,36 +1732,60 @@ function markDedupedEntryMetadata(
 	}
 }
 
-function dailyDataEntryToTuple(entry: DailyDataEntry): DailyDataEntryTuple {
-	return [
-		entry.date,
-		entry.cost,
-		entry.inputTokens,
-		entry.outputTokens,
-		entry.cacheCreationTokens,
-		entry.cacheReadTokens,
-		entry.model,
-		entry.project,
-		entry.uniqueHash,
-		entry.tokenTotal,
-		entry.hasSpeed,
-	];
+function encodeDailyDataEntries(entries: DailyDataEntry[]): EncodedDailyDataEntries {
+	const count = entries.length;
+	const numbers = new Float64Array(count * 6);
+	const flags = new Uint8Array(count);
+	const strings: Array<string | null> = Array.from({ length: count * 4 });
+
+	for (let index = 0; index < count; index++) {
+		const entry = entries[index]!;
+		const numberOffset = index * 6;
+		numbers[numberOffset] = entry.cost;
+		numbers[numberOffset + 1] = entry.inputTokens;
+		numbers[numberOffset + 2] = entry.outputTokens;
+		numbers[numberOffset + 3] = entry.cacheCreationTokens;
+		numbers[numberOffset + 4] = entry.cacheReadTokens;
+		numbers[numberOffset + 5] = entry.tokenTotal;
+		flags[index] = entry.hasSpeed ? 1 : 0;
+
+		const stringOffset = index * 4;
+		strings[stringOffset] = entry.date;
+		strings[stringOffset + 1] = entry.model ?? null;
+		strings[stringOffset + 2] = entry.project;
+		strings[stringOffset + 3] = entry.uniqueHash;
+	}
+
+	return {
+		kind: 'daily-columns',
+		count,
+		numbers,
+		flags,
+		strings,
+	};
 }
 
-function dailyDataEntryFromTuple(entry: DailyDataEntryTuple): DailyDataEntry {
-	return {
-		date: entry[0],
-		cost: entry[1],
-		inputTokens: entry[2],
-		outputTokens: entry[3],
-		cacheCreationTokens: entry[4],
-		cacheReadTokens: entry[5],
-		model: entry[6],
-		project: entry[7],
-		uniqueHash: entry[8],
-		tokenTotal: entry[9],
-		hasSpeed: entry[10],
-	};
+function decodeDailyDataEntries(encoded: EncodedDailyDataEntries): DailyDataEntry[] {
+	const entries: DailyDataEntry[] = [];
+	entries.length = encoded.count;
+	for (let index = 0; index < encoded.count; index++) {
+		const numberOffset = index * 6;
+		const stringOffset = index * 4;
+		entries[index] = {
+			date: encoded.strings[stringOffset]!,
+			cost: encoded.numbers[numberOffset]!,
+			inputTokens: encoded.numbers[numberOffset + 1]!,
+			outputTokens: encoded.numbers[numberOffset + 2]!,
+			cacheCreationTokens: encoded.numbers[numberOffset + 3]!,
+			cacheReadTokens: encoded.numbers[numberOffset + 4]!,
+			model: encoded.strings[stringOffset + 1] ?? undefined,
+			project: encoded.strings[stringOffset + 2]!,
+			uniqueHash: encoded.strings[stringOffset + 3] ?? null,
+			tokenTotal: encoded.numbers[numberOffset + 5]!,
+			hasSpeed: encoded.flags[index] === 1,
+		};
+	}
+	return entries;
 }
 
 function sessionDataEntryToTuple(entry: SessionDataEntry): SessionDataEntryTuple {
@@ -2230,7 +2248,7 @@ export async function loadDailyUsageData(options?: LoadOptions): Promise<DailyUs
 		}
 	};
 
-	const workerFileResults = await collectWithUsageWorkers<string, DailyDataEntryTuple[]>(
+	const workerFileResults = await collectWithUsageWorkers<string, EncodedDailyDataEntries>(
 		'daily',
 		mtimeFilteredFiles,
 		{
@@ -2256,9 +2274,9 @@ export async function loadDailyUsageData(options?: LoadOptions): Promise<DailyUs
 			}
 		}
 	} else {
-		for (const entries of workerFileResults) {
-			for (const entry of entries) {
-				mergeEntry(dailyDataEntryFromTuple(entry));
+		for (const encodedEntries of workerFileResults) {
+			for (const entry of decodeDailyDataEntries(encodedEntries)) {
+				mergeEntry(entry);
 			}
 		}
 	}
@@ -2849,15 +2867,21 @@ async function runUsageWorker(data: UsageWorkerData): Promise<void> {
 	switch (data.task) {
 		case 'daily': {
 			const results = [];
+			const transferList: ArrayBuffer[] = [];
 			for (const { index, item } of data.items as Array<IndexedWorkerItem<string>>) {
+				const result = encodeDailyDataEntries(
+					await collectDailyEntriesFromFile(item, calculateCost, formatUsageDate),
+				);
+				transferList.push(result.numbers.buffer as ArrayBuffer, result.flags.buffer as ArrayBuffer);
 				results.push({
 					index,
-					result: (await collectDailyEntriesFromFile(item, calculateCost, formatUsageDate)).map(
-						dailyDataEntryToTuple,
-					),
+					result,
 				});
 			}
-			parentPort!.postMessage({ results } satisfies UsageWorkerResponse<DailyDataEntryTuple[]>);
+			parentPort!.postMessage(
+				{ results } satisfies UsageWorkerResponse<EncodedDailyDataEntries>,
+				transferList,
+			);
 			return;
 		}
 		case 'session': {
@@ -6442,6 +6466,41 @@ if (import.meta.vitest != null) {
 			} finally {
 				availableParallelism.mockRestore();
 			}
+		});
+	});
+
+	describe('daily worker column encoding', () => {
+		it('round-trips daily worker entries', () => {
+			const entries: DailyDataEntry[] = [
+				{
+					date: '2026-05-13',
+					cost: 1.25,
+					inputTokens: 1,
+					outputTokens: 2,
+					cacheCreationTokens: 3,
+					cacheReadTokens: 4,
+					model: 'opus-4-7-fast',
+					project: 'ccusage',
+					uniqueHash: 'message:request',
+					tokenTotal: 10,
+					hasSpeed: true,
+				},
+				{
+					date: '2026-05-14',
+					cost: 0,
+					inputTokens: 5,
+					outputTokens: 6,
+					cacheCreationTokens: 0,
+					cacheReadTokens: 0,
+					model: undefined,
+					project: 'ccusage',
+					uniqueHash: null,
+					tokenTotal: 11,
+					hasSpeed: false,
+				},
+			];
+
+			expect(decodeDailyDataEntries(encodeDailyDataEntries(entries))).toEqual(entries);
 		});
 	});
 
