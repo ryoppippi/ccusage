@@ -1,10 +1,10 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import process from 'node:process';
+import { toArray } from '@antfu/utils';
 import { Result } from '@praha/byethrow';
 import { createFixture } from 'fs-fixture';
 import { CONFIG_FILE_NAME } from './_consts.ts';
-import { toArray } from './_utils.ts';
 import { getClaudePaths } from './data-loader.ts';
 import { logger } from './logger.ts';
 

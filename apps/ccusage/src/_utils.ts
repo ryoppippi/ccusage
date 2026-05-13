@@ -6,10 +6,6 @@ export function unreachable(value: never): never {
 	throw new Error(`Unreachable code reached with value: ${value as any}`);
 }
 
-export function toArray<T>(value: T | T[]): T[] {
-	return Array.isArray(value) ? value : [value];
-}
-
 /**
  * Gets the last modified time of a file using Result pattern
  * @param filePath - Path to the file
@@ -32,17 +28,6 @@ if (import.meta.vitest != null) {
 			expect(() => unreachable('test' as never)).toThrow(
 				'Unreachable code reached with value: test',
 			);
-		});
-	});
-
-	describe('toArray', () => {
-		it('wraps a single value in an array', () => {
-			expect(toArray('claude')).toEqual(['claude']);
-		});
-
-		it('returns array values unchanged', () => {
-			const value = ['claude', 'codex'];
-			expect(toArray(value)).toBe(value);
 		});
 	});
 

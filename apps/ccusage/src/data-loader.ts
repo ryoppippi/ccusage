@@ -20,6 +20,7 @@ import path from 'node:path';
 import process from 'node:process';
 import { createInterface } from 'node:readline';
 import { isMainThread, parentPort, Worker, workerData } from 'node:worker_threads';
+import { toArray } from '@antfu/utils';
 import { Result } from '@praha/byethrow';
 import { createFixture } from 'fs-fixture';
 import { isDirectorySync } from 'path-type';
@@ -64,7 +65,7 @@ import {
 	versionSchema,
 	weeklyDateSchema,
 } from './_types.ts';
-import { toArray, unreachable } from './_utils.ts';
+import { unreachable } from './_utils.ts';
 import { logger } from './logger.ts';
 
 const USAGE_LINE_MARKER = '"input_tokens"';
