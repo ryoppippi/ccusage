@@ -1680,37 +1680,6 @@ function markDedupedEntryMetadata(
 	}
 }
 
-function dedupeEntryMetadataList<
-	T extends {
-		uniqueHash: string | null;
-		tokenTotal: number;
-		hasSpeed: boolean;
-	},
->(entries: T[]): T[] {
-	const dedupedEntries: T[] = [];
-	const processedEntries = new Map<string, number>();
-
-	for (const entry of entries) {
-		const existingEntryIndex = getDedupedEntryMetadataIndex(
-			processedEntries,
-			dedupedEntries,
-			entry,
-		);
-		if (existingEntryIndex === -1) {
-			continue;
-		}
-
-		if (existingEntryIndex != null) {
-			dedupedEntries[existingEntryIndex] = entry;
-		} else {
-			dedupedEntries.push(entry);
-			markDedupedEntryMetadata(processedEntries, entry, dedupedEntries.length - 1);
-		}
-	}
-
-	return dedupedEntries;
-}
-
 function getJSONLWorkerThreadCount(
 	fileCount: number,
 	singleThread = false,
@@ -1859,6 +1828,7 @@ async function collectDailyEntriesFromFile(
 ): Promise<DailyDataEntry[]> {
 	const project = extractProjectFromPath(file);
 	const entries: DailyDataEntry[] = [];
+	const processedEntries = new Map<string, number>();
 
 	await processJSONLUsageFileByLine(file, (line) => {
 		try {
@@ -1871,8 +1841,19 @@ async function collectDailyEntriesFromFile(
 			const uniqueHash = createUniqueHash(data);
 			const tokenTotal = getUsageTokenTotal(data);
 			const hasSpeed = data.message.usage.speed != null;
+			let existingEntryIndex: number | undefined;
+			if (uniqueHash != null) {
+				existingEntryIndex = processedEntries.get(uniqueHash);
+				if (
+					existingEntryIndex != null &&
+					!shouldReplaceEntryMetadata({ tokenTotal, hasSpeed }, entries[existingEntryIndex]!)
+				) {
+					return;
+				}
+			}
+
 			const usage = data.message.usage;
-			entries.push({
+			const entry = {
 				date,
 				cost: calculateCost(data),
 				inputTokens: usage.input_tokens,
@@ -1884,13 +1865,19 @@ async function collectDailyEntriesFromFile(
 				uniqueHash,
 				tokenTotal,
 				hasSpeed,
-			});
+			};
+			if (existingEntryIndex != null) {
+				entries[existingEntryIndex] = entry;
+			} else {
+				entries.push(entry);
+				markDedupedEntryMetadata(processedEntries, entry, entries.length - 1);
+			}
 		} catch {
 			// Skip invalid JSON lines
 		}
 	});
 
-	return dedupeEntryMetadataList(entries);
+	return entries;
 }
 
 async function collectSessionEntriesFromFile(
@@ -1905,6 +1892,7 @@ async function collectSessionEntriesFromFile(
 	const joinedPath = parts.slice(0, -2).join(path.sep);
 	const projectPath = joinedPath.length > 0 ? joinedPath : 'Unknown Project';
 	const entries: SessionDataEntry[] = [];
+	const processedEntries = new Map<string, number>();
 
 	await processJSONLUsageFileByLine(file, (line) => {
 		try {
@@ -1917,8 +1905,19 @@ async function collectSessionEntriesFromFile(
 			const uniqueHash = createUniqueHash(data);
 			const tokenTotal = getUsageTokenTotal(data);
 			const hasSpeed = data.message.usage.speed != null;
+			let existingEntryIndex: number | undefined;
+			if (uniqueHash != null) {
+				existingEntryIndex = processedEntries.get(uniqueHash);
+				if (
+					existingEntryIndex != null &&
+					!shouldReplaceEntryMetadata({ tokenTotal, hasSpeed }, entries[existingEntryIndex]!)
+				) {
+					return;
+				}
+			}
+
 			const usage = data.message.usage;
-			entries.push({
+			const entry = {
 				sessionKey: `${projectPath}/${sessionId}`,
 				sessionId,
 				projectPath,
@@ -1933,13 +1932,19 @@ async function collectSessionEntriesFromFile(
 				uniqueHash,
 				tokenTotal,
 				hasSpeed,
-			});
+			};
+			if (existingEntryIndex != null) {
+				entries[existingEntryIndex] = entry;
+			} else {
+				entries.push(entry);
+				markDedupedEntryMetadata(processedEntries, entry, entries.length - 1);
+			}
 		} catch {
 			// Skip invalid JSON lines
 		}
 	});
 
-	return dedupeEntryMetadataList(entries);
+	return entries;
 }
 
 async function collectBlockFileResult(
@@ -1949,6 +1954,7 @@ async function collectBlockFileResult(
 	let timestamp: Date | null = null;
 	let timestampMs: number | null = null;
 	const entries: BlockEntryResult[] = [];
+	const processedEntries = new Map<string, number>();
 
 	const setEarliestTimestamp = (lineTimestamp: Date, lineTimestampMs: number): void => {
 		if (!Number.isNaN(lineTimestampMs) && (timestampMs == null || lineTimestampMs < timestampMs)) {
@@ -1984,6 +1990,20 @@ async function collectBlockFileResult(
 				Number.isNaN(parsedTimestampMs) ? lineTimestamp.getTime() : parsedTimestampMs,
 			);
 
+			const uniqueHash = createUniqueHash(data);
+			const tokenTotal = getUsageTokenTotal(data);
+			const hasSpeed = data.message.usage.speed != null;
+			let existingEntryIndex: number | undefined;
+			if (uniqueHash != null) {
+				existingEntryIndex = processedEntries.get(uniqueHash);
+				if (
+					existingEntryIndex != null &&
+					!shouldReplaceEntryMetadata({ tokenTotal, hasSpeed }, entries[existingEntryIndex]!)
+				) {
+					return;
+				}
+			}
+
 			const createEntry = (cost: number): BlockEntryResult => {
 				const usageLimitResetTime = getUsageLimitResetTime(data);
 				return {
@@ -2000,13 +2020,19 @@ async function collectBlockFileResult(
 						version: data.version,
 						usageLimitResetTime: usageLimitResetTime ?? undefined,
 					},
-					uniqueHash: createUniqueHash(data),
-					tokenTotal: getUsageTokenTotal(data),
-					hasSpeed: data.message.usage.speed != null,
+					uniqueHash,
+					tokenTotal,
+					hasSpeed,
 				};
 			};
 
-			entries.push(createEntry(calculateCost(data)));
+			const entry = createEntry(calculateCost(data));
+			if (existingEntryIndex != null) {
+				entries[existingEntryIndex] = entry;
+			} else {
+				entries.push(entry);
+				markDedupedEntryMetadata(processedEntries, entry, entries.length - 1);
+			}
 		} catch (error) {
 			logger.debug(
 				`Skipping invalid JSON line in 5-hour blocks: ${error instanceof Error ? error.message : String(error)}`,
@@ -2018,7 +2044,7 @@ async function collectBlockFileResult(
 		file,
 		timestamp,
 		timestampMs,
-		entries: dedupeEntryMetadataList(entries),
+		entries,
 	};
 }
 
