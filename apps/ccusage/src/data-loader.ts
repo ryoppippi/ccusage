@@ -81,7 +81,6 @@ const MESSAGE_ID_MARKER = '"id":"';
 const MODEL_MARKER = '"model":"';
 const OUTPUT_TOKENS_MARKER = '"output_tokens":';
 const REQUEST_ID_MARKER = '"requestId":"';
-const SESSION_ID_MARKER = '"sessionId":"';
 const SPEED_MARKER = '"speed":"';
 const TIMESTAMP_MARKER = '"timestamp":"';
 const VERSION_MARKER = '"version":"';
@@ -595,8 +594,7 @@ function parseUsageDataLineFast(line: string, allowContent = false): UsageData |
 	const model = extractStringMarker(line, MODEL_MARKER, messageStart);
 	const messageId = extractStringMarker(line, MESSAGE_ID_MARKER, messageStart);
 	const requestId = extractStringMarker(line, REQUEST_ID_MARKER, usageStart);
-	const sessionId = extractStringMarker(line, SESSION_ID_MARKER, usageStart);
-	if (model === '' || messageId === '' || requestId === '' || sessionId === '') {
+	if (model === '' || messageId === '' || requestId === '') {
 		return null;
 	}
 
@@ -623,7 +621,6 @@ function parseUsageDataLineFast(line: string, allowContent = false): UsageData |
 		},
 		costUSD: extractJsonNumberMarker(line, COST_USD_MARKER, usageStart),
 		requestId: requestId as UsageData['requestId'],
-		sessionId: sessionId as UsageData['sessionId'],
 		version: version as Version | undefined,
 	};
 }
