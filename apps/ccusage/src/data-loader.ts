@@ -1616,6 +1616,20 @@ type DailyDataEntry = {
 	hasSpeed: boolean;
 };
 
+type DailyDataEntryTuple = [
+	date: string,
+	cost: number,
+	inputTokens: number,
+	outputTokens: number,
+	cacheCreationTokens: number,
+	cacheReadTokens: number,
+	model: string | undefined,
+	project: string,
+	uniqueHash: string | null,
+	tokenTotal: number,
+	hasSpeed: boolean,
+];
+
 type SessionDataEntry = {
 	sessionKey: string;
 	sessionId: string;
@@ -1632,6 +1646,23 @@ type SessionDataEntry = {
 	hasSpeed: boolean;
 	version: Version | undefined;
 };
+
+type SessionDataEntryTuple = [
+	sessionKey: string,
+	sessionId: string,
+	projectPath: string,
+	cost: number,
+	timestamp: string,
+	model: string | undefined,
+	inputTokens: number,
+	outputTokens: number,
+	cacheCreationTokens: number,
+	cacheReadTokens: number,
+	uniqueHash: string | null,
+	tokenTotal: number,
+	hasSpeed: boolean,
+	version: Version | undefined,
+];
 
 type BlockEntryResult = {
 	entry: LoadedUsageEntry;
@@ -1708,6 +1739,76 @@ function markDedupedEntryMetadata(
 	if (entry.uniqueHash != null) {
 		processedEntries.set(entry.uniqueHash, entryIndex);
 	}
+}
+
+function dailyDataEntryToTuple(entry: DailyDataEntry): DailyDataEntryTuple {
+	return [
+		entry.date,
+		entry.cost,
+		entry.inputTokens,
+		entry.outputTokens,
+		entry.cacheCreationTokens,
+		entry.cacheReadTokens,
+		entry.model,
+		entry.project,
+		entry.uniqueHash,
+		entry.tokenTotal,
+		entry.hasSpeed,
+	];
+}
+
+function dailyDataEntryFromTuple(entry: DailyDataEntryTuple): DailyDataEntry {
+	return {
+		date: entry[0],
+		cost: entry[1],
+		inputTokens: entry[2],
+		outputTokens: entry[3],
+		cacheCreationTokens: entry[4],
+		cacheReadTokens: entry[5],
+		model: entry[6],
+		project: entry[7],
+		uniqueHash: entry[8],
+		tokenTotal: entry[9],
+		hasSpeed: entry[10],
+	};
+}
+
+function sessionDataEntryToTuple(entry: SessionDataEntry): SessionDataEntryTuple {
+	return [
+		entry.sessionKey,
+		entry.sessionId,
+		entry.projectPath,
+		entry.cost,
+		entry.timestamp,
+		entry.model,
+		entry.inputTokens,
+		entry.outputTokens,
+		entry.cacheCreationTokens,
+		entry.cacheReadTokens,
+		entry.uniqueHash,
+		entry.tokenTotal,
+		entry.hasSpeed,
+		entry.version,
+	];
+}
+
+function sessionDataEntryFromTuple(entry: SessionDataEntryTuple): SessionDataEntry {
+	return {
+		sessionKey: entry[0],
+		sessionId: entry[1],
+		projectPath: entry[2],
+		cost: entry[3],
+		timestamp: entry[4],
+		model: entry[5],
+		inputTokens: entry[6],
+		outputTokens: entry[7],
+		cacheCreationTokens: entry[8],
+		cacheReadTokens: entry[9],
+		uniqueHash: entry[10],
+		tokenTotal: entry[11],
+		hasSpeed: entry[12],
+		version: entry[13],
+	};
 }
 
 function getJSONLWorkerThreadCount(
@@ -2118,8 +2219,21 @@ export async function loadDailyUsageData(options?: LoadOptions): Promise<DailyUs
 
 	const allEntries: DailyDataEntry[] = [];
 	const processedEntries = new Map<string, number>();
+	const mergeEntry = (entry: DailyDataEntry): void => {
+		const existingEntryIndex = getDedupedEntryMetadataIndex(processedEntries, allEntries, entry);
+		if (existingEntryIndex === -1) {
+			return;
+		}
 
-	let fileResults = await collectWithUsageWorkers<string, DailyDataEntry[]>(
+		if (existingEntryIndex != null) {
+			allEntries[existingEntryIndex] = entry;
+		} else {
+			allEntries.push(entry);
+			markDedupedEntryMetadata(processedEntries, entry, allEntries.length - 1);
+		}
+	};
+
+	const workerFileResults = await collectWithUsageWorkers<string, DailyDataEntryTuple[]>(
 		'daily',
 		mtimeFilteredFiles,
 		{
@@ -2130,29 +2244,24 @@ export async function loadDailyUsageData(options?: LoadOptions): Promise<DailyUs
 			getFilePath: (file) => file,
 		},
 	);
-	if (fileResults == null) {
+	if (workerFileResults == null) {
 		using fetcher = mode === 'display' ? null : new PricingFetcher(options?.offline);
 		const calculateCost = await createCostCalculator(mode, fetcher);
-		fileResults = await mapWithConcurrency(
+		const fallbackFileResults = await mapWithConcurrency(
 			mtimeFilteredFiles,
 			getJSONLFileReadConcurrency(mtimeFilteredFiles.length, options?.singleThread),
 			async (file): Promise<DailyDataEntry[]> =>
 				collectDailyEntriesFromFile(file, calculateCost, formatUsageDate),
 		);
-	}
-
-	for (const entries of fileResults) {
-		for (const entry of entries) {
-			const existingEntryIndex = getDedupedEntryMetadataIndex(processedEntries, allEntries, entry);
-			if (existingEntryIndex === -1) {
-				continue;
+		for (const entries of fallbackFileResults) {
+			for (const entry of entries) {
+				mergeEntry(entry);
 			}
-
-			if (existingEntryIndex != null) {
-				allEntries[existingEntryIndex] = entry;
-			} else {
-				allEntries.push(entry);
-				markDedupedEntryMetadata(processedEntries, entry, allEntries.length - 1);
+		}
+	} else {
+		for (const entries of workerFileResults) {
+			for (const entry of entries) {
+				mergeEntry(dailyDataEntryFromTuple(entry));
 			}
 		}
 	}
@@ -2242,8 +2351,21 @@ export async function loadSessionData(options?: LoadOptions): Promise<SessionUsa
 	// Collect all valid data entries with session info first
 	const allEntries: SessionDataEntry[] = [];
 	const processedEntries = new Map<string, number>();
+	const mergeEntry = (entry: SessionDataEntry): void => {
+		const existingEntryIndex = getDedupedEntryMetadataIndex(processedEntries, allEntries, entry);
+		if (existingEntryIndex === -1) {
+			return;
+		}
 
-	let fileResults = await collectWithUsageWorkers<GlobResult, SessionDataEntry[]>(
+		if (existingEntryIndex != null) {
+			allEntries[existingEntryIndex] = entry;
+		} else {
+			allEntries.push(entry);
+			markDedupedEntryMetadata(processedEntries, entry, allEntries.length - 1);
+		}
+	};
+
+	const workerFileResults = await collectWithUsageWorkers<GlobResult, SessionDataEntryTuple[]>(
 		'session',
 		mtimeFilteredWithBase,
 		{
@@ -2254,29 +2376,24 @@ export async function loadSessionData(options?: LoadOptions): Promise<SessionUsa
 			getFilePath: (item) => item.file,
 		},
 	);
-	if (fileResults == null) {
+	if (workerFileResults == null) {
 		using fetcher = mode === 'display' ? null : new PricingFetcher(options?.offline);
 		const calculateCost = await createCostCalculator(mode, fetcher);
-		fileResults = await mapWithConcurrency(
+		const fallbackFileResults = await mapWithConcurrency(
 			mtimeFilteredWithBase,
 			getJSONLFileReadConcurrency(mtimeFilteredWithBase.length, options?.singleThread),
 			async (item): Promise<SessionDataEntry[]> =>
 				collectSessionEntriesFromFile(item, mode, calculateCost),
 		);
-	}
-
-	for (const entries of fileResults) {
-		for (const entry of entries) {
-			const existingEntryIndex = getDedupedEntryMetadataIndex(processedEntries, allEntries, entry);
-			if (existingEntryIndex === -1) {
-				continue;
+		for (const entries of fallbackFileResults) {
+			for (const entry of entries) {
+				mergeEntry(entry);
 			}
-
-			if (existingEntryIndex != null) {
-				allEntries[existingEntryIndex] = entry;
-			} else {
-				allEntries.push(entry);
-				markDedupedEntryMetadata(processedEntries, entry, allEntries.length - 1);
+		}
+	} else {
+		for (const entries of workerFileResults) {
+			for (const entry of entries) {
+				mergeEntry(sessionDataEntryFromTuple(entry));
 			}
 		}
 	}
@@ -2738,10 +2855,12 @@ async function runUsageWorker(data: UsageWorkerData): Promise<void> {
 			for (const { index, item } of data.items as Array<IndexedWorkerItem<string>>) {
 				results.push({
 					index,
-					result: await collectDailyEntriesFromFile(item, calculateCost, formatUsageDate),
+					result: (await collectDailyEntriesFromFile(item, calculateCost, formatUsageDate)).map(
+						dailyDataEntryToTuple,
+					),
 				});
 			}
-			parentPort!.postMessage({ results } satisfies UsageWorkerResponse<DailyDataEntry[]>);
+			parentPort!.postMessage({ results } satisfies UsageWorkerResponse<DailyDataEntryTuple[]>);
 			return;
 		}
 		case 'session': {
@@ -2749,10 +2868,12 @@ async function runUsageWorker(data: UsageWorkerData): Promise<void> {
 			for (const { index, item } of data.items as Array<IndexedWorkerItem<GlobResult>>) {
 				results.push({
 					index,
-					result: await collectSessionEntriesFromFile(item, data.mode, calculateCost),
+					result: (await collectSessionEntriesFromFile(item, data.mode, calculateCost)).map(
+						sessionDataEntryToTuple,
+					),
 				});
 			}
-			parentPort!.postMessage({ results } satisfies UsageWorkerResponse<SessionDataEntry[]>);
+			parentPort!.postMessage({ results } satisfies UsageWorkerResponse<SessionDataEntryTuple[]>);
 			return;
 		}
 		case 'blocks': {
