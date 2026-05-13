@@ -1177,7 +1177,7 @@ async function processBufferedJSONLContent(
 
 async function processBufferedJSONLUsageContent(
 	content: string,
-	processLine: (line: string) => void | Promise<void>,
+	processLine: (line: string) => void,
 ): Promise<void> {
 	let lineStart = 0;
 	let markerIndex = content.indexOf(USAGE_LINE_MARKER);
@@ -1195,10 +1195,7 @@ async function processBufferedJSONLUsageContent(
 		if (line.endsWith('\r')) {
 			line = line.slice(0, -1);
 		}
-		const result = processLine(line);
-		if (result != null) {
-			await result;
-		}
+		processLine(line);
 
 		lineStart = lineEnd + 1;
 		markerIndex = content.indexOf(USAGE_LINE_MARKER, lineStart);
@@ -1262,7 +1259,7 @@ async function processJSONLFileByLine(
 
 async function processJSONLUsageFileByLine(
 	filePath: string,
-	processLine: (line: string) => void | Promise<void>,
+	processLine: (line: string) => void,
 ): Promise<void> {
 	const content = await readBufferedJSONLContent(filePath);
 	if (content != null) {
@@ -1280,10 +1277,7 @@ async function processJSONLUsageFileByLine(
 		if (!line.includes(USAGE_LINE_MARKER)) {
 			continue;
 		}
-		const result = processLine(line);
-		if (result != null) {
-			await result;
-		}
+		processLine(line);
 	}
 }
 
