@@ -557,16 +557,17 @@ function parseUsageDataLineFast(line: string, allowContent = false): UsageData |
 		return null;
 	}
 
-	const timestamp = extractStringMarker(line, TIMESTAMP_MARKER);
-	if (timestamp == null || !ISO_TIMESTAMP_PATTERN.test(timestamp)) {
-		return null;
-	}
-
 	const messageStart = line.indexOf('"message":{');
 	const usageStart = line.indexOf('"usage":{', messageStart);
 	if (messageStart === -1 || usageStart === -1) {
 		return null;
 	}
+
+	const timestamp = extractStringMarker(line, TIMESTAMP_MARKER);
+	if (timestamp == null || !ISO_TIMESTAMP_PATTERN.test(timestamp)) {
+		return null;
+	}
+
 	const roleStart = line.indexOf('"role":"assistant"', messageStart);
 	if (roleStart === -1 || roleStart > usageStart) {
 		return null;
@@ -583,14 +584,14 @@ function parseUsageDataLineFast(line: string, allowContent = false): UsageData |
 		return null;
 	}
 
-	const version = extractStringMarker(line, VERSION_MARKER);
+	const version = extractStringMarker(line, VERSION_MARKER, usageStart);
 	if (version != null && !VERSION_PATTERN.test(version)) {
 		return null;
 	}
 	const model = extractStringMarker(line, MODEL_MARKER, messageStart);
 	const messageId = extractStringMarker(line, MESSAGE_ID_MARKER, messageStart);
 	const requestId = extractStringMarker(line, REQUEST_ID_MARKER, usageStart);
-	const sessionId = extractStringMarker(line, SESSION_ID_MARKER);
+	const sessionId = extractStringMarker(line, SESSION_ID_MARKER, usageStart);
 	if (model === '' || messageId === '' || requestId === '' || sessionId === '') {
 		return null;
 	}
