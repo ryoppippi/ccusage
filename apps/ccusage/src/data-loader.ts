@@ -1768,11 +1768,10 @@ function encodeDailyDataEntries(entries: DailyDataEntry[]): EncodedDailyDataEntr
 
 function decodeDailyDataEntries(encoded: EncodedDailyDataEntries): DailyDataEntry[] {
 	const entries: DailyDataEntry[] = [];
-	entries.length = encoded.count;
 	for (let index = 0; index < encoded.count; index++) {
 		const numberOffset = index * 6;
 		const stringOffset = index * 4;
-		entries[index] = {
+		entries.push({
 			date: encoded.strings[stringOffset]!,
 			cost: encoded.numbers[numberOffset]!,
 			inputTokens: encoded.numbers[numberOffset + 1]!,
@@ -1784,7 +1783,7 @@ function decodeDailyDataEntries(encoded: EncodedDailyDataEntries): DailyDataEntr
 			uniqueHash: encoded.strings[stringOffset + 3] ?? null,
 			tokenTotal: encoded.numbers[numberOffset + 5]!,
 			hasSpeed: encoded.flags[index] === 1,
-		};
+		});
 	}
 	return entries;
 }
