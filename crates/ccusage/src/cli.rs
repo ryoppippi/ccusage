@@ -31,7 +31,6 @@ pub(crate) struct SharedArgs {
     pub(crate) color: bool,
     pub(crate) no_color: bool,
     pub(crate) timezone: Option<String>,
-    pub(crate) locale: String,
     pub(crate) jq: Option<String>,
     pub(crate) config: Option<PathBuf>,
     pub(crate) compact: bool,
@@ -44,7 +43,6 @@ impl SharedArgs {
             mode: CostMode::Auto,
             debug_samples: 5,
             order: SortOrder::Asc,
-            locale: "en-CA".to_string(),
             ..Self::default()
         }
     }
@@ -368,7 +366,6 @@ fn parse_shared_arg(parser: &mut ArgParser, shared: &mut SharedArgs) -> Result<(
         "--color" => shared.color = true,
         "--no-color" => shared.no_color = true,
         "-z" | "--timezone" => shared.timezone = Some(parser.value_for("--timezone")?),
-        "-l" | "--locale" => shared.locale = parser.value_for("--locale")?,
         "-q" | "--jq" => shared.jq = Some(parser.value_for("--jq")?),
         "--config" => shared.config = Some(PathBuf::from(parser.value_for("--config")?)),
         "--compact" => shared.compact = true,
@@ -409,8 +406,6 @@ fn is_shared_flag(arg: &str) -> bool {
             | "--no-color"
             | "-z"
             | "--timezone"
-            | "-l"
-            | "--locale"
             | "-q"
             | "--jq"
             | "--config"
@@ -553,7 +548,7 @@ fn print_help_or_version_arg(arg: &str) -> ! {
 }
 
 fn help_text() -> &'static str {
-    "Usage: ccusage [OPTIONS] [COMMAND]\n\nCommands:\n  daily\n  monthly\n  weekly\n  session\n  blocks\n  statusline\n\nOptions:\n  -s, --since <YYYYMMDD>\n  -u, --until <YYYYMMDD>\n  -j, --json\n  -m, --mode <auto|calculate|display>\n  -d, --debug\n      --debug-samples <N>\n  -o, --order <asc|desc>\n  -b, --breakdown\n  -O, --offline\n      --no-offline\n      --color\n      --no-color\n  -z, --timezone <TZ>\n  -l, --locale <LOCALE>\n  -q, --jq <QUERY>\n      --config <PATH>\n      --compact\n      --single-thread\n  -h, --help\n  -V, --version"
+    "Usage: ccusage [OPTIONS] [COMMAND]\n\nCommands:\n  daily\n  monthly\n  weekly\n  session\n  blocks\n  statusline\n\nOptions:\n  -s, --since <YYYYMMDD>\n  -u, --until <YYYYMMDD>\n  -j, --json\n  -m, --mode <auto|calculate|display>\n  -d, --debug\n      --debug-samples <N>\n  -o, --order <asc|desc>\n  -b, --breakdown\n  -O, --offline\n      --no-offline\n      --color\n      --no-color\n  -z, --timezone <TZ>\n  -q, --jq <QUERY>\n      --config <PATH>\n      --compact\n      --single-thread\n  -h, --help\n  -V, --version"
 }
 
 #[cfg(test)]
@@ -583,6 +578,16 @@ mod tests {
         assert_eq!(args.shared.mode, CostMode::Display);
         assert!(args.instances);
         assert_eq!(args.project.as_deref(), Some("repo"));
+    }
+
+    #[test]
+    fn rejects_removed_locale_option() {
+        let result = Cli::parse_from(
+            ["ccusage", "--locale", "en-CA"]
+                .into_iter()
+                .map(OsString::from),
+        );
+        assert!(result.is_err());
     }
 
     #[test]
