@@ -75,7 +75,7 @@ const COST_USD_MARKER = '"costUSD":';
 const INPUT_TOKENS_MARKER = '"input_tokens":';
 const ISO_TIMESTAMP_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/;
 const MAX_BUFFERED_JSONL_BYTES = 128 * 1024 * 1024;
-const JSONL_WORKER_THREAD_LIMIT = 8;
+const JSONL_WORKER_THREAD_LIMIT = 9;
 const MESSAGE_ID_MARKER = '"id":"';
 const MODEL_MARKER = '"model":"';
 const OUTPUT_TOKENS_MARKER = '"output_tokens":';
@@ -6257,7 +6257,7 @@ if (import.meta.vitest != null) {
 			const availableParallelism = vi.spyOn(os, 'availableParallelism').mockReturnValue(11);
 			try {
 				expect(getDefaultJSONLWorkerThreadCount(100)).toBe(6);
-				expect(getDefaultJSONLWorkerThreadCount(100, true)).toBe(8);
+				expect(getDefaultJSONLWorkerThreadCount(100, true)).toBe(9);
 			} finally {
 				availableParallelism.mockRestore();
 			}
