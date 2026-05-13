@@ -156,17 +156,12 @@ function splitCellContent(content: string): string[] {
 	return content.split('\n');
 }
 
-/**
- * Creates a date parts formatter with the specified timezone and locale
- * @param timezone - Timezone to use
- * @param locale - Locale to use for formatting
- * @returns Intl.DateTimeFormat instance
- */
-function createDatePartsFormatter(
-	timezone: string | undefined,
-	locale: string,
-): Intl.DateTimeFormat {
-	return new Intl.DateTimeFormat(locale, {
+function formatDateParts(year: number, month: number, day: number): string {
+	return `${year.toString().padStart(4, '0')}\n${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+}
+
+function createDatePartsFormatter(timezone: string | undefined): Intl.DateTimeFormat {
+	return new Intl.DateTimeFormat(DEFAULT_LOCALE, {
 		year: 'numeric',
 		month: '2-digit',
 		day: '2-digit',
@@ -178,20 +173,27 @@ function createDatePartsFormatter(
  * Formats a date string to compact format with year on first line and month-day on second
  * @param dateStr - Input date string (YYYY-MM-DD or ISO timestamp)
  * @param timezone - Timezone to use for formatting (pass undefined to use system timezone)
- * @param locale - Locale to use for formatting (defaults to sv-SE for YYYY-MM-DD format)
  * @returns Formatted date string with newline separator (YYYY\nMM-DD)
  */
-export function formatDateCompact(dateStr: string, timezone?: string, locale?: string): string {
-	// Check if input is in YYYY-MM-DD format
+export function formatDateCompact(dateStr: string, timezone?: string): string {
 	const isSimpleDateFormat = /^\d{4}-\d{2}-\d{2}$/.test(dateStr);
-	// For YYYY-MM-DD format, append T00:00:00 to parse as local date
-	// Without this, new Date('YYYY-MM-DD') interprets as UTC midnight
+	if (isSimpleDateFormat && (timezone == null || timezone === 'UTC')) {
+		return `${dateStr.slice(0, 4)}\n${dateStr.slice(5)}`;
+	}
+
 	const date = isSimpleDateFormat
 		? timezone != null
 			? new Date(`${dateStr}T00:00:00Z`)
 			: new Date(`${dateStr}T00:00:00`)
 		: new Date(dateStr);
-	const formatter = createDatePartsFormatter(timezone, locale ?? DEFAULT_LOCALE);
+	if (timezone == null) {
+		return formatDateParts(date.getFullYear(), date.getMonth() + 1, date.getDate());
+	}
+	if (timezone === 'UTC') {
+		return formatDateParts(date.getUTCFullYear(), date.getUTCMonth() + 1, date.getUTCDate());
+	}
+
+	const formatter = createDatePartsFormatter(timezone);
 	const parts = formatter.formatToParts(date);
 	const year = parts.find((p) => p.type === 'year')?.value ?? '';
 	const month = parts.find((p) => p.type === 'month')?.value ?? '';
@@ -1287,23 +1289,28 @@ if (import.meta.vitest != null) {
 
 	describe('formatDateCompact', () => {
 		it('should format date to compact format with newline', () => {
-			const result = formatDateCompact('2024-08-04', undefined, 'en-US');
+			const result = formatDateCompact('2024-08-04');
 			expect(result).toBe('2024\n08-04');
 		});
 
 		it('should handle timezone parameter', () => {
-			const result = formatDateCompact('2024-08-04T12:00:00Z', 'UTC', 'en-US');
+			const result = formatDateCompact('2024-08-04T12:00:00Z', 'UTC');
 			expect(result).toBe('2024\n08-04');
 		});
 
 		it('should handle YYYY-MM-DD format dates', () => {
-			const result = formatDateCompact('2024-08-04', undefined, 'en-US');
+			const result = formatDateCompact('2024-08-04');
 			expect(result).toBe('2024\n08-04');
 		});
 
 		it('should handle timezone with YYYY-MM-DD format', () => {
-			const result = formatDateCompact('2024-08-04', 'UTC', 'en-US');
+			const result = formatDateCompact('2024-08-04', 'UTC');
 			expect(result).toBe('2024\n08-04');
+		});
+
+		it('should handle non-UTC timezone with YYYY-MM-DD format', () => {
+			const result = formatDateCompact('2024-08-04', 'America/New_York');
+			expect(result).toBe('2024\n08-03');
 		});
 
 		it('should use default locale when not specified', () => {

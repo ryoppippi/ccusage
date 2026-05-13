@@ -19,6 +19,18 @@ export type SortOrder = 'asc' | 'desc';
 
 const dateFormatterCache = new Map<string, Intl.DateTimeFormat>();
 
+function formatDateParts(year: number, month: number, day: number): string {
+	return `${year.toString().padStart(4, '0')}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+}
+
+function formatLocalDate(date: Date): string {
+	return formatDateParts(date.getFullYear(), date.getMonth() + 1, date.getDate());
+}
+
+function formatUTCDate(date: Date): string {
+	return formatDateParts(date.getUTCFullYear(), date.getUTCMonth() + 1, date.getUTCDate());
+}
+
 function createDateFormatter(timezone: string | undefined): Intl.DateTimeFormat {
 	const cacheKey = timezone ?? '';
 	const cached = dateFormatterCache.get(cacheKey);
@@ -44,11 +56,45 @@ function createDateFormatter(timezone: string | undefined): Intl.DateTimeFormat 
  */
 export function formatDate(dateStr: string, timezone?: string): string {
 	const date = new Date(dateStr);
+	if (timezone == null) {
+		return formatLocalDate(date);
+	}
+	if (timezone === 'UTC') {
+		return formatUTCDate(date);
+	}
 	const formatter = createDateFormatter(timezone);
 	return formatter.format(date);
 }
 
 export function createCachedDateFormatter(timezone?: string): (dateStr: string) => string {
+	if (timezone == null) {
+		const cache = new Map<string, string>();
+		return (dateStr: string): string => {
+			const cacheKey = dateStr.slice(0, 13);
+			const cached = cache.get(cacheKey);
+			if (cached != null) {
+				return cached;
+			}
+			const formatted = formatLocalDate(new Date(dateStr));
+			cache.set(cacheKey, formatted);
+			return formatted;
+		};
+	}
+
+	if (timezone === 'UTC') {
+		const cache = new Map<string, string>();
+		return (dateStr: string): string => {
+			const cacheKey = dateStr.slice(0, 13);
+			const cached = cache.get(cacheKey);
+			if (cached != null) {
+				return cached;
+			}
+			const formatted = formatUTCDate(new Date(dateStr));
+			cache.set(cacheKey, formatted);
+			return formatted;
+		};
+	}
+
 	const formatter = createDateFormatter(timezone);
 	const cache = new Map<string, string>();
 	return (dateStr: string): string => {

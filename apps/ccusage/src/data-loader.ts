@@ -1635,6 +1635,7 @@ type BlockEntryResult = {
 type BlockFileResult = {
 	file: string;
 	timestamp: Date | null;
+	timestampMs: number | null;
 	entries: BlockEntryResult[];
 };
 
@@ -1955,14 +1956,22 @@ async function collectBlockFileResult(
 	calculateCost: CostCalculator,
 ): Promise<BlockFileResult> {
 	let timestamp: Date | null = null;
+	let timestampMs: number | null = null;
 	const entries: Array<BlockEntryResult | undefined> = [];
+
+	const setEarliestTimestamp = (lineTimestamp: Date, lineTimestampMs: number): void => {
+		if (!Number.isNaN(lineTimestampMs) && (timestampMs == null || lineTimestampMs < timestampMs)) {
+			timestamp = lineTimestamp;
+			timestampMs = lineTimestampMs;
+		}
+	};
 
 	await processJSONLFileByLine(file, (line) => {
 		try {
 			if (!line.includes(USAGE_LINE_MARKER)) {
 				const lineTimestamp = getTimestampFromLine(line);
-				if (lineTimestamp != null && (timestamp == null || lineTimestamp < timestamp)) {
-					timestamp = lineTimestamp;
+				if (lineTimestamp != null) {
+					setEarliestTimestamp(lineTimestamp, lineTimestamp.getTime());
 				}
 				return;
 			}
@@ -1970,18 +1979,19 @@ async function collectBlockFileResult(
 			const data = parseUsageDataLine(line);
 			if (data == null) {
 				const lineTimestamp = getTimestampFromLine(line);
-				if (lineTimestamp != null && (timestamp == null || lineTimestamp < timestamp)) {
-					timestamp = lineTimestamp;
+				if (lineTimestamp != null) {
+					setEarliestTimestamp(lineTimestamp, lineTimestamp.getTime());
 				}
 				return;
 			}
-			const lineTimestamp = dateFromIsoTimestamp(data.timestamp) ?? new Date(data.timestamp);
-			if (
-				!Number.isNaN(lineTimestamp.getTime()) &&
-				(timestamp == null || lineTimestamp < timestamp)
-			) {
-				timestamp = lineTimestamp;
-			}
+			const parsedTimestampMs = parseIsoTimestampMs(data.timestamp);
+			const lineTimestamp = Number.isNaN(parsedTimestampMs)
+				? new Date(data.timestamp)
+				: new Date(parsedTimestampMs);
+			setEarliestTimestamp(
+				lineTimestamp,
+				Number.isNaN(parsedTimestampMs) ? lineTimestamp.getTime() : parsedTimestampMs,
+			);
 
 			const createEntry = (cost: number): BlockEntryResult => {
 				const usageLimitResetTime = getUsageLimitResetTime(data);
@@ -2016,6 +2026,7 @@ async function collectBlockFileResult(
 	return {
 		file,
 		timestamp,
+		timestampMs,
 		entries: dedupeEntryMetadataList(entries),
 	};
 }
@@ -2614,16 +2625,16 @@ export async function loadSessionBlockData(options?: LoadOptions): Promise<Sessi
 	}
 
 	fileResults.sort((a, b) => {
-		if (a.timestamp == null && b.timestamp == null) {
+		if (a.timestampMs == null && b.timestampMs == null) {
 			return compareStrings(a.file, b.file);
 		}
-		if (a.timestamp == null) {
+		if (a.timestampMs == null) {
 			return 1;
 		}
-		if (b.timestamp == null) {
+		if (b.timestampMs == null) {
 			return -1;
 		}
-		const timestampDiff = a.timestamp.getTime() - b.timestamp.getTime();
+		const timestampDiff = a.timestampMs - b.timestampMs;
 		return timestampDiff === 0 ? compareStrings(a.file, b.file) : timestampDiff;
 	});
 
