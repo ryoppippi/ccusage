@@ -17,19 +17,15 @@ function calculateTieredCost(
 	totalTokens: number | undefined,
 	basePrice: number | undefined,
 	tieredPrice: number | undefined,
-	threshold: number = DEFAULT_TIERED_THRESHOLD,
 ): number {
 	if (totalTokens == null || totalTokens <= 0) {
 		return 0;
 	}
 
-	if (totalTokens > threshold && tieredPrice != null) {
-		const tokensBelowThreshold = Math.min(totalTokens, threshold);
-		const tokensAboveThreshold = Math.max(0, totalTokens - threshold);
-
-		let tieredCost = tokensAboveThreshold * tieredPrice;
+	if (totalTokens > DEFAULT_TIERED_THRESHOLD && tieredPrice != null) {
+		let tieredCost = (totalTokens - DEFAULT_TIERED_THRESHOLD) * tieredPrice;
 		if (basePrice != null) {
-			tieredCost += tokensBelowThreshold * basePrice;
+			tieredCost += DEFAULT_TIERED_THRESHOLD * basePrice;
 		}
 		return tieredCost;
 	}
