@@ -84,6 +84,7 @@ const REQUEST_ID_MARKER = '"requestId":"';
 const SESSION_ID_MARKER = '"sessionId":"';
 const SPEED_MARKER = '"speed":"';
 const TIMESTAMP_MARKER = '"timestamp":"';
+const TIMESTAMP_MARKER_BUFFER = Buffer.from(TIMESTAMP_MARKER);
 const VERSION_MARKER = '"version":"';
 const VERSION_PATTERN = /^\d+\.\d+\.\d+/;
 function parseTwoDigits(value: string, offset: number): number {
@@ -231,6 +232,28 @@ function getTimestampFromLine(line: string): Date | null {
 	} catch {
 		return null;
 	}
+}
+
+function getTimestampFromBytes(content: Buffer, lineStart: number, lineEnd: number): Date | null {
+	const timestampStart = content.indexOf(TIMESTAMP_MARKER_BUFFER, lineStart);
+	if (timestampStart === -1 || timestampStart >= lineEnd) {
+		return null;
+	}
+
+	const valueStart = timestampStart + TIMESTAMP_MARKER_BUFFER.length;
+	const valueEnd = content.indexOf(34, valueStart);
+	if (valueEnd === -1 || valueEnd > lineEnd) {
+		return null;
+	}
+
+	const timestamp = content.subarray(valueStart, valueEnd).toString('utf8');
+	const parsedTimestampMs = parseIsoTimestampMs(timestamp);
+	if (!Number.isNaN(parsedTimestampMs)) {
+		return new Date(parsedTimestampMs);
+	}
+
+	const date = new Date(timestamp);
+	return Number.isNaN(date.getTime()) ? null : date;
 }
 
 /**
@@ -2008,7 +2031,7 @@ async function collectBlockFileResult(
 		}
 	};
 
-	await processJSONLFileByLine(file, (line) => {
+	const processLine = (line: string): void => {
 		try {
 			if (!line.includes(USAGE_LINE_MARKER)) {
 				const lineTimestamp = getTimestampFromLine(line);
@@ -2083,7 +2106,35 @@ async function collectBlockFileResult(
 				`Skipping invalid JSON line in 5-hour blocks: ${error instanceof Error ? error.message : String(error)}`,
 			);
 		}
-	});
+	};
+
+	const bytes = await readBufferedJSONLBytes(file);
+	if (bytes != null) {
+		const content = Buffer.isBuffer(bytes)
+			? bytes
+			: Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+		let lineStart = 0;
+		let markerIndex = content.indexOf(USAGE_LINE_MARKER_BUFFER);
+		while (lineStart < content.length) {
+			let lineEnd = content.indexOf(10, lineStart);
+			if (lineEnd === -1) {
+				lineEnd = content.length;
+			}
+			const decodeEnd = lineEnd > lineStart && content[lineEnd - 1] === 13 ? lineEnd - 1 : lineEnd;
+			if (markerIndex !== -1 && markerIndex < decodeEnd) {
+				processLine(content.subarray(lineStart, decodeEnd).toString('utf8'));
+				markerIndex = content.indexOf(USAGE_LINE_MARKER_BUFFER, lineEnd + 1);
+			} else {
+				const lineTimestamp = getTimestampFromBytes(content, lineStart, decodeEnd);
+				if (lineTimestamp != null) {
+					setEarliestTimestamp(lineTimestamp, lineTimestamp.getTime());
+				}
+			}
+			lineStart = lineEnd + 1;
+		}
+	} else {
+		await processJSONLFileByLine(file, processLine);
+	}
 
 	return {
 		file,
