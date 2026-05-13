@@ -2618,11 +2618,7 @@ export async function loadSessionBlockData(options?: LoadOptions): Promise<Sessi
 	const claudePaths = toArray(options?.claudePath ?? getClaudePaths());
 
 	// Collect files from all paths
-	const allFiles: string[] = [];
-	for (const claudePath of claudePaths) {
-		const claudeDir = path.join(claudePath, CLAUDE_PROJECTS_DIR_NAME);
-		allFiles.push(...(await collectJsonlFiles(claudeDir)));
-	}
+	const allFiles = (await globUsageFiles(claudePaths)).map((item) => item.file);
 
 	if (allFiles.length === 0) {
 		return [];
