@@ -33,10 +33,13 @@ function floorToHourMs(timestampMs: number): number {
 }
 
 function getChronologicalEntries(entries: LoadedUsageEntry[]): LoadedUsageEntry[] {
+	let previousTimestampMs = getEntryTimestampMs(entries[0]!);
 	for (let index = 1; index < entries.length; index++) {
-		if (getEntryTimestampMs(entries[index - 1]!) > getEntryTimestampMs(entries[index]!)) {
+		const timestampMs = getEntryTimestampMs(entries[index]!);
+		if (previousTimestampMs > timestampMs) {
 			return [...entries].sort((a, b) => getEntryTimestampMs(a) - getEntryTimestampMs(b));
 		}
+		previousTimestampMs = timestampMs;
 	}
 	return entries;
 }
