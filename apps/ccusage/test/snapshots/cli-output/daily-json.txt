@@ -1,0 +1,87 @@
+{
+  "daily": [
+    {
+      "date": "2026-01-09",
+      "inputTokens": 300,
+      "outputTokens": 125,
+      "cacheCreationTokens": 75,
+      "cacheReadTokens": 30,
+      "totalTokens": 530,
+      "totalCost": 0.4600000000000001,
+      "modelsUsed": [
+        "claude-sonnet-4-20250514",
+        "claude-opus-4-20250514-fast"
+      ],
+      "modelBreakdowns": [
+        {
+          "modelName": "claude-opus-4-20250514-fast",
+          "inputTokens": 200,
+          "outputTokens": 75,
+          "cacheCreationTokens": 50,
+          "cacheReadTokens": 20,
+          "cost": 0.3400000000000001
+        },
+        {
+          "modelName": "claude-sonnet-4-20250514",
+          "inputTokens": 100,
+          "outputTokens": 50,
+          "cacheCreationTokens": 25,
+          "cacheReadTokens": 10,
+          "cost": 0.12000000000000001
+        }
+      ]
+    },
+    {
+      "date": "2026-01-10",
+      "inputTokens": 300,
+      "outputTokens": 125,
+      "cacheCreationTokens": 0,
+      "cacheReadTokens": 40,
+      "totalTokens": 465,
+      "totalCost": 0.56,
+      "modelsUsed": [
+        "claude-sonnet-4-20250514"
+      ],
+      "modelBreakdowns": [
+        {
+          "modelName": "claude-sonnet-4-20250514",
+          "inputTokens": 300,
+          "outputTokens": 125,
+          "cacheCreationTokens": 0,
+          "cacheReadTokens": 40,
+          "cost": 0.56
+        }
+      ]
+    },
+    {
+      "date": "2026-02-03",
+      "inputTokens": 130,
+      "outputTokens": 60,
+      "cacheCreationTokens": 15,
+      "cacheReadTokens": 40,
+      "totalTokens": 245,
+      "totalCost": 0.07,
+      "modelsUsed": [
+        "claude-haiku-4-5-20251001"
+      ],
+      "modelBreakdowns": [
+        {
+          "modelName": "claude-haiku-4-5-20251001",
+          "inputTokens": 130,
+          "outputTokens": 60,
+          "cacheCreationTokens": 15,
+          "cacheReadTokens": 40,
+          "cost": 0.07
+        }
+      ]
+    }
+  ],
+  "totals": {
+    "inputTokens": 730,
+    "outputTokens": 310,
+    "cacheCreationTokens": 90,
+    "cacheReadTokens": 110,
+    "totalCost": 1.09,
+    "totalTokens": 1240
+  }
+}
