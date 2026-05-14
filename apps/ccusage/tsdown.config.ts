@@ -24,6 +24,15 @@ export default defineConfig({
 	deps: {
 		onlyBundle: false,
 	},
+	inputOptions: {
+		optimization: {
+			inlineConst: {
+				mode: 'all',
+				pass: 2,
+			},
+		},
+		preserveEntrySignatures: false,
+	},
 	nodeProtocol: true,
 	plugins: [
 		Macros({
