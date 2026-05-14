@@ -1,4 +1,5 @@
 import type { TokenUsageEvent } from '../_types.ts';
+import { compareStrings } from '@ccusage/internal/sort';
 import {
 	addEmptySeparatorRow,
 	formatCurrency,
@@ -122,7 +123,7 @@ export const sessionCommand = define({
 			});
 		}
 
-		sessionData.sort((a, b) => a.lastActivity.localeCompare(b.lastActivity));
+		sessionData.sort((a, b) => compareStrings(a.lastActivity, b.lastActivity));
 
 		const totals = {
 			inputTokens: sessionData.reduce((sum, s) => sum + s.inputTokens, 0),

@@ -2,6 +2,7 @@ import type { TokenUsageDelta, TokenUsageEvent } from './_types.ts';
 import { readFile, stat } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
+import { compareStrings } from '@ccusage/internal/sort';
 import { Result } from '@praha/byethrow';
 import { createFixture } from 'fs-fixture';
 import { glob } from 'tinyglobby';
@@ -366,7 +367,7 @@ export async function loadTokenUsageEvents(options: LoadOptions = {}): Promise<L
 		}
 	}
 
-	events.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+	events.sort((a, b) => compareStrings(a.timestamp, b.timestamp));
 
 	return { events, missingDirectories };
 }

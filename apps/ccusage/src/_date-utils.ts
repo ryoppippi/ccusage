@@ -7,15 +7,10 @@ import type { DayOfWeek, WeekDay } from './_consts.ts';
 import type { WeeklyDate } from './_types.ts';
 import { DEFAULT_LOCALE } from './_consts.ts';
 import { createWeeklyDate } from './_types.ts';
-import { unreachable } from './_utils.ts';
 
+export { sortByDate } from '@ccusage/internal/sort';
 // Re-export formatDateCompact from shared package
 export { formatDateCompact } from '@ccusage/terminal/table';
-
-/**
- * Sort order for date-based sorting
- */
-export type SortOrder = 'asc' | 'desc';
 
 const dateFormatterCache = new Map<string, Intl.DateTimeFormat>();
 
@@ -110,40 +105,6 @@ export function createCachedDateFormatter(timezone?: string): (dateStr: string) 
 }
 
 /**
- * Generic function to sort items by date based on sort order
- * @param items - Array of items to sort
- * @param getDate - Function to extract date/timestamp from item
- * @param order - Sort order (asc or desc)
- * @returns Sorted array
- */
-export function sortByDate<T>(
-	items: T[],
-	getDate: (item: T) => string | Date,
-	order: SortOrder = 'desc',
-): T[] {
-	const itemsWithTime = items.map((item, index) => {
-		const date = getDate(item);
-		return {
-			index,
-			item,
-			time: typeof date === 'string' ? Date.parse(date) : date.getTime(),
-		};
-	});
-	switch (order) {
-		case 'desc':
-			return itemsWithTime
-				.sort((a, b) => b.time - a.time || a.index - b.index)
-				.map(({ item }) => item);
-		case 'asc':
-			return itemsWithTime
-				.sort((a, b) => a.time - b.time || a.index - b.index)
-				.map(({ item }) => item);
-		default:
-			unreachable(order);
-	}
-}
-
-/**
  * Filters items by date range
  * @param items - Array of items to filter
  * @param getDate - Function to extract date string from item
@@ -221,56 +182,6 @@ if (import.meta.vitest != null) {
 		it('uses the default YYYY-MM-DD locale', () => {
 			const result = formatDate('2024-08-04T12:00:00Z');
 			expect(result).toMatch(/^\d{4}-\d{2}-\d{2}$/);
-		});
-	});
-
-	// formatDateCompact tests are in @ccusage/terminal/table.ts
-
-	describe('sortByDate', () => {
-		const testData = [
-			{ id: 1, date: '2024-01-01T10:00:00Z' },
-			{ id: 2, date: '2024-01-03T10:00:00Z' },
-			{ id: 3, date: '2024-01-02T10:00:00Z' },
-		];
-
-		it('should sort by date in descending order by default', () => {
-			const result = sortByDate(testData, (item) => item.date);
-			expect(result.map((item) => item.id)).toEqual([2, 3, 1]);
-		});
-
-		it('should sort by date in ascending order when specified', () => {
-			const result = sortByDate(testData, (item) => item.date, 'asc');
-			expect(result.map((item) => item.id)).toEqual([1, 3, 2]);
-		});
-
-		it('should sort by date in descending order when explicitly specified', () => {
-			const result = sortByDate(testData, (item) => item.date, 'desc');
-			expect(result.map((item) => item.id)).toEqual([2, 3, 1]);
-		});
-
-		it('should handle Date objects', () => {
-			const dateData = [
-				{ id: 1, date: new Date('2024-01-01T10:00:00Z') },
-				{ id: 2, date: new Date('2024-01-03T10:00:00Z') },
-				{ id: 3, date: new Date('2024-01-02T10:00:00Z') },
-			];
-			const result = sortByDate(dateData, (item) => item.date);
-			expect(result.map((item) => item.id)).toEqual([2, 3, 1]);
-		});
-
-		it('keeps original order for equal dates', () => {
-			const tiedData = [
-				{ id: 1, date: '2024-01-01T10:00:00Z' },
-				{ id: 2, date: '2024-01-03T10:00:00Z' },
-				{ id: 3, date: '2024-01-01T10:00:00Z' },
-				{ id: 4, date: '2024-01-03T10:00:00Z' },
-			];
-
-			const descResult = sortByDate(tiedData, (item) => item.date, 'desc');
-			expect(descResult.map((item) => item.id)).toEqual([2, 4, 1, 3]);
-
-			const ascResult = sortByDate(tiedData, (item) => item.date, 'asc');
-			expect(ascResult.map((item) => item.id)).toEqual([1, 3, 2, 4]);
 		});
 	});
 

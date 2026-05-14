@@ -6,6 +6,7 @@ import type {
 	PricingSource,
 	TokenUsageEvent,
 } from './_types.ts';
+import { compareStrings } from '@ccusage/internal/sort';
 import { formatDisplayMonth, isWithinRange, toDateKey, toMonthKey } from './date-utils.ts';
 import { addUsage, calculateCostUSD, createEmptyUsage } from './token-utils.ts';
 
@@ -87,7 +88,7 @@ export async function buildMonthlyReport(
 	const rows: MonthlyReportRow[] = [];
 
 	const sortedSummaries = Array.from(summaries.values()).sort((a, b) =>
-		a.month.localeCompare(b.month),
+		compareStrings(a.month, b.month),
 	);
 	for (const summary of sortedSummaries) {
 		let cost = 0;

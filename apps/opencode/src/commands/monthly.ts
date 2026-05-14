@@ -1,4 +1,5 @@
 import { LiteLLMPricingFetcher } from '@ccusage/internal/pricing';
+import { compareStrings } from '@ccusage/internal/sort';
 import {
 	addEmptySeparatorRow,
 	formatCurrency,
@@ -90,7 +91,7 @@ export const monthlyCommand = define({
 			});
 		}
 
-		monthlyData.sort((a, b) => a.month.localeCompare(b.month));
+		monthlyData.sort((a, b) => compareStrings(a.month, b.month));
 
 		const totals = {
 			inputTokens: monthlyData.reduce((sum, d) => sum + d.inputTokens, 0),

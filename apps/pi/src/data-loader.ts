@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import readline from 'node:readline';
+import { compareStringsByOrder } from '@ccusage/internal/sort';
 import { glob } from 'tinyglobby';
 import * as v from 'valibot';
 import {
@@ -331,9 +332,7 @@ export async function loadPiAgentDailyData(options?: LoadOptions): Promise<Daily
 	}
 
 	const order = options?.order ?? 'desc';
-	results.sort((a, b) =>
-		order === 'asc' ? a.date.localeCompare(b.date) : b.date.localeCompare(a.date),
-	);
+	results.sort((a, b) => compareStringsByOrder(a.date, b.date, order));
 
 	return results;
 }
@@ -380,11 +379,7 @@ export async function loadPiAgentSessionData(
 	}
 
 	const order = options?.order ?? 'desc';
-	results.sort((a, b) =>
-		order === 'asc'
-			? a.lastActivity.localeCompare(b.lastActivity)
-			: b.lastActivity.localeCompare(a.lastActivity),
-	);
+	results.sort((a, b) => compareStringsByOrder(a.lastActivity, b.lastActivity, order));
 
 	return results;
 }
@@ -424,9 +419,7 @@ export async function loadPiAgentMonthlyData(
 	}
 
 	const order = options?.order ?? 'desc';
-	results.sort((a, b) =>
-		order === 'asc' ? a.month.localeCompare(b.month) : b.month.localeCompare(a.month),
-	);
+	results.sort((a, b) => compareStringsByOrder(a.month, b.month, order));
 
 	return results;
 }

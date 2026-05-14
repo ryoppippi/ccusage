@@ -1,4 +1,5 @@
 import { LiteLLMPricingFetcher } from '@ccusage/internal/pricing';
+import { compareStrings } from '@ccusage/internal/sort';
 import {
 	addEmptySeparatorRow,
 	formatCurrency,
@@ -90,7 +91,7 @@ export const dailyCommand = define({
 			});
 		}
 
-		dailyData.sort((a, b) => a.date.localeCompare(b.date));
+		dailyData.sort((a, b) => compareStrings(a.date, b.date));
 
 		const totals = {
 			inputTokens: dailyData.reduce((sum, d) => sum + d.inputTokens, 0),

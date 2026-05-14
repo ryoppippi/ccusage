@@ -10,6 +10,7 @@
 		"./logger": "./src/logger.ts",
 		"./format": "./src/format.ts",
 		"./json-file-state": "./src/json-file-state.ts",
+		"./sort": "./src/sort.ts",
 		"./constants": "./src/constants.ts"
 	},
 	"scripts": {

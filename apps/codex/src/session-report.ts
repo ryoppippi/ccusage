@@ -6,6 +6,7 @@ import type {
 	SessionUsageSummary,
 	TokenUsageEvent,
 } from './_types.ts';
+import { compareStrings } from '@ccusage/internal/sort';
 import { isWithinRange, toDateKey } from './date-utils.ts';
 import { addUsage, calculateCostUSD, createEmptyUsage } from './token-utils.ts';
 
@@ -106,7 +107,7 @@ export async function buildSessionReport(
 	}
 
 	const sortedSummaries = Array.from(summaries.values()).sort((a, b) =>
-		a.lastTimestamp.localeCompare(b.lastTimestamp),
+		compareStrings(a.lastTimestamp, b.lastTimestamp),
 	);
 
 	const rows: SessionReportRow[] = [];

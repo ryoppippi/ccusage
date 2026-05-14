@@ -12,6 +12,7 @@ import type { TokenUsageEvent } from './_types.ts';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
+import { compareStrings } from '@ccusage/internal/sort';
 import { Result } from '@praha/byethrow';
 import { createFixture } from 'fs-fixture';
 import { isDirectorySync } from 'path-type';
@@ -257,7 +258,7 @@ export async function loadAmpUsageEvents(options: LoadOptions = {}): Promise<Loa
 	}
 
 	// Sort events by timestamp
-	events.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+	events.sort((a, b) => compareStrings(a.timestamp, b.timestamp));
 
 	return { events, threads, missingDirectories };
 }

@@ -6,6 +6,7 @@ import type {
 	PricingSource,
 	TokenUsageEvent,
 } from './_types.ts';
+import { compareStrings } from '@ccusage/internal/sort';
 import { formatDisplayDate, isWithinRange, toDateKey } from './date-utils.ts';
 import { addUsage, calculateCostUSD, createEmptyUsage } from './token-utils.ts';
 
@@ -86,7 +87,7 @@ export async function buildDailyReport(
 	const rows: DailyReportRow[] = [];
 
 	const sortedSummaries = Array.from(summaries.values()).sort((a, b) =>
-		a.date.localeCompare(b.date),
+		compareStrings(a.date, b.date),
 	);
 	for (const summary of sortedSummaries) {
 		let cost = 0;

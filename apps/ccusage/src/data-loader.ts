@@ -21,6 +21,7 @@ import process from 'node:process';
 import { createInterface } from 'node:readline';
 import { isMainThread, parentPort, Worker, workerData } from 'node:worker_threads';
 import { toArray } from '@antfu/utils';
+import { compareStrings } from '@ccusage/internal/sort';
 import { Result } from '@praha/byethrow';
 import { createFixture } from 'fs-fixture';
 import { isDirectorySync } from 'path-type';
@@ -1123,10 +1124,6 @@ async function filterFilesByMtime<T>(
 	);
 
 	return items.filter((_, index) => keepFlags[index] === true);
-}
-
-function compareStrings(a: string, b: string): number {
-	return a < b ? -1 : a > b ? 1 : 0;
 }
 
 /**

@@ -1,4 +1,5 @@
 import { LiteLLMPricingFetcher } from '@ccusage/internal/pricing';
+import { compareStrings } from '@ccusage/internal/sort';
 import {
 	addEmptySeparatorRow,
 	formatCurrency,
@@ -115,7 +116,7 @@ export const weeklyCommand = define({
 			});
 		}
 
-		weeklyData.sort((a, b) => a.week.localeCompare(b.week));
+		weeklyData.sort((a, b) => compareStrings(a.week, b.week));
 
 		const totals = {
 			inputTokens: weeklyData.reduce((sum, d) => sum + d.inputTokens, 0),
