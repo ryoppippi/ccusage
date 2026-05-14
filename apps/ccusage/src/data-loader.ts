@@ -1537,27 +1537,30 @@ export type GlobResult = {
 
 export async function collectJsonlFiles(root: string): Promise<string[]> {
 	const files: string[] = [];
-	const walk = async (dir: string): Promise<void> => {
+	const walkDirectory = async (dir: string): Promise<void> => {
 		let entries;
 		try {
 			entries = await readdir(dir, { withFileTypes: true });
 		} catch {
 			return;
 		}
-		let directoryWalks: Array<Promise<void>> | undefined;
+		let childDirectoryWalks: Array<Promise<void>> | undefined;
 		for (const entry of entries) {
 			const filePath = path.join(dir, entry.name);
 			if (entry.isDirectory()) {
-				(directoryWalks ??= []).push(walk(filePath));
+				if (childDirectoryWalks == null) {
+					childDirectoryWalks = [];
+				}
+				childDirectoryWalks.push(walkDirectory(filePath));
 			} else if (entry.isFile() && entry.name.endsWith('.jsonl')) {
 				files.push(filePath);
 			}
 		}
-		if (directoryWalks != null) {
-			await Promise.all(directoryWalks);
+		if (childDirectoryWalks != null) {
+			await Promise.all(childDirectoryWalks);
 		}
 	};
-	await walk(root);
+	await walkDirectory(root);
 	return files.sort(compareStrings);
 }
 
