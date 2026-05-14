@@ -375,6 +375,29 @@ function isOptionalBoolean(value: unknown): value is boolean | undefined {
 	return value === undefined || typeof value === 'boolean';
 }
 
+function sumUsageTokens(usage: UsageData['message']['usage']): number {
+	return (
+		usage.input_tokens +
+		usage.output_tokens +
+		(usage.cache_creation_input_tokens ?? 0) +
+		(usage.cache_read_input_tokens ?? 0)
+	);
+}
+
+function formatUsageModelName(
+	model: UsageData['message']['model'],
+	speed: UsageData['message']['usage']['speed'],
+): string | undefined {
+	return model == null ? undefined : speed === 'fast' ? `${model}-fast` : model;
+}
+
+function formatUsageModelNameOrUnknown(
+	model: UsageData['message']['model'],
+	speed: UsageData['message']['usage']['speed'],
+): string {
+	return formatUsageModelName(model, speed) ?? 'unknown';
+}
+
 function parseUsageDataFast(value: unknown): UsageData | null {
 	if (!isRecord(value)) {
 		return null;
@@ -868,11 +891,7 @@ type BunRuntimeLike = {
 };
 
 function getDisplayModelName(data: UsageData): string | undefined {
-	const model = data.message.model;
-	if (model == null) {
-		return undefined;
-	}
-	return data.message.usage.speed === 'fast' ? `${model}-fast` : model;
+	return formatUsageModelName(data.message.model, data.message.usage.speed);
 }
 
 function createEmptyTokenStats(): TokenStats {
@@ -2000,11 +2019,7 @@ async function collectDailyEntriesFromFile(
 			const date = formatUsageDate(data.timestamp);
 			const uniqueHash = createUniqueHash(data);
 			const usage = data.message.usage;
-			const tokenTotal =
-				usage.input_tokens +
-				usage.output_tokens +
-				(usage.cache_creation_input_tokens ?? 0) +
-				(usage.cache_read_input_tokens ?? 0);
+			const tokenTotal = sumUsageTokens(usage);
 			const hasSpeed = usage.speed != null;
 			let existingEntryIndex: number | undefined;
 			if (uniqueHash != null) {
@@ -2025,7 +2040,7 @@ async function collectDailyEntriesFromFile(
 				outputTokens: usage.output_tokens,
 				cacheCreationTokens: usage.cache_creation_input_tokens ?? 0,
 				cacheReadTokens: usage.cache_read_input_tokens ?? 0,
-				model: model == null ? undefined : usage.speed === 'fast' ? `${model}-fast` : model,
+				model: formatUsageModelName(model, usage.speed),
 				project,
 				uniqueHash,
 				tokenTotal,
@@ -2069,11 +2084,7 @@ async function collectSessionEntriesFromFile(
 			const immediateCost = getImmediateCostForEntry(data, mode);
 			const uniqueHash = createUniqueHash(data);
 			const usage = data.message.usage;
-			const tokenTotal =
-				usage.input_tokens +
-				usage.output_tokens +
-				(usage.cache_creation_input_tokens ?? 0) +
-				(usage.cache_read_input_tokens ?? 0);
+			const tokenTotal = sumUsageTokens(usage);
 			const hasSpeed = usage.speed != null;
 			let existingEntryIndex: number | undefined;
 			if (uniqueHash != null) {
@@ -2093,7 +2104,7 @@ async function collectSessionEntriesFromFile(
 				projectPath,
 				cost: immediateCost ?? calculateCost(data),
 				timestamp: data.timestamp,
-				model: model == null ? undefined : usage.speed === 'fast' ? `${model}-fast` : model,
+				model: formatUsageModelName(model, usage.speed),
 				inputTokens: usage.input_tokens,
 				outputTokens: usage.output_tokens,
 				cacheCreationTokens: usage.cache_creation_input_tokens ?? 0,
@@ -2148,11 +2159,7 @@ async function collectBlockFileResult(
 
 			const uniqueHash = createUniqueHash(data);
 			const usage = data.message.usage;
-			const tokenTotal =
-				usage.input_tokens +
-				usage.output_tokens +
-				(usage.cache_creation_input_tokens ?? 0) +
-				(usage.cache_read_input_tokens ?? 0);
+			const tokenTotal = sumUsageTokens(usage);
 			const hasSpeed = usage.speed != null;
 			let existingEntryIndex: number | undefined;
 			if (uniqueHash != null) {
@@ -2180,7 +2187,7 @@ async function collectBlockFileResult(
 						cacheReadInputTokens: usage.cache_read_input_tokens ?? 0,
 					},
 					costUSD: calculateCost(data),
-					model: model == null ? 'unknown' : usage.speed === 'fast' ? `${model}-fast` : model,
+					model: formatUsageModelNameOrUnknown(model, usage.speed),
 					version: data.version,
 					usageLimitResetTime: usageLimitResetTime ?? undefined,
 				},
@@ -3056,6 +3063,17 @@ if (import.meta.vitest != null) {
 	});
 
 	describe('getDisplayModelName', () => {
+		it('sums all token fields used for dedupe preference', () => {
+			expect(
+				sumUsageTokens({
+					input_tokens: 100,
+					output_tokens: 50,
+					cache_creation_input_tokens: 25,
+					cache_read_input_tokens: 10,
+				}),
+			).toBe(185);
+		});
+
 		it('returns model name as-is for standard speed', () => {
 			const data: UsageData = {
 				timestamp: createISOTimestamp('2024-01-01T10:00:00Z'),
