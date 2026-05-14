@@ -72,7 +72,7 @@ ccusage daily --json > usage-report.json
 
 ## LOG_LEVEL
 
-Controls the verbosity of log output. ccusage uses [consola](https://github.com/unjs/consola) for logging under the hood.
+Controls the verbosity of log output.
 
 ### Log Levels
 

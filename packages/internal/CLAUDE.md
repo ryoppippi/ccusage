@@ -22,7 +22,7 @@ This package contains shared internal utilities for the ccusage monorepo.
 
 - `./pricing` - LiteLLM pricing fetcher and utilities
 - `./pricing-fetch-utils` - Pricing fetch helper functions
-- `./logger` - Logger factory using consola with LOG_LEVEL support
+- `./logger` - Logger factory with LOG_LEVEL support
 - `./format` - Number formatting utilities (formatTokens, formatCurrency)
 - `./constants` - Shared constants (MILLION)
 
@@ -56,7 +56,6 @@ When adding new shared utilities:
 This package has minimal runtime dependencies that get bundled:
 
 - `@praha/byethrow` - Functional error handling
-- `consola` - Logging
 - `valibot` - Schema validation
 
 ## Pricing Implementation Notes

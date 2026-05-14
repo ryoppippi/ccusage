@@ -1,8 +1,8 @@
 /**
  * @fileoverview Logging utilities for the ccusage application
  *
- * This module provides configured logger instances using consola for consistent
- * logging throughout the application with package name tagging.
+ * This module provides configured logger instances for consistent logging
+ * throughout the application with package name tagging.
  *
  * @module logger
  */

@@ -68,7 +68,7 @@ npx @ccusage/opencode@latest daily --compact
 Useful environment variables:
 
 - `OPENCODE_DATA_DIR` – override the OpenCode data directory (defaults to `~/.local/share/opencode`)
-- `LOG_LEVEL` – control consola log verbosity (0 silent … 5 trace)
+- `LOG_LEVEL` – control log verbosity (0 silent … 5 trace)
 
 ## Features
 

@@ -19,7 +19,6 @@
 	},
 	"dependencies": {
 		"@praha/byethrow": "catalog:runtime",
-		"consola": "catalog:runtime",
 		"valibot": "catalog:runtime"
 	},
 	"devDependencies": {
