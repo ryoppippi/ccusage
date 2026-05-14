@@ -32,6 +32,15 @@ function floorToHourMs(timestampMs: number): number {
 	return Math.floor(timestampMs / (60 * 60 * 1000)) * 60 * 60 * 1000;
 }
 
+function getChronologicalEntries(entries: LoadedUsageEntry[]): LoadedUsageEntry[] {
+	for (let index = 1; index < entries.length; index++) {
+		if (getEntryTimestampMs(entries[index - 1]!) > getEntryTimestampMs(entries[index]!)) {
+			return [...entries].sort((a, b) => getEntryTimestampMs(a) - getEntryTimestampMs(b));
+		}
+	}
+	return entries;
+}
+
 /**
  * Aggregated token counts for different token types
  */
@@ -94,9 +103,7 @@ export function identifySessionBlocks(
 
 	const sessionDurationMs = sessionDurationHours * 60 * 60 * 1000;
 	const blocks: SessionBlock[] = [];
-	const sortedEntries = [...entries].sort(
-		(a, b) => getEntryTimestampMs(a) - getEntryTimestampMs(b),
-	);
+	const sortedEntries = getChronologicalEntries(entries);
 
 	let currentBlockStartMs: number | null = null;
 	let currentBlockEntries: LoadedUsageEntry[] = [];
