@@ -7,10 +7,15 @@ import { getStringWidth } from './text-width.ts';
  * en-CA provides YYYY-MM-DD ISO format
  */
 const DEFAULT_LOCALE = 'en-CA';
-const NUMBER_FORMATTER = new Intl.NumberFormat('en-US');
+let numberFormatter: Intl.NumberFormat | undefined;
 const formattedNumberCache = new Map<number, string>();
 const formattedModelNameCache = new Map<string, string>();
 const COLOR_RESET = '\x1B[39m';
+
+function getNumberFormatter(): Intl.NumberFormat {
+	numberFormatter ??= new Intl.NumberFormat('en-US');
+	return numberFormatter;
+}
 
 function splitAnsiSequence(text: string, index: number): string | null {
 	if (text.charCodeAt(index) !== 27 || text.charCodeAt(index + 1) !== 91) {
@@ -551,7 +556,7 @@ export function formatNumber(num: number): string {
 	if (cached != null) {
 		return cached;
 	}
-	const formatted = NUMBER_FORMATTER.format(num);
+	const formatted = getNumberFormatter().format(num);
 	formattedNumberCache.set(num, formatted);
 	return formatted;
 }
