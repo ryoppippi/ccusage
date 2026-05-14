@@ -33,6 +33,13 @@ export default defineConfig({
 		},
 		preserveEntrySignatures: false,
 	},
+	outputOptions: {
+		comments: {
+			legal: true,
+			annotation: true,
+			jsdoc: false,
+		},
+	},
 	nodeProtocol: true,
 	plugins: [
 		Macros({
