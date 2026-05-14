@@ -39,7 +39,7 @@ jobs:
 
       - name: Compare fixture performance
         run: |
-          nix develop --command ./apps/ccusage/scripts/compare-pr-performance.ts \
+          nix develop --command pnpm exec bun apps/ccusage/scripts/compare-pr-performance.ts \
             --base-dir base \
             --head-dir . \
             --fixture-dir apps/ccusage/test/fixtures/claude \
@@ -54,4 +54,4 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
-        run: nix develop --command ./.github/scripts/upsert-pr-comment.ts
+        run: nix develop --command pnpm exec bun .github/scripts/upsert-pr-comment.ts
