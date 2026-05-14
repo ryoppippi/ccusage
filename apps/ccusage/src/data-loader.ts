@@ -1544,16 +1544,16 @@ export async function collectJsonlFiles(root: string): Promise<string[]> {
 		} catch {
 			return;
 		}
-		await Promise.all(
-			entries.map(async (entry) => {
-				const filePath = path.join(dir, entry.name);
-				if (entry.isDirectory()) {
-					await walk(filePath);
-				} else if (entry.isFile() && entry.name.endsWith('.jsonl')) {
-					files.push(filePath);
-				}
-			}),
-		);
+		const directoryWalks: Array<Promise<void>> = [];
+		for (const entry of entries) {
+			const filePath = path.join(dir, entry.name);
+			if (entry.isDirectory()) {
+				directoryWalks.push(walk(filePath));
+			} else if (entry.isFile() && entry.name.endsWith('.jsonl')) {
+				files.push(filePath);
+			}
+		}
+		await Promise.all(directoryWalks);
 	};
 	await walk(root);
 	return files.sort(compareStrings);
