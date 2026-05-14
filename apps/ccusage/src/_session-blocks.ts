@@ -186,7 +186,7 @@ function createBlock(
 	};
 
 	let costUSD = 0;
-	const models: string[] = [];
+	const models = new Set<string>();
 	let usageLimitResetTime: Date | undefined;
 
 	for (const entry of entries) {
@@ -196,7 +196,7 @@ function createBlock(
 		tokenCounts.cacheReadInputTokens += entry.usage.cacheReadInputTokens;
 		costUSD += entry.costUSD ?? 0;
 		usageLimitResetTime = entry.usageLimitResetTime ?? usageLimitResetTime;
-		models.push(entry.model);
+		models.add(entry.model);
 	}
 
 	return {
@@ -208,7 +208,7 @@ function createBlock(
 		entries,
 		tokenCounts,
 		costUSD,
-		models: Array.from(new Set(models)),
+		models: Array.from(models),
 		usageLimitResetTime,
 	};
 }
