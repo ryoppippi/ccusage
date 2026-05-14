@@ -32,10 +32,10 @@ ccusage session --id session-abc123-def456
 ccusage session --id session-abc123-def456 --json
 
 # Extract just the cost using jq
-ccusage session --id session-abc123-def456 --json --jq '.totalCost'
+ccusage session --id session-abc123-def456 --json | jq '.totalCost'
 
 # Use in a custom statusline script
-COST=$(ccusage session --id "$SESSION_ID" --json --jq '.totalCost')
+COST=$(ccusage session --id "$SESSION_ID" --json | jq '.totalCost')
 echo "Current session: \$${COST}"
 ```
 

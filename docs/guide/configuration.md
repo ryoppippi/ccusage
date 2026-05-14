@@ -160,11 +160,10 @@ ccusage daily --timezone UTC --since 20250101
 Control output presentation:
 
 - **JSON**: Machine-readable output with `--json`
-- **JQ Filtering**: Process JSON with `--jq`
 - **Debug**: Show detailed information with `--debug`
 
 ```bash
-ccusage daily --json --jq ".data[] | select(.cost > 10)"
+ccusage daily --json | jq ".data[] | select(.cost > 10)"
 ```
 
 ### Project Analysis

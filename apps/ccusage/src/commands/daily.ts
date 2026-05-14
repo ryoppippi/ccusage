@@ -7,13 +7,11 @@ import {
 	formatUsageDataRow,
 	pushBreakdownRows,
 } from '@ccusage/terminal/table';
-import { Result } from '@praha/byethrow';
 import { define } from 'gunshi';
 import pc from 'picocolors';
 import { loadConfig, mergeConfigWithArgs } from '../_config-loader-tokens.ts';
 import { groupByProject, groupDataByProject } from '../_daily-grouping.ts';
 import { formatDateCompact } from '../_date-utils.ts';
-import { processWithJq } from '../_jq-processor.ts';
 import { formatProjectName } from '../_project-names.ts';
 import { sharedCommandConfig } from '../_shared-args.ts';
 import { calculateTotals, createTotalsObject, getTotalTokens } from '../calculate-cost.ts';
@@ -69,8 +67,7 @@ export const dailyCommand = define({
 			}
 		}
 
-		// --jq implies --json
-		const useJson = Boolean(mergedOptions.json) || mergedOptions.jq != null;
+		const useJson = Boolean(mergedOptions.json);
 		if (useJson) {
 			logger.level = 0;
 		}
@@ -122,17 +119,7 @@ export const dailyCommand = define({
 							totals: createTotalsObject(totals),
 						};
 
-			// Process with jq if specified
-			if (mergedOptions.jq != null) {
-				const jqResult = await processWithJq(jsonOutput, mergedOptions.jq);
-				if (Result.isFailure(jqResult)) {
-					logger.error(jqResult.error.message);
-					process.exit(1);
-				}
-				log(jqResult.value);
-			} else {
-				log(JSON.stringify(jsonOutput, null, 2));
-			}
+			log(JSON.stringify(jsonOutput, null, 2));
 		} else {
 			// Print header
 			logger.box('Claude Code Token Usage Report - Daily');

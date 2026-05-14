@@ -94,11 +94,6 @@ export const sharedArgs = {
 		description:
 			'Timezone for date grouping (e.g., UTC, America/New_York, Asia/Tokyo). Default: system timezone',
 	},
-	jq: {
-		type: 'string',
-		short: 'q',
-		description: 'Process JSON output with jq command (requires jq binary, implies --json)',
-	},
 	config: {
 		type: 'string',
 		description: 'Path to configuration file (default: auto-discovery)',

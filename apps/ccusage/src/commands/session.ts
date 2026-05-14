@@ -7,11 +7,9 @@ import {
 	formatUsageDataRow,
 	pushBreakdownRows,
 } from '@ccusage/terminal/table';
-import { Result } from '@praha/byethrow';
 import { define } from 'gunshi';
 import { loadConfig, mergeConfigWithArgs } from '../_config-loader-tokens.ts';
 import { formatDateCompact } from '../_date-utils.ts';
-import { processWithJq } from '../_jq-processor.ts';
 import { sharedCommandConfig } from '../_shared-args.ts';
 import { calculateTotals, createTotalsObject, getTotalTokens } from '../calculate-cost.ts';
 import { loadSessionData } from '../data-loader.ts';
@@ -40,8 +38,7 @@ export const sessionCommand = define({
 		const config = loadConfig(ctx.values.config, ctx.values.debug);
 		const mergedOptions: typeof ctx.values = mergeConfigWithArgs(ctx, config, ctx.values.debug);
 
-		// --jq implies --json
-		const useJson = mergedOptions.json || mergedOptions.jq != null;
+		const useJson = mergedOptions.json;
 		if (useJson) {
 			logger.level = 0;
 		}
@@ -54,7 +51,6 @@ export const sessionCommand = define({
 						id: mergedOptions.id,
 						mode: mergedOptions.mode,
 						offline: mergedOptions.offline,
-						jq: mergedOptions.jq,
 						timezone: mergedOptions.timezone,
 					},
 				},
@@ -109,17 +105,7 @@ export const sessionCommand = define({
 				totals: createTotalsObject(totals),
 			};
 
-			// Process with jq if specified
-			if (ctx.values.jq != null) {
-				const jqResult = await processWithJq(jsonOutput, ctx.values.jq);
-				if (Result.isFailure(jqResult)) {
-					logger.error(jqResult.error.message);
-					process.exit(1);
-				}
-				log(jqResult.value);
-			} else {
-				log(JSON.stringify(jsonOutput, null, 2));
-			}
+			log(JSON.stringify(jsonOutput, null, 2));
 		} else {
 			// Print header
 			logger.box('Claude Code Token Usage Report - By Session');

@@ -2,9 +2,7 @@ import type { CostMode } from '../_types.ts';
 import type { UsageData } from '../data-loader.ts';
 import process from 'node:process';
 import { formatCurrency, formatNumber, ResponsiveTable } from '@ccusage/terminal/table';
-import { Result } from '@praha/byethrow';
 import { formatDateCompact } from '../_date-utils.ts';
-import { processWithJq } from '../_jq-processor.ts';
 import { loadSessionUsageById } from '../data-loader.ts';
 import { log, logger } from '../logger.ts';
 
@@ -13,7 +11,6 @@ export type SessionIdContext = {
 		id: string;
 		mode: CostMode;
 		offline: boolean;
-		jq?: string;
 		timezone?: string;
 	};
 };
@@ -55,16 +52,7 @@ export async function handleSessionIdLookup(
 			})),
 		};
 
-		if (ctx.values.jq != null) {
-			const jqResult = await processWithJq(jsonOutput, ctx.values.jq);
-			if (Result.isFailure(jqResult)) {
-				logger.error(jqResult.error.message);
-				process.exit(1);
-			}
-			log(jqResult.value);
-		} else {
-			log(JSON.stringify(jsonOutput, null, 2));
-		}
+		log(JSON.stringify(jsonOutput, null, 2));
 	} else {
 		logger.box(`Claude Code Session Usage - ${ctx.values.id}`);
 

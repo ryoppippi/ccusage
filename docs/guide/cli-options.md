@@ -205,19 +205,17 @@ ccusage statusline --cache
 ccusage statusline --refresh-interval 5
 ```
 
-## JSON Output Options
-
-When using `--json` output, additional processing options are available:
+## JSON Output
 
 ```bash
-# Apply jq filter to JSON output
-ccusage daily --json --jq ".data[]"
+# Print JSON output
+ccusage daily --json
 
-# Filter high-cost days
-ccusage daily --json --jq ".data[] | select(.cost > 10)"
+# Pipe JSON output to jq
+ccusage daily --json | jq ".data[]"
 
 # Extract specific fields
-ccusage session --json --jq ".data[] | {date, cost}"
+ccusage session --json | jq ".data[] | {date, cost}"
 ```
 
 ## Option Precedence
@@ -256,7 +254,7 @@ ccusage daily --config ./team-config.json
 ccusage daily --timezone UTC
 
 # Generate shareable report
-ccusage weekly --json --jq ".summary"
+ccusage weekly --json
 ```
 
 ### Cost Monitoring

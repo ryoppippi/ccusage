@@ -78,7 +78,6 @@
 		"get-stdin": "catalog:runtime",
 		"gunshi": "catalog:runtime",
 		"mitata": "catalog:testing",
-		"nano-spawn": "catalog:runtime",
 		"p-limit": "catalog:runtime",
 		"path-type": "catalog:runtime",
 		"picocolors": "catalog:runtime",

@@ -145,8 +145,7 @@ The `defaults` section sets default values for all commands:
 		"order": "asc",
 		"breakdown": false,
 		"offline": false,
-		"timezone": "UTC",
-		"jq": ".data[]"
+		"timezone": "UTC"
 	}
 }
 ```

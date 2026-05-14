@@ -87,11 +87,6 @@
 							"description": "Timezone for date grouping (e.g., UTC, America/New_York, Asia/Tokyo). Default: system timezone",
 							"markdownDescription": "Timezone for date grouping (e.g., UTC, America/New_York, Asia/Tokyo). Default: system timezone"
 						},
-						"jq": {
-							"type": "string",
-							"description": "Process JSON output with jq command (requires jq binary, implies --json)",
-							"markdownDescription": "Process JSON output with jq command (requires jq binary, implies --json)"
-						},
 						"compact": {
 							"type": "boolean",
 							"description": "Force compact mode for narrow displays (better for screenshots)",
@@ -183,11 +178,6 @@
 									"type": "string",
 									"description": "Timezone for date grouping (e.g., UTC, America/New_York, Asia/Tokyo). Default: system timezone",
 									"markdownDescription": "Timezone for date grouping (e.g., UTC, America/New_York, Asia/Tokyo). Default: system timezone"
-								},
-								"jq": {
-									"type": "string",
-									"description": "Process JSON output with jq command (requires jq binary, implies --json)",
-									"markdownDescription": "Process JSON output with jq command (requires jq binary, implies --json)"
 								},
 								"compact": {
 									"type": "boolean",
@@ -292,11 +282,6 @@
 									"description": "Timezone for date grouping (e.g., UTC, America/New_York, Asia/Tokyo). Default: system timezone",
 									"markdownDescription": "Timezone for date grouping (e.g., UTC, America/New_York, Asia/Tokyo). Default: system timezone"
 								},
-								"jq": {
-									"type": "string",
-									"description": "Process JSON output with jq command (requires jq binary, implies --json)",
-									"markdownDescription": "Process JSON output with jq command (requires jq binary, implies --json)"
-								},
 								"compact": {
 									"type": "boolean",
 									"description": "Force compact mode for narrow displays (better for screenshots)",
@@ -383,11 +368,6 @@
 									"type": "string",
 									"description": "Timezone for date grouping (e.g., UTC, America/New_York, Asia/Tokyo). Default: system timezone",
 									"markdownDescription": "Timezone for date grouping (e.g., UTC, America/New_York, Asia/Tokyo). Default: system timezone"
-								},
-								"jq": {
-									"type": "string",
-									"description": "Process JSON output with jq command (requires jq binary, implies --json)",
-									"markdownDescription": "Process JSON output with jq command (requires jq binary, implies --json)"
 								},
 								"compact": {
 									"type": "boolean",
@@ -484,11 +464,6 @@
 									"description": "Timezone for date grouping (e.g., UTC, America/New_York, Asia/Tokyo). Default: system timezone",
 									"markdownDescription": "Timezone for date grouping (e.g., UTC, America/New_York, Asia/Tokyo). Default: system timezone"
 								},
-								"jq": {
-									"type": "string",
-									"description": "Process JSON output with jq command (requires jq binary, implies --json)",
-									"markdownDescription": "Process JSON output with jq command (requires jq binary, implies --json)"
-								},
 								"compact": {
 									"type": "boolean",
 									"description": "Force compact mode for narrow displays (better for screenshots)",
@@ -580,11 +555,6 @@
 									"type": "string",
 									"description": "Timezone for date grouping (e.g., UTC, America/New_York, Asia/Tokyo). Default: system timezone",
 									"markdownDescription": "Timezone for date grouping (e.g., UTC, America/New_York, Asia/Tokyo). Default: system timezone"
-								},
-								"jq": {
-									"type": "string",
-									"description": "Process JSON output with jq command (requires jq binary, implies --json)",
-									"markdownDescription": "Process JSON output with jq command (requires jq binary, implies --json)"
 								},
 								"compact": {
 									"type": "boolean",

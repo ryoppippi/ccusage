@@ -6,7 +6,6 @@ import {
 	formatNumber,
 	ResponsiveTable,
 } from '@ccusage/terminal/table';
-import { Result } from '@praha/byethrow';
 import { define } from 'gunshi';
 import pc from 'picocolors';
 import { loadConfig, mergeConfigWithArgs } from '../_config-loader-tokens.ts';
@@ -16,7 +15,6 @@ import {
 	BLOCKS_WARNING_THRESHOLD,
 	DEFAULT_RECENT_DAYS,
 } from '../_consts.ts';
-import { processWithJq } from '../_jq-processor.ts';
 import {
 	calculateBurnRate,
 	DEFAULT_SESSION_DURATION_HOURS,
@@ -151,8 +149,7 @@ export const blocksCommand = define({
 		const config = loadConfig(ctx.values.config, ctx.values.debug);
 		const mergedOptions = mergeConfigWithArgs(ctx, config, ctx.values.debug);
 
-		// --jq implies --json
-		const useJson = mergedOptions.json || mergedOptions.jq != null;
+		const useJson = mergedOptions.json;
 		if (useJson) {
 			logger.level = 0;
 		}
@@ -265,17 +262,7 @@ export const blocksCommand = define({
 				}),
 			};
 
-			// Process with jq if specified
-			if (ctx.values.jq != null) {
-				const jqResult = await processWithJq(jsonOutput, ctx.values.jq);
-				if (Result.isFailure(jqResult)) {
-					logger.error(jqResult.error.message);
-					process.exit(1);
-				}
-				log(jqResult.value);
-			} else {
-				log(JSON.stringify(jsonOutput, null, 2));
-			}
+			log(JSON.stringify(jsonOutput, null, 2));
 		} else {
 			// Table output
 			if (ctx.values.active && blocks.length === 1) {
