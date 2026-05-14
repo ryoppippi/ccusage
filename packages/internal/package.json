@@ -9,6 +9,7 @@
 		"./pricing-fetch-utils": "./src/pricing-fetch-utils.ts",
 		"./logger": "./src/logger.ts",
 		"./format": "./src/format.ts",
+		"./json-file-state": "./src/json-file-state.ts",
 		"./constants": "./src/constants.ts"
 	},
 	"scripts": {

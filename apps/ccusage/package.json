@@ -65,7 +65,6 @@
 		"@oxc-project/runtime": "catalog:build",
 		"@praha/byethrow": "catalog:runtime",
 		"@ryoppippi/eslint-config": "catalog:lint",
-		"@ryoppippi/limo": "catalog:runtime",
 		"@std/async": "catalog:runtime",
 		"@types/bun": "catalog:types",
 		"@typescript/native-preview": "catalog:types",

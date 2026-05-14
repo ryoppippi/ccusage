@@ -1,11 +1,10 @@
 import type { Formatter } from 'picocolors/types';
-import { mkdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import process from 'node:process';
+import { createJsonFileState } from '@ccusage/internal/json-file-state';
 import { formatCurrency } from '@ccusage/terminal/table';
 import { Result } from '@praha/byethrow';
-import { createLimoJson } from '@ryoppippi/limo';
 import getStdin from 'get-stdin';
 import { define } from 'gunshi';
 import pc from 'picocolors';
@@ -44,17 +43,13 @@ function formatRemainingTime(remaining: number): string {
  * Gets semaphore file for session-specific caching and process coordination
  * Uses time-based expiry and transcript file modification detection for cache invalidation
  */
-function getSemaphore(
-	sessionId: string,
-): ReturnType<typeof createLimoJson<SemaphoreType | undefined>> {
-	const semaphoreDir = join(tmpdir(), 'ccusage-semaphore');
-	const semaphorePath = join(semaphoreDir, `${sessionId}.lock`);
-
-	// Ensure semaphore directory exists
-	mkdirSync(semaphoreDir, { recursive: true });
-
-	const semaphore = createLimoJson<SemaphoreType>(semaphorePath);
-	return semaphore;
+function getSemaphore(sessionId: string): {
+	data: SemaphoreType | undefined;
+	[Symbol.dispose]: () => void;
+} {
+	return createJsonFileState<SemaphoreType>(
+		join(tmpdir(), 'ccusage-semaphore', `${sessionId}.lock`),
+	);
 }
 
 /**
