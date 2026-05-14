@@ -1773,10 +1773,20 @@ function encodeDailyDataEntries(entries: DailyDataEntry[]): EncodedDailyDataEntr
 
 function decodeDailyDataEntries(encoded: EncodedDailyDataEntries): DailyDataEntry[] {
 	const entries: DailyDataEntry[] = [];
+	forEachDailyDataEntry(encoded, (entry) => {
+		entries.push(entry);
+	});
+	return entries;
+}
+
+function forEachDailyDataEntry(
+	encoded: EncodedDailyDataEntries,
+	onEntry: (entry: DailyDataEntry) => void,
+): void {
 	for (let index = 0; index < encoded.count; index++) {
 		const numberOffset = index * 6;
 		const stringOffset = index * 4;
-		entries.push({
+		onEntry({
 			date: encoded.strings[stringOffset]!,
 			cost: encoded.numbers[numberOffset]!,
 			inputTokens: encoded.numbers[numberOffset + 1]!,
@@ -1790,7 +1800,6 @@ function decodeDailyDataEntries(encoded: EncodedDailyDataEntries): DailyDataEntr
 			hasSpeed: encoded.flags[index] === 1,
 		});
 	}
-	return entries;
 }
 
 function sessionDataEntryToTuple(entry: SessionDataEntry): SessionDataEntryTuple {
@@ -2280,9 +2289,7 @@ export async function loadDailyUsageData(options?: LoadOptions): Promise<DailyUs
 		}
 	} else {
 		for (const encodedEntries of workerFileResults) {
-			for (const entry of decodeDailyDataEntries(encodedEntries)) {
-				mergeEntry(entry);
-			}
+			forEachDailyDataEntry(encodedEntries, mergeEntry);
 		}
 	}
 
