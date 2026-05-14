@@ -274,7 +274,7 @@ export function createProgressBar(
 /**
  * Centers text within a specified width using spaces for padding
  *
- * Uses string-width to handle Unicode characters and ANSI escape codes properly.
+ * Uses the shared terminal width helper for Unicode characters and ANSI escape codes.
  * If text is longer than width, returns original text without truncation.
  *
  * Example: centerText("Hello", 10) -> "  Hello   "

@@ -84,7 +84,6 @@
 		"picocolors": "catalog:runtime",
 		"pretty-ms": "catalog:runtime",
 		"publint": "catalog:lint",
-		"string-width": "catalog:runtime",
 		"tsdown": "catalog:build",
 		"type-fest": "catalog:runtime",
 		"unplugin-macros": "catalog:build",

@@ -119,9 +119,6 @@ catalogs:
     pretty-ms:
       specifier: ^9.2.0
       version: 9.3.0
-    string-width:
-      specifier: ^7.2.0
-      version: 7.2.0
     tinyglobby:
       specifier: ^0.2.14
       version: 0.2.15
@@ -334,9 +331,6 @@ importers:
       publint:
         specifier: catalog:lint
         version: 0.3.12
-      string-width:
-        specifier: catalog:runtime
-        version: 7.2.0
       tsdown:
         specifier: catalog:build
         version: 0.22.0(@typescript/native-preview@7.0.0-dev.20260510.1)(publint@0.3.12)(typescript@5.9.2)(unplugin-unused@0.5.7)(unrun@0.2.11(synckit@0.11.12))
@@ -602,9 +596,6 @@ importers:
       picocolors:
         specifier: catalog:runtime
         version: 1.1.1
-      string-width:
-        specifier: catalog:runtime
-        version: 7.2.0
     devDependencies:
       '@ryoppippi/eslint-config':
         specifier: catalog:lint

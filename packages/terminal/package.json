@@ -17,8 +17,7 @@
 	"dependencies": {
 		"@oxc-project/runtime": "catalog:build",
 		"ansi-escapes": "catalog:runtime",
-		"picocolors": "catalog:runtime",
-		"string-width": "catalog:runtime"
+		"picocolors": "catalog:runtime"
 	},
 	"devDependencies": {
 		"@ryoppippi/eslint-config": "catalog:lint",
