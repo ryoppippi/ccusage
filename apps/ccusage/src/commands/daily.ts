@@ -140,8 +140,7 @@ export const dailyCommand = define({
 			// Create table with compact mode support
 			const tableConfig: UsageReportConfig = {
 				firstColumnName: 'Date',
-				dateFormatter: (dateStr: string) =>
-					formatDateCompact(dateStr, mergedOptions.timezone, mergedOptions.locale ?? undefined),
+				dateFormatter: (dateStr: string) => formatDateCompact(dateStr, mergedOptions.timezone),
 				forceCompact: ctx.values.compact,
 			};
 			const table = createUsageReportTable(tableConfig);

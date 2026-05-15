@@ -53,7 +53,7 @@ export function isWithinRange(dateKey: string, since?: string, until?: string): 
 	return true;
 }
 
-export function formatDisplayDate(dateKey: string, locale?: string, _timezone?: string): string {
+export function formatDisplayDate(dateKey: string): string {
 	// dateKey is already computed for the target timezone via toDateKey().
 	// Treat it as a plain calendar date and avoid shifting it by applying a timezone.
 	const [yearStr = '0', monthStr = '1', dayStr = '1'] = dateKey.split('-');
@@ -61,7 +61,7 @@ export function formatDisplayDate(dateKey: string, locale?: string, _timezone?: 
 	const month = Number.parseInt(monthStr, 10);
 	const day = Number.parseInt(dayStr, 10);
 	const date = new Date(Date.UTC(year, month - 1, day));
-	const formatter = new Intl.DateTimeFormat(locale ?? 'en-US', {
+	const formatter = new Intl.DateTimeFormat('en-US', {
 		year: 'numeric',
 		month: 'short',
 		day: '2-digit',
@@ -82,14 +82,14 @@ export function toMonthKey(timestamp: string, timezone?: string): string {
 	return `${year}-${month}`;
 }
 
-export function formatDisplayMonth(monthKey: string, locale?: string, _timezone?: string): string {
+export function formatDisplayMonth(monthKey: string): string {
 	// monthKey is already derived in the target timezone via toMonthKey().
 	// Render it as a calendar month without shifting by timezone.
 	const [yearStr = '0', monthStr = '1'] = monthKey.split('-');
 	const year = Number.parseInt(yearStr, 10);
 	const month = Number.parseInt(monthStr, 10);
 	const date = new Date(Date.UTC(year, month - 1, 1));
-	const formatter = new Intl.DateTimeFormat(locale ?? 'en-US', {
+	const formatter = new Intl.DateTimeFormat('en-US', {
 		year: 'numeric',
 		month: 'short',
 		timeZone: 'UTC',
@@ -97,14 +97,10 @@ export function formatDisplayMonth(monthKey: string, locale?: string, _timezone?
 	return formatter.format(date);
 }
 
-export function formatDisplayDateTime(
-	timestamp: string,
-	locale?: string,
-	timezone?: string,
-): string {
+export function formatDisplayDateTime(timestamp: string, timezone?: string): string {
 	const tz = safeTimeZone(timezone);
 	const date = new Date(timestamp);
-	const formatter = new Intl.DateTimeFormat(locale ?? 'en-US', {
+	const formatter = new Intl.DateTimeFormat('en-US', {
 		dateStyle: 'short',
 		timeStyle: 'short',
 		timeZone: tz,

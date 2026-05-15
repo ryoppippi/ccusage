@@ -1,5 +1,5 @@
 import type { Args } from 'gunshi';
-import { DEFAULT_LOCALE, DEFAULT_TIMEZONE } from './_consts.ts';
+import { DEFAULT_TIMEZONE } from './_consts.ts';
 
 export const sharedArgs = {
 	json: {
@@ -23,12 +23,6 @@ export const sharedArgs = {
 		short: 'z',
 		description: 'Timezone for date grouping (IANA)',
 		default: DEFAULT_TIMEZONE,
-	},
-	locale: {
-		type: 'string',
-		short: 'l',
-		description: 'Locale for formatting',
-		default: DEFAULT_LOCALE,
 	},
 	offline: {
 		type: 'boolean',

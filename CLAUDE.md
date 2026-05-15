@@ -9,7 +9,6 @@ This is a monorepo containing multiple packages. For package-specific guidance, 
 - **Main CLI Package**: @apps/ccusage/CLAUDE.md - Core ccusage CLI tool and library
 - **Codex CLI Package**: @apps/codex/CLAUDE.md - OpenAI Codex usage tracking CLI
 - **OpenCode CLI Package**: @apps/opencode/CLAUDE.md - OpenCode usage tracking CLI
-- **MCP Server Package**: @apps/mcp/CLAUDE.md - MCP server implementation for ccusage data
 - **Documentation**: @docs/CLAUDE.md - VitePress-based documentation website
 
 Each package has its own development commands, dependencies, and specific guidelines. Always check the relevant package's CLAUDE.md when working within that package directory.
@@ -23,7 +22,6 @@ All projects under `apps/` ship as bundled CLIs/binaries. Treat their runtime de
 **Testing and Quality:**
 
 - `pnpm run test` - Run all tests (using vitest via pnpm, watch mode disabled)
-- Lint code using ESLint MCP server (available via Claude Code tools)
 - `pnpm run format` - Format code with ESLint (writes changes)
 - `pnpm typecheck` - Type check with TypeScript
 
@@ -51,11 +49,6 @@ All projects under `apps/` ship as bundled CLIs/binaries. Treat their runtime de
 - `pnpm run start blocks --recent` - Show blocks from last 3 days (including active)
 - `pnpm run start blocks --token-limit <limit>` - Token limit for quota warnings (number or "max")
 - `node ./src/index.ts` - Direct execution for development
-
-**MCP Server Usage:** (now provided by the `@ccusage/mcp` package)
-
-- `pnpm dlx @ccusage/mcp@latest -- --help` - Show available options
-- `pnpm dlx @ccusage/mcp@latest -- --type http --port 8080` - Start HTTP transport
 
 **Cost Calculation Modes:**
 
@@ -118,20 +111,6 @@ This is a CLI tool that analyzes Claude Code usage data from local JSONL files s
 - CLI built with `gunshi` framework, tables with `cli-table3`
 - **LiteLLM Integration**: Cost calculations depend on LiteLLM's pricing database for model pricing data
 
-**MCP Integration:**
-
-- **Built-in MCP Server**: Exposes usage data through MCP protocol with tools:
-  - `daily` - Daily usage reports
-  - `session` - Session-based usage reports
-  - `monthly` - Monthly usage reports
-  - `blocks` - 5-hour billing blocks usage reports
-- **External MCP Servers Available:**
-  - **ESLint MCP**: Lint TypeScript/JavaScript files directly through Claude Code tools
-  - **Context7 MCP**: Look up documentation for libraries and frameworks
-- **Claude Code Skills Available:**
-  - **use-gunshi-cli**: Guide for using gunshi CLI framework (via @gunshi/docs)
-  - **byethrow**: Guide for using @praha/byethrow Result type (via @praha/byethrow-docs)
-
 ## Git Commit and PR Conventions
 
 **Commit Message Format:**
@@ -146,7 +125,6 @@ Follow the Conventional Commits specification with package/area prefixes:
 
 - **Apps**: Use the app directory name
   - `feat(ccusage):` - Changes to apps/ccusage
-  - `fix(mcp):` - Fixes in apps/mcp
   - `feat(codex):` - Features for apps/codex (if exists)
 
 - **Packages**: Use the package directory name
@@ -182,10 +160,8 @@ Follow the Conventional Commits specification with package/area prefixes:
 
 ```
 feat(ccusage): add support for Claude 4.1 models
-fix(mcp): resolve connection timeout issues
 docs(guide): update installation instructions
 refactor(ccusage): extract cost calculation to separate module
-test(mcp): add integration tests for HTTP transport
 chore: update dependencies
 ```
 
@@ -195,7 +171,6 @@ PR titles should follow the same format as commit messages. When a PR contains m
 
 ```
 feat(ccusage): implement session-based usage reports
-fix(mcp): handle edge cases in data aggregation
 docs: comprehensive API documentation update
 ```
 
@@ -211,7 +186,6 @@ docs: comprehensive API documentation update
 **Error Handling:**
 
 - **Prefer @praha/byethrow Result type** over traditional try-catch for functional error handling
-  - Documentation: Available via byethrow skill (use `/byethrow` or check `.claude/skills/byethrow/`)
 - Use `Result.try()` for wrapping operations that may throw (JSON parsing, etc.)
 - Use `Result.isFailure()` for checking errors (more readable than `!Result.isSuccess()`)
 - Use early return pattern (`if (Result.isFailure(result)) continue;`) instead of ternary operators
@@ -254,7 +228,6 @@ This ensures code quality and catches issues immediately after changes.
   - `/docs/guide/index.md` (What is ccusage) - Main usage screenshot
   - `/docs/guide/daily-reports.md` - Daily report output screenshot
   - `/docs/guide/live-monitoring.md` - Live monitoring dashboard screenshot
-  - `/docs/guide/mcp-server.md` - Claude Desktop integration screenshot
 - **Image Path**: Use relative paths like `/screenshot.png` for images stored in `/docs/public/`
 - **Alt Text**: Always include descriptive alt text for accessibility
 
@@ -295,9 +268,6 @@ This ensures code quality and catches issues immediately after changes.
 
 # Tips for Claude Code
 
-- Context7 MCP server available for library documentation lookup
-- use-gunshi-cli skill available for gunshi CLI framework documentation
-- byethrow skill available for @praha/byethrow Result type documentation
 - do not use console.log. use logger.ts instead
 - **CRITICAL VITEST REMINDER**: Vitest globals are enabled - use `describe`, `it`, `expect` directly WITHOUT imports. NEVER use `await import()` dynamic imports anywhere, especially in test blocks.
 

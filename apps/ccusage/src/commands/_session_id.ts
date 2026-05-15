@@ -15,7 +15,6 @@ export type SessionIdContext = {
 		offline: boolean;
 		jq?: string;
 		timezone?: string;
-		locale: string; // normalized to non-optional to avoid touching data-loader
 	};
 };
 
@@ -85,7 +84,7 @@ export async function handleSessionIdLookup(
 
 			for (const entry of sessionUsage.entries) {
 				table.push([
-					formatDateCompact(entry.timestamp, ctx.values.timezone, ctx.values.locale),
+					formatDateCompact(entry.timestamp, ctx.values.timezone),
 					entry.message.model ?? 'unknown',
 					formatNumber(entry.message.usage.input_tokens),
 					formatNumber(entry.message.usage.output_tokens),

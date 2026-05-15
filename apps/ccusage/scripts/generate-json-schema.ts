@@ -170,7 +170,6 @@ function createConfigSchemaJson() {
 					json: false,
 					mode: 'auto',
 					timezone: 'Asia/Tokyo',
-					locale: 'ja-JP',
 				},
 				commands: {
 					daily: {
@@ -360,7 +359,6 @@ if (import.meta.vitest != null) {
 			expect(commandsSchema.properties).toHaveProperty('weekly');
 			expect(commandsSchema.properties).toHaveProperty('session');
 			expect(commandsSchema.properties).toHaveProperty('blocks');
-			expect(commandsSchema.properties).toHaveProperty('mcp');
 			expect(commandsSchema.properties).toHaveProperty('statusline');
 		});
 	});

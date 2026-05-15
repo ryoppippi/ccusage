@@ -47,7 +47,7 @@
 		}
 	},
 	"engines": {
-		"node": ">=20.19.4"
+		"node": ">=22.11.0"
 	},
 	"scripts": {
 		"build": "pnpm run generate:schema && tsdown",
@@ -80,7 +80,6 @@
 		"ansi-escapes": "catalog:runtime",
 		"bumpp": "catalog:release",
 		"clean-pkg-json": "catalog:release",
-		"es-toolkit": "catalog:runtime",
 		"eslint": "catalog:lint",
 		"eslint-plugin-format": "catalog:lint",
 		"fast-sort": "catalog:runtime",

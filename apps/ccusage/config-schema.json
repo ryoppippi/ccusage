@@ -81,12 +81,6 @@
 							"description": "Timezone for date grouping (e.g., UTC, America/New_York, Asia/Tokyo). Default: system timezone",
 							"markdownDescription": "Timezone for date grouping (e.g., UTC, America/New_York, Asia/Tokyo). Default: system timezone"
 						},
-						"locale": {
-							"type": "string",
-							"description": "Locale for date/time formatting (e.g., en-US, ja-JP, de-DE)",
-							"markdownDescription": "Locale for date/time formatting (e.g., en-US, ja-JP, de-DE)",
-							"default": "en-CA"
-						},
 						"jq": {
 							"type": "string",
 							"description": "Process JSON output with jq command (requires jq binary, implies --json)",
@@ -177,12 +171,6 @@
 									"type": "string",
 									"description": "Timezone for date grouping (e.g., UTC, America/New_York, Asia/Tokyo). Default: system timezone",
 									"markdownDescription": "Timezone for date grouping (e.g., UTC, America/New_York, Asia/Tokyo). Default: system timezone"
-								},
-								"locale": {
-									"type": "string",
-									"description": "Locale for date/time formatting (e.g., en-US, ja-JP, de-DE)",
-									"markdownDescription": "Locale for date/time formatting (e.g., en-US, ja-JP, de-DE)",
-									"default": "en-CA"
 								},
 								"jq": {
 									"type": "string",
@@ -286,12 +274,6 @@
 									"description": "Timezone for date grouping (e.g., UTC, America/New_York, Asia/Tokyo). Default: system timezone",
 									"markdownDescription": "Timezone for date grouping (e.g., UTC, America/New_York, Asia/Tokyo). Default: system timezone"
 								},
-								"locale": {
-									"type": "string",
-									"description": "Locale for date/time formatting (e.g., en-US, ja-JP, de-DE)",
-									"markdownDescription": "Locale for date/time formatting (e.g., en-US, ja-JP, de-DE)",
-									"default": "en-CA"
-								},
 								"jq": {
 									"type": "string",
 									"description": "Process JSON output with jq command (requires jq binary, implies --json)",
@@ -377,12 +359,6 @@
 									"type": "string",
 									"description": "Timezone for date grouping (e.g., UTC, America/New_York, Asia/Tokyo). Default: system timezone",
 									"markdownDescription": "Timezone for date grouping (e.g., UTC, America/New_York, Asia/Tokyo). Default: system timezone"
-								},
-								"locale": {
-									"type": "string",
-									"description": "Locale for date/time formatting (e.g., en-US, ja-JP, de-DE)",
-									"markdownDescription": "Locale for date/time formatting (e.g., en-US, ja-JP, de-DE)",
-									"default": "en-CA"
 								},
 								"jq": {
 									"type": "string",
@@ -478,12 +454,6 @@
 									"description": "Timezone for date grouping (e.g., UTC, America/New_York, Asia/Tokyo). Default: system timezone",
 									"markdownDescription": "Timezone for date grouping (e.g., UTC, America/New_York, Asia/Tokyo). Default: system timezone"
 								},
-								"locale": {
-									"type": "string",
-									"description": "Locale for date/time formatting (e.g., en-US, ja-JP, de-DE)",
-									"markdownDescription": "Locale for date/time formatting (e.g., en-US, ja-JP, de-DE)",
-									"default": "en-CA"
-								},
 								"jq": {
 									"type": "string",
 									"description": "Process JSON output with jq command (requires jq binary, implies --json)",
@@ -574,12 +544,6 @@
 									"type": "string",
 									"description": "Timezone for date grouping (e.g., UTC, America/New_York, Asia/Tokyo). Default: system timezone",
 									"markdownDescription": "Timezone for date grouping (e.g., UTC, America/New_York, Asia/Tokyo). Default: system timezone"
-								},
-								"locale": {
-									"type": "string",
-									"description": "Locale for date/time formatting (e.g., en-US, ja-JP, de-DE)",
-									"markdownDescription": "Locale for date/time formatting (e.g., en-US, ja-JP, de-DE)",
-									"default": "en-CA"
 								},
 								"jq": {
 									"type": "string",
@@ -692,8 +656,7 @@
 			"defaults": {
 				"json": false,
 				"mode": "auto",
-				"timezone": "Asia/Tokyo",
-				"locale": "ja-JP"
+				"timezone": "Asia/Tokyo"
 			},
 			"commands": {
 				"daily": {

@@ -32,26 +32,25 @@ import { log, logger } from '../logger.ts';
  * Formats the time display for a session block
  * @param block - Session block to format
  * @param compact - Whether to use compact formatting for narrow terminals
- * @param locale - Locale for date/time formatting
  * @returns Formatted time string with duration and status information
  */
-function formatBlockTime(block: SessionBlock, compact = false, locale?: string): string {
+function formatBlockTime(block: SessionBlock, compact = false): string {
 	const start = compact
-		? block.startTime.toLocaleString(locale, {
+		? block.startTime.toLocaleString(undefined, {
 				month: '2-digit',
 				day: '2-digit',
 				hour: '2-digit',
 				minute: '2-digit',
 			})
-		: block.startTime.toLocaleString(locale);
+		: block.startTime.toLocaleString();
 
 	if (block.isGap ?? false) {
 		const end = compact
-			? block.endTime.toLocaleString(locale, {
+			? block.endTime.toLocaleString(undefined, {
 					hour: '2-digit',
 					minute: '2-digit',
 				})
-			: block.endTime.toLocaleString(locale);
+			: block.endTime.toLocaleString();
 		const duration = Math.round(
 			(block.endTime.getTime() - block.startTime.getTime()) / (1000 * 60 * 60),
 		);
@@ -172,7 +171,6 @@ export const blocksCommand = define({
 			offline: ctx.values.offline,
 			sessionDurationHours: ctx.values.sessionLength,
 			timezone: ctx.values.timezone,
-			locale: ctx.values.locale,
 		});
 
 		if (blocks.length === 0) {
@@ -377,7 +375,7 @@ export const blocksCommand = define({
 					if (block.isGap ?? false) {
 						// Gap row
 						const gapRow = [
-							pc.gray(formatBlockTime(block, useCompactFormat, ctx.values.locale)),
+							pc.gray(formatBlockTime(block, useCompactFormat)),
 							pc.gray('(inactive)'),
 							pc.gray('-'),
 							pc.gray('-'),
@@ -392,7 +390,7 @@ export const blocksCommand = define({
 						const status = block.isActive ? pc.green('ACTIVE') : '';
 
 						const row = [
-							formatBlockTime(block, useCompactFormat, ctx.values.locale),
+							formatBlockTime(block, useCompactFormat),
 							status,
 							formatModels(block.models),
 							formatNumber(totalTokens),
