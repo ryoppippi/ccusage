@@ -1,0 +1,72 @@
+name: ccusage rust perf comment
+
+on:
+  pull_request:
+    types:
+      - opened
+      - reopened
+      - synchronize
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  compare:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout PR
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Checkout base
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: base
+
+      - name: Setup Nix
+        uses: ./.github/actions/setup-nix
+
+      - name: Build base ccusage
+        run: nix develop --command pnpm --filter ccusage run build
+        working-directory: base
+
+      - name: Build Rust ccusage
+        run: nix develop --command pnpm --filter ccusage run build
+
+      - name: Generate small ccusage fixture
+        run: |
+          nix develop --command pnpm exec bun apps/ccusage/scripts/generate-large-fixture.ts \
+            --output-dir "$RUNNER_TEMP/ccusage-small-fixture" \
+            --size-mib 8
+
+      - name: Generate large ccusage fixture
+        run: |
+          nix develop --command pnpm exec bun apps/ccusage/scripts/generate-large-fixture.ts \
+            --output-dir "$RUNNER_TEMP/ccusage-large-fixture" \
+            --size-mib 1024
+
+      - name: Compare Rust performance
+        run: |
+          nix develop --command pnpm exec bun apps/ccusage/scripts/compare-rust-pr-performance.ts \
+            --base-dir base \
+            --head-dir . \
+            --fixture-dir "$RUNNER_TEMP/ccusage-small-fixture" \
+            --warmup 2 \
+            --runs 7 \
+            --large-fixture-dir "$RUNNER_TEMP/ccusage-large-fixture" \
+            --large-warmup 0 \
+            --large-runs 1 \
+            --output "$RUNNER_TEMP/ccusage-rust-perf-comment.md"
+
+      - name: Upsert PR comment
+        env:
+          COMMENT_FILE: ${{ runner.temp }}/ccusage-rust-perf-comment.md
+          COMMENT_MARKER: <!-- ccusage-rust-perf-comment -->
+          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: nix develop --command pnpm exec bun .github/scripts/upsert-pr-comment.ts

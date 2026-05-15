@@ -34,6 +34,7 @@
             openssl
             typos
             typos-lsp
+            hyperfine
             jq
             git
             gh
