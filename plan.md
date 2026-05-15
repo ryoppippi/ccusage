@@ -793,7 +793,7 @@ Add focused tests for:
 
 Use cmux terminal capture for visual table regressions and long-running CLI smoke tests.
 
-This workflow is a good candidate for a reusable `cmux-debug` Codex skill because it combines command injection, pane/surface targeting, terminal geometry capture, scrollback capture, and visual regression checks.
+This workflow is also available as the repo-local `cmux-debug` Codex skill because it combines command injection, pane/surface targeting, terminal geometry capture, scrollback capture, and visual regression checks.
 
 Known working commands:
 
