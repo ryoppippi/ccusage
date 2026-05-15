@@ -2,7 +2,7 @@
 
 ![Codex CLI daily report](/codex-cli.jpeg)
 
-> ⚠️ The Codex support is experimental. Prefer the unified `ccusage codex` commands; the `@ccusage/codex` package is now a compatibility wrapper.
+> ⚠️ The Codex support is experimental. Prefer the `ccusage codex` commands; the `@ccusage/codex` package is now a compatibility wrapper.
 
 The `ccusage codex` commands reuse ccusage's responsive tables, pricing cache, and token accounting to analyze OpenAI Codex CLI session logs.
 

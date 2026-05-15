@@ -2,7 +2,7 @@
 	"name": "@ccusage/pi",
 	"type": "module",
 	"version": "18.0.11",
-	"description": "Pi-agent usage tracking - unified Claude Max usage across Claude Code and pi-agent",
+	"description": "Pi-agent usage tracking - combined Claude Max usage across Claude Code and pi-agent",
 	"author": "ryoppippi",
 	"contributors": [
 		"nicobailon"

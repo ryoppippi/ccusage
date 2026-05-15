@@ -83,7 +83,7 @@ if (import.meta.vitest != null) {
 	});
 
 	describe('formatDeprecatedAgentWarning', () => {
-		it('points users at the unified ccusage agent namespace', () => {
+		it('points users at the ccusage agent namespace', () => {
 			expect(formatDeprecatedAgentWarning('@ccusage/codex', 'codex')).toBe(
 				'@ccusage/codex is deprecated. Use "ccusage codex" instead. This command will be removed in a future version.\n',
 			);

@@ -61,7 +61,7 @@ When multiple paths are specified:
 
 - ✅ **Data aggregation** - Usage from all paths is automatically combined
 - ✅ **Automatic filtering** - Invalid or empty directories are silently skipped
-- ✅ **Consistent reporting** - All reports show unified data across paths
+- ✅ **Consistent reporting** - All reports show combined data across paths
 
 ## Default Path Detection
 
