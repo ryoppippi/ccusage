@@ -83,6 +83,7 @@ trustPolicy: no-downgrade
 # (replaces onlyBuiltDependencies)
 allowBuilds:
   esbuild: true
+  lefthook: true
   sharp: true
   sqlite3: true
   workerd: true
