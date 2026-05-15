@@ -2023,12 +2023,36 @@ function encodeBlockFileResult(result: BlockFileResult): EncodedBlockFileResult 
 
 function decodeBlockFileResult(encoded: EncodedBlockFileResult): BlockFileResult {
 	const entries: BlockEntryResult[] = [];
+	forEachBlockEntry(encoded, (entry) => {
+		entries.push(entry);
+	});
+
+	return {
+		file: encoded.file,
+		timestampMs: encoded.timestampMs,
+		entries,
+	};
+}
+
+/**
+ * Iterate encoded block worker rows without first rebuilding a nested result array.
+ *
+ * Blocks carry more per-row fields than daily/session results, so decoding every worker response
+ * into `{ entries: [...] }` allocates a second full copy before global dedupe immediately walks it.
+ * This iterator keeps the normal decoder available for tests/debugging, while the hot worker merge
+ * path can reconstruct one row at a time and discard duplicate rows before materializing anything
+ * beyond the final `allEntries` output.
+ */
+function forEachBlockEntry(
+	encoded: EncodedBlockFileResult,
+	onEntry: (entry: BlockEntryResult) => void,
+): void {
 	for (let index = 0; index < encoded.count; index++) {
 		const numberOffset = index * 8;
 		const stringOffset = index * 3;
 		const timestampMs = encoded.numbers[numberOffset]!;
 		const usageLimitResetTimeMs = encoded.numbers[numberOffset + 7]!;
-		entries.push({
+		onEntry({
 			entry: {
 				timestamp: new Date(timestampMs),
 				timestampMs,
@@ -2050,12 +2074,6 @@ function decodeBlockFileResult(encoded: EncodedBlockFileResult): BlockFileResult
 			hasSpeed: encoded.flags[index] === 1,
 		});
 	}
-
-	return {
-		file: encoded.file,
-		timestampMs: encoded.timestampMs,
-		entries,
-	};
 }
 
 function getJSONLWorkerThreadCount(
@@ -2957,6 +2975,30 @@ export async function calculateContextTokens(
 }
 
 /**
+ * Keep block file ordering identical across decoded and encoded worker results.
+ *
+ * Worker results are produced by balanced chunks, not by file order. Sorting by the earliest usage
+ * timestamp before global dedupe preserves the same replacement behavior as the non-worker path;
+ * the file path tie-breaker keeps the ordering deterministic for logs with identical timestamps.
+ */
+function compareBlockFileResults(
+	a: { file: string; timestampMs: number | null },
+	b: { file: string; timestampMs: number | null },
+): number {
+	if (a.timestampMs == null && b.timestampMs == null) {
+		return compareStrings(a.file, b.file);
+	}
+	if (a.timestampMs == null) {
+		return 1;
+	}
+	if (b.timestampMs == null) {
+		return -1;
+	}
+	const timestampDiff = a.timestampMs - b.timestampMs;
+	return timestampDiff === 0 ? compareStrings(a.file, b.file) : timestampDiff;
+}
+
+/**
  * Loads usage data and organizes it into session blocks (typically 5-hour billing periods)
  * Processes all usage data and groups it into time-based blocks for billing analysis
  * @param options - Optional configuration including session duration and filtering
@@ -2997,6 +3039,23 @@ export async function loadSessionBlockData(options?: LoadOptions): Promise<Sessi
 		string,
 		{ tokenTotal: number; hasSpeed: boolean; index: number }
 	>();
+	const mergeBlockEntry = ({ entry, uniqueHash, tokenTotal, hasSpeed }: BlockEntryResult): void => {
+		if (uniqueHash == null) {
+			allEntries.push(entry);
+			return;
+		}
+
+		const existing = processedEntries.get(uniqueHash);
+		if (existing == null) {
+			allEntries.push(entry);
+			processedEntries.set(uniqueHash, { tokenTotal, hasSpeed, index: allEntries.length - 1 });
+			return;
+		}
+		if (shouldReplaceEntryMetadata({ tokenTotal, hasSpeed }, existing)) {
+			allEntries[existing.index] = entry;
+			processedEntries.set(uniqueHash, { tokenTotal, hasSpeed, index: existing.index });
+		}
+	};
 
 	const workerFileResults = await collectWithUsageWorkers<string, EncodedBlockFileResult>(
 		'blocks',
@@ -3008,50 +3067,24 @@ export async function loadSessionBlockData(options?: LoadOptions): Promise<Sessi
 			singleThread: options?.singleThread,
 		},
 	);
-	let fileResults: BlockFileResult[];
 	if (workerFileResults == null) {
 		using fetcher = mode === 'display' ? null : new PricingFetcher(options?.offline);
 		const calculateCost = await createCostCalculator(mode, fetcher);
-		fileResults = await mapWithConcurrency(
+		const fileResults = await mapWithConcurrency(
 			mtimeFilteredFiles,
 			getJSONLFileReadConcurrency(mtimeFilteredFiles.length, options?.singleThread),
 			async (file): Promise<BlockFileResult> => collectBlockFileResult(file, calculateCost),
 		);
+		fileResults.sort(compareBlockFileResults);
+		for (const { entries } of fileResults) {
+			for (const entry of entries) {
+				mergeBlockEntry(entry);
+			}
+		}
 	} else {
-		fileResults = workerFileResults.map(decodeBlockFileResult);
-	}
-
-	fileResults.sort((a, b) => {
-		if (a.timestampMs == null && b.timestampMs == null) {
-			return compareStrings(a.file, b.file);
-		}
-		if (a.timestampMs == null) {
-			return 1;
-		}
-		if (b.timestampMs == null) {
-			return -1;
-		}
-		const timestampDiff = a.timestampMs - b.timestampMs;
-		return timestampDiff === 0 ? compareStrings(a.file, b.file) : timestampDiff;
-	});
-
-	for (const { entries } of fileResults) {
-		for (const { entry, uniqueHash, tokenTotal, hasSpeed } of entries) {
-			if (uniqueHash == null) {
-				allEntries.push(entry);
-				continue;
-			}
-
-			const existing = processedEntries.get(uniqueHash);
-			if (existing == null) {
-				allEntries.push(entry);
-				processedEntries.set(uniqueHash, { tokenTotal, hasSpeed, index: allEntries.length - 1 });
-				continue;
-			}
-			if (shouldReplaceEntryMetadata({ tokenTotal, hasSpeed }, existing)) {
-				allEntries[existing.index] = entry;
-				processedEntries.set(uniqueHash, { tokenTotal, hasSpeed, index: existing.index });
-			}
+		workerFileResults.sort(compareBlockFileResults);
+		for (const encodedResult of workerFileResults) {
+			forEachBlockEntry(encodedResult, mergeBlockEntry);
 		}
 	}
 
