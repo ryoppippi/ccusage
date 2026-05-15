@@ -525,7 +525,7 @@ if (import.meta.vitest != null) {
 							timestamp: '2026-01-02T03:04:05.000Z',
 							message: {
 								role: 'assistant',
-								model: 'claude-opus-4-5',
+								model: 'claude-opus-4-20250514',
 								usage: {
 									input: 100,
 									output: 50,
@@ -556,7 +556,7 @@ if (import.meta.vitest != null) {
 				cacheCreationTokens: 20,
 				cacheReadTokens: 10,
 				totalCost: 0.05,
-				modelsUsed: ['[pi] claude-opus-4-5'],
+				modelsUsed: ['[pi] claude-opus-4-20250514'],
 			});
 		});
 	});

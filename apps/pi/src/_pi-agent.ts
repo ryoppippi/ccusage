@@ -127,7 +127,7 @@ if (import.meta.vitest != null) {
 				timestamp: '2024-01-01T00:00:00Z' as v.InferOutput<typeof isoTimestampSchema>,
 				message: {
 					role: 'assistant',
-					model: 'claude-opus-4-5',
+					model: 'claude-opus-4-20250514',
 					usage: {
 						input: 100,
 						output: 50,
@@ -186,7 +186,7 @@ if (import.meta.vitest != null) {
 				timestamp: '2024-01-01T00:00:00Z' as v.InferOutput<typeof isoTimestampSchema>,
 				message: {
 					role: 'assistant',
-					model: 'claude-opus-4-5',
+					model: 'claude-opus-4-20250514',
 					usage: {
 						input: 100,
 						output: 50,
@@ -229,7 +229,7 @@ if (import.meta.vitest != null) {
 				timestamp: '2024-01-01T00:00:00Z' as v.InferOutput<typeof isoTimestampSchema>,
 				message: {
 					role: 'assistant',
-					model: 'claude-opus-4-5',
+					model: 'claude-opus-4-20250514',
 					usage: {
 						input: 100,
 						output: 50,
@@ -249,7 +249,7 @@ if (import.meta.vitest != null) {
 			expect(result?.usage.output_tokens).toBe(50);
 			expect(result?.usage.cache_read_input_tokens).toBe(10);
 			expect(result?.usage.cache_creation_input_tokens).toBe(20);
-			expect(result?.model).toBe('[pi] claude-opus-4-5');
+			expect(result?.model).toBe('[pi] claude-opus-4-20250514');
 			expect(result?.costUSD).toBe(0.05);
 			expect(result?.totalTokens).toBe(180);
 		});
@@ -260,7 +260,7 @@ if (import.meta.vitest != null) {
 				timestamp: '2024-01-01T00:00:00Z' as v.InferOutput<typeof isoTimestampSchema>,
 				message: {
 					role: 'assistant',
-					model: 'claude-opus-4-5',
+					model: 'claude-opus-4-20250514',
 					usage: {
 						input: 100,
 						output: 50,
