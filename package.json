@@ -62,6 +62,7 @@
 		"*": [
 			"pnpm run format",
 			"pnpm vitest run --changed"
-		]
+		],
+		".claude/skills/**": "sh -c 'pnpm run sync:skills && git add .agents/skills'"
 	}
 }

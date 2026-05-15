@@ -1,8 +1,4 @@
 #!/bin/sh
 
-# Sync .claude/skills -> .agents/skills symlinks
-bun scripts/sync-skills.ts
-git add .agents/skills
-
 # Run lint-staged
 npx --no-install lint-staged
