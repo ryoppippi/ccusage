@@ -73,6 +73,7 @@ const USAGE_LINE_MARKER = '"usage":{';
 const USAGE_LINE_MARKER_BUFFER = Buffer.from(USAGE_LINE_MARKER);
 const CACHE_CREATION_INPUT_TOKENS_MARKER = '"cache_creation_input_tokens":';
 const CACHE_READ_INPUT_TOKENS_MARKER = '"cache_read_input_tokens":';
+const CONTENT_MARKER = '"content":';
 const COST_USD_MARKER = '"costUSD":';
 const INPUT_TOKENS_MARKER = '"input_tokens":';
 const ISO_TIMESTAMP_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/;
@@ -584,10 +585,10 @@ function extractUnsignedIntegerMarker(
  * fall back to JSON.parse for uncommon shapes such as null-bearing rows and API error messages.
  */
 function parseUsageDataLineFast(line: string, allowContent = false): UsageData | null {
-	const contentIndex = line.indexOf('"content":');
+	const contentIndex = line.indexOf(CONTENT_MARKER);
 	if (
 		(contentIndex !== -1 &&
-			(!allowContent || line.indexOf('"content":[', contentIndex) !== contentIndex)) ||
+			(!allowContent || line.charCodeAt(contentIndex + CONTENT_MARKER.length) !== 91)) ||
 		line.includes('"isApiErrorMessage":true') ||
 		hasUnsupportedNullField(line)
 	) {
