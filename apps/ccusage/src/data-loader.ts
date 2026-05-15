@@ -1282,7 +1282,9 @@ async function processBufferedJSONLUsageBytes(
 		}
 
 		const decodeEnd = lineEnd > lineStart && content[lineEnd - 1] === 13 ? lineEnd - 1 : lineEnd;
-		processLine(content.toString('utf8', lineStart, decodeEnd));
+		// Usage aggregation reads ASCII metadata and token fields only; content text is never surfaced.
+		// Latin-1 avoids UTF-8 decoding cost for large assistant content while preserving JSON markers.
+		processLine(content.toString('latin1', lineStart, decodeEnd));
 
 		lineStart = lineEnd + 1;
 		markerIndex = content.indexOf(USAGE_LINE_MARKER_BUFFER, lineStart);
