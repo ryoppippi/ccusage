@@ -13,19 +13,21 @@
 
 > Analyze [OpenCode](https://github.com/opencode-ai/opencode) usage logs with the same reporting experience as <code>ccusage</code>.
 
+> ⚠️ **Compatibility wrapper:** Prefer `npx ccusage@latest opencode`. This package now prints a deprecation warning and forwards to `ccusage opencode`.
+
 ## Quick Start
 
 ```bash
 # Recommended - always include @latest
-npx @ccusage/opencode@latest --help
-bunx @ccusage/opencode@latest --help
+npx ccusage@latest opencode --help
+bunx ccusage@latest opencode --help
 
 # Alternative package runners
-pnpm dlx @ccusage/opencode
-pnpx @ccusage/opencode
+pnpm dlx ccusage opencode
+pnpx ccusage opencode
 
 # Using deno (with security flags)
-deno run -E -R=$HOME/.local/share/opencode/ -S=homedir -N='raw.githubusercontent.com:443' npm:@ccusage/opencode@latest --help
+deno run -E -R=$HOME/.local/share/opencode/ -S=homedir -N='raw.githubusercontent.com:443' npm:ccusage@latest opencode --help
 ```
 
 ### Recommended: Shell Alias
@@ -47,22 +49,22 @@ ccusage-opencode monthly --json
 
 ```bash
 # Daily usage grouped by date (default command)
-npx @ccusage/opencode@latest daily
+npx ccusage@latest opencode daily
 
 # Weekly usage grouped by ISO week
-npx @ccusage/opencode@latest weekly
+npx ccusage@latest opencode weekly
 
 # Monthly usage grouped by month
-npx @ccusage/opencode@latest monthly
+npx ccusage@latest opencode monthly
 
 # Session-level detailed report
-npx @ccusage/opencode@latest session
+npx ccusage@latest opencode session
 
 # JSON output for scripting
-npx @ccusage/opencode@latest daily --json
+npx ccusage@latest opencode daily --json
 
 # Compact mode for screenshots/sharing
-npx @ccusage/opencode@latest daily --compact
+npx ccusage@latest opencode daily --compact
 ```
 
 Useful environment variables:

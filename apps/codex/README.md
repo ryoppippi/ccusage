@@ -17,21 +17,21 @@
 
 > Analyze <a href="https://github.com/openai/codex">OpenAI Codex CLI</a> usage logs with the same reporting experience as <code>ccusage</code>.
 
-> ⚠️ <strong>Beta:</strong> The Codex CLI support is experimental. Expect breaking changes until the upstream Codex tooling stabilizes.
+> ⚠️ <strong>Compatibility wrapper:</strong> Prefer <code>npx ccusage@latest codex</code>. This package now prints a deprecation warning and forwards to <code>ccusage codex</code>.
 
 ## Quick Start
 
 ```bash
 # Recommended - always include @latest
-npx @ccusage/codex@latest --help
-bunx @ccusage/codex@latest --help  # ⚠️ MUST include @latest with bunx
+npx ccusage@latest codex --help
+bunx ccusage@latest codex --help
 
 # Alternative package runners
-pnpm dlx @ccusage/codex
-pnpx @ccusage/codex
+pnpm dlx ccusage codex
+pnpx ccusage codex
 
 # Using deno (with security flags)
-deno run -E -R=$HOME/.codex/ -S=homedir -N='raw.githubusercontent.com:443' npm:@ccusage/codex@latest --help
+deno run -E -R=$HOME/.codex/ -S=homedir -N='raw.githubusercontent.com:443' npm:ccusage@latest codex --help
 ```
 
 > ⚠️ **Critical for bunx users**: Bun 1.2.x's bunx prioritizes binaries matching the package name suffix when given a scoped package. For `@ccusage/codex`, it looks for a `codex` binary in PATH first. If you have an existing `codex` command installed (e.g., GitHub Copilot's codex), that will be executed instead. **Always use `bunx @ccusage/codex@latest` with the version tag** to force bunx to fetch and run the correct package.
@@ -55,26 +55,26 @@ ccusage-codex monthly --json
 
 ```bash
 # Daily usage grouped by date (default command)
-npx @ccusage/codex@latest daily
+npx ccusage@latest codex daily
 
 # Date range filtering
-npx @ccusage/codex@latest daily --since 20250911 --until 20250917
+npx ccusage@latest codex daily --since 20250911 --until 20250917
 
 # JSON output for scripting
-npx @ccusage/codex@latest daily --json
+npx ccusage@latest codex daily --json
 
 # Monthly usage grouped by month
-npx @ccusage/codex@latest monthly
+npx ccusage@latest codex monthly
 
 # Monthly JSON report for integrations
-npx @ccusage/codex@latest monthly --json
+npx ccusage@latest codex monthly --json
 
 # Session-level detailed report
-npx @ccusage/codex@latest session
+npx ccusage@latest codex session
 
 # Override Codex fast-mode pricing detection
-npx @ccusage/codex@latest daily --speed fast
-npx @ccusage/codex@latest daily --speed standard
+npx ccusage@latest codex daily --speed fast
+npx ccusage@latest codex daily --speed standard
 ```
 
 Useful environment variables:

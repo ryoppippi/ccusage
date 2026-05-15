@@ -2,36 +2,36 @@
 
 ![Codex CLI daily report](/codex-cli.jpeg)
 
-> ⚠️ The Codex companion CLI is experimental. Expect breaking changes while both ccusage and [OpenAI's Codex CLI](https://github.com/openai/codex) continue to evolve.
+> ⚠️ The Codex support is experimental. Prefer the unified `ccusage codex` commands; the `@ccusage/codex` package is now a compatibility wrapper.
 
-The `@ccusage/codex` package reuses ccusage's responsive tables, pricing cache, and token accounting to analyze OpenAI Codex CLI session logs.
+The `ccusage codex` commands reuse ccusage's responsive tables, pricing cache, and token accounting to analyze OpenAI Codex CLI session logs.
 
 ## Installation & Launch
 
 ```bash
-# Recommended - always include @latest
-npx @ccusage/codex@latest --help
-bunx @ccusage/codex@latest --help  # ⚠️ MUST include @latest with bunx
+# Recommended
+npx ccusage@latest codex --help
+bunx ccusage@latest codex --help
 
 # Alternative package runners
-pnpm dlx @ccusage/codex --help
-pnpx @ccusage/codex --help
+pnpm dlx ccusage codex --help
+pnpx ccusage codex --help
 
 # Using deno (with security flags)
-deno run -E -R=$HOME/.codex/ -S=homedir -N='raw.githubusercontent.com:443' npm:@ccusage/codex@latest --help
+deno run -E -R=$HOME/.codex/ -S=homedir -N='raw.githubusercontent.com:443' npm:ccusage@latest codex --help
 ```
 
-::: warning ⚠️ Critical for bunx users
-Bun 1.2.x's bunx prioritizes binaries matching the package name suffix when given a scoped package. For `@ccusage/codex`, it looks for a `codex` binary in PATH first. If you have an existing `codex` command installed (e.g., GitHub Copilot's codex), that will be executed instead. **Always use `bunx @ccusage/codex@latest` with the version tag** to force bunx to fetch and run the correct package.
+::: warning Compatibility package
+`npx @ccusage/codex@latest daily` still works during the migration window, prints a deprecation warning, and forwards to `ccusage codex daily`.
 :::
 
 ### Recommended: Shell Alias
 
-Since `npx @ccusage/codex@latest` is quite long to type repeatedly, we strongly recommend setting up a shell alias for convenience:
+If you want a shorter command, set up a shell alias:
 
 ```bash
-# bash/zsh: alias ccusage-codex='bunx @ccusage/codex@latest'
-# fish:     alias ccusage-codex 'bunx @ccusage/codex@latest'
+# bash/zsh: alias ccusage-codex='bunx ccusage@latest codex'
+# fish:     alias ccusage-codex 'bunx ccusage@latest codex'
 
 # Then simply run:
 ccusage-codex daily
@@ -71,13 +71,13 @@ Codex logs usually do not include whether a turn used fast mode. By default, `@c
 
 ```bash
 # Default: read Codex config.toml
-ccusage-codex daily --speed auto
+ccusage codex daily --speed auto
 
 # Force fast pricing
-ccusage-codex daily --speed fast
+ccusage codex daily --speed fast
 
 # Force standard pricing
-ccusage-codex daily --speed standard
+ccusage codex daily --speed standard
 ```
 
 ## Next Steps

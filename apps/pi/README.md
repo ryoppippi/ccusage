@@ -13,16 +13,18 @@
 
 > Analyze [pi-agent](https://github.com/badlogic/pi-mono) session usage with the same reporting experience as <code>ccusage</code>.
 
+> ⚠️ **Compatibility wrapper:** Prefer `npx ccusage@latest pi`. This package now prints a deprecation warning and forwards to `ccusage pi`.
+
 ## Quick Start
 
 ```bash
 # Recommended - always include @latest
-npx @ccusage/pi@latest --help
-bunx @ccusage/pi@latest --help
+npx ccusage@latest pi --help
+bunx ccusage@latest pi --help
 
 # Alternative package runners
-pnpm dlx @ccusage/pi
-pnpx @ccusage/pi
+pnpm dlx ccusage pi
+pnpx ccusage pi
 ```
 
 ### Recommended: Shell Alias
@@ -44,22 +46,22 @@ ccusage-pi monthly --json
 
 ```bash
 # Daily usage grouped by date (default command)
-npx @ccusage/pi@latest daily
+npx ccusage@latest pi daily
 
 # Monthly usage grouped by month
-npx @ccusage/pi@latest monthly
+npx ccusage@latest pi monthly
 
 # Session-based usage
-npx @ccusage/pi@latest session
+npx ccusage@latest pi session
 
 # JSON output for scripting
-npx @ccusage/pi@latest daily --json
+npx ccusage@latest pi daily --json
 
 # Custom pi-agent path
-npx @ccusage/pi@latest daily --pi-path /path/to/sessions
+npx ccusage@latest pi daily --pi-path /path/to/sessions
 
 # Filter by date range
-npx @ccusage/pi@latest daily --since 2025-12-01 --until 2025-12-19
+npx ccusage@latest pi daily --since 2025-12-01 --until 2025-12-19
 ```
 
 Useful environment variables:

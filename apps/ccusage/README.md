@@ -21,29 +21,29 @@
     <img src="https://cdn.jsdelivr.net/gh/ryoppippi/ccusage@main/docs/public/screenshot.png">
 </div>
 
-> Analyze your Claude Code token usage and costs from local JSONL files — incredibly fast and informative!
+> Analyze coding agent token usage and costs from local usage logs — incredibly fast and informative!
 
 ## ccusage Family
 
-### 📊 [ccusage](https://www.npmjs.com/package/ccusage) - Claude Code Usage Analyzer
+### 📊 [ccusage](https://www.npmjs.com/package/ccusage) - Unified Coding Agent Usage Analyzer
 
-The main CLI tool for analyzing Claude Code usage from local JSONL files. Track daily, monthly, and session-based usage with beautiful tables.
+The main CLI tool for analyzing Claude Code, Codex, OpenCode, Amp, and pi-agent usage from local data. Track daily, weekly, monthly, and session-based usage with beautiful tables.
 
 ### 🤖 [@ccusage/codex](https://www.npmjs.com/package/@ccusage/codex) - OpenAI Codex Usage Analyzer
 
-Companion tool for analyzing OpenAI Codex usage. Same powerful features as ccusage but tailored for Codex users, including GPT-5 support and 1M token context windows.
+Compatibility wrapper for OpenAI Codex usage. Prefer `ccusage codex` or `ccusage codex daily`.
 
 ### 🚀 [@ccusage/opencode](https://www.npmjs.com/package/@ccusage/opencode) - OpenCode Usage Analyzer
 
-Companion tool for analyzing [OpenCode](https://github.com/opencode-ai/opencode) usage. Track token usage and costs from OpenCode sessions with the same reporting capabilities as ccusage.
+Compatibility wrapper for [OpenCode](https://github.com/opencode-ai/opencode) usage. Prefer `ccusage opencode`.
 
 ### 🥧 [@ccusage/pi](https://www.npmjs.com/package/@ccusage/pi) - Pi-agent Usage Analyzer
 
-Companion tool for analyzing [pi-agent](https://github.com/badlogic/pi-mono) session usage. Track token usage and costs from your pi-agent sessions with daily, monthly, and session-based reports.
+Compatibility wrapper for [pi-agent](https://github.com/badlogic/pi-mono) usage. Prefer `ccusage pi`.
 
 ### ⚡ [@ccusage/amp](https://www.npmjs.com/package/@ccusage/amp) - Amp Usage Analyzer
 
-Companion tool for analyzing [Amp](https://ampcode.com/) session usage. Track token usage, costs, and credits from your Amp CLI sessions with daily, monthly, and session-based reports.
+Compatibility wrapper for [Amp](https://ampcode.com/) usage. Prefer `ccusage amp`.
 
 ## Installation
 
@@ -67,36 +67,46 @@ deno run -E -R=$HOME/.claude/projects/ -S=homedir -N='raw.githubusercontent.com:
 > 💡 **Important**: We strongly recommend using `@latest` suffix with npx (e.g., `npx ccusage@latest`) to ensure you're running the most recent version with the latest features and bug fixes.
 > When ccusage starts under Node.js and finds `bun` in `PATH`, it automatically re-runs the bundled entrypoint with Bun for better warm runtime performance. Set `CCUSAGE_BUN_AUTO_RUN=0` to force Node.js.
 
-### Related Tools
+### Compatibility Packages
 
 ```bash
-npx @ccusage/codex@latest       # OpenAI Codex usage tracking
-npx @ccusage/opencode@latest    # OpenCode usage tracking
-npx @ccusage/pi@latest          # Pi-agent usage tracking
-npx @ccusage/amp@latest         # Amp usage tracking
+npx @ccusage/codex@latest       # Deprecated wrapper for: ccusage codex
+npx @ccusage/opencode@latest    # Deprecated wrapper for: ccusage opencode
+npx @ccusage/pi@latest          # Deprecated wrapper for: ccusage pi
+npx @ccusage/amp@latest         # Deprecated wrapper for: ccusage amp
 ```
 
 ## Usage
 
 ```bash
 # Basic usage
-npx ccusage          # Show daily report (default)
-npx ccusage daily    # Daily token usage and costs
-npx ccusage monthly  # Monthly aggregated report
-npx ccusage session  # Usage by conversation session
-npx ccusage blocks   # 5-hour billing windows
-npx ccusage statusline  # Compact status line for hooks (Beta)
+npx ccusage          # Show all detected agents by day (default)
+npx ccusage daily    # All detected agents by day
+npx ccusage weekly   # All detected agents by week
+npx ccusage monthly  # All detected agents by month
+npx ccusage session  # All detected agents by session
+npx ccusage blocks   # Claude Code 5-hour billing windows
+npx ccusage statusline  # Claude Code status line for hooks (Beta)
+
+# Agent-specific reports and options
+npx ccusage claude daily --mode display
+npx ccusage codex daily --speed fast
+npx ccusage opencode weekly
+npx ccusage amp session
+npx ccusage pi daily --pi-path /path/to/sessions
+
+# Explicit all-agents report
+npx ccusage daily --all
 
 # Filters and options
-npx ccusage daily --since 20250525 --until 20250530
+npx ccusage daily --since 2025-05-25 --until 2025-05-30
 npx ccusage daily --json  # JSON output
-npx ccusage daily --breakdown  # Per-model cost breakdown
 npx ccusage daily --timezone UTC  # Use UTC timezone
 
 # Project analysis
-npx ccusage daily --instances  # Group by project/instance
-npx ccusage daily --project myproject  # Filter to specific project
-npx ccusage daily --instances --project myproject --json  # Combined usage
+npx ccusage claude daily --instances  # Group Claude Code by project/instance
+npx ccusage claude daily --project myproject  # Filter to specific Claude project
+npx ccusage claude daily --instances --project myproject --json  # Combined usage
 
 # Compact mode for screenshots/sharing
 npx ccusage --compact  # Force compact table mode
@@ -108,6 +118,7 @@ npx ccusage monthly --compact  # Compact monthly report
 - 📊 **Daily Report**: View token usage and costs aggregated by date
 - 📅 **Monthly Report**: View token usage and costs aggregated by month
 - 💬 **Session Report**: View usage grouped by conversation sessions
+- 🤖 **Multi-Agent Reports**: View Claude Code, Codex, OpenCode, Amp, and pi-agent usage from one CLI
 - ⏰ **5-Hour Blocks Report**: Track usage within Claude's billing windows with active block monitoring
 - 🚀 **Statusline Integration**: Compact usage display for Claude Code status bar hooks (Beta)
 - 🤖 **Model Tracking**: See which Claude models you're using (Opus, Sonnet, etc.)

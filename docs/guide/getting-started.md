@@ -1,10 +1,10 @@
 # Getting Started
 
-Welcome to ccusage! This guide will help you get up and running with analyzing your Claude Code usage data.
+Welcome to ccusage! This guide will help you get up and running with analyzing your coding agent usage data.
 
 ## Prerequisites
 
-- Claude Code installed and used (generates JSONL files)
+- At least one supported coding agent installed and used
 - Node.js 20+ or Bun runtime
 
 ## Quick Start
@@ -31,24 +31,24 @@ BUN_BE_BUN=1 claude x ccusage
 
 :::
 
-This will show your daily usage report by default.
+This will show your daily usage report for all detected supported agents by default.
 
 ## Your First Report
 
-When you run ccusage for the first time, you'll see a table showing your Claude Code usage by date:
+When you run ccusage for the first time, you'll see a table showing detected coding agent usage by date:
 
 ```
 ╭──────────────────────────────────────────╮
 │                                          │
-│  Claude Code Token Usage Report - Daily  │
+│  Coding Agent Usage Report - Daily       │
 │                                          │
 ╰──────────────────────────────────────────╯
 
 ┌──────────────┬──────────────────┬────────┬─────────┬────────────┐
-│ Date         │ Models           │  Input │  Output │ Cost (USD) │
+│ Date         │ Agent  │ Models           │  Input │  Output │ Cost (USD) │
 ├──────────────┼──────────────────┼────────┼─────────┼────────────┤
-│ 2025-06-21   │ • sonnet-4       │  1,234 │  15,678 │    $12.34  │
-│ 2025-06-20   │ • opus-4         │    890 │  12,345 │    $18.92  │
+│ 2025-06-21   │ Claude │ • sonnet-4       │  1,234 │  15,678 │    $12.34  │
+│ 2025-06-20   │ Codex  │ • gpt-5-codex    │    890 │  12,345 │    $18.92  │
 └──────────────┴──────────────────┴────────┴─────────┴────────────┘
 ```
 
@@ -56,7 +56,8 @@ When you run ccusage for the first time, you'll see a table showing your Claude 
 
 ### Columns Explained
 
-- **Date**: The date when Claude Code was used
+- **Date**: The date when an agent was used
+- **Agent**: The coding agent that generated the usage
 - **Models**: Which Claude models were used (Sonnet, Opus, etc.)
 - **Input**: Number of input tokens sent to Claude
 - **Output**: Number of output tokens received from Claude
@@ -84,7 +85,22 @@ Now that you have your first report, explore these features:
 ### Monitor Daily Usage
 
 ```bash
-ccusage daily --since 20241201 --until 20241231
+ccusage daily --since 2024-12-01 --until 2024-12-31
+```
+
+### Show One Agent
+
+```bash
+ccusage codex daily
+ccusage claude monthly
+```
+
+### Use Agent-Specific Options
+
+```bash
+ccusage claude daily --mode display
+ccusage codex daily --speed fast
+ccusage opencode weekly
 ```
 
 ### Analyze Sessions
@@ -128,7 +144,7 @@ The layout adjusts automatically based on your terminal width - no configuration
 
 If ccusage shows no data, check:
 
-1. **Claude Code is installed and used** - ccusage reads from Claude Code's data files
+1. **A supported coding agent is installed and used** - ccusage reads from local usage files
 2. **Data directory exists** - Default locations:
    - `~/.config/claude/projects/` (new default)
    - `~/.claude/projects/` (legacy)

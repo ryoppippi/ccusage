@@ -2,29 +2,30 @@
 
 ![ccusage daily report showing token usage and costs by date](/screenshot.png)
 
-**ccusage** (claude-code-usage) is a powerful CLI tool that analyzes your Claude Code usage from local JSONL files to help you understand your token consumption patterns and estimated costs.
+**ccusage** is a powerful CLI tool that analyzes your local coding agent usage to help you understand token consumption patterns and estimated costs across Claude Code, Codex, OpenCode, Amp, and pi-agent.
 
 ## The Problem
 
 Claude Code's Max plan offers unlimited usage, which is fantastic! But many users are curious:
 
-- How much am I actually using Claude Code?
+- How much am I actually using Claude Code and other coding agents?
 - Which conversations are the most expensive?
 - What would I be paying on a pay-per-use plan?
 - Am I getting good value from my subscription?
 
 ## The Solution
 
-ccusage analyzes the local JSONL files that Claude Code automatically generates and provides:
+ccusage analyzes the local usage files that coding agents automatically generate and provides:
 
 - **Detailed Usage Reports** - Daily, weekly, monthly, and session-based breakdowns
+- **Unified Agent Reports** - Claude Code, Codex, OpenCode, Amp, and pi-agent in one CLI
 - **Cost Analysis** - Estimated costs based on token usage and model pricing
 - **Statusline Integration** - Real-time usage display for Claude Code status bar
 - **Multiple Formats** - Beautiful tables or JSON for further analysis
 
 ## How It Works
 
-1. **Claude Code generates JSONL files** containing usage data
+1. **Coding agents generate local usage files** containing usage data
 2. **ccusage reads these files** from your local machine
 3. **Analyzes and aggregates** the data by date, session, or time blocks
 4. **Calculates estimated costs** using model pricing information
@@ -70,12 +71,17 @@ Unlike other CLI tools, we pay extreme attention to bundle size. ccusage achieve
 
 ## Data Sources
 
-ccusage reads from Claude Code's local data directories:
+ccusage reads from local coding agent data directories:
 
-- **New location**: `~/.config/claude/projects/` (Claude Code v1.0.30+)
-- **Legacy location**: `~/.claude/projects/` (pre-v1.0.30)
+| Agent       | ID         | Default data location                           |
+| ----------- | ---------- | ----------------------------------------------- |
+| Claude Code | `claude`   | `~/.config/claude/projects/`, `~/.claude/`      |
+| Codex       | `codex`    | `${CODEX_HOME:-~/.codex}`                       |
+| OpenCode    | `opencode` | `${OPENCODE_DATA_DIR:-~/.local/share/opencode}` |
+| Amp         | `amp`      | Amp CLI data directories                        |
+| pi-agent    | `pi`       | `${PI_AGENT_DIR:-~/.pi/agent/sessions}`         |
 
-The tool automatically detects and aggregates data from both locations for compatibility.
+The tool automatically detects available data and aggregates all supported agents by default.
 
 ## Privacy & Security
 
