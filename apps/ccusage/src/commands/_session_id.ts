@@ -4,7 +4,7 @@ import process from 'node:process';
 import { formatCurrency, formatNumber, ResponsiveTable } from '@ccusage/terminal/table';
 import { formatDateCompact } from '../_date-utils.ts';
 import { loadSessionUsageById } from '../data-loader.ts';
-import { log, logger } from '../logger.ts';
+import { log, logger, writeStdoutLine } from '../logger.ts';
 
 export type SessionIdContext = {
 	values: {
@@ -29,7 +29,7 @@ export async function handleSessionIdLookup(
 
 	if (sessionUsage == null) {
 		if (useJson) {
-			log(JSON.stringify(null));
+			await writeStdoutLine(JSON.stringify(null));
 		} else {
 			logger.warn(`No session found with ID: ${ctx.values.id}`);
 		}
@@ -52,7 +52,7 @@ export async function handleSessionIdLookup(
 			})),
 		};
 
-		log(JSON.stringify(jsonOutput, null, 2));
+		await writeStdoutLine(JSON.stringify(jsonOutput, null, 2));
 	} else {
 		logger.box(`Claude Code Session Usage - ${ctx.values.id}`);
 
@@ -82,7 +82,7 @@ export async function handleSessionIdLookup(
 				]);
 			}
 
-			log(table.toString());
+			await writeStdoutLine(table.toString());
 		}
 	}
 }

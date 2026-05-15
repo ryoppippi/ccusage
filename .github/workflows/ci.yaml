@@ -65,14 +65,14 @@ jobs:
         shell: pwsh
         run: |
           npx --yes "$env:CCUSAGE_PREVIEW_URL" --version
-          npx --yes "$env:CCUSAGE_PREVIEW_URL" daily --offline --json
+          npx --yes "$env:CCUSAGE_PREVIEW_URL" daily --offline --json | jq -e .
           npx --yes "$env:CCUSAGE_PREVIEW_URL" daily --offline
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
       - name: Run preview package E2E with Bun
         shell: pwsh
         run: |
           npx --yes "$env:CCUSAGE_PREVIEW_URL" --version
-          npx --yes "$env:CCUSAGE_PREVIEW_URL" daily --offline --json
+          npx --yes "$env:CCUSAGE_PREVIEW_URL" daily --offline --json | jq -e .
           npx --yes "$env:CCUSAGE_PREVIEW_URL" daily --offline
 
   spell-check:

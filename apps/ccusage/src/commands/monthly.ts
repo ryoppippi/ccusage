@@ -14,7 +14,7 @@ import { sharedCommandConfig } from '../_shared-args.ts';
 import { calculateTotals, createTotalsObject, getTotalTokens } from '../calculate-cost.ts';
 import { loadMonthlyUsageData } from '../data-loader.ts';
 import { detectMismatches, printMismatchReport } from '../debug.ts';
-import { log, logger } from '../logger.ts';
+import { logger, writeStdoutLine } from '../logger.ts';
 
 export const monthlyCommand = define({
 	name: 'monthly',
@@ -45,7 +45,7 @@ export const monthlyCommand = define({
 						totalCost: 0,
 					},
 				};
-				log(JSON.stringify(emptyOutput, null, 2));
+				await writeStdoutLine(JSON.stringify(emptyOutput, null, 2));
 			} else {
 				logger.warn('No Claude usage data found.');
 			}
@@ -78,7 +78,7 @@ export const monthlyCommand = define({
 				totals: createTotalsObject(totals),
 			};
 
-			log(JSON.stringify(jsonOutput, null, 2));
+			await writeStdoutLine(JSON.stringify(jsonOutput, null, 2));
 		} else {
 			// Print header
 			logger.box('Claude Code Token Usage Report - Monthly');
@@ -123,7 +123,7 @@ export const monthlyCommand = define({
 			});
 			table.push(totalsRow);
 
-			log(table.toString());
+			await writeStdoutLine(table.toString());
 
 			// Show guidance message if in compact mode
 			if (table.isCompactMode()) {
