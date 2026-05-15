@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 
 import { join, relative, resolve } from 'node:path';
+import { execPath } from 'node:process';
 import { createFixture } from 'fs-fixture';
 import { cli, define } from 'gunshi';
 
@@ -137,8 +138,9 @@ function shellQuote(value: string): string {
 /**
  * Builds the ccusage command that hyperfine will benchmark.
  *
- * The command keeps the existing published runtime shape, `pnpm exec bun -b dist/index.js`, while
- * setting the fixture and output environment variables only for the measured process.
+ * The CI script itself is launched through `pnpm exec bun`, but the benchmarked command must not
+ * include that package-manager lookup. `execPath` is the Bun binary already running this script, so
+ * hyperfine measures ccusage startup and loading instead of `pnpm exec` overhead.
  */
 function createCcusageCommand(repoDir: string, fixtureDir: string, command: string): string {
 	const invocation = [
@@ -148,7 +150,7 @@ function createCcusageCommand(repoDir: string, fixtureDir: string, command: stri
 		'LOG_LEVEL=0',
 		'NO_COLOR=1',
 		'TZ=UTC',
-		`pnpm exec bun -b ${shellQuote(builtEntry(repoDir))} ${command} --offline --json`,
+		`${shellQuote(execPath)} -b ${shellQuote(builtEntry(repoDir))} ${command} --offline --json`,
 	].join(' ');
 	return [`cd ${shellQuote(repoDir)}`, invocation].join(' && ');
 }
