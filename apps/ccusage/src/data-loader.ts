@@ -11,7 +11,22 @@
 import type { LiteLLMModelPricing } from '@ccusage/internal/pricing';
 import type { WeekDay } from './_consts.ts';
 import type { LoadedUsageEntry, SessionBlock } from './_session-blocks.ts';
-import type { ActivityDate, Bucket, CostMode, ModelName, SortOrder, Version } from './_types.ts';
+import type {
+	ActivityDate,
+	Bucket,
+	CostMode,
+	DailyDate,
+	ISOTimestamp,
+	MessageId,
+	ModelName,
+	MonthlyDate,
+	ProjectPath,
+	RequestId,
+	SessionId,
+	SortOrder,
+	Version,
+	WeeklyDate,
+} from './_types.ts';
 import { Buffer } from 'node:buffer';
 import { createReadStream, createWriteStream } from 'node:fs';
 import { open, readdir, readFile, stat, utimes } from 'node:fs/promises';
@@ -44,7 +59,6 @@ import {
 import { CLAUDE_PROVIDER_PREFIXES, PricingFetcher } from './_pricing-fetcher.ts';
 import { identifySessionBlocks } from './_session-blocks.ts';
 import {
-	activityDateSchema,
 	createBucket,
 	createDailyDate,
 	createISOTimestamp,
@@ -55,16 +69,13 @@ import {
 	createRequestId,
 	createSessionId,
 	createVersion,
-	dailyDateSchema,
+	createWeeklyDate,
 	isoTimestampSchema,
 	messageIdSchema,
 	modelNameSchema,
-	monthlyDateSchema,
-	projectPathSchema,
 	requestIdSchema,
 	sessionIdSchema,
 	versionSchema,
-	weeklyDateSchema,
 } from './_types.ts';
 import { unreachable } from './_utils.ts';
 import { logger } from './logger.ts';
@@ -768,126 +779,118 @@ export const transcriptMessageSchema = v.object({
 /**
  * Type definition for Claude usage data entries from JSONL files
  */
-export type UsageData = v.InferOutput<typeof usageDataSchema>;
-
-/**
- * Valibot schema for model-specific usage breakdown data
- */
-export const modelBreakdownSchema = v.object({
-	modelName: modelNameSchema,
-	inputTokens: v.number(),
-	outputTokens: v.number(),
-	cacheCreationTokens: v.number(),
-	cacheReadTokens: v.number(),
-	cost: v.number(),
-});
+export type UsageData = {
+	cwd?: string;
+	sessionId?: SessionId;
+	timestamp: ISOTimestamp;
+	version?: Version;
+	message: {
+		usage: {
+			input_tokens: number;
+			output_tokens: number;
+			cache_creation_input_tokens?: number;
+			cache_read_input_tokens?: number;
+			speed?: 'standard' | 'fast';
+		};
+		model?: ModelName;
+		id?: MessageId;
+		content?: Array<{
+			text?: string;
+		}>;
+	};
+	costUSD?: number;
+	requestId?: RequestId;
+	isApiErrorMessage?: boolean;
+};
 
 /**
  * Type definition for model-specific usage breakdown
  */
-export type ModelBreakdown = v.InferOutput<typeof modelBreakdownSchema>;
-
-/**
- * Valibot schema for daily usage aggregation data
- */
-export const dailyUsageSchema = v.object({
-	date: dailyDateSchema, // YYYY-MM-DD format
-	inputTokens: v.number(),
-	outputTokens: v.number(),
-	cacheCreationTokens: v.number(),
-	cacheReadTokens: v.number(),
-	totalCost: v.number(),
-	modelsUsed: v.array(modelNameSchema),
-	modelBreakdowns: v.array(modelBreakdownSchema),
-	project: v.optional(v.string()), // Project name when groupByProject is enabled
-});
+export type ModelBreakdown = {
+	modelName: ModelName;
+	inputTokens: number;
+	outputTokens: number;
+	cacheCreationTokens: number;
+	cacheReadTokens: number;
+	cost: number;
+};
 
 /**
  * Type definition for daily usage aggregation
  */
-export type DailyUsage = v.InferOutput<typeof dailyUsageSchema>;
-
-/**
- * Valibot schema for session-based usage aggregation data
- */
-export const sessionUsageSchema = v.object({
-	sessionId: sessionIdSchema,
-	projectPath: projectPathSchema,
-	inputTokens: v.number(),
-	outputTokens: v.number(),
-	cacheCreationTokens: v.number(),
-	cacheReadTokens: v.number(),
-	totalCost: v.number(),
-	lastActivity: activityDateSchema,
-	versions: v.array(versionSchema), // List of unique versions used in this session
-	modelsUsed: v.array(modelNameSchema),
-	modelBreakdowns: v.array(modelBreakdownSchema),
-});
+export type DailyUsage = {
+	date: DailyDate;
+	inputTokens: number;
+	outputTokens: number;
+	cacheCreationTokens: number;
+	cacheReadTokens: number;
+	totalCost: number;
+	modelsUsed: ModelName[];
+	modelBreakdowns: ModelBreakdown[];
+	project?: string;
+};
 
 /**
  * Type definition for session-based usage aggregation
  */
-export type SessionUsage = v.InferOutput<typeof sessionUsageSchema>;
-
-/**
- * Valibot schema for monthly usage aggregation data
- */
-export const monthlyUsageSchema = v.object({
-	month: monthlyDateSchema, // YYYY-MM format
-	inputTokens: v.number(),
-	outputTokens: v.number(),
-	cacheCreationTokens: v.number(),
-	cacheReadTokens: v.number(),
-	totalCost: v.number(),
-	modelsUsed: v.array(modelNameSchema),
-	modelBreakdowns: v.array(modelBreakdownSchema),
-	project: v.optional(v.string()), // Project name when groupByProject is enabled
-});
+export type SessionUsage = {
+	sessionId: SessionId;
+	projectPath: ProjectPath;
+	inputTokens: number;
+	outputTokens: number;
+	cacheCreationTokens: number;
+	cacheReadTokens: number;
+	totalCost: number;
+	lastActivity: ActivityDate;
+	versions: Version[];
+	modelsUsed: ModelName[];
+	modelBreakdowns: ModelBreakdown[];
+};
 
 /**
  * Type definition for monthly usage aggregation
  */
-export type MonthlyUsage = v.InferOutput<typeof monthlyUsageSchema>;
-
-/**
- * Valibot schema for weekly usage aggregation data
- */
-export const weeklyUsageSchema = v.object({
-	week: weeklyDateSchema, // YYYY-MM-DD format
-	inputTokens: v.number(),
-	outputTokens: v.number(),
-	cacheCreationTokens: v.number(),
-	cacheReadTokens: v.number(),
-	totalCost: v.number(),
-	modelsUsed: v.array(modelNameSchema),
-	modelBreakdowns: v.array(modelBreakdownSchema),
-	project: v.optional(v.string()), // Project name when groupByProject is enabled
-});
+export type MonthlyUsage = {
+	month: MonthlyDate;
+	inputTokens: number;
+	outputTokens: number;
+	cacheCreationTokens: number;
+	cacheReadTokens: number;
+	totalCost: number;
+	modelsUsed: ModelName[];
+	modelBreakdowns: ModelBreakdown[];
+	project?: string;
+};
 
 /**
  * Type definition for weekly usage aggregation
  */
-export type WeeklyUsage = v.InferOutput<typeof weeklyUsageSchema>;
-
-/**
- * Valibot schema for bucket usage aggregation data
- */
-export const bucketUsageSchema = v.object({
-	bucket: v.union([weeklyDateSchema, monthlyDateSchema]), // WeeklyDate or MonthlyDate
-	inputTokens: v.number(),
-	outputTokens: v.number(),
-	cacheCreationTokens: v.number(),
-	cacheReadTokens: v.number(),
-	totalCost: v.number(),
-	modelsUsed: v.array(modelNameSchema),
-	modelBreakdowns: v.array(modelBreakdownSchema),
-	project: v.optional(v.string()), // Project name when groupByProject is enabled
-});
+export type WeeklyUsage = {
+	week: WeeklyDate;
+	inputTokens: number;
+	outputTokens: number;
+	cacheCreationTokens: number;
+	cacheReadTokens: number;
+	totalCost: number;
+	modelsUsed: ModelName[];
+	modelBreakdowns: ModelBreakdown[];
+	project?: string;
+};
 
 /**
  * Type definition for bucket usage aggregation
  */
-export type BucketUsage = v.InferOutput<typeof bucketUsageSchema>;
+export type BucketUsage = {
+	bucket: Bucket;
+	inputTokens: number;
+	outputTokens: number;
+	cacheCreationTokens: number;
+	cacheReadTokens: number;
+	totalCost: number;
+	modelsUsed: ModelName[];
+	modelBreakdowns: ModelBreakdown[];
+	project?: string;
+};
 
 /**
  * Internal type for aggregating token statistics and costs
@@ -2739,7 +2742,7 @@ export async function loadMonthlyUsageData(options?: LoadOptions): Promise<Month
 		options,
 	).then((usages) =>
 		usages.map<MonthlyUsage>(({ bucket, ...rest }) => ({
-			month: v.parse(monthlyDateSchema, bucket),
+			month: createMonthlyDate(bucket),
 			...rest,
 		})),
 	);
@@ -2754,7 +2757,7 @@ export async function loadWeeklyUsageData(options?: LoadOptions): Promise<Weekly
 		options,
 	).then((usages) =>
 		usages.map<WeeklyUsage>(({ bucket, ...rest }) => ({
-			week: v.parse(weeklyDateSchema, bucket),
+			week: createWeeklyDate(bucket),
 			...rest,
 		})),
 	);
