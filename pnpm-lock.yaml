@@ -537,9 +537,6 @@ importers:
 
   packages/terminal:
     dependencies:
-      '@ccusage/internal':
-        specifier: workspace:*
-        version: link:../internal
       '@oxc-project/runtime':
         specifier: catalog:build
         version: 0.129.0
@@ -547,6 +544,9 @@ importers:
         specifier: catalog:runtime
         version: 7.1.0
     devDependencies:
+      '@ccusage/internal':
+        specifier: workspace:*
+        version: link:../internal
       '@ryoppippi/eslint-config':
         specifier: catalog:lint
         version: 0.4.0(@vue/compiler-sfc@3.5.30)(eslint-plugin-format@2.0.1(eslint@9.35.0(jiti@2.6.1)))(eslint@9.35.0(jiti@2.6.1))(typescript@5.9.2)(vitest@4.1.2(@types/node@24.5.1)(happy-dom@16.8.1)(vite@8.0.11(@types/node@24.5.1)(esbuild@0.27.4)(jiti@2.6.1)(yaml@2.8.3)))

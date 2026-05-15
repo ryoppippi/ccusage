@@ -311,10 +311,12 @@ export class ResponsiveTable {
 		minColumnWidths?: number[];
 		flexibleColumnIndex?: number;
 	} {
-		if (this.compactMode && this.compactHead != null && this.compactColAligns != null) {
+		if (this.compactMode && this.compactHead != null) {
 			return {
 				head: this.compactHead,
-				colAligns: this.compactColAligns,
+				colAligns:
+					this.compactColAligns ??
+					Array.from({ length: this.compactHead.length }, () => 'left' as const),
 				minColumnWidths: this.compactMinColumnWidths,
 				flexibleColumnIndex: this.compactFlexibleColumnIndex,
 			};
@@ -1329,6 +1331,27 @@ if (import.meta.vitest != null) {
 					expect(config.head).toEqual(['Date', 'Model', 'Cost']);
 					// eslint-disable-next-line ts/no-unsafe-member-access
 					expect(config.colAligns).toEqual(['left', 'left', 'right']);
+				} finally {
+					vi.unstubAllEnvs();
+				}
+			});
+
+			it('should return compact config with default aligns when compact aligns are omitted', () => {
+				vi.stubEnv('COLUMNS', '80');
+				try {
+					const table = new ResponsiveTable({
+						head: ['Date', 'Model', 'Input', 'Output', 'Cost'],
+						colAligns: ['left', 'left', 'right', 'right', 'right'],
+						compactHead: ['Date', 'Model', 'Cost'],
+						compactThreshold: 100,
+					});
+
+					table.push(['2024-01-01', 'sonnet-4', '1000', '500', '$1.50']);
+					const output = table.toString();
+
+					expect(output).toContain('Model');
+					expect(output).not.toContain('Input');
+					expect(output).not.toContain('Output');
 				} finally {
 					vi.unstubAllEnvs();
 				}
