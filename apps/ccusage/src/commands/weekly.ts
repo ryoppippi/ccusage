@@ -134,13 +134,14 @@ export const weeklyCommand = define({
 			});
 			table.push(totalsRow);
 
-			await writeStdoutLine(table.toString());
+			const renderedTable = table.toString();
 
-			// Show guidance message if in compact mode
 			if (table.isCompactMode()) {
-				logger.info('\nRunning in Compact Mode');
+				logger.info('Running in Compact Mode');
 				logger.info('Expand terminal width to see cache metrics and total tokens');
 			}
+
+			await writeStdoutLine(renderedTable);
 		}
 	},
 });

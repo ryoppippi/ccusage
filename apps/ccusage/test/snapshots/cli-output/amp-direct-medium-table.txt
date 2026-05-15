@@ -5,6 +5,8 @@
  │                                  │
  ╰──────────────────────────────────╯
 
+[@ccusage/amp] ℹ Running in Compact Mode
+[@ccusage/amp] ℹ Expand terminal width to see cache metrics and total tokens
 ┌────────────┬──────────────┬───────────┬───────────┬──────────┬──────────────┐
 │ Date       │ Models       │     Input │    Output │  Credits │   Cost (USD) │
 ├────────────┼──────────────┼───────────┼───────────┼──────────┼──────────────┤
@@ -12,7 +14,3 @@
 ├────────────┼──────────────┼───────────┼───────────┼──────────┼──────────────┤
 │ Total      │              │       100 │        50 │     1.50 │        $0.00 │
 └────────────┴──────────────┴───────────┴───────────┴──────────┴──────────────┘
-
-[@ccusage/amp] ℹ Running in Compact Mode
-
-[@ccusage/amp] ℹ Expand terminal width to see cache metrics and total tokens

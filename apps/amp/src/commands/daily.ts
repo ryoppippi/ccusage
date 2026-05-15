@@ -204,11 +204,13 @@ export const dailyCommand = define({
 			pc.yellow(formatCurrency(totals.totalCost)),
 		]);
 
-		await writeStdoutLine(table.toString());
+		const renderedTable = table.toString();
 
 		if (table.isCompactMode()) {
 			logger.info('Running in Compact Mode');
 			logger.info('Expand terminal width to see cache metrics and total tokens');
 		}
+
+		await writeStdoutLine(renderedTable);
 	},
 });

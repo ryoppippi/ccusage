@@ -138,11 +138,13 @@ export const dailyCommand = define({
 
 		addEmptySeparatorRow(table, TABLE_COLUMN_COUNT);
 		table.push(formatTotalsRow(totals));
-		await writeStdoutLine(table.toString());
+		const renderedTable = table.toString();
 
 		if (table.isCompactMode()) {
-			logger.info('\nRunning in Compact Mode');
+			logger.info('Running in Compact Mode');
 			logger.info('Expand terminal width to see cache metrics and total tokens');
 		}
+
+		await writeStdoutLine(renderedTable);
 	},
 });

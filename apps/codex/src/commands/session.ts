@@ -222,14 +222,16 @@ export const sessionCommand = define({
 				'',
 			]);
 
-			log(table.toString());
+			const renderedTable = table.toString();
 
 			if (table.isCompactMode()) {
-				logger.info('\nRunning in Compact Mode');
+				logger.info('Running in Compact Mode');
 				logger.info(
 					'Expand terminal width to see directories, cache metrics, total tokens, and last activity',
 				);
 			}
+
+			log(renderedTable);
 		} finally {
 			pricingSource[Symbol.dispose]();
 		}
