@@ -12,8 +12,8 @@ export default defineConfig({
 	outDir: 'dist',
 	format: 'esm',
 	clean: true,
-	sourcemap: false,
-	minify: false,
+	sourcemap: true,
+	minify: true,
 	treeshake: {
 		moduleSideEffects: false,
 	},
