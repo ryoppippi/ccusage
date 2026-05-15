@@ -13,7 +13,7 @@
       "outputTokens": 200,
       "cacheCreationTokens": 60,
       "cacheReadTokens": 40,
-      "totalTokens": 690,
+      "totalTokens": 700,
       "totalCost": 0.0009897500000000002,
       "metadata": {
         "agents": [
@@ -30,7 +30,7 @@
     "outputTokens": 200,
     "cacheCreationTokens": 60,
     "cacheReadTokens": 40,
-    "totalTokens": 690,
+    "totalTokens": 700,
     "totalCost": 0.0009897500000000002
   }
 }

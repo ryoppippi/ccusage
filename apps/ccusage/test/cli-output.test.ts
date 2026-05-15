@@ -379,7 +379,7 @@ describe('ccusage all-agent CLI', () => {
 				inputTokens: 400,
 				outputTokens: 200,
 				period: '2026-01-02',
-				totalTokens: 690,
+				totalTokens: 700,
 			}),
 		);
 		expect(output.daily[0]?.metadata?.agents).toEqual(['amp', 'codex', 'opencode', 'pi']);

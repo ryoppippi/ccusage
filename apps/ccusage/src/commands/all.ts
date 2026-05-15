@@ -457,7 +457,7 @@ async function loadCodexRows(
 		group.row.inputTokens += event.inputTokens;
 		group.row.outputTokens += event.outputTokens;
 		group.row.cacheReadTokens += event.cachedInputTokens;
-		group.row.totalTokens += event.totalTokens;
+		group.row.totalTokens += event.inputTokens + event.outputTokens + event.cachedInputTokens;
 		group.reasoningOutputTokens += event.reasoningOutputTokens;
 		if (event.timestamp > group.lastActivity) {
 			group.lastActivity = event.timestamp;
