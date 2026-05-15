@@ -37,6 +37,12 @@ jobs:
       - name: Build PR ccusage
         run: nix develop --command pnpm --filter ccusage run build
 
+      - name: Generate large ccusage fixture
+        run: |
+          nix develop --command pnpm exec bun apps/ccusage/scripts/generate-large-fixture.ts \
+            --output-dir "$RUNNER_TEMP/ccusage-large-fixture" \
+            --size-mib 1024
+
       - name: Compare fixture performance
         run: |
           nix develop --command pnpm exec bun apps/ccusage/scripts/compare-pr-performance.ts \
@@ -45,6 +51,9 @@ jobs:
             --fixture-dir apps/ccusage/test/fixtures/claude \
             --warmup 2 \
             --runs 7 \
+            --large-fixture-dir "$RUNNER_TEMP/ccusage-large-fixture" \
+            --large-warmup 0 \
+            --large-runs 1 \
             --output "$RUNNER_TEMP/ccusage-perf-comment.md"
 
       - name: Upsert PR comment

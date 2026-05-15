@@ -24,6 +24,22 @@ type SizeComparison = {
 	head: number;
 };
 
+type SampleOptions = {
+	runs: number;
+	warmup: number;
+};
+
+type MeasurementOptions = SampleOptions & {
+	label: string;
+};
+
+type FixtureComparison = SampleOptions & {
+	description: string;
+	fixtureDir: string;
+	results: CommandResult[];
+	title: string;
+};
+
 function distDir(repoDir: string): string {
 	return join(repoDir, 'apps', 'ccusage', 'dist');
 }
@@ -97,6 +113,10 @@ function formatSize(bytes: number): string {
 	return `${(bytes / 1024).toFixed(2)} KiB`;
 }
 
+async function writeProgress(message: string): Promise<void> {
+	await Bun.write(Bun.stderr, `[ccusage-perf] ${message}\n`);
+}
+
 async function runCcusage(repoDir: string, fixtureDir: string, command: string): Promise<void> {
 	const output = await Bun.$`pnpm exec bun -b ${builtEntry(repoDir)} ${command} --offline --json`
 		.cwd(repoDir)
@@ -127,14 +147,18 @@ async function measureCommand(
 	repoDir: string,
 	fixtureDir: string,
 	command: string,
-	options: { runs: number; warmup: number },
+	options: MeasurementOptions,
 ): Promise<CommandMeasurement> {
 	for (let index = 0; index < options.warmup; index++) {
+		await writeProgress(`${options.label} warmup ${index + 1}/${options.warmup}`);
 		await runCcusage(repoDir, fixtureDir, command);
 	}
 
+	let sampleIndex = 0;
 	const stats = await measure(
 		async () => {
+			sampleIndex++;
+			await writeProgress(`${options.label} sample ${sampleIndex}`);
 			await runCcusage(repoDir, fixtureDir, command);
 		},
 		{
@@ -144,6 +168,7 @@ async function measureCommand(
 			warmup_threshold: 0,
 		},
 	);
+	await writeProgress(`${options.label} done: ${formatDuration(stats.p50 / 1e6)} median`);
 
 	return {
 		max: stats.max / 1e6,
@@ -157,14 +182,23 @@ async function compareCommand(
 	command: string,
 	options: {
 		baseDir: string;
+		fixtureTitle: string;
 		fixtureDir: string;
 		headDir: string;
 		runs: number;
 		warmup: number;
 	},
 ): Promise<CommandResult> {
-	const base = await measureCommand(options.baseDir, options.fixtureDir, command, options);
-	const head = await measureCommand(options.headDir, options.fixtureDir, command, options);
+	const base = await measureCommand(options.baseDir, options.fixtureDir, command, {
+		label: `${options.fixtureTitle} / base / ${command}`,
+		runs: options.runs,
+		warmup: options.warmup,
+	});
+	const head = await measureCommand(options.headDir, options.fixtureDir, command, {
+		label: `${options.fixtureTitle} / PR / ${command}`,
+		runs: options.runs,
+		warmup: options.warmup,
+	});
 
 	return {
 		base,
@@ -173,36 +207,106 @@ async function compareCommand(
 	};
 }
 
-function renderMarkdown(
-	results: CommandResult[],
-	sizes: SizeComparison,
-	options: { fixtureDir: string; headDir: string; runs: number; warmup: number },
-): string {
+/**
+ * Runs the selected command matrix for one fixture directory.
+ *
+ * Keeping this grouped by fixture lets the CI comment report the committed small fixture and the
+ * generated 1 GiB single-file fixture separately. Those two workloads stress different paths:
+ * the committed fixture is stable and quick, while the generated fixture catches regressions in
+ * the streaming reader used for very large Claude logs. The large fixture currently runs only
+ * `daily` because base-branch scans over 1 GiB are intentionally expensive.
+ */
+async function compareFixture(options: {
+	baseDir: string;
+	commands: string[];
+	description: string;
+	fixtureDir: string;
+	headDir: string;
+	runs: number;
+	title: string;
+	warmup: number;
+}): Promise<FixtureComparison> {
+	const results: CommandResult[] = [];
+	await writeProgress(`${options.title} started`);
+	for (const command of options.commands) {
+		results.push(
+			await compareCommand(command, {
+				...options,
+				fixtureTitle: options.title,
+			}),
+		);
+	}
+	await writeProgress(`${options.title} finished`);
+
+	return {
+		description: options.description,
+		fixtureDir: options.fixtureDir,
+		results,
+		runs: options.runs,
+		title: options.title,
+		warmup: options.warmup,
+	};
+}
+
+/**
+ * Keeps the PR comment path readable for committed fixtures while still showing
+ * generated CI fixtures that live outside the repository checkout.
+ */
+function formatFixturePath(headDir: string, fixtureDir: string): string {
+	const relativePath = relative(headDir, fixtureDir);
+	return relativePath.startsWith('..') ? fixtureDir : relativePath;
+}
+
+/**
+ * Renders one benchmark table so additional fixture workloads can be appended without duplicating
+ * markdown layout logic or accidentally dropping the base/head speedup column.
+ */
+function renderFixtureSection(section: FixtureComparison, options: { headDir: string }): string[] {
 	const lines = [
-		'<!-- ccusage-perf-comment -->',
-		'## ccusage fixture performance',
+		`## ${section.title}`,
 		'',
-		'This compares the PR build against the base branch build using the committed ccusage CLI fixture.',
+		section.description,
 		'',
-		`Fixture: \`${relative(options.headDir, options.fixtureDir)}\``,
-		`Runtime: built \`apps/ccusage/dist/index.js\` through \`bun -b\`, \`--offline --json\`, measured by \`mitata\` with \`${options.warmup}\` explicit warmups and \`${options.runs}\` samples.`,
+		`Fixture: \`${formatFixturePath(options.headDir, section.fixtureDir)}\``,
+		`Runtime: built \`apps/ccusage/dist/index.js\` through \`bun -b\`, \`--offline --json\`, measured by \`mitata\` with \`${section.warmup}\` explicit warmups and \`${section.runs}\` samples.`,
 		'',
 		'| Command | Base median | PR median | PR vs base |',
 		'| --- | ---: | ---: | ---: |',
 	];
 
-	for (const result of results) {
+	for (const result of section.results) {
 		const speedup = result.base.median / result.head.median;
 		lines.push(
 			`| \`${result.command} --offline --json\` | ${formatDuration(result.base.median)} | ${formatDuration(result.head.median)} | ${speedup.toFixed(2)}x |`,
 		);
 	}
 
+	return lines;
+}
+
+function renderMarkdown(
+	sections: FixtureComparison[],
+	sizes: SizeComparison,
+	options: { headDir: string },
+): string {
+	const lines = [
+		'<!-- ccusage-perf-comment -->',
+		'## ccusage performance comparison',
+		'',
+		'This compares the PR build against the base branch build on the same CI runner.',
+		'',
+	];
+
+	for (const section of sections) {
+		lines.push(...renderFixtureSection(section, options), '');
+	}
+
 	const sizeDelta = sizes.head - sizes.base;
 	const sizeRatio = sizes.base / sizes.head;
 	lines.push(
+		'## Package size',
 		'',
-		'| Package | Base | PR | Delta | Ratio |',
+		'| Package artifact | Base | PR | Delta | Ratio |',
 		'| --- | ---: | ---: | ---: | ---: |',
 		`| packed \`ccusage-*.tgz\` | ${formatSize(sizes.base)} | ${formatSize(sizes.head)} | ${sizeDelta >= 0 ? '+' : ''}${formatSize(sizeDelta)} | ${sizeRatio.toFixed(2)}x |`,
 		'',
@@ -211,6 +315,19 @@ function renderMarkdown(
 	);
 
 	return `${lines.join('\n')}\n`;
+}
+
+/**
+ * Rejects accidental zero-sample CI runs early because mitata still starts but
+ * the resulting PR comment would look like a successful benchmark.
+ */
+function assertSampleOptions(options: SampleOptions, label: string): void {
+	if (!Number.isInteger(options.runs) || options.runs < 1) {
+		throw new Error(`--${label}runs must be a positive integer`);
+	}
+	if (!Number.isInteger(options.warmup) || options.warmup < 0) {
+		throw new Error(`--${label}warmup must be a non-negative integer`);
+	}
 }
 
 const command = define({
@@ -247,14 +364,24 @@ const command = define({
 			default: 2,
 			description: 'Explicit warmup runs before each measured command',
 		},
+		largeFixtureDir: {
+			type: 'string',
+			description: 'Generated large Claude fixture directory used as CLAUDE_CONFIG_DIR',
+		},
+		largeRuns: {
+			type: 'number',
+			default: 1,
+			description: 'Measured mitata samples per command for the large fixture',
+		},
+		largeWarmup: {
+			type: 'number',
+			default: 0,
+			description: 'Explicit warmup runs before each large-fixture command',
+		},
 	},
 	async run(ctx) {
-		if (!Number.isInteger(ctx.values.runs) || ctx.values.runs < 1) {
-			throw new Error('--runs must be a positive integer');
-		}
-		if (!Number.isInteger(ctx.values.warmup) || ctx.values.warmup < 0) {
-			throw new Error('--warmup must be a non-negative integer');
-		}
+		assertSampleOptions({ runs: ctx.values.runs, warmup: ctx.values.warmup }, '');
+		assertSampleOptions({ runs: ctx.values.largeRuns, warmup: ctx.values.largeWarmup }, 'large-');
 
 		const options = {
 			baseDir: resolve(ctx.values.baseDir),
@@ -263,11 +390,28 @@ const command = define({
 			runs: ctx.values.runs,
 			warmup: ctx.values.warmup,
 		};
-		const commands = ['daily', 'session', 'blocks'];
-
-		const results: CommandResult[] = [];
-		for (const command of commands) {
-			results.push(await compareCommand(command, options));
+		const sections = [
+			await compareFixture({
+				...options,
+				commands: ['daily', 'session', 'blocks'],
+				description:
+					'Committed small fixture for stable PR-to-PR feedback and output-shape regressions.',
+				title: 'Committed fixture performance',
+			}),
+		];
+		if (ctx.values.largeFixtureDir != null) {
+			sections.push(
+				await compareFixture({
+					...options,
+					commands: ['daily'],
+					description:
+						'Generated single-file fixture around 1 GiB. This exercises the streaming path used when one Claude session log grows too large for buffered reads.',
+					fixtureDir: resolve(ctx.values.largeFixtureDir),
+					runs: ctx.values.largeRuns,
+					title: 'Large single-file fixture performance',
+					warmup: ctx.values.largeWarmup,
+				}),
+			);
 		}
 
 		const sizes = {
@@ -275,7 +419,7 @@ const command = define({
 			head: await packedTarballSizeBytes(options.headDir),
 		};
 
-		const markdown = renderMarkdown(results, sizes, options);
+		const markdown = renderMarkdown(sections, sizes, options);
 		if (ctx.values.output == null) {
 			await Bun.write(Bun.stdout, markdown);
 		} else {
