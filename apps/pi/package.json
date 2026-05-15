@@ -24,7 +24,7 @@
 	},
 	"types": "./dist/index.d.ts",
 	"bin": {
-		"ccusage-pi": "./src/index.ts"
+		"pi": "./src/index.ts"
 	},
 	"files": [
 		"README.md",
@@ -32,7 +32,7 @@
 	],
 	"publishConfig": {
 		"bin": {
-			"ccusage-pi": "./dist/index.js"
+			"pi": "./dist/index.js"
 		},
 		"exports": {
 			".": "./dist/index.js",

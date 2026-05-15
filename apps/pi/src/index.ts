@@ -6,6 +6,6 @@ import { runDeprecatedAgentCli } from '@ccusage/internal/deprecated-agent-cli';
 // eslint-disable-next-line antfu/no-top-level-await
 process.exitCode = await runDeprecatedAgentCli({
 	agent: 'pi',
-	binaryName: 'ccusage-pi',
+	binaryName: 'pi',
 	packageName: '@ccusage/pi',
 });
