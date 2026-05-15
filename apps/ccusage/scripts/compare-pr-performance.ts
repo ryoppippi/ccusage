@@ -233,10 +233,10 @@ async function compareCommand(
  * Runs the selected command matrix for one fixture directory.
  *
  * Keeping this grouped by fixture lets the CI comment report the committed small fixture and the
- * generated 1 GiB single-file fixture separately. Those two workloads stress different paths:
- * the committed fixture is stable and quick, while the generated fixture catches regressions in
- * the streaming reader used for very large Claude logs. The large fixture currently runs only
- * `daily` because base-branch scans over 1 GiB are intentionally expensive.
+ * generated 1 GiB real-world-shaped fixture separately. Those two workloads stress different
+ * paths: the committed fixture is stable and quick, while the generated fixture catches
+ * regressions in the multi-file loading path used by large Claude corpora. The large fixture
+ * currently runs only `daily` because base-branch scans over 1 GiB are intentionally expensive.
  */
 async function compareFixture(options: {
 	baseDir: string;
@@ -427,10 +427,10 @@ const command = define({
 					...options,
 					commands: ['daily'],
 					description:
-						'Generated single-file fixture around 1 GiB. This exercises the streaming path used when one Claude session log grows too large for buffered reads.',
+						'Generated fixture around 1 GiB shaped from aggregate local Claude-log statistics: thousands of JSONL files, many small sessions, and a long tail of larger sessions. No real prompts, paths, or outputs are stored in the fixture.',
 					fixtureDir: resolve(ctx.values.largeFixtureDir),
 					runs: ctx.values.largeRuns,
-					title: 'Large single-file fixture performance',
+					title: 'Large real-world-shaped fixture performance',
 					warmup: ctx.values.largeWarmup,
 				}),
 			);
