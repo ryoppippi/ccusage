@@ -1740,6 +1740,7 @@ type EncodedDailyDataEntries = {
 	count: number;
 	numbers: Float64Array;
 	flags: Uint8Array;
+	project: string;
 	strings: Array<string | null>;
 };
 
@@ -1862,15 +1863,17 @@ function markDedupedEntryMetadata(
  * Pack daily worker rows into column arrays before posting them back to the main thread.
  *
  * The numeric columns are transferred instead of cloned, and the string columns stay in a flat array.
- * This keeps worker messaging smaller than sending one object per parsed usage row while preserving
- * the main-thread dedupe and aggregation rules.
+ * Each payload represents one JSONL file, so `project` is stored once instead of cloned for every
+ * row. This keeps worker messaging smaller than sending one object per parsed usage row while
+ * preserving the main-thread dedupe and aggregation rules.
  */
 function encodeDailyDataEntries(entries: DailyDataEntry[]): EncodedDailyDataEntries {
 	const count = entries.length;
 	const numbers = new Float64Array(count * 6);
 	const flags = new Uint8Array(count);
 	const strings: Array<string | null> = [];
-	strings.length = count * 4;
+	strings.length = count * 3;
+	const firstEntry = entries[0];
 
 	for (let index = 0; index < count; index++) {
 		const entry = entries[index]!;
@@ -1883,11 +1886,10 @@ function encodeDailyDataEntries(entries: DailyDataEntry[]): EncodedDailyDataEntr
 		numbers[numberOffset + 5] = entry.tokenTotal;
 		flags[index] = entry.hasSpeed ? 1 : 0;
 
-		const stringOffset = index * 4;
+		const stringOffset = index * 3;
 		strings[stringOffset] = entry.date;
 		strings[stringOffset + 1] = entry.model ?? null;
-		strings[stringOffset + 2] = entry.project;
-		strings[stringOffset + 3] = entry.uniqueHash;
+		strings[stringOffset + 2] = entry.uniqueHash;
 	}
 
 	return {
@@ -1895,6 +1897,7 @@ function encodeDailyDataEntries(entries: DailyDataEntry[]): EncodedDailyDataEntr
 		count,
 		numbers,
 		flags,
+		project: firstEntry?.project ?? '',
 		strings,
 	};
 }
@@ -1921,7 +1924,7 @@ function forEachDailyDataEntry(
 ): void {
 	for (let index = 0; index < encoded.count; index++) {
 		const numberOffset = index * 6;
-		const stringOffset = index * 4;
+		const stringOffset = index * 3;
 		onEntry({
 			date: encoded.strings[stringOffset]!,
 			cost: encoded.numbers[numberOffset]!,
@@ -1930,8 +1933,8 @@ function forEachDailyDataEntry(
 			cacheCreationTokens: encoded.numbers[numberOffset + 3]!,
 			cacheReadTokens: encoded.numbers[numberOffset + 4]!,
 			model: encoded.strings[stringOffset + 1] ?? undefined,
-			project: encoded.strings[stringOffset + 2]!,
-			uniqueHash: encoded.strings[stringOffset + 3] ?? null,
+			project: encoded.project,
+			uniqueHash: encoded.strings[stringOffset + 2] ?? null,
 			tokenTotal: encoded.numbers[numberOffset + 5]!,
 			hasSpeed: encoded.flags[index] === 1,
 		});
