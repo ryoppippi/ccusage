@@ -1830,25 +1830,6 @@ function shouldReplaceEntryMetadata(
 	return candidate.hasSpeed && !existing.hasSpeed;
 }
 
-function getDedupedEntryMetadataIndex<
-	T extends {
-		uniqueHash: string | null;
-		tokenTotal: number;
-		hasSpeed: boolean;
-	},
->(processedEntries: Map<string, number>, entries: T[], data: T): number | null {
-	if (data.uniqueHash == null) {
-		return null;
-	}
-
-	const existingIndex = processedEntries.get(data.uniqueHash);
-	if (existingIndex == null) {
-		return null;
-	}
-
-	return shouldReplaceEntryMetadata(data, entries[existingIndex]!) ? existingIndex : -1;
-}
-
 function markDedupedEntryMetadata(
 	processedEntries: Map<string, number>,
 	entry: { uniqueHash: string | null },
@@ -2523,17 +2504,20 @@ export async function loadDailyUsageData(options?: LoadOptions): Promise<DailyUs
 	const allEntries: DailyDataEntry[] = [];
 	const processedEntries = new Map<string, number>();
 	const mergeEntry = (entry: DailyDataEntry): void => {
-		const existingEntryIndex = getDedupedEntryMetadataIndex(processedEntries, allEntries, entry);
-		if (existingEntryIndex === -1) {
-			return;
+		if (entry.uniqueHash != null) {
+			const existingEntryIndex = processedEntries.get(entry.uniqueHash);
+			if (existingEntryIndex != null) {
+				if (!shouldReplaceEntryMetadata(entry, allEntries[existingEntryIndex]!)) {
+					return;
+				}
+				allEntries[existingEntryIndex] = entry;
+				return;
+			}
+
+			processedEntries.set(entry.uniqueHash, allEntries.length);
 		}
 
-		if (existingEntryIndex != null) {
-			allEntries[existingEntryIndex] = entry;
-		} else {
-			allEntries.push(entry);
-			markDedupedEntryMetadata(processedEntries, entry, allEntries.length - 1);
-		}
+		allEntries.push(entry);
 	};
 
 	const workerFileResults = await collectWithUsageWorkers<string, EncodedDailyDataEntries>(
@@ -2653,17 +2637,20 @@ export async function loadSessionData(options?: LoadOptions): Promise<SessionUsa
 	const allEntries: SessionDataEntry[] = [];
 	const processedEntries = new Map<string, number>();
 	const mergeEntry = (entry: SessionDataEntry): void => {
-		const existingEntryIndex = getDedupedEntryMetadataIndex(processedEntries, allEntries, entry);
-		if (existingEntryIndex === -1) {
-			return;
+		if (entry.uniqueHash != null) {
+			const existingEntryIndex = processedEntries.get(entry.uniqueHash);
+			if (existingEntryIndex != null) {
+				if (!shouldReplaceEntryMetadata(entry, allEntries[existingEntryIndex]!)) {
+					return;
+				}
+				allEntries[existingEntryIndex] = entry;
+				return;
+			}
+
+			processedEntries.set(entry.uniqueHash, allEntries.length);
 		}
 
-		if (existingEntryIndex != null) {
-			allEntries[existingEntryIndex] = entry;
-		} else {
-			allEntries.push(entry);
-			markDedupedEntryMetadata(processedEntries, entry, allEntries.length - 1);
-		}
+		allEntries.push(entry);
 	};
 
 	const workerFileResults = await collectWithUsageWorkers<GlobResult, EncodedSessionDataEntries>(
