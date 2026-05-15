@@ -47,12 +47,38 @@ type HyperfineExport = {
 	results: HyperfineResult[];
 };
 
-function distDir(repoDir: string): string {
-	return join(repoDir, 'apps', 'ccusage', 'dist');
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === 'object' && value !== null;
 }
 
-function builtEntry(repoDir: string): string {
-	return join(distDir(repoDir), 'index.js');
+function ccusageBinPath(value: unknown): string | undefined {
+	if (!isRecord(value)) {
+		return undefined;
+	}
+	const binPath = value.ccusage;
+	return typeof binPath === 'string' ? binPath : undefined;
+}
+
+/**
+ * Resolves the package entry that users get through the published `ccusage` bin.
+ *
+ * Source checkouts keep `bin` pointed at TypeScript for development, while publish rewrites through
+ * `publishConfig.bin`. Benchmarks should follow that publish-facing entry so base and PR numbers
+ * reflect the command users actually run.
+ */
+async function packageBinEntry(repoDir: string): Promise<string> {
+	const packageDir = join(repoDir, 'apps', 'ccusage');
+	const packageJson: unknown = await Bun.file(join(packageDir, 'package.json')).json();
+	if (!isRecord(packageJson)) {
+		throw new Error(`Invalid package.json in ${packageDir}`);
+	}
+	const publishConfig = packageJson.publishConfig;
+	const publishBin = isRecord(publishConfig) ? ccusageBinPath(publishConfig.bin) : undefined;
+	const binPath = publishBin ?? ccusageBinPath(packageJson.bin);
+	if (binPath == null) {
+		throw new Error(`ccusage bin is missing in ${packageDir}/package.json`);
+	}
+	return join(packageDir, binPath);
 }
 
 /**
@@ -125,34 +151,32 @@ async function writeProgress(message: string): Promise<void> {
 }
 
 /**
- * Quotes dynamic paths for the shell command string that hyperfine executes.
- *
- * Hyperfine measures command strings through a shell by default, which is useful here because the
- * CI log stays readable. The paths can still contain spaces or quotes, so every dynamic path is
- * single-quoted before being passed to hyperfine.
- */
-function shellQuote(value: string): string {
-	return `'${value.replaceAll("'", String.raw`'\''`)}'`;
-}
-
-/**
  * Builds the ccusage command that hyperfine will benchmark.
  *
- * The CI script itself is launched through `pnpm exec bun`, but the benchmarked command must not
- * include that package-manager lookup. `execPath` is the Bun binary already running this script, so
- * hyperfine measures ccusage startup and loading instead of `pnpm exec` overhead.
+ * The CI script itself is launched through `pnpm exec bun`, but the benchmarked command resolves
+ * the package's published bin and runs it with the Bun executable that is already executing this
+ * script. Hyperfine runs this with `--shell none`, so the command is split into argv without shell
+ * interpretation or hand-written shell quoting.
  */
-function createCcusageCommand(repoDir: string, fixtureDir: string, command: string): string {
-	const invocation = [
+async function createCcusageCommand(
+	repoDir: string,
+	fixtureDir: string,
+	command: string,
+): Promise<string> {
+	return [
 		'env',
-		`CLAUDE_CONFIG_DIR=${shellQuote(fixtureDir)}`,
+		`CLAUDE_CONFIG_DIR=${fixtureDir}`,
 		'COLUMNS=200',
 		'LOG_LEVEL=0',
 		'NO_COLOR=1',
 		'TZ=UTC',
-		`${shellQuote(execPath)} -b ${shellQuote(builtEntry(repoDir))} ${command} --offline --json`,
+		execPath,
+		'-b',
+		await packageBinEntry(repoDir),
+		command,
+		'--offline',
+		'--json',
 	].join(' ');
-	return [`cd ${shellQuote(repoDir)}`, invocation].join(' && ');
 }
 
 /**
@@ -182,9 +206,13 @@ async function compareCommand(
 	await writeProgress(`${options.fixtureTitle} / ${command} started`);
 	await using fixture = await createFixture({});
 	const exportPath = join(fixture.path, 'hyperfine.json');
+	const baseCommand = await createCcusageCommand(options.baseDir, options.fixtureDir, command);
+	const headCommand = await createCcusageCommand(options.headDir, options.fixtureDir, command);
 	const hyperfine = Bun.spawn(
 		[
 			'hyperfine',
+			'--shell',
+			'none',
 			'--warmup',
 			String(options.warmup),
 			'--runs',
@@ -201,8 +229,8 @@ async function compareCommand(
 			'base',
 			'--command-name',
 			'PR',
-			createCcusageCommand(options.baseDir, options.fixtureDir, command),
-			createCcusageCommand(options.headDir, options.fixtureDir, command),
+			baseCommand,
+			headCommand,
 		],
 		{
 			stderr: 'inherit',
@@ -292,7 +320,7 @@ function renderFixtureSection(section: FixtureComparison, options: { headDir: st
 		section.description,
 		'',
 		`Fixture: \`${formatFixturePath(options.headDir, section.fixtureDir)}\``,
-		`Runtime: built \`apps/ccusage/dist/index.js\` through \`bun -b\`, \`--offline --json\`, measured by \`hyperfine\` with \`${section.warmup}\` warmups and \`${section.runs}\` runs.`,
+		`Runtime: package \`ccusage\` bin from \`apps/ccusage/package.json\` through \`bun -b\`, \`--offline --json\`, measured by \`hyperfine\` with \`${section.warmup}\` warmups and \`${section.runs}\` runs.`,
 		'',
 		'| Command | Base median | PR median | PR vs base |',
 		'| --- | ---: | ---: | ---: |',
