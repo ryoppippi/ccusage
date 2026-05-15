@@ -2502,6 +2502,9 @@ export async function loadDailyUsageData(options?: LoadOptions): Promise<DailyUs
 	const formatUsageDate = createCachedDateFormatter(options?.timezone);
 
 	const allEntries: DailyDataEntry[] = [];
+	// The merge loop writes stable indexes for dedupe replacement, so a local length counter keeps
+	// appends explicit without asking Array#push to update and return the length on every usage row.
+	let allEntriesLength = 0;
 	const processedEntries = new Map<string, number>();
 	const mergeEntry = (entry: DailyDataEntry): void => {
 		if (entry.uniqueHash != null) {
@@ -2514,10 +2517,10 @@ export async function loadDailyUsageData(options?: LoadOptions): Promise<DailyUs
 				return;
 			}
 
-			processedEntries.set(entry.uniqueHash, allEntries.length);
+			processedEntries.set(entry.uniqueHash, allEntriesLength);
 		}
 
-		allEntries.push(entry);
+		allEntries[allEntriesLength++] = entry;
 	};
 
 	const workerFileResults = await collectWithUsageWorkers<string, EncodedDailyDataEntries>(
@@ -2635,6 +2638,8 @@ export async function loadSessionData(options?: LoadOptions): Promise<SessionUsa
 
 	// Collect all valid data entries with session info first
 	const allEntries: SessionDataEntry[] = [];
+	// Keep the append index stable for dedupe replacement while avoiding Array#push in this hot loop.
+	let allEntriesLength = 0;
 	const processedEntries = new Map<string, number>();
 	const mergeEntry = (entry: SessionDataEntry): void => {
 		if (entry.uniqueHash != null) {
@@ -2647,10 +2652,10 @@ export async function loadSessionData(options?: LoadOptions): Promise<SessionUsa
 				return;
 			}
 
-			processedEntries.set(entry.uniqueHash, allEntries.length);
+			processedEntries.set(entry.uniqueHash, allEntriesLength);
 		}
 
-		allEntries.push(entry);
+		allEntries[allEntriesLength++] = entry;
 	};
 
 	const workerFileResults = await collectWithUsageWorkers<GlobResult, EncodedSessionDataEntries>(
@@ -3072,20 +3077,24 @@ export async function loadSessionBlockData(options?: LoadOptions): Promise<Sessi
 
 	// Collect all valid data entries first
 	const allEntries: LoadedUsageEntry[] = [];
+	// Blocks keep replacement indexes in processedEntries, so the explicit length is the canonical
+	// append position for both unique and non-hashed rows.
+	let allEntriesLength = 0;
 	const processedEntries = new Map<
 		string,
 		{ tokenTotal: number; hasSpeed: boolean; index: number }
 	>();
 	const mergeBlockEntry = ({ entry, uniqueHash, tokenTotal, hasSpeed }: BlockEntryResult): void => {
 		if (uniqueHash == null) {
-			allEntries.push(entry);
+			allEntries[allEntriesLength++] = entry;
 			return;
 		}
 
 		const existing = processedEntries.get(uniqueHash);
 		if (existing == null) {
-			allEntries.push(entry);
-			processedEntries.set(uniqueHash, { tokenTotal, hasSpeed, index: allEntries.length - 1 });
+			const index = allEntriesLength++;
+			allEntries[index] = entry;
+			processedEntries.set(uniqueHash, { tokenTotal, hasSpeed, index });
 			return;
 		}
 		if (shouldReplaceEntryMetadata({ tokenTotal, hasSpeed }, existing)) {
