@@ -35,7 +35,7 @@
 		"lint:root": "eslint --cache eslint.config.js .",
 		"lint:submodules": "pnpm --parallel -r --no-bail /^lint/",
 		"prepare": "pnpm run /^prepare:/",
-		"prepare:git": "git config --local core.hooksPath .githooks",
+		"prepare:lefthook": "lefthook install",
 		"prerelease": "pnpm run --filter '*' prerelease",
 		"release": "pnpm bumpp -r",
 		"postrelease": "git checkout ./**/package.json package.json",
@@ -53,16 +53,9 @@
 		"bumpp": "catalog:release",
 		"changelogithub": "catalog:release",
 		"eslint": "catalog:lint",
-		"lint-staged": "catalog:release",
+		"lefthook": "catalog:release",
 		"oxfmt": "catalog:lint",
 		"pkg-pr-new": "catalog:release",
 		"vitest": "catalog:testing"
-	},
-	"lint-staged": {
-		"*": [
-			"pnpm run format",
-			"pnpm vitest run --changed"
-		],
-		".claude/skills/**": "sh -c 'pnpm run sync:skills && git add .agents/skills'"
 	}
 }
