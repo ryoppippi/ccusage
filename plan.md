@@ -63,7 +63,7 @@ ccusage codex daily
 ccusage claude monthly
 ```
 
-Do not add `-a` / `--agent` in the first implementation. Agent-specific options and aggregation behaviour differ enough that a filter option would create two competing ways to express the same target.
+Do not add `-a` / `--agent` in the first implementation. Agent-specific options and aggregation behavior differ enough that a filter option would create two competing ways to express the same target.
 
 Avoid first-class per-agent boolean flags such as:
 
@@ -138,7 +138,7 @@ Dependency requirements:
 - Move agent logic into `ccusage` by porting it onto the optimized `ccusage` primitives first.
 - Companion packages may temporarily keep their old dependencies until they become tiny wrappers, but the final wrapper packages should depend on `ccusage` only plus package tooling.
 
-## Optimisation Migration Requirements
+## Optimization Migration Requirements
 
 The purpose of the consolidation is not just one entry point; it is to let every coding-agent report benefit from the recent `ccusage` runtime work.
 
@@ -151,7 +151,7 @@ Use `ccusage` as the implementation baseline:
 - Keep columnar worker payloads or equivalent compact transfer shapes for hot paths that return many rows. Avoid cloning one full object per raw line across worker boundaries when compact numeric/string arrays are practical.
 - Keep dedupe and aggregation on native `Map`/`Set` structures and avoid object-shape churn in hot loops.
 - Prefer null-prototype object indexes in proven exact-string-key hot paths, matching PR #984, while preserving first-seen order where output depends on it.
-- When adding missing agent-specific subcommands, design their cache behaviour at the same time instead of treating caching as a later bolt-on.
+- When adding missing agent-specific subcommands, design their cache behavior at the same time instead of treating caching as a later bolt-on.
 - Reuse `@ccusage/internal/json-file-state` for persistent cache state where the command is repeatedly invoked, and prefer transcript/file modification checks plus time-based expiry for statusline-like hot paths.
 - Preserve the existing optimized Claude Code path and extend the same patterns to new adapters instead of regressing it into a generic slow path.
 

@@ -1012,8 +1012,7 @@
 								"timezone": {
 									"type": "string",
 									"description": "Timezone for date grouping (IANA)",
-									"markdownDescription": "Timezone for date grouping (IANA)",
-									"default": "Europe/London"
+									"markdownDescription": "Timezone for date grouping (IANA)"
 								},
 								"offline": {
 									"type": "boolean",
@@ -1068,8 +1067,7 @@
 								"timezone": {
 									"type": "string",
 									"description": "Timezone for date grouping (IANA)",
-									"markdownDescription": "Timezone for date grouping (IANA)",
-									"default": "Europe/London"
+									"markdownDescription": "Timezone for date grouping (IANA)"
 								},
 								"offline": {
 									"type": "boolean",
@@ -1124,8 +1122,7 @@
 								"timezone": {
 									"type": "string",
 									"description": "Timezone for date grouping (IANA)",
-									"markdownDescription": "Timezone for date grouping (IANA)",
-									"default": "Europe/London"
+									"markdownDescription": "Timezone for date grouping (IANA)"
 								},
 								"offline": {
 									"type": "boolean",
