@@ -183,6 +183,12 @@ docs: comprehensive API documentation update
 - File paths always use Node.js path utilities for cross-platform compatibility
 - **Import conventions**: Use `.ts` extensions for local file imports (e.g., `import { foo } from './utils.ts'`)
 
+**Bun API References:**
+
+- Bun runtime API documentation and type references are available locally in `node_modules/bun-types/`
+- Start with `node_modules/bun-types/README.md` and the relevant docs under `node_modules/bun-types/docs/`
+- Use `rg` against `node_modules/bun-types/` when checking Bun APIs used in this repo, especially `Bun.$`, `Bun.file()`, `Bun.write()`, `Bun.spawn()`, `Bun.argv`, `Bun.deepEquals()`, `Bun.file().writer()`, `Bun.stdout`, `Bun.stderr`, and `Bun.stringWidth()`
+
 **Error Handling:**
 
 - **Prefer @praha/byethrow Result type** over traditional try-catch for functional error handling

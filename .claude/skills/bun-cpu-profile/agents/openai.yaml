@@ -1,0 +1,4 @@
+interface:
+  display_name: Bun CPU Profile
+  short_description: Profile Bun CPU performance and inspect hot paths.
+  default_prompt: Use Bun CPU profiling to debug a slow command.
