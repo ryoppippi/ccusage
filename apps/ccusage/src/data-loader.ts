@@ -1754,6 +1754,16 @@ type BlockFileResult = {
 	entries: BlockEntryResult[];
 };
 
+type EncodedBlockFileResult = {
+	kind: 'block-columns';
+	file: string;
+	timestampMs: number | null;
+	count: number;
+	numbers: Float64Array;
+	flags: Uint8Array;
+	strings: Array<string | null>;
+};
+
 type UsageWorkerTask = 'daily' | 'session' | 'blocks';
 
 type IndexedWorkerItem<T> = {
@@ -1965,6 +1975,87 @@ function forEachSessionDataEntry(
 			version: (encoded.strings[stringOffset + 6] ?? undefined) as Version | undefined,
 		});
 	}
+}
+
+/**
+ * Pack block worker rows before crossing the worker boundary.
+ *
+ * Blocks need `Date` instances again on the main thread, but sending timestamps as numbers avoids
+ * cloning nested entry objects and lets the main thread reconstruct the small object graph once.
+ */
+function encodeBlockFileResult(result: BlockFileResult): EncodedBlockFileResult {
+	const count = result.entries.length;
+	const numbers = new Float64Array(count * 8);
+	const flags = new Uint8Array(count);
+	const strings: Array<string | null> = [];
+	strings.length = count * 3;
+
+	for (let index = 0; index < count; index++) {
+		const entry = result.entries[index]!;
+		const numberOffset = index * 8;
+		const timestampMs = entry.entry.timestampMs ?? entry.entry.timestamp.getTime();
+		numbers[numberOffset] = timestampMs;
+		numbers[numberOffset + 1] = entry.entry.costUSD ?? 0;
+		numbers[numberOffset + 2] = entry.entry.usage.inputTokens;
+		numbers[numberOffset + 3] = entry.entry.usage.outputTokens;
+		numbers[numberOffset + 4] = entry.entry.usage.cacheCreationInputTokens;
+		numbers[numberOffset + 5] = entry.entry.usage.cacheReadInputTokens;
+		numbers[numberOffset + 6] = entry.tokenTotal;
+		numbers[numberOffset + 7] = entry.entry.usageLimitResetTime?.getTime() ?? Number.NaN;
+		flags[index] = entry.hasSpeed ? 1 : 0;
+
+		const stringOffset = index * 3;
+		strings[stringOffset] = entry.entry.model;
+		strings[stringOffset + 1] = entry.uniqueHash;
+		strings[stringOffset + 2] = entry.entry.version ?? null;
+	}
+
+	return {
+		kind: 'block-columns',
+		file: result.file,
+		timestampMs: result.timestampMs,
+		count,
+		numbers,
+		flags,
+		strings,
+	};
+}
+
+function decodeBlockFileResult(encoded: EncodedBlockFileResult): BlockFileResult {
+	const entries: BlockEntryResult[] = [];
+	for (let index = 0; index < encoded.count; index++) {
+		const numberOffset = index * 8;
+		const stringOffset = index * 3;
+		const timestampMs = encoded.numbers[numberOffset]!;
+		const usageLimitResetTimeMs = encoded.numbers[numberOffset + 7]!;
+		entries.push({
+			entry: {
+				timestamp: new Date(timestampMs),
+				timestampMs,
+				usage: {
+					inputTokens: encoded.numbers[numberOffset + 2]!,
+					outputTokens: encoded.numbers[numberOffset + 3]!,
+					cacheCreationInputTokens: encoded.numbers[numberOffset + 4]!,
+					cacheReadInputTokens: encoded.numbers[numberOffset + 5]!,
+				},
+				costUSD: encoded.numbers[numberOffset + 1]!,
+				model: encoded.strings[stringOffset] ?? 'unknown',
+				version: encoded.strings[stringOffset + 2] ?? undefined,
+				usageLimitResetTime: Number.isNaN(usageLimitResetTimeMs)
+					? undefined
+					: new Date(usageLimitResetTimeMs),
+			},
+			uniqueHash: encoded.strings[stringOffset + 1] ?? null,
+			tokenTotal: encoded.numbers[numberOffset + 6]!,
+			hasSpeed: encoded.flags[index] === 1,
+		});
+	}
+
+	return {
+		file: encoded.file,
+		timestampMs: encoded.timestampMs,
+		entries,
+	};
 }
 
 function getJSONLWorkerThreadCount(
@@ -2907,7 +2998,7 @@ export async function loadSessionBlockData(options?: LoadOptions): Promise<Sessi
 		{ tokenTotal: number; hasSpeed: boolean; index: number }
 	>();
 
-	let fileResults = await collectWithUsageWorkers<string, BlockFileResult>(
+	const workerFileResults = await collectWithUsageWorkers<string, EncodedBlockFileResult>(
 		'blocks',
 		mtimeFilteredFiles,
 		{
@@ -2917,7 +3008,8 @@ export async function loadSessionBlockData(options?: LoadOptions): Promise<Sessi
 			singleThread: options?.singleThread,
 		},
 	);
-	if (fileResults == null) {
+	let fileResults: BlockFileResult[];
+	if (workerFileResults == null) {
 		using fetcher = mode === 'display' ? null : new PricingFetcher(options?.offline);
 		const calculateCost = await createCostCalculator(mode, fetcher);
 		fileResults = await mapWithConcurrency(
@@ -2925,6 +3017,8 @@ export async function loadSessionBlockData(options?: LoadOptions): Promise<Sessi
 			getJSONLFileReadConcurrency(mtimeFilteredFiles.length, options?.singleThread),
 			async (file): Promise<BlockFileResult> => collectBlockFileResult(file, calculateCost),
 		);
+	} else {
+		fileResults = workerFileResults.map(decodeBlockFileResult);
 	}
 
 	fileResults.sort((a, b) => {
@@ -3030,13 +3124,19 @@ async function runUsageWorker(data: UsageWorkerData): Promise<void> {
 		}
 		case 'blocks': {
 			const results = [];
+			const transferList: ArrayBuffer[] = [];
 			for (const { index, item } of data.items as Array<IndexedWorkerItem<string>>) {
+				const result = encodeBlockFileResult(await collectBlockFileResult(item, calculateCost));
+				transferList.push(result.numbers.buffer as ArrayBuffer, result.flags.buffer as ArrayBuffer);
 				results.push({
 					index,
-					result: await collectBlockFileResult(item, calculateCost),
+					result,
 				});
 			}
-			parentPort!.postMessage({ results } satisfies UsageWorkerResponse<BlockFileResult>);
+			parentPort!.postMessage(
+				{ results } satisfies UsageWorkerResponse<EncodedBlockFileResult>,
+				transferList,
+			);
 			return;
 		}
 		default:
@@ -6684,6 +6784,55 @@ if (import.meta.vitest != null) {
 			];
 
 			expect(decodeSessionDataEntries(encodeSessionDataEntries(entries))).toEqual(entries);
+		});
+	});
+
+	describe('block worker column encoding', () => {
+		it('round-trips block worker entries', () => {
+			const result: BlockFileResult = {
+				file: '/tmp/project/session.jsonl',
+				timestampMs: Date.UTC(2026, 4, 14, 1, 2, 3),
+				entries: [
+					{
+						entry: {
+							timestamp: new Date(Date.UTC(2026, 4, 14, 1, 2, 3)),
+							timestampMs: Date.UTC(2026, 4, 14, 1, 2, 3),
+							usage: {
+								inputTokens: 1,
+								outputTokens: 2,
+								cacheCreationInputTokens: 3,
+								cacheReadInputTokens: 4,
+							},
+							costUSD: 1.25,
+							model: 'haiku-4-5',
+							version: '1.2.3',
+							usageLimitResetTime: new Date(Date.UTC(2026, 4, 14, 2, 0, 0)),
+						},
+						uniqueHash: 'message:request',
+						tokenTotal: 10,
+						hasSpeed: true,
+					},
+					{
+						entry: {
+							timestamp: new Date(Date.UTC(2026, 4, 14, 3, 4, 5)),
+							timestampMs: Date.UTC(2026, 4, 14, 3, 4, 5),
+							usage: {
+								inputTokens: 5,
+								outputTokens: 6,
+								cacheCreationInputTokens: 0,
+								cacheReadInputTokens: 0,
+							},
+							costUSD: 0,
+							model: 'unknown',
+						},
+						uniqueHash: null,
+						tokenTotal: 11,
+						hasSpeed: false,
+					},
+				],
+			};
+
+			expect(decodeBlockFileResult(encodeBlockFileResult(result))).toEqual(result);
 		});
 	});
 
