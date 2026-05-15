@@ -8,22 +8,21 @@
  * @module data-loader
  */
 
+import type { IndexedWorkerItem } from '@ccusage/internal/workers';
 import type { TokenUsageEvent } from './_types.ts';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
+import { isMainThread, parentPort, Worker, workerData } from 'node:worker_threads';
+import { createResultSlots } from '@ccusage/internal/array';
+import { collectFilesRecursive } from '@ccusage/internal/fs';
 import { compareStrings } from '@ccusage/internal/sort';
+import { chunkIndexedItemsByFileSize, getFileWorkerThreadCount } from '@ccusage/internal/workers';
 import { Result } from '@praha/byethrow';
 import { createFixture } from 'fs-fixture';
 import { isDirectorySync } from 'path-type';
-import { glob } from 'tinyglobby';
 import * as v from 'valibot';
-import {
-	AMP_DATA_DIR_ENV,
-	AMP_THREAD_GLOB,
-	AMP_THREADS_DIR_NAME,
-	DEFAULT_AMP_DIR,
-} from './_consts.ts';
+import { AMP_DATA_DIR_ENV, AMP_THREADS_DIR_NAME, DEFAULT_AMP_DIR } from './_consts.ts';
 import { logger } from './logger.ts';
 
 /**
@@ -83,6 +82,19 @@ const threadSchema = v.object({
 type ParsedThread = v.InferOutput<typeof threadSchema>;
 type ParsedUsageLedgerEvent = v.InferOutput<typeof usageLedgerEventSchema>;
 type ParsedMessage = v.InferOutput<typeof messageSchema>;
+type AmpThreadResult = {
+	events: TokenUsageEvent[];
+	thread: { id: string; title: string; created: number | undefined } | null;
+};
+
+type AmpWorkerData = {
+	kind: 'ccusage:amp-usage-worker';
+	items: Array<IndexedWorkerItem<string>>;
+};
+
+type AmpWorkerResponse = {
+	results: Array<{ index: number; result: AmpThreadResult }>;
+};
 
 /**
  * Get Amp data directory
@@ -198,6 +210,83 @@ async function loadThreadFile(filePath: string): Promise<ParsedThread | null> {
 	return validationResult.output;
 }
 
+function getJSONWorkerThreadCount(fileCount: number): number {
+	return getFileWorkerThreadCount({
+		itemCount: fileCount,
+		isMainThread,
+		moduleUrl: import.meta.url,
+		envValue: process.env.CCUSAGE_JSONL_WORKER_THREADS,
+		isTest: import.meta.vitest != null,
+		preferMoreWorkers: true,
+	});
+}
+
+async function parseAmpThreadFile(file: string): Promise<AmpThreadResult> {
+	const thread = await loadThreadFile(file);
+	if (thread == null) {
+		return { events: [], thread: null };
+	}
+
+	const threadId = thread.id;
+	const events: TokenUsageEvent[] = [];
+	const ledgerEvents = thread.usageLedger?.events ?? [];
+	for (const ledgerEvent of ledgerEvents) {
+		const event = convertLedgerEventToUsageEvent(threadId, ledgerEvent, thread.messages);
+		events.push(event);
+	}
+
+	return {
+		events,
+		thread: {
+			id: threadId,
+			title: thread.title ?? 'Untitled',
+			created: thread.created,
+		},
+	};
+}
+
+async function collectWithAmpWorkers(files: string[]): Promise<AmpThreadResult[] | null> {
+	const workerCount = getJSONWorkerThreadCount(files.length);
+	if (workerCount === 0) {
+		return null;
+	}
+
+	const indexedItems = files.map<IndexedWorkerItem<string>>((item, index) => ({ index, item }));
+	const chunks = await chunkIndexedItemsByFileSize(indexedItems, workerCount, (item) => item);
+	const workerResults: Array<Promise<AmpWorkerResponse['results']>> = [];
+	for (const chunk of chunks) {
+		workerResults.push(
+			new Promise<AmpWorkerResponse['results']>((resolve, reject) => {
+				const worker = new Worker(new URL(import.meta.url), {
+					workerData: {
+						kind: 'ccusage:amp-usage-worker',
+						items: chunk,
+					} satisfies AmpWorkerData,
+				});
+				worker.once('message', (message: AmpWorkerResponse) => {
+					resolve(message.results);
+				});
+				worker.once('error', reject);
+				worker.once('exit', (code) => {
+					if (code !== 0) {
+						reject(new Error(`Amp usage worker exited with code ${code}`));
+					}
+				});
+			}),
+		);
+	}
+
+	const resultGroups = await Promise.all(workerResults);
+	const orderedResults = createResultSlots<AmpThreadResult>(files.length);
+	for (const results of resultGroups) {
+		for (const { index, result } of results) {
+			orderedResults[index] = result;
+		}
+	}
+
+	return orderedResults;
+}
+
 export type LoadOptions = {
 	threadDirs?: string[];
 };
@@ -232,28 +321,20 @@ export async function loadAmpUsageEvents(options: LoadOptions = {}): Promise<Loa
 			continue;
 		}
 
-		const files = await glob(AMP_THREAD_GLOB, {
-			cwd: dir,
-			absolute: true,
-		});
+		const files = await collectFilesRecursive(dir, { extension: '.json' });
+		const threadResults =
+			(await collectWithAmpWorkers(files)) ?? (await Promise.all(files.map(parseAmpThreadFile)));
 
-		for (const file of files) {
-			const thread = await loadThreadFile(file);
-			if (thread == null) {
+		for (const threadResult of threadResults) {
+			if (threadResult.thread == null) {
 				continue;
 			}
 
-			const threadId = thread.id;
-			threads.set(threadId, {
-				title: thread.title ?? 'Untitled',
-				created: thread.created,
+			threads.set(threadResult.thread.id, {
+				title: threadResult.thread.title,
+				created: threadResult.thread.created,
 			});
-
-			const ledgerEvents = thread.usageLedger?.events ?? [];
-			for (const ledgerEvent of ledgerEvents) {
-				const event = convertLedgerEventToUsageEvent(threadId, ledgerEvent, thread.messages);
-				events.push(event);
-			}
+			events.push(...threadResult.events);
 		}
 	}
 
@@ -261,6 +342,34 @@ export async function loadAmpUsageEvents(options: LoadOptions = {}): Promise<Loa
 	events.sort((a, b) => compareStrings(a.timestamp, b.timestamp));
 
 	return { events, threads, missingDirectories };
+}
+
+async function runAmpUsageWorker(data: AmpWorkerData): Promise<void> {
+	const results: AmpWorkerResponse['results'] = [];
+	for (const { index, item } of data.items) {
+		results.push({
+			index,
+			result: await parseAmpThreadFile(item),
+		});
+	}
+
+	parentPort?.postMessage({ results } satisfies AmpWorkerResponse);
+}
+
+function isAmpWorkerData(value: unknown): value is AmpWorkerData {
+	return (
+		value != null &&
+		typeof value === 'object' &&
+		'kind' in value &&
+		value.kind === 'ccusage:amp-usage-worker'
+	);
+}
+
+const currentWorkerData: unknown = workerData;
+if (!isMainThread && isAmpWorkerData(currentWorkerData)) {
+	void runAmpUsageWorker(currentWorkerData).catch(() => {
+		process.exit(1);
+	});
 }
 
 if (import.meta.vitest != null) {

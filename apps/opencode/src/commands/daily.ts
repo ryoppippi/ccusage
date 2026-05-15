@@ -1,16 +1,15 @@
+import { groupByToMap } from '@ccusage/internal/array';
+import { writeStdoutLine } from '@ccusage/internal/logger';
 import { LiteLLMPricingFetcher } from '@ccusage/internal/pricing';
 import { compareStrings } from '@ccusage/internal/sort';
 import {
 	addEmptySeparatorRow,
-	formatCurrency,
+	createUsageReportTable,
 	formatDateCompact,
-	formatModelsDisplayMultiline,
-	formatNumber,
-	ResponsiveTable,
+	formatTotalsRow,
+	formatUsageDataRow,
 } from '@ccusage/terminal/table';
-import { groupBy } from 'es-toolkit';
 import { define } from 'gunshi';
-import pc from 'picocolors';
 import { calculateCostForEntry } from '../cost-utils.ts';
 import { loadOpenCodeMessages } from '../data-loader.ts';
 import { logger } from '../logger.ts';
@@ -30,6 +29,13 @@ export const dailyCommand = define({
 			type: 'boolean',
 			description: 'Force compact table mode',
 		},
+		offline: {
+			type: 'boolean',
+			negatable: true,
+			short: 'O',
+			description: 'Use cached pricing data',
+			default: false,
+		},
 	},
 	async run(ctx) {
 		const jsonOutput = Boolean(ctx.values.json);
@@ -40,14 +46,16 @@ export const dailyCommand = define({
 			const output = jsonOutput
 				? JSON.stringify({ daily: [], totals: null })
 				: 'No OpenCode usage data found.';
-			// eslint-disable-next-line no-console
-			console.log(output);
+			await writeStdoutLine(output);
 			return;
 		}
 
-		using fetcher = new LiteLLMPricingFetcher({ offline: false, logger });
+		using fetcher = new LiteLLMPricingFetcher({ offline: Boolean(ctx.values.offline), logger });
 
-		const entriesByDate = groupBy(entries, (entry) => entry.timestamp.toISOString().split('T')[0]!);
+		const entriesByDate = groupByToMap(
+			entries,
+			(entry) => entry.timestamp.toISOString().split('T')[0]!,
+		);
 
 		const dailyData: Array<{
 			date: string;
@@ -60,7 +68,7 @@ export const dailyCommand = define({
 			modelsUsed: string[];
 		}> = [];
 
-		for (const [date, dayEntries] of Object.entries(entriesByDate)) {
+		for (const [date, dayEntries] of entriesByDate) {
 			let inputTokens = 0;
 			let outputTokens = 0;
 			let cacheCreationTokens = 0;
@@ -103,8 +111,7 @@ export const dailyCommand = define({
 		};
 
 		if (jsonOutput) {
-			// eslint-disable-next-line no-console
-			console.log(
+			await writeStdoutLine(
 				JSON.stringify(
 					{
 						daily: dailyData,
@@ -117,62 +124,25 @@ export const dailyCommand = define({
 			return;
 		}
 
-		// eslint-disable-next-line no-console
-		console.log('\n📊 OpenCode Token Usage Report - Daily\n');
+		logger.box('OpenCode Token Usage Report - Daily');
 
-		const table: ResponsiveTable = new ResponsiveTable({
-			head: [
-				'Date',
-				'Models',
-				'Input',
-				'Output',
-				'Cache Create',
-				'Cache Read',
-				'Total Tokens',
-				'Cost (USD)',
-			],
-			colAligns: ['left', 'left', 'right', 'right', 'right', 'right', 'right', 'right'],
-			compactHead: ['Date', 'Models', 'Input', 'Output', 'Cost (USD)'],
-			compactColAligns: ['left', 'left', 'right', 'right', 'right'],
-			compactThreshold: 100,
+		const table = createUsageReportTable({
+			firstColumnName: 'Date',
 			forceCompact: Boolean(ctx.values.compact),
-			style: { head: ['cyan'] },
 			dateFormatter: (dateStr: string) => formatDateCompact(dateStr),
 		});
 
 		for (const data of dailyData) {
-			table.push([
-				data.date,
-				formatModelsDisplayMultiline(data.modelsUsed),
-				formatNumber(data.inputTokens),
-				formatNumber(data.outputTokens),
-				formatNumber(data.cacheCreationTokens),
-				formatNumber(data.cacheReadTokens),
-				formatNumber(data.totalTokens),
-				formatCurrency(data.totalCost),
-			]);
+			table.push(formatUsageDataRow(data.date, data));
 		}
 
 		addEmptySeparatorRow(table, TABLE_COLUMN_COUNT);
-		table.push([
-			pc.yellow('Total'),
-			'',
-			pc.yellow(formatNumber(totals.inputTokens)),
-			pc.yellow(formatNumber(totals.outputTokens)),
-			pc.yellow(formatNumber(totals.cacheCreationTokens)),
-			pc.yellow(formatNumber(totals.cacheReadTokens)),
-			pc.yellow(formatNumber(totals.totalTokens)),
-			pc.yellow(formatCurrency(totals.totalCost)),
-		]);
-
-		// eslint-disable-next-line no-console
-		console.log(table.toString());
+		table.push(formatTotalsRow(totals));
+		await writeStdoutLine(table.toString());
 
 		if (table.isCompactMode()) {
-			// eslint-disable-next-line no-console
-			console.log('\nRunning in Compact Mode');
-			// eslint-disable-next-line no-console
-			console.log('Expand terminal width to see cache metrics and total tokens');
+			logger.info('\nRunning in Compact Mode');
+			logger.info('Expand terminal width to see cache metrics and total tokens');
 		}
 	},
 });

@@ -20,6 +20,7 @@ function toPerMillion(value: number | undefined, fallback?: number): number {
 }
 
 export type AmpPricingSourceOptions = {
+	fetcher?: LiteLLMPricingFetcher;
 	offline?: boolean;
 	offlineLoader?: () => Promise<Record<string, LiteLLMModelPricing>>;
 };
@@ -28,18 +29,24 @@ const PREFETCHED_AMP_PRICING = prefetchAmpPricing();
 
 export class AmpPricingSource implements PricingSource, Disposable {
 	private readonly fetcher: LiteLLMPricingFetcher;
+	private readonly ownsFetcher: boolean;
 
 	constructor(options: AmpPricingSourceOptions = {}) {
-		this.fetcher = new LiteLLMPricingFetcher({
-			offline: options.offline ?? false,
-			offlineLoader: options.offlineLoader ?? (async () => PREFETCHED_AMP_PRICING),
-			logger,
-			providerPrefixes: AMP_PROVIDER_PREFIXES,
-		});
+		this.ownsFetcher = options.fetcher == null;
+		this.fetcher =
+			options.fetcher ??
+			new LiteLLMPricingFetcher({
+				offline: options.offline ?? false,
+				offlineLoader: options.offlineLoader ?? (async () => PREFETCHED_AMP_PRICING),
+				logger,
+				providerPrefixes: AMP_PROVIDER_PREFIXES,
+			});
 	}
 
 	[Symbol.dispose](): void {
-		this.fetcher[Symbol.dispose]();
+		if (this.ownsFetcher) {
+			this.fetcher[Symbol.dispose]();
+		}
 	}
 
 	async getPricing(model: string): Promise<ModelPricing> {
@@ -77,22 +84,26 @@ export class AmpPricingSource implements PricingSource, Disposable {
 			cacheReadInputTokens?: number;
 		},
 	): Promise<number> {
-		const result = await this.fetcher.calculateCostFromTokens(
+		const pricing = await this.fetcher.getModelPricing(model);
+		if (Result.isFailure(pricing)) {
+			logger.warn(`Failed to load pricing for model ${model}:`, pricing.error);
+			return 0;
+		}
+
+		if (pricing.value == null) {
+			logger.warn(`Pricing not found for model ${model}; defaulting to zero-cost pricing.`);
+			return 0;
+		}
+
+		return this.fetcher.calculateCostFromPricing(
 			{
 				input_tokens: tokens.inputTokens,
 				output_tokens: tokens.outputTokens,
 				cache_creation_input_tokens: tokens.cacheCreationInputTokens,
 				cache_read_input_tokens: tokens.cacheReadInputTokens,
 			},
-			model,
+			pricing.value,
 		);
-
-		if (Result.isFailure(result)) {
-			logger.warn(`Failed to calculate cost for model ${model}:`, result.error);
-			return 0;
-		}
-
-		return result.value;
 	}
 }
 
@@ -150,6 +161,30 @@ if (import.meta.vitest != null) {
 
 			const pricing = await source.getPricing('anthropic/unknown');
 			expect(pricing).toEqual(ZERO_MODEL_PRICING);
+		});
+
+		it('uses Bedrock-style Claude 3.5 Haiku pricing from cached data', async () => {
+			using source = new AmpPricingSource({
+				offline: true,
+				offlineLoader: async () => ({
+					'anthropic.claude-3-5-haiku-20241022-v1:0': {
+						input_cost_per_token: 8e-7,
+						output_cost_per_token: 4e-6,
+						cache_read_input_token_cost: 8e-8,
+						cache_creation_input_token_cost: 1e-6,
+					},
+				}),
+			});
+
+			const cost = await source.calculateCost('claude-3-5-haiku-20241022', {
+				inputTokens: 1000,
+				outputTokens: 500,
+				cacheReadInputTokens: 200,
+				cacheCreationInputTokens: 100,
+			});
+
+			const expected = 1000 * 8e-7 + 500 * 4e-6 + 200 * 8e-8 + 100 * 1e-6;
+			expect(cost).toBeCloseTo(expected);
 		});
 	});
 }

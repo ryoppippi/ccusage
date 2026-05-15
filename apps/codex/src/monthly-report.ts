@@ -7,7 +7,7 @@ import type {
 	TokenUsageEvent,
 } from './_types.ts';
 import { compareStrings } from '@ccusage/internal/sort';
-import { formatDisplayMonth, isWithinRange, toDateKey, toMonthKey } from './date-utils.ts';
+import { isWithinRange, toDateKey, toMonthKey } from './date-utils.ts';
 import { addUsage, calculateCostUSD, createEmptyUsage } from './token-utils.ts';
 
 export type MonthlyReportOptions = {
@@ -107,7 +107,7 @@ export async function buildMonthlyReport(
 		}
 
 		rows.push({
-			month: formatDisplayMonth(summary.month),
+			month: summary.month,
 			inputTokens: summary.inputTokens,
 			cachedInputTokens: summary.cachedInputTokens,
 			outputTokens: summary.outputTokens,
@@ -185,6 +185,7 @@ if (import.meta.vitest != null) {
 
 			expect(report).toHaveLength(2);
 			const first = report[0]!;
+			expect(first.month).toBe('2025-08');
 			expect(first.inputTokens).toBe(1_400);
 			expect(first.cachedInputTokens).toBe(300);
 			expect(first.outputTokens).toBe(700);

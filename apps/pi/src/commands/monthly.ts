@@ -14,6 +14,7 @@ import { log, logger } from '../logger.ts';
 export const monthlyCommand = define({
 	name: 'monthly',
 	description: 'Show pi-agent usage by month',
+	toKebab: true,
 	args: {
 		json: {
 			type: 'boolean',

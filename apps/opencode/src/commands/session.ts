@@ -1,13 +1,13 @@
+import { groupByToMap } from '@ccusage/internal/array';
+import { writeStdoutLine } from '@ccusage/internal/logger';
 import { LiteLLMPricingFetcher } from '@ccusage/internal/pricing';
 import {
 	addEmptySeparatorRow,
-	formatCurrency,
+	createUsageReportTable,
 	formatDateCompact,
-	formatModelsDisplayMultiline,
-	formatNumber,
-	ResponsiveTable,
+	formatTotalsRow,
+	formatUsageDataRow,
 } from '@ccusage/terminal/table';
-import { groupBy } from 'es-toolkit';
 import { define } from 'gunshi';
 import pc from 'picocolors';
 import { calculateCostForEntry } from '../cost-utils.ts';
@@ -29,6 +29,13 @@ export const sessionCommand = define({
 			type: 'boolean',
 			description: 'Force compact table mode',
 		},
+		offline: {
+			type: 'boolean',
+			negatable: true,
+			short: 'O',
+			description: 'Use cached pricing data',
+			default: false,
+		},
 	},
 	async run(ctx) {
 		const jsonOutput = Boolean(ctx.values.json);
@@ -42,14 +49,13 @@ export const sessionCommand = define({
 			const output = jsonOutput
 				? JSON.stringify({ sessions: [], totals: null })
 				: 'No OpenCode usage data found.';
-			// eslint-disable-next-line no-console
-			console.log(output);
+			await writeStdoutLine(output);
 			return;
 		}
 
-		using fetcher = new LiteLLMPricingFetcher({ offline: false, logger });
+		using fetcher = new LiteLLMPricingFetcher({ offline: Boolean(ctx.values.offline), logger });
 
-		const entriesBySession = groupBy(entries, (entry) => entry.sessionID);
+		const entriesBySession = groupByToMap(entries, (entry) => entry.sessionID);
 
 		type SessionData = {
 			sessionID: string;
@@ -67,7 +73,7 @@ export const sessionCommand = define({
 
 		const sessionData: SessionData[] = [];
 
-		for (const [sessionID, sessionEntries] of Object.entries(entriesBySession)) {
+		for (const [sessionID, sessionEntries] of entriesBySession) {
 			let inputTokens = 0;
 			let outputTokens = 0;
 			let cacheCreationTokens = 0;
@@ -120,8 +126,7 @@ export const sessionCommand = define({
 		};
 
 		if (jsonOutput) {
-			// eslint-disable-next-line no-console
-			console.log(
+			await writeStdoutLine(
 				JSON.stringify(
 					{
 						sessions: sessionData,
@@ -134,62 +139,46 @@ export const sessionCommand = define({
 			return;
 		}
 
-		// eslint-disable-next-line no-console
-		console.log('\n📊 OpenCode Token Usage Report - Sessions\n');
+		logger.box('OpenCode Token Usage Report - Sessions');
 
-		const table: ResponsiveTable = new ResponsiveTable({
-			head: [
-				'Session',
-				'Models',
-				'Input',
-				'Output',
-				'Cache Create',
-				'Cache Read',
-				'Total Tokens',
-				'Cost (USD)',
-			],
-			colAligns: ['left', 'left', 'right', 'right', 'right', 'right', 'right', 'right'],
-			compactHead: ['Session', 'Models', 'Input', 'Output', 'Cost (USD)'],
-			compactColAligns: ['left', 'left', 'right', 'right', 'right'],
-			compactThreshold: 100,
+		const table = createUsageReportTable({
+			firstColumnName: 'Session',
 			forceCompact: Boolean(ctx.values.compact),
-			style: { head: ['cyan'] },
 			dateFormatter: (dateStr: string) => formatDateCompact(dateStr),
 		});
 
-		const sessionsByParent = groupBy(sessionData, (s) => s.parentID ?? 'root');
-		const parentSessions = sessionsByParent.root ?? [];
-		delete sessionsByParent.root;
+		const sessionsByParent = groupByToMap(sessionData, (s) => s.parentID ?? 'root');
+		const parentSessions = sessionsByParent.get('root') ?? [];
 
 		for (const parentSession of parentSessions) {
-			const isParent = sessionsByParent[parentSession.sessionID] != null;
+			const isParent = sessionsByParent.has(parentSession.sessionID);
 			const displayTitle = isParent
 				? pc.bold(parentSession.sessionTitle)
 				: parentSession.sessionTitle;
 
 			table.push([
-				displayTitle,
-				formatModelsDisplayMultiline(parentSession.modelsUsed),
-				formatNumber(parentSession.inputTokens),
-				formatNumber(parentSession.outputTokens),
-				formatNumber(parentSession.cacheCreationTokens),
-				formatNumber(parentSession.cacheReadTokens),
-				formatNumber(parentSession.totalTokens),
-				formatCurrency(parentSession.totalCost),
+				...formatUsageDataRow(displayTitle, {
+					inputTokens: parentSession.inputTokens,
+					outputTokens: parentSession.outputTokens,
+					cacheCreationTokens: parentSession.cacheCreationTokens,
+					cacheReadTokens: parentSession.cacheReadTokens,
+					totalCost: parentSession.totalCost,
+					modelsUsed: parentSession.modelsUsed,
+				}),
 			]);
 
-			const subSessions = sessionsByParent[parentSession.sessionID];
+			const subSessions = sessionsByParent.get(parentSession.sessionID);
 			if (subSessions != null && subSessions.length > 0) {
 				for (const subSession of subSessions) {
 					table.push([
-						`  ↳ ${subSession.sessionTitle}`,
-						formatModelsDisplayMultiline(subSession.modelsUsed),
-						formatNumber(subSession.inputTokens),
-						formatNumber(subSession.outputTokens),
-						formatNumber(subSession.cacheCreationTokens),
-						formatNumber(subSession.cacheReadTokens),
-						formatNumber(subSession.totalTokens),
-						formatCurrency(subSession.totalCost),
+						...formatUsageDataRow(`  - ${subSession.sessionTitle}`, {
+							inputTokens: subSession.inputTokens,
+							outputTokens: subSession.outputTokens,
+							cacheCreationTokens: subSession.cacheCreationTokens,
+							cacheReadTokens: subSession.cacheReadTokens,
+							totalCost: subSession.totalCost,
+							modelsUsed: subSession.modelsUsed,
+						}),
 					]);
 				}
 
@@ -203,44 +192,29 @@ export const sessionCommand = define({
 				const subtotalCacheReadTokens =
 					parentSession.cacheReadTokens +
 					subSessions.reduce((sum, s) => sum + s.cacheReadTokens, 0);
-				const subtotalTotalTokens =
-					parentSession.totalTokens + subSessions.reduce((sum, s) => sum + s.totalTokens, 0);
 				const subtotalCost =
 					parentSession.totalCost + subSessions.reduce((sum, s) => sum + s.totalCost, 0);
 
 				table.push([
-					pc.dim('  Total (with subagents)'),
-					'',
-					pc.yellow(formatNumber(subtotalInputTokens)),
-					pc.yellow(formatNumber(subtotalOutputTokens)),
-					pc.yellow(formatNumber(subtotalCacheCreationTokens)),
-					pc.yellow(formatNumber(subtotalCacheReadTokens)),
-					pc.yellow(formatNumber(subtotalTotalTokens)),
-					pc.yellow(formatCurrency(subtotalCost)),
+					...formatUsageDataRow(pc.dim('  Total (with subagents)'), {
+						inputTokens: subtotalInputTokens,
+						outputTokens: subtotalOutputTokens,
+						cacheCreationTokens: subtotalCacheCreationTokens,
+						cacheReadTokens: subtotalCacheReadTokens,
+						totalCost: subtotalCost,
+						modelsUsed: [],
+					}),
 				]);
 			}
 		}
 
 		addEmptySeparatorRow(table, TABLE_COLUMN_COUNT);
-		table.push([
-			pc.yellow('Total'),
-			'',
-			pc.yellow(formatNumber(totals.inputTokens)),
-			pc.yellow(formatNumber(totals.outputTokens)),
-			pc.yellow(formatNumber(totals.cacheCreationTokens)),
-			pc.yellow(formatNumber(totals.cacheReadTokens)),
-			pc.yellow(formatNumber(totals.totalTokens)),
-			pc.yellow(formatCurrency(totals.totalCost)),
-		]);
-
-		// eslint-disable-next-line no-console
-		console.log(table.toString());
+		table.push(formatTotalsRow(totals));
+		await writeStdoutLine(table.toString());
 
 		if (table.isCompactMode()) {
-			// eslint-disable-next-line no-console
-			console.log('\nRunning in Compact Mode');
-			// eslint-disable-next-line no-console
-			console.log('Expand terminal width to see cache metrics and total tokens');
+			logger.info('\nRunning in Compact Mode');
+			logger.info('Expand terminal width to see cache metrics and total tokens');
 		}
 	},
 });

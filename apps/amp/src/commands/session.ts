@@ -1,4 +1,5 @@
 import type { TokenUsageEvent } from '../_types.ts';
+import { writeStdoutLine } from '@ccusage/internal/logger';
 import { compareStrings } from '@ccusage/internal/sort';
 import {
 	addEmptySeparatorRow,
@@ -11,6 +12,7 @@ import {
 import { define } from 'gunshi';
 import pc from 'picocolors';
 import { loadAmpUsageEvents } from '../data-loader.ts';
+import { logger } from '../logger.ts';
 import { AmpPricingSource } from '../pricing.ts';
 
 const TABLE_COLUMN_COUNT = 9;
@@ -41,6 +43,13 @@ export const sessionCommand = define({
 			type: 'boolean',
 			description: 'Force compact table mode',
 		},
+		offline: {
+			type: 'boolean',
+			negatable: true,
+			short: 'O',
+			description: 'Use cached pricing data',
+			default: false,
+		},
 	},
 	async run(ctx) {
 		const jsonOutput = Boolean(ctx.values.json);
@@ -51,12 +60,11 @@ export const sessionCommand = define({
 			const output = jsonOutput
 				? JSON.stringify({ sessions: [], totals: null })
 				: 'No Amp usage data found.';
-			// eslint-disable-next-line no-console
-			console.log(output);
+			await writeStdoutLine(output);
 			return;
 		}
 
-		using pricingSource = new AmpPricingSource({ offline: false });
+		using pricingSource = new AmpPricingSource({ offline: Boolean(ctx.values.offline) });
 
 		const eventsByThread = groupByThread(events);
 
@@ -136,8 +144,7 @@ export const sessionCommand = define({
 		};
 
 		if (jsonOutput) {
-			// eslint-disable-next-line no-console
-			console.log(
+			await writeStdoutLine(
 				JSON.stringify(
 					{
 						sessions: sessionData,
@@ -150,8 +157,7 @@ export const sessionCommand = define({
 			return;
 		}
 
-		// eslint-disable-next-line no-console
-		console.log('\n📊 Amp Token Usage Report - Sessions (Threads)\n');
+		logger.box('Amp Token Usage Report - Sessions');
 
 		const table: ResponsiveTable = new ResponsiveTable({
 			head: [
@@ -204,14 +210,11 @@ export const sessionCommand = define({
 			pc.yellow(formatCurrency(totals.totalCost)),
 		]);
 
-		// eslint-disable-next-line no-console
-		console.log(table.toString());
+		await writeStdoutLine(table.toString());
 
 		if (table.isCompactMode()) {
-			// eslint-disable-next-line no-console
-			console.log('\nRunning in Compact Mode');
-			// eslint-disable-next-line no-console
-			console.log('Expand terminal width to see cache metrics and total tokens');
+			logger.info('\nRunning in Compact Mode');
+			logger.info('Expand terminal width to see cache metrics and total tokens');
 		}
 	},
 });

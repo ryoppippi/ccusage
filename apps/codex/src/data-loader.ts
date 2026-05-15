@@ -1,18 +1,17 @@
+import type { IndexedWorkerItem } from '@ccusage/internal/workers';
 import type { TokenUsageDelta, TokenUsageEvent } from './_types.ts';
-import { readFile, stat } from 'node:fs/promises';
+import { stat } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
+import { isMainThread, parentPort, Worker, workerData } from 'node:worker_threads';
+import { createResultSlots } from '@ccusage/internal/array';
+import { collectFilesRecursive } from '@ccusage/internal/fs';
+import { processJSONLFileByLine } from '@ccusage/internal/jsonl';
 import { compareStrings } from '@ccusage/internal/sort';
+import { chunkIndexedItemsByFileSize, getFileWorkerThreadCount } from '@ccusage/internal/workers';
 import { Result } from '@praha/byethrow';
 import { createFixture } from 'fs-fixture';
-import { glob } from 'tinyglobby';
-import * as v from 'valibot';
-import {
-	CODEX_HOME_ENV,
-	DEFAULT_CODEX_DIR,
-	DEFAULT_SESSION_SUBDIR,
-	SESSION_GLOB,
-} from './_consts.ts';
+import { CODEX_HOME_ENV, DEFAULT_CODEX_DIR, DEFAULT_SESSION_SUBDIR } from './_consts.ts';
 import { logger } from './logger.ts';
 
 type RawUsage = {
@@ -102,49 +101,35 @@ function convertToDelta(raw: RawUsage): TokenUsageDelta {
 	};
 }
 
-const recordSchema = v.record(v.string(), v.unknown());
 const LEGACY_FALLBACK_MODEL = 'gpt-5';
 
-const entrySchema = v.object({
-	type: v.string(),
-	payload: v.optional(v.unknown()),
-	timestamp: v.optional(v.string()),
-});
-
-const tokenCountPayloadSchema = v.object({
-	type: v.literal('token_count'),
-	info: v.optional(recordSchema),
-});
+function asRecord(value: unknown): Record<string, unknown> | null {
+	return value != null && typeof value === 'object' && !Array.isArray(value)
+		? (value as Record<string, unknown>)
+		: null;
+}
 
 function extractModel(value: unknown): string | undefined {
-	const parsed = v.safeParse(recordSchema, value);
-	if (!parsed.success) {
+	const payload = asRecord(value);
+	if (payload == null) {
 		return undefined;
 	}
 
-	const payload = parsed.output;
-
-	const infoCandidate = payload.info;
-	if (infoCandidate != null) {
-		const infoParsed = v.safeParse(recordSchema, infoCandidate);
-		if (infoParsed.success) {
-			const info = infoParsed.output;
-			const directCandidates = [info.model, info.model_name];
-			for (const candidate of directCandidates) {
-				const model = asNonEmptyString(candidate);
-				if (model != null) {
-					return model;
-				}
+	const info = asRecord(payload.info);
+	if (info != null) {
+		const directCandidates = [info.model, info.model_name];
+		for (const candidate of directCandidates) {
+			const model = asNonEmptyString(candidate);
+			if (model != null) {
+				return model;
 			}
+		}
 
-			if (info.metadata != null) {
-				const metadataParsed = v.safeParse(recordSchema, info.metadata);
-				if (metadataParsed.success) {
-					const model = asNonEmptyString(metadataParsed.output.model);
-					if (model != null) {
-						return model;
-					}
-				}
+		const metadata = asRecord(info.metadata);
+		if (metadata != null) {
+			const model = asNonEmptyString(metadata.model);
+			if (model != null) {
+				return model;
 			}
 		}
 	}
@@ -154,13 +139,11 @@ function extractModel(value: unknown): string | undefined {
 		return fallbackModel;
 	}
 
-	if (payload.metadata != null) {
-		const metadataParsed = v.safeParse(recordSchema, payload.metadata);
-		if (metadataParsed.success) {
-			const model = asNonEmptyString(metadataParsed.output.model);
-			if (model != null) {
-				return model;
-			}
+	const metadata = asRecord(payload.metadata);
+	if (metadata != null) {
+		const model = asNonEmptyString(metadata.model);
+		if (model != null) {
+			return model;
 		}
 	}
 
@@ -184,6 +167,215 @@ export type LoadResult = {
 	events: TokenUsageEvent[];
 	missingDirectories: string[];
 };
+
+type CodexWorkerItem = {
+	directoryPath: string;
+	file: string;
+};
+
+type CodexWorkerData = {
+	kind: 'ccusage:codex-usage-worker';
+	items: Array<IndexedWorkerItem<CodexWorkerItem>>;
+};
+
+type CodexWorkerFileResult = {
+	events: TokenUsageEvent[];
+	legacyFallbackFile: string | null;
+};
+
+type CodexWorkerResponse = {
+	results: Array<{ index: number; result: CodexWorkerFileResult }>;
+};
+
+function getJSONLWorkerThreadCount(fileCount: number): number {
+	return getFileWorkerThreadCount({
+		itemCount: fileCount,
+		isMainThread,
+		moduleUrl: import.meta.url,
+		envValue: process.env.CCUSAGE_JSONL_WORKER_THREADS,
+		isTest: import.meta.vitest != null,
+		preferMoreWorkers: true,
+	});
+}
+
+async function parseCodexSessionFile(
+	directoryPath: string,
+	file: string,
+): Promise<CodexWorkerFileResult> {
+	const relativeSessionPath = path.relative(directoryPath, file);
+	const normalizedSessionPath = relativeSessionPath.split(path.sep).join('/');
+	const sessionId = normalizedSessionPath.replace(/\.jsonl$/i, '');
+	const events: TokenUsageEvent[] = [];
+	let previousTotals: RawUsage | null = null;
+	let currentModel: string | undefined;
+	let currentModelIsFallback = false;
+	let legacyFallbackUsed = false;
+	const processResult = await Result.try({
+		try: processJSONLFileByLine(file, (line) => {
+			if (!line.includes('turn_context') && !line.includes('token_count')) {
+				return;
+			}
+
+			const parseLine = Result.try({
+				try: () => JSON.parse(line) as unknown,
+				catch: (error) => error,
+			});
+			const parsedResult = parseLine();
+
+			if (Result.isFailure(parsedResult)) {
+				return;
+			}
+
+			const entry = asRecord(parsedResult.value);
+			if (entry == null) {
+				return;
+			}
+
+			const entryType = typeof entry.type === 'string' ? entry.type : undefined;
+			const payload = entry.payload;
+			const timestamp = typeof entry.timestamp === 'string' ? entry.timestamp : undefined;
+
+			if (entryType === 'turn_context') {
+				const contextModel = extractModel(payload);
+				if (contextModel != null) {
+					currentModel = contextModel;
+					currentModelIsFallback = false;
+				}
+				return;
+			}
+
+			if (entryType !== 'event_msg') {
+				return;
+			}
+
+			const payloadRecord = asRecord(payload);
+			if (payloadRecord?.type !== 'token_count') {
+				return;
+			}
+
+			if (timestamp == null) {
+				return;
+			}
+
+			const info = asRecord(payloadRecord.info);
+			const lastUsage = normalizeRawUsage(info?.last_token_usage);
+			const totalUsage = normalizeRawUsage(info?.total_token_usage);
+
+			let raw = lastUsage;
+			if (raw == null && totalUsage != null) {
+				raw = subtractRawUsage(totalUsage, previousTotals);
+			}
+
+			if (totalUsage != null) {
+				previousTotals = totalUsage;
+			}
+
+			if (raw == null) {
+				return;
+			}
+
+			const delta = convertToDelta(raw);
+			if (
+				delta.inputTokens === 0 &&
+				delta.cachedInputTokens === 0 &&
+				delta.outputTokens === 0 &&
+				delta.reasoningOutputTokens === 0
+			) {
+				return;
+			}
+
+			const extractedModel = extractModel({ ...payloadRecord, info });
+			let isFallbackModel = false;
+			if (extractedModel != null) {
+				currentModel = extractedModel;
+				currentModelIsFallback = false;
+			}
+
+			let model = extractedModel ?? currentModel;
+			if (model == null) {
+				model = LEGACY_FALLBACK_MODEL;
+				isFallbackModel = true;
+				legacyFallbackUsed = true;
+				currentModel = model;
+				currentModelIsFallback = true;
+			} else if (extractedModel == null && currentModelIsFallback) {
+				isFallbackModel = true;
+			}
+
+			const event: TokenUsageEvent = {
+				sessionId,
+				timestamp,
+				model,
+				inputTokens: delta.inputTokens,
+				cachedInputTokens: delta.cachedInputTokens,
+				outputTokens: delta.outputTokens,
+				reasoningOutputTokens: delta.reasoningOutputTokens,
+				totalTokens: delta.totalTokens,
+			};
+
+			if (isFallbackModel) {
+				event.isFallbackModel = true;
+			}
+
+			events.push(event);
+		}),
+		catch: (error) => error,
+	});
+
+	if (Result.isFailure(processResult)) {
+		logger.debug('Failed to read Codex session file', processResult.error);
+		return { events: [], legacyFallbackFile: null };
+	}
+
+	return { events, legacyFallbackFile: legacyFallbackUsed ? file : null };
+}
+
+async function collectWithCodexWorkers(
+	items: CodexWorkerItem[],
+): Promise<CodexWorkerFileResult[] | null> {
+	const workerCount = getJSONLWorkerThreadCount(items.length);
+	if (workerCount === 0) {
+		return null;
+	}
+
+	const indexedItems = items.map<IndexedWorkerItem<CodexWorkerItem>>((item, index) => ({
+		index,
+		item,
+	}));
+	const chunks = await chunkIndexedItemsByFileSize(indexedItems, workerCount, (item) => item.file);
+	const workerResults: Array<Promise<Array<{ index: number; result: CodexWorkerFileResult }>>> = [];
+	for (const chunk of chunks) {
+		workerResults.push(
+			new Promise<Array<{ index: number; result: CodexWorkerFileResult }>>((resolve, reject) => {
+				const worker = new Worker(new URL(import.meta.url), {
+					workerData: {
+						kind: 'ccusage:codex-usage-worker',
+						items: chunk,
+					} satisfies CodexWorkerData,
+				});
+				worker.once('message', (message: CodexWorkerResponse) => {
+					resolve(message.results);
+				});
+				worker.once('error', reject);
+				worker.once('exit', (code) => {
+					if (code !== 0) {
+						reject(new Error(`Codex usage worker exited with code ${code}`));
+					}
+				});
+			}),
+		);
+	}
+
+	const resultGroups = await Promise.all(workerResults);
+	const orderedResults = createResultSlots<CodexWorkerFileResult>(items.length);
+	for (const results of resultGroups) {
+		for (const { index, result } of results) {
+			orderedResults[index] = result;
+		}
+	}
+
+	return orderedResults;
+}
 
 export async function loadTokenUsageEvents(options: LoadOptions = {}): Promise<LoadResult> {
 	const providedDirs =
@@ -217,150 +409,19 @@ export async function loadTokenUsageEvents(options: LoadOptions = {}): Promise<L
 			continue;
 		}
 
-		const files = await glob(SESSION_GLOB, {
-			cwd: directoryPath,
-			absolute: true,
-		});
+		const files = await collectFilesRecursive(directoryPath, { extension: '.jsonl' });
+		const fileItems = files.map((file) => ({ directoryPath, file }));
+		const fileResults =
+			(await collectWithCodexWorkers(fileItems)) ??
+			(await Promise.all(
+				fileItems.map(async (item) => parseCodexSessionFile(item.directoryPath, item.file)),
+			));
 
-		for (const file of files) {
-			const relativeSessionPath = path.relative(directoryPath, file);
-			const normalizedSessionPath = relativeSessionPath.split(path.sep).join('/');
-			const sessionId = normalizedSessionPath.replace(/\.jsonl$/i, '');
-			const fileContentResult = await Result.try({
-				try: readFile(file, 'utf8'),
-				catch: (error) => error,
-			});
-
-			if (Result.isFailure(fileContentResult)) {
-				logger.debug('Failed to read Codex session file', fileContentResult.error);
-				continue;
-			}
-
-			let previousTotals: RawUsage | null = null;
-			let currentModel: string | undefined;
-			let currentModelIsFallback = false;
-			let legacyFallbackUsed = false;
-			const lines = fileContentResult.value.split(/\r?\n/);
-			for (const line of lines) {
-				const trimmed = line.trim();
-				if (trimmed === '') {
-					continue;
-				}
-
-				const parseLine = Result.try({
-					try: () => JSON.parse(trimmed) as unknown,
-					catch: (error) => error,
-				});
-				const parsedResult = parseLine();
-
-				if (Result.isFailure(parsedResult)) {
-					continue;
-				}
-
-				const entryParse = v.safeParse(entrySchema, parsedResult.value);
-				if (!entryParse.success) {
-					continue;
-				}
-
-				const { type: entryType, payload, timestamp } = entryParse.output;
-
-				if (entryType === 'turn_context') {
-					const contextPayload = v.safeParse(recordSchema, payload ?? null);
-					if (contextPayload.success) {
-						const contextModel = extractModel(contextPayload.output);
-						if (contextModel != null) {
-							currentModel = contextModel;
-							currentModelIsFallback = false;
-						}
-					}
-					continue;
-				}
-
-				if (entryType !== 'event_msg') {
-					continue;
-				}
-
-				const tokenPayloadResult = v.safeParse(tokenCountPayloadSchema, payload ?? undefined);
-				if (!tokenPayloadResult.success) {
-					continue;
-				}
-
-				if (timestamp == null) {
-					continue;
-				}
-
-				const info = tokenPayloadResult.output.info;
-				const lastUsage = normalizeRawUsage(info?.last_token_usage);
-				const totalUsage = normalizeRawUsage(info?.total_token_usage);
-
-				let raw = lastUsage;
-				if (raw == null && totalUsage != null) {
-					raw = subtractRawUsage(totalUsage, previousTotals);
-				}
-
-				if (totalUsage != null) {
-					previousTotals = totalUsage;
-				}
-
-				if (raw == null) {
-					continue;
-				}
-
-				const delta = convertToDelta(raw);
-				if (
-					delta.inputTokens === 0 &&
-					delta.cachedInputTokens === 0 &&
-					delta.outputTokens === 0 &&
-					delta.reasoningOutputTokens === 0
-				) {
-					continue;
-				}
-
-				const payloadRecordResult = v.safeParse(recordSchema, payload ?? undefined);
-				const extractionSource = payloadRecordResult.success
-					? Object.assign({}, payloadRecordResult.output, { info })
-					: { info };
-				const extractedModel = extractModel(extractionSource);
-				let isFallbackModel = false;
-				if (extractedModel != null) {
-					currentModel = extractedModel;
-					currentModelIsFallback = false;
-				}
-
-				let model = extractedModel ?? currentModel;
-				if (model == null) {
-					model = LEGACY_FALLBACK_MODEL;
-					isFallbackModel = true;
-					legacyFallbackUsed = true;
-					currentModel = model;
-					currentModelIsFallback = true;
-				} else if (extractedModel == null && currentModelIsFallback) {
-					isFallbackModel = true;
-				}
-
-				const event: TokenUsageEvent = {
-					sessionId,
-					timestamp,
-					model,
-					inputTokens: delta.inputTokens,
-					cachedInputTokens: delta.cachedInputTokens,
-					outputTokens: delta.outputTokens,
-					reasoningOutputTokens: delta.reasoningOutputTokens,
-					totalTokens: delta.totalTokens,
-				};
-
-				if (isFallbackModel) {
-					// Surface the fallback so both table + JSON outputs can annotate pricing that was
-					// inferred rather than sourced from the log metadata.
-					event.isFallbackModel = true;
-				}
-
-				events.push(event);
-			}
-
-			if (legacyFallbackUsed) {
+		for (const fileResult of fileResults) {
+			events.push(...fileResult.events);
+			if (fileResult.legacyFallbackFile != null) {
 				logger.debug('Legacy Codex session lacked model metadata; applied fallback', {
-					file,
+					file: fileResult.legacyFallbackFile,
 					model: LEGACY_FALLBACK_MODEL,
 				});
 			}
@@ -370,6 +431,34 @@ export async function loadTokenUsageEvents(options: LoadOptions = {}): Promise<L
 	events.sort((a, b) => compareStrings(a.timestamp, b.timestamp));
 
 	return { events, missingDirectories };
+}
+
+async function runCodexUsageWorker(data: CodexWorkerData): Promise<void> {
+	const results: CodexWorkerResponse['results'] = [];
+	for (const { index, item } of data.items) {
+		results.push({
+			index,
+			result: await parseCodexSessionFile(item.directoryPath, item.file),
+		});
+	}
+
+	parentPort?.postMessage({ results } satisfies CodexWorkerResponse);
+}
+
+function isCodexWorkerData(value: unknown): value is CodexWorkerData {
+	return (
+		value != null &&
+		typeof value === 'object' &&
+		'kind' in value &&
+		value.kind === 'ccusage:codex-usage-worker'
+	);
+}
+
+const currentWorkerData: unknown = workerData;
+if (!isMainThread && isCodexWorkerData(currentWorkerData)) {
+	void runCodexUsageWorker(currentWorkerData).catch(() => {
+		process.exit(1);
+	});
 }
 
 if (import.meta.vitest != null) {

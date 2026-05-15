@@ -5,7 +5,13 @@ import {
 	filterPricingDataset,
 } from '@ccusage/internal/pricing-fetch-utils';
 
-const AMP_MODEL_PREFIXES = ['claude-', 'anthropic/'];
+const AMP_MODEL_PREFIXES = [
+	'claude-',
+	'anthropic/',
+	'anthropic.',
+	'us.anthropic.',
+	'eu.anthropic.',
+];
 
 function isAmpModel(modelName: string, _pricing: LiteLLMModelPricing): boolean {
 	return AMP_MODEL_PREFIXES.some((prefix) => modelName.startsWith(prefix));

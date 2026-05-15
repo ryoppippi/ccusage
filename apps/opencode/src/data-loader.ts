@@ -8,14 +8,18 @@
  * @module data-loader
  */
 
+import type { IndexedWorkerItem } from '@ccusage/internal/workers';
 import { existsSync, readdirSync, realpathSync } from 'node:fs';
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
-import { createRequire } from 'node:module';
 import { homedir, tmpdir } from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
+import { isMainThread, parentPort, Worker, workerData } from 'node:worker_threads';
+import { createResultSlots } from '@ccusage/internal/array';
+import { collectFilesRecursive } from '@ccusage/internal/fs';
+import { getSqliteDatabaseFactory, withSqliteDatabase } from '@ccusage/internal/sqlite';
+import { chunkIndexedItemsByFileSize, getFileWorkerThreadCount } from '@ccusage/internal/workers';
 import { isDirectorySync } from 'path-type';
-import { glob } from 'tinyglobby';
 import * as v from 'valibot';
 
 import { logger } from './logger.ts';
@@ -48,44 +52,22 @@ const OPENCODE_CONFIG_DIR_ENV = 'OPENCODE_DATA_DIR';
  */
 const USER_HOME_DIR = homedir();
 
-type SqliteStatement = {
-	all: (...params: unknown[]) => unknown[];
-	run: (...params: unknown[]) => unknown;
+type OpenCodeWorkerTask = 'messages' | 'sessions';
+
+type OpenCodeWorkerData = {
+	kind: 'ccusage:opencode-usage-worker';
+	task: OpenCodeWorkerTask;
+	items: Array<IndexedWorkerItem<string>>;
 };
 
-type SqliteDatabase = {
-	close: () => void;
-	exec: (sql: string) => unknown;
-	prepare: (sql: string) => SqliteStatement;
+type OpenCodeWorkerResult =
+	| { kind: 'message'; id: string; entry: LoadedUsageEntry }
+	| { kind: 'session'; metadata: LoadedSessionMetadata }
+	| null;
+
+type OpenCodeWorkerResponse = {
+	results: Array<{ index: number; result: OpenCodeWorkerResult }>;
 };
-
-type SqliteDatabaseFactory = (
-	location: string,
-	options?: {
-		readOnly?: boolean;
-	},
-) => SqliteDatabase;
-
-type BunSqliteModule = {
-	Database: new (
-		location: string,
-		options?: {
-			readonly?: boolean;
-		},
-	) => SqliteDatabase;
-};
-
-type NodeSqliteModule = {
-	DatabaseSync: new (
-		location: string,
-		options?: {
-			readOnly?: boolean;
-		},
-	) => SqliteDatabase;
-};
-
-const nodeRequire = createRequire(import.meta.url);
-let sqliteDatabaseFactory: SqliteDatabaseFactory | null | undefined;
 
 /**
  * Branded Valibot schema for model names
@@ -182,65 +164,6 @@ export type LoadedSessionMetadata = {
 	projectID: string;
 	directory: string;
 };
-
-function isSqliteExperimentalWarning(warning: Error | string): boolean {
-	const message = typeof warning === 'string' ? warning : warning.message;
-	return message.includes('SQLite is an experimental feature');
-}
-
-function loadBunSqliteDatabaseFactory(): SqliteDatabaseFactory | null {
-	try {
-		const sqlite = nodeRequire('bun:sqlite') as BunSqliteModule;
-		return (location, options) =>
-			new sqlite.Database(location, {
-				readonly: options?.readOnly,
-			});
-	} catch (error) {
-		const code = typeof error === 'object' && error != null && 'code' in error ? error.code : null;
-
-		if (code !== 'ERR_UNKNOWN_BUILTIN_MODULE' && code !== 'MODULE_NOT_FOUND') {
-			logger.warn('Failed to load bun:sqlite:', error);
-		}
-
-		return null;
-	}
-}
-
-function loadNodeSqliteDatabaseFactory(): SqliteDatabaseFactory | null {
-	const emitWarning = process.emitWarning.bind(process);
-
-	try {
-		process.emitWarning = ((warning: Error | string) => {
-			if (isSqliteExperimentalWarning(warning)) {
-				return;
-			}
-
-			return emitWarning(warning);
-		}) as typeof process.emitWarning;
-
-		const sqlite = nodeRequire('node:sqlite') as NodeSqliteModule;
-		return (location, options) => new sqlite.DatabaseSync(location, options ?? {});
-	} catch (error) {
-		const code = typeof error === 'object' && error != null && 'code' in error ? error.code : null;
-
-		if (code !== 'ERR_UNKNOWN_BUILTIN_MODULE' && code !== 'MODULE_NOT_FOUND') {
-			logger.warn('Failed to load node:sqlite:', error);
-		}
-
-		return null;
-	} finally {
-		process.emitWarning = emitWarning;
-	}
-}
-
-function getSqliteDatabaseFactory(): SqliteDatabaseFactory | null {
-	if (sqliteDatabaseFactory !== undefined) {
-		return sqliteDatabaseFactory;
-	}
-
-	sqliteDatabaseFactory = loadBunSqliteDatabaseFactory() ?? loadNodeSqliteDatabaseFactory();
-	return sqliteDatabaseFactory;
-}
 
 function parseJsonObject(value: string): Record<string, unknown> | null {
 	try {
@@ -368,6 +291,63 @@ function convertOpenCodeSessionToMetadata(
 	};
 }
 
+function getJSONWorkerThreadCount(fileCount: number): number {
+	return getFileWorkerThreadCount({
+		itemCount: fileCount,
+		isMainThread,
+		moduleUrl: import.meta.url,
+		envValue: process.env.CCUSAGE_JSONL_WORKER_THREADS,
+		isTest: import.meta.vitest != null,
+		preferMoreWorkers: true,
+	});
+}
+
+async function collectWithOpenCodeWorkers(
+	task: OpenCodeWorkerTask,
+	files: string[],
+): Promise<OpenCodeWorkerResult[] | null> {
+	const workerCount = getJSONWorkerThreadCount(files.length);
+	if (workerCount === 0) {
+		return null;
+	}
+
+	const indexedItems = files.map<IndexedWorkerItem<string>>((item, index) => ({ index, item }));
+	const chunks = await chunkIndexedItemsByFileSize(indexedItems, workerCount, (item) => item);
+	const workerResults: Array<Promise<OpenCodeWorkerResponse['results']>> = [];
+	for (const chunk of chunks) {
+		workerResults.push(
+			new Promise<OpenCodeWorkerResponse['results']>((resolve, reject) => {
+				const worker = new Worker(new URL(import.meta.url), {
+					workerData: {
+						kind: 'ccusage:opencode-usage-worker',
+						task,
+						items: chunk,
+					} satisfies OpenCodeWorkerData,
+				});
+				worker.once('message', (message: OpenCodeWorkerResponse) => {
+					resolve(message.results);
+				});
+				worker.once('error', reject);
+				worker.once('exit', (code) => {
+					if (code !== 0) {
+						reject(new Error(`OpenCode usage worker exited with code ${code}`));
+					}
+				});
+			}),
+		);
+	}
+
+	const resultGroups = await Promise.all(workerResults);
+	const orderedResults = createResultSlots<OpenCodeWorkerResult>(files.length);
+	for (const results of resultGroups) {
+		for (const { index, result } of results) {
+			orderedResults[index] = result;
+		}
+	}
+
+	return orderedResults;
+}
+
 function isPathInsideDirectory(targetPath: string, directoryPath: string): boolean {
 	const relativePath = path.relative(directoryPath, targetPath);
 	return relativePath === '' || (!relativePath.startsWith('..') && !path.isAbsolute(relativePath));
@@ -430,39 +410,37 @@ function loadOpenCodeSessionsFromDb(openCodePath: string): Map<string, LoadedSes
 		return new Map();
 	}
 
-	const openSqliteDatabase = getSqliteDatabaseFactory();
-	if (openSqliteDatabase == null) {
-		return new Map();
-	}
-
 	try {
-		const db = openSqliteDatabase(dbPath, { readOnly: true });
-		try {
-			const rows = db
-				.prepare('SELECT id, parent_id, title, project_id, directory FROM session')
-				.all();
+		const sessionMap = withSqliteDatabase<Map<string, LoadedSessionMetadata>>(
+			dbPath,
+			{ readOnly: true },
+			(db) => {
+				const sessionMap = new Map<string, LoadedSessionMetadata>();
+				const rows = db
+					.prepare('SELECT id, parent_id, title, project_id, directory FROM session')
+					.all();
 
-			const sessionMap = new Map<string, LoadedSessionMetadata>();
-			for (const rawRow of rows) {
-				const parsed = v.safeParse(openCodeDbSessionRowSchema, rawRow);
-				if (!parsed.success) {
-					continue;
+				for (const rawRow of rows) {
+					const parsed = v.safeParse(openCodeDbSessionRowSchema, rawRow);
+					if (!parsed.success) {
+						continue;
+					}
+
+					const row = parsed.output;
+					const metadata: LoadedSessionMetadata = {
+						id: row.id,
+						parentID: row.parent_id,
+						title: row.title ?? row.id,
+						projectID: row.project_id ?? 'unknown',
+						directory: row.directory ?? 'unknown',
+					};
+					sessionMap.set(metadata.id, metadata);
 				}
-
-				const row = parsed.output;
-				const metadata: LoadedSessionMetadata = {
-					id: row.id,
-					parentID: row.parent_id,
-					title: row.title ?? row.id,
-					projectID: row.project_id ?? 'unknown',
-					directory: row.directory ?? 'unknown',
-				};
-				sessionMap.set(metadata.id, metadata);
-			}
-			return sessionMap;
-		} finally {
-			db.close();
-		}
+				return sessionMap;
+			},
+			logger.warn,
+		);
+		return sessionMap ?? new Map<string, LoadedSessionMetadata>();
 	} catch (error) {
 		logger.warn('Failed to load OpenCode sessions from DB:', error);
 		return new Map();
@@ -487,21 +465,25 @@ export async function loadOpenCodeSessions(): Promise<Map<string, LoadedSessionM
 		return sessionMap;
 	}
 
-	const sessionFiles = await glob('**/*.json', {
-		cwd: sessionsDir,
-		absolute: true,
-	});
+	const sessionFiles = await collectFilesRecursive(sessionsDir, { extension: '.json' });
+	const sessionResults =
+		(await collectWithOpenCodeWorkers('sessions', sessionFiles)) ??
+		(await Promise.all(
+			sessionFiles.map(async (filePath) => {
+				const session = await loadOpenCodeSession(filePath);
+				return session == null
+					? null
+					: ({ kind: 'session', metadata: convertOpenCodeSessionToMetadata(session) } as const);
+			}),
+		));
 
-	for (const filePath of sessionFiles) {
-		const session = await loadOpenCodeSession(filePath);
-
-		if (session == null) {
+	for (const sessionResult of sessionResults) {
+		if (sessionResult == null || sessionResult.kind !== 'session') {
 			continue;
 		}
 
-		const metadata = convertOpenCodeSessionToMetadata(session);
-		if (!sessionMap.has(metadata.id)) {
-			sessionMap.set(metadata.id, metadata);
+		if (!sessionMap.has(sessionResult.metadata.id)) {
+			sessionMap.set(sessionResult.metadata.id, sessionResult.metadata);
 		}
 	}
 
@@ -517,50 +499,51 @@ function loadOpenCodeMessagesFromDb(openCodePath: string): {
 		return { entries: [], seenIds: new Set() };
 	}
 
-	const openSqliteDatabase = getSqliteDatabaseFactory();
-	if (openSqliteDatabase == null) {
-		return { entries: [], seenIds: new Set() };
-	}
-
 	try {
-		const db = openSqliteDatabase(dbPath, { readOnly: true });
-		try {
-			const rows = db.prepare('SELECT id, session_id, data FROM message').all();
+		const result = withSqliteDatabase<{
+			entries: LoadedUsageEntry[];
+			seenIds: Set<string>;
+		}>(
+			dbPath,
+			{ readOnly: true },
+			(db) => {
+				const rows = db.prepare('SELECT id, session_id, data FROM message').all();
 
-			const entries: LoadedUsageEntry[] = [];
-			const seenIds = new Set<string>();
+				const entries: LoadedUsageEntry[] = [];
+				const seenIds = new Set<string>();
 
-			for (const rawRow of rows) {
-				const rowResult = v.safeParse(openCodeDbMessageRowSchema, rawRow);
-				if (!rowResult.success) {
-					continue;
+				for (const rawRow of rows) {
+					const rowResult = v.safeParse(openCodeDbMessageRowSchema, rawRow);
+					if (!rowResult.success) {
+						continue;
+					}
+
+					const row = rowResult.output;
+					const data = parseJsonObject(row.data);
+					if (data == null) {
+						continue;
+					}
+
+					const message = {
+						...data,
+						id: row.id,
+						sessionID: row.session_id,
+					};
+
+					const parsed = v.safeParse(openCodeMessageSchema, message);
+					if (!parsed.success || !shouldLoadOpenCodeMessage(parsed.output)) {
+						continue;
+					}
+
+					seenIds.add(parsed.output.id);
+					entries.push(convertOpenCodeMessageToUsageEntry(parsed.output));
 				}
 
-				const row = rowResult.output;
-				const data = parseJsonObject(row.data);
-				if (data == null) {
-					continue;
-				}
-
-				const message = {
-					...data,
-					id: row.id,
-					sessionID: row.session_id,
-				};
-
-				const parsed = v.safeParse(openCodeMessageSchema, message);
-				if (!parsed.success || !shouldLoadOpenCodeMessage(parsed.output)) {
-					continue;
-				}
-
-				seenIds.add(parsed.output.id);
-				entries.push(convertOpenCodeMessageToUsageEntry(parsed.output));
-			}
-
-			return { entries, seenIds };
-		} finally {
-			db.close();
-		}
+				return { entries, seenIds };
+			},
+			logger.warn,
+		);
+		return result ?? { entries: [], seenIds: new Set() };
 	} catch (error) {
 		logger.warn('Failed to load OpenCode messages from DB:', error);
 		return { entries: [], seenIds: new Set() };
@@ -590,34 +573,90 @@ export async function loadOpenCodeMessages(): Promise<LoadedUsageEntry[]> {
 	}
 
 	// Find all message JSON files
-	const messageFiles = await glob('**/*.json', {
-		cwd: messagesDir,
-		absolute: true,
-	});
+	const messageFiles = await collectFilesRecursive(messagesDir, { extension: '.json' });
+	const messageResults =
+		(await collectWithOpenCodeWorkers('messages', messageFiles)) ??
+		(await Promise.all(
+			messageFiles.map(async (filePath) => {
+				const message = await loadOpenCodeMessage(filePath);
+				if (message == null || !shouldLoadOpenCodeMessage(message)) {
+					return null;
+				}
+				return {
+					kind: 'message',
+					id: message.id,
+					entry: convertOpenCodeMessageToUsageEntry(message),
+				} as const;
+			}),
+		));
 
-	for (const filePath of messageFiles) {
-		const message = await loadOpenCodeMessage(filePath);
-
-		if (message == null) {
-			continue;
-		}
-
-		if (!shouldLoadOpenCodeMessage(message)) {
+	for (const result of messageResults) {
+		if (result == null || result.kind !== 'message') {
 			continue;
 		}
 
 		// Deduplicate by message ID (DB entries take precedence)
-		const dedupeKey = `${message.id}`;
+		const dedupeKey = result.id;
 		if (seenIds.has(dedupeKey)) {
 			continue;
 		}
 		seenIds.add(dedupeKey);
 
-		const entry = convertOpenCodeMessageToUsageEntry(message);
-		entries.push(entry);
+		entries.push(result.entry);
 	}
 
 	return entries;
+}
+
+async function runOpenCodeUsageWorker(data: OpenCodeWorkerData): Promise<void> {
+	const results: OpenCodeWorkerResponse['results'] = [];
+	for (const { index, item } of data.items) {
+		if (data.task === 'messages') {
+			const message = await loadOpenCodeMessage(item);
+			results.push({
+				index,
+				result:
+					message == null || !shouldLoadOpenCodeMessage(message)
+						? null
+						: {
+								kind: 'message',
+								id: message.id,
+								entry: convertOpenCodeMessageToUsageEntry(message),
+							},
+			});
+			continue;
+		}
+
+		const session = await loadOpenCodeSession(item);
+		results.push({
+			index,
+			result:
+				session == null
+					? null
+					: {
+							kind: 'session',
+							metadata: convertOpenCodeSessionToMetadata(session),
+						},
+		});
+	}
+
+	parentPort?.postMessage({ results } satisfies OpenCodeWorkerResponse);
+}
+
+function isOpenCodeWorkerData(value: unknown): value is OpenCodeWorkerData {
+	return (
+		value != null &&
+		typeof value === 'object' &&
+		'kind' in value &&
+		value.kind === 'ccusage:opencode-usage-worker'
+	);
+}
+
+const currentWorkerData: unknown = workerData;
+if (!isMainThread && isOpenCodeWorkerData(currentWorkerData)) {
+	void runOpenCodeUsageWorker(currentWorkerData).catch(() => {
+		process.exit(1);
+	});
 }
 
 if (import.meta.vitest != null) {
@@ -674,7 +713,7 @@ if (import.meta.vitest != null) {
 		}
 
 		function createOpenCodeDb(dbPath: string): void {
-			const openSqliteDatabase = getSqliteDatabaseFactory();
+			const openSqliteDatabase = getSqliteDatabaseFactory(logger.warn);
 			if (openSqliteDatabase == null) {
 				return;
 			}

@@ -15,6 +15,7 @@ import { log, logger } from '../logger.ts';
 export const sessionCommand = define({
 	name: 'session',
 	description: 'Show pi-agent usage by session',
+	toKebab: true,
 	args: {
 		json: {
 			type: 'boolean',

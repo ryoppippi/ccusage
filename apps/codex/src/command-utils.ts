@@ -1,4 +1,4 @@
-import { sort } from 'fast-sort';
+import { compareStrings } from '@ccusage/internal/sort';
 
 export type UsageGroup = {
 	inputTokens: number;
@@ -30,7 +30,7 @@ export function splitUsageTokens(usage: UsageGroup): {
 export function formatModelsList(
 	models: Record<string, { totalTokens: number; isFallback?: boolean }>,
 ): string[] {
-	return sort(Object.entries(models))
-		.asc(([model]) => model)
+	return Object.entries(models)
+		.sort(([a], [b]) => compareStrings(a, b))
 		.map(([model, data]) => (data.isFallback === true ? `${model} (fallback)` : model));
 }

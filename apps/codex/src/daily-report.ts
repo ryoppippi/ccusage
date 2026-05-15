@@ -7,7 +7,7 @@ import type {
 	TokenUsageEvent,
 } from './_types.ts';
 import { compareStrings } from '@ccusage/internal/sort';
-import { formatDisplayDate, isWithinRange, toDateKey } from './date-utils.ts';
+import { isWithinRange, toDateKey } from './date-utils.ts';
 import { addUsage, calculateCostUSD, createEmptyUsage } from './token-utils.ts';
 
 export type DailyReportOptions = {
@@ -106,7 +106,7 @@ export async function buildDailyReport(
 		}
 
 		rows.push({
-			date: formatDisplayDate(summary.date),
+			date: summary.date,
 			inputTokens: summary.inputTokens,
 			cachedInputTokens: summary.cachedInputTokens,
 			outputTokens: summary.outputTokens,
@@ -184,6 +184,7 @@ if (import.meta.vitest != null) {
 
 			expect(report).toHaveLength(2);
 			const first = report[0]!;
+			expect(first.date).toBe('2025-09-11');
 			expect(first.date).toContain('2025');
 			expect(first.inputTokens).toBe(1_400);
 			expect(first.cachedInputTokens).toBe(300);

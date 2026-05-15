@@ -14,6 +14,7 @@ import { log, logger } from '../logger.ts';
 export const dailyCommand = define({
 	name: 'daily',
 	description: 'Show pi-agent usage by date',
+	toKebab: true,
 	args: {
 		json: {
 			type: 'boolean',

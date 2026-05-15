@@ -1,16 +1,15 @@
+import { groupByToMap } from '@ccusage/internal/array';
+import { writeStdoutLine } from '@ccusage/internal/logger';
 import { LiteLLMPricingFetcher } from '@ccusage/internal/pricing';
 import { compareStrings } from '@ccusage/internal/sort';
 import {
 	addEmptySeparatorRow,
-	formatCurrency,
+	createUsageReportTable,
 	formatDateCompact,
-	formatModelsDisplayMultiline,
-	formatNumber,
-	ResponsiveTable,
+	formatTotalsRow,
+	formatUsageDataRow,
 } from '@ccusage/terminal/table';
-import { groupBy } from 'es-toolkit';
 import { define } from 'gunshi';
-import pc from 'picocolors';
 import { calculateCostForEntry } from '../cost-utils.ts';
 import { loadOpenCodeMessages } from '../data-loader.ts';
 import { logger } from '../logger.ts';
@@ -55,6 +54,13 @@ export const weeklyCommand = define({
 			type: 'boolean',
 			description: 'Force compact table mode',
 		},
+		offline: {
+			type: 'boolean',
+			negatable: true,
+			short: 'O',
+			description: 'Use cached pricing data',
+			default: false,
+		},
 	},
 	async run(ctx) {
 		const jsonOutput = Boolean(ctx.values.json);
@@ -65,14 +71,13 @@ export const weeklyCommand = define({
 			const output = jsonOutput
 				? JSON.stringify({ weekly: [], totals: null })
 				: 'No OpenCode usage data found.';
-			// eslint-disable-next-line no-console
-			console.log(output);
+			await writeStdoutLine(output);
 			return;
 		}
 
-		using fetcher = new LiteLLMPricingFetcher({ offline: false, logger });
+		using fetcher = new LiteLLMPricingFetcher({ offline: Boolean(ctx.values.offline), logger });
 
-		const entriesByWeek = groupBy(entries, (entry) => getISOWeek(entry.timestamp));
+		const entriesByWeek = groupByToMap(entries, (entry) => getISOWeek(entry.timestamp));
 
 		const weeklyData: Array<{
 			week: string;
@@ -85,7 +90,7 @@ export const weeklyCommand = define({
 			modelsUsed: string[];
 		}> = [];
 
-		for (const [week, weekEntries] of Object.entries(entriesByWeek)) {
+		for (const [week, weekEntries] of entriesByWeek) {
 			let inputTokens = 0;
 			let outputTokens = 0;
 			let cacheCreationTokens = 0;
@@ -128,8 +133,7 @@ export const weeklyCommand = define({
 		};
 
 		if (jsonOutput) {
-			// eslint-disable-next-line no-console
-			console.log(
+			await writeStdoutLine(
 				JSON.stringify(
 					{
 						weekly: weeklyData,
@@ -142,62 +146,25 @@ export const weeklyCommand = define({
 			return;
 		}
 
-		// eslint-disable-next-line no-console
-		console.log('\n📊 OpenCode Token Usage Report - Weekly\n');
+		logger.box('OpenCode Token Usage Report - Weekly');
 
-		const table: ResponsiveTable = new ResponsiveTable({
-			head: [
-				'Week',
-				'Models',
-				'Input',
-				'Output',
-				'Cache Create',
-				'Cache Read',
-				'Total Tokens',
-				'Cost (USD)',
-			],
-			colAligns: ['left', 'left', 'right', 'right', 'right', 'right', 'right', 'right'],
-			compactHead: ['Week', 'Models', 'Input', 'Output', 'Cost (USD)'],
-			compactColAligns: ['left', 'left', 'right', 'right', 'right'],
-			compactThreshold: 100,
+		const table = createUsageReportTable({
+			firstColumnName: 'Week',
 			forceCompact: Boolean(ctx.values.compact),
-			style: { head: ['cyan'] },
 			dateFormatter: (dateStr: string) => formatDateCompact(dateStr),
 		});
 
 		for (const data of weeklyData) {
-			table.push([
-				data.week,
-				formatModelsDisplayMultiline(data.modelsUsed),
-				formatNumber(data.inputTokens),
-				formatNumber(data.outputTokens),
-				formatNumber(data.cacheCreationTokens),
-				formatNumber(data.cacheReadTokens),
-				formatNumber(data.totalTokens),
-				formatCurrency(data.totalCost),
-			]);
+			table.push(formatUsageDataRow(data.week, data));
 		}
 
 		addEmptySeparatorRow(table, TABLE_COLUMN_COUNT);
-		table.push([
-			pc.yellow('Total'),
-			'',
-			pc.yellow(formatNumber(totals.inputTokens)),
-			pc.yellow(formatNumber(totals.outputTokens)),
-			pc.yellow(formatNumber(totals.cacheCreationTokens)),
-			pc.yellow(formatNumber(totals.cacheReadTokens)),
-			pc.yellow(formatNumber(totals.totalTokens)),
-			pc.yellow(formatCurrency(totals.totalCost)),
-		]);
-
-		// eslint-disable-next-line no-console
-		console.log(table.toString());
+		table.push(formatTotalsRow(totals));
+		await writeStdoutLine(table.toString());
 
 		if (table.isCompactMode()) {
-			// eslint-disable-next-line no-console
-			console.log('\nRunning in Compact Mode');
-			// eslint-disable-next-line no-console
-			console.log('Expand terminal width to see cache metrics and total tokens');
+			logger.info('\nRunning in Compact Mode');
+			logger.info('Expand terminal width to see cache metrics and total tokens');
 		}
 	},
 });

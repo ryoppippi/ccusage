@@ -1,7 +1,12 @@
-import fs from 'node:fs';
-import readline from 'node:readline';
+import type { IndexedWorkerItem } from '@ccusage/internal/workers';
+import process from 'node:process';
+import { isMainThread, parentPort, Worker, workerData } from 'node:worker_threads';
+import { createResultSlots } from '@ccusage/internal/array';
+import { collectFilesRecursive } from '@ccusage/internal/fs';
+import { processJSONLFileByLine } from '@ccusage/internal/jsonl';
 import { compareStringsByOrder } from '@ccusage/internal/sort';
-import { glob } from 'tinyglobby';
+import { chunkIndexedItemsByFileSize, getFileWorkerThreadCount } from '@ccusage/internal/workers';
+import { createFixture } from 'fs-fixture';
 import * as v from 'valibot';
 import {
 	extractPiAgentProject,
@@ -80,31 +85,10 @@ export type MonthlyUsageWithSource = {
 	}>;
 };
 
-async function processJSONLFileByLine(
-	filePath: string,
-	processor: (line: string) => Promise<void> | void,
-): Promise<void> {
-	const fileStream = fs.createReadStream(filePath, { encoding: 'utf-8' });
-	const rl = readline.createInterface({
-		input: fileStream,
-		crlfDelay: Infinity,
-	});
-
-	for await (const line of rl) {
-		const trimmedLine = line.trim();
-		if (trimmedLine !== '') {
-			await processor(trimmedLine);
-		}
-	}
-}
-
 async function globPiAgentFiles(paths: string[]): Promise<string[]> {
 	const allFiles: string[] = [];
 	for (const basePath of paths) {
-		const files = await glob(['**/*.jsonl'], {
-			cwd: basePath,
-			absolute: true,
-		});
+		const files = await collectFilesRecursive(basePath, { extension: '.jsonl' });
 		allFiles.push(...files);
 	}
 	return allFiles;
@@ -148,7 +132,113 @@ type EntryData = {
 	cost: number;
 	project: string;
 	sessionId: string;
+	tokenTotal: number;
 };
+
+type PiWorkerData = {
+	kind: 'ccusage:pi-usage-worker';
+	items: Array<IndexedWorkerItem<string>>;
+};
+
+type PiWorkerResponse = {
+	results: Array<{ index: number; result: EntryData[] }>;
+};
+
+function getJSONLWorkerThreadCount(fileCount: number): number {
+	return getFileWorkerThreadCount({
+		itemCount: fileCount,
+		isMainThread,
+		moduleUrl: import.meta.url,
+		envValue: process.env.CCUSAGE_JSONL_WORKER_THREADS,
+		isTest: import.meta.vitest != null,
+		preferMoreWorkers: true,
+	});
+}
+
+async function parsePiAgentFile(file: string): Promise<EntryData[]> {
+	const project = extractPiAgentProject(file);
+	const sessionId = extractPiAgentSessionId(file);
+	const entries: EntryData[] = [];
+	try {
+		await processJSONLFileByLine(file, (line) => {
+			if (!line.includes('"message"') || !line.includes('"usage"')) {
+				return;
+			}
+			try {
+				const parsed = JSON.parse(line) as unknown;
+				const result = v.safeParse(piAgentMessageSchema, parsed);
+				if (!result.success) {
+					return;
+				}
+
+				const data = result.output;
+				const transformed = transformPiAgentUsage(data);
+				if (transformed == null) {
+					return;
+				}
+
+				entries.push({
+					timestamp: data.timestamp,
+					model: transformed.model,
+					inputTokens: transformed.usage.input_tokens,
+					outputTokens: transformed.usage.output_tokens,
+					cacheCreationTokens: transformed.usage.cache_creation_input_tokens,
+					cacheReadTokens: transformed.usage.cache_read_input_tokens,
+					cost: transformed.costUSD ?? 0,
+					project,
+					sessionId,
+					tokenTotal: transformed.totalTokens,
+				});
+			} catch {}
+		});
+	} catch {
+		return [];
+	}
+
+	return entries;
+}
+
+async function collectWithPiWorkers(files: string[]): Promise<EntryData[][] | null> {
+	const workerCount = getJSONLWorkerThreadCount(files.length);
+	if (workerCount === 0) {
+		return null;
+	}
+
+	const indexedItems = files.map<IndexedWorkerItem<string>>((item, index) => ({ index, item }));
+	const chunks = await chunkIndexedItemsByFileSize(indexedItems, workerCount, (item) => item);
+	const workerResults: Array<Promise<PiWorkerResponse['results']>> = [];
+	for (const chunk of chunks) {
+		workerResults.push(
+			new Promise<PiWorkerResponse['results']>((resolve, reject) => {
+				const worker = new Worker(new URL(import.meta.url), {
+					workerData: {
+						kind: 'ccusage:pi-usage-worker',
+						items: chunk,
+					} satisfies PiWorkerData,
+				});
+				worker.once('message', (message: PiWorkerResponse) => {
+					resolve(message.results);
+				});
+				worker.once('error', reject);
+				worker.once('exit', (code) => {
+					if (code !== 0) {
+						reject(new Error(`pi-agent usage worker exited with code ${code}`));
+					}
+				});
+			}),
+		);
+	}
+
+	const resultGroups = await Promise.all(workerResults);
+	const orderedResults = createResultSlots<EntryData[]>(files.length);
+	for (const results of resultGroups) {
+		for (const { index, result } of results) {
+			orderedResults[index] = result;
+		}
+	}
+
+	return orderedResults;
+}
 
 export async function loadPiAgentData(options?: LoadOptions): Promise<EntryData[]> {
 	const piPaths = getPiAgentPaths(options?.piPath);
@@ -163,49 +253,49 @@ export async function loadPiAgentData(options?: LoadOptions): Promise<EntryData[
 
 	const processedHashes = new Set<string>();
 	const entries: EntryData[] = [];
+	const fileResults =
+		(await collectWithPiWorkers(files)) ?? (await Promise.all(files.map(parsePiAgentFile)));
 
-	for (const file of files) {
-		const project = extractPiAgentProject(file);
-		const sessionId = extractPiAgentSessionId(file);
-
-		await processJSONLFileByLine(file, (line) => {
-			try {
-				const parsed = JSON.parse(line) as unknown;
-				const result = v.safeParse(piAgentMessageSchema, parsed);
-				if (!result.success) {
-					return;
-				}
-
-				const data = result.output;
-				const transformed = transformPiAgentUsage(data);
-				if (transformed == null) {
-					return;
-				}
-
-				const hash = `pi:${data.timestamp}:${transformed.totalTokens}`;
-				if (processedHashes.has(hash)) {
-					return;
-				}
-				processedHashes.add(hash);
-
-				entries.push({
-					timestamp: data.timestamp,
-					model: transformed.model,
-					inputTokens: transformed.usage.input_tokens,
-					outputTokens: transformed.usage.output_tokens,
-					cacheCreationTokens: transformed.usage.cache_creation_input_tokens,
-					cacheReadTokens: transformed.usage.cache_read_input_tokens,
-					cost: transformed.costUSD ?? 0,
-					project,
-					sessionId,
-				});
-			} catch {
-				// Skip invalid lines
+	for (const fileEntries of fileResults) {
+		for (const entry of fileEntries) {
+			const hash = `pi:${entry.timestamp}:${entry.tokenTotal}`;
+			if (processedHashes.has(hash)) {
+				continue;
 			}
-		});
+			processedHashes.add(hash);
+			entries.push(entry);
+		}
 	}
 
 	return entries;
+}
+
+async function runPiUsageWorker(data: PiWorkerData): Promise<void> {
+	const results: PiWorkerResponse['results'] = [];
+	for (const { index, item } of data.items) {
+		results.push({
+			index,
+			result: await parsePiAgentFile(item),
+		});
+	}
+
+	parentPort?.postMessage({ results } satisfies PiWorkerResponse);
+}
+
+function isPiWorkerData(value: unknown): value is PiWorkerData {
+	return (
+		value != null &&
+		typeof value === 'object' &&
+		'kind' in value &&
+		value.kind === 'ccusage:pi-usage-worker'
+	);
+}
+
+const currentWorkerData: unknown = workerData;
+if (!isMainThread && isPiWorkerData(currentWorkerData)) {
+	void runPiUsageWorker(currentWorkerData).catch(() => {
+		process.exit(1);
+	});
 }
 
 function aggregateByModel(entries: EntryData[]): Map<
@@ -422,4 +512,52 @@ export async function loadPiAgentMonthlyData(
 	results.sort((a, b) => compareStringsByOrder(a.month, b.month, order));
 
 	return results;
+}
+
+if (import.meta.vitest != null) {
+	describe('loadPiAgentDailyData', () => {
+		it('loads pi-agent JSONL usage entries', async () => {
+			await using fixture = await createFixture({
+				sessions: {
+					project: {
+						'session-id.jsonl': JSON.stringify({
+							type: 'message',
+							timestamp: '2026-01-02T03:04:05.000Z',
+							message: {
+								role: 'assistant',
+								model: 'claude-opus-4-5',
+								usage: {
+									input: 100,
+									output: 50,
+									cacheRead: 10,
+									cacheWrite: 20,
+									totalTokens: 180,
+									cost: {
+										total: 0.05,
+									},
+								},
+							},
+						}),
+					},
+				},
+			});
+
+			const rows = await loadPiAgentDailyData({
+				piPath: fixture.getPath('sessions'),
+				timezone: 'UTC',
+				order: 'asc',
+			});
+
+			expect(rows).toHaveLength(1);
+			expect(rows[0]).toMatchObject({
+				date: '2026-01-02',
+				inputTokens: 100,
+				outputTokens: 50,
+				cacheCreationTokens: 20,
+				cacheReadTokens: 10,
+				totalCost: 0.05,
+				modelsUsed: ['[pi] claude-opus-4-5'],
+			});
+		});
+	});
 }

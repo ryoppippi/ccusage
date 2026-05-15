@@ -42,6 +42,7 @@ function toPerMillion(value: number | undefined, fallback?: number): number {
 }
 
 export type CodexPricingSourceOptions = {
+	fetcher?: LiteLLMPricingFetcher;
 	offline?: boolean;
 	offlineLoader?: () => Promise<Record<string, LiteLLMModelPricing>>;
 	speed?: CodexSpeed;
@@ -51,20 +52,26 @@ const PREFETCHED_CODEX_PRICING = prefetchCodexPricing();
 
 export class CodexPricingSource implements PricingSource, Disposable {
 	private readonly fetcher: LiteLLMPricingFetcher;
+	private readonly ownsFetcher: boolean;
 	private readonly speed: CodexSpeed;
 
 	constructor(options: CodexPricingSourceOptions = {}) {
 		this.speed = options.speed ?? 'standard';
-		this.fetcher = new LiteLLMPricingFetcher({
-			offline: options.offline ?? false,
-			offlineLoader: options.offlineLoader ?? (async () => PREFETCHED_CODEX_PRICING),
-			logger,
-			providerPrefixes: CODEX_PROVIDER_PREFIXES,
-		});
+		this.ownsFetcher = options.fetcher == null;
+		this.fetcher =
+			options.fetcher ??
+			new LiteLLMPricingFetcher({
+				offline: options.offline ?? false,
+				offlineLoader: options.offlineLoader ?? (async () => PREFETCHED_CODEX_PRICING),
+				logger,
+				providerPrefixes: CODEX_PROVIDER_PREFIXES,
+			});
 	}
 
 	[Symbol.dispose](): void {
-		this.fetcher[Symbol.dispose]();
+		if (this.ownsFetcher) {
+			this.fetcher[Symbol.dispose]();
+		}
 	}
 
 	async getPricing(model: string): Promise<ModelPricing> {
