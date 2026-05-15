@@ -589,22 +589,24 @@ function parseUsageDataLineFast(
 	allowContent = false,
 	usageMarkerIndex?: number,
 ): UsageData | null {
-	const contentIndex = line.indexOf(CONTENT_MARKER);
-	if (
-		(contentIndex !== -1 &&
-			(!allowContent || line.charCodeAt(contentIndex + CONTENT_MARKER.length) !== 91)) ||
-		line.includes('"isApiErrorMessage":true') ||
-		hasUnsupportedNullField(line)
-	) {
-		return null;
-	}
-
 	const messageStart = line.indexOf('"message":{');
 	const usageStart =
 		usageMarkerIndex != null && usageMarkerIndex >= messageStart
 			? usageMarkerIndex
 			: line.indexOf(USAGE_LINE_MARKER, messageStart);
 	if (messageStart === -1 || usageStart === -1) {
+		return null;
+	}
+
+	// The fast path only accepts Claude assistant rows. Anchor the content check inside the
+	// message object so unrelated earlier JSON fields do not force a full-line marker scan.
+	const contentIndex = line.indexOf(CONTENT_MARKER, messageStart);
+	if (
+		(contentIndex !== -1 &&
+			(!allowContent || line.charCodeAt(contentIndex + CONTENT_MARKER.length) !== 91)) ||
+		line.includes('"isApiErrorMessage":true') ||
+		hasUnsupportedNullField(line)
+	) {
 		return null;
 	}
 
