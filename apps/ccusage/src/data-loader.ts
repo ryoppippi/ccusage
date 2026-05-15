@@ -1877,6 +1877,14 @@ function decodeDailyDataEntries(encoded: EncodedDailyDataEntries): DailyDataEntr
 	return entries;
 }
 
+/**
+ * Reconstruct daily rows from the transferred worker columns one row at a time.
+ *
+ * The worker payload deliberately separates numeric columns from string columns so the numeric
+ * buffers can be transferred instead of structured-cloned. Iterating through this helper lets the
+ * main thread feed rows directly into dedupe/aggregation without first rebuilding a large decoded
+ * array, while `decodeDailyDataEntries` keeps a full-array path available for focused tests.
+ */
 function forEachDailyDataEntry(
 	encoded: EncodedDailyDataEntries,
 	onEntry: (entry: DailyDataEntry) => void,
@@ -1951,6 +1959,13 @@ function decodeSessionDataEntries(encoded: EncodedSessionDataEntries): SessionDa
 	return entries;
 }
 
+/**
+ * Reconstruct session rows lazily from columnar worker output.
+ *
+ * Session rows have more string fields than daily rows, but the same transfer-list trade-off applies:
+ * numbers and flags stay in typed arrays, and strings stay in a flat side array. Keeping the iterator
+ * as the hot-path API avoids a second decoded array when the caller only needs to merge each row once.
+ */
 function forEachSessionDataEntry(
 	encoded: EncodedSessionDataEntries,
 	onEntry: (entry: SessionDataEntry) => void,
