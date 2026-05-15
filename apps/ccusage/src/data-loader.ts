@@ -1221,11 +1221,18 @@ async function processBufferedJSONLUsageContent(
 	content: string,
 	processLine: (line: string) => void,
 ): Promise<void> {
-	let searchStart = 0;
-	let markerIndex = content.indexOf(USAGE_LINE_MARKER, searchStart);
+	let lineStart = 0;
+	let markerIndex = content.indexOf(USAGE_LINE_MARKER, lineStart);
 	while (markerIndex !== -1) {
-		const previousLineEnd = content.lastIndexOf('\n', markerIndex);
-		const lineStart = previousLineEnd === -1 ? 0 : previousLineEnd + 1;
+		// The marker search skips non-usage lines, so lineStart can lag behind markerIndex.
+		// Advance it monotonically instead of reverse-scanning with lastIndexOf for every usage row.
+		while (true) {
+			const nextLineEnd = content.indexOf('\n', lineStart);
+			if (nextLineEnd === -1 || nextLineEnd >= markerIndex) {
+				break;
+			}
+			lineStart = nextLineEnd + 1;
+		}
 		let lineEnd = content.indexOf('\n', markerIndex);
 		if (lineEnd === -1) {
 			lineEnd = content.length;
@@ -1237,8 +1244,8 @@ async function processBufferedJSONLUsageContent(
 		}
 		processLine(line);
 
-		searchStart = lineEnd + 1;
-		markerIndex = content.indexOf(USAGE_LINE_MARKER, searchStart);
+		lineStart = lineEnd + 1;
+		markerIndex = content.indexOf(USAGE_LINE_MARKER, lineStart);
 	}
 }
 
