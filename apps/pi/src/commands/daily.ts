@@ -132,7 +132,14 @@ export const dailyCommand = define({
 			});
 			table.push(totalsRow);
 
-			log(table.toString());
+			const renderedTable = table.toString();
+			log(renderedTable);
+
+			if (table.isCompactMode()) {
+				log();
+				logger.info('Running in Compact Mode');
+				logger.info('Expand terminal width to see cache metrics and total tokens');
+			}
 		}
 	},
 });

@@ -193,12 +193,13 @@ export const monthlyCommand = define({
 
 			const renderedTable = table.toString();
 
+			log(renderedTable);
+
 			if (table.isCompactMode()) {
+				log();
 				logger.info('Running in Compact Mode');
 				logger.info('Expand terminal width to see cache metrics and total tokens');
 			}
-
-			log(renderedTable);
 		} finally {
 			pricingSource[Symbol.dispose]();
 		}

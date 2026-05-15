@@ -206,11 +206,12 @@ export const dailyCommand = define({
 
 		const renderedTable = table.toString();
 
+		await writeStdoutLine(renderedTable);
+
 		if (table.isCompactMode()) {
+			await writeStdoutLine();
 			logger.info('Running in Compact Mode');
 			logger.info('Expand terminal width to see cache metrics and total tokens');
 		}
-
-		await writeStdoutLine(renderedTable);
 	},
 });

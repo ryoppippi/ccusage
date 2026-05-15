@@ -11,7 +11,6 @@ let numberFormatter: Intl.NumberFormat | undefined;
 const formattedNumberCache = new Map<number, string>();
 const formattedModelNameCache = new Map<string, string>();
 const COLOR_RESET = '\x1B[39m';
-const COMFORTABLE_FULL_WIDTH_RATIO = 0.92;
 
 function getNumberFormatter(): Intl.NumberFormat {
 	numberFormatter ??= new Intl.NumberFormat('en-US');
@@ -383,7 +382,9 @@ export class ResponsiveTable {
 			const contentWidths = head.map((header) => getStringWidth(header));
 			for (const row of processedDataRows) {
 				for (let colIndex = 0; colIndex < head.length; colIndex++) {
-					const width = getStringWidth(stringifyCell(row[colIndex]));
+					const width = Math.max(
+						...splitCellContent(stringifyCell(row[colIndex])).map((line) => getStringWidth(line)),
+					);
 					if (width > contentWidths[colIndex]!) {
 						contentWidths[colIndex] = width;
 					}
@@ -391,13 +392,13 @@ export class ResponsiveTable {
 			}
 
 			const numColumns = head.length;
-			const tableOverhead = 3 * numColumns + 1;
+			const tableOverhead = numColumns + 1;
 			const availableWidth = terminalWidth - tableOverhead;
 			const columnWidths = contentWidths.map((width, index) => {
 				const align = colAligns[index];
 				const minWidth = minColumnWidths?.[index];
 				if (align === 'right') {
-					return Math.max(width + 3, minWidth ?? 11);
+					return Math.max(width + 2, minWidth ?? 11);
 				}
 				if (index === flexibleColumnIndex) {
 					return Math.max(width + 2, minWidth ?? 15);
@@ -425,10 +426,7 @@ export class ResponsiveTable {
 				totalRequiredWidth = columnWidths.reduce((sum, width) => sum + width, 0) + tableOverhead;
 			}
 
-			const shouldPreferCompact =
-				totalRequiredWidth > terminalWidth ||
-				totalRequiredWidth / terminalWidth >= COMFORTABLE_FULL_WIDTH_RATIO;
-			if (!this.compactMode && this.compactHead != null && shouldPreferCompact) {
+			if (!this.compactMode && this.compactHead != null && totalRequiredWidth > terminalWidth) {
 				this.compactMode = true;
 				continue;
 			}
@@ -1123,31 +1121,105 @@ if (import.meta.vitest != null) {
 
 	describe('ResponsiveTable', () => {
 		describe('compact mode behavior', () => {
-			it('activates compact mode when full columns would consume nearly all terminal width', () => {
-				vi.stubEnv('COLUMNS', '80');
+			it('keeps full columns when the rendered full layout fits the terminal width', () => {
+				vi.stubEnv('COLUMNS', '145');
 				try {
 					const table = new ResponsiveTable({
-						head: ['Date', 'Models', 'Input', 'Output', 'Cost (USD)'],
-						colAligns: ['left', 'left', 'right', 'right', 'right'],
-						compactHead: ['Date', 'Models', 'Cost (USD)'],
-						compactColAligns: ['left', 'left', 'right'],
+						head: [
+							'Date',
+							'Models',
+							'Input',
+							'Output',
+							'Cache Create',
+							'Cache Read',
+							'Total Tokens',
+							'Credits',
+							'Cost (USD)',
+						],
+						colAligns: [
+							'left',
+							'left',
+							'right',
+							'right',
+							'right',
+							'right',
+							'right',
+							'right',
+							'right',
+						],
+						compactHead: ['Date', 'Models', 'Input', 'Output', 'Credits', 'Cost (USD)'],
+						compactColAligns: ['left', 'left', 'right', 'right', 'right', 'right'],
 						compactThreshold: 40,
-						minColumnWidths: [12, 14, 11, 11, 14],
-						compactMinColumnWidths: [12, 14, 14],
+						minColumnWidths: [12, 14, 11, 11, 11, 11, 11, 9, 14],
+						compactMinColumnWidths: [12, 14, 11, 11, 9, 14],
 						flexibleColumnIndex: 1,
 						compactFlexibleColumnIndex: 1,
 					});
 
-					table.push(['2026-05-15', '- haiku-3-5', '123,456,789', '987,654,321', '$16007.18']);
+					table.push([
+						'2025-11-23',
+						'- haiku-3-5\n- haiku-4-5',
+						'608',
+						'469',
+						'24,411',
+						'0',
+						'25,488',
+						'3.33',
+						'$0.03',
+					]);
 
 					const output = table.toString();
-					expect(table.isCompactMode()).toBe(true);
-					expect(output).not.toContain('Input');
-					expect(output).not.toContain('Output');
-					expect(output).toContain('$16007.18');
+					expect(table.isCompactMode()).toBe(false);
+					expect(output).toContain('Cache Create');
+					expect(output).toContain('Cache Read');
+					expect(output).toContain('Total Tokens');
 					for (const line of output.split('\n')) {
-						expect(getStringWidth(line)).toBeLessThanOrEqual(80);
+						expect(getStringWidth(line)).toBeLessThanOrEqual(145);
 					}
+				} finally {
+					vi.unstubAllEnvs();
+				}
+			});
+
+			it('does not compact because of border width already included in column widths', () => {
+				vi.stubEnv('COLUMNS', '35');
+				try {
+					const table = new ResponsiveTable({
+						head: ['Date', 'Model', 'Cost'],
+						colAligns: ['left', 'left', 'right'],
+						compactHead: ['Date', 'Cost'],
+						compactColAligns: ['left', 'right'],
+						compactThreshold: 1,
+						minColumnWidths: [10, 10, 10],
+						compactMinColumnWidths: [10, 10],
+					});
+
+					table.push(['2026-05', 'gpt-5', '$1.23']);
+
+					const output = table.toString();
+					expect(table.isCompactMode()).toBe(false);
+					expect(output).toContain('Model');
+					for (const line of output.split('\n')) {
+						expect(getStringWidth(line)).toBeLessThanOrEqual(35);
+					}
+				} finally {
+					vi.unstubAllEnvs();
+				}
+			});
+
+			it('sizes multiline cells by their widest line', () => {
+				vi.stubEnv('COLUMNS', '80');
+				try {
+					const table = new ResponsiveTable({
+						head: ['Date', 'Models', 'Cost'],
+						colAligns: ['left', 'left', 'right'],
+						minColumnWidths: [12, 14, 12],
+					});
+
+					table.push(['2025-11-23', '- haiku-3-5\n- haiku-4-5', '$0.03']);
+
+					const output = table.toString();
+					expect(output.split('\n')[0]).toBe('┌────────────┬──────────────┬────────────┐');
 				} finally {
 					vi.unstubAllEnvs();
 				}

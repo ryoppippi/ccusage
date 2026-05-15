@@ -446,7 +446,7 @@ describe('ccusage all-agent CLI', () => {
 		expect(output.totals.totalTokens).toBe(180);
 	});
 
-	it('uses compact Amp direct tables at medium terminal widths', async () => {
+	it('keeps full Amp direct tables when all columns fit', async () => {
 		await using fixture = await createFixture(createAgentFixtureTree());
 
 		const result = runCcusage(['amp', '--offline'], {
@@ -458,8 +458,27 @@ describe('ccusage all-agent CLI', () => {
 		expect(result.stderr).toBe('');
 		const output = getStdout(result).replace(/\n$/u, '');
 		await mkdir(snapshotRoot, { recursive: true });
+		await expect(output).toMatchFileSnapshot(path.join(snapshotRoot, 'amp-direct-full-table.txt'));
+		expect(output).not.toContain('Running in Compact Mode');
+		expect(output).toContain('Cache Create');
+		expect(output).toContain('Cache Read');
+		expect(output).toContain('Total Tokens');
+	});
+
+	it('uses compact Amp direct tables when full columns do not fit', async () => {
+		await using fixture = await createFixture(createAgentFixtureTree());
+
+		const result = runCcusage(['amp', '--offline'], {
+			...createAgentCliEnv(fixture.path),
+			COLUMNS: '100',
+		});
+
+		expect(result.status).toBe(0);
+		expect(result.stderr).toBe('');
+		const output = getStdout(result).replace(/\n$/u, '');
+		await mkdir(snapshotRoot, { recursive: true });
 		await expect(output).toMatchFileSnapshot(
-			path.join(snapshotRoot, 'amp-direct-medium-table.txt'),
+			path.join(snapshotRoot, 'amp-direct-compact-table.txt'),
 		);
 		expect(output).toContain('Running in Compact Mode');
 		expect(output).toContain('Credits');

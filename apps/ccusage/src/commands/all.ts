@@ -849,7 +849,14 @@ async function runAllReport(kind: ReportKind, options: AllOptions): Promise<void
 		),
 	);
 
-	await writeStdoutLine(table.toString());
+	const renderedTable = table.toString();
+	await writeStdoutLine(renderedTable);
+
+	if (table.isCompactMode()) {
+		await writeStdoutLine();
+		logger.info('Running in Compact Mode');
+		logger.info('Expand terminal width to see cache metrics and total tokens');
+	}
 }
 
 function createAllCommand(kind: ReportKind, description: string): Command<typeof allArgs> {
