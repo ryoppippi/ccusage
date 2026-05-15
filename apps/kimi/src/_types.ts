@@ -11,6 +11,7 @@ export type TokenUsageEvent = TokenUsageDelta & {
 	sessionId: string;
 	model?: string;
 	isFallbackModel?: boolean;
+	dedupeKey?: string;
 };
 
 export type ModelUsage = TokenUsageDelta & {

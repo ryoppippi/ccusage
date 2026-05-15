@@ -1,8 +1,10 @@
 import type { TokenUsageEvent } from './_types.ts';
 import { createHash } from 'node:crypto';
+import { createReadStream } from 'node:fs';
 import { readFile, stat } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
+import { createInterface } from 'node:readline';
 import { Result } from '@praha/byethrow';
 import { createFixture } from 'fs-fixture';
 import { glob } from 'tinyglobby';
@@ -20,7 +22,7 @@ import {
 import { logger } from './logger.ts';
 
 const recordSchema = v.record(v.string(), v.unknown());
-
+const KIMI_K2_6_MODEL = 'kimi-k2.6';
 const KIMI_K2_6_RELEASE_TIMESTAMP = '2026-04-20T15:28:10.072Z';
 const KIMI_K2_6_RELEASE_TIME_MS = Date.parse(KIMI_K2_6_RELEASE_TIMESTAMP);
 const KIMI_CODE_LATEST_MODEL_ALIASES = new Set(['kimi-code', 'kimi-for-coding']);
@@ -48,30 +50,24 @@ function computeWorkDirBasename(workDir: string, kaos: string): string {
 	return kaos === 'local' ? md5 : `${kaos}_${md5}`;
 }
 
-function normalizeModelAlias(model: string): string {
+function normalizeModelSegment(model: string): string {
 	const trimmed = model.trim();
+	if (trimmed === '') {
+		return 'unknown';
+	}
+
 	const idx = trimmed.lastIndexOf('/');
 	const lastSegment = idx >= 0 ? trimmed.slice(idx + 1) : trimmed;
 	return lastSegment.toLowerCase();
 }
 
-function resolveEffectiveModel(model: string, timestamp: string): string {
-	if (!KIMI_CODE_LATEST_MODEL_ALIASES.has(normalizeModelAlias(model))) {
-		return model;
+function isKimiK26Name(model: string | undefined): boolean {
+	if (model == null) {
+		return false;
 	}
 
-	const eventTimeMs = Date.parse(timestamp);
-	if (!Number.isFinite(eventTimeMs)) {
-		return model;
-	}
-	if (eventTimeMs < KIMI_K2_6_RELEASE_TIME_MS) {
-		return 'kimi-k2.5';
-	}
-
-	// Kimi Code exposes only a stable latest-model alias in config/wire logs.
-	// Use the official Kimi K2.6 release announcement time as the pricing cutoff:
-	// https://x.com/Kimi_Moonshot/status/2046249571882500354
-	return 'kimi-k2.6';
+	const normalized = normalizeModelSegment(model);
+	return normalized === KIMI_K2_6_MODEL || normalized === 'kimi-k2p6' || normalized === 'kimi-k2-6';
 }
 
 function parseDefaultModelFromConfig(content: string): string | undefined {
@@ -85,7 +81,40 @@ function parseDefaultModelFromConfig(content: string): string | undefined {
 	return trimmed === '' ? undefined : trimmed;
 }
 
-async function loadDefaultModel(shareDir: string): Promise<{ model: string; isFallback: boolean }> {
+export type DefaultModel = {
+	model: string;
+	isFallback: boolean;
+};
+
+function resolveEffectiveModel(defaultModel: DefaultModel, timestamp: string): string {
+	if (defaultModel.isFallback) {
+		return defaultModel.model;
+	}
+
+	if (isKimiK26Name(defaultModel.model)) {
+		return KIMI_K2_6_MODEL;
+	}
+
+	const normalizedModel = normalizeModelSegment(defaultModel.model);
+	if (KIMI_CODE_LATEST_MODEL_ALIASES.has(normalizedModel)) {
+		const eventTimeMs = Date.parse(timestamp);
+		if (!Number.isFinite(eventTimeMs)) {
+			return defaultModel.model;
+		}
+		if (eventTimeMs < KIMI_K2_6_RELEASE_TIME_MS) {
+			return 'kimi-k2.5';
+		}
+
+		// Kimi Code exposes only a stable latest-model alias in config/wire logs.
+		// Use the official Kimi K2.6 release announcement time as the pricing cutoff:
+		// https://x.com/Kimi_Moonshot/status/2046249571882500354
+		return KIMI_K2_6_MODEL;
+	}
+
+	return defaultModel.model;
+}
+
+async function loadDefaultModel(shareDir: string): Promise<DefaultModel> {
 	const envModel = asNonEmptyString(process.env[KIMI_MODEL_NAME_ENV]);
 	if (envModel != null) {
 		return { model: envModel, isFallback: false };
@@ -164,6 +193,26 @@ function toIsoTimestamp(seconds: number): string | null {
 	return date.toISOString();
 }
 
+async function processJSONLFileByLine(
+	filePath: string,
+	processLine: (line: string) => void | Promise<void>,
+): Promise<void> {
+	const fileStream = createReadStream(filePath, { encoding: 'utf8' });
+	const rl = createInterface({
+		input: fileStream,
+		crlfDelay: Number.POSITIVE_INFINITY,
+	});
+
+	for await (const line of rl) {
+		const trimmed = line.trim();
+		if (trimmed === '') {
+			continue;
+		}
+
+		await processLine(trimmed);
+	}
+}
+
 export type LoadOptions = {
 	shareDir?: string;
 };
@@ -232,15 +281,66 @@ function resolveWireFileContext(
 	return { sessionId, streamId };
 }
 
-export async function loadTokenUsageEvents(options: LoadOptions = {}): Promise<LoadResult> {
-	const shareDir =
-		options.shareDir != null && options.shareDir.trim() !== ''
-			? path.resolve(options.shareDir)
-			: (() => {
-					const envPath = process.env[KIMI_SHARE_DIR_ENV]?.trim();
-					return envPath != null && envPath !== '' ? path.resolve(envPath) : DEFAULT_KIMI_DIR;
-				})();
+export type KimiWireFileReference = {
+	file: string;
+};
 
+export type KimiTokenUsageLoadContext = {
+	shareDir: string;
+	sessionsDir: string;
+	workDirLookup: Map<string, string>;
+	defaultModel: DefaultModel;
+};
+
+type ReasoningBuffer = { content: string[]; lastFlushIndex: number };
+
+const statusUpdateSchema = v.object({
+	timestamp: v.number(),
+	message: v.object({
+		type: v.literal('StatusUpdate'),
+		payload: v.optional(recordSchema),
+	}),
+});
+
+const contentPartSchema = v.object({
+	timestamp: v.number(),
+	message: v.object({
+		type: v.literal('ContentPart'),
+		payload: v.object({
+			type: v.string(),
+			think: v.optional(v.string()),
+		}),
+	}),
+});
+
+const subagentEventSchema = v.object({
+	timestamp: v.number(),
+	message: v.object({
+		type: v.literal('SubagentEvent'),
+		payload: v.object({
+			task_tool_call_id: v.optional(v.string()),
+			event: v.optional(
+				v.object({
+					type: v.string(),
+					payload: v.optional(v.unknown()),
+				}),
+			),
+		}),
+	}),
+});
+
+export function resolveKimiShareDir(options: LoadOptions = {}): string {
+	if (options.shareDir != null && options.shareDir.trim() !== '') {
+		return path.resolve(options.shareDir);
+	}
+
+	const envPath = process.env[KIMI_SHARE_DIR_ENV]?.trim();
+	return envPath != null && envPath !== '' ? path.resolve(envPath) : DEFAULT_KIMI_DIR;
+}
+
+export async function createKimiTokenUsageLoadContext(
+	shareDir: string,
+): Promise<{ context?: KimiTokenUsageLoadContext; missingDirectories: string[] }> {
 	const sessionsDir = path.join(shareDir, KIMI_SESSIONS_DIR_NAME);
 	const missingDirectories: string[] = [];
 
@@ -250,23 +350,67 @@ export async function loadTokenUsageEvents(options: LoadOptions = {}): Promise<L
 	});
 	if (Result.isFailure(statResult) || !statResult.value.isDirectory()) {
 		missingDirectories.push(sessionsDir);
-		return { events: [], missingDirectories };
+		return { missingDirectories };
 	}
 
 	const workDirLookup = await loadWorkDirLookup(shareDir);
 	const defaultModel = await loadDefaultModel(shareDir);
 
+	return {
+		context: {
+			shareDir,
+			sessionsDir,
+			workDirLookup,
+			defaultModel,
+		},
+		missingDirectories,
+	};
+}
+
+export async function getKimiTokenUsageFiles(
+	context: KimiTokenUsageLoadContext,
+): Promise<KimiWireFileReference[]> {
 	const files = await glob(SESSION_WIRE_GLOB, {
-		cwd: sessionsDir,
+		cwd: context.sessionsDir,
 		absolute: true,
 	});
 
+	return files.map((file) => ({ file }));
+}
+
+export function dedupeKimiTokenUsageEvents<T extends TokenUsageEvent>(events: T[]): T[] {
+	const firstByKey = new Map<string, T>();
+
+	for (const event of events) {
+		const dedupeKey = event.dedupeKey;
+		if (dedupeKey == null) {
+			continue;
+		}
+
+		const existing = firstByKey.get(dedupeKey);
+		if (
+			existing == null ||
+			new Date(event.timestamp).getTime() < new Date(existing.timestamp).getTime()
+		) {
+			firstByKey.set(dedupeKey, event);
+		}
+	}
+
+	return events.filter((event) => {
+		const dedupeKey = event.dedupeKey;
+		return dedupeKey == null || firstByKey.get(dedupeKey) === event;
+	});
+}
+
+export async function loadTokenUsageEventsFromWireFiles(
+	files: KimiWireFileReference[],
+	context: KimiTokenUsageLoadContext,
+): Promise<TokenUsageEvent[]> {
 	const events: TokenUsageEvent[] = [];
 	const seenMessageIds = new Set<string>();
 
 	// Accumulate reasoning content per (session + stream) that will be distributed to events.
 	// Stream is either "main" or "subagent:{task_tool_call_id}" to avoid mixing reasoning across parallel subagents.
-	type ReasoningBuffer = { content: string[]; lastFlushIndex: number };
 	const reasoningBuffers = new Map<string, ReasoningBuffer>();
 
 	function getReasoningBuffer(sessionId: string, streamId: string): ReasoningBuffer {
@@ -280,43 +424,12 @@ export async function loadTokenUsageEvents(options: LoadOptions = {}): Promise<L
 		return created;
 	}
 
-	const statusUpdateSchema = v.object({
-		timestamp: v.number(),
-		message: v.object({
-			type: v.literal('StatusUpdate'),
-			payload: v.optional(recordSchema),
-		}),
-	});
-
-	const contentPartSchema = v.object({
-		timestamp: v.number(),
-		message: v.object({
-			type: v.literal('ContentPart'),
-			payload: v.object({
-				type: v.string(),
-				think: v.optional(v.string()),
-			}),
-		}),
-	});
-
-	const subagentEventSchema = v.object({
-		timestamp: v.number(),
-		message: v.object({
-			type: v.literal('SubagentEvent'),
-			payload: v.object({
-				task_tool_call_id: v.optional(v.string()),
-				event: v.optional(
-					v.object({
-						type: v.string(),
-						payload: v.optional(v.unknown()),
-					}),
-				),
-			}),
-		}),
-	});
-
-	for (const file of files) {
-		const wireFileContext = resolveWireFileContext(sessionsDir, file, workDirLookup);
+	for (const { file } of files) {
+		const wireFileContext = resolveWireFileContext(
+			context.sessionsDir,
+			file,
+			context.workDirLookup,
+		);
 		if (wireFileContext == null) {
 			continue;
 		}
@@ -324,174 +437,172 @@ export async function loadTokenUsageEvents(options: LoadOptions = {}): Promise<L
 		const sessionId = wireFileContext.sessionId;
 		const baseStreamId = wireFileContext.streamId;
 
-		const fileContentResult = await Result.try({
-			try: readFile(file, 'utf8'),
+		const processResult = await Result.try({
+			try: processJSONLFileByLine(file, async (trimmed) => {
+				const parsedResult = Result.try({
+					try: () => JSON.parse(trimmed) as unknown,
+					catch: (error) => error,
+				})();
+				if (Result.isFailure(parsedResult)) {
+					return;
+				}
+
+				const processContentPart = (
+					contentPart: v.InferOutput<typeof contentPartSchema>,
+					streamId: string,
+				) => {
+					const resolvedStreamId = combineStreamId(baseStreamId, streamId);
+					if (contentPart.message.payload.type !== 'think') {
+						return;
+					}
+					const thinkContent = contentPart.message.payload.think;
+					if (thinkContent == null || thinkContent.trim() === '') {
+						return;
+					}
+					getReasoningBuffer(sessionId, resolvedStreamId).content.push(thinkContent);
+				};
+
+				const processStatusUpdate = (
+					update: v.InferOutput<typeof statusUpdateSchema>,
+					streamId: string,
+				) => {
+					const resolvedStreamId = combineStreamId(baseStreamId, streamId);
+					const payload = update.message.payload;
+					if (payload == null) {
+						return;
+					}
+
+					const messageId = asNonEmptyString(payload.message_id);
+					const dedupeKey =
+						messageId == null ? undefined : `${sessionId}:${resolvedStreamId}:${messageId}`;
+					let isDuplicate = false;
+					if (dedupeKey != null) {
+						if (seenMessageIds.has(dedupeKey)) {
+							isDuplicate = true;
+						} else {
+							seenMessageIds.add(dedupeKey);
+						}
+					}
+
+					const tokenUsageRaw = payload.token_usage;
+					const tokenUsage = v.safeParse(recordSchema, tokenUsageRaw);
+					if (!tokenUsage.success) {
+						return;
+					}
+
+					const inputOther = ensureNumber(tokenUsage.output.input_other);
+					const cacheRead = ensureNumber(tokenUsage.output.input_cache_read);
+					const cacheCreation = ensureNumber(tokenUsage.output.input_cache_creation);
+					const output = ensureNumber(tokenUsage.output.output);
+
+					const inputTokens = inputOther + cacheRead + cacheCreation;
+					const totalTokens = inputTokens + output;
+
+					const reasoningBuffer = getReasoningBuffer(sessionId, resolvedStreamId);
+
+					// Treat every StatusUpdate as a reasoning boundary, even if the event is skipped below.
+					let reasoningTokens = 0;
+					const newContentCount = reasoningBuffer.content.length - reasoningBuffer.lastFlushIndex;
+					if (newContentCount > 0) {
+						const newContent = reasoningBuffer.content.slice(reasoningBuffer.lastFlushIndex);
+						const reasoningText = newContent.join('\n');
+						reasoningTokens = estimateTokensFromText(reasoningText);
+						reasoningBuffer.lastFlushIndex = reasoningBuffer.content.length;
+					}
+
+					if (inputTokens === 0 && output === 0) {
+						return;
+					}
+
+					const timestamp = toIsoTimestamp(update.timestamp);
+					if (timestamp == null) {
+						return;
+					}
+
+					if (isDuplicate) {
+						return;
+					}
+
+					reasoningTokens = Math.min(reasoningTokens, output);
+
+					events.push({
+						sessionId,
+						timestamp,
+						model: resolveEffectiveModel(context.defaultModel, timestamp),
+						...(context.defaultModel.isFallback && { isFallbackModel: true }),
+						...(dedupeKey != null && { dedupeKey }),
+						inputTokens,
+						cachedInputTokens: cacheRead,
+						outputTokens: output,
+						reasoningOutputTokens: reasoningTokens,
+						totalTokens,
+					});
+				};
+
+				const contentPart = v.safeParse(contentPartSchema, parsedResult.value);
+				if (contentPart.success) {
+					processContentPart(contentPart.output, 'main');
+					return;
+				}
+
+				const update = v.safeParse(statusUpdateSchema, parsedResult.value);
+				if (update.success) {
+					processStatusUpdate(update.output, 'main');
+					return;
+				}
+
+				const subagentEvent = v.safeParse(subagentEventSchema, parsedResult.value);
+				if (!subagentEvent.success) {
+					return;
+				}
+
+				const nestedEvent = subagentEvent.output.message.payload.event;
+				if (nestedEvent == null) {
+					return;
+				}
+
+				const taskToolCallId =
+					asNonEmptyString(subagentEvent.output.message.payload.task_tool_call_id) ?? 'unknown';
+				const streamId = `subagent:${taskToolCallId}`;
+
+				const synthetic = {
+					timestamp: subagentEvent.output.timestamp,
+					message: nestedEvent,
+				};
+
+				const subContentPart = v.safeParse(contentPartSchema, synthetic);
+				if (subContentPart.success) {
+					processContentPart(subContentPart.output, streamId);
+					return;
+				}
+
+				const subUpdate = v.safeParse(statusUpdateSchema, synthetic);
+				if (subUpdate.success) {
+					processStatusUpdate(subUpdate.output, streamId);
+				}
+			}),
 			catch: (error) => error,
 		});
-		if (Result.isFailure(fileContentResult)) {
-			logger.debug('Failed to read Kimi session wire file', fileContentResult.error);
+		if (Result.isFailure(processResult)) {
+			logger.debug('Failed to read Kimi session wire file', processResult.error);
 			continue;
-		}
-
-		const lines = fileContentResult.value.split(/\r?\n/);
-
-		// Single pass: process lines in order, accumulating reasoning and attributing to StatusUpdates
-		for (const line of lines) {
-			const trimmed = line.trim();
-			if (trimmed === '') {
-				continue;
-			}
-
-			const parsedResult = Result.try({
-				try: () => JSON.parse(trimmed) as unknown,
-				catch: (error) => error,
-			})();
-			if (Result.isFailure(parsedResult)) {
-				continue;
-			}
-
-			const processContentPart = (
-				contentPart: v.InferOutput<typeof contentPartSchema>,
-				streamId: string,
-			) => {
-				const resolvedStreamId = combineStreamId(baseStreamId, streamId);
-				if (contentPart.message.payload.type !== 'think') {
-					return;
-				}
-				const thinkContent = contentPart.message.payload.think;
-				if (thinkContent == null || thinkContent.trim() === '') {
-					return;
-				}
-				getReasoningBuffer(sessionId, resolvedStreamId).content.push(thinkContent);
-			};
-
-			const processStatusUpdate = (
-				update: v.InferOutput<typeof statusUpdateSchema>,
-				streamId: string,
-			) => {
-				const resolvedStreamId = combineStreamId(baseStreamId, streamId);
-				const payload = update.message.payload;
-				if (payload == null) {
-					return;
-				}
-
-				const messageId = asNonEmptyString(payload.message_id);
-				let isDuplicate = false;
-				if (messageId != null) {
-					const dedupeKey = `${sessionId}:${resolvedStreamId}:${messageId}`;
-					if (seenMessageIds.has(dedupeKey)) {
-						isDuplicate = true;
-					} else {
-						seenMessageIds.add(dedupeKey);
-					}
-				}
-
-				const tokenUsageRaw = payload.token_usage;
-				const tokenUsage = v.safeParse(recordSchema, tokenUsageRaw);
-				if (!tokenUsage.success) {
-					return;
-				}
-
-				const inputOther = ensureNumber(tokenUsage.output.input_other);
-				const cacheRead = ensureNumber(tokenUsage.output.input_cache_read);
-				const cacheCreation = ensureNumber(tokenUsage.output.input_cache_creation);
-				const output = ensureNumber(tokenUsage.output.output);
-
-				const inputTokens = inputOther + cacheRead + cacheCreation;
-				const totalTokens = inputTokens + output;
-
-				const reasoningBuffer = getReasoningBuffer(sessionId, resolvedStreamId);
-
-				// Treat every StatusUpdate as a reasoning boundary, even if the event is skipped below.
-				// Calculate reasoning tokens from accumulated content since last StatusUpdate
-				let reasoningTokens = 0;
-				const newContentCount = reasoningBuffer.content.length - reasoningBuffer.lastFlushIndex;
-				if (newContentCount > 0) {
-					// Calculate tokens from new reasoning content since last event
-					const newContent = reasoningBuffer.content.slice(reasoningBuffer.lastFlushIndex);
-					const reasoningText = newContent.join('\n');
-					reasoningTokens = estimateTokensFromText(reasoningText);
-
-					// Update buffer position (even for duplicates to keep tracking accurate)
-					reasoningBuffer.lastFlushIndex = reasoningBuffer.content.length;
-				}
-
-				if (inputTokens === 0 && output === 0) {
-					return;
-				}
-
-				const timestamp = toIsoTimestamp(update.timestamp);
-				if (timestamp == null) {
-					return;
-				}
-
-				// Skip duplicate events after capturing reasoning to avoid double-counting
-				if (isDuplicate) {
-					return;
-				}
-
-				// Ensure reasoning doesn't exceed total output for this event
-				// (actual tokenization may differ from our 4-char estimate)
-				reasoningTokens = Math.min(reasoningTokens, output);
-
-				events.push({
-					sessionId,
-					timestamp,
-					model: resolveEffectiveModel(defaultModel.model, timestamp),
-					isFallbackModel: defaultModel.isFallback ? true : undefined,
-					inputTokens,
-					cachedInputTokens: cacheRead,
-					outputTokens: output,
-					reasoningOutputTokens: reasoningTokens,
-					totalTokens,
-				});
-			};
-
-			const contentPart = v.safeParse(contentPartSchema, parsedResult.value);
-			if (contentPart.success) {
-				processContentPart(contentPart.output, 'main');
-				continue; // Move to next line
-			}
-
-			const update = v.safeParse(statusUpdateSchema, parsedResult.value);
-			if (update.success) {
-				processStatusUpdate(update.output, 'main');
-				continue; // Move to next line
-			}
-
-			const subagentEvent = v.safeParse(subagentEventSchema, parsedResult.value);
-			if (!subagentEvent.success) {
-				continue;
-			}
-
-			const nestedEvent = subagentEvent.output.message.payload.event;
-			if (nestedEvent == null) {
-				continue;
-			}
-
-			const taskToolCallId =
-				asNonEmptyString(subagentEvent.output.message.payload.task_tool_call_id) ?? 'unknown';
-			const streamId = `subagent:${taskToolCallId}`;
-
-			const synthetic = {
-				timestamp: subagentEvent.output.timestamp,
-				message: nestedEvent,
-			};
-
-			const subContentPart = v.safeParse(contentPartSchema, synthetic);
-			if (subContentPart.success) {
-				processContentPart(subContentPart.output, streamId);
-				continue; // Move to next line
-			}
-
-			const subUpdate = v.safeParse(statusUpdateSchema, synthetic);
-			if (subUpdate.success) {
-				processStatusUpdate(subUpdate.output, streamId);
-			}
 		}
 	}
 
 	events.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+
+	return events;
+}
+
+export async function loadTokenUsageEvents(options: LoadOptions = {}): Promise<LoadResult> {
+	const shareDir = resolveKimiShareDir(options);
+	const { context, missingDirectories } = await createKimiTokenUsageLoadContext(shareDir);
+	if (context == null) {
+		return { events: [], missingDirectories };
+	}
+
+	const files = await getKimiTokenUsageFiles(context);
+	const events = await loadTokenUsageEventsFromWireFiles(files, context);
 
 	return { events, missingDirectories };
 }

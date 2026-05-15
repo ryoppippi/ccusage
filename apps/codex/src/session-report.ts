@@ -7,7 +7,7 @@ import type {
 	TokenUsageEvent,
 } from './_types.ts';
 import { isWithinRange, toDateKey } from './date-utils.ts';
-import { addUsage, calculateCostUSD, createEmptyUsage } from './token-utils.ts';
+import { addUsage, calculateCostUSDForEvent, createEmptyUsage } from './token-utils.ts';
 
 export type SessionReportOptions = {
 	timezone?: string;
@@ -41,6 +41,17 @@ export async function buildSessionReport(
 	const pricingSource = options.pricingSource;
 
 	const summaries = new Map<string, SessionUsageSummary>();
+	const modelPricing = new Map<string, Promise<ModelPricing>>();
+	const getPricing = async (modelName: string): Promise<ModelPricing> => {
+		const cached = modelPricing.get(modelName);
+		if (cached != null) {
+			return cached;
+		}
+
+		const loaded = pricingSource.getPricing(modelName);
+		modelPricing.set(modelName, loaded);
+		return loaded;
+	};
 
 	for (const event of events) {
 		const rawSessionId = event.sessionId;
@@ -68,7 +79,13 @@ export async function buildSessionReport(
 
 		const summary = summaries.get(sessionId) ?? createSummary(sessionId, event.timestamp);
 		if (!summaries.has(sessionId)) {
+			if (event.projectPath != null) {
+				summary.projectPath = event.projectPath;
+			}
 			summaries.set(sessionId, summary);
+		}
+		if (summary.projectPath == null && event.projectPath != null) {
+			summary.projectPath = event.projectPath;
 		}
 
 		addUsage(summary, event);
@@ -87,22 +104,12 @@ export async function buildSessionReport(
 		if (event.isFallbackModel === true) {
 			modelUsage.isFallback = true;
 		}
+
+		summary.costUSD += calculateCostUSDForEvent(event, await getPricing(modelName));
 	}
 
 	if (summaries.size === 0) {
 		return [];
-	}
-
-	const uniqueModels = new Set<string>();
-	for (const summary of summaries.values()) {
-		for (const modelName of summary.models.keys()) {
-			uniqueModels.add(modelName);
-		}
-	}
-
-	const modelPricing = new Map<string, Awaited<ReturnType<PricingSource['getPricing']>>>();
-	for (const modelName of uniqueModels) {
-		modelPricing.set(modelName, await pricingSource.getPricing(modelName));
 	}
 
 	const sortedSummaries = Array.from(summaries.values()).sort((a, b) =>
@@ -111,15 +118,7 @@ export async function buildSessionReport(
 
 	const rows: SessionReportRow[] = [];
 	for (const summary of sortedSummaries) {
-		let cost = 0;
-		for (const [modelName, usage] of summary.models) {
-			const pricing = modelPricing.get(modelName);
-			if (pricing == null) {
-				continue;
-			}
-			cost += calculateCostUSD(usage, pricing);
-		}
-		summary.costUSD = cost;
+		const cost = summary.costUSD;
 
 		const rowModels: Record<string, ModelUsage> = {};
 		for (const [modelName, usage] of summary.models) {
@@ -127,7 +126,9 @@ export async function buildSessionReport(
 		}
 
 		const separatorIndex = summary.sessionId.lastIndexOf('/');
-		const directory = separatorIndex >= 0 ? summary.sessionId.slice(0, separatorIndex) : '';
+		const directory =
+			summary.projectPath ??
+			(separatorIndex >= 0 ? summary.sessionId.slice(0, separatorIndex) : '');
 		const sessionFile =
 			separatorIndex >= 0 ? summary.sessionId.slice(separatorIndex + 1) : summary.sessionId;
 
@@ -177,6 +178,7 @@ if (import.meta.vitest != null) {
 					{
 						sessionId: 'session-a',
 						timestamp: '2025-09-12T01:00:00.000Z',
+						projectPath: '/workspace/project-a',
 						model: 'gpt-5',
 						inputTokens: 1_000,
 						cachedInputTokens: 100,
@@ -220,7 +222,7 @@ if (import.meta.vitest != null) {
 			const second = report[1]!;
 			expect(second.sessionId).toBe('session-a');
 			expect(second.sessionFile).toBe('session-a');
-			expect(second.directory).toBe('');
+			expect(second.directory).toBe('/workspace/project-a');
 			expect(second.totalTokens).toBe(2_130);
 			expect(second.models['gpt-5']?.totalTokens).toBe(1_500);
 			const expectedCost =

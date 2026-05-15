@@ -540,12 +540,52 @@ export function createUniqueHash(data: UsageData): string | null {
 	return `${messageId}:${requestId}`;
 }
 
+function compareTimestamps(left: string, right: string): number {
+	const leftMs = Date.parse(left);
+	const rightMs = Date.parse(right);
+
+	if (Number.isNaN(leftMs) || Number.isNaN(rightMs)) {
+		return left.localeCompare(right);
+	}
+
+	return leftMs - rightMs;
+}
+
+function dedupeEntriesByEarliestTimestamp<T>(
+	entries: T[],
+	getHash: (entry: T) => string | null,
+	getTimestamp: (entry: T) => string,
+): T[] {
+	const earliestByHash = new Map<string, T>();
+
+	for (const entry of entries) {
+		const uniqueHash = getHash(entry);
+		if (uniqueHash == null) {
+			continue;
+		}
+
+		const existing = earliestByHash.get(uniqueHash);
+		if (existing == null || compareTimestamps(getTimestamp(entry), getTimestamp(existing)) < 0) {
+			earliestByHash.set(uniqueHash, entry);
+		}
+	}
+
+	return entries.filter((entry) => {
+		const uniqueHash = getHash(entry);
+		if (uniqueHash == null) {
+			return true;
+		}
+
+		return earliestByHash.get(uniqueHash) === entry;
+	});
+}
+
 /**
  * Process a JSONL file line by line using streams to avoid memory issues with large files
  * @param filePath - Path to the JSONL file
  * @param processLine - Callback function to process each line
  */
-async function processJSONLFileByLine(
+export async function processJSONLFileByLine(
 	filePath: string,
 	processLine: (line: string, lineNumber: number) => void | Promise<void>,
 ): Promise<void> {
@@ -776,17 +816,11 @@ export async function loadDailyUsageData(options?: LoadOptions): Promise<DailyUs
 		options?.project,
 	);
 
-	// Sort files by timestamp to ensure chronological processing
-	const sortedFiles = await sortFilesByTimestamp(projectFilteredFiles);
-
 	// Fetch pricing data for cost calculation only when needed
 	const mode = options?.mode ?? 'auto';
 
 	// Use PricingFetcher with using statement for automatic cleanup
 	using fetcher = mode === 'display' ? null : new PricingFetcher(options?.offline);
-
-	// Track processed message+request combinations for deduplication
-	const processedHashes = new Set<string>();
 
 	// Collect all valid data entries first
 	const allEntries: {
@@ -795,9 +829,11 @@ export async function loadDailyUsageData(options?: LoadOptions): Promise<DailyUs
 		cost: number;
 		model: string | undefined;
 		project: string;
+		timestamp: string;
+		uniqueHash: string | null;
 	}[] = [];
 
-	for (const file of sortedFiles) {
+	for (const file of projectFilteredFiles) {
 		// Extract project name from file path once per file
 		const project = extractProjectFromPath(file);
 
@@ -810,15 +846,7 @@ export async function loadDailyUsageData(options?: LoadOptions): Promise<DailyUs
 				}
 				const data = result.output;
 
-				// Check for duplicate message + request ID combination
 				const uniqueHash = createUniqueHash(data);
-				if (isDuplicateEntry(uniqueHash, processedHashes)) {
-					// Skip duplicate message
-					return;
-				}
-
-				// Mark this combination as processed
-				markAsProcessed(uniqueHash, processedHashes);
 
 				const date = formatDate(data.timestamp, options?.timezone);
 				// If fetcher is available, calculate cost based on mode and tokens
@@ -826,12 +854,26 @@ export async function loadDailyUsageData(options?: LoadOptions): Promise<DailyUs
 				const cost =
 					fetcher != null ? await calculateCostForEntry(data, mode, fetcher) : (data.costUSD ?? 0);
 
-				allEntries.push({ data, date, cost, model: getDisplayModelName(data), project });
+				allEntries.push({
+					data,
+					date,
+					cost,
+					model: getDisplayModelName(data),
+					project,
+					timestamp: data.timestamp,
+					uniqueHash,
+				});
 			} catch {
 				// Skip invalid JSON lines
 			}
 		});
 	}
+
+	const dedupedEntries = dedupeEntriesByEarliestTimestamp(
+		allEntries,
+		(entry) => entry.uniqueHash,
+		(entry) => entry.timestamp,
+	);
 
 	// Group by date, optionally including project
 	// Automatically enable project grouping when project filter is specified
@@ -840,7 +882,7 @@ export async function loadDailyUsageData(options?: LoadOptions): Promise<DailyUs
 		? (entry: (typeof allEntries)[0]) => `${entry.date}\x00${entry.project}`
 		: (entry: (typeof allEntries)[0]) => entry.date;
 
-	const groupedData = Object.groupBy(allEntries, groupingKey);
+	const groupedData = Object.groupBy(dedupedEntries, groupingKey);
 
 	// Aggregate each group
 	const results = Object.entries(groupedData)
@@ -923,26 +965,11 @@ export async function loadSessionData(options?: LoadOptions): Promise<SessionUsa
 		options?.project,
 	);
 
-	// Sort files by timestamp to ensure chronological processing
-	// Create a map for O(1) lookup instead of O(N) find operations
-	const fileToBaseMap = new Map(projectFilteredWithBase.map((f) => [f.file, f.baseDir]));
-	const sortedFilesWithBase = await sortFilesByTimestamp(
-		projectFilteredWithBase.map((f) => f.file),
-	).then((sortedFiles) =>
-		sortedFiles.map((file) => ({
-			file,
-			baseDir: fileToBaseMap.get(file) ?? '',
-		})),
-	);
-
 	// Fetch pricing data for cost calculation only when needed
 	const mode = options?.mode ?? 'auto';
 
 	// Use PricingFetcher with using statement for automatic cleanup
 	using fetcher = mode === 'display' ? null : new PricingFetcher(options?.offline);
-
-	// Track processed message+request combinations for deduplication
-	const processedHashes = new Set<string>();
 
 	// Collect all valid data entries with session info first
 	const allEntries: Array<{
@@ -953,9 +980,10 @@ export async function loadSessionData(options?: LoadOptions): Promise<SessionUsa
 		cost: number;
 		timestamp: string;
 		model: string | undefined;
+		uniqueHash: string | null;
 	}> = [];
 
-	for (const { file, baseDir } of sortedFilesWithBase) {
+	for (const { file, baseDir } of projectFilteredWithBase) {
 		// Extract session info from file path using its specific base directory
 		const relativePath = path.relative(baseDir, file);
 		const parts = relativePath.split(path.sep);
@@ -975,15 +1003,7 @@ export async function loadSessionData(options?: LoadOptions): Promise<SessionUsa
 				}
 				const data = result.output;
 
-				// Check for duplicate message + request ID combination
 				const uniqueHash = createUniqueHash(data);
-				if (isDuplicateEntry(uniqueHash, processedHashes)) {
-					// Skip duplicate message
-					return;
-				}
-
-				// Mark this combination as processed
-				markAsProcessed(uniqueHash, processedHashes);
 
 				const sessionKey = `${projectPath}/${sessionId}`;
 				const cost =
@@ -997,6 +1017,7 @@ export async function loadSessionData(options?: LoadOptions): Promise<SessionUsa
 					cost,
 					timestamp: data.timestamp,
 					model: getDisplayModelName(data),
+					uniqueHash,
 				});
 			} catch {
 				// Skip invalid JSON lines
@@ -1004,8 +1025,14 @@ export async function loadSessionData(options?: LoadOptions): Promise<SessionUsa
 		});
 	}
 
+	const dedupedEntries = dedupeEntriesByEarliestTimestamp(
+		allEntries,
+		(entry) => entry.uniqueHash,
+		(entry) => entry.timestamp,
+	);
+
 	// Group by session using Object.groupBy
-	const groupedBySessions = Object.groupBy(allEntries, (entry) => entry.sessionKey);
+	const groupedBySessions = Object.groupBy(dedupedEntries, (entry) => entry.sessionKey);
 
 	// Aggregate each session group
 	const results = Object.entries(groupedBySessions)

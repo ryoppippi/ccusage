@@ -355,6 +355,7 @@ if (import.meta.vitest != null) {
 			const commandsSchema = jsonSchema.definitions['ccusage-config'].properties.commands;
 
 			expect(commandsSchema.properties).toHaveProperty('daily');
+			expect(commandsSchema.properties).toHaveProperty('combined');
 			expect(commandsSchema.properties).toHaveProperty('monthly');
 			expect(commandsSchema.properties).toHaveProperty('weekly');
 			expect(commandsSchema.properties).toHaveProperty('session');
