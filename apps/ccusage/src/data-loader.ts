@@ -1309,12 +1309,23 @@ async function processBufferedJSONLUsageBytes(
 
 async function readBufferedJSONLBytes(filePath: string): Promise<Uint8Array | null> {
 	const bun = getBunRuntime();
-	if (bun == null) {
-		return null;
+	if (bun != null) {
+		const file = bun.file(filePath);
+		return file.size <= MAX_BUFFERED_JSONL_BYTES ? file.bytes() : null;
 	}
 
-	const file = bun.file(filePath);
-	return file.size <= MAX_BUFFERED_JSONL_BYTES ? file.bytes() : null;
+	// The usage-row scanner only decodes candidate lines. Keeping Node on bytes here avoids
+	// converting the whole JSONL file to a UTF-16 string before most non-usage rows are skipped.
+	const file = await open(filePath, 'r');
+	try {
+		const stats = await file.stat();
+		if (stats.size <= MAX_BUFFERED_JSONL_BYTES) {
+			return await file.readFile();
+		}
+		return null;
+	} finally {
+		await file.close();
+	}
 }
 
 async function readBufferedJSONLContent(filePath: string): Promise<string | null> {
