@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 
 import { join, relative, resolve } from 'node:path';
-import { platform } from 'node:process';
+import { execPath, platform } from 'node:process';
 import { createFixture } from 'fs-fixture';
 import { cli, define } from 'gunshi';
 
@@ -41,8 +41,38 @@ type HyperfineExport = {
 	results: HyperfineResult[];
 };
 
-function baseBuiltEntry(repoDir: string): string {
-	return join(repoDir, 'apps', 'ccusage', 'dist', 'index.js');
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === 'object' && value !== null;
+}
+
+function ccusageBinPath(value: unknown): string | undefined {
+	if (!isRecord(value)) {
+		return undefined;
+	}
+	const binPath = value.ccusage;
+	return typeof binPath === 'string' ? binPath : undefined;
+}
+
+/**
+ * Resolves the package entry that users get through the published `ccusage` bin.
+ *
+ * The Rust PR still publishes a JavaScript bin wrapper, so the benchmark follows package.json
+ * instead of jumping straight to the native binary. That keeps the comparison aligned with the
+ * command users install and run.
+ */
+async function packageBinEntry(repoDir: string): Promise<string> {
+	const packageDir = join(repoDir, 'apps', 'ccusage');
+	const packageJson: unknown = await Bun.file(join(packageDir, 'package.json')).json();
+	if (!isRecord(packageJson)) {
+		throw new Error(`Invalid package.json in ${packageDir}`);
+	}
+	const publishConfig = packageJson.publishConfig;
+	const publishBin = isRecord(publishConfig) ? ccusageBinPath(publishConfig.bin) : undefined;
+	const binPath = publishBin ?? ccusageBinPath(packageJson.bin);
+	if (binPath == null) {
+		throw new Error(`ccusage bin is missing in ${packageDir}/package.json`);
+	}
+	return join(packageDir, binPath);
 }
 
 function rustBinary(repoDir: string): string {
@@ -66,54 +96,32 @@ async function writeProgress(message: string): Promise<void> {
 }
 
 /**
- * Quotes dynamic paths for hyperfine's shell command strings.
+ * Builds the package-bin command that hyperfine will benchmark.
  *
- * Hyperfine executes commands through a shell, which keeps CI logs readable and lets us set
- * per-command environment variables inline. Repository and fixture paths can still contain spaces,
- * so dynamic path segments must be quoted before they are interpolated into the benchmark command.
+ * The benchmark script is launched through `pnpm exec bun`, but the measured command uses the Bun
+ * executable already running this script and the package.json bin from the checkout under test.
+ * Hyperfine runs this with `--shell none`, so the command is split into argv without shell
+ * interpretation or hand-written shell quoting.
  */
-function shellQuote(value: string): string {
-	return `'${value.replaceAll("'", String.raw`'\''`)}'`;
-}
-
-/**
- * Builds the JavaScript main-branch command used as the baseline.
- *
- * The baseline intentionally runs the built JS CLI through Bun because that is the fastest known
- * way to execute the current bundled JavaScript implementation. Comparing Rust against Node here
- * would overstate the Rust win by including avoidable JS runtime startup overhead.
- */
-function createBaseCommand(repoDir: string, fixtureDir: string, command: string): string {
-	const invocation = [
+async function createCcusageCommand(
+	repoDir: string,
+	fixtureDir: string,
+	command: string,
+): Promise<string> {
+	return [
 		'env',
-		`CLAUDE_CONFIG_DIR=${shellQuote(fixtureDir)}`,
+		`CLAUDE_CONFIG_DIR=${fixtureDir}`,
 		'COLUMNS=200',
 		'LOG_LEVEL=0',
 		'NO_COLOR=1',
 		'TZ=UTC',
-		`pnpm exec bun -b ${shellQuote(baseBuiltEntry(repoDir))} ${command} --offline --json`,
+		execPath,
+		'-b',
+		await packageBinEntry(repoDir),
+		command,
+		'--offline',
+		'--json',
 	].join(' ');
-	return [`cd ${shellQuote(repoDir)}`, invocation].join(' && ');
-}
-
-/**
- * Builds the Rust PR command measured by hyperfine.
- *
- * The PR side uses the release binary directly so the benchmark reflects the Rust implementation's
- * parser, aggregation, and renderer costs without the tiny JavaScript launcher being part of the
- * reported runtime.
- */
-function createRustCommand(repoDir: string, fixtureDir: string, command: string): string {
-	const invocation = [
-		'env',
-		`CLAUDE_CONFIG_DIR=${shellQuote(fixtureDir)}`,
-		'COLUMNS=200',
-		'LOG_LEVEL=0',
-		'NO_COLOR=1',
-		'TZ=UTC',
-		`${shellQuote(rustBinary(repoDir))} ${command} --offline --json`,
-	].join(' ');
-	return [`cd ${shellQuote(repoDir)}`, invocation].join(' && ');
 }
 
 /**
@@ -142,9 +150,13 @@ async function compareCommand(
 	await writeProgress(`${options.fixtureTitle} / ${command} started`);
 	await using fixture = await createFixture({});
 	const exportPath = join(fixture.path, 'hyperfine.json');
+	const baseCommand = await createCcusageCommand(options.baseDir, options.fixtureDir, command);
+	const headCommand = await createCcusageCommand(options.headDir, options.fixtureDir, command);
 	const hyperfine = Bun.spawn(
 		[
 			'hyperfine',
+			'--shell',
+			'none',
 			'--warmup',
 			String(options.warmup),
 			'--runs',
@@ -161,8 +173,8 @@ async function compareCommand(
 			'main JS/Bun',
 			'--command-name',
 			'Rust PR',
-			createBaseCommand(options.baseDir, options.fixtureDir, command),
-			createRustCommand(options.headDir, options.fixtureDir, command),
+			baseCommand,
+			headCommand,
 		],
 		{
 			stderr: 'inherit',
@@ -245,7 +257,7 @@ function renderFixtureSection(section: FixtureComparison, options: { headDir: st
 		section.description,
 		'',
 		`Fixture: \`${formatFixturePath(options.headDir, section.fixtureDir)}\``,
-		`Runtime: main branch uses built \`apps/ccusage/dist/index.js\` through \`bun -b\`; Rust PR uses \`target/release/ccusage\` directly. Both run \`--offline --json\`, measured by \`hyperfine\` with \`${section.warmup}\` warmups and \`${section.runs}\` runs.`,
+		`Runtime: main branch and Rust PR both use the package \`ccusage\` bin from \`apps/ccusage/package.json\` through \`bun -b\`. Both run \`--offline --json\`, measured by \`hyperfine\` with \`${section.warmup}\` warmups and \`${section.runs}\` runs.`,
 		'',
 		'| Command | main JS/Bun median | Rust PR median | Rust speedup |',
 		'| --- | ---: | ---: | ---: |',
