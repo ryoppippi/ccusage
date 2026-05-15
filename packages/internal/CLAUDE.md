@@ -24,6 +24,7 @@ This package contains shared internal utilities for the ccusage monorepo.
 - `./pricing-fetch-utils` - Pricing fetch helper functions
 - `./logger` - Logger factory with LOG_LEVEL support
 - `./format` - Number formatting utilities (formatTokens, formatCurrency)
+- `./array` - Array allocation helpers
 - `./constants` - Shared constants (MILLION)
 
 ## Development Commands
@@ -102,3 +103,4 @@ Follow the same conventions as the main ccusage package:
 - Prefer `@praha/byethrow Result` type over try-catch
 - Only export what's actually used by other modules
 - Use vitest in-source testing with `if (import.meta.vitest != null)` blocks
+- Utility functions should include JSDoc explaining their purpose and focused tests covering their behavior

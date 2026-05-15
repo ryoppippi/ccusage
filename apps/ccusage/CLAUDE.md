@@ -68,6 +68,7 @@ This package contains the core ccusage functionality:
 - **Vitest Globals Enabled**: Use `describe`, `it`, `expect` directly without imports
 - **Model Testing**: Use current Claude 4 models (sonnet-4, opus-4) in tests
 - **Mock Data**: Uses `fs-fixture` with `createFixture()` for Claude data simulation
+- **Utility Functions**: Utility functions should include JSDoc explaining their purpose and focused tests covering their behavior
 - **CRITICAL**: NEVER use `await import()` dynamic imports anywhere, especially in test blocks
 
 ## Code Style

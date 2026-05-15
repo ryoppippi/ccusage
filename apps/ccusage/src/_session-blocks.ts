@@ -24,10 +24,24 @@ export type LoadedUsageEntry = {
 	usageLimitResetTime?: Date; // Claude API usage limit reset time
 };
 
+/**
+ * Returns the millisecond timestamp carried by loaded usage entries.
+ *
+ * JSONL loading precomputes this value while parsing each row, and session-block
+ * grouping reads it many times for ordering, gap detection, and burn-rate math.
+ * Falling back to `Date#getTime()` keeps hand-built entries in tests and callers
+ * outside the hot parser path working without duplicating timestamp fields.
+ */
 function getEntryTimestampMs(entry: LoadedUsageEntry): number {
 	return entry.timestampMs ?? entry.timestamp.getTime();
 }
 
+/**
+ * Floors a timestamp to the UTC hour boundary used as a billing-block start.
+ *
+ * Keeping this as integer millisecond arithmetic avoids allocating intermediate
+ * `Date` objects while grouping every usage row into five-hour session blocks.
+ */
 function floorToHourMs(timestampMs: number): number {
 	return Math.floor(timestampMs / (60 * 60 * 1000)) * 60 * 60 * 1000;
 }
@@ -377,6 +391,42 @@ if (import.meta.vitest != null) {
 			model,
 		};
 	}
+
+	describe('getEntryTimestampMs', () => {
+		it('uses the precomputed timestampMs when it is present', () => {
+			const timestamp = new Date('2024-01-01T00:00:00Z');
+			timestamp.getTime = () => {
+				throw new Error('timestamp.getTime should not be used');
+			};
+
+			const entry = {
+				...createMockEntry(timestamp),
+				timestampMs: Date.parse('2024-01-01T01:23:45Z'),
+			};
+
+			expect(getEntryTimestampMs(entry)).toBe(Date.parse('2024-01-01T01:23:45Z'));
+		});
+
+		it('falls back to timestamp.getTime for manually created entries', () => {
+			const timestamp = new Date('2024-01-01T02:34:56Z');
+
+			expect(getEntryTimestampMs(createMockEntry(timestamp))).toBe(timestamp.getTime());
+		});
+	});
+
+	describe('floorToHourMs', () => {
+		it('floors a timestamp inside an hour to the hour boundary', () => {
+			const timestampMs = Date.parse('2024-01-01T10:59:59.999Z');
+
+			expect(new Date(floorToHourMs(timestampMs)).toISOString()).toBe('2024-01-01T10:00:00.000Z');
+		});
+
+		it('keeps an exact hour boundary unchanged', () => {
+			const timestampMs = Date.parse('2024-01-01T10:00:00.000Z');
+
+			expect(floorToHourMs(timestampMs)).toBe(timestampMs);
+		});
+	});
 
 	describe('identifySessionBlocks', () => {
 		it('returns empty array for empty entries', () => {

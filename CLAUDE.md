@@ -248,6 +248,7 @@ This ensures code quality and catches issues immediately after changes.
 
 - **In-Source Testing Pattern**: This project uses in-source testing with `if (import.meta.vitest != null)` blocks
 - Tests are written directly in the same files as the source code, not in separate test files
+- Utility functions should include JSDoc explaining their purpose and focused tests covering their behavior
 - Vitest globals (`describe`, `it`, `expect`) are available automatically without imports
 - **IMPORTANT**: DO NOT use `await import()` dynamic imports anywhere in the codebase - this causes tree-shaking issues and should be avoided entirely
 - **ESPECIALLY**: Never use dynamic imports in vitest test blocks - this is particularly problematic for test execution

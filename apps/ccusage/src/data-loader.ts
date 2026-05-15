@@ -36,6 +36,7 @@ import process from 'node:process';
 import { createInterface } from 'node:readline';
 import { isMainThread, parentPort, Worker, workerData } from 'node:worker_threads';
 import { toArray } from '@antfu/utils';
+import { createResultSlots } from '@ccusage/internal/array';
 import { compareStrings } from '@ccusage/internal/sort';
 import { Result } from '@praha/byethrow';
 import { createFixture } from 'fs-fixture';
@@ -1103,7 +1104,7 @@ async function mapWithConcurrency<T, U>(
 	await Promise.all(
 		Array.from({ length: workerCount }, async () => {
 			// Each async runner claims the next index from the shared counter until work is exhausted.
-			for (;;) {
+			while (true) {
 				const index = nextIndex++;
 				if (index >= items.length) {
 					return;
@@ -1113,22 +1114,6 @@ async function mapWithConcurrency<T, U>(
 		}),
 	);
 
-	return results;
-}
-
-/**
- * Allocate result storage for code paths that fill every slot by numeric index later.
- *
- * `Array.from({ length })` eagerly materializes an array full of `undefined` values, which is
- * wasted work for worker result ordering and bounded-concurrency mapping because each slot is
- * overwritten before the array is read. Setting `.length` keeps the allocation sparse until those
- * indexed writes happen. A Bun microbench over the current local JSONL file count showed this form
- * faster than both `Array.from({ length })` and `Array(length)`, so it also avoids needing a lint
- * suppression for `new Array(length)`.
- */
-function createResultSlots<T>(length: number): T[] {
-	const results: T[] = [];
-	results.length = length;
 	return results;
 }
 
@@ -1254,7 +1239,7 @@ async function processBufferedJSONLUsageContent(
 	while (markerIndex !== -1) {
 		// The marker search skips non-usage lines, so lineStart can lag behind markerIndex.
 		// Advance it monotonically instead of reverse-scanning with lastIndexOf for every usage row.
-		for (;;) {
+		while (true) {
 			const nextLineEnd = content.indexOf('\n', lineStart);
 			if (nextLineEnd === -1 || nextLineEnd >= markerIndex) {
 				break;
@@ -1298,7 +1283,7 @@ async function processBufferedJSONLUsageBytes(
 	while (markerIndex !== -1) {
 		// Advance to the start of the marker's line without calling lastIndexOf for every usage row.
 		// This loop is monotonic: each newline is considered at most once across the whole buffer.
-		for (;;) {
+		while (true) {
 			const nextLineEnd = content.indexOf(10, lineStart);
 			if (nextLineEnd === -1 || nextLineEnd >= markerIndex) {
 				break;
@@ -3255,16 +3240,6 @@ if (import.meta.vitest != null) {
 			expect(hasUnsupportedNullField('{"message":{"model":null}}')).toBe(true);
 			expect(hasUnsupportedNullField('{"message":{"usage":{"speed":null}}}')).toBe(true);
 			expect(hasUnsupportedNullField('{"requestId":null}')).toBe(true);
-		});
-
-		it('allocates sparse result slots for indexed fills', () => {
-			const slots = createResultSlots<number>(3);
-
-			expect(slots).toHaveLength(3);
-			expect(0 in slots).toBe(false);
-			slots[1] = 42;
-			expect(slots).toEqual([undefined, 42, undefined]);
-			expect(1 in slots).toBe(true);
 		});
 	});
 
