@@ -1,10 +1,8 @@
 #!/usr/bin/env bun
 
 import { join, relative, resolve } from 'node:path';
-import process from 'node:process';
 import { createFixture } from 'fs-fixture';
 import { cli, define } from 'gunshi';
-import { measure } from 'mitata';
 
 type CommandMeasurement = {
 	max: number;
@@ -29,15 +27,23 @@ type SampleOptions = {
 	warmup: number;
 };
 
-type MeasurementOptions = SampleOptions & {
-	label: string;
-};
-
 type FixtureComparison = SampleOptions & {
 	description: string;
 	fixtureDir: string;
 	results: CommandResult[];
 	title: string;
+};
+
+type HyperfineResult = {
+	command: string;
+	max: number;
+	median: number;
+	min: number;
+	times: number[];
+};
+
+type HyperfineExport = {
+	results: HyperfineResult[];
 };
 
 function distDir(repoDir: string): string {
@@ -117,64 +123,46 @@ async function writeProgress(message: string): Promise<void> {
 	await Bun.write(Bun.stderr, `[ccusage-perf] ${message}\n`);
 }
 
-async function runCcusage(repoDir: string, fixtureDir: string, command: string): Promise<void> {
-	const output = await Bun.$`pnpm exec bun -b ${builtEntry(repoDir)} ${command} --offline --json`
-		.cwd(repoDir)
-		.env({
-			...Bun.env,
-			CLAUDE_CONFIG_DIR: fixtureDir,
-			COLUMNS: '200',
-			LOG_LEVEL: '0',
-			NO_COLOR: '1',
-			TZ: 'UTC',
-		})
-		.nothrow()
-		.quiet();
-
-	if (output.exitCode !== 0) {
-		const relativeLabel = relative(process.cwd(), repoDir);
-		const label = relativeLabel.length === 0 ? repoDir : relativeLabel;
-		const trimmedStderr = output.stderr.toString().trim();
-		throw new Error(
-			`${label} ${command} failed: ${
-				trimmedStderr.length === 0 ? `exit ${output.exitCode}` : trimmedStderr
-			}`,
-		);
-	}
+/**
+ * Quotes dynamic paths for the shell command string that hyperfine executes.
+ *
+ * Hyperfine measures command strings through a shell by default, which is useful here because the
+ * CI log stays readable. The paths can still contain spaces or quotes, so every dynamic path is
+ * single-quoted before being passed to hyperfine.
+ */
+function shellQuote(value: string): string {
+	return `'${value.replaceAll("'", String.raw`'\''`)}'`;
 }
 
-async function measureCommand(
-	repoDir: string,
-	fixtureDir: string,
-	command: string,
-	options: MeasurementOptions,
-): Promise<CommandMeasurement> {
-	for (let index = 0; index < options.warmup; index++) {
-		await writeProgress(`${options.label} warmup ${index + 1}/${options.warmup}`);
-		await runCcusage(repoDir, fixtureDir, command);
-	}
+/**
+ * Builds the ccusage command that hyperfine will benchmark.
+ *
+ * The command keeps the existing published runtime shape, `pnpm exec bun -b dist/index.js`, while
+ * setting the fixture and output environment variables only for the measured process.
+ */
+function createCcusageCommand(repoDir: string, fixtureDir: string, command: string): string {
+	const invocation = [
+		'env',
+		`CLAUDE_CONFIG_DIR=${shellQuote(fixtureDir)}`,
+		'COLUMNS=200',
+		'LOG_LEVEL=0',
+		'NO_COLOR=1',
+		'TZ=UTC',
+		`pnpm exec bun -b ${shellQuote(builtEntry(repoDir))} ${command} --offline --json`,
+	].join(' ');
+	return [`cd ${shellQuote(repoDir)}`, invocation].join(' && ');
+}
 
-	let sampleIndex = 0;
-	const stats = await measure(
-		async () => {
-			sampleIndex++;
-			await writeProgress(`${options.label} sample ${sampleIndex}`);
-			await runCcusage(repoDir, fixtureDir, command);
-		},
-		{
-			max_samples: options.runs,
-			min_cpu_time: 0,
-			min_samples: options.runs,
-			warmup_threshold: 0,
-		},
-	);
-	await writeProgress(`${options.label} done: ${formatDuration(stats.p50 / 1e6)} median`);
-
+/**
+ * Converts hyperfine's seconds-based JSON result into the millisecond shape used by the PR
+ * comment renderer.
+ */
+function measurementFromHyperfine(result: HyperfineResult): CommandMeasurement {
 	return {
-		max: stats.max / 1e6,
-		median: stats.p50 / 1e6,
-		min: stats.min / 1e6,
-		samples: stats.ticks,
+		max: result.max * 1000,
+		median: result.median * 1000,
+		min: result.min * 1000,
+		samples: result.times.length,
 	};
 }
 
@@ -189,16 +177,50 @@ async function compareCommand(
 		warmup: number;
 	},
 ): Promise<CommandResult> {
-	const base = await measureCommand(options.baseDir, options.fixtureDir, command, {
-		label: `${options.fixtureTitle} / base / ${command}`,
-		runs: options.runs,
-		warmup: options.warmup,
-	});
-	const head = await measureCommand(options.headDir, options.fixtureDir, command, {
-		label: `${options.fixtureTitle} / PR / ${command}`,
-		runs: options.runs,
-		warmup: options.warmup,
-	});
+	await writeProgress(`${options.fixtureTitle} / ${command} started`);
+	await using fixture = await createFixture({});
+	const exportPath = join(fixture.path, 'hyperfine.json');
+	const hyperfine = Bun.spawn(
+		[
+			'hyperfine',
+			'--warmup',
+			String(options.warmup),
+			'--runs',
+			String(options.runs),
+			'--export-json',
+			exportPath,
+			'--style',
+			'basic',
+			'--output',
+			'pipe',
+			'--sort',
+			'command',
+			'--command-name',
+			'base',
+			'--command-name',
+			'PR',
+			createCcusageCommand(options.baseDir, options.fixtureDir, command),
+			createCcusageCommand(options.headDir, options.fixtureDir, command),
+		],
+		{
+			stderr: 'inherit',
+			stdout: 'inherit',
+		},
+	);
+	const exitCode = await hyperfine.exited;
+	if (exitCode !== 0) {
+		throw new Error(`hyperfine failed for ${options.fixtureTitle} / ${command}: exit ${exitCode}`);
+	}
+	const hyperfineOutput = JSON.parse(await Bun.file(exportPath).text()) as HyperfineExport;
+	const [baseResult, headResult] = hyperfineOutput.results;
+	if (baseResult == null || headResult == null) {
+		throw new Error(`hyperfine did not report both base and PR results for ${command}`);
+	}
+	const base = measurementFromHyperfine(baseResult);
+	const head = measurementFromHyperfine(headResult);
+	await writeProgress(
+		`${options.fixtureTitle} / ${command} done: base ${formatDuration(base.median)}, PR ${formatDuration(head.median)}`,
+	);
 
 	return {
 		base,
@@ -268,7 +290,7 @@ function renderFixtureSection(section: FixtureComparison, options: { headDir: st
 		section.description,
 		'',
 		`Fixture: \`${formatFixturePath(options.headDir, section.fixtureDir)}\``,
-		`Runtime: built \`apps/ccusage/dist/index.js\` through \`bun -b\`, \`--offline --json\`, measured by \`mitata\` with \`${section.warmup}\` explicit warmups and \`${section.runs}\` samples.`,
+		`Runtime: built \`apps/ccusage/dist/index.js\` through \`bun -b\`, \`--offline --json\`, measured by \`hyperfine\` with \`${section.warmup}\` warmups and \`${section.runs}\` runs.`,
 		'',
 		'| Command | Base median | PR median | PR vs base |',
 		'| --- | ---: | ---: | ---: |',
@@ -318,8 +340,8 @@ function renderMarkdown(
 }
 
 /**
- * Rejects accidental zero-sample CI runs early because mitata still starts but
- * the resulting PR comment would look like a successful benchmark.
+ * Rejects accidental zero-sample CI runs early so the PR comment cannot present an empty
+ * benchmark as a successful comparison.
  */
 function assertSampleOptions(options: SampleOptions, label: string): void {
 	if (!Number.isInteger(options.runs) || options.runs < 1) {
@@ -357,7 +379,7 @@ const command = define({
 		runs: {
 			type: 'number',
 			default: 7,
-			description: 'Measured mitata samples per command',
+			description: 'Measured hyperfine runs per command',
 		},
 		warmup: {
 			type: 'number',
@@ -371,7 +393,7 @@ const command = define({
 		largeRuns: {
 			type: 'number',
 			default: 1,
-			description: 'Measured mitata samples per command for the large fixture',
+			description: 'Measured hyperfine runs per command for the large fixture',
 		},
 		largeWarmup: {
 			type: 'number',
