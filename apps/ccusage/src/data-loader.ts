@@ -584,7 +584,11 @@ function extractUnsignedIntegerMarker(
  * Extracting only those fields keeps the common case cheap, while returning null lets the caller
  * fall back to JSON.parse for uncommon shapes such as null-bearing rows and API error messages.
  */
-function parseUsageDataLineFast(line: string, allowContent = false): UsageData | null {
+function parseUsageDataLineFast(
+	line: string,
+	allowContent = false,
+	usageMarkerIndex?: number,
+): UsageData | null {
 	const contentIndex = line.indexOf(CONTENT_MARKER);
 	if (
 		(contentIndex !== -1 &&
@@ -596,7 +600,10 @@ function parseUsageDataLineFast(line: string, allowContent = false): UsageData |
 	}
 
 	const messageStart = line.indexOf('"message":{');
-	const usageStart = line.indexOf('"usage":{', messageStart);
+	const usageStart =
+		usageMarkerIndex != null && usageMarkerIndex >= messageStart
+			? usageMarkerIndex
+			: line.indexOf(USAGE_LINE_MARKER, messageStart);
 	if (messageStart === -1 || usageStart === -1) {
 		return null;
 	}
@@ -719,9 +726,13 @@ function isUnsupportedNullableField(line: string, start: number, end: number): b
 
 function parseUsageDataLine(
 	line: string,
-	options?: { allowContentFast?: boolean },
+	options?: { allowContentFast?: boolean; usageMarkerIndex?: number },
 ): UsageData | null {
-	const fastData = parseUsageDataLineFast(line, options?.allowContentFast !== false);
+	const fastData = parseUsageDataLineFast(
+		line,
+		options?.allowContentFast !== false,
+		options?.usageMarkerIndex,
+	);
 	if (fastData != null) {
 		return fastData;
 	}
@@ -1220,7 +1231,7 @@ async function processBufferedJSONLContent(
 
 async function processBufferedJSONLUsageContent(
 	content: string,
-	processLine: (line: string) => void,
+	processLine: (line: string, usageMarkerIndex: number) => void,
 ): Promise<void> {
 	let lineStart = 0;
 	let markerIndex = content.indexOf(USAGE_LINE_MARKER, lineStart);
@@ -1243,7 +1254,9 @@ async function processBufferedJSONLUsageContent(
 		if (line.endsWith('\r')) {
 			line = line.slice(0, -1);
 		}
-		processLine(line);
+		// The scanner already paid for the usage marker search; pass the line-relative offset so
+		// the fast parser does not run the same indexOf again for every usage row.
+		processLine(line, markerIndex - lineStart);
 
 		lineStart = lineEnd + 1;
 		markerIndex = content.indexOf(USAGE_LINE_MARKER, lineStart);
@@ -1259,7 +1272,7 @@ async function processBufferedJSONLUsageContent(
  */
 async function processBufferedJSONLUsageBytes(
 	bytes: Uint8Array,
-	processLine: (line: string) => void,
+	processLine: (line: string, usageMarkerIndex: number) => void,
 ): Promise<void> {
 	const content = Buffer.isBuffer(bytes)
 		? bytes
@@ -1284,7 +1297,9 @@ async function processBufferedJSONLUsageBytes(
 		const decodeEnd = lineEnd > lineStart && content[lineEnd - 1] === 13 ? lineEnd - 1 : lineEnd;
 		// Usage aggregation reads ASCII metadata and token fields only; content text is never surfaced.
 		// Latin-1 avoids UTF-8 decoding cost for large assistant content while preserving JSON markers.
-		processLine(content.toString('latin1', lineStart, decodeEnd));
+		// The scanner already paid for the usage marker search; pass the line-relative offset so
+		// the fast parser does not run the same indexOf again for every usage row.
+		processLine(content.toString('latin1', lineStart, decodeEnd), markerIndex - lineStart);
 
 		lineStart = lineEnd + 1;
 		markerIndex = content.indexOf(USAGE_LINE_MARKER_BUFFER, lineStart);
@@ -1358,7 +1373,7 @@ async function processJSONLFileByLine(
 
 async function processJSONLUsageFileByLine(
 	filePath: string,
-	processLine: (line: string) => void,
+	processLine: (line: string, usageMarkerIndex: number) => void,
 ): Promise<void> {
 	const bytes = await readBufferedJSONLBytes(filePath);
 	if (bytes != null) {
@@ -1379,10 +1394,11 @@ async function processJSONLUsageFileByLine(
 	});
 
 	for await (const line of rl) {
-		if (!line.includes(USAGE_LINE_MARKER)) {
+		const usageMarkerIndex = line.indexOf(USAGE_LINE_MARKER);
+		if (usageMarkerIndex === -1) {
 			continue;
 		}
-		processLine(line);
+		processLine(line, usageMarkerIndex);
 	}
 }
 
@@ -2071,9 +2087,9 @@ async function collectDailyEntriesFromFile(
 	const entries: DailyDataEntry[] = [];
 	const processedEntries = new Map<string, number>();
 
-	await processJSONLUsageFileByLine(file, (line) => {
+	await processJSONLUsageFileByLine(file, (line, usageMarkerIndex) => {
 		try {
-			const data = parseUsageDataLine(line);
+			const data = parseUsageDataLine(line, { usageMarkerIndex });
 			if (data == null) {
 				return;
 			}
@@ -2136,9 +2152,9 @@ async function collectSessionEntriesFromFile(
 	const entries: SessionDataEntry[] = [];
 	const processedEntries = new Map<string, number>();
 
-	await processJSONLUsageFileByLine(file, (line) => {
+	await processJSONLUsageFileByLine(file, (line, usageMarkerIndex) => {
 		try {
-			const data = parseUsageDataLine(line);
+			const data = parseUsageDataLine(line, { usageMarkerIndex });
 			if (data == null) {
 				return;
 			}
@@ -2204,9 +2220,9 @@ async function collectBlockFileResult(
 		}
 	};
 
-	const processLine = (line: string): void => {
+	const processLine = (line: string, usageMarkerIndex: number): void => {
 		try {
-			const data = parseUsageDataLine(line);
+			const data = parseUsageDataLine(line, { usageMarkerIndex });
 			if (data == null) {
 				return;
 			}
