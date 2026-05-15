@@ -76,13 +76,17 @@ function writeTaggedLine(
 }
 
 function writeBox(stream: NodeJS.WriteStream, message: string): void {
-	const width = message.length + 4;
+	const lines = message.split('\n');
+	const contentWidth = Math.max(...lines.map((line) => line.length));
+	const width = contentWidth + 4;
 	const horizontal = '─'.repeat(width);
 	const empty = ' '.repeat(width);
 	writeLine(stream);
 	writeLine(stream, ` ╭${horizontal}╮`);
 	writeLine(stream, ` │${empty}│`);
-	writeLine(stream, ` │  ${message}  │`);
+	for (const line of lines) {
+		writeLine(stream, ` │  ${line.padEnd(contentWidth)}  │`);
+	}
 	writeLine(stream, ` │${empty}│`);
 	writeLine(stream, ` ╰${horizontal}╯`);
 	writeLine(stream);
@@ -135,6 +139,26 @@ export function createLogger(name: string): Logger {
 export const log = console.log;
 
 if (import.meta.vitest != null) {
+	describe('createLogger', () => {
+		it('renders multi-line boxes with a shared width', () => {
+			let output = '';
+			const writeSpy = vi.spyOn(process.stdout, 'write').mockImplementation((chunk) => {
+				output += String(chunk);
+				return true;
+			});
+
+			try {
+				const logger = createLogger('test');
+				logger.box('Title\nDetected: Claude, Codex');
+			} finally {
+				writeSpy.mockRestore();
+			}
+
+			expect(output).toContain('│  Title                    │');
+			expect(output).toContain('│  Detected: Claude, Codex  │');
+		});
+	});
+
 	describe('writeLineAsync', () => {
 		it('waits for the write callback before resolving', async () => {
 			let flush: (() => void) | undefined;

@@ -14,6 +14,23 @@ export function createResultSlots<T>(length: number): T[] {
 	return results;
 }
 
+export function groupByToMap<T, K extends string>(
+	items: Iterable<T>,
+	getKey: (item: T) => K,
+): Map<K, T[]> {
+	const grouped = new Map<K, T[]>();
+	for (const item of items) {
+		const key = getKey(item);
+		const group = grouped.get(key);
+		if (group == null) {
+			grouped.set(key, [item]);
+		} else {
+			group.push(item);
+		}
+	}
+	return grouped;
+}
+
 if (import.meta.vitest != null) {
 	describe('createResultSlots', () => {
 		it('allocates sparse result slots for indexed fills', () => {
@@ -28,6 +45,30 @@ if (import.meta.vitest != null) {
 
 		it('returns an empty array for zero slots', () => {
 			expect(createResultSlots<unknown>(0)).toEqual([]);
+		});
+	});
+
+	describe('groupByToMap', () => {
+		it('groups items by selected key in insertion order', () => {
+			const grouped = groupByToMap(
+				[
+					{ kind: 'a', value: 1 },
+					{ kind: 'b', value: 2 },
+					{ kind: 'a', value: 3 },
+				],
+				(item) => item.kind,
+			);
+
+			expect(Array.from(grouped.entries())).toEqual([
+				[
+					'a',
+					[
+						{ kind: 'a', value: 1 },
+						{ kind: 'a', value: 3 },
+					],
+				],
+				['b', [{ kind: 'b', value: 2 }]],
+			]);
 		});
 	});
 }

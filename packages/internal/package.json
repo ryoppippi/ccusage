@@ -10,6 +10,11 @@
 		"./logger": "./src/logger.ts",
 		"./format": "./src/format.ts",
 		"./array": "./src/array.ts",
+		"./fs": "./src/fs.ts",
+		"./jsonl": "./src/jsonl.ts",
+		"./sqlite": "./src/sqlite.ts",
+		"./workers": "./src/workers.ts",
+		"./deprecated-agent-cli": "./src/deprecated-agent-cli.ts",
 		"./json-file-state": "./src/json-file-state.ts",
 		"./sort": "./src/sort.ts",
 		"./constants": "./src/constants.ts"

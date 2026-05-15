@@ -235,6 +235,10 @@ export type TableOptions = {
 	dateFormatter?: (dateStr: string) => string;
 	compactHead?: string[];
 	compactColAligns?: TableCellAlign[];
+	minColumnWidths?: number[];
+	compactMinColumnWidths?: number[];
+	flexibleColumnIndex?: number;
+	compactFlexibleColumnIndex?: number;
 	compactThreshold?: number;
 	forceCompact?: boolean;
 	logger?: (message: string) => void;
@@ -251,6 +255,10 @@ export class ResponsiveTable {
 	private dateFormatter?: (dateStr: string) => string;
 	private compactHead?: string[];
 	private compactColAligns?: TableCellAlign[];
+	private minColumnWidths?: number[];
+	private compactMinColumnWidths?: number[];
+	private flexibleColumnIndex?: number;
+	private compactFlexibleColumnIndex?: number;
 	private compactThreshold: number;
 	private compactMode = false;
 	private forceCompact: boolean;
@@ -266,6 +274,10 @@ export class ResponsiveTable {
 		this.dateFormatter = options.dateFormatter;
 		this.compactHead = options.compactHead;
 		this.compactColAligns = options.compactColAligns;
+		this.minColumnWidths = options.minColumnWidths;
+		this.compactMinColumnWidths = options.compactMinColumnWidths;
+		this.flexibleColumnIndex = options.flexibleColumnIndex;
+		this.compactFlexibleColumnIndex = options.compactFlexibleColumnIndex;
 		this.compactThreshold = options.compactThreshold ?? 100;
 		this.forceCompact = options.forceCompact ?? false;
 		this.logger = options.logger ?? console.warn;
@@ -293,11 +305,26 @@ export class ResponsiveTable {
 	 * Gets the current table head and col aligns based on compact mode
 	 * @returns Current head and colAligns arrays
 	 */
-	private getCurrentTableConfig(): { head: string[]; colAligns: TableCellAlign[] } {
+	private getCurrentTableConfig(): {
+		head: string[];
+		colAligns: TableCellAlign[];
+		minColumnWidths?: number[];
+		flexibleColumnIndex?: number;
+	} {
 		if (this.compactMode && this.compactHead != null && this.compactColAligns != null) {
-			return { head: this.compactHead, colAligns: this.compactColAligns };
+			return {
+				head: this.compactHead,
+				colAligns: this.compactColAligns,
+				minColumnWidths: this.compactMinColumnWidths,
+				flexibleColumnIndex: this.compactFlexibleColumnIndex,
+			};
 		}
-		return { head: this.head, colAligns: this.colAligns };
+		return {
+			head: this.head,
+			colAligns: this.colAligns,
+			minColumnWidths: this.minColumnWidths,
+			flexibleColumnIndex: this.flexibleColumnIndex,
+		};
 	}
 
 	/**
@@ -337,72 +364,109 @@ export class ResponsiveTable {
 	 * @returns Formatted table string
 	 */
 	toString(): string {
-		// Check environment variable first, then process.stdout.columns, then default
 		const terminalWidth =
-			Number.parseInt(process.env.COLUMNS ?? '', 10) || process.stdout.columns || 120;
+			process.stdout.columns || Number.parseInt(process.env.COLUMNS ?? '', 10) || 120;
 
-		// Determine if we should use compact mode
 		this.compactMode =
 			this.forceCompact || (terminalWidth < this.compactThreshold && this.compactHead != null);
 
-		// Get current table configuration
-		const { head, colAligns } = this.getCurrentTableConfig();
-		const compactIndices = this.getCompactIndices();
+		for (;;) {
+			const { head, colAligns, minColumnWidths, flexibleColumnIndex } =
+				this.getCurrentTableConfig();
+			const compactIndices = this.getCompactIndices();
+			const dataRows = this.rows.filter((row) => !this.isSeparatorRow(row));
+			const processedDataRows = this.compactMode
+				? dataRows.map((row) => this.filterRowToCompact(row, compactIndices))
+				: dataRows;
 
-		// Calculate actual content widths first (excluding separator rows)
-		const dataRows = this.rows.filter((row) => !this.isSeparatorRow(row));
-
-		// Filter rows to compact mode if needed
-		const processedDataRows = this.compactMode
-			? dataRows.map((row) => this.filterRowToCompact(row, compactIndices))
-			: dataRows;
-
-		const contentWidths = head.map((header) => getStringWidth(header));
-		for (const row of processedDataRows) {
-			for (let colIndex = 0; colIndex < head.length; colIndex++) {
-				const width = getStringWidth(stringifyCell(row[colIndex]));
-				if (width > contentWidths[colIndex]!) {
-					contentWidths[colIndex] = width;
+			const contentWidths = head.map((header) => getStringWidth(header));
+			for (const row of processedDataRows) {
+				for (let colIndex = 0; colIndex < head.length; colIndex++) {
+					const width = getStringWidth(stringifyCell(row[colIndex]));
+					if (width > contentWidths[colIndex]!) {
+						contentWidths[colIndex] = width;
+					}
 				}
 			}
-		}
 
-		// Calculate table overhead
-		const numColumns = head.length;
-		const tableOverhead = 3 * numColumns + 1; // borders and separators
-		const availableWidth = terminalWidth - tableOverhead;
+			const numColumns = head.length;
+			const tableOverhead = 3 * numColumns + 1;
+			const availableWidth = terminalWidth - tableOverhead;
+			const columnWidths = contentWidths.map((width, index) => {
+				const align = colAligns[index];
+				const minWidth = minColumnWidths?.[index];
+				if (align === 'right') {
+					return Math.max(width + 3, minWidth ?? 11);
+				}
+				if (index === flexibleColumnIndex) {
+					return Math.max(width + 2, minWidth ?? 15);
+				}
+				return Math.max(width + 2, minWidth ?? 10);
+			});
 
-		// Always use content-based widths with generous padding for numeric columns
-		const columnWidths = contentWidths.map((width, index) => {
-			const align = colAligns[index];
-			// For numeric columns, ensure generous width to prevent truncation
-			if (align === 'right') {
-				return Math.max(width + 3, 11); // At least 11 chars for numbers, +3 padding
-			} else if (index === 1) {
-				// Models column - can be longer
-				return Math.max(width + 2, 15);
+			let totalRequiredWidth = columnWidths.reduce((sum, width) => sum + width, 0) + tableOverhead;
+
+			if (
+				flexibleColumnIndex != null &&
+				totalRequiredWidth > terminalWidth &&
+				columnWidths[flexibleColumnIndex] != null
+			) {
+				const fixedWidth = columnWidths.reduce(
+					(sum, width, index) => sum + (index === flexibleColumnIndex ? 0 : width),
+					0,
+				);
+				const flexibleMinWidth = minColumnWidths?.[flexibleColumnIndex] ?? 12;
+				const availableFlexibleWidth = Math.max(flexibleMinWidth, availableWidth - fixedWidth);
+				columnWidths[flexibleColumnIndex] = Math.min(
+					columnWidths[flexibleColumnIndex],
+					availableFlexibleWidth,
+				);
+				totalRequiredWidth = columnWidths.reduce((sum, width) => sum + width, 0) + tableOverhead;
 			}
-			return Math.max(width + 2, 10); // Other columns
-		});
 
-		// Check if this fits in the terminal
-		const totalRequiredWidth = columnWidths.reduce((sum, width) => sum + width, 0) + tableOverhead;
+			if (!this.compactMode && this.compactHead != null && totalRequiredWidth > terminalWidth) {
+				this.compactMode = true;
+				continue;
+			}
 
-		if (totalRequiredWidth > terminalWidth) {
-			const scaleFactor = availableWidth / columnWidths.reduce((sum, width) => sum + width, 0);
+			if (totalRequiredWidth <= terminalWidth) {
+				return this.renderFastTable(
+					head,
+					colAligns,
+					columnWidths,
+					this.getRenderableRows(dataRows, compactIndices, false),
+				);
+			}
+
+			const fixedMinimumWidth = columnWidths.reduce((sum, width, index) => {
+				if (index === flexibleColumnIndex) {
+					return sum;
+				}
+				return sum + Math.min(width, minColumnWidths?.[index] ?? width);
+			}, 0);
+			const lockedFlexibleWidth =
+				flexibleColumnIndex == null
+					? undefined
+					: Math.max(
+							minColumnWidths?.[flexibleColumnIndex] ?? 12,
+							availableWidth - fixedMinimumWidth,
+						);
+			const adjustedTotalWidth = columnWidths.reduce((sum, width) => sum + width, 0);
+			const scaleFactor = availableWidth / adjustedTotalWidth;
 			const adjustedWidths = columnWidths.map((width, index) => {
 				const align = colAligns[index];
 				let adjustedWidth = Math.floor(width * scaleFactor);
+				const minWidth = minColumnWidths?.[index];
+				if (index === flexibleColumnIndex && lockedFlexibleWidth != null) {
+					return Math.min(width, lockedFlexibleWidth);
+				}
 
-				// Apply minimum widths based on column type
 				if (align === 'right') {
-					adjustedWidth = Math.max(adjustedWidth, 10);
+					adjustedWidth = Math.max(adjustedWidth, minWidth ?? 10);
 				} else if (index === 0) {
-					adjustedWidth = Math.max(adjustedWidth, 10);
-				} else if (index === 1) {
-					adjustedWidth = Math.max(adjustedWidth, 12);
+					adjustedWidth = Math.max(adjustedWidth, minWidth ?? 12);
 				} else {
-					adjustedWidth = Math.max(adjustedWidth, 8);
+					adjustedWidth = Math.max(adjustedWidth, minWidth ?? 8);
 				}
 
 				return adjustedWidth;
@@ -413,13 +477,6 @@ export class ResponsiveTable {
 				colAligns,
 				adjustedWidths,
 				this.getRenderableRows(dataRows, compactIndices, true),
-			);
-		} else {
-			return this.renderFastTable(
-				head,
-				colAligns,
-				columnWidths,
-				this.getRenderableRows(dataRows, compactIndices, false),
 			);
 		}
 	}
@@ -709,6 +766,8 @@ export type UsageReportConfig = {
 	firstColumnName: string;
 	/** Whether to include Last Activity column (for session reports) */
 	includeLastActivity?: boolean;
+	/** Whether to include Agent column (for all-agent reports) */
+	includeAgent?: boolean;
 	/** Date formatter function for responsive date formatting */
 	dateFormatter?: (dateStr: string) => string;
 	/** Force compact mode regardless of terminal width */
@@ -725,6 +784,7 @@ export type UsageData = {
 	cacheReadTokens: number;
 	totalCost: number;
 	modelsUsed?: string[];
+	agent?: string;
 };
 
 /**
@@ -755,9 +815,23 @@ export function createUsageReportTable(config: UsageReportConfig): ResponsiveTab
 		'right',
 	];
 
-	const compactHeaders = [config.firstColumnName, 'Models', 'Input', 'Output', 'Cost (USD)'];
+	const minColumnWidths = [12, 18, 11, 11, 11, 11, 11, 14];
+	const compactHeaders =
+		config.includeAgent === true
+			? [config.firstColumnName, 'Agent', 'Total Tokens', 'Cost (USD)']
+			: [config.firstColumnName, 'Models', 'Input', 'Output', 'Cost (USD)'];
+	const compactAligns: TableCellAlign[] =
+		config.includeAgent === true
+			? ['left', 'left', 'right', 'right']
+			: ['left', 'left', 'right', 'right', 'right'];
+	const compactMinColumnWidths =
+		config.includeAgent === true ? [12, 10, 14, 14] : [12, 18, 11, 11, 14];
 
-	const compactAligns: TableCellAlign[] = ['left', 'left', 'right', 'right', 'right'];
+	if (config.includeAgent ?? false) {
+		baseHeaders.splice(1, 0, 'Agent');
+		baseAligns.splice(1, 0, 'left');
+		minColumnWidths.splice(1, 0, 10);
+	}
 
 	// Add Last Activity column for session reports
 	if (config.includeLastActivity ?? false) {
@@ -774,6 +848,10 @@ export function createUsageReportTable(config: UsageReportConfig): ResponsiveTab
 		dateFormatter: config.dateFormatter,
 		compactHead: compactHeaders,
 		compactColAligns: compactAligns,
+		minColumnWidths,
+		compactMinColumnWidths,
+		flexibleColumnIndex: baseHeaders.indexOf('Models'),
+		compactFlexibleColumnIndex: compactHeaders.indexOf('Models'),
 		compactThreshold: 100,
 		forceCompact: config.forceCompact,
 	});
@@ -805,6 +883,10 @@ export function formatUsageDataRow(
 		formatCurrency(data.totalCost),
 	];
 
+	if (data.agent != null) {
+		row.splice(1, 0, data.agent);
+	}
+
 	if (lastActivity !== undefined) {
 		row.push(lastActivity);
 	}
@@ -821,6 +903,7 @@ export function formatUsageDataRow(
 export function formatTotalsRow(
 	totals: UsageData,
 	includeLastActivity = false,
+	includeAgent = false,
 ): (string | number)[] {
 	const totalTokens =
 		totals.inputTokens + totals.outputTokens + totals.cacheCreationTokens + totals.cacheReadTokens;
@@ -835,6 +918,10 @@ export function formatTotalsRow(
 		pc.yellow(formatNumber(totalTokens)),
 		pc.yellow(formatCurrency(totals.totalCost)),
 	];
+
+	if (includeAgent) {
+		row.splice(1, 0, '');
+	}
 
 	if (includeLastActivity) {
 		row.push(''); // Empty for Last Activity column in totals
@@ -854,6 +941,155 @@ export function addEmptySeparatorRow(table: ResponsiveTable, columnCount: number
 }
 
 if (import.meta.vitest != null) {
+	describe('createUsageReportTable', () => {
+		it('uses total tokens and cost only for compact all-agent usage tables', () => {
+			const originalColumns = process.env.COLUMNS;
+			process.env.COLUMNS = '80';
+			try {
+				const table = createUsageReportTable({
+					firstColumnName: 'Date',
+					includeAgent: true,
+					dateFormatter: (date) => date,
+				});
+				table.push(
+					formatUsageDataRow('2026-03-01', {
+						agent: 'All',
+						modelsUsed: ['very-long-model-name-that-should-not-define-the-compact-width'],
+						inputTokens: 1_000_000,
+						outputTokens: 500_000,
+						cacheCreationTokens: 200_000,
+						cacheReadTokens: 300_000,
+						totalCost: 12_345.67,
+					}),
+				);
+
+				const output = table.toString();
+				expect(output).toContain('Total Tokens');
+				expect(output).toContain('$12345.67');
+				expect(output).not.toContain('Models');
+				expect(output).not.toContain('Input');
+				expect(output).not.toContain('Output');
+				expect(output).not.toContain('very-long-model-name');
+			} finally {
+				process.env.COLUMNS = originalColumns;
+			}
+		});
+
+		it('keeps rendered all-agent table lines within the terminal width', () => {
+			const originalColumns = process.env.COLUMNS;
+			process.env.COLUMNS = '120';
+			try {
+				const table = createUsageReportTable({
+					firstColumnName: 'Date',
+					includeAgent: true,
+					dateFormatter: (date) => date,
+				});
+				table.push(
+					formatUsageDataRow('2026-03-01', {
+						agent: 'All',
+						modelsUsed: ['very-long-model-name-that-should-wrap-before-numeric-columns'],
+						inputTokens: 987_654_321,
+						outputTokens: 123_456_789,
+						cacheCreationTokens: 456_789_123,
+						cacheReadTokens: 789_123_456,
+						totalCost: 15_990.3,
+					}),
+				);
+				table.push(
+					formatUsageDataRow('', {
+						agent: '  └─ Claude',
+						modelsUsed: ['claude-opus-4-20250514', 'claude-sonnet-4-20250514'],
+						inputTokens: 111_111_111,
+						outputTokens: 222_222,
+						cacheCreationTokens: 333_333,
+						cacheReadTokens: 444_444,
+						totalCost: 423.62,
+					}),
+				);
+
+				const output = table.toString();
+				for (const line of output.split('\n')) {
+					expect(getStringWidth(line)).toBeLessThanOrEqual(120);
+				}
+				expect(table.isCompactMode()).toBe(true);
+				expect(output).toContain('Total Tokens');
+				expect(output).toContain('$15990.30');
+			} finally {
+				process.env.COLUMNS = originalColumns;
+			}
+		});
+
+		it('keeps the full all-agent table in wide terminals by shrinking the models column', () => {
+			const originalColumns = process.env.COLUMNS;
+			process.env.COLUMNS = '220';
+			try {
+				const table = createUsageReportTable({
+					firstColumnName: 'Date',
+					includeAgent: true,
+					dateFormatter: (date) => date,
+				});
+				table.push(
+					formatUsageDataRow('2026-03-01', {
+						agent: 'All',
+						modelsUsed: [
+							'gpt-5.3-codex-spark',
+							'gpt-5.4',
+							'claude-opus-4-6-fast',
+							'haiku-4-5',
+							'opus-4-6',
+							'sonnet-4-6',
+						],
+						inputTokens: 43_049_344_123,
+						outputTokens: 687_753,
+						cacheCreationTokens: 3_456_789,
+						cacheReadTokens: 987_654_321,
+						totalCost: 15_990.3,
+					}),
+				);
+
+				const output = table.toString();
+				expect(table.isCompactMode()).toBe(false);
+				expect(output).toContain('Models');
+				expect(output).toContain('Cache Create');
+				expect(output).toContain('$15990.30');
+				for (const line of output.split('\n')) {
+					expect(getStringWidth(line)).toBeLessThanOrEqual(220);
+				}
+			} finally {
+				process.env.COLUMNS = originalColumns;
+			}
+		});
+
+		it('supports agent rows while keeping compact dates and costs readable', () => {
+			const originalColumns = process.env.COLUMNS;
+			process.env.COLUMNS = '80';
+			try {
+				const table = createUsageReportTable({
+					firstColumnName: 'Date',
+					includeAgent: true,
+					dateFormatter: (date) => date,
+				});
+				table.push(
+					formatUsageDataRow('2026-03-01', {
+						agent: 'Claude\nCodex',
+						modelsUsed: ['very-long-model-name-that-can-shrink-first'],
+						inputTokens: 1_000_000,
+						outputTokens: 500_000,
+						cacheCreationTokens: 0,
+						cacheReadTokens: 0,
+						totalCost: 12_345.67,
+					}),
+				);
+
+				const output = table.toString();
+				expect(output).toContain('2026-03-01');
+				expect(output).toContain('$12345.67');
+			} finally {
+				process.env.COLUMNS = originalColumns;
+			}
+		});
+	});
+
 	describe('ResponsiveTable', () => {
 		describe('compact mode behavior', () => {
 			it('should activate compact mode when terminal width is below threshold', () => {
@@ -894,6 +1130,36 @@ if (import.meta.vitest != null) {
 
 				// Restore original value
 				process.env.COLUMNS = originalColumns;
+			});
+
+			it('should prefer the current stdout width over a stale COLUMNS value', () => {
+				const table = new ResponsiveTable({
+					head: ['Date', 'Model', 'Input', 'Output', 'Cost'],
+					compactHead: ['Date', 'Model', 'Cost'],
+					compactThreshold: 100,
+				});
+
+				const originalColumns = process.env.COLUMNS;
+				const originalDescriptor = Object.getOwnPropertyDescriptor(process.stdout, 'columns');
+				process.env.COLUMNS = '80';
+				Object.defineProperty(process.stdout, 'columns', {
+					configurable: true,
+					value: 140,
+				});
+
+				try {
+					table.push(['2024-01-01', 'sonnet-4', '1000', '500', '$1.50']);
+					table.toString();
+
+					expect(table.isCompactMode()).toBe(false);
+				} finally {
+					process.env.COLUMNS = originalColumns;
+					if (originalDescriptor != null) {
+						Object.defineProperty(process.stdout, 'columns', originalDescriptor);
+					} else {
+						Reflect.deleteProperty(process.stdout, 'columns');
+					}
+				}
 			});
 
 			it('should not activate compact mode when compactHead is not provided', () => {
