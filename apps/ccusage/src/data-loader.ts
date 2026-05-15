@@ -1103,7 +1103,7 @@ async function mapWithConcurrency<T, U>(
 	await Promise.all(
 		Array.from({ length: workerCount }, async () => {
 			// Each async runner claims the next index from the shared counter until work is exhausted.
-			while (true) {
+			for (;;) {
 				const index = nextIndex++;
 				if (index >= items.length) {
 					return;
@@ -1254,7 +1254,7 @@ async function processBufferedJSONLUsageContent(
 	while (markerIndex !== -1) {
 		// The marker search skips non-usage lines, so lineStart can lag behind markerIndex.
 		// Advance it monotonically instead of reverse-scanning with lastIndexOf for every usage row.
-		while (true) {
+		for (;;) {
 			const nextLineEnd = content.indexOf('\n', lineStart);
 			if (nextLineEnd === -1 || nextLineEnd >= markerIndex) {
 				break;
@@ -1298,7 +1298,7 @@ async function processBufferedJSONLUsageBytes(
 	while (markerIndex !== -1) {
 		// Advance to the start of the marker's line without calling lastIndexOf for every usage row.
 		// This loop is monotonic: each newline is considered at most once across the whole buffer.
-		while (true) {
+		for (;;) {
 			const nextLineEnd = content.indexOf(10, lineStart);
 			if (nextLineEnd === -1 || nextLineEnd >= markerIndex) {
 				break;
