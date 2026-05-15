@@ -921,10 +921,14 @@ type UsageSummary = TokenStats & {
 	modelBreakdowns: ModelBreakdown[];
 };
 
+type TokenStatsIndex = Record<string, TokenStats | undefined>;
+type ModelSeenIndex = Record<string, true | undefined>;
+
 type UsageSummaryAccumulator = {
 	totals: TokenStats & { totalCost: number };
-	modelAggregates: Map<string, TokenStats>;
-	modelSet: Set<string>;
+	modelAggregates: TokenStatsIndex;
+	modelSeen: ModelSeenIndex;
+	modelsUsed: string[];
 };
 
 type BunFileLike = {
@@ -951,6 +955,30 @@ function createEmptyTokenStats(): TokenStats {
 	};
 }
 
+/**
+ * Create a null-prototype model aggregate lookup for summary hot paths.
+ *
+ * Model names are plain strings and summary aggregation only needs exact-key lookup. This mirrors
+ * the dedupe-index optimization while keeping arbitrary model names safe from inherited keys.
+ */
+function createTokenStatsIndex(): TokenStatsIndex {
+	return Object.create(null) as TokenStatsIndex;
+}
+
+/**
+ * Track model names without allocating a Set for every daily/session/bucket group.
+ *
+ * Reports need insertion-order `modelsUsed` output plus O(1) membership checks. A null-prototype
+ * object stores membership and a side array preserves the same first-seen order that Set had.
+ */
+function addModelUsed(accumulator: UsageSummaryAccumulator, modelName: string): void {
+	if (accumulator.modelSeen[modelName] != null) {
+		return;
+	}
+	accumulator.modelSeen[modelName] = true;
+	accumulator.modelsUsed.push(modelName);
+}
+
 function addUsageToTokenStats(
 	stats: TokenStats,
 	usage: UsageData['message']['usage'],
@@ -969,8 +997,9 @@ function createUsageSummaryAccumulator(): UsageSummaryAccumulator {
 			...createEmptyTokenStats(),
 			totalCost: 0,
 		},
-		modelAggregates: new Map<string, TokenStats>(),
-		modelSet: new Set<string>(),
+		modelAggregates: createTokenStatsIndex(),
+		modelSeen: Object.create(null) as ModelSeenIndex,
+		modelsUsed: [],
 	};
 }
 
@@ -989,13 +1018,13 @@ function addUsageToSummaryAccumulator(
 	}
 
 	if (model != null) {
-		accumulator.modelSet.add(modelName);
+		addModelUsed(accumulator, modelName);
 	}
 
-	let existing = accumulator.modelAggregates.get(modelName);
+	let existing = accumulator.modelAggregates[modelName];
 	if (existing == null) {
 		existing = createEmptyTokenStats();
-		accumulator.modelAggregates.set(modelName, existing);
+		accumulator.modelAggregates[modelName] = existing;
 	}
 	addUsageToTokenStats(existing, usage, cost);
 }
@@ -1024,13 +1053,13 @@ function addTokenFieldsToSummaryAccumulator(
 	}
 
 	if (model != null) {
-		accumulator.modelSet.add(modelName);
+		addModelUsed(accumulator, modelName);
 	}
 
-	let existing = accumulator.modelAggregates.get(modelName);
+	let existing = accumulator.modelAggregates[modelName];
 	if (existing == null) {
 		existing = createEmptyTokenStats();
-		accumulator.modelAggregates.set(modelName, existing);
+		accumulator.modelAggregates[modelName] = existing;
 	}
 	existing.inputTokens += tokens.inputTokens;
 	existing.outputTokens += tokens.outputTokens;
@@ -1042,7 +1071,7 @@ function addTokenFieldsToSummaryAccumulator(
 function finalizeUsageSummary(accumulator: UsageSummaryAccumulator): UsageSummary {
 	return {
 		...accumulator.totals,
-		modelsUsed: Array.from(accumulator.modelSet) as ModelName[],
+		modelsUsed: accumulator.modelsUsed as ModelName[],
 		modelBreakdowns: createModelBreakdowns(accumulator.modelAggregates),
 	};
 }
@@ -1065,13 +1094,17 @@ function summarizeUsageEntries<T>(
 /**
  * Converts model aggregates to sorted model breakdowns
  */
-function createModelBreakdowns(modelAggregates: Map<string, TokenStats>): ModelBreakdown[] {
-	return Array.from(modelAggregates.entries())
-		.map(([modelName, stats]) => ({
+function createModelBreakdowns(modelAggregates: TokenStatsIndex): ModelBreakdown[] {
+	const modelNames = Object.keys(modelAggregates);
+	const breakdowns: ModelBreakdown[] = [];
+	for (let index = 0; index < modelNames.length; index++) {
+		const modelName = modelNames[index]!;
+		breakdowns.push({
 			modelName: modelName as ModelName,
-			...stats,
-		}))
-		.sort((a, b) => b.cost - a.cost); // Sort by cost descending
+			...modelAggregates[modelName]!,
+		});
+	}
+	return breakdowns.sort((a, b) => b.cost - a.cost); // Sort by cost descending
 }
 
 /**
@@ -2899,7 +2932,7 @@ export async function loadBucketUsageData(
 
 		for (const model of daily.modelsUsed) {
 			if (model !== '<synthetic>') {
-				group.summary.modelSet.add(model);
+				addModelUsed(group.summary, model);
 			}
 		}
 
@@ -2907,10 +2940,10 @@ export async function loadBucketUsageData(
 			if (breakdown.modelName === '<synthetic>') {
 				continue;
 			}
-			let aggregate = group.summary.modelAggregates.get(breakdown.modelName);
+			let aggregate = group.summary.modelAggregates[breakdown.modelName];
 			if (aggregate == null) {
 				aggregate = createEmptyTokenStats();
-				group.summary.modelAggregates.set(breakdown.modelName, aggregate);
+				group.summary.modelAggregates[breakdown.modelName] = aggregate;
 			}
 			aggregate.inputTokens += breakdown.inputTokens;
 			aggregate.outputTokens += breakdown.outputTokens;
@@ -3521,6 +3554,39 @@ if (import.meta.vitest != null) {
 					cacheCreationTokens: 25,
 					cacheReadTokens: 10,
 					cost: 0.01,
+				},
+			]);
+		});
+
+		it('keeps unknown breakdowns out of modelsUsed unless the model name is explicit', () => {
+			const unknownModelUsage = {
+				input_tokens: 10,
+				output_tokens: 5,
+			};
+			const explicitUnknownModelUsage = {
+				input_tokens: 20,
+				output_tokens: 10,
+			};
+
+			const result = summarizeUsageEntries(
+				[
+					{ cost: 0.01, model: undefined, usage: unknownModelUsage },
+					{ cost: 0.02, model: 'unknown', usage: explicitUnknownModelUsage },
+				],
+				(entry) => entry.model,
+				(entry) => entry.usage,
+				(entry) => entry.cost,
+			);
+
+			expect(result.modelsUsed).toEqual(['unknown']);
+			expect(result.modelBreakdowns).toEqual([
+				{
+					modelName: 'unknown',
+					inputTokens: 30,
+					outputTokens: 15,
+					cacheCreationTokens: 0,
+					cacheReadTokens: 0,
+					cost: 0.03,
 				},
 			]);
 		});
