@@ -1770,6 +1770,34 @@ type BlockFileResult = {
 	entries: BlockEntryResult[];
 };
 
+type DedupedEntryIndex = Record<string, number | undefined>;
+
+type DedupedBlockEntryMetadata = {
+	tokenTotal: number;
+	hasSpeed: boolean;
+	index: number;
+};
+
+type DedupedBlockEntryIndex = Record<string, DedupedBlockEntryMetadata | undefined>;
+
+/**
+ * Create a null-prototype string lookup for hot dedupe indexes.
+ *
+ * Global dedupe uses Claude message/request IDs as plain string keys and only needs exact-key
+ * lookup. Bun profiles showed native `Map#set` dominating the post-worker merge, so this avoids
+ * the Map bucket machinery while staying safe for arbitrary keys through the null prototype.
+ */
+function createDedupedEntryIndex(): DedupedEntryIndex {
+	return Object.create(null) as DedupedEntryIndex;
+}
+
+/**
+ * Create the block variant of the string lookup, which stores replacement metadata with each key.
+ */
+function createDedupedBlockEntryIndex(): DedupedBlockEntryIndex {
+	return Object.create(null) as DedupedBlockEntryIndex;
+}
+
 type EncodedBlockFileResult = {
 	kind: 'block-columns';
 	file: string;
@@ -1816,12 +1844,12 @@ function shouldReplaceEntryMetadata(
 }
 
 function markDedupedEntryMetadata(
-	processedEntries: Map<string, number>,
+	processedEntries: DedupedEntryIndex,
 	entry: { uniqueHash: string | null },
 	entryIndex: number,
 ): void {
 	if (entry.uniqueHash != null) {
-		processedEntries.set(entry.uniqueHash, entryIndex);
+		processedEntries[entry.uniqueHash] = entryIndex;
 	}
 }
 
@@ -2240,7 +2268,7 @@ async function collectDailyEntriesFromFile(
 ): Promise<DailyDataEntry[]> {
 	const project = extractProjectFromPath(file);
 	const entries: DailyDataEntry[] = [];
-	const processedEntries = new Map<string, number>();
+	const processedEntries = createDedupedEntryIndex();
 
 	await processJSONLUsageFileByLine(file, (line, usageMarkerIndex) => {
 		try {
@@ -2256,7 +2284,7 @@ async function collectDailyEntriesFromFile(
 			const hasSpeed = usage.speed != null;
 			let existingEntryIndex: number | undefined;
 			if (uniqueHash != null) {
-				existingEntryIndex = processedEntries.get(uniqueHash);
+				existingEntryIndex = processedEntries[uniqueHash];
 				if (
 					existingEntryIndex != null &&
 					!shouldReplaceEntryMetadata({ tokenTotal, hasSpeed }, entries[existingEntryIndex]!)
@@ -2305,7 +2333,7 @@ async function collectSessionEntriesFromFile(
 	const joinedPath = parts.slice(0, -2).join(path.sep);
 	const projectPath = joinedPath.length > 0 ? joinedPath : 'Unknown Project';
 	const entries: SessionDataEntry[] = [];
-	const processedEntries = new Map<string, number>();
+	const processedEntries = createDedupedEntryIndex();
 
 	await processJSONLUsageFileByLine(file, (line, usageMarkerIndex) => {
 		try {
@@ -2321,7 +2349,7 @@ async function collectSessionEntriesFromFile(
 			const hasSpeed = usage.speed != null;
 			let existingEntryIndex: number | undefined;
 			if (uniqueHash != null) {
-				existingEntryIndex = processedEntries.get(uniqueHash);
+				existingEntryIndex = processedEntries[uniqueHash];
 				if (
 					existingEntryIndex != null &&
 					!shouldReplaceEntryMetadata({ tokenTotal, hasSpeed }, entries[existingEntryIndex]!)
@@ -2367,7 +2395,7 @@ async function collectBlockFileResult(
 ): Promise<BlockFileResult> {
 	let timestampMs: number | null = null;
 	const entries: BlockEntryResult[] = [];
-	const processedEntries = new Map<string, number>();
+	const processedEntries = createDedupedEntryIndex();
 
 	const setEarliestTimestamp = (lineTimestamp: Date, lineTimestampMs: number): void => {
 		if (!Number.isNaN(lineTimestampMs) && (timestampMs == null || lineTimestampMs < timestampMs)) {
@@ -2396,7 +2424,7 @@ async function collectBlockFileResult(
 			const hasSpeed = usage.speed != null;
 			let existingEntryIndex: number | undefined;
 			if (uniqueHash != null) {
-				existingEntryIndex = processedEntries.get(uniqueHash);
+				existingEntryIndex = processedEntries[uniqueHash];
 				if (
 					existingEntryIndex != null &&
 					!shouldReplaceEntryMetadata({ tokenTotal, hasSpeed }, entries[existingEntryIndex]!)
@@ -2490,10 +2518,10 @@ export async function loadDailyUsageData(options?: LoadOptions): Promise<DailyUs
 	// The merge loop writes stable indexes for dedupe replacement, so a local length counter keeps
 	// appends explicit without asking Array#push to update and return the length on every usage row.
 	let allEntriesLength = 0;
-	const processedEntries = new Map<string, number>();
+	const processedEntries = createDedupedEntryIndex();
 	const mergeEntry = (entry: DailyDataEntry): void => {
 		if (entry.uniqueHash != null) {
-			const existingEntryIndex = processedEntries.get(entry.uniqueHash);
+			const existingEntryIndex = processedEntries[entry.uniqueHash];
 			if (existingEntryIndex != null) {
 				if (!shouldReplaceEntryMetadata(entry, allEntries[existingEntryIndex]!)) {
 					return;
@@ -2502,7 +2530,7 @@ export async function loadDailyUsageData(options?: LoadOptions): Promise<DailyUs
 				return;
 			}
 
-			processedEntries.set(entry.uniqueHash, allEntriesLength);
+			processedEntries[entry.uniqueHash] = allEntriesLength;
 		}
 
 		allEntries[allEntriesLength++] = entry;
@@ -2625,10 +2653,10 @@ export async function loadSessionData(options?: LoadOptions): Promise<SessionUsa
 	const allEntries: SessionDataEntry[] = [];
 	// Keep the append index stable for dedupe replacement while avoiding Array#push in this hot loop.
 	let allEntriesLength = 0;
-	const processedEntries = new Map<string, number>();
+	const processedEntries = createDedupedEntryIndex();
 	const mergeEntry = (entry: SessionDataEntry): void => {
 		if (entry.uniqueHash != null) {
-			const existingEntryIndex = processedEntries.get(entry.uniqueHash);
+			const existingEntryIndex = processedEntries[entry.uniqueHash];
 			if (existingEntryIndex != null) {
 				if (!shouldReplaceEntryMetadata(entry, allEntries[existingEntryIndex]!)) {
 					return;
@@ -2637,7 +2665,7 @@ export async function loadSessionData(options?: LoadOptions): Promise<SessionUsa
 				return;
 			}
 
-			processedEntries.set(entry.uniqueHash, allEntriesLength);
+			processedEntries[entry.uniqueHash] = allEntriesLength;
 		}
 
 		allEntries[allEntriesLength++] = entry;
@@ -3065,26 +3093,23 @@ export async function loadSessionBlockData(options?: LoadOptions): Promise<Sessi
 	// Blocks keep replacement indexes in processedEntries, so the explicit length is the canonical
 	// append position for both unique and non-hashed rows.
 	let allEntriesLength = 0;
-	const processedEntries = new Map<
-		string,
-		{ tokenTotal: number; hasSpeed: boolean; index: number }
-	>();
+	const processedEntries = createDedupedBlockEntryIndex();
 	const mergeBlockEntry = ({ entry, uniqueHash, tokenTotal, hasSpeed }: BlockEntryResult): void => {
 		if (uniqueHash == null) {
 			allEntries[allEntriesLength++] = entry;
 			return;
 		}
 
-		const existing = processedEntries.get(uniqueHash);
+		const existing = processedEntries[uniqueHash];
 		if (existing == null) {
 			const index = allEntriesLength++;
 			allEntries[index] = entry;
-			processedEntries.set(uniqueHash, { tokenTotal, hasSpeed, index });
+			processedEntries[uniqueHash] = { tokenTotal, hasSpeed, index };
 			return;
 		}
 		if (shouldReplaceEntryMetadata({ tokenTotal, hasSpeed }, existing)) {
 			allEntries[existing.index] = entry;
-			processedEntries.set(uniqueHash, { tokenTotal, hasSpeed, index: existing.index });
+			processedEntries[uniqueHash] = { tokenTotal, hasSpeed, index: existing.index };
 		}
 	};
 
@@ -6338,6 +6363,20 @@ if (import.meta.vitest != null) {
 
 				const hash = createUniqueHash(data);
 				expect(hash).toBeNull();
+			});
+		});
+
+		describe('createDedupedEntryIndex', () => {
+			it('stores exact string keys without inherited prototype collisions', () => {
+				const index = createDedupedEntryIndex();
+				const protoKey = '__proto__';
+
+				index['msg_1:req_1'] = 1;
+				index[protoKey] = 2;
+
+				expect(index['msg_1:req_1']).toBe(1);
+				expect(index[protoKey]).toBe(2);
+				expect(Object.getPrototypeOf(index)).toBeNull();
 			});
 		});
 
