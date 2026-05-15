@@ -48,6 +48,7 @@ catalogs:
     p-limit: ^7.1.0
     path-type: ^6.0.0
     picocolors: ^1.1.1
+    picospinner: ^3.0.0
     pretty-ms: ^9.2.0
     string-width: ^7.2.0
     tinyglobby: ^0.2.14
@@ -77,6 +78,7 @@ minimumReleaseAgeExclude:
 # Security settings for supply chain attack prevention
 strictDepBuilds: true
 blockExoticSubdeps: true
+
 trustPolicy: no-downgrade
 
 # Explicitly allow build scripts for packages that require them

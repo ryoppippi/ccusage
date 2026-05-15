@@ -98,6 +98,9 @@ catalogs:
     path-type:
       specifier: ^6.0.0
       version: 6.0.0
+    picospinner:
+      specifier: ^3.0.0
+      version: 3.0.0
     pretty-ms:
       specifier: ^9.2.0
       version: 9.3.0
@@ -290,6 +293,9 @@ importers:
       path-type:
         specifier: catalog:runtime
         version: 6.0.0
+      picospinner:
+        specifier: catalog:runtime
+        version: 3.0.0
       pretty-ms:
         specifier: catalog:runtime
         version: 9.3.0
@@ -4433,6 +4439,10 @@ packages:
   picomatch@4.0.4:
     resolution: {integrity: sha512-QP88BAKvMam/3NxH6vj2o21R6MjxZUAd6nlwAS/pnGvN9IVLocLHxGYIzFhg6fUQ+5th6P4dv4eW9jX3DSIj7A==}
     engines: {node: '>=12'}
+
+  picospinner@3.0.0:
+    resolution: {integrity: sha512-lGA1TNsmy2bxvRsTI2cV01kfTwKzZjnZSDmF9llYNyMHMrU4sP87lQ5taiIKm88L3cbswjl008nwyGc3WpNvzg==}
+    engines: {node: '>=18.0.0'}
 
   pkg-pr-new@0.0.60:
     resolution: {integrity: sha512-eblxPNSgv0AO18OrfpHq+YrNHfEqeePWWvlKkPvcHByddGsGDOK25z41C1RDjZ+K8zUHDk5IGN+6n0WZa4T2Pg==}
@@ -9008,6 +9018,8 @@ snapshots:
   picomatch@4.0.3: {}
 
   picomatch@4.0.4: {}
+
+  picospinner@3.0.0: {}
 
   pkg-pr-new@0.0.60:
     dependencies:

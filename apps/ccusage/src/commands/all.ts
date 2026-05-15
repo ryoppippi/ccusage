@@ -12,6 +12,7 @@ import {
 	formatUsageDataRow,
 } from '@ccusage/terminal/table';
 import { define } from 'gunshi';
+import { Spinner } from 'picospinner';
 import { getAmpPath, loadAmpUsageEvents } from '../../../amp/src/data-loader.ts';
 import { AmpPricingSource } from '../../../amp/src/pricing.ts';
 import {
@@ -369,6 +370,14 @@ async function loadClaudeRows(kind: ReportKind, options: AllOptions): Promise<Al
 
 type AllLoadContext = {
 	pricingFetcher?: LiteLLMPricingFetcher;
+	progress?: AllLoadProgress;
+};
+
+type AllLoadProgress = {
+	start: (agent: AgentId) => void;
+	succeed: (agent: AgentId, rows: number) => void;
+	fail: (agent: AgentId, error: unknown) => void;
+	stop: () => void;
 };
 
 type CodexModelUsage = {
@@ -669,6 +678,23 @@ async function loadAgentRows(
 	options: AllOptions,
 	context: AllLoadContext,
 ): Promise<AllRow[]> {
+	context.progress?.start(agent);
+	try {
+		const rows = await loadAgentRowsWithoutProgress(agent, kind, options, context);
+		context.progress?.succeed(agent, rows.length);
+		return rows;
+	} catch (error) {
+		context.progress?.fail(agent, error);
+		throw error;
+	}
+}
+
+async function loadAgentRowsWithoutProgress(
+	agent: AgentId,
+	kind: ReportKind,
+	options: AllOptions,
+	context: AllLoadContext,
+): Promise<AllRow[]> {
 	switch (agent) {
 		case 'claude':
 			return loadClaudeRows(kind, options);
@@ -687,8 +713,8 @@ async function loadAllRowsWithContext(
 	kind: ReportKind,
 	options: AllOptions,
 	context: AllLoadContext,
+	agents = resolveAllAgents(options),
 ): Promise<AllRow[]> {
-	const agents = resolveAllAgents(options);
 	const rows = (
 		await Promise.all(agents.map(async (agent) => loadAgentRows(agent, kind, options, context)))
 	).flat();
@@ -703,13 +729,18 @@ async function loadAllRowsWithContext(
 	);
 }
 
-async function loadAllRows(kind: ReportKind, options: AllOptions): Promise<AllRow[]> {
+async function loadAllRows(
+	kind: ReportKind,
+	options: AllOptions,
+	agents?: AgentId[],
+	progress?: AllLoadProgress,
+): Promise<AllRow[]> {
 	if (options.offline === true) {
-		return loadAllRowsWithContext(kind, options, {});
+		return loadAllRowsWithContext(kind, options, { progress }, agents);
 	}
 
 	using pricingFetcher = new LiteLLMPricingFetcher({ logger });
-	return await loadAllRowsWithContext(kind, options, { pricingFetcher });
+	return await loadAllRowsWithContext(kind, options, { pricingFetcher, progress }, agents);
 }
 
 function calculateTotals(rows: AllRow[]): Omit<AllRow, 'period' | 'agent' | 'modelsUsed'> {
@@ -746,14 +777,55 @@ function toJsonRows(rows: AllRow[]): AllRow[] {
 	return rows.map(({ agentBreakdowns: _agentBreakdowns, ...row }) => row);
 }
 
+function shouldShowAllLoadProgress(options: AllOptions): boolean {
+	return options.json !== true && process.stdout.isTTY === true;
+}
+
+function formatRowCount(rows: number): string {
+	return `${rows} ${rows === 1 ? 'row' : 'rows'}`;
+}
+
+function createAllLoadProgress(enabled: boolean): AllLoadProgress | undefined {
+	if (!enabled) {
+		return undefined;
+	}
+	const spinners = new Map<AgentId, Spinner>();
+	return {
+		start(agent) {
+			const spinner = new Spinner(`${agentLabels[agent]} :: loading usage logs`);
+			spinners.set(agent, spinner);
+			spinner.start();
+		},
+		succeed(agent, rows) {
+			const spinner = spinners.get(agent);
+			spinner?.succeed(`${agentLabels[agent]} :: ${formatRowCount(rows)}`);
+		},
+		fail(agent, error) {
+			const spinner = spinners.get(agent);
+			spinner?.fail(
+				`${agentLabels[agent]} :: ${error instanceof Error ? error.message : String(error)}`,
+			);
+		},
+		stop() {
+			for (const spinner of spinners.values()) {
+				if (spinner.running) {
+					spinner.stop();
+				}
+			}
+			spinners.clear();
+		},
+	};
+}
+
 async function runAllReport(kind: ReportKind, options: AllOptions): Promise<void> {
 	if (options.json === true) {
 		logger.level = 0;
 	}
 
 	const title = `Coding Agent Usage Report - ${kind[0]!.toUpperCase()}${kind.slice(1)}`;
+	let detectedAgents: AgentId[] | undefined;
 	if (options.json !== true) {
-		const detectedAgents = await detectAllAgents(options);
+		detectedAgents = await detectAllAgents(options);
 		const detectedAgentLabels = detectedAgents
 			.sort(compareStrings)
 			.map((agent) => agentLabels[agent])
@@ -762,13 +834,16 @@ async function runAllReport(kind: ReportKind, options: AllOptions): Promise<void
 	}
 
 	let rows: AllRow[];
+	const progress = createAllLoadProgress(shouldShowAllLoadProgress(options));
 	try {
-		rows = await loadAllRows(kind, options);
+		rows = await loadAllRows(kind, options, detectedAgents, progress);
 	} catch (error) {
+		progress?.stop();
 		logger.error(String(error));
 		process.exitCode = 1;
 		return;
 	}
+	progress?.stop();
 
 	const totals = calculateTotals(rows);
 	if (options.json === true) {
@@ -935,6 +1010,36 @@ if (import.meta.vitest != null) {
 					metadata: { agents: ['codex', 'opencode'] },
 				}),
 			);
+		});
+	});
+
+	describe('shouldShowAllLoadProgress', () => {
+		const descriptor = Object.getOwnPropertyDescriptor(process.stdout, 'isTTY');
+
+		afterEach(() => {
+			if (descriptor == null) {
+				delete (process.stdout as { isTTY?: boolean }).isTTY;
+				return;
+			}
+			Object.defineProperty(process.stdout, 'isTTY', descriptor);
+		});
+
+		it('does not show progress in JSON mode even on a TTY', () => {
+			Object.defineProperty(process.stdout, 'isTTY', { configurable: true, value: true });
+
+			expect(shouldShowAllLoadProgress({ json: true })).toBe(false);
+		});
+
+		it('shows progress only for table output on a TTY', () => {
+			Object.defineProperty(process.stdout, 'isTTY', { configurable: true, value: true });
+
+			expect(shouldShowAllLoadProgress({ json: false })).toBe(true);
+		});
+
+		it('does not show progress when stdout is not a TTY', () => {
+			Object.defineProperty(process.stdout, 'isTTY', { configurable: true, value: false });
+
+			expect(shouldShowAllLoadProgress({ json: false })).toBe(false);
 		});
 	});
 }
