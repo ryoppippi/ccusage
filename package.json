@@ -39,6 +39,8 @@
 		"prerelease": "pnpm run --filter '*' prerelease",
 		"release": "pnpm bumpp -r",
 		"postrelease": "git checkout ./**/package.json package.json",
+		"sync:skills": "bun scripts/sync-skills.ts",
+		"sync:skills:check": "bun scripts/sync-skills.ts --check",
 		"test": "TZ=UTC vitest run",
 		"typecheck": "pnpm run --filter '*' typecheck"
 	},
