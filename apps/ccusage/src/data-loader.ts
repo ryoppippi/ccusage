@@ -1765,6 +1765,9 @@ type EncodedSessionDataEntries = {
 	count: number;
 	numbers: Float64Array;
 	flags: Uint8Array;
+	sessionKey: string;
+	sessionId: string;
+	projectPath: string;
 	strings: Array<string | null>;
 };
 
@@ -1938,15 +1941,17 @@ function forEachDailyDataEntry(
 /**
  * Use the same columnar worker payload shape for session rows as daily rows.
  *
- * Session reports still need more strings per row than daily reports, but moving numeric fields and
- * flags into transfer-list buffers avoids cloning one nested array per usage entry.
+ * Each encoded session payload represents one JSONL file, so `sessionKey`, `sessionId`, and
+ * `projectPath` are file-level constants. Keeping those strings outside the per-row side array
+ * avoids repeatedly cloning identical metadata when workers return many rows from one session file.
  */
 function encodeSessionDataEntries(entries: SessionDataEntry[]): EncodedSessionDataEntries {
 	const count = entries.length;
 	const numbers = new Float64Array(count * 6);
 	const flags = new Uint8Array(count);
 	const strings: Array<string | null> = [];
-	strings.length = count * 7;
+	strings.length = count * 4;
+	const firstEntry = entries[0];
 
 	for (let index = 0; index < count; index++) {
 		const entry = entries[index]!;
@@ -1959,14 +1964,11 @@ function encodeSessionDataEntries(entries: SessionDataEntry[]): EncodedSessionDa
 		numbers[numberOffset + 5] = entry.tokenTotal;
 		flags[index] = entry.hasSpeed ? 1 : 0;
 
-		const stringOffset = index * 7;
-		strings[stringOffset] = entry.sessionKey;
-		strings[stringOffset + 1] = entry.sessionId;
-		strings[stringOffset + 2] = entry.projectPath;
-		strings[stringOffset + 3] = entry.timestamp;
-		strings[stringOffset + 4] = entry.model ?? null;
-		strings[stringOffset + 5] = entry.uniqueHash;
-		strings[stringOffset + 6] = entry.version ?? null;
+		const stringOffset = index * 4;
+		strings[stringOffset] = entry.timestamp;
+		strings[stringOffset + 1] = entry.model ?? null;
+		strings[stringOffset + 2] = entry.uniqueHash;
+		strings[stringOffset + 3] = entry.version ?? null;
 	}
 
 	return {
@@ -1974,6 +1976,9 @@ function encodeSessionDataEntries(entries: SessionDataEntry[]): EncodedSessionDa
 		count,
 		numbers,
 		flags,
+		sessionKey: firstEntry?.sessionKey ?? '',
+		sessionId: firstEntry?.sessionId ?? '',
+		projectPath: firstEntry?.projectPath ?? '',
 		strings,
 	};
 }
@@ -1999,22 +2004,22 @@ function forEachSessionDataEntry(
 ): void {
 	for (let index = 0; index < encoded.count; index++) {
 		const numberOffset = index * 6;
-		const stringOffset = index * 7;
+		const stringOffset = index * 4;
 		onEntry({
-			sessionKey: encoded.strings[stringOffset]!,
-			sessionId: encoded.strings[stringOffset + 1]!,
-			projectPath: encoded.strings[stringOffset + 2]!,
+			sessionKey: encoded.sessionKey,
+			sessionId: encoded.sessionId,
+			projectPath: encoded.projectPath,
 			cost: encoded.numbers[numberOffset]!,
-			timestamp: encoded.strings[stringOffset + 3]!,
-			model: encoded.strings[stringOffset + 4] ?? undefined,
+			timestamp: encoded.strings[stringOffset]!,
+			model: encoded.strings[stringOffset + 1] ?? undefined,
 			inputTokens: encoded.numbers[numberOffset + 1]!,
 			outputTokens: encoded.numbers[numberOffset + 2]!,
 			cacheCreationTokens: encoded.numbers[numberOffset + 3]!,
 			cacheReadTokens: encoded.numbers[numberOffset + 4]!,
-			uniqueHash: encoded.strings[stringOffset + 5] ?? null,
+			uniqueHash: encoded.strings[stringOffset + 2] ?? null,
 			tokenTotal: encoded.numbers[numberOffset + 5]!,
 			hasSpeed: encoded.flags[index] === 1,
-			version: (encoded.strings[stringOffset + 6] ?? undefined) as Version | undefined,
+			version: (encoded.strings[stringOffset + 3] ?? undefined) as Version | undefined,
 		});
 	}
 }
@@ -6879,8 +6884,8 @@ if (import.meta.vitest != null) {
 					version: '1.2.3' as Version,
 				},
 				{
-					sessionKey: 'project/session-b',
-					sessionId: 'session-b',
+					sessionKey: 'project/session-a',
+					sessionId: 'session-a',
 					projectPath: 'project',
 					cost: 0,
 					timestamp: '2026-05-14T02:03:04.000Z',
