@@ -2,16 +2,9 @@
 
 import { join, relative, resolve } from 'node:path';
 import process from 'node:process';
+import { createFixture } from 'fs-fixture';
+import { cli, define } from 'gunshi';
 import { measure } from 'mitata';
-
-type Options = {
-	baseDir?: string;
-	fixtureDir?: string;
-	headDir?: string;
-	output?: string;
-	runs: number;
-	warmup: number;
-};
 
 type CommandMeasurement = {
 	max: number;
@@ -31,79 +24,6 @@ type SizeComparison = {
 	head: number;
 };
 
-function parseArgs(args: string[]): Options {
-	const options: Options = {
-		runs: 7,
-		warmup: 2,
-	};
-
-	for (let index = 0; index < args.length; index++) {
-		const arg = args[index];
-		const value = args[index + 1];
-		if (arg == null) {
-			continue;
-		}
-		switch (arg) {
-			case '--base-dir':
-				if (value == null) {
-					throw new Error('--base-dir requires a value');
-				}
-				options.baseDir = resolve(value);
-				index++;
-				break;
-			case '--head-dir':
-				if (value == null) {
-					throw new Error('--head-dir requires a value');
-				}
-				options.headDir = resolve(value);
-				index++;
-				break;
-			case '--fixture-dir':
-				if (value == null) {
-					throw new Error('--fixture-dir requires a value');
-				}
-				options.fixtureDir = resolve(value);
-				index++;
-				break;
-			case '--output':
-				if (value == null) {
-					throw new Error('--output requires a value');
-				}
-				options.output = resolve(value);
-				index++;
-				break;
-			case '--runs':
-				if (value == null) {
-					throw new Error('--runs requires a value');
-				}
-				options.runs = Number.parseInt(value, 10);
-				index++;
-				break;
-			case '--warmup':
-				if (value == null) {
-					throw new Error('--warmup requires a value');
-				}
-				options.warmup = Number.parseInt(value, 10);
-				index++;
-				break;
-			default:
-				throw new Error(`Unknown option: ${arg}`);
-		}
-	}
-
-	if (options.baseDir == null || options.headDir == null || options.fixtureDir == null) {
-		throw new Error('--base-dir, --head-dir, and --fixture-dir are required');
-	}
-	if (!Number.isInteger(options.runs) || options.runs < 1) {
-		throw new Error('--runs must be a positive integer');
-	}
-	if (!Number.isInteger(options.warmup) || options.warmup < 0) {
-		throw new Error('--warmup must be a non-negative integer');
-	}
-
-	return options;
-}
-
 function distDir(repoDir: string): string {
 	return join(repoDir, 'apps', 'ccusage', 'dist');
 }
@@ -112,13 +32,59 @@ function builtEntry(repoDir: string): string {
 	return join(distDir(repoDir), 'index.js');
 }
 
-async function directorySizeBytes(dir: string): Promise<number> {
-	let total = 0;
-	const glob = new Bun.Glob('**/*');
-	for await (const path of glob.scan({ cwd: dir, onlyFiles: true })) {
-		total += Bun.file(join(dir, path)).size;
+/**
+ * Returns the size of the package artifact that would be published for ccusage.
+ *
+ * Raw `dist/` size is misleading now that sourcemaps are generated for local debugging but
+ * excluded from `package.json#files`. `pnpm pack` applies the same prepack and files filtering as
+ * publish, so the PR comment reports the artifact users would actually download. The original
+ * package.json is restored because the prepack pipeline intentionally rewrites it for publish.
+ */
+async function packedTarballSizeBytes(repoDir: string): Promise<number> {
+	const packageDir = join(repoDir, 'apps', 'ccusage');
+	const packageJsonPath = join(packageDir, 'package.json');
+	const originalPackageJson = await Bun.file(packageJsonPath).text();
+	await using fixture = await createFixture({});
+	try {
+		const output = await Bun.$`pnpm pack --json --pack-destination ${fixture.path}`
+			.cwd(packageDir)
+			.nothrow()
+			.quiet();
+		if (output.exitCode !== 0) {
+			const trimmedStderr = output.stderr.toString().trim();
+			const trimmedStdout = output.stdout.toString().trim();
+			const message =
+				trimmedStderr.length > 0
+					? trimmedStderr
+					: trimmedStdout.length > 0
+						? trimmedStdout
+						: `exit ${output.exitCode}`;
+			throw new Error(`pnpm pack failed: ${message}`);
+		}
+		const packResult = parsePnpmPackJson(output.stdout.toString());
+		const filename = packResult.filename;
+		if (filename == null) {
+			throw new Error('pnpm pack did not report a tarball filename');
+		}
+		return Bun.file(filename).size;
+	} finally {
+		await Bun.write(packageJsonPath, originalPackageJson);
 	}
-	return total;
+}
+
+/**
+ * Reads the tarball path from `pnpm pack --json` output.
+ *
+ * `pnpm pack` can print lifecycle logs before its final JSON object because this
+ * package runs a prepack build. The perf comment needs the publish artifact size,
+ * so it intentionally parses the last JSON object instead of treating stdout as
+ * a single clean JSON document.
+ */
+function parsePnpmPackJson(stdout: string): { filename: string } {
+	const trimmed = stdout.trim();
+	const start = trimmed.lastIndexOf('\n{');
+	const jsonText = start === -1 ? trimmed : trimmed.slice(start + 1);
+	return JSON.parse(jsonText) as { filename: string };
 }
 
 function formatDuration(milliseconds: number): string {
@@ -132,32 +98,27 @@ function formatSize(bytes: number): string {
 }
 
 async function runCcusage(repoDir: string, fixtureDir: string, command: string): Promise<void> {
-	const proc = Bun.spawn(
-		['pnpm', 'exec', 'bun', '-b', builtEntry(repoDir), command, '--offline', '--json'],
-		{
-			cwd: repoDir,
-			stdin: 'ignore',
-			stdout: 'ignore',
-			stderr: 'pipe',
-			env: {
-				...Bun.env,
-				CLAUDE_CONFIG_DIR: fixtureDir,
-				COLUMNS: '200',
-				LOG_LEVEL: '0',
-				NO_COLOR: '1',
-				TZ: 'UTC',
-			},
-		},
-	);
-	const exitCode = await proc.exited;
+	const output = await Bun.$`pnpm exec bun -b ${builtEntry(repoDir)} ${command} --offline --json`
+		.cwd(repoDir)
+		.env({
+			...Bun.env,
+			CLAUDE_CONFIG_DIR: fixtureDir,
+			COLUMNS: '200',
+			LOG_LEVEL: '0',
+			NO_COLOR: '1',
+			TZ: 'UTC',
+		})
+		.nothrow()
+		.quiet();
 
-	if (exitCode !== 0) {
+	if (output.exitCode !== 0) {
 		const relativeLabel = relative(process.cwd(), repoDir);
 		const label = relativeLabel.length === 0 ? repoDir : relativeLabel;
-		const stderr = await new Response(proc.stderr).text();
-		const trimmedStderr = stderr.trim();
+		const trimmedStderr = output.stderr.toString().trim();
 		throw new Error(
-			`${label} ${command} failed: ${trimmedStderr.length === 0 ? `exit ${exitCode}` : trimmedStderr}`,
+			`${label} ${command} failed: ${
+				trimmedStderr.length === 0 ? `exit ${output.exitCode}` : trimmedStderr
+			}`,
 		);
 	}
 }
@@ -166,7 +127,7 @@ async function measureCommand(
 	repoDir: string,
 	fixtureDir: string,
 	command: string,
-	options: Required<Pick<Options, 'runs' | 'warmup'>>,
+	options: { runs: number; warmup: number },
 ): Promise<CommandMeasurement> {
 	for (let index = 0; index < options.warmup; index++) {
 		await runCcusage(repoDir, fixtureDir, command);
@@ -194,7 +155,13 @@ async function measureCommand(
 
 async function compareCommand(
 	command: string,
-	options: Required<Pick<Options, 'baseDir' | 'fixtureDir' | 'headDir' | 'runs' | 'warmup'>>,
+	options: {
+		baseDir: string;
+		fixtureDir: string;
+		headDir: string;
+		runs: number;
+		warmup: number;
+	},
 ): Promise<CommandResult> {
 	const base = await measureCommand(options.baseDir, options.fixtureDir, command, options);
 	const head = await measureCommand(options.headDir, options.fixtureDir, command, options);
@@ -209,7 +176,7 @@ async function compareCommand(
 function renderMarkdown(
 	results: CommandResult[],
 	sizes: SizeComparison,
-	options: Required<Pick<Options, 'fixtureDir' | 'headDir' | 'runs' | 'warmup'>>,
+	options: { fixtureDir: string; headDir: string; runs: number; warmup: number },
 ): string {
 	const lines = [
 		'<!-- ccusage-perf-comment -->',
@@ -235,44 +202,90 @@ function renderMarkdown(
 	const sizeRatio = sizes.base / sizes.head;
 	lines.push(
 		'',
-		'| Bundle | Base | PR | Delta | Ratio |',
+		'| Package | Base | PR | Delta | Ratio |',
 		'| --- | ---: | ---: | ---: | ---: |',
-		`| \`apps/ccusage/dist\` total | ${formatSize(sizes.base)} | ${formatSize(sizes.head)} | ${sizeDelta >= 0 ? '+' : ''}${formatSize(sizeDelta)} | ${sizeRatio.toFixed(2)}x |`,
+		`| packed \`ccusage-*.tgz\` | ${formatSize(sizes.base)} | ${formatSize(sizes.head)} | ${sizeDelta >= 0 ? '+' : ''}${formatSize(sizeDelta)} | ${sizeRatio.toFixed(2)}x |`,
 		'',
-		'Lower medians and smaller bundle sizes are better. CI runner noise still applies; use same-run ratios as directional PR feedback, not release guarantees.',
+		'Lower medians and smaller packed package sizes are better. CI runner noise still applies; use same-run ratios as directional PR feedback, not release guarantees.',
 		'',
 	);
 
 	return `${lines.join('\n')}\n`;
 }
 
-const options = parseArgs(Bun.argv.slice(2));
-if (options.baseDir == null || options.headDir == null || options.fixtureDir == null) {
-	throw new Error('unreachable');
-}
+const command = define({
+	name: 'compare-pr-performance',
+	description: 'Compare ccusage fixture performance between two built repository directories',
+	toKebab: true,
+	args: {
+		baseDir: {
+			type: 'string',
+			required: true,
+			description: 'Base repository directory',
+		},
+		headDir: {
+			type: 'string',
+			required: true,
+			description: 'PR/head repository directory',
+		},
+		fixtureDir: {
+			type: 'string',
+			required: true,
+			description: 'Claude fixture directory used as CLAUDE_CONFIG_DIR',
+		},
+		output: {
+			type: 'string',
+			description: 'Markdown output file path',
+		},
+		runs: {
+			type: 'number',
+			default: 7,
+			description: 'Measured mitata samples per command',
+		},
+		warmup: {
+			type: 'number',
+			default: 2,
+			description: 'Explicit warmup runs before each measured command',
+		},
+	},
+	async run(ctx) {
+		if (!Number.isInteger(ctx.values.runs) || ctx.values.runs < 1) {
+			throw new Error('--runs must be a positive integer');
+		}
+		if (!Number.isInteger(ctx.values.warmup) || ctx.values.warmup < 0) {
+			throw new Error('--warmup must be a non-negative integer');
+		}
 
-const requiredOptions = {
-	baseDir: options.baseDir,
-	fixtureDir: options.fixtureDir,
-	headDir: options.headDir,
-	runs: options.runs,
-	warmup: options.warmup,
-};
-const commands = ['daily', 'session', 'blocks'];
+		const options = {
+			baseDir: resolve(ctx.values.baseDir),
+			fixtureDir: resolve(ctx.values.fixtureDir),
+			headDir: resolve(ctx.values.headDir),
+			runs: ctx.values.runs,
+			warmup: ctx.values.warmup,
+		};
+		const commands = ['daily', 'session', 'blocks'];
 
-const results: CommandResult[] = [];
-for (const command of commands) {
-	results.push(await compareCommand(command, requiredOptions));
-}
+		const results: CommandResult[] = [];
+		for (const command of commands) {
+			results.push(await compareCommand(command, options));
+		}
 
-const sizes = {
-	base: await directorySizeBytes(distDir(options.baseDir)),
-	head: await directorySizeBytes(distDir(options.headDir)),
-};
+		const sizes = {
+			base: await packedTarballSizeBytes(options.baseDir),
+			head: await packedTarballSizeBytes(options.headDir),
+		};
 
-const markdown = renderMarkdown(results, sizes, requiredOptions);
-if (options.output == null) {
-	await Bun.write(Bun.stdout, markdown);
-} else {
-	await Bun.write(options.output, markdown);
-}
+		const markdown = renderMarkdown(results, sizes, options);
+		if (ctx.values.output == null) {
+			await Bun.write(Bun.stdout, markdown);
+		} else {
+			await Bun.write(resolve(ctx.values.output), markdown);
+		}
+	},
+});
+
+await cli(Bun.argv.slice(2), command, {
+	name: 'compare-pr-performance',
+	description: 'Compare ccusage fixture performance between two built repository directories',
+	renderHeader: null,
+});
