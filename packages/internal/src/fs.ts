@@ -1,6 +1,6 @@
-import { readdir } from 'node:fs/promises';
+import { mkdir, mkdtemp, readdir, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { createFixture } from 'fs-fixture';
 import { compareStrings } from './sort.ts';
 
 export type CollectFilesOptions = {
@@ -53,24 +53,25 @@ export async function collectFilesRecursive(
 if (import.meta.vitest != null) {
 	describe('collectFilesRecursive', () => {
 		it('collects matching files recursively in stable order', async () => {
-			await using fixture = await createFixture({
-				'a.jsonl': '{}',
-				nested: {
-					'b.jsonl': '{}',
-					'ignore.txt': 'nope',
-				},
-				z: {
-					'c.jsonl': '{}',
-				},
-			});
+			const directory = await mkdtemp(path.join(tmpdir(), 'ccusage-fs-'));
+			try {
+				await mkdir(path.join(directory, 'nested'), { recursive: true });
+				await mkdir(path.join(directory, 'z'), { recursive: true });
+				await writeFile(path.join(directory, 'a.jsonl'), '{}');
+				await writeFile(path.join(directory, 'nested', 'b.jsonl'), '{}');
+				await writeFile(path.join(directory, 'nested', 'ignore.txt'), 'nope');
+				await writeFile(path.join(directory, 'z', 'c.jsonl'), '{}');
 
-			const files = await collectFilesRecursive(fixture.path, { extension: '.jsonl' });
+				const files = await collectFilesRecursive(directory, { extension: '.jsonl' });
 
-			expect(files.map((file) => path.relative(fixture.path, file))).toEqual([
-				'a.jsonl',
-				path.join('nested', 'b.jsonl'),
-				path.join('z', 'c.jsonl'),
-			]);
+				expect(files.map((file) => path.relative(directory, file))).toEqual([
+					'a.jsonl',
+					path.join('nested', 'b.jsonl'),
+					path.join('z', 'c.jsonl'),
+				]);
+			} finally {
+				await rm(directory, { force: true, recursive: true });
+			}
 		});
 
 		it('returns an empty list for unreadable or missing directories', async () => {

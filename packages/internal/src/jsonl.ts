@@ -66,6 +66,7 @@ export async function readBufferedJSONLContent(filePath: string): Promise<string
 		if (file.size <= MAX_BUFFERED_JSONL_BYTES) {
 			return file.text();
 		}
+		return null;
 	}
 
 	const file = await open(filePath, 'r');

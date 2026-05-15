@@ -93,7 +93,7 @@ const contextThresholdSchema = v.pipe(
 	v.maxValue(100, 'Context threshold must be at most 100'),
 );
 
-function parseContextThreshold(value: string): number {
+function parseContextThreshold(value: unknown): number {
 	return v.parse(contextThresholdSchema, value);
 }
 
@@ -138,15 +138,13 @@ export const statuslineCommand = define({
 			default: DEFAULT_REFRESH_INTERVAL_SECONDS,
 		},
 		contextLowThreshold: {
-			type: 'custom',
+			type: 'number',
 			description: 'Context usage percentage below which status is shown in green (0-100)',
-			parse: (value) => parseContextThreshold(value),
 			default: DEFAULT_CONTEXT_USAGE_THRESHOLDS.LOW,
 		},
 		contextMediumThreshold: {
-			type: 'custom',
+			type: 'number',
 			description: 'Context usage percentage below which status is shown in yellow (0-100)',
-			parse: (value) => parseContextThreshold(value),
 			default: DEFAULT_CONTEXT_USAGE_THRESHOLDS.MEDIUM,
 		},
 		config: sharedArgs.config,
@@ -156,10 +154,13 @@ export const statuslineCommand = define({
 		// Set logger to silent for statusline output
 		logger.level = 0;
 
+		const contextLowThreshold = parseContextThreshold(ctx.values.contextLowThreshold);
+		const contextMediumThreshold = parseContextThreshold(ctx.values.contextMediumThreshold);
+
 		// Validate threshold ordering constraint: LOW must be less than MEDIUM
-		if (ctx.values.contextLowThreshold >= ctx.values.contextMediumThreshold) {
+		if (contextLowThreshold >= contextMediumThreshold) {
 			throw new Error(
-				`Context low threshold (${ctx.values.contextLowThreshold}) must be less than medium threshold (${ctx.values.contextMediumThreshold})`,
+				`Context low threshold (${contextLowThreshold}) must be less than medium threshold (${contextMediumThreshold})`,
 			);
 		}
 

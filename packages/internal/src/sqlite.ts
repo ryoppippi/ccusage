@@ -77,12 +77,15 @@ function loadNodeSqliteDatabaseFactory(warn?: SqliteWarningLogger): SqliteDataba
 	const emitWarning = process.emitWarning.bind(process);
 
 	try {
-		process.emitWarning = ((warning: Error | string) => {
+		process.emitWarning = ((warning: Error | string, ...args: unknown[]) => {
 			if (isSqliteExperimentalWarning(warning)) {
 				return;
 			}
 
-			return emitWarning(warning);
+			return (emitWarning as (warning: Error | string, ...args: unknown[]) => void)(
+				warning,
+				...args,
+			);
 		}) as typeof process.emitWarning;
 
 		const sqlite = nodeRequire('node:sqlite') as NodeSqliteModule;

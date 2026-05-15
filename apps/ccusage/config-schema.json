@@ -427,13 +427,13 @@
 									"default": 1
 								},
 								"contextLowThreshold": {
-									"type": "string",
+									"type": "number",
 									"description": "Context usage percentage below which status is shown in green (0-100)",
 									"markdownDescription": "Context usage percentage below which status is shown in green (0-100)",
 									"default": 50
 								},
 								"contextMediumThreshold": {
-									"type": "string",
+									"type": "number",
 									"description": "Context usage percentage below which status is shown in yellow (0-100)",
 									"markdownDescription": "Context usage percentage below which status is shown in yellow (0-100)",
 									"default": 80
@@ -970,13 +970,13 @@
 									"default": 1
 								},
 								"contextLowThreshold": {
-									"type": "string",
+									"type": "number",
 									"description": "Context usage percentage below which status is shown in green (0-100)",
 									"markdownDescription": "Context usage percentage below which status is shown in green (0-100)",
 									"default": 50
 								},
 								"contextMediumThreshold": {
-									"type": "string",
+									"type": "number",
 									"description": "Context usage percentage below which status is shown in yellow (0-100)",
 									"markdownDescription": "Context usage percentage below which status is shown in yellow (0-100)",
 									"default": 80

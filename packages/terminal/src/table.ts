@@ -841,6 +841,9 @@ export function createUsageReportTable(config: UsageReportConfig): ResponsiveTab
 		compactAligns.push('left');
 	}
 
+	const flexibleColumnIndex = baseHeaders.indexOf('Models');
+	const compactFlexibleColumnIndex = compactHeaders.indexOf('Models');
+
 	return new ResponsiveTable({
 		head: baseHeaders,
 		style: { head: ['cyan'] },
@@ -850,8 +853,9 @@ export function createUsageReportTable(config: UsageReportConfig): ResponsiveTab
 		compactColAligns: compactAligns,
 		minColumnWidths,
 		compactMinColumnWidths,
-		flexibleColumnIndex: baseHeaders.indexOf('Models'),
-		compactFlexibleColumnIndex: compactHeaders.indexOf('Models'),
+		flexibleColumnIndex: flexibleColumnIndex === -1 ? undefined : flexibleColumnIndex,
+		compactFlexibleColumnIndex:
+			compactFlexibleColumnIndex === -1 ? undefined : compactFlexibleColumnIndex,
 		compactThreshold: 100,
 		forceCompact: config.forceCompact,
 	});

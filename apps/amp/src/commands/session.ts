@@ -213,7 +213,7 @@ export const sessionCommand = define({
 		await writeStdoutLine(table.toString());
 
 		if (table.isCompactMode()) {
-			logger.info('\nRunning in Compact Mode');
+			logger.info('Running in Compact Mode');
 			logger.info('Expand terminal width to see cache metrics and total tokens');
 		}
 	},
