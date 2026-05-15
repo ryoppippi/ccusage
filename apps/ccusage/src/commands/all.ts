@@ -108,7 +108,8 @@ const allArgs = {
 	},
 	all: {
 		type: 'boolean',
-		description: 'Include all detected supported agents',
+		description:
+			'Accepted for compatibility; all detected supported agents are included by default',
 		default: false,
 	},
 	compact: {
@@ -580,7 +581,11 @@ async function loadAmpRows(
 		group.row.outputTokens += event.outputTokens;
 		group.row.cacheCreationTokens += event.cacheCreationInputTokens;
 		group.row.cacheReadTokens += event.cacheReadInputTokens;
-		group.row.totalTokens += event.inputTokens + event.outputTokens;
+		group.row.totalTokens +=
+			event.inputTokens +
+			event.outputTokens +
+			event.cacheCreationInputTokens +
+			event.cacheReadInputTokens;
 		group.row.totalCost += await pricingSource.calculateCost(event.model, {
 			inputTokens: event.inputTokens,
 			outputTokens: event.outputTokens,

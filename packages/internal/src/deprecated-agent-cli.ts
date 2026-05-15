@@ -44,7 +44,14 @@ async function resolveCcusageCliPath(): Promise<string> {
 export async function runDeprecatedAgentCli(options: DeprecatedAgentCliOptions): Promise<number> {
 	process.stderr.write(formatDeprecatedAgentWarning(options.packageName, options.agent));
 	const args = stripDeprecatedAgentBinaryName(process.argv.slice(2), options.binaryName);
-	const cliPath = await resolveCcusageCliPath();
+	let cliPath: string;
+	try {
+		cliPath = await resolveCcusageCliPath();
+	} catch (error) {
+		const message = error instanceof Error ? error.message : String(error);
+		process.stderr.write(`${message}\n`);
+		return 1;
+	}
 	const child = spawn(process.execPath, [cliPath, options.agent, ...args], { stdio: 'inherit' });
 
 	return new Promise((resolve) => {

@@ -258,7 +258,7 @@ export async function loadPiAgentData(options?: LoadOptions): Promise<EntryData[
 
 	for (const fileEntries of fileResults) {
 		for (const entry of fileEntries) {
-			const hash = `pi:${entry.timestamp}:${entry.tokenTotal}`;
+			const hash = `pi:${entry.project}:${entry.sessionId}:${entry.timestamp}:${entry.tokenTotal}`;
 			if (processedHashes.has(hash)) {
 				continue;
 			}

@@ -59,6 +59,10 @@ export async function chunkIndexedItemsByFileSize<T>(
 	chunkCount: number,
 	getFilePath: (item: T) => string,
 ): Promise<Array<Array<IndexedWorkerItem<T>>>> {
+	if (!Number.isInteger(chunkCount) || chunkCount <= 0 || items.length === 0) {
+		return [];
+	}
+
 	const weightedItems = await Promise.all(
 		items.map(async (item) => {
 			try {
@@ -108,6 +112,14 @@ if (import.meta.vitest != null) {
 					envValue: '4',
 				}),
 			).toBe(4);
+		});
+	});
+
+	describe('chunkIndexedItemsByFileSize', () => {
+		it('returns no chunks for non-positive chunk counts', async () => {
+			await expect(
+				chunkIndexedItemsByFileSize([{ index: 0, item: '/missing.jsonl' }], 0, (item) => item),
+			).resolves.toEqual([]);
 		});
 	});
 }

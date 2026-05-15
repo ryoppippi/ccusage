@@ -37,7 +37,7 @@ This will show your daily usage report for all detected supported agents by defa
 
 When you run ccusage for the first time, you'll see a table showing detected coding agent usage by date:
 
-```
+```text
 ╭──────────────────────────────────────────╮
 │                                          │
 │  Coding Agent Usage Report - Daily       │
@@ -58,9 +58,9 @@ When you run ccusage for the first time, you'll see a table showing detected cod
 
 - **Date**: The date when an agent was used
 - **Agent**: The coding agent that generated the usage
-- **Models**: Which Claude models were used (Sonnet, Opus, etc.)
-- **Input**: Number of input tokens sent to Claude
-- **Output**: Number of output tokens received from Claude
+- **Models**: Which models were used
+- **Input**: Number of input tokens sent to the agent/model
+- **Output**: Number of output tokens received from the agent/model
 - **Cost (USD)**: Estimated cost based on model pricing
 
 ### Cache Tokens

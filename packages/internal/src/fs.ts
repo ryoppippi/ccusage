@@ -16,8 +16,15 @@ export async function collectFilesRecursive(
 		let entries;
 		try {
 			entries = await readdir(directory, { withFileTypes: true });
-		} catch {
-			return;
+		} catch (error) {
+			const code =
+				typeof error === 'object' && error != null && 'code' in error
+					? (error as { code?: string }).code
+					: undefined;
+			if (code === 'ENOENT' || code === 'ENOTDIR' || code === 'EACCES' || code === 'EPERM') {
+				return;
+			}
+			throw error;
 		}
 
 		const childWalks: Array<Promise<void>> = [];

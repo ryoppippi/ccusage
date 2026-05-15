@@ -32,11 +32,11 @@ deno run -E -R=$HOME/.local/share/opencode/ -S=homedir -N='raw.githubusercontent
 
 ### Recommended: Shell Alias
 
-Since `npx @ccusage/opencode@latest` is quite long to type repeatedly, we strongly recommend setting up a shell alias:
+Since `npx ccusage@latest opencode` is quite long to type repeatedly, we strongly recommend setting up a shell alias:
 
 ```bash
-# bash/zsh: alias ccusage-opencode='bunx @ccusage/opencode@latest'
-# fish:     alias ccusage-opencode 'bunx @ccusage/opencode@latest'
+# bash/zsh: alias ccusage-opencode='bunx ccusage@latest opencode'
+# fish:     alias ccusage-opencode 'bunx ccusage@latest opencode'
 
 # Then simply run:
 ccusage-opencode daily

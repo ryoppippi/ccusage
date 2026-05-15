@@ -156,7 +156,7 @@ function createAgentFixtureTree() {
 						timestamp: '2026-01-02T00:00:00.000Z',
 						message: {
 							role: 'assistant',
-							model: 'claude-opus-4-5',
+							model: 'claude-opus-4-20250514',
 							usage: {
 								input: 100,
 								output: 50,
@@ -375,7 +375,7 @@ describe('ccusage all-agent CLI', () => {
 				inputTokens: 400,
 				outputTokens: 200,
 				period: '2026-01-02',
-				totalTokens: 660,
+				totalTokens: 690,
 			}),
 		);
 		expect(output.daily[0]?.metadata?.agents).toEqual(['amp', 'codex', 'opencode', 'pi']);

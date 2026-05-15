@@ -29,11 +29,11 @@ pnpx ccusage pi
 
 ### Recommended: Shell Alias
 
-Since `npx @ccusage/pi@latest` is quite long to type repeatedly, we strongly recommend setting up a shell alias:
+Since `npx ccusage@latest pi` is quite long to type repeatedly, we strongly recommend setting up a shell alias:
 
 ```bash
-# bash/zsh: alias ccusage-pi='bunx @ccusage/pi@latest'
-# fish:     alias ccusage-pi 'bunx @ccusage/pi@latest'
+# bash/zsh: alias ccusage-pi='bunx ccusage@latest pi'
+# fish:     alias ccusage-pi 'bunx ccusage@latest pi'
 
 # Then simply run:
 ccusage-pi daily

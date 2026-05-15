@@ -229,7 +229,12 @@ export class LiteLLMPricingFetcher implements Disposable {
 			return Result.succeed(this.cachedPricing);
 		}
 
-		this.pricingLoadPromise ??= this.loadPricing();
+		this.pricingLoadPromise ??= Result.pipe(
+			this.loadPricing(),
+			Result.inspectError(() => {
+				this.pricingLoadPromise = null;
+			}),
+		);
 		return this.pricingLoadPromise;
 	}
 
@@ -432,6 +437,33 @@ if (import.meta.vitest != null) {
 				]);
 
 				expect(fetchSpy).toHaveBeenCalledTimes(1);
+			} finally {
+				fetchSpy.mockRestore();
+			}
+		});
+
+		it('retries online pricing after a failed load', async () => {
+			const fetchSpy = vi
+				.spyOn(globalThis, 'fetch')
+				.mockRejectedValueOnce(new Error('temporary network failure'))
+				.mockResolvedValueOnce({
+					ok: true,
+					json: async () => ({
+						'gpt-5': {
+							input_cost_per_token: 1e-6,
+							output_cost_per_token: 2e-6,
+						},
+					}),
+				} as Response);
+
+			try {
+				using fetcher = new LiteLLMPricingFetcher();
+				const firstResult = await fetcher.fetchModelPricing();
+				expect(Result.isFailure(firstResult)).toBe(true);
+
+				const pricing = await Result.unwrap(fetcher.fetchModelPricing());
+				expect(pricing.has('gpt-5')).toBe(true);
+				expect(fetchSpy).toHaveBeenCalledTimes(2);
 			} finally {
 				fetchSpy.mockRestore();
 			}

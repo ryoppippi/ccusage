@@ -127,8 +127,8 @@
 								},
 								"all": {
 									"type": "boolean",
-									"description": "Include all detected supported agents",
-									"markdownDescription": "Include all detected supported agents",
+									"description": "Accepted for compatibility; all detected supported agents are included by default",
+									"markdownDescription": "Accepted for compatibility; all detected supported agents are included by default",
 									"default": false
 								},
 								"compact": {
@@ -172,8 +172,8 @@
 								},
 								"all": {
 									"type": "boolean",
-									"description": "Include all detected supported agents",
-									"markdownDescription": "Include all detected supported agents",
+									"description": "Accepted for compatibility; all detected supported agents are included by default",
+									"markdownDescription": "Accepted for compatibility; all detected supported agents are included by default",
 									"default": false
 								},
 								"compact": {
@@ -217,8 +217,8 @@
 								},
 								"all": {
 									"type": "boolean",
-									"description": "Include all detected supported agents",
-									"markdownDescription": "Include all detected supported agents",
+									"description": "Accepted for compatibility; all detected supported agents are included by default",
+									"markdownDescription": "Accepted for compatibility; all detected supported agents are included by default",
 									"default": false
 								},
 								"compact": {
@@ -262,8 +262,8 @@
 								},
 								"all": {
 									"type": "boolean",
-									"description": "Include all detected supported agents",
-									"markdownDescription": "Include all detected supported agents",
+									"description": "Accepted for compatibility; all detected supported agents are included by default",
+									"markdownDescription": "Accepted for compatibility; all detected supported agents are included by default",
 									"default": false
 								},
 								"compact": {
