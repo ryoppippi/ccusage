@@ -7,10 +7,12 @@ import {
 	formatNumber,
 	ResponsiveTable,
 } from '@ccusage/terminal/table';
+import { Result } from '@praha/byethrow';
 import { define } from 'gunshi';
 import pc from 'picocolors';
 import { DEFAULT_TIMEZONE } from '../_consts.ts';
 import { sharedArgs } from '../_shared-args.ts';
+import { normalizeSpeedOption, resolveCodexSpeed } from '../codex-config.ts';
 import { formatModelsList, splitUsageTokens } from '../command-utils.ts';
 import { loadTokenUsageEvents } from '../data-loader.ts';
 import {
@@ -46,6 +48,16 @@ export const sessionCommand = define({
 			process.exit(1);
 		}
 
+		const speedOptionResult = Result.try({
+			try: () => normalizeSpeedOption(ctx.values.speed),
+			catch: (error) => error,
+		})();
+		if (Result.isFailure(speedOptionResult)) {
+			logger.error(String(speedOptionResult.error));
+			process.exit(1);
+		}
+		const speed = await resolveCodexSpeed(speedOptionResult.value);
+
 		const { events, missingDirectories } = await loadTokenUsageEvents();
 
 		for (const missing of missingDirectories) {
@@ -61,6 +73,7 @@ export const sessionCommand = define({
 
 		const pricingSource = new CodexPricingSource({
 			offline: ctx.values.offline,
+			speed,
 		});
 		try {
 			const rows = await buildSessionReport(events, {

@@ -14,13 +14,16 @@ npx @ccusage/codex@latest session
 
 ## Options
 
-| Flag                         | Description                                                              |
-| ---------------------------- | ------------------------------------------------------------------------ |
-| `--since` / `--until`        | Filter sessions by their activity date (YYYYMMDD or YYYY-MM-DD)          |
-| `--timezone`                 | Override the timezone used for date grouping and last-activity display   |
-| `--json`                     | Emit structured JSON (`{ sessions: [], totals: {} }`) instead of a table |
-| `--offline` / `--no-offline` | Force cached LiteLLM pricing or enable live fetching                     |
-| `--compact`                  | Force compact table layout (same columns as a narrow terminal)           |
+| Flag                           | Description                                                              |
+| ------------------------------ | ------------------------------------------------------------------------ |
+| `--since` / `--until`          | Filter sessions by their activity date (YYYYMMDD or YYYY-MM-DD)          |
+| `--timezone`                   | Override the timezone used for date grouping and last-activity display   |
+| `--json`                       | Emit structured JSON (`{ sessions: [], totals: {} }`) instead of a table |
+| `--offline` / `--no-offline`   | Force cached LiteLLM pricing or enable live fetching                     |
+| `--speed auto\|standard\|fast` | Cost speed tier; default `auto` reads Codex `config.toml`                |
+| `--compact`                    | Force compact table layout (same columns as a narrow terminal)           |
+
+With `--speed auto`, the command reads `${CODEX_HOME:-~/.codex}/config.toml` and applies fast pricing when `service_tier = "priority"` or legacy `service_tier = "fast"` is configured. Fast mode uses the model-specific LiteLLM multiplier when available and otherwise falls back to 2x pricing. Use `--speed fast` or `--speed standard` to override that config-based default.
 
 JSON output includes a `sessions` array with per-model breakdowns, cached token counts, `lastActivity`, and `isFallback` flags for any events that required the legacy `gpt-5` pricing fallback.
 

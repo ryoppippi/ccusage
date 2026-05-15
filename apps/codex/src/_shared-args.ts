@@ -31,6 +31,12 @@ export const sharedArgs = {
 		default: false,
 		negatable: true,
 	},
+	speed: {
+		type: 'string',
+		description:
+			'Cost speed tier: auto reads Codex config.toml service_tier; use standard or fast to override',
+		default: 'auto',
+	},
 	compact: {
 		type: 'boolean',
 		description: 'Force compact table layout for narrow terminals',

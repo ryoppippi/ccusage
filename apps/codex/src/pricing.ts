@@ -1,5 +1,6 @@
 import type { LiteLLMModelPricing } from '@ccusage/internal/pricing';
 import type { ModelPricing, PricingSource } from './_types.ts';
+import type { CodexSpeed } from './codex-config.ts';
 import { LiteLLMPricingFetcher } from '@ccusage/internal/pricing';
 import { Result } from '@praha/byethrow';
 import { MILLION } from './_consts.ts';
@@ -11,6 +12,7 @@ const CODEX_MODEL_ALIASES_MAP = new Map<string, string>([
 	['gpt-5-codex', 'gpt-5'],
 	['gpt-5.3-codex', 'gpt-5.2-codex'],
 ]);
+const CODEX_FAST_FALLBACK_MULTIPLIER = 2;
 const FREE_MODEL_PRICING = {
 	inputCostPerMToken: 0,
 	cachedInputCostPerMToken: 0,
@@ -42,14 +44,17 @@ function toPerMillion(value: number | undefined, fallback?: number): number {
 export type CodexPricingSourceOptions = {
 	offline?: boolean;
 	offlineLoader?: () => Promise<Record<string, LiteLLMModelPricing>>;
+	speed?: CodexSpeed;
 };
 
 const PREFETCHED_CODEX_PRICING = prefetchCodexPricing();
 
 export class CodexPricingSource implements PricingSource, Disposable {
 	private readonly fetcher: LiteLLMPricingFetcher;
+	private readonly speed: CodexSpeed;
 
 	constructor(options: CodexPricingSourceOptions = {}) {
+		this.speed = options.speed ?? 'standard';
 		this.fetcher = new LiteLLMPricingFetcher({
 			offline: options.offline ?? false,
 			offlineLoader: options.offlineLoader ?? (async () => PREFETCHED_CODEX_PRICING),
@@ -89,13 +94,17 @@ export class CodexPricingSource implements PricingSource, Disposable {
 			return FREE_MODEL_PRICING;
 		}
 
+		const speedMultiplier =
+			this.speed === 'fast'
+				? (pricing.provider_specific_entry?.fast ?? CODEX_FAST_FALLBACK_MULTIPLIER)
+				: 1;
+
 		return {
-			inputCostPerMToken: toPerMillion(pricing.input_cost_per_token),
-			cachedInputCostPerMToken: toPerMillion(
-				pricing.cache_read_input_token_cost,
-				pricing.input_cost_per_token,
-			),
-			outputCostPerMToken: toPerMillion(pricing.output_cost_per_token),
+			inputCostPerMToken: toPerMillion(pricing.input_cost_per_token) * speedMultiplier,
+			cachedInputCostPerMToken:
+				toPerMillion(pricing.cache_read_input_token_cost, pricing.input_cost_per_token) *
+				speedMultiplier,
+			outputCostPerMToken: toPerMillion(pricing.output_cost_per_token) * speedMultiplier,
 		};
 	}
 }
@@ -187,6 +196,45 @@ if (import.meta.vitest != null) {
 			expect(pricing.inputCostPerMToken).toBeCloseTo(1.9);
 			expect(pricing.outputCostPerMToken).toBeCloseTo(15);
 			expect(pricing.cachedInputCostPerMToken).toBeCloseTo(0.19);
+		});
+
+		it('applies fast speed multiplier when configured', async () => {
+			using source = new CodexPricingSource({
+				offline: true,
+				speed: 'fast',
+				offlineLoader: async () => ({
+					'gpt-5.3-codex': {
+						input_cost_per_token: 1.75e-6,
+						output_cost_per_token: 1.4e-5,
+						cache_read_input_token_cost: 1.75e-7,
+						provider_specific_entry: { fast: 2 },
+					},
+				}),
+			});
+
+			const pricing = await source.getPricing('gpt-5.3-codex');
+			expect(pricing.inputCostPerMToken).toBeCloseTo(3.5);
+			expect(pricing.outputCostPerMToken).toBeCloseTo(28);
+			expect(pricing.cachedInputCostPerMToken).toBeCloseTo(0.35);
+		});
+
+		it('uses the Codex fast fallback multiplier when pricing has no provider-specific value', async () => {
+			using source = new CodexPricingSource({
+				offline: true,
+				speed: 'fast',
+				offlineLoader: async () => ({
+					'gpt-5.3-codex': {
+						input_cost_per_token: 1.75e-6,
+						output_cost_per_token: 1.4e-5,
+						cache_read_input_token_cost: 1.75e-7,
+					},
+				}),
+			});
+
+			const pricing = await source.getPricing('gpt-5.3-codex');
+			expect(pricing.inputCostPerMToken).toBeCloseTo(3.5);
+			expect(pricing.outputCostPerMToken).toBeCloseTo(28);
+			expect(pricing.cachedInputCostPerMToken).toBeCloseTo(0.35);
 		});
 	});
 }
