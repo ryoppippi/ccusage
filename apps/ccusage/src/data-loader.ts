@@ -1074,7 +1074,8 @@ async function mapWithConcurrency<T, U>(
 
 	await Promise.all(
 		Array.from({ length: workerCount }, async () => {
-			for (;;) {
+			// Each async runner claims the next index from the shared counter until work is exhausted.
+			while (true) {
 				const index = nextIndex++;
 				if (index >= items.length) {
 					return;
@@ -1255,11 +1256,18 @@ async function processBufferedJSONLUsageBytes(
 	const content = Buffer.isBuffer(bytes)
 		? bytes
 		: Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-	let searchStart = 0;
-	let markerIndex = content.indexOf(USAGE_LINE_MARKER_BUFFER, searchStart);
+	let lineStart = 0;
+	let markerIndex = content.indexOf(USAGE_LINE_MARKER_BUFFER, lineStart);
 	while (markerIndex !== -1) {
-		const previousLineEnd = content.lastIndexOf(10, markerIndex);
-		const lineStart = previousLineEnd === -1 ? 0 : previousLineEnd + 1;
+		// Advance to the start of the marker's line without calling lastIndexOf for every usage row.
+		// This loop is monotonic: each newline is considered at most once across the whole buffer.
+		while (true) {
+			const nextLineEnd = content.indexOf(10, lineStart);
+			if (nextLineEnd === -1 || nextLineEnd >= markerIndex) {
+				break;
+			}
+			lineStart = nextLineEnd + 1;
+		}
 		let lineEnd = content.indexOf(10, markerIndex);
 		if (lineEnd === -1) {
 			lineEnd = content.length;
@@ -1268,8 +1276,8 @@ async function processBufferedJSONLUsageBytes(
 		const decodeEnd = lineEnd > lineStart && content[lineEnd - 1] === 13 ? lineEnd - 1 : lineEnd;
 		processLine(content.toString('utf8', lineStart, decodeEnd));
 
-		searchStart = lineEnd + 1;
-		markerIndex = content.indexOf(USAGE_LINE_MARKER_BUFFER, searchStart);
+		lineStart = lineEnd + 1;
+		markerIndex = content.indexOf(USAGE_LINE_MARKER_BUFFER, lineStart);
 	}
 }
 
