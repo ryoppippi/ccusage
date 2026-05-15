@@ -97,6 +97,33 @@ function parseContextThreshold(value: unknown): number {
 	return v.parse(contextThresholdSchema, value);
 }
 
+function formatContextInfo(
+	inputTokens: number,
+	contextLimit: number,
+	lowThreshold: number,
+	mediumThreshold: number,
+): string {
+	const percentage = Math.round((inputTokens / contextLimit) * 100);
+	const color = getContextColorFormatter(percentage, lowThreshold, mediumThreshold);
+	const coloredPercentage = color(`${percentage}%`);
+	const tokenDisplay = inputTokens.toLocaleString();
+	return `${tokenDisplay} (${coloredPercentage})`;
+}
+
+function getContextColorFormatter(
+	percentage: number,
+	lowThreshold: number,
+	mediumThreshold: number,
+): Formatter {
+	if (percentage < lowThreshold) {
+		return pc.green;
+	}
+	if (percentage < mediumThreshold) {
+		return pc.yellow;
+	}
+	return pc.red;
+}
+
 export const statuslineCommand = define({
 	name: 'statusline',
 	description:
@@ -457,20 +484,6 @@ export const statuslineCommand = define({
 						Result.unwrap({ blockInfo: 'No active block', burnRateInfo: '' }),
 					);
 
-					// Helper function to format context info with color coding
-					const formatContextInfo = (inputTokens: number, contextLimit: number): string => {
-						const percentage = Math.round((inputTokens / contextLimit) * 100);
-						const color =
-							percentage < ctx.values.contextLowThreshold
-								? pc.green
-								: percentage < ctx.values.contextMediumThreshold
-									? pc.yellow
-									: pc.red;
-						const coloredPercentage = color(`${percentage}%`);
-						const tokenDisplay = inputTokens.toLocaleString();
-						return `${tokenDisplay} (${coloredPercentage})`;
-					};
-
 					// Get context tokens from Claude Code hook data, or fall back to calculating from transcript
 					const contextDataResult =
 						hookData.context_window != null
@@ -501,7 +514,12 @@ export const statuslineCommand = define({
 							if (contextResult == null) {
 								return undefined;
 							}
-							return formatContextInfo(contextResult.inputTokens, contextResult.contextLimit);
+							return formatContextInfo(
+								contextResult.inputTokens,
+								contextResult.contextLimit,
+								contextLowThreshold,
+								contextMediumThreshold,
+							);
 						}),
 						Result.unwrap(undefined),
 					);
@@ -575,3 +593,13 @@ export const statuslineCommand = define({
 		}
 	},
 });
+
+if (import.meta.vitest != null) {
+	describe('getContextColorFormatter', () => {
+		it('uses the parsed threshold values supplied by the caller', () => {
+			expect(getContextColorFormatter(50, 60, 80)).toBe(pc.green);
+			expect(getContextColorFormatter(50, 40, 80)).toBe(pc.yellow);
+			expect(getContextColorFormatter(50, 20, 40)).toBe(pc.red);
+		});
+	});
+}

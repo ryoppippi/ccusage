@@ -799,40 +799,41 @@ Known working commands:
 
 ```sh
 cmux capabilities --json | jq '.methods | index("surface.read_text")'
-cmux list-pane-surfaces --workspace workspace:3 --json
-cmux read-screen --workspace workspace:3 --surface surface:15 --lines 80
-cmux capture-pane --workspace workspace:3 --surface surface:15 --scrollback --lines 120
+cmux list-pane-surfaces --workspace "$WORKSPACE_REF" --json
+cmux read-screen --workspace "$WORKSPACE_REF" --surface "$SURFACE_REF" --lines 80
+cmux capture-pane --workspace "$WORKSPACE_REF" --surface "$SURFACE_REF" --scrollback --lines 120
 ```
 
-For the current workspace, the target surface used for table debugging was:
+Set the target workspace/surface before running commands:
 
 ```txt
-workspace_ref=workspace:3
-workspace_id=B9875641-E1CC-478C-9C9F-30C668D534B6
-pane_ref=pane:9
-pane_id=65B8A208-9A65-4AFB-82E0-F7485DB068E0
-surface_ref=surface:15
-surface_id=1FC8C814-44DF-48FE-AC0B-1219002E5FDB
+WORKSPACE_REF=<workspace_ref>
+WORKSPACE_ID=<workspace_id>
+PANE_REF=<pane_ref>
+PANE_ID=<pane_id>
+SURFACE_REF=<surface_ref>
+SURFACE_ID=<surface_id>
+PROJECT_DIR=<project_dir>
 ```
 
 To run an arbitrary command in that surface and capture the rendered terminal:
 
 ```sh
-cmux send --workspace workspace:3 --surface surface:15 "printf '\\033c'; cd /Users/ryoppippi/ghq/github.com/ryoppippi/ccusage-wt/apply-all/apps/ccusage; ./dist/cli.js --offline\n"
-cmux capture-pane --workspace workspace:3 --surface surface:15 --scrollback --lines 120
+cmux send --workspace "$WORKSPACE_REF" --surface "$SURFACE_REF" "printf '\\033c'; cd \"$PROJECT_DIR\"; ./dist/cli.js --offline\n"
+cmux capture-pane --workspace "$WORKSPACE_REF" --surface "$SURFACE_REF" --scrollback --lines 120
 ```
 
 When testing responsive tables, capture both the command output and the terminal geometry from the same surface:
 
 ```sh
-cmux send --workspace workspace:3 --surface surface:15 "printf '\\033c'; stty size; printf 'COLUMNS=%s\n' \"$COLUMNS\"; ./dist/cli.js --offline\n"
-cmux read-screen --workspace workspace:3 --surface surface:15 --lines 120
+cmux send --workspace "$WORKSPACE_REF" --surface "$SURFACE_REF" "printf '\\033c'; stty size; printf 'COLUMNS=%s\n' \"\$COLUMNS\"; cd \"$PROJECT_DIR\"; ./dist/cli.js --offline\n"
+cmux read-screen --workspace "$WORKSPACE_REF" --surface "$SURFACE_REF" --lines 120
 ```
 
 If plain CLI output is needed for assertions, use the socket RPC method exposed by the production build:
 
 ```sh
-cmux rpc surface.read_text '{"workspace_id":"B9875641-E1CC-478C-9C9F-30C668D534B6","surface_id":"1FC8C814-44DF-48FE-AC0B-1219002E5FDB","scrollback":true,"lines":120}'
+cmux rpc surface.read_text "{\"workspace_id\":\"$WORKSPACE_ID\",\"surface_id\":\"$SURFACE_ID\",\"scrollback\":true,\"lines\":120}"
 ```
 
 ## Release Notes Draft
