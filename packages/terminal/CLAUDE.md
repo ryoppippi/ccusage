@@ -39,7 +39,7 @@ This package contains terminal utilities used across the ccusage monorepo:
 - `ansi-escapes` - ANSI escape sequences for terminal manipulation
 - `cli-table3` - Table formatting for terminal output
 - `es-toolkit` - Modern JavaScript utility library
-- `picocolors` - Terminal color support
+- `node:util` `styleText` via `@ccusage/internal/colors` - Terminal color support
 - `string-width` - Get the visual width of strings
 
 **Dev Dependencies:**

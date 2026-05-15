@@ -68,7 +68,6 @@
 		"fs-fixture": "catalog:testing",
 		"gunshi": "catalog:runtime",
 		"path-type": "catalog:runtime",
-		"picocolors": "catalog:runtime",
 		"publint": "catalog:lint",
 		"tsdown": "catalog:build",
 		"valibot": "catalog:runtime",

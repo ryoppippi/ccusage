@@ -98,9 +98,6 @@ catalogs:
     path-type:
       specifier: ^6.0.0
       version: 6.0.0
-    picocolors:
-      specifier: ^1.1.1
-      version: 1.1.1
     pretty-ms:
       specifier: ^9.2.0
       version: 9.3.0
@@ -215,9 +212,6 @@ importers:
       path-type:
         specifier: catalog:runtime
         version: 6.0.0
-      picocolors:
-        specifier: catalog:runtime
-        version: 1.1.1
       tsdown:
         specifier: catalog:build
         version: 0.22.0(@typescript/native-preview@7.0.0-dev.20260510.1)(publint@0.3.12)(typescript@5.9.2)(unplugin-unused@0.5.7)(unrun@0.2.11(synckit@0.11.12))
@@ -296,9 +290,6 @@ importers:
       path-type:
         specifier: catalog:runtime
         version: 6.0.0
-      picocolors:
-        specifier: catalog:runtime
-        version: 1.1.1
       pretty-ms:
         specifier: catalog:runtime
         version: 9.3.0
@@ -360,9 +351,6 @@ importers:
       gunshi:
         specifier: catalog:runtime
         version: 0.26.3
-      picocolors:
-        specifier: catalog:runtime
-        version: 1.1.1
       tsdown:
         specifier: catalog:build
         version: 0.22.0(@typescript/native-preview@7.0.0-dev.20260510.1)(publint@0.3.12)(typescript@5.9.2)(unplugin-unused@0.5.7)(unrun@0.2.11(synckit@0.11.12))
@@ -415,9 +403,6 @@ importers:
       path-type:
         specifier: catalog:runtime
         version: 6.0.0
-      picocolors:
-        specifier: catalog:runtime
-        version: 1.1.1
       tsdown:
         specifier: catalog:build
         version: 0.22.0(@typescript/native-preview@7.0.0-dev.20260510.1)(publint@0.3.12)(typescript@5.9.2)(unplugin-unused@0.5.7)(unrun@0.2.11(synckit@0.11.12))
@@ -473,9 +458,6 @@ importers:
       path-type:
         specifier: catalog:runtime
         version: 6.0.0
-      picocolors:
-        specifier: catalog:runtime
-        version: 1.1.1
       publint:
         specifier: catalog:lint
         version: 0.3.12
@@ -549,15 +531,15 @@ importers:
 
   packages/terminal:
     dependencies:
+      '@ccusage/internal':
+        specifier: workspace:*
+        version: link:../internal
       '@oxc-project/runtime':
         specifier: catalog:build
         version: 0.129.0
       ansi-escapes:
         specifier: catalog:runtime
         version: 7.1.0
-      picocolors:
-        specifier: catalog:runtime
-        version: 1.1.1
     devDependencies:
       '@ryoppippi/eslint-config':
         specifier: catalog:lint

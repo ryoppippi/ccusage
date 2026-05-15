@@ -1,5 +1,5 @@
 import process from 'node:process';
-import pc from 'picocolors';
+import * as pc from '@ccusage/internal/colors';
 import { getStringWidth } from './text-width.ts';
 
 /**

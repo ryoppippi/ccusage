@@ -1,6 +1,6 @@
 import process from 'node:process';
 import { inspect } from 'node:util';
-import * as colors from './ansi-colors.ts';
+import * as colors from './colors.ts';
 
 type LogMethod = (...args: unknown[]) => void;
 
@@ -71,10 +71,10 @@ function writeTaggedLine(
 	name: string,
 	label: string,
 	args: unknown[],
-	color?: (stream: NodeJS.WriteStream, value: string) => string,
+	color?: (value: string, stream: NodeJS.WriteStream) => string,
 ): void {
-	const tag = colors.gray(stream, `[${name}]`);
-	const formattedLabel = color == null ? label : color(stream, label);
+	const tag = colors.gray(`[${name}]`, stream);
+	const formattedLabel = color == null ? label : color(label, stream);
 	writeLine(stream, `${tag} ${formattedLabel} ${formatArgs(args)}`);
 }
 
@@ -144,6 +144,8 @@ export const log = console.log;
 if (import.meta.vitest != null) {
 	describe('createLogger', () => {
 		it('renders tagged lines without leading blank lines', () => {
+			vi.stubEnv('FORCE_COLOR', undefined);
+			vi.stubEnv('NO_COLOR', '1');
 			let output = '';
 			const writeSpy = vi.spyOn(process.stdout, 'write').mockImplementation((chunk) => {
 				output += String(chunk);
@@ -156,6 +158,7 @@ if (import.meta.vitest != null) {
 				logger.info('second');
 			} finally {
 				writeSpy.mockRestore();
+				vi.unstubAllEnvs();
 			}
 
 			expect(output).toBe('[test] ℹ first\n[test] ℹ second\n');

@@ -15,9 +15,9 @@
 		"typecheck": "tsgo --noEmit"
 	},
 	"dependencies": {
+		"@ccusage/internal": "workspace:*",
 		"@oxc-project/runtime": "catalog:build",
-		"ansi-escapes": "catalog:runtime",
-		"picocolors": "catalog:runtime"
+		"ansi-escapes": "catalog:runtime"
 	},
 	"devDependencies": {
 		"@ryoppippi/eslint-config": "catalog:lint",

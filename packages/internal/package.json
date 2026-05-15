@@ -10,7 +10,7 @@
 		"./logger": "./src/logger.ts",
 		"./format": "./src/format.ts",
 		"./array": "./src/array.ts",
-		"./ansi-colors": "./src/ansi-colors.ts",
+		"./colors": "./src/colors.ts",
 		"./fs": "./src/fs.ts",
 		"./jsonl": "./src/jsonl.ts",
 		"./sqlite": "./src/sqlite.ts",

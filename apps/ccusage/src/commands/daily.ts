@@ -1,5 +1,6 @@
 import type { UsageReportConfig } from '@ccusage/terminal/table';
 import process from 'node:process';
+import * as pc from '@ccusage/internal/colors';
 import {
 	addEmptySeparatorRow,
 	createUsageReportTable,
@@ -8,7 +9,6 @@ import {
 	pushBreakdownRows,
 } from '@ccusage/terminal/table';
 import { define } from 'gunshi';
-import pc from 'picocolors';
 import { loadConfig, mergeConfigWithArgs } from '../_config-loader-tokens.ts';
 import { groupByProject, groupDataByProject } from '../_daily-grouping.ts';
 import { formatDateCompact } from '../_date-utils.ts';

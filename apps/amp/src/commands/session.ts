@@ -1,4 +1,5 @@
 import type { TokenUsageEvent } from '../_types.ts';
+import * as pc from '@ccusage/internal/colors';
 import { writeStdoutLine } from '@ccusage/internal/logger';
 import { compareStrings } from '@ccusage/internal/sort';
 import {
@@ -10,7 +11,6 @@ import {
 	ResponsiveTable,
 } from '@ccusage/terminal/table';
 import { define } from 'gunshi';
-import pc from 'picocolors';
 import { loadAmpUsageEvents } from '../data-loader.ts';
 import { logger } from '../logger.ts';
 import { AmpPricingSource } from '../pricing.ts';

@@ -1,4 +1,5 @@
 import { groupByToMap } from '@ccusage/internal/array';
+import * as pc from '@ccusage/internal/colors';
 import { writeStdoutLine } from '@ccusage/internal/logger';
 import { LiteLLMPricingFetcher } from '@ccusage/internal/pricing';
 import {
@@ -9,7 +10,6 @@ import {
 	formatUsageDataRow,
 } from '@ccusage/terminal/table';
 import { define } from 'gunshi';
-import pc from 'picocolors';
 import { calculateCostForEntry } from '../cost-utils.ts';
 import { loadOpenCodeMessages, loadOpenCodeSessions } from '../data-loader.ts';
 import { logger } from '../logger.ts';

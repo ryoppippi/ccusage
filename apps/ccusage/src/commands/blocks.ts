@@ -1,5 +1,6 @@
 import type { SessionBlock } from '../_session-blocks.ts';
 import process from 'node:process';
+import * as pc from '@ccusage/internal/colors';
 import {
 	formatCurrency,
 	formatModelsDisplayMultiline,
@@ -7,7 +8,6 @@ import {
 	ResponsiveTable,
 } from '@ccusage/terminal/table';
 import { define } from 'gunshi';
-import pc from 'picocolors';
 import { loadConfig, mergeConfigWithArgs } from '../_config-loader-tokens.ts';
 import {
 	BLOCKS_COMPACT_WIDTH_THRESHOLD,

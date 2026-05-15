@@ -1,4 +1,5 @@
 import process from 'node:process';
+import * as pc from '@ccusage/internal/colors';
 import {
 	addEmptySeparatorRow,
 	formatCurrency,
@@ -9,7 +10,6 @@ import {
 } from '@ccusage/terminal/table';
 import { Result } from '@praha/byethrow';
 import { define } from 'gunshi';
-import pc from 'picocolors';
 import { DEFAULT_TIMEZONE } from '../_consts.ts';
 import { sharedArgs } from '../_shared-args.ts';
 import { normalizeSpeedOption, resolveCodexSpeed } from '../codex-config.ts';
