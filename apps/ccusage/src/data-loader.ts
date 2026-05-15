@@ -201,6 +201,9 @@ function getJSONLFileReadConcurrency(fileCount: number, singleThread = false): n
 
 function getDefaultJSONLWorkerThreadCount(fileCount: number, preferMoreWorkers = false): number {
 	const available = os.availableParallelism();
+	// Daily/session workloads mostly fan out independent usage-row parsing, so they can use more
+	// cores. Blocks return heavier per-file payloads and spend more time merging, where extra
+	// workers can lose to startup and structured-clone overhead.
 	const workerCount = Math.min(
 		preferMoreWorkers ? Math.ceil(available * 0.75) : Math.ceil(available / 2),
 		JSONL_WORKER_THREAD_LIMIT,
@@ -573,6 +576,13 @@ function extractUnsignedIntegerMarker(
 	return hasDigit ? value : undefined;
 }
 
+/**
+ * Parse the common Claude assistant usage row without building a full JSON object.
+ *
+ * The hot path is dominated by JSONL rows with stable field names and numeric token counters.
+ * Extracting only those fields keeps the common case cheap, while returning null lets the caller
+ * fall back to JSON.parse for uncommon shapes such as null-bearing rows and API error messages.
+ */
 function parseUsageDataLineFast(line: string, allowContent = false): UsageData | null {
 	const contentIndex = line.indexOf('"content":');
 	if (
@@ -649,6 +659,13 @@ function parseUsageDataLineFast(line: string, allowContent = false): UsageData |
 	};
 }
 
+/**
+ * Detect nulls only for fields that would change the fast parser's semantics.
+ *
+ * A broad regexp is easy to read but expensive across large logs. Scanning `:null` occurrences keeps
+ * unrelated nullable JSON fields on the fast path and sends only schema-sensitive nulls to the full
+ * parser.
+ */
 function hasUnsupportedNullField(line: string): boolean {
 	let nullIndex = line.indexOf(':null');
 	while (nullIndex !== -1) {
@@ -1224,6 +1241,13 @@ async function processBufferedJSONLUsageContent(
 	}
 }
 
+/**
+ * Scan buffered JSONL as bytes and decode only lines that contain a usage marker.
+ *
+ * Real Claude logs contain many non-usage rows. Keeping the file as bytes lets Bun search for the
+ * marker without converting the whole file to UTF-16, then `toString()` is paid only for candidate
+ * usage lines that the fast parser or JSON fallback can consume.
+ */
 async function processBufferedJSONLUsageBytes(
 	bytes: Uint8Array,
 	processLine: (line: string) => void,
@@ -1769,6 +1793,13 @@ function markDedupedEntryMetadata(
 	}
 }
 
+/**
+ * Pack daily worker rows into column arrays before posting them back to the main thread.
+ *
+ * The numeric columns are transferred instead of cloned, and the string columns stay in a flat array.
+ * This keeps worker messaging smaller than sending one object per parsed usage row while preserving
+ * the main-thread dedupe and aggregation rules.
+ */
 function encodeDailyDataEntries(entries: DailyDataEntry[]): EncodedDailyDataEntries {
 	const count = entries.length;
 	const numbers = new Float64Array(count * 6);
