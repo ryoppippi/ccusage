@@ -20,6 +20,7 @@
             jq
             git
             gh
+            hyperfine
           ];
 
           shellHook = ''
