@@ -4,8 +4,9 @@ import { join, resolve } from 'node:path';
 import { cli, define } from 'gunshi';
 
 const DEFAULT_SIZE_MIB = 1024;
-const CHUNK_LINE_COUNT = 4096;
+const CHUNK_LINE_COUNT = 1024;
 const FLUSH_INTERVAL_BYTES = 64 * 1024 * 1024;
+const CONTENT_PADDING = 'x'.repeat(6 * 1024);
 
 /**
  * Formats generated fixture size for CI logs.
@@ -17,9 +18,10 @@ function formatBytes(bytes: number): string {
 /**
  * Creates one deterministic usage row that stays on ccusage's normal fast parser path.
  *
- * Every row has a unique message/request id so deduplication does not collapse the 1 GiB
- * fixture into a tiny workload. The timestamp/model/token values still cycle enough to
- * exercise daily/session/block aggregation instead of benchmarking only file I/O.
+ * Every row has a unique message/request id so deduplication does not collapse the fixture into a
+ * tiny workload. The content padding keeps a 1 GiB fixture closer to real Claude JSONL density:
+ * fewer large rows instead of millions of tiny synthetic rows that would over-weight per-line
+ * parser and aggregation costs.
  */
 function createUsageLine(index: number): string {
 	const day = (index % 28) + 1;
@@ -32,7 +34,7 @@ function createUsageLine(index: number): string {
 	const model = index % 5 === 0 ? 'claude-opus-4-20250514' : 'claude-sonnet-4-20250514';
 	const speed = index % 7 === 0 ? `,"speed":"fast"` : '';
 
-	return `{"timestamp":"${timestamp}","cwd":"/tmp/ccusage-large-fixture","sessionId":"large-session","version":"1.0.0","message":{"id":"msg_${suffix}","model":"${model}","usage":{"input_tokens":${100 + (index % 1000)},"output_tokens":${20 + (index % 200)},"cache_creation_input_tokens":${index % 300},"cache_read_input_tokens":${index % 5000}${speed}}},"requestId":"req_${suffix}"}\n`;
+	return `{"timestamp":"${timestamp}","cwd":"/tmp/ccusage-large-fixture","sessionId":"large-session","version":"1.0.0","message":{"id":"msg_${suffix}","model":"${model}","content":[{"type":"text","text":"${CONTENT_PADDING}"}],"usage":{"input_tokens":${100 + (index % 1000)},"output_tokens":${20 + (index % 200)},"cache_creation_input_tokens":${index % 300},"cache_read_input_tokens":${index % 5000}${speed}}},"requestId":"req_${suffix}"}\n`;
 }
 
 const command = define({
