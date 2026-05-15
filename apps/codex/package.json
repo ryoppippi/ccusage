@@ -41,6 +41,9 @@
 		"test": "TZ=UTC vitest",
 		"typecheck": "tsgo --noEmit"
 	},
+	"dependencies": {
+		"ccusage": "workspace:*"
+	},
 	"devDependencies": {
 		"@ccusage/internal": "workspace:*",
 		"@ccusage/terminal": "workspace:*",
@@ -49,11 +52,9 @@
 		"@typescript/native-preview": "catalog:types",
 		"clean-pkg-json": "catalog:release",
 		"eslint": "catalog:lint",
-		"fast-sort": "catalog:runtime",
 		"fs-fixture": "catalog:testing",
 		"gunshi": "catalog:runtime",
 		"picocolors": "catalog:runtime",
-		"tinyglobby": "catalog:runtime",
 		"tsdown": "catalog:build",
 		"unplugin-macros": "catalog:build",
 		"unplugin-unused": "catalog:build",

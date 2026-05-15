@@ -22,8 +22,6 @@
 		".": "./src/index.ts",
 		"./package.json": "./package.json"
 	},
-	"main": "./dist/index.js",
-	"module": "./dist/index.js",
 	"types": "./dist/index.d.ts",
 	"bin": {
 		"ccusage-pi": "./src/index.ts"
@@ -55,6 +53,9 @@
 		"test": "TZ=UTC vitest",
 		"typecheck": "tsgo --noEmit"
 	},
+	"dependencies": {
+		"ccusage": "workspace:*"
+	},
 	"devDependencies": {
 		"@ccusage/internal": "workspace:*",
 		"@ccusage/terminal": "workspace:*",
@@ -63,14 +64,12 @@
 		"@types/bun": "catalog:types",
 		"@typescript/native-preview": "catalog:types",
 		"clean-pkg-json": "catalog:release",
-		"es-toolkit": "catalog:runtime",
 		"eslint": "catalog:lint",
 		"fs-fixture": "catalog:testing",
 		"gunshi": "catalog:runtime",
 		"path-type": "catalog:runtime",
 		"picocolors": "catalog:runtime",
 		"publint": "catalog:lint",
-		"tinyglobby": "catalog:runtime",
 		"tsdown": "catalog:build",
 		"valibot": "catalog:runtime",
 		"vitest": "catalog:testing"

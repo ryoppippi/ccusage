@@ -86,12 +86,6 @@ catalogs:
     ansi-escapes:
       specifier: ^7.0.0
       version: 7.1.0
-    es-toolkit:
-      specifier: ^1.39.10
-      version: 1.39.10
-    fast-sort:
-      specifier: ^3.4.1
-      version: 3.4.1
     get-stdin:
       specifier: ^9.0.0
       version: 9.0.0
@@ -110,9 +104,6 @@ catalogs:
     pretty-ms:
       specifier: ^9.2.0
       version: 9.3.0
-    tinyglobby:
-      specifier: ^0.2.14
-      version: 0.2.15
     type-fest:
       specifier: ^4.41.0
       version: 4.41.0
@@ -189,6 +180,10 @@ importers:
         version: 4.1.2(@types/node@24.5.1)(happy-dom@16.8.1)(vite@8.0.11(@types/node@24.5.1)(esbuild@0.27.4)(jiti@2.6.1)(yaml@2.8.3))
 
   apps/amp:
+    dependencies:
+      ccusage:
+        specifier: workspace:*
+        version: link:../ccusage
     devDependencies:
       '@ccusage/internal':
         specifier: workspace:*
@@ -211,9 +206,6 @@ importers:
       eslint:
         specifier: catalog:lint
         version: 9.35.0(jiti@2.6.1)
-      fast-sort:
-        specifier: catalog:runtime
-        version: 3.4.1
       fs-fixture:
         specifier: catalog:testing
         version: 2.8.1
@@ -226,9 +218,6 @@ importers:
       picocolors:
         specifier: catalog:runtime
         version: 1.1.1
-      tinyglobby:
-        specifier: catalog:runtime
-        version: 0.2.15
       tsdown:
         specifier: catalog:build
         version: 0.22.0(@typescript/native-preview@7.0.0-dev.20260510.1)(publint@0.3.12)(typescript@5.9.2)(unplugin-unused@0.5.7)(unrun@0.2.11(synckit@0.11.12))
@@ -339,6 +328,10 @@ importers:
         version: 5.1.0
 
   apps/codex:
+    dependencies:
+      ccusage:
+        specifier: workspace:*
+        version: link:../ccusage
     devDependencies:
       '@ccusage/internal':
         specifier: workspace:*
@@ -361,9 +354,6 @@ importers:
       eslint:
         specifier: catalog:lint
         version: 9.35.0(jiti@2.6.1)
-      fast-sort:
-        specifier: catalog:runtime
-        version: 3.4.1
       fs-fixture:
         specifier: catalog:testing
         version: 2.8.1
@@ -373,9 +363,6 @@ importers:
       picocolors:
         specifier: catalog:runtime
         version: 1.1.1
-      tinyglobby:
-        specifier: catalog:runtime
-        version: 0.2.15
       tsdown:
         specifier: catalog:build
         version: 0.22.0(@typescript/native-preview@7.0.0-dev.20260510.1)(publint@0.3.12)(typescript@5.9.2)(unplugin-unused@0.5.7)(unrun@0.2.11(synckit@0.11.12))
@@ -393,6 +380,10 @@ importers:
         version: 4.1.2(@types/node@24.5.1)(happy-dom@16.8.1)(vite@8.0.11(@types/node@24.5.1)(esbuild@0.27.4)(jiti@2.6.1)(yaml@2.8.3))
 
   apps/opencode:
+    dependencies:
+      ccusage:
+        specifier: workspace:*
+        version: link:../ccusage
     devDependencies:
       '@ccusage/internal':
         specifier: workspace:*
@@ -412,15 +403,9 @@ importers:
       clean-pkg-json:
         specifier: catalog:release
         version: 1.3.0
-      es-toolkit:
-        specifier: catalog:runtime
-        version: 1.39.10
       eslint:
         specifier: catalog:lint
         version: 9.35.0(jiti@2.6.1)
-      fast-sort:
-        specifier: catalog:runtime
-        version: 3.4.1
       fs-fixture:
         specifier: catalog:testing
         version: 2.8.1
@@ -433,9 +418,6 @@ importers:
       picocolors:
         specifier: catalog:runtime
         version: 1.1.1
-      tinyglobby:
-        specifier: catalog:runtime
-        version: 0.2.15
       tsdown:
         specifier: catalog:build
         version: 0.22.0(@typescript/native-preview@7.0.0-dev.20260510.1)(publint@0.3.12)(typescript@5.9.2)(unplugin-unused@0.5.7)(unrun@0.2.11(synckit@0.11.12))
@@ -453,6 +435,10 @@ importers:
         version: 4.1.2(@types/node@24.5.1)(happy-dom@16.8.1)(vite@8.0.11(@types/node@24.5.1)(esbuild@0.27.4)(jiti@2.6.1)(yaml@2.8.3))
 
   apps/pi:
+    dependencies:
+      ccusage:
+        specifier: workspace:*
+        version: link:../ccusage
     devDependencies:
       '@ccusage/internal':
         specifier: workspace:*
@@ -475,9 +461,6 @@ importers:
       clean-pkg-json:
         specifier: catalog:release
         version: 1.3.0
-      es-toolkit:
-        specifier: catalog:runtime
-        version: 1.39.10
       eslint:
         specifier: catalog:lint
         version: 9.35.0(jiti@2.6.1)
@@ -496,9 +479,6 @@ importers:
       publint:
         specifier: catalog:lint
         version: 0.3.12
-      tinyglobby:
-        specifier: catalog:runtime
-        version: 0.2.15
       tsdown:
         specifier: catalog:build
         version: 0.22.0(@typescript/native-preview@7.0.0-dev.20260510.1)(publint@0.3.12)(typescript@5.9.2)(unplugin-unused@0.5.7)(unrun@0.2.11(synckit@0.11.12))
@@ -3088,9 +3068,6 @@ packages:
   es-module-lexer@2.0.0:
     resolution: {integrity: sha512-5POEcUuZybH7IdmGsD8wlf0AI55wMecM9rVBTI/qEAy2c1kTOm3DjFYjrBdI2K3BaJjJYfYFeRtM0t9ssnRuxw==}
 
-  es-toolkit@1.39.10:
-    resolution: {integrity: sha512-E0iGnTtbDhkeczB0T+mxmoVlT4YNweEKBLq7oaU4p11mecdsZpNWOglI4895Vh4usbQ+LsJiuLuI2L0Vdmfm2w==}
-
   esbuild@0.25.4:
     resolution: {integrity: sha512-8pgjLUcUjcgDg+2Q4NYXnPbo/vncAY4UmyaCm0jZevERqCHZIaWwdJHkf8XQtu4AxSKCdvrUbT0XUr1IdZzI8Q==}
     engines: {node: '>=18'}
@@ -3378,9 +3355,6 @@ packages:
 
   fast-levenshtein@2.0.6:
     resolution: {integrity: sha512-DCXu6Ifhqcks7TZKY3Hxp3y6qphY5SJZmrWMDrKcERSOXWQdMhU9Ig/PYrzyw/ul9jOIyh0N4M0tbC5hodg8dw==}
-
-  fast-sort@3.4.1:
-    resolution: {integrity: sha512-76uvGPsF6So53sZAqenP9UVT3p5l7cyTHkLWVCMinh41Y8NDrK1IYXJgaBMfc1gk7nJiSRZp676kddFG2Aa5+A==}
 
   fastq@1.19.1:
     resolution: {integrity: sha512-GwLTyxkCXjXbxqIhTsMI2Nui8huMPtnxg7krajPJAjnEG/iiOS7i+zCtWGZR9G0NBKbXKh6X9m9UIsYX/N6vvQ==}
@@ -7416,8 +7390,6 @@ snapshots:
 
   es-module-lexer@2.0.0: {}
 
-  es-toolkit@1.39.10: {}
-
   esbuild@0.25.4:
     optionalDependencies:
       '@esbuild/aix-ppc64': 0.25.4
@@ -7833,8 +7805,6 @@ snapshots:
   fast-json-stable-stringify@2.1.0: {}
 
   fast-levenshtein@2.0.6: {}
-
-  fast-sort@3.4.1: {}
 
   fastq@1.19.1:
     dependencies:

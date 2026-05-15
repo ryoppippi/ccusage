@@ -44,6 +44,9 @@
 		"test": "TZ=UTC vitest",
 		"typecheck": "tsgo --noEmit"
 	},
+	"dependencies": {
+		"ccusage": "workspace:*"
+	},
 	"devDependencies": {
 		"@ccusage/internal": "workspace:*",
 		"@ccusage/terminal": "workspace:*",
@@ -51,14 +54,11 @@
 		"@ryoppippi/eslint-config": "catalog:lint",
 		"@typescript/native-preview": "catalog:types",
 		"clean-pkg-json": "catalog:release",
-		"es-toolkit": "catalog:runtime",
 		"eslint": "catalog:lint",
-		"fast-sort": "catalog:runtime",
 		"fs-fixture": "catalog:testing",
 		"gunshi": "catalog:runtime",
 		"path-type": "catalog:runtime",
 		"picocolors": "catalog:runtime",
-		"tinyglobby": "catalog:runtime",
 		"tsdown": "catalog:build",
 		"unplugin-macros": "catalog:build",
 		"unplugin-unused": "catalog:build",
