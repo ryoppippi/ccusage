@@ -60,16 +60,12 @@ import { CLAUDE_PROVIDER_PREFIXES, PricingFetcher } from './_pricing-fetcher.ts'
 import { identifySessionBlocks } from './_session-blocks.ts';
 import {
 	createBucket,
-	createDailyDate,
 	createISOTimestamp,
 	createMessageId,
 	createModelName,
-	createMonthlyDate,
-	createProjectPath,
 	createRequestId,
 	createSessionId,
 	createVersion,
-	createWeeklyDate,
 	isoTimestampSchema,
 	messageIdSchema,
 	modelNameSchema,
@@ -2564,7 +2560,7 @@ export async function loadDailyUsageData(options?: LoadOptions): Promise<DailyUs
 	}
 
 	const results = Array.from(groupedData.values(), (group) => ({
-		date: createDailyDate(group.date),
+		date: group.date as DailyDate,
 		...finalizeUsageSummary(group.summary),
 		...(group.project != null && { project: group.project }),
 	}));
@@ -2697,7 +2693,7 @@ export async function loadSessionData(options?: LoadOptions): Promise<SessionUsa
 
 	const results = Array.from(groupedBySessions.values(), (group) => ({
 		sessionId: createSessionId(group.latestEntry.sessionId),
-		projectPath: createProjectPath(group.latestEntry.projectPath),
+		projectPath: group.latestEntry.projectPath as ProjectPath,
 		...finalizeUsageSummary(group.summary),
 		lastActivity: formatUsageDate(group.latestEntry.timestamp) as ActivityDate,
 		versions: Array.from(group.versions).sort() as Version[],
@@ -2738,11 +2734,11 @@ export async function loadSessionData(options?: LoadOptions): Promise<SessionUsa
  */
 export async function loadMonthlyUsageData(options?: LoadOptions): Promise<MonthlyUsage[]> {
 	return loadBucketUsageData(
-		(data: DailyUsage) => createMonthlyDate(data.date.slice(0, 7)),
+		(data: DailyUsage) => data.date.slice(0, 7) as MonthlyDate,
 		options,
 	).then((usages) =>
 		usages.map<MonthlyUsage>(({ bucket, ...rest }) => ({
-			month: createMonthlyDate(bucket),
+			month: bucket as MonthlyDate,
 			...rest,
 		})),
 	);
@@ -2757,7 +2753,7 @@ export async function loadWeeklyUsageData(options?: LoadOptions): Promise<Weekly
 		options,
 	).then((usages) =>
 		usages.map<WeeklyUsage>(({ bucket, ...rest }) => ({
-			week: createWeeklyDate(bucket),
+			week: bucket as WeeklyDate,
 			...rest,
 		})),
 	);
