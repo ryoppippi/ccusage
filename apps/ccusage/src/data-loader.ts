@@ -1733,22 +1733,13 @@ type SessionDataEntry = {
 	version: Version | undefined;
 };
 
-type SessionDataEntryTuple = [
-	sessionKey: string,
-	sessionId: string,
-	projectPath: string,
-	cost: number,
-	timestamp: string,
-	model: string | undefined,
-	inputTokens: number,
-	outputTokens: number,
-	cacheCreationTokens: number,
-	cacheReadTokens: number,
-	uniqueHash: string | null,
-	tokenTotal: number,
-	hasSpeed: boolean,
-	version: Version | undefined,
-];
+type EncodedSessionDataEntries = {
+	kind: 'session-columns';
+	count: number;
+	numbers: Float64Array;
+	flags: Uint8Array;
+	strings: Array<string | null>;
+};
 
 type BlockEntryResult = {
 	entry: LoadedUsageEntry;
@@ -1899,42 +1890,81 @@ function forEachDailyDataEntry(
 	}
 }
 
-function sessionDataEntryToTuple(entry: SessionDataEntry): SessionDataEntryTuple {
-	return [
-		entry.sessionKey,
-		entry.sessionId,
-		entry.projectPath,
-		entry.cost,
-		entry.timestamp,
-		entry.model,
-		entry.inputTokens,
-		entry.outputTokens,
-		entry.cacheCreationTokens,
-		entry.cacheReadTokens,
-		entry.uniqueHash,
-		entry.tokenTotal,
-		entry.hasSpeed,
-		entry.version,
-	];
+/**
+ * Use the same columnar worker payload shape for session rows as daily rows.
+ *
+ * Session reports still need more strings per row than daily reports, but moving numeric fields and
+ * flags into transfer-list buffers avoids cloning one nested array per usage entry.
+ */
+function encodeSessionDataEntries(entries: SessionDataEntry[]): EncodedSessionDataEntries {
+	const count = entries.length;
+	const numbers = new Float64Array(count * 6);
+	const flags = new Uint8Array(count);
+	const strings: Array<string | null> = [];
+	strings.length = count * 7;
+
+	for (let index = 0; index < count; index++) {
+		const entry = entries[index]!;
+		const numberOffset = index * 6;
+		numbers[numberOffset] = entry.cost;
+		numbers[numberOffset + 1] = entry.inputTokens;
+		numbers[numberOffset + 2] = entry.outputTokens;
+		numbers[numberOffset + 3] = entry.cacheCreationTokens;
+		numbers[numberOffset + 4] = entry.cacheReadTokens;
+		numbers[numberOffset + 5] = entry.tokenTotal;
+		flags[index] = entry.hasSpeed ? 1 : 0;
+
+		const stringOffset = index * 7;
+		strings[stringOffset] = entry.sessionKey;
+		strings[stringOffset + 1] = entry.sessionId;
+		strings[stringOffset + 2] = entry.projectPath;
+		strings[stringOffset + 3] = entry.timestamp;
+		strings[stringOffset + 4] = entry.model ?? null;
+		strings[stringOffset + 5] = entry.uniqueHash;
+		strings[stringOffset + 6] = entry.version ?? null;
+	}
+
+	return {
+		kind: 'session-columns',
+		count,
+		numbers,
+		flags,
+		strings,
+	};
 }
 
-function sessionDataEntryFromTuple(entry: SessionDataEntryTuple): SessionDataEntry {
-	return {
-		sessionKey: entry[0],
-		sessionId: entry[1],
-		projectPath: entry[2],
-		cost: entry[3],
-		timestamp: entry[4],
-		model: entry[5],
-		inputTokens: entry[6],
-		outputTokens: entry[7],
-		cacheCreationTokens: entry[8],
-		cacheReadTokens: entry[9],
-		uniqueHash: entry[10],
-		tokenTotal: entry[11],
-		hasSpeed: entry[12],
-		version: entry[13],
-	};
+function decodeSessionDataEntries(encoded: EncodedSessionDataEntries): SessionDataEntry[] {
+	const entries: SessionDataEntry[] = [];
+	forEachSessionDataEntry(encoded, (entry) => {
+		entries.push(entry);
+	});
+	return entries;
+}
+
+function forEachSessionDataEntry(
+	encoded: EncodedSessionDataEntries,
+	onEntry: (entry: SessionDataEntry) => void,
+): void {
+	for (let index = 0; index < encoded.count; index++) {
+		const numberOffset = index * 6;
+		const stringOffset = index * 7;
+		onEntry({
+			sessionKey: encoded.strings[stringOffset]!,
+			sessionId: encoded.strings[stringOffset + 1]!,
+			projectPath: encoded.strings[stringOffset + 2]!,
+			cost: encoded.numbers[numberOffset]!,
+			timestamp: encoded.strings[stringOffset + 3]!,
+			model: encoded.strings[stringOffset + 4] ?? undefined,
+			inputTokens: encoded.numbers[numberOffset + 1]!,
+			outputTokens: encoded.numbers[numberOffset + 2]!,
+			cacheCreationTokens: encoded.numbers[numberOffset + 3]!,
+			cacheReadTokens: encoded.numbers[numberOffset + 4]!,
+			uniqueHash: encoded.strings[stringOffset + 5] ?? null,
+			tokenTotal: encoded.numbers[numberOffset + 5]!,
+			hasSpeed: encoded.flags[index] === 1,
+			version: (encoded.strings[stringOffset + 6] ?? undefined) as Version | undefined,
+		});
+	}
 }
 
 function getJSONLWorkerThreadCount(
@@ -2477,7 +2507,7 @@ export async function loadSessionData(options?: LoadOptions): Promise<SessionUsa
 		}
 	};
 
-	const workerFileResults = await collectWithUsageWorkers<GlobResult, SessionDataEntryTuple[]>(
+	const workerFileResults = await collectWithUsageWorkers<GlobResult, EncodedSessionDataEntries>(
 		'session',
 		mtimeFilteredWithBase,
 		{
@@ -2503,10 +2533,8 @@ export async function loadSessionData(options?: LoadOptions): Promise<SessionUsa
 			}
 		}
 	} else {
-		for (const entries of workerFileResults) {
-			for (const entry of entries) {
-				mergeEntry(sessionDataEntryFromTuple(entry));
-			}
+		for (const encodedEntries of workerFileResults) {
+			forEachSessionDataEntry(encodedEntries, mergeEntry);
 		}
 	}
 
@@ -2983,15 +3011,21 @@ async function runUsageWorker(data: UsageWorkerData): Promise<void> {
 		}
 		case 'session': {
 			const results = [];
+			const transferList: ArrayBuffer[] = [];
 			for (const { index, item } of data.items as Array<IndexedWorkerItem<GlobResult>>) {
+				const result = encodeSessionDataEntries(
+					await collectSessionEntriesFromFile(item, data.mode, calculateCost),
+				);
+				transferList.push(result.numbers.buffer as ArrayBuffer, result.flags.buffer as ArrayBuffer);
 				results.push({
 					index,
-					result: (await collectSessionEntriesFromFile(item, data.mode, calculateCost)).map(
-						sessionDataEntryToTuple,
-					),
+					result,
 				});
 			}
-			parentPort!.postMessage({ results } satisfies UsageWorkerResponse<SessionDataEntryTuple[]>);
+			parentPort!.postMessage(
+				{ results } satisfies UsageWorkerResponse<EncodedSessionDataEntries>,
+				transferList,
+			);
 			return;
 		}
 		case 'blocks': {
@@ -6609,6 +6643,47 @@ if (import.meta.vitest != null) {
 			];
 
 			expect(decodeDailyDataEntries(encodeDailyDataEntries(entries))).toEqual(entries);
+		});
+	});
+
+	describe('session worker column encoding', () => {
+		it('round-trips session worker entries', () => {
+			const entries: SessionDataEntry[] = [
+				{
+					sessionKey: 'project/session-a',
+					sessionId: 'session-a',
+					projectPath: 'project',
+					cost: 1.25,
+					timestamp: '2026-05-14T01:02:03.000Z',
+					model: 'haiku-4-5',
+					inputTokens: 1,
+					outputTokens: 2,
+					cacheCreationTokens: 3,
+					cacheReadTokens: 4,
+					uniqueHash: 'message:request',
+					tokenTotal: 10,
+					hasSpeed: false,
+					version: '1.2.3' as Version,
+				},
+				{
+					sessionKey: 'project/session-b',
+					sessionId: 'session-b',
+					projectPath: 'project',
+					cost: 0,
+					timestamp: '2026-05-14T02:03:04.000Z',
+					model: undefined,
+					inputTokens: 5,
+					outputTokens: 6,
+					cacheCreationTokens: 0,
+					cacheReadTokens: 0,
+					uniqueHash: null,
+					tokenTotal: 11,
+					hasSpeed: true,
+					version: undefined,
+				},
+			];
+
+			expect(decodeSessionDataEntries(encodeSessionDataEntries(entries))).toEqual(entries);
 		});
 	});
 
