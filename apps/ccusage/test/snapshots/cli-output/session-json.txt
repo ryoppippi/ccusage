@@ -1,61 +1,37 @@
 {
-  "sessions": [
+  "session": [
     {
-      "sessionId": "session-alpha",
+      "period": "session-alpha",
+      "agent": "claude",
+      "modelsUsed": [
+        "claude-sonnet-4-20250514",
+        "claude-opus-4-20250514-fast"
+      ],
       "inputTokens": 600,
       "outputTokens": 250,
       "cacheCreationTokens": 75,
       "cacheReadTokens": 70,
       "totalTokens": 995,
       "totalCost": 1.02,
-      "lastActivity": "2026-01-10",
-      "modelsUsed": [
-        "claude-sonnet-4-20250514",
-        "claude-opus-4-20250514-fast"
-      ],
-      "modelBreakdowns": [
-        {
-          "modelName": "claude-sonnet-4-20250514",
-          "inputTokens": 400,
-          "outputTokens": 175,
-          "cacheCreationTokens": 25,
-          "cacheReadTokens": 50,
-          "cost": 0.68
-        },
-        {
-          "modelName": "claude-opus-4-20250514-fast",
-          "inputTokens": 200,
-          "outputTokens": 75,
-          "cacheCreationTokens": 50,
-          "cacheReadTokens": 20,
-          "cost": 0.3400000000000001
-        }
-      ],
-      "projectPath": "project-alpha"
+      "metadata": {
+        "lastActivity": "2026-01-10"
+      }
     },
     {
-      "sessionId": "session-beta",
+      "period": "session-beta",
+      "agent": "claude",
+      "modelsUsed": [
+        "claude-haiku-4-5-20251001"
+      ],
       "inputTokens": 130,
       "outputTokens": 60,
       "cacheCreationTokens": 15,
       "cacheReadTokens": 40,
       "totalTokens": 245,
       "totalCost": 0.07,
-      "lastActivity": "2026-02-03",
-      "modelsUsed": [
-        "claude-haiku-4-5-20251001"
-      ],
-      "modelBreakdowns": [
-        {
-          "modelName": "claude-haiku-4-5-20251001",
-          "inputTokens": 130,
-          "outputTokens": 60,
-          "cacheCreationTokens": 15,
-          "cacheReadTokens": 40,
-          "cost": 0.07
-        }
-      ],
-      "projectPath": "project-beta"
+      "metadata": {
+        "lastActivity": "2026-02-03"
+      }
     }
   ],
   "totals": {
@@ -63,7 +39,7 @@
     "outputTokens": 310,
     "cacheCreationTokens": 90,
     "cacheReadTokens": 110,
-    "totalCost": 1.09,
-    "totalTokens": 1240
+    "totalTokens": 1240,
+    "totalCost": 1.09
   }
 }

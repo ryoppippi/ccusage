@@ -9,7 +9,7 @@ import { bench, measure, run, summary } from 'mitata';
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const packageRoot = join(scriptDir, '..');
-const builtCli = join(packageRoot, 'dist', 'index.js');
+const builtCli = join(packageRoot, 'dist', 'cli.js');
 
 function parseArgs(args) {
 	let full = false;
