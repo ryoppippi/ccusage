@@ -8,7 +8,7 @@ pre-commit:
       stage_fixed: true
 
     - name: oxfmt
-      glob: '*'
+      glob: '**/*'
       run: pnpm exec oxfmt --no-error-on-unmatched-pattern {staged_files}
       stage_fixed: true
 
@@ -17,7 +17,7 @@ pre-commit:
         parallel: true
         jobs:
           - name: root
-            glob: '*'
+            glob: '**/*'
             exclude:
               - 'apps/**'
               - 'packages/**'
