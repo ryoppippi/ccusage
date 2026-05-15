@@ -365,7 +365,11 @@ describe('ccusage all-agent CLI', () => {
 		expect(result.status).toBe(0);
 		expect(result.stderr).toBe('');
 
-		const output = JSON.parse(getStdout(result)) as DailyJsonOutput;
+		const stdout = getStdout(result).replace(/\n$/u, '');
+		await mkdir(snapshotRoot, { recursive: true });
+		await expect(stdout).toMatchFileSnapshot(path.join(snapshotRoot, 'all-agent-daily-json.txt'));
+
+		const output = JSON.parse(stdout) as DailyJsonOutput;
 		expect(output.daily).toHaveLength(1);
 		expect(output.daily[0]).toEqual(
 			expect.objectContaining({
@@ -391,7 +395,13 @@ describe('ccusage all-agent CLI', () => {
 
 		expect(result.status).toBe(0);
 		expect(result.stderr).toBe('');
-		const output = JSON.parse(getStdout(result)) as {
+		const stdout = getStdout(result).replace(/\n$/u, '');
+		await mkdir(snapshotRoot, { recursive: true });
+		await expect(stdout).toMatchFileSnapshot(
+			path.join(snapshotRoot, 'codex-direct-daily-json.txt'),
+		);
+
+		const output = JSON.parse(stdout) as {
 			daily: Array<{ inputTokens: number; outputTokens: number; totalTokens: number }>;
 		};
 		expect(output.daily).toEqual([
@@ -410,6 +420,51 @@ describe('ccusage all-agent CLI', () => {
 
 		expect(result.status).toBe(0);
 		expect(result.stderr).toBe('');
+		await mkdir(snapshotRoot, { recursive: true });
+		await expect(getStdout(result).replace(/\n$/u, '')).toMatchFileSnapshot(
+			path.join(snapshotRoot, 'opencode-direct-daily-json.txt'),
+		);
+	});
+
+	it('includes cache tokens in Amp direct total tokens', async () => {
+		await using fixture = await createFixture(createAgentFixtureTree());
+
+		const result = runCcusage(['amp', '--offline', '--json'], createAgentCliEnv(fixture.path));
+
+		expect(result.status).toBe(0);
+		expect(result.stderr).toBe('');
+
+		const stdout = getStdout(result).replace(/\n$/u, '');
+		await mkdir(snapshotRoot, { recursive: true });
+		await expect(stdout).toMatchFileSnapshot(path.join(snapshotRoot, 'amp-direct-daily-json.txt'));
+
+		const output = JSON.parse(stdout) as {
+			daily: Array<{ totalTokens: number }>;
+			totals: { totalTokens: number };
+		};
+		expect(output.daily[0]?.totalTokens).toBe(180);
+		expect(output.totals.totalTokens).toBe(180);
+	});
+
+	it('uses compact Amp direct tables at medium terminal widths', async () => {
+		await using fixture = await createFixture(createAgentFixtureTree());
+
+		const result = runCcusage(['amp', '--offline'], {
+			...createAgentCliEnv(fixture.path),
+			COLUMNS: '150',
+		});
+
+		expect(result.status).toBe(0);
+		expect(result.stderr).toBe('');
+		const output = getStdout(result).replace(/\n$/u, '');
+		await mkdir(snapshotRoot, { recursive: true });
+		await expect(output).toMatchFileSnapshot(
+			path.join(snapshotRoot, 'amp-direct-medium-table.txt'),
+		);
+		expect(output).toContain('Running in Compact Mode');
+		expect(output).toContain('Credits');
+		expect(output).not.toContain('Cache Create');
+		expect(output).not.toContain('Total Tokens');
 	});
 
 	it('renders same-day all-agent table rows as one grouped period', async () => {
@@ -425,7 +480,9 @@ describe('ccusage all-agent CLI', () => {
 
 		expect(result.status).toBe(0);
 		expect(result.stderr).toBe('');
-		const output = getStdout(result);
+		const output = getStdout(result).replace(/\n$/u, '');
+		await mkdir(snapshotRoot, { recursive: true });
+		await expect(output).toMatchFileSnapshot(path.join(snapshotRoot, 'all-agent-daily-table.txt'));
 		expect(output).toContain('Coding Agent Usage Report - Daily');
 		expect(output).toContain('Detected: Amp, Codex, OpenCode, pi-agent');
 		expect(output.match(/2026-01-02/gu)).toHaveLength(1);

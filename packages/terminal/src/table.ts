@@ -11,6 +11,7 @@ let numberFormatter: Intl.NumberFormat | undefined;
 const formattedNumberCache = new Map<number, string>();
 const formattedModelNameCache = new Map<string, string>();
 const COLOR_RESET = '\x1B[39m';
+const COMFORTABLE_FULL_WIDTH_RATIO = 0.92;
 
 function getNumberFormatter(): Intl.NumberFormat {
 	numberFormatter ??= new Intl.NumberFormat('en-US');
@@ -424,7 +425,10 @@ export class ResponsiveTable {
 				totalRequiredWidth = columnWidths.reduce((sum, width) => sum + width, 0) + tableOverhead;
 			}
 
-			if (!this.compactMode && this.compactHead != null && totalRequiredWidth > terminalWidth) {
+			const shouldPreferCompact =
+				totalRequiredWidth > terminalWidth ||
+				totalRequiredWidth / terminalWidth >= COMFORTABLE_FULL_WIDTH_RATIO;
+			if (!this.compactMode && this.compactHead != null && shouldPreferCompact) {
 				this.compactMode = true;
 				continue;
 			}
@@ -648,10 +652,23 @@ function formatModelName(modelName: string): string {
 		return formatted;
 	}
 
-	// Handle anthropic/ prefix with dot notation (e.g., "anthropic/claude-opus-4.5" -> "opus-4.5")
-	const anthropicMatch = modelName.match(/^anthropic\/claude-(\w+)-([\d.]+)$/);
-	if (anthropicMatch != null) {
-		formatted = `${anthropicMatch[1]}-${anthropicMatch[2]}`;
+	const providerMatch = modelName.match(/^(?:anthropic\/|anthropic\.)(claude-.+)$/);
+	if (providerMatch?.[1] != null) {
+		formatted = formatModelName(providerMatch[1]);
+		formattedModelNameCache.set(modelName, formatted);
+		return formatted;
+	}
+
+	const legacyDatedMatch = modelName.match(/^claude-(\d+)-(\d+)-(\w+)-(\d{8})$/);
+	if (legacyDatedMatch != null) {
+		formatted = `${legacyDatedMatch[3]}-${legacyDatedMatch[1]}-${legacyDatedMatch[2]}`;
+		formattedModelNameCache.set(modelName, formatted);
+		return formatted;
+	}
+
+	const datedFastMatch = modelName.match(/^claude-(\w+)-([\d-]+)-(\d{8})-fast$/);
+	if (datedFastMatch != null) {
+		formatted = `${datedFastMatch[1]}-${datedFastMatch[2]}-fast`;
 		formattedModelNameCache.set(modelName, formatted);
 		return formatted;
 	}
@@ -667,8 +684,15 @@ function formatModelName(modelName: string): string {
 		return formatted;
 	}
 
+	const fastMatch = modelName.match(/^claude-(\w+)-([\d.-]+)-fast$/);
+	if (fastMatch != null) {
+		formatted = `${fastMatch[1]}-${fastMatch[2]}-fast`;
+		formattedModelNameCache.set(modelName, formatted);
+		return formatted;
+	}
+
 	// Handle claude- without date suffix (e.g., "claude-opus-4-5" -> "opus-4-5")
-	const noDateMatch = modelName.match(/^claude-(\w+)-([\d-]+)$/);
+	const noDateMatch = modelName.match(/^claude-(\w+)-([\d.-]+)$/);
 	if (noDateMatch != null) {
 		formatted = `${noDateMatch[1]}-${noDateMatch[2]}`;
 	}
@@ -946,9 +970,15 @@ export function addEmptySeparatorRow(table: ResponsiveTable, columnCount: number
 
 if (import.meta.vitest != null) {
 	describe('createUsageReportTable', () => {
+		it('shortens Claude-style model names from agent wrappers', () => {
+			expect(formatModelsDisplayMultiline(['claude-3-5-haiku-20241022'])).toBe('- haiku-3-5');
+			expect(formatModelsDisplayMultiline(['claude-opus-4-6-fast'])).toBe('- opus-4-6-fast');
+			expect(formatModelsDisplayMultiline(['claude-opus-4-20250514-fast'])).toBe('- opus-4-fast');
+			expect(formatModelsDisplayMultiline(['anthropic/claude-sonnet-4-6'])).toBe('- sonnet-4-6');
+		});
+
 		it('uses total tokens and cost only for compact all-agent usage tables', () => {
-			const originalColumns = process.env.COLUMNS;
-			process.env.COLUMNS = '80';
+			vi.stubEnv('COLUMNS', '80');
 			try {
 				const table = createUsageReportTable({
 					firstColumnName: 'Date',
@@ -975,13 +1005,12 @@ if (import.meta.vitest != null) {
 				expect(output).not.toContain('Output');
 				expect(output).not.toContain('very-long-model-name');
 			} finally {
-				process.env.COLUMNS = originalColumns;
+				vi.unstubAllEnvs();
 			}
 		});
 
 		it('keeps rendered all-agent table lines within the terminal width', () => {
-			const originalColumns = process.env.COLUMNS;
-			process.env.COLUMNS = '120';
+			vi.stubEnv('COLUMNS', '120');
 			try {
 				const table = createUsageReportTable({
 					firstColumnName: 'Date',
@@ -1019,13 +1048,12 @@ if (import.meta.vitest != null) {
 				expect(output).toContain('Total Tokens');
 				expect(output).toContain('$15990.30');
 			} finally {
-				process.env.COLUMNS = originalColumns;
+				vi.unstubAllEnvs();
 			}
 		});
 
 		it('keeps the full all-agent table in wide terminals by shrinking the models column', () => {
-			const originalColumns = process.env.COLUMNS;
-			process.env.COLUMNS = '220';
+			vi.stubEnv('COLUMNS', '300');
 			try {
 				const table = createUsageReportTable({
 					firstColumnName: 'Date',
@@ -1057,16 +1085,15 @@ if (import.meta.vitest != null) {
 				expect(output).toContain('Cache Create');
 				expect(output).toContain('$15990.30');
 				for (const line of output.split('\n')) {
-					expect(getStringWidth(line)).toBeLessThanOrEqual(220);
+					expect(getStringWidth(line)).toBeLessThanOrEqual(300);
 				}
 			} finally {
-				process.env.COLUMNS = originalColumns;
+				vi.unstubAllEnvs();
 			}
 		});
 
 		it('supports agent rows while keeping compact dates and costs readable', () => {
-			const originalColumns = process.env.COLUMNS;
-			process.env.COLUMNS = '80';
+			vi.stubEnv('COLUMNS', '80');
 			try {
 				const table = createUsageReportTable({
 					firstColumnName: 'Date',
@@ -1089,51 +1116,77 @@ if (import.meta.vitest != null) {
 				expect(output).toContain('2026-03-01');
 				expect(output).toContain('$12345.67');
 			} finally {
-				process.env.COLUMNS = originalColumns;
+				vi.unstubAllEnvs();
 			}
 		});
 	});
 
 	describe('ResponsiveTable', () => {
 		describe('compact mode behavior', () => {
+			it('activates compact mode when full columns would consume nearly all terminal width', () => {
+				vi.stubEnv('COLUMNS', '80');
+				try {
+					const table = new ResponsiveTable({
+						head: ['Date', 'Models', 'Input', 'Output', 'Cost (USD)'],
+						colAligns: ['left', 'left', 'right', 'right', 'right'],
+						compactHead: ['Date', 'Models', 'Cost (USD)'],
+						compactColAligns: ['left', 'left', 'right'],
+						compactThreshold: 40,
+						minColumnWidths: [12, 14, 11, 11, 14],
+						compactMinColumnWidths: [12, 14, 14],
+						flexibleColumnIndex: 1,
+						compactFlexibleColumnIndex: 1,
+					});
+
+					table.push(['2026-05-15', '- haiku-3-5', '123,456,789', '987,654,321', '$16007.18']);
+
+					const output = table.toString();
+					expect(table.isCompactMode()).toBe(true);
+					expect(output).not.toContain('Input');
+					expect(output).not.toContain('Output');
+					expect(output).toContain('$16007.18');
+					for (const line of output.split('\n')) {
+						expect(getStringWidth(line)).toBeLessThanOrEqual(80);
+					}
+				} finally {
+					vi.unstubAllEnvs();
+				}
+			});
+
 			it('should activate compact mode when terminal width is below threshold', () => {
-				const table = new ResponsiveTable({
-					head: ['Date', 'Model', 'Input', 'Output', 'Cost'],
-					compactHead: ['Date', 'Model', 'Cost'],
-					compactThreshold: 100,
-				});
+				vi.stubEnv('COLUMNS', '80');
+				try {
+					const table = new ResponsiveTable({
+						head: ['Date', 'Model', 'Input', 'Output', 'Cost'],
+						compactHead: ['Date', 'Model', 'Cost'],
+						compactThreshold: 100,
+					});
 
-				// Mock process.env.COLUMNS to simulate narrow terminal
-				const originalColumns = process.env.COLUMNS;
-				process.env.COLUMNS = '80';
+					table.push(['2024-01-01', 'sonnet-4', '1000', '500', '$1.50']);
+					table.toString();
 
-				table.push(['2024-01-01', 'sonnet-4', '1000', '500', '$1.50']);
-				table.toString(); // This triggers compact mode calculation
-
-				expect(table.isCompactMode()).toBe(true);
-
-				// Restore original value
-				process.env.COLUMNS = originalColumns;
+					expect(table.isCompactMode()).toBe(true);
+				} finally {
+					vi.unstubAllEnvs();
+				}
 			});
 
 			it('should not activate compact mode when terminal width is above threshold', () => {
-				const table = new ResponsiveTable({
-					head: ['Date', 'Model', 'Input', 'Output', 'Cost'],
-					compactHead: ['Date', 'Model', 'Cost'],
-					compactThreshold: 100,
-				});
+				vi.stubEnv('COLUMNS', '120');
+				try {
+					const table = new ResponsiveTable({
+						head: ['Date', 'Model', 'Input', 'Output', 'Cost'],
+						compactHead: ['Date', 'Model', 'Cost'],
+						compactThreshold: 100,
+					});
 
-				// Mock process.env.COLUMNS to simulate wide terminal
-				const originalColumns = process.env.COLUMNS;
-				process.env.COLUMNS = '120';
+					table.push(['2024-01-01', 'sonnet-4', '1000', '500', '$1.50']);
+					table.toString();
 
-				table.push(['2024-01-01', 'sonnet-4', '1000', '500', '$1.50']);
-				table.toString(); // This triggers compact mode calculation
-
-				expect(table.isCompactMode()).toBe(false);
-
-				// Restore original value
-				process.env.COLUMNS = originalColumns;
+					expect(table.isCompactMode()).toBe(false);
+				} finally {
+					vi.unstubAllEnvs();
+				}
 			});
 
 			it('should prefer the current stdout width over a stale COLUMNS value', () => {
@@ -1143,9 +1196,8 @@ if (import.meta.vitest != null) {
 					compactThreshold: 100,
 				});
 
-				const originalColumns = process.env.COLUMNS;
 				const originalDescriptor = Object.getOwnPropertyDescriptor(process.stdout, 'columns');
-				process.env.COLUMNS = '80';
+				vi.stubEnv('COLUMNS', '80');
 				Object.defineProperty(process.stdout, 'columns', {
 					configurable: true,
 					value: 140,
@@ -1157,7 +1209,7 @@ if (import.meta.vitest != null) {
 
 					expect(table.isCompactMode()).toBe(false);
 				} finally {
-					process.env.COLUMNS = originalColumns;
+					vi.unstubAllEnvs();
 					if (originalDescriptor != null) {
 						Object.defineProperty(process.stdout, 'columns', originalDescriptor);
 					} else {
@@ -1167,159 +1219,139 @@ if (import.meta.vitest != null) {
 			});
 
 			it('should not activate compact mode when compactHead is not provided', () => {
-				const table = new ResponsiveTable({
-					head: ['Date', 'Model', 'Input', 'Output', 'Cost'],
-					compactThreshold: 100,
-				});
+				vi.stubEnv('COLUMNS', '80');
+				try {
+					const table = new ResponsiveTable({
+						head: ['Date', 'Model', 'Input', 'Output', 'Cost'],
+						compactThreshold: 100,
+					});
 
-				// Mock process.env.COLUMNS to simulate narrow terminal
-				const originalColumns = process.env.COLUMNS;
-				process.env.COLUMNS = '80';
+					table.push(['2024-01-01', 'sonnet-4', '1000', '500', '$1.50']);
+					table.toString();
 
-				table.push(['2024-01-01', 'sonnet-4', '1000', '500', '$1.50']);
-				table.toString(); // This triggers compact mode calculation
-
-				expect(table.isCompactMode()).toBe(false);
-
-				// Restore original value
-				process.env.COLUMNS = originalColumns;
+					expect(table.isCompactMode()).toBe(false);
+				} finally {
+					vi.unstubAllEnvs();
+				}
 			});
 		});
 
 		describe('getCurrentTableConfig', () => {
 			it('should return compact config when in compact mode', () => {
-				const table = new ResponsiveTable({
-					head: ['Date', 'Model', 'Input', 'Output', 'Cost'],
-					colAligns: ['left', 'left', 'right', 'right', 'right'],
-					compactHead: ['Date', 'Model', 'Cost'],
-					compactColAligns: ['left', 'left', 'right'],
-					compactThreshold: 100,
-				});
+				vi.stubEnv('COLUMNS', '80');
+				try {
+					const table = new ResponsiveTable({
+						head: ['Date', 'Model', 'Input', 'Output', 'Cost'],
+						colAligns: ['left', 'left', 'right', 'right', 'right'],
+						compactHead: ['Date', 'Model', 'Cost'],
+						compactColAligns: ['left', 'left', 'right'],
+						compactThreshold: 100,
+					});
 
-				// Mock process.env.COLUMNS to simulate narrow terminal
-				const originalColumns = process.env.COLUMNS;
-				process.env.COLUMNS = '80';
+					table.push(['2024-01-01', 'sonnet-4', '1000', '500', '$1.50']);
+					table.toString();
 
-				table.push(['2024-01-01', 'sonnet-4', '1000', '500', '$1.50']);
-				table.toString(); // This triggers compact mode calculation
-
-				// Access private method for testing
-				// eslint-disable-next-line ts/no-unsafe-assignment, ts/no-unsafe-call, ts/no-unsafe-member-access
-				const config = (table as any).getCurrentTableConfig();
-				// eslint-disable-next-line ts/no-unsafe-member-access
-				expect(config.head).toEqual(['Date', 'Model', 'Cost']);
-				// eslint-disable-next-line ts/no-unsafe-member-access
-				expect(config.colAligns).toEqual(['left', 'left', 'right']);
-
-				// Restore original value
-				process.env.COLUMNS = originalColumns;
+					// eslint-disable-next-line ts/no-unsafe-assignment, ts/no-unsafe-call, ts/no-unsafe-member-access
+					const config = (table as any).getCurrentTableConfig();
+					// eslint-disable-next-line ts/no-unsafe-member-access
+					expect(config.head).toEqual(['Date', 'Model', 'Cost']);
+					// eslint-disable-next-line ts/no-unsafe-member-access
+					expect(config.colAligns).toEqual(['left', 'left', 'right']);
+				} finally {
+					vi.unstubAllEnvs();
+				}
 			});
 
 			it('should return normal config when not in compact mode', () => {
-				const table = new ResponsiveTable({
-					head: ['Date', 'Model', 'Input', 'Output', 'Cost'],
-					colAligns: ['left', 'left', 'right', 'right', 'right'],
-					compactHead: ['Date', 'Model', 'Cost'],
-					compactColAligns: ['left', 'left', 'right'],
-					compactThreshold: 100,
-				});
+				vi.stubEnv('COLUMNS', '120');
+				try {
+					const table = new ResponsiveTable({
+						head: ['Date', 'Model', 'Input', 'Output', 'Cost'],
+						colAligns: ['left', 'left', 'right', 'right', 'right'],
+						compactHead: ['Date', 'Model', 'Cost'],
+						compactColAligns: ['left', 'left', 'right'],
+						compactThreshold: 100,
+					});
 
-				// Mock process.env.COLUMNS to simulate wide terminal
-				const originalColumns = process.env.COLUMNS;
-				process.env.COLUMNS = '120';
+					table.push(['2024-01-01', 'sonnet-4', '1000', '500', '$1.50']);
+					table.toString();
 
-				table.push(['2024-01-01', 'sonnet-4', '1000', '500', '$1.50']);
-				table.toString(); // This triggers compact mode calculation
-
-				// Access private method for testing
-				// eslint-disable-next-line ts/no-unsafe-assignment, ts/no-unsafe-call, ts/no-unsafe-member-access
-				const config = (table as any).getCurrentTableConfig();
-				// eslint-disable-next-line ts/no-unsafe-member-access
-				expect(config.head).toEqual(['Date', 'Model', 'Input', 'Output', 'Cost']);
-				// eslint-disable-next-line ts/no-unsafe-member-access
-				expect(config.colAligns).toEqual(['left', 'left', 'right', 'right', 'right']);
-
-				// Restore original value
-				process.env.COLUMNS = originalColumns;
+					// eslint-disable-next-line ts/no-unsafe-assignment, ts/no-unsafe-call, ts/no-unsafe-member-access
+					const config = (table as any).getCurrentTableConfig();
+					// eslint-disable-next-line ts/no-unsafe-member-access
+					expect(config.head).toEqual(['Date', 'Model', 'Input', 'Output', 'Cost']);
+					// eslint-disable-next-line ts/no-unsafe-member-access
+					expect(config.colAligns).toEqual(['left', 'left', 'right', 'right', 'right']);
+				} finally {
+					vi.unstubAllEnvs();
+				}
 			});
 		});
 
 		describe('getCompactIndices', () => {
 			it('should return correct indices for existing compact headers', () => {
-				const table = new ResponsiveTable({
-					head: ['Date', 'Model', 'Input', 'Output', 'Cost'],
-					compactHead: ['Date', 'Model', 'Cost'],
-					compactThreshold: 100,
-				});
+				vi.stubEnv('COLUMNS', '80');
+				try {
+					const table = new ResponsiveTable({
+						head: ['Date', 'Model', 'Input', 'Output', 'Cost'],
+						compactHead: ['Date', 'Model', 'Cost'],
+						compactThreshold: 100,
+					});
 
-				// Mock process.env.COLUMNS to simulate narrow terminal
-				const originalColumns = process.env.COLUMNS;
-				process.env.COLUMNS = '80';
+					table.push(['2024-01-01', 'sonnet-4', '1000', '500', '$1.50']);
+					table.toString();
 
-				table.push(['2024-01-01', 'sonnet-4', '1000', '500', '$1.50']);
-				table.toString(); // This triggers compact mode calculation
-
-				// Access private method for testing
-				// eslint-disable-next-line ts/no-unsafe-assignment, ts/no-unsafe-call, ts/no-unsafe-member-access
-				const indices = (table as any).getCompactIndices();
-				expect(indices).toEqual([0, 1, 4]); // Date (0), Model (1), Cost (4)
-
-				// Restore original value
-				process.env.COLUMNS = originalColumns;
+					// eslint-disable-next-line ts/no-unsafe-assignment, ts/no-unsafe-call, ts/no-unsafe-member-access
+					const indices = (table as any).getCompactIndices();
+					expect(indices).toEqual([0, 1, 4]);
+				} finally {
+					vi.unstubAllEnvs();
+				}
 			});
 
 			it('should fallback to first column for non-existent headers and log warning', () => {
-				// Mock logger.warn to capture warning
-				const mockLogger = vi.fn();
-				const table = new ResponsiveTable({
-					head: ['Date', 'Model', 'Input', 'Output', 'Cost'],
-					compactHead: ['Date', 'NonExistent', 'Cost'],
-					compactThreshold: 100,
-					logger: mockLogger,
-				});
+				vi.stubEnv('COLUMNS', '80');
+				try {
+					const mockLogger = vi.fn();
+					const table = new ResponsiveTable({
+						head: ['Date', 'Model', 'Input', 'Output', 'Cost'],
+						compactHead: ['Date', 'NonExistent', 'Cost'],
+						compactThreshold: 100,
+						logger: mockLogger,
+					});
 
-				// Mock process.env.COLUMNS to simulate narrow terminal
-				const originalColumns = process.env.COLUMNS;
-				process.env.COLUMNS = '80';
+					table.push(['2024-01-01', 'sonnet-4', '1000', '500', '$1.50']);
+					table.toString();
 
-				table.push(['2024-01-01', 'sonnet-4', '1000', '500', '$1.50']);
-				table.toString(); // This triggers compact mode calculation
-
-				// Access private method for testing
-				// eslint-disable-next-line ts/no-unsafe-assignment, ts/no-unsafe-call, ts/no-unsafe-member-access
-				const indices = (table as any).getCompactIndices();
-				expect(indices).toEqual([0, 0, 4]); // Date (0), fallback to first (0), Cost (4)
-
-				// Verify warning was logged
-				expect(mockLogger).toHaveBeenCalledWith(
-					'Warning: Compact header "NonExistent" not found in table headers [Date, Model, Input, Output, Cost]. Using first column as fallback.',
-				);
-
-				// Restore original value
-				process.env.COLUMNS = originalColumns;
+					// eslint-disable-next-line ts/no-unsafe-assignment, ts/no-unsafe-call, ts/no-unsafe-member-access
+					const indices = (table as any).getCompactIndices();
+					expect(indices).toEqual([0, 0, 4]);
+					expect(mockLogger).toHaveBeenCalledWith(
+						'Warning: Compact header "NonExistent" not found in table headers [Date, Model, Input, Output, Cost]. Using first column as fallback.',
+					);
+				} finally {
+					vi.unstubAllEnvs();
+				}
 			});
 
 			it('should return all indices when not in compact mode', () => {
-				const table = new ResponsiveTable({
-					head: ['Date', 'Model', 'Input', 'Output', 'Cost'],
-					compactHead: ['Date', 'Model', 'Cost'],
-					compactThreshold: 100,
-				});
+				vi.stubEnv('COLUMNS', '120');
+				try {
+					const table = new ResponsiveTable({
+						head: ['Date', 'Model', 'Input', 'Output', 'Cost'],
+						compactHead: ['Date', 'Model', 'Cost'],
+						compactThreshold: 100,
+					});
 
-				// Mock process.env.COLUMNS to simulate wide terminal
-				const originalColumns = process.env.COLUMNS;
-				process.env.COLUMNS = '120';
+					table.push(['2024-01-01', 'sonnet-4', '1000', '500', '$1.50']);
+					table.toString();
 
-				table.push(['2024-01-01', 'sonnet-4', '1000', '500', '$1.50']);
-				table.toString(); // This triggers compact mode calculation
-
-				// Access private method for testing
-				// eslint-disable-next-line ts/no-unsafe-assignment, ts/no-unsafe-call, ts/no-unsafe-member-access
-				const indices = (table as any).getCompactIndices();
-				expect(indices).toEqual([0, 1, 2, 3, 4]); // All columns
-
-				// Restore original value
-				process.env.COLUMNS = originalColumns;
+					// eslint-disable-next-line ts/no-unsafe-assignment, ts/no-unsafe-call, ts/no-unsafe-member-access
+					const indices = (table as any).getCompactIndices();
+					expect(indices).toEqual([0, 1, 2, 3, 4]);
+				} finally {
+					vi.unstubAllEnvs();
+				}
 			});
 
 			it('should return all indices when compactHead is null', () => {
@@ -1337,52 +1369,45 @@ if (import.meta.vitest != null) {
 
 		describe('toString with mocked terminal widths', () => {
 			it('should filter columns in compact mode', () => {
-				const table = new ResponsiveTable({
-					head: ['Date', 'Model', 'Input', 'Output', 'Cost'],
-					compactHead: ['Date', 'Cost'],
-					compactThreshold: 100,
-				});
+				vi.stubEnv('COLUMNS', '80');
+				try {
+					const table = new ResponsiveTable({
+						head: ['Date', 'Model', 'Input', 'Output', 'Cost'],
+						compactHead: ['Date', 'Cost'],
+						compactThreshold: 100,
+					});
 
-				// Mock process.env.COLUMNS to simulate narrow terminal
-				const originalColumns = process.env.COLUMNS;
-				process.env.COLUMNS = '80';
+					table.push(['2024-01-01', 'sonnet-4', '1000', '500', '$1.50']);
+					const output = table.toString();
 
-				table.push(['2024-01-01', 'sonnet-4', '1000', '500', '$1.50']);
-				const output = table.toString();
-
-				// Should be in compact mode
-				expect(table.isCompactMode()).toBe(true);
-				// Should contain compact headers
-				expect(output).toContain('Date');
-				expect(output).toContain('Cost');
-
-				// Restore original value
-				process.env.COLUMNS = originalColumns;
+					expect(table.isCompactMode()).toBe(true);
+					expect(output).toContain('Date');
+					expect(output).toContain('Cost');
+				} finally {
+					vi.unstubAllEnvs();
+				}
 			});
 
 			it('should show all columns in normal mode', () => {
-				const table = new ResponsiveTable({
-					head: ['Date', 'Model', 'Input', 'Output', 'Cost'],
-					compactHead: ['Date', 'Cost'],
-					compactThreshold: 100,
-				});
+				vi.stubEnv('COLUMNS', '150');
+				try {
+					const table = new ResponsiveTable({
+						head: ['Date', 'Model', 'Input', 'Output', 'Cost'],
+						compactHead: ['Date', 'Cost'],
+						compactThreshold: 100,
+					});
 
-				// Mock process.env.COLUMNS to simulate wide terminal
-				const originalColumns = process.env.COLUMNS;
-				process.env.COLUMNS = '150';
+					table.push(['2024-01-01', 'sonnet-4', '1000', '500', '$1.50']);
+					const output = table.toString();
 
-				table.push(['2024-01-01', 'sonnet-4', '1000', '500', '$1.50']);
-				const output = table.toString();
-
-				// Should contain all headers
-				expect(output).toContain('Date');
-				expect(output).toContain('Model');
-				expect(output).toContain('Input');
-				expect(output).toContain('Output');
-				expect(output).toContain('Cost');
-
-				// Restore original value
-				process.env.COLUMNS = originalColumns;
+					expect(output).toContain('Date');
+					expect(output).toContain('Model');
+					expect(output).toContain('Input');
+					expect(output).toContain('Output');
+					expect(output).toContain('Cost');
+				} finally {
+					vi.unstubAllEnvs();
+				}
 			});
 
 			it('should handle process.stdout.columns fallback when COLUMNS env var is not set', () => {
@@ -1392,22 +1417,21 @@ if (import.meta.vitest != null) {
 					compactThreshold: 100,
 				});
 
-				// Mock process.env.COLUMNS and process.stdout.columns
-				const originalColumns = process.env.COLUMNS;
 				const originalStdoutColumns = process.stdout.columns;
 
-				process.env.COLUMNS = undefined;
+				vi.stubEnv('COLUMNS', undefined);
 				// eslint-disable-next-line ts/no-unsafe-member-access
 				(process.stdout as any).columns = 80;
 
-				table.push(['2024-01-01', 'sonnet-4', '1000', '500', '$1.50']);
-				table.toString();
+				try {
+					table.push(['2024-01-01', 'sonnet-4', '1000', '500', '$1.50']);
+					table.toString();
 
-				expect(table.isCompactMode()).toBe(true);
-
-				// Restore original values
-				process.env.COLUMNS = originalColumns;
-				process.stdout.columns = originalStdoutColumns;
+					expect(table.isCompactMode()).toBe(true);
+				} finally {
+					vi.unstubAllEnvs();
+					process.stdout.columns = originalStdoutColumns;
+				}
 			});
 
 			it('should use default width when both COLUMNS and process.stdout.columns are unavailable', () => {
@@ -1417,23 +1441,21 @@ if (import.meta.vitest != null) {
 					compactThreshold: 100,
 				});
 
-				// Mock process.env.COLUMNS and process.stdout.columns
-				const originalColumns = process.env.COLUMNS;
 				const originalStdoutColumns = process.stdout.columns;
 
-				process.env.COLUMNS = undefined;
+				vi.stubEnv('COLUMNS', undefined);
 				// eslint-disable-next-line ts/no-unsafe-member-access
 				(process.stdout as any).columns = undefined;
 
-				table.push(['2024-01-01', 'sonnet-4', '1000', '500', '$1.50']);
-				table.toString();
+				try {
+					table.push(['2024-01-01', 'sonnet-4', '1000', '500', '$1.50']);
+					table.toString();
 
-				// Default width is 120, which is above threshold of 100
-				expect(table.isCompactMode()).toBe(false);
-
-				// Restore original values
-				process.env.COLUMNS = originalColumns;
-				process.stdout.columns = originalStdoutColumns;
+					expect(table.isCompactMode()).toBe(false);
+				} finally {
+					vi.unstubAllEnvs();
+					process.stdout.columns = originalStdoutColumns;
+				}
 			});
 		});
 	});

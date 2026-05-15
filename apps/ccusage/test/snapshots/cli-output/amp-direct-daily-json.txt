@@ -1,0 +1,26 @@
+{
+  "daily": [
+    {
+      "date": "2026-01-02",
+      "inputTokens": 100,
+      "outputTokens": 50,
+      "cacheCreationTokens": 20,
+      "cacheReadTokens": 10,
+      "totalTokens": 180,
+      "credits": 1.5,
+      "totalCost": 0.00037600000000000003,
+      "modelsUsed": [
+        "claude-haiku-4-5-20251001"
+      ]
+    }
+  ],
+  "totals": {
+    "inputTokens": 100,
+    "outputTokens": 50,
+    "cacheCreationTokens": 20,
+    "cacheReadTokens": 10,
+    "totalTokens": 180,
+    "credits": 1.5,
+    "totalCost": 0.00037600000000000003
+  }
+}

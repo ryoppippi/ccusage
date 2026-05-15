@@ -254,6 +254,8 @@ This ensures code quality and catches issues immediately after changes.
 - **ESPECIALLY**: Never use dynamic imports in vitest test blocks - this is particularly problematic for test execution
 - **Vitest globals are enabled**: Use `describe`, `it`, `expect` directly without any imports since globals are configured
 - Mock data is created using `fs-fixture` with `createFixture()` for Claude data directory simulation
+- CLI integration tests that exercise human-readable table output must use file snapshots (`toMatchFileSnapshot`) so layout and responsive behavior are reviewed for every affected agent/report combination
+- Use `vi.stubEnv()` for environment variables in Vitest tests instead of mutating `process.env` directly
 - All test files must use current Claude 4 models, not outdated Claude 3 models
 - Test coverage should include both Sonnet and Opus models for comprehensive validation
 - Model names in tests must exactly match LiteLLM's pricing database entries

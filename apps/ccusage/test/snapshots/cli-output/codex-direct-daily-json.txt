@@ -1,0 +1,31 @@
+{
+  "daily": [
+    {
+      "date": "2026-01-02",
+      "inputTokens": 100,
+      "cachedInputTokens": 10,
+      "outputTokens": 50,
+      "reasoningOutputTokens": 0,
+      "totalTokens": 150,
+      "costUSD": 0.00061375,
+      "models": {
+        "gpt-5": {
+          "inputTokens": 100,
+          "cachedInputTokens": 10,
+          "outputTokens": 50,
+          "reasoningOutputTokens": 0,
+          "totalTokens": 150,
+          "isFallback": false
+        }
+      }
+    }
+  ],
+  "totals": {
+    "inputTokens": 100,
+    "cachedInputTokens": 10,
+    "outputTokens": 50,
+    "reasoningOutputTokens": 0,
+    "totalTokens": 150,
+    "costUSD": 0.00061375
+  }
+}

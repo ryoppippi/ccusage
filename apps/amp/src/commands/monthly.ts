@@ -55,6 +55,10 @@ export const monthlyCommand = define({
 	async run(ctx) {
 		const jsonOutput = Boolean(ctx.values.json);
 
+		if (!jsonOutput) {
+			logger.box('Amp Token Usage Report - Monthly');
+		}
+
 		const { events } = await loadAmpUsageEvents();
 
 		if (events.length === 0) {
@@ -107,7 +111,7 @@ export const monthlyCommand = define({
 				modelsSet.add(event.model);
 			}
 
-			const totalTokens = inputTokens + outputTokens;
+			const totalTokens = inputTokens + outputTokens + cacheCreationTokens + cacheReadTokens;
 
 			monthlyData.push({
 				month,
@@ -148,8 +152,6 @@ export const monthlyCommand = define({
 			return;
 		}
 
-		logger.box('Amp Token Usage Report - Monthly');
-
 		const table: ResponsiveTable = new ResponsiveTable({
 			head: [
 				'Month',
@@ -165,6 +167,10 @@ export const monthlyCommand = define({
 			colAligns: ['left', 'left', 'right', 'right', 'right', 'right', 'right', 'right', 'right'],
 			compactHead: ['Month', 'Models', 'Input', 'Output', 'Credits', 'Cost (USD)'],
 			compactColAligns: ['left', 'left', 'right', 'right', 'right', 'right'],
+			minColumnWidths: [12, 14, 11, 11, 11, 11, 11, 9, 14],
+			compactMinColumnWidths: [12, 14, 11, 11, 9, 14],
+			flexibleColumnIndex: 1,
+			compactFlexibleColumnIndex: 1,
 			compactThreshold: 100,
 			forceCompact: Boolean(ctx.values.compact),
 			style: { head: ['cyan'] },
