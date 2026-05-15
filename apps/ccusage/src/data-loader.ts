@@ -37,7 +37,7 @@ import {
 	createCachedDateFormatter,
 	filterByDateRange,
 	formatDate,
-	getDateWeek,
+	getDateStringWeek,
 	getDayNumber,
 	sortByDate,
 } from './_date-utils.ts';
@@ -2580,7 +2580,7 @@ export async function loadWeeklyUsageData(options?: LoadOptions): Promise<Weekly
 		options?.startOfWeek != null ? getDayNumber(options.startOfWeek) : getDayNumber('sunday');
 
 	return loadBucketUsageData(
-		(data: DailyUsage) => getDateWeek(new Date(data.date), startDay),
+		(data: DailyUsage) => getDateStringWeek(data.date, startDay),
 		options,
 	).then((usages) =>
 		usages.map<WeeklyUsage>(({ bucket, ...rest }) => ({

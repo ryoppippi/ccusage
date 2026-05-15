@@ -150,6 +150,21 @@ export function getDateWeek(date: Date, startDay: DayOfWeek): WeeklyDate {
 }
 
 /**
+ * Get the first day of the week for an existing YYYY-MM-DD daily bucket key.
+ *
+ * This preserves `getDateWeek(new Date(date), startDay)` semantics while avoiding the extra Date
+ * clone inside `getDateWeek` when weekly aggregation is already working from daily strings.
+ */
+export function getDateStringWeek(date: string, startDay: DayOfWeek): WeeklyDate {
+	const d = new Date(date);
+	const day = d.getDay();
+	const shift = (day - startDay + 7) % 7;
+	d.setDate(d.getDate() - shift);
+
+	return createWeeklyDate(d.toISOString().substring(0, 10));
+}
+
+/**
  * Convert day name to number (0 = Sunday, 1 = Monday, ..., 6 = Saturday)
  * @param day - Day name
  * @returns Day number
@@ -248,6 +263,17 @@ if (import.meta.vitest != null) {
 			const date = new Date('2023-12-31T10:00:00Z'); // Sunday
 			const result = getDateWeek(date, 0); // Sunday start
 			expect(result).toBe(createWeeklyDate('2023-12-31')); // Same Sunday
+		});
+	});
+
+	describe('getDateStringWeek', () => {
+		it('matches getDateWeek for daily usage date strings', () => {
+			const dates = ['2023-12-31', '2024-01-01', '2024-01-03', '2024-01-07'];
+
+			for (const date of dates) {
+				expect(getDateStringWeek(date, 0)).toBe(getDateWeek(new Date(date), 0));
+				expect(getDateStringWeek(date, 1)).toBe(getDateWeek(new Date(date), 1));
+			}
 		});
 	});
 
