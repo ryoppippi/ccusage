@@ -3,10 +3,10 @@
  * @module date-utils
  */
 
-import type { DayOfWeek, WeekDay } from './_consts.ts';
-import type { WeeklyDate } from './_types.ts';
-import { DEFAULT_LOCALE } from './_consts.ts';
-import { createWeeklyDate } from './_types.ts';
+import type { DayOfWeek, WeekDay } from './consts.ts';
+import type { WeeklyDate } from './types.ts';
+import { DEFAULT_LOCALE } from './consts.ts';
+import { createWeeklyDate } from './types.ts';
 
 export { sortByDate } from '@ccusage/internal/sort';
 // Re-export formatDateCompact from shared package

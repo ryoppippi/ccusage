@@ -12,10 +12,10 @@ import path from 'node:path';
 import { Result } from '@praha/byethrow';
 import { createFixture } from 'fs-fixture';
 import * as v from 'valibot';
-import { CLAUDE_PROJECTS_DIR_NAME, DEBUG_MATCH_THRESHOLD_PERCENT } from './_consts.ts';
-import { PricingFetcher } from './_pricing-fetcher.ts';
+import { CLAUDE_PROJECTS_DIR_NAME, DEBUG_MATCH_THRESHOLD_PERCENT } from './consts.ts';
 import { collectJsonlFiles, getClaudePaths, usageDataSchema } from './data-loader.ts';
 import { logger } from './logger.ts';
+import { PricingFetcher } from './pricing-fetcher.ts';
 
 /**
  * Represents a pricing discrepancy between original and calculated costs

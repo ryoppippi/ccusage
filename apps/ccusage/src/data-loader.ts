@@ -9,8 +9,8 @@
  */
 
 import type { LiteLLMModelPricing } from '@ccusage/internal/pricing';
-import type { WeekDay } from './_consts.ts';
-import type { LoadedUsageEntry, SessionBlock } from './_session-blocks.ts';
+import type { WeekDay } from './consts.ts';
+import type { LoadedUsageEntry, SessionBlock } from './session-blocks.ts';
 import type {
 	ActivityDate,
 	Bucket,
@@ -26,7 +26,7 @@ import type {
 	SortOrder,
 	Version,
 	WeeklyDate,
-} from './_types.ts';
+} from './types.ts';
 import { Buffer } from 'node:buffer';
 import { createReadStream, createWriteStream } from 'node:fs';
 import { open, readdir, readFile, stat, utimes } from 'node:fs/promises';
@@ -48,7 +48,7 @@ import {
 	DEFAULT_CLAUDE_CODE_PATH,
 	DEFAULT_CLAUDE_CONFIG_PATH,
 	USER_HOME_DIR,
-} from './_consts.ts';
+} from './consts.ts';
 import {
 	createCachedDateFormatter,
 	filterByDateRange,
@@ -56,9 +56,10 @@ import {
 	getDateStringWeek,
 	getDayNumber,
 	sortByDate,
-} from './_date-utils.ts';
-import { CLAUDE_PROVIDER_PREFIXES, PricingFetcher } from './_pricing-fetcher.ts';
-import { identifySessionBlocks } from './_session-blocks.ts';
+} from './date-utils.ts';
+import { logger } from './logger.ts';
+import { CLAUDE_PROVIDER_PREFIXES, PricingFetcher } from './pricing-fetcher.ts';
+import { identifySessionBlocks } from './session-blocks.ts';
 import {
 	createBucket,
 	createISOTimestamp,
@@ -73,9 +74,8 @@ import {
 	requestIdSchema,
 	sessionIdSchema,
 	versionSchema,
-} from './_types.ts';
-import { unreachable } from './_utils.ts';
-import { logger } from './logger.ts';
+} from './types.ts';
+import { unreachable } from './utils.ts';
 
 const USAGE_LINE_MARKER = '"usage":{';
 const USAGE_LINE_MARKER_BUFFER = Buffer.from(USAGE_LINE_MARKER);
