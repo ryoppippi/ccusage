@@ -26,11 +26,18 @@ import { addCodexUsage, createCodexUsage } from './usage.ts';
 export { detectCodex } from './paths.ts';
 export type { CodexModelUsage, CodexReportRow } from './types.ts';
 
-export async function loadCodexRows(
+type CodexPricing = Awaited<ReturnType<typeof getCodexPricing>>;
+
+type AggregatedCodexUsage = {
+	groups: Map<string, CodexGroup>;
+	pricingByModel: Map<string, CodexPricing>;
+};
+
+async function aggregateCodexUsageGroups(
 	kind: ReportKind,
 	options: AdapterOptions,
 	context: AdapterContext,
-): Promise<AgentUsageRow[]> {
+): Promise<AggregatedCodexUsage> {
 	const since = normalizeDateFilter(options.since);
 	const until = normalizeDateFilter(options.until);
 	const speed = await resolveCodexSpeed(options.speed);
@@ -86,9 +93,12 @@ export async function loadCodexRows(
 				group.models.set(modelName, modelUsage);
 			}
 			addCodexUsage(modelUsage, event);
+			if (event.isFallbackModel === true) {
+				modelUsage.isFallback = true;
+			}
 		}
 
-		const pricingByModel = new Map<string, Awaited<ReturnType<typeof getCodexPricing>>>();
+		const pricingByModel = new Map<string, CodexPricing>();
 		for (const group of groups.values()) {
 			for (const model of group.models.keys()) {
 				if (!pricingByModel.has(model)) {
@@ -97,24 +107,38 @@ export async function loadCodexRows(
 			}
 		}
 
-		return Array.from(groups.values(), ({ row, models, reasoningOutputTokens, lastActivity }) => {
-			let totalCost = 0;
-			for (const [model, usage] of models) {
-				const pricing = pricingByModel.get(model);
-				if (pricing != null) {
-					totalCost += calculateCodexCostUSD(usage, pricing);
-				}
-			}
-			return {
-				...row,
-				totalCost,
-				modelsUsed: Array.from(models.keys()).sort(compareStrings),
-				metadata: { lastActivity, reasoningOutputTokens },
-			};
-		}).sort((a, b) => compareStrings(a.period, b.period));
+		return { groups, pricingByModel };
 	} finally {
 		ownedFetcher?.[Symbol.dispose]();
 	}
+}
+
+function calculateCodexGroupCost(
+	models: Map<string, CodexModelUsage>,
+	pricingByModel: Map<string, CodexPricing>,
+): number {
+	let totalCost = 0;
+	for (const [model, usage] of models) {
+		const pricing = pricingByModel.get(model);
+		if (pricing != null) {
+			totalCost += calculateCodexCostUSD(usage, pricing);
+		}
+	}
+	return totalCost;
+}
+
+export async function loadCodexRows(
+	kind: ReportKind,
+	options: AdapterOptions,
+	context: AdapterContext,
+): Promise<AgentUsageRow[]> {
+	const { groups, pricingByModel } = await aggregateCodexUsageGroups(kind, options, context);
+	return Array.from(groups.values(), ({ row, models, reasoningOutputTokens, lastActivity }) => ({
+		...row,
+		totalCost: calculateCodexGroupCost(models, pricingByModel),
+		modelsUsed: Array.from(models.keys()).sort(compareStrings),
+		metadata: { lastActivity, reasoningOutputTokens },
+	})).sort((a, b) => compareStrings(a.period, b.period));
 }
 
 export async function loadCodexReportRows(
@@ -122,130 +146,41 @@ export async function loadCodexReportRows(
 	options: AdapterOptions,
 	context: AdapterContext,
 ): Promise<CodexReportRow[]> {
-	const since = normalizeDateFilter(options.since);
-	const until = normalizeDateFilter(options.until);
-	const speed = await resolveCodexSpeed(options.speed);
-	const events = await loadTokenUsageEvents();
-	const ownedFetcher =
-		context.pricingFetcher == null
-			? new LiteLLMPricingFetcher({
-					offline: options.offline === true,
-					offlineLoader: loadOfflineCodexPricing,
-					logger: context.progress?.pricingLogger ?? logger,
-					providerPrefixes: CODEX_PROVIDER_PREFIXES,
-				})
-			: undefined;
-	const fetcher = context.pricingFetcher ?? ownedFetcher!;
-	try {
-		const groups = new Map<
-			string,
-			{
-				inputTokens: number;
-				cachedInputTokens: number;
-				outputTokens: number;
-				reasoningOutputTokens: number;
-				totalTokens: number;
-				lastActivity: string;
-				models: Map<string, CodexModelUsage>;
-			}
-		>();
-		for (const event of events) {
-			const modelName = event.model?.trim();
-			if (modelName == null || modelName === '') {
-				continue;
-			}
-			const date = formatDateKey(event.timestamp, options.timezone);
-			if (!isWithinRange(date, since, until)) {
-				continue;
-			}
-			const period =
-				kind === 'session'
-					? event.sessionId
-					: kind === 'monthly'
-						? formatMonthKey(event.timestamp, options.timezone)
-						: date;
-			const group = groups.get(period) ?? {
-				inputTokens: 0,
-				cachedInputTokens: 0,
-				outputTokens: 0,
-				reasoningOutputTokens: 0,
-				totalTokens: 0,
-				lastActivity: event.timestamp,
-				models: new Map<string, CodexModelUsage>(),
-			};
-			if (!groups.has(period)) {
-				groups.set(period, group);
-			}
-
-			group.inputTokens += event.inputTokens;
-			group.cachedInputTokens += event.cachedInputTokens;
-			group.outputTokens += event.outputTokens;
-			group.reasoningOutputTokens += event.reasoningOutputTokens;
-			group.totalTokens += event.totalTokens;
-			if (event.timestamp > group.lastActivity) {
-				group.lastActivity = event.timestamp;
-			}
-
-			const modelUsage = group.models.get(modelName) ?? createCodexUsage();
-			if (!group.models.has(modelName)) {
-				group.models.set(modelName, modelUsage);
-			}
-			addCodexUsage(modelUsage, event);
-			if (event.isFallbackModel === true) {
-				modelUsage.isFallback = true;
-			}
+	const { groups, pricingByModel } = await aggregateCodexUsageGroups(kind, options, context);
+	return Array.from(groups.entries(), ([period, group]) => {
+		const { row, reasoningOutputTokens, lastActivity } = group;
+		const models: Record<string, CodexModelUsage> = {};
+		for (const [model, usage] of group.models) {
+			models[model] = { ...usage };
 		}
-
-		const pricingByModel = new Map<string, Awaited<ReturnType<typeof getCodexPricing>>>();
-		for (const group of groups.values()) {
-			for (const model of group.models.keys()) {
-				if (!pricingByModel.has(model)) {
-					pricingByModel.set(model, await getCodexPricing(model, fetcher, speed));
-				}
-			}
+		const base = {
+			inputTokens: row.inputTokens,
+			cachedInputTokens: row.cacheReadTokens,
+			outputTokens: row.outputTokens,
+			reasoningOutputTokens,
+			totalTokens: row.totalTokens,
+			costUSD: calculateCodexGroupCost(group.models, pricingByModel),
+			models,
+		};
+		if (kind === 'daily') {
+			return { date: period, ...base };
 		}
-
-		return Array.from(groups.entries(), ([period, group]) => {
-			let costUSD = 0;
-			const models: Record<string, CodexModelUsage> = {};
-			for (const [model, usage] of group.models) {
-				const pricing = pricingByModel.get(model);
-				if (pricing != null) {
-					costUSD += calculateCodexCostUSD(usage, pricing);
-				}
-				models[model] = { ...usage };
-			}
-			const base = {
-				inputTokens: group.inputTokens,
-				cachedInputTokens: group.cachedInputTokens,
-				outputTokens: group.outputTokens,
-				reasoningOutputTokens: group.reasoningOutputTokens,
-				totalTokens: group.totalTokens,
-				costUSD,
-				models,
-			};
-			if (kind === 'daily') {
-				return { date: period, ...base };
-			}
-			if (kind === 'monthly') {
-				return { month: period, ...base };
-			}
-			const separatorIndex = period.lastIndexOf('/');
-			return {
-				sessionId: period,
-				lastActivity: group.lastActivity,
-				sessionFile: separatorIndex >= 0 ? period.slice(separatorIndex + 1) : period,
-				directory: separatorIndex >= 0 ? period.slice(0, separatorIndex) : '',
-				...base,
-			};
-		}).sort((a, b) => {
-			const aKey = 'date' in a ? a.date : 'month' in a ? a.month : a.lastActivity;
-			const bKey = 'date' in b ? b.date : 'month' in b ? b.month : b.lastActivity;
-			return compareStrings(aKey, bKey);
-		});
-	} finally {
-		ownedFetcher?.[Symbol.dispose]();
-	}
+		if (kind === 'monthly') {
+			return { month: period, ...base };
+		}
+		const separatorIndex = period.lastIndexOf('/');
+		return {
+			sessionId: period,
+			lastActivity,
+			sessionFile: separatorIndex >= 0 ? period.slice(separatorIndex + 1) : period,
+			directory: separatorIndex >= 0 ? period.slice(0, separatorIndex) : '',
+			...base,
+		};
+	}).sort((a, b) => {
+		const aKey = 'date' in a ? a.date : 'month' in a ? a.month : a.lastActivity;
+		const bKey = 'date' in b ? b.date : 'month' in b ? b.month : b.lastActivity;
+		return compareStrings(aKey, bKey);
+	});
 }
 
 if (import.meta.vitest != null) {
