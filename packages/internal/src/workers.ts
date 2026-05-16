@@ -192,13 +192,17 @@ export async function collectIndexedFileWorkerResults<TItem, TResult, TWorkerDat
 			async (chunk) =>
 				new Promise<Array<IndexedWorkerResult<TResult>>>((resolve, reject) => {
 					const worker = createWorker(new URL(options.moduleUrl), options.createWorkerData(chunk));
+					let receivedMessage = false;
 					worker.once('message', (message) => {
+						receivedMessage = true;
 						resolve(message.results);
 					});
 					worker.once('error', reject);
 					worker.once('exit', (code) => {
 						if (code !== 0) {
 							reject(new Error(options.errorMessage.replace('{code}', String(code))));
+						} else if (!receivedMessage) {
+							reject(new Error('Worker exited before sending results'));
 						}
 					});
 				}),
@@ -340,5 +344,31 @@ if (import.meta.vitest != null) {
 			expect(workers).toHaveLength(2);
 			expect(results).toEqual(['a.jsonl', 'b.jsonl', 'c.jsonl']);
 		});
+
+		it('rejects when a worker exits before sending results', async () => {
+			await expect(
+				collectIndexedFileWorkerResults({
+					items: ['a.jsonl'],
+					workerCount: 1,
+					moduleUrl: 'file:///repo/dist/worker.js',
+					errorMessage: 'test worker failed',
+					createWorkerData: (items) => ({ items }),
+					createWorker: () => {
+						const worker: FileWorkerLike<string> = {
+							once(event, listener) {
+								if (event === 'exit') {
+									queueMicrotask(() => {
+										const onExit = listener as (code: number) => void;
+										onExit(0);
+									});
+								}
+								return worker;
+							},
+						};
+						return worker;
+					},
+				}),
+			).rejects.toThrow('Worker exited before sending results');
+		}, 500);
 	});
 }
