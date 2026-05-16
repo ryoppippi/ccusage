@@ -6,8 +6,7 @@ import { logger } from '../../logger.ts';
 import { createEmptyRow, formatDateKey, isWithinRange, normalizeDateFilter } from '../shared.ts';
 import { loadAmpUsageEvents } from './parser.ts';
 import { detectAmpThreadFiles } from './paths.ts';
-import { prefetchAmpPricing } from './pricing-macro.ts' with { type: 'macro' };
-import { AMP_PROVIDER_PREFIXES, calculateAmpCost } from './pricing.ts';
+import { AMP_PROVIDER_PREFIXES, calculateAmpCost, loadOfflineAmpPricing } from './pricing.ts';
 
 export async function detectAmp(): Promise<boolean> {
 	return detectAmpThreadFiles();
@@ -25,7 +24,7 @@ export async function loadAmpRows(
 		context.pricingFetcher == null
 			? new LiteLLMPricingFetcher({
 					offline: options.offline === true,
-					offlineLoader: async () => prefetchAmpPricing(),
+					offlineLoader: loadOfflineAmpPricing,
 					logger,
 					providerPrefixes: AMP_PROVIDER_PREFIXES,
 				})

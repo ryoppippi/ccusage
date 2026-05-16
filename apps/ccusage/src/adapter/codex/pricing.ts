@@ -4,9 +4,11 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { Result } from '@praha/byethrow';
 import { getCodexSessionsPath } from './paths.ts';
+import { prefetchCodexPricing } from './pricing-macro.ts' with { type: 'macro' };
 
 const MILLION = 1_000_000;
 export const CODEX_PROVIDER_PREFIXES = ['openai/', 'azure/', 'openrouter/openai/'];
+const PREFETCHED_CODEX_PRICING = prefetchCodexPricing();
 const CODEX_MODEL_ALIASES_MAP = new Map<string, string>([
 	['gpt-5-codex', 'gpt-5'],
 	['gpt-5.3-codex', 'gpt-5.2-codex'],
@@ -16,6 +18,10 @@ const CODEX_FAST_FALLBACK_MULTIPLIER = 2;
 function toPerMillion(value: number | undefined, fallback?: number): number {
 	const perToken = value ?? fallback ?? 0;
 	return perToken * MILLION;
+}
+
+export async function loadOfflineCodexPricing(): Promise<Record<string, LiteLLMModelPricing>> {
+	return PREFETCHED_CODEX_PRICING;
 }
 
 function hasNonZeroTokenPricing(pricing: LiteLLMModelPricing): boolean {

@@ -1,9 +1,15 @@
-import type { LiteLLMPricingFetcher } from '@ccusage/internal/pricing';
+import type { LiteLLMModelPricing, LiteLLMPricingFetcher } from '@ccusage/internal/pricing';
 import type { AmpUsageEvent } from './schema.ts';
 import { Result } from '@praha/byethrow';
 import { logger } from '../../logger.ts';
+import { prefetchAmpPricing } from './pricing-macro.ts' with { type: 'macro' };
 
 export const AMP_PROVIDER_PREFIXES = ['anthropic/', 'anthropic.', 'us.anthropic.', 'eu.anthropic.'];
+const PREFETCHED_AMP_PRICING = prefetchAmpPricing();
+
+export async function loadOfflineAmpPricing(): Promise<Record<string, LiteLLMModelPricing>> {
+	return PREFETCHED_AMP_PRICING;
+}
 
 export async function calculateAmpCost(
 	fetcher: LiteLLMPricingFetcher,

@@ -14,11 +14,11 @@ import {
 } from '../shared.ts';
 import { loadTokenUsageEvents } from './parser.ts';
 import { getCodexSessionsPath } from './paths.ts';
-import { prefetchCodexPricing } from './pricing-macro.ts' with { type: 'macro' };
 import {
 	calculateCodexCostUSD,
 	CODEX_PROVIDER_PREFIXES,
 	getCodexPricing,
+	loadOfflineCodexPricing,
 	resolveCodexSpeed,
 } from './pricing.ts';
 import { addCodexUsage, createCodexUsage } from './usage.ts';
@@ -39,7 +39,7 @@ export async function loadCodexRows(
 		context.pricingFetcher == null
 			? new LiteLLMPricingFetcher({
 					offline: options.offline === true,
-					offlineLoader: async () => prefetchCodexPricing(),
+					offlineLoader: loadOfflineCodexPricing,
 					logger,
 					providerPrefixes: CODEX_PROVIDER_PREFIXES,
 				})
@@ -130,7 +130,7 @@ export async function loadCodexReportRows(
 		context.pricingFetcher == null
 			? new LiteLLMPricingFetcher({
 					offline: options.offline === true,
-					offlineLoader: async () => prefetchCodexPricing(),
+					offlineLoader: loadOfflineCodexPricing,
 					logger,
 					providerPrefixes: CODEX_PROVIDER_PREFIXES,
 				})
