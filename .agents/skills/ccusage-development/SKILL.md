@@ -28,7 +28,7 @@ ccusage pi daily
 
 Standalone agent binaries such as `ccusage-codex`, `ccusage-opencode`, `ccusage-amp`, and `ccusage-pi` are deprecated compatibility wrappers. Keep backward compatibility where it already exists, but prefer `ccusage <agent> ...` in docs, tests, examples, and new behavior.
 
-Agent apps are still bundled runtime payloads. Treat runtime libraries as bundled assets: add dependencies to each app's `devDependencies` unless the user explicitly asks otherwise.
+Agent apps are still bundled runtime payloads. Treat runtime libraries as bundled assets: add dependencies to each app's `devDependencies` unless the user explicitly asks otherwise. Deprecated wrapper packages are the exception: keep install-time dependencies such as `ccusage` in `dependencies` when the wrapper needs them after installation.
 
 ## Common Commands
 
@@ -45,16 +45,16 @@ pnpm run prerelease
 Useful main CLI commands:
 
 ```sh
-pnpm run start daily
-pnpm run start monthly
-pnpm run start session
-pnpm run start blocks
-pnpm run start statusline
-pnpm run start daily --json
-pnpm run start daily --mode auto
-pnpm run start blocks --active
-pnpm run start blocks --recent
-pnpm run start blocks --token-limit max
+pnpm --filter ccusage run start daily
+pnpm --filter ccusage run start monthly
+pnpm --filter ccusage run start session
+pnpm --filter ccusage run start blocks
+pnpm --filter ccusage run start statusline
+pnpm --filter ccusage run start daily --json
+pnpm --filter ccusage run start daily --mode auto
+pnpm --filter ccusage run start blocks --active
+pnpm --filter ccusage run start blocks --recent
+pnpm --filter ccusage run start blocks --token-limit max
 ```
 
 `LOG_LEVEL` controls logging verbosity from `0` silent through `5` trace.
@@ -70,14 +70,19 @@ pnpm run start blocks --token-limit max
 - Use Gunshi for CLI commands; use the `use-gunshi-cli` skill for details.
 - Only export constants, functions, and types used by other modules.
 - Keep internal-only files and helpers private where possible.
-- Dependency additions go in `devDependencies` unless explicitly requested otherwise.
+- Dependency additions go in `devDependencies` for bundled/private packages, but keep install-time wrapper dependencies in `dependencies`.
 
 ## Post-Change Workflow
 
-After code changes, run these in parallel:
+After code changes, run formatting first because it mutates files:
 
 ```sh
 pnpm run format
+```
+
+Then run typecheck and tests. These may run in parallel if desired:
+
+```sh
 pnpm typecheck
 pnpm run test
 ```
