@@ -12,6 +12,7 @@ export type AdapterOptions = {
 	compact?: boolean;
 	offline?: boolean;
 	speed?: string;
+	piPath?: string;
 };
 
 export type AgentUsageRow = {

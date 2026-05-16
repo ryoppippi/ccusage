@@ -29,6 +29,7 @@ export async function loadPiRows(
 		since,
 		until,
 		timezone: options.timezone,
+		piPath: options.piPath,
 		order: 'asc' as const,
 	};
 
