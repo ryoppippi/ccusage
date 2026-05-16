@@ -38,6 +38,7 @@ Repeat until the feature or fix is complete.
 - **Run the affected test suite after every green and every refactor step.** Prefer running only changed/affected tests during the cycle for speed. Never skip this.
 - **Refactor only on green.** If a test is red, fix the production code first — do not restructure anything while tests are failing.
 - **Tests are first-class code.** Apply the same quality standards (naming, readability, no duplication) to test code as to production code.
+- **Do not satisfy TDD with content-existence tests.** A test like `expect(skillMd).toContain("some guidance")` is an anti-pattern unless it proves an executable contract rather than freezing wording.
 - **Do not delete or weaken a test to make the build pass.** If a test is wrong, fix the test with a clear reason — do not silently remove it.
 - **Bug fixes start with a regression test.** Before touching the bug, write a test that reproduces it and fails. Then fix the bug and confirm the test goes green.
 

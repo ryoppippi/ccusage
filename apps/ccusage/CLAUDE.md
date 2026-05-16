@@ -1,117 +1,21 @@
 # CLAUDE.md - ccusage Package
 
-This is the main ccusage CLI package that provides usage analysis for Claude Code.
+This is the main `ccusage` CLI package for Claude Code usage analysis.
 
-## Package Overview
+## Skills
 
-**Name**: `ccusage`
-**Description**: Usage analysis tool for Claude Code
-**Type**: Bundled CLI tool
+- Use `ccusage-development` for commands, bundled CLI dependency policy, style, exports, and validation.
+- Use `ccusage-testing` for in-source Vitest, snapshots, fixtures, Claude models, and LiteLLM pricing tests.
+- Use `ccusage-agent-sources` for Claude Code data directories, JSONL structure, session naming, cost modes, and report behavior.
+- Use `byethrow` for Result-based error handling.
+- Use `use-gunshi-cli` when changing command definitions.
 
-## Development Commands
+## Package Notes
 
-**Testing and Quality:**
+- Entry point: `src/index.ts`
+- Data loading: `src/data-loader.ts`
+- Cost aggregation: `src/calculate-cost.ts`
+- Commands: `src/commands/`
+- Logger: `src/logger.ts`
 
-- `pnpm run test` - Run all tests (using vitest via pnpm, watch mode disabled)
-- `pnpm run lint` - Lint code using ESLint
-- `pnpm run format` - Format and auto-fix code with ESLint
-- `pnpm typecheck` - Type check with TypeScript
-
-**Build and Release:**
-
-- `pnpm run build` - Build distribution files with tsdown (includes schema generation)
-- `pnpm run generate:schema` - Generate JSON schema for configuration
-- `pnpm run prerelease` - Full release workflow (lint + typecheck + build)
-
-**Development Usage:**
-
-- `pnpm run start daily` - Show daily usage report
-- `pnpm run start monthly` - Show monthly usage report
-- `pnpm run start session` - Show session-based usage report
-- `pnpm run start blocks` - Show 5-hour billing blocks usage report
-- `pnpm run start statusline` - Show compact status line (Beta)
-- Add `--json` flag for JSON output format
-- Add `--mode <mode>` for cost calculation control (auto/calculate/display)
-- Add `--active` flag for blocks to show only active block with projections
-- Add `--recent` flag for blocks to show last 3 days including active
-
-**CLI Testing:**
-
-- `pnpm run test:statusline` - Test statusline with default test data
-- `pnpm run test:statusline:all` - Test statusline with all model variants
-- `pnpm run test:statusline:sonnet4` - Test with Sonnet 4 data
-- `pnpm run test:statusline:opus4` - Test with Opus 4 data
-- `pnpm run test:statusline:sonnet41` - Test with Sonnet 4.1 data
-
-## Architecture
-
-This package contains the core ccusage functionality:
-
-**Key Modules:**
-
-- `src/index.ts` - CLI entry point with Gunshi-based command routing
-- `src/data-loader.ts` - Parses JSONL files from Claude data directories
-- `src/calculate-cost.ts` - Token aggregation and cost calculation utilities
-- `src/commands/` - CLI subcommands (daily, monthly, session, blocks, statusline)
-- `src/logger.ts` - Logging utilities (use instead of console.log)
-
-**Data Flow:**
-
-1. Loads JSONL files from `~/.claude/projects/` and `~/.config/claude/projects/`
-2. Aggregates usage data by time periods or sessions
-3. Calculates costs using LiteLLM pricing database
-4. Outputs formatted tables or JSON
-
-## Testing Guidelines
-
-- **In-Source Testing**: Tests are written in the same files using `if (import.meta.vitest != null)` blocks
-- **Vitest Globals Enabled**: Use `describe`, `it`, `expect` directly without imports
-- **Model Testing**: Use current Claude 4 models (sonnet-4, opus-4) in tests
-- **Mock Data**: Uses `fs-fixture` with `createFixture()` for Claude data simulation
-- **Utility Functions**: Utility functions should include JSDoc explaining their purpose and focused tests covering their behavior
-- **CRITICAL**: NEVER use `await import()` dynamic imports anywhere, especially in test blocks
-
-## Code Style
-
-- **Error Handling**: Prefer `@praha/byethrow Result` type over try-catch for functional error handling
-- **Imports**: Use `.ts` extensions for local imports (e.g., `import { foo } from './utils.ts'`)
-- **Exports**: Only export what's actually used by other modules
-- **Dependencies**: Add as `devDependencies` unless explicitly requested otherwise
-- **No console.log**: Use `logger.ts` instead
-
-**Post-Change Workflow:**
-Always run these commands in parallel after code changes:
-
-- `pnpm run format` - Auto-fix and format
-- `pnpm typecheck` - Type checking
-- `pnpm run test` - Run tests
-
-## Environment Variables
-
-- `LOG_LEVEL` - Control logging verbosity (0=silent, 1=warn, 2=log, 3=info, 4=debug, 5=trace)
-- `CLAUDE_CONFIG_DIR` - Custom Claude data directory paths (supports multiple comma-separated paths)
-
-## Dependencies
-
-Because `ccusage` is distributed as a bundled CLI, keep all runtime libraries in `devDependencies` so the bundler captures them.
-
-**Key Runtime Dependencies:**
-
-- `gunshi` - CLI framework
-- `cli-table3` - Table formatting
-- `valibot` - Schema validation
-- `@praha/byethrow` - Functional error handling
-
-**Key Dev Dependencies:**
-
-- `vitest` - Testing framework
-- `tsdown` - TypeScript build tool
-- `eslint` - Linting and formatting
-- `fs-fixture` - Test fixture creation
-
-## Package Surface
-
-The package is distributed as a bundled CLI. Keep the public surface centered on the executable and JSON output instead of library-style TypeScript exports.
-
-- `ccusage` - Published CLI command
-- `--json` - Stable programmatic output for integrations
+The package is distributed as the canonical bundled CLI. Keep the public surface centered on `ccusage`, agent subcommands such as `ccusage amp`, and stable `--json` output instead of library-style TypeScript exports.
