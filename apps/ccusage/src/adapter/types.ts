@@ -1,0 +1,50 @@
+import type { LiteLLMPricingFetcher } from '@ccusage/internal/pricing';
+
+export type AgentId = 'claude' | 'codex' | 'opencode' | 'amp' | 'pi';
+export type ReportKind = 'daily' | 'weekly' | 'monthly' | 'session';
+
+export type AdapterOptions = {
+	all?: boolean;
+	json?: boolean;
+	since?: string;
+	until?: string;
+	timezone?: string;
+	compact?: boolean;
+	offline?: boolean;
+};
+
+export type AgentUsageRow = {
+	period: string;
+	agent: AgentId | 'all';
+	modelsUsed: string[];
+	inputTokens: number;
+	outputTokens: number;
+	cacheCreationTokens: number;
+	cacheReadTokens: number;
+	totalTokens: number;
+	totalCost: number;
+	metadata?: Record<string, unknown>;
+	agentBreakdowns?: AgentUsageRow[];
+};
+
+export type AdapterProgress = {
+	start: (agent: AgentId) => void;
+	succeed: (agent: AgentId, rows: number) => void;
+	fail: (agent: AgentId, error: unknown) => void;
+	stop: () => void;
+};
+
+export type AdapterContext = {
+	pricingFetcher?: LiteLLMPricingFetcher;
+	progress?: AdapterProgress;
+};
+
+export const agentIds = ['claude', 'codex', 'opencode', 'amp', 'pi'] as const satisfies AgentId[];
+export const agentLabels = {
+	all: 'All',
+	claude: 'Claude',
+	codex: 'Codex',
+	opencode: 'OpenCode',
+	amp: 'Amp',
+	pi: 'pi-agent',
+} as const satisfies Record<AgentId | 'all', string>;

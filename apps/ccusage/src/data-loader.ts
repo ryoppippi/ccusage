@@ -6888,23 +6888,21 @@ if (import.meta.vitest != null) {
 	});
 
 	describe('JSONL worker count', () => {
+		afterEach(() => {
+			vi.restoreAllMocks();
+		});
+
 		it('uses more workers for daily and session tasks than block-style defaults', () => {
-			const availableParallelism = vi.spyOn(os, 'availableParallelism').mockReturnValue(11);
-			try {
-				expect(getDefaultJSONLWorkerThreadCount(100)).toBe(6);
-				expect(getDefaultJSONLWorkerThreadCount(100, true)).toBe(9);
-			} finally {
-				availableParallelism.mockRestore();
-			}
+			vi.spyOn(os, 'availableParallelism').mockReturnValue(11);
+
+			expect(getDefaultJSONLWorkerThreadCount(100)).toBe(6);
+			expect(getDefaultJSONLWorkerThreadCount(100, true)).toBe(9);
 		});
 
 		it('does not exceed the number of files', () => {
-			const availableParallelism = vi.spyOn(os, 'availableParallelism').mockReturnValue(11);
-			try {
-				expect(getDefaultJSONLWorkerThreadCount(5, true)).toBe(5);
-			} finally {
-				availableParallelism.mockRestore();
-			}
+			vi.spyOn(os, 'availableParallelism').mockReturnValue(11);
+
+			expect(getDefaultJSONLWorkerThreadCount(5, true)).toBe(5);
 		});
 	});
 
