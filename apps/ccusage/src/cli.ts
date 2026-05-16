@@ -6,7 +6,7 @@ import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 import { CCUSAGE_BUN_AUTO_RUN_DISABLED_VALUE, CCUSAGE_BUN_AUTO_RUN_ENV } from './_env.ts';
 
-const MIN_NODE_MAJOR_VERSION = 23;
+const MIN_NODE_MAJOR_VERSION = 22;
 
 type CliRuntime =
 	| {
@@ -172,18 +172,18 @@ if (import.meta.vitest != null) {
 			});
 		});
 
-		it('rejects Node.js 22 when Bun is unavailable', () => {
+		it('rejects Node.js 21 when Bun is unavailable', () => {
 			expect(
 				resolveCliRuntime({
 					argv: ['daily'],
 					distDir: '/app/dist',
 					findBunPath: () => undefined,
 					isRunningInBun: false,
-					nodeVersion: 'v22.13.1',
+					nodeVersion: 'v21.7.3',
 					processExecPath: '/usr/bin/node',
 				}),
 			).toEqual({
-				errorMessage: 'ccusage requires Bun or Node.js >=23.0.0. Current Node.js: v22.13.1\n',
+				errorMessage: 'ccusage requires Bun or Node.js >=22.0.0. Current Node.js: v21.7.3\n',
 			});
 		});
 	});
