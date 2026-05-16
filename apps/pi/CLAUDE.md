@@ -15,6 +15,6 @@ This package implements pi-agent usage tracking for the unified `ccusage pi` com
 - Data loading: `src/data-loader.ts`
 - pi-agent transformation: `src/_pi-agent.ts`
 - Commands: `src/commands/`
-- Deprecated compatibility wrapper: `ccusage-pi`
+- Deprecated compatibility wrapper: `pi`
 
 Prefer `ccusage pi ...` in examples, tests, docs, and new behavior. The package provides only the `.` export.
