@@ -42,6 +42,12 @@ function extractExplicitArgs(tokens: unknown[]): Record<string, boolean> {
 }
 
 const AGENT_CONFIG_KEYS = ['claude', 'codex', 'opencode', 'amp', 'pi'] as const;
+const UNSAFE_CONFIG_OPTION_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
+
+function isSafeConfigOptionKey(key: string): boolean {
+	return !UNSAFE_CONFIG_OPTION_KEYS.has(key);
+}
+
 type AgentConfigKey = (typeof AGENT_CONFIG_KEYS)[number];
 
 export type AgentConfigData = {
@@ -312,17 +318,20 @@ export function mergeConfigWithArgs<T extends Record<string, unknown>>(
 	}
 
 	// Start with an empty base
-	const merged = {} as T;
+	const merged = Object.create(null) as T;
 	const commandName = ctx.name;
 	const parsedCommand = parseCommandName(commandName);
 
 	// Track sources for debug output
-	const sources: Record<string, string> = {};
+	const sources = Object.create(null) as Record<string, string>;
 	const applyOptions = (options: Record<string, any> | undefined, source: string): void => {
 		if (options == null) {
 			return;
 		}
 		for (const [key, value] of Object.entries(options)) {
+			if (!isSafeConfigOptionKey(key)) {
+				continue;
+			}
 			(merged as Record<string, unknown>)[key] = value;
 			sources[key] = source;
 		}
@@ -353,7 +362,7 @@ export function mergeConfigWithArgs<T extends Record<string, unknown>>(
 	// Only override with CLI args that are explicitly provided by the user
 	const explicit = extractExplicitArgs(ctx.tokens);
 	for (const [key, value] of Object.entries(ctx.values)) {
-		if (value != null && explicit[key] === true) {
+		if (value != null && explicit[key] === true && isSafeConfigOptionKey(key)) {
 			// eslint-disable-next-line ts/no-unsafe-member-access
 			(merged as any)[key] = value;
 			sources[key] = 'CLI';
@@ -915,6 +924,28 @@ if (import.meta.vitest != null) {
 				});
 			},
 		);
+
+		it('should skip unsafe config option keys while merging', () => {
+			const config = JSON.parse(
+				'{"defaults":{"__proto__":{"polluted":true},"constructor":{"polluted":true},"prototype":{"polluted":true},"json":true}}',
+			) as ConfigData;
+
+			const merged = mergeConfigWithArgs(
+				{
+					values: {},
+					tokens: [],
+					name: 'daily',
+				},
+				config,
+			);
+
+			expect(merged).toEqual({ json: true });
+			expect(Object.getPrototypeOf(merged)).toBeNull();
+			expect(Object.prototype).not.toHaveProperty('polluted');
+			expect(Object.hasOwn(merged, '__proto__')).toBe(false);
+			expect(Object.hasOwn(merged, 'constructor')).toBe(false);
+			expect(Object.hasOwn(merged, 'prototype')).toBe(false);
+		});
 	});
 
 	describe('validateConfigFile', () => {
