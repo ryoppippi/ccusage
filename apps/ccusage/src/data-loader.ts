@@ -42,13 +42,7 @@ import { Result } from '@praha/byethrow';
 import { createFixture } from 'fs-fixture';
 import { isDirectorySync } from 'path-type';
 import * as v from 'valibot';
-import {
-	CLAUDE_CONFIG_DIR_ENV,
-	CLAUDE_PROJECTS_DIR_NAME,
-	DEFAULT_CLAUDE_CODE_PATH,
-	DEFAULT_CLAUDE_CONFIG_PATH,
-	USER_HOME_DIR,
-} from './_consts.ts';
+import { USER_HOME_DIR } from './_consts.ts';
 import {
 	createCachedDateFormatter,
 	filterByDateRange,
@@ -75,6 +69,12 @@ import {
 	versionSchema,
 } from './_types.ts';
 import { unreachable } from './_utils.ts';
+import {
+	CLAUDE_CONFIG_DIR_ENV,
+	CLAUDE_PROJECTS_DIR_NAME,
+	DEFAULT_CLAUDE_CODE_PATH,
+	DEFAULT_CLAUDE_CONFIG_PATH,
+} from './adapter/claude/constants.ts';
 import { logger } from './logger.ts';
 
 const USAGE_LINE_MARKER = '"usage":{';

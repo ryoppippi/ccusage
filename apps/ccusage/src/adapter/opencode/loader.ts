@@ -53,10 +53,7 @@ function hasBillableTokenUsage(tokens: OpenCodeTokens): boolean {
 
 function shouldLoadOpenCodeMessage(message: OpenCodeMessage): boolean {
 	return (
-		message.tokens?.input != null &&
-		message.tokens.output != null &&
-		message.tokens.cache?.read != null &&
-		message.tokens.cache.write != null &&
+		message.tokens != null &&
 		hasBillableTokenUsage(message.tokens) &&
 		message.providerID != null &&
 		message.modelID != null
@@ -301,6 +298,41 @@ if (import.meta.vitest != null) {
 						cacheReadInputTokens: 10,
 					},
 					costUSD: 0.02,
+				},
+			]);
+		});
+
+		it('loads billable OpenCode messages without cache token fields', async () => {
+			await using fixture = await createFixture({
+				storage: {
+					message: {
+						'message.json': JSON.stringify({
+							id: 'msg-1',
+							sessionID: 'session-a',
+							providerID: 'openai',
+							modelID: 'gpt-5',
+							time: { created: Date.UTC(2026, 4, 1, 1, 2, 3) },
+							tokens: {
+								input: 100,
+								output: 50,
+							},
+						}),
+					},
+				},
+			});
+			vi.stubEnv('OPENCODE_DATA_DIR', fixture.path);
+
+			await expect(loadOpenCodeMessages()).resolves.toMatchObject([
+				{
+					sessionID: 'session-a',
+					model: 'gpt-5',
+					providerID: 'openai',
+					usage: {
+						inputTokens: 100,
+						outputTokens: 50,
+						cacheCreationInputTokens: 0,
+						cacheReadInputTokens: 0,
+					},
 				},
 			]);
 		});

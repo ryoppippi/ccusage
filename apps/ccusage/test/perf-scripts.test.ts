@@ -1,5 +1,8 @@
 import { createCcusageCommandFromBin } from '../scripts/compare-pr-performance.ts';
-import { createCodexUsageLine } from '../scripts/generate-large-fixture.ts';
+import {
+	assertSafeDeletionTarget,
+	createCodexUsageLine,
+} from '../scripts/generate-large-fixture.ts';
 
 describe('performance scripts', () => {
 	it('builds hyperfine command text that always benchmarks the published ccusage bin with both Claude and Codex fixture environment variables', () => {
@@ -23,5 +26,14 @@ describe('performance scripts', () => {
 		expect(line).toContain('"last_token_usage"');
 		expect(line).toContain('"total_token_usage"');
 		expect(line).toContain('"model":"gpt-5.2-codex"');
+	});
+
+	it('refuses unsafe fixture deletion targets before the generator shells out to rm -rf', () => {
+		expect(() => assertSafeDeletionTarget('/', '--output-dir')).toThrow(
+			'Refusing to delete unsafe --output-dir path',
+		);
+		expect(() => assertSafeDeletionTarget(process.cwd(), '--output-dir')).toThrow(
+			'Refusing to delete unsafe --output-dir path',
+		);
 	});
 });

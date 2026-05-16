@@ -144,7 +144,19 @@ export async function loadPiUsageEntries(piPath?: string): Promise<PiUsageEntry[
 
 	for (const fileEntries of fileResults) {
 		for (const entry of fileEntries) {
-			const hash = `pi:${entry.project}:${entry.sessionId}:${entry.timestamp}:${entry.tokenTotal}`;
+			const hash = [
+				'pi',
+				entry.project,
+				entry.sessionId,
+				entry.timestamp,
+				entry.model,
+				entry.inputTokens,
+				entry.outputTokens,
+				entry.cacheCreationTokens,
+				entry.cacheReadTokens,
+				entry.cost,
+				entry.tokenTotal,
+			].join(':');
 			if (processedHashes.has(hash)) {
 				continue;
 			}
@@ -260,6 +272,49 @@ if (import.meta.vitest != null) {
 			});
 
 			await expect(loadPiUsageEntries(fixture.getPath('sessions'))).resolves.toHaveLength(1);
+		});
+
+		it('keeps distinct pi usage records that share timestamp and total tokens but differ in token breakdown', async () => {
+			const base = {
+				type: 'message',
+				timestamp: '2026-04-22T01:02:04.000Z',
+				message: {
+					role: 'assistant',
+					model: 'gpt-5.4',
+				},
+			};
+			await using fixture = await createFixture({
+				sessions: {
+					project: {
+						'session-id.jsonl': [
+							JSON.stringify({
+								...base,
+								message: {
+									...base.message,
+									usage: {
+										input: 100,
+										output: 50,
+										totalTokens: 150,
+									},
+								},
+							}),
+							JSON.stringify({
+								...base,
+								message: {
+									...base.message,
+									usage: {
+										input: 90,
+										output: 60,
+										totalTokens: 150,
+									},
+								},
+							}),
+						].join('\n'),
+					},
+				},
+			});
+
+			await expect(loadPiUsageEntries(fixture.getPath('sessions'))).resolves.toHaveLength(2);
 		});
 
 		it.skipIf(getPiAgentPaths().length === 0)(

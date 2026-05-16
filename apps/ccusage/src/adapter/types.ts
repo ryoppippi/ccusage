@@ -1,6 +1,7 @@
 import type { LiteLLMPricingFetcher } from '@ccusage/internal/pricing';
 
-export type AgentId = 'claude' | 'codex' | 'opencode' | 'amp' | 'pi';
+export const agentIds = ['claude', 'codex', 'opencode', 'amp', 'pi'] as const;
+export type AgentId = (typeof agentIds)[number];
 export type ReportKind = 'daily' | 'weekly' | 'monthly' | 'session';
 
 export type AdapterOptions = {
@@ -41,13 +42,6 @@ export type AdapterContext = {
 	progress?: AdapterProgress;
 };
 
-export const agentIds = [
-	'claude',
-	'codex',
-	'opencode',
-	'amp',
-	'pi',
-] as const satisfies readonly AgentId[];
 export const agentLabels = {
 	all: 'All',
 	claude: 'Claude',

@@ -51,6 +51,11 @@ export async function collectFilesRecursive(
 	return files.sort(compareStrings);
 }
 
+/**
+ * Returns true only when pathname exists and is a directory.
+ *
+ * Files, missing paths, and stat errors return false.
+ */
 export function isDirectorySyncSafe(pathname: string): boolean {
 	try {
 		return statSync(pathname).isDirectory();

@@ -487,17 +487,9 @@ const command = define({
 		const sections = [
 			await compareFixture({
 				...options,
-				commands: [
-					'daily',
-					'session',
-					'blocks',
-					'claude',
-					'claude session',
-					'codex',
-					'codex session',
-				],
+				commands: ['claude daily', 'claude session', 'codex daily', 'codex session'],
 				description:
-					'Committed small fixtures for stable PR-to-PR feedback, output-shape regressions, and explicit Claude/Codex command coverage.',
+					'Committed small fixtures for stable PR-to-PR feedback and explicit Claude/Codex command coverage.',
 				title: 'Committed fixture performance',
 			}),
 		];

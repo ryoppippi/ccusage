@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 
-import { join, resolve } from 'node:path';
+import path, { join, resolve } from 'node:path';
+import process from 'node:process';
 import { cli, define } from 'gunshi';
 
 const DEFAULT_SIZE_MIB = 1024;
@@ -96,6 +97,13 @@ function contentPadding(length: number): string {
 	return PADDING_SOURCE.slice(0, length);
 }
 
+export function assertSafeDeletionTarget(directory: string, flagName: string): void {
+	const resolved = resolve(directory);
+	if (resolved === path.parse(resolved).root || resolved === process.cwd() || resolved.length < 5) {
+		throw new Error(`Refusing to delete unsafe ${flagName} path: ${resolved}`);
+	}
+}
+
 /**
  * Creates one deterministic usage row that stays on ccusage's normal fast parser path.
  *
@@ -141,6 +149,7 @@ async function generateClaudeFixture(
 	outputDir: string,
 	sizeMib: number,
 ): Promise<{ fileCount: number; lineCount: number; totalBytes: number }> {
+	assertSafeDeletionTarget(outputDir, '--output-dir');
 	const targetBytes = sizeMib * 1024 * 1024;
 	const fileSizeTargets = createFileSizeTargets(targetBytes);
 
@@ -196,6 +205,7 @@ export async function generateCodexFixture(
 	outputDir: string,
 	sizeMib: number,
 ): Promise<{ fileCount: number; lineCount: number; totalBytes: number }> {
+	assertSafeDeletionTarget(outputDir, '--codex-output-dir');
 	const targetBytes = sizeMib * 1024 * 1024;
 	const fileSizeTargets = createFileSizeTargets(targetBytes);
 
