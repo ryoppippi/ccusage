@@ -29,6 +29,7 @@ type SampleOptions = {
 };
 
 type FixtureComparison = SampleOptions & {
+	codexFixtureDir?: string;
 	description: string;
 	fixtureDir: string;
 	results: CommandResult[];
@@ -158,25 +159,41 @@ async function writeProgress(message: string): Promise<void> {
  * script. Hyperfine runs this with `--shell none`, so the command is split into argv without shell
  * interpretation or hand-written shell quoting.
  */
-async function createCcusageCommand(
-	repoDir: string,
+export function createCcusageCommandFromBin(
+	binEntry: string,
 	fixtureDir: string,
+	codexFixtureDir: string | undefined,
 	command: string,
-): Promise<string> {
+): string {
 	return [
 		'env',
 		`CLAUDE_CONFIG_DIR=${fixtureDir}`,
+		...(codexFixtureDir == null ? [] : [`CODEX_HOME=${codexFixtureDir}`]),
 		'COLUMNS=200',
 		'LOG_LEVEL=0',
 		'NO_COLOR=1',
 		'TZ=UTC',
 		execPath,
 		'-b',
-		await packageBinEntry(repoDir),
+		binEntry,
 		command,
 		'--offline',
 		'--json',
 	].join(' ');
+}
+
+export async function createCcusageCommand(
+	repoDir: string,
+	fixtureDir: string,
+	codexFixtureDir: string | undefined,
+	command: string,
+): Promise<string> {
+	return createCcusageCommandFromBin(
+		await packageBinEntry(repoDir),
+		fixtureDir,
+		codexFixtureDir,
+		command,
+	);
 }
 
 /**
@@ -197,6 +214,7 @@ async function compareCommand(
 	options: {
 		baseDir: string;
 		fixtureTitle: string;
+		codexFixtureDir?: string;
 		fixtureDir: string;
 		headDir: string;
 		runs: number;
@@ -206,8 +224,18 @@ async function compareCommand(
 	await writeProgress(`${options.fixtureTitle} / ${command} started`);
 	await using fixture = await createFixture({});
 	const exportPath = join(fixture.path, 'hyperfine.json');
-	const baseCommand = await createCcusageCommand(options.baseDir, options.fixtureDir, command);
-	const headCommand = await createCcusageCommand(options.headDir, options.fixtureDir, command);
+	const baseCommand = await createCcusageCommand(
+		options.baseDir,
+		options.fixtureDir,
+		options.codexFixtureDir,
+		command,
+	);
+	const headCommand = await createCcusageCommand(
+		options.headDir,
+		options.fixtureDir,
+		options.codexFixtureDir,
+		command,
+	);
 	const hyperfine = Bun.spawn(
 		[
 			'hyperfine',
@@ -270,6 +298,7 @@ async function compareCommand(
  */
 async function compareFixture(options: {
 	baseDir: string;
+	codexFixtureDir?: string;
 	commands: string[];
 	description: string;
 	fixtureDir: string;
@@ -291,6 +320,7 @@ async function compareFixture(options: {
 	await writeProgress(`${options.title} finished`);
 
 	return {
+		codexFixtureDir: options.codexFixtureDir,
 		description: options.description,
 		fixtureDir: options.fixtureDir,
 		results,
@@ -319,7 +349,9 @@ function renderFixtureSection(section: FixtureComparison, options: { headDir: st
 		'',
 		section.description,
 		'',
-		`Fixture: \`${formatFixturePath(options.headDir, section.fixtureDir)}\``,
+		section.codexFixtureDir == null
+			? `Fixture: \`${formatFixturePath(options.headDir, section.fixtureDir)}\``
+			: `Fixtures: Claude \`${formatFixturePath(options.headDir, section.fixtureDir)}\`, Codex \`${formatFixturePath(options.headDir, section.codexFixtureDir)}\``,
 		`Runtime: package \`ccusage\` bin from \`apps/ccusage/package.json\` through \`bun -b\`, \`--offline --json\`, measured by \`hyperfine\` with \`${section.warmup}\` warmups and \`${section.runs}\` runs.`,
 		'',
 		'| Command | Base median | PR median | PR vs base |',
@@ -402,6 +434,11 @@ const command = define({
 			required: true,
 			description: 'Claude fixture directory used as CLAUDE_CONFIG_DIR',
 		},
+		codexFixtureDir: {
+			type: 'string',
+			required: true,
+			description: 'Codex fixture directory used as CODEX_HOME',
+		},
 		output: {
 			type: 'string',
 			description: 'Markdown output file path',
@@ -420,6 +457,10 @@ const command = define({
 			type: 'string',
 			description: 'Generated large Claude fixture directory used as CLAUDE_CONFIG_DIR',
 		},
+		largeCodexFixtureDir: {
+			type: 'string',
+			description: 'Generated large Codex fixture directory used as CODEX_HOME',
+		},
 		largeRuns: {
 			type: 'number',
 			default: 1,
@@ -437,6 +478,7 @@ const command = define({
 
 		const options = {
 			baseDir: resolve(ctx.values.baseDir),
+			codexFixtureDir: resolve(ctx.values.codexFixtureDir),
 			fixtureDir: resolve(ctx.values.fixtureDir),
 			headDir: resolve(ctx.values.headDir),
 			runs: ctx.values.runs,
@@ -445,9 +487,17 @@ const command = define({
 		const sections = [
 			await compareFixture({
 				...options,
-				commands: ['daily', 'session', 'blocks'],
+				commands: [
+					'daily',
+					'session',
+					'blocks',
+					'claude',
+					'claude session',
+					'codex',
+					'codex session',
+				],
 				description:
-					'Committed small fixture for stable PR-to-PR feedback and output-shape regressions.',
+					'Committed small fixtures for stable PR-to-PR feedback, output-shape regressions, and explicit Claude/Codex command coverage.',
 				title: 'Committed fixture performance',
 			}),
 		];
@@ -455,9 +505,13 @@ const command = define({
 			sections.push(
 				await compareFixture({
 					...options,
-					commands: ['daily'],
+					codexFixtureDir:
+						ctx.values.largeCodexFixtureDir == null
+							? options.codexFixtureDir
+							: resolve(ctx.values.largeCodexFixtureDir),
+					commands: ['claude', 'codex'],
 					description:
-						'Generated fixture around 1 GiB shaped from aggregate local Claude-log statistics: thousands of JSONL files, many small sessions, and a long tail of larger sessions. No real prompts, paths, or outputs are stored in the fixture.',
+						'Generated fixtures shaped from aggregate local log statistics: thousands of JSONL files, many small sessions, and a long tail of larger sessions. No real prompts, paths, or outputs are stored in the fixtures.',
 					fixtureDir: resolve(ctx.values.largeFixtureDir),
 					runs: ctx.values.largeRuns,
 					title: 'Large real-world-shaped fixture performance',
@@ -480,8 +534,10 @@ const command = define({
 	},
 });
 
-await cli(Bun.argv.slice(2), command, {
-	name: 'compare-pr-performance',
-	description: 'Compare ccusage fixture performance between two built repository directories',
-	renderHeader: null,
-});
+if (import.meta.main) {
+	await cli(Bun.argv.slice(2), command, {
+		name: 'compare-pr-performance',
+		description: 'Compare ccusage fixture performance between two built repository directories',
+		renderHeader: null,
+	});
+}
