@@ -40,7 +40,7 @@ For concrete good and bad examples, read `references/revertable-commits.md`.
 ## Workflow
 
 1. **Analyse the changes above**: Review the git state already provided
-2. **Review history**: Match existing commit patterns (structure, scope naming, message style) from the log above
+2. **Review history**: Match existing commit patterns and inspect relevant file history before deciding commit boundaries
 3. **Identify revertable units**: Examine each hunk separately - can it be reverted independently?
 4. **For each unit**:
    - Extract specific hunks using `git diff <file>`
@@ -54,6 +54,10 @@ For concrete good and bad examples, read `references/revertable-commits.md`.
 ## Patch Staging
 
 Use `git apply --cached -v` to stage precise non-interactive patches. Read `references/git-apply.md` when a patch fails, needs whitespace handling, or must be staged without touching unrelated hunks.
+
+## History Inspection
+
+Use git history to understand intent before committing. Prefer targeted commands such as `git log --follow -- <file>`, `git show <commit> -- <file>`, `git blame <file>`, and any available `git history` alias/tool when it gives clearer local context. Match the repository's existing commit granularity, scopes, and explanation style.
 
 ## Commit Message Format
 
