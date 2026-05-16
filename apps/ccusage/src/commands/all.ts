@@ -380,6 +380,8 @@ type AllLoadProgress = {
 	stop: () => void;
 };
 
+type AllLoadProgressState = 'loading' | 'succeeded' | 'failed';
+
 type CodexModelUsage = {
 	inputTokens: number;
 	cachedInputTokens: number;
@@ -781,38 +783,54 @@ function shouldShowAllLoadProgress(options: AllOptions): boolean {
 	return options.json !== true && process.stdout.isTTY === true;
 }
 
-function formatRowCount(rows: number): string {
-	return `${rows} ${rows === 1 ? 'row' : 'rows'}`;
+function formatAllLoadProgressText(states: ReadonlyMap<AgentId, AllLoadProgressState>): string {
+	if (states.size === 0) {
+		return 'Loading usage logs';
+	}
+	const completed = Array.from(states.values()).filter((state) => state !== 'loading').length;
+	const loadingAgents = Array.from(states.entries())
+		.filter(([, state]) => state === 'loading')
+		.map(([agent]) => agentLabels[agent])
+		.join(', ');
+	const suffix = loadingAgents === '' ? '' : ` :: ${loadingAgents}`;
+	return `Loading usage logs (${completed}/${states.size})${suffix}`;
 }
 
 function createAllLoadProgress(enabled: boolean): AllLoadProgress | undefined {
 	if (!enabled) {
 		return undefined;
 	}
-	const spinners = new Map<AgentId, Spinner>();
+	let spinner: Spinner | undefined;
+	const states = new Map<AgentId, AllLoadProgressState>();
+
+	function refresh(): void {
+		spinner?.setText(formatAllLoadProgressText(states));
+	}
+
 	return {
 		start(agent) {
-			const spinner = new Spinner(`${agentLabels[agent]} :: loading usage logs`);
-			spinners.set(agent, spinner);
-			spinner.start();
+			states.set(agent, 'loading');
+			if (spinner == null) {
+				spinner = new Spinner(formatAllLoadProgressText(states));
+				spinner.start();
+				return;
+			}
+			refresh();
 		},
-		succeed(agent, rows) {
-			const spinner = spinners.get(agent);
-			spinner?.succeed(`${agentLabels[agent]} :: ${formatRowCount(rows)}`);
+		succeed(agent) {
+			states.set(agent, 'succeeded');
+			refresh();
 		},
-		fail(agent, error) {
-			const spinner = spinners.get(agent);
-			spinner?.fail(
-				`${agentLabels[agent]} :: ${error instanceof Error ? error.message : String(error)}`,
-			);
+		fail(agent) {
+			states.set(agent, 'failed');
+			refresh();
 		},
 		stop() {
-			for (const spinner of spinners.values()) {
-				if (spinner.running) {
-					spinner.stop();
-				}
+			if (spinner?.running === true) {
+				spinner.stop();
 			}
-			spinners.clear();
+			spinner = undefined;
+			states.clear();
 		},
 	};
 }
@@ -835,13 +853,20 @@ async function runAllReport(kind: ReportKind, options: AllOptions): Promise<void
 
 	let rows: AllRow[];
 	const progress = createAllLoadProgress(shouldShowAllLoadProgress(options));
+	const originalLoggerLevel = logger.level;
 	try {
+		if (progress != null) {
+			logger.level = 0;
+		}
 		rows = await loadAllRows(kind, options, detectedAgents, progress);
 	} catch (error) {
 		progress?.stop();
+		logger.level = originalLoggerLevel;
 		logger.error(String(error));
 		process.exitCode = 1;
 		return;
+	} finally {
+		logger.level = originalLoggerLevel;
 	}
 	progress?.stop();
 
@@ -1040,6 +1065,31 @@ if (import.meta.vitest != null) {
 			Object.defineProperty(process.stdout, 'isTTY', { configurable: true, value: false });
 
 			expect(shouldShowAllLoadProgress({ json: false })).toBe(false);
+		});
+	});
+
+	describe('formatAllLoadProgressText', () => {
+		it('renders a single-line progress message for active agent loads', () => {
+			expect(
+				formatAllLoadProgressText(
+					new Map<AgentId, AllLoadProgressState>([
+						['claude', 'succeeded'],
+						['codex', 'loading'],
+						['opencode', 'loading'],
+					]),
+				),
+			).toBe('Loading usage logs (1/3) :: Codex, OpenCode');
+		});
+
+		it('omits active labels once every load has completed', () => {
+			expect(
+				formatAllLoadProgressText(
+					new Map<AgentId, AllLoadProgressState>([
+						['claude', 'succeeded'],
+						['codex', 'failed'],
+					]),
+				),
+			).toBe('Loading usage logs (2/2)');
 		});
 	});
 }
