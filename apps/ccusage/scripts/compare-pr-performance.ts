@@ -467,6 +467,66 @@ function renderMarkdown(
 	return `${lines.join('\n')}\n`;
 }
 
+if (import.meta.vitest != null) {
+	describe('createCcusageCommandFromBin', () => {
+		it('builds hyperfine command text that benchmarks the published ccusage bin with both Claude and Codex fixture environment variables', () => {
+			const commandText = createCcusageCommandFromBin(
+				'/repo/apps/ccusage/dist/cli.js',
+				'/fixtures/claude',
+				'/fixtures/codex',
+				'codex session',
+			);
+
+			expect(commandText).toContain('CLAUDE_CONFIG_DIR=/fixtures/claude');
+			expect(commandText).toContain('CODEX_HOME=/fixtures/codex');
+			expect(commandText).toContain('codex session --offline --json');
+		});
+	});
+
+	describe('renderFixtureSection', () => {
+		it('renders fixture sizes and throughput so Claude and Codex timings are comparable', () => {
+			const lines = renderFixtureSection(
+				{
+					codexFixtureDir: '/fixtures/codex',
+					codexFixtureStats: {
+						bytes: 512 * 1024 * 1024,
+						files: 200,
+					},
+					description: 'Fixture description',
+					fixtureDir: '/fixtures/claude',
+					fixtureStats: {
+						bytes: 1024 * 1024 * 1024,
+						files: 400,
+					},
+					results: [
+						{
+							base: { max: 2000, median: 2000, min: 2000, samples: 1 },
+							command: 'claude',
+							head: { max: 1000, median: 1000, min: 1000, samples: 1 },
+						},
+						{
+							base: { max: 1000, median: 1000, min: 1000, samples: 1 },
+							command: 'codex',
+							head: { max: 500, median: 500, min: 500, samples: 1 },
+						},
+					],
+					runs: 1,
+					title: 'Large fixture',
+					warmup: 0,
+				},
+				{ headDir: '/repo' },
+			);
+
+			expect(lines.join('\n')).toContain('Claude `/fixtures/claude` (1.00 GiB, 400 files)');
+			expect(lines.join('\n')).toContain('Codex `/fixtures/codex` (512.00 MiB, 200 files)');
+			expect(lines.join('\n')).toContain('| `claude --offline --json` | 1.00 GiB |');
+			expect(lines.join('\n')).toContain('| `codex --offline --json` | 512.00 MiB |');
+			expect(lines.join('\n')).toContain('512.00 MiB/s');
+			expect(lines.join('\n')).toContain('1.00 GiB/s');
+		});
+	});
+}
+
 /**
  * Rejects accidental zero-sample CI runs early so the PR comment cannot present an empty
  * benchmark as a successful comparison.

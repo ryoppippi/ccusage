@@ -5,7 +5,7 @@ import process from 'node:process';
 import { cli, define } from 'gunshi';
 
 const DEFAULT_SIZE_MIB = 1024;
-const DEFAULT_CODEX_SIZE_MIB = 256;
+export const DEFAULT_CODEX_SIZE_MIB = 1024;
 const CHUNK_LINE_COUNT = 128;
 const FLUSH_INTERVAL_BYTES = 64 * 1024 * 1024;
 const PADDING_SOURCE = 'x'.repeat(128 * 1024);
@@ -254,6 +254,37 @@ export async function generateCodexFixture(
 	}
 
 	return { fileCount, lineCount: lineIndex, totalBytes };
+}
+
+if (import.meta.vitest != null) {
+	describe('createCodexUsageLine', () => {
+		it('creates synthetic Codex token_count JSONL rows that stay on the same fast parser path as real Codex session logs', () => {
+			const line = createCodexUsageLine(42, 7);
+
+			expect(line).toContain('"type":"event_msg"');
+			expect(line).toContain('"type":"token_count"');
+			expect(line).toContain('"last_token_usage"');
+			expect(line).toContain('"total_token_usage"');
+			expect(line).toContain('"model":"gpt-5.2-codex"');
+		});
+	});
+
+	describe('assertSafeDeletionTarget', () => {
+		it('refuses unsafe fixture deletion targets before the generator shells out to rm -rf', () => {
+			expect(() => assertSafeDeletionTarget('/', '--output-dir')).toThrow(
+				'Refusing to delete unsafe --output-dir path',
+			);
+			expect(() => assertSafeDeletionTarget(process.cwd(), '--output-dir')).toThrow(
+				'Refusing to delete unsafe --output-dir path',
+			);
+		});
+	});
+
+	describe('large fixture defaults', () => {
+		it('uses the same large fixture size for Codex and Claude by default', () => {
+			expect(DEFAULT_CODEX_SIZE_MIB).toBe(1024);
+		});
+	});
 }
 
 const command = define({
