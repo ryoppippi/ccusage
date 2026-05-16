@@ -33,6 +33,8 @@ PR branches are normally squash-merged, so do not compress review work with `git
 
 Tiny commits are expected. A single review comment, one wording correction, one reference-file extraction, one symlink sync, or one generated formatting pass can each be its own commit when independently revertable.
 
+Tiny does not mean incomplete. For moves, renames, or extractions, one commit must include both sides of the operation: remove or update the old location, add the new location, update references, and sync generated links if required. Never commit only the destination of a move while leaving the source/reference cleanup for a later commit.
+
 ## Workflow
 
 1. **Analyse the changes above**: Review the git state already provided
