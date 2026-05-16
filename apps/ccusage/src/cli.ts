@@ -69,6 +69,10 @@ function findExecutableInPath(
 	return undefined;
 }
 
+function isBun(): boolean {
+	return (globalThis as { Bun?: unknown }).Bun != null;
+}
+
 function getNodeMajorVersion(version = process.version): number | undefined {
 	const [majorVersion] = version.replace(/^v/, '').split('.');
 	const major = Number(majorVersion);
@@ -89,7 +93,7 @@ function resolveCliRuntime({
 	bunAutoRunValue = process.env[CCUSAGE_BUN_AUTO_RUN_ENV],
 	distDir,
 	findBunPath = () => findExecutableInPath('bun'),
-	isRunningInBun = process.versions.bun != null,
+	isBunRuntime = isBun(),
 	nodeVersion = process.version,
 	processExecPath = process.execPath,
 }: {
@@ -97,13 +101,13 @@ function resolveCliRuntime({
 	bunAutoRunValue?: string;
 	distDir: string;
 	findBunPath?: () => string | undefined;
-	isRunningInBun?: boolean;
+	isBunRuntime?: boolean;
 	nodeVersion?: string;
 	processExecPath?: string;
 }): CliRuntime {
 	const bunPath =
 		bunAutoRunValue !== CCUSAGE_BUN_AUTO_RUN_DISABLED_VALUE
-			? isRunningInBun
+			? isBunRuntime
 				? processExecPath
 				: findBunPath()
 			: undefined;
@@ -162,9 +166,27 @@ if (import.meta.vitest != null) {
 					argv: ['daily'],
 					distDir: '/app/dist',
 					findBunPath: () => '/usr/local/bin/bun',
-					isRunningInBun: false,
+					isBunRuntime: false,
 					nodeVersion: 'v22.13.1',
 					processExecPath: '/usr/bin/node',
+				}),
+			).toEqual({
+				args: ['/app/dist/main.bun.js', 'daily'],
+				command: '/usr/local/bin/bun',
+			});
+		});
+
+		it('skips PATH lookup and Node.js checks when running under Bun', () => {
+			expect(
+				resolveCliRuntime({
+					argv: ['daily'],
+					distDir: '/app/dist',
+					findBunPath: () => {
+						throw new Error('should not scan PATH');
+					},
+					isBunRuntime: true,
+					nodeVersion: 'v21.7.3',
+					processExecPath: '/usr/local/bin/bun',
 				}),
 			).toEqual({
 				args: ['/app/dist/main.bun.js', 'daily'],
@@ -178,7 +200,7 @@ if (import.meta.vitest != null) {
 					argv: ['daily'],
 					distDir: '/app/dist',
 					findBunPath: () => undefined,
-					isRunningInBun: false,
+					isBunRuntime: false,
 					nodeVersion: 'v21.7.3',
 					processExecPath: '/usr/bin/node',
 				}),
