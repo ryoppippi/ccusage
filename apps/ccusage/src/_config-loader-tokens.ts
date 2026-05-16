@@ -41,11 +41,24 @@ function extractExplicitArgs(tokens: unknown[]): Record<string, boolean> {
 	return explicit;
 }
 
+const AGENT_CONFIG_KEYS = ['claude', 'codex', 'opencode', 'amp', 'pi'] as const;
+type AgentConfigKey = (typeof AGENT_CONFIG_KEYS)[number];
+
+export type AgentConfigData = {
+	defaults?: Record<string, any>;
+	commands?: Record<string, Record<string, any>>;
+};
+
 // Type for configuration data (simple structure without Valibot)
 export type ConfigData = {
 	$schema?: string;
 	defaults?: Record<string, any>;
 	commands?: Record<string, Record<string, any>>;
+	claude?: AgentConfigData;
+	codex?: AgentConfigData;
+	opencode?: AgentConfigData;
+	amp?: AgentConfigData;
+	pi?: AgentConfigData;
 	source?: string;
 };
 
@@ -90,7 +103,57 @@ function validateConfigJson(data: unknown): data is ConfigData {
 		return false;
 	}
 
+	for (const agent of AGENT_CONFIG_KEYS) {
+		if (!validateAgentConfigJson(config[agent])) {
+			return false;
+		}
+	}
+
 	return true;
+}
+
+function validateAgentConfigJson(data: unknown): data is AgentConfigData | undefined {
+	if (data == null) {
+		return true;
+	}
+	if (typeof data !== 'object') {
+		return false;
+	}
+	const config = data as Record<string, unknown>;
+	if (
+		config.defaults != null &&
+		(typeof config.defaults !== 'object' || config.defaults === null)
+	) {
+		return false;
+	}
+	if (
+		config.commands != null &&
+		(typeof config.commands !== 'object' || config.commands === null)
+	) {
+		return false;
+	}
+	return true;
+}
+
+function parseCommandName(commandName: string | undefined): {
+	agent?: AgentConfigKey;
+	report?: string;
+	raw?: string;
+} {
+	if (commandName == null) {
+		return {};
+	}
+	for (const agent of AGENT_CONFIG_KEYS) {
+		const colonPrefix = `${agent}:`;
+		const spacePrefix = `${agent} `;
+		if (commandName.startsWith(colonPrefix)) {
+			return { agent, report: commandName.slice(colonPrefix.length), raw: commandName };
+		}
+		if (commandName.startsWith(spacePrefix)) {
+			return { agent, report: commandName.slice(spacePrefix.length), raw: commandName };
+		}
+	}
+	return { report: commandName, raw: commandName };
 }
 
 /**
@@ -237,24 +300,41 @@ export function mergeConfigWithArgs<T extends Record<string, unknown>>(
 	// Start with an empty base
 	const merged = {} as T;
 	const commandName = ctx.name;
+	const parsedCommand = parseCommandName(commandName);
 
 	// Track sources for debug output
 	const sources: Record<string, string> = {};
+	const applyOptions = (options: Record<string, any> | undefined, source: string): void => {
+		if (options == null) {
+			return;
+		}
+		for (const [key, value] of Object.entries(options)) {
+			(merged as Record<string, unknown>)[key] = value;
+			sources[key] = source;
+		}
+	};
 
 	// 1. Apply defaults from config (lowest priority)
-	if (config.defaults != null) {
-		for (const [key, value] of Object.entries(config.defaults)) {
-			(merged as Record<string, unknown>)[key] = value;
-			sources[key] = 'defaults';
-		}
-	}
+	applyOptions(config.defaults, 'defaults');
 
 	// 2. Apply command-specific config
-	if (commandName != null && config.commands?.[commandName] != null) {
-		for (const [key, value] of Object.entries(config.commands[commandName])) {
-			(merged as Record<string, unknown>)[key] = value;
-			sources[key] = 'command config';
+	if (parsedCommand.raw != null) {
+		applyOptions(config.commands?.[parsedCommand.raw], 'command config');
+	}
+	if (parsedCommand.agent != null && parsedCommand.report != null) {
+		applyOptions(
+			config.commands?.[`${parsedCommand.agent}:${parsedCommand.report}`],
+			'command config',
+		);
+		if (parsedCommand.agent === 'claude') {
+			applyOptions(config.commands?.[parsedCommand.report], 'command config');
 		}
+		const agentConfig = config[parsedCommand.agent];
+		applyOptions(agentConfig?.defaults, `${parsedCommand.agent} defaults`);
+		applyOptions(
+			agentConfig?.commands?.[parsedCommand.report],
+			`${parsedCommand.agent} command config`,
+		);
 	}
 
 	// 3. Apply CLI arguments (highest priority)
@@ -275,26 +355,27 @@ export function mergeConfigWithArgs<T extends Record<string, unknown>>(
 		logger.info(`Merging options for '${commandName ?? 'unknown'}' command:`);
 
 		// Group options by source
-		const bySource: Record<string, string[]> = {
-			defaults: [],
-			'command config': [],
-			CLI: [],
-		};
+		const bySource: Record<string, string[]> = {};
 
 		for (const [key, source] of Object.entries(sources)) {
-			if (bySource[source] != null) {
-				bySource[source].push(`${key}=${JSON.stringify((merged as Record<string, unknown>)[key])}`);
-			}
+			bySource[source] ??= [];
+			bySource[source].push(`${key}=${JSON.stringify((merged as Record<string, unknown>)[key])}`);
 		}
 
-		if (bySource.defaults!.length > 0) {
-			logger.info(`  • From defaults: ${bySource.defaults!.join(', ')}`);
-		}
-		if (bySource['command config']!.length > 0) {
-			logger.info(`  • From command config: ${bySource['command config']!.join(', ')}`);
-		}
-		if (bySource.CLI!.length > 0) {
-			logger.info(`  • From CLI args: ${bySource.CLI!.join(', ')}`);
+		const sourceOrder = [
+			'defaults',
+			'command config',
+			parsedCommand.agent == null ? undefined : `${parsedCommand.agent} defaults`,
+			parsedCommand.agent == null ? undefined : `${parsedCommand.agent} command config`,
+			'CLI',
+		].filter((source): source is string => source != null);
+		for (const source of sourceOrder) {
+			if (bySource[source] == null || bySource[source].length === 0) {
+				continue;
+			}
+			logger.info(
+				`  • From ${source === 'CLI' ? 'CLI args' : source}: ${bySource[source].join(', ')}`,
+			);
 		}
 
 		// Show final result with sources
@@ -718,6 +799,38 @@ if (import.meta.vitest != null) {
 			// null value in CLI args should not override config even if explicit
 			expect(merged).toEqual({
 				project: 'default-project', // Config value retained because CLI value is null
+			});
+		});
+
+		it('should merge agent namespace config for namespaced commands', () => {
+			const config = {
+				defaults: { json: false },
+				codex: {
+					defaults: {
+						speed: 'standard',
+						offline: false,
+					},
+					commands: {
+						daily: {
+							speed: 'fast',
+						},
+					},
+				},
+			} satisfies ConfigData;
+
+			const merged = mergeConfigWithArgs(
+				{
+					values: { json: true, speed: 'auto' },
+					tokens: [{ kind: 'option', name: 'json' }],
+					name: 'codex daily',
+				},
+				config,
+			);
+
+			expect(merged).toEqual({
+				json: true,
+				speed: 'fast',
+				offline: false,
 			});
 		});
 	});

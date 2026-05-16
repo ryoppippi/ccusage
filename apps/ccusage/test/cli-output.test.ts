@@ -413,6 +413,45 @@ describe('ccusage all-agent CLI', () => {
 		]);
 	});
 
+	it('loads agent namespace config for direct agent commands', async () => {
+		const fixtureTree = createAgentFixtureTree();
+		await using fixture = await createFixture({
+			...fixtureTree,
+			claude: {
+				...fixtureTree.claude,
+				'ccusage.json': JSON.stringify({
+					codex: {
+						defaults: {
+							json: true,
+							offline: true,
+						},
+						commands: {
+							daily: {
+								since: '20260102',
+								until: '20260102',
+							},
+						},
+					},
+				}),
+			},
+		});
+
+		const result = runCcusage(['codex', 'daily'], createAgentCliEnv(fixture.path));
+
+		expect(result.status).toBe(0);
+		expect(result.stderr).toBe('');
+		const output = JSON.parse(getStdout(result)) as {
+			daily: Array<{ inputTokens: number; outputTokens: number; totalTokens: number }>;
+		};
+		expect(output.daily).toEqual([
+			expect.objectContaining({
+				inputTokens: 100,
+				outputTokens: 50,
+				totalTokens: 150,
+			}),
+		]);
+	});
+
 	it('passes offline mode through agent namespaces', async () => {
 		await using fixture = await createFixture(createAgentFixtureTree());
 

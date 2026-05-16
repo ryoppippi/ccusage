@@ -37,6 +37,7 @@ import {
 	loadPiAgentMonthlyData,
 	loadPiAgentSessionData,
 } from '../../../pi/src/data-loader.ts';
+import { loadConfig, mergeConfigWithArgs } from '../_config-loader-tokens.ts';
 import {
 	CLAUDE_CONFIG_DIR_ENV,
 	CLAUDE_PROJECTS_DIR_NAME,
@@ -45,6 +46,7 @@ import {
 	USER_HOME_DIR,
 } from '../_consts.ts';
 import { formatDate, formatDateCompact, getDateStringWeek } from '../_date-utils.ts';
+import { sharedArgs } from '../_shared-args.ts';
 import { loadDailyUsageData, loadMonthlyUsageData, loadSessionData } from '../data-loader.ts';
 import { logger, writeStdoutLine } from '../logger.ts';
 
@@ -67,6 +69,7 @@ type AllRow = {
 
 type AllOptions = {
 	all?: boolean;
+	config?: string;
 	json?: boolean;
 	since?: string;
 	until?: string;
@@ -85,7 +88,7 @@ const agentLabels = {
 	pi: 'pi-agent',
 } as const satisfies Record<AgentId | 'all', string>;
 
-const allArgs = {
+export const allArgs = {
 	json: {
 		type: 'boolean',
 		short: 'j',
@@ -125,6 +128,7 @@ const allArgs = {
 		description: 'Use cached pricing data where supported',
 		default: false,
 	},
+	config: sharedArgs.config,
 } as const satisfies Args;
 
 function normalizeDateFilter(value: string | undefined): string | undefined {
@@ -966,7 +970,9 @@ function createAllCommand(kind: ReportKind, description: string): Command<typeof
 		args: allArgs,
 		toKebab: true,
 		async run(ctx) {
-			await runAllReport(kind, ctx.values);
+			const config = loadConfig(ctx.values.config);
+			const mergedOptions = mergeConfigWithArgs(ctx, config);
+			await runAllReport(kind, mergedOptions);
 		},
 	});
 }
