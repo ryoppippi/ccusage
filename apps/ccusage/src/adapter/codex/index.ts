@@ -6,7 +6,7 @@ import os from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
 import { isMainThread, parentPort, Worker, workerData } from 'node:worker_threads';
-import { collectFilesRecursive } from '@ccusage/internal/fs';
+import { collectFilesRecursive, isDirectorySyncSafe } from '@ccusage/internal/fs';
 import { processJSONLFileByLine } from '@ccusage/internal/jsonl';
 import { LiteLLMPricingFetcher } from '@ccusage/internal/pricing';
 import { compareStrings } from '@ccusage/internal/sort';
@@ -794,7 +794,7 @@ export async function loadCodexRows(
 			group.row.inputTokens += event.inputTokens;
 			group.row.outputTokens += event.outputTokens;
 			group.row.cacheReadTokens += event.cachedInputTokens;
-			group.row.totalTokens += event.inputTokens + event.outputTokens + event.cachedInputTokens;
+			group.row.totalTokens += event.totalTokens;
 			group.reasoningOutputTokens += event.reasoningOutputTokens;
 			if (event.timestamp > group.lastActivity) {
 				group.lastActivity = event.timestamp;
@@ -1096,9 +1096,58 @@ if (import.meta.vitest != null) {
 				inputTokens: 100,
 				outputTokens: 10,
 				cacheReadTokens: 20,
-				totalTokens: 130,
+				totalTokens: 110,
 			});
 			expect(rows[0]!.totalCost).toBeCloseTo(0.000084);
+		});
+
+		it('uses the Codex log total token field for all-agent rows so direct and all reports stay consistent when reasoning tokens are present', async () => {
+			await using fixture = await createFixture({
+				sessions: {
+					'project-1.jsonl': [
+						JSON.stringify({
+							timestamp: '2026-01-01T00:00:00.000Z',
+							type: 'turn_context',
+							payload: { model: 'gpt-5' },
+						}),
+						JSON.stringify({
+							timestamp: '2026-01-01T00:00:01.000Z',
+							type: 'event_msg',
+							payload: {
+								type: 'token_count',
+								info: {
+									last_token_usage: {
+										input_tokens: 100,
+										cached_input_tokens: 20,
+										output_tokens: 10,
+										reasoning_output_tokens: 70,
+										total_tokens: 180,
+									},
+								},
+							},
+						}),
+					].join('\n'),
+				},
+			});
+			vi.stubEnv('CODEX_HOME', fixture.path);
+			const pricingFetcher = new LiteLLMPricingFetcher({
+				offline: true,
+				offlineLoader: async () => ({
+					'gpt-5': {
+						input_cost_per_token: 1e-6,
+						output_cost_per_token: 2e-6,
+						cache_read_input_token_cost: 1e-7,
+					},
+				}),
+			});
+
+			const [allRows, reportRows] = await Promise.all([
+				loadCodexRows('daily', { offline: true, timezone: 'UTC' }, { pricingFetcher }),
+				loadCodexReportRows('daily', { offline: true, timezone: 'UTC' }, { pricingFetcher }),
+			]);
+
+			expect(allRows[0]?.totalTokens).toBe(180);
+			expect(reportRows[0]?.totalTokens).toBe(180);
 		});
 
 		it('keeps Codex-specific JSON report totals on the fast adapter path', async () => {
@@ -1170,6 +1219,15 @@ if (import.meta.vitest != null) {
 			});
 			expect(rows[0]!.costUSD).toBeCloseTo(0.000115);
 		});
+
+		it.skipIf(!isDirectorySyncSafe(getCodexSessionsPath()))(
+			'loads local Codex usage rows when the user has a sessions directory',
+			async () => {
+				const rows = await loadCodexRows('daily', { offline: true, timezone: 'UTC' }, {});
+
+				expect(rows.length).toBeGreaterThan(0);
+			},
+		);
 	});
 
 	describe('getCodexWorkerThreadCount', () => {

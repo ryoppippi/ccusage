@@ -1,5 +1,5 @@
 import type { AdapterOptions, AgentUsageRow, ReportKind } from '../types.ts';
-import { collectFilesRecursive } from '@ccusage/internal/fs';
+import { collectFilesRecursive, isDirectorySyncSafe } from '@ccusage/internal/fs';
 import { loadDailyUsageData, loadMonthlyUsageData, loadSessionData } from '../../data-loader.ts';
 import { normalizeDateFilter, toCompactDate } from '../shared.ts';
 import { getClaudeProjectPaths } from './paths.ts';
@@ -75,4 +75,20 @@ export async function loadClaudeRows(
 		totalTokens: row.inputTokens + row.outputTokens + row.cacheCreationTokens + row.cacheReadTokens,
 		totalCost: row.totalCost,
 	}));
+}
+
+if (import.meta.vitest != null) {
+	describe('loadClaudeRows', () => {
+		it.skipIf(!getClaudeProjectPaths().some(isDirectorySyncSafe))(
+			'loads local Claude usage rows when the user has a projects directory',
+			async () => {
+				const rows = await loadClaudeRows('daily', {
+					offline: true,
+					timezone: 'UTC',
+				});
+
+				expect(rows.length).toBeGreaterThan(0);
+			},
+		);
+	});
 }
