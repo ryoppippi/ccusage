@@ -61,9 +61,11 @@ pnpm --filter ccusage run start blocks --token-limit max
 
 ## Environment and Tooling
 
-This repo uses `direnv` with a Nix flake. Run commands through the activated environment when tool availability or environment variables matter; `direnv exec . <command>` is preferred for non-interactive one-offs.
+This repo supports both the Nix/direnv environment and the ordinary `package.json` + `pnpm` workflow. Do not assume contributors use Nix. Prefer `pnpm` commands when they are sufficient.
 
-Tools are managed by `flake.nix` and `package.json`. Use `comma` or `nix run` for one-off investigation, but add recurring project tools to the repo instead:
+When Nix-specific tools or environment variables matter, use the activated `direnv` environment; `direnv exec . <command>` is preferred for non-interactive one-offs.
+
+Tools are managed by `flake.nix` and `package.json`. Use `comma` or `nix run` for one-off investigation when appropriate, but add recurring project tools to the repo instead:
 
 - Add system/dev-shell CLIs to `flake.nix`, and include the matching `flake.lock` update in the same commit.
 - Add JavaScript/TypeScript tools and scripts to `package.json`, and include the matching lockfile update in the same commit.
