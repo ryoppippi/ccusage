@@ -6,6 +6,7 @@ import type {
 	AgentUsageRow,
 	ReportKind,
 } from '../adapter/types.ts';
+import type { ConfigData, ConfigMergeContext } from '../config-loader-tokens.ts';
 import type { UsageLoadProgress } from './loading-progress.ts';
 import process from 'node:process';
 import { LiteLLMPricingFetcher } from '@ccusage/internal/pricing';
@@ -19,17 +20,24 @@ import {
 import { define } from 'gunshi';
 import { aggregateRowsByPeriod, detectAllAgents, loadAgentRows } from '../adapter/index.ts';
 import { createEmptyRow, getRowAgents } from '../adapter/shared.ts';
-import { agentLabels } from '../adapter/types.ts';
+import { agentIds, agentLabels } from '../adapter/types.ts';
+import { loadConfig, mergeConfigWithArgs } from '../config-loader-tokens.ts';
 import { formatDateCompact, getDateStringWeek } from '../date-utils.ts';
 import { logger, writeStdoutLine } from '../logger.ts';
+import { sharedArgs } from '../shared-args.ts';
 import { createUsageLoadProgress, shouldShowUsageLoadProgress } from './loading-progress.ts';
 
 type AllRow = AgentUsageRow;
-type AllOptions = AdapterOptions;
+type AllBaseOptions = AdapterOptions & {
+	config?: string;
+};
+type AllOptions = AllBaseOptions & {
+	agentOptions?: Partial<Record<AgentId, AdapterOptions>>;
+};
 type AllLoadContext = AdapterContext;
 type AllLoadProgress = UsageLoadProgress;
 
-const allArgs = {
+export const allArgs = {
 	json: {
 		type: 'boolean',
 		short: 'j',
@@ -69,7 +77,34 @@ const allArgs = {
 		description: 'Use cached pricing data where supported',
 		default: false,
 	},
+	config: sharedArgs.config,
 } as const satisfies Args;
+
+function mergeAllOptions(
+	kind: ReportKind,
+	ctx: ConfigMergeContext<AllBaseOptions>,
+	config: ConfigData | undefined,
+): AllOptions {
+	const baseOptions = mergeConfigWithArgs(ctx, config);
+	const agentOptions = Object.fromEntries(
+		agentIds.map((agent) => [
+			agent,
+			mergeConfigWithArgs(
+				{
+					values: ctx.values,
+					tokens: ctx.tokens,
+					name: `${agent} ${kind}`,
+				},
+				config,
+			),
+		]),
+	) as Partial<Record<AgentId, AdapterOptions>>;
+
+	return {
+		...baseOptions,
+		agentOptions,
+	};
+}
 
 async function loadAllRowsWithContext(
 	kind: ReportKind,
@@ -78,7 +113,12 @@ async function loadAllRowsWithContext(
 	agents: AgentId[],
 ): Promise<AllRow[]> {
 	const rows = (
-		await Promise.all(agents.map(async (agent) => loadAgentRows(agent, kind, options, context)))
+		await Promise.all(
+			agents.map(async (agent) => {
+				const agentOptions = options.agentOptions?.[agent] ?? options;
+				return loadAgentRows(agent, kind, agentOptions, context);
+			}),
+		)
 	).flat();
 	if (kind === 'weekly') {
 		return aggregateRowsByPeriod(rows, (row) => getDateStringWeek(row.period, 1));
@@ -269,7 +309,18 @@ function createAllCommand(kind: ReportKind, description: string): Command<typeof
 		args: allArgs,
 		toKebab: true,
 		async run(ctx) {
-			await runAllReport(kind, ctx.values);
+			const configPath = typeof ctx.values.config === 'string' ? ctx.values.config : undefined;
+			const config = loadConfig(configPath);
+			const mergedOptions = mergeAllOptions(
+				kind,
+				{
+					values: ctx.values,
+					tokens: ctx.tokens,
+					name: kind,
+				},
+				config,
+			);
+			await runAllReport(kind, mergedOptions);
 		},
 	});
 }

@@ -6,6 +6,7 @@ export type ReportKind = 'daily' | 'weekly' | 'monthly' | 'session';
 
 export type AdapterOptions = {
 	all?: boolean;
+	config?: string;
 	json?: boolean;
 	since?: string;
 	until?: string;

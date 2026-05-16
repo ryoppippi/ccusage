@@ -92,6 +92,41 @@ For individual developers working on multiple projects:
 }
 ```
 
+### Multiple Agents
+
+Configure Claude Code, Codex, OpenCode, Amp, and pi-agent separately with agent namespaces:
+
+```json
+// ~/.config/claude/ccusage.json
+{
+	"$schema": "https://ccusage.com/config-schema.json",
+	"defaults": {
+		"timezone": "UTC"
+	},
+	"claude": {
+		"commands": {
+			"daily": {
+				"instances": true
+			}
+		}
+	},
+	"codex": {
+		"defaults": {
+			"json": true,
+			"offline": true
+		},
+		"commands": {
+			"daily": {
+				"since": "20260101",
+				"until": "20260131"
+			}
+		}
+	}
+}
+```
+
+The `codex` section applies to direct commands such as `ccusage codex daily`. It is also used by all-agent reports such as `ccusage daily`, where each agent receives its own merged options before data is loaded.
+
 ### Team Collaboration
 
 For teams sharing configuration:

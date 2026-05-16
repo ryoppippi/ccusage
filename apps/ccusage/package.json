@@ -47,7 +47,6 @@
 		"generate:schema": "bun scripts/generate-json-schema.ts",
 		"lint": "eslint --cache .",
 		"prepack": "pnpm run build && clean-pkg-json",
-		"prepare": "pnpm run generate:schema || true",
 		"prerelease": "pnpm run lint && pnpm run typecheck && pnpm run build",
 		"start": "bun ./src/index.ts",
 		"test": "TZ=UTC vitest",

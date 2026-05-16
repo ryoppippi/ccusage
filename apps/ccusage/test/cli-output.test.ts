@@ -406,6 +406,49 @@ describe('ccusage all-agent CLI', () => {
 		expect(output.daily[0]?.metadata?.agents).toEqual(['amp', 'claude', 'codex', 'opencode', 'pi']);
 	});
 
+	it('passes agent namespace config to all-agent loaders', async () => {
+		const fixtureTree = createAgentFixtureTree();
+		await using fixture = await createFixture({
+			...fixtureTree,
+			claude: {
+				...fixtureTree.claude,
+				'ccusage.json': JSON.stringify({
+					defaults: {
+						json: true,
+						offline: true,
+					},
+					codex: {
+						commands: {
+							daily: {
+								since: '20260103',
+								until: '20260103',
+							},
+						},
+					},
+				}),
+			},
+		});
+
+		const result = runCcusage(['daily'], createAgentCliEnv(fixture.path));
+
+		expect(result.status).toBe(0);
+		expect(result.stderr).toBe('');
+		const output = JSON.parse(getStdout(result)) as DailyJsonOutput;
+		expect(output.daily).toHaveLength(1);
+		expect(output.daily[0]).toEqual(
+			expect.objectContaining({
+				agent: 'all',
+				cacheCreationTokens: 80,
+				cacheReadTokens: 40,
+				inputTokens: 400,
+				outputTokens: 200,
+				period: '2026-01-02',
+				totalTokens: 720,
+			}),
+		);
+		expect(output.daily[0]?.metadata?.agents).toEqual(['amp', 'claude', 'opencode', 'pi']);
+	});
+
 	it('runs Codex daily JSON through the main ccusage namespace instead of the deprecated standalone wrapper', async () => {
 		await using fixture = await createFixture(createAgentFixtureTree());
 
@@ -477,6 +520,45 @@ describe('ccusage all-agent CLI', () => {
 		await expect(getStdout(result).replace(/\n$/u, '')).toMatchFileSnapshot(
 			path.join(snapshotRoot, 'opencode-direct-daily-json.txt'),
 		);
+	});
+
+	it('loads agent namespace config for direct agent commands', async () => {
+		const fixtureTree = createAgentFixtureTree();
+		await using fixture = await createFixture({
+			...fixtureTree,
+			claude: {
+				...fixtureTree.claude,
+				'ccusage.json': JSON.stringify({
+					codex: {
+						defaults: {
+							json: true,
+							offline: true,
+						},
+						commands: {
+							daily: {
+								since: '20260102',
+								until: '20260102',
+							},
+						},
+					},
+				}),
+			},
+		});
+
+		const result = runCcusage(['codex', 'daily'], createAgentCliEnv(fixture.path));
+
+		expect(result.status).toBe(0);
+		expect(result.stderr).toBe('');
+		const output = JSON.parse(getStdout(result)) as {
+			daily: Array<{ inputTokens: number; outputTokens: number; totalTokens: number }>;
+		};
+		expect(output.daily).toEqual([
+			expect.objectContaining({
+				inputTokens: 100,
+				outputTokens: 50,
+				totalTokens: 150,
+			}),
+		]);
 	});
 
 	it('includes cache tokens in Amp direct total tokens', async () => {

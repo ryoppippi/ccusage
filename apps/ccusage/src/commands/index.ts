@@ -1,6 +1,9 @@
+import type { Args, Command } from 'gunshi';
 import process from 'node:process';
 import { cli } from 'gunshi';
 import { description, name, version } from '../../package.json';
+import { loadConfig, mergeConfigWithArgs } from '../config-loader-tokens.ts';
+import { sharedArgs } from '../shared-args.ts';
 import { createAgentCommand } from './agent.ts';
 import { allDailyCommand, allMonthlyCommand, allSessionCommand, allWeeklyCommand } from './all.ts';
 import { blocksCommand } from './blocks.ts';
@@ -23,6 +26,42 @@ export {
 
 function withCommandName<T extends { name?: string }>(command: T, commandName: string): T {
 	return { ...command, name: commandName };
+}
+
+function withCcusageConfig<const TArgs extends Args>(
+	command: Command<TArgs>,
+	commandName: string,
+): Command<Args> {
+	const args = {
+		...(command.args ?? {}),
+		config: sharedArgs.config,
+	} satisfies Args;
+
+	return {
+		name: commandName,
+		description: command.description,
+		args,
+		toKebab: command.toKebab,
+		async run(ctx) {
+			const values = ctx.values as Record<string, unknown>;
+			const configPath = typeof values.config === 'string' ? values.config : undefined;
+			const debug = typeof values.debug === 'boolean' ? values.debug : false;
+			const config = loadConfig(configPath, debug);
+			const mergedValues = mergeConfigWithArgs(
+				{
+					values,
+					tokens: ctx.tokens,
+					name: commandName,
+				},
+				config,
+				debug,
+			);
+			await command.run?.({
+				...ctx,
+				values: mergedValues,
+			} as Parameters<NonNullable<Command<TArgs>['run']>>[0]);
+		},
+	};
 }
 
 const opencodeDailyCommand = createAgentCommand(
@@ -84,19 +123,19 @@ export const subCommandUnion = [
 	['claude:session', withCommandName(sessionCommand, 'claude session')],
 	['claude:blocks', withCommandName(blocksCommand, 'claude blocks')],
 	['claude:statusline', withCommandName(statuslineCommand, 'claude statusline')],
-	['codex:daily', withCommandName(codexDailyCommand, 'codex daily')],
-	['codex:monthly', withCommandName(codexMonthlyCommand, 'codex monthly')],
-	['codex:session', withCommandName(codexSessionCommand, 'codex session')],
-	['opencode:daily', withCommandName(opencodeDailyCommand, 'opencode daily')],
-	['opencode:weekly', withCommandName(opencodeWeeklyCommand, 'opencode weekly')],
-	['opencode:monthly', withCommandName(opencodeMonthlyCommand, 'opencode monthly')],
-	['opencode:session', withCommandName(opencodeSessionCommand, 'opencode session')],
-	['amp:daily', withCommandName(ampDailyCommand, 'amp daily')],
-	['amp:monthly', withCommandName(ampMonthlyCommand, 'amp monthly')],
-	['amp:session', withCommandName(ampSessionCommand, 'amp session')],
-	['pi:daily', withCommandName(piDailyCommand, 'pi daily')],
-	['pi:monthly', withCommandName(piMonthlyCommand, 'pi monthly')],
-	['pi:session', withCommandName(piSessionCommand, 'pi session')],
+	['codex:daily', withCcusageConfig(codexDailyCommand, 'codex daily')],
+	['codex:monthly', withCcusageConfig(codexMonthlyCommand, 'codex monthly')],
+	['codex:session', withCcusageConfig(codexSessionCommand, 'codex session')],
+	['opencode:daily', withCcusageConfig(opencodeDailyCommand, 'opencode daily')],
+	['opencode:weekly', withCcusageConfig(opencodeWeeklyCommand, 'opencode weekly')],
+	['opencode:monthly', withCcusageConfig(opencodeMonthlyCommand, 'opencode monthly')],
+	['opencode:session', withCcusageConfig(opencodeSessionCommand, 'opencode session')],
+	['amp:daily', withCcusageConfig(ampDailyCommand, 'amp daily')],
+	['amp:monthly', withCcusageConfig(ampMonthlyCommand, 'amp monthly')],
+	['amp:session', withCcusageConfig(ampSessionCommand, 'amp session')],
+	['pi:daily', withCcusageConfig(piDailyCommand, 'pi daily')],
+	['pi:monthly', withCcusageConfig(piMonthlyCommand, 'pi monthly')],
+	['pi:session', withCcusageConfig(piSessionCommand, 'pi session')],
 ] as const;
 
 /**
