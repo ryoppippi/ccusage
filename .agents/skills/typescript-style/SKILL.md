@@ -62,6 +62,25 @@ Bad:
 import privateApi from 'some-package/private-api';
 ```
 
+## Exhaustive Switches
+
+Use `satisfies never` after switches over discriminated unions or literal unions so new variants fail typecheck until the branch is handled.
+
+Good:
+
+```ts
+switch (agent) {
+	case 'claude':
+		return loadClaude();
+	case 'codex':
+		return loadCodex();
+	default:
+		// exhaustiveness check for new agents added to the union
+		agent satisfies never;
+		throw new Error(`Unsupported agent: ${agent}`);
+}
+```
+
 Good:
 
 ```ts
