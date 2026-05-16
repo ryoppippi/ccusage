@@ -52,19 +52,19 @@ Compatibility wrapper for [Amp](https://ampcode.com/) usage. Prefer `ccusage amp
 Thanks to ccusage's incredibly small bundle size ([![install size](https://packagephobia.com/badge?p=ccusage)](https://packagephobia.com/result?p=ccusage)), you can run it directly without installation:
 
 ```bash
-# Recommended - always include @latest to ensure you get the newest version
-npx ccusage@latest
+# Recommended
 bunx ccusage
 
 # Alternative package runners
 pnpm dlx ccusage
 pnpx ccusage
+npx ccusage@latest
 
 # Using deno (with security flags)
 deno run -E -R=$HOME/.claude/projects/ -S=homedir -N='raw.githubusercontent.com:443' npm:ccusage@latest
 ```
 
-> 💡 **Important**: We strongly recommend using `@latest` suffix with npx (e.g., `npx ccusage@latest`) to ensure you're running the most recent version with the latest features and bug fixes.
+> 💡 **Runtime**: `bunx ccusage` is recommended for everyday use. If you use `npx`, include `@latest` and use Node.js 22+.
 > When ccusage starts under Node.js and finds `bun` in `PATH`, it automatically re-runs the bundled entrypoint with Bun for better warm runtime performance. Set `CCUSAGE_BUN_AUTO_RUN=0` to force Node.js.
 
 ### Compatibility Packages

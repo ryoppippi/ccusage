@@ -5,7 +5,7 @@ Welcome to ccusage! This guide will help you get up and running with analyzing y
 ## Prerequisites
 
 - At least one supported coding CLI installed and used
-- Node.js 20+ or Bun runtime
+- Bun 1.3+ recommended, or Node.js 22+
 
 ## Quick Start
 
@@ -13,12 +13,12 @@ The fastest way to try ccusage is to run it directly without installation:
 
 ::: code-group
 
-```bash [npx]
-npx ccusage@latest
+```bash [bunx (Recommended)]
+bunx ccusage
 ```
 
-```bash [bunx]
-bunx ccusage
+```bash [npx]
+npx ccusage@latest
 ```
 
 ```bash [pnpm]

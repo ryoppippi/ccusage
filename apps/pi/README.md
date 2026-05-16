@@ -18,18 +18,18 @@
 ## Quick Start
 
 ```bash
-# Recommended - always include @latest
-npx ccusage@latest pi --help
+# Recommended
 bunx ccusage@latest pi --help
 
 # Alternative package runners
+npx ccusage@latest pi --help
 pnpm dlx ccusage pi
 pnpx ccusage pi
 ```
 
-### Recommended: Shell Alias
+### Optional: Shell Alias
 
-Since `npx ccusage@latest pi` is quite long to type repeatedly, we strongly recommend setting up a shell alias:
+Since `bunx ccusage@latest pi` is long to type repeatedly, you can set up a shell alias:
 
 ```bash
 # bash/zsh: alias ccusage-pi='bunx ccusage@latest pi'

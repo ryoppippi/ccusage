@@ -9,11 +9,11 @@ Pi-agent is a third-party Claude coding (agent) CLI that stores usage data in JS
 ## Focused Views
 
 ```bash
-# Recommended - always include @latest
-npx ccusage@latest pi --help
+# Recommended
 bunx ccusage@latest pi --help
 
 # Alternative package runners
+npx ccusage@latest pi --help
 pnpm dlx ccusage pi --help
 pnpx ccusage pi --help
 ```

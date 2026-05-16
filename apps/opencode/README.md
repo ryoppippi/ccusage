@@ -18,11 +18,11 @@
 ## Quick Start
 
 ```bash
-# Recommended - always include @latest
-npx ccusage@latest opencode --help
+# Recommended
 bunx ccusage@latest opencode --help
 
 # Alternative package runners
+npx ccusage@latest opencode --help
 pnpm dlx ccusage opencode
 pnpx ccusage opencode
 
@@ -30,9 +30,9 @@ pnpx ccusage opencode
 deno run -E -R=$HOME/.local/share/opencode/ -S=homedir -N='raw.githubusercontent.com:443' npm:ccusage@latest opencode --help
 ```
 
-### Recommended: Shell Alias
+### Optional: Shell Alias
 
-Since `npx ccusage@latest opencode` is quite long to type repeatedly, we strongly recommend setting up a shell alias:
+Since `bunx ccusage@latest opencode` is long to type repeatedly, you can set up a shell alias:
 
 ```bash
 # bash/zsh: alias ccusage-opencode='bunx ccusage@latest opencode'

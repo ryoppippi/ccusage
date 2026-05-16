@@ -17,16 +17,16 @@
 
 > Analyze <a href="https://github.com/openai/codex">OpenAI Codex CLI</a> usage logs with the same reporting experience as <code>ccusage</code>.
 
-> ⚠️ <strong>Compatibility wrapper:</strong> Prefer <code>npx ccusage@latest codex</code>. This package now prints a deprecation warning and forwards to <code>ccusage codex</code>.
+> ⚠️ <strong>Compatibility wrapper:</strong> Prefer <code>bunx ccusage@latest codex</code>. This package now prints a deprecation warning and forwards to <code>ccusage codex</code>.
 
 ## Quick Start
 
 ```bash
-# Recommended - always include @latest
-npx ccusage@latest codex --help
+# Recommended
 bunx ccusage@latest codex --help
 
 # Alternative package runners
+npx ccusage@latest codex --help
 pnpm dlx ccusage codex
 pnpx ccusage codex
 
@@ -34,11 +34,11 @@ pnpx ccusage codex
 deno run -E -R=$HOME/.codex/ -S=homedir -N='raw.githubusercontent.com:443' npm:ccusage@latest codex --help
 ```
 
-> ⚠️ **Critical for bunx users**: Bun 1.2.x's bunx prioritizes binaries matching the package name suffix when given a scoped package. Prefer `bunx ccusage@latest codex` so the main ccusage binary is selected directly.
+> ⚠️ **Compatibility note**: Older `bunx` versions can prioritize binaries matching a scoped package name suffix. Prefer `bunx ccusage@latest codex` so the main ccusage binary is selected directly.
 
-### Recommended: Shell Alias
+### Optional: Shell Alias
 
-Since `npx ccusage@latest codex` is quite long to type repeatedly, we strongly recommend setting up a shell alias:
+Since `bunx ccusage@latest codex` is long to type repeatedly, you can set up a shell alias:
 
 ```bash
 # bash/zsh: alias ccusage-codex='bunx ccusage@latest codex'

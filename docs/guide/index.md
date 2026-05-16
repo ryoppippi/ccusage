@@ -4,7 +4,7 @@
 
 **ccusage** is a local CLI for understanding coding (agent) CLI token usage and estimated costs across Claude Code, Codex, OpenCode, Amp, and pi-agent.
 
-The original “cc” came from **C**laude **C**ode usage. As Codex CLI, OpenCode, Amp, pi-agent, and other coding (agent) CLIs became part of the same workflow, ccusage expanded into a general name for local coding CLI usage analysis.
+The original **“cc”** came from **C**laude **C**ode usage and now also fits **C**odex **C**LI usage. As OpenCode, Amp, pi-agent, and other coding (agent) CLIs became part of the same workflow, ccusage expanded into a general name for local coding CLI usage analysis.
 
 ## The Problem
 
@@ -38,7 +38,7 @@ ccusage reads the local usage files that coding CLIs already generate and provid
 
 ### 🚀 Ultra-Small Bundle Size
 
-Unlike many CLI tools, ccusage pays close attention to bundle size. You can run it directly without a global install using `bunx ccusage`, `npx ccusage@latest`, or `BUN_BE_BUN=1 claude x ccusage`.
+Unlike many CLI tools, ccusage pays close attention to bundle size. You can run it directly without a global install using `bunx ccusage` (recommended), `pnpm dlx ccusage`, `npx ccusage@latest`, or `BUN_BE_BUN=1 claude x ccusage`.
 
 ### 📊 Usage Views
 
