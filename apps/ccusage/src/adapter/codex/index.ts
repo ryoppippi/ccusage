@@ -1,8 +1,16 @@
-import type { LiteLLMModelPricing } from '@ccusage/internal/pricing';
 import type { IndexedWorkerItem } from '@ccusage/internal/workers';
 import type { AdapterContext, AdapterOptions, AgentUsageRow, ReportKind } from '../types.ts';
-import { readFile, stat } from 'node:fs/promises';
-import os from 'node:os';
+import type {
+	CodexGroup,
+	CodexModelUsage,
+	CodexReportRow,
+	CodexWorkerData,
+	CodexWorkerResponse,
+	ParsedTokenCountLine,
+	RawUsage,
+	TokenUsageEvent,
+} from './types.ts';
+import { stat } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
 import { isMainThread, parentPort, Worker, workerData } from 'node:worker_threads';
@@ -21,109 +29,20 @@ import {
 	isWithinRange,
 	normalizeDateFilter,
 } from '../shared.ts';
+import { getCodexSessionsPath } from './paths.ts';
 import { prefetchCodexPricing } from './pricing-macro.ts' with { type: 'macro' };
+import {
+	calculateCodexCostUSD,
+	CODEX_PROVIDER_PREFIXES,
+	getCodexPricing,
+	resolveCodexSpeed,
+} from './pricing.ts';
+import { addCodexUsage, createCodexUsage } from './usage.ts';
 
-type RawUsage = {
-	input_tokens: number;
-	cached_input_tokens: number;
-	output_tokens: number;
-	reasoning_output_tokens: number;
-	total_tokens: number;
-};
-
-type ParsedTokenCountLine = {
-	timestamp: string;
-	lastUsage: RawUsage | null;
-	totalUsage: RawUsage | null;
-	model: string | undefined;
-};
-
-type TokenUsageEvent = {
-	timestamp: string;
-	sessionId: string;
-	model?: string;
-	isFallbackModel?: boolean;
-	inputTokens: number;
-	cachedInputTokens: number;
-	outputTokens: number;
-	reasoningOutputTokens: number;
-	totalTokens: number;
-};
-
-export type CodexModelUsage = {
-	inputTokens: number;
-	cachedInputTokens: number;
-	outputTokens: number;
-	reasoningOutputTokens: number;
-	totalTokens: number;
-	isFallback?: boolean;
-};
-
-type CodexGroup = {
-	row: AgentUsageRow;
-	models: Map<string, CodexModelUsage>;
-	reasoningOutputTokens: number;
-	lastActivity: string;
-};
-
-type CodexSpeed = 'standard' | 'fast';
-
-type CodexWorkerData = {
-	kind: 'ccusage:codex-worker';
-	directoryPath: string;
-	items: Array<IndexedWorkerItem<string>>;
-};
-
-type CodexWorkerResponse = {
-	results: Array<{ index: number; result: TokenUsageEvent[] }>;
-};
-
-export type CodexReportRow =
-	| {
-			date: string;
-			inputTokens: number;
-			cachedInputTokens: number;
-			outputTokens: number;
-			reasoningOutputTokens: number;
-			totalTokens: number;
-			costUSD: number;
-			models: Record<string, CodexModelUsage>;
-	  }
-	| {
-			month: string;
-			inputTokens: number;
-			cachedInputTokens: number;
-			outputTokens: number;
-			reasoningOutputTokens: number;
-			totalTokens: number;
-			costUSD: number;
-			models: Record<string, CodexModelUsage>;
-	  }
-	| {
-			sessionId: string;
-			lastActivity: string;
-			sessionFile: string;
-			directory: string;
-			inputTokens: number;
-			cachedInputTokens: number;
-			outputTokens: number;
-			reasoningOutputTokens: number;
-			totalTokens: number;
-			costUSD: number;
-			models: Record<string, CodexModelUsage>;
-	  };
-
-const CODEX_HOME_ENV = 'CODEX_HOME';
-const DEFAULT_CODEX_DIR = path.join(os.homedir(), '.codex');
-const DEFAULT_SESSION_SUBDIR = 'sessions';
 const LEGACY_FALLBACK_MODEL = 'gpt-5';
-const MILLION = 1_000_000;
-const CODEX_PROVIDER_PREFIXES = ['openai/', 'azure/', 'openrouter/openai/'];
-const CODEX_MODEL_ALIASES_MAP = new Map<string, string>([
-	['gpt-5-codex', 'gpt-5'],
-	['gpt-5.3-codex', 'gpt-5.2-codex'],
-]);
-const CODEX_FAST_FALLBACK_MULTIPLIER = 2;
+
+export { detectCodex } from './paths.ts';
+export type { CodexModelUsage, CodexReportRow } from './types.ts';
 
 export function parseTokenCountLineFast(_line: string): ParsedTokenCountLine | null {
 	if (!hasTokenCountPayload(_line)) {
@@ -154,19 +73,6 @@ export function parseTokenCountLineFast(_line: string): ParsedTokenCountLine | n
 			asNonEmptyString(findJSONStringValue(infoText, 'model')) ??
 			asNonEmptyString(findJSONStringValue(infoText, 'model_name')),
 	};
-}
-
-export function getCodexSessionsPath(): string {
-	const codexHome = process.env[CODEX_HOME_ENV]?.trim();
-	return path.join(
-		codexHome == null || codexHome === '' ? DEFAULT_CODEX_DIR : path.resolve(codexHome),
-		DEFAULT_SESSION_SUBDIR,
-	);
-}
-
-export async function detectCodex(): Promise<boolean> {
-	const sessionsPath = getCodexSessionsPath();
-	return (await collectFilesRecursive(sessionsPath, { extension: '.jsonl' })).length > 0;
 }
 
 function ensureNumber(value: unknown): number {
@@ -482,129 +388,6 @@ if (!isMainThread && asRecord(workerData)?.kind === 'ccusage:codex-worker') {
 	void runCodexWorker(workerData as CodexWorkerData).catch(() => {
 		process.exit(1);
 	});
-}
-
-function addCodexUsage(target: CodexModelUsage, event: TokenUsageEvent): void {
-	target.inputTokens += event.inputTokens;
-	target.cachedInputTokens += event.cachedInputTokens;
-	target.outputTokens += event.outputTokens;
-	target.reasoningOutputTokens += event.reasoningOutputTokens;
-	target.totalTokens += event.totalTokens;
-}
-
-function createCodexUsage(): CodexModelUsage {
-	return {
-		inputTokens: 0,
-		cachedInputTokens: 0,
-		outputTokens: 0,
-		reasoningOutputTokens: 0,
-		totalTokens: 0,
-		isFallback: false,
-	};
-}
-
-function toPerMillion(value: number | undefined, fallback?: number): number {
-	const perToken = value ?? fallback ?? 0;
-	return perToken * MILLION;
-}
-
-function hasNonZeroTokenPricing(pricing: LiteLLMModelPricing): boolean {
-	return (
-		(pricing.input_cost_per_token ?? 0) > 0 ||
-		(pricing.output_cost_per_token ?? 0) > 0 ||
-		(pricing.cache_read_input_token_cost ?? 0) > 0
-	);
-}
-
-function calculateCodexCostUSD(
-	usage: CodexModelUsage,
-	pricing: {
-		inputCostPerMToken: number;
-		cachedInputCostPerMToken: number;
-		outputCostPerMToken: number;
-	},
-): number {
-	const nonCachedInputTokens = Math.max(usage.inputTokens - usage.cachedInputTokens, 0);
-	return (
-		(nonCachedInputTokens / MILLION) * pricing.inputCostPerMToken +
-		(usage.cachedInputTokens / MILLION) * pricing.cachedInputCostPerMToken +
-		(usage.outputTokens / MILLION) * pricing.outputCostPerMToken
-	);
-}
-
-function normalizeCodexSpeed(value: string | undefined): 'auto' | CodexSpeed {
-	if (value == null || value === '' || value === 'auto') {
-		return 'auto';
-	}
-	if (value === 'standard' || value === 'fast') {
-		return value;
-	}
-	throw new Error(`Invalid speed option: ${value}. Use auto, standard, or fast.`);
-}
-
-async function resolveCodexSpeed(requested?: string): Promise<CodexSpeed> {
-	const speed = normalizeCodexSpeed(requested);
-	if (speed !== 'auto') {
-		return speed;
-	}
-	const configPath = path.join(path.dirname(getCodexSessionsPath()), 'config.toml');
-	const result = await Result.try({
-		try: readFile(configPath, 'utf8'),
-		catch: (error) => error,
-	});
-	if (Result.isFailure(result)) {
-		return 'standard';
-	}
-	return /(?:^|\n)\s*service_tier\s*=\s*["']?(?:fast|priority)["']?/iu.test(result.value)
-		? 'fast'
-		: 'standard';
-}
-
-async function getCodexPricing(
-	model: string,
-	fetcher: LiteLLMPricingFetcher,
-	speed: CodexSpeed,
-): Promise<{
-	inputCostPerMToken: number;
-	cachedInputCostPerMToken: number;
-	outputCostPerMToken: number;
-}> {
-	const directLookup = await fetcher.getModelPricing(model);
-	if (Result.isFailure(directLookup)) {
-		throw directLookup.error;
-	}
-
-	let pricing = directLookup.value;
-	const alias = CODEX_MODEL_ALIASES_MAP.get(model);
-	if (alias != null && (pricing == null || !hasNonZeroTokenPricing(pricing))) {
-		const aliasLookup = await fetcher.getModelPricing(alias);
-		if (Result.isFailure(aliasLookup)) {
-			throw aliasLookup.error;
-		}
-		if (aliasLookup.value != null && hasNonZeroTokenPricing(aliasLookup.value)) {
-			pricing = aliasLookup.value;
-		}
-	}
-
-	if (pricing == null) {
-		return {
-			inputCostPerMToken: 0,
-			cachedInputCostPerMToken: 0,
-			outputCostPerMToken: 0,
-		};
-	}
-
-	const speedMultiplier =
-		speed === 'fast'
-			? (pricing.provider_specific_entry?.fast ?? CODEX_FAST_FALLBACK_MULTIPLIER)
-			: 1;
-	return {
-		inputCostPerMToken: toPerMillion(pricing.input_cost_per_token) * speedMultiplier,
-		cachedInputCostPerMToken:
-			toPerMillion(pricing.cache_read_input_token_cost, pricing.input_cost_per_token) *
-			speedMultiplier,
-		outputCostPerMToken: toPerMillion(pricing.output_cost_per_token) * speedMultiplier,
-	};
 }
 
 function hasTokenCountPayload(line: string): boolean {
