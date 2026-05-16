@@ -122,27 +122,27 @@ function getDateTimeFormatter(timezone: string): Intl.DateTimeFormat {
 
 export function formatDateKey(timestamp: string, timezone?: string): string {
 	const tz = safeTimeZone(timezone);
-	const cacheKey = `${tz}:${timestamp.slice(0, 13)}`;
+	const formatted = getDateFormatter(tz).format(new Date(timestamp));
+	const cacheKey = `${tz}:${formatted}`;
 	const cached = dateKeyCache.get(cacheKey);
 	if (cached != null) {
 		return cached;
 	}
 
-	const formatted = getDateFormatter(tz).format(new Date(timestamp));
 	dateKeyCache.set(cacheKey, formatted);
 	return formatted;
 }
 
 export function formatMonthKey(timestamp: string, timezone?: string): string {
 	const tz = safeTimeZone(timezone);
-	const cacheKey = `${tz}:${timestamp.slice(0, 13)}`;
+	const [year, month] = getMonthFormatter(tz).format(new Date(timestamp)).split('-');
+	const formatted = `${year}-${month}`;
+	const cacheKey = `${tz}:${formatted}`;
 	const cached = monthKeyCache.get(cacheKey);
 	if (cached != null) {
 		return cached;
 	}
 
-	const [year, month] = getMonthFormatter(tz).format(new Date(timestamp)).split('-');
-	const formatted = `${year}-${month}`;
 	monthKeyCache.set(cacheKey, formatted);
 	return formatted;
 }
@@ -328,6 +328,13 @@ if (import.meta.vitest != null) {
 			expect(formatDateKey('2026-05-16T12:34:56.000Z', 'UTC')).toBe('2026-05-16');
 			expect(formatMonthKey('2026-05-16T12:34:56.000Z', 'UTC')).toBe('2026-05');
 			expect(formatDateKey('2026-05-16T23:34:56.000Z', 'Asia/Tokyo')).toBe('2026-05-17');
+		});
+
+		it('does not reuse one UTC hour cache entry across non-hour timezone date boundaries', () => {
+			expect(formatDateKey('2026-05-31T18:10:00.000Z', 'Asia/Kathmandu')).toBe('2026-05-31');
+			expect(formatDateKey('2026-05-31T18:20:00.000Z', 'Asia/Kathmandu')).toBe('2026-06-01');
+			expect(formatMonthKey('2026-05-31T18:10:00.000Z', 'Asia/Kathmandu')).toBe('2026-05');
+			expect(formatMonthKey('2026-05-31T18:20:00.000Z', 'Asia/Kathmandu')).toBe('2026-06');
 		});
 
 		it('falls back to UTC for invalid timezones', () => {

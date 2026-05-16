@@ -84,11 +84,9 @@ async function processBufferedJSONLMarkerBytes(
 		const candidate = candidates.get(lineStart)!;
 		const lineEnd = candidate.lineEnd;
 		const decodeEnd = lineEnd > lineStart && content[lineEnd - 1] === 13 ? lineEnd - 1 : lineEnd;
-		const result = processLine(
-			content.toString('latin1', lineStart, decodeEnd),
-			candidate.markerIndex,
-			candidate.marker,
-		);
+		const line = content.toString('utf8', lineStart, decodeEnd);
+		const markerIndex = line.indexOf(candidate.marker);
+		const result = processLine(line, markerIndex, candidate.marker);
 		if (result != null) {
 			await result;
 		}
@@ -274,6 +272,30 @@ if (import.meta.vitest != null) {
 					line: '{"type":"event_msg","payload":{"type":"token_count"}}',
 					marker: '"type":"token_count"',
 					markerIndex: 31,
+				},
+			]);
+		});
+
+		it('preserves UTF-8 content and reports marker indexes in decoded strings', async () => {
+			const markedLine = '{"note":"東京","payload":{"type":"token_count","text":"👋"}}';
+			const marker = '"type":"token_count"';
+			await using fixture = await createFixture({
+				'test.jsonl': markedLine,
+			});
+
+			const seen: Array<{ line: string; markerIndex: number }> = [];
+			await processJSONLFileByMarkers(
+				fixture.getPath('test.jsonl'),
+				[marker],
+				(line, markerIndex) => {
+					seen.push({ line, markerIndex });
+				},
+			);
+
+			expect(seen).toEqual([
+				{
+					line: markedLine,
+					markerIndex: markedLine.indexOf(marker),
 				},
 			]);
 		});
