@@ -103,18 +103,4 @@ Use standard git history commands to understand intent before committing. Prefer
 
 After all commits are complete, push to remote. Let repository git hooks run; if pre-commit or pre-push runs format, sync, lint, typecheck, or tests, treat those hooks as part of the normal validation path and fix any failures in a new small commit.
 
-1. Check if the branch has an upstream:
-
-   ```bash
-   git rev-parse --abbrev-ref --symbolic-full-name @{u}
-   ```
-
-2. If upstream exists, push directly:
-
-   ```bash
-   git push
-   ```
-
-3. If no upstream (command fails), **ask the user** whether to set upstream and push:
-   - If yes: `git push -u origin HEAD`
-   - If no: skip pushing
+Read `references/push.md` for the exact upstream check and push commands.
