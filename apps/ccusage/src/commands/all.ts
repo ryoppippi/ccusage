@@ -17,12 +17,7 @@ import {
 	formatUsageDataRow,
 } from '@ccusage/terminal/table';
 import { define } from 'gunshi';
-import {
-	aggregateRowsByPeriod,
-	detectAllAgents,
-	loadAgentRows,
-	resolveAllAgents,
-} from '../adapter/index.ts';
+import { aggregateRowsByPeriod, detectAllAgents, loadAgentRows } from '../adapter/index.ts';
 import { createEmptyRow, getRowAgents } from '../adapter/shared.ts';
 import { agentLabels } from '../adapter/types.ts';
 import { formatDateCompact, getDateStringWeek } from '../date-utils.ts';
@@ -80,7 +75,7 @@ async function loadAllRowsWithContext(
 	kind: ReportKind,
 	options: AllOptions,
 	context: AllLoadContext,
-	agents = resolveAllAgents(options),
+	agents: AgentId[],
 ): Promise<AllRow[]> {
 	const rows = (
 		await Promise.all(agents.map(async (agent) => loadAgentRows(agent, kind, options, context)))
@@ -99,7 +94,7 @@ async function loadAllRowsWithContext(
 async function loadAllRows(
 	kind: ReportKind,
 	options: AllOptions,
-	agents?: AgentId[],
+	agents: AgentId[],
 	progress?: AllLoadProgress,
 ): Promise<AllRow[]> {
 	if (options.offline === true) {
@@ -151,9 +146,8 @@ async function runAllReport(kind: ReportKind, options: AllOptions): Promise<void
 	}
 
 	const title = `Coding Agent Usage Report - ${kind[0]!.toUpperCase()}${kind.slice(1)}`;
-	let detectedAgents: AgentId[] | undefined;
+	const detectedAgents = await detectAllAgents(options);
 	if (options.json !== true) {
-		detectedAgents = await detectAllAgents(options);
 		const detectedAgentLabels = detectedAgents
 			.sort(compareStrings)
 			.map((agent) => agentLabels[agent])
@@ -298,12 +292,6 @@ export const allSessionCommand = createAllCommand(
 );
 
 if (import.meta.vitest != null) {
-	describe('resolveAllAgents', () => {
-		it('defaults to all supported agents', () => {
-			expect(resolveAllAgents({})).toEqual(['claude', 'codex', 'opencode', 'amp', 'pi']);
-		});
-	});
-
 	describe('formatDetectedAgentLabels', () => {
 		it('formats unique detected agents in stable order', () => {
 			expect(
