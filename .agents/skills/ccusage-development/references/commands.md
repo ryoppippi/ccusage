@@ -17,10 +17,11 @@ pnpm --filter ccusage run start daily
 pnpm --filter ccusage run start monthly
 pnpm --filter ccusage run start session
 pnpm --filter ccusage run start blocks
-pnpm --filter ccusage run start statusline
 pnpm --filter ccusage run start daily --json
 pnpm --filter ccusage run start daily --mode auto
 pnpm --filter ccusage run start blocks --active
 pnpm --filter ccusage run start blocks --recent
 pnpm --filter ccusage run start blocks --token-limit max
+pnpm --filter ccusage run test:statusline
+cat apps/ccusage/test/statusline-test.json | pnpm --filter ccusage run start statusline
 ```
