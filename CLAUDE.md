@@ -38,6 +38,7 @@ Check the nearest package-specific `CLAUDE.md` before editing package code:
 - The canonical user-facing CLI is `ccusage` with agent subcommands such as `ccusage amp`, `ccusage codex`, `ccusage opencode`, and `ccusage pi`.
 - Standalone agent binaries such as `ccusage-amp`, `ccusage-codex`, `ccusage-opencode`, and `ccusage-pi` are deprecated compatibility wrappers. Do not add new docs, tests, or features that promote them as the primary interface.
 - Agent apps are still bundled runtime payloads. Put runtime libraries in each app's `devDependencies` unless explicitly requested otherwise. Deprecated wrapper packages may keep install-time dependencies such as `ccusage` in `dependencies`.
+- Prefer tools provided by the Nix dev shell before falling back to ad hoc installs: `rg`, `fd`, `fzf`, `delta`, `dust`, `jq`, `gh`, `hyperfine`, `similarity`, `typos`, and `typos-lsp`. When a missing tool would be useful for repeated agent work in this repository, add it to `flake.nix`.
 - Use `logger.ts` instead of `console.log`.
 - Use `.ts` extensions for local imports.
 - Do not use dynamic imports anywhere, especially in Vitest blocks.

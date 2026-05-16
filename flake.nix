@@ -22,6 +22,11 @@
             gh
             hyperfine
             similarity
+            ripgrep
+            fd
+            fzf
+            delta
+            dust
           ];
 
           shellHook = ''
