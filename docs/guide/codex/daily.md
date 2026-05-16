@@ -1,6 +1,6 @@
-# Codex Daily Report (Beta)
+# Codex Daily View (Beta)
 
-The `daily` command mirrors ccusage's daily report but operates on Codex CLI session logs.
+This view applies ccusage's daily report shape to Codex CLI session logs.
 
 ```bash
 # Recommended (fastest)
@@ -25,4 +25,4 @@ With `--speed auto`, the command reads `${CODEX_HOME:-~/.codex}/config.toml` and
 
 The output uses the same responsive table component as ccusage, including compact mode support and per-model token summaries.
 
-Need higher-level trends? Switch to the [monthly report](./monthly.md) for month-by-month rollups with the same flag set.
+Need higher-level trends? Switch to the [monthly view](./monthly.md) for month-by-month rollups with the same flag set.

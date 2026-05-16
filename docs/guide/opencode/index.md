@@ -1,10 +1,10 @@
-# OpenCode Overview (Beta)
+# OpenCode Data Source (Beta)
 
 > OpenCode support is experimental. Expect breaking changes while both ccusage and [OpenCode](https://github.com/opencode-ai/opencode) continue to evolve.
 
-The `ccusage opencode` commands reuse ccusage's responsive tables, pricing cache, and token accounting to analyze [OpenCode](https://github.com/opencode-ai/opencode) session logs. OpenCode is a terminal-based AI coding assistant that supports multiple AI providers.
+ccusage can read [OpenCode](https://github.com/opencode-ai/opencode) session logs as one of its supported local data sources. OpenCode is a terminal-based AI coding assistant that supports multiple AI providers.
 
-## Installation & Launch
+## Focused Views
 
 ::: code-group
 
@@ -43,16 +43,16 @@ The CLI reads OpenCode message and session JSON files located under `OPENCODE_DA
     └── session/{projectHash}/{sessionID}.json
 ```
 
-## Available Commands
+## Report Views
 
-| Command                    | Description                                          | See also                                  |
+| Focused view               | Description                                          | See also                                  |
 | -------------------------- | ---------------------------------------------------- | ----------------------------------------- |
 | `ccusage opencode daily`   | Aggregate usage by date (YYYY-MM-DD)                 | [Daily Reports](/guide/daily-reports)     |
 | `ccusage opencode weekly`  | Aggregate usage by ISO week (YYYY-Www)               | [Weekly Reports](/guide/weekly-reports)   |
 | `ccusage opencode monthly` | Aggregate usage by month (YYYY-MM)                   | [Monthly Reports](/guide/monthly-reports) |
 | `ccusage opencode session` | Per-session breakdown with parent/subagent hierarchy | [Session Reports](/guide/session-reports) |
 
-All commands support `--json` for structured output and `--compact` for narrow terminals. See the linked ccusage documentation for detailed flag descriptions.
+These views support `--json` for structured output and `--compact` for narrow terminals. See the linked ccusage documentation for detailed flag descriptions.
 
 ## Session Hierarchy
 

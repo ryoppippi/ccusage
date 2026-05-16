@@ -67,15 +67,15 @@ export default defineConfig({
 					],
 				},
 				{
-					text: 'Agent Guides',
+					text: 'Data Sources',
 					items: [
-						{ text: 'Codex Overview', link: '/guide/codex/' },
-						{ text: 'Codex Daily Report', link: '/guide/codex/daily' },
-						{ text: 'Codex Monthly Report', link: '/guide/codex/monthly' },
-						{ text: 'Codex Session Report', link: '/guide/codex/session' },
-						{ text: 'OpenCode Overview', link: '/guide/opencode/' },
-						{ text: 'Amp Overview', link: '/guide/amp/' },
-						{ text: 'pi-agent Overview', link: '/guide/pi/' },
+						{ text: 'Codex', link: '/guide/codex/' },
+						{ text: 'Codex Daily View', link: '/guide/codex/daily' },
+						{ text: 'Codex Monthly View', link: '/guide/codex/monthly' },
+						{ text: 'Codex Session View', link: '/guide/codex/session' },
+						{ text: 'OpenCode', link: '/guide/opencode/' },
+						{ text: 'Amp', link: '/guide/amp/' },
+						{ text: 'pi-agent', link: '/guide/pi/' },
 					],
 				},
 				{

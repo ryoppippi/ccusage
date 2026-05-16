@@ -1,8 +1,8 @@
-# Codex Monthly Report (Beta)
+# Codex Monthly View (Beta)
 
-![Codex CLI monthly report](/codex-cli-monthly.jpeg)
+![ccusage monthly report focused on Codex usage](/codex-cli-monthly.jpeg)
 
-The `monthly` command mirrors ccusage's monthly report while operating on Codex CLI session logs.
+This view applies ccusage's monthly report shape to Codex CLI session logs.
 
 ```bash
 # Recommended (fastest)

@@ -1,10 +1,10 @@
-# Amp Overview (Beta)
+# Amp Data Source (Beta)
 
 > Amp support is experimental. Expect breaking changes while both ccusage and [Amp](https://ampcode.com/) continue to evolve.
 
-The `ccusage amp` commands analyze Amp thread files with the same reporting experience as the rest of ccusage: responsive tables, JSON output, LiteLLM-based pricing, cache token accounting, and credit totals where Amp records them.
+ccusage can read Amp thread files as one of its supported local data sources, using the same reporting experience as the rest of ccusage: responsive tables, JSON output, LiteLLM-based pricing, cache token accounting, and credit totals where Amp records them.
 
-## Installation & Launch
+## Focused Views
 
 ::: code-group
 
@@ -34,15 +34,15 @@ The CLI reads Amp thread JSON files from `AMP_DATA_DIR` (defaults to `~/.local/s
     └── **/*.json
 ```
 
-## Available Commands
+## Report Views
 
-| Command               | Description               | See also                                  |
+| Focused view          | Description               | See also                                  |
 | --------------------- | ------------------------- | ----------------------------------------- |
 | `ccusage amp daily`   | Aggregate usage by date   | [Daily Reports](/guide/daily-reports)     |
 | `ccusage amp monthly` | Aggregate usage by month  | [Monthly Reports](/guide/monthly-reports) |
 | `ccusage amp session` | Group usage by Amp thread | [Session Reports](/guide/session-reports) |
 
-All commands support `--json` for structured output, `--compact` for narrow terminals, and `--offline` for cached pricing data.
+These views support `--json` for structured output, `--compact` for narrow terminals, and `--offline` for cached pricing data.
 
 ## What Gets Calculated
 

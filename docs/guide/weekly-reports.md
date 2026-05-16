@@ -1,6 +1,6 @@
 # Weekly Reports
 
-Weekly reports aggregate usage by week, providing a mid-range view between daily and monthly reports. `ccusage weekly` covers all detected agents that support weekly aggregation; `ccusage claude weekly` and `ccusage opencode weekly` focus on one agent.
+Weekly reports aggregate usage by week, providing a mid-range view between daily and monthly reports. `ccusage weekly` covers all detected sources that support weekly aggregation; `ccusage claude weekly` and `ccusage opencode weekly` focus the same view on one source.
 
 ## Basic Usage
 

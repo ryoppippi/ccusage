@@ -20,7 +20,7 @@ ccusage reads the local usage files that coding agents already generate and prov
 - **Detailed Usage Reports** - Daily, weekly, monthly, and session-based breakdowns
 - **Unified Agent Reports** - Claude Code, Codex, OpenCode, Amp, and pi-agent in one CLI
 - **Cost Analysis** - Estimated costs based on token usage and model pricing
-- **Agent-Specific Commands** - Use `ccusage codex daily`, `ccusage opencode weekly`, `ccusage amp session`, or `ccusage pi daily` when you want one source
+- **Focused Data Source Views** - Start with all detected agents, then narrow the same reports to one source when needed
 - **Claude Code Integrations** - Statusline and 5-hour block reports for Claude Code-specific workflows
 - **Multiple Formats** - Beautiful tables or JSON for further analysis
 
@@ -84,7 +84,7 @@ ccusage reads from local coding agent data directories:
 
 The tool automatically detects available data and aggregates all supported agents by default.
 
-## Command Shape
+## Report Shape
 
 Run ccusage without an agent name to aggregate all detected agents:
 
@@ -95,7 +95,7 @@ ccusage monthly
 ccusage session
 ```
 
-Add an agent namespace when you want a focused report:
+Add a data source namespace when you want the same report focused on one source:
 
 ```bash
 ccusage claude daily
@@ -105,7 +105,7 @@ ccusage amp session
 ccusage pi monthly
 ```
 
-Use the unified `ccusage <agent> <report>` form for agent-specific reports.
+Use `ccusage <source> <report>` only when you want to narrow a report to one source.
 
 ## Privacy & Security
 

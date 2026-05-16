@@ -1,12 +1,12 @@
-# Pi-Agent Integration
+# pi-agent Data Source (Beta)
 
-The `ccusage pi` commands provide usage tracking for [pi-agent](https://github.com/badlogic/pi-mono), an alternative Claude coding agent from [shittycodingagent.ai](https://shittycodingagent.ai).
+ccusage can read [pi-agent](https://github.com/badlogic/pi-mono) usage data as one of its supported local data sources. pi-agent is an alternative Claude coding agent from [shittycodingagent.ai](https://shittycodingagent.ai).
 
 ## What is Pi-Agent?
 
-Pi-agent is a third-party Claude coding agent that stores usage data in JSONL format. The `ccusage pi` commands analyze this data to give you a view of your pi-agent usage.
+Pi-agent is a third-party Claude coding agent that stores usage data in JSONL format. ccusage analyzes this data alongside its other supported sources.
 
-## Installation & Launch
+## Focused Views
 
 ```bash
 # Recommended - always include @latest
@@ -26,7 +26,7 @@ The CLI reads usage data from pi-agent:
 | -------- | ----------------------- |
 | Pi-agent | `~/.pi/agent/sessions/` |
 
-## Available Commands
+## Report Views
 
 ```bash
 # Show daily pi-agent usage
@@ -58,9 +58,9 @@ ccusage pi daily --breakdown
 | `PI_AGENT_DIR` | Custom path to pi-agent sessions directory    |
 | `LOG_LEVEL`    | Adjust logging verbosity (0 silent … 5 trace) |
 
-## Daily Report
+## Daily View
 
-The `daily` command shows daily usage from pi-agent.
+This view shows daily usage from pi-agent.
 
 ```bash
 # Recommended (fastest)
@@ -143,9 +143,9 @@ ccusage pi daily --since 2025-01-02 --until 2025-01-09
 ccusage pi daily --since 2025-01-09 --until 2025-01-09
 ```
 
-## Monthly Report
+## Monthly View
 
-The `monthly` command shows monthly usage from pi-agent.
+This view shows monthly usage from pi-agent.
 
 ```bash
 # Recommended (fastest)
@@ -228,9 +228,9 @@ ccusage pi monthly --since 2025-01-01
 ccusage pi monthly --since 2024-10-01 --until 2024-12-31
 ```
 
-## Session Report
+## Session View
 
-The `session` command shows usage grouped by individual pi-agent sessions.
+This view shows usage grouped by individual pi-agent sessions.
 
 ```bash
 # Recommended (fastest)

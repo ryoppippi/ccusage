@@ -1,6 +1,6 @@
 # Session Reports
 
-Session reports show usage grouped by individual conversations, threads, or sessions. `ccusage session` combines all detected supported agents; use `ccusage <agent> session` to inspect one agent's session format.
+Session reports show usage grouped by individual conversations, threads, or sessions. `ccusage session` combines all detected supported sources; use `ccusage <source> session` to inspect one source's session format.
 
 ## Basic Usage
 
@@ -50,7 +50,7 @@ For Claude Code, session IDs are the actual filenames (without `.jsonl` extensio
 - `session-20250621-abc123-def456`
 - `project-conversation-xyz789`
 
-You can find Claude session IDs by running `ccusage claude session` and looking for the files in your Claude data directory. Other agents expose their own session or thread identifiers in their agent-specific session reports.
+You can find Claude session IDs by running `ccusage claude session` and looking for the files in your Claude data directory. Other sources expose their own session or thread identifiers in focused session reports.
 
 ## Example Output
 

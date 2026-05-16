@@ -22,8 +22,8 @@ features:
     details: View daily, weekly, monthly, and session usage across every detected supported agent
     link: /guide/daily-reports
   - icon: 🤖
-    title: Agent Subcommands
-    details: Focus on one source with commands like ccusage codex daily, ccusage opencode weekly, ccusage amp session, or ccusage pi daily
+    title: Focused Views
+    details: Start with all detected agents, then narrow the same reports to one source when needed
     link: /guide/getting-started
   - icon: 📁
     title: Local Data Sources

@@ -2,7 +2,7 @@
 
 ![Daily usage report showing token usage and costs by date with model breakdown](/screenshot.png)
 
-Daily reports show token usage and estimated costs aggregated by calendar date. By default, `ccusage daily` combines every detected supported agent; use `ccusage <agent> daily` when you want one source.
+Daily reports show token usage and estimated costs aggregated by calendar date. By default, `ccusage daily` combines every detected supported data source; use `ccusage <source> daily` when you want one source.
 
 ## Basic Usage
 
@@ -13,7 +13,7 @@ ccusage daily
 # or simply:
 ccusage
 
-# Focus on one agent:
+# Focus on one source:
 ccusage codex daily
 ccusage opencode daily
 ccusage amp daily

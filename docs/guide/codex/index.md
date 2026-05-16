@@ -1,24 +1,22 @@
-# Codex Overview (Beta)
+# Codex Data Source (Beta)
 
-![Codex CLI daily report](/codex-cli.jpeg)
+![ccusage daily report focused on Codex usage](/codex-cli.jpeg)
 
-> ⚠️ Codex support is experimental. Use the `ccusage codex` commands.
+> ⚠️ Codex log support is experimental while the Codex CLI log format continues to evolve.
 
-The `ccusage codex` commands reuse ccusage's responsive tables, pricing cache, and token accounting to analyze OpenAI Codex CLI session logs.
+ccusage can read OpenAI Codex CLI session logs as one of its supported local data sources. Most users can start with all-agent reports such as `ccusage daily`; add the `codex` namespace only when you want to focus the same report shape on Codex usage.
 
-## Installation & Launch
+## Focused Views
 
 ```bash
-# Recommended
-npx ccusage@latest codex --help
-bunx ccusage@latest codex --help
+# Daily Codex usage
+ccusage codex daily
 
-# Alternative package runners
-pnpm dlx ccusage codex --help
-pnpx ccusage codex --help
+# Monthly Codex usage
+ccusage codex monthly
 
-# Using deno (with security flags)
-deno run -E -R=$HOME/.codex/ -S=homedir -N='raw.githubusercontent.com:443' npm:ccusage@latest codex --help
+# Codex sessions
+ccusage codex session
 ```
 
 ## Data Source
@@ -33,7 +31,7 @@ The CLI reads Codex session JSONL files located under `CODEX_HOME` (defaults to 
 - **Speed pricing** – `--speed auto` is the default. It reads `${CODEX_HOME:-~/.codex}/config.toml` and applies fast pricing when Codex has `service_tier = "priority"` or legacy `service_tier = "fast"` configured. Fast mode uses the model-specific LiteLLM multiplier when available and otherwise falls back to 2x pricing. Pass `--speed fast` or `--speed standard` to override config-based detection.
 - **Legacy fallback** – Early September 2025 logs that never recorded `turn_context` metadata are still included; the CLI assumes `gpt-5` for pricing so you can review the tokens even though the model tag is missing (the JSON output also marks these rows with `"isFallback": true`).
 - **Cost formula** – Non-cached input uses the standard input price; cached input uses the cache-read price (falling back to the input price when missing); and output tokens are billed at the output price. All prices are per million tokens. Reasoning tokens may be shown for reference, but they are part of the output charge and are not billed separately.
-- **Totals and reports** – Daily, monthly, and session commands display per-model breakdowns, overall totals, and optional JSON for automation.
+- **Totals and reports** – Daily, monthly, and session views display per-model breakdowns, overall totals, and optional JSON for automation.
 
 ## Environment Variables
 
@@ -61,10 +59,10 @@ ccusage codex daily --speed standard
 
 ## Next Steps
 
-- [Daily report command](./daily.md)
-- [Monthly report command](./monthly.md)
-- [Session report command](./session.md)
-- Additional reports will mirror the ccusage CLI as the Codex tooling stabilizes.
+- [Daily Codex view](./daily.md)
+- [Monthly Codex view](./monthly.md)
+- [Session Codex view](./session.md)
+- Additional views will mirror the main ccusage reports as Codex support stabilizes.
 
 Have feedback or ideas? [Open an issue](https://github.com/ryoppippi/ccusage/issues/new) so we can improve the beta.
 

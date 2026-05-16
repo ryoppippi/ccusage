@@ -98,7 +98,7 @@ For individual developers working on multiple projects:
 
 ### Multiple Agents
 
-Configure Claude Code, Codex, OpenCode, Amp, and pi-agent separately with agent namespaces:
+Configure Claude Code, Codex, OpenCode, Amp, and pi-agent separately with data source namespaces:
 
 ```json
 // ~/.config/claude/ccusage.json

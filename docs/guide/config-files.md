@@ -174,9 +174,9 @@ Override shared defaults for specific all-agent reports and legacy Claude comman
 }
 ```
 
-### Agent-Specific Configuration
+### Source-Specific Configuration
 
-Use agent namespaces to set defaults and command overrides for `ccusage <agent> <report>` commands. Supported namespaces are `claude`, `codex`, `opencode`, `amp`, and `pi`.
+Use data source namespaces to set defaults and report overrides. Supported namespaces are `claude`, `codex`, `opencode`, `amp`, and `pi`.
 
 ```json
 {

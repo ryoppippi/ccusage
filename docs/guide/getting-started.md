@@ -33,7 +33,7 @@ BUN_BE_BUN=1 claude x ccusage
 
 This will show your daily usage report for all detected supported agents by default.
 
-Use an agent namespace when you want to focus on one source:
+Use a data source namespace when you want the same report focused on one source:
 
 ```bash
 ccusage claude daily
@@ -98,14 +98,14 @@ Now that you have your first report, explore these features:
 ccusage daily --since 2024-12-01 --until 2024-12-31
 ```
 
-### Show One Agent
+### Focus on One Source
 
 ```bash
 ccusage codex daily
 ccusage claude monthly
 ```
 
-### Use Agent-Specific Options
+### Use Source-Specific Options
 
 ```bash
 ccusage claude daily --mode display
