@@ -41,6 +41,8 @@ Use small files under each adapter directory:
 
 Do not put new source logic in deprecated standalone packages. Those packages are compatibility wrappers; ccusage adapter directories are the implementation home.
 
+When migrating an existing root-level implementation into an adapter, update internal import sites to point at `adapter/<agent>/...` directly. Avoid root-level re-export shims unless the path is part of the package's declared public exports.
+
 ## Definition Hooks
 
 When an adapter fits the common lifecycle, define it with hooks equivalent to:
@@ -74,5 +76,7 @@ Tests should cover behavior at the layer where the logic lives:
 - Aggregators: date/month/session grouping, token totals, models, metadata, and cost.
 - CLI output: JSON assertions for structure and snapshots for human-readable tables.
 - Local smoke tests: use skipped tests for real user data directories when useful, so clean CI machines do not fail.
+- Terminal validation: use cmux for table layout, progress, spinner, and responsive output changes.
+- Performance: compare affected agents against main or the previous release tag, and verify JSON parity for the benchmark window.
 
 Schema-only tests are usually lower value than loader tests with realistic logs. Add schema-adjacent tests only when the schema encodes compatibility or filtering behavior not otherwise visible through parser or loader tests.
