@@ -1,5 +1,5 @@
 import { stat } from 'node:fs/promises';
-import { availableParallelism } from 'node:os';
+import os from 'node:os';
 import path from 'node:path';
 import { Worker } from 'node:worker_threads';
 import { createFixture } from 'fs-fixture';
@@ -41,7 +41,7 @@ export function getDefaultWorkerThreadCount(
 		reserveParallelism?: number;
 	} = {},
 ): number {
-	const available = Math.max(1, availableParallelism() - (options.reserveParallelism ?? 1));
+	const available = Math.max(1, os.availableParallelism() - (options.reserveParallelism ?? 1));
 	const workerCount = Math.min(
 		options.preferMoreWorkers === true ? Math.ceil(available * 0.75) : Math.ceil(available / 2),
 		options.maxWorkers ?? 12,
@@ -254,21 +254,21 @@ if (import.meta.vitest != null) {
 		});
 
 		it('allows callers to keep all available cores eligible', () => {
-			const available = availableParallelism();
+			vi.spyOn(os, 'availableParallelism').mockReturnValue(11);
 
 			expect(
 				getDefaultWorkerThreadCount(100, {
 					maxWorkers: 9,
 					reserveParallelism: 0,
 				}),
-			).toBe(Math.min(100, Math.max(1, Math.min(Math.ceil(available / 2), 9))));
+			).toBe(6);
 			expect(
 				getDefaultWorkerThreadCount(100, {
 					maxWorkers: 9,
 					preferMoreWorkers: true,
 					reserveParallelism: 0,
 				}),
-			).toBe(Math.min(100, Math.max(1, Math.min(Math.ceil(available * 0.75), 9))));
+			).toBe(9);
 		});
 	});
 
