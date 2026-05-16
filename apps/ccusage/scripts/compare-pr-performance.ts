@@ -1,5 +1,6 @@
 #!/usr/bin/env bun
 
+import { readdir, stat } from 'node:fs/promises';
 import { join, relative, resolve } from 'node:path';
 import { execPath } from 'node:process';
 import { createFixture } from 'fs-fixture';
@@ -30,10 +31,17 @@ type SampleOptions = {
 
 type FixtureComparison = SampleOptions & {
 	codexFixtureDir?: string;
+	codexFixtureStats?: FixtureStats;
 	description: string;
 	fixtureDir: string;
+	fixtureStats: FixtureStats;
 	results: CommandResult[];
 	title: string;
+};
+
+type FixtureStats = {
+	bytes: number;
+	files: number;
 };
 
 type HyperfineResult = {
@@ -145,6 +153,40 @@ function formatDuration(milliseconds: number): string {
 
 function formatSize(bytes: number): string {
 	return `${(bytes / 1024).toFixed(2)} KiB`;
+}
+
+function formatDataSize(bytes: number): string {
+	if (bytes >= 1024 * 1024 * 1024) {
+		return `${(bytes / 1024 / 1024 / 1024).toFixed(2)} GiB`;
+	}
+	return `${(bytes / 1024 / 1024).toFixed(2)} MiB`;
+}
+
+function formatThroughput(bytes: number, milliseconds: number): string {
+	const mibPerSecond = bytes / 1024 / 1024 / (milliseconds / 1000);
+	return mibPerSecond >= 1024
+		? `${(mibPerSecond / 1024).toFixed(2)} GiB/s`
+		: `${mibPerSecond.toFixed(2)} MiB/s`;
+}
+
+async function summarizeDirectory(directory: string): Promise<FixtureStats> {
+	let bytes = 0;
+	let files = 0;
+	for (const entry of await readdir(directory, { withFileTypes: true })) {
+		const entryPath = join(directory, entry.name);
+		if (entry.isDirectory()) {
+			const child = await summarizeDirectory(entryPath);
+			bytes += child.bytes;
+			files += child.files;
+			continue;
+		}
+		if (entry.isFile()) {
+			const entryStat = await stat(entryPath);
+			bytes += entryStat.size;
+			files++;
+		}
+	}
+	return { bytes, files };
 }
 
 async function writeProgress(message: string): Promise<void> {
@@ -309,6 +351,13 @@ async function compareFixture(options: {
 }): Promise<FixtureComparison> {
 	const results: CommandResult[] = [];
 	await writeProgress(`${options.title} started`);
+	const [fixtureStats, codexStats] = await Promise.all([
+		summarizeDirectory(options.fixtureDir),
+		options.codexFixtureDir == null
+			? Promise.resolve<FixtureStats | undefined>(undefined)
+			: summarizeDirectory(options.codexFixtureDir),
+	]);
+	const codexFixtureStats = codexStats;
 	for (const command of options.commands) {
 		results.push(
 			await compareCommand(command, {
@@ -321,8 +370,10 @@ async function compareFixture(options: {
 
 	return {
 		codexFixtureDir: options.codexFixtureDir,
+		codexFixtureStats,
 		description: options.description,
 		fixtureDir: options.fixtureDir,
+		fixtureStats,
 		results,
 		runs: options.runs,
 		title: options.title,
@@ -339,29 +390,44 @@ function formatFixturePath(headDir: string, fixtureDir: string): string {
 	return relativePath.startsWith('..') ? fixtureDir : relativePath;
 }
 
+function formatFixtureStats(stats: FixtureStats): string {
+	return `${formatDataSize(stats.bytes)}, ${stats.files.toLocaleString('en-US')} files`;
+}
+
+function fixtureStatsForCommand(section: FixtureComparison, command: string): FixtureStats {
+	if (command.startsWith('codex') && section.codexFixtureStats != null) {
+		return section.codexFixtureStats;
+	}
+	return section.fixtureStats;
+}
+
 /**
  * Renders one benchmark table so additional fixture workloads can be appended without duplicating
  * markdown layout logic or accidentally dropping the base/head speedup column.
  */
-function renderFixtureSection(section: FixtureComparison, options: { headDir: string }): string[] {
+export function renderFixtureSection(
+	section: FixtureComparison,
+	options: { headDir: string },
+): string[] {
 	const lines = [
 		`## ${section.title}`,
 		'',
 		section.description,
 		'',
 		section.codexFixtureDir == null
-			? `Fixture: \`${formatFixturePath(options.headDir, section.fixtureDir)}\``
-			: `Fixtures: Claude \`${formatFixturePath(options.headDir, section.fixtureDir)}\`, Codex \`${formatFixturePath(options.headDir, section.codexFixtureDir)}\``,
+			? `Fixture: \`${formatFixturePath(options.headDir, section.fixtureDir)}\` (${formatFixtureStats(section.fixtureStats)})`
+			: `Fixtures: Claude \`${formatFixturePath(options.headDir, section.fixtureDir)}\` (${formatFixtureStats(section.fixtureStats)}), Codex \`${formatFixturePath(options.headDir, section.codexFixtureDir)}\` (${formatFixtureStats(section.codexFixtureStats ?? section.fixtureStats)})`,
 		`Runtime: package \`ccusage\` bin from \`apps/ccusage/package.json\` through \`bun -b\`, \`--offline --json\`, measured by \`hyperfine\` with \`${section.warmup}\` warmups and \`${section.runs}\` runs.`,
 		'',
-		'| Command | Base median | PR median | PR vs base |',
-		'| --- | ---: | ---: | ---: |',
+		'| Command | Input | Base median | PR median | PR vs base | Base throughput | PR throughput |',
+		'| --- | ---: | ---: | ---: | ---: | ---: | ---: |',
 	];
 
 	for (const result of section.results) {
 		const speedup = result.base.median / result.head.median;
+		const fixtureStats = fixtureStatsForCommand(section, result.command);
 		lines.push(
-			`| \`${result.command} --offline --json\` | ${formatDuration(result.base.median)} | ${formatDuration(result.head.median)} | ${speedup.toFixed(2)}x |`,
+			`| \`${result.command} --offline --json\` | ${formatDataSize(fixtureStats.bytes)} | ${formatDuration(result.base.median)} | ${formatDuration(result.head.median)} | ${speedup.toFixed(2)}x | ${formatThroughput(fixtureStats.bytes, result.base.median)} | ${formatThroughput(fixtureStats.bytes, result.head.median)} |`,
 		);
 	}
 
