@@ -1,76 +1,16 @@
 {
 	"name": "@ccusage/pi",
-	"type": "module",
 	"version": "18.0.11",
-	"description": "Pi-agent usage tracking - combined Claude Max usage across Claude Code and pi-agent",
-	"author": "ryoppippi",
-	"contributors": [
-		"nicobailon"
-	],
+	"description": "Deprecated compatibility package. Use npx ccusage instead.",
 	"license": "MIT",
-	"funding": "https://github.com/ryoppippi/ccusage?sponsor=1",
-	"homepage": "https://github.com/ryoppippi/ccusage#readme",
-	"repository": {
-		"type": "git",
-		"url": "git+https://github.com/ryoppippi/ccusage.git",
-		"directory": "apps/pi"
-	},
-	"bugs": {
-		"url": "https://github.com/ryoppippi/ccusage/issues"
-	},
-	"exports": {
-		".": "./src/index.ts",
-		"./package.json": "./package.json"
-	},
-	"types": "./dist/index.d.ts",
 	"bin": {
-		"pi": "./src/index.ts"
+		"pi": "./index.js"
 	},
 	"files": [
-		"README.md",
-		"dist"
+		"index.js"
 	],
-	"publishConfig": {
-		"bin": {
-			"pi": "./dist/index.js"
-		},
-		"exports": {
-			".": "./dist/index.js",
-			"./package.json": "./package.json"
-		}
-	},
+	"type": "module",
 	"engines": {
 		"node": ">=22.0.0"
-	},
-	"scripts": {
-		"build": "tsdown",
-		"dev": "bun -b --watch ./src/index.ts",
-		"format": "pnpm run lint --fix",
-		"lint": "eslint --cache .",
-		"prepack": "pnpm run build && clean-pkg-json",
-		"prerelease": "pnpm run lint && pnpm run typecheck && pnpm run build",
-		"start": "bun ./src/index.ts",
-		"test": "TZ=UTC vitest",
-		"typecheck": "tsgo --noEmit"
-	},
-	"dependencies": {
-		"ccusage": "workspace:*"
-	},
-	"devDependencies": {
-		"@ccusage/internal": "workspace:*",
-		"@ccusage/terminal": "workspace:*",
-		"@praha/byethrow": "catalog:runtime",
-		"@ryoppippi/eslint-config": "catalog:lint",
-		"@types/bun": "catalog:types",
-		"@typescript/native-preview": "catalog:types",
-		"clean-pkg-json": "catalog:release",
-		"eslint": "catalog:lint",
-		"fs-fixture": "catalog:testing",
-		"gunshi": "catalog:runtime",
-		"path-type": "catalog:runtime",
-		"publint": "catalog:lint",
-		"tsdown": "catalog:build",
-		"valibot": "catalog:runtime",
-		"vitest": "catalog:testing"
 	}
 }
