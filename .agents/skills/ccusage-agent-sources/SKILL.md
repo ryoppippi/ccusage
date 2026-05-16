@@ -84,10 +84,11 @@ Pricing uses model metadata from `turn_context`. Early sessions without metadata
 Data source:
 
 ```text
-${OPENCODE_DATA_DIR:-~/.local/share/opencode}/storage/message/
+${OPENCODE_DATA_DIR:-~/.local/share/opencode}/opencode.db
+${OPENCODE_DATA_DIR:-~/.local/share/opencode}/opencode-*.db
 ```
 
-Each message is an individual JSON file. Token mapping:
+SQLite databases are the primary source. Legacy JSON messages under `storage/message/` are loaded as a fallback and deduplicated behind database rows. Token mapping:
 
 - `inputTokens` <- `tokens.input`
 - `outputTokens` <- `tokens.output`
