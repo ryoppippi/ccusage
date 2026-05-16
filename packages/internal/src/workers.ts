@@ -109,6 +109,19 @@ export async function chunkIndexedItemsByFileSize<T>(
 	return chunks.filter((chunk) => chunk.length > 0);
 }
 
+/**
+ * Runs indexed items through file workers and restores results to input order.
+ *
+ * @param options - Worker collection options.
+ * @param options.items - Items to process.
+ * @param options.workerCount - Number of workers to launch.
+ * @param options.moduleUrl - Worker module URL.
+ * @param options.errorMessage - Error message used when a worker exits unsuccessfully.
+ * @param options.createWorkerData - Creates worker data for each item chunk.
+ * @param options.getFilePath - Gets a file path used to balance chunks by file size.
+ * @param options.createWorker - Creates a worker for tests or custom runtimes.
+ * @returns Ordered worker results, or null when workerCount is zero so callers can use their non-worker fallback path.
+ */
 export async function collectIndexedFileWorkerResults<TItem, TResult, TWorkerData>(options: {
 	items: TItem[];
 	workerCount: number;
