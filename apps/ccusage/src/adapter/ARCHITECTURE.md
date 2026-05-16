@@ -14,7 +14,7 @@ Each adapter should be organized around these layers:
 
 2. Load files
 
-   Walk the source directory with shared file utilities. Use shared worker gating and chunking when there are enough files and the bundled runtime can safely launch workers. The discovered source type does not have to be a string path; it can be a tagged union such as `{ kind: "json"; path: string } | { kind: "sqlite"; path: string }`.
+   Walk the source directory with shared file utilities. Use shared worker gating, file-size chunking, worker spawn, and indexed result restoration when there are enough files and the bundled runtime can safely launch workers. The discovered source type does not have to be a string path; it can be a tagged union such as `{ kind: "json"; path: string } | { kind: "sqlite"; path: string }`.
 
 3. Parse records
 
@@ -41,7 +41,7 @@ Use small files under each adapter directory:
 
 Do not put new source logic in deprecated standalone packages. Those packages are compatibility wrappers; ccusage adapter directories are the implementation home.
 
-When migrating an existing root-level implementation into an adapter, update internal import sites to point at `adapter/<agent>/...` directly. Avoid root-level re-export shims unless the path is part of the package's declared public exports.
+When migrating an existing root-level implementation into an adapter, update internal import sites to point at `adapter/<agent>/...` directly. Avoid root-level re-export shims unless the path is part of the package's declared public exports or a dedicated bundled worker entry. `apps/ccusage/src/data-loader.ts` is such an entry: it keeps the optimized Claude loader in the separate `data-loader` chunk introduced by PR #984, while source logic stays under `adapter/claude/`.
 
 ## Definition Hooks
 

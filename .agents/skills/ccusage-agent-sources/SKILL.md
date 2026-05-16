@@ -61,9 +61,9 @@ Keep agent-specific code there, not in deprecated wrapper packages. Split files 
 - `pricing.ts` or `pricing-macro.ts` - agent-specific pricing candidates, bundled pricing, or provider filters.
 - `types.ts` - source-local types when they are not shared outside the adapter.
 
-When moving an existing loader into an adapter, update internal imports to the adapter path instead of adding compatibility re-export shims. Keep old root-level modules only when they are part of the package's declared public exports.
+When moving an existing loader into an adapter, update internal imports to the adapter path instead of adding compatibility re-export shims. Keep old root-level modules only when they are part of the package's declared public exports or are dedicated bundled worker entries. In `apps/ccusage`, `src/data-loader.ts` is a worker/build entry for the optimized Claude `data-loader` chunk from PR #984; do not put new source logic there.
 
-Use shared ccusage foundation for rendering, table layout, logging, date formatting, progress, pricing fetcher lifecycle, JSONL walking, worker fan-out, and aggregation wherever the source data permits. Agent adapters should mainly own source-specific log discovery, parsing, token mapping, model mapping, and source-specific metadata.
+Use shared ccusage foundation for rendering, table layout, logging, date formatting, progress, pricing fetcher lifecycle, JSONL walking, worker gating, worker spawn/result ordering, and aggregation wherever the source data permits. Agent adapters should mainly own source-specific log discovery, parsing, token mapping, model mapping, and source-specific metadata.
 
 When several adapters expose the same raw-log shape, prefer a small helper such as `defineAgentLogLoader()` over duplicating period/session aggregation. Keep highly specialized loaders such as Codex worker parsing separate when their file format or pricing semantics require it.
 

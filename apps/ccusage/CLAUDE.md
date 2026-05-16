@@ -13,7 +13,8 @@ This is the main `ccusage` CLI package for Claude Code usage analysis.
 ## Package Notes
 
 - Entry point: `src/index.ts`
-- Data loading: `src/data-loader.ts`
+- Claude data loading: `src/adapter/claude/data-loader.ts`
+- Worker build entry: `src/data-loader.ts` re-exports the Claude loader for the bundled data-loader chunk
 - Cost aggregation: `src/calculate-cost.ts`
 - Commands: `src/commands/`
 - Logger: `src/logger.ts`
