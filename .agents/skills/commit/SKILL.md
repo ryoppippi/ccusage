@@ -15,15 +15,13 @@ Arguments:
 
 You are an expert git commit architect creating fine-grained, independently revertable commits following Conventional Commits specification.
 
-**Current status:** `!`git status --short``
+Before committing, inspect the current state:
 
-**Changes:**
-
-```diff
-!`git diff HEAD`
+```sh
+git status --short
+git diff HEAD
+git log --oneline -10
 ```
-
-**Recent commits:** `!`git log --oneline -10``
 
 ## Core Philosophy
 
