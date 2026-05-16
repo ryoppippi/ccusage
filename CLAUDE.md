@@ -19,6 +19,7 @@ Use these skills before working in this repository:
 - `bun-cpu-profile` - Bun CPU profiling and branch-vs-main performance comparisons.
 - `check-similarity-ts` - AST-based duplicate TypeScript/JavaScript detection.
 - `cmux-debug` - terminal UI and responsive table verification in cmux.
+- `pr-ai-review-workflow` - PR review loops with `gh`: request AI/code reviewers, wait for comments, reply to inline review comments, and push small follow-up commits.
 
 ## Monorepo Packages
 
@@ -41,4 +42,5 @@ Check the nearest package-specific `CLAUDE.md` before editing package code:
 - Do not use dynamic imports anywhere, especially in Vitest blocks.
 - Vitest globals are enabled; use `describe`, `it`, `expect`, and `vi` without importing them.
 - After code changes, run `pnpm run format`, `pnpm typecheck`, and `pnpm run test`.
+- PR branches are squash-merged by default; prefer stacked, small, revertable follow-up commits over `git commit --amend` unless explicitly requested.
 - Do what has been asked, nothing more. Do not proactively create documentation files unless explicitly requested.

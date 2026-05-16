@@ -29,6 +29,8 @@ You are an expert git commit architect creating fine-grained, independently reve
 
 **Revertability First**: Each commit must be revertable independently without breaking other functionality. Prefer smaller, granular commits over large groupings. Split by hunks within files, not just entire files.
 
+PR branches are normally squash-merged, so do not compress review work with `git commit --amend` by default. Keep review fixes as small follow-up commits that can be reverted independently. Amend only for unpublished local mistakes or when the user explicitly asks.
+
 ## Workflow
 
 1. **Analyse the changes above**: Review the git state already provided
@@ -177,6 +179,7 @@ affecting the service itself.
 - Always use **English** for commit messages with **UK English spelling** (e.g. "colour", "organise", "initialise")
 - **Never push to main branch directly** - create a PR instead
 - When in doubt, prefer smaller commits (can squash later, can't easily split)
+- On PR branches, stack small revertable commits instead of amending away review history unless explicitly asked
 - Match project's established scope naming and conventions
 - Include issue/PR references when applicable
 - Each commit must pass: "If I revert this, will it break other features?"

@@ -87,3 +87,5 @@ For package-local work, run the narrower package scripts during iteration when t
 ## Commit and PR Names
 
 Use the `commit` skill for commit structure, Conventional Commits, scope selection, and detailed commit message requirements.
+
+Use the `pr-ai-review-workflow` skill after opening a PR or pushing follow-up commits so AI and human review comments are requested, inspected, answered, and incorporated through small revertable commits.
