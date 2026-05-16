@@ -87,7 +87,28 @@ function createAgentFixtureTree() {
 			},
 		},
 		claude: {
-			projects: {},
+			projects: {
+				project: {
+					'session-id.jsonl': JSON.stringify({
+						timestamp: '2026-01-02T00:00:00.000Z',
+						sessionId: 'claude-session',
+						message: {
+							role: 'assistant',
+							id: 'claude-message',
+							model: 'claude-sonnet-4-20250514',
+							usage: {
+								input_tokens: 100,
+								output_tokens: 50,
+								cache_creation_input_tokens: 20,
+								cache_read_input_tokens: 10,
+							},
+						},
+						requestId: 'claude-request',
+						costUSD: 0.25,
+						version: '1.0.0',
+					}),
+				},
+			},
 		},
 		codex: {
 			sessions: {
@@ -374,18 +395,18 @@ describe('ccusage all-agent CLI', () => {
 		expect(output.daily[0]).toEqual(
 			expect.objectContaining({
 				agent: 'all',
-				cacheCreationTokens: 60,
-				cacheReadTokens: 40,
-				inputTokens: 400,
-				outputTokens: 200,
+				cacheCreationTokens: 80,
+				cacheReadTokens: 50,
+				inputTokens: 500,
+				outputTokens: 250,
 				period: '2026-01-02',
-				totalTokens: 700,
+				totalTokens: 880,
 			}),
 		);
-		expect(output.daily[0]?.metadata?.agents).toEqual(['amp', 'codex', 'opencode', 'pi']);
+		expect(output.daily[0]?.metadata?.agents).toEqual(['amp', 'claude', 'codex', 'opencode', 'pi']);
 	});
 
-	it('runs agent namespaces through the main ccusage command', async () => {
+	it('runs Codex daily JSON through the main ccusage namespace instead of the deprecated standalone wrapper', async () => {
 		await using fixture = await createFixture(createAgentFixtureTree());
 
 		const result = runCcusage(
@@ -413,7 +434,39 @@ describe('ccusage all-agent CLI', () => {
 		]);
 	});
 
-	it('passes offline mode through agent namespaces', async () => {
+	it('runs Claude daily JSON through the main ccusage namespace while preserving the Claude Code optimized loader output shape', async () => {
+		await using fixture = await createFixture(createAgentFixtureTree());
+
+		const result = runCcusage(
+			['claude', '--offline', '--json', '--since', '20260102', '--until', '20260102'],
+			createAgentCliEnv(fixture.path),
+		);
+
+		expect(result.status).toBe(0);
+		expect(result.stderr).toBe('');
+		const stdout = getStdout(result).replace(/\n$/u, '');
+		await mkdir(snapshotRoot, { recursive: true });
+		await expect(stdout).toMatchFileSnapshot(
+			path.join(snapshotRoot, 'claude-direct-daily-json.txt'),
+		);
+	});
+
+	it('runs pi-agent daily JSON through the main ccusage namespace with its agent-specific path option still available', async () => {
+		await using fixture = await createFixture(createAgentFixtureTree());
+
+		const result = runCcusage(
+			['pi', '--offline', '--json', '--since', '20260102', '--until', '20260102'],
+			createAgentCliEnv(fixture.path),
+		);
+
+		expect(result.status).toBe(0);
+		expect(result.stderr).toBe('');
+		const stdout = getStdout(result).replace(/\n$/u, '');
+		await mkdir(snapshotRoot, { recursive: true });
+		await expect(stdout).toMatchFileSnapshot(path.join(snapshotRoot, 'pi-direct-daily-json.txt'));
+	});
+
+	it('passes offline mode through OpenCode namespaces without fetching pricing from the network', async () => {
 		await using fixture = await createFixture(createAgentFixtureTree());
 
 		const result = runCcusage(['opencode', '--offline', '--json'], createAgentCliEnv(fixture.path));
@@ -503,7 +556,7 @@ describe('ccusage all-agent CLI', () => {
 		await mkdir(snapshotRoot, { recursive: true });
 		await expect(output).toMatchFileSnapshot(path.join(snapshotRoot, 'all-agent-daily-table.txt'));
 		expect(output).toContain('Coding Agent Usage Report - Daily');
-		expect(output).toContain('Detected: Amp, Codex, OpenCode, pi-agent');
+		expect(output).toContain('Detected: Amp, Claude, Codex, OpenCode, pi-agent');
 		expect(output.match(/2026-01-02/gu)).toHaveLength(1);
 		expect(output).toContain('Amp');
 		expect(output).toContain('Codex');
