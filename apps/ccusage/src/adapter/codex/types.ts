@@ -1,4 +1,4 @@
-import type { IndexedWorkerItem } from '@ccusage/internal/workers';
+import type { IndexedWorkerData, IndexedWorkerResultsMessage } from '@ccusage/internal/workers';
 import type { AgentUsageRow } from '../types.ts';
 
 export type RawUsage = {
@@ -46,10 +46,8 @@ export type CodexGroup = {
 
 export type CodexSpeed = 'standard' | 'fast';
 
-export type CodexWorkerData = {
-	kind: 'ccusage:codex-worker';
+export type CodexWorkerData = IndexedWorkerData<'ccusage:codex-worker', string> & {
 	directoryPath: string;
-	items: Array<IndexedWorkerItem<string>>;
 };
 
 export type EncodedTokenUsageEvents = {
@@ -61,9 +59,7 @@ export type EncodedTokenUsageEvents = {
 	flags: Uint8Array;
 };
 
-export type CodexWorkerResponse = {
-	results: Array<{ index: number; result: EncodedTokenUsageEvents }>;
-};
+export type CodexWorkerResponse = IndexedWorkerResultsMessage<EncodedTokenUsageEvents>;
 
 export type CodexReportRow =
 	| {

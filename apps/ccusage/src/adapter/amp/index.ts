@@ -1,9 +1,10 @@
-import type { AdapterContext, AdapterOptions, AgentUsageRow, ReportKind } from '../types.ts';
+import type { AgentPricingContext } from '../shared.ts';
+import type { AdapterContext, AdapterOptions } from '../types.ts';
+import type { AmpUsageEvent } from './schema.ts';
 import { LiteLLMPricingFetcher } from '@ccusage/internal/pricing';
-import { compareStrings } from '@ccusage/internal/sort';
 import { createFixture } from 'fs-fixture';
 import { logger } from '../../logger.ts';
-import { createEmptyRow, formatDateKey, isWithinRange, normalizeDateFilter } from '../shared.ts';
+import { createAgentPricingContext, defineAgentLogLoader } from '../shared.ts';
 import { loadAmpUsageEvents } from './parser.ts';
 import { detectAmpThreadFiles } from './paths.ts';
 import { AMP_PROVIDER_PREFIXES, calculateAmpCost, loadOfflineAmpPricing } from './pricing.ts';
@@ -12,64 +13,43 @@ export async function detectAmp(): Promise<boolean> {
 	return detectAmpThreadFiles();
 }
 
-export async function loadAmpRows(
-	kind: ReportKind,
+function createAmpPricingContext(
 	options: AdapterOptions,
 	context: AdapterContext,
-): Promise<AgentUsageRow[]> {
-	const since = normalizeDateFilter(options.since);
-	const until = normalizeDateFilter(options.until);
-	const events = await loadAmpUsageEvents();
-	using ownedFetcher =
-		context.pricingFetcher == null
-			? new LiteLLMPricingFetcher({
-					offline: options.offline === true,
-					offlineLoader: loadOfflineAmpPricing,
-					logger,
-					providerPrefixes: AMP_PROVIDER_PREFIXES,
-				})
-			: undefined;
-	const fetcher = context.pricingFetcher ?? ownedFetcher;
-	if (fetcher == null) {
-		throw new Error('Amp pricing fetcher was not initialized');
-	}
-	const groups = new Map<string, { row: AgentUsageRow; models: Set<string>; credits: number }>();
-
-	for (const event of events) {
-		const date = formatDateKey(event.timestamp, options.timezone);
-		if (!isWithinRange(date, since, until)) {
-			continue;
-		}
-		const period =
-			kind === 'session' ? event.threadId : kind === 'monthly' ? date.slice(0, 7) : date;
-		const group = groups.get(period) ?? {
-			row: createEmptyRow(period, 'amp'),
-			models: new Set(),
-			credits: 0,
-		};
-		if (!groups.has(period)) {
-			groups.set(period, group);
-		}
-		group.row.inputTokens += event.inputTokens;
-		group.row.outputTokens += event.outputTokens;
-		group.row.cacheCreationTokens += event.cacheCreationInputTokens;
-		group.row.cacheReadTokens += event.cacheReadInputTokens;
-		group.row.totalTokens +=
-			event.inputTokens +
-			event.outputTokens +
-			event.cacheCreationInputTokens +
-			event.cacheReadInputTokens;
-		group.row.totalCost += await calculateAmpCost(fetcher, event);
-		group.credits += event.credits;
-		group.models.add(event.model);
-	}
-
-	return Array.from(groups.values(), ({ row, models, credits }) => ({
-		...row,
-		modelsUsed: Array.from(models).sort(compareStrings),
-		metadata: { credits },
-	})).sort((a, b) => compareStrings(a.period, b.period));
+): AgentPricingContext {
+	return createAgentPricingContext(
+		context,
+		() =>
+			new LiteLLMPricingFetcher({
+				offline: options.offline === true,
+				offlineLoader: loadOfflineAmpPricing,
+				logger,
+				providerPrefixes: AMP_PROVIDER_PREFIXES,
+			}),
+	);
 }
+
+export const loadAmpRows = defineAgentLogLoader<AmpUsageEvent, AgentPricingContext>({
+	agent: 'amp',
+	loadEntries: async () => loadAmpUsageEvents(),
+	prepare: createAmpPricingContext,
+	disposePrepared: (prepared) => {
+		prepared.dispose();
+	},
+	getTimestamp: (entry) => entry.timestamp,
+	getSessionId: (entry) => entry.threadId,
+	getModels: (entry) => [entry.model],
+	getUsage: async (entry, prepared) => ({
+		inputTokens: entry.inputTokens,
+		outputTokens: entry.outputTokens,
+		cacheCreationTokens: entry.cacheCreationInputTokens,
+		cacheReadTokens: entry.cacheReadInputTokens,
+		totalCost: await calculateAmpCost(prepared.fetcher, entry),
+	}),
+	getMetadata: (entries) => ({
+		credits: entries.reduce((total, entry) => total + entry.credits, 0),
+	}),
+});
 
 if (import.meta.vitest != null) {
 	describe('loadAmpRows', () => {

@@ -1,4 +1,4 @@
-import type { IndexedWorkerItem } from '@ccusage/internal/workers';
+import type { IndexedWorkerData, IndexedWorkerResultsMessage } from '@ccusage/internal/workers';
 import type {
 	OpenCodeMessage,
 	OpenCodeMessageResult,
@@ -20,14 +20,9 @@ import { logger } from '../../logger.ts';
 import { discoverOpenCodeMessageFiles, getOpenCodeDbPath, getOpenCodePath } from './paths.ts';
 import { openCodeDbMessageRowSchema, openCodeMessageSchema } from './schema.ts';
 
-type OpenCodeWorkerData = {
-	kind: 'ccusage:opencode-worker';
-	items: Array<IndexedWorkerItem<string>>;
-};
+type OpenCodeWorkerData = IndexedWorkerData<'ccusage:opencode-worker', string>;
 
-type OpenCodeWorkerResponse = {
-	results: Array<{ index: number; result: OpenCodeMessageResult | null }>;
-};
+type OpenCodeWorkerResponse = IndexedWorkerResultsMessage<OpenCodeMessageResult | null>;
 
 function parseJsonObject(value: string): Record<string, unknown> | null {
 	const result = Result.try({

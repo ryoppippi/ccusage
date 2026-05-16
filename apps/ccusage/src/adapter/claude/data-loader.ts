@@ -9,6 +9,7 @@
  */
 
 import type { LiteLLMModelPricing } from '@ccusage/internal/pricing';
+import type { IndexedWorkerItem, IndexedWorkerResultsMessage } from '@ccusage/internal/workers';
 import type { WeekDay } from '../../consts.ts';
 import type { LoadedUsageEntry, SessionBlock } from '../../session-blocks.ts';
 import type {
@@ -28,19 +29,23 @@ import type {
 	WeeklyDate,
 } from '../../types.ts';
 import { Buffer } from 'node:buffer';
-import { createReadStream, createWriteStream } from 'node:fs';
+import { createWriteStream } from 'node:fs';
 import { readdir, stat, utimes } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
-import { createInterface } from 'node:readline';
 import { isMainThread, parentPort, Worker, workerData } from 'node:worker_threads';
 import { toArray } from '@antfu/utils';
 import { createResultSlots } from '@ccusage/internal/array';
-import { readBufferedTextFile, readTextFile } from '@ccusage/internal/fs';
-import { processJSONLFileByMarkers } from '@ccusage/internal/jsonl';
+import { readTextFile } from '@ccusage/internal/fs';
+import { processJSONLFileByLine, processJSONLFileByMarkers } from '@ccusage/internal/jsonl';
 import { compareStrings } from '@ccusage/internal/sort';
-import { mapWithConcurrency } from '@ccusage/internal/workers';
+import {
+	chunkIndexedItemsByFileSize,
+	getDefaultWorkerThreadCount,
+	getFileWorkerThreadCount,
+	mapWithConcurrency,
+} from '@ccusage/internal/workers';
 import { Result } from '@praha/byethrow';
 import { createFixture } from 'fs-fixture';
 import { isDirectorySync } from 'path-type';
@@ -87,7 +92,6 @@ const CONTENT_MARKER = '"content":';
 const COST_USD_MARKER = '"costUSD":';
 const INPUT_TOKENS_MARKER = '"input_tokens":';
 const ISO_TIMESTAMP_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/;
-const MAX_BUFFERED_JSONL_BYTES = 128 * 1024 * 1024;
 const JSONL_WORKER_THREAD_LIMIT = 9;
 const MESSAGE_ID_MARKER = '"id":"';
 const MODEL_MARKER = '"model":"';
@@ -211,15 +215,11 @@ function getJSONLFileReadConcurrency(fileCount: number, singleThread = false): n
 }
 
 function getDefaultJSONLWorkerThreadCount(fileCount: number, preferMoreWorkers = false): number {
-	const available = os.availableParallelism();
-	// Daily/session workloads mostly fan out independent usage-row parsing, so they can use more
-	// cores. Blocks return heavier per-file payloads and spend more time merging, where extra
-	// workers can lose to startup and structured-clone overhead.
-	const workerCount = Math.min(
-		preferMoreWorkers ? Math.ceil(available * 0.75) : Math.ceil(available / 2),
-		JSONL_WORKER_THREAD_LIMIT,
-	);
-	return Math.min(fileCount, Math.max(1, workerCount));
+	return getDefaultWorkerThreadCount(fileCount, {
+		maxWorkers: JSONL_WORKER_THREAD_LIMIT,
+		preferMoreWorkers,
+		reserveParallelism: 0,
+	});
 }
 
 function getTimestampFromLine(line: string): Date | null {
@@ -1188,81 +1188,6 @@ export function createUniqueHash(data: UsageData): string | null {
 	return `${messageId}:${requestId}`;
 }
 
-function hasNonWhitespace(line: string): boolean {
-	for (let index = 0; index < line.length; index++) {
-		if (line.charCodeAt(index) > 32) {
-			return true;
-		}
-	}
-	return false;
-}
-
-async function processBufferedJSONLContent(
-	content: string,
-	processLine: (line: string, lineNumber: number) => void | Promise<void>,
-): Promise<void> {
-	let lineStart = 0;
-	let lineNumber = 0;
-	while (lineStart < content.length) {
-		let lineEnd = content.indexOf('\n', lineStart);
-		if (lineEnd === -1) {
-			lineEnd = content.length;
-		}
-
-		lineNumber++;
-		let line = content.slice(lineStart, lineEnd);
-		if (line.endsWith('\r')) {
-			line = line.slice(0, -1);
-		}
-		if (hasNonWhitespace(line)) {
-			const result = processLine(line, lineNumber);
-			if (result != null) {
-				await result;
-			}
-		}
-
-		lineStart = lineEnd + 1;
-	}
-}
-
-async function readBufferedJSONLContent(filePath: string): Promise<string | null> {
-	return readBufferedTextFile(filePath, { maxBufferedBytes: MAX_BUFFERED_JSONL_BYTES });
-}
-
-/**
- * Process a JSONL file line by line using streams to avoid memory issues with large files
- * @param filePath - Path to the JSONL file
- * @param processLine - Callback function to process each line
- */
-async function processJSONLFileByLine(
-	filePath: string,
-	processLine: (line: string, lineNumber: number) => void | Promise<void>,
-): Promise<void> {
-	const content = await readBufferedJSONLContent(filePath);
-	if (content != null) {
-		await processBufferedJSONLContent(content, processLine);
-		return;
-	}
-
-	const fileStream = createReadStream(filePath, { encoding: 'utf-8' });
-	const rl = createInterface({
-		input: fileStream,
-		crlfDelay: Number.POSITIVE_INFINITY,
-	});
-
-	let lineNumber = 0;
-	for await (const line of rl) {
-		lineNumber++;
-		if (!hasNonWhitespace(line)) {
-			continue;
-		}
-		const result = processLine(line, lineNumber);
-		if (result != null) {
-			await result;
-		}
-	}
-}
-
 async function processJSONLUsageFileByLine(
 	filePath: string,
 	processLine: (line: string, usageMarkerIndex: number) => void,
@@ -1668,11 +1593,6 @@ type EncodedBlockFileResult = {
 
 type UsageWorkerTask = 'daily' | 'session' | 'blocks';
 
-type IndexedWorkerItem<T> = {
-	index: number;
-	item: T;
-};
-
 type UsageWorkerData = {
 	kind: 'ccusage:usage-worker';
 	task: UsageWorkerTask;
@@ -1682,13 +1602,7 @@ type UsageWorkerData = {
 	timezone: string | undefined;
 	pricing: Map<string, LiteLLMModelPricing> | undefined;
 };
-
-type UsageWorkerResponse<TResult> = {
-	results: Array<{
-		index: number;
-		result: TResult;
-	}>;
-};
+type UsageWorkerResponse<TResult> = IndexedWorkerResultsMessage<TResult>;
 
 function shouldReplaceEntryMetadata(
 	candidate: { tokenTotal: number; hasSpeed: boolean },
@@ -2032,25 +1946,19 @@ function getJSONLWorkerThreadCount(
 	singleThread = false,
 	preferMoreWorkers = false,
 ): number {
-	if (
-		singleThread ||
-		fileCount < 64 ||
-		!isMainThread ||
-		import.meta.vitest != null ||
-		!import.meta.url.includes('/dist/')
-	) {
+	if (singleThread) {
 		return 0;
 	}
-
-	const configured = Number.parseInt(process.env.CCUSAGE_JSONL_WORKER_THREADS ?? '', 10);
-	if (Number.isFinite(configured)) {
-		if (configured <= 0) {
-			return 0;
-		}
-		return Math.min(fileCount, configured);
-	}
-
-	return getDefaultJSONLWorkerThreadCount(fileCount, preferMoreWorkers);
+	return getFileWorkerThreadCount({
+		itemCount: fileCount,
+		isMainThread,
+		moduleUrl: import.meta.url,
+		envValue: process.env.CCUSAGE_JSONL_WORKER_THREADS,
+		isTest: import.meta.vitest != null,
+		maxWorkers: JSONL_WORKER_THREAD_LIMIT,
+		preferMoreWorkers,
+		reserveParallelism: 0,
+	});
 }
 
 function chunkIndexedItems<T>(
@@ -2061,39 +1969,6 @@ function chunkIndexedItems<T>(
 	for (let index = 0; index < items.length; index++) {
 		chunks[index % chunkCount]!.push(items[index]!);
 	}
-	return chunks.filter((chunk) => chunk.length > 0);
-}
-
-async function chunkIndexedItemsByFileSize<T>(
-	items: Array<IndexedWorkerItem<T>>,
-	chunkCount: number,
-	getFilePath: (item: T) => string,
-): Promise<Array<Array<IndexedWorkerItem<T>>>> {
-	const weightedItems = await Promise.all(
-		items.map(async (item) => {
-			try {
-				return { item, weight: (await stat(getFilePath(item.item))).size };
-			} catch {
-				return { item, weight: 0 };
-			}
-		}),
-	);
-
-	weightedItems.sort((a, b) => b.weight - a.weight || a.item.index - b.item.index);
-
-	const chunks: Array<Array<IndexedWorkerItem<T>>> = Array.from({ length: chunkCount }, () => []);
-	const chunkWeights = Array.from<number>({ length: chunkCount }).fill(0);
-	for (const { item, weight } of weightedItems) {
-		let targetIndex = 0;
-		for (let index = 1; index < chunkWeights.length; index++) {
-			if (chunkWeights[index]! < chunkWeights[targetIndex]!) {
-				targetIndex = index;
-			}
-		}
-		chunks[targetIndex]!.push(item);
-		chunkWeights[targetIndex]! += weight;
-	}
-
 	return chunks.filter((chunk) => chunk.length > 0);
 }
 

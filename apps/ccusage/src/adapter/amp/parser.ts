@@ -1,4 +1,4 @@
-import type { IndexedWorkerItem } from '@ccusage/internal/workers';
+import type { IndexedWorkerData, IndexedWorkerResultsMessage } from '@ccusage/internal/workers';
 import type { AmpLedgerEvent, AmpMessage, AmpThread, AmpUsageEvent } from './schema.ts';
 import process from 'node:process';
 import { isMainThread, parentPort, workerData } from 'node:worker_threads';
@@ -16,14 +16,9 @@ import * as v from 'valibot';
 import { discoverAmpThreadFiles } from './paths.ts';
 import { ampThreadSchema } from './schema.ts';
 
-type AmpWorkerData = {
-	kind: 'ccusage:amp-worker';
-	items: Array<IndexedWorkerItem<string>>;
-};
+type AmpWorkerData = IndexedWorkerData<'ccusage:amp-worker', string>;
 
-type AmpWorkerResponse = {
-	results: Array<{ index: number; result: AmpUsageEvent[] }>;
-};
+type AmpWorkerResponse = IndexedWorkerResultsMessage<AmpUsageEvent[]>;
 
 function getAmpCacheTokens(
 	messages: AmpMessage[] | undefined,

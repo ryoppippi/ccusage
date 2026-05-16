@@ -10,15 +10,24 @@ export type IndexedWorkerItem<T> = {
 	item: T;
 };
 
+export type IndexedWorkerData<TKind extends string, TItem> = {
+	kind: TKind;
+	items: Array<IndexedWorkerItem<TItem>>;
+};
+
 export type IndexedWorkerResult<TResult> = {
 	index: number;
 	result: TResult;
 };
 
+export type IndexedWorkerResultsMessage<TResult> = {
+	results: Array<IndexedWorkerResult<TResult>>;
+};
+
 type FileWorkerLike<TResult> = {
 	once: ((
 		event: 'message',
-		listener: (message: { results: Array<IndexedWorkerResult<TResult>> }) => void,
+		listener: (message: IndexedWorkerResultsMessage<TResult>) => void,
 	) => FileWorkerLike<TResult>) &
 		((event: 'error', listener: (error: Error) => void) => FileWorkerLike<TResult>) &
 		((event: 'exit', listener: (code: number) => void) => FileWorkerLike<TResult>);
@@ -29,9 +38,10 @@ export function getDefaultWorkerThreadCount(
 	options: {
 		maxWorkers?: number;
 		preferMoreWorkers?: boolean;
+		reserveParallelism?: number;
 	} = {},
 ): number {
-	const available = Math.max(1, availableParallelism() - 1);
+	const available = Math.max(1, availableParallelism() - (options.reserveParallelism ?? 1));
 	const workerCount = Math.min(
 		options.preferMoreWorkers === true ? Math.ceil(available * 0.75) : Math.ceil(available / 2),
 		options.maxWorkers ?? 12,
@@ -48,6 +58,7 @@ export function getFileWorkerThreadCount(options: {
 	isTest?: boolean;
 	maxWorkers?: number;
 	preferMoreWorkers?: boolean;
+	reserveParallelism?: number;
 }): number {
 	if (
 		options.itemCount < (options.minItems ?? 64) ||
@@ -69,6 +80,7 @@ export function getFileWorkerThreadCount(options: {
 	return getDefaultWorkerThreadCount(options.itemCount, {
 		maxWorkers: options.maxWorkers,
 		preferMoreWorkers: options.preferMoreWorkers,
+		reserveParallelism: options.reserveParallelism,
 	});
 }
 
@@ -239,6 +251,24 @@ if (import.meta.vitest != null) {
 					envValue: '4',
 				}),
 			).toBe(4);
+		});
+
+		it('allows callers to keep all available cores eligible', () => {
+			const available = availableParallelism();
+
+			expect(
+				getDefaultWorkerThreadCount(100, {
+					maxWorkers: 9,
+					reserveParallelism: 0,
+				}),
+			).toBe(Math.min(100, Math.max(1, Math.min(Math.ceil(available / 2), 9))));
+			expect(
+				getDefaultWorkerThreadCount(100, {
+					maxWorkers: 9,
+					preferMoreWorkers: true,
+					reserveParallelism: 0,
+				}),
+			).toBe(Math.min(100, Math.max(1, Math.min(Math.ceil(available * 0.75), 9))));
 		});
 	});
 

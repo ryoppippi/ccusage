@@ -1,4 +1,4 @@
-import type { IndexedWorkerItem } from '@ccusage/internal/workers';
+import type { IndexedWorkerData, IndexedWorkerResultsMessage } from '@ccusage/internal/workers';
 import type { PiUsageEntry } from './schema.ts';
 import process from 'node:process';
 import { isMainThread, parentPort, workerData } from 'node:worker_threads';
@@ -23,14 +23,9 @@ import {
 
 const PI_AGENT_JSONL_MARKERS = ['"usage"'];
 
-type PiWorkerData = {
-	kind: 'ccusage:pi-usage-worker';
-	items: Array<IndexedWorkerItem<string>>;
-};
+type PiWorkerData = IndexedWorkerData<'ccusage:pi-usage-worker', string>;
 
-type PiWorkerResponse = {
-	results: Array<{ index: number; result: PiUsageEntry[] }>;
-};
+type PiWorkerResponse = IndexedWorkerResultsMessage<PiUsageEntry[]>;
 
 async function globPiAgentFiles(paths: string[]): Promise<string[]> {
 	const allFiles: string[] = [];

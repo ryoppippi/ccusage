@@ -5,6 +5,7 @@ import type {
 	AgentUsageRow,
 	ReportKind,
 } from './types.ts';
+import { LiteLLMPricingFetcher } from '@ccusage/internal/pricing';
 import { compareStrings } from '@ccusage/internal/sort';
 import { agentIds } from './types.ts';
 
@@ -187,13 +188,36 @@ export type AgentLogUsage = {
 	totalCost: number;
 };
 
-export type AgentLogLoaderConfig<Entry> = {
+export type AgentPricingContext = {
+	fetcher: LiteLLMPricingFetcher;
+	dispose: () => void;
+};
+
+export function createAgentPricingContext(
+	context: AdapterContext,
+	createFetcher: () => LiteLLMPricingFetcher,
+): AgentPricingContext {
+	if (context.pricingFetcher != null) {
+		return { fetcher: context.pricingFetcher, dispose: () => {} };
+	}
+	const fetcher = createFetcher();
+	return { fetcher, dispose: () => fetcher[Symbol.dispose]() };
+}
+
+export type AgentLogLoaderConfig<Entry, Prepared = undefined> = {
 	agent: AgentId;
 	loadEntries: (options: AdapterOptions, context: AdapterContext) => Promise<Entry[]>;
+	prepare?: (options: AdapterOptions, context: AdapterContext) => Promise<Prepared> | Prepared;
+	disposePrepared?: (prepared: Prepared) => void;
 	getTimestamp: (entry: Entry) => string;
 	getSessionId: (entry: Entry) => string;
 	getModels: (entry: Entry) => Iterable<string>;
-	getUsage: (entry: Entry) => AgentLogUsage;
+	getUsage: (
+		entry: Entry,
+		prepared: Prepared,
+		options: AdapterOptions,
+		context: AdapterContext,
+	) => AgentLogUsage | Promise<AgentLogUsage>;
 	getMetadata?: (entries: Entry[], kind: ReportKind) => Record<string, unknown> | undefined;
 };
 
@@ -220,8 +244,8 @@ export function defineAgentAdapter<TSource, TParsed, TRow = AgentUsageRow>(
 	return definition;
 }
 
-export function defineAgentLogLoader<Entry>(
-	config: AgentLogLoaderConfig<Entry>,
+export function defineAgentLogLoader<Entry, Prepared = undefined>(
+	config: AgentLogLoaderConfig<Entry, Prepared>,
 ): (
 	kind: ReportKind,
 	options: AdapterOptions,
@@ -231,6 +255,7 @@ export function defineAgentLogLoader<Entry>(
 		const since = normalizeDateFilter(options.since);
 		const until = normalizeDateFilter(options.until);
 		const entries = await config.loadEntries(options, context);
+		const prepared = config.prepare == null ? undefined : await config.prepare(options, context);
 		const groups = new Map<
 			string,
 			{
@@ -240,45 +265,54 @@ export function defineAgentLogLoader<Entry>(
 			}
 		>();
 
-		for (const entry of entries) {
-			const date = formatDateKey(config.getTimestamp(entry), options.timezone);
-			if (!isWithinRange(date, since, until)) {
-				continue;
+		try {
+			for (const entry of entries) {
+				const date = formatDateKey(config.getTimestamp(entry), options.timezone);
+				if (!isWithinRange(date, since, until)) {
+					continue;
+				}
+
+				const period =
+					kind === 'session'
+						? config.getSessionId(entry)
+						: kind === 'monthly'
+							? formatMonthKey(config.getTimestamp(entry), options.timezone)
+							: date;
+				const group = groups.get(period) ?? {
+					row: createEmptyRow(period, config.agent),
+					models: new Set(),
+					entries: [],
+				};
+				if (!groups.has(period)) {
+					groups.set(period, group);
+				}
+
+				const usage = await config.getUsage(entry, prepared as Prepared, options, context);
+				group.row.inputTokens += usage.inputTokens;
+				group.row.outputTokens += usage.outputTokens;
+				group.row.cacheCreationTokens += usage.cacheCreationTokens;
+				group.row.cacheReadTokens += usage.cacheReadTokens;
+				group.row.totalTokens +=
+					usage.totalTokens ??
+					usage.inputTokens +
+						usage.outputTokens +
+						usage.cacheCreationTokens +
+						usage.cacheReadTokens;
+				group.row.totalCost += usage.totalCost;
+				addModels(group.models, config.getModels(entry));
+				group.entries.push(entry);
 			}
 
-			const period =
-				kind === 'session'
-					? config.getSessionId(entry)
-					: kind === 'monthly'
-						? formatMonthKey(config.getTimestamp(entry), options.timezone)
-						: date;
-			const group = groups.get(period) ?? {
-				row: createEmptyRow(period, config.agent),
-				models: new Set(),
-				entries: [],
-			};
-			if (!groups.has(period)) {
-				groups.set(period, group);
+			return Array.from(groups.values(), ({ row, models, entries }) => ({
+				...row,
+				modelsUsed: Array.from(models).sort(compareStrings),
+				metadata: config.getMetadata?.(entries, kind),
+			})).sort((a, b) => compareStrings(a.period, b.period));
+		} finally {
+			if (prepared !== undefined) {
+				config.disposePrepared?.(prepared as Prepared);
 			}
-
-			const usage = config.getUsage(entry);
-			group.row.inputTokens += usage.inputTokens;
-			group.row.outputTokens += usage.outputTokens;
-			group.row.cacheCreationTokens += usage.cacheCreationTokens;
-			group.row.cacheReadTokens += usage.cacheReadTokens;
-			group.row.totalTokens +=
-				usage.totalTokens ??
-				usage.inputTokens + usage.outputTokens + usage.cacheCreationTokens + usage.cacheReadTokens;
-			group.row.totalCost += usage.totalCost;
-			addModels(group.models, config.getModels(entry));
-			group.entries.push(entry);
 		}
-
-		return Array.from(groups.values(), ({ row, models, entries }) => ({
-			...row,
-			modelsUsed: Array.from(models).sort(compareStrings),
-			metadata: config.getMetadata?.(entries, kind),
-		})).sort((a, b) => compareStrings(a.period, b.period));
 	};
 }
 
@@ -309,6 +343,18 @@ if (import.meta.vitest != null) {
 	});
 
 	describe('defineAgentLogLoader', () => {
+		it('does not dispose pricing fetchers owned by shared context', () => {
+			const fetcher = new LiteLLMPricingFetcher({ offline: true });
+			const dispose = vi.spyOn(fetcher, Symbol.dispose);
+			const pricingContext = createAgentPricingContext({ pricingFetcher: fetcher }, () => {
+				throw new Error('should not create an owned fetcher');
+			});
+
+			expect(pricingContext.fetcher).toBe(fetcher);
+			pricingContext.dispose();
+			expect(dispose).not.toHaveBeenCalled();
+		});
+
 		it('groups log entries into dated usage rows', async () => {
 			const loadRows = defineAgentLogLoader({
 				agent: 'amp',
@@ -391,6 +437,62 @@ if (import.meta.vitest != null) {
 					totalCost: 0.01,
 				},
 			]);
+		});
+
+		it('prepares shared aggregation state once and uses it after date filtering', async () => {
+			const getUsage = vi.fn(
+				async (
+					entry: {
+						timestamp: string;
+						sessionId: string;
+						model: string;
+						inputTokens: number;
+					},
+					prepared: { multiplier: number },
+				) => ({
+					inputTokens: entry.inputTokens * prepared.multiplier,
+					outputTokens: 0,
+					cacheCreationTokens: 0,
+					cacheReadTokens: 0,
+					totalCost: 0,
+				}),
+			);
+			const disposePrepared = vi.fn();
+			const loadRows = defineAgentLogLoader({
+				agent: 'amp',
+				loadEntries: async () => [
+					{
+						timestamp: '2026-05-15T01:00:00.000Z',
+						sessionId: 'outside',
+						model: 'haiku-4-5',
+						inputTokens: 100,
+					},
+					{
+						timestamp: '2026-05-16T01:00:00.000Z',
+						sessionId: 'inside',
+						model: 'haiku-4-5',
+						inputTokens: 10,
+					},
+				],
+				prepare: async () => ({ multiplier: 2 }),
+				disposePrepared,
+				getTimestamp: (entry) => entry.timestamp,
+				getSessionId: (entry) => entry.sessionId,
+				getModels: (entry) => [entry.model],
+				getUsage,
+			});
+
+			await expect(
+				loadRows('daily', { since: '20260516', until: '20260516', timezone: 'UTC' }, {}),
+			).resolves.toMatchObject([
+				{
+					period: '2026-05-16',
+					inputTokens: 20,
+					totalTokens: 20,
+				},
+			]);
+			expect(getUsage).toHaveBeenCalledTimes(1);
+			expect(disposePrepared).toHaveBeenCalledWith({ multiplier: 2 });
 		});
 	});
 }
