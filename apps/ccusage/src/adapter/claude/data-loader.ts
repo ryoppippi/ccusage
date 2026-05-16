@@ -39,6 +39,7 @@ import { toArray } from '@antfu/utils';
 import { createResultSlots } from '@ccusage/internal/array';
 import { readBufferedTextFile, readTextFile } from '@ccusage/internal/fs';
 import { compareStrings } from '@ccusage/internal/sort';
+import { mapWithConcurrency } from '@ccusage/internal/workers';
 import { Result } from '@praha/byethrow';
 import { createFixture } from 'fs-fixture';
 import { isDirectorySync } from 'path-type';
@@ -1124,31 +1125,6 @@ function filterByProject<T>(
 		const projectName = getProject(item);
 		return projectName === projectFilter;
 	});
-}
-
-async function mapWithConcurrency<T, U>(
-	items: T[],
-	concurrency: number,
-	mapper: (item: T, index: number) => Promise<U>,
-): Promise<U[]> {
-	const results = createResultSlots<U>(items.length);
-	let nextIndex = 0;
-	const workerCount = Math.max(1, Math.min(concurrency, items.length));
-
-	await Promise.all(
-		Array.from({ length: workerCount }, async () => {
-			// Each async runner claims the next index from the shared counter until work is exhausted.
-			while (true) {
-				const index = nextIndex++;
-				if (index >= items.length) {
-					return;
-				}
-				results[index] = await mapper(items[index]!, index);
-			}
-		}),
-	);
-
-	return results;
 }
 
 function parseCompactDate(value: string | undefined): Date | null {

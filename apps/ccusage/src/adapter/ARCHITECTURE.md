@@ -71,7 +71,7 @@ Keep the lifecycle explicit even when an adapter needs a custom fast path. The s
 
 Adapters should share the same optimized primitives instead of reimplementing file IO, worker fan-out, pricing fetch lifecycle, or terminal progress. The current baseline is:
 
-- Claude: optimized adapter-local JSONL byte/text buffering, worker parsing, and the separate `data-loader` chunk introduced by PR #984.
+- Claude: optimized adapter-local JSONL byte/text buffering, worker parsing, bounded non-worker fallback through `mapWithConcurrency()`, and the separate `data-loader` chunk introduced by PR #984.
 - Codex: `hasFileRecursive()` for detection, `collectFilesRecursive()`, `processJSONLFileByLine()` for Bun-backed JSONL text buffering, `collectIndexedFileWorkerResults()`, shared pricing fetcher lifecycle, shared usage load progress, and `readTextFile()` for `config.toml`.
 - OpenCode: `hasFileRecursive()` for JSON detection, `collectFilesRecursive()`, `readTextFile()` for message JSON files, `collectIndexedFileWorkerResults()`, SQLite loading through `@ccusage/internal/sqlite`, shared pricing fetcher lifecycle, and shared usage load progress.
 - Amp: `hasFileRecursive()` for detection, `collectFilesRecursive()`, `readTextFile()` for thread JSON files, `collectIndexedFileWorkerResults()`, bounded non-worker fallback through `mapWithConcurrency()`, shared pricing fetcher lifecycle, and shared usage load progress.
