@@ -16,6 +16,9 @@ const dateTimeFormatterCache = new Map<string, Intl.DateTimeFormat>();
 const dateKeyCache = new Map<string, string>();
 const monthKeyCache = new Map<string, string>();
 let defaultTimeZoneCache: string | undefined;
+const isoUtcTimestampPattern = /^\d{4}-\d{2}-\d{2}T.*Z$/u;
+const dateKeyPattern = /^\d{4}-\d{2}-\d{2}$/u;
+const monthKeyPattern = /^\d{4}-\d{2}$/u;
 
 export function normalizeDateFilter(value: string | undefined): string | undefined {
 	if (value == null || value === '') {
@@ -135,13 +138,12 @@ function getDateTimeFormatter(timezone: string): Intl.DateTimeFormat {
 
 export function formatDateKey(timestamp: string, timezone?: string): string {
 	const tz = safeTimeZone(timezone);
+	if (tz === 'UTC' && isoUtcTimestampPattern.test(timestamp)) {
+		return timestamp.slice(0, 10);
+	}
 	const date = new Date(timestamp);
 	const formatter = getDateFormatter(tz);
-	const formatted = [
-		getDatePart(formatter, date, 'year'),
-		getDatePart(formatter, date, 'month'),
-		getDatePart(formatter, date, 'day'),
-	].join('-');
+	const formatted = formatDateKeyWithFormatter(formatter, date);
 	const cacheKey = `${tz}:${formatted}`;
 	const cached = dateKeyCache.get(cacheKey);
 	if (cached != null) {
@@ -154,12 +156,12 @@ export function formatDateKey(timestamp: string, timezone?: string): string {
 
 export function formatMonthKey(timestamp: string, timezone?: string): string {
 	const tz = safeTimeZone(timezone);
+	if (tz === 'UTC' && isoUtcTimestampPattern.test(timestamp)) {
+		return timestamp.slice(0, 7);
+	}
 	const date = new Date(timestamp);
 	const formatter = getMonthFormatter(tz);
-	const formatted = [
-		getDatePart(formatter, date, 'year'),
-		getDatePart(formatter, date, 'month'),
-	].join('-');
+	const formatted = formatMonthKeyWithFormatter(formatter, date);
 	const cacheKey = `${tz}:${formatted}`;
 	const cached = monthKeyCache.get(cacheKey);
 	if (cached != null) {
@@ -170,16 +172,48 @@ export function formatMonthKey(timestamp: string, timezone?: string): string {
 	return formatted;
 }
 
-function getDatePart(
+function formatDateKeyWithFormatter(formatter: Intl.DateTimeFormat, date: Date): string {
+	const formatted = formatter.format(date);
+	if (dateKeyPattern.test(formatted)) {
+		return formatted;
+	}
+	const { year, month, day } = getDateParts(formatter, date);
+	return `${year}-${month}-${day}`;
+}
+
+function formatMonthKeyWithFormatter(formatter: Intl.DateTimeFormat, date: Date): string {
+	const formatted = formatter.format(date);
+	if (monthKeyPattern.test(formatted)) {
+		return formatted;
+	}
+	const { year, month } = getDateParts(formatter, date);
+	return `${year}-${month}`;
+}
+
+function getDateParts(
 	formatter: Intl.DateTimeFormat,
 	date: Date,
-	type: Intl.DateTimeFormatPartTypes,
-): string {
-	const part = formatter.formatToParts(date).find((candidate) => candidate.type === type);
-	if (part == null) {
-		throw new Error(`Date part not found: ${type}`);
+): {
+	year: string;
+	month: string;
+	day?: string;
+} {
+	let year: string | undefined;
+	let month: string | undefined;
+	let day: string | undefined;
+	for (const part of formatter.formatToParts(date)) {
+		if (part.type === 'year') {
+			year = part.value;
+		} else if (part.type === 'month') {
+			month = part.value;
+		} else if (part.type === 'day') {
+			day = part.value;
+		}
 	}
-	return part.value;
+	if (year == null || month == null) {
+		throw new Error('Date year/month parts not found');
+	}
+	return { year, month, day };
 }
 
 export function formatDateTime(timestamp: string, timezone?: string): string {
@@ -359,6 +393,16 @@ function addModels(target: Set<string>, models: Iterable<string>): void {
 
 if (import.meta.vitest != null) {
 	describe('adapter date formatting', () => {
+		beforeEach(() => {
+			safeTimeZoneCache.clear();
+			dateFormatterCache.clear();
+			monthFormatterCache.clear();
+			dateTimeFormatterCache.clear();
+			dateKeyCache.clear();
+			monthKeyCache.clear();
+			defaultTimeZoneCache = undefined;
+		});
+
 		afterEach(() => {
 			vi.unstubAllGlobals();
 		});
@@ -378,17 +422,37 @@ if (import.meta.vitest != null) {
 			expect(formatDateKey('2026-05-16T23:34:56.000Z', 'Asia/Tokyo')).toBe('2026-05-17');
 		});
 
-		it('builds machine date keys from date parts rather than locale display text', () => {
-			const DateTimeFormat = Intl.DateTimeFormat;
+		it('uses ISO slices for UTC machine keys without date formatting', () => {
+			safeTimeZone('UTC');
 			class DateTimeFormatMock {
-				constructor(locale?: string | string[], options?: Intl.DateTimeFormatOptions) {
-					const formatter = new DateTimeFormat(locale, options);
-					return {
-						format: () => (options?.day == null ? '05/2026' : '05/16/2026'),
-						formatToParts: (date: Date) => formatter.formatToParts(date),
-						resolvedOptions: () => formatter.resolvedOptions(),
-					} as Intl.DateTimeFormat;
+				constructor() {
+					throw new Error('date formatter should not be created');
 				}
+			}
+			vi.stubGlobal('Intl', {
+				...Intl,
+				DateTimeFormat: DateTimeFormatMock,
+			});
+
+			expect(formatDateKey('2026-05-16T12:34:56.000Z', 'UTC')).toBe('2026-05-16');
+			expect(formatMonthKey('2026-05-16T12:34:56.000Z', 'UTC')).toBe('2026-05');
+		});
+
+		it('uses locale formatting directly when it already produces machine date keys', () => {
+			const DateTimeFormat = Intl.DateTimeFormat;
+			const formatToParts = vi.fn((formatter: Intl.DateTimeFormat, date: Date) =>
+				formatter.formatToParts(date),
+			);
+			function DateTimeFormatMock(
+				locale?: string | string[],
+				options?: Intl.DateTimeFormatOptions,
+			): Intl.DateTimeFormat {
+				const formatter = new DateTimeFormat(locale, options);
+				return {
+					format: (date: Date) => formatter.format(date),
+					formatToParts: (date: Date) => formatToParts(formatter, date),
+					resolvedOptions: () => formatter.resolvedOptions(),
+				} as Intl.DateTimeFormat;
 			}
 			vi.stubGlobal('Intl', {
 				...Intl,
@@ -397,6 +461,33 @@ if (import.meta.vitest != null) {
 
 			expect(formatDateKey('2026-05-16T12:34:56.000Z', 'Etc/GMT+11')).toBe('2026-05-16');
 			expect(formatMonthKey('2026-05-16T12:34:56.000Z', 'Etc/GMT+11')).toBe('2026-05');
+			expect(formatToParts).not.toHaveBeenCalled();
+		});
+
+		it('falls back to date parts when locale display text is not a machine date key', () => {
+			const DateTimeFormat = Intl.DateTimeFormat;
+			const formatToParts = vi.fn((formatter: Intl.DateTimeFormat, date: Date) =>
+				formatter.formatToParts(date),
+			);
+			function DateTimeFormatMock(
+				locale?: string | string[],
+				options?: Intl.DateTimeFormatOptions,
+			): Intl.DateTimeFormat {
+				const formatter = new DateTimeFormat(locale, options);
+				return {
+					format: () => (options?.day == null ? '05/2026' : '05/16/2026'),
+					formatToParts: (date: Date) => formatToParts(formatter, date),
+					resolvedOptions: () => formatter.resolvedOptions(),
+				} as Intl.DateTimeFormat;
+			}
+			vi.stubGlobal('Intl', {
+				...Intl,
+				DateTimeFormat: DateTimeFormatMock,
+			});
+
+			expect(formatDateKey('2026-05-16T12:34:56.000Z', 'Etc/GMT+11')).toBe('2026-05-16');
+			expect(formatMonthKey('2026-05-16T12:34:56.000Z', 'Etc/GMT+11')).toBe('2026-05');
+			expect(formatToParts).toHaveBeenCalledTimes(2);
 		});
 
 		it('does not reuse one UTC hour cache entry across non-hour timezone date boundaries', () => {
