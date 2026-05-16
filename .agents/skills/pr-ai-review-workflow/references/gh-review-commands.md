@@ -32,7 +32,7 @@ gh api repos/:owner/:repo/pulls/<pr-number>/comments --paginate \
 ## Reply to an inline review comment
 
 ```sh
-gh api -X POST repos/:owner/:repo/pulls/comments/<comment-id>/replies \
+gh api -X POST repos/:owner/:repo/pulls/<pr-number>/comments/<comment-id>/replies \
   -f body='Fixed in <commit-sha>. Validation: pnpm typecheck, pnpm run test.'
 ```
 
