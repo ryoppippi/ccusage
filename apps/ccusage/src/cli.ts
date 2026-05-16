@@ -88,12 +88,15 @@ function getUnsupportedNodeRuntimeMessage(nodeVersion = process.version): string
 	return `ccusage requires Bun or Node.js >=${MIN_NODE_MAJOR_VERSION}.0.0. Current Node.js: ${nodeVersion}\n`;
 }
 
+async function runBunMain(): Promise<void> {
+	await import('./main.bun.ts');
+}
+
 function resolveCliRuntime({
 	argv,
 	bunAutoRunValue = process.env[CCUSAGE_BUN_AUTO_RUN_ENV],
 	distDir,
 	findBunPath = () => findExecutableInPath('bun'),
-	isBunRuntime = isBun(),
 	nodeVersion = process.version,
 	processExecPath = process.execPath,
 }: {
@@ -101,16 +104,11 @@ function resolveCliRuntime({
 	bunAutoRunValue?: string;
 	distDir: string;
 	findBunPath?: () => string | undefined;
-	isBunRuntime?: boolean;
 	nodeVersion?: string;
 	processExecPath?: string;
 }): CliRuntime {
 	const bunPath =
-		bunAutoRunValue !== CCUSAGE_BUN_AUTO_RUN_DISABLED_VALUE
-			? isBunRuntime
-				? processExecPath
-				: findBunPath()
-			: undefined;
+		bunAutoRunValue !== CCUSAGE_BUN_AUTO_RUN_DISABLED_VALUE ? findBunPath() : undefined;
 	if (bunPath != null) {
 		return {
 			args: [join(distDir, 'main.bun.js'), ...argv],
@@ -129,7 +127,21 @@ function resolveCliRuntime({
 	};
 }
 
-async function runCli(argv: string[]): Promise<number> {
+async function runCli(
+	argv: string[],
+	{
+		isBunRuntime = isBun(),
+		runBun = runBunMain,
+	}: {
+		isBunRuntime?: boolean;
+		runBun?: () => Promise<void>;
+	} = {},
+): Promise<number> {
+	if (isBunRuntime) {
+		await runBun();
+		return 0;
+	}
+
 	const distDir = dirname(fileURLToPath(import.meta.url));
 	const runtime = resolveCliRuntime({ argv, distDir });
 	if ('errorMessage' in runtime) {
@@ -166,7 +178,6 @@ if (import.meta.vitest != null) {
 					argv: ['daily'],
 					distDir: '/app/dist',
 					findBunPath: () => '/usr/local/bin/bun',
-					isBunRuntime: false,
 					nodeVersion: 'v22.13.1',
 					processExecPath: '/usr/bin/node',
 				}),
@@ -176,37 +187,28 @@ if (import.meta.vitest != null) {
 			});
 		});
 
-		it('skips PATH lookup and Node.js checks when running under Bun', () => {
-			expect(
-				resolveCliRuntime({
-					argv: ['daily'],
-					distDir: '/app/dist',
-					findBunPath: () => {
-						throw new Error('should not scan PATH');
-					},
-					isBunRuntime: true,
-					nodeVersion: 'v21.7.3',
-					processExecPath: '/usr/local/bin/bun',
-				}),
-			).toEqual({
-				args: ['/app/dist/main.bun.js', 'daily'],
-				command: '/usr/local/bin/bun',
-			});
-		});
-
-		it('rejects Node.js 21 when Bun is unavailable', () => {
+		it('rejects Node.js 20 when Bun is unavailable', () => {
 			expect(
 				resolveCliRuntime({
 					argv: ['daily'],
 					distDir: '/app/dist',
 					findBunPath: () => undefined,
-					isBunRuntime: false,
-					nodeVersion: 'v21.7.3',
+					nodeVersion: 'v20.19.0',
 					processExecPath: '/usr/bin/node',
 				}),
 			).toEqual({
-				errorMessage: 'ccusage requires Bun or Node.js >=22.0.0. Current Node.js: v21.7.3\n',
+				errorMessage: 'ccusage requires Bun or Node.js >=22.0.0. Current Node.js: v20.19.0\n',
 			});
+		});
+	});
+
+	describe('runCli', () => {
+		it('imports the Bun entrypoint directly under Bun', async () => {
+			const runBun = vi.fn(async () => {});
+
+			await expect(runCli(['daily'], { isBunRuntime: true, runBun })).resolves.toBe(0);
+
+			expect(runBun).toHaveBeenCalledOnce();
 		});
 	});
 
