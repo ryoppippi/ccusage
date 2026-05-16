@@ -46,4 +46,5 @@ Read only the relevant reference before changing parser behavior, token mappings
 - Treat Codex, OpenCode, Amp, and pi-agent as agent subcommands under the unified `ccusage` CLI.
 - Reuse shared packages such as `@ccusage/terminal`, `@ccusage/internal`, pricing helpers, and logging where appropriate.
 - Keep command names and flag semantics aligned unless the source data forces a difference.
-- Agent packages may still contain deprecated wrapper binaries, so runtime libraries belong in `devDependencies`.
+- Internal workspace runtime libraries for bundled/private agent apps belong in `devDependencies`.
+- Deprecated wrapper packages must keep install-time runtime dependencies such as `ccusage` in `dependencies`.
