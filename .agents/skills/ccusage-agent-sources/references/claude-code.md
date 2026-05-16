@@ -10,12 +10,13 @@ Default data directories:
 File shape:
 
 ```text
-projects/{project}/{sessionId}.jsonl
+projects/{project}/{sessionId}/{file}.jsonl
 ```
 
 The term `session` has two meanings in this codebase:
 
 - Session report grouping uses project directories.
-- True Claude Code session ID is the JSONL `sessionId` field and filename.
+- Session reports derive `sessionId` from the session directory name.
+- True Claude Code session ID may also appear in each JSONL entry's `sessionId` field.
 
 Malformed JSONL lines are skipped during parsing.
