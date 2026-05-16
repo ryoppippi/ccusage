@@ -2,26 +2,26 @@
 
 > The OpenCode companion CLI is experimental. Expect breaking changes while both ccusage and [OpenCode](https://github.com/anomalyco/opencode) continue to evolve.
 
-The `@ccusage/opencode` package reuses ccusage's responsive tables, pricing cache, and token accounting to analyze [OpenCode](https://github.com/anomalyco/opencode) session logs. OpenCode is a terminal-based AI coding assistant that supports multiple AI providers.
+The `ccusage opencode` commands reuse ccusage's responsive tables, pricing cache, and token accounting to analyze [OpenCode](https://github.com/anomalyco/opencode) session logs. OpenCode is a terminal-based AI coding assistant that supports multiple AI providers.
 
 ## Installation & Launch
 
 ::: code-group
 
 ```bash [bunx (Recommended)]
-bunx @ccusage/opencode@latest --help
+bunx ccusage opencode --help
 ```
 
 ```bash [npx]
-npx @ccusage/opencode@latest --help
+npx ccusage@latest opencode --help
 ```
 
 ```bash [pnpm]
-pnpm dlx @ccusage/opencode --help
+pnpm dlx ccusage opencode --help
 ```
 
 ```bash [opencode x]
-BUN_BE_BUN=1 opencode x @ccusage/opencode@latest --help
+BUN_BE_BUN=1 opencode x ccusage opencode --help
 ```
 
 :::
@@ -30,14 +30,18 @@ BUN_BE_BUN=1 opencode x @ccusage/opencode@latest --help
 The `opencode x` option requires the native version of OpenCode. If you installed OpenCode via npm, use the `bunx` or `npx` options instead.
 :::
 
+::: warning Compatibility package
+`npx @ccusage/opencode@latest daily` still works during the migration window, prints a deprecation warning, and forwards to `ccusage opencode daily`.
+:::
+
 ### Recommended: Shell Alias
 
 ```bash
 # bash/zsh
-alias ccusage-opencode='bunx @ccusage/opencode@latest'
+alias ccu-opencode='bunx ccusage opencode'
 
 # fish
-alias ccusage-opencode 'bunx @ccusage/opencode@latest'
+alias ccu-opencode 'bunx ccusage opencode'
 ```
 
 ## Data Source

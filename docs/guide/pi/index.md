@@ -1,38 +1,38 @@
 # Pi-Agent Integration
 
-The `@ccusage/pi` package provides usage tracking for [pi-agent](https://github.com/badlogic/pi-mono), an alternative Claude coding agent from [shittycodingagent.ai](https://shittycodingagent.ai).
+The `ccusage pi` commands provide usage tracking for [pi-agent](https://github.com/badlogic/pi-mono), an alternative Claude coding agent from [shittycodingagent.ai](https://shittycodingagent.ai).
 
 ## What is Pi-Agent?
 
-Pi-agent is a third-party Claude coding agent that stores usage data in JSONL format. The `@ccusage/pi` package analyses this data to give you a view of your pi-agent usage.
+Pi-agent is a third-party Claude coding agent that stores usage data in JSONL format. `ccusage pi` analyses this data to give you a view of your pi-agent usage.
 
 ## Installation & Launch
 
 ```bash
-# Recommended - always include @latest
-npx @ccusage/pi@latest --help
-bunx @ccusage/pi@latest --help  # ⚠️ MUST include @latest with bunx
+# Recommended
+npx ccusage@latest pi --help
+bunx ccusage pi --help
 
 # Alternative package runners
-pnpm dlx @ccusage/pi --help
-pnpx @ccusage/pi --help
+pnpm dlx ccusage pi --help
+pnpx ccusage pi --help
 ```
 
-::: warning ⚠️ Critical for bunx users
-Bun's bunx prioritizes binaries matching the package name suffix when given a scoped package. **Always use `bunx @ccusage/pi@latest` with the version tag** to force bunx to fetch and run the correct package.
+::: warning Compatibility package
+`npx @ccusage/pi@latest daily` still works during the migration window, prints a deprecation warning, and forwards to `ccusage pi daily`.
 :::
 
 ### Recommended: Shell Alias
 
-Since `npx @ccusage/pi@latest` is quite long to type repeatedly, we strongly recommend setting up a shell alias for convenience:
+If you want a shorter command, set up a shell alias:
 
 ```bash
-# bash/zsh: alias ccusage-pi='bunx @ccusage/pi@latest'
-# fish:     alias ccusage-pi 'bunx @ccusage/pi@latest'
+# bash/zsh: alias ccu-pi='bunx ccusage pi'
+# fish:     alias ccu-pi 'bunx ccusage pi'
 
 # Then simply run:
-ccusage-pi daily
-ccusage-pi monthly --json
+ccu-pi daily
+ccu-pi monthly --json
 ```
 
 ::: tip
@@ -51,25 +51,25 @@ The CLI reads usage data from pi-agent:
 
 ```bash
 # Show daily pi-agent usage
-ccusage-pi daily
+ccusage pi daily
 
 # Show monthly pi-agent usage
-ccusage-pi monthly
+ccusage pi monthly
 
 # Show session-based pi-agent usage
-ccusage-pi session
+ccusage pi session
 
 # JSON output for automation
-ccusage-pi daily --json
+ccusage pi daily --json
 
 # Custom pi-agent path
-ccusage-pi daily --pi-path /path/to/sessions
+ccusage pi daily --pi-path /path/to/sessions
 
 # Filter by date range
-ccusage-pi daily --since 2025-12-01 --until 2025-12-19
+ccusage pi daily --since 2025-12-01 --until 2025-12-19
 
 # Show model breakdown
-ccusage-pi daily --breakdown
+ccusage pi daily --breakdown
 ```
 
 ## Environment Variables
@@ -85,10 +85,10 @@ The `daily` command shows daily usage from pi-agent.
 
 ```bash
 # Recommended (fastest)
-bunx @ccusage/pi@latest daily
+bunx ccusage pi daily
 
 # Using npx
-npx @ccusage/pi@latest daily
+npx ccusage@latest pi daily
 ```
 
 ### Options
@@ -120,7 +120,7 @@ npx @ccusage/pi@latest daily
 Use `--json` for automation and scripting:
 
 ```bash
-ccusage-pi daily --json
+ccusage pi daily --json
 ```
 
 Returns structured data:
@@ -158,10 +158,10 @@ Filter to a specific date range:
 
 ```bash
 # Last week
-ccusage-pi daily --since 2025-01-02 --until 2025-01-09
+ccusage pi daily --since 2025-01-02 --until 2025-01-09
 
 # Single day
-ccusage-pi daily --since 2025-01-09 --until 2025-01-09
+ccusage pi daily --since 2025-01-09 --until 2025-01-09
 ```
 
 ## Monthly Report
@@ -170,10 +170,10 @@ The `monthly` command shows monthly usage from pi-agent.
 
 ```bash
 # Recommended (fastest)
-bunx @ccusage/pi@latest monthly
+bunx ccusage pi monthly
 
 # Using npx
-npx @ccusage/pi@latest monthly
+npx ccusage@latest pi monthly
 ```
 
 ### Options
@@ -205,7 +205,7 @@ npx @ccusage/pi@latest monthly
 Use `--json` for automation and scripting:
 
 ```bash
-ccusage-pi monthly --json
+ccusage pi monthly --json
 ```
 
 Returns structured data:
@@ -243,10 +243,10 @@ You can filter the data to specific months:
 
 ```bash
 # Current year only
-ccusage-pi monthly --since 2025-01-01
+ccusage pi monthly --since 2025-01-01
 
 # Specific quarter
-ccusage-pi monthly --since 2024-10-01 --until 2024-12-31
+ccusage pi monthly --since 2024-10-01 --until 2024-12-31
 ```
 
 ## Session Report
@@ -255,10 +255,10 @@ The `session` command shows usage grouped by individual pi-agent sessions.
 
 ```bash
 # Recommended (fastest)
-bunx @ccusage/pi@latest session
+bunx ccusage pi session
 
 # Using npx
-npx @ccusage/pi@latest session
+npx ccusage@latest pi session
 ```
 
 ### Options
@@ -299,7 +299,7 @@ Long project names are truncated to 25 characters with `...` suffix for readabil
 Use `--json` for detailed session data:
 
 ```bash
-ccusage-pi session --json
+ccusage pi session --json
 ```
 
 Returns structured data including full paths:
@@ -339,10 +339,10 @@ Filter sessions by their last activity date:
 
 ```bash
 # Sessions active today
-ccusage-pi session --since 2025-01-09 --until 2025-01-09
+ccusage pi session --since 2025-01-09 --until 2025-01-09
 
 # Sessions from the past week
-ccusage-pi session --since 2025-01-02
+ccusage pi session --since 2025-01-02
 ```
 
 ## Related

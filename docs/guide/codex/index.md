@@ -11,7 +11,7 @@ The `ccusage codex` commands reuse ccusage's responsive tables, pricing cache, a
 ```bash
 # Recommended
 npx ccusage@latest codex --help
-bunx ccusage@latest codex --help
+bunx ccusage codex --help
 
 # Alternative package runners
 pnpm dlx ccusage codex --help
@@ -30,12 +30,12 @@ deno run -E -R=$HOME/.codex/ -S=homedir -N='raw.githubusercontent.com:443' npm:c
 If you want a shorter command, set up a shell alias:
 
 ```bash
-# bash/zsh: alias ccusage-codex='bunx ccusage@latest codex'
-# fish:     alias ccusage-codex 'bunx ccusage@latest codex'
+# bash/zsh: alias ccu-codex='bunx ccusage codex'
+# fish:     alias ccu-codex 'bunx ccusage codex'
 
 # Then simply run:
-ccusage-codex daily
-ccusage-codex monthly --json
+ccu-codex daily
+ccu-codex monthly --json
 ```
 
 ::: tip
@@ -67,7 +67,7 @@ When Codex emits a model alias (for example `gpt-5-codex`), the CLI automaticall
 
 ## Speed Pricing
 
-Codex logs usually do not include whether a turn used fast mode. By default, `@ccusage/codex` uses `--speed auto`, reads `${CODEX_HOME:-~/.codex}/config.toml`, and treats `service_tier = "priority"` or legacy `service_tier = "fast"` as fast pricing. Fast mode uses the model-specific LiteLLM multiplier when available and otherwise falls back to 2x pricing.
+Codex logs usually do not include whether a turn used fast mode. By default, `ccusage codex` uses `--speed auto`, reads `${CODEX_HOME:-~/.codex}/config.toml`, and treats `service_tier = "priority"` or legacy `service_tier = "fast"` as fast pricing. Fast mode uses the model-specific LiteLLM multiplier when available and otherwise falls back to 2x pricing.
 
 ```bash
 # Default: read Codex config.toml
@@ -92,7 +92,7 @@ Have feedback or ideas? [Open an issue](https://github.com/ryoppippi/ccusage/iss
 ## Troubleshooting
 
 ::: details Why are there no entries before September 2025?
-OpenAI's Codex CLI started emitting `token_count` events in [commit 0269096](https://github.com/openai/codex/commit/0269096229e8c8bd95185173706807dc10838c7a) (2025-09-06). Earlier session logs simply don't contain token usage metrics, so `@ccusage/codex` has nothing to aggregate. If you need historic data, rerun those sessions after that Codex update.
+OpenAI's Codex CLI started emitting `token_count` events in [commit 0269096](https://github.com/openai/codex/commit/0269096229e8c8bd95185173706807dc10838c7a) (2025-09-06). Earlier session logs simply don't contain token usage metrics, so `ccusage codex` has nothing to aggregate. If you need historic data, rerun those sessions after that Codex update.
 :::
 
 ::: details What if some September 2025 sessions still get skipped?
