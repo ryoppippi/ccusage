@@ -129,7 +129,7 @@ Configure Claude Code, Codex, OpenCode, Amp, and pi-agent separately with data s
 }
 ```
 
-Agent sections apply to direct commands such as `ccusage codex daily` and `ccusage amp session`. They are also used by all-agent reports such as `ccusage daily`, where each agent receives its own merged options before data is loaded.
+Agent sections apply to direct commands such as `ccusage codex daily` and `ccusage amp session`. They are also used by unified reports such as `ccusage daily`, where each source receives its own merged options before data is loaded.
 
 ### Team Collaboration
 

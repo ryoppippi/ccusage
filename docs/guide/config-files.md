@@ -130,7 +130,7 @@ You can also reference a local schema file after installing ccusage:
 
 ### Global Defaults
 
-The `defaults` section sets shared default values for all-agent reports and legacy Claude commands:
+The `defaults` section sets shared default values for unified reports and legacy Claude commands:
 
 ```json
 {
@@ -152,7 +152,7 @@ The `defaults` section sets shared default values for all-agent reports and lega
 
 ### Command-Specific Configuration
 
-Override shared defaults for specific all-agent reports and legacy Claude commands using the `commands` section:
+Override shared defaults for specific unified reports and legacy Claude commands using the `commands` section:
 
 ```json
 {
@@ -214,7 +214,7 @@ ccusage codex daily
 ccusage opencode weekly
 ```
 
-Agent-specific settings are also applied when running all-agent reports such as `ccusage daily`. In that case, each agent receives its own merged options before data is loaded.
+Agent-specific settings are also applied when running unified reports such as `ccusage daily`. In that case, each source receives its own merged options before data is loaded.
 
 For a namespaced command, options are applied in this order:
 

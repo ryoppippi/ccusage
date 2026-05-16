@@ -1,10 +1,10 @@
 # Getting Started
 
-Welcome to ccusage! This guide will help you get up and running with analyzing your coding agent usage data.
+Welcome to ccusage! This guide will help you get up and running with analyzing your coding (agent) CLI usage data.
 
 ## Prerequisites
 
-- At least one supported coding agent installed and used
+- At least one supported coding CLI installed and used
 - Node.js 20+ or Bun runtime
 
 ## Quick Start
@@ -31,7 +31,7 @@ BUN_BE_BUN=1 claude x ccusage
 
 :::
 
-This will show your daily usage report for all detected supported agents by default.
+This will show your daily usage report for all detected supported coding CLIs by default.
 
 Use a data source namespace when you want the same report focused on one source:
 
@@ -45,12 +45,12 @@ ccusage pi monthly
 
 ## Your First Report
 
-When you run ccusage for the first time, you'll see a table showing detected coding agent usage by date:
+When you run ccusage for the first time, you'll see a table showing detected coding CLI usage by date:
 
 ```text
 ╭──────────────────────────────────────────╮
 │                                          │
-│  Coding Agent Usage Report - Daily       │
+│  Coding (Agent) CLI Usage Report - Daily │
 │                                          │
 ╰──────────────────────────────────────────╯
 
@@ -67,7 +67,7 @@ When you run ccusage for the first time, you'll see a table showing detected cod
 ### Columns Explained
 
 - **Date**: The date when an agent was used
-- **Agent**: The coding agent that generated the usage
+- **Agent**: The coding CLI that generated the usage
 - **Models**: Which models were used
 - **Input**: Number of input tokens sent to the agent/model
 - **Output**: Number of output tokens received from the agent/model
@@ -154,7 +154,7 @@ The layout adjusts automatically based on your terminal width - no configuration
 
 If ccusage shows no data, check:
 
-1. **A supported coding agent is installed and used** - ccusage reads from local usage files
+1. **A supported coding CLI is installed and used** - ccusage reads from local usage files
 2. **Data directory exists** - Common locations:
    - Claude Code: `~/.config/claude/projects/` or `~/.claude/projects/`
    - Codex: `${CODEX_HOME:-~/.codex}`

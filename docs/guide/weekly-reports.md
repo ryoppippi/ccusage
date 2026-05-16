@@ -33,7 +33,7 @@ ccusage opencode weekly
 The columns are identical to daily reports but aggregated by week:
 
 - **Week**: Start date of the week (configurable)
-- **Agent**: Source agent for all-agent reports
+- **Agent**: Source CLI for unified reports
 - **Models**: All models used during the week
 - **Input/Output**: Total tokens for the week
 - **Cache Create/Read**: Cache token usage

@@ -31,7 +31,7 @@ The daily command is the default, so you can omit it when running ccusage.
 ### Basic Columns
 
 - **Date**: Calendar date in YYYY-MM-DD format
-- **Agent**: Source agent for all-agent reports
+- **Agent**: Source CLI for unified reports
 - **Models**: Models used that day (shown as a bulleted list)
 - **Input**: Total input tokens sent to the model
 - **Output**: Total output tokens received from the model

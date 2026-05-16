@@ -2,23 +2,23 @@
 
 ![ccusage daily report showing token usage and costs by date](/screenshot.png)
 
-**ccusage** is a local CLI for understanding coding agent token usage and estimated costs across Claude Code, Codex, OpenCode, Amp, and pi-agent.
+**ccusage** is a local CLI for understanding coding (agent) CLI token usage and estimated costs across Claude Code, Codex, OpenCode, Amp, and pi-agent.
 
 ## The Problem
 
-Modern coding agent usage is split across several CLIs and local data formats. That makes basic questions hard to answer:
+Modern coding (agent) CLI usage is split across several local data formats. That makes basic questions hard to answer:
 
-- How much am I actually using each coding agent?
+- How much am I actually using each coding CLI?
 - Which conversations are the most expensive?
 - What would I be paying on a pay-per-use plan?
 - Which projects, sessions, or weeks are driving usage?
 
 ## The Solution
 
-ccusage reads the local usage files that coding agents already generate and provides:
+ccusage reads the local usage files that coding CLIs already generate and provides:
 
 - **Detailed Usage Reports** - Daily, weekly, monthly, and session-based breakdowns
-- **Unified Agent Reports** - Claude Code, Codex, OpenCode, Amp, and pi-agent in one CLI
+- **Unified CLI Reports** - Claude Code, Codex, OpenCode, Amp, and pi-agent in one CLI
 - **Cost Analysis** - Estimated costs based on token usage and model pricing
 - **Focused Data Source Views** - Start with all detected agents, then narrow the same reports to one source when needed
 - **Claude Code Integrations** - Statusline and 5-hour block reports for Claude Code-specific workflows
@@ -26,7 +26,7 @@ ccusage reads the local usage files that coding agents already generate and prov
 
 ## How It Works
 
-1. **Coding agents generate local usage files** containing usage data
+1. **Coding CLIs generate local usage files** containing usage data
 2. **ccusage reads these files** from your local machine
 3. **Analyzes and aggregates** the data by date, session, or time blocks
 4. **Calculates estimated costs** using model pricing information
@@ -72,7 +72,7 @@ Unlike many CLI tools, ccusage pays close attention to bundle size. You can run 
 
 ## Data Sources
 
-ccusage reads from local coding agent data directories:
+ccusage reads from local coding CLI data directories:
 
 | Agent       | ID         | Default data location                           |
 | ----------- | ---------- | ----------------------------------------------- |
@@ -82,11 +82,11 @@ ccusage reads from local coding agent data directories:
 | Amp         | `amp`      | `${AMP_DATA_DIR:-~/.local/share/amp}`           |
 | pi-agent    | `pi`       | `${PI_AGENT_DIR:-~/.pi/agent/sessions}`         |
 
-The tool automatically detects available data and aggregates all supported agents by default.
+The tool automatically detects available data and aggregates all supported coding CLIs by default.
 
 ## Report Shape
 
-Run ccusage without an agent name to aggregate all detected agents:
+Run ccusage without a source name to aggregate all detected sources:
 
 ```bash
 ccusage daily
@@ -129,4 +129,4 @@ Thanks to [@milliondev](https://note.com/milliondev) for the [original concept a
 
 ## Getting Started
 
-Ready to analyze your coding agent usage? Start with the [Getting Started Guide](/guide/getting-started).
+Ready to analyze your coding (agent) CLI usage? Start with the [Getting Started Guide](/guide/getting-started).

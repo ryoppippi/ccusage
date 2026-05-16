@@ -3,7 +3,7 @@ layout: home
 
 hero:
   name: ccusage
-  text: Coding Agent Usage Analysis
+  text: Coding (Agent) CLI Usage Analysis
   tagline: A fast local CLI for tracking tokens and estimated costs across Claude Code, Codex, OpenCode, Amp, and pi-agent
   image:
     src: /logo.svg
@@ -18,12 +18,12 @@ hero:
 
 features:
   - icon: 📊
-    title: All-Agent Reports
-    details: View daily, weekly, monthly, and session usage across every detected supported agent
+    title: Unified CLI Reports
+    details: View daily, weekly, monthly, and session usage across every detected supported coding (agent) CLI
     link: /guide/daily-reports
   - icon: 🤖
     title: Focused Views
-    details: Start with all detected agents, then narrow the same reports to one source when needed
+    details: Start with all detected CLIs, then narrow the same reports to one source when needed
     link: /guide/getting-started
   - icon: 📁
     title: Local Data Sources

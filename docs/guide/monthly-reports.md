@@ -1,6 +1,6 @@
 # Monthly Reports
 
-Monthly reports aggregate coding agent usage by calendar month, providing a high-level view of usage patterns and estimated costs over longer periods. `ccusage monthly` combines all detected supported sources; use `ccusage <source> monthly` for a single source.
+Monthly reports aggregate coding (agent) CLI usage by calendar month, providing a high-level view of usage patterns and estimated costs over longer periods. `ccusage monthly` combines all detected supported sources; use `ccusage <source> monthly` for a single source.
 
 :::warning NOTICE
 Claude Code can only retain logs for 30 days by default. To be able to check logs for more than a month, you need to change the value of `cleanupPeriodDays` in the settings file.
