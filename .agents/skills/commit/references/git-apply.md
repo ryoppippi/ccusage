@@ -12,8 +12,8 @@ git apply -v patch_file.patch
 # Stage without touching the worktree
 git apply --cached -v patch_file.patch
 
-# Or pipe directly from git diff
-git diff <file> | git apply -v
+# Apply a diff generated between refs
+git diff main...HEAD -- <file> | git apply -v
 ```
 
 ## Essential Flags
