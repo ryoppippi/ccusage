@@ -46,8 +46,8 @@ export default defineConfig({
 			include: [
 				'src/index.ts',
 				'src/_pricing-fetcher.ts',
-				'../amp/src/pricing.ts',
-				'../codex/src/pricing.ts',
+				'src/agents/amp/pricing.ts',
+				'src/agents/codex/pricing.ts',
 			],
 		}),
 	],

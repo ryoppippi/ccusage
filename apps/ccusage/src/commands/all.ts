@@ -13,30 +13,6 @@ import {
 } from '@ccusage/terminal/table';
 import { define } from 'gunshi';
 import { Spinner } from 'picospinner';
-import { getAmpPath, loadAmpUsageEvents } from '../../../amp/src/data-loader.ts';
-import { AmpPricingSource } from '../../../amp/src/pricing.ts';
-import {
-	CODEX_HOME_ENV,
-	DEFAULT_CODEX_DIR,
-	DEFAULT_SESSION_SUBDIR,
-} from '../../../codex/src/_consts.ts';
-import { resolveCodexSpeed } from '../../../codex/src/codex-config.ts';
-import { loadTokenUsageEvents } from '../../../codex/src/data-loader.ts';
-import {
-	isWithinRange as isCodexWithinRange,
-	toDateKey,
-	toMonthKey,
-} from '../../../codex/src/date-utils.ts';
-import { CodexPricingSource } from '../../../codex/src/pricing.ts';
-import { calculateCostUSD as calculateCodexCostUSD } from '../../../codex/src/token-utils.ts';
-import { calculateCostForEntry } from '../../../opencode/src/cost-utils.ts';
-import { getOpenCodePath, loadOpenCodeMessages } from '../../../opencode/src/data-loader.ts';
-import { getPiAgentPaths } from '../../../pi/src/_pi-agent.ts';
-import {
-	loadPiAgentDailyData,
-	loadPiAgentMonthlyData,
-	loadPiAgentSessionData,
-} from '../../../pi/src/data-loader.ts';
 import {
 	CLAUDE_CONFIG_DIR_ENV,
 	CLAUDE_PROJECTS_DIR_NAME,
@@ -45,6 +21,30 @@ import {
 	USER_HOME_DIR,
 } from '../_consts.ts';
 import { formatDate, formatDateCompact, getDateStringWeek } from '../_date-utils.ts';
+import { getAmpPath, loadAmpUsageEvents } from '../agents/amp/data-loader.ts';
+import { AmpPricingSource } from '../agents/amp/pricing.ts';
+import {
+	CODEX_HOME_ENV,
+	DEFAULT_CODEX_DIR,
+	DEFAULT_SESSION_SUBDIR,
+} from '../agents/codex/_consts.ts';
+import { resolveCodexSpeed } from '../agents/codex/codex-config.ts';
+import { loadTokenUsageEvents } from '../agents/codex/data-loader.ts';
+import {
+	isWithinRange as isCodexWithinRange,
+	toDateKey,
+	toMonthKey,
+} from '../agents/codex/date-utils.ts';
+import { CodexPricingSource } from '../agents/codex/pricing.ts';
+import { calculateCostUSD as calculateCodexCostUSD } from '../agents/codex/token-utils.ts';
+import { calculateCostForEntry } from '../agents/opencode/cost-utils.ts';
+import { getOpenCodePath, loadOpenCodeMessages } from '../agents/opencode/data-loader.ts';
+import { getPiAgentPaths } from '../agents/pi/_pi-agent.ts';
+import {
+	loadPiAgentDailyData,
+	loadPiAgentMonthlyData,
+	loadPiAgentSessionData,
+} from '../agents/pi/data-loader.ts';
 import { loadDailyUsageData, loadMonthlyUsageData, loadSessionData } from '../data-loader.ts';
 import { logger, writeStdoutLine } from '../logger.ts';
 
