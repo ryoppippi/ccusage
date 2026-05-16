@@ -15,8 +15,8 @@ import { dailyCommand as piDailyCommand } from '../../../pi/src/commands/daily.t
 import { monthlyCommand as piMonthlyCommand } from '../../../pi/src/commands/monthly.ts';
 import { sessionCommand as piSessionCommand } from '../../../pi/src/commands/session.ts';
 import { description, name, version } from '../../package.json';
-import { loadConfig, mergeConfigWithArgs } from '../_config-loader-tokens.ts';
-import { sharedArgs } from '../_shared-args.ts';
+import { loadConfig, mergeConfigWithArgs } from '../config-loader-tokens.ts';
+import { sharedArgs } from '../shared-args.ts';
 import { allDailyCommand, allMonthlyCommand, allSessionCommand, allWeeklyCommand } from './all.ts';
 import { blocksCommand } from './blocks.ts';
 import { dailyCommand } from './daily.ts';

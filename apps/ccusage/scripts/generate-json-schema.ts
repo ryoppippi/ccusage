@@ -16,7 +16,6 @@ import { $ } from 'bun';
 import { allArgs } from '../src/commands/all.ts';
 // Import command definitions to access their args
 import { subCommandUnion } from '../src/commands/index.ts';
-
 import { logger } from '../src/logger.ts';
 
 /**

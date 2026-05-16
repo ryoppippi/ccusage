@@ -1,4 +1,4 @@
-import type { SessionBlock } from '../_session-blocks.ts';
+import type { SessionBlock } from '../session-blocks.ts';
 import process from 'node:process';
 import * as pc from '@ccusage/internal/colors';
 import {
@@ -8,23 +8,23 @@ import {
 	ResponsiveTable,
 } from '@ccusage/terminal/table';
 import { define } from 'gunshi';
-import { loadConfig, mergeConfigWithArgs } from '../_config-loader-tokens.ts';
+import { loadConfig, mergeConfigWithArgs } from '../config-loader-tokens.ts';
 import {
 	BLOCKS_COMPACT_WIDTH_THRESHOLD,
 	BLOCKS_DEFAULT_TERMINAL_WIDTH,
 	BLOCKS_WARNING_THRESHOLD,
 	DEFAULT_RECENT_DAYS,
-} from '../_consts.ts';
+} from '../consts.ts';
+import { loadSessionBlockData } from '../data-loader.ts';
+import { log, logger, writeStdoutLine } from '../logger.ts';
 import {
 	calculateBurnRate,
 	DEFAULT_SESSION_DURATION_HOURS,
 	filterRecentBlocks,
 	projectBlockUsage,
-} from '../_session-blocks.ts';
-import { sharedCommandConfig } from '../_shared-args.ts';
-import { getTotalTokens } from '../_token-utils.ts';
-import { loadSessionBlockData } from '../data-loader.ts';
-import { log, logger, writeStdoutLine } from '../logger.ts';
+} from '../session-blocks.ts';
+import { sharedCommandConfig } from '../shared-args.ts';
+import { getTotalTokens } from '../token-utils.ts';
 
 /**
  * Formats the time display for a session block
