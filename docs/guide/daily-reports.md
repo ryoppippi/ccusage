@@ -2,7 +2,7 @@
 
 ![Daily usage report showing token usage and costs by date with model breakdown](/screenshot.png)
 
-Daily reports show token usage and costs aggregated by calendar date, giving you a clear view of your Claude Code usage patterns over time.
+Daily reports show token usage and estimated costs aggregated by calendar date. By default, `ccusage daily` combines every detected supported agent; use `ccusage <agent> daily` when you want one source.
 
 ## Basic Usage
 
@@ -12,6 +12,12 @@ Show all daily usage:
 ccusage daily
 # or simply:
 ccusage
+
+# Focus on one agent:
+ccusage codex daily
+ccusage opencode daily
+ccusage amp daily
+ccusage pi daily
 ```
 
 The daily command is the default, so you can omit it when running ccusage.
@@ -25,9 +31,10 @@ The daily command is the default, so you can omit it when running ccusage.
 ### Basic Columns
 
 - **Date**: Calendar date in YYYY-MM-DD format
-- **Models**: Claude models used that day (shown as bulleted list)
-- **Input**: Total input tokens sent to Claude
-- **Output**: Total output tokens received from Claude
+- **Agent**: Source agent for all-agent reports
+- **Models**: Models used that day (shown as a bulleted list)
+- **Input**: Total input tokens sent to the model
+- **Output**: Total output tokens received from the model
 - **Cost (USD)**: Estimated cost for that day
 
 ### Cache Columns

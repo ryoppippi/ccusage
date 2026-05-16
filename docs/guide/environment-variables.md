@@ -2,6 +2,28 @@
 
 ccusage supports several environment variables for configuration and customization. Environment variables provide a way to configure ccusage without modifying command-line arguments or configuration files.
 
+## Agent Data Directories
+
+ccusage detects supported agent data from conventional locations by default. Set these variables when your data lives somewhere else:
+
+| Variable            | Agent       | Default                            |
+| ------------------- | ----------- | ---------------------------------- |
+| `CLAUDE_CONFIG_DIR` | Claude Code | `~/.config/claude` and `~/.claude` |
+| `CODEX_HOME`        | Codex       | `~/.codex`                         |
+| `OPENCODE_DATA_DIR` | OpenCode    | `~/.local/share/opencode`          |
+| `AMP_DATA_DIR`      | Amp         | `~/.local/share/amp`               |
+| `PI_AGENT_DIR`      | pi-agent    | `~/.pi/agent/sessions`             |
+
+Example:
+
+```bash
+export CODEX_HOME="/path/to/codex"
+export OPENCODE_DATA_DIR="/path/to/opencode"
+export AMP_DATA_DIR="/path/to/amp"
+export PI_AGENT_DIR="/path/to/pi/sessions"
+ccusage daily
+```
+
 ## CLAUDE_CONFIG_DIR
 
 Specifies where ccusage should look for Claude Code data. This is the most important environment variable for ccusage.

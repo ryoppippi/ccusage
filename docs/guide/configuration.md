@@ -9,7 +9,7 @@ ccusage supports four configuration methods, each with its own use case:
 1. **[Command-Line Options](/guide/cli-options)** - Direct control for individual commands
 2. **[Environment Variables](/guide/environment-variables)** - System-wide or session settings
 3. **[Configuration Files](/guide/config-files)** - Persistent, shareable settings
-4. **[Directory Detection](/guide/directory-detection)** - Automatic Claude data discovery
+4. **[Directory Detection](/guide/directory-detection)** - Automatic Claude Code data discovery and agent data directory defaults
 
 ## Configuration Priority
 
@@ -20,7 +20,7 @@ Settings are applied in this priority order (highest to lowest):
 3. **Environment variables** (e.g., `CLAUDE_CONFIG_DIR`, `LOG_LEVEL`)
 4. **Local project config** (`.ccusage/ccusage.json`)
 5. **User config** (`~/.config/claude/ccusage.json`)
-6. **Legacy config** (`~/.claude/ccusage.json`)
+6. **Legacy user config** (`~/.claude/ccusage.json`)
 7. **Built-in defaults**
 
 ### Priority Example
@@ -46,10 +46,14 @@ ccusage daily --mode display --timezone UTC
 
 ### Basic Setup
 
-1. **Set your Claude directory** (if not using defaults):
+1. **Set custom data directories** (only if not using defaults):
 
 ```bash
 export CLAUDE_CONFIG_DIR="$HOME/.config/claude"
+export CODEX_HOME="$HOME/.codex"
+export OPENCODE_DATA_DIR="$HOME/.local/share/opencode"
+export AMP_DATA_DIR="$HOME/.local/share/amp"
+export PI_AGENT_DIR="$HOME/.pi/agent/sessions"
 ```
 
 2. **Create a configuration file** for your preferences:
@@ -125,7 +129,7 @@ Configure Claude Code, Codex, OpenCode, Amp, and pi-agent separately with agent 
 }
 ```
 
-The `codex` section applies to direct commands such as `ccusage codex daily`. It is also used by all-agent reports such as `ccusage daily`, where each agent receives its own merged options before data is loaded.
+Agent sections apply to direct commands such as `ccusage codex daily` and `ccusage amp session`. They are also used by all-agent reports such as `ccusage daily`, where each agent receives its own merged options before data is loaded.
 
 ### Team Collaboration
 
@@ -149,6 +153,7 @@ For automated environments:
 ```bash
 # Environment variables
 export CLAUDE_CONFIG_DIR="/ci/claude-data"
+export CODEX_HOME="/ci/codex-data"
 export LOG_LEVEL=1  # Warnings only
 
 # Run with specific options

@@ -33,6 +33,16 @@ BUN_BE_BUN=1 claude x ccusage
 
 This will show your daily usage report for all detected supported agents by default.
 
+Use an agent namespace when you want to focus on one source:
+
+```bash
+ccusage claude daily
+ccusage codex daily
+ccusage opencode weekly
+ccusage amp session
+ccusage pi monthly
+```
+
 ## Your First Report
 
 When you run ccusage for the first time, you'll see a table showing detected coding agent usage by date:
@@ -44,12 +54,12 @@ When you run ccusage for the first time, you'll see a table showing detected cod
 │                                          │
 ╰──────────────────────────────────────────╯
 
-┌──────────────┬──────────────────┬────────┬─────────┬────────────┐
-│ Date         │ Agent  │ Models           │  Input │  Output │ Cost (USD) │
-├──────────────┼──────────────────┼────────┼─────────┼────────────┤
-│ 2025-06-21   │ Claude │ • sonnet-4       │  1,234 │  15,678 │    $12.34  │
-│ 2025-06-20   │ Codex  │ • gpt-5-codex    │    890 │  12,345 │    $18.92  │
-└──────────────┴──────────────────┴────────┴─────────┴────────────┘
+┌────────────┬────────┬────────────────┬────────┬────────┬────────────┐
+│ Date       │ Agent  │ Models         │ Input  │ Output │ Cost (USD) │
+├────────────┼────────┼────────────────┼────────┼────────┼────────────┤
+│ 2026-01-02 │ Claude │ • sonnet-4     │  1,234 │ 15,678 │     $12.34 │
+│ 2026-01-02 │ Codex  │ • gpt-5-codex  │    890 │ 12,345 │     $18.92 │
+└────────────┴────────┴────────────────┴────────┴────────┴────────────┘
 ```
 
 ## Understanding the Output
@@ -145,17 +155,23 @@ The layout adjusts automatically based on your terminal width - no configuration
 If ccusage shows no data, check:
 
 1. **A supported coding agent is installed and used** - ccusage reads from local usage files
-2. **Data directory exists** - Default locations:
-   - `~/.config/claude/projects/` (new default)
-   - `~/.claude/projects/` (legacy)
+2. **Data directory exists** - Common locations:
+   - Claude Code: `~/.config/claude/projects/` or `~/.claude/projects/`
+   - Codex: `${CODEX_HOME:-~/.codex}`
+   - OpenCode: `${OPENCODE_DATA_DIR:-~/.local/share/opencode}`
+   - Amp: `${AMP_DATA_DIR:-~/.local/share/amp}`
+   - pi-agent: `${PI_AGENT_DIR:-~/.pi/agent/sessions}`
 
 ### Custom Data Directory
 
-If your Claude data is in a custom location:
+If your agent data is in a custom location, set the matching environment variable:
 
 ```bash
 export CLAUDE_CONFIG_DIR="/path/to/your/claude/data"
-ccusage daily
+export CODEX_HOME="/path/to/codex"
+export OPENCODE_DATA_DIR="/path/to/opencode"
+export AMP_DATA_DIR="/path/to/amp"
+export PI_AGENT_DIR="/path/to/pi/sessions"
 ```
 
 ## Getting Help

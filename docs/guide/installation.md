@@ -30,7 +30,7 @@ pnpm dlx ccusage
 ```
 
 ```bash [deno]
-deno run -E -R=$HOME/.claude/projects/ -S=homedir -N='raw.githubusercontent.com:443' npm:ccusage@latest
+deno run -E -R=$HOME/.config/claude,$HOME/.claude,$HOME/.codex,$HOME/.local/share/opencode,$HOME/.local/share/amp,$HOME/.pi/agent/sessions -S=homedir -N='raw.githubusercontent.com:443' npm:ccusage@latest
 ```
 
 :::
@@ -142,7 +142,7 @@ Deno 2.0+ is fully supported with proper permissions:
 ```bash
 deno run \
   -E \
-  -R=$HOME/.claude/projects/ \
+  -R=$HOME/.config/claude,$HOME/.claude,$HOME/.codex,$HOME/.local/share/opencode,$HOME/.local/share/amp,$HOME/.pi/agent/sessions \
   -S=homedir \
   -N='raw.githubusercontent.com:443' \
   npm:ccusage@latest
@@ -153,7 +153,7 @@ Also you can use `offline` mode to run ccusage without network access:
 ```bash
 deno run \
   -E \
-  -R=$HOME/.claude/projects/ \
+  -R=$HOME/.config/claude,$HOME/.claude,$HOME/.codex,$HOME/.local/share/opencode,$HOME/.local/share/amp,$HOME/.pi/agent/sessions \
   -S=homedir \
   npm:ccusage@latest --offline
 ```

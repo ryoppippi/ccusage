@@ -1,11 +1,15 @@
 # Session Reports
 
-Session reports show your Claude Code usage grouped by individual conversation sessions, making it easy to identify which conversations consumed the most tokens and cost the most.
+Session reports show usage grouped by individual conversations, threads, or sessions. `ccusage session` combines all detected supported agents; use `ccusage <agent> session` to inspect one agent's session format.
 
 ## Basic Usage
 
 ```bash
 ccusage session
+ccusage codex session
+ccusage opencode session
+ccusage amp session
+ccusage pi session
 ```
 
 ## Specific Session Lookup
@@ -41,12 +45,12 @@ echo "Current session: \$${COST}"
 
 ### Session ID Format
 
-Session IDs are the actual filenames (without `.jsonl` extension) stored in Claude's data directories. They typically look like:
+For Claude Code, session IDs are the actual filenames (without `.jsonl` extension) stored in Claude data directories. They typically look like:
 
 - `session-20250621-abc123-def456`
 - `project-conversation-xyz789`
 
-You can find session IDs by running `ccusage session` and looking for the files in your Claude data directory.
+You can find Claude session IDs by running `ccusage claude session` and looking for the files in your Claude data directory. Other agents expose their own session or thread identifiers in their agent-specific session reports.
 
 ## Example Output
 

@@ -1,6 +1,6 @@
 # Weekly Reports
 
-Weekly reports aggregate your Claude Code usage by week, providing a mid-range view between daily and monthly reports. This helps identify weekly patterns and trends in your usage.
+Weekly reports aggregate usage by week, providing a mid-range view between daily and monthly reports. `ccusage weekly` covers all detected agents that support weekly aggregation; `ccusage claude weekly` and `ccusage opencode weekly` focus on one agent.
 
 ## Basic Usage
 
@@ -8,6 +8,8 @@ Show all weekly usage:
 
 ```bash
 ccusage weekly
+ccusage claude weekly
+ccusage opencode weekly
 ```
 
 ## Example Output
@@ -31,7 +33,8 @@ ccusage weekly
 The columns are identical to daily reports but aggregated by week:
 
 - **Week**: Start date of the week (configurable)
-- **Models**: All Claude models used during the week
+- **Agent**: Source agent for all-agent reports
+- **Models**: All models used during the week
 - **Input/Output**: Total tokens for the week
 - **Cache Create/Read**: Cache token usage
 - **Total Tokens**: Sum of all token types

@@ -1,6 +1,6 @@
-# Directory Detection
+# Claude Code Directory Detection
 
-ccusage automatically detects and manages Claude Code data directories.
+ccusage automatically detects and manages Claude Code data directories. Other agents use their own default data locations; see [Environment Variables](/guide/environment-variables#agent-data-directories) for the full list.
 
 ## Default Directory Locations
 

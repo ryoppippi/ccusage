@@ -2,25 +2,26 @@
 
 ![ccusage daily report showing token usage and costs by date](/screenshot.png)
 
-**ccusage** is a powerful CLI tool that analyzes your local coding agent usage to help you understand token consumption patterns and estimated costs across Claude Code, Codex, OpenCode, Amp, and pi-agent.
+**ccusage** is a local CLI for understanding coding agent token usage and estimated costs across Claude Code, Codex, OpenCode, Amp, and pi-agent.
 
 ## The Problem
 
-Claude Code's Max plan offers unlimited usage, which is fantastic! But many users are curious:
+Modern coding agent usage is split across several CLIs and local data formats. That makes basic questions hard to answer:
 
-- How much am I actually using Claude Code and other coding agents?
+- How much am I actually using each coding agent?
 - Which conversations are the most expensive?
 - What would I be paying on a pay-per-use plan?
-- Am I getting good value from my subscription?
+- Which projects, sessions, or weeks are driving usage?
 
 ## The Solution
 
-ccusage analyzes the local usage files that coding agents automatically generate and provides:
+ccusage reads the local usage files that coding agents already generate and provides:
 
 - **Detailed Usage Reports** - Daily, weekly, monthly, and session-based breakdowns
 - **Unified Agent Reports** - Claude Code, Codex, OpenCode, Amp, and pi-agent in one CLI
 - **Cost Analysis** - Estimated costs based on token usage and model pricing
-- **Statusline Integration** - Real-time usage display for Claude Code status bar
+- **Agent-Specific Commands** - Use `ccusage codex daily`, `ccusage opencode weekly`, `ccusage amp session`, or `ccusage pi daily` when you want one source
+- **Claude Code Integrations** - Statusline and 5-hour block reports for Claude Code-specific workflows
 - **Multiple Formats** - Beautiful tables or JSON for further analysis
 
 ## How It Works
@@ -35,7 +36,7 @@ ccusage analyzes the local usage files that coding agents automatically generate
 
 ### 🚀 Ultra-Small Bundle Size
 
-Unlike other CLI tools, we pay extreme attention to bundle size. ccusage achieves an incredibly small footprint even without minification, which means you can run it directly without installation using `bunx ccusage` or `BUN_BE_BUN=1 claude x ccusage` for instant access.
+Unlike many CLI tools, ccusage pays close attention to bundle size. You can run it directly without a global install using `bunx ccusage`, `npx ccusage@latest`, or `BUN_BE_BUN=1 claude x ccusage`.
 
 ### 📊 Multiple Report Types
 
@@ -43,13 +44,13 @@ Unlike other CLI tools, we pay extreme attention to bundle size. ccusage achieve
 - **Weekly Reports** - Usage aggregated by week with configurable start day
 - **Monthly Reports** - Monthly summaries with trends
 - **Session Reports** - Per-conversation analysis
-- **Blocks Reports** - 5-hour billing window tracking
+- **Blocks Reports** - Claude Code 5-hour billing window tracking
 
 ### 💰 Cost Analysis
 
 - Estimated costs based on token counts and model pricing
 - Support for different cost calculation modes
-- Model-specific pricing (Opus vs Sonnet vs other models)
+- Model-specific pricing across supported providers
 - Cache token cost calculation
 
 ### 📈 Statusline Integration
@@ -78,10 +79,33 @@ ccusage reads from local coding agent data directories:
 | Claude Code | `claude`   | `~/.config/claude/projects/`, `~/.claude/`      |
 | Codex       | `codex`    | `${CODEX_HOME:-~/.codex}`                       |
 | OpenCode    | `opencode` | `${OPENCODE_DATA_DIR:-~/.local/share/opencode}` |
-| Amp         | `amp`      | Amp CLI data directories                        |
+| Amp         | `amp`      | `${AMP_DATA_DIR:-~/.local/share/amp}`           |
 | pi-agent    | `pi`       | `${PI_AGENT_DIR:-~/.pi/agent/sessions}`         |
 
 The tool automatically detects available data and aggregates all supported agents by default.
+
+## Command Shape
+
+Run ccusage without an agent name to aggregate all detected agents:
+
+```bash
+ccusage daily
+ccusage weekly
+ccusage monthly
+ccusage session
+```
+
+Add an agent namespace when you want a focused report:
+
+```bash
+ccusage claude daily
+ccusage codex daily --speed fast
+ccusage opencode weekly
+ccusage amp session
+ccusage pi monthly
+```
+
+Standalone package commands such as `ccusage-codex`, `ccusage-opencode`, `ccusage-amp`, and `ccusage-pi` are compatibility wrappers. Prefer the unified `ccusage <agent> <report>` form in new scripts and docs.
 
 ## Privacy & Security
 
@@ -105,4 +129,4 @@ Thanks to [@milliondev](https://note.com/milliondev) for the [original concept a
 
 ## Getting Started
 
-Ready to analyze your Claude Code usage? Check out our [Getting Started Guide](/guide/getting-started) to begin exploring your data!
+Ready to analyze your coding agent usage? Start with the [Getting Started Guide](/guide/getting-started).

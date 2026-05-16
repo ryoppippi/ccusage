@@ -5,7 +5,7 @@ import llmstxt from 'vitepress-plugin-llms';
 
 export default defineConfig({
 	title: 'ccusage',
-	description: 'Usage analysis tool for Claude Code',
+	description: 'Usage analysis tool for coding agents',
 	base: '/',
 	cleanUrls: true,
 	ignoreDeadLinks: true,
@@ -15,7 +15,7 @@ export default defineConfig({
 		['meta', { name: 'theme-color', content: '#646cff' }],
 		['meta', { property: 'og:type', content: 'website' }],
 		['meta', { property: 'og:locale', content: 'en' }],
-		['meta', { property: 'og:title', content: 'ccusage | Claude Code Usage Analysis' }],
+		['meta', { property: 'og:title', content: 'ccusage | Coding Agent Usage Analysis' }],
 		['meta', { property: 'og:site_name', content: 'ccusage' }],
 		[
 			'meta',
@@ -56,28 +56,27 @@ export default defineConfig({
 					],
 				},
 				{
-					text: 'Usage',
+					text: 'Reports',
 					items: [
 						{ text: 'Daily Reports', link: '/guide/daily-reports' },
 						{ text: 'Weekly Reports', link: '/guide/weekly-reports' },
 						{ text: 'Monthly Reports', link: '/guide/monthly-reports' },
 						{ text: 'Session Reports', link: '/guide/session-reports' },
-						{ text: 'Blocks Reports', link: '/guide/blocks-reports' },
-						{ text: 'Live Monitoring (Removed)', link: '/guide/live-monitoring' },
+						{ text: 'Claude Blocks Reports', link: '/guide/blocks-reports' },
+						{ text: 'Claude Live Monitoring (Removed)', link: '/guide/live-monitoring' },
 					],
 				},
 				{
-					text: 'Codex (Beta)',
+					text: 'Agent Guides',
 					items: [
-						{ text: 'Overview', link: '/guide/codex/' },
-						{ text: 'Daily Report', link: '/guide/codex/daily' },
-						{ text: 'Monthly Report', link: '/guide/codex/monthly' },
-						{ text: 'Session Report', link: '/guide/codex/session' },
+						{ text: 'Codex Overview', link: '/guide/codex/' },
+						{ text: 'Codex Daily Report', link: '/guide/codex/daily' },
+						{ text: 'Codex Monthly Report', link: '/guide/codex/monthly' },
+						{ text: 'Codex Session Report', link: '/guide/codex/session' },
+						{ text: 'OpenCode Overview', link: '/guide/opencode/' },
+						{ text: 'Amp Overview', link: '/guide/amp/' },
+						{ text: 'pi-agent Overview', link: '/guide/pi/' },
 					],
-				},
-				{
-					text: 'OpenCode (Beta)',
-					items: [{ text: 'Overview', link: '/guide/opencode/' }],
 				},
 				{
 					text: 'Configuration',
@@ -86,7 +85,7 @@ export default defineConfig({
 						{ text: 'Command-Line Options', link: '/guide/cli-options' },
 						{ text: 'Environment Variables', link: '/guide/environment-variables' },
 						{ text: 'Configuration Files', link: '/guide/config-files' },
-						{ text: 'Directory Detection', link: '/guide/directory-detection' },
+						{ text: 'Claude Directory Detection', link: '/guide/directory-detection' },
 						{ text: 'Custom Paths', link: '/guide/custom-paths' },
 						{ text: 'Cost Calculation Modes', link: '/guide/cost-modes' },
 					],
