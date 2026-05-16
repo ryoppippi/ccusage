@@ -21,11 +21,11 @@
     <img src="https://cdn.jsdelivr.net/gh/ryoppippi/ccusage@main/docs/public/screenshot.png">
 </div>
 
-> Analyze coding agent token usage and costs from local usage logs — incredibly fast and informative!
+> Analyze coding (agent) CLI token usage and costs from local usage logs — incredibly fast and informative!
 
 ## ccusage Family
 
-### 📊 [ccusage](https://www.npmjs.com/package/ccusage) - Unified Coding Agent Usage Analyzer
+### 📊 [ccusage](https://www.npmjs.com/package/ccusage) - Unified Coding (Agent) CLI Usage Analyzer
 
 The main CLI tool for analyzing Claude Code, Codex, OpenCode, Amp, and pi-agent usage from local data. Track daily, weekly, monthly, and session-based usage with beautiful tables.
 
@@ -80,22 +80,22 @@ npx @ccusage/amp@latest         # Deprecated wrapper for: ccusage amp
 
 ```bash
 # Basic usage
-npx ccusage          # Show all detected agents by day (default)
-npx ccusage daily    # All detected agents by day
-npx ccusage weekly   # All detected agents by week
-npx ccusage monthly  # All detected agents by month
-npx ccusage session  # All detected agents by session
+npx ccusage          # Show all detected sources by day (default)
+npx ccusage daily    # All detected sources by day
+npx ccusage weekly   # All detected sources by week
+npx ccusage monthly  # All detected sources by month
+npx ccusage session  # All detected sources by session
 npx ccusage blocks   # Claude Code 5-hour billing windows
 npx ccusage statusline  # Claude Code status line for hooks (Beta)
 
-# Agent-specific reports and options
+# Source-focused reports and options
 npx ccusage claude daily --mode display
 npx ccusage codex daily --speed fast
 npx ccusage opencode weekly
 npx ccusage amp session
 npx ccusage pi daily --pi-path /path/to/sessions
 
-# Explicit all-agents report
+# Explicit unified report
 npx ccusage daily --all
 
 # Filters and options
@@ -118,7 +118,7 @@ npx ccusage monthly --compact  # Compact monthly report
 - 📊 **Daily Report**: View token usage and costs aggregated by date
 - 📅 **Monthly Report**: View token usage and costs aggregated by month
 - 💬 **Session Report**: View usage grouped by conversation sessions
-- 🤖 **Multi-Agent Reports**: View Claude Code, Codex, OpenCode, Amp, and pi-agent usage from one CLI
+- 🤖 **Unified CLI Reports**: View Claude Code, Codex, OpenCode, Amp, and pi-agent usage from one CLI
 - ⏰ **5-Hour Blocks Report**: Track usage within Claude's billing windows with active block monitoring
 - 🚀 **Statusline Integration**: Compact usage display for Claude Code status bar hooks (Beta)
 - 🤖 **Model Tracking**: See which Claude models you're using (Opus, Sonnet, etc.)

@@ -1,10 +1,10 @@
 # pi-agent Data Source (Beta)
 
-ccusage can read [pi-agent](https://github.com/badlogic/pi-mono) usage data as one of its supported local data sources. pi-agent is an alternative Claude coding agent from [shittycodingagent.ai](https://shittycodingagent.ai).
+ccusage can read [pi-agent](https://github.com/badlogic/pi-mono) usage data as one of its supported local data sources. pi-agent is an alternative Claude coding (agent) CLI from [shittycodingagent.ai](https://shittycodingagent.ai).
 
 ## What is Pi-Agent?
 
-Pi-agent is a third-party Claude coding agent that stores usage data in JSONL format. ccusage analyzes this data alongside its other supported sources.
+Pi-agent is a third-party Claude coding (agent) CLI that stores usage data in JSONL format. ccusage analyzes this data alongside its other supported sources.
 
 ## Focused Views
 
@@ -326,5 +326,5 @@ ccusage pi session --since 2025-01-02
 
 ## Related
 
-- [ccusage](https://github.com/ryoppippi/ccusage) - Main usage analysis tool for coding agents
-- [pi-agent](https://github.com/badlogic/pi-mono) - Alternative Claude coding agent
+- [ccusage](https://github.com/ryoppippi/ccusage) - Main usage analysis tool for coding (agent) CLIs
+- [pi-agent](https://github.com/badlogic/pi-mono) - Alternative Claude coding (agent) CLI

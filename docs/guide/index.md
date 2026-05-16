@@ -20,7 +20,7 @@ ccusage reads the local usage files that coding CLIs already generate and provid
 - **Detailed Usage Reports** - Daily, weekly, monthly, and session-based breakdowns
 - **Unified CLI Reports** - Claude Code, Codex, OpenCode, Amp, and pi-agent in one CLI
 - **Cost Analysis** - Estimated costs based on token usage and model pricing
-- **Focused Data Source Views** - Start with all detected agents, then narrow the same reports to one source when needed
+- **Focused Data Source Views** - Start with all detected sources, then narrow the same reports to one source when needed
 - **Claude Code Integrations** - Statusline and 5-hour block reports for Claude Code-specific workflows
 - **Multiple Formats** - Beautiful tables or JSON for further analysis
 

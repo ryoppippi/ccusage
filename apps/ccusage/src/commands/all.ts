@@ -892,7 +892,7 @@ async function runAllReport(kind: ReportKind, options: AllOptions): Promise<void
 		logger.level = 0;
 	}
 
-	const title = `Coding Agent Usage Report - ${kind[0]!.toUpperCase()}${kind.slice(1)}`;
+	const title = `Coding (Agent) CLI Usage Report - ${kind[0]!.toUpperCase()}${kind.slice(1)}`;
 	let detectedAgents: AgentId[] | undefined;
 	if (options.json !== true) {
 		detectedAgents = await detectAllAgents(options);
@@ -1026,19 +1026,19 @@ function createAllCommand(kind: ReportKind, description: string): Command<typeof
 
 export const allDailyCommand = createAllCommand(
 	'daily',
-	'Show all detected coding agent usage grouped by date',
+	'Show all detected coding (agent) CLI usage grouped by date',
 );
 export const allWeeklyCommand = createAllCommand(
 	'weekly',
-	'Show all detected coding agent usage grouped by week',
+	'Show all detected coding (agent) CLI usage grouped by week',
 );
 export const allMonthlyCommand = createAllCommand(
 	'monthly',
-	'Show all detected coding agent usage grouped by month',
+	'Show all detected coding (agent) CLI usage grouped by month',
 );
 export const allSessionCommand = createAllCommand(
 	'session',
-	'Show all detected coding agent usage grouped by session',
+	'Show all detected coding (agent) CLI usage grouped by session',
 );
 
 if (import.meta.vitest != null) {

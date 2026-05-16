@@ -4,7 +4,7 @@
 
 > ⚠️ Codex log support is experimental while the Codex CLI log format continues to evolve.
 
-ccusage can read OpenAI Codex CLI session logs as one of its supported local data sources. Most users can start with all-agent reports such as `ccusage daily`; add the `codex` namespace only when you want to focus the same report shape on Codex usage.
+ccusage can read OpenAI Codex CLI session logs as one of its supported local data sources. Most users can start with unified reports such as `ccusage daily`; add the `codex` namespace only when you want to focus the same report shape on Codex usage.
 
 ## Focused Views
 
