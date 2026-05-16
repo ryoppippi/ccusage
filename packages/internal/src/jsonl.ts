@@ -43,10 +43,22 @@ async function processBufferedJSONLContent(
 	}
 }
 
+/**
+ * Reads JSONL content into memory when the file fits within the shared buffer limit.
+ *
+ * @param filePath - JSONL file path to read.
+ * @returns File contents, or null when the file should be streamed instead.
+ */
 export async function readBufferedJSONLContent(filePath: string): Promise<string | null> {
 	return readBufferedTextFile(filePath, { maxBufferedBytes: MAX_BUFFERED_JSONL_BYTES });
 }
 
+/**
+ * Processes a JSONL file line by line, skipping empty and whitespace-only lines.
+ *
+ * @param filePath - JSONL file path to process.
+ * @param processLine - Callback invoked with each non-empty line and its 1-based line number.
+ */
 export async function processJSONLFileByLine(
 	filePath: string,
 	processLine: (line: string, lineNumber: number) => void | Promise<void>,

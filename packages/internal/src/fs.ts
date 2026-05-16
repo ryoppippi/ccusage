@@ -26,6 +26,12 @@ function getBunRuntime(): BunRuntimeLike | null {
 	return typeof runtime?.file === 'function' ? (runtime as BunRuntimeLike) : null;
 }
 
+/**
+ * Reads a UTF-8 text file, using Bun.file when the Bun runtime is available.
+ *
+ * @param filePath - File path to read.
+ * @returns File contents.
+ */
 export async function readTextFile(filePath: string): Promise<string> {
 	const bun = getBunRuntime();
 	if (bun != null) {
@@ -34,6 +40,13 @@ export async function readTextFile(filePath: string): Promise<string> {
 	return readFile(filePath, 'utf8');
 }
 
+/**
+ * Reads a UTF-8 text file when it fits within the configured buffer limit.
+ *
+ * @param filePath - File path to read.
+ * @param options - Buffer limit options.
+ * @returns File contents, or null when the file is larger than maxBufferedBytes.
+ */
 export async function readBufferedTextFile(
 	filePath: string,
 	options: ReadBufferedTextFileOptions,
@@ -91,6 +104,13 @@ export async function collectFilesRecursive(
 	return files.sort(compareStrings);
 }
 
+/**
+ * Checks whether a directory tree contains at least one matching file.
+ *
+ * @param root - Directory to search.
+ * @param options - Optional file extension filter.
+ * @returns True when a matching file is found; false for missing, inaccessible, or non-directory paths.
+ */
 export async function hasFileRecursive(
 	root: string,
 	options: CollectFilesOptions = {},
