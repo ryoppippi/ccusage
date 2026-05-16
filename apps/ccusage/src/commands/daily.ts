@@ -14,8 +14,8 @@ import { groupByProject, groupDataByProject } from '../_daily-grouping.ts';
 import { formatDateCompact } from '../_date-utils.ts';
 import { formatProjectName } from '../_project-names.ts';
 import { sharedCommandConfig } from '../_shared-args.ts';
+import { loadDailyUsageData } from '../adapter/claude/data-loader.ts';
 import { calculateTotals, createTotalsObject, getTotalTokens } from '../calculate-cost.ts';
-import { loadDailyUsageData } from '../data-loader.ts';
 import { detectMismatches, printMismatchReport } from '../debug.ts';
 import { logger, writeStdoutLine } from '../logger.ts';
 

@@ -15,7 +15,11 @@ import * as v from 'valibot';
 import { DEBUG_MATCH_THRESHOLD_PERCENT } from './_consts.ts';
 import { PricingFetcher } from './_pricing-fetcher.ts';
 import { CLAUDE_PROJECTS_DIR_NAME } from './adapter/claude/constants.ts';
-import { collectJsonlFiles, getClaudePaths, usageDataSchema } from './data-loader.ts';
+import {
+	collectJsonlFiles,
+	getClaudePaths,
+	usageDataSchema,
+} from './adapter/claude/data-loader.ts';
 import { logger } from './logger.ts';
 
 /**

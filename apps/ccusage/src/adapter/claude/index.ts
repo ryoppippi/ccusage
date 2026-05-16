@@ -1,7 +1,7 @@
 import type { AdapterOptions, AgentUsageRow, ReportKind } from '../types.ts';
 import { collectFilesRecursive, isDirectorySyncSafe } from '@ccusage/internal/fs';
-import { loadDailyUsageData, loadMonthlyUsageData, loadSessionData } from '../../data-loader.ts';
 import { normalizeDateFilter, toCompactDate } from '../shared.ts';
+import { loadDailyUsageData, loadMonthlyUsageData, loadSessionData } from './data-loader.ts';
 import { getClaudeProjectPaths } from './paths.ts';
 
 async function hasFiles(root: string, extension: `.${string}`): Promise<boolean> {

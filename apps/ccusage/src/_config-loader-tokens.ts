@@ -5,7 +5,7 @@ import { toArray } from '@antfu/utils';
 import { Result } from '@praha/byethrow';
 import { createFixture } from 'fs-fixture';
 import { CONFIG_FILE_NAME } from './_consts.ts';
-import { getClaudePaths } from './data-loader.ts';
+import { getClaudePaths } from './adapter/claude/data-loader.ts';
 import { logger } from './logger.ts';
 
 /**

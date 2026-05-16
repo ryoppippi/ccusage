@@ -1,9 +1,9 @@
 import type { CostMode } from '../_types.ts';
-import type { UsageData } from '../data-loader.ts';
+import type { UsageData } from '../adapter/claude/data-loader.ts';
 import process from 'node:process';
 import { formatCurrency, formatNumber, ResponsiveTable } from '@ccusage/terminal/table';
 import { formatDateCompact } from '../_date-utils.ts';
-import { loadSessionUsageById } from '../data-loader.ts';
+import { loadSessionUsageById } from '../adapter/claude/data-loader.ts';
 import { log, logger, writeStdoutLine } from '../logger.ts';
 
 export type SessionIdContext = {

@@ -23,7 +23,7 @@ import {
 } from '../_session-blocks.ts';
 import { sharedCommandConfig } from '../_shared-args.ts';
 import { getTotalTokens } from '../_token-utils.ts';
-import { loadSessionBlockData } from '../data-loader.ts';
+import { loadSessionBlockData } from '../adapter/claude/data-loader.ts';
 import { log, logger, writeStdoutLine } from '../logger.ts';
 
 /**

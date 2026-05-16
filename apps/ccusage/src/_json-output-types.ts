@@ -9,7 +9,7 @@
  */
 
 import type { DailyDate, ModelName } from './_types.ts';
-import type { ModelBreakdown } from './data-loader.ts';
+import type { ModelBreakdown } from './adapter/claude/data-loader.ts';
 
 /**
  * Interface for daily command JSON output structure (groupByProject)

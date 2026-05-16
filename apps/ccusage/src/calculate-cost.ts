@@ -9,7 +9,12 @@
  */
 
 import type { AggregatedTokenCounts } from './_token-utils.ts';
-import type { DailyUsage, MonthlyUsage, SessionUsage, WeeklyUsage } from './data-loader.ts';
+import type {
+	DailyUsage,
+	MonthlyUsage,
+	SessionUsage,
+	WeeklyUsage,
+} from './adapter/claude/data-loader.ts';
 import { getTotalTokens } from './_token-utils.ts';
 import {
 	createActivityDate,

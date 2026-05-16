@@ -15,13 +15,13 @@ import { calculateBurnRate } from '../_session-blocks.ts';
 import { sharedArgs } from '../_shared-args.ts';
 import { statuslineHookJsonSchema } from '../_types.ts';
 import { getFileModifiedTime, unreachable } from '../_utils.ts';
-import { calculateTotals } from '../calculate-cost.ts';
 import {
 	calculateContextTokens,
 	loadDailyUsageData,
 	loadSessionBlockData,
 	loadSessionUsageById,
-} from '../data-loader.ts';
+} from '../adapter/claude/data-loader.ts';
+import { calculateTotals } from '../calculate-cost.ts';
 import { log, logger } from '../logger.ts';
 
 /**
