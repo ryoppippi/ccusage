@@ -15,7 +15,7 @@ pnpm vitest -t "returns 0 for an empty cart"
 
 ## Test Modifiers
 
-Vitest globals are enabled in this repository. Use `describe`, `it`, `expect`, `vi`, `beforeEach`, and `assert` directly without importing them from `vitest`.
+Vitest globals are enabled in this repository. Use `describe`, `test`, `it`, `expect`, `vi`, `beforeEach`, and `assert` directly without importing them from `vitest`.
 
 Use built-in modifiers instead of commenting out or deleting tests:
 
@@ -25,7 +25,7 @@ Use built-in modifiers instead of commenting out or deleting tests:
 - `it.only("description", ...)` — Run only this test in the suite. Useful for focusing during the Red-Green cycle. **Remove before committing.**
 - `it.concurrent("description", ...)` — Run concurrently with other concurrent tests. Use when tests are independent.
 - `it.sequential("description", ...)` — Force sequential execution inside a concurrent suite. Use when a test depends on shared state.
-- `it.extend({...})` — Create a custom test function with fixtures for sharing setup logic.
+- `test.extend({...})` — Create a custom test function with fixtures for sharing setup logic.
 
 Modifiers can be chained (e.g. `it.skip.concurrent(...)`, `it.fails.only(...)`).
 

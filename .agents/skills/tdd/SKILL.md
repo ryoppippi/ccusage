@@ -14,12 +14,12 @@ You are following strict t-wada style Test-Driven Development. All code changes 
 
 **Project test environment:**
 
-```
+```bash
 !`cat package.json 2>/dev/null | jq -r '.scripts | to_entries[] | select(.key | test("test")) | "\(.key): \(.value)"' 2>/dev/null || echo "No package.json test scripts found"`
 ```
 
-```
-!`if [ -f vitest.config.ts ] || [ -f vitest.config.js ] || [ -f vitest.config.mts ]; then echo "Test runner: Vitest"; elif [ -f jest.config.ts ] || [ -f jest.config.js ] || [ -f jest.config.cjs ]; then echo "Test runner: Jest"; elif [ -f pytest.ini ] || [ -f pyproject.toml ] && grep -q pytest pyproject.toml 2>/dev/null; then echo "Test runner: pytest"; elif [ -f Cargo.toml ]; then echo "Test runner: cargo test"; elif [ -f go.mod ]; then echo "Test runner: go test"; else echo "Test runner: unknown — ask the user"; fi`
+```bash
+!`if [ -f vitest.config.ts ] || [ -f vitest.config.js ] || [ -f vitest.config.mts ]; then echo "Test runner: Vitest"; elif [ -f jest.config.ts ] || [ -f jest.config.js ] || [ -f jest.config.cjs ]; then echo "Test runner: Jest"; elif [ -f pytest.ini ] || { [ -f pyproject.toml ] && grep -q pytest pyproject.toml 2>/dev/null; }; then echo "Test runner: pytest"; elif [ -f Cargo.toml ]; then echo "Test runner: cargo test"; elif [ -f go.mod ]; then echo "Test runner: go test"; else echo "Test runner: unknown — ask the user"; fi`
 ```
 
 ## The Cycle
@@ -58,8 +58,8 @@ Prefer running only the tests affected by your changes during the Red-Green-Refa
 **Runner-specific guidance** — Read the relevant example file alongside this skill for detailed test modifiers, idioms, and runner-specific tips:
 
 - **Vitest**: See `vitest-example.md` — test modifiers (`it.todo`, `it.skip`, `it.fails`, etc.), `--changed` flag
-- **Rust (cargo test)**: See `rust-example.md` — `#[ignore]`, `#[should_panic]`, filtering, doc tests
-- **Zig (zig test)**: See `zig-example.md` — `std.testing`, `test` blocks, `--test-filter`
+- **Rust (cargo test)**: Use focused runs like `cargo test <name>` and `cargo test -- --ignored`
+- **Zig (zig test)**: Use `zig test <file> --test-filter <name>` for focused runs
 
 For other runners, adapt the general patterns:
 
