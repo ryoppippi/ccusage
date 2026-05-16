@@ -1,9 +1,27 @@
 import { stat } from 'node:fs/promises';
 import { availableParallelism } from 'node:os';
+import path from 'node:path';
+import { Worker } from 'node:worker_threads';
+import { createFixture } from 'fs-fixture';
+import { createResultSlots } from './array.ts';
 
 export type IndexedWorkerItem<T> = {
 	index: number;
 	item: T;
+};
+
+export type IndexedWorkerResult<TResult> = {
+	index: number;
+	result: TResult;
+};
+
+type FileWorkerLike<TResult> = {
+	once: ((
+		event: 'message',
+		listener: (message: { results: Array<IndexedWorkerResult<TResult>> }) => void,
+	) => FileWorkerLike<TResult>) &
+		((event: 'error', listener: (error: Error) => void) => FileWorkerLike<TResult>) &
+		((event: 'exit', listener: (code: number) => void) => FileWorkerLike<TResult>);
 };
 
 export function getDefaultWorkerThreadCount(
@@ -91,6 +109,58 @@ export async function chunkIndexedItemsByFileSize<T>(
 	return chunks.filter((chunk) => chunk.length > 0);
 }
 
+export async function collectIndexedFileWorkerResults<TItem, TResult, TWorkerData>(options: {
+	items: TItem[];
+	workerCount: number;
+	moduleUrl: string;
+	errorMessage: string;
+	createWorkerData: (items: Array<IndexedWorkerItem<TItem>>) => TWorkerData;
+	getFilePath?: (item: TItem) => string;
+	createWorker?: (moduleUrl: URL, workerData: TWorkerData) => FileWorkerLike<TResult>;
+}): Promise<TResult[] | null> {
+	if (options.workerCount === 0) {
+		return null;
+	}
+
+	const indexedItems = options.items.map<IndexedWorkerItem<TItem>>((item, index) => ({
+		index,
+		item,
+	}));
+	const chunks = await chunkIndexedItemsByFileSize(
+		indexedItems,
+		options.workerCount,
+		options.getFilePath ?? String,
+	);
+	const createWorker =
+		options.createWorker ??
+		((moduleUrl, workerData) => new Worker(moduleUrl, { workerData }) as FileWorkerLike<TResult>);
+	const resultGroups = await Promise.all(
+		chunks.map(
+			async (chunk) =>
+				new Promise<Array<IndexedWorkerResult<TResult>>>((resolve, reject) => {
+					const worker = createWorker(new URL(options.moduleUrl), options.createWorkerData(chunk));
+					worker.once('message', (message) => {
+						resolve(message.results);
+					});
+					worker.once('error', reject);
+					worker.once('exit', (code) => {
+						if (code !== 0) {
+							reject(new Error(options.errorMessage.replace('{code}', String(code))));
+						}
+					});
+				}),
+		),
+	);
+
+	const orderedResults = createResultSlots<TResult>(options.items.length);
+	for (const results of resultGroups) {
+		for (const { index, result } of results) {
+			orderedResults[index] = result;
+		}
+	}
+	return orderedResults;
+}
+
 if (import.meta.vitest != null) {
 	describe('getFileWorkerThreadCount', () => {
 		it('disables workers outside bundled runtime', () => {
@@ -120,6 +190,50 @@ if (import.meta.vitest != null) {
 			await expect(
 				chunkIndexedItemsByFileSize([{ index: 0, item: '/missing.jsonl' }], 0, (item) => item),
 			).resolves.toEqual([]);
+		});
+	});
+
+	describe('collectIndexedFileWorkerResults', () => {
+		it('orders worker results by original file index across balanced chunks', async () => {
+			const workers: Array<{ data: { items: Array<IndexedWorkerItem<string>> } }> = [];
+			await using fixture = await createFixture({
+				'a.jsonl': 'a',
+				'b.jsonl': 'bbbb',
+				'c.jsonl': 'cc',
+			});
+
+			const results = await collectIndexedFileWorkerResults({
+				items: [fixture.getPath('a.jsonl'), fixture.getPath('b.jsonl'), fixture.getPath('c.jsonl')],
+				workerCount: 2,
+				moduleUrl: 'file:///repo/dist/worker.js',
+				errorMessage: 'test worker failed',
+				createWorkerData: (items) => ({ items }),
+				createWorker: (_moduleUrl, workerData) => {
+					const data = workerData as { items: Array<IndexedWorkerItem<string>> };
+					workers.push({ data });
+					return {
+						once(event, listener) {
+							if (event === 'message') {
+								queueMicrotask(() => {
+									const onMessage = listener as (message: {
+										results: Array<IndexedWorkerResult<string>>;
+									}) => void;
+									onMessage({
+										results: data.items.map(({ index, item }) => ({
+											index,
+											result: path.basename(item),
+										})),
+									});
+								});
+							}
+							return this;
+						},
+					} satisfies FileWorkerLike<string>;
+				},
+			});
+
+			expect(workers).toHaveLength(2);
+			expect(results).toEqual(['a.jsonl', 'b.jsonl', 'c.jsonl']);
 		});
 	});
 }

@@ -7,10 +7,12 @@ import type {
 } from './schema.ts';
 import { readFile } from 'node:fs/promises';
 import process from 'node:process';
-import { isMainThread, parentPort, Worker, workerData } from 'node:worker_threads';
-import { createResultSlots } from '@ccusage/internal/array';
+import { isMainThread, parentPort, workerData } from 'node:worker_threads';
 import { getSqliteDatabaseFactory, withSqliteDatabase } from '@ccusage/internal/sqlite';
-import { chunkIndexedItemsByFileSize, getFileWorkerThreadCount } from '@ccusage/internal/workers';
+import {
+	collectIndexedFileWorkerResults,
+	getFileWorkerThreadCount,
+} from '@ccusage/internal/workers';
 import { Result } from '@praha/byethrow';
 import { createFixture } from 'fs-fixture';
 import * as v from 'valibot';
@@ -115,42 +117,17 @@ async function collectOpenCodeMessagesWithWorkers(
 	files: string[],
 ): Promise<Array<OpenCodeMessageResult | null> | null> {
 	const workerCount = getOpenCodeWorkerThreadCount(files.length);
-	if (workerCount === 0) {
-		return null;
-	}
-
-	const indexedItems = files.map<IndexedWorkerItem<string>>((item, index) => ({ index, item }));
-	const chunks = await chunkIndexedItemsByFileSize(indexedItems, workerCount, (item) => item);
-	const resultGroups = await Promise.all(
-		chunks.map(
-			async (chunk) =>
-				new Promise<OpenCodeWorkerResponse['results']>((resolve, reject) => {
-					const worker = new Worker(new URL(import.meta.url), {
-						workerData: {
-							kind: 'ccusage:opencode-worker',
-							items: chunk,
-						} satisfies OpenCodeWorkerData,
-					});
-					worker.once('message', (message: OpenCodeWorkerResponse) => {
-						resolve(message.results);
-					});
-					worker.once('error', reject);
-					worker.once('exit', (code) => {
-						if (code !== 0) {
-							reject(new Error(`ccusage opencode worker exited with code ${code}`));
-						}
-					});
-				}),
-		),
-	);
-
-	const orderedResults = createResultSlots<OpenCodeMessageResult | null>(files.length);
-	for (const results of resultGroups) {
-		for (const { index, result } of results) {
-			orderedResults[index] = result;
-		}
-	}
-	return orderedResults;
+	return collectIndexedFileWorkerResults<string, OpenCodeMessageResult | null, OpenCodeWorkerData>({
+		items: files,
+		workerCount,
+		moduleUrl: import.meta.url,
+		errorMessage: 'ccusage opencode worker exited with code {code}',
+		createWorkerData: (items) =>
+			({
+				kind: 'ccusage:opencode-worker',
+				items,
+			}) satisfies OpenCodeWorkerData,
+	});
 }
 
 function loadOpenCodeMessagesFromDb(openCodePath: string): {

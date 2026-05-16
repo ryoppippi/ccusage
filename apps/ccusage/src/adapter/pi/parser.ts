@@ -1,11 +1,13 @@
 import type { IndexedWorkerItem } from '@ccusage/internal/workers';
 import type { PiUsageEntry } from './schema.ts';
 import process from 'node:process';
-import { isMainThread, parentPort, Worker, workerData } from 'node:worker_threads';
-import { createResultSlots } from '@ccusage/internal/array';
+import { isMainThread, parentPort, workerData } from 'node:worker_threads';
 import { collectFilesRecursive } from '@ccusage/internal/fs';
 import { processJSONLFileByLine } from '@ccusage/internal/jsonl';
-import { chunkIndexedItemsByFileSize, getFileWorkerThreadCount } from '@ccusage/internal/workers';
+import {
+	collectIndexedFileWorkerResults,
+	getFileWorkerThreadCount,
+} from '@ccusage/internal/workers';
 import { Result } from '@praha/byethrow';
 import { createFixture } from 'fs-fixture';
 import * as v from 'valibot';
@@ -88,42 +90,17 @@ async function parsePiAgentFile(file: string): Promise<PiUsageEntry[]> {
 
 async function collectWithPiWorkers(files: string[]): Promise<PiUsageEntry[][] | null> {
 	const workerCount = getJSONLWorkerThreadCount(files.length);
-	if (workerCount === 0) {
-		return null;
-	}
-
-	const indexedItems = files.map<IndexedWorkerItem<string>>((item, index) => ({ index, item }));
-	const chunks = await chunkIndexedItemsByFileSize(indexedItems, workerCount, (item) => item);
-	const resultGroups = await Promise.all(
-		chunks.map(
-			async (chunk) =>
-				new Promise<PiWorkerResponse['results']>((resolve, reject) => {
-					const worker = new Worker(new URL(import.meta.url), {
-						workerData: {
-							kind: 'ccusage:pi-usage-worker',
-							items: chunk,
-						} satisfies PiWorkerData,
-					});
-					worker.once('message', (message: PiWorkerResponse) => {
-						resolve(message.results);
-					});
-					worker.once('error', reject);
-					worker.once('exit', (code) => {
-						if (code !== 0) {
-							reject(new Error(`pi-agent usage worker exited with code ${code}`));
-						}
-					});
-				}),
-		),
-	);
-
-	const orderedResults = createResultSlots<PiUsageEntry[]>(files.length);
-	for (const results of resultGroups) {
-		for (const { index, result } of results) {
-			orderedResults[index] = result;
-		}
-	}
-	return orderedResults;
+	return collectIndexedFileWorkerResults<string, PiUsageEntry[], PiWorkerData>({
+		items: files,
+		workerCount,
+		moduleUrl: import.meta.url,
+		errorMessage: 'pi-agent usage worker exited with code {code}',
+		createWorkerData: (items) =>
+			({
+				kind: 'ccusage:pi-usage-worker',
+				items,
+			}) satisfies PiWorkerData,
+	});
 }
 
 export async function loadPiUsageEntries(piPath?: string): Promise<PiUsageEntry[]> {

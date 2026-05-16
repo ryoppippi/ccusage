@@ -1,4 +1,3 @@
-import type { IndexedWorkerItem } from '@ccusage/internal/workers';
 import type {
 	CodexWorkerData,
 	CodexWorkerResponse,
@@ -9,11 +8,14 @@ import type {
 import { stat } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
-import { isMainThread, parentPort, Worker, workerData } from 'node:worker_threads';
+import { isMainThread, parentPort, workerData } from 'node:worker_threads';
 import { collectFilesRecursive } from '@ccusage/internal/fs';
 import { processJSONLFileByLine } from '@ccusage/internal/jsonl';
 import { compareStrings } from '@ccusage/internal/sort';
-import { chunkIndexedItemsByFileSize, getFileWorkerThreadCount } from '@ccusage/internal/workers';
+import {
+	collectIndexedFileWorkerResults,
+	getFileWorkerThreadCount,
+} from '@ccusage/internal/workers';
 import { Result } from '@praha/byethrow';
 import { logger } from '../../logger.ts';
 import { getCodexSessionsPath } from './paths.ts';
@@ -55,6 +57,10 @@ function ensureNumber(value: unknown): number {
 	return typeof value === 'number' && Number.isFinite(value) ? value : 0;
 }
 
+function calculateFallbackTotalTokens(input: number, output: number, reasoning: number): number {
+	return input + output + reasoning;
+}
+
 function normalizeRawUsage(value: unknown): RawUsage | null {
 	if (value == null || typeof value !== 'object') {
 		return null;
@@ -72,7 +78,7 @@ function normalizeRawUsage(value: unknown): RawUsage | null {
 		cached_input_tokens: cached,
 		output_tokens: output,
 		reasoning_output_tokens: reasoning,
-		total_tokens: total > 0 ? total : input + output,
+		total_tokens: total > 0 ? total : calculateFallbackTotalTokens(input, output, reasoning),
 	};
 }
 
@@ -101,7 +107,14 @@ function convertToEventUsage(
 		cachedInputTokens: cached,
 		outputTokens: raw.output_tokens,
 		reasoningOutputTokens: raw.reasoning_output_tokens,
-		totalTokens: raw.total_tokens > 0 ? raw.total_tokens : raw.input_tokens + raw.output_tokens,
+		totalTokens:
+			raw.total_tokens > 0
+				? raw.total_tokens
+				: calculateFallbackTotalTokens(
+						raw.input_tokens,
+						raw.output_tokens,
+						raw.reasoning_output_tokens,
+					),
 	};
 }
 
@@ -286,45 +299,23 @@ async function collectCodexEventsWithWorkers(
 	files: string[],
 ): Promise<TokenUsageEvent[] | null> {
 	const workerCount = getCodexWorkerThreadCount(files.length);
-	if (workerCount === 0) {
-		return null;
-	}
-
-	const indexedFiles = files.map<IndexedWorkerItem<string>>((file, index) => ({
-		index,
-		item: file,
-	}));
-	const chunks = await chunkIndexedItemsByFileSize(indexedFiles, workerCount, (file) => file);
-	const workerResults = chunks.map(
-		async (chunk) =>
-			new Promise<Array<{ index: number; result: TokenUsageEvent[] }>>((resolve, reject) => {
-				const worker = new Worker(new URL(import.meta.url), {
-					workerData: {
-						kind: 'ccusage:codex-worker',
-						directoryPath,
-						items: chunk,
-					} satisfies CodexWorkerData,
-				});
-				worker.once('message', (message: CodexWorkerResponse) => {
-					resolve(message.results);
-				});
-				worker.once('error', reject);
-				worker.once('exit', (code) => {
-					if (code !== 0) {
-						reject(new Error(`ccusage codex worker exited with code ${code}`));
-					}
-				});
-			}),
-	);
-	const resultGroups = await Promise.all(workerResults);
-	const fileEvents = Array.from<TokenUsageEvent[] | undefined>({ length: files.length });
-	for (const results of resultGroups) {
-		for (const { index, result } of results) {
-			fileEvents[index] = result;
-		}
-	}
-
-	return fileEvents.flatMap((events) => events ?? []);
+	const fileEvents = await collectIndexedFileWorkerResults<
+		string,
+		TokenUsageEvent[],
+		CodexWorkerData
+	>({
+		items: files,
+		workerCount,
+		moduleUrl: import.meta.url,
+		errorMessage: 'ccusage codex worker exited with code {code}',
+		createWorkerData: (items) =>
+			({
+				kind: 'ccusage:codex-worker',
+				directoryPath,
+				items,
+			}) satisfies CodexWorkerData,
+	});
+	return fileEvents?.flatMap((events) => events) ?? null;
 }
 
 export async function loadTokenUsageEvents(): Promise<TokenUsageEvent[]> {
@@ -500,7 +491,7 @@ function parseRawUsageText(value: string): RawUsage {
 		cached_input_tokens: cached,
 		output_tokens: output,
 		reasoning_output_tokens: reasoning,
-		total_tokens: total > 0 ? total : input + output,
+		total_tokens: total > 0 ? total : calculateFallbackTotalTokens(input, output, reasoning),
 	};
 }
 
@@ -550,6 +541,27 @@ if (import.meta.vitest != null) {
 				},
 				model: 'gpt-5.2-codex',
 			});
+		});
+
+		it('includes reasoning tokens when token_count omits total tokens', () => {
+			const line = JSON.stringify({
+				timestamp: '2026-02-15T02:27:08.541Z',
+				type: 'event_msg',
+				payload: {
+					type: 'token_count',
+					info: {
+						last_token_usage: {
+							input_tokens: 12_127,
+							cached_input_tokens: 6_912,
+							output_tokens: 623,
+							reasoning_output_tokens: 454,
+						},
+						model: 'gpt-5.2-codex',
+					},
+				},
+			});
+
+			expect(parseTokenCountLineFast(line)?.lastUsage?.total_tokens).toBe(13_204);
 		});
 
 		it('does not treat token_count text inside turn_context history as a usage event', () => {
