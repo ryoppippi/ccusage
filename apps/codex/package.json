@@ -2,7 +2,7 @@
 	"name": "@ccusage/codex",
 	"type": "module",
 	"version": "18.0.11",
-	"description": "Usage analysis tool for OpenAI Codex sessions",
+	"description": "Compatibility wrapper for Codex CLI usage analysis in ccusage",
 	"author": "ryoppippi",
 	"license": "MIT",
 	"funding": "https://github.com/ryoppippi/ccusage?sponsor=1",

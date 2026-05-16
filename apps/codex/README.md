@@ -15,9 +15,9 @@
   <img src="https://cdn.jsdelivr.net/gh/ryoppippi/ccusage@main/docs/public/codex-cli.jpeg" alt="Codex CLI usage screenshot" width="640">
 </div>
 
-> Analyze <a href="https://github.com/openai/codex">OpenAI Codex CLI</a> usage logs with the same reporting experience as <code>ccusage</code>.
+> Analyze [OpenAI Codex CLI](https://github.com/openai/codex) usage logs with the same reporting experience as `ccusage`.
 
-> ⚠️ <strong>Compatibility wrapper:</strong> Prefer <code>bunx ccusage@latest codex</code>. This package now prints a deprecation warning and forwards to <code>ccusage codex</code>.
+> ⚠️ **Compatibility wrapper:** Prefer `bunx ccusage@latest codex`. This package now prints a deprecation warning and forwards to `ccusage codex`.
 
 ## Quick Start
 
@@ -55,26 +55,26 @@ ccusage-codex monthly --json
 
 ```bash
 # Daily usage grouped by date (default command)
-npx ccusage@latest codex daily
+bunx ccusage@latest codex daily
 
 # Date range filtering
-npx ccusage@latest codex daily --since 20250911 --until 20250917
+bunx ccusage@latest codex daily --since 20250911 --until 20250917
 
 # JSON output for scripting
-npx ccusage@latest codex daily --json
+bunx ccusage@latest codex daily --json
 
 # Monthly usage grouped by month
-npx ccusage@latest codex monthly
+bunx ccusage@latest codex monthly
 
 # Monthly JSON report for integrations
-npx ccusage@latest codex monthly --json
+bunx ccusage@latest codex monthly --json
 
 # Session-level detailed report
-npx ccusage@latest codex session
+bunx ccusage@latest codex session
 
 # Override Codex fast-mode pricing detection
-npx ccusage@latest codex daily --speed fast
-npx ccusage@latest codex daily --speed standard
+bunx ccusage@latest codex daily --speed fast
+bunx ccusage@latest codex daily --speed standard
 ```
 
 Useful environment variables:

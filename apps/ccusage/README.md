@@ -21,27 +21,27 @@
     <img src="https://cdn.jsdelivr.net/gh/ryoppippi/ccusage@main/docs/public/screenshot.png">
 </div>
 
-> Analyze coding (agent) CLI token usage and costs from local usage logs — incredibly fast and informative!
+> Analyze coding (agent) CLI token usage and costs from local data.
 
 ## ccusage Family
 
-### 📊 [ccusage](https://www.npmjs.com/package/ccusage) - Unified Coding (Agent) CLI Usage Analyzer
+### 📊 [ccusage](https://www.npmjs.com/package/ccusage) - Coding (Agent) CLI Usage Analyzer
 
 The main CLI tool for analyzing Claude Code, Codex, OpenCode, Amp, and pi-agent usage from local data. Track daily, weekly, monthly, and session-based usage with beautiful tables.
 
-### 🤖 [@ccusage/codex](https://www.npmjs.com/package/@ccusage/codex) - OpenAI Codex Usage Analyzer
+### 🤖 [@ccusage/codex](https://www.npmjs.com/package/@ccusage/codex) - Codex Compatibility Wrapper
 
 Compatibility wrapper for OpenAI Codex usage. Prefer `ccusage codex` or `ccusage codex daily`.
 
-### 🚀 [@ccusage/opencode](https://www.npmjs.com/package/@ccusage/opencode) - OpenCode Usage Analyzer
+### 🚀 [@ccusage/opencode](https://www.npmjs.com/package/@ccusage/opencode) - OpenCode Compatibility Wrapper
 
 Compatibility wrapper for [OpenCode](https://github.com/opencode-ai/opencode) usage. Prefer `ccusage opencode`.
 
-### 🥧 [@ccusage/pi](https://www.npmjs.com/package/@ccusage/pi) - Pi-agent Usage Analyzer
+### 🥧 [@ccusage/pi](https://www.npmjs.com/package/@ccusage/pi) - pi-agent Compatibility Wrapper
 
 Compatibility wrapper for [pi-agent](https://github.com/badlogic/pi-mono) usage. Prefer `ccusage pi`.
 
-### ⚡ [@ccusage/amp](https://www.npmjs.com/package/@ccusage/amp) - Amp Usage Analyzer
+### ⚡ [@ccusage/amp](https://www.npmjs.com/package/@ccusage/amp) - Amp Compatibility Wrapper
 
 Compatibility wrapper for [Amp](https://ampcode.com/) usage. Prefer `ccusage amp`.
 
@@ -80,37 +80,37 @@ npx @ccusage/amp@latest         # Deprecated wrapper for: ccusage amp
 
 ```bash
 # Basic usage
-npx ccusage          # Show all detected sources by day (default)
-npx ccusage daily    # All detected sources by day
-npx ccusage weekly   # All detected sources by week
-npx ccusage monthly  # All detected sources by month
-npx ccusage session  # All detected sources by session
-npx ccusage blocks   # Claude Code 5-hour billing windows
-npx ccusage statusline  # Claude Code status line for hooks (Beta)
+bunx ccusage          # Show all detected sources by day (default)
+bunx ccusage daily    # All detected sources by day
+bunx ccusage weekly   # All detected sources by week
+bunx ccusage monthly  # All detected sources by month
+bunx ccusage session  # All detected sources by session
+bunx ccusage blocks   # Claude Code 5-hour billing windows
+bunx ccusage statusline  # Claude Code status line for hooks (Beta)
 
 # Source-focused reports and options
-npx ccusage claude daily --mode display
-npx ccusage codex daily --speed fast
-npx ccusage opencode weekly
-npx ccusage amp session
-npx ccusage pi daily --pi-path /path/to/sessions
+bunx ccusage claude daily --mode display
+bunx ccusage codex daily --speed fast
+bunx ccusage opencode weekly
+bunx ccusage amp session
+bunx ccusage pi daily --pi-path /path/to/sessions
 
 # Explicit unified report
-npx ccusage daily --all
+bunx ccusage daily --all
 
 # Filters and options
-npx ccusage daily --since 2025-05-25 --until 2025-05-30
-npx ccusage daily --json  # JSON output
-npx ccusage daily --timezone UTC  # Use UTC timezone
+bunx ccusage daily --since 2025-05-25 --until 2025-05-30
+bunx ccusage daily --json  # JSON output
+bunx ccusage daily --timezone UTC  # Use UTC timezone
 
 # Project analysis
-npx ccusage claude daily --instances  # Group Claude Code by project/instance
-npx ccusage claude daily --project myproject  # Filter to specific Claude project
-npx ccusage claude daily --instances --project myproject --json  # Combined usage
+bunx ccusage claude daily --instances  # Group Claude Code by project/instance
+bunx ccusage claude daily --project myproject  # Filter to specific Claude project
+bunx ccusage claude daily --instances --project myproject --json  # Combined usage
 
 # Compact mode for screenshots/sharing
-npx ccusage --compact  # Force compact table mode
-npx ccusage monthly --compact  # Compact monthly report
+bunx ccusage --compact  # Force compact table mode
+bunx ccusage monthly --compact  # Compact monthly report
 ```
 
 ## Features
