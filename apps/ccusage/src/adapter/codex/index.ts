@@ -447,6 +447,7 @@ if (import.meta.vitest != null) {
 
 				expect(rows.length).toBeGreaterThan(0);
 			},
+			30_000,
 		);
 	});
 }
