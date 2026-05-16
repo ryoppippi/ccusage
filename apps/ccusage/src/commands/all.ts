@@ -1,4 +1,5 @@
 import type { Args, Command } from 'gunshi';
+import type { ConfigData, ConfigMergeContext } from '../config-loader-tokens.ts';
 import { existsSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
@@ -67,7 +68,7 @@ type AllRow = {
 	agentBreakdowns?: AllRow[];
 };
 
-type AllOptions = {
+type BaseAllOptions = {
 	all?: boolean;
 	config?: string;
 	json?: boolean;
@@ -76,6 +77,10 @@ type AllOptions = {
 	timezone?: string;
 	compact?: boolean;
 	offline?: boolean;
+};
+
+type AllOptions = BaseAllOptions & {
+	agentOptions?: Partial<Record<AgentId, BaseAllOptions>>;
 };
 
 const agentIds = ['claude', 'codex', 'opencode', 'amp', 'pi'] as const satisfies AgentId[];
@@ -165,6 +170,32 @@ function isWithinRange(
 export function resolveAllAgents(options: AllOptions): AgentId[] {
 	void options;
 	return [...agentIds];
+}
+
+function mergeAllOptions(
+	kind: ReportKind,
+	ctx: ConfigMergeContext<BaseAllOptions>,
+	config: ConfigData | undefined,
+): AllOptions {
+	const baseOptions = mergeConfigWithArgs(ctx, config);
+	const agentOptions = Object.fromEntries(
+		agentIds.map((agent) => [
+			agent,
+			mergeConfigWithArgs(
+				{
+					values: ctx.values,
+					tokens: ctx.tokens,
+					name: `${agent} ${kind}`,
+				},
+				config,
+			),
+		]),
+	) as Partial<Record<AgentId, BaseAllOptions>>;
+
+	return {
+		...baseOptions,
+		agentOptions,
+	};
 }
 
 function getCodexSessionsPath(): string {
@@ -313,7 +344,7 @@ function aggregateRowsByPeriod(rows: AllRow[], getPeriod: (row: AllRow) => strin
 	})).sort((a, b) => compareStrings(a.period, b.period) || compareStrings(a.agent, b.agent));
 }
 
-async function loadClaudeRows(kind: ReportKind, options: AllOptions): Promise<AllRow[]> {
+async function loadClaudeRows(kind: ReportKind, options: BaseAllOptions): Promise<AllRow[]> {
 	const since = toCompactDate(normalizeDateFilter(options.since));
 	const until = toCompactDate(normalizeDateFilter(options.until));
 	const loaderOptions = {
@@ -386,6 +417,17 @@ type AllLoadProgress = {
 
 type AllLoadProgressState = 'loading' | 'succeeded' | 'failed';
 
+function getAgentOptions(options: AllOptions, agent: AgentId): BaseAllOptions {
+	return options.agentOptions?.[agent] ?? options;
+}
+
+function getAgentLoadContext(options: BaseAllOptions, context: AllLoadContext): AllLoadContext {
+	if (options.offline === true && context.pricingFetcher != null) {
+		return { ...context, pricingFetcher: undefined };
+	}
+	return context;
+}
+
 type CodexModelUsage = {
 	inputTokens: number;
 	cachedInputTokens: number;
@@ -430,7 +472,7 @@ function createCodexUsage(): CodexModelUsage {
 
 async function loadCodexRows(
 	kind: ReportKind,
-	options: AllOptions,
+	options: BaseAllOptions,
 	context: AllLoadContext,
 ): Promise<AllRow[]> {
 	const since = normalizeDateFilter(options.since);
@@ -513,7 +555,7 @@ async function loadCodexRows(
 
 async function loadOpenCodeRows(
 	kind: ReportKind,
-	options: AllOptions,
+	options: BaseAllOptions,
 	context: AllLoadContext,
 ): Promise<AllRow[]> {
 	const since = normalizeDateFilter(options.since);
@@ -565,7 +607,7 @@ async function loadOpenCodeRows(
 
 async function loadAmpRows(
 	kind: ReportKind,
-	options: AllOptions,
+	options: BaseAllOptions,
 	context: AllLoadContext,
 ): Promise<AllRow[]> {
 	const since = normalizeDateFilter(options.since);
@@ -618,7 +660,7 @@ async function loadAmpRows(
 	})).sort((a, b) => compareStrings(a.period, b.period));
 }
 
-async function loadPiRows(kind: ReportKind, options: AllOptions): Promise<AllRow[]> {
+async function loadPiRows(kind: ReportKind, options: BaseAllOptions): Promise<AllRow[]> {
 	const since = normalizeDateFilter(options.since);
 	const until = normalizeDateFilter(options.until);
 	const loaderOptions = {
@@ -681,7 +723,7 @@ async function loadPiRows(kind: ReportKind, options: AllOptions): Promise<AllRow
 async function loadAgentRows(
 	agent: AgentId,
 	kind: ReportKind,
-	options: AllOptions,
+	options: BaseAllOptions,
 	context: AllLoadContext,
 ): Promise<AllRow[]> {
 	context.progress?.start(agent);
@@ -698,7 +740,7 @@ async function loadAgentRows(
 async function loadAgentRowsWithoutProgress(
 	agent: AgentId,
 	kind: ReportKind,
-	options: AllOptions,
+	options: BaseAllOptions,
 	context: AllLoadContext,
 ): Promise<AllRow[]> {
 	switch (agent) {
@@ -722,7 +764,12 @@ async function loadAllRowsWithContext(
 	agents = resolveAllAgents(options),
 ): Promise<AllRow[]> {
 	const rows = (
-		await Promise.all(agents.map(async (agent) => loadAgentRows(agent, kind, options, context)))
+		await Promise.all(
+			agents.map(async (agent) => {
+				const agentOptions = getAgentOptions(options, agent);
+				return loadAgentRows(agent, kind, agentOptions, getAgentLoadContext(agentOptions, context));
+			}),
+		)
 	).flat();
 	if (kind === 'weekly') {
 		return aggregateRowsByPeriod(rows, (row) => getDateStringWeek(row.period, 1));
@@ -971,7 +1018,7 @@ function createAllCommand(kind: ReportKind, description: string): Command<typeof
 		toKebab: true,
 		async run(ctx) {
 			const config = loadConfig(ctx.values.config);
-			const mergedOptions = mergeConfigWithArgs(ctx, config);
+			const mergedOptions = mergeAllOptions(kind, ctx, config);
 			await runAllReport(kind, mergedOptions);
 		},
 	});
