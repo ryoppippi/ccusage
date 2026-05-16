@@ -1,289 +1,47 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
-
-## Monorepo Structure
-
-This is a monorepo containing multiple packages. For package-specific guidance, refer to the individual CLAUDE.md files:
-
-- **Main CLI Package**: @apps/ccusage/CLAUDE.md - Core ccusage CLI tool and library
-- **Codex CLI Package**: @apps/codex/CLAUDE.md - OpenAI Codex usage tracking CLI
-- **OpenCode CLI Package**: @apps/opencode/CLAUDE.md - OpenCode usage tracking CLI
-- **Documentation**: @docs/CLAUDE.md - VitePress-based documentation website
-
-Each package has its own development commands, dependencies, and specific guidelines. Always check the relevant package's CLAUDE.md when working within that package directory.
-
-### Apps Are Bundled
-
-All projects under `apps/` ship as bundled CLIs/binaries. Treat their runtime dependencies as bundled assets: list everything in each app's `devDependencies` (never `dependencies`) so the bundler owns the runtime payload.
-
-## Development Commands
-
-**Testing and Quality:**
-
-- `pnpm run test` - Run all tests (using vitest via pnpm, watch mode disabled)
-- `pnpm run format` - Format code with ESLint (writes changes)
-- `pnpm typecheck` - Type check with TypeScript
-
-**Build and Release:**
-
-- `pnpm run build` - Build distribution files with tsdown
-- `pnpm run release` - Full release workflow (lint + typecheck + test + build + version bump)
-
-**Development Usage:**
-
-- `pnpm run start daily` - Show daily usage report
-- `pnpm run start monthly` - Show monthly usage report
-- `pnpm run start session` - Show session-based usage report
-- `pnpm run start blocks` - Show 5-hour billing blocks usage report
-- `pnpm run start statusline` - Show compact status line (Beta)
-- `pnpm run start daily --json` - Show daily usage report in JSON format
-- `pnpm run start monthly --json` - Show monthly usage report in JSON format
-- `pnpm run start session --json` - Show session usage report in JSON format
-- `pnpm run start blocks --json` - Show blocks usage report in JSON format
-- `pnpm run start daily --mode <mode>` - Control cost calculation mode (auto/calculate/display)
-- `pnpm run start monthly --mode <mode>` - Control cost calculation mode (auto/calculate/display)
-- `pnpm run start session --mode <mode>` - Control cost calculation mode (auto/calculate/display)
-- `pnpm run start blocks --mode <mode>` - Control cost calculation mode (auto/calculate/display)
-- `pnpm run start blocks --active` - Show only active block with projections
-- `pnpm run start blocks --recent` - Show blocks from last 3 days (including active)
-- `pnpm run start blocks --token-limit <limit>` - Token limit for quota warnings (number or "max")
-- `node ./src/index.ts` - Direct execution for development
-
-**Cost Calculation Modes:**
-
-- `auto` (default) - Use pre-calculated costUSD when available, otherwise calculate from tokens
-- `calculate` - Always calculate costs from token counts using model pricing, ignore costUSD
-- `display` - Always use pre-calculated costUSD values, show 0 for missing costs
-
-**Environment Variables:**
-
-- `LOG_LEVEL` - Control logging verbosity (0=silent, 1=warn, 2=log, 3=info, 4=debug, 5=trace)
-  - Example: `LOG_LEVEL=0 pnpm run start daily` for silent output
-  - Useful for debugging or suppressing non-critical output
-
-**Multiple Claude Data Directories:**
-
-This tool supports multiple Claude data directories to handle different Claude Code installations:
-
-- **Default Behavior**: Automatically searches both `~/.config/claude/projects/` (new default) and `~/.claude/projects/` (old default)
-- **Environment Variable**: Set `CLAUDE_CONFIG_DIR` to specify custom path(s)
-  - Single path: `export CLAUDE_CONFIG_DIR="/path/to/claude"`
-  - Multiple paths: `export CLAUDE_CONFIG_DIR="/path/to/claude1,/path/to/claude2"`
-- **Data Aggregation**: Usage data from all valid directories is automatically combined
-- **Backward Compatibility**: Existing configurations continue to work without changes
-
-This addresses the breaking change in Claude Code where logs moved from `~/.claude` to `~/.config/claude`.
-
-## Architecture Overview
-
-This is a CLI tool that analyzes Claude Code usage data from local JSONL files stored in Claude data directories (supports both `~/.claude/projects/` and `~/.config/claude/projects/`). The architecture follows a clear separation of concerns:
-
-**Core Data Flow:**
-
-1. **Data Loading** (`data-loader.ts`) - Parses JSONL files from multiple Claude data directories, including pre-calculated costs
-2. **Token Aggregation** (`calculate-cost.ts`) - Utility functions for aggregating token counts and costs
-3. **Command Execution** (`commands/`) - CLI subcommands that orchestrate data loading and presentation
-4. **CLI Entry** (`index.ts`) - Gunshi-based CLI setup with subcommand routing
-
-**Output Formats:**
-
-- Table format (default): Pretty-printed tables with colors for terminal display
-- JSON format (`--json`): Structured JSON output for programmatic consumption
-
-**Key Data Structures:**
-
-- Raw usage data is parsed from JSONL with timestamp, token counts, and pre-calculated costs
-- Data is aggregated into daily summaries, monthly summaries, session summaries, or 5-hour billing blocks
-- **Important Note on Naming**: The term "session" in this codebase has two different meanings:
-  1. **Session Reports** (`pnpm run start session`): Groups usage by project directories. What we call "sessionId" in these reports is actually derived from the directory structure (project/directory)
-  2. **True Session ID**: The actual Claude Code session ID found in the `sessionId` field within JSONL entries and used as the filename ({sessionId}.jsonl)
-- File structure: `projects/{project}/{sessionId}.jsonl` where:
-  - `{project}` is the project directory name (used for grouping)
-  - `{sessionId}.jsonl` is the JSONL file named with the actual session ID from Claude Code
-  - Each JSONL file contains all usage entries for a single Claude Code session
-  - The sessionId in the filename matches the `sessionId` field inside the JSONL entries
-- 5-hour blocks group usage data by Claude's billing cycles with active block tracking
-
-**External Dependencies:**
-
-- Uses local timezone for date formatting
-- CLI built with `gunshi` framework, tables with `cli-table3`
-- **LiteLLM Integration**: Cost calculations depend on LiteLLM's pricing database for model pricing data
-
-## Git Commit and PR Conventions
-
-**Commit Message Format:**
-
-Follow the Conventional Commits specification with package/area prefixes:
-
-```
-<type>(<scope>): <subject>
-```
-
-**Scope Naming Rules:**
-
-- **Apps**: Use the app directory name
-  - `feat(ccusage):` - Changes to apps/ccusage
-  - `feat(codex):` - Features for apps/codex (if exists)
-
-- **Packages**: Use the package directory name
-  - `feat(terminal):` - Changes to packages/terminal
-  - `fix(ui):` - Fixes in packages/ui
-  - `refactor(core):` - Refactoring packages/core
-
-- **Documentation**: Use `docs` scope
-  - `docs:` or `docs(guide):` - Documentation updates
-  - `docs(api):` - API documentation changes
-
-- **Root-level changes**: No scope (preferred) or use `root`
-  - `chore:` - Root config updates
-  - `ci:` - CI/CD changes
-  - `feat:` - Root-level features
-  - `docs:` - Root documentation updates
-  - `build:` or `build(root):` - Root build system changes
-
-**Type Prefixes:**
-
-- `feat:` - New feature
-- `fix:` - Bug fix
-- `docs:` - Documentation only changes
-- `style:` - Code style changes (formatting, missing semi-colons, etc)
-- `refactor:` - Code change that neither fixes a bug nor adds a feature
-- `perf:` - Performance improvements
-- `test:` - Adding missing tests or correcting existing tests
-- `chore:` - Changes to the build process or auxiliary tools
-- `ci:` - CI/CD configuration changes
-- `revert:` - Reverting a previous commit
-
-**Examples:**
-
-```
-feat(ccusage): add support for Claude 4.1 models
-docs(guide): update installation instructions
-refactor(ccusage): extract cost calculation to separate module
-chore: update dependencies
-```
-
-**PR Title Convention:**
-
-PR titles should follow the same format as commit messages. When a PR contains multiple commits, the title should describe the main change:
-
-```
-feat(ccusage): implement session-based usage reports
-docs: comprehensive API documentation update
-```
-
-## Code Style Notes
-
-- Uses ESLint for linting and formatting with tab indentation and double quotes
-- TypeScript with strict mode and bundler module resolution
-- No console.log allowed except where explicitly disabled with eslint-disable
-- Error handling: silently skips malformed JSONL lines during parsing
-- File paths always use Node.js path utilities for cross-platform compatibility
-- **Import conventions**: Use `.ts` extensions for local file imports (e.g., `import { foo } from './utils.ts'`)
-
-**Bun API References:**
-
-- Bun runtime API documentation and type references are available locally in `node_modules/bun-types/`
-- Start with `node_modules/bun-types/README.md` and the relevant docs under `node_modules/bun-types/docs/`
-- Use `rg` against `node_modules/bun-types/` when checking Bun APIs used in this repo, especially `Bun.$`, `Bun.file()`, `Bun.write()`, `Bun.spawn()`, `Bun.argv`, `Bun.deepEquals()`, `Bun.file().writer()`, `Bun.stdout`, `Bun.stderr`, and `Bun.stringWidth()`
-
-**Error Handling:**
-
-- **Prefer @praha/byethrow Result type** over traditional try-catch for functional error handling
-- Use `Result.try()` for wrapping operations that may throw (JSON parsing, etc.)
-- Use `Result.isFailure()` for checking errors (more readable than `!Result.isSuccess()`)
-- Use early return pattern (`if (Result.isFailure(result)) continue;`) instead of ternary operators
-- For async operations: create wrapper function with `Result.try()` then call it
-- Keep traditional try-catch only for: file I/O with complex error handling, legacy code that's hard to refactor
-- Always use `Result.isFailure()` and `Result.isSuccess()` type guards for better code clarity
-
-**Naming Conventions:**
-
-- Variables: start with lowercase (camelCase) - e.g., `usageDataSchema`, `modelBreakdownSchema`
-- Types: start with uppercase (PascalCase) - e.g., `UsageData`, `ModelBreakdown`
-- Constants: can use UPPER_SNAKE_CASE - e.g., `DEFAULT_CLAUDE_CODE_PATH`
-- Internal files: use underscore prefix - e.g., `_types.ts`, `_utils.ts`, `_consts.ts`
-
-**Export Rules:**
-
-- **IMPORTANT**: Only export constants, functions, and types that are actually used by other modules
-- Internal/private constants that are only used within the same file should NOT be exported
-- Always check if a constant is used elsewhere before making it `export const` vs just `const`
-- This follows the principle of minimizing the public API surface area
-- Dependencies should always be added as `devDependencies` unless explicitly requested otherwise
-
-**Post-Code Change Workflow:**
-
-After making any code changes, ALWAYS run these commands in parallel:
-
-- `pnpm run format` - Auto-fix and format code with ESLint (includes linting)
-- `pnpm typecheck` - Type check with TypeScript
-- `pnpm run test` - Run all tests
-
-This ensures code quality and catches issues immediately after changes.
-
-## Documentation Guidelines
-
-**Screenshot Usage:**
-
-- **Placement**: Always place screenshots immediately after the main heading (H1) in documentation pages
-- **Purpose**: Provide immediate visual context to users before textual explanations
-- **Guides with Screenshots**:
-  - `/docs/guide/index.md` (What is ccusage) - Main usage screenshot
-  - `/docs/guide/daily-reports.md` - Daily report output screenshot
-  - `/docs/guide/live-monitoring.md` - Live monitoring dashboard screenshot
-- **Image Path**: Use relative paths like `/screenshot.png` for images stored in `/docs/public/`
-- **Alt Text**: Always include descriptive alt text for accessibility
-
-## Claude Models and Testing
-
-**Supported Claude 4 Models (as of 2025):**
-
-- `claude-sonnet-4-20250514` - Latest Claude 4 Sonnet model
-- `claude-opus-4-20250514` - Latest Claude 4 Opus model
-
-**Model Naming Convention:**
-
-- Pattern: `claude-{model-type}-{generation}-{date}`
-- Example: `claude-sonnet-4-20250514` (NOT `claude-4-sonnet-20250514`)
-- The generation number comes AFTER the model type
-
-**Testing Guidelines:**
-
-- **In-Source Testing Pattern**: This project uses in-source testing with `if (import.meta.vitest != null)` blocks
-- Tests are written directly in the same files as the source code, not in separate test files
-- Utility functions should include JSDoc explaining their purpose and focused tests covering their behavior
-- Vitest globals (`describe`, `it`, `expect`) are available automatically without imports
-- **IMPORTANT**: DO NOT use `await import()` dynamic imports anywhere in the codebase - this causes tree-shaking issues and should be avoided entirely
-- **ESPECIALLY**: Never use dynamic imports in vitest test blocks - this is particularly problematic for test execution
-- **Vitest globals are enabled**: Use `describe`, `it`, `expect` directly without any imports since globals are configured
-- Mock data is created using `fs-fixture` with `createFixture()` for Claude data directory simulation
-- CLI integration tests that exercise human-readable table output must use file snapshots (`toMatchFileSnapshot`) so layout and responsive behavior are reviewed for every affected agent/report combination
-- Use `vi.stubEnv()` for environment variables in Vitest tests instead of mutating `process.env` directly
-- All test files must use current Claude 4 models, not outdated Claude 3 models
-- Test coverage should include both Sonnet and Opus models for comprehensive validation
-- Model names in tests must exactly match LiteLLM's pricing database entries
-- When adding new model tests, verify the model exists in LiteLLM before implementation
-- Tests depend on real pricing data from LiteLLM - failures may indicate model availability issues
-
-**LiteLLM Integration Notes:**
-
-- Cost calculations require exact model name matches with LiteLLM's database
-- Test failures often indicate model names don't exist in LiteLLM's pricing data
-- Future model updates require checking LiteLLM compatibility first
-- The application cannot calculate costs for models not supported by LiteLLM
-
-# Tips for Claude Code
-
-- do not use console.log. use logger.ts instead
-- **CRITICAL VITEST REMINDER**: Vitest globals are enabled - use `describe`, `it`, `expect` directly WITHOUT imports. NEVER use `await import()` dynamic imports anywhere, especially in test blocks.
-
-# important-instruction-reminders
-
-Do what has been asked; nothing more, nothing less.
-NEVER create files unless they're absolutely necessary for achieving your goal.
-ALWAYS prefer editing an existing file to creating a new one.
-NEVER proactively create documentation files (\*.md) or README files. Only create documentation files if explicitly requested by the User.
-Dependencies should always be added as devDependencies unless explicitly requested otherwise.
+This file points agents at the right repo-local skills and keeps only the guidance that should always be visible.
+
+## Skill Routing
+
+Use these skills before working in this repository:
+
+- `ccusage-development` - monorepo layout, bundled CLI packaging, commands, code style, dependency policy, and post-change checks.
+- `ccusage-testing` - in-source Vitest patterns, fixtures, snapshots, Claude model names, and LiteLLM pricing test rules.
+- `fs-fixture` - disposable filesystem trees for tests with `createFixture()` and local README lookup.
+- `ccusage-agent-sources` - Claude Code, Codex, OpenCode, Amp, and pi-agent log locations, token mappings, cost rules, and CLI behavior.
+- `ccusage-docs` - VitePress docs structure, screenshot placement, accessibility, and markdown linting conventions.
+- `typescript-style` - TypeScript typing with `satisfies`, `as const satisfies`, and safer type suppressions.
+- `byethrow` - `@praha/byethrow` Result-based error handling.
+- `use-gunshi-cli` - Gunshi command definitions and CLI conventions.
+- `bun-api-reference` - local Bun runtime API docs and type references under `node_modules/bun-types`.
+- `tdd` - Red-Green-Refactor workflow for logic changes.
+- `bun-cpu-profile` - Bun CPU profiling and branch-vs-main performance comparisons.
+- `reduce-similarities` - AST-based duplicate TypeScript/JavaScript detection with similarity-ts.
+- `cmux-debug` - terminal UI and responsive table verification in cmux.
+- `pr-ai-review-workflow` - PR review loops with `gh`: request AI/code reviewers, wait for comments, reply to inline review comments, and push small follow-up commits.
+- `fix-ci` - diagnose and fix failing GitHub Actions checks with `gh`, then push small follow-up commits.
+
+## Monorepo Packages
+
+Check the nearest package-specific `CLAUDE.md` before editing package code:
+
+- `apps/ccusage/CLAUDE.md` - main Claude Code usage CLI and library
+- `apps/codex/CLAUDE.md` - Codex usage tracking CLI
+- `apps/opencode/CLAUDE.md` - OpenCode usage tracking CLI
+- `apps/amp/CLAUDE.md` - Amp usage tracking CLI
+- `apps/pi/CLAUDE.md` - pi-agent usage tracking CLI
+- `docs/CLAUDE.md` - VitePress documentation site
+
+## Always-On Reminders
+
+- The canonical user-facing CLI is `ccusage` with agent subcommands such as `ccusage amp`, `ccusage codex`, `ccusage opencode`, and `ccusage pi`.
+- Standalone agent binaries such as `ccusage-amp`, `ccusage-codex`, `ccusage-opencode`, and `ccusage-pi` are deprecated compatibility wrappers. Do not add new docs, tests, or features that promote them as the primary interface.
+- Agent apps are still bundled runtime payloads. Put runtime libraries in each app's `devDependencies` unless explicitly requested otherwise. Deprecated wrapper packages may keep install-time dependencies such as `ccusage` in `dependencies`.
+- Use `logger.ts` instead of `console.log`.
+- Use `.ts` extensions for local imports.
+- Do not use dynamic imports anywhere, especially in Vitest blocks.
+- Vitest globals are enabled; use `describe`, `it`, `expect`, and `vi` without importing them.
+- After code changes, run `pnpm run format`, `pnpm typecheck`, and `pnpm run test`.
+- PR branches are squash-merged by default; prefer stacked, small, revertable follow-up commits over `git commit --amend` unless explicitly requested.
+- Do what has been asked, nothing more. Do not proactively create documentation files unless explicitly requested.

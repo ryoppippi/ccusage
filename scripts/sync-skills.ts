@@ -7,12 +7,12 @@ const checkMode = process.argv.includes('--check');
 
 let hasErrors = false;
 
-const CLAUDE_SKILLS = join(ROOT, '.claude', 'skills');
-const SKILL_TARGETS = [{ dir: join(ROOT, '.agents', 'skills'), label: '.agents/skills' }];
+const AGENTS_SKILLS = join(ROOT, '.agents', 'skills');
+const SKILL_TARGETS = [{ dir: join(ROOT, '.claude', 'skills'), label: '.claude/skills' }];
 
-const claudeSkillDirs = await readdir(CLAUDE_SKILLS);
+const agentSkillDirs = await readdir(AGENTS_SKILLS);
 
-const expectedTarget = (name: string) => `../../.claude/skills/${name}`;
+const expectedTarget = (name: string) => `../../.agents/skills/${name}`;
 
 for (const { dir, label } of SKILL_TARGETS) {
 	if (!checkMode) {
@@ -21,8 +21,8 @@ for (const { dir, label } of SKILL_TARGETS) {
 	const entries = await readdir(dir).catch(() => [] as string[]);
 
 	const linkedSkills = await Promise.all(
-		claudeSkillDirs.map(async (name) => {
-			const s = await lstat(join(CLAUDE_SKILLS, name));
+		agentSkillDirs.map(async (name) => {
+			const s = await lstat(join(AGENTS_SKILLS, name));
 			if (!s.isDirectory()) {
 				return null;
 			}
@@ -90,7 +90,7 @@ for (const { dir, label } of SKILL_TARGETS) {
 	}
 
 	if (!checkMode) {
-		console.log(`Synced ${validSkills.length} skills: .claude/skills/ -> ${label}/ (symlinks)`);
+		console.log(`Synced ${validSkills.length} skills: .agents/skills/ -> ${label}/ (symlinks)`);
 	}
 }
 
