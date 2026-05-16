@@ -89,6 +89,12 @@ pnpm run test
 
 For package-local work, run the narrower package scripts during iteration when they are faster, then run the root workflow before finishing.
 
+## Performance and CLI Output
+
+Use the `bun-cpu-profile` skill for performance optimization, Bun CPU profiles, hyperfine A/B comparisons, and branch-vs-main profiling.
+
+Use the `cmux-debug` skill when validating terminal rendering, responsive tables, long-running CLI output, or output that depends on real terminal geometry.
+
 ## Commit and PR Names
 
 Use the `commit` skill for commit structure, Conventional Commits, scope selection, and detailed commit message requirements.
