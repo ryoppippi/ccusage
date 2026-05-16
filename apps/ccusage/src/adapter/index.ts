@@ -6,11 +6,12 @@ import type {
 	ReportKind,
 } from './types.ts';
 import { compareStrings } from '@ccusage/internal/sort';
-import { detectAmp, loadAmpRows } from './amp.ts';
-import { detectClaude, loadClaudeRows } from './claude.ts';
-import { detectCodex, loadCodexRows } from './codex.ts';
-import { detectOpenCode, loadOpenCodeRows } from './opencode.ts';
-import { detectPi, loadPiRows } from './pi.ts';
+import { Result } from '@praha/byethrow';
+import { detectAmp, loadAmpRows } from './amp/index.ts';
+import { detectClaude, loadClaudeRows } from './claude/index.ts';
+import { detectCodex, loadCodexRows } from './codex/index.ts';
+import { detectOpenCode, loadOpenCodeRows } from './opencode/index.ts';
+import { detectPi, loadPiRows } from './pi/index.ts';
 import { createEmptyRow, getRowAgents } from './shared.ts';
 import { agentIds } from './types.ts';
 
@@ -27,13 +28,15 @@ export function resolveAllAgents(options: AdapterOptions): AgentId[] {
 
 export async function detectAllAgents(options: AdapterOptions): Promise<AgentId[]> {
 	void options;
-	const [claude, codex, opencode, amp, pi] = await Promise.all([
-		detectClaude(),
-		detectCodex(),
-		detectOpenCode(),
-		detectAmp(),
-		detectPi(),
-	]);
+	const [claude, codex, opencode, amp, pi] = resolveDetectedAgents(
+		await Promise.allSettled([
+			detectClaude(),
+			detectCodex(),
+			detectOpenCode(),
+			detectAmp(),
+			detectPi(),
+		]),
+	);
 	const detected: AgentId[] = [];
 	if (claude) {
 		detected.push('claude');
@@ -51,6 +54,18 @@ export async function detectAllAgents(options: AdapterOptions): Promise<AgentId[
 		detected.push('pi');
 	}
 	return detected;
+}
+
+function resolveDetectedAgents(
+	results: Array<PromiseSettledResult<boolean>>,
+): [boolean, boolean, boolean, boolean, boolean] {
+	return [
+		results[0]?.status === 'fulfilled' ? results[0].value : false,
+		results[1]?.status === 'fulfilled' ? results[1].value : false,
+		results[2]?.status === 'fulfilled' ? results[2].value : false,
+		results[3]?.status === 'fulfilled' ? results[3].value : false,
+		results[4]?.status === 'fulfilled' ? results[4].value : false,
+	];
 }
 
 export function aggregateRowsByPeriod(
@@ -104,14 +119,16 @@ export async function loadAgentRows(
 	context: AdapterContext,
 ): Promise<AgentUsageRow[]> {
 	context.progress?.start(agent);
-	try {
-		const rows = await loadAgentRowsWithoutProgress(agent, kind, options, context);
-		context.progress?.succeed(agent, rows.length);
-		return rows;
-	} catch (error) {
-		context.progress?.fail(agent, error);
-		throw error;
+	const result = await Result.try({
+		try: loadAgentRowsWithoutProgress(agent, kind, options, context),
+		catch: (error) => error,
+	});
+	if (Result.isFailure(result)) {
+		context.progress?.fail(agent, result.error);
+		throw result.error;
 	}
+	context.progress?.succeed(agent, result.value.length);
+	return result.value;
 }
 
 async function loadAgentRowsWithoutProgress(
@@ -132,14 +149,31 @@ async function loadAgentRowsWithoutProgress(
 		case 'pi':
 			return loadPiRows(kind, options);
 	}
+	return agent satisfies never;
 }
 
 if (import.meta.vitest != null) {
 	describe('agent adapter aggregation', () => {
+		it('treats rejected detector results as not detected', () => {
+			expect(
+				resolveDetectedAgents([
+					{ status: 'fulfilled', value: true },
+					{ status: 'rejected', reason: new Error('missing config') },
+					{ status: 'fulfilled', value: false },
+					{ status: 'fulfilled', value: true },
+					{ status: 'rejected', reason: new Error('permission denied') },
+				]),
+			).toEqual([true, false, false, true, false]);
+		});
+
 		it('groups rows by period and keeps per-agent breakdown rows', () => {
 			const rows = aggregateRowsByPeriod(
 				[
-					{ ...createEmptyRow('2026-01-02', 'codex'), inputTokens: 10, modelsUsed: ['gpt-5'] },
+					{
+						...createEmptyRow('2026-01-02', 'codex'),
+						inputTokens: 10,
+						modelsUsed: ['sonnet-4'],
+					},
 					{
 						...createEmptyRow('2026-01-02', 'claude'),
 						outputTokens: 5,
@@ -155,7 +189,7 @@ if (import.meta.vitest != null) {
 				agent: 'all',
 				inputTokens: 10,
 				outputTokens: 5,
-				modelsUsed: ['gpt-5', 'opus-4'],
+				modelsUsed: ['opus-4', 'sonnet-4'],
 				metadata: { agents: ['claude', 'codex'] },
 			});
 			expect(rows[0]!.agentBreakdowns).toHaveLength(2);

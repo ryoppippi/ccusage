@@ -1,3 +1,4 @@
+import { statSync } from 'node:fs';
 import { mkdir, mkdtemp, readdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -50,6 +51,14 @@ export async function collectFilesRecursive(
 	return files.sort(compareStrings);
 }
 
+export function isDirectorySyncSafe(pathname: string): boolean {
+	try {
+		return statSync(pathname).isDirectory();
+	} catch {
+		return false;
+	}
+}
+
 if (import.meta.vitest != null) {
 	describe('collectFilesRecursive', () => {
 		it('collects matching files recursively in stable order', async () => {
@@ -80,6 +89,21 @@ if (import.meta.vitest != null) {
 			});
 
 			expect(files).toEqual([]);
+		});
+	});
+
+	describe('isDirectorySyncSafe', () => {
+		it('returns true for directories and false for files or missing paths', async () => {
+			const directory = await mkdtemp(path.join(tmpdir(), 'ccusage-fs-'));
+			try {
+				await writeFile(path.join(directory, 'file.txt'), 'file');
+
+				expect(isDirectorySyncSafe(directory)).toBe(true);
+				expect(isDirectorySyncSafe(path.join(directory, 'file.txt'))).toBe(false);
+				expect(isDirectorySyncSafe(path.join(directory, 'missing'))).toBe(false);
+			} finally {
+				await rm(directory, { force: true, recursive: true });
+			}
 		});
 	});
 }

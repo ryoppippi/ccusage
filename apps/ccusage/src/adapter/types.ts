@@ -41,7 +41,13 @@ export type AdapterContext = {
 	progress?: AdapterProgress;
 };
 
-export const agentIds = ['claude', 'codex', 'opencode', 'amp', 'pi'] as const satisfies AgentId[];
+export const agentIds = [
+	'claude',
+	'codex',
+	'opencode',
+	'amp',
+	'pi',
+] as const satisfies readonly AgentId[];
 export const agentLabels = {
 	all: 'All',
 	claude: 'Claude',

@@ -1,6 +1,6 @@
 import type { LiteLLMModelPricing } from '@ccusage/internal/pricing';
 import type { IndexedWorkerItem } from '@ccusage/internal/workers';
-import type { AdapterContext, AdapterOptions, AgentUsageRow, ReportKind } from './types.ts';
+import type { AdapterContext, AdapterOptions, AgentUsageRow, ReportKind } from '../types.ts';
 import { readFile, stat } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
@@ -13,15 +13,15 @@ import { compareStrings } from '@ccusage/internal/sort';
 import { chunkIndexedItemsByFileSize, getFileWorkerThreadCount } from '@ccusage/internal/workers';
 import { Result } from '@praha/byethrow';
 import { createFixture } from 'fs-fixture';
-import { logger } from '../logger.ts';
-import { prefetchCodexPricing } from './codex-pricing-macro.ts' with { type: 'macro' };
+import { logger } from '../../logger.ts';
 import {
 	createEmptyRow,
 	formatDateKey,
 	formatMonthKey,
 	isWithinRange,
 	normalizeDateFilter,
-} from './shared.ts';
+} from '../shared.ts';
+import { prefetchCodexPricing } from './pricing-macro.ts' with { type: 'macro' };
 
 type RawUsage = {
 	input_tokens: number;
@@ -1036,43 +1036,41 @@ if (import.meta.vitest != null) {
 
 		it('loads and aggregates Codex JSONL usage inside ccusage adapter', async () => {
 			await using fixture = await createFixture({
-				codex: {
-					sessions: {
-						'project-1.jsonl': [
-							JSON.stringify({
-								timestamp: '2026-01-01T00:00:00.000Z',
-								type: 'turn_context',
-								payload: { model: 'gpt-5' },
-							}),
-							JSON.stringify({
-								timestamp: '2026-01-01T00:00:01.000Z',
-								type: 'event_msg',
-								payload: {
-									type: 'token_count',
-									info: {
-										last_token_usage: {
-											input_tokens: 100,
-											cached_input_tokens: 20,
-											output_tokens: 10,
-											reasoning_output_tokens: 0,
-											total_tokens: 110,
-										},
-										total_token_usage: {
-											input_tokens: 100,
-											cached_input_tokens: 20,
-											output_tokens: 10,
-											reasoning_output_tokens: 0,
-											total_tokens: 110,
-										},
+				sessions: {
+					'project-1.jsonl': [
+						JSON.stringify({
+							timestamp: '2026-01-01T00:00:00.000Z',
+							type: 'turn_context',
+							payload: { model: 'gpt-5' },
+						}),
+						JSON.stringify({
+							timestamp: '2026-01-01T00:00:01.000Z',
+							type: 'event_msg',
+							payload: {
+								type: 'token_count',
+								info: {
+									last_token_usage: {
+										input_tokens: 100,
+										cached_input_tokens: 20,
+										output_tokens: 10,
+										reasoning_output_tokens: 0,
+										total_tokens: 110,
+									},
+									total_token_usage: {
+										input_tokens: 100,
+										cached_input_tokens: 20,
+										output_tokens: 10,
+										reasoning_output_tokens: 0,
+										total_tokens: 110,
 									},
 								},
-							}),
-						].join('\n'),
-					},
+							},
+						}),
+					].join('\n'),
 				},
 			});
 
-			vi.stubEnv('CODEX_HOME', fixture.getPath('codex'));
+			vi.stubEnv('CODEX_HOME', fixture.path);
 			const rows = await loadCodexRows(
 				'daily',
 				{ offline: true, timezone: 'UTC' },
@@ -1105,36 +1103,34 @@ if (import.meta.vitest != null) {
 
 		it('keeps Codex-specific JSON report totals on the fast adapter path', async () => {
 			await using fixture = await createFixture({
-				codex: {
-					sessions: {
-						'project-1.jsonl': [
-							JSON.stringify({
-								timestamp: '2026-01-02T00:00:00.000Z',
-								type: 'turn_context',
-								payload: { model: 'gpt-5' },
-							}),
-							JSON.stringify({
-								timestamp: '2026-01-02T00:00:01.000Z',
-								type: 'event_msg',
-								payload: {
-									type: 'token_count',
-									info: {
-										last_token_usage: {
-											input_tokens: 120,
-											cached_input_tokens: 30,
-											output_tokens: 11,
-											reasoning_output_tokens: 3,
-											total_tokens: 131,
-										},
+				sessions: {
+					'project-1.jsonl': [
+						JSON.stringify({
+							timestamp: '2026-01-02T00:00:00.000Z',
+							type: 'turn_context',
+							payload: { model: 'gpt-5' },
+						}),
+						JSON.stringify({
+							timestamp: '2026-01-02T00:00:01.000Z',
+							type: 'event_msg',
+							payload: {
+								type: 'token_count',
+								info: {
+									last_token_usage: {
+										input_tokens: 120,
+										cached_input_tokens: 30,
+										output_tokens: 11,
+										reasoning_output_tokens: 3,
+										total_tokens: 131,
 									},
 								},
-							}),
-						].join('\n'),
-					},
+							},
+						}),
+					].join('\n'),
 				},
 			});
 
-			vi.stubEnv('CODEX_HOME', fixture.getPath('codex'));
+			vi.stubEnv('CODEX_HOME', fixture.path);
 			const rows = await loadCodexReportRows(
 				'daily',
 				{ offline: true, timezone: 'UTC' },

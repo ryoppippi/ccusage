@@ -1,4 +1,10 @@
-import type { AgentId, AgentUsageRow } from './types.ts';
+import type {
+	AdapterContext,
+	AdapterOptions,
+	AgentId,
+	AgentUsageRow,
+	ReportKind,
+} from './types.ts';
 import { compareStrings } from '@ccusage/internal/sort';
 import { agentIds } from './types.ts';
 
@@ -172,6 +178,116 @@ export function sortRows(rows: AgentUsageRow[]): AgentUsageRow[] {
 	);
 }
 
+export type AgentLogUsage = {
+	inputTokens: number;
+	outputTokens: number;
+	cacheCreationTokens: number;
+	cacheReadTokens: number;
+	totalTokens?: number;
+	totalCost: number;
+};
+
+export type AgentLogLoaderConfig<Entry> = {
+	agent: AgentId;
+	loadEntries: (options: AdapterOptions, context: AdapterContext) => Promise<Entry[]>;
+	getTimestamp: (entry: Entry) => string;
+	getSessionId: (entry: Entry) => string;
+	getModels: (entry: Entry) => Iterable<string>;
+	getUsage: (entry: Entry) => AgentLogUsage;
+	getMetadata?: (entries: Entry[], kind: ReportKind) => Record<string, unknown> | undefined;
+};
+
+export type AgentAdapterDefinition<TSource, TParsed, TRow = AgentUsageRow> = {
+	agent: AgentId;
+	detect: (options: AdapterOptions) => Promise<boolean>;
+	discover: (options: AdapterOptions) => Promise<TSource[]>;
+	parse: (
+		source: TSource,
+		options: AdapterOptions,
+		context: AdapterContext,
+	) => Promise<TParsed[]> | TParsed[];
+	aggregate: (
+		parsed: TParsed[],
+		kind: ReportKind,
+		options: AdapterOptions,
+		context: AdapterContext,
+	) => Promise<TRow[]> | TRow[];
+};
+
+export function defineAgentAdapter<TSource, TParsed, TRow = AgentUsageRow>(
+	definition: AgentAdapterDefinition<TSource, TParsed, TRow>,
+): AgentAdapterDefinition<TSource, TParsed, TRow> {
+	return definition;
+}
+
+export function defineAgentLogLoader<Entry>(
+	config: AgentLogLoaderConfig<Entry>,
+): (
+	kind: ReportKind,
+	options: AdapterOptions,
+	context: AdapterContext,
+) => Promise<AgentUsageRow[]> {
+	return async (kind, options, context) => {
+		const since = normalizeDateFilter(options.since);
+		const until = normalizeDateFilter(options.until);
+		const entries = await config.loadEntries(options, context);
+		const groups = new Map<
+			string,
+			{
+				row: AgentUsageRow;
+				models: Set<string>;
+				entries: Entry[];
+			}
+		>();
+
+		for (const entry of entries) {
+			const date = formatDateKey(config.getTimestamp(entry), options.timezone);
+			if (!isWithinRange(date, since, until)) {
+				continue;
+			}
+
+			const period =
+				kind === 'session'
+					? config.getSessionId(entry)
+					: kind === 'monthly'
+						? formatMonthKey(config.getTimestamp(entry), options.timezone)
+						: date;
+			const group = groups.get(period) ?? {
+				row: createEmptyRow(period, config.agent),
+				models: new Set(),
+				entries: [],
+			};
+			if (!groups.has(period)) {
+				groups.set(period, group);
+			}
+
+			const usage = config.getUsage(entry);
+			group.row.inputTokens += usage.inputTokens;
+			group.row.outputTokens += usage.outputTokens;
+			group.row.cacheCreationTokens += usage.cacheCreationTokens;
+			group.row.cacheReadTokens += usage.cacheReadTokens;
+			group.row.totalTokens +=
+				usage.totalTokens ??
+				usage.inputTokens + usage.outputTokens + usage.cacheCreationTokens + usage.cacheReadTokens;
+			group.row.totalCost += usage.totalCost;
+			addModels(group.models, config.getModels(entry));
+			group.entries.push(entry);
+		}
+
+		return Array.from(groups.values(), ({ row, models, entries }) => ({
+			...row,
+			modelsUsed: Array.from(models).sort(compareStrings),
+			metadata: config.getMetadata?.(entries, kind),
+		})).sort((a, b) => compareStrings(a.period, b.period));
+	};
+}
+
+function addModels(target: Set<string>, models: Iterable<string>): void {
+	for (const model of models) {
+		target.add(model);
+	}
+}
+
 if (import.meta.vitest != null) {
 	describe('adapter date formatting', () => {
 		it('formats cached date and month keys', () => {
@@ -189,6 +305,92 @@ if (import.meta.vitest != null) {
 			const second = safeTimeZone();
 
 			expect(second).toBe(first);
+		});
+	});
+
+	describe('defineAgentLogLoader', () => {
+		it('groups log entries into dated usage rows', async () => {
+			const loadRows = defineAgentLogLoader({
+				agent: 'amp',
+				loadEntries: async () => [
+					{
+						timestamp: '2026-05-16T01:00:00.000Z',
+						sessionId: 'thread-a',
+						model: 'haiku-4-5',
+						inputTokens: 10,
+						outputTokens: 3,
+						credits: 1.5,
+					},
+					{
+						timestamp: '2026-05-16T02:00:00.000Z',
+						sessionId: 'thread-a',
+						model: 'opus-4-7',
+						inputTokens: 4,
+						outputTokens: 2,
+						credits: 2,
+					},
+				],
+				getTimestamp: (entry) => entry.timestamp,
+				getSessionId: (entry) => entry.sessionId,
+				getModels: (entry) => [entry.model],
+				getUsage: (entry) => ({
+					inputTokens: entry.inputTokens,
+					outputTokens: entry.outputTokens,
+					cacheCreationTokens: 0,
+					cacheReadTokens: 0,
+					totalCost: 0,
+				}),
+				getMetadata: (entries) => ({
+					credits: entries.reduce((total, entry) => total + entry.credits, 0),
+				}),
+			});
+
+			await expect(loadRows('daily', { timezone: 'UTC' }, {})).resolves.toMatchObject([
+				{
+					period: '2026-05-16',
+					agent: 'amp',
+					modelsUsed: ['haiku-4-5', 'opus-4-7'],
+					inputTokens: 14,
+					outputTokens: 5,
+					totalTokens: 19,
+					metadata: { credits: 3.5 },
+				},
+			]);
+		});
+
+		it('uses session identifiers for session reports', async () => {
+			const loadRows = defineAgentLogLoader({
+				agent: 'pi',
+				loadEntries: async () => [
+					{
+						timestamp: '2026-05-16T01:00:00.000Z',
+						sessionId: 'session-a',
+						model: '[pi] gpt-5.4',
+						totalTokens: 7,
+					},
+				],
+				getTimestamp: (entry) => entry.timestamp,
+				getSessionId: (entry) => entry.sessionId,
+				getModels: (entry) => [entry.model],
+				getUsage: (entry) => ({
+					inputTokens: 1,
+					outputTokens: 2,
+					cacheCreationTokens: 0,
+					cacheReadTokens: 3,
+					totalTokens: entry.totalTokens,
+					totalCost: 0.01,
+				}),
+			});
+
+			await expect(loadRows('session', { timezone: 'UTC' }, {})).resolves.toMatchObject([
+				{
+					period: 'session-a',
+					agent: 'pi',
+					modelsUsed: ['[pi] gpt-5.4'],
+					totalTokens: 7,
+					totalCost: 0.01,
+				},
+			]);
 		});
 	});
 }

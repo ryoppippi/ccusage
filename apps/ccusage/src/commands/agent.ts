@@ -379,20 +379,55 @@ async function runAgentReport(
 	}
 }
 
-export function createAgentCommand(
-	agent: AgentId,
+function createCommonAgentCommand(
+	agent: Exclude<AgentId, 'pi'>,
 	kind: AgentCommandKind,
 	description: string,
-): Command<Args> {
+): Command<typeof commonAgentArgs> {
 	return define({
 		name: kind,
 		description,
-		args: agent === 'pi' ? piAgentArgs : commonAgentArgs,
+		args: commonAgentArgs,
 		toKebab: true,
 		async run(ctx) {
 			await runAgentReport(agent, kind, ctx.values);
 		},
 	});
+}
+
+function createPiAgentCommand(
+	kind: AgentCommandKind,
+	description: string,
+): Command<typeof piAgentArgs> {
+	return define({
+		name: kind,
+		description,
+		args: piAgentArgs,
+		toKebab: true,
+		async run(ctx) {
+			await runAgentReport('pi', kind, ctx.values);
+		},
+	});
+}
+
+export function createAgentCommand(
+	agent: 'pi',
+	kind: AgentCommandKind,
+	description: string,
+): Command<typeof piAgentArgs>;
+export function createAgentCommand(
+	agent: Exclude<AgentId, 'pi'>,
+	kind: AgentCommandKind,
+	description: string,
+): Command<typeof commonAgentArgs>;
+export function createAgentCommand(
+	agent: AgentId,
+	kind: AgentCommandKind,
+	description: string,
+): Command<typeof commonAgentArgs> | Command<typeof piAgentArgs> {
+	return agent === 'pi'
+		? createPiAgentCommand(kind, description)
+		: createCommonAgentCommand(agent, kind, description);
 }
 
 if (import.meta.vitest != null) {
@@ -402,7 +437,7 @@ if (import.meta.vitest != null) {
 				{
 					period: '2026-05-14',
 					agent: 'opencode',
-					modelsUsed: ['gpt-5'],
+					modelsUsed: ['sonnet-4'],
 					inputTokens: 10,
 					outputTokens: 20,
 					cacheCreationTokens: 30,
@@ -422,7 +457,7 @@ if (import.meta.vitest != null) {
 						cacheReadTokens: 40,
 						totalTokens: 100,
 						totalCost: 1.25,
-						modelsUsed: ['gpt-5'],
+						modelsUsed: ['sonnet-4'],
 					},
 				],
 				totals: {
@@ -441,7 +476,7 @@ if (import.meta.vitest != null) {
 				{
 					period: '2026-05',
 					agent: 'amp',
-					modelsUsed: ['haiku-4-5'],
+					modelsUsed: ['opus-4'],
 					inputTokens: 10,
 					outputTokens: 20,
 					cacheCreationTokens: 30,
@@ -463,7 +498,7 @@ if (import.meta.vitest != null) {
 						totalTokens: 100,
 						credits: 2.5,
 						totalCost: 1.25,
-						modelsUsed: ['haiku-4-5'],
+						modelsUsed: ['opus-4'],
 					},
 				],
 				totals: {

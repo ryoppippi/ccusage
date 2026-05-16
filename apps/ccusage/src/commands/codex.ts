@@ -9,7 +9,7 @@ import {
 } from '@ccusage/terminal/table';
 import { define } from 'gunshi';
 import { formatDateCompact } from '../_date-utils.ts';
-import { loadCodexReportRows } from '../adapter/codex.ts';
+import { loadCodexReportRows } from '../adapter/codex/index.ts';
 import { logger, writeStdoutLine } from '../logger.ts';
 
 const codexArgs = {
@@ -265,7 +265,16 @@ if (import.meta.vitest != null) {
 					reasoningOutputTokens: 2,
 					totalTokens: 13,
 					costUSD: 0.5,
-					models: {},
+					models: {
+						'opus-4': {
+							inputTokens: 10,
+							cachedInputTokens: 4,
+							outputTokens: 3,
+							reasoningOutputTokens: 2,
+							totalTokens: 13,
+							isFallback: false,
+						},
+					},
 				},
 			]);
 
