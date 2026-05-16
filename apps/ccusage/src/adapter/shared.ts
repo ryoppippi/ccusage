@@ -21,13 +21,26 @@ export function normalizeDateFilter(value: string | undefined): string | undefin
 	if (value == null || value === '') {
 		return undefined;
 	}
-	if (/^\d{8}$/u.test(value)) {
-		return `${value.slice(0, 4)}-${value.slice(4, 6)}-${value.slice(6, 8)}`;
-	}
-	if (/^\d{4}-\d{2}-\d{2}$/u.test(value)) {
-		return value;
+	const normalized = /^\d{8}$/u.test(value)
+		? `${value.slice(0, 4)}-${value.slice(4, 6)}-${value.slice(6, 8)}`
+		: /^\d{4}-\d{2}-\d{2}$/u.test(value)
+			? value
+			: undefined;
+	if (normalized != null && isValidCalendarDate(normalized)) {
+		return normalized;
 	}
 	throw new Error(`Invalid date: ${value}. Use YYYY-MM-DD or YYYYMMDD.`);
+}
+
+function isValidCalendarDate(value: string): boolean {
+	const [year, month, day] = value.split('-').map(Number);
+	if (year == null || month == null || day == null) {
+		return false;
+	}
+	const date = new Date(Date.UTC(year, month - 1, day));
+	return (
+		date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day
+	);
 }
 
 export function toCompactDate(value: string | undefined): string | undefined {
@@ -122,7 +135,13 @@ function getDateTimeFormatter(timezone: string): Intl.DateTimeFormat {
 
 export function formatDateKey(timestamp: string, timezone?: string): string {
 	const tz = safeTimeZone(timezone);
-	const formatted = getDateFormatter(tz).format(new Date(timestamp));
+	const date = new Date(timestamp);
+	const formatter = getDateFormatter(tz);
+	const formatted = [
+		getDatePart(formatter, date, 'year'),
+		getDatePart(formatter, date, 'month'),
+		getDatePart(formatter, date, 'day'),
+	].join('-');
 	const cacheKey = `${tz}:${formatted}`;
 	const cached = dateKeyCache.get(cacheKey);
 	if (cached != null) {
@@ -135,8 +154,12 @@ export function formatDateKey(timestamp: string, timezone?: string): string {
 
 export function formatMonthKey(timestamp: string, timezone?: string): string {
 	const tz = safeTimeZone(timezone);
-	const [year, month] = getMonthFormatter(tz).format(new Date(timestamp)).split('-');
-	const formatted = `${year}-${month}`;
+	const date = new Date(timestamp);
+	const formatter = getMonthFormatter(tz);
+	const formatted = [
+		getDatePart(formatter, date, 'year'),
+		getDatePart(formatter, date, 'month'),
+	].join('-');
 	const cacheKey = `${tz}:${formatted}`;
 	const cached = monthKeyCache.get(cacheKey);
 	if (cached != null) {
@@ -145,6 +168,18 @@ export function formatMonthKey(timestamp: string, timezone?: string): string {
 
 	monthKeyCache.set(cacheKey, formatted);
 	return formatted;
+}
+
+function getDatePart(
+	formatter: Intl.DateTimeFormat,
+	date: Date,
+	type: Intl.DateTimeFormatPartTypes,
+): string {
+	const part = formatter.formatToParts(date).find((candidate) => candidate.type === type);
+	if (part == null) {
+		throw new Error(`Date part not found: ${type}`);
+	}
+	return part.value;
 }
 
 export function formatDateTime(timestamp: string, timezone?: string): string {
@@ -324,10 +359,44 @@ function addModels(target: Set<string>, models: Iterable<string>): void {
 
 if (import.meta.vitest != null) {
 	describe('adapter date formatting', () => {
+		afterEach(() => {
+			vi.unstubAllGlobals();
+		});
+
+		it('rejects impossible calendar date filters', () => {
+			expect(() => normalizeDateFilter('2026-02-31')).toThrow(
+				'Invalid date: 2026-02-31. Use YYYY-MM-DD or YYYYMMDD.',
+			);
+			expect(() => normalizeDateFilter('20261340')).toThrow(
+				'Invalid date: 20261340. Use YYYY-MM-DD or YYYYMMDD.',
+			);
+		});
+
 		it('formats cached date and month keys', () => {
 			expect(formatDateKey('2026-05-16T12:34:56.000Z', 'UTC')).toBe('2026-05-16');
 			expect(formatMonthKey('2026-05-16T12:34:56.000Z', 'UTC')).toBe('2026-05');
 			expect(formatDateKey('2026-05-16T23:34:56.000Z', 'Asia/Tokyo')).toBe('2026-05-17');
+		});
+
+		it('builds machine date keys from date parts rather than locale display text', () => {
+			const DateTimeFormat = Intl.DateTimeFormat;
+			class DateTimeFormatMock {
+				constructor(locale?: string | string[], options?: Intl.DateTimeFormatOptions) {
+					const formatter = new DateTimeFormat(locale, options);
+					return {
+						format: () => (options?.day == null ? '05/2026' : '05/16/2026'),
+						formatToParts: (date: Date) => formatter.formatToParts(date),
+						resolvedOptions: () => formatter.resolvedOptions(),
+					} as Intl.DateTimeFormat;
+				}
+			}
+			vi.stubGlobal('Intl', {
+				...Intl,
+				DateTimeFormat: DateTimeFormatMock,
+			});
+
+			expect(formatDateKey('2026-05-16T12:34:56.000Z', 'Etc/GMT+11')).toBe('2026-05-16');
+			expect(formatMonthKey('2026-05-16T12:34:56.000Z', 'Etc/GMT+11')).toBe('2026-05');
 		});
 
 		it('does not reuse one UTC hour cache entry across non-hour timezone date boundaries', () => {
