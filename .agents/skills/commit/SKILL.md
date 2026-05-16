@@ -35,6 +35,8 @@ Tiny commits are expected. A single review comment, one wording correction, one 
 
 Tiny does not mean incomplete. For moves, renames, or extractions, one commit must include both sides of the operation: remove or update the old location, add the new location, update references, and sync generated links if required. Never commit only the destination of a move while leaving the source/reference cleanup for a later commit.
 
+For concrete good and bad examples, read `references/revertable-commits.md`.
+
 ## Workflow
 
 1. **Analyse the changes above**: Review the git state already provided
@@ -155,26 +157,6 @@ git apply --reject -v patch_file.patch
 - Does message clearly explain the change?
 - Does it match project's commit patterns?
 - No debugging statements or commented code without explanation
-
-## Example
-
-Instead of one large commit:
-
-```text
-feat(auth): add RefreshTokenService class
-
-Added new RefreshTokenService to handle token lifecycle management.
-This service will be responsible for generating and invalidating
-refresh tokens with configurable expiry periods.
-```
-
-```text
-feat(auth): integrate token rotation in middleware
-
-Updated auth middleware to call RefreshTokenService when validating
-tokens. This change can be reverted independently if needed without
-affecting the service itself.
-```
 
 ## Key Principles
 
