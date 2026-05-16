@@ -32,30 +32,7 @@ Agent apps are still bundled runtime payloads. Treat runtime libraries as bundle
 
 ## Common Commands
 
-Use root commands unless a narrower package command is more appropriate:
-
-```sh
-pnpm run test
-pnpm run format
-pnpm typecheck
-pnpm run build
-pnpm run prerelease
-```
-
-Useful main CLI commands:
-
-```sh
-pnpm --filter ccusage run start daily
-pnpm --filter ccusage run start monthly
-pnpm --filter ccusage run start session
-pnpm --filter ccusage run start blocks
-pnpm --filter ccusage run start statusline
-pnpm --filter ccusage run start daily --json
-pnpm --filter ccusage run start daily --mode auto
-pnpm --filter ccusage run start blocks --active
-pnpm --filter ccusage run start blocks --recent
-pnpm --filter ccusage run start blocks --token-limit max
-```
+Use root commands unless a narrower package command is more appropriate. Read `references/commands.md` for root and main CLI command examples.
 
 `LOG_LEVEL` controls logging verbosity from `0` silent through `5` trace.
 
