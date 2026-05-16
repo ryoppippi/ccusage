@@ -1,13 +1,16 @@
 import type { LiteLLMModelPricing } from '@ccusage/internal/pricing';
+import type { IndexedWorkerItem } from '@ccusage/internal/workers';
 import type { AdapterContext, AdapterOptions, AgentUsageRow, ReportKind } from './types.ts';
 import { readFile, stat } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
+import { isMainThread, parentPort, Worker, workerData } from 'node:worker_threads';
 import { collectFilesRecursive } from '@ccusage/internal/fs';
 import { processJSONLFileByLine } from '@ccusage/internal/jsonl';
 import { LiteLLMPricingFetcher } from '@ccusage/internal/pricing';
 import { compareStrings } from '@ccusage/internal/sort';
+import { chunkIndexedItemsByFileSize, getFileWorkerThreadCount } from '@ccusage/internal/workers';
 import { Result } from '@praha/byethrow';
 import { createFixture } from 'fs-fixture';
 import { logger } from '../logger.ts';
@@ -64,6 +67,16 @@ type CodexGroup = {
 };
 
 type CodexSpeed = 'standard' | 'fast';
+
+type CodexWorkerData = {
+	kind: 'ccusage:codex-worker';
+	directoryPath: string;
+	items: Array<IndexedWorkerItem<string>>;
+};
+
+type CodexWorkerResponse = {
+	results: Array<{ index: number; result: TokenUsageEvent[] }>;
+};
 
 export type CodexReportRow =
 	| {
@@ -375,6 +388,63 @@ async function parseCodexSessionFile(
 	return events;
 }
 
+function getCodexWorkerThreadCount(fileCount: number): number {
+	return getFileWorkerThreadCount({
+		itemCount: fileCount,
+		isMainThread,
+		moduleUrl: import.meta.url,
+		envValue: process.env.CCUSAGE_JSONL_WORKER_THREADS,
+		isTest: import.meta.vitest != null,
+		preferMoreWorkers: true,
+	});
+}
+
+async function collectCodexEventsWithWorkers(
+	directoryPath: string,
+	files: string[],
+): Promise<TokenUsageEvent[] | null> {
+	const workerCount = getCodexWorkerThreadCount(files.length);
+	if (workerCount === 0) {
+		return null;
+	}
+
+	const indexedFiles = files.map<IndexedWorkerItem<string>>((file, index) => ({
+		index,
+		item: file,
+	}));
+	const chunks = await chunkIndexedItemsByFileSize(indexedFiles, workerCount, (file) => file);
+	const workerResults = chunks.map(
+		async (chunk) =>
+			new Promise<Array<{ index: number; result: TokenUsageEvent[] }>>((resolve, reject) => {
+				const worker = new Worker(new URL(import.meta.url), {
+					workerData: {
+						kind: 'ccusage:codex-worker',
+						directoryPath,
+						items: chunk,
+					} satisfies CodexWorkerData,
+				});
+				worker.once('message', (message: CodexWorkerResponse) => {
+					resolve(message.results);
+				});
+				worker.once('error', reject);
+				worker.once('exit', (code) => {
+					if (code !== 0) {
+						reject(new Error(`ccusage codex worker exited with code ${code}`));
+					}
+				});
+			}),
+	);
+	const resultGroups = await Promise.all(workerResults);
+	const fileEvents = Array.from<TokenUsageEvent[] | undefined>({ length: files.length });
+	for (const results of resultGroups) {
+		for (const { index, result } of results) {
+			fileEvents[index] = result;
+		}
+	}
+
+	return fileEvents.flatMap((events) => events ?? []);
+}
+
 async function loadTokenUsageEvents(): Promise<TokenUsageEvent[]> {
 	const directoryPath = getCodexSessionsPath();
 	const statResult = await Result.try({
@@ -386,10 +456,32 @@ async function loadTokenUsageEvents(): Promise<TokenUsageEvent[]> {
 	}
 
 	const files = await collectFilesRecursive(directoryPath, { extension: '.jsonl' });
+	const workerEvents = await collectCodexEventsWithWorkers(directoryPath, files);
+	if (workerEvents != null) {
+		return workerEvents.sort((a, b) => compareStrings(a.timestamp, b.timestamp));
+	}
+
 	const fileEvents = await Promise.all(
 		files.map(async (file) => parseCodexSessionFile(directoryPath, file)),
 	);
 	return fileEvents.flat().sort((a, b) => compareStrings(a.timestamp, b.timestamp));
+}
+
+async function runCodexWorker(data: CodexWorkerData): Promise<void> {
+	const results = [];
+	for (const { index, item } of data.items) {
+		results.push({
+			index,
+			result: await parseCodexSessionFile(data.directoryPath, item),
+		});
+	}
+	parentPort!.postMessage({ results } satisfies CodexWorkerResponse);
+}
+
+if (!isMainThread && asRecord(workerData)?.kind === 'ccusage:codex-worker') {
+	void runCodexWorker(workerData as CodexWorkerData).catch(() => {
+		process.exit(1);
+	});
 }
 
 function addCodexUsage(target: CodexModelUsage, event: TokenUsageEvent): void {
@@ -1081,6 +1173,12 @@ if (import.meta.vitest != null) {
 				},
 			});
 			expect(rows[0]!.costUSD).toBeCloseTo(0.000115);
+		});
+	});
+
+	describe('getCodexWorkerThreadCount', () => {
+		it('uses Claude-style bundled worker gating', () => {
+			expect(getCodexWorkerThreadCount(100)).toBe(0);
 		});
 	});
 }

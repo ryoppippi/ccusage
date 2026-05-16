@@ -8,6 +8,7 @@ const monthFormatterCache = new Map<string, Intl.DateTimeFormat>();
 const dateTimeFormatterCache = new Map<string, Intl.DateTimeFormat>();
 const dateKeyCache = new Map<string, string>();
 const monthKeyCache = new Map<string, string>();
+let defaultTimeZoneCache: string | undefined;
 
 export function normalizeDateFilter(value: string | undefined): string | undefined {
 	if (value == null || value === '') {
@@ -41,7 +42,8 @@ export function isWithinRange(
 }
 
 function defaultTimeZone(): string {
-	return Intl.DateTimeFormat().resolvedOptions().timeZone ?? 'UTC';
+	defaultTimeZoneCache ??= Intl.DateTimeFormat().resolvedOptions().timeZone ?? 'UTC';
+	return defaultTimeZoneCache;
 }
 
 export function safeTimeZone(timezone?: string): string {
@@ -180,6 +182,13 @@ if (import.meta.vitest != null) {
 
 		it('falls back to UTC for invalid timezones', () => {
 			expect(formatDateKey('2026-05-16T12:34:56.000Z', 'Invalid/Zone')).toBe('2026-05-16');
+		});
+
+		it('reuses the resolved local timezone when timezone is omitted', () => {
+			const first = safeTimeZone();
+			const second = safeTimeZone();
+
+			expect(second).toBe(first);
 		});
 	});
 }
