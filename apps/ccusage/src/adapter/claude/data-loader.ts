@@ -29,7 +29,7 @@ import type {
 } from '../../types.ts';
 import { Buffer } from 'node:buffer';
 import { createReadStream, createWriteStream } from 'node:fs';
-import { open, readdir, stat, utimes } from 'node:fs/promises';
+import { readdir, stat, utimes } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
@@ -38,6 +38,7 @@ import { isMainThread, parentPort, Worker, workerData } from 'node:worker_thread
 import { toArray } from '@antfu/utils';
 import { createResultSlots } from '@ccusage/internal/array';
 import { readBufferedTextFile, readTextFile } from '@ccusage/internal/fs';
+import { processJSONLFileByMarkers } from '@ccusage/internal/jsonl';
 import { compareStrings } from '@ccusage/internal/sort';
 import { mapWithConcurrency } from '@ccusage/internal/workers';
 import { Result } from '@praha/byethrow';
@@ -80,7 +81,6 @@ import {
 } from './constants.ts';
 
 const USAGE_LINE_MARKER = '"usage":{';
-const USAGE_LINE_MARKER_BUFFER = Buffer.from(USAGE_LINE_MARKER);
 const CACHE_CREATION_INPUT_TOKENS_MARKER = '"cache_creation_input_tokens":';
 const CACHE_READ_INPUT_TOKENS_MARKER = '"cache_read_input_tokens":';
 const CONTENT_MARKER = '"content":';
@@ -933,16 +933,6 @@ type UsageSummaryAccumulator = {
 	modelsUsed: string[];
 };
 
-type BunFileLike = {
-	size: number;
-	bytes: () => Promise<Uint8Array>;
-	text: () => Promise<string>;
-};
-
-type BunRuntimeLike = {
-	file: (path: string) => BunFileLike;
-};
-
 function getDisplayModelName(data: UsageData): string | undefined {
 	return formatUsageModelName(data.message.model, data.message.usage.speed);
 }
@@ -1207,11 +1197,6 @@ function hasNonWhitespace(line: string): boolean {
 	return false;
 }
 
-function getBunRuntime(): BunRuntimeLike | null {
-	const runtime = (globalThis as { Bun?: Partial<BunRuntimeLike> }).Bun;
-	return typeof runtime?.file === 'function' ? (runtime as BunRuntimeLike) : null;
-}
-
 async function processBufferedJSONLContent(
 	content: string,
 	processLine: (line: string, lineNumber: number) => void | Promise<void>,
@@ -1237,104 +1222,6 @@ async function processBufferedJSONLContent(
 		}
 
 		lineStart = lineEnd + 1;
-	}
-}
-
-async function processBufferedJSONLUsageContent(
-	content: string,
-	processLine: (line: string, usageMarkerIndex: number) => void,
-): Promise<void> {
-	let lineStart = 0;
-	let markerIndex = content.indexOf(USAGE_LINE_MARKER, lineStart);
-	while (markerIndex !== -1) {
-		// The marker search skips non-usage lines, so lineStart can lag behind markerIndex.
-		// Advance it monotonically instead of reverse-scanning with lastIndexOf for every usage row.
-		while (true) {
-			const nextLineEnd = content.indexOf('\n', lineStart);
-			if (nextLineEnd === -1 || nextLineEnd >= markerIndex) {
-				break;
-			}
-			lineStart = nextLineEnd + 1;
-		}
-		let lineEnd = content.indexOf('\n', markerIndex);
-		if (lineEnd === -1) {
-			lineEnd = content.length;
-		}
-
-		let line = content.slice(lineStart, lineEnd);
-		if (line.endsWith('\r')) {
-			line = line.slice(0, -1);
-		}
-		// The scanner already paid for the usage marker search; pass the line-relative offset so
-		// the fast parser does not run the same indexOf again for every usage row.
-		processLine(line, markerIndex - lineStart);
-
-		lineStart = lineEnd + 1;
-		markerIndex = content.indexOf(USAGE_LINE_MARKER, lineStart);
-	}
-}
-
-/**
- * Scan buffered JSONL as bytes and decode only lines that contain a usage marker.
- *
- * Real Claude logs contain many non-usage rows. Keeping the file as bytes lets Bun search for the
- * marker without converting the whole file to UTF-16, then `toString()` is paid only for candidate
- * usage lines that the fast parser or JSON fallback can consume.
- */
-async function processBufferedJSONLUsageBytes(
-	bytes: Uint8Array,
-	processLine: (line: string, usageMarkerIndex: number) => void,
-): Promise<void> {
-	const content = Buffer.isBuffer(bytes)
-		? bytes
-		: Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-	let lineStart = 0;
-	let markerIndex = content.indexOf(USAGE_LINE_MARKER_BUFFER, lineStart);
-	while (markerIndex !== -1) {
-		// Advance to the start of the marker's line without calling lastIndexOf for every usage row.
-		// This loop is monotonic: each newline is considered at most once across the whole buffer.
-		while (true) {
-			const nextLineEnd = content.indexOf(10, lineStart);
-			if (nextLineEnd === -1 || nextLineEnd >= markerIndex) {
-				break;
-			}
-			lineStart = nextLineEnd + 1;
-		}
-		let lineEnd = content.indexOf(10, markerIndex);
-		if (lineEnd === -1) {
-			lineEnd = content.length;
-		}
-
-		const decodeEnd = lineEnd > lineStart && content[lineEnd - 1] === 13 ? lineEnd - 1 : lineEnd;
-		// Usage aggregation reads ASCII metadata and token fields only; content text is never surfaced.
-		// Latin-1 avoids UTF-8 decoding cost for large assistant content while preserving JSON markers.
-		// The scanner already paid for the usage marker search; pass the line-relative offset so
-		// the fast parser does not run the same indexOf again for every usage row.
-		processLine(content.toString('latin1', lineStart, decodeEnd), markerIndex - lineStart);
-
-		lineStart = lineEnd + 1;
-		markerIndex = content.indexOf(USAGE_LINE_MARKER_BUFFER, lineStart);
-	}
-}
-
-async function readBufferedJSONLBytes(filePath: string): Promise<Uint8Array | null> {
-	const bun = getBunRuntime();
-	if (bun != null) {
-		const file = bun.file(filePath);
-		return file.size <= MAX_BUFFERED_JSONL_BYTES ? file.bytes() : null;
-	}
-
-	// The usage-row scanner only decodes candidate lines. Keeping Node on bytes here avoids
-	// converting the whole JSONL file to a UTF-16 string before most non-usage rows are skipped.
-	const file = await open(filePath, 'r');
-	try {
-		const stats = await file.stat();
-		if (stats.size <= MAX_BUFFERED_JSONL_BYTES) {
-			return await file.readFile();
-		}
-		return null;
-	} finally {
-		await file.close();
 	}
 }
 
@@ -1380,31 +1267,9 @@ async function processJSONLUsageFileByLine(
 	filePath: string,
 	processLine: (line: string, usageMarkerIndex: number) => void,
 ): Promise<void> {
-	const bytes = await readBufferedJSONLBytes(filePath);
-	if (bytes != null) {
-		await processBufferedJSONLUsageBytes(bytes, processLine);
-		return;
-	}
-
-	const content = await readBufferedJSONLContent(filePath);
-	if (content != null) {
-		await processBufferedJSONLUsageContent(content, processLine);
-		return;
-	}
-
-	const fileStream = createReadStream(filePath, { encoding: 'utf-8' });
-	const rl = createInterface({
-		input: fileStream,
-		crlfDelay: Number.POSITIVE_INFINITY,
-	});
-
-	for await (const line of rl) {
-		const usageMarkerIndex = line.indexOf(USAGE_LINE_MARKER);
-		if (usageMarkerIndex === -1) {
-			continue;
-		}
+	await processJSONLFileByMarkers(filePath, [USAGE_LINE_MARKER], (line, usageMarkerIndex) => {
 		processLine(line, usageMarkerIndex);
-	}
+	});
 }
 
 /**

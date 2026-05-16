@@ -1,6 +1,7 @@
 import type {
 	CodexWorkerData,
 	CodexWorkerResponse,
+	EncodedTokenUsageEvents,
 	ParsedTokenCountLine,
 	RawUsage,
 	TokenUsageEvent,
@@ -10,7 +11,7 @@ import path from 'node:path';
 import process from 'node:process';
 import { isMainThread, parentPort, workerData } from 'node:worker_threads';
 import { collectFilesRecursive } from '@ccusage/internal/fs';
-import { processJSONLFileByLine } from '@ccusage/internal/jsonl';
+import { processJSONLFileByMarkers } from '@ccusage/internal/jsonl';
 import { compareStrings } from '@ccusage/internal/sort';
 import {
 	collectIndexedFileWorkerResults,
@@ -21,6 +22,8 @@ import { logger } from '../../logger.ts';
 import { getCodexSessionsPath } from './paths.ts';
 
 const LEGACY_FALLBACK_MODEL = 'gpt-5';
+const CODEX_JSONL_MARKERS = ['turn_context', '"type":"token_count"', '"type": "token_count"'];
+const ENCODED_CODEX_EVENT_NUMBER_STRIDE = 5;
 
 export function parseTokenCountLineFast(_line: string): ParsedTokenCountLine | null {
 	if (!hasTokenCountPayload(_line)) {
@@ -226,11 +229,7 @@ async function parseCodexSessionFile(
 	};
 
 	try {
-		await processJSONLFileByLine(file, (line) => {
-			if (!line.includes('turn_context') && !line.includes('token_count')) {
-				return;
-			}
-
+		await processJSONLFileByMarkers(file, CODEX_JSONL_MARKERS, (line) => {
 			const contextModel = extractTurnContextModelFast(line);
 			if (contextModel != null) {
 				currentModel = contextModel;
@@ -301,7 +300,7 @@ async function collectCodexEventsWithWorkers(
 	const workerCount = getCodexWorkerThreadCount(files.length);
 	const fileEvents = await collectIndexedFileWorkerResults<
 		string,
-		TokenUsageEvent[],
+		EncodedTokenUsageEvents,
 		CodexWorkerData
 	>({
 		items: files,
@@ -315,7 +314,64 @@ async function collectCodexEventsWithWorkers(
 				items,
 			}) satisfies CodexWorkerData,
 	});
-	return fileEvents?.flatMap((events) => events) ?? null;
+	return fileEvents?.flatMap(decodeTokenUsageEvents) ?? null;
+}
+
+function encodeTokenUsageEvents(events: TokenUsageEvent[]): EncodedTokenUsageEvents {
+	const timestamps: string[] = [];
+	const sessionIds: string[] = [];
+	const models: string[] = [];
+	const modelIndexes = new Int32Array(events.length);
+	const numbers = new Float64Array(events.length * ENCODED_CODEX_EVENT_NUMBER_STRIDE);
+	const flags = new Uint8Array(events.length);
+	const modelIndexByName = new Map<string, number>();
+
+	for (let index = 0; index < events.length; index++) {
+		const event = events[index]!;
+		timestamps.push(event.timestamp);
+		sessionIds.push(event.sessionId);
+		if (event.model == null) {
+			modelIndexes[index] = -1;
+		} else {
+			let modelIndex = modelIndexByName.get(event.model);
+			if (modelIndex == null) {
+				modelIndex = models.length;
+				modelIndexByName.set(event.model, modelIndex);
+				models.push(event.model);
+			}
+			modelIndexes[index] = modelIndex;
+		}
+
+		const numberOffset = index * ENCODED_CODEX_EVENT_NUMBER_STRIDE;
+		numbers[numberOffset] = event.inputTokens;
+		numbers[numberOffset + 1] = event.cachedInputTokens;
+		numbers[numberOffset + 2] = event.outputTokens;
+		numbers[numberOffset + 3] = event.reasoningOutputTokens;
+		numbers[numberOffset + 4] = event.totalTokens;
+		flags[index] = event.isFallbackModel === true ? 1 : 0;
+	}
+
+	return { timestamps, sessionIds, models, modelIndexes, numbers, flags };
+}
+
+function decodeTokenUsageEvents(encoded: EncodedTokenUsageEvents): TokenUsageEvent[] {
+	const events: TokenUsageEvent[] = [];
+	for (let index = 0; index < encoded.timestamps.length; index++) {
+		const numberOffset = index * ENCODED_CODEX_EVENT_NUMBER_STRIDE;
+		const modelIndex = encoded.modelIndexes[index] ?? -1;
+		events.push({
+			timestamp: encoded.timestamps[index]!,
+			sessionId: encoded.sessionIds[index]!,
+			...(modelIndex >= 0 ? { model: encoded.models[modelIndex] } : {}),
+			inputTokens: encoded.numbers[numberOffset] ?? 0,
+			cachedInputTokens: encoded.numbers[numberOffset + 1] ?? 0,
+			outputTokens: encoded.numbers[numberOffset + 2] ?? 0,
+			reasoningOutputTokens: encoded.numbers[numberOffset + 3] ?? 0,
+			totalTokens: encoded.numbers[numberOffset + 4] ?? 0,
+			...(encoded.flags[index] === 1 ? { isFallbackModel: true } : {}),
+		});
+	}
+	return events;
 }
 
 export async function loadTokenUsageEvents(): Promise<TokenUsageEvent[]> {
@@ -342,13 +398,20 @@ export async function loadTokenUsageEvents(): Promise<TokenUsageEvent[]> {
 
 async function runCodexWorker(data: CodexWorkerData): Promise<void> {
 	const results = [];
+	const transferList: ArrayBuffer[] = [];
 	for (const { index, item } of data.items) {
+		const result = encodeTokenUsageEvents(await parseCodexSessionFile(data.directoryPath, item));
+		transferList.push(
+			result.modelIndexes.buffer as ArrayBuffer,
+			result.numbers.buffer as ArrayBuffer,
+			result.flags.buffer as ArrayBuffer,
+		);
 		results.push({
 			index,
-			result: await parseCodexSessionFile(data.directoryPath, item),
+			result,
 		});
 	}
-	parentPort!.postMessage({ results } satisfies CodexWorkerResponse);
+	parentPort!.postMessage({ results } satisfies CodexWorkerResponse, transferList);
 }
 
 if (!isMainThread && asRecord(workerData)?.kind === 'ccusage:codex-worker') {
@@ -496,6 +559,36 @@ function parseRawUsageText(value: string): RawUsage {
 }
 
 if (import.meta.vitest != null) {
+	describe('Codex worker event encoding', () => {
+		it('round-trips token usage events without losing fallback model metadata', () => {
+			const events: TokenUsageEvent[] = [
+				{
+					timestamp: '2026-05-14T00:00:00.000Z',
+					sessionId: 'project/session-a',
+					model: 'gpt-5.4',
+					inputTokens: 100,
+					cachedInputTokens: 20,
+					outputTokens: 30,
+					reasoningOutputTokens: 40,
+					totalTokens: 170,
+				},
+				{
+					timestamp: '2026-05-14T00:00:01.000Z',
+					sessionId: 'project/session-a',
+					model: 'gpt-5',
+					isFallbackModel: true,
+					inputTokens: 10,
+					cachedInputTokens: 0,
+					outputTokens: 5,
+					reasoningOutputTokens: 0,
+					totalTokens: 15,
+				},
+			];
+
+			expect(decodeTokenUsageEvents(encodeTokenUsageEvents(events))).toEqual(events);
+		});
+	});
+
 	describe('Codex adapter JSONL fast parser', () => {
 		it('parses token_count usage without parsing surrounding turn context history', () => {
 			const line = JSON.stringify({

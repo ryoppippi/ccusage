@@ -52,8 +52,17 @@ export type CodexWorkerData = {
 	items: Array<IndexedWorkerItem<string>>;
 };
 
+export type EncodedTokenUsageEvents = {
+	timestamps: string[];
+	sessionIds: string[];
+	models: string[];
+	modelIndexes: Int32Array;
+	numbers: Float64Array;
+	flags: Uint8Array;
+};
+
 export type CodexWorkerResponse = {
-	results: Array<{ index: number; result: TokenUsageEvent[] }>;
+	results: Array<{ index: number; result: EncodedTokenUsageEvents }>;
 };
 
 export type CodexReportRow =

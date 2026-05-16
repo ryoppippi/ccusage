@@ -3,7 +3,7 @@ import type { PiUsageEntry } from './schema.ts';
 import process from 'node:process';
 import { isMainThread, parentPort, workerData } from 'node:worker_threads';
 import { collectFilesRecursive } from '@ccusage/internal/fs';
-import { processJSONLFileByLine } from '@ccusage/internal/jsonl';
+import { processJSONLFileByMarkers } from '@ccusage/internal/jsonl';
 import {
 	collectIndexedFileWorkerResults,
 	getDefaultWorkerThreadCount,
@@ -20,6 +20,8 @@ import {
 	piAgentMessageSchema,
 	transformPiAgentUsage,
 } from './schema.ts';
+
+const PI_AGENT_JSONL_MARKERS = ['"usage"'];
 
 type PiWorkerData = {
 	kind: 'ccusage:pi-usage-worker';
@@ -55,8 +57,8 @@ async function parsePiAgentFile(file: string): Promise<PiUsageEntry[]> {
 	const sessionId = extractPiAgentSessionId(file);
 	const entries: PiUsageEntry[] = [];
 	const result = await Result.try({
-		try: processJSONLFileByLine(file, (line) => {
-			if (!line.includes('"message"') || !line.includes('"usage"')) {
+		try: processJSONLFileByMarkers(file, PI_AGENT_JSONL_MARKERS, (line) => {
+			if (!line.includes('"message"')) {
 				return;
 			}
 

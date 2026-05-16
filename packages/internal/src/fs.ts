@@ -1,3 +1,4 @@
+import { Buffer } from 'node:buffer';
 import { statSync } from 'node:fs';
 import { readdir, readFile, stat } from 'node:fs/promises';
 import path from 'node:path';
@@ -10,6 +11,7 @@ export type CollectFilesOptions = {
 
 type BunFileLike = {
 	size: number;
+	bytes?: () => Promise<Uint8Array>;
 	text: () => Promise<string>;
 };
 
@@ -59,6 +61,22 @@ export async function readBufferedTextFile(
 
 	const stats = await stat(filePath);
 	return stats.size <= options.maxBufferedBytes ? readFile(filePath, 'utf8') : null;
+}
+
+export async function readBufferedBytesFile(
+	filePath: string,
+	options: ReadBufferedTextFileOptions,
+): Promise<Uint8Array | null> {
+	const bun = getBunRuntime();
+	if (bun != null) {
+		const file = bun.file(filePath);
+		if (typeof file.bytes === 'function') {
+			return file.size <= options.maxBufferedBytes ? file.bytes() : null;
+		}
+	}
+
+	const stats = await stat(filePath);
+	return stats.size <= options.maxBufferedBytes ? readFile(filePath) : null;
 }
 
 export async function collectFilesRecursive(
@@ -206,6 +224,44 @@ if (import.meta.vitest != null) {
 			await expect(readBufferedTextFile('/tmp/large.txt', { maxBufferedBytes: 4 })).resolves.toBe(
 				null,
 			);
+		});
+	});
+
+	describe('readBufferedBytesFile', () => {
+		afterEach(() => {
+			vi.unstubAllGlobals();
+		});
+
+		it('reads bytes through Bun.file when the file fits in the buffered limit', async () => {
+			const byteCalls: string[] = [];
+			vi.stubGlobal('Bun', {
+				file: (filePath: string) => ({
+					size: 3,
+					bytes: async () => {
+						byteCalls.push(filePath);
+						return new Uint8Array([1, 2, 3]);
+					},
+					text: async () => '',
+				}),
+			});
+
+			const bytes = await readBufferedBytesFile('/tmp/example.jsonl', { maxBufferedBytes: 3 });
+
+			expect(Array.from(bytes ?? [])).toEqual([1, 2, 3]);
+			expect(byteCalls).toEqual(['/tmp/example.jsonl']);
+		});
+
+		it('reads bytes from node fs when Bun is unavailable', async () => {
+			vi.stubGlobal('Bun', undefined);
+			await using fixture = await createFixture({
+				'usage.jsonl': 'abc',
+			});
+
+			const bytes = await readBufferedBytesFile(fixture.getPath('usage.jsonl'), {
+				maxBufferedBytes: 3,
+			});
+
+			expect(Buffer.from(bytes ?? []).toString('utf8')).toBe('abc');
 		});
 	});
 
