@@ -1,12 +1,6 @@
-# Monthly Reports
+# Monthly Usage
 
-Monthly reports aggregate coding (agent) CLI usage by calendar month, providing a high-level view of usage patterns and estimated costs over longer periods. `ccusage monthly` combines all detected supported sources; use `ccusage <source> monthly` for a single source.
-
-:::warning NOTICE
-Claude Code can only retain logs for 30 days by default. To be able to check logs for more than a month, you need to change the value of `cleanupPeriodDays` in the settings file.
-
-[Claude Code settings - Claude Docs](https://docs.claude.com/en/docs/claude-code/settings#settings-files)
-:::
+Monthly usage aggregates coding (agent) CLI usage by calendar month, providing a high-level view of usage patterns and estimated costs over longer periods. `ccusage monthly` combines all detected supported sources; use `ccusage <source> monthly` for a single source.
 
 ## Basic Usage
 
@@ -233,14 +227,15 @@ Compare monthly reports with:
 
 ## Related Commands
 
-- [Daily Reports](/guide/daily-reports) - Day-by-day breakdown
-- [Session Reports](/guide/session-reports) - Individual conversations
-- [Blocks Reports](/guide/blocks-reports) - 5-hour billing periods
+- [All Sources (Default)](/guide/all-reports) - How unified views work
+- [Daily Usage](/guide/daily-reports) - Day-by-day breakdown
+- [Session Usage](/guide/session-reports) - Individual conversations
+- [Blocks](/guide/blocks-reports) - Claude Code 5-hour billing periods
 
 ## Next Steps
 
 After analyzing monthly trends, consider:
 
-1. [Session Reports](/guide/session-reports) to identify high-cost conversations
-2. [Live Monitoring](/guide/live-monitoring) to track real-time usage
+1. [Session Usage](/guide/session-reports) to identify high-cost conversations
+2. [Statusline](/guide/statusline) to track Claude Code usage in real time
 3. [JSON Output](/guide/json-output) for programmatic analysis

@@ -287,4 +287,4 @@ After installation, check out:
 
 - [Getting Started Guide](/guide/getting-started) - Your first usage report
 - [Configuration](/guide/configuration) - Customize ccusage behavior
-- [Daily Reports](/guide/daily-reports) - Understand daily usage patterns
+- [Daily Usage](/guide/daily-reports) - Understand daily usage patterns

@@ -1,6 +1,6 @@
-# Session Reports
+# Session Usage
 
-Session reports show usage grouped by individual conversations, threads, or sessions. `ccusage session` combines all detected supported sources; use `ccusage <source> session` to inspect one source's session format.
+Session usage shows usage grouped by individual conversations, threads, or sessions. `ccusage session` combines all detected supported sources; use `ccusage <source> session` to inspect one source's session format.
 
 ## Basic Usage
 
@@ -311,15 +311,15 @@ When in compact mode, ccusage displays a message explaining how to see the full 
 
 ## Related Commands
 
-- [Daily Reports](/guide/daily-reports) - Usage aggregated by date
-- [Monthly Reports](/guide/monthly-reports) - Monthly summaries
-- [Blocks Reports](/guide/blocks-reports) - 5-hour billing windows
-- [Live Monitoring](/guide/live-monitoring) - Real-time session tracking
+- [All Sources (Default)](/guide/all-reports) - How unified views work
+- [Daily Usage](/guide/daily-reports) - Usage aggregated by date
+- [Monthly Usage](/guide/monthly-reports) - Monthly summaries
+- [Blocks](/guide/blocks-reports) - Claude Code 5-hour billing windows
 
 ## Next Steps
 
 After analyzing session patterns, consider:
 
-1. [Blocks Reports](/guide/blocks-reports) to understand timing within 5-hour windows
-2. [Live Monitoring](/guide/live-monitoring) to track active conversations in real-time
-3. [Daily Reports](/guide/daily-reports) to see how session patterns vary by day
+1. [Blocks](/guide/blocks-reports) to understand Claude Code timing within 5-hour windows
+2. [Statusline](/guide/statusline) to track active Claude Code sessions in real time
+3. [Daily Usage](/guide/daily-reports) to see how session patterns vary by day

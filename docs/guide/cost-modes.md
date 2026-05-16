@@ -345,4 +345,4 @@ After understanding cost modes:
 
 - Explore [Configuration](/guide/configuration) for environment setup
 - Learn about [Custom Paths](/guide/custom-paths) for multiple data sources
-- Try [Live Monitoring](/guide/live-monitoring) with different cost modes
+- Try [Statusline](/guide/statusline) with different cost modes

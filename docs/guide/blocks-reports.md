@@ -1,4 +1,4 @@
-# Blocks Reports
+# Blocks
 
 Blocks reports show your Claude Code usage grouped by 5-hour billing windows, helping you understand Claude's billing cycle and track active session progress.
 
@@ -334,9 +334,9 @@ When using token limits, blocks show visual progress:
 
 ## Related Commands
 
-- [Daily Reports](/guide/daily-reports) - Usage aggregated by calendar date
-- [Monthly Reports](/guide/monthly-reports) - Monthly usage summaries
-- [Session Reports](/guide/session-reports) - Individual conversation analysis
+- [Daily Usage](/guide/daily-reports) - Usage aggregated by calendar date
+- [Monthly Usage](/guide/monthly-reports) - Monthly usage summaries
+- [Session Usage](/guide/session-reports) - Individual conversation analysis
 - [Statusline](/guide/statusline) - Real-time session tracking (replacement for live monitoring)
 
 ## Next Steps
@@ -344,5 +344,5 @@ When using token limits, blocks show visual progress:
 After understanding block patterns, consider:
 
 1. [Statusline](/guide/statusline) for real-time active session tracking
-2. [Session Reports](/guide/session-reports) to analyze individual conversations within blocks
-3. [Daily Reports](/guide/daily-reports) to see how blocks aggregate across days
+2. [Session Usage](/guide/session-reports) to analyze individual conversations within blocks
+3. [Daily Usage](/guide/daily-reports) to see how blocks aggregate across days

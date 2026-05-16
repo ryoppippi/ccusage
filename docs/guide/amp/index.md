@@ -36,11 +36,11 @@ The CLI reads Amp thread JSON files from `AMP_DATA_DIR` (defaults to `~/.local/s
 
 ## Report Views
 
-| Focused view          | Description               | See also                                  |
-| --------------------- | ------------------------- | ----------------------------------------- |
-| `ccusage amp daily`   | Aggregate usage by date   | [Daily Reports](/guide/daily-reports)     |
-| `ccusage amp monthly` | Aggregate usage by month  | [Monthly Reports](/guide/monthly-reports) |
-| `ccusage amp session` | Group usage by Amp thread | [Session Reports](/guide/session-reports) |
+| Focused view          | Description               | See also                                |
+| --------------------- | ------------------------- | --------------------------------------- |
+| `ccusage amp daily`   | Aggregate usage by date   | [Daily Usage](/guide/daily-reports)     |
+| `ccusage amp monthly` | Aggregate usage by month  | [Monthly Usage](/guide/monthly-reports) |
+| `ccusage amp session` | Group usage by Amp thread | [Session Usage](/guide/session-reports) |
 
 These views support `--json` for structured output, `--compact` for narrow terminals, and `--offline` for cached pricing data.
 

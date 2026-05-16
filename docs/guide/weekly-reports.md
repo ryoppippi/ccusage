@@ -1,6 +1,6 @@
-# Weekly Reports
+# Weekly Usage
 
-Weekly reports aggregate usage by week, providing a mid-range view between daily and monthly reports. `ccusage weekly` covers all detected sources that support weekly aggregation; `ccusage claude weekly` and `ccusage opencode weekly` focus the same view on one source.
+Weekly usage aggregates usage by week, providing a mid-range view between daily and monthly usage. `ccusage weekly` covers all detected sources that support weekly aggregation; `ccusage claude weekly` and `ccusage opencode weekly` focus the same view on one source.
 
 ## Basic Usage
 
@@ -227,7 +227,7 @@ ccusage weekly --instances --start-of-week monday
 
 ## Related Commands
 
-- [Daily Reports](/guide/daily-reports) - Day-by-day analysis
-- [Monthly Reports](/guide/monthly-reports) - Monthly aggregates
-- [Session Reports](/guide/session-reports) - Per-conversation analysis
-- [Blocks Reports](/guide/blocks-reports) - 5-hour billing windows
+- [All Sources (Default)](/guide/all-reports) - How unified views work
+- [Daily Usage](/guide/daily-reports) - Day-by-day analysis
+- [Monthly Usage](/guide/monthly-reports) - Monthly aggregates
+- [Session Usage](/guide/session-reports) - Per-conversation analysis

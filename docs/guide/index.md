@@ -4,6 +4,8 @@
 
 **ccusage** is a local CLI for understanding coding (agent) CLI token usage and estimated costs across Claude Code, Codex, OpenCode, Amp, and pi-agent.
 
+The original “cc” came from **C**laude **C**ode usage. As Codex CLI, OpenCode, Amp, pi-agent, and other coding (agent) CLIs became part of the same workflow, ccusage expanded into a general name for local coding CLI usage analysis.
+
 ## The Problem
 
 Modern coding (agent) CLI usage is split across several local data formats. That makes basic questions hard to answer:
@@ -17,11 +19,11 @@ Modern coding (agent) CLI usage is split across several local data formats. That
 
 ccusage reads the local usage files that coding CLIs already generate and provides:
 
-- **Detailed Usage Reports** - Daily, weekly, monthly, and session-based breakdowns
-- **Unified CLI Reports** - Claude Code, Codex, OpenCode, Amp, and pi-agent in one CLI
+- **All Sources by Default** - Claude Code, Codex, OpenCode, Amp, and pi-agent in one CLI
+- **Usage Views** - Daily, weekly, monthly, and session-based breakdowns
 - **Cost Analysis** - Estimated costs based on token usage and model pricing
-- **Focused Data Source Views** - Start with all detected sources, then narrow the same reports to one source when needed
-- **Claude Code Integrations** - Statusline and 5-hour block reports for Claude Code-specific workflows
+- **Focused Data Source Views** - Start with all detected sources, then narrow the same usage views to one source when needed
+- **Claude Code Features** - Statusline and 5-hour block views where Claude exposes the required data
 - **Multiple Formats** - Beautiful tables or JSON for further analysis
 
 ## How It Works
@@ -38,13 +40,13 @@ ccusage reads the local usage files that coding CLIs already generate and provid
 
 Unlike many CLI tools, ccusage pays close attention to bundle size. You can run it directly without a global install using `bunx ccusage`, `npx ccusage@latest`, or `BUN_BE_BUN=1 claude x ccusage`.
 
-### 📊 Multiple Report Types
+### 📊 Usage Views
 
-- **Daily Reports** - Usage aggregated by calendar date
-- **Weekly Reports** - Usage aggregated by week with configurable start day
-- **Monthly Reports** - Monthly summaries with trends
-- **Session Reports** - Per-conversation analysis
-- **Blocks Reports** - Claude Code 5-hour billing window tracking
+- **All Sources (Default)** - Aggregates every detected supported source
+- **Daily Usage** - Usage aggregated by calendar date
+- **Weekly Usage** - Usage aggregated by week with configurable start day
+- **Monthly Usage** - Monthly summaries with trends
+- **Session Usage** - Per-conversation analysis
 
 ### 💰 Cost Analysis
 
@@ -106,6 +108,8 @@ ccusage pi monthly
 ```
 
 Use `ccusage <source> <report>` only when you want to narrow a report to one source.
+
+Claude Code also has dedicated [Blocks](/guide/blocks-reports) and [Statusline](/guide/statusline) features because those depend on Claude-specific local data and hooks.
 
 ## Privacy & Security
 

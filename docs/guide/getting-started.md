@@ -82,13 +82,14 @@ If you have a wide terminal, you'll also see cache token columns:
 
 ## Next Steps
 
-Now that you have your first report, explore these features:
+Now that you have your first unified view, explore these features:
 
-1. **[Weekly Reports](/guide/weekly-reports)** - Track usage patterns by week
-2. **[Monthly Reports](/guide/monthly-reports)** - See usage aggregated by month
-3. **[Session Reports](/guide/session-reports)** - Analyze individual conversations
-4. **[Statusline](/guide/statusline)** - Real-time usage display for Claude Code status bar
-5. **[Configuration](/guide/configuration)** - Customize ccusage behavior
+1. **[All Sources (Default)](/guide/all-reports)** - Understand the default unified behavior
+2. **[Weekly Usage](/guide/weekly-reports)** - Track usage patterns by week
+3. **[Monthly Usage](/guide/monthly-reports)** - See usage aggregated by month
+4. **[Session Usage](/guide/session-reports)** - Analyze individual conversations
+5. **[Statusline](/guide/statusline)** - Real-time usage display for Claude Code status bar
+6. **[Configuration](/guide/configuration)** - Customize ccusage behavior
 
 ## Common Use Cases
 

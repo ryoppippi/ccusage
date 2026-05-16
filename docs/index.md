@@ -18,12 +18,12 @@ hero:
 
 features:
   - icon: 📊
-    title: Unified CLI Reports
-    details: View daily, weekly, monthly, and session usage across every detected supported coding (agent) CLI
-    link: /guide/daily-reports
+    title: All Sources by Default
+    details: View all detected supported coding (agent) CLI usage by default
+    link: /guide/all-reports
   - icon: 🤖
     title: Focused Views
-    details: Start with all detected CLIs, then narrow the same reports to one source when needed
+    details: Start with all detected CLIs, then narrow the same usage views to one source when needed
     link: /guide/getting-started
   - icon: 📁
     title: Local Data Sources
@@ -41,9 +41,9 @@ features:
     details: Export data in structured JSON format for programmatic use
     link: /guide/json-output
   - icon: ⏰
-    title: Claude Code Integrations
-    details: Claude-specific blocks and statusline reports remain available where Claude exposes the required data
-    link: /guide/statusline
+    title: Claude Code Features
+    details: Blocks and statusline remain separate because they depend on Claude-specific local data and hooks
+    link: /guide/claude/
   - icon: 🔄
     title: Cache Support
     details: Tracks cache creation and cache read tokens separately

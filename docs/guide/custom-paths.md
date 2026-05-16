@@ -398,4 +398,4 @@ After setting up custom paths:
 
 - Learn about [Configuration](/guide/configuration) for additional options
 - Explore [Cost Modes](/guide/cost-modes) for different calculation methods
-- Set up [Live Monitoring](/guide/live-monitoring) with your custom data
+- Set up [Statusline](/guide/statusline) with your custom Claude Code data

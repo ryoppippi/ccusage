@@ -4,7 +4,7 @@
 
 > ⚠️ Codex log support is experimental while the Codex CLI log format continues to evolve.
 
-ccusage can read OpenAI Codex CLI session logs as one of its supported local data sources. Most users can start with unified reports such as `ccusage daily`; add the `codex` namespace only when you want to focus the same report shape on Codex usage.
+ccusage can read OpenAI Codex CLI session logs as one of its supported local data sources. Codex uses the same unified and focused report model as Claude Code, OpenCode, Amp, and pi-agent.
 
 ## Focused Views
 
@@ -19,9 +19,25 @@ ccusage codex monthly
 ccusage codex session
 ```
 
+Most users can start with unified reports such as `ccusage daily`. Add the `codex` namespace only when you want to focus the same report shape on Codex usage or pass Codex-specific options such as `--speed`.
+
 ## Data Source
 
 The CLI reads Codex session JSONL files located under `CODEX_HOME` (defaults to `~/.codex`). Each file represents a single Codex CLI session and contains running token totals that the tool converts into per-day or per-month deltas.
+
+## Report Views
+
+| Focused view            | Description                  | See also                                |
+| ----------------------- | ---------------------------- | --------------------------------------- |
+| `ccusage codex daily`   | Aggregate usage by date      | [Daily Usage](/guide/daily-reports)     |
+| `ccusage codex monthly` | Aggregate usage by month     | [Monthly Usage](/guide/monthly-reports) |
+| `ccusage codex session` | Group usage by Codex session | [Session Usage](/guide/session-reports) |
+
+These views support `--json`, `--compact`, `--offline`, and `--speed auto|standard|fast`.
+
+## Monthly Example
+
+![ccusage monthly report focused on Codex usage](/codex-cli-monthly.jpeg)
 
 ## What Gets Calculated
 
@@ -57,14 +73,19 @@ ccusage codex daily --speed fast
 ccusage codex daily --speed standard
 ```
 
-## Next Steps
+## JSON Output
 
-- [Daily Codex view](./daily.md)
-- [Monthly Codex view](./monthly.md)
-- [Session Codex view](./session.md)
-- Additional views will mirror the main ccusage reports as Codex support stabilizes.
+Codex focused views use the same JSON mode as the shared reports:
 
-Have feedback or ideas? [Open an issue](https://github.com/ryoppippi/ccusage/issues/new) so we can improve the beta.
+```bash
+ccusage codex daily --json
+ccusage codex monthly --json
+ccusage codex session --json
+```
+
+Session JSON includes per-model breakdowns, cached token counts, `lastActivity`, and `isFallback` flags for any events that required the legacy `gpt-5` pricing fallback.
+
+Have feedback or ideas? [Open an issue](https://github.com/ryoppippi/ccusage/issues/new) so we can improve Codex support.
 
 ## Troubleshooting
 

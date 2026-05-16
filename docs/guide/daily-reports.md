@@ -1,8 +1,8 @@
-# Daily Reports
+# Daily Usage
 
 ![Daily usage report showing token usage and costs by date with model breakdown](/screenshot.png)
 
-Daily reports show token usage and estimated costs aggregated by calendar date. By default, `ccusage daily` combines every detected supported data source; use `ccusage <source> daily` when you want one source.
+Daily usage shows token usage and estimated costs aggregated by calendar date. By default, `ccusage daily` combines every detected supported data source; use `ccusage <source> daily` when you want one source.
 
 ## Basic Usage
 
@@ -285,7 +285,7 @@ ccusage daily --instances --since 20250601
 
 ## Related Commands
 
-- [Monthly Reports](/guide/monthly-reports) - Aggregate by month
-- [Session Reports](/guide/session-reports) - Per-conversation analysis
-- [Blocks Reports](/guide/blocks-reports) - 5-hour billing windows
-- [Live Monitoring](/guide/live-monitoring) - Real-time tracking
+- [All Sources (Default)](/guide/all-reports) - How unified views work
+- [Monthly Usage](/guide/monthly-reports) - Aggregate by month
+- [Session Usage](/guide/session-reports) - Per-conversation analysis
+- [Blocks](/guide/blocks-reports) - Claude Code 5-hour billing windows

@@ -5,7 +5,7 @@ import llmstxt from 'vitepress-plugin-llms';
 
 export default defineConfig({
 	title: 'ccusage',
-	description: 'Usage analysis tool for coding agents',
+	description: 'Usage analysis tool for coding (agent) CLIs',
 	base: '/',
 	cleanUrls: true,
 	ignoreDeadLinks: true,
@@ -15,7 +15,7 @@ export default defineConfig({
 		['meta', { name: 'theme-color', content: '#646cff' }],
 		['meta', { property: 'og:type', content: 'website' }],
 		['meta', { property: 'og:locale', content: 'en' }],
-		['meta', { property: 'og:title', content: 'ccusage | Coding Agent Usage Analysis' }],
+		['meta', { property: 'og:title', content: 'ccusage | Coding (Agent) CLI Usage Analysis' }],
 		['meta', { property: 'og:site_name', content: 'ccusage' }],
 		[
 			'meta',
@@ -56,26 +56,31 @@ export default defineConfig({
 					],
 				},
 				{
-					text: 'Reports',
+					text: 'Usage Views',
 					items: [
-						{ text: 'Daily Reports', link: '/guide/daily-reports' },
-						{ text: 'Weekly Reports', link: '/guide/weekly-reports' },
-						{ text: 'Monthly Reports', link: '/guide/monthly-reports' },
-						{ text: 'Session Reports', link: '/guide/session-reports' },
-						{ text: 'Claude Blocks Reports', link: '/guide/blocks-reports' },
-						{ text: 'Claude Live Monitoring (Removed)', link: '/guide/live-monitoring' },
+						{ text: 'All Sources (Default)', link: '/guide/all-reports' },
+						{ text: 'Daily Usage', link: '/guide/daily-reports' },
+						{ text: 'Weekly Usage', link: '/guide/weekly-reports' },
+						{ text: 'Monthly Usage', link: '/guide/monthly-reports' },
+						{ text: 'Session Usage', link: '/guide/session-reports' },
 					],
 				},
 				{
 					text: 'Data Sources',
 					items: [
+						{ text: 'Claude Code', link: '/guide/claude/' },
 						{ text: 'Codex', link: '/guide/codex/' },
-						{ text: 'Codex Daily View', link: '/guide/codex/daily' },
-						{ text: 'Codex Monthly View', link: '/guide/codex/monthly' },
-						{ text: 'Codex Session View', link: '/guide/codex/session' },
 						{ text: 'OpenCode', link: '/guide/opencode/' },
 						{ text: 'Amp', link: '/guide/amp/' },
 						{ text: 'pi-agent', link: '/guide/pi/' },
+					],
+				},
+				{
+					text: 'Claude Code Features',
+					items: [
+						{ text: 'Blocks', link: '/guide/blocks-reports' },
+						{ text: 'Statusline', link: '/guide/statusline' },
+						{ text: 'Live Monitoring (Removed)', link: '/guide/live-monitoring' },
 					],
 				},
 				{
@@ -85,17 +90,13 @@ export default defineConfig({
 						{ text: 'Command-Line Options', link: '/guide/cli-options' },
 						{ text: 'Environment Variables', link: '/guide/environment-variables' },
 						{ text: 'Configuration Files', link: '/guide/config-files' },
-						{ text: 'Claude Directory Detection', link: '/guide/directory-detection' },
 						{ text: 'Custom Paths', link: '/guide/custom-paths' },
 						{ text: 'Cost Calculation Modes', link: '/guide/cost-modes' },
 					],
 				},
 				{
 					text: 'Integration',
-					items: [
-						{ text: 'JSON Output', link: '/guide/json-output' },
-						{ text: 'Statusline Integration', link: '/guide/statusline' },
-					],
+					items: [{ text: 'JSON Output', link: '/guide/json-output' }],
 				},
 				{
 					text: 'Community',

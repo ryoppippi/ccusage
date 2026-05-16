@@ -65,6 +65,6 @@ While live monitoring is active:
 
 ## Related Commands
 
-- [Blocks Reports](/guide/blocks-reports) - Static 5-hour block analysis
-- [Session Reports](/guide/session-reports) - Historical session data
-- [Daily Reports](/guide/daily-reports) - Day-by-day usage patterns
+- [Blocks](/guide/blocks-reports) - Static 5-hour block analysis
+- [Session Usage](/guide/session-reports) - Historical session data
+- [Daily Usage](/guide/daily-reports) - Day-by-day usage patterns

@@ -45,12 +45,12 @@ The CLI reads OpenCode message and session JSON files located under `OPENCODE_DA
 
 ## Report Views
 
-| Focused view               | Description                                          | See also                                  |
-| -------------------------- | ---------------------------------------------------- | ----------------------------------------- |
-| `ccusage opencode daily`   | Aggregate usage by date (YYYY-MM-DD)                 | [Daily Reports](/guide/daily-reports)     |
-| `ccusage opencode weekly`  | Aggregate usage by ISO week (YYYY-Www)               | [Weekly Reports](/guide/weekly-reports)   |
-| `ccusage opencode monthly` | Aggregate usage by month (YYYY-MM)                   | [Monthly Reports](/guide/monthly-reports) |
-| `ccusage opencode session` | Per-session breakdown with parent/subagent hierarchy | [Session Reports](/guide/session-reports) |
+| Focused view               | Description                                          | See also                                |
+| -------------------------- | ---------------------------------------------------- | --------------------------------------- |
+| `ccusage opencode daily`   | Aggregate usage by date (YYYY-MM-DD)                 | [Daily Usage](/guide/daily-reports)     |
+| `ccusage opencode weekly`  | Aggregate usage by ISO week (YYYY-Www)               | [Weekly Usage](/guide/weekly-reports)   |
+| `ccusage opencode monthly` | Aggregate usage by month (YYYY-MM)                   | [Monthly Usage](/guide/monthly-reports) |
+| `ccusage opencode session` | Per-session breakdown with parent/subagent hierarchy | [Session Usage](/guide/session-reports) |
 
 These views support `--json` for structured output and `--compact` for narrow terminals. See the linked ccusage documentation for detailed flag descriptions.
 
