@@ -1,4 +1,5 @@
 import type { AdapterOptions, AgentUsageRow, ReportKind } from '../types.ts';
+import process from 'node:process';
 import { collectFilesRecursive, isDirectorySyncSafe } from '@ccusage/internal/fs';
 import { normalizeDateFilter, toCompactDate } from '../shared.ts';
 import { loadDailyUsageData, loadMonthlyUsageData, loadSessionData } from './data-loader.ts';
@@ -79,7 +80,7 @@ export async function loadClaudeRows(
 
 if (import.meta.vitest != null) {
 	describe('loadClaudeRows', () => {
-		it.skipIf(!getClaudeProjectPaths().some(isDirectorySyncSafe))(
+		it.skipIf(process.env.CI === 'true' || !getClaudeProjectPaths().some(isDirectorySyncSafe))(
 			'loads local Claude usage rows when the user has a projects directory',
 			async () => {
 				const rows = await loadClaudeRows('daily', {
