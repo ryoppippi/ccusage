@@ -1937,6 +1937,55 @@ function decodeDailyDataEntries(encoded: EncodedDailyDataEntries): DailyDataEntr
 	return entries;
 }
 
+function resolveClaudeSessionPath(
+	relativePath: string,
+	entrySessionId?: SessionId,
+): { sessionId: string; projectPath: string } {
+	const parts = relativePath.split(path.sep).filter((part) => part !== '');
+	const fileName = parts.at(-1) ?? '';
+	const fileSessionId = fileName.endsWith('.jsonl') ? path.basename(fileName, '.jsonl') : '';
+
+	if (entrySessionId != null && entrySessionId.trim() !== '') {
+		const sessionIndex = parts.findIndex((part) => part === entrySessionId);
+		if (sessionIndex > 0) {
+			const projectPath = parts.slice(0, sessionIndex).join(path.sep);
+			return {
+				sessionId: entrySessionId,
+				projectPath: projectPath === '' ? 'Unknown Project' : projectPath,
+			};
+		}
+		if (fileSessionId === entrySessionId) {
+			const projectPath = parts.slice(0, -1).join(path.sep);
+			return {
+				sessionId: entrySessionId,
+				projectPath: projectPath === '' ? 'Unknown Project' : projectPath,
+			};
+		}
+	}
+
+	if (parts.length === 2 && fileSessionId !== '') {
+		return {
+			sessionId: fileSessionId,
+			projectPath: parts[0] ?? 'Unknown Project',
+		};
+	}
+
+	if (parts.at(-2) === 'subagents' && parts.length >= 4) {
+		const projectPath = parts.slice(0, -3).join(path.sep);
+		return {
+			sessionId: parts.at(-3) ?? 'unknown',
+			projectPath: projectPath === '' ? 'Unknown Project' : projectPath,
+		};
+	}
+
+	const sessionId = parts.at(-2) ?? 'unknown';
+	const projectPath = parts.slice(0, -2).join(path.sep);
+	return {
+		sessionId,
+		projectPath: projectPath === '' ? 'Unknown Project' : projectPath,
+	};
+}
+
 /**
  * Reconstruct daily rows from the transferred worker columns one row at a time.
  *
@@ -2361,10 +2410,6 @@ async function collectSessionEntriesFromFile(
 ): Promise<SessionDataEntry[]> {
 	const { file, baseDir } = item;
 	const relativePath = path.relative(baseDir, file);
-	const parts = relativePath.split(path.sep);
-	const sessionId = parts[parts.length - 2] ?? 'unknown';
-	const joinedPath = parts.slice(0, -2).join(path.sep);
-	const projectPath = joinedPath.length > 0 ? joinedPath : 'Unknown Project';
 	const entries: SessionDataEntry[] = [];
 	const processedEntries = createDedupedEntryIndex();
 
@@ -2392,6 +2437,7 @@ async function collectSessionEntriesFromFile(
 			}
 
 			const model = data.message.model;
+			const { projectPath, sessionId } = resolveClaudeSessionPath(relativePath, data.sessionId);
 			const entry = {
 				sessionKey: `${projectPath}/${sessionId}`,
 				sessionId,
@@ -4627,6 +4673,43 @@ invalid json line
 			expect(result.find((s) => s.projectPath === path.join('project1', 'subfolder'))).toBeTruthy();
 			expect(result.find((s) => s.sessionId === 'session456')).toBeTruthy();
 			expect(result.find((s) => s.projectPath === 'project2')).toBeTruthy();
+		});
+
+		it('groups flat session files and nested subagent files by the Claude session directory', async () => {
+			const mainSessionData: UsageData = {
+				timestamp: createISOTimestamp('2024-01-01T12:00:00Z'),
+				sessionId: createSessionId('session-a'),
+				message: { usage: { input_tokens: 100, output_tokens: 50 } },
+				costUSD: 0.01,
+			};
+			const subagentData: UsageData = {
+				timestamp: createISOTimestamp('2024-01-01T12:05:00Z'),
+				sessionId: createSessionId('session-a'),
+				message: { usage: { input_tokens: 200, output_tokens: 75 } },
+				costUSD: 0.02,
+			};
+
+			await using fixture = await createFixture({
+				projects: {
+					project1: {
+						'session-a.jsonl': JSON.stringify(mainSessionData),
+						'session-a': {
+							subagents: {
+								'agent-a.jsonl': JSON.stringify(subagentData),
+							},
+						},
+					},
+				},
+			});
+
+			const result = await loadSessionData({ claudePath: fixture.path });
+
+			expect(result).toHaveLength(1);
+			expect(result[0]?.sessionId).toBe('session-a');
+			expect(result[0]?.projectPath).toBe('project1');
+			expect(result[0]?.inputTokens).toBe(300);
+			expect(result[0]?.outputTokens).toBe(125);
+			expect(result[0]?.totalCost).toBe(0.03);
 		});
 
 		it('aggregates session usage data', async () => {
