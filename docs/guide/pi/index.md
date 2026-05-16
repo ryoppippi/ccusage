@@ -18,27 +18,6 @@ pnpm dlx ccusage pi --help
 pnpx ccusage pi --help
 ```
 
-::: warning Compatibility package
-`npx @ccusage/pi@latest daily` still works during the migration window, prints a deprecation warning, and forwards to `ccusage pi daily`.
-:::
-
-### Recommended: Shell Alias
-
-If you want a shorter command, set up a shell alias:
-
-```bash
-# bash/zsh: alias ccusage-pi='bunx ccusage@latest pi'
-# fish:     alias ccusage-pi 'bunx ccusage@latest pi'
-
-# Then simply run:
-ccusage-pi daily
-ccusage-pi monthly --json
-```
-
-::: tip
-After adding the alias to your shell config file (`.bashrc`, `.zshrc`, or `config.fish`), restart your shell or run `source` on the config file to apply the changes.
-:::
-
 ## Data Source
 
 The CLI reads usage data from pi-agent:

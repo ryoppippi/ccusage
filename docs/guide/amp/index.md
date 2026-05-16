@@ -22,22 +22,6 @@ pnpm dlx ccusage amp --help
 
 :::
 
-::: warning Compatibility package
-`npx @ccusage/amp@latest daily` still works during the migration window, prints a deprecation warning, and forwards to `ccusage amp daily`.
-:::
-
-### Recommended: Shell Alias
-
-If you want a shorter command, set up a shell alias:
-
-```bash
-# bash/zsh
-alias ccusage-amp='bunx ccusage@latest amp'
-
-# fish
-alias ccusage-amp 'bunx ccusage@latest amp'
-```
-
 ## Data Source
 
 The CLI reads Amp thread JSON files from `AMP_DATA_DIR` (defaults to `~/.local/share/amp`).

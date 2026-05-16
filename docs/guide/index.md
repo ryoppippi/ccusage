@@ -105,7 +105,7 @@ ccusage amp session
 ccusage pi monthly
 ```
 
-Standalone package commands such as `ccusage-codex`, `ccusage-opencode`, `ccusage-amp`, and `ccusage-pi` are compatibility wrappers. Prefer the unified `ccusage <agent> <report>` form in new scripts and docs.
+Use the unified `ccusage <agent> <report>` form for agent-specific reports.
 
 ## Privacy & Security
 

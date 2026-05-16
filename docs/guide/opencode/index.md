@@ -30,20 +30,6 @@ BUN_BE_BUN=1 opencode x ccusage@latest opencode --help
 The `opencode x` option requires the native version of OpenCode. If you installed OpenCode via npm, use the `bunx` or `npx` options instead.
 :::
 
-### Recommended: Shell Alias
-
-```bash
-# bash/zsh
-alias ccusage-opencode='bunx ccusage@latest opencode'
-
-# fish
-alias ccusage-opencode 'bunx ccusage@latest opencode'
-```
-
-::: warning Compatibility package
-`npx @ccusage/opencode@latest daily` still works during the migration window, prints a deprecation warning, and forwards to `ccusage opencode daily`.
-:::
-
 ## Data Source
 
 The CLI reads OpenCode message and session JSON files located under `OPENCODE_DATA_DIR` (defaults to `~/.local/share/opencode`).
