@@ -39,9 +39,7 @@ PR branches are normally squash-merged, so do not compress review work with `git
 4. **For each unit**:
    - Extract specific hunks using `git diff <file>`
    - Create patch with only desired hunks
-   - Reset file: `git checkout -- <file>`
-   - Apply patch (see detailed guidance below)
-   - Stage: `git add <file>`
+   - Stage only that patch with `git apply --cached -v <patch>`
    - Craft message following format below
    - Commit and verify with `git show HEAD`
 
@@ -128,7 +126,7 @@ git apply --reject -v patch_file.patch
 
 ## Commit Message Format
 
-```
+```text
 <type>(<scope>): <subject>
 
 <body>
@@ -158,7 +156,7 @@ git apply --reject -v patch_file.patch
 
 Instead of one large commit:
 
-```
+```text
 feat(auth): add RefreshTokenService class
 
 Added new RefreshTokenService to handle token lifecycle management.
@@ -166,7 +164,7 @@ This service will be responsible for generating and invalidating
 refresh tokens with configurable expiry periods.
 ```
 
-```
+```text
 feat(auth): integrate token rotation in middleware
 
 Updated auth middleware to call RefreshTokenService when validating
