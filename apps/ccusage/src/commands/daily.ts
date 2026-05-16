@@ -93,9 +93,7 @@ export const dailyCommand = define({
 			throw error;
 		} finally {
 			progress?.stop();
-			if (!useJson) {
-				logger.level = originalLoggerLevel;
-			}
+			logger.level = originalLoggerLevel;
 		}
 
 		if (dailyData.length === 0) {

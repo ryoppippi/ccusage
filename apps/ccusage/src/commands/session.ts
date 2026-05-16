@@ -71,12 +71,12 @@ export const sessionCommand = define({
 			}
 			progress?.start('claude');
 			sessionData = await loadSessionData({
-				since: ctx.values.since,
-				until: ctx.values.until,
-				mode: ctx.values.mode,
-				offline: ctx.values.offline,
-				singleThread: ctx.values.singleThread,
-				timezone: ctx.values.timezone,
+				since: mergedOptions.since,
+				until: mergedOptions.until,
+				mode: mergedOptions.mode,
+				offline: mergedOptions.offline,
+				singleThread: mergedOptions.singleThread,
+				timezone: mergedOptions.timezone,
 			});
 			progress?.succeed('claude', sessionData.length);
 		} catch (error) {
@@ -84,9 +84,7 @@ export const sessionCommand = define({
 			throw error;
 		} finally {
 			progress?.stop();
-			if (!useJson) {
-				logger.level = originalLoggerLevel;
-			}
+			logger.level = originalLoggerLevel;
 		}
 
 		if (sessionData.length === 0) {
@@ -102,9 +100,9 @@ export const sessionCommand = define({
 		const totals = calculateTotals(sessionData);
 
 		// Show debug information if requested
-		if (ctx.values.debug && !useJson) {
+		if (mergedOptions.debug && !useJson) {
 			const mismatchStats = await detectMismatches(undefined);
-			printMismatchReport(mismatchStats, ctx.values.debugSamples);
+			printMismatchReport(mismatchStats, mergedOptions.debugSamples);
 		}
 
 		if (useJson) {

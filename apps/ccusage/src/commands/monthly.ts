@@ -48,9 +48,7 @@ export const monthlyCommand = define({
 			throw error;
 		} finally {
 			progress?.stop();
-			if (!useJson) {
-				logger.level = originalLoggerLevel;
-			}
+			logger.level = originalLoggerLevel;
 		}
 
 		if (monthlyData.length === 0) {
