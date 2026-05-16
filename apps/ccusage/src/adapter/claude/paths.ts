@@ -1,6 +1,6 @@
 import path from 'node:path';
 import process from 'node:process';
-import { USER_HOME_DIR } from '../../_consts.ts';
+import { USER_HOME_DIR } from '../../consts.ts';
 import {
 	CLAUDE_CONFIG_DIR_ENV,
 	CLAUDE_PROJECTS_DIR_NAME,

@@ -17,7 +17,6 @@ import {
 	formatUsageDataRow,
 } from '@ccusage/terminal/table';
 import { define } from 'gunshi';
-import { formatDateCompact, getDateStringWeek } from '../_date-utils.ts';
 import {
 	aggregateRowsByPeriod,
 	detectAllAgents,
@@ -26,6 +25,7 @@ import {
 } from '../adapter/index.ts';
 import { createEmptyRow, getRowAgents } from '../adapter/shared.ts';
 import { agentLabels } from '../adapter/types.ts';
+import { formatDateCompact, getDateStringWeek } from '../date-utils.ts';
 import { logger, writeStdoutLine } from '../logger.ts';
 import { createUsageLoadProgress, shouldShowUsageLoadProgress } from './loading-progress.ts';
 

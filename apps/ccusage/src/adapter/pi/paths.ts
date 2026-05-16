@@ -2,7 +2,7 @@ import path from 'node:path';
 import process from 'node:process';
 import { isDirectorySyncSafe } from '@ccusage/internal/fs';
 import { createFixture } from 'fs-fixture';
-import { USER_HOME_DIR } from '../../_consts.ts';
+import { USER_HOME_DIR } from '../../consts.ts';
 
 export const PI_AGENT_DIR_ENV = 'PI_AGENT_DIR';
 const PI_AGENT_SESSIONS_DIR_NAME = 'sessions';

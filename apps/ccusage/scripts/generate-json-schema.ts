@@ -13,11 +13,11 @@
 import process from 'node:process';
 import { Result } from '@praha/byethrow';
 import { $ } from 'bun';
-import { sharedArgs } from '../src/_shared-args.ts';
 // Import command definitions to access their args
 import { subCommandUnion } from '../src/commands/index.ts';
-
 import { logger } from '../src/logger.ts';
+
+import { sharedArgs } from '../src/shared-args.ts';
 
 /**
  * The filename for the generated JSON Schema file.

@@ -4,7 +4,7 @@ import { accessSync, constants, statSync } from 'node:fs';
 import { delimiter, dirname, join } from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
-import { CCUSAGE_BUN_AUTO_RUN_DISABLED_VALUE, CCUSAGE_BUN_AUTO_RUN_ENV } from './_env.ts';
+import { CCUSAGE_BUN_AUTO_RUN_DISABLED_VALUE, CCUSAGE_BUN_AUTO_RUN_ENV } from './env.ts';
 
 const MIN_NODE_MAJOR_VERSION = 22;
 

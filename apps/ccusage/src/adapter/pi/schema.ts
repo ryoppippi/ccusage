@@ -1,6 +1,6 @@
 import path from 'node:path';
 import * as v from 'valibot';
-import { isoTimestampSchema } from '../../_types.ts';
+import { isoTimestampSchema } from '../../types.ts';
 
 const piAgentUsageSchema = v.object({
 	input: v.number(),

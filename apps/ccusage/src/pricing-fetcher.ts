@@ -1,7 +1,7 @@
 import { LiteLLMPricingFetcher } from '@ccusage/internal/pricing';
 import { Result } from '@praha/byethrow';
-import { prefetchClaudePricing } from './_macro.ts' with { type: 'macro' };
 import { logger } from './logger.ts';
+import { prefetchClaudePricing } from './macro.ts' with { type: 'macro' };
 
 export const CLAUDE_PROVIDER_PREFIXES = [
 	'anthropic/',

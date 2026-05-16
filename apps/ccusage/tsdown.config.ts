@@ -46,7 +46,7 @@ export default defineConfig({
 		Macros({
 			include: [
 				'src/index.ts',
-				'src/_pricing-fetcher.ts',
+				'src/pricing-fetcher.ts',
 				'src/adapter/amp/pricing.ts',
 				'src/adapter/codex/pricing.ts',
 				'../amp/src/pricing.ts',

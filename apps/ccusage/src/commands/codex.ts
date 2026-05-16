@@ -9,8 +9,8 @@ import {
 	ResponsiveTable,
 } from '@ccusage/terminal/table';
 import { define } from 'gunshi';
-import { formatDateCompact } from '../_date-utils.ts';
 import { loadCodexReportRows } from '../adapter/codex/index.ts';
+import { formatDateCompact } from '../date-utils.ts';
 import { logger, writeStdoutLine } from '../logger.ts';
 import { createUsageLoadProgress, shouldShowUsageLoadProgress } from './loading-progress.ts';
 

@@ -21,9 +21,9 @@ import {
 	ResponsiveTable,
 } from '@ccusage/terminal/table';
 import { define } from 'gunshi';
-import { formatDateCompact } from '../_date-utils.ts';
 import { loadAgentRows } from '../adapter/index.ts';
 import { agentLabels } from '../adapter/types.ts';
+import { formatDateCompact } from '../date-utils.ts';
 import { logger, writeStdoutLine } from '../logger.ts';
 import { createUsageLoadProgress, shouldShowUsageLoadProgress } from './loading-progress.ts';
 
