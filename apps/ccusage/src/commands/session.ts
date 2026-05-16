@@ -16,6 +16,7 @@ import { calculateTotals, createTotalsObject, getTotalTokens } from '../calculat
 import { detectMismatches, printMismatchReport } from '../debug.ts';
 import { logger, writeStdoutLine } from '../logger.ts';
 import { handleSessionIdLookup } from './_session_id.ts';
+import { createUsageLoadProgress, shouldShowUsageLoadProgress } from './loading-progress.ts';
 
 // eslint-disable-next-line ts/no-unused-vars
 const { order: _, ...sharedArgs } = sharedCommandConfig.args;
@@ -39,6 +40,7 @@ export const sessionCommand = define({
 		const mergedOptions: typeof ctx.values = mergeConfigWithArgs(ctx, config, ctx.values.debug);
 
 		const useJson = mergedOptions.json;
+		const originalLoggerLevel = logger.level;
 		if (useJson) {
 			logger.level = 0;
 		}
@@ -59,14 +61,33 @@ export const sessionCommand = define({
 		}
 
 		// Original session listing logic
-		const sessionData = await loadSessionData({
-			since: ctx.values.since,
-			until: ctx.values.until,
-			mode: ctx.values.mode,
-			offline: ctx.values.offline,
-			singleThread: ctx.values.singleThread,
-			timezone: ctx.values.timezone,
-		});
+		const progress = createUsageLoadProgress(
+			shouldShowUsageLoadProgress(mergedOptions, process.stdout),
+		);
+		let sessionData: Awaited<ReturnType<typeof loadSessionData>>;
+		try {
+			if (progress != null) {
+				logger.level = 0;
+			}
+			progress?.start('claude');
+			sessionData = await loadSessionData({
+				since: ctx.values.since,
+				until: ctx.values.until,
+				mode: ctx.values.mode,
+				offline: ctx.values.offline,
+				singleThread: ctx.values.singleThread,
+				timezone: ctx.values.timezone,
+			});
+			progress?.succeed('claude', sessionData.length);
+		} catch (error) {
+			progress?.fail('claude', error);
+			throw error;
+		} finally {
+			progress?.stop();
+			if (!useJson) {
+				logger.level = originalLoggerLevel;
+			}
+		}
 
 		if (sessionData.length === 0) {
 			if (useJson) {

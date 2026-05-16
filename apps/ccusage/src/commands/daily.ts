@@ -18,6 +18,7 @@ import { loadDailyUsageData } from '../adapter/claude/data-loader.ts';
 import { calculateTotals, createTotalsObject, getTotalTokens } from '../calculate-cost.ts';
 import { detectMismatches, printMismatchReport } from '../debug.ts';
 import { logger, writeStdoutLine } from '../logger.ts';
+import { createUsageLoadProgress, shouldShowUsageLoadProgress } from './loading-progress.ts';
 
 export const dailyCommand = define({
 	name: 'daily',
@@ -68,14 +69,34 @@ export const dailyCommand = define({
 		}
 
 		const useJson = Boolean(mergedOptions.json);
+		const originalLoggerLevel = logger.level;
 		if (useJson) {
 			logger.level = 0;
 		}
 
-		const dailyData = await loadDailyUsageData({
-			...mergedOptions,
-			groupByProject: mergedOptions.instances,
-		});
+		const progress = createUsageLoadProgress(
+			shouldShowUsageLoadProgress(mergedOptions, process.stdout),
+		);
+		let dailyData: Awaited<ReturnType<typeof loadDailyUsageData>>;
+		try {
+			if (progress != null) {
+				logger.level = 0;
+			}
+			progress?.start('claude');
+			dailyData = await loadDailyUsageData({
+				...mergedOptions,
+				groupByProject: mergedOptions.instances,
+			});
+			progress?.succeed('claude', dailyData.length);
+		} catch (error) {
+			progress?.fail('claude', error);
+			throw error;
+		} finally {
+			progress?.stop();
+			if (!useJson) {
+				logger.level = originalLoggerLevel;
+			}
+		}
 
 		if (dailyData.length === 0) {
 			if (useJson) {

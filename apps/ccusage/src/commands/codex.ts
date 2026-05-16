@@ -1,5 +1,6 @@
 import type { Args, Command } from 'gunshi';
 import type { AdapterOptions, ReportKind } from '../adapter/types.ts';
+import process from 'node:process';
 import {
 	addEmptySeparatorRow,
 	formatCurrency,
@@ -11,6 +12,7 @@ import { define } from 'gunshi';
 import { formatDateCompact } from '../_date-utils.ts';
 import { loadCodexReportRows } from '../adapter/codex/index.ts';
 import { logger, writeStdoutLine } from '../logger.ts';
+import { createUsageLoadProgress, shouldShowUsageLoadProgress } from './loading-progress.ts';
 
 const codexArgs = {
 	json: {
@@ -109,11 +111,32 @@ function calculateCodexTotals(rows: Awaited<ReturnType<typeof loadCodexReportRow
 }
 
 async function runCodexReport(kind: CodexCommandKind, options: AdapterOptions): Promise<void> {
+	const originalLoggerLevel = logger.level;
 	if (options.json === true) {
 		logger.level = 0;
 	}
 
-	const rows = await loadCodexReportRows(kind, options, {});
+	const progress = createUsageLoadProgress(shouldShowUsageLoadProgress(options, process.stdout));
+	let rows: Awaited<ReturnType<typeof loadCodexReportRows>>;
+	try {
+		if (progress != null) {
+			logger.level = 0;
+		}
+		progress?.start('codex');
+		rows = await loadCodexReportRows(kind, options, { progress });
+		progress?.succeed('codex', rows.length);
+	} catch (error) {
+		progress?.fail('codex', error);
+		progress?.stop();
+		logger.level = originalLoggerLevel;
+		logger.error(String(error));
+		process.exitCode = 1;
+		return;
+	} finally {
+		logger.level = originalLoggerLevel;
+	}
+	progress?.stop();
+
 	const rowsKey = getRowsKey(kind);
 	if (rows.length === 0) {
 		await writeStdoutLine(

@@ -6,6 +6,8 @@ import type {
 	AgentUsageRow,
 	ReportKind,
 } from '../adapter/types.ts';
+import type { UsageLoadProgress } from './loading-progress.ts';
+import process from 'node:process';
 import * as pc from '@ccusage/internal/colors';
 import { LiteLLMPricingFetcher } from '@ccusage/internal/pricing';
 import {
@@ -23,6 +25,7 @@ import { formatDateCompact } from '../_date-utils.ts';
 import { loadAgentRows } from '../adapter/index.ts';
 import { agentLabels } from '../adapter/types.ts';
 import { logger, writeStdoutLine } from '../logger.ts';
+import { createUsageLoadProgress, shouldShowUsageLoadProgress } from './loading-progress.ts';
 
 type AgentTotals = {
 	inputTokens: number;
@@ -220,13 +223,17 @@ async function loadRows(
 	agent: AgentId,
 	kind: AgentCommandKind,
 	options: AdapterOptions,
+	progress?: UsageLoadProgress,
 ): Promise<AgentUsageRow[]> {
 	if (options.offline === true || agent === 'pi') {
-		return loadAgentRows(agent, kind, options, {});
+		return loadAgentRows(agent, kind, options, { progress });
 	}
 
-	using pricingFetcher = new LiteLLMPricingFetcher({ offline: false, logger });
-	const context: AdapterContext = { pricingFetcher };
+	using pricingFetcher = new LiteLLMPricingFetcher({
+		offline: false,
+		logger: progress?.pricingLogger ?? logger,
+	});
+	const context: AdapterContext = { pricingFetcher, progress };
 	return await loadAgentRows(agent, kind, options, context);
 }
 
@@ -346,11 +353,29 @@ async function runAgentReport(
 	kind: AgentCommandKind,
 	options: AdapterOptions,
 ): Promise<void> {
+	const originalLoggerLevel = logger.level;
 	if (options.json === true) {
 		logger.level = 0;
 	}
 
-	const rows = await loadRows(agent, kind, options);
+	let rows: AgentUsageRow[];
+	const progress = createUsageLoadProgress(shouldShowUsageLoadProgress(options, process.stdout));
+	try {
+		if (progress != null) {
+			logger.level = 0;
+		}
+		rows = await loadRows(agent, kind, options, progress);
+	} catch (error) {
+		progress?.stop();
+		logger.level = originalLoggerLevel;
+		logger.error(String(error));
+		process.exitCode = 1;
+		return;
+	} finally {
+		logger.level = originalLoggerLevel;
+	}
+	progress?.stop();
+
 	if (rows.length === 0) {
 		await writeStdoutLine(
 			options.json === true

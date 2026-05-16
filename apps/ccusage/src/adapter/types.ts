@@ -1,4 +1,4 @@
-import type { LiteLLMPricingFetcher } from '@ccusage/internal/pricing';
+import type { LiteLLMPricingFetcher, PricingLogger } from '@ccusage/internal/pricing';
 
 export const agentIds = ['claude', 'codex', 'opencode', 'amp', 'pi'] as const;
 export type AgentId = (typeof agentIds)[number];
@@ -31,6 +31,7 @@ export type AgentUsageRow = {
 };
 
 export type AdapterProgress = {
+	pricingLogger?: PricingLogger;
 	start: (agent: AgentId) => void;
 	succeed: (agent: AgentId, rows: number) => void;
 	fail: (agent: AgentId, error: unknown) => void;

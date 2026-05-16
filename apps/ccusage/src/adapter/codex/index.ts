@@ -40,7 +40,7 @@ export async function loadCodexRows(
 			? new LiteLLMPricingFetcher({
 					offline: options.offline === true,
 					offlineLoader: loadOfflineCodexPricing,
-					logger,
+					logger: context.progress?.pricingLogger ?? logger,
 					providerPrefixes: CODEX_PROVIDER_PREFIXES,
 				})
 			: undefined;
@@ -131,7 +131,7 @@ export async function loadCodexReportRows(
 			? new LiteLLMPricingFetcher({
 					offline: options.offline === true,
 					offlineLoader: loadOfflineCodexPricing,
-					logger,
+					logger: context.progress?.pricingLogger ?? logger,
 					providerPrefixes: CODEX_PROVIDER_PREFIXES,
 				})
 			: undefined;
