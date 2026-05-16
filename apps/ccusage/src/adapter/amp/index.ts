@@ -31,6 +31,9 @@ export async function loadAmpRows(
 				})
 			: undefined;
 	const fetcher = context.pricingFetcher ?? ownedFetcher;
+	if (fetcher == null) {
+		throw new Error('Amp pricing fetcher was not initialized');
+	}
 	const groups = new Map<string, { row: AgentUsageRow; models: Set<string>; credits: number }>();
 
 	for (const event of events) {

@@ -26,6 +26,9 @@ export async function loadOpenCodeRows(
 			? new LiteLLMPricingFetcher({ offline: options.offline === true, logger })
 			: undefined;
 	const fetcher = context.pricingFetcher ?? ownedFetcher;
+	if (fetcher == null) {
+		throw new Error('OpenCode pricing fetcher was not initialized');
+	}
 	const groups = new Map<string, { row: AgentUsageRow; models: Set<string> }>();
 
 	for (const entry of entries) {
