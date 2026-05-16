@@ -90,7 +90,9 @@ function validateConfigJson(data: unknown): data is ConfigData {
 	// Optional defaults property
 	if (
 		config.defaults != null &&
-		(typeof config.defaults !== 'object' || config.defaults === null)
+		(typeof config.defaults !== 'object' ||
+			config.defaults === null ||
+			Array.isArray(config.defaults))
 	) {
 		return false;
 	}
@@ -98,7 +100,12 @@ function validateConfigJson(data: unknown): data is ConfigData {
 	// Optional commands property
 	if (
 		config.commands != null &&
-		(typeof config.commands !== 'object' || config.commands === null)
+		(typeof config.commands !== 'object' ||
+			config.commands === null ||
+			Array.isArray(config.commands) ||
+			Object.values(config.commands).some(
+				(command) => typeof command !== 'object' || command === null || Array.isArray(command),
+			))
 	) {
 		return false;
 	}
@@ -329,13 +336,11 @@ export function mergeConfigWithArgs<T extends Record<string, unknown>>(
 		applyOptions(config.commands?.[parsedCommand.raw], 'command config');
 	}
 	if (parsedCommand.agent != null && parsedCommand.report != null) {
+		applyOptions(config.commands?.[parsedCommand.report], 'command config');
 		applyOptions(
 			config.commands?.[`${parsedCommand.agent}:${parsedCommand.report}`],
 			'command config',
 		);
-		if (parsedCommand.agent === 'claude') {
-			applyOptions(config.commands?.[parsedCommand.report], 'command config');
-		}
 		const agentConfig = config[parsedCommand.agent];
 		applyOptions(agentConfig?.defaults, `${parsedCommand.agent} defaults`);
 		applyOptions(
@@ -635,6 +640,20 @@ if (import.meta.vitest != null) {
 			expect(config).toBeUndefined();
 		});
 
+		it.each([{ defaults: [] }, { commands: [] }, { commands: { daily: [] } }])(
+			'should reject invalid top-level config shape %#',
+			async (configData) => {
+				await using fixture = await createFixture({
+					'.ccusage/ccusage.json': JSON.stringify(configData),
+				});
+
+				vi.spyOn(process, 'cwd').mockReturnValue(fixture.getPath());
+
+				const config = loadConfig();
+				expect(config).toBeUndefined();
+			},
+		);
+
 		it.each([
 			{ codex: [] },
 			{ codex: { defaults: [] } },
@@ -847,6 +866,43 @@ if (import.meta.vitest != null) {
 					{
 						values: { json: true, speed: 'auto' },
 						tokens: [{ kind: 'option', name: 'json' }],
+						name,
+					},
+					config,
+				);
+
+				expect(merged).toEqual({
+					json: true,
+					speed: 'fast',
+					offline: false,
+				});
+			},
+		);
+
+		it.each(['codex daily', 'codex:daily'])(
+			'should merge shared command config for namespaced commands (%s)',
+			(name) => {
+				const config = {
+					commands: {
+						daily: {
+							json: true,
+							offline: true,
+						},
+						'codex:daily': {
+							speed: 'fast',
+						},
+					},
+					codex: {
+						defaults: {
+							offline: false,
+						},
+					},
+				} satisfies ConfigData;
+
+				const merged = mergeConfigWithArgs(
+					{
+						values: {},
+						tokens: [],
 						name,
 					},
 					config,
