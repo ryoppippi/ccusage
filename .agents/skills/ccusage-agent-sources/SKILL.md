@@ -65,6 +65,8 @@ When moving an existing loader into an adapter, update internal imports to the a
 
 Use shared ccusage foundation for rendering, table layout, logging, date formatting, progress, pricing fetcher lifecycle, JSONL walking, worker gating, worker spawn/result ordering, and aggregation wherever the source data permits. Agent adapters should mainly own source-specific log discovery, parsing, token mapping, model mapping, and source-specific metadata.
 
+Treat "same foundation as Claude" as more than shared file walking. JSONL adapters should use the shared byte marker scanner (`processJSONLFileByMarkers()`) when stable row markers exist, and high-volume worker paths should avoid returning large object arrays when typed-array transfer payloads or worker-side aggregation can preserve the same output.
+
 When several adapters expose the same raw-log shape, prefer a small helper such as `defineAgentLogLoader()` over duplicating period/session aggregation. Keep highly specialized loaders such as Codex worker parsing separate when their file format or pricing semantics require it.
 
 Before adding or changing an adapter, read `apps/ccusage/src/adapter/ARCHITECTURE.md` and keep the implementation aligned with its detect, load, parse, aggregate, and parent-return layers.
@@ -76,7 +78,7 @@ For each migrated or new agent:
 - Put all source-specific runtime logic under `apps/ccusage/src/adapter/<agent>/`.
 - Keep deprecated wrapper packages as thin compatibility commands only.
 - Implement fast detection that short-circuits once a usable source file is found.
-- Use shared file walking, JSONL line processing, worker gating, logging, pricing fetcher lifecycle, date formatting, table rendering, and all-agent aggregation.
+- Use shared file walking, JSONL byte marker scanning where applicable, worker gating, logging, pricing fetcher lifecycle, date formatting, table rendering, and all-agent aggregation.
 - Keep adapter code responsible for source paths, raw parsing, token mapping, model mapping, source metadata, and agent-specific pricing.
 - Add fixture-backed tests for path discovery, parser behavior, aggregation totals, and important legacy compatibility.
 - Add skipped local-data smoke tests when real user log directories are useful for catching schema drift.
