@@ -57,7 +57,7 @@ Use `git apply --cached -v` to stage precise non-interactive patches. Read `refe
 
 ## History Inspection
 
-Use git history to understand intent before committing. Prefer targeted commands such as `git log --follow -- <file>`, `git show <commit> -- <file>`, `git blame <file>`, and any available `git history` alias/tool when it gives clearer local context. Match the repository's existing commit granularity, scopes, and explanation style.
+Use standard git history commands to understand intent before committing. Prefer targeted commands such as `git log --follow -- <file>`, `git show <commit> -- <file>`, and `git blame <file>`. Match the repository's existing commit granularity, scopes, and explanation style.
 
 ## Commit Message Format
 
