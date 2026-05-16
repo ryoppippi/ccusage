@@ -37,6 +37,8 @@ For actionable feedback:
 4. Push normally with `git push`.
 5. Reply to the specific comment with what changed and which validation passed.
 
+When replying to AI reviewer inline comments, explicitly mention the reviewer bot in the reply body so the bot treats the message as directed at it rather than ordinary human discussion. Use `@coderabbitai` for CodeRabbit replies. For Cubic, use the current Cubic bot handle shown on the PR/check or recent comments, and mention it at the start of the reply.
+
 Read `references/gh-review-commands.md` for concrete `gh` commands to request review, list comments, reply to inline review comments, add top-level PR comments, update your own comments, and query review threads.
 
 When disagreeing with a review, reply with concrete repository context, not a vague dismissal. If discussion changes the implementation, commit the change and reply again with the result.
