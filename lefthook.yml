@@ -9,6 +9,13 @@ pre-commit:
       run: pnpm run sync:skills
       stage_fixed: true
 
+    - name: config schema
+      glob:
+        - apps/ccusage/scripts/generate-json-schema.ts
+        - 'apps/ccusage/src/**'
+      run: pnpm --filter ccusage run generate:schema
+      stage_fixed: true
+
     - name: oxfmt
       glob: '**/*'
       run: pnpm exec oxfmt --no-error-on-unmatched-pattern {staged_files}
