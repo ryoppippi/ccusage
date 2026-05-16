@@ -33,7 +33,13 @@ Pricing generally comes from LiteLLM's `model_prices_and_context_window.json`. T
 
 ## Agent Details
 
-Read `references/agent-source-details.md` before changing parser behavior, token mappings, data directory detection, fallback models, or agent-specific CLI flags.
+Read only the relevant reference before changing parser behavior, token mappings, data directory detection, fallback models, or agent-specific CLI flags:
+
+- Claude Code: `references/claude-code.md`
+- Codex: `references/codex.md`
+- OpenCode: `references/opencode.md`
+- Amp: `references/amp.md`
+- pi-agent: `references/pi-agent.md`
 
 ## Implementation Notes
 
