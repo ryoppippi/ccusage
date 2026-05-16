@@ -31,6 +31,8 @@ You are an expert git commit architect creating fine-grained, independently reve
 
 PR branches are normally squash-merged, so do not compress review work with `git commit --amend` by default. Keep review fixes as small follow-up commits that can be reverted independently. Amend only for unpublished local mistakes or when the user explicitly asks.
 
+Tiny commits are expected. A single review comment, one wording correction, one reference-file extraction, one symlink sync, or one generated formatting pass can each be its own commit when independently revertable.
+
 ## Workflow
 
 1. **Analyse the changes above**: Review the git state already provided
@@ -178,6 +180,7 @@ affecting the service itself.
 - **Never push to main branch directly** - create a PR instead
 - When in doubt, prefer smaller commits (can squash later, can't easily split)
 - On PR branches, stack small revertable commits instead of amending away review history unless explicitly asked
+- Prefer many tiny commits over a tidy-looking but broad commit; squash merge will clean PR history later
 - Match project's established scope naming and conventions
 - Include issue/PR references when applicable
 - Each commit must pass: "If I revert this, will it break other features?"
@@ -185,7 +188,7 @@ affecting the service itself.
 
 ## Push (if push=true)
 
-After all commits are complete, push to remote:
+After all commits are complete, push to remote. Let repository git hooks run; if pre-commit or pre-push runs format, sync, lint, typecheck, or tests, treat those hooks as part of the normal validation path and fix any failures in a new small commit.
 
 1. Check if the branch has an upstream:
 
