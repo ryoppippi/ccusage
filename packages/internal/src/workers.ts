@@ -110,6 +110,46 @@ export async function chunkIndexedItemsByFileSize<T>(
 }
 
 /**
+ * Maps items with bounded concurrency while preserving input order.
+ *
+ * @param items - Items to map.
+ * @param concurrency - Maximum number of mapper calls running at once.
+ * @param mapper - Async mapper called with the item and its original index.
+ * @returns Mapped results in the same order as the input items.
+ */
+export async function mapWithConcurrency<TItem, TResult>(
+	items: readonly TItem[],
+	concurrency: number,
+	mapper: (item: TItem, index: number) => Promise<TResult>,
+): Promise<TResult[]> {
+	if (items.length === 0) {
+		return [];
+	}
+
+	const requestedConcurrency = Math.floor(concurrency);
+	const workerCount = Number.isFinite(requestedConcurrency)
+		? Math.max(1, Math.min(items.length, requestedConcurrency))
+		: 1;
+	const entries = items.map((item, index) => ({ item, index }));
+	const results = createResultSlots<TResult>(items.length);
+	let nextIndex = 0;
+
+	await Promise.all(
+		Array.from({ length: workerCount }, async () => {
+			while (true) {
+				const entry = entries[nextIndex++];
+				if (entry == null) {
+					return;
+				}
+				results[entry.index] = await mapper(entry.item, entry.index);
+			}
+		}),
+	);
+
+	return results;
+}
+
+/**
  * Runs indexed items through file workers and restores results to input order.
  *
  * @param options - Worker collection options.
@@ -203,6 +243,58 @@ if (import.meta.vitest != null) {
 			await expect(
 				chunkIndexedItemsByFileSize([{ index: 0, item: '/missing.jsonl' }], 0, (item) => item),
 			).resolves.toEqual([]);
+		});
+	});
+
+	describe('mapWithConcurrency', () => {
+		it('falls back to one active mapper for invalid concurrency', async () => {
+			const visited: number[] = [];
+
+			await expect(
+				mapWithConcurrency([1, 2], Number.NaN, async (item) => {
+					visited.push(item);
+					return item;
+				}),
+			).resolves.toEqual([1, 2]);
+			expect(visited).toEqual([1, 2]);
+		});
+
+		it('preserves input order while limiting active work', async () => {
+			let active = 0;
+			let maxActive = 0;
+			const releaseWaiters: Array<() => void> = [];
+
+			const resultsPromise = mapWithConcurrency([1, 2, 3, 4], 2, async (item) => {
+				active++;
+				maxActive = Math.max(maxActive, active);
+				await new Promise<void>((resolve) => {
+					releaseWaiters.push(resolve);
+				});
+				active--;
+				return item * 10;
+			});
+
+			while (releaseWaiters.length < 2) {
+				await new Promise<void>((resolve) => {
+					queueMicrotask(resolve);
+				});
+			}
+			expect(maxActive).toBe(2);
+
+			for (const release of releaseWaiters.splice(0)) {
+				release();
+			}
+			while (releaseWaiters.length < 2) {
+				await new Promise<void>((resolve) => {
+					queueMicrotask(resolve);
+				});
+			}
+			for (const release of releaseWaiters.splice(0)) {
+				release();
+			}
+
+			await expect(resultsPromise).resolves.toEqual([10, 20, 30, 40]);
+			expect(maxActive).toBe(2);
 		});
 	});
 

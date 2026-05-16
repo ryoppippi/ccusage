@@ -74,10 +74,10 @@ Adapters should share the same optimized primitives instead of reimplementing fi
 - Claude: optimized adapter-local JSONL byte/text buffering, worker parsing, and the separate `data-loader` chunk introduced by PR #984.
 - Codex: `hasFileRecursive()` for detection, `collectFilesRecursive()`, `processJSONLFileByLine()` for Bun-backed JSONL text buffering, `collectIndexedFileWorkerResults()`, shared pricing fetcher lifecycle, shared usage load progress, and `readTextFile()` for `config.toml`.
 - OpenCode: `hasFileRecursive()` for JSON detection, `collectFilesRecursive()`, `readTextFile()` for message JSON files, `collectIndexedFileWorkerResults()`, SQLite loading through `@ccusage/internal/sqlite`, shared pricing fetcher lifecycle, and shared usage load progress.
-- Amp: `hasFileRecursive()` for detection, `collectFilesRecursive()`, `readTextFile()` for thread JSON files, `collectIndexedFileWorkerResults()`, shared pricing fetcher lifecycle, and shared usage load progress.
-- pi-agent: `hasFileRecursive()` for detection, `collectFilesRecursive()`, `processJSONLFileByLine()` for Bun-backed JSONL text buffering, `collectIndexedFileWorkerResults()`, and shared usage load progress.
+- Amp: `hasFileRecursive()` for detection, `collectFilesRecursive()`, `readTextFile()` for thread JSON files, `collectIndexedFileWorkerResults()`, bounded non-worker fallback through `mapWithConcurrency()`, shared pricing fetcher lifecycle, and shared usage load progress.
+- pi-agent: `hasFileRecursive()` for detection, `collectFilesRecursive()`, `processJSONLFileByLine()` for Bun-backed JSONL text buffering, `collectIndexedFileWorkerResults()`, bounded non-worker fallback through `mapWithConcurrency()`, and shared usage load progress.
 
-When adding a new coding agent, start from this list before adding adapter-specific code. Use `hasFileRecursive()` for cheap source detection, `collectFilesRecursive()` for deterministic file discovery, `processJSONLFileByLine()` for line-oriented JSONL, and `readTextFile()` for whole JSON, TOML, or other text files. If it needs deterministic worker result ordering, use `collectIndexedFileWorkerResults()`.
+When adding a new coding agent, start from this list before adding adapter-specific code. Use `hasFileRecursive()` for cheap source detection, `collectFilesRecursive()` for deterministic file discovery, `processJSONLFileByLine()` for line-oriented JSONL, and `readTextFile()` for whole JSON, TOML, or other text files. If it needs deterministic worker result ordering, use `collectIndexedFileWorkerResults()`. If workers are disabled or unavailable, use `mapWithConcurrency()` instead of unbounded `Promise.all(files.map(...))`.
 
 ## Testing Policy
 

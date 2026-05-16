@@ -6,7 +6,9 @@ import { readTextFile } from '@ccusage/internal/fs';
 import { compareStrings } from '@ccusage/internal/sort';
 import {
 	collectIndexedFileWorkerResults,
+	getDefaultWorkerThreadCount,
 	getFileWorkerThreadCount,
+	mapWithConcurrency,
 } from '@ccusage/internal/workers';
 import { Result } from '@praha/byethrow';
 import { createFixture } from 'fs-fixture';
@@ -106,7 +108,11 @@ export async function loadAmpUsageEvents(): Promise<AmpUsageEvent[]> {
 	const files = await discoverAmpThreadFiles();
 	const eventGroups =
 		(await collectAmpEventsWithWorkers(files)) ??
-		(await Promise.all(files.map(loadAmpThreadEvents)));
+		(await mapWithConcurrency(
+			files,
+			getDefaultWorkerThreadCount(files.length),
+			loadAmpThreadEvents,
+		));
 	return eventGroups.flat().sort((a, b) => compareStrings(a.timestamp, b.timestamp));
 }
 

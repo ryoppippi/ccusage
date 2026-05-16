@@ -6,7 +6,9 @@ import { collectFilesRecursive } from '@ccusage/internal/fs';
 import { processJSONLFileByLine } from '@ccusage/internal/jsonl';
 import {
 	collectIndexedFileWorkerResults,
+	getDefaultWorkerThreadCount,
 	getFileWorkerThreadCount,
+	mapWithConcurrency,
 } from '@ccusage/internal/workers';
 import { Result } from '@praha/byethrow';
 import { createFixture } from 'fs-fixture';
@@ -117,7 +119,8 @@ export async function loadPiUsageEntries(piPath?: string): Promise<PiUsageEntry[
 	const processedHashes = new Set<string>();
 	const entries: PiUsageEntry[] = [];
 	const fileResults =
-		(await collectWithPiWorkers(files)) ?? (await Promise.all(files.map(parsePiAgentFile)));
+		(await collectWithPiWorkers(files)) ??
+		(await mapWithConcurrency(files, getDefaultWorkerThreadCount(files.length), parsePiAgentFile));
 
 	for (const fileEntries of fileResults) {
 		for (const entry of fileEntries) {
