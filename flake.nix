@@ -21,6 +21,7 @@
             git
             gh
             hyperfine
+            similarity
           ];
 
           shellHook = ''
