@@ -51,7 +51,7 @@ gh api -X PATCH repos/:owner/:repo/issues/comments/<comment-id> \
 
 ## Query review thread state
 
-Use this when thread resolution state matters:
+Use this when thread resolution state matters. This quick query only returns the first 100 review threads; add pagination with `pageInfo` and `after` for large PRs.
 
 ```sh
 gh api graphql \
