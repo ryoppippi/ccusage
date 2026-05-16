@@ -47,20 +47,25 @@ type JsonSchemaNode = {
 	properties?: Record<string, JsonSchemaNode>;
 	definitions?: Record<string, JsonSchemaNode>;
 };
+type TokenDefinition = {
+	[key: string]: unknown;
+	type: string;
+	choices?: readonly unknown[];
+	description?: string;
+	default?: unknown;
+};
+type TokenSchema = Record<string, TokenDefinition>;
 
 /**
  * Convert args-tokens schema to JSON Schema format
  */
-function tokensSchemaToJsonSchema(schema: Record<string, any>): JsonSchemaNode {
+function tokensSchemaToJsonSchema(schema: TokenSchema): JsonSchemaNode {
 	const properties: Record<string, JsonSchemaNode> = {};
 
-	for (const [key, arg] of Object.entries(schema)) {
-		// eslint-disable-next-line ts/no-unsafe-assignment
-		const argTyped = arg;
+	for (const [key, argTyped] of Object.entries(schema)) {
 		const property: JsonSchemaNode = {};
 
 		// Handle type conversion
-		// eslint-disable-next-line ts/no-unsafe-member-access
 		switch (argTyped.type) {
 			case 'boolean':
 				property.type = 'boolean';
@@ -74,9 +79,7 @@ function tokensSchemaToJsonSchema(schema: Record<string, any>): JsonSchemaNode {
 				break;
 			case 'enum':
 				property.type = 'string';
-				// eslint-disable-next-line ts/no-unsafe-member-access
 				if (argTyped.choices != null && Array.isArray(argTyped.choices)) {
-					// eslint-disable-next-line ts/no-unsafe-member-access
 					property.enum = argTyped.choices;
 				}
 				break;
@@ -85,18 +88,13 @@ function tokensSchemaToJsonSchema(schema: Record<string, any>): JsonSchemaNode {
 		}
 
 		// Add description
-		// eslint-disable-next-line ts/no-unsafe-member-access
 		if (argTyped.description != null) {
-			// eslint-disable-next-line ts/no-unsafe-member-access
 			property.description = argTyped.description;
-			// eslint-disable-next-line ts/no-unsafe-member-access
 			property.markdownDescription = argTyped.description;
 		}
 
 		// Add default value
-		// eslint-disable-next-line ts/no-unsafe-member-access
 		if ('default' in argTyped && argTyped.default !== undefined) {
-			// eslint-disable-next-line ts/no-unsafe-member-access
 			property.default = argTyped.default;
 		}
 
@@ -118,7 +116,7 @@ function splitCommandName(name: string): { agent?: AgentName; report: string } {
 	return { report: name };
 }
 
-function filterCommandSchema(report: string, schema: Record<string, any>): Record<string, any> {
+function filterCommandSchema(report: string, schema: TokenSchema): TokenSchema {
 	const commandExcludes = COMMAND_EXCLUDE_KEYS[report] ?? [];
 	return Object.fromEntries(
 		Object.entries(schema).filter(
@@ -127,7 +125,7 @@ function filterCommandSchema(report: string, schema: Record<string, any>): Recor
 	);
 }
 
-function commonSchemaProperties(commandSchemas: Record<string, Record<string, any>>) {
+function commonSchemaProperties(commandSchemas: Record<string, TokenSchema>): TokenSchema {
 	const schemas = Object.values(commandSchemas);
 	const firstSchema = schemas[0];
 	if (firstSchema == null) {
@@ -142,7 +140,7 @@ function commonSchemaProperties(commandSchemas: Record<string, Record<string, an
 }
 
 function createCommandsJsonSchema(
-	commandSchemas: Record<string, Record<string, any>>,
+	commandSchemas: Record<string, TokenSchema>,
 	description: string,
 ): JsonSchemaNode {
 	return {
@@ -161,7 +159,7 @@ function createCommandsJsonSchema(
 
 function createAgentJsonSchema(
 	agentName: AgentName,
-	commandSchemas: Record<string, Record<string, any>>,
+	commandSchemas: Record<string, TokenSchema>,
 ): JsonSchemaNode {
 	const agentLabel = agentName === 'pi' ? 'pi-agent' : agentName;
 	return {
@@ -187,15 +185,15 @@ function createAgentJsonSchema(
  * Create the complete configuration schema from all command definitions
  */
 function createConfigSchemaJson(): JsonSchemaNode {
-	const topLevelCommandSchemas: Record<string, Record<string, any>> = {};
+	const topLevelCommandSchemas: Record<string, TokenSchema> = {};
 	const agentCommandSchemas = Object.fromEntries(AGENT_NAMES.map((agent) => [agent, {}])) as Record<
 		AgentName,
-		Record<string, Record<string, any>>
+		Record<string, TokenSchema>
 	>;
 
 	for (const [commandName, command] of subCommandUnion) {
 		const { agent, report } = splitCommandName(commandName);
-		const commandSchema = filterCommandSchema(report, command.args as Record<string, any>);
+		const commandSchema = filterCommandSchema(report, command.args as TokenSchema);
 		if (agent == null) {
 			topLevelCommandSchemas[report] = commandSchema;
 		} else {
@@ -214,7 +212,7 @@ function createConfigSchemaJson(): JsonSchemaNode {
 	);
 	const defaultsJsonSchema = tokensSchemaToJsonSchema({
 		...commonSchemaProperties(agentCommandSchemas.claude),
-		...filterCommandSchema('daily', allArgs as Record<string, any>),
+		...filterCommandSchema('daily', allArgs as TokenSchema),
 	});
 	const commandsJsonSchema = createCommandsJsonSchema(
 		legacyTopLevelCommandSchemas,
@@ -403,7 +401,7 @@ if (import.meta.vitest != null) {
 					description: 'Enable debug mode',
 					default: false,
 				},
-			};
+			} satisfies TokenSchema;
 
 			const jsonSchema = tokensSchemaToJsonSchema(schema);
 			expect(schemaProperties(jsonSchema).debug).toEqual({
@@ -422,7 +420,7 @@ if (import.meta.vitest != null) {
 					choices: ['auto', 'manual'],
 					default: 'auto',
 				},
-			};
+			} satisfies TokenSchema;
 
 			const jsonSchema = tokensSchemaToJsonSchema(schema);
 			expect(schemaProperties(jsonSchema).mode).toEqual({

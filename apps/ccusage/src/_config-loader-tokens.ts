@@ -116,19 +116,26 @@ function validateAgentConfigJson(data: unknown): data is AgentConfigData | undef
 	if (data == null) {
 		return true;
 	}
-	if (typeof data !== 'object') {
+	if (typeof data !== 'object' || Array.isArray(data)) {
 		return false;
 	}
 	const config = data as Record<string, unknown>;
 	if (
 		config.defaults != null &&
-		(typeof config.defaults !== 'object' || config.defaults === null)
+		(typeof config.defaults !== 'object' ||
+			config.defaults === null ||
+			Array.isArray(config.defaults))
 	) {
 		return false;
 	}
 	if (
 		config.commands != null &&
-		(typeof config.commands !== 'object' || config.commands === null)
+		(typeof config.commands !== 'object' ||
+			config.commands === null ||
+			Array.isArray(config.commands) ||
+			Object.values(config.commands).some(
+				(command) => typeof command !== 'object' || command === null || Array.isArray(command),
+			))
 	) {
 		return false;
 	}
@@ -628,6 +635,22 @@ if (import.meta.vitest != null) {
 			expect(config).toBeUndefined();
 		});
 
+		it.each([
+			{ codex: [] },
+			{ codex: { defaults: [] } },
+			{ codex: { commands: [] } },
+			{ codex: { commands: { daily: [] } } },
+		])('should reject invalid agent namespace config %#', async (configData) => {
+			await using fixture = await createFixture({
+				'.ccusage/ccusage.json': JSON.stringify(configData),
+			});
+
+			vi.spyOn(process, 'cwd').mockReturnValue(fixture.getPath());
+
+			const config = loadConfig();
+			expect(config).toBeUndefined();
+		});
+
 		it('should use validateConfigFile internally', async () => {
 			await using fixture = await createFixture({
 				'.ccusage/ccusage.json': JSON.stringify({
@@ -802,37 +825,40 @@ if (import.meta.vitest != null) {
 			});
 		});
 
-		it('should merge agent namespace config for namespaced commands', () => {
-			const config = {
-				defaults: { json: false },
-				codex: {
-					defaults: {
-						speed: 'standard',
-						offline: false,
-					},
-					commands: {
-						daily: {
-							speed: 'fast',
+		it.each(['codex daily', 'codex:daily'])(
+			'should merge agent namespace config for namespaced commands (%s)',
+			(name) => {
+				const config = {
+					defaults: { json: false },
+					codex: {
+						defaults: {
+							speed: 'standard',
+							offline: false,
+						},
+						commands: {
+							daily: {
+								speed: 'fast',
+							},
 						},
 					},
-				},
-			} satisfies ConfigData;
+				} satisfies ConfigData;
 
-			const merged = mergeConfigWithArgs(
-				{
-					values: { json: true, speed: 'auto' },
-					tokens: [{ kind: 'option', name: 'json' }],
-					name: 'codex daily',
-				},
-				config,
-			);
+				const merged = mergeConfigWithArgs(
+					{
+						values: { json: true, speed: 'auto' },
+						tokens: [{ kind: 'option', name: 'json' }],
+						name,
+					},
+					config,
+				);
 
-			expect(merged).toEqual({
-				json: true,
-				speed: 'fast',
-				offline: false,
-			});
-		});
+				expect(merged).toEqual({
+					json: true,
+					speed: 'fast',
+					offline: false,
+				});
+			},
+		);
 	});
 
 	describe('validateConfigFile', () => {
