@@ -47,12 +47,13 @@ type TokenUsageEvent = {
 	totalTokens: number;
 };
 
-type CodexModelUsage = {
+export type CodexModelUsage = {
 	inputTokens: number;
 	cachedInputTokens: number;
 	outputTokens: number;
 	reasoningOutputTokens: number;
 	totalTokens: number;
+	isFallback?: boolean;
 };
 
 type CodexGroup = {
@@ -63,6 +64,41 @@ type CodexGroup = {
 };
 
 type CodexSpeed = 'standard' | 'fast';
+
+export type CodexReportRow =
+	| {
+			date: string;
+			inputTokens: number;
+			cachedInputTokens: number;
+			outputTokens: number;
+			reasoningOutputTokens: number;
+			totalTokens: number;
+			costUSD: number;
+			models: Record<string, CodexModelUsage>;
+	  }
+	| {
+			month: string;
+			inputTokens: number;
+			cachedInputTokens: number;
+			outputTokens: number;
+			reasoningOutputTokens: number;
+			totalTokens: number;
+			costUSD: number;
+			models: Record<string, CodexModelUsage>;
+	  }
+	| {
+			sessionId: string;
+			lastActivity: string;
+			sessionFile: string;
+			directory: string;
+			inputTokens: number;
+			cachedInputTokens: number;
+			outputTokens: number;
+			reasoningOutputTokens: number;
+			totalTokens: number;
+			costUSD: number;
+			models: Record<string, CodexModelUsage>;
+	  };
 
 const CODEX_HOME_ENV = 'CODEX_HOME';
 const DEFAULT_CODEX_DIR = path.join(os.homedir(), '.codex');
@@ -371,6 +407,7 @@ function createCodexUsage(): CodexModelUsage {
 		outputTokens: 0,
 		reasoningOutputTokens: 0,
 		totalTokens: 0,
+		isFallback: false,
 	};
 }
 
@@ -403,7 +440,21 @@ function calculateCodexCostUSD(
 	);
 }
 
-async function resolveCodexSpeed(): Promise<CodexSpeed> {
+function normalizeCodexSpeed(value: string | undefined): 'auto' | CodexSpeed {
+	if (value == null || value === '' || value === 'auto') {
+		return 'auto';
+	}
+	if (value === 'standard' || value === 'fast') {
+		return value;
+	}
+	throw new Error(`Invalid speed option: ${value}. Use auto, standard, or fast.`);
+}
+
+async function resolveCodexSpeed(requested?: string): Promise<CodexSpeed> {
+	const speed = normalizeCodexSpeed(requested);
+	if (speed !== 'auto') {
+		return speed;
+	}
 	const configPath = path.join(path.dirname(getCodexSessionsPath()), 'config.toml');
 	const result = await Result.try({
 		try: readFile(configPath, 'utf8'),
@@ -609,7 +660,7 @@ export async function loadCodexRows(
 ): Promise<AgentUsageRow[]> {
 	const since = normalizeDateFilter(options.since);
 	const until = normalizeDateFilter(options.until);
-	const speed = await resolveCodexSpeed();
+	const speed = await resolveCodexSpeed(options.speed);
 	const events = await loadTokenUsageEvents();
 	const ownedFetcher =
 		context.pricingFetcher == null
@@ -688,6 +739,137 @@ export async function loadCodexRows(
 				metadata: { lastActivity, reasoningOutputTokens },
 			};
 		}).sort((a, b) => compareStrings(a.period, b.period));
+	} finally {
+		ownedFetcher?.[Symbol.dispose]();
+	}
+}
+
+export async function loadCodexReportRows(
+	kind: Extract<ReportKind, 'daily' | 'monthly' | 'session'>,
+	options: AdapterOptions,
+	context: AdapterContext,
+): Promise<CodexReportRow[]> {
+	const since = normalizeDateFilter(options.since);
+	const until = normalizeDateFilter(options.until);
+	const speed = await resolveCodexSpeed(options.speed);
+	const events = await loadTokenUsageEvents();
+	const ownedFetcher =
+		context.pricingFetcher == null
+			? new LiteLLMPricingFetcher({
+					offline: options.offline === true,
+					offlineLoader: async () => prefetchCodexPricing(),
+					logger,
+					providerPrefixes: CODEX_PROVIDER_PREFIXES,
+				})
+			: undefined;
+	const fetcher = context.pricingFetcher ?? ownedFetcher!;
+	try {
+		const groups = new Map<
+			string,
+			{
+				inputTokens: number;
+				cachedInputTokens: number;
+				outputTokens: number;
+				reasoningOutputTokens: number;
+				totalTokens: number;
+				lastActivity: string;
+				models: Map<string, CodexModelUsage>;
+			}
+		>();
+		for (const event of events) {
+			const modelName = event.model?.trim();
+			if (modelName == null || modelName === '') {
+				continue;
+			}
+			const date = formatDateKey(event.timestamp, options.timezone);
+			if (!isWithinRange(date, since, until)) {
+				continue;
+			}
+			const period =
+				kind === 'session'
+					? event.sessionId
+					: kind === 'monthly'
+						? formatMonthKey(event.timestamp, options.timezone)
+						: date;
+			const group = groups.get(period) ?? {
+				inputTokens: 0,
+				cachedInputTokens: 0,
+				outputTokens: 0,
+				reasoningOutputTokens: 0,
+				totalTokens: 0,
+				lastActivity: event.timestamp,
+				models: new Map<string, CodexModelUsage>(),
+			};
+			if (!groups.has(period)) {
+				groups.set(period, group);
+			}
+
+			group.inputTokens += event.inputTokens;
+			group.cachedInputTokens += event.cachedInputTokens;
+			group.outputTokens += event.outputTokens;
+			group.reasoningOutputTokens += event.reasoningOutputTokens;
+			group.totalTokens += event.totalTokens;
+			if (event.timestamp > group.lastActivity) {
+				group.lastActivity = event.timestamp;
+			}
+
+			const modelUsage = group.models.get(modelName) ?? createCodexUsage();
+			if (!group.models.has(modelName)) {
+				group.models.set(modelName, modelUsage);
+			}
+			addCodexUsage(modelUsage, event);
+			if (event.isFallbackModel === true) {
+				modelUsage.isFallback = true;
+			}
+		}
+
+		const pricingByModel = new Map<string, Awaited<ReturnType<typeof getCodexPricing>>>();
+		for (const group of groups.values()) {
+			for (const model of group.models.keys()) {
+				if (!pricingByModel.has(model)) {
+					pricingByModel.set(model, await getCodexPricing(model, fetcher, speed));
+				}
+			}
+		}
+
+		return Array.from(groups.entries(), ([period, group]) => {
+			let costUSD = 0;
+			const models: Record<string, CodexModelUsage> = {};
+			for (const [model, usage] of group.models) {
+				const pricing = pricingByModel.get(model);
+				if (pricing != null) {
+					costUSD += calculateCodexCostUSD(usage, pricing);
+				}
+				models[model] = { ...usage };
+			}
+			const base = {
+				inputTokens: group.inputTokens,
+				cachedInputTokens: group.cachedInputTokens,
+				outputTokens: group.outputTokens,
+				reasoningOutputTokens: group.reasoningOutputTokens,
+				totalTokens: group.totalTokens,
+				costUSD,
+				models,
+			};
+			if (kind === 'daily') {
+				return { date: period, ...base };
+			}
+			if (kind === 'monthly') {
+				return { month: period, ...base };
+			}
+			const separatorIndex = period.lastIndexOf('/');
+			return {
+				sessionId: period,
+				lastActivity: group.lastActivity,
+				sessionFile: separatorIndex >= 0 ? period.slice(separatorIndex + 1) : period,
+				directory: separatorIndex >= 0 ? period.slice(0, separatorIndex) : '',
+				...base,
+			};
+		}).sort((a, b) => {
+			const aKey = 'date' in a ? a.date : 'month' in a ? a.month : a.lastActivity;
+			const bKey = 'date' in b ? b.date : 'month' in b ? b.month : b.lastActivity;
+			return compareStrings(aKey, bKey);
+		});
 	} finally {
 		ownedFetcher?.[Symbol.dispose]();
 	}
@@ -827,6 +1009,78 @@ if (import.meta.vitest != null) {
 				totalTokens: 130,
 			});
 			expect(rows[0]!.totalCost).toBeCloseTo(0.000084);
+		});
+
+		it('keeps Codex-specific JSON report totals on the fast adapter path', async () => {
+			await using fixture = await createFixture({
+				codex: {
+					sessions: {
+						'project-1.jsonl': [
+							JSON.stringify({
+								timestamp: '2026-01-02T00:00:00.000Z',
+								type: 'turn_context',
+								payload: { model: 'gpt-5' },
+							}),
+							JSON.stringify({
+								timestamp: '2026-01-02T00:00:01.000Z',
+								type: 'event_msg',
+								payload: {
+									type: 'token_count',
+									info: {
+										last_token_usage: {
+											input_tokens: 120,
+											cached_input_tokens: 30,
+											output_tokens: 11,
+											reasoning_output_tokens: 3,
+											total_tokens: 131,
+										},
+									},
+								},
+							}),
+						].join('\n'),
+					},
+				},
+			});
+
+			vi.stubEnv('CODEX_HOME', fixture.getPath('codex'));
+			const rows = await loadCodexReportRows(
+				'daily',
+				{ offline: true, timezone: 'UTC' },
+				{
+					pricingFetcher: new LiteLLMPricingFetcher({
+						offline: true,
+						offlineLoader: async () => ({
+							'gpt-5': {
+								input_cost_per_token: 1e-6,
+								output_cost_per_token: 2e-6,
+								cache_read_input_token_cost: 1e-7,
+							},
+						}),
+					}),
+				},
+			);
+
+			expect(rows).toHaveLength(1);
+			expect(rows[0]).toEqual({
+				date: '2026-01-02',
+				inputTokens: 120,
+				cachedInputTokens: 30,
+				outputTokens: 11,
+				reasoningOutputTokens: 3,
+				totalTokens: 131,
+				costUSD: rows[0]!.costUSD,
+				models: {
+					'gpt-5': {
+						inputTokens: 120,
+						cachedInputTokens: 30,
+						outputTokens: 11,
+						reasoningOutputTokens: 3,
+						totalTokens: 131,
+						isFallback: false,
+					},
+				},
+			});
+			expect(rows[0]!.costUSD).toBeCloseTo(0.000115);
 		});
 	});
 }

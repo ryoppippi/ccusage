@@ -11,6 +11,7 @@ export type AdapterOptions = {
 	timezone?: string;
 	compact?: boolean;
 	offline?: boolean;
+	speed?: string;
 };
 
 export type AgentUsageRow = {

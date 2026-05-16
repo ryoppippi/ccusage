@@ -3,9 +3,6 @@ import { cli } from 'gunshi';
 import { dailyCommand as ampDailyCommand } from '../../../amp/src/commands/daily.ts';
 import { monthlyCommand as ampMonthlyCommand } from '../../../amp/src/commands/monthly.ts';
 import { sessionCommand as ampSessionCommand } from '../../../amp/src/commands/session.ts';
-import { dailyCommand as codexDailyCommand } from '../../../codex/src/commands/daily.ts';
-import { monthlyCommand as codexMonthlyCommand } from '../../../codex/src/commands/monthly.ts';
-import { sessionCommand as codexSessionCommand } from '../../../codex/src/commands/session.ts';
 import { dailyCommand as opencodeDailyCommand } from '../../../opencode/src/commands/daily.ts';
 import { monthlyCommand as opencodeMonthlyCommand } from '../../../opencode/src/commands/monthly.ts';
 import { sessionCommand as opencodeSessionCommand } from '../../../opencode/src/commands/session.ts';
@@ -16,6 +13,7 @@ import { sessionCommand as piSessionCommand } from '../../../pi/src/commands/ses
 import { description, name, version } from '../../package.json';
 import { allDailyCommand, allMonthlyCommand, allSessionCommand, allWeeklyCommand } from './all.ts';
 import { blocksCommand } from './blocks.ts';
+import { codexDailyCommand, codexMonthlyCommand, codexSessionCommand } from './codex.ts';
 import { dailyCommand } from './daily.ts';
 import { monthlyCommand } from './monthly.ts';
 import { sessionCommand } from './session.ts';

@@ -1014,6 +1014,12 @@
 									"description": "Timezone for date grouping (IANA)",
 									"markdownDescription": "Timezone for date grouping (IANA)"
 								},
+								"compact": {
+									"type": "boolean",
+									"description": "Force compact table layout for narrow terminals",
+									"markdownDescription": "Force compact table layout for narrow terminals",
+									"default": false
+								},
 								"offline": {
 									"type": "boolean",
 									"description": "Use cached pricing data instead of fetching from LiteLLM",
@@ -1025,12 +1031,6 @@
 									"description": "Cost speed tier: auto reads Codex config.toml service_tier; use standard or fast to override",
 									"markdownDescription": "Cost speed tier: auto reads Codex config.toml service_tier; use standard or fast to override",
 									"default": "auto"
-								},
-								"compact": {
-									"type": "boolean",
-									"description": "Force compact table layout for narrow terminals",
-									"markdownDescription": "Force compact table layout for narrow terminals",
-									"default": false
 								},
 								"color": {
 									"type": "boolean",
@@ -1069,6 +1069,12 @@
 									"description": "Timezone for date grouping (IANA)",
 									"markdownDescription": "Timezone for date grouping (IANA)"
 								},
+								"compact": {
+									"type": "boolean",
+									"description": "Force compact table layout for narrow terminals",
+									"markdownDescription": "Force compact table layout for narrow terminals",
+									"default": false
+								},
 								"offline": {
 									"type": "boolean",
 									"description": "Use cached pricing data instead of fetching from LiteLLM",
@@ -1080,12 +1086,6 @@
 									"description": "Cost speed tier: auto reads Codex config.toml service_tier; use standard or fast to override",
 									"markdownDescription": "Cost speed tier: auto reads Codex config.toml service_tier; use standard or fast to override",
 									"default": "auto"
-								},
-								"compact": {
-									"type": "boolean",
-									"description": "Force compact table layout for narrow terminals",
-									"markdownDescription": "Force compact table layout for narrow terminals",
-									"default": false
 								},
 								"color": {
 									"type": "boolean",
@@ -1124,6 +1124,12 @@
 									"description": "Timezone for date grouping (IANA)",
 									"markdownDescription": "Timezone for date grouping (IANA)"
 								},
+								"compact": {
+									"type": "boolean",
+									"description": "Force compact table layout for narrow terminals",
+									"markdownDescription": "Force compact table layout for narrow terminals",
+									"default": false
+								},
 								"offline": {
 									"type": "boolean",
 									"description": "Use cached pricing data instead of fetching from LiteLLM",
@@ -1135,12 +1141,6 @@
 									"description": "Cost speed tier: auto reads Codex config.toml service_tier; use standard or fast to override",
 									"markdownDescription": "Cost speed tier: auto reads Codex config.toml service_tier; use standard or fast to override",
 									"default": "auto"
-								},
-								"compact": {
-									"type": "boolean",
-									"description": "Force compact table layout for narrow terminals",
-									"markdownDescription": "Force compact table layout for narrow terminals",
-									"default": false
 								},
 								"color": {
 									"type": "boolean",
