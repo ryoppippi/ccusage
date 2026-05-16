@@ -23,6 +23,8 @@ Prefer repository-local conventions when they exist. If the repo has changed rev
 
 Poll for reviews and comments before declaring the PR ready. Use flat REST comment lists for ordinary replies, and GraphQL review threads only when thread resolution state matters.
 
+If CI checks fail while working the PR, switch to the `fix-ci` skill before asking for another review pass.
+
 ## Respond to Review
 
 Classify each review item as actionable, a question, a false positive, or informational. Do not silently ignore actionable comments.
