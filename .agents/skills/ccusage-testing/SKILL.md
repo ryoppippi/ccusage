@@ -14,6 +14,7 @@ Use the `tdd` skill for logic changes and general test readability rules, includ
 - Do not import Vitest globals.
 - Do not use `await import()` or other dynamic imports anywhere, especially in tests.
 - Use `fs-fixture` with `createFixture()` for simulated agent data directories; read the `fs-fixture` skill for API details and README location.
+- Top-level `fs-fixture` imports in implementation files with in-source tests are allowed and preferred over dynamic imports.
 - Use `vi.stubEnv()` instead of mutating `process.env` directly.
 
 Utility functions should include concise JSDoc describing their purpose and focused in-source tests for their behavior.
