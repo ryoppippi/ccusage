@@ -836,6 +836,7 @@ function createAllLoadProgress(enabled: boolean): AllLoadProgress | undefined {
 }
 
 async function runAllReport(kind: ReportKind, options: AllOptions): Promise<void> {
+	const originalLoggerLevel = logger.level;
 	if (options.json === true) {
 		logger.level = 0;
 	}
@@ -853,7 +854,6 @@ async function runAllReport(kind: ReportKind, options: AllOptions): Promise<void
 
 	let rows: AllRow[];
 	const progress = createAllLoadProgress(shouldShowAllLoadProgress(options));
-	const originalLoggerLevel = logger.level;
 	try {
 		if (progress != null) {
 			logger.level = 0;
