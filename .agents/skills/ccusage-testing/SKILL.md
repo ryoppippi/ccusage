@@ -41,7 +41,7 @@ claude-sonnet-4-20250514
 claude-opus-4-20250514
 ```
 
-The naming pattern is `claude-{model-type}-{generation}-{date}`. Do not use `claude-4-sonnet-*` style names.
+The preferred naming pattern is `claude-{model-type}-{generation}-{date}`. Use compatibility or alias forms such as `claude-4-sonnet-*` only when the test explicitly covers pricing lookup, alias handling, or legacy compatibility behavior.
 
 When model coverage matters, include both Sonnet and Opus. Avoid outdated Claude 3 model names unless the test specifically covers legacy input.
 
