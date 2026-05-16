@@ -12,7 +12,7 @@
         default = pkgs.mkShellNoCC {
           buildInputs = with pkgs; [
             # Package manager
-            pnpm_10
+            pnpm_11
 
             # Development tools
             typos
