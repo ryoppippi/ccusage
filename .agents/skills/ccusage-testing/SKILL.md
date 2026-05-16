@@ -21,8 +21,8 @@ Utility functions should include concise JSDoc describing their purpose and focu
 ## Test Readability
 
 - Avoid `try`/`catch` in tests for expected failures. Use `expect(...).toThrow()`, `await expect(...).rejects`, or explicit Result failure assertions.
-- Avoid `if` branches inside test bodies. Split behaviours into separate tests or use `it.each` for table-driven cases.
-- Do not over-DRY tests. Keep repeated setup inline when it makes the behaviour easier to read.
+- Avoid `if` branches inside test bodies. Split behaviors into separate tests or use `it.each` for table-driven cases.
+- Do not over-DRY tests. Keep repeated setup inline when it makes the behavior easier to read.
 
 For concrete good and bad examples, read `../tdd/references/vitest-examples.md`.
 

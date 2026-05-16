@@ -33,7 +33,7 @@ Repeat until the feature or fix is complete.
 ## Rules
 
 - **Never write production code without a failing test that demands it.** If there is no red test, there is no reason to write code.
-- **One behaviour per test.** Each test should verify exactly one thing. Name it after the behaviour, not the implementation (e.g. `it("returns 0 for an empty cart")` not `it("test calculateTotal")`).
+- **One behavior per test.** Each test should verify exactly one thing. Name it after the behavior, not the implementation (e.g. `it("returns 0 for an empty cart")` not `it("test calculateTotal")`).
 - **Keep the green step as small as possible.** Fake it, then make it real. Triangulate with additional tests when needed.
 - **Run the affected test suite after every green and every refactor step.** Prefer running only changed/affected tests during the cycle for speed. Never skip this.
 - **Refactor only on green.** If a test is red, fix the production code first — do not restructure anything while tests are failing.
@@ -44,12 +44,12 @@ Repeat until the feature or fix is complete.
 
 ## Workflow
 
-1. **Sketch behaviours** — Before writing any code, list the behaviours to implement as placeholder tests (e.g. `it.todo(...)` in JS, `@pytest.mark.skip` in Python, `#[ignore]` in Rust).
-2. **Pick one behaviour** — Start with the simplest or most fundamental one.
+1. **Sketch behaviors** — Before writing any code, list the behaviors to implement as placeholder tests (e.g. `it.todo(...)` in JS, `@pytest.mark.skip` in Python, `#[ignore]` in Rust).
+2. **Pick one behavior** — Start with the simplest or most fundamental one.
 3. **Red** — Write the test. Run it. Confirm it fails for the right reason.
 4. **Green** — Write the minimum code to pass. Run the test. Confirm it passes.
 5. **Refactor** — Clean up. Run all affected tests. Confirm everything is green.
-6. **Repeat** from step 2 until all behaviours are covered.
+6. **Repeat** from step 2 until all behaviors are covered.
 
 ## Test Execution
 
@@ -70,8 +70,8 @@ For other runners, adapt the general patterns:
 ## Key Principles
 
 - When in doubt, write a smaller test
-- Each test should read like a specification of behaviour
+- Each test should read like a specification of behavior
 - The test name is documentation — make it descriptive
-- If you cannot name a test clearly, the behaviour is not well understood yet
+- If you cannot name a test clearly, the behavior is not well understood yet
 - Prefer testing public interfaces over internal implementation details
 - DO NOT DRY tests - duplication in tests are ok if it improves readability and clarity of intent. Refactor only when there is a clear benefit.

@@ -39,7 +39,7 @@ For concrete good and bad examples, read `references/revertable-commits.md`.
 
 ## Workflow
 
-1. **Analyse the changes above**: Review the git state already provided
+1. **Analyze the changes above**: Review the git state already provided
 2. **Review history**: Match existing commit patterns and inspect relevant file history before deciding commit boundaries
 3. **Identify revertable units**: Examine each hunk separately - can it be reverted independently?
 4. **For each unit**:
@@ -89,7 +89,7 @@ Use standard git history commands to understand intent before committing. Prefer
 
 ## Key Principles
 
-- Always use **English** for commit messages with **UK English spelling** (e.g. "colour", "organise", "initialise")
+- Always use clear English for commit messages and keep wording compatible with repository spell-check rules.
 - **Never push to main branch directly** - create a PR instead
 - When in doubt, prefer smaller commits (can squash later, can't easily split)
 - On PR branches, stack small revertable commits instead of amending away review history unless explicitly asked

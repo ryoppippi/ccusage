@@ -19,7 +19,7 @@ Vitest globals are enabled in this repository. Use `describe`, `test`, `it`, `ex
 
 Use built-in modifiers instead of commenting out or deleting tests:
 
-- `it.todo("description")` — Placeholder for a test you plan to write. Use this to sketch out behaviours before implementing.
+- `it.todo("description")` — Placeholder for a test you plan to write. Use this to sketch out behaviors before implementing.
 - `it.skip("description", ...)` — Temporarily disable a test (e.g. blocked by an external dependency). Always leave a comment explaining why.
 - `it.fails("description", ...)` — Assert that a test **is expected to fail**. Useful during the Red phase to document a known bug while keeping the suite green.
 - `it.only("description", ...)` — Run only this test in the suite. Useful for focusing during the Red-Green cycle. **Remove before committing.**
@@ -37,7 +37,7 @@ See https://vitest.dev/api/test for the full API.
 import { calculateTotal } from './cart';
 
 describe('calculateTotal', () => {
-	// Step 1: Sketch behaviours with todo
+	// Step 1: Sketch behaviors with todo
 	it.todo('applies percentage discount');
 	it.todo('applies fixed amount discount');
 	it.todo('never returns a negative total');
@@ -79,7 +79,7 @@ it('rejects invalid config', async () => {
 });
 ```
 
-Avoid `if` branches inside test bodies. Split behaviours or use `it.each`.
+Avoid `if` branches inside test bodies. Split behaviors or use `it.each`.
 
 Bad:
 
@@ -111,7 +111,7 @@ it('formats table output', () => {
 });
 ```
 
-Use `it.each` only when cases share one behaviour.
+Use `it.each` only when cases share one behavior.
 
 Good:
 
@@ -126,7 +126,7 @@ it.each([
 });
 ```
 
-Avoid wrapper/helper functions that hide the behaviour and assertions.
+Avoid wrapper/helper functions that hide the behavior and assertions.
 
 Bad:
 
