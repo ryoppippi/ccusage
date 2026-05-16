@@ -67,6 +67,18 @@ The generic `Source` type should represent the agent's actual source units. For 
 
 Keep the lifecycle explicit even when an adapter needs a custom fast path. The shared hooks document where file discovery, worker launch, parsing, and aggregation happen.
 
+## Optimization Baseline
+
+Adapters should share the same optimized primitives instead of reimplementing file IO, worker fan-out, pricing fetch lifecycle, or terminal progress. The current baseline is:
+
+- Claude: optimized adapter-local JSONL byte/text buffering, worker parsing, and the separate `data-loader` chunk introduced by PR #984.
+- Codex: `hasFileRecursive()` for detection, `collectFilesRecursive()`, `processJSONLFileByLine()` for Bun-backed JSONL text buffering, `collectIndexedFileWorkerResults()`, shared pricing fetcher lifecycle, shared usage load progress, and `readTextFile()` for `config.toml`.
+- OpenCode: `hasFileRecursive()` for JSON detection, `collectFilesRecursive()`, `readTextFile()` for message JSON files, `collectIndexedFileWorkerResults()`, SQLite loading through `@ccusage/internal/sqlite`, shared pricing fetcher lifecycle, and shared usage load progress.
+- Amp: `hasFileRecursive()` for detection, `collectFilesRecursive()`, `readTextFile()` for thread JSON files, `collectIndexedFileWorkerResults()`, shared pricing fetcher lifecycle, and shared usage load progress.
+- pi-agent: `hasFileRecursive()` for detection, `collectFilesRecursive()`, `processJSONLFileByLine()` for Bun-backed JSONL text buffering, `collectIndexedFileWorkerResults()`, and shared usage load progress.
+
+When adding a new coding agent, start from this list before adding adapter-specific code. Use `hasFileRecursive()` for cheap source detection, `collectFilesRecursive()` for deterministic file discovery, `processJSONLFileByLine()` for line-oriented JSONL, and `readTextFile()` for whole JSON, TOML, or other text files. If it needs deterministic worker result ordering, use `collectIndexedFileWorkerResults()`.
+
 ## Testing Policy
 
 Tests should cover behavior at the layer where the logic lives:

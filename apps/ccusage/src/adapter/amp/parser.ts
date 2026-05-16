@@ -1,8 +1,8 @@
 import type { IndexedWorkerItem } from '@ccusage/internal/workers';
 import type { AmpLedgerEvent, AmpMessage, AmpThread, AmpUsageEvent } from './schema.ts';
-import { readFile } from 'node:fs/promises';
 import process from 'node:process';
 import { isMainThread, parentPort, workerData } from 'node:worker_threads';
+import { readTextFile } from '@ccusage/internal/fs';
 import { compareStrings } from '@ccusage/internal/sort';
 import {
 	collectIndexedFileWorkerResults,
@@ -51,7 +51,7 @@ function toAmpUsageEvent(thread: AmpThread, event: AmpLedgerEvent): AmpUsageEven
 
 async function loadAmpThreadEvents(filePath: string): Promise<AmpUsageEvent[]> {
 	const readResult = await Result.try({
-		try: readFile(filePath, 'utf-8'),
+		try: readTextFile(filePath),
 		catch: (error) => error,
 	});
 	if (Result.isFailure(readResult)) {

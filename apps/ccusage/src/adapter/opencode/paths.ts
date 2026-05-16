@@ -2,7 +2,7 @@ import { existsSync, readdirSync, realpathSync } from 'node:fs';
 import { homedir } from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
-import { collectFilesRecursive, isDirectorySyncSafe } from '@ccusage/internal/fs';
+import { collectFilesRecursive, hasFileRecursive, isDirectorySyncSafe } from '@ccusage/internal/fs';
 import { Result } from '@praha/byethrow';
 import { createFixture } from 'fs-fixture';
 import { logger } from '../../logger.ts';
@@ -106,9 +106,14 @@ export async function discoverOpenCodeMessageFiles(openCodePath: string): Promis
 }
 
 export async function detectOpenCodeSources(openCodePath: string): Promise<boolean> {
+	const messagesDir = path.join(
+		openCodePath,
+		OPENCODE_STORAGE_DIR_NAME,
+		OPENCODE_MESSAGES_DIR_NAME,
+	);
 	return (
 		hasOpenCodeDatabase(openCodePath) ||
-		(await discoverOpenCodeMessageFiles(openCodePath)).length > 0
+		(await hasFileRecursive(messagesDir, { extension: '.json' }))
 	);
 }
 

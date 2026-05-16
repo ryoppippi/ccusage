@@ -1,7 +1,7 @@
 import os from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
-import { collectFilesRecursive, isDirectorySyncSafe } from '@ccusage/internal/fs';
+import { collectFilesRecursive, hasFileRecursive, isDirectorySyncSafe } from '@ccusage/internal/fs';
 import { createFixture } from 'fs-fixture';
 
 export const AMP_DATA_DIR_ENV = 'AMP_DATA_DIR';
@@ -27,7 +27,10 @@ export async function discoverAmpThreadFiles(): Promise<string[]> {
 }
 
 export async function detectAmpThreadFiles(): Promise<boolean> {
-	return (await discoverAmpThreadFiles()).length > 0;
+	const ampPath = getAmpPath();
+	return ampPath == null
+		? false
+		: hasFileRecursive(path.join(ampPath, AMP_THREADS_DIR_NAME), { extension: '.json' });
 }
 
 if (import.meta.vitest != null) {

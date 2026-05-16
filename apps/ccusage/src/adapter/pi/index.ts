@@ -1,5 +1,5 @@
 import type { AdapterOptions, AgentUsageRow, ReportKind } from '../types.ts';
-import { collectFilesRecursive } from '@ccusage/internal/fs';
+import { hasFileRecursive } from '@ccusage/internal/fs';
 import { compareStrings } from '@ccusage/internal/sort';
 import { createFixture } from 'fs-fixture';
 import { defineAgentLogLoader, formatDateKey } from '../shared.ts';
@@ -7,7 +7,7 @@ import { loadPiUsageEntries } from './parser.ts';
 import { getPiAgentPaths } from './paths.ts';
 
 async function hasFiles(root: string, extension: `.${string}`): Promise<boolean> {
-	return (await collectFilesRecursive(root, { extension })).length > 0;
+	return hasFileRecursive(root, { extension });
 }
 
 export async function detectPi(): Promise<boolean> {

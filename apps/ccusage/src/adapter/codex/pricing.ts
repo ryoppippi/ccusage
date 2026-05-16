@@ -1,7 +1,7 @@
 import type { LiteLLMModelPricing, LiteLLMPricingFetcher } from '@ccusage/internal/pricing';
 import type { CodexModelUsage, CodexSpeed } from './types.ts';
-import { readFile } from 'node:fs/promises';
 import path from 'node:path';
+import { readTextFile } from '@ccusage/internal/fs';
 import { Result } from '@praha/byethrow';
 import { getCodexSessionsPath } from './paths.ts';
 import { prefetchCodexPricing } from './pricing-macro.ts' with { type: 'macro' };
@@ -65,7 +65,7 @@ export async function resolveCodexSpeed(requested?: string): Promise<CodexSpeed>
 	}
 	const configPath = path.join(path.dirname(getCodexSessionsPath()), 'config.toml');
 	const result = await Result.try({
-		try: readFile(configPath, 'utf8'),
+		try: readTextFile(configPath),
 		catch: (error) => error,
 	});
 	if (Result.isFailure(result)) {

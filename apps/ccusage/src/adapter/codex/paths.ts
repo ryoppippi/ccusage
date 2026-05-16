@@ -1,8 +1,7 @@
-import { readdir } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
-import { Result } from '@praha/byethrow';
+import { hasFileRecursive } from '@ccusage/internal/fs';
 import { createFixture } from 'fs-fixture';
 
 export const CODEX_HOME_ENV = 'CODEX_HOME';
@@ -17,29 +16,8 @@ export function getCodexSessionsPath(): string {
 	);
 }
 
-async function hasCodexSessionFile(directoryPath: string): Promise<boolean> {
-	const entriesResult = await Result.try({
-		try: readdir(directoryPath, { withFileTypes: true }),
-		catch: (error) => error,
-	});
-	if (Result.isFailure(entriesResult)) {
-		return false;
-	}
-
-	for (const entry of entriesResult.value) {
-		const entryPath = path.join(directoryPath, entry.name);
-		if (entry.isFile() && entry.name.endsWith('.jsonl')) {
-			return true;
-		}
-		if (entry.isDirectory() && (await hasCodexSessionFile(entryPath))) {
-			return true;
-		}
-	}
-	return false;
-}
-
 export async function detectCodex(): Promise<boolean> {
-	return hasCodexSessionFile(getCodexSessionsPath());
+	return hasFileRecursive(getCodexSessionsPath(), { extension: '.jsonl' });
 }
 
 if (import.meta.vitest != null) {

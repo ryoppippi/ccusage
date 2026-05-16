@@ -29,7 +29,7 @@ import type {
 } from '../../_types.ts';
 import { Buffer } from 'node:buffer';
 import { createReadStream, createWriteStream } from 'node:fs';
-import { open, readdir, readFile, stat, utimes } from 'node:fs/promises';
+import { open, readdir, stat, utimes } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
@@ -37,6 +37,7 @@ import { createInterface } from 'node:readline';
 import { isMainThread, parentPort, Worker, workerData } from 'node:worker_threads';
 import { toArray } from '@antfu/utils';
 import { createResultSlots } from '@ccusage/internal/array';
+import { readBufferedTextFile, readTextFile } from '@ccusage/internal/fs';
 import { compareStrings } from '@ccusage/internal/sort';
 import { Result } from '@praha/byethrow';
 import { createFixture } from 'fs-fixture';
@@ -1362,24 +1363,7 @@ async function readBufferedJSONLBytes(filePath: string): Promise<Uint8Array | nu
 }
 
 async function readBufferedJSONLContent(filePath: string): Promise<string | null> {
-	const bun = getBunRuntime();
-	if (bun != null) {
-		const file = bun.file(filePath);
-		if (file.size <= MAX_BUFFERED_JSONL_BYTES) {
-			return file.text();
-		}
-	}
-
-	const file = await open(filePath, 'r');
-	try {
-		const stats = await file.stat();
-		if (stats.size <= MAX_BUFFERED_JSONL_BYTES) {
-			return (await file.readFile()).toString('utf8');
-		}
-		return null;
-	} finally {
-		await file.close();
-	}
+	return readBufferedTextFile(filePath, { maxBufferedBytes: MAX_BUFFERED_JSONL_BYTES });
 }
 
 /**
@@ -3034,7 +3018,7 @@ export async function calculateContextTokens(
 } | null> {
 	let content: string;
 	try {
-		content = await readFile(transcriptPath, 'utf-8');
+		content = await readTextFile(transcriptPath);
 	} catch (error: unknown) {
 		logger.debug(`Failed to read transcript file: ${String(error)}`);
 		return null;

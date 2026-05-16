@@ -5,9 +5,9 @@ import type {
 	OpenCodeTokens,
 	OpenCodeUsageEntry,
 } from './schema.ts';
-import { readFile } from 'node:fs/promises';
 import process from 'node:process';
 import { isMainThread, parentPort, workerData } from 'node:worker_threads';
+import { readTextFile } from '@ccusage/internal/fs';
 import { getSqliteDatabaseFactory, withSqliteDatabase } from '@ccusage/internal/sqlite';
 import {
 	collectIndexedFileWorkerResults,
@@ -96,7 +96,7 @@ function parseOpenCodeMessageText(value: string): OpenCodeMessageResult | null {
 
 async function loadOpenCodeMessageFile(filePath: string): Promise<OpenCodeMessageResult | null> {
 	const content = await Result.try({
-		try: readFile(filePath, 'utf-8'),
+		try: readTextFile(filePath),
 		catch: (error) => error,
 	});
 	return Result.isFailure(content) ? null : parseOpenCodeMessageText(content.value);

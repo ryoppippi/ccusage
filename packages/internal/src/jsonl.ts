@@ -1,25 +1,9 @@
-import { createReadStream, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import { open } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { createReadStream } from 'node:fs';
 import { createInterface } from 'node:readline';
+import { createFixture } from 'fs-fixture';
+import { readBufferedTextFile } from './fs.ts';
 
 const MAX_BUFFERED_JSONL_BYTES = 128 * 1024 * 1024;
-
-type BunFileLike = {
-	size: number;
-	text: () => Promise<string>;
-	bytes: () => Promise<Uint8Array>;
-};
-
-type BunRuntimeLike = {
-	file: (path: string) => BunFileLike;
-};
-
-function getBunRuntime(): BunRuntimeLike | null {
-	const runtime = (globalThis as { Bun?: Partial<BunRuntimeLike> }).Bun;
-	return typeof runtime?.file === 'function' ? (runtime as BunRuntimeLike) : null;
-}
 
 function hasNonWhitespace(value: string): boolean {
 	for (let index = 0; index < value.length; index++) {
@@ -60,25 +44,7 @@ async function processBufferedJSONLContent(
 }
 
 export async function readBufferedJSONLContent(filePath: string): Promise<string | null> {
-	const bun = getBunRuntime();
-	if (bun != null) {
-		const file = bun.file(filePath);
-		if (file.size <= MAX_BUFFERED_JSONL_BYTES) {
-			return file.text();
-		}
-		return null;
-	}
-
-	const file = await open(filePath, 'r');
-	try {
-		const stats = await file.stat();
-		if (stats.size <= MAX_BUFFERED_JSONL_BYTES) {
-			return (await file.readFile()).toString('utf8');
-		}
-		return null;
-	} finally {
-		await file.close();
-	}
+	return readBufferedTextFile(filePath, { maxBufferedBytes: MAX_BUFFERED_JSONL_BYTES });
 }
 
 export async function processJSONLFileByLine(
@@ -113,20 +79,15 @@ export async function processJSONLFileByLine(
 if (import.meta.vitest != null) {
 	describe('processJSONLFileByLine', () => {
 		it('skips empty lines and preserves order', async () => {
-			const directory = mkdtempSync(join(tmpdir(), 'ccusage-jsonl-'));
-			const filePath = join(directory, 'test.jsonl');
+			await using fixture = await createFixture({
+				'test.jsonl': '{"a":1}\n\n  \n{"a":2}\n',
+			});
+			const lines: string[] = [];
+			await processJSONLFileByLine(fixture.getPath('test.jsonl'), (line) => {
+				lines.push(line);
+			});
 
-			try {
-				writeFileSync(filePath, '{"a":1}\n\n  \n{"a":2}\n');
-				const lines: string[] = [];
-				await processJSONLFileByLine(filePath, (line) => {
-					lines.push(line);
-				});
-
-				expect(lines).toEqual(['{"a":1}', '{"a":2}']);
-			} finally {
-				rmSync(directory, { recursive: true, force: true });
-			}
+			expect(lines).toEqual(['{"a":1}', '{"a":2}']);
 		});
 	});
 }
