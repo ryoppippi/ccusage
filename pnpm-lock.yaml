@@ -183,6 +183,9 @@ importers:
       '@ccusage/terminal':
         specifier: workspace:*
         version: link:../../packages/terminal
+      '@oxc-project/runtime':
+        specifier: catalog:build
+        version: 0.129.0
       '@praha/byethrow':
         specifier: catalog:runtime
         version: 0.6.3

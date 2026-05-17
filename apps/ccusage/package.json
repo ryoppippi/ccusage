@@ -61,6 +61,7 @@
 		"@antfu/utils": "catalog:runtime",
 		"@ccusage/internal": "workspace:*",
 		"@ccusage/terminal": "workspace:*",
+		"@oxc-project/runtime": "catalog:build",
 		"@praha/byethrow": "catalog:runtime",
 		"@ryoppippi/eslint-config": "catalog:lint",
 		"@types/bun": "catalog:types",
