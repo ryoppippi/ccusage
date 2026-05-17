@@ -28,7 +28,7 @@ The docs build copies `apps/ccusage/config-schema.json` to `docs/public/config-s
 
 ## Content Rules
 
-- When adding or changing a user-facing agent, command, option, or report mode, audit both READMEs, relevant `docs/guide/` pages, related cross-links, and VitePress navigation before finishing.
+- When adding or changing a user-facing agent, command, option, report mode, or example, audit and update the root `README.md`, `apps/ccusage/README.md`, relevant `docs/guide/` pages, related cross-links, and VitePress navigation before finishing.
 - Prefer the unified command form in new or edited docs: `ccusage codex ...`, `ccusage opencode ...`, `ccusage amp ...`, and `ccusage pi ...`.
 - Standalone wrapper commands such as `ccusage-codex`, `ccusage-opencode`, `ccusage-amp`, and `ccusage-pi` have been removed. Do not promote or reintroduce them in docs.
 - Place screenshots immediately after the page H1 when a guide has a primary screenshot.
