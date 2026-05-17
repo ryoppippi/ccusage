@@ -25,7 +25,7 @@ ccusage daily --all
 
 ## How Unified Views Work
 
-ccusage detects local usage files from Claude Code, Codex, OpenCode, Amp, and pi-agent. The same daily, weekly, monthly, and session views can run in two modes:
+ccusage detects local usage files from Claude Code, Codex, OpenCode, Amp, pi-agent, and Hermes Agent. The same daily, weekly, monthly, and session views can run in two modes:
 
 | Mode    | Command example        | What it shows                           |
 | ------- | ---------------------- | --------------------------------------- |
@@ -37,13 +37,14 @@ Unified tables include an **Agent** column so you can compare sources in one vie
 
 ## Supported Sources
 
-| Source      | Namespace  | Example focused view      |
-| ----------- | ---------- | ------------------------- |
-| Claude Code | `claude`   | `ccusage claude daily`    |
-| Codex       | `codex`    | `ccusage codex daily`     |
-| OpenCode    | `opencode` | `ccusage opencode weekly` |
-| Amp         | `amp`      | `ccusage amp session`     |
-| pi-agent    | `pi`       | `ccusage pi monthly`      |
+| Source       | Namespace  | Example focused view      |
+| ------------ | ---------- | ------------------------- |
+| Claude Code  | `claude`   | `ccusage claude daily`    |
+| Codex        | `codex`    | `ccusage codex daily`     |
+| OpenCode     | `opencode` | `ccusage opencode weekly` |
+| Amp          | `amp`      | `ccusage amp session`     |
+| pi-agent     | `pi`       | `ccusage pi monthly`      |
+| Hermes Agent | `hermes`   | `ccusage hermes daily`    |
 
 ## When to Focus a Source
 
@@ -55,6 +56,7 @@ ccusage claude daily --mode display
 ccusage opencode session --json
 ccusage amp monthly --compact
 ccusage pi session --pi-path /path/to/sessions
+ccusage hermes daily --json
 ```
 
 ## Next Steps
