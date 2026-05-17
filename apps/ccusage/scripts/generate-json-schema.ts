@@ -161,8 +161,7 @@ function createAgentJsonSchema(
 	agentName: AgentName,
 	commandSchemas: Record<string, TokenSchema>,
 ): JsonSchemaNode {
-	const agentLabel =
-		agentName === 'pi' ? 'pi-agent' : agentName === 'codebuff' ? 'Codebuff' : agentName;
+	const agentLabel = getAgentConfigLabel(agentName);
 	return {
 		type: 'object',
 		properties: {
@@ -180,6 +179,20 @@ function createAgentJsonSchema(
 		description: `${agentLabel} command configuration`,
 		markdownDescription: `${agentLabel} command configuration`,
 	};
+}
+
+function getAgentConfigLabel(agentName: AgentName): string {
+	switch (agentName) {
+		case 'amp':
+		case 'claude':
+		case 'codex':
+		case 'opencode':
+			return agentName;
+		case 'codebuff':
+			return 'Codebuff';
+		case 'pi':
+			return 'pi-agent';
+	}
 }
 
 /**
