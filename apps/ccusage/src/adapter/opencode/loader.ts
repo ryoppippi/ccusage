@@ -17,7 +17,7 @@ import { Result } from '@praha/byethrow';
 import { createFixture } from 'fs-fixture';
 import * as v from 'valibot';
 import { logger } from '../../logger.ts';
-import { discoverOpenCodeMessageFiles, getOpenCodeDbPath, getOpenCodePath } from './paths.ts';
+import { discoverOpenCodeMessageFiles, getOpenCodeDbPath, getOpenCodePaths } from './paths.ts';
 import { openCodeDbMessageRowSchema, openCodeMessageSchema } from './schema.ts';
 
 type OpenCodeWorkerData = IndexedWorkerData<'ccusage:opencode-worker', string>;
@@ -180,22 +180,31 @@ function loadOpenCodeMessagesFromDb(openCodePath: string): {
 }
 
 export async function loadOpenCodeMessages(): Promise<OpenCodeUsageEntry[]> {
-	const openCodePath = getOpenCodePath();
-	if (openCodePath == null) {
+	const openCodePaths = getOpenCodePaths();
+	if (openCodePaths.length === 0) {
 		return [];
 	}
 
-	const { entries, seenIds } = loadOpenCodeMessagesFromDb(openCodePath);
-	const files = await discoverOpenCodeMessageFiles(openCodePath);
-	const messageResults =
-		(await collectOpenCodeMessagesWithWorkers(files)) ??
-		(await Promise.all(files.map(loadOpenCodeMessageFile)));
-	for (const result of messageResults) {
-		if (result == null || seenIds.has(result.id)) {
-			continue;
+	const entries: OpenCodeUsageEntry[] = [];
+	const seenIds = new Set<string>();
+	for (const openCodePath of openCodePaths) {
+		const dbMessages = loadOpenCodeMessagesFromDb(openCodePath);
+		for (const id of dbMessages.seenIds) {
+			seenIds.add(id);
 		}
-		seenIds.add(result.id);
-		entries.push(result.entry);
+		entries.push(...dbMessages.entries);
+
+		const files = await discoverOpenCodeMessageFiles(openCodePath);
+		const messageResults =
+			(await collectOpenCodeMessagesWithWorkers(files)) ??
+			(await Promise.all(files.map(loadOpenCodeMessageFile)));
+		for (const result of messageResults) {
+			if (result == null || seenIds.has(result.id)) {
+				continue;
+			}
+			seenIds.add(result.id);
+			entries.push(result.entry);
+		}
 	}
 
 	return entries;
@@ -271,6 +280,41 @@ if (import.meta.vitest != null) {
 					},
 					costUSD: 0.02,
 				},
+			]);
+		});
+
+		it('loads OpenCode messages from comma-separated OPENCODE_DATA_DIR entries', async () => {
+			const createMessage = (id: string, sessionID: string, input: number): string =>
+				JSON.stringify({
+					id,
+					sessionID,
+					providerID: 'openai',
+					modelID: 'gpt-5',
+					time: { created: Date.UTC(2026, 4, 1, 1, 2, 3) },
+					tokens: {
+						input,
+						output: 1,
+					},
+				});
+			await using fixture1 = await createFixture({
+				storage: {
+					message: {
+						'a.json': createMessage('msg-a', 'session-a', 10),
+					},
+				},
+			});
+			await using fixture2 = await createFixture({
+				storage: {
+					message: {
+						'b.json': createMessage('msg-b', 'session-b', 20),
+					},
+				},
+			});
+			vi.stubEnv('OPENCODE_DATA_DIR', `${fixture1.path},${fixture2.path}`);
+
+			await expect(loadOpenCodeMessages()).resolves.toMatchObject([
+				{ sessionID: 'session-a', usage: { inputTokens: 10 } },
+				{ sessionID: 'session-b', usage: { inputTokens: 20 } },
 			]);
 		});
 

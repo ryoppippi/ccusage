@@ -6,6 +6,7 @@ import { collectFilesRecursive, hasFileRecursive, isDirectorySyncSafe } from '@c
 import { Result } from '@praha/byethrow';
 import { createFixture } from 'fs-fixture';
 import { logger } from '../../logger.ts';
+import { getExistingDirectories, normalizePathList } from '../path-list.ts';
 
 const DEFAULT_OPENCODE_PATH = path.join(homedir(), '.local/share/opencode');
 export const OPENCODE_CONFIG_DIR_ENV = 'OPENCODE_DATA_DIR';
@@ -14,14 +15,14 @@ export const OPENCODE_STORAGE_DIR_NAME = 'storage';
 export const OPENCODE_MESSAGES_DIR_NAME = 'message';
 const OPENCODE_CHANNEL_DB_PATTERN = /^opencode-[\w-]+\.db$/u;
 
-export function getOpenCodePath(): string | null {
-	const envPath = process.env[OPENCODE_CONFIG_DIR_ENV];
-	if (envPath != null && envPath.trim() !== '') {
-		const normalizedPath = path.resolve(envPath);
-		return isDirectorySyncSafe(normalizedPath) ? normalizedPath : null;
-	}
+export function getOpenCodePaths(): string[] {
+	return getExistingDirectories(
+		normalizePathList(process.env[OPENCODE_CONFIG_DIR_ENV], [DEFAULT_OPENCODE_PATH]),
+	);
+}
 
-	return isDirectorySyncSafe(DEFAULT_OPENCODE_PATH) ? DEFAULT_OPENCODE_PATH : null;
+export function getOpenCodePath(): string | null {
+	return getOpenCodePaths()[0] ?? null;
 }
 
 function isPathInsideDirectory(targetPath: string, directoryPath: string): boolean {
@@ -136,6 +137,21 @@ if (import.meta.vitest != null) {
 			vi.stubEnv(OPENCODE_CONFIG_DIR_ENV, '/path/that/does/not/exist');
 
 			expect(getOpenCodePath()).toBeNull();
+		});
+
+		it('returns directories for comma-separated OPENCODE_DATA_DIR entries', async () => {
+			await using fixture1 = await createFixture({
+				storage: {},
+			});
+			await using fixture2 = await createFixture({
+				storage: {},
+			});
+			vi.stubEnv(OPENCODE_CONFIG_DIR_ENV, `${fixture1.path}, ,${fixture2.path},`);
+
+			expect(getOpenCodePaths()).toEqual([
+				path.resolve(fixture1.path),
+				path.resolve(fixture2.path),
+			]);
 		});
 
 		it('discovers JSON message files', async () => {

@@ -18,8 +18,9 @@ import {
 	getFileWorkerThreadCount,
 } from '@ccusage/internal/workers';
 import { Result } from '@praha/byethrow';
+import { createFixture } from 'fs-fixture';
 import { logger } from '../../logger.ts';
-import { getCodexSessionsPath } from './paths.ts';
+import { getCodexSessionsPaths } from './paths.ts';
 
 const LEGACY_FALLBACK_MODEL = 'gpt-5';
 const CODEX_JSONL_MARKERS = ['turn_context', '"type":"token_count"', '"type": "token_count"'];
@@ -383,8 +384,9 @@ function decodeTokenUsageEvents(encoded: EncodedTokenUsageEvents): TokenUsageEve
 	return events;
 }
 
-export async function loadTokenUsageEvents(): Promise<TokenUsageEvent[]> {
-	const directoryPath = getCodexSessionsPath();
+async function loadTokenUsageEventsFromDirectory(
+	directoryPath: string,
+): Promise<TokenUsageEvent[]> {
 	const statResult = await Result.try({
 		try: stat(directoryPath),
 		catch: (error) => error,
@@ -403,6 +405,13 @@ export async function loadTokenUsageEvents(): Promise<TokenUsageEvent[]> {
 		files.map(async (file) => parseCodexSessionFile(directoryPath, file)),
 	);
 	return fileEvents.flat().sort((a, b) => compareStrings(a.timestamp, b.timestamp));
+}
+
+export async function loadTokenUsageEvents(): Promise<TokenUsageEvent[]> {
+	const directoryEvents = await Promise.all(
+		getCodexSessionsPaths().map(loadTokenUsageEventsFromDirectory),
+	);
+	return directoryEvents.flat().sort((a, b) => compareStrings(a.timestamp, b.timestamp));
 }
 
 async function runCodexWorker(data: CodexWorkerData): Promise<void> {
@@ -677,6 +686,53 @@ if (import.meta.vitest != null) {
 			});
 
 			expect(parseTokenCountLineFast(line)).toBeNull();
+		});
+	});
+
+	describe('loadTokenUsageEvents', () => {
+		afterEach(() => {
+			vi.unstubAllEnvs();
+		});
+
+		it('loads Codex usage events from comma-separated CODEX_HOME entries', async () => {
+			const sessionLines = (model: string, inputTokens: number): string =>
+				[
+					JSON.stringify({
+						timestamp: '2026-01-01T00:00:00.000Z',
+						type: 'turn_context',
+						payload: { model },
+					}),
+					JSON.stringify({
+						timestamp: '2026-01-01T00:00:01.000Z',
+						type: 'event_msg',
+						payload: {
+							type: 'token_count',
+							info: {
+								last_token_usage: {
+									input_tokens: inputTokens,
+									output_tokens: 1,
+									total_tokens: inputTokens + 1,
+								},
+							},
+						},
+					}),
+				].join('\n');
+			await using fixture1 = await createFixture({
+				sessions: {
+					'a.jsonl': sessionLines('gpt-5.1', 10),
+				},
+			});
+			await using fixture2 = await createFixture({
+				sessions: {
+					'b.jsonl': sessionLines('gpt-5.2', 20),
+				},
+			});
+			vi.stubEnv('CODEX_HOME', `${fixture1.path},${fixture2.path}`);
+
+			await expect(loadTokenUsageEvents()).resolves.toMatchObject([
+				{ sessionId: 'a', model: 'gpt-5.1', inputTokens: 10 },
+				{ sessionId: 'b', model: 'gpt-5.2', inputTokens: 20 },
+			]);
 		});
 	});
 

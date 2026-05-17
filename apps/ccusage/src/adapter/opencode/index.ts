@@ -6,12 +6,12 @@ import { createFixture } from 'fs-fixture';
 import { logger } from '../../logger.ts';
 import { createAgentPricingContext, defineAgentLogLoader } from '../shared.ts';
 import { loadOpenCodeMessages } from './loader.ts';
-import { detectOpenCodeSources, getOpenCodePath } from './paths.ts';
+import { detectOpenCodeSources, getOpenCodePaths } from './paths.ts';
 import { calculateOpenCodeCost } from './pricing.ts';
 
 export async function detectOpenCode(): Promise<boolean> {
-	const openCodePath = getOpenCodePath();
-	return openCodePath != null && (await detectOpenCodeSources(openCodePath));
+	const results = await Promise.all(getOpenCodePaths().map(detectOpenCodeSources));
+	return results.some(Boolean);
 }
 
 function createOpenCodePricingContext(

@@ -226,6 +226,41 @@ if (import.meta.vitest != null) {
 			]);
 		});
 
+		it('loads assistant usage entries from comma-separated explicit paths', async () => {
+			const createMessage = (input: number): string =>
+				`${JSON.stringify({
+					type: 'message',
+					timestamp: '2026-04-22T01:02:04.000Z',
+					message: {
+						role: 'assistant',
+						model: 'gpt-5.4',
+						usage: {
+							input,
+							output: 1,
+							totalTokens: input + 1,
+						},
+					},
+				})}\n`;
+			await using fixture1 = await createFixture({
+				sessions: {
+					project: {
+						'a.jsonl': createMessage(10),
+					},
+				},
+			});
+			await using fixture2 = await createFixture({
+				sessions: {
+					project: {
+						'b.jsonl': createMessage(20),
+					},
+				},
+			});
+
+			await expect(
+				loadPiUsageEntries(`${fixture1.getPath('sessions')},${fixture2.getPath('sessions')}`),
+			).resolves.toMatchObject([{ inputTokens: 10 }, { inputTokens: 20 }]);
+		});
+
 		it('deduplicates repeated pi usage records by project, session, timestamp, and total tokens', async () => {
 			const line = JSON.stringify({
 				type: 'message',

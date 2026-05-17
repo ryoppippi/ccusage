@@ -3,6 +3,7 @@ import process from 'node:process';
 import { isDirectorySyncSafe } from '@ccusage/internal/fs';
 import { createFixture } from 'fs-fixture';
 import { USER_HOME_DIR } from '../../consts.ts';
+import { getExistingDirectories, normalizePathList } from '../path-list.ts';
 
 export const PI_AGENT_DIR_ENV = 'PI_AGENT_DIR';
 const PI_AGENT_SESSIONS_DIR_NAME = 'sessions';
@@ -10,14 +11,11 @@ const DEFAULT_PI_AGENT_PATH = path.join('.pi', 'agent');
 
 export function getPiAgentPaths(customPath?: string): string[] {
 	if (customPath != null && customPath.trim() !== '') {
-		const resolved = path.resolve(customPath);
-		return isDirectorySyncSafe(resolved) ? [resolved] : [];
+		return getExistingDirectories(normalizePathList(customPath, []));
 	}
 
-	const envPath = (process.env[PI_AGENT_DIR_ENV] ?? '').trim();
-	if (envPath !== '') {
-		const resolved = path.resolve(envPath);
-		return isDirectorySyncSafe(resolved) ? [resolved] : [];
+	if ((process.env[PI_AGENT_DIR_ENV] ?? '').trim() !== '') {
+		return getExistingDirectories(normalizePathList(process.env[PI_AGENT_DIR_ENV], []));
 	}
 
 	const defaultPath = path.join(USER_HOME_DIR, DEFAULT_PI_AGENT_PATH, PI_AGENT_SESSIONS_DIR_NAME);
@@ -49,6 +47,37 @@ if (import.meta.vitest != null) {
 			vi.stubEnv(PI_AGENT_DIR_ENV, fixture.getPath('sessions'));
 
 			expect(getPiAgentPaths()).toEqual([fixture.getPath('sessions')]);
+		});
+
+		it('returns existing directories from comma-separated PI_AGENT_DIR entries', async () => {
+			await using fixture1 = await createFixture({
+				sessions: {},
+			});
+			await using fixture2 = await createFixture({
+				sessions: {},
+			});
+			vi.stubEnv(
+				PI_AGENT_DIR_ENV,
+				`${fixture1.getPath('sessions')}, ,${fixture2.getPath('sessions')},`,
+			);
+
+			expect(getPiAgentPaths()).toEqual([
+				fixture1.getPath('sessions'),
+				fixture2.getPath('sessions'),
+			]);
+		});
+
+		it('returns existing directories from comma-separated explicit paths', async () => {
+			await using fixture1 = await createFixture({
+				sessions: {},
+			});
+			await using fixture2 = await createFixture({
+				sessions: {},
+			});
+
+			expect(
+				getPiAgentPaths(`${fixture1.getPath('sessions')}, ,${fixture2.getPath('sessions')},`),
+			).toEqual([fixture1.getPath('sessions'), fixture2.getPath('sessions')]);
 		});
 
 		it('ignores a missing PI_AGENT_DIR', () => {

@@ -102,7 +102,7 @@ const piAgentArgs = {
 	...commonAgentArgs,
 	piPath: {
 		type: 'string',
-		description: 'Path to pi-agent sessions directory',
+		description: 'Path or comma-separated paths to pi-agent sessions directories',
 	},
 } as const satisfies Args;
 

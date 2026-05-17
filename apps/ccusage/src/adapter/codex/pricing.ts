@@ -3,7 +3,7 @@ import type { CodexModelUsage, CodexSpeed } from './types.ts';
 import path from 'node:path';
 import { readTextFile } from '@ccusage/internal/fs';
 import { Result } from '@praha/byethrow';
-import { getCodexSessionsPath } from './paths.ts';
+import { getCodexHomePaths } from './paths.ts';
 import { prefetchCodexPricing } from './pricing-macro.ts' with { type: 'macro' };
 
 const MILLION = 1_000_000;
@@ -63,17 +63,21 @@ export async function resolveCodexSpeed(requested?: string): Promise<CodexSpeed>
 	if (speed !== 'auto') {
 		return speed;
 	}
-	const configPath = path.join(path.dirname(getCodexSessionsPath()), 'config.toml');
-	const result = await Result.try({
-		try: readTextFile(configPath),
-		catch: (error) => error,
-	});
-	if (Result.isFailure(result)) {
-		return 'standard';
+	for (const configPath of getCodexHomePaths().map((codexHome) =>
+		path.join(codexHome, 'config.toml'),
+	)) {
+		const result = await Result.try({
+			try: readTextFile(configPath),
+			catch: (error) => error,
+		});
+		if (
+			!Result.isFailure(result) &&
+			/(?:^|\n)\s*service_tier\s*=\s*["']?(?:fast|priority)["']?/iu.test(result.value)
+		) {
+			return 'fast';
+		}
 	}
-	return /(?:^|\n)\s*service_tier\s*=\s*["']?(?:fast|priority)["']?/iu.test(result.value)
-		? 'fast'
-		: 'standard';
+	return 'standard';
 }
 
 export async function getCodexPricing(

@@ -3,21 +3,31 @@ import path from 'node:path';
 import process from 'node:process';
 import { hasFileRecursive } from '@ccusage/internal/fs';
 import { createFixture } from 'fs-fixture';
+import { normalizePathList } from '../path-list.ts';
 
 export const CODEX_HOME_ENV = 'CODEX_HOME';
 const DEFAULT_CODEX_DIR = path.join(os.homedir(), '.codex');
 const DEFAULT_SESSION_SUBDIR = 'sessions';
 
+export function getCodexHomePaths(): string[] {
+	return normalizePathList(process.env[CODEX_HOME_ENV], [DEFAULT_CODEX_DIR]);
+}
+
+export function getCodexSessionsPaths(): string[] {
+	return getCodexHomePaths().map((codexHome) => path.join(codexHome, DEFAULT_SESSION_SUBDIR));
+}
+
 export function getCodexSessionsPath(): string {
-	const codexHome = process.env[CODEX_HOME_ENV]?.trim();
-	return path.join(
-		codexHome == null || codexHome === '' ? DEFAULT_CODEX_DIR : path.resolve(codexHome),
-		DEFAULT_SESSION_SUBDIR,
-	);
+	return getCodexSessionsPaths()[0]!;
 }
 
 export async function detectCodex(): Promise<boolean> {
-	return hasFileRecursive(getCodexSessionsPath(), { extension: '.jsonl' });
+	const results = await Promise.all(
+		getCodexSessionsPaths().map(async (sessionsPath) =>
+			hasFileRecursive(sessionsPath, { extension: '.jsonl' }),
+		),
+	);
+	return results.some(Boolean);
 }
 
 if (import.meta.vitest != null) {
@@ -45,6 +55,21 @@ if (import.meta.vitest != null) {
 			vi.stubEnv(CODEX_HOME_ENV, fixture.path);
 
 			await expect(detectCodex()).resolves.toBe(false);
+		});
+
+		it('returns session directories for comma-separated CODEX_HOME entries', async () => {
+			await using fixture1 = await createFixture({
+				sessions: {},
+			});
+			await using fixture2 = await createFixture({
+				sessions: {},
+			});
+			vi.stubEnv(CODEX_HOME_ENV, `${fixture1.path}, ,${fixture2.path},`);
+
+			expect(getCodexSessionsPaths()).toEqual([
+				fixture1.getPath('sessions'),
+				fixture2.getPath('sessions'),
+			]);
 		});
 	});
 }

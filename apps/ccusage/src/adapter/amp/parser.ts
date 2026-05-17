@@ -190,5 +190,41 @@ if (import.meta.vitest != null) {
 				},
 			]);
 		});
+
+		it('loads Amp thread usage events from comma-separated AMP_DATA_DIR entries', async () => {
+			const createThread = (id: string, input: number): string =>
+				JSON.stringify({
+					id,
+					usageLedger: {
+						events: [
+							{
+								timestamp: '2026-05-01T01:02:03.000Z',
+								model: 'claude-sonnet-4-20250514',
+								credits: 1,
+								tokens: {
+									input,
+									output: 1,
+								},
+							},
+						],
+					},
+				});
+			await using fixture1 = await createFixture({
+				threads: {
+					'a.json': createThread('thread-a', 10),
+				},
+			});
+			await using fixture2 = await createFixture({
+				threads: {
+					'b.json': createThread('thread-b', 20),
+				},
+			});
+			vi.stubEnv('AMP_DATA_DIR', `${fixture1.path},${fixture2.path}`);
+
+			await expect(loadAmpUsageEvents()).resolves.toMatchObject([
+				{ threadId: 'thread-a', inputTokens: 10 },
+				{ threadId: 'thread-b', inputTokens: 20 },
+			]);
+		});
 	});
 }

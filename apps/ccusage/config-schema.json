@@ -1982,8 +1982,8 @@
 								},
 								"piPath": {
 									"type": "string",
-									"description": "Path to pi-agent sessions directory",
-									"markdownDescription": "Path to pi-agent sessions directory"
+									"description": "Path or comma-separated paths to pi-agent sessions directories",
+									"markdownDescription": "Path or comma-separated paths to pi-agent sessions directories"
 								}
 							},
 							"additionalProperties": false,
@@ -2041,8 +2041,8 @@
 										},
 										"piPath": {
 											"type": "string",
-											"description": "Path to pi-agent sessions directory",
-											"markdownDescription": "Path to pi-agent sessions directory"
+											"description": "Path or comma-separated paths to pi-agent sessions directories",
+											"markdownDescription": "Path or comma-separated paths to pi-agent sessions directories"
 										}
 									},
 									"additionalProperties": false
@@ -2095,8 +2095,8 @@
 										},
 										"piPath": {
 											"type": "string",
-											"description": "Path to pi-agent sessions directory",
-											"markdownDescription": "Path to pi-agent sessions directory"
+											"description": "Path or comma-separated paths to pi-agent sessions directories",
+											"markdownDescription": "Path or comma-separated paths to pi-agent sessions directories"
 										}
 									},
 									"additionalProperties": false
@@ -2149,8 +2149,8 @@
 										},
 										"piPath": {
 											"type": "string",
-											"description": "Path to pi-agent sessions directory",
-											"markdownDescription": "Path to pi-agent sessions directory"
+											"description": "Path or comma-separated paths to pi-agent sessions directories",
+											"markdownDescription": "Path or comma-separated paths to pi-agent sessions directories"
 										}
 									},
 									"additionalProperties": false
