@@ -453,11 +453,11 @@ describe('ccusage all-agent CLI', () => {
 		expect(output.daily[0]?.metadata?.agents).toEqual(['amp', 'claude', 'opencode', 'pi']);
 	});
 
-	it('runs Codex daily JSON through the main ccusage namespace instead of the deprecated standalone wrapper', async () => {
+	it('runs Codex default daily JSON through the main ccusage namespace instead of the deprecated standalone wrapper', async () => {
 		await using fixture = await createFixture(createAgentFixtureTree());
 
 		const result = runCcusage(
-			['codex', 'daily', '--offline', '--json', '--since', '20260102', '--until', '20260102'],
+			['codex', '--offline', '--json', '--since', '20260102', '--until', '20260102'],
 			createAgentCliEnv(fixture.path),
 		);
 
