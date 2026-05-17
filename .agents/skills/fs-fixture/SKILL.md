@@ -1,6 +1,6 @@
 ---
 name: fs-fixture
-description: Use fs-fixture to create disposable filesystem trees for tests. Use when writing or reviewing tests that need temporary files, directories, template fixture copies, symlinks, or automatic cleanup with createFixture().
+description: Use fs-fixture for disposable test files and directories.
 ---
 
 # fs-fixture

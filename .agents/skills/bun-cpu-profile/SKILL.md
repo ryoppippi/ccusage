@@ -1,6 +1,6 @@
 ---
 name: bun-cpu-profile
-description: Debug Bun CPU performance for TypeScript/JavaScript CLIs and scripts with Bun CPU profiles, markdown profiles, hyperfine comparisons, and git worktree A/B runs. Use when investigating slow Bun execution, validating performance optimizations, comparing a branch against main, or interpreting .cpuprofile / --cpu-prof-md output.
+description: Profile Bun CLI CPU performance and compare branch speed.
 ---
 
 # Bun CPU Profile

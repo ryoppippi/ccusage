@@ -1,6 +1,6 @@
 ---
 name: pr-ai-review-workflow
-description: 'Manage pull request AI review loops with GitHub CLI: request generic AI/code reviewers, wait for bot or human review, inspect comments, reply to inline review comments, apply fixes, push follow-up commits, and request re-review.'
+description: Manage PR AI review loops and follow-up commits with gh.
 ---
 
 # PR AI Review Workflow

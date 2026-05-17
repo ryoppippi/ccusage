@@ -1,6 +1,6 @@
 ---
 name: byethrow
-description: Reference the byethrow documentation to understand and use the Result type library for error handling in JavaScript/TypeScript. Access detailed API references, practical usage examples, and best practice guides.
+description: Use byethrow Result APIs for TypeScript error handling.
 allowed-tools: Read, Grep, Glob
 ---
 

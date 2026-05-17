@@ -1,6 +1,6 @@
 ---
 name: ccusage-docs
-description: Edit the ccusage VitePress documentation with screenshot placement, accessibility, schema-copy build behavior, markdown linting, and guide organization conventions. Use when working under docs/ or adding user-facing documentation.
+description: Use for ccusage VitePress docs, screenshots, accessibility, and linting.
 ---
 
 # ccusage Docs

@@ -1,6 +1,6 @@
 ---
 name: tdd
-description: t-wada style TDD workflow — Red-Green-Refactor cycle for all logic changes. Use when implementing features, fixing bugs, or refactoring code with strict test-driven development (e.g., "implement with TDD", "fix this bug TDD style", "/tdd").
+description: Use t-wada Red-Green-Refactor TDD for logic changes.
 ---
 
 <!--

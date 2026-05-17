@@ -1,6 +1,6 @@
 ---
 name: bun-api-reference
-description: Check local Bun runtime API documentation and types from node_modules/bun-types before using or changing Bun APIs such as Bun.$, Bun.file(), Bun.write(), Bun.spawn(), Bun.argv, Bun.deepEquals(), Bun.stdout, Bun.stderr, and Bun.stringWidth().
+description: Use local bun-types docs for Bun runtime APIs.
 ---
 
 # Bun API Reference

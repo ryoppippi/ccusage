@@ -1,6 +1,6 @@
 ---
 name: fix-ci
-description: Diagnose and fix failing GitHub Actions CI checks for the current pull request using gh, including check inspection, failed log retrieval, focused fixes, validation, and small follow-up commits.
+description: Diagnose and fix failing GitHub Actions checks with gh.
 ---
 
 # Fix CI
