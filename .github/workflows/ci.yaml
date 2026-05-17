@@ -99,6 +99,7 @@ jobs:
         os:
           - ubuntu-slim
           - macos-latest
+          - windows-11-arm
           - windows-latest
 
     steps:
@@ -116,7 +117,7 @@ jobs:
         shell: pwsh
         run: |
           npx --yes "$env:CCUSAGE_PREVIEW_URL" --version
-          npx --yes "$env:CCUSAGE_PREVIEW_URL" daily --offline --json | jq -e .
+          npx --yes "$env:CCUSAGE_PREVIEW_URL" daily --offline --json | node -e "JSON.parse(require('fs').readFileSync(0, 'utf8'))"
           npx --yes "$env:CCUSAGE_PREVIEW_URL" daily --offline
       - name: Enable pnpm
         run: corepack enable pnpm
