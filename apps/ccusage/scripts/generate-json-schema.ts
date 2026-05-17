@@ -39,7 +39,7 @@ const COMMAND_EXCLUDE_KEYS: Record<string, string[]> = {
 	blocks: ['live', 'refreshInterval'],
 };
 
-const AGENT_NAMES = ['claude', 'codex', 'opencode', 'amp', 'pi'] as const;
+const AGENT_NAMES = ['claude', 'codex', 'opencode', 'amp', 'pi', 'copilot'] as const;
 type AgentName = (typeof AGENT_NAMES)[number];
 type JsonSchemaNode = {
 	[key: string]: unknown;
@@ -161,6 +161,7 @@ function getAgentConfigLabel(agentName: AgentName): string {
 	switch (agentName) {
 		case 'amp':
 		case 'claude':
+		case 'copilot':
 		case 'codex':
 		case 'opencode':
 			return agentName;
@@ -254,6 +255,7 @@ function createConfigSchemaJson(): JsonSchemaNode {
 					opencode: createAgentJsonSchema('opencode', agentCommandSchemas.opencode),
 					amp: createAgentJsonSchema('amp', agentCommandSchemas.amp),
 					pi: createAgentJsonSchema('pi', agentCommandSchemas.pi),
+					copilot: createAgentJsonSchema('copilot', agentCommandSchemas.copilot),
 				},
 				additionalProperties: false,
 			},
