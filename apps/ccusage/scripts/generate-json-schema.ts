@@ -284,27 +284,26 @@ function createConfigSchemaJson(): JsonSchemaNode {
  */
 async function runFormat(files: string[]) {
 	return Result.try({
-		try: $`pnpm exec oxfmt ${files}`,
+		try: async () => $`pnpm exec oxfmt ${files}`,
 		catch: (error) => error,
 	});
 }
 
 async function writeFile(path: string, content: string) {
-	const attempt = Result.try({
+	return Result.try({
 		try: async () => Bun.write(path, content),
 		catch: (error) => error,
 	});
-	return attempt();
 }
 
-async function readFile(path: string): Promise<Result.Result<string, any>> {
+async function readFile(path: string) {
 	return Result.try({
 		try: async () => {
 			const file = Bun.file(path);
 			return file.text();
 		},
 		catch: (error) => error,
-	})();
+	});
 }
 
 async function copySchemaToDocsPublic() {
@@ -322,7 +321,7 @@ async function generateJsonSchema() {
 		Result.try({
 			try: () => createConfigSchemaJson(),
 			catch: (error) => error,
-		})(),
+		}),
 		Result.inspectError((error) => {
 			logger.error('Error creating JSON Schema:', error);
 			process.exit(1);
@@ -338,7 +337,7 @@ async function generateJsonSchema() {
 				Result.try({
 					try: () => JSON.parse(content) as unknown,
 					catch: () => '',
-				})(),
+				}),
 				Result.unwrap(''),
 			),
 		),
@@ -360,10 +359,7 @@ async function generateJsonSchema() {
 	const schemaJson = JSON.stringify(schemaObject, null, '\t');
 
 	await Result.pipe(
-		Result.try({
-			try: writeFile(SCHEMA_FILENAME, schemaJson),
-			safe: true,
-		}),
+		writeFile(SCHEMA_FILENAME, schemaJson),
 		Result.inspectError((error) => {
 			logger.error(`Failed to write ${SCHEMA_FILENAME}:`, error);
 			process.exit(1);
@@ -376,10 +372,7 @@ async function generateJsonSchema() {
 
 	// Run format on the root schema file that was changed
 	await Result.pipe(
-		Result.try({
-			try: runFormat([SCHEMA_FILENAME]),
-			safe: true,
-		}),
+		runFormat([SCHEMA_FILENAME]),
 		Result.inspectError((error) => {
 			logger.error('Failed to format generated files:', error);
 			process.exit(1);

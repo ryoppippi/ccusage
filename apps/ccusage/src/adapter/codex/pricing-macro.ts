@@ -18,7 +18,7 @@ function isCodexModel(modelName: string, _pricing: LiteLLMModelPricing): boolean
 
 export async function prefetchCodexPricing(): Promise<Record<string, LiteLLMModelPricing>> {
 	const result = await Result.try({
-		try: fetchLiteLLMPricingDataset(),
+		try: async () => fetchLiteLLMPricingDataset(),
 		catch: (error) => error,
 	});
 	if (Result.isFailure(result)) {

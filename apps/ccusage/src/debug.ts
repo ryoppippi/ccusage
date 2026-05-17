@@ -110,12 +110,10 @@ export async function detectMismatches(claudePath?: string): Promise<MismatchSta
 			.filter((line) => line.length > 0);
 
 		for (const line of lines) {
-			const parseParser = Result.try({
+			const parseResult = Result.try({
 				try: () => JSON.parse(line) as unknown,
 				catch: () => new Error('Invalid JSON'),
 			});
-
-			const parseResult = parseParser();
 			if (Result.isFailure(parseResult)) {
 				continue;
 			}

@@ -35,7 +35,7 @@ function resolveOpenCodeDbCandidate(dbPath: string, resolvedOpenCodePath: string
 	const result = Result.try({
 		try: () => realpathSync(dbPath),
 		catch: (error) => error,
-	})();
+	});
 	if (Result.isFailure(result) || !isPathInsideDirectory(result.value, resolvedOpenCodePath)) {
 		return null;
 	}
@@ -46,7 +46,7 @@ export function getOpenCodeDbPath(openCodePath: string): string | null {
 	const resolvedPath = Result.try({
 		try: () => realpathSync(openCodePath),
 		catch: (error) => error,
-	})();
+	});
 	if (Result.isFailure(resolvedPath)) {
 		logger.warn('Failed to resolve OpenCode data directory:', resolvedPath.error);
 		return null;
@@ -63,7 +63,7 @@ export function getOpenCodeDbPath(openCodePath: string): string | null {
 	const entries = Result.try({
 		try: () => readdirSync(openCodePath),
 		catch: (error) => error,
-	})();
+	});
 	if (Result.isFailure(entries)) {
 		logger.warn('Failed to read OpenCode data directory:', entries.error);
 		return null;

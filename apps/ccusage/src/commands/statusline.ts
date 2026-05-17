@@ -320,7 +320,7 @@ export const statuslineCommand = define({
 											offline: mergedOptions.offline,
 										}),
 									catch: (error) => error,
-								})(),
+								}),
 								Result.map((sessionCost) => sessionCost?.totalCost),
 								Result.inspectError((error) => logger.error('Failed to load session data:', error)),
 								Result.unwrap(undefined),
@@ -375,7 +375,7 @@ export const statuslineCommand = define({
 									minUpdateTime: midnightToday,
 								}),
 							catch: (error) => error,
-						})(),
+						}),
 						Result.map((dailyData) => {
 							if (dailyData.length > 0) {
 								const totals = calculateTotals(dailyData);
@@ -398,7 +398,7 @@ export const statuslineCommand = define({
 									minUpdateTime: lastBlocksTime,
 								}),
 							catch: (error) => error,
-						})(),
+						}),
 						Result.map((blocks) => {
 							// Only identify blocks if we have data
 							if (blocks.length === 0) {
@@ -504,7 +504,7 @@ export const statuslineCommand = define({
 											mergedOptions.offline,
 										),
 									catch: (error) => error,
-								})();
+								});
 
 					const contextInfo = Result.pipe(
 						contextDataResult,
@@ -546,7 +546,7 @@ export const statuslineCommand = define({
 					return statusLine;
 				},
 				catch: (error) => error,
-			})(),
+			}),
 		);
 
 		if (Result.isSuccess(mainProcessingResult)) {

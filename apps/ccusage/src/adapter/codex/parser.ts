@@ -410,7 +410,7 @@ async function loadTokenUsageEventsFromDirectory(
 	directoryPath: string,
 ): Promise<TokenUsageEvent[]> {
 	const statResult = await Result.try({
-		try: stat(directoryPath),
+		try: async () => stat(directoryPath),
 		catch: (error) => error,
 	});
 	if (Result.isFailure(statResult) || !statResult.value.isDirectory()) {

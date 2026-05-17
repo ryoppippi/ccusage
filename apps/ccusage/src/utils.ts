@@ -14,7 +14,7 @@ export function unreachable(value: never): never {
 export async function getFileModifiedTime(filePath: string): Promise<number> {
 	return Result.pipe(
 		Result.try({
-			try: stat(filePath),
+			try: async () => stat(filePath),
 			catch: (error) => error,
 		}),
 		Result.map((stats) => stats.mtime.getTime()),

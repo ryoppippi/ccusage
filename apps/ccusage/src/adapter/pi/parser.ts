@@ -12,7 +12,6 @@ import {
 } from '@ccusage/internal/workers';
 import { Result } from '@praha/byethrow';
 import { createFixture } from 'fs-fixture';
-import * as v from 'valibot';
 import { getPiAgentPaths } from './paths.ts';
 import {
 	extractPiAgentProject,
@@ -26,6 +25,11 @@ const PI_AGENT_JSONL_MARKERS = ['"usage"'];
 type PiWorkerData = IndexedWorkerData<'ccusage:pi-usage-worker', string>;
 
 type PiWorkerResponse = IndexedWorkerResultsMessage<PiUsageEntry[]>;
+
+const parseJsonLine = Result.fn({
+	try: (line: string): unknown => JSON.parse(line) as unknown,
+	catch: (error) => error,
+});
 
 async function globPiAgentFiles(paths: string[]): Promise<string[]> {
 	const allFiles: string[] = [];
@@ -52,36 +56,34 @@ async function parsePiAgentFile(file: string): Promise<PiUsageEntry[]> {
 	const sessionId = extractPiAgentSessionId(file);
 	const entries: PiUsageEntry[] = [];
 	const result = await Result.try({
-		try: processJSONLFileByMarkers(file, PI_AGENT_JSONL_MARKERS, (line) => {
-			if (!line.includes('"message"')) {
-				return;
-			}
+		try: async () =>
+			processJSONLFileByMarkers(file, PI_AGENT_JSONL_MARKERS, (line) => {
+				if (!line.includes('"message"')) {
+					return;
+				}
 
-			const parseResult = Result.try({
-				try: () => JSON.parse(line) as unknown,
-				catch: (error) => error,
-			})();
-			if (Result.isFailure(parseResult)) {
-				return;
-			}
+				const parseResult = parseJsonLine(line);
+				if (Result.isFailure(parseResult)) {
+					return;
+				}
 
-			const messageResult = v.safeParse(piAgentMessageSchema, parseResult.value);
-			if (!messageResult.success) {
-				return;
-			}
+				const messageResult = Result.parse(piAgentMessageSchema, parseResult.value);
+				if (Result.isFailure(messageResult)) {
+					return;
+				}
 
-			const usage = transformPiAgentUsage(messageResult.output);
-			if (usage == null) {
-				return;
-			}
+				const usage = transformPiAgentUsage(messageResult.value);
+				if (usage == null) {
+					return;
+				}
 
-			entries.push({
-				timestamp: messageResult.output.timestamp,
-				project,
-				sessionId,
-				...usage,
-			});
-		}),
+				entries.push({
+					timestamp: messageResult.value.timestamp,
+					project,
+					sessionId,
+					...usage,
+				});
+			}),
 		catch: (error) => error,
 	});
 	return Result.isFailure(result) ? [] : entries;
