@@ -1,8 +1,7 @@
 import path from 'node:path';
 import { getSqliteDatabaseFactory, withSqliteDatabase } from '@ccusage/internal/sqlite';
-import { Result } from '@praha/byethrow';
 import { createFixture } from 'fs-fixture';
-import { logger } from '../../logger.ts';
+import { loadReadonlySqliteRows } from '../sqlite.ts';
 import { getHermesStateDbPaths } from './paths.ts';
 
 export type HermesUsageEntry = {
@@ -16,7 +15,7 @@ export type HermesUsageEntry = {
 	cacheReadTokens: number;
 	reasoningTokens: number;
 	messageCount: number;
-	costUSD: number;
+	costUSD: number | null;
 };
 
 type HermesSessionRow = {
@@ -117,14 +116,14 @@ function parseHermesSessionRow(row: HermesSessionRow): HermesUsageEntry | null {
 	const cacheCreationTokens = toNonNegativeInteger(row.cache_write_tokens);
 	const reasoningTokens = toNonNegativeInteger(row.reasoning_tokens);
 	const costUSD =
-		toNonNegativeNumber(row.actual_cost_usd) ?? toNonNegativeNumber(row.estimated_cost_usd) ?? 0;
+		toNonNegativeNumber(row.actual_cost_usd) ?? toNonNegativeNumber(row.estimated_cost_usd);
 	if (
 		inputTokens === 0 &&
 		outputTokens === 0 &&
 		cacheReadTokens === 0 &&
 		cacheCreationTokens === 0 &&
 		reasoningTokens === 0 &&
-		costUSD === 0
+		(costUSD ?? 0) === 0
 	) {
 		return null;
 	}
@@ -146,46 +145,32 @@ function parseHermesSessionRow(row: HermesSessionRow): HermesUsageEntry | null {
 }
 
 function loadHermesStateDbEntries(dbPath: string): HermesUsageEntry[] {
-	const result = Result.try({
-		try: () =>
-			withSqliteDatabase(
-				dbPath,
-				{ readOnly: true },
-				(db) => {
-					const rows = db
-						.prepare(`
-							SELECT
-								id,
-								model,
-								billing_provider,
-								started_at,
-								message_count,
-								input_tokens,
-								output_tokens,
-								cache_read_tokens,
-								cache_write_tokens,
-								reasoning_tokens,
-								estimated_cost_usd,
-								actual_cost_usd
-							FROM sessions
-							WHERE model IS NOT NULL
-								AND TRIM(model) != ''
-						`)
-						.all() as HermesSessionRow[];
-					return rows.flatMap((row) => {
-						const entry = parseHermesSessionRow(row);
-						return entry == null ? [] : [entry];
-					});
-				},
-				logger.warn,
-			),
-		catch: (error) => error,
-	})();
-	if (Result.isFailure(result)) {
-		logger.warn('Failed to load Hermes Agent state database:', result.error);
-		return [];
-	}
-	return result.value ?? [];
+	return loadReadonlySqliteRows(dbPath, 'Failed to load Hermes Agent state database:', (db) => {
+		const rows = db
+			.prepare(`
+				SELECT
+					id,
+					model,
+					billing_provider,
+					started_at,
+					message_count,
+					input_tokens,
+					output_tokens,
+					cache_read_tokens,
+					cache_write_tokens,
+					reasoning_tokens,
+					estimated_cost_usd,
+					actual_cost_usd
+				FROM sessions
+				WHERE model IS NOT NULL
+					AND TRIM(model) != ''
+			`)
+			.all() as HermesSessionRow[];
+		return rows.flatMap((row) => {
+			const entry = parseHermesSessionRow(row);
+			return entry == null ? [] : [entry];
+		});
+	});
 }
 
 export function loadHermesUsageEntries(_dbPaths?: string[]): HermesUsageEntry[] {
@@ -325,6 +310,65 @@ if (import.meta.vitest != null) {
 				);
 
 				expect(loadHermesUsageEntries([dbPath])[0]?.provider).toBe('openai');
+			},
+		);
+
+		it.skipIf(getSqliteDatabaseFactory(() => {}) == null)(
+			'keeps missing recorded cost distinct from a recorded zero cost',
+			async () => {
+				await using fixture = await createFixture({});
+				const dbPath = path.join(fixture.path, 'state.db');
+				createHermesStateDb(dbPath);
+
+				withSqliteDatabase(
+					dbPath,
+					{},
+					(db) => {
+						const insert = db.prepare(`
+								INSERT INTO sessions (
+									id, source, model, started_at, message_count,
+									input_tokens, output_tokens, cache_read_tokens, cache_write_tokens, reasoning_tokens,
+									billing_provider, estimated_cost_usd, actual_cost_usd
+								) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+							`);
+						insert.run(
+							'session-free',
+							'cli',
+							'gpt-5.4',
+							1_775_001_105.0,
+							1,
+							100,
+							20,
+							0,
+							0,
+							0,
+							'openai',
+							null,
+							0,
+						);
+						insert.run(
+							'session-missing-cost',
+							'cli',
+							'gpt-5.4',
+							1_775_001_106.0,
+							1,
+							100,
+							20,
+							0,
+							0,
+							0,
+							'openai',
+							null,
+							null,
+						);
+					},
+					() => {},
+				);
+
+				expect(loadHermesUsageEntries([dbPath])).toMatchObject([
+					{ sessionId: 'session-free', costUSD: 0 },
+					{ sessionId: 'session-missing-cost', costUSD: null },
+				]);
 			},
 		);
 	});

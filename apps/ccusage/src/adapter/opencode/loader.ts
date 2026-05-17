@@ -17,6 +17,7 @@ import { Result } from '@praha/byethrow';
 import { createFixture } from 'fs-fixture';
 import * as v from 'valibot';
 import { logger } from '../../logger.ts';
+import { loadReadonlySqliteRows } from '../sqlite.ts';
 import { discoverOpenCodeMessageFiles, getOpenCodeDbPath, getOpenCodePaths } from './paths.ts';
 import { openCodeDbMessageRowSchema, openCodeMessageSchema } from './schema.ts';
 
@@ -127,51 +128,33 @@ async function collectOpenCodeMessagesWithWorkers(
 
 function loadOpenCodeMessagesFromDb(openCodePath: string): OpenCodeMessageResult[] {
 	const dbPath = getOpenCodeDbPath(openCodePath);
-	if (dbPath == null || getSqliteDatabaseFactory() == null) {
-		return [];
-	}
+	return loadReadonlySqliteRows(dbPath, 'Failed to load OpenCode messages from DB:', (db) => {
+		const rows = db.prepare('SELECT id, session_id, data FROM message').all();
+		const records: OpenCodeMessageResult[] = [];
+		for (const rawRow of rows) {
+			const rowResult = v.safeParse(openCodeDbMessageRowSchema, rawRow);
+			if (!rowResult.success) {
+				continue;
+			}
 
-	const result = Result.try({
-		try: () =>
-			withSqliteDatabase(
-				dbPath,
-				{ readOnly: true },
-				(db) => {
-					const rows = db.prepare('SELECT id, session_id, data FROM message').all();
-					const records: OpenCodeMessageResult[] = [];
-					for (const rawRow of rows) {
-						const rowResult = v.safeParse(openCodeDbMessageRowSchema, rawRow);
-						if (!rowResult.success) {
-							continue;
-						}
+			const data = parseJsonObject(rowResult.output.data);
+			if (data == null) {
+				continue;
+			}
 
-						const data = parseJsonObject(rowResult.output.data);
-						if (data == null) {
-							continue;
-						}
+			const result = parseOpenCodeMessageRecord({
+				...data,
+				id: rowResult.output.id,
+				sessionID: rowResult.output.session_id,
+			});
+			if (result == null) {
+				continue;
+			}
 
-						const result = parseOpenCodeMessageRecord({
-							...data,
-							id: rowResult.output.id,
-							sessionID: rowResult.output.session_id,
-						});
-						if (result == null) {
-							continue;
-						}
-
-						records.push(result);
-					}
-					return records;
-				},
-				logger.warn,
-			),
-		catch: (error) => error,
-	})();
-	if (Result.isFailure(result)) {
-		logger.warn('Failed to load OpenCode messages from DB:', result.error);
-		return [];
-	}
-	return result.value ?? [];
+			records.push(result);
+		}
+		return records;
+	});
 }
 
 export async function loadOpenCodeMessages(): Promise<OpenCodeUsageEntry[]> {

@@ -541,5 +541,46 @@ if (import.meta.vitest != null) {
 				},
 			});
 		});
+
+		it('includes messageCount from row metadata in JSON rows', () => {
+			const payload = toAgentJsonPayload('hermes', 'session', [
+				{
+					period: 'session-1',
+					agent: 'hermes',
+					modelsUsed: ['gpt-5.4'],
+					inputTokens: 10,
+					outputTokens: 20,
+					cacheCreationTokens: 0,
+					cacheReadTokens: 0,
+					totalTokens: 30,
+					totalCost: 0,
+					metadata: { messageCount: 3 },
+				},
+			]);
+
+			expect(payload).toEqual({
+				sessions: [
+					{
+						sessionId: 'session-1',
+						inputTokens: 10,
+						outputTokens: 20,
+						cacheCreationTokens: 0,
+						cacheReadTokens: 0,
+						totalTokens: 30,
+						totalCost: 0,
+						modelsUsed: ['gpt-5.4'],
+						messageCount: 3,
+					},
+				],
+				totals: {
+					inputTokens: 10,
+					outputTokens: 20,
+					cacheCreationTokens: 0,
+					cacheReadTokens: 0,
+					totalTokens: 30,
+					totalCost: 0,
+				},
+			});
+		});
 	});
 }

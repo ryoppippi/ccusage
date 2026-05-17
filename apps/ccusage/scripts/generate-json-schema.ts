@@ -39,7 +39,7 @@ const COMMAND_EXCLUDE_KEYS: Record<string, string[]> = {
 	blocks: ['live', 'refreshInterval'],
 };
 
-const AGENT_NAMES = ['claude', 'codex', 'opencode', 'amp', 'pi'] as const;
+const AGENT_NAMES = ['claude', 'codex', 'opencode', 'amp', 'pi', 'hermes'] as const;
 type AgentName = (typeof AGENT_NAMES)[number];
 type JsonSchemaNode = {
 	[key: string]: unknown;
@@ -242,6 +242,7 @@ function createConfigSchemaJson(): JsonSchemaNode {
 					opencode: createAgentJsonSchema('opencode', agentCommandSchemas.opencode),
 					amp: createAgentJsonSchema('amp', agentCommandSchemas.amp),
 					pi: createAgentJsonSchema('pi', agentCommandSchemas.pi),
+					hermes: createAgentJsonSchema('hermes', agentCommandSchemas.hermes),
 				},
 				additionalProperties: false,
 			},
@@ -464,6 +465,7 @@ if (import.meta.vitest != null) {
 			expect(properties).toHaveProperty('commands');
 			expect(properties).toHaveProperty('claude');
 			expect(properties).toHaveProperty('codex');
+			expect(properties).toHaveProperty('hermes');
 		});
 
 		it('should keep legacy top-level Claude config properties', () => {
@@ -497,8 +499,10 @@ if (import.meta.vitest != null) {
 			const properties = schemaProperties(mainSchema);
 			const claudeCommands = schemaProperties(properties.claude ?? {}).commands ?? {};
 			const codexCommands = schemaProperties(properties.codex ?? {}).commands ?? {};
+			const hermesCommands = schemaProperties(properties.hermes ?? {}).commands ?? {};
 			const claudeCommandProperties = schemaProperties(claudeCommands);
 			const codexCommandProperties = schemaProperties(codexCommands);
+			const hermesCommandProperties = schemaProperties(hermesCommands);
 
 			expect(claudeCommandProperties).toHaveProperty('daily');
 			expect(claudeCommandProperties).toHaveProperty('blocks');
@@ -506,6 +510,9 @@ if (import.meta.vitest != null) {
 			expect(codexCommandProperties).toHaveProperty('daily');
 			expect(codexCommandProperties).toHaveProperty('monthly');
 			expect(codexCommandProperties).toHaveProperty('session');
+			expect(hermesCommandProperties).toHaveProperty('daily');
+			expect(hermesCommandProperties).toHaveProperty('monthly');
+			expect(hermesCommandProperties).toHaveProperty('session');
 		});
 	});
 }
