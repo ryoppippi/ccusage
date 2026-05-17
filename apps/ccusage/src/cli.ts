@@ -4,10 +4,14 @@ import { accessSync, constants, statSync } from 'node:fs';
 import { delimiter, dirname, join } from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
-import { engines } from '../package.json';
 import { CCUSAGE_BUN_AUTO_RUN_DISABLED_VALUE, CCUSAGE_BUN_AUTO_RUN_ENV } from './env.ts';
 
-const SUPPORTED_NODE_RANGE = engines.node;
+declare const __CCUSAGE_SUPPORTED_NODE_RANGE__: string | undefined;
+
+const SUPPORTED_NODE_RANGE =
+	typeof __CCUSAGE_SUPPORTED_NODE_RANGE__ === 'string'
+		? __CCUSAGE_SUPPORTED_NODE_RANGE__
+		: '>=22.11.0';
 
 type CliRuntime =
 	| {

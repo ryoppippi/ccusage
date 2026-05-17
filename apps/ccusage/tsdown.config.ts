@@ -1,5 +1,6 @@
 import { defineConfig } from 'tsdown';
 import Macros from 'unplugin-macros/rolldown';
+import packageJson from './package.json' with { type: 'json' };
 
 export default defineConfig({
 	entry: {
@@ -55,6 +56,7 @@ export default defineConfig({
 		}),
 	],
 	define: {
+		__CCUSAGE_SUPPORTED_NODE_RANGE__: JSON.stringify(packageJson.engines.node),
 		'import.meta.vitest': 'undefined',
 	},
 });
