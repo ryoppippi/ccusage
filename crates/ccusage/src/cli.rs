@@ -342,9 +342,25 @@ fn parse_command(
             }
             Ok(Command::Statusline(args))
         }
+        "claude" => parse_claude_command(parser, shared),
         "codex" => parse_codex_command(parser, shared),
         _ => Err(format!("Unknown command '{command}'")),
     }
+}
+
+fn parse_claude_command(parser: &mut ArgParser, shared: SharedArgs) -> Result<Command, String> {
+    let command = match parser.peek() {
+        Some(command @ ("daily" | "monthly" | "weekly" | "session" | "blocks" | "statusline")) => {
+            let command = command.to_string();
+            parser.next();
+            command
+        }
+        Some(command) if !command.starts_with('-') => {
+            return Err(format!("Unknown claude command '{command}'"));
+        }
+        _ => "daily".to_string(),
+    };
+    parse_command(&command, parser, shared)
 }
 
 fn parse_codex_command(parser: &mut ArgParser, mut shared: SharedArgs) -> Result<Command, String> {
@@ -418,7 +434,7 @@ fn parse_shared_arg(parser: &mut ArgParser, shared: &mut SharedArgs) -> Result<(
 fn is_command(arg: &str) -> bool {
     matches!(
         arg,
-        "daily" | "monthly" | "weekly" | "session" | "blocks" | "statusline" | "codex"
+        "daily" | "monthly" | "weekly" | "session" | "blocks" | "statusline" | "claude" | "codex"
     )
 }
 
@@ -677,5 +693,15 @@ mod tests {
         assert_eq!(args.kind, AgentReportKind::Daily);
         assert!(args.shared.json);
         assert_eq!(args.shared.since.as_deref(), Some("20260102"));
+    }
+
+    #[test]
+    fn parses_claude_namespace_session_options() {
+        let cli = parse(&["ccusage", "claude", "session", "--json", "--id", "abc"]);
+        let Some(Command::Session(args)) = cli.command else {
+            panic!("expected claude session command");
+        };
+        assert!(args.shared.json);
+        assert_eq!(args.id.as_deref(), Some("abc"));
     }
 }
