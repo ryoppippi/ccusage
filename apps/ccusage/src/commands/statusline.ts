@@ -257,13 +257,14 @@ export const statuslineCommand = define({
 				const pid = initialSemaphoreState.pid;
 				let isProcessAlive = false;
 				if (pid != null) {
-					try {
-						process.kill(pid, 0); // Signal 0 doesn't kill, just checks if process exists
-						isProcessAlive = true;
-					} catch {
-						// Process doesn't exist, likely dead
-						isProcessAlive = false;
-					}
+					isProcessAlive = Result.pipe(
+						Result.try({
+							try: () => process.kill(pid, 0),
+							catch: (error) => error,
+						}),
+						Result.map(() => true),
+						Result.unwrap(false),
+					);
 				}
 
 				if (isProcessAlive) {

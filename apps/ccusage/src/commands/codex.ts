@@ -8,6 +8,7 @@ import {
 	formatNumber,
 	ResponsiveTable,
 } from '@ccusage/terminal/table';
+import { Result } from '@praha/byethrow';
 import { define } from 'gunshi';
 import { loadCodexReportRows } from '../adapter/codex/index.ts';
 import { formatDateCompact } from '../date-utils.ts';
@@ -117,25 +118,32 @@ async function runCodexReport(kind: CodexCommandKind, options: AdapterOptions): 
 	}
 
 	const progress = createUsageLoadProgress(shouldShowUsageLoadProgress(options, process.stdout));
-	let rows: Awaited<ReturnType<typeof loadCodexReportRows>>;
-	try {
-		if (progress != null) {
-			logger.level = 0;
-		}
-		progress?.start('codex');
-		rows = await loadCodexReportRows(kind, options, { progress });
-		progress?.succeed('codex', rows.length);
-	} catch (error) {
-		progress?.fail('codex', error);
+	const rowsResult = await Result.pipe(
+		Result.try({
+			try: async () => {
+				if (progress != null) {
+					logger.level = 0;
+				}
+				progress?.start('codex');
+				return loadCodexReportRows(kind, options, { progress });
+			},
+			catch: (error) => error,
+		}),
+		Result.inspect((rows) => progress?.succeed('codex', rows.length)),
+		Result.inspectError((error) => {
+			progress?.fail('codex', error);
+			logger.error(String(error));
+		}),
+	);
+	if (Result.isFailure(rowsResult)) {
 		progress?.stop();
 		logger.level = originalLoggerLevel;
-		logger.error(String(error));
 		process.exitCode = 1;
 		return;
-	} finally {
-		logger.level = originalLoggerLevel;
 	}
 	progress?.stop();
+	logger.level = originalLoggerLevel;
+	const rows = rowsResult.value;
 
 	const rowsKey = getRowsKey(kind);
 	if (rows.length === 0) {

@@ -88,11 +88,14 @@ export function hasOpenCodeDatabase(openCodePath: string): boolean {
 	if (existsSync(path.join(openCodePath, OPENCODE_DB_FILE_NAME))) {
 		return true;
 	}
-	try {
-		return readdirSync(openCodePath).some((entry) => OPENCODE_CHANNEL_DB_PATTERN.test(entry));
-	} catch {
-		return false;
-	}
+	return Result.pipe(
+		Result.try({
+			try: () => readdirSync(openCodePath),
+			catch: (error) => error,
+		}),
+		Result.map((entries) => entries.some((entry) => OPENCODE_CHANNEL_DB_PATTERN.test(entry))),
+		Result.unwrap(false),
+	);
 }
 
 export async function discoverOpenCodeMessageFiles(openCodePath: string): Promise<string[]> {
