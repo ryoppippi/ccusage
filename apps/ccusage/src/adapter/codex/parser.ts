@@ -29,6 +29,11 @@ const ENCODED_CODEX_EVENT_NUMBER_STRIDE = 5;
 const TOKEN_USAGE_EVENT_KEY_SEPARATOR = '\0';
 const jsonlExtensionRegex = regex('\\.jsonl$', 'i');
 
+const parseJsonLine = Result.fn({
+	try: (line: string): unknown => JSON.parse(line) as unknown,
+	catch: (error) => error,
+});
+
 export function parseTokenCountLineFast(_line: string): ParsedTokenCountLine | null {
 	if (!hasTokenCountPayload(_line)) {
 		return null;
@@ -251,65 +256,70 @@ async function parseCodexSessionFile(
 		});
 	};
 
-	try {
-		await processJSONLFileByMarkers(
-			file,
-			CODEX_JSONL_MARKERS,
-			(line) => {
-				const contextModel = extractTurnContextModelFast(line);
-				if (contextModel != null) {
-					currentModel = contextModel;
-					currentModelIsFallback = false;
-					return;
-				}
-
-				const parsedFast = parseTokenCountLineFast(line);
-				if (parsedFast != null) {
-					addTokenCountEvent(parsedFast);
-					return;
-				}
-
-				try {
-					const entry = asRecord(JSON.parse(line) as unknown);
-					if (entry == null) {
-						return;
-					}
-					const entryType = typeof entry.type === 'string' ? entry.type : undefined;
-					const payload = entry.payload;
-					const timestamp = typeof entry.timestamp === 'string' ? entry.timestamp : undefined;
-					if (entryType === 'turn_context') {
-						const model = extractModel(payload);
-						if (model != null) {
-							currentModel = model;
+	await Result.pipe(
+		Result.try({
+			try: async () =>
+				processJSONLFileByMarkers(
+					file,
+					CODEX_JSONL_MARKERS,
+					(line) => {
+						const contextModel = extractTurnContextModelFast(line);
+						if (contextModel != null) {
+							currentModel = contextModel;
 							currentModelIsFallback = false;
+							return;
 						}
-						return;
-					}
-					if (entryType !== 'event_msg' || timestamp == null) {
-						return;
-					}
-					const payloadRecord = asRecord(payload);
-					if (payloadRecord?.type !== 'token_count') {
-						return;
-					}
-					const info = asRecord(payloadRecord.info);
-					addTokenCountEvent({
-						timestamp,
-						lastUsage: normalizeRawUsage(info?.last_token_usage),
-						totalUsage: normalizeRawUsage(info?.total_token_usage),
-						model: extractModel({ info, ...payloadRecord }),
-					});
-				} catch {}
-			},
-			{
-				bufferedEncoding: 'latin1',
-				callbackMode: 'sync',
-				scanMode: 'line',
-			},
-		);
-	} catch (error) {
-		logger.debug('Failed to read Codex session file', error);
-	}
+
+						const parsedFast = parseTokenCountLineFast(line);
+						if (parsedFast != null) {
+							addTokenCountEvent(parsedFast);
+							return;
+						}
+
+						const parseResult = parseJsonLine(line);
+						if (Result.isFailure(parseResult)) {
+							return;
+						}
+						const entry = asRecord(parseResult.value);
+						if (entry == null) {
+							return;
+						}
+						const entryType = typeof entry.type === 'string' ? entry.type : undefined;
+						const payload = entry.payload;
+						const timestamp = typeof entry.timestamp === 'string' ? entry.timestamp : undefined;
+						if (entryType === 'turn_context') {
+							const model = extractModel(payload);
+							if (model != null) {
+								currentModel = model;
+								currentModelIsFallback = false;
+							}
+							return;
+						}
+						if (entryType !== 'event_msg' || timestamp == null) {
+							return;
+						}
+						const payloadRecord = asRecord(payload);
+						if (payloadRecord?.type !== 'token_count') {
+							return;
+						}
+						const info = asRecord(payloadRecord.info);
+						addTokenCountEvent({
+							timestamp,
+							lastUsage: normalizeRawUsage(info?.last_token_usage),
+							totalUsage: normalizeRawUsage(info?.total_token_usage),
+							model: extractModel({ info, ...payloadRecord }),
+						});
+					},
+					{
+						bufferedEncoding: 'latin1',
+						callbackMode: 'sync',
+						scanMode: 'line',
+					},
+				),
+			catch: (error) => error,
+		}),
+		Result.inspectError((error) => logger.debug('Failed to read Codex session file', error)),
+	);
 
 	return events;
 }
@@ -410,7 +420,7 @@ async function loadTokenUsageEventsFromDirectory(
 	directoryPath: string,
 ): Promise<TokenUsageEvent[]> {
 	const statResult = await Result.try({
-		try: stat(directoryPath),
+		try: async () => stat(directoryPath),
 		catch: (error) => error,
 	});
 	if (Result.isFailure(statResult) || !statResult.value.isDirectory()) {

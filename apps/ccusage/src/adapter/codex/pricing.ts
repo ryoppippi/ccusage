@@ -72,7 +72,7 @@ export async function resolveCodexSpeed(requested?: string): Promise<CodexSpeed>
 		path.join(codexHome, 'config.toml'),
 	)) {
 		const result = await Result.try({
-			try: readTextFile(configPath),
+			try: async () => readTextFile(configPath),
 			catch: (error) => error,
 		});
 		if (!Result.isFailure(result) && codexFastServiceTierRegex.test(result.value)) {

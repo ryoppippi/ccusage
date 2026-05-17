@@ -7,6 +7,7 @@ import {
 	formatUsageDataRow,
 	pushBreakdownRows,
 } from '@ccusage/terminal/table';
+import { Result } from '@praha/byethrow';
 import { define } from 'gunshi';
 import { loadWeeklyUsageData } from '../adapter/claude/data-loader.ts';
 import { calculateTotals, createTotalsObject, getTotalTokens } from '../calculate-cost.ts';
@@ -46,21 +47,28 @@ export const weeklyCommand = define({
 		const progress = createUsageLoadProgress(
 			shouldShowUsageLoadProgress(mergedOptions, process.stdout),
 		);
-		let weeklyData: Awaited<ReturnType<typeof loadWeeklyUsageData>>;
-		try {
-			if (progress != null) {
-				logger.level = 0;
-			}
-			progress?.start('claude');
-			weeklyData = await loadWeeklyUsageData(mergedOptions);
-			progress?.succeed('claude', weeklyData.length);
-		} catch (error) {
-			progress?.fail('claude', error);
-			throw error;
-		} finally {
+		const weeklyDataResult = await Result.pipe(
+			Result.try({
+				try: async () => {
+					if (progress != null) {
+						logger.level = 0;
+					}
+					progress?.start('claude');
+					return loadWeeklyUsageData(mergedOptions);
+				},
+				catch: (error) => error,
+			}),
+			Result.inspect((weeklyData) => progress?.succeed('claude', weeklyData.length)),
+			Result.inspectError((error) => progress?.fail('claude', error)),
+		);
+		if (Result.isFailure(weeklyDataResult)) {
 			progress?.stop();
 			logger.level = originalLoggerLevel;
+			throw weeklyDataResult.error;
 		}
+		progress?.stop();
+		logger.level = originalLoggerLevel;
+		const weeklyData = weeklyDataResult.value;
 
 		if (weeklyData.length === 0) {
 			if (useJson) {

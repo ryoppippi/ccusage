@@ -7,6 +7,7 @@ import {
 	formatUsageDataRow,
 	pushBreakdownRows,
 } from '@ccusage/terminal/table';
+import { Result } from '@praha/byethrow';
 import { define } from 'gunshi';
 import { loadSessionData } from '../adapter/claude/data-loader.ts';
 import { calculateTotals, createTotalsObject, getTotalTokens } from '../calculate-cost.ts';
@@ -64,28 +65,35 @@ export const sessionCommand = define({
 		const progress = createUsageLoadProgress(
 			shouldShowUsageLoadProgress(mergedOptions, process.stdout),
 		);
-		let sessionData: Awaited<ReturnType<typeof loadSessionData>>;
-		try {
-			if (progress != null) {
-				logger.level = 0;
-			}
-			progress?.start('claude');
-			sessionData = await loadSessionData({
-				since: mergedOptions.since,
-				until: mergedOptions.until,
-				mode: mergedOptions.mode,
-				offline: mergedOptions.offline,
-				singleThread: mergedOptions.singleThread,
-				timezone: mergedOptions.timezone,
-			});
-			progress?.succeed('claude', sessionData.length);
-		} catch (error) {
-			progress?.fail('claude', error);
-			throw error;
-		} finally {
+		const sessionDataResult = await Result.pipe(
+			Result.try({
+				try: async () => {
+					if (progress != null) {
+						logger.level = 0;
+					}
+					progress?.start('claude');
+					return loadSessionData({
+						since: mergedOptions.since,
+						until: mergedOptions.until,
+						mode: mergedOptions.mode,
+						offline: mergedOptions.offline,
+						singleThread: mergedOptions.singleThread,
+						timezone: mergedOptions.timezone,
+					});
+				},
+				catch: (error) => error,
+			}),
+			Result.inspect((sessionData) => progress?.succeed('claude', sessionData.length)),
+			Result.inspectError((error) => progress?.fail('claude', error)),
+		);
+		if (Result.isFailure(sessionDataResult)) {
 			progress?.stop();
 			logger.level = originalLoggerLevel;
+			throw sessionDataResult.error;
 		}
+		progress?.stop();
+		logger.level = originalLoggerLevel;
+		const sessionData = sessionDataResult.value;
 
 		if (sessionData.length === 0) {
 			if (useJson) {
