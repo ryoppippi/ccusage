@@ -5,6 +5,7 @@ use serde::Deserialize;
 const EMBEDDED_PRICING_JSON: &str = include_str!("claude-pricing.json");
 const LITELLM_PRICING_URL: &str =
     "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json";
+const PRICING_FETCH_TIMEOUT_SECONDS: u64 = 10;
 
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct Pricing {
@@ -115,13 +116,15 @@ impl PricingMap {
 
     pub(crate) fn find(&self, model: &str) -> Option<Pricing> {
         self.entries.get(model).copied().or_else(|| {
-            self.entries.iter().find_map(|(candidate, pricing)| {
-                if model.contains(candidate) || candidate.contains(model) {
-                    Some(*pricing)
-                } else {
-                    None
-                }
-            })
+            self.entries
+                .iter()
+                .filter(|(candidate, _)| model.contains(*candidate) || candidate.contains(model))
+                .max_by(|(left, _), (right, _)| {
+                    left.len()
+                        .cmp(&right.len())
+                        .then_with(|| right.cmp(left))
+                })
+                .map(|(_, pricing)| *pricing)
         })
     }
 
@@ -319,6 +322,7 @@ impl PricingMap {
 
 fn fetch_pricing_json() -> std::io::Result<String> {
     let response = minreq::get(LITELLM_PRICING_URL)
+        .with_timeout(PRICING_FETCH_TIMEOUT_SECONDS)
         .send()
         .map_err(|error| std::io::Error::other(error.to_string()))?;
     if response.status_code != 200 {
@@ -335,12 +339,49 @@ fn fetch_pricing_json() -> std::io::Result<String> {
 
 #[cfg(test)]
 mod tests {
-    use super::PricingMap;
+    use super::{Pricing, PricingMap};
 
     #[test]
     fn loads_embedded_claude_pricing() {
         let pricing = PricingMap::load_embedded();
         assert!(pricing.len() > 0);
         assert!(pricing.find("claude-sonnet-4-20250514").is_some());
+    }
+
+    #[test]
+    fn fuzzy_match_prefers_longest_model_key() {
+        let mut pricing = PricingMap::default();
+        pricing.entries.insert(
+            "claude-sonnet-4".to_string(),
+            Pricing {
+                input: 1.0,
+                output: 0.0,
+                cache_create: 0.0,
+                cache_read: 0.0,
+                input_above_200k: None,
+                output_above_200k: None,
+                cache_create_above_200k: None,
+                cache_read_above_200k: None,
+                fast_multiplier: 1.0,
+            },
+        );
+        pricing.entries.insert(
+            "claude-sonnet-4-20250514".to_string(),
+            Pricing {
+                input: 2.0,
+                output: 0.0,
+                cache_create: 0.0,
+                cache_read: 0.0,
+                input_above_200k: None,
+                output_above_200k: None,
+                cache_create_above_200k: None,
+                cache_read_above_200k: None,
+                fast_multiplier: 1.0,
+            },
+        );
+
+        let matched = pricing.find("claude-sonnet-4-20250514-via-bedrock").unwrap();
+
+        assert_eq!(matched.input, 2.0);
     }
 }

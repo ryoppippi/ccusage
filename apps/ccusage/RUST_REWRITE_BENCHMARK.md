@@ -12,7 +12,7 @@ bun -e 'process.argv = [process.argv[0], "ccusage", ...process.argv.slice(1)]; i
 Benchmark command:
 
 ```sh
-, hyperfine --warmup 1 --runs 5 \
+hyperfine --warmup 1 --runs 5 \
   "target/release/ccusage daily --json --offline > /tmp/ccusage-rs-bench.json" \
   "bun -e 'process.argv = [process.argv[0], \"ccusage\", ...process.argv.slice(1)]; import(\"./apps/ccusage/src/commands/index.ts\").then(m => m.run())' daily --json --offline > /tmp/ccusage-ts-bench.json"
 ```

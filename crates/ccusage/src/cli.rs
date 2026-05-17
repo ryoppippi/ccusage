@@ -774,7 +774,7 @@ fn print_help_or_version_arg(arg: &str) -> ! {
 }
 
 fn help_text() -> &'static str {
-    "Usage: ccusage [OPTIONS] [COMMAND]\n\nCommands:\n  daily\n  monthly\n  weekly\n  session\n  blocks\n  statusline\n\nOptions:\n  -s, --since <YYYYMMDD>\n  -u, --until <YYYYMMDD>\n  -j, --json\n  -m, --mode <auto|calculate|display>\n  -d, --debug\n      --debug-samples <N>\n  -o, --order <asc|desc>\n  -b, --breakdown\n  -O, --offline\n      --no-offline\n      --color\n      --no-color\n  -z, --timezone <TZ>\n  -q, --jq <QUERY>\n      --config <PATH>\n      --compact\n      --single-thread\n  -h, --help\n  -V, --version"
+    "Usage: ccusage [OPTIONS] [COMMAND]\n\nCommands:\n  daily\n  monthly\n  weekly\n  session\n  blocks\n  statusline\n  claude\n  codex\n  opencode\n\nOptions:\n  -s, --since <YYYYMMDD>\n  -u, --until <YYYYMMDD>\n  -j, --json\n  -m, --mode <auto|calculate|display>\n  -d, --debug\n      --debug-samples <N>\n  -o, --order <asc|desc>\n  -b, --breakdown\n  -O, --offline\n      --no-offline\n      --color\n      --no-color\n  -z, --timezone <TZ>\n  -q, --jq <QUERY>\n      --config <PATH>\n      --compact\n      --single-thread\n  -h, --help\n  -V, --version"
 }
 
 #[cfg(test)]
@@ -794,6 +794,14 @@ mod tests {
         assert_eq!(args.kind, AgentReportKind::Daily);
         assert!(args.shared.json);
         assert_eq!(args.shared.since.as_deref(), Some("20260102"));
+    }
+
+    #[test]
+    fn help_lists_agent_namespace_commands() {
+        let help = help_text();
+        assert!(help.contains("\n  claude\n"));
+        assert!(help.contains("\n  codex\n"));
+        assert!(help.contains("\n  opencode\n"));
     }
 
     #[test]
