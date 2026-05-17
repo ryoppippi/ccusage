@@ -3,6 +3,7 @@ import { mkdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { withSqliteDatabase } from '@ccusage/internal/sqlite';
 import { createFixture } from 'fs-fixture';
 
 const appRoot = fileURLToPath(new URL('../', import.meta.url));
@@ -30,8 +31,11 @@ async function createCliEnv(fixturePath: string, tempDir: string): Promise<NodeJ
 	const opencodeDir = path.join(agentRoot, 'opencode');
 	const ampDir = path.join(agentRoot, 'amp');
 	const piDir = path.join(agentRoot, 'pi');
+	const kiloDir = path.join(agentRoot, 'kilo');
 	await Promise.all(
-		[codexHome, opencodeDir, ampDir, piDir].map(async (dir) => mkdir(dir, { recursive: true })),
+		[codexHome, opencodeDir, ampDir, piDir, kiloDir].map(async (dir) =>
+			mkdir(dir, { recursive: true }),
+		),
 	);
 
 	return {
@@ -44,6 +48,7 @@ async function createCliEnv(fixturePath: string, tempDir: string): Promise<NodeJ
 		OPENCODE_DATA_DIR: opencodeDir,
 		PATH: process.env.PATH,
 		PI_AGENT_DIR: piDir,
+		KILO_DATA_DIR: kiloDir,
 		TZ: 'UTC',
 	};
 }
@@ -190,6 +195,7 @@ function createAgentFixtureTree() {
 				},
 			},
 		},
+		kilo: {},
 	};
 }
 
@@ -204,8 +210,38 @@ function createAgentCliEnv(fixturePath: string): NodeJS.ProcessEnv {
 		OPENCODE_DATA_DIR: path.join(fixturePath, 'opencode'),
 		PATH: process.env.PATH,
 		PI_AGENT_DIR: path.join(fixturePath, 'pi', 'sessions'),
+		KILO_DATA_DIR: path.join(fixturePath, 'kilo'),
 		TZ: 'UTC',
 	};
+}
+
+function createKiloFixtureDb(fixturePath: string): void {
+	withSqliteDatabase(path.join(fixturePath, 'kilo', 'kilo.db'), { readOnly: false }, (db) => {
+		db.exec('CREATE TABLE message (id TEXT, session_id TEXT, data TEXT)');
+		db.prepare('INSERT INTO message (id, session_id, data) VALUES (?, ?, ?)').run(
+			'kilo-message',
+			'kilo-session',
+			JSON.stringify({
+				role: 'assistant',
+				providerID: 'openai',
+				modelID: 'gpt-5',
+				time: {
+					created: 1_767_312_000_000,
+				},
+				tokens: {
+					input: 100,
+					output: 50,
+					reasoning: 5,
+					cache: {
+						read: 10,
+						write: 20,
+					},
+				},
+				cost: 0.02,
+				agent: 'build',
+			}),
+		);
+	});
 }
 
 function runCcusage(args: string[], env: NodeJS.ProcessEnv): ReturnType<typeof spawnSync> {
@@ -519,6 +555,20 @@ describe('ccusage all-agent CLI', () => {
 		await mkdir(snapshotRoot, { recursive: true });
 		await expect(getStdout(result).replace(/\n$/u, '')).toMatchFileSnapshot(
 			path.join(snapshotRoot, 'opencode-direct-daily-json.txt'),
+		);
+	});
+
+	it('runs Kilo daily JSON through the main ccusage namespace', async () => {
+		await using fixture = await createFixture(createAgentFixtureTree());
+		createKiloFixtureDb(fixture.path);
+
+		const result = runCcusage(['kilo', '--offline', '--json'], createAgentCliEnv(fixture.path));
+
+		expect(result.status).toBe(0);
+		expect(result.stderr).toBe('');
+		await mkdir(snapshotRoot, { recursive: true });
+		await expect(getStdout(result).replace(/\n$/u, '')).toMatchFileSnapshot(
+			path.join(snapshotRoot, 'kilo-direct-daily-json.txt'),
 		);
 	});
 

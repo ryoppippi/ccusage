@@ -13,6 +13,7 @@ ccusage detects supported data source files from conventional locations by defau
 | `OPENCODE_DATA_DIR` | OpenCode    | `~/.local/share/opencode`          |
 | `AMP_DATA_DIR`      | Amp         | `~/.local/share/amp`               |
 | `PI_AGENT_DIR`      | pi-agent    | `~/.pi/agent/sessions`             |
+| `KILO_DATA_DIR`     | Kilo        | `~/.local/share/kilo`              |
 
 Example:
 
@@ -21,6 +22,7 @@ export CODEX_HOME="/path/to/codex,/archive/codex"
 export OPENCODE_DATA_DIR="/path/to/opencode,/archive/opencode"
 export AMP_DATA_DIR="/path/to/amp,/archive/amp"
 export PI_AGENT_DIR="/path/to/pi/sessions,/archive/pi/sessions"
+export KILO_DATA_DIR="/path/to/kilo,/archive/kilo"
 ccusage daily
 ```
 
@@ -198,7 +200,7 @@ To see which environment variables are being used:
 
 ```bash
 # Show all environment variables
-env | grep -E "CLAUDE|CODEX|OPENCODE|AMP|PI_AGENT|CCUSAGE|LOG_LEVEL"
+env | grep -E "CLAUDE|CODEX|OPENCODE|AMP|PI_AGENT|KILO|CCUSAGE|LOG_LEVEL"
 
 # Debug mode shows environment variable usage
 LOG_LEVEL=4 ccusage daily --debug

@@ -1,0 +1,61 @@
+# Kilo Data Source (Beta)
+
+ccusage can read Kilo CLI usage data as one of its supported local data sources. Kilo stores local session data in a SQLite database with model, token, cache, and cost fields.
+
+## Focused Views
+
+```bash
+# Recommended
+bunx ccusage kilo --help
+
+# Alternative package runners
+npx ccusage@latest kilo --help
+pnpm dlx ccusage kilo --help
+pnpx ccusage kilo --help
+```
+
+## Data Source
+
+The CLI reads Kilo messages from `KILO_DATA_DIR` (defaults to `~/.local/share/kilo`). `KILO_DATA_DIR` can be one directory or a comma-separated list of directories.
+
+```bash
+KILO_DATA_DIR="$HOME/.local/share/kilo,/backup/kilo" ccusage kilo daily
+```
+
+<!-- eslint-skip -->
+
+```
+~/.local/share/kilo/
+└── kilo.db
+```
+
+## Report Views
+
+| Focused view           | Description                          | See also                                |
+| ---------------------- | ------------------------------------ | --------------------------------------- |
+| `ccusage kilo daily`   | Aggregate usage by date (YYYY-MM-DD) | [Daily Usage](/guide/daily-reports)     |
+| `ccusage kilo monthly` | Aggregate usage by month (YYYY-MM)   | [Monthly Usage](/guide/monthly-reports) |
+| `ccusage kilo session` | Per-session breakdown                | [Session Usage](/guide/session-reports) |
+
+These views support `--json` for structured output and `--compact` for narrow terminals. See the linked ccusage documentation for detailed flag descriptions.
+
+## Environment Variables
+
+| Variable        | Description                                                                            |
+| --------------- | -------------------------------------------------------------------------------------- |
+| `KILO_DATA_DIR` | Override the root directory, or comma-separated root directories, containing Kilo data |
+| `LOG_LEVEL`     | Adjust verbosity (0 silent ... 5 trace)                                                |
+
+## Cost Calculation
+
+When Kilo records a positive cost, ccusage uses that value. Otherwise, costs are calculated from token counts using LiteLLM pricing.
+
+## Troubleshooting
+
+::: details No Kilo usage data found
+Ensure the data directory exists at `~/.local/share/kilo/` and contains `kilo.db`. Set `KILO_DATA_DIR` for custom paths or comma-separated archive roots.
+:::
+
+::: details Costs showing as $0.00
+If Kilo did not record a cost and the model is not in LiteLLM's database, the cost will be $0.00. [Open an issue](https://github.com/ryoppippi/ccusage/issues/new) to request alias support.
+:::
