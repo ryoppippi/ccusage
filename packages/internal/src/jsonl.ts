@@ -6,6 +6,16 @@ import { readBufferedBytesFile, readBufferedTextFile } from './fs.ts';
 
 const MAX_BUFFERED_JSONL_BYTES = 128 * 1024 * 1024;
 
+/**
+ * Controls marker-based JSONL scanning.
+ *
+ * `scanMode: "marker"` scans encoded bytes for marker strings and decodes only
+ * matching lines. `scanMode: "line"` decodes the buffered file first and checks
+ * each non-empty line. `bufferedEncoding` is the encoding used for buffered
+ * decode paths. `markerIndex: "byte"` reports marker offsets in encoded bytes;
+ * `markerIndex: "decoded"` reports JavaScript string indexes. `callbackMode:
+ * "sync"` is valid when callbacks do not return promises.
+ */
 type JSONLMarkerProcessingOptions = {
 	bufferedEncoding?: BufferEncoding;
 	callbackMode?: 'async' | 'sync';
@@ -271,6 +281,12 @@ export async function readBufferedJSONLContent(filePath: string): Promise<string
 	return readBufferedTextFile(filePath, { maxBufferedBytes: MAX_BUFFERED_JSONL_BYTES });
 }
 
+/**
+ * Reads JSONL bytes into memory when the file fits within the shared buffer limit.
+ *
+ * @param filePath - JSONL file path to read.
+ * @returns File bytes, or null when the file should be streamed instead.
+ */
 export async function readBufferedJSONLBytes(filePath: string): Promise<Uint8Array | null> {
 	return readBufferedBytesFile(filePath, { maxBufferedBytes: MAX_BUFFERED_JSONL_BYTES });
 }
@@ -310,6 +326,18 @@ export async function processJSONLFileByLine(
 	}
 }
 
+/**
+ * Processes JSONL lines that contain one of the supplied marker strings.
+ *
+ * Buffered files can be scanned by encoded marker bytes or by decoded lines.
+ * When `markerIndex` is `"byte"`, callbacks receive byte offsets for every
+ * buffered and streamed path; otherwise they receive decoded string indexes.
+ *
+ * @param filePath - JSONL file path to process.
+ * @param markers - Non-empty marker strings used to select relevant lines.
+ * @param processLine - Callback invoked with the matching line, marker index, and marker.
+ * @param options - Marker scanning options.
+ */
 export async function processJSONLFileByMarkers(
 	filePath: string,
 	markers: readonly string[],
