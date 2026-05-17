@@ -14,6 +14,7 @@ pub(crate) enum Command {
     Session(SessionArgs),
     Blocks(BlocksArgs),
     Statusline(StatuslineArgs),
+    Codex(AgentCommandArgs),
 }
 
 #[derive(Clone, Default)]
@@ -90,6 +91,19 @@ pub(crate) struct StatuslineArgs {
     pub(crate) context_medium_threshold: u8,
     pub(crate) config: Option<PathBuf>,
     pub(crate) debug: bool,
+}
+
+#[derive(Clone)]
+pub(crate) struct AgentCommandArgs {
+    pub(crate) shared: SharedArgs,
+    pub(crate) kind: AgentReportKind,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum AgentReportKind {
+    Daily,
+    Monthly,
+    Session,
 }
 
 impl Default for StatuslineArgs {
@@ -328,8 +342,34 @@ fn parse_command(
             }
             Ok(Command::Statusline(args))
         }
+        "codex" => parse_codex_command(parser, shared),
         _ => Err(format!("Unknown command '{command}'")),
     }
+}
+
+fn parse_codex_command(parser: &mut ArgParser, mut shared: SharedArgs) -> Result<Command, String> {
+    let kind = match parser.peek() {
+        Some("daily") => {
+            parser.next();
+            AgentReportKind::Daily
+        }
+        Some("monthly") => {
+            parser.next();
+            AgentReportKind::Monthly
+        }
+        Some("session") => {
+            parser.next();
+            AgentReportKind::Session
+        }
+        Some(command) if !command.starts_with('-') => {
+            return Err(format!("Unknown codex command '{command}'"));
+        }
+        _ => AgentReportKind::Daily,
+    };
+    while parser.peek().is_some() {
+        parse_shared_arg(parser, &mut shared)?;
+    }
+    Ok(Command::Codex(AgentCommandArgs { shared, kind }))
 }
 
 fn parse_shared_arg_for_command(
@@ -378,7 +418,7 @@ fn parse_shared_arg(parser: &mut ArgParser, shared: &mut SharedArgs) -> Result<(
 fn is_command(arg: &str) -> bool {
     matches!(
         arg,
-        "daily" | "monthly" | "weekly" | "session" | "blocks" | "statusline"
+        "daily" | "monthly" | "weekly" | "session" | "blocks" | "statusline" | "codex"
     )
 }
 
@@ -626,5 +666,16 @@ mod tests {
         assert!(args.no_cache);
         assert_eq!(args.visual_burn_rate, VisualBurnRate::EmojiText);
         assert_eq!(args.cost_source, CostSource::Both);
+    }
+
+    #[test]
+    fn parses_codex_default_daily_options() {
+        let cli = parse(&["ccusage", "codex", "--json", "--since", "20260102"]);
+        let Some(Command::Codex(args)) = cli.command else {
+            panic!("expected codex command");
+        };
+        assert_eq!(args.kind, AgentReportKind::Daily);
+        assert!(args.shared.json);
+        assert_eq!(args.shared.since.as_deref(), Some("20260102"));
     }
 }

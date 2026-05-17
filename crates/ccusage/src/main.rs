@@ -21,8 +21,8 @@ mod cli;
 mod pricing;
 
 use cli::{
-    BlocksArgs, Cli, Command, CostMode, CostSource, DailyArgs, SessionArgs, SharedArgs, SortOrder,
-    StatuslineArgs, VisualBurnRate, WeekDay, WeeklyArgs,
+    AgentCommandArgs, AgentReportKind, BlocksArgs, Cli, Command, CostMode, CostSource, DailyArgs,
+    SessionArgs, SharedArgs, SortOrder, StatuslineArgs, VisualBurnRate, WeekDay, WeeklyArgs,
 };
 use pricing::PricingMap;
 
@@ -272,6 +272,50 @@ struct LoadedFile {
     entries: Vec<LoadedEntry>,
 }
 
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+struct CodexRawUsage {
+    input_tokens: u64,
+    cached_input_tokens: u64,
+    output_tokens: u64,
+    reasoning_output_tokens: u64,
+    total_tokens: u64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct CodexTokenUsageEvent {
+    session_id: String,
+    timestamp: String,
+    model: Option<String>,
+    input_tokens: u64,
+    cached_input_tokens: u64,
+    output_tokens: u64,
+    reasoning_output_tokens: u64,
+    total_tokens: u64,
+    is_fallback_model: bool,
+}
+
+#[derive(Debug, Clone, Default, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct CodexModelUsage {
+    input_tokens: u64,
+    cached_input_tokens: u64,
+    output_tokens: u64,
+    reasoning_output_tokens: u64,
+    total_tokens: u64,
+    is_fallback: bool,
+}
+
+#[derive(Debug, Clone, Default)]
+struct CodexGroup {
+    input_tokens: u64,
+    cached_input_tokens: u64,
+    output_tokens: u64,
+    reasoning_output_tokens: u64,
+    total_tokens: u64,
+    models: BTreeMap<String, CodexModelUsage>,
+    last_activity: Option<String>,
+}
+
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct UsageSummary {
@@ -340,6 +384,7 @@ fn main() -> Result<()> {
         Some(Command::Session(args)) => run_session(args),
         Some(Command::Blocks(args)) => run_blocks(args),
         Some(Command::Statusline(args)) => run_statusline(args),
+        Some(Command::Codex(args)) => run_codex(args),
         None => {
             let args = DailyArgs {
                 shared: cli.shared,
@@ -350,6 +395,299 @@ fn main() -> Result<()> {
             run_daily(args)
         }
     }
+}
+
+fn run_codex(args: AgentCommandArgs) -> Result<()> {
+    let shared = args.shared;
+    let pricing = PricingMap::load(shared.offline, log_level() != Some(0));
+    let mut events = load_codex_events()?;
+    filter_codex_events_by_date(&mut events, &shared)?;
+    let output = codex_report_json(&events, args.kind, shared.timezone.as_deref(), &pricing)?;
+    if wants_json(&shared) {
+        return print_json_or_jq(output, shared.jq.as_deref());
+    }
+    print_codex_table(&output, args.kind, &shared);
+    Ok(())
+}
+
+fn codex_report_json(
+    events: &[CodexTokenUsageEvent],
+    kind: AgentReportKind,
+    timezone: Option<&str>,
+    pricing: &PricingMap,
+) -> Result<Value> {
+    let groups = aggregate_codex_events(events, kind, timezone)?;
+    let rows = groups
+        .iter()
+        .map(|(period, group)| codex_group_json(period, group, kind, pricing))
+        .collect::<Vec<_>>();
+    let totals = codex_totals_json(groups.values(), pricing);
+    Ok(json!({
+        codex_rows_key(kind): rows,
+        "totals": totals,
+    }))
+}
+
+fn aggregate_codex_events(
+    events: &[CodexTokenUsageEvent],
+    kind: AgentReportKind,
+    timezone: Option<&str>,
+) -> Result<BTreeMap<String, CodexGroup>> {
+    let mut groups = BTreeMap::new();
+    for event in events {
+        let Some(model) = event.model.as_deref().filter(|model| !model.is_empty()) else {
+            continue;
+        };
+        let timestamp = parse_ts_timestamp(&event.timestamp)
+            .ok_or_else(|| cli_error(format!("Invalid Codex timestamp: {}", event.timestamp)))?;
+        let date = format_date(timestamp, timezone);
+        let period = match kind {
+            AgentReportKind::Daily => date,
+            AgentReportKind::Monthly => date[..7].to_string(),
+            AgentReportKind::Session => event.session_id.clone(),
+        };
+        let group = groups.entry(period).or_insert_with(CodexGroup::default);
+        group.input_tokens += event.input_tokens;
+        group.cached_input_tokens += event.cached_input_tokens;
+        group.output_tokens += event.output_tokens;
+        group.reasoning_output_tokens += event.reasoning_output_tokens;
+        group.total_tokens += event.total_tokens;
+        if group
+            .last_activity
+            .as_deref()
+            .is_none_or(|current| event.timestamp.as_str() > current)
+        {
+            group.last_activity = Some(event.timestamp.clone());
+        }
+
+        let model_usage = group.models.entry(model.to_string()).or_default();
+        model_usage.input_tokens += event.input_tokens;
+        model_usage.cached_input_tokens += event.cached_input_tokens;
+        model_usage.output_tokens += event.output_tokens;
+        model_usage.reasoning_output_tokens += event.reasoning_output_tokens;
+        model_usage.total_tokens += event.total_tokens;
+        model_usage.is_fallback |= event.is_fallback_model;
+    }
+    Ok(groups)
+}
+
+fn codex_rows_key(kind: AgentReportKind) -> &'static str {
+    match kind {
+        AgentReportKind::Daily => "daily",
+        AgentReportKind::Monthly => "monthly",
+        AgentReportKind::Session => "sessions",
+    }
+}
+
+fn codex_period_key(kind: AgentReportKind) -> &'static str {
+    match kind {
+        AgentReportKind::Daily => "date",
+        AgentReportKind::Monthly => "month",
+        AgentReportKind::Session => "sessionId",
+    }
+}
+
+fn codex_group_json(
+    period: &str,
+    group: &CodexGroup,
+    kind: AgentReportKind,
+    pricing: &PricingMap,
+) -> Value {
+    let cost = calculate_codex_group_cost(group, pricing);
+    let mut row = json!({
+        codex_period_key(kind): period,
+        "inputTokens": group.input_tokens,
+        "cachedInputTokens": group.cached_input_tokens,
+        "outputTokens": group.output_tokens,
+        "reasoningOutputTokens": group.reasoning_output_tokens,
+        "totalTokens": group.total_tokens,
+        "costUSD": json_float(cost),
+        "models": group.models,
+    });
+    if kind == AgentReportKind::Session {
+        row["lastActivity"] = json!(group.last_activity);
+        let separator = period.rfind('/');
+        row["sessionFile"] = json!(separator.map_or(period, |index| &period[index + 1..]));
+        row["directory"] = json!(separator.map_or("", |index| &period[..index]));
+    }
+    row
+}
+
+fn codex_totals_json<'a>(
+    groups: impl Iterator<Item = &'a CodexGroup>,
+    pricing: &PricingMap,
+) -> Value {
+    let mut input = 0;
+    let mut cached = 0;
+    let mut output = 0;
+    let mut reasoning = 0;
+    let mut total = 0;
+    let mut cost = 0.0;
+    for group in groups {
+        input += group.input_tokens;
+        cached += group.cached_input_tokens;
+        output += group.output_tokens;
+        reasoning += group.reasoning_output_tokens;
+        total += group.total_tokens;
+        cost += calculate_codex_group_cost(group, pricing);
+    }
+    json!({
+        "inputTokens": input,
+        "cachedInputTokens": cached,
+        "outputTokens": output,
+        "reasoningOutputTokens": reasoning,
+        "totalTokens": total,
+        "costUSD": json_float(cost),
+    })
+}
+
+fn calculate_codex_group_cost(group: &CodexGroup, pricing: &PricingMap) -> f64 {
+    group
+        .models
+        .iter()
+        .map(|(model, usage)| calculate_codex_model_cost(model, usage, pricing))
+        .sum()
+}
+
+fn calculate_codex_model_cost(model: &str, usage: &CodexModelUsage, pricing: &PricingMap) -> f64 {
+    let Some(pricing) = pricing.find(model) else {
+        return 0.0;
+    };
+    let non_cached_input = usage.input_tokens.saturating_sub(usage.cached_input_tokens);
+    non_cached_input as f64 * pricing.input
+        + usage.cached_input_tokens as f64 * pricing.cache_read
+        + usage.output_tokens as f64 * pricing.output
+}
+
+fn filter_codex_events_by_date(
+    events: &mut Vec<CodexTokenUsageEvent>,
+    shared: &SharedArgs,
+) -> Result<()> {
+    if shared.since.is_none() && shared.until.is_none() {
+        return Ok(());
+    }
+    let mut kept = Vec::with_capacity(events.len());
+    for event in events.drain(..) {
+        let timestamp = parse_ts_timestamp(&event.timestamp)
+            .ok_or_else(|| cli_error(format!("Invalid Codex timestamp: {}", event.timestamp)))?;
+        let date = format_date(timestamp, shared.timezone.as_deref()).replace('-', "");
+        if shared.since.as_ref().is_none_or(|since| &date >= since)
+            && shared.until.as_ref().is_none_or(|until| &date <= until)
+        {
+            kept.push(event);
+        }
+    }
+    *events = kept;
+    Ok(())
+}
+
+fn print_codex_table(output: &Value, kind: AgentReportKind, shared: &SharedArgs) {
+    let rows = output
+        .get(codex_rows_key(kind))
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    if rows.is_empty() {
+        eprintln!("No Codex usage data found.");
+        return;
+    }
+    let first_column = match kind {
+        AgentReportKind::Daily => "Date",
+        AgentReportKind::Monthly => "Month",
+        AgentReportKind::Session => "Session",
+    };
+    let mut table = SimpleTable::new(
+        vec![
+            first_column,
+            "Models",
+            "Input",
+            "Cached Input",
+            "Output",
+            "Reasoning",
+            "Total Tokens",
+            "Cost (USD)",
+        ],
+        vec![
+            Align::Left,
+            Align::Left,
+            Align::Right,
+            Align::Right,
+            Align::Right,
+            Align::Right,
+            Align::Right,
+            Align::Right,
+        ],
+        shared,
+    )
+    .with_date_compaction(true);
+    for row in &rows {
+        let label = row
+            .get(codex_period_key(kind))
+            .and_then(Value::as_str)
+            .unwrap_or_default();
+        let models = row
+            .get("models")
+            .and_then(Value::as_object)
+            .map(|models| {
+                models
+                    .keys()
+                    .map(String::as_str)
+                    .collect::<Vec<_>>()
+                    .join("\n")
+            })
+            .unwrap_or_default();
+        table.push(vec![
+            label.to_string(),
+            models,
+            format_number(json_value_u64(row.get("inputTokens"))),
+            format_number(json_value_u64(row.get("cachedInputTokens"))),
+            format_number(json_value_u64(row.get("outputTokens"))),
+            format_number(json_value_u64(row.get("reasoningOutputTokens"))),
+            format_number(json_value_u64(row.get("totalTokens"))),
+            format_currency(row.get("costUSD").and_then(Value::as_f64).unwrap_or(0.0)),
+        ]);
+    }
+    table.separator();
+    let totals = output.get("totals").unwrap_or(&Value::Null);
+    table.push(vec![
+        color(shared, "Total", Color::Yellow),
+        String::new(),
+        color(
+            shared,
+            format_number(json_value_u64(totals.get("inputTokens"))),
+            Color::Yellow,
+        ),
+        color(
+            shared,
+            format_number(json_value_u64(totals.get("cachedInputTokens"))),
+            Color::Yellow,
+        ),
+        color(
+            shared,
+            format_number(json_value_u64(totals.get("outputTokens"))),
+            Color::Yellow,
+        ),
+        color(
+            shared,
+            format_number(json_value_u64(totals.get("reasoningOutputTokens"))),
+            Color::Yellow,
+        ),
+        color(
+            shared,
+            format_number(json_value_u64(totals.get("totalTokens"))),
+            Color::Yellow,
+        ),
+        color(
+            shared,
+            format_currency(totals.get("costUSD").and_then(Value::as_f64).unwrap_or(0.0)),
+            Color::Yellow,
+        ),
+    ]);
+    table.print();
+}
+
+fn json_value_u64(value: Option<&Value>) -> u64 {
+    value.and_then(Value::as_u64).unwrap_or_default()
 }
 
 fn run_daily(args: DailyArgs) -> Result<()> {
@@ -1254,6 +1592,261 @@ fn is_semver_prefix(value: &str) -> bool {
         && major.chars().all(|ch| ch.is_ascii_digit())
         && minor.chars().all(|ch| ch.is_ascii_digit())
         && patch.chars().next().is_some_and(|ch| ch.is_ascii_digit())
+}
+
+fn load_codex_events_from_directory(sessions_dir: &Path) -> Result<Vec<CodexTokenUsageEvent>> {
+    let mut files = Vec::new();
+    collect_usage_files(sessions_dir, &mut files);
+    let mut events = Vec::new();
+    for file in files {
+        events.extend(read_codex_session_file(sessions_dir, &file));
+    }
+    events.sort_by(|a, b| a.timestamp.cmp(&b.timestamp));
+    dedupe_codex_events(&mut events);
+    Ok(events)
+}
+
+fn load_codex_events() -> Result<Vec<CodexTokenUsageEvent>> {
+    let mut events = Vec::new();
+    for path in codex_sessions_paths()? {
+        events.extend(load_codex_events_from_directory(&path)?);
+    }
+    events.sort_by(|a, b| a.timestamp.cmp(&b.timestamp));
+    dedupe_codex_events(&mut events);
+    Ok(events)
+}
+
+fn codex_sessions_paths() -> Result<Vec<PathBuf>> {
+    let mut paths = Vec::new();
+    let mut seen = HashSet::new();
+    if let Ok(env_paths) = env::var("CODEX_HOME") {
+        for raw in env_paths
+            .split(',')
+            .map(str::trim)
+            .filter(|path| !path.is_empty())
+        {
+            let path = PathBuf::from(raw).join("sessions");
+            if seen.insert(path.clone()) {
+                paths.push(path);
+            }
+        }
+        return Ok(paths);
+    }
+
+    let home = env::var("HOME").context("HOME is not set")?;
+    let path = PathBuf::from(home).join(".codex").join("sessions");
+    if seen.insert(path.clone()) {
+        paths.push(path);
+    }
+    Ok(paths)
+}
+
+fn read_codex_session_file(sessions_dir: &Path, path: &Path) -> Vec<CodexTokenUsageEvent> {
+    let Ok(content) = fs::read_to_string(path) else {
+        return Vec::new();
+    };
+    let session_id = codex_session_id(sessions_dir, path);
+    let mut events = Vec::new();
+    let mut previous_totals: Option<CodexRawUsage> = None;
+    let mut current_model: Option<String> = None;
+    let mut current_model_is_fallback = false;
+
+    for line in content.lines() {
+        if !line.contains("turn_context") && !line.contains("token_count") {
+            continue;
+        }
+        let Ok(value) = serde_json::from_str::<Value>(line) else {
+            continue;
+        };
+        let Some(entry_type) = value.get("type").and_then(Value::as_str) else {
+            continue;
+        };
+        if entry_type == "turn_context" {
+            if let Some(model) = codex_model_from_payload(value.get("payload")) {
+                current_model = Some(model);
+                current_model_is_fallback = false;
+            }
+            continue;
+        }
+        if entry_type != "event_msg" {
+            continue;
+        }
+        let Some(timestamp) = value.get("timestamp").and_then(Value::as_str) else {
+            continue;
+        };
+        let Some(payload) = value.get("payload") else {
+            continue;
+        };
+        if payload.get("type").and_then(Value::as_str) != Some("token_count") {
+            continue;
+        }
+        let info = payload.get("info");
+        let total_usage = info.and_then(|info| {
+            info.get("total_token_usage")
+                .and_then(normalize_codex_raw_usage)
+        });
+        let raw_usage = info
+            .and_then(|info| {
+                info.get("last_token_usage")
+                    .and_then(normalize_codex_raw_usage)
+            })
+            .or_else(|| {
+                total_usage
+                    .as_ref()
+                    .map(|usage| subtract_codex_raw_usage(usage, previous_totals.as_ref()))
+            });
+        if let Some(total_usage) = total_usage {
+            previous_totals = Some(total_usage);
+        }
+        let Some(raw_usage) = raw_usage else {
+            continue;
+        };
+        if raw_usage.input_tokens == 0
+            && raw_usage.cached_input_tokens == 0
+            && raw_usage.output_tokens == 0
+            && raw_usage.reasoning_output_tokens == 0
+        {
+            continue;
+        }
+
+        let parsed_model = codex_model_from_payload(Some(payload))
+            .or_else(|| info.and_then(|info| codex_model_from_payload(Some(info))));
+        if let Some(model) = parsed_model.clone() {
+            current_model = Some(model);
+            current_model_is_fallback = false;
+        }
+        let mut is_fallback_model = false;
+        let model = parsed_model.or_else(|| current_model.clone()).or_else(|| {
+            is_fallback_model = true;
+            current_model_is_fallback = true;
+            current_model = Some("gpt-5".to_string());
+            current_model.clone()
+        });
+        if parsed_model_is_missing(&model, &current_model, current_model_is_fallback) {
+            is_fallback_model = true;
+        }
+
+        events.push(CodexTokenUsageEvent {
+            session_id: session_id.clone(),
+            timestamp: timestamp.to_string(),
+            model,
+            input_tokens: raw_usage.input_tokens,
+            cached_input_tokens: raw_usage.cached_input_tokens.min(raw_usage.input_tokens),
+            output_tokens: raw_usage.output_tokens,
+            reasoning_output_tokens: raw_usage.reasoning_output_tokens,
+            total_tokens: raw_usage.total_tokens,
+            is_fallback_model,
+        });
+    }
+
+    events
+}
+
+fn parsed_model_is_missing(
+    model: &Option<String>,
+    current_model: &Option<String>,
+    current_model_is_fallback: bool,
+) -> bool {
+    model.is_some() && current_model.is_some() && current_model_is_fallback
+}
+
+fn codex_session_id(sessions_dir: &Path, path: &Path) -> String {
+    let relative = path.strip_prefix(sessions_dir).unwrap_or(path);
+    let mut session_id = relative
+        .with_extension("")
+        .components()
+        .filter_map(|component| component.as_os_str().to_str())
+        .collect::<Vec<_>>()
+        .join("/");
+    if session_id.is_empty() {
+        session_id = "unknown".to_string();
+    }
+    session_id
+}
+
+fn codex_model_from_payload(value: Option<&Value>) -> Option<String> {
+    let value = value?;
+    ["model", "model_name"]
+        .into_iter()
+        .find_map(|key| non_empty_json_string(value.get(key)))
+        .or_else(|| {
+            value
+                .get("metadata")
+                .and_then(|metadata| non_empty_json_string(metadata.get("model")))
+        })
+}
+
+fn non_empty_json_string(value: Option<&Value>) -> Option<String> {
+    let value = value?.as_str()?.trim();
+    (!value.is_empty()).then(|| value.to_string())
+}
+
+fn normalize_codex_raw_usage(value: &Value) -> Option<CodexRawUsage> {
+    if !value.is_object() {
+        return None;
+    }
+    let input = json_u64(value.get("input_tokens"));
+    let cached = json_u64(value.get("cached_input_tokens"))
+        .or_else(|| json_u64(value.get("cache_read_input_tokens")))
+        .unwrap_or(0);
+    let output = json_u64(value.get("output_tokens"));
+    let reasoning = json_u64(value.get("reasoning_output_tokens"));
+    let total = json_u64(value.get("total_tokens"));
+    let input = input.unwrap_or(0);
+    let output = output.unwrap_or(0);
+    let reasoning = reasoning.unwrap_or(0);
+    Some(CodexRawUsage {
+        input_tokens: input,
+        cached_input_tokens: cached,
+        output_tokens: output,
+        reasoning_output_tokens: reasoning,
+        total_tokens: total.unwrap_or(input + output + reasoning),
+    })
+}
+
+fn json_u64(value: Option<&Value>) -> Option<u64> {
+    match value {
+        Some(Value::Number(number)) => number.as_u64(),
+        _ => None,
+    }
+}
+
+fn subtract_codex_raw_usage(
+    current: &CodexRawUsage,
+    previous: Option<&CodexRawUsage>,
+) -> CodexRawUsage {
+    CodexRawUsage {
+        input_tokens: current
+            .input_tokens
+            .saturating_sub(previous.map_or(0, |usage| usage.input_tokens)),
+        cached_input_tokens: current
+            .cached_input_tokens
+            .saturating_sub(previous.map_or(0, |usage| usage.cached_input_tokens)),
+        output_tokens: current
+            .output_tokens
+            .saturating_sub(previous.map_or(0, |usage| usage.output_tokens)),
+        reasoning_output_tokens: current
+            .reasoning_output_tokens
+            .saturating_sub(previous.map_or(0, |usage| usage.reasoning_output_tokens)),
+        total_tokens: current
+            .total_tokens
+            .saturating_sub(previous.map_or(0, |usage| usage.total_tokens)),
+    }
+}
+
+fn dedupe_codex_events(events: &mut Vec<CodexTokenUsageEvent>) {
+    let mut seen = HashSet::new();
+    events.retain(|event| {
+        seen.insert((
+            event.timestamp.clone(),
+            event.model.clone(),
+            event.input_tokens,
+            event.cached_input_tokens,
+            event.output_tokens,
+            event.reasoning_output_tokens,
+            event.total_tokens,
+        ))
+    });
 }
 
 fn claude_paths() -> Result<Vec<PathBuf>> {
@@ -3554,6 +4147,61 @@ mod tests {
         assert_eq!(entries[0].data.message.usage.input_tokens, 100);
         assert_eq!(entries[0].data.message.usage.output_tokens, 250);
         assert_eq!(entries[0].cost, 0.01);
+    }
+
+    #[test]
+    fn loads_codex_token_count_events() {
+        let codex_dir = temp_claude_dir("codex");
+        let sessions_dir = codex_dir.join("sessions");
+        fs::create_dir_all(&sessions_dir).unwrap();
+        fs::write(
+            sessions_dir.join("codex-session.jsonl"),
+            [
+                r#"{"timestamp":"2026-01-02T00:00:00.000Z","type":"turn_context","payload":{"model":"gpt-5"}}"#,
+                r#"{"timestamp":"2026-01-02T00:00:01.000Z","type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":100,"cached_input_tokens":10,"output_tokens":50,"reasoning_output_tokens":0,"total_tokens":150},"model":"gpt-5"}}}"#,
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+
+        let events = load_codex_events_from_directory(&sessions_dir).unwrap();
+        fs::remove_dir_all(&codex_dir).unwrap();
+
+        assert_eq!(events.len(), 1);
+        assert_eq!(events[0].session_id, "codex-session");
+        assert_eq!(events[0].model.as_deref(), Some("gpt-5"));
+        assert_eq!(events[0].input_tokens, 100);
+        assert_eq!(events[0].cached_input_tokens, 10);
+        assert_eq!(events[0].output_tokens, 50);
+        assert_eq!(events[0].reasoning_output_tokens, 0);
+        assert_eq!(events[0].total_tokens, 150);
+    }
+
+    #[test]
+    fn builds_codex_daily_json_report() {
+        let pricing = PricingMap::load_embedded();
+        let events = vec![CodexTokenUsageEvent {
+            session_id: "codex-session".to_string(),
+            timestamp: "2026-01-02T00:00:01.000Z".to_string(),
+            model: Some("gpt-5".to_string()),
+            input_tokens: 100,
+            cached_input_tokens: 10,
+            output_tokens: 50,
+            reasoning_output_tokens: 0,
+            total_tokens: 150,
+            is_fallback_model: false,
+        }];
+
+        let report = codex_report_json(&events, AgentReportKind::Daily, None, &pricing).unwrap();
+
+        assert_eq!(report["daily"][0]["date"], "2026-01-02");
+        assert_eq!(report["daily"][0]["inputTokens"], 100);
+        assert_eq!(report["daily"][0]["cachedInputTokens"], 10);
+        assert_eq!(report["daily"][0]["outputTokens"], 50);
+        assert_eq!(report["daily"][0]["reasoningOutputTokens"], 0);
+        assert_eq!(report["daily"][0]["totalTokens"], 150);
+        assert_eq!(report["daily"][0]["costUSD"], json!(0.00061375));
+        assert_eq!(report["totals"]["costUSD"], json!(0.00061375));
     }
 
     #[test]

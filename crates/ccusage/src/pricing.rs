@@ -285,6 +285,20 @@ impl PricingMap {
                 fast_multiplier: 1.0,
             },
         );
+        self.entries.insert(
+            "gpt-5".to_string(),
+            Pricing {
+                input: 1.25e-6,
+                output: 10e-6,
+                cache_create: 1.25e-6,
+                cache_read: 0.125e-6,
+                input_above_200k: None,
+                output_above_200k: None,
+                cache_create_above_200k: None,
+                cache_read_above_200k: None,
+                fast_multiplier: 1.0,
+            },
+        );
     }
 }
 
