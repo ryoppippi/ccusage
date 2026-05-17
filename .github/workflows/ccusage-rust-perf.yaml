@@ -37,30 +37,31 @@ jobs:
       - name: Build Rust ccusage
         run: nix develop --command pnpm --filter ccusage run build
 
-      - name: Generate small ccusage fixture
-        run: |
-          nix develop --command pnpm exec bun apps/ccusage/scripts/generate-large-fixture.ts \
-            --output-dir "$RUNNER_TEMP/ccusage-small-fixture" \
-            --size-mib 8
-
       - name: Generate large ccusage fixture
         run: |
           nix develop --command pnpm exec bun apps/ccusage/scripts/generate-large-fixture.ts \
             --output-dir "$RUNNER_TEMP/ccusage-large-fixture" \
+            --codex-output-dir "$RUNNER_TEMP/ccusage-large-codex-fixture" \
             --size-mib 1024
 
       - name: Compare Rust performance
         run: |
-          nix develop --command pnpm exec bun apps/ccusage/scripts/compare-rust-pr-performance.ts \
+          nix develop --command pnpm exec bun apps/ccusage/scripts/compare-pr-performance.ts \
             --base-dir base \
             --head-dir . \
-            --fixture-dir "$RUNNER_TEMP/ccusage-small-fixture" \
+            --head-runtime rust \
+            --fixture-dir apps/ccusage/test/fixtures/claude \
+            --codex-fixture-dir apps/ccusage/test/fixtures/codex \
             --warmup 2 \
             --runs 7 \
             --large-fixture-dir "$RUNNER_TEMP/ccusage-large-fixture" \
+            --large-codex-fixture-dir "$RUNNER_TEMP/ccusage-large-codex-fixture" \
             --large-warmup 0 \
             --large-runs 1 \
             --output "$RUNNER_TEMP/ccusage-rust-perf-comment.md"
+
+      - name: Write job summary
+        run: cat "$RUNNER_TEMP/ccusage-rust-perf-comment.md" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upsert PR comment
         env:

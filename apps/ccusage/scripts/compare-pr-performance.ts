@@ -2,7 +2,7 @@
 
 import { readdir, stat } from 'node:fs/promises';
 import { join, relative, resolve } from 'node:path';
-import { execPath } from 'node:process';
+import { execPath, platform } from 'node:process';
 import { createFixture } from 'fs-fixture';
 import { cli, define } from 'gunshi';
 
@@ -20,8 +20,9 @@ type CommandResult = {
 };
 
 type SizeComparison = {
-	base: number;
-	head: number;
+	basePackage: number;
+	headPackage: number;
+	headRustBinary?: number;
 };
 
 type SampleOptions = {
@@ -56,6 +57,9 @@ type HyperfineExport = {
 	results: HyperfineResult[];
 };
 
+type HeadRuntime = 'package' | 'rust';
+const headRuntimeChoices = ['package', 'rust'] as const satisfies readonly HeadRuntime[];
+
 function isRecord(value: unknown): value is Record<string, unknown> {
 	return typeof value === 'object' && value !== null;
 }
@@ -88,6 +92,17 @@ async function packageBinEntry(repoDir: string): Promise<string> {
 		throw new Error(`ccusage bin is missing in ${packageDir}/package.json`);
 	}
 	return join(packageDir, binPath);
+}
+
+function rustBinaryEntry(repoDir: string): string {
+	return join(repoDir, 'target', 'release', platform === 'win32' ? 'ccusage.exe' : 'ccusage');
+}
+
+function parseHeadRuntime(value: string | undefined): HeadRuntime {
+	if (value === 'package' || value === 'rust') {
+		return value;
+	}
+	throw new Error(`Invalid head runtime: ${value ?? ''}. Use package or rust.`);
 }
 
 /**
@@ -224,12 +239,42 @@ export function createCcusageCommandFromBin(
 	].join(' ');
 }
 
+export function createCcusageCommandFromRustBinary(
+	binEntry: string,
+	fixtureDir: string,
+	codexFixtureDir: string | undefined,
+	command: string,
+): string {
+	return [
+		'env',
+		`CLAUDE_CONFIG_DIR=${fixtureDir}`,
+		...(codexFixtureDir == null ? [] : [`CODEX_HOME=${codexFixtureDir}`]),
+		'COLUMNS=200',
+		'LOG_LEVEL=0',
+		'NO_COLOR=1',
+		'TZ=UTC',
+		binEntry,
+		command,
+		'--offline',
+		'--json',
+	].join(' ');
+}
+
 export async function createCcusageCommand(
 	repoDir: string,
 	fixtureDir: string,
 	codexFixtureDir: string | undefined,
 	command: string,
+	runtime: HeadRuntime = 'package',
 ): Promise<string> {
+	if (runtime === 'rust') {
+		return createCcusageCommandFromRustBinary(
+			rustBinaryEntry(repoDir),
+			fixtureDir,
+			codexFixtureDir,
+			command,
+		);
+	}
 	return createCcusageCommandFromBin(
 		await packageBinEntry(repoDir),
 		fixtureDir,
@@ -259,6 +304,7 @@ async function compareCommand(
 		codexFixtureDir?: string;
 		fixtureDir: string;
 		headDir: string;
+		headRuntime: HeadRuntime;
 		runs: number;
 		warmup: number;
 	},
@@ -277,6 +323,7 @@ async function compareCommand(
 		options.fixtureDir,
 		options.codexFixtureDir,
 		command,
+		options.headRuntime,
 	);
 	const hyperfine = Bun.spawn(
 		[
@@ -345,6 +392,7 @@ async function compareFixture(options: {
 	description: string;
 	fixtureDir: string;
 	headDir: string;
+	headRuntime: HeadRuntime;
 	runs: number;
 	title: string;
 	warmup: number;
@@ -407,8 +455,12 @@ function fixtureStatsForCommand(section: FixtureComparison, command: string): Fi
  */
 export function renderFixtureSection(
 	section: FixtureComparison,
-	options: { headDir: string },
+	options: { headDir: string; headRuntime: HeadRuntime },
 ): string[] {
+	const runtimeText =
+		options.headRuntime === 'rust'
+			? 'Base runs the package `ccusage` bin from `apps/ccusage/package.json` through `bun -b`; PR runs `target/release/ccusage` directly.'
+			: 'Runtime: package `ccusage` bin from `apps/ccusage/package.json` through `bun -b`.';
 	const lines = [
 		`## ${section.title}`,
 		'',
@@ -417,7 +469,7 @@ export function renderFixtureSection(
 		section.codexFixtureDir == null
 			? `Fixture: \`${formatFixturePath(options.headDir, section.fixtureDir)}\` (${formatFixtureStats(section.fixtureStats)})`
 			: `Fixtures: Claude \`${formatFixturePath(options.headDir, section.fixtureDir)}\` (${formatFixtureStats(section.fixtureStats)}), Codex \`${formatFixturePath(options.headDir, section.codexFixtureDir)}\` (${formatFixtureStats(section.codexFixtureStats ?? section.fixtureStats)})`,
-		`Runtime: package \`ccusage\` bin from \`apps/ccusage/package.json\` through \`bun -b\`, \`--offline --json\`, measured by \`hyperfine\` with \`${section.warmup}\` warmups and \`${section.runs}\` runs.`,
+		`${runtimeText} Both run \`--offline --json\`, measured by \`hyperfine\` with \`${section.warmup}\` warmups and \`${section.runs}\` runs.`,
 		'',
 		'| Command | Input | Base median | PR median | PR vs base | Base throughput | PR throughput |',
 		'| --- | ---: | ---: | ---: | ---: | ---: | ---: |',
@@ -437,13 +489,15 @@ export function renderFixtureSection(
 function renderMarkdown(
 	sections: FixtureComparison[],
 	sizes: SizeComparison,
-	options: { headDir: string },
+	options: { headDir: string; headRuntime: HeadRuntime },
 ): string {
 	const lines = [
 		'<!-- ccusage-perf-comment -->',
 		'## ccusage performance comparison',
 		'',
-		'This compares the PR build against the base branch build on the same CI runner.',
+		options.headRuntime === 'rust'
+			? 'This compares the Rust PR release binary against the base branch JavaScript build on the same CI runner.'
+			: 'This compares the PR build against the base branch build on the same CI runner.',
 		'',
 	];
 
@@ -451,16 +505,21 @@ function renderMarkdown(
 		lines.push(...renderFixtureSection(section, options), '');
 	}
 
-	const sizeDelta = sizes.head - sizes.base;
-	const sizeRatio = sizes.base / sizes.head;
+	const packageSizeDelta = sizes.headPackage - sizes.basePackage;
+	const packageSizeRatio = sizes.basePackage / sizes.headPackage;
 	lines.push(
-		'## Package size',
+		'## Artifact size',
 		'',
-		'| Package artifact | Base | PR | Delta | Ratio |',
+		'| Artifact | Base | PR | Delta | Ratio |',
 		'| --- | ---: | ---: | ---: | ---: |',
-		`| packed \`ccusage-*.tgz\` | ${formatSize(sizes.base)} | ${formatSize(sizes.head)} | ${sizeDelta >= 0 ? '+' : ''}${formatSize(sizeDelta)} | ${sizeRatio.toFixed(2)}x |`,
+		`| packed \`ccusage-*.tgz\` | ${formatSize(sizes.basePackage)} | ${formatSize(sizes.headPackage)} | ${packageSizeDelta >= 0 ? '+' : ''}${formatSize(packageSizeDelta)} | ${packageSizeRatio.toFixed(2)}x |`,
+		...(sizes.headRustBinary == null
+			? []
+			: [
+					`| Rust release binary \`target/release/ccusage\` | - | ${formatSize(sizes.headRustBinary)} | - | - |`,
+				]),
 		'',
-		'Lower medians and smaller packed package sizes are better. CI runner noise still applies; use same-run ratios as directional PR feedback, not release guarantees.',
+		'Lower medians and smaller artifacts are better. CI runner noise still applies; use same-run ratios as directional PR feedback, not release guarantees.',
 		'',
 	);
 
@@ -480,6 +539,20 @@ if (import.meta.vitest != null) {
 			expect(commandText).toContain('CLAUDE_CONFIG_DIR=/fixtures/claude');
 			expect(commandText).toContain('CODEX_HOME=/fixtures/codex');
 			expect(commandText).toContain('codex session --offline --json');
+		});
+
+		it('builds hyperfine command text for the Rust release binary with both Claude and Codex fixture environment variables', () => {
+			const commandText = createCcusageCommandFromRustBinary(
+				'/repo/target/release/ccusage',
+				'/fixtures/claude',
+				'/fixtures/codex',
+				'codex session',
+			);
+
+			expect(commandText).toContain('CLAUDE_CONFIG_DIR=/fixtures/claude');
+			expect(commandText).toContain('CODEX_HOME=/fixtures/codex');
+			expect(commandText).toContain('/repo/target/release/ccusage codex session --offline --json');
+			expect(commandText).not.toContain(' -b ');
 		});
 	});
 
@@ -514,7 +587,7 @@ if (import.meta.vitest != null) {
 					title: 'Large fixture',
 					warmup: 0,
 				},
-				{ headDir: '/repo' },
+				{ headDir: '/repo', headRuntime: 'package' },
 			);
 
 			expect(lines.join('\n')).toContain('Claude `/fixtures/claude` (1.00 GiB, 400 files)');
@@ -523,6 +596,26 @@ if (import.meta.vitest != null) {
 			expect(lines.join('\n')).toContain('| `codex --offline --json` | 512.00 MiB |');
 			expect(lines.join('\n')).toContain('512.00 MiB/s');
 			expect(lines.join('\n')).toContain('1.00 GiB/s');
+		});
+
+		it('describes the Rust PR runtime when the head benchmark uses the native binary', () => {
+			const lines = renderFixtureSection(
+				{
+					description: 'Fixture description',
+					fixtureDir: '/fixtures/claude',
+					fixtureStats: {
+						bytes: 1024,
+						files: 1,
+					},
+					results: [],
+					runs: 1,
+					title: 'Rust fixture',
+					warmup: 0,
+				},
+				{ headDir: '/repo', headRuntime: 'rust' },
+			);
+
+			expect(lines.join('\n')).toContain('PR runs `target/release/ccusage` directly.');
 		});
 	});
 }
@@ -554,6 +647,13 @@ const command = define({
 			type: 'string',
 			required: true,
 			description: 'PR/head repository directory',
+		},
+		headRuntime: {
+			type: 'enum',
+			choices: headRuntimeChoices,
+			default: 'package',
+			description:
+				'PR/head runtime to benchmark: package uses the published JS bin, rust uses target/release/ccusage',
 		},
 		fixtureDir: {
 			type: 'string',
@@ -607,6 +707,7 @@ const command = define({
 			codexFixtureDir: resolve(ctx.values.codexFixtureDir),
 			fixtureDir: resolve(ctx.values.fixtureDir),
 			headDir: resolve(ctx.values.headDir),
+			headRuntime: parseHeadRuntime(ctx.values.headRuntime),
 			runs: ctx.values.runs,
 			warmup: ctx.values.warmup,
 		};
@@ -639,8 +740,11 @@ const command = define({
 		}
 
 		const sizes = {
-			base: await packedTarballSizeBytes(options.baseDir),
-			head: await packedTarballSizeBytes(options.headDir),
+			basePackage: await packedTarballSizeBytes(options.baseDir),
+			headPackage: await packedTarballSizeBytes(options.headDir),
+			...(options.headRuntime === 'rust'
+				? { headRustBinary: Bun.file(rustBinaryEntry(options.headDir)).size }
+				: {}),
 		};
 
 		const markdown = renderMarkdown(sections, sizes, options);
