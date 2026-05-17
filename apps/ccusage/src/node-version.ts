@@ -1,7 +1,7 @@
 type NodeVersion = readonly [number, number, number];
 
 function parseNodeVersion(version: string): NodeVersion | undefined {
-	const match = /^v?(\d+)\.(\d+)\.(\d+)/.exec(version);
+	const match = /^v?(\d+)\.(\d+)\.(\d+)$/.exec(version);
 	if (match == null) {
 		return undefined;
 	}
@@ -19,7 +19,7 @@ function parseNodeVersion(version: string): NodeVersion | undefined {
 export function isSupportedNodeVersion(version: string, minimum: NodeVersion): boolean {
 	const actual = parseNodeVersion(version);
 	if (actual == null) {
-		return true;
+		return false;
 	}
 
 	for (const index of [0, 1, 2] as const) {
@@ -50,6 +50,10 @@ if (import.meta.vitest != null) {
 
 		it('rejects versions below the minimum patch version', () => {
 			expect(isSupportedNodeVersion('v22.11.0', [22, 11, 1])).toBe(false);
+		});
+
+		it('rejects malformed versions', () => {
+			expect(isSupportedNodeVersion('v22.11.0-nightly', [22, 11, 0])).toBe(false);
 		});
 	});
 }
