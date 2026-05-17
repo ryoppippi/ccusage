@@ -21,6 +21,7 @@
 	"devDependencies": {
 		"@ccusage/internal": "workspace:*",
 		"@ryoppippi/eslint-config": "catalog:lint",
+		"arkregex": "catalog:runtime",
 		"eslint": "catalog:lint",
 		"eslint-plugin-format": "catalog:lint",
 		"vitest": "catalog:testing"

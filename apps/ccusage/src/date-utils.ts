@@ -1,10 +1,11 @@
+import type { DayOfWeek, WeekDay } from './consts.ts';
 /**
  * Date utility functions for handling date formatting, filtering, and manipulation
  * @module date-utils
  */
 
-import type { DayOfWeek, WeekDay } from './consts.ts';
 import type { WeeklyDate } from './types.ts';
+import { regex } from 'arkregex';
 import { DEFAULT_LOCALE } from './consts.ts';
 import { createWeeklyDate } from './types.ts';
 
@@ -13,6 +14,7 @@ export { sortByDate } from '@ccusage/internal/sort';
 export { formatDateCompact } from '@ccusage/terminal/table';
 
 const dateFormatterCache = new Map<string, Intl.DateTimeFormat>();
+const hyphenRegex = regex('-', 'g');
 
 function formatDateParts(year: number, month: number, day: number): string {
 	return `${year.toString().padStart(4, '0')}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
@@ -123,7 +125,7 @@ export function filterByDateRange<T>(
 	}
 
 	return items.filter((item) => {
-		const dateStr = getDate(item).substring(0, 10).replace(/-/g, ''); // Convert to YYYYMMDD
+		const dateStr = getDate(item).substring(0, 10).replace(hyphenRegex, ''); // Convert to YYYYMMDD
 		if (since != null && dateStr < since) {
 			return false;
 		}
@@ -186,7 +188,7 @@ if (import.meta.vitest != null) {
 	describe('formatDate', () => {
 		it('should format date string to YYYY-MM-DD format', () => {
 			const result = formatDate('2024-08-04T12:00:00Z');
-			expect(result).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+			expect(result).toMatch(regex('^\\d{4}-\\d{2}-\\d{2}$'));
 		});
 
 		it('should handle timezone parameter', () => {
@@ -196,7 +198,7 @@ if (import.meta.vitest != null) {
 
 		it('uses the default YYYY-MM-DD locale', () => {
 			const result = formatDate('2024-08-04T12:00:00Z');
-			expect(result).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+			expect(result).toMatch(regex('^\\d{4}-\\d{2}-\\d{2}$'));
 		});
 	});
 

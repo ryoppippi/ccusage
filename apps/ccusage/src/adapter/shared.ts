@@ -7,6 +7,7 @@ import type {
 } from './types.ts';
 import { LiteLLMPricingFetcher } from '@ccusage/internal/pricing';
 import { compareStrings } from '@ccusage/internal/sort';
+import { regex } from 'arkregex';
 import { agentIds } from './types.ts';
 
 const safeTimeZoneCache = new Map<string, string>();
@@ -16,9 +17,10 @@ const dateTimeFormatterCache = new Map<string, Intl.DateTimeFormat>();
 const dateKeyCache = new Map<string, string>();
 const monthKeyCache = new Map<string, string>();
 let defaultTimeZoneCache: string | undefined;
-const isoUtcTimestampPattern = /^\d{4}-\d{2}-\d{2}T.*Z$/u;
-const dateKeyPattern = /^\d{4}-\d{2}-\d{2}$/u;
-const monthKeyPattern = /^\d{4}-\d{2}$/u;
+const isoUtcTimestampPattern = regex('^\\d{4}-\\d{2}-\\d{2}T.*Z$', 'u');
+const dateKeyPattern = regex('^\\d{4}-\\d{2}-\\d{2}$', 'u');
+const monthKeyPattern = regex('^\\d{4}-\\d{2}$', 'u');
+const compactDatePattern = regex('^\\d{8}$', 'u');
 
 function formatDateParts(year: number, month: number, day: number): string {
 	return `${year.toString().padStart(4, '0')}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
@@ -44,9 +46,9 @@ export function normalizeDateFilter(value: string | undefined): string | undefin
 	if (value == null || value === '') {
 		return undefined;
 	}
-	const normalized = /^\d{8}$/u.test(value)
+	const normalized = compactDatePattern.test(value)
 		? `${value.slice(0, 4)}-${value.slice(4, 6)}-${value.slice(6, 8)}`
-		: /^\d{4}-\d{2}-\d{2}$/u.test(value)
+		: dateKeyPattern.test(value)
 			? value
 			: undefined;
 	if (normalized != null && isValidCalendarDate(normalized)) {

@@ -1,3 +1,4 @@
+import { regex } from 'arkregex';
 /**
  * @fileoverview Project name formatting and alias utilities
  *
@@ -6,6 +7,13 @@
  *
  * @module project-names
  */
+const ignoredProjectSegmentRegex = regex.as<string, { captures: [] }>(
+	'^(?:dev|development|feat|feature|fix|bug|test|staging|prod|production|main|master|branch)$',
+	'i',
+);
+const windowsUsersPathRegex = regex('^[A-Z]:\\\\Users\\\\|^\\\\Users\\\\');
+const trimPathSegmentRegex = regex('^[/\\\\-]+|[/\\\\-]+$', 'g');
+const uuidPrefixRegex = regex('^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}', 'i');
 
 /**
  * Extract meaningful project name from directory-style project paths
@@ -38,7 +46,7 @@ function parseProjectName(projectName: string): string {
 	let cleaned = projectName;
 
 	// Handle Windows-style paths: C:\Users\... or \Users\...
-	if (cleaned.match(/^[A-Z]:\\Users\\|^\\Users\\/) != null) {
+	if (cleaned.match(windowsUsersPathRegex) != null) {
 		const segments = cleaned.split('\\');
 		const userIndex = segments.findIndex((seg) => seg === 'Users');
 		if (userIndex !== -1 && userIndex + 3 < segments.length) {
@@ -62,11 +70,11 @@ function parseProjectName(projectName: string): string {
 	// If no path cleanup occurred, use original name
 	if (cleaned === projectName) {
 		// Just basic cleanup for non-path names
-		cleaned = projectName.replace(/^[/\\-]+|[/\\-]+$/g, '');
+		cleaned = projectName.replace(trimPathSegmentRegex, '');
 	}
 
 	// Handle UUID-like patterns
-	if (cleaned.match(/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}/i) != null) {
+	if (cleaned.match(uuidPrefixRegex) != null) {
 		// Extract last two segments of UUID for brevity
 		const parts = cleaned.split('-');
 		if (parts.length >= 5) {
@@ -91,11 +99,7 @@ function parseProjectName(projectName: string): string {
 
 		// Look for common meaningful patterns
 		const meaningfulSegments = segments.filter(
-			(seg) =>
-				seg.length > 2 &&
-				seg.match(
-					/^(?:dev|development|feat|feature|fix|bug|test|staging|prod|production|main|master|branch)$/i,
-				) == null,
+			(seg) => seg.length > 2 && seg.match(ignoredProjectSegmentRegex) == null,
 		);
 
 		// If we have compound project names like "adminifi-edugakko-api"
@@ -112,7 +116,7 @@ function parseProjectName(projectName: string): string {
 	}
 
 	// Final cleanup
-	cleaned = cleaned.replace(/^[/\\-]+|[/\\-]+$/g, '');
+	cleaned = cleaned.replace(trimPathSegmentRegex, '');
 
 	return cleaned !== '' ? cleaned : projectName !== '' ? projectName : 'Unknown Project';
 }

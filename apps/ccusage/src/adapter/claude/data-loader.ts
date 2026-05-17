@@ -1,3 +1,4 @@
+import type { LiteLLMModelPricing } from '@ccusage/internal/pricing';
 /**
  * @fileoverview Data loading utilities for Claude Code usage analysis
  *
@@ -8,7 +9,6 @@
  * @module data-loader
  */
 
-import type { LiteLLMModelPricing } from '@ccusage/internal/pricing';
 import type { IndexedWorkerItem, IndexedWorkerResultsMessage } from '@ccusage/internal/workers';
 import type { WeekDay } from '../../consts.ts';
 import type { LoadedUsageEntry, SessionBlock } from '../../session-blocks.ts';
@@ -47,6 +47,7 @@ import {
 	mapWithConcurrency,
 } from '@ccusage/internal/workers';
 import { Result } from '@praha/byethrow';
+import { regex } from 'arkregex';
 import { createFixture } from 'fs-fixture';
 import * as v from 'valibot';
 import { USER_HOME_DIR } from '../../consts.ts';
@@ -90,7 +91,7 @@ const CACHE_READ_INPUT_TOKENS_MARKER = '"cache_read_input_tokens":';
 const CONTENT_MARKER = '"content":';
 const COST_USD_MARKER = '"costUSD":';
 const INPUT_TOKENS_MARKER = '"input_tokens":';
-const ISO_TIMESTAMP_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/;
+const ISO_TIMESTAMP_PATTERN = regex('^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{3})?Z$');
 const JSONL_WORKER_THREAD_LIMIT = 9;
 const MESSAGE_ID_MARKER = '"id":"';
 const MODEL_MARKER = '"model":"';
@@ -99,7 +100,11 @@ const REQUEST_ID_MARKER = '"requestId":"';
 const SPEED_MARKER = '"speed":"';
 const TIMESTAMP_MARKER = '"timestamp":"';
 const VERSION_MARKER = '"version":"';
-const VERSION_PATTERN = /^\d+\.\d+\.\d+/;
+const VERSION_PATTERN = regex('^\\d+\\.\\d+\\.\\d+');
+const pathSeparatorRegex = regex('[/\\\\]', 'g');
+const compactDateRegex = regex('^\\d{8}$');
+const usageLimitTimestampRegex = regex('\\|(\\d+)');
+const hyphenRegex = regex('-', 'g');
 function parseTwoDigits(value: string, offset: number): number {
 	return (value.charCodeAt(offset) - 48) * 10 + value.charCodeAt(offset + 1) - 48;
 }
@@ -342,7 +347,7 @@ export function requireClaudePaths(): string[] {
  */
 export function extractProjectFromPath(jsonlPath: string): string {
 	// Normalize path separators for cross-platform compatibility
-	const normalizedPath = jsonlPath.replace(/[/\\]/g, path.sep);
+	const normalizedPath = jsonlPath.replace(pathSeparatorRegex, path.sep);
 	const segments = normalizedPath.split(path.sep);
 	const projectsIndex = segments.findIndex((segment) => segment === CLAUDE_PROJECTS_DIR_NAME);
 
@@ -1133,7 +1138,7 @@ function filterByProject<T>(
 }
 
 function parseCompactDate(value: string | undefined): Date | null {
-	if (value == null || !/^\d{8}$/.test(value)) {
+	if (value == null || !compactDateRegex.test(value)) {
 		return null;
 	}
 
@@ -1423,7 +1428,7 @@ export function getUsageLimitResetTime(data: UsageData): Date | null {
 		const timestampMatch =
 			data.message?.content
 				?.find((c) => c.text != null && c.text.includes('Claude AI usage limit reached'))
-				?.text?.match(/\|(\d+)/) ?? null;
+				?.text?.match(usageLimitTimestampRegex) ?? null;
 
 		if (timestampMatch?.[1] != null) {
 			const resetTimestamp = Number.parseInt(timestampMatch[1]);
@@ -2953,7 +2958,10 @@ export async function loadSessionBlockData(options?: LoadOptions): Promise<Sessi
 		(options?.since != null && options.since !== '') ||
 		(options?.until != null && options.until !== '')
 			? blocks.filter((block) => {
-					const blockDateStr = formatUsageDate(block.startTime.toISOString()).replace(/-/g, '');
+					const blockDateStr = formatUsageDate(block.startTime.toISOString()).replace(
+						hyphenRegex,
+						'',
+					);
 					if (options.since != null && options.since !== '' && blockDateStr < options.since) {
 						return false;
 					}
@@ -3081,7 +3089,7 @@ if (import.meta.vitest != null) {
 			const testTimestamp = '2024-01-01T15:00:00Z'; // 3 PM UTC = midnight JST next day
 
 			// Default behavior (no timezone) uses system timezone
-			expect(formatDate(testTimestamp)).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+			expect(formatDate(testTimestamp)).toMatch(regex('^\\d{4}-\\d{2}-\\d{2}$'));
 
 			// UTC timezone
 			expect(formatDate(testTimestamp, 'UTC')).toBe('2024-01-01');
@@ -5913,7 +5921,7 @@ invalid json line
 			// The filter uses formatDate which converts to YYYYMMDD format for comparison
 			expect(
 				untilResult.every((block) => {
-					const blockDateStr = block.startTime.toISOString().slice(0, 10).replace(/-/g, '');
+					const blockDateStr = block.startTime.toISOString().slice(0, 10).replace(hyphenRegex, '');
 					return blockDateStr <= '20240102';
 				}),
 			).toBe(true);

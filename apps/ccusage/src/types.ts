@@ -1,4 +1,5 @@
 import type { TupleToUnion } from 'type-fest';
+import { regex } from 'arkregex';
 import * as v from 'valibot';
 
 /**
@@ -31,14 +32,14 @@ export const messageIdSchema = v.pipe(
 );
 
 // Date and timestamp schemas
-const isoTimestampRegex = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/;
+const isoTimestampRegex = regex('^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{3})?Z$');
 export const isoTimestampSchema = v.pipe(
 	v.string(),
 	v.regex(isoTimestampRegex, 'Invalid ISO timestamp'),
 	v.brand('ISOTimestamp'),
 );
 
-const yyyymmddRegex = /^\d{4}-\d{2}-\d{2}$/;
+const yyyymmddRegex = regex('^\\d{4}-\\d{2}-\\d{2}$');
 export const dailyDateSchema = v.pipe(
 	v.string(),
 	v.regex(yyyymmddRegex, 'Date must be in YYYY-MM-DD format'),
@@ -51,7 +52,7 @@ export const activityDateSchema = v.pipe(
 	v.brand('ActivityDate'),
 );
 
-const yyyymmRegex = /^\d{4}-\d{2}$/;
+const yyyymmRegex = regex('^\\d{4}-\\d{2}$');
 export const monthlyDateSchema = v.pipe(
 	v.string(),
 	v.regex(yyyymmRegex, 'Date must be in YYYY-MM format'),
@@ -64,7 +65,7 @@ export const weeklyDateSchema = v.pipe(
 	v.brand('WeeklyDate'),
 );
 
-const filterDateRegex = /^\d{8}$/;
+const filterDateRegex = regex('^\\d{8}$');
 export const filterDateSchema = v.pipe(
 	v.string(),
 	v.regex(filterDateRegex, 'Date must be in YYYYMMDD format'),
@@ -78,7 +79,7 @@ export const projectPathSchema = v.pipe(
 	v.brand('ProjectPath'),
 );
 
-const versionRegex = /^\d+\.\d+\.\d+/;
+const versionRegex = regex('^\\d+\\.\\d+\\.\\d+');
 export const versionSchema = v.pipe(
 	v.string(),
 	v.regex(versionRegex, 'Invalid version format'),
