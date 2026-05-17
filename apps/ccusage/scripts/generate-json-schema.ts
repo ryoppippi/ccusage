@@ -10,7 +10,6 @@
  * - Schema validation for configuration files
  */
 
-import type { SubCommandable } from 'gunshi';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 import { Result } from '@praha/byethrow';
@@ -58,7 +57,7 @@ type TokenDefinition = {
 type TokenSchema = Record<string, TokenDefinition>;
 type SchemaCommand = {
 	args?: unknown;
-	subCommands?: Record<string, SubCommandable> | Map<string, SubCommandable>;
+	subCommands?: Record<string, unknown> | Map<string, unknown>;
 };
 
 /**

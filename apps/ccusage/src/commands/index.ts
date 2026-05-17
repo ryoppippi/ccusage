@@ -1,6 +1,6 @@
-import type { Args, Command, SubCommandable } from 'gunshi';
+import type { Args } from 'gunshi';
 import process from 'node:process';
-import { cli } from 'gunshi';
+import { cli, define } from 'gunshi';
 import { description, name, version } from '../../package.json';
 import { loadConfig, mergeConfigWithArgs } from '../config-loader-tokens.ts';
 import { sharedArgs } from '../shared-args.ts';
@@ -14,7 +14,19 @@ import { sessionCommand } from './session.ts';
 import { statuslineCommand } from './statusline.ts';
 import { weeklyCommand } from './weekly.ts';
 
-type GunshiCommand<TArgs extends Args> = Command<{ args: TArgs; extensions: Record<never, never> }>;
+type ConfigurableCommand<TArgs extends Args> = {
+	name?: string;
+	description?: string;
+	args?: TArgs;
+	subCommands?: GunshiSubCommands;
+	toKebab?: boolean;
+	run?: unknown;
+};
+type GunshiSubCommands = NonNullable<NonNullable<Parameters<typeof cli>[2]>['subCommands']>;
+type GunshiSubCommand =
+	Extract<GunshiSubCommands, Map<string, unknown>> extends Map<string, infer TSubCommand>
+		? TSubCommand
+		: never;
 
 // Re-export all commands for easy importing
 export {
@@ -30,23 +42,23 @@ function withCommandName<T extends { name?: string }>(command: T, commandName: s
 	return { ...command, name: commandName };
 }
 
-function withSubCommands<
-	T extends { subCommands?: Record<string, SubCommandable> | Map<string, SubCommandable> },
->(command: T, subCommands: Map<string, SubCommandable>): T {
+function withSubCommands<const T, const TSubCommands extends GunshiSubCommands>(
+	command: T,
+	subCommands: TSubCommands,
+): T & { subCommands: TSubCommands } {
 	return { ...command, subCommands };
 }
 
-function withCcusageConfig<const TArgs extends Args>(
-	command: GunshiCommand<TArgs>,
-	configCommandName: string,
-	commandName = command.name,
-): GunshiCommand<Args> {
+function withCcusageConfig<
+	const TArgs extends Args,
+	const TCommand extends ConfigurableCommand<TArgs>,
+>(command: TCommand, configCommandName: string, commandName = command.name) {
 	const args = {
 		...(command.args ?? {}),
 		config: sharedArgs.config,
 	} satisfies Args;
 
-	return {
+	return define({
 		name: commandName,
 		description: command.description,
 		args,
@@ -66,12 +78,15 @@ function withCcusageConfig<const TArgs extends Args>(
 				config,
 				debug,
 			);
-			await command.run?.({
-				...ctx,
-				values: mergedValues,
-			} as Parameters<NonNullable<GunshiCommand<TArgs>['run']>>[0]);
+			if (typeof command.run === 'function') {
+				const run = command.run as (replayedContext: typeof ctx) => unknown;
+				await run({
+					...ctx,
+					values: mergedValues,
+				});
+			}
 		},
-	};
+	});
 }
 
 const opencodeDailyCommand = createAgentCommand(
@@ -117,7 +132,7 @@ const piSessionCommand = createAgentCommand(
 	'Show pi-agent usage grouped by session',
 );
 
-const claudeSubCommands = new Map<string, SubCommandable>([
+const claudeSubCommands = new Map<string, GunshiSubCommand>([
 	['daily', dailyCommand],
 	['monthly', monthlyCommand],
 	['weekly', weeklyCommand],
@@ -125,23 +140,23 @@ const claudeSubCommands = new Map<string, SubCommandable>([
 	['blocks', blocksCommand],
 	['statusline', statuslineCommand],
 ]);
-const codexSubCommands = new Map<string, SubCommandable>([
+const codexSubCommands = new Map<string, GunshiSubCommand>([
 	['daily', withCcusageConfig(codexDailyCommand, 'codex daily', 'daily')],
 	['monthly', withCcusageConfig(codexMonthlyCommand, 'codex monthly', 'monthly')],
 	['session', withCcusageConfig(codexSessionCommand, 'codex session', 'session')],
 ]);
-const opencodeSubCommands = new Map<string, SubCommandable>([
+const opencodeSubCommands = new Map<string, GunshiSubCommand>([
 	['daily', withCcusageConfig(opencodeDailyCommand, 'opencode daily', 'daily')],
 	['weekly', withCcusageConfig(opencodeWeeklyCommand, 'opencode weekly', 'weekly')],
 	['monthly', withCcusageConfig(opencodeMonthlyCommand, 'opencode monthly', 'monthly')],
 	['session', withCcusageConfig(opencodeSessionCommand, 'opencode session', 'session')],
 ]);
-const ampSubCommands = new Map<string, SubCommandable>([
+const ampSubCommands = new Map<string, GunshiSubCommand>([
 	['daily', withCcusageConfig(ampDailyCommand, 'amp daily', 'daily')],
 	['monthly', withCcusageConfig(ampMonthlyCommand, 'amp monthly', 'monthly')],
 	['session', withCcusageConfig(ampSessionCommand, 'amp session', 'session')],
 ]);
-const piSubCommands = new Map<string, SubCommandable>([
+const piSubCommands = new Map<string, GunshiSubCommand>([
 	['daily', withCcusageConfig(piDailyCommand, 'pi daily', 'daily')],
 	['monthly', withCcusageConfig(piMonthlyCommand, 'pi monthly', 'monthly')],
 	['session', withCcusageConfig(piSessionCommand, 'pi session', 'session')],
