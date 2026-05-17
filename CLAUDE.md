@@ -12,9 +12,7 @@ Use these skills before working in this repository:
 - `ccusage-agent-sources` - Claude Code, Codex, OpenCode, Amp, and pi-agent log locations, token mappings, cost rules, and CLI behavior.
 - `ccusage-docs` - VitePress docs structure, screenshot placement, accessibility, and markdown linting conventions.
 - `skill-creator` - repo-local skill creation, SKILL.md frontmatter, description trigger quality, and reference layout.
-- `typescript-style` - TypeScript typing with `satisfies`, `as const satisfies`, and safer type suppressions.
-- `byethrow` - `@praha/byethrow` Result-based error handling.
-- `use-gunshi-cli` - Gunshi command definitions and CLI conventions.
+- `typescript-style` - required before reading or editing `.ts`, `.tsx`, `.js`, or `.jsx`; covers typing, `satisfies`, safe suppressions, and library-specific guidance for arkregex, byethrow, and Gunshi.
 - `bun-api-reference` - local Bun runtime API docs and type references under `node_modules/bun-types`.
 - `tdd` - Red-Green-Refactor workflow for logic changes.
 - `bun-cpu-profile` - Bun CPU profiling and branch-vs-main performance comparisons.
