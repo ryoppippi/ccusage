@@ -62,7 +62,7 @@ npx ccusage@latest
 ```
 
 > 💡 **Runtime**: `bunx ccusage` is recommended for everyday use. If you use `npx`, include `@latest` and use Node.js 22+.
-> When ccusage starts under Node.js and finds `bun` in `PATH`, it automatically re-runs the bundled entrypoint with Bun for better warm runtime performance. Set `CCUSAGE_BUN_AUTO_RUN=0` to force Node.js.
+> Because the published CLI shebang targets Node.js, package runners can start ccusage under Node.js even when launched through `bunx`. When ccusage finds `bun` in `PATH`, it automatically re-runs the bundled entrypoint with Bun for better warm runtime performance. Set `CCUSAGE_BUN_AUTO_RUN=0` to force Node.js.
 
 ### Compatibility Packages
 

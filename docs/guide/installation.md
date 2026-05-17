@@ -34,7 +34,7 @@ npx ccusage@latest
 ::: tip Speed Recommendation
 We recommend `bunx` for everyday use. ccusage can run on Node.js 22+, but Bun generally starts faster and avoids the slower cold-start path common with `npx`.
 
-When the published CLI starts under Node.js and finds `bun` in `PATH`, it automatically re-runs the bundled entrypoint with Bun for better warm runtime performance. Set `CCUSAGE_BUN_AUTO_RUN=0` to force the Node.js runtime.
+Because the published CLI shebang targets Node.js, package runners can start ccusage under Node.js even when launched through `bunx`. When ccusage finds `bun` in `PATH`, it automatically re-runs the bundled entrypoint with Bun for better warm runtime performance. Set `CCUSAGE_BUN_AUTO_RUN=0` to force the Node.js runtime.
 :::
 
 ### Performance Comparison
