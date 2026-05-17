@@ -203,6 +203,15 @@ impl Cli {
     {
         let mut parser = ArgParser::new(args.into_iter().skip(1).collect())?;
         normalize_legacy_agent_command_args(&mut parser.args);
+        if let Some(message) = report_flag_alias_error(&parser.args) {
+            return Err(message);
+        }
+        if let Some(message) = agent_filter_option_error(&parser.args) {
+            return Err(message);
+        }
+        if let Some(message) = unsupported_agent_report_error(&parser.args) {
+            return Err(message);
+        }
         if parser.peek_help_or_version() {
             parser.print_help_or_version();
         }
@@ -688,6 +697,121 @@ fn normalize_legacy_agent_command_args(args: &mut Vec<String>) {
 }
 
 fn legacy_agent_report_supported(agent: &str, report: &str) -> bool {
+    agent_report_supported(agent, report)
+}
+
+fn report_flag_alias_error(args: &[String]) -> Option<String> {
+    let flag = args.iter().find_map(|arg| {
+        matches!(
+            arg.as_str(),
+            "--daily" | "--weekly" | "--monthly" | "--session" | "--blocks" | "--statusline"
+        )
+        .then_some(arg)
+    })?;
+    Some(format!(
+        "Report flags like {flag} are not supported. Use \"ccusage {}\" instead.",
+        flag.trim_start_matches("--")
+    ))
+}
+
+fn agent_filter_option_error(args: &[String]) -> Option<String> {
+    let flag = args.iter().find_map(|arg| {
+        if arg == "--agent" || arg.starts_with("--agent=") {
+            return Some("--agent");
+        }
+        if arg == "-a" || arg.starts_with("-a=") {
+            return Some("-a");
+        }
+        None
+    })?;
+    Some(format!(
+        "Agent filters like {flag} are not supported. Use \"ccusage <agent> <report>\", for example \"ccusage codex daily\"."
+    ))
+}
+
+fn unsupported_agent_report_error(args: &[String]) -> Option<String> {
+    let tokens = command_tokens(args);
+    let [agent, report, ..] = tokens.as_slice() else {
+        return None;
+    };
+    if !is_agent_command(agent) || agent_report_supported(agent, report) {
+        return None;
+    }
+
+    let display = agent_display_name(agent);
+    let message = if matches!(report.as_str(), "blocks" | "statusline") {
+        format!(
+            "The \"{report}\" report is only available for Claude Code usage.\nUse \"ccusage {agent} daily\" for {display} usage reports."
+        )
+    } else {
+        format!(
+            "The \"{report}\" report is not available for {display} usage.\nUse \"ccusage {agent} daily\" for {display} usage reports."
+        )
+    };
+    Some(message)
+}
+
+fn command_tokens(args: &[String]) -> Vec<String> {
+    let mut tokens = Vec::new();
+    let mut index = 0;
+    while let Some(arg) = args.get(index) {
+        if arg.starts_with('-') {
+            if option_takes_value(arg) && !arg.contains('=') {
+                index += 2;
+            } else {
+                index += 1;
+            }
+            continue;
+        }
+        tokens.push(arg.clone());
+        index += 1;
+    }
+    tokens
+}
+
+fn option_takes_value(arg: &str) -> bool {
+    matches!(
+        arg,
+        "-s" | "--since"
+            | "-u"
+            | "--until"
+            | "-m"
+            | "--mode"
+            | "--debug-samples"
+            | "-o"
+            | "--order"
+            | "-z"
+            | "--timezone"
+            | "-q"
+            | "--jq"
+            | "--config"
+            | "-p"
+            | "--project"
+            | "--project-aliases"
+            | "-w"
+            | "--start-of-week"
+            | "-i"
+            | "--id"
+            | "-t"
+            | "--token-limit"
+            | "-n"
+            | "--session-length"
+            | "-B"
+            | "--visual-burn-rate"
+            | "--cost-source"
+            | "--refresh-interval"
+            | "--context-low-threshold"
+            | "--context-medium-threshold"
+            | "--speed"
+            | "--pi-path"
+    )
+}
+
+fn is_agent_command(command: &str) -> bool {
+    matches!(command, "claude" | "codex" | "opencode" | "amp" | "pi")
+}
+
+fn agent_report_supported(agent: &str, report: &str) -> bool {
     match agent {
         "claude" => matches!(
             report,
@@ -697,6 +821,17 @@ fn legacy_agent_report_supported(agent: &str, report: &str) -> bool {
         "opencode" => matches!(report, "daily" | "weekly" | "monthly" | "session"),
         "amp" | "pi" => matches!(report, "daily" | "monthly" | "session"),
         _ => false,
+    }
+}
+
+fn agent_display_name(agent: &str) -> &'static str {
+    match agent {
+        "claude" => "Claude Code",
+        "codex" => "Codex",
+        "opencode" => "OpenCode",
+        "amp" => "Amp",
+        "pi" => "pi-agent",
+        _ => unreachable!("agent is prevalidated"),
     }
 }
 
@@ -888,6 +1023,13 @@ mod tests {
         Cli::parse_from(args.iter().map(OsString::from)).unwrap()
     }
 
+    fn parse_error(args: &[&str]) -> String {
+        match Cli::parse_from(args.iter().map(OsString::from)) {
+            Ok(_) => panic!("expected parse error"),
+            Err(error) => error,
+        }
+    }
+
     fn temp_config_path(name: &str) -> PathBuf {
         let nanos = SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -1067,6 +1209,33 @@ mod tests {
         };
         assert_eq!(args.kind, AgentReportKind::Monthly);
         assert!(args.shared.json);
+    }
+
+    #[test]
+    fn rejects_report_flag_aliases_with_guidance() {
+        let error = parse_error(&["ccusage", "--daily"]);
+        assert_eq!(
+            error,
+            "Report flags like --daily are not supported. Use \"ccusage daily\" instead."
+        );
+    }
+
+    #[test]
+    fn rejects_agent_filter_options_with_guidance() {
+        let error = parse_error(&["ccusage", "daily", "--agent", "codex"]);
+        assert_eq!(
+            error,
+            "Agent filters like --agent are not supported. Use \"ccusage <agent> <report>\", for example \"ccusage codex daily\"."
+        );
+    }
+
+    #[test]
+    fn rejects_unsupported_agent_reports_with_guidance() {
+        let error = parse_error(&["ccusage", "codex", "blocks"]);
+        assert_eq!(
+            error,
+            "The \"blocks\" report is only available for Claude Code usage.\nUse \"ccusage codex daily\" for Codex usage reports."
+        );
     }
 
     #[test]
