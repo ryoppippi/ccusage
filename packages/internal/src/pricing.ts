@@ -270,12 +270,21 @@ export class LiteLLMPricingFetcher implements Disposable {
 				}
 
 				const lower = modelName.toLowerCase();
+				let bestMatch: { value: LiteLLMModelPricing; lengthDiff: number } | null = null;
 				for (const [key, value] of pricing) {
 					const comparison = key.toLowerCase();
-					if (comparison.includes(lower) || lower.includes(comparison)) {
-						this.modelPricingCache.set(modelName, value);
-						return value;
+					if (!comparison.includes(lower) && !lower.includes(comparison)) {
+						continue;
 					}
+					const lengthDiff = Math.abs(comparison.length - lower.length);
+					if (bestMatch == null || lengthDiff < bestMatch.lengthDiff) {
+						bestMatch = { value, lengthDiff };
+					}
+				}
+
+				if (bestMatch != null) {
+					this.modelPricingCache.set(modelName, bestMatch.value);
+					return bestMatch.value;
 				}
 
 				this.modelPricingCache.set(modelName, null);
@@ -695,6 +704,49 @@ if (import.meta.vitest != null) {
 			);
 
 			expect(standardCost).toBeCloseTo(noSpeedCost);
+		});
+
+		it('picks the closest-length fuzzy match instead of the first iteration match', async () => {
+			using fetcher = new LiteLLMPricingFetcher({
+				offline: true,
+				offlineLoader: async () => ({
+					'gpt-5': {
+						input_cost_per_token: 1.25e-6,
+						output_cost_per_token: 1e-5,
+					},
+					'gpt-5.4': {
+						input_cost_per_token: 2.5e-6,
+						output_cost_per_token: 1.5e-5,
+					},
+				}),
+			});
+
+			const pricing = await Result.unwrap(fetcher.getModelPricing('gpt-5.4-mini'));
+
+			expect(pricing).not.toBeNull();
+			expect(pricing?.input_cost_per_token).toBe(2.5e-6);
+			expect(pricing?.output_cost_per_token).toBe(1.5e-5);
+		});
+
+		it('prefers the closest-length key when the input is shorter than candidates', async () => {
+			using fetcher = new LiteLLMPricingFetcher({
+				offline: true,
+				offlineLoader: async () => ({
+					'gpt-5.4-mini-2026-03-05': {
+						input_cost_per_token: 1e-7,
+						output_cost_per_token: 1e-6,
+					},
+					'gpt-5.4-mini': {
+						input_cost_per_token: 2.5e-7,
+						output_cost_per_token: 2e-6,
+					},
+				}),
+			});
+
+			const pricing = await Result.unwrap(fetcher.getModelPricing('gpt-5.4'));
+
+			expect(pricing).not.toBeNull();
+			expect(pricing?.input_cost_per_token).toBe(2.5e-7);
 		});
 	});
 }
