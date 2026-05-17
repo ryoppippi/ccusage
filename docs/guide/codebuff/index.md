@@ -24,7 +24,7 @@ pnpm dlx ccusage codebuff --help
 
 ## Data Source
 
-The CLI reads Codebuff chat JSON files from `CODEBUFF_DATA_DIR` (defaults to `~/.config/manicode`). `CODEBUFF_DATA_DIR` can be one channel root or a comma-separated list of channel roots.
+The CLI reads Codebuff chat JSON files from `CODEBUFF_DATA_DIR`. Set `CODEBUFF_DATA_DIR` to one channel root or a comma-separated list of channel roots when your data lives outside the standard locations.
 
 When `CODEBUFF_DATA_DIR` is not set, ccusage checks the stable, dev, and staging channel roots:
 

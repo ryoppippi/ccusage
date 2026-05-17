@@ -164,12 +164,7 @@ function parseUsageObject(value: unknown): AssistantUsage {
 		'completion_tokens',
 	]);
 	usage.cacheReadInputTokens =
-		pickPositiveInteger(record, [
-			'cacheReadInputTokens',
-			'cache_read_input_tokens',
-			'cachedTokensCreated',
-			'cached_tokens_created',
-		]) ||
+		pickPositiveInteger(record, ['cacheReadInputTokens', 'cache_read_input_tokens']) ||
 		pickPositiveInteger(asRecord(record.promptTokensDetails) ?? {}, ['cachedTokens']) ||
 		pickPositiveInteger(asRecord(record.prompt_tokens_details) ?? {}, ['cached_tokens']);
 	usage.cacheCreationInputTokens = pickPositiveInteger(record, [
@@ -177,6 +172,8 @@ function parseUsageObject(value: unknown): AssistantUsage {
 		'cache_creation_input_tokens',
 		'cacheCreationTokens',
 		'cache_creation_tokens',
+		'cachedTokensCreated',
+		'cached_tokens_created',
 	]);
 	usage.credits = toPositiveNumber(record.credits);
 	usage.model = readString(record, 'model');
@@ -270,10 +267,11 @@ function getDedupKey(
 	usage: AssistantUsage,
 	ordinal: number,
 ): string {
-	return (
-		readString(message, 'id') ??
-		`codebuff:${sessionId}:${timestamp}:${model}:${ordinal}:${usage.inputTokens}:${usage.outputTokens}:${usage.cacheReadInputTokens}:${usage.cacheCreationInputTokens}`
-	);
+	const messageId = readString(message, 'id');
+	if (messageId != null) {
+		return `codebuff:${sessionId}:${messageId}`;
+	}
+	return `codebuff:${sessionId}:${timestamp}:${model}:${ordinal}:${usage.inputTokens}:${usage.outputTokens}:${usage.cacheReadInputTokens}:${usage.cacheCreationInputTokens}`;
 }
 
 async function getFileModifiedTimestamp(filePath: string): Promise<string> {
@@ -399,7 +397,84 @@ if (import.meta.vitest != null) {
 					outputTokens: 50,
 					cacheCreationInputTokens: 20,
 					cacheReadInputTokens: 10,
-					dedupKey: 'assistant-message',
+					dedupKey: `codebuff:${path.basename(fixture.path)}/project-a/2026-01-02T03-04-05.000Z:assistant-message`,
+				},
+			]);
+		});
+
+		it('keeps upstream message ids scoped to their chat sessions', async () => {
+			await using fixture = await createFixture({
+				projects: {
+					project: {
+						chats: {
+							'2026-01-02T03-04-05.000Z': {
+								'chat-messages.json': JSON.stringify([
+									{
+										id: 'assistant-message',
+										role: 'assistant',
+										metadata: {
+											model: 'claude-sonnet-4-20250514',
+											usage: { inputTokens: 100, outputTokens: 50 },
+										},
+									},
+								]),
+							},
+							'2026-01-03T03-04-05.000Z': {
+								'chat-messages.json': JSON.stringify([
+									{
+										id: 'assistant-message',
+										role: 'assistant',
+										metadata: {
+											model: 'claude-sonnet-4-20250514',
+											usage: { inputTokens: 200, outputTokens: 60 },
+										},
+									},
+								]),
+							},
+						},
+					},
+				},
+			});
+			vi.stubEnv('CODEBUFF_DATA_DIR', fixture.path);
+
+			const entries = await loadCodebuffUsageEntries();
+			expect(entries).toHaveLength(2);
+			expect(entries.map((entry) => entry.dedupKey)).toEqual([
+				`codebuff:${path.basename(fixture.path)}/project/2026-01-02T03-04-05.000Z:assistant-message`,
+				`codebuff:${path.basename(fixture.path)}/project/2026-01-03T03-04-05.000Z:assistant-message`,
+			]);
+		});
+
+		it('classifies cachedTokensCreated as cache creation tokens', async () => {
+			await using fixture = await createFixture({
+				projects: {
+					project: {
+						chats: {
+							'2026-01-02T03-04-05.000Z': {
+								'chat-messages.json': JSON.stringify([
+									{
+										role: 'assistant',
+										metadata: {
+											model: 'claude-sonnet-4-20250514',
+											usage: {
+												inputTokens: 100,
+												outputTokens: 50,
+												cachedTokensCreated: 25,
+											},
+										},
+									},
+								]),
+							},
+						},
+					},
+				},
+			});
+			vi.stubEnv('CODEBUFF_DATA_DIR', fixture.path);
+
+			await expect(loadCodebuffUsageEntries()).resolves.toMatchObject([
+				{
+					cacheCreationInputTokens: 25,
+					cacheReadInputTokens: 0,
 				},
 			]);
 		});
