@@ -29,6 +29,10 @@ pnpm dlx ccusage
 
 This will show your daily usage report for all detected supported coding CLIs by default.
 
+::: tip Runtime
+`bunx ccusage` is recommended for everyday use. ccusage can run on Node.js 22+, and when the published CLI starts under Node.js and finds `bun` in `PATH`, it automatically re-runs the bundled entrypoint with Bun for better warm runtime performance. Set `CCUSAGE_BUN_AUTO_RUN=0` to force Node.js.
+:::
+
 Use a data source namespace when you want the same report focused on one source:
 
 ```bash

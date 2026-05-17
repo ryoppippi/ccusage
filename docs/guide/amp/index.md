@@ -9,7 +9,7 @@ ccusage can read Amp thread files as one of its supported local data sources, us
 ::: code-group
 
 ```bash [bunx (Recommended)]
-bunx ccusage@latest amp --help
+bunx ccusage amp --help
 ```
 
 ```bash [npx]
@@ -26,9 +26,7 @@ pnpm dlx ccusage amp --help
 
 The CLI reads Amp thread JSON files from `AMP_DATA_DIR` (defaults to `~/.local/share/amp`).
 
-<!-- eslint-skip -->
-
-```
+```text
 ~/.local/share/amp/
 └── threads/
     └── **/*.json

@@ -9,7 +9,7 @@ ccusage can read [OpenCode](https://github.com/opencode-ai/opencode) session log
 ::: code-group
 
 ```bash [bunx (Recommended)]
-bunx ccusage@latest opencode --help
+bunx ccusage opencode --help
 ```
 
 ```bash [npx]
