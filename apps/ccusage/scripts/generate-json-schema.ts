@@ -465,6 +465,7 @@ if (import.meta.vitest != null) {
 			expect(properties).toHaveProperty('commands');
 			expect(properties).toHaveProperty('claude');
 			expect(properties).toHaveProperty('codex');
+			expect(properties).toHaveProperty('droid');
 		});
 
 		it('should keep legacy top-level Claude config properties', () => {

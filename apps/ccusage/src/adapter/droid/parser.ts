@@ -111,7 +111,7 @@ function normalizeDroidProvider(value: string | undefined): string {
 	) {
 		return 'google';
 	}
-	if (normalized === 'xai' || normalized === 'grok') {
+	if (normalized === 'xai' || normalized === 'x_ai' || normalized === 'grok') {
 		return 'xai';
 	}
 	return normalized;
@@ -411,6 +411,29 @@ if (import.meta.vitest != null) {
 					sessionId: 'session-b',
 					model: 'claude-opus-4-5-thinking',
 					provider: 'anthropic',
+				},
+			]);
+		});
+
+		it('normalizes xAI provider locks', async () => {
+			await using fixture = await createFixture({
+				'session-c.settings.json': JSON.stringify({
+					model: 'grok-4',
+					providerLock: 'x-ai',
+					providerLockTimestamp: '2026-05-03T01:02:03.000Z',
+					tokenUsage: {
+						inputTokens: 10,
+						outputTokens: 20,
+					},
+				}),
+			});
+			vi.stubEnv('DROID_SESSIONS_DIR', fixture.path);
+
+			await expect(loadDroidUsageEntries()).resolves.toMatchObject([
+				{
+					sessionId: 'session-c',
+					model: 'grok-4',
+					provider: 'xai',
 				},
 			]);
 		});

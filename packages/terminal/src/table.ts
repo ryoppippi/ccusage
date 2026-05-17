@@ -806,6 +806,7 @@ export type UsageData = {
 	outputTokens: number;
 	cacheCreationTokens: number;
 	cacheReadTokens: number;
+	totalTokens?: number;
 	totalCost: number;
 	modelsUsed?: string[];
 	agent?: string;
@@ -898,6 +899,7 @@ export function formatUsageDataRow(
 	lastActivity?: string,
 ): (string | number)[] {
 	const totalTokens =
+		data.totalTokens ??
 		data.inputTokens + data.outputTokens + data.cacheCreationTokens + data.cacheReadTokens;
 
 	const row: (string | number)[] = [
@@ -934,6 +936,7 @@ export function formatTotalsRow(
 	includeAgent = false,
 ): (string | number)[] {
 	const totalTokens =
+		totals.totalTokens ??
 		totals.inputTokens + totals.outputTokens + totals.cacheCreationTokens + totals.cacheReadTokens;
 
 	const row: (string | number)[] = [
