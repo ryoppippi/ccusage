@@ -2,7 +2,6 @@ import type { LiteLLMModelPricing } from '@ccusage/internal/pricing';
 import type { DroidUsageEntry } from './parser.ts';
 import { LiteLLMPricingFetcher } from '@ccusage/internal/pricing';
 import { Result } from '@praha/byethrow';
-import { prefetchDroidPricing } from './pricing-macro.ts' with { type: 'macro' };
 
 export const DROID_PROVIDER_PREFIXES = [
 	'anthropic/',
@@ -16,10 +15,8 @@ export const DROID_PROVIDER_PREFIXES = [
 	'openrouter/x-ai/',
 ];
 
-const PREFETCHED_DROID_PRICING = prefetchDroidPricing();
-
 export async function loadOfflineDroidPricing(): Promise<Record<string, LiteLLMModelPricing>> {
-	return PREFETCHED_DROID_PRICING;
+	return {};
 }
 
 function providerPrefixes(provider: string): string[] {

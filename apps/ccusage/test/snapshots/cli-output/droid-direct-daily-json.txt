@@ -7,7 +7,7 @@
       "cacheCreationTokens": 20,
       "cacheReadTokens": 10,
       "totalTokens": 185,
-      "totalCost": 0.001203,
+      "totalCost": 0,
       "modelsUsed": [
         "claude-sonnet-4"
       ]
@@ -19,6 +19,6 @@
     "cacheCreationTokens": 20,
     "cacheReadTokens": 10,
     "totalTokens": 185,
-    "totalCost": 0.001203
+    "totalCost": 0
   }
 }
