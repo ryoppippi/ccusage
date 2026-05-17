@@ -14,7 +14,7 @@
       "cacheCreationTokens": 100,
       "cacheReadTokens": 60,
       "totalTokens": 1050,
-      "totalCost": 0.25211775000000003,
+      "totalCost": 0.25098975,
       "metadata": {
         "agents": [
           "amp",
@@ -33,6 +33,6 @@
     "cacheCreationTokens": 100,
     "cacheReadTokens": 60,
     "totalTokens": 1050,
-    "totalCost": 0.25211775000000003
+    "totalCost": 0.25098975
   }
 }

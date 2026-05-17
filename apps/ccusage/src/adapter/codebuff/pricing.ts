@@ -2,7 +2,6 @@ import type { LiteLLMModelPricing, LiteLLMPricingFetcher } from '@ccusage/intern
 import type { CodebuffUsageEntry } from './parser.ts';
 import { Result } from '@praha/byethrow';
 import { logger } from '../../logger.ts';
-import { prefetchCodebuffPricing } from './pricing-macro.ts' with { type: 'macro' };
 
 export const CODEBUFF_PROVIDER_PREFIXES = [
 	'anthropic/',
@@ -12,10 +11,8 @@ export const CODEBUFF_PROVIDER_PREFIXES = [
 	'xai/',
 	'openrouter/',
 ] as const;
-const PREFETCHED_CODEBUFF_PRICING = prefetchCodebuffPricing();
-
 export async function loadOfflineCodebuffPricing(): Promise<Record<string, LiteLLMModelPricing>> {
-	return PREFETCHED_CODEBUFF_PRICING;
+	return {};
 }
 
 function getPricingCandidates(entry: CodebuffUsageEntry): string[] {
