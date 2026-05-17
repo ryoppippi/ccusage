@@ -1,6 +1,5 @@
 import { defineConfig } from 'tsdown';
 import Macros from 'unplugin-macros/rolldown';
-import packageJson from './package.json' with { type: 'json' };
 
 export default defineConfig({
 	entry: {
@@ -47,6 +46,7 @@ export default defineConfig({
 		Macros({
 			include: [
 				'src/index.ts',
+				'src/cli.ts',
 				'src/pricing-fetcher.ts',
 				'src/adapter/amp/pricing.ts',
 				'src/adapter/codex/pricing.ts',
@@ -56,7 +56,6 @@ export default defineConfig({
 		}),
 	],
 	define: {
-		__CCUSAGE_SUPPORTED_NODE_RANGE__: JSON.stringify(packageJson.engines.node),
 		'import.meta.vitest': 'undefined',
 	},
 });

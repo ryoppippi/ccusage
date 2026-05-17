@@ -5,13 +5,10 @@ import { delimiter, dirname, join } from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 import { CCUSAGE_BUN_AUTO_RUN_DISABLED_VALUE, CCUSAGE_BUN_AUTO_RUN_ENV } from './env.ts';
+import { isSupportedNodeVersion } from './node-version.ts';
+import { getSupportedNodeRuntime } from './runtime-macro.ts' with { type: 'macro' };
 
-declare const __CCUSAGE_SUPPORTED_NODE_RANGE__: string | undefined;
-
-const SUPPORTED_NODE_RANGE =
-	typeof __CCUSAGE_SUPPORTED_NODE_RANGE__ === 'string'
-		? __CCUSAGE_SUPPORTED_NODE_RANGE__
-		: '>=22.11.0';
+const SUPPORTED_NODE_RUNTIME = getSupportedNodeRuntime();
 
 type CliRuntime =
 	| {
@@ -78,52 +75,12 @@ function isBun(): boolean {
 	return (globalThis as { Bun?: unknown }).Bun != null;
 }
 
-function parseNodeVersion(version: string): [number, number, number] | undefined {
-	const match = /^v?(\d+)\.(\d+)\.(\d+)/.exec(version);
-	if (match == null) {
-		return undefined;
-	}
-
-	const major = Number(match[1]);
-	const minor = Number(match[2]);
-	const patch = Number(match[3]);
-	if (!Number.isInteger(major) || !Number.isInteger(minor) || !Number.isInteger(patch)) {
-		return undefined;
-	}
-
-	return [major, minor, patch];
-}
-
-function satisfiesMinimumVersion(version: string, range: string): boolean {
-	const match = /^>=(\d+)\.(\d+)\.(\d+)$/.exec(range);
-	if (match == null) {
-		return true;
-	}
-
-	const actual = parseNodeVersion(version);
-	if (actual == null) {
-		return true;
-	}
-
-	const minimum: [number, number, number] = [Number(match[1]), Number(match[2]), Number(match[3])];
-	for (const index of [0, 1, 2] as const) {
-		if (actual[index] > minimum[index]) {
-			return true;
-		}
-		if (actual[index] < minimum[index]) {
-			return false;
-		}
-	}
-
-	return true;
-}
-
 function getUnsupportedNodeRuntimeMessage(nodeVersion = process.version): string | undefined {
-	if (satisfiesMinimumVersion(nodeVersion, SUPPORTED_NODE_RANGE)) {
+	if (isSupportedNodeVersion(nodeVersion, SUPPORTED_NODE_RUNTIME.minimum)) {
 		return undefined;
 	}
 
-	return `ccusage requires Bun or Node.js ${SUPPORTED_NODE_RANGE}. Current Node.js: ${nodeVersion}\n`;
+	return `ccusage requires Bun or Node.js ${SUPPORTED_NODE_RUNTIME.range}. Current Node.js: ${nodeVersion}\n`;
 }
 
 async function runBunMain(): Promise<void> {
