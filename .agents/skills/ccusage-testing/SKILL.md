@@ -1,6 +1,6 @@
 ---
 name: ccusage-testing
-description: Use for ccusage Vitest, fixtures, snapshots, and pricing tests.
+description: Guides ccusage tests. Use when adding or fixing in-source Vitest, fs-fixture data, CLI snapshots, Claude model pricing, or LiteLLM compatibility.
 ---
 
 # ccusage Testing

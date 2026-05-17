@@ -1,6 +1,6 @@
 ---
 name: reduce-similarities
-description: Detect duplicate JS and TS code with similarity-ts.
+description: Detects duplicate JavaScript and TypeScript code with similarity-ts. Use when checking .js, .jsx, .ts, or .tsx files for refactoring opportunities.
 argument-hint: '[path] [--threshold 0.85] [--print]'
 allowed-tools: Bash(similarity-ts *) Read Grep Glob
 paths: '**/*.ts,**/*.tsx,**/*.js,**/*.jsx'

@@ -1,6 +1,6 @@
 ---
 name: tdd
-description: Use t-wada Red-Green-Refactor TDD for logic changes.
+description: Guides t-wada Red-Green-Refactor TDD. Use when implementing features, fixing bugs, or refactoring logic with strict test-first development.
 ---
 
 <!--

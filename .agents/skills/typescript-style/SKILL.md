@@ -1,6 +1,6 @@
 ---
 name: typescript-style
-description: Apply ccusage TypeScript style for satisfies and safe typing.
+description: Guides ccusage TypeScript style. Use when writing or reviewing typed objects, mocks, fixtures, table-driven cases, satisfies, or safe type suppressions.
 ---
 
 # TypeScript Style

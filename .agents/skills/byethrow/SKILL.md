@@ -1,6 +1,6 @@
 ---
 name: byethrow
-description: Use byethrow Result APIs for TypeScript error handling.
+description: Guides use of @praha/byethrow Result APIs. Use when adding or reviewing Result-based TypeScript error handling, examples, or best practices.
 allowed-tools: Read, Grep, Glob
 ---
 

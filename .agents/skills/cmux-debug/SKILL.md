@@ -1,6 +1,6 @@
 ---
 name: cmux-debug
-description: Use cmux for terminal UI output and responsive table debugging.
+description: Guides cmux terminal debugging. Use when validating CLI visual output, responsive tables, terminal geometry, long-running commands, or pane captures.
 ---
 
 # cmux Debug

@@ -1,6 +1,6 @@
 ---
 name: pr-ai-review-workflow
-description: Manage PR AI review loops and follow-up commits with gh.
+description: Manages PR AI review loops with gh. Use after opening or updating a PR to request review, inspect comments, reply, fix, and re-request review.
 ---
 
 # PR AI Review Workflow

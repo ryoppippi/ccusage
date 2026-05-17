@@ -1,6 +1,6 @@
 ---
 name: fs-fixture
-description: Use fs-fixture for disposable test files and directories.
+description: Guides fs-fixture test setup. Use when tests need disposable files, directories, copied templates, symlinks, or automatic cleanup with createFixture().
 ---
 
 # fs-fixture

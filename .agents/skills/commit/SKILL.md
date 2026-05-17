@@ -1,6 +1,6 @@
 ---
 name: commit
-description: Create atomic Conventional Commits with clear explanatory messages.
+description: Creates atomic Conventional Commits. Use when committing code changes, splitting hunks into revertable units, or writing detailed commit messages.
 ---
 
 <!--

@@ -1,6 +1,6 @@
 ---
 name: ccusage-development
-description: Use for ccusage monorepo commands, packaging, style, and validation.
+description: Guides ccusage monorepo development. Use when editing packages, docs, shared configuration, bundled CLI packaging, dependencies, exports, or validation commands.
 ---
 
 # ccusage Development

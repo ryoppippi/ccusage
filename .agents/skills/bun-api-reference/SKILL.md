@@ -1,6 +1,6 @@
 ---
 name: bun-api-reference
-description: Use local bun-types docs for Bun runtime APIs.
+description: Checks local bun-types documentation before using or changing Bun runtime APIs such as Bun.$, files, spawning, argv, stdout, stderr, and string width.
 ---
 
 # Bun API Reference

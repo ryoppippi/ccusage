@@ -1,6 +1,6 @@
 ---
 name: ccusage-agent-sources
-description: Use for ccusage agent parsers, log paths, tokens, costs, and reports.
+description: Guides ccusage agent source work for Claude Code, Codex, OpenCode, Amp, and pi-agent parsers, log paths, token mappings, costs, and reports.
 ---
 
 # ccusage Agent Sources
