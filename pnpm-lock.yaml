@@ -171,6 +171,25 @@ importers:
         version: 4.1.2(@types/node@24.5.1)(vite@8.0.11(@types/node@24.5.1)(esbuild@0.27.4)(jiti@2.6.1)(yaml@2.8.1))
 
   apps/ccusage:
+    optionalDependencies:
+      '@ccusage/ccusage-darwin-arm64':
+        specifier: 19.0.3
+        version: link:../../packages/ccusage-darwin-arm64
+      '@ccusage/ccusage-darwin-x64':
+        specifier: 19.0.3
+        version: link:../../packages/ccusage-darwin-x64
+      '@ccusage/ccusage-linux-arm64':
+        specifier: 19.0.3
+        version: link:../../packages/ccusage-linux-arm64
+      '@ccusage/ccusage-linux-x64':
+        specifier: 19.0.3
+        version: link:../../packages/ccusage-linux-x64
+      '@ccusage/ccusage-win32-arm64':
+        specifier: 19.0.3
+        version: link:../../packages/ccusage-win32-arm64
+      '@ccusage/ccusage-win32-x64':
+        specifier: 19.0.3
+        version: link:../../packages/ccusage-win32-x64
     devDependencies:
       '@antfu/utils':
         specifier: catalog:runtime
@@ -247,6 +266,18 @@ importers:
       xdg-basedir:
         specifier: catalog:runtime
         version: 5.1.0
+
+  packages/ccusage-darwin-arm64: {}
+
+  packages/ccusage-darwin-x64: {}
+
+  packages/ccusage-linux-arm64: {}
+
+  packages/ccusage-linux-x64: {}
+
+  packages/ccusage-win32-arm64: {}
+
+  packages/ccusage-win32-x64: {}
 
   docs:
     devDependencies:

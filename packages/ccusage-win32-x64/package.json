@@ -1,0 +1,29 @@
+{
+	"name": "@ccusage/ccusage-win32-x64",
+	"version": "19.0.3",
+	"description": "Native ccusage binary for Windows x64",
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/ryoppippi/ccusage.git",
+		"directory": "packages/ccusage-win32-x64"
+	},
+	"bin": {
+		"ccusage": "./bin/ccusage.exe"
+	},
+	"files": [
+		"bin/ccusage.exe"
+	],
+	"os": [
+		"win32"
+	],
+	"cpu": [
+		"x64"
+	],
+	"publishConfig": {
+		"access": "public"
+	},
+	"scripts": {
+		"prepack": "node ../ccusage/scripts/verify-native-package.mjs"
+	}
+}

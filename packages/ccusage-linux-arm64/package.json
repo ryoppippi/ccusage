@@ -1,0 +1,29 @@
+{
+	"name": "@ccusage/ccusage-linux-arm64",
+	"version": "19.0.3",
+	"description": "Native ccusage binary for Linux arm64",
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/ryoppippi/ccusage.git",
+		"directory": "packages/ccusage-linux-arm64"
+	},
+	"bin": {
+		"ccusage": "./bin/ccusage"
+	},
+	"files": [
+		"bin/ccusage"
+	],
+	"os": [
+		"linux"
+	],
+	"cpu": [
+		"arm64"
+	],
+	"publishConfig": {
+		"access": "public"
+	},
+	"scripts": {
+		"prepack": "node ../ccusage/scripts/verify-native-package.mjs"
+	}
+}

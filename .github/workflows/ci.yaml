@@ -26,7 +26,48 @@ jobs:
           mkdir -p "$HOME/.config/claude/projects"
       - run: nix develop --command pnpm run test
 
+  build-native-packages:
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04-arm
+            platform: linux
+            arch: arm64
+          - os: ubuntu-24.04
+            platform: linux
+            arch: x64
+          - os: macos-latest
+            platform: darwin
+            arch: arm64
+          - os: macos-15-intel
+            platform: darwin
+            arch: x64
+          - os: windows-11-arm
+            platform: win32
+            arch: arm64
+          - os: windows-latest
+            platform: win32
+            arch: x64
+
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - run: cargo build --release --bin ccusage
+      - run: node apps/ccusage/scripts/stage-native-package.mjs --platform "${{ matrix.platform }}" --arch "${{ matrix.arch }}"
+      - name: Archive native package binary
+        shell: bash
+        run: tar -cf "ccusage-native-${{ matrix.platform }}-${{ matrix.arch }}.tar" "packages/ccusage-${{ matrix.platform }}-${{ matrix.arch }}/bin"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ccusage-native-${{ matrix.platform }}-${{ matrix.arch }}
+          path: ccusage-native-${{ matrix.platform }}-${{ matrix.arch }}.tar
+          if-no-files-found: error
+
   npm-publish-dry-run-and-upload-pkg-pr-now:
+    needs:
+      - build-native-packages
     runs-on: ubuntu-24.04-arm
     outputs:
       urls: ${{ steps.publish.outputs.urls }}
@@ -34,8 +75,18 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - uses: ./.github/actions/setup-nix
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: ccusage-native-*
+          path: ${{ runner.temp }}/native-packages
+          merge-multiple: true
+      - name: Restore native package binaries
+        run: |
+          for archive in "$RUNNER_TEMP"/native-packages/*.tar; do
+            tar -xf "$archive"
+          done
       - id: publish
-        run: nix develop --command pnpm pkg-pr-new publish --pnpm --bin './apps/*'
+        run: nix develop --command pnpm pkg-pr-new publish --pnpm --bin './apps/ccusage' './packages/ccusage-*'
 
   ccusage-preview-e2e:
     if: github.event_name == 'pull_request'

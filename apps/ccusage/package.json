@@ -49,6 +49,7 @@
 		"lint": "eslint --cache .",
 		"prepack": "pnpm run build && clean-pkg-json",
 		"prerelease": "pnpm run lint && pnpm run typecheck && pnpm run build",
+		"stage:native-package": "node scripts/stage-native-package.mjs",
 		"start": "bun ./src/index.ts",
 		"test": "TZ=UTC vitest",
 		"test:rust": "cargo test --workspace",
@@ -58,6 +59,14 @@
 		"test:statusline:sonnet4": "cat test/statusline-test-sonnet4.json | node ./src/index.ts statusline --offline",
 		"test:statusline:sonnet41": "cat test/statusline-test-sonnet41.json | node ./src/index.ts statusline --offline",
 		"typecheck": "tsgo --noEmit"
+	},
+	"optionalDependencies": {
+		"@ccusage/ccusage-darwin-arm64": "19.0.3",
+		"@ccusage/ccusage-darwin-x64": "19.0.3",
+		"@ccusage/ccusage-linux-arm64": "19.0.3",
+		"@ccusage/ccusage-linux-x64": "19.0.3",
+		"@ccusage/ccusage-win32-arm64": "19.0.3",
+		"@ccusage/ccusage-win32-x64": "19.0.3"
 	},
 	"devDependencies": {
 		"@antfu/utils": "catalog:runtime",

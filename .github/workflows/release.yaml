@@ -6,7 +6,50 @@ on:
       - '*'
 
 jobs:
+  build-native-packages:
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04-arm
+            platform: linux
+            arch: arm64
+          - os: ubuntu-24.04
+            platform: linux
+            arch: x64
+          - os: macos-latest
+            platform: darwin
+            arch: arm64
+          - os: macos-15-intel
+            platform: darwin
+            arch: x64
+          - os: windows-11-arm
+            platform: win32
+            arch: arm64
+          - os: windows-latest
+            platform: win32
+            arch: x64
+
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+      - run: cargo build --release --bin ccusage
+      - run: node apps/ccusage/scripts/stage-native-package.mjs --platform "${{ matrix.platform }}" --arch "${{ matrix.arch }}"
+      - name: Archive native package binary
+        shell: bash
+        run: tar -cf "ccusage-native-${{ matrix.platform }}-${{ matrix.arch }}.tar" "packages/ccusage-${{ matrix.platform }}-${{ matrix.arch }}/bin"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ccusage-native-${{ matrix.platform }}-${{ matrix.arch }}
+          path: ccusage-native-${{ matrix.platform }}-${{ matrix.arch }}.tar
+          if-no-files-found: error
+
   npm:
+    needs:
+      - build-native-packages
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 10
     permissions:
@@ -21,7 +64,17 @@ jobs:
         with:
           registry-url: 'https://registry.npmjs.org'
           node-version: lts/*
-      - run: nix develop --command pnpm --filter='./apps/**' publish --provenance --no-git-checks --access public
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: ccusage-native-*
+          path: ${{ runner.temp }}/native-packages
+          merge-multiple: true
+      - name: Restore native package binaries
+        run: |
+          for archive in "$RUNNER_TEMP"/native-packages/*.tar; do
+            tar -xf "$archive"
+          done
+      - run: nix develop --command pnpm --filter='./apps/ccusage' --filter='./packages/ccusage-*' publish --provenance --no-git-checks --access public
 
   release:
     needs:
