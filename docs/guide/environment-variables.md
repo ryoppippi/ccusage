@@ -6,18 +6,20 @@ ccusage supports several environment variables for configuration and customizati
 
 ccusage detects supported data source files from conventional locations by default. Set these variables when your data lives somewhere else. Each value can be one directory or a comma-separated list of directories:
 
-| Variable            | Agent       | Default                            |
-| ------------------- | ----------- | ---------------------------------- |
-| `CLAUDE_CONFIG_DIR` | Claude Code | `~/.config/claude` and `~/.claude` |
-| `CODEX_HOME`        | Codex       | `~/.codex`                         |
-| `OPENCODE_DATA_DIR` | OpenCode    | `~/.local/share/opencode`          |
-| `AMP_DATA_DIR`      | Amp         | `~/.local/share/amp`               |
-| `PI_AGENT_DIR`      | pi-agent    | `~/.pi/agent/sessions`             |
+| Variable             | Agent       | Default                            |
+| -------------------- | ----------- | ---------------------------------- |
+| `CLAUDE_CONFIG_DIR`  | Claude Code | `~/.config/claude` and `~/.claude` |
+| `CODEX_HOME`         | Codex       | `~/.codex`                         |
+| `CODEX_EXEC_LOG_DIR` | Codex       | unset                              |
+| `OPENCODE_DATA_DIR`  | OpenCode    | `~/.local/share/opencode`          |
+| `AMP_DATA_DIR`       | Amp         | `~/.local/share/amp`               |
+| `PI_AGENT_DIR`       | pi-agent    | `~/.pi/agent/sessions`             |
 
 Example:
 
 ```bash
 export CODEX_HOME="/path/to/codex,/archive/codex"
+export CODEX_EXEC_LOG_DIR="/path/to/codex-exec-jsonl"
 export OPENCODE_DATA_DIR="/path/to/opencode,/archive/opencode"
 export AMP_DATA_DIR="/path/to/amp,/archive/amp"
 export PI_AGENT_DIR="/path/to/pi/sessions,/archive/pi/sessions"
@@ -138,6 +140,7 @@ LOG_LEVEL=0 ccusage daily
 
 # Set for current shell session
 export CODEX_HOME="/path/to/codex,/archive/codex"
+export CODEX_EXEC_LOG_DIR="/path/to/codex-exec-jsonl"
 ccusage daily
 ```
 
@@ -149,6 +152,7 @@ Add to your shell configuration file:
 
 ```bash
 export CODEX_HOME="$HOME/.codex"
+export CODEX_EXEC_LOG_DIR="$HOME/codex-exec-jsonl"
 export LOG_LEVEL=3
 ```
 
@@ -156,6 +160,7 @@ export LOG_LEVEL=3
 
 ```zsh
 export CODEX_HOME="$HOME/.codex"
+export CODEX_EXEC_LOG_DIR="$HOME/codex-exec-jsonl"
 export LOG_LEVEL=3
 ```
 
@@ -163,6 +168,7 @@ export LOG_LEVEL=3
 
 ```fish
 set -x CODEX_HOME "$HOME/.codex"
+set -x CODEX_EXEC_LOG_DIR "$HOME/codex-exec-jsonl"
 set -x LOG_LEVEL 3
 ```
 
@@ -170,6 +176,7 @@ set -x LOG_LEVEL 3
 
 ```powershell
 $env:CODEX_HOME = "$env:USERPROFILE\.codex"
+$env:CODEX_EXEC_LOG_DIR = "$env:USERPROFILE\codex-exec-jsonl"
 $env:LOG_LEVEL = "3"
 ```
 

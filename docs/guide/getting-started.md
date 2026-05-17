@@ -152,7 +152,7 @@ If ccusage shows no data, check:
 1. **A supported coding CLI is installed and used** - ccusage reads from local usage files
 2. **Data directory exists** - Common locations:
    - Claude Code: `~/.config/claude/projects/` or `~/.claude/projects/`
-   - Codex: `${CODEX_HOME:-~/.codex}`
+   - Codex: `${CODEX_HOME:-~/.codex}` and optional `CODEX_EXEC_LOG_DIR`
    - OpenCode: `${OPENCODE_DATA_DIR:-~/.local/share/opencode}`
    - Amp: `${AMP_DATA_DIR:-~/.local/share/amp}`
    - pi-agent: `${PI_AGENT_DIR:-~/.pi/agent/sessions}`
@@ -164,6 +164,7 @@ If your agent data is in a custom location, set the matching environment variabl
 ```bash
 export CLAUDE_CONFIG_DIR="/path/to/your/claude/data"
 export CODEX_HOME="/path/to/codex"
+export CODEX_EXEC_LOG_DIR="/path/to/codex-exec-jsonl"
 export OPENCODE_DATA_DIR="/path/to/opencode"
 export AMP_DATA_DIR="/path/to/amp"
 export PI_AGENT_DIR="/path/to/pi/sessions"
@@ -173,6 +174,7 @@ Each source-specific path variable can also contain comma-separated directories:
 
 ```bash
 export CODEX_HOME="/path/to/codex,/archive/codex"
+export CODEX_EXEC_LOG_DIR="/path/to/codex-exec-jsonl,/archive/codex-exec-jsonl"
 export OPENCODE_DATA_DIR="/path/to/opencode,/archive/opencode"
 export AMP_DATA_DIR="/path/to/amp,/archive/amp"
 export PI_AGENT_DIR="/path/to/pi/sessions,/archive/pi/sessions"

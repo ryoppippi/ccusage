@@ -20,10 +20,17 @@ import {
 import { Result } from '@praha/byethrow';
 import { createFixture } from 'fs-fixture';
 import { logger } from '../../logger.ts';
-import { getCodexSessionsPaths } from './paths.ts';
+import { getCodexUsagePaths } from './paths.ts';
 
 const LEGACY_FALLBACK_MODEL = 'gpt-5';
-const CODEX_JSONL_MARKERS = ['turn_context', '"type":"token_count"', '"type": "token_count"'];
+const CODEX_JSONL_MARKERS = [
+	'turn_context',
+	'"type":"token_count"',
+	'"type": "token_count"',
+	'"usage"',
+	'"input_tokens"',
+	'"prompt_tokens"',
+];
 const ENCODED_CODEX_EVENT_NUMBER_STRIDE = 5;
 const TOKEN_USAGE_EVENT_KEY_SEPARATOR = '\0';
 
@@ -176,6 +183,84 @@ function extractModel(value: unknown): string | undefined {
 	return asNonEmptyString(metadata?.model);
 }
 
+function extractModelFromResult(value: unknown): string | undefined {
+	const payload = asRecord(value);
+	if (payload == null) {
+		return undefined;
+	}
+	return (
+		extractModel(payload) ??
+		extractModel(payload.data) ??
+		extractModel(payload.result) ??
+		extractModel(payload.response)
+	);
+}
+
+function extractUsageRecord(value: unknown): Record<string, unknown> | null {
+	const payload = asRecord(value);
+	if (payload == null) {
+		return null;
+	}
+	return (
+		asRecord(payload.usage) ??
+		asRecord(asRecord(payload.data)?.usage) ??
+		asRecord(asRecord(payload.result)?.usage) ??
+		asRecord(asRecord(payload.response)?.usage)
+	);
+}
+
+function normalizeTimestamp(value: unknown): string | undefined {
+	if (typeof value === 'string' && value.trim() !== '') {
+		const parsed = Date.parse(value);
+		return Number.isNaN(parsed) ? undefined : new Date(parsed).toISOString();
+	}
+	if (typeof value !== 'number' || !Number.isFinite(value)) {
+		return undefined;
+	}
+	const milliseconds = value > 10_000_000_000 ? value : value * 1000;
+	const date = new Date(milliseconds);
+	return Number.isNaN(date.getTime()) ? undefined : date.toISOString();
+}
+
+function extractTimestamp(value: unknown): string | undefined {
+	const payload = asRecord(value);
+	if (payload == null) {
+		return undefined;
+	}
+	return (
+		normalizeTimestamp(payload.timestamp) ??
+		normalizeTimestamp(payload.created_at) ??
+		normalizeTimestamp(payload.createdAt) ??
+		normalizeTimestamp(asRecord(payload.data)?.timestamp) ??
+		normalizeTimestamp(asRecord(payload.result)?.timestamp) ??
+		normalizeTimestamp(asRecord(payload.response)?.timestamp)
+	);
+}
+
+function normalizeHeadlessUsage(value: unknown): RawUsage | null {
+	const usage = extractUsageRecord(value);
+	if (usage == null) {
+		return null;
+	}
+	const input = ensureNumber(usage.input_tokens ?? usage.prompt_tokens ?? usage.input);
+	const cached = ensureNumber(
+		usage.cached_input_tokens ?? usage.cache_read_input_tokens ?? usage.cached_tokens,
+	);
+	const output = ensureNumber(usage.output_tokens ?? usage.completion_tokens ?? usage.output);
+	const reasoning = ensureNumber(usage.reasoning_output_tokens ?? usage.reasoning_tokens);
+	const total = ensureNumber(usage.total_tokens);
+	if (input === 0 && cached === 0 && output === 0 && reasoning === 0 && total === 0) {
+		return null;
+	}
+	return {
+		input_tokens: input,
+		cached_input_tokens: cached,
+		output_tokens: output,
+		reasoning_output_tokens: reasoning,
+		total_tokens: total > 0 ? total : calculateFallbackTotalTokens(input, output, reasoning),
+	};
+}
+
 function extractTurnContextModelFast(line: string): string | undefined {
 	if (!line.includes('"type":"turn_context"') && !line.includes('"type": "turn_context"')) {
 		return undefined;
@@ -201,6 +286,13 @@ async function parseCodexSessionFile(
 	let previousTotals: RawUsage | null = null;
 	let currentModel: string | undefined;
 	let currentModelIsFallback = false;
+	const fileStatResult = await Result.try({
+		try: stat(file),
+		catch: (error) => error,
+	});
+	const fallbackTimestamp = Result.isFailure(fileStatResult)
+		? new Date(0).toISOString()
+		: fileStatResult.value.mtime.toISOString();
 
 	const addTokenCountEvent = (parsed: ParsedTokenCountLine): void => {
 		let raw = parsed.lastUsage;
@@ -249,6 +341,35 @@ async function parseCodexSessionFile(
 		});
 	};
 
+	const addHeadlessUsageEvent = (entry: Record<string, unknown>): void => {
+		const raw = normalizeHeadlessUsage(entry);
+		if (raw == null) {
+			return;
+		}
+		const modelFromEntry = extractModelFromResult(entry);
+		if (modelFromEntry != null) {
+			currentModel = modelFromEntry;
+			currentModelIsFallback = false;
+		}
+		let isFallbackModel = false;
+		let model = modelFromEntry ?? currentModel;
+		if (model == null) {
+			model = LEGACY_FALLBACK_MODEL;
+			isFallbackModel = true;
+			currentModel = model;
+			currentModelIsFallback = true;
+		} else if (modelFromEntry == null && currentModelIsFallback) {
+			isFallbackModel = true;
+		}
+		events.push({
+			sessionId,
+			timestamp: extractTimestamp(entry) ?? fallbackTimestamp,
+			model,
+			...convertToEventUsage(raw),
+			...(isFallbackModel ? { isFallbackModel: true } : {}),
+		});
+	};
+
 	try {
 		await processJSONLFileByMarkers(
 			file,
@@ -283,6 +404,7 @@ async function parseCodexSessionFile(
 						}
 						return;
 					}
+					addHeadlessUsageEvent(entry);
 					if (entryType !== 'event_msg' || timestamp == null) {
 						return;
 					}
@@ -429,7 +551,7 @@ async function loadTokenUsageEventsFromDirectory(
 
 export async function loadTokenUsageEvents(): Promise<TokenUsageEvent[]> {
 	const directoryEvents = await Promise.all(
-		getCodexSessionsPaths().map(loadTokenUsageEventsFromDirectory),
+		getCodexUsagePaths().map(loadTokenUsageEventsFromDirectory),
 	);
 	return deduplicateTokenUsageEvents(directoryEvents.flat()).sort((a, b) =>
 		compareStrings(a.timestamp, b.timestamp),
@@ -754,6 +876,62 @@ if (import.meta.vitest != null) {
 			await expect(loadTokenUsageEvents()).resolves.toMatchObject([
 				{ sessionId: 'a', model: 'gpt-5.1', inputTokens: 10 },
 				{ sessionId: 'b', model: 'gpt-5.2', inputTokens: 20 },
+			]);
+		});
+
+		it('loads saved codex exec JSON usage from CODEX_EXEC_LOG_DIR', async () => {
+			await using fixture = await createFixture({
+				codex: {},
+				exec: {
+					'run.jsonl': [
+						JSON.stringify({
+							type: 'turn.completed',
+							timestamp: '2026-01-02T03:04:05.000Z',
+							model: 'gpt-5.2-codex',
+							usage: {
+								input_tokens: 120,
+								cached_input_tokens: 20,
+								output_tokens: 30,
+								total_tokens: 150,
+							},
+						}),
+						JSON.stringify({
+							type: 'result',
+							data: {
+								timestamp: '2026-01-02T03:05:05.000Z',
+								model_name: 'gpt-5.2-codex',
+								usage: {
+									prompt_tokens: 50,
+									cached_tokens: 5,
+									completion_tokens: 12,
+								},
+							},
+						}),
+					].join('\n'),
+				},
+			});
+			vi.stubEnv('CODEX_HOME', fixture.getPath('codex'));
+			vi.stubEnv('CODEX_EXEC_LOG_DIR', fixture.getPath('exec'));
+
+			await expect(loadTokenUsageEvents()).resolves.toMatchObject([
+				{
+					sessionId: 'run',
+					timestamp: '2026-01-02T03:04:05.000Z',
+					model: 'gpt-5.2-codex',
+					inputTokens: 120,
+					cachedInputTokens: 20,
+					outputTokens: 30,
+					totalTokens: 150,
+				},
+				{
+					sessionId: 'run',
+					timestamp: '2026-01-02T03:05:05.000Z',
+					model: 'gpt-5.2-codex',
+					inputTokens: 50,
+					cachedInputTokens: 5,
+					outputTokens: 12,
+					totalTokens: 62,
+				},
 			]);
 		});
 
