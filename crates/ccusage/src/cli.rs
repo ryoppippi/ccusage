@@ -202,6 +202,7 @@ impl Cli {
         I: IntoIterator<Item = OsString>,
     {
         let mut parser = ArgParser::new(args.into_iter().skip(1).collect())?;
+        normalize_legacy_agent_command_args(&mut parser.args);
         if parser.peek_help_or_version() {
             parser.print_help_or_version();
         }
@@ -673,6 +674,32 @@ fn is_command(arg: &str) -> bool {
     )
 }
 
+fn normalize_legacy_agent_command_args(args: &mut Vec<String>) {
+    let Some(command) = args.first() else {
+        return;
+    };
+    let Some((agent, report)) = command.split_once(':') else {
+        return;
+    };
+    if !legacy_agent_report_supported(agent, report) {
+        return;
+    }
+    args.splice(0..1, [agent.to_string(), report.to_string()]);
+}
+
+fn legacy_agent_report_supported(agent: &str, report: &str) -> bool {
+    match agent {
+        "claude" => matches!(
+            report,
+            "daily" | "weekly" | "monthly" | "session" | "blocks" | "statusline"
+        ),
+        "codex" => matches!(report, "daily" | "monthly" | "session"),
+        "opencode" => matches!(report, "daily" | "weekly" | "monthly" | "session"),
+        "amp" | "pi" => matches!(report, "daily" | "monthly" | "session"),
+        _ => false,
+    }
+}
+
 fn is_shared_flag(arg: &str) -> bool {
     matches!(
         arg.split_once('=').map_or(arg, |(name, _)| name),
@@ -1030,6 +1057,16 @@ mod tests {
             panic!("expected codex command");
         };
         assert_eq!(args.codex_speed, CodexSpeed::Fast);
+    }
+
+    #[test]
+    fn parses_legacy_colon_agent_commands() {
+        let cli = parse(&["ccusage", "codex:monthly", "--json"]);
+        let Some(Command::Codex(args)) = cli.command else {
+            panic!("expected codex command");
+        };
+        assert_eq!(args.kind, AgentReportKind::Monthly);
+        assert!(args.shared.json);
     }
 
     #[test]
