@@ -125,13 +125,10 @@ async function collectOpenCodeMessagesWithWorkers(
 	});
 }
 
-function loadOpenCodeMessagesFromDb(openCodePath: string): {
-	entries: OpenCodeUsageEntry[];
-	seenIds: Set<string>;
-} {
+function loadOpenCodeMessagesFromDb(openCodePath: string): OpenCodeMessageResult[] {
 	const dbPath = getOpenCodeDbPath(openCodePath);
 	if (dbPath == null || getSqliteDatabaseFactory() == null) {
-		return { entries: [], seenIds: new Set() };
+		return [];
 	}
 
 	const result = Result.try({
@@ -141,8 +138,7 @@ function loadOpenCodeMessagesFromDb(openCodePath: string): {
 				{ readOnly: true },
 				(db) => {
 					const rows = db.prepare('SELECT id, session_id, data FROM message').all();
-					const entries: OpenCodeUsageEntry[] = [];
-					const seenIds = new Set<string>();
+					const records: OpenCodeMessageResult[] = [];
 					for (const rawRow of rows) {
 						const rowResult = v.safeParse(openCodeDbMessageRowSchema, rawRow);
 						if (!rowResult.success) {
@@ -163,10 +159,9 @@ function loadOpenCodeMessagesFromDb(openCodePath: string): {
 							continue;
 						}
 
-						seenIds.add(result.id);
-						entries.push(result.entry);
+						records.push(result);
 					}
-					return { entries, seenIds };
+					return records;
 				},
 				logger.warn,
 			),
@@ -174,9 +169,9 @@ function loadOpenCodeMessagesFromDb(openCodePath: string): {
 	})();
 	if (Result.isFailure(result)) {
 		logger.warn('Failed to load OpenCode messages from DB:', result.error);
-		return { entries: [], seenIds: new Set() };
+		return [];
 	}
-	return result.value ?? { entries: [], seenIds: new Set() };
+	return result.value ?? [];
 }
 
 export async function loadOpenCodeMessages(): Promise<OpenCodeUsageEntry[]> {
@@ -189,10 +184,13 @@ export async function loadOpenCodeMessages(): Promise<OpenCodeUsageEntry[]> {
 	const seenIds = new Set<string>();
 	for (const openCodePath of openCodePaths) {
 		const dbMessages = loadOpenCodeMessagesFromDb(openCodePath);
-		for (const id of dbMessages.seenIds) {
-			seenIds.add(id);
+		for (const result of dbMessages) {
+			if (seenIds.has(result.id)) {
+				continue;
+			}
+			seenIds.add(result.id);
+			entries.push(result.entry);
 		}
-		entries.push(...dbMessages.entries);
 
 		const files = await discoverOpenCodeMessageFiles(openCodePath);
 		const messageResults =
@@ -317,6 +315,45 @@ if (import.meta.vitest != null) {
 				{ sessionID: 'session-b', usage: { inputTokens: 20 } },
 			]);
 		});
+
+		it.skipIf(getSqliteDatabaseFactory() == null)(
+			'deduplicates OpenCode DB messages across comma-separated OPENCODE_DATA_DIR entries',
+			async () => {
+				const createDbMessage = (fixturePath: string, input: number): void => {
+					withSqliteDatabase(
+						fixturePath,
+						{ readOnly: false },
+						(db) => {
+							db.exec('CREATE TABLE message (id TEXT, session_id TEXT, data TEXT)');
+							db.prepare('INSERT INTO message (id, session_id, data) VALUES (?, ?, ?)').run(
+								'msg-1',
+								'session-a',
+								JSON.stringify({
+									providerID: 'openai',
+									modelID: 'gpt-5',
+									time: { created: Date.UTC(2026, 4, 1, 1, 2, 3) },
+									tokens: {
+										input,
+										output: 1,
+									},
+								}),
+							);
+						},
+						logger.warn,
+					);
+				};
+				await using fixture1 = await createFixture({});
+				await using fixture2 = await createFixture({});
+				createDbMessage(fixture1.getPath('opencode.db'), 10);
+				createDbMessage(fixture2.getPath('opencode.db'), 20);
+				vi.stubEnv('OPENCODE_DATA_DIR', `${fixture1.path},${fixture2.path}`);
+
+				await expect(loadOpenCodeMessages()).resolves.toMatchObject([
+					{ sessionID: 'session-a', usage: { inputTokens: 10 } },
+				]);
+				await expect(loadOpenCodeMessages()).resolves.toHaveLength(1);
+			},
+		);
 
 		it('loads billable OpenCode messages without cache token fields', async () => {
 			await using fixture = await createFixture({
