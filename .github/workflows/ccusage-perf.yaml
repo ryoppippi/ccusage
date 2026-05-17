@@ -59,6 +59,9 @@ jobs:
             --large-runs 1 \
             --output "$RUNNER_TEMP/ccusage-perf-comment.md"
 
+      - name: Write job summary
+        run: cat "$RUNNER_TEMP/ccusage-perf-comment.md" >> "$GITHUB_STEP_SUMMARY"
+
       - name: Upsert PR comment
         env:
           COMMENT_FILE: ${{ runner.temp }}/ccusage-perf-comment.md
