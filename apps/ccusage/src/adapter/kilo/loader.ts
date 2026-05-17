@@ -77,6 +77,7 @@ function parseKiloMessageRecord(
 	value: unknown,
 	rowId: string,
 	rowSessionId: string,
+	dedupePrefix: string,
 ): KiloMessageResult | null {
 	const parsed = v.safeParse(kiloMessageSchema, value);
 	if (!parsed.success || !shouldLoadKiloMessage(parsed.output)) {
@@ -87,7 +88,7 @@ function parseKiloMessageRecord(
 		return null;
 	}
 	return {
-		id: parsed.output.id ?? rowId,
+		id: parsed.output.id ?? `${dedupePrefix}:${rowId}`,
 		entry,
 	};
 }
@@ -121,6 +122,7 @@ function loadKiloMessagesFromDb(kiloPath: string): KiloMessageResult[] {
 							data,
 							rowResult.output.id,
 							rowResult.output.session_id,
+							dbPath,
 						);
 						if (result == null) {
 							continue;
@@ -266,6 +268,7 @@ if (import.meta.vitest != null) {
 								'msg-1',
 								'session-a',
 								JSON.stringify({
+									id: 'embedded-msg-1',
 									role: 'assistant',
 									providerID: 'openai',
 									modelID: 'gpt-5',
@@ -291,6 +294,48 @@ if (import.meta.vitest != null) {
 					{ sessionID: 'session-a', usage: { inputTokens: 10 } },
 				]);
 				await expect(loadKiloMessages()).resolves.toHaveLength(1);
+			},
+		);
+
+		it.skipIf(getSqliteDatabaseFactory() == null)(
+			'does not deduplicate fallback row ids from separate Kilo DB files',
+			async () => {
+				const createDbMessage = (fixturePath: string, sessionId: string, input: number): void => {
+					withSqliteDatabase(
+						fixturePath,
+						{ readOnly: false },
+						(db) => {
+							db.exec('CREATE TABLE message (id TEXT, session_id TEXT, data TEXT)');
+							db.prepare('INSERT INTO message (id, session_id, data) VALUES (?, ?, ?)').run(
+								'row-1',
+								sessionId,
+								JSON.stringify({
+									role: 'assistant',
+									providerID: 'openai',
+									modelID: 'gpt-5',
+									time: { created: Date.UTC(2026, 4, 1, 1, 2, 3) },
+									tokens: {
+										input,
+										output: 1,
+										cache: { read: 0, write: 0 },
+									},
+								}),
+							);
+						},
+						logger.warn,
+					);
+				};
+				await using fixture1 = await createFixture({});
+				await using fixture2 = await createFixture({});
+				createDbMessage(fixture1.getPath('kilo.db'), 'session-a', 10);
+				createDbMessage(fixture2.getPath('kilo.db'), 'session-b', 20);
+				vi.stubEnv('KILO_DATA_DIR', `${fixture1.path},${fixture2.path}`);
+
+				await expect(loadKiloMessages()).resolves.toMatchObject([
+					{ sessionID: 'session-a', usage: { inputTokens: 10 } },
+					{ sessionID: 'session-b', usage: { inputTokens: 20 } },
+				]);
+				await expect(loadKiloMessages()).resolves.toHaveLength(2);
 			},
 		);
 	});

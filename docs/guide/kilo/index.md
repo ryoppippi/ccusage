@@ -24,7 +24,7 @@ KILO_DATA_DIR="$HOME/.local/share/kilo,/backup/kilo" ccusage kilo daily
 
 <!-- eslint-skip -->
 
-```
+```text
 ~/.local/share/kilo/
 └── kilo.db
 ```
