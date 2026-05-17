@@ -4,7 +4,7 @@ use serde_json::{json, Value};
 
 use crate::{
     adapter::{amp, codex, opencode, pi},
-    cli::{AgentCommandArgs, AgentReportKind, SharedArgs, SortOrder, WeekDay},
+    cli::{AgentCommandArgs, AgentReportKind, CodexSpeed, SharedArgs, SortOrder, WeekDay},
     color, filter_loaded_entries_by_date, format_currency, format_models_multiline, format_number,
     json_float, print_box_title, print_json_or_jq, summarize_by_key, summarize_summaries_by_bucket,
     wants_json, Align, BucketKind, CodexGroup, Color, LoadedEntry, PricingMap, Result, SimpleTable,
@@ -75,9 +75,10 @@ fn load_codex_rows(
     let mut events = crate::load_codex_events(shared)?;
     codex::filter_events_by_date(&mut events, shared)?;
     let groups = codex::aggregate_events(&events, kind, shared.timezone.as_deref())?;
+    let speed = codex::resolve_codex_speed(CodexSpeed::Auto);
     Ok(groups
         .iter()
-        .map(|(period, group)| codex_group_row(period, group, &pricing))
+        .map(|(period, group)| codex_group_row(period, group, &pricing, speed))
         .collect())
 }
 
@@ -172,7 +173,12 @@ fn summary_rows(agent: &'static str, summaries: Vec<UsageSummary>) -> Vec<AllRow
         .collect()
 }
 
-fn codex_group_row(period: &str, group: &CodexGroup, pricing: &PricingMap) -> AllRow {
+fn codex_group_row(
+    period: &str,
+    group: &CodexGroup,
+    pricing: &PricingMap,
+    speed: CodexSpeed,
+) -> AllRow {
     AllRow {
         period: period.to_string(),
         agent: "codex",
@@ -182,7 +188,7 @@ fn codex_group_row(period: &str, group: &CodexGroup, pricing: &PricingMap) -> Al
         cache_creation_tokens: 0,
         cache_read_tokens: group.cached_input_tokens,
         total_tokens: group.total_tokens,
-        total_cost: codex::calculate_group_cost(group, pricing),
+        total_cost: codex::calculate_group_cost(group, pricing, speed),
         metadata_agents: Some(vec!["codex"]),
     }
 }

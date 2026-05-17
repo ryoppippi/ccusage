@@ -102,6 +102,7 @@ pub(crate) struct AgentCommandArgs {
     pub(crate) shared: SharedArgs,
     pub(crate) kind: AgentReportKind,
     pub(crate) pi_path: Option<String>,
+    pub(crate) codex_speed: CodexSpeed,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -110,6 +111,14 @@ pub(crate) enum AgentReportKind {
     Weekly,
     Monthly,
     Session,
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub(crate) enum CodexSpeed {
+    #[default]
+    Auto,
+    Standard,
+    Fast,
 }
 
 impl Default for StatuslineArgs {
@@ -318,6 +327,7 @@ fn parse_all_command(
         shared,
         kind,
         pi_path: None,
+        codex_speed: CodexSpeed::Auto,
     }))
 }
 
@@ -437,13 +447,21 @@ fn parse_codex_command(parser: &mut ArgParser, mut shared: SharedArgs) -> Result
         }
         _ => AgentReportKind::Daily,
     };
+    let mut codex_speed = CodexSpeed::Auto;
     while parser.peek().is_some() {
-        parse_shared_arg(parser, &mut shared)?;
+        if parse_shared_arg_for_command(parser, &mut shared)? {
+            continue;
+        }
+        match parser.next_flag()?.as_str() {
+            "--speed" => codex_speed = parse_codex_speed(&parser.value_for("--speed")?)?,
+            flag => return Err(format!("Unknown codex option '{flag}'")),
+        }
     }
     Ok(Command::Codex(AgentCommandArgs {
         shared,
         kind,
         pi_path: None,
+        codex_speed,
     }))
 }
 
@@ -480,6 +498,7 @@ fn parse_opencode_command(
         shared,
         kind,
         pi_path: None,
+        codex_speed: CodexSpeed::Auto,
     }))
 }
 
@@ -509,6 +528,7 @@ fn parse_amp_command(parser: &mut ArgParser, mut shared: SharedArgs) -> Result<C
         shared,
         kind,
         pi_path: None,
+        codex_speed: CodexSpeed::Auto,
     }))
 }
 
@@ -545,6 +565,7 @@ fn parse_pi_command(parser: &mut ArgParser, mut shared: SharedArgs) -> Result<Co
         shared,
         kind,
         pi_path,
+        codex_speed: CodexSpeed::Auto,
     }))
 }
 
@@ -670,6 +691,15 @@ fn parse_week_day(value: &str) -> Result<WeekDay, String> {
     }
 }
 
+fn parse_codex_speed(value: &str) -> Result<CodexSpeed, String> {
+    match value {
+        "auto" => Ok(CodexSpeed::Auto),
+        "standard" => Ok(CodexSpeed::Standard),
+        "fast" => Ok(CodexSpeed::Fast),
+        _ => Err(format!("Invalid speed option '{value}'")),
+    }
+}
+
 fn parse_visual_burn_rate(value: &str) -> Result<VisualBurnRate, String> {
     match value {
         "off" => Ok(VisualBurnRate::Off),
@@ -774,7 +804,7 @@ fn print_help_or_version_arg(arg: &str) -> ! {
 }
 
 fn help_text() -> &'static str {
-    "Usage: ccusage [OPTIONS] [COMMAND]\n\nCommands:\n  daily\n  monthly\n  weekly\n  session\n  blocks\n  statusline\n  claude\n  codex\n  opencode\n\nOptions:\n  -s, --since <YYYYMMDD>\n  -u, --until <YYYYMMDD>\n  -j, --json\n  -m, --mode <auto|calculate|display>\n  -d, --debug\n      --debug-samples <N>\n  -o, --order <asc|desc>\n  -b, --breakdown\n  -O, --offline\n      --no-offline\n      --color\n      --no-color\n  -z, --timezone <TZ>\n  -q, --jq <QUERY>\n      --config <PATH>\n      --compact\n      --single-thread\n  -h, --help\n  -V, --version"
+    "Usage: ccusage [OPTIONS] [COMMAND]\n\nCommands:\n  daily\n  monthly\n  weekly\n  session\n  blocks\n  statusline\n  claude\n  codex\n  opencode\n  amp\n  pi\n\nOptions:\n  -s, --since <YYYYMMDD>\n  -u, --until <YYYYMMDD>\n  -j, --json\n  -m, --mode <auto|calculate|display>\n  -d, --debug\n      --debug-samples <N>\n  -o, --order <asc|desc>\n  -b, --breakdown\n  -O, --offline\n      --no-offline\n      --color\n      --no-color\n  -z, --timezone <TZ>\n  -q, --jq <QUERY>\n      --config <PATH>\n      --compact\n      --single-thread\n  -h, --help\n  -V, --version"
 }
 
 #[cfg(test)]
@@ -802,6 +832,8 @@ mod tests {
         assert!(help.contains("\n  claude\n"));
         assert!(help.contains("\n  codex\n"));
         assert!(help.contains("\n  opencode\n"));
+        assert!(help.contains("\n  amp\n"));
+        assert!(help.contains("\n  pi\n"));
     }
 
     #[test]
@@ -883,6 +915,15 @@ mod tests {
         assert_eq!(args.kind, AgentReportKind::Daily);
         assert!(args.shared.json);
         assert_eq!(args.shared.since.as_deref(), Some("20260102"));
+    }
+
+    #[test]
+    fn parses_codex_speed_option() {
+        let cli = parse(&["ccusage", "codex", "daily", "--speed", "fast"]);
+        let Some(Command::Codex(args)) = cli.command else {
+            panic!("expected codex command");
+        };
+        assert_eq!(args.codex_speed, CodexSpeed::Fast);
     }
 
     #[test]

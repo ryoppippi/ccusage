@@ -107,6 +107,7 @@ fn main() -> Result<()> {
                 shared: cli.shared,
                 kind: AgentReportKind::Daily,
                 pi_path: None,
+                codex_speed: cli::CodexSpeed::Auto,
             };
             adapter::all::run(args)
         }
@@ -3096,8 +3097,14 @@ mod tests {
             is_fallback_model: false,
         }];
 
-        let report =
-            adapter::codex::report_json(&events, AgentReportKind::Daily, None, &pricing).unwrap();
+        let report = adapter::codex::report_json(
+            &events,
+            AgentReportKind::Daily,
+            None,
+            &pricing,
+            cli::CodexSpeed::Standard,
+        )
+        .unwrap();
 
         assert_eq!(report["daily"][0]["date"], "2026-01-02");
         assert_eq!(report["daily"][0]["inputTokens"], 100);
@@ -3124,10 +3131,62 @@ mod tests {
             is_fallback_model: false,
         }];
 
-        let report =
-            adapter::codex::report_json(&events, AgentReportKind::Daily, None, &pricing).unwrap();
+        let report = adapter::codex::report_json(
+            &events,
+            AgentReportKind::Daily,
+            None,
+            &pricing,
+            cli::CodexSpeed::Standard,
+        )
+        .unwrap();
 
         assert_eq!(report["daily"][0]["costUSD"], json!(0.00031675));
+    }
+
+    #[test]
+    fn applies_codex_fast_speed_multiplier_to_costs() {
+        let mut pricing = PricingMap::default();
+        pricing.load_json(
+            r#"{
+                "gpt-test": {
+                    "input_cost_per_token": 0.000001,
+                    "output_cost_per_token": 0.000002,
+                    "cache_read_input_token_cost": 0.0000005,
+                    "provider_specific_entry": { "fast": 2 }
+                }
+            }"#,
+        );
+        let events = vec![CodexTokenUsageEvent {
+            session_id: "codex-session".to_string(),
+            timestamp: "2026-01-02T00:00:01.000Z".to_string(),
+            model: Some("gpt-test".to_string()),
+            input_tokens: 10,
+            cached_input_tokens: 2,
+            output_tokens: 5,
+            reasoning_output_tokens: 0,
+            total_tokens: 15,
+            is_fallback_model: false,
+        }];
+
+        let standard = adapter::codex::report_json(
+            &events,
+            AgentReportKind::Daily,
+            None,
+            &pricing,
+            cli::CodexSpeed::Standard,
+        )
+        .unwrap();
+        let fast = adapter::codex::report_json(
+            &events,
+            AgentReportKind::Daily,
+            None,
+            &pricing,
+            cli::CodexSpeed::Fast,
+        )
+        .unwrap();
+
+        assert_eq!(standard["daily"][0]["costUSD"], json!(0.000019));
+        assert_eq!(fast["daily"][0]["costUSD"], json!(0.000038));
     }
 
     #[test]

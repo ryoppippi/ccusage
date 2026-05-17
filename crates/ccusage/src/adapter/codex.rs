@@ -1,5 +1,6 @@
 use std::{
     collections::{hash_map::DefaultHasher, BTreeMap, HashSet},
+    env, fs,
     hash::{Hash, Hasher},
     path::{Path, PathBuf},
     sync::Mutex,
@@ -10,7 +11,7 @@ use jiff::tz::TimeZone as JiffTimeZone;
 use serde_json::{json, Value};
 
 use crate::{
-    cli::{AgentCommandArgs, AgentReportKind, SharedArgs, WeekDay},
+    cli::{AgentCommandArgs, AgentReportKind, CodexSpeed, SharedArgs, WeekDay},
     color, format_currency, format_date_tz, format_number, json_float, json_value_u64, log_level,
     parse_ts_timestamp, parse_tz, print_json_or_jq, wants_json, week_start, Align, CodexGroup,
     CodexModelUsage, CodexTokenUsageEvent, Color, PricingMap, Result, SimpleTable,
@@ -23,7 +24,8 @@ pub(crate) fn run(args: AgentCommandArgs) -> Result<()> {
     let shared = args.shared;
     let pricing = PricingMap::load(shared.offline, log_level() != Some(0));
     let groups = load_groups(&shared, args.kind)?;
-    let output = report_from_groups(&groups, args.kind, &pricing);
+    let speed = resolve_codex_speed(args.codex_speed);
+    let output = report_from_groups(&groups, args.kind, &pricing, speed);
     if wants_json(&shared) {
         return print_json_or_jq(output, shared.jq.as_deref());
     }
@@ -37,24 +39,69 @@ pub(crate) fn report_json(
     kind: AgentReportKind,
     timezone: Option<&str>,
     pricing: &PricingMap,
+    speed: CodexSpeed,
 ) -> Result<Value> {
     let groups = aggregate_events(events, kind, timezone)?;
-    Ok(report_from_groups(&groups, kind, pricing))
+    Ok(report_from_groups(&groups, kind, pricing, speed))
 }
 
 fn report_from_groups(
     groups: &BTreeMap<String, CodexGroup>,
     kind: AgentReportKind,
     pricing: &PricingMap,
+    speed: CodexSpeed,
 ) -> Value {
     let rows = groups
         .iter()
-        .map(|(period, group)| group_json(period, group, kind, pricing))
+        .map(|(period, group)| group_json(period, group, kind, pricing, speed))
         .collect::<Vec<_>>();
-    let totals = totals_json(groups.values(), pricing);
+    let totals = totals_json(groups.values(), pricing, speed);
     json!({
         rows_key(kind): rows,
         "totals": totals,
+    })
+}
+
+pub(crate) fn resolve_codex_speed(requested: CodexSpeed) -> CodexSpeed {
+    match requested {
+        CodexSpeed::Auto => {
+            if detect_codex_fast_service_tier() {
+                CodexSpeed::Fast
+            } else {
+                CodexSpeed::Standard
+            }
+        }
+        speed => speed,
+    }
+}
+
+fn detect_codex_fast_service_tier() -> bool {
+    codex_home_paths().iter().any(|path| {
+        fs::read_to_string(path.join("config.toml"))
+            .ok()
+            .is_some_and(|content| codex_config_requests_fast_service_tier(&content))
+    })
+}
+
+fn codex_home_paths() -> Vec<PathBuf> {
+    if let Ok(paths) = env::var("CODEX_HOME") {
+        return paths
+            .split(',')
+            .map(str::trim)
+            .filter(|path| !path.is_empty())
+            .map(PathBuf::from)
+            .collect();
+    }
+    env::var("HOME")
+        .map(|home| vec![PathBuf::from(home).join(".codex")])
+        .unwrap_or_default()
+}
+
+fn codex_config_requests_fast_service_tier(content: &str) -> bool {
+    content.lines().any(|line| {
+        let setting = line.split('#').next().unwrap_or_default().trim();
+        setting.starts_with("service_tier")
+            && (setting.contains("fast") || setting.contains("priority"))
     })
 }
 
@@ -325,11 +372,15 @@ pub(crate) fn aggregate_events(
     Ok(groups)
 }
 
-pub(crate) fn calculate_group_cost(group: &CodexGroup, pricing: &PricingMap) -> f64 {
+pub(crate) fn calculate_group_cost(
+    group: &CodexGroup,
+    pricing: &PricingMap,
+    speed: CodexSpeed,
+) -> f64 {
     group
         .models
         .iter()
-        .map(|(model, usage)| calculate_model_cost(model, usage, pricing))
+        .map(|(model, usage)| calculate_model_cost(model, usage, pricing, speed))
         .sum()
 }
 
@@ -380,8 +431,9 @@ fn group_json(
     group: &CodexGroup,
     kind: AgentReportKind,
     pricing: &PricingMap,
+    speed: CodexSpeed,
 ) -> Value {
-    let cost = calculate_group_cost(group, pricing);
+    let cost = calculate_group_cost(group, pricing, speed);
     let mut row = json!({
         period_key(kind): period,
         "inputTokens": group.input_tokens,
@@ -401,7 +453,11 @@ fn group_json(
     row
 }
 
-fn totals_json<'a>(groups: impl Iterator<Item = &'a CodexGroup>, pricing: &PricingMap) -> Value {
+fn totals_json<'a>(
+    groups: impl Iterator<Item = &'a CodexGroup>,
+    pricing: &PricingMap,
+    speed: CodexSpeed,
+) -> Value {
     let mut input = 0;
     let mut cached = 0;
     let mut output = 0;
@@ -414,7 +470,7 @@ fn totals_json<'a>(groups: impl Iterator<Item = &'a CodexGroup>, pricing: &Prici
         output += group.output_tokens;
         reasoning += group.reasoning_output_tokens;
         total += group.total_tokens;
-        cost += calculate_group_cost(group, pricing);
+        cost += calculate_group_cost(group, pricing, speed);
     }
     json!({
         "inputTokens": input,
@@ -426,14 +482,25 @@ fn totals_json<'a>(groups: impl Iterator<Item = &'a CodexGroup>, pricing: &Prici
     })
 }
 
-fn calculate_model_cost(model: &str, usage: &CodexModelUsage, pricing: &PricingMap) -> f64 {
+fn calculate_model_cost(
+    model: &str,
+    usage: &CodexModelUsage,
+    pricing: &PricingMap,
+    speed: CodexSpeed,
+) -> f64 {
     let Some(pricing) = pricing.find(model) else {
         return 0.0;
     };
     let non_cached_input = usage.input_tokens.saturating_sub(usage.cached_input_tokens);
-    non_cached_input as f64 * pricing.input
+    let multiplier = if matches!(speed, CodexSpeed::Fast) {
+        pricing.fast_multiplier
+    } else {
+        1.0
+    };
+    (non_cached_input as f64 * pricing.input
         + usage.cached_input_tokens as f64 * pricing.cache_read
-        + usage.output_tokens as f64 * pricing.output
+        + usage.output_tokens as f64 * pricing.output)
+        * multiplier
 }
 
 fn print_table(output: &Value, kind: AgentReportKind, shared: &SharedArgs) {
