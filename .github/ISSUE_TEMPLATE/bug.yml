@@ -1,0 +1,44 @@
+name: Bug Report
+description: Report something that is broken
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Before you start:** Read [CONTRIBUTING.md](https://github.com/ryoppippi/ccusage/blob/main/CONTRIBUTING.md).
+
+        Issues from new contributors are auto-closed by default. Maintainers review auto-closed issues and reopen worthwhile ones.
+
+        Keep this short, concrete, and written in your own voice.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: Be specific. Include error messages if any.
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: Minimal steps to trigger the bug.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: false
+
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: e.g. 18.0.11
+    validations:
+      required: false
