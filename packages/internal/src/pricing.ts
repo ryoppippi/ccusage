@@ -204,12 +204,12 @@ export class LiteLLMPricingFetcher implements Disposable {
 						continue;
 					}
 
-					const parsed = Result.parse(liteLLMModelPricingSchema, modelData);
-					if (Result.isFailure(parsed)) {
+					const parsed = v.safeParse(liteLLMModelPricingSchema, modelData);
+					if (!parsed.success) {
 						continue;
 					}
 
-					pricing.set(modelName, parsed.value);
+					pricing.set(modelName, parsed.output);
 				}
 				return pricing;
 			}),

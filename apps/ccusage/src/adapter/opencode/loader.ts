@@ -15,6 +15,7 @@ import {
 } from '@ccusage/internal/workers';
 import { Result } from '@praha/byethrow';
 import { createFixture } from 'fs-fixture';
+import * as v from 'valibot';
 import { logger } from '../../logger.ts';
 import { discoverOpenCodeMessageFiles, getOpenCodeDbPath, getOpenCodePaths } from './paths.ts';
 import { openCodeDbMessageRowSchema, openCodeMessageSchema } from './schema.ts';
@@ -75,13 +76,13 @@ function convertOpenCodeMessageToUsageEntry(message: OpenCodeMessage): OpenCodeU
 }
 
 function parseOpenCodeMessageRecord(value: unknown): OpenCodeMessageResult | null {
-	const parsed = Result.parse(openCodeMessageSchema, value);
-	if (Result.isFailure(parsed) || !shouldLoadOpenCodeMessage(parsed.value)) {
+	const parsed = v.safeParse(openCodeMessageSchema, value);
+	if (!parsed.success || !shouldLoadOpenCodeMessage(parsed.output)) {
 		return null;
 	}
 	return {
-		id: parsed.value.id,
-		entry: convertOpenCodeMessageToUsageEntry(parsed.value),
+		id: parsed.output.id,
+		entry: convertOpenCodeMessageToUsageEntry(parsed.output),
 	};
 }
 
@@ -141,20 +142,20 @@ function loadOpenCodeMessagesFromDb(openCodePath: string): OpenCodeMessageResult
 					const rows = db.prepare('SELECT id, session_id, data FROM message').all();
 					const records: OpenCodeMessageResult[] = [];
 					for (const rawRow of rows) {
-						const rowResult = Result.parse(openCodeDbMessageRowSchema, rawRow);
-						if (Result.isFailure(rowResult)) {
+						const rowResult = v.safeParse(openCodeDbMessageRowSchema, rawRow);
+						if (!rowResult.success) {
 							continue;
 						}
 
-						const data = parseJsonObject(rowResult.value.data);
+						const data = parseJsonObject(rowResult.output.data);
 						if (data == null) {
 							continue;
 						}
 
 						const result = parseOpenCodeMessageRecord({
 							...data,
-							id: rowResult.value.id,
-							sessionID: rowResult.value.session_id,
+							id: rowResult.output.id,
+							sessionID: rowResult.output.session_id,
 						});
 						if (result == null) {
 							continue;

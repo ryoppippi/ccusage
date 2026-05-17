@@ -12,6 +12,7 @@ import {
 } from '@ccusage/internal/workers';
 import { Result } from '@praha/byethrow';
 import { createFixture } from 'fs-fixture';
+import * as v from 'valibot';
 import { getPiAgentPaths } from './paths.ts';
 import {
 	extractPiAgentProject,
@@ -67,18 +68,18 @@ async function parsePiAgentFile(file: string): Promise<PiUsageEntry[]> {
 					return;
 				}
 
-				const messageResult = Result.parse(piAgentMessageSchema, parseResult.value);
-				if (Result.isFailure(messageResult)) {
+				const messageResult = v.safeParse(piAgentMessageSchema, parseResult.value);
+				if (!messageResult.success) {
 					return;
 				}
 
-				const usage = transformPiAgentUsage(messageResult.value);
+				const usage = transformPiAgentUsage(messageResult.output);
 				if (usage == null) {
 					return;
 				}
 
 				entries.push({
-					timestamp: messageResult.value.timestamp,
+					timestamp: messageResult.output.timestamp,
 					project,
 					sessionId,
 					...usage,

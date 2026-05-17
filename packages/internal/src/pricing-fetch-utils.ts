@@ -1,5 +1,5 @@
 import type { LiteLLMModelPricing } from './pricing.ts';
-import { Result } from '@praha/byethrow';
+import * as v from 'valibot';
 import { LITELLM_PRICING_URL, liteLLMModelPricingSchema } from './pricing.ts';
 
 export type PricingDataset = Record<string, LiteLLMModelPricing>;
@@ -22,12 +22,12 @@ export async function fetchLiteLLMPricingDataset(): Promise<PricingDataset> {
 			continue;
 		}
 
-		const parsed = Result.parse(liteLLMModelPricingSchema, modelData);
-		if (Result.isFailure(parsed)) {
+		const parsed = v.safeParse(liteLLMModelPricingSchema, modelData);
+		if (!parsed.success) {
 			continue;
 		}
 
-		dataset[modelName] = parsed.value;
+		dataset[modelName] = parsed.output;
 	}
 
 	return dataset;

@@ -12,6 +12,7 @@ import {
 } from '@ccusage/internal/workers';
 import { Result } from '@praha/byethrow';
 import { createFixture } from 'fs-fixture';
+import * as v from 'valibot';
 import { discoverAmpThreadFiles } from './paths.ts';
 import { ampThreadSchema } from './schema.ts';
 
@@ -64,13 +65,13 @@ async function loadAmpThreadEvents(filePath: string): Promise<AmpUsageEvent[]> {
 		return [];
 	}
 
-	const threadResult = Result.parse(ampThreadSchema, parseResult.value);
-	if (Result.isFailure(threadResult)) {
+	const threadResult = v.safeParse(ampThreadSchema, parseResult.value);
+	if (!threadResult.success) {
 		return [];
 	}
 
-	return (threadResult.value.usageLedger?.events ?? []).map((event) =>
-		toAmpUsageEvent(threadResult.value, event),
+	return (threadResult.output.usageLedger?.events ?? []).map((event) =>
+		toAmpUsageEvent(threadResult.output, event),
 	);
 }
 
