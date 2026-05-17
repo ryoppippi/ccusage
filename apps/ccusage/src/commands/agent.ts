@@ -337,6 +337,7 @@ function renderStandardTable(
 				outputTokens: row.outputTokens,
 				cacheCreationTokens: row.cacheCreationTokens,
 				cacheReadTokens: row.cacheReadTokens,
+				totalTokens: row.totalTokens,
 				totalCost: row.totalCost,
 				modelsUsed: row.modelsUsed,
 			}),

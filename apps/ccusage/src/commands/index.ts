@@ -106,6 +106,17 @@ const piSessionCommand = createAgentCommand(
 	'session',
 	'Show pi-agent usage grouped by session',
 );
+const kimiDailyCommand = createAgentCommand('kimi', 'daily', 'Show Kimi usage grouped by day');
+const kimiMonthlyCommand = createAgentCommand(
+	'kimi',
+	'monthly',
+	'Show Kimi usage grouped by month',
+);
+const kimiSessionCommand = createAgentCommand(
+	'kimi',
+	'session',
+	'Show Kimi usage grouped by session',
+);
 
 /**
  * Command entries as tuple array
@@ -136,6 +147,9 @@ export const subCommandUnion = [
 	['pi:daily', withCcusageConfig(piDailyCommand, 'pi daily')],
 	['pi:monthly', withCcusageConfig(piMonthlyCommand, 'pi monthly')],
 	['pi:session', withCcusageConfig(piSessionCommand, 'pi session')],
+	['kimi:daily', withCcusageConfig(kimiDailyCommand, 'kimi daily')],
+	['kimi:monthly', withCcusageConfig(kimiMonthlyCommand, 'kimi monthly')],
+	['kimi:session', withCcusageConfig(kimiSessionCommand, 'kimi session')],
 ] as const;
 
 /**
@@ -156,7 +170,7 @@ for (const [name, command] of subCommandUnion) {
  */
 const mainCommand = allDailyCommand;
 
-const agentCommands = new Set(['claude', 'codex', 'opencode', 'amp', 'pi']);
+const agentCommands = new Set(['claude', 'codex', 'opencode', 'amp', 'pi', 'kimi']);
 const agentReports = new Set(['daily', 'weekly', 'monthly', 'session', 'blocks', 'statusline']);
 const agentReportCapabilities = new Map<string, Set<string>>([
 	['claude', new Set(['daily', 'weekly', 'monthly', 'session', 'blocks', 'statusline'])],
@@ -164,6 +178,7 @@ const agentReportCapabilities = new Map<string, Set<string>>([
 	['opencode', new Set(['daily', 'weekly', 'monthly', 'session'])],
 	['amp', new Set(['daily', 'monthly', 'session'])],
 	['pi', new Set(['daily', 'monthly', 'session'])],
+	['kimi', new Set(['daily', 'monthly', 'session'])],
 ]);
 const agentDisplayNames = new Map([
 	['claude', 'Claude Code'],
@@ -171,6 +186,7 @@ const agentDisplayNames = new Map([
 	['opencode', 'OpenCode'],
 	['amp', 'Amp'],
 	['pi', 'pi-agent'],
+	['kimi', 'Kimi'],
 ]);
 const reportFlagAliases = new Set([
 	'--daily',

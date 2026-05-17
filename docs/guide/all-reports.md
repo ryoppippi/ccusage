@@ -25,7 +25,7 @@ ccusage daily --all
 
 ## How Unified Views Work
 
-ccusage detects local usage files from Claude Code, Codex, OpenCode, Amp, and pi-agent. The same daily, weekly, monthly, and session views can run in two modes:
+ccusage detects local usage files from Claude Code, Codex, OpenCode, Amp, pi-agent, and Kimi. The same daily, weekly, monthly, and session views can run in two modes:
 
 | Mode    | Command example        | What it shows                           |
 | ------- | ---------------------- | --------------------------------------- |
@@ -44,6 +44,7 @@ Unified tables include an **Agent** column so you can compare sources in one vie
 | OpenCode    | `opencode` | `ccusage opencode weekly` |
 | Amp         | `amp`      | `ccusage amp session`     |
 | pi-agent    | `pi`       | `ccusage pi monthly`      |
+| Kimi        | `kimi`     | `ccusage kimi daily`      |
 
 ## When to Focus a Source
 

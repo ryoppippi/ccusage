@@ -41,7 +41,7 @@ function extractExplicitArgs(tokens: unknown[]): Record<string, boolean> {
 	return explicit;
 }
 
-const AGENT_CONFIG_KEYS = ['claude', 'codex', 'opencode', 'amp', 'pi'] as const;
+const AGENT_CONFIG_KEYS = ['claude', 'codex', 'opencode', 'amp', 'pi', 'kimi'] as const;
 const UNSAFE_CONFIG_OPTION_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
 
 function isSafeConfigOptionKey(key: string): boolean {
@@ -65,6 +65,7 @@ export type ConfigData = {
 	opencode?: AgentConfigData;
 	amp?: AgentConfigData;
 	pi?: AgentConfigData;
+	kimi?: AgentConfigData;
 	source?: string;
 };
 

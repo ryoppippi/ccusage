@@ -10,6 +10,7 @@ import { Result } from '@praha/byethrow';
 import { detectAmp, loadAmpRows } from './amp/index.ts';
 import { detectClaude, loadClaudeRows } from './claude/index.ts';
 import { detectCodex, loadCodexRows } from './codex/index.ts';
+import { detectKimi, loadKimiRows } from './kimi/index.ts';
 import { detectOpenCode, loadOpenCodeRows } from './opencode/index.ts';
 import { detectPi, loadPiRows } from './pi/index.ts';
 import { createEmptyRow, getRowAgents } from './shared.ts';
@@ -28,13 +29,14 @@ export function resolveAllAgents(options: AdapterOptions): AgentId[] {
 
 export async function detectAllAgents(options: AdapterOptions): Promise<AgentId[]> {
 	void options;
-	const [claude, codex, opencode, amp, pi] = resolveDetectedAgents(
+	const [claude, codex, opencode, amp, pi, kimi] = resolveDetectedAgents(
 		await Promise.allSettled([
 			detectClaude(),
 			detectCodex(),
 			detectOpenCode(),
 			detectAmp(),
 			detectPi(),
+			detectKimi(),
 		]),
 	);
 	const detected: AgentId[] = [];
@@ -53,18 +55,22 @@ export async function detectAllAgents(options: AdapterOptions): Promise<AgentId[
 	if (pi) {
 		detected.push('pi');
 	}
+	if (kimi) {
+		detected.push('kimi');
+	}
 	return detected;
 }
 
 function resolveDetectedAgents(
 	results: Array<PromiseSettledResult<boolean>>,
-): [boolean, boolean, boolean, boolean, boolean] {
+): [boolean, boolean, boolean, boolean, boolean, boolean] {
 	return [
 		results[0]?.status === 'fulfilled' ? results[0].value : false,
 		results[1]?.status === 'fulfilled' ? results[1].value : false,
 		results[2]?.status === 'fulfilled' ? results[2].value : false,
 		results[3]?.status === 'fulfilled' ? results[3].value : false,
 		results[4]?.status === 'fulfilled' ? results[4].value : false,
+		results[5]?.status === 'fulfilled' ? results[5].value : false,
 	];
 }
 
@@ -148,6 +154,8 @@ async function loadAgentRowsWithoutProgress(
 			return loadAmpRows(kind, options, context);
 		case 'pi':
 			return loadPiRows(kind, options);
+		case 'kimi':
+			return loadKimiRows(kind, options, context);
 	}
 	return agent satisfies never;
 }
@@ -162,8 +170,9 @@ if (import.meta.vitest != null) {
 					{ status: 'fulfilled', value: false },
 					{ status: 'fulfilled', value: true },
 					{ status: 'rejected', reason: new Error('permission denied') },
+					{ status: 'fulfilled', value: true },
 				]),
-			).toEqual([true, false, false, true, false]);
+			).toEqual([true, false, false, true, false, true]);
 		});
 
 		it('groups rows by period and keeps per-agent breakdown rows', () => {
@@ -196,7 +205,7 @@ if (import.meta.vitest != null) {
 		});
 
 		it('defaults to every supported coding agent', () => {
-			expect(resolveAllAgents({})).toEqual(['claude', 'codex', 'opencode', 'amp', 'pi']);
+			expect(resolveAllAgents({})).toEqual(['claude', 'codex', 'opencode', 'amp', 'pi', 'kimi']);
 		});
 	});
 }
