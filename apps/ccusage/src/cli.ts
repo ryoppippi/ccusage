@@ -4,9 +4,10 @@ import { accessSync, constants, statSync } from 'node:fs';
 import { delimiter, dirname, join } from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
+import { engines } from '../package.json';
 import { CCUSAGE_BUN_AUTO_RUN_DISABLED_VALUE, CCUSAGE_BUN_AUTO_RUN_ENV } from './env.ts';
 
-const MIN_NODE_MAJOR_VERSION = 22;
+const SUPPORTED_NODE_RANGE = engines.node;
 
 type CliRuntime =
 	| {
@@ -73,19 +74,52 @@ function isBun(): boolean {
 	return (globalThis as { Bun?: unknown }).Bun != null;
 }
 
-function getNodeMajorVersion(version = process.version): number | undefined {
-	const [majorVersion] = version.replace(/^v/, '').split('.');
-	const major = Number(majorVersion);
-	return Number.isInteger(major) ? major : undefined;
-}
-
-function getUnsupportedNodeRuntimeMessage(nodeVersion = process.version): string | undefined {
-	const nodeMajorVersion = getNodeMajorVersion(nodeVersion);
-	if (nodeMajorVersion == null || nodeMajorVersion >= MIN_NODE_MAJOR_VERSION) {
+function parseNodeVersion(version: string): [number, number, number] | undefined {
+	const match = /^v?(\d+)\.(\d+)\.(\d+)/.exec(version);
+	if (match == null) {
 		return undefined;
 	}
 
-	return `ccusage requires Bun or Node.js >=${MIN_NODE_MAJOR_VERSION}.0.0. Current Node.js: ${nodeVersion}\n`;
+	const major = Number(match[1]);
+	const minor = Number(match[2]);
+	const patch = Number(match[3]);
+	if (!Number.isInteger(major) || !Number.isInteger(minor) || !Number.isInteger(patch)) {
+		return undefined;
+	}
+
+	return [major, minor, patch];
+}
+
+function satisfiesMinimumVersion(version: string, range: string): boolean {
+	const match = /^>=(\d+)\.(\d+)\.(\d+)$/.exec(range);
+	if (match == null) {
+		return true;
+	}
+
+	const actual = parseNodeVersion(version);
+	if (actual == null) {
+		return true;
+	}
+
+	const minimum: [number, number, number] = [Number(match[1]), Number(match[2]), Number(match[3])];
+	for (const index of [0, 1, 2] as const) {
+		if (actual[index] > minimum[index]) {
+			return true;
+		}
+		if (actual[index] < minimum[index]) {
+			return false;
+		}
+	}
+
+	return true;
+}
+
+function getUnsupportedNodeRuntimeMessage(nodeVersion = process.version): string | undefined {
+	if (satisfiesMinimumVersion(nodeVersion, SUPPORTED_NODE_RANGE)) {
+		return undefined;
+	}
+
+	return `ccusage requires Bun or Node.js ${SUPPORTED_NODE_RANGE}. Current Node.js: ${nodeVersion}\n`;
 }
 
 async function runBunMain(): Promise<void> {
@@ -178,7 +212,7 @@ if (import.meta.vitest != null) {
 					argv: ['daily'],
 					distDir: '/app/dist',
 					findBunPath: () => '/usr/local/bin/bun',
-					nodeVersion: 'v22.13.1',
+					nodeVersion: 'v22.10.0',
 					processExecPath: '/usr/bin/node',
 				}),
 			).toEqual({
@@ -187,17 +221,47 @@ if (import.meta.vitest != null) {
 			});
 		});
 
-		it('rejects Node.js 20 when Bun is unavailable', () => {
+		it('uses Node.js 23 when Bun is unavailable', () => {
 			expect(
 				resolveCliRuntime({
 					argv: ['daily'],
 					distDir: '/app/dist',
 					findBunPath: () => undefined,
-					nodeVersion: 'v20.19.0',
+					nodeVersion: 'v23.11.1',
 					processExecPath: '/usr/bin/node',
 				}),
 			).toEqual({
-				errorMessage: 'ccusage requires Bun or Node.js >=22.0.0. Current Node.js: v20.19.0\n',
+				args: ['/app/dist/main.node.js', 'daily'],
+				command: '/usr/bin/node',
+			});
+		});
+
+		it('uses the minimum supported Node.js version when Bun is unavailable', () => {
+			expect(
+				resolveCliRuntime({
+					argv: ['daily'],
+					distDir: '/app/dist',
+					findBunPath: () => undefined,
+					nodeVersion: 'v22.11.0',
+					processExecPath: '/usr/bin/node',
+				}),
+			).toEqual({
+				args: ['/app/dist/main.node.js', 'daily'],
+				command: '/usr/bin/node',
+			});
+		});
+
+		it('rejects Node.js below the supported range when Bun is unavailable', () => {
+			expect(
+				resolveCliRuntime({
+					argv: ['daily'],
+					distDir: '/app/dist',
+					findBunPath: () => undefined,
+					nodeVersion: 'v22.10.0',
+					processExecPath: '/usr/bin/node',
+				}),
+			).toEqual({
+				errorMessage: 'ccusage requires Bun or Node.js >=22.11.0. Current Node.js: v22.10.0\n',
 			});
 		});
 	});

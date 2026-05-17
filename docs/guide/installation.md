@@ -32,7 +32,7 @@ npx ccusage@latest
 :::
 
 ::: tip Speed Recommendation
-We recommend `bunx` for everyday use. ccusage can run on Node.js 22+, but Bun generally starts faster and avoids the slower cold-start path common with `npx`.
+We recommend `bunx` for everyday use. ccusage can run on Node.js 22.11+, but Bun generally starts faster and avoids the slower cold-start path common with `npx`.
 
 Because the published CLI shebang targets Node.js, package runners can start ccusage under Node.js even when launched through `bunx`. When ccusage finds `bun` in `PATH`, it automatically re-runs the bundled entrypoint with Bun for better warm runtime performance. Set `CCUSAGE_BUN_AUTO_RUN=0` to force the Node.js runtime.
 :::
@@ -41,11 +41,11 @@ Because the published CLI shebang targets Node.js, package runners can start ccu
 
 Here's why runtime choice matters:
 
-| Runtime  | First Run | Subsequent Runs | Notes                         |
-| -------- | --------- | --------------- | ----------------------------- |
-| bunx     | Fast      | **Instant**     | Recommended for everyday use  |
-| pnpm dlx | Fast      | Fast            | Good alternative              |
-| npx      | Slow      | Moderate        | Widely available, Node.js 22+ |
+| Runtime  | First Run | Subsequent Runs | Notes                            |
+| -------- | --------- | --------------- | -------------------------------- |
+| bunx     | Fast      | **Instant**     | Recommended for everyday use     |
+| pnpm dlx | Fast      | Fast            | Good alternative                 |
+| npx      | Slow      | Moderate        | Widely available, Node.js 22.11+ |
 
 ## Global Installation (Optional)
 
@@ -116,7 +116,7 @@ pnpm run format
 
 ### Node.js
 
-- **Minimum**: Node.js 22.x for the published package
+- **Minimum**: Node.js 22.11 for the published package
 - **Recommended**: Use Bun for command execution when available
 - `npx`, npm global installs, pnpm, and yarn all use the Node.js runtime unless ccusage re-runs through Bun
 
