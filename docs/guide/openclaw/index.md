@@ -1,6 +1,6 @@
 # OpenClaw Data Source (Beta)
 
-ccusage can read [OpenClaw](https://github.com/junhoyeo/tokscale) session data as one of its supported local data sources. OpenClaw is a multi-provider coding agent that stores per-message token usage and embedded cost data in JSONL session files.
+ccusage can read OpenClaw session data as one of its supported local data sources. OpenClaw is a multi-provider coding agent that stores per-message token usage and embedded cost data in JSONL session files.
 
 ## What is OpenClaw?
 
@@ -177,4 +177,3 @@ ccusage openclaw session --since 2026-05-09
 ## Related
 
 - [ccusage](https://github.com/ryoppippi/ccusage) - Main usage analysis tool for coding (agent) CLIs
-- [tokscale](https://github.com/junhoyeo/tokscale) - Source of the OpenClaw JSONL format reference
