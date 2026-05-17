@@ -120,9 +120,7 @@ impl PricingMap {
                 .iter()
                 .filter(|(candidate, _)| model.contains(*candidate) || candidate.contains(model))
                 .max_by(|(left, _), (right, _)| {
-                    left.len()
-                        .cmp(&right.len())
-                        .then_with(|| right.cmp(left))
+                    left.len().cmp(&right.len()).then_with(|| right.cmp(left))
                 })
                 .map(|(_, pricing)| *pricing)
         })
@@ -354,7 +352,10 @@ mod tests {
         let sonnet_4 = pricing.find("claude-sonnet-4-20250514").unwrap();
         let sonnet_45 = pricing.find("claude-sonnet-4-5-20250929").unwrap();
 
-        assert_eq!(pricing.find("claude-sonnet-4-20250514").unwrap().input, sonnet_4.input);
+        assert_eq!(
+            pricing.find("claude-sonnet-4-20250514").unwrap().input,
+            sonnet_4.input
+        );
         assert_eq!(
             pricing.find("claude-sonnet-4-5-20250929").unwrap().input,
             sonnet_45.input,
@@ -400,7 +401,9 @@ mod tests {
             },
         );
 
-        let matched = pricing.find("claude-sonnet-4-20250514-via-bedrock").unwrap();
+        let matched = pricing
+            .find("claude-sonnet-4-20250514-via-bedrock")
+            .unwrap();
 
         assert_eq!(matched.input, 2.0);
     }
