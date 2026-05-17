@@ -1,6 +1,6 @@
 import type { LiteLLMPricingFetcher, PricingLogger } from '@ccusage/internal/pricing';
 
-export const agentIds = ['claude', 'codex', 'opencode', 'amp', 'pi'] as const;
+export const agentIds = ['claude', 'codex', 'opencode', 'amp', 'pi', 'hermes'] as const;
 export type AgentId = (typeof agentIds)[number];
 export type ReportKind = 'daily' | 'weekly' | 'monthly' | 'session';
 
@@ -51,4 +51,5 @@ export const agentLabels = {
 	opencode: 'OpenCode',
 	amp: 'Amp',
 	pi: 'pi-agent',
+	hermes: 'Hermes Agent',
 } as const satisfies Record<AgentId | 'all', string>;

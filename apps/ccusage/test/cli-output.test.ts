@@ -3,6 +3,7 @@ import { mkdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { getSqliteDatabaseFactory, withSqliteDatabase } from '@ccusage/internal/sqlite';
 import { createFixture } from 'fs-fixture';
 
 const appRoot = fileURLToPath(new URL('../', import.meta.url));
@@ -30,8 +31,11 @@ async function createCliEnv(fixturePath: string, tempDir: string): Promise<NodeJ
 	const opencodeDir = path.join(agentRoot, 'opencode');
 	const ampDir = path.join(agentRoot, 'amp');
 	const piDir = path.join(agentRoot, 'pi');
+	const hermesDir = path.join(agentRoot, 'hermes');
 	await Promise.all(
-		[codexHome, opencodeDir, ampDir, piDir].map(async (dir) => mkdir(dir, { recursive: true })),
+		[codexHome, opencodeDir, ampDir, piDir, hermesDir].map(async (dir) =>
+			mkdir(dir, { recursive: true }),
+		),
 	);
 
 	return {
@@ -39,6 +43,7 @@ async function createCliEnv(fixturePath: string, tempDir: string): Promise<NodeJ
 		CLAUDE_CONFIG_DIR: fixturePath,
 		CODEX_HOME: codexHome,
 		COLUMNS: '200',
+		HERMES_HOME: hermesDir,
 		LOG_LEVEL: '3',
 		NO_COLOR: '1',
 		OPENCODE_DATA_DIR: opencodeDir,
@@ -193,12 +198,41 @@ function createAgentFixtureTree() {
 	};
 }
 
+function createHermesStateDb(dbPath: string): void {
+	const result = withSqliteDatabase(
+		dbPath,
+		{},
+		(db) => {
+			db.exec(`
+				CREATE TABLE sessions (
+					id TEXT PRIMARY KEY,
+					source TEXT NOT NULL,
+					model TEXT,
+					started_at REAL NOT NULL,
+					message_count INTEGER DEFAULT 0,
+					input_tokens INTEGER DEFAULT 0,
+					output_tokens INTEGER DEFAULT 0,
+					cache_read_tokens INTEGER DEFAULT 0,
+					cache_write_tokens INTEGER DEFAULT 0,
+					reasoning_tokens INTEGER DEFAULT 0,
+					billing_provider TEXT,
+					estimated_cost_usd REAL,
+					actual_cost_usd REAL
+				);
+			`);
+		},
+		() => {},
+	);
+	expect(result).not.toBeNull();
+}
+
 function createAgentCliEnv(fixturePath: string): NodeJS.ProcessEnv {
 	return {
 		AMP_DATA_DIR: path.join(fixturePath, 'amp'),
 		CLAUDE_CONFIG_DIR: path.join(fixturePath, 'claude'),
 		CODEX_HOME: path.join(fixturePath, 'codex'),
 		COLUMNS: '200',
+		HERMES_HOME: path.join(fixturePath, 'hermes'),
 		LOG_LEVEL: '3',
 		NO_COLOR: '1',
 		OPENCODE_DATA_DIR: path.join(fixturePath, 'opencode'),
@@ -580,6 +614,73 @@ describe('ccusage all-agent CLI', () => {
 		expect(output.daily[0]?.totalTokens).toBe(180);
 		expect(output.totals.totalTokens).toBe(180);
 	});
+
+	it.skipIf(getSqliteDatabaseFactory(() => {}) == null)(
+		'renders Hermes Agent direct JSON from state.db',
+		async () => {
+			await using fixture = await createFixture({
+				hermes: {},
+			});
+			const dbPath = fixture.getPath('hermes/state.db');
+			createHermesStateDb(dbPath);
+			withSqliteDatabase(
+				dbPath,
+				{},
+				(db) => {
+					db.prepare(`
+						INSERT INTO sessions (
+							id, source, model, started_at, message_count,
+							input_tokens, output_tokens, cache_read_tokens, cache_write_tokens, reasoning_tokens,
+							billing_provider, estimated_cost_usd, actual_cost_usd
+						) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+					`).run(
+						'hermes-session',
+						'cli',
+						'claude-sonnet-4-20250514',
+						1_767_312_000.0,
+						6,
+						100,
+						50,
+						10,
+						20,
+						5,
+						'anthropic',
+						0.12,
+						0.34,
+					);
+				},
+				() => {},
+			);
+
+			const result = runCcusage(['hermes', '--offline', '--json'], createAgentCliEnv(fixture.path));
+
+			expect(result.status).toBe(0);
+			expect(result.stderr).toBe('');
+			expect(JSON.parse(getStdout(result)) as unknown).toEqual({
+				daily: [
+					{
+						date: '2026-01-02',
+						inputTokens: 100,
+						outputTokens: 50,
+						cacheCreationTokens: 20,
+						cacheReadTokens: 10,
+						totalTokens: 185,
+						totalCost: 0.34,
+						modelsUsed: ['claude-sonnet-4-20250514'],
+						messageCount: 6,
+					},
+				],
+				totals: {
+					inputTokens: 100,
+					outputTokens: 50,
+					cacheCreationTokens: 20,
+					cacheReadTokens: 10,
+					totalTokens: 185,
+					totalCost: 0.34,
+				},
+			});
+		},
+	);
 
 	it('keeps full Amp direct tables when all columns fit', async () => {
 		await using fixture = await createFixture(createAgentFixtureTree());

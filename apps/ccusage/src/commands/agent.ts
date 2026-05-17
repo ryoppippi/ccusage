@@ -52,6 +52,7 @@ type AgentJsonRow = {
 	modelsUsed: string[];
 	lastActivity?: unknown;
 	projectPath?: unknown;
+	messageCount?: number;
 };
 
 const commonAgentArgs = {
@@ -212,6 +213,9 @@ export function toAgentJsonPayload(
 				if (row.metadata?.projectPath != null) {
 					jsonRow.projectPath = row.metadata.projectPath;
 				}
+			}
+			if (typeof row.metadata?.messageCount === 'number') {
+				jsonRow.messageCount = row.metadata.messageCount;
 			}
 			return jsonRow;
 		}),
