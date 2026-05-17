@@ -24,11 +24,13 @@ type OpenCodeWorkerData = IndexedWorkerData<'ccusage:opencode-worker', string>;
 
 type OpenCodeWorkerResponse = IndexedWorkerResultsMessage<OpenCodeMessageResult | null>;
 
+const parseJson = Result.fn({
+	try: (value: string): unknown => JSON.parse(value) as unknown,
+	catch: (error) => error,
+});
+
 function parseJsonObject(value: string): Record<string, unknown> | null {
-	const result = Result.try({
-		try: () => JSON.parse(value) as unknown,
-		catch: (error) => error,
-	})();
+	const result = parseJson(value);
 	if (Result.isFailure(result)) {
 		return null;
 	}
@@ -91,7 +93,7 @@ function parseOpenCodeMessageText(value: string): OpenCodeMessageResult | null {
 
 async function loadOpenCodeMessageFile(filePath: string): Promise<OpenCodeMessageResult | null> {
 	const content = await Result.try({
-		try: readTextFile(filePath),
+		try: async () => readTextFile(filePath),
 		catch: (error) => error,
 	});
 	return Result.isFailure(content) ? null : parseOpenCodeMessageText(content.value);
@@ -166,7 +168,7 @@ function loadOpenCodeMessagesFromDb(openCodePath: string): OpenCodeMessageResult
 				logger.warn,
 			),
 		catch: (error) => error,
-	})();
+	});
 	if (Result.isFailure(result)) {
 		logger.warn('Failed to load OpenCode messages from DB:', result.error);
 		return [];

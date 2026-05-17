@@ -21,7 +21,7 @@ function isAmpModel(modelName: string, _pricing: LiteLLMModelPricing): boolean {
 
 export async function prefetchAmpPricing(): Promise<Record<string, LiteLLMModelPricing>> {
 	const result = await Result.try({
-		try: fetchLiteLLMPricingDataset(),
+		try: async () => fetchLiteLLMPricingDataset(),
 		catch: (error) => error,
 	});
 	if (Result.isFailure(result)) {

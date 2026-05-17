@@ -17,6 +17,7 @@ import {
 	formatTotalsRow,
 	formatUsageDataRow,
 } from '@ccusage/terminal/table';
+import { Result } from '@praha/byethrow';
 import { define } from 'gunshi';
 import { aggregateRowsByPeriod, detectAllAgents, loadAgentRows } from '../adapter/index.ts';
 import { createEmptyRow, getRowAgents } from '../adapter/shared.ts';
@@ -195,23 +196,28 @@ async function runAllReport(kind: ReportKind, options: AllOptions): Promise<void
 		logger.box(`${title}\nDetected: ${detectedAgentLabels === '' ? 'None' : detectedAgentLabels}`);
 	}
 
-	let rows: AllRow[];
 	const progress = createUsageLoadProgress(shouldShowUsageLoadProgress(options, process.stdout));
-	try {
-		if (progress != null) {
-			logger.level = 0;
-		}
-		rows = await loadAllRows(kind, options, detectedAgents, progress);
-	} catch (error) {
+	const rowsResult = await Result.pipe(
+		Result.try({
+			try: async () => {
+				if (progress != null) {
+					logger.level = 0;
+				}
+				return loadAllRows(kind, options, detectedAgents, progress);
+			},
+			catch: (error) => error,
+		}),
+		Result.inspectError((error) => logger.error(String(error))),
+	);
+	if (Result.isFailure(rowsResult)) {
 		progress?.stop();
 		logger.level = originalLoggerLevel;
-		logger.error(String(error));
 		process.exitCode = 1;
 		return;
-	} finally {
-		logger.level = originalLoggerLevel;
 	}
 	progress?.stop();
+	logger.level = originalLoggerLevel;
+	const rows = rowsResult.value;
 
 	const totals = calculateTotals(rows);
 	if (options.json === true) {

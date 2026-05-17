@@ -118,8 +118,7 @@ function createLogger(logger?: PricingLogger): PricingLogger {
 
 export class LiteLLMPricingFetcher implements Disposable {
 	private cachedPricing: Map<string, LiteLLMModelPricing> | null = null;
-	private pricingLoadPromise: Result.ResultAsync<Map<string, LiteLLMModelPricing>, Error> | null =
-		null;
+	private pricingLoadPromise: ReturnType<LiteLLMPricingFetcher['loadPricing']> | null = null;
 	private readonly modelPricingCache = new Map<string, LiteLLMModelPricing | null>();
 	private readonly logger: PricingLogger;
 	private readonly offline: boolean;
@@ -145,7 +144,7 @@ export class LiteLLMPricingFetcher implements Disposable {
 		this.modelPricingCache.clear();
 	}
 
-	private loadOfflinePricing = Result.try({
+	private loadOfflinePricing = Result.fn({
 		try: async () => {
 			if (this.offlineLoader == null) {
 				throw new Error('Offline loader was not provided');
@@ -158,9 +157,7 @@ export class LiteLLMPricingFetcher implements Disposable {
 		catch: (error) => new Error('Failed to load offline pricing data', { cause: error }),
 	});
 
-	private async handleFallbackToCachedPricing(
-		originalError: unknown,
-	): Result.ResultAsync<Map<string, LiteLLMModelPricing>, Error> {
+	private async handleFallbackToCachedPricing(originalError: unknown) {
 		this.logger.warn(
 			'Failed to fetch model pricing from LiteLLM, falling back to cached pricing data',
 		);
@@ -177,7 +174,7 @@ export class LiteLLMPricingFetcher implements Disposable {
 		);
 	}
 
-	private async loadPricing(): Result.ResultAsync<Map<string, LiteLLMModelPricing>, Error> {
+	private async loadPricing() {
 		if (this.offline) {
 			return this.loadOfflinePricing();
 		}
@@ -185,7 +182,7 @@ export class LiteLLMPricingFetcher implements Disposable {
 		this.logger.warn('Fetching latest model pricing from LiteLLM...');
 		return Result.pipe(
 			Result.try({
-				try: fetch(this.url),
+				try: async () => fetch(this.url),
 				catch: (error) => new Error('Failed to fetch model pricing from LiteLLM', { cause: error }),
 			}),
 			Result.andThrough((response) => {
@@ -196,7 +193,7 @@ export class LiteLLMPricingFetcher implements Disposable {
 			}),
 			Result.andThen(async (response) =>
 				Result.try({
-					try: response.json() as Promise<Record<string, unknown>>,
+					try: async () => response.json() as Promise<Record<string, unknown>>,
 					catch: (error) => new Error('Failed to parse pricing data', { cause: error }),
 				}),
 			),
@@ -224,7 +221,7 @@ export class LiteLLMPricingFetcher implements Disposable {
 		);
 	}
 
-	private async ensurePricingLoaded(): Result.ResultAsync<Map<string, LiteLLMModelPricing>, Error> {
+	private async ensurePricingLoaded() {
 		if (this.cachedPricing != null) {
 			return Result.succeed(this.cachedPricing);
 		}
@@ -238,7 +235,7 @@ export class LiteLLMPricingFetcher implements Disposable {
 		return this.pricingLoadPromise;
 	}
 
-	async fetchModelPricing(): Result.ResultAsync<Map<string, LiteLLMModelPricing>, Error> {
+	async fetchModelPricing() {
 		return this.ensurePricingLoaded();
 	}
 
@@ -253,7 +250,7 @@ export class LiteLLMPricingFetcher implements Disposable {
 		return Array.from(candidates);
 	}
 
-	async getModelPricing(modelName: string): Result.ResultAsync<LiteLLMModelPricing | null, Error> {
+	async getModelPricing(modelName: string) {
 		if (this.modelPricingCache.has(modelName)) {
 			return Result.succeed(this.modelPricingCache.get(modelName) ?? null);
 		}
@@ -293,7 +290,7 @@ export class LiteLLMPricingFetcher implements Disposable {
 		);
 	}
 
-	async getModelContextLimit(modelName: string): Result.ResultAsync<number | null, Error> {
+	async getModelContextLimit(modelName: string) {
 		return Result.pipe(
 			this.getModelPricing(modelName),
 			Result.map((pricing) => pricing?.max_input_tokens ?? null),
@@ -360,7 +357,7 @@ export class LiteLLMPricingFetcher implements Disposable {
 		},
 		modelName?: string,
 		options?: { speed?: 'standard' | 'fast' },
-	): Result.ResultAsync<number, Error> {
+	) {
 		if (modelName == null || modelName === '') {
 			return Result.succeed(0);
 		}

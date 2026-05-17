@@ -20,6 +20,7 @@ import {
 	formatUsageDataRow,
 	ResponsiveTable,
 } from '@ccusage/terminal/table';
+import { Result } from '@praha/byethrow';
 import { define } from 'gunshi';
 import { loadAgentRows } from '../adapter/index.ts';
 import { agentLabels } from '../adapter/types.ts';
@@ -358,23 +359,28 @@ async function runAgentReport(
 		logger.level = 0;
 	}
 
-	let rows: AgentUsageRow[];
 	const progress = createUsageLoadProgress(shouldShowUsageLoadProgress(options, process.stdout));
-	try {
-		if (progress != null) {
-			logger.level = 0;
-		}
-		rows = await loadRows(agent, kind, options, progress);
-	} catch (error) {
+	const rowsResult = await Result.pipe(
+		Result.try({
+			try: async () => {
+				if (progress != null) {
+					logger.level = 0;
+				}
+				return loadRows(agent, kind, options, progress);
+			},
+			catch: (error) => error,
+		}),
+		Result.inspectError((error) => logger.error(String(error))),
+	);
+	if (Result.isFailure(rowsResult)) {
 		progress?.stop();
 		logger.level = originalLoggerLevel;
-		logger.error(String(error));
 		process.exitCode = 1;
 		return;
-	} finally {
-		logger.level = originalLoggerLevel;
 	}
 	progress?.stop();
+	logger.level = originalLoggerLevel;
+	const rows = rowsResult.value;
 
 	if (rows.length === 0) {
 		await writeStdoutLine(

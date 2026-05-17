@@ -35,7 +35,7 @@ function resolveOpenCodeDbCandidate(dbPath: string, resolvedOpenCodePath: string
 	const result = Result.try({
 		try: () => realpathSync(dbPath),
 		catch: (error) => error,
-	})();
+	});
 	if (Result.isFailure(result) || !isPathInsideDirectory(result.value, resolvedOpenCodePath)) {
 		return null;
 	}
@@ -46,7 +46,7 @@ export function getOpenCodeDbPath(openCodePath: string): string | null {
 	const resolvedPath = Result.try({
 		try: () => realpathSync(openCodePath),
 		catch: (error) => error,
-	})();
+	});
 	if (Result.isFailure(resolvedPath)) {
 		logger.warn('Failed to resolve OpenCode data directory:', resolvedPath.error);
 		return null;
@@ -63,7 +63,7 @@ export function getOpenCodeDbPath(openCodePath: string): string | null {
 	const entries = Result.try({
 		try: () => readdirSync(openCodePath),
 		catch: (error) => error,
-	})();
+	});
 	if (Result.isFailure(entries)) {
 		logger.warn('Failed to read OpenCode data directory:', entries.error);
 		return null;
@@ -88,11 +88,14 @@ export function hasOpenCodeDatabase(openCodePath: string): boolean {
 	if (existsSync(path.join(openCodePath, OPENCODE_DB_FILE_NAME))) {
 		return true;
 	}
-	try {
-		return readdirSync(openCodePath).some((entry) => OPENCODE_CHANNEL_DB_PATTERN.test(entry));
-	} catch {
-		return false;
-	}
+	return Result.pipe(
+		Result.try({
+			try: () => readdirSync(openCodePath),
+			catch: (error) => error,
+		}),
+		Result.map((entries) => entries.some((entry) => OPENCODE_CHANNEL_DB_PATTERN.test(entry))),
+		Result.unwrap(false),
+	);
 }
 
 export async function discoverOpenCodeMessageFiles(openCodePath: string): Promise<string[]> {

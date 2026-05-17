@@ -7,6 +7,7 @@ import {
 	formatUsageDataRow,
 	pushBreakdownRows,
 } from '@ccusage/terminal/table';
+import { Result } from '@praha/byethrow';
 import { define } from 'gunshi';
 import { loadMonthlyUsageData } from '../adapter/claude/data-loader.ts';
 import { calculateTotals, createTotalsObject, getTotalTokens } from '../calculate-cost.ts';
@@ -35,21 +36,28 @@ export const monthlyCommand = define({
 		const progress = createUsageLoadProgress(
 			shouldShowUsageLoadProgress(mergedOptions, process.stdout),
 		);
-		let monthlyData: Awaited<ReturnType<typeof loadMonthlyUsageData>>;
-		try {
-			if (progress != null) {
-				logger.level = 0;
-			}
-			progress?.start('claude');
-			monthlyData = await loadMonthlyUsageData(mergedOptions);
-			progress?.succeed('claude', monthlyData.length);
-		} catch (error) {
-			progress?.fail('claude', error);
-			throw error;
-		} finally {
+		const monthlyDataResult = await Result.pipe(
+			Result.try({
+				try: async () => {
+					if (progress != null) {
+						logger.level = 0;
+					}
+					progress?.start('claude');
+					return loadMonthlyUsageData(mergedOptions);
+				},
+				catch: (error) => error,
+			}),
+			Result.inspect((monthlyData) => progress?.succeed('claude', monthlyData.length)),
+			Result.inspectError((error) => progress?.fail('claude', error)),
+		);
+		if (Result.isFailure(monthlyDataResult)) {
 			progress?.stop();
 			logger.level = originalLoggerLevel;
+			throw monthlyDataResult.error;
 		}
+		progress?.stop();
+		logger.level = originalLoggerLevel;
+		const monthlyData = monthlyDataResult.value;
 
 		if (monthlyData.length === 0) {
 			if (useJson) {

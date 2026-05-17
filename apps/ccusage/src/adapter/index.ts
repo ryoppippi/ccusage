@@ -120,7 +120,7 @@ export async function loadAgentRows(
 ): Promise<AgentUsageRow[]> {
 	context.progress?.start(agent);
 	const result = await Result.try({
-		try: loadAgentRowsWithoutProgress(agent, kind, options, context),
+		try: async () => loadAgentRowsWithoutProgress(agent, kind, options, context),
 		catch: (error) => error,
 	});
 	if (Result.isFailure(result)) {

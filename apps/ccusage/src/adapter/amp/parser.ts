@@ -20,6 +20,11 @@ type AmpWorkerData = IndexedWorkerData<'ccusage:amp-worker', string>;
 
 type AmpWorkerResponse = IndexedWorkerResultsMessage<AmpUsageEvent[]>;
 
+const parseJson = Result.fn({
+	try: (value: string): unknown => JSON.parse(value) as unknown,
+	catch: (error) => error,
+});
+
 function getAmpCacheTokens(
 	messages: AmpMessage[] | undefined,
 	toMessageId: number | undefined,
@@ -48,17 +53,14 @@ function toAmpUsageEvent(thread: AmpThread, event: AmpLedgerEvent): AmpUsageEven
 
 async function loadAmpThreadEvents(filePath: string): Promise<AmpUsageEvent[]> {
 	const readResult = await Result.try({
-		try: readTextFile(filePath),
+		try: async () => readTextFile(filePath),
 		catch: (error) => error,
 	});
 	if (Result.isFailure(readResult)) {
 		return [];
 	}
 
-	const parseResult = Result.try({
-		try: () => JSON.parse(readResult.value) as unknown,
-		catch: (error) => error,
-	})();
+	const parseResult = parseJson(readResult.value);
 	if (Result.isFailure(parseResult)) {
 		return [];
 	}

@@ -7,6 +7,7 @@ import type {
 } from './types.ts';
 import { LiteLLMPricingFetcher } from '@ccusage/internal/pricing';
 import { compareStrings } from '@ccusage/internal/sort';
+import { Result } from '@praha/byethrow';
 import { regex } from 'arkregex';
 import { agentIds } from './types.ts';
 
@@ -102,14 +103,16 @@ export function safeTimeZone(timezone?: string): string {
 		return cached;
 	}
 
-	try {
-		Intl.DateTimeFormat('en-US', { timeZone: cacheKey });
-		safeTimeZoneCache.set(cacheKey, cacheKey);
-		return cacheKey;
-	} catch {
-		safeTimeZoneCache.set(cacheKey, 'UTC');
-		return 'UTC';
-	}
+	const resolved = Result.pipe(
+		Result.try({
+			try: () => Intl.DateTimeFormat('en-US', { timeZone: cacheKey }),
+			catch: (error) => error,
+		}),
+		Result.map(() => cacheKey),
+		Result.unwrap('UTC'),
+	);
+	safeTimeZoneCache.set(cacheKey, resolved);
+	return resolved;
 }
 
 function getDateFormatter(timezone: string): Intl.DateTimeFormat {

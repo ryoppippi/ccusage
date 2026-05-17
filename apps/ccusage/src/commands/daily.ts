@@ -8,6 +8,7 @@ import {
 	formatUsageDataRow,
 	pushBreakdownRows,
 } from '@ccusage/terminal/table';
+import { Result } from '@praha/byethrow';
 import { define } from 'gunshi';
 import { loadDailyUsageData } from '../adapter/claude/data-loader.ts';
 import { calculateTotals, createTotalsObject, getTotalTokens } from '../calculate-cost.ts';
@@ -77,24 +78,31 @@ export const dailyCommand = define({
 		const progress = createUsageLoadProgress(
 			shouldShowUsageLoadProgress(mergedOptions, process.stdout),
 		);
-		let dailyData: Awaited<ReturnType<typeof loadDailyUsageData>>;
-		try {
-			if (progress != null) {
-				logger.level = 0;
-			}
-			progress?.start('claude');
-			dailyData = await loadDailyUsageData({
-				...mergedOptions,
-				groupByProject: mergedOptions.instances,
-			});
-			progress?.succeed('claude', dailyData.length);
-		} catch (error) {
-			progress?.fail('claude', error);
-			throw error;
-		} finally {
+		const dailyDataResult = await Result.pipe(
+			Result.try({
+				try: async () => {
+					if (progress != null) {
+						logger.level = 0;
+					}
+					progress?.start('claude');
+					return loadDailyUsageData({
+						...mergedOptions,
+						groupByProject: mergedOptions.instances,
+					});
+				},
+				catch: (error) => error,
+			}),
+			Result.inspect((dailyData) => progress?.succeed('claude', dailyData.length)),
+			Result.inspectError((error) => progress?.fail('claude', error)),
+		);
+		if (Result.isFailure(dailyDataResult)) {
 			progress?.stop();
 			logger.level = originalLoggerLevel;
+			throw dailyDataResult.error;
 		}
+		progress?.stop();
+		logger.level = originalLoggerLevel;
+		const dailyData = dailyDataResult.value;
 
 		if (dailyData.length === 0) {
 			if (useJson) {

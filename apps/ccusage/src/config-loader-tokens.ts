@@ -206,7 +206,7 @@ function loadConfigFile(filePath: string, debug = false): ConfigData | undefined
 				return data;
 			},
 			catch: (error) => error,
-		})(),
+		}),
 		Result.inspect(() => {
 			logger.debug(`Parsed configuration file: ${filePath}`);
 			if (debug) {
@@ -426,7 +426,7 @@ export function validateConfigFile(
 		return { success: false, error: new Error(`Configuration file does not exist: ${configPath}`) };
 	}
 
-	const parseConfig = Result.try({
+	const result = Result.try({
 		try: () => {
 			const content = readFileSync(configPath, 'utf-8');
 			const data = JSON.parse(content) as unknown;
@@ -438,7 +438,6 @@ export function validateConfigFile(
 		catch: (error) => (error instanceof Error ? error : new Error(String(error))),
 	});
 
-	const result = parseConfig();
 	if (Result.isSuccess(result)) {
 		return { success: true, data: result.value };
 	} else {
