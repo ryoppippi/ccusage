@@ -106,6 +106,21 @@ const piSessionCommand = createAgentCommand(
 	'session',
 	'Show pi-agent usage grouped by session',
 );
+const geminiDailyCommand = createAgentCommand(
+	'gemini',
+	'daily',
+	'Show Gemini CLI token usage grouped by date',
+);
+const geminiMonthlyCommand = createAgentCommand(
+	'gemini',
+	'monthly',
+	'Show Gemini CLI token usage grouped by month',
+);
+const geminiSessionCommand = createAgentCommand(
+	'gemini',
+	'session',
+	'Show Gemini CLI token usage grouped by session',
+);
 
 /**
  * Command entries as tuple array
@@ -136,6 +151,9 @@ export const subCommandUnion = [
 	['pi:daily', withCcusageConfig(piDailyCommand, 'pi daily')],
 	['pi:monthly', withCcusageConfig(piMonthlyCommand, 'pi monthly')],
 	['pi:session', withCcusageConfig(piSessionCommand, 'pi session')],
+	['gemini:daily', withCcusageConfig(geminiDailyCommand, 'gemini daily')],
+	['gemini:monthly', withCcusageConfig(geminiMonthlyCommand, 'gemini monthly')],
+	['gemini:session', withCcusageConfig(geminiSessionCommand, 'gemini session')],
 ] as const;
 
 /**
@@ -156,7 +174,7 @@ for (const [name, command] of subCommandUnion) {
  */
 const mainCommand = allDailyCommand;
 
-const agentCommands = new Set(['claude', 'codex', 'opencode', 'amp', 'pi']);
+const agentCommands = new Set(['claude', 'codex', 'opencode', 'amp', 'pi', 'gemini']);
 const agentReports = new Set(['daily', 'weekly', 'monthly', 'session', 'blocks', 'statusline']);
 const agentReportCapabilities = new Map<string, Set<string>>([
 	['claude', new Set(['daily', 'weekly', 'monthly', 'session', 'blocks', 'statusline'])],
@@ -164,6 +182,7 @@ const agentReportCapabilities = new Map<string, Set<string>>([
 	['opencode', new Set(['daily', 'weekly', 'monthly', 'session'])],
 	['amp', new Set(['daily', 'monthly', 'session'])],
 	['pi', new Set(['daily', 'monthly', 'session'])],
+	['gemini', new Set(['daily', 'monthly', 'session'])],
 ]);
 const agentDisplayNames = new Map([
 	['claude', 'Claude Code'],
@@ -171,6 +190,7 @@ const agentDisplayNames = new Map([
 	['opencode', 'OpenCode'],
 	['amp', 'Amp'],
 	['pi', 'pi-agent'],
+	['gemini', 'Gemini CLI'],
 ]);
 const reportFlagAliases = new Set([
 	'--daily',
@@ -288,6 +308,13 @@ if (import.meta.vitest != null) {
 			]);
 		});
 
+		it('maps Gemini agent reports to flat Gunshi subcommands', () => {
+			expect(normalizeAgentCommandArgs(['gemini', 'session', '--json'])).toEqual([
+				'gemini:session',
+				'--json',
+			]);
+		});
+
 		it('leaves top-level reports unchanged', () => {
 			expect(normalizeAgentCommandArgs(['daily', '--json'])).toEqual(['daily', '--json']);
 		});
@@ -327,6 +354,7 @@ if (import.meta.vitest != null) {
 
 		it('allows supported agent reports', () => {
 			expect(getUnsupportedAgentReportError(['opencode', 'weekly'])).toBeUndefined();
+			expect(getUnsupportedAgentReportError(['gemini', 'daily'])).toBeUndefined();
 		});
 	});
 }

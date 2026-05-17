@@ -30,8 +30,11 @@ async function createCliEnv(fixturePath: string, tempDir: string): Promise<NodeJ
 	const opencodeDir = path.join(agentRoot, 'opencode');
 	const ampDir = path.join(agentRoot, 'amp');
 	const piDir = path.join(agentRoot, 'pi');
+	const geminiDir = path.join(agentRoot, 'gemini');
 	await Promise.all(
-		[codexHome, opencodeDir, ampDir, piDir].map(async (dir) => mkdir(dir, { recursive: true })),
+		[codexHome, opencodeDir, ampDir, piDir, geminiDir].map(async (dir) =>
+			mkdir(dir, { recursive: true }),
+		),
 	);
 
 	return {
@@ -39,6 +42,7 @@ async function createCliEnv(fixturePath: string, tempDir: string): Promise<NodeJ
 		CLAUDE_CONFIG_DIR: fixturePath,
 		CODEX_HOME: codexHome,
 		COLUMNS: '200',
+		GEMINI_DATA_DIR: geminiDir,
 		LOG_LEVEL: '3',
 		NO_COLOR: '1',
 		OPENCODE_DATA_DIR: opencodeDir,
@@ -199,6 +203,7 @@ function createAgentCliEnv(fixturePath: string): NodeJS.ProcessEnv {
 		CLAUDE_CONFIG_DIR: path.join(fixturePath, 'claude'),
 		CODEX_HOME: path.join(fixturePath, 'codex'),
 		COLUMNS: '200',
+		GEMINI_DATA_DIR: path.join(fixturePath, 'gemini'),
 		LOG_LEVEL: '3',
 		NO_COLOR: '1',
 		OPENCODE_DATA_DIR: path.join(fixturePath, 'opencode'),

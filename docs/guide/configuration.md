@@ -104,7 +104,7 @@ For individual developers working on multiple projects:
 
 ### Multiple Sources
 
-Configure Claude Code, Codex, OpenCode, Amp, and pi-agent separately with data source namespaces:
+Configure Claude Code, Codex, OpenCode, Amp, pi-agent, and Gemini CLI separately with data source namespaces:
 
 ```json
 // ~/.config/claude/ccusage.json

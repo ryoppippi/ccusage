@@ -49,6 +49,7 @@ export default defineConfig({
 				'src/pricing-fetcher.ts',
 				'src/adapter/amp/pricing.ts',
 				'src/adapter/codex/pricing.ts',
+				'src/adapter/gemini/pricing.ts',
 				'../amp/src/pricing.ts',
 				'../codex/src/pricing.ts',
 			],

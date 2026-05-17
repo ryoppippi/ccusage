@@ -13,6 +13,7 @@ ccusage detects supported data source files from conventional locations by defau
 | `OPENCODE_DATA_DIR` | OpenCode    | `~/.local/share/opencode`          |
 | `AMP_DATA_DIR`      | Amp         | `~/.local/share/amp`               |
 | `PI_AGENT_DIR`      | pi-agent    | `~/.pi/agent/sessions`             |
+| `GEMINI_DATA_DIR`   | Gemini CLI  | `~/.gemini/tmp`                    |
 
 Example:
 
@@ -21,6 +22,7 @@ export CODEX_HOME="/path/to/codex,/archive/codex"
 export OPENCODE_DATA_DIR="/path/to/opencode,/archive/opencode"
 export AMP_DATA_DIR="/path/to/amp,/archive/amp"
 export PI_AGENT_DIR="/path/to/pi/sessions,/archive/pi/sessions"
+export GEMINI_DATA_DIR="/path/to/gemini/tmp,/archive/gemini/tmp"
 ccusage daily
 ```
 

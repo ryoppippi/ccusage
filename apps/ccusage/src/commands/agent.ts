@@ -47,6 +47,8 @@ type AgentJsonRow = {
 	cacheCreationTokens: number;
 	cacheReadTokens: number;
 	totalTokens: number;
+	reasoningTokens?: number;
+	toolTokens?: number;
 	credits?: number;
 	totalCost: number;
 	modelsUsed: string[];
@@ -128,6 +130,11 @@ function getPeriodKey(kind: AgentCommandKind): 'date' | 'week' | 'month' | 'sess
 function getCredits(row: AgentUsageRow): number | undefined {
 	const credits = row.metadata?.credits;
 	return typeof credits === 'number' ? credits : undefined;
+}
+
+function getMetadataNumber(row: AgentUsageRow, key: string): number | undefined {
+	const value = row.metadata?.[key];
+	return typeof value === 'number' ? value : undefined;
 }
 
 export function calculateAgentTotals(agent: AgentId, rows: AgentUsageRow[]): AgentTotals {
@@ -212,6 +219,14 @@ export function toAgentJsonPayload(
 				if (row.metadata?.projectPath != null) {
 					jsonRow.projectPath = row.metadata.projectPath;
 				}
+			}
+			const reasoningTokens = getMetadataNumber(row, 'reasoningTokens');
+			if (reasoningTokens != null) {
+				jsonRow.reasoningTokens = reasoningTokens;
+			}
+			const toolTokens = getMetadataNumber(row, 'toolTokens');
+			if (toolTokens != null) {
+				jsonRow.toolTokens = toolTokens;
 			}
 			return jsonRow;
 		}),
@@ -337,6 +352,7 @@ function renderStandardTable(
 				outputTokens: row.outputTokens,
 				cacheCreationTokens: row.cacheCreationTokens,
 				cacheReadTokens: row.cacheReadTokens,
+				totalTokens: row.totalTokens,
 				totalCost: row.totalCost,
 				modelsUsed: row.modelsUsed,
 			}),

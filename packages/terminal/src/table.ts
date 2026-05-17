@@ -806,6 +806,7 @@ export type UsageData = {
 	outputTokens: number;
 	cacheCreationTokens: number;
 	cacheReadTokens: number;
+	totalTokens?: number;
 	totalCost: number;
 	modelsUsed?: string[];
 	agent?: string;
@@ -898,6 +899,7 @@ export function formatUsageDataRow(
 	lastActivity?: string,
 ): (string | number)[] {
 	const totalTokens =
+		data.totalTokens ??
 		data.inputTokens + data.outputTokens + data.cacheCreationTokens + data.cacheReadTokens;
 
 	const row: (string | number)[] = [
@@ -934,6 +936,7 @@ export function formatTotalsRow(
 	includeAgent = false,
 ): (string | number)[] {
 	const totalTokens =
+		totals.totalTokens ??
 		totals.inputTokens + totals.outputTokens + totals.cacheCreationTokens + totals.cacheReadTokens;
 
 	const row: (string | number)[] = [
@@ -1007,6 +1010,20 @@ if (import.meta.vitest != null) {
 			} finally {
 				vi.unstubAllEnvs();
 			}
+		});
+
+		it('uses explicit total tokens when a source tracks hidden reasoning tokens', () => {
+			const row = formatUsageDataRow('2026-05-17', {
+				modelsUsed: ['gemini-3-flash-preview'],
+				inputTokens: 3_801,
+				outputTokens: 23,
+				cacheCreationTokens: 0,
+				cacheReadTokens: 11_526,
+				totalTokens: 16_269,
+				totalCost: 0,
+			});
+
+			expect(row[6]).toBe('16,269');
 		});
 
 		it('keeps rendered all-agent table lines within the terminal width', () => {
