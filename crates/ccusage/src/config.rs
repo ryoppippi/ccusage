@@ -109,11 +109,11 @@ fn claude_config_dirs() -> Vec<PathBuf> {
             .map(PathBuf::from)
             .collect();
     }
-    env::var("HOME")
+    crate::home::home_dir()
         .map(|home| {
             vec![
-                PathBuf::from(&home).join(".config").join("claude"),
-                PathBuf::from(home).join(".claude"),
+                home.join(".config").join("claude"),
+                home.join(".claude"),
             ]
         })
         .unwrap_or_default()

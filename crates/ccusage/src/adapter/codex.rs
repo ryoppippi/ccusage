@@ -92,8 +92,8 @@ fn codex_home_paths() -> Vec<PathBuf> {
             .map(PathBuf::from)
             .collect();
     }
-    env::var("HOME")
-        .map(|home| vec![PathBuf::from(home).join(".codex")])
+    crate::home::home_dir()
+        .map(|home| vec![home.join(".codex")])
         .unwrap_or_default()
 }
 

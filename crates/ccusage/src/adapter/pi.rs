@@ -133,9 +133,9 @@ fn paths(custom_path: Option<&str>) -> Result<Vec<PathBuf>> {
         }
     }
 
-    let home =
-        env::var("HOME").map_err(|error| crate::cli_error(format!("HOME is not set: {error}")))?;
-    let path = PathBuf::from(home).join(".pi/agent/sessions");
+    let home = crate::home::home_dir()
+        .ok_or_else(|| crate::cli_error("home directory is not set"))?;
+    let path = home.join(".pi/agent/sessions");
     Ok(path.is_dir().then_some(path).into_iter().collect())
 }
 

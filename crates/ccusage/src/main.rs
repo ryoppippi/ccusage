@@ -20,6 +20,7 @@ mod cli;
 mod commands;
 mod config;
 mod date_utils;
+mod home;
 mod pricing;
 mod types;
 
@@ -582,8 +583,8 @@ fn codex_sessions_paths() -> Result<Vec<PathBuf>> {
         return Ok(paths);
     }
 
-    let home = env::var("HOME").context("HOME is not set")?;
-    let path = PathBuf::from(home).join(".codex").join("sessions");
+    let home = home::home_dir().ok_or_else(|| cli_error("home directory is not set"))?;
+    let path = home.join(".codex").join("sessions");
     if seen.insert(path.clone()) {
         paths.push(path);
     }
@@ -830,11 +831,11 @@ fn claude_paths() -> Result<Vec<PathBuf>> {
         bail!("No valid Claude data directories found in CLAUDE_CONFIG_DIR");
     }
 
-    let home = env::var("HOME").context("HOME is not set")?;
+    let home = home::home_dir().ok_or_else(|| cli_error("home directory is not set"))?;
     let xdg = env::var("XDG_CONFIG_HOME")
         .map(PathBuf::from)
         .unwrap_or_else(|_| PathBuf::from(&home).join(".config"));
-    for path in [xdg.join("claude"), PathBuf::from(home).join(".claude")] {
+    for path in [xdg.join("claude"), home.join(".claude")] {
         if path.join("projects").is_dir() && seen.insert(path.clone()) {
             paths.push(path);
         }

@@ -173,9 +173,9 @@ fn paths() -> Result<Vec<PathBuf>> {
         return Ok(paths);
     }
 
-    let home =
-        env::var("HOME").map_err(|error| crate::cli_error(format!("HOME is not set: {error}")))?;
-    let path = PathBuf::from(home).join(".local/share/opencode");
+    let home = crate::home::home_dir()
+        .ok_or_else(|| crate::cli_error("home directory is not set"))?;
+    let path = home.join(".local/share/opencode");
     if path.is_dir() && seen.insert(path.clone()) {
         paths.push(path);
     }
