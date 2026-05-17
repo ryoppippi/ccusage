@@ -214,6 +214,15 @@ fn add_event_to_groups(
         AgentReportKind::Session => event.session_id.clone(),
     };
     let group = groups.entry(period).or_insert_with(CodexGroup::default);
+    accumulate_codex_event_into_group(group, event, model);
+    Ok(())
+}
+
+fn accumulate_codex_event_into_group(
+    group: &mut CodexGroup,
+    event: &CodexTokenUsageEvent,
+    model: &str,
+) {
     group.input_tokens += event.input_tokens;
     group.cached_input_tokens += event.cached_input_tokens;
     group.output_tokens += event.output_tokens;
@@ -234,7 +243,6 @@ fn add_event_to_groups(
     model_usage.reasoning_output_tokens += event.reasoning_output_tokens;
     model_usage.total_tokens += event.total_tokens;
     model_usage.is_fallback |= event.is_fallback_model;
-    Ok(())
 }
 
 fn create_dedupe_shards() -> Vec<Mutex<HashSet<CodexEventKey>>> {
@@ -312,26 +320,7 @@ pub(crate) fn aggregate_events(
             AgentReportKind::Session => event.session_id.clone(),
         };
         let group = groups.entry(period).or_insert_with(CodexGroup::default);
-        group.input_tokens += event.input_tokens;
-        group.cached_input_tokens += event.cached_input_tokens;
-        group.output_tokens += event.output_tokens;
-        group.reasoning_output_tokens += event.reasoning_output_tokens;
-        group.total_tokens += event.total_tokens;
-        if group
-            .last_activity
-            .as_deref()
-            .is_none_or(|current| event.timestamp.as_str() > current)
-        {
-            group.last_activity = Some(event.timestamp.clone());
-        }
-
-        let model_usage = group.models.entry(model.to_string()).or_default();
-        model_usage.input_tokens += event.input_tokens;
-        model_usage.cached_input_tokens += event.cached_input_tokens;
-        model_usage.output_tokens += event.output_tokens;
-        model_usage.reasoning_output_tokens += event.reasoning_output_tokens;
-        model_usage.total_tokens += event.total_tokens;
-        model_usage.is_fallback |= event.is_fallback_model;
+        accumulate_codex_event_into_group(group, event, model);
     }
     Ok(groups)
 }

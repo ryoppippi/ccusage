@@ -491,8 +491,12 @@ function renderMarkdown(
 	sizes: SizeComparison,
 	options: { headDir: string; headRuntime: HeadRuntime },
 ): string {
+	const commentMarker =
+		options.headRuntime === 'rust'
+			? '<!-- ccusage-rust-perf-comment -->'
+			: '<!-- ccusage-perf-comment -->';
 	const lines = [
-		'<!-- ccusage-perf-comment -->',
+		commentMarker,
 		'## ccusage performance comparison',
 		'',
 		options.headRuntime === 'rust'
@@ -616,6 +620,35 @@ if (import.meta.vitest != null) {
 			);
 
 			expect(lines.join('\n')).toContain('PR runs `target/release/ccusage` directly.');
+		});
+	});
+
+	describe('renderMarkdown', () => {
+		const emptyFixtureSection = {
+			description: 'Fixture description',
+			fixtureDir: '/fixtures/claude',
+			fixtureStats: {
+				bytes: 1024,
+				files: 1,
+			},
+			results: [],
+			runs: 1,
+			title: 'Fixture',
+			warmup: 0,
+		} satisfies FixtureComparison;
+
+		const sizes = {
+			basePackage: 1024,
+			headPackage: 1024,
+		} satisfies SizeComparison;
+
+		it('uses the Rust-specific PR comment marker for native benchmark output', () => {
+			const markdown = renderMarkdown([emptyFixtureSection], sizes, {
+				headDir: '/repo',
+				headRuntime: 'rust',
+			});
+
+			expect(markdown.startsWith('<!-- ccusage-rust-perf-comment -->')).toBe(true);
 		});
 	});
 }

@@ -357,7 +357,7 @@ pub(crate) fn message_value_to_entry(
         return None;
     }
     let model = non_empty_json_string(value.get("modelID"))?;
-    non_empty_json_string(value.get("providerID"))?;
+    let _provider = non_empty_json_string(value.get("providerID"))?;
     let millis = value
         .get("time")
         .and_then(|time| time.get("created"))

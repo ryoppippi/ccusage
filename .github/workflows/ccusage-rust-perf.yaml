@@ -64,6 +64,7 @@ jobs:
         run: cat "$RUNNER_TEMP/ccusage-rust-perf-comment.md" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upsert PR comment
+        if: ${{ !github.event.pull_request.head.repo.fork }}
         env:
           COMMENT_FILE: ${{ runner.temp }}/ccusage-rust-perf-comment.md
           COMMENT_MARKER: <!-- ccusage-rust-perf-comment -->

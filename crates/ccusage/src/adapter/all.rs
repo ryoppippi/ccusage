@@ -36,12 +36,13 @@ pub(crate) fn run(args: AgentCommandArgs) -> Result<()> {
 }
 
 fn load_rows(kind: AgentReportKind, shared: &SharedArgs) -> Result<Vec<AllRow>> {
+    let pricing = PricingMap::load(shared.offline, crate::log_level() != Some(0));
     if kind == AgentReportKind::Session {
         let mut rows = Vec::new();
         rows.extend(load_claude_rows(AgentReportKind::Session, shared)?);
-        rows.extend(load_codex_rows(AgentReportKind::Session, shared)?);
+        rows.extend(load_codex_rows(AgentReportKind::Session, shared, &pricing)?);
         rows.extend(load_opencode_rows(AgentReportKind::Session, shared)?);
-        rows.extend(load_amp_rows(AgentReportKind::Session, shared)?);
+        rows.extend(load_amp_rows(AgentReportKind::Session, shared, &pricing)?);
         rows.extend(load_pi_rows(AgentReportKind::Session, shared)?);
         sort_rows(&mut rows, &shared.order);
         return Ok(rows);
@@ -49,9 +50,9 @@ fn load_rows(kind: AgentReportKind, shared: &SharedArgs) -> Result<Vec<AllRow>> 
 
     let mut rows = Vec::new();
     rows.extend(load_claude_rows(AgentReportKind::Daily, shared)?);
-    rows.extend(load_codex_rows(AgentReportKind::Daily, shared)?);
+    rows.extend(load_codex_rows(AgentReportKind::Daily, shared, &pricing)?);
     rows.extend(load_opencode_rows(AgentReportKind::Daily, shared)?);
-    rows.extend(load_amp_rows(AgentReportKind::Daily, shared)?);
+    rows.extend(load_amp_rows(AgentReportKind::Daily, shared, &pricing)?);
     rows.extend(load_pi_rows(AgentReportKind::Daily, shared)?);
 
     let mut aggregated = aggregate_rows(rows, kind);
@@ -66,8 +67,11 @@ fn load_claude_rows(kind: AgentReportKind, shared: &SharedArgs) -> Result<Vec<Al
     Ok(summary_rows("claude", summaries))
 }
 
-fn load_codex_rows(kind: AgentReportKind, shared: &SharedArgs) -> Result<Vec<AllRow>> {
-    let pricing = PricingMap::load(shared.offline, crate::log_level() != Some(0));
+fn load_codex_rows(
+    kind: AgentReportKind,
+    shared: &SharedArgs,
+    pricing: &PricingMap,
+) -> Result<Vec<AllRow>> {
     let mut events = crate::load_codex_events(shared)?;
     codex::filter_events_by_date(&mut events, shared)?;
     let groups = codex::aggregate_events(&events, kind, shared.timezone.as_deref())?;
@@ -84,9 +88,12 @@ fn load_opencode_rows(kind: AgentReportKind, shared: &SharedArgs) -> Result<Vec<
     Ok(summary_rows("opencode", summaries))
 }
 
-fn load_amp_rows(kind: AgentReportKind, shared: &SharedArgs) -> Result<Vec<AllRow>> {
-    let pricing = PricingMap::load(shared.offline, crate::log_level() != Some(0));
-    let mut entries = amp::load_entries(shared, &pricing)?;
+fn load_amp_rows(
+    kind: AgentReportKind,
+    shared: &SharedArgs,
+    pricing: &PricingMap,
+) -> Result<Vec<AllRow>> {
+    let mut entries = amp::load_entries(shared, pricing)?;
     filter_loaded_entries_by_date(&mut entries, shared);
     let summaries = amp::summarize_entries(&entries, kind)?;
     Ok(summary_rows("amp", summaries))

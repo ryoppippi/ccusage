@@ -349,6 +349,26 @@ mod tests {
     }
 
     #[test]
+    fn embedded_pricing_resolves_overlapping_model_keys_exactly() {
+        let pricing = PricingMap::load_embedded();
+        let sonnet_4 = pricing.find("claude-sonnet-4-20250514").unwrap();
+        let sonnet_45 = pricing.find("claude-sonnet-4-5-20250929").unwrap();
+
+        assert_eq!(pricing.find("claude-sonnet-4-20250514").unwrap().input, sonnet_4.input);
+        assert_eq!(
+            pricing.find("claude-sonnet-4-5-20250929").unwrap().input,
+            sonnet_45.input,
+        );
+        assert_eq!(
+            pricing
+                .find("anthropic.claude-sonnet-4-20250514-v1:0")
+                .unwrap()
+                .input,
+            sonnet_4.input,
+        );
+    }
+
+    #[test]
     fn fuzzy_match_prefers_longest_model_key() {
         let mut pricing = PricingMap::default();
         pricing.entries.insert(
