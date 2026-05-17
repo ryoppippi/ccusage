@@ -41,14 +41,14 @@ function extractExplicitArgs(tokens: unknown[]): Record<string, boolean> {
 	return explicit;
 }
 
-const AGENT_CONFIG_KEYS = ['claude', 'codex', 'opencode', 'amp', 'pi', 'kimi'] as const;
+export const AGENT_CONFIG_KEYS = ['claude', 'codex', 'opencode', 'amp', 'pi', 'kimi'] as const;
 const UNSAFE_CONFIG_OPTION_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
 
 function isSafeConfigOptionKey(key: string): boolean {
 	return !UNSAFE_CONFIG_OPTION_KEYS.has(key);
 }
 
-type AgentConfigKey = (typeof AGENT_CONFIG_KEYS)[number];
+export type AgentConfigKey = (typeof AGENT_CONFIG_KEYS)[number];
 
 export type AgentConfigData = {
 	defaults?: Record<string, any>;

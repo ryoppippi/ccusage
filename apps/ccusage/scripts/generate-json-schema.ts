@@ -17,6 +17,7 @@ import { $ } from 'bun';
 import { allArgs } from '../src/commands/all.ts';
 // Import command definitions to access their args
 import { subCommandUnion } from '../src/commands/index.ts';
+import { AGENT_CONFIG_KEYS } from '../src/config-loader-tokens.ts';
 import { logger } from '../src/logger.ts';
 
 /**
@@ -39,8 +40,7 @@ const COMMAND_EXCLUDE_KEYS: Record<string, string[]> = {
 	blocks: ['live', 'refreshInterval'],
 };
 
-const AGENT_NAMES = ['claude', 'codex', 'opencode', 'amp', 'pi', 'kimi'] as const;
-type AgentName = (typeof AGENT_NAMES)[number];
+type AgentName = (typeof AGENT_CONFIG_KEYS)[number];
 type JsonSchemaNode = {
 	[key: string]: unknown;
 	type?: string;
@@ -110,7 +110,7 @@ function tokensSchemaToJsonSchema(schema: TokenSchema): JsonSchemaNode {
 
 function splitCommandName(name: string): { agent?: AgentName; report: string } {
 	const [prefix, report] = name.split(':');
-	if (report != null && AGENT_NAMES.includes(prefix as AgentName)) {
+	if (report != null && AGENT_CONFIG_KEYS.includes(prefix as AgentName)) {
 		return { agent: prefix as AgentName, report };
 	}
 	return { report: name };
@@ -186,10 +186,9 @@ function createAgentJsonSchema(
  */
 function createConfigSchemaJson(): JsonSchemaNode {
 	const topLevelCommandSchemas: Record<string, TokenSchema> = {};
-	const agentCommandSchemas = Object.fromEntries(AGENT_NAMES.map((agent) => [agent, {}])) as Record<
-		AgentName,
-		Record<string, TokenSchema>
-	>;
+	const agentCommandSchemas = Object.fromEntries(
+		AGENT_CONFIG_KEYS.map((agent) => [agent, {}]),
+	) as Record<AgentName, Record<string, TokenSchema>>;
 
 	for (const [commandName, command] of subCommandUnion) {
 		const { agent, report } = splitCommandName(commandName);
@@ -466,6 +465,12 @@ if (import.meta.vitest != null) {
 			expect(properties).toHaveProperty('claude');
 			expect(properties).toHaveProperty('codex');
 			expect(properties).toHaveProperty('kimi');
+
+			const kimiCommandsSchema = schemaProperties(properties.kimi ?? {}).commands ?? {};
+			const kimiCommands = schemaProperties(kimiCommandsSchema);
+			expect(kimiCommands).toHaveProperty('daily');
+			expect(kimiCommands).toHaveProperty('monthly');
+			expect(kimiCommands).toHaveProperty('session');
 		});
 
 		it('should keep legacy top-level Claude config properties', () => {
