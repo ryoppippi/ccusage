@@ -17,6 +17,7 @@ pub(crate) enum Command {
     Codex(AgentCommandArgs),
     OpenCode(AgentCommandArgs),
     Amp(AgentCommandArgs),
+    Pi(AgentCommandArgs),
 }
 
 #[derive(Clone, Default)]
@@ -99,6 +100,7 @@ pub(crate) struct StatuslineArgs {
 pub(crate) struct AgentCommandArgs {
     pub(crate) shared: SharedArgs,
     pub(crate) kind: AgentReportKind,
+    pub(crate) pi_path: Option<String>,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -349,6 +351,7 @@ fn parse_command(
         "codex" => parse_codex_command(parser, shared),
         "opencode" => parse_opencode_command(parser, shared),
         "amp" => parse_amp_command(parser, shared),
+        "pi" => parse_pi_command(parser, shared),
         _ => Err(format!("Unknown command '{command}'")),
     }
 }
@@ -390,7 +393,11 @@ fn parse_codex_command(parser: &mut ArgParser, mut shared: SharedArgs) -> Result
     while parser.peek().is_some() {
         parse_shared_arg(parser, &mut shared)?;
     }
-    Ok(Command::Codex(AgentCommandArgs { shared, kind }))
+    Ok(Command::Codex(AgentCommandArgs {
+        shared,
+        kind,
+        pi_path: None,
+    }))
 }
 
 fn parse_opencode_command(
@@ -422,7 +429,11 @@ fn parse_opencode_command(
     while parser.peek().is_some() {
         parse_shared_arg(parser, &mut shared)?;
     }
-    Ok(Command::OpenCode(AgentCommandArgs { shared, kind }))
+    Ok(Command::OpenCode(AgentCommandArgs {
+        shared,
+        kind,
+        pi_path: None,
+    }))
 }
 
 fn parse_amp_command(parser: &mut ArgParser, mut shared: SharedArgs) -> Result<Command, String> {
@@ -447,7 +458,47 @@ fn parse_amp_command(parser: &mut ArgParser, mut shared: SharedArgs) -> Result<C
     while parser.peek().is_some() {
         parse_shared_arg(parser, &mut shared)?;
     }
-    Ok(Command::Amp(AgentCommandArgs { shared, kind }))
+    Ok(Command::Amp(AgentCommandArgs {
+        shared,
+        kind,
+        pi_path: None,
+    }))
+}
+
+fn parse_pi_command(parser: &mut ArgParser, mut shared: SharedArgs) -> Result<Command, String> {
+    let kind = match parser.peek() {
+        Some("daily") => {
+            parser.next();
+            AgentReportKind::Daily
+        }
+        Some("monthly") => {
+            parser.next();
+            AgentReportKind::Monthly
+        }
+        Some("session") => {
+            parser.next();
+            AgentReportKind::Session
+        }
+        Some(command) if !command.starts_with('-') => {
+            return Err(format!("Unknown pi command '{command}'"));
+        }
+        _ => AgentReportKind::Daily,
+    };
+    let mut pi_path = None;
+    while parser.peek().is_some() {
+        if parse_shared_arg_for_command(parser, &mut shared)? {
+            continue;
+        }
+        match parser.next_flag()?.as_str() {
+            "--pi-path" => pi_path = Some(parser.value_for("--pi-path")?),
+            flag => return Err(format!("Unknown pi option '{flag}'")),
+        }
+    }
+    Ok(Command::Pi(AgentCommandArgs {
+        shared,
+        kind,
+        pi_path,
+    }))
 }
 
 fn parse_shared_arg_for_command(
@@ -506,6 +557,7 @@ fn is_command(arg: &str) -> bool {
             | "codex"
             | "opencode"
             | "amp"
+            | "pi"
     )
 }
 
@@ -794,5 +846,23 @@ mod tests {
         };
         assert_eq!(args.kind, AgentReportKind::Session);
         assert!(args.shared.json);
+    }
+
+    #[test]
+    fn parses_pi_session_options() {
+        let cli = parse(&[
+            "ccusage",
+            "pi",
+            "session",
+            "--json",
+            "--pi-path",
+            "/tmp/pi-sessions",
+        ]);
+        let Some(Command::Pi(args)) = cli.command else {
+            panic!("expected pi command");
+        };
+        assert_eq!(args.kind, AgentReportKind::Session);
+        assert!(args.shared.json);
+        assert_eq!(args.pi_path.as_deref(), Some("/tmp/pi-sessions"));
     }
 }

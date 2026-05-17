@@ -390,6 +390,7 @@ fn main() -> Result<()> {
         Some(Command::Codex(args)) => run_codex(args),
         Some(Command::OpenCode(args)) => adapter::opencode::run(args),
         Some(Command::Amp(args)) => adapter::amp::run(args),
+        Some(Command::Pi(args)) => adapter::pi::run(args),
         None => {
             let args = DailyArgs {
                 shared: cli.shared,
@@ -4468,6 +4469,89 @@ mod tests {
         assert_eq!(report["daily"][0]["credits"], json!(1.25));
         assert_eq!(report["daily"][0]["totalCost"], json!(0.02));
         assert_eq!(report["totals"]["credits"], json!(1.25));
+    }
+
+    #[test]
+    fn loads_pi_agent_jsonl_usage_entries() {
+        let pi_dir = temp_claude_dir("pi-agent");
+        let session_dir = pi_dir.join("sessions/project-a");
+        fs::create_dir_all(&session_dir).unwrap();
+        fs::write(
+            session_dir.join("prefix_session-a.jsonl"),
+            [
+                r#"{"type":"message","timestamp":"2026-04-22T01:02:02.000Z","message":{"role":"user","usage":{"input":999,"output":999}}}"#,
+                r#"{"type":"message","timestamp":"2026-04-22T01:02:03.000Z","message":{"role":"assistant","model":"gpt-5.4","usage":{"input":100,"output":50,"cacheRead":10,"cacheWrite":20,"totalTokens":180,"cost":{"total":0.05}}}}"#,
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+
+        let entries = adapter::pi::read_session_file(
+            &session_dir.join("prefix_session-a.jsonl"),
+            parse_tz(Some("UTC")).as_ref(),
+        )
+        .unwrap();
+        fs::remove_dir_all(&pi_dir).unwrap();
+
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].date, "2026-04-22");
+        assert_eq!(entries[0].project.as_ref(), "project-a");
+        assert_eq!(entries[0].session_id.as_ref(), "session-a");
+        assert_eq!(entries[0].model.as_deref(), Some("[pi] gpt-5.4"));
+        assert_eq!(entries[0].data.message.usage.input_tokens, 100);
+        assert_eq!(entries[0].data.message.usage.output_tokens, 50);
+        assert_eq!(
+            entries[0].data.message.usage.cache_creation_input_tokens,
+            20
+        );
+        assert_eq!(entries[0].data.message.usage.cache_read_input_tokens, 10);
+        assert_eq!(entries[0].cost, 0.05);
+    }
+
+    #[test]
+    fn builds_pi_daily_json_report() {
+        let entry = LoadedEntry {
+            data: UsageEntry {
+                session_id: Some("session-a".to_string()),
+                timestamp: "2026-04-22T01:02:03.000Z".to_string(),
+                version: None,
+                message: UsageMessage {
+                    usage: TokenUsageRaw {
+                        input_tokens: 100,
+                        output_tokens: 50,
+                        cache_creation_input_tokens: 20,
+                        cache_read_input_tokens: 10,
+                        speed: None,
+                    },
+                    model: Some("[pi] gpt-5.4".to_string()),
+                    id: None,
+                },
+                cost_usd: Some(0.05),
+                request_id: None,
+                is_api_error_message: None,
+            },
+            timestamp: parse_ts_timestamp("2026-04-22T01:02:03.000Z").unwrap(),
+            date: "2026-04-22".to_string(),
+            project: Arc::from("project-a"),
+            session_id: Arc::from("session-a"),
+            project_path: Arc::from("project-a"),
+            cost: 0.05,
+            credits: None,
+            model: Some("[pi] gpt-5.4".to_string()),
+            usage_limit_reset_time: None,
+        };
+
+        let rows = adapter::pi::summarize_entries(&[entry], AgentReportKind::Daily).unwrap();
+        let report = adapter::pi::report_from_rows(&rows, AgentReportKind::Daily);
+
+        assert_eq!(report["daily"][0]["date"], "2026-04-22");
+        assert_eq!(report["daily"][0]["inputTokens"], 100);
+        assert_eq!(report["daily"][0]["outputTokens"], 50);
+        assert_eq!(report["daily"][0]["cacheCreationTokens"], 20);
+        assert_eq!(report["daily"][0]["cacheReadTokens"], 10);
+        assert_eq!(report["daily"][0]["totalTokens"], 180);
+        assert_eq!(report["daily"][0]["totalCost"], json!(0.05));
+        assert_eq!(report["daily"][0]["modelsUsed"], json!(["[pi] gpt-5.4"]));
     }
 
     #[test]

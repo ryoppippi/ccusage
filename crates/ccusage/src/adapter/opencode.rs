@@ -13,8 +13,8 @@ use crate::{
     cli::SortOrder, cli::WeekDay, collect_files_with_extension, debug_log,
     filter_loaded_entries_by_date, format_date_tz, json_value_u64, non_empty_json_string, parse_tz,
     print_json_or_jq, print_usage_table, sort_summaries, summarize_by_key,
-    summarize_summaries_by_bucket, totals_json, wants_json, BucketKind, LoadedEntry,
-    PricingMap, Result, TokenUsageRaw, UsageEntry, UsageMessage,
+    summarize_summaries_by_bucket, totals_json, wants_json, BucketKind, LoadedEntry, PricingMap,
+    Result, TokenUsageRaw, UsageEntry, UsageMessage,
 };
 
 pub(crate) fn run(args: AgentCommandArgs) -> Result<()> {
