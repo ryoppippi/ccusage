@@ -1192,9 +1192,17 @@ async function processJSONLUsageFileByLine(
 	filePath: string,
 	processLine: (line: string, usageMarkerIndex: number) => void,
 ): Promise<void> {
-	await processJSONLFileByMarkers(filePath, [USAGE_LINE_MARKER], (line, usageMarkerIndex) => {
-		processLine(line, usageMarkerIndex);
-	});
+	await processJSONLFileByMarkers(
+		filePath,
+		[USAGE_LINE_MARKER],
+		(line, usageMarkerIndex) => {
+			processLine(line, usageMarkerIndex);
+		},
+		{
+			bufferedEncoding: 'latin1',
+			markerIndex: 'byte',
+		},
+	);
 }
 
 /**

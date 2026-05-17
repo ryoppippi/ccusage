@@ -20,6 +20,26 @@ const isoUtcTimestampPattern = /^\d{4}-\d{2}-\d{2}T.*Z$/u;
 const dateKeyPattern = /^\d{4}-\d{2}-\d{2}$/u;
 const monthKeyPattern = /^\d{4}-\d{2}$/u;
 
+function formatDateParts(year: number, month: number, day: number): string {
+	return `${year.toString().padStart(4, '0')}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+}
+
+function formatLocalDateKey(date: Date): string {
+	return formatDateParts(date.getFullYear(), date.getMonth() + 1, date.getDate());
+}
+
+function formatUTCDateKey(date: Date): string {
+	return formatDateParts(date.getUTCFullYear(), date.getUTCMonth() + 1, date.getUTCDate());
+}
+
+function formatLocalMonthKey(date: Date): string {
+	return `${date.getFullYear().toString().padStart(4, '0')}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
+}
+
+function formatUTCMonthKey(date: Date): string {
+	return `${date.getUTCFullYear().toString().padStart(4, '0')}-${(date.getUTCMonth() + 1).toString().padStart(2, '0')}`;
+}
+
 export function normalizeDateFilter(value: string | undefined): string | undefined {
 	if (value == null || value === '') {
 		return undefined;
@@ -137,11 +157,25 @@ function getDateTimeFormatter(timezone: string): Intl.DateTimeFormat {
 }
 
 export function formatDateKey(timestamp: string, timezone?: string): string {
+	if (timezone == null || timezone.trim() === '') {
+		const cacheKey = `local:${timestamp.slice(0, 13)}`;
+		const cached = dateKeyCache.get(cacheKey);
+		if (cached != null) {
+			return cached;
+		}
+		const formatted = formatLocalDateKey(new Date(timestamp));
+		dateKeyCache.set(cacheKey, formatted);
+		return formatted;
+	}
+
 	const tz = safeTimeZone(timezone);
 	if (tz === 'UTC' && isoUtcTimestampPattern.test(timestamp)) {
 		return timestamp.slice(0, 10);
 	}
 	const date = new Date(timestamp);
+	if (tz === 'UTC') {
+		return formatUTCDateKey(date);
+	}
 	const formatter = getDateFormatter(tz);
 	const formatted = formatDateKeyWithFormatter(formatter, date);
 	const cacheKey = `${tz}:${formatted}`;
@@ -155,11 +189,25 @@ export function formatDateKey(timestamp: string, timezone?: string): string {
 }
 
 export function formatMonthKey(timestamp: string, timezone?: string): string {
+	if (timezone == null || timezone.trim() === '') {
+		const cacheKey = `local:${timestamp.slice(0, 13)}`;
+		const cached = monthKeyCache.get(cacheKey);
+		if (cached != null) {
+			return cached;
+		}
+		const formatted = formatLocalMonthKey(new Date(timestamp));
+		monthKeyCache.set(cacheKey, formatted);
+		return formatted;
+	}
+
 	const tz = safeTimeZone(timezone);
 	if (tz === 'UTC' && isoUtcTimestampPattern.test(timestamp)) {
 		return timestamp.slice(0, 7);
 	}
 	const date = new Date(timestamp);
+	if (tz === 'UTC') {
+		return formatUTCMonthKey(date);
+	}
 	const formatter = getMonthFormatter(tz);
 	const formatted = formatMonthKeyWithFormatter(formatter, date);
 	const cacheKey = `${tz}:${formatted}`;
@@ -405,6 +453,7 @@ if (import.meta.vitest != null) {
 
 		afterEach(() => {
 			vi.unstubAllGlobals();
+			vi.unstubAllEnvs();
 		});
 
 		it('rejects impossible calendar date filters', () => {
@@ -436,6 +485,27 @@ if (import.meta.vitest != null) {
 
 			expect(formatDateKey('2026-05-16T12:34:56.000Z', 'UTC')).toBe('2026-05-16');
 			expect(formatMonthKey('2026-05-16T12:34:56.000Z', 'UTC')).toBe('2026-05');
+		});
+
+		it('uses local Date getters when timezone is omitted', () => {
+			vi.stubEnv('TZ', 'Asia/Tokyo');
+			const DateTimeFormat = Intl.DateTimeFormat;
+			function DateTimeFormatMock(
+				locale?: string | string[],
+				options?: Intl.DateTimeFormatOptions,
+			): Intl.DateTimeFormat {
+				if (options?.timeZone != null) {
+					throw new Error('date formatter should not be created');
+				}
+				return new DateTimeFormat(locale, options);
+			}
+			vi.stubGlobal('Intl', {
+				...Intl,
+				DateTimeFormat: DateTimeFormatMock,
+			});
+
+			expect(formatDateKey('2026-05-16T15:34:56.000Z')).toBe('2026-05-17');
+			expect(formatMonthKey('2026-05-16T15:34:56.000Z')).toBe('2026-05');
 		});
 
 		it('uses locale formatting directly when it already produces machine date keys', () => {

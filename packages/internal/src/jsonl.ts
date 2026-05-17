@@ -6,6 +6,12 @@ import { readBufferedBytesFile, readBufferedTextFile } from './fs.ts';
 
 const MAX_BUFFERED_JSONL_BYTES = 128 * 1024 * 1024;
 
+type JSONLMarkerProcessingOptions = {
+	bufferedEncoding?: BufferEncoding;
+	markerIndex?: 'byte' | 'decoded';
+	scanMode?: 'marker' | 'line';
+};
+
 function hasNonWhitespace(value: string): boolean {
 	for (let index = 0; index < value.length; index++) {
 		const code = value.charCodeAt(index);
@@ -52,11 +58,32 @@ async function processBufferedJSONLMarkerBytes(
 	bytes: Uint8Array,
 	markers: readonly string[],
 	processLine: (line: string, markerIndex: number, marker: string) => void | Promise<void>,
+	options: JSONLMarkerProcessingOptions = {},
 ): Promise<void> {
 	const content = Buffer.isBuffer(bytes)
 		? bytes
 		: Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+	if (options.scanMode === 'line') {
+		await processBufferedJSONLMarkerContent(
+			content.toString(options.bufferedEncoding ?? 'utf8'),
+			markers,
+			processLine,
+		);
+		return;
+	}
+
 	const markerBuffers = markers.map((marker) => Buffer.from(marker));
+	if (markerBuffers.length === 1) {
+		await processBufferedJSONLSingleMarkerBytes(
+			content,
+			markerBuffers[0]!,
+			markers[0]!,
+			processLine,
+			options,
+		);
+		return;
+	}
+
 	const candidates = new Map<number, { lineEnd: number; markerIndex: number; marker: string }>();
 
 	for (let markerBufferIndex = 0; markerBufferIndex < markerBuffers.length; markerBufferIndex++) {
@@ -84,12 +111,52 @@ async function processBufferedJSONLMarkerBytes(
 		const candidate = candidates.get(lineStart)!;
 		const lineEnd = candidate.lineEnd;
 		const decodeEnd = lineEnd > lineStart && content[lineEnd - 1] === 13 ? lineEnd - 1 : lineEnd;
-		const line = content.toString('utf8', lineStart, decodeEnd);
-		const markerIndex = line.indexOf(candidate.marker);
+		const line = content.toString(options.bufferedEncoding ?? 'utf8', lineStart, decodeEnd);
+		const markerIndex =
+			options.markerIndex === 'byte' ? candidate.markerIndex : line.indexOf(candidate.marker);
 		const result = processLine(line, markerIndex, candidate.marker);
 		if (result != null) {
 			await result;
 		}
+	}
+}
+
+async function processBufferedJSONLSingleMarkerBytes(
+	content: Buffer,
+	markerBuffer: Buffer,
+	marker: string,
+	processLine: (line: string, markerIndex: number, marker: string) => void | Promise<void>,
+	options: JSONLMarkerProcessingOptions,
+): Promise<void> {
+	let lineStart = 0;
+	let markerIndex = content.indexOf(markerBuffer, lineStart);
+	while (markerIndex !== -1) {
+		while (true) {
+			const nextLineEnd = content.indexOf(10, lineStart);
+			if (nextLineEnd === -1 || nextLineEnd >= markerIndex) {
+				break;
+			}
+			lineStart = nextLineEnd + 1;
+		}
+		let lineEnd = content.indexOf(10, markerIndex);
+		if (lineEnd === -1) {
+			lineEnd = content.length;
+		}
+
+		const decodeEnd = lineEnd > lineStart && content[lineEnd - 1] === 13 ? lineEnd - 1 : lineEnd;
+		const line = content.toString(options.bufferedEncoding ?? 'utf8', lineStart, decodeEnd);
+		const lineMarkerIndex = markerIndex - lineStart;
+		const result = processLine(
+			line,
+			options.markerIndex === 'byte' ? lineMarkerIndex : line.indexOf(marker),
+			marker,
+		);
+		if (result != null) {
+			await result;
+		}
+
+		lineStart = lineEnd + 1;
+		markerIndex = content.indexOf(markerBuffer, lineStart);
 	}
 }
 
@@ -184,6 +251,7 @@ export async function processJSONLFileByMarkers(
 	filePath: string,
 	markers: readonly string[],
 	processLine: (line: string, markerIndex: number, marker: string) => void | Promise<void>,
+	options: JSONLMarkerProcessingOptions = {},
 ): Promise<void> {
 	const normalizedMarkers = markers.map(normalizeMarker).filter((marker) => marker != null);
 	if (normalizedMarkers.length === 0) {
@@ -192,7 +260,7 @@ export async function processJSONLFileByMarkers(
 
 	const bytes = await readBufferedJSONLBytes(filePath);
 	if (bytes != null) {
-		await processBufferedJSONLMarkerBytes(bytes, normalizedMarkers, processLine);
+		await processBufferedJSONLMarkerBytes(bytes, normalizedMarkers, processLine, options);
 		return;
 	}
 
@@ -297,6 +365,56 @@ if (import.meta.vitest != null) {
 					line: markedLine,
 					markerIndex: markedLine.indexOf(marker),
 				},
+			]);
+		});
+
+		it('can use single-byte buffered decoding for ASCII-only hot paths', async () => {
+			const markedLine = '{"note":"東京","payload":{"type":"token_count","text":"👋"}}';
+			const marker = '"type":"token_count"';
+			await using fixture = await createFixture({
+				'test.jsonl': markedLine,
+			});
+
+			const seen: Array<{ line: string; markerIndex: number }> = [];
+			await processJSONLFileByMarkers(
+				fixture.getPath('test.jsonl'),
+				[marker],
+				(line, markerIndex) => {
+					seen.push({ line, markerIndex });
+				},
+				{ bufferedEncoding: 'latin1', markerIndex: 'byte' },
+			);
+
+			expect(seen).toEqual([
+				{
+					line: Buffer.from(markedLine).toString('latin1'),
+					markerIndex: Buffer.byteLength(markedLine.slice(0, markedLine.indexOf(marker))),
+				},
+			]);
+		});
+
+		it('can scan buffered files by line for marker-dense logs', async () => {
+			await using fixture = await createFixture({
+				'test.jsonl': [
+					'{"type":"turn_context","payload":{"model":"gpt-5.4"}}',
+					'{"type":"event_msg","payload":{"type":"token_count"}}',
+					'{"type":"noise","payload":{"text":"ignored"}}',
+				].join('\n'),
+			});
+
+			const seen: string[] = [];
+			await processJSONLFileByMarkers(
+				fixture.getPath('test.jsonl'),
+				['turn_context', '"type":"token_count"'],
+				(line) => {
+					seen.push(line);
+				},
+				{ scanMode: 'line' },
+			);
+
+			expect(seen).toEqual([
+				'{"type":"turn_context","payload":{"model":"gpt-5.4"}}',
+				'{"type":"event_msg","payload":{"type":"token_count"}}',
 			]);
 		});
 	});

@@ -229,52 +229,60 @@ async function parseCodexSessionFile(
 	};
 
 	try {
-		await processJSONLFileByMarkers(file, CODEX_JSONL_MARKERS, (line) => {
-			const contextModel = extractTurnContextModelFast(line);
-			if (contextModel != null) {
-				currentModel = contextModel;
-				currentModelIsFallback = false;
-				return;
-			}
-
-			const parsedFast = parseTokenCountLineFast(line);
-			if (parsedFast != null) {
-				addTokenCountEvent(parsedFast);
-				return;
-			}
-
-			try {
-				const entry = asRecord(JSON.parse(line) as unknown);
-				if (entry == null) {
+		await processJSONLFileByMarkers(
+			file,
+			CODEX_JSONL_MARKERS,
+			(line) => {
+				const contextModel = extractTurnContextModelFast(line);
+				if (contextModel != null) {
+					currentModel = contextModel;
+					currentModelIsFallback = false;
 					return;
 				}
-				const entryType = typeof entry.type === 'string' ? entry.type : undefined;
-				const payload = entry.payload;
-				const timestamp = typeof entry.timestamp === 'string' ? entry.timestamp : undefined;
-				if (entryType === 'turn_context') {
-					const model = extractModel(payload);
-					if (model != null) {
-						currentModel = model;
-						currentModelIsFallback = false;
+
+				const parsedFast = parseTokenCountLineFast(line);
+				if (parsedFast != null) {
+					addTokenCountEvent(parsedFast);
+					return;
+				}
+
+				try {
+					const entry = asRecord(JSON.parse(line) as unknown);
+					if (entry == null) {
+						return;
 					}
-					return;
-				}
-				if (entryType !== 'event_msg' || timestamp == null) {
-					return;
-				}
-				const payloadRecord = asRecord(payload);
-				if (payloadRecord?.type !== 'token_count') {
-					return;
-				}
-				const info = asRecord(payloadRecord.info);
-				addTokenCountEvent({
-					timestamp,
-					lastUsage: normalizeRawUsage(info?.last_token_usage),
-					totalUsage: normalizeRawUsage(info?.total_token_usage),
-					model: extractModel({ info, ...payloadRecord }),
-				});
-			} catch {}
-		});
+					const entryType = typeof entry.type === 'string' ? entry.type : undefined;
+					const payload = entry.payload;
+					const timestamp = typeof entry.timestamp === 'string' ? entry.timestamp : undefined;
+					if (entryType === 'turn_context') {
+						const model = extractModel(payload);
+						if (model != null) {
+							currentModel = model;
+							currentModelIsFallback = false;
+						}
+						return;
+					}
+					if (entryType !== 'event_msg' || timestamp == null) {
+						return;
+					}
+					const payloadRecord = asRecord(payload);
+					if (payloadRecord?.type !== 'token_count') {
+						return;
+					}
+					const info = asRecord(payloadRecord.info);
+					addTokenCountEvent({
+						timestamp,
+						lastUsage: normalizeRawUsage(info?.last_token_usage),
+						totalUsage: normalizeRawUsage(info?.total_token_usage),
+						model: extractModel({ info, ...payloadRecord }),
+					});
+				} catch {}
+			},
+			{
+				bufferedEncoding: 'latin1',
+				scanMode: 'line',
+			},
+		);
 	} catch (error) {
 		logger.debug('Failed to read Codex session file', error);
 	}
