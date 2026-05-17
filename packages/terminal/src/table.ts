@@ -860,7 +860,8 @@ export function createUsageReportTable(config: UsageReportConfig): ResponsiveTab
 		minColumnWidths.splice(1, 0, 10);
 	}
 
-	// Add Prompts column between Models (or Agent) and Input for time-bucketed reports
+	// Add Prompts column between Models/Agent and the first metric column
+	// (Input in default layouts, Total Tokens in the all-agent compact layout)
 	if (config.includePrompts ?? false) {
 		const baseInputIndex = baseHeaders.indexOf('Input');
 		if (baseInputIndex !== -1) {
@@ -868,11 +869,13 @@ export function createUsageReportTable(config: UsageReportConfig): ResponsiveTab
 			baseAligns.splice(baseInputIndex, 0, 'right');
 			minColumnWidths.splice(baseInputIndex, 0, 9);
 		}
-		const compactInputIndex = compactHeaders.indexOf('Input');
-		if (compactInputIndex !== -1) {
-			compactHeaders.splice(compactInputIndex, 0, 'Prompts');
-			compactAligns.splice(compactInputIndex, 0, 'right');
-			compactMinColumnWidths.splice(compactInputIndex, 0, 9);
+		const compactAnchor = compactHeaders.includes('Input')
+			? compactHeaders.indexOf('Input')
+			: compactHeaders.indexOf('Total Tokens');
+		if (compactAnchor !== -1) {
+			compactHeaders.splice(compactAnchor, 0, 'Prompts');
+			compactAligns.splice(compactAnchor, 0, 'right');
+			compactMinColumnWidths.splice(compactAnchor, 0, 9);
 		}
 	}
 

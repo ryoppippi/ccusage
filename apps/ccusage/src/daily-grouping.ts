@@ -99,6 +99,48 @@ if (import.meta.vitest != null) {
 			expect(result['project-b']![0]!.totalTokens).toBe(3500);
 		});
 
+		it('omits promptCount when includePrompts is false (default)', () => {
+			const mockData = [
+				{
+					date: createDailyDate('2024-01-01'),
+					project: 'project-a',
+					inputTokens: 1000,
+					outputTokens: 500,
+					cacheCreationTokens: 0,
+					cacheReadTokens: 0,
+					totalCost: 0.01,
+					modelsUsed: [createModelName('claude-sonnet-4-20250514')],
+					modelBreakdowns: [],
+					promptCount: 5,
+				},
+			];
+
+			const result = groupByProject(mockData);
+
+			expect(result['project-a']![0]!).not.toHaveProperty('promptCount');
+		});
+
+		it('includes promptCount when includePrompts is true', () => {
+			const mockData = [
+				{
+					date: createDailyDate('2024-01-01'),
+					project: 'project-a',
+					inputTokens: 1000,
+					outputTokens: 500,
+					cacheCreationTokens: 0,
+					cacheReadTokens: 0,
+					totalCost: 0.01,
+					modelsUsed: [createModelName('claude-sonnet-4-20250514')],
+					modelBreakdowns: [],
+					promptCount: 5,
+				},
+			];
+
+			const result = groupByProject(mockData, true);
+
+			expect(result['project-a']![0]!.promptCount).toBe(5);
+		});
+
 		it('handles unknown project names', () => {
 			const mockData = [
 				{
