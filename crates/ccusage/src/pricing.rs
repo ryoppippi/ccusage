@@ -299,6 +299,21 @@ impl PricingMap {
                 fast_multiplier: 1.0,
             },
         );
+        let gpt_5_codex_pricing = Pricing {
+            input: 1.75e-6,
+            output: 14e-6,
+            cache_create: 1.75e-6,
+            cache_read: 0.175e-6,
+            input_above_200k: None,
+            output_above_200k: None,
+            cache_create_above_200k: None,
+            cache_read_above_200k: None,
+            fast_multiplier: 1.0,
+        };
+        self.entries
+            .insert("gpt-5.2-codex".to_string(), gpt_5_codex_pricing);
+        self.entries
+            .insert("gpt-5.3-codex".to_string(), gpt_5_codex_pricing);
     }
 }
 

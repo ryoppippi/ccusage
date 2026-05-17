@@ -451,13 +451,14 @@ fn aggregate_codex_events(
     timezone: Option<&str>,
 ) -> Result<BTreeMap<String, CodexGroup>> {
     let mut groups = BTreeMap::new();
+    let timezone = parse_tz(timezone).or_else(|| Some(JiffTimeZone::system()));
     for event in events {
         let Some(model) = event.model.as_deref().filter(|model| !model.is_empty()) else {
             continue;
         };
         let timestamp = parse_ts_timestamp(&event.timestamp)
             .ok_or_else(|| cli_error(format!("Invalid Codex timestamp: {}", event.timestamp)))?;
-        let date = format_date(timestamp, timezone);
+        let date = format_date_tz(timestamp, timezone.as_ref());
         let period = match kind {
             AgentReportKind::Daily => date,
             AgentReportKind::Weekly => week_start(&date, WeekDay::Monday).unwrap_or(date),
@@ -586,11 +587,12 @@ fn filter_codex_events_by_date(
     if shared.since.is_none() && shared.until.is_none() {
         return Ok(());
     }
+    let timezone = parse_tz(shared.timezone.as_deref()).or_else(|| Some(JiffTimeZone::system()));
     let mut kept = Vec::with_capacity(events.len());
     for event in events.drain(..) {
         let timestamp = parse_ts_timestamp(&event.timestamp)
             .ok_or_else(|| cli_error(format!("Invalid Codex timestamp: {}", event.timestamp)))?;
-        let date = format_date(timestamp, shared.timezone.as_deref()).replace('-', "");
+        let date = format_date_tz(timestamp, timezone.as_ref()).replace('-', "");
         if shared.since.as_ref().is_none_or(|since| &date >= since)
             && shared.until.as_ref().is_none_or(|until| &date <= until)
         {
@@ -1630,7 +1632,6 @@ fn load_codex_events_from_directory(
     } else {
         read_codex_session_files_parallel(sessions_dir, &files)
     };
-    events.sort_by(|a, b| a.timestamp.cmp(&b.timestamp));
     dedupe_codex_events(&mut events);
     Ok(events)
 }
@@ -1643,7 +1644,6 @@ fn load_codex_events(shared: &SharedArgs) -> Result<Vec<CodexTokenUsageEvent>> {
             shared.single_thread,
         )?);
     }
-    events.sort_by(|a, b| a.timestamp.cmp(&b.timestamp));
     dedupe_codex_events(&mut events);
     Ok(events)
 }
@@ -4349,6 +4349,26 @@ mod tests {
         assert_eq!(report["daily"][0]["totalTokens"], 150);
         assert_eq!(report["daily"][0]["costUSD"], json!(0.00061375));
         assert_eq!(report["totals"]["costUSD"], json!(0.00061375));
+    }
+
+    #[test]
+    fn prices_codex_versioned_models_like_typescript_adapter() {
+        let pricing = PricingMap::load_embedded();
+        let events = vec![CodexTokenUsageEvent {
+            session_id: "codex-session".to_string(),
+            timestamp: "2026-01-02T00:00:01.000Z".to_string(),
+            model: Some("gpt-5.3-codex".to_string()),
+            input_tokens: 120,
+            cached_input_tokens: 30,
+            output_tokens: 11,
+            reasoning_output_tokens: 3,
+            total_tokens: 131,
+            is_fallback_model: false,
+        }];
+
+        let report = codex_report_json(&events, AgentReportKind::Daily, None, &pricing).unwrap();
+
+        assert_eq!(report["daily"][0]["costUSD"], json!(0.00031675));
     }
 
     #[test]
