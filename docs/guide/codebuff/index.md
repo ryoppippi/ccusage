@@ -1,0 +1,86 @@
+# Codebuff Data Source (Beta)
+
+> Codebuff support is experimental. Expect adjustments while the local data format continues to evolve.
+
+ccusage can read Codebuff chat history files as one of its supported local data sources, using the same reporting experience as the rest of ccusage: responsive tables, JSON output, LiteLLM-based pricing, cache token accounting, and credit totals where Codebuff records them.
+
+## Focused Views
+
+::: code-group
+
+```bash [bunx (Recommended)]
+bunx ccusage codebuff --help
+```
+
+```bash [npx]
+npx ccusage@latest codebuff --help
+```
+
+```bash [pnpm]
+pnpm dlx ccusage codebuff --help
+```
+
+:::
+
+## Data Source
+
+The CLI reads Codebuff chat JSON files from `CODEBUFF_DATA_DIR` (defaults to `~/.config/manicode`). `CODEBUFF_DATA_DIR` can be one channel root or a comma-separated list of channel roots.
+
+When `CODEBUFF_DATA_DIR` is not set, ccusage checks the stable, dev, and staging channel roots:
+
+```text
+~/.config/manicode/
+~/.config/manicode-dev/
+~/.config/manicode-staging/
+```
+
+Each root is expected to contain project chat histories:
+
+```text
+~/.config/manicode/
+└── projects/
+    └── <project>/
+        └── chats/
+            └── <chat-id>/
+                └── chat-messages.json
+```
+
+Use a custom root when your Codebuff data lives elsewhere:
+
+```bash
+CODEBUFF_DATA_DIR="$HOME/.config/manicode,/backup/codebuff" ccusage codebuff session
+```
+
+## Report Views
+
+| Focused view               | Description                          | See also                                |
+| -------------------------- | ------------------------------------ | --------------------------------------- |
+| `ccusage codebuff daily`   | Aggregate usage by date              | [Daily Usage](/guide/daily-reports)     |
+| `ccusage codebuff monthly` | Aggregate usage by month             | [Monthly Usage](/guide/monthly-reports) |
+| `ccusage codebuff session` | Group usage by Codebuff chat session | [Session Usage](/guide/session-reports) |
+
+These views support `--json` for structured output, `--compact` for narrow terminals, and `--offline` for cached pricing data.
+
+## What Gets Calculated
+
+- **Token usage** - Assistant messages can provide input and output token counts from `metadata.usage`, `metadata.codebuff.usage`, or nested run-state provider usage.
+- **Cache tokens** - Cache creation and cache read tokens are included when the Codebuff message metadata records them.
+- **Credits** - Codebuff credit values are summed in row metadata alongside token and cost totals.
+- **Pricing** - Costs are estimated from LiteLLM pricing data for Anthropic, OpenAI, Google, xAI, and provider-prefixed model names.
+
+## Environment Variables
+
+| Variable            | Description                                                                               |
+| ------------------- | ----------------------------------------------------------------------------------------- |
+| `CODEBUFF_DATA_DIR` | Override the channel root, or comma-separated channel roots, containing Codebuff projects |
+| `LOG_LEVEL`         | Adjust verbosity (0 silent ... 5 trace)                                                   |
+
+## Troubleshooting
+
+::: details No Codebuff usage data found
+Ensure the data directory contains `projects/<project>/chats/<chat-id>/chat-messages.json`. Set `CODEBUFF_DATA_DIR` if your Codebuff data lives outside `~/.config/manicode`, `~/.config/manicode-dev`, or `~/.config/manicode-staging`.
+:::
+
+::: details Costs showing as $0.00
+If a model is not in LiteLLM's database, the cost will be $0.00. [Open an issue](https://github.com/ryoppippi/ccusage/issues/new) to request alias support.
+:::

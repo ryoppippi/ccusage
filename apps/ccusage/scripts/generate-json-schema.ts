@@ -39,7 +39,7 @@ const COMMAND_EXCLUDE_KEYS: Record<string, string[]> = {
 	blocks: ['live', 'refreshInterval'],
 };
 
-const AGENT_NAMES = ['claude', 'codex', 'opencode', 'amp', 'pi'] as const;
+const AGENT_NAMES = ['claude', 'codex', 'opencode', 'amp', 'pi', 'codebuff'] as const;
 type AgentName = (typeof AGENT_NAMES)[number];
 type JsonSchemaNode = {
 	[key: string]: unknown;
@@ -161,7 +161,8 @@ function createAgentJsonSchema(
 	agentName: AgentName,
 	commandSchemas: Record<string, TokenSchema>,
 ): JsonSchemaNode {
-	const agentLabel = agentName === 'pi' ? 'pi-agent' : agentName;
+	const agentLabel =
+		agentName === 'pi' ? 'pi-agent' : agentName === 'codebuff' ? 'Codebuff' : agentName;
 	return {
 		type: 'object',
 		properties: {
@@ -242,6 +243,7 @@ function createConfigSchemaJson(): JsonSchemaNode {
 					opencode: createAgentJsonSchema('opencode', agentCommandSchemas.opencode),
 					amp: createAgentJsonSchema('amp', agentCommandSchemas.amp),
 					pi: createAgentJsonSchema('pi', agentCommandSchemas.pi),
+					codebuff: createAgentJsonSchema('codebuff', agentCommandSchemas.codebuff),
 				},
 				additionalProperties: false,
 			},

@@ -2164,6 +2164,220 @@
 					"additionalProperties": false,
 					"description": "pi-agent command configuration",
 					"markdownDescription": "pi-agent command configuration"
+				},
+				"codebuff": {
+					"type": "object",
+					"properties": {
+						"defaults": {
+							"type": "object",
+							"properties": {
+								"json": {
+									"type": "boolean",
+									"description": "Output in JSON format",
+									"markdownDescription": "Output in JSON format",
+									"default": false
+								},
+								"since": {
+									"type": "string",
+									"description": "Filter from date (YYYY-MM-DD or YYYYMMDD)",
+									"markdownDescription": "Filter from date (YYYY-MM-DD or YYYYMMDD)"
+								},
+								"until": {
+									"type": "string",
+									"description": "Filter until date (inclusive)",
+									"markdownDescription": "Filter until date (inclusive)"
+								},
+								"timezone": {
+									"type": "string",
+									"description": "Timezone for date grouping (IANA)",
+									"markdownDescription": "Timezone for date grouping (IANA)"
+								},
+								"offline": {
+									"type": "boolean",
+									"description": "Use cached pricing data instead of fetching from LiteLLM",
+									"markdownDescription": "Use cached pricing data instead of fetching from LiteLLM",
+									"default": false
+								},
+								"compact": {
+									"type": "boolean",
+									"description": "Force compact table layout for narrow terminals",
+									"markdownDescription": "Force compact table layout for narrow terminals",
+									"default": false
+								},
+								"color": {
+									"type": "boolean",
+									"description": "Enable colored output (default: auto). FORCE_COLOR=1 has the same effect.",
+									"markdownDescription": "Enable colored output (default: auto). FORCE_COLOR=1 has the same effect."
+								},
+								"noColor": {
+									"type": "boolean",
+									"description": "Disable colored output (default: auto). NO_COLOR=1 has the same effect.",
+									"markdownDescription": "Disable colored output (default: auto). NO_COLOR=1 has the same effect."
+								}
+							},
+							"additionalProperties": false,
+							"description": "Default values for Codebuff commands",
+							"markdownDescription": "Default values for Codebuff commands"
+						},
+						"commands": {
+							"type": "object",
+							"properties": {
+								"daily": {
+									"type": "object",
+									"properties": {
+										"json": {
+											"type": "boolean",
+											"description": "Output in JSON format",
+											"markdownDescription": "Output in JSON format",
+											"default": false
+										},
+										"since": {
+											"type": "string",
+											"description": "Filter from date (YYYY-MM-DD or YYYYMMDD)",
+											"markdownDescription": "Filter from date (YYYY-MM-DD or YYYYMMDD)"
+										},
+										"until": {
+											"type": "string",
+											"description": "Filter until date (inclusive)",
+											"markdownDescription": "Filter until date (inclusive)"
+										},
+										"timezone": {
+											"type": "string",
+											"description": "Timezone for date grouping (IANA)",
+											"markdownDescription": "Timezone for date grouping (IANA)"
+										},
+										"offline": {
+											"type": "boolean",
+											"description": "Use cached pricing data instead of fetching from LiteLLM",
+											"markdownDescription": "Use cached pricing data instead of fetching from LiteLLM",
+											"default": false
+										},
+										"compact": {
+											"type": "boolean",
+											"description": "Force compact table layout for narrow terminals",
+											"markdownDescription": "Force compact table layout for narrow terminals",
+											"default": false
+										},
+										"color": {
+											"type": "boolean",
+											"description": "Enable colored output (default: auto). FORCE_COLOR=1 has the same effect.",
+											"markdownDescription": "Enable colored output (default: auto). FORCE_COLOR=1 has the same effect."
+										},
+										"noColor": {
+											"type": "boolean",
+											"description": "Disable colored output (default: auto). NO_COLOR=1 has the same effect.",
+											"markdownDescription": "Disable colored output (default: auto). NO_COLOR=1 has the same effect."
+										}
+									},
+									"additionalProperties": false
+								},
+								"monthly": {
+									"type": "object",
+									"properties": {
+										"json": {
+											"type": "boolean",
+											"description": "Output in JSON format",
+											"markdownDescription": "Output in JSON format",
+											"default": false
+										},
+										"since": {
+											"type": "string",
+											"description": "Filter from date (YYYY-MM-DD or YYYYMMDD)",
+											"markdownDescription": "Filter from date (YYYY-MM-DD or YYYYMMDD)"
+										},
+										"until": {
+											"type": "string",
+											"description": "Filter until date (inclusive)",
+											"markdownDescription": "Filter until date (inclusive)"
+										},
+										"timezone": {
+											"type": "string",
+											"description": "Timezone for date grouping (IANA)",
+											"markdownDescription": "Timezone for date grouping (IANA)"
+										},
+										"offline": {
+											"type": "boolean",
+											"description": "Use cached pricing data instead of fetching from LiteLLM",
+											"markdownDescription": "Use cached pricing data instead of fetching from LiteLLM",
+											"default": false
+										},
+										"compact": {
+											"type": "boolean",
+											"description": "Force compact table layout for narrow terminals",
+											"markdownDescription": "Force compact table layout for narrow terminals",
+											"default": false
+										},
+										"color": {
+											"type": "boolean",
+											"description": "Enable colored output (default: auto). FORCE_COLOR=1 has the same effect.",
+											"markdownDescription": "Enable colored output (default: auto). FORCE_COLOR=1 has the same effect."
+										},
+										"noColor": {
+											"type": "boolean",
+											"description": "Disable colored output (default: auto). NO_COLOR=1 has the same effect.",
+											"markdownDescription": "Disable colored output (default: auto). NO_COLOR=1 has the same effect."
+										}
+									},
+									"additionalProperties": false
+								},
+								"session": {
+									"type": "object",
+									"properties": {
+										"json": {
+											"type": "boolean",
+											"description": "Output in JSON format",
+											"markdownDescription": "Output in JSON format",
+											"default": false
+										},
+										"since": {
+											"type": "string",
+											"description": "Filter from date (YYYY-MM-DD or YYYYMMDD)",
+											"markdownDescription": "Filter from date (YYYY-MM-DD or YYYYMMDD)"
+										},
+										"until": {
+											"type": "string",
+											"description": "Filter until date (inclusive)",
+											"markdownDescription": "Filter until date (inclusive)"
+										},
+										"timezone": {
+											"type": "string",
+											"description": "Timezone for date grouping (IANA)",
+											"markdownDescription": "Timezone for date grouping (IANA)"
+										},
+										"offline": {
+											"type": "boolean",
+											"description": "Use cached pricing data instead of fetching from LiteLLM",
+											"markdownDescription": "Use cached pricing data instead of fetching from LiteLLM",
+											"default": false
+										},
+										"compact": {
+											"type": "boolean",
+											"description": "Force compact table layout for narrow terminals",
+											"markdownDescription": "Force compact table layout for narrow terminals",
+											"default": false
+										},
+										"color": {
+											"type": "boolean",
+											"description": "Enable colored output (default: auto). FORCE_COLOR=1 has the same effect.",
+											"markdownDescription": "Enable colored output (default: auto). FORCE_COLOR=1 has the same effect."
+										},
+										"noColor": {
+											"type": "boolean",
+											"description": "Disable colored output (default: auto). NO_COLOR=1 has the same effect.",
+											"markdownDescription": "Disable colored output (default: auto). NO_COLOR=1 has the same effect."
+										}
+									},
+									"additionalProperties": false
+								}
+							},
+							"additionalProperties": false,
+							"description": "Command-specific configuration overrides for Codebuff",
+							"markdownDescription": "Command-specific configuration overrides for Codebuff"
+						}
+					},
+					"additionalProperties": false,
+					"description": "Codebuff command configuration",
+					"markdownDescription": "Codebuff command configuration"
 				}
 			},
 			"additionalProperties": false

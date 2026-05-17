@@ -53,6 +53,7 @@ export CODEX_HOME="$HOME/.codex"
 export OPENCODE_DATA_DIR="$HOME/.local/share/opencode"
 export AMP_DATA_DIR="$HOME/.local/share/amp"
 export PI_AGENT_DIR="$HOME/.pi/agent/sessions"
+export CODEBUFF_DATA_DIR="$HOME/.config/manicode"
 ```
 
 Use comma-separated directories when you want reports to combine multiple profiles or archives:
@@ -60,6 +61,7 @@ Use comma-separated directories when you want reports to combine multiple profil
 ```bash
 export CODEX_HOME="$HOME/.codex,$HOME/.codex-work"
 export OPENCODE_DATA_DIR="$HOME/.local/share/opencode,/archive/opencode"
+export CODEBUFF_DATA_DIR="$HOME/.config/manicode,/archive/codebuff"
 ```
 
 2. **Create a configuration file** for your preferences:
@@ -104,7 +106,7 @@ For individual developers working on multiple projects:
 
 ### Multiple Sources
 
-Configure Claude Code, Codex, OpenCode, Amp, and pi-agent separately with data source namespaces:
+Configure Claude Code, Codex, OpenCode, Amp, pi-agent, and Codebuff separately with data source namespaces:
 
 ```json
 // ~/.config/claude/ccusage.json

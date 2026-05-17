@@ -9,16 +9,17 @@
         "claude-sonnet-4-20250514",
         "gpt-5"
       ],
-      "inputTokens": 500,
-      "outputTokens": 250,
-      "cacheCreationTokens": 80,
-      "cacheReadTokens": 50,
-      "totalTokens": 870,
-      "totalCost": 0.25098975,
+      "inputTokens": 600,
+      "outputTokens": 300,
+      "cacheCreationTokens": 100,
+      "cacheReadTokens": 60,
+      "totalTokens": 1050,
+      "totalCost": 0.25211775000000003,
       "metadata": {
         "agents": [
           "amp",
           "claude",
+          "codebuff",
           "codex",
           "opencode",
           "pi"
@@ -27,11 +28,11 @@
     }
   ],
   "totals": {
-    "inputTokens": 500,
-    "outputTokens": 250,
-    "cacheCreationTokens": 80,
-    "cacheReadTokens": 50,
-    "totalTokens": 870,
-    "totalCost": 0.25098975
+    "inputTokens": 600,
+    "outputTokens": 300,
+    "cacheCreationTokens": 100,
+    "cacheReadTokens": 60,
+    "totalTokens": 1050,
+    "totalCost": 0.25211775000000003
   }
 }

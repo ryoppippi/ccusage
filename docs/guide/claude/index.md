@@ -75,7 +75,7 @@ export CLAUDE_CONFIG_DIR="~/.config/claude,/backup/claude-archive"
 ccusage claude monthly
 ```
 
-For Codex, OpenCode, Amp, and pi-agent data locations, use the source-specific environment variables listed in [Environment Variables](/guide/environment-variables).
+For Codex, OpenCode, Amp, pi-agent, and Codebuff data locations, use the source-specific environment variables listed in [Environment Variables](/guide/environment-variables).
 
 ### Directory Detection
 
