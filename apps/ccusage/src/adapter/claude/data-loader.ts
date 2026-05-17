@@ -1173,18 +1173,16 @@ async function filterFilesByMtime<T>(
 }
 
 /**
- * Create a unique identifier for deduplication using message ID and request ID
+ * Create a unique identifier for deduplication using message ID and request ID.
  */
 export function createUniqueHash(data: UsageData): string | null {
 	const messageId = data.message.id;
-	const requestId = data.requestId;
-
-	if (messageId == null || requestId == null) {
+	if (messageId == null) {
 		return null;
 	}
 
-	// Create a hash using simple concatenation
-	return `${messageId}:${requestId}`;
+	const requestId = data.requestId;
+	return requestId == null ? messageId : `${messageId}:${requestId}`;
 }
 
 async function processJSONLUsageFileByLine(
@@ -6204,7 +6202,7 @@ if (import.meta.vitest != null) {
 				expect(hash).toBeNull();
 			});
 
-			it('should return null when request id is missing', () => {
+			it('should fall back to message id when request id is missing', () => {
 				const data = {
 					timestamp: createISOTimestamp('2025-01-10T10:00:00Z'),
 					message: {
@@ -6217,7 +6215,7 @@ if (import.meta.vitest != null) {
 				};
 
 				const hash = createUniqueHash(data);
-				expect(hash).toBeNull();
+				expect(hash).toBe('msg_123');
 			});
 		});
 
@@ -6518,6 +6516,53 @@ if (import.meta.vitest != null) {
 				expect(data[0]?.inputTokens).toBe(100);
 				expect(data[0]?.outputTokens).toBe(250);
 				expect(data[0]?.totalCost).toBe(0.01);
+			});
+
+			it('deduplicates entries with the same message id when request id is missing', async () => {
+				await using fixture = await createFixture({
+					projects: {
+						project1: {
+							session1: {
+								'chat.jsonl': [
+									JSON.stringify({
+										timestamp: '2025-01-10T10:00:00.000Z',
+										message: {
+											id: 'msg_123',
+											model: 'claude-opus-4-6',
+											usage: {
+												input_tokens: 100,
+												output_tokens: 50,
+											},
+										},
+										costUSD: 0.001,
+									}),
+									JSON.stringify({
+										timestamp: '2025-01-10T10:00:01.000Z',
+										message: {
+											id: 'msg_123',
+											model: 'claude-opus-4-6',
+											usage: {
+												input_tokens: 200,
+												output_tokens: 100,
+											},
+										},
+										costUSD: 0.002,
+									}),
+								].join('\n'),
+							},
+						},
+					},
+				});
+
+				const data = await loadDailyUsageData({
+					claudePath: fixture.path,
+					mode: 'display',
+				});
+
+				expect(data).toHaveLength(1);
+				expect(data[0]?.inputTokens).toBe(200);
+				expect(data[0]?.outputTokens).toBe(100);
+				expect(data[0]?.totalCost).toBe(0.002);
 			});
 		});
 
