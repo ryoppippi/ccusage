@@ -29,7 +29,7 @@ const pathRegex = regex('^[/\\\\-]+|[/\\\\-]+$', 'g');
 ```
 
 - Keep pattern strings single-quoted and escape backslashes for string literals.
-- Write newline matches with a real escaped newline in the string, for example `regex('\n$')`, not `regex('\\n$')`.
+- Prefer escaped newline patterns such as `regex('\\n$')` because they mirror regex literal syntax. `regex('\n$')` is also valid and matches the same newline.
 - Do not escape `/` inside `regex()` strings; use `regex('a/b')`, not `regex('a\\/b')`.
 - For broad alternations or patterns that trigger `Type instantiation is excessively deep`, use `regex.as<...>()` with explicit types.
 - Do not use regex literals such as `/.../` or `new RegExp(...)` in new TypeScript code.
@@ -47,7 +47,7 @@ Use the existing `pnpm-workspace.yaml` runtime catalog entry, or add one if it i
 
 ## Migration Checklist
 
-1. Find regex literals with ast-grep:
+1. Find regex literals with ast-grep. Prefix with `,` to run ast-grep through comma when it is not already available:
 
 ```sh
 , ast-grep run --lang ts --pattern '/$P/' --json=stream apps packages

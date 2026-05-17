@@ -7,7 +7,7 @@ import { regex } from 'arkregex';
  *
  * @module project-names
  */
-const ignoredProjectSegmentRegex = regex.as<string, { captures: [] }>(
+const ignoredProjectSegmentRegex = regex.as<`${string}`, { captures: [] }>(
 	'^(?:dev|development|feat|feature|fix|bug|test|staging|prod|production|main|master|branch)$',
 	'i',
 );
