@@ -27,9 +27,9 @@ const CODEX_JSONL_MARKERS = [
 	'turn_context',
 	'"type":"token_count"',
 	'"type": "token_count"',
-	'"usage"',
-	'"input_tokens"',
-	'"prompt_tokens"',
+	'"usage":',
+	'"input_tokens":',
+	'"prompt_tokens":',
 ];
 const ENCODED_CODEX_EVENT_NUMBER_STRIDE = 5;
 const TOKEN_USAGE_EVENT_KEY_SEPARATOR = '\0';
@@ -174,7 +174,7 @@ function extractModel(value: unknown): string | undefined {
 		}
 	}
 
-	const fallbackModel = asNonEmptyString(payload.model);
+	const fallbackModel = asNonEmptyString(payload.model) ?? asNonEmptyString(payload.model_name);
 	if (fallbackModel != null) {
 		return fallbackModel;
 	}
@@ -931,6 +931,38 @@ if (import.meta.vitest != null) {
 					cachedInputTokens: 5,
 					outputTokens: 12,
 					totalTokens: 62,
+				},
+			]);
+		});
+
+		it('uses nested model_name when saved codex exec usage has no earlier model', async () => {
+			await using fixture = await createFixture({
+				codex: {},
+				exec: {
+					'solo.jsonl': JSON.stringify({
+						type: 'result',
+						data: {
+							timestamp: '2026-03-01T00:00:00.000Z',
+							model_name: 'gpt-5.2-codex',
+							usage: {
+								input_tokens: 10,
+								output_tokens: 5,
+								total_tokens: 15,
+							},
+						},
+					}),
+				},
+			});
+			vi.stubEnv('CODEX_HOME', fixture.getPath('codex'));
+			vi.stubEnv('CODEX_EXEC_LOG_DIR', fixture.getPath('exec'));
+
+			await expect(loadTokenUsageEvents()).resolves.toMatchObject([
+				{
+					sessionId: 'solo',
+					model: 'gpt-5.2-codex',
+					inputTokens: 10,
+					outputTokens: 5,
+					totalTokens: 15,
 				},
 			]);
 		});
