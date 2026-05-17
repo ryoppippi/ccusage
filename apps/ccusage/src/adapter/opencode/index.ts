@@ -20,7 +20,12 @@ function createOpenCodePricingContext(
 ): AgentPricingContext {
 	return createAgentPricingContext(
 		context,
-		() => new LiteLLMPricingFetcher({ offline: options.offline === true, logger }),
+		() =>
+			new LiteLLMPricingFetcher({
+				offline: options.offline === true,
+				logger,
+				pricingSource: options.pricingSource,
+			}),
 	);
 }
 

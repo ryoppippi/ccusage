@@ -25,6 +25,7 @@ import { loadAgentRows } from '../adapter/index.ts';
 import { agentLabels } from '../adapter/types.ts';
 import { formatDateCompact } from '../date-utils.ts';
 import { logger, writeStdoutLine } from '../logger.ts';
+import { sharedArgs } from '../shared-args.ts';
 import { createUsageLoadProgress, shouldShowUsageLoadProgress } from './loading-progress.ts';
 
 type AgentTotals = {
@@ -80,9 +81,10 @@ const commonAgentArgs = {
 		type: 'boolean',
 		negatable: true,
 		short: 'O',
-		description: 'Use cached pricing data instead of fetching from LiteLLM',
+		description: 'Use cached pricing data where supported',
 		default: false,
 	},
+	pricingSource: sharedArgs.pricingSource,
 	compact: {
 		type: 'boolean',
 		description: 'Force compact table layout for narrow terminals',
@@ -232,6 +234,7 @@ async function loadRows(
 	using pricingFetcher = new LiteLLMPricingFetcher({
 		offline: false,
 		logger: progress?.pricingLogger ?? logger,
+		pricingSource: options.pricingSource,
 	});
 	const context: AdapterContext = { pricingFetcher, progress };
 	return await loadAgentRows(agent, kind, options, context);

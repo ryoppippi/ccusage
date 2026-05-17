@@ -25,6 +25,7 @@ function createAmpPricingContext(
 				offlineLoader: loadOfflineAmpPricing,
 				logger,
 				providerPrefixes: AMP_PROVIDER_PREFIXES,
+				pricingSource: options.pricingSource,
 			}),
 	);
 }

@@ -53,6 +53,7 @@ export const sessionCommand = define({
 						id: mergedOptions.id,
 						mode: mergedOptions.mode,
 						offline: mergedOptions.offline,
+						pricingSource: mergedOptions.pricingSource,
 						timezone: mergedOptions.timezone,
 					},
 				},

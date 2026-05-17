@@ -24,6 +24,13 @@
 							"markdownDescription": "Use cached pricing data where supported",
 							"default": false
 						},
+						"pricingSource": {
+							"type": "string",
+							"enum": ["litellm", "modelsdev", "auto"],
+							"description": "Pricing data source: litellm, modelsdev, or auto (LiteLLM with models.dev fallback/merge)",
+							"markdownDescription": "Pricing data source: litellm, modelsdev, or auto (LiteLLM with models.dev fallback/merge)",
+							"default": "litellm"
+						},
 						"json": {
 							"type": "boolean",
 							"description": "Output in JSON format",
@@ -121,6 +128,13 @@
 									"description": "Use cached pricing data where supported",
 									"markdownDescription": "Use cached pricing data where supported",
 									"default": false
+								},
+								"pricingSource": {
+									"type": "string",
+									"enum": ["litellm", "modelsdev", "auto"],
+									"description": "Pricing data source: litellm, modelsdev, or auto (LiteLLM with models.dev fallback/merge)",
+									"markdownDescription": "Pricing data source: litellm, modelsdev, or auto (LiteLLM with models.dev fallback/merge)",
+									"default": "litellm"
 								},
 								"singleThread": {
 									"type": "boolean",
@@ -231,6 +245,13 @@
 									"markdownDescription": "Use cached pricing data where supported",
 									"default": false
 								},
+								"pricingSource": {
+									"type": "string",
+									"enum": ["litellm", "modelsdev", "auto"],
+									"description": "Pricing data source: litellm, modelsdev, or auto (LiteLLM with models.dev fallback/merge)",
+									"markdownDescription": "Pricing data source: litellm, modelsdev, or auto (LiteLLM with models.dev fallback/merge)",
+									"default": "litellm"
+								},
 								"singleThread": {
 									"type": "boolean",
 									"description": "Disable parallel JSONL file loading",
@@ -323,6 +344,13 @@
 									"description": "Use cached pricing data where supported",
 									"markdownDescription": "Use cached pricing data where supported",
 									"default": false
+								},
+								"pricingSource": {
+									"type": "string",
+									"enum": ["litellm", "modelsdev", "auto"],
+									"description": "Pricing data source: litellm, modelsdev, or auto (LiteLLM with models.dev fallback/merge)",
+									"markdownDescription": "Pricing data source: litellm, modelsdev, or auto (LiteLLM with models.dev fallback/merge)",
+									"default": "litellm"
 								},
 								"singleThread": {
 									"type": "boolean",
@@ -425,6 +453,13 @@
 									"markdownDescription": "Use cached pricing data where supported",
 									"default": false
 								},
+								"pricingSource": {
+									"type": "string",
+									"enum": ["litellm", "modelsdev", "auto"],
+									"description": "Pricing data source: litellm, modelsdev, or auto (LiteLLM with models.dev fallback/merge)",
+									"markdownDescription": "Pricing data source: litellm, modelsdev, or auto (LiteLLM with models.dev fallback/merge)",
+									"default": "litellm"
+								},
 								"singleThread": {
 									"type": "boolean",
 									"description": "Disable parallel JSONL file loading",
@@ -519,9 +554,16 @@
 								},
 								"offline": {
 									"type": "boolean",
-									"description": "Use cached pricing data for Claude models instead of fetching from API",
-									"markdownDescription": "Use cached pricing data for Claude models instead of fetching from API",
+									"description": "Use cached pricing data where supported",
+									"markdownDescription": "Use cached pricing data where supported",
 									"default": false
+								},
+								"pricingSource": {
+									"type": "string",
+									"enum": ["litellm", "modelsdev", "auto"],
+									"description": "Pricing data source: litellm, modelsdev, or auto (LiteLLM with models.dev fallback/merge)",
+									"markdownDescription": "Pricing data source: litellm, modelsdev, or auto (LiteLLM with models.dev fallback/merge)",
+									"default": "litellm"
 								},
 								"singleThread": {
 									"type": "boolean",
@@ -581,9 +623,16 @@
 							"properties": {
 								"offline": {
 									"type": "boolean",
-									"description": "Use cached pricing data for Claude models instead of fetching from API",
-									"markdownDescription": "Use cached pricing data for Claude models instead of fetching from API",
+									"description": "Use cached pricing data where supported",
+									"markdownDescription": "Use cached pricing data where supported",
 									"default": true
+								},
+								"pricingSource": {
+									"type": "string",
+									"enum": ["litellm", "modelsdev", "auto"],
+									"description": "Pricing data source: litellm, modelsdev, or auto (LiteLLM with models.dev fallback/merge)",
+									"markdownDescription": "Pricing data source: litellm, modelsdev, or auto (LiteLLM with models.dev fallback/merge)",
+									"default": "litellm"
 								},
 								"visualBurnRate": {
 									"type": "string",
@@ -651,9 +700,16 @@
 								},
 								"offline": {
 									"type": "boolean",
-									"description": "Use cached pricing data for Claude models instead of fetching from API",
-									"markdownDescription": "Use cached pricing data for Claude models instead of fetching from API",
+									"description": "Use cached pricing data where supported",
+									"markdownDescription": "Use cached pricing data where supported",
 									"default": false
+								},
+								"pricingSource": {
+									"type": "string",
+									"enum": ["litellm", "modelsdev", "auto"],
+									"description": "Pricing data source: litellm, modelsdev, or auto (LiteLLM with models.dev fallback/merge)",
+									"markdownDescription": "Pricing data source: litellm, modelsdev, or auto (LiteLLM with models.dev fallback/merge)",
+									"default": "litellm"
 								}
 							},
 							"additionalProperties": false,
@@ -716,9 +772,16 @@
 										},
 										"offline": {
 											"type": "boolean",
-											"description": "Use cached pricing data for Claude models instead of fetching from API",
-											"markdownDescription": "Use cached pricing data for Claude models instead of fetching from API",
+											"description": "Use cached pricing data where supported",
+											"markdownDescription": "Use cached pricing data where supported",
 											"default": false
+										},
+										"pricingSource": {
+											"type": "string",
+											"enum": ["litellm", "modelsdev", "auto"],
+											"description": "Pricing data source: litellm, modelsdev, or auto (LiteLLM with models.dev fallback/merge)",
+											"markdownDescription": "Pricing data source: litellm, modelsdev, or auto (LiteLLM with models.dev fallback/merge)",
+											"default": "litellm"
 										},
 										"singleThread": {
 											"type": "boolean",
@@ -819,9 +882,16 @@
 										},
 										"offline": {
 											"type": "boolean",
-											"description": "Use cached pricing data for Claude models instead of fetching from API",
-											"markdownDescription": "Use cached pricing data for Claude models instead of fetching from API",
+											"description": "Use cached pricing data where supported",
+											"markdownDescription": "Use cached pricing data where supported",
 											"default": false
+										},
+										"pricingSource": {
+											"type": "string",
+											"enum": ["litellm", "modelsdev", "auto"],
+											"description": "Pricing data source: litellm, modelsdev, or auto (LiteLLM with models.dev fallback/merge)",
+											"markdownDescription": "Pricing data source: litellm, modelsdev, or auto (LiteLLM with models.dev fallback/merge)",
+											"default": "litellm"
 										},
 										"singleThread": {
 											"type": "boolean",
@@ -906,9 +976,16 @@
 										},
 										"offline": {
 											"type": "boolean",
-											"description": "Use cached pricing data for Claude models instead of fetching from API",
-											"markdownDescription": "Use cached pricing data for Claude models instead of fetching from API",
+											"description": "Use cached pricing data where supported",
+											"markdownDescription": "Use cached pricing data where supported",
 											"default": false
+										},
+										"pricingSource": {
+											"type": "string",
+											"enum": ["litellm", "modelsdev", "auto"],
+											"description": "Pricing data source: litellm, modelsdev, or auto (LiteLLM with models.dev fallback/merge)",
+											"markdownDescription": "Pricing data source: litellm, modelsdev, or auto (LiteLLM with models.dev fallback/merge)",
+											"default": "litellm"
 										},
 										"singleThread": {
 											"type": "boolean",
@@ -1001,9 +1078,16 @@
 										},
 										"offline": {
 											"type": "boolean",
-											"description": "Use cached pricing data for Claude models instead of fetching from API",
-											"markdownDescription": "Use cached pricing data for Claude models instead of fetching from API",
+											"description": "Use cached pricing data where supported",
+											"markdownDescription": "Use cached pricing data where supported",
 											"default": false
+										},
+										"pricingSource": {
+											"type": "string",
+											"enum": ["litellm", "modelsdev", "auto"],
+											"description": "Pricing data source: litellm, modelsdev, or auto (LiteLLM with models.dev fallback/merge)",
+											"markdownDescription": "Pricing data source: litellm, modelsdev, or auto (LiteLLM with models.dev fallback/merge)",
+											"default": "litellm"
 										},
 										"singleThread": {
 											"type": "boolean",
@@ -1093,9 +1177,16 @@
 										},
 										"offline": {
 											"type": "boolean",
-											"description": "Use cached pricing data for Claude models instead of fetching from API",
-											"markdownDescription": "Use cached pricing data for Claude models instead of fetching from API",
+											"description": "Use cached pricing data where supported",
+											"markdownDescription": "Use cached pricing data where supported",
 											"default": false
+										},
+										"pricingSource": {
+											"type": "string",
+											"enum": ["litellm", "modelsdev", "auto"],
+											"description": "Pricing data source: litellm, modelsdev, or auto (LiteLLM with models.dev fallback/merge)",
+											"markdownDescription": "Pricing data source: litellm, modelsdev, or auto (LiteLLM with models.dev fallback/merge)",
+											"default": "litellm"
 										},
 										"singleThread": {
 											"type": "boolean",
@@ -1155,9 +1246,16 @@
 									"properties": {
 										"offline": {
 											"type": "boolean",
-											"description": "Use cached pricing data for Claude models instead of fetching from API",
-											"markdownDescription": "Use cached pricing data for Claude models instead of fetching from API",
+											"description": "Use cached pricing data where supported",
+											"markdownDescription": "Use cached pricing data where supported",
 											"default": true
+										},
+										"pricingSource": {
+											"type": "string",
+											"enum": ["litellm", "modelsdev", "auto"],
+											"description": "Pricing data source: litellm, modelsdev, or auto (LiteLLM with models.dev fallback/merge)",
+											"markdownDescription": "Pricing data source: litellm, modelsdev, or auto (LiteLLM with models.dev fallback/merge)",
+											"default": "litellm"
 										},
 										"visualBurnRate": {
 											"type": "string",
@@ -1245,9 +1343,16 @@
 								},
 								"offline": {
 									"type": "boolean",
-									"description": "Use cached pricing data instead of fetching from LiteLLM",
-									"markdownDescription": "Use cached pricing data instead of fetching from LiteLLM",
+									"description": "Use cached pricing data where supported",
+									"markdownDescription": "Use cached pricing data where supported",
 									"default": false
+								},
+								"pricingSource": {
+									"type": "string",
+									"enum": ["litellm", "modelsdev", "auto"],
+									"description": "Pricing data source: litellm, modelsdev, or auto (LiteLLM with models.dev fallback/merge)",
+									"markdownDescription": "Pricing data source: litellm, modelsdev, or auto (LiteLLM with models.dev fallback/merge)",
+									"default": "litellm"
 								},
 								"speed": {
 									"type": "string",
@@ -1305,9 +1410,16 @@
 										},
 										"offline": {
 											"type": "boolean",
-											"description": "Use cached pricing data instead of fetching from LiteLLM",
-											"markdownDescription": "Use cached pricing data instead of fetching from LiteLLM",
+											"description": "Use cached pricing data where supported",
+											"markdownDescription": "Use cached pricing data where supported",
 											"default": false
+										},
+										"pricingSource": {
+											"type": "string",
+											"enum": ["litellm", "modelsdev", "auto"],
+											"description": "Pricing data source: litellm, modelsdev, or auto (LiteLLM with models.dev fallback/merge)",
+											"markdownDescription": "Pricing data source: litellm, modelsdev, or auto (LiteLLM with models.dev fallback/merge)",
+											"default": "litellm"
 										},
 										"speed": {
 											"type": "string",
@@ -1360,9 +1472,16 @@
 										},
 										"offline": {
 											"type": "boolean",
-											"description": "Use cached pricing data instead of fetching from LiteLLM",
-											"markdownDescription": "Use cached pricing data instead of fetching from LiteLLM",
+											"description": "Use cached pricing data where supported",
+											"markdownDescription": "Use cached pricing data where supported",
 											"default": false
+										},
+										"pricingSource": {
+											"type": "string",
+											"enum": ["litellm", "modelsdev", "auto"],
+											"description": "Pricing data source: litellm, modelsdev, or auto (LiteLLM with models.dev fallback/merge)",
+											"markdownDescription": "Pricing data source: litellm, modelsdev, or auto (LiteLLM with models.dev fallback/merge)",
+											"default": "litellm"
 										},
 										"speed": {
 											"type": "string",
@@ -1415,9 +1534,16 @@
 										},
 										"offline": {
 											"type": "boolean",
-											"description": "Use cached pricing data instead of fetching from LiteLLM",
-											"markdownDescription": "Use cached pricing data instead of fetching from LiteLLM",
+											"description": "Use cached pricing data where supported",
+											"markdownDescription": "Use cached pricing data where supported",
 											"default": false
+										},
+										"pricingSource": {
+											"type": "string",
+											"enum": ["litellm", "modelsdev", "auto"],
+											"description": "Pricing data source: litellm, modelsdev, or auto (LiteLLM with models.dev fallback/merge)",
+											"markdownDescription": "Pricing data source: litellm, modelsdev, or auto (LiteLLM with models.dev fallback/merge)",
+											"default": "litellm"
 										},
 										"speed": {
 											"type": "string",
@@ -1483,9 +1609,16 @@
 								},
 								"offline": {
 									"type": "boolean",
-									"description": "Use cached pricing data instead of fetching from LiteLLM",
-									"markdownDescription": "Use cached pricing data instead of fetching from LiteLLM",
+									"description": "Use cached pricing data where supported",
+									"markdownDescription": "Use cached pricing data where supported",
 									"default": false
+								},
+								"pricingSource": {
+									"type": "string",
+									"enum": ["litellm", "modelsdev", "auto"],
+									"description": "Pricing data source: litellm, modelsdev, or auto (LiteLLM with models.dev fallback/merge)",
+									"markdownDescription": "Pricing data source: litellm, modelsdev, or auto (LiteLLM with models.dev fallback/merge)",
+									"default": "litellm"
 								},
 								"compact": {
 									"type": "boolean",
@@ -1537,9 +1670,16 @@
 										},
 										"offline": {
 											"type": "boolean",
-											"description": "Use cached pricing data instead of fetching from LiteLLM",
-											"markdownDescription": "Use cached pricing data instead of fetching from LiteLLM",
+											"description": "Use cached pricing data where supported",
+											"markdownDescription": "Use cached pricing data where supported",
 											"default": false
+										},
+										"pricingSource": {
+											"type": "string",
+											"enum": ["litellm", "modelsdev", "auto"],
+											"description": "Pricing data source: litellm, modelsdev, or auto (LiteLLM with models.dev fallback/merge)",
+											"markdownDescription": "Pricing data source: litellm, modelsdev, or auto (LiteLLM with models.dev fallback/merge)",
+											"default": "litellm"
 										},
 										"compact": {
 											"type": "boolean",
@@ -1586,9 +1726,16 @@
 										},
 										"offline": {
 											"type": "boolean",
-											"description": "Use cached pricing data instead of fetching from LiteLLM",
-											"markdownDescription": "Use cached pricing data instead of fetching from LiteLLM",
+											"description": "Use cached pricing data where supported",
+											"markdownDescription": "Use cached pricing data where supported",
 											"default": false
+										},
+										"pricingSource": {
+											"type": "string",
+											"enum": ["litellm", "modelsdev", "auto"],
+											"description": "Pricing data source: litellm, modelsdev, or auto (LiteLLM with models.dev fallback/merge)",
+											"markdownDescription": "Pricing data source: litellm, modelsdev, or auto (LiteLLM with models.dev fallback/merge)",
+											"default": "litellm"
 										},
 										"compact": {
 											"type": "boolean",
@@ -1635,9 +1782,16 @@
 										},
 										"offline": {
 											"type": "boolean",
-											"description": "Use cached pricing data instead of fetching from LiteLLM",
-											"markdownDescription": "Use cached pricing data instead of fetching from LiteLLM",
+											"description": "Use cached pricing data where supported",
+											"markdownDescription": "Use cached pricing data where supported",
 											"default": false
+										},
+										"pricingSource": {
+											"type": "string",
+											"enum": ["litellm", "modelsdev", "auto"],
+											"description": "Pricing data source: litellm, modelsdev, or auto (LiteLLM with models.dev fallback/merge)",
+											"markdownDescription": "Pricing data source: litellm, modelsdev, or auto (LiteLLM with models.dev fallback/merge)",
+											"default": "litellm"
 										},
 										"compact": {
 											"type": "boolean",
@@ -1684,9 +1838,16 @@
 										},
 										"offline": {
 											"type": "boolean",
-											"description": "Use cached pricing data instead of fetching from LiteLLM",
-											"markdownDescription": "Use cached pricing data instead of fetching from LiteLLM",
+											"description": "Use cached pricing data where supported",
+											"markdownDescription": "Use cached pricing data where supported",
 											"default": false
+										},
+										"pricingSource": {
+											"type": "string",
+											"enum": ["litellm", "modelsdev", "auto"],
+											"description": "Pricing data source: litellm, modelsdev, or auto (LiteLLM with models.dev fallback/merge)",
+											"markdownDescription": "Pricing data source: litellm, modelsdev, or auto (LiteLLM with models.dev fallback/merge)",
+											"default": "litellm"
 										},
 										"compact": {
 											"type": "boolean",
@@ -1746,9 +1907,16 @@
 								},
 								"offline": {
 									"type": "boolean",
-									"description": "Use cached pricing data instead of fetching from LiteLLM",
-									"markdownDescription": "Use cached pricing data instead of fetching from LiteLLM",
+									"description": "Use cached pricing data where supported",
+									"markdownDescription": "Use cached pricing data where supported",
 									"default": false
+								},
+								"pricingSource": {
+									"type": "string",
+									"enum": ["litellm", "modelsdev", "auto"],
+									"description": "Pricing data source: litellm, modelsdev, or auto (LiteLLM with models.dev fallback/merge)",
+									"markdownDescription": "Pricing data source: litellm, modelsdev, or auto (LiteLLM with models.dev fallback/merge)",
+									"default": "litellm"
 								},
 								"compact": {
 									"type": "boolean",
@@ -1800,9 +1968,16 @@
 										},
 										"offline": {
 											"type": "boolean",
-											"description": "Use cached pricing data instead of fetching from LiteLLM",
-											"markdownDescription": "Use cached pricing data instead of fetching from LiteLLM",
+											"description": "Use cached pricing data where supported",
+											"markdownDescription": "Use cached pricing data where supported",
 											"default": false
+										},
+										"pricingSource": {
+											"type": "string",
+											"enum": ["litellm", "modelsdev", "auto"],
+											"description": "Pricing data source: litellm, modelsdev, or auto (LiteLLM with models.dev fallback/merge)",
+											"markdownDescription": "Pricing data source: litellm, modelsdev, or auto (LiteLLM with models.dev fallback/merge)",
+											"default": "litellm"
 										},
 										"compact": {
 											"type": "boolean",
@@ -1849,9 +2024,16 @@
 										},
 										"offline": {
 											"type": "boolean",
-											"description": "Use cached pricing data instead of fetching from LiteLLM",
-											"markdownDescription": "Use cached pricing data instead of fetching from LiteLLM",
+											"description": "Use cached pricing data where supported",
+											"markdownDescription": "Use cached pricing data where supported",
 											"default": false
+										},
+										"pricingSource": {
+											"type": "string",
+											"enum": ["litellm", "modelsdev", "auto"],
+											"description": "Pricing data source: litellm, modelsdev, or auto (LiteLLM with models.dev fallback/merge)",
+											"markdownDescription": "Pricing data source: litellm, modelsdev, or auto (LiteLLM with models.dev fallback/merge)",
+											"default": "litellm"
 										},
 										"compact": {
 											"type": "boolean",
@@ -1898,9 +2080,16 @@
 										},
 										"offline": {
 											"type": "boolean",
-											"description": "Use cached pricing data instead of fetching from LiteLLM",
-											"markdownDescription": "Use cached pricing data instead of fetching from LiteLLM",
+											"description": "Use cached pricing data where supported",
+											"markdownDescription": "Use cached pricing data where supported",
 											"default": false
+										},
+										"pricingSource": {
+											"type": "string",
+											"enum": ["litellm", "modelsdev", "auto"],
+											"description": "Pricing data source: litellm, modelsdev, or auto (LiteLLM with models.dev fallback/merge)",
+											"markdownDescription": "Pricing data source: litellm, modelsdev, or auto (LiteLLM with models.dev fallback/merge)",
+											"default": "litellm"
 										},
 										"compact": {
 											"type": "boolean",
@@ -1960,9 +2149,16 @@
 								},
 								"offline": {
 									"type": "boolean",
-									"description": "Use cached pricing data instead of fetching from LiteLLM",
-									"markdownDescription": "Use cached pricing data instead of fetching from LiteLLM",
+									"description": "Use cached pricing data where supported",
+									"markdownDescription": "Use cached pricing data where supported",
 									"default": false
+								},
+								"pricingSource": {
+									"type": "string",
+									"enum": ["litellm", "modelsdev", "auto"],
+									"description": "Pricing data source: litellm, modelsdev, or auto (LiteLLM with models.dev fallback/merge)",
+									"markdownDescription": "Pricing data source: litellm, modelsdev, or auto (LiteLLM with models.dev fallback/merge)",
+									"default": "litellm"
 								},
 								"compact": {
 									"type": "boolean",
@@ -2019,9 +2215,16 @@
 										},
 										"offline": {
 											"type": "boolean",
-											"description": "Use cached pricing data instead of fetching from LiteLLM",
-											"markdownDescription": "Use cached pricing data instead of fetching from LiteLLM",
+											"description": "Use cached pricing data where supported",
+											"markdownDescription": "Use cached pricing data where supported",
 											"default": false
+										},
+										"pricingSource": {
+											"type": "string",
+											"enum": ["litellm", "modelsdev", "auto"],
+											"description": "Pricing data source: litellm, modelsdev, or auto (LiteLLM with models.dev fallback/merge)",
+											"markdownDescription": "Pricing data source: litellm, modelsdev, or auto (LiteLLM with models.dev fallback/merge)",
+											"default": "litellm"
 										},
 										"compact": {
 											"type": "boolean",
@@ -2073,9 +2276,16 @@
 										},
 										"offline": {
 											"type": "boolean",
-											"description": "Use cached pricing data instead of fetching from LiteLLM",
-											"markdownDescription": "Use cached pricing data instead of fetching from LiteLLM",
+											"description": "Use cached pricing data where supported",
+											"markdownDescription": "Use cached pricing data where supported",
 											"default": false
+										},
+										"pricingSource": {
+											"type": "string",
+											"enum": ["litellm", "modelsdev", "auto"],
+											"description": "Pricing data source: litellm, modelsdev, or auto (LiteLLM with models.dev fallback/merge)",
+											"markdownDescription": "Pricing data source: litellm, modelsdev, or auto (LiteLLM with models.dev fallback/merge)",
+											"default": "litellm"
 										},
 										"compact": {
 											"type": "boolean",
@@ -2127,9 +2337,16 @@
 										},
 										"offline": {
 											"type": "boolean",
-											"description": "Use cached pricing data instead of fetching from LiteLLM",
-											"markdownDescription": "Use cached pricing data instead of fetching from LiteLLM",
+											"description": "Use cached pricing data where supported",
+											"markdownDescription": "Use cached pricing data where supported",
 											"default": false
+										},
+										"pricingSource": {
+											"type": "string",
+											"enum": ["litellm", "modelsdev", "auto"],
+											"description": "Pricing data source: litellm, modelsdev, or auto (LiteLLM with models.dev fallback/merge)",
+											"markdownDescription": "Pricing data source: litellm, modelsdev, or auto (LiteLLM with models.dev fallback/merge)",
+											"default": "litellm"
 										},
 										"compact": {
 											"type": "boolean",

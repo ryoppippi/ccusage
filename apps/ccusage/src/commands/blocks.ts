@@ -155,20 +155,21 @@ export const blocksCommand = define({
 		}
 
 		// Validate session length
-		if (ctx.values.sessionLength <= 0) {
+		if (mergedOptions.sessionLength <= 0) {
 			logger.error('Session length must be a positive number');
 			process.exit(1);
 		}
 
 		let blocks = await loadSessionBlockData({
-			since: ctx.values.since,
-			until: ctx.values.until,
-			mode: ctx.values.mode,
-			order: ctx.values.order,
-			offline: ctx.values.offline,
-			singleThread: ctx.values.singleThread,
-			sessionDurationHours: ctx.values.sessionLength,
-			timezone: ctx.values.timezone,
+			since: mergedOptions.since,
+			until: mergedOptions.until,
+			mode: mergedOptions.mode,
+			order: mergedOptions.order,
+			offline: mergedOptions.offline,
+			pricingSource: mergedOptions.pricingSource,
+			singleThread: mergedOptions.singleThread,
+			sessionDurationHours: mergedOptions.sessionLength,
+			timezone: mergedOptions.timezone,
 		});
 
 		if (blocks.length === 0) {

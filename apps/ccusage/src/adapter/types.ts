@@ -1,4 +1,8 @@
-import type { LiteLLMPricingFetcher, PricingLogger } from '@ccusage/internal/pricing';
+import type {
+	LiteLLMPricingFetcher,
+	PricingLogger,
+	PricingSource,
+} from '@ccusage/internal/pricing';
 
 export const agentIds = ['claude', 'codex', 'opencode', 'amp', 'pi'] as const;
 export type AgentId = (typeof agentIds)[number];
@@ -13,6 +17,7 @@ export type AdapterOptions = {
 	timezone?: string;
 	compact?: boolean;
 	offline?: boolean;
+	pricingSource?: PricingSource;
 	speed?: string;
 	piPath?: string;
 };

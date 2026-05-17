@@ -151,6 +151,7 @@ The statusline command:
 - Outputs a single line suitable for status bar display
 - **Uses offline mode by default** for instant response times without network dependencies
 - Can be configured to use online mode with `--no-offline` for latest pricing data
+- Supports `--pricing-source` when ccusage is calculating costs
 
 ## Beta Notice
 
@@ -168,7 +169,7 @@ The `--cost-source` option controls how session costs are calculated and display
 **Available modes:**
 
 - `auto` (default): Prefer Claude Code's pre-calculated cost when available, fallback to ccusage calculation
-- `ccusage`: Always calculate costs using ccusage's token-based calculation with LiteLLM pricing
+- `ccusage`: Always calculate costs using ccusage's token-based calculation and the selected pricing source
 - `cc`: Always use Claude Code's pre-calculated cost from session data
 - `both`: Display both Claude Code and ccusage costs side by side for comparison
 

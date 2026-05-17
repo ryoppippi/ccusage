@@ -24,6 +24,7 @@ export async function loadClaudeRows(
 	const until = toCompactDate(normalizeDateFilter(options.until));
 	const loaderOptions = {
 		offline: options.offline,
+		pricingSource: options.pricingSource,
 		since,
 		until,
 		timezone: options.timezone,

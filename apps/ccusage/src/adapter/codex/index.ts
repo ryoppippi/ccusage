@@ -49,6 +49,7 @@ async function aggregateCodexUsageGroups(
 					offlineLoader: loadOfflineCodexPricing,
 					logger: context.progress?.pricingLogger ?? logger,
 					providerPrefixes: CODEX_PROVIDER_PREFIXES,
+					pricingSource: options.pricingSource,
 				})
 			: undefined;
 	const fetcher = context.pricingFetcher ?? ownedFetcher!;

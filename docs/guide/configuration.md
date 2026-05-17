@@ -173,11 +173,14 @@ Control how costs are calculated:
 
 - **Mode**: `auto` (default), `calculate`, or `display`
 - **Offline**: Use cached pricing data
+- **Pricing Source**: `litellm` (default), `modelsdev`, or `auto`
 - **Breakdown**: Show per-model costs
 
 ```bash
-ccusage daily --mode calculate --breakdown --offline
+ccusage daily --mode calculate --breakdown --pricing-source auto
 ```
+
+`modelsdev` uses live data from `models.dev` and is not part of the cached pricing bundle used by `--offline`.
 
 ### Date and Time
 

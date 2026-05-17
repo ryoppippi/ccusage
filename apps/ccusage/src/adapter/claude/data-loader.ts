@@ -21,6 +21,7 @@ import type {
 	MessageId,
 	ModelName,
 	MonthlyDate,
+	PricingSource,
 	ProjectPath,
 	RequestId,
 	SessionId,
@@ -1502,6 +1503,7 @@ export type LoadOptions = {
 	mode?: CostMode; // Cost calculation mode
 	order?: SortOrder; // Sort order for dates
 	offline?: boolean; // Use offline mode for pricing
+	pricingSource?: PricingSource;
 	sessionDurationHours?: number; // Session block duration in hours
 	groupByProject?: boolean; // Group data by project instead of aggregating
 	project?: string; // Filter to specific project name
@@ -1621,6 +1623,7 @@ type UsageWorkerData = {
 	items: Array<IndexedWorkerItem<unknown>>;
 	mode: CostMode;
 	offline: boolean | undefined;
+	pricingSource: PricingSource | undefined;
 	timezone: string | undefined;
 	pricing: Map<string, LiteLLMModelPricing> | undefined;
 };
@@ -2000,6 +2003,7 @@ async function collectWithUsageWorkers<TItem, TResult>(
 	options: {
 		mode: CostMode;
 		offline: boolean | undefined;
+		pricingSource: PricingSource | undefined;
 		timezone: string | undefined;
 		singleThread: boolean | undefined;
 		getFilePath?: (item: TItem) => string;
@@ -2021,7 +2025,7 @@ async function collectWithUsageWorkers<TItem, TResult>(
 			: await chunkIndexedItemsByFileSize(indexedItems, workerCount, options.getFilePath);
 	let pricing: Map<string, LiteLLMModelPricing> | undefined;
 	if (options.mode !== 'display' && options.offline !== true) {
-		using fetcher = new PricingFetcher(options.offline);
+		using fetcher = new PricingFetcher(options.offline, options.pricingSource);
 		pricing = Result.unwrap(
 			await fetcher.fetchModelPricing(),
 			new Map<string, LiteLLMModelPricing>(),
@@ -2038,6 +2042,7 @@ async function collectWithUsageWorkers<TItem, TResult>(
 						items: chunk,
 						mode: options.mode,
 						offline: options.offline,
+						pricingSource: options.pricingSource,
 						timezone: options.timezone,
 						pricing,
 					} satisfies UsageWorkerData,
@@ -2343,13 +2348,15 @@ export async function loadDailyUsageData(options?: LoadOptions): Promise<DailyUs
 		{
 			mode,
 			offline: options?.offline,
+			pricingSource: options?.pricingSource,
 			timezone: options?.timezone,
 			singleThread: options?.singleThread,
 			getFilePath: (file) => file,
 		},
 	);
 	if (workerFileResults == null) {
-		using fetcher = mode === 'display' ? null : new PricingFetcher(options?.offline);
+		using fetcher =
+			mode === 'display' ? null : new PricingFetcher(options?.offline, options?.pricingSource);
 		const calculateCost = await createCostCalculator(mode, fetcher);
 		const fallbackFileResults = await mapWithConcurrency(
 			mtimeFilteredFiles,
@@ -2478,13 +2485,15 @@ export async function loadSessionData(options?: LoadOptions): Promise<SessionUsa
 		{
 			mode,
 			offline: options?.offline,
+			pricingSource: options?.pricingSource,
 			timezone: options?.timezone,
 			singleThread: options?.singleThread,
 			getFilePath: (item) => item.file,
 		},
 	);
 	if (workerFileResults == null) {
-		using fetcher = mode === 'display' ? null : new PricingFetcher(options?.offline);
+		using fetcher =
+			mode === 'display' ? null : new PricingFetcher(options?.offline, options?.pricingSource);
 		const calculateCost = await createCostCalculator(mode, fetcher);
 		const fallbackFileResults = await mapWithConcurrency(
 			mtimeFilteredWithBase,
@@ -2606,11 +2615,12 @@ export async function loadWeeklyUsageData(options?: LoadOptions): Promise<Weekly
  * @param options - Options for loading data
  * @param options.mode - Cost calculation mode (auto, calculate, display)
  * @param options.offline - Whether to use offline pricing data
+ * @param options.pricingSource - Pricing data source for calculated costs
  * @returns Usage data for the specific session or null if not found
  */
 export async function loadSessionUsageById(
 	sessionId: string,
-	options?: { mode?: CostMode; offline?: boolean },
+	options?: { mode?: CostMode; offline?: boolean; pricingSource?: PricingSource },
 ): Promise<{ totalCost: number; entries: UsageData[] } | null> {
 	const claudePaths = requireClaudePaths();
 
@@ -2630,7 +2640,8 @@ export async function loadSessionUsageById(
 	}
 
 	const mode = options?.mode ?? 'auto';
-	using fetcher = mode === 'display' ? null : new PricingFetcher(options?.offline);
+	using fetcher =
+		mode === 'display' ? null : new PricingFetcher(options?.offline, options?.pricingSource);
 	const calculateCost = await createCostCalculator(mode, fetcher);
 
 	const entries: Array<UsageData | undefined> = [];
@@ -2749,6 +2760,7 @@ export async function calculateContextTokens(
 	transcriptPath: string,
 	modelId?: string,
 	offline = false,
+	pricingSource?: PricingSource,
 ): Promise<{
 	inputTokens: number;
 	percentage: number;
@@ -2794,7 +2806,7 @@ export async function calculateContextTokens(
 				// Get context limit from PricingFetcher
 				let contextLimit = 200_000; // Fallback for when modelId is not provided
 				if (modelId != null && modelId !== '') {
-					using fetcher = new PricingFetcher(offline);
+					using fetcher = new PricingFetcher(offline, pricingSource);
 					const contextLimitResult = await fetcher.getModelContextLimit(modelId);
 					if (Result.isSuccess(contextLimitResult) && contextLimitResult.value != null) {
 						contextLimit = contextLimitResult.value;
@@ -2920,12 +2932,14 @@ export async function loadSessionBlockData(options?: LoadOptions): Promise<Sessi
 		{
 			mode,
 			offline: options?.offline,
+			pricingSource: options?.pricingSource,
 			timezone: options?.timezone,
 			singleThread: options?.singleThread,
 		},
 	);
 	if (workerFileResults == null) {
-		using fetcher = mode === 'display' ? null : new PricingFetcher(options?.offline);
+		using fetcher =
+			mode === 'display' ? null : new PricingFetcher(options?.offline, options?.pricingSource);
 		const calculateCost = await createCostCalculator(mode, fetcher);
 		const fileResults = await mapWithConcurrency(
 			mtimeFilteredFiles,
@@ -2969,7 +2983,8 @@ export async function loadSessionBlockData(options?: LoadOptions): Promise<Sessi
 }
 
 async function runUsageWorker(data: UsageWorkerData): Promise<void> {
-	using fetcher = data.mode === 'display' ? null : new PricingFetcher(data.offline);
+	using fetcher =
+		data.mode === 'display' ? null : new PricingFetcher(data.offline, data.pricingSource);
 	const calculateCost = await createCostCalculator(data.mode, fetcher, data.pricing);
 	const formatUsageDate = createCachedDateFormatter(data.timezone);
 

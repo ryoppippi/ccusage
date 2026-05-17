@@ -77,6 +77,7 @@ export const allArgs = {
 		description: 'Use cached pricing data where supported',
 		default: false,
 	},
+	pricingSource: sharedArgs.pricingSource,
 	config: sharedArgs.config,
 } as const satisfies Args;
 
@@ -141,7 +142,10 @@ async function loadAllRows(
 		return loadAllRowsWithContext(kind, options, { progress }, agents);
 	}
 
-	using pricingFetcher = new LiteLLMPricingFetcher({ logger: progress?.pricingLogger ?? logger });
+	using pricingFetcher = new LiteLLMPricingFetcher({
+		logger: progress?.pricingLogger ?? logger,
+		pricingSource: options.pricingSource,
+	});
 	return await loadAllRowsWithContext(kind, options, { pricingFetcher, progress }, agents);
 }
 

@@ -1,5 +1,5 @@
 import type { UsageData } from '../adapter/claude/data-loader.ts';
-import type { CostMode } from '../types.ts';
+import type { CostMode, PricingSource } from '../types.ts';
 import process from 'node:process';
 import { formatCurrency, formatNumber, ResponsiveTable } from '@ccusage/terminal/table';
 import { loadSessionUsageById } from '../adapter/claude/data-loader.ts';
@@ -11,6 +11,7 @@ export type SessionIdContext = {
 		id: string;
 		mode: CostMode;
 		offline: boolean;
+		pricingSource?: PricingSource;
 		timezone?: string;
 	};
 };
@@ -25,6 +26,7 @@ export async function handleSessionIdLookup(
 	const sessionUsage = await loadSessionUsageById(ctx.values.id, {
 		mode: ctx.values.mode,
 		offline: ctx.values.offline,
+		pricingSource: ctx.values.pricingSource,
 	});
 
 	if (sessionUsage == null) {

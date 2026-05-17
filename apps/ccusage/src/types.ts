@@ -1,3 +1,4 @@
+import type { PricingSource } from '@ccusage/internal/pricing';
 import type { TupleToUnion } from 'type-fest';
 import * as v from 'valibot';
 
@@ -143,6 +144,8 @@ export const CostModes = ['auto', 'calculate', 'display'] as const;
  * Union type for cost calculation modes
  */
 export type CostMode = TupleToUnion<typeof CostModes>;
+
+export type { PricingSource };
 
 /**
  * Available sort orders for data presentation

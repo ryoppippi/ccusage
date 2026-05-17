@@ -1,3 +1,4 @@
+import type { PricingSource } from '@ccusage/internal/pricing';
 import { LiteLLMPricingFetcher } from '@ccusage/internal/pricing';
 import { Result } from '@praha/byethrow';
 import { logger } from './logger.ts';
@@ -14,12 +15,13 @@ export const CLAUDE_PROVIDER_PREFIXES = [
 const PREFETCHED_CLAUDE_PRICING = prefetchClaudePricing();
 
 export class PricingFetcher extends LiteLLMPricingFetcher {
-	constructor(offline = false) {
+	constructor(offline = false, pricingSource?: PricingSource) {
 		super({
 			offline,
 			offlineLoader: async () => PREFETCHED_CLAUDE_PRICING,
 			logger,
 			providerPrefixes: CLAUDE_PROVIDER_PREFIXES,
+			pricingSource,
 		});
 	}
 }

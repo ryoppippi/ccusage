@@ -75,6 +75,23 @@ ccusage daily --offline
 ccusage daily -O
 ```
 
+### Pricing Source
+
+Choose which model pricing dataset to use for calculated costs:
+
+```bash
+# Default: LiteLLM pricing
+ccusage daily --pricing-source litellm
+
+# Use models.dev pricing
+ccusage codex daily --pricing-source modelsdev
+
+# Prefer LiteLLM and fill missing models from models.dev
+ccusage daily --pricing-source auto
+```
+
+`modelsdev` fetches live pricing from `models.dev`; it is not included in the cached pricing bundle used by `--offline`.
+
 ### Timezone
 
 Set the timezone for date calculations:
@@ -287,16 +304,17 @@ LOG_LEVEL=0 ccusage daily --json
 
 Many options have short aliases for convenience:
 
-| Long Option   | Short | Description         |
-| ------------- | ----- | ------------------- |
-| `--json`      | `-j`  | JSON output         |
-| `--breakdown` | `-b`  | Per-model breakdown |
-| `--offline`   | `-O`  | Offline mode        |
-| `--timezone`  | `-z`  | Set timezone        |
-| `--instances` | `-i`  | Group by project    |
-| `--project`   | `-p`  | Filter project      |
-| `--active`    | `-a`  | Active block only   |
-| `--recent`    | `-r`  | Recent blocks       |
+| Long Option        | Short | Description         |
+| ------------------ | ----- | ------------------- |
+| `--json`           | `-j`  | JSON output         |
+| `--breakdown`      | `-b`  | Per-model breakdown |
+| `--offline`        | `-O`  | Offline mode        |
+| `--pricing-source` | `-P`  | Pricing source      |
+| `--timezone`       | `-z`  | Set timezone        |
+| `--instances`      | `-i`  | Group by project    |
+| `--project`        | `-p`  | Filter project      |
+| `--active`         | `-a`  | Active block only   |
+| `--recent`         | `-r`  | Recent blocks       |
 
 ## Related Documentation
 

@@ -134,6 +134,7 @@ export const statuslineCommand = define({
 			...sharedArgs.offline,
 			default: true, // Default to offline mode for faster performance
 		},
+		pricingSource: sharedArgs.pricingSource,
 		visualBurnRate: {
 			type: 'enum',
 			choices: visualBurnRateChoices,
@@ -315,6 +316,7 @@ export const statuslineCommand = define({
 										loadSessionUsageById(sessionId, {
 											mode: 'auto',
 											offline: mergedOptions.offline,
+											pricingSource: mergedOptions.pricingSource,
 										}),
 									catch: (error) => error,
 								})(),
@@ -369,6 +371,7 @@ export const statuslineCommand = define({
 									until: todayStr,
 									mode: 'auto',
 									offline: mergedOptions.offline,
+									pricingSource: mergedOptions.pricingSource,
 									minUpdateTime: midnightToday,
 								}),
 							catch: (error) => error,
@@ -392,6 +395,7 @@ export const statuslineCommand = define({
 								loadSessionBlockData({
 									mode: 'auto',
 									offline: mergedOptions.offline,
+									pricingSource: mergedOptions.pricingSource,
 									minUpdateTime: lastBlocksTime,
 								}),
 							catch: (error) => error,
@@ -499,6 +503,7 @@ export const statuslineCommand = define({
 											hookData.transcript_path,
 											hookData.model.id,
 											mergedOptions.offline,
+											mergedOptions.pricingSource,
 										),
 									catch: (error) => error,
 								})();

@@ -1,5 +1,6 @@
 import { Result } from '@praha/byethrow';
 import * as v from 'valibot';
+import { fetchModelsDevPricing, MODELS_DEV_API_URL } from './models-dev-pricing.ts';
 
 export const LITELLM_PRICING_URL =
 	'https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json';
@@ -78,6 +79,9 @@ export const liteLLMModelPricingSchema = v.object({
 
 export type LiteLLMModelPricing = v.InferOutput<typeof liteLLMModelPricingSchema>;
 
+export const PricingSources = ['litellm', 'modelsdev', 'auto'] as const;
+export type PricingSource = (typeof PricingSources)[number];
+
 export type PricingLogger = {
 	debug: (...args: unknown[]) => void;
 	error: (...args: unknown[]) => void;
@@ -90,7 +94,9 @@ export type LiteLLMPricingFetcherOptions = {
 	offline?: boolean;
 	offlineLoader?: () => Promise<Record<string, LiteLLMModelPricing>>;
 	url?: string;
+	modelsDevUrl?: string;
 	providerPrefixes?: string[];
+	pricingSource?: PricingSource;
 };
 
 const DEFAULT_PROVIDER_PREFIXES = [
@@ -125,14 +131,18 @@ export class LiteLLMPricingFetcher implements Disposable {
 	private readonly offline: boolean;
 	private readonly offlineLoader?: () => Promise<Record<string, LiteLLMModelPricing>>;
 	private readonly url: string;
+	private readonly modelsDevUrl: string;
 	private readonly providerPrefixes: string[];
+	private readonly pricingSource: PricingSource;
 
 	constructor(options: LiteLLMPricingFetcherOptions = {}) {
 		this.logger = createLogger(options.logger);
 		this.offline = Boolean(options.offline);
 		this.offlineLoader = options.offlineLoader;
 		this.url = options.url ?? LITELLM_PRICING_URL;
+		this.modelsDevUrl = options.modelsDevUrl ?? MODELS_DEV_API_URL;
 		this.providerPrefixes = options.providerPrefixes ?? DEFAULT_PROVIDER_PREFIXES;
+		this.pricingSource = options.pricingSource ?? 'litellm';
 	}
 
 	[Symbol.dispose](): void {
@@ -177,11 +187,7 @@ export class LiteLLMPricingFetcher implements Disposable {
 		);
 	}
 
-	private async loadPricing(): Result.ResultAsync<Map<string, LiteLLMModelPricing>, Error> {
-		if (this.offline) {
-			return this.loadOfflinePricing();
-		}
-
+	private async loadLiteLLMPricing(): Result.ResultAsync<Map<string, LiteLLMModelPricing>, Error> {
 		this.logger.warn('Fetching latest model pricing from LiteLLM...');
 		return Result.pipe(
 			Result.try({
@@ -217,9 +223,72 @@ export class LiteLLMPricingFetcher implements Disposable {
 				return pricing;
 			}),
 			Result.inspect((pricing) => {
-				this.cachedPricing = pricing;
 				this.logger.info(`Loaded pricing for ${pricing.size} models`);
 			}),
+		);
+	}
+
+	private async loadModelsDevPricing(): Result.ResultAsync<
+		Map<string, LiteLLMModelPricing>,
+		Error
+	> {
+		this.logger.warn('Fetching latest model pricing from models.dev...');
+		return Result.pipe(
+			fetchModelsDevPricing(this.modelsDevUrl),
+			Result.inspect((pricing) => {
+				this.logger.info(`Loaded pricing for ${pricing.size} models from models.dev`);
+			}),
+		);
+	}
+
+	private mergePricingMaps(
+		base: Map<string, LiteLLMModelPricing>,
+		additional: Map<string, LiteLLMModelPricing>,
+	): Map<string, LiteLLMModelPricing> {
+		const merged = new Map(base);
+		for (const [modelName, pricing] of additional) {
+			if (!merged.has(modelName)) {
+				merged.set(modelName, pricing);
+			}
+		}
+		return merged;
+	}
+
+	private async loadAutoPricing(): Result.ResultAsync<Map<string, LiteLLMModelPricing>, Error> {
+		const liteLLMResult = await Result.pipe(
+			this.loadLiteLLMPricing(),
+			Result.orElse(async (error) => this.handleFallbackToCachedPricing(error)),
+		);
+		const modelsDevResult = await this.loadModelsDevPricing();
+
+		if (Result.isFailure(liteLLMResult)) {
+			return modelsDevResult;
+		}
+
+		if (Result.isFailure(modelsDevResult)) {
+			this.logger.warn('Failed to fetch models.dev pricing, using LiteLLM pricing only');
+			this.logger.debug('models.dev fetch error details:', modelsDevResult.error);
+			return Result.succeed(liteLLMResult.value);
+		}
+
+		return Result.succeed(this.mergePricingMaps(liteLLMResult.value, modelsDevResult.value));
+	}
+
+	private async loadPricing(): Result.ResultAsync<Map<string, LiteLLMModelPricing>, Error> {
+		if (this.pricingSource === 'modelsdev') {
+			return this.loadModelsDevPricing();
+		}
+
+		if (this.offline) {
+			return this.loadOfflinePricing();
+		}
+
+		if (this.pricingSource === 'auto') {
+			return this.loadAutoPricing();
+		}
+
+		return Result.pipe(
+			this.loadLiteLLMPricing(),
 			Result.orElse(async (error) => this.handleFallbackToCachedPricing(error)),
 		);
 	}
@@ -231,6 +300,9 @@ export class LiteLLMPricingFetcher implements Disposable {
 
 		this.pricingLoadPromise ??= Result.pipe(
 			this.loadPricing(),
+			Result.inspect((pricing) => {
+				this.cachedPricing = pricing;
+			}),
 			Result.inspectError(() => {
 				this.pricingLoadPromise = null;
 			}),
@@ -747,6 +819,122 @@ if (import.meta.vitest != null) {
 
 			expect(pricing).not.toBeNull();
 			expect(pricing?.input_cost_per_token).toBe(2.5e-7);
+		});
+
+		it('loads models.dev pricing when selected as the pricing source', async () => {
+			const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+				ok: true,
+				json: async () => ({
+					openai: {
+						id: 'openai',
+						models: {
+							'gpt-5': {
+								id: 'gpt-5',
+								cost: {
+									input: 1.25,
+									output: 10,
+									cache_read: 0.125,
+									cache_write: 1.25,
+								},
+								limit: {
+									context: 400_000,
+									output: 128_000,
+								},
+							},
+						},
+					},
+				}),
+			} as Response);
+
+			try {
+				using fetcher = new LiteLLMPricingFetcher({
+					pricingSource: 'modelsdev',
+					modelsDevUrl: 'https://example.com/models-dev.json',
+				});
+
+				const pricing = await Result.unwrap(fetcher.getModelPricing('gpt-5'));
+				const cost = await Result.unwrap(
+					fetcher.calculateCostFromTokens(
+						{
+							input_tokens: 1000,
+							output_tokens: 500,
+							cache_creation_input_tokens: 200,
+							cache_read_input_tokens: 300,
+						},
+						'gpt-5',
+					),
+				);
+
+				expect(fetchSpy).toHaveBeenCalledWith('https://example.com/models-dev.json');
+				expect(pricing?.input_cost_per_token).toBeCloseTo(1.25 / 1_000_000);
+				expect(pricing?.output_cost_per_token).toBeCloseTo(10 / 1_000_000);
+				expect(pricing?.cache_creation_input_token_cost).toBeCloseTo(1.25 / 1_000_000);
+				expect(pricing?.cache_read_input_token_cost).toBeCloseTo(0.125 / 1_000_000);
+				expect(pricing?.max_input_tokens).toBe(400_000);
+				expect(pricing?.max_output_tokens).toBe(128_000);
+				expect(cost).toBeCloseTo((1000 * 1.25 + 500 * 10 + 200 * 1.25 + 300 * 0.125) / 1_000_000);
+			} finally {
+				fetchSpy.mockRestore();
+			}
+		});
+
+		it('merges models.dev pricing into LiteLLM pricing in auto source mode', async () => {
+			const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async (url) => {
+				if (url === 'https://example.com/litellm.json') {
+					return {
+						ok: true,
+						json: async () => ({
+							'gpt-5': {
+								input_cost_per_token: 1e-6,
+								output_cost_per_token: 2e-6,
+							},
+						}),
+					} as Response;
+				}
+
+				return {
+					ok: true,
+					json: async () => ({
+						openai: {
+							id: 'openai',
+							models: {
+								'gpt-5': {
+									id: 'gpt-5',
+									cost: {
+										input: 9,
+										output: 9,
+									},
+								},
+								'gpt-5.1-codex': {
+									id: 'gpt-5.1-codex',
+									cost: {
+										input: 1.25,
+										output: 10,
+									},
+								},
+							},
+						},
+					}),
+				} as Response;
+			});
+
+			try {
+				using fetcher = new LiteLLMPricingFetcher({
+					pricingSource: 'auto',
+					url: 'https://example.com/litellm.json',
+					modelsDevUrl: 'https://example.com/models-dev.json',
+				});
+
+				const liteLLMModel = await Result.unwrap(fetcher.getModelPricing('gpt-5'));
+				const modelsDevModel = await Result.unwrap(fetcher.getModelPricing('gpt-5.1-codex'));
+
+				expect(fetchSpy).toHaveBeenCalledWith('https://example.com/litellm.json');
+				expect(fetchSpy).toHaveBeenCalledWith('https://example.com/models-dev.json');
+				expect(liteLLMModel?.input_cost_per_token).toBe(1e-6);
+				expect(modelsDevModel?.input_cost_per_token).toBeCloseTo(1.25 / 1_000_000);
+			} finally {
+				fetchSpy.mockRestore();
+			}
 		});
 	});
 }

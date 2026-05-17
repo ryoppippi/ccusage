@@ -1,5 +1,6 @@
 import type { Args } from 'gunshi';
-import type { CostMode, SortOrder } from './types.ts';
+import type { CostMode, PricingSource, SortOrder } from './types.ts';
+import { PricingSources } from '@ccusage/internal/pricing';
 import * as v from 'valibot';
 import { CostModes, filterDateSchema, SortOrders } from './types.ts';
 
@@ -70,8 +71,16 @@ export const sharedArgs = {
 		type: 'boolean',
 		negatable: true,
 		short: 'O',
-		description: 'Use cached pricing data for Claude models instead of fetching from API',
+		description: 'Use cached pricing data where supported',
 		default: false,
+	},
+	pricingSource: {
+		type: 'enum',
+		short: 'P',
+		description:
+			'Pricing data source: litellm, modelsdev, or auto (LiteLLM with models.dev fallback/merge)',
+		default: 'litellm' as const satisfies PricingSource,
+		choices: PricingSources,
 	},
 	singleThread: {
 		type: 'boolean',

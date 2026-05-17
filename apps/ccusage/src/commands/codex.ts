@@ -12,6 +12,7 @@ import { define } from 'gunshi';
 import { loadCodexReportRows } from '../adapter/codex/index.ts';
 import { formatDateCompact } from '../date-utils.ts';
 import { logger, writeStdoutLine } from '../logger.ts';
+import { sharedArgs } from '../shared-args.ts';
 import { createUsageLoadProgress, shouldShowUsageLoadProgress } from './loading-progress.ts';
 
 const codexArgs = {
@@ -40,9 +41,10 @@ const codexArgs = {
 		type: 'boolean',
 		negatable: true,
 		short: 'O',
-		description: 'Use cached pricing data instead of fetching from LiteLLM',
+		description: 'Use cached pricing data where supported',
 		default: false,
 	},
+	pricingSource: sharedArgs.pricingSource,
 	speed: {
 		type: 'string',
 		description:
