@@ -97,6 +97,7 @@ function normalizeProvider(value: unknown, model: string): string {
 		if (provider != null) {
 			return provider;
 		}
+		return normalized;
 	}
 	return inferProviderFromModel(model);
 }
@@ -274,7 +275,7 @@ if (import.meta.vitest != null) {
 		);
 
 		it.skipIf(getSqliteDatabaseFactory(() => {}) == null)(
-			'falls back to model provider inference when billing provider is unknown',
+			'preserves unknown billing provider values',
 			async () => {
 				await using fixture = await createFixture({});
 				const dbPath = path.join(fixture.path, 'state.db');
@@ -309,7 +310,7 @@ if (import.meta.vitest != null) {
 					() => {},
 				);
 
-				expect(loadHermesUsageEntries([dbPath])[0]?.provider).toBe('openai');
+				expect(loadHermesUsageEntries([dbPath])[0]?.provider).toBe('unknown');
 			},
 		);
 
