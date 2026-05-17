@@ -142,6 +142,33 @@ function createAgentFixtureTree() {
 				].join('\n'),
 			},
 		},
+		gemini: {
+			project: {
+				chats: {
+					'gemini-session.jsonl': [
+						JSON.stringify({
+							sessionId: 'gemini-session',
+							projectHash: 'project',
+							startTime: '2026-01-02T00:00:00.000Z',
+						}),
+						JSON.stringify({
+							id: 'gemini-message',
+							timestamp: '2026-01-02T00:00:00.000Z',
+							type: 'gemini',
+							model: 'gemini-test-model',
+							tokens: {
+								input: 110,
+								output: 50,
+								cached: 10,
+								thoughts: 5,
+								tool: 0,
+								total: 165,
+							},
+						}),
+					].join('\n'),
+				},
+			},
+		},
 		opencode: {
 			storage: {
 				message: {
@@ -401,14 +428,21 @@ describe('ccusage all-agent CLI', () => {
 			expect.objectContaining({
 				agent: 'all',
 				cacheCreationTokens: 80,
-				cacheReadTokens: 50,
-				inputTokens: 500,
-				outputTokens: 250,
+				cacheReadTokens: 60,
+				inputTokens: 600,
+				outputTokens: 300,
 				period: '2026-01-02',
-				totalTokens: 870,
+				totalTokens: 1035,
 			}),
 		);
-		expect(output.daily[0]?.metadata?.agents).toEqual(['amp', 'claude', 'codex', 'opencode', 'pi']);
+		expect(output.daily[0]?.metadata?.agents).toEqual([
+			'amp',
+			'claude',
+			'codex',
+			'gemini',
+			'opencode',
+			'pi',
+		]);
 	});
 
 	it('passes agent namespace config to all-agent loaders', async () => {
@@ -444,14 +478,20 @@ describe('ccusage all-agent CLI', () => {
 			expect.objectContaining({
 				agent: 'all',
 				cacheCreationTokens: 80,
-				cacheReadTokens: 40,
-				inputTokens: 400,
-				outputTokens: 200,
+				cacheReadTokens: 50,
+				inputTokens: 500,
+				outputTokens: 250,
 				period: '2026-01-02',
-				totalTokens: 720,
+				totalTokens: 885,
 			}),
 		);
-		expect(output.daily[0]?.metadata?.agents).toEqual(['amp', 'claude', 'opencode', 'pi']);
+		expect(output.daily[0]?.metadata?.agents).toEqual([
+			'amp',
+			'claude',
+			'gemini',
+			'opencode',
+			'pi',
+		]);
 	});
 
 	it('runs Codex daily JSON through the main ccusage namespace instead of the deprecated standalone wrapper', async () => {
@@ -478,6 +518,42 @@ describe('ccusage all-agent CLI', () => {
 				inputTokens: 100,
 				outputTokens: 50,
 				totalTokens: 150,
+			}),
+		]);
+	});
+
+	it('runs Gemini daily JSON through the main ccusage namespace', async () => {
+		await using fixture = await createFixture(createAgentFixtureTree());
+
+		const result = runCcusage(
+			['gemini', 'daily', '--offline', '--json', '--since', '20260102', '--until', '20260102'],
+			createAgentCliEnv(fixture.path),
+		);
+
+		expect(result.status).toBe(0);
+		expect(result.stderr).toBe('');
+		const stdout = getStdout(result).replace(/\n$/u, '');
+		await mkdir(snapshotRoot, { recursive: true });
+		await expect(stdout).toMatchFileSnapshot(
+			path.join(snapshotRoot, 'gemini-direct-daily-json.txt'),
+		);
+
+		const output = JSON.parse(stdout) as {
+			daily: Array<{
+				inputTokens: number;
+				outputTokens: number;
+				cacheReadTokens: number;
+				totalTokens: number;
+				reasoningTokens?: number;
+			}>;
+		};
+		expect(output.daily).toEqual([
+			expect.objectContaining({
+				inputTokens: 100,
+				outputTokens: 50,
+				cacheReadTokens: 10,
+				totalTokens: 165,
+				reasoningTokens: 5,
 			}),
 		]);
 	});
@@ -643,10 +719,11 @@ describe('ccusage all-agent CLI', () => {
 		await mkdir(snapshotRoot, { recursive: true });
 		await expect(output).toMatchFileSnapshot(path.join(snapshotRoot, 'all-agent-daily-table.txt'));
 		expect(output).toContain('Coding (Agent) CLI Usage Report - Daily');
-		expect(output).toContain('Detected: Amp, Claude, Codex, OpenCode, pi-agent');
+		expect(output).toContain('Detected: Amp, Claude, Codex, Gemini, OpenCode, pi-agent');
 		expect(output.match(/2026-01-02/gu)).toHaveLength(1);
 		expect(output).toContain('Amp');
 		expect(output).toContain('Codex');
+		expect(output).toContain('Gemini');
 		expect(output).toContain('OpenCode');
 		expect(output).toContain('pi-agent');
 		expect(output).toContain('$');

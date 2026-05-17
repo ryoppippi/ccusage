@@ -3,6 +3,7 @@ import path from 'node:path';
 import process from 'node:process';
 import { collectFilesRecursive, hasFileRecursive } from '@ccusage/internal/fs';
 import { compareStrings } from '@ccusage/internal/sort';
+import { Result } from '@praha/byethrow';
 import { createFixture } from 'fs-fixture';
 import { getExistingDirectories, normalizePathList } from '../path-list.ts';
 
@@ -15,11 +16,33 @@ export function getGeminiPaths(): string[] {
 	);
 }
 
+async function collectFilesRecursiveSafe(
+	directoryPath: string,
+	extension: '.json' | '.jsonl',
+): Promise<string[]> {
+	const result = await Result.try({
+		try: collectFilesRecursive(directoryPath, { extension }),
+		catch: (error) => error,
+	});
+	return Result.isFailure(result) ? [] : result.value;
+}
+
+async function hasFileRecursiveSafe(
+	directoryPath: string,
+	extension: '.json' | '.jsonl',
+): Promise<boolean> {
+	const result = await Result.try({
+		try: hasFileRecursive(directoryPath, { extension }),
+		catch: (error) => error,
+	});
+	return Result.isFailure(result) ? false : result.value;
+}
+
 export async function discoverGeminiLogFiles(): Promise<string[]> {
 	const fileGroups = await Promise.all(
 		getGeminiPaths().flatMap((geminiPath) => [
-			collectFilesRecursive(geminiPath, { extension: '.json' }),
-			collectFilesRecursive(geminiPath, { extension: '.jsonl' }),
+			collectFilesRecursiveSafe(geminiPath, '.json'),
+			collectFilesRecursiveSafe(geminiPath, '.jsonl'),
 		]),
 	);
 	return fileGroups.flat().sort(compareStrings);
@@ -28,8 +51,8 @@ export async function discoverGeminiLogFiles(): Promise<string[]> {
 export async function detectGeminiLogFiles(): Promise<boolean> {
 	const results = await Promise.all(
 		getGeminiPaths().flatMap((geminiPath) => [
-			hasFileRecursive(geminiPath, { extension: '.json' }),
-			hasFileRecursive(geminiPath, { extension: '.jsonl' }),
+			hasFileRecursiveSafe(geminiPath, '.json'),
+			hasFileRecursiveSafe(geminiPath, '.jsonl'),
 		]),
 	);
 	return results.some(Boolean);

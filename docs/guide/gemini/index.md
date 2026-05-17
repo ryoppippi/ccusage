@@ -31,6 +31,7 @@ GEMINI_DATA_DIR="$HOME/.gemini/tmp,/backup/gemini/tmp" ccusage gemini daily
 ~/.gemini/tmp/
 └── */
     └── chats/
+        ├── *.json
         └── *.jsonl
 ```
 
