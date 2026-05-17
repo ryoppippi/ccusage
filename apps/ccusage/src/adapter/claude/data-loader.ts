@@ -247,13 +247,17 @@ function getTimestampFromLine(line: string): Date | null {
 }
 
 /**
- * Get Claude data directories to search for usage data
+ * Get Claude data directories that actually contain a `projects/` subdirectory.
  * When CLAUDE_CONFIG_DIR is set: uses only those paths
  * When not set: uses default paths (~/.config/claude and ~/.claude)
- * @returns Array of valid Claude data directory paths
+ *
+ * Returns an empty array when nothing is found. Callers that require at least
+ * one valid Claude path (e.g. explicit `ccusage claude …` commands) should use
+ * {@link requireClaudePaths} instead so users get a helpful error message.
+ * @returns Array of valid Claude data directory paths (possibly empty)
  */
 export function getClaudePaths(): string[] {
-	const paths = [];
+	const paths: string[] = [];
 	const normalizedPaths = new Set<string>();
 
 	// Check environment variable first (supports comma-separated paths)
@@ -276,15 +280,8 @@ export function getClaudePaths(): string[] {
 				}
 			}
 		}
-		// If environment variable is set, return only those paths (or error if none valid)
-		if (paths.length > 0) {
-			return paths;
-		}
-		// If environment variable is set but no valid paths found, throw error
-		throw new Error(
-			`No valid Claude data directories found in CLAUDE_CONFIG_DIR. Please ensure the following exists:
-- ${envPaths}/${CLAUDE_PROJECTS_DIR_NAME}`.trim(),
-		);
+		// If environment variable is set, return only those paths
+		return paths;
 	}
 
 	// Only check default paths if no environment variable is set
@@ -307,16 +304,35 @@ export function getClaudePaths(): string[] {
 		}
 	}
 
-	if (paths.length === 0) {
+	return paths;
+}
+
+/**
+ * Like {@link getClaudePaths} but throws a user-friendly error when no Claude
+ * data directory exists. Use this from explicit Claude-only entry points (the
+ * `claude:*` commands and `debug` utilities) where surfacing the setup hint to
+ * the user is the right behavior.
+ */
+export function requireClaudePaths(): string[] {
+	const paths = getClaudePaths();
+	if (paths.length > 0) {
+		return paths;
+	}
+
+	const envPaths = (process.env[CLAUDE_CONFIG_DIR_ENV] ?? '').trim();
+	if (envPaths !== '') {
 		throw new Error(
-			`No valid Claude data directories found. Please ensure at least one of the following exists:
-- ${path.join(DEFAULT_CLAUDE_CONFIG_PATH, CLAUDE_PROJECTS_DIR_NAME)}
-- ${path.join(USER_HOME_DIR, DEFAULT_CLAUDE_CODE_PATH, CLAUDE_PROJECTS_DIR_NAME)}
-- Or set ${CLAUDE_CONFIG_DIR_ENV} environment variable to valid directory path(s) containing a '${CLAUDE_PROJECTS_DIR_NAME}' subdirectory`.trim(),
+			`No valid Claude data directories found in CLAUDE_CONFIG_DIR. Please ensure the following exists:
+- ${envPaths}/${CLAUDE_PROJECTS_DIR_NAME}`.trim(),
 		);
 	}
 
-	return paths;
+	throw new Error(
+		`No valid Claude data directories found. Please ensure at least one of the following exists:
+- ${path.join(DEFAULT_CLAUDE_CONFIG_PATH, CLAUDE_PROJECTS_DIR_NAME)}
+- ${path.join(USER_HOME_DIR, DEFAULT_CLAUDE_CODE_PATH, CLAUDE_PROJECTS_DIR_NAME)}
+- Or set ${CLAUDE_CONFIG_DIR_ENV} environment variable to valid directory path(s) containing a '${CLAUDE_PROJECTS_DIR_NAME}' subdirectory`.trim(),
+	);
 }
 
 /**
@@ -2271,7 +2287,7 @@ async function collectBlockFileResult(
  */
 export async function loadDailyUsageData(options?: LoadOptions): Promise<DailyUsage[]> {
 	// Get all Claude paths or use the specific one from options
-	const claudePaths = toArray(options?.claudePath ?? getClaudePaths());
+	const claudePaths = toArray(options?.claudePath ?? requireClaudePaths());
 
 	// Collect files from all paths in parallel
 	const allFiles = await globUsageFiles(claudePaths);
@@ -2407,7 +2423,7 @@ export async function loadDailyUsageData(options?: LoadOptions): Promise<DailyUs
  */
 export async function loadSessionData(options?: LoadOptions): Promise<SessionUsage[]> {
 	// Get all Claude paths or use the specific one from options
-	const claudePaths = toArray(options?.claudePath ?? getClaudePaths());
+	const claudePaths = toArray(options?.claudePath ?? requireClaudePaths());
 
 	// Collect files from all paths with their base directories in parallel
 	const filesWithBase = await globUsageFiles(claudePaths);
@@ -2596,7 +2612,7 @@ export async function loadSessionUsageById(
 	sessionId: string,
 	options?: { mode?: CostMode; offline?: boolean },
 ): Promise<{ totalCost: number; entries: UsageData[] } | null> {
-	const claudePaths = getClaudePaths();
+	const claudePaths = requireClaudePaths();
 
 	const targetFile = `${sessionId}.jsonl`;
 	let file: string | undefined;
@@ -2846,7 +2862,7 @@ function compareBlockFileResults(
  */
 export async function loadSessionBlockData(options?: LoadOptions): Promise<SessionBlock[]> {
 	// Get all Claude paths or use the specific one from options
-	const claudePaths = toArray(options?.claudePath ?? getClaudePaths());
+	const claudePaths = toArray(options?.claudePath ?? requireClaudePaths());
 
 	// Collect files from all paths
 	const allFiles = (await globUsageFiles(claudePaths)).map((item) => item.file);

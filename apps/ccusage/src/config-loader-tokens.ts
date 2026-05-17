@@ -72,10 +72,13 @@ export type ConfigData = {
  * Get configuration file search paths in priority order (highest to lowest)
  * 1. Local .ccusage/ccusage.json
  * 2. User config directories from getClaudePaths() + ccusage.json
+ *
+ * Claude paths are best-effort: ccusage supports non-Claude agents too, so a
+ * missing Claude data directory simply contributes no extra search paths.
  */
 function getConfigSearchPaths(): string[] {
-	const claudeConfigDirs = [join(process.cwd(), '.ccusage'), ...toArray(getClaudePaths())];
-	return claudeConfigDirs.map((dir) => join(dir, CONFIG_FILE_NAME));
+	const dirs = [join(process.cwd(), '.ccusage'), ...toArray(getClaudePaths())];
+	return dirs.map((dir) => join(dir, CONFIG_FILE_NAME));
 }
 
 /**
@@ -620,6 +623,23 @@ if (import.meta.vitest != null) {
 			expect(config).toBeDefined();
 			expect(config?.source).toBe(fixture.getPath('.ccusage/ccusage.json'));
 			expect(config?.defaults?.json).toBe(true);
+		});
+
+		it('does not surface getClaudePaths errors when no Claude data exists (issue #1014)', async () => {
+			await using fixture = await createFixture({
+				'empty-dir': '',
+			});
+
+			// Point CLAUDE_CONFIG_DIR at a directory without a projects/ subfolder so
+			// getClaudePaths() throws; loadConfig() must still return undefined
+			// instead of propagating the Claude-specific error.
+			vi.stubEnv('CLAUDE_CONFIG_DIR', fixture.getPath('empty-dir'));
+			vi.spyOn(process, 'cwd').mockReturnValue(fixture.getPath());
+
+			expect(() => loadConfig()).not.toThrow();
+			expect(loadConfig()).toBeUndefined();
+
+			vi.unstubAllEnvs();
 		});
 
 		it('should handle empty configuration file', async () => {
