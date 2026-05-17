@@ -41,7 +41,7 @@ function extractExplicitArgs(tokens: unknown[]): Record<string, boolean> {
 	return explicit;
 }
 
-const AGENT_CONFIG_KEYS = ['claude', 'codex', 'opencode', 'amp', 'pi'] as const;
+const AGENT_CONFIG_KEYS = ['claude', 'codex', 'opencode', 'amp', 'pi', 'openclaw'] as const;
 const UNSAFE_CONFIG_OPTION_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
 
 function isSafeConfigOptionKey(key: string): boolean {
@@ -65,6 +65,7 @@ export type ConfigData = {
 	opencode?: AgentConfigData;
 	amp?: AgentConfigData;
 	pi?: AgentConfigData;
+	openclaw?: AgentConfigData;
 	source?: string;
 };
 
@@ -921,6 +922,40 @@ if (import.meta.vitest != null) {
 					json: true,
 					speed: 'fast',
 					offline: false,
+				});
+			},
+		);
+
+		it.each(['openclaw daily', 'openclaw:daily'])(
+			'should merge OpenClaw namespace config for namespaced commands (%s)',
+			(name) => {
+				const config = {
+					defaults: { json: false },
+					openclaw: {
+						defaults: {
+							offline: false,
+						},
+						commands: {
+							daily: {
+								openClawPath: '/tmp/openclaw',
+							},
+						},
+					},
+				} satisfies ConfigData;
+
+				const merged = mergeConfigWithArgs(
+					{
+						values: { json: true },
+						tokens: [{ kind: 'option', name: 'json' }],
+						name,
+					},
+					config,
+				);
+
+				expect(merged).toEqual({
+					json: true,
+					offline: false,
+					openClawPath: '/tmp/openclaw',
 				});
 			},
 		);
