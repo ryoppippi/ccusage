@@ -1,6 +1,6 @@
 ---
 name: ccusage-development
-description: Work in the ccusage monorepo with its unified ccusage command surface, bundled CLI packaging, pnpm commands, TypeScript style, exports, dependencies, and post-change validation workflow. Use when editing packages under apps/, packages/, docs/, or shared repository configuration.
+description: Guides ccusage monorepo development. Use when editing packages, docs, shared configuration, bundled CLI packaging, dependencies, exports, or validation commands.
 ---
 
 # ccusage Development

@@ -1,6 +1,6 @@
 ---
 name: typescript-style
-description: Apply ccusage TypeScript style rules, especially preferring satisfies and as const satisfies over unsafe as assertions. Use when writing or reviewing TypeScript or TSX code, test fixtures, typed object literals, mocks, config objects, or table-driven cases.
+description: Guides ccusage TypeScript style. Use when writing or reviewing typed objects, mocks, fixtures, table-driven cases, satisfies, or safe type suppressions.
 ---
 
 # TypeScript Style
