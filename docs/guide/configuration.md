@@ -180,7 +180,7 @@ Control how costs are calculated:
 ccusage daily --mode calculate --breakdown --pricing-source auto
 ```
 
-`modelsdev` uses live data from `models.dev` and is not part of the cached pricing bundle used by `--offline`.
+`modelsdev` uses live data from `models.dev` and is not part of the cached pricing bundle used by `--offline`. Because models.dev exposes flat token prices only, ccusage preserves LiteLLM tier metadata for tiered-pricing models when that metadata is available.
 
 ### Date and Time
 

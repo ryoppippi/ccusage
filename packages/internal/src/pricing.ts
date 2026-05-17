@@ -13,6 +13,14 @@ export const LITELLM_PRICING_URL =
  * future models that may use different thresholds.
  */
 const DEFAULT_TIERED_THRESHOLD = 200_000;
+const TIERED_PRICING_KEYS = [
+	'input_cost_per_token_above_200k_tokens',
+	'output_cost_per_token_above_200k_tokens',
+	'cache_creation_input_token_cost_above_200k_tokens',
+	'cache_read_input_token_cost_above_200k_tokens',
+	'input_cost_per_token_above_128k_tokens',
+	'output_cost_per_token_above_128k_tokens',
+] as const satisfies readonly (keyof LiteLLMModelPricing)[];
 
 function calculateTieredCost(
 	totalTokens: number | undefined,
@@ -36,6 +44,23 @@ function calculateTieredCost(
 	}
 
 	return 0;
+}
+
+function hasTieredPricing(pricing: LiteLLMModelPricing): boolean {
+	return TIERED_PRICING_KEYS.some((key) => pricing[key] != null);
+}
+
+function mergeTieredPricingFields(
+	pricing: LiteLLMModelPricing,
+	tieredPricing: LiteLLMModelPricing,
+): LiteLLMModelPricing {
+	const merged: LiteLLMModelPricing = { ...pricing };
+	for (const key of TIERED_PRICING_KEYS) {
+		if (tieredPricing[key] != null) {
+			merged[key] = tieredPricing[key];
+		}
+	}
+	return merged;
 }
 
 /**
@@ -228,13 +253,58 @@ export class LiteLLMPricingFetcher implements Disposable {
 		);
 	}
 
-	private async loadModelsDevPricing(): Result.ResultAsync<
-		Map<string, LiteLLMModelPricing>,
-		Error
-	> {
+	private findLiteLLMTieredPricing(
+		modelName: string,
+		pricing: Map<string, LiteLLMModelPricing>,
+	): LiteLLMModelPricing | null {
+		for (const candidate of this.createMatchingCandidates(modelName)) {
+			const tieredPricing = pricing.get(candidate);
+			if (tieredPricing != null && hasTieredPricing(tieredPricing)) {
+				return tieredPricing;
+			}
+		}
+		return null;
+	}
+
+	private applyLiteLLMTieredPricingFields(
+		modelsDevPricing: Map<string, LiteLLMModelPricing>,
+		liteLLMPricing: Map<string, LiteLLMModelPricing>,
+	): Map<string, LiteLLMModelPricing> {
+		const pricing = new Map<string, LiteLLMModelPricing>();
+		for (const [modelName, modelPricing] of modelsDevPricing) {
+			const tieredPricing = this.findLiteLLMTieredPricing(modelName, liteLLMPricing);
+			pricing.set(
+				modelName,
+				tieredPricing == null
+					? modelPricing
+					: mergeTieredPricingFields(modelPricing, tieredPricing),
+			);
+		}
+		return pricing;
+	}
+
+	private async loadModelsDevPricing(
+		includeLiteLLMTieredPricing = false,
+	): Result.ResultAsync<Map<string, LiteLLMModelPricing>, Error> {
 		this.logger.warn('Fetching latest model pricing from models.dev...');
 		return Result.pipe(
 			fetchModelsDevPricing(this.modelsDevUrl),
+			Result.andThen(async (modelsDevPricing) => {
+				if (!includeLiteLLMTieredPricing) {
+					return Result.succeed(modelsDevPricing);
+				}
+				const liteLLMResult = await this.loadLiteLLMPricing();
+				if (Result.isFailure(liteLLMResult)) {
+					this.logger.warn(
+						'Failed to fetch LiteLLM tiered pricing metadata, using models.dev flat pricing only',
+					);
+					this.logger.debug('LiteLLM tiered pricing fetch error details:', liteLLMResult.error);
+					return Result.succeed(modelsDevPricing);
+				}
+				return Result.succeed(
+					this.applyLiteLLMTieredPricingFields(modelsDevPricing, liteLLMResult.value),
+				);
+			}),
 			Result.inspect((pricing) => {
 				this.logger.info(`Loaded pricing for ${pricing.size} models from models.dev`);
 			}),
@@ -276,7 +346,7 @@ export class LiteLLMPricingFetcher implements Disposable {
 
 	private async loadPricing(): Result.ResultAsync<Map<string, LiteLLMModelPricing>, Error> {
 		if (this.pricingSource === 'modelsdev') {
-			return this.loadModelsDevPricing();
+			return this.loadModelsDevPricing(true);
 		}
 
 		if (this.offline) {
@@ -873,6 +943,72 @@ if (import.meta.vitest != null) {
 				expect(pricing?.max_input_tokens).toBe(400_000);
 				expect(pricing?.max_output_tokens).toBe(128_000);
 				expect(cost).toBeCloseTo((1000 * 1.25 + 500 * 10 + 200 * 1.25 + 300 * 0.125) / 1_000_000);
+			} finally {
+				fetchSpy.mockRestore();
+			}
+		});
+
+		it('keeps LiteLLM tiered pricing metadata for models.dev prices when available', async () => {
+			const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async (url) => {
+				if (url === 'https://example.com/models-dev.json') {
+					return {
+						ok: true,
+						json: async () => ({
+							anthropic: {
+								id: 'anthropic',
+								models: {
+									'claude-sonnet-4-20250514': {
+										id: 'claude-sonnet-4-20250514',
+										cost: {
+											input: 3,
+											output: 15,
+										},
+										limit: {
+											context: 1_000_000,
+											output: 64_000,
+										},
+									},
+								},
+							},
+						}),
+					} as Response;
+				}
+
+				return {
+					ok: true,
+					json: async () => ({
+						'anthropic/claude-sonnet-4-20250514': {
+							input_cost_per_token: 3e-6,
+							output_cost_per_token: 1.5e-5,
+							input_cost_per_token_above_200k_tokens: 6e-6,
+							output_cost_per_token_above_200k_tokens: 2.25e-5,
+						},
+					}),
+				} as Response;
+			});
+
+			try {
+				using fetcher = new LiteLLMPricingFetcher({
+					pricingSource: 'modelsdev',
+					url: 'https://example.com/litellm.json',
+					modelsDevUrl: 'https://example.com/models-dev.json',
+				});
+
+				const cost = await Result.unwrap(
+					fetcher.calculateCostFromTokens(
+						{
+							input_tokens: 300_000,
+							output_tokens: 250_000,
+						},
+						'claude-sonnet-4-20250514',
+					),
+				);
+
+				expect(fetchSpy).toHaveBeenCalledWith('https://example.com/models-dev.json');
+				expect(fetchSpy).toHaveBeenCalledWith('https://example.com/litellm.json');
+				expect(cost).toBeCloseTo(
+					200_000 * 3e-6 + 100_000 * 6e-6 + 200_000 * 1.5e-5 + 50_000 * 2.25e-5,
+				);
 			} finally {
 				fetchSpy.mockRestore();
 			}

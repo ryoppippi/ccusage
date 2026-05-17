@@ -90,7 +90,7 @@ ccusage codex daily --pricing-source modelsdev
 ccusage daily --pricing-source auto
 ```
 
-`modelsdev` fetches live pricing from `models.dev`; it is not included in the cached pricing bundle used by `--offline`.
+`modelsdev` fetches live pricing from `models.dev`; it is not included in the cached pricing bundle used by `--offline`. For models that have tiered token pricing in LiteLLM, ccusage preserves LiteLLM's tier metadata when it is available because models.dev exposes flat token prices only.
 
 ### Timezone
 
