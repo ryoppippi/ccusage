@@ -344,5 +344,4 @@ ccusage daily --mode calculate
 After understanding cost modes:
 
 - Explore [Configuration](/guide/configuration) for environment setup
-- Learn about [Custom Paths](/guide/custom-paths) for multiple data sources
-- Try [Statusline](/guide/statusline) with different cost modes
+- Learn about [Claude Code](/guide/claude/) data paths for custom Claude Code directories

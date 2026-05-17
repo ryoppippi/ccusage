@@ -29,9 +29,6 @@ bunx ccusage@latest codex --help
 npx ccusage@latest codex --help
 pnpm dlx ccusage codex
 pnpx ccusage codex
-
-# Using deno (with security flags)
-deno run -E -R=$HOME/.codex/ -S=homedir -N='raw.githubusercontent.com:443' npm:ccusage@latest codex --help
 ```
 
 > ⚠️ **Compatibility note**: Older `bunx` versions can prioritize binaries matching a scoped package name suffix. Prefer `bunx ccusage@latest codex` so the main ccusage binary is selected directly.

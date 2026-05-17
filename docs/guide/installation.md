@@ -29,20 +29,12 @@ pnpm dlx ccusage
 npx ccusage@latest
 ```
 
-```bash [deno]
-deno run -E -R=$HOME/.config/claude,$HOME/.claude,$HOME/.codex,$HOME/.local/share/opencode,$HOME/.local/share/amp,$HOME/.pi/agent/sessions -S=homedir -N='raw.githubusercontent.com:443' npm:ccusage@latest
-```
-
 :::
 
 ::: tip Speed Recommendation
 We recommend `bunx` for everyday use. ccusage can run on Node.js 22+, but Bun generally starts faster and avoids the slower cold-start path common with `npx`.
 
 When the published CLI starts under Node.js and finds `bun` in `PATH`, it automatically re-runs the bundled entrypoint with Bun for better warm runtime performance. Set `CCUSAGE_BUN_AUTO_RUN=0` to force the Node.js runtime.
-:::
-
-::: info Deno Security
-Consider using `deno run` if you want additional security controls. Deno allows you to specify exact permissions, making it safer to run tools you haven't audited.
 :::
 
 ### Performance Comparison
@@ -54,7 +46,6 @@ Here's why runtime choice matters:
 | bunx     | Fast      | **Instant**     | Recommended for everyday use  |
 | pnpm dlx | Fast      | Fast            | Good alternative              |
 | npx      | Slow      | Moderate        | Widely available, Node.js 22+ |
-| deno     | Moderate  | Fast            | Best for security controls    |
 
 ## Global Installation (Optional)
 
@@ -134,29 +125,6 @@ pnpm run format
 - **Minimum**: Bun 1.3+
 - **Recommended**: Latest stable release
 - Recommended for `bunx ccusage` and for the fastest warm startup
-
-### Deno
-
-Deno 2.0+ is fully supported with proper permissions:
-
-```bash
-deno run \
-  -E \
-  -R=$HOME/.config/claude,$HOME/.claude,$HOME/.codex,$HOME/.local/share/opencode,$HOME/.local/share/amp,$HOME/.pi/agent/sessions \
-  -S=homedir \
-  -N='raw.githubusercontent.com:443' \
-  npm:ccusage@latest
-```
-
-Also you can use `offline` mode to run ccusage without network access:
-
-```bash
-deno run \
-  -E \
-  -R=$HOME/.config/claude,$HOME/.claude,$HOME/.codex,$HOME/.local/share/opencode,$HOME/.local/share/amp,$HOME/.pi/agent/sessions \
-  -S=homedir \
-  npm:ccusage@latest --offline
-```
 
 ## Verification
 

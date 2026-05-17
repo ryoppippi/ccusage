@@ -25,9 +25,6 @@ bunx ccusage@latest opencode --help
 npx ccusage@latest opencode --help
 pnpm dlx ccusage opencode
 pnpx ccusage opencode
-
-# Using deno (with security flags)
-deno run -E -R=$HOME/.local/share/opencode/ -S=homedir -N='raw.githubusercontent.com:443' npm:ccusage@latest opencode --help
 ```
 
 ### Optional: Shell Alias
@@ -79,7 +76,7 @@ Useful environment variables:
 - 🗓️ **Monthly Reports**: View usage aggregated by month (YYYY-MM)
 - 💬 **Session Reports**: View usage grouped by conversation sessions
 - 📈 **Responsive Tables**: Automatic layout adjustment for terminal width
-- 🤖 **Model Tracking**: See which Claude models you're using (Opus, Sonnet, Haiku, etc.)
+- 🤖 **Model Tracking**: See which models are used in OpenCode sessions
 - 💵 **Accurate Cost Calculation**: Uses LiteLLM pricing database to calculate costs from token data
 - 🔄 **Cache Token Support**: Tracks and displays cache creation and cache read tokens separately
 - 📄 **JSON Output**: Export data in structured JSON format with `--json`

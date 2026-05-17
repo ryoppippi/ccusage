@@ -198,7 +198,7 @@ ccusage monthly --since 20241001 --until 20241231 --json > q4-2024.json
 Monthly totals show:
 
 - **Subscription Value**: How much you'd pay with usage-based billing
-- **Usage Intensity**: Months with heavy Claude usage
+- **Usage Intensity**: Months with heavy coding CLI usage
 - **Model Preferences**: Which models you favor over time
 
 ### 2. Trend Analysis
@@ -230,12 +230,12 @@ Compare monthly reports with:
 - [All Sources (Default)](/guide/all-reports) - How unified views work
 - [Daily Usage](/guide/daily-reports) - Day-by-day breakdown
 - [Session Usage](/guide/session-reports) - Individual conversations
-- [Blocks](/guide/blocks-reports) - Claude Code 5-hour billing periods
+- [Claude Code](/guide/claude/) - Claude Code-specific setup and features
 
 ## Next Steps
 
 After analyzing monthly trends, consider:
 
 1. [Session Usage](/guide/session-reports) to identify high-cost conversations
-2. [Statusline](/guide/statusline) to track Claude Code usage in real time
+2. [Claude Code](/guide/claude/) for Claude Code-specific setup and features
 3. [JSON Output](/guide/json-output) for programmatic analysis

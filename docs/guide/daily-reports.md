@@ -288,4 +288,4 @@ ccusage daily --instances --since 20250601
 - [All Sources (Default)](/guide/all-reports) - How unified views work
 - [Monthly Usage](/guide/monthly-reports) - Aggregate by month
 - [Session Usage](/guide/session-reports) - Per-conversation analysis
-- [Blocks](/guide/blocks-reports) - Claude Code 5-hour billing windows
+- [Claude Code](/guide/claude/) - Claude Code-specific setup and features

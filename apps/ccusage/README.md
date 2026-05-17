@@ -59,9 +59,6 @@ bunx ccusage
 pnpm dlx ccusage
 pnpx ccusage
 npx ccusage@latest
-
-# Using deno (with security flags)
-deno run -E -R=$HOME/.claude/projects/ -S=homedir -N='raw.githubusercontent.com:443' npm:ccusage@latest
 ```
 
 > 💡 **Runtime**: `bunx ccusage` is recommended for everyday use. If you use `npx`, include `@latest` and use Node.js 22+.
@@ -121,10 +118,10 @@ bunx ccusage monthly --compact  # Compact monthly report
 - 🤖 **Unified CLI Reports**: View Claude Code, Codex, OpenCode, Amp, and pi-agent usage from one CLI
 - ⏰ **5-Hour Blocks Report**: Track usage within Claude's billing windows with active block monitoring
 - 🚀 **Statusline Integration**: Compact usage display for Claude Code status bar hooks (Beta)
-- 🤖 **Model Tracking**: See which Claude models you're using (Opus, Sonnet, etc.)
+- 🤖 **Model Tracking**: See which models are used across supported sources
 - 📊 **Model Breakdown**: View per-model cost breakdown with `--breakdown` flag
 - 📅 **Date Filtering**: Filter reports by date range using `--since` and `--until`
-- 📁 **Custom Path**: Support for custom Claude data directory locations
+- 📁 **Custom Paths**: Support for custom local data directory locations
 - 🎨 **Beautiful Output**: Colorful table-formatted display with automatic responsive layout
 - 📱 **Smart Tables**: Automatic compact mode for narrow terminals (< 100 characters) with essential columns
 - 📸 **Compact Mode**: Use `--compact` flag to force compact table layout, perfect for screenshots and sharing
@@ -132,8 +129,8 @@ bunx ccusage monthly --compact  # Compact monthly report
 - 📄 **JSON Output**: Export data in structured JSON format with `--json`
 - 💰 **Cost Tracking**: Shows costs in USD for each day/month/session
 - 🔄 **Cache Token Support**: Tracks and displays cache creation and cache read tokens separately
-- 🌐 **Offline Mode**: Use pre-cached pricing data without network connectivity with `--offline` (Claude models only)
-- 🏗️ **Multi-Instance Support**: Group usage by project with `--instances` flag and filter by specific projects
+- 🌐 **Offline Mode**: Use pre-cached pricing data without network connectivity with `--offline`
+- 🏗️ **Claude Instance Support**: Group Claude Code usage by project with `--instances` and filter by specific projects
 - 🌍 **Timezone Support**: Configure timezone for date grouping with `--timezone` option
 - ⚙️ **Configuration Files**: Set defaults with JSON configuration files, complete with IDE autocomplete and validation
 - 🚀 **Ultra-Small Bundle**: Unlike other CLI tools, we pay extreme attention to bundle size - incredibly small even without minification!

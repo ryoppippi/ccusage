@@ -76,21 +76,12 @@ export default defineConfig({
 					],
 				},
 				{
-					text: 'Claude Code Features',
-					items: [
-						{ text: 'Blocks', link: '/guide/blocks-reports' },
-						{ text: 'Statusline', link: '/guide/statusline' },
-						{ text: 'Live Monitoring (Removed)', link: '/guide/live-monitoring' },
-					],
-				},
-				{
 					text: 'Configuration',
 					items: [
 						{ text: 'Overview', link: '/guide/configuration' },
 						{ text: 'Command-Line Options', link: '/guide/cli-options' },
 						{ text: 'Environment Variables', link: '/guide/environment-variables' },
 						{ text: 'Configuration Files', link: '/guide/config-files' },
-						{ text: 'Custom Paths', link: '/guide/custom-paths' },
 						{ text: 'Cost Calculation Modes', link: '/guide/cost-modes' },
 					],
 				},
@@ -152,6 +143,8 @@ export default defineConfig({
 					{ from: '/npm', to: 'https://www.npmjs.com/package/ccusage', status: 302 },
 					{ from: '/deepwiki', to: 'https://deepwiki.com/ryoppippi/ccusage', status: 302 },
 					{ from: '/sponsor', to: 'https://github.com/sponsors/ryoppippi', status: 302 },
+					{ from: '/guide/custom-paths', to: '/guide/claude/', status: 301 },
+					{ from: '/guide/directory-detection', to: '/guide/claude/', status: 301 },
 				],
 			}) as any,
 			groupIconVitePlugin(),

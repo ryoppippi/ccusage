@@ -23,7 +23,7 @@ ccusage reads the local usage files that coding CLIs already generate and provid
 - **Usage Views** - Daily, weekly, monthly, and session-based breakdowns
 - **Cost Analysis** - Estimated costs based on token usage and model pricing
 - **Focused Data Source Views** - Start with all detected sources, then narrow the same usage views to one source when needed
-- **Claude Code Features** - Statusline and 5-hour block views where Claude exposes the required data
+- **Data Source Pages** - Source-specific setup and extra features live with each supported data source
 - **Multiple Formats** - Beautiful tables or JSON for further analysis
 
 ## How It Works
@@ -38,7 +38,7 @@ ccusage reads the local usage files that coding CLIs already generate and provid
 
 ### 🚀 Ultra-Small Bundle Size
 
-Unlike many CLI tools, ccusage pays close attention to bundle size. You can run it directly without a global install using `bunx ccusage` (recommended), `pnpm dlx ccusage`, `npx ccusage@latest`, or `BUN_BE_BUN=1 claude x ccusage`.
+Unlike many CLI tools, ccusage pays close attention to bundle size. You can run it directly without a global install using `bunx ccusage` (recommended), `pnpm dlx ccusage`, or `npx ccusage@latest`.
 
 ### 📊 Usage Views
 
@@ -55,19 +55,15 @@ Unlike many CLI tools, ccusage pays close attention to bundle size. You can run 
 - Model-specific pricing across supported providers
 - Cache token cost calculation
 
-### 📈 Statusline Integration
+### Data Source Pages
 
-- Compact real-time usage display for Claude Code status bar hooks
-- Session cost, daily cost, and block cost tracking
-- Burn rate calculations with visual indicators
-- Context usage percentage with color-coded alerts
+Each data source page covers the details that only apply to that source, including custom directories, pricing notes, and source-specific commands.
 
 ### 🔧 Flexible Configuration
 
 - **JSON Configuration Files** - Set defaults for all commands or customize per-command
 - **IDE Support** - JSON Schema for autocomplete and validation
 - **Priority-based Settings** - CLI args > local config > user config > defaults
-- **Multiple Claude Data Directories** - Automatic detection and aggregation
 - **Environment Variables** - Traditional configuration options
 - **Custom Date Filtering** - Flexible time range selection and sorting
 - **Offline Mode** - Cached pricing data for air-gapped environments
@@ -109,7 +105,7 @@ ccusage pi monthly
 
 Use `ccusage <source> <report>` only when you want to narrow a report to one source.
 
-Claude Code also has dedicated [Blocks](/guide/blocks-reports) and [Statusline](/guide/statusline) features because those depend on Claude-specific local data and hooks.
+For Claude Code-specific setup and features, start from the [Claude Code data source](/guide/claude/) page.
 
 ## Privacy & Security
 

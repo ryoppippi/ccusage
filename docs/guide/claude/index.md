@@ -28,7 +28,7 @@ ccusage reads Claude Code project logs from the standard Claude data directories
 | ----------- | --------------------------------------------------- |
 | Claude Code | `~/.config/claude/projects/`, `~/.claude/projects/` |
 
-The tool handles both locations because Claude Code changed its default directory over time. See [Directory Detection](/guide/directory-detection) for the detailed lookup behavior.
+The tool checks both locations and combines valid data. When `CLAUDE_CONFIG_DIR` is set, that value replaces the default lookup and can contain one directory or a comma-separated list of directories.
 
 ::: warning Retention
 Claude Code can retain logs for only 30 days by default. To review older Claude Code usage, change `cleanupPeriodDays` in your Claude Code settings.
@@ -58,6 +58,33 @@ Claude Code exposes additional local data that enables features beyond the share
 | ------------------- | -------------------------------------------- |
 | `CLAUDE_CONFIG_DIR` | Override the root Claude Code data directory |
 | `LOG_LEVEL`         | Adjust verbosity (0 silent ... 5 trace)      |
+
+### Custom Claude Code Paths
+
+Set `CLAUDE_CONFIG_DIR` when Claude Code logs live outside the default locations:
+
+```bash
+export CLAUDE_CONFIG_DIR="/path/to/your/claude/data"
+ccusage claude daily
+```
+
+Use comma-separated directories to combine current and archived Claude Code data:
+
+```bash
+export CLAUDE_CONFIG_DIR="~/.config/claude,/backup/claude-archive"
+ccusage claude monthly
+```
+
+For Codex, OpenCode, Amp, and pi-agent data locations, use the source-specific environment variables listed in [Environment Variables](/guide/environment-variables).
+
+### Directory Detection
+
+When `CLAUDE_CONFIG_DIR` is not set, ccusage searches in this order:
+
+1. `~/.config/claude/projects/`
+2. `~/.claude/projects/`
+
+Data from all valid directories is combined automatically.
 
 ## Troubleshooting
 

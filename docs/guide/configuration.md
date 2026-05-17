@@ -9,7 +9,7 @@ ccusage supports four configuration methods, each with its own use case:
 1. **[Command-Line Options](/guide/cli-options)** - Direct control for individual commands
 2. **[Environment Variables](/guide/environment-variables)** - System-wide or session settings
 3. **[Configuration Files](/guide/config-files)** - Persistent, shareable settings
-4. **[Directory Detection](/guide/directory-detection)** - Automatic Claude Code data discovery and agent data directory defaults
+4. **Data source directories** - Source-specific defaults and environment variable overrides
 
 ## Configuration Priority
 
@@ -17,7 +17,7 @@ Settings are applied in this priority order (highest to lowest):
 
 1. **Command-line arguments** (e.g., `--json`, `--offline`)
 2. **Custom config file** (via `--config` flag)
-3. **Environment variables** (e.g., `CLAUDE_CONFIG_DIR`, `LOG_LEVEL`)
+3. **Environment variables** (e.g., `CODEX_HOME`, `LOG_LEVEL`)
 4. **Local project config** (`.ccusage/ccusage.json`)
 5. **User config** (`~/.config/claude/ccusage.json`)
 6. **Legacy user config** (`~/.claude/ccusage.json`)
@@ -49,7 +49,6 @@ ccusage daily --mode display --timezone UTC
 1. **Set custom data directories** (only if not using defaults):
 
 ```bash
-export CLAUDE_CONFIG_DIR="$HOME/.config/claude"
 export CODEX_HOME="$HOME/.codex"
 export OPENCODE_DATA_DIR="$HOME/.local/share/opencode"
 export AMP_DATA_DIR="$HOME/.local/share/amp"
@@ -152,22 +151,11 @@ For automated environments:
 
 ```bash
 # Environment variables
-export CLAUDE_CONFIG_DIR="/ci/claude-data"
 export CODEX_HOME="/ci/codex-data"
 export LOG_LEVEL=1  # Warnings only
 
 # Run with specific options
 ccusage daily --offline --json > report.json
-```
-
-### Multiple Claude Installations
-
-For users with multiple Claude Code versions:
-
-```bash
-# Aggregate from multiple directories
-export CLAUDE_CONFIG_DIR="$HOME/.claude,$HOME/.config/claude"
-ccusage daily
 ```
 
 ## Configuration by Feature
@@ -348,7 +336,7 @@ ccusage daily
 
 1. **Configuration not applied**: Check priority order
 2. **Invalid JSON**: Validate syntax with `jq`
-3. **Directory not found**: Verify `CLAUDE_CONFIG_DIR`
+3. **Directory not found**: Verify the data source environment variable
 4. **No data**: Check directory permissions
 
 ### Getting Help
@@ -367,6 +355,6 @@ Explore specific configuration topics:
 - [Command-Line Options](/guide/cli-options) - All available CLI arguments
 - [Environment Variables](/guide/environment-variables) - System configuration
 - [Configuration Files](/guide/config-files) - Persistent settings
-- [Directory Detection](/guide/directory-detection) - Claude data discovery
+- [Claude Code](/guide/claude/) - Claude Code data discovery
 - [Cost Modes](/guide/cost-modes) - Understanding calculation modes
-- [Custom Paths](/guide/custom-paths) - Advanced path management
+- [Claude Code](/guide/claude/) - Claude Code data paths and source-specific options

@@ -314,12 +314,12 @@ When in compact mode, ccusage displays a message explaining how to see the full 
 - [All Sources (Default)](/guide/all-reports) - How unified views work
 - [Daily Usage](/guide/daily-reports) - Usage aggregated by date
 - [Monthly Usage](/guide/monthly-reports) - Monthly summaries
-- [Blocks](/guide/blocks-reports) - Claude Code 5-hour billing windows
+- [Claude Code](/guide/claude/) - Claude Code-specific setup and features
 
 ## Next Steps
 
 After analyzing session patterns, consider:
 
-1. [Blocks](/guide/blocks-reports) to understand Claude Code timing within 5-hour windows
-2. [Statusline](/guide/statusline) to track active Claude Code sessions in real time
-3. [Daily Usage](/guide/daily-reports) to see how session patterns vary by day
+1. [Daily Usage](/guide/daily-reports) to see how session patterns vary by day
+2. [Monthly Usage](/guide/monthly-reports) to compare longer-term patterns
+3. [Claude Code](/guide/claude/) for Claude Code-specific setup and features
