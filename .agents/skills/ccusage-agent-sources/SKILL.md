@@ -82,5 +82,6 @@ For each migrated or new agent:
 - Add fixture-backed tests for path discovery, parser behavior, aggregation totals, and important legacy compatibility.
 - Add skipped local-data smoke tests when real user log directories are useful for catching schema drift.
 - Add or update CLI JSON assertions and table snapshots for affected report modes.
+- Add or update user-facing docs under `docs/guide/`, including VitePress navigation when a new agent guide is introduced. Use the `ccusage-docs` skill for docs conventions.
 - Validate terminal output with `cmux-debug` when changing table layout, progress, spinners, or responsive behavior.
 - Benchmark affected agents against main or the previous tag, and record whether JSON output still matches for the comparison window.
