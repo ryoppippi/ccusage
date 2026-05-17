@@ -280,6 +280,7 @@ async function parseCodexSessionFile(
 			},
 			{
 				bufferedEncoding: 'latin1',
+				callbackMode: 'sync',
 				scanMode: 'line',
 			},
 		);

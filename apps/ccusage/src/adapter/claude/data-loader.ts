@@ -1200,6 +1200,7 @@ async function processJSONLUsageFileByLine(
 		},
 		{
 			bufferedEncoding: 'latin1',
+			callbackMode: 'sync',
 			markerIndex: 'byte',
 		},
 	);

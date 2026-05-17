@@ -8,6 +8,7 @@ const MAX_BUFFERED_JSONL_BYTES = 128 * 1024 * 1024;
 
 type JSONLMarkerProcessingOptions = {
 	bufferedEncoding?: BufferEncoding;
+	callbackMode?: 'async' | 'sync';
 	markerIndex?: 'byte' | 'decoded';
 	scanMode?: 'marker' | 'line';
 };
@@ -54,6 +55,16 @@ function normalizeMarker(value: string): string | null {
 	return hasNonWhitespace(value) ? value : null;
 }
 
+function markerIndexForLine(
+	line: string,
+	markerIndex: number,
+	options: JSONLMarkerProcessingOptions,
+): number {
+	return options.markerIndex === 'byte'
+		? Buffer.byteLength(line.slice(0, markerIndex), options.bufferedEncoding ?? 'utf8')
+		: markerIndex;
+}
+
 async function processBufferedJSONLMarkerBytes(
 	bytes: Uint8Array,
 	markers: readonly string[],
@@ -68,6 +79,7 @@ async function processBufferedJSONLMarkerBytes(
 			content.toString(options.bufferedEncoding ?? 'utf8'),
 			markers,
 			processLine,
+			options,
 		);
 		return;
 	}
@@ -107,6 +119,21 @@ async function processBufferedJSONLMarkerBytes(
 	}
 
 	const lineStarts = Array.from(candidates.keys()).sort((a, b) => a - b);
+	if (options.callbackMode === 'sync') {
+		for (const lineStart of lineStarts) {
+			const candidate = candidates.get(lineStart)!;
+			const lineEnd = candidate.lineEnd;
+			const decodeEnd = lineEnd > lineStart && content[lineEnd - 1] === 13 ? lineEnd - 1 : lineEnd;
+			const line = content.toString(options.bufferedEncoding ?? 'utf8', lineStart, decodeEnd);
+			void processLine(
+				line,
+				options.markerIndex === 'byte' ? candidate.markerIndex : line.indexOf(candidate.marker),
+				candidate.marker,
+			);
+		}
+		return;
+	}
+
 	for (const lineStart of lineStarts) {
 		const candidate = candidates.get(lineStart)!;
 		const lineEnd = candidate.lineEnd;
@@ -130,6 +157,35 @@ async function processBufferedJSONLSingleMarkerBytes(
 ): Promise<void> {
 	let lineStart = 0;
 	let markerIndex = content.indexOf(markerBuffer, lineStart);
+	if (options.callbackMode === 'sync') {
+		while (markerIndex !== -1) {
+			while (true) {
+				const nextLineEnd = content.indexOf(10, lineStart);
+				if (nextLineEnd === -1 || nextLineEnd >= markerIndex) {
+					break;
+				}
+				lineStart = nextLineEnd + 1;
+			}
+			let lineEnd = content.indexOf(10, markerIndex);
+			if (lineEnd === -1) {
+				lineEnd = content.length;
+			}
+
+			const decodeEnd = lineEnd > lineStart && content[lineEnd - 1] === 13 ? lineEnd - 1 : lineEnd;
+			const line = content.toString(options.bufferedEncoding ?? 'utf8', lineStart, decodeEnd);
+			const lineMarkerIndex = markerIndex - lineStart;
+			void processLine(
+				line,
+				options.markerIndex === 'byte' ? lineMarkerIndex : line.indexOf(marker),
+				marker,
+			);
+
+			lineStart = lineEnd + 1;
+			markerIndex = content.indexOf(markerBuffer, lineStart);
+		}
+		return;
+	}
+
 	while (markerIndex !== -1) {
 		while (true) {
 			const nextLineEnd = content.indexOf(10, lineStart);
@@ -164,6 +220,7 @@ async function processBufferedJSONLMarkerContent(
 	content: string,
 	markers: readonly string[],
 	processLine: (line: string, markerIndex: number, marker: string) => void | Promise<void>,
+	options: JSONLMarkerProcessingOptions = {},
 ): Promise<void> {
 	let lineStart = 0;
 	while (lineStart < content.length) {
@@ -187,7 +244,13 @@ async function processBufferedJSONLMarkerContent(
 				}
 			}
 			if (firstMarker != null) {
-				const result = processLine(line, firstMarkerIndex, firstMarker);
+				const callbackMarkerIndex = markerIndexForLine(line, firstMarkerIndex, options);
+				if (options.callbackMode === 'sync') {
+					void processLine(line, callbackMarkerIndex, firstMarker);
+					lineStart = lineEnd + 1;
+					continue;
+				}
+				const result = processLine(line, callbackMarkerIndex, firstMarker);
 				if (result != null) {
 					await result;
 				}
@@ -266,7 +329,7 @@ export async function processJSONLFileByMarkers(
 
 	const content = await readBufferedJSONLContent(filePath);
 	if (content != null) {
-		await processBufferedJSONLMarkerContent(content, normalizedMarkers, processLine);
+		await processBufferedJSONLMarkerContent(content, normalizedMarkers, processLine, options);
 		return;
 	}
 
@@ -289,7 +352,12 @@ export async function processJSONLFileByMarkers(
 		if (firstMarker == null) {
 			continue;
 		}
-		const result = processLine(line, firstMarkerIndex, firstMarker);
+		const callbackMarkerIndex = markerIndexForLine(line, firstMarkerIndex, options);
+		if (options.callbackMode === 'sync') {
+			void processLine(line, callbackMarkerIndex, firstMarker);
+			continue;
+		}
+		const result = processLine(line, callbackMarkerIndex, firstMarker);
 		if (result != null) {
 			await result;
 		}
@@ -416,6 +484,26 @@ if (import.meta.vitest != null) {
 				'{"type":"turn_context","payload":{"model":"gpt-5.4"}}',
 				'{"type":"event_msg","payload":{"type":"token_count"}}',
 			]);
+		});
+
+		it('returns byte marker indexes in line-scan mode', async () => {
+			const prefix = '{"note":"東京",';
+			const marker = '"type":"token_count"';
+			await using fixture = await createFixture({
+				'test.jsonl': `${prefix}${marker}}`,
+			});
+
+			const seen: number[] = [];
+			await processJSONLFileByMarkers(
+				fixture.getPath('test.jsonl'),
+				[marker],
+				(_line, markerIndex) => {
+					seen.push(markerIndex);
+				},
+				{ markerIndex: 'byte', scanMode: 'line' },
+			);
+
+			expect(seen).toEqual([Buffer.byteLength(prefix)]);
 		});
 	});
 }
