@@ -200,7 +200,7 @@ To see which environment variables are being used:
 
 ```bash
 # Show all environment variables
-env | grep -E "CLAUDE|CODEX|OPENCODE|AMP|PI_AGENT|CCUSAGE|LOG_LEVEL"
+env | grep -E "CLAUDE|CODEX|OPENCODE|AMP|PI_AGENT|COPILOT|CCUSAGE|LOG_LEVEL"
 
 # Debug mode shows environment variable usage
 LOG_LEVEL=4 ccusage daily --debug
