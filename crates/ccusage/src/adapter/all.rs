@@ -3,7 +3,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use serde_json::{json, Value};
 
 use crate::{
-    adapter::{amp, opencode, pi},
+    adapter::{amp, codex, opencode, pi},
     cli::{AgentCommandArgs, AgentReportKind, SharedArgs, SortOrder, WeekDay},
     color, filter_loaded_entries_by_date, format_currency, format_models_multiline, format_number,
     json_float, print_box_title, print_json_or_jq, summarize_by_key, summarize_summaries_by_bucket,
@@ -69,8 +69,8 @@ fn load_claude_rows(kind: AgentReportKind, shared: &SharedArgs) -> Result<Vec<Al
 fn load_codex_rows(kind: AgentReportKind, shared: &SharedArgs) -> Result<Vec<AllRow>> {
     let pricing = PricingMap::load(shared.offline, crate::log_level() != Some(0));
     let mut events = crate::load_codex_events(shared)?;
-    crate::filter_codex_events_by_date(&mut events, shared)?;
-    let groups = crate::aggregate_codex_events(&events, kind, shared.timezone.as_deref())?;
+    codex::filter_events_by_date(&mut events, shared)?;
+    let groups = codex::aggregate_events(&events, kind, shared.timezone.as_deref())?;
     Ok(groups
         .iter()
         .map(|(period, group)| codex_group_row(period, group, &pricing))
@@ -175,7 +175,7 @@ fn codex_group_row(period: &str, group: &CodexGroup, pricing: &PricingMap) -> Al
         cache_creation_tokens: 0,
         cache_read_tokens: group.cached_input_tokens,
         total_tokens: group.total_tokens,
-        total_cost: crate::calculate_codex_group_cost(group, pricing),
+        total_cost: codex::calculate_group_cost(group, pricing),
         metadata_agents: Some(vec!["codex"]),
     }
 }
