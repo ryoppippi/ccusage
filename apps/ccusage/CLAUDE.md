@@ -7,8 +7,7 @@ This is the main `ccusage` CLI package for Claude Code usage analysis.
 - Use `ccusage-development` for commands, bundled CLI dependency policy, style, exports, and validation.
 - Use `ccusage-testing` for in-source Vitest, snapshots, fixtures, Claude models, and LiteLLM pricing tests.
 - Use `ccusage-agent-sources` for Claude Code data directories, JSONL structure, session naming, cost modes, and report behavior.
-- Use `byethrow` for Result-based error handling.
-- Use `use-gunshi-cli` when changing command definitions.
+- Use `typescript-style` before reading or editing TypeScript or JavaScript package code; it also covers arkregex, byethrow, and Gunshi command typing.
 
 ## Package Notes
 

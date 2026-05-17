@@ -3,11 +3,15 @@ import { mkdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { regex } from 'arkregex';
 import { createFixture } from 'fs-fixture';
 
 const appRoot = fileURLToPath(new URL('../', import.meta.url));
 const fixtureTemplatePath = fileURLToPath(new URL('./fixtures/claude', import.meta.url));
 const snapshotRoot = fileURLToPath(new URL('./snapshots/cli-output/', import.meta.url));
+const trailingNewlineRegex = regex('\n$');
+const trailingUnicodeNewlineRegex = regex('\n$', 'u');
+const fixtureDateRegex = regex('2026-01-02', 'gu');
 
 type DailyJsonOutput = {
 	daily: Array<{
@@ -235,7 +239,7 @@ describe('ccusage output snapshots', () => {
 		expect(result.status).toBe(0);
 		expect(result.stderr).toBe('');
 		await mkdir(snapshotRoot, { recursive: true });
-		await expect(result.stdout.replace(/\n$/, '')).toMatchFileSnapshot(
+		await expect(result.stdout.replace(trailingNewlineRegex, '')).toMatchFileSnapshot(
 			path.join(snapshotRoot, 'daily-json.txt'),
 		);
 	});
@@ -254,7 +258,7 @@ describe('ccusage output snapshots', () => {
 		expect(result.status).toBe(0);
 		expect(result.stderr).toBe('');
 		await mkdir(snapshotRoot, { recursive: true });
-		await expect(result.stdout.replace(/\n$/, '')).toMatchFileSnapshot(
+		await expect(result.stdout.replace(trailingNewlineRegex, '')).toMatchFileSnapshot(
 			path.join(snapshotRoot, 'session-json.txt'),
 		);
 	});
@@ -273,7 +277,7 @@ describe('ccusage output snapshots', () => {
 		expect(result.status).toBe(0);
 		expect(result.stderr).toBe('');
 		await mkdir(snapshotRoot, { recursive: true });
-		await expect(result.stdout.replace(/\n$/, '')).toMatchFileSnapshot(
+		await expect(result.stdout.replace(trailingNewlineRegex, '')).toMatchFileSnapshot(
 			path.join(snapshotRoot, 'blocks-json.txt'),
 		);
 	});
@@ -292,7 +296,7 @@ describe('ccusage output snapshots', () => {
 		expect(result.status).toBe(0);
 		expect(result.stderr).toBe('');
 		await mkdir(snapshotRoot, { recursive: true });
-		await expect(result.stdout.replace(/\n$/, '')).toMatchFileSnapshot(
+		await expect(result.stdout.replace(trailingNewlineRegex, '')).toMatchFileSnapshot(
 			path.join(snapshotRoot, 'monthly-json.txt'),
 		);
 	});
@@ -311,7 +315,7 @@ describe('ccusage output snapshots', () => {
 		expect(result.status).toBe(0);
 		expect(result.stderr).toBe('');
 		await mkdir(snapshotRoot, { recursive: true });
-		await expect(result.stdout.replace(/\n$/, '')).toMatchFileSnapshot(
+		await expect(result.stdout.replace(trailingNewlineRegex, '')).toMatchFileSnapshot(
 			path.join(snapshotRoot, 'weekly-json.txt'),
 		);
 	});
@@ -330,7 +334,7 @@ describe('ccusage output snapshots', () => {
 		expect(result.status).toBe(0);
 		expect(result.stderr).toBe('');
 		await mkdir(snapshotRoot, { recursive: true });
-		await expect(result.stdout.replace(/\n$/, '')).toMatchFileSnapshot(
+		await expect(result.stdout.replace(trailingNewlineRegex, '')).toMatchFileSnapshot(
 			path.join(snapshotRoot, 'daily-table.txt'),
 		);
 	});
@@ -349,7 +353,7 @@ describe('ccusage output snapshots', () => {
 		expect(result.status).toBe(0);
 		expect(result.stderr).toBe('');
 		await mkdir(snapshotRoot, { recursive: true });
-		await expect(result.stdout.replace(/\n$/, '')).toMatchFileSnapshot(
+		await expect(result.stdout.replace(trailingNewlineRegex, '')).toMatchFileSnapshot(
 			path.join(snapshotRoot, 'session-table.txt'),
 		);
 	});
@@ -368,7 +372,7 @@ describe('ccusage output snapshots', () => {
 		expect(result.status).toBe(0);
 		expect(result.stderr).toBe('');
 		await mkdir(snapshotRoot, { recursive: true });
-		await expect(result.stdout.replace(/\n$/, '')).toMatchFileSnapshot(
+		await expect(result.stdout.replace(trailingNewlineRegex, '')).toMatchFileSnapshot(
 			path.join(snapshotRoot, 'blocks-table.txt'),
 		);
 	});
@@ -386,7 +390,7 @@ describe('ccusage all-agent CLI', () => {
 		expect(result.status).toBe(0);
 		expect(result.stderr).toBe('');
 
-		const stdout = getStdout(result).replace(/\n$/u, '');
+		const stdout = getStdout(result).replace(trailingUnicodeNewlineRegex, '');
 		await mkdir(snapshotRoot, { recursive: true });
 		await expect(stdout).toMatchFileSnapshot(path.join(snapshotRoot, 'all-agent-daily-json.txt'));
 
@@ -459,7 +463,7 @@ describe('ccusage all-agent CLI', () => {
 
 		expect(result.status).toBe(0);
 		expect(result.stderr).toBe('');
-		const stdout = getStdout(result).replace(/\n$/u, '');
+		const stdout = getStdout(result).replace(trailingUnicodeNewlineRegex, '');
 		await mkdir(snapshotRoot, { recursive: true });
 		await expect(stdout).toMatchFileSnapshot(
 			path.join(snapshotRoot, 'codex-direct-daily-json.txt'),
@@ -487,7 +491,7 @@ describe('ccusage all-agent CLI', () => {
 
 		expect(result.status).toBe(0);
 		expect(result.stderr).toBe('');
-		const stdout = getStdout(result).replace(/\n$/u, '');
+		const stdout = getStdout(result).replace(trailingUnicodeNewlineRegex, '');
 		await mkdir(snapshotRoot, { recursive: true });
 		await expect(stdout).toMatchFileSnapshot(
 			path.join(snapshotRoot, 'claude-direct-daily-json.txt'),
@@ -504,7 +508,7 @@ describe('ccusage all-agent CLI', () => {
 
 		expect(result.status).toBe(0);
 		expect(result.stderr).toBe('');
-		const stdout = getStdout(result).replace(/\n$/u, '');
+		const stdout = getStdout(result).replace(trailingUnicodeNewlineRegex, '');
 		await mkdir(snapshotRoot, { recursive: true });
 		await expect(stdout).toMatchFileSnapshot(path.join(snapshotRoot, 'pi-direct-daily-json.txt'));
 	});
@@ -517,7 +521,7 @@ describe('ccusage all-agent CLI', () => {
 		expect(result.status).toBe(0);
 		expect(result.stderr).toBe('');
 		await mkdir(snapshotRoot, { recursive: true });
-		await expect(getStdout(result).replace(/\n$/u, '')).toMatchFileSnapshot(
+		await expect(getStdout(result).replace(trailingUnicodeNewlineRegex, '')).toMatchFileSnapshot(
 			path.join(snapshotRoot, 'opencode-direct-daily-json.txt'),
 		);
 	});
@@ -569,7 +573,7 @@ describe('ccusage all-agent CLI', () => {
 		expect(result.status).toBe(0);
 		expect(result.stderr).toBe('');
 
-		const stdout = getStdout(result).replace(/\n$/u, '');
+		const stdout = getStdout(result).replace(trailingUnicodeNewlineRegex, '');
 		await mkdir(snapshotRoot, { recursive: true });
 		await expect(stdout).toMatchFileSnapshot(path.join(snapshotRoot, 'amp-direct-daily-json.txt'));
 
@@ -591,7 +595,7 @@ describe('ccusage all-agent CLI', () => {
 
 		expect(result.status).toBe(0);
 		expect(result.stderr).toBe('');
-		const output = getStdout(result).replace(/\n$/u, '');
+		const output = getStdout(result).replace(trailingUnicodeNewlineRegex, '');
 		await mkdir(snapshotRoot, { recursive: true });
 		await expect(output).toMatchFileSnapshot(path.join(snapshotRoot, 'amp-direct-full-table.txt'));
 		expect(output).not.toContain('Running in Compact Mode');
@@ -610,7 +614,7 @@ describe('ccusage all-agent CLI', () => {
 
 		expect(result.status).toBe(0);
 		expect(result.stderr).toBe('');
-		const output = getStdout(result).replace(/\n$/u, '');
+		const output = getStdout(result).replace(trailingUnicodeNewlineRegex, '');
 		await mkdir(snapshotRoot, { recursive: true });
 		await expect(output).toMatchFileSnapshot(
 			path.join(snapshotRoot, 'amp-direct-compact-table.txt'),
@@ -634,12 +638,12 @@ describe('ccusage all-agent CLI', () => {
 
 		expect(result.status).toBe(0);
 		expect(result.stderr).toBe('');
-		const output = getStdout(result).replace(/\n$/u, '');
+		const output = getStdout(result).replace(trailingUnicodeNewlineRegex, '');
 		await mkdir(snapshotRoot, { recursive: true });
 		await expect(output).toMatchFileSnapshot(path.join(snapshotRoot, 'all-agent-daily-table.txt'));
 		expect(output).toContain('Coding (Agent) CLI Usage Report - Daily');
 		expect(output).toContain('Detected: Amp, Claude, Codex, OpenCode, pi-agent');
-		expect(output.match(/2026-01-02/gu)).toHaveLength(1);
+		expect(output.match(fixtureDateRegex)).toHaveLength(1);
 		expect(output).toContain('Amp');
 		expect(output).toContain('Codex');
 		expect(output).toContain('OpenCode');

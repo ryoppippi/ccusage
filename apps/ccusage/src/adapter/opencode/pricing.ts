@@ -1,6 +1,10 @@
 import type { LiteLLMPricingFetcher } from '@ccusage/internal/pricing';
 import type { OpenCodeUsageEntry } from './schema.ts';
 import { Result } from '@praha/byethrow';
+import { regex } from 'arkregex';
+
+const dottedClaudeModelRegex = regex('^(claude-(?:haiku|opus|sonnet)-\\d+)\\.(\\d+)(-.*)?$', 'u');
+const compactClaudeModelRegex = regex('^(claude-(?:haiku|opus|sonnet)-\\d)(\\d)(-.*)?$', 'u');
 
 const MODEL_ALIASES: Record<string, string> = {
 	'gemini-3-pro-high': 'gemini-3-pro-preview',
@@ -17,8 +21,8 @@ function normalizeOpenCodeProviderID(providerID: string): string {
 function normalizeOpenCodeModelName(modelName: string): string {
 	const resolved = resolveModelName(modelName);
 	return resolved
-		.replace(/^(claude-(?:haiku|opus|sonnet)-\d+)\.(\d+)(-.*)?$/u, '$1-$2$3')
-		.replace(/^(claude-(?:haiku|opus|sonnet)-\d)(\d)(-.*)?$/u, '$1-$2$3');
+		.replace(dottedClaudeModelRegex, '$1-$2$3')
+		.replace(compactClaudeModelRegex, '$1-$2$3');
 }
 
 function createModelCandidates(entry: OpenCodeUsageEntry): string[] {

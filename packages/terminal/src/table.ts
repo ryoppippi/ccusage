@@ -1,5 +1,6 @@
 import process from 'node:process';
 import * as pc from '@ccusage/internal/colors';
+import { regex } from 'arkregex';
 import { getStringWidth } from './text-width.ts';
 
 /**
@@ -11,6 +12,15 @@ let numberFormatter: Intl.NumberFormat | undefined;
 const formattedNumberCache = new Map<number, string>();
 const formattedModelNameCache = new Map<string, string>();
 const COLOR_RESET = '\x1B[39m';
+const simpleDateRegex = regex('^\\d{4}-\\d{2}-\\d{2}$');
+const separatorRowRegex = regex('^─+$');
+const piModelPrefixRegex = regex('^\\[pi\\] (.+)$');
+const anthropicProviderRegex = regex('^(?:anthropic/|anthropic\\.)(claude-.+)$');
+const legacyDatedClaudeRegex = regex('^claude-(\\d+)-(\\d+)-(\\w+)-(\\d{8})$');
+const datedFastClaudeRegex = regex('^claude-(\\w+)-([\\d-]+)-(\\d{8})-fast$');
+const datedClaudeRegex = regex('^claude-(\\w+)-([\\d-]+)-(\\d{8})$');
+const fastClaudeRegex = regex('^claude-(\\w+)-([\\d.-]+)-fast$');
+const undatedClaudeRegex = regex('^claude-(\\w+)-([\\d.-]+)$');
 
 function getNumberFormatter(): Intl.NumberFormat {
 	numberFormatter ??= new Intl.NumberFormat('en-US');
@@ -188,7 +198,7 @@ function createDatePartsFormatter(timezone: string | undefined): Intl.DateTimeFo
  * @returns Formatted date string with newline separator (YYYY\nMM-DD)
  */
 export function formatDateCompact(dateStr: string, timezone?: string): string {
-	const isSimpleDateFormat = /^\d{4}-\d{2}-\d{2}$/.test(dateStr);
+	const isSimpleDateFormat = simpleDateRegex.test(dateStr);
 	if (isSimpleDateFormat && (timezone == null || timezone === 'UTC')) {
 		return `${dateStr.slice(0, 4)}\n${dateStr.slice(5)}`;
 	}
@@ -524,9 +534,9 @@ export class ResponsiveTable {
 		// Check for both old-style separator rows (─) and new-style empty rows
 		return row.every((cell) => {
 			if (typeof cell === 'object' && cell != null && 'content' in cell) {
-				return cell.content === '' || /^─+$/.test(cell.content);
+				return cell.content === '' || separatorRowRegex.test(cell.content);
 			}
-			return typeof cell === 'string' && (cell === '' || /^─+$/.test(cell));
+			return typeof cell === 'string' && (cell === '' || separatorRowRegex.test(cell));
 		});
 	}
 
@@ -537,7 +547,7 @@ export class ResponsiveTable {
 	 */
 	private isDateString(text: string): boolean {
 		// Check if string matches date format YYYY-MM-DD
-		return /^\d{4}-\d{2}-\d{2}$/.test(text);
+		return simpleDateRegex.test(text);
 	}
 
 	private renderFastTable(
@@ -645,28 +655,28 @@ function formatModelName(modelName: string): string {
 
 	let formatted = modelName;
 	// Handle [pi] prefix - preserve prefix, format the rest
-	const piMatch = modelName.match(/^\[pi\] (.+)$/);
+	const piMatch = modelName.match(piModelPrefixRegex);
 	if (piMatch?.[1] != null) {
 		formatted = `[pi] ${formatModelName(piMatch[1])}`;
 		formattedModelNameCache.set(modelName, formatted);
 		return formatted;
 	}
 
-	const providerMatch = modelName.match(/^(?:anthropic\/|anthropic\.)(claude-.+)$/);
+	const providerMatch = modelName.match(anthropicProviderRegex);
 	if (providerMatch?.[1] != null) {
 		formatted = formatModelName(providerMatch[1]);
 		formattedModelNameCache.set(modelName, formatted);
 		return formatted;
 	}
 
-	const legacyDatedMatch = modelName.match(/^claude-(\d+)-(\d+)-(\w+)-(\d{8})$/);
+	const legacyDatedMatch = modelName.match(legacyDatedClaudeRegex);
 	if (legacyDatedMatch != null) {
 		formatted = `${legacyDatedMatch[3]}-${legacyDatedMatch[1]}-${legacyDatedMatch[2]}`;
 		formattedModelNameCache.set(modelName, formatted);
 		return formatted;
 	}
 
-	const datedFastMatch = modelName.match(/^claude-(\w+)-([\d-]+)-(\d{8})-fast$/);
+	const datedFastMatch = modelName.match(datedFastClaudeRegex);
 	if (datedFastMatch != null) {
 		formatted = `${datedFastMatch[1]}-${datedFastMatch[2]}-fast`;
 		formattedModelNameCache.set(modelName, formatted);
@@ -677,14 +687,14 @@ function formatModelName(modelName: string): string {
 	// e.g., "claude-sonnet-4-20250514" -> "sonnet-4"
 	// e.g., "claude-opus-4-20250514" -> "opus-4"
 	// e.g., "claude-sonnet-4-5-20250929" -> "sonnet-4-5"
-	const match = modelName.match(/^claude-(\w+)-([\d-]+)-(\d{8})$/);
+	const match = modelName.match(datedClaudeRegex);
 	if (match != null) {
 		formatted = `${match[1]}-${match[2]}`;
 		formattedModelNameCache.set(modelName, formatted);
 		return formatted;
 	}
 
-	const fastMatch = modelName.match(/^claude-(\w+)-([\d.-]+)-fast$/);
+	const fastMatch = modelName.match(fastClaudeRegex);
 	if (fastMatch != null) {
 		formatted = `${fastMatch[1]}-${fastMatch[2]}-fast`;
 		formattedModelNameCache.set(modelName, formatted);
@@ -692,7 +702,7 @@ function formatModelName(modelName: string): string {
 	}
 
 	// Handle claude- without date suffix (e.g., "claude-opus-4-5" -> "opus-4-5")
-	const noDateMatch = modelName.match(/^claude-(\w+)-([\d.-]+)$/);
+	const noDateMatch = modelName.match(undatedClaudeRegex);
 	if (noDateMatch != null) {
 		formatted = `${noDateMatch[1]}-${noDateMatch[2]}`;
 	}

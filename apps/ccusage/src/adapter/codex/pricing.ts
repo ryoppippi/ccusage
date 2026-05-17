@@ -3,6 +3,7 @@ import type { CodexModelUsage, CodexSpeed } from './types.ts';
 import path from 'node:path';
 import { readTextFile } from '@ccusage/internal/fs';
 import { Result } from '@praha/byethrow';
+import { regex } from 'arkregex';
 import { getCodexHomePaths } from './paths.ts';
 import { prefetchCodexPricing } from './pricing-macro.ts' with { type: 'macro' };
 
@@ -14,6 +15,10 @@ const CODEX_MODEL_ALIASES_MAP = new Map<string, string>([
 	['gpt-5.3-codex', 'gpt-5.2-codex'],
 ]);
 const CODEX_FAST_FALLBACK_MULTIPLIER = 2;
+const codexFastServiceTierRegex = regex.as<string, { captures: [] }>(
+	'(?:^|\n)\\s*service_tier\\s*=\\s*["\']?(?:fast|priority)["\']?',
+	'iu',
+);
 
 function toPerMillion(value: number | undefined, fallback?: number): number {
 	const perToken = value ?? fallback ?? 0;
@@ -70,10 +75,7 @@ export async function resolveCodexSpeed(requested?: string): Promise<CodexSpeed>
 			try: readTextFile(configPath),
 			catch: (error) => error,
 		});
-		if (
-			!Result.isFailure(result) &&
-			/(?:^|\n)\s*service_tier\s*=\s*["']?(?:fast|priority)["']?/iu.test(result.value)
-		) {
+		if (!Result.isFailure(result) && codexFastServiceTierRegex.test(result.value)) {
 			return 'fast';
 		}
 	}

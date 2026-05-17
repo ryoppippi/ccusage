@@ -18,6 +18,7 @@ import {
 	getFileWorkerThreadCount,
 } from '@ccusage/internal/workers';
 import { Result } from '@praha/byethrow';
+import { regex } from 'arkregex';
 import { createFixture } from 'fs-fixture';
 import { logger } from '../../logger.ts';
 import { getCodexSessionsPaths } from './paths.ts';
@@ -26,6 +27,7 @@ const LEGACY_FALLBACK_MODEL = 'gpt-5';
 const CODEX_JSONL_MARKERS = ['turn_context', '"type":"token_count"', '"type": "token_count"'];
 const ENCODED_CODEX_EVENT_NUMBER_STRIDE = 5;
 const TOKEN_USAGE_EVENT_KEY_SEPARATOR = '\0';
+const jsonlExtensionRegex = regex('\\.jsonl$', 'i');
 
 export function parseTokenCountLineFast(_line: string): ParsedTokenCountLine | null {
 	if (!hasTokenCountPayload(_line)) {
@@ -196,7 +198,7 @@ async function parseCodexSessionFile(
 ): Promise<TokenUsageEvent[]> {
 	const relativeSessionPath = path.relative(directoryPath, file);
 	const normalizedSessionPath = relativeSessionPath.split(path.sep).join('/');
-	const sessionId = normalizedSessionPath.replace(/\.jsonl$/i, '');
+	const sessionId = normalizedSessionPath.replace(jsonlExtensionRegex, '');
 	const events: TokenUsageEvent[] = [];
 	let previousTotals: RawUsage | null = null;
 	let currentModel: string | undefined;

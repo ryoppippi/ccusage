@@ -1,10 +1,4 @@
----
-name: byethrow
-description: Guides use of @praha/byethrow Result APIs. Use when adding or reviewing Result-based TypeScript error handling, examples, or best practices.
-allowed-tools: Read, Grep, Glob
----
-
-## About byethrow
+# Byethrow
 
 `@praha/byethrow` is a lightweight, tree-shakable Result type library for handling fallible operations in JavaScript and TypeScript.
 It provides a simple, consistent API for managing errors and results without throwing exceptions.

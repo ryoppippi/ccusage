@@ -1,6 +1,9 @@
 import path from 'node:path';
+import { regex } from 'arkregex';
 import * as v from 'valibot';
 import { isoTimestampSchema } from '../../types.ts';
+
+const pathSeparatorRegex = regex('[/\\\\]', 'g');
 
 const piAgentUsageSchema = v.object({
 	input: v.number(),
@@ -58,7 +61,7 @@ export function extractPiAgentSessionId(filePath: string): string {
 }
 
 export function extractPiAgentProject(filePath: string): string {
-	const normalizedPath = filePath.replace(/[/\\]/g, path.sep);
+	const normalizedPath = filePath.replace(pathSeparatorRegex, path.sep);
 	const segments = normalizedPath.split(path.sep);
 	const sessionsIndex = segments.findIndex((segment) => segment === 'sessions');
 	if (sessionsIndex === -1 || sessionsIndex + 1 >= segments.length) {

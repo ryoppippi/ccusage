@@ -6,6 +6,7 @@ import * as pc from '@ccusage/internal/colors';
 import { createJsonFileState } from '@ccusage/internal/json-file-state';
 import { formatCurrency } from '@ccusage/terminal/table';
 import { Result } from '@praha/byethrow';
+import { regex } from 'arkregex';
 import getStdin from 'get-stdin';
 import { define } from 'gunshi';
 import * as v from 'valibot';
@@ -75,6 +76,8 @@ type SemaphoreType = {
 
 const visualBurnRateChoices = ['off', 'emoji', 'text', 'emoji-text'] as const;
 const costSourceChoices = ['auto', 'ccusage', 'cc', 'both'] as const;
+const integerStringRegex = regex('^-?\\d+$', 'u');
+const hyphenRegex = regex('-', 'g');
 
 // Valibot schema for context threshold validation
 const contextThresholdSchema = v.pipe(
@@ -83,7 +86,7 @@ const contextThresholdSchema = v.pipe(
 		v.pipe(
 			v.string(),
 			v.trim(),
-			v.check((value) => /^-?\d+$/u.test(value), 'Context threshold must be an integer'),
+			v.check((value) => integerStringRegex.test(value), 'Context threshold must be an integer'),
 			v.transform((value) => Number.parseInt(value, 10)),
 		),
 	]),
@@ -357,7 +360,7 @@ export const statuslineCommand = define({
 
 					// Load today's usage data
 					const today = new Date();
-					const todayStr = today.toISOString().split('T')[0]?.replace(/-/g, '') ?? ''; // Convert to YYYYMMDD format
+					const todayStr = today.toISOString().split('T')[0]?.replace(hyphenRegex, '') ?? ''; // Convert to YYYYMMDD format
 					const midnightToday = new Date();
 					midnightToday.setHours(0, 0, 0, 0);
 

@@ -4,6 +4,7 @@ import path from 'node:path';
 import process from 'node:process';
 import { collectFilesRecursive, hasFileRecursive, isDirectorySyncSafe } from '@ccusage/internal/fs';
 import { Result } from '@praha/byethrow';
+import { regex } from 'arkregex';
 import { createFixture } from 'fs-fixture';
 import { logger } from '../../logger.ts';
 import { getExistingDirectories, normalizePathList } from '../path-list.ts';
@@ -13,7 +14,7 @@ export const OPENCODE_CONFIG_DIR_ENV = 'OPENCODE_DATA_DIR';
 export const OPENCODE_DB_FILE_NAME = 'opencode.db';
 export const OPENCODE_STORAGE_DIR_NAME = 'storage';
 export const OPENCODE_MESSAGES_DIR_NAME = 'message';
-const OPENCODE_CHANNEL_DB_PATTERN = /^opencode-[\w-]+\.db$/u;
+const OPENCODE_CHANNEL_DB_PATTERN = regex('^opencode-[\\w-]+\\.db$', 'u');
 
 export function getOpenCodePaths(): string[] {
 	return getExistingDirectories(

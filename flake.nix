@@ -22,6 +22,7 @@
             gh
             hyperfine
             similarity
+            ast-grep
             ripgrep
             fd
             fzf
