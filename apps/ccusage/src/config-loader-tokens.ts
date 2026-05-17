@@ -74,17 +74,10 @@ export type ConfigData = {
  * 2. User config directories from getClaudePaths() + ccusage.json
  *
  * Claude paths are best-effort: ccusage supports non-Claude agents too, so a
- * missing Claude data directory must not prevent config discovery.
+ * missing Claude data directory simply contributes no extra search paths.
  */
 function getConfigSearchPaths(): string[] {
-	const claudePaths = Result.pipe(
-		Result.try({
-			try: () => getClaudePaths(),
-			catch: () => undefined,
-		})(),
-		Result.unwrap([] as string[]),
-	);
-	const dirs = [join(process.cwd(), '.ccusage'), ...toArray(claudePaths)];
+	const dirs = [join(process.cwd(), '.ccusage'), ...toArray(getClaudePaths())];
 	return dirs.map((dir) => join(dir, CONFIG_FILE_NAME));
 }
 
