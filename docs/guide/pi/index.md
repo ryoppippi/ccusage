@@ -22,9 +22,11 @@ pnpx ccusage pi --help
 
 The CLI reads usage data from pi-agent:
 
-| Source   | Default Path            |
-| -------- | ----------------------- |
-| Pi-agent | `~/.pi/agent/sessions/` |
+| Source   | Default path            | Override                      |
+| -------- | ----------------------- | ----------------------------- |
+| pi-agent | `~/.pi/agent/sessions/` | `PI_AGENT_DIR` or `--pi-path` |
+
+Both `PI_AGENT_DIR` and `--pi-path` can be one sessions directory or a comma-separated list of sessions directories.
 
 ## Report Views
 
@@ -44,6 +46,9 @@ ccusage pi daily --json
 # Custom pi-agent path
 ccusage pi daily --pi-path /path/to/sessions
 
+# Multiple pi-agent paths
+ccusage pi daily --pi-path /path/to/sessions,/archive/pi/sessions
+
 # Filter by date range
 ccusage pi daily --since 2026-05-01 --until 2026-05-16
 
@@ -53,10 +58,10 @@ ccusage pi daily --breakdown
 
 ## Environment Variables
 
-| Variable       | Description                                   |
-| -------------- | --------------------------------------------- |
-| `PI_AGENT_DIR` | Custom path to pi-agent sessions directory    |
-| `LOG_LEVEL`    | Adjust logging verbosity (0 silent … 5 trace) |
+| Variable       | Description                                                             |
+| -------------- | ----------------------------------------------------------------------- |
+| `PI_AGENT_DIR` | Custom path, or comma-separated paths, to pi-agent sessions directories |
+| `LOG_LEVEL`    | Adjust logging verbosity (0 silent … 5 trace)                           |
 
 ## Daily View
 
@@ -72,15 +77,15 @@ npx ccusage@latest pi daily
 
 ### Options
 
-| Flag          | Short | Description                                   |
-| ------------- | ----- | --------------------------------------------- |
-| `--since`     |       | Start date filter (YYYY-MM-DD or YYYYMMDD)    |
-| `--until`     |       | End date filter (YYYY-MM-DD or YYYYMMDD)      |
-| `--timezone`  | `-z`  | Override timezone for date grouping           |
-| `--json`      |       | Emit structured JSON instead of a table       |
-| `--breakdown` | `-b`  | Show per-model token breakdown                |
-| `--pi-path`   |       | Custom path to pi-agent sessions directory    |
-| `--order`     |       | Sort order: `asc` or `desc` (default: `desc`) |
+| Flag          | Short | Description                                                             |
+| ------------- | ----- | ----------------------------------------------------------------------- |
+| `--since`     |       | Start date filter (YYYY-MM-DD or YYYYMMDD)                              |
+| `--until`     |       | End date filter (YYYY-MM-DD or YYYYMMDD)                                |
+| `--timezone`  | `-z`  | Override timezone for date grouping                                     |
+| `--json`      |       | Emit structured JSON instead of a table                                 |
+| `--breakdown` | `-b`  | Show per-model token breakdown                                          |
+| `--pi-path`   |       | Custom path, or comma-separated paths, to pi-agent sessions directories |
+| `--order`     |       | Sort order: `asc` or `desc` (default: `desc`)                           |
 
 ### Example Output
 
@@ -157,15 +162,15 @@ npx ccusage@latest pi monthly
 
 ### Options
 
-| Flag          | Short | Description                                   |
-| ------------- | ----- | --------------------------------------------- |
-| `--since`     |       | Start date filter (YYYY-MM-DD or YYYYMMDD)    |
-| `--until`     |       | End date filter (YYYY-MM-DD or YYYYMMDD)      |
-| `--timezone`  | `-z`  | Override timezone for date grouping           |
-| `--json`      |       | Emit structured JSON instead of a table       |
-| `--breakdown` | `-b`  | Show per-model token breakdown                |
-| `--pi-path`   |       | Custom path to pi-agent sessions directory    |
-| `--order`     |       | Sort order: `asc` or `desc` (default: `desc`) |
+| Flag          | Short | Description                                                             |
+| ------------- | ----- | ----------------------------------------------------------------------- |
+| `--since`     |       | Start date filter (YYYY-MM-DD or YYYYMMDD)                              |
+| `--until`     |       | End date filter (YYYY-MM-DD or YYYYMMDD)                                |
+| `--timezone`  | `-z`  | Override timezone for date grouping                                     |
+| `--json`      |       | Emit structured JSON instead of a table                                 |
+| `--breakdown` | `-b`  | Show per-model token breakdown                                          |
+| `--pi-path`   |       | Custom path, or comma-separated paths, to pi-agent sessions directories |
+| `--order`     |       | Sort order: `asc` or `desc` (default: `desc`)                           |
 
 ### Example Output
 
@@ -242,15 +247,15 @@ npx ccusage@latest pi session
 
 ### Options
 
-| Flag          | Short | Description                                   |
-| ------------- | ----- | --------------------------------------------- |
-| `--since`     |       | Start date filter (YYYY-MM-DD or YYYYMMDD)    |
-| `--until`     |       | End date filter (YYYY-MM-DD or YYYYMMDD)      |
-| `--timezone`  | `-z`  | Override timezone for date grouping           |
-| `--json`      |       | Emit structured JSON instead of a table       |
-| `--breakdown` | `-b`  | Show per-model token breakdown                |
-| `--pi-path`   |       | Custom path to pi-agent sessions directory    |
-| `--order`     |       | Sort order: `asc` or `desc` (default: `desc`) |
+| Flag          | Short | Description                                                             |
+| ------------- | ----- | ----------------------------------------------------------------------- |
+| `--since`     |       | Start date filter (YYYY-MM-DD or YYYYMMDD)                              |
+| `--until`     |       | End date filter (YYYY-MM-DD or YYYYMMDD)                                |
+| `--timezone`  | `-z`  | Override timezone for date grouping                                     |
+| `--json`      |       | Emit structured JSON instead of a table                                 |
+| `--breakdown` | `-b`  | Show per-model token breakdown                                          |
+| `--pi-path`   |       | Custom path, or comma-separated paths, to pi-agent sessions directories |
+| `--order`     |       | Sort order: `asc` or `desc` (default: `desc`)                           |
 
 ### Example Output
 

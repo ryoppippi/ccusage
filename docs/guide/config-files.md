@@ -203,6 +203,11 @@ Use data source namespaces to set defaults and report overrides. Supported names
 				"timezone": "Europe/London"
 			}
 		}
+	},
+	"pi": {
+		"defaults": {
+			"piPath": "/path/to/pi/sessions,/archive/pi/sessions"
+		}
 	}
 }
 ```
@@ -212,6 +217,7 @@ This configuration affects source-focused commands such as:
 ```bash
 ccusage codex daily
 ccusage opencode weekly
+ccusage pi daily
 ```
 
 Source-specific settings are also applied when running unified reports such as `ccusage daily`. In that case, each source receives its own merged options before data is loaded.

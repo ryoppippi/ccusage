@@ -24,7 +24,11 @@ pnpm dlx ccusage amp --help
 
 ## Data Source
 
-The CLI reads Amp thread JSON files from `AMP_DATA_DIR` (defaults to `~/.local/share/amp`).
+The CLI reads Amp thread JSON files from `AMP_DATA_DIR` (defaults to `~/.local/share/amp`). `AMP_DATA_DIR` can be one directory or a comma-separated list of directories.
+
+```bash
+AMP_DATA_DIR="$HOME/.local/share/amp,/backup/amp" ccusage amp session
+```
 
 ```text
 ~/.local/share/amp/
@@ -51,15 +55,15 @@ These views support `--json` for structured output, `--compact` for narrow termi
 
 ## Environment Variables
 
-| Variable       | Description                                     |
-| -------------- | ----------------------------------------------- |
-| `AMP_DATA_DIR` | Override the root directory containing Amp data |
-| `LOG_LEVEL`    | Adjust verbosity (0 silent ... 5 trace)         |
+| Variable       | Description                                                                           |
+| -------------- | ------------------------------------------------------------------------------------- |
+| `AMP_DATA_DIR` | Override the root directory, or comma-separated root directories, containing Amp data |
+| `LOG_LEVEL`    | Adjust verbosity (0 silent ... 5 trace)                                               |
 
 ## Troubleshooting
 
 ::: details No Amp usage data found
-Ensure the data directory exists at `~/.local/share/amp/threads/`. Set `AMP_DATA_DIR` if your Amp data lives elsewhere.
+Ensure the data directory exists at `~/.local/share/amp/threads/`. Set `AMP_DATA_DIR` if your Amp data lives elsewhere or in multiple archive roots.
 :::
 
 ::: details Costs showing as $0.00

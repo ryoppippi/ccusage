@@ -32,7 +32,11 @@ The `opencode x` option requires the native version of OpenCode. If you installe
 
 ## Data Source
 
-The CLI reads OpenCode message and session JSON files located under `OPENCODE_DATA_DIR` (defaults to `~/.local/share/opencode`).
+The CLI reads OpenCode message and session JSON files located under `OPENCODE_DATA_DIR` (defaults to `~/.local/share/opencode`). `OPENCODE_DATA_DIR` can be one directory or a comma-separated list of directories.
+
+```bash
+OPENCODE_DATA_DIR="$HOME/.local/share/opencode,/backup/opencode" ccusage opencode daily
+```
 
 <!-- eslint-skip -->
 
@@ -64,10 +68,10 @@ OpenCode supports subagent sessions. The session report displays:
 
 ## Environment Variables
 
-| Variable            | Description                                          |
-| ------------------- | ---------------------------------------------------- |
-| `OPENCODE_DATA_DIR` | Override the root directory containing OpenCode data |
-| `LOG_LEVEL`         | Adjust verbosity (0 silent ... 5 trace)              |
+| Variable            | Description                                                                                |
+| ------------------- | ------------------------------------------------------------------------------------------ |
+| `OPENCODE_DATA_DIR` | Override the root directory, or comma-separated root directories, containing OpenCode data |
+| `LOG_LEVEL`         | Adjust verbosity (0 silent ... 5 trace)                                                    |
 
 ## Cost Calculation
 
@@ -76,7 +80,7 @@ OpenCode stores `cost: 0` in message files. Costs are calculated from token coun
 ## Troubleshooting
 
 ::: details No OpenCode usage data found
-Ensure the data directory exists at `~/.local/share/opencode/storage/message/`. Set `OPENCODE_DATA_DIR` for custom paths.
+Ensure the data directory exists at `~/.local/share/opencode/storage/message/`. Set `OPENCODE_DATA_DIR` for custom paths or comma-separated archive roots.
 :::
 
 ::: details Costs showing as $0.00

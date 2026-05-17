@@ -91,6 +91,8 @@ bunx ccusage codex daily --speed fast
 bunx ccusage opencode weekly
 bunx ccusage amp session
 bunx ccusage pi daily --pi-path /path/to/sessions
+bunx ccusage pi daily --pi-path /path/to/sessions,/archive/pi/sessions
+bunx ccusage pi daily --pi-path /path/to/sessions,/archive/pi/sessions
 
 # Explicit unified report
 bunx ccusage daily --all

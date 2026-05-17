@@ -169,6 +169,15 @@ export AMP_DATA_DIR="/path/to/amp"
 export PI_AGENT_DIR="/path/to/pi/sessions"
 ```
 
+Each source-specific path variable can also contain comma-separated directories:
+
+```bash
+export CODEX_HOME="/path/to/codex,/archive/codex"
+export OPENCODE_DATA_DIR="/path/to/opencode,/archive/opencode"
+export AMP_DATA_DIR="/path/to/amp,/archive/amp"
+export PI_AGENT_DIR="/path/to/pi/sessions,/archive/pi/sessions"
+```
+
 ## Getting Help
 
 - Use `ccusage --help` for command options

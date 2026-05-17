@@ -4,7 +4,7 @@ ccusage supports several environment variables for configuration and customizati
 
 ## Agent Data Directories
 
-ccusage detects supported agent data from conventional locations by default. Set these variables when your data lives somewhere else:
+ccusage detects supported data source files from conventional locations by default. Set these variables when your data lives somewhere else. Each value can be one directory or a comma-separated list of directories:
 
 | Variable            | Agent       | Default                            |
 | ------------------- | ----------- | ---------------------------------- |
@@ -17,12 +17,14 @@ ccusage detects supported agent data from conventional locations by default. Set
 Example:
 
 ```bash
-export CODEX_HOME="/path/to/codex"
-export OPENCODE_DATA_DIR="/path/to/opencode"
-export AMP_DATA_DIR="/path/to/amp"
-export PI_AGENT_DIR="/path/to/pi/sessions"
+export CODEX_HOME="/path/to/codex,/archive/codex"
+export OPENCODE_DATA_DIR="/path/to/opencode,/archive/opencode"
+export AMP_DATA_DIR="/path/to/amp,/archive/amp"
+export PI_AGENT_DIR="/path/to/pi/sessions,/archive/pi/sessions"
 ccusage daily
 ```
+
+Empty entries and directories that do not exist are skipped. Duplicate paths are read once.
 
 ## CLAUDE_CONFIG_DIR
 
@@ -135,7 +137,7 @@ ccusage daily | less -R  # Preserves colors
 LOG_LEVEL=0 ccusage daily
 
 # Set for current shell session
-export CODEX_HOME="/path/to/codex"
+export CODEX_HOME="/path/to/codex,/archive/codex"
 ccusage daily
 ```
 
@@ -196,7 +198,7 @@ To see which environment variables are being used:
 
 ```bash
 # Show all environment variables
-env | grep -E "CLAUDE|CCUSAGE|LOG_LEVEL"
+env | grep -E "CLAUDE|CODEX|OPENCODE|AMP|PI_AGENT|CCUSAGE|LOG_LEVEL"
 
 # Debug mode shows environment variable usage
 LOG_LEVEL=4 ccusage daily --debug

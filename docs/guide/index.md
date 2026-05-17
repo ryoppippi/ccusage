@@ -81,6 +81,7 @@ ccusage reads from local coding CLI data directories:
 | pi-agent    | `pi`       | `${PI_AGENT_DIR:-~/.pi/agent/sessions}`         |
 
 The tool automatically detects available data and aggregates all supported coding CLIs by default.
+Each source-specific environment variable can also contain comma-separated directories, which lets unified reports combine current profiles and archives.
 
 ## Report Shape
 

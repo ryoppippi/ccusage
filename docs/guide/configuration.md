@@ -55,6 +55,13 @@ export AMP_DATA_DIR="$HOME/.local/share/amp"
 export PI_AGENT_DIR="$HOME/.pi/agent/sessions"
 ```
 
+Use comma-separated directories when you want reports to combine multiple profiles or archives:
+
+```bash
+export CODEX_HOME="$HOME/.codex,$HOME/.codex-work"
+export OPENCODE_DATA_DIR="$HOME/.local/share/opencode,/archive/opencode"
+```
+
 2. **Create a configuration file** for your preferences:
 
 ```json
