@@ -97,6 +97,15 @@ pub(crate) fn load_entries(
     shared: &crate::cli::SharedArgs,
     pricing: &PricingMap,
 ) -> Result<Vec<LoadedEntry>> {
+    crate::progress::track_usage_load(crate::progress::UsageLoadAgent::Amp, shared.json, || {
+        load_entries_inner(shared, pricing)
+    })
+}
+
+fn load_entries_inner(
+    shared: &crate::cli::SharedArgs,
+    pricing: &PricingMap,
+) -> Result<Vec<LoadedEntry>> {
     let mut entries = Vec::new();
     let tz = parse_tz(shared.timezone.as_deref());
     for path in paths()? {
@@ -133,8 +142,8 @@ fn paths() -> Result<Vec<PathBuf>> {
         return Ok(paths);
     }
 
-    let home = crate::home::home_dir()
-        .ok_or_else(|| crate::cli_error("home directory is not set"))?;
+    let home =
+        crate::home::home_dir().ok_or_else(|| crate::cli_error("home directory is not set"))?;
     let path = home.join(".local/share/amp");
     if path.is_dir() && seen.insert(path.clone()) {
         paths.push(path);

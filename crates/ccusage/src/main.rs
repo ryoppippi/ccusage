@@ -22,6 +22,7 @@ mod config;
 mod date_utils;
 mod home;
 mod pricing;
+mod progress;
 mod types;
 
 pub(crate) use date_utils::*;
@@ -132,6 +133,15 @@ fn json_value_u64(value: Option<&Value>) -> u64 {
 }
 
 fn load_entries(shared: &SharedArgs, project_filter: Option<&str>) -> Result<Vec<LoadedEntry>> {
+    progress::track_usage_load(progress::UsageLoadAgent::Claude, shared.json, || {
+        load_entries_inner(shared, project_filter)
+    })
+}
+
+fn load_entries_inner(
+    shared: &SharedArgs,
+    project_filter: Option<&str>,
+) -> Result<Vec<LoadedEntry>> {
     let paths = claude_paths()?;
     debug_log(
         shared,
@@ -512,6 +522,12 @@ fn load_codex_events_from_directory(
 }
 
 fn load_codex_events(shared: &SharedArgs) -> Result<Vec<CodexTokenUsageEvent>> {
+    progress::track_usage_load(progress::UsageLoadAgent::Codex, shared.json, || {
+        load_codex_events_inner(shared)
+    })
+}
+
+fn load_codex_events_inner(shared: &SharedArgs) -> Result<Vec<CodexTokenUsageEvent>> {
     let mut events = Vec::new();
     for path in codex_sessions_paths()? {
         events.extend(load_codex_events_from_directory(

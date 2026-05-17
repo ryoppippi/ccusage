@@ -53,12 +53,7 @@ mod tests {
 
     #[test]
     fn falls_back_to_windows_user_profile_without_home() {
-        let path = home_dir_from_env(
-            None,
-            Some(OsString::from("C:\\Users\\runner")),
-            None,
-            None,
-        );
+        let path = home_dir_from_env(None, Some(OsString::from("C:\\Users\\runner")), None, None);
         assert_eq!(path, Some(PathBuf::from("C:\\Users\\runner")));
     }
 

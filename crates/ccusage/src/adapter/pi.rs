@@ -104,6 +104,12 @@ pub(crate) fn load_entries(
     shared: &SharedArgs,
     custom_path: Option<&str>,
 ) -> Result<Vec<LoadedEntry>> {
+    crate::progress::track_usage_load(crate::progress::UsageLoadAgent::Pi, shared.json, || {
+        load_entries_inner(shared, custom_path)
+    })
+}
+
+fn load_entries_inner(shared: &SharedArgs, custom_path: Option<&str>) -> Result<Vec<LoadedEntry>> {
     let tz = parse_tz(shared.timezone.as_deref());
     let mut entries = Vec::new();
     let mut seen = HashSet::new();
@@ -133,8 +139,8 @@ fn paths(custom_path: Option<&str>) -> Result<Vec<PathBuf>> {
         }
     }
 
-    let home = crate::home::home_dir()
-        .ok_or_else(|| crate::cli_error("home directory is not set"))?;
+    let home =
+        crate::home::home_dir().ok_or_else(|| crate::cli_error("home directory is not set"))?;
     let path = home.join(".pi/agent/sessions");
     Ok(path.is_dir().then_some(path).into_iter().collect())
 }

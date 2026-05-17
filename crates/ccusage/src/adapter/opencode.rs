@@ -140,6 +140,14 @@ pub(crate) fn summary_period(row: &crate::UsageSummary) -> &str {
 }
 
 pub(crate) fn load_entries(shared: &SharedArgs) -> Result<Vec<LoadedEntry>> {
+    crate::progress::track_usage_load(
+        crate::progress::UsageLoadAgent::OpenCode,
+        shared.json,
+        || load_entries_inner(shared),
+    )
+}
+
+fn load_entries_inner(shared: &SharedArgs) -> Result<Vec<LoadedEntry>> {
     let mut entries = Vec::new();
     let mut seen = HashSet::new();
     for path in paths()? {
@@ -173,8 +181,8 @@ fn paths() -> Result<Vec<PathBuf>> {
         return Ok(paths);
     }
 
-    let home = crate::home::home_dir()
-        .ok_or_else(|| crate::cli_error("home directory is not set"))?;
+    let home =
+        crate::home::home_dir().ok_or_else(|| crate::cli_error("home directory is not set"))?;
     let path = home.join(".local/share/opencode");
     if path.is_dir() && seen.insert(path.clone()) {
         paths.push(path);
