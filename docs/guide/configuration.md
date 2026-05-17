@@ -95,7 +95,7 @@ For individual developers working on multiple projects:
 }
 ```
 
-### Multiple Agents
+### Multiple Sources
 
 Configure Claude Code, Codex, OpenCode, Amp, and pi-agent separately with data source namespaces:
 
@@ -128,7 +128,7 @@ Configure Claude Code, Codex, OpenCode, Amp, and pi-agent separately with data s
 }
 ```
 
-Agent sections apply to direct commands such as `ccusage codex daily` and `ccusage amp session`. They are also used by unified reports such as `ccusage daily`, where each source receives its own merged options before data is loaded.
+Source sections apply to focused commands such as `ccusage codex daily` and `ccusage amp session`. They are also used by unified reports such as `ccusage daily`, where each source receives its own merged options before data is loaded.
 
 ### Team Collaboration
 

@@ -207,23 +207,22 @@ Use data source namespaces to set defaults and report overrides. Supported names
 }
 ```
 
-This configuration affects direct agent commands such as:
+This configuration affects source-focused commands such as:
 
 ```bash
 ccusage codex daily
 ccusage opencode weekly
 ```
 
-Agent-specific settings are also applied when running unified reports such as `ccusage daily`. In that case, each source receives its own merged options before data is loaded.
+Source-specific settings are also applied when running unified reports such as `ccusage daily`. In that case, each source receives its own merged options before data is loaded.
 
 For a namespaced command, options are applied in this order:
 
 1. `defaults`
 2. `commands.<report>`
-3. `commands.<agent>:<report>`
-4. `<agent>.defaults`
-5. `<agent>.commands.<report>`
-6. Command-line arguments
+3. `<source>.defaults`
+4. `<source>.commands.<report>`
+5. Command-line arguments
 
 ## Command-Specific Options
 
