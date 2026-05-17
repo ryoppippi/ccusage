@@ -17,6 +17,7 @@ use jiff::{tz::TimeZone as JiffTimeZone, Timestamp as JiffTimestamp};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
+mod adapter;
 mod cli;
 mod pricing;
 
@@ -261,6 +262,7 @@ struct LoadedEntry {
     session_id: Arc<str>,
     project_path: Arc<str>,
     cost: f64,
+    credits: Option<f64>,
     model: Option<String>,
     usage_limit_reset_time: Option<TimestampMs>,
 }
@@ -336,6 +338,7 @@ struct UsageSummary {
     cache_creation_tokens: u64,
     cache_read_tokens: u64,
     total_cost: f64,
+    credits: Option<f64>,
     models_used: Vec<String>,
     model_breakdowns: Vec<ModelBreakdown>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -385,7 +388,8 @@ fn main() -> Result<()> {
         Some(Command::Blocks(args)) => run_blocks(args),
         Some(Command::Statusline(args)) => run_statusline(args),
         Some(Command::Codex(args)) => run_codex(args),
-        Some(Command::OpenCode(args)) => run_opencode(args),
+        Some(Command::OpenCode(args)) => adapter::opencode::run(args),
+        Some(Command::Amp(args)) => adapter::amp::run(args),
         None => {
             let args = DailyArgs {
                 shared: cli.shared,
@@ -398,126 +402,6 @@ fn main() -> Result<()> {
     }
 }
 
-fn run_opencode(args: AgentCommandArgs) -> Result<()> {
-    let shared = args.shared;
-    let mut entries = load_opencode_entries(&shared)?;
-    filter_loaded_entries_by_date(&mut entries, &shared);
-    if wants_json(&shared) {
-        return print_json_or_jq(
-            opencode_report_json(&entries, args.kind, &shared.order)?,
-            shared.jq.as_deref(),
-        );
-    }
-    let mut rows = summarize_opencode_entries(&entries, args.kind)?;
-    sort_summaries(&mut rows, &shared.order, |row| opencode_summary_period(row));
-    print_usage_table(
-        "OpenCode Token Usage Report",
-        opencode_first_column(args.kind),
-        &rows,
-        &shared,
-        false,
-        None,
-    );
-    Ok(())
-}
-
-fn opencode_report_json(
-    entries: &[LoadedEntry],
-    kind: AgentReportKind,
-    order: &SortOrder,
-) -> Result<Value> {
-    let mut rows = summarize_opencode_entries(entries, kind)?;
-    sort_summaries(&mut rows, order, |row| opencode_summary_period(row));
-    Ok(opencode_report_from_rows(&rows, kind))
-}
-
-fn opencode_report_from_rows(rows: &[UsageSummary], kind: AgentReportKind) -> Value {
-    let rows_json = if kind == AgentReportKind::Session {
-        rows.iter().map(session_summary_json).collect::<Vec<_>>()
-    } else {
-        rows.iter().map(summary_json).collect::<Vec<_>>()
-    };
-    json!({
-        opencode_rows_key(kind): rows_json,
-        "totals": totals_json(rows),
-    })
-}
-
-fn summarize_opencode_entries(
-    entries: &[LoadedEntry],
-    kind: AgentReportKind,
-) -> Result<Vec<UsageSummary>> {
-    match kind {
-        AgentReportKind::Daily => summarize_by_key(
-            entries,
-            |entry| entry.date.clone(),
-            |date| (date.to_string(), None),
-        ),
-        AgentReportKind::Weekly => {
-            let daily = summarize_by_key(
-                entries,
-                |entry| entry.date.clone(),
-                |date| (date.to_string(), None),
-            )?;
-            Ok(summarize_summaries_by_bucket(
-                &daily,
-                BucketKind::Weekly,
-                WeekDay::Monday,
-            ))
-        }
-        AgentReportKind::Monthly => {
-            let daily = summarize_by_key(
-                entries,
-                |entry| entry.date.clone(),
-                |date| (date.to_string(), None),
-            )?;
-            Ok(summarize_summaries_by_bucket(
-                &daily,
-                BucketKind::Monthly,
-                WeekDay::Sunday,
-            ))
-        }
-        AgentReportKind::Session => summarize_by_key(
-            entries,
-            |entry| entry.session_id.to_string(),
-            |session_id| (session_id.to_string(), None),
-        )
-        .map(|mut rows| {
-            for row in &mut rows {
-                row.session_id = row.date.take();
-            }
-            rows
-        }),
-    }
-}
-
-fn opencode_rows_key(kind: AgentReportKind) -> &'static str {
-    match kind {
-        AgentReportKind::Daily => "daily",
-        AgentReportKind::Weekly => "weekly",
-        AgentReportKind::Monthly => "monthly",
-        AgentReportKind::Session => "sessions",
-    }
-}
-
-fn opencode_first_column(kind: AgentReportKind) -> &'static str {
-    match kind {
-        AgentReportKind::Daily => "Date",
-        AgentReportKind::Weekly => "Week",
-        AgentReportKind::Monthly => "Month",
-        AgentReportKind::Session => "Session",
-    }
-}
-
-fn opencode_summary_period(row: &UsageSummary) -> &str {
-    row.date
-        .as_deref()
-        .or(row.week.as_deref())
-        .or(row.month.as_deref())
-        .or(row.session_id.as_deref())
-        .unwrap_or_default()
-}
-
 fn filter_loaded_entries_by_date(entries: &mut Vec<LoadedEntry>, shared: &SharedArgs) {
     if shared.since.is_none() && shared.until.is_none() {
         return;
@@ -527,48 +411,6 @@ fn filter_loaded_entries_by_date(entries: &mut Vec<LoadedEntry>, shared: &Shared
         shared.since.as_ref().is_none_or(|since| &date >= since)
             && shared.until.as_ref().is_none_or(|until| &date <= until)
     });
-}
-
-fn load_opencode_entries(shared: &SharedArgs) -> Result<Vec<LoadedEntry>> {
-    let mut entries = Vec::new();
-    let mut seen = HashSet::new();
-    for path in opencode_paths()? {
-        for entry in load_opencode_entries_from_directory(&path, shared)? {
-            if let Some(id) = opencode_entry_id(&entry) {
-                if !seen.insert(id.to_string()) {
-                    continue;
-                }
-            }
-            entries.push(entry);
-        }
-    }
-    entries.sort_by_key(|entry| entry.timestamp);
-    Ok(entries)
-}
-
-fn opencode_paths() -> Result<Vec<PathBuf>> {
-    let mut paths = Vec::new();
-    let mut seen = HashSet::new();
-    if let Ok(env_paths) = env::var("OPENCODE_DATA_DIR") {
-        for raw in env_paths
-            .split(',')
-            .map(str::trim)
-            .filter(|path| !path.is_empty())
-        {
-            let path = PathBuf::from(raw);
-            if path.is_dir() && seen.insert(path.clone()) {
-                paths.push(path);
-            }
-        }
-        return Ok(paths);
-    }
-
-    let home = env::var("HOME").context("HOME is not set")?;
-    let path = PathBuf::from(home).join(".local/share/opencode");
-    if path.is_dir() && seen.insert(path.clone()) {
-        paths.push(path);
-    }
-    Ok(paths)
 }
 
 fn run_codex(args: AgentCommandArgs) -> Result<()> {
@@ -1589,6 +1431,7 @@ fn read_usage_file(
             session_id: Arc::clone(&session_id),
             project_path: Arc::clone(&project_path),
             cost,
+            credits: None,
             model,
             usage_limit_reset_time,
         });
@@ -2027,240 +1870,6 @@ fn dedupe_codex_events(events: &mut Vec<CodexTokenUsageEvent>) {
     });
 }
 
-fn load_opencode_entries_from_directory(
-    opencode_dir: &Path,
-    shared: &SharedArgs,
-) -> Result<Vec<LoadedEntry>> {
-    let pricing = if shared.mode == CostMode::Display {
-        None
-    } else {
-        Some(PricingMap::load(shared.offline, log_level() != Some(0)))
-    };
-    let tz = parse_tz(shared.timezone.as_deref());
-    let mut entries = Vec::new();
-    let mut seen = HashSet::new();
-    if let Some(db_path) = opencode_db_path(opencode_dir) {
-        for entry in load_opencode_entries_from_database(
-            &db_path,
-            tz.as_ref(),
-            shared.mode,
-            pricing.as_ref(),
-            shared,
-        ) {
-            if let Some(id) = opencode_entry_id(&entry) {
-                if !seen.insert(id.to_string()) {
-                    continue;
-                }
-            }
-            entries.push(entry);
-        }
-    }
-
-    let messages_dir = opencode_dir.join("storage").join("message");
-    let mut files = Vec::new();
-    collect_files_with_extension(&messages_dir, "json", &mut files);
-    for file in files {
-        if let Some(entry) =
-            read_opencode_message_file(&file, tz.as_ref(), shared.mode, pricing.as_ref())?
-        {
-            if let Some(id) = opencode_entry_id(&entry) {
-                if !seen.insert(id.to_string()) {
-                    continue;
-                }
-            }
-            entries.push(entry);
-        }
-    }
-    entries.sort_by_key(|entry| entry.timestamp);
-    Ok(entries)
-}
-
-fn opencode_db_path(opencode_dir: &Path) -> Option<PathBuf> {
-    let default_path = opencode_dir.join("opencode.db");
-    if default_path.is_file() {
-        return Some(default_path);
-    }
-    let mut candidates = fs::read_dir(opencode_dir)
-        .ok()?
-        .filter_map(std::result::Result::ok)
-        .map(|entry| entry.path())
-        .filter(|path| {
-            path.is_file()
-                && path
-                    .file_name()
-                    .and_then(|name| name.to_str())
-                    .is_some_and(is_opencode_channel_db_name)
-        })
-        .collect::<Vec<_>>();
-    candidates.sort();
-    candidates.into_iter().next()
-}
-
-fn is_opencode_channel_db_name(name: &str) -> bool {
-    name.starts_with("opencode-")
-        && name.ends_with(".db")
-        && name["opencode-".len()..name.len() - ".db".len()]
-            .chars()
-            .all(|ch| ch.is_ascii_alphanumeric() || ch == '_' || ch == '-')
-}
-
-fn load_opencode_entries_from_database(
-    db_path: &Path,
-    tz: Option<&JiffTimeZone>,
-    mode: CostMode,
-    pricing: Option<&PricingMap>,
-    shared: &SharedArgs,
-) -> Vec<LoadedEntry> {
-    let Ok(connection) =
-        sqlite::Connection::open_with_flags(db_path, sqlite::OpenFlags::new().with_read_only())
-    else {
-        debug_log(
-            shared,
-            format!("Failed to open OpenCode database: {}", db_path.display()),
-        );
-        return Vec::new();
-    };
-    let Ok(mut statement) = connection.prepare("SELECT id, session_id, data FROM message") else {
-        debug_log(
-            shared,
-            format!("Failed to read OpenCode database: {}", db_path.display()),
-        );
-        return Vec::new();
-    };
-    let mut entries = Vec::new();
-    loop {
-        match statement.next() {
-            Ok(sqlite::State::Row) => {
-                let Ok(id) = statement.read::<String, _>(0) else {
-                    continue;
-                };
-                let Ok(session_id) = statement.read::<String, _>(1) else {
-                    continue;
-                };
-                let Ok(data) = statement.read::<String, _>(2) else {
-                    continue;
-                };
-                let Ok(value) = serde_json::from_str::<Value>(&data) else {
-                    continue;
-                };
-                if let Some(entry) = opencode_message_value_to_entry(
-                    &value,
-                    Some(id),
-                    Some(session_id),
-                    tz,
-                    mode,
-                    pricing,
-                ) {
-                    entries.push(entry);
-                }
-            }
-            Ok(sqlite::State::Done) => break,
-            Err(_) => {
-                debug_log(
-                    shared,
-                    format!("Failed to query OpenCode database: {}", db_path.display()),
-                );
-                break;
-            }
-        }
-    }
-    entries
-}
-
-fn read_opencode_message_file(
-    path: &Path,
-    tz: Option<&JiffTimeZone>,
-    mode: CostMode,
-    pricing: Option<&PricingMap>,
-) -> Result<Option<LoadedEntry>> {
-    let content = fs::read_to_string(path)?;
-    let Ok(value) = serde_json::from_str::<Value>(&content) else {
-        return Ok(None);
-    };
-    Ok(opencode_message_value_to_entry(
-        &value, None, None, tz, mode, pricing,
-    ))
-}
-
-fn opencode_message_value_to_entry(
-    value: &Value,
-    id: Option<String>,
-    session_id: Option<String>,
-    tz: Option<&JiffTimeZone>,
-    mode: CostMode,
-    pricing: Option<&PricingMap>,
-) -> Option<LoadedEntry> {
-    let Some(tokens) = value.get("tokens") else {
-        return None;
-    };
-    let usage = TokenUsageRaw {
-        input_tokens: json_value_u64(tokens.get("input")),
-        output_tokens: json_value_u64(tokens.get("output")),
-        cache_creation_input_tokens: tokens
-            .get("cache")
-            .map_or(0, |cache| json_value_u64(cache.get("write"))),
-        cache_read_input_tokens: tokens
-            .get("cache")
-            .map_or(0, |cache| json_value_u64(cache.get("read"))),
-        speed: None,
-    };
-    if usage.input_tokens == 0
-        && usage.output_tokens == 0
-        && usage.cache_creation_input_tokens == 0
-        && usage.cache_read_input_tokens == 0
-    {
-        return None;
-    }
-    let Some(model) = non_empty_json_string(value.get("modelID")) else {
-        return None;
-    };
-    if non_empty_json_string(value.get("providerID")).is_none() {
-        return None;
-    }
-    let millis = value
-        .get("time")
-        .and_then(|time| time.get("created"))
-        .and_then(Value::as_i64)
-        .unwrap_or(0);
-    let timestamp = TimestampMs::from_millis(millis);
-    let timestamp_text = format_rfc3339_millis(timestamp);
-    let message_id = id.or_else(|| non_empty_json_string(value.get("id")));
-    let session_id = session_id.or_else(|| non_empty_json_string(value.get("sessionID")));
-    let data = UsageEntry {
-        session_id: session_id.clone(),
-        timestamp: timestamp_text,
-        version: None,
-        message: UsageMessage {
-            usage,
-            model: Some(model.clone()),
-            id: message_id,
-        },
-        cost_usd: value.get("cost").and_then(Value::as_f64),
-        request_id: None,
-        is_api_error_message: None,
-    };
-    let cost = calculate_cost(&data, mode, pricing);
-    let loaded_session_id = data
-        .session_id
-        .clone()
-        .unwrap_or_else(|| "unknown".to_string());
-    Some(LoadedEntry {
-        date: format_date_tz(timestamp, tz),
-        timestamp,
-        project: Arc::from("opencode"),
-        session_id: Arc::from(loaded_session_id),
-        project_path: Arc::from("OpenCode"),
-        cost,
-        model: Some(model),
-        usage_limit_reset_time: None,
-        data,
-    })
-}
-
-fn opencode_entry_id(entry: &LoadedEntry) -> Option<&str> {
-    entry.data.message.id.as_deref().filter(|id| !id.is_empty())
-}
-
 fn claude_paths() -> Result<Vec<PathBuf>> {
     let mut paths = Vec::new();
     let mut seen = HashSet::new();
@@ -2541,6 +2150,7 @@ where
 struct UsageAccumulator {
     counts: TokenCounts,
     cost: f64,
+    credits: Option<f64>,
     models: Vec<String>,
     seen_models: HashSet<String>,
     breakdowns: Vec<ModelBreakdown>,
@@ -2552,6 +2162,9 @@ impl UsageAccumulator {
         let usage = entry.data.message.usage;
         self.counts.add_usage(usage);
         self.cost += entry.cost;
+        if let Some(credits) = entry.credits {
+            *self.credits.get_or_insert(0.0) += credits;
+        }
         if let Some(model) = &entry.model {
             if self.seen_models.insert(model.clone()) {
                 self.models.push(model.clone());
@@ -2590,6 +2203,7 @@ impl UsageAccumulator {
             cache_creation_tokens: self.counts.cache_creation_tokens,
             cache_read_tokens: self.counts.cache_read_tokens,
             total_cost: self.cost,
+            credits: self.credits,
             models_used: self.models,
             model_breakdowns: self.breakdowns,
             project: None,
@@ -2686,6 +2300,7 @@ fn aggregate_summaries(rows: &[&UsageSummary]) -> UsageSummary {
         cache_creation_tokens: 0,
         cache_read_tokens: 0,
         total_cost: 0.0,
+        credits: None,
         models_used: Vec::new(),
         model_breakdowns: Vec::new(),
         project: None,
@@ -2700,6 +2315,9 @@ fn aggregate_summaries(rows: &[&UsageSummary]) -> UsageSummary {
         summary.cache_creation_tokens += row.cache_creation_tokens;
         summary.cache_read_tokens += row.cache_read_tokens;
         summary.total_cost += row.total_cost;
+        if let Some(credits) = row.credits {
+            *summary.credits.get_or_insert(0.0) += credits;
+        }
         for model in &row.models_used {
             if seen_models.insert(model.clone()) {
                 summary.models_used.push(model.clone());
@@ -2800,12 +2418,15 @@ fn summary_json(row: &UsageSummary) -> Value {
         if let Some(project) = &row.project {
             obj.insert("project".to_string(), json!(project));
         }
+        if let Some(credits) = row.credits {
+            obj.insert("credits".to_string(), json!(credits));
+        }
     }
     value
 }
 
 fn session_summary_json(row: &UsageSummary) -> Value {
-    json!({
+    let mut value = json!({
         "sessionId": row.session_id,
         "inputTokens": row.input_tokens,
         "outputTokens": row.output_tokens,
@@ -2817,7 +2438,11 @@ fn session_summary_json(row: &UsageSummary) -> Value {
         "modelsUsed": row.models_used,
         "modelBreakdowns": row.model_breakdowns,
         "projectPath": row.project_path,
-    })
+    });
+    if let (Some(obj), Some(credits)) = (value.as_object_mut(), row.credits) {
+        obj.insert("credits".to_string(), json!(credits));
+    }
+    value
 }
 
 fn totals_json(rows: &[UsageSummary]) -> Value {
@@ -2828,14 +2453,19 @@ fn totals_json(rows: &[UsageSummary]) -> Value {
         .map(|row| row.cache_creation_tokens)
         .sum::<u64>();
     let cache_read = rows.iter().map(|row| row.cache_read_tokens).sum::<u64>();
-    json!({
+    let mut value = json!({
         "inputTokens": input,
         "outputTokens": output,
         "cacheCreationTokens": cache_create,
         "cacheReadTokens": cache_read,
         "totalTokens": input + output + cache_create + cache_read,
         "totalCost": rows.iter().map(|row| row.total_cost).sum::<f64>(),
-    })
+    });
+    let credits = rows.iter().filter_map(|row| row.credits).sum::<f64>();
+    if credits > 0.0 {
+        value["credits"] = json!(credits);
+    }
+    value
 }
 
 fn group_project_output(rows: &[UsageSummary]) -> Value {
@@ -4649,7 +4279,8 @@ mod tests {
             timezone: Some("UTC".to_string()),
             ..SharedArgs::default()
         };
-        let entries = load_opencode_entries_from_directory(&opencode_dir, &shared).unwrap();
+        let entries =
+            adapter::opencode::load_entries_from_directory(&opencode_dir, &shared).unwrap();
         fs::remove_dir_all(&opencode_dir).unwrap();
 
         assert_eq!(entries.len(), 1);
@@ -4685,7 +4316,8 @@ mod tests {
             timezone: Some("UTC".to_string()),
             ..SharedArgs::default()
         };
-        let entries = load_opencode_entries_from_directory(&opencode_dir, &shared).unwrap();
+        let entries =
+            adapter::opencode::load_entries_from_directory(&opencode_dir, &shared).unwrap();
         fs::remove_dir_all(&opencode_dir).unwrap();
 
         assert_eq!(entries.len(), 1);
@@ -4714,7 +4346,8 @@ mod tests {
         );
 
         let entries =
-            load_opencode_entries_from_directory(&opencode_dir, &SharedArgs::default()).unwrap();
+            adapter::opencode::load_entries_from_directory(&opencode_dir, &SharedArgs::default())
+                .unwrap();
         fs::remove_dir_all(&opencode_dir).unwrap();
 
         assert_eq!(entries.len(), 1);
@@ -4743,13 +4376,98 @@ mod tests {
             mode: CostMode::Display,
             ..SharedArgs::default()
         };
-        let entries = load_opencode_entries_from_directory(&opencode_dir, &shared).unwrap();
+        let entries =
+            adapter::opencode::load_entries_from_directory(&opencode_dir, &shared).unwrap();
         fs::remove_dir_all(&opencode_dir).unwrap();
 
         assert_eq!(entries.len(), 1);
         assert_eq!(entries[0].session_id.as_ref(), "db-session-a");
         assert_eq!(entries[0].data.message.usage.input_tokens, 120);
         assert_eq!(entries[0].cost, 0.03);
+    }
+
+    #[test]
+    fn loads_amp_thread_usage_events() {
+        let amp_dir = temp_claude_dir("amp");
+        let threads_dir = amp_dir.join("threads");
+        fs::create_dir_all(&threads_dir).unwrap();
+        fs::write(
+            threads_dir.join("thread.json"),
+            r#"{"id":"thread-a","messages":[{"role":"assistant","messageId":2,"usage":{"cacheCreationInputTokens":20,"cacheReadInputTokens":10}}],"usageLedger":{"events":[{"id":"event-a","timestamp":"2026-05-01T01:02:03.000Z","model":"claude-sonnet-4-20250514","credits":1.25,"tokens":{"input":100,"output":50},"toMessageId":2}]}}"#,
+        )
+        .unwrap();
+
+        let entries = adapter::amp::read_thread_file(
+            &threads_dir.join("thread.json"),
+            parse_tz(Some("UTC")).as_ref(),
+            CostMode::Display,
+            None,
+        )
+        .unwrap();
+        fs::remove_dir_all(&amp_dir).unwrap();
+
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].date, "2026-05-01");
+        assert_eq!(entries[0].session_id.as_ref(), "thread-a");
+        assert_eq!(
+            entries[0].model.as_deref(),
+            Some("claude-sonnet-4-20250514")
+        );
+        assert_eq!(entries[0].data.message.usage.input_tokens, 100);
+        assert_eq!(entries[0].data.message.usage.output_tokens, 50);
+        assert_eq!(
+            entries[0].data.message.usage.cache_creation_input_tokens,
+            20
+        );
+        assert_eq!(entries[0].data.message.usage.cache_read_input_tokens, 10);
+        assert_eq!(entries[0].credits, Some(1.25));
+    }
+
+    #[test]
+    fn builds_amp_daily_json_report() {
+        let entry = LoadedEntry {
+            data: UsageEntry {
+                session_id: Some("thread-a".to_string()),
+                timestamp: "2026-05-01T01:02:03.000Z".to_string(),
+                version: None,
+                message: UsageMessage {
+                    usage: TokenUsageRaw {
+                        input_tokens: 100,
+                        output_tokens: 50,
+                        cache_creation_input_tokens: 20,
+                        cache_read_input_tokens: 10,
+                        speed: None,
+                    },
+                    model: Some("claude-sonnet-4-20250514".to_string()),
+                    id: Some("event-a".to_string()),
+                },
+                cost_usd: None,
+                request_id: None,
+                is_api_error_message: None,
+            },
+            timestamp: parse_ts_timestamp("2026-05-01T01:02:03.000Z").unwrap(),
+            date: "2026-05-01".to_string(),
+            project: Arc::from("amp"),
+            session_id: Arc::from("thread-a"),
+            project_path: Arc::from("Amp"),
+            cost: 0.02,
+            credits: Some(1.25),
+            model: Some("claude-sonnet-4-20250514".to_string()),
+            usage_limit_reset_time: None,
+        };
+
+        let rows = adapter::amp::summarize_entries(&[entry], AgentReportKind::Daily).unwrap();
+        let report = adapter::amp::report_from_rows(&rows, AgentReportKind::Daily);
+
+        assert_eq!(report["daily"][0]["date"], "2026-05-01");
+        assert_eq!(report["daily"][0]["inputTokens"], 100);
+        assert_eq!(report["daily"][0]["outputTokens"], 50);
+        assert_eq!(report["daily"][0]["cacheCreationTokens"], 20);
+        assert_eq!(report["daily"][0]["cacheReadTokens"], 10);
+        assert_eq!(report["daily"][0]["totalTokens"], 180);
+        assert_eq!(report["daily"][0]["credits"], json!(1.25));
+        assert_eq!(report["daily"][0]["totalCost"], json!(0.02));
+        assert_eq!(report["totals"]["credits"], json!(1.25));
     }
 
     #[test]
@@ -4780,12 +4498,14 @@ mod tests {
             session_id: Arc::from("opencode-session"),
             project_path: Arc::from("OpenCode"),
             cost: 0.02,
+            credits: None,
             model: Some("claude-sonnet-4-20250514".to_string()),
             usage_limit_reset_time: None,
         };
 
         let report =
-            opencode_report_json(&[entry], AgentReportKind::Daily, &SortOrder::Asc).unwrap();
+            adapter::opencode::report_json(&[entry], AgentReportKind::Daily, &SortOrder::Asc)
+                .unwrap();
 
         assert_eq!(report["daily"][0]["date"], "2026-01-02");
         assert_eq!(report["daily"][0]["inputTokens"], 100);

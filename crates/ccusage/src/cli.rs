@@ -16,6 +16,7 @@ pub(crate) enum Command {
     Statusline(StatuslineArgs),
     Codex(AgentCommandArgs),
     OpenCode(AgentCommandArgs),
+    Amp(AgentCommandArgs),
 }
 
 #[derive(Clone, Default)]
@@ -347,6 +348,7 @@ fn parse_command(
         "claude" => parse_claude_command(parser, shared),
         "codex" => parse_codex_command(parser, shared),
         "opencode" => parse_opencode_command(parser, shared),
+        "amp" => parse_amp_command(parser, shared),
         _ => Err(format!("Unknown command '{command}'")),
     }
 }
@@ -423,6 +425,31 @@ fn parse_opencode_command(
     Ok(Command::OpenCode(AgentCommandArgs { shared, kind }))
 }
 
+fn parse_amp_command(parser: &mut ArgParser, mut shared: SharedArgs) -> Result<Command, String> {
+    let kind = match parser.peek() {
+        Some("daily") => {
+            parser.next();
+            AgentReportKind::Daily
+        }
+        Some("monthly") => {
+            parser.next();
+            AgentReportKind::Monthly
+        }
+        Some("session") => {
+            parser.next();
+            AgentReportKind::Session
+        }
+        Some(command) if !command.starts_with('-') => {
+            return Err(format!("Unknown amp command '{command}'"));
+        }
+        _ => AgentReportKind::Daily,
+    };
+    while parser.peek().is_some() {
+        parse_shared_arg(parser, &mut shared)?;
+    }
+    Ok(Command::Amp(AgentCommandArgs { shared, kind }))
+}
+
 fn parse_shared_arg_for_command(
     parser: &mut ArgParser,
     shared: &mut SharedArgs,
@@ -478,6 +505,7 @@ fn is_command(arg: &str) -> bool {
             | "claude"
             | "codex"
             | "opencode"
+            | "amp"
     )
 }
 
@@ -755,6 +783,16 @@ mod tests {
             panic!("expected opencode command");
         };
         assert_eq!(args.kind, AgentReportKind::Weekly);
+        assert!(args.shared.json);
+    }
+
+    #[test]
+    fn parses_amp_session_options() {
+        let cli = parse(&["ccusage", "amp", "session", "--json"]);
+        let Some(Command::Amp(args)) = cli.command else {
+            panic!("expected amp command");
+        };
+        assert_eq!(args.kind, AgentReportKind::Session);
         assert!(args.shared.json);
     }
 }
