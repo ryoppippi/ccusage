@@ -12,8 +12,13 @@ import path from 'node:path';
 import { Result } from '@praha/byethrow';
 import { createFixture } from 'fs-fixture';
 import * as v from 'valibot';
-import { CLAUDE_PROJECTS_DIR_NAME, DEBUG_MATCH_THRESHOLD_PERCENT } from './consts.ts';
-import { collectJsonlFiles, getClaudePaths, usageDataSchema } from './data-loader.ts';
+import { CLAUDE_PROJECTS_DIR_NAME } from './adapter/claude/constants.ts';
+import {
+	collectJsonlFiles,
+	getClaudePaths,
+	usageDataSchema,
+} from './adapter/claude/data-loader.ts';
+import { DEBUG_MATCH_THRESHOLD_PERCENT } from './consts.ts';
 import { logger } from './logger.ts';
 import { PricingFetcher } from './pricing-fetcher.ts';
 

@@ -1,24 +1,13 @@
 import type { Args, Command } from 'gunshi';
 import process from 'node:process';
 import { cli } from 'gunshi';
-import { dailyCommand as ampDailyCommand } from '../../../amp/src/commands/daily.ts';
-import { monthlyCommand as ampMonthlyCommand } from '../../../amp/src/commands/monthly.ts';
-import { sessionCommand as ampSessionCommand } from '../../../amp/src/commands/session.ts';
-import { dailyCommand as codexDailyCommand } from '../../../codex/src/commands/daily.ts';
-import { monthlyCommand as codexMonthlyCommand } from '../../../codex/src/commands/monthly.ts';
-import { sessionCommand as codexSessionCommand } from '../../../codex/src/commands/session.ts';
-import { dailyCommand as opencodeDailyCommand } from '../../../opencode/src/commands/daily.ts';
-import { monthlyCommand as opencodeMonthlyCommand } from '../../../opencode/src/commands/monthly.ts';
-import { sessionCommand as opencodeSessionCommand } from '../../../opencode/src/commands/session.ts';
-import { weeklyCommand as opencodeWeeklyCommand } from '../../../opencode/src/commands/weekly.ts';
-import { dailyCommand as piDailyCommand } from '../../../pi/src/commands/daily.ts';
-import { monthlyCommand as piMonthlyCommand } from '../../../pi/src/commands/monthly.ts';
-import { sessionCommand as piSessionCommand } from '../../../pi/src/commands/session.ts';
 import { description, name, version } from '../../package.json';
 import { loadConfig, mergeConfigWithArgs } from '../config-loader-tokens.ts';
 import { sharedArgs } from '../shared-args.ts';
+import { createAgentCommand } from './agent.ts';
 import { allDailyCommand, allMonthlyCommand, allSessionCommand, allWeeklyCommand } from './all.ts';
 import { blocksCommand } from './blocks.ts';
+import { codexDailyCommand, codexMonthlyCommand, codexSessionCommand } from './codex.ts';
 import { dailyCommand } from './daily.ts';
 import { monthlyCommand } from './monthly.ts';
 import { sessionCommand } from './session.ts';
@@ -39,14 +28,20 @@ function withCommandName<T extends { name?: string }>(command: T, commandName: s
 	return { ...command, name: commandName };
 }
 
-function withCcusageConfig(command: Command<Args>, commandName: string): Command<Args> {
+function withCcusageConfig<const TArgs extends Args>(
+	command: Command<TArgs>,
+	commandName: string,
+): Command<Args> {
+	const args = {
+		...(command.args ?? {}),
+		config: sharedArgs.config,
+	} satisfies Args;
+
 	return {
-		...command,
 		name: commandName,
-		args: {
-			...(command.args ?? {}),
-			config: sharedArgs.config,
-		},
+		description: command.description,
+		args,
+		toKebab: command.toKebab,
 		async run(ctx) {
 			const values = ctx.values as Record<string, unknown>;
 			const configPath = typeof values.config === 'string' ? values.config : undefined;
@@ -61,10 +56,56 @@ function withCcusageConfig(command: Command<Args>, commandName: string): Command
 				config,
 				debug,
 			);
-			await command.run?.({ ...ctx, values: mergedValues } as never);
+			await command.run?.({
+				...ctx,
+				values: mergedValues,
+			} as Parameters<NonNullable<Command<TArgs>['run']>>[0]);
 		},
 	};
 }
+
+const opencodeDailyCommand = createAgentCommand(
+	'opencode',
+	'daily',
+	'Show OpenCode token usage grouped by day',
+);
+const opencodeWeeklyCommand = createAgentCommand(
+	'opencode',
+	'weekly',
+	'Show OpenCode token usage grouped by week',
+);
+const opencodeMonthlyCommand = createAgentCommand(
+	'opencode',
+	'monthly',
+	'Show OpenCode token usage grouped by month',
+);
+const opencodeSessionCommand = createAgentCommand(
+	'opencode',
+	'session',
+	'Show OpenCode token usage grouped by session',
+);
+const ampDailyCommand = createAgentCommand('amp', 'daily', 'Show Amp token usage grouped by day');
+const ampMonthlyCommand = createAgentCommand(
+	'amp',
+	'monthly',
+	'Show Amp token usage grouped by month',
+);
+const ampSessionCommand = createAgentCommand(
+	'amp',
+	'session',
+	'Show Amp token usage grouped by session',
+);
+const piDailyCommand = createAgentCommand('pi', 'daily', 'Show pi-agent usage grouped by date');
+const piMonthlyCommand = createAgentCommand(
+	'pi',
+	'monthly',
+	'Show pi-agent usage grouped by month',
+);
+const piSessionCommand = createAgentCommand(
+	'pi',
+	'session',
+	'Show pi-agent usage grouped by session',
+);
 
 /**
  * Command entries as tuple array

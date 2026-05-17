@@ -9,15 +9,15 @@ import { Result } from '@praha/byethrow';
 import getStdin from 'get-stdin';
 import { define } from 'gunshi';
 import * as v from 'valibot';
-import { calculateTotals } from '../calculate-cost.ts';
-import { loadConfig, mergeConfigWithArgs } from '../config-loader-tokens.ts';
-import { DEFAULT_CONTEXT_USAGE_THRESHOLDS, DEFAULT_REFRESH_INTERVAL_SECONDS } from '../consts.ts';
 import {
 	calculateContextTokens,
 	loadDailyUsageData,
 	loadSessionBlockData,
 	loadSessionUsageById,
-} from '../data-loader.ts';
+} from '../adapter/claude/data-loader.ts';
+import { calculateTotals } from '../calculate-cost.ts';
+import { loadConfig, mergeConfigWithArgs } from '../config-loader-tokens.ts';
+import { DEFAULT_CONTEXT_USAGE_THRESHOLDS, DEFAULT_REFRESH_INTERVAL_SECONDS } from '../consts.ts';
 import { log, logger } from '../logger.ts';
 import { calculateBurnRate } from '../session-blocks.ts';
 import { sharedArgs } from '../shared-args.ts';

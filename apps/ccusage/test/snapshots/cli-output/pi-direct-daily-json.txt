@@ -1,0 +1,24 @@
+{
+  "daily": [
+    {
+      "date": "2026-01-02",
+      "inputTokens": 100,
+      "outputTokens": 50,
+      "cacheCreationTokens": 20,
+      "cacheReadTokens": 10,
+      "totalTokens": 180,
+      "totalCost": 0,
+      "modelsUsed": [
+        "[pi] claude-opus-4-20250514"
+      ]
+    }
+  ],
+  "totals": {
+    "inputTokens": 100,
+    "outputTokens": 50,
+    "cacheCreationTokens": 20,
+    "cacheReadTokens": 10,
+    "totalTokens": 180,
+    "totalCost": 0
+  }
+}

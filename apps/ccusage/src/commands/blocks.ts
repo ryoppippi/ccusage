@@ -8,6 +8,7 @@ import {
 	ResponsiveTable,
 } from '@ccusage/terminal/table';
 import { define } from 'gunshi';
+import { loadSessionBlockData } from '../adapter/claude/data-loader.ts';
 import { loadConfig, mergeConfigWithArgs } from '../config-loader-tokens.ts';
 import {
 	BLOCKS_COMPACT_WIDTH_THRESHOLD,
@@ -15,7 +16,6 @@ import {
 	BLOCKS_WARNING_THRESHOLD,
 	DEFAULT_RECENT_DAYS,
 } from '../consts.ts';
-import { loadSessionBlockData } from '../data-loader.ts';
 import { log, logger, writeStdoutLine } from '../logger.ts';
 import {
 	calculateBurnRate,

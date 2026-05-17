@@ -41,6 +41,7 @@ jobs:
         run: |
           nix develop --command pnpm exec bun apps/ccusage/scripts/generate-large-fixture.ts \
             --output-dir "$RUNNER_TEMP/ccusage-large-fixture" \
+            --codex-output-dir "$RUNNER_TEMP/ccusage-large-codex-fixture" \
             --size-mib 1024
 
       - name: Compare fixture performance
@@ -49,9 +50,11 @@ jobs:
             --base-dir base \
             --head-dir . \
             --fixture-dir apps/ccusage/test/fixtures/claude \
+            --codex-fixture-dir apps/ccusage/test/fixtures/codex \
             --warmup 2 \
             --runs 7 \
             --large-fixture-dir "$RUNNER_TEMP/ccusage-large-fixture" \
+            --large-codex-fixture-dir "$RUNNER_TEMP/ccusage-large-codex-fixture" \
             --large-warmup 0 \
             --large-runs 1 \
             --output "$RUNNER_TEMP/ccusage-perf-comment.md"

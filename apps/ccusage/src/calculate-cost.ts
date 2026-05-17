@@ -8,7 +8,12 @@
  * @module calculate-cost
  */
 
-import type { DailyUsage, MonthlyUsage, SessionUsage, WeeklyUsage } from './data-loader.ts';
+import type {
+	DailyUsage,
+	MonthlyUsage,
+	SessionUsage,
+	WeeklyUsage,
+} from './adapter/claude/data-loader.ts';
 import type { AggregatedTokenCounts } from './token-utils.ts';
 import { getTotalTokens } from './token-utils.ts';
 import {

@@ -1463,18 +1463,45 @@
 								"json": {
 									"type": "boolean",
 									"description": "Output in JSON format",
-									"markdownDescription": "Output in JSON format"
+									"markdownDescription": "Output in JSON format",
+									"default": false
 								},
-								"compact": {
-									"type": "boolean",
-									"description": "Force compact table mode",
-									"markdownDescription": "Force compact table mode"
+								"since": {
+									"type": "string",
+									"description": "Filter from date (YYYY-MM-DD or YYYYMMDD)",
+									"markdownDescription": "Filter from date (YYYY-MM-DD or YYYYMMDD)"
+								},
+								"until": {
+									"type": "string",
+									"description": "Filter until date (inclusive)",
+									"markdownDescription": "Filter until date (inclusive)"
+								},
+								"timezone": {
+									"type": "string",
+									"description": "Timezone for date grouping (IANA)",
+									"markdownDescription": "Timezone for date grouping (IANA)"
 								},
 								"offline": {
 									"type": "boolean",
-									"description": "Use cached pricing data",
-									"markdownDescription": "Use cached pricing data",
+									"description": "Use cached pricing data instead of fetching from LiteLLM",
+									"markdownDescription": "Use cached pricing data instead of fetching from LiteLLM",
 									"default": false
+								},
+								"compact": {
+									"type": "boolean",
+									"description": "Force compact table layout for narrow terminals",
+									"markdownDescription": "Force compact table layout for narrow terminals",
+									"default": false
+								},
+								"color": {
+									"type": "boolean",
+									"description": "Enable colored output (default: auto). FORCE_COLOR=1 has the same effect.",
+									"markdownDescription": "Enable colored output (default: auto). FORCE_COLOR=1 has the same effect."
+								},
+								"noColor": {
+									"type": "boolean",
+									"description": "Disable colored output (default: auto). NO_COLOR=1 has the same effect.",
+									"markdownDescription": "Disable colored output (default: auto). NO_COLOR=1 has the same effect."
 								}
 							},
 							"additionalProperties": false,
@@ -1490,18 +1517,45 @@
 										"json": {
 											"type": "boolean",
 											"description": "Output in JSON format",
-											"markdownDescription": "Output in JSON format"
+											"markdownDescription": "Output in JSON format",
+											"default": false
 										},
-										"compact": {
-											"type": "boolean",
-											"description": "Force compact table mode",
-											"markdownDescription": "Force compact table mode"
+										"since": {
+											"type": "string",
+											"description": "Filter from date (YYYY-MM-DD or YYYYMMDD)",
+											"markdownDescription": "Filter from date (YYYY-MM-DD or YYYYMMDD)"
+										},
+										"until": {
+											"type": "string",
+											"description": "Filter until date (inclusive)",
+											"markdownDescription": "Filter until date (inclusive)"
+										},
+										"timezone": {
+											"type": "string",
+											"description": "Timezone for date grouping (IANA)",
+											"markdownDescription": "Timezone for date grouping (IANA)"
 										},
 										"offline": {
 											"type": "boolean",
-											"description": "Use cached pricing data",
-											"markdownDescription": "Use cached pricing data",
+											"description": "Use cached pricing data instead of fetching from LiteLLM",
+											"markdownDescription": "Use cached pricing data instead of fetching from LiteLLM",
 											"default": false
+										},
+										"compact": {
+											"type": "boolean",
+											"description": "Force compact table layout for narrow terminals",
+											"markdownDescription": "Force compact table layout for narrow terminals",
+											"default": false
+										},
+										"color": {
+											"type": "boolean",
+											"description": "Enable colored output (default: auto). FORCE_COLOR=1 has the same effect.",
+											"markdownDescription": "Enable colored output (default: auto). FORCE_COLOR=1 has the same effect."
+										},
+										"noColor": {
+											"type": "boolean",
+											"description": "Disable colored output (default: auto). NO_COLOR=1 has the same effect.",
+											"markdownDescription": "Disable colored output (default: auto). NO_COLOR=1 has the same effect."
 										}
 									},
 									"additionalProperties": false
@@ -1512,18 +1566,45 @@
 										"json": {
 											"type": "boolean",
 											"description": "Output in JSON format",
-											"markdownDescription": "Output in JSON format"
+											"markdownDescription": "Output in JSON format",
+											"default": false
 										},
-										"compact": {
-											"type": "boolean",
-											"description": "Force compact table mode",
-											"markdownDescription": "Force compact table mode"
+										"since": {
+											"type": "string",
+											"description": "Filter from date (YYYY-MM-DD or YYYYMMDD)",
+											"markdownDescription": "Filter from date (YYYY-MM-DD or YYYYMMDD)"
+										},
+										"until": {
+											"type": "string",
+											"description": "Filter until date (inclusive)",
+											"markdownDescription": "Filter until date (inclusive)"
+										},
+										"timezone": {
+											"type": "string",
+											"description": "Timezone for date grouping (IANA)",
+											"markdownDescription": "Timezone for date grouping (IANA)"
 										},
 										"offline": {
 											"type": "boolean",
-											"description": "Use cached pricing data",
-											"markdownDescription": "Use cached pricing data",
+											"description": "Use cached pricing data instead of fetching from LiteLLM",
+											"markdownDescription": "Use cached pricing data instead of fetching from LiteLLM",
 											"default": false
+										},
+										"compact": {
+											"type": "boolean",
+											"description": "Force compact table layout for narrow terminals",
+											"markdownDescription": "Force compact table layout for narrow terminals",
+											"default": false
+										},
+										"color": {
+											"type": "boolean",
+											"description": "Enable colored output (default: auto). FORCE_COLOR=1 has the same effect.",
+											"markdownDescription": "Enable colored output (default: auto). FORCE_COLOR=1 has the same effect."
+										},
+										"noColor": {
+											"type": "boolean",
+											"description": "Disable colored output (default: auto). NO_COLOR=1 has the same effect.",
+											"markdownDescription": "Disable colored output (default: auto). NO_COLOR=1 has the same effect."
 										}
 									},
 									"additionalProperties": false
@@ -1534,18 +1615,45 @@
 										"json": {
 											"type": "boolean",
 											"description": "Output in JSON format",
-											"markdownDescription": "Output in JSON format"
+											"markdownDescription": "Output in JSON format",
+											"default": false
 										},
-										"compact": {
-											"type": "boolean",
-											"description": "Force compact table mode",
-											"markdownDescription": "Force compact table mode"
+										"since": {
+											"type": "string",
+											"description": "Filter from date (YYYY-MM-DD or YYYYMMDD)",
+											"markdownDescription": "Filter from date (YYYY-MM-DD or YYYYMMDD)"
+										},
+										"until": {
+											"type": "string",
+											"description": "Filter until date (inclusive)",
+											"markdownDescription": "Filter until date (inclusive)"
+										},
+										"timezone": {
+											"type": "string",
+											"description": "Timezone for date grouping (IANA)",
+											"markdownDescription": "Timezone for date grouping (IANA)"
 										},
 										"offline": {
 											"type": "boolean",
-											"description": "Use cached pricing data",
-											"markdownDescription": "Use cached pricing data",
+											"description": "Use cached pricing data instead of fetching from LiteLLM",
+											"markdownDescription": "Use cached pricing data instead of fetching from LiteLLM",
 											"default": false
+										},
+										"compact": {
+											"type": "boolean",
+											"description": "Force compact table layout for narrow terminals",
+											"markdownDescription": "Force compact table layout for narrow terminals",
+											"default": false
+										},
+										"color": {
+											"type": "boolean",
+											"description": "Enable colored output (default: auto). FORCE_COLOR=1 has the same effect.",
+											"markdownDescription": "Enable colored output (default: auto). FORCE_COLOR=1 has the same effect."
+										},
+										"noColor": {
+											"type": "boolean",
+											"description": "Disable colored output (default: auto). NO_COLOR=1 has the same effect.",
+											"markdownDescription": "Disable colored output (default: auto). NO_COLOR=1 has the same effect."
 										}
 									},
 									"additionalProperties": false
@@ -1556,18 +1664,45 @@
 										"json": {
 											"type": "boolean",
 											"description": "Output in JSON format",
-											"markdownDescription": "Output in JSON format"
+											"markdownDescription": "Output in JSON format",
+											"default": false
 										},
-										"compact": {
-											"type": "boolean",
-											"description": "Force compact table mode",
-											"markdownDescription": "Force compact table mode"
+										"since": {
+											"type": "string",
+											"description": "Filter from date (YYYY-MM-DD or YYYYMMDD)",
+											"markdownDescription": "Filter from date (YYYY-MM-DD or YYYYMMDD)"
+										},
+										"until": {
+											"type": "string",
+											"description": "Filter until date (inclusive)",
+											"markdownDescription": "Filter until date (inclusive)"
+										},
+										"timezone": {
+											"type": "string",
+											"description": "Timezone for date grouping (IANA)",
+											"markdownDescription": "Timezone for date grouping (IANA)"
 										},
 										"offline": {
 											"type": "boolean",
-											"description": "Use cached pricing data",
-											"markdownDescription": "Use cached pricing data",
+											"description": "Use cached pricing data instead of fetching from LiteLLM",
+											"markdownDescription": "Use cached pricing data instead of fetching from LiteLLM",
 											"default": false
+										},
+										"compact": {
+											"type": "boolean",
+											"description": "Force compact table layout for narrow terminals",
+											"markdownDescription": "Force compact table layout for narrow terminals",
+											"default": false
+										},
+										"color": {
+											"type": "boolean",
+											"description": "Enable colored output (default: auto). FORCE_COLOR=1 has the same effect.",
+											"markdownDescription": "Enable colored output (default: auto). FORCE_COLOR=1 has the same effect."
+										},
+										"noColor": {
+											"type": "boolean",
+											"description": "Disable colored output (default: auto). NO_COLOR=1 has the same effect.",
+											"markdownDescription": "Disable colored output (default: auto). NO_COLOR=1 has the same effect."
 										}
 									},
 									"additionalProperties": false
@@ -1591,18 +1726,45 @@
 								"json": {
 									"type": "boolean",
 									"description": "Output in JSON format",
-									"markdownDescription": "Output in JSON format"
+									"markdownDescription": "Output in JSON format",
+									"default": false
 								},
-								"compact": {
-									"type": "boolean",
-									"description": "Force compact table mode",
-									"markdownDescription": "Force compact table mode"
+								"since": {
+									"type": "string",
+									"description": "Filter from date (YYYY-MM-DD or YYYYMMDD)",
+									"markdownDescription": "Filter from date (YYYY-MM-DD or YYYYMMDD)"
+								},
+								"until": {
+									"type": "string",
+									"description": "Filter until date (inclusive)",
+									"markdownDescription": "Filter until date (inclusive)"
+								},
+								"timezone": {
+									"type": "string",
+									"description": "Timezone for date grouping (IANA)",
+									"markdownDescription": "Timezone for date grouping (IANA)"
 								},
 								"offline": {
 									"type": "boolean",
-									"description": "Use cached pricing data",
-									"markdownDescription": "Use cached pricing data",
+									"description": "Use cached pricing data instead of fetching from LiteLLM",
+									"markdownDescription": "Use cached pricing data instead of fetching from LiteLLM",
 									"default": false
+								},
+								"compact": {
+									"type": "boolean",
+									"description": "Force compact table layout for narrow terminals",
+									"markdownDescription": "Force compact table layout for narrow terminals",
+									"default": false
+								},
+								"color": {
+									"type": "boolean",
+									"description": "Enable colored output (default: auto). FORCE_COLOR=1 has the same effect.",
+									"markdownDescription": "Enable colored output (default: auto). FORCE_COLOR=1 has the same effect."
+								},
+								"noColor": {
+									"type": "boolean",
+									"description": "Disable colored output (default: auto). NO_COLOR=1 has the same effect.",
+									"markdownDescription": "Disable colored output (default: auto). NO_COLOR=1 has the same effect."
 								}
 							},
 							"additionalProperties": false,
@@ -1618,18 +1780,45 @@
 										"json": {
 											"type": "boolean",
 											"description": "Output in JSON format",
-											"markdownDescription": "Output in JSON format"
+											"markdownDescription": "Output in JSON format",
+											"default": false
 										},
-										"compact": {
-											"type": "boolean",
-											"description": "Force compact table mode",
-											"markdownDescription": "Force compact table mode"
+										"since": {
+											"type": "string",
+											"description": "Filter from date (YYYY-MM-DD or YYYYMMDD)",
+											"markdownDescription": "Filter from date (YYYY-MM-DD or YYYYMMDD)"
+										},
+										"until": {
+											"type": "string",
+											"description": "Filter until date (inclusive)",
+											"markdownDescription": "Filter until date (inclusive)"
+										},
+										"timezone": {
+											"type": "string",
+											"description": "Timezone for date grouping (IANA)",
+											"markdownDescription": "Timezone for date grouping (IANA)"
 										},
 										"offline": {
 											"type": "boolean",
-											"description": "Use cached pricing data",
-											"markdownDescription": "Use cached pricing data",
+											"description": "Use cached pricing data instead of fetching from LiteLLM",
+											"markdownDescription": "Use cached pricing data instead of fetching from LiteLLM",
 											"default": false
+										},
+										"compact": {
+											"type": "boolean",
+											"description": "Force compact table layout for narrow terminals",
+											"markdownDescription": "Force compact table layout for narrow terminals",
+											"default": false
+										},
+										"color": {
+											"type": "boolean",
+											"description": "Enable colored output (default: auto). FORCE_COLOR=1 has the same effect.",
+											"markdownDescription": "Enable colored output (default: auto). FORCE_COLOR=1 has the same effect."
+										},
+										"noColor": {
+											"type": "boolean",
+											"description": "Disable colored output (default: auto). NO_COLOR=1 has the same effect.",
+											"markdownDescription": "Disable colored output (default: auto). NO_COLOR=1 has the same effect."
 										}
 									},
 									"additionalProperties": false
@@ -1640,18 +1829,45 @@
 										"json": {
 											"type": "boolean",
 											"description": "Output in JSON format",
-											"markdownDescription": "Output in JSON format"
+											"markdownDescription": "Output in JSON format",
+											"default": false
 										},
-										"compact": {
-											"type": "boolean",
-											"description": "Force compact table mode",
-											"markdownDescription": "Force compact table mode"
+										"since": {
+											"type": "string",
+											"description": "Filter from date (YYYY-MM-DD or YYYYMMDD)",
+											"markdownDescription": "Filter from date (YYYY-MM-DD or YYYYMMDD)"
+										},
+										"until": {
+											"type": "string",
+											"description": "Filter until date (inclusive)",
+											"markdownDescription": "Filter until date (inclusive)"
+										},
+										"timezone": {
+											"type": "string",
+											"description": "Timezone for date grouping (IANA)",
+											"markdownDescription": "Timezone for date grouping (IANA)"
 										},
 										"offline": {
 											"type": "boolean",
-											"description": "Use cached pricing data",
-											"markdownDescription": "Use cached pricing data",
+											"description": "Use cached pricing data instead of fetching from LiteLLM",
+											"markdownDescription": "Use cached pricing data instead of fetching from LiteLLM",
 											"default": false
+										},
+										"compact": {
+											"type": "boolean",
+											"description": "Force compact table layout for narrow terminals",
+											"markdownDescription": "Force compact table layout for narrow terminals",
+											"default": false
+										},
+										"color": {
+											"type": "boolean",
+											"description": "Enable colored output (default: auto). FORCE_COLOR=1 has the same effect.",
+											"markdownDescription": "Enable colored output (default: auto). FORCE_COLOR=1 has the same effect."
+										},
+										"noColor": {
+											"type": "boolean",
+											"description": "Disable colored output (default: auto). NO_COLOR=1 has the same effect.",
+											"markdownDescription": "Disable colored output (default: auto). NO_COLOR=1 has the same effect."
 										}
 									},
 									"additionalProperties": false
@@ -1662,18 +1878,45 @@
 										"json": {
 											"type": "boolean",
 											"description": "Output in JSON format",
-											"markdownDescription": "Output in JSON format"
+											"markdownDescription": "Output in JSON format",
+											"default": false
 										},
-										"compact": {
-											"type": "boolean",
-											"description": "Force compact table mode",
-											"markdownDescription": "Force compact table mode"
+										"since": {
+											"type": "string",
+											"description": "Filter from date (YYYY-MM-DD or YYYYMMDD)",
+											"markdownDescription": "Filter from date (YYYY-MM-DD or YYYYMMDD)"
+										},
+										"until": {
+											"type": "string",
+											"description": "Filter until date (inclusive)",
+											"markdownDescription": "Filter until date (inclusive)"
+										},
+										"timezone": {
+											"type": "string",
+											"description": "Timezone for date grouping (IANA)",
+											"markdownDescription": "Timezone for date grouping (IANA)"
 										},
 										"offline": {
 											"type": "boolean",
-											"description": "Use cached pricing data",
-											"markdownDescription": "Use cached pricing data",
+											"description": "Use cached pricing data instead of fetching from LiteLLM",
+											"markdownDescription": "Use cached pricing data instead of fetching from LiteLLM",
 											"default": false
+										},
+										"compact": {
+											"type": "boolean",
+											"description": "Force compact table layout for narrow terminals",
+											"markdownDescription": "Force compact table layout for narrow terminals",
+											"default": false
+										},
+										"color": {
+											"type": "boolean",
+											"description": "Enable colored output (default: auto). FORCE_COLOR=1 has the same effect.",
+											"markdownDescription": "Enable colored output (default: auto). FORCE_COLOR=1 has the same effect."
+										},
+										"noColor": {
+											"type": "boolean",
+											"description": "Disable colored output (default: auto). NO_COLOR=1 has the same effect.",
+											"markdownDescription": "Disable colored output (default: auto). NO_COLOR=1 has the same effect."
 										}
 									},
 									"additionalProperties": false
@@ -1696,41 +1939,51 @@
 							"properties": {
 								"json": {
 									"type": "boolean",
-									"description": "Output as JSON",
-									"markdownDescription": "Output as JSON",
+									"description": "Output in JSON format",
+									"markdownDescription": "Output in JSON format",
 									"default": false
 								},
 								"since": {
 									"type": "string",
-									"description": "Start date (YYYY-MM-DD or YYYYMMDD)",
-									"markdownDescription": "Start date (YYYY-MM-DD or YYYYMMDD)"
+									"description": "Filter from date (YYYY-MM-DD or YYYYMMDD)",
+									"markdownDescription": "Filter from date (YYYY-MM-DD or YYYYMMDD)"
 								},
 								"until": {
 									"type": "string",
-									"description": "End date (YYYY-MM-DD or YYYYMMDD)",
-									"markdownDescription": "End date (YYYY-MM-DD or YYYYMMDD)"
+									"description": "Filter until date (inclusive)",
+									"markdownDescription": "Filter until date (inclusive)"
 								},
 								"timezone": {
 									"type": "string",
-									"description": "Timezone for date display",
-									"markdownDescription": "Timezone for date display"
+									"description": "Timezone for date grouping (IANA)",
+									"markdownDescription": "Timezone for date grouping (IANA)"
+								},
+								"offline": {
+									"type": "boolean",
+									"description": "Use cached pricing data instead of fetching from LiteLLM",
+									"markdownDescription": "Use cached pricing data instead of fetching from LiteLLM",
+									"default": false
+								},
+								"compact": {
+									"type": "boolean",
+									"description": "Force compact table layout for narrow terminals",
+									"markdownDescription": "Force compact table layout for narrow terminals",
+									"default": false
+								},
+								"color": {
+									"type": "boolean",
+									"description": "Enable colored output (default: auto). FORCE_COLOR=1 has the same effect.",
+									"markdownDescription": "Enable colored output (default: auto). FORCE_COLOR=1 has the same effect."
+								},
+								"noColor": {
+									"type": "boolean",
+									"description": "Disable colored output (default: auto). NO_COLOR=1 has the same effect.",
+									"markdownDescription": "Disable colored output (default: auto). NO_COLOR=1 has the same effect."
 								},
 								"piPath": {
 									"type": "string",
 									"description": "Path to pi-agent sessions directory",
 									"markdownDescription": "Path to pi-agent sessions directory"
-								},
-								"order": {
-									"type": "string",
-									"description": "Sort order: asc or desc",
-									"markdownDescription": "Sort order: asc or desc",
-									"default": "desc"
-								},
-								"breakdown": {
-									"type": "boolean",
-									"description": "Show model breakdown for each entry",
-									"markdownDescription": "Show model breakdown for each entry",
-									"default": false
 								}
 							},
 							"additionalProperties": false,
@@ -1745,41 +1998,51 @@
 									"properties": {
 										"json": {
 											"type": "boolean",
-											"description": "Output as JSON",
-											"markdownDescription": "Output as JSON",
+											"description": "Output in JSON format",
+											"markdownDescription": "Output in JSON format",
 											"default": false
 										},
 										"since": {
 											"type": "string",
-											"description": "Start date (YYYY-MM-DD or YYYYMMDD)",
-											"markdownDescription": "Start date (YYYY-MM-DD or YYYYMMDD)"
+											"description": "Filter from date (YYYY-MM-DD or YYYYMMDD)",
+											"markdownDescription": "Filter from date (YYYY-MM-DD or YYYYMMDD)"
 										},
 										"until": {
 											"type": "string",
-											"description": "End date (YYYY-MM-DD or YYYYMMDD)",
-											"markdownDescription": "End date (YYYY-MM-DD or YYYYMMDD)"
+											"description": "Filter until date (inclusive)",
+											"markdownDescription": "Filter until date (inclusive)"
 										},
 										"timezone": {
 											"type": "string",
-											"description": "Timezone for date display",
-											"markdownDescription": "Timezone for date display"
+											"description": "Timezone for date grouping (IANA)",
+											"markdownDescription": "Timezone for date grouping (IANA)"
+										},
+										"offline": {
+											"type": "boolean",
+											"description": "Use cached pricing data instead of fetching from LiteLLM",
+											"markdownDescription": "Use cached pricing data instead of fetching from LiteLLM",
+											"default": false
+										},
+										"compact": {
+											"type": "boolean",
+											"description": "Force compact table layout for narrow terminals",
+											"markdownDescription": "Force compact table layout for narrow terminals",
+											"default": false
+										},
+										"color": {
+											"type": "boolean",
+											"description": "Enable colored output (default: auto). FORCE_COLOR=1 has the same effect.",
+											"markdownDescription": "Enable colored output (default: auto). FORCE_COLOR=1 has the same effect."
+										},
+										"noColor": {
+											"type": "boolean",
+											"description": "Disable colored output (default: auto). NO_COLOR=1 has the same effect.",
+											"markdownDescription": "Disable colored output (default: auto). NO_COLOR=1 has the same effect."
 										},
 										"piPath": {
 											"type": "string",
 											"description": "Path to pi-agent sessions directory",
 											"markdownDescription": "Path to pi-agent sessions directory"
-										},
-										"order": {
-											"type": "string",
-											"description": "Sort order: asc or desc",
-											"markdownDescription": "Sort order: asc or desc",
-											"default": "desc"
-										},
-										"breakdown": {
-											"type": "boolean",
-											"description": "Show model breakdown for each entry",
-											"markdownDescription": "Show model breakdown for each entry",
-											"default": false
 										}
 									},
 									"additionalProperties": false
@@ -1789,41 +2052,51 @@
 									"properties": {
 										"json": {
 											"type": "boolean",
-											"description": "Output as JSON",
-											"markdownDescription": "Output as JSON",
+											"description": "Output in JSON format",
+											"markdownDescription": "Output in JSON format",
 											"default": false
 										},
 										"since": {
 											"type": "string",
-											"description": "Start date (YYYY-MM-DD or YYYYMMDD)",
-											"markdownDescription": "Start date (YYYY-MM-DD or YYYYMMDD)"
+											"description": "Filter from date (YYYY-MM-DD or YYYYMMDD)",
+											"markdownDescription": "Filter from date (YYYY-MM-DD or YYYYMMDD)"
 										},
 										"until": {
 											"type": "string",
-											"description": "End date (YYYY-MM-DD or YYYYMMDD)",
-											"markdownDescription": "End date (YYYY-MM-DD or YYYYMMDD)"
+											"description": "Filter until date (inclusive)",
+											"markdownDescription": "Filter until date (inclusive)"
 										},
 										"timezone": {
 											"type": "string",
-											"description": "Timezone for date display",
-											"markdownDescription": "Timezone for date display"
+											"description": "Timezone for date grouping (IANA)",
+											"markdownDescription": "Timezone for date grouping (IANA)"
+										},
+										"offline": {
+											"type": "boolean",
+											"description": "Use cached pricing data instead of fetching from LiteLLM",
+											"markdownDescription": "Use cached pricing data instead of fetching from LiteLLM",
+											"default": false
+										},
+										"compact": {
+											"type": "boolean",
+											"description": "Force compact table layout for narrow terminals",
+											"markdownDescription": "Force compact table layout for narrow terminals",
+											"default": false
+										},
+										"color": {
+											"type": "boolean",
+											"description": "Enable colored output (default: auto). FORCE_COLOR=1 has the same effect.",
+											"markdownDescription": "Enable colored output (default: auto). FORCE_COLOR=1 has the same effect."
+										},
+										"noColor": {
+											"type": "boolean",
+											"description": "Disable colored output (default: auto). NO_COLOR=1 has the same effect.",
+											"markdownDescription": "Disable colored output (default: auto). NO_COLOR=1 has the same effect."
 										},
 										"piPath": {
 											"type": "string",
 											"description": "Path to pi-agent sessions directory",
 											"markdownDescription": "Path to pi-agent sessions directory"
-										},
-										"order": {
-											"type": "string",
-											"description": "Sort order: asc or desc",
-											"markdownDescription": "Sort order: asc or desc",
-											"default": "desc"
-										},
-										"breakdown": {
-											"type": "boolean",
-											"description": "Show model breakdown for each entry",
-											"markdownDescription": "Show model breakdown for each entry",
-											"default": false
 										}
 									},
 									"additionalProperties": false
@@ -1833,41 +2106,51 @@
 									"properties": {
 										"json": {
 											"type": "boolean",
-											"description": "Output as JSON",
-											"markdownDescription": "Output as JSON",
+											"description": "Output in JSON format",
+											"markdownDescription": "Output in JSON format",
 											"default": false
 										},
 										"since": {
 											"type": "string",
-											"description": "Start date (YYYY-MM-DD or YYYYMMDD)",
-											"markdownDescription": "Start date (YYYY-MM-DD or YYYYMMDD)"
+											"description": "Filter from date (YYYY-MM-DD or YYYYMMDD)",
+											"markdownDescription": "Filter from date (YYYY-MM-DD or YYYYMMDD)"
 										},
 										"until": {
 											"type": "string",
-											"description": "End date (YYYY-MM-DD or YYYYMMDD)",
-											"markdownDescription": "End date (YYYY-MM-DD or YYYYMMDD)"
+											"description": "Filter until date (inclusive)",
+											"markdownDescription": "Filter until date (inclusive)"
 										},
 										"timezone": {
 											"type": "string",
-											"description": "Timezone for date display",
-											"markdownDescription": "Timezone for date display"
+											"description": "Timezone for date grouping (IANA)",
+											"markdownDescription": "Timezone for date grouping (IANA)"
+										},
+										"offline": {
+											"type": "boolean",
+											"description": "Use cached pricing data instead of fetching from LiteLLM",
+											"markdownDescription": "Use cached pricing data instead of fetching from LiteLLM",
+											"default": false
+										},
+										"compact": {
+											"type": "boolean",
+											"description": "Force compact table layout for narrow terminals",
+											"markdownDescription": "Force compact table layout for narrow terminals",
+											"default": false
+										},
+										"color": {
+											"type": "boolean",
+											"description": "Enable colored output (default: auto). FORCE_COLOR=1 has the same effect.",
+											"markdownDescription": "Enable colored output (default: auto). FORCE_COLOR=1 has the same effect."
+										},
+										"noColor": {
+											"type": "boolean",
+											"description": "Disable colored output (default: auto). NO_COLOR=1 has the same effect.",
+											"markdownDescription": "Disable colored output (default: auto). NO_COLOR=1 has the same effect."
 										},
 										"piPath": {
 											"type": "string",
 											"description": "Path to pi-agent sessions directory",
 											"markdownDescription": "Path to pi-agent sessions directory"
-										},
-										"order": {
-											"type": "string",
-											"description": "Sort order: asc or desc",
-											"markdownDescription": "Sort order: asc or desc",
-											"default": "desc"
-										},
-										"breakdown": {
-											"type": "boolean",
-											"description": "Show model breakdown for each entry",
-											"markdownDescription": "Show model breakdown for each entry",
-											"default": false
 										}
 									},
 									"additionalProperties": false

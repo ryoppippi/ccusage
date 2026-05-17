@@ -8,13 +8,14 @@ import {
 	pushBreakdownRows,
 } from '@ccusage/terminal/table';
 import { define } from 'gunshi';
+import { loadSessionData } from '../adapter/claude/data-loader.ts';
 import { calculateTotals, createTotalsObject, getTotalTokens } from '../calculate-cost.ts';
 import { loadConfig, mergeConfigWithArgs } from '../config-loader-tokens.ts';
-import { loadSessionData } from '../data-loader.ts';
 import { formatDateCompact } from '../date-utils.ts';
 import { detectMismatches, printMismatchReport } from '../debug.ts';
 import { logger, writeStdoutLine } from '../logger.ts';
 import { sharedCommandConfig } from '../shared-args.ts';
+import { createUsageLoadProgress, shouldShowUsageLoadProgress } from './loading-progress.ts';
 import { handleSessionIdLookup } from './session_id.ts';
 
 // eslint-disable-next-line ts/no-unused-vars
@@ -39,6 +40,7 @@ export const sessionCommand = define({
 		const mergedOptions: typeof ctx.values = mergeConfigWithArgs(ctx, config, ctx.values.debug);
 
 		const useJson = mergedOptions.json;
+		const originalLoggerLevel = logger.level;
 		if (useJson) {
 			logger.level = 0;
 		}
@@ -59,14 +61,31 @@ export const sessionCommand = define({
 		}
 
 		// Original session listing logic
-		const sessionData = await loadSessionData({
-			since: ctx.values.since,
-			until: ctx.values.until,
-			mode: ctx.values.mode,
-			offline: ctx.values.offline,
-			singleThread: ctx.values.singleThread,
-			timezone: ctx.values.timezone,
-		});
+		const progress = createUsageLoadProgress(
+			shouldShowUsageLoadProgress(mergedOptions, process.stdout),
+		);
+		let sessionData: Awaited<ReturnType<typeof loadSessionData>>;
+		try {
+			if (progress != null) {
+				logger.level = 0;
+			}
+			progress?.start('claude');
+			sessionData = await loadSessionData({
+				since: mergedOptions.since,
+				until: mergedOptions.until,
+				mode: mergedOptions.mode,
+				offline: mergedOptions.offline,
+				singleThread: mergedOptions.singleThread,
+				timezone: mergedOptions.timezone,
+			});
+			progress?.succeed('claude', sessionData.length);
+		} catch (error) {
+			progress?.fail('claude', error);
+			throw error;
+		} finally {
+			progress?.stop();
+			logger.level = originalLoggerLevel;
+		}
 
 		if (sessionData.length === 0) {
 			if (useJson) {
@@ -81,9 +100,9 @@ export const sessionCommand = define({
 		const totals = calculateTotals(sessionData);
 
 		// Show debug information if requested
-		if (ctx.values.debug && !useJson) {
+		if (mergedOptions.debug && !useJson) {
 			const mismatchStats = await detectMismatches(undefined);
-			printMismatchReport(mismatchStats, ctx.values.debugSamples);
+			printMismatchReport(mismatchStats, mergedOptions.debugSamples);
 		}
 
 		if (useJson) {

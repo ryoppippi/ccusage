@@ -14,7 +14,12 @@ Use the `tdd` skill for logic changes and general test readability rules, includ
 - Do not import Vitest globals.
 - Do not use `await import()` or other dynamic imports anywhere, especially in tests.
 - Use `fs-fixture` with `createFixture()` for simulated agent data directories; read the `fs-fixture` skill for API details and README location.
+- Top-level `fs-fixture` imports in implementation files with in-source tests are allowed and preferred over dynamic imports.
 - Use `vi.stubEnv()` instead of mutating `process.env` directly.
+- Prefer testing parser, path resolution, loading, aggregation, pricing, and CLI output behavior over schema-shape tests. Valibot schema declarations usually do not need direct tests unless there is non-trivial normalization logic around them.
+- If schema validation is already exercised through parser or loader tests with realistic log files, do not add separate schema-only tests. Add schema-adjacent tests only when the behavior is not visible through the public loader contract, such as legacy field compatibility or important invalid-record filtering.
+- Path discovery helpers such as `getCodexSessionsPath()` or `getPiAgentPaths()` are real logic. Test explicit path arguments, environment variable paths with `vi.stubEnv()`, missing directories, and default-path fallback when feasible.
+- It is acceptable to add explicitly skipped local-data smoke tests such as `it.skipIf(!hasLocalData)(...)` for real user log directories. These must not fail on clean CI machines.
 
 Utility functions should include concise JSDoc describing their purpose and focused in-source tests for their behavior.
 

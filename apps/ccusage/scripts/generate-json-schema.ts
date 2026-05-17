@@ -11,6 +11,7 @@
  */
 
 import process from 'node:process';
+import { fileURLToPath } from 'node:url';
 import { Result } from '@praha/byethrow';
 import { $ } from 'bun';
 import { allArgs } from '../src/commands/all.ts';
@@ -307,8 +308,10 @@ async function readFile(path: string): Promise<Result.Result<string, any>> {
 }
 
 async function copySchemaToDocsPublic() {
-	const gitRoot = await $`git rev-parse --show-toplevel`.text().then((text) => text.trim());
-	await $`cp ${SCHEMA_FILENAME} ${gitRoot}/docs/public/${SCHEMA_FILENAME}`;
+	const docsSchemaPath = fileURLToPath(
+		new URL(`../../../docs/public/${SCHEMA_FILENAME}`, import.meta.url),
+	);
+	await writeFile(docsSchemaPath, await Bun.file(SCHEMA_FILENAME).text());
 }
 
 async function generateJsonSchema() {
@@ -330,7 +333,15 @@ async function generateJsonSchema() {
 	// Check if existing root schema is identical to avoid unnecessary writes
 	const existingRootSchema = await Result.pipe(
 		readFile(SCHEMA_FILENAME),
-		Result.map((content) => JSON.parse(content) as unknown),
+		Result.map((content) =>
+			Result.pipe(
+				Result.try({
+					try: () => JSON.parse(content) as unknown,
+					catch: () => '',
+				})(),
+				Result.unwrap(''),
+			),
+		),
 		Result.unwrap(''),
 	);
 

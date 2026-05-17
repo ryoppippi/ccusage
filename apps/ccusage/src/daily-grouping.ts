@@ -1,4 +1,4 @@
-import type { loadDailyUsageData } from './data-loader.ts';
+import type { loadDailyUsageData } from './adapter/claude/data-loader.ts';
 import type { DailyProjectOutput } from './json-output-types.ts';
 import { getTotalTokens } from './calculate-cost.ts';
 import { createDailyDate, createModelName } from './types.ts';

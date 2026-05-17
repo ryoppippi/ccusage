@@ -8,7 +8,7 @@
  * @module json-output-types
  */
 
-import type { ModelBreakdown } from './data-loader.ts';
+import type { ModelBreakdown } from './adapter/claude/data-loader.ts';
 import type { DailyDate, ModelName } from './types.ts';
 
 /**
