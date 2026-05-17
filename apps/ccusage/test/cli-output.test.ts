@@ -30,8 +30,11 @@ async function createCliEnv(fixturePath: string, tempDir: string): Promise<NodeJ
 	const opencodeDir = path.join(agentRoot, 'opencode');
 	const ampDir = path.join(agentRoot, 'amp');
 	const piDir = path.join(agentRoot, 'pi');
+	const qwenDir = path.join(agentRoot, 'qwen');
 	await Promise.all(
-		[codexHome, opencodeDir, ampDir, piDir].map(async (dir) => mkdir(dir, { recursive: true })),
+		[codexHome, opencodeDir, ampDir, piDir, qwenDir].map(async (dir) =>
+			mkdir(dir, { recursive: true }),
+		),
 	);
 
 	return {
@@ -44,6 +47,7 @@ async function createCliEnv(fixturePath: string, tempDir: string): Promise<NodeJ
 		OPENCODE_DATA_DIR: opencodeDir,
 		PATH: process.env.PATH,
 		PI_AGENT_DIR: piDir,
+		QWEN_DATA_DIR: qwenDir,
 		TZ: 'UTC',
 	};
 }
@@ -190,6 +194,26 @@ function createAgentFixtureTree() {
 				},
 			},
 		},
+		qwen: {
+			projects: {
+				project: {
+					chats: {
+						'chat-id.jsonl': JSON.stringify({
+							type: 'assistant',
+							model: 'qwen3-coder-plus',
+							timestamp: '2026-01-02T00:00:00.000Z',
+							sessionId: 'qwen-session',
+							usageMetadata: {
+								promptTokenCount: 100,
+								candidatesTokenCount: 50,
+								thoughtsTokenCount: 10,
+								cachedContentTokenCount: 5,
+							},
+						}),
+					},
+				},
+			},
+		},
 	};
 }
 
@@ -204,6 +228,7 @@ function createAgentCliEnv(fixturePath: string): NodeJS.ProcessEnv {
 		OPENCODE_DATA_DIR: path.join(fixturePath, 'opencode'),
 		PATH: process.env.PATH,
 		PI_AGENT_DIR: path.join(fixturePath, 'pi', 'sessions'),
+		QWEN_DATA_DIR: path.join(fixturePath, 'qwen'),
 		TZ: 'UTC',
 	};
 }
@@ -396,14 +421,21 @@ describe('ccusage all-agent CLI', () => {
 			expect.objectContaining({
 				agent: 'all',
 				cacheCreationTokens: 80,
-				cacheReadTokens: 50,
-				inputTokens: 500,
-				outputTokens: 250,
+				cacheReadTokens: 55,
+				inputTokens: 600,
+				outputTokens: 300,
 				period: '2026-01-02',
-				totalTokens: 870,
+				totalTokens: 1035,
 			}),
 		);
-		expect(output.daily[0]?.metadata?.agents).toEqual(['amp', 'claude', 'codex', 'opencode', 'pi']);
+		expect(output.daily[0]?.metadata?.agents).toEqual([
+			'amp',
+			'claude',
+			'codex',
+			'opencode',
+			'pi',
+			'qwen',
+		]);
 	});
 
 	it('passes agent namespace config to all-agent loaders', async () => {
@@ -439,14 +471,14 @@ describe('ccusage all-agent CLI', () => {
 			expect.objectContaining({
 				agent: 'all',
 				cacheCreationTokens: 80,
-				cacheReadTokens: 40,
-				inputTokens: 400,
-				outputTokens: 200,
+				cacheReadTokens: 45,
+				inputTokens: 500,
+				outputTokens: 250,
 				period: '2026-01-02',
-				totalTokens: 720,
+				totalTokens: 885,
 			}),
 		);
-		expect(output.daily[0]?.metadata?.agents).toEqual(['amp', 'claude', 'opencode', 'pi']);
+		expect(output.daily[0]?.metadata?.agents).toEqual(['amp', 'claude', 'opencode', 'pi', 'qwen']);
 	});
 
 	it('runs Codex daily JSON through the main ccusage namespace instead of the deprecated standalone wrapper', async () => {
@@ -507,6 +539,32 @@ describe('ccusage all-agent CLI', () => {
 		const stdout = getStdout(result).replace(/\n$/u, '');
 		await mkdir(snapshotRoot, { recursive: true });
 		await expect(stdout).toMatchFileSnapshot(path.join(snapshotRoot, 'pi-direct-daily-json.txt'));
+	});
+
+	it('runs Qwen daily JSON through the main ccusage namespace', async () => {
+		await using fixture = await createFixture(createAgentFixtureTree());
+
+		const result = runCcusage(
+			['qwen', '--offline', '--json', '--since', '20260102', '--until', '20260102'],
+			createAgentCliEnv(fixture.path),
+		);
+
+		expect(result.status).toBe(0);
+		expect(result.stderr).toBe('');
+		const stdout = getStdout(result).replace(/\n$/u, '');
+		await mkdir(snapshotRoot, { recursive: true });
+		await expect(stdout).toMatchFileSnapshot(path.join(snapshotRoot, 'qwen-direct-daily-json.txt'));
+
+		const output = JSON.parse(stdout) as {
+			daily: Array<{ inputTokens: number; outputTokens: number; totalTokens: number }>;
+		};
+		expect(output.daily).toEqual([
+			expect.objectContaining({
+				inputTokens: 100,
+				outputTokens: 50,
+				totalTokens: 165,
+			}),
+		]);
 	});
 
 	it('passes offline mode through OpenCode namespaces without fetching pricing from the network', async () => {
@@ -638,7 +696,8 @@ describe('ccusage all-agent CLI', () => {
 		await mkdir(snapshotRoot, { recursive: true });
 		await expect(output).toMatchFileSnapshot(path.join(snapshotRoot, 'all-agent-daily-table.txt'));
 		expect(output).toContain('Coding (Agent) CLI Usage Report - Daily');
-		expect(output).toContain('Detected: Amp, Claude, Codex, OpenCode, pi-agent');
+		expect(output).toContain('Detected: Amp, Claude, Codex, OpenCode, pi-agent, Qwen');
+		expect(output).toContain('Qwen');
 		expect(output.match(/2026-01-02/gu)).toHaveLength(1);
 		expect(output).toContain('Amp');
 		expect(output).toContain('Codex');

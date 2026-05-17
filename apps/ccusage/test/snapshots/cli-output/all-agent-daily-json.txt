@@ -7,13 +7,14 @@
         "[pi] claude-opus-4-20250514",
         "claude-haiku-4-5-20251001",
         "claude-sonnet-4-20250514",
-        "gpt-5"
+        "gpt-5",
+        "qwen3-coder-plus"
       ],
-      "inputTokens": 500,
-      "outputTokens": 250,
+      "inputTokens": 600,
+      "outputTokens": 300,
       "cacheCreationTokens": 80,
-      "cacheReadTokens": 50,
-      "totalTokens": 870,
+      "cacheReadTokens": 55,
+      "totalTokens": 1035,
       "totalCost": 0.25098975,
       "metadata": {
         "agents": [
@@ -21,17 +22,18 @@
           "claude",
           "codex",
           "opencode",
-          "pi"
+          "pi",
+          "qwen"
         ]
       }
     }
   ],
   "totals": {
-    "inputTokens": 500,
-    "outputTokens": 250,
+    "inputTokens": 600,
+    "outputTokens": 300,
     "cacheCreationTokens": 80,
-    "cacheReadTokens": 50,
-    "totalTokens": 870,
+    "cacheReadTokens": 55,
+    "totalTokens": 1035,
     "totalCost": 0.25098975
   }
 }

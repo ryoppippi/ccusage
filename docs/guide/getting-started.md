@@ -41,6 +41,7 @@ ccusage codex daily
 ccusage opencode weekly
 ccusage amp session
 ccusage pi monthly
+ccusage qwen daily
 ```
 
 ## Your First Report
@@ -156,6 +157,7 @@ If ccusage shows no data, check:
    - OpenCode: `${OPENCODE_DATA_DIR:-~/.local/share/opencode}`
    - Amp: `${AMP_DATA_DIR:-~/.local/share/amp}`
    - pi-agent: `${PI_AGENT_DIR:-~/.pi/agent/sessions}`
+   - Qwen: `${QWEN_DATA_DIR:-~/.qwen}`
 
 ### Custom Data Directory
 
@@ -167,6 +169,7 @@ export CODEX_HOME="/path/to/codex"
 export OPENCODE_DATA_DIR="/path/to/opencode"
 export AMP_DATA_DIR="/path/to/amp"
 export PI_AGENT_DIR="/path/to/pi/sessions"
+export QWEN_DATA_DIR="/path/to/qwen"
 ```
 
 Each source-specific path variable can also contain comma-separated directories:
@@ -176,6 +179,7 @@ export CODEX_HOME="/path/to/codex,/archive/codex"
 export OPENCODE_DATA_DIR="/path/to/opencode,/archive/opencode"
 export AMP_DATA_DIR="/path/to/amp,/archive/amp"
 export PI_AGENT_DIR="/path/to/pi/sessions,/archive/pi/sessions"
+export QWEN_DATA_DIR="/path/to/qwen,/archive/qwen"
 ```
 
 ## Getting Help
