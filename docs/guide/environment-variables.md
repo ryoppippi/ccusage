@@ -4,7 +4,7 @@ ccusage supports several environment variables for configuration and customizati
 
 ## Agent Data Directories
 
-ccusage detects supported data source files from conventional locations by default. Set these variables when your data lives somewhere else. Each value can be one directory or a comma-separated list of directories:
+ccusage detects supported data source files from conventional locations by default. Set these variables when your data lives somewhere else. Most path variables can be one directory or a comma-separated list of directories; `GOOSE_PATH_ROOT` accepts one Goose root directory.
 
 | Variable            | Agent       | Default                            |
 | ------------------- | ----------- | ---------------------------------- |
@@ -13,6 +13,7 @@ ccusage detects supported data source files from conventional locations by defau
 | `OPENCODE_DATA_DIR` | OpenCode    | `~/.local/share/opencode`          |
 | `AMP_DATA_DIR`      | Amp         | `~/.local/share/amp`               |
 | `PI_AGENT_DIR`      | pi-agent    | `~/.pi/agent/sessions`             |
+| `GOOSE_PATH_ROOT`   | Goose       | unset                              |
 
 Example:
 
@@ -21,14 +22,19 @@ export CODEX_HOME="/path/to/codex,/archive/codex"
 export OPENCODE_DATA_DIR="/path/to/opencode,/archive/opencode"
 export AMP_DATA_DIR="/path/to/amp,/archive/amp"
 export PI_AGENT_DIR="/path/to/pi/sessions,/archive/pi/sessions"
+export GOOSE_PATH_ROOT="/path/to/goose"
 ccusage daily
 ```
 
-Empty entries and directories that do not exist are skipped. Duplicate paths are read once.
+Empty entries and directories that do not exist are skipped for comma-separated variables. Duplicate paths are read once.
 
 ## CLAUDE_CONFIG_DIR
 
 Specifies where ccusage should look for Claude Code data. See [Claude Code](/guide/claude/) for default paths, multiple-directory behavior, and Claude-specific examples.
+
+## GOOSE_PATH_ROOT
+
+Specifies a Goose root directory. When set, ccusage reads `$GOOSE_PATH_ROOT/data/sessions/sessions.db`. Without it, ccusage checks the standard Goose data locations documented in [Goose](/guide/goose/).
 
 ## LOG_LEVEL
 

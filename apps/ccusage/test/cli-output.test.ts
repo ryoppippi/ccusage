@@ -1,9 +1,12 @@
 import { spawnSync } from 'node:child_process';
+import { mkdirSync } from 'node:fs';
 import { mkdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { withSqliteDatabase } from '@ccusage/internal/sqlite';
 import { createFixture } from 'fs-fixture';
+import { logger } from '../src/logger.ts';
 
 const appRoot = fileURLToPath(new URL('../', import.meta.url));
 const fixtureTemplatePath = fileURLToPath(new URL('./fixtures/claude', import.meta.url));
@@ -29,9 +32,12 @@ async function createCliEnv(fixturePath: string, tempDir: string): Promise<NodeJ
 	const codexHome = path.join(agentRoot, 'codex');
 	const opencodeDir = path.join(agentRoot, 'opencode');
 	const ampDir = path.join(agentRoot, 'amp');
+	const gooseRoot = path.join(agentRoot, 'goose');
 	const piDir = path.join(agentRoot, 'pi');
 	await Promise.all(
-		[codexHome, opencodeDir, ampDir, piDir].map(async (dir) => mkdir(dir, { recursive: true })),
+		[codexHome, opencodeDir, ampDir, gooseRoot, piDir].map(async (dir) =>
+			mkdir(dir, { recursive: true }),
+		),
 	);
 
 	return {
@@ -39,6 +45,7 @@ async function createCliEnv(fixturePath: string, tempDir: string): Promise<NodeJ
 		CLAUDE_CONFIG_DIR: fixturePath,
 		CODEX_HOME: codexHome,
 		COLUMNS: '200',
+		GOOSE_PATH_ROOT: gooseRoot,
 		LOG_LEVEL: '3',
 		NO_COLOR: '1',
 		OPENCODE_DATA_DIR: opencodeDir,
@@ -199,6 +206,7 @@ function createAgentCliEnv(fixturePath: string): NodeJS.ProcessEnv {
 		CLAUDE_CONFIG_DIR: path.join(fixturePath, 'claude'),
 		CODEX_HOME: path.join(fixturePath, 'codex'),
 		COLUMNS: '200',
+		GOOSE_PATH_ROOT: path.join(fixturePath, 'goose'),
 		LOG_LEVEL: '3',
 		NO_COLOR: '1',
 		OPENCODE_DATA_DIR: path.join(fixturePath, 'opencode'),
@@ -206,6 +214,51 @@ function createAgentCliEnv(fixturePath: string): NodeJS.ProcessEnv {
 		PI_AGENT_DIR: path.join(fixturePath, 'pi', 'sessions'),
 		TZ: 'UTC',
 	};
+}
+
+function createGooseSessionDb(fixturePath: string): void {
+	const dbPath = path.join(fixturePath, 'goose/data/sessions/sessions.db');
+	mkdirSync(path.dirname(dbPath), { recursive: true });
+	withSqliteDatabase(
+		dbPath,
+		{},
+		(db) => {
+			db.exec(`
+CREATE TABLE sessions (
+	id TEXT PRIMARY KEY,
+	model_config_json TEXT,
+	provider_name TEXT,
+	created_at TEXT,
+	total_tokens INTEGER,
+	input_tokens INTEGER,
+	output_tokens INTEGER,
+	accumulated_total_tokens INTEGER,
+	accumulated_input_tokens INTEGER,
+	accumulated_output_tokens INTEGER
+)
+`);
+			db.prepare(
+				`INSERT INTO sessions (
+	id,
+	model_config_json,
+	provider_name,
+	created_at,
+	accumulated_total_tokens,
+	accumulated_input_tokens,
+	accumulated_output_tokens
+) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+			).run(
+				'goose-session',
+				'{"model_name":"claude-sonnet-4-20250514"}',
+				'anthropic',
+				'2026-01-02T00:00:00Z',
+				160,
+				100,
+				50,
+			);
+		},
+		logger.warn,
+	);
 }
 
 function runCcusage(args: string[], env: NodeJS.ProcessEnv): ReturnType<typeof spawnSync> {
@@ -377,6 +430,7 @@ describe('ccusage output snapshots', () => {
 describe('ccusage all-agent CLI', () => {
 	it('loads all configured agents from the main ccusage command', async () => {
 		await using fixture = await createFixture(createAgentFixtureTree());
+		createGooseSessionDb(fixture.path);
 
 		const result = runCcusage(
 			['daily', '--offline', '--json', '--since', '20260102', '--until', '20260102'],
@@ -397,13 +451,20 @@ describe('ccusage all-agent CLI', () => {
 				agent: 'all',
 				cacheCreationTokens: 80,
 				cacheReadTokens: 50,
-				inputTokens: 500,
-				outputTokens: 250,
+				inputTokens: 600,
+				outputTokens: 300,
 				period: '2026-01-02',
-				totalTokens: 870,
+				totalTokens: 1030,
 			}),
 		);
-		expect(output.daily[0]?.metadata?.agents).toEqual(['amp', 'claude', 'codex', 'opencode', 'pi']);
+		expect(output.daily[0]?.metadata?.agents).toEqual([
+			'amp',
+			'claude',
+			'codex',
+			'goose',
+			'opencode',
+			'pi',
+		]);
 	});
 
 	it('passes agent namespace config to all-agent loaders', async () => {
@@ -522,6 +583,23 @@ describe('ccusage all-agent CLI', () => {
 		);
 	});
 
+	it('runs Goose daily JSON through the main ccusage namespace', async () => {
+		await using fixture = await createFixture(createAgentFixtureTree());
+		createGooseSessionDb(fixture.path);
+
+		const result = runCcusage(
+			['goose', '--offline', '--json', '--since', '20260102', '--until', '20260102'],
+			createAgentCliEnv(fixture.path),
+		);
+
+		expect(result.status).toBe(0);
+		expect(result.stderr).toBe('');
+		await mkdir(snapshotRoot, { recursive: true });
+		await expect(getStdout(result).replace(/\n$/u, '')).toMatchFileSnapshot(
+			path.join(snapshotRoot, 'goose-direct-daily-json.txt'),
+		);
+	});
+
 	it('loads agent namespace config for direct agent commands', async () => {
 		const fixtureTree = createAgentFixtureTree();
 		await using fixture = await createFixture({
@@ -623,6 +701,7 @@ describe('ccusage all-agent CLI', () => {
 
 	it('renders same-day all-agent table rows as one grouped period', async () => {
 		await using fixture = await createFixture(createAgentFixtureTree());
+		createGooseSessionDb(fixture.path);
 
 		const result = runCcusage(
 			['daily', '--offline', '--since', '20260102', '--until', '20260102'],
@@ -638,10 +717,11 @@ describe('ccusage all-agent CLI', () => {
 		await mkdir(snapshotRoot, { recursive: true });
 		await expect(output).toMatchFileSnapshot(path.join(snapshotRoot, 'all-agent-daily-table.txt'));
 		expect(output).toContain('Coding (Agent) CLI Usage Report - Daily');
-		expect(output).toContain('Detected: Amp, Claude, Codex, OpenCode, pi-agent');
+		expect(output).toContain('Detected: Amp, Claude, Codex, Goose, OpenCode, pi-agent');
 		expect(output.match(/2026-01-02/gu)).toHaveLength(1);
 		expect(output).toContain('Amp');
 		expect(output).toContain('Codex');
+		expect(output).toContain('Goose');
 		expect(output).toContain('OpenCode');
 		expect(output).toContain('pi-agent');
 		expect(output).toContain('$');

@@ -156,6 +156,7 @@ If ccusage shows no data, check:
    - OpenCode: `${OPENCODE_DATA_DIR:-~/.local/share/opencode}`
    - Amp: `${AMP_DATA_DIR:-~/.local/share/amp}`
    - pi-agent: `${PI_AGENT_DIR:-~/.pi/agent/sessions}`
+   - Goose: `~/.local/share/goose/sessions/sessions.db`
 
 ### Custom Data Directory
 
@@ -167,9 +168,10 @@ export CODEX_HOME="/path/to/codex"
 export OPENCODE_DATA_DIR="/path/to/opencode"
 export AMP_DATA_DIR="/path/to/amp"
 export PI_AGENT_DIR="/path/to/pi/sessions"
+export GOOSE_PATH_ROOT="/path/to/goose"
 ```
 
-Each source-specific path variable can also contain comma-separated directories:
+Most source-specific path variables can also contain comma-separated directories:
 
 ```bash
 export CODEX_HOME="/path/to/codex,/archive/codex"

@@ -106,6 +106,21 @@ const piSessionCommand = createAgentCommand(
 	'session',
 	'Show pi-agent usage grouped by session',
 );
+const gooseDailyCommand = createAgentCommand(
+	'goose',
+	'daily',
+	'Show Goose token usage grouped by day',
+);
+const gooseMonthlyCommand = createAgentCommand(
+	'goose',
+	'monthly',
+	'Show Goose token usage grouped by month',
+);
+const gooseSessionCommand = createAgentCommand(
+	'goose',
+	'session',
+	'Show Goose token usage grouped by session',
+);
 
 /**
  * Command entries as tuple array
@@ -136,6 +151,9 @@ export const subCommandUnion = [
 	['pi:daily', withCcusageConfig(piDailyCommand, 'pi daily')],
 	['pi:monthly', withCcusageConfig(piMonthlyCommand, 'pi monthly')],
 	['pi:session', withCcusageConfig(piSessionCommand, 'pi session')],
+	['goose:daily', withCcusageConfig(gooseDailyCommand, 'goose daily')],
+	['goose:monthly', withCcusageConfig(gooseMonthlyCommand, 'goose monthly')],
+	['goose:session', withCcusageConfig(gooseSessionCommand, 'goose session')],
 ] as const;
 
 /**
@@ -156,7 +174,7 @@ for (const [name, command] of subCommandUnion) {
  */
 const mainCommand = allDailyCommand;
 
-const agentCommands = new Set(['claude', 'codex', 'opencode', 'amp', 'pi']);
+const agentCommands = new Set(['claude', 'codex', 'opencode', 'amp', 'pi', 'goose']);
 const agentReports = new Set(['daily', 'weekly', 'monthly', 'session', 'blocks', 'statusline']);
 const agentReportCapabilities = new Map<string, Set<string>>([
 	['claude', new Set(['daily', 'weekly', 'monthly', 'session', 'blocks', 'statusline'])],
@@ -164,6 +182,7 @@ const agentReportCapabilities = new Map<string, Set<string>>([
 	['opencode', new Set(['daily', 'weekly', 'monthly', 'session'])],
 	['amp', new Set(['daily', 'monthly', 'session'])],
 	['pi', new Set(['daily', 'monthly', 'session'])],
+	['goose', new Set(['daily', 'monthly', 'session'])],
 ]);
 const agentDisplayNames = new Map([
 	['claude', 'Claude Code'],
@@ -171,6 +190,7 @@ const agentDisplayNames = new Map([
 	['opencode', 'OpenCode'],
 	['amp', 'Amp'],
 	['pi', 'pi-agent'],
+	['goose', 'Goose'],
 ]);
 const reportFlagAliases = new Set([
 	'--daily',
