@@ -407,10 +407,9 @@ async function runAgentReport(
 
 	logger.box(`${agentLabels[agent]} Token Usage Report - ${getReportLabel(kind)}`);
 	const totals = calculateAgentTotals(agent, rows);
-	const table =
-		agent === 'amp'
-			? renderAmpTable(kind, rows, totals, options)
-			: renderStandardTable(kind, rows, totals, options);
+	const table = agentSupportsCredits(agent)
+		? renderAmpTable(kind, rows, totals, options)
+		: renderStandardTable(kind, rows, totals, options);
 	await writeStdoutLine(table.toString());
 	if (table.isCompactMode()) {
 		await writeStdoutLine();

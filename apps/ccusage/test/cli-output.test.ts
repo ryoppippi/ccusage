@@ -579,6 +579,25 @@ describe('ccusage all-agent CLI', () => {
 		);
 	});
 
+	it('keeps Codebuff credits in direct tables when all columns fit', async () => {
+		await using fixture = await createFixture(createAgentFixtureTree());
+
+		const result = runCcusage(['codebuff', '--offline'], {
+			...createAgentCliEnv(fixture.path),
+			COLUMNS: '150',
+		});
+
+		expect(result.status).toBe(0);
+		expect(result.stderr).toBe('');
+		const output = getStdout(result).replace(/\n$/u, '');
+		await mkdir(snapshotRoot, { recursive: true });
+		await expect(output).toMatchFileSnapshot(
+			path.join(snapshotRoot, 'codebuff-direct-full-table.txt'),
+		);
+		expect(output).toContain('Credits');
+		expect(output).toContain('1.25');
+	});
+
 	it('loads agent namespace config for direct agent commands', async () => {
 		const fixtureTree = createAgentFixtureTree();
 		await using fixture = await createFixture({
