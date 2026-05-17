@@ -55,6 +55,10 @@ type TokenDefinition = {
 	default?: unknown;
 };
 type TokenSchema = Record<string, TokenDefinition>;
+type SchemaCommand = {
+	args?: unknown;
+	subCommands?: Record<string, unknown> | Map<string, unknown>;
+};
 
 /**
  * Convert args-tokens schema to JSON Schema format
@@ -114,6 +118,15 @@ function splitCommandName(name: string): { agent?: AgentName; report: string } {
 		return { agent: prefix as AgentName, report };
 	}
 	return { report: name };
+}
+
+function getSubCommandEntries(command: SchemaCommand): Array<[string, SchemaCommand]> {
+	const subCommands = command.subCommands;
+	if (subCommands == null) {
+		return [];
+	}
+	const entries = subCommands instanceof Map ? subCommands.entries() : Object.entries(subCommands);
+	return Array.from(entries, ([name, subCommand]) => [name, subCommand as SchemaCommand]);
 }
 
 function filterCommandSchema(report: string, schema: TokenSchema): TokenSchema {
@@ -192,6 +205,16 @@ function createConfigSchemaJson(): JsonSchemaNode {
 	>;
 
 	for (const [commandName, command] of subCommandUnion) {
+		if (AGENT_NAMES.includes(commandName as AgentName)) {
+			for (const [report, subCommand] of getSubCommandEntries(command)) {
+				agentCommandSchemas[commandName as AgentName][report] = filterCommandSchema(
+					report,
+					(subCommand.args ?? {}) as TokenSchema,
+				);
+			}
+			continue;
+		}
+
 		const { agent, report } = splitCommandName(commandName);
 		const commandSchema = filterCommandSchema(report, command.args as TokenSchema);
 		if (agent == null) {

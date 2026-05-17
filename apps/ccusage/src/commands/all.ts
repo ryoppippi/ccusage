@@ -1,4 +1,4 @@
-import type { Args, Command } from 'gunshi';
+import type { Args } from 'gunshi';
 import type {
 	AdapterContext,
 	AdapterOptions,
@@ -308,7 +308,7 @@ async function runAllReport(kind: ReportKind, options: AllOptions): Promise<void
 	}
 }
 
-function createAllCommand(kind: ReportKind, description: string): Command<typeof allArgs> {
+function createAllCommand(kind: ReportKind, description: string) {
 	return define({
 		name: kind,
 		description,

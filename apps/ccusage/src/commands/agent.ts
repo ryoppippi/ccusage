@@ -1,4 +1,4 @@
-import type { Args, Command } from 'gunshi';
+import type { Args } from 'gunshi';
 import type {
 	AdapterContext,
 	AdapterOptions,
@@ -414,7 +414,7 @@ function createCommonAgentCommand(
 	agent: Exclude<AgentId, 'pi'>,
 	kind: AgentCommandKind,
 	description: string,
-): Command<typeof commonAgentArgs> {
+) {
 	return define({
 		name: kind,
 		description,
@@ -426,10 +426,7 @@ function createCommonAgentCommand(
 	});
 }
 
-function createPiAgentCommand(
-	kind: AgentCommandKind,
-	description: string,
-): Command<typeof piAgentArgs> {
+function createPiAgentCommand(kind: AgentCommandKind, description: string) {
 	return define({
 		name: kind,
 		description,
@@ -441,21 +438,7 @@ function createPiAgentCommand(
 	});
 }
 
-export function createAgentCommand(
-	agent: 'pi',
-	kind: AgentCommandKind,
-	description: string,
-): Command<typeof piAgentArgs>;
-export function createAgentCommand(
-	agent: Exclude<AgentId, 'pi'>,
-	kind: AgentCommandKind,
-	description: string,
-): Command<typeof commonAgentArgs>;
-export function createAgentCommand(
-	agent: AgentId,
-	kind: AgentCommandKind,
-	description: string,
-): Command<typeof commonAgentArgs> | Command<typeof piAgentArgs> {
+export function createAgentCommand(agent: AgentId, kind: AgentCommandKind, description: string) {
 	return agent === 'pi'
 		? createPiAgentCommand(kind, description)
 		: createCommonAgentCommand(agent, kind, description);

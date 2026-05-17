@@ -52,8 +52,8 @@ catalogs:
       version: 0.3.12
   llm-docs:
     '@gunshi/docs':
-      specifier: ^0.27.5
-      version: 0.27.6
+      specifier: ^0.31.0
+      version: 0.31.0
     '@praha/byethrow-docs':
       specifier: ^0.11.2
       version: 0.11.2
@@ -90,8 +90,8 @@ catalogs:
       specifier: ^9.0.0
       version: 9.0.0
     gunshi:
-      specifier: ^0.26.3
-      version: 0.26.3
+      specifier: ^0.31.0
+      version: 0.31.0
     picospinner:
       specifier: ^3.0.0
       version: 3.0.0
@@ -138,7 +138,7 @@ importers:
     devDependencies:
       '@gunshi/docs':
         specifier: catalog:llm-docs
-        version: 0.27.6
+        version: 0.31.0
       '@praha/byethrow-docs':
         specifier: catalog:llm-docs
         version: 0.11.2(@praha/byethrow@0.11.2(typescript@5.9.2))
@@ -216,7 +216,7 @@ importers:
         version: 9.0.0
       gunshi:
         specifier: catalog:runtime
-        version: 0.26.3
+        version: 0.31.0
       mitata:
         specifier: catalog:testing
         version: 1.0.34
@@ -908,8 +908,11 @@ packages:
     resolution: {integrity: sha512-vBZP4NlzfOlerQTnba4aqZoMhE/a9HY7HRqoOPaETQcSQuWEIyZMHGfVu6w9wGtGK5fED5qRs2DteVCjOH60sA==}
     engines: {node: '>=14'}
 
-  '@gunshi/docs@0.27.6':
-    resolution: {integrity: sha512-eyUmbLoSFNZbqXM8DNjUrE9NO9A+kuk78z/wSwuPEBDC2BveyO41dl6NwT5Z2b3NgSPiP4i5inG88Uw3HnUI4Q==}
+  '@gar/promisify@1.1.3':
+    resolution: {integrity: sha512-k2Ty1JcVojjJFwrg/ThKi2ujJ7XNLYaFGNB/bWT9wGR+oSMJHMa5w+CUq6p/pVrKeNNgA7pCqEcjSnHVoqJQFw==}
+
+  '@gunshi/docs@0.31.0':
+    resolution: {integrity: sha512-XFRjB/wgcpTnBVfJ6FYme/ZW2tM7kHsU1T3zxvOy6rJjW2B1urN+wdjQF6P7d8B1+Ad8x76PA3zB9osKAoG5Ew==}
     hasBin: true
 
   '@humanfs/core@0.19.1':
@@ -2221,10 +2224,6 @@ packages:
   args-tokenizer@0.3.0:
     resolution: {integrity: sha512-xXAd7G2Mll5W8uo37GETpQ2VrE84M181Z7ugHFGQnJZ50M2mbOv0osSZ9VsSgPfJQ+LVG0prSi0th+ELMsno7Q==}
 
-  args-tokens@0.20.1:
-    resolution: {integrity: sha512-pQ5R5TsJyx94zsgSCCQ9kzOgUfMmI4bkqNjgSSt2C92mzPCvovoUMMW6HqR+35mHZ0cb1++MD2uAOLm62sGC+Q==}
-    engines: {node: '>= 20'}
-
   arkregex@0.0.5:
     resolution: {integrity: sha512-ncYjBdLlh5/QnVsAA8De16Tc9EqmYM7y/WU9j+236KcyYNUXogpz3sC4ATIZYzzLxwI+0sEOaQLEmLmRleaEXw==}
 
@@ -3147,9 +3146,9 @@ packages:
     resolution: {integrity: sha512-5v6yZd4JK3eMI3FqqCouswVqwugaA9r4dNZB1wwcmrD02QkV5H0y7XBQW8QwQqEaZY1pM9aqORSORhJRdNK44Q==}
     engines: {node: '>=6.0'}
 
-  gunshi@0.26.3:
-    resolution: {integrity: sha512-x/CaxovzDA3KMkrjqow7M1dnsO1CxGMNabBaeGTGdVNtjOMN1G/eK7vjKeJ+zHdFIsWHmo47YQ2DQIESUut2+A==}
-    engines: {node: '>= 20'}
+  gunshi@0.31.0:
+    resolution: {integrity: sha512-D7Amp1BlSzI5cbXiL16TPQ6mp6p3Hzboc1pyc2gYu3j1rXQyG5aYfE4bZW0J3MzU7pKdTJlFytxWlCwif3CxvA==}
+    engines: {node: '>= 22'}
 
   has-flag@4.0.0:
     resolution: {integrity: sha512-EykJT/Q1KjTWctppgIAgfSO0tKVuZUjhgMr17kqTumMl6Afv3EISleU7qZUzoXDFTAHTDC4NOoG/ZxU3EvlMPQ==}
@@ -5323,10 +5322,13 @@ snapshots:
 
   '@fastify/busboy@2.1.1': {}
 
-  '@gunshi/docs@0.27.6':
+  '@gar/promisify@1.1.3':
+    optional: true
+
+  '@gunshi/docs@0.31.0':
     dependencies:
       '@antfu/install-pkg': 1.1.0
-      tinyexec: 1.0.2
+      tinyexec: 1.1.2
 
   '@humanfs/core@0.19.1': {}
 
@@ -6369,8 +6371,6 @@ snapshots:
 
   args-tokenizer@0.3.0: {}
 
-  args-tokens@0.20.1: {}
-
   arkregex@0.0.5:
     dependencies:
       '@ark/util': 0.56.0
@@ -7286,9 +7286,7 @@ snapshots:
       section-matter: 1.0.0
       strip-bom-string: 1.0.0
 
-  gunshi@0.26.3:
-    dependencies:
-      args-tokens: 0.20.1
+  gunshi@0.31.0: {}
 
   has-flag@4.0.0: {}
 

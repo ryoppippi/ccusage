@@ -1,4 +1,4 @@
-import type { Args, Command } from 'gunshi';
+import type { Args } from 'gunshi';
 import type { AdapterOptions, ReportKind } from '../adapter/types.ts';
 import process from 'node:process';
 import {
@@ -256,10 +256,7 @@ async function runCodexReport(kind: CodexCommandKind, options: AdapterOptions): 
 	}
 }
 
-function createCodexCommand(
-	kind: CodexCommandKind,
-	description: string,
-): Command<typeof codexArgs> {
+function createCodexCommand(kind: CodexCommandKind, description: string) {
 	return define({
 		name: kind,
 		description,
