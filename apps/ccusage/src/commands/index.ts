@@ -251,7 +251,7 @@ const reportFlagAliases = new Set([
 ]);
 const agentFilterOptions = new Set(['--agent', '-a']);
 
-// Keep accepting the pre-nested internal command names that were directly invokable.
+// Keep accepting the pre-nested internal command names that were directly invocable.
 export function normalizeLegacyAgentCommandArgs(args: string[]): string[] {
 	const [command, ...rest] = args;
 	const [agent, report, extra] = command?.split(':') ?? [];
