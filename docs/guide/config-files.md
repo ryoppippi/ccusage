@@ -136,8 +136,8 @@ The `defaults` section sets shared default values for unified reports and legacy
 {
 	"$schema": "https://ccusage.com/config-schema.json",
 	"defaults": {
-		"since": "20250101",
-		"until": "20250630",
+		"since": "20260101",
+		"until": "20260531",
 		"json": false,
 		"mode": "auto",
 		"debug": false,
@@ -236,8 +236,8 @@ For a namespaced command, options are applied in this order:
 			"instances": true,
 			"project": "my-project",
 			"breakdown": true,
-			"since": "20250101",
-			"until": "20250630"
+			"since": "20260101",
+			"until": "20260531"
 		}
 	}
 }

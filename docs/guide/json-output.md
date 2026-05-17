@@ -32,14 +32,14 @@ Standard daily reports aggregate usage across all projects:
 {
 	"daily": [
 		{
-			"date": "2025-05-30",
+			"date": "2026-05-16",
 			"inputTokens": 277,
 			"outputTokens": 31456,
 			"cacheCreationTokens": 512,
 			"cacheReadTokens": 1024,
 			"totalTokens": 33269,
 			"totalCost": 17.58,
-			"modelsUsed": ["claude-opus-4-20250514", "claude-sonnet-4-20250514"],
+			"modelsUsed": ["claude-opus-4-1-20250805", "claude-sonnet-4-5-20250929"],
 			"modelBreakdowns": [...]
 		}
 	],
@@ -65,27 +65,27 @@ When using `--instances`, daily reports group usage by project:
 	"projects": {
 		"my-frontend-app": [
 			{
-				"date": "2025-05-30",
+				"date": "2026-05-16",
 				"inputTokens": 177,
 				"outputTokens": 16456,
 				"cacheCreationTokens": 256,
 				"cacheReadTokens": 512,
 				"totalTokens": 17401,
 				"totalCost": 7.33,
-				"modelsUsed": ["claude-sonnet-4-20250514"],
+				"modelsUsed": ["claude-sonnet-4-5-20250929"],
 				"modelBreakdowns": [...]
 			}
 		],
 		"backend-api": [
 			{
-				"date": "2025-05-30",
+				"date": "2026-05-16",
 				"inputTokens": 100,
 				"outputTokens": 15000,
 				"cacheCreationTokens": 256,
 				"cacheReadTokens": 512,
 				"totalTokens": 15868,
 				"totalCost": 10.25,
-				"modelsUsed": ["claude-opus-4-20250514"],
+				"modelsUsed": ["claude-opus-4-1-20250805"],
 				"modelBreakdowns": [...]
 			}
 		]
@@ -121,8 +121,8 @@ ccusage daily --project my-frontend-app --json
 	"type": "monthly",
 	"data": [
 		{
-			"month": "2025-05",
-			"models": ["claude-opus-4-20250514", "claude-sonnet-4-20250514"],
+			"month": "2026-04",
+			"models": ["claude-opus-4-1-20250805", "claude-sonnet-4-5-20250929"],
 			"inputTokens": 11174,
 			"outputTokens": 720366,
 			"cacheCreationTokens": 896,
@@ -150,14 +150,14 @@ ccusage daily --project my-frontend-app --json
 	"data": [
 		{
 			"session": "session-1",
-			"models": ["claude-opus-4-20250514", "claude-sonnet-4-20250514"],
+			"models": ["claude-opus-4-1-20250805", "claude-sonnet-4-5-20250929"],
 			"inputTokens": 4512,
 			"outputTokens": 350846,
 			"cacheCreationTokens": 512,
 			"cacheReadTokens": 1024,
 			"totalTokens": 356894,
 			"costUSD": 156.4,
-			"lastActivity": "2025-05-24"
+			"lastActivity": "2026-05-15"
 		}
 	],
 	"summary": {
@@ -178,11 +178,11 @@ ccusage daily --project my-frontend-app --json
 	"type": "blocks",
 	"data": [
 		{
-			"blockStart": "2025-05-30T10:00:00.000Z",
-			"blockEnd": "2025-05-30T15:00:00.000Z",
+			"blockStart": "2026-05-16T10:00:00.000Z",
+			"blockEnd": "2026-05-16T15:00:00.000Z",
 			"isActive": true,
 			"timeRemaining": "2h 15m",
-			"models": ["claude-sonnet-4-20250514"],
+			"models": ["claude-sonnet-4-5-20250929"],
 			"inputTokens": 1250,
 			"outputTokens": 15000,
 			"cacheCreationTokens": 256,
@@ -248,7 +248,7 @@ All filtering options work with JSON output:
 
 ```bash
 # Filter by date range
-ccusage daily --json --since 20250525 --until 20250530
+ccusage daily --json --since 20260510 --until 20260516
 
 # Different cost calculation modes
 ccusage monthly --json --mode calculate
@@ -275,14 +275,14 @@ When using `--breakdown`, the JSON includes per-model details:
 	"type": "daily",
 	"data": [
 		{
-			"date": "2025-05-30",
-			"models": ["claude-opus-4-20250514", "claude-sonnet-4-20250514"],
+			"date": "2026-05-16",
+			"models": ["claude-opus-4-1-20250805", "claude-sonnet-4-5-20250929"],
 			"inputTokens": 277,
 			"outputTokens": 31456,
 			"totalTokens": 33269,
 			"costUSD": 17.58,
 			"breakdown": {
-				"claude-opus-4-20250514": {
+				"claude-opus-4-1-20250805": {
 					"inputTokens": 100,
 					"outputTokens": 15000,
 					"cacheCreationTokens": 256,
@@ -290,7 +290,7 @@ When using `--breakdown`, the JSON includes per-model details:
 					"totalTokens": 15868,
 					"costUSD": 10.25
 				},
-				"claude-sonnet-4-20250514": {
+				"claude-sonnet-4-5-20250929": {
 					"inputTokens": 177,
 					"outputTokens": 16456,
 					"cacheCreationTokens": 256,
@@ -330,7 +330,7 @@ ccusage daily --instances --json | jq -r '.projects | to_entries[] | [.key, (.va
 ccusage daily --instances --json | jq -r '.projects | to_entries | map({project: .key, total: (.value | map(.totalCost) | add)}) | sort_by(.total) | reverse | .[0].project'
 
 # Get usage by project for specific date
-ccusage daily --instances --json | jq '.projects | to_entries[] | select(.value[].date == "2025-05-30") | {project: .key, usage: .value[0]}'
+ccusage daily --instances --json | jq '.projects | to_entries[] | select(.value[].date == "2026-05-16") | {project: .key, usage: .value[0]}'
 ```
 
 ### Using with Python

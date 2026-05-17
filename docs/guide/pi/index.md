@@ -45,7 +45,7 @@ ccusage pi daily --json
 ccusage pi daily --pi-path /path/to/sessions
 
 # Filter by date range
-ccusage pi daily --since 2025-12-01 --until 2025-12-19
+ccusage pi daily --since 2026-05-01 --until 2026-05-16
 
 # Show model breakdown
 ccusage pi daily --breakdown
@@ -88,7 +88,7 @@ npx ccusage@latest pi daily
 ┌────────────┬────────────┬─────────────┬───────────┬───────────┬────────┬─────────┐
 │ Date       │ Input      │ Output      │ Cache Cr. │ Cache Rd. │ Cost   │ Models  │
 ├────────────┼────────────┼─────────────┼───────────┼───────────┼────────┼─────────┤
-│ 2025-01-09 │ 567,890    │ 123,456     │ 5,678     │ 45,678    │ $0.89  │ opus-4  │
+│ 2026-05-16 │ 567,890    │ 123,456     │ 5,678     │ 45,678    │ $0.89  │ opus-4-1  │
 ├────────────┼────────────┼─────────────┼───────────┼───────────┼────────┼─────────┤
 │ Total      │ 567,890    │ 123,456     │ 5,678     │ 45,678    │ $0.89  │         │
 └────────────┴────────────┴─────────────┴───────────┴───────────┴────────┴─────────┘
@@ -110,14 +110,14 @@ Returns structured data:
 {
   "daily": [
     {
-      "date": "2025-01-09",
+      "date": "2026-05-16",
       "source": "pi-agent",
       "inputTokens": 567890,
       "outputTokens": 123456,
       "cacheCreationTokens": 5678,
       "cacheReadTokens": 45678,
       "totalCost": 0.89,
-      "modelsUsed": ["claude-opus-4-5-20251101"],
+      "modelsUsed": ["claude-opus-4-1-20250805"],
       "modelBreakdowns": [...]
     }
   ],
@@ -137,10 +137,10 @@ Filter to a specific date range:
 
 ```bash
 # Last week
-ccusage pi daily --since 2025-01-02 --until 2025-01-09
+ccusage pi daily --since 2026-05-09 --until 2026-05-16
 
 # Single day
-ccusage pi daily --since 2025-01-09 --until 2025-01-09
+ccusage pi daily --since 2026-05-16 --until 2026-05-16
 ```
 
 ## Monthly View
@@ -173,7 +173,7 @@ npx ccusage@latest pi monthly
 ┌─────────┬────────────┬─────────────┬───────────┬───────────┬─────────┬─────────┐
 │ Month   │ Input      │ Output      │ Cache Cr. │ Cache Rd. │ Cost    │ Models  │
 ├─────────┼────────────┼─────────────┼───────────┼───────────┼─────────┼─────────┤
-│ 2025-01 │ 12,345,678 │ 2,345,678   │ 123,456   │ 987,654   │ $12.34  │ opus-4  │
+│ 2026-05 │ 12,345,678 │ 2,345,678   │ 123,456   │ 987,654   │ $12.34  │ opus-4-1  │
 ├─────────┼────────────┼─────────────┼───────────┼───────────┼─────────┼─────────┤
 │ Total   │ 12,345,678 │ 2,345,678   │ 123,456   │ 987,654   │ $12.34  │         │
 └─────────┴────────────┴─────────────┴───────────┴───────────┴─────────┴─────────┘
@@ -195,14 +195,14 @@ Returns structured data:
 {
   "monthly": [
     {
-      "month": "2025-01",
+      "month": "2026-05",
       "source": "pi-agent",
       "inputTokens": 12345678,
       "outputTokens": 2345678,
       "cacheCreationTokens": 123456,
       "cacheReadTokens": 987654,
       "totalCost": 12.34,
-      "modelsUsed": ["claude-opus-4-5-20251101"],
+      "modelsUsed": ["claude-opus-4-1-20250805"],
       "modelBreakdowns": [...]
     }
   ],
@@ -222,10 +222,10 @@ You can filter the data to specific months:
 
 ```bash
 # Current year only
-ccusage pi monthly --since 2025-01-01
+ccusage pi monthly --since 2026-05-01
 
 # Specific quarter
-ccusage pi monthly --since 2024-10-01 --until 2024-12-31
+ccusage pi monthly --since 2026-01-01 --until 2026-03-31
 ```
 
 ## Session View
@@ -260,8 +260,8 @@ Sessions are sorted by last activity:
 ┌──────────────────────────────┬────────────┬───────────┬───────────┬───────────┬────────┬─────────┐
 │ Session                      │ Input      │ Output    │ Cache Cr. │ Cache Rd. │ Cost   │ Models  │
 ├──────────────────────────────┼────────────┼───────────┼───────────┼───────────┼────────┼─────────┤
-│ my-project                   │ 123,456    │ 23,456    │ 1,234     │ 9,876     │ $0.12  │ opus-4  │
-│ another-repo                 │ 345,678    │ 67,890    │ 3,456     │ 29,876    │ $0.34  │ sonnet-4│
+│ my-project                   │ 123,456    │ 23,456    │ 1,234     │ 9,876     │ $0.12  │ opus-4-1  │
+│ another-repo                 │ 345,678    │ 67,890    │ 3,456     │ 29,876    │ $0.34  │ sonnet-4-5│
 ├──────────────────────────────┼────────────┼───────────┼───────────┼───────────┼────────┼─────────┤
 │ Total                        │ 469,134    │ 91,346    │ 4,690     │ 39,752    │ $0.46  │         │
 └──────────────────────────────┴────────────┴───────────┴───────────┴───────────┴────────┴─────────┘
@@ -297,8 +297,8 @@ Returns structured data including full paths:
       "cacheCreationTokens": 1234,
       "cacheReadTokens": 9876,
       "totalCost": 0.12,
-      "lastActivity": "2025-01-09",
-      "modelsUsed": ["claude-opus-4-5-20251101"],
+      "lastActivity": "2026-05-16",
+      "modelsUsed": ["claude-opus-4-1-20250805"],
       "modelBreakdowns": [...]
     }
   ],
@@ -318,10 +318,10 @@ Filter sessions by their last activity date:
 
 ```bash
 # Sessions active today
-ccusage pi session --since 2025-01-09 --until 2025-01-09
+ccusage pi session --since 2026-05-16 --until 2026-05-16
 
 # Sessions from the past week
-ccusage pi session --since 2025-01-02
+ccusage pi session --since 2026-05-09
 ```
 
 ## Related

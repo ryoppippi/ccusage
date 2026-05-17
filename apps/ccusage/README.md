@@ -96,7 +96,7 @@ bunx ccusage pi daily --pi-path /path/to/sessions
 bunx ccusage daily --all
 
 # Filters and options
-bunx ccusage daily --since 2025-05-25 --until 2025-05-30
+bunx ccusage daily --since 2026-04-25 --until 2026-05-16
 bunx ccusage daily --json  # JSON output
 bunx ccusage daily --timezone UTC  # Use UTC timezone
 

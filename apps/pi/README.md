@@ -61,7 +61,7 @@ bunx ccusage@latest pi daily --json
 bunx ccusage@latest pi daily --pi-path /path/to/sessions
 
 # Filter by date range
-bunx ccusage@latest pi daily --since 2025-12-01 --until 2025-12-19
+bunx ccusage@latest pi daily --since 2026-05-01 --until 2026-05-16
 ```
 
 Useful environment variables:

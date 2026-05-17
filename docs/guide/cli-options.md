@@ -12,13 +12,13 @@ Filter usage data by date range:
 
 ```bash
 # Filter by date range
-ccusage daily --since 20250101 --until 20250630
+ccusage daily --since 20260101 --until 20260531
 
 # Show data from a specific date
-ccusage monthly --since 20250101
+ccusage monthly --since 20260101
 
 # Show data up to a specific date
-ccusage session --until 20250630
+ccusage session --until 20260531
 ```
 
 ### Output Format
@@ -238,7 +238,7 @@ Options are applied in this order (highest to lowest priority):
 ccusage daily --instances --breakdown
 
 # Check specific project costs
-ccusage daily --project myapp --since 20250101
+ccusage daily --project myapp --since 20260101
 
 # Export for reporting
 ccusage monthly --json > monthly-report.json

@@ -70,7 +70,7 @@ export PI_AGENT_DIR="$HOME/.pi/agent/sessions"
 3. **Use command-line options** for one-off changes:
 
 ```bash
-ccusage daily --since 20250101 --json
+ccusage daily --since 20260101 --json
 ```
 
 ## Common Configuration Scenarios
@@ -180,7 +180,7 @@ Customize date/time handling:
 - **Date Range**: Filter with `--since` and `--until`
 
 ```bash
-ccusage daily --timezone UTC --since 20250101
+ccusage daily --timezone UTC --since 20260101
 ```
 
 ### Output Format

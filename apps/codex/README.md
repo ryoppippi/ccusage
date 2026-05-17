@@ -55,7 +55,7 @@ ccusage-codex monthly --json
 bunx ccusage@latest codex daily
 
 # Date range filtering
-bunx ccusage@latest codex daily --since 20250911 --until 20250917
+bunx ccusage@latest codex daily --since 20260510 --until 20260516
 
 # JSON output for scripting
 bunx ccusage@latest codex daily --json
@@ -81,7 +81,7 @@ Useful environment variables:
 
 Speed pricing defaults to `--speed auto`, which reads `${CODEX_HOME:-~/.codex}/config.toml` and applies fast pricing when `service_tier = "priority"` or legacy `service_tier = "fast"` is configured. Fast mode uses the model-specific LiteLLM multiplier when available and otherwise falls back to 2x pricing. Use `--speed fast` or `--speed standard` when the session logs do not reflect the speed tier you want to price.
 
-ℹ️ The CLI now relies on the model metadata recorded in each `turn_context`. Sessions emitted during early September 2025 that lack this metadata are skipped to avoid mispricing. Newer builds of the Codex CLI restore the model field, and aliases such as `gpt-5-codex` automatically resolve to the correct LiteLLM pricing entry.
+ℹ️ The CLI now relies on the model metadata recorded in each `turn_context`. Sessions emitted during early September 2025 that lack this metadata are skipped to avoid mispricing. Newer builds of the Codex CLI restore the model field, and aliases such as `gpt-5.5` resolve through the LiteLLM pricing data when available.
 📦 For legacy JSONL files that never emitted `turn_context` metadata, the CLI falls back to treating the tokens as `gpt-5` so that usage still appears in reports (pricing is therefore approximate for those sessions). In JSON output you will also see `"isFallback": true` on those model entries.
 
 ## Features

@@ -53,8 +53,8 @@ When you run ccusage for the first time, you'll see a table showing detected cod
 ┌────────────┬────────┬────────────────┬────────┬────────┬────────────┐
 │ Date       │ Agent  │ Models         │ Input  │ Output │ Cost (USD) │
 ├────────────┼────────┼────────────────┼────────┼────────┼────────────┤
-│ 2026-01-02 │ Claude │ • sonnet-4     │  1,234 │ 15,678 │     $12.34 │
-│ 2026-01-02 │ Codex  │ • gpt-5-codex  │    890 │ 12,345 │     $18.92 │
+│ 2026-05-16 │ Claude │ • sonnet-4-5   │  1,234 │ 15,678 │     $12.34 │
+│ 2026-05-16 │ Codex  │ • gpt-5.5      │    890 │ 12,345 │     $18.92 │
 └────────────┴────────┴────────────────┴────────┴────────┴────────────┘
 ```
 
@@ -92,7 +92,7 @@ Now that you have your first unified view, explore these features:
 ### Monitor Daily Usage
 
 ```bash
-ccusage daily --since 2024-12-01 --until 2024-12-31
+ccusage daily --since 2026-05-01 --until 2026-05-16
 ```
 
 ### Focus on One Source
