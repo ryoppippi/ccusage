@@ -1,8 +1,9 @@
 import type { IndexedWorkerData, IndexedWorkerResultsMessage } from '@ccusage/internal/workers';
 import type { OpenClawUsageEntry } from './schema.ts';
+import path from 'node:path';
 import process from 'node:process';
 import { isMainThread, parentPort, workerData } from 'node:worker_threads';
-import { collectFilesRecursive, hasFileRecursive } from '@ccusage/internal/fs';
+import { collectFilesRecursive } from '@ccusage/internal/fs';
 import { processJSONLFileByMarkers } from '@ccusage/internal/jsonl';
 import {
 	collectIndexedFileWorkerResults,
@@ -45,7 +46,7 @@ async function collectOpenClawFiles(roots: string[]): Promise<string[]> {
 	for (const root of roots) {
 		const files = await collectFilesRecursive(root);
 		for (const file of files) {
-			const name = file.slice(file.lastIndexOf('/') + 1);
+			const name = path.basename(file);
 			if (isOpenClawSessionFile(name)) {
 				allFiles.push(file);
 			}
@@ -56,8 +57,8 @@ async function collectOpenClawFiles(roots: string[]): Promise<string[]> {
 
 export async function hasOpenClawSessionFiles(roots: string[]): Promise<boolean> {
 	for (const root of roots) {
-		const hasJsonl = await hasFileRecursive(root, { extension: '.jsonl' });
-		if (hasJsonl) {
+		const files = await collectFilesRecursive(root);
+		if (files.some((file) => isOpenClawSessionFile(path.basename(file)))) {
 			return true;
 		}
 	}
@@ -232,6 +233,20 @@ if (!isMainThread && isOpenClawWorkerData(workerData)) {
 
 if (import.meta.vitest != null) {
 	describe('loadOpenClawUsageEntries', () => {
+		it('detects archived session files as OpenClaw sessions', async () => {
+			await using fixture = await createFixture({
+				agents: {
+					main: {
+						sessions: {
+							'a.jsonl.deleted.1700000000000': '',
+						},
+					},
+				},
+			});
+
+			await expect(hasOpenClawSessionFiles([fixture.path])).resolves.toBe(true);
+		});
+
 		it('loads assistant usage and uses model_change events for the model', async () => {
 			await using fixture = await createFixture({
 				agents: {
