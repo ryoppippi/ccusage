@@ -5,8 +5,10 @@ import { delimiter, dirname, join } from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 import { CCUSAGE_BUN_AUTO_RUN_DISABLED_VALUE, CCUSAGE_BUN_AUTO_RUN_ENV } from './env.ts';
+import { isSupportedNodeVersion } from './node-version.ts';
+import { getSupportedNodeRuntime } from './runtime-macro.ts' with { type: 'macro' };
 
-const MIN_NODE_MAJOR_VERSION = 22;
+const SUPPORTED_NODE_RUNTIME = getSupportedNodeRuntime();
 
 type CliRuntime =
 	| {
@@ -73,19 +75,12 @@ function isBun(): boolean {
 	return (globalThis as { Bun?: unknown }).Bun != null;
 }
 
-function getNodeMajorVersion(version = process.version): number | undefined {
-	const [majorVersion] = version.replace(/^v/, '').split('.');
-	const major = Number(majorVersion);
-	return Number.isInteger(major) ? major : undefined;
-}
-
 function getUnsupportedNodeRuntimeMessage(nodeVersion = process.version): string | undefined {
-	const nodeMajorVersion = getNodeMajorVersion(nodeVersion);
-	if (nodeMajorVersion == null || nodeMajorVersion >= MIN_NODE_MAJOR_VERSION) {
+	if (isSupportedNodeVersion(nodeVersion, SUPPORTED_NODE_RUNTIME.minimum)) {
 		return undefined;
 	}
 
-	return `ccusage requires Bun or Node.js >=${MIN_NODE_MAJOR_VERSION}.0.0. Current Node.js: ${nodeVersion}\n`;
+	return `ccusage requires Bun or Node.js ${SUPPORTED_NODE_RUNTIME.range}. Current Node.js: ${nodeVersion}\n`;
 }
 
 async function runBunMain(): Promise<void> {
@@ -178,7 +173,7 @@ if (import.meta.vitest != null) {
 					argv: ['daily'],
 					distDir: '/app/dist',
 					findBunPath: () => '/usr/local/bin/bun',
-					nodeVersion: 'v22.13.1',
+					nodeVersion: 'v22.10.0',
 					processExecPath: '/usr/bin/node',
 				}),
 			).toEqual({
@@ -187,17 +182,47 @@ if (import.meta.vitest != null) {
 			});
 		});
 
-		it('rejects Node.js 20 when Bun is unavailable', () => {
+		it('uses Node.js 23 when Bun is unavailable', () => {
 			expect(
 				resolveCliRuntime({
 					argv: ['daily'],
 					distDir: '/app/dist',
 					findBunPath: () => undefined,
-					nodeVersion: 'v20.19.0',
+					nodeVersion: 'v23.11.1',
 					processExecPath: '/usr/bin/node',
 				}),
 			).toEqual({
-				errorMessage: 'ccusage requires Bun or Node.js >=22.0.0. Current Node.js: v20.19.0\n',
+				args: ['/app/dist/main.node.js', 'daily'],
+				command: '/usr/bin/node',
+			});
+		});
+
+		it('uses the minimum supported Node.js version when Bun is unavailable', () => {
+			expect(
+				resolveCliRuntime({
+					argv: ['daily'],
+					distDir: '/app/dist',
+					findBunPath: () => undefined,
+					nodeVersion: 'v22.11.0',
+					processExecPath: '/usr/bin/node',
+				}),
+			).toEqual({
+				args: ['/app/dist/main.node.js', 'daily'],
+				command: '/usr/bin/node',
+			});
+		});
+
+		it('rejects Node.js below the supported range when Bun is unavailable', () => {
+			expect(
+				resolveCliRuntime({
+					argv: ['daily'],
+					distDir: '/app/dist',
+					findBunPath: () => undefined,
+					nodeVersion: 'v22.10.0',
+					processExecPath: '/usr/bin/node',
+				}),
+			).toEqual({
+				errorMessage: 'ccusage requires Bun or Node.js >=22.11.0. Current Node.js: v22.10.0\n',
 			});
 		});
 	});
