@@ -1,7 +1,7 @@
 {
 	"name": "@ccusage/internal",
 	"type": "module",
-	"version": "18.0.11",
+	"version": "19.0.3",
 	"private": true,
 	"description": "Shared internal utilities for ccusage toolchain",
 	"exports": {
@@ -9,6 +9,14 @@
 		"./pricing-fetch-utils": "./src/pricing-fetch-utils.ts",
 		"./logger": "./src/logger.ts",
 		"./format": "./src/format.ts",
+		"./array": "./src/array.ts",
+		"./colors": "./src/colors.ts",
+		"./fs": "./src/fs.ts",
+		"./jsonl": "./src/jsonl.ts",
+		"./sqlite": "./src/sqlite.ts",
+		"./workers": "./src/workers.ts",
+		"./json-file-state": "./src/json-file-state.ts",
+		"./sort": "./src/sort.ts",
 		"./constants": "./src/constants.ts"
 	},
 	"scripts": {
@@ -19,7 +27,6 @@
 	},
 	"dependencies": {
 		"@praha/byethrow": "catalog:runtime",
-		"consola": "catalog:runtime",
 		"valibot": "catalog:runtime"
 	},
 	"devDependencies": {

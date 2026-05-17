@@ -1,29 +1,29 @@
-import type { Formatter } from 'picocolors/types';
-import { mkdirSync } from 'node:fs';
+import type { Formatter } from '@ccusage/internal/colors';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import process from 'node:process';
+import * as pc from '@ccusage/internal/colors';
+import { createJsonFileState } from '@ccusage/internal/json-file-state';
 import { formatCurrency } from '@ccusage/terminal/table';
 import { Result } from '@praha/byethrow';
-import { createLimoJson } from '@ryoppippi/limo';
+import { regex } from 'arkregex';
 import getStdin from 'get-stdin';
 import { define } from 'gunshi';
-import pc from 'picocolors';
 import * as v from 'valibot';
-import { loadConfig, mergeConfigWithArgs } from '../_config-loader-tokens.ts';
-import { DEFAULT_CONTEXT_USAGE_THRESHOLDS, DEFAULT_REFRESH_INTERVAL_SECONDS } from '../_consts.ts';
-import { calculateBurnRate } from '../_session-blocks.ts';
-import { sharedArgs } from '../_shared-args.ts';
-import { statuslineHookJsonSchema } from '../_types.ts';
-import { getFileModifiedTime, unreachable } from '../_utils.ts';
-import { calculateTotals } from '../calculate-cost.ts';
 import {
 	calculateContextTokens,
 	loadDailyUsageData,
 	loadSessionBlockData,
 	loadSessionUsageById,
-} from '../data-loader.ts';
+} from '../adapter/claude/data-loader.ts';
+import { calculateTotals } from '../calculate-cost.ts';
+import { loadConfig, mergeConfigWithArgs } from '../config-loader-tokens.ts';
+import { DEFAULT_CONTEXT_USAGE_THRESHOLDS, DEFAULT_REFRESH_INTERVAL_SECONDS } from '../consts.ts';
 import { log, logger } from '../logger.ts';
+import { calculateBurnRate } from '../session-blocks.ts';
+import { sharedArgs } from '../shared-args.ts';
+import { statuslineHookJsonSchema } from '../types.ts';
+import { getFileModifiedTime, unreachable } from '../utils.ts';
 
 /**
  * Formats the remaining time for display
@@ -44,17 +44,13 @@ function formatRemainingTime(remaining: number): string {
  * Gets semaphore file for session-specific caching and process coordination
  * Uses time-based expiry and transcript file modification detection for cache invalidation
  */
-function getSemaphore(
-	sessionId: string,
-): ReturnType<typeof createLimoJson<SemaphoreType | undefined>> {
-	const semaphoreDir = join(tmpdir(), 'ccusage-semaphore');
-	const semaphorePath = join(semaphoreDir, `${sessionId}.lock`);
-
-	// Ensure semaphore directory exists
-	mkdirSync(semaphoreDir, { recursive: true });
-
-	const semaphore = createLimoJson<SemaphoreType>(semaphorePath);
-	return semaphore;
+function getSemaphore(sessionId: string): {
+	data: SemaphoreType | undefined;
+	[Symbol.dispose]: () => void;
+} {
+	return createJsonFileState<SemaphoreType>(
+		join(tmpdir(), 'ccusage-semaphore', `${sessionId}.lock`),
+	);
 }
 
 /**
@@ -80,6 +76,8 @@ type SemaphoreType = {
 
 const visualBurnRateChoices = ['off', 'emoji', 'text', 'emoji-text'] as const;
 const costSourceChoices = ['auto', 'ccusage', 'cc', 'both'] as const;
+const integerStringRegex = regex('^-?\\d+$', 'u');
+const hyphenRegex = regex('-', 'g');
 
 // Valibot schema for context threshold validation
 const contextThresholdSchema = v.pipe(
@@ -88,7 +86,7 @@ const contextThresholdSchema = v.pipe(
 		v.pipe(
 			v.string(),
 			v.trim(),
-			v.check((value) => /^-?\d+$/u.test(value), 'Context threshold must be an integer'),
+			v.check((value) => integerStringRegex.test(value), 'Context threshold must be an integer'),
 			v.transform((value) => Number.parseInt(value, 10)),
 		),
 	]),
@@ -98,8 +96,35 @@ const contextThresholdSchema = v.pipe(
 	v.maxValue(100, 'Context threshold must be at most 100'),
 );
 
-function parseContextThreshold(value: string): number {
+function parseContextThreshold(value: unknown): number {
 	return v.parse(contextThresholdSchema, value);
+}
+
+function formatContextInfo(
+	inputTokens: number,
+	contextLimit: number,
+	lowThreshold: number,
+	mediumThreshold: number,
+): string {
+	const percentage = Math.round((inputTokens / contextLimit) * 100);
+	const color = getContextColorFormatter(percentage, lowThreshold, mediumThreshold);
+	const coloredPercentage = color(`${percentage}%`);
+	const tokenDisplay = inputTokens.toLocaleString();
+	return `${tokenDisplay} (${coloredPercentage})`;
+}
+
+function getContextColorFormatter(
+	percentage: number,
+	lowThreshold: number,
+	mediumThreshold: number,
+): Formatter {
+	if (percentage < lowThreshold) {
+		return pc.green;
+	}
+	if (percentage < mediumThreshold) {
+		return pc.yellow;
+	}
+	return pc.red;
 }
 
 export const statuslineCommand = define({
@@ -143,15 +168,13 @@ export const statuslineCommand = define({
 			default: DEFAULT_REFRESH_INTERVAL_SECONDS,
 		},
 		contextLowThreshold: {
-			type: 'custom',
+			type: 'number',
 			description: 'Context usage percentage below which status is shown in green (0-100)',
-			parse: (value) => parseContextThreshold(value),
 			default: DEFAULT_CONTEXT_USAGE_THRESHOLDS.LOW,
 		},
 		contextMediumThreshold: {
-			type: 'custom',
+			type: 'number',
 			description: 'Context usage percentage below which status is shown in yellow (0-100)',
-			parse: (value) => parseContextThreshold(value),
 			default: DEFAULT_CONTEXT_USAGE_THRESHOLDS.MEDIUM,
 		},
 		config: sharedArgs.config,
@@ -161,10 +184,13 @@ export const statuslineCommand = define({
 		// Set logger to silent for statusline output
 		logger.level = 0;
 
+		const contextLowThreshold = parseContextThreshold(ctx.values.contextLowThreshold);
+		const contextMediumThreshold = parseContextThreshold(ctx.values.contextMediumThreshold);
+
 		// Validate threshold ordering constraint: LOW must be less than MEDIUM
-		if (ctx.values.contextLowThreshold >= ctx.values.contextMediumThreshold) {
+		if (contextLowThreshold >= contextMediumThreshold) {
 			throw new Error(
-				`Context low threshold (${ctx.values.contextLowThreshold}) must be less than medium threshold (${ctx.values.contextMediumThreshold})`,
+				`Context low threshold (${contextLowThreshold}) must be less than medium threshold (${contextMediumThreshold})`,
 			);
 		}
 
@@ -231,13 +257,14 @@ export const statuslineCommand = define({
 				const pid = initialSemaphoreState.pid;
 				let isProcessAlive = false;
 				if (pid != null) {
-					try {
-						process.kill(pid, 0); // Signal 0 doesn't kill, just checks if process exists
-						isProcessAlive = true;
-					} catch {
-						// Process doesn't exist, likely dead
-						isProcessAlive = false;
-					}
+					isProcessAlive = Result.pipe(
+						Result.try({
+							try: () => process.kill(pid, 0),
+							catch: (error) => error,
+						}),
+						Result.map(() => true),
+						Result.unwrap(false),
+					);
 				}
 
 				if (isProcessAlive) {
@@ -294,7 +321,7 @@ export const statuslineCommand = define({
 											offline: mergedOptions.offline,
 										}),
 									catch: (error) => error,
-								})(),
+								}),
 								Result.map((sessionCost) => sessionCost?.totalCost),
 								Result.inspectError((error) => logger.error('Failed to load session data:', error)),
 								Result.unwrap(undefined),
@@ -334,7 +361,9 @@ export const statuslineCommand = define({
 
 					// Load today's usage data
 					const today = new Date();
-					const todayStr = today.toISOString().split('T')[0]?.replace(/-/g, '') ?? ''; // Convert to YYYYMMDD format
+					const todayStr = today.toISOString().split('T')[0]?.replace(hyphenRegex, '') ?? ''; // Convert to YYYYMMDD format
+					const midnightToday = new Date();
+					midnightToday.setHours(0, 0, 0, 0);
 
 					const todayCost = await Result.pipe(
 						Result.try({
@@ -344,9 +373,10 @@ export const statuslineCommand = define({
 									until: todayStr,
 									mode: 'auto',
 									offline: mergedOptions.offline,
+									minUpdateTime: midnightToday,
 								}),
 							catch: (error) => error,
-						})(),
+						}),
 						Result.map((dailyData) => {
 							if (dailyData.length > 0) {
 								const totals = calculateTotals(dailyData);
@@ -359,15 +389,17 @@ export const statuslineCommand = define({
 					);
 
 					// Load session block data to find active block
+					const lastBlocksTime = new Date(Date.now() - 24 * 60 * 60 * 1000);
 					const { blockInfo, burnRateInfo } = await Result.pipe(
 						Result.try({
 							try: async () =>
 								loadSessionBlockData({
 									mode: 'auto',
 									offline: mergedOptions.offline,
+									minUpdateTime: lastBlocksTime,
 								}),
 							catch: (error) => error,
-						})(),
+						}),
 						Result.map((blocks) => {
 							// Only identify blocks if we have data
 							if (blocks.length === 0) {
@@ -456,20 +488,6 @@ export const statuslineCommand = define({
 						Result.unwrap({ blockInfo: 'No active block', burnRateInfo: '' }),
 					);
 
-					// Helper function to format context info with color coding
-					const formatContextInfo = (inputTokens: number, contextLimit: number): string => {
-						const percentage = Math.round((inputTokens / contextLimit) * 100);
-						const color =
-							percentage < ctx.values.contextLowThreshold
-								? pc.green
-								: percentage < ctx.values.contextMediumThreshold
-									? pc.yellow
-									: pc.red;
-						const coloredPercentage = color(`${percentage}%`);
-						const tokenDisplay = inputTokens.toLocaleString();
-						return `${tokenDisplay} (${coloredPercentage})`;
-					};
-
 					// Get context tokens from Claude Code hook data, or fall back to calculating from transcript
 					const contextDataResult =
 						hookData.context_window != null
@@ -487,7 +505,7 @@ export const statuslineCommand = define({
 											mergedOptions.offline,
 										),
 									catch: (error) => error,
-								})();
+								});
 
 					const contextInfo = Result.pipe(
 						contextDataResult,
@@ -500,7 +518,12 @@ export const statuslineCommand = define({
 							if (contextResult == null) {
 								return undefined;
 							}
-							return formatContextInfo(contextResult.inputTokens, contextResult.contextLimit);
+							return formatContextInfo(
+								contextResult.inputTokens,
+								contextResult.contextLimit,
+								contextLowThreshold,
+								contextMediumThreshold,
+							);
 						}),
 						Result.unwrap(undefined),
 					);
@@ -524,7 +547,7 @@ export const statuslineCommand = define({
 					return statusLine;
 				},
 				catch: (error) => error,
-			})(),
+			}),
 		);
 
 		if (Result.isSuccess(mainProcessingResult)) {
@@ -574,3 +597,13 @@ export const statuslineCommand = define({
 		}
 	},
 });
+
+if (import.meta.vitest != null) {
+	describe('getContextColorFormatter', () => {
+		it('uses the parsed threshold values supplied by the caller', () => {
+			expect(getContextColorFormatter(50, 60, 80)).toBe(pc.green);
+			expect(getContextColorFormatter(50, 40, 80)).toBe(pc.yellow);
+			expect(getContextColorFormatter(50, 20, 40)).toBe(pc.red);
+		});
+	});
+}

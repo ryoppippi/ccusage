@@ -1,9 +1,11 @@
 #!/usr/bin/env bun
 
-import { join, resolve } from 'node:path';
+import path, { join, resolve } from 'node:path';
+import process from 'node:process';
 import { cli, define } from 'gunshi';
 
 const DEFAULT_SIZE_MIB = 1024;
+export const DEFAULT_CODEX_SIZE_MIB = 1024;
 const CHUNK_LINE_COUNT = 128;
 const FLUSH_INTERVAL_BYTES = 64 * 1024 * 1024;
 const PADDING_SOURCE = 'x'.repeat(128 * 1024);
@@ -95,6 +97,13 @@ function contentPadding(length: number): string {
 	return PADDING_SOURCE.slice(0, length);
 }
 
+export function assertSafeDeletionTarget(directory: string, flagName: string): void {
+	const resolved = resolve(directory);
+	if (resolved === path.parse(resolved).root || resolved === process.cwd() || resolved.length < 5) {
+		throw new Error(`Refusing to delete unsafe ${flagName} path: ${resolved}`);
+	}
+}
+
 /**
  * Creates one deterministic usage row that stays on ccusage's normal fast parser path.
  *
@@ -118,9 +127,169 @@ function createUsageLine(index: number, fileIndex: number, sessionId: string): s
 	return `{"timestamp":"${timestamp}","cwd":"/tmp/ccusage-large-fixture/${projectName}","sessionId":"${sessionId}","version":"1.0.0","message":{"id":"msg_${suffix}","model":"${model}","content":[{"type":"text","text":"${padding}"}],"usage":{"input_tokens":${100 + (index % 1000)},"output_tokens":${20 + (index % 200)},"cache_creation_input_tokens":${index % 300},"cache_read_input_tokens":${index % 5000}${speed}}},"requestId":"req_${suffix}"}\n`;
 }
 
+export function createCodexUsageLine(index: number, fileIndex: number): string {
+	const day = (index % 28) + 1;
+	const hour = index % 24;
+	const minute = Math.floor(index / 24) % 60;
+	const timestamp = `2026-01-${day.toString().padStart(2, '0')}T${hour
+		.toString()
+		.padStart(2, '0')}:${minute.toString().padStart(2, '0')}:00.000Z`;
+	const model = index % 5 === 0 ? 'gpt-5.3-codex' : 'gpt-5.2-codex';
+	const inputTokens = 200 + (index % 2000);
+	const cachedInputTokens = index % 1200;
+	const outputTokens = 40 + (index % 600);
+	const reasoningOutputTokens = index % 300;
+	const totalTokens = inputTokens + outputTokens + reasoningOutputTokens;
+	const padding = contentPadding(contentLength(index + fileIndex));
+
+	return `{"timestamp":"${timestamp}","type":"event_msg","payload":{"type":"token_count","info":{"model":"${model}","last_token_usage":{"input_tokens":${inputTokens},"cached_input_tokens":${cachedInputTokens},"output_tokens":${outputTokens},"reasoning_output_tokens":${reasoningOutputTokens},"total_tokens":${totalTokens}},"total_token_usage":{"input_tokens":${inputTokens},"cached_input_tokens":${cachedInputTokens},"output_tokens":${outputTokens},"reasoning_output_tokens":${reasoningOutputTokens},"total_tokens":${totalTokens}}},"content":"${padding}"}}\n`;
+}
+
+async function generateClaudeFixture(
+	outputDir: string,
+	sizeMib: number,
+): Promise<{ fileCount: number; lineCount: number; totalBytes: number }> {
+	assertSafeDeletionTarget(outputDir, '--output-dir');
+	const targetBytes = sizeMib * 1024 * 1024;
+	const fileSizeTargets = createFileSizeTargets(targetBytes);
+
+	await Bun.$`rm -rf ${outputDir}`;
+
+	let totalBytes = 0;
+	let lineIndex = 0;
+	let fileCount = 0;
+	const createdProjectDirs = new Set<string>();
+
+	for (let fileIndex = 0; fileIndex < fileSizeTargets.length; fileIndex++) {
+		const targetSize = fileSizeTargets[shuffledIndex(fileIndex, fileSizeTargets.length)] ?? 1024;
+		const projectDir = join(
+			outputDir,
+			'projects',
+			`project-${(fileIndex % 128).toString().padStart(3, '0')}`,
+		);
+		if (!createdProjectDirs.has(projectDir)) {
+			await Bun.$`mkdir -p ${projectDir}`;
+			createdProjectDirs.add(projectDir);
+		}
+		const sessionId = `session-${fileIndex.toString().padStart(6, '0')}`;
+		const outputFile = join(projectDir, `${sessionId}.jsonl`);
+		const writer = Bun.file(outputFile).writer();
+		let fileBytes = 0;
+		let nextFlushAt = FLUSH_INTERVAL_BYTES;
+
+		while (fileBytes < targetSize) {
+			let chunk = '';
+			for (
+				let index = 0;
+				index < CHUNK_LINE_COUNT && fileBytes + chunk.length < targetSize;
+				index++
+			) {
+				chunk += createUsageLine(lineIndex++, fileIndex, sessionId);
+			}
+			writer.write(chunk);
+			fileBytes += chunk.length;
+			totalBytes += chunk.length;
+			if (fileBytes >= nextFlushAt) {
+				await writer.flush();
+				nextFlushAt += FLUSH_INTERVAL_BYTES;
+			}
+		}
+		await writer.end();
+		fileCount++;
+	}
+
+	return { fileCount, lineCount: lineIndex, totalBytes };
+}
+
+export async function generateCodexFixture(
+	outputDir: string,
+	sizeMib: number,
+): Promise<{ fileCount: number; lineCount: number; totalBytes: number }> {
+	assertSafeDeletionTarget(outputDir, '--codex-output-dir');
+	const targetBytes = sizeMib * 1024 * 1024;
+	const fileSizeTargets = createFileSizeTargets(targetBytes);
+
+	await Bun.$`rm -rf ${outputDir}`;
+
+	let totalBytes = 0;
+	let lineIndex = 0;
+	let fileCount = 0;
+	const createdSessionDirs = new Set<string>();
+
+	for (let fileIndex = 0; fileIndex < fileSizeTargets.length; fileIndex++) {
+		const targetSize = fileSizeTargets[shuffledIndex(fileIndex, fileSizeTargets.length)] ?? 1024;
+		const sessionDir = join(
+			outputDir,
+			'sessions',
+			`project-${(fileIndex % 128).toString().padStart(3, '0')}`,
+		);
+		if (!createdSessionDirs.has(sessionDir)) {
+			await Bun.$`mkdir -p ${sessionDir}`;
+			createdSessionDirs.add(sessionDir);
+		}
+		const outputFile = join(sessionDir, `session-${fileIndex.toString().padStart(6, '0')}.jsonl`);
+		const writer = Bun.file(outputFile).writer();
+		let fileBytes = 0;
+		let nextFlushAt = FLUSH_INTERVAL_BYTES;
+
+		while (fileBytes < targetSize) {
+			let chunk = '';
+			for (
+				let index = 0;
+				index < CHUNK_LINE_COUNT && fileBytes + chunk.length < targetSize;
+				index++
+			) {
+				chunk += createCodexUsageLine(lineIndex++, fileIndex);
+			}
+			writer.write(chunk);
+			fileBytes += chunk.length;
+			totalBytes += chunk.length;
+			if (fileBytes >= nextFlushAt) {
+				await writer.flush();
+				nextFlushAt += FLUSH_INTERVAL_BYTES;
+			}
+		}
+		await writer.end();
+		fileCount++;
+	}
+
+	return { fileCount, lineCount: lineIndex, totalBytes };
+}
+
+if (import.meta.vitest != null) {
+	describe('createCodexUsageLine', () => {
+		it('creates synthetic Codex token_count JSONL rows that stay on the same fast parser path as real Codex session logs', () => {
+			const line = createCodexUsageLine(42, 7);
+
+			expect(line).toContain('"type":"event_msg"');
+			expect(line).toContain('"type":"token_count"');
+			expect(line).toContain('"last_token_usage"');
+			expect(line).toContain('"total_token_usage"');
+			expect(line).toContain('"model":"gpt-5.2-codex"');
+		});
+	});
+
+	describe('assertSafeDeletionTarget', () => {
+		it('refuses unsafe fixture deletion targets before the generator shells out to rm -rf', () => {
+			expect(() => assertSafeDeletionTarget('/', '--output-dir')).toThrow(
+				'Refusing to delete unsafe --output-dir path',
+			);
+			expect(() => assertSafeDeletionTarget(process.cwd(), '--output-dir')).toThrow(
+				'Refusing to delete unsafe --output-dir path',
+			);
+		});
+	});
+
+	describe('large fixture defaults', () => {
+		it('uses the same large fixture size for Codex and Claude by default', () => {
+			expect(DEFAULT_CODEX_SIZE_MIB).toBe(1024);
+		});
+	});
+}
+
 const command = define({
 	name: 'generate-large-fixture',
-	description: 'Generate a synthetic Claude JSONL fixture for ccusage performance CI',
+	description: 'Generate synthetic JSONL fixtures for ccusage performance CI',
 	toKebab: true,
 	args: {
 		outputDir: {
@@ -128,75 +297,52 @@ const command = define({
 			required: true,
 			description: 'Claude config directory to create',
 		},
+		codexOutputDir: {
+			type: 'string',
+			description: 'Codex home directory to create',
+		},
 		sizeMib: {
 			type: 'number',
 			default: DEFAULT_SIZE_MIB,
 			description: 'Target JSONL file size in MiB',
+		},
+		codexSizeMib: {
+			type: 'number',
+			default: DEFAULT_CODEX_SIZE_MIB,
+			description: 'Target Codex JSONL file size in MiB',
 		},
 	},
 	async run(ctx) {
 		if (!Number.isInteger(ctx.values.sizeMib) || ctx.values.sizeMib < 1) {
 			throw new Error('--size-mib must be a positive integer');
 		}
+		if (!Number.isInteger(ctx.values.codexSizeMib) || ctx.values.codexSizeMib < 1) {
+			throw new Error('--codex-size-mib must be a positive integer');
+		}
 
 		const outputDir = resolve(ctx.values.outputDir);
-		const targetBytes = ctx.values.sizeMib * 1024 * 1024;
-		const fileSizeTargets = createFileSizeTargets(targetBytes);
-
-		await Bun.$`rm -rf ${outputDir}`;
-
-		let totalBytes = 0;
-		let lineIndex = 0;
-		let fileCount = 0;
-		const createdProjectDirs = new Set<string>();
-
-		for (let fileIndex = 0; fileIndex < fileSizeTargets.length; fileIndex++) {
-			const targetSize = fileSizeTargets[shuffledIndex(fileIndex, fileSizeTargets.length)] ?? 1024;
-			const projectDir = join(
-				outputDir,
-				'projects',
-				`project-${(fileIndex % 128).toString().padStart(3, '0')}`,
-			);
-			if (!createdProjectDirs.has(projectDir)) {
-				await Bun.$`mkdir -p ${projectDir}`;
-				createdProjectDirs.add(projectDir);
-			}
-			const sessionId = `session-${fileIndex.toString().padStart(6, '0')}`;
-			const outputFile = join(projectDir, `${sessionId}.jsonl`);
-			const writer = Bun.file(outputFile).writer();
-			let fileBytes = 0;
-			let nextFlushAt = FLUSH_INTERVAL_BYTES;
-
-			while (fileBytes < targetSize) {
-				let chunk = '';
-				for (
-					let index = 0;
-					index < CHUNK_LINE_COUNT && fileBytes + chunk.length < targetSize;
-					index++
-				) {
-					chunk += createUsageLine(lineIndex++, fileIndex, sessionId);
-				}
-				writer.write(chunk);
-				fileBytes += chunk.length;
-				totalBytes += chunk.length;
-				if (fileBytes >= nextFlushAt) {
-					await writer.flush();
-					nextFlushAt += FLUSH_INTERVAL_BYTES;
-				}
-			}
-			await writer.end();
-			fileCount++;
-		}
+		const claudeResult = await generateClaudeFixture(outputDir, ctx.values.sizeMib);
 
 		await Bun.write(
 			Bun.stdout,
-			`Generated ${outputDir}\nFiles: ${fileCount.toLocaleString('en-US')}\nRows: ${lineIndex.toLocaleString('en-US')}\nSize: ${formatBytes(totalBytes)}\n`,
+			`Generated Claude fixture ${outputDir}\nFiles: ${claudeResult.fileCount.toLocaleString('en-US')}\nRows: ${claudeResult.lineCount.toLocaleString('en-US')}\nSize: ${formatBytes(claudeResult.totalBytes)}\n`,
 		);
+
+		if (ctx.values.codexOutputDir != null) {
+			const codexOutputDir = resolve(ctx.values.codexOutputDir);
+			const codexResult = await generateCodexFixture(codexOutputDir, ctx.values.codexSizeMib);
+			await Bun.write(
+				Bun.stdout,
+				`Generated Codex fixture ${codexOutputDir}\nFiles: ${codexResult.fileCount.toLocaleString('en-US')}\nRows: ${codexResult.lineCount.toLocaleString('en-US')}\nSize: ${formatBytes(codexResult.totalBytes)}\n`,
+			);
+		}
 	},
 });
 
-await cli(Bun.argv.slice(2), command, {
-	name: 'generate-large-fixture',
-	description: 'Generate a synthetic Claude JSONL fixture for ccusage performance CI',
-	renderHeader: null,
-});
+if (import.meta.main) {
+	await cli(Bun.argv.slice(2), command, {
+		name: 'generate-large-fixture',
+		description: 'Generate synthetic JSONL fixtures for ccusage performance CI',
+		renderHeader: null,
+	});
+}

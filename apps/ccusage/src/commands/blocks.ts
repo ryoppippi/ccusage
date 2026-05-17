@@ -1,32 +1,30 @@
-import type { SessionBlock } from '../_session-blocks.ts';
+import type { SessionBlock } from '../session-blocks.ts';
 import process from 'node:process';
+import * as pc from '@ccusage/internal/colors';
 import {
 	formatCurrency,
 	formatModelsDisplayMultiline,
 	formatNumber,
 	ResponsiveTable,
 } from '@ccusage/terminal/table';
-import { Result } from '@praha/byethrow';
 import { define } from 'gunshi';
-import pc from 'picocolors';
-import { loadConfig, mergeConfigWithArgs } from '../_config-loader-tokens.ts';
+import { loadSessionBlockData } from '../adapter/claude/data-loader.ts';
+import { loadConfig, mergeConfigWithArgs } from '../config-loader-tokens.ts';
 import {
 	BLOCKS_COMPACT_WIDTH_THRESHOLD,
 	BLOCKS_DEFAULT_TERMINAL_WIDTH,
 	BLOCKS_WARNING_THRESHOLD,
 	DEFAULT_RECENT_DAYS,
-} from '../_consts.ts';
-import { processWithJq } from '../_jq-processor.ts';
+} from '../consts.ts';
+import { log, logger, writeStdoutLine } from '../logger.ts';
 import {
 	calculateBurnRate,
 	DEFAULT_SESSION_DURATION_HOURS,
 	filterRecentBlocks,
 	projectBlockUsage,
-} from '../_session-blocks.ts';
-import { sharedCommandConfig } from '../_shared-args.ts';
-import { getTotalTokens } from '../_token-utils.ts';
-import { loadSessionBlockData } from '../data-loader.ts';
-import { log, logger } from '../logger.ts';
+} from '../session-blocks.ts';
+import { sharedCommandConfig } from '../shared-args.ts';
+import { getTotalTokens } from '../token-utils.ts';
 
 /**
  * Formats the time display for a session block
@@ -151,8 +149,7 @@ export const blocksCommand = define({
 		const config = loadConfig(ctx.values.config, ctx.values.debug);
 		const mergedOptions = mergeConfigWithArgs(ctx, config, ctx.values.debug);
 
-		// --jq implies --json
-		const useJson = mergedOptions.json || mergedOptions.jq != null;
+		const useJson = mergedOptions.json;
 		if (useJson) {
 			logger.level = 0;
 		}
@@ -169,13 +166,14 @@ export const blocksCommand = define({
 			mode: ctx.values.mode,
 			order: ctx.values.order,
 			offline: ctx.values.offline,
+			singleThread: ctx.values.singleThread,
 			sessionDurationHours: ctx.values.sessionLength,
 			timezone: ctx.values.timezone,
 		});
 
 		if (blocks.length === 0) {
 			if (useJson) {
-				log(JSON.stringify({ blocks: [] }));
+				await writeStdoutLine(JSON.stringify({ blocks: [] }));
 			} else {
 				logger.warn('No Claude usage data found.');
 			}
@@ -211,7 +209,7 @@ export const blocksCommand = define({
 			blocks = blocks.filter((block: SessionBlock) => block.isActive);
 			if (blocks.length === 0) {
 				if (useJson) {
-					log(JSON.stringify({ blocks: [], message: 'No active block' }));
+					await writeStdoutLine(JSON.stringify({ blocks: [], message: 'No active block' }));
 				} else {
 					logger.info('No active session block found.');
 				}
@@ -264,17 +262,7 @@ export const blocksCommand = define({
 				}),
 			};
 
-			// Process with jq if specified
-			if (ctx.values.jq != null) {
-				const jqResult = await processWithJq(jsonOutput, ctx.values.jq);
-				if (Result.isFailure(jqResult)) {
-					logger.error(jqResult.error.message);
-					process.exit(1);
-				}
-				log(jqResult.value);
-			} else {
-				log(JSON.stringify(jsonOutput, null, 2));
-			}
+			await writeStdoutLine(JSON.stringify(jsonOutput, null, 2));
 		} else {
 			// Table output
 			if (ctx.values.active && blocks.length === 1) {
@@ -467,7 +455,7 @@ export const blocksCommand = define({
 					}
 				}
 
-				log(table.toString());
+				await writeStdoutLine(table.toString());
 			}
 		}
 	},

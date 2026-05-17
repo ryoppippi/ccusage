@@ -22,17 +22,58 @@ jobs:
       - uses: ./.github/actions/setup-nix
       - name: Create default Claude directories for tests
         run: |
-          mkdir -p $HOME/.claude/projects
-          mkdir -p $HOME/.config/claude/projects
+          mkdir -p "$HOME/.claude/projects"
+          mkdir -p "$HOME/.config/claude/projects"
       - run: nix develop --command pnpm run test
 
   npm-publish-dry-run-and-upload-pkg-pr-now:
     runs-on: ubuntu-24.04-arm
+    outputs:
+      urls: ${{ steps.publish.outputs.urls }}
 
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - uses: ./.github/actions/setup-nix
-      - run: nix develop --command pnpm pkg-pr-new publish --pnpm './apps/*'
+      - id: publish
+        run: nix develop --command pnpm pkg-pr-new publish --pnpm --bin './apps/*'
+
+  ccusage-preview-e2e:
+    if: github.event_name == 'pull_request'
+    needs: npm-publish-dry-run-and-upload-pkg-pr-now
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-slim
+          - macos-latest
+          - windows-latest
+
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: lts/*
+      - name: Prepare preview package E2E
+        env:
+          PKG_PR_NEW_URLS: ${{ needs.npm-publish-dry-run-and-upload-pkg-pr-now.outputs.urls }}
+        run: node .github/scripts/e2e-setup.mjs
+      - name: Run preview package E2E with Node
+        env:
+          CCUSAGE_BUN_AUTO_RUN: 0
+        shell: pwsh
+        run: |
+          npx --yes "$env:CCUSAGE_PREVIEW_URL" --version
+          npx --yes "$env:CCUSAGE_PREVIEW_URL" daily --offline --json | jq -e .
+          npx --yes "$env:CCUSAGE_PREVIEW_URL" daily --offline
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+      - name: Run preview package E2E with Bun
+        shell: pwsh
+        run: |
+          npx --yes "$env:CCUSAGE_PREVIEW_URL" --version
+          npx --yes "$env:CCUSAGE_PREVIEW_URL" daily --offline --json | jq -e .
+          npx --yes "$env:CCUSAGE_PREVIEW_URL" daily --offline
 
   spell-check:
     runs-on: ubuntu-24.04-arm

@@ -2,77 +2,37 @@
 
 ccusage supports several environment variables for configuration and customization. Environment variables provide a way to configure ccusage without modifying command-line arguments or configuration files.
 
+## Agent Data Directories
+
+ccusage detects supported data source files from conventional locations by default. Set these variables when your data lives somewhere else. Each value can be one directory or a comma-separated list of directories:
+
+| Variable            | Agent       | Default                            |
+| ------------------- | ----------- | ---------------------------------- |
+| `CLAUDE_CONFIG_DIR` | Claude Code | `~/.config/claude` and `~/.claude` |
+| `CODEX_HOME`        | Codex       | `~/.codex`                         |
+| `OPENCODE_DATA_DIR` | OpenCode    | `~/.local/share/opencode`          |
+| `AMP_DATA_DIR`      | Amp         | `~/.local/share/amp`               |
+| `PI_AGENT_DIR`      | pi-agent    | `~/.pi/agent/sessions`             |
+
+Example:
+
+```bash
+export CODEX_HOME="/path/to/codex,/archive/codex"
+export OPENCODE_DATA_DIR="/path/to/opencode,/archive/opencode"
+export AMP_DATA_DIR="/path/to/amp,/archive/amp"
+export PI_AGENT_DIR="/path/to/pi/sessions,/archive/pi/sessions"
+ccusage daily
+```
+
+Empty entries and directories that do not exist are skipped. Duplicate paths are read once.
+
 ## CLAUDE_CONFIG_DIR
 
-Specifies where ccusage should look for Claude Code data. This is the most important environment variable for ccusage.
-
-### Single Directory
-
-Set a single custom Claude data directory:
-
-```bash
-export CLAUDE_CONFIG_DIR="/path/to/your/claude/data"
-ccusage daily
-```
-
-### Multiple Directories
-
-Set multiple directories (comma-separated) to aggregate data from multiple sources:
-
-```bash
-export CLAUDE_CONFIG_DIR="/path/to/claude1,/path/to/claude2"
-ccusage daily
-```
-
-When multiple directories are specified, ccusage automatically aggregates usage data from all valid locations.
-
-### Default Behavior
-
-When `CLAUDE_CONFIG_DIR` is not set, ccusage automatically searches in:
-
-1. `~/.config/claude/projects/` (new default, Claude Code v1.0.30+)
-2. `~/.claude/projects/` (legacy location, pre-v1.0.30)
-
-Data from all valid directories is automatically combined.
-
-::: info Directory Change
-The directory change from `~/.claude` to `~/.config/claude` in Claude Code v1.0.30 was an undocumented breaking change. ccusage handles both locations automatically for backward compatibility.
-:::
-
-### Use Cases
-
-#### Development Environment
-
-```bash
-# Set in your shell profile (.bashrc, .zshrc, config.fish)
-export CLAUDE_CONFIG_DIR="$HOME/.config/claude"
-```
-
-#### Multiple Claude Installations
-
-```bash
-# Aggregate data from different Claude installations
-export CLAUDE_CONFIG_DIR="$HOME/.claude,$HOME/.config/claude"
-```
-
-#### Team Shared Directory
-
-```bash
-# Use team-shared data directory
-export CLAUDE_CONFIG_DIR="/team-shared/claude-data/$USER"
-```
-
-#### CI/CD Environment
-
-```bash
-# Use specific directory in CI pipeline
-export CLAUDE_CONFIG_DIR="/ci-data/claude-logs"
-ccusage daily --json > usage-report.json
-```
+Specifies where ccusage should look for Claude Code data. See [Claude Code](/guide/claude/) for default paths, multiple-directory behavior, and Claude-specific examples.
 
 ## LOG_LEVEL
 
-Controls the verbosity of log output. ccusage uses [consola](https://github.com/unjs/consola) for logging under the hood.
+Controls the verbosity of log output.
 
 ### Log Levels
 
@@ -142,6 +102,14 @@ export CCUSAGE_OFFLINE=1
 ccusage daily  # Runs in offline mode
 ```
 
+### CCUSAGE_BUN_AUTO_RUN
+
+When the published CLI starts under Node.js and finds `bun` in `PATH`, it automatically re-runs the bundled entrypoint with Bun. Disable this if you need to force Node.js:
+
+```bash
+CCUSAGE_BUN_AUTO_RUN=0 ccusage daily
+```
+
 ### NO_COLOR
 
 Disable colored output (standard CLI convention):
@@ -169,7 +137,7 @@ ccusage daily | less -R  # Preserves colors
 LOG_LEVEL=0 ccusage daily
 
 # Set for current shell session
-export CLAUDE_CONFIG_DIR="/custom/path"
+export CODEX_HOME="/path/to/codex,/archive/codex"
 ccusage daily
 ```
 
@@ -180,28 +148,28 @@ Add to your shell configuration file:
 #### Bash (~/.bashrc)
 
 ```bash
-export CLAUDE_CONFIG_DIR="$HOME/.config/claude"
+export CODEX_HOME="$HOME/.codex"
 export LOG_LEVEL=3
 ```
 
 #### Zsh (~/.zshrc)
 
 ```zsh
-export CLAUDE_CONFIG_DIR="$HOME/.config/claude"
+export CODEX_HOME="$HOME/.codex"
 export LOG_LEVEL=3
 ```
 
 #### Fish (~/.config/fish/config.fish)
 
 ```fish
-set -x CLAUDE_CONFIG_DIR "$HOME/.config/claude"
+set -x CODEX_HOME "$HOME/.codex"
 set -x LOG_LEVEL 3
 ```
 
 #### PowerShell (Profile.ps1)
 
 ```powershell
-$env:CLAUDE_CONFIG_DIR = "$env:USERPROFILE\.config\claude"
+$env:CODEX_HOME = "$env:USERPROFILE\.codex"
 $env:LOG_LEVEL = "3"
 ```
 
@@ -230,7 +198,7 @@ To see which environment variables are being used:
 
 ```bash
 # Show all environment variables
-env | grep -E "CLAUDE|CCUSAGE|LOG_LEVEL"
+env | grep -E "CLAUDE|CODEX|OPENCODE|AMP|PI_AGENT|CCUSAGE|LOG_LEVEL"
 
 # Debug mode shows environment variable usage
 LOG_LEVEL=4 ccusage daily --debug

@@ -21,29 +21,11 @@
     <img src="https://cdn.jsdelivr.net/gh/ryoppippi/ccusage@main/docs/public/screenshot.png">
 </div>
 
-> Analyze your Claude Code token usage and costs from local JSONL files — incredibly fast and informative!
+> Analyze coding (agent) CLI token usage and costs from local data.
 
-## ccusage Family
+## Supported Sources
 
-### 📊 [ccusage](https://www.npmjs.com/package/ccusage) - Claude Code Usage Analyzer
-
-The main CLI tool for analyzing Claude Code usage from local JSONL files. Track daily, monthly, and session-based usage with beautiful tables.
-
-### 🤖 [@ccusage/codex](https://www.npmjs.com/package/@ccusage/codex) - OpenAI Codex Usage Analyzer
-
-Companion tool for analyzing OpenAI Codex usage. Same powerful features as ccusage but tailored for Codex users, including GPT-5 support and 1M token context windows.
-
-### 🚀 [@ccusage/opencode](https://www.npmjs.com/package/@ccusage/opencode) - OpenCode Usage Analyzer
-
-Companion tool for analyzing [OpenCode](https://github.com/opencode-ai/opencode) usage. Track token usage and costs from OpenCode sessions with the same reporting capabilities as ccusage.
-
-### 🥧 [@ccusage/pi](https://www.npmjs.com/package/@ccusage/pi) - Pi-agent Usage Analyzer
-
-Companion tool for analyzing [pi-agent](https://github.com/badlogic/pi-mono) session usage. Track token usage and costs from your pi-agent sessions with daily, monthly, and session-based reports.
-
-### ⚡ [@ccusage/amp](https://www.npmjs.com/package/@ccusage/amp) - Amp Usage Analyzer
-
-Companion tool for analyzing [Amp](https://ampcode.com/) session usage. Track token usage, costs, and credits from your Amp CLI sessions with daily, monthly, and session-based reports.
+The main CLI tool for analyzing Claude Code, Codex, OpenCode, Amp, and pi-agent usage from local data. Track daily, weekly, monthly, and session-based usage with beautiful tables.
 
 ## Installation
 
@@ -52,54 +34,54 @@ Companion tool for analyzing [Amp](https://ampcode.com/) session usage. Track to
 Thanks to ccusage's incredibly small bundle size ([![install size](https://packagephobia.com/badge?p=ccusage)](https://packagephobia.com/result?p=ccusage)), you can run it directly without installation:
 
 ```bash
-# Recommended - always include @latest to ensure you get the newest version
-npx ccusage@latest
+# Recommended
 bunx ccusage
 
 # Alternative package runners
 pnpm dlx ccusage
 pnpx ccusage
-
-# Using deno (with security flags)
-deno run -E -R=$HOME/.claude/projects/ -S=homedir -N='raw.githubusercontent.com:443' npm:ccusage@latest
+npx ccusage@latest
 ```
 
-> 💡 **Important**: We strongly recommend using `@latest` suffix with npx (e.g., `npx ccusage@latest`) to ensure you're running the most recent version with the latest features and bug fixes.
-
-### Related Tools
-
-```bash
-npx @ccusage/codex@latest       # OpenAI Codex usage tracking
-npx @ccusage/opencode@latest    # OpenCode usage tracking
-npx @ccusage/pi@latest          # Pi-agent usage tracking
-npx @ccusage/amp@latest         # Amp usage tracking
-```
+> 💡 **Runtime**: `bunx ccusage` is recommended for everyday use. If you use `npx`, include `@latest` and use Node.js 22.11+.
+> Because the published CLI shebang targets Node.js, package runners can start ccusage under Node.js even when launched through `bunx`. When ccusage finds `bun` in `PATH`, it automatically re-runs the bundled entrypoint with Bun for better warm runtime performance. Set `CCUSAGE_BUN_AUTO_RUN=0` to force Node.js.
 
 ## Usage
 
 ```bash
 # Basic usage
-npx ccusage          # Show daily report (default)
-npx ccusage daily    # Daily token usage and costs
-npx ccusage monthly  # Monthly aggregated report
-npx ccusage session  # Usage by conversation session
-npx ccusage blocks   # 5-hour billing windows
-npx ccusage statusline  # Compact status line for hooks (Beta)
+bunx ccusage          # Show all detected sources by day (default)
+bunx ccusage daily    # All detected sources by day
+bunx ccusage weekly   # All detected sources by week
+bunx ccusage monthly  # All detected sources by month
+bunx ccusage session  # All detected sources by session
+bunx ccusage blocks   # Claude Code 5-hour billing windows
+bunx ccusage statusline  # Claude Code status line for hooks (Beta)
+
+# Source-focused reports and options
+bunx ccusage claude daily --mode display
+bunx ccusage codex daily --speed fast
+bunx ccusage opencode weekly
+bunx ccusage amp session
+bunx ccusage pi daily --pi-path /path/to/sessions
+bunx ccusage pi daily --pi-path /path/to/sessions,/archive/pi/sessions
+
+# Explicit unified report
+bunx ccusage daily --all
 
 # Filters and options
-npx ccusage daily --since 20250525 --until 20250530
-npx ccusage daily --json  # JSON output
-npx ccusage daily --breakdown  # Per-model cost breakdown
-npx ccusage daily --timezone UTC  # Use UTC timezone
+bunx ccusage daily --since 2026-04-25 --until 2026-05-16
+bunx ccusage daily --json  # JSON output
+bunx ccusage daily --timezone UTC  # Use UTC timezone
 
 # Project analysis
-npx ccusage daily --instances  # Group by project/instance
-npx ccusage daily --project myproject  # Filter to specific project
-npx ccusage daily --instances --project myproject --json  # Combined usage
+bunx ccusage claude daily --instances  # Group Claude Code by project/instance
+bunx ccusage claude daily --project myproject  # Filter to specific Claude project
+bunx ccusage claude daily --instances --project myproject --json  # Combined usage
 
 # Compact mode for screenshots/sharing
-npx ccusage --compact  # Force compact table mode
-npx ccusage monthly --compact  # Compact monthly report
+bunx ccusage --compact  # Force compact table mode
+bunx ccusage monthly --compact  # Compact monthly report
 ```
 
 ## Features
@@ -107,12 +89,13 @@ npx ccusage monthly --compact  # Compact monthly report
 - 📊 **Daily Report**: View token usage and costs aggregated by date
 - 📅 **Monthly Report**: View token usage and costs aggregated by month
 - 💬 **Session Report**: View usage grouped by conversation sessions
+- 🤖 **Unified CLI Reports**: View Claude Code, Codex, OpenCode, Amp, and pi-agent usage from one CLI
 - ⏰ **5-Hour Blocks Report**: Track usage within Claude's billing windows with active block monitoring
 - 🚀 **Statusline Integration**: Compact usage display for Claude Code status bar hooks (Beta)
-- 🤖 **Model Tracking**: See which Claude models you're using (Opus, Sonnet, etc.)
+- 🤖 **Model Tracking**: See which models are used across supported sources
 - 📊 **Model Breakdown**: View per-model cost breakdown with `--breakdown` flag
 - 📅 **Date Filtering**: Filter reports by date range using `--since` and `--until`
-- 📁 **Custom Path**: Support for custom Claude data directory locations
+- 📁 **Custom Paths**: Support for custom local data directory locations
 - 🎨 **Beautiful Output**: Colorful table-formatted display with automatic responsive layout
 - 📱 **Smart Tables**: Automatic compact mode for narrow terminals (< 100 characters) with essential columns
 - 📸 **Compact Mode**: Use `--compact` flag to force compact table layout, perfect for screenshots and sharing
@@ -120,8 +103,8 @@ npx ccusage monthly --compact  # Compact monthly report
 - 📄 **JSON Output**: Export data in structured JSON format with `--json`
 - 💰 **Cost Tracking**: Shows costs in USD for each day/month/session
 - 🔄 **Cache Token Support**: Tracks and displays cache creation and cache read tokens separately
-- 🌐 **Offline Mode**: Use pre-cached pricing data without network connectivity with `--offline` (Claude models only)
-- 🏗️ **Multi-Instance Support**: Group usage by project with `--instances` flag and filter by specific projects
+- 🌐 **Offline Mode**: Use pre-cached pricing data without network connectivity with `--offline`
+- 🏗️ **Claude Instance Support**: Group Claude Code usage by project with `--instances` and filter by specific projects
 - 🌍 **Timezone Support**: Configure timezone for date grouping with `--timezone` option
 - ⚙️ **Configuration Files**: Set defaults with JSON configuration files, complete with IDE autocomplete and validation
 - 🚀 **Ultra-Small Bundle**: Unlike other CLI tools, we pay extreme attention to bundle size - incredibly small even without minification!

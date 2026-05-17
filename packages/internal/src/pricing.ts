@@ -13,6 +13,30 @@ export const LITELLM_PRICING_URL =
  */
 const DEFAULT_TIERED_THRESHOLD = 200_000;
 
+function calculateTieredCost(
+	totalTokens: number | undefined,
+	basePrice: number | undefined,
+	tieredPrice: number | undefined,
+): number {
+	if (totalTokens == null || totalTokens <= 0) {
+		return 0;
+	}
+
+	if (totalTokens > DEFAULT_TIERED_THRESHOLD && tieredPrice != null) {
+		let tieredCost = (totalTokens - DEFAULT_TIERED_THRESHOLD) * tieredPrice;
+		if (basePrice != null) {
+			tieredCost += DEFAULT_TIERED_THRESHOLD * basePrice;
+		}
+		return tieredCost;
+	}
+
+	if (basePrice != null) {
+		return totalTokens * basePrice;
+	}
+
+	return 0;
+}
+
 /**
  * LiteLLM Model Pricing Schema
  *
@@ -94,6 +118,8 @@ function createLogger(logger?: PricingLogger): PricingLogger {
 
 export class LiteLLMPricingFetcher implements Disposable {
 	private cachedPricing: Map<string, LiteLLMModelPricing> | null = null;
+	private pricingLoadPromise: ReturnType<LiteLLMPricingFetcher['loadPricing']> | null = null;
+	private readonly modelPricingCache = new Map<string, LiteLLMModelPricing | null>();
 	private readonly logger: PricingLogger;
 	private readonly offline: boolean;
 	private readonly offlineLoader?: () => Promise<Record<string, LiteLLMModelPricing>>;
@@ -114,9 +140,11 @@ export class LiteLLMPricingFetcher implements Disposable {
 
 	clearCache(): void {
 		this.cachedPricing = null;
+		this.pricingLoadPromise = null;
+		this.modelPricingCache.clear();
 	}
 
-	private loadOfflinePricing = Result.try({
+	private loadOfflinePricing = Result.fn({
 		try: async () => {
 			if (this.offlineLoader == null) {
 				throw new Error('Offline loader was not provided');
@@ -129,9 +157,7 @@ export class LiteLLMPricingFetcher implements Disposable {
 		catch: (error) => new Error('Failed to load offline pricing data', { cause: error }),
 	});
 
-	private async handleFallbackToCachedPricing(
-		originalError: unknown,
-	): Result.ResultAsync<Map<string, LiteLLMModelPricing>, Error> {
+	private async handleFallbackToCachedPricing(originalError: unknown) {
 		this.logger.warn(
 			'Failed to fetch model pricing from LiteLLM, falling back to cached pricing data',
 		);
@@ -148,62 +174,68 @@ export class LiteLLMPricingFetcher implements Disposable {
 		);
 	}
 
-	private async ensurePricingLoaded(): Result.ResultAsync<Map<string, LiteLLMModelPricing>, Error> {
+	private async loadPricing() {
+		if (this.offline) {
+			return this.loadOfflinePricing();
+		}
+
+		this.logger.warn('Fetching latest model pricing from LiteLLM...');
 		return Result.pipe(
-			this.cachedPricing != null
-				? Result.succeed(this.cachedPricing)
-				: Result.fail(new Error('Cached pricing not available')),
-			Result.orElse(async () => {
-				if (this.offline) {
-					return this.loadOfflinePricing();
-				}
-
-				this.logger.warn('Fetching latest model pricing from LiteLLM...');
-				return Result.pipe(
-					Result.try({
-						try: fetch(this.url),
-						catch: (error) =>
-							new Error('Failed to fetch model pricing from LiteLLM', { cause: error }),
-					}),
-					Result.andThrough((response) => {
-						if (!response.ok) {
-							return Result.fail(new Error(`Failed to fetch pricing data: ${response.statusText}`));
-						}
-						return Result.succeed();
-					}),
-					Result.andThen(async (response) =>
-						Result.try({
-							try: response.json() as Promise<Record<string, unknown>>,
-							catch: (error) => new Error('Failed to parse pricing data', { cause: error }),
-						}),
-					),
-					Result.map((data) => {
-						const pricing = new Map<string, LiteLLMModelPricing>();
-						for (const [modelName, modelData] of Object.entries(data)) {
-							if (typeof modelData !== 'object' || modelData == null) {
-								continue;
-							}
-
-							const parsed = v.safeParse(liteLLMModelPricingSchema, modelData);
-							if (!parsed.success) {
-								continue;
-							}
-
-							pricing.set(modelName, parsed.output);
-						}
-						return pricing;
-					}),
-					Result.inspect((pricing) => {
-						this.cachedPricing = pricing;
-						this.logger.info(`Loaded pricing for ${pricing.size} models`);
-					}),
-					Result.orElse(async (error) => this.handleFallbackToCachedPricing(error)),
-				);
+			Result.try({
+				try: async () => fetch(this.url),
+				catch: (error) => new Error('Failed to fetch model pricing from LiteLLM', { cause: error }),
 			}),
+			Result.andThrough((response) => {
+				if (!response.ok) {
+					return Result.fail(new Error(`Failed to fetch pricing data: ${response.statusText}`));
+				}
+				return Result.succeed();
+			}),
+			Result.andThen(async (response) =>
+				Result.try({
+					try: async () => response.json() as Promise<Record<string, unknown>>,
+					catch: (error) => new Error('Failed to parse pricing data', { cause: error }),
+				}),
+			),
+			Result.map((data) => {
+				const pricing = new Map<string, LiteLLMModelPricing>();
+				for (const [modelName, modelData] of Object.entries(data)) {
+					if (typeof modelData !== 'object' || modelData == null) {
+						continue;
+					}
+
+					const parsed = v.safeParse(liteLLMModelPricingSchema, modelData);
+					if (!parsed.success) {
+						continue;
+					}
+
+					pricing.set(modelName, parsed.output);
+				}
+				return pricing;
+			}),
+			Result.inspect((pricing) => {
+				this.cachedPricing = pricing;
+				this.logger.info(`Loaded pricing for ${pricing.size} models`);
+			}),
+			Result.orElse(async (error) => this.handleFallbackToCachedPricing(error)),
 		);
 	}
 
-	async fetchModelPricing(): Result.ResultAsync<Map<string, LiteLLMModelPricing>, Error> {
+	private async ensurePricingLoaded() {
+		if (this.cachedPricing != null) {
+			return Result.succeed(this.cachedPricing);
+		}
+
+		this.pricingLoadPromise ??= Result.pipe(
+			this.loadPricing(),
+			Result.inspectError(() => {
+				this.pricingLoadPromise = null;
+			}),
+		);
+		return this.pricingLoadPromise;
+	}
+
+	async fetchModelPricing() {
 		return this.ensurePricingLoaded();
 	}
 
@@ -218,31 +250,47 @@ export class LiteLLMPricingFetcher implements Disposable {
 		return Array.from(candidates);
 	}
 
-	async getModelPricing(modelName: string): Result.ResultAsync<LiteLLMModelPricing | null, Error> {
+	async getModelPricing(modelName: string) {
+		if (this.modelPricingCache.has(modelName)) {
+			return Result.succeed(this.modelPricingCache.get(modelName) ?? null);
+		}
+
 		return Result.pipe(
 			this.ensurePricingLoaded(),
 			Result.map((pricing) => {
 				for (const candidate of this.createMatchingCandidates(modelName)) {
 					const direct = pricing.get(candidate);
 					if (direct != null) {
+						this.modelPricingCache.set(modelName, direct);
 						return direct;
 					}
 				}
 
 				const lower = modelName.toLowerCase();
+				let bestMatch: { value: LiteLLMModelPricing; lengthDiff: number } | null = null;
 				for (const [key, value] of pricing) {
 					const comparison = key.toLowerCase();
-					if (comparison.includes(lower) || lower.includes(comparison)) {
-						return value;
+					if (!comparison.includes(lower) && !lower.includes(comparison)) {
+						continue;
+					}
+					const lengthDiff = Math.abs(comparison.length - lower.length);
+					if (bestMatch == null || lengthDiff < bestMatch.lengthDiff) {
+						bestMatch = { value, lengthDiff };
 					}
 				}
 
+				if (bestMatch != null) {
+					this.modelPricingCache.set(modelName, bestMatch.value);
+					return bestMatch.value;
+				}
+
+				this.modelPricingCache.set(modelName, null);
 				return null;
 			}),
 		);
 	}
 
-	async getModelContextLimit(modelName: string): Result.ResultAsync<number | null, Error> {
+	async getModelContextLimit(modelName: string) {
 		return Result.pipe(
 			this.getModelPricing(modelName),
 			Result.map((pricing) => pricing?.max_input_tokens ?? null),
@@ -273,48 +321,6 @@ export class LiteLLMPricingFetcher implements Disposable {
 		},
 		pricing: LiteLLMModelPricing,
 	): number {
-		/**
-		 * Calculate cost with tiered pricing for 1M context window models
-		 *
-		 * @param totalTokens - Total number of tokens to calculate cost for
-		 * @param basePrice - Price per token for tokens up to the threshold
-		 * @param tieredPrice - Price per token for tokens above the threshold
-		 * @param threshold - Token threshold for tiered pricing (default 200k)
-		 * @returns Total cost applying tiered pricing when applicable
-		 *
-		 * @example
-		 * // 300k tokens with base price $3/M and tiered price $6/M
-		 * calculateTieredCost(300_000, 3e-6, 6e-6)
-		 * // Returns: (200_000 * 3e-6) + (100_000 * 6e-6) = $1.2
-		 */
-		const calculateTieredCost = (
-			totalTokens: number | undefined,
-			basePrice: number | undefined,
-			tieredPrice: number | undefined,
-			threshold: number = DEFAULT_TIERED_THRESHOLD,
-		): number => {
-			if (totalTokens == null || totalTokens <= 0) {
-				return 0;
-			}
-
-			if (totalTokens > threshold && tieredPrice != null) {
-				const tokensBelowThreshold = Math.min(totalTokens, threshold);
-				const tokensAboveThreshold = Math.max(0, totalTokens - threshold);
-
-				let tieredCost = tokensAboveThreshold * tieredPrice;
-				if (basePrice != null) {
-					tieredCost += tokensBelowThreshold * basePrice;
-				}
-				return tieredCost;
-			}
-
-			if (basePrice != null) {
-				return totalTokens * basePrice;
-			}
-
-			return 0;
-		};
-
 		const inputCost = calculateTieredCost(
 			tokens.input_tokens,
 			pricing.input_cost_per_token,
@@ -351,7 +357,7 @@ export class LiteLLMPricingFetcher implements Disposable {
 		},
 		modelName?: string,
 		options?: { speed?: 'standard' | 'fast' },
-	): Result.ResultAsync<number, Error> {
+	) {
 		if (modelName == null || modelName === '') {
 			return Result.succeed(0);
 		}
@@ -413,6 +419,60 @@ if (import.meta.vitest != null) {
 			);
 
 			expect(cost).toBeCloseTo(1000 * 1.25e-6 + 500 * 1e-5 + 200 * 1.25e-7);
+		});
+
+		it('shares one in-flight online pricing fetch across concurrent lookups', async () => {
+			const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+				ok: true,
+				json: async () => ({
+					'gpt-5': {
+						input_cost_per_token: 1e-6,
+						output_cost_per_token: 2e-6,
+					},
+				}),
+			} as Response);
+
+			try {
+				using fetcher = new LiteLLMPricingFetcher();
+				await Promise.all([
+					Result.unwrap(fetcher.getModelPricing('gpt-5')),
+					Result.unwrap(fetcher.getModelPricing('gpt-5')),
+					Result.unwrap(
+						fetcher.calculateCostFromTokens({ input_tokens: 1000, output_tokens: 100 }, 'gpt-5'),
+					),
+				]);
+
+				expect(fetchSpy).toHaveBeenCalledTimes(1);
+			} finally {
+				fetchSpy.mockRestore();
+			}
+		});
+
+		it('retries online pricing after a failed load', async () => {
+			const fetchSpy = vi
+				.spyOn(globalThis, 'fetch')
+				.mockRejectedValueOnce(new Error('temporary network failure'))
+				.mockResolvedValueOnce({
+					ok: true,
+					json: async () => ({
+						'gpt-5': {
+							input_cost_per_token: 1e-6,
+							output_cost_per_token: 2e-6,
+						},
+					}),
+				} as Response);
+
+			try {
+				using fetcher = new LiteLLMPricingFetcher();
+				const firstResult = await fetcher.fetchModelPricing();
+				expect(Result.isFailure(firstResult)).toBe(true);
+
+				const pricing = await Result.unwrap(fetcher.fetchModelPricing());
+				expect(pricing.has('gpt-5')).toBe(true);
+				expect(fetchSpy).toHaveBeenCalledTimes(2);
+			} finally {
+				fetchSpy.mockRestore();
+			}
 		});
 
 		it('calculates tiered pricing for tokens exceeding 200k threshold (300k input, 250k output, 300k cache creation, 250k cache read)', async () => {
@@ -641,6 +701,49 @@ if (import.meta.vitest != null) {
 			);
 
 			expect(standardCost).toBeCloseTo(noSpeedCost);
+		});
+
+		it('picks the closest-length fuzzy match instead of the first iteration match', async () => {
+			using fetcher = new LiteLLMPricingFetcher({
+				offline: true,
+				offlineLoader: async () => ({
+					'gpt-5': {
+						input_cost_per_token: 1.25e-6,
+						output_cost_per_token: 1e-5,
+					},
+					'gpt-5.4': {
+						input_cost_per_token: 2.5e-6,
+						output_cost_per_token: 1.5e-5,
+					},
+				}),
+			});
+
+			const pricing = await Result.unwrap(fetcher.getModelPricing('gpt-5.4-mini'));
+
+			expect(pricing).not.toBeNull();
+			expect(pricing?.input_cost_per_token).toBe(2.5e-6);
+			expect(pricing?.output_cost_per_token).toBe(1.5e-5);
+		});
+
+		it('prefers the closest-length key when the input is shorter than candidates', async () => {
+			using fetcher = new LiteLLMPricingFetcher({
+				offline: true,
+				offlineLoader: async () => ({
+					'gpt-5.4-mini-2026-03-05': {
+						input_cost_per_token: 1e-7,
+						output_cost_per_token: 1e-6,
+					},
+					'gpt-5.4-mini': {
+						input_cost_per_token: 2.5e-7,
+						output_cost_per_token: 2e-6,
+					},
+				}),
+			});
+
+			const pricing = await Result.unwrap(fetcher.getModelPricing('gpt-5.4'));
+
+			expect(pricing).not.toBeNull();
+			expect(pricing?.input_cost_per_token).toBe(2.5e-7);
 		});
 	});
 }

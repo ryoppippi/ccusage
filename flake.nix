@@ -26,7 +26,7 @@
         in pkgs.mkShell {
           buildInputs = with pkgs; [
             # Package manager
-            pnpm_10
+            pnpm_11
 
             # Development tools
             rustToolchain
@@ -34,19 +34,22 @@
             openssl
             typos
             typos-lsp
-            hyperfine
             jq
             git
             gh
+            hyperfine
+            similarity
+            ast-grep
+            ripgrep
+            fd
+            fzf
+            delta
+            dust
           ] ++ pkgs.lib.optionals pkgs.stdenv.isDarwin [
             apple-sdk_15
           ];
 
           shellHook = ''
-            ${pkgs.lib.optionalString pkgs.stdenv.isDarwin ''
-              export SDKROOT="${pkgs.apple-sdk_15}/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk"
-            ''}
-
             # Install dependencies only if node_modules/.pnpm/lock.yaml is older than pnpm-lock.yaml
             if [ ! -f node_modules/.pnpm/lock.yaml ] || [ pnpm-lock.yaml -nt node_modules/.pnpm/lock.yaml ]; then
               echo "📦 Installing dependencies..."

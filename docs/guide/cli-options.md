@@ -12,13 +12,13 @@ Filter usage data by date range:
 
 ```bash
 # Filter by date range
-ccusage daily --since 20250101 --until 20250630
+ccusage daily --since 20260101 --until 20260531
 
 # Show data from a specific date
-ccusage monthly --since 20250101
+ccusage monthly --since 20260101
 
 # Show data up to a specific date
-ccusage session --until 20250630
+ccusage session --until 20260531
 ```
 
 ### Output Format
@@ -205,19 +205,17 @@ ccusage statusline --cache
 ccusage statusline --refresh-interval 5
 ```
 
-## JSON Output Options
-
-When using `--json` output, additional processing options are available:
+## JSON Output
 
 ```bash
-# Apply jq filter to JSON output
-ccusage daily --json --jq ".data[]"
+# Print JSON output
+ccusage daily --json
 
-# Filter high-cost days
-ccusage daily --json --jq ".data[] | select(.cost > 10)"
+# Pipe JSON output to jq
+ccusage daily --json | jq ".data[]"
 
 # Extract specific fields
-ccusage session --json --jq ".data[] | {date, cost}"
+ccusage session --json | jq ".data[] | {date, cost}"
 ```
 
 ## Option Precedence
@@ -240,7 +238,7 @@ Options are applied in this order (highest to lowest priority):
 ccusage daily --instances --breakdown
 
 # Check specific project costs
-ccusage daily --project myapp --since 20250101
+ccusage daily --project myapp --since 20260101
 
 # Export for reporting
 ccusage monthly --json > monthly-report.json
@@ -256,7 +254,7 @@ ccusage daily --config ./team-config.json
 ccusage daily --timezone UTC
 
 # Generate shareable report
-ccusage weekly --json --jq ".summary"
+ccusage weekly --json
 ```
 
 ### Cost Monitoring

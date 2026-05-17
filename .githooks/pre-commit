@@ -1,4 +1,0 @@
-#!/bin/sh
-
-# Run lint-staged
-npx --no-install lint-staged

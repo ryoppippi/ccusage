@@ -1,19 +1,11 @@
-import type { DefaultTheme } from 'vitepress';
-import * as fs from 'node:fs';
-import * as path from 'node:path';
 import { cloudflareRedirect } from '@ryoppippi/vite-plugin-cloudflare-redirect';
 import { defineConfig } from 'vitepress';
 import { groupIconMdPlugin, groupIconVitePlugin } from 'vitepress-plugin-group-icons';
 import llmstxt from 'vitepress-plugin-llms';
 
-const typedocSidebarJson = fs.readFileSync(
-	path.join(import.meta.dirname, '../api/typedoc-sidebar.json'),
-);
-const typedocSidebar = JSON.parse(typedocSidebarJson.toString()) as DefaultTheme.SidebarItem[];
-
 export default defineConfig({
 	title: 'ccusage',
-	description: 'Usage analysis tool for Claude Code',
+	description: 'Usage analysis tool for coding (agent) CLIs',
 	base: '/',
 	cleanUrls: true,
 	ignoreDeadLinks: true,
@@ -23,7 +15,7 @@ export default defineConfig({
 		['meta', { name: 'theme-color', content: '#646cff' }],
 		['meta', { property: 'og:type', content: 'website' }],
 		['meta', { property: 'og:locale', content: 'en' }],
-		['meta', { property: 'og:title', content: 'ccusage | Claude Code Usage Analysis' }],
+		['meta', { property: 'og:title', content: 'ccusage | Coding (Agent) CLI Usage Analysis' }],
 		['meta', { property: 'og:site_name', content: 'ccusage' }],
 		[
 			'meta',
@@ -40,7 +32,6 @@ export default defineConfig({
 
 		nav: [
 			{ text: 'Guide', link: '/guide/' },
-			{ text: 'API Reference', link: '/api/' },
 			{
 				text: 'Links',
 				items: [
@@ -65,28 +56,24 @@ export default defineConfig({
 					],
 				},
 				{
-					text: 'Usage',
+					text: 'Usage Views',
 					items: [
-						{ text: 'Daily Reports', link: '/guide/daily-reports' },
-						{ text: 'Weekly Reports', link: '/guide/weekly-reports' },
-						{ text: 'Monthly Reports', link: '/guide/monthly-reports' },
-						{ text: 'Session Reports', link: '/guide/session-reports' },
-						{ text: 'Blocks Reports', link: '/guide/blocks-reports' },
-						{ text: 'Live Monitoring (Removed)', link: '/guide/live-monitoring' },
+						{ text: 'All Sources (Default)', link: '/guide/all-reports' },
+						{ text: 'Daily Usage', link: '/guide/daily-reports' },
+						{ text: 'Weekly Usage', link: '/guide/weekly-reports' },
+						{ text: 'Monthly Usage', link: '/guide/monthly-reports' },
+						{ text: 'Session Usage', link: '/guide/session-reports' },
 					],
 				},
 				{
-					text: 'Codex (Beta)',
+					text: 'Data Sources',
 					items: [
-						{ text: 'Overview', link: '/guide/codex/' },
-						{ text: 'Daily Report', link: '/guide/codex/daily' },
-						{ text: 'Monthly Report', link: '/guide/codex/monthly' },
-						{ text: 'Session Report', link: '/guide/codex/session' },
+						{ text: 'Claude Code', link: '/guide/claude/' },
+						{ text: 'Codex', link: '/guide/codex/' },
+						{ text: 'OpenCode', link: '/guide/opencode/' },
+						{ text: 'Amp', link: '/guide/amp/' },
+						{ text: 'pi-agent', link: '/guide/pi/' },
 					],
-				},
-				{
-					text: 'OpenCode (Beta)',
-					items: [{ text: 'Overview', link: '/guide/opencode/' }],
 				},
 				{
 					text: 'Configuration',
@@ -95,18 +82,12 @@ export default defineConfig({
 						{ text: 'Command-Line Options', link: '/guide/cli-options' },
 						{ text: 'Environment Variables', link: '/guide/environment-variables' },
 						{ text: 'Configuration Files', link: '/guide/config-files' },
-						{ text: 'Directory Detection', link: '/guide/directory-detection' },
-						{ text: 'Custom Paths', link: '/guide/custom-paths' },
 						{ text: 'Cost Calculation Modes', link: '/guide/cost-modes' },
 					],
 				},
 				{
 					text: 'Integration',
-					items: [
-						{ text: 'Library Usage', link: '/guide/library-usage' },
-						{ text: 'JSON Output', link: '/guide/json-output' },
-						{ text: 'Statusline Integration', link: '/guide/statusline' },
-					],
+					items: [{ text: 'JSON Output', link: '/guide/json-output' }],
 				},
 				{
 					text: 'Community',
@@ -114,12 +95,6 @@ export default defineConfig({
 						{ text: 'Related Projects', link: '/guide/related-projects' },
 						{ text: 'Sponsors', link: '/guide/sponsors' },
 					],
-				},
-			],
-			'/api/': [
-				{
-					text: 'API Reference',
-					items: [{ text: 'Overview', link: '/api/' }, ...typedocSidebar],
 				},
 			],
 		},
@@ -168,6 +143,8 @@ export default defineConfig({
 					{ from: '/npm', to: 'https://www.npmjs.com/package/ccusage', status: 302 },
 					{ from: '/deepwiki', to: 'https://deepwiki.com/ryoppippi/ccusage', status: 302 },
 					{ from: '/sponsor', to: 'https://github.com/sponsors/ryoppippi', status: 302 },
+					{ from: '/guide/custom-paths', to: '/guide/claude/', status: 301 },
+					{ from: '/guide/directory-detection', to: '/guide/claude/', status: 301 },
 				],
 			}) as any,
 			groupIconVitePlugin(),

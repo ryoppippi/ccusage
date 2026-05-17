@@ -1,13 +1,17 @@
 /**
  * @fileoverview Logging utilities for the ccusage application
  *
- * This module provides configured logger instances using consola for consistent
- * logging throughout the application with package name tagging.
+ * This module provides configured logger instances for consistent logging
+ * throughout the application with package name tagging.
  *
  * @module logger
  */
 
-import { createLogger, log as internalLog } from '@ccusage/internal/logger';
+import {
+	createLogger,
+	log as internalLog,
+	writeStdoutLine as internalWriteStdoutLine,
+} from '@ccusage/internal/logger';
 
 import { name } from '../package.json';
 
@@ -20,3 +24,5 @@ export const logger = createLogger(name);
  * Direct console.log function for cases where logger formatting is not desired
  */
 export const log = internalLog;
+
+export const writeStdoutLine = internalWriteStdoutLine;

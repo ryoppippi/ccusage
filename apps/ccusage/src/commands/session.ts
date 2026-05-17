@@ -9,15 +9,15 @@ import {
 } from '@ccusage/terminal/table';
 import { Result } from '@praha/byethrow';
 import { define } from 'gunshi';
-import { loadConfig, mergeConfigWithArgs } from '../_config-loader-tokens.ts';
-import { formatDateCompact } from '../_date-utils.ts';
-import { processWithJq } from '../_jq-processor.ts';
-import { sharedCommandConfig } from '../_shared-args.ts';
+import { loadSessionData } from '../adapter/claude/data-loader.ts';
 import { calculateTotals, createTotalsObject, getTotalTokens } from '../calculate-cost.ts';
-import { loadSessionData } from '../data-loader.ts';
+import { loadConfig, mergeConfigWithArgs } from '../config-loader-tokens.ts';
+import { formatDateCompact } from '../date-utils.ts';
 import { detectMismatches, printMismatchReport } from '../debug.ts';
-import { log, logger } from '../logger.ts';
-import { handleSessionIdLookup } from './_session_id.ts';
+import { logger, writeStdoutLine } from '../logger.ts';
+import { sharedCommandConfig } from '../shared-args.ts';
+import { createUsageLoadProgress, shouldShowUsageLoadProgress } from './loading-progress.ts';
+import { handleSessionIdLookup } from './session_id.ts';
 
 // eslint-disable-next-line ts/no-unused-vars
 const { order: _, ...sharedArgs } = sharedCommandConfig.args;
@@ -40,8 +40,8 @@ export const sessionCommand = define({
 		const config = loadConfig(ctx.values.config, ctx.values.debug);
 		const mergedOptions: typeof ctx.values = mergeConfigWithArgs(ctx, config, ctx.values.debug);
 
-		// --jq implies --json
-		const useJson = mergedOptions.json || mergedOptions.jq != null;
+		const useJson = mergedOptions.json;
+		const originalLoggerLevel = logger.level;
 		if (useJson) {
 			logger.level = 0;
 		}
@@ -54,7 +54,6 @@ export const sessionCommand = define({
 						id: mergedOptions.id,
 						mode: mergedOptions.mode,
 						offline: mergedOptions.offline,
-						jq: mergedOptions.jq,
 						timezone: mergedOptions.timezone,
 					},
 				},
@@ -63,17 +62,42 @@ export const sessionCommand = define({
 		}
 
 		// Original session listing logic
-		const sessionData = await loadSessionData({
-			since: ctx.values.since,
-			until: ctx.values.until,
-			mode: ctx.values.mode,
-			offline: ctx.values.offline,
-			timezone: ctx.values.timezone,
-		});
+		const progress = createUsageLoadProgress(
+			shouldShowUsageLoadProgress(mergedOptions, process.stdout),
+		);
+		const sessionDataResult = await Result.pipe(
+			Result.try({
+				try: async () => {
+					if (progress != null) {
+						logger.level = 0;
+					}
+					progress?.start('claude');
+					return loadSessionData({
+						since: mergedOptions.since,
+						until: mergedOptions.until,
+						mode: mergedOptions.mode,
+						offline: mergedOptions.offline,
+						singleThread: mergedOptions.singleThread,
+						timezone: mergedOptions.timezone,
+					});
+				},
+				catch: (error) => error,
+			}),
+			Result.inspect((sessionData) => progress?.succeed('claude', sessionData.length)),
+			Result.inspectError((error) => progress?.fail('claude', error)),
+		);
+		if (Result.isFailure(sessionDataResult)) {
+			progress?.stop();
+			logger.level = originalLoggerLevel;
+			throw sessionDataResult.error;
+		}
+		progress?.stop();
+		logger.level = originalLoggerLevel;
+		const sessionData = sessionDataResult.value;
 
 		if (sessionData.length === 0) {
 			if (useJson) {
-				log(JSON.stringify([]));
+				await writeStdoutLine(JSON.stringify([]));
 			} else {
 				logger.warn('No Claude usage data found.');
 			}
@@ -84,9 +108,9 @@ export const sessionCommand = define({
 		const totals = calculateTotals(sessionData);
 
 		// Show debug information if requested
-		if (ctx.values.debug && !useJson) {
+		if (mergedOptions.debug && !useJson) {
 			const mismatchStats = await detectMismatches(undefined);
-			printMismatchReport(mismatchStats, ctx.values.debugSamples);
+			printMismatchReport(mismatchStats, mergedOptions.debugSamples);
 		}
 
 		if (useJson) {
@@ -108,17 +132,7 @@ export const sessionCommand = define({
 				totals: createTotalsObject(totals),
 			};
 
-			// Process with jq if specified
-			if (ctx.values.jq != null) {
-				const jqResult = await processWithJq(jsonOutput, ctx.values.jq);
-				if (Result.isFailure(jqResult)) {
-					logger.error(jqResult.error.message);
-					process.exit(1);
-				}
-				log(jqResult.value);
-			} else {
-				log(JSON.stringify(jsonOutput, null, 2));
-			}
+			await writeStdoutLine(JSON.stringify(jsonOutput, null, 2));
 		} else {
 			// Print header
 			logger.box('Claude Code Token Usage Report - By Session');
@@ -177,11 +191,13 @@ export const sessionCommand = define({
 			); // Include Last Activity column
 			table.push(totalsRow);
 
-			log(table.toString());
+			const renderedTable = table.toString();
 
-			// Show guidance message if in compact mode
+			await writeStdoutLine(renderedTable);
+
 			if (table.isCompactMode()) {
-				logger.info('\nRunning in Compact Mode');
+				await writeStdoutLine();
+				logger.info('Running in Compact Mode');
 				logger.info('Expand terminal width to see cache metrics and total tokens');
 			}
 		}

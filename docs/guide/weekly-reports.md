@@ -1,6 +1,6 @@
-# Weekly Reports
+# Weekly Usage
 
-Weekly reports aggregate your Claude Code usage by week, providing a mid-range view between daily and monthly reports. This helps identify weekly patterns and trends in your usage.
+Weekly usage aggregates usage by week, providing a mid-range view between daily and monthly usage. `ccusage weekly` covers all detected sources that support weekly aggregation; `ccusage claude weekly` and `ccusage opencode weekly` focus the same view on one source.
 
 ## Basic Usage
 
@@ -8,22 +8,24 @@ Show all weekly usage:
 
 ```bash
 ccusage weekly
+ccusage claude weekly
+ccusage opencode weekly
 ```
 
 ## Example Output
 
-```
-┌────────────────┬──────────────────┬────────┬─────────┬─────────────┬────────────┬──────────────┬────────────┐
-│ Week           │ Models           │ Input  │ Output  │ Cache Create│ Cache Read │ Total Tokens │ Cost (USD) │
-├────────────────┼──────────────────┼────────┼─────────┼─────────────┼────────────┼──────────────┼────────────┤
-│ 2025-06-16     │ • opus-4         │  1,234 │ 156,789 │       2,048 │      4,096 │      164,167 │     $87.56 │
-│                │ • sonnet-4       │        │         │             │            │              │            │
-├────────────────┼──────────────────┼────────┼─────────┼─────────────┼────────────┼──────────────┼────────────┤
-│ 2025-06-23     │ • sonnet-4       │  2,456 │ 234,567 │       3,072 │      6,144 │      246,239 │    $104.33 │
-├────────────────┼──────────────────┼────────┼─────────┼─────────────┼────────────┼──────────────┼────────────┤
-│ 2025-06-30     │ • opus-4         │  3,789 │ 345,678 │       4,096 │      8,192 │      361,755 │    $156.78 │
-│                │ • sonnet-4       │        │         │             │            │              │            │
-└────────────────┴──────────────────┴────────┴─────────┴─────────────┴────────────┴──────────────┴────────────┘
+```text
+┌────────────────┬──────────────────────┬────────┬─────────┬─────────────┬────────────┬──────────────┬────────────┐
+│ Week           │ Models               │ Input  │ Output  │ Cache Create│ Cache Read │ Total Tokens │ Cost (USD) │
+├────────────────┼──────────────────────┼────────┼─────────┼─────────────┼────────────┼──────────────┼────────────┤
+│ 2026-05-11     │ • opus-4-1           │  1,234 │ 156,789 │       2,048 │      4,096 │      164,167 │     $87.56 │
+│                │ • sonnet-4-5         │        │         │             │            │              │            │
+├────────────────┼──────────────────────┼────────┼─────────┼─────────────┼────────────┼──────────────┼────────────┤
+│ 2026-05-04     │ • sonnet-4-5         │  2,456 │ 234,567 │       3,072 │      6,144 │      246,239 │    $104.33 │
+├────────────────┼──────────────────────┼────────┼─────────┼─────────────┼────────────┼──────────────┼────────────┤
+│ 2026-04-27     │ • opus-4-1           │  3,789 │ 345,678 │       4,096 │      8,192 │      361,755 │    $156.78 │
+│                │ • sonnet-4-5         │        │         │             │            │              │            │
+└────────────────┴──────────────────────┴────────┴─────────┴─────────────┴────────────┴──────────────┴────────────┘
 ```
 
 ## Understanding the Columns
@@ -31,7 +33,8 @@ ccusage weekly
 The columns are identical to daily reports but aggregated by week:
 
 - **Week**: Start date of the week (configurable)
-- **Models**: All Claude models used during the week
+- **Agent**: Source CLI, shown in unified all-source reports
+- **Models**: All models used during the week
 - **Input/Output**: Total tokens for the week
 - **Cache Create/Read**: Cache token usage
 - **Total Tokens**: Sum of all token types
@@ -60,10 +63,10 @@ Filter by date range:
 
 ```bash
 # Show specific period
-ccusage weekly --since 20250601 --until 20250630
+ccusage weekly --since 20260501 --until 20260531
 
 # Show last 4 weeks
-ccusage weekly --since 20250501
+ccusage weekly --since 20260420
 ```
 
 ### Sort Order
@@ -86,16 +89,16 @@ See per-model weekly costs:
 ccusage weekly --breakdown
 ```
 
-```
-┌────────────────┬──────────────────┬────────┬─────────┬────────────┐
-│ Week           │ Models           │ Input  │ Output  │ Cost (USD) │
-├────────────────┼──────────────────┼────────┼─────────┼────────────┤
-│ 2025-06-16     │ opus-4, sonnet-4 │  1,234 │ 156,789 │     $87.56 │
-├────────────────┼──────────────────┼────────┼─────────┼────────────┤
-│   └─ opus-4    │                  │    800 │  80,000 │     $54.80 │
-├────────────────┼──────────────────┼────────┼─────────┼────────────┤
-│   └─ sonnet-4  │                  │    434 │  76,789 │     $32.76 │
-└────────────────┴──────────────────┴────────┴─────────┴────────────┘
+```text
+┌────────────────┬──────────────────────┬────────┬─────────┬────────────┐
+│ Week           │ Models               │ Input  │ Output  │ Cost (USD) │
+├────────────────┼──────────────────────┼────────┼─────────┼────────────┤
+│ 2026-05-11     │ opus-4-1, sonnet-4-5 │  1,234 │ 156,789 │     $87.56 │
+├────────────────┼──────────────────────┼────────┼─────────┼────────────┤
+│   └─ opus-4-1  │                      │    800 │  80,000 │     $54.80 │
+├────────────────┼──────────────────────┼────────┼─────────┼────────────┤
+│   └─ sonnet-4-5│                      │    434 │  76,789 │     $32.76 │
+└────────────────┴──────────────────────┴────────┴─────────┴────────────┘
 ```
 
 ### JSON Output
@@ -110,21 +113,21 @@ ccusage weekly --json
 {
 	"weekly": [
 		{
-			"week": "2025-06-16",
+			"week": "2026-05-11",
 			"inputTokens": 1234,
 			"outputTokens": 156789,
 			"cacheCreationTokens": 2048,
 			"cacheReadTokens": 4096,
 			"totalTokens": 164167,
 			"totalCost": 87.56,
-			"modelsUsed": ["claude-opus-4-20250514", "claude-sonnet-4-20250514"],
+			"modelsUsed": ["claude-opus-4-1-20250805", "claude-sonnet-4-5-20250929"],
 			"modelBreakdowns": {
-				"claude-opus-4-20250514": {
+				"claude-opus-4-1-20250805": {
 					"inputTokens": 800,
 					"outputTokens": 80000,
 					"totalCost": 54.8
 				},
-				"claude-sonnet-4-20250514": {
+				"claude-sonnet-4-5-20250929": {
 					"inputTokens": 434,
 					"outputTokens": 76789,
 					"totalCost": 32.76
@@ -184,14 +187,14 @@ ccusage weekly --offline
 
 ```bash
 # See usage trends over past months
-ccusage weekly --since 20250401
+ccusage weekly --since 20260401
 ```
 
 ### Sprint Analysis
 
 ```bash
 # Track usage during 2-week sprints (Monday start)
-ccusage weekly --start-of-week monday --since 20250601
+ccusage weekly --start-of-week monday --since 20260501
 ```
 
 ### Budget Planning
@@ -224,7 +227,7 @@ ccusage weekly --instances --start-of-week monday
 
 ## Related Commands
 
-- [Daily Reports](/guide/daily-reports) - Day-by-day analysis
-- [Monthly Reports](/guide/monthly-reports) - Monthly aggregates
-- [Session Reports](/guide/session-reports) - Per-conversation analysis
-- [Blocks Reports](/guide/blocks-reports) - 5-hour billing windows
+- [All Sources (Default)](/guide/all-reports) - How unified views work
+- [Daily Usage](/guide/daily-reports) - Day-by-day analysis
+- [Monthly Usage](/guide/monthly-reports) - Monthly aggregates
+- [Session Usage](/guide/session-reports) - Per-conversation analysis

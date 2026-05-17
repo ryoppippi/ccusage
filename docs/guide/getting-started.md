@@ -1,11 +1,11 @@
 # Getting Started
 
-Welcome to ccusage! This guide will help you get up and running with analyzing your Claude Code usage data.
+Welcome to ccusage! This guide will help you get up and running with analyzing your coding (agent) CLI usage data.
 
 ## Prerequisites
 
-- Claude Code installed and used (generates JSONL files)
-- Node.js 20+ or Bun runtime
+- At least one supported coding CLI installed and used
+- Bun 1.3+ recommended, or Node.js 22.11+
 
 ## Quick Start
 
@@ -13,53 +13,64 @@ The fastest way to try ccusage is to run it directly without installation:
 
 ::: code-group
 
-```bash [npx]
-npx ccusage@latest
+```bash [bunx (Recommended)]
+bunx ccusage
 ```
 
-```bash [bunx]
-bunx ccusage
+```bash [npx]
+npx ccusage@latest
 ```
 
 ```bash [pnpm]
 pnpm dlx ccusage
 ```
 
-```bash [claude x]
-BUN_BE_BUN=1 claude x ccusage
-```
-
 :::
 
-This will show your daily usage report by default.
+This will show your daily usage report for all detected supported coding CLIs by default.
+
+::: tip Runtime
+`bunx ccusage` is recommended for everyday use. ccusage can run on Node.js 22.11+, and because the published CLI shebang targets Node.js, package runners can start ccusage under Node.js even when launched through `bunx`. When ccusage finds `bun` in `PATH`, it automatically re-runs the bundled entrypoint with Bun for better warm runtime performance. Set `CCUSAGE_BUN_AUTO_RUN=0` to force Node.js.
+:::
+
+Use a data source namespace when you want the same report focused on one source:
+
+```bash
+ccusage claude daily
+ccusage codex daily
+ccusage opencode weekly
+ccusage amp session
+ccusage pi monthly
+```
 
 ## Your First Report
 
-When you run ccusage for the first time, you'll see a table showing your Claude Code usage by date:
+When you run ccusage for the first time, you'll see a table showing detected coding CLI usage by date:
 
-```
+```text
 ╭──────────────────────────────────────────╮
 │                                          │
-│  Claude Code Token Usage Report - Daily  │
+│  Coding (Agent) CLI Usage Report - Daily │
 │                                          │
 ╰──────────────────────────────────────────╯
 
-┌──────────────┬──────────────────┬────────┬─────────┬────────────┐
-│ Date         │ Models           │  Input │  Output │ Cost (USD) │
-├──────────────┼──────────────────┼────────┼─────────┼────────────┤
-│ 2025-06-21   │ • sonnet-4       │  1,234 │  15,678 │    $12.34  │
-│ 2025-06-20   │ • opus-4         │    890 │  12,345 │    $18.92  │
-└──────────────┴──────────────────┴────────┴─────────┴────────────┘
+┌────────────┬────────┬────────────────┬────────┬────────┬────────────┐
+│ Date       │ Agent  │ Models         │ Input  │ Output │ Cost (USD) │
+├────────────┼────────┼────────────────┼────────┼────────┼────────────┤
+│ 2026-05-16 │ Claude │ • sonnet-4-5   │  1,234 │ 15,678 │     $12.34 │
+│ 2026-05-16 │ Codex  │ • gpt-5.5      │    890 │ 12,345 │     $18.92 │
+└────────────┴────────┴────────────────┴────────┴────────┴────────────┘
 ```
 
 ## Understanding the Output
 
 ### Columns Explained
 
-- **Date**: The date when Claude Code was used
-- **Models**: Which Claude models were used (Sonnet, Opus, etc.)
-- **Input**: Number of input tokens sent to Claude
-- **Output**: Number of output tokens received from Claude
+- **Date**: The date when an agent was used
+- **Agent**: The coding CLI that generated the usage
+- **Models**: Which models were used
+- **Input**: Number of input tokens sent to the agent/model
+- **Output**: Number of output tokens received from the agent/model
 - **Cost (USD)**: Estimated cost based on model pricing
 
 ### Cache Tokens
@@ -71,20 +82,36 @@ If you have a wide terminal, you'll also see cache token columns:
 
 ## Next Steps
 
-Now that you have your first report, explore these features:
+Now that you have your first unified view, explore these features:
 
-1. **[Weekly Reports](/guide/weekly-reports)** - Track usage patterns by week
-2. **[Monthly Reports](/guide/monthly-reports)** - See usage aggregated by month
-3. **[Session Reports](/guide/session-reports)** - Analyze individual conversations
-4. **[Statusline](/guide/statusline)** - Real-time usage display for Claude Code status bar
+1. **[All Sources (Default)](/guide/all-reports)** - Understand the default unified behavior
+2. **[Weekly Usage](/guide/weekly-reports)** - Track usage patterns by week
+3. **[Monthly Usage](/guide/monthly-reports)** - See usage aggregated by month
+4. **[Session Usage](/guide/session-reports)** - Analyze individual conversations
 5. **[Configuration](/guide/configuration)** - Customize ccusage behavior
+6. **[Claude Code](/guide/claude/)** - Claude Code-specific setup and features
 
 ## Common Use Cases
 
 ### Monitor Daily Usage
 
 ```bash
-ccusage daily --since 20241201 --until 20241231
+ccusage daily --since 2026-05-01 --until 2026-05-16
+```
+
+### Focus on One Source
+
+```bash
+ccusage codex daily
+ccusage claude monthly
+```
+
+### Use Source-Specific Options
+
+```bash
+ccusage claude daily --mode display
+ccusage codex daily --speed fast
+ccusage opencode weekly
 ```
 
 ### Analyze Sessions
@@ -99,15 +126,9 @@ ccusage session
 ccusage monthly --json > usage-data.json
 ```
 
-### Real-time Status Display
+### Claude Code Features
 
-Add statusline to your Claude Code settings:
-
-```bash
-# Using jq to add statusline configuration
-jq '.statusLine = {"type": "command", "command": "bun x ccusage statusline", "padding": 0}' \
-  ~/.config/claude/settings.json > tmp.json && mv tmp.json ~/.config/claude/settings.json
-```
+See [Claude Code](/guide/claude/) for Claude-specific features such as blocks and statusline integration.
 
 ## Colors
 
@@ -128,22 +149,37 @@ The layout adjusts automatically based on your terminal width - no configuration
 
 If ccusage shows no data, check:
 
-1. **Claude Code is installed and used** - ccusage reads from Claude Code's data files
-2. **Data directory exists** - Default locations:
-   - `~/.config/claude/projects/` (new default)
-   - `~/.claude/projects/` (legacy)
+1. **A supported coding CLI is installed and used** - ccusage reads from local usage files
+2. **Data directory exists** - Common locations:
+   - Claude Code: `~/.config/claude/projects/` or `~/.claude/projects/`
+   - Codex: `${CODEX_HOME:-~/.codex}`
+   - OpenCode: `${OPENCODE_DATA_DIR:-~/.local/share/opencode}`
+   - Amp: `${AMP_DATA_DIR:-~/.local/share/amp}`
+   - pi-agent: `${PI_AGENT_DIR:-~/.pi/agent/sessions}`
 
 ### Custom Data Directory
 
-If your Claude data is in a custom location:
+If your agent data is in a custom location, set the matching environment variable:
 
 ```bash
 export CLAUDE_CONFIG_DIR="/path/to/your/claude/data"
-ccusage daily
+export CODEX_HOME="/path/to/codex"
+export OPENCODE_DATA_DIR="/path/to/opencode"
+export AMP_DATA_DIR="/path/to/amp"
+export PI_AGENT_DIR="/path/to/pi/sessions"
+```
+
+Each source-specific path variable can also contain comma-separated directories:
+
+```bash
+export CODEX_HOME="/path/to/codex,/archive/codex"
+export OPENCODE_DATA_DIR="/path/to/opencode,/archive/opencode"
+export AMP_DATA_DIR="/path/to/amp,/archive/amp"
+export PI_AGENT_DIR="/path/to/pi/sessions,/archive/pi/sessions"
 ```
 
 ## Getting Help
 
 - Use `ccusage --help` for command options
 - Visit our [GitHub repository](https://github.com/ryoppippi/ccusage) for issues
-- Check the [API Reference](/api/) for programmatic usage
+- Use [JSON Output](/guide/json-output) for programmatic usage

@@ -1,4 +1,4 @@
-# Blocks Reports
+# Blocks
 
 Blocks reports show your Claude Code usage grouped by 5-hour billing windows, helping you understand Claude's billing cycle and track active session progress.
 
@@ -17,22 +17,22 @@ ccusage blocks
 │                                                  │
 ╰──────────────────────────────────────────────────╯
 
-┌─────────────────────┬──────────────────┬────────┬─────────┬──────────────┬────────────┬──────────────┬────────────┐
-│ Block Start Time    │ Models           │ Input  │ Output  │ Cache Create │ Cache Read │ Total Tokens │ Cost (USD) │
-├─────────────────────┼──────────────────┼────────┼─────────┼──────────────┼────────────┼──────────────┼────────────┤
-│ 2025-06-21 09:00:00 │ • opus-4         │  4,512 │ 285,846 │          512 │      1,024 │      291,894 │    $156.40 │
-│ ⏰ Active (2h 15m)  │ • sonnet-4       │        │         │              │            │              │            │
+┌─────────────────────┬────────────────────┬────────┬─────────┬──────────────┬────────────┬──────────────┬────────────┐
+│ Block Start Time    │ Models             │ Input  │ Output  │ Cache Create │ Cache Read │ Total Tokens │ Cost (USD) │
+├─────────────────────┼────────────────────┼────────┼─────────┼──────────────┼────────────┼──────────────┼────────────┤
+│ 2026-05-16 09:00:00 │ • opus-4-1         │  4,512 │ 285,846 │          512 │      1,024 │      291,894 │    $156.40 │
+│ ⏰ Active (2h 15m)  │ • sonnet-4-5       │        │         │              │            │              │            │
 │ 🔥 Rate: 2.1k/min   │                  │        │         │              │            │              │            │
 │ 📊 Projected: 450k  │                  │        │         │              │            │              │            │
-├─────────────────────┼──────────────────┼────────┼─────────┼──────────────┼────────────┼──────────────┼────────────┤
-│ 2025-06-21 04:00:00 │ • sonnet-4       │  2,775 │ 186,645 │          256 │        768 │      190,444 │     $98.45 │
+├─────────────────────┼────────────────────┼────────┼─────────┼──────────────┼────────────┼──────────────┼────────────┤
+│ 2026-05-16 04:00:00 │ • sonnet-4-5       │  2,775 │ 186,645 │          256 │        768 │      190,444 │     $98.45 │
 │ ✅ Completed (3h 42m)│                  │        │         │              │            │              │            │
-├─────────────────────┼──────────────────┼────────┼─────────┼──────────────┼────────────┼──────────────┼────────────┤
-│ 2025-06-20 15:30:00 │ • opus-4         │  1,887 │ 183,055 │          128 │        512 │      185,582 │     $81.73 │
+├─────────────────────┼────────────────────┼────────┼─────────┼──────────────┼────────────┼──────────────┼────────────┤
+│ 2026-05-15 15:30:00 │ • opus-4-1         │  1,887 │ 183,055 │          128 │        512 │      185,582 │     $81.73 │
 │ ✅ Completed (4h 12m)│                  │        │         │              │            │              │            │
-├─────────────────────┼──────────────────┼────────┼─────────┼──────────────┼────────────┼──────────────┼────────────┤
+├─────────────────────┼────────────────────┼────────┼─────────┼──────────────┼────────────┼──────────────┼────────────┤
 │ Total               │                  │  9,174 │ 655,546 │          896 │      2,304 │      667,920 │    $336.58 │
-└─────────────────────┴──────────────────┴────────┴─────────┴──────────────┴────────────┴──────────────┴────────────┘
+└─────────────────────┴────────────────────┴────────┴─────────┴──────────────┴────────────┴──────────────┴────────────┘
 ```
 
 ## Understanding Blocks
@@ -138,7 +138,7 @@ Filter blocks by date range:
 
 ```bash
 # Show blocks from specific date range
-ccusage blocks --since 20250620 --until 20250621
+ccusage blocks --since 20260515 --until 20260516
 
 # Show blocks from last week
 ccusage blocks --since $(date -d '7 days ago' +%Y%m%d)
@@ -179,10 +179,10 @@ ccusage blocks --json
 {
 	"blocks": [
 		{
-			"id": "2025-06-21T09:00:00.000Z",
-			"startTime": "2025-06-21T09:00:00.000Z",
-			"endTime": "2025-06-21T14:00:00.000Z",
-			"actualEndTime": "2025-06-21T11:15:00.000Z",
+			"id": "2026-05-16T09:00:00.000Z",
+			"startTime": "2026-05-16T09:00:00.000Z",
+			"endTime": "2026-05-16T14:00:00.000Z",
+			"actualEndTime": "2026-05-16T11:15:00.000Z",
 			"isActive": true,
 			"tokenCounts": {
 				"inputTokens": 4512,
@@ -191,7 +191,7 @@ ccusage blocks --json
 				"cacheReadInputTokens": 1024
 			},
 			"costUSD": 156.4,
-			"models": ["opus-4", "sonnet-4"]
+			"models": ["opus-4-1", "sonnet-4-5"]
 		}
 	]
 }
@@ -253,7 +253,7 @@ Perfect for:
 ccusage blocks --json > blocks-history.json
 
 # Analyze patterns over time
-ccusage blocks --since 20250601 --until 20250630
+ccusage blocks --since 20260501 --until 20260531
 ```
 
 ## Block Analysis Tips
@@ -278,7 +278,7 @@ Use blocks to optimize your Claude usage:
 
 Blocks help identify cost patterns:
 
-- **Model switching**: When to use Opus vs Sonnet within blocks
+- **Model switching**: When to use Opus 4.1 vs Sonnet 4.5 within blocks
 - **Cache efficiency**: How cache usage affects block costs
 - **Usage intensity**: Whether short focused sessions or long exploratory ones are more cost-effective
 
@@ -304,16 +304,16 @@ Blocks reports adapt to your terminal width:
 Blocks reports automatically detect and display gaps:
 
 ```
-┌─────────────────────┬──────────────────┬────────┬─────────┬────────────┐
-│ 2025-06-21 09:00:00 │ • opus-4         │  4,512 │ 285,846 │    $156.40 │
-│ ⏰ Active (2h 15m)  │ • sonnet-4       │        │         │            │
-├─────────────────────┼──────────────────┼────────┼─────────┼────────────┤
-│ 2025-06-20 22:00:00 │ ⌛ 11h gap       │      0 │       0 │      $0.00 │
-│ 2025-06-21 09:00:00 │                  │        │         │            │
-├─────────────────────┼──────────────────┼────────┼─────────┼────────────┤
-│ 2025-06-20 15:30:00 │ • opus-4         │  1,887 │ 183,055 │     $81.73 │
+┌─────────────────────┬────────────────────┬────────┬─────────┬────────────┐
+│ 2026-05-16 09:00:00 │ • opus-4-1         │  4,512 │ 285,846 │    $156.40 │
+│ ⏰ Active (2h 15m)  │ • sonnet-4-5       │        │         │            │
+├─────────────────────┼────────────────────┼────────┼─────────┼────────────┤
+│ 2026-05-15 22:00:00 │ ⌛ 11h gap       │      0 │       0 │      $0.00 │
+│ 2026-05-16 09:00:00 │                  │        │         │            │
+├─────────────────────┼────────────────────┼────────┼─────────┼────────────┤
+│ 2026-05-15 15:30:00 │ • opus-4-1         │  1,887 │ 183,055 │     $81.73 │
 │ ✅ Completed (4h 12m)│                  │        │         │            │
-└─────────────────────┴──────────────────┴────────┴─────────┴────────────┘
+└─────────────────────┴────────────────────┴────────┴─────────┴────────────┘
 ```
 
 ### Burn Rate Calculations
@@ -334,9 +334,9 @@ When using token limits, blocks show visual progress:
 
 ## Related Commands
 
-- [Daily Reports](/guide/daily-reports) - Usage aggregated by calendar date
-- [Monthly Reports](/guide/monthly-reports) - Monthly usage summaries
-- [Session Reports](/guide/session-reports) - Individual conversation analysis
+- [Daily Usage](/guide/daily-reports) - Usage aggregated by calendar date
+- [Monthly Usage](/guide/monthly-reports) - Monthly usage summaries
+- [Session Usage](/guide/session-reports) - Individual conversation analysis
 - [Statusline](/guide/statusline) - Real-time session tracking (replacement for live monitoring)
 
 ## Next Steps
@@ -344,5 +344,5 @@ When using token limits, blocks show visual progress:
 After understanding block patterns, consider:
 
 1. [Statusline](/guide/statusline) for real-time active session tracking
-2. [Session Reports](/guide/session-reports) to analyze individual conversations within blocks
-3. [Daily Reports](/guide/daily-reports) to see how blocks aggregate across days
+2. [Session Usage](/guide/session-reports) to analyze individual conversations within blocks
+3. [Daily Usage](/guide/daily-reports) to see how blocks aggregate across days

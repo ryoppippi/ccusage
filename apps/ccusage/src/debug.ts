@@ -11,16 +11,16 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { Result } from '@praha/byethrow';
 import { createFixture } from 'fs-fixture';
-import { glob } from 'tinyglobby';
 import * as v from 'valibot';
+import { CLAUDE_PROJECTS_DIR_NAME } from './adapter/claude/constants.ts';
 import {
-	CLAUDE_PROJECTS_DIR_NAME,
-	DEBUG_MATCH_THRESHOLD_PERCENT,
-	USAGE_DATA_GLOB_PATTERN,
-} from './_consts.ts';
-import { PricingFetcher } from './_pricing-fetcher.ts';
-import { getClaudePaths, usageDataSchema } from './data-loader.ts';
+	collectJsonlFiles,
+	getClaudePaths,
+	usageDataSchema,
+} from './adapter/claude/data-loader.ts';
+import { DEBUG_MATCH_THRESHOLD_PERCENT } from './consts.ts';
 import { logger } from './logger.ts';
+import { PricingFetcher } from './pricing-fetcher.ts';
 
 /**
  * Represents a pricing discrepancy between original and calculated costs
@@ -87,10 +87,7 @@ export async function detectMismatches(claudePath?: string): Promise<MismatchSta
 		}
 		claudeDir = path.join(paths[0]!, CLAUDE_PROJECTS_DIR_NAME);
 	}
-	const files = await glob([USAGE_DATA_GLOB_PATTERN], {
-		cwd: claudeDir,
-		absolute: true,
-	});
+	const files = await collectJsonlFiles(claudeDir);
 
 	// Use PricingFetcher with using statement for automatic cleanup
 	using fetcher = new PricingFetcher();
@@ -113,12 +110,10 @@ export async function detectMismatches(claudePath?: string): Promise<MismatchSta
 			.filter((line) => line.length > 0);
 
 		for (const line of lines) {
-			const parseParser = Result.try({
+			const parseResult = Result.try({
 				try: () => JSON.parse(line) as unknown,
 				catch: () => new Error('Invalid JSON'),
 			});
-
-			const parseResult = parseParser();
 			if (Result.isFailure(parseResult)) {
 				continue;
 			}

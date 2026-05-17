@@ -1,0 +1,61 @@
+glob_matcher: doublestar
+
+pre-commit:
+  parallel: true
+  jobs:
+    - name: sync skills
+      glob:
+        - '.claude/skills/**'
+      run: pnpm run sync:skills
+      stage_fixed: true
+
+    - name: config schema
+      glob:
+        - apps/ccusage/scripts/generate-json-schema.ts
+        - 'apps/ccusage/src/**'
+      run: pnpm --filter ccusage run generate:schema
+      stage_fixed: true
+
+    - name: oxfmt
+      glob: '**/*'
+      run: pnpm exec oxfmt --no-error-on-unmatched-pattern {staged_files}
+      stage_fixed: true
+
+    - name: eslint
+      group:
+        parallel: true
+        jobs:
+          - name: root
+            glob: '**/*'
+            exclude:
+              - 'apps/**'
+              - 'packages/**'
+              - 'docs/**'
+            run: pnpm exec eslint --cache --fix --no-warn-ignored {staged_files}
+            stage_fixed: true
+          - name: ccusage
+            root: apps/ccusage/
+            glob: '**/*'
+            run: pnpm exec eslint --cache --fix --no-warn-ignored {staged_files}
+            stage_fixed: true
+          - name: internal
+            root: packages/internal/
+            glob: '**/*'
+            run: pnpm exec eslint --cache --fix --no-warn-ignored {staged_files}
+            stage_fixed: true
+          - name: terminal
+            root: packages/terminal/
+            glob: '**/*'
+            run: pnpm exec eslint --cache --fix --no-warn-ignored {staged_files}
+            stage_fixed: true
+          - name: docs
+            root: docs/
+            glob: '**/*'
+            run: pnpm exec eslint --cache --fix --no-warn-ignored {staged_files}
+            stage_fixed: true
+
+pre-push:
+  jobs:
+    - name: test
+      glob: '*.{ts,tsx,js,jsx,mjs,cjs}'
+      run: pnpm vitest related --run {push_files}

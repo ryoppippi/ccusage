@@ -11,12 +11,12 @@
  */
 
 import process from 'node:process';
+import { fileURLToPath } from 'node:url';
 import { Result } from '@praha/byethrow';
 import { $ } from 'bun';
-import { sharedArgs } from '../src/_shared-args.ts';
+import { allArgs } from '../src/commands/all.ts';
 // Import command definitions to access their args
 import { subCommandUnion } from '../src/commands/index.ts';
-
 import { logger } from '../src/logger.ts';
 
 /**
@@ -39,19 +39,37 @@ const COMMAND_EXCLUDE_KEYS: Record<string, string[]> = {
 	blocks: ['live', 'refreshInterval'],
 };
 
+const AGENT_NAMES = ['claude', 'codex', 'opencode', 'amp', 'pi'] as const;
+type AgentName = (typeof AGENT_NAMES)[number];
+type JsonSchemaNode = {
+	[key: string]: unknown;
+	type?: string;
+	properties?: Record<string, JsonSchemaNode>;
+	definitions?: Record<string, JsonSchemaNode>;
+};
+type TokenDefinition = {
+	[key: string]: unknown;
+	type: string;
+	choices?: readonly unknown[];
+	description?: string;
+	default?: unknown;
+};
+type TokenSchema = Record<string, TokenDefinition>;
+type SchemaCommand = {
+	args?: unknown;
+	subCommands?: Record<string, unknown> | Map<string, unknown>;
+};
+
 /**
  * Convert args-tokens schema to JSON Schema format
  */
-function tokensSchemaToJsonSchema(schema: Record<string, any>): Record<string, any> {
-	const properties: Record<string, any> = {};
+function tokensSchemaToJsonSchema(schema: TokenSchema): JsonSchemaNode {
+	const properties: Record<string, JsonSchemaNode> = {};
 
-	for (const [key, arg] of Object.entries(schema)) {
-		// eslint-disable-next-line ts/no-unsafe-assignment
-		const argTyped = arg;
-		const property: Record<string, any> = {};
+	for (const [key, argTyped] of Object.entries(schema)) {
+		const property: JsonSchemaNode = {};
 
 		// Handle type conversion
-		// eslint-disable-next-line ts/no-unsafe-member-access
 		switch (argTyped.type) {
 			case 'boolean':
 				property.type = 'boolean';
@@ -65,9 +83,7 @@ function tokensSchemaToJsonSchema(schema: Record<string, any>): Record<string, a
 				break;
 			case 'enum':
 				property.type = 'string';
-				// eslint-disable-next-line ts/no-unsafe-member-access
 				if (argTyped.choices != null && Array.isArray(argTyped.choices)) {
-					// eslint-disable-next-line ts/no-unsafe-assignment, ts/no-unsafe-member-access
 					property.enum = argTyped.choices;
 				}
 				break;
@@ -76,18 +92,13 @@ function tokensSchemaToJsonSchema(schema: Record<string, any>): Record<string, a
 		}
 
 		// Add description
-		// eslint-disable-next-line ts/no-unsafe-member-access
 		if (argTyped.description != null) {
-			// eslint-disable-next-line ts/no-unsafe-assignment, ts/no-unsafe-member-access
 			property.description = argTyped.description;
-			// eslint-disable-next-line ts/no-unsafe-assignment, ts/no-unsafe-member-access
 			property.markdownDescription = argTyped.description;
 		}
 
 		// Add default value
-		// eslint-disable-next-line ts/no-unsafe-member-access
 		if ('default' in argTyped && argTyped.default !== undefined) {
-			// eslint-disable-next-line ts/no-unsafe-assignment, ts/no-unsafe-member-access
 			property.default = argTyped.default;
 		}
 
@@ -101,42 +112,135 @@ function tokensSchemaToJsonSchema(schema: Record<string, any>): Record<string, a
 	};
 }
 
-/**
- * Create the complete configuration schema from all command definitions
- */
-function createConfigSchemaJson() {
-	// Create schema for default/shared arguments (excluding CLI-only options)
-	const defaultsSchema = Object.fromEntries(
-		Object.entries(sharedArgs).filter(([key]) => !EXCLUDE_KEYS.includes(key)),
-	);
-
-	// Create schemas for each command's specific arguments (excluding CLI-only options)
-	const commandSchemas: Record<string, any> = {};
-	for (const [commandName, command] of subCommandUnion) {
-		const commandExcludes = COMMAND_EXCLUDE_KEYS[commandName] ?? [];
-		commandSchemas[commandName] = Object.fromEntries(
-			Object.entries(command.args as Record<string, any>).filter(
-				([key]) => !EXCLUDE_KEYS.includes(key) && !commandExcludes.includes(key),
-			),
-		);
+function splitCommandName(name: string): { agent?: AgentName; report: string } {
+	const [prefix, report] = name.split(':');
+	if (report != null && AGENT_NAMES.includes(prefix as AgentName)) {
+		return { agent: prefix as AgentName, report };
 	}
+	return { report: name };
+}
 
-	// Convert to JSON Schema format
+function getSubCommandEntries(command: SchemaCommand): Array<[string, SchemaCommand]> {
+	const subCommands = command.subCommands;
+	if (subCommands == null) {
+		return [];
+	}
+	const entries = subCommands instanceof Map ? subCommands.entries() : Object.entries(subCommands);
+	return Array.from(entries, ([name, subCommand]) => [name, subCommand as SchemaCommand]);
+}
 
-	const defaultsJsonSchema = tokensSchemaToJsonSchema(defaultsSchema);
-	const commandsJsonSchema = {
+function filterCommandSchema(report: string, schema: TokenSchema): TokenSchema {
+	const commandExcludes = COMMAND_EXCLUDE_KEYS[report] ?? [];
+	return Object.fromEntries(
+		Object.entries(schema).filter(
+			([key]) => !EXCLUDE_KEYS.includes(key) && !commandExcludes.includes(key),
+		),
+	);
+}
+
+function commonSchemaProperties(commandSchemas: Record<string, TokenSchema>): TokenSchema {
+	const schemas = Object.values(commandSchemas);
+	const firstSchema = schemas[0];
+	if (firstSchema == null) {
+		return {};
+	}
+	const restSchemas = schemas.slice(1);
+	return Object.fromEntries(
+		Object.entries(firstSchema).filter(([key]) =>
+			restSchemas.every((schema) => Object.hasOwn(schema, key)),
+		),
+	);
+}
+
+function createCommandsJsonSchema(
+	commandSchemas: Record<string, TokenSchema>,
+	description: string,
+): JsonSchemaNode {
+	return {
 		type: 'object',
 		properties: Object.fromEntries(
 			Object.entries(commandSchemas).map(([name, schema]) => [
 				name,
-				// eslint-disable-next-line ts/no-unsafe-argument
 				tokensSchemaToJsonSchema(schema),
 			]),
 		),
 		additionalProperties: false,
-		description: 'Command-specific configuration overrides',
-		markdownDescription: 'Command-specific configuration overrides',
+		description,
+		markdownDescription: description,
 	};
+}
+
+function createAgentJsonSchema(
+	agentName: AgentName,
+	commandSchemas: Record<string, TokenSchema>,
+): JsonSchemaNode {
+	const agentLabel = agentName === 'pi' ? 'pi-agent' : agentName;
+	return {
+		type: 'object',
+		properties: {
+			defaults: {
+				...tokensSchemaToJsonSchema(commonSchemaProperties(commandSchemas)),
+				description: `Default values for ${agentLabel} commands`,
+				markdownDescription: `Default values for ${agentLabel} commands`,
+			},
+			commands: createCommandsJsonSchema(
+				commandSchemas,
+				`Command-specific configuration overrides for ${agentLabel}`,
+			),
+		},
+		additionalProperties: false,
+		description: `${agentLabel} command configuration`,
+		markdownDescription: `${agentLabel} command configuration`,
+	};
+}
+
+/**
+ * Create the complete configuration schema from all command definitions
+ */
+function createConfigSchemaJson(): JsonSchemaNode {
+	const topLevelCommandSchemas: Record<string, TokenSchema> = {};
+	const agentCommandSchemas = Object.fromEntries(AGENT_NAMES.map((agent) => [agent, {}])) as Record<
+		AgentName,
+		Record<string, TokenSchema>
+	>;
+
+	for (const [commandName, command] of subCommandUnion) {
+		if (AGENT_NAMES.includes(commandName as AgentName)) {
+			for (const [report, subCommand] of getSubCommandEntries(command)) {
+				agentCommandSchemas[commandName as AgentName][report] = filterCommandSchema(
+					report,
+					(subCommand.args ?? {}) as TokenSchema,
+				);
+			}
+			continue;
+		}
+
+		const { agent, report } = splitCommandName(commandName);
+		const commandSchema = filterCommandSchema(report, command.args as TokenSchema);
+		if (agent == null) {
+			topLevelCommandSchemas[report] = commandSchema;
+		} else {
+			agentCommandSchemas[agent][report] = commandSchema;
+		}
+	}
+
+	const legacyTopLevelCommandSchemas = Object.fromEntries(
+		Object.entries(topLevelCommandSchemas).map(([report, schema]) => [
+			report,
+			{
+				...(agentCommandSchemas.claude[report] ?? {}),
+				...schema,
+			},
+		]),
+	);
+	const defaultsJsonSchema = tokensSchemaToJsonSchema({
+		...commonSchemaProperties(agentCommandSchemas.claude),
+		...filterCommandSchema('daily', allArgs as TokenSchema),
+	});
+	const commandsJsonSchema = createCommandsJsonSchema(
+		legacyTopLevelCommandSchemas,
+		'Command-specific configuration overrides for all-agent reports',
+	);
 
 	// Main configuration schema
 	return {
@@ -152,10 +256,15 @@ function createConfigSchemaJson() {
 					},
 					defaults: {
 						...defaultsJsonSchema,
-						description: 'Default values for all commands',
-						markdownDescription: 'Default values for all commands',
+						description: 'Default values for all-agent reports and legacy Claude commands',
+						markdownDescription: 'Default values for all-agent reports and legacy Claude commands',
 					},
 					commands: commandsJsonSchema,
+					claude: createAgentJsonSchema('claude', agentCommandSchemas.claude),
+					codex: createAgentJsonSchema('codex', agentCommandSchemas.codex),
+					opencode: createAgentJsonSchema('opencode', agentCommandSchemas.opencode),
+					amp: createAgentJsonSchema('amp', agentCommandSchemas.amp),
+					pi: createAgentJsonSchema('pi', agentCommandSchemas.pi),
 				},
 				additionalProperties: false,
 			},
@@ -168,15 +277,24 @@ function createConfigSchemaJson() {
 				$schema: 'https://ccusage.com/config-schema.json',
 				defaults: {
 					json: false,
-					mode: 'auto',
 					timezone: 'Asia/Tokyo',
 				},
-				commands: {
-					daily: {
-						instances: true,
+				claude: {
+					defaults: {
+						mode: 'auto',
 					},
-					blocks: {
-						tokenLimit: '500000',
+					commands: {
+						daily: {
+							instances: true,
+						},
+						blocks: {
+							tokenLimit: '500000',
+						},
+					},
+				},
+				codex: {
+					defaults: {
+						speed: 'auto',
 					},
 				},
 			},
@@ -189,32 +307,33 @@ function createConfigSchemaJson() {
  */
 async function runFormat(files: string[]) {
 	return Result.try({
-		try: $`pnpm exec oxfmt ${files}`,
+		try: async () => $`pnpm exec oxfmt ${files}`,
 		catch: (error) => error,
 	});
 }
 
 async function writeFile(path: string, content: string) {
-	const attempt = Result.try({
+	return Result.try({
 		try: async () => Bun.write(path, content),
 		catch: (error) => error,
 	});
-	return attempt();
 }
 
-async function readFile(path: string): Promise<Result.Result<string, any>> {
+async function readFile(path: string) {
 	return Result.try({
 		try: async () => {
 			const file = Bun.file(path);
 			return file.text();
 		},
 		catch: (error) => error,
-	})();
+	});
 }
 
 async function copySchemaToDocsPublic() {
-	const gitRoot = await $`git rev-parse --show-toplevel`.text().then((text) => text.trim());
-	await $`cp ${SCHEMA_FILENAME} ${gitRoot}/docs/public/${SCHEMA_FILENAME}`;
+	const docsSchemaPath = fileURLToPath(
+		new URL(`../../../docs/public/${SCHEMA_FILENAME}`, import.meta.url),
+	);
+	await writeFile(docsSchemaPath, await Bun.file(SCHEMA_FILENAME).text());
 }
 
 async function generateJsonSchema() {
@@ -225,7 +344,7 @@ async function generateJsonSchema() {
 		Result.try({
 			try: () => createConfigSchemaJson(),
 			catch: (error) => error,
-		})(),
+		}),
 		Result.inspectError((error) => {
 			logger.error('Error creating JSON Schema:', error);
 			process.exit(1);
@@ -236,7 +355,15 @@ async function generateJsonSchema() {
 	// Check if existing root schema is identical to avoid unnecessary writes
 	const existingRootSchema = await Result.pipe(
 		readFile(SCHEMA_FILENAME),
-		Result.map((content) => JSON.parse(content) as unknown),
+		Result.map((content) =>
+			Result.pipe(
+				Result.try({
+					try: () => JSON.parse(content) as unknown,
+					catch: () => '',
+				}),
+				Result.unwrap(''),
+			),
+		),
 		Result.unwrap(''),
 	);
 
@@ -255,10 +382,7 @@ async function generateJsonSchema() {
 	const schemaJson = JSON.stringify(schemaObject, null, '\t');
 
 	await Result.pipe(
-		Result.try({
-			try: writeFile(SCHEMA_FILENAME, schemaJson),
-			safe: true,
-		}),
+		writeFile(SCHEMA_FILENAME, schemaJson),
 		Result.inspectError((error) => {
 			logger.error(`Failed to write ${SCHEMA_FILENAME}:`, error);
 			process.exit(1);
@@ -271,10 +395,7 @@ async function generateJsonSchema() {
 
 	// Run format on the root schema file that was changed
 	await Result.pipe(
-		Result.try({
-			try: runFormat([SCHEMA_FILENAME]),
-			safe: true,
-		}),
+		runFormat([SCHEMA_FILENAME]),
 		Result.inspectError((error) => {
 			logger.error('Failed to format generated files:', error);
 			process.exit(1);
@@ -290,6 +411,14 @@ if (import.meta.main) {
 	await generateJsonSchema();
 }
 if (import.meta.vitest != null) {
+	function schemaProperties(schema: JsonSchemaNode): Record<string, JsonSchemaNode> {
+		return schema.properties ?? {};
+	}
+
+	function configSchemaDefinition(schema: JsonSchemaNode): JsonSchemaNode {
+		return schema.definitions?.['ccusage-config'] ?? {};
+	}
+
 	describe('tokensSchemaToJsonSchema', () => {
 		it('should convert boolean args to JSON Schema', () => {
 			const schema = {
@@ -298,10 +427,10 @@ if (import.meta.vitest != null) {
 					description: 'Enable debug mode',
 					default: false,
 				},
-			};
+			} satisfies TokenSchema;
 
 			const jsonSchema = tokensSchemaToJsonSchema(schema);
-			expect((jsonSchema.properties as Record<string, any>).debug).toEqual({
+			expect(schemaProperties(jsonSchema).debug).toEqual({
 				type: 'boolean',
 				description: 'Enable debug mode',
 				markdownDescription: 'Enable debug mode',
@@ -317,10 +446,10 @@ if (import.meta.vitest != null) {
 					choices: ['auto', 'manual'],
 					default: 'auto',
 				},
-			};
+			} satisfies TokenSchema;
 
 			const jsonSchema = tokensSchemaToJsonSchema(schema);
-			expect((jsonSchema.properties as Record<string, any>).mode).toEqual({
+			expect(schemaProperties(jsonSchema).mode).toEqual({
 				type: 'string',
 				enum: ['auto', 'manual'],
 				description: 'Mode selection',
@@ -337,29 +466,62 @@ if (import.meta.vitest != null) {
 			expect(jsonSchema).toBeDefined();
 			expect(jsonSchema.$ref).toBe('#/definitions/ccusage-config');
 			expect(jsonSchema.definitions).toBeDefined();
-			expect(jsonSchema.definitions['ccusage-config']).toBeDefined();
-			expect(jsonSchema.definitions['ccusage-config'].type).toBe('object');
+			expect(configSchemaDefinition(jsonSchema)).toBeDefined();
+			expect(configSchemaDefinition(jsonSchema).type).toBe('object');
 		});
 
 		it('should include all expected properties', () => {
 			const jsonSchema = createConfigSchemaJson();
-			const mainSchema = jsonSchema.definitions['ccusage-config'];
+			const mainSchema = configSchemaDefinition(jsonSchema);
+			const properties = schemaProperties(mainSchema);
 
-			expect(mainSchema.properties).toHaveProperty('$schema');
-			expect(mainSchema.properties).toHaveProperty('defaults');
-			expect(mainSchema.properties).toHaveProperty('commands');
+			expect(properties).toHaveProperty('$schema');
+			expect(properties).toHaveProperty('defaults');
+			expect(properties).toHaveProperty('commands');
+			expect(properties).toHaveProperty('claude');
+			expect(properties).toHaveProperty('codex');
+		});
+
+		it('should keep legacy top-level Claude config properties', () => {
+			const jsonSchema = createConfigSchemaJson();
+			const mainSchema = configSchemaDefinition(jsonSchema);
+			const properties = schemaProperties(mainSchema);
+			const defaultsSchema = properties.defaults ?? {};
+			const commandsSchema = properties.commands ?? {};
+			const dailySchema = schemaProperties(commandsSchema).daily ?? {};
+
+			expect(schemaProperties(defaultsSchema)).toHaveProperty('mode');
+			expect(schemaProperties(dailySchema)).toHaveProperty('instances');
 		});
 
 		it('should include all command schemas', () => {
 			const jsonSchema = createConfigSchemaJson();
-			const commandsSchema = jsonSchema.definitions['ccusage-config'].properties.commands;
+			const mainSchema = configSchemaDefinition(jsonSchema);
+			const commandsSchema = schemaProperties(mainSchema).commands ?? {};
+			const commandProperties = schemaProperties(commandsSchema);
 
-			expect(commandsSchema.properties).toHaveProperty('daily');
-			expect(commandsSchema.properties).toHaveProperty('monthly');
-			expect(commandsSchema.properties).toHaveProperty('weekly');
-			expect(commandsSchema.properties).toHaveProperty('session');
-			expect(commandsSchema.properties).toHaveProperty('blocks');
-			expect(commandsSchema.properties).toHaveProperty('statusline');
+			expect(commandProperties).toHaveProperty('daily');
+			expect(commandProperties).toHaveProperty('monthly');
+			expect(commandProperties).toHaveProperty('weekly');
+			expect(commandProperties).toHaveProperty('session');
+			expect(commandProperties).not.toHaveProperty('codex:daily');
+		});
+
+		it('should include agent command schemas under agent namespaces', () => {
+			const jsonSchema = createConfigSchemaJson();
+			const mainSchema = configSchemaDefinition(jsonSchema);
+			const properties = schemaProperties(mainSchema);
+			const claudeCommands = schemaProperties(properties.claude ?? {}).commands ?? {};
+			const codexCommands = schemaProperties(properties.codex ?? {}).commands ?? {};
+			const claudeCommandProperties = schemaProperties(claudeCommands);
+			const codexCommandProperties = schemaProperties(codexCommands);
+
+			expect(claudeCommandProperties).toHaveProperty('daily');
+			expect(claudeCommandProperties).toHaveProperty('blocks');
+			expect(claudeCommandProperties).toHaveProperty('statusline');
+			expect(codexCommandProperties).toHaveProperty('daily');
+			expect(codexCommandProperties).toHaveProperty('monthly');
+			expect(codexCommandProperties).toHaveProperty('session');
 		});
 	});
 }

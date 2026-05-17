@@ -1,7 +1,7 @@
 import type { WriteStream } from 'node:tty';
 import process from 'node:process';
 import * as ansiEscapes from 'ansi-escapes';
-import stringWidth from 'string-width';
+import { getStringWidth } from './text-width.ts';
 
 // DEC synchronized output mode - prevents screen flickering by buffering all terminal writes
 // until flush() is called. Think of it like double-buffering in graphics programming.
@@ -274,7 +274,7 @@ export function createProgressBar(
 /**
  * Centers text within a specified width using spaces for padding
  *
- * Uses string-width to handle Unicode characters and ANSI escape codes properly.
+ * Uses the shared terminal width helper for Unicode characters and ANSI escape codes.
  * If text is longer than width, returns original text without truncation.
  *
  * Example: centerText("Hello", 10) -> "  Hello   "
@@ -284,7 +284,7 @@ export function createProgressBar(
  * @returns Text with spaces added for centering
  */
 export function centerText(text: string, width: number): string {
-	const textLength = stringWidth(text);
+	const textLength = getStringWidth(text);
 	if (textLength >= width) {
 		return text;
 	}
@@ -312,24 +312,24 @@ const RESTORE_CURSOR = '\u001B8';
  * @returns A string containing ANSI escape sequences and the emoji
  */
 export function drawEmoji(emoji: string): string {
-	return `${SAVE_CURSOR}${emoji}${RESTORE_CURSOR}${ansiEscapes.cursorForward(stringWidth(emoji))}`;
+	return `${SAVE_CURSOR}${emoji}${RESTORE_CURSOR}${ansiEscapes.cursorForward(getStringWidth(emoji))}`;
 }
 
 if (import.meta.vitest != null) {
 	describe('drawEmoji', () => {
 		it('should always return a string with width as same as original', () => {
 			// 2-width emojis
-			expect(stringWidth(drawEmoji('⏱️'))).toBe(2);
-			expect(stringWidth(drawEmoji('🔥'))).toBe(2);
-			expect(stringWidth(drawEmoji('📈'))).toBe(2);
-			expect(stringWidth(drawEmoji('⚙️'))).toBe(2);
-			expect(stringWidth(drawEmoji('❌'))).toBe(2);
-			expect(stringWidth(drawEmoji('⚠️'))).toBe(2);
-			expect(stringWidth(drawEmoji('⚡'))).toBe(2);
+			expect(getStringWidth(drawEmoji('⏱️'))).toBe(2);
+			expect(getStringWidth(drawEmoji('🔥'))).toBe(2);
+			expect(getStringWidth(drawEmoji('📈'))).toBe(2);
+			expect(getStringWidth(drawEmoji('⚙️'))).toBe(2);
+			expect(getStringWidth(drawEmoji('❌'))).toBe(2);
+			expect(getStringWidth(drawEmoji('⚠️'))).toBe(2);
+			expect(getStringWidth(drawEmoji('⚡'))).toBe(2);
 
 			// 1-width emojis
-			expect(stringWidth(drawEmoji('✓'))).toBe(1);
-			expect(stringWidth(drawEmoji('↻'))).toBe(1);
+			expect(getStringWidth(drawEmoji('✓'))).toBe(1);
+			expect(getStringWidth(drawEmoji('↻'))).toBe(1);
 		});
 	});
 }

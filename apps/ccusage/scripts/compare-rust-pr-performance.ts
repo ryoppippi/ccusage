@@ -95,29 +95,32 @@ async function writeProgress(message: string): Promise<void> {
 	await Bun.write(Bun.stderr, `[ccusage-rust-perf] ${message}\n`);
 }
 
-/**
- * Builds the package-bin command that hyperfine will benchmark.
- *
- * The benchmark script is launched through `pnpm exec bun`, but the measured command uses the Bun
- * executable already running this script and the package.json bin from the checkout under test.
- * Hyperfine runs this with `--shell none`, so the command is split into argv without shell
- * interpretation or hand-written shell quoting.
- */
-async function createCcusageCommand(
+function createEnvironment(fixtureDir: string): string[] {
+	return [`CLAUDE_CONFIG_DIR=${fixtureDir}`, 'COLUMNS=200', 'LOG_LEVEL=0', 'NO_COLOR=1', 'TZ=UTC'];
+}
+
+async function createBaseCommand(
 	repoDir: string,
 	fixtureDir: string,
 	command: string,
 ): Promise<string> {
 	return [
 		'env',
-		`CLAUDE_CONFIG_DIR=${fixtureDir}`,
-		'COLUMNS=200',
-		'LOG_LEVEL=0',
-		'NO_COLOR=1',
-		'TZ=UTC',
+		...createEnvironment(fixtureDir),
 		execPath,
 		'-b',
 		await packageBinEntry(repoDir),
+		command,
+		'--offline',
+		'--json',
+	].join(' ');
+}
+
+function createRustCommand(repoDir: string, fixtureDir: string, command: string): string {
+	return [
+		'env',
+		...createEnvironment(fixtureDir),
+		rustBinary(repoDir),
 		command,
 		'--offline',
 		'--json',
@@ -150,8 +153,8 @@ async function compareCommand(
 	await writeProgress(`${options.fixtureTitle} / ${command} started`);
 	await using fixture = await createFixture({});
 	const exportPath = join(fixture.path, 'hyperfine.json');
-	const baseCommand = await createCcusageCommand(options.baseDir, options.fixtureDir, command);
-	const headCommand = await createCcusageCommand(options.headDir, options.fixtureDir, command);
+	const baseCommand = await createBaseCommand(options.baseDir, options.fixtureDir, command);
+	const headCommand = createRustCommand(options.headDir, options.fixtureDir, command);
 	const hyperfine = Bun.spawn(
 		[
 			'hyperfine',
@@ -257,7 +260,7 @@ function renderFixtureSection(section: FixtureComparison, options: { headDir: st
 		section.description,
 		'',
 		`Fixture: \`${formatFixturePath(options.headDir, section.fixtureDir)}\``,
-		`Runtime: main branch and Rust PR both use the package \`ccusage\` bin from \`apps/ccusage/package.json\` through \`bun -b\`. Both run \`--offline --json\`, measured by \`hyperfine\` with \`${section.warmup}\` warmups and \`${section.runs}\` runs.`,
+		`Runtime: main branch uses the package \`ccusage\` bin through \`bun -b\`; Rust PR uses \`target/release/ccusage\`. Both run \`--offline --json\`, measured by \`hyperfine\` with \`${section.warmup}\` warmups and \`${section.runs}\` runs.`,
 		'',
 		'| Command | main JS/Bun median | Rust PR median | Rust speedup |',
 		'| --- | ---: | ---: | ---: |',
