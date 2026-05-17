@@ -65,7 +65,7 @@ These views support `--json` for structured output, `--compact` for narrow termi
 
 - **Token usage** - Assistant messages can provide input and output token counts from `metadata.usage`, `metadata.codebuff.usage`, or nested run-state provider usage.
 - **Cache tokens** - Cache creation and cache read tokens are included when the Codebuff message metadata records them.
-- **Credits** - Codebuff credit values are summed in row metadata alongside token and cost totals.
+- **Credits** - Codebuff credit values are summed in row metadata and included in per-agent JSON output.
 - **Pricing** - Costs are estimated from LiteLLM pricing data for Anthropic, OpenAI, Google, xAI, and provider-prefixed model names.
 
 ## Environment Variables
@@ -82,5 +82,5 @@ Ensure the data directory contains `projects/<project>/chats/<chat-id>/chat-mess
 :::
 
 ::: details Costs showing as $0.00
-If a model is not in LiteLLM's database, the cost will be $0.00. [Open an issue](https://github.com/ryoppippi/ccusage/issues/new) to request alias support.
+If a model is not in LiteLLM's database, the cost will be $0.00. Costs can also be $0.00 in offline mode when pricing data is unavailable. [Open an issue](https://github.com/ryoppippi/ccusage/issues/new) to request alias support.
 :::

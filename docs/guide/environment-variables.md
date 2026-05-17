@@ -6,14 +6,14 @@ ccusage supports several environment variables for configuration and customizati
 
 ccusage detects supported data source files from conventional locations by default. Set these variables when your data lives somewhere else. Each value can be one directory or a comma-separated list of directories:
 
-| Variable            | Agent       | Default                            |
-| ------------------- | ----------- | ---------------------------------- |
-| `CLAUDE_CONFIG_DIR` | Claude Code | `~/.config/claude` and `~/.claude` |
-| `CODEX_HOME`        | Codex       | `~/.codex`                         |
-| `OPENCODE_DATA_DIR` | OpenCode    | `~/.local/share/opencode`          |
-| `AMP_DATA_DIR`      | Amp         | `~/.local/share/amp`               |
-| `PI_AGENT_DIR`      | pi-agent    | `~/.pi/agent/sessions`             |
-| `CODEBUFF_DATA_DIR` | Codebuff    | `~/.config/manicode`               |
+| Variable            | Agent       | Default                                                                      |
+| ------------------- | ----------- | ---------------------------------------------------------------------------- |
+| `CLAUDE_CONFIG_DIR` | Claude Code | `~/.config/claude` and `~/.claude`                                           |
+| `CODEX_HOME`        | Codex       | `~/.codex`                                                                   |
+| `OPENCODE_DATA_DIR` | OpenCode    | `~/.local/share/opencode`                                                    |
+| `AMP_DATA_DIR`      | Amp         | `~/.local/share/amp`                                                         |
+| `PI_AGENT_DIR`      | pi-agent    | `~/.pi/agent/sessions`                                                       |
+| `CODEBUFF_DATA_DIR` | Codebuff    | `~/.config/manicode`, `~/.config/manicode-dev`, `~/.config/manicode-staging` |
 
 Example:
 

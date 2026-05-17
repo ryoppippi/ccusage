@@ -130,7 +130,21 @@ function getCredits(row: AgentUsageRow): number | undefined {
 	return typeof credits === 'number' ? credits : undefined;
 }
 
+function agentSupportsCredits(agent: AgentId): boolean {
+	switch (agent) {
+		case 'amp':
+		case 'codebuff':
+			return true;
+		case 'claude':
+		case 'codex':
+		case 'opencode':
+		case 'pi':
+			return false;
+	}
+}
+
 export function calculateAgentTotals(agent: AgentId, rows: AgentUsageRow[]): AgentTotals {
+	const supportsCredits = agentSupportsCredits(agent);
 	const totals = rows.reduce(
 		(total, row) => {
 			total.inputTokens += row.inputTokens;
@@ -139,7 +153,7 @@ export function calculateAgentTotals(agent: AgentId, rows: AgentUsageRow[]): Age
 			total.cacheReadTokens += row.cacheReadTokens;
 			total.totalTokens += row.totalTokens;
 			total.totalCost += row.totalCost;
-			if (agent === 'amp') {
+			if (supportsCredits) {
 				total.credits = (total.credits ?? 0) + (getCredits(row) ?? 0);
 			}
 			return total;
@@ -150,11 +164,11 @@ export function calculateAgentTotals(agent: AgentId, rows: AgentUsageRow[]): Age
 			cacheCreationTokens: 0,
 			cacheReadTokens: 0,
 			totalTokens: 0,
-			credits: agent === 'amp' ? 0 : undefined,
+			credits: supportsCredits ? 0 : undefined,
 			totalCost: 0,
 		} satisfies AgentTotals,
 	);
-	return agent === 'amp'
+	return supportsCredits
 		? {
 				inputTokens: totals.inputTokens,
 				outputTokens: totals.outputTokens,
@@ -180,6 +194,7 @@ export function toAgentJsonPayload(
 	rows: AgentUsageRow[],
 ): Record<string, unknown> {
 	const periodKey = getPeriodKey(kind);
+	const supportsCredits = agentSupportsCredits(agent);
 	return {
 		[getJsonKey(kind)]: rows.map<AgentJsonRow>((row) => {
 			const baseRow = {
@@ -190,21 +205,20 @@ export function toAgentJsonPayload(
 				totalTokens: row.totalTokens,
 			};
 			const credits = getCredits(row);
-			const jsonRow: AgentJsonRow =
-				agent === 'amp'
-					? {
-							[periodKey]: row.period,
-							...baseRow,
-							credits: credits ?? 0,
-							totalCost: row.totalCost,
-							modelsUsed: row.modelsUsed,
-						}
-					: {
-							[periodKey]: row.period,
-							...baseRow,
-							totalCost: row.totalCost,
-							modelsUsed: row.modelsUsed,
-						};
+			const jsonRow: AgentJsonRow = supportsCredits
+				? {
+						[periodKey]: row.period,
+						...baseRow,
+						credits: credits ?? 0,
+						totalCost: row.totalCost,
+						modelsUsed: row.modelsUsed,
+					}
+				: {
+						[periodKey]: row.period,
+						...baseRow,
+						totalCost: row.totalCost,
+						modelsUsed: row.modelsUsed,
+					};
 			if (kind === 'session') {
 				if (row.metadata?.lastActivity != null) {
 					jsonRow.lastActivity = row.metadata.lastActivity;
@@ -497,12 +511,15 @@ if (import.meta.vitest != null) {
 			});
 		});
 
-		it('keeps Amp credits when rows come from the adapter metadata', () => {
-			const payload = toAgentJsonPayload('amp', 'monthly', [
+		it.each([
+			['amp', 'opus-4'],
+			['codebuff', 'claude-sonnet-4-20250514'],
+		] as const)('keeps %s credits when rows come from the adapter metadata', (agent, model) => {
+			const payload = toAgentJsonPayload(agent, 'monthly', [
 				{
 					period: '2026-05',
-					agent: 'amp',
-					modelsUsed: ['opus-4'],
+					agent,
+					modelsUsed: [model],
 					inputTokens: 10,
 					outputTokens: 20,
 					cacheCreationTokens: 30,
@@ -524,7 +541,7 @@ if (import.meta.vitest != null) {
 						totalTokens: 100,
 						credits: 2.5,
 						totalCost: 1.25,
-						modelsUsed: ['opus-4'],
+						modelsUsed: [model],
 					},
 				],
 				totals: {

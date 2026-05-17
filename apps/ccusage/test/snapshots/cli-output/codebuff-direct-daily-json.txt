@@ -7,6 +7,7 @@
       "cacheCreationTokens": 20,
       "cacheReadTokens": 10,
       "totalTokens": 180,
+      "credits": 1.25,
       "totalCost": 0,
       "modelsUsed": [
         "claude-sonnet-4-20250514"
@@ -19,6 +20,7 @@
     "cacheCreationTokens": 20,
     "cacheReadTokens": 10,
     "totalTokens": 180,
+    "credits": 1.25,
     "totalCost": 0
   }
 }

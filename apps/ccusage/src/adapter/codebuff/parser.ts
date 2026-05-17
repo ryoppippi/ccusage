@@ -256,6 +256,9 @@ function inferProvider(model: string): string {
 	if (normalized.startsWith('grok') || normalized.startsWith('xai/')) {
 		return 'xai';
 	}
+	if (normalized.startsWith('openrouter/')) {
+		return 'openrouter';
+	}
 	return 'unknown';
 }
 

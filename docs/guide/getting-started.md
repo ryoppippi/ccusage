@@ -157,7 +157,7 @@ If ccusage shows no data, check:
    - OpenCode: `${OPENCODE_DATA_DIR:-~/.local/share/opencode}`
    - Amp: `${AMP_DATA_DIR:-~/.local/share/amp}`
    - pi-agent: `${PI_AGENT_DIR:-~/.pi/agent/sessions}`
-   - Codebuff: `${CODEBUFF_DATA_DIR:-~/.config/manicode}`
+   - Codebuff: `${CODEBUFF_DATA_DIR:-~/.config/manicode/projects,~/.config/manicode-dev/projects,~/.config/manicode-staging/projects}`
 
 ### Custom Data Directory
 
