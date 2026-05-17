@@ -15,6 +15,7 @@ pub(crate) enum Command {
     Blocks(BlocksArgs),
     Statusline(StatuslineArgs),
     Codex(AgentCommandArgs),
+    OpenCode(AgentCommandArgs),
 }
 
 #[derive(Clone, Default)]
@@ -102,6 +103,7 @@ pub(crate) struct AgentCommandArgs {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum AgentReportKind {
     Daily,
+    Weekly,
     Monthly,
     Session,
 }
@@ -344,6 +346,7 @@ fn parse_command(
         }
         "claude" => parse_claude_command(parser, shared),
         "codex" => parse_codex_command(parser, shared),
+        "opencode" => parse_opencode_command(parser, shared),
         _ => Err(format!("Unknown command '{command}'")),
     }
 }
@@ -386,6 +389,38 @@ fn parse_codex_command(parser: &mut ArgParser, mut shared: SharedArgs) -> Result
         parse_shared_arg(parser, &mut shared)?;
     }
     Ok(Command::Codex(AgentCommandArgs { shared, kind }))
+}
+
+fn parse_opencode_command(
+    parser: &mut ArgParser,
+    mut shared: SharedArgs,
+) -> Result<Command, String> {
+    let kind = match parser.peek() {
+        Some("daily") => {
+            parser.next();
+            AgentReportKind::Daily
+        }
+        Some("weekly") => {
+            parser.next();
+            AgentReportKind::Weekly
+        }
+        Some("monthly") => {
+            parser.next();
+            AgentReportKind::Monthly
+        }
+        Some("session") => {
+            parser.next();
+            AgentReportKind::Session
+        }
+        Some(command) if !command.starts_with('-') => {
+            return Err(format!("Unknown opencode command '{command}'"));
+        }
+        _ => AgentReportKind::Daily,
+    };
+    while parser.peek().is_some() {
+        parse_shared_arg(parser, &mut shared)?;
+    }
+    Ok(Command::OpenCode(AgentCommandArgs { shared, kind }))
 }
 
 fn parse_shared_arg_for_command(
@@ -434,7 +469,15 @@ fn parse_shared_arg(parser: &mut ArgParser, shared: &mut SharedArgs) -> Result<(
 fn is_command(arg: &str) -> bool {
     matches!(
         arg,
-        "daily" | "monthly" | "weekly" | "session" | "blocks" | "statusline" | "claude" | "codex"
+        "daily"
+            | "monthly"
+            | "weekly"
+            | "session"
+            | "blocks"
+            | "statusline"
+            | "claude"
+            | "codex"
+            | "opencode"
     )
 }
 
@@ -703,5 +746,15 @@ mod tests {
         };
         assert!(args.shared.json);
         assert_eq!(args.id.as_deref(), Some("abc"));
+    }
+
+    #[test]
+    fn parses_opencode_weekly_options() {
+        let cli = parse(&["ccusage", "opencode", "weekly", "--json"]);
+        let Some(Command::OpenCode(args)) = cli.command else {
+            panic!("expected opencode command");
+        };
+        assert_eq!(args.kind, AgentReportKind::Weekly);
+        assert!(args.shared.json);
     }
 }
