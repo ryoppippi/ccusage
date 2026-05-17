@@ -21,6 +21,14 @@ export const monthlyCommand = define({
 	name: 'monthly',
 	description: 'Show usage report grouped by month',
 	...sharedCommandConfig,
+	args: {
+		...sharedCommandConfig.args,
+		prompts: {
+			type: 'boolean',
+			description: 'Show prompt count column (number of usage-bearing entries per bucket)',
+			default: false,
+		},
+	},
 	async run(ctx) {
 		// Load configuration and merge with CLI arguments
 		const config = loadConfig(ctx.values.config, ctx.values.debug);
@@ -51,6 +59,8 @@ export const monthlyCommand = define({
 			logger.level = originalLoggerLevel;
 		}
 
+		const includePrompts = Boolean(mergedOptions.prompts);
+
 		if (monthlyData.length === 0) {
 			if (useJson) {
 				const emptyOutput = {
@@ -62,6 +72,7 @@ export const monthlyCommand = define({
 						cacheReadTokens: 0,
 						totalTokens: 0,
 						totalCost: 0,
+						...(includePrompts && { promptCount: 0 }),
 					},
 				};
 				await writeStdoutLine(JSON.stringify(emptyOutput, null, 2));
@@ -73,6 +84,7 @@ export const monthlyCommand = define({
 
 		// Calculate totals
 		const totals = calculateTotals(monthlyData);
+		const totalPromptCount = monthlyData.reduce((sum, month) => sum + month.promptCount, 0);
 
 		// Show debug information if requested
 		if (mergedOptions.debug && !useJson) {
@@ -93,8 +105,12 @@ export const monthlyCommand = define({
 					totalCost: data.totalCost,
 					modelsUsed: data.modelsUsed,
 					modelBreakdowns: data.modelBreakdowns,
+					...(includePrompts && { promptCount: data.promptCount }),
 				})),
-				totals: createTotalsObject(totals),
+				totals: {
+					...createTotalsObject(totals),
+					...(includePrompts && { promptCount: totalPromptCount }),
+				},
 			};
 
 			await writeStdoutLine(JSON.stringify(jsonOutput, null, 2));
@@ -107,8 +123,10 @@ export const monthlyCommand = define({
 				firstColumnName: 'Month',
 				dateFormatter: (dateStr: string) => formatDateCompact(dateStr, mergedOptions.timezone),
 				forceCompact: ctx.values.compact,
+				includePrompts,
 			};
 			const table = createUsageReportTable(tableConfig);
+			const columnCount = 8 + (includePrompts ? 1 : 0);
 
 			// Add monthly data
 			for (const data of monthlyData) {
@@ -120,17 +138,18 @@ export const monthlyCommand = define({
 					cacheReadTokens: data.cacheReadTokens,
 					totalCost: data.totalCost,
 					modelsUsed: data.modelsUsed,
+					...(includePrompts && { promptCount: data.promptCount }),
 				});
 				table.push(row);
 
 				// Add model breakdown rows if flag is set
 				if (mergedOptions.breakdown) {
-					pushBreakdownRows(table, data.modelBreakdowns);
+					pushBreakdownRows(table, data.modelBreakdowns, includePrompts ? 2 : 1);
 				}
 			}
 
 			// Add empty row for visual separation before totals
-			addEmptySeparatorRow(table, 8);
+			addEmptySeparatorRow(table, columnCount);
 
 			// Add totals
 			const totalsRow = formatTotalsRow({
@@ -139,6 +158,7 @@ export const monthlyCommand = define({
 				cacheCreationTokens: totals.cacheCreationTokens,
 				cacheReadTokens: totals.cacheReadTokens,
 				totalCost: totals.totalCost,
+				...(includePrompts && { promptCount: totalPromptCount }),
 			});
 			table.push(totalsRow);
 

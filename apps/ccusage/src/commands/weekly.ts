@@ -30,6 +30,11 @@ export const weeklyCommand = define({
 			default: 'sunday' as const,
 			choices: WEEK_DAYS,
 		},
+		prompts: {
+			type: 'boolean',
+			description: 'Show prompt count column (number of usage-bearing entries per bucket)',
+			default: false,
+		},
 	},
 	toKebab: true,
 	async run(ctx) {
@@ -62,6 +67,8 @@ export const weeklyCommand = define({
 			logger.level = originalLoggerLevel;
 		}
 
+		const includePrompts = Boolean(mergedOptions.prompts);
+
 		if (weeklyData.length === 0) {
 			if (useJson) {
 				const emptyOutput = {
@@ -73,6 +80,7 @@ export const weeklyCommand = define({
 						cacheReadTokens: 0,
 						totalTokens: 0,
 						totalCost: 0,
+						...(includePrompts && { promptCount: 0 }),
 					},
 				};
 				await writeStdoutLine(JSON.stringify(emptyOutput, null, 2));
@@ -84,6 +92,7 @@ export const weeklyCommand = define({
 
 		// Calculate totals
 		const totals = calculateTotals(weeklyData);
+		const totalPromptCount = weeklyData.reduce((sum, week) => sum + week.promptCount, 0);
 
 		// Show debug information if requested
 		if (mergedOptions.debug && !useJson) {
@@ -104,8 +113,12 @@ export const weeklyCommand = define({
 					totalCost: data.totalCost,
 					modelsUsed: data.modelsUsed,
 					modelBreakdowns: data.modelBreakdowns,
+					...(includePrompts && { promptCount: data.promptCount }),
 				})),
-				totals: createTotalsObject(totals),
+				totals: {
+					...createTotalsObject(totals),
+					...(includePrompts && { promptCount: totalPromptCount }),
+				},
 			};
 
 			await writeStdoutLine(JSON.stringify(jsonOutput, null, 2));
@@ -118,8 +131,10 @@ export const weeklyCommand = define({
 				firstColumnName: 'Week',
 				dateFormatter: (dateStr: string) => formatDateCompact(dateStr, mergedOptions.timezone),
 				forceCompact: ctx.values.compact,
+				includePrompts,
 			};
 			const table = createUsageReportTable(tableConfig);
+			const columnCount = 8 + (includePrompts ? 1 : 0);
 
 			// Add weekly data
 			for (const data of weeklyData) {
@@ -131,17 +146,18 @@ export const weeklyCommand = define({
 					cacheReadTokens: data.cacheReadTokens,
 					totalCost: data.totalCost,
 					modelsUsed: data.modelsUsed,
+					...(includePrompts && { promptCount: data.promptCount }),
 				});
 				table.push(row);
 
 				// Add model breakdown rows if flag is set
 				if (mergedOptions.breakdown) {
-					pushBreakdownRows(table, data.modelBreakdowns);
+					pushBreakdownRows(table, data.modelBreakdowns, includePrompts ? 2 : 1);
 				}
 			}
 
 			// Add empty row for visual separation before totals
-			addEmptySeparatorRow(table, 8);
+			addEmptySeparatorRow(table, columnCount);
 
 			// Add totals
 			const totalsRow = formatTotalsRow({
@@ -150,6 +166,7 @@ export const weeklyCommand = define({
 				cacheCreationTokens: totals.cacheCreationTokens,
 				cacheReadTokens: totals.cacheReadTokens,
 				totalCost: totals.totalCost,
+				...(includePrompts && { promptCount: totalPromptCount }),
 			});
 			table.push(totalsRow);
 

@@ -25,4 +25,5 @@ export type DailyProjectOutput = {
 	totalCost: number;
 	modelsUsed: ModelName[];
 	modelBreakdowns: ModelBreakdown[];
+	promptCount?: number;
 };

@@ -43,6 +43,11 @@ export const dailyCommand = define({
 				"Comma-separated project aliases (e.g., 'ccusage=Usage Tracker,myproject=My Project')",
 			hidden: true,
 		},
+		prompts: {
+			type: 'boolean',
+			description: 'Show prompt count column (number of usage-bearing entries per bucket)',
+			default: false,
+		},
 	},
 	async run(ctx) {
 		// Load configuration and merge with CLI arguments
@@ -107,6 +112,8 @@ export const dailyCommand = define({
 
 		// Calculate totals
 		const totals = calculateTotals(dailyData);
+		const includePrompts = Boolean(mergedOptions.prompts);
+		const totalPromptCount = dailyData.reduce((sum, day) => sum + day.promptCount, 0);
 
 		// Show debug information if requested
 		if (mergedOptions.debug && !useJson) {
@@ -115,12 +122,16 @@ export const dailyCommand = define({
 		}
 
 		if (useJson) {
+			const jsonTotals = {
+				...createTotalsObject(totals),
+				...(includePrompts && { promptCount: totalPromptCount }),
+			};
 			// Output JSON format - group by project if instances flag is used
 			const jsonOutput =
 				Boolean(mergedOptions.instances) && dailyData.some((d) => d.project != null)
 					? {
-							projects: groupByProject(dailyData),
-							totals: createTotalsObject(totals),
+							projects: groupByProject(dailyData, includePrompts),
+							totals: jsonTotals,
 						}
 					: {
 							daily: dailyData.map((data) => ({
@@ -133,9 +144,10 @@ export const dailyCommand = define({
 								totalCost: data.totalCost,
 								modelsUsed: data.modelsUsed,
 								modelBreakdowns: data.modelBreakdowns,
+								...(includePrompts && { promptCount: data.promptCount }),
 								...(data.project != null && { project: data.project }),
 							})),
-							totals: createTotalsObject(totals),
+							totals: jsonTotals,
 						};
 
 			await writeStdoutLine(JSON.stringify(jsonOutput, null, 2));
@@ -148,8 +160,10 @@ export const dailyCommand = define({
 				firstColumnName: 'Date',
 				dateFormatter: (dateStr: string) => formatDateCompact(dateStr, mergedOptions.timezone),
 				forceCompact: ctx.values.compact,
+				includePrompts,
 			};
 			const table = createUsageReportTable(tableConfig);
+			const columnCount = 8 + (includePrompts ? 1 : 0);
 
 			// Add daily data - group by project if instances flag is used
 			if (Boolean(mergedOptions.instances) && dailyData.some((d) => d.project != null)) {
@@ -161,20 +175,17 @@ export const dailyCommand = define({
 					// Add project section header
 					if (!isFirstProject) {
 						// Add empty row for visual separation between projects
-						table.push(['', '', '', '', '', '', '', '']);
+						table.push(Array.from({ length: columnCount }, () => ''));
 					}
 
 					// Add project header row
-					table.push([
+					const projectHeaderRow: (string | number)[] = [
 						pc.cyan(`Project: ${formatProjectName(projectName, projectAliases)}`),
-						'',
-						'',
-						'',
-						'',
-						'',
-						'',
-						'',
-					]);
+					];
+					while (projectHeaderRow.length < columnCount) {
+						projectHeaderRow.push('');
+					}
+					table.push(projectHeaderRow);
 
 					// Add data rows for this project
 					for (const data of projectData) {
@@ -185,12 +196,13 @@ export const dailyCommand = define({
 							cacheReadTokens: data.cacheReadTokens,
 							totalCost: data.totalCost,
 							modelsUsed: data.modelsUsed,
+							...(includePrompts && { promptCount: data.promptCount }),
 						});
 						table.push(row);
 
 						// Add model breakdown rows if flag is set
 						if (mergedOptions.breakdown) {
-							pushBreakdownRows(table, data.modelBreakdowns);
+							pushBreakdownRows(table, data.modelBreakdowns, includePrompts ? 2 : 1);
 						}
 					}
 
@@ -207,18 +219,19 @@ export const dailyCommand = define({
 						cacheReadTokens: data.cacheReadTokens,
 						totalCost: data.totalCost,
 						modelsUsed: data.modelsUsed,
+						...(includePrompts && { promptCount: data.promptCount }),
 					});
 					table.push(row);
 
 					// Add model breakdown rows if flag is set
 					if (mergedOptions.breakdown) {
-						pushBreakdownRows(table, data.modelBreakdowns);
+						pushBreakdownRows(table, data.modelBreakdowns, includePrompts ? 2 : 1);
 					}
 				}
 			}
 
 			// Add empty row for visual separation before totals
-			addEmptySeparatorRow(table, 8);
+			addEmptySeparatorRow(table, columnCount);
 
 			// Add totals
 			const totalsRow = formatTotalsRow({
@@ -227,6 +240,7 @@ export const dailyCommand = define({
 				cacheCreationTokens: totals.cacheCreationTokens,
 				cacheReadTokens: totals.cacheReadTokens,
 				totalCost: totals.totalCost,
+				...(includePrompts && { promptCount: totalPromptCount }),
 			});
 			table.push(totalsRow);
 

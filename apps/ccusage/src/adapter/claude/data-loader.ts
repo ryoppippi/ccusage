@@ -856,6 +856,7 @@ export type DailyUsage = {
 	totalCost: number;
 	modelsUsed: ModelName[];
 	modelBreakdowns: ModelBreakdown[];
+	promptCount: number;
 	project?: string;
 };
 
@@ -888,6 +889,7 @@ export type MonthlyUsage = {
 	totalCost: number;
 	modelsUsed: ModelName[];
 	modelBreakdowns: ModelBreakdown[];
+	promptCount: number;
 	project?: string;
 };
 
@@ -903,6 +905,7 @@ export type WeeklyUsage = {
 	totalCost: number;
 	modelsUsed: ModelName[];
 	modelBreakdowns: ModelBreakdown[];
+	promptCount: number;
 	project?: string;
 };
 
@@ -918,6 +921,7 @@ export type BucketUsage = {
 	totalCost: number;
 	modelsUsed: ModelName[];
 	modelBreakdowns: ModelBreakdown[];
+	promptCount: number;
 	project?: string;
 };
 
@@ -936,13 +940,14 @@ type UsageSummary = TokenStats & {
 	totalCost: number;
 	modelsUsed: ModelName[];
 	modelBreakdowns: ModelBreakdown[];
+	promptCount: number;
 };
 
 type TokenStatsIndex = Record<string, TokenStats | undefined>;
 type ModelSeenIndex = Record<string, true | undefined>;
 
 type UsageSummaryAccumulator = {
-	totals: TokenStats & { totalCost: number };
+	totals: TokenStats & { totalCost: number; promptCount: number };
 	modelAggregates: TokenStatsIndex;
 	modelSeen: ModelSeenIndex;
 	modelsUsed: string[];
@@ -1003,6 +1008,7 @@ function createUsageSummaryAccumulator(): UsageSummaryAccumulator {
 		totals: {
 			...createEmptyTokenStats(),
 			totalCost: 0,
+			promptCount: 0,
 		},
 		modelAggregates: createTokenStatsIndex(),
 		modelSeen: Object.create(null) as ModelSeenIndex,
@@ -1019,6 +1025,7 @@ function addUsageToSummaryAccumulator(
 	const modelName = model ?? 'unknown';
 	addUsageToTokenStats(accumulator.totals, usage, cost);
 	accumulator.totals.totalCost += cost;
+	accumulator.totals.promptCount += 1;
 
 	if (modelName === '<synthetic>') {
 		return;
@@ -1054,6 +1061,7 @@ function addTokenFieldsToSummaryAccumulator(
 	accumulator.totals.cacheReadTokens += tokens.cacheReadTokens;
 	accumulator.totals.cost += cost;
 	accumulator.totals.totalCost += cost;
+	accumulator.totals.promptCount += 1;
 
 	if (modelName === '<synthetic>') {
 		return;
@@ -2697,6 +2705,7 @@ export async function loadBucketUsageData(
 		group.summary.totals.cacheReadTokens += daily.cacheReadTokens;
 		group.summary.totals.cost += daily.totalCost;
 		group.summary.totals.totalCost += daily.totalCost;
+		group.summary.totals.promptCount += daily.promptCount;
 
 		for (const model of daily.modelsUsed) {
 			if (model !== '<synthetic>') {
@@ -2732,6 +2741,7 @@ export async function loadBucketUsageData(
 			totalCost: summary.totalCost,
 			modelsUsed: summary.modelsUsed,
 			modelBreakdowns: summary.modelBreakdowns,
+			promptCount: summary.promptCount,
 			...(group.project != null && { project: group.project }),
 		};
 	});
@@ -3705,6 +3715,7 @@ invalid json line
 						cost: 0.015,
 					},
 				],
+				promptCount: 1,
 			});
 			expect(result[1]).toEqual({
 				month: '2024-01',
@@ -3724,6 +3735,7 @@ invalid json line
 						cost: 0.03,
 					},
 				],
+				promptCount: 2,
 			});
 		});
 
@@ -3781,6 +3793,7 @@ invalid json line
 						cost: 0.03,
 					},
 				],
+				promptCount: 2,
 			});
 		});
 
@@ -4057,6 +4070,7 @@ invalid json line
 						cost: 0.015,
 					},
 				],
+				promptCount: 1,
 			});
 			expect(result[1]).toEqual({
 				week: '2023-12-31',
@@ -4076,6 +4090,7 @@ invalid json line
 						cost: 0.03,
 					},
 				],
+				promptCount: 2,
 			});
 		});
 
@@ -4133,6 +4148,7 @@ invalid json line
 						cost: 0.03,
 					},
 				],
+				promptCount: 2,
 			});
 		});
 

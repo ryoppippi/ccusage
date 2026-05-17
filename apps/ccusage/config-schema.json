@@ -165,6 +165,12 @@
 									"description": "Comma-separated project aliases (e.g., 'ccusage=Usage Tracker,myproject=My Project')",
 									"markdownDescription": "Comma-separated project aliases (e.g., 'ccusage=Usage Tracker,myproject=My Project')"
 								},
+								"prompts": {
+									"type": "boolean",
+									"description": "Show prompt count column (number of usage-bearing entries per bucket)",
+									"markdownDescription": "Show prompt count column (number of usage-bearing entries per bucket)",
+									"default": false
+								},
 								"all": {
 									"type": "boolean",
 									"description": "Accepted for compatibility; all detected supported agents are included by default",
@@ -256,6 +262,12 @@
 									"type": "boolean",
 									"description": "Force compact table layout for narrow terminals",
 									"markdownDescription": "Force compact table layout for narrow terminals",
+									"default": false
+								},
+								"prompts": {
+									"type": "boolean",
+									"description": "Show prompt count column (number of usage-bearing entries per bucket)",
+									"markdownDescription": "Show prompt count column (number of usage-bearing entries per bucket)",
 									"default": false
 								},
 								"all": {
@@ -365,6 +377,12 @@
 									"description": "Day to start the week on",
 									"markdownDescription": "Day to start the week on",
 									"default": "sunday"
+								},
+								"prompts": {
+									"type": "boolean",
+									"description": "Show prompt count column (number of usage-bearing entries per bucket)",
+									"markdownDescription": "Show prompt count column (number of usage-bearing entries per bucket)",
+									"default": false
 								},
 								"all": {
 									"type": "boolean",
@@ -762,6 +780,12 @@
 											"type": "string",
 											"description": "Comma-separated project aliases (e.g., 'ccusage=Usage Tracker,myproject=My Project')",
 											"markdownDescription": "Comma-separated project aliases (e.g., 'ccusage=Usage Tracker,myproject=My Project')"
+										},
+										"prompts": {
+											"type": "boolean",
+											"description": "Show prompt count column (number of usage-bearing entries per bucket)",
+											"markdownDescription": "Show prompt count column (number of usage-bearing entries per bucket)",
+											"default": false
 										}
 									},
 									"additionalProperties": false
@@ -848,6 +872,12 @@
 											"type": "boolean",
 											"description": "Force compact mode for narrow displays (better for screenshots)",
 											"markdownDescription": "Force compact mode for narrow displays (better for screenshots)",
+											"default": false
+										},
+										"prompts": {
+											"type": "boolean",
+											"description": "Show prompt count column (number of usage-bearing entries per bucket)",
+											"markdownDescription": "Show prompt count column (number of usage-bearing entries per bucket)",
 											"default": false
 										}
 									},
@@ -951,6 +981,12 @@
 											"description": "Day to start the week on",
 											"markdownDescription": "Day to start the week on",
 											"default": "sunday"
+										},
+										"prompts": {
+											"type": "boolean",
+											"description": "Show prompt count column (number of usage-bearing entries per bucket)",
+											"markdownDescription": "Show prompt count column (number of usage-bearing entries per bucket)",
+											"default": false
 										}
 									},
 									"additionalProperties": false

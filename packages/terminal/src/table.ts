@@ -792,6 +792,8 @@ export type UsageReportConfig = {
 	includeLastActivity?: boolean;
 	/** Whether to include Agent column (for all-agent reports) */
 	includeAgent?: boolean;
+	/** Whether to include Prompts column (count of usage-bearing entries per bucket) */
+	includePrompts?: boolean;
 	/** Date formatter function for responsive date formatting */
 	dateFormatter?: (dateStr: string) => string;
 	/** Force compact mode regardless of terminal width */
@@ -809,6 +811,7 @@ export type UsageData = {
 	totalCost: number;
 	modelsUsed?: string[];
 	agent?: string;
+	promptCount?: number;
 };
 
 /**
@@ -855,6 +858,22 @@ export function createUsageReportTable(config: UsageReportConfig): ResponsiveTab
 		baseHeaders.splice(1, 0, 'Agent');
 		baseAligns.splice(1, 0, 'left');
 		minColumnWidths.splice(1, 0, 10);
+	}
+
+	// Add Prompts column between Models (or Agent) and Input for time-bucketed reports
+	if (config.includePrompts ?? false) {
+		const baseInputIndex = baseHeaders.indexOf('Input');
+		if (baseInputIndex !== -1) {
+			baseHeaders.splice(baseInputIndex, 0, 'Prompts');
+			baseAligns.splice(baseInputIndex, 0, 'right');
+			minColumnWidths.splice(baseInputIndex, 0, 9);
+		}
+		const compactInputIndex = compactHeaders.indexOf('Input');
+		if (compactInputIndex !== -1) {
+			compactHeaders.splice(compactInputIndex, 0, 'Prompts');
+			compactAligns.splice(compactInputIndex, 0, 'right');
+			compactMinColumnWidths.splice(compactInputIndex, 0, 9);
+		}
 	}
 
 	// Add Last Activity column for session reports
@@ -915,6 +934,12 @@ export function formatUsageDataRow(
 		row.splice(1, 0, data.agent);
 	}
 
+	if (data.promptCount != null) {
+		// Prompts column sits just before Input; index = (agent ? 3 : 2)
+		const insertAt = data.agent != null ? 3 : 2;
+		row.splice(insertAt, 0, formatNumber(data.promptCount));
+	}
+
 	if (lastActivity !== undefined) {
 		row.push(lastActivity);
 	}
@@ -949,6 +974,12 @@ export function formatTotalsRow(
 
 	if (includeAgent) {
 		row.splice(1, 0, '');
+	}
+
+	if (totals.promptCount != null) {
+		// Prompts column sits just before Input
+		const insertAt = includeAgent ? 3 : 2;
+		row.splice(insertAt, 0, pc.yellow(formatNumber(totals.promptCount)));
 	}
 
 	if (includeLastActivity) {

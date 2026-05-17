@@ -11,7 +11,10 @@ type DailyData = Awaited<ReturnType<typeof loadDailyUsageData>>;
 /**
  * Group daily usage data by project for JSON output
  */
-export function groupByProject(dailyData: DailyData): Record<string, DailyProjectOutput[]> {
+export function groupByProject(
+	dailyData: DailyData,
+	includePrompts = false,
+): Record<string, DailyProjectOutput[]> {
 	const projects: Record<string, DailyProjectOutput[]> = {};
 
 	for (const data of dailyData) {
@@ -31,6 +34,7 @@ export function groupByProject(dailyData: DailyData): Record<string, DailyProjec
 			totalCost: data.totalCost,
 			modelsUsed: data.modelsUsed,
 			modelBreakdowns: data.modelBreakdowns,
+			...(includePrompts && { promptCount: data.promptCount }),
 		});
 	}
 
@@ -70,6 +74,7 @@ if (import.meta.vitest != null) {
 					totalCost: 0.01,
 					modelsUsed: [createModelName('claude-sonnet-4-20250514')],
 					modelBreakdowns: [],
+					promptCount: 0,
 				},
 				{
 					date: createDailyDate('2024-01-01'),
@@ -81,6 +86,7 @@ if (import.meta.vitest != null) {
 					totalCost: 0.02,
 					modelsUsed: [createModelName('claude-opus-4-20250514')],
 					modelBreakdowns: [],
+					promptCount: 0,
 				},
 			];
 
@@ -105,6 +111,7 @@ if (import.meta.vitest != null) {
 					totalCost: 0.01,
 					modelsUsed: [createModelName('claude-sonnet-4-20250514')],
 					modelBreakdowns: [],
+					promptCount: 0,
 				},
 			];
 
@@ -128,6 +135,7 @@ if (import.meta.vitest != null) {
 					totalCost: 0.01,
 					modelsUsed: [createModelName('claude-sonnet-4-20250514')],
 					modelBreakdowns: [],
+					promptCount: 0,
 				},
 				{
 					date: createDailyDate('2024-01-02'),
@@ -139,6 +147,7 @@ if (import.meta.vitest != null) {
 					totalCost: 0.008,
 					modelsUsed: [createModelName('claude-sonnet-4-20250514')],
 					modelBreakdowns: [],
+					promptCount: 0,
 				},
 			];
 

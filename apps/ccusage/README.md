@@ -94,6 +94,7 @@ bunx ccusage monthly --compact  # Compact monthly report
 - 🚀 **Statusline Integration**: Compact usage display for Claude Code status bar hooks (Beta)
 - 🤖 **Model Tracking**: See which models are used across supported sources
 - 📊 **Model Breakdown**: View per-model cost breakdown with `--breakdown` flag
+- ✉️ **Prompt Count**: Add a Prompts column to Claude daily/weekly/monthly reports with `--prompts` (counts usage-bearing entries - one per API request, including each tool-call iteration)
 - 📅 **Date Filtering**: Filter reports by date range using `--since` and `--until`
 - 📁 **Custom Paths**: Support for custom local data directory locations
 - 🎨 **Beautiful Output**: Colorful table-formatted display with automatic responsive layout
