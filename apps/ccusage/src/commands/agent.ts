@@ -27,6 +27,8 @@ import { formatDateCompact } from '../date-utils.ts';
 import { logger, writeStdoutLine } from '../logger.ts';
 import { createUsageLoadProgress, shouldShowUsageLoadProgress } from './loading-progress.ts';
 
+type GunshiCommand<TArgs extends Args> = Command<{ args: TArgs; extensions: Record<never, never> }>;
+
 type AgentTotals = {
 	inputTokens: number;
 	outputTokens: number;
@@ -408,7 +410,7 @@ function createCommonAgentCommand(
 	agent: Exclude<AgentId, 'pi'>,
 	kind: AgentCommandKind,
 	description: string,
-): Command<typeof commonAgentArgs> {
+): GunshiCommand<typeof commonAgentArgs> {
 	return define({
 		name: kind,
 		description,
@@ -423,7 +425,7 @@ function createCommonAgentCommand(
 function createPiAgentCommand(
 	kind: AgentCommandKind,
 	description: string,
-): Command<typeof piAgentArgs> {
+): GunshiCommand<typeof piAgentArgs> {
 	return define({
 		name: kind,
 		description,
@@ -439,17 +441,17 @@ export function createAgentCommand(
 	agent: 'pi',
 	kind: AgentCommandKind,
 	description: string,
-): Command<typeof piAgentArgs>;
+): GunshiCommand<typeof piAgentArgs>;
 export function createAgentCommand(
 	agent: Exclude<AgentId, 'pi'>,
 	kind: AgentCommandKind,
 	description: string,
-): Command<typeof commonAgentArgs>;
+): GunshiCommand<typeof commonAgentArgs>;
 export function createAgentCommand(
 	agent: AgentId,
 	kind: AgentCommandKind,
 	description: string,
-): Command<typeof commonAgentArgs> | Command<typeof piAgentArgs> {
+): GunshiCommand<typeof commonAgentArgs> | GunshiCommand<typeof piAgentArgs> {
 	return agent === 'pi'
 		? createPiAgentCommand(kind, description)
 		: createCommonAgentCommand(agent, kind, description);

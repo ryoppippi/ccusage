@@ -27,6 +27,8 @@ import { logger, writeStdoutLine } from '../logger.ts';
 import { sharedArgs } from '../shared-args.ts';
 import { createUsageLoadProgress, shouldShowUsageLoadProgress } from './loading-progress.ts';
 
+type GunshiCommand<TArgs extends Args> = Command<{ args: TArgs; extensions: Record<never, never> }>;
+
 type AllRow = AgentUsageRow;
 type AllBaseOptions = AdapterOptions & {
 	config?: string;
@@ -302,7 +304,7 @@ async function runAllReport(kind: ReportKind, options: AllOptions): Promise<void
 	}
 }
 
-function createAllCommand(kind: ReportKind, description: string): Command<typeof allArgs> {
+function createAllCommand(kind: ReportKind, description: string): GunshiCommand<typeof allArgs> {
 	return define({
 		name: kind,
 		description,

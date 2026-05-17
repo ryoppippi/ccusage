@@ -14,6 +14,8 @@ import { formatDateCompact } from '../date-utils.ts';
 import { logger, writeStdoutLine } from '../logger.ts';
 import { createUsageLoadProgress, shouldShowUsageLoadProgress } from './loading-progress.ts';
 
+type GunshiCommand<TArgs extends Args> = Command<{ args: TArgs; extensions: Record<never, never> }>;
+
 const codexArgs = {
 	json: {
 		type: 'boolean',
@@ -251,7 +253,7 @@ async function runCodexReport(kind: CodexCommandKind, options: AdapterOptions): 
 function createCodexCommand(
 	kind: CodexCommandKind,
 	description: string,
-): Command<typeof codexArgs> {
+): GunshiCommand<typeof codexArgs> {
 	return define({
 		name: kind,
 		description,

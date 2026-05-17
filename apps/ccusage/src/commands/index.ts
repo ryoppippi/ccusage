@@ -1,4 +1,4 @@
-import type { Args, Command } from 'gunshi';
+import type { Args, Command, SubCommandable } from 'gunshi';
 import process from 'node:process';
 import { cli } from 'gunshi';
 import { description, name, version } from '../../package.json';
@@ -14,6 +14,8 @@ import { sessionCommand } from './session.ts';
 import { statuslineCommand } from './statusline.ts';
 import { weeklyCommand } from './weekly.ts';
 
+type GunshiCommand<TArgs extends Args> = Command<{ args: TArgs; extensions: Record<never, never> }>;
+
 // Re-export all commands for easy importing
 export {
 	blocksCommand,
@@ -28,10 +30,17 @@ function withCommandName<T extends { name?: string }>(command: T, commandName: s
 	return { ...command, name: commandName };
 }
 
+function withSubCommands<
+	T extends { subCommands?: Record<string, SubCommandable> | Map<string, SubCommandable> },
+>(command: T, subCommands: Map<string, SubCommandable>): T {
+	return { ...command, subCommands };
+}
+
 function withCcusageConfig<const TArgs extends Args>(
-	command: Command<TArgs>,
-	commandName: string,
-): Command<Args> {
+	command: GunshiCommand<TArgs>,
+	configCommandName: string,
+	commandName = command.name,
+): GunshiCommand<Args> {
 	const args = {
 		...(command.args ?? {}),
 		config: sharedArgs.config,
@@ -41,6 +50,7 @@ function withCcusageConfig<const TArgs extends Args>(
 		name: commandName,
 		description: command.description,
 		args,
+		subCommands: command.subCommands,
 		toKebab: command.toKebab,
 		async run(ctx) {
 			const values = ctx.values as Record<string, unknown>;
@@ -51,7 +61,7 @@ function withCcusageConfig<const TArgs extends Args>(
 				{
 					values,
 					tokens: ctx.tokens,
-					name: commandName,
+					name: configCommandName,
 				},
 				config,
 				debug,
@@ -59,7 +69,7 @@ function withCcusageConfig<const TArgs extends Args>(
 			await command.run?.({
 				...ctx,
 				values: mergedValues,
-			} as Parameters<NonNullable<Command<TArgs>['run']>>[0]);
+			} as Parameters<NonNullable<GunshiCommand<TArgs>['run']>>[0]);
 		},
 	};
 }
@@ -107,6 +117,36 @@ const piSessionCommand = createAgentCommand(
 	'Show pi-agent usage grouped by session',
 );
 
+const claudeSubCommands = new Map<string, SubCommandable>([
+	['daily', dailyCommand],
+	['monthly', monthlyCommand],
+	['weekly', weeklyCommand],
+	['session', sessionCommand],
+	['blocks', blocksCommand],
+	['statusline', statuslineCommand],
+]);
+const codexSubCommands = new Map<string, SubCommandable>([
+	['daily', withCcusageConfig(codexDailyCommand, 'codex daily', 'daily')],
+	['monthly', withCcusageConfig(codexMonthlyCommand, 'codex monthly', 'monthly')],
+	['session', withCcusageConfig(codexSessionCommand, 'codex session', 'session')],
+]);
+const opencodeSubCommands = new Map<string, SubCommandable>([
+	['daily', withCcusageConfig(opencodeDailyCommand, 'opencode daily', 'daily')],
+	['weekly', withCcusageConfig(opencodeWeeklyCommand, 'opencode weekly', 'weekly')],
+	['monthly', withCcusageConfig(opencodeMonthlyCommand, 'opencode monthly', 'monthly')],
+	['session', withCcusageConfig(opencodeSessionCommand, 'opencode session', 'session')],
+]);
+const ampSubCommands = new Map<string, SubCommandable>([
+	['daily', withCcusageConfig(ampDailyCommand, 'amp daily', 'daily')],
+	['monthly', withCcusageConfig(ampMonthlyCommand, 'amp monthly', 'monthly')],
+	['session', withCcusageConfig(ampSessionCommand, 'amp session', 'session')],
+]);
+const piSubCommands = new Map<string, SubCommandable>([
+	['daily', withCcusageConfig(piDailyCommand, 'pi daily', 'daily')],
+	['monthly', withCcusageConfig(piMonthlyCommand, 'pi monthly', 'monthly')],
+	['session', withCcusageConfig(piSessionCommand, 'pi session', 'session')],
+]);
+
 /**
  * Command entries as tuple array
  */
@@ -117,25 +157,39 @@ export const subCommandUnion = [
 	['session', allSessionCommand],
 	['blocks', blocksCommand],
 	['statusline', statuslineCommand],
-	['claude:daily', withCommandName(dailyCommand, 'claude daily')],
-	['claude:monthly', withCommandName(monthlyCommand, 'claude monthly')],
-	['claude:weekly', withCommandName(weeklyCommand, 'claude weekly')],
-	['claude:session', withCommandName(sessionCommand, 'claude session')],
-	['claude:blocks', withCommandName(blocksCommand, 'claude blocks')],
-	['claude:statusline', withCommandName(statuslineCommand, 'claude statusline')],
-	['codex:daily', withCcusageConfig(codexDailyCommand, 'codex daily')],
-	['codex:monthly', withCcusageConfig(codexMonthlyCommand, 'codex monthly')],
-	['codex:session', withCcusageConfig(codexSessionCommand, 'codex session')],
-	['opencode:daily', withCcusageConfig(opencodeDailyCommand, 'opencode daily')],
-	['opencode:weekly', withCcusageConfig(opencodeWeeklyCommand, 'opencode weekly')],
-	['opencode:monthly', withCcusageConfig(opencodeMonthlyCommand, 'opencode monthly')],
-	['opencode:session', withCcusageConfig(opencodeSessionCommand, 'opencode session')],
-	['amp:daily', withCcusageConfig(ampDailyCommand, 'amp daily')],
-	['amp:monthly', withCcusageConfig(ampMonthlyCommand, 'amp monthly')],
-	['amp:session', withCcusageConfig(ampSessionCommand, 'amp session')],
-	['pi:daily', withCcusageConfig(piDailyCommand, 'pi daily')],
-	['pi:monthly', withCcusageConfig(piMonthlyCommand, 'pi monthly')],
-	['pi:session', withCcusageConfig(piSessionCommand, 'pi session')],
+	['claude', withCommandName(withSubCommands(dailyCommand, claudeSubCommands), 'claude')],
+	[
+		'codex',
+		withCcusageConfig(
+			withCommandName(withSubCommands(codexDailyCommand, codexSubCommands), 'codex'),
+			'codex daily',
+			'codex',
+		),
+	],
+	[
+		'opencode',
+		withCcusageConfig(
+			withCommandName(withSubCommands(opencodeDailyCommand, opencodeSubCommands), 'opencode'),
+			'opencode daily',
+			'opencode',
+		),
+	],
+	[
+		'amp',
+		withCcusageConfig(
+			withCommandName(withSubCommands(ampDailyCommand, ampSubCommands), 'amp'),
+			'amp daily',
+			'amp',
+		),
+	],
+	[
+		'pi',
+		withCcusageConfig(
+			withCommandName(withSubCommands(piDailyCommand, piSubCommands), 'pi'),
+			'pi daily',
+			'pi',
+		),
+	],
 ] as const;
 
 /**
@@ -181,19 +235,6 @@ const reportFlagAliases = new Set([
 	'--statusline',
 ]);
 const agentFilterOptions = new Set(['--agent', '-a']);
-
-export function normalizeAgentCommandArgs(args: string[]): string[] {
-	const [agent, report, ...rest] = args;
-	if (agent == null || !agentCommands.has(agent)) {
-		return args;
-	}
-
-	if (report != null && agentReports.has(report)) {
-		return [`${agent}:${report}`, ...rest];
-	}
-
-	return [`${agent}:daily`, ...args.slice(1)];
-}
 
 export function getReportFlagAliasError(args: string[]): string | undefined {
 	const reportFlag = args.find((arg) => reportFlagAliases.has(arg));
@@ -260,8 +301,6 @@ export async function run(): Promise<void> {
 		process.exitCode = 1;
 		return;
 	}
-	args = normalizeAgentCommandArgs(args);
-
 	await cli(args, mainCommand, {
 		name,
 		version,
@@ -272,27 +311,6 @@ export async function run(): Promise<void> {
 }
 
 if (import.meta.vitest != null) {
-	describe('normalizeAgentCommandArgs', () => {
-		it('maps an agent report to a flat Gunshi subcommand', () => {
-			expect(normalizeAgentCommandArgs(['codex', 'monthly', '--speed', 'fast'])).toEqual([
-				'codex:monthly',
-				'--speed',
-				'fast',
-			]);
-		});
-
-		it('uses daily as the default report for an agent namespace', () => {
-			expect(normalizeAgentCommandArgs(['opencode', '--json'])).toEqual([
-				'opencode:daily',
-				'--json',
-			]);
-		});
-
-		it('leaves top-level reports unchanged', () => {
-			expect(normalizeAgentCommandArgs(['daily', '--json'])).toEqual(['daily', '--json']);
-		});
-	});
-
 	describe('getReportFlagAliasError', () => {
 		it('rejects report mode flags', () => {
 			expect(getReportFlagAliasError(['--daily'])).toBe(
