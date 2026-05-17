@@ -176,7 +176,7 @@ Override shared defaults for specific unified reports and legacy Claude commands
 
 ### Source-Specific Configuration
 
-Use data source namespaces to set defaults and report overrides. Supported namespaces are `claude`, `codex`, `opencode`, `amp`, and `pi`.
+Use data source namespaces to set defaults and report overrides. Supported namespaces are `claude`, `codex`, `opencode`, `amp`, `pi`, and `gemini`.
 
 ```json
 {
@@ -218,6 +218,7 @@ This configuration affects source-focused commands such as:
 ccusage codex daily
 ccusage opencode weekly
 ccusage pi daily
+ccusage gemini daily
 ```
 
 Source-specific settings are also applied when running unified reports such as `ccusage daily`. In that case, each source receives its own merged options before data is loaded.
