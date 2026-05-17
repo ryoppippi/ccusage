@@ -19,6 +19,29 @@ After creating a PR or pushing a meaningful follow-up commit, check whether revi
 
 Prefer repository-local conventions when they exist. If the repo has changed reviewers, use the current reviewer mentions from recent PRs or project docs instead of the examples above.
 
+## PR Bodies and Comments
+
+When creating or editing multi-line PR bodies, use `--body-file -` and pass the Markdown through stdin. Do not embed `\n` escape sequences inside a quoted `--body` argument; fish and shell quoting can preserve them literally and break the rendered PR body.
+
+Good:
+
+```sh
+printf "%s\n" \
+	"Summary paragraph." \
+	"" \
+	"Testing:" \
+	"- pnpm run format" \
+	"- pnpm typecheck" \
+	"- pnpm run test" \
+	| gh pr edit <pr-number> --body-file -
+```
+
+Bad:
+
+```sh
+gh pr edit <pr-number> --body "Summary\n\nTesting:\n- pnpm run test"
+```
+
 ## Wait and Inspect
 
 Poll for reviews and comments before declaring the PR ready. Use flat REST comment lists for ordinary replies, and GraphQL review threads only when thread resolution state matters.
