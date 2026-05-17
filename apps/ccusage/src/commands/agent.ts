@@ -108,6 +108,10 @@ const piAgentArgs = {
 
 const openClawAgentArgs = {
 	...commonAgentArgs,
+	offline: {
+		...commonAgentArgs.offline,
+		description: 'OpenClaw reports use embedded cost.total values instead of external pricing data',
+	},
 	openClawPath: {
 		type: 'string',
 		description:

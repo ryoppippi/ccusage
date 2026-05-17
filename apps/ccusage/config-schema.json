@@ -2194,8 +2194,8 @@
 								},
 								"offline": {
 									"type": "boolean",
-									"description": "Use cached pricing data instead of fetching from LiteLLM",
-									"markdownDescription": "Use cached pricing data instead of fetching from LiteLLM",
+									"description": "OpenClaw reports use embedded cost.total values instead of external pricing data",
+									"markdownDescription": "OpenClaw reports use embedded cost.total values instead of external pricing data",
 									"default": false
 								},
 								"compact": {
@@ -2253,8 +2253,8 @@
 										},
 										"offline": {
 											"type": "boolean",
-											"description": "Use cached pricing data instead of fetching from LiteLLM",
-											"markdownDescription": "Use cached pricing data instead of fetching from LiteLLM",
+											"description": "OpenClaw reports use embedded cost.total values instead of external pricing data",
+											"markdownDescription": "OpenClaw reports use embedded cost.total values instead of external pricing data",
 											"default": false
 										},
 										"compact": {
@@ -2307,8 +2307,8 @@
 										},
 										"offline": {
 											"type": "boolean",
-											"description": "Use cached pricing data instead of fetching from LiteLLM",
-											"markdownDescription": "Use cached pricing data instead of fetching from LiteLLM",
+											"description": "OpenClaw reports use embedded cost.total values instead of external pricing data",
+											"markdownDescription": "OpenClaw reports use embedded cost.total values instead of external pricing data",
 											"default": false
 										},
 										"compact": {
@@ -2361,8 +2361,8 @@
 										},
 										"offline": {
 											"type": "boolean",
-											"description": "Use cached pricing data instead of fetching from LiteLLM",
-											"markdownDescription": "Use cached pricing data instead of fetching from LiteLLM",
+											"description": "OpenClaw reports use embedded cost.total values instead of external pricing data",
+											"markdownDescription": "OpenClaw reports use embedded cost.total values instead of external pricing data",
 											"default": false
 										},
 										"compact": {
