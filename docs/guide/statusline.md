@@ -108,13 +108,13 @@ See [Cost Source Options](#cost-source-options) section for all available modes.
 
 The statusline displays a compact, single-line summary:
 
-```
+```text
 🤖 Opus 4.1 | 💰 $0.23 session / $1.23 today / $0.45 block (2h 45m left) | 🔥 $0.12/hr | 🧠 25,000 (12%)
 ```
 
 When using `--cost-source both`, the session cost shows both Claude Code and ccusage calculations:
 
-```
+```text
 🤖 Opus 4.1 | 💰 ($0.25 cc / $0.23 ccusage) session / $1.23 today / $0.45 block (2h 45m left) | 🔥 $0.12/hr | 🧠 25,000 (12%)
 ```
 
@@ -137,7 +137,7 @@ When using `--cost-source both`, the session cost shows both Claude Code and ccu
 
 When no active block exists:
 
-```
+```text
 🤖 Opus 4.1 | 💰 $0.00 session / $0.00 today / No active block
 ```
 

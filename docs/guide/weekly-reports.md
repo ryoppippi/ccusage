@@ -14,7 +14,7 @@ ccusage opencode weekly
 
 ## Example Output
 
-```
+```text
 ┌────────────────┬──────────────────────┬────────┬─────────┬─────────────┬────────────┬──────────────┬────────────┐
 │ Week           │ Models               │ Input  │ Output  │ Cache Create│ Cache Read │ Total Tokens │ Cost (USD) │
 ├────────────────┼──────────────────────┼────────┼─────────┼─────────────┼────────────┼──────────────┼────────────┤
@@ -33,7 +33,7 @@ ccusage opencode weekly
 The columns are identical to daily reports but aggregated by week:
 
 - **Week**: Start date of the week (configurable)
-- **Agent**: Source CLI for unified reports
+- **Agent**: Source CLI, shown in unified all-source reports
 - **Models**: All models used during the week
 - **Input/Output**: Total tokens for the week
 - **Cache Create/Read**: Cache token usage
@@ -89,7 +89,7 @@ See per-model weekly costs:
 ccusage weekly --breakdown
 ```
 
-```
+```text
 ┌────────────────┬──────────────────────┬────────┬─────────┬────────────┐
 │ Week           │ Models               │ Input  │ Output  │ Cost (USD) │
 ├────────────────┼──────────────────────┼────────┼─────────┼────────────┤

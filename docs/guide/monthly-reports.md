@@ -59,7 +59,7 @@ Filter by month range:
 # Show specific months
 ccusage monthly --since 20260101 --until 20260531
 
-# Show usage from 2026
+# Show usage from Jan-May 2026
 ccusage monthly --since 20260101 --until 20260531
 
 # Show last 6 months
