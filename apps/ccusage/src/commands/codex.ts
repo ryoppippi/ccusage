@@ -1,4 +1,4 @@
-import type { Args, Command } from 'gunshi';
+import type { Args } from 'gunshi';
 import type { AdapterOptions, ReportKind } from '../adapter/types.ts';
 import process from 'node:process';
 import {
@@ -13,8 +13,6 @@ import { loadCodexReportRows } from '../adapter/codex/index.ts';
 import { formatDateCompact } from '../date-utils.ts';
 import { logger, writeStdoutLine } from '../logger.ts';
 import { createUsageLoadProgress, shouldShowUsageLoadProgress } from './loading-progress.ts';
-
-type GunshiCommand<TArgs extends Args> = Command<{ args: TArgs; extensions: Record<never, never> }>;
 
 const codexArgs = {
 	json: {
@@ -250,10 +248,7 @@ async function runCodexReport(kind: CodexCommandKind, options: AdapterOptions): 
 	}
 }
 
-function createCodexCommand(
-	kind: CodexCommandKind,
-	description: string,
-): GunshiCommand<typeof codexArgs> {
+function createCodexCommand(kind: CodexCommandKind, description: string) {
 	return define({
 		name: kind,
 		description,
