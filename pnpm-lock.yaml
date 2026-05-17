@@ -89,9 +89,6 @@ catalogs:
     gunshi:
       specifier: ^0.26.3
       version: 0.26.3
-    path-type:
-      specifier: ^6.0.0
-      version: 6.0.0
     picospinner:
       specifier: ^3.0.0
       version: 3.0.0
@@ -219,9 +216,6 @@ importers:
       mitata:
         specifier: catalog:testing
         version: 1.0.34
-      path-type:
-        specifier: catalog:runtime
-        version: 6.0.0
       picospinner:
         specifier: catalog:runtime
         version: 3.0.0
@@ -4084,10 +4078,6 @@ packages:
 
   path-to-regexp@6.3.0:
     resolution: {integrity: sha512-Yhpw4T9C6hPpgPeA28us07OJeqZ5EzQTkbfwuhsUg0c237RomFoETJgmp2sa3F/41gfLE6G5cqcYwznmeEeOlQ==}
-
-  path-type@6.0.0:
-    resolution: {integrity: sha512-Vj7sf++t5pBD637NSfkxpHSMfWaeig5+DKWLhcqIYx6mWQz5hdJTGDVMQiJcw1ZYkhs7AazKDGpRVji1LJCZUQ==}
-    engines: {node: '>=18'}
 
   pathe@1.1.2:
     resolution: {integrity: sha512-whLdWMYL2TwI08hn8/ZqAbrVemu0LNaNNJZX73O6qaIdCTfXutsLhMkjdENX0qhsQ9uIimo4/aQOmXkoon2nDQ==}
@@ -8585,8 +8575,6 @@ snapshots:
   path-key@4.0.0: {}
 
   path-to-regexp@6.3.0: {}
-
-  path-type@6.0.0: {}
 
   pathe@1.1.2: {}
 

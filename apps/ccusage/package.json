@@ -73,7 +73,6 @@
 		"get-stdin": "catalog:runtime",
 		"gunshi": "catalog:runtime",
 		"mitata": "catalog:testing",
-		"path-type": "catalog:runtime",
 		"picospinner": "catalog:runtime",
 		"publint": "catalog:lint",
 		"tsdown": "catalog:build",
