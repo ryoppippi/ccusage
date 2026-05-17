@@ -1,6 +1,6 @@
 import type { LiteLLMPricingFetcher, PricingLogger } from '@ccusage/internal/pricing';
 
-export const agentIds = ['claude', 'codex', 'opencode', 'amp', 'pi'] as const;
+export const agentIds = ['claude', 'codex', 'opencode', 'amp', 'pi', 'openclaw'] as const;
 export type AgentId = (typeof agentIds)[number];
 export type ReportKind = 'daily' | 'weekly' | 'monthly' | 'session';
 
@@ -15,6 +15,7 @@ export type AdapterOptions = {
 	offline?: boolean;
 	speed?: string;
 	piPath?: string;
+	openClawPath?: string;
 };
 
 export type AgentUsageRow = {
@@ -51,4 +52,5 @@ export const agentLabels = {
 	opencode: 'OpenCode',
 	amp: 'Amp',
 	pi: 'pi-agent',
+	openclaw: 'OpenClaw',
 } as const satisfies Record<AgentId | 'all', string>;

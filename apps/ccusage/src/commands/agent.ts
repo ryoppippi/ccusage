@@ -106,6 +106,15 @@ const piAgentArgs = {
 	},
 } as const satisfies Args;
 
+const openClawAgentArgs = {
+	...commonAgentArgs,
+	openClawPath: {
+		type: 'string',
+		description:
+			'Path or comma-separated paths to OpenClaw data directories (default: ~/.openclaw, ~/.clawdbot, ~/.moltbot, ~/.moldbot)',
+	},
+} as const satisfies Args;
+
 type AgentCommandKind = Extract<ReportKind, 'daily' | 'weekly' | 'monthly' | 'session'>;
 
 function getJsonKey(kind: AgentCommandKind): 'daily' | 'weekly' | 'monthly' | 'sessions' {
@@ -225,7 +234,7 @@ async function loadRows(
 	options: AdapterOptions,
 	progress?: UsageLoadProgress,
 ): Promise<AgentUsageRow[]> {
-	if (options.offline === true || agent === 'pi') {
+	if (options.offline === true || agent === 'pi' || agent === 'openclaw') {
 		return loadAgentRows(agent, kind, options, { progress });
 	}
 
@@ -405,7 +414,7 @@ async function runAgentReport(
 }
 
 function createCommonAgentCommand(
-	agent: Exclude<AgentId, 'pi'>,
+	agent: Exclude<AgentId, 'pi' | 'openclaw'>,
 	kind: AgentCommandKind,
 	description: string,
 ): Command<typeof commonAgentArgs> {
@@ -435,13 +444,33 @@ function createPiAgentCommand(
 	});
 }
 
+function createOpenClawAgentCommand(
+	kind: AgentCommandKind,
+	description: string,
+): Command<typeof openClawAgentArgs> {
+	return define({
+		name: kind,
+		description,
+		args: openClawAgentArgs,
+		toKebab: true,
+		async run(ctx) {
+			await runAgentReport('openclaw', kind, ctx.values);
+		},
+	});
+}
+
 export function createAgentCommand(
 	agent: 'pi',
 	kind: AgentCommandKind,
 	description: string,
 ): Command<typeof piAgentArgs>;
 export function createAgentCommand(
-	agent: Exclude<AgentId, 'pi'>,
+	agent: 'openclaw',
+	kind: AgentCommandKind,
+	description: string,
+): Command<typeof openClawAgentArgs>;
+export function createAgentCommand(
+	agent: Exclude<AgentId, 'pi' | 'openclaw'>,
 	kind: AgentCommandKind,
 	description: string,
 ): Command<typeof commonAgentArgs>;
@@ -449,10 +478,17 @@ export function createAgentCommand(
 	agent: AgentId,
 	kind: AgentCommandKind,
 	description: string,
-): Command<typeof commonAgentArgs> | Command<typeof piAgentArgs> {
-	return agent === 'pi'
-		? createPiAgentCommand(kind, description)
-		: createCommonAgentCommand(agent, kind, description);
+):
+	| Command<typeof commonAgentArgs>
+	| Command<typeof piAgentArgs>
+	| Command<typeof openClawAgentArgs> {
+	if (agent === 'pi') {
+		return createPiAgentCommand(kind, description);
+	}
+	if (agent === 'openclaw') {
+		return createOpenClawAgentCommand(kind, description);
+	}
+	return createCommonAgentCommand(agent, kind, description);
 }
 
 if (import.meta.vitest != null) {
