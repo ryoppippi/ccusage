@@ -465,6 +465,9 @@ if (import.meta.vitest != null) {
 			expect(properties).toHaveProperty('commands');
 			expect(properties).toHaveProperty('claude');
 			expect(properties).toHaveProperty('codex');
+			expect(properties).toHaveProperty('opencode');
+			expect(properties).toHaveProperty('amp');
+			expect(properties).toHaveProperty('pi');
 			expect(properties).toHaveProperty('qwen');
 		});
 
