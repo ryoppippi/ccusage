@@ -25,6 +25,7 @@ import { getCodexSessionsPaths } from './paths.ts';
 const LEGACY_FALLBACK_MODEL = 'gpt-5';
 const CODEX_JSONL_MARKERS = ['turn_context', '"type":"token_count"', '"type": "token_count"'];
 const ENCODED_CODEX_EVENT_NUMBER_STRIDE = 5;
+const TOKEN_USAGE_EVENT_KEY_SEPARATOR = '\0';
 
 export function parseTokenCountLineFast(_line: string): ParsedTokenCountLine | null {
 	if (!hasTokenCountPayload(_line)) {
@@ -120,6 +121,25 @@ function convertToEventUsage(
 						raw.reasoning_output_tokens,
 					),
 	};
+}
+
+function createTokenUsageEventKey(event: TokenUsageEvent): string {
+	const separator = TOKEN_USAGE_EVENT_KEY_SEPARATOR;
+	return `${event.timestamp}${separator}${event.model ?? ''}${separator}${event.inputTokens}${separator}${event.cachedInputTokens}${separator}${event.outputTokens}${separator}${event.reasoningOutputTokens}${separator}${event.totalTokens}`;
+}
+
+function deduplicateTokenUsageEvents(events: TokenUsageEvent[]): TokenUsageEvent[] {
+	const seen = new Set<string>();
+	const deduplicated: TokenUsageEvent[] = [];
+	for (const event of events) {
+		const key = createTokenUsageEventKey(event);
+		if (seen.has(key)) {
+			continue;
+		}
+		seen.add(key);
+		deduplicated.push(event);
+	}
+	return deduplicated;
 }
 
 function asRecord(value: unknown): Record<string, unknown> | null {
@@ -411,7 +431,9 @@ export async function loadTokenUsageEvents(): Promise<TokenUsageEvent[]> {
 	const directoryEvents = await Promise.all(
 		getCodexSessionsPaths().map(loadTokenUsageEventsFromDirectory),
 	);
-	return directoryEvents.flat().sort((a, b) => compareStrings(a.timestamp, b.timestamp));
+	return deduplicateTokenUsageEvents(directoryEvents.flat()).sort((a, b) =>
+		compareStrings(a.timestamp, b.timestamp),
+	);
 }
 
 async function runCodexWorker(data: CodexWorkerData): Promise<void> {
@@ -733,6 +755,78 @@ if (import.meta.vitest != null) {
 				{ sessionId: 'a', model: 'gpt-5.1', inputTokens: 10 },
 				{ sessionId: 'b', model: 'gpt-5.2', inputTokens: 20 },
 			]);
+		});
+
+		it('deduplicates copied branch history across session files', async () => {
+			const copiedHistory = [
+				JSON.stringify({
+					timestamp: '2026-05-12T08:00:00.000Z',
+					type: 'turn_context',
+					payload: {
+						model: 'gpt-5.2',
+					},
+				}),
+				JSON.stringify({
+					timestamp: '2026-05-12T08:01:00.000Z',
+					type: 'event_msg',
+					payload: {
+						type: 'token_count',
+						info: {
+							total_token_usage: {
+								input_tokens: 1_000,
+								cached_input_tokens: 100,
+								output_tokens: 200,
+								reasoning_output_tokens: 20,
+								total_tokens: 1_200,
+							},
+						},
+					},
+				}),
+			].join('\n');
+
+			await using fixture = await createFixture({
+				sessions: {
+					'project-parent.jsonl': copiedHistory,
+					'project-branch.jsonl': [
+						copiedHistory,
+						JSON.stringify({
+							timestamp: '2026-05-12T08:02:00.000Z',
+							type: 'event_msg',
+							payload: {
+								type: 'token_count',
+								info: {
+									total_token_usage: {
+										input_tokens: 1_600,
+										cached_input_tokens: 300,
+										output_tokens: 450,
+										reasoning_output_tokens: 40,
+										total_tokens: 2_050,
+									},
+								},
+							},
+						}),
+					].join('\n'),
+				},
+			});
+			vi.stubEnv('CODEX_HOME', fixture.path);
+
+			const events = await loadTokenUsageEvents();
+			expect(events).toMatchObject([
+				{
+					inputTokens: 1_000,
+					cachedInputTokens: 100,
+					outputTokens: 200,
+					totalTokens: 1_200,
+				},
+				{
+					sessionId: 'project-branch',
+					inputTokens: 600,
+					cachedInputTokens: 200,
+					outputTokens: 250,
+					totalTokens: 850,
+				},
+			]);
+			expect(events).toHaveLength(2);
 		});
 	});
 
