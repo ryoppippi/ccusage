@@ -6,20 +6,22 @@
       "modelsUsed": [
         "[pi] claude-opus-4-20250514",
         "claude-haiku-4-5-20251001",
+        "claude-sonnet-4",
         "claude-sonnet-4-20250514",
         "gpt-5"
       ],
-      "inputTokens": 500,
-      "outputTokens": 250,
-      "cacheCreationTokens": 80,
-      "cacheReadTokens": 50,
-      "totalTokens": 870,
-      "totalCost": 0.25098975,
+      "inputTokens": 600,
+      "outputTokens": 300,
+      "cacheCreationTokens": 100,
+      "cacheReadTokens": 60,
+      "totalTokens": 1055,
+      "totalCost": 0.25219275,
       "metadata": {
         "agents": [
           "amp",
           "claude",
           "codex",
+          "droid",
           "opencode",
           "pi"
         ]
@@ -27,11 +29,11 @@
     }
   ],
   "totals": {
-    "inputTokens": 500,
-    "outputTokens": 250,
-    "cacheCreationTokens": 80,
-    "cacheReadTokens": 50,
-    "totalTokens": 870,
-    "totalCost": 0.25098975
+    "inputTokens": 600,
+    "outputTokens": 300,
+    "cacheCreationTokens": 100,
+    "cacheReadTokens": 60,
+    "totalTokens": 1055,
+    "totalCost": 0.25219275
   }
 }

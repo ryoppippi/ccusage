@@ -53,6 +53,7 @@ export CODEX_HOME="$HOME/.codex"
 export OPENCODE_DATA_DIR="$HOME/.local/share/opencode"
 export AMP_DATA_DIR="$HOME/.local/share/amp"
 export PI_AGENT_DIR="$HOME/.pi/agent/sessions"
+export DROID_SESSIONS_DIR="$HOME/.factory/sessions"
 ```
 
 Use comma-separated directories when you want reports to combine multiple profiles or archives:
@@ -104,7 +105,7 @@ For individual developers working on multiple projects:
 
 ### Multiple Sources
 
-Configure Claude Code, Codex, OpenCode, Amp, and pi-agent separately with data source namespaces:
+Configure Claude Code, Codex, OpenCode, Amp, pi-agent, and Droid separately with data source namespaces:
 
 ```json
 // ~/.config/claude/ccusage.json

@@ -30,8 +30,11 @@ async function createCliEnv(fixturePath: string, tempDir: string): Promise<NodeJ
 	const opencodeDir = path.join(agentRoot, 'opencode');
 	const ampDir = path.join(agentRoot, 'amp');
 	const piDir = path.join(agentRoot, 'pi');
+	const droidDir = path.join(agentRoot, 'droid');
 	await Promise.all(
-		[codexHome, opencodeDir, ampDir, piDir].map(async (dir) => mkdir(dir, { recursive: true })),
+		[codexHome, opencodeDir, ampDir, piDir, droidDir].map(async (dir) =>
+			mkdir(dir, { recursive: true }),
+		),
 	);
 
 	return {
@@ -39,6 +42,7 @@ async function createCliEnv(fixturePath: string, tempDir: string): Promise<NodeJ
 		CLAUDE_CONFIG_DIR: fixturePath,
 		CODEX_HOME: codexHome,
 		COLUMNS: '200',
+		DROID_SESSIONS_DIR: droidDir,
 		LOG_LEVEL: '3',
 		NO_COLOR: '1',
 		OPENCODE_DATA_DIR: opencodeDir,
@@ -190,6 +194,20 @@ function createAgentFixtureTree() {
 				},
 			},
 		},
+		droid: {
+			'droid-session.settings.json': JSON.stringify({
+				model: 'Claude-Sonnet-4-[Anthropic]',
+				providerLock: 'anthropic',
+				providerLockTimestamp: '2026-01-02T00:00:00.000Z',
+				tokenUsage: {
+					inputTokens: 100,
+					outputTokens: 50,
+					cacheCreationTokens: 20,
+					cacheReadTokens: 10,
+					thinkingTokens: 5,
+				},
+			}),
+		},
 	};
 }
 
@@ -199,6 +217,7 @@ function createAgentCliEnv(fixturePath: string): NodeJS.ProcessEnv {
 		CLAUDE_CONFIG_DIR: path.join(fixturePath, 'claude'),
 		CODEX_HOME: path.join(fixturePath, 'codex'),
 		COLUMNS: '200',
+		DROID_SESSIONS_DIR: path.join(fixturePath, 'droid'),
 		LOG_LEVEL: '3',
 		NO_COLOR: '1',
 		OPENCODE_DATA_DIR: path.join(fixturePath, 'opencode'),
@@ -395,15 +414,22 @@ describe('ccusage all-agent CLI', () => {
 		expect(output.daily[0]).toEqual(
 			expect.objectContaining({
 				agent: 'all',
-				cacheCreationTokens: 80,
-				cacheReadTokens: 50,
-				inputTokens: 500,
-				outputTokens: 250,
+				cacheCreationTokens: 100,
+				cacheReadTokens: 60,
+				inputTokens: 600,
+				outputTokens: 300,
 				period: '2026-01-02',
-				totalTokens: 870,
+				totalTokens: 1_055,
 			}),
 		);
-		expect(output.daily[0]?.metadata?.agents).toEqual(['amp', 'claude', 'codex', 'opencode', 'pi']);
+		expect(output.daily[0]?.metadata?.agents).toEqual([
+			'amp',
+			'claude',
+			'codex',
+			'droid',
+			'opencode',
+			'pi',
+		]);
 	});
 
 	it('passes agent namespace config to all-agent loaders', async () => {
@@ -438,15 +464,15 @@ describe('ccusage all-agent CLI', () => {
 		expect(output.daily[0]).toEqual(
 			expect.objectContaining({
 				agent: 'all',
-				cacheCreationTokens: 80,
-				cacheReadTokens: 40,
-				inputTokens: 400,
-				outputTokens: 200,
+				cacheCreationTokens: 100,
+				cacheReadTokens: 50,
+				inputTokens: 500,
+				outputTokens: 250,
 				period: '2026-01-02',
-				totalTokens: 720,
+				totalTokens: 905,
 			}),
 		);
-		expect(output.daily[0]?.metadata?.agents).toEqual(['amp', 'claude', 'opencode', 'pi']);
+		expect(output.daily[0]?.metadata?.agents).toEqual(['amp', 'claude', 'droid', 'opencode', 'pi']);
 	});
 
 	it('runs Codex daily JSON through the main ccusage namespace instead of the deprecated standalone wrapper', async () => {
@@ -520,6 +546,28 @@ describe('ccusage all-agent CLI', () => {
 		await expect(getStdout(result).replace(/\n$/u, '')).toMatchFileSnapshot(
 			path.join(snapshotRoot, 'opencode-direct-daily-json.txt'),
 		);
+	});
+
+	it('includes reasoning tokens in Droid direct total tokens', async () => {
+		await using fixture = await createFixture(createAgentFixtureTree());
+
+		const result = runCcusage(['droid', '--offline', '--json'], createAgentCliEnv(fixture.path));
+
+		expect(result.status).toBe(0);
+		expect(result.stderr).toBe('');
+
+		const stdout = getStdout(result).replace(/\n$/u, '');
+		await mkdir(snapshotRoot, { recursive: true });
+		await expect(stdout).toMatchFileSnapshot(
+			path.join(snapshotRoot, 'droid-direct-daily-json.txt'),
+		);
+
+		const output = JSON.parse(stdout) as {
+			daily: Array<{ totalTokens: number }>;
+			totals: { totalTokens: number };
+		};
+		expect(output.daily[0]?.totalTokens).toBe(185);
+		expect(output.totals.totalTokens).toBe(185);
 	});
 
 	it('loads agent namespace config for direct agent commands', async () => {
@@ -638,10 +686,11 @@ describe('ccusage all-agent CLI', () => {
 		await mkdir(snapshotRoot, { recursive: true });
 		await expect(output).toMatchFileSnapshot(path.join(snapshotRoot, 'all-agent-daily-table.txt'));
 		expect(output).toContain('Coding (Agent) CLI Usage Report - Daily');
-		expect(output).toContain('Detected: Amp, Claude, Codex, OpenCode, pi-agent');
+		expect(output).toContain('Detected: Amp, Claude, Codex, Droid, OpenCode, pi-agent');
 		expect(output.match(/2026-01-02/gu)).toHaveLength(1);
 		expect(output).toContain('Amp');
 		expect(output).toContain('Codex');
+		expect(output).toContain('Droid');
 		expect(output).toContain('OpenCode');
 		expect(output).toContain('pi-agent');
 		expect(output).toContain('$');

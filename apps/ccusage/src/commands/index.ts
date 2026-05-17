@@ -106,6 +106,17 @@ const piSessionCommand = createAgentCommand(
 	'session',
 	'Show pi-agent usage grouped by session',
 );
+const droidDailyCommand = createAgentCommand('droid', 'daily', 'Show Droid usage grouped by day');
+const droidMonthlyCommand = createAgentCommand(
+	'droid',
+	'monthly',
+	'Show Droid usage grouped by month',
+);
+const droidSessionCommand = createAgentCommand(
+	'droid',
+	'session',
+	'Show Droid usage grouped by session',
+);
 
 /**
  * Command entries as tuple array
@@ -136,6 +147,9 @@ export const subCommandUnion = [
 	['pi:daily', withCcusageConfig(piDailyCommand, 'pi daily')],
 	['pi:monthly', withCcusageConfig(piMonthlyCommand, 'pi monthly')],
 	['pi:session', withCcusageConfig(piSessionCommand, 'pi session')],
+	['droid:daily', withCcusageConfig(droidDailyCommand, 'droid daily')],
+	['droid:monthly', withCcusageConfig(droidMonthlyCommand, 'droid monthly')],
+	['droid:session', withCcusageConfig(droidSessionCommand, 'droid session')],
 ] as const;
 
 /**
@@ -156,7 +170,7 @@ for (const [name, command] of subCommandUnion) {
  */
 const mainCommand = allDailyCommand;
 
-const agentCommands = new Set(['claude', 'codex', 'opencode', 'amp', 'pi']);
+const agentCommands = new Set(['claude', 'codex', 'opencode', 'amp', 'pi', 'droid']);
 const agentReports = new Set(['daily', 'weekly', 'monthly', 'session', 'blocks', 'statusline']);
 const agentReportCapabilities = new Map<string, Set<string>>([
 	['claude', new Set(['daily', 'weekly', 'monthly', 'session', 'blocks', 'statusline'])],
@@ -164,6 +178,7 @@ const agentReportCapabilities = new Map<string, Set<string>>([
 	['opencode', new Set(['daily', 'weekly', 'monthly', 'session'])],
 	['amp', new Set(['daily', 'monthly', 'session'])],
 	['pi', new Set(['daily', 'monthly', 'session'])],
+	['droid', new Set(['daily', 'monthly', 'session'])],
 ]);
 const agentDisplayNames = new Map([
 	['claude', 'Claude Code'],
@@ -171,6 +186,7 @@ const agentDisplayNames = new Map([
 	['opencode', 'OpenCode'],
 	['amp', 'Amp'],
 	['pi', 'pi-agent'],
+	['droid', 'Droid'],
 ]);
 const reportFlagAliases = new Set([
 	'--daily',

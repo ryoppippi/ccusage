@@ -73,6 +73,7 @@ export default defineConfig({
 						{ text: 'OpenCode', link: '/guide/opencode/' },
 						{ text: 'Amp', link: '/guide/amp/' },
 						{ text: 'pi-agent', link: '/guide/pi/' },
+						{ text: 'Droid', link: '/guide/droid/' },
 					],
 				},
 				{
