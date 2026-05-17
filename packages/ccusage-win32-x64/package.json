@@ -24,6 +24,6 @@
 		"access": "public"
 	},
 	"scripts": {
-		"prepack": "node ../ccusage/scripts/verify-native-package.mjs"
+		"prepack": "node ../../apps/ccusage/scripts/verify-native-package.mjs"
 	}
 }
