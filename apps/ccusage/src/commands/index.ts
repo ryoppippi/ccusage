@@ -251,6 +251,23 @@ const reportFlagAliases = new Set([
 ]);
 const agentFilterOptions = new Set(['--agent', '-a']);
 
+// Keep accepting the pre-nested internal command names that were directly invokable.
+export function normalizeLegacyAgentCommandArgs(args: string[]): string[] {
+	const [command, ...rest] = args;
+	const [agent, report, extra] = command?.split(':') ?? [];
+	if (
+		agent == null ||
+		report == null ||
+		extra != null ||
+		!agentCommands.has(agent) ||
+		agentReportCapabilities.get(agent)?.has(report) !== true
+	) {
+		return args;
+	}
+
+	return [agent, report, ...rest];
+}
+
 export function getReportFlagAliasError(args: string[]): string | undefined {
 	const reportFlag = args.find((arg) => reportFlagAliases.has(arg));
 	if (reportFlag != null) {
@@ -298,6 +315,7 @@ export async function run(): Promise<void> {
 	if (args[0] === 'ccusage') {
 		args = args.slice(1);
 	}
+	args = normalizeLegacyAgentCommandArgs(args);
 	const reportFlagAliasError = getReportFlagAliasError(args);
 	if (reportFlagAliasError != null) {
 		process.stderr.write(`${reportFlagAliasError}\n`);
@@ -326,6 +344,25 @@ export async function run(): Promise<void> {
 }
 
 if (import.meta.vitest != null) {
+	describe('normalizeLegacyAgentCommandArgs', () => {
+		it('maps legacy colon agent commands to nested Gunshi subcommands', () => {
+			expect(normalizeLegacyAgentCommandArgs(['codex:monthly', '--json'])).toEqual([
+				'codex',
+				'monthly',
+				'--json',
+			]);
+			expect(normalizeLegacyAgentCommandArgs(['claude:statusline'])).toEqual([
+				'claude',
+				'statusline',
+			]);
+		});
+
+		it('leaves unsupported legacy colon commands unchanged', () => {
+			expect(normalizeLegacyAgentCommandArgs(['codex:blocks'])).toEqual(['codex:blocks']);
+			expect(normalizeLegacyAgentCommandArgs(['daily'])).toEqual(['daily']);
+		});
+	});
+
 	describe('getReportFlagAliasError', () => {
 		it('rejects report mode flags', () => {
 			expect(getReportFlagAliasError(['--daily'])).toBe(
