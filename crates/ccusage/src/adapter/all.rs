@@ -68,7 +68,7 @@ fn load_claude_rows(kind: AgentReportKind, shared: &SharedArgs) -> Result<Vec<Al
 
 fn load_codex_rows(kind: AgentReportKind, shared: &SharedArgs) -> Result<Vec<AllRow>> {
     let pricing = PricingMap::load(shared.offline, crate::log_level() != Some(0));
-    let mut events = crate::load_codex_events()?;
+    let mut events = crate::load_codex_events(shared)?;
     crate::filter_codex_events_by_date(&mut events, shared)?;
     let groups = crate::aggregate_codex_events(&events, kind, shared.timezone.as_deref())?;
     Ok(groups

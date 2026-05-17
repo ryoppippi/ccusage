@@ -417,7 +417,7 @@ fn filter_loaded_entries_by_date(entries: &mut Vec<LoadedEntry>, shared: &Shared
 fn run_codex(args: AgentCommandArgs) -> Result<()> {
     let shared = args.shared;
     let pricing = PricingMap::load(shared.offline, log_level() != Some(0));
-    let mut events = load_codex_events()?;
+    let mut events = load_codex_events(&shared)?;
     filter_codex_events_by_date(&mut events, &shared)?;
     let output = codex_report_json(&events, args.kind, shared.timezone.as_deref(), &pricing)?;
     if wants_json(&shared) {
@@ -1616,26 +1616,79 @@ fn is_semver_prefix(value: &str) -> bool {
         && patch.chars().next().is_some_and(|ch| ch.is_ascii_digit())
 }
 
-fn load_codex_events_from_directory(sessions_dir: &Path) -> Result<Vec<CodexTokenUsageEvent>> {
+fn load_codex_events_from_directory(
+    sessions_dir: &Path,
+    single_thread: bool,
+) -> Result<Vec<CodexTokenUsageEvent>> {
     let mut files = Vec::new();
     collect_usage_files(sessions_dir, &mut files);
+    let mut events = if single_thread {
+        files
+            .iter()
+            .flat_map(|file| read_codex_session_file(sessions_dir, file))
+            .collect::<Vec<_>>()
+    } else {
+        read_codex_session_files_parallel(sessions_dir, &files)
+    };
+    events.sort_by(|a, b| a.timestamp.cmp(&b.timestamp));
+    dedupe_codex_events(&mut events);
+    Ok(events)
+}
+
+fn load_codex_events(shared: &SharedArgs) -> Result<Vec<CodexTokenUsageEvent>> {
     let mut events = Vec::new();
-    for file in files {
-        events.extend(read_codex_session_file(sessions_dir, &file));
+    for path in codex_sessions_paths()? {
+        events.extend(load_codex_events_from_directory(
+            &path,
+            shared.single_thread,
+        )?);
     }
     events.sort_by(|a, b| a.timestamp.cmp(&b.timestamp));
     dedupe_codex_events(&mut events);
     Ok(events)
 }
 
-fn load_codex_events() -> Result<Vec<CodexTokenUsageEvent>> {
-    let mut events = Vec::new();
-    for path in codex_sessions_paths()? {
-        events.extend(load_codex_events_from_directory(&path)?);
+fn read_codex_session_files_parallel(
+    sessions_dir: &Path,
+    files: &[PathBuf],
+) -> Vec<CodexTokenUsageEvent> {
+    let worker_count = thread::available_parallelism()
+        .map(usize::from)
+        .unwrap_or(1)
+        .min(files.len());
+    if worker_count <= 1 {
+        return files
+            .iter()
+            .flat_map(|file| read_codex_session_file(sessions_dir, file))
+            .collect();
     }
-    events.sort_by(|a, b| a.timestamp.cmp(&b.timestamp));
-    dedupe_codex_events(&mut events);
-    Ok(events)
+
+    let chunks = chunk_file_indexes_by_size(files, worker_count);
+    thread::scope(|scope| {
+        let mut handles = Vec::with_capacity(chunks.len());
+        for chunk in chunks {
+            handles.push(scope.spawn(move || {
+                chunk
+                    .into_iter()
+                    .map(|index| (index, read_codex_session_file(sessions_dir, &files[index])))
+                    .collect::<Vec<_>>()
+            }));
+        }
+
+        let mut loaded_files = Vec::with_capacity(files.len());
+        loaded_files.resize_with(files.len(), || None);
+        for (index, events) in handles
+            .into_iter()
+            .flat_map(|handle| handle.join().expect("codex worker panicked"))
+        {
+            loaded_files[index] = Some(events);
+        }
+        loaded_files
+            .into_iter()
+            .flatten()
+            .flatten()
+            .collect::<Vec<_>>()
+    })
 }
 
 fn codex_sessions_paths() -> Result<Vec<PathBuf>> {
@@ -4224,7 +4277,7 @@ mod tests {
         )
         .unwrap();
 
-        let events = load_codex_events_from_directory(&sessions_dir).unwrap();
+        let events = load_codex_events_from_directory(&sessions_dir, true).unwrap();
         fs::remove_dir_all(&codex_dir).unwrap();
 
         assert_eq!(events.len(), 1);
@@ -4235,6 +4288,40 @@ mod tests {
         assert_eq!(events[0].output_tokens, 50);
         assert_eq!(events[0].reasoning_output_tokens, 0);
         assert_eq!(events[0].total_tokens, 150);
+    }
+
+    #[test]
+    fn loads_codex_token_count_events_in_parallel() {
+        let codex_dir = temp_claude_dir("codex-parallel");
+        let sessions_dir = codex_dir.join("sessions");
+        fs::create_dir_all(&sessions_dir).unwrap();
+        fs::write(
+            sessions_dir.join("session-a.jsonl"),
+            [
+                r#"{"timestamp":"2026-01-02T00:00:00.000Z","type":"turn_context","payload":{"model":"gpt-5"}}"#,
+                r#"{"timestamp":"2026-01-02T00:00:01.000Z","type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":100,"cached_input_tokens":10,"output_tokens":50,"reasoning_output_tokens":0,"total_tokens":150},"model":"gpt-5"}}}"#,
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+        fs::write(
+            sessions_dir.join("session-b.jsonl"),
+            [
+                r#"{"timestamp":"2026-01-02T00:01:00.000Z","type":"turn_context","payload":{"model":"gpt-5-mini"}}"#,
+                r#"{"timestamp":"2026-01-02T00:01:01.000Z","type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":40,"cached_input_tokens":4,"output_tokens":20,"reasoning_output_tokens":2,"total_tokens":62},"model":"gpt-5-mini"}}}"#,
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+
+        let single_thread_events = load_codex_events_from_directory(&sessions_dir, true).unwrap();
+        let parallel_events = load_codex_events_from_directory(&sessions_dir, false).unwrap();
+        fs::remove_dir_all(&codex_dir).unwrap();
+
+        assert_eq!(parallel_events.len(), 2);
+        assert_eq!(parallel_events, single_thread_events);
+        assert_eq!(parallel_events[0].session_id, "session-a");
+        assert_eq!(parallel_events[1].session_id, "session-b");
     }
 
     #[test]
