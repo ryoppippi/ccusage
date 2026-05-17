@@ -48,7 +48,7 @@ These views support `--json` for structured output and `--compact` for narrow te
 
 ## Cost Calculation
 
-When Kilo records a positive cost, ccusage uses that value. Otherwise, costs are calculated from token counts using LiteLLM pricing.
+When Kilo records a cost (including `0`), ccusage uses that value. Otherwise, costs are calculated from token counts using LiteLLM pricing.
 
 ## Troubleshooting
 
