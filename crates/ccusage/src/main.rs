@@ -1422,11 +1422,23 @@ fn codex_sessions_paths() -> Result<Vec<PathBuf>> {
 }
 
 fn read_codex_session_file(sessions_dir: &Path, path: &Path) -> Vec<CodexTokenUsageEvent> {
+    let mut events = Vec::new();
+    let _ = visit_codex_session_file(sessions_dir, path, |event| {
+        events.push(event);
+        Ok(())
+    });
+    events
+}
+
+fn visit_codex_session_file(
+    sessions_dir: &Path,
+    path: &Path,
+    mut visit: impl FnMut(CodexTokenUsageEvent) -> Result<()>,
+) -> Result<()> {
     let Ok(content) = fs::read_to_string(path) else {
-        return Vec::new();
+        return Ok(());
     };
     let session_id = codex_session_id(sessions_dir, path);
-    let mut events = Vec::new();
     let mut previous_totals: Option<CodexRawUsage> = None;
     let mut current_model: Option<String> = None;
     let mut current_model_is_fallback = false;
@@ -1506,7 +1518,7 @@ fn read_codex_session_file(sessions_dir: &Path, path: &Path) -> Vec<CodexTokenUs
             is_fallback_model = true;
         }
 
-        events.push(CodexTokenUsageEvent {
+        visit(CodexTokenUsageEvent {
             session_id: session_id.clone(),
             timestamp: timestamp.to_string(),
             model,
@@ -1516,10 +1528,10 @@ fn read_codex_session_file(sessions_dir: &Path, path: &Path) -> Vec<CodexTokenUs
             reasoning_output_tokens: raw_usage.reasoning_output_tokens,
             total_tokens: raw_usage.total_tokens,
             is_fallback_model,
-        });
+        })?;
     }
 
-    events
+    Ok(())
 }
 
 fn parsed_model_is_missing(
