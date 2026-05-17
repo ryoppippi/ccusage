@@ -17,8 +17,14 @@ export function getQwenPaths(): string[] {
 	);
 }
 
-function isQwenChatFile(filePath: string): boolean {
-	return path.basename(path.dirname(filePath)) === QWEN_CHATS_DIR_NAME;
+function isQwenChatFile(projectsPath: string, filePath: string): boolean {
+	const relativePath = path.relative(projectsPath, filePath);
+	const segments = relativePath.split(path.sep);
+	return (
+		segments.length === 3 &&
+		segments[1] === QWEN_CHATS_DIR_NAME &&
+		segments[2]?.endsWith('.jsonl') === true
+	);
 }
 
 export async function discoverQwenChatFiles(): Promise<string[]> {
@@ -28,10 +34,11 @@ export async function discoverQwenChatFiles(): Promise<string[]> {
 			if (!isDirectorySyncSafe(projectsPath)) {
 				return [];
 			}
-			return collectFilesRecursive(projectsPath, { extension: '.jsonl' });
+			const files = await collectFilesRecursive(projectsPath, { extension: '.jsonl' });
+			return files.filter((filePath) => isQwenChatFile(projectsPath, filePath));
 		}),
 	);
-	return files.flat().filter(isQwenChatFile).sort(compareStrings);
+	return files.flat().sort(compareStrings);
 }
 
 export async function detectQwenChatFiles(): Promise<boolean> {
@@ -60,6 +67,16 @@ if (import.meta.vitest != null) {
 						chats: {
 							'chat.jsonl': '{}\n',
 							'ignore.txt': '{}\n',
+							nested: {
+								'nested.jsonl': '{}\n',
+							},
+						},
+					},
+					nested: {
+						path: {
+							chats: {
+								'chat.jsonl': '{}\n',
+							},
 						},
 					},
 				},
