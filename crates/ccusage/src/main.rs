@@ -18,6 +18,7 @@ use serde_json::{json, Value};
 mod adapter;
 mod cli;
 mod commands;
+mod config;
 mod date_utils;
 mod pricing;
 mod types;

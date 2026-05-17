@@ -1,6 +1,13 @@
 use std::{env, ffi::OsString, path::PathBuf, process};
 
-use crate::DEFAULT_SESSION_DURATION_HOURS;
+use crate::{
+    config::{
+        apply_config_to_agent_args, apply_config_to_blocks_args, apply_config_to_daily_args,
+        apply_config_to_shared, apply_config_to_statusline_args, apply_config_to_weekly_args,
+        ConfigContext,
+    },
+    DEFAULT_SESSION_DURATION_HOURS,
+};
 
 pub(crate) struct Cli {
     pub(crate) command: Option<Command>,
@@ -200,6 +207,8 @@ impl Cli {
         }
 
         let mut shared = SharedArgs::with_defaults();
+        let config = ConfigContext::from_args(&parser.args);
+        apply_config_to_shared(&mut shared, &config);
         while let Some(arg) = parser.peek() {
             if is_command(arg) {
                 break;
@@ -212,7 +221,12 @@ impl Cli {
 
         let command = match parser.next() {
             None => None,
-            Some(command) => Some(parse_command(&command, &mut parser, shared.clone())?),
+            Some(command) => Some(parse_command(
+                &command,
+                &mut parser,
+                shared.clone(),
+                &config,
+            )?),
         };
         if let Some(extra) = parser.next() {
             return Err(format!("Unexpected argument '{extra}'"));
@@ -225,12 +239,13 @@ fn parse_command(
     command: &str,
     parser: &mut ArgParser,
     shared: SharedArgs,
+    config: &ConfigContext,
 ) -> Result<Command, String> {
     match command {
-        "daily" => parse_all_command(parser, shared, AgentReportKind::Daily),
-        "monthly" => parse_all_command(parser, shared, AgentReportKind::Monthly),
-        "weekly" => parse_all_command(parser, shared, AgentReportKind::Weekly),
-        "session" => parse_all_command(parser, shared, AgentReportKind::Session),
+        "daily" => parse_all_command(parser, shared, AgentReportKind::Daily, config),
+        "monthly" => parse_all_command(parser, shared, AgentReportKind::Monthly, config),
+        "weekly" => parse_all_command(parser, shared, AgentReportKind::Weekly, config),
+        "session" => parse_all_command(parser, shared, AgentReportKind::Session, config),
         "blocks" => {
             let mut args = BlocksArgs {
                 shared,
@@ -239,6 +254,7 @@ fn parse_command(
                 token_limit: None,
                 session_length: DEFAULT_SESSION_DURATION_HOURS,
             };
+            apply_config_to_blocks_args(&mut args, config);
             while parser.peek().is_some() {
                 if parse_shared_arg_for_command(parser, &mut args.shared)? {
                     continue;
@@ -262,6 +278,7 @@ fn parse_command(
         }
         "statusline" => {
             let mut args = StatuslineArgs::default();
+            apply_config_to_statusline_args(&mut args, config);
             while parser.peek().is_some() {
                 match parser.next_flag()?.as_str() {
                     "-O" | "--offline" => args.offline = true,
@@ -302,11 +319,11 @@ fn parse_command(
             }
             Ok(Command::Statusline(args))
         }
-        "claude" => parse_claude_command(parser, shared),
-        "codex" => parse_codex_command(parser, shared),
-        "opencode" => parse_opencode_command(parser, shared),
-        "amp" => parse_amp_command(parser, shared),
-        "pi" => parse_pi_command(parser, shared),
+        "claude" => parse_claude_command(parser, shared, config),
+        "codex" => parse_codex_command(parser, shared, config),
+        "opencode" => parse_opencode_command(parser, shared, config),
+        "amp" => parse_amp_command(parser, shared, config),
+        "pi" => parse_pi_command(parser, shared, config),
         _ => Err(format!("Unknown command '{command}'")),
     }
 }
@@ -315,6 +332,7 @@ fn parse_all_command(
     parser: &mut ArgParser,
     mut shared: SharedArgs,
     kind: AgentReportKind,
+    _config: &ConfigContext,
 ) -> Result<Command, String> {
     while parser.peek().is_some() {
         if matches!(parser.peek(), Some("--all")) {
@@ -334,6 +352,7 @@ fn parse_all_command(
 fn parse_claude_daily_command(
     parser: &mut ArgParser,
     shared: SharedArgs,
+    config: &ConfigContext,
 ) -> Result<Command, String> {
     let mut args = DailyArgs {
         shared,
@@ -341,6 +360,7 @@ fn parse_claude_daily_command(
         project: None,
         project_aliases: None,
     };
+    apply_config_to_daily_args(&mut args, config);
     while parser.peek().is_some() {
         if parse_shared_arg_for_command(parser, &mut args.shared)? {
             continue;
@@ -360,6 +380,7 @@ fn parse_claude_daily_command(
 fn parse_claude_monthly_command(
     parser: &mut ArgParser,
     mut shared: SharedArgs,
+    _config: &ConfigContext,
 ) -> Result<Command, String> {
     while parser.peek().is_some() {
         parse_shared_arg(parser, &mut shared)?;
@@ -370,11 +391,13 @@ fn parse_claude_monthly_command(
 fn parse_claude_weekly_command(
     parser: &mut ArgParser,
     shared: SharedArgs,
+    config: &ConfigContext,
 ) -> Result<Command, String> {
     let mut args = WeeklyArgs {
         shared,
         start_of_week: WeekDay::Sunday,
     };
+    apply_config_to_weekly_args(&mut args, config);
     while parser.peek().is_some() {
         if parse_shared_arg_for_command(parser, &mut args.shared)? {
             continue;
@@ -392,6 +415,7 @@ fn parse_claude_weekly_command(
 fn parse_claude_session_command(
     parser: &mut ArgParser,
     shared: SharedArgs,
+    _config: &ConfigContext,
 ) -> Result<Command, String> {
     let mut args = SessionArgs { shared, id: None };
     while parser.peek().is_some() {
@@ -406,7 +430,11 @@ fn parse_claude_session_command(
     Ok(Command::Session(args))
 }
 
-fn parse_claude_command(parser: &mut ArgParser, shared: SharedArgs) -> Result<Command, String> {
+fn parse_claude_command(
+    parser: &mut ArgParser,
+    shared: SharedArgs,
+    config: &ConfigContext,
+) -> Result<Command, String> {
     let command = match parser.peek() {
         Some(command @ ("daily" | "monthly" | "weekly" | "session" | "blocks" | "statusline")) => {
             let command = command.to_string();
@@ -419,16 +447,20 @@ fn parse_claude_command(parser: &mut ArgParser, shared: SharedArgs) -> Result<Co
         _ => "daily".to_string(),
     };
     match command.as_str() {
-        "daily" => parse_claude_daily_command(parser, shared),
-        "monthly" => parse_claude_monthly_command(parser, shared),
-        "weekly" => parse_claude_weekly_command(parser, shared),
-        "session" => parse_claude_session_command(parser, shared),
-        "blocks" | "statusline" => parse_command(&command, parser, shared),
+        "daily" => parse_claude_daily_command(parser, shared, config),
+        "monthly" => parse_claude_monthly_command(parser, shared, config),
+        "weekly" => parse_claude_weekly_command(parser, shared, config),
+        "session" => parse_claude_session_command(parser, shared, config),
+        "blocks" | "statusline" => parse_command(&command, parser, shared, config),
         _ => unreachable!("claude command is prevalidated"),
     }
 }
 
-fn parse_codex_command(parser: &mut ArgParser, mut shared: SharedArgs) -> Result<Command, String> {
+fn parse_codex_command(
+    parser: &mut ArgParser,
+    mut shared: SharedArgs,
+    config: &ConfigContext,
+) -> Result<Command, String> {
     let kind = match parser.peek() {
         Some("daily") => {
             parser.next();
@@ -448,6 +480,7 @@ fn parse_codex_command(parser: &mut ArgParser, mut shared: SharedArgs) -> Result
         _ => AgentReportKind::Daily,
     };
     let mut codex_speed = CodexSpeed::Auto;
+    apply_config_to_agent_args(&mut codex_speed, None, config);
     while parser.peek().is_some() {
         if parse_shared_arg_for_command(parser, &mut shared)? {
             continue;
@@ -468,6 +501,7 @@ fn parse_codex_command(parser: &mut ArgParser, mut shared: SharedArgs) -> Result
 fn parse_opencode_command(
     parser: &mut ArgParser,
     mut shared: SharedArgs,
+    _config: &ConfigContext,
 ) -> Result<Command, String> {
     let kind = match parser.peek() {
         Some("daily") => {
@@ -502,7 +536,11 @@ fn parse_opencode_command(
     }))
 }
 
-fn parse_amp_command(parser: &mut ArgParser, mut shared: SharedArgs) -> Result<Command, String> {
+fn parse_amp_command(
+    parser: &mut ArgParser,
+    mut shared: SharedArgs,
+    _config: &ConfigContext,
+) -> Result<Command, String> {
     let kind = match parser.peek() {
         Some("daily") => {
             parser.next();
@@ -532,7 +570,11 @@ fn parse_amp_command(parser: &mut ArgParser, mut shared: SharedArgs) -> Result<C
     }))
 }
 
-fn parse_pi_command(parser: &mut ArgParser, mut shared: SharedArgs) -> Result<Command, String> {
+fn parse_pi_command(
+    parser: &mut ArgParser,
+    mut shared: SharedArgs,
+    config: &ConfigContext,
+) -> Result<Command, String> {
     let kind = match parser.peek() {
         Some("daily") => {
             parser.next();
@@ -552,6 +594,8 @@ fn parse_pi_command(parser: &mut ArgParser, mut shared: SharedArgs) -> Result<Co
         _ => AgentReportKind::Daily,
     };
     let mut pi_path = None;
+    let mut codex_speed = CodexSpeed::Auto;
+    apply_config_to_agent_args(&mut codex_speed, Some(&mut pi_path), config);
     while parser.peek().is_some() {
         if parse_shared_arg_for_command(parser, &mut shared)? {
             continue;
@@ -565,7 +609,7 @@ fn parse_pi_command(parser: &mut ArgParser, mut shared: SharedArgs) -> Result<Co
         shared,
         kind,
         pi_path,
-        codex_speed: CodexSpeed::Auto,
+        codex_speed,
     }))
 }
 
@@ -810,9 +854,21 @@ fn help_text() -> &'static str {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::fs;
+    use std::time::{SystemTime, UNIX_EPOCH};
 
     fn parse(args: &[&str]) -> Cli {
         Cli::parse_from(args.iter().map(OsString::from)).unwrap()
+    }
+
+    fn temp_config_path(name: &str) -> PathBuf {
+        let nanos = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let dir = env::temp_dir().join(format!("ccusage-cli-{name}-{nanos}"));
+        fs::create_dir_all(&dir).unwrap();
+        dir.join("ccusage.json")
     }
 
     #[test]
@@ -824,6 +880,56 @@ mod tests {
         assert_eq!(args.kind, AgentReportKind::Daily);
         assert!(args.shared.json);
         assert_eq!(args.shared.since.as_deref(), Some("20260102"));
+    }
+
+    #[test]
+    fn applies_config_defaults_and_command_options_before_cli_options() {
+        let path = temp_config_path("daily");
+        fs::write(
+            &path,
+            r#"{
+                "defaults": { "json": true, "order": "desc" },
+                "commands": { "daily": { "since": "20260102", "order": "desc" } }
+            }"#,
+        )
+        .unwrap();
+        let path = path.to_string_lossy().to_string();
+
+        let cli = parse(&[
+            "ccusage",
+            "--config",
+            path.as_str(),
+            "daily",
+            "--order",
+            "asc",
+        ]);
+        let Some(Command::All(args)) = cli.command else {
+            panic!("expected all-agent command");
+        };
+        assert!(args.shared.json);
+        assert_eq!(args.shared.since.as_deref(), Some("20260102"));
+        assert_eq!(args.shared.order, SortOrder::Asc);
+    }
+
+    #[test]
+    fn applies_agent_namespace_config_to_codex_speed() {
+        let path = temp_config_path("codex");
+        fs::write(
+            &path,
+            r#"{
+                "codex": {
+                    "commands": { "daily": { "speed": "fast" } }
+                }
+            }"#,
+        )
+        .unwrap();
+        let path = path.to_string_lossy().to_string();
+
+        let cli = parse(&["ccusage", "--config", path.as_str(), "codex", "daily"]);
+        let Some(Command::Codex(args)) = cli.command else {
+            panic!("expected codex command");
+        };
+        assert_eq!(args.codex_speed, CodexSpeed::Fast);
     }
 
     #[test]
