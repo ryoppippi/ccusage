@@ -18,7 +18,7 @@ export async function calculateKiloCost(
 	entry: KiloUsageEntry,
 	fetcher: LiteLLMPricingFetcher,
 ): Promise<number> {
-	if (entry.costUSD != null && entry.costUSD > 0) {
+	if (entry.costUSD != null) {
 		return entry.costUSD;
 	}
 
@@ -37,4 +37,32 @@ export async function calculateKiloCost(
 	}
 
 	return 0;
+}
+
+if (import.meta.vitest != null) {
+	describe('calculateKiloCost', () => {
+		const entry = {
+			sessionID: 'session-1',
+			timestamp: new Date('2026-01-02T03:04:05.000Z'),
+			model: 'gpt-5',
+			providerID: 'openai',
+			costUSD: 0,
+			usage: {
+				inputTokens: 100,
+				outputTokens: 50,
+				cacheCreationInputTokens: 0,
+				cacheReadInputTokens: 0,
+				reasoningTokens: 0,
+			},
+			agent: null,
+		} satisfies KiloUsageEntry;
+
+		it('uses a recorded zero cost without recalculating', async () => {
+			const calculateCostFromTokens = vi.fn();
+			const fetcher = { calculateCostFromTokens } as unknown as LiteLLMPricingFetcher;
+
+			await expect(calculateKiloCost(entry, fetcher)).resolves.toBe(0);
+			expect(calculateCostFromTokens).not.toHaveBeenCalled();
+		});
+	});
 }

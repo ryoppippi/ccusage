@@ -161,7 +161,7 @@ function createAgentJsonSchema(
 	agentName: AgentName,
 	commandSchemas: Record<string, TokenSchema>,
 ): JsonSchemaNode {
-	const agentLabel = agentName === 'pi' ? 'pi-agent' : agentName;
+	const agentLabel = getAgentConfigLabel(agentName);
 	return {
 		type: 'object',
 		properties: {
@@ -179,6 +179,19 @@ function createAgentJsonSchema(
 		description: `${agentLabel} command configuration`,
 		markdownDescription: `${agentLabel} command configuration`,
 	};
+}
+
+function getAgentConfigLabel(agentName: AgentName): string {
+	switch (agentName) {
+		case 'amp':
+		case 'claude':
+		case 'codex':
+		case 'kilo':
+		case 'opencode':
+			return agentName;
+		case 'pi':
+			return 'pi-agent';
+	}
 }
 
 /**
@@ -213,6 +226,15 @@ function createConfigSchemaJson(): JsonSchemaNode {
 		...commonSchemaProperties(agentCommandSchemas.claude),
 		...filterCommandSchema('daily', allArgs as TokenSchema),
 	});
+	const agentConfigProperties = Object.fromEntries(
+		AGENT_CONFIG_KEYS.map(
+			(agent) =>
+				[agent, createAgentJsonSchema(agent, agentCommandSchemas[agent])] satisfies [
+					AgentName,
+					JsonSchemaNode,
+				],
+		),
+	);
 	const commandsJsonSchema = createCommandsJsonSchema(
 		legacyTopLevelCommandSchemas,
 		'Command-specific configuration overrides for all-agent reports',
@@ -236,12 +258,7 @@ function createConfigSchemaJson(): JsonSchemaNode {
 						markdownDescription: 'Default values for all-agent reports and legacy Claude commands',
 					},
 					commands: commandsJsonSchema,
-					claude: createAgentJsonSchema('claude', agentCommandSchemas.claude),
-					codex: createAgentJsonSchema('codex', agentCommandSchemas.codex),
-					opencode: createAgentJsonSchema('opencode', agentCommandSchemas.opencode),
-					amp: createAgentJsonSchema('amp', agentCommandSchemas.amp),
-					pi: createAgentJsonSchema('pi', agentCommandSchemas.pi),
-					kilo: createAgentJsonSchema('kilo', agentCommandSchemas.kilo),
+					...agentConfigProperties,
 				},
 				additionalProperties: false,
 			},

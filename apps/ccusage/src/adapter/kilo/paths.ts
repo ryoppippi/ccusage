@@ -24,7 +24,7 @@ export function hasKiloDatabase(kiloPath: string): boolean {
 	return getKiloDbPath(kiloPath) != null;
 }
 
-export async function detectKiloSources(kiloPath: string): Promise<boolean> {
+export function detectKiloSources(kiloPath: string): boolean {
 	return hasKiloDatabase(kiloPath);
 }
 
@@ -56,7 +56,7 @@ if (import.meta.vitest != null) {
 			await using fixture = await createFixture({});
 			vi.stubEnv(KILO_DATA_DIR_ENV, fixture.path);
 
-			await expect(detectKiloSources(fixture.path)).resolves.toBe(false);
+			expect(detectKiloSources(fixture.path)).toBe(false);
 		});
 	});
 }
