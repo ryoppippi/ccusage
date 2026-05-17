@@ -3,13 +3,23 @@ import * as v from 'valibot';
 import { LITELLM_PRICING_URL, liteLLMModelPricingSchema } from './pricing.ts';
 
 export type PricingDataset = Record<string, LiteLLMModelPricing>;
+const DEFAULT_PRICING_FETCH_TIMEOUT_MS = 10_000;
 
 export function createPricingDataset(): PricingDataset {
 	return Object.create(null) as PricingDataset;
 }
 
 export async function fetchLiteLLMPricingDataset(): Promise<PricingDataset> {
-	const response = await fetch(LITELLM_PRICING_URL);
+	const controller = new AbortController();
+	const timeout = setTimeout(() => {
+		controller.abort();
+	}, DEFAULT_PRICING_FETCH_TIMEOUT_MS);
+	let response: Response;
+	try {
+		response = await fetch(LITELLM_PRICING_URL, { signal: controller.signal });
+	} finally {
+		clearTimeout(timeout);
+	}
 	if (!response.ok) {
 		throw new Error(`Failed to fetch pricing data: ${response.status} ${response.statusText}`);
 	}
