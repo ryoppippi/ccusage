@@ -38,6 +38,7 @@ catalogs:
     '@ryoppippi/limo': jsr:^0.2.2
     '@std/async': jsr:^1.0.14
     ansi-escapes: ^7.0.0
+    arkregex: ^0.0.5
     cli-table3: ^0.6.5
     consola: ^3.4.2
     es-toolkit: ^1.39.10

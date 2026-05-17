@@ -1,7 +1,11 @@
+import { regex } from 'arkregex';
+
 type NodeVersion = readonly [number, number, number];
 
+const nodeVersionRegex = regex('^v?(\\d+)\\.(\\d+)\\.(\\d+)$');
+
 function parseNodeVersion(version: string): NodeVersion | undefined {
-	const match = /^v?(\d+)\.(\d+)\.(\d+)$/.exec(version);
+	const match = nodeVersionRegex.exec(version);
 	if (match == null) {
 		return undefined;
 	}

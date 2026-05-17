@@ -66,6 +66,7 @@
 		"@ryoppippi/eslint-config": "catalog:lint",
 		"@types/bun": "catalog:types",
 		"@typescript/native-preview": "catalog:types",
+		"arkregex": "catalog:runtime",
 		"clean-pkg-json": "catalog:release",
 		"eslint": "catalog:lint",
 		"eslint-plugin-format": "catalog:lint",
