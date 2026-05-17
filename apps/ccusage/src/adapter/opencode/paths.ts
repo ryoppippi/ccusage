@@ -7,6 +7,7 @@ import { Result } from '@praha/byethrow';
 import { createFixture } from 'fs-fixture';
 import { logger } from '../../logger.ts';
 import { getExistingDirectories, normalizePathList } from '../path-list.ts';
+import { hasReadonlySqliteSupport } from '../sqlite.ts';
 
 const DEFAULT_OPENCODE_PATH = path.join(homedir(), '.local/share/opencode');
 export const OPENCODE_CONFIG_DIR_ENV = 'OPENCODE_DATA_DIR';
@@ -113,7 +114,7 @@ export async function detectOpenCodeSources(openCodePath: string): Promise<boole
 		OPENCODE_MESSAGES_DIR_NAME,
 	);
 	return (
-		hasOpenCodeDatabase(openCodePath) ||
+		(hasReadonlySqliteSupport() && hasOpenCodeDatabase(openCodePath)) ||
 		(await hasFileRecursive(messagesDir, { extension: '.json' }))
 	);
 }

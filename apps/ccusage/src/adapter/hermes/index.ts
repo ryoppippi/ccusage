@@ -6,12 +6,13 @@ import { getSqliteDatabaseFactory, withSqliteDatabase } from '@ccusage/internal/
 import { createFixture } from 'fs-fixture';
 import { logger } from '../../logger.ts';
 import { createAgentPricingContext, defineAgentLogLoader } from '../shared.ts';
+import { hasReadonlySqliteSupport } from '../sqlite.ts';
 import { loadHermesUsageEntries } from './parser.ts';
 import { detectHermesStateDb } from './paths.ts';
 import { calculateHermesCost } from './pricing.ts';
 
 export async function detectHermes(): Promise<boolean> {
-	return detectHermesStateDb();
+	return hasReadonlySqliteSupport() && detectHermesStateDb();
 }
 
 function createHermesPricingContext(

@@ -1,7 +1,11 @@
 import type { SqliteDatabase } from '@ccusage/internal/sqlite';
-import { withSqliteDatabase } from '@ccusage/internal/sqlite';
+import { getSqliteDatabaseFactory, withSqliteDatabase } from '@ccusage/internal/sqlite';
 import { Result } from '@praha/byethrow';
 import { logger } from '../logger.ts';
+
+export function hasReadonlySqliteSupport(): boolean {
+	return getSqliteDatabaseFactory(logger.warn) != null;
+}
 
 export function loadReadonlySqliteRows<T>(
 	dbPath: string | null | undefined,
