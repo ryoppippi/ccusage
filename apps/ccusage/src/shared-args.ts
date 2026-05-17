@@ -103,6 +103,21 @@ export const sharedArgs = {
 		description: 'Force compact mode for narrow displays (better for screenshots)',
 		default: false,
 	},
+	remoteHost: {
+		type: 'string',
+		description:
+			'Comma-separated SSH hosts to fetch Claude usage from (e.g. "ca-20036826,ogosh@home-mac-main"). Requires ssh and tar on the local machine; remote hosts must be Unix-like.',
+	},
+	remoteTailscale: {
+		type: 'boolean',
+		description:
+			'Discover active Tailscale peers via "tailscale status --json" and fetch Claude usage from each over SSH.',
+		default: false,
+	},
+	remoteTmp: {
+		type: 'string',
+		description: 'Override the temp directory used when extracting remote Claude logs.',
+	},
 } as const satisfies Args;
 
 /**
