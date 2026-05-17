@@ -64,7 +64,7 @@ fn report_from_rows(rows: &[crate::UsageSummary], kind: AgentReportKind) -> Valu
     })
 }
 
-fn summarize_entries(
+pub(crate) fn summarize_entries(
     entries: &[LoadedEntry],
     kind: AgentReportKind,
 ) -> Result<Vec<crate::UsageSummary>> {
@@ -139,7 +139,7 @@ pub(crate) fn summary_period(row: &crate::UsageSummary) -> &str {
         .unwrap_or_default()
 }
 
-fn load_entries(shared: &SharedArgs) -> Result<Vec<LoadedEntry>> {
+pub(crate) fn load_entries(shared: &SharedArgs) -> Result<Vec<LoadedEntry>> {
     let mut entries = Vec::new();
     let mut seen = HashSet::new();
     for path in paths()? {

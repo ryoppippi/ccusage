@@ -8,6 +8,7 @@ pub(crate) struct Cli {
 }
 
 pub(crate) enum Command {
+    All(AgentCommandArgs),
     Daily(DailyArgs),
     Monthly(SharedArgs),
     Weekly(WeeklyArgs),
@@ -214,68 +215,13 @@ impl Cli {
 fn parse_command(
     command: &str,
     parser: &mut ArgParser,
-    mut shared: SharedArgs,
+    shared: SharedArgs,
 ) -> Result<Command, String> {
     match command {
-        "daily" => {
-            let mut args = DailyArgs {
-                shared,
-                instances: false,
-                project: None,
-                project_aliases: None,
-            };
-            while parser.peek().is_some() {
-                if parse_shared_arg_for_command(parser, &mut args.shared)? {
-                    continue;
-                }
-                match parser.next_flag()?.as_str() {
-                    "-i" | "--instances" => args.instances = true,
-                    "-p" | "--project" => args.project = Some(parser.value_for("--project")?),
-                    "--project-aliases" => {
-                        args.project_aliases = Some(parser.value_for("--project-aliases")?)
-                    }
-                    flag => return Err(format!("Unknown daily option '{flag}'")),
-                }
-            }
-            Ok(Command::Daily(args))
-        }
-        "monthly" => {
-            while parser.peek().is_some() {
-                parse_shared_arg(parser, &mut shared)?;
-            }
-            Ok(Command::Monthly(shared))
-        }
-        "weekly" => {
-            let mut args = WeeklyArgs {
-                shared,
-                start_of_week: WeekDay::Sunday,
-            };
-            while parser.peek().is_some() {
-                if parse_shared_arg_for_command(parser, &mut args.shared)? {
-                    continue;
-                }
-                match parser.next_flag()?.as_str() {
-                    "-w" | "--start-of-week" => {
-                        args.start_of_week = parse_week_day(&parser.value_for("--start-of-week")?)?
-                    }
-                    flag => return Err(format!("Unknown weekly option '{flag}'")),
-                }
-            }
-            Ok(Command::Weekly(args))
-        }
-        "session" => {
-            let mut args = SessionArgs { shared, id: None };
-            while parser.peek().is_some() {
-                if parse_shared_arg_for_command(parser, &mut args.shared)? {
-                    continue;
-                }
-                match parser.next_flag()?.as_str() {
-                    "-i" | "--id" => args.id = Some(parser.value_for("--id")?),
-                    flag => return Err(format!("Unknown session option '{flag}'")),
-                }
-            }
-            Ok(Command::Session(args))
-        }
+        "daily" => parse_all_command(parser, shared, AgentReportKind::Daily),
+        "monthly" => parse_all_command(parser, shared, AgentReportKind::Monthly),
+        "weekly" => parse_all_command(parser, shared, AgentReportKind::Weekly),
+        "session" => parse_all_command(parser, shared, AgentReportKind::Session),
         "blocks" => {
             let mut args = BlocksArgs {
                 shared,
@@ -356,6 +302,100 @@ fn parse_command(
     }
 }
 
+fn parse_all_command(
+    parser: &mut ArgParser,
+    mut shared: SharedArgs,
+    kind: AgentReportKind,
+) -> Result<Command, String> {
+    while parser.peek().is_some() {
+        if matches!(parser.peek(), Some("--all")) {
+            parser.next();
+            continue;
+        }
+        parse_shared_arg(parser, &mut shared)?;
+    }
+    Ok(Command::All(AgentCommandArgs {
+        shared,
+        kind,
+        pi_path: None,
+    }))
+}
+
+fn parse_claude_daily_command(
+    parser: &mut ArgParser,
+    shared: SharedArgs,
+) -> Result<Command, String> {
+    let mut args = DailyArgs {
+        shared,
+        instances: false,
+        project: None,
+        project_aliases: None,
+    };
+    while parser.peek().is_some() {
+        if parse_shared_arg_for_command(parser, &mut args.shared)? {
+            continue;
+        }
+        match parser.next_flag()?.as_str() {
+            "-i" | "--instances" => args.instances = true,
+            "-p" | "--project" => args.project = Some(parser.value_for("--project")?),
+            "--project-aliases" => {
+                args.project_aliases = Some(parser.value_for("--project-aliases")?)
+            }
+            flag => return Err(format!("Unknown daily option '{flag}'")),
+        }
+    }
+    Ok(Command::Daily(args))
+}
+
+fn parse_claude_monthly_command(
+    parser: &mut ArgParser,
+    mut shared: SharedArgs,
+) -> Result<Command, String> {
+    while parser.peek().is_some() {
+        parse_shared_arg(parser, &mut shared)?;
+    }
+    Ok(Command::Monthly(shared))
+}
+
+fn parse_claude_weekly_command(
+    parser: &mut ArgParser,
+    shared: SharedArgs,
+) -> Result<Command, String> {
+    let mut args = WeeklyArgs {
+        shared,
+        start_of_week: WeekDay::Sunday,
+    };
+    while parser.peek().is_some() {
+        if parse_shared_arg_for_command(parser, &mut args.shared)? {
+            continue;
+        }
+        match parser.next_flag()?.as_str() {
+            "-w" | "--start-of-week" => {
+                args.start_of_week = parse_week_day(&parser.value_for("--start-of-week")?)?
+            }
+            flag => return Err(format!("Unknown weekly option '{flag}'")),
+        }
+    }
+    Ok(Command::Weekly(args))
+}
+
+fn parse_claude_session_command(
+    parser: &mut ArgParser,
+    shared: SharedArgs,
+) -> Result<Command, String> {
+    let mut args = SessionArgs { shared, id: None };
+    while parser.peek().is_some() {
+        if parse_shared_arg_for_command(parser, &mut args.shared)? {
+            continue;
+        }
+        match parser.next_flag()?.as_str() {
+            "-i" | "--id" => args.id = Some(parser.value_for("--id")?),
+            flag => return Err(format!("Unknown session option '{flag}'")),
+        }
+    }
+    Ok(Command::Session(args))
+}
+
 fn parse_claude_command(parser: &mut ArgParser, shared: SharedArgs) -> Result<Command, String> {
     let command = match parser.peek() {
         Some(command @ ("daily" | "monthly" | "weekly" | "session" | "blocks" | "statusline")) => {
@@ -368,7 +408,14 @@ fn parse_claude_command(parser: &mut ArgParser, shared: SharedArgs) -> Result<Co
         }
         _ => "daily".to_string(),
     };
-    parse_command(&command, parser, shared)
+    match command.as_str() {
+        "daily" => parse_claude_daily_command(parser, shared),
+        "monthly" => parse_claude_monthly_command(parser, shared),
+        "weekly" => parse_claude_weekly_command(parser, shared),
+        "session" => parse_claude_session_command(parser, shared),
+        "blocks" | "statusline" => parse_command(&command, parser, shared),
+        _ => unreachable!("claude command is prevalidated"),
+    }
 }
 
 fn parse_codex_command(parser: &mut ArgParser, mut shared: SharedArgs) -> Result<Command, String> {
@@ -739,9 +786,21 @@ mod tests {
     }
 
     #[test]
-    fn parses_daily_options() {
+    fn parses_root_daily_as_all_agent_report() {
+        let cli = parse(&["ccusage", "daily", "--json", "--since", "20260102"]);
+        let Some(Command::All(args)) = cli.command else {
+            panic!("expected all-agent command");
+        };
+        assert_eq!(args.kind, AgentReportKind::Daily);
+        assert!(args.shared.json);
+        assert_eq!(args.shared.since.as_deref(), Some("20260102"));
+    }
+
+    #[test]
+    fn parses_claude_daily_options() {
         let cli = parse(&[
             "ccusage",
+            "claude",
             "daily",
             "--json",
             "--mode",

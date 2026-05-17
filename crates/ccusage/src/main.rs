@@ -381,6 +381,7 @@ struct Projection {
 fn main() -> Result<()> {
     let cli = Cli::parse();
     match cli.command {
+        Some(Command::All(args)) => adapter::all::run(args),
         Some(Command::Daily(args)) => run_daily(args),
         Some(Command::Monthly(shared)) => run_bucket(shared, BucketKind::Monthly),
         Some(Command::Weekly(args)) => run_weekly(args),
@@ -392,13 +393,12 @@ fn main() -> Result<()> {
         Some(Command::Amp(args)) => adapter::amp::run(args),
         Some(Command::Pi(args)) => adapter::pi::run(args),
         None => {
-            let args = DailyArgs {
+            let args = AgentCommandArgs {
                 shared: cli.shared,
-                instances: false,
-                project: None,
-                project_aliases: None,
+                kind: AgentReportKind::Daily,
+                pi_path: None,
             };
-            run_daily(args)
+            adapter::all::run(args)
         }
     }
 }
