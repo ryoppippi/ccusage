@@ -2,30 +2,33 @@
 
 ![ccusage daily report showing token usage and costs by date](/screenshot.png)
 
-**ccusage** is a powerful CLI tool that analyzes your local coding agent usage to help you understand token consumption patterns and estimated costs across Claude Code, Codex, OpenCode, Amp, and pi-agent.
+**ccusage** is a local CLI for understanding coding (agent) CLI token usage and estimated costs across Claude Code, Codex, OpenCode, Amp, and pi-agent.
+
+The original **“cc”** came from **C**laude **C**ode usage and now also fits **C**odex **C**LI usage. As OpenCode, Amp, pi-agent, and other coding (agent) CLIs became part of the same workflow, ccusage expanded into a general name for local coding CLI usage analysis.
 
 ## The Problem
 
-Claude Code's Max plan offers unlimited usage, which is fantastic! But many users are curious:
+Modern coding (agent) CLI usage is split across several local data formats. That makes basic questions hard to answer:
 
-- How much am I actually using Claude Code and other coding agents?
+- How much am I actually using each coding CLI?
 - Which conversations are the most expensive?
 - What would I be paying on a pay-per-use plan?
-- Am I getting good value from my subscription?
+- Which projects, sessions, or weeks are driving usage?
 
 ## The Solution
 
-ccusage analyzes the local usage files that coding agents automatically generate and provides:
+ccusage reads the local usage files that coding CLIs already generate and provides:
 
-- **Detailed Usage Reports** - Daily, weekly, monthly, and session-based breakdowns
-- **Unified Agent Reports** - Claude Code, Codex, OpenCode, Amp, and pi-agent in one CLI
+- **All Sources by Default** - Claude Code, Codex, OpenCode, Amp, and pi-agent in one CLI
+- **Usage Views** - Daily, weekly, monthly, and session-based breakdowns
 - **Cost Analysis** - Estimated costs based on token usage and model pricing
-- **Statusline Integration** - Real-time usage display for Claude Code status bar
+- **Focused Data Source Views** - Start with all detected sources, then narrow the same usage views to one source when needed
+- **Data Source Pages** - Source-specific setup and extra features live with each supported data source
 - **Multiple Formats** - Beautiful tables or JSON for further analysis
 
 ## How It Works
 
-1. **Coding agents generate local usage files** containing usage data
+1. **Coding CLIs generate local usage files** containing usage data
 2. **ccusage reads these files** from your local machine
 3. **Analyzes and aggregates** the data by date, session, or time blocks
 4. **Calculates estimated costs** using model pricing information
@@ -35,53 +38,74 @@ ccusage analyzes the local usage files that coding agents automatically generate
 
 ### 🚀 Ultra-Small Bundle Size
 
-Unlike other CLI tools, we pay extreme attention to bundle size. ccusage achieves an incredibly small footprint even without minification, which means you can run it directly without installation using `bunx ccusage` or `BUN_BE_BUN=1 claude x ccusage` for instant access.
+Unlike many CLI tools, ccusage pays close attention to bundle size. You can run it directly without a global install using `bunx ccusage` (recommended), `pnpm dlx ccusage`, or `npx ccusage@latest`.
 
-### 📊 Multiple Report Types
+### 📊 Usage Views
 
-- **Daily Reports** - Usage aggregated by calendar date
-- **Weekly Reports** - Usage aggregated by week with configurable start day
-- **Monthly Reports** - Monthly summaries with trends
-- **Session Reports** - Per-conversation analysis
-- **Blocks Reports** - 5-hour billing window tracking
+- **All Sources (Default)** - Aggregates every detected supported source
+- **Daily Usage** - Usage aggregated by calendar date
+- **Weekly Usage** - Usage aggregated by week with configurable start day
+- **Monthly Usage** - Monthly summaries with trends
+- **Session Usage** - Per-conversation analysis
 
 ### 💰 Cost Analysis
 
 - Estimated costs based on token counts and model pricing
 - Support for different cost calculation modes
-- Model-specific pricing (Opus vs Sonnet vs other models)
+- Model-specific pricing across supported providers
 - Cache token cost calculation
 
-### 📈 Statusline Integration
+### Data Source Pages
 
-- Compact real-time usage display for Claude Code status bar hooks
-- Session cost, daily cost, and block cost tracking
-- Burn rate calculations with visual indicators
-- Context usage percentage with color-coded alerts
+Each data source page covers the details that only apply to that source, including custom directories, pricing notes, and source-specific commands.
 
 ### 🔧 Flexible Configuration
 
 - **JSON Configuration Files** - Set defaults for all commands or customize per-command
 - **IDE Support** - JSON Schema for autocomplete and validation
 - **Priority-based Settings** - CLI args > local config > user config > defaults
-- **Multiple Claude Data Directories** - Automatic detection and aggregation
 - **Environment Variables** - Traditional configuration options
 - **Custom Date Filtering** - Flexible time range selection and sorting
 - **Offline Mode** - Cached pricing data for air-gapped environments
 
 ## Data Sources
 
-ccusage reads from local coding agent data directories:
+ccusage reads from local coding CLI data directories:
 
 | Agent       | ID         | Default data location                           |
 | ----------- | ---------- | ----------------------------------------------- |
 | Claude Code | `claude`   | `~/.config/claude/projects/`, `~/.claude/`      |
 | Codex       | `codex`    | `${CODEX_HOME:-~/.codex}`                       |
 | OpenCode    | `opencode` | `${OPENCODE_DATA_DIR:-~/.local/share/opencode}` |
-| Amp         | `amp`      | Amp CLI data directories                        |
+| Amp         | `amp`      | `${AMP_DATA_DIR:-~/.local/share/amp}`           |
 | pi-agent    | `pi`       | `${PI_AGENT_DIR:-~/.pi/agent/sessions}`         |
 
-The tool automatically detects available data and aggregates all supported agents by default.
+The tool automatically detects available data and aggregates all supported coding CLIs by default.
+
+## Report Shape
+
+Run ccusage without a source name to aggregate all detected sources:
+
+```bash
+ccusage daily
+ccusage weekly
+ccusage monthly
+ccusage session
+```
+
+Add a data source namespace when you want the same report focused on one source:
+
+```bash
+ccusage claude daily
+ccusage codex daily --speed fast
+ccusage opencode weekly
+ccusage amp session
+ccusage pi monthly
+```
+
+Use `ccusage <source> <report>` only when you want to narrow a report to one source.
+
+For Claude Code-specific setup and features, start from the [Claude Code data source](/guide/claude/) page.
 
 ## Privacy & Security
 
@@ -105,4 +129,4 @@ Thanks to [@milliondev](https://note.com/milliondev) for the [original concept a
 
 ## Getting Started
 
-Ready to analyze your Claude Code usage? Check out our [Getting Started Guide](/guide/getting-started) to begin exploring your data!
+Ready to analyze your coding (agent) CLI usage? Start with the [Getting Started Guide](/guide/getting-started).

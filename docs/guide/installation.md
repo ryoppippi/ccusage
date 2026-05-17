@@ -21,40 +21,31 @@ The fastest way to use ccusage is to run it directly:
 bunx ccusage
 ```
 
-```bash [npx]
-npx ccusage@latest
-```
-
 ```bash [pnpm]
 pnpm dlx ccusage
 ```
 
-```bash [deno]
-deno run -E -R=$HOME/.claude/projects/ -S=homedir -N='raw.githubusercontent.com:443' npm:ccusage@latest
+```bash [npx]
+npx ccusage@latest
 ```
 
 :::
 
 ::: tip Speed Recommendation
-We strongly recommend using `bunx` instead of `npx` due to the massive speed difference. Bunx caches packages more efficiently, resulting in near-instant startup times after the first run.
+We recommend `bunx` for everyday use. ccusage can run on Node.js 22+, but Bun generally starts faster and avoids the slower cold-start path common with `npx`.
 
-When the published CLI starts under Node.js and finds `bun` in `PATH`, it automatically re-runs the bundled entrypoint with Bun for better warm runtime performance. Set `CCUSAGE_BUN_AUTO_RUN=0` to force the Node.js runtime.
-:::
-
-::: info Deno Security
-Consider using `deno run` if you want additional security controls. Deno allows you to specify exact permissions, making it safer to run tools you haven't audited.
+Because the published CLI shebang targets Node.js, package runners can start ccusage under Node.js even when launched through `bunx`. When ccusage finds `bun` in `PATH`, it automatically re-runs the bundled entrypoint with Bun for better warm runtime performance. Set `CCUSAGE_BUN_AUTO_RUN=0` to force the Node.js runtime.
 :::
 
 ### Performance Comparison
 
 Here's why runtime choice matters:
 
-| Runtime  | First Run | Subsequent Runs | Notes               |
-| -------- | --------- | --------------- | ------------------- |
-| bunx     | Fast      | **Instant**     | Best overall choice |
-| npx      | Slow      | Moderate        | Widely available    |
-| pnpm dlx | Fast      | Fast            | Good alternative    |
-| deno     | Moderate  | Fast            | Best for security   |
+| Runtime  | First Run | Subsequent Runs | Notes                         |
+| -------- | --------- | --------------- | ----------------------------- |
+| bunx     | Fast      | **Instant**     | Recommended for everyday use  |
+| pnpm dlx | Fast      | Fast            | Good alternative              |
+| npx      | Slow      | Moderate        | Widely available, Node.js 22+ |
 
 ## Global Installation (Optional)
 
@@ -98,65 +89,42 @@ git clone https://github.com/ryoppippi/ccusage.git
 cd ccusage
 
 # Install dependencies
-bun install
+pnpm install
 
 # Run directly from source
-bun run start daily
-bun run start monthly --json
+pnpm --filter ccusage start daily
+pnpm --filter ccusage start monthly --json
 ```
 
 ### Development Scripts
 
 ```bash
 # Run tests
-bun run test
+pnpm run test
 
 # Type checking
-bun typecheck
+pnpm typecheck
 
 # Build distribution
-bun run build
+pnpm --filter ccusage build
 
 # Lint and format
-bun run format
+pnpm run format
 ```
 
 ## Runtime Requirements
 
 ### Node.js
 
-- **Minimum**: Node.js 20.x
-- **Recommended**: Node.js 20.x or later
-- **LTS versions** are fully supported
+- **Minimum**: Node.js 22.x for the published package
+- **Recommended**: Use Bun for command execution when available
+- `npx`, npm global installs, pnpm, and yarn all use the Node.js runtime unless ccusage re-runs through Bun
 
-### Bun (Alternative)
+### Bun
 
-- **Minimum**: Bun 1.2+
+- **Minimum**: Bun 1.3+
 - **Recommended**: Latest stable release
-- Often faster than Node.js for ccusage
-
-### Deno
-
-Deno 2.0+ is fully supported with proper permissions:
-
-```bash
-deno run \
-  -E \
-  -R=$HOME/.claude/projects/ \
-  -S=homedir \
-  -N='raw.githubusercontent.com:443' \
-  npm:ccusage@latest
-```
-
-Also you can use `offline` mode to run ccusage without network access:
-
-```bash
-deno run \
-  -E \
-  -R=$HOME/.claude/projects/ \
-  -S=homedir \
-  npm:ccusage@latest --offline
-```
+- Recommended for `bunx ccusage` and for the fastest warm startup
 
 ## Verification
 
@@ -244,12 +212,12 @@ export PATH=~/.npm-global/bin:$PATH
 ```
 
 ```bash [Node Version Managers]
-# Use nvm (recommended)
-nvm install node
+# Use nvm
+nvm install 22
 npm install -g ccusage
 
 # Or use fnm
-fnm install node
+fnm install 22
 npm install -g ccusage
 ```
 
@@ -287,4 +255,4 @@ After installation, check out:
 
 - [Getting Started Guide](/guide/getting-started) - Your first usage report
 - [Configuration](/guide/configuration) - Customize ccusage behavior
-- [Daily Reports](/guide/daily-reports) - Understand daily usage patterns
+- [Daily Usage](/guide/daily-reports) - Understand daily usage patterns

@@ -3,8 +3,8 @@ layout: home
 
 hero:
   name: ccusage
-  text: Claude Code Usage Analysis
-  tagline: A powerful CLI tool for analyzing Claude Code usage from local JSONL files
+  text: Coding (Agent) CLI Usage Analysis
+  tagline: A fast local CLI for tracking tokens and estimated costs across Claude Code, Codex, OpenCode, Amp, and pi-agent
   image:
     src: /logo.svg
     alt: ccusage logo
@@ -18,38 +18,32 @@ hero:
 
 features:
   - icon: 📊
-    title: Daily Reports
-    details: View token usage and costs aggregated by date with detailed breakdowns
-    link: /guide/daily-reports
-  - icon: 📆
-    title: Weekly Reports
-    details: Track usage patterns by week with configurable start day
-    link: /guide/weekly-reports
-  - icon: 📅
-    title: Monthly Reports
-    details: Analyze usage patterns over monthly periods with cost tracking
-    link: /guide/monthly-reports
-  - icon: 💬
-    title: Session Reports
-    details: Group usage by conversation sessions for detailed analysis
-    link: /guide/session-reports
-  - icon: ⏰
-    title: 5-Hour Blocks
-    details: Track usage within Claude's billing windows with active monitoring
-    link: /guide/blocks-reports
+    title: All Sources by Default
+    details: View all detected supported coding (agent) CLI usage by default
+    link: /guide/all-reports
   - icon: 🤖
-    title: Model Tracking
-    details: See which Claude models you're using (Opus, Sonnet, etc.)
+    title: Focused Views
+    details: Start with all detected CLIs, then narrow the same usage views to one source when needed
+    link: /guide/getting-started
+  - icon: 📁
+    title: Local Data Sources
+    details: Reads local usage logs from Claude Code, Codex, OpenCode, Amp, and pi-agent without uploading your data
+    link: /guide/
+  - icon: 💰
+    title: Cost Analysis
+    details: Estimate USD spend from token counts and model pricing, with cache token accounting where available
+    link: /guide/cost-modes
   - icon: 📋
     title: Enhanced Display
-    details: Beautiful tables with responsive layout and smart formatting
+    details: Responsive terminal tables stay readable across wide and narrow terminals
   - icon: 📄
     title: JSON Output
     details: Export data in structured JSON format for programmatic use
     link: /guide/json-output
-  - icon: 💰
-    title: Cost Analysis
-    details: Shows estimated costs in USD for each day/month/session
+  - icon: ⏰
+    title: Claude Code Features
+    details: Blocks and statusline remain separate because they depend on Claude-specific local data and hooks
+    link: /guide/claude/
   - icon: 🔄
     title: Cache Support
     details: Tracks cache creation and cache read tokens separately

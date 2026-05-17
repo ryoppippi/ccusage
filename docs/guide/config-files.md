@@ -130,14 +130,14 @@ You can also reference a local schema file after installing ccusage:
 
 ### Global Defaults
 
-The `defaults` section sets shared default values for all-agent reports and legacy Claude commands:
+The `defaults` section sets shared default values for unified reports and legacy Claude commands:
 
 ```json
 {
 	"$schema": "https://ccusage.com/config-schema.json",
 	"defaults": {
-		"since": "20250101",
-		"until": "20250630",
+		"since": "20260101",
+		"until": "20260531",
 		"json": false,
 		"mode": "auto",
 		"debug": false,
@@ -152,7 +152,7 @@ The `defaults` section sets shared default values for all-agent reports and lega
 
 ### Command-Specific Configuration
 
-Override shared defaults for specific all-agent reports and legacy Claude commands using the `commands` section:
+Override shared defaults for specific unified reports and legacy Claude commands using the `commands` section:
 
 ```json
 {
@@ -174,9 +174,9 @@ Override shared defaults for specific all-agent reports and legacy Claude comman
 }
 ```
 
-### Agent-Specific Configuration
+### Source-Specific Configuration
 
-Use agent namespaces to set defaults and command overrides for `ccusage <agent> <report>` commands. Supported namespaces are `claude`, `codex`, `opencode`, `amp`, and `pi`.
+Use data source namespaces to set defaults and report overrides. Supported namespaces are `claude`, `codex`, `opencode`, `amp`, and `pi`.
 
 ```json
 {
@@ -207,23 +207,22 @@ Use agent namespaces to set defaults and command overrides for `ccusage <agent> 
 }
 ```
 
-This configuration affects direct agent commands such as:
+This configuration affects source-focused commands such as:
 
 ```bash
 ccusage codex daily
 ccusage opencode weekly
 ```
 
-Agent-specific settings are also applied when running all-agent reports such as `ccusage daily`. In that case, each agent receives its own merged options before data is loaded.
+Source-specific settings are also applied when running unified reports such as `ccusage daily`. In that case, each source receives its own merged options before data is loaded.
 
 For a namespaced command, options are applied in this order:
 
 1. `defaults`
 2. `commands.<report>`
-3. `commands.<agent>:<report>`
-4. `<agent>.defaults`
-5. `<agent>.commands.<report>`
-6. Command-line arguments
+3. `<source>.defaults`
+4. `<source>.commands.<report>`
+5. Command-line arguments
 
 ## Command-Specific Options
 
@@ -236,8 +235,8 @@ For a namespaced command, options are applied in this order:
 			"instances": true,
 			"project": "my-project",
 			"breakdown": true,
-			"since": "20250101",
-			"until": "20250630"
+			"since": "20260101",
+			"until": "20260531"
 		}
 	}
 }

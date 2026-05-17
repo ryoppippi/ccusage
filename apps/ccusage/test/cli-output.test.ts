@@ -637,7 +637,7 @@ describe('ccusage all-agent CLI', () => {
 		const output = getStdout(result).replace(/\n$/u, '');
 		await mkdir(snapshotRoot, { recursive: true });
 		await expect(output).toMatchFileSnapshot(path.join(snapshotRoot, 'all-agent-daily-table.txt'));
-		expect(output).toContain('Coding Agent Usage Report - Daily');
+		expect(output).toContain('Coding (Agent) CLI Usage Report - Daily');
 		expect(output).toContain('Detected: Amp, Claude, Codex, OpenCode, pi-agent');
 		expect(output.match(/2026-01-02/gu)).toHaveLength(1);
 		expect(output).toContain('Amp');

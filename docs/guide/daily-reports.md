@@ -1,8 +1,8 @@
-# Daily Reports
+# Daily Usage
 
 ![Daily usage report showing token usage and costs by date with model breakdown](/screenshot.png)
 
-Daily reports show token usage and costs aggregated by calendar date, giving you a clear view of your Claude Code usage patterns over time.
+Daily usage shows token usage and estimated costs aggregated by calendar date. By default, `ccusage daily` combines every detected supported data source; use `ccusage <source> daily` when you want one source.
 
 ## Basic Usage
 
@@ -12,6 +12,12 @@ Show all daily usage:
 ccusage daily
 # or simply:
 ccusage
+
+# Focus on one source:
+ccusage codex daily
+ccusage opencode daily
+ccusage amp daily
+ccusage pi daily
 ```
 
 The daily command is the default, so you can omit it when running ccusage.
@@ -25,9 +31,10 @@ The daily command is the default, so you can omit it when running ccusage.
 ### Basic Columns
 
 - **Date**: Calendar date in YYYY-MM-DD format
-- **Models**: Claude models used that day (shown as bulleted list)
-- **Input**: Total input tokens sent to Claude
-- **Output**: Total output tokens received from Claude
+- **Agent**: Source CLI for unified reports
+- **Models**: Models used that day (shown as a bulleted list)
+- **Input**: Total input tokens sent to the model
+- **Output**: Total output tokens received from the model
 - **Cost (USD)**: Estimated cost for that day
 
 ### Cache Columns
@@ -49,14 +56,14 @@ ccusage automatically adapts to your terminal width:
 Filter reports by date range:
 
 ```bash
-# Show usage from December 2024
-ccusage daily --since 20241201 --until 20241231
+# Show usage from May 2026
+ccusage daily --since 20260501 --until 20260516
 
 # Show last week
-ccusage daily --since 20241215 --until 20241222
+ccusage daily --since 20260510 --until 20260516
 
 # Show usage since a specific date
-ccusage daily --since 20241201
+ccusage daily --since 20260501
 ```
 
 ### Sort Order
@@ -100,11 +107,11 @@ This shows costs split by individual models:
 ┌──────────────┬──────────────────┬────────┬─────────┬────────────┐
 │ Date         │ Models           │ Input  │ Output  │ Cost (USD) │
 ├──────────────┼──────────────────┼────────┼─────────┼────────────┤
-│ 2025-06-21   │ opus-4, sonnet-4 │    277 │  31,456 │     $17.58 │
+│ 2026-05-16   │ opus-4-1, sonnet-4-5 │    277 │  31,456 │     $17.58 │
 ├──────────────┼──────────────────┼────────┼─────────┼────────────┤
-│   └─ opus-4  │                  │    100 │  15,000 │     $10.25 │
+│   └─ opus-4-1  │                  │    100 │  15,000 │     $10.25 │
 ├──────────────┼──────────────────┼────────┼─────────┼────────────┤
-│   └─ sonnet-4│                  │    177 │  16,456 │      $7.33 │
+│   └─ sonnet-4-5│                  │    177 │  16,456 │      $7.33 │
 └──────────────┴──────────────────┴────────┴─────────┴────────────┘
 ```
 
@@ -121,8 +128,8 @@ ccusage daily --json
 	"type": "daily",
 	"data": [
 		{
-			"date": "2025-06-21",
-			"models": ["claude-opus-4-20250514", "claude-sonnet-4-20250514"],
+			"date": "2026-05-16",
+			"models": ["claude-opus-4-1-20250805", "claude-sonnet-4-5-20250929"],
 			"inputTokens": 277,
 			"outputTokens": 31456,
 			"cacheCreationTokens": 512,
@@ -170,7 +177,7 @@ When using `--instances`, the report shows usage for each project separately:
 ├──────────────┬──────────────────┬────────┬─────────┬────────────┬────────────┬─────────────┬──────────┤
 │ Date         │ Models           │ Input  │ Output  │ Cache Create│ Cache Read │ Total Tokens│ Cost (USD)│
 ├──────────────┼──────────────────┼────────┼─────────┼────────────┼────────────┼─────────────┼──────────┤
-│ 2025-06-21   │ • sonnet-4       │    277 │  31,456 │         512│      1,024 │      33,269 │     $7.33│
+│ 2026-05-16   │ • sonnet-4-5       │    277 │  31,456 │         512│      1,024 │      33,269 │     $7.33│
 └──────────────┴──────────────────┴────────┴─────────┴────────────┴────────────┴─────────────┴──────────┘
 
 ┌──────────────┬────────────────────────────────────────────────────────────────────────────────────────────┐
@@ -178,7 +185,7 @@ When using `--instances`, the report shows usage for each project separately:
 ├──────────────┬──────────────────┬────────┬─────────┬────────────┬────────────┬─────────────┬──────────┤
 │ Date         │ Models           │ Input  │ Output  │ Cache Create│ Cache Read │ Total Tokens│ Cost (USD)│
 ├──────────────┼──────────────────┼────────┼─────────┼────────────┼────────────┼─────────────┼──────────┤
-│ 2025-06-21   │ • opus-4         │    100 │  15,000 │         256│        512 │      15,868 │    $10.25│
+│ 2026-05-16   │ • opus-4-1         │    100 │  15,000 │         256│        512 │      15,868 │    $10.25│
 └──────────────┴──────────────────┴────────┴─────────┴────────────┴────────────┴─────────────┴──────────┘
 ```
 
@@ -198,8 +205,8 @@ ccusage daily --instances --project my-project
 ### Track Monthly Spending
 
 ```bash
-# See December 2024 usage
-ccusage daily --since 20241201 --until 20241231
+# See May 2026 usage
+ccusage daily --since 20260501 --until 20260516
 ```
 
 ### Find Expensive Days
@@ -212,7 +219,7 @@ ccusage daily --order desc
 ### Export for Spreadsheet Analysis
 
 ```bash
-ccusage daily --json > december-usage.json
+ccusage daily --json > may-usage.json
 ```
 
 ### Compare Model Usage
@@ -236,7 +243,7 @@ ccusage daily --since $(date -d '7 days ago' +%Y%m%d)
 ccusage daily --instances
 
 # Track specific project costs
-ccusage daily --project my-important-project --since 20250601
+ccusage daily --project my-important-project --since 20260501
 
 # Compare project usage with JSON export
 ccusage daily --instances --json > project-analysis.json
@@ -265,20 +272,20 @@ The `projectAliases` setting uses a comma-separated format of `original-name=dis
 
 ```bash
 # Generate team report with readable project names
-ccusage daily --instances --since 20250601
+ccusage daily --instances --since 20260501
 # Now shows "Frontend App" instead of "uuid-project"
 ```
 
 ## Tips
 
 1. **Compact Mode**: If your terminal is narrow, expand it to see all columns
-2. **Date Format**: Use YYYYMMDD format for date filters (e.g., 20241225)
+2. **Date Format**: Use YYYYMMDD format for date filters (e.g., 20260516)
 3. **Regular Monitoring**: Run daily reports regularly to track usage patterns
 4. **JSON Export**: Use `--json` for creating charts or additional analysis
 
 ## Related Commands
 
-- [Monthly Reports](/guide/monthly-reports) - Aggregate by month
-- [Session Reports](/guide/session-reports) - Per-conversation analysis
-- [Blocks Reports](/guide/blocks-reports) - 5-hour billing windows
-- [Live Monitoring](/guide/live-monitoring) - Real-time tracking
+- [All Sources (Default)](/guide/all-reports) - How unified views work
+- [Monthly Usage](/guide/monthly-reports) - Aggregate by month
+- [Session Usage](/guide/session-reports) - Per-conversation analysis
+- [Claude Code](/guide/claude/) - Claude Code-specific setup and features

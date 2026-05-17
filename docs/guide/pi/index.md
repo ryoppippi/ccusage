@@ -1,43 +1,22 @@
-# Pi-Agent Integration
+# pi-agent Data Source (Beta)
 
-The `ccusage pi` commands provide usage tracking for [pi-agent](https://github.com/badlogic/pi-mono), an alternative Claude coding agent from [shittycodingagent.ai](https://shittycodingagent.ai).
+ccusage can read [pi-agent](https://github.com/badlogic/pi-mono) usage data as one of its supported local data sources. pi-agent is an alternative Claude coding (agent) CLI from [shittycodingagent.ai](https://shittycodingagent.ai).
 
 ## What is Pi-Agent?
 
-Pi-agent is a third-party Claude coding agent that stores usage data in JSONL format. `ccusage pi` analyses this data to give you a view of your pi-agent usage.
+Pi-agent is a third-party Claude coding (agent) CLI that stores usage data in JSONL format. ccusage analyzes this data alongside its other supported sources.
 
-## Installation & Launch
+## Focused Views
 
 ```bash
 # Recommended
-npx ccusage@latest pi --help
 bunx ccusage pi --help
 
 # Alternative package runners
+npx ccusage@latest pi --help
 pnpm dlx ccusage pi --help
 pnpx ccusage pi --help
 ```
-
-::: warning Compatibility package
-`npx @ccusage/pi@latest daily` still works during the migration window, prints a deprecation warning, and forwards to `ccusage pi daily`.
-:::
-
-### Recommended: Shell Alias
-
-If you want a shorter command, set up a shell alias:
-
-```bash
-# bash/zsh: alias ccu-pi='bunx ccusage pi'
-# fish:     alias ccu-pi 'bunx ccusage pi'
-
-# Then simply run:
-ccu-pi daily
-ccu-pi monthly --json
-```
-
-::: tip
-After adding the alias to your shell config file (`.bashrc`, `.zshrc`, or `config.fish`), restart your shell or run `source` on the config file to apply the changes.
-:::
 
 ## Data Source
 
@@ -47,7 +26,7 @@ The CLI reads usage data from pi-agent:
 | -------- | ----------------------- |
 | Pi-agent | `~/.pi/agent/sessions/` |
 
-## Available Commands
+## Report Views
 
 ```bash
 # Show daily pi-agent usage
@@ -66,7 +45,7 @@ ccusage pi daily --json
 ccusage pi daily --pi-path /path/to/sessions
 
 # Filter by date range
-ccusage pi daily --since 2025-12-01 --until 2025-12-19
+ccusage pi daily --since 2026-05-01 --until 2026-05-16
 
 # Show model breakdown
 ccusage pi daily --breakdown
@@ -79,9 +58,9 @@ ccusage pi daily --breakdown
 | `PI_AGENT_DIR` | Custom path to pi-agent sessions directory    |
 | `LOG_LEVEL`    | Adjust logging verbosity (0 silent … 5 trace) |
 
-## Daily Report
+## Daily View
 
-The `daily` command shows daily usage from pi-agent.
+This view shows daily usage from pi-agent.
 
 ```bash
 # Recommended (fastest)
@@ -109,7 +88,7 @@ npx ccusage@latest pi daily
 ┌────────────┬────────────┬─────────────┬───────────┬───────────┬────────┬─────────┐
 │ Date       │ Input      │ Output      │ Cache Cr. │ Cache Rd. │ Cost   │ Models  │
 ├────────────┼────────────┼─────────────┼───────────┼───────────┼────────┼─────────┤
-│ 2025-01-09 │ 567,890    │ 123,456     │ 5,678     │ 45,678    │ $0.89  │ opus-4  │
+│ 2026-05-16 │ 567,890    │ 123,456     │ 5,678     │ 45,678    │ $0.89  │ opus-4-1  │
 ├────────────┼────────────┼─────────────┼───────────┼───────────┼────────┼─────────┤
 │ Total      │ 567,890    │ 123,456     │ 5,678     │ 45,678    │ $0.89  │         │
 └────────────┴────────────┴─────────────┴───────────┴───────────┴────────┴─────────┘
@@ -131,14 +110,14 @@ Returns structured data:
 {
   "daily": [
     {
-      "date": "2025-01-09",
+      "date": "2026-05-16",
       "source": "pi-agent",
       "inputTokens": 567890,
       "outputTokens": 123456,
       "cacheCreationTokens": 5678,
       "cacheReadTokens": 45678,
       "totalCost": 0.89,
-      "modelsUsed": ["claude-opus-4-5-20251101"],
+      "modelsUsed": ["claude-opus-4-1-20250805"],
       "modelBreakdowns": [...]
     }
   ],
@@ -158,15 +137,15 @@ Filter to a specific date range:
 
 ```bash
 # Last week
-ccusage pi daily --since 2025-01-02 --until 2025-01-09
+ccusage pi daily --since 2026-05-09 --until 2026-05-16
 
 # Single day
-ccusage pi daily --since 2025-01-09 --until 2025-01-09
+ccusage pi daily --since 2026-05-16 --until 2026-05-16
 ```
 
-## Monthly Report
+## Monthly View
 
-The `monthly` command shows monthly usage from pi-agent.
+This view shows monthly usage from pi-agent.
 
 ```bash
 # Recommended (fastest)
@@ -194,7 +173,7 @@ npx ccusage@latest pi monthly
 ┌─────────┬────────────┬─────────────┬───────────┬───────────┬─────────┬─────────┐
 │ Month   │ Input      │ Output      │ Cache Cr. │ Cache Rd. │ Cost    │ Models  │
 ├─────────┼────────────┼─────────────┼───────────┼───────────┼─────────┼─────────┤
-│ 2025-01 │ 12,345,678 │ 2,345,678   │ 123,456   │ 987,654   │ $12.34  │ opus-4  │
+│ 2026-05 │ 12,345,678 │ 2,345,678   │ 123,456   │ 987,654   │ $12.34  │ opus-4-1  │
 ├─────────┼────────────┼─────────────┼───────────┼───────────┼─────────┼─────────┤
 │ Total   │ 12,345,678 │ 2,345,678   │ 123,456   │ 987,654   │ $12.34  │         │
 └─────────┴────────────┴─────────────┴───────────┴───────────┴─────────┴─────────┘
@@ -216,14 +195,14 @@ Returns structured data:
 {
   "monthly": [
     {
-      "month": "2025-01",
+      "month": "2026-05",
       "source": "pi-agent",
       "inputTokens": 12345678,
       "outputTokens": 2345678,
       "cacheCreationTokens": 123456,
       "cacheReadTokens": 987654,
       "totalCost": 12.34,
-      "modelsUsed": ["claude-opus-4-5-20251101"],
+      "modelsUsed": ["claude-opus-4-1-20250805"],
       "modelBreakdowns": [...]
     }
   ],
@@ -243,15 +222,15 @@ You can filter the data to specific months:
 
 ```bash
 # Current year only
-ccusage pi monthly --since 2025-01-01
+ccusage pi monthly --since 2026-05-01
 
 # Specific quarter
-ccusage pi monthly --since 2024-10-01 --until 2024-12-31
+ccusage pi monthly --since 2026-01-01 --until 2026-03-31
 ```
 
-## Session Report
+## Session View
 
-The `session` command shows usage grouped by individual pi-agent sessions.
+This view shows usage grouped by individual pi-agent sessions.
 
 ```bash
 # Recommended (fastest)
@@ -281,8 +260,8 @@ Sessions are sorted by last activity:
 ┌──────────────────────────────┬────────────┬───────────┬───────────┬───────────┬────────┬─────────┐
 │ Session                      │ Input      │ Output    │ Cache Cr. │ Cache Rd. │ Cost   │ Models  │
 ├──────────────────────────────┼────────────┼───────────┼───────────┼───────────┼────────┼─────────┤
-│ my-project                   │ 123,456    │ 23,456    │ 1,234     │ 9,876     │ $0.12  │ opus-4  │
-│ another-repo                 │ 345,678    │ 67,890    │ 3,456     │ 29,876    │ $0.34  │ sonnet-4│
+│ my-project                   │ 123,456    │ 23,456    │ 1,234     │ 9,876     │ $0.12  │ opus-4-1  │
+│ another-repo                 │ 345,678    │ 67,890    │ 3,456     │ 29,876    │ $0.34  │ sonnet-4-5│
 ├──────────────────────────────┼────────────┼───────────┼───────────┼───────────┼────────┼─────────┤
 │ Total                        │ 469,134    │ 91,346    │ 4,690     │ 39,752    │ $0.46  │         │
 └──────────────────────────────┴────────────┴───────────┴───────────┴───────────┴────────┴─────────┘
@@ -318,8 +297,8 @@ Returns structured data including full paths:
       "cacheCreationTokens": 1234,
       "cacheReadTokens": 9876,
       "totalCost": 0.12,
-      "lastActivity": "2025-01-09",
-      "modelsUsed": ["claude-opus-4-5-20251101"],
+      "lastActivity": "2026-05-16",
+      "modelsUsed": ["claude-opus-4-1-20250805"],
       "modelBreakdowns": [...]
     }
   ],
@@ -339,13 +318,13 @@ Filter sessions by their last activity date:
 
 ```bash
 # Sessions active today
-ccusage pi session --since 2025-01-09 --until 2025-01-09
+ccusage pi session --since 2026-05-16 --until 2026-05-16
 
 # Sessions from the past week
-ccusage pi session --since 2025-01-02
+ccusage pi session --since 2026-05-09
 ```
 
 ## Related
 
-- [ccusage](https://github.com/ryoppippi/ccusage) - Main usage analysis tool for Claude Code
-- [pi-agent](https://github.com/badlogic/pi-mono) - Alternative Claude coding agent
+- [ccusage](https://github.com/ryoppippi/ccusage) - Main usage analysis tool for coding (agent) CLIs
+- [pi-agent](https://github.com/badlogic/pi-mono) - Alternative Claude coding (agent) CLI

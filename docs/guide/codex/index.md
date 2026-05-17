@@ -1,60 +1,53 @@
-# Codex CLI Overview (Beta)
+# Codex Data Source (Beta)
 
-![Codex CLI daily report](/codex-cli.jpeg)
+![ccusage daily report focused on Codex usage](/codex-cli.jpeg)
 
-> ⚠️ The Codex support is experimental. Prefer the `ccusage codex` commands; the `@ccusage/codex` package is now a compatibility wrapper.
+> ⚠️ Codex log support is experimental while the Codex CLI log format continues to evolve.
 
-The `ccusage codex` commands reuse ccusage's responsive tables, pricing cache, and token accounting to analyze OpenAI Codex CLI session logs.
+ccusage can read OpenAI Codex CLI session logs as one of its supported local data sources. Codex uses the same unified and focused report model as Claude Code, OpenCode, Amp, and pi-agent.
 
-## Installation & Launch
-
-```bash
-# Recommended
-npx ccusage@latest codex --help
-bunx ccusage codex --help
-
-# Alternative package runners
-pnpm dlx ccusage codex --help
-pnpx ccusage codex --help
-
-# Using deno (with security flags)
-deno run -E -R=$HOME/.codex/ -S=homedir -N='raw.githubusercontent.com:443' npm:ccusage@latest codex --help
-```
-
-::: warning Compatibility package
-`npx @ccusage/codex@latest daily` still works during the migration window, prints a deprecation warning, and forwards to `ccusage codex daily`.
-:::
-
-### Recommended: Shell Alias
-
-If you want a shorter command, set up a shell alias:
+## Focused Views
 
 ```bash
-# bash/zsh: alias ccu-codex='bunx ccusage codex'
-# fish:     alias ccu-codex 'bunx ccusage codex'
+# Daily Codex usage
+ccusage codex daily
 
-# Then simply run:
-ccu-codex daily
-ccu-codex monthly --json
+# Monthly Codex usage
+ccusage codex monthly
+
+# Codex sessions
+ccusage codex session
 ```
 
-::: tip
-After adding the alias to your shell config file (`.bashrc`, `.zshrc`, or `config.fish`), restart your shell or run `source` on the config file to apply the changes.
-:::
+Most users can start with unified reports such as `ccusage daily`. Add the `codex` namespace only when you want to focus the same report shape on Codex usage or pass Codex-specific options such as `--speed`.
 
 ## Data Source
 
 The CLI reads Codex session JSONL files located under `CODEX_HOME` (defaults to `~/.codex`). Each file represents a single Codex CLI session and contains running token totals that the tool converts into per-day or per-month deltas.
 
+## Report Views
+
+| Focused view            | Description                  | See also                                |
+| ----------------------- | ---------------------------- | --------------------------------------- |
+| `ccusage codex daily`   | Aggregate usage by date      | [Daily Usage](/guide/daily-reports)     |
+| `ccusage codex monthly` | Aggregate usage by month     | [Monthly Usage](/guide/monthly-reports) |
+| `ccusage codex session` | Group usage by Codex session | [Session Usage](/guide/session-reports) |
+
+These views support `--json`, `--compact`, `--offline`, and `--speed auto|standard|fast`.
+
+## Monthly Example
+
+![ccusage monthly report focused on Codex usage](/codex-cli-monthly.jpeg)
+
 ## What Gets Calculated
 
 - **Token deltas** – Each `event_msg` with `payload.type === "token_count"` reports cumulative totals. The CLI subtracts the previous totals to recover per-turn token usage (input, cached input, output, reasoning, total).
 - **Per-model grouping** – The `turn_context` metadata specifies the active model. We aggregate tokens per day/month and per model. Sessions lacking model metadata (seen in early September 2025 builds) are skipped.
-- **Pricing** – Rates come from LiteLLM's pricing dataset via the shared `LiteLLMPricingFetcher`. Aliases such as `gpt-5-codex` map to canonical entries (`gpt-5`) so cost calculations remain accurate.
+- **Pricing** – Rates come from LiteLLM's pricing dataset via the shared `LiteLLMPricingFetcher`. Model aliases such as `gpt-5.5` are resolved through the pricing cache when available.
 - **Speed pricing** – `--speed auto` is the default. It reads `${CODEX_HOME:-~/.codex}/config.toml` and applies fast pricing when Codex has `service_tier = "priority"` or legacy `service_tier = "fast"` configured. Fast mode uses the model-specific LiteLLM multiplier when available and otherwise falls back to 2x pricing. Pass `--speed fast` or `--speed standard` to override config-based detection.
 - **Legacy fallback** – Early September 2025 logs that never recorded `turn_context` metadata are still included; the CLI assumes `gpt-5` for pricing so you can review the tokens even though the model tag is missing (the JSON output also marks these rows with `"isFallback": true`).
 - **Cost formula** – Non-cached input uses the standard input price; cached input uses the cache-read price (falling back to the input price when missing); and output tokens are billed at the output price. All prices are per million tokens. Reasoning tokens may be shown for reference, but they are part of the output charge and are not billed separately.
-- **Totals and reports** – Daily, monthly, and session commands display per-model breakdowns, overall totals, and optional JSON for automation.
+- **Totals and reports** – Daily, monthly, and session views display per-model breakdowns, overall totals, and optional JSON for automation.
 
 ## Environment Variables
 
@@ -63,7 +56,7 @@ The CLI reads Codex session JSONL files located under `CODEX_HOME` (defaults to 
 | `CODEX_HOME` | Override the root directory containing Codex session folders |
 | `LOG_LEVEL`  | Adjust log verbosity (0 silent … 5 trace)                    |
 
-When Codex emits a model alias (for example `gpt-5-codex`), the CLI automatically resolves it to the canonical LiteLLM pricing entry. No manual override is needed.
+When Codex emits a model alias (for example `gpt-5.5`), the CLI automatically resolves it through the LiteLLM pricing data when possible. No manual override is needed.
 
 ## Speed Pricing
 
@@ -80,14 +73,19 @@ ccusage codex daily --speed fast
 ccusage codex daily --speed standard
 ```
 
-## Next Steps
+## JSON Output
 
-- [Daily report command](./daily.md)
-- [Monthly report command](./monthly.md)
-- [Session report command](./session.md)
-- Additional reports will mirror the ccusage CLI as the Codex tooling stabilizes.
+Codex focused views use the same JSON mode as the shared reports:
 
-Have feedback or ideas? [Open an issue](https://github.com/ryoppippi/ccusage/issues/new) so we can improve the beta.
+```bash
+ccusage codex daily --json
+ccusage codex monthly --json
+ccusage codex session --json
+```
+
+Session JSON includes per-model breakdowns, cached token counts, `lastActivity`, and `isFallback` flags for any events that required the legacy `gpt-5` pricing fallback.
+
+Have feedback or ideas? [Open an issue](https://github.com/ryoppippi/ccusage/issues/new) so we can improve Codex support.
 
 ## Troubleshooting
 

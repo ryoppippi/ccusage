@@ -1,10 +1,10 @@
-# OpenCode CLI Overview (Beta)
+# OpenCode Data Source (Beta)
 
-> The OpenCode companion CLI is experimental. Expect breaking changes while both ccusage and [OpenCode](https://github.com/anomalyco/opencode) continue to evolve.
+> OpenCode support is experimental. Expect breaking changes while both ccusage and [OpenCode](https://github.com/opencode-ai/opencode) continue to evolve.
 
-The `ccusage opencode` commands reuse ccusage's responsive tables, pricing cache, and token accounting to analyze [OpenCode](https://github.com/anomalyco/opencode) session logs. OpenCode is a terminal-based AI coding assistant that supports multiple AI providers.
+ccusage can read [OpenCode](https://github.com/opencode-ai/opencode) session logs as one of its supported local data sources. OpenCode is a terminal-based AI coding assistant that supports multiple AI providers.
 
-## Installation & Launch
+## Focused Views
 
 ::: code-group
 
@@ -21,7 +21,7 @@ pnpm dlx ccusage opencode --help
 ```
 
 ```bash [opencode x]
-BUN_BE_BUN=1 opencode x ccusage opencode --help
+BUN_BE_BUN=1 opencode x ccusage@latest opencode --help
 ```
 
 :::
@@ -29,20 +29,6 @@ BUN_BE_BUN=1 opencode x ccusage opencode --help
 ::: tip opencode x option
 The `opencode x` option requires the native version of OpenCode. If you installed OpenCode via npm, use the `bunx` or `npx` options instead.
 :::
-
-::: warning Compatibility package
-`npx @ccusage/opencode@latest daily` still works during the migration window, prints a deprecation warning, and forwards to `ccusage opencode daily`.
-:::
-
-### Recommended: Shell Alias
-
-```bash
-# bash/zsh
-alias ccu-opencode='bunx ccusage opencode'
-
-# fish
-alias ccu-opencode 'bunx ccusage opencode'
-```
 
 ## Data Source
 
@@ -57,16 +43,16 @@ The CLI reads OpenCode message and session JSON files located under `OPENCODE_DA
     └── session/{projectHash}/{sessionID}.json
 ```
 
-## Available Commands
+## Report Views
 
-| Command   | Description                                          | See also                                  |
-| --------- | ---------------------------------------------------- | ----------------------------------------- |
-| `daily`   | Aggregate usage by date (YYYY-MM-DD)                 | [Daily Reports](/guide/daily-reports)     |
-| `weekly`  | Aggregate usage by ISO week (YYYY-Www)               | [Weekly Reports](/guide/weekly-reports)   |
-| `monthly` | Aggregate usage by month (YYYY-MM)                   | [Monthly Reports](/guide/monthly-reports) |
-| `session` | Per-session breakdown with parent/subagent hierarchy | [Session Reports](/guide/session-reports) |
+| Focused view               | Description                                          | See also                                |
+| -------------------------- | ---------------------------------------------------- | --------------------------------------- |
+| `ccusage opencode daily`   | Aggregate usage by date (YYYY-MM-DD)                 | [Daily Usage](/guide/daily-reports)     |
+| `ccusage opencode weekly`  | Aggregate usage by ISO week (YYYY-Www)               | [Weekly Usage](/guide/weekly-reports)   |
+| `ccusage opencode monthly` | Aggregate usage by month (YYYY-MM)                   | [Monthly Usage](/guide/monthly-reports) |
+| `ccusage opencode session` | Per-session breakdown with parent/subagent hierarchy | [Session Usage](/guide/session-reports) |
 
-All commands support `--json` for structured output and `--compact` for narrow terminals. See the linked ccusage documentation for detailed flag descriptions.
+These views support `--json` for structured output and `--compact` for narrow terminals. See the linked ccusage documentation for detailed flag descriptions.
 
 ## Session Hierarchy
 

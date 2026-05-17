@@ -37,7 +37,7 @@ import process from 'node:process';
 import { isMainThread, parentPort, Worker, workerData } from 'node:worker_threads';
 import { toArray } from '@antfu/utils';
 import { createResultSlots } from '@ccusage/internal/array';
-import { readTextFile } from '@ccusage/internal/fs';
+import { isDirectorySyncSafe, readTextFile } from '@ccusage/internal/fs';
 import { processJSONLFileByLine, processJSONLFileByMarkers } from '@ccusage/internal/jsonl';
 import { compareStrings } from '@ccusage/internal/sort';
 import {
@@ -48,7 +48,6 @@ import {
 } from '@ccusage/internal/workers';
 import { Result } from '@praha/byethrow';
 import { createFixture } from 'fs-fixture';
-import { isDirectorySync } from 'path-type';
 import * as v from 'valibot';
 import { USER_HOME_DIR } from '../../consts.ts';
 import {
@@ -266,9 +265,9 @@ export function getClaudePaths(): string[] {
 			.filter((p) => p !== '');
 		for (const envPath of envPathList) {
 			const normalizedPath = path.resolve(envPath);
-			if (isDirectorySync(normalizedPath)) {
+			if (isDirectorySyncSafe(normalizedPath)) {
 				const projectsPath = path.join(normalizedPath, CLAUDE_PROJECTS_DIR_NAME);
-				if (isDirectorySync(projectsPath)) {
+				if (isDirectorySyncSafe(projectsPath)) {
 					// Avoid duplicates using normalized paths
 					if (!normalizedPaths.has(normalizedPath)) {
 						normalizedPaths.add(normalizedPath);
@@ -296,9 +295,9 @@ export function getClaudePaths(): string[] {
 
 	for (const defaultPath of defaultPaths) {
 		const normalizedPath = path.resolve(defaultPath);
-		if (isDirectorySync(normalizedPath)) {
+		if (isDirectorySyncSafe(normalizedPath)) {
 			const projectsPath = path.join(normalizedPath, CLAUDE_PROJECTS_DIR_NAME);
-			if (isDirectorySync(projectsPath)) {
+			if (isDirectorySyncSafe(projectsPath)) {
 				// Avoid duplicates using normalized paths
 				if (!normalizedPaths.has(normalizedPath)) {
 					normalizedPaths.add(normalizedPath);

@@ -1,7 +1,7 @@
 
  ╭────────────────────────────────────────────────────╮
  │                                                    │
- │  Coding Agent Usage Report - Daily                 │
+ │  Coding (Agent) CLI Usage Report - Daily           │
  │  Detected: Amp, Claude, Codex, OpenCode, pi-agent  │
  │                                                    │
  ╰────────────────────────────────────────────────────╯

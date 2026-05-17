@@ -1,11 +1,15 @@
-# Session Reports
+# Session Usage
 
-Session reports show your Claude Code usage grouped by individual conversation sessions, making it easy to identify which conversations consumed the most tokens and cost the most.
+Session usage shows usage grouped by individual conversations, threads, or sessions. `ccusage session` combines all detected supported sources; use `ccusage <source> session` to inspect one source's session format.
 
 ## Basic Usage
 
 ```bash
 ccusage session
+ccusage codex session
+ccusage opencode session
+ccusage amp session
+ccusage pi session
 ```
 
 ## Specific Session Lookup
@@ -41,12 +45,12 @@ echo "Current session: \$${COST}"
 
 ### Session ID Format
 
-Session IDs are the actual filenames (without `.jsonl` extension) stored in Claude's data directories. They typically look like:
+For Claude Code, session IDs are the actual filenames (without `.jsonl` extension) stored in Claude data directories. They typically look like:
 
-- `session-20250621-abc123-def456`
+- `session-20260516-abc123-def456`
 - `project-conversation-xyz789`
 
-You can find session IDs by running `ccusage session` and looking for the files in your Claude data directory.
+You can find Claude session IDs by running `ccusage claude session` and looking for the files in your Claude data directory. Other sources expose their own session or thread identifiers in focused session reports.
 
 ## Example Output
 
@@ -57,16 +61,16 @@ You can find session IDs by running `ccusage session` and looking for the files 
 │                                               │
 ╰───────────────────────────────────────────────╯
 
-┌────────────┬──────────────────┬────────┬─────────┬──────────────┬────────────┬──────────────┬────────────┬───────────────┐
-│ Session    │ Models           │ Input  │ Output  │ Cache Create │ Cache Read │ Total Tokens │ Cost (USD) │ Last Activity │
-├────────────┼──────────────────┼────────┼─────────┼──────────────┼────────────┼──────────────┼────────────┼───────────────┤
-│ abc123-def │ • opus-4         │  4,512 │ 350,846 │          512 │      1,024 │      356,894 │    $156.40 │ 2025-06-21    │
-│            │ • sonnet-4       │        │         │              │            │              │            │               │
-│ ghi456-jkl │ • sonnet-4       │  2,775 │ 186,645 │          256 │        768 │      190,444 │     $98.45 │ 2025-06-20    │
-│ mno789-pqr │ • opus-4         │  1,887 │ 183,055 │          128 │        512 │      185,582 │     $81.73 │ 2025-06-19    │
-├────────────┼──────────────────┼────────┼─────────┼──────────────┼────────────┼──────────────┼────────────┼───────────────┤
+┌────────────┬────────────────────┬────────┬─────────┬──────────────┬────────────┬──────────────┬────────────┬───────────────┐
+│ Session    │ Models             │ Input  │ Output  │ Cache Create │ Cache Read │ Total Tokens │ Cost (USD) │ Last Activity │
+├────────────┼────────────────────┼────────┼─────────┼──────────────┼────────────┼──────────────┼────────────┼───────────────┤
+│ abc123-def │ • opus-4-1         │  4,512 │ 350,846 │          512 │      1,024 │      356,894 │    $156.40 │ 2026-05-16    │
+│            │ • sonnet-4-5       │        │         │              │            │              │            │               │
+│ ghi456-jkl │ • sonnet-4-5       │  2,775 │ 186,645 │          256 │        768 │      190,444 │     $98.45 │ 2026-05-15    │
+│ mno789-pqr │ • opus-4-1         │  1,887 │ 183,055 │          128 │        512 │      185,582 │     $81.73 │ 2026-05-14    │
+├────────────┼────────────────────┼────────┼─────────┼──────────────┼────────────┼──────────────┼────────────┼───────────────┤
 │ Total      │                  │  9,174 │ 720,546 │          896 │      2,304 │      732,920 │    $336.58 │               │
-└────────────┴──────────────────┴────────┴─────────┴──────────────┴────────────┴──────────────┴────────────┴───────────────┘
+└────────────┴────────────────────┴────────┴─────────┴──────────────┴────────────┴──────────────┴────────────┴───────────────┘
 ```
 
 ## Understanding Session Data
@@ -75,7 +79,7 @@ You can find session IDs by running `ccusage session` and looking for the files 
 
 Sessions are displayed using the last two segments of their full identifier:
 
-- Full session ID: `project-20250621-session-abc123-def456`
+- Full session ID: `project-20260516-session-abc123-def456`
 - Displayed as: `abc123-def`
 
 ### Session Metrics
@@ -118,11 +122,11 @@ ccusage session -i <session-id>
 Filter sessions by their last activity date:
 
 ```bash
-# Show sessions active since May 25th
-ccusage session --since 20250525
+# Show sessions active since May 10th
+ccusage session --since 20260510
 
 # Show sessions active in a specific date range
-ccusage session --since 20250520 --until 20250530
+ccusage session --since 20260501 --until 20260516
 
 # Show only recent sessions (last week)
 ccusage session --since $(date -d '7 days ago' +%Y%m%d)
@@ -152,15 +156,15 @@ ccusage session --breakdown
 Example with breakdown:
 
 ```
-┌────────────┬──────────────────┬────────┬─────────┬────────────┬───────────────┐
-│ Session    │ Models           │ Input  │ Output  │ Cost (USD) │ Last Activity │
-├────────────┼──────────────────┼────────┼─────────┼────────────┼───────────────┤
-│ abc123-def │ opus-4, sonnet-4 │  4,512 │ 350,846 │    $156.40 │ 2025-06-21    │
-├────────────┼──────────────────┼────────┼─────────┼────────────┼───────────────┤
-│   └─ opus-4│                  │  2,000 │ 200,000 │     $95.50 │               │
-├────────────┼──────────────────┼────────┼─────────┼────────────┼───────────────┤
-│   └─ sonnet-4                 │  2,512 │ 150,846 │     $60.90 │               │
-└────────────┴──────────────────┴────────┴─────────┴────────────┴───────────────┘
+┌───────────────┬──────────────────────┬────────┬─────────┬────────────┬───────────────┐
+│ Session       │ Models               │ Input  │ Output  │ Cost (USD) │ Last Activity │
+├───────────────┼──────────────────────┼────────┼─────────┼────────────┼───────────────┤
+│ abc123-def    │ opus-4-1, sonnet-4-5 │  4,512 │ 350,846 │    $156.40 │ 2026-05-16    │
+├───────────────┼──────────────────────┼────────┼─────────┼────────────┼───────────────┤
+│   └─ opus-4-1 │                      │  2,000 │ 200,000 │     $95.50 │               │
+├───────────────┼──────────────────────┼────────┼─────────┼────────────┼───────────────┤
+│   └─ sonnet-4-5                      │  2,512 │ 150,846 │     $60.90 │               │
+└───────────────┴──────────────────────┴────────┴─────────┴────────────┴───────────────┘
 ```
 
 ### JSON Output
@@ -182,11 +186,11 @@ ccusage session --json
 			"cacheReadTokens": 1024,
 			"totalTokens": 356894,
 			"totalCost": 156.4,
-			"lastActivity": "2025-06-21",
-			"modelsUsed": ["opus-4", "sonnet-4"],
+			"lastActivity": "2026-05-16",
+			"modelsUsed": ["opus-4-1", "sonnet-4-5"],
 			"modelBreakdowns": [
 				{
-					"model": "opus-4",
+					"model": "opus-4-1",
 					"inputTokens": 2000,
 					"outputTokens": 200000,
 					"totalCost": 95.5
@@ -226,17 +230,17 @@ Look at the top sessions to understand:
 
 - Which types of conversations cost the most
 - Whether long coding sessions or research tasks are more expensive
-- How model choice (Opus vs Sonnet) affects costs
+- How model choice (Opus 4.1 vs Sonnet 4.5) affects costs
 
 ### Track Conversation Patterns
 
 ```bash
 # See recent conversation activity
-ccusage session --since 20250615
+ccusage session --since 20260510
 
 # Compare different time periods
-ccusage session --since 20250601 --until 20250615  # First half of month
-ccusage session --since 20250616 --until 20250630  # Second half of month
+ccusage session --since 20260501 --until 20260515  # First half of month
+ccusage session --since 20260516 --until 20260531  # Second half of month
 ```
 
 ### Model Usage Analysis
@@ -248,8 +252,8 @@ ccusage session --breakdown
 
 This helps understand:
 
-- Whether you prefer Opus for complex tasks
-- If Sonnet is sufficient for routine work
+- Whether you prefer Opus 4.1 for complex tasks
+- If Sonnet 4.5 is sufficient for routine work
 - How model mixing affects total costs
 
 ### Budget Optimization
@@ -278,7 +282,7 @@ Use session data to:
 
 - **Identify expensive patterns**: What makes some conversations cost more?
 - **Optimize conversation flow**: Break long sessions into smaller focused chats
-- **Choose appropriate models**: Use Sonnet for simpler tasks, Opus for complex ones
+- **Choose appropriate models**: Use Sonnet 4.5 for simpler tasks, Opus 4.1 for complex ones
 
 ### 3. Budget Planning
 
@@ -293,7 +297,7 @@ Session analysis helps with:
 Compare sessions to understand:
 
 - **Task types**: Coding vs writing vs research costs
-- **Model effectiveness**: Whether Opus provides value over Sonnet
+- **Model effectiveness**: Whether Opus 4.1 provides value over Sonnet 4.5
 - **Time patterns**: Whether longer sessions are more or less efficient
 
 ## Responsive Display
@@ -307,15 +311,15 @@ When in compact mode, ccusage displays a message explaining how to see the full 
 
 ## Related Commands
 
-- [Daily Reports](/guide/daily-reports) - Usage aggregated by date
-- [Monthly Reports](/guide/monthly-reports) - Monthly summaries
-- [Blocks Reports](/guide/blocks-reports) - 5-hour billing windows
-- [Live Monitoring](/guide/live-monitoring) - Real-time session tracking
+- [All Sources (Default)](/guide/all-reports) - How unified views work
+- [Daily Usage](/guide/daily-reports) - Usage aggregated by date
+- [Monthly Usage](/guide/monthly-reports) - Monthly summaries
+- [Claude Code](/guide/claude/) - Claude Code-specific setup and features
 
 ## Next Steps
 
 After analyzing session patterns, consider:
 
-1. [Blocks Reports](/guide/blocks-reports) to understand timing within 5-hour windows
-2. [Live Monitoring](/guide/live-monitoring) to track active conversations in real-time
-3. [Daily Reports](/guide/daily-reports) to see how session patterns vary by day
+1. [Daily Usage](/guide/daily-reports) to see how session patterns vary by day
+2. [Monthly Usage](/guide/monthly-reports) to compare longer-term patterns
+3. [Claude Code](/guide/claude/) for Claude Code-specific setup and features

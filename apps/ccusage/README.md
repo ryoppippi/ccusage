@@ -21,27 +21,27 @@
     <img src="https://cdn.jsdelivr.net/gh/ryoppippi/ccusage@main/docs/public/screenshot.png">
 </div>
 
-> Analyze coding agent token usage and costs from local usage logs — incredibly fast and informative!
+> Analyze coding (agent) CLI token usage and costs from local data.
 
 ## ccusage Family
 
-### 📊 [ccusage](https://www.npmjs.com/package/ccusage) - Unified Coding Agent Usage Analyzer
+### 📊 [ccusage](https://www.npmjs.com/package/ccusage) - Coding (Agent) CLI Usage Analyzer
 
 The main CLI tool for analyzing Claude Code, Codex, OpenCode, Amp, and pi-agent usage from local data. Track daily, weekly, monthly, and session-based usage with beautiful tables.
 
-### 🤖 [@ccusage/codex](https://www.npmjs.com/package/@ccusage/codex) - OpenAI Codex Usage Analyzer
+### 🤖 [@ccusage/codex](https://www.npmjs.com/package/@ccusage/codex) - Codex Compatibility Wrapper
 
 Compatibility wrapper for OpenAI Codex usage. Prefer `ccusage codex` or `ccusage codex daily`.
 
-### 🚀 [@ccusage/opencode](https://www.npmjs.com/package/@ccusage/opencode) - OpenCode Usage Analyzer
+### 🚀 [@ccusage/opencode](https://www.npmjs.com/package/@ccusage/opencode) - OpenCode Compatibility Wrapper
 
 Compatibility wrapper for [OpenCode](https://github.com/opencode-ai/opencode) usage. Prefer `ccusage opencode`.
 
-### 🥧 [@ccusage/pi](https://www.npmjs.com/package/@ccusage/pi) - Pi-agent Usage Analyzer
+### 🥧 [@ccusage/pi](https://www.npmjs.com/package/@ccusage/pi) - pi-agent Compatibility Wrapper
 
 Compatibility wrapper for [pi-agent](https://github.com/badlogic/pi-mono) usage. Prefer `ccusage pi`.
 
-### ⚡ [@ccusage/amp](https://www.npmjs.com/package/@ccusage/amp) - Amp Usage Analyzer
+### ⚡ [@ccusage/amp](https://www.npmjs.com/package/@ccusage/amp) - Amp Compatibility Wrapper
 
 Compatibility wrapper for [Amp](https://ampcode.com/) usage. Prefer `ccusage amp`.
 
@@ -52,20 +52,17 @@ Compatibility wrapper for [Amp](https://ampcode.com/) usage. Prefer `ccusage amp
 Thanks to ccusage's incredibly small bundle size ([![install size](https://packagephobia.com/badge?p=ccusage)](https://packagephobia.com/result?p=ccusage)), you can run it directly without installation:
 
 ```bash
-# Recommended - always include @latest to ensure you get the newest version
-npx ccusage@latest
+# Recommended
 bunx ccusage
 
 # Alternative package runners
 pnpm dlx ccusage
 pnpx ccusage
-
-# Using deno (with security flags)
-deno run -E -R=$HOME/.claude/projects/ -S=homedir -N='raw.githubusercontent.com:443' npm:ccusage@latest
+npx ccusage@latest
 ```
 
-> 💡 **Important**: We strongly recommend using `@latest` suffix with npx (e.g., `npx ccusage@latest`) to ensure you're running the most recent version with the latest features and bug fixes.
-> When ccusage starts under Node.js and finds `bun` in `PATH`, it automatically re-runs the bundled entrypoint with Bun for better warm runtime performance. Set `CCUSAGE_BUN_AUTO_RUN=0` to force Node.js.
+> 💡 **Runtime**: `bunx ccusage` is recommended for everyday use. If you use `npx`, include `@latest` and use Node.js 22+.
+> Because the published CLI shebang targets Node.js, package runners can start ccusage under Node.js even when launched through `bunx`. When ccusage finds `bun` in `PATH`, it automatically re-runs the bundled entrypoint with Bun for better warm runtime performance. Set `CCUSAGE_BUN_AUTO_RUN=0` to force Node.js.
 
 ### Compatibility Packages
 
@@ -80,37 +77,37 @@ npx @ccusage/amp@latest         # Deprecated wrapper for: ccusage amp
 
 ```bash
 # Basic usage
-npx ccusage          # Show all detected agents by day (default)
-npx ccusage daily    # All detected agents by day
-npx ccusage weekly   # All detected agents by week
-npx ccusage monthly  # All detected agents by month
-npx ccusage session  # All detected agents by session
-npx ccusage blocks   # Claude Code 5-hour billing windows
-npx ccusage statusline  # Claude Code status line for hooks (Beta)
+bunx ccusage          # Show all detected sources by day (default)
+bunx ccusage daily    # All detected sources by day
+bunx ccusage weekly   # All detected sources by week
+bunx ccusage monthly  # All detected sources by month
+bunx ccusage session  # All detected sources by session
+bunx ccusage blocks   # Claude Code 5-hour billing windows
+bunx ccusage statusline  # Claude Code status line for hooks (Beta)
 
-# Agent-specific reports and options
-npx ccusage claude daily --mode display
-npx ccusage codex daily --speed fast
-npx ccusage opencode weekly
-npx ccusage amp session
-npx ccusage pi daily --pi-path /path/to/sessions
+# Source-focused reports and options
+bunx ccusage claude daily --mode display
+bunx ccusage codex daily --speed fast
+bunx ccusage opencode weekly
+bunx ccusage amp session
+bunx ccusage pi daily --pi-path /path/to/sessions
 
-# Explicit all-agents report
-npx ccusage daily --all
+# Explicit unified report
+bunx ccusage daily --all
 
 # Filters and options
-npx ccusage daily --since 2025-05-25 --until 2025-05-30
-npx ccusage daily --json  # JSON output
-npx ccusage daily --timezone UTC  # Use UTC timezone
+bunx ccusage daily --since 2026-04-25 --until 2026-05-16
+bunx ccusage daily --json  # JSON output
+bunx ccusage daily --timezone UTC  # Use UTC timezone
 
 # Project analysis
-npx ccusage claude daily --instances  # Group Claude Code by project/instance
-npx ccusage claude daily --project myproject  # Filter to specific Claude project
-npx ccusage claude daily --instances --project myproject --json  # Combined usage
+bunx ccusage claude daily --instances  # Group Claude Code by project/instance
+bunx ccusage claude daily --project myproject  # Filter to specific Claude project
+bunx ccusage claude daily --instances --project myproject --json  # Combined usage
 
 # Compact mode for screenshots/sharing
-npx ccusage --compact  # Force compact table mode
-npx ccusage monthly --compact  # Compact monthly report
+bunx ccusage --compact  # Force compact table mode
+bunx ccusage monthly --compact  # Compact monthly report
 ```
 
 ## Features
@@ -118,13 +115,13 @@ npx ccusage monthly --compact  # Compact monthly report
 - 📊 **Daily Report**: View token usage and costs aggregated by date
 - 📅 **Monthly Report**: View token usage and costs aggregated by month
 - 💬 **Session Report**: View usage grouped by conversation sessions
-- 🤖 **Multi-Agent Reports**: View Claude Code, Codex, OpenCode, Amp, and pi-agent usage from one CLI
+- 🤖 **Unified CLI Reports**: View Claude Code, Codex, OpenCode, Amp, and pi-agent usage from one CLI
 - ⏰ **5-Hour Blocks Report**: Track usage within Claude's billing windows with active block monitoring
 - 🚀 **Statusline Integration**: Compact usage display for Claude Code status bar hooks (Beta)
-- 🤖 **Model Tracking**: See which Claude models you're using (Opus, Sonnet, etc.)
+- 🤖 **Model Tracking**: See which models are used across supported sources
 - 📊 **Model Breakdown**: View per-model cost breakdown with `--breakdown` flag
 - 📅 **Date Filtering**: Filter reports by date range using `--since` and `--until`
-- 📁 **Custom Path**: Support for custom Claude data directory locations
+- 📁 **Custom Paths**: Support for custom local data directory locations
 - 🎨 **Beautiful Output**: Colorful table-formatted display with automatic responsive layout
 - 📱 **Smart Tables**: Automatic compact mode for narrow terminals (< 100 characters) with essential columns
 - 📸 **Compact Mode**: Use `--compact` flag to force compact table layout, perfect for screenshots and sharing
@@ -132,8 +129,8 @@ npx ccusage monthly --compact  # Compact monthly report
 - 📄 **JSON Output**: Export data in structured JSON format with `--json`
 - 💰 **Cost Tracking**: Shows costs in USD for each day/month/session
 - 🔄 **Cache Token Support**: Tracks and displays cache creation and cache read tokens separately
-- 🌐 **Offline Mode**: Use pre-cached pricing data without network connectivity with `--offline` (Claude models only)
-- 🏗️ **Multi-Instance Support**: Group usage by project with `--instances` flag and filter by specific projects
+- 🌐 **Offline Mode**: Use pre-cached pricing data without network connectivity with `--offline`
+- 🏗️ **Claude Instance Support**: Group Claude Code usage by project with `--instances` and filter by specific projects
 - 🌍 **Timezone Support**: Configure timezone for date grouping with `--timezone` option
 - ⚙️ **Configuration Files**: Set defaults with JSON configuration files, complete with IDE autocomplete and validation
 - 🚀 **Ultra-Small Bundle**: Unlike other CLI tools, we pay extreme attention to bundle size - incredibly small even without minification!

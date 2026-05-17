@@ -1,17 +1,14 @@
-# Monthly Reports
+# Monthly Usage
 
-Monthly reports aggregate your Claude Code usage by calendar month, providing a high-level view of your usage patterns and costs over longer time periods.
-
-:::warning NOTICE
-Claude Code can only retain logs for 30 days by default. To be able to check logs for more than a month, you need to change the value of `cleanupPeriodDays` in the settings file.
-
-[Claude Code settings - Claude Docs](https://docs.claude.com/en/docs/claude-code/settings#settings-files)
-:::
+Monthly usage aggregates coding (agent) CLI usage by calendar month, providing a high-level view of usage patterns and estimated costs over longer periods. `ccusage monthly` combines all detected supported sources; use `ccusage <source> monthly` for a single source.
 
 ## Basic Usage
 
 ```bash
 ccusage monthly
+ccusage codex monthly
+ccusage amp monthly
+ccusage pi monthly
 ```
 
 ## Example Output
@@ -23,16 +20,16 @@ ccusage monthly
 │                                             │
 ╰─────────────────────────────────────────────╯
 
-┌─────────┬──────────────────┬─────────┬──────────┬──────────────┬────────────┬──────────────┬────────────┐
-│ Month   │ Models           │ Input   │ Output   │ Cache Create │ Cache Read │ Total Tokens │ Cost (USD) │
-├─────────┼──────────────────┼─────────┼──────────┼──────────────┼────────────┼──────────────┼────────────┤
-│ 2025-06 │ • opus-4         │  45,231 │  892,456 │        2,048 │      4,096 │      943,831 │   $1,247.92│
-│         │ • sonnet-4       │         │          │              │            │              │            │
-│ 2025-05 │ • sonnet-4       │  38,917 │  756,234 │        1,536 │      3,072 │      799,759 │     $892.15│
-│ 2025-04 │ • opus-4         │  22,458 │  534,789 │        1,024 │      2,048 │      560,319 │     $678.43│
-├─────────┼──────────────────┼─────────┼──────────┼──────────────┼────────────┼──────────────┼────────────┤
+┌─────────┬────────────────────┬─────────┬──────────┬──────────────┬────────────┬──────────────┬────────────┐
+│ Month   │ Models             │ Input   │ Output   │ Cache Create │ Cache Read │ Total Tokens │ Cost (USD) │
+├─────────┼────────────────────┼─────────┼──────────┼──────────────┼────────────┼──────────────┼────────────┤
+│ 2026-05 │ • opus-4-1         │  45,231 │  892,456 │        2,048 │      4,096 │      943,831 │   $1,247.92│
+│         │ • sonnet-4-5       │         │          │              │            │              │            │
+│ 2026-04 │ • sonnet-4-5       │  38,917 │  756,234 │        1,536 │      3,072 │      799,759 │     $892.15│
+│ 2026-03 │ • opus-4-1         │  22,458 │  534,789 │        1,024 │      2,048 │      560,319 │     $678.43│
+├─────────┼────────────────────┼─────────┼──────────┼──────────────┼────────────┼──────────────┼────────────┤
 │ Total   │                  │ 106,606 │2,183,479 │        4,608 │      9,216 │    2,303,909 │   $2,818.50│
-└─────────┴──────────────────┴─────────┴──────────┴──────────────┴────────────┴──────────────┴────────────┘
+└─────────┴────────────────────┴─────────┴──────────┴──────────────┴────────────┴──────────────┴────────────┘
 ```
 
 ## Understanding Monthly Data
@@ -41,8 +38,8 @@ ccusage monthly
 
 Months are displayed in YYYY-MM format:
 
-- `2025-06` = June 2025
-- `2025-05` = May 2025
+- `2026-05` = May 2026
+- `2026-04` = April 2026
 
 ### Aggregation Logic
 
@@ -60,10 +57,10 @@ Filter by month range:
 
 ```bash
 # Show specific months
-ccusage monthly --since 20250101 --until 20250630
+ccusage monthly --since 20260101 --until 20260531
 
-# Show usage from 2024
-ccusage monthly --since 20240101 --until 20241231
+# Show usage from Jan-May 2026
+ccusage monthly --since 20260101 --until 20260531
 
 # Show last 6 months
 ccusage monthly --since $(date -d '6 months ago' +%Y%m%d)
@@ -107,15 +104,15 @@ ccusage monthly --breakdown
 Example with breakdown:
 
 ```
-┌─────────┬──────────────────┬─────────┬──────────┬────────────┐
-│ Month   │ Models           │ Input   │ Output   │ Cost (USD) │
-├─────────┼──────────────────┼─────────┼──────────┼────────────┤
-│ 2025-06 │ opus-4, sonnet-4 │  45,231 │  892,456 │  $1,247.92 │
-├─────────┼──────────────────┼─────────┼──────────┼────────────┤
-│  └─ opus-4                 │  20,000 │  400,000 │    $750.50 │
-├─────────┼──────────────────┼─────────┼──────────┼────────────┤
-│  └─ sonnet-4               │  25,231 │  492,456 │    $497.42 │
-└─────────┴──────────────────┴─────────┴──────────┴────────────┘
+┌─────────┬──────────────────────┬─────────┬──────────┬────────────┐
+│ Month   │ Models               │ Input   │ Output   │ Cost (USD) │
+├─────────┼──────────────────────┼─────────┼──────────┼────────────┤
+│ 2026-05 │ opus-4-1, sonnet-4-5 │  45,231 │  892,456 │  $1,247.92 │
+├─────────┼──────────────────────┼─────────┼──────────┼────────────┤
+│  └─ opus-4-1                   │  20,000 │  400,000 │    $750.50 │
+├─────────┼──────────────────────┼─────────┼──────────┼────────────┤
+│  └─ sonnet-4-5                 │  25,231 │  492,456 │    $497.42 │
+└─────────┴──────────────────────┴─────────┴──────────┴────────────┘
 ```
 
 ### JSON Output
@@ -127,8 +124,8 @@ ccusage monthly --json
 ```json
 [
 	{
-		"month": "2025-06",
-		"models": ["opus-4", "sonnet-4"],
+		"month": "2026-05",
+		"models": ["opus-4-1", "sonnet-4-5"],
 		"inputTokens": 45231,
 		"outputTokens": 892456,
 		"cacheCreationTokens": 2048,
@@ -153,7 +150,7 @@ Monthly reports help with subscription planning:
 
 ```bash
 # Check last year's usage
-ccusage monthly --since 20240101 --until 20241231
+ccusage monthly --since 20250101 --until 20251231
 ```
 
 Look at the total cost to understand what you'd pay on usage-based pricing.
@@ -164,8 +161,8 @@ Track how your usage changes over time:
 
 ```bash
 # Compare year over year
-ccusage monthly --since 20230101 --until 20231231  # 2023
 ccusage monthly --since 20240101 --until 20241231  # 2024
+ccusage monthly --since 20250101 --until 20251231  # 2025
 ```
 
 ### Model Migration Analysis
@@ -176,7 +173,7 @@ See how your model usage evolves:
 ccusage monthly --breakdown
 ```
 
-This helps track transitions between Opus, Sonnet, and other models.
+This helps track transitions between Opus 4.1, Sonnet 4.5, and other models.
 
 ### Seasonal Patterns
 
@@ -184,14 +181,14 @@ Identify busy/slow periods:
 
 ```bash
 # Academic year analysis
-ccusage monthly --since 20240901 --until 20250630
+ccusage monthly --since 20250901 --until 20260531
 ```
 
 ### Export for Business Analysis
 
 ```bash
 # Create quarterly reports
-ccusage monthly --since 20241001 --until 20241231 --json > q4-2024.json
+ccusage monthly --since 20260101 --until 20260331 --json > q1-2026.json
 ```
 
 ## Tips for Monthly Analysis
@@ -201,7 +198,7 @@ ccusage monthly --since 20241001 --until 20241231 --json > q4-2024.json
 Monthly totals show:
 
 - **Subscription Value**: How much you'd pay with usage-based billing
-- **Usage Intensity**: Months with heavy Claude usage
+- **Usage Intensity**: Months with heavy coding CLI usage
 - **Model Preferences**: Which models you favor over time
 
 ### 2. Trend Analysis
@@ -230,14 +227,15 @@ Compare monthly reports with:
 
 ## Related Commands
 
-- [Daily Reports](/guide/daily-reports) - Day-by-day breakdown
-- [Session Reports](/guide/session-reports) - Individual conversations
-- [Blocks Reports](/guide/blocks-reports) - 5-hour billing periods
+- [All Sources (Default)](/guide/all-reports) - How unified views work
+- [Daily Usage](/guide/daily-reports) - Day-by-day breakdown
+- [Session Usage](/guide/session-reports) - Individual conversations
+- [Claude Code](/guide/claude/) - Claude Code-specific setup and features
 
 ## Next Steps
 
 After analyzing monthly trends, consider:
 
-1. [Session Reports](/guide/session-reports) to identify high-cost conversations
-2. [Live Monitoring](/guide/live-monitoring) to track real-time usage
+1. [Session Usage](/guide/session-reports) to identify high-cost conversations
+2. [Claude Code](/guide/claude/) for Claude Code-specific setup and features
 3. [JSON Output](/guide/json-output) for programmatic analysis

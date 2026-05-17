@@ -9,7 +9,7 @@ ccusage supports four configuration methods, each with its own use case:
 1. **[Command-Line Options](/guide/cli-options)** - Direct control for individual commands
 2. **[Environment Variables](/guide/environment-variables)** - System-wide or session settings
 3. **[Configuration Files](/guide/config-files)** - Persistent, shareable settings
-4. **[Directory Detection](/guide/directory-detection)** - Automatic Claude data discovery
+4. **Data source directories** - Source-specific defaults and environment variable overrides
 
 ## Configuration Priority
 
@@ -17,10 +17,10 @@ Settings are applied in this priority order (highest to lowest):
 
 1. **Command-line arguments** (e.g., `--json`, `--offline`)
 2. **Custom config file** (via `--config` flag)
-3. **Environment variables** (e.g., `CLAUDE_CONFIG_DIR`, `LOG_LEVEL`)
+3. **Environment variables** (e.g., `CODEX_HOME`, `LOG_LEVEL`)
 4. **Local project config** (`.ccusage/ccusage.json`)
 5. **User config** (`~/.config/claude/ccusage.json`)
-6. **Legacy config** (`~/.claude/ccusage.json`)
+6. **Legacy user config** (`~/.claude/ccusage.json`)
 7. **Built-in defaults**
 
 ### Priority Example
@@ -46,10 +46,13 @@ ccusage daily --mode display --timezone UTC
 
 ### Basic Setup
 
-1. **Set your Claude directory** (if not using defaults):
+1. **Set custom data directories** (only if not using defaults):
 
 ```bash
-export CLAUDE_CONFIG_DIR="$HOME/.config/claude"
+export CODEX_HOME="$HOME/.codex"
+export OPENCODE_DATA_DIR="$HOME/.local/share/opencode"
+export AMP_DATA_DIR="$HOME/.local/share/amp"
+export PI_AGENT_DIR="$HOME/.pi/agent/sessions"
 ```
 
 2. **Create a configuration file** for your preferences:
@@ -67,7 +70,7 @@ export CLAUDE_CONFIG_DIR="$HOME/.config/claude"
 3. **Use command-line options** for one-off changes:
 
 ```bash
-ccusage daily --since 20250101 --json
+ccusage daily --since 20260101 --json
 ```
 
 ## Common Configuration Scenarios
@@ -92,9 +95,9 @@ For individual developers working on multiple projects:
 }
 ```
 
-### Multiple Agents
+### Multiple Sources
 
-Configure Claude Code, Codex, OpenCode, Amp, and pi-agent separately with agent namespaces:
+Configure Claude Code, Codex, OpenCode, Amp, and pi-agent separately with data source namespaces:
 
 ```json
 // ~/.config/claude/ccusage.json
@@ -125,7 +128,7 @@ Configure Claude Code, Codex, OpenCode, Amp, and pi-agent separately with agent 
 }
 ```
 
-The `codex` section applies to direct commands such as `ccusage codex daily`. It is also used by all-agent reports such as `ccusage daily`, where each agent receives its own merged options before data is loaded.
+Source sections apply to focused commands such as `ccusage codex daily` and `ccusage amp session`. They are also used by unified reports such as `ccusage daily`, where each source receives its own merged options before data is loaded.
 
 ### Team Collaboration
 
@@ -148,21 +151,11 @@ For automated environments:
 
 ```bash
 # Environment variables
-export CLAUDE_CONFIG_DIR="/ci/claude-data"
+export CODEX_HOME="/ci/codex-data"
 export LOG_LEVEL=1  # Warnings only
 
 # Run with specific options
 ccusage daily --offline --json > report.json
-```
-
-### Multiple Claude Installations
-
-For users with multiple Claude Code versions:
-
-```bash
-# Aggregate from multiple directories
-export CLAUDE_CONFIG_DIR="$HOME/.claude,$HOME/.config/claude"
-ccusage daily
 ```
 
 ## Configuration by Feature
@@ -187,7 +180,7 @@ Customize date/time handling:
 - **Date Range**: Filter with `--since` and `--until`
 
 ```bash
-ccusage daily --timezone UTC --since 20250101
+ccusage daily --timezone UTC --since 20260101
 ```
 
 ### Output Format
@@ -343,7 +336,7 @@ ccusage daily
 
 1. **Configuration not applied**: Check priority order
 2. **Invalid JSON**: Validate syntax with `jq`
-3. **Directory not found**: Verify `CLAUDE_CONFIG_DIR`
+3. **Directory not found**: Verify the data source environment variable
 4. **No data**: Check directory permissions
 
 ### Getting Help
@@ -362,6 +355,6 @@ Explore specific configuration topics:
 - [Command-Line Options](/guide/cli-options) - All available CLI arguments
 - [Environment Variables](/guide/environment-variables) - System configuration
 - [Configuration Files](/guide/config-files) - Persistent settings
-- [Directory Detection](/guide/directory-detection) - Claude data discovery
+- [Claude Code](/guide/claude/) - Claude Code data discovery
 - [Cost Modes](/guide/cost-modes) - Understanding calculation modes
-- [Custom Paths](/guide/custom-paths) - Advanced path management
+- [Claude Code](/guide/claude/) - Claude Code data paths and source-specific options
