@@ -48,6 +48,7 @@ version = "19.0.3"
 dependencies = [
  "ccusage-terminal",
  "jiff",
+ "memchr",
  "minreq",
  "serde",
  "serde_json",

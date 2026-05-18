@@ -9,7 +9,7 @@ use std::{
 };
 
 use jiff::tz::TimeZone as JiffTimeZone;
-use serde_json::Value;
+use memchr::memmem;
 
 use crate::{
     calculate_cost,
@@ -276,21 +276,16 @@ fn read_usage_file(
         timestamp: None,
         entries: Vec::new(),
     };
-    let Ok(content) = fs::read_to_string(path) else {
+    let Ok(content) = fs::read(path) else {
         return loaded_file;
     };
 
-    for line in content.lines() {
-        if !line.contains("\"usage\":{") {
-            if let Some(timestamp) = earliest_timestamp_from_line(line) {
-                update_loaded_file_timestamp(&mut loaded_file, timestamp);
-            }
+    let usage_marker = memmem::Finder::new(br#""usage":{"#);
+    for line in content.split(|byte| *byte == b'\n') {
+        if usage_marker.find(line).is_none() {
             continue;
         }
-        let Ok(data) = serde_json::from_str::<UsageEntry>(line) else {
-            if let Some(timestamp) = earliest_timestamp_from_line(line) {
-                update_loaded_file_timestamp(&mut loaded_file, timestamp);
-            }
+        let Ok(data) = serde_json::from_slice::<UsageEntry>(line) else {
             continue;
         };
         let Some(timestamp) = parse_ts_timestamp(&data.timestamp) else {
@@ -303,7 +298,7 @@ fn read_usage_file(
         let date = format_date_tz(timestamp, tz);
         let cost = calculate_cost(&data, mode, pricing);
         let usage_limit_reset_time =
-            usage_limit_reset_time_from_line(line, data.is_api_error_message);
+            usage_limit_reset_time_from_line_bytes(line, data.is_api_error_message);
         let model = data.message.model.as_ref().and_then(|model| {
             if model == "<synthetic>" {
                 None
@@ -464,21 +459,17 @@ pub(crate) fn collect_files_with_extension(dir: &Path, extension: &str, files: &
     }
 }
 
+#[cfg(test)]
 pub(crate) fn timestamp_from_line(line: &str) -> Option<TimestampMs> {
-    let start = line.find("\"timestamp\":\"")? + "\"timestamp\":\"".len();
-    let end = line[start..].find('"')? + start;
-    parse_ts_timestamp(&line[start..end])
+    timestamp_from_line_bytes(line.as_bytes())
 }
 
-pub(crate) fn earliest_timestamp_from_line(line: &str) -> Option<TimestampMs> {
-    if let Some(timestamp) = timestamp_from_line(line) {
-        return Some(timestamp);
-    }
-    if !line.contains("\"timestamp\"") {
-        return None;
-    }
-    let value = serde_json::from_str::<Value>(line).ok()?;
-    let timestamp = value.get("timestamp")?.as_str()?;
+#[cfg(test)]
+fn timestamp_from_line_bytes(line: &[u8]) -> Option<TimestampMs> {
+    let marker = br#""timestamp":""#;
+    let start = memmem::find(line, marker)? + marker.len();
+    let end = memchr::memchr(b'"', &line[start..])? + start;
+    let timestamp = std::str::from_utf8(&line[start..end]).ok()?;
     parse_ts_timestamp(timestamp)
 }
 
@@ -525,23 +516,35 @@ pub(crate) fn extract_session_parts(path: &Path) -> (String, String) {
     (session_id, project_path)
 }
 
+#[cfg(test)]
 pub(crate) fn usage_limit_reset_time_from_line(
     line: &str,
+    is_api_error_message: Option<bool>,
+) -> Option<TimestampMs> {
+    usage_limit_reset_time_from_line_bytes(line.as_bytes(), is_api_error_message)
+}
+
+fn usage_limit_reset_time_from_line_bytes(
+    line: &[u8],
     is_api_error_message: Option<bool>,
 ) -> Option<TimestampMs> {
     if is_api_error_message != Some(true) {
         return None;
     }
-    let marker = "Claude AI usage limit reached";
-    let marker_start = line.find(marker)?;
-    let timestamp_start = line[marker_start..].find('|')? + marker_start + 1;
+    let marker = b"Claude AI usage limit reached";
+    let marker_start = memmem::find(line, marker)?;
+    let timestamp_start = memchr::memchr(b'|', &line[marker_start..])? + marker_start + 1;
     let timestamp_end = line[timestamp_start..]
-        .find(|ch: char| !ch.is_ascii_digit())
+        .iter()
+        .position(|byte| !byte.is_ascii_digit())
         .map_or(line.len(), |offset| timestamp_start + offset);
     if timestamp_start == timestamp_end {
         return None;
     }
-    let timestamp = line[timestamp_start..timestamp_end].parse::<i64>().ok()?;
+    let timestamp = std::str::from_utf8(&line[timestamp_start..timestamp_end])
+        .ok()?
+        .parse::<i64>()
+        .ok()?;
     if timestamp <= 0 {
         return None;
     }
