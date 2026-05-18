@@ -543,6 +543,31 @@ export async function createCcusageCommand(
 	);
 }
 
+export async function createHeadCcusageCommand(options: {
+	command: string;
+	codexFixtureDir?: string;
+	fixtureDir: string;
+	headBinEntry?: string;
+	headDir: string;
+	headRuntime: HeadRuntime;
+}): Promise<string> {
+	if (options.headRuntime === 'package' && options.headBinEntry != null) {
+		return createCcusageCommandFromBin(
+			options.headBinEntry,
+			options.fixtureDir,
+			options.codexFixtureDir,
+			options.command,
+		);
+	}
+	return createCcusageCommand(
+		options.headDir,
+		options.fixtureDir,
+		options.codexFixtureDir,
+		options.command,
+		options.headRuntime,
+	);
+}
+
 /**
  * Converts hyperfine's seconds-based JSON result into the millisecond shape used by the PR
  * comment renderer.
@@ -563,6 +588,7 @@ async function compareCommand(
 		fixtureTitle: string;
 		codexFixtureDir?: string;
 		fixtureDir: string;
+		headBinEntry?: string;
 		headDir: string;
 		headRuntime: HeadRuntime;
 		runs: number;
@@ -578,13 +604,14 @@ async function compareCommand(
 		options.codexFixtureDir,
 		command,
 	);
-	const headCommand = await createCcusageCommand(
-		options.headDir,
-		options.fixtureDir,
-		options.codexFixtureDir,
+	const headCommand = await createHeadCcusageCommand({
 		command,
-		options.headRuntime,
-	);
+		codexFixtureDir: options.codexFixtureDir,
+		fixtureDir: options.fixtureDir,
+		headBinEntry: options.headBinEntry,
+		headDir: options.headDir,
+		headRuntime: options.headRuntime,
+	});
 	const hyperfine = Bun.spawn(
 		[
 			'hyperfine',
@@ -651,6 +678,7 @@ async function compareFixture(options: {
 	commands: string[];
 	description: string;
 	fixtureDir: string;
+	headBinEntry?: string;
 	headDir: string;
 	headRuntime: HeadRuntime;
 	runs: number;
@@ -715,15 +743,22 @@ function fixtureStatsForCommand(section: FixtureComparison, command: string): Fi
  */
 export function renderFixtureSection(
 	section: FixtureComparison,
-	options: { baseRuntimeDescription?: string; headDir: string; headRuntime: HeadRuntime },
+	options: {
+		baseRuntimeDescription?: string;
+		headDir: string;
+		headRuntime: HeadRuntime;
+		headRuntimeDescription?: string;
+	},
 ): string[] {
 	const baseRuntimeDescription =
 		options.baseRuntimeDescription ??
 		'Base runs the package `ccusage` bin from `apps/ccusage/package.json` through `bun -b`';
-	const runtimeText =
-		options.headRuntime === 'rust'
-			? `${baseRuntimeDescription}; PR runs \`rust/target/release/ccusage\` directly.`
-			: `${baseRuntimeDescription}; PR runs the package \`ccusage\` bin from \`apps/ccusage/package.json\` through \`bun -b\`.`;
+	const headRuntimeDescription =
+		options.headRuntimeDescription ??
+		(options.headRuntime === 'rust'
+			? 'PR runs `rust/target/release/ccusage` directly'
+			: 'PR runs the package `ccusage` bin from `apps/ccusage/package.json` through `bun -b`');
+	const runtimeText = `${baseRuntimeDescription}; ${headRuntimeDescription}.`;
 	const lines = [
 		`## ${section.title}`,
 		'',
@@ -787,6 +822,7 @@ function renderMarkdown(
 		baseSha?: string;
 		headDir: string;
 		headRuntime: HeadRuntime;
+		headRuntimeDescription?: string;
 		headSha?: string;
 		packageRunner?: PackageRunnerComparison;
 	},
@@ -869,6 +905,22 @@ if (import.meta.vitest != null) {
 		});
 	});
 
+	describe('createHeadCcusageCommand', () => {
+		it('uses the installed PR pkg.pr.new bin for package runtime benchmarks when one is available', async () => {
+			const commandText = await createHeadCcusageCommand({
+				codexFixtureDir: '/fixtures/codex',
+				command: 'claude',
+				fixtureDir: '/fixtures/claude',
+				headBinEntry: '/tmp/head-package/node_modules/.bin/ccusage',
+				headDir: '/repo',
+				headRuntime: 'package',
+			});
+
+			expect(commandText).toContain('/tmp/head-package/node_modules/.bin/ccusage');
+			expect(commandText).not.toContain('/repo/apps/ccusage');
+		});
+	});
+
 	describe('renderFixtureSection', () => {
 		it('renders fixture sizes and throughput so Claude and Codex timings are comparable', () => {
 			const lines = renderFixtureSection(
@@ -931,6 +983,31 @@ if (import.meta.vitest != null) {
 			expect(lines.join('\n')).toContain(
 				'Base runs pkg.pr.new; PR runs `rust/target/release/ccusage` directly.',
 			);
+		});
+
+		it('describes the PR pkg.pr.new runtime when package benchmarks use the preview package', () => {
+			const lines = renderFixtureSection(
+				{
+					description: 'Fixture description',
+					fixtureDir: '/fixtures/claude',
+					fixtureStats: {
+						bytes: 1024,
+						files: 1,
+					},
+					results: [],
+					runs: 1,
+					title: 'Package fixture',
+					warmup: 0,
+				},
+				{
+					baseRuntimeDescription: 'Base runs pkg.pr.new',
+					headDir: '/repo',
+					headRuntime: 'package',
+					headRuntimeDescription: 'PR runs pkg.pr.new',
+				},
+			);
+
+			expect(lines.join('\n')).toContain('Base runs pkg.pr.new; PR runs pkg.pr.new.');
 		});
 	});
 
@@ -1134,6 +1211,8 @@ const command = define({
 		await using installFixture = await createFixture({});
 		const baseDir = ctx.values.baseDir == null ? undefined : resolve(ctx.values.baseDir);
 		const basePackageUrl = ctx.values.basePackageUrl;
+		const headRuntime = parseHeadRuntime(ctx.values.headRuntime);
+		const headPackageUrl = ctx.values.headPackageUrl;
 		const basePackageInstall =
 			basePackageUrl == null
 				? undefined
@@ -1141,6 +1220,15 @@ const command = define({
 						installDir: join(installFixture.path, 'base-package'),
 						label: 'base',
 						packageUrl: basePackageUrl,
+						timeoutMs: ctx.values.packageRunnerTimeoutMs,
+					});
+		const headPackageInstall =
+			headPackageUrl == null || headRuntime !== 'package'
+				? undefined
+				: await installPackageUrl({
+						installDir: join(installFixture.path, 'head-package'),
+						label: 'PR',
+						packageUrl: headPackageUrl,
 						timeoutMs: ctx.values.packageRunnerTimeoutMs,
 					});
 		const baseBinEntry =
@@ -1155,9 +1243,14 @@ const command = define({
 			baseSha: ctx.values.baseSha ?? (baseDir == null ? undefined : gitSha(baseDir)),
 			codexFixtureDir: resolve(ctx.values.codexFixtureDir),
 			fixtureDir: resolve(ctx.values.fixtureDir),
+			headBinEntry: headPackageInstall?.binEntry,
 			headDir: resolve(ctx.values.headDir),
-			headPackageUrl: ctx.values.headPackageUrl,
-			headRuntime: parseHeadRuntime(ctx.values.headRuntime),
+			headPackageUrl,
+			headRuntime,
+			headRuntimeDescription:
+				headPackageInstall == null
+					? undefined
+					: 'PR runs the published `ccusage` package from `pkg.pr.new`, installed before measurement',
 			headSha: gitSha(resolve(ctx.values.headDir)),
 			runs: ctx.values.runs,
 			warmup: ctx.values.warmup,
@@ -1209,6 +1302,7 @@ const command = define({
 							options.headPackageUrl == null
 								? undefined
 								: await measurePackageRunnerWithAcquisition({
+										acquisition: headPackageInstall?.acquisition,
 										cacheDir: join(installFixture.path, 'bunx-head-cache'),
 										label: 'PR',
 										packageUrl: options.headPackageUrl,
@@ -1223,7 +1317,10 @@ const command = define({
 					: await remoteTarballSizeBytes(basePackageUrl),
 			baseRustBinary:
 				baseDir == null ? undefined : await optionalFileSizeBytes(rustBinaryEntry(baseDir)),
-			headPackage: await packedTarballSizeBytes(options.headDir),
+			headPackage:
+				options.headPackageUrl == null
+					? await packedTarballSizeBytes(options.headDir)
+					: await remoteTarballSizeBytes(options.headPackageUrl),
 			headRustBinary: await optionalFileSizeBytes(rustBinaryEntry(options.headDir)),
 		};
 
