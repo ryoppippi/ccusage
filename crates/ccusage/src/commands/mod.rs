@@ -315,8 +315,7 @@ pub(crate) fn run_statusline(args: StatuslineArgs) -> Result<()> {
     let mut stdin = String::new();
     io::stdin().read_to_string(&mut stdin)?;
     if stdin.trim().is_empty() {
-        println!("❌ No input provided");
-        return Ok(());
+        return Err(crate::cli_error("❌ No input provided"));
     }
 
     let hook: StatuslineHook =
