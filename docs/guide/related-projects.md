@@ -14,6 +14,10 @@ Projects that use ccusage internally or extend its functionality:
 - [ccusage Raycast Extension](https://www.raycast.com/nyatinte/ccusage) - Raycast integration for quick usage checks
 - [ccusage.nvim](https://github.com/S1M0N38/ccusage.nvim) - Track Claude Code usage in Neovim
 
+## CLI Utilities
+
+- [scx](https://github.com/yamamuteki/scx) - Convert ccusage USD output from stdin into a local currency
+
 ## Web Applications
 
 - [viberank](https://viberank.app) - A community-driven leaderboard for Claude Code usage. ([GitHub](https://github.com/sculptdotfun/viberank))
