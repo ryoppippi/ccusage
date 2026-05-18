@@ -54,6 +54,11 @@ type FixtureComparison = SampleOptions & {
 	title: string;
 };
 
+type BunxFixtureComparison = FixtureComparison & {
+	basePackageUrl: string;
+	headPackageUrl: string;
+};
+
 type FixtureStats = {
 	bytes: number;
 	files: number;
@@ -428,6 +433,33 @@ function createBunxStartupCommand(packageUrl: string): string[] {
 	return [execPath, 'x', '-p', packageUrl, 'ccusage', '--version'];
 }
 
+export function createCcusageCommandFromBunxPackage(
+	packageUrl: string,
+	cacheDir: string,
+	fixtureDir: string,
+	codexFixtureDir: string | undefined,
+	command: string,
+): string {
+	return [
+		'env',
+		`BUN_INSTALL_CACHE_DIR=${cacheDir}`,
+		`CLAUDE_CONFIG_DIR=${fixtureDir}`,
+		...(codexFixtureDir == null ? [] : [`CODEX_HOME=${codexFixtureDir}`]),
+		'COLUMNS=200',
+		'LOG_LEVEL=0',
+		'NO_COLOR=1',
+		'TZ=UTC',
+		execPath,
+		'x',
+		'-p',
+		packageUrl,
+		'ccusage',
+		command,
+		'--offline',
+		'--json',
+	].join(' ');
+}
+
 async function measureCommandMilliseconds({
 	args,
 	env,
@@ -675,6 +707,90 @@ async function compareCommand(
 	};
 }
 
+async function compareBunxCommand(
+	command: string,
+	options: {
+		baseCacheDir: string;
+		basePackageUrl: string;
+		fixtureTitle: string;
+		codexFixtureDir?: string;
+		fixtureDir: string;
+		headCacheDir: string;
+		headPackageUrl: string;
+		runs: number;
+		warmup: number;
+	},
+): Promise<CommandResult> {
+	await writeProgress(`${options.fixtureTitle} / bunx ${command} started`);
+	await using fixture = await createFixture({});
+	const exportPath = join(fixture.path, 'hyperfine.json');
+	const baseCommand = createCcusageCommandFromBunxPackage(
+		options.basePackageUrl,
+		options.baseCacheDir,
+		options.fixtureDir,
+		options.codexFixtureDir,
+		command,
+	);
+	const headCommand = createCcusageCommandFromBunxPackage(
+		options.headPackageUrl,
+		options.headCacheDir,
+		options.fixtureDir,
+		options.codexFixtureDir,
+		command,
+	);
+	const hyperfine = Bun.spawn(
+		[
+			'hyperfine',
+			'--shell',
+			'none',
+			'--warmup',
+			String(options.warmup),
+			'--runs',
+			String(options.runs),
+			'--export-json',
+			exportPath,
+			'--style',
+			'basic',
+			'--output',
+			'pipe',
+			'--sort',
+			'command',
+			'--command-name',
+			'base',
+			'--command-name',
+			'PR',
+			baseCommand,
+			headCommand,
+		],
+		{
+			stderr: 'inherit',
+			stdout: 'inherit',
+		},
+	);
+	const exitCode = await hyperfine.exited;
+	if (exitCode !== 0) {
+		throw new Error(
+			`hyperfine failed for ${options.fixtureTitle} / bunx ${command}: exit ${exitCode}`,
+		);
+	}
+	const hyperfineOutput = JSON.parse(await Bun.file(exportPath).text()) as HyperfineExport;
+	const [baseResult, headResult] = hyperfineOutput.results;
+	if (baseResult == null || headResult == null) {
+		throw new Error(`hyperfine did not report both base and PR bunx results for ${command}`);
+	}
+	const base = measurementFromHyperfine(baseResult);
+	const head = measurementFromHyperfine(headResult);
+	await writeProgress(
+		`${options.fixtureTitle} / bunx ${command} done: base ${formatDuration(base.median)}, PR ${formatDuration(head.median)}`,
+	);
+
+	return {
+		base,
+		command,
+		head,
+	};
+}
+
 /**
  * Runs the selected command matrix for one fixture directory.
  *
@@ -722,6 +838,53 @@ async function compareFixture(options: {
 		description: options.description,
 		fixtureDir: options.fixtureDir,
 		fixtureStats,
+		results,
+		runs: options.runs,
+		title: options.title,
+		warmup: options.warmup,
+	};
+}
+
+async function compareBunxFixture(options: {
+	baseCacheDir: string;
+	basePackageUrl: string;
+	codexFixtureDir?: string;
+	commands: string[];
+	description: string;
+	fixtureDir: string;
+	headCacheDir: string;
+	headPackageUrl: string;
+	runs: number;
+	title: string;
+	warmup: number;
+}): Promise<BunxFixtureComparison> {
+	const results: CommandResult[] = [];
+	await writeProgress(`${options.title} started`);
+	const [fixtureStats, codexStats] = await Promise.all([
+		summarizeDirectory(options.fixtureDir),
+		options.codexFixtureDir == null
+			? Promise.resolve<FixtureStats | undefined>(undefined)
+			: summarizeDirectory(options.codexFixtureDir),
+	]);
+	const codexFixtureStats = codexStats;
+	for (const command of options.commands) {
+		results.push(
+			await compareBunxCommand(command, {
+				...options,
+				fixtureTitle: options.title,
+			}),
+		);
+	}
+	await writeProgress(`${options.title} finished`);
+
+	return {
+		basePackageUrl: options.basePackageUrl,
+		codexFixtureDir: options.codexFixtureDir,
+		codexFixtureStats,
+		description: options.description,
+		fixtureDir: options.fixtureDir,
+		fixtureStats,
+		headPackageUrl: options.headPackageUrl,
 		results,
 		runs: options.runs,
 		title: options.title,
@@ -796,6 +959,37 @@ export function renderFixtureSection(
 	return lines;
 }
 
+export function renderBunxFixtureSection(
+	section: BunxFixtureComparison,
+	options: {
+		headDir: string;
+	},
+): string[] {
+	const lines = [
+		`## ${section.title}`,
+		'',
+		section.description,
+		'',
+		section.codexFixtureDir == null
+			? `Fixture: \`${formatFixturePath(options.headDir, section.fixtureDir)}\` (${formatFixtureStats(section.fixtureStats)})`
+			: `Fixtures: Claude \`${formatFixturePath(options.headDir, section.fixtureDir)}\` (${formatFixtureStats(section.fixtureStats)}), Codex \`${formatFixturePath(options.headDir, section.codexFixtureDir)}\` (${formatFixtureStats(section.codexFixtureStats ?? section.fixtureStats)})`,
+		`Base package: \`${packageUrlSha(section.basePackageUrl)}\`; PR package: \`${packageUrlSha(section.headPackageUrl)}\`. Both run through \`bunx -p <pkg.pr.new URL> ccusage\` using the warmed Bun install cache from package runner startup, measured by \`hyperfine\` with \`${section.warmup}\` warmups and \`${section.runs}\` runs.`,
+		'',
+		'| Command | Input | Base median | PR median | PR vs base | Base throughput | PR throughput |',
+		'| --- | ---: | ---: | ---: | ---: | ---: | ---: |',
+	];
+
+	for (const result of section.results) {
+		const speedup = result.base.median / result.head.median;
+		const fixtureStats = fixtureStatsForCommand(section, result.command);
+		lines.push(
+			`| \`bunx -p <pkg> ccusage ${result.command} --offline --json\` | ${formatDataSize(fixtureStats.bytes)} | ${formatDuration(result.base.median)} | ${formatDuration(result.head.median)} | ${speedup.toFixed(2)}x | ${formatThroughput(fixtureStats.bytes, result.base.median)} | ${formatThroughput(fixtureStats.bytes, result.head.median)} |`,
+		);
+	}
+
+	return lines;
+}
+
 function renderPackageRunnerComparison(
 	packageRunner: PackageRunnerComparison | undefined,
 ): string[] {
@@ -832,6 +1026,7 @@ function renderMarkdown(
 	options: {
 		baseRuntimeDescription?: string;
 		baseSha?: string;
+		bunxSections?: BunxFixtureComparison[];
 		headDir: string;
 		headRuntime: HeadRuntime;
 		headRuntimeDescription?: string;
@@ -861,6 +1056,10 @@ function renderMarkdown(
 	];
 
 	lines.push(...renderPackageRunnerComparison(options.packageRunner));
+
+	for (const section of options.bunxSections ?? []) {
+		lines.push(...renderBunxFixtureSection(section, options), '');
+	}
 
 	for (const section of sections) {
 		lines.push(...renderFixtureSection(section, options), '');
@@ -914,6 +1113,23 @@ if (import.meta.vitest != null) {
 				'/repo/rust/target/release/ccusage codex session --offline --json',
 			);
 			expect(commandText).not.toContain(' -b ');
+		});
+
+		it('builds cached bunx package command text with fixture environment variables', () => {
+			const commandText = createCcusageCommandFromBunxPackage(
+				'https://pkg.pr.new/ryoppippi/ccusage@abcdef0',
+				'/tmp/bun-cache',
+				'/fixtures/claude',
+				'/fixtures/codex',
+				'codex',
+			);
+
+			expect(commandText).toContain('BUN_INSTALL_CACHE_DIR=/tmp/bun-cache');
+			expect(commandText).toContain('CLAUDE_CONFIG_DIR=/fixtures/claude');
+			expect(commandText).toContain('CODEX_HOME=/fixtures/codex');
+			expect(commandText).toContain(
+				' x -p https://pkg.pr.new/ryoppippi/ccusage@abcdef0 ccusage codex --offline --json',
+			);
 		});
 	});
 
@@ -1064,6 +1280,47 @@ if (import.meta.vitest != null) {
 			);
 			expect(markdown).toContain(
 				'| Base pkg.pr.new | `0123456789ab` | 400.0ms | 1.200s | 90.0ms | 3 |',
+			);
+		});
+	});
+
+	describe('renderBunxFixtureSection', () => {
+		it('renders cached bunx execution timings separately from package startup timings', () => {
+			const lines = renderBunxFixtureSection(
+				{
+					basePackageUrl: 'https://pkg.pr.new/ryoppippi/ccusage/ccusage@0123456789abcdef',
+					codexFixtureDir: '/fixtures/codex',
+					codexFixtureStats: {
+						bytes: 512 * 1024 * 1024,
+						files: 200,
+					},
+					description: 'Cached bunx description',
+					fixtureDir: '/fixtures/claude',
+					fixtureStats: {
+						bytes: 1024 * 1024 * 1024,
+						files: 400,
+					},
+					headPackageUrl: 'https://pkg.pr.new/ryoppippi/ccusage/ccusage@abcdef0123456789',
+					results: [
+						{
+							base: { max: 2000, median: 2000, min: 2000, samples: 1 },
+							command: 'claude',
+							head: { max: 1000, median: 1000, min: 1000, samples: 1 },
+						},
+					],
+					runs: 1,
+					title: 'Cached bunx execution performance',
+					warmup: 0,
+				},
+				{ headDir: '/repo' },
+			);
+			const markdown = lines.join('\n');
+
+			expect(markdown).toContain('## Cached bunx execution performance');
+			expect(markdown).toContain('warmed Bun install cache');
+			expect(markdown).toContain('Base package: `0123456789ab`; PR package: `abcdef012345`');
+			expect(markdown).toContain(
+				'| `bunx -p <pkg> ccusage claude --offline --json` | 1.00 GiB | 2.000s | 1.000s | 2.00x |',
 			);
 		});
 	});
@@ -1285,6 +1542,8 @@ const command = define({
 			runs: ctx.values.runs,
 			warmup: ctx.values.warmup,
 		};
+		const baseBunxCacheDir = join(installFixture.path, 'bunx-base-cache');
+		const headBunxCacheDir = join(installFixture.path, 'bunx-head-cache');
 		const sections = [
 			await compareFixture({
 				...options,
@@ -1322,7 +1581,7 @@ const command = define({
 								? undefined
 								: await measurePackageRunnerWithAcquisition({
 										acquisition: basePackageInstall?.acquisition,
-										cacheDir: join(installFixture.path, 'bunx-base-cache'),
+										cacheDir: baseBunxCacheDir,
 										label: 'base',
 										packageUrl: basePackageUrl,
 										runs: ctx.values.packageRunnerRuns,
@@ -1333,13 +1592,39 @@ const command = define({
 								? undefined
 								: await measurePackageRunnerWithAcquisition({
 										acquisition: headPackageInstall?.acquisition,
-										cacheDir: join(installFixture.path, 'bunx-head-cache'),
+										cacheDir: headBunxCacheDir,
 										label: 'PR',
 										packageUrl: options.headPackageUrl,
 										runs: ctx.values.packageRunnerRuns,
 										timeoutMs: ctx.values.packageRunnerTimeoutMs,
 									}),
 					};
+		const bunxSections =
+			packageRunner?.base == null ||
+			packageRunner.head == null ||
+			basePackageUrl == null ||
+			options.headPackageUrl == null ||
+			ctx.values.largeFixtureDir == null
+				? []
+				: [
+						await compareBunxFixture({
+							baseCacheDir: baseBunxCacheDir,
+							basePackageUrl,
+							codexFixtureDir:
+								ctx.values.largeCodexFixtureDir == null
+									? options.codexFixtureDir
+									: resolve(ctx.values.largeCodexFixtureDir),
+							commands: ['claude', 'codex'],
+							description:
+								'Runs the same large fixture through `bunx -p <pkg.pr.new URL> ccusage` after the Bun install cache has already been populated by the startup measurement. This separates cached package-runner execution from first-fetch package materialization.',
+							fixtureDir: resolve(ctx.values.largeFixtureDir),
+							headCacheDir: headBunxCacheDir,
+							headPackageUrl: options.headPackageUrl,
+							runs: ctx.values.largeRuns,
+							title: 'Cached bunx execution performance',
+							warmup: ctx.values.largeWarmup,
+						}),
+					];
 		const sizes = {
 			basePackage:
 				basePackageUrl == null
@@ -1354,7 +1639,7 @@ const command = define({
 			headRustBinary: await optionalFileSizeBytes(rustBinaryEntry(options.headDir)),
 		};
 
-		const markdown = renderMarkdown(sections, sizes, { ...options, packageRunner });
+		const markdown = renderMarkdown(sections, sizes, { ...options, bunxSections, packageRunner });
 		if (ctx.values.output == null) {
 			await Bun.write(Bun.stdout, markdown);
 		} else {
