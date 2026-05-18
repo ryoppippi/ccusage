@@ -25,6 +25,7 @@ minreq = { version = "3.0.0-rc.1", default-features = false, features = ["https-
 serde_json = "1"
 
 [target.'cfg(all(target_os = "linux", target_env = "musl"))'.dependencies]
+mimalloc = "0.1.50"
 minreq = { version = "3.0.0-rc.1", default-features = false, features = ["https-rustls"] }
 
 [target.'cfg(not(all(target_os = "linux", target_env = "musl")))'.dependencies]

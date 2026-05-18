@@ -49,6 +49,10 @@ pub(crate) use ccusage_terminal::{Align, Color, SimpleTable};
 use cli::{AgentCommandArgs, AgentReportKind, Cli, Command};
 use pricing::PricingMap;
 
+#[cfg(all(target_os = "linux", target_env = "musl"))]
+#[global_allocator]
+static GLOBAL_ALLOCATOR: mimalloc::MiMalloc = mimalloc::MiMalloc;
+
 const DEFAULT_SESSION_DURATION_HOURS: f64 = 5.0;
 const DEFAULT_RECENT_DAYS: i64 = 3;
 const BLOCKS_WARNING_THRESHOLD: f64 = 0.8;
