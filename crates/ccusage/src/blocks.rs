@@ -544,15 +544,6 @@ fn parse_token_limit(value: Option<&str>, max_tokens: u64) -> Option<u64> {
     }
 }
 
-pub(crate) fn format_context(input_tokens: u64, context_limit: u64) -> String {
-    let percentage = if context_limit == 0 {
-        0
-    } else {
-        ((input_tokens as f64 / context_limit as f64) * 100.0).round() as u64
-    };
-    format!("{} ({}%)", format_number(input_tokens), percentage)
-}
-
 pub(crate) fn format_remaining_time(minutes: i64) -> String {
     let hours = minutes / 60;
     let mins = minutes % 60;

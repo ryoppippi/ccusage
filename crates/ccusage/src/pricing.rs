@@ -23,6 +23,7 @@ pub(crate) struct Pricing {
 #[derive(Debug, Default)]
 pub(crate) struct PricingMap {
     entries: HashMap<String, Pricing>,
+    context_limits: HashMap<String, u64>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -35,6 +36,7 @@ struct LiteLlmPricing {
     output_cost_per_token_above_200k_tokens: Option<f64>,
     cache_creation_input_token_cost_above_200k_tokens: Option<f64>,
     cache_read_input_token_cost_above_200k_tokens: Option<f64>,
+    max_input_tokens: Option<u64>,
     provider_specific_entry: Option<ProviderSpecificEntry>,
 }
 
@@ -90,8 +92,9 @@ impl PricingMap {
             let Some(output) = pricing.output_cost_per_token else {
                 continue;
             };
+            let context_limit = pricing.max_input_tokens;
             self.entries.insert(
-                model,
+                model.clone(),
                 Pricing {
                     input,
                     output,
@@ -110,6 +113,9 @@ impl PricingMap {
                         .unwrap_or(1.0),
                 },
             );
+            if let Some(context_limit) = context_limit {
+                self.context_limits.insert(model, context_limit);
+            }
         }
         loaded_count
     }
@@ -123,6 +129,18 @@ impl PricingMap {
                     left.len().cmp(&right.len()).then_with(|| right.cmp(left))
                 })
                 .map(|(_, pricing)| *pricing)
+        })
+    }
+
+    pub(crate) fn context_limit(&self, model: &str) -> Option<u64> {
+        self.context_limits.get(model).copied().or_else(|| {
+            self.context_limits
+                .iter()
+                .filter(|(candidate, _)| model.contains(*candidate) || candidate.contains(model))
+                .max_by(|(left, _), (right, _)| {
+                    left.len().cmp(&right.len()).then_with(|| right.cmp(left))
+                })
+                .map(|(_, context_limit)| *context_limit)
         })
     }
 
@@ -315,6 +333,22 @@ impl PricingMap {
             .insert("gpt-5.2-codex".to_string(), gpt_5_codex_pricing);
         self.entries
             .insert("gpt-5.3-codex".to_string(), gpt_5_codex_pricing);
+
+        for model in [
+            "claude-opus-4-5",
+            "claude-opus-4-6",
+            "claude-opus-4-7",
+            "claude-haiku-4-5",
+            "claude-opus-4",
+            "claude-sonnet-4-6",
+            "claude-sonnet-4",
+            "claude-3-5-haiku",
+            "claude-3-opus",
+            "claude-3-sonnet",
+            "claude-3-haiku",
+        ] {
+            self.context_limits.insert(model.to_string(), 200_000);
+        }
     }
 }
 
@@ -344,6 +378,16 @@ mod tests {
         let pricing = PricingMap::load_embedded();
         assert!(pricing.len() > 0);
         assert!(pricing.find("claude-sonnet-4-20250514").is_some());
+    }
+
+    #[test]
+    fn reads_embedded_model_context_limits() {
+        let pricing = PricingMap::load_embedded();
+
+        assert_eq!(
+            pricing.context_limit("anthropic.claude-3-5-sonnet-20240620-v1:0"),
+            Some(1_000_000)
+        );
     }
 
     #[test]

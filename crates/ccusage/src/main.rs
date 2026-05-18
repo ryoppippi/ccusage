@@ -21,7 +21,7 @@ mod types;
 mod utils;
 
 pub(crate) use blocks::{
-    block_json, calculate_burn_rate, filter_blocks_by_date, format_context, format_remaining_time,
+    block_json, calculate_burn_rate, filter_blocks_by_date, format_remaining_time,
     identify_session_blocks, print_active_block_detail, print_blocks_table, sort_blocks,
 };
 pub(crate) use claude_loader::{

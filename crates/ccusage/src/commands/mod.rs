@@ -10,18 +10,19 @@ use std::{
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
+use crate::pricing::PricingMap;
 use crate::{
     block_json, calculate_burn_rate,
     cli::{
         BlocksArgs, CostSource, DailyArgs, SessionArgs, SharedArgs, SortOrder, StatuslineArgs,
         VisualBurnRate, WeekDay, WeeklyArgs,
     },
-    filter_and_sort_summaries, filter_blocks_by_date, format_compact_utc_date, format_context,
+    color, filter_and_sort_summaries, filter_blocks_by_date, format_compact_utc_date,
     format_currency, format_number, format_remaining_time, format_rfc3339_millis,
     group_project_output, identify_session_blocks, load_entries, print_active_block_detail,
     print_blocks_table, print_json_or_jq, print_usage_table, session_summary_json, sort_blocks,
     sort_summaries, summarize_by_key, summarize_summaries_by_bucket, summary_json,
-    total_usage_tokens, totals_json, utc_now, wants_json, BucketKind, Context, Result,
+    total_usage_tokens, totals_json, utc_now, wants_json, BucketKind, Color, Context, Result,
     SessionAccumulator, TimestampMs, DEFAULT_RECENT_DAYS, DEFAULT_SESSION_DURATION_HOURS,
     MILLIS_PER_DAY, MILLIS_PER_MINUTE,
 };
@@ -469,11 +470,15 @@ fn render_statusline(
         .as_ref()
         .map(|context| (context.total_input_tokens, context.context_window_size))
         .or_else(|| {
-            calculate_context_tokens_from_transcript(Path::new(&hook.transcript_path))
+            calculate_context_tokens_from_transcript(
+                Path::new(&hook.transcript_path),
+                hook.model.id.as_deref(),
+                shared.offline,
+            )
                 .map(|context| (context.total_input_tokens, context.context_window_size))
         })
         .map(|(total_input_tokens, context_window_size)| {
-            format_context(total_input_tokens, context_window_size)
+            format_statusline_context(total_input_tokens, context_window_size, args, shared)
         });
 
     let session_display = if args.cost_source == CostSource::Both {
@@ -514,7 +519,40 @@ fn calculate_session_cost(session_id: &str, shared: &SharedArgs) -> Result<f64> 
         .sum())
 }
 
-fn calculate_context_tokens_from_transcript(path: &Path) -> Option<HookContext> {
+fn format_statusline_context(
+    input_tokens: u64,
+    context_limit: u64,
+    args: &StatuslineArgs,
+    shared: &SharedArgs,
+) -> String {
+    let percentage = if context_limit == 0 {
+        0
+    } else {
+        ((input_tokens as f64 / context_limit as f64) * 100.0).round() as u64
+    };
+    let context_color = statusline_context_color(percentage, args);
+    format!(
+        "{} ({})",
+        format_number(input_tokens),
+        color(shared, format!("{percentage}%"), context_color)
+    )
+}
+
+fn statusline_context_color(percentage: u64, args: &StatuslineArgs) -> Color {
+    if percentage < u64::from(args.context_low_threshold) {
+        Color::Green
+    } else if percentage < u64::from(args.context_medium_threshold) {
+        Color::Yellow
+    } else {
+        Color::Red
+    }
+}
+
+fn calculate_context_tokens_from_transcript(
+    path: &Path,
+    model_id: Option<&str>,
+    offline: bool,
+) -> Option<HookContext> {
     let content = fs::read_to_string(path).ok()?;
     for line in content.lines().rev() {
         let line = line.trim();
@@ -547,9 +585,13 @@ fn calculate_context_tokens_from_transcript(path: &Path) -> Option<HookContext> 
             .get("cache_read_input_tokens")
             .and_then(serde_json::Value::as_u64)
             .unwrap_or_default();
+        let context_window_size = model_id
+            .filter(|model_id| !model_id.is_empty())
+            .and_then(|model_id| PricingMap::load(offline, false).context_limit(model_id))
+            .unwrap_or(200_000);
         return Some(HookContext {
             total_input_tokens: input_tokens + cache_creation + cache_read,
-            context_window_size: 200_000,
+            context_window_size,
         });
     }
     None
@@ -713,6 +755,7 @@ struct StatuslineHook {
 
 #[derive(Debug, Deserialize)]
 struct HookModel {
+    id: Option<String>,
     display_name: String,
 }
 
@@ -755,11 +798,44 @@ mod tests {
         )
         .unwrap();
 
-        let context = calculate_context_tokens_from_transcript(&path).unwrap();
+        let context = calculate_context_tokens_from_transcript(&path, None, true).unwrap();
         fs::remove_file(&path).unwrap();
 
         assert_eq!(context.total_input_tokens, 2150);
         assert_eq!(context.context_window_size, 200_000);
+    }
+
+    #[test]
+    fn uses_model_context_limit_for_transcript_context_tokens() {
+        let path = temp_statusline_path("context-limit");
+        fs::write(
+            &path,
+            r#"{"type":"assistant","message":{"usage":{"input_tokens":1000}}}"#,
+        )
+        .unwrap();
+
+        let context = calculate_context_tokens_from_transcript(
+            &path,
+            Some("anthropic.claude-3-5-sonnet-20240620-v1:0"),
+            true,
+        )
+        .unwrap();
+        fs::remove_file(&path).unwrap();
+
+        assert_eq!(context.total_input_tokens, 1000);
+        assert_eq!(context.context_window_size, 1_000_000);
+    }
+
+    #[test]
+    fn colors_statusline_context_percentage_by_threshold() {
+        let shared = SharedArgs {
+            color: true,
+            ..SharedArgs::default()
+        };
+        let args = StatuslineArgs::default();
+
+        assert!(matches!(statusline_context_color(60, &args), Color::Yellow));
+        assert!(format_statusline_context(120_000, 200_000, &args, &shared).contains("60%"));
     }
 
     #[test]
