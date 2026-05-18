@@ -1,5 +1,6 @@
 #!/usr/bin/env bun
 
+import { execFileSync } from 'node:child_process';
 import { readdir, stat } from 'node:fs/promises';
 import { join, relative, resolve } from 'node:path';
 import { execPath, platform } from 'node:process';
@@ -212,6 +213,16 @@ async function summarizeDirectory(directory: string): Promise<FixtureStats> {
 
 async function writeProgress(message: string): Promise<void> {
 	await Bun.write(Bun.stderr, `[ccusage-perf] ${message}\n`);
+}
+
+function gitSha(directory: string): string {
+	return execFileSync('git', ['-C', directory, 'rev-parse', 'HEAD'], {
+		encoding: 'utf8',
+	}).trim();
+}
+
+function formatSha(sha: string): string {
+	return sha.length > 12 ? sha.slice(0, 12) : sha;
 }
 
 /**
@@ -495,16 +506,23 @@ export function renderFixtureSection(
 function renderMarkdown(
 	sections: FixtureComparison[],
 	sizes: SizeComparison,
-	options: { headDir: string; headRuntime: HeadRuntime },
+	options: { baseSha?: string; headDir: string; headRuntime: HeadRuntime; headSha?: string },
 ): string {
-	const commentMarker =
-		options.headRuntime === 'rust'
-			? '<!-- ccusage-rust-perf-comment -->'
-			: '<!-- ccusage-perf-comment -->';
+	const markerName =
+		options.headRuntime === 'rust' ? 'ccusage-rust-perf-comment' : 'ccusage-perf-comment';
+	const commentMarker = `<!-- ${markerName} -->`;
 	const lines = [
 		commentMarker,
+		...(options.headSha == null ? [] : [`<!-- ${markerName}:${options.headSha} -->`]),
 		'## ccusage performance comparison',
 		'',
+		...(options.headSha == null
+			? []
+			: [
+					`PR SHA: \`${formatSha(options.headSha)}\``,
+					...(options.baseSha == null ? [] : [`Base SHA: \`${formatSha(options.baseSha)}\``]),
+					'',
+				]),
 		options.headRuntime === 'rust'
 			? 'This compares the Rust PR release binary against the base branch JavaScript build on the same CI runner.'
 			: 'This compares the PR build against the base branch build on the same CI runner.',
@@ -658,6 +676,19 @@ if (import.meta.vitest != null) {
 
 			expect(markdown.startsWith('<!-- ccusage-rust-perf-comment -->')).toBe(true);
 		});
+
+		it('includes commit-specific markers and visible SHAs', () => {
+			const markdown = renderMarkdown([emptyFixtureSection], sizes, {
+				baseSha: '0123456789abcdef',
+				headDir: '/repo',
+				headRuntime: 'rust',
+				headSha: 'abcdef0123456789',
+			});
+
+			expect(markdown).toContain('<!-- ccusage-rust-perf-comment:abcdef0123456789 -->');
+			expect(markdown).toContain('PR SHA: `abcdef012345`');
+			expect(markdown).toContain('Base SHA: `0123456789ab`');
+		});
 	});
 }
 
@@ -745,10 +776,12 @@ const command = define({
 
 		const options = {
 			baseDir: resolve(ctx.values.baseDir),
+			baseSha: gitSha(resolve(ctx.values.baseDir)),
 			codexFixtureDir: resolve(ctx.values.codexFixtureDir),
 			fixtureDir: resolve(ctx.values.fixtureDir),
 			headDir: resolve(ctx.values.headDir),
 			headRuntime: parseHeadRuntime(ctx.values.headRuntime),
+			headSha: gitSha(resolve(ctx.values.headDir)),
 			runs: ctx.values.runs,
 			warmup: ctx.values.warmup,
 		};
