@@ -34,13 +34,10 @@ pub(crate) fn run(args: AgentCommandArgs) -> Result<()> {
 }
 
 pub(crate) fn report_from_rows(rows: &[crate::UsageSummary], kind: AgentReportKind) -> Value {
-    let rows_json = if kind == AgentReportKind::Session {
-        rows.iter()
-            .map(crate::session_summary_json)
-            .collect::<Vec<_>>()
-    } else {
-        rows.iter().map(crate::summary_json).collect::<Vec<_>>()
-    };
+    let rows_json = rows
+        .iter()
+        .map(|row| opencode::agent_summary_json(row, kind, false))
+        .collect::<Vec<_>>();
     json!({
         rows_key(kind): rows_json,
         "totals": totals_json(rows),

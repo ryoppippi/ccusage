@@ -169,8 +169,33 @@ pub(crate) fn run_session(args: SessionArgs) -> Result<()> {
     for group in grouped {
         rows.push(group.into_summary(session_shared.timezone.as_deref())?);
     }
-    filter_and_sort_summaries(&mut rows, &session_shared, |row| {
-        row.last_activity.as_deref().unwrap_or_default()
+    if session_shared.since.is_some() || session_shared.until.is_some() {
+        rows.retain(|row| {
+            let date = row
+                .last_activity
+                .as_deref()
+                .unwrap_or_default()
+                .replace('-', "");
+            session_shared
+                .since
+                .as_ref()
+                .is_none_or(|since| &date >= since)
+                && session_shared
+                    .until
+                    .as_ref()
+                    .is_none_or(|until| &date <= until)
+        });
+    }
+    rows.retain(|row| {
+        row.input_tokens
+            + row.output_tokens
+            + row.cache_creation_tokens
+            + row.cache_read_tokens
+            > 0
+    });
+    rows.sort_by(|a, b| match session_shared.order {
+        SortOrder::Asc => a.total_cost.total_cmp(&b.total_cost),
+        SortOrder::Desc => b.total_cost.total_cmp(&a.total_cost),
     });
 
     if wants_json(&session_shared) {

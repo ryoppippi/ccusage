@@ -1,5 +1,5 @@
 use std::{
-    collections::HashSet,
+    collections::{BTreeMap, HashSet},
     env, fs,
     path::{Path, PathBuf},
     sync::Arc,
@@ -13,7 +13,7 @@ use crate::{
     collect_files_with_extension, filter_loaded_entries_by_date, format_date_tz, json_value_u64,
     non_empty_json_string, parse_tz, print_json_or_jq, print_usage_table, sort_summaries,
     summarize_by_key, summarize_summaries_by_bucket, totals_json, wants_json, BucketKind,
-    LoadedEntry, Result, TokenUsageRaw, UsageEntry, UsageMessage,
+    LoadedEntry, Result, SessionAccumulator, TokenUsageRaw, UsageEntry, UsageMessage,
 };
 
 pub(crate) fn run(args: AgentCommandArgs) -> Result<()> {
@@ -41,13 +41,10 @@ pub(crate) fn run(args: AgentCommandArgs) -> Result<()> {
 }
 
 pub(crate) fn report_from_rows(rows: &[crate::UsageSummary], kind: AgentReportKind) -> Value {
-    let rows_json = if kind == AgentReportKind::Session {
-        rows.iter()
-            .map(crate::session_summary_json)
-            .collect::<Vec<_>>()
-    } else {
-        rows.iter().map(crate::summary_json).collect::<Vec<_>>()
-    };
+    let rows_json = rows
+        .iter()
+        .map(|row| super::opencode::agent_summary_json(row, kind, kind == AgentReportKind::Session))
+        .collect::<Vec<_>>();
     json!({
         rows_key(kind): rows_json,
         "totals": if rows.is_empty() { Value::Null } else { totals_json(rows) },
@@ -76,17 +73,19 @@ pub(crate) fn summarize_entries(
                 WeekDay::Sunday,
             ))
         }
-        AgentReportKind::Session => summarize_by_key(
-            entries,
-            |entry| entry.session_id.to_string(),
-            |session_id| (session_id.to_string(), None),
-        )
-        .map(|mut rows| {
-            for row in &mut rows {
-                row.session_id = row.date.take();
+        AgentReportKind::Session => {
+            let mut groups = BTreeMap::<String, SessionAccumulator>::new();
+            for entry in entries {
+                groups
+                    .entry(entry.session_id.to_string())
+                    .or_default()
+                    .add_entry(entry);
             }
-            rows
-        }),
+            groups
+                .into_values()
+                .map(|group| group.into_summary(None))
+                .collect()
+        }
         AgentReportKind::Weekly => Ok(Vec::new()),
     }
 }

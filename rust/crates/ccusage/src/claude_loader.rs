@@ -131,7 +131,7 @@ fn load_entries_inner(
     };
     let tz = parse_tz(shared.timezone.as_deref());
     let mode = shared.mode;
-    let mut loaded_files = if shared.single_thread {
+    let loaded_files = if shared.single_thread {
         files
             .iter()
             .map(|file| read_usage_file(file, tz.as_ref(), mode, pricing.as_ref()))
@@ -139,12 +139,6 @@ fn load_entries_inner(
     } else {
         read_usage_files_parallel(&files, tz.as_ref(), mode, pricing.as_ref())
     };
-    loaded_files.sort_by(|a, b| match (a.timestamp, b.timestamp) {
-        (Some(a_timestamp), Some(b_timestamp)) => a_timestamp.cmp(&b_timestamp),
-        (Some(_), None) => std::cmp::Ordering::Less,
-        (None, Some(_)) => std::cmp::Ordering::Greater,
-        (None, None) => a.path.cmp(&b.path),
-    });
     let loaded_entry_count = loaded_files
         .iter()
         .map(|file| file.entries.len())
@@ -413,6 +407,9 @@ fn read_daily_usage_file(
     let usage_marker = memmem::Finder::new(br#""usage":{"#);
     for line in content.split(|byte| *byte == b'\n') {
         if usage_marker.find(line).is_none() {
+            continue;
+        }
+        if has_unsupported_null_field(line) {
             continue;
         }
         let Ok(data) = serde_json::from_slice::<DailyUsageLine>(line) else {
@@ -690,7 +687,6 @@ fn read_usage_file(
     let session_id: Arc<str> = Arc::from(session_id);
     let project_path: Arc<str> = Arc::from(project_path);
     let mut loaded_file = LoadedFile {
-        path: path.to_path_buf(),
         timestamp: None,
         entries: Vec::new(),
     };
@@ -701,6 +697,9 @@ fn read_usage_file(
     let usage_marker = memmem::Finder::new(br#""usage":{"#);
     for line in content.split(|byte| *byte == b'\n') {
         if usage_marker.find(line).is_none() {
+            continue;
+        }
+        if has_unsupported_null_field(line) {
             continue;
         }
         let Ok(data) = serde_json::from_slice::<UsageEntry>(line) else {
@@ -789,6 +788,49 @@ fn is_valid_usage_entry(data: &UsageEntry) -> bool {
         return false;
     }
     true
+}
+
+fn has_unsupported_null_field(line: &[u8]) -> bool {
+    let mut offset = 0;
+    while let Some(relative_index) = memmem::find(&line[offset..], b":null") {
+        let null_index = offset + relative_index;
+        let mut field_end = null_index.saturating_sub(1);
+        if line.get(field_end) != Some(&b'"') {
+            while field_end > 0 && line[field_end] != b'"' {
+                field_end -= 1;
+            }
+        }
+        if line.get(field_end) == Some(&b'"') {
+            let mut field_start = field_end.saturating_sub(1);
+            while field_start > 0 && line[field_start] != b'"' {
+                field_start -= 1;
+            }
+            if line.get(field_start) == Some(&b'"')
+                && is_unsupported_nullable_field(&line[field_start + 1..field_end])
+            {
+                return true;
+            }
+        }
+        offset = null_index + b":null".len();
+    }
+    false
+}
+
+fn is_unsupported_nullable_field(field: &[u8]) -> bool {
+    matches!(
+        field,
+        b"id"
+            | b"cwd"
+            | b"model"
+            | b"speed"
+            | b"costUSD"
+            | b"version"
+            | b"sessionId"
+            | b"requestId"
+            | b"isApiErrorMessage"
+            | b"cache_read_input_tokens"
+            | b"cache_creation_input_tokens"
+    )
 }
 
 fn is_semver_prefix(value: &str) -> bool {
@@ -947,6 +989,27 @@ pub(crate) fn extract_session_parts(path: &Path) -> (String, String) {
     let relative = projects_index
         .map(|index| &parts[index + 1..])
         .unwrap_or(&parts);
+    let file_session_id = relative
+        .last()
+        .and_then(|file_name| file_name.strip_suffix(".jsonl"))
+        .filter(|session_id| !session_id.is_empty());
+    if relative.len() == 2 {
+        if let Some(session_id) = file_session_id {
+            return (session_id.to_string(), relative[0].to_string());
+        }
+    }
+    if relative.len() >= 4 && relative.get(relative.len() - 2) == Some(&"subagents") {
+        let session_id = relative[relative.len() - 3].to_string();
+        let project_path = relative[..relative.len() - 3].join(std::path::MAIN_SEPARATOR_STR);
+        return (
+            session_id,
+            if project_path.is_empty() {
+                "Unknown Project".to_string()
+            } else {
+                project_path
+            },
+        );
+    }
     let session_id = relative
         .get(relative.len().saturating_sub(2))
         .copied()
@@ -958,6 +1021,62 @@ pub(crate) fn extract_session_parts(path: &Path) -> (String, String) {
         "Unknown Project".to_string()
     };
     (session_id, project_path)
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::Path;
+
+    use super::{extract_session_parts, has_unsupported_null_field};
+
+    #[test]
+    fn extracts_file_session_from_modern_claude_project_path() {
+        let (session_id, project_path) =
+            extract_session_parts(Path::new("/home/me/.claude/projects/project-a/session-a.jsonl"));
+
+        assert_eq!(session_id, "session-a");
+        assert_eq!(project_path, "project-a");
+    }
+
+    #[test]
+    fn extracts_parent_session_from_nested_claude_project_path() {
+        let (session_id, project_path) = extract_session_parts(Path::new(
+            "/home/me/.claude/projects/project-a/session-a/chat.jsonl",
+        ));
+
+        assert_eq!(session_id, "session-a");
+        assert_eq!(project_path, "project-a");
+    }
+
+    #[test]
+    fn extracts_parent_session_from_claude_subagent_path() {
+        let (session_id, project_path) = extract_session_parts(Path::new(
+            "/home/me/.claude/projects/project-a/session-a/subagents/worker.jsonl",
+        ));
+
+        assert_eq!(session_id, "session-a");
+        assert_eq!(project_path, "project-a");
+    }
+
+    #[test]
+    fn rejects_null_schema_fields_like_typescript_loader() {
+        assert!(has_unsupported_null_field(
+            br#"{"message":{"usage":{"speed":null}}}"#
+        ));
+        assert!(has_unsupported_null_field(
+            br#"{"message":{"model":null,"usage":{"input_tokens":0}}}"#
+        ));
+        assert!(has_unsupported_null_field(
+            br#"{"sessionId":null,"message":{"usage":{"input_tokens":0}}}"#
+        ));
+    }
+
+    #[test]
+    fn allows_null_content_like_typescript_loader() {
+        assert!(!has_unsupported_null_field(
+            br#"{"message":{"content":null,"usage":{"input_tokens":0}}}"#
+        ));
+    }
 }
 
 #[cfg(test)]

@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap, path::PathBuf, sync::Arc};
+use std::{collections::BTreeMap, sync::Arc};
 
 use serde::{Deserialize, Serialize};
 
@@ -91,7 +91,6 @@ pub(crate) struct LoadedEntry {
 
 #[derive(Debug)]
 pub(crate) struct LoadedFile {
-    pub(crate) path: PathBuf,
     pub(crate) timestamp: Option<TimestampMs>,
     pub(crate) entries: Vec<LoadedEntry>,
 }

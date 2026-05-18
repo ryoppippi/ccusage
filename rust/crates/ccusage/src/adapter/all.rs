@@ -8,7 +8,7 @@ use crate::{
     color, filter_loaded_entries_by_date, format_currency, format_models_multiline, format_number,
     json_float, print_box_title, print_json_or_jq, summarize_by_key, summarize_summaries_by_bucket,
     wants_json, Align, BucketKind, CodexGroup, Color, LoadedEntry, PricingMap, Result, SimpleTable,
-    UsageSummary,
+    SessionAccumulator, UsageSummary,
 };
 
 #[derive(Debug, Clone)]
@@ -22,6 +22,7 @@ struct AllRow {
     cache_read_tokens: u64,
     total_tokens: u64,
     total_cost: f64,
+    metadata: Option<Value>,
     metadata_agents: Option<Vec<&'static str>>,
     agent_breakdowns: Option<Vec<AllRow>>,
 }
@@ -81,6 +82,9 @@ fn load_rows(kind: AgentReportKind, shared: &SharedArgs) -> Result<AllLoadResult
             "pi",
             load_pi_rows(AgentReportKind::Session, shared)?,
         );
+        for row in &mut rows {
+            row.metadata_agents = None;
+        }
         sort_rows(&mut rows, &shared.order);
         return Ok(AllLoadResult {
             rows,
@@ -143,8 +147,14 @@ fn append_agent_rows(
 fn load_claude_rows(kind: AgentReportKind, shared: &SharedArgs) -> Result<AgentRows> {
     let mut entries = crate::load_entries(shared, None)?;
     let detected = !entries.is_empty();
-    filter_loaded_entries_by_date(&mut entries, shared);
-    let summaries = summarize_entries(&entries, kind)?;
+    let summaries = if kind == AgentReportKind::Session {
+        let mut summaries = summarize_entry_sessions(&entries, shared.timezone.as_deref())?;
+        filter_session_summaries(&mut summaries, shared);
+        summaries
+    } else {
+        filter_loaded_entries_by_date(&mut entries, shared);
+        summarize_entries(&entries, kind)?
+    };
     Ok(AgentRows {
         rows: summary_rows("claude", summaries),
         detected,
@@ -199,8 +209,14 @@ fn load_amp_rows(
 fn load_pi_rows(kind: AgentReportKind, shared: &SharedArgs) -> Result<AgentRows> {
     let mut entries = pi::load_entries(shared, None)?;
     let detected = !entries.is_empty();
-    filter_loaded_entries_by_date(&mut entries, shared);
-    let summaries = pi::summarize_entries(&entries, kind)?;
+    let summaries = if kind == AgentReportKind::Session {
+        let mut summaries = summarize_entry_sessions(&entries, shared.timezone.as_deref())?;
+        filter_session_summaries(&mut summaries, shared);
+        summaries
+    } else {
+        filter_loaded_entries_by_date(&mut entries, shared);
+        pi::summarize_entries(&entries, kind)?
+    };
     Ok(AgentRows {
         rows: summary_rows("pi", summaries),
         detected,
@@ -244,19 +260,56 @@ fn summarize_entries(entries: &[LoadedEntry], kind: AgentReportKind) -> Result<V
     }
 }
 
+fn summarize_entry_sessions(
+    entries: &[LoadedEntry],
+    timezone: Option<&str>,
+) -> Result<Vec<UsageSummary>> {
+    let mut groups = BTreeMap::<(String, String), SessionAccumulator>::new();
+    for entry in entries {
+        groups
+            .entry((entry.project_path.to_string(), entry.session_id.to_string()))
+            .or_default()
+            .add_entry(entry);
+    }
+    groups
+        .into_values()
+        .map(|group| group.into_summary(timezone))
+        .collect()
+}
+
+fn filter_session_summaries(rows: &mut Vec<UsageSummary>, shared: &SharedArgs) {
+    if shared.since.is_some() || shared.until.is_some() {
+        rows.retain(|row| {
+            let date = row
+                .last_activity
+                .as_deref()
+                .unwrap_or_default()
+                .replace('-', "");
+            shared.since.as_ref().is_none_or(|since| &date >= since)
+                && shared.until.as_ref().is_none_or(|until| &date <= until)
+        });
+    }
+}
+
 fn summary_rows(agent: &'static str, summaries: Vec<UsageSummary>) -> Vec<AllRow> {
     summaries
         .into_iter()
         .filter_map(|summary| {
             let period = summary
                 .date
-                .or(summary.week)
-                .or(summary.month)
-                .or(summary.session_id)?;
+                .as_ref()
+                .or(summary.week.as_ref())
+                .or(summary.month.as_ref())
+                .or(summary.session_id.as_ref())?
+                .clone();
             let total_tokens = summary.input_tokens
                 + summary.output_tokens
                 + summary.cache_creation_tokens
                 + summary.cache_read_tokens;
+            if total_tokens == 0 {
+                return None;
+            }
+            let metadata = summary_metadata(agent, &summary);
             Some(AllRow {
                 period,
                 agent,
@@ -267,11 +320,34 @@ fn summary_rows(agent: &'static str, summaries: Vec<UsageSummary>) -> Vec<AllRow
                 cache_read_tokens: summary.cache_read_tokens,
                 total_tokens,
                 total_cost: summary.total_cost,
+                metadata,
                 metadata_agents: Some(vec![agent]),
                 agent_breakdowns: None,
             })
         })
         .collect()
+}
+
+fn summary_metadata(agent: &'static str, summary: &UsageSummary) -> Option<Value> {
+    let mut metadata = serde_json::Map::new();
+    if let Some(credits) = summary.credits {
+        metadata.insert("credits".to_string(), json_float(credits));
+    }
+    if summary.session_id.is_some() {
+        if let Some(last_activity) = summary.last_activity.as_ref() {
+            metadata.insert("lastActivity".to_string(), json!(last_activity));
+        }
+        if agent == "pi" {
+            if let Some(project_path) = summary.project_path.as_ref() {
+                metadata.insert("projectPath".to_string(), json!(project_path));
+            }
+        }
+    }
+    if metadata.is_empty() {
+        None
+    } else {
+        Some(Value::Object(metadata))
+    }
 }
 
 fn codex_group_row(
@@ -290,6 +366,10 @@ fn codex_group_row(
         cache_read_tokens: group.cached_input_tokens,
         total_tokens: group.total_tokens,
         total_cost: codex::calculate_group_cost(group, pricing, speed),
+        metadata: Some(json!({
+            "lastActivity": group.last_activity,
+            "reasoningOutputTokens": group.reasoning_output_tokens,
+        })),
         metadata_agents: Some(vec!["codex"]),
         agent_breakdowns: None,
     }
@@ -364,6 +444,7 @@ impl AllAccumulator {
             cache_read_tokens: self.cache_read_tokens,
             total_tokens: self.total_tokens,
             total_cost: self.total_cost,
+            metadata: None,
             metadata_agents: Some(self.agents.into_iter().collect()),
             agent_breakdowns: Some(agent_breakdowns),
         }
@@ -390,7 +471,14 @@ fn row_json(row: &AllRow) -> Value {
         "totalCost": json_float(row.total_cost),
     });
     if let (Some(obj), Some(agents)) = (value.as_object_mut(), row.metadata_agents.as_ref()) {
-        obj.insert("metadata".to_string(), json!({ "agents": agents }));
+        obj.insert(
+            "metadata".to_string(),
+            row.metadata
+                .clone()
+                .unwrap_or_else(|| json!({ "agents": agents })),
+        );
+    } else if let (Some(obj), Some(metadata)) = (value.as_object_mut(), row.metadata.as_ref()) {
+        obj.insert("metadata".to_string(), metadata.clone());
     }
     value
 }
@@ -411,7 +499,7 @@ fn rows_key(kind: AgentReportKind) -> &'static str {
         AgentReportKind::Daily => "daily",
         AgentReportKind::Weekly => "weekly",
         AgentReportKind::Monthly => "monthly",
-        AgentReportKind::Session => "sessions",
+        AgentReportKind::Session => "session",
     }
 }
 
@@ -705,6 +793,7 @@ mod tests {
                     cache_read_tokens: 10,
                     total_tokens: 120,
                     total_cost: 0.01,
+                    metadata: None,
                     metadata_agents: Some(vec!["codex"]),
                     agent_breakdowns: None,
                 },
@@ -718,6 +807,7 @@ mod tests {
                     cache_read_tokens: 3,
                     total_tokens: 83,
                     total_cost: 0.02,
+                    metadata: None,
                     metadata_agents: Some(vec!["claude"]),
                     agent_breakdowns: None,
                 },
@@ -756,6 +846,7 @@ mod tests {
             cache_read_tokens: 10,
             total_tokens: 130,
             total_cost: 0.01,
+            metadata: None,
             metadata_agents: Some(vec!["codex"]),
             agent_breakdowns: None,
         }];
@@ -780,6 +871,7 @@ mod tests {
             cache_read_tokens: 10,
             total_tokens: 120,
             total_cost: 0.01,
+            metadata: None,
             metadata_agents: Some(vec!["codex"]),
             agent_breakdowns: None,
         };
@@ -801,6 +893,7 @@ mod tests {
             cache_read_tokens: 10,
             total_tokens: 120,
             total_cost: 0.01,
+            metadata: None,
             metadata_agents: Some(vec!["codex"]),
             agent_breakdowns: None,
         }];
@@ -829,6 +922,7 @@ mod tests {
             cache_read_tokens: 10,
             total_tokens: 130,
             total_cost: 0.01,
+            metadata: None,
             metadata_agents: Some(vec!["codex"]),
             agent_breakdowns: Some(vec![AllRow {
                 period: "2026-01-02".to_string(),
@@ -840,6 +934,7 @@ mod tests {
                 cache_read_tokens: 10,
                 total_tokens: 130,
                 total_cost: 0.01,
+                metadata: None,
                 metadata_agents: Some(vec!["codex"]),
                 agent_breakdowns: None,
             }]),
@@ -867,6 +962,7 @@ mod tests {
             cache_read_tokens: 0,
             total_tokens: 0,
             total_cost: 0.0,
+            metadata: None,
             metadata_agents: Some(vec!["claude", "codex"]),
             agent_breakdowns: None,
         };

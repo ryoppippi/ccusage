@@ -45,17 +45,51 @@ pub(crate) fn report_json(
 }
 
 fn report_from_rows(rows: &[crate::UsageSummary], kind: AgentReportKind) -> Value {
-    let rows_json = if kind == AgentReportKind::Session {
-        rows.iter()
-            .map(crate::session_summary_json)
-            .collect::<Vec<_>>()
-    } else {
-        rows.iter().map(crate::summary_json).collect::<Vec<_>>()
-    };
+    let rows_json = rows
+        .iter()
+        .map(|row| agent_summary_json(row, kind, false))
+        .collect::<Vec<_>>();
     json!({
         rows_key(kind): rows_json,
         "totals": totals_json(rows),
     })
+}
+
+pub(crate) fn agent_summary_json(
+    row: &crate::UsageSummary,
+    kind: AgentReportKind,
+    include_session_metadata: bool,
+) -> Value {
+    let mut value = json!({
+        period_key(kind): summary_period(row),
+        "inputTokens": row.input_tokens,
+        "outputTokens": row.output_tokens,
+        "cacheCreationTokens": row.cache_creation_tokens,
+        "cacheReadTokens": row.cache_read_tokens,
+        "totalTokens": row.input_tokens + row.output_tokens + row.cache_creation_tokens + row.cache_read_tokens,
+        "totalCost": row.total_cost,
+        "modelsUsed": row.models_used,
+    });
+    if let (Some(obj), Some(credits)) = (value.as_object_mut(), row.credits) {
+        obj.insert("credits".to_string(), json!(credits));
+    }
+    if include_session_metadata {
+        if let Some(obj) = value.as_object_mut() {
+            obj.insert(
+                "lastActivity".to_string(),
+                row.last_activity
+                    .as_ref()
+                    .map_or(Value::Null, |value| json!(value)),
+            );
+            obj.insert(
+                "projectPath".to_string(),
+                row.project_path
+                    .as_ref()
+                    .map_or(Value::Null, |value| json!(value)),
+            );
+        }
+    }
+    value
 }
 
 pub(crate) fn summarize_entries(
@@ -112,6 +146,15 @@ fn rows_key(kind: AgentReportKind) -> &'static str {
         AgentReportKind::Weekly => "weekly",
         AgentReportKind::Monthly => "monthly",
         AgentReportKind::Session => "sessions",
+    }
+}
+
+fn period_key(kind: AgentReportKind) -> &'static str {
+    match kind {
+        AgentReportKind::Daily => "date",
+        AgentReportKind::Weekly => "week",
+        AgentReportKind::Monthly => "month",
+        AgentReportKind::Session => "sessionId",
     }
 }
 

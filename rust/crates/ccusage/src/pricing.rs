@@ -261,20 +261,23 @@ impl PricingMap {
                 fast_multiplier: 1.0,
             },
         );
+        let claude_3_5_haiku = Pricing {
+            input: 0.8e-6,
+            output: 4e-6,
+            cache_create: 1.0e-6,
+            cache_read: 0.08e-6,
+            cache_read_explicit: true,
+            input_above_200k: None,
+            output_above_200k: None,
+            cache_create_above_200k: None,
+            cache_read_above_200k: None,
+            fast_multiplier: 1.0,
+        };
+        self.entries
+            .insert("claude-3-5-haiku".to_string(), claude_3_5_haiku);
         self.entries.insert(
-            "claude-3-5-haiku".to_string(),
-            Pricing {
-                input: 0.8e-6,
-                output: 4e-6,
-                cache_create: 1.0e-6,
-                cache_read: 0.08e-6,
-                cache_read_explicit: true,
-                input_above_200k: None,
-                output_above_200k: None,
-                cache_create_above_200k: None,
-                cache_read_above_200k: None,
-                fast_multiplier: 1.0,
-            },
+            "claude-3-5-haiku-20241022".to_string(),
+            claude_3_5_haiku,
         );
         self.entries.insert(
             "claude-3-opus".to_string(),
@@ -441,6 +444,7 @@ impl PricingMap {
             "claude-sonnet-4-6",
             "claude-sonnet-4",
             "claude-3-5-haiku",
+            "claude-3-5-haiku-20241022",
             "claude-3-opus",
             "claude-3-sonnet",
             "claude-3-haiku",
@@ -534,6 +538,10 @@ mod tests {
                 .unwrap()
                 .input,
             sonnet_4.input,
+        );
+        assert_eq!(
+            pricing.find("claude-3-5-haiku-20241022").unwrap().input,
+            0.8e-6,
         );
     }
 
