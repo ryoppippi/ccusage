@@ -144,7 +144,7 @@ mod tests {
     use std::{
         collections::HashMap,
         env, fs,
-        path::{Path, PathBuf},
+        path::PathBuf,
         sync::{Arc, Mutex},
     };
 
@@ -166,19 +166,6 @@ mod tests {
             .as_nanos();
         path.push(format!("ccusage-{name}-{nanos}"));
         path
-    }
-
-    fn create_opencode_db_message(path: &Path, id: &str, session_id: &str, data: &str) {
-        let db = sqlite::open(path).unwrap();
-        db.execute("CREATE TABLE message (id TEXT, session_id TEXT, data TEXT)")
-            .unwrap();
-        let mut statement = db
-            .prepare("INSERT INTO message (id, session_id, data) VALUES (?1, ?2, ?3)")
-            .unwrap();
-        statement.bind((1, id)).unwrap();
-        statement.bind((2, session_id)).unwrap();
-        statement.bind((3, data)).unwrap();
-        statement.next().unwrap();
     }
 
     #[test]
@@ -744,129 +731,6 @@ mod tests {
             (standard["daily"][0]["costUSD"].as_f64().unwrap() - 0.00031).abs() < f64::EPSILON
         );
         assert!((fast["daily"][0]["costUSD"].as_f64().unwrap() - 0.00062).abs() < f64::EPSILON);
-    }
-
-    #[test]
-    fn loads_opencode_message_json_files() {
-        let opencode_dir = temp_claude_dir("opencode");
-        let messages_dir = opencode_dir.join("storage/message");
-        fs::create_dir_all(&messages_dir).unwrap();
-        fs::write(
-            messages_dir.join("message.json"),
-            r#"{"id":"msg-1","sessionID":"session-a","providerID":"anthropic","modelID":"claude-sonnet-4-20250514","time":{"created":1767312000000},"tokens":{"input":100,"output":50,"cache":{"read":10,"write":20}},"cost":0.02}"#,
-        )
-        .unwrap();
-
-        let shared = SharedArgs {
-            mode: CostMode::Display,
-            timezone: Some("UTC".to_string()),
-            ..SharedArgs::default()
-        };
-        let entries =
-            adapter::opencode::load_entries_from_directory(&opencode_dir, &shared).unwrap();
-        fs::remove_dir_all(&opencode_dir).unwrap();
-
-        assert_eq!(entries.len(), 1);
-        assert_eq!(entries[0].date, "2026-01-02");
-        assert_eq!(entries[0].session_id.as_ref(), "session-a");
-        assert_eq!(
-            entries[0].model.as_deref(),
-            Some("claude-sonnet-4-20250514")
-        );
-        assert_eq!(entries[0].data.message.usage.input_tokens, 100);
-        assert_eq!(entries[0].data.message.usage.output_tokens, 50);
-        assert_eq!(
-            entries[0].data.message.usage.cache_creation_input_tokens,
-            20
-        );
-        assert_eq!(entries[0].data.message.usage.cache_read_input_tokens, 10);
-        assert_eq!(entries[0].cost, 0.02);
-    }
-
-    #[test]
-    fn loads_opencode_messages_from_sqlite_database() {
-        let opencode_dir = temp_claude_dir("opencode-db");
-        fs::create_dir_all(&opencode_dir).unwrap();
-        create_opencode_db_message(
-            &opencode_dir.join("opencode.db"),
-            "db-msg-1",
-            "db-session-a",
-            r#"{"providerID":"anthropic","modelID":"claude-sonnet-4-20250514","time":{"created":1767312000000},"tokens":{"input":120,"output":60,"cache":{"read":12,"write":24}},"cost":0.03}"#,
-        );
-
-        let shared = SharedArgs {
-            mode: CostMode::Display,
-            timezone: Some("UTC".to_string()),
-            ..SharedArgs::default()
-        };
-        let entries =
-            adapter::opencode::load_entries_from_directory(&opencode_dir, &shared).unwrap();
-        fs::remove_dir_all(&opencode_dir).unwrap();
-
-        assert_eq!(entries.len(), 1);
-        assert_eq!(entries[0].date, "2026-01-02");
-        assert_eq!(entries[0].session_id.as_ref(), "db-session-a");
-        assert_eq!(entries[0].data.message.id.as_deref(), Some("db-msg-1"));
-        assert_eq!(entries[0].data.message.usage.input_tokens, 120);
-        assert_eq!(entries[0].data.message.usage.output_tokens, 60);
-        assert_eq!(
-            entries[0].data.message.usage.cache_creation_input_tokens,
-            24
-        );
-        assert_eq!(entries[0].data.message.usage.cache_read_input_tokens, 12);
-        assert_eq!(entries[0].cost, 0.03);
-    }
-
-    #[test]
-    fn loads_opencode_channel_sqlite_database() {
-        let opencode_dir = temp_claude_dir("opencode-channel-db");
-        fs::create_dir_all(&opencode_dir).unwrap();
-        create_opencode_db_message(
-            &opencode_dir.join("opencode-beta.db"),
-            "channel-msg-1",
-            "channel-session-a",
-            r#"{"providerID":"anthropic","modelID":"claude-sonnet-4-20250514","time":{"created":1767312000000},"tokens":{"input":80,"output":40}}"#,
-        );
-
-        let entries =
-            adapter::opencode::load_entries_from_directory(&opencode_dir, &SharedArgs::default())
-                .unwrap();
-        fs::remove_dir_all(&opencode_dir).unwrap();
-
-        assert_eq!(entries.len(), 1);
-        assert_eq!(entries[0].session_id.as_ref(), "channel-session-a");
-        assert_eq!(entries[0].data.message.usage.input_tokens, 80);
-    }
-
-    #[test]
-    fn prefers_opencode_database_messages_over_duplicate_json_files() {
-        let opencode_dir = temp_claude_dir("opencode-dedupe");
-        let messages_dir = opencode_dir.join("storage/message");
-        fs::create_dir_all(&messages_dir).unwrap();
-        create_opencode_db_message(
-            &opencode_dir.join("opencode.db"),
-            "msg-1",
-            "db-session-a",
-            r#"{"providerID":"anthropic","modelID":"claude-sonnet-4-20250514","time":{"created":1767312000000},"tokens":{"input":120,"output":60},"cost":0.03}"#,
-        );
-        fs::write(
-			messages_dir.join("message.json"),
-			r#"{"id":"msg-1","sessionID":"json-session-a","providerID":"anthropic","modelID":"claude-sonnet-4-20250514","time":{"created":1767312000000},"tokens":{"input":999,"output":999},"cost":0.99}"#,
-		)
-		.unwrap();
-
-        let shared = SharedArgs {
-            mode: CostMode::Display,
-            ..SharedArgs::default()
-        };
-        let entries =
-            adapter::opencode::load_entries_from_directory(&opencode_dir, &shared).unwrap();
-        fs::remove_dir_all(&opencode_dir).unwrap();
-
-        assert_eq!(entries.len(), 1);
-        assert_eq!(entries[0].session_id.as_ref(), "db-session-a");
-        assert_eq!(entries[0].data.message.usage.input_tokens, 120);
-        assert_eq!(entries[0].cost, 0.03);
     }
 
     #[test]

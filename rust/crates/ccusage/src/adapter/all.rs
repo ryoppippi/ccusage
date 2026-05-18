@@ -171,7 +171,7 @@ fn load_codex_rows(
 }
 
 fn load_opencode_rows(kind: AgentReportKind, shared: &SharedArgs) -> Result<AgentRows> {
-    let mut entries = opencode::load_entries(shared)?;
+    let mut entries = opencode::loader::load_entries(shared)?;
     let detected = !entries.is_empty();
     filter_loaded_entries_by_date(&mut entries, shared);
     let summaries = opencode::summarize_entries(&entries, kind)?;
