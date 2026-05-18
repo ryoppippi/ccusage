@@ -3,7 +3,7 @@
 import { execFileSync } from 'node:child_process';
 import { mkdir, readdir, readFile, stat, writeFile } from 'node:fs/promises';
 import { join, relative, resolve } from 'node:path';
-import process, { execPath, platform } from 'node:process';
+import process, { arch, execPath, platform } from 'node:process';
 import { createFixture } from 'fs-fixture';
 import { cli, define } from 'gunshi';
 
@@ -57,6 +57,22 @@ type FixtureComparison = SampleOptions & {
 type BunxFixtureComparison = FixtureComparison & {
 	basePackageUrl: string;
 	headPackageUrl: string;
+};
+
+type RuntimeDiagnosticResult = {
+	command: string;
+	label: string;
+	measurement: CommandMeasurement;
+};
+
+type RuntimeDiagnosticSection = SampleOptions & {
+	codexFixtureDir?: string;
+	codexFixtureStats?: FixtureStats;
+	description: string;
+	fixtureDir: string;
+	fixtureStats: FixtureStats;
+	results: RuntimeDiagnosticResult[];
+	title: string;
 };
 
 type FixtureStats = {
@@ -137,6 +153,39 @@ async function installedPackageBinEntry(installDir: string): Promise<string> {
 	}
 	const binPath = ccusageBinPath(packageJson.bin);
 	return binPath == null ? packageBinShim(installDir) : join(packageDir, binPath);
+}
+
+function nativePackageDirectoryName(
+	targetPlatform: string,
+	targetArch: string,
+): string | undefined {
+	if (
+		(targetPlatform === 'darwin' || targetPlatform === 'linux' || targetPlatform === 'win32') &&
+		(targetArch === 'arm64' || targetArch === 'x64')
+	) {
+		return `ccusage-${targetPlatform}-${targetArch}`;
+	}
+	return undefined;
+}
+
+async function installedNativePackageBinEntry(
+	installDir: string,
+	targetPlatform: string = platform,
+	targetArch: string = arch,
+): Promise<string | undefined> {
+	const packageDirectoryName = nativePackageDirectoryName(targetPlatform, targetArch);
+	if (packageDirectoryName == null) {
+		return undefined;
+	}
+	const binEntry = join(
+		installDir,
+		'node_modules',
+		'@ccusage',
+		packageDirectoryName,
+		'bin',
+		targetPlatform === 'win32' ? 'ccusage.exe' : 'ccusage',
+	);
+	return (await optionalFileSizeBytes(binEntry)) == null ? undefined : binEntry;
 }
 
 function parseHeadRuntime(value: string | undefined): HeadRuntime {
@@ -892,6 +941,169 @@ async function compareBunxFixture(options: {
 	};
 }
 
+async function compareRuntimeDiagnosticCommand(
+	command: string,
+	options: {
+		fixtureTitle: string;
+		runs: number;
+		variants: Array<{
+			commandText: string;
+			label: string;
+		}>;
+		warmup: number;
+	},
+): Promise<RuntimeDiagnosticResult[]> {
+	await writeProgress(`${options.fixtureTitle} / runtime diagnostics ${command} started`);
+	await using fixture = await createFixture({});
+	const exportPath = join(fixture.path, 'hyperfine.json');
+	const hyperfine = Bun.spawn(
+		[
+			'hyperfine',
+			'--shell',
+			'none',
+			'--warmup',
+			String(options.warmup),
+			'--runs',
+			String(options.runs),
+			'--export-json',
+			exportPath,
+			'--style',
+			'basic',
+			'--output',
+			'pipe',
+			'--sort',
+			'command',
+			...options.variants.flatMap((variant) => ['--command-name', variant.label]),
+			...options.variants.map((variant) => variant.commandText),
+		],
+		{
+			stderr: 'inherit',
+			stdout: 'inherit',
+		},
+	);
+	const exitCode = await hyperfine.exited;
+	if (exitCode !== 0) {
+		throw new Error(
+			`hyperfine failed for ${options.fixtureTitle} / runtime diagnostics ${command}: exit ${exitCode}`,
+		);
+	}
+	const hyperfineOutput = JSON.parse(await Bun.file(exportPath).text()) as HyperfineExport;
+	if (hyperfineOutput.results.length !== options.variants.length) {
+		throw new Error(
+			`hyperfine reported ${hyperfineOutput.results.length} runtime diagnostic results for ${command}, expected ${options.variants.length}`,
+		);
+	}
+	const results = hyperfineOutput.results.map((result) => ({
+		command,
+		label: result.command,
+		measurement: measurementFromHyperfine(result),
+	}));
+	const summary = results
+		.map((result) => `${result.label} ${formatDuration(result.measurement.median)}`)
+		.join(', ');
+	await writeProgress(`${options.fixtureTitle} / runtime diagnostics ${command} done: ${summary}`);
+	return results;
+}
+
+async function compareRuntimeDiagnosticSection(options: {
+	codexFixtureDir?: string;
+	commands: string[];
+	description: string;
+	fixtureDir: string;
+	headBinEntry?: string;
+	headDir: string;
+	headNativeBinEntry?: string;
+	runs: number;
+	title: string;
+	warmup: number;
+}): Promise<RuntimeDiagnosticSection | undefined> {
+	const workspaceRustBinEntry = rustBinaryEntry(options.headDir);
+	const workspaceRustBinarySize = await optionalFileSizeBytes(workspaceRustBinEntry);
+	const variants = [
+		...(options.headBinEntry == null
+			? []
+			: [
+					{
+						createCommand: (command: string) =>
+							createCcusageCommandFromBin(
+								options.headBinEntry!,
+								options.fixtureDir,
+								options.codexFixtureDir,
+								command,
+							),
+						label: 'Package wrapper',
+					},
+				]),
+		...(options.headNativeBinEntry == null
+			? []
+			: [
+					{
+						createCommand: (command: string) =>
+							createCcusageCommandFromRustBinary(
+								options.headNativeBinEntry!,
+								options.fixtureDir,
+								options.codexFixtureDir,
+								command,
+							),
+						label: 'Installed native binary',
+					},
+				]),
+		...(workspaceRustBinarySize == null
+			? []
+			: [
+					{
+						createCommand: (command: string) =>
+							createCcusageCommandFromRustBinary(
+								workspaceRustBinEntry,
+								options.fixtureDir,
+								options.codexFixtureDir,
+								command,
+							),
+						label: 'Workspace release binary',
+					},
+				]),
+	];
+
+	if (variants.length < 2) {
+		return undefined;
+	}
+
+	await writeProgress(`${options.title} started`);
+	const [fixtureStats, codexStats] = await Promise.all([
+		summarizeDirectory(options.fixtureDir),
+		options.codexFixtureDir == null
+			? Promise.resolve<FixtureStats | undefined>(undefined)
+			: summarizeDirectory(options.codexFixtureDir),
+	]);
+	const results: RuntimeDiagnosticResult[] = [];
+	for (const command of options.commands) {
+		results.push(
+			...(await compareRuntimeDiagnosticCommand(command, {
+				fixtureTitle: options.title,
+				runs: options.runs,
+				variants: variants.map((variant) => ({
+					commandText: variant.createCommand(command),
+					label: variant.label,
+				})),
+				warmup: options.warmup,
+			})),
+		);
+	}
+	await writeProgress(`${options.title} finished`);
+
+	return {
+		codexFixtureDir: options.codexFixtureDir,
+		codexFixtureStats: codexStats,
+		description: options.description,
+		fixtureDir: options.fixtureDir,
+		fixtureStats,
+		results,
+		runs: options.runs,
+		title: options.title,
+		warmup: options.warmup,
+	};
+}
+
 /**
  * Keeps the PR comment path readable for committed fixtures while still showing
  * generated CI fixtures that live outside the repository checkout.
@@ -905,7 +1117,13 @@ function formatFixtureStats(stats: FixtureStats): string {
 	return `${formatDataSize(stats.bytes)}, ${stats.files.toLocaleString('en-US')} files`;
 }
 
-function fixtureStatsForCommand(section: FixtureComparison, command: string): FixtureStats {
+function fixtureStatsForCommand(
+	section: {
+		codexFixtureStats?: FixtureStats;
+		fixtureStats: FixtureStats;
+	},
+	command: string,
+): FixtureStats {
 	if (command.startsWith('codex') && section.codexFixtureStats != null) {
 		return section.codexFixtureStats;
 	}
@@ -953,6 +1171,36 @@ export function renderFixtureSection(
 		const fixtureStats = fixtureStatsForCommand(section, result.command);
 		lines.push(
 			`| \`${result.command} --offline --json\` | ${formatDataSize(fixtureStats.bytes)} | ${formatDuration(result.base.median)} | ${formatDuration(result.head.median)} | ${speedup.toFixed(2)}x | ${formatThroughput(fixtureStats.bytes, result.base.median)} | ${formatThroughput(fixtureStats.bytes, result.head.median)} |`,
+		);
+	}
+
+	return lines;
+}
+
+export function renderRuntimeDiagnosticSection(
+	section: RuntimeDiagnosticSection,
+	options: {
+		headDir: string;
+	},
+): string[] {
+	const lines = [
+		`## ${section.title}`,
+		'',
+		section.description,
+		'',
+		section.codexFixtureDir == null
+			? `Fixture: \`${formatFixturePath(options.headDir, section.fixtureDir)}\` (${formatFixtureStats(section.fixtureStats)})`
+			: `Fixtures: Claude \`${formatFixturePath(options.headDir, section.fixtureDir)}\` (${formatFixtureStats(section.fixtureStats)}), Codex \`${formatFixturePath(options.headDir, section.codexFixtureDir)}\` (${formatFixtureStats(section.codexFixtureStats ?? section.fixtureStats)})`,
+		`All rows run \`--offline --json\`, measured by \`hyperfine\` with \`${section.warmup}\` warmups and \`${section.runs}\` runs. This isolates wrapper overhead from the installed native optional dependency and the workspace release binary built on the runner.`,
+		'',
+		'| Command | Runtime | Input | Median | Throughput | Samples |',
+		'| --- | --- | ---: | ---: | ---: | ---: |',
+	];
+
+	for (const result of section.results) {
+		const fixtureStats = fixtureStatsForCommand(section, result.command);
+		lines.push(
+			`| \`${result.command} --offline --json\` | ${result.label} | ${formatDataSize(fixtureStats.bytes)} | ${formatDuration(result.measurement.median)} | ${formatThroughput(fixtureStats.bytes, result.measurement.median)} | ${result.measurement.samples} |`,
 		);
 	}
 
@@ -1032,6 +1280,7 @@ function renderMarkdown(
 		headRuntimeDescription?: string;
 		headSha?: string;
 		packageRunner?: PackageRunnerComparison;
+		runtimeDiagnosticSections?: RuntimeDiagnosticSection[];
 	},
 ): string {
 	const markerName =
@@ -1059,6 +1308,10 @@ function renderMarkdown(
 
 	for (const section of options.bunxSections ?? []) {
 		lines.push(...renderBunxFixtureSection(section, options), '');
+	}
+
+	for (const section of options.runtimeDiagnosticSections ?? []) {
+		lines.push(...renderRuntimeDiagnosticSection(section, options), '');
 	}
 
 	for (const section of sections) {
@@ -1164,6 +1417,24 @@ if (import.meta.vitest != null) {
 
 			expect(commandText).toContain('/tmp/head-package/node_modules/ccusage/dist/cli.js');
 			expect(commandText).not.toContain('/repo/apps/ccusage');
+		});
+
+		it('resolves the installed native optional package binary for diagnostics', async () => {
+			await using fixture = await createFixture({});
+			const nativeBin = join(
+				fixture.path,
+				'node_modules',
+				'@ccusage',
+				'ccusage-linux-arm64',
+				'bin',
+				'ccusage',
+			);
+			await mkdir(join(nativeBin, '..'), { recursive: true });
+			await writeFile(nativeBin, '');
+
+			await expect(installedNativePackageBinEntry(fixture.path, 'linux', 'arm64')).resolves.toBe(
+				nativeBin,
+			);
 		});
 	});
 
@@ -1322,6 +1593,55 @@ if (import.meta.vitest != null) {
 			expect(markdown).toContain(
 				'| `bunx -p <pkg> ccusage claude --offline --json` | 1.00 GiB | 2.000s | 1.000s | 2.00x |',
 			);
+		});
+	});
+
+	describe('renderRuntimeDiagnosticSection', () => {
+		it('renders wrapper, installed native, and workspace native measurements together', () => {
+			const markdown = renderRuntimeDiagnosticSection(
+				{
+					codexFixtureDir: '/fixtures/codex',
+					codexFixtureStats: {
+						bytes: 512 * 1024 * 1024,
+						files: 200,
+					},
+					description: 'Runtime diagnostic description',
+					fixtureDir: '/fixtures/claude',
+					fixtureStats: {
+						bytes: 1024 * 1024 * 1024,
+						files: 400,
+					},
+					results: [
+						{
+							command: 'claude',
+							label: 'Package wrapper',
+							measurement: { max: 3000, median: 3000, min: 3000, samples: 1 },
+						},
+						{
+							command: 'claude',
+							label: 'Installed native binary',
+							measurement: { max: 1000, median: 1000, min: 1000, samples: 1 },
+						},
+						{
+							command: 'codex',
+							label: 'Workspace release binary',
+							measurement: { max: 500, median: 500, min: 500, samples: 1 },
+						},
+					],
+					runs: 1,
+					title: 'Package runtime diagnostics',
+					warmup: 0,
+				},
+				{ headDir: '/repo' },
+			).join('\n');
+
+			expect(markdown).toContain('## Package runtime diagnostics');
+			expect(markdown).toContain('Runtime diagnostic description');
+			expect(markdown).toContain('| `claude --offline --json` | Package wrapper |');
+			expect(markdown).toContain('| `claude --offline --json` | Installed native binary |');
+			expect(markdown).toContain('| `codex --offline --json` | Workspace release binary |');
+			expect(markdown).toContain('3.000s');
+			expect(markdown).toContain('1.00 GiB/s');
 		});
 	});
 
@@ -1500,24 +1820,30 @@ const command = define({
 		const basePackageUrl = ctx.values.basePackageUrl;
 		const headRuntime = parseHeadRuntime(ctx.values.headRuntime);
 		const headPackageUrl = ctx.values.headPackageUrl;
+		const basePackageInstallDir = join(installFixture.path, 'base-package');
+		const headPackageInstallDir = join(installFixture.path, 'head-package');
 		const basePackageInstall =
 			basePackageUrl == null
 				? undefined
 				: await installPackageUrl({
-						installDir: join(installFixture.path, 'base-package'),
+						installDir: basePackageInstallDir,
 						label: 'base',
 						packageUrl: basePackageUrl,
 						timeoutMs: ctx.values.packageRunnerTimeoutMs,
 					});
 		const headPackageInstall =
-			headPackageUrl == null || headRuntime !== 'package'
+			headPackageUrl == null
 				? undefined
 				: await installPackageUrl({
-						installDir: join(installFixture.path, 'head-package'),
+						installDir: headPackageInstallDir,
 						label: 'PR',
 						packageUrl: headPackageUrl,
 						timeoutMs: ctx.values.packageRunnerTimeoutMs,
 					});
+		const headNativeBinEntry =
+			headPackageInstall == null
+				? undefined
+				: await installedNativePackageBinEntry(headPackageInstallDir);
 		const baseBinEntry =
 			basePackageInstall == null ? await packageBinEntry(baseDir!) : basePackageInstall.binEntry;
 		const options = {
@@ -1532,10 +1858,11 @@ const command = define({
 			fixtureDir: resolve(ctx.values.fixtureDir),
 			headBinEntry: headPackageInstall?.binEntry,
 			headDir: resolve(ctx.values.headDir),
+			headNativeBinEntry,
 			headPackageUrl,
 			headRuntime,
 			headRuntimeDescription:
-				headPackageInstall == null
+				headRuntime !== 'package' || headPackageInstall == null
 					? undefined
 					: 'PR runs the published `ccusage` package from `pkg.pr.new`, installed before measurement',
 			headSha: gitSha(resolve(ctx.values.headDir)),
@@ -1625,6 +1952,27 @@ const command = define({
 							warmup: ctx.values.largeWarmup,
 						}),
 					];
+		const runtimeDiagnosticSection =
+			ctx.values.largeFixtureDir == null
+				? undefined
+				: await compareRuntimeDiagnosticSection({
+						codexFixtureDir:
+							ctx.values.largeCodexFixtureDir == null
+								? options.codexFixtureDir
+								: resolve(ctx.values.largeCodexFixtureDir),
+						commands: ['claude', 'codex'],
+						description:
+							'Compares the PR package wrapper, the installed native optional dependency binary, and the workspace release binary on the same large fixture. This identifies whether slow package results come from JavaScript wrapper overhead, the published native binary build, or the Rust core itself.',
+						fixtureDir: resolve(ctx.values.largeFixtureDir),
+						headBinEntry: options.headBinEntry,
+						headDir: options.headDir,
+						headNativeBinEntry: options.headNativeBinEntry,
+						runs: ctx.values.largeRuns,
+						title: 'Package runtime diagnostics',
+						warmup: ctx.values.largeWarmup,
+					});
+		const runtimeDiagnosticSections =
+			runtimeDiagnosticSection == null ? [] : [runtimeDiagnosticSection];
 		const sizes = {
 			basePackage:
 				basePackageUrl == null
@@ -1639,7 +1987,12 @@ const command = define({
 			headRustBinary: await optionalFileSizeBytes(rustBinaryEntry(options.headDir)),
 		};
 
-		const markdown = renderMarkdown(sections, sizes, { ...options, bunxSections, packageRunner });
+		const markdown = renderMarkdown(sections, sizes, {
+			...options,
+			bunxSections,
+			packageRunner,
+			runtimeDiagnosticSections,
+		});
 		if (ctx.values.output == null) {
 			await Bun.write(Bun.stdout, markdown);
 		} else {
