@@ -13,6 +13,7 @@ pub(crate) struct Pricing {
     pub(crate) output: f64,
     pub(crate) cache_create: f64,
     pub(crate) cache_read: f64,
+    pub(crate) cache_read_explicit: bool,
     pub(crate) input_above_200k: Option<f64>,
     pub(crate) output_above_200k: Option<f64>,
     pub(crate) cache_create_above_200k: Option<f64>,
@@ -93,6 +94,7 @@ impl PricingMap {
                 continue;
             };
             let context_limit = pricing.max_input_tokens;
+            let cache_read_explicit = pricing.cache_read_input_token_cost.is_some();
             self.entries.insert(
                 model.clone(),
                 Pricing {
@@ -102,6 +104,7 @@ impl PricingMap {
                         .cache_creation_input_token_cost
                         .unwrap_or(input * 1.25),
                     cache_read: pricing.cache_read_input_token_cost.unwrap_or(input * 0.1),
+                    cache_read_explicit,
                     input_above_200k: pricing.input_cost_per_token_above_200k_tokens,
                     output_above_200k: pricing.output_cost_per_token_above_200k_tokens,
                     cache_create_above_200k: pricing
@@ -157,6 +160,7 @@ impl PricingMap {
                 output: 25e-6,
                 cache_create: 6.25e-6,
                 cache_read: 0.5e-6,
+                cache_read_explicit: true,
                 input_above_200k: None,
                 output_above_200k: None,
                 cache_create_above_200k: None,
@@ -171,6 +175,7 @@ impl PricingMap {
                 output: 25e-6,
                 cache_create: 6.25e-6,
                 cache_read: 0.5e-6,
+                cache_read_explicit: true,
                 input_above_200k: None,
                 output_above_200k: None,
                 cache_create_above_200k: None,
@@ -185,6 +190,7 @@ impl PricingMap {
                 output: 25e-6,
                 cache_create: 6.25e-6,
                 cache_read: 0.5e-6,
+                cache_read_explicit: true,
                 input_above_200k: None,
                 output_above_200k: None,
                 cache_create_above_200k: None,
@@ -199,6 +205,7 @@ impl PricingMap {
                 output: 5e-6,
                 cache_create: 1.25e-6,
                 cache_read: 0.1e-6,
+                cache_read_explicit: true,
                 input_above_200k: None,
                 output_above_200k: None,
                 cache_create_above_200k: None,
@@ -213,6 +220,7 @@ impl PricingMap {
                 output: 75e-6,
                 cache_create: 18.75e-6,
                 cache_read: 1.5e-6,
+                cache_read_explicit: true,
                 input_above_200k: None,
                 output_above_200k: None,
                 cache_create_above_200k: None,
@@ -227,6 +235,7 @@ impl PricingMap {
                 output: 15e-6,
                 cache_create: 3.75e-6,
                 cache_read: 0.3e-6,
+                cache_read_explicit: true,
                 input_above_200k: None,
                 output_above_200k: None,
                 cache_create_above_200k: None,
@@ -241,6 +250,7 @@ impl PricingMap {
                 output: 15e-6,
                 cache_create: 3.75e-6,
                 cache_read: 0.3e-6,
+                cache_read_explicit: true,
                 input_above_200k: Some(6e-6),
                 output_above_200k: Some(22.5e-6),
                 cache_create_above_200k: Some(7.5e-6),
@@ -255,6 +265,7 @@ impl PricingMap {
                 output: 4e-6,
                 cache_create: 1.0e-6,
                 cache_read: 0.08e-6,
+                cache_read_explicit: true,
                 input_above_200k: None,
                 output_above_200k: None,
                 cache_create_above_200k: None,
@@ -269,6 +280,7 @@ impl PricingMap {
                 output: 75e-6,
                 cache_create: 18.75e-6,
                 cache_read: 1.5e-6,
+                cache_read_explicit: true,
                 input_above_200k: None,
                 output_above_200k: None,
                 cache_create_above_200k: None,
@@ -283,6 +295,7 @@ impl PricingMap {
                 output: 15e-6,
                 cache_create: 3.75e-6,
                 cache_read: 0.3e-6,
+                cache_read_explicit: true,
                 input_above_200k: None,
                 output_above_200k: None,
                 cache_create_above_200k: None,
@@ -297,6 +310,7 @@ impl PricingMap {
                 output: 1.25e-6,
                 cache_create: 0.3e-6,
                 cache_read: 0.03e-6,
+                cache_read_explicit: true,
                 input_above_200k: None,
                 output_above_200k: None,
                 cache_create_above_200k: None,
@@ -311,6 +325,22 @@ impl PricingMap {
                 output: 10e-6,
                 cache_create: 1.25e-6,
                 cache_read: 0.125e-6,
+                cache_read_explicit: true,
+                input_above_200k: None,
+                output_above_200k: None,
+                cache_create_above_200k: None,
+                cache_read_above_200k: None,
+                fast_multiplier: 1.0,
+            },
+        );
+        self.entries.insert(
+            "gpt-5.5".to_string(),
+            Pricing {
+                input: 5e-6,
+                output: 30e-6,
+                cache_create: 5e-6,
+                cache_read: 0.5e-6,
+                cache_read_explicit: true,
                 input_above_200k: None,
                 output_above_200k: None,
                 cache_create_above_200k: None,
@@ -323,6 +353,7 @@ impl PricingMap {
             output: 14e-6,
             cache_create: 1.75e-6,
             cache_read: 0.175e-6,
+            cache_read_explicit: true,
             input_above_200k: None,
             output_above_200k: None,
             cache_create_above_200k: None,
@@ -333,6 +364,7 @@ impl PricingMap {
             .insert("gpt-5.2-codex".to_string(), gpt_5_codex_pricing);
         self.entries
             .insert("gpt-5.3-codex".to_string(), gpt_5_codex_pricing);
+        self.context_limits.insert("gpt-5.5".to_string(), 1_050_000);
 
         for model in [
             "claude-opus-4-5",
@@ -391,6 +423,27 @@ mod tests {
     }
 
     #[test]
+    fn records_whether_cache_read_rate_came_from_litellm_pricing() {
+        let mut pricing = PricingMap::default();
+        pricing.load_json(
+            r#"{
+                "gpt-with-cache": {
+                    "input_cost_per_token": 0.000001,
+                    "output_cost_per_token": 0.000010,
+                    "cache_read_input_token_cost": 0.0000001
+                },
+                "gpt-without-cache": {
+                    "input_cost_per_token": 0.000001,
+                    "output_cost_per_token": 0.000010
+                }
+            }"#,
+        );
+
+        assert!(pricing.find("gpt-with-cache").unwrap().cache_read_explicit);
+        assert!(!pricing.find("gpt-without-cache").unwrap().cache_read_explicit);
+    }
+
+    #[test]
     fn embedded_pricing_resolves_overlapping_model_keys_exactly() {
         let pricing = PricingMap::load_embedded();
         let sonnet_4 = pricing.find("claude-sonnet-4-20250514").unwrap();
@@ -414,6 +467,18 @@ mod tests {
     }
 
     #[test]
+    fn embedded_pricing_includes_gpt_5_5_for_offline_codex_reports() {
+        let pricing = PricingMap::load_embedded();
+        let gpt_55 = pricing.find("gpt-5.5").unwrap();
+
+        assert_eq!(gpt_55.input, 5e-6);
+        assert_eq!(gpt_55.output, 30e-6);
+        assert_eq!(gpt_55.cache_read, 0.5e-6);
+        assert!(gpt_55.cache_read_explicit);
+        assert_eq!(pricing.context_limit("gpt-5.5"), Some(1_050_000));
+    }
+
+    #[test]
     fn fuzzy_match_prefers_longest_model_key() {
         let mut pricing = PricingMap::default();
         pricing.entries.insert(
@@ -423,6 +488,7 @@ mod tests {
                 output: 0.0,
                 cache_create: 0.0,
                 cache_read: 0.0,
+                cache_read_explicit: true,
                 input_above_200k: None,
                 output_above_200k: None,
                 cache_create_above_200k: None,
@@ -437,6 +503,7 @@ mod tests {
                 output: 0.0,
                 cache_create: 0.0,
                 cache_read: 0.0,
+                cache_read_explicit: true,
                 input_above_200k: None,
                 output_above_200k: None,
                 cache_create_above_200k: None,

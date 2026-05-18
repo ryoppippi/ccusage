@@ -12,9 +12,10 @@ use serde_json::{json, Value};
 
 use crate::{
     cli::{AgentCommandArgs, AgentReportKind, CodexSpeed, SharedArgs, WeekDay},
-    color, format_currency, format_date_tz, format_number, json_float, json_value_u64, log_level,
-    parse_ts_timestamp, parse_tz, print_json_or_jq, wants_json, week_start, Align, CodexGroup,
-    CodexModelUsage, CodexTokenUsageEvent, Color, PricingMap, Result, SimpleTable,
+    color, format_currency, format_date_tz, format_models_multiline, format_number, json_float,
+    json_value_u64, log_level, parse_ts_timestamp, parse_tz, print_box_title, print_json_or_jq,
+    wants_json, week_start, Align, CodexGroup, CodexModelUsage, CodexTokenUsageEvent, Color,
+    PricingMap, Result, SimpleTable,
 };
 
 type CodexEventKey = (String, Option<String>, u64, u64, u64, u64, u64);
@@ -497,8 +498,13 @@ fn calculate_model_cost(
     } else {
         1.0
     };
+    let cache_read = if pricing.cache_read_explicit {
+        pricing.cache_read
+    } else {
+        pricing.input
+    };
     (non_cached_input as f64 * pricing.input
-        + usage.cached_input_tokens as f64 * pricing.cache_read
+        + usage.cached_input_tokens as f64 * cache_read
         + usage.output_tokens as f64 * pricing.output)
         * multiplier
 }
@@ -519,14 +525,26 @@ fn print_table(output: &Value, kind: AgentReportKind, shared: &SharedArgs) {
         AgentReportKind::Monthly => "Month",
         AgentReportKind::Session => "Session",
     };
+    print_box_title(
+        &format!(
+            "Codex Token Usage Report - {}",
+            match kind {
+                AgentReportKind::Daily => "Daily",
+                AgentReportKind::Weekly => "Weekly",
+                AgentReportKind::Monthly => "Monthly",
+                AgentReportKind::Session => "Session",
+            }
+        ),
+        shared,
+    );
     let mut table = SimpleTable::new(
         vec![
             first_column,
             "Models",
             "Input",
-            "Cached Input",
             "Output",
             "Reasoning",
+            "Cache Read",
             "Total Tokens",
             "Cost (USD)",
         ],
@@ -552,20 +570,16 @@ fn print_table(output: &Value, kind: AgentReportKind, shared: &SharedArgs) {
             .get("models")
             .and_then(Value::as_object)
             .map(|models| {
-                models
-                    .keys()
-                    .map(String::as_str)
-                    .collect::<Vec<_>>()
-                    .join("\n")
+                format_models_multiline(&models.keys().cloned().collect::<Vec<_>>())
             })
             .unwrap_or_default();
         table.push(vec![
             label.to_string(),
             models,
             format_number(json_value_u64(row.get("inputTokens"))),
-            format_number(json_value_u64(row.get("cachedInputTokens"))),
             format_number(json_value_u64(row.get("outputTokens"))),
             format_number(json_value_u64(row.get("reasoningOutputTokens"))),
+            format_number(json_value_u64(row.get("cachedInputTokens"))),
             format_number(json_value_u64(row.get("totalTokens"))),
             format_currency(row.get("costUSD").and_then(Value::as_f64).unwrap_or(0.0)),
         ]);
@@ -582,17 +596,17 @@ fn print_table(output: &Value, kind: AgentReportKind, shared: &SharedArgs) {
         ),
         color(
             shared,
-            format_number(json_value_u64(totals.get("cachedInputTokens"))),
-            Color::Yellow,
-        ),
-        color(
-            shared,
             format_number(json_value_u64(totals.get("outputTokens"))),
             Color::Yellow,
         ),
         color(
             shared,
             format_number(json_value_u64(totals.get("reasoningOutputTokens"))),
+            Color::Yellow,
+        ),
+        color(
+            shared,
+            format_number(json_value_u64(totals.get("cachedInputTokens"))),
             Color::Yellow,
         ),
         color(
@@ -653,5 +667,30 @@ mod tests {
         assert_eq!(group.output_tokens, 75);
         assert_eq!(group.reasoning_output_tokens, 5);
         assert_eq!(group.total_tokens, 280);
+    }
+
+    #[test]
+    fn charges_cached_input_at_input_rate_when_codex_pricing_omits_cache_read_rate() {
+        let mut pricing = PricingMap::default();
+        pricing.load_json(
+            r#"{
+                "gpt-test": {
+                    "input_cost_per_token": 0.000001,
+                    "output_cost_per_token": 0.000010
+                }
+            }"#,
+        );
+        let usage = CodexModelUsage {
+            input_tokens: 100,
+            cached_input_tokens: 40,
+            output_tokens: 5,
+            reasoning_output_tokens: 0,
+            total_tokens: 105,
+            is_fallback: false,
+        };
+
+        let cost = calculate_model_cost("gpt-test", &usage, &pricing, CodexSpeed::Standard);
+
+        assert!((cost - 0.00015).abs() < f64::EPSILON);
     }
 }

@@ -26,86 +26,185 @@ struct AllRow {
     agent_breakdowns: Option<Vec<AllRow>>,
 }
 
+struct AllLoadResult {
+    rows: Vec<AllRow>,
+    detected_agents: Vec<&'static str>,
+}
+
+struct AgentRows {
+    rows: Vec<AllRow>,
+    detected: bool,
+}
+
 pub(crate) fn run(args: AgentCommandArgs) -> Result<()> {
     let shared = args.shared;
-    let rows = load_rows(args.kind, &shared)?;
+    let result = load_rows(args.kind, &shared)?;
     if wants_json(&shared) {
-        return print_json_or_jq(report_json(&rows, args.kind), shared.jq.as_deref());
+        return print_json_or_jq(report_json(&result.rows, args.kind), shared.jq.as_deref());
     }
-    print_table(&rows, args.kind, &shared);
+    print_table(&result.rows, args.kind, &shared, &result.detected_agents);
     Ok(())
 }
 
-fn load_rows(kind: AgentReportKind, shared: &SharedArgs) -> Result<Vec<AllRow>> {
+fn load_rows(kind: AgentReportKind, shared: &SharedArgs) -> Result<AllLoadResult> {
     let pricing = PricingMap::load(shared.offline, crate::log_level() != Some(0));
+    let mut detected_agents = Vec::new();
     if kind == AgentReportKind::Session {
         let mut rows = Vec::new();
-        rows.extend(load_claude_rows(AgentReportKind::Session, shared)?);
-        rows.extend(load_codex_rows(AgentReportKind::Session, shared, &pricing)?);
-        rows.extend(load_opencode_rows(AgentReportKind::Session, shared)?);
-        rows.extend(load_amp_rows(AgentReportKind::Session, shared, &pricing)?);
-        rows.extend(load_pi_rows(AgentReportKind::Session, shared)?);
+        append_agent_rows(
+            &mut rows,
+            &mut detected_agents,
+            "claude",
+            load_claude_rows(AgentReportKind::Session, shared)?,
+        );
+        append_agent_rows(
+            &mut rows,
+            &mut detected_agents,
+            "codex",
+            load_codex_rows(AgentReportKind::Session, shared, &pricing)?,
+        );
+        append_agent_rows(
+            &mut rows,
+            &mut detected_agents,
+            "opencode",
+            load_opencode_rows(AgentReportKind::Session, shared)?,
+        );
+        append_agent_rows(
+            &mut rows,
+            &mut detected_agents,
+            "amp",
+            load_amp_rows(AgentReportKind::Session, shared, &pricing)?,
+        );
+        append_agent_rows(
+            &mut rows,
+            &mut detected_agents,
+            "pi",
+            load_pi_rows(AgentReportKind::Session, shared)?,
+        );
         sort_rows(&mut rows, &shared.order);
-        return Ok(rows);
+        return Ok(AllLoadResult {
+            rows,
+            detected_agents,
+        });
     }
 
     let mut rows = Vec::new();
-    rows.extend(load_claude_rows(AgentReportKind::Daily, shared)?);
-    rows.extend(load_codex_rows(AgentReportKind::Daily, shared, &pricing)?);
-    rows.extend(load_opencode_rows(AgentReportKind::Daily, shared)?);
-    rows.extend(load_amp_rows(AgentReportKind::Daily, shared, &pricing)?);
-    rows.extend(load_pi_rows(AgentReportKind::Daily, shared)?);
+    append_agent_rows(
+        &mut rows,
+        &mut detected_agents,
+        "claude",
+        load_claude_rows(AgentReportKind::Daily, shared)?,
+    );
+    append_agent_rows(
+        &mut rows,
+        &mut detected_agents,
+        "codex",
+        load_codex_rows(AgentReportKind::Daily, shared, &pricing)?,
+    );
+    append_agent_rows(
+        &mut rows,
+        &mut detected_agents,
+        "opencode",
+        load_opencode_rows(AgentReportKind::Daily, shared)?,
+    );
+    append_agent_rows(
+        &mut rows,
+        &mut detected_agents,
+        "amp",
+        load_amp_rows(AgentReportKind::Daily, shared, &pricing)?,
+    );
+    append_agent_rows(
+        &mut rows,
+        &mut detected_agents,
+        "pi",
+        load_pi_rows(AgentReportKind::Daily, shared)?,
+    );
 
     let mut aggregated = aggregate_rows(rows, kind);
     sort_rows(&mut aggregated, &shared.order);
-    Ok(aggregated)
+    Ok(AllLoadResult {
+        rows: aggregated,
+        detected_agents,
+    })
 }
 
-fn load_claude_rows(kind: AgentReportKind, shared: &SharedArgs) -> Result<Vec<AllRow>> {
+fn append_agent_rows(
+    rows: &mut Vec<AllRow>,
+    detected_agents: &mut Vec<&'static str>,
+    agent: &'static str,
+    agent_rows: AgentRows,
+) {
+    if agent_rows.detected {
+        detected_agents.push(agent);
+    }
+    rows.extend(agent_rows.rows);
+}
+
+fn load_claude_rows(kind: AgentReportKind, shared: &SharedArgs) -> Result<AgentRows> {
     let mut entries = crate::load_entries(shared, None)?;
+    let detected = !entries.is_empty();
     filter_loaded_entries_by_date(&mut entries, shared);
     let summaries = summarize_entries(&entries, kind)?;
-    Ok(summary_rows("claude", summaries))
+    Ok(AgentRows {
+        rows: summary_rows("claude", summaries),
+        detected,
+    })
 }
 
 fn load_codex_rows(
     kind: AgentReportKind,
     shared: &SharedArgs,
     pricing: &PricingMap,
-) -> Result<Vec<AllRow>> {
+) -> Result<AgentRows> {
     let mut events = crate::load_codex_events(shared)?;
+    let detected = !events.is_empty();
     codex::filter_events_by_date(&mut events, shared)?;
     let groups = codex::aggregate_events(&events, kind, shared.timezone.as_deref())?;
     let speed = codex::resolve_codex_speed(CodexSpeed::Auto);
-    Ok(groups
-        .iter()
-        .map(|(period, group)| codex_group_row(period, group, &pricing, speed))
-        .collect())
+    Ok(AgentRows {
+        rows: groups
+            .iter()
+            .map(|(period, group)| codex_group_row(period, group, &pricing, speed))
+            .collect(),
+        detected,
+    })
 }
 
-fn load_opencode_rows(kind: AgentReportKind, shared: &SharedArgs) -> Result<Vec<AllRow>> {
+fn load_opencode_rows(kind: AgentReportKind, shared: &SharedArgs) -> Result<AgentRows> {
     let mut entries = opencode::load_entries(shared)?;
+    let detected = !entries.is_empty();
     filter_loaded_entries_by_date(&mut entries, shared);
     let summaries = opencode::summarize_entries(&entries, kind)?;
-    Ok(summary_rows("opencode", summaries))
+    Ok(AgentRows {
+        rows: summary_rows("opencode", summaries),
+        detected,
+    })
 }
 
 fn load_amp_rows(
     kind: AgentReportKind,
     shared: &SharedArgs,
     pricing: &PricingMap,
-) -> Result<Vec<AllRow>> {
+) -> Result<AgentRows> {
     let mut entries = amp::load_entries(shared, pricing)?;
+    let detected = !entries.is_empty();
     filter_loaded_entries_by_date(&mut entries, shared);
     let summaries = amp::summarize_entries(&entries, kind)?;
-    Ok(summary_rows("amp", summaries))
+    Ok(AgentRows {
+        rows: summary_rows("amp", summaries),
+        detected,
+    })
 }
 
-fn load_pi_rows(kind: AgentReportKind, shared: &SharedArgs) -> Result<Vec<AllRow>> {
+fn load_pi_rows(kind: AgentReportKind, shared: &SharedArgs) -> Result<AgentRows> {
     let mut entries = pi::load_entries(shared, None)?;
+    let detected = !entries.is_empty();
     filter_loaded_entries_by_date(&mut entries, shared);
     let summaries = pi::summarize_entries(&entries, kind)?;
-    Ok(summary_rows("pi", summaries))
+    Ok(AgentRows {
+        rows: summary_rows("pi", summaries),
+        detected,
+    })
 }
 
 fn summarize_entries(entries: &[LoadedEntry], kind: AgentReportKind) -> Result<Vec<UsageSummary>> {
@@ -316,14 +415,19 @@ fn rows_key(kind: AgentReportKind) -> &'static str {
     }
 }
 
-fn print_table(rows: &[AllRow], kind: AgentReportKind, shared: &SharedArgs) {
+fn print_table(
+    rows: &[AllRow],
+    kind: AgentReportKind,
+    shared: &SharedArgs,
+    detected_agents: &[&'static str],
+) {
     if rows.is_empty() {
         eprintln!("No usage data found.");
         return;
     }
     let terminal_width = crate::terminal_width();
     let compact = shared.compact || terminal_width < crate::USAGE_COMPACT_WIDTH_THRESHOLD;
-    print_box_title(&all_report_title(kind, rows), shared);
+    print_box_title(&all_report_title(kind, rows, detected_agents), shared);
     let (headers, aligns) = all_table_columns(kind, compact);
     let mut table = SimpleTable::new(headers, aligns, shared)
         .with_terminal_width(terminal_width)
@@ -339,6 +443,7 @@ fn print_table(rows: &[AllRow], kind: AgentReportKind, shared: &SharedArgs) {
     }
     table.separator();
     let totals = totals_json(rows);
+    let table_total_tokens = rows.iter().map(table_total_tokens).sum::<u64>();
     if compact {
         table.push(vec![
             color(shared, "Total", Color::Yellow),
@@ -392,7 +497,7 @@ fn print_table(rows: &[AllRow], kind: AgentReportKind, shared: &SharedArgs) {
             ),
             color(
                 shared,
-                format_number(crate::json_value_u64(totals.get("totalTokens"))),
+                format_number(table_total_tokens),
                 Color::Yellow,
             ),
             color(
@@ -414,7 +519,11 @@ fn print_table(rows: &[AllRow], kind: AgentReportKind, shared: &SharedArgs) {
     }
 }
 
-fn all_report_title(kind: AgentReportKind, rows: &[AllRow]) -> String {
+fn all_report_title(
+    kind: AgentReportKind,
+    rows: &[AllRow],
+    detected_agents: &[&'static str],
+) -> String {
     format!(
         "Coding (Agent) CLI Usage Report - {}\nDetected: {}",
         match kind {
@@ -423,21 +532,25 @@ fn all_report_title(kind: AgentReportKind, rows: &[AllRow]) -> String {
             AgentReportKind::Monthly => "Monthly",
             AgentReportKind::Session => "Session",
         },
-        detected_agent_labels(rows)
+        detected_agent_labels(rows, detected_agents)
     )
 }
 
-fn detected_agent_labels(rows: &[AllRow]) -> String {
+fn detected_agent_labels(rows: &[AllRow], detected_agents: &[&'static str]) -> String {
     let mut agents = BTreeSet::new();
-    for row in rows {
-        if let Some(metadata_agents) = row.metadata_agents.as_ref() {
-            agents.extend(metadata_agents.iter().copied());
-        } else if row.agent != "all" {
-            agents.insert(row.agent);
+    if detected_agents.is_empty() {
+        for row in rows {
+            if let Some(metadata_agents) = row.metadata_agents.as_ref() {
+                agents.extend(metadata_agents.iter().copied());
+            } else if row.agent != "all" {
+                agents.insert(row.agent);
+            }
+            if let Some(breakdowns) = row.agent_breakdowns.as_ref() {
+                agents.extend(breakdowns.iter().map(|breakdown| breakdown.agent));
+            }
         }
-        if let Some(breakdowns) = row.agent_breakdowns.as_ref() {
-            agents.extend(breakdowns.iter().map(|breakdown| breakdown.agent));
-        }
+    } else {
+        agents.extend(detected_agents.iter().copied());
     }
     if agents.is_empty() {
         return "None".to_string();
@@ -483,9 +596,16 @@ fn all_table_row(row: &AllRow, compact: bool, breakdown: bool) -> Vec<String> {
         format_number(row.output_tokens),
         format_number(row.cache_creation_tokens),
         format_number(row.cache_read_tokens),
-        format_number(row.total_tokens),
+        format_number(table_total_tokens(row)),
         format_currency(row.total_cost),
     ]
+}
+
+fn table_total_tokens(row: &AllRow) -> u64 {
+    row.input_tokens
+        .saturating_add(row.output_tokens)
+        .saturating_add(row.cache_creation_tokens)
+        .saturating_add(row.cache_read_tokens)
 }
 
 fn all_table_columns(kind: AgentReportKind, compact: bool) -> (Vec<&'static str>, Vec<Align>) {
@@ -649,6 +769,55 @@ mod tests {
     }
 
     #[test]
+    fn displays_total_tokens_with_cache_tokens_like_typescript_table() {
+        let row = AllRow {
+            period: "2026-01-02".to_string(),
+            agent: "codex",
+            models_used: vec!["gpt-5".to_string()],
+            input_tokens: 100,
+            output_tokens: 20,
+            cache_creation_tokens: 0,
+            cache_read_tokens: 10,
+            total_tokens: 120,
+            total_cost: 0.01,
+            metadata_agents: Some(vec!["codex"]),
+            agent_breakdowns: None,
+        };
+
+        let cells = all_table_row(&row, false, false);
+
+        assert_eq!(cells[7], "130");
+    }
+
+    #[test]
+    fn report_title_uses_detected_agents_even_when_filtered_rows_are_sparse() {
+        let rows = vec![AllRow {
+            period: "2026-01-02".to_string(),
+            agent: "all",
+            models_used: vec!["gpt-5".to_string()],
+            input_tokens: 100,
+            output_tokens: 20,
+            cache_creation_tokens: 0,
+            cache_read_tokens: 10,
+            total_tokens: 120,
+            total_cost: 0.01,
+            metadata_agents: Some(vec!["codex"]),
+            agent_breakdowns: None,
+        }];
+
+        let title = all_report_title(
+            AgentReportKind::Daily,
+            &rows,
+            &["amp", "claude", "codex", "opencode", "pi"],
+        );
+
+        assert_eq!(
+            title,
+            "Coding (Agent) CLI Usage Report - Daily\nDetected: Amp, Claude, Codex, OpenCode, pi-agent"
+        );
+    }
+
+    #[test]
     fn all_table_rows_match_main_agent_breakdown_display() {
         let row = AllRow {
             period: "2026-01-02".to_string(),
@@ -703,7 +872,7 @@ mod tests {
         };
 
         assert_eq!(
-            all_report_title(AgentReportKind::Daily, &[row]),
+            all_report_title(AgentReportKind::Daily, &[row], &[]),
             "Coding (Agent) CLI Usage Report - Daily\nDetected: Claude, Codex"
         );
     }
