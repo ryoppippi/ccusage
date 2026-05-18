@@ -494,7 +494,11 @@ fn calculate_model_cost(
     };
     let non_cached_input = usage.input_tokens.saturating_sub(usage.cached_input_tokens);
     let multiplier = if matches!(speed, CodexSpeed::Fast) {
-        pricing.fast_multiplier
+        if pricing.fast_multiplier == 1.0 {
+            2.0
+        } else {
+            pricing.fast_multiplier
+        }
     } else {
         1.0
     };

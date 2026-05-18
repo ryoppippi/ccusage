@@ -348,6 +348,21 @@ impl PricingMap {
                 fast_multiplier: 1.0,
             },
         );
+        let gpt_5_1_pricing = Pricing {
+            input: 1.25e-6,
+            output: 10e-6,
+            cache_create: 1.25e-6,
+            cache_read: 0.125e-6,
+            cache_read_explicit: true,
+            input_above_200k: None,
+            output_above_200k: None,
+            cache_create_above_200k: None,
+            cache_read_above_200k: None,
+            fast_multiplier: 1.0,
+        };
+        self.entries.insert("gpt-5.1".to_string(), gpt_5_1_pricing);
+        self.entries
+            .insert("gpt-5.1-codex".to_string(), gpt_5_1_pricing);
         let gpt_5_codex_pricing = Pricing {
             input: 1.75e-6,
             output: 14e-6,
@@ -364,7 +379,55 @@ impl PricingMap {
             .insert("gpt-5.2-codex".to_string(), gpt_5_codex_pricing);
         self.entries
             .insert("gpt-5.3-codex".to_string(), gpt_5_codex_pricing);
+        self.entries
+            .insert("gpt-5.2".to_string(), gpt_5_codex_pricing);
+        self.entries.insert(
+            "gpt-5.4".to_string(),
+            Pricing {
+                input: 2.5e-6,
+                output: 15e-6,
+                cache_create: 2.5e-6,
+                cache_read: 0.25e-6,
+                cache_read_explicit: true,
+                input_above_200k: None,
+                output_above_200k: None,
+                cache_create_above_200k: None,
+                cache_read_above_200k: None,
+                fast_multiplier: 1.0,
+            },
+        );
+        self.entries.insert(
+            "gpt-5.4-mini".to_string(),
+            Pricing {
+                input: 0.75e-6,
+                output: 4.5e-6,
+                cache_create: 0.75e-6,
+                cache_read: 0.075e-6,
+                cache_read_explicit: true,
+                input_above_200k: None,
+                output_above_200k: None,
+                cache_create_above_200k: None,
+                cache_read_above_200k: None,
+                fast_multiplier: 1.0,
+            },
+        );
+        self.entries.insert(
+            "gpt-5.4-nano".to_string(),
+            Pricing {
+                input: 0.2e-6,
+                output: 1.25e-6,
+                cache_create: 0.2e-6,
+                cache_read: 0.02e-6,
+                cache_read_explicit: true,
+                input_above_200k: None,
+                output_above_200k: None,
+                cache_create_above_200k: None,
+                cache_read_above_200k: None,
+                fast_multiplier: 1.0,
+            },
+        );
         self.context_limits.insert("gpt-5.5".to_string(), 1_050_000);
+        self.context_limits.insert("gpt-5.4".to_string(), 1_050_000);
 
         for model in [
             "claude-opus-4-5",

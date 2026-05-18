@@ -9,23 +9,42 @@ pub(crate) fn calculate_cost(
     mode: CostMode,
     pricing: Option<&PricingMap>,
 ) -> f64 {
+    calculate_cost_for_usage(
+        data.message.model.as_deref(),
+        data.message.usage,
+        data.cost_usd,
+        mode,
+        pricing,
+    )
+}
+
+pub(crate) fn calculate_cost_for_usage(
+    model: Option<&str>,
+    usage: crate::TokenUsageRaw,
+    cost_usd: Option<f64>,
+    mode: CostMode,
+    pricing: Option<&PricingMap>,
+) -> f64 {
     match mode {
-        CostMode::Display => data.cost_usd.unwrap_or(0.0),
-        CostMode::Auto => data
-            .cost_usd
-            .unwrap_or_else(|| calculate_cost_from_tokens(data, pricing)),
-        CostMode::Calculate => calculate_cost_from_tokens(data, pricing),
+        CostMode::Display => cost_usd.unwrap_or(0.0),
+        CostMode::Auto => {
+            cost_usd.unwrap_or_else(|| calculate_cost_from_tokens(model, usage, pricing))
+        }
+        CostMode::Calculate => calculate_cost_from_tokens(model, usage, pricing),
     }
 }
 
-fn calculate_cost_from_tokens(data: &UsageEntry, pricing: Option<&PricingMap>) -> f64 {
-    let Some(model) = data.message.model.as_deref() else {
+fn calculate_cost_from_tokens(
+    model: Option<&str>,
+    usage: crate::TokenUsageRaw,
+    pricing: Option<&PricingMap>,
+) -> f64 {
+    let Some(model) = model else {
         return 0.0;
     };
     let Some(pricing) = pricing.and_then(|pricing| pricing.find(model)) else {
         return 0.0;
     };
-    let usage = data.message.usage;
     let multiplier = if matches!(usage.speed, Some(Speed::Fast)) {
         pricing.fast_multiplier
     } else {

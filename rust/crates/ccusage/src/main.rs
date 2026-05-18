@@ -25,10 +25,10 @@ pub(crate) use blocks::{
 };
 pub(crate) use claude_loader::{
     chunk_file_indexes_by_size, collect_files_with_extension, collect_usage_files,
-    filter_loaded_entries_by_date, load_entries,
+    filter_loaded_entries_by_date, load_daily_summaries, load_entries,
 };
 pub(crate) use codex_loader::{codex_sessions_paths, load_codex_events, visit_codex_session_file};
-pub(crate) use cost::calculate_cost;
+pub(crate) use cost::{calculate_cost, calculate_cost_for_usage};
 pub(crate) use date_utils::*;
 pub(crate) use logger::{debug_log, log_level};
 pub(crate) use output::{
@@ -145,7 +145,7 @@ mod tests {
         collections::HashMap,
         env, fs,
         path::{Path, PathBuf},
-        sync::Arc,
+        sync::{Arc, Mutex},
     };
 
     use serde_json::json;
@@ -155,6 +155,8 @@ mod tests {
         cli::{CostMode, SharedArgs, SortOrder, WeekDay},
         cost::tiered_cost,
     };
+
+    static CLAUDE_CONFIG_DIR_LOCK: Mutex<()> = Mutex::new(());
 
     fn temp_claude_dir(name: &str) -> PathBuf {
         let mut path = env::temp_dir();
@@ -254,6 +256,23 @@ mod tests {
     }
 
     #[test]
+    fn sorts_usage_files_like_typescript_path_strings() {
+        let dir = temp_claude_dir("usage-file-sort");
+        let session_dir = dir.join("projects/project1/session-a");
+        let subagent_dir = session_dir.join("subagents");
+        fs::create_dir_all(&subagent_dir).unwrap();
+        let parent_file = dir.join("projects/project1/session-a.jsonl");
+        let subagent_file = subagent_dir.join("agent-a.jsonl");
+        fs::write(&subagent_file, "").unwrap();
+        fs::write(&parent_file, "").unwrap();
+
+        let files = claude_loader::usage_files(&[dir.clone()]);
+        fs::remove_dir_all(dir).unwrap();
+
+        assert_eq!(files, vec![parent_file, subagent_file]);
+    }
+
+    #[test]
     fn formats_dates_with_timezone() {
         let timestamp = parse_ts_timestamp("2024-08-04T23:30:00.000Z").unwrap();
 
@@ -292,6 +311,7 @@ mod tests {
 
     #[test]
     fn keeps_most_complete_duplicate_usage_entry() {
+        let _guard = CLAUDE_CONFIG_DIR_LOCK.lock().unwrap();
         let claude_dir = temp_claude_dir("dedupe");
         let session_dir = claude_dir.join("projects/project1/session1");
         fs::create_dir_all(&session_dir).unwrap();
@@ -323,6 +343,148 @@ mod tests {
         assert_eq!(entries[0].data.message.usage.input_tokens, 100);
         assert_eq!(entries[0].data.message.usage.output_tokens, 250);
         assert_eq!(entries[0].cost, 0.01);
+    }
+
+    #[test]
+    fn dedupes_usage_entries_by_message_id_without_request_id() {
+        let _guard = CLAUDE_CONFIG_DIR_LOCK.lock().unwrap();
+        let claude_dir = temp_claude_dir("dedupe-message-id");
+        let session_dir = claude_dir.join("projects/project1/session1");
+        fs::create_dir_all(&session_dir).unwrap();
+        fs::write(
+            session_dir.join("chat.jsonl"),
+            [
+                r#"{"timestamp":"2025-01-10T10:00:00.000Z","message":{"id":"msg_123","model":"claude-opus-4-6","usage":{"input_tokens":100,"output_tokens":25,"cache_creation_input_tokens":10,"cache_read_input_tokens":5}},"costUSD":0.001}"#,
+                r#"{"timestamp":"2025-01-10T10:00:01.000Z","message":{"id":"msg_123","model":"claude-opus-4-6","usage":{"input_tokens":100,"output_tokens":250,"cache_creation_input_tokens":10,"cache_read_input_tokens":5,"speed":"standard"}},"costUSD":0.01}"#,
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+
+        let previous = env::var("CLAUDE_CONFIG_DIR").ok();
+        env::set_var("CLAUDE_CONFIG_DIR", &claude_dir);
+        let shared = SharedArgs {
+            mode: CostMode::Display,
+            ..SharedArgs::default()
+        };
+        let entries = load_entries(&shared, None).unwrap();
+        if let Some(previous) = previous {
+            env::set_var("CLAUDE_CONFIG_DIR", previous);
+        } else {
+            env::remove_var("CLAUDE_CONFIG_DIR");
+        }
+        fs::remove_dir_all(&claude_dir).unwrap();
+
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].data.message.usage.output_tokens, 250);
+        assert_eq!(entries[0].cost, 0.01);
+    }
+
+    #[test]
+    fn accepts_projects_directory_in_claude_config_dir() {
+        let _guard = CLAUDE_CONFIG_DIR_LOCK.lock().unwrap();
+        let claude_dir = temp_claude_dir("projects-env");
+        let session_dir = claude_dir.join("projects/project1/session1");
+        fs::create_dir_all(&session_dir).unwrap();
+        fs::write(
+            session_dir.join("chat.jsonl"),
+            r#"{"timestamp":"2025-01-10T10:00:00.000Z","message":{"id":"msg_123","model":"claude-opus-4-6","usage":{"input_tokens":100,"output_tokens":25,"cache_creation_input_tokens":10,"cache_read_input_tokens":5}},"costUSD":0.001}"#,
+        )
+        .unwrap();
+
+        let previous = env::var("CLAUDE_CONFIG_DIR").ok();
+        env::set_var("CLAUDE_CONFIG_DIR", claude_dir.join("projects"));
+        let shared = SharedArgs {
+            mode: CostMode::Display,
+            ..SharedArgs::default()
+        };
+        let entries = load_entries(&shared, None).unwrap();
+        if let Some(previous) = previous {
+            env::set_var("CLAUDE_CONFIG_DIR", previous);
+        } else {
+            env::remove_var("CLAUDE_CONFIG_DIR");
+        }
+        fs::remove_dir_all(&claude_dir).unwrap();
+
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].project.as_ref(), "project1");
+    }
+
+    #[test]
+    fn loads_daily_summaries_like_loaded_entry_aggregation() {
+        let _guard = CLAUDE_CONFIG_DIR_LOCK.lock().unwrap();
+        let claude_dir = temp_claude_dir("daily-fast-path");
+        let project_a_dir = claude_dir.join("projects/project-a/session-a");
+        let project_b_dir = claude_dir.join("projects/project-b/session-b");
+        fs::create_dir_all(&project_a_dir).unwrap();
+        fs::create_dir_all(&project_b_dir).unwrap();
+        fs::write(
+            project_a_dir.join("chat.jsonl"),
+            [
+                r#"{"timestamp":"2025-01-10T09:59:00.000Z","version":"not-semver","message":{"id":"bad","model":"claude-opus-4-6","usage":{"input_tokens":999,"output_tokens":999,"cache_creation_input_tokens":0,"cache_read_input_tokens":0}},"requestId":"bad","costUSD":9}"#,
+                r#"{"timestamp":"2025-01-10T10:00:00.000Z","version":"1.2.3","sessionId":"session-a","message":{"id":"msg_123","model":"claude-opus-4-6","usage":{"input_tokens":100,"output_tokens":25,"cache_creation_input_tokens":10,"cache_read_input_tokens":5}},"requestId":"req_456","costUSD":0.001}"#,
+                r#"{"timestamp":"2025-01-10T10:00:01.000Z","version":"1.2.3","sessionId":"session-a","message":{"id":"msg_123","model":"claude-opus-4-6","usage":{"input_tokens":100,"output_tokens":250,"cache_creation_input_tokens":10,"cache_read_input_tokens":5,"speed":"standard"}},"requestId":"req_456","costUSD":0.01}"#,
+                r#"{"timestamp":"2025-01-11T11:00:00.000Z","version":"1.2.3","sessionId":"session-a","message":{"id":"msg_789","model":"<synthetic>","usage":{"input_tokens":7,"output_tokens":3,"cache_creation_input_tokens":0,"cache_read_input_tokens":0}},"requestId":"req_789","costUSD":0.02}"#,
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+        fs::write(
+            project_b_dir.join("chat.jsonl"),
+            r#"{"timestamp":"2025-01-10T12:00:00.000Z","version":"1.2.3","sessionId":"session-b","message":{"id":"msg_b","model":"claude-sonnet-4-20250514","usage":{"input_tokens":20,"output_tokens":30,"cache_creation_input_tokens":4,"cache_read_input_tokens":2}},"requestId":"req_b","costUSD":0.04}"#,
+        )
+        .unwrap();
+
+        let previous = env::var("CLAUDE_CONFIG_DIR").ok();
+        env::set_var("CLAUDE_CONFIG_DIR", &claude_dir);
+        let shared = SharedArgs {
+            mode: CostMode::Display,
+            timezone: Some("UTC".to_string()),
+            ..SharedArgs::default()
+        };
+        let entries = load_entries(&shared, None).unwrap();
+        let daily = load_daily_summaries(&shared, None, false).unwrap();
+        let grouped_daily = load_daily_summaries(&shared, None, true).unwrap();
+        if let Some(previous) = previous {
+            env::set_var("CLAUDE_CONFIG_DIR", previous);
+        } else {
+            env::remove_var("CLAUDE_CONFIG_DIR");
+        }
+        fs::remove_dir_all(&claude_dir).unwrap();
+
+        let expected_daily = summarize_by_key(
+            &entries,
+            |entry| entry.date.clone(),
+            |key| (key.to_string(), None),
+        )
+        .unwrap();
+        assert_eq!(
+            daily.iter().map(summary_json).collect::<Vec<_>>(),
+            expected_daily
+                .iter()
+                .map(summary_json)
+                .collect::<Vec<_>>()
+        );
+
+        let expected_grouped_daily = summarize_by_key(
+            &entries,
+            |entry| format!("{}\0{}", entry.date, entry.project),
+            |key| {
+                let mut parts = key.split('\0');
+                (
+                    parts.next().unwrap_or_default().to_string(),
+                    parts.next().map(str::to_string),
+                )
+            },
+        )
+        .unwrap();
+        assert_eq!(
+            grouped_daily.iter().map(summary_json).collect::<Vec<_>>(),
+            expected_grouped_daily
+                .iter()
+                .map(summary_json)
+                .collect::<Vec<_>>()
+        );
     }
 
     #[test]
@@ -494,6 +656,44 @@ mod tests {
 
         assert_eq!(standard["daily"][0]["costUSD"], json!(0.000019));
         assert_eq!(fast["daily"][0]["costUSD"], json!(0.000038));
+    }
+
+    #[test]
+    fn prices_codex_gpt_5_4_like_typescript_adapter() {
+        let pricing = PricingMap::load_embedded();
+        let events = vec![CodexTokenUsageEvent {
+            session_id: "codex-session".to_string(),
+            timestamp: "2026-03-18T00:00:01.000Z".to_string(),
+            model: Some("gpt-5.4".to_string()),
+            input_tokens: 100,
+            cached_input_tokens: 40,
+            output_tokens: 10,
+            reasoning_output_tokens: 0,
+            total_tokens: 110,
+            is_fallback_model: false,
+        }];
+
+        let standard = adapter::codex::report_json(
+            &events,
+            AgentReportKind::Daily,
+            None,
+            &pricing,
+            cli::CodexSpeed::Standard,
+        )
+        .unwrap();
+        let fast = adapter::codex::report_json(
+            &events,
+            AgentReportKind::Daily,
+            None,
+            &pricing,
+            cli::CodexSpeed::Fast,
+        )
+        .unwrap();
+
+        assert!(
+            (standard["daily"][0]["costUSD"].as_f64().unwrap() - 0.00031).abs() < f64::EPSILON
+        );
+        assert!((fast["daily"][0]["costUSD"].as_f64().unwrap() - 0.00062).abs() < f64::EPSILON);
     }
 
     #[test]

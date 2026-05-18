@@ -19,9 +19,10 @@ use crate::{
     },
     color, filter_and_sort_summaries, filter_blocks_by_date, format_compact_utc_date,
     format_currency, format_number, format_remaining_time, format_rfc3339_millis,
-    group_project_output, identify_session_blocks, load_entries, print_active_block_detail,
-    print_blocks_table, print_json_or_jq, print_usage_table, session_summary_json, sort_blocks,
-    sort_summaries, summarize_by_key, summarize_summaries_by_bucket, summary_json,
+    group_project_output, identify_session_blocks, load_daily_summaries, load_entries,
+    print_active_block_detail, print_blocks_table, print_json_or_jq, print_usage_table,
+    session_summary_json, sort_blocks, sort_summaries, summarize_by_key,
+    summarize_summaries_by_bucket, summary_json,
     total_usage_tokens, totals_json, utc_now, wants_json, BucketKind, Color, Context, Result,
     SessionAccumulator, TimestampMs, DEFAULT_RECENT_DAYS, DEFAULT_SESSION_DURATION_HOURS,
     MILLIS_PER_DAY, MILLIS_PER_MINUTE,
@@ -29,23 +30,10 @@ use crate::{
 
 pub(crate) fn run_daily(args: DailyArgs) -> Result<()> {
     let shared = args.shared.clone();
-    let entries = load_entries(&shared, args.project.as_deref())?;
-    let mut rows = summarize_by_key(
-        &entries,
-        |entry| {
-            if args.instances || args.project.is_some() {
-                format!("{}\0{}", entry.date, entry.project)
-            } else {
-                entry.date.clone()
-            }
-        },
-        |key| {
-            let mut parts = key.split('\0');
-            (
-                parts.next().unwrap_or_default().to_string(),
-                parts.next().map(str::to_string),
-            )
-        },
+    let mut rows = load_daily_summaries(
+        &shared,
+        args.project.as_deref(),
+        args.instances || args.project.is_some(),
     )?;
     filter_and_sort_summaries(&mut rows, &shared, |row| {
         row.date.as_deref().unwrap_or_default()
