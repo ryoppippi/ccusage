@@ -1,6 +1,6 @@
 [package]
 name = "ccusage"
-version = "18.0.11"
+version = "19.0.3"
 edition = "2021"
 
 [[bin]]

@@ -1112,6 +1112,21 @@ mod tests {
     }
 
     #[test]
+    fn cargo_version_matches_npm_package_version() {
+        let package_json =
+            serde_json::from_str::<serde_json::Value>(include_str!("../../../apps/ccusage/package.json"))
+                .unwrap();
+
+        assert_eq!(
+            env!("CARGO_PKG_VERSION"),
+            package_json
+                .get("version")
+                .and_then(serde_json::Value::as_str)
+                .unwrap()
+        );
+    }
+
+    #[test]
     fn parses_claude_daily_options() {
         let cli = parse(&[
             "ccusage",
