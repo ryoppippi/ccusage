@@ -37,6 +37,9 @@ jobs:
       - name: Build PR ccusage
         run: nix develop --command pnpm --filter ccusage run build
 
+      - name: Stage PR native package
+        run: nix develop --command pnpm --filter ccusage run stage:native-package
+
       - name: Generate large ccusage fixture
         run: |
           nix develop --command pnpm exec bun apps/ccusage/scripts/generate-large-fixture.ts \
