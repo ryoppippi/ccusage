@@ -1,5 +1,7 @@
 use std::{env, fs, path::PathBuf};
 
+use serde_json::{Map, Value};
+
 const FALLBACK_PRICING_JSON: &str = "src/litellm-pricing-fallback.json";
 const LITELLM_PRICING_URL: &str =
     "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json";
@@ -20,6 +22,7 @@ fn main() {
             fallback_pricing_json()
         })
     };
+    let pricing_json = compact_pricing_json(&pricing_json).unwrap_or(pricing_json);
 
     fs::write(out_path, pricing_json).expect("write build-time pricing snapshot");
 }
@@ -43,4 +46,60 @@ fn fetch_pricing_json() -> std::io::Result<String> {
 
 fn fallback_pricing_json() -> String {
     fs::read_to_string(FALLBACK_PRICING_JSON).expect("read fallback pricing snapshot")
+}
+
+fn compact_pricing_json(json: &str) -> Option<String> {
+    let Value::Object(raw) = serde_json::from_str::<Value>(json).ok()? else {
+        return None;
+    };
+    let mut compact = Map::new();
+    for (model, pricing) in raw {
+        if !is_embedded_model(&model) {
+            continue;
+        }
+        let Value::Object(pricing) = pricing else {
+            continue;
+        };
+        let mut fields = Map::new();
+        for field in [
+            "input_cost_per_token",
+            "output_cost_per_token",
+            "cache_creation_input_token_cost",
+            "cache_read_input_token_cost",
+            "input_cost_per_token_above_200k_tokens",
+            "output_cost_per_token_above_200k_tokens",
+            "cache_creation_input_token_cost_above_200k_tokens",
+            "cache_read_input_token_cost_above_200k_tokens",
+            "max_input_tokens",
+            "provider_specific_entry",
+        ] {
+            let Some(value) = pricing.get(field) else {
+                continue;
+            };
+            if !value.is_null() {
+                fields.insert(field.to_string(), value.clone());
+            }
+        }
+        if fields.contains_key("input_cost_per_token")
+            && fields.contains_key("output_cost_per_token")
+        {
+            compact.insert(model, Value::Object(fields));
+        }
+    }
+    serde_json::to_string(&Value::Object(compact)).ok()
+}
+
+fn is_embedded_model(model: &str) -> bool {
+    model.starts_with("claude-")
+        || model.starts_with("anthropic.")
+        || model.starts_with("anthropic/")
+        || model.starts_with("us.anthropic.")
+        || model.starts_with("eu.anthropic.")
+        || model.starts_with("global.anthropic.")
+        || model.starts_with("jp.anthropic.")
+        || model.starts_with("au.anthropic.")
+        || model.starts_with("gpt-")
+        || model.starts_with("openai/")
+        || model.starts_with("azure/")
+        || model.starts_with("openrouter/openai/")
 }

@@ -2,7 +2,8 @@ use std::collections::HashMap;
 
 use serde::Deserialize;
 
-const BUILD_TIME_PRICING_JSON: &str = include_str!(concat!(env!("OUT_DIR"), "/litellm-pricing.json"));
+const BUILD_TIME_PRICING_JSON: &str =
+    include_str!(concat!(env!("OUT_DIR"), "/litellm-pricing.json"));
 const FALLBACK_PRICING_JSON: &str = include_str!("litellm-pricing-fallback.json");
 const LITELLM_PRICING_URL: &str =
     "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json";
@@ -468,7 +469,7 @@ fn fetch_pricing_json() -> std::io::Result<String> {
 
 #[cfg(test)]
 mod tests {
-    use super::{Pricing, PricingMap};
+    use super::{Pricing, PricingMap, BUILD_TIME_PRICING_JSON, FALLBACK_PRICING_JSON};
 
     #[test]
     fn loads_embedded_claude_pricing() {
@@ -505,7 +506,12 @@ mod tests {
         );
 
         assert!(pricing.find("gpt-with-cache").unwrap().cache_read_explicit);
-        assert!(!pricing.find("gpt-without-cache").unwrap().cache_read_explicit);
+        assert!(
+            !pricing
+                .find("gpt-without-cache")
+                .unwrap()
+                .cache_read_explicit
+        );
     }
 
     #[test]
@@ -541,6 +547,16 @@ mod tests {
         assert_eq!(gpt_55.cache_read, 0.5e-6);
         assert!(gpt_55.cache_read_explicit);
         assert_eq!(pricing.context_limit("gpt-5.5"), Some(1_050_000));
+    }
+
+    #[test]
+    fn embedded_build_time_pricing_is_compact() {
+        assert!(BUILD_TIME_PRICING_JSON.len() < 200_000);
+        assert!(FALLBACK_PRICING_JSON.len() < 30_000);
+        assert!(!BUILD_TIME_PRICING_JSON.contains("\"source\""));
+        assert!(!FALLBACK_PRICING_JSON.contains("\"source\""));
+        assert!(!BUILD_TIME_PRICING_JSON.contains("vertex_ai/"));
+        assert!(BUILD_TIME_PRICING_JSON.contains("claude-sonnet-4-20250514"));
     }
 
     #[test]
