@@ -3,9 +3,9 @@ import { resolve } from 'node:path';
 import process from 'node:process';
 
 const packageJson = JSON.parse(readFileSync(resolve(process.cwd(), 'package.json'), 'utf8'));
-const binaryPath = packageJson.bin?.ccusage;
+const binaryPath = packageJson.files?.find((file) => file.startsWith('bin/ccusage'));
 if (typeof binaryPath !== 'string') {
-	throw new TypeError('Native package bin.ccusage is not configured');
+	throw new TypeError('Native package binary file is not configured');
 }
 
 const resolvedBinaryPath = resolve(process.cwd(), binaryPath);

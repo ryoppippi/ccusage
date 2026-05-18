@@ -8,9 +8,6 @@
 		"url": "git+https://github.com/ryoppippi/ccusage.git",
 		"directory": "packages/ccusage-darwin-arm64"
 	},
-	"bin": {
-		"ccusage": "./bin/ccusage"
-	},
 	"files": [
 		"bin/ccusage"
 	],
