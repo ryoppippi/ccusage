@@ -9,12 +9,50 @@ export const CODEX_HOME_ENV = 'CODEX_HOME';
 const DEFAULT_CODEX_DIR = path.join(os.homedir(), '.codex');
 const DEFAULT_SESSION_SUBDIR = 'sessions';
 
+export type CodexSessionSource = {
+	homePath: string;
+	sessionsPath: string;
+	sourceRoot?: string;
+};
+
 export function getCodexHomePaths(): string[] {
 	return normalizePathList(process.env[CODEX_HOME_ENV], [DEFAULT_CODEX_DIR]);
 }
 
+function buildCodexSourceRootLabels(homePaths: readonly string[]): Map<string, string> {
+	if (homePaths.length < 2) {
+		return new Map();
+	}
+
+	const basenameCounts = new Map<string, number>();
+	for (const homePath of homePaths) {
+		const resolvedBasename = path.basename(homePath);
+		const basename = resolvedBasename === '' ? homePath : resolvedBasename;
+		basenameCounts.set(basename, (basenameCounts.get(basename) ?? 0) + 1);
+	}
+
+	return new Map(
+		homePaths.map((homePath) => {
+			const resolvedBasename = path.basename(homePath);
+			const basename = resolvedBasename === '' ? homePath : resolvedBasename;
+			const label = (basenameCounts.get(basename) ?? 0) > 1 ? homePath : basename;
+			return [homePath, label];
+		}),
+	);
+}
+
+export function getCodexSessionSources(): CodexSessionSource[] {
+	const homePaths = getCodexHomePaths();
+	const sourceRootLabels = buildCodexSourceRootLabels(homePaths);
+	return homePaths.map((homePath) => ({
+		homePath,
+		sessionsPath: path.join(homePath, DEFAULT_SESSION_SUBDIR),
+		sourceRoot: sourceRootLabels.get(homePath),
+	}));
+}
+
 export function getCodexSessionsPaths(): string[] {
-	return getCodexHomePaths().map((codexHome) => path.join(codexHome, DEFAULT_SESSION_SUBDIR));
+	return getCodexSessionSources().map((source) => source.sessionsPath);
 }
 
 export function getCodexSessionsPath(): string {
@@ -69,6 +107,29 @@ if (import.meta.vitest != null) {
 			expect(getCodexSessionsPaths()).toEqual([
 				fixture1.getPath('sessions'),
 				fixture2.getPath('sessions'),
+			]);
+		});
+
+		it('labels multiple CODEX_HOME entries for source-aware session reports', async () => {
+			await using fixture1 = await createFixture({
+				sessions: {},
+			});
+			await using fixture2 = await createFixture({
+				sessions: {},
+			});
+			vi.stubEnv(CODEX_HOME_ENV, `${fixture1.path},${fixture2.path}`);
+
+			expect(getCodexSessionSources()).toEqual([
+				{
+					homePath: path.resolve(fixture1.path),
+					sessionsPath: fixture1.getPath('sessions'),
+					sourceRoot: path.basename(fixture1.path),
+				},
+				{
+					homePath: path.resolve(fixture2.path),
+					sessionsPath: fixture2.getPath('sessions'),
+					sourceRoot: path.basename(fixture2.path),
+				},
 			]);
 		});
 	});

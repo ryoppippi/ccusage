@@ -19,6 +19,7 @@ export type ParsedTokenCountLine = {
 export type TokenUsageEvent = {
 	timestamp: string;
 	sessionId: string;
+	sourceRoot?: string;
 	model?: string;
 	isFallbackModel?: boolean;
 	inputTokens: number;
@@ -42,17 +43,20 @@ export type CodexGroup = {
 	models: Map<string, CodexModelUsage>;
 	reasoningOutputTokens: number;
 	lastActivity: string;
+	sourceRoot?: string;
 };
 
 export type CodexSpeed = 'standard' | 'fast';
 
 export type CodexWorkerData = IndexedWorkerData<'ccusage:codex-worker', string> & {
 	directoryPath: string;
+	sourceRoot?: string;
 };
 
 export type EncodedTokenUsageEvents = {
 	timestamps: string[];
 	sessionIds: string[];
+	sourceRoots: string[];
 	models: string[];
 	modelIndexes: Int32Array;
 	numbers: Float64Array;
@@ -84,6 +88,7 @@ export type CodexReportRow =
 	  }
 	| {
 			sessionId: string;
+			sourceRoot?: string;
 			lastActivity: string;
 			sessionFile: string;
 			directory: string;

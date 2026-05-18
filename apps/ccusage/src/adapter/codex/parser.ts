@@ -21,7 +21,7 @@ import { Result } from '@praha/byethrow';
 import { regex } from 'arkregex';
 import { createFixture } from 'fs-fixture';
 import { logger } from '../../logger.ts';
-import { getCodexSessionsPaths } from './paths.ts';
+import { getCodexSessionSources } from './paths.ts';
 
 const LEGACY_FALLBACK_MODEL = 'gpt-5';
 const CODEX_JSONL_MARKERS = ['turn_context', '"type":"token_count"', '"type": "token_count"'];
@@ -112,7 +112,7 @@ function subtractRawUsage(current: RawUsage, previous: RawUsage | null): RawUsag
 
 function convertToEventUsage(
 	raw: RawUsage,
-): Omit<TokenUsageEvent, 'timestamp' | 'sessionId' | 'model'> {
+): Omit<TokenUsageEvent, 'timestamp' | 'sessionId' | 'sourceRoot' | 'model'> {
 	const cached = Math.min(raw.cached_input_tokens, raw.input_tokens);
 	return {
 		inputTokens: raw.input_tokens,
@@ -132,7 +132,7 @@ function convertToEventUsage(
 
 function createTokenUsageEventKey(event: TokenUsageEvent): string {
 	const separator = TOKEN_USAGE_EVENT_KEY_SEPARATOR;
-	return `${event.timestamp}${separator}${event.model ?? ''}${separator}${event.inputTokens}${separator}${event.cachedInputTokens}${separator}${event.outputTokens}${separator}${event.reasoningOutputTokens}${separator}${event.totalTokens}`;
+	return `${event.sourceRoot ?? ''}${separator}${event.timestamp}${separator}${event.model ?? ''}${separator}${event.inputTokens}${separator}${event.cachedInputTokens}${separator}${event.outputTokens}${separator}${event.reasoningOutputTokens}${separator}${event.totalTokens}`;
 }
 
 function deduplicateTokenUsageEvents(events: TokenUsageEvent[]): TokenUsageEvent[] {
@@ -200,6 +200,7 @@ function extractTurnContextModelFast(line: string): string | undefined {
 async function parseCodexSessionFile(
 	directoryPath: string,
 	file: string,
+	sourceRoot?: string,
 ): Promise<TokenUsageEvent[]> {
 	const relativeSessionPath = path.relative(directoryPath, file);
 	const normalizedSessionPath = relativeSessionPath.split(path.sep).join('/');
@@ -249,6 +250,7 @@ async function parseCodexSessionFile(
 
 		events.push({
 			sessionId,
+			...(sourceRoot == null ? {} : { sourceRoot }),
 			timestamp: parsed.timestamp,
 			model,
 			...usage,
@@ -338,6 +340,7 @@ function getCodexWorkerThreadCount(fileCount: number): number {
 async function collectCodexEventsWithWorkers(
 	directoryPath: string,
 	files: string[],
+	sourceRoot?: string,
 ): Promise<TokenUsageEvent[] | null> {
 	const workerCount = getCodexWorkerThreadCount(files.length);
 	const fileEvents = await collectIndexedFileWorkerResults<
@@ -353,6 +356,7 @@ async function collectCodexEventsWithWorkers(
 			({
 				kind: 'ccusage:codex-worker',
 				directoryPath,
+				...(sourceRoot == null ? {} : { sourceRoot }),
 				items,
 			}) satisfies CodexWorkerData,
 	});
@@ -362,6 +366,7 @@ async function collectCodexEventsWithWorkers(
 function encodeTokenUsageEvents(events: TokenUsageEvent[]): EncodedTokenUsageEvents {
 	const timestamps: string[] = [];
 	const sessionIds: string[] = [];
+	const sourceRoots: string[] = [];
 	const models: string[] = [];
 	const modelIndexes = new Int32Array(events.length);
 	const numbers = new Float64Array(events.length * ENCODED_CODEX_EVENT_NUMBER_STRIDE);
@@ -372,6 +377,7 @@ function encodeTokenUsageEvents(events: TokenUsageEvent[]): EncodedTokenUsageEve
 		const event = events[index]!;
 		timestamps.push(event.timestamp);
 		sessionIds.push(event.sessionId);
+		sourceRoots.push(event.sourceRoot ?? '');
 		if (event.model == null) {
 			modelIndexes[index] = -1;
 		} else {
@@ -393,7 +399,7 @@ function encodeTokenUsageEvents(events: TokenUsageEvent[]): EncodedTokenUsageEve
 		flags[index] = event.isFallbackModel === true ? 1 : 0;
 	}
 
-	return { timestamps, sessionIds, models, modelIndexes, numbers, flags };
+	return { timestamps, sessionIds, sourceRoots, models, modelIndexes, numbers, flags };
 }
 
 function decodeTokenUsageEvents(encoded: EncodedTokenUsageEvents): TokenUsageEvent[] {
@@ -404,6 +410,7 @@ function decodeTokenUsageEvents(encoded: EncodedTokenUsageEvents): TokenUsageEve
 		events.push({
 			timestamp: encoded.timestamps[index]!,
 			sessionId: encoded.sessionIds[index]!,
+			...(encoded.sourceRoots[index] === '' ? {} : { sourceRoot: encoded.sourceRoots[index] }),
 			...(modelIndex >= 0 ? { model: encoded.models[modelIndex] } : {}),
 			inputTokens: encoded.numbers[numberOffset] ?? 0,
 			cachedInputTokens: encoded.numbers[numberOffset + 1] ?? 0,
@@ -418,6 +425,7 @@ function decodeTokenUsageEvents(encoded: EncodedTokenUsageEvents): TokenUsageEve
 
 async function loadTokenUsageEventsFromDirectory(
 	directoryPath: string,
+	sourceRoot?: string,
 ): Promise<TokenUsageEvent[]> {
 	const statResult = await Result.try({
 		try: async () => stat(directoryPath),
@@ -428,20 +436,22 @@ async function loadTokenUsageEventsFromDirectory(
 	}
 
 	const files = await collectFilesRecursive(directoryPath, { extension: '.jsonl' });
-	const workerEvents = await collectCodexEventsWithWorkers(directoryPath, files);
+	const workerEvents = await collectCodexEventsWithWorkers(directoryPath, files, sourceRoot);
 	if (workerEvents != null) {
 		return workerEvents.sort((a, b) => compareStrings(a.timestamp, b.timestamp));
 	}
 
 	const fileEvents = await Promise.all(
-		files.map(async (file) => parseCodexSessionFile(directoryPath, file)),
+		files.map(async (file) => parseCodexSessionFile(directoryPath, file, sourceRoot)),
 	);
 	return fileEvents.flat().sort((a, b) => compareStrings(a.timestamp, b.timestamp));
 }
 
 export async function loadTokenUsageEvents(): Promise<TokenUsageEvent[]> {
 	const directoryEvents = await Promise.all(
-		getCodexSessionsPaths().map(loadTokenUsageEventsFromDirectory),
+		getCodexSessionSources().map(async (source) =>
+			loadTokenUsageEventsFromDirectory(source.sessionsPath, source.sourceRoot),
+		),
 	);
 	return deduplicateTokenUsageEvents(directoryEvents.flat()).sort((a, b) =>
 		compareStrings(a.timestamp, b.timestamp),
@@ -452,7 +462,9 @@ async function runCodexWorker(data: CodexWorkerData): Promise<void> {
 	const results = [];
 	const transferList: ArrayBuffer[] = [];
 	for (const { index, item } of data.items) {
-		const result = encodeTokenUsageEvents(await parseCodexSessionFile(data.directoryPath, item));
+		const result = encodeTokenUsageEvents(
+			await parseCodexSessionFile(data.directoryPath, item, data.sourceRoot),
+		);
 		transferList.push(
 			result.modelIndexes.buffer as ArrayBuffer,
 			result.numbers.buffer as ArrayBuffer,
@@ -766,6 +778,50 @@ if (import.meta.vitest != null) {
 			await expect(loadTokenUsageEvents()).resolves.toMatchObject([
 				{ sessionId: 'a', model: 'gpt-5.1', inputTokens: 10 },
 				{ sessionId: 'b', model: 'gpt-5.2', inputTokens: 20 },
+			]);
+		});
+
+		it('keeps identical events from different CODEX_HOME roots separate', async () => {
+			const sessionLines = [
+				JSON.stringify({
+					timestamp: '2026-01-01T00:00:00.000Z',
+					type: 'turn_context',
+					payload: { model: 'gpt-5.2' },
+				}),
+				JSON.stringify({
+					timestamp: '2026-01-01T00:00:01.000Z',
+					type: 'event_msg',
+					payload: {
+						type: 'token_count',
+						info: {
+							last_token_usage: {
+								input_tokens: 10,
+								output_tokens: 1,
+								total_tokens: 11,
+							},
+						},
+					},
+				}),
+			].join('\n');
+			await using fixture1 = await createFixture({
+				sessions: {
+					'shared.jsonl': sessionLines,
+				},
+			});
+			await using fixture2 = await createFixture({
+				sessions: {
+					'shared.jsonl': sessionLines,
+				},
+			});
+			vi.stubEnv('CODEX_HOME', `${fixture1.path},${fixture2.path}`);
+
+			const events = await loadTokenUsageEvents();
+
+			expect(events).toHaveLength(2);
+			expect(new Set(events.map((event) => event.sourceRoot)).size).toBe(2);
+			expect(events).toMatchObject([
+				{ sessionId: 'shared', model: 'gpt-5.2', inputTokens: 10 },
+				{ sessionId: 'shared', model: 'gpt-5.2', inputTokens: 10 },
 			]);
 		});
 

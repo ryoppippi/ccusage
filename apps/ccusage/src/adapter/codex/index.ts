@@ -1,5 +1,6 @@
 import type { AdapterContext, AdapterOptions, AgentUsageRow, ReportKind } from '../types.ts';
 import type { CodexGroup, CodexModelUsage, CodexReportRow } from './types.ts';
+import path from 'node:path';
 import { isDirectorySyncSafe } from '@ccusage/internal/fs';
 import { LiteLLMPricingFetcher } from '@ccusage/internal/pricing';
 import { compareStrings } from '@ccusage/internal/sort';
@@ -69,14 +70,19 @@ async function aggregateCodexUsageGroups(
 					: kind === 'monthly'
 						? formatMonthKey(event.timestamp, options.timezone)
 						: date;
-			const group = groups.get(period) ?? {
+			const groupKey =
+				kind === 'session' && event.sourceRoot != null
+					? `${event.sourceRoot}\0${event.sessionId}`
+					: period;
+			const group = groups.get(groupKey) ?? {
 				row: createEmptyRow(period, 'codex'),
 				models: new Map<string, CodexModelUsage>(),
 				reasoningOutputTokens: 0,
 				lastActivity: event.timestamp,
+				...(kind === 'session' && event.sourceRoot != null ? { sourceRoot: event.sourceRoot } : {}),
 			};
-			if (!groups.has(period)) {
-				groups.set(period, group);
+			if (!groups.has(groupKey)) {
+				groups.set(groupKey, group);
 			}
 
 			group.row.inputTokens += event.inputTokens;
@@ -147,8 +153,9 @@ export async function loadCodexReportRows(
 	context: AdapterContext,
 ): Promise<CodexReportRow[]> {
 	const { groups, pricingByModel } = await aggregateCodexUsageGroups(kind, options, context);
-	return Array.from(groups.entries(), ([period, group]) => {
+	return Array.from(groups.values(), (group) => {
 		const { row, reasoningOutputTokens, lastActivity } = group;
+		const period = row.period;
 		const models: Record<string, CodexModelUsage> = {};
 		for (const [model, usage] of group.models) {
 			models[model] = { ...usage };
@@ -169,11 +176,19 @@ export async function loadCodexReportRows(
 			return { month: period, ...base };
 		}
 		const separatorIndex = period.lastIndexOf('/');
+		const relativeDirectory = separatorIndex >= 0 ? period.slice(0, separatorIndex) : '';
+		const directory =
+			group.sourceRoot == null || group.sourceRoot === ''
+				? relativeDirectory
+				: relativeDirectory === ''
+					? group.sourceRoot
+					: `${group.sourceRoot}/${relativeDirectory}`;
 		return {
 			sessionId: period,
+			...(group.sourceRoot == null ? {} : { sourceRoot: group.sourceRoot }),
 			lastActivity,
 			sessionFile: separatorIndex >= 0 ? period.slice(separatorIndex + 1) : period,
-			directory: separatorIndex >= 0 ? period.slice(0, separatorIndex) : '',
+			directory,
 			...base,
 		};
 	}).sort((a, b) => {
@@ -373,6 +388,73 @@ if (import.meta.vitest != null) {
 				},
 			});
 			expect(rows[0]!.costUSD).toBeCloseTo(0.000115);
+		});
+
+		it('keeps identical session ids from different CODEX_HOME roots separate', async () => {
+			const sessionLines = [
+				JSON.stringify({
+					timestamp: '2026-01-03T00:00:00.000Z',
+					type: 'turn_context',
+					payload: { model: 'gpt-5' },
+				}),
+				JSON.stringify({
+					timestamp: '2026-01-03T00:00:01.000Z',
+					type: 'event_msg',
+					payload: {
+						type: 'token_count',
+						info: {
+							last_token_usage: {
+								input_tokens: 100,
+								cached_input_tokens: 10,
+								output_tokens: 20,
+								reasoning_output_tokens: 5,
+								total_tokens: 120,
+							},
+						},
+					},
+				}),
+			].join('\n');
+			await using fixture1 = await createFixture({
+				sessions: {
+					'project/shared.jsonl': sessionLines,
+				},
+			});
+			await using fixture2 = await createFixture({
+				sessions: {
+					'project/shared.jsonl': sessionLines,
+				},
+			});
+
+			vi.stubEnv('CODEX_HOME', `${fixture1.path},${fixture2.path}`);
+			const rows = await loadCodexReportRows(
+				'session',
+				{ offline: true, timezone: 'UTC' },
+				{
+					pricingFetcher: new LiteLLMPricingFetcher({
+						offline: true,
+						offlineLoader: async () => ({
+							'gpt-5': {
+								input_cost_per_token: 1e-6,
+								output_cost_per_token: 2e-6,
+								cache_read_input_token_cost: 1e-7,
+							},
+						}),
+					}),
+				},
+			);
+
+			expect(rows).toHaveLength(2);
+			expect(rows.map((row) => ('sourceRoot' in row ? row.sourceRoot : undefined))).toEqual([
+				path.basename(fixture1.path),
+				path.basename(fixture2.path),
+			]);
+			expect(rows.map((row) => ('directory' in row ? row.directory : undefined))).toEqual([
+				`${path.basename(fixture1.path)}/project`,
+				`${path.basename(fixture2.path)}/project`,
+			]);
+			expect(rows.every((row) => 'sessionId' in row && row.sessionId === 'project/shared')).toBe(
+				true,
+			);
 		});
 
 		it.skipIf(!isDirectorySyncSafe(getCodexSessionsPath()))(
