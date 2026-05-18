@@ -1,6 +1,8 @@
 use std::{
     collections::HashMap,
+    fs,
     io::{self, Read},
+    path::Path,
     sync::Arc,
 };
 
@@ -406,6 +408,7 @@ pub(crate) fn run_statusline(args: StatuslineArgs) -> Result<()> {
 
     let context_info = hook
         .context_window
+        .or_else(|| calculate_context_tokens_from_transcript(Path::new(&hook.transcript_path)))
         .as_ref()
         .map(|context| format_context(context.total_input_tokens, context.context_window_size));
 
@@ -448,9 +451,51 @@ fn calculate_session_cost(session_id: &str, shared: &SharedArgs) -> Result<f64> 
         .sum())
 }
 
+fn calculate_context_tokens_from_transcript(path: &Path) -> Option<HookContext> {
+    let content = fs::read_to_string(path).ok()?;
+    for line in content.lines().rev() {
+        let line = line.trim();
+        if line.is_empty() {
+            continue;
+        }
+        let Ok(value) = serde_json::from_str::<serde_json::Value>(line) else {
+            continue;
+        };
+        if value.get("type").and_then(serde_json::Value::as_str) != Some("assistant") {
+            continue;
+        }
+        let Some(usage) = value
+            .get("message")
+            .and_then(|message| message.get("usage"))
+        else {
+            continue;
+        };
+        let Some(input_tokens) = usage
+            .get("input_tokens")
+            .and_then(serde_json::Value::as_u64)
+        else {
+            continue;
+        };
+        let cache_creation = usage
+            .get("cache_creation_input_tokens")
+            .and_then(serde_json::Value::as_u64)
+            .unwrap_or_default();
+        let cache_read = usage
+            .get("cache_read_input_tokens")
+            .and_then(serde_json::Value::as_u64)
+            .unwrap_or_default();
+        return Some(HookContext {
+            total_input_tokens: input_tokens + cache_creation + cache_read,
+            context_window_size: 200_000,
+        });
+    }
+    None
+}
+
 #[derive(Debug, Deserialize)]
 struct StatuslineHook {
     session_id: String,
+    transcript_path: String,
     model: HookModel,
     cost: Option<HookCost>,
     context_window: Option<HookContext>,
@@ -470,4 +515,40 @@ struct HookCost {
 struct HookContext {
     total_input_tokens: u64,
     context_window_size: u64,
+}
+
+#[cfg(test)]
+mod tests {
+    use std::{env, fs, time::SystemTime};
+
+    use super::*;
+
+    fn temp_statusline_path(name: &str) -> std::path::PathBuf {
+        let nanos = SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        env::temp_dir().join(format!("ccusage-statusline-{name}-{nanos}.jsonl"))
+    }
+
+    #[test]
+    fn calculates_context_tokens_from_latest_assistant_transcript_line() {
+        let path = temp_statusline_path("context");
+        fs::write(
+            &path,
+            [
+                r#"{"type":"assistant","message":{"usage":{"input_tokens":1000,"output_tokens":999}}}"#,
+                r#"not json"#,
+                r#"{"type":"assistant","message":{"usage":{"input_tokens":2000,"cache_creation_input_tokens":100,"cache_read_input_tokens":50,"output_tokens":888}}}"#,
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+
+        let context = calculate_context_tokens_from_transcript(&path).unwrap();
+        fs::remove_file(&path).unwrap();
+
+        assert_eq!(context.total_input_tokens, 2150);
+        assert_eq!(context.context_window_size, 200_000);
+    }
 }
