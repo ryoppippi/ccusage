@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { spawnSync } from 'node:child_process';
+import { spawn } from 'node:child_process';
 import { chmodSync, statSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import process from 'node:process';
@@ -25,13 +25,17 @@ type NativeSpawnResult = {
 	status: number | null;
 };
 
-type NativeSpawner = (command: string, args: string[]) => NativeSpawnResult;
+type NativeSpawner = (command: string, args: string[]) => Promise<NativeSpawnResult>;
 
 type BunLike = {
-	spawnSync?: (
+	spawn?: (
 		command: string[],
 		options: { stderr: 'inherit'; stdout: 'inherit' },
-	) => { exitCode: number; signalCode?: NodeJS.Signals | null };
+	) => {
+		exited: PromiseLike<number>;
+		exitCode: number | null;
+		signalCode?: NodeJS.Signals | null;
+	};
 };
 
 function getNativePackageName(
@@ -152,22 +156,42 @@ function ensureNativeBinaryExecutable({
 function createNativeSpawner(
 	bun: BunLike | undefined = (globalThis as typeof globalThis & { Bun?: BunLike }).Bun,
 ): NativeSpawner {
-	if (bun?.spawnSync != null) {
-		return (command, args) => {
-			const result = bun.spawnSync!([command, ...args], {
+	if (bun?.spawn != null) {
+		return async (command, args) => {
+			const result = bun.spawn!([command, ...args], {
 				stderr: 'inherit',
 				stdout: 'inherit',
 			});
+			await result.exited;
 			return {
 				signal: result.signalCode ?? null,
 				status: result.exitCode,
 			};
 		};
 	}
-	return (command, args) => spawnSync(command, args, { stdio: 'inherit' });
+	return async (command, args) =>
+		new Promise((resolve) => {
+			const child = spawn(command, args, { stdio: 'inherit' });
+			child.on('error', (error) => {
+				resolve({
+					error,
+					signal: null,
+					status: null,
+				});
+			});
+			child.on('exit', (status, signal) => {
+				resolve({
+					signal,
+					status,
+				});
+			});
+		});
 }
 
-function runCli(argv: string[], spawnNative: NativeSpawner = createNativeSpawner()): number {
+async function runCli(
+	argv: string[],
+	spawnNative: NativeSpawner = createNativeSpawner(),
+): Promise<number> {
 	const runtime = resolveCliRuntime({ argv });
 	if ('errorMessage' in runtime) {
 		process.stderr.write(runtime.errorMessage);
@@ -182,7 +206,7 @@ function runCli(argv: string[], spawnNative: NativeSpawner = createNativeSpawner
 		return 1;
 	}
 
-	const result = spawnNative(runtime.command, runtime.args);
+	const result = await spawnNative(runtime.command, runtime.args);
 	if (result.error != null) {
 		process.stderr.write(`${result.error.message}\n`);
 		return 1;
@@ -195,7 +219,7 @@ function runCli(argv: string[], spawnNative: NativeSpawner = createNativeSpawner
 }
 
 if (import.meta.vitest == null) {
-	process.exitCode = runCli(process.argv.slice(2));
+	process.exitCode = await runCli(process.argv.slice(2));
 }
 
 if (import.meta.vitest != null) {
@@ -296,17 +320,18 @@ if (import.meta.vitest != null) {
 	});
 
 	describe('createNativeSpawner', () => {
-		it('uses Bun.spawnSync when running under Bun', () => {
-			const spawnSyncMock = vi.fn(() => ({
+		it('uses Bun.spawn when running under Bun', async () => {
+			const spawnMock = vi.fn(() => ({
+				exited: Promise.resolve(0),
 				exitCode: 0,
 			}));
-			const spawnNative = createNativeSpawner({ spawnSync: spawnSyncMock });
+			const spawnNative = createNativeSpawner({ spawn: spawnMock });
 
-			expect(spawnNative('/native/bin/ccusage', ['claude', '--offline'])).toEqual({
+			await expect(spawnNative('/native/bin/ccusage', ['claude', '--offline'])).resolves.toEqual({
 				signal: null,
 				status: 0,
 			});
-			expect(spawnSyncMock).toHaveBeenCalledWith(['/native/bin/ccusage', 'claude', '--offline'], {
+			expect(spawnMock).toHaveBeenCalledWith(['/native/bin/ccusage', 'claude', '--offline'], {
 				stderr: 'inherit',
 				stdout: 'inherit',
 			});
