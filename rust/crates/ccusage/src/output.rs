@@ -1,4 +1,7 @@
-use std::{collections::BTreeMap, io::Write};
+use std::{
+    collections::BTreeMap,
+    io::{BufWriter, Write},
+};
 
 use serde_json::{json, Value};
 
@@ -107,15 +110,22 @@ pub(crate) fn print_json_or_jq(value: Value, jq: Option<&str>) -> Result<()> {
             .stdout(std::process::Stdio::inherit())
             .spawn()
             .map_err(|error| cli_error(format!("failed to run jq: {error}")))?;
-        if let Some(mut stdin) = child.stdin.take() {
-            stdin.write_all(serde_json::to_string(&value)?.as_bytes())?;
+        if let Some(stdin) = child.stdin.take() {
+            let mut stdin = BufWriter::new(stdin);
+            serde_json::to_writer(&mut stdin, &value)?;
+            stdin.write_all(b"\n")?;
+            stdin.flush()?;
         }
         let status = child.wait()?;
         if !status.success() {
             return Err(cli_error("jq failed"));
         }
     } else {
-        println!("{}", serde_json::to_string_pretty(&value)?);
+        let stdout = std::io::stdout();
+        let mut stdout = BufWriter::new(stdout.lock());
+        serde_json::to_writer_pretty(&mut stdout, &value)?;
+        stdout.write_all(b"\n")?;
+        stdout.flush()?;
     }
     Ok(())
 }
