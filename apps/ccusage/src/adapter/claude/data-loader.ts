@@ -2639,6 +2639,7 @@ export async function loadSessionUsageById(
 	const calculateCost = await createCostCalculator(mode, fetcher);
 
 	const entries: Array<UsageData | undefined> = [];
+	const processedEntries = createDedupedEntryIndex();
 	let totalCost = 0;
 
 	await processJSONLFileByLine(file, (line) => {
@@ -2652,9 +2653,41 @@ export async function loadSessionUsageById(
 				return;
 			}
 
+			const uniqueHash = createUniqueHash(data);
+			const usage = data.message.usage;
+			const tokenTotal = sumUsageTokens(usage);
+			const hasSpeed = usage.speed != null;
+			let existingEntryIndex: number | undefined;
+			if (uniqueHash != null) {
+				existingEntryIndex = processedEntries[uniqueHash];
+				if (existingEntryIndex != null) {
+					const existingUsage = entries[existingEntryIndex]!.message.usage;
+					if (
+						!shouldReplaceEntryMetadata(
+							{ tokenTotal, hasSpeed },
+							{
+								tokenTotal: sumUsageTokens(existingUsage),
+								hasSpeed: existingUsage.speed != null,
+							},
+						)
+					) {
+						return;
+					}
+				}
+			}
+
 			const immediateCost = getImmediateCostForEntry(data, mode);
-			totalCost += immediateCost ?? calculateCost(data);
-			entries.push(data);
+			const cost = immediateCost ?? calculateCost(data);
+			if (existingEntryIndex != null) {
+				const existingEntry = entries[existingEntryIndex]!;
+				totalCost -= getImmediateCostForEntry(existingEntry, mode) ?? calculateCost(existingEntry);
+				totalCost += cost;
+				entries[existingEntryIndex] = data;
+			} else {
+				totalCost += cost;
+				entries.push(data);
+				markDedupedEntryMetadata(processedEntries, { uniqueHash }, entries.length - 1);
+			}
 		} catch {
 			// Skip invalid JSON lines
 		}
@@ -3166,6 +3199,72 @@ if (import.meta.vitest != null) {
 			expect(result).not.toBeNull();
 			expect(result?.totalCost).toBe(1.5);
 			expect(result?.entries).toHaveLength(2);
+		});
+
+		it('deduplicates repeated usage rows for a specific session', async () => {
+			await using fixture = await createFixture({
+				'.claude': {
+					projects: {
+						'test-project': {
+							'session-123.jsonl': `${JSON.stringify({
+								timestamp: '2024-01-01T00:00:00Z',
+								sessionId: 'session-123',
+								requestId: 'req_1',
+								message: {
+									id: 'msg_1',
+									usage: {
+										input_tokens: 100,
+										output_tokens: 50,
+										cache_creation_input_tokens: 10,
+										cache_read_input_tokens: 20,
+									},
+									model: 'claude-sonnet-4-20250514',
+								},
+								costUSD: 0.5,
+							})}\n${JSON.stringify({
+								timestamp: '2024-01-01T00:00:01Z',
+								sessionId: 'session-123',
+								requestId: 'req_1',
+								message: {
+									id: 'msg_1',
+									usage: {
+										input_tokens: 100,
+										output_tokens: 50,
+										cache_creation_input_tokens: 10,
+										cache_read_input_tokens: 20,
+									},
+									model: 'claude-sonnet-4-20250514',
+								},
+								costUSD: 0.5,
+							})}\n${JSON.stringify({
+								timestamp: '2024-01-01T01:00:00Z',
+								sessionId: 'session-123',
+								requestId: 'req_2',
+								message: {
+									id: 'msg_2',
+									usage: {
+										input_tokens: 200,
+										output_tokens: 100,
+										cache_creation_input_tokens: 20,
+										cache_read_input_tokens: 40,
+									},
+									model: 'claude-sonnet-4-20250514',
+								},
+								costUSD: 1.0,
+							})}`,
+						},
+					},
+				},
+			});
+
+			vi.stubEnv('CLAUDE_CONFIG_DIR', fixture.getPath('.claude'));
+
+			const result = await loadSessionUsageById('session-123', { mode: 'display' });
+
+			expect(result).not.toBeNull();
+			expect(result?.totalCost).toBe(1.5);
+			expect(result?.entries).toHaveLength(2);
+			expect(result?.entries.map((entry) => entry.requestId)).toEqual(['req_1', 'req_2']);
 		});
 
 		it('returns null for non-existent session', async () => {
