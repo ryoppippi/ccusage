@@ -1,21 +1,9 @@
 #!/usr/bin/env node
-import { spawn } from 'node:child_process';
-import { accessSync, constants, statSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
 import { createRequire } from 'node:module';
 import process from 'node:process';
 
 const require = createRequire(import.meta.url);
-
-const nativePackageNames = new Map<string, string>(
-	Object.entries({
-		'darwin-arm64': '@ccusage/ccusage-darwin-arm64',
-		'darwin-x64': '@ccusage/ccusage-darwin-x64',
-		'linux-arm64': '@ccusage/ccusage-linux-arm64',
-		'linux-x64': '@ccusage/ccusage-linux-x64',
-		'win32-arm64': '@ccusage/ccusage-win32-arm64',
-		'win32-x64': '@ccusage/ccusage-win32-x64',
-	} as const satisfies Record<string, string>),
-);
 
 type CliRuntime =
 	| {
@@ -26,23 +14,40 @@ type CliRuntime =
 			errorMessage: string;
 	  };
 
-function isExecutable(path: string): boolean {
-	try {
-		if (!statSync(path).isFile()) {
-			return false;
-		}
-		accessSync(path, constants.X_OK);
-		return true;
-	} catch {
-		return false;
-	}
-}
-
 function getNativePackageName(
 	platform: string = process.platform,
 	arch: string = process.arch,
 ): string | undefined {
-	return nativePackageNames.get(`${platform}-${arch}`);
+	if (platform === 'darwin') {
+		if (arch === 'arm64') {
+			return '@ccusage/ccusage-darwin-arm64';
+		}
+		if (arch === 'x64') {
+			return '@ccusage/ccusage-darwin-x64';
+		}
+		return undefined;
+	}
+
+	if (platform === 'linux') {
+		if (arch === 'arm64') {
+			return '@ccusage/ccusage-linux-arm64';
+		}
+		if (arch === 'x64') {
+			return '@ccusage/ccusage-linux-x64';
+		}
+		return undefined;
+	}
+
+	if (platform === 'win32') {
+		if (arch === 'arm64') {
+			return '@ccusage/ccusage-win32-arm64';
+		}
+		if (arch === 'x64') {
+			return '@ccusage/ccusage-win32-x64';
+		}
+	}
+
+	return undefined;
 }
 
 function getNativeBinarySubpath(platform: string = process.platform): string {
@@ -51,12 +56,10 @@ function getNativeBinarySubpath(platform: string = process.platform): string {
 
 function resolveNativeBinary({
 	arch = process.arch,
-	isExecutablePath = isExecutable,
 	platform = process.platform,
 	resolvePath = (id) => require.resolve(id),
 }: {
 	arch?: string;
-	isExecutablePath?: (path: string) => boolean;
 	platform?: string;
 	resolvePath?: (id: string) => string;
 } = {}): string | undefined {
@@ -66,8 +69,7 @@ function resolveNativeBinary({
 	}
 
 	try {
-		const binaryPath = resolvePath(`${packageName}/${getNativeBinarySubpath(platform)}`);
-		return isExecutablePath(binaryPath) ? binaryPath : undefined;
+		return resolvePath(`${packageName}/${getNativeBinarySubpath(platform)}`);
 	} catch {
 		return undefined;
 	}
@@ -96,32 +98,27 @@ function resolveCliRuntime({
 	};
 }
 
-async function runCli(argv: string[]): Promise<number> {
+function runCli(argv: string[]): number {
 	const runtime = resolveCliRuntime({ argv });
 	if ('errorMessage' in runtime) {
 		process.stderr.write(runtime.errorMessage);
 		return 1;
 	}
 
-	const child = spawn(runtime.command, runtime.args, { stdio: 'inherit' });
-
-	return new Promise((resolve) => {
-		child.on('error', (error) => {
-			process.stderr.write(`${error.message}\n`);
-			resolve(1);
-		});
-		child.on('exit', (code, signal) => {
-			if (signal != null) {
-				process.kill(process.pid, signal);
-				return;
-			}
-			resolve(code ?? 1);
-		});
-	});
+	const result = spawnSync(runtime.command, runtime.args, { stdio: 'inherit' });
+	if (result.error != null) {
+		process.stderr.write(`${result.error.message}\n`);
+		return 1;
+	}
+	if (result.signal != null) {
+		process.kill(process.pid, result.signal);
+		return 1;
+	}
+	return result.status ?? 1;
 }
 
 if (import.meta.vitest == null) {
-	process.exitCode = await runCli(process.argv.slice(2));
+	process.exitCode = runCli(process.argv.slice(2));
 }
 
 if (import.meta.vitest != null) {
@@ -130,7 +127,6 @@ if (import.meta.vitest != null) {
 			expect(
 				resolveNativeBinary({
 					arch: 'arm64',
-					isExecutablePath: (path) => path === '/native/bin/ccusage',
 					platform: 'darwin',
 					resolvePath: (id) => {
 						expect(id).toBe('@ccusage/ccusage-darwin-arm64/bin/ccusage');
@@ -144,7 +140,6 @@ if (import.meta.vitest != null) {
 			expect(
 				resolveNativeBinary({
 					arch: 'arm64',
-					isExecutablePath: (path) => path === 'C:\\native\\bin\\ccusage.exe',
 					platform: 'win32',
 					resolvePath: (id) => {
 						expect(id).toBe('@ccusage/ccusage-win32-arm64/bin/ccusage.exe');
