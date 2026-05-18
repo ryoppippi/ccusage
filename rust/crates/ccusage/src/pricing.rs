@@ -2,7 +2,8 @@ use std::collections::HashMap;
 
 use serde::Deserialize;
 
-const EMBEDDED_PRICING_JSON: &str = include_str!("claude-pricing.json");
+const BUILD_TIME_PRICING_JSON: &str = include_str!(concat!(env!("OUT_DIR"), "/litellm-pricing.json"));
+const FALLBACK_PRICING_JSON: &str = include_str!("litellm-pricing-fallback.json");
 const LITELLM_PRICING_URL: &str =
     "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json";
 const PRICING_FETCH_TIMEOUT_SECONDS: u64 = 10;
@@ -49,7 +50,8 @@ struct ProviderSpecificEntry {
 impl PricingMap {
     pub(crate) fn load_embedded() -> Self {
         let mut map = Self::default();
-        map.load_json(EMBEDDED_PRICING_JSON);
+        map.load_json(BUILD_TIME_PRICING_JSON);
+        map.load_json(FALLBACK_PRICING_JSON);
         map.put_fallback_pricing();
         map
     }
