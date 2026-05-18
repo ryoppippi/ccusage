@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 
 import { execFileSync } from 'node:child_process';
-import { mkdir, readdir, stat } from 'node:fs/promises';
+import { mkdir, readdir, readFile, stat, writeFile } from 'node:fs/promises';
 import { join, relative, resolve } from 'node:path';
 import process, { execPath, platform } from 'node:process';
 import { createFixture } from 'fs-fixture';
@@ -120,6 +120,18 @@ function rustBinaryEntry(repoDir: string): string {
 
 function packageBinShim(installDir: string): string {
 	return join(installDir, 'node_modules', '.bin', platform === 'win32' ? 'ccusage.cmd' : 'ccusage');
+}
+
+async function installedPackageBinEntry(installDir: string): Promise<string> {
+	const packageDir = join(installDir, 'node_modules', 'ccusage');
+	const packageJson = JSON.parse(
+		await readFile(join(packageDir, 'package.json'), 'utf8'),
+	) as unknown;
+	if (!isRecord(packageJson)) {
+		return packageBinShim(installDir);
+	}
+	const binPath = ccusageBinPath(packageJson.bin);
+	return binPath == null ? packageBinShim(installDir) : join(packageDir, binPath);
 }
 
 function parseHeadRuntime(value: string | undefined): HeadRuntime {
@@ -321,7 +333,7 @@ async function installPackageUrl({
 	await writeProgress(`${label} package install finished: ${formatDuration(acquisition)}`);
 	return {
 		acquisition,
-		binEntry: packageBinShim(installDir),
+		binEntry: await installedPackageBinEntry(installDir),
 	};
 }
 
@@ -906,17 +918,35 @@ if (import.meta.vitest != null) {
 	});
 
 	describe('createHeadCcusageCommand', () => {
+		it('resolves the installed package published bin instead of the package manager shim', async () => {
+			await using fixture = await createFixture({});
+			const packageDir = join(fixture.path, 'node_modules', 'ccusage');
+			await mkdir(packageDir, { recursive: true });
+			await writeFile(
+				join(packageDir, 'package.json'),
+				JSON.stringify({
+					bin: {
+						ccusage: './dist/cli.js',
+					},
+				}),
+			);
+
+			await expect(installedPackageBinEntry(fixture.path)).resolves.toBe(
+				join(packageDir, './dist/cli.js'),
+			);
+		});
+
 		it('uses the installed PR pkg.pr.new bin for package runtime benchmarks when one is available', async () => {
 			const commandText = await createHeadCcusageCommand({
 				codexFixtureDir: '/fixtures/codex',
 				command: 'claude',
 				fixtureDir: '/fixtures/claude',
-				headBinEntry: '/tmp/head-package/node_modules/.bin/ccusage',
+				headBinEntry: '/tmp/head-package/node_modules/ccusage/dist/cli.js',
 				headDir: '/repo',
 				headRuntime: 'package',
 			});
 
-			expect(commandText).toContain('/tmp/head-package/node_modules/.bin/ccusage');
+			expect(commandText).toContain('/tmp/head-package/node_modules/ccusage/dist/cli.js');
 			expect(commandText).not.toContain('/repo/apps/ccusage');
 		});
 	});
