@@ -21,8 +21,10 @@ type CommandResult = {
 };
 
 type SizeComparison = {
+	baseNativePackageBinary?: number;
 	basePackage: number;
 	baseRustBinary?: number;
+	headNativePackageBinary?: number;
 	headPackage: number;
 	headRustBinary?: number;
 };
@@ -1324,6 +1326,11 @@ function renderMarkdown(
 		'| Artifact | Base | PR | Delta | Ratio |',
 		'| --- | ---: | ---: | ---: | ---: |',
 		`| packed \`ccusage-*.tgz\` | ${formatSize(sizes.basePackage)} | ${formatSize(sizes.headPackage)} | ${formatSizeDelta(sizes.basePackage, sizes.headPackage)} | ${formatSizeRatio(sizes.basePackage, sizes.headPackage)} |`,
+		...(sizes.baseNativePackageBinary == null && sizes.headNativePackageBinary == null
+			? []
+			: [
+					`| installed native package binary | ${formatOptionalSize(sizes.baseNativePackageBinary)} | ${formatOptionalSize(sizes.headNativePackageBinary)} | ${formatSizeDelta(sizes.baseNativePackageBinary, sizes.headNativePackageBinary)} | ${formatSizeRatio(sizes.baseNativePackageBinary, sizes.headNativePackageBinary)} |`,
+				]),
 		...(sizes.headRustBinary == null
 			? []
 			: [
@@ -1705,6 +1712,26 @@ if (import.meta.vitest != null) {
 				'| Rust release binary `rust/target/release/ccusage` | 2.00 KiB | 1.00 KiB | -1.00 KiB | 2.00x |',
 			);
 		});
+
+		it('compares installed native package binary sizes when pkg.pr.new packages are installed', () => {
+			const markdown = renderMarkdown(
+				[emptyFixtureSection],
+				{
+					baseNativePackageBinary: 2 * 1024,
+					basePackage: 1024,
+					headNativePackageBinary: 1024,
+					headPackage: 1024,
+				},
+				{
+					headDir: '/repo',
+					headRuntime: 'package',
+				},
+			);
+
+			expect(markdown).toContain(
+				'| installed native package binary | 2.00 KiB | 1.00 KiB | -1.00 KiB | 2.00x |',
+			);
+		});
 	});
 }
 
@@ -1844,6 +1871,10 @@ const command = define({
 			headPackageInstall == null
 				? undefined
 				: await installedNativePackageBinEntry(headPackageInstallDir);
+		const baseNativeBinEntry =
+			basePackageInstall == null
+				? undefined
+				: await installedNativePackageBinEntry(basePackageInstallDir);
 		const baseBinEntry =
 			basePackageInstall == null ? await packageBinEntry(baseDir!) : basePackageInstall.binEntry;
 		const options = {
@@ -1974,12 +2005,18 @@ const command = define({
 		const runtimeDiagnosticSections =
 			runtimeDiagnosticSection == null ? [] : [runtimeDiagnosticSection];
 		const sizes = {
+			baseNativePackageBinary:
+				baseNativeBinEntry == null ? undefined : await optionalFileSizeBytes(baseNativeBinEntry),
 			basePackage:
 				basePackageUrl == null
 					? await packedTarballSizeBytes(baseDir!)
 					: await remoteTarballSizeBytes(basePackageUrl),
 			baseRustBinary:
 				baseDir == null ? undefined : await optionalFileSizeBytes(rustBinaryEntry(baseDir)),
+			headNativePackageBinary:
+				options.headNativeBinEntry == null
+					? undefined
+					: await optionalFileSizeBytes(options.headNativeBinEntry),
 			headPackage:
 				options.headPackageUrl == null
 					? await packedTarballSizeBytes(options.headDir)
