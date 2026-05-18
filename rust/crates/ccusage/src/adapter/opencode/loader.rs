@@ -1,13 +1,13 @@
 use std::{
     collections::HashSet,
-    env, fs,
+    fs,
     path::{Path, PathBuf},
 };
 
 use jiff::tz::TimeZone as JiffTimeZone;
 use serde_json::Value;
 
-use super::parser::message_value_to_entry;
+use super::{parser::message_value_to_entry, paths::paths};
 use crate::{
     cli::{CostMode, SharedArgs},
     collect_files_with_extension, debug_log, parse_tz, LoadedEntry, PricingMap, Result,
@@ -36,32 +36,6 @@ fn load_entries_inner(shared: &SharedArgs) -> Result<Vec<LoadedEntry>> {
     }
     entries.sort_by_key(|entry| entry.timestamp);
     Ok(entries)
-}
-
-fn paths() -> Result<Vec<PathBuf>> {
-    let mut paths = Vec::new();
-    let mut seen = HashSet::new();
-    if let Ok(env_paths) = env::var("OPENCODE_DATA_DIR") {
-        for raw in env_paths
-            .split(',')
-            .map(str::trim)
-            .filter(|path| !path.is_empty())
-        {
-            let path = PathBuf::from(raw);
-            if path.is_dir() && seen.insert(path.clone()) {
-                paths.push(path);
-            }
-        }
-        return Ok(paths);
-    }
-
-    let home =
-        crate::home::home_dir().ok_or_else(|| crate::cli_error("home directory is not set"))?;
-    let path = home.join(".local/share/opencode");
-    if path.is_dir() && seen.insert(path.clone()) {
-        paths.push(path);
-    }
-    Ok(paths)
 }
 
 pub(crate) fn load_entries_from_directory(
