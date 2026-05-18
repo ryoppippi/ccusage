@@ -61,12 +61,12 @@
 		"typecheck": "tsgo --noEmit"
 	},
 	"optionalDependencies": {
-		"@ccusage/ccusage-darwin-arm64": "19.0.3",
-		"@ccusage/ccusage-darwin-x64": "19.0.3",
-		"@ccusage/ccusage-linux-arm64": "19.0.3",
-		"@ccusage/ccusage-linux-x64": "19.0.3",
-		"@ccusage/ccusage-win32-arm64": "19.0.3",
-		"@ccusage/ccusage-win32-x64": "19.0.3"
+		"@ccusage/ccusage-darwin-arm64": "workspace:*",
+		"@ccusage/ccusage-darwin-x64": "workspace:*",
+		"@ccusage/ccusage-linux-arm64": "workspace:*",
+		"@ccusage/ccusage-linux-x64": "workspace:*",
+		"@ccusage/ccusage-win32-arm64": "workspace:*",
+		"@ccusage/ccusage-win32-x64": "workspace:*"
 	},
 	"devDependencies": {
 		"@ryoppippi/eslint-config": "catalog:lint",
