@@ -1,9 +1,9 @@
 #!/usr/bin/env bun
 
 import { execFileSync } from 'node:child_process';
-import { readdir, stat } from 'node:fs/promises';
+import { mkdir, readdir, stat } from 'node:fs/promises';
 import { join, relative, resolve } from 'node:path';
-import { execPath, platform } from 'node:process';
+import process, { execPath, platform } from 'node:process';
 import { createFixture } from 'fs-fixture';
 import { cli, define } from 'gunshi';
 
@@ -25,6 +25,18 @@ type SizeComparison = {
 	baseRustBinary?: number;
 	headPackage: number;
 	headRustBinary?: number;
+};
+
+type PackageRunnerMeasurement = {
+	acquisition?: number;
+	cold: number;
+	packageUrl: string;
+	warm: CommandMeasurement;
+};
+
+type PackageRunnerComparison = {
+	base?: PackageRunnerMeasurement;
+	head?: PackageRunnerMeasurement;
 };
 
 type SampleOptions = {
@@ -106,6 +118,10 @@ function rustBinaryEntry(repoDir: string): string {
 	);
 }
 
+function packageBinShim(installDir: string): string {
+	return join(installDir, 'node_modules', '.bin', platform === 'win32' ? 'ccusage.cmd' : 'ccusage');
+}
+
 function parseHeadRuntime(value: string | undefined): HeadRuntime {
 	if (value === 'package' || value === 'rust') {
 		return value;
@@ -151,6 +167,14 @@ async function packedTarballSizeBytes(repoDir: string): Promise<number> {
 	} finally {
 		await Bun.write(packageJsonPath, originalPackageJson);
 	}
+}
+
+async function remoteTarballSizeBytes(packageUrl: string): Promise<number> {
+	const response = await fetch(packageUrl);
+	if (!response.ok) {
+		throw new Error(`Failed to fetch ${packageUrl}: HTTP ${response.status}`);
+	}
+	return (await response.arrayBuffer()).byteLength;
 }
 
 /**
@@ -204,6 +228,19 @@ function formatDataSize(bytes: number): string {
 	return `${(bytes / 1024 / 1024).toFixed(2)} MiB`;
 }
 
+function measurementFromMilliseconds(times: number[]): CommandMeasurement {
+	if (times.length === 0) {
+		throw new Error('Cannot summarize zero measurements');
+	}
+	const sorted = [...times].sort((a, b) => a - b);
+	return {
+		max: sorted.at(-1) ?? sorted[0]!,
+		median: sorted[Math.floor(sorted.length / 2)]!,
+		min: sorted[0]!,
+		samples: sorted.length,
+	};
+}
+
 function formatThroughput(bytes: number, milliseconds: number): string {
 	const mibPerSecond = bytes / 1024 / 1024 / (milliseconds / 1000);
 	return mibPerSecond >= 1024
@@ -243,6 +280,67 @@ async function optionalFileSizeBytes(filePath: string): Promise<number | undefin
 	}
 }
 
+async function installPackageUrl({
+	installDir,
+	label,
+	packageUrl,
+	timeoutMs,
+}: {
+	installDir: string;
+	label: string;
+	packageUrl: string;
+	timeoutMs: number;
+}): Promise<{ acquisition: number; binEntry: string }> {
+	await writeProgress(`${label} package install waiting for package URL`);
+	if (!(await waitForPackageUrl(packageUrl, timeoutMs))) {
+		throw new Error(`${label} package URL was not ready: ${packageUrl}`);
+	}
+	await mkdir(installDir, { recursive: true });
+	await Bun.write(
+		join(installDir, 'package.json'),
+		JSON.stringify({ dependencies: { ccusage: packageUrl }, private: true }, null, 2),
+	);
+	await writeProgress(`${label} package install started: ${packageUrl}`);
+	const startedAt = performance.now();
+	const install = Bun.spawn([execPath, 'install', '--no-progress'], {
+		cwd: installDir,
+		stderr: 'pipe',
+		stdout: 'pipe',
+	});
+	const exitCode = await install.exited;
+	const acquisition = performance.now() - startedAt;
+	if (exitCode !== 0) {
+		const stderr = await new Response(install.stderr).text();
+		const stdout = await new Response(install.stdout).text();
+		const trimmedStderr = stderr.trim();
+		const trimmedStdout = stdout.trim();
+		throw new Error(
+			`${label} package install failed: ${trimmedStderr.length > 0 ? trimmedStderr : trimmedStdout.length > 0 ? trimmedStdout : `exit ${exitCode}`}`,
+		);
+	}
+	await writeProgress(`${label} package install finished: ${formatDuration(acquisition)}`);
+	return {
+		acquisition,
+		binEntry: packageBinShim(installDir),
+	};
+}
+
+async function packageUrlIsReady(packageUrl: string): Promise<boolean> {
+	const response = await fetch(packageUrl, { method: 'HEAD' });
+	return response.ok;
+}
+
+async function waitForPackageUrl(packageUrl: string, timeoutMs: number): Promise<boolean> {
+	const startedAt = performance.now();
+	while (performance.now() - startedAt < timeoutMs) {
+		if (await packageUrlIsReady(packageUrl)) {
+			return true;
+		}
+		await Bun.sleep(5000);
+	}
+	return false;
+}
+
 async function writeProgress(message: string): Promise<void> {
 	await Bun.write(Bun.stderr, `[ccusage-perf] ${message}\n`);
 }
@@ -255,6 +353,11 @@ function gitSha(directory: string): string {
 
 function formatSha(sha: string): string {
 	return sha.length > 12 ? sha.slice(0, 12) : sha;
+}
+
+function packageUrlSha(packageUrl: string): string {
+	const match = packageUrl.match(/@([0-9a-f]{7,40})(?:$|[/?#])/i);
+	return match == null ? packageUrl : formatSha(match[1]!);
 }
 
 /**
@@ -309,12 +412,121 @@ export function createCcusageCommandFromRustBinary(
 	].join(' ');
 }
 
+function createBunxStartupCommand(packageUrl: string): string[] {
+	return [execPath, 'x', '-p', packageUrl, 'ccusage', '--version'];
+}
+
+async function measureCommandMilliseconds({
+	args,
+	env,
+	label,
+}: {
+	args: string[];
+	env: Record<string, string>;
+	label: string;
+}): Promise<number> {
+	const startedAt = performance.now();
+	const child = Bun.spawn(args, {
+		env: {
+			...process.env,
+			...env,
+		},
+		stderr: 'pipe',
+		stdout: 'ignore',
+	});
+	const exitCode = await child.exited;
+	const elapsed = performance.now() - startedAt;
+	if (exitCode !== 0) {
+		throw new Error(`${label} failed: ${await new Response(child.stderr).text()}`);
+	}
+	return elapsed;
+}
+
+async function measurePackageRunnerStartup({
+	cacheDir,
+	label,
+	packageUrl,
+	runs,
+	timeoutMs,
+}: {
+	cacheDir: string;
+	label: string;
+	packageUrl: string;
+	runs: number;
+	timeoutMs: number;
+}): Promise<PackageRunnerMeasurement | undefined> {
+	await writeProgress(`${label} bunx startup waiting for package URL`);
+	if (!(await waitForPackageUrl(packageUrl, timeoutMs))) {
+		await writeProgress(`${label} bunx startup skipped because package URL was not ready`);
+		return undefined;
+	}
+
+	const args = createBunxStartupCommand(packageUrl);
+	const env = { BUN_INSTALL_CACHE_DIR: cacheDir };
+	await writeProgress(`${label} bunx cold startup started`);
+	const cold = await measureCommandMilliseconds({
+		args,
+		env,
+		label: `${label} bunx cold startup`,
+	});
+	const warmTimes: number[] = [];
+	for (let index = 0; index < runs; index++) {
+		warmTimes.push(
+			await measureCommandMilliseconds({
+				args,
+				env,
+				label: `${label} bunx warm startup`,
+			}),
+		);
+	}
+	const warm = measurementFromMilliseconds(warmTimes);
+	await writeProgress(
+		`${label} bunx startup done: cold ${formatDuration(cold)}, warm ${formatDuration(warm.median)}`,
+	);
+	return {
+		cold,
+		packageUrl,
+		warm,
+	};
+}
+
+async function measurePackageRunnerWithAcquisition({
+	acquisition,
+	cacheDir,
+	label,
+	packageUrl,
+	runs,
+	timeoutMs,
+}: {
+	acquisition?: number;
+	cacheDir: string;
+	label: string;
+	packageUrl: string;
+	runs: number;
+	timeoutMs: number;
+}): Promise<PackageRunnerMeasurement | undefined> {
+	const startup = await measurePackageRunnerStartup({
+		cacheDir,
+		label,
+		packageUrl,
+		runs,
+		timeoutMs,
+	});
+	return startup == null
+		? undefined
+		: {
+				...startup,
+				acquisition,
+			};
+}
+
 export async function createCcusageCommand(
 	repoDir: string,
 	fixtureDir: string,
 	codexFixtureDir: string | undefined,
 	command: string,
 	runtime: HeadRuntime = 'package',
+	packageBinEntryOverride?: string,
 ): Promise<string> {
 	if (runtime === 'rust') {
 		return createCcusageCommandFromRustBinary(
@@ -325,7 +537,7 @@ export async function createCcusageCommand(
 		);
 	}
 	return createCcusageCommandFromBin(
-		await packageBinEntry(repoDir),
+		packageBinEntryOverride ?? (await packageBinEntry(repoDir)),
 		fixtureDir,
 		codexFixtureDir,
 		command,
@@ -348,11 +560,12 @@ function measurementFromHyperfine(result: HyperfineResult): CommandMeasurement {
 async function compareCommand(
 	command: string,
 	options: {
-		baseDir: string;
+		baseBinEntry: string;
 		fixtureTitle: string;
 		codexFixtureDir?: string;
 		fixtureDir: string;
 		headDir: string;
+		headPackageBinEntry?: string;
 		headRuntime: HeadRuntime;
 		runs: number;
 		warmup: number;
@@ -361,8 +574,8 @@ async function compareCommand(
 	await writeProgress(`${options.fixtureTitle} / ${command} started`);
 	await using fixture = await createFixture({});
 	const exportPath = join(fixture.path, 'hyperfine.json');
-	const baseCommand = await createCcusageCommand(
-		options.baseDir,
+	const baseCommand = createCcusageCommandFromBin(
+		options.baseBinEntry,
 		options.fixtureDir,
 		options.codexFixtureDir,
 		command,
@@ -373,6 +586,7 @@ async function compareCommand(
 		options.codexFixtureDir,
 		command,
 		options.headRuntime,
+		options.headPackageBinEntry,
 	);
 	const hyperfine = Bun.spawn(
 		[
@@ -435,12 +649,13 @@ async function compareCommand(
  * currently runs only `daily` because base-branch scans over 1 GiB are intentionally expensive.
  */
 async function compareFixture(options: {
-	baseDir: string;
+	baseBinEntry: string;
 	codexFixtureDir?: string;
 	commands: string[];
 	description: string;
 	fixtureDir: string;
 	headDir: string;
+	headPackageBinEntry?: string;
 	headRuntime: HeadRuntime;
 	runs: number;
 	title: string;
@@ -504,12 +719,15 @@ function fixtureStatsForCommand(section: FixtureComparison, command: string): Fi
  */
 export function renderFixtureSection(
 	section: FixtureComparison,
-	options: { headDir: string; headRuntime: HeadRuntime },
+	options: { baseRuntimeDescription?: string; headDir: string; headRuntime: HeadRuntime },
 ): string[] {
+	const baseRuntimeDescription =
+		options.baseRuntimeDescription ??
+		'Base runs the package `ccusage` bin from `apps/ccusage/package.json` through `bun -b`';
 	const runtimeText =
 		options.headRuntime === 'rust'
-			? 'Base runs the package `ccusage` bin from `apps/ccusage/package.json` through `bun -b`; PR runs `rust/target/release/ccusage` directly.'
-			: 'Runtime: package `ccusage` bin from `apps/ccusage/package.json` through `bun -b`.';
+			? `${baseRuntimeDescription}; PR runs \`rust/target/release/ccusage\` directly.`
+			: `${baseRuntimeDescription}; PR runs the package \`ccusage\` bin from \`apps/ccusage/package.json\` through \`bun -b\`.`;
 	const lines = [
 		`## ${section.title}`,
 		'',
@@ -535,10 +753,47 @@ export function renderFixtureSection(
 	return lines;
 }
 
+function renderPackageRunnerComparison(
+	packageRunner: PackageRunnerComparison | undefined,
+): string[] {
+	if (packageRunner?.base == null && packageRunner?.head == null) {
+		return [];
+	}
+
+	const lines = [
+		'## Package runner startup',
+		'',
+		'Acquisition measures the pre-benchmark temporary package install used by the execution benchmark. Cold measures one `bunx -p <url> ccusage --version` run with an empty Bun install cache. Warm reuses that cache and reports the median of repeated runs.',
+		'',
+		'| Package | SHA | Acquisition | Bunx cold | Bunx warm median | Warm samples |',
+		'| --- | ---: | ---: | ---: | ---: | ---: |',
+	];
+
+	if (packageRunner.base != null) {
+		lines.push(
+			`| Base pkg.pr.new | \`${packageUrlSha(packageRunner.base.packageUrl)}\` | ${packageRunner.base.acquisition == null ? '-' : formatDuration(packageRunner.base.acquisition)} | ${formatDuration(packageRunner.base.cold)} | ${formatDuration(packageRunner.base.warm.median)} | ${packageRunner.base.warm.samples} |`,
+		);
+	}
+	if (packageRunner.head != null) {
+		lines.push(
+			`| PR pkg.pr.new | \`${packageUrlSha(packageRunner.head.packageUrl)}\` | ${packageRunner.head.acquisition == null ? '-' : formatDuration(packageRunner.head.acquisition)} | ${formatDuration(packageRunner.head.cold)} | ${formatDuration(packageRunner.head.warm.median)} | ${packageRunner.head.warm.samples} |`,
+		);
+	}
+
+	return [...lines, ''];
+}
+
 function renderMarkdown(
 	sections: FixtureComparison[],
 	sizes: SizeComparison,
-	options: { baseSha?: string; headDir: string; headRuntime: HeadRuntime; headSha?: string },
+	options: {
+		baseRuntimeDescription?: string;
+		baseSha?: string;
+		headDir: string;
+		headRuntime: HeadRuntime;
+		headSha?: string;
+		packageRunner?: PackageRunnerComparison;
+	},
 ): string {
 	const markerName =
 		options.headRuntime === 'rust' ? 'ccusage-rust-perf-comment' : 'ccusage-perf-comment';
@@ -556,10 +811,12 @@ function renderMarkdown(
 					'',
 				]),
 		options.headRuntime === 'rust'
-			? 'This compares the Rust PR release binary against the base branch JavaScript build on the same CI runner.'
-			: 'This compares the PR build against the base branch build on the same CI runner.',
+			? 'This compares the Rust PR release binary against the configured base package on the same CI runner.'
+			: 'This compares the PR package against the configured base package on the same CI runner.',
 		'',
 	];
+
+	lines.push(...renderPackageRunnerComparison(options.packageRunner));
 
 	for (const section of sections) {
 		lines.push(...renderFixtureSection(section, options), '');
@@ -672,10 +929,35 @@ if (import.meta.vitest != null) {
 					title: 'Rust fixture',
 					warmup: 0,
 				},
-				{ headDir: '/repo', headRuntime: 'rust' },
+				{ baseRuntimeDescription: 'Base runs pkg.pr.new', headDir: '/repo', headRuntime: 'rust' },
 			);
 
-			expect(lines.join('\n')).toContain('PR runs `rust/target/release/ccusage` directly.');
+			expect(lines.join('\n')).toContain(
+				'Base runs pkg.pr.new; PR runs `rust/target/release/ccusage` directly.',
+			);
+		});
+	});
+
+	describe('renderPackageRunnerComparison', () => {
+		it('renders cold and warm bunx startup timings separately from execution benchmarks', () => {
+			const markdown = renderPackageRunnerComparison({
+				base: {
+					acquisition: 400,
+					cold: 1200,
+					packageUrl: 'https://pkg.pr.new/ryoppippi/ccusage/ccusage@0123456789abcdef',
+					warm: {
+						max: 100,
+						median: 90,
+						min: 80,
+						samples: 3,
+					},
+				},
+			}).join('\n');
+
+			expect(markdown).toContain('## Package runner startup');
+			expect(markdown).toContain(
+				'| Base pkg.pr.new | `0123456789ab` | 400.0ms | 1.200s | 90.0ms | 3 |',
+			);
 		});
 	});
 
@@ -762,8 +1044,15 @@ const command = define({
 	args: {
 		baseDir: {
 			type: 'string',
-			required: true,
 			description: 'Base repository directory',
+		},
+		basePackageUrl: {
+			type: 'string',
+			description: 'Base pkg.pr.new ccusage package URL to install before benchmarking',
+		},
+		baseSha: {
+			type: 'string',
+			description: 'Base Git SHA shown in the PR comment when baseDir is not checked out',
 		},
 		headDir: {
 			type: 'string',
@@ -819,17 +1108,66 @@ const command = define({
 			default: 0,
 			description: 'Explicit warmup runs before each large-fixture command',
 		},
+		headPackageUrl: {
+			type: 'string',
+			description: 'PR/head pkg.pr.new ccusage package URL used for package-runner startup timing',
+		},
+		packageRunnerRuns: {
+			type: 'number',
+			default: 3,
+			description: 'Warm package-runner startup samples after the cold bunx run',
+		},
+		packageRunnerTimeoutMs: {
+			type: 'number',
+			default: 120_000,
+			description: 'How long to wait for pkg.pr.new package URLs before skipping startup timing',
+		},
 	},
 	async run(ctx) {
 		assertSampleOptions({ runs: ctx.values.runs, warmup: ctx.values.warmup }, '');
 		assertSampleOptions({ runs: ctx.values.largeRuns, warmup: ctx.values.largeWarmup }, 'large-');
+		assertSampleOptions({ runs: ctx.values.packageRunnerRuns, warmup: 0 }, 'package-runner-');
+		if (ctx.values.baseDir == null && ctx.values.basePackageUrl == null) {
+			throw new Error('Either --base-dir or --base-package-url is required');
+		}
 
+		await using installFixture = await createFixture({});
+		const baseDir = ctx.values.baseDir == null ? undefined : resolve(ctx.values.baseDir);
+		const basePackageUrl = ctx.values.basePackageUrl;
+		const basePackageInstall =
+			basePackageUrl == null
+				? undefined
+				: await installPackageUrl({
+						installDir: join(installFixture.path, 'base-package'),
+						label: 'base',
+						packageUrl: basePackageUrl,
+						timeoutMs: ctx.values.packageRunnerTimeoutMs,
+					});
+		const headPackageInstall =
+			ctx.values.headPackageUrl == null
+				? undefined
+				: await installPackageUrl({
+						installDir: join(installFixture.path, 'head-package'),
+						label: 'PR',
+						packageUrl: ctx.values.headPackageUrl,
+						timeoutMs: ctx.values.packageRunnerTimeoutMs,
+					});
+		const baseBinEntry =
+			basePackageInstall == null ? await packageBinEntry(baseDir!) : basePackageInstall.binEntry;
 		const options = {
-			baseDir: resolve(ctx.values.baseDir),
-			baseSha: gitSha(resolve(ctx.values.baseDir)),
+			baseBinEntry,
+			basePackageUrl,
+			baseRuntimeDescription:
+				basePackageUrl == null
+					? undefined
+					: 'Base runs the published `ccusage` package from `pkg.pr.new`, installed before measurement',
+			baseSha: ctx.values.baseSha ?? (baseDir == null ? undefined : gitSha(baseDir)),
 			codexFixtureDir: resolve(ctx.values.codexFixtureDir),
 			fixtureDir: resolve(ctx.values.fixtureDir),
 			headDir: resolve(ctx.values.headDir),
+			headPackageBinEntry:
+				ctx.values.headRuntime === 'package' ? headPackageInstall?.binEntry : undefined,
+			headPackageUrl: ctx.values.headPackageUrl,
 			headRuntime: parseHeadRuntime(ctx.values.headRuntime),
 			headSha: gitSha(resolve(ctx.values.headDir)),
 			runs: ctx.values.runs,
@@ -863,14 +1201,48 @@ const command = define({
 			);
 		}
 
+		const packageRunner =
+			basePackageUrl == null && options.headPackageUrl == null
+				? undefined
+				: {
+						base:
+							basePackageUrl == null
+								? undefined
+								: await measurePackageRunnerWithAcquisition({
+										acquisition: basePackageInstall?.acquisition,
+										cacheDir: join(installFixture.path, 'bunx-base-cache'),
+										label: 'base',
+										packageUrl: basePackageUrl,
+										runs: ctx.values.packageRunnerRuns,
+										timeoutMs: ctx.values.packageRunnerTimeoutMs,
+									}),
+						head:
+							options.headPackageUrl == null
+								? undefined
+								: await measurePackageRunnerWithAcquisition({
+										acquisition: headPackageInstall?.acquisition,
+										cacheDir: join(installFixture.path, 'bunx-head-cache'),
+										label: 'PR',
+										packageUrl: options.headPackageUrl,
+										runs: ctx.values.packageRunnerRuns,
+										timeoutMs: ctx.values.packageRunnerTimeoutMs,
+									}),
+					};
 		const sizes = {
-			basePackage: await packedTarballSizeBytes(options.baseDir),
-			baseRustBinary: await optionalFileSizeBytes(rustBinaryEntry(options.baseDir)),
-			headPackage: await packedTarballSizeBytes(options.headDir),
+			basePackage:
+				basePackageUrl == null
+					? await packedTarballSizeBytes(baseDir!)
+					: await remoteTarballSizeBytes(basePackageUrl),
+			baseRustBinary:
+				baseDir == null ? undefined : await optionalFileSizeBytes(rustBinaryEntry(baseDir)),
+			headPackage:
+				options.headPackageUrl == null
+					? await packedTarballSizeBytes(options.headDir)
+					: await remoteTarballSizeBytes(options.headPackageUrl),
 			headRustBinary: await optionalFileSizeBytes(rustBinaryEntry(options.headDir)),
 		};
 
-		const markdown = renderMarkdown(sections, sizes, options);
+		const markdown = renderMarkdown(sections, sizes, { ...options, packageRunner });
 		if (ctx.values.output == null) {
 			await Bun.write(Bun.stdout, markdown);
 		} else {

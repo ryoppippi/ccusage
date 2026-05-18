@@ -23,18 +23,8 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha }}
 
-      - name: Checkout base
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        with:
-          ref: ${{ github.event.pull_request.base.sha }}
-          path: base
-
       - name: Setup Nix
         uses: ./.github/actions/setup-nix
-
-      - name: Build base ccusage
-        run: nix develop --command pnpm --filter ccusage run build
-        working-directory: base
 
       - name: Build Rust ccusage
         run: nix develop --command pnpm --filter ccusage run build
@@ -49,8 +39,10 @@ jobs:
       - name: Compare Rust performance
         run: |
           nix develop --command pnpm exec bun apps/ccusage/scripts/compare-pr-performance.ts \
-            --base-dir base \
+            --base-package-url "https://pkg.pr.new/${{ github.repository }}/ccusage@${{ github.event.pull_request.base.sha }}" \
+            --base-sha "${{ github.event.pull_request.base.sha }}" \
             --head-dir . \
+            --head-package-url "https://pkg.pr.new/${{ github.repository }}/ccusage@${{ github.event.pull_request.head.sha }}" \
             --head-runtime rust \
             --fixture-dir apps/ccusage/test/fixtures/claude \
             --codex-fixture-dir apps/ccusage/test/fixtures/codex \
