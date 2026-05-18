@@ -318,7 +318,7 @@ fn project_header_row(column_count: usize, project: &str, shared: &SharedArgs) -
 }
 
 fn push_breakdown_rows(
-    table: &mut SimpleTable<'_>,
+    table: &mut SimpleTable,
     row: &UsageSummary,
     compact: bool,
     include_last_activity: bool,

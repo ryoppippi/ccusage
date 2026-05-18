@@ -22,12 +22,17 @@ dependencies = [
 name = "ccusage"
 version = "19.0.3"
 dependencies = [
+ "ccusage-terminal",
  "jiff",
  "minreq",
  "serde",
  "serde_json",
  "sqlite",
 ]
+
+[[package]]
+name = "ccusage-terminal"
+version = "19.0.3"
 
 [[package]]
 name = "cfg-if"

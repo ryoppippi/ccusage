@@ -8,6 +8,7 @@ name = "ccusage"
 path = "src/main.rs"
 
 [dependencies]
+ccusage-terminal = { path = "../ccusage-terminal" }
 jiff = { version = "0.2.24", default-features = false, features = [
 	"std",
 	"tz-system",

@@ -16,7 +16,6 @@ mod pricing;
 mod progress;
 mod project_names;
 mod summary;
-mod table;
 mod types;
 mod utils;
 
@@ -42,17 +41,17 @@ pub(crate) use summary::{
     filter_and_sort_summaries, sort_summaries, summarize_by_key, summarize_summaries_by_bucket,
     week_start, BucketKind, SessionAccumulator,
 };
-pub(crate) use table::{color, print_box_title, terminal_width, Align, Color, SimpleTable};
 pub(crate) use types::*;
 pub(crate) use utils::{json_value_u64, non_empty_json_string, total_usage_tokens};
 
+use ccusage_terminal::{TerminalStyle, terminal_width};
+pub(crate) use ccusage_terminal::{Align, Color, SimpleTable};
 use cli::{AgentCommandArgs, AgentReportKind, Cli, Command};
 use pricing::PricingMap;
 
 const DEFAULT_SESSION_DURATION_HOURS: f64 = 5.0;
 const DEFAULT_RECENT_DAYS: i64 = 3;
 const BLOCKS_WARNING_THRESHOLD: f64 = 0.8;
-const DEFAULT_TERMINAL_WIDTH: usize = 120;
 const USAGE_COMPACT_WIDTH_THRESHOLD: usize = 100;
 const BLOCKS_COMPACT_WIDTH_THRESHOLD: usize = 120;
 
@@ -81,6 +80,24 @@ impl From<serde_json::Error> for CliError {
 
 fn cli_error(message: impl Into<String>) -> CliError {
     CliError(message.into())
+}
+
+impl From<&cli::SharedArgs> for TerminalStyle {
+    fn from(shared: &cli::SharedArgs) -> Self {
+        Self {
+            color: shared.color,
+            log_level: log_level(),
+            no_color: shared.no_color,
+        }
+    }
+}
+
+fn color(shared: &cli::SharedArgs, value: impl AsRef<str>, color: Color) -> String {
+    ccusage_terminal::color(shared, value, color)
+}
+
+fn print_box_title(title: &str, shared: &cli::SharedArgs) {
+    ccusage_terminal::print_box_title(title, shared);
 }
 
 trait Context<T> {

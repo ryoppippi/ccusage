@@ -1114,7 +1114,7 @@ mod tests {
     #[test]
     fn cargo_version_matches_npm_package_version() {
         let package_json =
-            serde_json::from_str::<serde_json::Value>(include_str!("../../../apps/ccusage/package.json"))
+            serde_json::from_str::<serde_json::Value>(include_str!("../../../../apps/ccusage/package.json"))
                 .unwrap();
 
         assert_eq!(

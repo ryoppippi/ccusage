@@ -6,20 +6,21 @@ use std::{
 #[cfg(unix)]
 use std::os::fd::AsRawFd;
 
-use crate::{cli::SharedArgs, log_level, DEFAULT_TERMINAL_WIDTH};
+const DEFAULT_TERMINAL_WIDTH: usize = 120;
 
 #[cfg(all(unix, target_os = "macos"))]
 const TIOCGWINSZ: usize = 0x4008_7468;
 #[cfg(all(unix, target_os = "linux"))]
 const TIOCGWINSZ: usize = 0x5413;
 
-#[derive(Clone, Copy, Eq, PartialEq)]
-pub(crate) enum Align {
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum Align {
     Left,
     Right,
 }
 
-pub(crate) enum Color {
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum Color {
     Blue,
     Green,
     Grey,
@@ -27,56 +28,63 @@ pub(crate) enum Color {
     Yellow,
 }
 
-pub(crate) struct SimpleTable<'a> {
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct TerminalStyle {
+    pub color: bool,
+    pub log_level: Option<u8>,
+    pub no_color: bool,
+}
+
+pub struct SimpleTable {
     headers: Vec<String>,
     aligns: Vec<Align>,
     rows: Vec<Option<Vec<String>>>,
-    shared: &'a SharedArgs,
+    style: TerminalStyle,
     terminal_width: usize,
     compact_dates: bool,
 }
 
-impl<'a> SimpleTable<'a> {
-    pub(crate) fn new(headers: Vec<&str>, aligns: Vec<Align>, shared: &'a SharedArgs) -> Self {
+impl SimpleTable {
+    pub fn new(headers: Vec<&str>, aligns: Vec<Align>, style: impl Into<TerminalStyle>) -> Self {
         Self {
             headers: headers.into_iter().map(str::to_string).collect(),
             aligns,
             rows: Vec::new(),
-            shared,
+            style: style.into(),
             terminal_width: DEFAULT_TERMINAL_WIDTH,
             compact_dates: false,
         }
     }
 
-    pub(crate) fn with_terminal_width(mut self, width: usize) -> Self {
+    pub fn with_terminal_width(mut self, width: usize) -> Self {
         self.terminal_width = width;
         self
     }
 
-    pub(crate) fn with_date_compaction(mut self, compact_dates: bool) -> Self {
+    pub fn with_date_compaction(mut self, compact_dates: bool) -> Self {
         self.compact_dates = compact_dates;
         self
     }
 
-    pub(crate) fn push(&mut self, row: Vec<String>) {
+    pub fn push(&mut self, row: Vec<String>) {
         self.rows.push(Some(row));
     }
 
-    pub(crate) fn separator(&mut self) {
+    pub fn separator(&mut self) {
         self.rows.push(None);
     }
 
-    pub(crate) fn column_count(&self) -> usize {
+    pub fn column_count(&self) -> usize {
         self.headers.len()
     }
 
-    pub(crate) fn print(&self) {
+    pub fn print(&self) {
         let widths = self.column_widths();
         println!("{}", border('┌', '┬', '┐', &widths));
         for header_row in expand_multiline_row(&self.headers, self.headers.len(), &widths) {
             let header_row = header_row
                 .iter()
-                .map(|header| color(self.shared, header, Color::Blue))
+                .map(|header| color(self.style, header, Color::Blue))
                 .collect::<Vec<_>>();
             println!("{}", table_line(&header_row, &self.aligns, &widths));
         }
@@ -444,7 +452,7 @@ fn visible_width_sum(value: &str) -> usize {
     value.lines().map(visible_width).sum()
 }
 
-pub(crate) fn terminal_width() -> usize {
+pub fn terminal_width() -> usize {
     env::var("COLUMNS")
         .ok()
         .and_then(|value| value.parse::<usize>().ok())
@@ -489,31 +497,20 @@ extern "C" {
     fn ioctl(fd: i32, request: usize, ...) -> i32;
 }
 
-pub(crate) fn print_box_title(title: &str, shared: &SharedArgs) {
-    if log_level() == Some(0) {
+pub fn print_box_title(title: &str, style: impl Into<TerminalStyle>) {
+    let style = style.into();
+    if style.log_level == Some(0) {
         return;
     }
-    let content_width = visible_width(title).max(40) + 2;
-    let padding = content_width.saturating_sub(visible_width(title));
-    let left_padding = padding / 2;
-    let right_padding = padding - left_padding;
-    println!();
-    println!("╭{}╮", "─".repeat(content_width + 2));
-    println!("│{}│", " ".repeat(content_width + 2));
-    println!(
-        "│ {}{}{} │",
-        " ".repeat(left_padding),
-        color(shared, title, Color::Blue),
-        " ".repeat(right_padding)
-    );
-    println!("│{}│", " ".repeat(content_width + 2));
-    println!("╰{}╯", "─".repeat(content_width + 2));
-    println!();
+    for line in box_title_lines(title, style) {
+        println!("{line}");
+    }
 }
 
-pub(crate) fn color(shared: &SharedArgs, value: impl AsRef<str>, color: Color) -> String {
+pub fn color(style: impl Into<TerminalStyle>, value: impl AsRef<str>, color: Color) -> String {
+    let style = style.into();
     let value = value.as_ref();
-    if !use_color(shared) {
+    if !use_color(&style) {
         return value.to_string();
     }
     let code = match color {
@@ -526,9 +523,103 @@ pub(crate) fn color(shared: &SharedArgs, value: impl AsRef<str>, color: Color) -
     format!("\x1b[{code}m{value}\x1b[0m")
 }
 
-fn use_color(shared: &SharedArgs) -> bool {
-    if shared.no_color || env::var_os("NO_COLOR").is_some() {
+fn use_color(style: &TerminalStyle) -> bool {
+    if style.no_color || env::var_os("NO_COLOR").is_some() {
         return false;
     }
-    shared.color || env::var_os("FORCE_COLOR").is_some() || io::stdout().is_terminal()
+    style.color || env::var_os("FORCE_COLOR").is_some() || io::stdout().is_terminal()
+}
+
+fn box_title_lines(title: &str, style: TerminalStyle) -> Vec<String> {
+    let title_lines = title.lines().collect::<Vec<_>>();
+    let content_width = title_lines
+        .iter()
+        .map(|line| visible_width(line))
+        .max()
+        .unwrap_or_default()
+        .max(40)
+        + 2;
+    let mut lines = Vec::with_capacity(title_lines.len() + 5);
+    lines.push(String::new());
+    lines.push(format!("╭{}╮", "─".repeat(content_width + 2)));
+    lines.push(format!("│{}│", " ".repeat(content_width + 2)));
+    for line in title_lines {
+        let padding = content_width.saturating_sub(visible_width(line));
+        let left_padding = padding / 2;
+        let right_padding = padding - left_padding;
+        lines.push(format!(
+            "│ {}{}{} │",
+            " ".repeat(left_padding),
+            color(style, line, Color::Blue),
+            " ".repeat(right_padding)
+        ));
+    }
+    lines.push(format!("│{}│", " ".repeat(content_width + 2)));
+    lines.push(format!("╰{}╯", "─".repeat(content_width + 2)));
+    lines.push(String::new());
+    lines
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn color_respects_explicit_no_color() {
+        let style = TerminalStyle {
+            color: true,
+            log_level: None,
+            no_color: true,
+        };
+
+        assert_eq!(color(style, "Total", Color::Yellow), "Total");
+    }
+
+    #[test]
+    fn box_title_lines_render_multiline_content_in_one_box() {
+        let lines = box_title_lines(
+            "Coding (Agent) CLI Usage Report - Daily\nDetected: Claude, Codex",
+            TerminalStyle {
+                no_color: true,
+                ..TerminalStyle::default()
+            },
+        );
+
+        assert!(lines.iter().any(|line| line.contains(
+            "Coding (Agent) CLI Usage Report - Daily"
+        )));
+        assert!(lines
+            .iter()
+            .any(|line| line.contains("Detected: Claude, Codex")));
+        assert_eq!(lines.iter().filter(|line| line.starts_with('╭')).count(), 1);
+        assert_eq!(lines.iter().filter(|line| line.starts_with('╰')).count(), 1);
+    }
+
+    #[test]
+    fn compact_date_cell_splits_iso_dates() {
+        assert_eq!(
+            compact_date_cell("2026-05-18"),
+            Some("2026\n05-18".to_string())
+        );
+        assert_eq!(compact_date_cell("20260518"), None);
+    }
+
+    #[test]
+    fn width_fitting_keeps_table_within_terminal_when_possible() {
+        let widths = fit_widths_to_terminal(
+            vec![20, 40, 14, 14],
+            &[Align::Left, Align::Left, Align::Right, Align::Right],
+            60,
+            12,
+        );
+
+        assert!(cli_table_required_width(&widths) <= 60);
+    }
+
+    #[test]
+    fn truncate_visible_preserves_ansi_reset() {
+        let truncated = truncate_visible("\x1b[33mvery-long-value\x1b[0m", 8);
+
+        assert!(truncated.ends_with("\x1b[0m…"));
+    }
 }

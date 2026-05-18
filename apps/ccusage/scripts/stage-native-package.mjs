@@ -36,7 +36,7 @@ if (packageDir == null) {
 }
 
 const binaryName = platform === 'win32' ? 'ccusage.exe' : 'ccusage';
-const source = resolve(readOption('binary', resolve(repoRoot, 'target/release', binaryName)));
+const source = resolve(readOption('binary', resolve(repoRoot, 'rust/target/release', binaryName)));
 const targetDir = resolve(repoRoot, 'packages', packageDir, 'bin');
 const target = resolve(targetDir, binaryName);
 

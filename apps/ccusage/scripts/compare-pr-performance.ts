@@ -95,7 +95,13 @@ async function packageBinEntry(repoDir: string): Promise<string> {
 }
 
 function rustBinaryEntry(repoDir: string): string {
-	return join(repoDir, 'target', 'release', platform === 'win32' ? 'ccusage.exe' : 'ccusage');
+	return join(
+		repoDir,
+		'rust',
+		'target',
+		'release',
+		platform === 'win32' ? 'ccusage.exe' : 'ccusage',
+	);
 }
 
 function parseHeadRuntime(value: string | undefined): HeadRuntime {
@@ -459,7 +465,7 @@ export function renderFixtureSection(
 ): string[] {
 	const runtimeText =
 		options.headRuntime === 'rust'
-			? 'Base runs the package `ccusage` bin from `apps/ccusage/package.json` through `bun -b`; PR runs `target/release/ccusage` directly.'
+			? 'Base runs the package `ccusage` bin from `apps/ccusage/package.json` through `bun -b`; PR runs `rust/target/release/ccusage` directly.'
 			: 'Runtime: package `ccusage` bin from `apps/ccusage/package.json` through `bun -b`.';
 	const lines = [
 		`## ${section.title}`,
@@ -520,7 +526,7 @@ function renderMarkdown(
 		...(sizes.headRustBinary == null
 			? []
 			: [
-					`| Rust release binary \`target/release/ccusage\` | - | ${formatSize(sizes.headRustBinary)} | - | - |`,
+					`| Rust release binary \`rust/target/release/ccusage\` | - | ${formatSize(sizes.headRustBinary)} | - | - |`,
 				]),
 		'',
 		'Lower medians and smaller artifacts are better. CI runner noise still applies; use same-run ratios as directional PR feedback, not release guarantees.',
@@ -547,7 +553,7 @@ if (import.meta.vitest != null) {
 
 		it('builds hyperfine command text for the Rust release binary with both Claude and Codex fixture environment variables', () => {
 			const commandText = createCcusageCommandFromRustBinary(
-				'/repo/target/release/ccusage',
+				'/repo/rust/target/release/ccusage',
 				'/fixtures/claude',
 				'/fixtures/codex',
 				'codex session',
@@ -555,7 +561,9 @@ if (import.meta.vitest != null) {
 
 			expect(commandText).toContain('CLAUDE_CONFIG_DIR=/fixtures/claude');
 			expect(commandText).toContain('CODEX_HOME=/fixtures/codex');
-			expect(commandText).toContain('/repo/target/release/ccusage codex session --offline --json');
+			expect(commandText).toContain(
+				'/repo/rust/target/release/ccusage codex session --offline --json',
+			);
 			expect(commandText).not.toContain(' -b ');
 		});
 	});
@@ -619,7 +627,7 @@ if (import.meta.vitest != null) {
 				{ headDir: '/repo', headRuntime: 'rust' },
 			);
 
-			expect(lines.join('\n')).toContain('PR runs `target/release/ccusage` directly.');
+			expect(lines.join('\n')).toContain('PR runs `rust/target/release/ccusage` directly.');
 		});
 	});
 
@@ -686,7 +694,7 @@ const command = define({
 			choices: headRuntimeChoices,
 			default: 'package',
 			description:
-				'PR/head runtime to benchmark: package uses the published JS bin, rust uses target/release/ccusage',
+				'PR/head runtime to benchmark: package uses the published JS bin, rust uses rust/target/release/ccusage',
 		},
 		fixtureDir: {
 			type: 'string',

@@ -6,9 +6,6 @@ settings:
 
 catalogs:
   build:
-    '@oxc-project/runtime':
-      specifier: ^0.129.0
-      version: 0.129.0
     tsdown:
       specifier: ^0.22.0
       version: 0.22.0
@@ -68,21 +65,9 @@ catalogs:
       specifier: ^0.0.60
       version: 0.0.60
   runtime:
-    '@praha/byethrow':
-      specifier: ^0.11.2
-      version: 0.11.2
-    ansi-escapes:
-      specifier: ^7.0.0
-      version: 7.1.0
-    arkregex:
-      specifier: ^0.0.5
-      version: 0.0.5
     gunshi:
       specifier: ^0.31.0
       version: 0.31.0
-    valibot:
-      specifier: ^1.1.0
-      version: 1.1.0
   testing:
     fs-fixture:
       specifier: ^2.8.1
@@ -255,56 +240,6 @@ importers:
 
   packages/ccusage-win32-x64: {}
 
-  packages/internal:
-    dependencies:
-      '@praha/byethrow':
-        specifier: catalog:runtime
-        version: 0.11.2(typescript@5.9.2)
-      valibot:
-        specifier: catalog:runtime
-        version: 1.1.0(typescript@5.9.2)
-    devDependencies:
-      '@ryoppippi/eslint-config':
-        specifier: catalog:lint
-        version: 0.4.0(@vue/compiler-sfc@3.5.30)(eslint-plugin-format@2.0.1(eslint@9.35.0(jiti@2.6.1)))(eslint@9.35.0(jiti@2.6.1))(typescript@5.9.2)(vitest@4.1.2(@types/node@24.5.1)(vite@8.0.11(@types/node@24.5.1)(esbuild@0.27.4)(jiti@2.6.1)(yaml@2.8.1)))
-      eslint:
-        specifier: catalog:lint
-        version: 9.35.0(jiti@2.6.1)
-      fs-fixture:
-        specifier: catalog:testing
-        version: 2.8.1
-      vitest:
-        specifier: catalog:testing
-        version: 4.1.2(@types/node@24.5.1)(vite@8.0.11(@types/node@24.5.1)(esbuild@0.27.4)(jiti@2.6.1)(yaml@2.8.1))
-
-  packages/terminal:
-    dependencies:
-      '@oxc-project/runtime':
-        specifier: catalog:build
-        version: 0.129.0
-      ansi-escapes:
-        specifier: catalog:runtime
-        version: 7.1.0
-    devDependencies:
-      '@ccusage/internal':
-        specifier: workspace:*
-        version: link:../internal
-      '@ryoppippi/eslint-config':
-        specifier: catalog:lint
-        version: 0.4.0(@vue/compiler-sfc@3.5.30)(eslint-plugin-format@2.0.1(eslint@9.35.0(jiti@2.6.1)))(eslint@9.35.0(jiti@2.6.1))(typescript@5.9.2)(vitest@4.1.2(@types/node@24.5.1)(vite@8.0.11(@types/node@24.5.1)(esbuild@0.27.4)(jiti@2.6.1)(yaml@2.8.1)))
-      arkregex:
-        specifier: catalog:runtime
-        version: 0.0.5
-      eslint:
-        specifier: catalog:lint
-        version: 9.35.0(jiti@2.6.1)
-      eslint-plugin-format:
-        specifier: catalog:lint
-        version: 2.0.1(eslint@9.35.0(jiti@2.6.1))
-      vitest:
-        specifier: catalog:testing
-        version: 4.1.2(@types/node@24.5.1)(vite@8.0.11(@types/node@24.5.1)(esbuild@0.27.4)(jiti@2.6.1)(yaml@2.8.1))
-
 packages:
 
   '@actions/core@1.11.1':
@@ -373,9 +308,6 @@ packages:
 
   '@antfu/install-pkg@1.1.0':
     resolution: {integrity: sha512-MGQsmw10ZyI+EJo45CdSER4zEb+p31LpDAFp2Z3gkSd1yqVZGi0Ebx++YTEMonJy4oChEMLsxZ64j8FH6sSqtQ==}
-
-  '@ark/util@0.56.0':
-    resolution: {integrity: sha512-BghfRC8b9pNs3vBoDJhcta0/c1J1rsoS1+HgVUreMFPdhz/CRAKReAu57YEllNaSy98rWAdY1gE+gFup7OXpgA==}
 
   '@babel/generator@8.0.0-rc.4':
     resolution: {integrity: sha512-YZ+FuIgkj7KrIb2a2X1XiY0QYgDxAbVbYP64SjwJzOK3euCsUerzenh2oqdsmKuPSlhzmFOOklnxzHAzXagvpw==}
@@ -1161,10 +1093,6 @@ packages:
 
   '@octokit/types@13.10.0':
     resolution: {integrity: sha512-ifLaO34EbbPj0Xgro4G5lP5asESjwHracYJvVaPIyXMuiuXLlhic3S47cBdTb+jfODkTE5YtGCLt3Ay3+J97sA==}
-
-  '@oxc-project/runtime@0.129.0':
-    resolution: {integrity: sha512-0+S67blQakgeNqoKGozOUp5rQBrz2ynXZ2QIINXZPiafsD0YL0UogB9hAWc1S7k6VSNwKYC/N7MqT0V6IzpHkQ==}
-    engines: {node: ^20.19.0 || >=22.12.0}
 
   '@oxc-project/types@0.128.0':
     resolution: {integrity: sha512-huv1Y/LzBJkBVHt3OlC7u0zHBW9qXf1FdD7sGmc1rXc2P1mTwHssYv7jyGx5KAACSCH+9B3Bhn6Z9luHRvf7pQ==}
@@ -2153,10 +2081,6 @@ packages:
   ajv@6.12.6:
     resolution: {integrity: sha512-j3fVLgvTo527anyYyJOGTYJbG+vnnQYvE0m5mmkc1TK+nxAppkCLMIL0aZ4dblVCNoGShhm+kzE4ZUykBoMg4g==}
 
-  ansi-escapes@7.1.0:
-    resolution: {integrity: sha512-YdhtCd19sKRKfAAUsrcC1wzm4JuzJoiX4pOJqIoW2qmKj5WzG/dL8uUJ0361zaXtHqK7gEhOwtAtz7t3Yq3X5g==}
-    engines: {node: '>=18'}
-
   ansi-regex@5.0.1:
     resolution: {integrity: sha512-quJQXlTSUGL2LH9SUXo8VwsY4soanhgo6LNSm84E1LBcE8s3O0wpdiRzyR9z/ZZJMlMWv37qOOb9pdJlMUEKFQ==}
     engines: {node: '>=8'}
@@ -2185,9 +2109,6 @@ packages:
 
   args-tokenizer@0.3.0:
     resolution: {integrity: sha512-xXAd7G2Mll5W8uo37GETpQ2VrE84M181Z7ugHFGQnJZ50M2mbOv0osSZ9VsSgPfJQ+LVG0prSi0th+ELMsno7Q==}
-
-  arkregex@0.0.5:
-    resolution: {integrity: sha512-ncYjBdLlh5/QnVsAA8De16Tc9EqmYM7y/WU9j+236KcyYNUXogpz3sC4ATIZYzzLxwI+0sEOaQLEmLmRleaEXw==}
 
   ast-kit@3.0.0-beta.1:
     resolution: {integrity: sha512-trmleAnZ2PxN/loHWVhhx1qeOHSRXq4TDsBBxq3GqeJitfk3+jTQ+v/C1km/KYq9M7wKqCewMh+/NAvVH7m+bw==}
@@ -2657,10 +2578,6 @@ packages:
   env-paths@2.2.1:
     resolution: {integrity: sha512-+h1lkLKhZMTYjog1VEpJNG7NZJWcuc2DDk/qsqSTRRCOXiLjeQ1d1/udrUGhqMxUgAlwKNZ0cf2uqan5GLuS2A==}
     engines: {node: '>=6'}
-
-  environment@1.1.0:
-    resolution: {integrity: sha512-xUtoPkMggbz0MPyPiIWr1Kp4aeWJjDZ6SMvURhimjdZgsRuDplF5/s9hcgGhyXMhs+6vpnuoiZ2kFiu3FMnS8Q==}
-    engines: {node: '>=18'}
 
   error-stack-parser-es@1.0.5:
     resolution: {integrity: sha512-5qucVt2XcuGMcEGgWI7i+yZpmpByQ8J1lHhcL7PwqCwu9FPP3VUXzT4ltHe5i2z9dePwEHcDVOAfSnHsOlCXRA==}
@@ -4512,14 +4429,6 @@ packages:
   util-deprecate@1.0.2:
     resolution: {integrity: sha512-EPD5q1uXyFxJpCrLnCc1nHnq3gOa6DZBocAIiI2TaSCA7VCJ1UJDMagCzIkXNsUYfD1daK//LTEQ8xiIbrHtcw==}
 
-  valibot@1.1.0:
-    resolution: {integrity: sha512-Nk8lX30Qhu+9txPYTwM0cFlWLdPFsFr6LblzqIySfbZph9+BFsAHsNvHOymEviUepeIW6KFHzpX8TKhbptBXXw==}
-    peerDependencies:
-      typescript: '>=5'
-    peerDependenciesMeta:
-      typescript:
-        optional: true
-
   validate-npm-package-name@5.0.1:
     resolution: {integrity: sha512-OljLrQ9SQdOUqTaQxqL5dEfZWrXExyyWsozYlAWFawPVNuD83igl7uJD2RTkNMbniIYgt8l81eCJGIdQF7avLQ==}
     engines: {node: ^14.17.0 || ^16.13.0 || >=18.0.0}
@@ -4876,8 +4785,6 @@ snapshots:
     dependencies:
       package-manager-detector: 1.3.0
       tinyexec: 1.0.2
-
-  '@ark/util@0.56.0': {}
 
   '@babel/generator@8.0.0-rc.4':
     dependencies:
@@ -5474,8 +5381,6 @@ snapshots:
   '@octokit/types@13.10.0':
     dependencies:
       '@octokit/openapi-types': 24.2.0
-
-  '@oxc-project/runtime@0.129.0': {}
 
   '@oxc-project/types@0.128.0': {}
 
@@ -6236,10 +6141,6 @@ snapshots:
       json-schema-traverse: 0.4.1
       uri-js: 4.4.1
 
-  ansi-escapes@7.1.0:
-    dependencies:
-      environment: 1.1.0
-
   ansi-regex@5.0.1: {}
 
   ansi-styles@4.3.0:
@@ -6262,10 +6163,6 @@ snapshots:
   argparse@2.0.1: {}
 
   args-tokenizer@0.3.0: {}
-
-  arkregex@0.0.5:
-    dependencies:
-      '@ark/util': 0.56.0
 
   ast-kit@3.0.0-beta.1:
     dependencies:
@@ -6609,8 +6506,6 @@ snapshots:
 
   env-paths@2.2.1:
     optional: true
-
-  environment@1.1.0: {}
 
   error-stack-parser-es@1.0.5: {}
 
@@ -8737,10 +8632,6 @@ snapshots:
   url-join@5.0.0: {}
 
   util-deprecate@1.0.2: {}
-
-  valibot@1.1.0(typescript@5.9.2):
-    optionalDependencies:
-      typescript: 5.9.2
 
   validate-npm-package-name@5.0.1: {}
 
