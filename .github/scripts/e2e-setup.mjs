@@ -45,7 +45,7 @@ appendFileSync(
 	githubEnv,
 	[
 		`CCUSAGE_PREVIEW_URL=${previewUrl}`,
-		`CCUSAGE_PNPM_DLX_URL=${nativePreviewUrl}`,
+		`CCUSAGE_PNPM_DLX_URL=${previewUrl}`,
 		`CLAUDE_CONFIG_DIR=${claudeConfigDir}`,
 		'LOG_LEVEL=0',
 		'',
