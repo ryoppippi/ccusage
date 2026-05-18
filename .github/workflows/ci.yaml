@@ -154,8 +154,10 @@ jobs:
           npx --yes "$env:CCUSAGE_PREVIEW_URL" daily --offline --json | node -e "JSON.parse(require('fs').readFileSync(0, 'utf8'))"
           npx --yes "$env:CCUSAGE_PREVIEW_URL" daily --offline
       - name: Enable pnpm
+        if: runner.os != 'Windows'
         run: corepack enable pnpm
       - name: Run preview package E2E with pnpm dlx
+        if: runner.os != 'Windows'
         shell: pwsh
         run: |
           pnpm --config.block-exotic-subdeps=false dlx "$env:CCUSAGE_PNPM_DLX_URL" --version
