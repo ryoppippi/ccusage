@@ -22,6 +22,7 @@ type CommandResult = {
 
 type SizeComparison = {
 	basePackage: number;
+	baseRustBinary?: number;
 	headPackage: number;
 	headRustBinary?: number;
 };
@@ -177,6 +178,25 @@ function formatSize(bytes: number): string {
 	return `${(bytes / 1024).toFixed(2)} KiB`;
 }
 
+function formatOptionalSize(bytes: number | undefined): string {
+	return bytes == null ? '-' : formatSize(bytes);
+}
+
+function formatSizeDelta(baseBytes: number | undefined, headBytes: number | undefined): string {
+	if (baseBytes == null || headBytes == null) {
+		return '-';
+	}
+	const delta = headBytes - baseBytes;
+	return `${delta >= 0 ? '+' : ''}${formatSize(delta)}`;
+}
+
+function formatSizeRatio(baseBytes: number | undefined, headBytes: number | undefined): string {
+	if (baseBytes == null || headBytes == null || headBytes === 0) {
+		return '-';
+	}
+	return `${(baseBytes / headBytes).toFixed(2)}x`;
+}
+
 function formatDataSize(bytes: number): string {
 	if (bytes >= 1024 * 1024 * 1024) {
 		return `${(bytes / 1024 / 1024 / 1024).toFixed(2)} GiB`;
@@ -209,6 +229,18 @@ async function summarizeDirectory(directory: string): Promise<FixtureStats> {
 		}
 	}
 	return { bytes, files };
+}
+
+async function optionalFileSizeBytes(filePath: string): Promise<number | undefined> {
+	try {
+		const fileStat = await stat(filePath);
+		return fileStat.isFile() ? fileStat.size : undefined;
+	} catch (error) {
+		if (isRecord(error) && error.code === 'ENOENT') {
+			return undefined;
+		}
+		throw error;
+	}
 }
 
 async function writeProgress(message: string): Promise<void> {
@@ -533,18 +565,16 @@ function renderMarkdown(
 		lines.push(...renderFixtureSection(section, options), '');
 	}
 
-	const packageSizeDelta = sizes.headPackage - sizes.basePackage;
-	const packageSizeRatio = sizes.basePackage / sizes.headPackage;
 	lines.push(
 		'## Artifact size',
 		'',
 		'| Artifact | Base | PR | Delta | Ratio |',
 		'| --- | ---: | ---: | ---: | ---: |',
-		`| packed \`ccusage-*.tgz\` | ${formatSize(sizes.basePackage)} | ${formatSize(sizes.headPackage)} | ${packageSizeDelta >= 0 ? '+' : ''}${formatSize(packageSizeDelta)} | ${packageSizeRatio.toFixed(2)}x |`,
+		`| packed \`ccusage-*.tgz\` | ${formatSize(sizes.basePackage)} | ${formatSize(sizes.headPackage)} | ${formatSizeDelta(sizes.basePackage, sizes.headPackage)} | ${formatSizeRatio(sizes.basePackage, sizes.headPackage)} |`,
 		...(sizes.headRustBinary == null
 			? []
 			: [
-					`| Rust release binary \`rust/target/release/ccusage\` | - | ${formatSize(sizes.headRustBinary)} | - | - |`,
+					`| Rust release binary \`rust/target/release/ccusage\` | ${formatOptionalSize(sizes.baseRustBinary)} | ${formatSize(sizes.headRustBinary)} | ${formatSizeDelta(sizes.baseRustBinary, sizes.headRustBinary)} | ${formatSizeRatio(sizes.baseRustBinary, sizes.headRustBinary)} |`,
 				]),
 		'',
 		'Lower medians and smaller artifacts are better. CI runner noise still applies; use same-run ratios as directional PR feedback, not release guarantees.',
@@ -689,6 +719,26 @@ if (import.meta.vitest != null) {
 			expect(markdown).toContain('PR SHA: `abcdef012345`');
 			expect(markdown).toContain('Base SHA: `0123456789ab`');
 		});
+
+		it('compares Rust release binary sizes when both revisions provide them', () => {
+			const markdown = renderMarkdown(
+				[emptyFixtureSection],
+				{
+					basePackage: 1024,
+					baseRustBinary: 2 * 1024,
+					headPackage: 1024,
+					headRustBinary: 1024,
+				},
+				{
+					headDir: '/repo',
+					headRuntime: 'rust',
+				},
+			);
+
+			expect(markdown).toContain(
+				'| Rust release binary `rust/target/release/ccusage` | 2.00 KiB | 1.00 KiB | -1.00 KiB | 2.00x |',
+			);
+		});
 	});
 }
 
@@ -815,10 +865,9 @@ const command = define({
 
 		const sizes = {
 			basePackage: await packedTarballSizeBytes(options.baseDir),
+			baseRustBinary: await optionalFileSizeBytes(rustBinaryEntry(options.baseDir)),
 			headPackage: await packedTarballSizeBytes(options.headDir),
-			...(options.headRuntime === 'rust'
-				? { headRustBinary: Bun.file(rustBinaryEntry(options.headDir)).size }
-				: {}),
+			headRustBinary: await optionalFileSizeBytes(rustBinaryEntry(options.headDir)),
 		};
 
 		const markdown = renderMarkdown(sections, sizes, options);
