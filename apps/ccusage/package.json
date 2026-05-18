@@ -50,14 +50,14 @@
 		"prepack": "pnpm run build && clean-pkg-json",
 		"prerelease": "pnpm run lint && pnpm run typecheck && pnpm run build",
 		"stage:native-package": "node scripts/stage-native-package.mjs",
-		"start": "bun ./src/index.ts",
+		"start": "cargo run --bin ccusage --",
 		"test": "TZ=UTC vitest",
 		"test:rust": "cargo test --workspace",
-		"test:statusline": "cat test/statusline-test.json | node ./src/index.ts statusline",
+		"test:statusline": "cat test/statusline-test.json | cargo run --bin ccusage -- statusline",
 		"test:statusline:all": "echo 'Testing Sonnet 4:' && pnpm run test:statusline:sonnet4 && echo 'Testing Opus 4.1:' && pnpm run test:statusline:opus4 && echo 'Testing Sonnet 4.1:' && pnpm run test:statusline:sonnet41",
-		"test:statusline:opus4": "cat test/statusline-test-opus4.json | node ./src/index.ts statusline --offline",
-		"test:statusline:sonnet4": "cat test/statusline-test-sonnet4.json | node ./src/index.ts statusline --offline",
-		"test:statusline:sonnet41": "cat test/statusline-test-sonnet41.json | node ./src/index.ts statusline --offline",
+		"test:statusline:opus4": "cat test/statusline-test-opus4.json | cargo run --bin ccusage -- statusline --offline",
+		"test:statusline:sonnet4": "cat test/statusline-test-sonnet4.json | cargo run --bin ccusage -- statusline --offline",
+		"test:statusline:sonnet41": "cat test/statusline-test-sonnet41.json | cargo run --bin ccusage -- statusline --offline",
 		"typecheck": "tsgo --noEmit"
 	},
 	"optionalDependencies": {
@@ -69,30 +69,17 @@
 		"@ccusage/ccusage-win32-x64": "19.0.3"
 	},
 	"devDependencies": {
-		"@antfu/utils": "catalog:runtime",
-		"@ccusage/internal": "workspace:*",
-		"@ccusage/terminal": "workspace:*",
-		"@oxc-project/runtime": "catalog:build",
-		"@praha/byethrow": "catalog:runtime",
 		"@ryoppippi/eslint-config": "catalog:lint",
 		"@types/bun": "catalog:types",
 		"@typescript/native-preview": "catalog:types",
-		"arkregex": "catalog:runtime",
 		"clean-pkg-json": "catalog:release",
 		"eslint": "catalog:lint",
 		"eslint-plugin-format": "catalog:lint",
 		"fs-fixture": "catalog:testing",
-		"get-stdin": "catalog:runtime",
 		"gunshi": "catalog:runtime",
 		"mitata": "catalog:testing",
-		"picospinner": "catalog:runtime",
 		"publint": "catalog:lint",
 		"tsdown": "catalog:build",
-		"type-fest": "catalog:runtime",
-		"unplugin-macros": "catalog:build",
-		"unplugin-unused": "catalog:build",
-		"valibot": "catalog:runtime",
-		"vitest": "catalog:testing",
-		"xdg-basedir": "catalog:runtime"
+		"vitest": "catalog:testing"
 	}
 }

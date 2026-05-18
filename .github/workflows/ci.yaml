@@ -112,8 +112,6 @@ jobs:
           PKG_PR_NEW_URLS: ${{ needs.npm-publish-dry-run-and-upload-pkg-pr-now.outputs.urls }}
         run: node .github/scripts/e2e-setup.mjs
       - name: Run preview package E2E with Node
-        env:
-          CCUSAGE_BUN_AUTO_RUN: 0
         shell: pwsh
         run: |
           npx --yes "$env:CCUSAGE_PREVIEW_URL" --version
