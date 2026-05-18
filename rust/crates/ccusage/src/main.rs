@@ -488,6 +488,56 @@ mod tests {
     }
 
     #[test]
+    fn keeps_nested_agent_progress_in_daily_model_order() {
+        let _guard = CLAUDE_CONFIG_DIR_LOCK.lock().unwrap();
+        let claude_dir = temp_claude_dir("daily-agent-progress");
+        let session_dir = claude_dir.join("projects/project-a/session-a");
+        let subagent_dir = session_dir.join("subagents");
+        fs::create_dir_all(&subagent_dir).unwrap();
+        fs::write(
+            claude_dir.join("projects/project-a/session-a.jsonl"),
+            [
+                r#"{"timestamp":"2026-03-10T06:00:00.000Z","version":"1.2.3","sessionId":"session-a","message":{"id":"msg_fast","model":"claude-opus-4-6","role":"assistant","usage":{"input_tokens":10,"output_tokens":1,"cache_creation_input_tokens":0,"cache_read_input_tokens":0,"speed":"fast"}},"requestId":"req_fast","costUSD":0.03}"#,
+                r#"{"sessionId":"session-a","version":"1.2.3","type":"progress","data":{"message":{"type":"assistant","timestamp":"2026-03-10T06:00:01.000Z","message":{"model":"claude-haiku-4-5-20251001","id":"msg_haiku","type":"message","role":"assistant","content":[],"usage":{"input_tokens":20,"output_tokens":2,"cache_creation_input_tokens":0,"cache_read_input_tokens":0}},"requestId":"req_haiku","uuid":"nested"}},"timestamp":"2026-03-10T06:00:01.001Z"}"#,
+                r#"{"timestamp":"2026-03-10T06:00:02.000Z","version":"1.2.3","sessionId":"session-a","message":{"id":"msg_opus","model":"claude-opus-4-6","role":"assistant","usage":{"input_tokens":30,"output_tokens":3,"cache_creation_input_tokens":0,"cache_read_input_tokens":0}},"requestId":"req_opus","costUSD":0.09}"#,
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+        fs::write(
+            subagent_dir.join("agent-a.jsonl"),
+            r#"{"timestamp":"2026-03-10T06:00:01.000Z","version":"1.2.3","sessionId":"session-a","message":{"id":"msg_haiku","model":"claude-haiku-4-5-20251001","role":"assistant","usage":{"input_tokens":20,"output_tokens":2,"cache_creation_input_tokens":0,"cache_read_input_tokens":0}},"requestId":"req_haiku","costUSD":0.06}"#,
+        )
+        .unwrap();
+
+        let previous = env::var("CLAUDE_CONFIG_DIR").ok();
+        env::set_var("CLAUDE_CONFIG_DIR", &claude_dir);
+        let shared = SharedArgs {
+            mode: CostMode::Display,
+            timezone: Some("UTC".to_string()),
+            ..SharedArgs::default()
+        };
+        let daily = load_daily_summaries(&shared, None, false).unwrap();
+        if let Some(previous) = previous {
+            env::set_var("CLAUDE_CONFIG_DIR", previous);
+        } else {
+            env::remove_var("CLAUDE_CONFIG_DIR");
+        }
+        fs::remove_dir_all(&claude_dir).unwrap();
+
+        assert_eq!(daily.len(), 1);
+        assert_eq!(
+            daily[0].models_used,
+            vec![
+                "claude-opus-4-6-fast",
+                "claude-haiku-4-5-20251001",
+                "claude-opus-4-6",
+            ]
+        );
+        assert_eq!(daily[0].total_cost, 0.12);
+    }
+
+    #[test]
     fn loads_codex_token_count_events() {
         let codex_dir = temp_claude_dir("codex");
         let sessions_dir = codex_dir.join("sessions");

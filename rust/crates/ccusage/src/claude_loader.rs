@@ -297,6 +297,49 @@ struct DailyUsageEntry {
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(untagged)]
+enum DailyUsageLine {
+    Direct(DailyUsageEntry),
+    AgentProgress(DailyAgentProgressEntry),
+}
+
+impl DailyUsageLine {
+    fn into_entry(self) -> DailyUsageEntry {
+        match self {
+            DailyUsageLine::Direct(entry) => entry,
+            DailyUsageLine::AgentProgress(entry) => DailyUsageEntry {
+                timestamp: entry.data.message.timestamp,
+                message: entry.data.message.message,
+                version: None,
+                session_id: None,
+                cost_usd: entry.data.message.cost_usd,
+                request_id: entry.data.message.request_id,
+            },
+        }
+    }
+}
+
+#[derive(Debug, Deserialize)]
+struct DailyAgentProgressEntry {
+    data: DailyAgentProgressData,
+}
+
+#[derive(Debug, Deserialize)]
+struct DailyAgentProgressData {
+    message: DailyAgentProgressMessage,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct DailyAgentProgressMessage {
+    timestamp: String,
+    message: DailyUsageMessage,
+    #[serde(rename = "costUSD")]
+    cost_usd: Option<f64>,
+    request_id: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
 struct DailyUsageMessage {
     usage: TokenUsageRaw,
     model: Option<String>,
@@ -372,9 +415,10 @@ fn read_daily_usage_file(
         if usage_marker.find(line).is_none() {
             continue;
         }
-        let Ok(data) = serde_json::from_slice::<DailyUsageEntry>(line) else {
+        let Ok(data) = serde_json::from_slice::<DailyUsageLine>(line) else {
             continue;
         };
+        let data = data.into_entry();
         let Some(timestamp) = parse_ts_timestamp(&data.timestamp) else {
             continue;
         };
