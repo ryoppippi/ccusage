@@ -320,6 +320,7 @@ fn dedupe_codex_events(events: &mut Vec<CodexTokenUsageEvent>) {
     let mut seen = HashSet::new();
     events.retain(|event| {
         seen.insert((
+            event.session_id.clone(),
             event.timestamp.clone(),
             event.model.clone(),
             event.input_tokens,
@@ -329,4 +330,32 @@ fn dedupe_codex_events(events: &mut Vec<CodexTokenUsageEvent>) {
             event.total_tokens,
         ))
     });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn codex_event(session_id: &str) -> CodexTokenUsageEvent {
+        CodexTokenUsageEvent {
+            session_id: session_id.to_string(),
+            timestamp: "2026-01-02T00:00:00.000Z".to_string(),
+            model: Some("gpt-5".to_string()),
+            input_tokens: 100,
+            cached_input_tokens: 10,
+            output_tokens: 50,
+            reasoning_output_tokens: 0,
+            total_tokens: 150,
+            is_fallback_model: false,
+        }
+    }
+
+    #[test]
+    fn keeps_matching_codex_usage_events_from_distinct_sessions() {
+        let mut events = vec![codex_event("session-a"), codex_event("session-b")];
+
+        dedupe_codex_events(&mut events);
+
+        assert_eq!(events.len(), 2);
+    }
 }

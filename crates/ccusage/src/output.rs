@@ -129,7 +129,7 @@ pub(crate) fn print_usage_table(
     project_aliases: Option<&str>,
 ) {
     if rows.is_empty() {
-        eprintln!("No Claude usage data found.");
+        eprintln!("{}", empty_usage_table_message());
         return;
     }
     let terminal_width = terminal_width();
@@ -293,6 +293,10 @@ pub(crate) fn print_usage_table(
     }
 }
 
+fn empty_usage_table_message() -> &'static str {
+    "No usage data found."
+}
+
 pub(crate) fn json_float(value: f64) -> Value {
     if value.is_finite()
         && value.fract() == 0.0
@@ -396,4 +400,14 @@ pub(crate) fn format_number(value: u64) -> String {
 
 pub(crate) fn format_currency(value: f64) -> String {
     format!("${value:.2}")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn empty_usage_table_message_is_provider_agnostic() {
+        assert_eq!(empty_usage_table_message(), "No usage data found.");
+    }
 }

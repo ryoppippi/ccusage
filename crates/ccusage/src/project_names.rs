@@ -34,6 +34,8 @@ fn parse_project_name(project: &str) -> String {
         if let Some(index) = segments.iter().position(|segment| *segment == "Users") {
             if index + 3 < segments.len() {
                 cleaned = segments[index + 3..].join("-");
+            } else if index + 2 < segments.len() {
+                cleaned = segments[index + 2..].join("-");
             }
         }
     } else if cleaned.starts_with("-Users-") || cleaned.starts_with("/Users/") {
@@ -49,6 +51,8 @@ fn parse_project_name(project: &str) -> String {
         if let Some(index) = segments.iter().position(|segment| *segment == "Users") {
             if index + 3 < segments.len() {
                 cleaned = segments[index + 3..].join("-");
+            } else if index + 2 < segments.len() {
+                cleaned = segments[index + 2..].join("-");
             }
         }
     } else {
@@ -128,4 +132,27 @@ pub(crate) fn short_model_name(model: &str) -> String {
         return parts[..parts.len() - 1].join("-");
     }
     model.to_string()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn formats_users_project_paths_without_dropping_project_name() {
+        let aliases = HashMap::new();
+
+        assert_eq!(
+            format_project_name("/Users/alice/ccusage", &aliases),
+            "ccusage"
+        );
+        assert_eq!(
+            format_project_name("/Users/alice/Development/ccusage", &aliases),
+            "ccusage"
+        );
+        assert_eq!(
+            format_project_name("-Users-alice-ccusage", &aliases),
+            "ccusage"
+        );
+    }
 }
