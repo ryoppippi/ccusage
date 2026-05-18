@@ -526,7 +526,6 @@ export async function createCcusageCommand(
 	codexFixtureDir: string | undefined,
 	command: string,
 	runtime: HeadRuntime = 'package',
-	packageBinEntryOverride?: string,
 ): Promise<string> {
 	if (runtime === 'rust') {
 		return createCcusageCommandFromRustBinary(
@@ -537,7 +536,7 @@ export async function createCcusageCommand(
 		);
 	}
 	return createCcusageCommandFromBin(
-		packageBinEntryOverride ?? (await packageBinEntry(repoDir)),
+		await packageBinEntry(repoDir),
 		fixtureDir,
 		codexFixtureDir,
 		command,
@@ -565,7 +564,6 @@ async function compareCommand(
 		codexFixtureDir?: string;
 		fixtureDir: string;
 		headDir: string;
-		headPackageBinEntry?: string;
 		headRuntime: HeadRuntime;
 		runs: number;
 		warmup: number;
@@ -586,7 +584,6 @@ async function compareCommand(
 		options.codexFixtureDir,
 		command,
 		options.headRuntime,
-		options.headPackageBinEntry,
 	);
 	const hyperfine = Bun.spawn(
 		[
@@ -655,7 +652,6 @@ async function compareFixture(options: {
 	description: string;
 	fixtureDir: string;
 	headDir: string;
-	headPackageBinEntry?: string;
 	headRuntime: HeadRuntime;
 	runs: number;
 	title: string;
@@ -1143,15 +1139,6 @@ const command = define({
 						packageUrl: basePackageUrl,
 						timeoutMs: ctx.values.packageRunnerTimeoutMs,
 					});
-		const headPackageInstall =
-			ctx.values.headPackageUrl == null
-				? undefined
-				: await installPackageUrl({
-						installDir: join(installFixture.path, 'head-package'),
-						label: 'PR',
-						packageUrl: ctx.values.headPackageUrl,
-						timeoutMs: ctx.values.packageRunnerTimeoutMs,
-					});
 		const baseBinEntry =
 			basePackageInstall == null ? await packageBinEntry(baseDir!) : basePackageInstall.binEntry;
 		const options = {
@@ -1165,8 +1152,6 @@ const command = define({
 			codexFixtureDir: resolve(ctx.values.codexFixtureDir),
 			fixtureDir: resolve(ctx.values.fixtureDir),
 			headDir: resolve(ctx.values.headDir),
-			headPackageBinEntry:
-				ctx.values.headRuntime === 'package' ? headPackageInstall?.binEntry : undefined,
 			headPackageUrl: ctx.values.headPackageUrl,
 			headRuntime: parseHeadRuntime(ctx.values.headRuntime),
 			headSha: gitSha(resolve(ctx.values.headDir)),
@@ -1220,7 +1205,6 @@ const command = define({
 							options.headPackageUrl == null
 								? undefined
 								: await measurePackageRunnerWithAcquisition({
-										acquisition: headPackageInstall?.acquisition,
 										cacheDir: join(installFixture.path, 'bunx-head-cache'),
 										label: 'PR',
 										packageUrl: options.headPackageUrl,
@@ -1235,10 +1219,7 @@ const command = define({
 					: await remoteTarballSizeBytes(basePackageUrl),
 			baseRustBinary:
 				baseDir == null ? undefined : await optionalFileSizeBytes(rustBinaryEntry(baseDir)),
-			headPackage:
-				options.headPackageUrl == null
-					? await packedTarballSizeBytes(options.headDir)
-					: await remoteTarballSizeBytes(options.headPackageUrl),
+			headPackage: await packedTarballSizeBytes(options.headDir),
 			headRustBinary: await optionalFileSizeBytes(rustBinaryEntry(options.headDir)),
 		};
 
