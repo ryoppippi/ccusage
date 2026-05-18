@@ -19,6 +19,21 @@ type FileMode = {
 	mode: number;
 };
 
+type NativeSpawnResult = {
+	error?: Error;
+	signal?: NodeJS.Signals | null;
+	status: number | null;
+};
+
+type NativeSpawner = (command: string, args: string[]) => NativeSpawnResult;
+
+type BunLike = {
+	spawnSync?: (
+		command: string[],
+		options: { stderr: 'inherit'; stdout: 'inherit' },
+	) => { exitCode: number; signalCode?: NodeJS.Signals | null };
+};
+
 function getNativePackageName(
 	platform: string = process.platform,
 	arch: string = process.arch,
@@ -134,7 +149,25 @@ function ensureNativeBinaryExecutable({
 	}
 }
 
-function runCli(argv: string[]): number {
+function createNativeSpawner(
+	bun: BunLike | undefined = (globalThis as typeof globalThis & { Bun?: BunLike }).Bun,
+): NativeSpawner {
+	if (bun?.spawnSync != null) {
+		return (command, args) => {
+			const result = bun.spawnSync!([command, ...args], {
+				stderr: 'inherit',
+				stdout: 'inherit',
+			});
+			return {
+				signal: result.signalCode ?? null,
+				status: result.exitCode,
+			};
+		};
+	}
+	return (command, args) => spawnSync(command, args, { stdio: 'inherit' });
+}
+
+function runCli(argv: string[], spawnNative: NativeSpawner = createNativeSpawner()): number {
 	const runtime = resolveCliRuntime({ argv });
 	if ('errorMessage' in runtime) {
 		process.stderr.write(runtime.errorMessage);
@@ -149,7 +182,7 @@ function runCli(argv: string[]): number {
 		return 1;
 	}
 
-	const result = spawnSync(runtime.command, runtime.args, { stdio: 'inherit' });
+	const result = spawnNative(runtime.command, runtime.args);
 	if (result.error != null) {
 		process.stderr.write(`${result.error.message}\n`);
 		return 1;
@@ -259,6 +292,24 @@ if (import.meta.vitest != null) {
 				}),
 			).toBeUndefined();
 			expect(chmodPath).not.toHaveBeenCalled();
+		});
+	});
+
+	describe('createNativeSpawner', () => {
+		it('uses Bun.spawnSync when running under Bun', () => {
+			const spawnSyncMock = vi.fn(() => ({
+				exitCode: 0,
+			}));
+			const spawnNative = createNativeSpawner({ spawnSync: spawnSyncMock });
+
+			expect(spawnNative('/native/bin/ccusage', ['claude', '--offline'])).toEqual({
+				signal: null,
+				status: 0,
+			});
+			expect(spawnSyncMock).toHaveBeenCalledWith(['/native/bin/ccusage', 'claude', '--offline'], {
+				stderr: 'inherit',
+				stdout: 'inherit',
+			});
 		});
 	});
 }
