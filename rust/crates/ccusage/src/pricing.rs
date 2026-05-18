@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, time::Duration};
 
 use serde::Deserialize;
 
@@ -8,6 +8,7 @@ const FALLBACK_PRICING_JSON: &str = include_str!("litellm-pricing-fallback.json"
 const LITELLM_PRICING_URL: &str =
     "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json";
 const PRICING_FETCH_TIMEOUT_SECONDS: u64 = 10;
+const PRICING_FETCH_MAX_BYTES: u64 = 64 * 1024 * 1024;
 
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct Pricing {
@@ -455,20 +456,26 @@ impl PricingMap {
 }
 
 fn fetch_pricing_json() -> std::io::Result<String> {
-    let response = minreq::get(LITELLM_PRICING_URL)
-        .with_timeout(PRICING_FETCH_TIMEOUT_SECONDS)
-        .send()
+    let agent = ureq::Agent::config_builder()
+        .timeout_global(Some(Duration::from_secs(PRICING_FETCH_TIMEOUT_SECONDS)))
+        .build()
+        .new_agent();
+    let mut response = agent
+        .get(LITELLM_PRICING_URL)
+        .call()
         .map_err(|error| std::io::Error::other(error.to_string()))?;
-    if response.status_code != 200 {
+    if response.status().as_u16() != 200 {
         return Err(std::io::Error::other(format!(
             "HTTP {}",
-            response.status_code
+            response.status().as_u16()
         )));
     }
-    Ok(response
-        .as_str()
-        .map_err(|error| std::io::Error::new(std::io::ErrorKind::InvalidData, error.to_string()))?
-        .to_string())
+    response
+        .body_mut()
+        .with_config()
+        .limit(PRICING_FETCH_MAX_BYTES)
+        .read_to_string()
+        .map_err(|error| std::io::Error::new(std::io::ErrorKind::InvalidData, error.to_string()))
 }
 
 #[cfg(test)]
