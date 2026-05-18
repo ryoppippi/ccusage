@@ -15,7 +15,7 @@ permissions:
 jobs:
   compare:
     runs-on: ubuntu-24.04-arm
-    timeout-minutes: 15
+    timeout-minutes: 30
 
     steps:
       - name: Checkout PR
@@ -52,6 +52,7 @@ jobs:
             --large-codex-fixture-dir "$RUNNER_TEMP/ccusage-large-codex-fixture" \
             --large-warmup 0 \
             --large-runs 1 \
+            --package-runner-timeout-ms 600000 \
             --output "$RUNNER_TEMP/ccusage-rust-perf-comment.md"
 
       - name: Write job summary

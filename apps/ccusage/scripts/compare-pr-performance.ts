@@ -759,9 +759,9 @@ function renderPackageRunnerComparison(
 	const lines = [
 		'## Package runner startup',
 		'',
-		'Acquisition measures the pre-benchmark temporary package install used by the execution benchmark. Cold measures one `bunx -p <url> ccusage --version` run with an empty Bun install cache. Warm reuses that cache and reports the median of repeated runs.',
+		'Execution setup measures any pre-benchmark package materialization used by the execution benchmark. Bunx temp cache measures one `bunx -p <url> ccusage --version` run with an empty Bun install cache. Warm reuses that cache and reports the median of repeated runs.',
 		'',
-		'| Package | SHA | Acquisition | Bunx cold | Bunx warm median | Warm samples |',
+		'| Package | SHA | Execution setup | Bunx temp cache | Bunx warm median | Warm samples |',
 		'| --- | ---: | ---: | ---: | ---: | ---: |',
 	];
 
@@ -951,6 +951,10 @@ if (import.meta.vitest != null) {
 			}).join('\n');
 
 			expect(markdown).toContain('## Package runner startup');
+			expect(markdown).toContain('Bunx temp cache measures one');
+			expect(markdown).toContain(
+				'| Package | SHA | Execution setup | Bunx temp cache | Bunx warm median | Warm samples |',
+			);
 			expect(markdown).toContain(
 				'| Base pkg.pr.new | `0123456789ab` | 400.0ms | 1.200s | 90.0ms | 3 |',
 			);
