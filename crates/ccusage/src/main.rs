@@ -22,6 +22,7 @@ mod date_utils;
 mod home;
 mod pricing;
 mod progress;
+mod project_names;
 mod table;
 mod types;
 
@@ -31,6 +32,7 @@ pub(crate) use blocks::{
 };
 pub(crate) use cost::{calculate_cost, tiered_cost};
 pub(crate) use date_utils::*;
+pub(crate) use project_names::{format_project_name, parse_project_aliases, short_model_name};
 pub(crate) use table::{color, print_box_title, terminal_width, Align, Color, SimpleTable};
 pub(crate) use types::*;
 
@@ -1625,120 +1627,6 @@ fn format_models_multiline(models: &[String]) -> String {
         .join("\n")
 }
 
-fn parse_project_aliases(raw: Option<&str>) -> HashMap<String, String> {
-    raw.unwrap_or_default()
-        .split(',')
-        .filter_map(|pair| {
-            let (key, value) = pair.split_once('=')?;
-            let key = key.trim();
-            let value = value.trim();
-            if key.is_empty() || value.is_empty() {
-                None
-            } else {
-                Some((key.to_string(), value.to_string()))
-            }
-        })
-        .collect()
-}
-
-fn format_project_name(project: &str, aliases: &HashMap<String, String>) -> String {
-    if let Some(alias) = aliases.get(project) {
-        return alias.clone();
-    }
-    let parsed = parse_project_name(project);
-    aliases.get(&parsed).cloned().unwrap_or(parsed)
-}
-
-fn parse_project_name(project: &str) -> String {
-    if project.is_empty() || project == "unknown" {
-        return "Unknown Project".to_string();
-    }
-    let mut cleaned = project.to_string();
-    if cleaned.starts_with("-Users-") || cleaned.starts_with("/Users/") {
-        let separator = if cleaned.starts_with("-Users-") {
-            '-'
-        } else {
-            '/'
-        };
-        let segments = cleaned
-            .split(separator)
-            .filter(|segment| !segment.is_empty())
-            .collect::<Vec<_>>();
-        if let Some(index) = segments.iter().position(|segment| *segment == "Users") {
-            if index + 3 < segments.len() {
-                cleaned = segments[index + 3..].join("-");
-            }
-        }
-    } else {
-        cleaned = cleaned
-            .trim_matches(|ch| ch == '/' || ch == '\\' || ch == '-')
-            .to_string();
-    }
-    if cleaned.split('-').count() >= 5
-        && cleaned
-            .chars()
-            .all(|ch| ch.is_ascii_hexdigit() || ch == '-' || ch == '.')
-    {
-        let parts = cleaned.split('-').collect::<Vec<_>>();
-        cleaned = parts[parts.len().saturating_sub(2)..].join("-");
-    }
-    if let Some((main, _)) = cleaned.split_once("--") {
-        cleaned = main.to_string();
-    }
-    if cleaned.contains('-') && cleaned.len() > 20 {
-        let meaningful = cleaned
-            .split('-')
-            .filter(|segment| {
-                segment.len() > 2
-                    && !matches!(
-                        segment.to_ascii_lowercase().as_str(),
-                        "dev"
-                            | "development"
-                            | "feat"
-                            | "feature"
-                            | "fix"
-                            | "bug"
-                            | "test"
-                            | "staging"
-                            | "prod"
-                            | "production"
-                            | "main"
-                            | "master"
-                            | "branch"
-                    )
-            })
-            .collect::<Vec<_>>();
-        if meaningful.len() >= 2 {
-            let last_two = meaningful[meaningful.len() - 2..].join("-");
-            cleaned = if last_two.len() >= 6 {
-                last_two
-            } else if meaningful.len() >= 3 {
-                meaningful[meaningful.len() - 3..].join("-")
-            } else {
-                cleaned
-            };
-        }
-    }
-    let cleaned = cleaned.trim_matches(|ch| ch == '/' || ch == '\\' || ch == '-');
-    if cleaned.is_empty() {
-        project.to_string()
-    } else {
-        cleaned.to_string()
-    }
-}
-
-fn short_model_name(model: &str) -> String {
-    let model = model
-        .strip_prefix("anthropic/claude-")
-        .or_else(|| model.strip_prefix("claude-"))
-        .unwrap_or(model);
-    let parts = model.split('-').collect::<Vec<_>>();
-    if parts.len() >= 3 && parts.last().is_some_and(|part| part.len() == 8) {
-        return parts[..parts.len() - 1].join("-");
-    }
-    model.to_string()
-}
-
 fn total_usage_tokens(usage: TokenUsageRaw) -> u64 {
     usage.input_tokens
         + usage.output_tokens
@@ -1797,6 +1685,20 @@ mod tests {
     #[test]
     fn calculates_tiered_cost() {
         assert!((tiered_cost(300_000, 3e-6, Some(6e-6)) - 1.2).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn formats_windows_user_project_paths_like_typescript() {
+        let aliases = HashMap::new();
+
+        assert_eq!(
+            format_project_name(r"C:\Users\phaedrus\Development\ccusage", &aliases),
+            "ccusage"
+        );
+        assert_eq!(
+            format_project_name(r"\Users\phaedrus\Development\ccusage", &aliases),
+            "ccusage"
+        );
     }
 
     #[test]
