@@ -5,7 +5,7 @@ resolver = "2"
 [profile.release]
 codegen-units = 1
 lto = "fat"
-opt-level = 2
+opt-level = "z"
 panic = "abort"
 strip = "symbols"
 
