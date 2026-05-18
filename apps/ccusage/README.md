@@ -161,6 +161,10 @@ Check out [ccusage: The Claude Code cost scorecard that went viral](https://www.
     </picture>
 </a>
 
+## Community Projects
+
+- [ccusage-mqtt](https://github.com/george-vice/ccusage-mqtt) — wraps `ccusage blocks --json --offline` and publishes Claude Code usage to Home Assistant via MQTT (15 sensors, auto-discovery, mood classifier).
+
 ## License
 
 [MIT](LICENSE) © [@ryoppippi](https://github.com/ryoppippi)
