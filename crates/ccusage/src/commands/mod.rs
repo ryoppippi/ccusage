@@ -1,12 +1,13 @@
 use std::{
     collections::HashMap,
-    fs,
+    env, fs,
     io::{self, Read},
-    path::Path,
+    path::{Path, PathBuf},
     sync::Arc,
+    time::{SystemTime, UNIX_EPOCH},
 };
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json::json;
 
 use crate::{
@@ -16,12 +17,13 @@ use crate::{
         VisualBurnRate, WeekDay, WeeklyArgs,
     },
     filter_and_sort_summaries, filter_blocks_by_date, format_compact_utc_date, format_context,
-    format_currency, format_number, format_remaining_time, group_project_output,
-    identify_session_blocks, load_entries, print_active_block_detail, print_blocks_table,
-    print_json_or_jq, print_usage_table, session_summary_json, sort_blocks, sort_summaries,
-    summarize_by_key, summarize_summaries_by_bucket, summary_json, total_usage_tokens, totals_json,
-    utc_now, wants_json, BucketKind, Context, Result, SessionAccumulator, TimestampMs,
-    DEFAULT_RECENT_DAYS, DEFAULT_SESSION_DURATION_HOURS, MILLIS_PER_DAY, MILLIS_PER_MINUTE,
+    format_currency, format_number, format_remaining_time, format_rfc3339_millis,
+    group_project_output, identify_session_blocks, load_entries, print_active_block_detail,
+    print_blocks_table, print_json_or_jq, print_usage_table, session_summary_json, sort_blocks,
+    sort_summaries, summarize_by_key, summarize_summaries_by_bucket, summary_json,
+    total_usage_tokens, totals_json, utc_now, wants_json, BucketKind, Context, Result,
+    SessionAccumulator, TimestampMs, DEFAULT_RECENT_DAYS, DEFAULT_SESSION_DURATION_HOURS,
+    MILLIS_PER_DAY, MILLIS_PER_MINUTE,
 };
 
 pub(crate) fn run_daily(args: DailyArgs) -> Result<()> {
@@ -322,7 +324,63 @@ pub(crate) fn run_statusline(args: StatuslineArgs) -> Result<()> {
         offline: args.offline && !args.no_offline,
         ..SharedArgs::default()
     };
+    let cache_enabled = args.cache && !args.no_cache;
+    let cache_path = statusline_cache_path(&hook.session_id);
+    let transcript_path = Path::new(&hook.transcript_path);
+    let current_mtime = transcript_mtime_ms(transcript_path).unwrap_or_default();
+    let initial_cache = if cache_enabled {
+        read_statusline_cache(&cache_path)
+    } else {
+        None
+    };
 
+    if let Some(cache) = initial_cache.as_ref() {
+        if let Some(output) =
+            cached_statusline_output(cache, current_mtime, now_millis(), args.refresh_interval)
+        {
+            println!("{output}");
+            return Ok(());
+        }
+    }
+
+    if cache_enabled {
+        mark_statusline_cache_updating(&cache_path, &hook, current_mtime, initial_cache.as_ref());
+    }
+
+    let statusline_result = render_statusline(&hook, &args, &shared);
+    match statusline_result {
+        Ok(statusline) => {
+            println!("{statusline}");
+            if cache_enabled {
+                write_statusline_cache(
+                    &cache_path,
+                    StatuslineCache::completed(&hook, statusline, current_mtime, now_millis()),
+                );
+            }
+        }
+        Err(error) => {
+            if let Some(cache) = initial_cache
+                .as_ref()
+                .filter(|cache| !cache.last_output.is_empty())
+            {
+                println!("{}", cache.last_output);
+            } else {
+                println!("❌ Error generating status");
+            }
+            if cache_enabled {
+                release_statusline_cache(&cache_path);
+            }
+            return Err(error);
+        }
+    }
+    Ok(())
+}
+
+fn render_statusline(
+    hook: &StatuslineHook,
+    args: &StatuslineArgs,
+    shared: &SharedArgs,
+) -> Result<String> {
     let session_cost = match args.cost_source {
         CostSource::Cc => hook.cost.as_ref().map(|cost| cost.total_cost_usd),
         CostSource::Ccusage => calculate_session_cost(&hook.session_id, &shared).ok(),
@@ -408,9 +466,15 @@ pub(crate) fn run_statusline(args: StatuslineArgs) -> Result<()> {
 
     let context_info = hook
         .context_window
-        .or_else(|| calculate_context_tokens_from_transcript(Path::new(&hook.transcript_path)))
         .as_ref()
-        .map(|context| format_context(context.total_input_tokens, context.context_window_size));
+        .map(|context| (context.total_input_tokens, context.context_window_size))
+        .or_else(|| {
+            calculate_context_tokens_from_transcript(Path::new(&hook.transcript_path))
+                .map(|context| (context.total_input_tokens, context.context_window_size))
+        })
+        .map(|(total_input_tokens, context_window_size)| {
+            format_context(total_input_tokens, context_window_size)
+        });
 
     let session_display = if args.cost_source == CostSource::Both {
         format!(
@@ -428,7 +492,7 @@ pub(crate) fn run_statusline(args: StatuslineArgs) -> Result<()> {
             .unwrap_or_else(|| "N/A".to_string())
     };
 
-    println!(
+    Ok(format!(
         "🤖 {} | 💰 {} session / {} today / {}{} | 🧠 {}",
         hook.model.display_name,
         session_display,
@@ -436,8 +500,7 @@ pub(crate) fn run_statusline(args: StatuslineArgs) -> Result<()> {
         block_info,
         burn_rate_info,
         context_info.unwrap_or_else(|| "N/A".to_string())
-    );
-    Ok(())
+    ))
 }
 
 fn calculate_session_cost(session_id: &str, shared: &SharedArgs) -> Result<f64> {
@@ -490,6 +553,153 @@ fn calculate_context_tokens_from_transcript(path: &Path) -> Option<HookContext> 
         });
     }
     None
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+struct StatuslineCache {
+    date: String,
+    #[serde(rename = "lastOutput")]
+    last_output: String,
+    #[serde(rename = "lastUpdateTime")]
+    last_update_time: u64,
+    #[serde(rename = "transcriptPath")]
+    transcript_path: String,
+    #[serde(rename = "transcriptMtime")]
+    transcript_mtime: u64,
+    #[serde(rename = "isUpdating", default)]
+    is_updating: bool,
+    pid: Option<u32>,
+}
+
+impl StatuslineCache {
+    fn completed(
+        hook: &StatuslineHook,
+        last_output: String,
+        transcript_mtime: u64,
+        last_update_time: u64,
+    ) -> Self {
+        Self {
+            date: format_cache_date(last_update_time),
+            last_output,
+            last_update_time,
+            transcript_path: hook.transcript_path.clone(),
+            transcript_mtime,
+            is_updating: false,
+            pid: None,
+        }
+    }
+
+    fn updating(hook: &StatuslineHook, transcript_mtime: u64, previous: Option<&Self>) -> Self {
+        let now = now_millis();
+        Self {
+            date: format_cache_date(now),
+            last_output: previous
+                .map(|cache| cache.last_output.clone())
+                .unwrap_or_default(),
+            last_update_time: previous
+                .map(|cache| cache.last_update_time)
+                .unwrap_or_default(),
+            transcript_path: hook.transcript_path.clone(),
+            transcript_mtime,
+            is_updating: true,
+            pid: Some(std::process::id()),
+        }
+    }
+}
+
+fn cached_statusline_output(
+    cache: &StatuslineCache,
+    current_mtime: u64,
+    now: u64,
+    refresh_interval: u64,
+) -> Option<&str> {
+    if cache.last_output.is_empty() {
+        return None;
+    }
+    let expired =
+        now.saturating_sub(cache.last_update_time) >= refresh_interval.saturating_mul(1000);
+    let file_modified = cache.transcript_mtime != current_mtime;
+    if expired || file_modified {
+        if cache.is_updating && cache.pid.is_some_and(process_is_alive) {
+            return Some(cache.last_output.as_str());
+        }
+        return None;
+    }
+    Some(cache.last_output.as_str())
+}
+
+#[cfg(unix)]
+fn process_is_alive(pid: u32) -> bool {
+    unsafe extern "C" {
+        fn kill(pid: i32, sig: i32) -> i32;
+    }
+    unsafe { kill(pid as i32, 0) == 0 }
+}
+
+#[cfg(not(unix))]
+fn process_is_alive(pid: u32) -> bool {
+    pid == std::process::id()
+}
+
+fn statusline_cache_path(session_id: &str) -> PathBuf {
+    env::temp_dir()
+        .join("ccusage-semaphore")
+        .join(format!("{session_id}.lock"))
+}
+
+fn read_statusline_cache(path: &Path) -> Option<StatuslineCache> {
+    serde_json::from_slice(&fs::read(path).ok()?).ok()
+}
+
+fn write_statusline_cache(path: &Path, cache: StatuslineCache) {
+    if let Some(parent) = path.parent() {
+        let _ = fs::create_dir_all(parent);
+    }
+    if let Ok(bytes) = serde_json::to_vec(&cache) {
+        let _ = fs::write(path, bytes);
+    }
+}
+
+fn mark_statusline_cache_updating(
+    path: &Path,
+    hook: &StatuslineHook,
+    transcript_mtime: u64,
+    previous: Option<&StatuslineCache>,
+) {
+    write_statusline_cache(
+        path,
+        StatuslineCache::updating(hook, transcript_mtime, previous),
+    );
+}
+
+fn release_statusline_cache(path: &Path) {
+    if let Some(mut cache) = read_statusline_cache(path) {
+        cache.is_updating = false;
+        cache.pid = None;
+        write_statusline_cache(path, cache);
+    }
+}
+
+fn transcript_mtime_ms(path: &Path) -> Option<u64> {
+    fs::metadata(path)
+        .ok()?
+        .modified()
+        .ok()?
+        .duration_since(UNIX_EPOCH)
+        .ok()
+        .map(|duration| duration.as_millis().min(u128::from(u64::MAX)) as u64)
+}
+
+fn now_millis() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis()
+        .min(u128::from(u64::MAX)) as u64
+}
+
+fn format_cache_date(millis: u64) -> String {
+    format_rfc3339_millis(TimestampMs::from_millis(millis.min(i64::MAX as u64) as i64))
 }
 
 #[derive(Debug, Deserialize)]
@@ -550,5 +760,56 @@ mod tests {
 
         assert_eq!(context.total_input_tokens, 2150);
         assert_eq!(context.context_window_size, 200_000);
+    }
+
+    #[test]
+    fn reuses_statusline_cache_while_fresh_and_transcript_unchanged() {
+        let cache = StatuslineCache {
+            date: "2026-01-01T00:00:00.000Z".to_string(),
+            last_output: "cached status".to_string(),
+            last_update_time: 10_000,
+            transcript_path: "/tmp/transcript.jsonl".to_string(),
+            transcript_mtime: 123,
+            is_updating: false,
+            pid: None,
+        };
+
+        assert_eq!(
+            cached_statusline_output(&cache, 123, 10_500, 1),
+            Some("cached status")
+        );
+    }
+
+    #[test]
+    fn invalidates_statusline_cache_when_transcript_changes() {
+        let cache = StatuslineCache {
+            date: "2026-01-01T00:00:00.000Z".to_string(),
+            last_output: "cached status".to_string(),
+            last_update_time: 10_000,
+            transcript_path: "/tmp/transcript.jsonl".to_string(),
+            transcript_mtime: 123,
+            is_updating: false,
+            pid: None,
+        };
+
+        assert_eq!(cached_statusline_output(&cache, 456, 10_500, 1), None);
+    }
+
+    #[test]
+    fn returns_stale_statusline_cache_while_live_process_is_updating() {
+        let cache = StatuslineCache {
+            date: "2026-01-01T00:00:00.000Z".to_string(),
+            last_output: "stale status".to_string(),
+            last_update_time: 10_000,
+            transcript_path: "/tmp/transcript.jsonl".to_string(),
+            transcript_mtime: 123,
+            is_updating: true,
+            pid: Some(std::process::id()),
+        };
+
+        assert_eq!(
+            cached_statusline_output(&cache, 456, 20_000, 1),
+            Some("stale status")
+        );
     }
 }
