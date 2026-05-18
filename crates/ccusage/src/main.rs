@@ -1,9 +1,4 @@
-use std::{
-    env, fmt, fs, io,
-    path::{Path, PathBuf},
-};
-
-use serde_json::{json, Value};
+use std::{fmt, io};
 
 mod adapter;
 mod blocks;
@@ -15,6 +10,7 @@ mod config;
 mod cost;
 mod date_utils;
 mod home;
+mod logger;
 mod output;
 mod pricing;
 mod progress;
@@ -22,6 +18,7 @@ mod project_names;
 mod summary;
 mod table;
 mod types;
+mod utils;
 
 pub(crate) use blocks::{
     block_json, calculate_burn_rate, filter_blocks_by_date, format_context, format_remaining_time,
@@ -32,8 +29,9 @@ pub(crate) use claude_loader::{
     filter_loaded_entries_by_date, load_entries,
 };
 pub(crate) use codex_loader::{codex_sessions_paths, load_codex_events, visit_codex_session_file};
-pub(crate) use cost::{calculate_cost, tiered_cost};
+pub(crate) use cost::calculate_cost;
 pub(crate) use date_utils::*;
+pub(crate) use logger::{debug_log, log_level};
 pub(crate) use output::{
     format_currency, format_models_multiline, format_number, group_project_output, json_float,
     print_json_or_jq, print_usage_table, session_summary_json, summary_json, totals_json,
@@ -46,10 +44,9 @@ pub(crate) use summary::{
 };
 pub(crate) use table::{color, print_box_title, terminal_width, Align, Color, SimpleTable};
 pub(crate) use types::*;
+pub(crate) use utils::{json_value_u64, non_empty_json_string, total_usage_tokens};
 
-use cli::{
-    AgentCommandArgs, AgentReportKind, Cli, Command, CostMode, SharedArgs, SortOrder, WeekDay,
-};
+use cli::{AgentCommandArgs, AgentReportKind, Cli, Command};
 use pricing::PricingMap;
 
 const DEFAULT_SESSION_DURATION_HOURS: f64 = 5.0;
@@ -125,39 +122,22 @@ fn main() -> Result<()> {
     }
 }
 
-fn json_value_u64(value: Option<&Value>) -> u64 {
-    value.and_then(Value::as_u64).unwrap_or_default()
-}
-
-fn non_empty_json_string(value: Option<&Value>) -> Option<String> {
-    let value = value?.as_str()?.trim();
-    (!value.is_empty()).then(|| value.to_string())
-}
-
-fn debug_log(shared: &SharedArgs, message: impl AsRef<str>) {
-    if shared.debug {
-        eprintln!("{}", message.as_ref());
-    }
-}
-
-fn log_level() -> Option<u8> {
-    env::var("LOG_LEVEL")
-        .ok()
-        .and_then(|value| value.parse::<u8>().ok())
-}
-
-fn total_usage_tokens(usage: TokenUsageRaw) -> u64 {
-    usage.input_tokens
-        + usage.output_tokens
-        + usage.cache_creation_input_tokens
-        + usage.cache_read_input_tokens
-}
-
 #[cfg(test)]
 mod tests {
-    use std::{collections::HashMap, sync::Arc};
+    use std::{
+        collections::HashMap,
+        env, fs,
+        path::{Path, PathBuf},
+        sync::Arc,
+    };
+
+    use serde_json::json;
 
     use super::*;
+    use crate::{
+        cli::{CostMode, SharedArgs, SortOrder, WeekDay},
+        cost::tiered_cost,
+    };
 
     fn temp_claude_dir(name: &str) -> PathBuf {
         let mut path = env::temp_dir();
