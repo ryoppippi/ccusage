@@ -1,6 +1,8 @@
-# Related Projects
+# Community Projects
 
-Projects that use ccusage internally or extend its functionality:
+Community projects built around ccusage, Claude Code usage tracking, or related workflows.
+
+These projects are maintained independently and are not affiliated with the ccusage project or ryoppippi.
 
 ## Desktop Applications
 
@@ -20,6 +22,7 @@ Projects that use ccusage internally or extend its functionality:
 
 ## Web Applications
 
+- [Straude](https://straude.com) - Strava-style Claude Code telemetry for logging usage, tracking spend, and comparing pace
 - [viberank](https://viberank.app) - A community-driven leaderboard for Claude Code usage. ([GitHub](https://github.com/sculptdotfun/viberank))
 
 ## Contributing
