@@ -202,6 +202,7 @@ impl Cli {
         I: IntoIterator<Item = OsString>,
     {
         let mut parser = ArgParser::new(args.into_iter().skip(1).collect())?;
+        normalize_package_runner_separator_args(&mut parser.args);
         normalize_legacy_agent_command_args(&mut parser.args);
         if let Some(message) = report_flag_alias_error(&parser.args) {
             return Err(message);
@@ -696,6 +697,12 @@ fn normalize_legacy_agent_command_args(args: &mut Vec<String>) {
     args.splice(0..1, [agent.to_string(), report.to_string()]);
 }
 
+fn normalize_package_runner_separator_args(args: &mut Vec<String>) {
+    if matches!(args.first().map(String::as_str), Some("--")) {
+        args.remove(0);
+    }
+}
+
 fn legacy_agent_report_supported(agent: &str, report: &str) -> bool {
     agent_report_supported(agent, report)
 }
@@ -1049,6 +1056,17 @@ mod tests {
         assert_eq!(args.kind, AgentReportKind::Daily);
         assert!(args.shared.json);
         assert_eq!(args.shared.since.as_deref(), Some("20260102"));
+    }
+
+    #[test]
+    fn ignores_leading_package_runner_separator() {
+        let cli = parse(&["ccusage", "--", "--offline", "daily", "--json"]);
+        let Some(Command::All(args)) = cli.command else {
+            panic!("expected all-agent command");
+        };
+        assert_eq!(args.kind, AgentReportKind::Daily);
+        assert!(args.shared.offline);
+        assert!(args.shared.json);
     }
 
     #[test]
