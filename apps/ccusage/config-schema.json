@@ -118,6 +118,7 @@
 					"type": "boolean"
 				},
 				"sessionLength": {
+					"default": 5.0,
 					"description": "Session block duration in hours.",
 					"format": "double",
 					"markdownDescription": "Session block duration in hours.",
@@ -503,6 +504,7 @@
 							"$ref": "#/definitions/ConfigCodexSpeed"
 						}
 					],
+					"default": "auto",
 					"description": "Codex speed normalization strategy.",
 					"markdownDescription": "Codex speed normalization strategy."
 				},
@@ -520,27 +522,56 @@
 			"type": "object"
 		},
 		"ConfigCodexSpeed": {
-			"enum": ["auto", "standard", "fast"],
+			"enum": [
+				"auto",
+				"standard",
+				"fast"
+			],
 			"type": "string"
 		},
 		"ConfigCostMode": {
-			"enum": ["auto", "calculate", "display"],
+			"enum": [
+				"auto",
+				"calculate",
+				"display"
+			],
 			"type": "string"
 		},
 		"ConfigCostSource": {
-			"enum": ["auto", "ccusage", "cc", "both"],
+			"enum": [
+				"auto",
+				"ccusage",
+				"cc",
+				"both"
+			],
 			"type": "string"
 		},
 		"ConfigSortOrder": {
-			"enum": ["desc", "asc"],
+			"enum": [
+				"desc",
+				"asc"
+			],
 			"type": "string"
 		},
 		"ConfigVisualBurnRate": {
-			"enum": ["off", "emoji", "text", "emoji-text"],
+			"enum": [
+				"off",
+				"emoji",
+				"text",
+				"emoji-text"
+			],
 			"type": "string"
 		},
 		"ConfigWeekDay": {
-			"enum": ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"],
+			"enum": [
+				"sunday",
+				"monday",
+				"tuesday",
+				"wednesday",
+				"thursday",
+				"friday",
+				"saturday"
+			],
 			"type": "string"
 		},
 		"DailyOptions": {
@@ -841,7 +872,7 @@
 					"$ref": "#/definitions/StatuslineOptions"
 				},
 				"weekly": {
-					"$ref": "#/definitions/SharedOptions"
+					"$ref": "#/definitions/WeeklyOptions"
 				}
 			},
 			"type": "object"
@@ -850,31 +881,37 @@
 			"additionalProperties": false,
 			"properties": {
 				"all": {
+					"default": false,
 					"description": "Accepted for compatibility; all detected supported agents are included by default.",
 					"markdownDescription": "Accepted for compatibility; all detected supported agents are included by default.",
 					"type": "boolean"
 				},
 				"breakdown": {
+					"default": false,
 					"description": "Show per-model cost breakdown.",
 					"markdownDescription": "Show per-model cost breakdown.",
 					"type": "boolean"
 				},
 				"color": {
+					"default": false,
 					"description": "Enable colored output.",
 					"markdownDescription": "Enable colored output.",
 					"type": "boolean"
 				},
 				"compact": {
+					"default": false,
 					"description": "Force compact table layout for narrow terminals.",
 					"markdownDescription": "Force compact table layout for narrow terminals.",
 					"type": "boolean"
 				},
 				"debug": {
+					"default": false,
 					"description": "Show pricing mismatch information for debugging.",
 					"markdownDescription": "Show pricing mismatch information for debugging.",
 					"type": "boolean"
 				},
 				"debugSamples": {
+					"default": 5,
 					"description": "Number of sample discrepancies to show in debug output.",
 					"format": "uint",
 					"markdownDescription": "Number of sample discrepancies to show in debug output.",
@@ -887,6 +924,7 @@
 					"type": "string"
 				},
 				"json": {
+					"default": false,
 					"description": "Output in JSON format.",
 					"markdownDescription": "Output in JSON format.",
 					"type": "boolean"
@@ -897,20 +935,24 @@
 							"$ref": "#/definitions/ConfigCostMode"
 						}
 					],
+					"default": "auto",
 					"description": "Cost calculation mode.",
 					"markdownDescription": "Cost calculation mode."
 				},
 				"noColor": {
+					"default": false,
 					"description": "Disable colored output.",
 					"markdownDescription": "Disable colored output.",
 					"type": "boolean"
 				},
 				"noOffline": {
+					"default": false,
 					"description": "Disable cached pricing data where supported.",
 					"markdownDescription": "Disable cached pricing data where supported.",
 					"type": "boolean"
 				},
 				"offline": {
+					"default": false,
 					"description": "Use cached pricing data where supported.",
 					"markdownDescription": "Use cached pricing data where supported.",
 					"type": "boolean"
@@ -921,6 +963,7 @@
 							"$ref": "#/definitions/ConfigSortOrder"
 						}
 					],
+					"default": "asc",
 					"description": "Sort order.",
 					"markdownDescription": "Sort order."
 				},
@@ -930,6 +973,7 @@
 					"type": "string"
 				},
 				"singleThread": {
+					"default": false,
 					"description": "Disable parallel file processing.",
 					"markdownDescription": "Disable parallel file processing.",
 					"type": "boolean"
@@ -951,11 +995,13 @@
 			"additionalProperties": false,
 			"properties": {
 				"cache": {
+					"default": true,
 					"description": "Enable statusline cache.",
 					"markdownDescription": "Enable statusline cache.",
 					"type": "boolean"
 				},
 				"contextLowThreshold": {
+					"default": 50,
 					"description": "Percentage threshold for low context warning.",
 					"format": "uint64",
 					"markdownDescription": "Percentage threshold for low context warning.",
@@ -963,6 +1009,7 @@
 					"type": "integer"
 				},
 				"contextMediumThreshold": {
+					"default": 80,
 					"description": "Percentage threshold for medium context warning.",
 					"format": "uint64",
 					"markdownDescription": "Percentage threshold for medium context warning.",
@@ -975,30 +1022,36 @@
 							"$ref": "#/definitions/ConfigCostSource"
 						}
 					],
+					"default": "auto",
 					"description": "Source for statusline cost calculation.",
 					"markdownDescription": "Source for statusline cost calculation."
 				},
 				"debug": {
+					"default": false,
 					"description": "Show statusline debug information.",
 					"markdownDescription": "Show statusline debug information.",
 					"type": "boolean"
 				},
 				"noCache": {
+					"default": false,
 					"description": "Disable statusline cache.",
 					"markdownDescription": "Disable statusline cache.",
 					"type": "boolean"
 				},
 				"noOffline": {
+					"default": false,
 					"description": "Disable cached pricing data where supported.",
 					"markdownDescription": "Disable cached pricing data where supported.",
 					"type": "boolean"
 				},
 				"offline": {
+					"default": true,
 					"description": "Use cached pricing data where supported.",
 					"markdownDescription": "Use cached pricing data where supported.",
 					"type": "boolean"
 				},
 				"refreshInterval": {
+					"default": 1,
 					"description": "Statusline refresh interval in seconds.",
 					"format": "uint64",
 					"markdownDescription": "Statusline refresh interval in seconds.",
@@ -1011,6 +1064,7 @@
 							"$ref": "#/definitions/ConfigVisualBurnRate"
 						}
 					],
+					"default": "off",
 					"description": "Visual burn-rate display mode.",
 					"markdownDescription": "Visual burn-rate display mode."
 				}
@@ -1111,6 +1165,7 @@
 							"$ref": "#/definitions/ConfigWeekDay"
 						}
 					],
+					"default": "sunday",
 					"description": "First day of week for weekly grouping.",
 					"markdownDescription": "First day of week for weekly grouping."
 				},

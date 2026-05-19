@@ -32,7 +32,7 @@ pub(crate) struct CcusageConfig {
 #[serde(rename_all = "camelCase")]
 pub(crate) struct RootCommandsConfig {
     pub(crate) daily: Option<SharedOptions>,
-    pub(crate) weekly: Option<SharedOptions>,
+    pub(crate) weekly: Option<WeeklyOptions>,
     pub(crate) monthly: Option<SharedOptions>,
     pub(crate) session: Option<SharedOptions>,
     pub(crate) blocks: Option<BlocksOptions>,
@@ -428,7 +428,8 @@ pub(crate) fn generate_config_schema_json() -> String {
             settings.option_add_null_type = false;
         })
         .into_generator();
-    let mut schema = serde_json::to_value(generator.into_root_schema_for::<CcusageConfig>()).unwrap();
+    let mut schema =
+        serde_json::to_value(generator.into_root_schema_for::<CcusageConfig>()).unwrap();
     if let Value::Object(root) = &mut schema {
         root.insert(
             "title".to_string(),
@@ -470,6 +471,7 @@ pub(crate) fn generate_config_schema_json() -> String {
         );
     }
     enrich_schema(&mut schema);
+    add_schema_defaults(&mut schema);
     let mut json = tab_indent_json(&serde_json::to_string_pretty(&schema).unwrap());
     json.push('\n');
     json
@@ -478,7 +480,11 @@ pub(crate) fn generate_config_schema_json() -> String {
 fn tab_indent_json(json: &str) -> String {
     json.lines()
         .map(|line| {
-            let spaces = line.as_bytes().iter().take_while(|byte| **byte == b' ').count();
+            let spaces = line
+                .as_bytes()
+                .iter()
+                .take_while(|byte| **byte == b' ')
+                .count();
             let mut formatted = "\t".repeat(spaces / 2);
             formatted.push_str(&line[spaces..]);
             formatted
@@ -496,7 +502,9 @@ fn bool_option(map: &Map<String, Value>, key: &str) -> Option<bool> {
 }
 
 fn usize_option(map: &Map<String, Value>, key: &str) -> Option<usize> {
-    map.get(key)?.as_u64().and_then(|value| usize::try_from(value).ok())
+    map.get(key)?
+        .as_u64()
+        .and_then(|value| usize::try_from(value).ok())
 }
 
 fn u64_option(map: &Map<String, Value>, key: &str) -> Option<u64> {
@@ -538,11 +546,71 @@ fn enrich_schema(value: &mut Value) {
     }
 }
 
+fn add_schema_defaults(schema: &mut Value) {
+    set_definition_defaults(
+        schema,
+        "SharedOptions",
+        &[
+            ("json", json!(false)),
+            ("mode", json!("auto")),
+            ("debug", json!(false)),
+            ("debugSamples", json!(5)),
+            ("order", json!("asc")),
+            ("breakdown", json!(false)),
+            ("offline", json!(false)),
+            ("noOffline", json!(false)),
+            ("color", json!(false)),
+            ("noColor", json!(false)),
+            ("all", json!(false)),
+            ("compact", json!(false)),
+            ("singleThread", json!(false)),
+        ],
+    );
+    set_definition_defaults(schema, "WeeklyOptions", &[("startOfWeek", json!("sunday"))]);
+    set_definition_defaults(schema, "BlocksOptions", &[("sessionLength", json!(5.0))]);
+    set_definition_defaults(
+        schema,
+        "StatuslineOptions",
+        &[
+            ("offline", json!(true)),
+            ("noOffline", json!(false)),
+            ("visualBurnRate", json!("off")),
+            ("costSource", json!("auto")),
+            ("cache", json!(true)),
+            ("noCache", json!(false)),
+            ("refreshInterval", json!(1)),
+            ("contextLowThreshold", json!(50)),
+            ("contextMediumThreshold", json!(80)),
+            ("debug", json!(false)),
+        ],
+    );
+    set_definition_defaults(schema, "CodexOptions", &[("speed", json!("auto"))]);
+}
+
+fn set_definition_defaults(schema: &mut Value, definition: &str, defaults: &[(&str, Value)]) {
+    let Some(properties) = schema
+        .get_mut("definitions")
+        .and_then(|definitions| definitions.get_mut(definition))
+        .and_then(|definition| definition.get_mut("properties"))
+        .and_then(Value::as_object_mut)
+    else {
+        return;
+    };
+    for (property, default) in defaults {
+        if let Some(property_schema) = properties.get_mut(*property).and_then(Value::as_object_mut)
+        {
+            property_schema
+                .entry("default".to_string())
+                .or_insert_with(|| default.clone());
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::collections::BTreeSet;
 
-    use serde_json::Value;
+    use serde_json::{json, Value};
 
     use super::generate_config_schema_json;
 
@@ -575,11 +643,18 @@ mod tests {
             "DailyOptions",
             &with_keys(&shared, &["instances", "project", "projectAliases"]),
         );
-        assert_properties(&schema, "WeeklyOptions", &with_keys(&shared, &["startOfWeek"]));
+        assert_properties(
+            &schema,
+            "WeeklyOptions",
+            &with_keys(&shared, &["startOfWeek"]),
+        );
         assert_properties(
             &schema,
             "BlocksOptions",
-            &with_keys(&shared, &["active", "recent", "sessionLength", "tokenLimit"]),
+            &with_keys(
+                &shared,
+                &["active", "recent", "sessionLength", "tokenLimit"],
+            ),
         );
         assert_properties(
             &schema,
@@ -645,6 +720,9 @@ mod tests {
             "commands": {
                 "daily": {
                     "since": "20260101"
+                },
+                "weekly": {
+                    "startOfWeek": "monday"
                 }
             },
             "claude": {
@@ -698,6 +776,52 @@ mod tests {
         assert_value_keys_allowed_by_schema(&config, &schema, &schema);
     }
 
+    #[test]
+    fn generated_schema_exposes_cli_defaults() {
+        let schema = generated_schema();
+
+        assert_eq!(
+            property_default(&schema, "SharedOptions", "json"),
+            Some(&json!(false))
+        );
+        assert_eq!(
+            property_default(&schema, "SharedOptions", "mode"),
+            Some(&json!("auto"))
+        );
+        assert_eq!(
+            property_default(&schema, "SharedOptions", "debugSamples"),
+            Some(&json!(5))
+        );
+        assert_eq!(
+            property_default(&schema, "SharedOptions", "order"),
+            Some(&json!("asc"))
+        );
+        assert_eq!(
+            property_default(&schema, "WeeklyOptions", "startOfWeek"),
+            Some(&json!("sunday"))
+        );
+        assert_eq!(
+            property_default(&schema, "BlocksOptions", "sessionLength"),
+            Some(&json!(5.0))
+        );
+        assert_eq!(
+            property_default(&schema, "StatuslineOptions", "offline"),
+            Some(&json!(true))
+        );
+        assert_eq!(
+            property_default(&schema, "StatuslineOptions", "visualBurnRate"),
+            Some(&json!("off"))
+        );
+        assert_eq!(
+            property_default(&schema, "StatuslineOptions", "refreshInterval"),
+            Some(&json!(1))
+        );
+        assert_eq!(
+            property_default(&schema, "CodexOptions", "speed"),
+            Some(&json!("auto"))
+        );
+    }
+
     fn generated_schema() -> Value {
         serde_json::from_str(&generate_config_schema_json()).unwrap()
     }
@@ -721,6 +845,14 @@ mod tests {
 
     fn property_ref<'a>(schema: &'a Value, definition: &str, property: &str) -> Option<&'a str> {
         schema["definitions"][definition]["properties"][property]["$ref"].as_str()
+    }
+
+    fn property_default<'a>(
+        schema: &'a Value,
+        definition: &str,
+        property: &str,
+    ) -> Option<&'a Value> {
+        schema["definitions"][definition]["properties"][property].get("default")
     }
 
     fn with_keys<'a>(base: &[&'a str], extra: &[&'a str]) -> Vec<&'a str> {
