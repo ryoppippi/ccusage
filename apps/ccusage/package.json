@@ -45,7 +45,7 @@
 		"build": "pnpm run generate:schema && tsdown && pnpm run build:rust",
 		"build:rust": "cargo build --manifest-path ../../rust/Cargo.toml --release --bin ccusage",
 		"format": "pnpm run lint --fix",
-		"generate:schema": "bun scripts/generate-json-schema.ts",
+		"generate:schema": "cargo run --quiet --manifest-path ../../rust/Cargo.toml --bin generate-config-schema -- config-schema.json && pnpm exec oxfmt --write config-schema.json && cp config-schema.json ../../docs/public/config-schema.json",
 		"lint": "eslint --cache .",
 		"prepack": "pnpm run build && clean-pkg-json",
 		"prerelease": "pnpm run lint && pnpm run typecheck && pnpm run build",

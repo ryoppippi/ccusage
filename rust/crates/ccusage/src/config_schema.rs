@@ -1,0 +1,782 @@
+#![allow(dead_code)]
+
+use serde::de::DeserializeOwned;
+use serde::Deserialize;
+use serde_json::{json, Map, Value};
+
+use schemars::{r#gen::SchemaSettings, JsonSchema};
+
+#[derive(Debug, Default, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct CcusageConfig {
+    /// JSON Schema URL for validation and autocomplete.
+    #[serde(rename = "$schema")]
+    pub(crate) schema_url: Option<String>,
+    /// Default values for all-agent reports and legacy Claude commands.
+    pub(crate) defaults: Option<SharedOptions>,
+    /// Command-specific configuration for all-agent reports.
+    pub(crate) commands: Option<RootCommandsConfig>,
+    /// Claude Code configuration.
+    pub(crate) claude: Option<ClaudeConfig>,
+    /// Codex configuration.
+    pub(crate) codex: Option<CodexConfig>,
+    /// OpenCode configuration.
+    pub(crate) opencode: Option<OpenCodeConfig>,
+    /// Amp configuration.
+    pub(crate) amp: Option<AmpConfig>,
+    /// pi-agent configuration.
+    pub(crate) pi: Option<PiConfig>,
+}
+
+#[derive(Debug, Default, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct RootCommandsConfig {
+    pub(crate) daily: Option<SharedOptions>,
+    pub(crate) weekly: Option<SharedOptions>,
+    pub(crate) monthly: Option<SharedOptions>,
+    pub(crate) session: Option<SharedOptions>,
+    pub(crate) blocks: Option<BlocksOptions>,
+    pub(crate) statusline: Option<StatuslineOptions>,
+}
+
+#[derive(Debug, Default, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct ClaudeConfig {
+    pub(crate) defaults: Option<ClaudeOptions>,
+    pub(crate) commands: Option<ClaudeCommandsConfig>,
+}
+
+#[derive(Debug, Default, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct ClaudeCommandsConfig {
+    pub(crate) daily: Option<DailyOptions>,
+    pub(crate) weekly: Option<WeeklyOptions>,
+    pub(crate) monthly: Option<SharedOptions>,
+    pub(crate) session: Option<SharedOptions>,
+    pub(crate) blocks: Option<BlocksOptions>,
+    pub(crate) statusline: Option<StatuslineOptions>,
+}
+
+#[derive(Debug, Default, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct CodexConfig {
+    pub(crate) defaults: Option<CodexOptions>,
+    pub(crate) commands: Option<CodexCommandsConfig>,
+}
+
+#[derive(Debug, Default, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct CodexCommandsConfig {
+    pub(crate) daily: Option<CodexOptions>,
+    pub(crate) monthly: Option<CodexOptions>,
+    pub(crate) session: Option<CodexOptions>,
+}
+
+#[derive(Debug, Default, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct OpenCodeConfig {
+    pub(crate) defaults: Option<SharedOptions>,
+    pub(crate) commands: Option<OpenCodeCommandsConfig>,
+}
+
+#[derive(Debug, Default, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct OpenCodeCommandsConfig {
+    pub(crate) daily: Option<SharedOptions>,
+    pub(crate) weekly: Option<SharedOptions>,
+    pub(crate) monthly: Option<SharedOptions>,
+    pub(crate) session: Option<SharedOptions>,
+}
+
+#[derive(Debug, Default, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct AmpConfig {
+    pub(crate) defaults: Option<SharedOptions>,
+    pub(crate) commands: Option<AmpCommandsConfig>,
+}
+
+#[derive(Debug, Default, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct AmpCommandsConfig {
+    pub(crate) daily: Option<SharedOptions>,
+    pub(crate) monthly: Option<SharedOptions>,
+    pub(crate) session: Option<SharedOptions>,
+}
+
+#[derive(Debug, Default, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct PiConfig {
+    pub(crate) defaults: Option<PiOptions>,
+    pub(crate) commands: Option<PiCommandsConfig>,
+}
+
+#[derive(Debug, Default, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct PiCommandsConfig {
+    pub(crate) daily: Option<PiOptions>,
+    pub(crate) monthly: Option<PiOptions>,
+    pub(crate) session: Option<PiOptions>,
+}
+
+#[derive(Debug, Default, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct SharedOptions {
+    /// Filter from date (YYYY-MM-DD or YYYYMMDD).
+    pub(crate) since: Option<String>,
+    /// Filter until date (inclusive).
+    pub(crate) until: Option<String>,
+    /// Output in JSON format.
+    pub(crate) json: Option<bool>,
+    /// Cost calculation mode.
+    pub(crate) mode: Option<ConfigCostMode>,
+    /// Show pricing mismatch information for debugging.
+    pub(crate) debug: Option<bool>,
+    /// Number of sample discrepancies to show in debug output.
+    pub(crate) debug_samples: Option<usize>,
+    /// Sort order.
+    pub(crate) order: Option<ConfigSortOrder>,
+    /// Show per-model cost breakdown.
+    pub(crate) breakdown: Option<bool>,
+    /// Use cached pricing data where supported.
+    pub(crate) offline: Option<bool>,
+    /// Disable cached pricing data where supported.
+    pub(crate) no_offline: Option<bool>,
+    /// Enable colored output.
+    pub(crate) color: Option<bool>,
+    /// Disable colored output.
+    pub(crate) no_color: Option<bool>,
+    /// Timezone for date grouping (IANA).
+    pub(crate) timezone: Option<String>,
+    /// jq filter to apply to JSON output.
+    pub(crate) jq: Option<String>,
+    /// Accepted for compatibility; all detected supported agents are included by default.
+    pub(crate) all: Option<bool>,
+    /// Force compact table layout for narrow terminals.
+    pub(crate) compact: Option<bool>,
+    /// Disable parallel file processing.
+    pub(crate) single_thread: Option<bool>,
+}
+
+#[derive(Debug, Default, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct ClaudeOptions {
+    #[serde(flatten)]
+    pub(crate) shared: SharedOptions,
+    #[serde(flatten)]
+    pub(crate) daily: DailySpecificOptions,
+    #[serde(flatten)]
+    pub(crate) weekly: WeeklySpecificOptions,
+    #[serde(flatten)]
+    pub(crate) blocks: BlocksSpecificOptions,
+    #[serde(flatten)]
+    pub(crate) statusline: StatuslineSpecificOptions,
+}
+
+#[derive(Debug, Default, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct DailyOptions {
+    #[serde(flatten)]
+    pub(crate) shared: SharedOptions,
+    #[serde(flatten)]
+    pub(crate) daily: DailySpecificOptions,
+}
+
+#[derive(Debug, Default, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct DailySpecificOptions {
+    /// Show per-session project instances.
+    pub(crate) instances: Option<bool>,
+    /// Filter to a project name or path.
+    pub(crate) project: Option<String>,
+    /// JSON object or path mapping project paths to display aliases.
+    pub(crate) project_aliases: Option<String>,
+}
+
+#[derive(Debug, Default, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct WeeklyOptions {
+    #[serde(flatten)]
+    pub(crate) shared: SharedOptions,
+    #[serde(flatten)]
+    pub(crate) weekly: WeeklySpecificOptions,
+}
+
+#[derive(Debug, Default, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct WeeklySpecificOptions {
+    /// First day of week for weekly grouping.
+    pub(crate) start_of_week: Option<ConfigWeekDay>,
+}
+
+#[derive(Debug, Default, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct BlocksOptions {
+    #[serde(flatten)]
+    pub(crate) shared: SharedOptions,
+    #[serde(flatten)]
+    pub(crate) blocks: BlocksSpecificOptions,
+}
+
+#[derive(Debug, Default, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct BlocksSpecificOptions {
+    /// Show the active session block.
+    pub(crate) active: Option<bool>,
+    /// Show recent session blocks.
+    pub(crate) recent: Option<bool>,
+    /// Token limit for session block calculations.
+    pub(crate) token_limit: Option<String>,
+    /// Session block duration in hours.
+    pub(crate) session_length: Option<f64>,
+}
+
+#[derive(Debug, Default, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct StatuslineOptions {
+    #[serde(flatten)]
+    pub(crate) statusline: StatuslineSpecificOptions,
+}
+
+#[derive(Debug, Default, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct StatuslineSpecificOptions {
+    /// Use cached pricing data where supported.
+    pub(crate) offline: Option<bool>,
+    /// Disable cached pricing data where supported.
+    pub(crate) no_offline: Option<bool>,
+    /// Visual burn-rate display mode.
+    pub(crate) visual_burn_rate: Option<ConfigVisualBurnRate>,
+    /// Source for statusline cost calculation.
+    pub(crate) cost_source: Option<ConfigCostSource>,
+    /// Enable statusline cache.
+    pub(crate) cache: Option<bool>,
+    /// Disable statusline cache.
+    pub(crate) no_cache: Option<bool>,
+    /// Statusline refresh interval in seconds.
+    pub(crate) refresh_interval: Option<u64>,
+    /// Percentage threshold for low context warning.
+    pub(crate) context_low_threshold: Option<u64>,
+    /// Percentage threshold for medium context warning.
+    pub(crate) context_medium_threshold: Option<u64>,
+    /// Show statusline debug information.
+    pub(crate) debug: Option<bool>,
+}
+
+#[derive(Debug, Default, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct CodexOptions {
+    #[serde(flatten)]
+    pub(crate) shared: SharedOptions,
+    /// Codex speed normalization strategy.
+    pub(crate) speed: Option<ConfigCodexSpeed>,
+}
+
+#[derive(Debug, Default, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct PiOptions {
+    #[serde(flatten)]
+    pub(crate) shared: SharedOptions,
+    /// Path or comma-separated paths to pi-agent sessions directories.
+    pub(crate) pi_path: Option<String>,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, JsonSchema)]
+#[serde(rename_all = "lowercase")]
+pub(crate) enum ConfigCostMode {
+    Auto,
+    Calculate,
+    Display,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, JsonSchema)]
+#[serde(rename_all = "lowercase")]
+pub(crate) enum ConfigSortOrder {
+    Desc,
+    Asc,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, JsonSchema)]
+#[serde(rename_all = "lowercase")]
+pub(crate) enum ConfigWeekDay {
+    Sunday,
+    Monday,
+    Tuesday,
+    Wednesday,
+    Thursday,
+    Friday,
+    Saturday,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, JsonSchema)]
+#[serde(rename_all = "lowercase")]
+pub(crate) enum ConfigCodexSpeed {
+    Auto,
+    Standard,
+    Fast,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, JsonSchema)]
+#[serde(rename_all = "kebab-case")]
+pub(crate) enum ConfigVisualBurnRate {
+    Off,
+    Emoji,
+    Text,
+    EmojiText,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, JsonSchema)]
+#[serde(rename_all = "lowercase")]
+pub(crate) enum ConfigCostSource {
+    Auto,
+    Ccusage,
+    Cc,
+    Both,
+}
+
+impl SharedOptions {
+    pub(crate) fn from_map(map: &Map<String, Value>) -> Self {
+        Self {
+            since: string_option(map, "since"),
+            until: string_option(map, "until"),
+            json: bool_option(map, "json"),
+            mode: enum_option(map, "mode"),
+            debug: bool_option(map, "debug"),
+            debug_samples: usize_option(map, "debugSamples"),
+            order: enum_option(map, "order"),
+            breakdown: bool_option(map, "breakdown"),
+            offline: bool_option(map, "offline"),
+            no_offline: bool_option(map, "noOffline"),
+            color: bool_option(map, "color"),
+            no_color: bool_option(map, "noColor"),
+            timezone: string_option(map, "timezone"),
+            jq: string_option(map, "jq"),
+            all: bool_option(map, "all"),
+            compact: bool_option(map, "compact"),
+            single_thread: bool_option(map, "singleThread"),
+        }
+    }
+}
+
+impl DailySpecificOptions {
+    pub(crate) fn from_map(map: &Map<String, Value>) -> Self {
+        Self {
+            instances: bool_option(map, "instances"),
+            project: string_option(map, "project"),
+            project_aliases: string_option(map, "projectAliases"),
+        }
+    }
+}
+
+impl WeeklySpecificOptions {
+    pub(crate) fn from_map(map: &Map<String, Value>) -> Self {
+        Self {
+            start_of_week: enum_option(map, "startOfWeek"),
+        }
+    }
+}
+
+impl BlocksSpecificOptions {
+    pub(crate) fn from_map(map: &Map<String, Value>) -> Self {
+        Self {
+            active: bool_option(map, "active"),
+            recent: bool_option(map, "recent"),
+            token_limit: string_option(map, "tokenLimit"),
+            session_length: f64_option(map, "sessionLength"),
+        }
+    }
+}
+
+impl StatuslineSpecificOptions {
+    pub(crate) fn from_map(map: &Map<String, Value>) -> Self {
+        Self {
+            offline: bool_option(map, "offline"),
+            no_offline: bool_option(map, "noOffline"),
+            visual_burn_rate: enum_option(map, "visualBurnRate"),
+            cost_source: enum_option(map, "costSource"),
+            cache: bool_option(map, "cache"),
+            no_cache: bool_option(map, "noCache"),
+            refresh_interval: u64_option(map, "refreshInterval"),
+            context_low_threshold: u64_option(map, "contextLowThreshold"),
+            context_medium_threshold: u64_option(map, "contextMediumThreshold"),
+            debug: bool_option(map, "debug"),
+        }
+    }
+}
+
+impl CodexOptions {
+    pub(crate) fn from_map(map: &Map<String, Value>) -> Self {
+        Self {
+            shared: SharedOptions::from_map(map),
+            speed: enum_option(map, "speed"),
+        }
+    }
+}
+
+impl PiOptions {
+    pub(crate) fn from_map(map: &Map<String, Value>) -> Self {
+        Self {
+            shared: SharedOptions::from_map(map),
+            pi_path: string_option(map, "piPath"),
+        }
+    }
+}
+
+pub(crate) fn generate_config_schema_json() -> String {
+    let generator = SchemaSettings::draft07()
+        .with(|settings| {
+            settings.meta_schema = Some("https://json-schema.org/draft-07/schema#".to_string());
+            settings.option_add_null_type = false;
+        })
+        .into_generator();
+    let mut schema = serde_json::to_value(generator.into_root_schema_for::<CcusageConfig>()).unwrap();
+    if let Value::Object(root) = &mut schema {
+        root.insert(
+            "title".to_string(),
+            Value::String("ccusage Configuration".to_string()),
+        );
+        root.insert(
+            "description".to_string(),
+            Value::String("Configuration file for ccusage".to_string()),
+        );
+        root.insert(
+            "examples".to_string(),
+            json!([
+                {
+                    "$schema": "https://ccusage.com/config-schema.json",
+                    "defaults": {
+                        "json": false,
+                        "timezone": "Asia/Tokyo"
+                    },
+                    "claude": {
+                        "defaults": {
+                            "mode": "auto"
+                        },
+                        "commands": {
+                            "daily": {
+                                "instances": true
+                            },
+                            "blocks": {
+                                "tokenLimit": "500000"
+                            }
+                        }
+                    },
+                    "codex": {
+                        "defaults": {
+                            "speed": "auto"
+                        }
+                    }
+                }
+            ]),
+        );
+    }
+    enrich_schema(&mut schema);
+    let mut json = tab_indent_json(&serde_json::to_string_pretty(&schema).unwrap());
+    json.push('\n');
+    json
+}
+
+fn tab_indent_json(json: &str) -> String {
+    json.lines()
+        .map(|line| {
+            let spaces = line.as_bytes().iter().take_while(|byte| **byte == b' ').count();
+            let mut formatted = "\t".repeat(spaces / 2);
+            formatted.push_str(&line[spaces..]);
+            formatted
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+fn string_option(map: &Map<String, Value>, key: &str) -> Option<String> {
+    map.get(key)?.as_str().map(ToString::to_string)
+}
+
+fn bool_option(map: &Map<String, Value>, key: &str) -> Option<bool> {
+    map.get(key)?.as_bool()
+}
+
+fn usize_option(map: &Map<String, Value>, key: &str) -> Option<usize> {
+    map.get(key)?.as_u64().and_then(|value| usize::try_from(value).ok())
+}
+
+fn u64_option(map: &Map<String, Value>, key: &str) -> Option<u64> {
+    map.get(key)?.as_u64()
+}
+
+fn f64_option(map: &Map<String, Value>, key: &str) -> Option<f64> {
+    map.get(key)?.as_f64()
+}
+
+fn enum_option<T>(map: &Map<String, Value>, key: &str) -> Option<T>
+where
+    T: DeserializeOwned,
+{
+    serde_json::from_value(map.get(key)?.clone()).ok()
+}
+
+fn enrich_schema(value: &mut Value) {
+    match value {
+        Value::Object(map) => {
+            if let Some(description) = map.get("description").cloned() {
+                map.entry("markdownDescription".to_string())
+                    .or_insert(description);
+            }
+            if map.contains_key("properties") {
+                map.entry("additionalProperties".to_string())
+                    .or_insert(Value::Bool(false));
+            }
+            for child in map.values_mut() {
+                enrich_schema(child);
+            }
+        }
+        Value::Array(values) => {
+            for child in values {
+                enrich_schema(child);
+            }
+        }
+        _ => {}
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::BTreeSet;
+
+    use serde_json::Value;
+
+    use super::generate_config_schema_json;
+
+    #[test]
+    fn schema_option_definitions_expose_expected_keys() {
+        let schema = generated_schema();
+        let shared = [
+            "all",
+            "breakdown",
+            "color",
+            "compact",
+            "debug",
+            "debugSamples",
+            "jq",
+            "json",
+            "mode",
+            "noColor",
+            "noOffline",
+            "offline",
+            "order",
+            "since",
+            "singleThread",
+            "timezone",
+            "until",
+        ];
+
+        assert_properties(&schema, "SharedOptions", &shared);
+        assert_properties(
+            &schema,
+            "DailyOptions",
+            &with_keys(&shared, &["instances", "project", "projectAliases"]),
+        );
+        assert_properties(&schema, "WeeklyOptions", &with_keys(&shared, &["startOfWeek"]));
+        assert_properties(
+            &schema,
+            "BlocksOptions",
+            &with_keys(&shared, &["active", "recent", "sessionLength", "tokenLimit"]),
+        );
+        assert_properties(
+            &schema,
+            "StatuslineOptions",
+            &[
+                "cache",
+                "contextLowThreshold",
+                "contextMediumThreshold",
+                "costSource",
+                "debug",
+                "noCache",
+                "noOffline",
+                "offline",
+                "refreshInterval",
+                "visualBurnRate",
+            ],
+        );
+        assert_properties(&schema, "CodexOptions", &with_keys(&shared, &["speed"]));
+        assert_properties(&schema, "PiOptions", &with_keys(&shared, &["piPath"]));
+    }
+
+    #[test]
+    fn agent_configs_reference_only_supported_option_sets() {
+        let schema = generated_schema();
+
+        assert_eq!(
+            property_ref(&schema, "CodexConfig", "defaults"),
+            Some("#/definitions/CodexOptions")
+        );
+        assert_eq!(
+            property_ref(&schema, "OpenCodeConfig", "defaults"),
+            Some("#/definitions/SharedOptions")
+        );
+        assert_eq!(
+            property_ref(&schema, "AmpConfig", "defaults"),
+            Some("#/definitions/SharedOptions")
+        );
+        assert_eq!(
+            property_ref(&schema, "PiConfig", "defaults"),
+            Some("#/definitions/PiOptions")
+        );
+    }
+
+    #[test]
+    fn generated_schema_does_not_accept_null_config_values() {
+        let schema = generate_config_schema_json();
+        let value = serde_json::from_str::<Value>(&schema).unwrap();
+
+        assert!(!schema.contains("\"null\""));
+        assert!(!contains_key(&value, "anyOf"));
+    }
+
+    #[test]
+    fn schema_allows_cli_config_file_shape() {
+        let schema = generated_schema();
+        let config = serde_json::json!({
+            "$schema": "https://ccusage.com/config-schema.json",
+            "defaults": {
+                "json": true,
+                "compact": true,
+                "timezone": "Asia/Tokyo"
+            },
+            "commands": {
+                "daily": {
+                    "since": "20260101"
+                }
+            },
+            "claude": {
+                "commands": {
+                    "weekly": {
+                        "startOfWeek": "monday"
+                    },
+                    "blocks": {
+                        "active": true,
+                        "tokenLimit": "500000",
+                        "sessionLength": 6
+                    },
+                    "statusline": {
+                        "visualBurnRate": "emoji-text",
+                        "costSource": "both",
+                        "refreshInterval": 3
+                    }
+                }
+            },
+            "codex": {
+                "commands": {
+                    "monthly": {
+                        "speed": "standard",
+                        "since": "20260101"
+                    }
+                }
+            },
+            "opencode": {
+                "commands": {
+                    "weekly": {
+                        "json": true
+                    }
+                }
+            },
+            "amp": {
+                "commands": {
+                    "daily": {
+                        "breakdown": true
+                    }
+                }
+            },
+            "pi": {
+                "commands": {
+                    "daily": {
+                        "piPath": "/tmp/pi-sessions"
+                    }
+                }
+            }
+        });
+
+        assert_value_keys_allowed_by_schema(&config, &schema, &schema);
+    }
+
+    fn generated_schema() -> Value {
+        serde_json::from_str(&generate_config_schema_json()).unwrap()
+    }
+
+    fn assert_properties(schema: &Value, definition: &str, expected: &[&str]) {
+        assert_eq!(
+            definition_properties(schema, definition),
+            expected.iter().copied().collect::<BTreeSet<_>>(),
+            "{definition} properties did not match"
+        );
+    }
+
+    fn definition_properties<'a>(schema: &'a Value, definition: &str) -> BTreeSet<&'a str> {
+        schema["definitions"][definition]["properties"]
+            .as_object()
+            .unwrap()
+            .keys()
+            .map(String::as_str)
+            .collect()
+    }
+
+    fn property_ref<'a>(schema: &'a Value, definition: &str, property: &str) -> Option<&'a str> {
+        schema["definitions"][definition]["properties"][property]["$ref"].as_str()
+    }
+
+    fn with_keys<'a>(base: &[&'a str], extra: &[&'a str]) -> Vec<&'a str> {
+        base.iter().chain(extra).copied().collect()
+    }
+
+    fn contains_key(value: &Value, key: &str) -> bool {
+        match value {
+            Value::Object(map) => {
+                map.contains_key(key) || map.values().any(|value| contains_key(value, key))
+            }
+            Value::Array(values) => values.iter().any(|value| contains_key(value, key)),
+            _ => false,
+        }
+    }
+
+    fn assert_value_keys_allowed_by_schema(value: &Value, schema: &Value, root: &Value) {
+        let Some(value_object) = value.as_object() else {
+            return;
+        };
+        let schema = resolve_schema(schema, root);
+        let schema = merge_all_of(schema, root);
+        let properties = schema["properties"].as_object().unwrap();
+        for (key, child_value) in value_object {
+            let Some(child_schema) = properties.get(key) else {
+                panic!("schema does not allow config key {key}");
+            };
+            assert_value_keys_allowed_by_schema(child_value, child_schema, root);
+        }
+    }
+
+    fn resolve_schema<'a>(schema: &'a Value, root: &'a Value) -> &'a Value {
+        let Some(reference) = schema.get("$ref").and_then(Value::as_str) else {
+            return schema;
+        };
+        let definition = reference.strip_prefix("#/definitions/").unwrap();
+        &root["definitions"][definition]
+    }
+
+    fn merge_all_of(schema: &Value, root: &Value) -> Value {
+        let Some(items) = schema.get("allOf").and_then(Value::as_array) else {
+            return schema.clone();
+        };
+        let mut merged = schema.clone();
+        let properties = merged
+            .as_object_mut()
+            .unwrap()
+            .entry("properties")
+            .or_insert_with(|| Value::Object(Default::default()));
+        let properties = properties.as_object_mut().unwrap();
+        for item in items {
+            let resolved = resolve_schema(item, root);
+            for (key, value) in resolved["properties"].as_object().unwrap() {
+                properties.insert(key.clone(), value.clone());
+            }
+        }
+        merged
+    }
+}

@@ -11,8 +11,9 @@ pre-commit:
 
     - name: config schema
       glob:
-        - apps/ccusage/scripts/generate-json-schema.ts
-        - 'apps/ccusage/src/**'
+        - apps/ccusage/package.json
+        - rust/crates/ccusage/src/config_schema.rs
+        - rust/crates/ccusage/src/bin/generate_config_schema.rs
       run: pnpm --filter ccusage run generate:schema
       stage_fixed: true
 

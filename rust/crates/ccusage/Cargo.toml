@@ -8,6 +8,10 @@ build = "build.rs"
 name = "ccusage"
 path = "src/main.rs"
 
+[[bin]]
+name = "generate-config-schema"
+path = "src/bin/generate_config_schema.rs"
+
 [dependencies]
 ccusage-terminal = { path = "../ccusage-terminal" }
 jiff = { version = "0.2.24", default-features = false, features = [
@@ -16,6 +20,7 @@ jiff = { version = "0.2.24", default-features = false, features = [
 	"tzdb-zoneinfo",
 ] }
 memchr = "2"
+schemars = "0.8"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sqlite = { version = "0.37.0", default-features = false, features = ["bundled", "linkage"] }

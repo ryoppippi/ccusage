@@ -5,9 +5,16 @@ use std::{
 
 use serde_json::{Map, Value};
 
-use crate::cli::{
-    BlocksArgs, CodexSpeed, CostMode, CostSource, DailyArgs, SharedArgs, SortOrder, StatuslineArgs,
-    VisualBurnRate, WeekDay, WeeklyArgs,
+use crate::{
+    cli::{
+        BlocksArgs, CodexSpeed, CostMode, CostSource, DailyArgs, SharedArgs, SortOrder,
+        StatuslineArgs, VisualBurnRate, WeekDay, WeeklyArgs,
+    },
+    config_schema::{
+        BlocksSpecificOptions, CodexOptions, ConfigCodexSpeed, ConfigCostMode, ConfigCostSource,
+        ConfigSortOrder, ConfigVisualBurnRate, ConfigWeekDay, DailySpecificOptions, PiOptions,
+        SharedOptions, StatuslineSpecificOptions, WeeklySpecificOptions,
+    },
 };
 
 struct ConfigCommand {
@@ -235,133 +242,89 @@ fn is_report_command(command: &str) -> bool {
 
 pub(crate) fn apply_config_to_shared(shared: &mut SharedArgs, config: &ConfigContext) {
     for options in config.option_maps() {
-        for (key, value) in options {
-            match key.as_str() {
-                "since" => shared.since = string_value(value),
-                "until" => shared.until = string_value(value),
-                "json" => apply_bool(value, &mut shared.json),
-                "mode" => {
-                    if let Some(mode) =
-                        string_value(value).and_then(|value| parse_cost_mode(&value))
-                    {
-                        shared.mode = mode;
-                    }
-                }
-                "debug" => apply_bool(value, &mut shared.debug),
-                "debugSamples" => {
-                    if let Some(debug_samples) = usize_value(value) {
-                        shared.debug_samples = debug_samples;
-                    }
-                }
-                "order" => {
-                    if let Some(order) =
-                        string_value(value).and_then(|value| parse_sort_order(&value))
-                    {
-                        shared.order = order;
-                    }
-                }
-                "breakdown" => apply_bool(value, &mut shared.breakdown),
-                "offline" => apply_bool(value, &mut shared.offline),
-                "noOffline" => apply_bool(value, &mut shared.no_offline),
-                "color" => apply_bool(value, &mut shared.color),
-                "noColor" => apply_bool(value, &mut shared.no_color),
-                "timezone" => shared.timezone = string_value(value),
-                "jq" => shared.jq = string_value(value),
-                "compact" => apply_bool(value, &mut shared.compact),
-                "singleThread" => apply_bool(value, &mut shared.single_thread),
-                _ => {}
-            }
-        }
+        apply_shared_options(shared, SharedOptions::from_map(options));
     }
 }
 
 pub(crate) fn apply_config_to_daily_args(args: &mut DailyArgs, config: &ConfigContext) {
     for options in config.option_maps() {
-        for (key, value) in options {
-            match key.as_str() {
-                "instances" => apply_bool(value, &mut args.instances),
-                "project" => args.project = string_value(value),
-                "projectAliases" => args.project_aliases = string_value(value),
-                _ => {}
-            }
+        let options = DailySpecificOptions::from_map(options);
+        if let Some(instances) = options.instances {
+            args.instances = instances;
+        }
+        if let Some(project) = options.project {
+            args.project = Some(project);
+        }
+        if let Some(project_aliases) = options.project_aliases {
+            args.project_aliases = Some(project_aliases);
         }
     }
 }
 
 pub(crate) fn apply_config_to_weekly_args(args: &mut WeeklyArgs, config: &ConfigContext) {
     for options in config.option_maps() {
-        if let Some(day) = options
-            .get("startOfWeek")
-            .and_then(string_value)
-            .and_then(|value| parse_week_day(&value))
-        {
-            args.start_of_week = day;
+        if let Some(day) = WeeklySpecificOptions::from_map(options).start_of_week {
+            args.start_of_week = day.into();
         }
     }
 }
 
 pub(crate) fn apply_config_to_blocks_args(args: &mut BlocksArgs, config: &ConfigContext) {
     for options in config.option_maps() {
-        for (key, value) in options {
-            match key.as_str() {
-                "active" => apply_bool(value, &mut args.active),
-                "recent" => apply_bool(value, &mut args.recent),
-                "tokenLimit" => args.token_limit = string_value(value),
-                "sessionLength" => {
-                    if let Some(session_length) = f64_value(value) {
-                        args.session_length = session_length;
-                    }
-                }
-                _ => {}
-            }
+        let options = BlocksSpecificOptions::from_map(options);
+        if let Some(active) = options.active {
+            args.active = active;
+        }
+        if let Some(recent) = options.recent {
+            args.recent = recent;
+        }
+        if let Some(token_limit) = options.token_limit {
+            args.token_limit = Some(token_limit);
+        }
+        if let Some(session_length) = options.session_length {
+            args.session_length = session_length;
         }
     }
 }
 
 pub(crate) fn apply_config_to_statusline_args(args: &mut StatuslineArgs, config: &ConfigContext) {
     for options in config.option_maps() {
-        for (key, value) in options {
-            match key.as_str() {
-                "offline" => apply_bool(value, &mut args.offline),
-                "noOffline" => apply_bool(value, &mut args.no_offline),
-                "visualBurnRate" => {
-                    if let Some(visual_burn_rate) =
-                        string_value(value).and_then(|value| parse_visual_burn_rate(&value))
-                    {
-                        args.visual_burn_rate = visual_burn_rate;
-                    }
-                }
-                "costSource" => {
-                    if let Some(cost_source) =
-                        string_value(value).and_then(|value| parse_cost_source(&value))
-                    {
-                        args.cost_source = cost_source;
-                    }
-                }
-                "cache" => apply_bool(value, &mut args.cache),
-                "noCache" => apply_bool(value, &mut args.no_cache),
-                "refreshInterval" => {
-                    if let Some(refresh_interval) = u64_value(value) {
-                        args.refresh_interval = refresh_interval;
-                    }
-                }
-                "contextLowThreshold" => {
-                    if let Some(threshold) =
-                        u64_value(value).and_then(|value| u8::try_from(value).ok())
-                    {
-                        args.context_low_threshold = threshold;
-                    }
-                }
-                "contextMediumThreshold" => {
-                    if let Some(threshold) =
-                        u64_value(value).and_then(|value| u8::try_from(value).ok())
-                    {
-                        args.context_medium_threshold = threshold;
-                    }
-                }
-                "debug" => apply_bool(value, &mut args.debug),
-                _ => {}
-            }
+        let options = StatuslineSpecificOptions::from_map(options);
+        if let Some(offline) = options.offline {
+            args.offline = offline;
+        }
+        if let Some(no_offline) = options.no_offline {
+            args.no_offline = no_offline;
+        }
+        if let Some(visual_burn_rate) = options.visual_burn_rate {
+            args.visual_burn_rate = visual_burn_rate.into();
+        }
+        if let Some(cost_source) = options.cost_source {
+            args.cost_source = cost_source.into();
+        }
+        if let Some(cache) = options.cache {
+            args.cache = cache;
+        }
+        if let Some(no_cache) = options.no_cache {
+            args.no_cache = no_cache;
+        }
+        if let Some(refresh_interval) = options.refresh_interval {
+            args.refresh_interval = refresh_interval;
+        }
+        if let Some(threshold) = options
+            .context_low_threshold
+            .and_then(|value| u8::try_from(value).ok())
+        {
+            args.context_low_threshold = threshold;
+        }
+        if let Some(threshold) = options
+            .context_medium_threshold
+            .and_then(|value| u8::try_from(value).ok())
+        {
+            args.context_medium_threshold = threshold;
+        }
+        if let Some(debug) = options.debug {
+            args.debug = debug;
         }
     }
 }
@@ -372,103 +335,351 @@ pub(crate) fn apply_config_to_agent_args(
     config: &ConfigContext,
 ) {
     for options in config.option_maps() {
-        for (key, value) in options {
-            match key.as_str() {
-                "speed" => {
-                    if let Some(speed) =
-                        string_value(value).and_then(|value| parse_codex_speed(&value))
-                    {
-                        *codex_speed = speed;
-                    }
-                }
-                "piPath" => {
-                    if let Some(pi_path) = pi_path.as_deref_mut() {
-                        *pi_path = string_value(value);
-                    }
-                }
-                _ => {}
+        let codex_options = CodexOptions::from_map(options);
+        if let Some(speed) = codex_options.speed {
+            *codex_speed = speed.into();
+        }
+        if let Some(pi_path) = pi_path.as_deref_mut() {
+            if let Some(path) = PiOptions::from_map(options).pi_path {
+                *pi_path = Some(path);
             }
         }
     }
 }
 
-fn parse_cost_mode(value: &str) -> Option<CostMode> {
-    match value {
-        "auto" => Some(CostMode::Auto),
-        "calculate" => Some(CostMode::Calculate),
-        "display" => Some(CostMode::Display),
-        _ => None,
+fn apply_shared_options(shared: &mut SharedArgs, options: SharedOptions) {
+    if let Some(since) = options.since {
+        shared.since = Some(since);
+    }
+    if let Some(until) = options.until {
+        shared.until = Some(until);
+    }
+    if let Some(json) = options.json {
+        shared.json = json;
+    }
+    if let Some(mode) = options.mode {
+        shared.mode = mode.into();
+    }
+    if let Some(debug) = options.debug {
+        shared.debug = debug;
+    }
+    if let Some(debug_samples) = options.debug_samples {
+        shared.debug_samples = debug_samples;
+    }
+    if let Some(order) = options.order {
+        shared.order = order.into();
+    }
+    if let Some(breakdown) = options.breakdown {
+        shared.breakdown = breakdown;
+    }
+    if let Some(offline) = options.offline {
+        shared.offline = offline;
+    }
+    if let Some(no_offline) = options.no_offline {
+        shared.no_offline = no_offline;
+    }
+    if let Some(color) = options.color {
+        shared.color = color;
+    }
+    if let Some(no_color) = options.no_color {
+        shared.no_color = no_color;
+    }
+    if let Some(timezone) = options.timezone {
+        shared.timezone = Some(timezone);
+    }
+    if let Some(jq) = options.jq {
+        shared.jq = Some(jq);
+    }
+    if let Some(compact) = options.compact {
+        shared.compact = compact;
+    }
+    if let Some(single_thread) = options.single_thread {
+        shared.single_thread = single_thread;
     }
 }
 
-fn parse_sort_order(value: &str) -> Option<SortOrder> {
-    match value {
-        "asc" => Some(SortOrder::Asc),
-        "desc" => Some(SortOrder::Desc),
-        _ => None,
+impl From<ConfigCostMode> for CostMode {
+    fn from(value: ConfigCostMode) -> Self {
+        match value {
+            ConfigCostMode::Auto => Self::Auto,
+            ConfigCostMode::Calculate => Self::Calculate,
+            ConfigCostMode::Display => Self::Display,
+        }
     }
 }
 
-fn parse_week_day(value: &str) -> Option<WeekDay> {
-    match value {
-        "sunday" => Some(WeekDay::Sunday),
-        "monday" => Some(WeekDay::Monday),
-        "tuesday" => Some(WeekDay::Tuesday),
-        "wednesday" => Some(WeekDay::Wednesday),
-        "thursday" => Some(WeekDay::Thursday),
-        "friday" => Some(WeekDay::Friday),
-        "saturday" => Some(WeekDay::Saturday),
-        _ => None,
+impl From<ConfigSortOrder> for SortOrder {
+    fn from(value: ConfigSortOrder) -> Self {
+        match value {
+            ConfigSortOrder::Desc => Self::Desc,
+            ConfigSortOrder::Asc => Self::Asc,
+        }
     }
 }
 
-fn parse_codex_speed(value: &str) -> Option<CodexSpeed> {
-    match value {
-        "auto" => Some(CodexSpeed::Auto),
-        "standard" => Some(CodexSpeed::Standard),
-        "fast" => Some(CodexSpeed::Fast),
-        _ => None,
+impl From<ConfigWeekDay> for WeekDay {
+    fn from(value: ConfigWeekDay) -> Self {
+        match value {
+            ConfigWeekDay::Sunday => Self::Sunday,
+            ConfigWeekDay::Monday => Self::Monday,
+            ConfigWeekDay::Tuesday => Self::Tuesday,
+            ConfigWeekDay::Wednesday => Self::Wednesday,
+            ConfigWeekDay::Thursday => Self::Thursday,
+            ConfigWeekDay::Friday => Self::Friday,
+            ConfigWeekDay::Saturday => Self::Saturday,
+        }
     }
 }
 
-fn parse_visual_burn_rate(value: &str) -> Option<VisualBurnRate> {
-    match value {
-        "off" => Some(VisualBurnRate::Off),
-        "emoji" => Some(VisualBurnRate::Emoji),
-        "text" => Some(VisualBurnRate::Text),
-        "emoji-text" => Some(VisualBurnRate::EmojiText),
-        _ => None,
+impl From<ConfigCodexSpeed> for CodexSpeed {
+    fn from(value: ConfigCodexSpeed) -> Self {
+        match value {
+            ConfigCodexSpeed::Auto => Self::Auto,
+            ConfigCodexSpeed::Standard => Self::Standard,
+            ConfigCodexSpeed::Fast => Self::Fast,
+        }
     }
 }
 
-fn parse_cost_source(value: &str) -> Option<CostSource> {
-    match value {
-        "auto" => Some(CostSource::Auto),
-        "ccusage" => Some(CostSource::Ccusage),
-        "cc" => Some(CostSource::Cc),
-        "both" => Some(CostSource::Both),
-        _ => None,
+impl From<ConfigVisualBurnRate> for VisualBurnRate {
+    fn from(value: ConfigVisualBurnRate) -> Self {
+        match value {
+            ConfigVisualBurnRate::Off => Self::Off,
+            ConfigVisualBurnRate::Emoji => Self::Emoji,
+            ConfigVisualBurnRate::Text => Self::Text,
+            ConfigVisualBurnRate::EmojiText => Self::EmojiText,
+        }
     }
 }
 
-fn string_value(value: &Value) -> Option<String> {
-    value.as_str().map(ToString::to_string)
+impl From<ConfigCostSource> for CostSource {
+    fn from(value: ConfigCostSource) -> Self {
+        match value {
+            ConfigCostSource::Auto => Self::Auto,
+            ConfigCostSource::Ccusage => Self::Ccusage,
+            ConfigCostSource::Cc => Self::Cc,
+            ConfigCostSource::Both => Self::Both,
+        }
+    }
 }
 
-fn usize_value(value: &Value) -> Option<usize> {
-    value.as_u64().and_then(|value| usize::try_from(value).ok())
-}
+#[cfg(test)]
+mod tests {
+    use serde_json::{json, Value};
 
-fn u64_value(value: &Value) -> Option<u64> {
-    value.as_u64()
-}
+    use super::*;
+    use crate::{
+        cli::{
+            BlocksArgs, CodexSpeed, CostMode, SortOrder, StatuslineArgs, VisualBurnRate, WeekDay,
+            WeeklyArgs,
+        },
+        DEFAULT_SESSION_DURATION_HOURS,
+    };
 
-fn f64_value(value: &Value) -> Option<f64> {
-    value.as_f64()
-}
+    #[test]
+    fn applies_schema_backed_shared_options() {
+        let config = context(
+            json!({
+                "defaults": {
+                    "since": "2026-01-01",
+                    "until": "2026-01-31",
+                    "json": true,
+                    "mode": "calculate",
+                    "debug": true,
+                    "debugSamples": 9,
+                    "order": "desc",
+                    "breakdown": true,
+                    "offline": true,
+                    "noOffline": true,
+                    "color": true,
+                    "noColor": true,
+                    "timezone": "Asia/Tokyo",
+                    "jq": ".totals",
+                    "compact": true,
+                    "singleThread": true
+                }
+            }),
+            "daily",
+            None,
+            "daily",
+        );
+        let mut shared = SharedArgs::default();
 
-fn apply_bool(value: &Value, target: &mut bool) {
-    if let Some(value) = value.as_bool() {
-        *target = value;
+        apply_config_to_shared(&mut shared, &config);
+
+        assert_eq!(shared.since.as_deref(), Some("2026-01-01"));
+        assert_eq!(shared.until.as_deref(), Some("2026-01-31"));
+        assert!(shared.json);
+        assert_eq!(shared.mode, CostMode::Calculate);
+        assert!(shared.debug);
+        assert_eq!(shared.debug_samples, 9);
+        assert_eq!(shared.order, SortOrder::Desc);
+        assert!(shared.breakdown);
+        assert!(shared.offline);
+        assert!(shared.no_offline);
+        assert!(shared.color);
+        assert!(shared.no_color);
+        assert_eq!(shared.timezone.as_deref(), Some("Asia/Tokyo"));
+        assert_eq!(shared.jq.as_deref(), Some(".totals"));
+        assert!(shared.compact);
+        assert!(shared.single_thread);
+    }
+
+    #[test]
+    fn applies_schema_backed_report_specific_options() {
+        let config = context(
+            json!({
+                "commands": {
+                    "blocks": {
+                        "active": true,
+                        "recent": true,
+                        "tokenLimit": "500000",
+                        "sessionLength": 6.5
+                    },
+                    "statusline": {
+                        "offline": false,
+                        "noOffline": true,
+                        "visualBurnRate": "emoji-text",
+                        "costSource": "both",
+                        "cache": false,
+                        "noCache": true,
+                        "refreshInterval": 3,
+                        "contextLowThreshold": 45,
+                        "contextMediumThreshold": 75,
+                        "debug": true
+                    }
+                }
+            }),
+            "blocks",
+            None,
+            "blocks",
+        );
+        let mut blocks = BlocksArgs {
+            shared: SharedArgs::default(),
+            active: false,
+            recent: false,
+            token_limit: None,
+            session_length: DEFAULT_SESSION_DURATION_HOURS,
+        };
+        apply_config_to_blocks_args(&mut blocks, &config);
+
+        assert!(blocks.active);
+        assert!(blocks.recent);
+        assert_eq!(blocks.token_limit.as_deref(), Some("500000"));
+        assert_eq!(blocks.session_length, 6.5);
+
+        let config = context(
+            json!({
+                "commands": {
+                    "statusline": {
+                        "offline": false,
+                        "noOffline": true,
+                        "visualBurnRate": "emoji-text",
+                        "costSource": "both",
+                        "cache": false,
+                        "noCache": true,
+                        "refreshInterval": 3,
+                        "contextLowThreshold": 45,
+                        "contextMediumThreshold": 75,
+                        "debug": true
+                    }
+                }
+            }),
+            "statusline",
+            None,
+            "statusline",
+        );
+        let mut statusline = StatuslineArgs::default();
+        apply_config_to_statusline_args(&mut statusline, &config);
+
+        assert!(!statusline.offline);
+        assert!(statusline.no_offline);
+        assert_eq!(statusline.visual_burn_rate, VisualBurnRate::EmojiText);
+        assert_eq!(statusline.cost_source, crate::cli::CostSource::Both);
+        assert!(!statusline.cache);
+        assert!(statusline.no_cache);
+        assert_eq!(statusline.refresh_interval, 3);
+        assert_eq!(statusline.context_low_threshold, 45);
+        assert_eq!(statusline.context_medium_threshold, 75);
+        assert!(statusline.debug);
+    }
+
+    #[test]
+    fn applies_schema_backed_agent_specific_options() {
+        let mut weekly = WeeklyArgs {
+            shared: SharedArgs::default(),
+            start_of_week: WeekDay::Sunday,
+        };
+        apply_config_to_weekly_args(
+            &mut weekly,
+            &context(
+                json!({
+                    "claude": {
+                        "commands": {
+                            "weekly": {
+                                "startOfWeek": "monday"
+                            }
+                        }
+                    }
+                }),
+                "claude weekly",
+                Some("claude"),
+                "weekly",
+            ),
+        );
+
+        assert_eq!(weekly.start_of_week, WeekDay::Monday);
+
+        let mut speed = CodexSpeed::Auto;
+        apply_config_to_agent_args(
+            &mut speed,
+            None,
+            &context(
+                json!({
+                    "codex": {
+                        "defaults": {
+                            "speed": "fast"
+                        }
+                    }
+                }),
+                "codex daily",
+                Some("codex"),
+                "daily",
+            ),
+        );
+
+        assert_eq!(speed, CodexSpeed::Fast);
+
+        let mut speed = CodexSpeed::Auto;
+        let mut pi_path = None;
+        apply_config_to_agent_args(
+            &mut speed,
+            Some(&mut pi_path),
+            &context(
+                json!({
+                    "pi": {
+                        "defaults": {
+                            "piPath": "/tmp/pi-sessions"
+                        }
+                    }
+                }),
+                "pi daily",
+                Some("pi"),
+                "daily",
+            ),
+        );
+
+        assert_eq!(pi_path.as_deref(), Some("/tmp/pi-sessions"));
+    }
+
+    fn context(value: Value, raw: &str, agent: Option<&str>, report: &str) -> ConfigContext {
+        ConfigContext {
+            value: Some(value),
+            command: ConfigCommand {
+                raw: raw.to_string(),
+                agent: agent.map(ToString::to_string),
+                report: report.to_string(),
+            },
+        }
     }
 }
