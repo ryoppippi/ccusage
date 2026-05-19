@@ -27,6 +27,7 @@ pub(crate) enum Command {
     Amp(AgentCommandArgs),
     Pi(AgentCommandArgs),
     Copilot(AgentCommandArgs),
+    Gemini(AgentCommandArgs),
     Kimi(AgentCommandArgs),
 }
 
@@ -337,6 +338,7 @@ fn parse_command(
         "amp" => parse_amp_command(parser, shared, config),
         "pi" => parse_pi_command(parser, shared, config),
         "copilot" => parse_copilot_command(parser, shared, config),
+        "gemini" => parse_gemini_command(parser, shared, config),
         "kimi" => parse_kimi_command(parser, shared, config),
         _ => Err(format!("Unknown command '{command}'")),
     }
@@ -661,6 +663,40 @@ fn parse_copilot_command(
     }))
 }
 
+fn parse_gemini_command(
+    parser: &mut ArgParser,
+    mut shared: SharedArgs,
+    _config: &ConfigContext,
+) -> Result<Command, String> {
+    let kind = match parser.peek() {
+        Some("daily") => {
+            parser.next();
+            AgentReportKind::Daily
+        }
+        Some("monthly") => {
+            parser.next();
+            AgentReportKind::Monthly
+        }
+        Some("session") => {
+            parser.next();
+            AgentReportKind::Session
+        }
+        Some(command) if !command.starts_with('-') => {
+            return Err(format!("Unknown gemini command '{command}'"));
+        }
+        _ => AgentReportKind::Daily,
+    };
+    while parser.peek().is_some() {
+        parse_shared_arg(parser, &mut shared)?;
+    }
+    Ok(Command::Gemini(AgentCommandArgs {
+        shared,
+        kind,
+        pi_path: None,
+        codex_speed: CodexSpeed::Auto,
+    }))
+}
+
 fn parse_kimi_command(
     parser: &mut ArgParser,
     mut shared: SharedArgs,
@@ -753,6 +789,7 @@ fn is_command(arg: &str) -> bool {
             | "amp"
             | "pi"
             | "copilot"
+            | "gemini"
             | "kimi"
     )
 }
@@ -884,7 +921,7 @@ fn option_takes_value(arg: &str) -> bool {
 fn is_agent_command(command: &str) -> bool {
     matches!(
         command,
-        "claude" | "codex" | "opencode" | "amp" | "pi" | "copilot" | "kimi"
+        "claude" | "codex" | "opencode" | "amp" | "pi" | "copilot" | "gemini" | "kimi"
     )
 }
 
@@ -896,7 +933,7 @@ fn agent_report_supported(agent: &str, report: &str) -> bool {
         ),
         "codex" => matches!(report, "daily" | "monthly" | "session"),
         "opencode" => matches!(report, "daily" | "weekly" | "monthly" | "session"),
-        "amp" | "pi" | "copilot" | "kimi" => {
+        "amp" | "pi" | "copilot" | "gemini" | "kimi" => {
             matches!(report, "daily" | "monthly" | "session")
         }
         _ => false,
@@ -911,6 +948,7 @@ fn agent_display_name(agent: &str) -> &'static str {
         "amp" => "Amp",
         "pi" => "pi-agent",
         "copilot" => "GitHub Copilot CLI",
+        "gemini" => "Gemini CLI",
         "kimi" => "Kimi",
         _ => unreachable!("agent is prevalidated"),
     }
@@ -1091,7 +1129,7 @@ fn print_help_or_version_arg(arg: &str) -> ! {
 }
 
 fn help_text() -> &'static str {
-    "Usage: ccusage [OPTIONS] [COMMAND]\n\nCommands:\n  daily\n  monthly\n  weekly\n  session\n  blocks\n  statusline\n  claude\n  codex\n  opencode\n  amp\n  pi\n  copilot\n  kimi\n\nOptions:\n  -s, --since <YYYYMMDD>\n  -u, --until <YYYYMMDD>\n  -j, --json\n  -m, --mode <auto|calculate|display>\n  -d, --debug\n      --debug-samples <N>\n  -o, --order <asc|desc>\n  -b, --breakdown\n  -O, --offline\n      --no-offline\n      --color\n      --no-color\n  -z, --timezone <TZ>\n  -q, --jq <QUERY>\n      --config <PATH>\n      --compact\n      --single-thread\n  -h, --help\n  -V, --version"
+    "Usage: ccusage [OPTIONS] [COMMAND]\n\nCommands:\n  daily\n  monthly\n  weekly\n  session\n  blocks\n  statusline\n  claude\n  codex\n  opencode\n  amp\n  pi\n  copilot\n  gemini\n  kimi\n\nOptions:\n  -s, --since <YYYYMMDD>\n  -u, --until <YYYYMMDD>\n  -j, --json\n  -m, --mode <auto|calculate|display>\n  -d, --debug\n      --debug-samples <N>\n  -o, --order <asc|desc>\n  -b, --breakdown\n  -O, --offline\n      --no-offline\n      --color\n      --no-color\n  -z, --timezone <TZ>\n  -q, --jq <QUERY>\n      --config <PATH>\n      --compact\n      --single-thread\n  -h, --help\n  -V, --version"
 }
 
 #[cfg(test)]
@@ -1297,14 +1335,16 @@ mod tests {
         assert!(help.contains("\n  amp\n"));
         assert!(help.contains("\n  pi\n"));
         assert!(help.contains("\n  copilot\n"));
+        assert!(help.contains("\n  gemini\n"));
         assert!(help.contains("\n  kimi\n"));
     }
 
     #[test]
     fn cargo_version_matches_npm_package_version() {
-        let package_json =
-            serde_json::from_str::<serde_json::Value>(include_str!("../../../../apps/ccusage/package.json"))
-                .unwrap();
+        let package_json = serde_json::from_str::<serde_json::Value>(include_str!(
+            "../../../../apps/ccusage/package.json"
+        ))
+        .unwrap();
 
         assert_eq!(
             env!("CARGO_PKG_VERSION"),
@@ -1495,6 +1535,16 @@ mod tests {
         let cli = parse(&["ccusage", "copilot", "session", "--json"]);
         let Some(Command::Copilot(args)) = cli.command else {
             panic!("expected copilot command");
+        };
+        assert_eq!(args.kind, AgentReportKind::Session);
+        assert!(args.shared.json);
+    }
+
+    #[test]
+    fn parses_gemini_session_options() {
+        let cli = parse(&["ccusage", "gemini", "session", "--json"]);
+        let Some(Command::Gemini(args)) = cli.command else {
+            panic!("expected gemini command");
         };
         assert_eq!(args.kind, AgentReportKind::Session);
         assert!(args.shared.json);

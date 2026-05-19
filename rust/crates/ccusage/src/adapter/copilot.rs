@@ -11,13 +11,12 @@ use serde_json::{Map, Value};
 use crate::{
     calculate_cost_for_usage,
     cli::{AgentCommandArgs, AgentReportKind, CostMode, WeekDay},
-    collect_files_with_extension, filter_loaded_entries_by_date, format_date_tz,
-    print_usage_table, parse_tz, summarize_by_key, summarize_summaries_by_bucket, LoadedEntry,
-    Result, TimestampMs, TokenUsageRaw, UsageEntry, UsageMessage,
+    collect_files_with_extension, filter_loaded_entries_by_date, format_date_tz, parse_tz,
+    print_usage_table, summarize_by_key, summarize_summaries_by_bucket, LoadedEntry, Result,
+    TimestampMs, TokenUsageRaw, UsageEntry, UsageMessage,
 };
 
-pub(crate) const COPILOT_OTEL_FILE_EXPORTER_PATH_ENV: &str =
-    "COPILOT_OTEL_FILE_EXPORTER_PATH";
+pub(crate) const COPILOT_OTEL_FILE_EXPORTER_PATH_ENV: &str = "COPILOT_OTEL_FILE_EXPORTER_PATH";
 
 #[derive(Debug, Clone)]
 struct CopilotUsageEntry {
@@ -293,7 +292,9 @@ fn collect_trace_contexts(records: &[Map<String, Value>]) -> HashMap<String, Tra
         let Some(attributes) = record.get("attributes").and_then(Value::as_object) else {
             continue;
         };
-        let context = contexts.entry(trace_id).or_insert_with(TraceContext::default);
+        let context = contexts
+            .entry(trace_id)
+            .or_insert_with(TraceContext::default);
         if context.model.is_none() {
             context.model = first_non_empty_attr(attributes, MODEL_ATTRS);
         }
@@ -358,7 +359,15 @@ fn to_candidate(
         .unwrap_or_else(|| "unknown-session".to_string());
     let timestamp = timestamp_from_record(record).unwrap_or(fallback_timestamp);
     let input_tokens = input.saturating_sub(input.min(cache_read));
-    let dedup_key = dedup_key_for_record(source, record, attributes, &trace_id, &session_id, timestamp, index);
+    let dedup_key = dedup_key_for_record(
+        source,
+        record,
+        attributes,
+        &trace_id,
+        &session_id,
+        timestamp,
+        index,
+    );
     Some(CopilotUsageCandidate {
         source,
         trace_id,
@@ -391,8 +400,14 @@ impl CandidateSets {
             inference_traces: source_trace_ids(candidates, CopilotUsageSource::InferenceLog),
             agent_turn_traces: source_trace_ids(candidates, CopilotUsageSource::AgentTurnLog),
             chat_response_ids: source_response_ids(candidates, CopilotUsageSource::ChatSpan),
-            inference_response_ids: source_response_ids(candidates, CopilotUsageSource::InferenceLog),
-            agent_turn_response_ids: source_response_ids(candidates, CopilotUsageSource::AgentTurnLog),
+            inference_response_ids: source_response_ids(
+                candidates,
+                CopilotUsageSource::InferenceLog,
+            ),
+            agent_turn_response_ids: source_response_ids(
+                candidates,
+                CopilotUsageSource::AgentTurnLog,
+            ),
         }
     }
 }
@@ -623,9 +638,7 @@ fn timestamp_from_parts(value: Option<&Value>) -> Option<TimestampMs> {
     let values = value?.as_array()?;
     let seconds = number_value(values.first())?;
     let nanos = number_value(values.get(1))?;
-    let millis = seconds
-        .checked_mul(1_000)?
-        .checked_add(nanos / 1_000_000)?;
+    let millis = seconds.checked_mul(1_000)?.checked_add(nanos / 1_000_000)?;
     Some(TimestampMs::from_millis(millis.min(i64::MAX as u64) as i64))
 }
 

@@ -573,9 +573,7 @@ fn print_table(output: &Value, kind: AgentReportKind, shared: &SharedArgs) {
         let models = row
             .get("models")
             .and_then(Value::as_object)
-            .map(|models| {
-                format_models_multiline(&models.keys().cloned().collect::<Vec<_>>())
-            })
+            .map(|models| format_models_multiline(&models.keys().cloned().collect::<Vec<_>>()))
             .unwrap_or_default();
         table.push(vec![
             label.to_string(),

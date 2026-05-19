@@ -276,10 +276,8 @@ impl PricingMap {
         };
         self.entries
             .insert("claude-3-5-haiku".to_string(), claude_3_5_haiku);
-        self.entries.insert(
-            "claude-3-5-haiku-20241022".to_string(),
-            claude_3_5_haiku,
-        );
+        self.entries
+            .insert("claude-3-5-haiku-20241022".to_string(), claude_3_5_haiku);
         self.entries.insert(
             "claude-3-opus".to_string(),
             Pricing {
