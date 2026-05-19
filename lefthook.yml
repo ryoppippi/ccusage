@@ -71,4 +71,4 @@ pre-push:
         - 'rust/**/*.rs'
         - 'rust/**/Cargo.toml'
         - 'rust/Cargo.lock'
-      run: cargo test --manifest-path rust/Cargo.toml --workspace
+      run: cargo test --manifest-path rust/Cargo.toml --workspace --all-targets
