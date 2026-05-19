@@ -1,23 +1,19 @@
 {
 	"name": "ccusage",
-	"type": "module",
 	"version": "19.0.3",
 	"description": "Analyze coding (agent) CLI token usage and costs from local data",
-	"author": "ryoppippi",
-	"license": "MIT",
-	"funding": "https://github.com/ryoppippi/ccusage?sponsor=1",
 	"homepage": "https://github.com/ryoppippi/ccusage#readme",
+	"bugs": {
+		"url": "https://github.com/ryoppippi/ccusage/issues"
+	},
+	"license": "MIT",
+	"author": "ryoppippi",
 	"repository": {
 		"type": "git",
 		"url": "git+https://github.com/ryoppippi/ccusage.git",
 		"directory": "apps/ccusage"
 	},
-	"bugs": {
-		"url": "https://github.com/ryoppippi/ccusage/issues"
-	},
-	"exports": {
-		"./package.json": "./package.json"
-	},
+	"funding": "https://github.com/ryoppippi/ccusage?sponsor=1",
 	"bin": {
 		"ccusage": "./src/cli.ts"
 	},
@@ -25,6 +21,10 @@
 		"config-schema.json",
 		"dist/**/*.js"
 	],
+	"type": "module",
+	"exports": {
+		"./package.json": "./package.json"
+	},
 	"publishConfig": {
 		"bin": {
 			"ccusage": "./dist/cli.js"
@@ -56,14 +56,6 @@
 		"test:statusline:sonnet41": "cat test/statusline-test-sonnet41.json | cargo run --manifest-path ../../rust/Cargo.toml --bin ccusage -- statusline --offline",
 		"typecheck": "tsgo --noEmit"
 	},
-	"optionalDependencies": {
-		"@ccusage/ccusage-darwin-arm64": "workspace:*",
-		"@ccusage/ccusage-darwin-x64": "workspace:*",
-		"@ccusage/ccusage-linux-arm64": "workspace:*",
-		"@ccusage/ccusage-linux-x64": "workspace:*",
-		"@ccusage/ccusage-win32-arm64": "workspace:*",
-		"@ccusage/ccusage-win32-x64": "workspace:*"
-	},
 	"devDependencies": {
 		"@types/bun": "catalog:types",
 		"@typescript/native-preview": "catalog:types",
@@ -74,5 +66,13 @@
 		"publint": "catalog:lint",
 		"tsdown": "catalog:build",
 		"vitest": "catalog:testing"
+	},
+	"optionalDependencies": {
+		"@ccusage/ccusage-darwin-arm64": "workspace:*",
+		"@ccusage/ccusage-darwin-x64": "workspace:*",
+		"@ccusage/ccusage-linux-arm64": "workspace:*",
+		"@ccusage/ccusage-linux-x64": "workspace:*",
+		"@ccusage/ccusage-win32-arm64": "workspace:*",
+		"@ccusage/ccusage-win32-x64": "workspace:*"
 	}
 }

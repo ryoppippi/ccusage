@@ -1,12 +1,9 @@
 {
 	"name": "@ccusage/docs",
-	"type": "module",
 	"version": "19.0.3",
 	"private": true,
 	"description": "Documentation for coding (agent) CLI usage analysis with ccusage",
-	"engines": {
-		"node": ">=22.11.0"
-	},
+	"type": "module",
 	"scripts": {
 		"build": "cp ../apps/ccusage/config-schema.json public/config-schema.json && vitepress build",
 		"deploy": "wrangler deploy",
@@ -25,5 +22,8 @@
 		"vitepress-plugin-group-icons": "catalog:docs",
 		"vitepress-plugin-llms": "catalog:docs",
 		"wrangler": "catalog:docs"
+	},
+	"engines": {
+		"node": ">=22.11.0"
 	}
 }
