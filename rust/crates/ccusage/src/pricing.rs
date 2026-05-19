@@ -185,7 +185,7 @@ impl PricingMap {
                 output_above_200k: None,
                 cache_create_above_200k: None,
                 cache_read_above_200k: None,
-                fast_multiplier: 6.0,
+                fast_multiplier: fast_multiplier_fallback("claude-opus-4-6"),
             },
         );
         self.entries.insert(
@@ -200,7 +200,7 @@ impl PricingMap {
                 output_above_200k: None,
                 cache_create_above_200k: None,
                 cache_read_above_200k: None,
-                fast_multiplier: 6.0,
+                fast_multiplier: fast_multiplier_fallback("claude-opus-4-7"),
             },
         );
         self.entries.insert(
