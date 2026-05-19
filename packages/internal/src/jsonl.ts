@@ -20,6 +20,7 @@ type JSONLMarkerProcessingOptions = {
 	bufferedEncoding?: BufferEncoding;
 	callbackMode?: 'async' | 'sync';
 	markerIndex?: 'byte' | 'decoded';
+	maxBufferedBytes?: number;
 	scanMode?: 'marker' | 'line';
 };
 
@@ -291,6 +292,106 @@ export async function readBufferedJSONLBytes(filePath: string): Promise<Uint8Arr
 	return readBufferedBytesFile(filePath, { maxBufferedBytes: MAX_BUFFERED_JSONL_BYTES });
 }
 
+async function processStreamedJSONLMarkerBytes(
+	filePath: string,
+	markers: readonly string[],
+	processLine: (line: string, markerIndex: number, marker: string) => void | Promise<void>,
+	options: JSONLMarkerProcessingOptions,
+): Promise<void> {
+	const markerBuffers = markers.map((marker) => Buffer.from(marker));
+	let pending: Buffer<ArrayBufferLike> = Buffer.alloc(0);
+
+	const chunkToBuffer = (chunk: Uint8Array): Buffer<ArrayBufferLike> =>
+		Buffer.from(chunk.buffer, chunk.byteOffset, chunk.byteLength);
+
+	const findMarker = (lineBytes: Buffer): { index: number; marker: string } | null => {
+		let firstMarkerIndex = -1;
+		let firstMarker: string | undefined;
+		for (let markerBufferIndex = 0; markerBufferIndex < markerBuffers.length; markerBufferIndex++) {
+			const markerIndex = lineBytes.indexOf(markerBuffers[markerBufferIndex]!);
+			if (markerIndex !== -1 && (firstMarkerIndex === -1 || markerIndex < firstMarkerIndex)) {
+				firstMarkerIndex = markerIndex;
+				firstMarker = markers[markerBufferIndex];
+			}
+		}
+		return firstMarker == null ? null : { index: firstMarkerIndex, marker: firstMarker };
+	};
+
+	const lineBytesForBuffer = (lineBuffer: Buffer): Buffer => {
+		const decodeEnd =
+			lineBuffer.length > 0 && lineBuffer[lineBuffer.length - 1] === 13
+				? lineBuffer.length - 1
+				: lineBuffer.length;
+		return decodeEnd === lineBuffer.length ? lineBuffer : lineBuffer.subarray(0, decodeEnd);
+	};
+
+	const processLineBufferSync = (lineBuffer: Buffer): void => {
+		const lineBytes = lineBytesForBuffer(lineBuffer);
+		const found = findMarker(lineBytes);
+		if (found == null) {
+			return;
+		}
+
+		const line = lineBytes.toString(options.bufferedEncoding ?? 'utf8');
+		const callbackMarkerIndex =
+			options.markerIndex === 'byte' ? found.index : line.indexOf(found.marker);
+		void processLine(line, callbackMarkerIndex, found.marker);
+	};
+
+	const processLineBufferAsync = async (lineBuffer: Buffer): Promise<void> => {
+		const lineBytes = lineBytesForBuffer(lineBuffer);
+		const found = findMarker(lineBytes);
+		if (found == null) {
+			return;
+		}
+
+		const line = lineBytes.toString(options.bufferedEncoding ?? 'utf8');
+		const callbackMarkerIndex =
+			options.markerIndex === 'byte' ? found.index : line.indexOf(found.marker);
+		const result = processLine(line, callbackMarkerIndex, found.marker);
+		if (result != null) {
+			await result;
+		}
+	};
+
+	if (options.callbackMode === 'sync') {
+		for await (const chunk of createReadStream(filePath) as AsyncIterable<Uint8Array>) {
+			const bytes = chunkToBuffer(chunk);
+			const content = pending.length === 0 ? bytes : Buffer.concat([pending, bytes]);
+			let lineStart = 0;
+			let lineEnd = content.indexOf(10, lineStart);
+			while (lineEnd !== -1) {
+				processLineBufferSync(content.subarray(lineStart, lineEnd));
+				lineStart = lineEnd + 1;
+				lineEnd = content.indexOf(10, lineStart);
+			}
+			pending = content.subarray(lineStart);
+		}
+
+		if (pending.length > 0) {
+			processLineBufferSync(pending);
+		}
+		return;
+	}
+
+	for await (const chunk of createReadStream(filePath) as AsyncIterable<Uint8Array>) {
+		const bytes = chunkToBuffer(chunk);
+		const content = pending.length === 0 ? bytes : Buffer.concat([pending, bytes]);
+		let lineStart = 0;
+		let lineEnd = content.indexOf(10, lineStart);
+		while (lineEnd !== -1) {
+			await processLineBufferAsync(content.subarray(lineStart, lineEnd));
+			lineStart = lineEnd + 1;
+			lineEnd = content.indexOf(10, lineStart);
+		}
+		pending = content.subarray(lineStart);
+	}
+
+	if (pending.length > 0) {
+		await processLineBufferAsync(pending);
+	}
+}
+
 /**
  * Processes a JSONL file line by line, skipping empty and whitespace-only lines.
  *
@@ -349,47 +450,20 @@ export async function processJSONLFileByMarkers(
 		return;
 	}
 
-	const bytes = await readBufferedJSONLBytes(filePath);
+	const maxBufferedBytes = options.maxBufferedBytes ?? MAX_BUFFERED_JSONL_BYTES;
+	const bytes = await readBufferedBytesFile(filePath, { maxBufferedBytes });
 	if (bytes != null) {
 		await processBufferedJSONLMarkerBytes(bytes, normalizedMarkers, processLine, options);
 		return;
 	}
 
-	const content = await readBufferedJSONLContent(filePath);
+	const content = await readBufferedTextFile(filePath, { maxBufferedBytes });
 	if (content != null) {
 		await processBufferedJSONLMarkerContent(content, normalizedMarkers, processLine, options);
 		return;
 	}
 
-	const fileStream = createReadStream(filePath, { encoding: 'utf-8' });
-	const rl = createInterface({
-		input: fileStream,
-		crlfDelay: Number.POSITIVE_INFINITY,
-	});
-
-	for await (const line of rl) {
-		let firstMarkerIndex = -1;
-		let firstMarker: string | undefined;
-		for (const marker of normalizedMarkers) {
-			const markerIndex = line.indexOf(marker);
-			if (markerIndex !== -1 && (firstMarkerIndex === -1 || markerIndex < firstMarkerIndex)) {
-				firstMarkerIndex = markerIndex;
-				firstMarker = marker;
-			}
-		}
-		if (firstMarker == null) {
-			continue;
-		}
-		const callbackMarkerIndex = markerIndexForLine(line, firstMarkerIndex, options);
-		if (options.callbackMode === 'sync') {
-			void processLine(line, callbackMarkerIndex, firstMarker);
-			continue;
-		}
-		const result = processLine(line, callbackMarkerIndex, firstMarker);
-		if (result != null) {
-			await result;
-		}
-	}
+	await processStreamedJSONLMarkerBytes(filePath, normalizedMarkers, processLine, options);
 }
 
 if (import.meta.vitest != null) {
@@ -529,6 +603,47 @@ if (import.meta.vitest != null) {
 					seen.push(markerIndex);
 				},
 				{ markerIndex: 'byte', scanMode: 'line' },
+			);
+
+			expect(seen).toEqual([Buffer.byteLength(prefix)]);
+		});
+
+		it('streams marker scans without decoding unmarked lines', async () => {
+			await using fixture = await createFixture({
+				'test.jsonl': [
+					'{"type":"noise","payload":{"text":"ignored"}}',
+					'{"type":"event_msg","payload":{"type":"token_count"}}',
+				].join('\n'),
+			});
+
+			const seen: string[] = [];
+			await processJSONLFileByMarkers(
+				fixture.getPath('test.jsonl'),
+				['"type":"token_count"'],
+				(line) => {
+					seen.push(line);
+				},
+				{ maxBufferedBytes: 1 },
+			);
+
+			expect(seen).toEqual(['{"type":"event_msg","payload":{"type":"token_count"}}']);
+		});
+
+		it('preserves byte marker indexes while streaming', async () => {
+			const prefix = '{"note":"東京",';
+			const marker = '"type":"token_count"';
+			await using fixture = await createFixture({
+				'test.jsonl': `${prefix}${marker}}\n`,
+			});
+
+			const seen: number[] = [];
+			await processJSONLFileByMarkers(
+				fixture.getPath('test.jsonl'),
+				[marker],
+				(_line, markerIndex) => {
+					seen.push(markerIndex);
+				},
+				{ markerIndex: 'byte', maxBufferedBytes: 1 },
 			);
 
 			expect(seen).toEqual([Buffer.byteLength(prefix)]);

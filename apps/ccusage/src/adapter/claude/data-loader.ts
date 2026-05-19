@@ -1080,6 +1080,53 @@ function addTokenFieldsToSummaryAccumulator(
 	existing.cost += cost;
 }
 
+function subtractTokenFieldsFromSummaryAccumulator(
+	accumulator: UsageSummaryAccumulator,
+	model: string | undefined,
+	tokens: {
+		inputTokens: number;
+		outputTokens: number;
+		cacheCreationTokens: number;
+		cacheReadTokens: number;
+	},
+	cost: number,
+): void {
+	const modelName = model ?? 'unknown';
+	accumulator.totals.inputTokens -= tokens.inputTokens;
+	accumulator.totals.outputTokens -= tokens.outputTokens;
+	accumulator.totals.cacheCreationTokens -= tokens.cacheCreationTokens;
+	accumulator.totals.cacheReadTokens -= tokens.cacheReadTokens;
+	accumulator.totals.cost -= cost;
+	accumulator.totals.totalCost -= cost;
+
+	if (modelName === '<synthetic>') {
+		return;
+	}
+
+	const existing = accumulator.modelAggregates[modelName];
+	if (existing == null) {
+		return;
+	}
+	existing.inputTokens -= tokens.inputTokens;
+	existing.outputTokens -= tokens.outputTokens;
+	existing.cacheCreationTokens -= tokens.cacheCreationTokens;
+	existing.cacheReadTokens -= tokens.cacheReadTokens;
+	existing.cost -= cost;
+	if (
+		existing.inputTokens === 0 &&
+		existing.outputTokens === 0 &&
+		existing.cacheCreationTokens === 0 &&
+		existing.cacheReadTokens === 0
+	) {
+		delete accumulator.modelAggregates[modelName];
+		delete accumulator.modelSeen[modelName];
+		const index = accumulator.modelsUsed.indexOf(modelName);
+		if (index !== -1) {
+			accumulator.modelsUsed.splice(index, 1);
+		}
+	}
+}
+
 function finalizeUsageSummary(accumulator: UsageSummaryAccumulator): UsageSummary {
 	return {
 		...accumulator.totals,
@@ -1528,6 +1575,12 @@ type DailyDataEntry = {
 	uniqueHash: string | null;
 	tokenTotal: number;
 	hasSpeed: boolean;
+};
+
+type DailyDataGroup = {
+	date: string;
+	project: string | undefined;
+	summary: UsageSummaryAccumulator;
 };
 
 type EncodedDailyDataEntries = {
@@ -2319,6 +2372,46 @@ export async function loadDailyUsageData(options?: LoadOptions): Promise<DailyUs
 	const mode = options?.mode ?? 'auto';
 
 	const formatUsageDate = createCachedDateFormatter(options?.timezone);
+	const needsProjectGrouping = options?.groupByProject === true || options?.project != null;
+	const groupedData = new Map<string, DailyDataGroup>();
+	const groupKeyForEntry = (entry: DailyDataEntry): string =>
+		needsProjectGrouping ? `${entry.date}\x00${entry.project}` : entry.date;
+	const getGroupForEntry = (entry: DailyDataEntry): DailyDataGroup => {
+		const groupKey = groupKeyForEntry(entry);
+		let group = groupedData.get(groupKey);
+		if (group == null) {
+			group = {
+				date: entry.date,
+				project: needsProjectGrouping ? entry.project : undefined,
+				summary: createUsageSummaryAccumulator(),
+			};
+			groupedData.set(groupKey, group);
+		}
+		return group;
+	};
+	const addEntryToGroup = (entry: DailyDataEntry): void => {
+		addTokenFieldsToSummaryAccumulator(
+			getGroupForEntry(entry).summary,
+			entry.model,
+			entry,
+			entry.cost,
+		);
+	};
+	const removeEntryFromGroup = (entry: DailyDataEntry): void => {
+		const group = groupedData.get(groupKeyForEntry(entry));
+		if (group == null) {
+			return;
+		}
+		subtractTokenFieldsFromSummaryAccumulator(group.summary, entry.model, entry, entry.cost);
+		if (
+			group.summary.totals.inputTokens === 0 &&
+			group.summary.totals.outputTokens === 0 &&
+			group.summary.totals.cacheCreationTokens === 0 &&
+			group.summary.totals.cacheReadTokens === 0
+		) {
+			groupedData.delete(groupKeyForEntry(entry));
+		}
+	};
 
 	const allEntries: DailyDataEntry[] = [];
 	// The merge loop writes stable indexes for dedupe replacement, so a local length counter keeps
@@ -2329,10 +2422,13 @@ export async function loadDailyUsageData(options?: LoadOptions): Promise<DailyUs
 		if (entry.uniqueHash != null) {
 			const existingEntryIndex = processedEntries[entry.uniqueHash];
 			if (existingEntryIndex != null) {
-				if (!shouldReplaceEntryMetadata(entry, allEntries[existingEntryIndex]!)) {
+				const existingEntry = allEntries[existingEntryIndex]!;
+				if (!shouldReplaceEntryMetadata(entry, existingEntry)) {
 					return;
 				}
+				removeEntryFromGroup(existingEntry);
 				allEntries[existingEntryIndex] = entry;
+				addEntryToGroup(entry);
 				return;
 			}
 
@@ -2340,6 +2436,7 @@ export async function loadDailyUsageData(options?: LoadOptions): Promise<DailyUs
 		}
 
 		allEntries[allEntriesLength++] = entry;
+		addEntryToGroup(entry);
 	};
 
 	const workerFileResults = await collectWithUsageWorkers<string, EncodedDailyDataEntries>(
@@ -2371,32 +2468,6 @@ export async function loadDailyUsageData(options?: LoadOptions): Promise<DailyUs
 		for (const encodedEntries of workerFileResults) {
 			forEachDailyDataEntry(encodedEntries, mergeEntry);
 		}
-	}
-
-	// Group by date, optionally including project
-	// Automatically enable project grouping when project filter is specified
-	const needsProjectGrouping = options?.groupByProject === true || options?.project != null;
-	const groupedData = new Map<
-		string,
-		{
-			date: string;
-			project: string | undefined;
-			summary: UsageSummaryAccumulator;
-		}
-	>();
-
-	for (const entry of allEntries) {
-		const groupKey = needsProjectGrouping ? `${entry.date}\x00${entry.project}` : entry.date;
-		let group = groupedData.get(groupKey);
-		if (group == null) {
-			group = {
-				date: entry.date,
-				project: needsProjectGrouping ? entry.project : undefined,
-				summary: createUsageSummaryAccumulator(),
-			};
-			groupedData.set(groupKey, group);
-		}
-		addTokenFieldsToSummaryAccumulator(group.summary, entry.model, entry, entry.cost);
 	}
 
 	const results = Array.from(groupedData.values(), (group) => ({
