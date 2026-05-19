@@ -17,7 +17,6 @@
 		"@ryoppippi/vite-plugin-cloudflare-redirect": "catalog:docs",
 		"@types/bun": "catalog:types",
 		"@types/react": "catalog:types",
-		"@typescript/native-preview": "catalog:types",
 		"vitepress": "catalog:docs",
 		"vitepress-plugin-group-icons": "catalog:docs",
 		"vitepress-plugin-llms": "catalog:docs",

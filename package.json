@@ -34,7 +34,6 @@
 	"devDependencies": {
 		"@gunshi/docs": "catalog:llm-docs",
 		"@praha/byethrow-docs": "catalog:llm-docs",
-		"@typescript/native-preview": "catalog:types",
 		"bumpp": "catalog:release",
 		"changelogithub": "catalog:release",
 		"pkg-pr-new": "catalog:release",

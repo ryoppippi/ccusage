@@ -22,15 +22,9 @@
 		"dist/**/*.js"
 	],
 	"type": "module",
-	"exports": {
-		"./package.json": "./package.json"
-	},
 	"publishConfig": {
 		"bin": {
 			"ccusage": "./dist/cli.js"
-		},
-		"exports": {
-			"./package.json": "./package.json"
 		}
 	},
 	"scripts": {
@@ -58,7 +52,6 @@
 	},
 	"devDependencies": {
 		"@types/bun": "catalog:types",
-		"@typescript/native-preview": "catalog:types",
 		"clean-pkg-json": "catalog:release",
 		"fs-fixture": "catalog:testing",
 		"gunshi": "catalog:runtime",

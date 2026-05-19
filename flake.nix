@@ -230,6 +230,7 @@
             oxlint
             lefthook
             gitleaks
+            typescript-go
             jq
             git
             gh
