@@ -28,7 +28,9 @@ pub(crate) use claude_loader::{
     chunk_file_indexes_by_size, collect_files_with_extension, collect_usage_files,
     filter_loaded_entries_by_date, load_daily_summaries, load_entries,
 };
-pub(crate) use codex_loader::{codex_sessions_paths, load_codex_events, visit_codex_session_file};
+pub(crate) use codex_loader::{
+    codex_usage_paths, load_codex_events, visit_codex_session_file,
+};
 pub(crate) use cost::{calculate_cost, calculate_cost_for_usage};
 pub(crate) use date_utils::*;
 pub(crate) use logger::{debug_log, log_level};
@@ -132,6 +134,7 @@ fn main() -> Result<()> {
         Some(Command::OpenCode(args)) => adapter::opencode::run(args),
         Some(Command::Amp(args)) => adapter::amp::run(args),
         Some(Command::Pi(args)) => adapter::pi::run(args),
+        Some(Command::Copilot(args)) => adapter::copilot::run(args),
         None => {
             let args = AgentCommandArgs {
                 shared: cli.shared,
@@ -803,6 +806,7 @@ mod tests {
             session_id: Arc::from("thread-a"),
             project_path: Arc::from("Amp"),
             cost: 0.02,
+            extra_total_tokens: 0,
             credits: Some(1.25),
             model: Some("claude-sonnet-4-20250514".to_string()),
             usage_limit_reset_time: None,
@@ -887,6 +891,7 @@ mod tests {
             session_id: Arc::from("session-a"),
             project_path: Arc::from("project-a"),
             cost: 0.05,
+            extra_total_tokens: 0,
             credits: None,
             model: Some("[pi] gpt-5.4".to_string()),
             usage_limit_reset_time: None,
@@ -933,6 +938,7 @@ mod tests {
             session_id: Arc::from("opencode-session"),
             project_path: Arc::from("OpenCode"),
             cost: 0.02,
+            extra_total_tokens: 0,
             credits: None,
             model: Some("claude-sonnet-4-20250514".to_string()),
             usage_limit_reset_time: None,

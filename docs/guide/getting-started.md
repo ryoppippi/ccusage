@@ -17,6 +17,10 @@ The fastest way to try ccusage is to run it directly without installation:
 bunx ccusage
 ```
 
+```bash [Nix]
+nix run github:ryoppippi/ccusage -- daily
+```
+
 ```bash [npx]
 npx ccusage@latest
 ```
@@ -160,6 +164,7 @@ If ccusage shows no data, check:
    - OpenCode: `${OPENCODE_DATA_DIR:-~/.local/share/opencode}`
    - Amp: `${AMP_DATA_DIR:-~/.local/share/amp}`
    - pi-agent: `${PI_AGENT_DIR:-~/.pi/agent/sessions}`
+   - GitHub Copilot CLI: `~/.copilot/otel/*.jsonl` or `COPILOT_OTEL_FILE_EXPORTER_PATH`
 
 ### Custom Data Directory
 
@@ -171,12 +176,13 @@ export CODEX_HOME="/path/to/codex"
 export OPENCODE_DATA_DIR="/path/to/opencode"
 export AMP_DATA_DIR="/path/to/amp"
 export PI_AGENT_DIR="/path/to/pi/sessions"
+export COPILOT_OTEL_FILE_EXPORTER_PATH="/path/to/copilot-otel.jsonl"
 ```
 
 Each source-specific path variable can also contain comma-separated directories:
 
 ```bash
-export CODEX_HOME="/path/to/codex,/archive/codex"
+export CODEX_HOME="/path/to/codex,/archive/codex,/path/to/codex-exec-jsonl"
 export OPENCODE_DATA_DIR="/path/to/opencode,/archive/opencode"
 export AMP_DATA_DIR="/path/to/amp,/archive/amp"
 export PI_AGENT_DIR="/path/to/pi/sessions,/archive/pi/sessions"

@@ -16,14 +16,12 @@ pub(crate) fn wants_json(shared: &SharedArgs) -> bool {
 }
 
 pub(crate) fn summary_json(row: &UsageSummary) -> Value {
-    let total =
-        row.input_tokens + row.output_tokens + row.cache_creation_tokens + row.cache_read_tokens;
     let mut value = json!({
         "inputTokens": row.input_tokens,
         "outputTokens": row.output_tokens,
         "cacheCreationTokens": row.cache_creation_tokens,
         "cacheReadTokens": row.cache_read_tokens,
-        "totalTokens": total,
+        "totalTokens": row.total_tokens(),
         "totalCost": row.total_cost,
         "modelsUsed": row.models_used,
         "modelBreakdowns": row.model_breakdowns,
@@ -55,7 +53,7 @@ pub(crate) fn session_summary_json(row: &UsageSummary) -> Value {
         "outputTokens": row.output_tokens,
         "cacheCreationTokens": row.cache_creation_tokens,
         "cacheReadTokens": row.cache_read_tokens,
-        "totalTokens": row.input_tokens + row.output_tokens + row.cache_creation_tokens + row.cache_read_tokens,
+        "totalTokens": row.total_tokens(),
         "totalCost": row.total_cost,
         "lastActivity": row.last_activity,
         "modelsUsed": row.models_used,
@@ -76,12 +74,13 @@ pub(crate) fn totals_json(rows: &[UsageSummary]) -> Value {
         .map(|row| row.cache_creation_tokens)
         .sum::<u64>();
     let cache_read = rows.iter().map(|row| row.cache_read_tokens).sum::<u64>();
+    let extra = rows.iter().map(|row| row.extra_total_tokens).sum::<u64>();
     let mut value = json!({
         "inputTokens": input,
         "outputTokens": output,
         "cacheCreationTokens": cache_create,
         "cacheReadTokens": cache_read,
-        "totalTokens": input + output + cache_create + cache_read,
+        "totalTokens": input + output + cache_create + cache_read + extra,
         "totalCost": rows.iter().map(|row| row.total_cost).sum::<f64>(),
     });
     let credits = rows.iter().filter_map(|row| row.credits).sum::<f64>();
@@ -213,10 +212,7 @@ pub(crate) fn print_usage_table(
             .or(row.session_id.as_deref())
             .unwrap_or("");
         let models = format_models_multiline(&row.models_used);
-        let total_tokens = row.input_tokens
-            + row.output_tokens
-            + row.cache_creation_tokens
-            + row.cache_read_tokens;
+        let total_tokens = row.total_tokens();
         let mut values = if compact {
             vec![
                 label.to_string(),

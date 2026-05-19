@@ -2,14 +2,13 @@
 
 ccusage can be installed and used in several ways depending on your preferences and use case.
 
-## Why No Installation Needed?
+## Why Direct Execution Works Well
 
-Thanks to ccusage's incredibly small bundle size, you don't need to install it globally. Unlike other CLI tools, we pay extreme attention to bundle size optimization, achieving an impressively small footprint even without minification. This means:
+You do not need to install ccusage globally before trying it. Direct package runners work well for ad hoc usage:
 
-- ✅ Near-instant startup times
-- ✅ Minimal download overhead
-- ✅ Always use the latest version
-- ✅ No global pollution of your system
+- ✅ No global package to manage
+- ✅ Easy access to the latest published version
+- ✅ Cached package downloads after the first run
 
 ## Quick Start (Recommended)
 
@@ -53,7 +52,7 @@ Here's why runtime choice matters:
 
 ## Global Installation (Optional)
 
-While not necessary due to our small bundle size, you can still install ccusage globally if you prefer:
+You can install ccusage globally if you prefer a persistent command:
 
 ::: code-group
 

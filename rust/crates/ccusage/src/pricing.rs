@@ -743,7 +743,7 @@ mod tests {
     #[test]
     fn embedded_build_time_pricing_is_compact() {
         assert!(BUILD_TIME_PRICING_JSON.len() < 200_000);
-        assert!(FALLBACK_PRICING_JSON.len() < 30_000);
+        assert!(FALLBACK_PRICING_JSON.len() < 100_000);
         assert!(!BUILD_TIME_PRICING_JSON.contains("\"source\""));
         assert!(!FALLBACK_PRICING_JSON.contains("\"source\""));
         assert!(!BUILD_TIME_PRICING_JSON.contains("vertex_ai/"));

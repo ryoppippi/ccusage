@@ -71,6 +71,7 @@ pub(crate) fn message_value_to_entry(
         session_id: Arc::from(loaded_session_id),
         project_path: Arc::from("OpenCode"),
         cost,
+        extra_total_tokens: 0,
         credits: None,
         model: Some(model),
         usage_limit_reset_time: None,

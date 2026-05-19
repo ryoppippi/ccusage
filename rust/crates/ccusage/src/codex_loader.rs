@@ -9,7 +9,7 @@ use serde_json::Value;
 
 use crate::{
     chunk_file_indexes_by_size, cli::SharedArgs, cli_error, collect_usage_files, home,
-    non_empty_json_string, progress, CodexRawUsage, CodexTokenUsageEvent, Result,
+    non_empty_json_string, progress, CodexRawUsage, CodexTokenUsageEvent, Result, TimestampMs,
 };
 
 pub(crate) fn load_codex_events_from_directory(
@@ -38,7 +38,7 @@ pub(crate) fn load_codex_events(shared: &SharedArgs) -> Result<Vec<CodexTokenUsa
 
 fn load_codex_events_inner(shared: &SharedArgs) -> Result<Vec<CodexTokenUsageEvent>> {
     let mut events = Vec::new();
-    for path in codex_sessions_paths()? {
+    for path in codex_usage_paths()? {
         events.extend(load_codex_events_from_directory(
             &path,
             shared.single_thread,
@@ -91,29 +91,34 @@ fn read_codex_session_files_parallel(
     })
 }
 
-pub(crate) fn codex_sessions_paths() -> Result<Vec<PathBuf>> {
+pub(crate) fn codex_usage_paths() -> Result<Vec<PathBuf>> {
     let mut paths = Vec::new();
     let mut seen = HashSet::new();
+    for path in codex_home_paths()? {
+        let sessions = path.join("sessions");
+        if sessions.is_dir() {
+            if seen.insert(sessions.clone()) {
+                paths.push(sessions);
+            }
+        } else if seen.insert(path.clone()) {
+            paths.push(path);
+        }
+    }
+    Ok(paths)
+}
+
+fn codex_home_paths() -> Result<Vec<PathBuf>> {
     if let Ok(env_paths) = env::var("CODEX_HOME") {
-        for raw in env_paths
+        return Ok(env_paths
             .split(',')
             .map(str::trim)
             .filter(|path| !path.is_empty())
-        {
-            let path = PathBuf::from(raw).join("sessions");
-            if seen.insert(path.clone()) {
-                paths.push(path);
-            }
-        }
-        return Ok(paths);
+            .map(PathBuf::from)
+            .collect());
     }
 
     let home = home::home_dir().ok_or_else(|| cli_error("home directory is not set"))?;
-    let path = home.join(".codex").join("sessions");
-    if seen.insert(path.clone()) {
-        paths.push(path);
-    }
-    Ok(paths)
+    Ok(vec![home.join(".codex")])
 }
 
 fn read_codex_session_file(sessions_dir: &Path, path: &Path) -> Vec<CodexTokenUsageEvent> {
@@ -137,25 +142,38 @@ pub(crate) fn visit_codex_session_file(
     let mut previous_totals: Option<CodexRawUsage> = None;
     let mut current_model: Option<String> = None;
     let mut current_model_is_fallback = false;
+    let fallback_timestamp = file_modified_timestamp(path);
 
     for line in content.lines() {
-        if !line.contains("turn_context") && !line.contains("token_count") {
+        if !line.contains("turn_context")
+            && !line.contains("token_count")
+            && !line.contains("\"usage\":")
+            && !line.contains("\"input_tokens\":")
+            && !line.contains("\"prompt_tokens\":")
+        {
             continue;
         }
         let Ok(value) = serde_json::from_str::<Value>(line) else {
             continue;
         };
-        let Some(entry_type) = value.get("type").and_then(Value::as_str) else {
-            continue;
-        };
-        if entry_type == "turn_context" {
+        let entry_type = value.get("type").and_then(Value::as_str);
+        if entry_type == Some("turn_context") {
             if let Some(model) = codex_model_from_payload(value.get("payload")) {
                 current_model = Some(model);
                 current_model_is_fallback = false;
             }
             continue;
         }
-        if entry_type != "event_msg" {
+        if entry_type != Some("event_msg") {
+            add_codex_exec_event(
+                sessions_dir,
+                path,
+                &value,
+                &fallback_timestamp,
+                &mut current_model,
+                &mut current_model_is_fallback,
+                &mut visit,
+            )?;
             continue;
         }
         let Some(timestamp) = value.get("timestamp").and_then(Value::as_str) else {
@@ -229,6 +247,46 @@ pub(crate) fn visit_codex_session_file(
     Ok(())
 }
 
+fn add_codex_exec_event(
+    sessions_dir: &Path,
+    path: &Path,
+    value: &Value,
+    fallback_timestamp: &str,
+    current_model: &mut Option<String>,
+    current_model_is_fallback: &mut bool,
+    visit: &mut impl FnMut(CodexTokenUsageEvent) -> Result<()>,
+) -> Result<()> {
+    let Some(raw_usage) = normalize_headless_codex_usage(value) else {
+        return Ok(());
+    };
+    let parsed_model = codex_model_from_result(value);
+    if let Some(model) = parsed_model.clone() {
+        *current_model = Some(model);
+        *current_model_is_fallback = false;
+    }
+    let mut is_fallback_model = false;
+    let model = parsed_model.or_else(|| current_model.clone()).or_else(|| {
+        is_fallback_model = true;
+        *current_model_is_fallback = true;
+        *current_model = Some("gpt-5".to_string());
+        current_model.clone()
+    });
+    if parsed_model_is_missing(&model, current_model, *current_model_is_fallback) {
+        is_fallback_model = true;
+    }
+    visit(CodexTokenUsageEvent {
+        session_id: codex_session_id(sessions_dir, path),
+        timestamp: codex_timestamp_from_result(value).unwrap_or_else(|| fallback_timestamp.to_string()),
+        model,
+        input_tokens: raw_usage.input_tokens,
+        cached_input_tokens: raw_usage.cached_input_tokens.min(raw_usage.input_tokens),
+        output_tokens: raw_usage.output_tokens,
+        reasoning_output_tokens: raw_usage.reasoning_output_tokens,
+        total_tokens: raw_usage.total_tokens,
+        is_fallback_model,
+    })
+}
+
 fn parsed_model_is_missing(
     model: &Option<String>,
     current_model: &Option<String>,
@@ -263,6 +321,100 @@ fn codex_model_from_payload(value: Option<&Value>) -> Option<String> {
         })
 }
 
+fn codex_model_from_result(value: &Value) -> Option<String> {
+    codex_model_from_payload(Some(value))
+        .or_else(|| codex_model_from_payload(value.get("data")))
+        .or_else(|| codex_model_from_payload(value.get("result")))
+        .or_else(|| codex_model_from_payload(value.get("response")))
+}
+
+fn usage_from_result(value: &Value) -> Option<&Value> {
+    value
+        .get("usage")
+        .or_else(|| value.get("data").and_then(|data| data.get("usage")))
+        .or_else(|| value.get("result").and_then(|result| result.get("usage")))
+        .or_else(|| value.get("response").and_then(|response| response.get("usage")))
+}
+
+fn codex_timestamp_from_result(value: &Value) -> Option<String> {
+    normalize_codex_timestamp(value.get("timestamp"))
+        .or_else(|| normalize_codex_timestamp(value.get("created_at")))
+        .or_else(|| normalize_codex_timestamp(value.get("createdAt")))
+        .or_else(|| {
+            value
+                .get("data")
+                .and_then(|data| normalize_codex_timestamp(data.get("timestamp")))
+        })
+        .or_else(|| {
+            value
+                .get("result")
+                .and_then(|result| normalize_codex_timestamp(result.get("timestamp")))
+        })
+        .or_else(|| {
+            value
+                .get("response")
+                .and_then(|response| normalize_codex_timestamp(response.get("timestamp")))
+        })
+}
+
+fn normalize_codex_timestamp(value: Option<&Value>) -> Option<String> {
+    match value? {
+        Value::String(text) => {
+            let text = text.trim();
+            if text.is_empty() {
+                return None;
+            }
+            crate::parse_ts_timestamp(text).map(crate::format_rfc3339_millis)
+        }
+        Value::Number(number) => {
+            let raw = number.as_u64()?;
+            let millis = if raw > 10_000_000_000 {
+                raw
+            } else {
+                raw.checked_mul(1_000)?
+            };
+            Some(crate::format_rfc3339_millis(TimestampMs::from_millis(
+                millis.min(i64::MAX as u64) as i64,
+            )))
+        }
+        _ => None,
+    }
+}
+
+fn normalize_headless_codex_usage(value: &Value) -> Option<CodexRawUsage> {
+    let usage = usage_from_result(value)?;
+    let input = json_u64(usage.get("input_tokens"))
+        .or_else(|| json_u64(usage.get("prompt_tokens")))
+        .or_else(|| json_u64(usage.get("input")))
+        .unwrap_or(0);
+    let cached = json_u64(usage.get("cached_input_tokens"))
+        .or_else(|| json_u64(usage.get("cache_read_input_tokens")))
+        .or_else(|| json_u64(usage.get("cached_tokens")))
+        .unwrap_or(0);
+    let output = json_u64(usage.get("output_tokens"))
+        .or_else(|| json_u64(usage.get("completion_tokens")))
+        .or_else(|| json_u64(usage.get("output")))
+        .unwrap_or(0);
+    let reasoning = json_u64(usage.get("reasoning_output_tokens"))
+        .or_else(|| json_u64(usage.get("reasoning_tokens")))
+        .unwrap_or(0);
+    let total = json_u64(usage.get("total_tokens")).unwrap_or(0);
+    if input == 0 && cached == 0 && output == 0 && reasoning == 0 && total == 0 {
+        return None;
+    }
+    Some(CodexRawUsage {
+        input_tokens: input,
+        cached_input_tokens: cached,
+        output_tokens: output,
+        reasoning_output_tokens: reasoning,
+        total_tokens: if total > 0 {
+            total
+        } else {
+            input + output + reasoning
+        },
+    })
+}
+
 fn normalize_codex_raw_usage(value: &Value) -> Option<CodexRawUsage> {
     if !value.is_object() {
         return None;
@@ -289,8 +441,22 @@ fn normalize_codex_raw_usage(value: &Value) -> Option<CodexRawUsage> {
 fn json_u64(value: Option<&Value>) -> Option<u64> {
     match value {
         Some(Value::Number(number)) => number.as_u64(),
+        Some(Value::String(text)) => text.trim().parse::<u64>().ok(),
         _ => None,
     }
+}
+
+fn file_modified_timestamp(path: &Path) -> String {
+    fs::metadata(path)
+        .and_then(|metadata| metadata.modified())
+        .ok()
+        .and_then(|modified| modified.duration_since(std::time::UNIX_EPOCH).ok())
+        .map(|duration| {
+            crate::format_rfc3339_millis(TimestampMs::from_millis(
+                duration.as_millis().min(i64::MAX as u128) as i64,
+            ))
+        })
+        .unwrap_or_else(|| crate::format_rfc3339_millis(TimestampMs::UNIX_EPOCH))
 }
 
 fn subtract_codex_raw_usage(
@@ -335,6 +501,14 @@ fn dedupe_codex_events(events: &mut Vec<CodexTokenUsageEvent>) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::{
+        env,
+        fs,
+        path::PathBuf,
+        time::{SystemTime, UNIX_EPOCH},
+    };
+
+    use serde_json::json;
 
     fn codex_event(session_id: &str) -> CodexTokenUsageEvent {
         CodexTokenUsageEvent {
@@ -357,5 +531,105 @@ mod tests {
         dedupe_codex_events(&mut events);
 
         assert_eq!(events.len(), 2);
+    }
+
+    fn temp_dir(name: &str) -> PathBuf {
+        let nanos = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let dir = env::temp_dir().join(format!("ccusage-codex-exec-{name}-{nanos}"));
+        fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    #[test]
+    fn loads_saved_codex_exec_json_usage() {
+        let dir = temp_dir("json-usage");
+        let file = dir.join("run.jsonl");
+        fs::write(
+            &file,
+            [
+                json!({
+                    "type": "turn.completed",
+                    "timestamp": "2026-01-02T03:04:05.000Z",
+                    "model": "gpt-5.2-codex",
+                    "usage": {
+                        "input_tokens": 120,
+                        "cached_input_tokens": 20,
+                        "output_tokens": 30,
+                        "total_tokens": 150,
+                    },
+                })
+                .to_string(),
+                json!({
+                    "type": "result",
+                    "data": {
+                        "timestamp": "2026-01-02T03:05:05.000Z",
+                        "model_name": "gpt-5.2-codex",
+                        "usage": {
+                            "prompt_tokens": 50,
+                            "cached_tokens": 5,
+                            "completion_tokens": 12,
+                        },
+                    },
+                })
+                .to_string(),
+            ]
+            .join("\n"),
+        )
+        .unwrap();
+
+        let events = load_codex_events_from_directory(&dir, true).unwrap();
+
+        assert_eq!(events.len(), 2);
+        assert_eq!(events[0].session_id, "run");
+        assert_eq!(events[0].timestamp, "2026-01-02T03:04:05.000Z");
+        assert_eq!(events[0].model.as_deref(), Some("gpt-5.2-codex"));
+        assert_eq!(events[0].input_tokens, 120);
+        assert_eq!(events[0].cached_input_tokens, 20);
+        assert_eq!(events[0].output_tokens, 30);
+        assert_eq!(events[0].total_tokens, 150);
+        assert_eq!(events[1].timestamp, "2026-01-02T03:05:05.000Z");
+        assert_eq!(events[1].model.as_deref(), Some("gpt-5.2-codex"));
+        assert_eq!(events[1].input_tokens, 50);
+        assert_eq!(events[1].cached_input_tokens, 5);
+        assert_eq!(events[1].output_tokens, 12);
+        assert_eq!(events[1].total_tokens, 62);
+
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn uses_nested_model_name_for_standalone_exec_usage() {
+        let dir = temp_dir("model-name");
+        let file = dir.join("solo.jsonl");
+        fs::write(
+            &file,
+            json!({
+                "data": {
+                    "timestamp": "2026-03-01T00:00:00.000Z",
+                    "model_name": "gpt-5.2-codex",
+                    "usage": {
+                        "input_tokens": 10,
+                        "output_tokens": 5,
+                        "total_tokens": 15,
+                    },
+                },
+            })
+            .to_string(),
+        )
+        .unwrap();
+
+        let events = load_codex_events_from_directory(&dir, true).unwrap();
+
+        assert_eq!(events.len(), 1);
+        assert_eq!(events[0].session_id, "solo");
+        assert_eq!(events[0].model.as_deref(), Some("gpt-5.2-codex"));
+        assert_eq!(events[0].input_tokens, 10);
+        assert_eq!(events[0].output_tokens, 5);
+        assert_eq!(events[0].total_tokens, 15);
+
+        fs::remove_dir_all(dir).unwrap();
     }
 }

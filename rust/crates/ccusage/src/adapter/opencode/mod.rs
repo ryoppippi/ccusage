@@ -66,7 +66,7 @@ pub(crate) fn agent_summary_json(
         "outputTokens": row.output_tokens,
         "cacheCreationTokens": row.cache_creation_tokens,
         "cacheReadTokens": row.cache_read_tokens,
-        "totalTokens": row.input_tokens + row.output_tokens + row.cache_creation_tokens + row.cache_read_tokens,
+        "totalTokens": row.total_tokens(),
         "totalCost": row.total_cost,
         "modelsUsed": row.models_used,
     });

@@ -109,7 +109,7 @@ fn codex_config_requests_fast_service_tier(content: &str) -> bool {
 fn load_groups(shared: &SharedArgs, kind: AgentReportKind) -> Result<BTreeMap<String, CodexGroup>> {
     let mut groups = BTreeMap::new();
     let seen = create_dedupe_shards();
-    for path in crate::codex_sessions_paths()? {
+    for path in crate::codex_usage_paths()? {
         merge_groups(
             &mut groups,
             load_groups_from_directory_with_dedupe(&path, shared, kind, &seen)?,

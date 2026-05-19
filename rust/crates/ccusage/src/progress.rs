@@ -7,6 +7,7 @@ pub(crate) enum UsageLoadAgent {
     OpenCode,
     Amp,
     Pi,
+    Copilot,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -27,6 +28,7 @@ fn agent_label(agent: UsageLoadAgent) -> &'static str {
         UsageLoadAgent::OpenCode => "OpenCode",
         UsageLoadAgent::Amp => "Amp",
         UsageLoadAgent::Pi => "pi-agent",
+        UsageLoadAgent::Copilot => "GitHub Copilot CLI",
     }
 }
 
