@@ -9,7 +9,8 @@ use jiff::tz::TimeZone as JiffTimeZone;
 use serde_json::{json, Value};
 
 use crate::{
-    adapter::opencode, calculate_cost_for_usage,
+    adapter::opencode,
+    calculate_cost_for_usage,
     cli::{AgentCommandArgs, AgentReportKind, CostMode, WeekDay},
     collect_files_with_extension, filter_loaded_entries_by_date, format_date_tz, json_value_u64,
     non_empty_json_string, parse_tz, print_json_or_jq, print_usage_table, sort_summaries,
@@ -132,7 +133,12 @@ fn load_entries_inner(
         for entry in read_wire_file(&file)? {
             let key = kimi_entry_key(&entry);
             if seen.insert(key) {
-                entries.push(kimi_entry_to_loaded(entry, tz.as_ref(), shared.mode, pricing));
+                entries.push(kimi_entry_to_loaded(
+                    entry,
+                    tz.as_ref(),
+                    shared.mode,
+                    pricing,
+                ));
             }
         }
     }
@@ -396,11 +402,7 @@ fn model_candidates(model: &str) -> Vec<String> {
 
 #[cfg(test)]
 mod tests {
-    use std::{
-        env, fs,
-        path::PathBuf,
-        sync::Mutex,
-    };
+    use std::{env, fs, path::PathBuf, sync::Mutex};
 
     use super::*;
 
@@ -424,13 +426,20 @@ mod tests {
         fs::create_dir_all(kimi_dir.join("sessions/nested/path/session")).unwrap();
         fs::write(kimi_dir.join("sessions/group/session/wire.jsonl"), "{}\n").unwrap();
         fs::write(kimi_dir.join("sessions/group/session/other.jsonl"), "{}\n").unwrap();
-        fs::write(kimi_dir.join("sessions/nested/path/session/wire.jsonl"), "{}\n").unwrap();
+        fs::write(
+            kimi_dir.join("sessions/nested/path/session/wire.jsonl"),
+            "{}\n",
+        )
+        .unwrap();
         env::set_var(KIMI_DATA_DIR_ENV, &kimi_dir);
         let files = discover_wire_files().unwrap();
         env::remove_var(KIMI_DATA_DIR_ENV);
         fs::remove_dir_all(&kimi_dir).unwrap();
 
-        assert_eq!(files, vec![kimi_dir.join("sessions/group/session/wire.jsonl")]);
+        assert_eq!(
+            files,
+            vec![kimi_dir.join("sessions/group/session/wire.jsonl")]
+        );
     }
 
     #[test]
@@ -486,8 +495,11 @@ mod tests {
         )
         .unwrap();
         env::set_var(KIMI_DATA_DIR_ENV, &kimi_dir);
-        let entries = load_entries(&crate::cli::SharedArgs::default(), &PricingMap::load_embedded())
-            .unwrap();
+        let entries = load_entries(
+            &crate::cli::SharedArgs::default(),
+            &PricingMap::load_embedded(),
+        )
+        .unwrap();
         env::remove_var(KIMI_DATA_DIR_ENV);
         fs::remove_dir_all(&kimi_dir).unwrap();
 
