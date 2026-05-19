@@ -522,27 +522,56 @@
 			"type": "object"
 		},
 		"ConfigCodexSpeed": {
-			"enum": ["auto", "standard", "fast"],
+			"enum": [
+				"auto",
+				"standard",
+				"fast"
+			],
 			"type": "string"
 		},
 		"ConfigCostMode": {
-			"enum": ["auto", "calculate", "display"],
+			"enum": [
+				"auto",
+				"calculate",
+				"display"
+			],
 			"type": "string"
 		},
 		"ConfigCostSource": {
-			"enum": ["auto", "ccusage", "cc", "both"],
+			"enum": [
+				"auto",
+				"ccusage",
+				"cc",
+				"both"
+			],
 			"type": "string"
 		},
 		"ConfigSortOrder": {
-			"enum": ["desc", "asc"],
+			"enum": [
+				"desc",
+				"asc"
+			],
 			"type": "string"
 		},
 		"ConfigVisualBurnRate": {
-			"enum": ["off", "emoji", "text", "emoji-text"],
+			"enum": [
+				"off",
+				"emoji",
+				"text",
+				"emoji-text"
+			],
 			"type": "string"
 		},
 		"ConfigWeekDay": {
-			"enum": ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"],
+			"enum": [
+				"sunday",
+				"monday",
+				"tuesday",
+				"wednesday",
+				"thursday",
+				"friday",
+				"saturday"
+			],
 			"type": "string"
 		},
 		"CopilotCommandsConfig": {
@@ -816,6 +845,33 @@
 			"properties": {
 				"commands": {
 					"$ref": "#/definitions/KiloCommandsConfig"
+				},
+				"defaults": {
+					"$ref": "#/definitions/SharedOptions"
+				}
+			},
+			"type": "object"
+		},
+		"KimiCommandsConfig": {
+			"additionalProperties": false,
+			"properties": {
+				"daily": {
+					"$ref": "#/definitions/SharedOptions"
+				},
+				"monthly": {
+					"$ref": "#/definitions/SharedOptions"
+				},
+				"session": {
+					"$ref": "#/definitions/SharedOptions"
+				}
+			},
+			"type": "object"
+		},
+		"KimiConfig": {
+			"additionalProperties": false,
+			"properties": {
+				"commands": {
+					"$ref": "#/definitions/KimiCommandsConfig"
 				},
 				"defaults": {
 					"$ref": "#/definitions/SharedOptions"
@@ -1423,6 +1479,15 @@
 					],
 					"description": "Kilo configuration.",
 					"markdownDescription": "Kilo configuration."
+				},
+				"kimi": {
+					"allOf": [
+						{
+							"$ref": "#/definitions/KimiConfig"
+						}
+					],
+					"description": "Kimi configuration.",
+					"markdownDescription": "Kimi configuration."
 				},
 				"opencode": {
 					"allOf": [

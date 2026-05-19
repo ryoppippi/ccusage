@@ -7,7 +7,7 @@ use std::{
 use serde_json::{json, Value};
 
 use crate::{
-    adapter::{amp, codex, copilot, droid, gemini, goose, hermes, kilo, opencode, pi},
+    adapter::{amp, codex, copilot, droid, gemini, goose, hermes, kilo, kimi, opencode, pi},
     cli::{AgentCommandArgs, AgentReportKind, CodexSpeed, SharedArgs, SortOrder, WeekDay},
     color, filter_loaded_entries_by_date, format_currency, format_models_multiline, format_number,
     json_float, print_box_title, print_json_or_jq, summarize_by_key, summarize_summaries_by_bucket,
@@ -146,6 +146,12 @@ fn load_rows(kind: AgentReportKind, shared: &SharedArgs) -> Result<AllLoadResult
                 agent: "gemini",
                 progress_agent: crate::progress::UsageLoadAgent::Gemini,
                 load: Box::new(|| load_gemini_rows(load_kind, shared, &pricing)),
+            },
+            AgentLoadSpec {
+                index: 10,
+                agent: "kimi",
+                progress_agent: crate::progress::UsageLoadAgent::Kimi,
+                load: Box::new(|| load_kimi_rows(load_kind, shared, &pricing)),
             },
         ],
         &mut progress,
@@ -416,6 +422,21 @@ fn load_gemini_rows(
     let summaries = gemini::summarize_entries(&entries, kind)?;
     Ok(AgentRows {
         rows: summary_rows("gemini", summaries),
+        detected,
+    })
+}
+
+fn load_kimi_rows(
+    kind: AgentReportKind,
+    shared: &SharedArgs,
+    pricing: &PricingMap,
+) -> Result<AgentRows> {
+    let mut entries = kimi::load_entries(shared, pricing)?;
+    let detected = !entries.is_empty();
+    filter_loaded_entries_by_date(&mut entries, shared);
+    let summaries = kimi::summarize_entries(&entries, kind)?;
+    Ok(AgentRows {
+        rows: summary_rows("kimi", summaries),
         detected,
     })
 }
@@ -971,6 +992,7 @@ fn agent_label(agent: &str) -> &str {
         "kilo" => "Kilo",
         "copilot" => "GitHub Copilot CLI",
         "gemini" => "Gemini CLI",
+        "kimi" => "Kimi",
         _ => agent,
     }
 }
