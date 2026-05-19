@@ -155,6 +155,7 @@
 
             # Development tools
             rustToolchain
+            cargo-edit
             pkg-config
             openssl
             typos
