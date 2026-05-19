@@ -33,7 +33,7 @@ Use fixture-backed Rust tests for parser, path discovery, SQLite loading, dedupe
 ## Test Readability
 
 - Avoid `try`/`catch` in tests for expected failures. Use `Result` tests, `matches!`, or explicit error assertions.
-- Avoid `if` branches inside test bodies. Split behaviors into separate tests or use `it.each` for table-driven cases.
+- Avoid `if` branches inside test bodies. Split behaviors into separate tests, use `rstest` cases when the crate is already available, iterate over explicit Rust case structs in one table-driven test, or add a small local macro for repeated assertions.
 - Tests do not need to be DRY. Prefer repeated, explicit setup in each test when it makes the behavior easier to read.
 - Do not hoist one-off values out of tests. Write literals and direct setup values inline in the test body when sharing them would make the behavior harder to read.
 
@@ -41,7 +41,9 @@ For concrete Rust examples, read `../tdd/references/rust-examples.md`.
 
 ## CLI Output Tests
 
-Integration tests that exercise human-readable table output must use file snapshots with `toMatchFileSnapshot`. This keeps table layout and responsive behavior reviewable for each affected agent/report combination.
+Integration tests that exercise human-readable table output should use focused
+golden output or explicit layout assertions so table layout and responsive
+behavior stay reviewable for each affected agent/report combination.
 
 Prefer JSON assertions for structured behavior and snapshot assertions for terminal layout.
 
