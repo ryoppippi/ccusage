@@ -9,11 +9,11 @@ use jiff::tz::TimeZone as JiffTimeZone;
 use serde_json::{json, Value};
 
 use crate::{
-    cli::AgentCommandArgs, cli::AgentReportKind, cli::SharedArgs, cli::WeekDay,
-    collect_files_with_extension, filter_loaded_entries_by_date, format_date_tz, json_value_u64,
-    non_empty_json_string, parse_tz, print_json_or_jq, print_usage_table, sort_summaries,
-    summarize_by_key, summarize_summaries_by_bucket, totals_json, wants_json, BucketKind,
-    LoadedEntry, Result, SessionAccumulator, TokenUsageRaw, UsageEntry, UsageMessage,
+    apply_total_token_fallback, cli::AgentCommandArgs, cli::AgentReportKind, cli::SharedArgs,
+    cli::WeekDay, collect_files_with_extension, filter_loaded_entries_by_date, format_date_tz,
+    json_value_u64, non_empty_json_string, parse_tz, print_json_or_jq, print_usage_table,
+    sort_summaries, summarize_by_key, summarize_summaries_by_bucket, totals_json, wants_json,
+    BucketKind, LoadedEntry, Result, SessionAccumulator, TokenUsageRaw, UsageEntry, UsageMessage,
 };
 
 pub(crate) fn run(args: AgentCommandArgs) -> Result<()> {
@@ -189,7 +189,16 @@ pub(crate) fn read_session_file(
         let output = json_value_u64(usage_value.get("output"));
         let cache_read = json_value_u64(usage_value.get("cacheRead"));
         let cache_create = json_value_u64(usage_value.get("cacheWrite"));
-        if input == 0 && output == 0 && cache_read == 0 && cache_create == 0 {
+        let total = json_value_u64(usage_value.get("totalTokens"));
+        let usage = TokenUsageRaw {
+            input_tokens: input,
+            output_tokens: output,
+            cache_creation_input_tokens: cache_create,
+            cache_read_input_tokens: cache_read,
+            speed: None,
+        };
+        let (usage, extra_total_tokens) = apply_total_token_fallback(usage, 0, total);
+        if crate::total_usage_tokens(usage) + extra_total_tokens == 0 {
             continue;
         }
         let model =
@@ -204,13 +213,7 @@ pub(crate) fn read_session_file(
             timestamp: timestamp_text,
             version: None,
             message: UsageMessage {
-                usage: TokenUsageRaw {
-                    input_tokens: input,
-                    output_tokens: output,
-                    cache_creation_input_tokens: cache_create,
-                    cache_read_input_tokens: cache_read,
-                    speed: None,
-                },
+                usage,
                 model: model.clone(),
                 id: None,
             },
@@ -225,7 +228,7 @@ pub(crate) fn read_session_file(
             session_id: Arc::from(session_id.as_str()),
             project_path: Arc::from(project.as_str()),
             cost,
-            extra_total_tokens: 0,
+            extra_total_tokens,
             credits: None,
             message_count: None,
             model,
@@ -287,7 +290,38 @@ fn entry_id(entry: &LoadedEntry) -> String {
             .cache_creation_input_tokens
             .to_string(),
         &entry.data.message.usage.cache_read_input_tokens.to_string(),
+        &entry.extra_total_tokens.to_string(),
         &entry.cost.to_string(),
     ]
     .join(":")
+}
+
+#[cfg(test)]
+mod tests {
+    use std::{env, fs, time::SystemTime};
+
+    use super::*;
+
+    #[test]
+    fn falls_back_to_total_tokens_when_pi_parts_are_missing() {
+        let nanos = SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let dir = env::temp_dir().join(format!("ccusage-pi-total-{nanos}"));
+        fs::create_dir_all(dir.join("sessions/project-a")).unwrap();
+        let file = dir.join("sessions/project-a/agent_session-a.jsonl");
+        fs::write(
+            &file,
+            r#"{"type":"message","timestamp":"2026-01-02T00:00:00.000Z","message":{"role":"assistant","model":"gpt-5","usage":{"totalTokens":333}}}"#,
+        )
+        .unwrap();
+
+        let entries = read_session_file(&file, None).unwrap();
+        fs::remove_dir_all(&dir).unwrap();
+
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].data.message.usage.output_tokens, 333);
+        assert_eq!(entries[0].extra_total_tokens, 0);
+    }
 }

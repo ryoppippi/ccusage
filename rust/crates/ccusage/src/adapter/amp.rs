@@ -9,12 +9,13 @@ use jiff::tz::TimeZone as JiffTimeZone;
 use serde_json::{json, Value};
 
 use crate::{
-    adapter::opencode, calculate_cost, cli::AgentCommandArgs, cli::AgentReportKind, cli::CostMode,
-    cli::WeekDay, collect_files_with_extension, filter_loaded_entries_by_date, format_currency,
-    format_date_tz, format_models_multiline, format_number, json_value_u64, non_empty_json_string,
-    parse_tz, print_box_title, print_json_or_jq, sort_summaries, summarize_by_key,
-    summarize_summaries_by_bucket, totals_json, wants_json, Align, BucketKind, Color, LoadedEntry,
-    PricingMap, Result, SimpleTable, TokenUsageRaw, UsageEntry, UsageMessage,
+    adapter::opencode, apply_total_token_fallback, calculate_cost, cli::AgentCommandArgs,
+    cli::AgentReportKind, cli::CostMode, cli::WeekDay, collect_files_with_extension,
+    filter_loaded_entries_by_date, format_currency, format_date_tz, format_models_multiline,
+    format_number, json_value_u64, non_empty_json_string, parse_tz, print_box_title,
+    print_json_or_jq, sort_summaries, summarize_by_key, summarize_summaries_by_bucket, totals_json,
+    wants_json, Align, BucketKind, Color, LoadedEntry, PricingMap, Result, SimpleTable,
+    TokenUsageRaw, UsageEntry, UsageMessage,
 };
 
 pub(crate) fn run(args: AgentCommandArgs) -> Result<()> {
@@ -196,10 +197,13 @@ pub(crate) fn read_thread_file(
             cache_read_input_tokens: cache.1,
             speed: None,
         };
+        let total_tokens = json_value_u64(tokens.get("total"));
+        let (usage, extra_total_tokens) = apply_total_token_fallback(usage, 0, total_tokens);
         if usage.input_tokens == 0
             && usage.output_tokens == 0
             && usage.cache_creation_input_tokens == 0
             && usage.cache_read_input_tokens == 0
+            && extra_total_tokens == 0
         {
             continue;
         }
@@ -216,7 +220,21 @@ pub(crate) fn read_thread_file(
             request_id: None,
             is_api_error_message: None,
         };
-        let cost = calculate_cost(&data, mode, pricing);
+        let cost_data = UsageEntry {
+            message: UsageMessage {
+                usage: TokenUsageRaw {
+                    output_tokens: data
+                        .message
+                        .usage
+                        .output_tokens
+                        .saturating_add(extra_total_tokens),
+                    ..data.message.usage
+                },
+                ..data.message.clone()
+            },
+            ..data.clone()
+        };
+        let cost = calculate_cost(&cost_data, mode, pricing);
         entries.push(LoadedEntry {
             date: format_date_tz(timestamp, tz),
             timestamp,
@@ -224,7 +242,7 @@ pub(crate) fn read_thread_file(
             session_id: Arc::from(thread_id.as_str()),
             project_path: Arc::from("Amp"),
             cost,
-            extra_total_tokens: 0,
+            extra_total_tokens,
             credits: json_value_f64(event.get("credits")),
             message_count: None,
             model: Some(model),
@@ -449,5 +467,35 @@ fn agent_report_label(kind: AgentReportKind) -> &'static str {
         AgentReportKind::Weekly => "Weekly",
         AgentReportKind::Monthly => "Monthly",
         AgentReportKind::Session => "Session",
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::{env, fs, time::SystemTime};
+
+    use super::*;
+
+    #[test]
+    fn falls_back_to_total_tokens_when_amp_parts_are_missing() {
+        let nanos = SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let dir = env::temp_dir().join(format!("ccusage-amp-total-{nanos}"));
+        fs::create_dir_all(&dir).unwrap();
+        let file = dir.join("thread.json");
+        fs::write(
+            &file,
+            r#"{"id":"thread-a","usageLedger":{"events":[{"id":"event-a","timestamp":"2026-01-02T00:00:00.000Z","model":"gpt-5","tokens":{"total":345}}]}}"#,
+        )
+        .unwrap();
+
+        let entries = read_thread_file(&file, None, CostMode::Auto, None).unwrap();
+        fs::remove_dir_all(&dir).unwrap();
+
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].data.message.usage.output_tokens, 345);
+        assert_eq!(entries[0].extra_total_tokens, 0);
     }
 }

@@ -9,7 +9,7 @@ use jiff::tz::TimeZone as JiffTimeZone;
 use serde_json::{json, Value};
 
 use crate::{
-    calculate_cost_for_usage,
+    apply_total_token_fallback, calculate_cost_for_usage,
     cli::{AgentCommandArgs, AgentReportKind, CostMode, SharedArgs, WeekDay},
     collect_files_with_extension, filter_loaded_entries_by_date, format_date_tz,
     format_rfc3339_millis, json_value_u64, parse_ts_timestamp, parse_tz, print_json_or_jq,
@@ -240,12 +240,23 @@ fn load_settings_file(path: &Path) -> Result<Option<DroidEntry>> {
 
 fn parse_token_usage(value: Option<&Value>) -> Option<DroidTokenUsage> {
     let usage = value?.as_object()?;
-    let tokens = DroidTokenUsage {
+    let raw_usage = TokenUsageRaw {
         input_tokens: json_value_u64(usage.get("inputTokens")),
         output_tokens: json_value_u64(usage.get("outputTokens")),
-        cache_creation_tokens: json_value_u64(usage.get("cacheCreationTokens")),
-        cache_read_tokens: json_value_u64(usage.get("cacheReadTokens")),
-        thinking_tokens: json_value_u64(usage.get("thinkingTokens")),
+        cache_creation_input_tokens: json_value_u64(usage.get("cacheCreationTokens")),
+        cache_read_input_tokens: json_value_u64(usage.get("cacheReadTokens")),
+        speed: None,
+    };
+    let thinking_tokens = json_value_u64(usage.get("thinkingTokens"));
+    let total_tokens = json_value_u64(usage.get("totalTokens"));
+    let (raw_usage, thinking_tokens) =
+        apply_total_token_fallback(raw_usage, thinking_tokens, total_tokens);
+    let tokens = DroidTokenUsage {
+        input_tokens: raw_usage.input_tokens,
+        output_tokens: raw_usage.output_tokens,
+        cache_creation_tokens: raw_usage.cache_creation_input_tokens,
+        cache_read_tokens: raw_usage.cache_read_input_tokens,
+        thinking_tokens,
     };
     (tokens.input_tokens
         + tokens.output_tokens
@@ -513,6 +524,17 @@ mod tests {
             normalize_droid_model_name("gemini-2.5-pro"),
             "gemini-2-5-pro"
         );
+    }
+
+    #[test]
+    fn falls_back_to_total_tokens_when_droid_parts_are_missing() {
+        let usage = parse_token_usage(Some(&serde_json::json!({
+            "totalTokens": 456
+        })))
+        .unwrap();
+
+        assert_eq!(usage.output_tokens, 456);
+        assert_eq!(usage.thinking_tokens, 0);
     }
 
     #[test]

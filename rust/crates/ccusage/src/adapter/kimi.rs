@@ -10,7 +10,7 @@ use serde_json::{json, Value};
 
 use crate::{
     adapter::opencode,
-    calculate_cost_for_usage,
+    apply_total_token_fallback, calculate_cost_for_usage,
     cli::{AgentCommandArgs, AgentReportKind, CostMode, WeekDay},
     collect_files_with_extension, filter_loaded_entries_by_date, format_date_tz, json_value_u64,
     non_empty_json_string, parse_tz, print_json_or_jq, print_usage_table, sort_summaries,
@@ -35,6 +35,7 @@ struct KimiUsageEntry {
     output_tokens: u64,
     cache_creation_tokens: u64,
     cache_read_tokens: u64,
+    extra_total_tokens: u64,
 }
 
 pub(crate) fn run(args: AgentCommandArgs) -> Result<()> {
@@ -266,7 +267,16 @@ fn wire_line_to_entry(
     let output_tokens = json_value_u64(token_usage.get("output"));
     let cache_creation_tokens = json_value_u64(token_usage.get("input_cache_creation"));
     let cache_read_tokens = json_value_u64(token_usage.get("input_cache_read"));
-    if input_tokens + output_tokens + cache_creation_tokens + cache_read_tokens == 0 {
+    let total_tokens = json_value_u64(token_usage.get("total"));
+    let usage = TokenUsageRaw {
+        input_tokens,
+        output_tokens,
+        cache_creation_input_tokens: cache_creation_tokens,
+        cache_read_input_tokens: cache_read_tokens,
+        speed: None,
+    };
+    let (usage, extra_total_tokens) = apply_total_token_fallback(usage, 0, total_tokens);
+    if crate::total_usage_tokens(usage) + extra_total_tokens == 0 {
         return None;
     }
     let timestamp = value
@@ -280,10 +290,11 @@ fn wire_line_to_entry(
         session_id: extract_session_id(file_path),
         model: model.to_string(),
         message_id: non_empty_json_string(payload.get("message_id")),
-        input_tokens,
-        output_tokens,
-        cache_creation_tokens,
-        cache_read_tokens,
+        input_tokens: usage.input_tokens,
+        output_tokens: usage.output_tokens,
+        cache_creation_tokens: usage.cache_creation_input_tokens,
+        cache_read_tokens: usage.cache_read_input_tokens,
+        extra_total_tokens,
     })
 }
 
@@ -310,7 +321,7 @@ fn extract_session_id(file_path: &Path) -> String {
 
 fn kimi_entry_key(entry: &KimiUsageEntry) -> String {
     format!(
-        "{}:{}:{}:{}:{}:{}:{}:{}",
+        "{}:{}:{}:{}:{}:{}:{}:{}:{}",
         entry.session_id,
         entry.message_id.as_deref().unwrap_or_default(),
         entry.timestamp_text,
@@ -318,7 +329,8 @@ fn kimi_entry_key(entry: &KimiUsageEntry) -> String {
         entry.input_tokens,
         entry.output_tokens,
         entry.cache_creation_tokens,
-        entry.cache_read_tokens
+        entry.cache_read_tokens,
+        entry.extra_total_tokens
     )
 }
 
@@ -356,7 +368,7 @@ fn kimi_entry_to_loaded(
         session_id: Arc::from(entry.session_id),
         project_path: Arc::from("Kimi"),
         cost,
-        extra_total_tokens: 0,
+        extra_total_tokens: entry.extra_total_tokens,
         credits: None,
         message_count: None,
         model: Some(entry.model),
@@ -479,6 +491,31 @@ mod tests {
             20
         );
         assert_eq!(entries[0].data.message.usage.cache_read_input_tokens, 10);
+    }
+
+    #[test]
+    fn falls_back_to_total_tokens_when_kimi_parts_are_missing() {
+        let kimi_dir = temp_kimi_dir("total");
+        fs::create_dir_all(kimi_dir.join("sessions/group/session-a")).unwrap();
+        fs::write(kimi_dir.join("config.json"), r#"{"model":"kimi-k2"}"#).unwrap();
+        let file = kimi_dir.join("sessions/group/session-a/wire.jsonl");
+        let value = serde_json::json!({
+            "timestamp": 1770983427.123,
+            "message": {
+                "type": "StatusUpdate",
+                "payload": {
+                    "token_usage": {
+                        "total": 432
+                    }
+                }
+            }
+        });
+
+        let entry = wire_line_to_entry(&value, &file, "kimi-k2", TimestampMs::UNIX_EPOCH).unwrap();
+        fs::remove_dir_all(&kimi_dir).unwrap();
+
+        assert_eq!(entry.output_tokens, 432);
+        assert_eq!(entry.extra_total_tokens, 0);
     }
 
     #[test]

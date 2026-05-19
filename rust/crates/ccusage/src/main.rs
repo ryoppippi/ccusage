@@ -43,7 +43,9 @@ pub(crate) use summary::{
     week_start, BucketKind, SessionAccumulator,
 };
 pub(crate) use types::*;
-pub(crate) use utils::{json_value_u64, non_empty_json_string, total_usage_tokens};
+pub(crate) use utils::{
+    apply_total_token_fallback, json_value_u64, non_empty_json_string, total_usage_tokens,
+};
 
 use ccusage_terminal::{terminal_width, TerminalStyle};
 pub(crate) use ccusage_terminal::{Align, Color, SimpleTable};
