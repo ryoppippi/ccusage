@@ -50,18 +50,19 @@ ccusage daily --mode display --timezone UTC
 
 ```bash
 export CODEX_HOME="$HOME/.codex"
+export GEMINI_DATA_DIR="$HOME/.gemini/tmp"
 export OPENCODE_DATA_DIR="$HOME/.local/share/opencode"
 export AMP_DATA_DIR="$HOME/.local/share/amp"
 export PI_AGENT_DIR="$HOME/.pi/agent/sessions"
-export CODEBUFF_DATA_DIR="$HOME/.config/manicode"
+export COPILOT_OTEL_FILE_EXPORTER_PATH="$HOME/.copilot/otel/copilot-otel.jsonl"
 ```
 
 Use comma-separated directories when you want reports to combine multiple profiles or archives:
 
 ```bash
 export CODEX_HOME="$HOME/.codex,$HOME/.codex-work"
+export GEMINI_DATA_DIR="$HOME/.gemini/tmp,/backup/gemini/tmp"
 export OPENCODE_DATA_DIR="$HOME/.local/share/opencode,/archive/opencode"
-export CODEBUFF_DATA_DIR="$HOME/.config/manicode,/archive/codebuff"
 ```
 
 2. **Create a configuration file** for your preferences:
@@ -106,7 +107,7 @@ For individual developers working on multiple projects:
 
 ### Multiple Sources
 
-Configure Claude Code, Codex, OpenCode, Amp, pi-agent, and Codebuff separately with data source namespaces:
+Configure Claude Code, Codex, OpenCode, Amp, Codebuff, pi-agent, GitHub Copilot CLI, and Gemini CLI separately with data source namespaces:
 
 ```json
 // ~/.config/claude/ccusage.json
@@ -367,3 +368,4 @@ Explore specific configuration topics:
 - [Claude Code](/guide/claude/) - Claude Code data discovery
 - [Cost Modes](/guide/cost-modes) - Understanding calculation modes
 - [Claude Code](/guide/claude/) - Claude Code data paths and source-specific options
+- [Codebuff](/guide/codebuff/) - Codebuff chat history paths and source-specific options

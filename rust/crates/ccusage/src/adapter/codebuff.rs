@@ -155,7 +155,10 @@ fn discover_chat_files() -> Result<Vec<PathBuf>> {
     }
     Ok(files
         .into_iter()
-        .filter(|path| path.file_name().is_some_and(|name| name == "chat-messages.json"))
+        .filter(|path| {
+            path.file_name()
+                .is_some_and(|name| name == "chat-messages.json")
+        })
         .collect())
 }
 
@@ -274,6 +277,7 @@ fn to_loaded_entry(
         session_id: Arc::from(entry.session_id.as_str()),
         project_path: Arc::from("Codebuff"),
         cost,
+        extra_total_tokens: 0,
         credits: (entry.credits > 0.0).then_some(entry.credits),
         model: Some(entry.model),
         usage_limit_reset_time: None,
@@ -467,7 +471,8 @@ fn message_timestamp(message: &serde_json::Map<String, Value>) -> Option<crate::
     timestamp_value(message.get("timestamp"))
         .or_else(|| timestamp_value(message.get("createdAt")))
         .or_else(|| {
-            object_field(message, "metadata").and_then(|metadata| timestamp_value(metadata.get("timestamp")))
+            object_field(message, "metadata")
+                .and_then(|metadata| timestamp_value(metadata.get("timestamp")))
         })
 }
 
@@ -562,7 +567,10 @@ fn calculate_codebuff_cost(entry: &CodebuffEntry, pricing: &PricingMap) -> f64 {
         CostMode::Calculate,
         Some(pricing),
     );
-    if raw > 0.0 || entry.provider == "unknown" || entry.model.starts_with(&format!("{}/", entry.provider)) {
+    if raw > 0.0
+        || entry.provider == "unknown"
+        || entry.model.starts_with(&format!("{}/", entry.provider))
+    {
         return raw;
     }
     calculate_cost_for_usage(
@@ -655,7 +663,10 @@ mod tests {
         );
         assert_eq!(entries[0].data.message.usage.input_tokens, 100);
         assert_eq!(entries[0].data.message.usage.output_tokens, 50);
-        assert_eq!(entries[0].data.message.usage.cache_creation_input_tokens, 20);
+        assert_eq!(
+            entries[0].data.message.usage.cache_creation_input_tokens,
+            20
+        );
         assert_eq!(entries[0].data.message.usage.cache_read_input_tokens, 10);
         assert_eq!(entries[0].credits, Some(1.25));
     }
@@ -684,7 +695,10 @@ mod tests {
         fs::remove_dir_all(&dir).unwrap();
 
         assert_eq!(entries.len(), 1);
-        assert_eq!(entries[0].data.message.model.as_deref(), Some("openai/gpt-5"));
+        assert_eq!(
+            entries[0].data.message.model.as_deref(),
+            Some("openai/gpt-5")
+        );
         assert_eq!(entries[0].data.message.usage.input_tokens, 100);
         assert_eq!(entries[0].data.message.usage.output_tokens, 50);
         assert_eq!(entries[0].data.message.usage.cache_read_input_tokens, 10);
@@ -718,6 +732,7 @@ mod tests {
             session_id: Arc::from("session-a"),
             project_path: Arc::from("Codebuff"),
             cost: 0.02,
+            extra_total_tokens: 0,
             credits: Some(1.25),
             model: Some("claude-sonnet-4-20250514".to_string()),
             usage_limit_reset_time: None,

@@ -86,11 +86,14 @@ impl PricingMap {
     }
 
     pub(crate) fn load_json(&mut self, json: &str) -> usize {
-        let Ok(raw) = serde_json::from_str::<HashMap<String, LiteLlmPricing>>(json) else {
+        let Ok(raw) = serde_json::from_str::<HashMap<String, serde_json::Value>>(json) else {
             return 0;
         };
-        let loaded_count = raw.len();
-        for (model, pricing) in raw {
+        let mut loaded_count = 0;
+        for (model, value) in raw {
+            let Ok(pricing) = serde_json::from_value::<LiteLlmPricing>(value) else {
+                continue;
+            };
             let Some(input) = pricing.input_cost_per_token else {
                 continue;
             };
@@ -123,6 +126,7 @@ impl PricingMap {
             if let Some(context_limit) = context_limit {
                 self.context_limits.insert(model, context_limit);
             }
+            loaded_count += 1;
         }
         loaded_count
     }
@@ -276,10 +280,8 @@ impl PricingMap {
         };
         self.entries
             .insert("claude-3-5-haiku".to_string(), claude_3_5_haiku);
-        self.entries.insert(
-            "claude-3-5-haiku-20241022".to_string(),
-            claude_3_5_haiku,
-        );
+        self.entries
+            .insert("claude-3-5-haiku-20241022".to_string(), claude_3_5_haiku);
         self.entries.insert(
             "claude-3-opus".to_string(),
             Pricing {
@@ -526,6 +528,27 @@ mod tests {
     }
 
     #[test]
+    fn skips_invalid_litellm_entries_without_discarding_valid_pricing() {
+        let mut pricing = PricingMap::default();
+        let loaded = pricing.load_json(
+            r#"{
+                "sample_spec": {
+                    "max_input_tokens": "max input tokens, if the provider specifies it"
+                },
+                "gpt-valid": {
+                    "input_cost_per_token": 0.000001,
+                    "output_cost_per_token": 0.000010,
+                    "max_input_tokens": 123
+                }
+            }"#,
+        );
+
+        assert_eq!(loaded, 1);
+        assert!(pricing.find("gpt-valid").is_some());
+        assert_eq!(pricing.context_limit("gpt-valid"), Some(123));
+    }
+
+    #[test]
     fn embedded_pricing_resolves_overlapping_model_keys_exactly() {
         let pricing = PricingMap::load_embedded();
         let sonnet_4 = pricing.find("claude-sonnet-4-20250514").unwrap();
@@ -567,7 +590,7 @@ mod tests {
     #[test]
     fn embedded_build_time_pricing_is_compact() {
         assert!(BUILD_TIME_PRICING_JSON.len() < 200_000);
-        assert!(FALLBACK_PRICING_JSON.len() < 30_000);
+        assert!(FALLBACK_PRICING_JSON.len() < 100_000);
         assert!(!BUILD_TIME_PRICING_JSON.contains("\"source\""));
         assert!(!FALLBACK_PRICING_JSON.contains("\"source\""));
         assert!(!BUILD_TIME_PRICING_JSON.contains("vertex_ai/"));

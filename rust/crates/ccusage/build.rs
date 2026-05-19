@@ -6,15 +6,21 @@ const FALLBACK_PRICING_JSON: &str = "src/litellm-pricing-fallback.json";
 const LITELLM_PRICING_URL: &str =
     "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json";
 const OUT_PRICING_JSON: &str = "litellm-pricing.json";
+const PRICING_JSON_PATH_ENV: &str = "CCUSAGE_PRICING_JSON_PATH";
 const PRICING_FETCH_TIMEOUT_SECONDS: u64 = 10;
 
 fn main() {
     println!("cargo:rerun-if-changed={FALLBACK_PRICING_JSON}");
+    println!("cargo:rerun-if-env-changed={PRICING_JSON_PATH_ENV}");
     println!("cargo:rerun-if-env-changed=CCUSAGE_SKIP_PRICING_FETCH");
 
     let out_path = PathBuf::from(env::var_os("OUT_DIR").expect("OUT_DIR is set by cargo"))
         .join(OUT_PRICING_JSON);
-    let pricing_json = if env::var_os("CCUSAGE_SKIP_PRICING_FETCH").is_some() {
+    let pricing_json = if let Some(path) = env::var_os(PRICING_JSON_PATH_ENV) {
+        let path = PathBuf::from(path);
+        println!("cargo:rerun-if-changed={}", path.display());
+        fs::read_to_string(path).expect("read pricing snapshot from CCUSAGE_PRICING_JSON_PATH")
+    } else if env::var_os("CCUSAGE_SKIP_PRICING_FETCH").is_some() {
         fallback_pricing_json()
     } else {
         fetch_pricing_json().unwrap_or_else(|error| {

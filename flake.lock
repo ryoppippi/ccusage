@@ -1,5 +1,32 @@
 {
   "nodes": {
+    "crane": {
+      "locked": {
+        "lastModified": 1779130139,
+        "narHash": "sha256-BLrtr42azquO7MdGFU5a7KiMl3YpFlTeIXqy1fT5GlQ=",
+        "owner": "ipetkov",
+        "repo": "crane",
+        "rev": "edb38893982a3338972bb4a2ec7ce7c29ba10fd9",
+        "type": "github"
+      },
+      "original": {
+        "owner": "ipetkov",
+        "repo": "crane",
+        "type": "github"
+      }
+    },
+    "litellm-pricing": {
+      "flake": false,
+      "locked": {
+        "narHash": "sha256-0FvNNOBhUPVF3s7yVnT6Xn2y3x4jgGbO9L2cmbCgasw=",
+        "type": "file",
+        "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+      },
+      "original": {
+        "type": "file",
+        "url": "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
+      }
+    },
     "nixpkgs": {
       "locked": {
         "lastModified": 1778794387,
@@ -18,6 +45,8 @@
     },
     "root": {
       "inputs": {
+        "crane": "crane",
+        "litellm-pricing": "litellm-pricing",
         "nixpkgs": "nixpkgs",
         "rust-overlay": "rust-overlay"
       }

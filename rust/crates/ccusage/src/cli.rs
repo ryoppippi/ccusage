@@ -27,6 +27,8 @@ pub(crate) enum Command {
     Amp(AgentCommandArgs),
     Codebuff(AgentCommandArgs),
     Pi(AgentCommandArgs),
+    Copilot(AgentCommandArgs),
+    Gemini(AgentCommandArgs),
 }
 
 #[derive(Clone, Default)]
@@ -213,6 +215,12 @@ impl Cli {
         if let Some(message) = unsupported_agent_report_error(&parser.args) {
             return Err(message);
         }
+        if has_help_flag(&parser.args) {
+            if let Some(help) = help_for_args(&parser.args) {
+                println!("{help}");
+                process::exit(0);
+            }
+        }
         if parser.peek_help_or_version() {
             parser.print_help_or_version();
         }
@@ -336,6 +344,8 @@ fn parse_command(
         "amp" => parse_amp_command(parser, shared, config),
         "codebuff" => parse_codebuff_command(parser, shared, config),
         "pi" => parse_pi_command(parser, shared, config),
+        "copilot" => parse_copilot_command(parser, shared, config),
+        "gemini" => parse_gemini_command(parser, shared, config),
         _ => Err(format!("Unknown command '{command}'")),
     }
 }
@@ -659,6 +669,74 @@ fn parse_pi_command(
     }))
 }
 
+fn parse_copilot_command(
+    parser: &mut ArgParser,
+    mut shared: SharedArgs,
+    _config: &ConfigContext,
+) -> Result<Command, String> {
+    let kind = match parser.peek() {
+        Some("daily") => {
+            parser.next();
+            AgentReportKind::Daily
+        }
+        Some("monthly") => {
+            parser.next();
+            AgentReportKind::Monthly
+        }
+        Some("session") => {
+            parser.next();
+            AgentReportKind::Session
+        }
+        Some(command) if !command.starts_with('-') => {
+            return Err(format!("Unknown copilot command '{command}'"));
+        }
+        _ => AgentReportKind::Daily,
+    };
+    while parser.peek().is_some() {
+        parse_shared_arg(parser, &mut shared)?;
+    }
+    Ok(Command::Copilot(AgentCommandArgs {
+        shared,
+        kind,
+        pi_path: None,
+        codex_speed: CodexSpeed::Auto,
+    }))
+}
+
+fn parse_gemini_command(
+    parser: &mut ArgParser,
+    mut shared: SharedArgs,
+    _config: &ConfigContext,
+) -> Result<Command, String> {
+    let kind = match parser.peek() {
+        Some("daily") => {
+            parser.next();
+            AgentReportKind::Daily
+        }
+        Some("monthly") => {
+            parser.next();
+            AgentReportKind::Monthly
+        }
+        Some("session") => {
+            parser.next();
+            AgentReportKind::Session
+        }
+        Some(command) if !command.starts_with('-') => {
+            return Err(format!("Unknown gemini command '{command}'"));
+        }
+        _ => AgentReportKind::Daily,
+    };
+    while parser.peek().is_some() {
+        parse_shared_arg(parser, &mut shared)?;
+    }
+    Ok(Command::Gemini(AgentCommandArgs {
+        shared,
+        kind,
+        pi_path: None,
+        codex_speed: CodexSpeed::Auto,
+    }))
+}
+
 fn parse_shared_arg_for_command(
     parser: &mut ArgParser,
     shared: &mut SharedArgs,
@@ -717,6 +795,8 @@ fn is_command(arg: &str) -> bool {
             | "amp"
             | "codebuff"
             | "pi"
+            | "copilot"
+            | "gemini"
     )
 }
 
@@ -738,12 +818,11 @@ fn legacy_agent_report_supported(agent: &str, report: &str) -> bool {
 }
 
 fn report_flag_alias_error(args: &[String]) -> Option<String> {
-    let flag = args.iter().find_map(|arg| {
+    let flag = args.iter().find(|arg| {
         matches!(
             arg.as_str(),
             "--daily" | "--weekly" | "--monthly" | "--session" | "--blocks" | "--statusline"
         )
-        .then_some(arg)
     })?;
     Some(format!(
         "Report flags like {flag} are not supported. Use \"ccusage {}\" instead.",
@@ -847,7 +926,7 @@ fn option_takes_value(arg: &str) -> bool {
 fn is_agent_command(command: &str) -> bool {
     matches!(
         command,
-        "claude" | "codex" | "opencode" | "amp" | "codebuff" | "pi"
+        "claude" | "codex" | "opencode" | "amp" | "codebuff" | "pi" | "copilot" | "gemini"
     )
 }
 
@@ -859,7 +938,9 @@ fn agent_report_supported(agent: &str, report: &str) -> bool {
         ),
         "codex" => matches!(report, "daily" | "monthly" | "session"),
         "opencode" => matches!(report, "daily" | "weekly" | "monthly" | "session"),
-        "amp" | "codebuff" | "pi" => matches!(report, "daily" | "monthly" | "session"),
+        "amp" | "codebuff" | "pi" | "copilot" | "gemini" => {
+            matches!(report, "daily" | "monthly" | "session")
+        }
         _ => false,
     }
 }
@@ -872,6 +953,8 @@ fn agent_display_name(agent: &str) -> &'static str {
         "amp" => "Amp",
         "codebuff" => "Codebuff",
         "pi" => "pi-agent",
+        "copilot" => "GitHub Copilot CLI",
+        "gemini" => "Gemini CLI",
         _ => unreachable!("agent is prevalidated"),
     }
 }
@@ -1003,9 +1086,6 @@ impl ArgParser {
         let arg = self
             .next()
             .ok_or_else(|| "Expected option but reached end of arguments".to_string())?;
-        if matches!(arg.as_str(), "-h" | "--help" | "-V" | "--version") {
-            print_help_or_version_arg(&arg);
-        }
         if let Some((flag, value)) = arg.split_once('=') {
             self.pending_value = Some(value.to_string());
             return Ok(flag.to_string());
@@ -1050,8 +1130,100 @@ fn print_help_or_version_arg(arg: &str) -> ! {
     process::exit(0);
 }
 
+fn has_help_flag(args: &[String]) -> bool {
+    args.iter()
+        .any(|arg| matches!(flag_name(arg), "-h" | "--help"))
+}
+
+fn flag_name(arg: &str) -> &str {
+    arg.split_once('=').map_or(arg, |(name, _)| name)
+}
+
+fn help_for_args(args: &[String]) -> Option<&'static str> {
+    let tokens = command_tokens(args);
+    match tokens.as_slice() {
+        [] => Some(help_text()),
+        [command] => match command.as_str() {
+            "daily" | "weekly" | "monthly" | "session" => Some(unified_report_help()),
+            "blocks" => Some(claude_blocks_help()),
+            "statusline" => Some(claude_statusline_help()),
+            "claude" => Some(claude_help()),
+            "codex" => Some(codex_help()),
+            "opencode" => Some(opencode_help()),
+            "amp" => Some(amp_help()),
+            "codebuff" => Some(codebuff_help()),
+            "pi" => Some(pi_help()),
+            "copilot" => Some(copilot_help()),
+            "gemini" => Some(gemini_help()),
+            _ => None,
+        },
+        [agent, report] if is_agent_command(agent) && agent_report_supported(agent, report) => {
+            match agent.as_str() {
+                "claude" => match report.as_str() {
+                    "blocks" => Some(claude_blocks_help()),
+                    "statusline" => Some(claude_statusline_help()),
+                    _ => Some(claude_help()),
+                },
+                "codex" => Some(codex_help()),
+                "opencode" => Some(opencode_help()),
+                "amp" => Some(amp_help()),
+                "codebuff" => Some(codebuff_help()),
+                "pi" => Some(pi_help()),
+                "copilot" => Some(copilot_help()),
+                "gemini" => Some(gemini_help()),
+                _ => None,
+            }
+        }
+        _ => None,
+    }
+}
+
 fn help_text() -> &'static str {
-    "Usage: ccusage [OPTIONS] [COMMAND]\n\nCommands:\n  daily\n  monthly\n  weekly\n  session\n  blocks\n  statusline\n  claude\n  codex\n  opencode\n  amp\n  codebuff\n  pi\n\nOptions:\n  -s, --since <YYYYMMDD>\n  -u, --until <YYYYMMDD>\n  -j, --json\n  -m, --mode <auto|calculate|display>\n  -d, --debug\n      --debug-samples <N>\n  -o, --order <asc|desc>\n  -b, --breakdown\n  -O, --offline\n      --no-offline\n      --color\n      --no-color\n  -z, --timezone <TZ>\n  -q, --jq <QUERY>\n      --config <PATH>\n      --compact\n      --single-thread\n  -h, --help\n  -V, --version"
+    "Usage: ccusage [OPTIONS] [COMMAND]\n\nUnified reports:\n  daily       All detected sources by day\n  weekly      All detected sources by week\n  monthly     All detected sources by month\n  session     All detected sources by session\n\nClaude Code reports:\n  claude      Claude Code reports (daily, weekly, monthly, session, blocks, statusline)\n  blocks      Claude Code billing block report\n  statusline  Claude Code status line hook output\n\nSource reports:\n  codex       Codex reports (daily, monthly, session)\n  opencode    OpenCode reports (daily, weekly, monthly, session)\n  amp         Amp reports (daily, monthly, session)\n  codebuff    Codebuff reports (daily, monthly, session)\n  pi          pi-agent reports (daily, monthly, session)\n  copilot     GitHub Copilot CLI reports (daily, monthly, session)\n  gemini      Gemini CLI reports (daily, monthly, session)\n\nOptions:\n  -s, --since <YYYYMMDD>\n  -u, --until <YYYYMMDD>\n  -j, --json\n  -m, --mode <auto|calculate|display>\n  -d, --debug\n      --debug-samples <N>\n  -o, --order <asc|desc>\n  -b, --breakdown\n  -O, --offline\n      --no-offline\n      --color\n      --no-color\n  -z, --timezone <TZ>\n  -q, --jq <QUERY>\n      --config <PATH>\n      --compact\n      --single-thread\n  -h, --help\n  -V, --version"
+}
+
+fn unified_report_help() -> &'static str {
+    "Usage: ccusage [OPTIONS] <daily|weekly|monthly|session>\n\nUnified reports aggregate every detected source. Use a source command such as \"ccusage codex daily\" to focus on one source."
+}
+
+fn claude_help() -> &'static str {
+    "Usage: ccusage claude [OPTIONS] [daily|weekly|monthly|session|blocks|statusline]\n\nClaude Code reports include the Claude-only blocks and statusline commands."
+}
+
+fn claude_blocks_help() -> &'static str {
+    "Usage: ccusage claude blocks [OPTIONS]\n       ccusage blocks [OPTIONS]\n\nShows Claude Code billing block usage."
+}
+
+fn claude_statusline_help() -> &'static str {
+    "Usage: ccusage claude statusline [OPTIONS]\n       ccusage statusline [OPTIONS]\n\nRenders Claude Code status line hook output."
+}
+
+fn codex_help() -> &'static str {
+    "Usage: ccusage codex [OPTIONS] [daily|monthly|session]\n\nOptions:\n      --speed <auto|standard|fast>"
+}
+
+fn opencode_help() -> &'static str {
+    "Usage: ccusage opencode [OPTIONS] [daily|weekly|monthly|session]"
+}
+
+fn amp_help() -> &'static str {
+    "Usage: ccusage amp [OPTIONS] [daily|monthly|session]"
+}
+
+fn codebuff_help() -> &'static str {
+    "Usage: ccusage codebuff [OPTIONS] [daily|monthly|session]"
+}
+
+fn pi_help() -> &'static str {
+    "Usage: ccusage pi [OPTIONS] [daily|monthly|session]\n\nOptions:\n      --pi-path <PATHS>"
+}
+
+fn copilot_help() -> &'static str {
+    "Usage: ccusage copilot [OPTIONS] [daily|monthly|session]"
+}
+
+fn gemini_help() -> &'static str {
+    "Usage: ccusage gemini [OPTIONS] [daily|monthly|session]"
 }
 
 #[cfg(test)]
@@ -1251,19 +1423,57 @@ mod tests {
     #[test]
     fn help_lists_agent_namespace_commands() {
         let help = help_text();
-        assert!(help.contains("\n  claude\n"));
-        assert!(help.contains("\n  codex\n"));
-        assert!(help.contains("\n  opencode\n"));
-        assert!(help.contains("\n  amp\n"));
-        assert!(help.contains("\n  codebuff\n"));
-        assert!(help.contains("\n  pi\n"));
+        assert!(help.contains("\nClaude Code reports:\n"));
+        assert!(help.contains("\n  claude      Claude Code reports"));
+        assert!(help.contains("\n  statusline  Claude Code status line hook output"));
+        assert!(help.contains("\nSource reports:\n"));
+        assert!(help.contains("\n  codex       Codex reports"));
+        assert!(help.contains("\n  opencode    OpenCode reports"));
+        assert!(help.contains("\n  amp         Amp reports"));
+        assert!(help.contains("\n  codebuff    Codebuff reports"));
+        assert!(help.contains("\n  pi          pi-agent reports"));
+        assert!(help.contains("\n  copilot     GitHub Copilot CLI reports"));
+        assert!(help.contains("\n  gemini      Gemini CLI reports"));
+    }
+
+    #[test]
+    fn help_for_valid_subcommands_is_contextual() {
+        assert_eq!(
+            help_for_args(&[
+                "codex".to_string(),
+                "daily".to_string(),
+                "--help".to_string()
+            ]),
+            Some(codex_help())
+        );
+        assert_eq!(
+            help_for_args(&[
+                "claude".to_string(),
+                "statusline".to_string(),
+                "--help".to_string()
+            ]),
+            Some(claude_statusline_help())
+        );
+    }
+
+    #[test]
+    fn help_for_unknown_commands_falls_back_to_parse_error() {
+        assert_eq!(
+            help_for_args(&[
+                "hermes".to_string(),
+                "daily".to_string(),
+                "--help".to_string()
+            ]),
+            None
+        );
     }
 
     #[test]
     fn cargo_version_matches_npm_package_version() {
-        let package_json =
-            serde_json::from_str::<serde_json::Value>(include_str!("../../../../apps/ccusage/package.json"))
-                .unwrap();
+        let package_json = serde_json::from_str::<serde_json::Value>(include_str!(
+            "../../../../apps/ccusage/package.json"
+        ))
+        .unwrap();
 
         assert_eq!(
             env!("CARGO_PKG_VERSION"),
@@ -1365,6 +1575,16 @@ mod tests {
     }
 
     #[test]
+    fn parses_codebuff_session_options() {
+        let cli = parse(&["ccusage", "codebuff", "session", "--json"]);
+        let Some(Command::Codebuff(args)) = cli.command else {
+            panic!("expected codebuff command");
+        };
+        assert_eq!(args.kind, AgentReportKind::Session);
+        assert!(args.shared.json);
+    }
+
+    #[test]
     fn parses_legacy_colon_agent_commands() {
         let cli = parse(&["ccusage", "codex:monthly", "--json"]);
         let Some(Command::Codex(args)) = cli.command else {
@@ -1432,16 +1652,6 @@ mod tests {
     }
 
     #[test]
-    fn parses_codebuff_session_options() {
-        let cli = parse(&["ccusage", "codebuff", "session", "--json"]);
-        let Some(Command::Codebuff(args)) = cli.command else {
-            panic!("expected codebuff command");
-        };
-        assert_eq!(args.kind, AgentReportKind::Session);
-        assert!(args.shared.json);
-    }
-
-    #[test]
     fn parses_pi_session_options() {
         let cli = parse(&[
             "ccusage",
@@ -1457,5 +1667,25 @@ mod tests {
         assert_eq!(args.kind, AgentReportKind::Session);
         assert!(args.shared.json);
         assert_eq!(args.pi_path.as_deref(), Some("/tmp/pi-sessions"));
+    }
+
+    #[test]
+    fn parses_copilot_session_options() {
+        let cli = parse(&["ccusage", "copilot", "session", "--json"]);
+        let Some(Command::Copilot(args)) = cli.command else {
+            panic!("expected copilot command");
+        };
+        assert_eq!(args.kind, AgentReportKind::Session);
+        assert!(args.shared.json);
+    }
+
+    #[test]
+    fn parses_gemini_session_options() {
+        let cli = parse(&["ccusage", "gemini", "session", "--json"]);
+        let Some(Command::Gemini(args)) = cli.command else {
+            panic!("expected gemini command");
+        };
+        assert_eq!(args.kind, AgentReportKind::Session);
+        assert!(args.shared.json);
     }
 }

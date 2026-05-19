@@ -49,6 +49,7 @@ impl UsageAccumulator {
     fn add_entry(&mut self, entry: &LoadedEntry) {
         let usage = entry.data.message.usage;
         self.counts.add_usage(usage);
+        self.counts.extra_total_tokens += entry.extra_total_tokens;
         self.cost += entry.cost;
         if let Some(credits) = entry.credits {
             *self.credits.get_or_insert(0.0) += credits;
@@ -90,6 +91,7 @@ impl UsageAccumulator {
             output_tokens: self.counts.output_tokens,
             cache_creation_tokens: self.counts.cache_creation_tokens,
             cache_read_tokens: self.counts.cache_read_tokens,
+            extra_total_tokens: self.counts.extra_total_tokens,
             total_cost: self.cost,
             credits: self.credits,
             models_used: self.models,
@@ -187,6 +189,7 @@ fn aggregate_summaries(rows: &[&UsageSummary]) -> UsageSummary {
         output_tokens: 0,
         cache_creation_tokens: 0,
         cache_read_tokens: 0,
+        extra_total_tokens: 0,
         total_cost: 0.0,
         credits: None,
         models_used: Vec::new(),
@@ -202,6 +205,7 @@ fn aggregate_summaries(rows: &[&UsageSummary]) -> UsageSummary {
         summary.output_tokens += row.output_tokens;
         summary.cache_creation_tokens += row.cache_creation_tokens;
         summary.cache_read_tokens += row.cache_read_tokens;
+        summary.extra_total_tokens += row.extra_total_tokens;
         summary.total_cost += row.total_cost;
         if let Some(credits) = row.credits {
             *summary.credits.get_or_insert(0.0) += credits;
