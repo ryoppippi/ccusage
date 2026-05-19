@@ -79,6 +79,7 @@ export default defineConfig({
 						{ text: 'Qwen', link: '/guide/qwen/' },
 						{ text: 'GitHub Copilot CLI', link: '/guide/copilot/' },
 						{ text: 'Gemini CLI', link: '/guide/gemini/' },
+						{ text: 'Kimi', link: '/guide/kimi/' },
 					],
 				},
 				{

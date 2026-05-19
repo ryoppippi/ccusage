@@ -50,6 +50,7 @@ ccusage opencode weekly
 ccusage amp session
 ccusage pi monthly
 ccusage kilo daily
+ccusage kimi daily
 ccusage qwen daily
 ```
 
@@ -169,6 +170,7 @@ If ccusage shows no data, check:
    - pi-agent: `${PI_AGENT_DIR:-~/.pi/agent/sessions}`
    - Goose: standard Goose data roots or `GOOSE_PATH_ROOT`
    - Kilo: `${KILO_DATA_DIR:-~/.local/share/kilo}`
+   - Kimi: `${KIMI_DATA_DIR:-~/.kimi}`
    - Qwen: `${QWEN_DATA_DIR:-~/.qwen}`
    - GitHub Copilot CLI: `~/.copilot/otel/*.jsonl` or `COPILOT_OTEL_FILE_EXPORTER_PATH`
 
@@ -185,6 +187,7 @@ export HERMES_HOME="/path/to/hermes"
 export PI_AGENT_DIR="/path/to/pi/sessions"
 export GOOSE_PATH_ROOT="/path/to/goose"
 export KILO_DATA_DIR="/path/to/kilo"
+export KIMI_DATA_DIR="/path/to/kimi"
 export QWEN_DATA_DIR="/path/to/qwen"
 export COPILOT_OTEL_FILE_EXPORTER_PATH="/path/to/copilot-otel.jsonl"
 ```
@@ -199,6 +202,7 @@ export HERMES_HOME="/path/to/hermes,/archive/hermes"
 export PI_AGENT_DIR="/path/to/pi/sessions,/archive/pi/sessions"
 export GOOSE_PATH_ROOT="/path/to/goose,/archive/goose"
 export KILO_DATA_DIR="/path/to/kilo,/archive/kilo"
+export KIMI_DATA_DIR="/path/to/kimi,/archive/kimi"
 export QWEN_DATA_DIR="/path/to/qwen,/archive/qwen"
 ```
 
