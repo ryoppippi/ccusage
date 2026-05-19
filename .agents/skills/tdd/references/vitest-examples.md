@@ -153,7 +153,28 @@ it('renders daily totals', () => {
 });
 ```
 
-Helpers are fine when they create noisy data or fixtures. Keep the assertion in the test unless the helper's name is more explicit than the assertion it hides.
+Tests do not need to be DRY. Prefer repeated, explicit setup over shared variables or helpers when duplication makes each test easier to read. Helpers are fine when they create noisy data or fixtures. Keep the assertion in the test unless the helper's name is more explicit than the assertion it hides.
+
+Avoid hoisting one-off values out of tests. Keep literals and setup values close to the behaviour they exercise.
+
+Bad:
+
+```typescript
+const defaultTimezone = 'UTC';
+const reportDate = '2026-05-16';
+
+it('formats the daily heading', () => {
+	expect(formatDailyHeading(reportDate, defaultTimezone)).toBe('2026-05-16');
+});
+```
+
+Good:
+
+```typescript
+it('formats the daily heading', () => {
+	expect(formatDailyHeading('2026-05-16', 'UTC')).toBe('2026-05-16');
+});
+```
 
 Use `assert` to make test preconditions explicit and to narrow nullable values. Do not use non-null assertions (`!`) to silence TypeScript when the test can fail with a useful message.
 
