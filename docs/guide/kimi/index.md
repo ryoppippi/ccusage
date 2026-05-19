@@ -2,7 +2,7 @@
 
 > Kimi support is experimental. Expect breaking changes while both ccusage and [Kimi CLI](https://github.com/MoonshotAI/kimi-cli) continue to evolve.
 
-ccusage can read Kimi CLI wire logs as one of its supported local data sources. Kimi uses the same unified and focused report model as Claude Code, Codex, OpenCode, Amp, and pi-agent.
+ccusage can read Kimi CLI wire logs as one of its supported local data sources. Kimi uses the same unified and focused report model as Claude Code, Codex, OpenCode, Amp, pi-agent, and GitHub Copilot CLI.
 
 ## Usage
 

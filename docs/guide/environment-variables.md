@@ -4,29 +4,31 @@ ccusage supports several environment variables for configuration and customizati
 
 ## Agent Data Directories
 
-ccusage detects supported data source files from conventional locations by default. Set these variables when your data lives somewhere else. Each value can be one directory or a comma-separated list of directories:
+ccusage detects supported data source files from conventional locations by default. Set these variables when your data lives somewhere else. Directory variables can be one directory or a comma-separated list of directories; the Copilot variable points at one explicit JSONL export file:
 
-| Variable            | Agent       | Default                            |
-| ------------------- | ----------- | ---------------------------------- |
-| `CLAUDE_CONFIG_DIR` | Claude Code | `~/.config/claude` and `~/.claude` |
-| `CODEX_HOME`        | Codex       | `~/.codex`                         |
-| `OPENCODE_DATA_DIR` | OpenCode    | `~/.local/share/opencode`          |
-| `AMP_DATA_DIR`      | Amp         | `~/.local/share/amp`               |
-| `PI_AGENT_DIR`      | pi-agent    | `~/.pi/agent/sessions`             |
-| `KIMI_DATA_DIR`     | Kimi        | `~/.kimi`                          |
+| Variable                          | Agent       | Default                            |
+| --------------------------------- | ----------- | ---------------------------------- |
+| `CLAUDE_CONFIG_DIR`               | Claude Code | `~/.config/claude` and `~/.claude` |
+| `CODEX_HOME`                      | Codex       | `~/.codex`                         |
+| `OPENCODE_DATA_DIR`               | OpenCode    | `~/.local/share/opencode`          |
+| `AMP_DATA_DIR`                    | Amp         | `~/.local/share/amp`               |
+| `PI_AGENT_DIR`                    | pi-agent    | `~/.pi/agent/sessions`             |
+| `COPILOT_OTEL_FILE_EXPORTER_PATH` | Copilot CLI | Explicit `.jsonl` file             |
+| `KIMI_DATA_DIR`                   | Kimi        | `~/.kimi`                          |
 
 Example:
 
 ```bash
-export CODEX_HOME="/path/to/codex,/archive/codex"
+export CODEX_HOME="/path/to/codex,/archive/codex,/path/to/codex-exec-jsonl"
 export OPENCODE_DATA_DIR="/path/to/opencode,/archive/opencode"
 export AMP_DATA_DIR="/path/to/amp,/archive/amp"
 export PI_AGENT_DIR="/path/to/pi/sessions,/archive/pi/sessions"
+export COPILOT_OTEL_FILE_EXPORTER_PATH="/path/to/copilot-otel.jsonl"
 export KIMI_DATA_DIR="/path/to/kimi,/archive/kimi"
 ccusage daily
 ```
 
-Empty entries and directories that do not exist are skipped. Duplicate paths are read once.
+Empty entries, directories that do not exist, and missing explicit files are skipped. Duplicate paths are read once.
 
 ## CLAUDE_CONFIG_DIR
 
@@ -102,14 +104,6 @@ Force offline mode by default:
 ```bash
 export CCUSAGE_OFFLINE=1
 ccusage daily  # Runs in offline mode
-```
-
-### CCUSAGE_BUN_AUTO_RUN
-
-When the published CLI starts under Node.js and finds `bun` in `PATH`, it automatically re-runs the bundled entrypoint with Bun. Disable this if you need to force Node.js:
-
-```bash
-CCUSAGE_BUN_AUTO_RUN=0 ccusage daily
 ```
 
 ### NO_COLOR
@@ -200,7 +194,7 @@ To see which environment variables are being used:
 
 ```bash
 # Show all environment variables
-env | grep -E "CLAUDE|CODEX|OPENCODE|AMP|PI_AGENT|KIMI|CCUSAGE|LOG_LEVEL"
+env | grep -E "CLAUDE|CODEX|OPENCODE|AMP|PI_AGENT|COPILOT|KIMI|CCUSAGE|LOG_LEVEL"
 
 # Debug mode shows environment variable usage
 LOG_LEVEL=4 ccusage daily --debug
