@@ -3,7 +3,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use serde_json::{json, Value};
 
 use crate::{
-    adapter::{amp, codex, copilot, gemini, goose, opencode, pi},
+    adapter::{amp, codex, copilot, gemini, goose, hermes, kilo, opencode, pi},
     cli::{AgentCommandArgs, AgentReportKind, CodexSpeed, SharedArgs, SortOrder, WeekDay},
     color, filter_loaded_entries_by_date, format_currency, format_models_multiline, format_number,
     json_float, print_box_title, print_json_or_jq, summarize_by_key, summarize_summaries_by_bucket,
@@ -60,8 +60,10 @@ fn load_rows(kind: AgentReportKind, shared: &SharedArgs) -> Result<AllLoadResult
         crate::progress::UsageLoadAgent::Claude,
         crate::progress::UsageLoadAgent::Codex,
         crate::progress::UsageLoadAgent::OpenCode,
+        crate::progress::UsageLoadAgent::Hermes,
         crate::progress::UsageLoadAgent::Pi,
         crate::progress::UsageLoadAgent::Goose,
+        crate::progress::UsageLoadAgent::Kilo,
         crate::progress::UsageLoadAgent::Copilot,
         crate::progress::UsageLoadAgent::Gemini,
     ] {
@@ -98,6 +100,12 @@ fn load_rows(kind: AgentReportKind, shared: &SharedArgs) -> Result<AllLoadResult
         append_agent_rows(
             &mut rows,
             &mut detected_agents,
+            "hermes",
+            load_hermes_rows(AgentReportKind::Session, shared, &pricing)?,
+        );
+        append_agent_rows(
+            &mut rows,
+            &mut detected_agents,
             "pi",
             load_pi_rows(AgentReportKind::Session, shared)?,
         );
@@ -106,6 +114,12 @@ fn load_rows(kind: AgentReportKind, shared: &SharedArgs) -> Result<AllLoadResult
             &mut detected_agents,
             "goose",
             load_goose_rows(AgentReportKind::Session, shared, &pricing)?,
+        );
+        append_agent_rows(
+            &mut rows,
+            &mut detected_agents,
+            "kilo",
+            load_kilo_rows(AgentReportKind::Session, shared, &pricing)?,
         );
         append_agent_rows(
             &mut rows,
@@ -157,6 +171,12 @@ fn load_rows(kind: AgentReportKind, shared: &SharedArgs) -> Result<AllLoadResult
     append_agent_rows(
         &mut rows,
         &mut detected_agents,
+        "hermes",
+        load_hermes_rows(AgentReportKind::Daily, shared, &pricing)?,
+    );
+    append_agent_rows(
+        &mut rows,
+        &mut detected_agents,
         "pi",
         load_pi_rows(AgentReportKind::Daily, shared)?,
     );
@@ -165,6 +185,12 @@ fn load_rows(kind: AgentReportKind, shared: &SharedArgs) -> Result<AllLoadResult
         &mut detected_agents,
         "goose",
         load_goose_rows(AgentReportKind::Daily, shared, &pricing)?,
+    );
+    append_agent_rows(
+        &mut rows,
+        &mut detected_agents,
+        "kilo",
+        load_kilo_rows(AgentReportKind::Daily, shared, &pricing)?,
     );
     append_agent_rows(
         &mut rows,
@@ -261,6 +287,21 @@ fn load_amp_rows(
     })
 }
 
+fn load_hermes_rows(
+    kind: AgentReportKind,
+    shared: &SharedArgs,
+    pricing: &PricingMap,
+) -> Result<AgentRows> {
+    let mut entries = hermes::load_entries(shared, pricing)?;
+    let detected = !entries.is_empty();
+    filter_loaded_entries_by_date(&mut entries, shared);
+    let summaries = hermes::summarize_entries(&entries, kind)?;
+    Ok(AgentRows {
+        rows: summary_rows("hermes", summaries),
+        detected,
+    })
+}
+
 fn load_pi_rows(kind: AgentReportKind, shared: &SharedArgs) -> Result<AgentRows> {
     let mut entries = pi::load_entries(shared, None)?;
     let detected = !entries.is_empty();
@@ -274,6 +315,21 @@ fn load_pi_rows(kind: AgentReportKind, shared: &SharedArgs) -> Result<AgentRows>
     };
     Ok(AgentRows {
         rows: summary_rows("pi", summaries),
+        detected,
+    })
+}
+
+fn load_goose_rows(
+    kind: AgentReportKind,
+    shared: &SharedArgs,
+    pricing: &PricingMap,
+) -> Result<AgentRows> {
+    let mut entries = goose::load_entries(shared, pricing)?;
+    let detected = !entries.is_empty();
+    filter_loaded_entries_by_date(&mut entries, shared);
+    let summaries = goose::summarize_entries(&entries, kind)?;
+    Ok(AgentRows {
+        rows: summary_rows("goose", summaries),
         detected,
     })
 }
@@ -293,17 +349,17 @@ fn load_copilot_rows(
     })
 }
 
-fn load_goose_rows(
+fn load_kilo_rows(
     kind: AgentReportKind,
     shared: &SharedArgs,
     pricing: &PricingMap,
 ) -> Result<AgentRows> {
-    let mut entries = goose::load_entries(shared, pricing)?;
+    let mut entries = kilo::load_entries(shared, pricing)?;
     let detected = !entries.is_empty();
     filter_loaded_entries_by_date(&mut entries, shared);
-    let summaries = goose::summarize_entries(&entries, kind)?;
+    let summaries = kilo::summarize_entries(&entries, kind)?;
     Ok(AgentRows {
-        rows: summary_rows("goose", summaries),
+        rows: summary_rows("kilo", summaries),
         detected,
     })
 }
@@ -867,8 +923,10 @@ fn agent_label(agent: &str) -> &str {
         "codex" => "Codex",
         "opencode" => "OpenCode",
         "amp" => "Amp",
+        "hermes" => "Hermes",
         "pi" => "pi-agent",
         "goose" => "Goose",
+        "kilo" => "Kilo",
         "copilot" => "GitHub Copilot CLI",
         "gemini" => "Gemini CLI",
         _ => agent,

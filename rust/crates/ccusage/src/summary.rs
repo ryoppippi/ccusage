@@ -39,6 +39,7 @@ struct UsageAccumulator {
     counts: TokenCounts,
     cost: f64,
     credits: Option<f64>,
+    message_count: Option<u64>,
     models: Vec<String>,
     seen_models: HashSet<String>,
     breakdowns: Vec<ModelBreakdown>,
@@ -53,6 +54,9 @@ impl UsageAccumulator {
         self.cost += entry.cost;
         if let Some(credits) = entry.credits {
             *self.credits.get_or_insert(0.0) += credits;
+        }
+        if let Some(message_count) = entry.message_count {
+            *self.message_count.get_or_insert(0) += message_count;
         }
         if let Some(model) = &entry.model {
             if self.seen_models.insert(model.clone()) {
@@ -74,6 +78,7 @@ impl UsageAccumulator {
             breakdown.output_tokens += usage.output_tokens;
             breakdown.cache_creation_tokens += usage.cache_creation_input_tokens;
             breakdown.cache_read_tokens += usage.cache_read_input_tokens;
+            breakdown.extra_total_tokens += entry.extra_total_tokens;
             breakdown.cost += entry.cost;
         }
     }
@@ -94,6 +99,7 @@ impl UsageAccumulator {
             extra_total_tokens: self.counts.extra_total_tokens,
             total_cost: self.cost,
             credits: self.credits,
+            message_count: self.message_count,
             models_used: self.models,
             model_breakdowns: self.breakdowns,
             project: None,
@@ -192,6 +198,7 @@ fn aggregate_summaries(rows: &[&UsageSummary]) -> UsageSummary {
         extra_total_tokens: 0,
         total_cost: 0.0,
         credits: None,
+        message_count: None,
         models_used: Vec::new(),
         model_breakdowns: Vec::new(),
         project: None,
@@ -209,6 +216,9 @@ fn aggregate_summaries(rows: &[&UsageSummary]) -> UsageSummary {
         summary.total_cost += row.total_cost;
         if let Some(credits) = row.credits {
             *summary.credits.get_or_insert(0.0) += credits;
+        }
+        if let Some(message_count) = row.message_count {
+            *summary.message_count.get_or_insert(0) += message_count;
         }
         for model in &row.models_used {
             if seen_models.insert(model.clone()) {
@@ -231,6 +241,7 @@ fn aggregate_summaries(rows: &[&UsageSummary]) -> UsageSummary {
             breakdown.output_tokens += item.output_tokens;
             breakdown.cache_creation_tokens += item.cache_creation_tokens;
             breakdown.cache_read_tokens += item.cache_read_tokens;
+            breakdown.extra_total_tokens += item.extra_total_tokens;
             breakdown.cost += item.cost;
         }
     }

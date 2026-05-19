@@ -4,5 +4,7 @@ pub(crate) mod codex;
 pub(crate) mod copilot;
 pub(crate) mod gemini;
 pub(crate) mod goose;
+pub(crate) mod hermes;
+pub(crate) mod kilo;
 pub(crate) mod opencode;
 pub(crate) mod pi;

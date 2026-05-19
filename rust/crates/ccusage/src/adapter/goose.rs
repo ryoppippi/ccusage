@@ -276,6 +276,7 @@ fn row_to_entry(
         model: Some(model),
         usage_limit_reset_time: None,
         extra_total_tokens: reasoning_tokens,
+        message_count: None,
         data,
     })
 }
@@ -538,6 +539,7 @@ INSERT INTO sessions (
             model: Some("claude-sonnet-4-20250514".to_string()),
             usage_limit_reset_time: None,
             extra_total_tokens: 30,
+            message_count: None,
         };
         let rows = summarize_entries(&[entry], AgentReportKind::Daily).unwrap();
         let report = report_from_rows(&rows, AgentReportKind::Daily);

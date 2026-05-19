@@ -131,8 +131,10 @@ fn main() -> Result<()> {
         Some(Command::Codex(args)) => adapter::codex::run(args),
         Some(Command::OpenCode(args)) => adapter::opencode::run(args),
         Some(Command::Amp(args)) => adapter::amp::run(args),
+        Some(Command::Hermes(args)) => adapter::hermes::run(args),
         Some(Command::Pi(args)) => adapter::pi::run(args),
         Some(Command::Goose(args)) => adapter::goose::run(args),
+        Some(Command::Kilo(args)) => adapter::kilo::run(args),
         Some(Command::Copilot(args)) => adapter::copilot::run(args),
         Some(Command::Gemini(args)) => adapter::gemini::run(args),
         None => {
@@ -849,6 +851,7 @@ mod tests {
             cost: 0.02,
             extra_total_tokens: 0,
             credits: Some(1.25),
+            message_count: None,
             model: Some("claude-sonnet-4-20250514".to_string()),
             usage_limit_reset_time: None,
         };
@@ -934,6 +937,7 @@ mod tests {
             cost: 0.05,
             extra_total_tokens: 0,
             credits: None,
+            message_count: None,
             model: Some("[pi] gpt-5.4".to_string()),
             usage_limit_reset_time: None,
         };
@@ -981,6 +985,7 @@ mod tests {
             cost: 0.02,
             extra_total_tokens: 0,
             credits: None,
+            message_count: None,
             model: Some("claude-sonnet-4-20250514".to_string()),
             usage_limit_reset_time: None,
         };

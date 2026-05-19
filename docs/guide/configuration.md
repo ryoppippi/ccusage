@@ -54,7 +54,7 @@ export GEMINI_DATA_DIR="$HOME/.gemini/tmp"
 export OPENCODE_DATA_DIR="$HOME/.local/share/opencode"
 export AMP_DATA_DIR="$HOME/.local/share/amp"
 export PI_AGENT_DIR="$HOME/.pi/agent/sessions"
-export GOOSE_PATH_ROOT="$HOME/.local/share/goose"
+export KILO_DATA_DIR="$HOME/.local/share/kilo"
 export COPILOT_OTEL_FILE_EXPORTER_PATH="$HOME/.copilot/otel/copilot-otel.jsonl"
 ```
 
@@ -64,6 +64,7 @@ Use comma-separated directories when you want reports to combine multiple profil
 export CODEX_HOME="$HOME/.codex,$HOME/.codex-work"
 export GEMINI_DATA_DIR="$HOME/.gemini/tmp,/backup/gemini/tmp"
 export OPENCODE_DATA_DIR="$HOME/.local/share/opencode,/archive/opencode"
+export KILO_DATA_DIR="$HOME/.local/share/kilo,/backup/kilo"
 ```
 
 2. **Create a configuration file** for your preferences:
@@ -108,7 +109,7 @@ For individual developers working on multiple projects:
 
 ### Multiple Sources
 
-Configure Claude Code, Codex, OpenCode, Amp, pi-agent, Goose, GitHub Copilot CLI, and Gemini CLI separately with data source namespaces:
+Configure Claude Code, Codex, OpenCode, Amp, Hermes Agent, pi-agent, Goose, Kilo, GitHub Copilot CLI, and Gemini CLI separately with data source namespaces:
 
 ```json
 // ~/.config/claude/ccusage.json
