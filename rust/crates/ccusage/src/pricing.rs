@@ -93,17 +93,23 @@ impl PricingMap {
             return map;
         }
 
-        match fetch_pricing_json() {
+        let fetch_result = crate::progress::track_status(
+            log && crate::progress::usage_load_output_is_tty(),
+            "Refreshing model pricing from LiteLLM...",
+            fetch_pricing_json,
+        );
+
+        match fetch_result {
             Ok(json) => {
                 let loaded_count = map.load_json(&json);
-                if loaded_count == 0 && log {
+                if loaded_count == 0 && should_log_pricing_refresh_details() {
                     eprintln!(
                         "WARN  Failed to parse LiteLLM pricing; using embedded pricing."
                     );
                 }
             }
             Err(error) => {
-                if log {
+                if should_log_pricing_refresh_details() {
                     eprintln!(
                         "WARN  Failed to fetch LiteLLM pricing ({error}); using embedded pricing."
                     );
@@ -513,6 +519,10 @@ fn matches_model_suffix(part: &str, base: &str) -> bool {
     };
     let suffix = &part[index..];
     suffix == base || suffix.starts_with(&format!("{base}-"))
+}
+
+fn should_log_pricing_refresh_details() -> bool {
+    crate::log_level().is_some_and(|level| level >= 4)
 }
 
 fn fetch_pricing_json() -> std::io::Result<String> {

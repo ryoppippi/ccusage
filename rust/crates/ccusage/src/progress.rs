@@ -38,9 +38,11 @@ fn format_usage_load_progress_text(
     states: &[(UsageLoadAgent, LoadProgressState)],
     status: Option<&str>,
 ) -> String {
-    let base = if states.is_empty() {
-        "Loading usage logs".to_string()
-    } else {
+    if states.is_empty() {
+        return status.unwrap_or("Loading usage logs").to_string();
+    }
+
+    let base = {
         let completed = states
             .iter()
             .filter(|(_, state)| !matches!(state, LoadProgressState::Loading))
@@ -101,12 +103,17 @@ impl UsageLoadProgress {
     }
 
     pub(crate) fn stop(&mut self) {
-        if self.enabled && !self.states.is_empty() {
-            let _ = write!(io::stderr(), "\r\x1b[2K");
+        if self.enabled && (!self.states.is_empty() || self.status.is_some()) {
+            let _ = write!(io::stderr(), "\r\x1b[K\x1b[?25h");
             let _ = io::stderr().flush();
         }
         self.status = None;
         self.states.clear();
+    }
+
+    pub(crate) fn set_status(&mut self, status: Option<String>) {
+        self.status = status;
+        self.refresh();
     }
 
     fn set_state(&mut self, agent: UsageLoadAgent, state: LoadProgressState) {
@@ -127,7 +134,7 @@ impl UsageLoadProgress {
             return;
         }
         let text = format_usage_load_progress_text(&self.states, self.status.as_deref());
-        let _ = write!(io::stderr(), "\r\x1b[2K{text}");
+        let _ = write!(io::stderr(), "\r\x1b[K\x1b[?25l\x1b[36m⠋\x1b[39m {text}");
         let _ = io::stderr().flush();
     }
 }
@@ -152,6 +159,18 @@ pub(crate) fn track_usage_load<T, E>(
         Ok(_) => progress.succeed(agent),
         Err(_) => progress.fail(agent),
     }
+    progress.stop();
+    result
+}
+
+pub(crate) fn track_status<T>(
+    enabled: bool,
+    status: impl Into<String>,
+    run: impl FnOnce() -> T,
+) -> T {
+    let mut progress = UsageLoadProgress::new(enabled);
+    progress.set_status(Some(status.into()));
+    let result = run();
     progress.stop();
     result
 }
@@ -187,6 +206,14 @@ mod tests {
                 Some("Refreshing model pricing from LiteLLM...")
             ),
             "Refreshing model pricing from LiteLLM... :: Loading usage logs (0/2) :: Claude, Codex"
+        );
+    }
+
+    #[test]
+    fn renders_standalone_status_without_usage_suffix() {
+        assert_eq!(
+            format_usage_load_progress_text(&[], Some("Refreshing model pricing from LiteLLM...")),
+            "Refreshing model pricing from LiteLLM..."
         );
     }
 
