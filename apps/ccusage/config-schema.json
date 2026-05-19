@@ -522,56 +522,27 @@
 			"type": "object"
 		},
 		"ConfigCodexSpeed": {
-			"enum": [
-				"auto",
-				"standard",
-				"fast"
-			],
+			"enum": ["auto", "standard", "fast"],
 			"type": "string"
 		},
 		"ConfigCostMode": {
-			"enum": [
-				"auto",
-				"calculate",
-				"display"
-			],
+			"enum": ["auto", "calculate", "display"],
 			"type": "string"
 		},
 		"ConfigCostSource": {
-			"enum": [
-				"auto",
-				"ccusage",
-				"cc",
-				"both"
-			],
+			"enum": ["auto", "ccusage", "cc", "both"],
 			"type": "string"
 		},
 		"ConfigSortOrder": {
-			"enum": [
-				"desc",
-				"asc"
-			],
+			"enum": ["desc", "asc"],
 			"type": "string"
 		},
 		"ConfigVisualBurnRate": {
-			"enum": [
-				"off",
-				"emoji",
-				"text",
-				"emoji-text"
-			],
+			"enum": ["off", "emoji", "text", "emoji-text"],
 			"type": "string"
 		},
 		"ConfigWeekDay": {
-			"enum": [
-				"sunday",
-				"monday",
-				"tuesday",
-				"wednesday",
-				"thursday",
-				"friday",
-				"saturday"
-			],
+			"enum": ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"],
 			"type": "string"
 		},
 		"DailyOptions": {
