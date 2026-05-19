@@ -79,6 +79,27 @@
               mainProgram = "ccusage";
             };
           });
+          staticCcusage = pkgs.lib.optionalAttrs pkgs.stdenv.isLinux (
+            let
+              staticPkgs = pkgs.pkgsStatic;
+              staticCraneLib = (crane.mkLib staticPkgs).overrideToolchain
+                (p: p.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml);
+              staticCommonArgs = commonArgs // {
+                nativeBuildInputs = with staticPkgs; [
+                  pkg-config
+                ];
+                buildInputs = [ ];
+              };
+              staticCargoArtifacts = staticCraneLib.buildDepsOnly staticCommonArgs;
+            in {
+              ccusage-static = staticCraneLib.buildPackage (staticCommonArgs // {
+                cargoArtifacts = staticCargoArtifacts;
+                meta = ccusage.meta // {
+                  description = "Static Linux build of ccusage";
+                };
+              });
+            }
+          );
           update-pricing-fallback = pkgs.writeShellApplication {
             name = "update-pricing-fallback";
             runtimeInputs = with pkgs; [ coreutils git jq ];
@@ -104,7 +125,7 @@
         in {
           default = ccusage;
           inherit ccusage pricing-fallback-sync update-pricing-fallback;
-        });
+        } // staticCcusage);
 
       checks = forAllSystems (system: pkgs: {
         inherit (self.packages.${system}) ccusage;
