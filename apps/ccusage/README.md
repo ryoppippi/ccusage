@@ -68,7 +68,7 @@ npx ccusage@latest
 bunx -p https://pkg.pr.new/ryoppippi/ccusage@<pr-number> ccusage --offline
 ```
 
-> `bunx` caches the downloaded package, so repeated runs are faster after the first launch.
+> [bunx](https://bun.com/docs/pm/bunx) caches the downloaded package, so repeated runs are faster after the first launch.
 
 ## Usage
 

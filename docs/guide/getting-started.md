@@ -5,7 +5,7 @@ Welcome to ccusage! This guide will help you get up and running with analyzing y
 ## Prerequisites
 
 - At least one supported coding CLI installed and used
-- Bun 1.3+ recommended, or Node.js 22.11+
+- Bun 1.3+ recommended for direct execution
 
 ## Quick Start
 
@@ -38,7 +38,7 @@ bunx -p https://pkg.pr.new/ryoppippi/ccusage@<pr-number> ccusage --offline
 This will show your daily usage report for all detected supported coding CLIs by default.
 
 ::: tip Runtime
-`bunx ccusage` is recommended for everyday use. The npm package installs a small JavaScript launcher and the matching native binary package for your platform. Package runners such as `bunx` cache the downloaded package, so repeated runs reuse the cached native binary; the first run can still include network fetch time.
+[bunx](https://bun.com/docs/pm/bunx) caches the downloaded package, so repeated runs are faster after the first launch.
 :::
 
 Use a data source namespace when you want the same report focused on one source:
