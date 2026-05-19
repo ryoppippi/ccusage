@@ -4,12 +4,11 @@ ccusage can be installed and used in several ways depending on your preferences 
 
 ## Why Direct Execution Works Well
 
-You do not need to install ccusage globally before trying it. Direct package runners and Nix both work well for ad hoc usage:
+You do not need to install ccusage globally before trying it. Direct package runners work well for ad hoc usage:
 
 - ✅ No global package to manage
 - ✅ Easy access to the latest published version
 - ✅ Cached package downloads after the first run
-- ✅ Reproducible Nix builds when using the flake
 
 ## Quick Start (Recommended)
 
@@ -19,10 +18,6 @@ The fastest way to use ccusage is to run it directly:
 
 ```bash [bunx (Recommended)]
 bunx ccusage
-```
-
-```bash [Nix]
-nix run github:ryoppippi/ccusage -- daily
 ```
 
 ```bash [pnpm]
@@ -103,26 +98,6 @@ pnpm install
 pnpm --filter ccusage start daily
 pnpm --filter ccusage start monthly --json
 ```
-
-## Nix Flake
-
-The repository exposes `ccusage` as the default Nix package and app:
-
-```bash
-nix run github:ryoppippi/ccusage
-nix run github:ryoppippi/ccusage -- codex daily --offline
-nix build github:ryoppippi/ccusage
-```
-
-The Nix package embeds LiteLLM pricing from the locked `litellm-pricing` flake input instead of fetching it during sandboxed builds. Maintainers can update that locked input and the non-Nix Cargo fallback JSON with:
-
-```bash
-nix flake update litellm-pricing
-nix run .#update-pricing-fallback
-nix flake check
-```
-
-The scheduled `update pricing` workflow runs the same commands and opens a PR when the locked input changes.
 
 ### Development Scripts
 
