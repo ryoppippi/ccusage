@@ -122,12 +122,6 @@
 									"markdownDescription": "Use cached pricing data where supported",
 									"default": false
 								},
-								"singleThread": {
-									"type": "boolean",
-									"description": "Disable parallel JSONL file loading",
-									"markdownDescription": "Disable parallel JSONL file loading",
-									"default": false
-								},
 								"color": {
 									"type": "boolean",
 									"description": "Enable colored output (default: auto). FORCE_COLOR=1 has the same effect.",
@@ -147,6 +141,12 @@
 									"type": "boolean",
 									"description": "Force compact table layout for narrow terminals",
 									"markdownDescription": "Force compact table layout for narrow terminals",
+									"default": false
+								},
+								"singleThread": {
+									"type": "boolean",
+									"description": "Read usage files sequentially instead of using file-level parallelism",
+									"markdownDescription": "Read usage files sequentially instead of using file-level parallelism",
 									"default": false
 								},
 								"instances": {
@@ -231,12 +231,6 @@
 									"markdownDescription": "Use cached pricing data where supported",
 									"default": false
 								},
-								"singleThread": {
-									"type": "boolean",
-									"description": "Disable parallel JSONL file loading",
-									"markdownDescription": "Disable parallel JSONL file loading",
-									"default": false
-								},
 								"color": {
 									"type": "boolean",
 									"description": "Enable colored output (default: auto). FORCE_COLOR=1 has the same effect.",
@@ -256,6 +250,12 @@
 									"type": "boolean",
 									"description": "Force compact table layout for narrow terminals",
 									"markdownDescription": "Force compact table layout for narrow terminals",
+									"default": false
+								},
+								"singleThread": {
+									"type": "boolean",
+									"description": "Read usage files sequentially instead of using file-level parallelism",
+									"markdownDescription": "Read usage files sequentially instead of using file-level parallelism",
 									"default": false
 								},
 								"all": {
@@ -324,12 +324,6 @@
 									"markdownDescription": "Use cached pricing data where supported",
 									"default": false
 								},
-								"singleThread": {
-									"type": "boolean",
-									"description": "Disable parallel JSONL file loading",
-									"markdownDescription": "Disable parallel JSONL file loading",
-									"default": false
-								},
 								"color": {
 									"type": "boolean",
 									"description": "Enable colored output (default: auto). FORCE_COLOR=1 has the same effect.",
@@ -349,6 +343,12 @@
 									"type": "boolean",
 									"description": "Force compact table layout for narrow terminals",
 									"markdownDescription": "Force compact table layout for narrow terminals",
+									"default": false
+								},
+								"singleThread": {
+									"type": "boolean",
+									"description": "Read usage files sequentially instead of using file-level parallelism",
+									"markdownDescription": "Read usage files sequentially instead of using file-level parallelism",
 									"default": false
 								},
 								"startOfWeek": {
@@ -425,12 +425,6 @@
 									"markdownDescription": "Use cached pricing data where supported",
 									"default": false
 								},
-								"singleThread": {
-									"type": "boolean",
-									"description": "Disable parallel JSONL file loading",
-									"markdownDescription": "Disable parallel JSONL file loading",
-									"default": false
-								},
 								"color": {
 									"type": "boolean",
 									"description": "Enable colored output (default: auto). FORCE_COLOR=1 has the same effect.",
@@ -450,6 +444,12 @@
 									"type": "boolean",
 									"description": "Force compact table layout for narrow terminals",
 									"markdownDescription": "Force compact table layout for narrow terminals",
+									"default": false
+								},
+								"singleThread": {
+									"type": "boolean",
+									"description": "Read usage files sequentially instead of using file-level parallelism",
+									"markdownDescription": "Read usage files sequentially instead of using file-level parallelism",
 									"default": false
 								},
 								"id": {
@@ -523,12 +523,6 @@
 									"markdownDescription": "Use cached pricing data for Claude models instead of fetching from API",
 									"default": false
 								},
-								"singleThread": {
-									"type": "boolean",
-									"description": "Disable parallel JSONL file loading",
-									"markdownDescription": "Disable parallel JSONL file loading",
-									"default": false
-								},
 								"color": {
 									"type": "boolean",
 									"description": "Enable colored output (default: auto). FORCE_COLOR=1 has the same effect.",
@@ -548,6 +542,12 @@
 									"type": "boolean",
 									"description": "Force compact mode for narrow displays (better for screenshots)",
 									"markdownDescription": "Force compact mode for narrow displays (better for screenshots)",
+									"default": false
+								},
+								"singleThread": {
+									"type": "boolean",
+									"description": "Read usage files sequentially instead of using file-level parallelism",
+									"markdownDescription": "Read usage files sequentially instead of using file-level parallelism",
 									"default": false
 								},
 								"active": {
@@ -720,12 +720,6 @@
 											"markdownDescription": "Use cached pricing data for Claude models instead of fetching from API",
 											"default": false
 										},
-										"singleThread": {
-											"type": "boolean",
-											"description": "Disable parallel JSONL file loading",
-											"markdownDescription": "Disable parallel JSONL file loading",
-											"default": false
-										},
 										"color": {
 											"type": "boolean",
 											"description": "Enable colored output (default: auto). FORCE_COLOR=1 has the same effect.",
@@ -745,6 +739,12 @@
 											"type": "boolean",
 											"description": "Force compact mode for narrow displays (better for screenshots)",
 											"markdownDescription": "Force compact mode for narrow displays (better for screenshots)",
+											"default": false
+										},
+										"singleThread": {
+											"type": "boolean",
+											"description": "Read usage files sequentially instead of using file-level parallelism",
+											"markdownDescription": "Read usage files sequentially instead of using file-level parallelism",
 											"default": false
 										},
 										"instances": {
@@ -823,12 +823,6 @@
 											"markdownDescription": "Use cached pricing data for Claude models instead of fetching from API",
 											"default": false
 										},
-										"singleThread": {
-											"type": "boolean",
-											"description": "Disable parallel JSONL file loading",
-											"markdownDescription": "Disable parallel JSONL file loading",
-											"default": false
-										},
 										"color": {
 											"type": "boolean",
 											"description": "Enable colored output (default: auto). FORCE_COLOR=1 has the same effect.",
@@ -848,6 +842,12 @@
 											"type": "boolean",
 											"description": "Force compact mode for narrow displays (better for screenshots)",
 											"markdownDescription": "Force compact mode for narrow displays (better for screenshots)",
+											"default": false
+										},
+										"singleThread": {
+											"type": "boolean",
+											"description": "Read usage files sequentially instead of using file-level parallelism",
+											"markdownDescription": "Read usage files sequentially instead of using file-level parallelism",
 											"default": false
 										}
 									},
@@ -910,12 +910,6 @@
 											"markdownDescription": "Use cached pricing data for Claude models instead of fetching from API",
 											"default": false
 										},
-										"singleThread": {
-											"type": "boolean",
-											"description": "Disable parallel JSONL file loading",
-											"markdownDescription": "Disable parallel JSONL file loading",
-											"default": false
-										},
 										"color": {
 											"type": "boolean",
 											"description": "Enable colored output (default: auto). FORCE_COLOR=1 has the same effect.",
@@ -935,6 +929,12 @@
 											"type": "boolean",
 											"description": "Force compact mode for narrow displays (better for screenshots)",
 											"markdownDescription": "Force compact mode for narrow displays (better for screenshots)",
+											"default": false
+										},
+										"singleThread": {
+											"type": "boolean",
+											"description": "Read usage files sequentially instead of using file-level parallelism",
+											"markdownDescription": "Read usage files sequentially instead of using file-level parallelism",
 											"default": false
 										},
 										"startOfWeek": {
@@ -1005,12 +1005,6 @@
 											"markdownDescription": "Use cached pricing data for Claude models instead of fetching from API",
 											"default": false
 										},
-										"singleThread": {
-											"type": "boolean",
-											"description": "Disable parallel JSONL file loading",
-											"markdownDescription": "Disable parallel JSONL file loading",
-											"default": false
-										},
 										"color": {
 											"type": "boolean",
 											"description": "Enable colored output (default: auto). FORCE_COLOR=1 has the same effect.",
@@ -1030,6 +1024,12 @@
 											"type": "boolean",
 											"description": "Force compact mode for narrow displays (better for screenshots)",
 											"markdownDescription": "Force compact mode for narrow displays (better for screenshots)",
+											"default": false
+										},
+										"singleThread": {
+											"type": "boolean",
+											"description": "Read usage files sequentially instead of using file-level parallelism",
+											"markdownDescription": "Read usage files sequentially instead of using file-level parallelism",
 											"default": false
 										},
 										"id": {
@@ -1097,12 +1097,6 @@
 											"markdownDescription": "Use cached pricing data for Claude models instead of fetching from API",
 											"default": false
 										},
-										"singleThread": {
-											"type": "boolean",
-											"description": "Disable parallel JSONL file loading",
-											"markdownDescription": "Disable parallel JSONL file loading",
-											"default": false
-										},
 										"color": {
 											"type": "boolean",
 											"description": "Enable colored output (default: auto). FORCE_COLOR=1 has the same effect.",
@@ -1122,6 +1116,12 @@
 											"type": "boolean",
 											"description": "Force compact mode for narrow displays (better for screenshots)",
 											"markdownDescription": "Force compact mode for narrow displays (better for screenshots)",
+											"default": false
+										},
+										"singleThread": {
+											"type": "boolean",
+											"description": "Read usage files sequentially instead of using file-level parallelism",
+											"markdownDescription": "Read usage files sequentially instead of using file-level parallelism",
 											"default": false
 										},
 										"active": {

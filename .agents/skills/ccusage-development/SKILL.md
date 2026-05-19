@@ -48,6 +48,7 @@ Tools are managed by `flake.nix` and `package.json`. Use `comma` or `nix run` fo
 
 - Use TypeScript strict-mode patterns already present in the package.
 - Prefer `satisfies` and `as const satisfies` over unsafe `as` assertions; use the `typescript-style` skill for details.
+- Use the `ccusage-rust` skill before editing `rust/crates/**`, native packaging behavior, Rust pricing embedding, or Rust performance work.
 - Use `.ts` extensions for local imports.
 - Use Node path utilities for file paths.
 - Use `logger.ts` instead of `console.log`.

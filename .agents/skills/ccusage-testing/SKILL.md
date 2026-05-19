@@ -1,11 +1,31 @@
 ---
 name: ccusage-testing
-description: Guides ccusage tests. Use when adding or fixing in-source Vitest, fs-fixture data, CLI snapshots, Claude model pricing, or LiteLLM compatibility.
+description: Guides ccusage tests. Use when adding or fixing in-source Vitest, Rust cargo tests, fs-fixture data, CLI snapshots, Claude model pricing, or LiteLLM compatibility.
 ---
 
 # ccusage Testing
 
 Use the `tdd` skill for logic changes and general test readability rules, including the guidance to avoid over-DRYing tests when duplication improves clarity. Use the `fs-fixture` skill when creating filesystem fixtures. This skill adds ccusage-specific Vitest, fixture, model, and pricing rules.
+
+## Rust Tests
+
+Use `direnv exec .` when the current shell does not already expose the Rust toolchain:
+
+```sh
+direnv exec . cargo test --manifest-path rust/Cargo.toml --workspace
+direnv exec . cargo test --manifest-path rust/Cargo.toml --workspace <test_name>
+direnv exec . cargo test --manifest-path rust/Cargo.toml --workspace -- --ignored
+```
+
+For repo-wide validation, prefer the package script because it runs Vitest and Rust tests together:
+
+```sh
+direnv exec . pnpm run test
+```
+
+Put Rust unit tests near the module they exercise with `#[cfg(test)] mod tests`. When splitting a large module, move its tests with the code instead of leaving unrelated tests in `main.rs`.
+
+Use fixture-backed Rust tests for parser, path discovery, SQLite loading, dedupe, aggregation, pricing, and CLI output parity. For TDD syntax and focused cargo test examples, read `../tdd/references/rust-examples.md`.
 
 ## Vitest Pattern
 

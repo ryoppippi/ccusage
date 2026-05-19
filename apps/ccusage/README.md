@@ -41,10 +41,13 @@ bunx ccusage
 pnpm dlx ccusage
 pnpx ccusage
 npx ccusage@latest
+
+# PR preview builds
+bunx -p https://pkg.pr.new/ryoppippi/ccusage@<pr-number> ccusage --offline
 ```
 
 > 💡 **Runtime**: `bunx ccusage` is recommended for everyday use. If you use `npx`, include `@latest` and use Node.js 22.11+.
-> Because the published CLI shebang targets Node.js, package runners can start ccusage under Node.js even when launched through `bunx`. When ccusage finds `bun` in `PATH`, it automatically re-runs the bundled entrypoint with Bun for better warm runtime performance. Set `CCUSAGE_BUN_AUTO_RUN=0` to force Node.js.
+> The npm package installs a small JavaScript launcher and the matching native binary package for your platform. Package runners such as `bunx` cache the downloaded package, so repeated runs reuse the cached native binary; the first run can still include network fetch time.
 
 ## Usage
 
