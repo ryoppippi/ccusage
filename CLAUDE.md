@@ -20,7 +20,7 @@ Use these skills before working in this repository:
 - `bun-api-reference` - local Bun runtime API docs and type references under `node_modules/bun-types`.
 - `tdd` - Red-Green-Refactor workflow for logic changes.
 - `bun-cpu-profile` - Bun/TypeScript profiling for package scripts; use `ccusage-rust-profile` for native CLI performance work.
-- `reduce-similarities` - AST-based duplicate Rust code detection with similarity-rs.
+- `reduce-similarities` - AST-based duplicate Rust code detection with similarity-rs; TypeScript duplication checks use `ccusage-typescript` and `ast-grep`.
 - `cmux-debug` - terminal UI and responsive table verification in cmux.
 - `pr-ai-review-workflow` - PR review loops with `gh`: request AI/code reviewers, wait for comments, reply to inline review comments, and push small follow-up commits.
 - `fix-ci` - diagnose and fix failing GitHub Actions checks with `gh`, then push small follow-up commits.

@@ -59,13 +59,16 @@ Use `bun-api-reference` before changing Bun runtime APIs such as `Bun.$`,
 Use `bun-cpu-profile` for TypeScript launcher, benchmark, or packaging script
 performance. Use `ccusage-rust-profile` for native CLI performance.
 
+There is no TypeScript similarity skill in this repo. Use `ast-grep` or `rg` for
+TypeScript duplication checks unless a dedicated similarity-ts workflow is
+reintroduced.
+
 ## Validation
 
 Run focused checks during iteration, then the normal root workflow before
 finishing:
 
 ```sh
-pnpm --filter ccusage typecheck
 pnpm run test:vitest
 pnpm run format
 pnpm typecheck

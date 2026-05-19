@@ -11,23 +11,44 @@ instead.
 
 ## Workflow
 
-Use Bun's markdown CPU profile first because it is grep-friendly and compact enough for agent analysis. Generate `.cpuprofile` as well when a flamegraph or Chrome DevTools / VS Code inspection is useful.
+Use Bun's markdown CPU profile first because it is grep-friendly and compact enough for agent analysis. Generate `.cpuprofile` as well when a flamegraph or Chrome DevTools / VS Code inspection is useful. Inspect script options with `--help`, but do not treat help output as a profiling workload.
 
 ```sh
-pnpm exec bun --cpu-prof --cpu-prof-md --cpu-prof-dir ./profiles --cpu-prof-name ccusage-perf.cpuprofile apps/ccusage/scripts/compare-pr-performance.ts --help
+pnpm exec bun --cpu-prof --cpu-prof-md --cpu-prof-dir ./profiles --cpu-prof-name ccusage-perf.cpuprofile apps/ccusage/scripts/compare-pr-performance.ts \
+	--base-dir /tmp/ccusage-main \
+	--head-dir "$PWD" \
+	--fixture-dir apps/ccusage/test/fixtures/claude \
+	--codex-fixture-dir apps/ccusage/test/fixtures/codex \
+	--runs 1 \
+	--warmup 0 \
+	--output /tmp/ccusage-perf-comment.md
 ```
 
 For package scripts, inject profiler flags without rewriting the command:
 
 ```sh
-BUN_OPTIONS="--cpu-prof --cpu-prof-md --cpu-prof-dir ./profiles" pnpm exec bun apps/ccusage/scripts/compare-pr-performance.ts --help
+BUN_OPTIONS="--cpu-prof --cpu-prof-md --cpu-prof-dir ./profiles" pnpm exec bun apps/ccusage/scripts/compare-pr-performance.ts \
+	--base-dir /tmp/ccusage-main \
+	--head-dir "$PWD" \
+	--fixture-dir apps/ccusage/test/fixtures/claude \
+	--codex-fixture-dir apps/ccusage/test/fixtures/codex \
+	--runs 1 \
+	--warmup 0 \
+	--output /tmp/ccusage-perf-comment.md
 ```
 
 Keep benchmark runs quiet and deterministic:
 
 ```sh
-LOG_LEVEL=0 COLUMNS=200 pnpm exec bun --cpu-prof-md apps/ccusage/scripts/compare-pr-performance.ts --help >/tmp/ccusage-profile.txt
-test -s /tmp/ccusage-profile.txt
+LOG_LEVEL=0 COLUMNS=200 pnpm exec bun --cpu-prof-md apps/ccusage/scripts/compare-pr-performance.ts \
+	--base-dir /tmp/ccusage-main \
+	--head-dir "$PWD" \
+	--fixture-dir apps/ccusage/test/fixtures/claude \
+	--codex-fixture-dir apps/ccusage/test/fixtures/codex \
+	--runs 1 \
+	--warmup 0 \
+	--output /tmp/ccusage-perf-comment.md
+test -s /tmp/ccusage-perf-comment.md
 ```
 
 For branch-vs-main profiling, reading profile output, and Bun reference lookup, read `references/profile-workflow.md`.

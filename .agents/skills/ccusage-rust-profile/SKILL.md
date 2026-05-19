@@ -16,15 +16,19 @@ TypeScript launcher, benchmark, or packaging scripts.
 ## Preparation
 
 Read the relevant local Rust Performance Book pages before non-trivial
-optimization:
+optimization. Locate the clone instead of assuming a machine-specific path:
 
-```text
-/Users/ryoppippi/ghq/github.com/nnethercote/perf-book/src/profiling.md
-/Users/ryoppippi/ghq/github.com/nnethercote/perf-book/src/io.md
-/Users/ryoppippi/ghq/github.com/nnethercote/perf-book/src/heap-allocations.md
-/Users/ryoppippi/ghq/github.com/nnethercote/perf-book/src/parallelism.md
-/Users/ryoppippi/ghq/github.com/nnethercote/perf-book/src/type-sizes.md
+```fish
+set perf_book_dir (ghq list --full-path nnethercote/perf-book | head -n 1)
+sed -n '1,220p' "$perf_book_dir/src/profiling.md"
+sed -n '1,220p' "$perf_book_dir/src/io.md"
+sed -n '1,220p' "$perf_book_dir/src/heap-allocations.md"
+sed -n '1,220p' "$perf_book_dir/src/parallelism.md"
+sed -n '1,220p' "$perf_book_dir/src/type-sizes.md"
 ```
+
+If there is no local clone, use the hosted Rust Performance Book as fallback:
+`https://nnethercote.github.io/perf-book/`.
 
 Build release binaries before timing:
 
@@ -78,9 +82,23 @@ jq -e . /tmp/main.json >/dev/null
 Profile before committing an optimization. Validate with end-to-end `hyperfine`
 and JSON/table parity, not only microbenchmarks.
 
-When CI performance comments are relevant, inspect or reproduce the
-`ccusage-rust-perf` workflow command:
+When CI performance comments are relevant, inspect options with `--help`, but do
+not treat help output as a profiling workload:
 
 ```sh
 nix develop --command pnpm exec bun apps/ccusage/scripts/compare-pr-performance.ts --head-runtime rust --help
+```
+
+To reproduce the workflow shape locally, pass real fixture and worktree inputs:
+
+```sh
+nix develop --command pnpm exec bun apps/ccusage/scripts/compare-pr-performance.ts \
+	--base-dir /tmp/ccusage-main \
+	--head-dir "$PWD" \
+	--head-runtime rust \
+	--fixture-dir apps/ccusage/test/fixtures/claude \
+	--codex-fixture-dir apps/ccusage/test/fixtures/codex \
+	--runs 1 \
+	--warmup 0 \
+	--output /tmp/ccusage-rust-perf-comment.md
 ```
