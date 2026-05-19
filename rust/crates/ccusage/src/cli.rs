@@ -27,6 +27,7 @@ pub(crate) enum Command {
     Amp(AgentCommandArgs),
     Pi(AgentCommandArgs),
     Copilot(AgentCommandArgs),
+    Gemini(AgentCommandArgs),
 }
 
 #[derive(Clone, Default)]
@@ -347,6 +348,7 @@ fn parse_command(
         "amp" => parse_amp_command(parser, shared, config),
         "pi" => parse_pi_command(parser, shared, config),
         "copilot" => parse_copilot_command(parser, shared, config),
+        "gemini" => parse_gemini_command(parser, shared, config),
         _ => Err(format!("Unknown command '{command}'")),
     }
 }
@@ -670,6 +672,40 @@ fn parse_copilot_command(
     }))
 }
 
+fn parse_gemini_command(
+    parser: &mut ArgParser,
+    mut shared: SharedArgs,
+    _config: &ConfigContext,
+) -> Result<Command, String> {
+    let kind = match parser.peek() {
+        Some("daily") => {
+            parser.next();
+            AgentReportKind::Daily
+        }
+        Some("monthly") => {
+            parser.next();
+            AgentReportKind::Monthly
+        }
+        Some("session") => {
+            parser.next();
+            AgentReportKind::Session
+        }
+        Some(command) if !command.starts_with('-') => {
+            return Err(format!("Unknown gemini command '{command}'"));
+        }
+        _ => AgentReportKind::Daily,
+    };
+    while parser.peek().is_some() {
+        parse_shared_arg(parser, &mut shared)?;
+    }
+    Ok(Command::Gemini(AgentCommandArgs {
+        shared,
+        kind,
+        pi_path: None,
+        codex_speed: CodexSpeed::Auto,
+    }))
+}
+
 fn parse_shared_arg_for_command(
     parser: &mut ArgParser,
     shared: &mut SharedArgs,
@@ -728,6 +764,7 @@ fn is_command(arg: &str) -> bool {
             | "amp"
             | "pi"
             | "copilot"
+            | "gemini"
     )
 }
 
@@ -858,7 +895,7 @@ fn option_takes_value(arg: &str) -> bool {
 fn is_agent_command(command: &str) -> bool {
     matches!(
         command,
-        "claude" | "codex" | "opencode" | "amp" | "pi" | "copilot"
+        "claude" | "codex" | "opencode" | "amp" | "pi" | "copilot" | "gemini"
     )
 }
 
@@ -870,7 +907,9 @@ fn agent_report_supported(agent: &str, report: &str) -> bool {
         ),
         "codex" => matches!(report, "daily" | "monthly" | "session"),
         "opencode" => matches!(report, "daily" | "weekly" | "monthly" | "session"),
-        "amp" | "pi" | "copilot" => matches!(report, "daily" | "monthly" | "session"),
+        "amp" | "pi" | "copilot" | "gemini" => {
+            matches!(report, "daily" | "monthly" | "session")
+        }
         _ => false,
     }
 }
@@ -883,6 +922,7 @@ fn agent_display_name(agent: &str) -> &'static str {
         "amp" => "Amp",
         "pi" => "pi-agent",
         "copilot" => "GitHub Copilot CLI",
+        "gemini" => "Gemini CLI",
         _ => unreachable!("agent is prevalidated"),
     }
 }
@@ -1143,6 +1183,14 @@ fn help_text_for_tokens(tokens: &[String]) -> String {
                     ("session", "Show GitHub Copilot CLI usage grouped by session"),
                 ],
             ),
+            "gemini" => agent_help(
+                "gemini",
+                &[
+                    ("daily", "Show Gemini CLI usage grouped by date"),
+                    ("monthly", "Show Gemini CLI usage grouped by month"),
+                    ("session", "Show Gemini CLI usage grouped by session"),
+                ],
+            ),
             _ => root_help_text(),
         },
         [agent, report, ..] => match agent.as_str() {
@@ -1157,6 +1205,7 @@ fn help_text_for_tokens(tokens: &[String]) -> String {
             "amp" => amp_report_help(report),
             "pi" => pi_report_help(report),
             "copilot" => copilot_report_help(report),
+            "gemini" => gemini_report_help(report),
             _ => root_help_text(),
         },
     }
@@ -1217,6 +1266,9 @@ fn root_help_text() -> String {
         "  copilot daily              Show GitHub Copilot CLI usage grouped by date",
         "  copilot monthly            Show GitHub Copilot CLI usage grouped by month",
         "  copilot session            Show GitHub Copilot CLI usage grouped by session",
+        "  gemini daily               Show Gemini CLI usage grouped by date",
+        "  gemini monthly             Show Gemini CLI usage grouped by month",
+        "  gemini session             Show Gemini CLI usage grouped by session",
         "",
         "For more info, run any command with the `--help` flag:",
         "  ccusage daily --help",
@@ -1247,6 +1299,9 @@ fn root_help_text() -> String {
         "  ccusage copilot daily --help",
         "  ccusage copilot monthly --help",
         "  ccusage copilot session --help",
+        "  ccusage gemini daily --help",
+        "  ccusage gemini monthly --help",
+        "  ccusage gemini session --help",
         "",
     ]
     .map(str::to_string)
@@ -1364,6 +1419,20 @@ fn copilot_report_help(report: &str) -> String {
     command_help(
         description,
         &format!("ccusage copilot {report} <OPTIONS>"),
+        agent_options(),
+    )
+}
+
+fn gemini_report_help(report: &str) -> String {
+    let description = match report {
+        "daily" => "Show Gemini CLI usage grouped by date",
+        "monthly" => "Show Gemini CLI usage grouped by month",
+        "session" => "Show Gemini CLI usage grouped by session",
+        _ => return root_help_text(),
+    };
+    command_help(
+        description,
+        &format!("ccusage gemini {report} <OPTIONS>"),
         agent_options(),
     )
 }
@@ -1613,6 +1682,7 @@ mod tests {
         assert!(help.contains("\n  amp daily"));
         assert!(help.contains("\n  pi daily"));
         assert!(help.contains("\n  copilot daily"));
+        assert!(help.contains("\n  gemini daily"));
     }
 
     #[test]
@@ -1861,6 +1931,16 @@ mod tests {
         let cli = parse(&["ccusage", "copilot", "session", "--json"]);
         let Some(Command::Copilot(args)) = cli.command else {
             panic!("expected copilot command");
+        };
+        assert_eq!(args.kind, AgentReportKind::Session);
+        assert!(args.shared.json);
+    }
+
+    #[test]
+    fn parses_gemini_session_options() {
+        let cli = parse(&["ccusage", "gemini", "session", "--json"]);
+        let Some(Command::Gemini(args)) = cli.command else {
+            panic!("expected gemini command");
         };
         assert_eq!(args.kind, AgentReportKind::Session);
         assert!(args.shared.json);

@@ -1,8 +1,4 @@
-use std::{
-    collections::HashSet,
-    env,
-    path::PathBuf,
-};
+use std::{collections::HashSet, env, path::PathBuf};
 
 use crate::Result;
 
