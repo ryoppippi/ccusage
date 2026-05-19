@@ -5,9 +5,9 @@ This is the published `ccusage` npm package. The CLI implementation lives in Rus
 ## Skills
 
 - Use `ccusage-development` for commands, bundled CLI dependency policy, style, exports, and validation.
-- Use `ccusage-testing` for in-source Vitest, snapshots, fixtures, Claude models, and LiteLLM pricing tests.
+- Use `ccusage-testing` for Rust cargo tests, snapshots, fixtures, Claude models, and LiteLLM pricing tests.
 - Use `ccusage-agent-sources` for Claude Code data directories, JSONL structure, session naming, cost modes, and report behavior.
-- Use `typescript-style` before reading or editing TypeScript or JavaScript package code.
+- Use `ccusage-typescript` and `typescript-style` before reading or editing TypeScript or JavaScript package code.
 
 ## Package Notes
 

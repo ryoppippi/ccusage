@@ -1,11 +1,14 @@
 ---
 name: ccusage-testing
-description: Guides ccusage tests. Use when adding or fixing in-source Vitest, Rust cargo tests, fs-fixture data, CLI snapshots, Claude model pricing, or LiteLLM compatibility.
+description: Guides ccusage Rust tests. Use when adding or fixing cargo tests, CLI snapshots, Claude model pricing, LiteLLM compatibility, or Rust fixture-backed parser and loader tests.
 ---
 
 # ccusage Testing
 
-Use the `tdd` skill for logic changes and general test readability rules, including the guidance to avoid over-DRYing tests when duplication improves clarity. Use the `fs-fixture` skill when creating filesystem fixtures. This skill adds ccusage-specific Vitest, fixture, model, and pricing rules.
+Use the `tdd` skill for logic changes and general test readability rules,
+including the guidance to avoid over-DRYing tests when duplication improves
+clarity. This skill adds ccusage-specific Rust, fixture, model, and pricing
+rules. Use `ccusage-typescript` for Vitest and TypeScript filesystem fixtures.
 
 ## Rust Tests
 
@@ -27,34 +30,20 @@ Put Rust unit tests near the module they exercise with `#[cfg(test)] mod tests`.
 
 Use fixture-backed Rust tests for parser, path discovery, SQLite loading, dedupe, aggregation, pricing, and CLI output parity. For TDD syntax and focused cargo test examples, read `../tdd/references/rust-examples.md`.
 
-## Vitest Pattern
-
-- Tests live beside implementation in `if (import.meta.vitest != null)` blocks.
-- Use Vitest globals directly: `describe`, `it`, `expect`, `vi`, `assert`.
-- Do not import Vitest globals.
-- Do not use `await import()` or other dynamic imports anywhere, especially in tests.
-- Use `fs-fixture` with `createFixture()` for simulated agent data directories; read the `fs-fixture` skill for API details and README location.
-- Top-level `fs-fixture` imports in implementation files with in-source tests are allowed and preferred over dynamic imports.
-- Use `vi.stubEnv()` instead of mutating `process.env` directly.
-- Prefer testing parser, path resolution, loading, aggregation, pricing, and CLI output behavior over schema-shape tests. Valibot schema declarations usually do not need direct tests unless there is non-trivial normalization logic around them.
-- If schema validation is already exercised through parser or loader tests with realistic log files, do not add separate schema-only tests. Add schema-adjacent tests only when the behavior is not visible through the public loader contract, such as legacy field compatibility or important invalid-record filtering.
-- Path discovery helpers such as `getCodexSessionsPath()` or `getPiAgentPaths()` are real logic. Test explicit path arguments, environment variable paths with `vi.stubEnv()`, missing directories, and default-path fallback when feasible.
-- It is acceptable to add explicitly skipped local-data smoke tests such as `it.skipIf(!hasLocalData)(...)` for real user log directories. These must not fail on clean CI machines.
-
-Utility functions should include concise JSDoc describing their purpose and focused in-source tests for their behavior.
-
 ## Test Readability
 
-- Avoid `try`/`catch` in tests for expected failures. Use `expect(...).toThrow()`, `await expect(...).rejects`, or explicit Result failure assertions.
-- Avoid `if` branches inside test bodies. Split behaviors into separate tests or use `it.each` for table-driven cases.
+- Avoid `try`/`catch` in tests for expected failures. Use `Result` tests, `matches!`, or explicit error assertions.
+- Avoid `if` branches inside test bodies. Split behaviors into separate tests, use `rstest` cases when the crate is already available, iterate over explicit Rust case structs in one table-driven test, or add a small local macro for repeated assertions.
 - Tests do not need to be DRY. Prefer repeated, explicit setup in each test when it makes the behavior easier to read.
 - Do not hoist one-off values out of tests. Write literals and direct setup values inline in the test body when sharing them would make the behavior harder to read.
 
-For concrete good and bad examples, read `../tdd/references/vitest-examples.md`.
+For concrete Rust examples, read `../tdd/references/rust-examples.md`.
 
 ## CLI Output Tests
 
-Integration tests that exercise human-readable table output must use file snapshots with `toMatchFileSnapshot`. This keeps table layout and responsive behavior reviewable for each affected agent/report combination.
+Integration tests that exercise human-readable table output should use focused
+golden output or explicit layout assertions so table layout and responsive
+behavior stay reviewable for each affected agent/report combination.
 
 Prefer JSON assertions for structured behavior and snapshot assertions for terminal layout.
 
