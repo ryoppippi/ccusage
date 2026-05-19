@@ -1,10 +1,7 @@
 use std::{
     cell::RefCell,
     io::{self, IsTerminal, Write},
-    sync::{
-        atomic::{AtomicBool, Ordering},
-        Arc, Mutex,
-    },
+    sync::{Arc, Condvar, Mutex},
     thread::{self, JoinHandle},
     time::Duration,
 };
@@ -111,7 +108,7 @@ pub(crate) struct UsageLoadProgress {
     enabled: bool,
     controller: Option<ProgressController>,
     owns_session: bool,
-    running: Option<Arc<AtomicBool>>,
+    running: Option<Arc<(Mutex<bool>, Condvar)>>,
     worker: Option<JoinHandle<()>>,
     stopped: bool,
 }
@@ -126,6 +123,7 @@ struct ProgressState {
     status: Option<String>,
     states: Vec<(UsageLoadAgent, LoadProgressState)>,
     frame: usize,
+    rendered: bool,
 }
 
 impl UsageLoadProgress {
@@ -155,17 +153,27 @@ impl UsageLoadProgress {
         let controller = ProgressController {
             state: Arc::clone(&state),
         };
-        let running = Arc::new(AtomicBool::new(true));
+        let running = Arc::new((Mutex::new(true), Condvar::new()));
         let worker = {
             let running = Arc::clone(&running);
-            Some(thread::spawn(move || {
-                while running.load(Ordering::Acquire) {
-                    if let Ok(mut state) = state.lock() {
-                        if state.has_content() {
-                            state.render();
-                        }
+            Some(thread::spawn(move || loop {
+                if let Ok(mut state) = state.lock() {
+                    if state.has_content() {
+                        state.render();
                     }
-                    thread::sleep(SPINNER_INTERVAL);
+                }
+                let (lock, cvar) = &*running;
+                let Ok(guard) = lock.lock() else {
+                    break;
+                };
+                if !*guard {
+                    break;
+                }
+                let Ok((guard, _)) = cvar.wait_timeout(guard, SPINNER_INTERVAL) else {
+                    break;
+                };
+                if !*guard {
+                    break;
                 }
             }))
         };
@@ -203,14 +211,18 @@ impl UsageLoadProgress {
             return;
         }
         if let Some(running) = self.running.take() {
-            running.store(false, Ordering::Release);
+            let (lock, cvar) = &*running;
+            if let Ok(mut is_running) = lock.lock() {
+                *is_running = false;
+                cvar.notify_all();
+            }
         }
         if let Some(worker) = self.worker.take() {
             let _ = worker.join();
         }
         if let Some(controller) = self.controller.as_ref() {
             if let Ok(mut state) = controller.state.lock() {
-                if state.has_content() {
+                if state.rendered {
                     let _ = write!(io::stderr(), "\r\x1b[K\x1b[?25h");
                     let _ = io::stderr().flush();
                 }
@@ -231,7 +243,6 @@ impl UsageLoadProgress {
             return;
         };
         state.status = status;
-        state.render();
     }
 
     fn set_state(&mut self, agent: UsageLoadAgent, state: LoadProgressState) {
@@ -250,7 +261,6 @@ impl UsageLoadProgress {
         } else {
             progress_state.states.push((agent, state));
         }
-        progress_state.render();
     }
 }
 
@@ -277,6 +287,7 @@ impl ProgressState {
             "\r\x1b[K\x1b[?25l\x1b[36m{frame}\x1b[39m {text}"
         );
         let _ = io::stderr().flush();
+        self.rendered = true;
     }
 }
 
