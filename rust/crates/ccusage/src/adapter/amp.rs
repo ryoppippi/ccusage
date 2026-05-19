@@ -263,7 +263,7 @@ fn json_value_f64(value: Option<&Value>) -> Option<f64> {
     value.and_then(Value::as_f64)
 }
 
-fn print_table(
+pub(crate) fn print_table(
     kind: AgentReportKind,
     rows: &[crate::UsageSummary],
     shared: &crate::cli::SharedArgs,

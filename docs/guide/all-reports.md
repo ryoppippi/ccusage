@@ -25,7 +25,7 @@ ccusage daily --all
 
 ## How Unified Views Work
 
-ccusage detects local usage files from Claude Code, Codex, OpenCode, Amp, pi-agent, Kilo, GitHub Copilot CLI, and Gemini CLI. The same daily, weekly, monthly, and session views can run in two modes:
+ccusage detects local usage files from Claude Code, Codex, OpenCode, Amp, Hermes Agent, pi-agent, Goose, Kilo, GitHub Copilot CLI, and Gemini CLI. The same daily, weekly, monthly, and session views can run in two modes:
 
 | Mode    | Command example        | What it shows                           |
 | ------- | ---------------------- | --------------------------------------- |
@@ -37,16 +37,18 @@ Unified tables include an **Agent** column so you can compare sources in one vie
 
 ## Supported Sources
 
-| Source      | Namespace  | Example focused view      |
-| ----------- | ---------- | ------------------------- |
-| Claude Code | `claude`   | `ccusage claude daily`    |
-| Codex       | `codex`    | `ccusage codex daily`     |
-| OpenCode    | `opencode` | `ccusage opencode weekly` |
-| Amp         | `amp`      | `ccusage amp session`     |
-| pi-agent    | `pi`       | `ccusage pi monthly`      |
-| Kilo        | `kilo`     | `ccusage kilo daily`      |
-| Copilot CLI | `copilot`  | `ccusage copilot daily`   |
-| Gemini CLI  | `gemini`   | `ccusage gemini daily`    |
+| Source       | Namespace  | Example focused view      |
+| ------------ | ---------- | ------------------------- |
+| Claude Code  | `claude`   | `ccusage claude daily`    |
+| Codex        | `codex`    | `ccusage codex daily`     |
+| OpenCode     | `opencode` | `ccusage opencode weekly` |
+| Amp          | `amp`      | `ccusage amp session`     |
+| Hermes Agent | `hermes`   | `ccusage hermes daily`    |
+| pi-agent     | `pi`       | `ccusage pi monthly`      |
+| Goose        | `goose`    | `ccusage goose daily`     |
+| Kilo         | `kilo`     | `ccusage kilo daily`      |
+| Copilot CLI  | `copilot`  | `ccusage copilot daily`   |
+| Gemini CLI   | `gemini`   | `ccusage gemini daily`    |
 
 ## When to Focus a Source
 

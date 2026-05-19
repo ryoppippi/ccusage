@@ -27,6 +27,7 @@ pub(crate) enum Command {
     Amp(AgentCommandArgs),
     Hermes(AgentCommandArgs),
     Pi(AgentCommandArgs),
+    Goose(AgentCommandArgs),
     Kilo(AgentCommandArgs),
     Copilot(AgentCommandArgs),
     Gemini(AgentCommandArgs),
@@ -350,6 +351,7 @@ fn parse_command(
         "amp" => parse_amp_command(parser, shared, config),
         "hermes" => parse_hermes_command(parser, shared, config),
         "pi" => parse_pi_command(parser, shared, config),
+        "goose" => parse_goose_command(parser, shared, config),
         "kilo" => parse_kilo_command(parser, shared, config),
         "copilot" => parse_copilot_command(parser, shared, config),
         "gemini" => parse_gemini_command(parser, shared, config),
@@ -676,6 +678,40 @@ fn parse_pi_command(
     }))
 }
 
+fn parse_goose_command(
+    parser: &mut ArgParser,
+    mut shared: SharedArgs,
+    _config: &ConfigContext,
+) -> Result<Command, String> {
+    let kind = match parser.peek() {
+        Some("daily") => {
+            parser.next();
+            AgentReportKind::Daily
+        }
+        Some("monthly") => {
+            parser.next();
+            AgentReportKind::Monthly
+        }
+        Some("session") => {
+            parser.next();
+            AgentReportKind::Session
+        }
+        Some(command) if !command.starts_with('-') => {
+            return Err(format!("Unknown goose command '{command}'"));
+        }
+        _ => AgentReportKind::Daily,
+    };
+    while parser.peek().is_some() {
+        parse_shared_arg(parser, &mut shared)?;
+    }
+    Ok(Command::Goose(AgentCommandArgs {
+        shared,
+        kind,
+        pi_path: None,
+        codex_speed: CodexSpeed::Auto,
+    }))
+}
+
 fn parse_copilot_command(
     parser: &mut ArgParser,
     mut shared: SharedArgs,
@@ -836,6 +872,7 @@ fn is_command(arg: &str) -> bool {
             | "amp"
             | "hermes"
             | "pi"
+            | "goose"
             | "kilo"
             | "copilot"
             | "gemini"
@@ -968,7 +1005,16 @@ fn option_takes_value(arg: &str) -> bool {
 fn is_agent_command(command: &str) -> bool {
     matches!(
         command,
-        "claude" | "codex" | "opencode" | "amp" | "hermes" | "pi" | "kilo" | "copilot" | "gemini"
+        "claude"
+            | "codex"
+            | "opencode"
+            | "amp"
+            | "hermes"
+            | "pi"
+            | "goose"
+            | "kilo"
+            | "copilot"
+            | "gemini"
     )
 }
 
@@ -980,7 +1026,7 @@ fn agent_report_supported(agent: &str, report: &str) -> bool {
         ),
         "codex" => matches!(report, "daily" | "monthly" | "session"),
         "opencode" => matches!(report, "daily" | "weekly" | "monthly" | "session"),
-        "amp" | "hermes" | "pi" | "kilo" | "copilot" | "gemini" => {
+        "amp" | "hermes" | "pi" | "goose" | "kilo" | "copilot" | "gemini" => {
             matches!(report, "daily" | "monthly" | "session")
         }
         _ => false,
@@ -995,6 +1041,7 @@ fn agent_display_name(agent: &str) -> &'static str {
         "amp" => "Amp",
         "hermes" => "Hermes",
         "pi" => "pi-agent",
+        "goose" => "Goose",
         "kilo" => "Kilo",
         "copilot" => "GitHub Copilot CLI",
         "gemini" => "Gemini CLI",
@@ -1258,6 +1305,14 @@ fn help_text_for_tokens(tokens: &[String]) -> String {
                     ("session", "Show pi-agent usage grouped by session"),
                 ],
             ),
+            "goose" => agent_help(
+                "goose",
+                &[
+                    ("daily", "Show Goose usage grouped by date"),
+                    ("monthly", "Show Goose usage grouped by month"),
+                    ("session", "Show Goose usage grouped by session"),
+                ],
+            ),
             "kilo" => agent_help(
                 "kilo",
                 &[
@@ -1296,6 +1351,7 @@ fn help_text_for_tokens(tokens: &[String]) -> String {
             "amp" => amp_report_help(report),
             "hermes" => hermes_report_help(report),
             "pi" => pi_report_help(report),
+            "goose" => goose_report_help(report),
             "kilo" => kilo_report_help(report),
             "copilot" => copilot_report_help(report),
             "gemini" => gemini_report_help(report),
@@ -1359,6 +1415,9 @@ fn root_help_text() -> String {
         "  pi daily                   Show pi-agent usage grouped by date",
         "  pi monthly                 Show pi-agent usage grouped by month",
         "  pi session                 Show pi-agent usage grouped by session",
+        "  goose daily                Show Goose usage grouped by date",
+        "  goose monthly              Show Goose usage grouped by month",
+        "  goose session              Show Goose usage grouped by session",
         "  kilo daily                 Show Kilo usage grouped by date",
         "  kilo monthly               Show Kilo usage grouped by month",
         "  kilo session               Show Kilo usage grouped by session",
@@ -1398,6 +1457,9 @@ fn root_help_text() -> String {
         "  ccusage pi daily --help",
         "  ccusage pi monthly --help",
         "  ccusage pi session --help",
+        "  ccusage goose daily --help",
+        "  ccusage goose monthly --help",
+        "  ccusage goose session --help",
         "  ccusage kilo daily --help",
         "  ccusage kilo monthly --help",
         "  ccusage kilo session --help",
@@ -1525,6 +1587,20 @@ fn pi_report_help(report: &str) -> String {
         description,
         &format!("ccusage pi {report} <OPTIONS>"),
         &command_options(&[agent_options(), pi_options()]),
+    )
+}
+
+fn goose_report_help(report: &str) -> String {
+    let description = match report {
+        "daily" => "Show Goose usage grouped by date",
+        "monthly" => "Show Goose usage grouped by month",
+        "session" => "Show Goose usage grouped by session",
+        _ => return root_help_text(),
+    };
+    command_help(
+        description,
+        &format!("ccusage goose {report} <OPTIONS>"),
+        agent_options(),
     )
 }
 
@@ -2064,6 +2140,16 @@ mod tests {
         let cli = parse(&["ccusage", "kilo", "session", "--json"]);
         let Some(Command::Kilo(args)) = cli.command else {
             panic!("expected kilo command");
+        };
+        assert_eq!(args.kind, AgentReportKind::Session);
+        assert!(args.shared.json);
+    }
+
+    #[test]
+    fn parses_goose_session_options() {
+        let cli = parse(&["ccusage", "goose", "session", "--json"]);
+        let Some(Command::Goose(args)) = cli.command else {
+            panic!("expected goose command");
         };
         assert_eq!(args.kind, AgentReportKind::Session);
         assert!(args.shared.json);
