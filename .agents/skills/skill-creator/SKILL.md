@@ -35,6 +35,23 @@ Follow Anthropic's skill authoring guidance from the Agent Skills best practices
 - Avoid vague descriptions such as "helps with docs" or "processes files".
 - Keep metadata concise because skill names and descriptions are always loaded; Anthropic's size guidance treats frontmatter as roughly 100 words.
 
+Optional file routing fields:
+
+- Use `paths` for Claude-style file matching. It may be a comma-separated glob string or a YAML list.
+- Add `globs` as a compatibility hint when a skill should trigger for file types across agent runtimes.
+- For cross-agent repo-local skills that should apply to TypeScript or JavaScript, include both:
+
+```yaml
+paths:
+  - '**/*.ts'
+  - '**/*.tsx'
+  - '**/*.js'
+  - '**/*.jsx'
+globs: '*.ts,*.tsx,*.js,*.jsx'
+```
+
+- Do not rely only on path metadata for Codex-style discovery; keep the `description` explicit about the file types and actions that should trigger the skill.
+
 For this repo, prefer one or two short sentences, usually around 20-35 words. Do not compress a description so far that it becomes only a label; the agent still needs enough trigger context to choose the skill reliably.
 
 Good pattern:

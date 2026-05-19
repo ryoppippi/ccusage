@@ -11,8 +11,9 @@ pre-commit:
 
     - name: config schema
       glob:
-        - apps/ccusage/scripts/generate-json-schema.ts
-        - 'apps/ccusage/src/**'
+        - apps/ccusage/package.json
+        - rust/crates/ccusage/src/config_schema.rs
+        - rust/crates/ccusage/src/bin/generate_config_schema.rs
       run: pnpm --filter ccusage run generate:schema
       stage_fixed: true
 
@@ -35,16 +36,6 @@ pre-commit:
             stage_fixed: true
           - name: ccusage
             root: apps/ccusage/
-            glob: '**/*'
-            run: pnpm exec eslint --cache --fix --no-warn-ignored {staged_files}
-            stage_fixed: true
-          - name: internal
-            root: packages/internal/
-            glob: '**/*'
-            run: pnpm exec eslint --cache --fix --no-warn-ignored {staged_files}
-            stage_fixed: true
-          - name: terminal
-            root: packages/terminal/
             glob: '**/*'
             run: pnpm exec eslint --cache --fix --no-warn-ignored {staged_files}
             stage_fixed: true

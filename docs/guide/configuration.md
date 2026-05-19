@@ -53,6 +53,7 @@ export CODEX_HOME="$HOME/.codex"
 export OPENCODE_DATA_DIR="$HOME/.local/share/opencode"
 export AMP_DATA_DIR="$HOME/.local/share/amp"
 export PI_AGENT_DIR="$HOME/.pi/agent/sessions"
+export COPILOT_OTEL_FILE_EXPORTER_PATH="$HOME/.copilot/otel/copilot-otel.jsonl"
 export KILO_DATA_DIR="$HOME/.local/share/kilo"
 ```
 
@@ -106,7 +107,7 @@ For individual developers working on multiple projects:
 
 ### Multiple Sources
 
-Configure Claude Code, Codex, OpenCode, Amp, pi-agent, and Kilo separately with data source namespaces:
+Configure Claude Code, Codex, OpenCode, Amp, pi-agent, GitHub Copilot CLI, and Kilo separately with data source namespaces:
 
 ```json
 // ~/.config/claude/ccusage.json
