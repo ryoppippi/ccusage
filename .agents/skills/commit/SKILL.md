@@ -77,6 +77,15 @@ Use standard git history commands to understand intent before committing. Prefer
 - Potential impacts
 - Wrap at 72 characters
 
+**Subject should name the artifact or behavior changed**:
+
+- Prefer concrete subjects that make sense when read alone in a commit list.
+- Avoid vague review-process subjects such as `chore: address review feedback`,
+  `chore: apply comments`, or `fix: update per CodeRabbit`.
+- Put reviewer context in the body, not the subject. For example, use
+  `docs(skills): clarify arkregex newline guidance` with a body explaining that
+  it addresses CodeRabbit feedback.
+
 ## Quality Checks
 
 - Can this be reverted without breaking other functionality?

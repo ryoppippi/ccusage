@@ -1,0 +1,13 @@
+[workspace]
+members = ["crates/ccusage", "crates/ccusage-terminal"]
+resolver = "2"
+
+[profile.release]
+codegen-units = 1
+lto = "fat"
+opt-level = "z"
+panic = "abort"
+strip = "symbols"
+
+[profile.release.package."*"]
+opt-level = "s"
