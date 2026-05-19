@@ -575,6 +575,8 @@ fn push_deduped_daily_entry(
         let existing_total = daily_usage_token_total(&deduped[index]);
         let should_replace = if candidate_total != existing_total {
             candidate_total > existing_total
+        } else if entry.cost != deduped[index].cost {
+            entry.cost > deduped[index].cost
         } else {
             entry.usage.speed.is_some() && deduped[index].usage.speed.is_none()
         };
