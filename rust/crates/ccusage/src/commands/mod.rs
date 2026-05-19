@@ -22,10 +22,9 @@ use crate::{
     group_project_output, identify_session_blocks, load_daily_summaries, load_entries,
     print_active_block_detail, print_blocks_table, print_json_or_jq, print_usage_table,
     session_summary_json, sort_blocks, sort_summaries, summarize_by_key,
-    summarize_summaries_by_bucket, summary_json,
-    total_usage_tokens, totals_json, utc_now, wants_json, BucketKind, Color, Context, Result,
-    SessionAccumulator, TimestampMs, DEFAULT_RECENT_DAYS, DEFAULT_SESSION_DURATION_HOURS,
-    MILLIS_PER_DAY, MILLIS_PER_MINUTE,
+    summarize_summaries_by_bucket, summary_json, total_usage_tokens, totals_json, utc_now,
+    wants_json, BucketKind, Color, Context, Result, SessionAccumulator, TimestampMs,
+    DEFAULT_RECENT_DAYS, DEFAULT_SESSION_DURATION_HOURS, MILLIS_PER_DAY, MILLIS_PER_MINUTE,
 };
 
 pub(crate) fn run_daily(args: DailyArgs) -> Result<()> {
@@ -187,11 +186,7 @@ pub(crate) fn run_session(args: SessionArgs) -> Result<()> {
         });
     }
     rows.retain(|row| {
-        row.input_tokens
-            + row.output_tokens
-            + row.cache_creation_tokens
-            + row.cache_read_tokens
-            > 0
+        row.input_tokens + row.output_tokens + row.cache_creation_tokens + row.cache_read_tokens > 0
     });
     rows.sort_by(|a, b| match session_shared.order {
         SortOrder::Asc => a.total_cost.total_cmp(&b.total_cost),
@@ -396,17 +391,17 @@ fn render_statusline(
 ) -> Result<String> {
     let session_cost = match args.cost_source {
         CostSource::Cc => hook.cost.as_ref().map(|cost| cost.total_cost_usd),
-        CostSource::Ccusage => calculate_session_cost(&hook.session_id, &shared).ok(),
+        CostSource::Ccusage => calculate_session_cost(&hook.session_id, shared).ok(),
         CostSource::Auto => hook
             .cost
             .as_ref()
             .map(|cost| cost.total_cost_usd)
-            .or_else(|| calculate_session_cost(&hook.session_id, &shared).ok()),
+            .or_else(|| calculate_session_cost(&hook.session_id, shared).ok()),
         CostSource::Both => None,
     };
 
     let ccusage_cost = if args.cost_source == CostSource::Both {
-        calculate_session_cost(&hook.session_id, &shared).ok()
+        calculate_session_cost(&hook.session_id, shared).ok()
     } else {
         None
     };
@@ -435,7 +430,7 @@ fn render_statusline(
         })
         .unwrap_or(0.0);
 
-    let blocks = load_entries(&shared, None)
+    let blocks = load_entries(shared, None)
         .map(|entries| identify_session_blocks(entries, DEFAULT_SESSION_DURATION_HOURS))
         .unwrap_or_default();
     let active_block = blocks.iter().find(|block| block.is_active && !block.is_gap);
@@ -487,7 +482,7 @@ fn render_statusline(
                 hook.model.id.as_deref(),
                 shared.offline,
             )
-                .map(|context| (context.total_input_tokens, context.context_window_size))
+            .map(|context| (context.total_input_tokens, context.context_window_size))
         })
         .map(|(total_input_tokens, context_window_size)| {
             format_statusline_context(total_input_tokens, context_window_size, args, shared)

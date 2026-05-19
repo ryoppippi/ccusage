@@ -26,10 +26,12 @@ pub(crate) struct CcusageConfig {
     pub(crate) amp: Option<AmpConfig>,
     /// pi-agent configuration.
     pub(crate) pi: Option<PiConfig>,
-    /// GitHub Copilot CLI configuration.
-    pub(crate) copilot: Option<CopilotConfig>,
     /// Kilo configuration.
     pub(crate) kilo: Option<KiloConfig>,
+    /// GitHub Copilot CLI configuration.
+    pub(crate) copilot: Option<CopilotConfig>,
+    /// Gemini CLI configuration.
+    pub(crate) gemini: Option<GeminiConfig>,
 }
 
 #[derive(Debug, Default, Deserialize, JsonSchema)]
@@ -124,6 +126,21 @@ pub(crate) struct PiCommandsConfig {
 
 #[derive(Debug, Default, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
+pub(crate) struct KiloConfig {
+    pub(crate) defaults: Option<SharedOptions>,
+    pub(crate) commands: Option<KiloCommandsConfig>,
+}
+
+#[derive(Debug, Default, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct KiloCommandsConfig {
+    pub(crate) daily: Option<SharedOptions>,
+    pub(crate) monthly: Option<SharedOptions>,
+    pub(crate) session: Option<SharedOptions>,
+}
+
+#[derive(Debug, Default, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
 pub(crate) struct CopilotConfig {
     pub(crate) defaults: Option<SharedOptions>,
     pub(crate) commands: Option<CopilotCommandsConfig>,
@@ -139,14 +156,14 @@ pub(crate) struct CopilotCommandsConfig {
 
 #[derive(Debug, Default, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
-pub(crate) struct KiloConfig {
+pub(crate) struct GeminiConfig {
     pub(crate) defaults: Option<SharedOptions>,
-    pub(crate) commands: Option<KiloCommandsConfig>,
+    pub(crate) commands: Option<GeminiCommandsConfig>,
 }
 
 #[derive(Debug, Default, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
-pub(crate) struct KiloCommandsConfig {
+pub(crate) struct GeminiCommandsConfig {
     pub(crate) daily: Option<SharedOptions>,
     pub(crate) monthly: Option<SharedOptions>,
     pub(crate) session: Option<SharedOptions>,
@@ -499,6 +516,11 @@ pub(crate) fn generate_config_schema_json() -> String {
                         "defaults": {
                             "speed": "auto"
                         }
+                    },
+                    "gemini": {
+                        "defaults": {
+                            "offline": true
+                        }
                     }
                 }
             ]),
@@ -766,6 +788,10 @@ mod tests {
             property_ref(&schema, "KiloConfig", "defaults"),
             Some("#/definitions/SharedOptions")
         );
+        assert_eq!(
+            property_ref(&schema, "GeminiConfig", "defaults"),
+            Some("#/definitions/SharedOptions")
+        );
     }
 
     #[test]
@@ -789,7 +815,7 @@ mod tests {
             &schema,
             "ccusage-config",
             &[
-                "$schema", "amp", "claude", "codex", "commands", "copilot", "defaults",
+                "$schema", "amp", "claude", "codex", "commands", "copilot", "defaults", "gemini",
                 "kilo", "opencode", "pi",
             ],
         );
@@ -859,6 +885,13 @@ mod tests {
                     }
                 }
             },
+            "kilo": {
+                "commands": {
+                    "daily": {
+                        "json": true
+                    }
+                }
+            },
             "copilot": {
                 "commands": {
                     "session": {
@@ -866,9 +899,9 @@ mod tests {
                     }
                 }
             },
-            "kilo": {
+            "gemini": {
                 "commands": {
-                    "daily": {
+                    "session": {
                         "json": true
                     }
                 }

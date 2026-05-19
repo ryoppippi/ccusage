@@ -34,6 +34,7 @@
 		"lint": "pnpm --no-bail --aggregate-output /^lint:/",
 		"lint:oxfmt": "oxfmt --check .",
 		"lint:root": "eslint --cache eslint.config.js .",
+		"lint:rust": "cargo clippy --manifest-path rust/Cargo.toml --workspace --all-targets -- -D warnings",
 		"lint:submodules": "pnpm --parallel -r --no-bail /^lint/",
 		"prepare": "pnpm run /^prepare:/",
 		"prepare:lefthook": "lefthook install",

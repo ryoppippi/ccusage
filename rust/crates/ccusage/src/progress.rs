@@ -1,4 +1,20 @@
-use std::io::{self, IsTerminal, Write};
+use std::{
+    cell::RefCell,
+    io::{self, IsTerminal, Write},
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc, Mutex,
+    },
+    thread::{self, JoinHandle},
+    time::Duration,
+};
+
+const SPINNER_FRAMES: [&str; 10] = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
+const SPINNER_INTERVAL: Duration = Duration::from_millis(80);
+
+thread_local! {
+    static ACTIVE_PROGRESS: RefCell<Option<ProgressController>> = const { RefCell::new(None) };
+}
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum UsageLoadAgent {
@@ -7,8 +23,9 @@ pub(crate) enum UsageLoadAgent {
     OpenCode,
     Amp,
     Pi,
-    Copilot,
     Kilo,
+    Copilot,
+    Gemini,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -29,8 +46,9 @@ fn agent_label(agent: UsageLoadAgent) -> &'static str {
         UsageLoadAgent::OpenCode => "OpenCode",
         UsageLoadAgent::Amp => "Amp",
         UsageLoadAgent::Pi => "pi-agent",
-        UsageLoadAgent::Copilot => "GitHub Copilot CLI",
         UsageLoadAgent::Kilo => "Kilo",
+        UsageLoadAgent::Copilot => "GitHub Copilot CLI",
+        UsageLoadAgent::Gemini => "Gemini CLI",
     }
 }
 
@@ -38,9 +56,11 @@ fn format_usage_load_progress_text(
     states: &[(UsageLoadAgent, LoadProgressState)],
     status: Option<&str>,
 ) -> String {
-    let base = if states.is_empty() {
-        "Loading usage logs".to_string()
-    } else {
+    if states.is_empty() {
+        return status.unwrap_or("Loading usage logs").to_string();
+    }
+
+    let base = {
         let completed = states
             .iter()
             .filter(|(_, state)| !matches!(state, LoadProgressState::Loading))
@@ -75,16 +95,76 @@ pub(crate) fn usage_load_output_is_tty() -> bool {
 
 pub(crate) struct UsageLoadProgress {
     enabled: bool,
+    controller: Option<ProgressController>,
+    owns_session: bool,
+    running: Option<Arc<AtomicBool>>,
+    worker: Option<JoinHandle<()>>,
+    stopped: bool,
+}
+
+#[derive(Clone)]
+struct ProgressController {
+    state: Arc<Mutex<ProgressState>>,
+}
+
+#[derive(Default)]
+struct ProgressState {
     status: Option<String>,
     states: Vec<(UsageLoadAgent, LoadProgressState)>,
+    frame: usize,
 }
 
 impl UsageLoadProgress {
     pub(crate) fn new(enabled: bool) -> Self {
+        if !enabled {
+            return Self {
+                enabled,
+                controller: None,
+                owns_session: false,
+                running: None,
+                worker: None,
+                stopped: false,
+            };
+        }
+        if let Some(controller) = ACTIVE_PROGRESS.with(|active| active.borrow().clone()) {
+            return Self {
+                enabled,
+                controller: Some(controller),
+                owns_session: false,
+                running: None,
+                worker: None,
+                stopped: false,
+            };
+        }
+
+        let state = Arc::new(Mutex::new(ProgressState::default()));
+        let controller = ProgressController {
+            state: Arc::clone(&state),
+        };
+        let running = Arc::new(AtomicBool::new(true));
+        let worker = {
+            let running = Arc::clone(&running);
+            Some(thread::spawn(move || {
+                while running.load(Ordering::Acquire) {
+                    if let Ok(mut state) = state.lock() {
+                        if state.has_content() {
+                            state.render();
+                        }
+                    }
+                    thread::sleep(SPINNER_INTERVAL);
+                }
+            }))
+        };
+        ACTIVE_PROGRESS.with(|active| {
+            *active.borrow_mut() = Some(controller.clone());
+        });
         Self {
             enabled,
-            status: None,
-            states: Vec::new(),
+            controller: Some(controller),
+            owns_session: true,
+            running: Some(running),
+            worker,
+            stopped: false,
         }
     }
 
@@ -101,40 +181,88 @@ impl UsageLoadProgress {
     }
 
     pub(crate) fn stop(&mut self) {
-        if self.enabled && !self.states.is_empty() {
-            let _ = write!(io::stderr(), "\r\x1b[2K");
-            let _ = io::stderr().flush();
+        if !self.enabled || self.stopped {
+            return;
         }
-        self.status = None;
-        self.states.clear();
+        self.stopped = true;
+        if !self.owns_session {
+            return;
+        }
+        if let Some(running) = self.running.take() {
+            running.store(false, Ordering::Release);
+        }
+        if let Some(worker) = self.worker.take() {
+            let _ = worker.join();
+        }
+        if let Some(controller) = self.controller.as_ref() {
+            if let Ok(mut state) = controller.state.lock() {
+                if state.has_content() {
+                    let _ = write!(io::stderr(), "\r\x1b[K\x1b[?25h");
+                    let _ = io::stderr().flush();
+                }
+                state.status = None;
+                state.states.clear();
+            }
+        }
+        ACTIVE_PROGRESS.with(|active| {
+            *active.borrow_mut() = None;
+        });
+    }
+
+    pub(crate) fn set_status(&mut self, status: Option<String>) {
+        let Some(controller) = self.controller.as_ref() else {
+            return;
+        };
+        let Ok(mut state) = controller.state.lock() else {
+            return;
+        };
+        state.status = status;
+        state.render();
     }
 
     fn set_state(&mut self, agent: UsageLoadAgent, state: LoadProgressState) {
-        if let Some((_, current)) = self
+        let Some(controller) = self.controller.as_ref() else {
+            return;
+        };
+        let Ok(mut progress_state) = controller.state.lock() else {
+            return;
+        };
+        if let Some((_, current)) = progress_state
             .states
             .iter_mut()
             .find(|(current_agent, _)| *current_agent == agent)
         {
             *current = state;
         } else {
-            self.states.push((agent, state));
+            progress_state.states.push((agent, state));
         }
-        self.refresh();
-    }
-
-    fn refresh(&self) {
-        if !self.enabled {
-            return;
-        }
-        let text = format_usage_load_progress_text(&self.states, self.status.as_deref());
-        let _ = write!(io::stderr(), "\r\x1b[2K{text}");
-        let _ = io::stderr().flush();
+        progress_state.render();
     }
 }
 
 impl Drop for UsageLoadProgress {
     fn drop(&mut self) {
         self.stop();
+    }
+}
+
+impl ProgressState {
+    fn has_content(&self) -> bool {
+        self.status.is_some() || !self.states.is_empty()
+    }
+
+    fn render(&mut self) {
+        if !self.has_content() {
+            return;
+        }
+        let text = format_usage_load_progress_text(&self.states, self.status.as_deref());
+        let frame = SPINNER_FRAMES[self.frame % SPINNER_FRAMES.len()];
+        self.frame = self.frame.wrapping_add(1);
+        let _ = write!(
+            io::stderr(),
+            "\r\x1b[K\x1b[?25l\x1b[36m{frame}\x1b[39m {text}"
+        );
+        let _ = io::stderr().flush();
     }
 }
 
@@ -152,6 +280,19 @@ pub(crate) fn track_usage_load<T, E>(
         Ok(_) => progress.succeed(agent),
         Err(_) => progress.fail(agent),
     }
+    progress.stop();
+    result
+}
+
+pub(crate) fn track_status<T>(
+    enabled: bool,
+    status: impl Into<String>,
+    run: impl FnOnce() -> T,
+) -> T {
+    let mut progress = UsageLoadProgress::new(enabled);
+    progress.set_status(Some(status.into()));
+    let result = run();
+    progress.set_status(None);
     progress.stop();
     result
 }
@@ -184,9 +325,17 @@ mod tests {
         assert_eq!(
             format_usage_load_progress_text(
                 &states,
-                Some("Fetching latest model pricing from LiteLLM...")
+                Some("Refreshing model pricing from LiteLLM...")
             ),
-            "Fetching latest model pricing from LiteLLM... :: Loading usage logs (0/2) :: Claude, Codex"
+            "Refreshing model pricing from LiteLLM... :: Loading usage logs (0/2) :: Claude, Codex"
+        );
+    }
+
+    #[test]
+    fn renders_standalone_status_without_usage_suffix() {
+        assert_eq!(
+            format_usage_load_progress_text(&[], Some("Refreshing model pricing from LiteLLM...")),
+            "Refreshing model pricing from LiteLLM..."
         );
     }
 

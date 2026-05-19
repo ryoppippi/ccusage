@@ -49,6 +49,7 @@ ccusage codex daily
 ccusage opencode weekly
 ccusage amp session
 ccusage pi monthly
+ccusage kilo daily
 ```
 
 ## Your First Report

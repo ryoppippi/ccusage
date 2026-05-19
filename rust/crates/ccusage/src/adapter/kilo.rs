@@ -9,7 +9,8 @@ use jiff::tz::TimeZone as JiffTimeZone;
 use serde_json::{json, Value};
 
 use crate::{
-    adapter::opencode, calculate_cost_for_usage,
+    adapter::opencode,
+    calculate_cost_for_usage,
     cli::{AgentCommandArgs, AgentReportKind, CostMode, WeekDay},
     debug_log, filter_loaded_entries_by_date, format_date_tz, json_value_u64,
     non_empty_json_string, parse_tz, print_json_or_jq, print_usage_table, sort_summaries,
@@ -318,9 +319,9 @@ fn calculate_kilo_cost(
 ) -> f64 {
     match mode {
         CostMode::Display => data.cost_usd.unwrap_or(0.0),
-        CostMode::Auto => data.cost_usd.unwrap_or_else(|| {
-            calculate_kilo_cost_from_tokens(data, provider, pricing)
-        }),
+        CostMode::Auto => data
+            .cost_usd
+            .unwrap_or_else(|| calculate_kilo_cost_from_tokens(data, provider, pricing)),
         CostMode::Calculate => calculate_kilo_cost_from_tokens(data, provider, pricing),
     }
 }

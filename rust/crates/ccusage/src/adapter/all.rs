@@ -3,12 +3,12 @@ use std::collections::{BTreeMap, BTreeSet};
 use serde_json::{json, Value};
 
 use crate::{
-    adapter::{amp, codex, copilot, kilo, opencode, pi},
+    adapter::{amp, codex, copilot, gemini, kilo, opencode, pi},
     cli::{AgentCommandArgs, AgentReportKind, CodexSpeed, SharedArgs, SortOrder, WeekDay},
     color, filter_loaded_entries_by_date, format_currency, format_models_multiline, format_number,
     json_float, print_box_title, print_json_or_jq, summarize_by_key, summarize_summaries_by_bucket,
-    wants_json, Align, BucketKind, CodexGroup, Color, LoadedEntry, PricingMap, Result, SimpleTable,
-    SessionAccumulator, UsageSummary,
+    wants_json, Align, BucketKind, CodexGroup, Color, LoadedEntry, PricingMap, Result,
+    SessionAccumulator, SimpleTable, UsageSummary,
 };
 
 #[derive(Debug, Clone)]
@@ -48,6 +48,25 @@ pub(crate) fn run(args: AgentCommandArgs) -> Result<()> {
 }
 
 fn load_rows(kind: AgentReportKind, shared: &SharedArgs) -> Result<AllLoadResult> {
+    let mut progress = crate::progress::UsageLoadProgress::new(
+        crate::log_level() != Some(0)
+            && crate::progress::should_show_usage_load_progress(
+                shared.json,
+                crate::progress::usage_load_output_is_tty(),
+            ),
+    );
+    for agent in [
+        crate::progress::UsageLoadAgent::Amp,
+        crate::progress::UsageLoadAgent::Claude,
+        crate::progress::UsageLoadAgent::Codex,
+        crate::progress::UsageLoadAgent::OpenCode,
+        crate::progress::UsageLoadAgent::Pi,
+        crate::progress::UsageLoadAgent::Kilo,
+        crate::progress::UsageLoadAgent::Copilot,
+        crate::progress::UsageLoadAgent::Gemini,
+    ] {
+        progress.start(agent);
+    }
     let pricing = PricingMap::load(shared.offline, crate::log_level() != Some(0));
     let mut detected_agents = Vec::new();
     if kind == AgentReportKind::Session {
@@ -85,14 +104,20 @@ fn load_rows(kind: AgentReportKind, shared: &SharedArgs) -> Result<AllLoadResult
         append_agent_rows(
             &mut rows,
             &mut detected_agents,
+            "kilo",
+            load_kilo_rows(AgentReportKind::Session, shared, &pricing)?,
+        );
+        append_agent_rows(
+            &mut rows,
+            &mut detected_agents,
             "copilot",
             load_copilot_rows(AgentReportKind::Session, shared, &pricing)?,
         );
         append_agent_rows(
             &mut rows,
             &mut detected_agents,
-            "kilo",
-            load_kilo_rows(AgentReportKind::Session, shared, &pricing)?,
+            "gemini",
+            load_gemini_rows(AgentReportKind::Session, shared, &pricing)?,
         );
         for row in &mut rows {
             row.metadata_agents = None;
@@ -138,14 +163,20 @@ fn load_rows(kind: AgentReportKind, shared: &SharedArgs) -> Result<AllLoadResult
     append_agent_rows(
         &mut rows,
         &mut detected_agents,
+        "kilo",
+        load_kilo_rows(AgentReportKind::Daily, shared, &pricing)?,
+    );
+    append_agent_rows(
+        &mut rows,
+        &mut detected_agents,
         "copilot",
         load_copilot_rows(AgentReportKind::Daily, shared, &pricing)?,
     );
     append_agent_rows(
         &mut rows,
         &mut detected_agents,
-        "kilo",
-        load_kilo_rows(AgentReportKind::Daily, shared, &pricing)?,
+        "gemini",
+        load_gemini_rows(AgentReportKind::Daily, shared, &pricing)?,
     );
 
     let mut aggregated = aggregate_rows(rows, kind);
@@ -198,7 +229,7 @@ fn load_codex_rows(
     Ok(AgentRows {
         rows: groups
             .iter()
-            .map(|(period, group)| codex_group_row(period, group, &pricing, speed))
+            .map(|(period, group)| codex_group_row(period, group, pricing, speed))
             .collect(),
         detected,
     })
@@ -273,6 +304,21 @@ fn load_kilo_rows(
     let summaries = kilo::summarize_entries(&entries, kind)?;
     Ok(AgentRows {
         rows: summary_rows("kilo", summaries),
+        detected,
+    })
+}
+
+fn load_gemini_rows(
+    kind: AgentReportKind,
+    shared: &SharedArgs,
+    pricing: &PricingMap,
+) -> Result<AgentRows> {
+    let mut entries = gemini::load_entries(shared, pricing)?;
+    let detected = !entries.is_empty();
+    filter_loaded_entries_by_date(&mut entries, shared);
+    let summaries = gemini::summarize_entries(&entries, kind)?;
+    Ok(AgentRows {
+        rows: summary_rows("gemini", summaries),
         detected,
     })
 }
@@ -560,13 +606,13 @@ fn print_table(
     shared: &SharedArgs,
     detected_agents: &[&'static str],
 ) {
+    print_box_title(&all_report_title(kind, rows, detected_agents), shared);
     if rows.is_empty() {
         eprintln!("No usage data found.");
         return;
     }
     let terminal_width = crate::terminal_width();
     let compact = shared.compact || terminal_width < crate::USAGE_COMPACT_WIDTH_THRESHOLD;
-    print_box_title(&all_report_title(kind, rows, detected_agents), shared);
     let (headers, aligns) = all_table_columns(kind, compact);
     let mut table = SimpleTable::new(headers, aligns, shared)
         .with_terminal_width(terminal_width)
@@ -634,11 +680,7 @@ fn print_table(
                 format_number(crate::json_value_u64(totals.get("cacheReadTokens"))),
                 Color::Yellow,
             ),
-            color(
-                shared,
-                format_number(table_total_tokens),
-                Color::Yellow,
-            ),
+            color(shared, format_number(table_total_tokens), Color::Yellow),
             color(
                 shared,
                 format_currency(
@@ -694,7 +736,11 @@ fn detected_agent_labels(rows: &[AllRow], detected_agents: &[&'static str]) -> S
     if agents.is_empty() {
         return "None".to_string();
     }
-    agents.into_iter().map(agent_label).collect::<Vec<_>>().join(", ")
+    agents
+        .into_iter()
+        .map(agent_label)
+        .collect::<Vec<_>>()
+        .join(", ")
 }
 
 fn all_table_row(row: &AllRow, compact: bool, breakdown: bool) -> Vec<String> {
@@ -823,6 +869,8 @@ fn agent_label(agent: &str) -> &str {
         "amp" => "Amp",
         "pi" => "pi-agent",
         "kilo" => "Kilo",
+        "copilot" => "GitHub Copilot CLI",
+        "gemini" => "Gemini CLI",
         _ => agent,
     }
 }
@@ -997,7 +1045,11 @@ mod tests {
             vec!["2026-01-02", "All", "", "100", "20", "$0.01"]
         );
         assert_eq!(
-            all_table_row(row.agent_breakdowns.as_ref().unwrap().first().unwrap(), true, true),
+            all_table_row(
+                row.agent_breakdowns.as_ref().unwrap().first().unwrap(),
+                true,
+                true
+            ),
             vec!["", "- Codex", "- gpt-5", "100", "20", "$0.01"]
         );
     }
