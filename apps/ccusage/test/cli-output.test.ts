@@ -6,13 +6,6 @@ import { fileURLToPath } from 'node:url';
 import { regex } from 'arkregex';
 import { createFixture } from 'fs-fixture';
 
-const appRoot = fileURLToPath(new URL('../', import.meta.url));
-const fixtureTemplatePath = fileURLToPath(new URL('./fixtures/claude', import.meta.url));
-const snapshotRoot = fileURLToPath(new URL('./snapshots/cli-output/', import.meta.url));
-const trailingNewlineRegex = regex('\n$');
-const trailingUnicodeNewlineRegex = regex('\n$', 'u');
-const fixtureDateRegex = regex('2026-01-02', 'gu');
-
 type DailyJsonOutput = {
 	daily: Array<{
 		agent: string;
@@ -214,7 +207,7 @@ function createAgentCliEnv(fixturePath: string): NodeJS.ProcessEnv {
 
 function runCcusage(args: string[], env: NodeJS.ProcessEnv): ReturnType<typeof spawnSync> {
 	return spawnSync('bun', ['./src/index.ts', ...args], {
-		cwd: appRoot,
+		cwd: fileURLToPath(new URL('../', import.meta.url)),
 		encoding: 'utf8',
 		env,
 	});
@@ -228,152 +221,232 @@ describe('ccusage output snapshots', () => {
 	it('matches daily JSON output', async () => {
 		const tempDir = path.join(tmpdir(), 'ccusage-cli-output-fixtures');
 		await mkdir(tempDir, { recursive: true });
-		await using fixture = await createFixture(fixtureTemplatePath, { tempDir });
+		await using fixture = await createFixture(
+			fileURLToPath(new URL('./fixtures/claude', import.meta.url)),
+			{
+				tempDir,
+			},
+		);
 
 		const result = spawnSync('bun', ['./src/index.ts', 'daily', '--offline', '--json'], {
-			cwd: appRoot,
+			cwd: fileURLToPath(new URL('../', import.meta.url)),
 			encoding: 'utf8',
 			env: await createCliEnv(fixture.path, tempDir),
 		});
 
 		expect(result.status).toBe(0);
 		expect(result.stderr).toBe('');
-		await mkdir(snapshotRoot, { recursive: true });
-		await expect(result.stdout.replace(trailingNewlineRegex, '')).toMatchFileSnapshot(
-			path.join(snapshotRoot, 'daily-json.txt'),
+		await mkdir(fileURLToPath(new URL('./snapshots/cli-output/', import.meta.url)), {
+			recursive: true,
+		});
+		await expect(result.stdout.replace(regex('\n$'), '')).toMatchFileSnapshot(
+			path.join(
+				fileURLToPath(new URL('./snapshots/cli-output/', import.meta.url)),
+				'daily-json.txt',
+			),
 		);
 	});
 
 	it('matches session JSON output', async () => {
 		const tempDir = path.join(tmpdir(), 'ccusage-cli-output-fixtures');
 		await mkdir(tempDir, { recursive: true });
-		await using fixture = await createFixture(fixtureTemplatePath, { tempDir });
+		await using fixture = await createFixture(
+			fileURLToPath(new URL('./fixtures/claude', import.meta.url)),
+			{
+				tempDir,
+			},
+		);
 
 		const result = spawnSync('bun', ['./src/index.ts', 'session', '--offline', '--json'], {
-			cwd: appRoot,
+			cwd: fileURLToPath(new URL('../', import.meta.url)),
 			encoding: 'utf8',
 			env: await createCliEnv(fixture.path, tempDir),
 		});
 
 		expect(result.status).toBe(0);
 		expect(result.stderr).toBe('');
-		await mkdir(snapshotRoot, { recursive: true });
-		await expect(result.stdout.replace(trailingNewlineRegex, '')).toMatchFileSnapshot(
-			path.join(snapshotRoot, 'session-json.txt'),
+		await mkdir(fileURLToPath(new URL('./snapshots/cli-output/', import.meta.url)), {
+			recursive: true,
+		});
+		await expect(result.stdout.replace(regex('\n$'), '')).toMatchFileSnapshot(
+			path.join(
+				fileURLToPath(new URL('./snapshots/cli-output/', import.meta.url)),
+				'session-json.txt',
+			),
 		);
 	});
 
 	it('matches blocks JSON output', async () => {
 		const tempDir = path.join(tmpdir(), 'ccusage-cli-output-fixtures');
 		await mkdir(tempDir, { recursive: true });
-		await using fixture = await createFixture(fixtureTemplatePath, { tempDir });
+		await using fixture = await createFixture(
+			fileURLToPath(new URL('./fixtures/claude', import.meta.url)),
+			{
+				tempDir,
+			},
+		);
 
 		const result = spawnSync('bun', ['./src/index.ts', 'blocks', '--offline', '--json'], {
-			cwd: appRoot,
+			cwd: fileURLToPath(new URL('../', import.meta.url)),
 			encoding: 'utf8',
 			env: await createCliEnv(fixture.path, tempDir),
 		});
 
 		expect(result.status).toBe(0);
 		expect(result.stderr).toBe('');
-		await mkdir(snapshotRoot, { recursive: true });
-		await expect(result.stdout.replace(trailingNewlineRegex, '')).toMatchFileSnapshot(
-			path.join(snapshotRoot, 'blocks-json.txt'),
+		await mkdir(fileURLToPath(new URL('./snapshots/cli-output/', import.meta.url)), {
+			recursive: true,
+		});
+		await expect(result.stdout.replace(regex('\n$'), '')).toMatchFileSnapshot(
+			path.join(
+				fileURLToPath(new URL('./snapshots/cli-output/', import.meta.url)),
+				'blocks-json.txt',
+			),
 		);
 	});
 
 	it('matches monthly JSON output', async () => {
 		const tempDir = path.join(tmpdir(), 'ccusage-cli-output-fixtures');
 		await mkdir(tempDir, { recursive: true });
-		await using fixture = await createFixture(fixtureTemplatePath, { tempDir });
+		await using fixture = await createFixture(
+			fileURLToPath(new URL('./fixtures/claude', import.meta.url)),
+			{
+				tempDir,
+			},
+		);
 
 		const result = spawnSync('bun', ['./src/index.ts', 'monthly', '--offline', '--json'], {
-			cwd: appRoot,
+			cwd: fileURLToPath(new URL('../', import.meta.url)),
 			encoding: 'utf8',
 			env: await createCliEnv(fixture.path, tempDir),
 		});
 
 		expect(result.status).toBe(0);
 		expect(result.stderr).toBe('');
-		await mkdir(snapshotRoot, { recursive: true });
-		await expect(result.stdout.replace(trailingNewlineRegex, '')).toMatchFileSnapshot(
-			path.join(snapshotRoot, 'monthly-json.txt'),
+		await mkdir(fileURLToPath(new URL('./snapshots/cli-output/', import.meta.url)), {
+			recursive: true,
+		});
+		await expect(result.stdout.replace(regex('\n$'), '')).toMatchFileSnapshot(
+			path.join(
+				fileURLToPath(new URL('./snapshots/cli-output/', import.meta.url)),
+				'monthly-json.txt',
+			),
 		);
 	});
 
 	it('matches weekly JSON output', async () => {
 		const tempDir = path.join(tmpdir(), 'ccusage-cli-output-fixtures');
 		await mkdir(tempDir, { recursive: true });
-		await using fixture = await createFixture(fixtureTemplatePath, { tempDir });
+		await using fixture = await createFixture(
+			fileURLToPath(new URL('./fixtures/claude', import.meta.url)),
+			{
+				tempDir,
+			},
+		);
 
 		const result = spawnSync('bun', ['./src/index.ts', 'weekly', '--offline', '--json'], {
-			cwd: appRoot,
+			cwd: fileURLToPath(new URL('../', import.meta.url)),
 			encoding: 'utf8',
 			env: await createCliEnv(fixture.path, tempDir),
 		});
 
 		expect(result.status).toBe(0);
 		expect(result.stderr).toBe('');
-		await mkdir(snapshotRoot, { recursive: true });
-		await expect(result.stdout.replace(trailingNewlineRegex, '')).toMatchFileSnapshot(
-			path.join(snapshotRoot, 'weekly-json.txt'),
+		await mkdir(fileURLToPath(new URL('./snapshots/cli-output/', import.meta.url)), {
+			recursive: true,
+		});
+		await expect(result.stdout.replace(regex('\n$'), '')).toMatchFileSnapshot(
+			path.join(
+				fileURLToPath(new URL('./snapshots/cli-output/', import.meta.url)),
+				'weekly-json.txt',
+			),
 		);
 	});
 
 	it('matches daily table output', async () => {
 		const tempDir = path.join(tmpdir(), 'ccusage-cli-output-fixtures');
 		await mkdir(tempDir, { recursive: true });
-		await using fixture = await createFixture(fixtureTemplatePath, { tempDir });
+		await using fixture = await createFixture(
+			fileURLToPath(new URL('./fixtures/claude', import.meta.url)),
+			{
+				tempDir,
+			},
+		);
 
 		const result = spawnSync('bun', ['./src/index.ts', 'daily', '--offline'], {
-			cwd: appRoot,
+			cwd: fileURLToPath(new URL('../', import.meta.url)),
 			encoding: 'utf8',
 			env: await createCliEnv(fixture.path, tempDir),
 		});
 
 		expect(result.status).toBe(0);
 		expect(result.stderr).toBe('');
-		await mkdir(snapshotRoot, { recursive: true });
-		await expect(result.stdout.replace(trailingNewlineRegex, '')).toMatchFileSnapshot(
-			path.join(snapshotRoot, 'daily-table.txt'),
+		await mkdir(fileURLToPath(new URL('./snapshots/cli-output/', import.meta.url)), {
+			recursive: true,
+		});
+		await expect(result.stdout.replace(regex('\n$'), '')).toMatchFileSnapshot(
+			path.join(
+				fileURLToPath(new URL('./snapshots/cli-output/', import.meta.url)),
+				'daily-table.txt',
+			),
 		);
 	});
 
 	it('matches session table output', async () => {
 		const tempDir = path.join(tmpdir(), 'ccusage-cli-output-fixtures');
 		await mkdir(tempDir, { recursive: true });
-		await using fixture = await createFixture(fixtureTemplatePath, { tempDir });
+		await using fixture = await createFixture(
+			fileURLToPath(new URL('./fixtures/claude', import.meta.url)),
+			{
+				tempDir,
+			},
+		);
 
 		const result = spawnSync('bun', ['./src/index.ts', 'session', '--offline'], {
-			cwd: appRoot,
+			cwd: fileURLToPath(new URL('../', import.meta.url)),
 			encoding: 'utf8',
 			env: await createCliEnv(fixture.path, tempDir),
 		});
 
 		expect(result.status).toBe(0);
 		expect(result.stderr).toBe('');
-		await mkdir(snapshotRoot, { recursive: true });
-		await expect(result.stdout.replace(trailingNewlineRegex, '')).toMatchFileSnapshot(
-			path.join(snapshotRoot, 'session-table.txt'),
+		await mkdir(fileURLToPath(new URL('./snapshots/cli-output/', import.meta.url)), {
+			recursive: true,
+		});
+		await expect(result.stdout.replace(regex('\n$'), '')).toMatchFileSnapshot(
+			path.join(
+				fileURLToPath(new URL('./snapshots/cli-output/', import.meta.url)),
+				'session-table.txt',
+			),
 		);
 	});
 
 	it('matches blocks table output', async () => {
 		const tempDir = path.join(tmpdir(), 'ccusage-cli-output-fixtures');
 		await mkdir(tempDir, { recursive: true });
-		await using fixture = await createFixture(fixtureTemplatePath, { tempDir });
+		await using fixture = await createFixture(
+			fileURLToPath(new URL('./fixtures/claude', import.meta.url)),
+			{
+				tempDir,
+			},
+		);
 
 		const result = spawnSync('bun', ['./src/index.ts', 'blocks', '--offline'], {
-			cwd: appRoot,
+			cwd: fileURLToPath(new URL('../', import.meta.url)),
 			encoding: 'utf8',
 			env: await createCliEnv(fixture.path, tempDir),
 		});
 
 		expect(result.status).toBe(0);
 		expect(result.stderr).toBe('');
-		await mkdir(snapshotRoot, { recursive: true });
-		await expect(result.stdout.replace(trailingNewlineRegex, '')).toMatchFileSnapshot(
-			path.join(snapshotRoot, 'blocks-table.txt'),
+		await mkdir(fileURLToPath(new URL('./snapshots/cli-output/', import.meta.url)), {
+			recursive: true,
+		});
+		await expect(result.stdout.replace(regex('\n$'), '')).toMatchFileSnapshot(
+			path.join(
+				fileURLToPath(new URL('./snapshots/cli-output/', import.meta.url)),
+				'blocks-table.txt',
+			),
 		);
 	});
 });
@@ -390,9 +463,16 @@ describe('ccusage all-agent CLI', () => {
 		expect(result.status).toBe(0);
 		expect(result.stderr).toBe('');
 
-		const stdout = getStdout(result).replace(trailingUnicodeNewlineRegex, '');
-		await mkdir(snapshotRoot, { recursive: true });
-		await expect(stdout).toMatchFileSnapshot(path.join(snapshotRoot, 'all-agent-daily-json.txt'));
+		const stdout = getStdout(result).replace(regex('\n$', 'u'), '');
+		await mkdir(fileURLToPath(new URL('./snapshots/cli-output/', import.meta.url)), {
+			recursive: true,
+		});
+		await expect(stdout).toMatchFileSnapshot(
+			path.join(
+				fileURLToPath(new URL('./snapshots/cli-output/', import.meta.url)),
+				'all-agent-daily-json.txt',
+			),
+		);
 
 		const output = JSON.parse(stdout) as DailyJsonOutput;
 		expect(output.daily).toHaveLength(1);
@@ -463,10 +543,15 @@ describe('ccusage all-agent CLI', () => {
 
 		expect(result.status).toBe(0);
 		expect(result.stderr).toBe('');
-		const stdout = getStdout(result).replace(trailingUnicodeNewlineRegex, '');
-		await mkdir(snapshotRoot, { recursive: true });
+		const stdout = getStdout(result).replace(regex('\n$', 'u'), '');
+		await mkdir(fileURLToPath(new URL('./snapshots/cli-output/', import.meta.url)), {
+			recursive: true,
+		});
 		await expect(stdout).toMatchFileSnapshot(
-			path.join(snapshotRoot, 'codex-direct-daily-json.txt'),
+			path.join(
+				fileURLToPath(new URL('./snapshots/cli-output/', import.meta.url)),
+				'codex-direct-daily-json.txt',
+			),
 		);
 
 		const output = JSON.parse(stdout) as {
@@ -491,10 +576,15 @@ describe('ccusage all-agent CLI', () => {
 
 		expect(result.status).toBe(0);
 		expect(result.stderr).toBe('');
-		const stdout = getStdout(result).replace(trailingUnicodeNewlineRegex, '');
-		await mkdir(snapshotRoot, { recursive: true });
+		const stdout = getStdout(result).replace(regex('\n$', 'u'), '');
+		await mkdir(fileURLToPath(new URL('./snapshots/cli-output/', import.meta.url)), {
+			recursive: true,
+		});
 		await expect(stdout).toMatchFileSnapshot(
-			path.join(snapshotRoot, 'claude-direct-daily-json.txt'),
+			path.join(
+				fileURLToPath(new URL('./snapshots/cli-output/', import.meta.url)),
+				'claude-direct-daily-json.txt',
+			),
 		);
 	});
 
@@ -508,9 +598,16 @@ describe('ccusage all-agent CLI', () => {
 
 		expect(result.status).toBe(0);
 		expect(result.stderr).toBe('');
-		const stdout = getStdout(result).replace(trailingUnicodeNewlineRegex, '');
-		await mkdir(snapshotRoot, { recursive: true });
-		await expect(stdout).toMatchFileSnapshot(path.join(snapshotRoot, 'pi-direct-daily-json.txt'));
+		const stdout = getStdout(result).replace(regex('\n$', 'u'), '');
+		await mkdir(fileURLToPath(new URL('./snapshots/cli-output/', import.meta.url)), {
+			recursive: true,
+		});
+		await expect(stdout).toMatchFileSnapshot(
+			path.join(
+				fileURLToPath(new URL('./snapshots/cli-output/', import.meta.url)),
+				'pi-direct-daily-json.txt',
+			),
+		);
 	});
 
 	it('passes offline mode through OpenCode namespaces without fetching pricing from the network', async () => {
@@ -520,9 +617,14 @@ describe('ccusage all-agent CLI', () => {
 
 		expect(result.status).toBe(0);
 		expect(result.stderr).toBe('');
-		await mkdir(snapshotRoot, { recursive: true });
-		await expect(getStdout(result).replace(trailingUnicodeNewlineRegex, '')).toMatchFileSnapshot(
-			path.join(snapshotRoot, 'opencode-direct-daily-json.txt'),
+		await mkdir(fileURLToPath(new URL('./snapshots/cli-output/', import.meta.url)), {
+			recursive: true,
+		});
+		await expect(getStdout(result).replace(regex('\n$', 'u'), '')).toMatchFileSnapshot(
+			path.join(
+				fileURLToPath(new URL('./snapshots/cli-output/', import.meta.url)),
+				'opencode-direct-daily-json.txt',
+			),
 		);
 	});
 
@@ -573,9 +675,16 @@ describe('ccusage all-agent CLI', () => {
 		expect(result.status).toBe(0);
 		expect(result.stderr).toBe('');
 
-		const stdout = getStdout(result).replace(trailingUnicodeNewlineRegex, '');
-		await mkdir(snapshotRoot, { recursive: true });
-		await expect(stdout).toMatchFileSnapshot(path.join(snapshotRoot, 'amp-direct-daily-json.txt'));
+		const stdout = getStdout(result).replace(regex('\n$', 'u'), '');
+		await mkdir(fileURLToPath(new URL('./snapshots/cli-output/', import.meta.url)), {
+			recursive: true,
+		});
+		await expect(stdout).toMatchFileSnapshot(
+			path.join(
+				fileURLToPath(new URL('./snapshots/cli-output/', import.meta.url)),
+				'amp-direct-daily-json.txt',
+			),
+		);
 
 		const output = JSON.parse(stdout) as {
 			daily: Array<{ totalTokens: number }>;
@@ -595,9 +704,16 @@ describe('ccusage all-agent CLI', () => {
 
 		expect(result.status).toBe(0);
 		expect(result.stderr).toBe('');
-		const output = getStdout(result).replace(trailingUnicodeNewlineRegex, '');
-		await mkdir(snapshotRoot, { recursive: true });
-		await expect(output).toMatchFileSnapshot(path.join(snapshotRoot, 'amp-direct-full-table.txt'));
+		const output = getStdout(result).replace(regex('\n$', 'u'), '');
+		await mkdir(fileURLToPath(new URL('./snapshots/cli-output/', import.meta.url)), {
+			recursive: true,
+		});
+		await expect(output).toMatchFileSnapshot(
+			path.join(
+				fileURLToPath(new URL('./snapshots/cli-output/', import.meta.url)),
+				'amp-direct-full-table.txt',
+			),
+		);
 		expect(output).not.toContain('Running in Compact Mode');
 		expect(output).toContain('Cache Create');
 		expect(output).toContain('Cache Read');
@@ -614,10 +730,15 @@ describe('ccusage all-agent CLI', () => {
 
 		expect(result.status).toBe(0);
 		expect(result.stderr).toBe('');
-		const output = getStdout(result).replace(trailingUnicodeNewlineRegex, '');
-		await mkdir(snapshotRoot, { recursive: true });
+		const output = getStdout(result).replace(regex('\n$', 'u'), '');
+		await mkdir(fileURLToPath(new URL('./snapshots/cli-output/', import.meta.url)), {
+			recursive: true,
+		});
 		await expect(output).toMatchFileSnapshot(
-			path.join(snapshotRoot, 'amp-direct-compact-table.txt'),
+			path.join(
+				fileURLToPath(new URL('./snapshots/cli-output/', import.meta.url)),
+				'amp-direct-compact-table.txt',
+			),
 		);
 		expect(output).toContain('Running in Compact Mode');
 		expect(output).toContain('Credits');
@@ -638,12 +759,19 @@ describe('ccusage all-agent CLI', () => {
 
 		expect(result.status).toBe(0);
 		expect(result.stderr).toBe('');
-		const output = getStdout(result).replace(trailingUnicodeNewlineRegex, '');
-		await mkdir(snapshotRoot, { recursive: true });
-		await expect(output).toMatchFileSnapshot(path.join(snapshotRoot, 'all-agent-daily-table.txt'));
+		const output = getStdout(result).replace(regex('\n$', 'u'), '');
+		await mkdir(fileURLToPath(new URL('./snapshots/cli-output/', import.meta.url)), {
+			recursive: true,
+		});
+		await expect(output).toMatchFileSnapshot(
+			path.join(
+				fileURLToPath(new URL('./snapshots/cli-output/', import.meta.url)),
+				'all-agent-daily-table.txt',
+			),
+		);
 		expect(output).toContain('Coding (Agent) CLI Usage Report - Daily');
 		expect(output).toContain('Detected: Amp, Claude, Codex, OpenCode, pi-agent');
-		expect(output.match(fixtureDateRegex)).toHaveLength(1);
+		expect(output.match(regex('2026-01-02', 'gu'))).toHaveLength(1);
 		expect(output).toContain('Amp');
 		expect(output).toContain('Codex');
 		expect(output).toContain('OpenCode');
