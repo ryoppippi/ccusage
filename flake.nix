@@ -140,7 +140,7 @@
           );
           update-pricing-fallback = pkgs.writeShellApplication {
             name = "update-pricing-fallback";
-            runtimeInputs = with pkgs; [ coreutils git jq ];
+            runtimeInputs = with pkgs; [ coreutils git jq oxfmt ];
             text = ''
               repo_root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
               target="$repo_root/rust/crates/ccusage/src/litellm-pricing-fallback.json"
@@ -150,13 +150,15 @@
               fi
               tmp="$(mktemp "$repo_root/rust/crates/ccusage/src/litellm-pricing-fallback.XXXXXX.json")"
               jq --tab -f ${./nix/pricing-fallback.jq} ${litellm-pricing} > "$tmp"
+              oxfmt --config ${./.oxfmtrc.json} --write "$tmp"
               mv "$tmp" "$target"
             '';
           };
           pricing-fallback-sync = pkgs.runCommand "pricing-fallback-sync" {
-            nativeBuildInputs = with pkgs; [ diffutils jq ];
+            nativeBuildInputs = with pkgs; [ diffutils jq oxfmt ];
           } ''
             jq --tab -f ${./nix/pricing-fallback.jq} ${litellm-pricing} > generated.json
+            oxfmt --config ${./.oxfmtrc.json} --write generated.json
             diff -u ${./rust/crates/ccusage/src/litellm-pricing-fallback.json} generated.json
             touch $out
           '';
