@@ -5,7 +5,21 @@ on:
   pull_request:
 
 jobs:
+  changes:
+    name: Detect code changes
+    runs-on: ubuntu-slim
+    outputs:
+      code-changed: ${{ steps.detect.outputs.code-changed }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+      - id: detect
+        uses: ./.github/actions/detect-code-changes
+
   lint-check:
+    needs: changes
+    if: needs.changes.outputs.code-changed == 'true'
     runs-on: ubuntu-24.04-arm
 
     steps:
@@ -15,6 +29,8 @@ jobs:
       - run: nix develop --command pnpm typecheck
 
   test:
+    needs: changes
+    if: needs.changes.outputs.code-changed == 'true'
     runs-on: ubuntu-24.04-arm
 
     steps:
@@ -27,6 +43,8 @@ jobs:
       - run: nix develop --command pnpm run test
 
   build-native-packages:
+    needs: changes
+    if: needs.changes.outputs.code-changed == 'true'
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     strategy:
@@ -105,7 +123,9 @@ jobs:
 
   npm-publish-dry-run-and-upload-pkg-pr-now:
     needs:
+      - changes
       - build-native-packages
+    if: needs.changes.outputs.code-changed == 'true'
     runs-on: ubuntu-24.04-arm
     outputs:
       urls: ${{ steps.publish.outputs.urls }}
@@ -127,8 +147,10 @@ jobs:
         run: nix develop --command pnpm pkg-pr-new publish --pnpm --bin './apps/ccusage' './packages/ccusage-*'
 
   ccusage-preview-e2e:
-    if: github.event_name == 'pull_request'
-    needs: npm-publish-dry-run-and-upload-pkg-pr-now
+    if: github.event_name == 'pull_request' && needs.changes.outputs.code-changed == 'true'
+    needs:
+      - changes
+      - npm-publish-dry-run-and-upload-pkg-pr-now
     runs-on: ${{ matrix.os }}
     timeout-minutes: 20
     strategy:
@@ -174,6 +196,8 @@ jobs:
       - run: nix develop --command typos --config ./typos.toml
 
   schema-check:
+    needs: changes
+    if: needs.changes.outputs.code-changed == 'true'
     runs-on: ubuntu-24.04-arm
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
