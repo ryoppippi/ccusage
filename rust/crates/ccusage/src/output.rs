@@ -16,13 +16,12 @@ pub(crate) fn wants_json(shared: &SharedArgs) -> bool {
 }
 
 pub(crate) fn summary_json(row: &UsageSummary) -> Value {
-    let total = row.total_tokens();
     let mut value = json!({
         "inputTokens": row.input_tokens,
         "outputTokens": row.output_tokens,
         "cacheCreationTokens": row.cache_creation_tokens,
         "cacheReadTokens": row.cache_read_tokens,
-        "totalTokens": total,
+        "totalTokens": row.total_tokens(),
         "totalCost": row.total_cost,
         "modelsUsed": row.models_used,
         "modelBreakdowns": row.model_breakdowns,
@@ -75,13 +74,13 @@ pub(crate) fn totals_json(rows: &[UsageSummary]) -> Value {
         .map(|row| row.cache_creation_tokens)
         .sum::<u64>();
     let cache_read = rows.iter().map(|row| row.cache_read_tokens).sum::<u64>();
-    let extra_total = rows.iter().map(|row| row.extra_total_tokens).sum::<u64>();
+    let extra = rows.iter().map(|row| row.extra_total_tokens).sum::<u64>();
     let mut value = json!({
         "inputTokens": input,
         "outputTokens": output,
         "cacheCreationTokens": cache_create,
         "cacheReadTokens": cache_read,
-        "totalTokens": input + output + cache_create + cache_read + extra_total,
+        "totalTokens": input + output + cache_create + cache_read + extra,
         "totalCost": rows.iter().map(|row| row.total_cost).sum::<f64>(),
     });
     let credits = rows.iter().filter_map(|row| row.credits).sum::<f64>();
@@ -283,7 +282,7 @@ pub(crate) fn print_usage_table(
             color(shared, format_number(cache_read), Color::Yellow),
             color(
                 shared,
-                format_number(rows.iter().map(UsageSummary::total_tokens).sum::<u64>()),
+                format_number(input + output + cache_create + cache_read),
                 Color::Yellow,
             ),
             color(shared, format_currency(total_cost), Color::Yellow),
@@ -335,8 +334,7 @@ fn push_breakdown_rows(
         let total = breakdown.input_tokens
             + breakdown.output_tokens
             + breakdown.cache_creation_tokens
-            + breakdown.cache_read_tokens
-            + breakdown.extra_total_tokens;
+            + breakdown.cache_read_tokens;
         let mut values = if compact {
             vec![
                 color(

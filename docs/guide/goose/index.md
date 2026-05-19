@@ -1,6 +1,6 @@
-# Goose
+# Goose Data Source (Experimental)
 
-ccusage can read Goose session usage from its local SQLite database. Goose is a local AI agent, and ccusage only opens the database read-only.
+Goose support is experimental. ccusage can read Goose session usage from its local SQLite database. Goose is a local AI agent, and ccusage only opens the database read-only.
 
 ## Quick Start
 

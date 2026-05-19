@@ -28,6 +28,10 @@ pub(crate) struct CcusageConfig {
     pub(crate) pi: Option<PiConfig>,
     /// Goose configuration.
     pub(crate) goose: Option<GooseConfig>,
+    /// GitHub Copilot CLI configuration.
+    pub(crate) copilot: Option<CopilotConfig>,
+    /// Gemini CLI configuration.
+    pub(crate) gemini: Option<GeminiConfig>,
 }
 
 #[derive(Debug, Default, Deserialize, JsonSchema)]
@@ -130,6 +134,36 @@ pub(crate) struct GooseConfig {
 #[derive(Debug, Default, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct GooseCommandsConfig {
+    pub(crate) daily: Option<SharedOptions>,
+    pub(crate) monthly: Option<SharedOptions>,
+    pub(crate) session: Option<SharedOptions>,
+}
+
+#[derive(Debug, Default, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct CopilotConfig {
+    pub(crate) defaults: Option<SharedOptions>,
+    pub(crate) commands: Option<CopilotCommandsConfig>,
+}
+
+#[derive(Debug, Default, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct CopilotCommandsConfig {
+    pub(crate) daily: Option<SharedOptions>,
+    pub(crate) monthly: Option<SharedOptions>,
+    pub(crate) session: Option<SharedOptions>,
+}
+
+#[derive(Debug, Default, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct GeminiConfig {
+    pub(crate) defaults: Option<SharedOptions>,
+    pub(crate) commands: Option<GeminiCommandsConfig>,
+}
+
+#[derive(Debug, Default, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct GeminiCommandsConfig {
     pub(crate) daily: Option<SharedOptions>,
     pub(crate) monthly: Option<SharedOptions>,
     pub(crate) session: Option<SharedOptions>,
@@ -482,6 +516,11 @@ pub(crate) fn generate_config_schema_json() -> String {
                         "defaults": {
                             "speed": "auto"
                         }
+                    },
+                    "gemini": {
+                        "defaults": {
+                            "offline": true
+                        }
                     }
                 }
             ]),
@@ -749,6 +788,10 @@ mod tests {
             property_ref(&schema, "GooseConfig", "defaults"),
             Some("#/definitions/SharedOptions")
         );
+        assert_eq!(
+            property_ref(&schema, "GeminiConfig", "defaults"),
+            Some("#/definitions/SharedOptions")
+        );
     }
 
     #[test]
@@ -772,8 +815,8 @@ mod tests {
             &schema,
             "ccusage-config",
             &[
-                "$schema", "amp", "claude", "codex", "commands", "defaults", "goose", "opencode",
-                "pi",
+                "$schema", "amp", "claude", "codex", "commands", "copilot", "defaults", "gemini",
+                "goose", "opencode", "pi",
             ],
         );
     }
@@ -845,6 +888,20 @@ mod tests {
             "goose": {
                 "commands": {
                     "daily": {
+                        "json": true
+                    }
+                }
+            },
+            "copilot": {
+                "commands": {
+                    "session": {
+                        "json": true
+                    }
+                }
+            },
+            "gemini": {
+                "commands": {
+                    "session": {
                         "json": true
                     }
                 }

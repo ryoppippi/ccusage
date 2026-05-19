@@ -49,7 +49,7 @@ impl UsageAccumulator {
     fn add_entry(&mut self, entry: &LoadedEntry) {
         let usage = entry.data.message.usage;
         self.counts.add_usage(usage);
-        self.counts.add_extra_total_tokens(entry.extra_total_tokens);
+        self.counts.extra_total_tokens += entry.extra_total_tokens;
         self.cost += entry.cost;
         if let Some(credits) = entry.credits {
             *self.credits.get_or_insert(0.0) += credits;
@@ -74,7 +74,6 @@ impl UsageAccumulator {
             breakdown.output_tokens += usage.output_tokens;
             breakdown.cache_creation_tokens += usage.cache_creation_input_tokens;
             breakdown.cache_read_tokens += usage.cache_read_input_tokens;
-            breakdown.extra_total_tokens += entry.extra_total_tokens;
             breakdown.cost += entry.cost;
         }
     }
@@ -232,7 +231,6 @@ fn aggregate_summaries(rows: &[&UsageSummary]) -> UsageSummary {
             breakdown.output_tokens += item.output_tokens;
             breakdown.cache_creation_tokens += item.cache_creation_tokens;
             breakdown.cache_read_tokens += item.cache_read_tokens;
-            breakdown.extra_total_tokens += item.extra_total_tokens;
             breakdown.cost += item.cost;
         }
     }

@@ -522,28 +522,84 @@
 			"type": "object"
 		},
 		"ConfigCodexSpeed": {
-			"enum": ["auto", "standard", "fast"],
+			"enum": [
+				"auto",
+				"standard",
+				"fast"
+			],
 			"type": "string"
 		},
 		"ConfigCostMode": {
-			"enum": ["auto", "calculate", "display"],
+			"enum": [
+				"auto",
+				"calculate",
+				"display"
+			],
 			"type": "string"
 		},
 		"ConfigCostSource": {
-			"enum": ["auto", "ccusage", "cc", "both"],
+			"enum": [
+				"auto",
+				"ccusage",
+				"cc",
+				"both"
+			],
 			"type": "string"
 		},
 		"ConfigSortOrder": {
-			"enum": ["desc", "asc"],
+			"enum": [
+				"desc",
+				"asc"
+			],
 			"type": "string"
 		},
 		"ConfigVisualBurnRate": {
-			"enum": ["off", "emoji", "text", "emoji-text"],
+			"enum": [
+				"off",
+				"emoji",
+				"text",
+				"emoji-text"
+			],
 			"type": "string"
 		},
 		"ConfigWeekDay": {
-			"enum": ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"],
+			"enum": [
+				"sunday",
+				"monday",
+				"tuesday",
+				"wednesday",
+				"thursday",
+				"friday",
+				"saturday"
+			],
 			"type": "string"
+		},
+		"CopilotCommandsConfig": {
+			"additionalProperties": false,
+			"properties": {
+				"daily": {
+					"$ref": "#/definitions/SharedOptions"
+				},
+				"monthly": {
+					"$ref": "#/definitions/SharedOptions"
+				},
+				"session": {
+					"$ref": "#/definitions/SharedOptions"
+				}
+			},
+			"type": "object"
+		},
+		"CopilotConfig": {
+			"additionalProperties": false,
+			"properties": {
+				"commands": {
+					"$ref": "#/definitions/CopilotCommandsConfig"
+				},
+				"defaults": {
+					"$ref": "#/definitions/SharedOptions"
+				}
+			},
+			"type": "object"
 		},
 		"DailyOptions": {
 			"additionalProperties": false,
@@ -657,6 +713,33 @@
 					"description": "Filter until date (inclusive).",
 					"markdownDescription": "Filter until date (inclusive).",
 					"type": "string"
+				}
+			},
+			"type": "object"
+		},
+		"GeminiCommandsConfig": {
+			"additionalProperties": false,
+			"properties": {
+				"daily": {
+					"$ref": "#/definitions/SharedOptions"
+				},
+				"monthly": {
+					"$ref": "#/definitions/SharedOptions"
+				},
+				"session": {
+					"$ref": "#/definitions/SharedOptions"
+				}
+			},
+			"type": "object"
+		},
+		"GeminiConfig": {
+			"additionalProperties": false,
+			"properties": {
+				"commands": {
+					"$ref": "#/definitions/GeminiCommandsConfig"
+				},
+				"defaults": {
+					"$ref": "#/definitions/SharedOptions"
 				}
 			},
 			"type": "object"
@@ -1226,6 +1309,15 @@
 					"description": "Command-specific configuration for all-agent reports.",
 					"markdownDescription": "Command-specific configuration for all-agent reports."
 				},
+				"copilot": {
+					"allOf": [
+						{
+							"$ref": "#/definitions/CopilotConfig"
+						}
+					],
+					"description": "GitHub Copilot CLI configuration.",
+					"markdownDescription": "GitHub Copilot CLI configuration."
+				},
 				"defaults": {
 					"allOf": [
 						{
@@ -1234,6 +1326,15 @@
 					],
 					"description": "Default values for all-agent reports and legacy Claude commands.",
 					"markdownDescription": "Default values for all-agent reports and legacy Claude commands."
+				},
+				"gemini": {
+					"allOf": [
+						{
+							"$ref": "#/definitions/GeminiConfig"
+						}
+					],
+					"description": "Gemini CLI configuration.",
+					"markdownDescription": "Gemini CLI configuration."
 				},
 				"goose": {
 					"allOf": [
@@ -1290,6 +1391,11 @@
 			"defaults": {
 				"json": false,
 				"timezone": "Asia/Tokyo"
+			},
+			"gemini": {
+				"defaults": {
+					"offline": true
+				}
 			}
 		}
 	],

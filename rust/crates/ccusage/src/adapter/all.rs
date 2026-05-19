@@ -3,7 +3,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use serde_json::{json, Value};
 
 use crate::{
-    adapter::{amp, codex, goose, opencode, pi},
+    adapter::{amp, codex, copilot, gemini, goose, opencode, pi},
     cli::{AgentCommandArgs, AgentReportKind, CodexSpeed, SharedArgs, SortOrder, WeekDay},
     color, filter_loaded_entries_by_date, format_currency, format_models_multiline, format_number,
     json_float, print_box_title, print_json_or_jq, summarize_by_key, summarize_summaries_by_bucket,
@@ -48,6 +48,25 @@ pub(crate) fn run(args: AgentCommandArgs) -> Result<()> {
 }
 
 fn load_rows(kind: AgentReportKind, shared: &SharedArgs) -> Result<AllLoadResult> {
+    let mut progress = crate::progress::UsageLoadProgress::new(
+        crate::log_level() != Some(0)
+            && crate::progress::should_show_usage_load_progress(
+                shared.json,
+                crate::progress::usage_load_output_is_tty(),
+            ),
+    );
+    for agent in [
+        crate::progress::UsageLoadAgent::Amp,
+        crate::progress::UsageLoadAgent::Claude,
+        crate::progress::UsageLoadAgent::Codex,
+        crate::progress::UsageLoadAgent::OpenCode,
+        crate::progress::UsageLoadAgent::Pi,
+        crate::progress::UsageLoadAgent::Goose,
+        crate::progress::UsageLoadAgent::Copilot,
+        crate::progress::UsageLoadAgent::Gemini,
+    ] {
+        progress.start(agent);
+    }
     let pricing = PricingMap::load(shared.offline, crate::log_level() != Some(0));
     let mut detected_agents = Vec::new();
     if kind == AgentReportKind::Session {
@@ -87,6 +106,18 @@ fn load_rows(kind: AgentReportKind, shared: &SharedArgs) -> Result<AllLoadResult
             &mut detected_agents,
             "goose",
             load_goose_rows(AgentReportKind::Session, shared, &pricing)?,
+        );
+        append_agent_rows(
+            &mut rows,
+            &mut detected_agents,
+            "copilot",
+            load_copilot_rows(AgentReportKind::Session, shared, &pricing)?,
+        );
+        append_agent_rows(
+            &mut rows,
+            &mut detected_agents,
+            "gemini",
+            load_gemini_rows(AgentReportKind::Session, shared, &pricing)?,
         );
         for row in &mut rows {
             row.metadata_agents = None;
@@ -134,6 +165,18 @@ fn load_rows(kind: AgentReportKind, shared: &SharedArgs) -> Result<AllLoadResult
         &mut detected_agents,
         "goose",
         load_goose_rows(AgentReportKind::Daily, shared, &pricing)?,
+    );
+    append_agent_rows(
+        &mut rows,
+        &mut detected_agents,
+        "copilot",
+        load_copilot_rows(AgentReportKind::Daily, shared, &pricing)?,
+    );
+    append_agent_rows(
+        &mut rows,
+        &mut detected_agents,
+        "gemini",
+        load_gemini_rows(AgentReportKind::Daily, shared, &pricing)?,
     );
 
     let mut aggregated = aggregate_rows(rows, kind);
@@ -186,7 +229,7 @@ fn load_codex_rows(
     Ok(AgentRows {
         rows: groups
             .iter()
-            .map(|(period, group)| codex_group_row(period, group, &pricing, speed))
+            .map(|(period, group)| codex_group_row(period, group, pricing, speed))
             .collect(),
         detected,
     })
@@ -235,6 +278,21 @@ fn load_pi_rows(kind: AgentReportKind, shared: &SharedArgs) -> Result<AgentRows>
     })
 }
 
+fn load_copilot_rows(
+    kind: AgentReportKind,
+    shared: &SharedArgs,
+    pricing: &PricingMap,
+) -> Result<AgentRows> {
+    let mut entries = copilot::load_entries(shared, pricing)?;
+    let detected = !entries.is_empty();
+    filter_loaded_entries_by_date(&mut entries, shared);
+    let summaries = copilot::summarize_entries(&entries, kind)?;
+    Ok(AgentRows {
+        rows: summary_rows("copilot", summaries),
+        detected,
+    })
+}
+
 fn load_goose_rows(
     kind: AgentReportKind,
     shared: &SharedArgs,
@@ -246,6 +304,21 @@ fn load_goose_rows(
     let summaries = goose::summarize_entries(&entries, kind)?;
     Ok(AgentRows {
         rows: summary_rows("goose", summaries),
+        detected,
+    })
+}
+
+fn load_gemini_rows(
+    kind: AgentReportKind,
+    shared: &SharedArgs,
+    pricing: &PricingMap,
+) -> Result<AgentRows> {
+    let mut entries = gemini::load_entries(shared, pricing)?;
+    let detected = !entries.is_empty();
+    filter_loaded_entries_by_date(&mut entries, shared);
+    let summaries = gemini::summarize_entries(&entries, kind)?;
+    Ok(AgentRows {
+        rows: summary_rows("gemini", summaries),
         detected,
     })
 }
@@ -533,13 +606,13 @@ fn print_table(
     shared: &SharedArgs,
     detected_agents: &[&'static str],
 ) {
+    print_box_title(&all_report_title(kind, rows, detected_agents), shared);
     if rows.is_empty() {
         eprintln!("No usage data found.");
         return;
     }
     let terminal_width = crate::terminal_width();
     let compact = shared.compact || terminal_width < crate::USAGE_COMPACT_WIDTH_THRESHOLD;
-    print_box_title(&all_report_title(kind, rows, detected_agents), shared);
     let (headers, aligns) = all_table_columns(kind, compact);
     let mut table = SimpleTable::new(headers, aligns, shared)
         .with_terminal_width(terminal_width)
@@ -714,12 +787,10 @@ fn all_table_row(row: &AllRow, compact: bool, breakdown: bool) -> Vec<String> {
 }
 
 fn table_total_tokens(row: &AllRow) -> u64 {
-    row.total_tokens.max(
-        row.input_tokens
-            .saturating_add(row.output_tokens)
-            .saturating_add(row.cache_creation_tokens)
-            .saturating_add(row.cache_read_tokens),
-    )
+    row.input_tokens
+        .saturating_add(row.output_tokens)
+        .saturating_add(row.cache_creation_tokens)
+        .saturating_add(row.cache_read_tokens)
 }
 
 fn all_table_columns(kind: AgentReportKind, compact: bool) -> (Vec<&'static str>, Vec<Align>) {
@@ -797,6 +868,9 @@ fn agent_label(agent: &str) -> &str {
         "opencode" => "OpenCode",
         "amp" => "Amp",
         "pi" => "pi-agent",
+        "goose" => "Goose",
+        "copilot" => "GitHub Copilot CLI",
+        "gemini" => "Gemini CLI",
         _ => agent,
     }
 }

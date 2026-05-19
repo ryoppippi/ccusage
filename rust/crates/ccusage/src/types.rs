@@ -60,10 +60,6 @@ impl TokenCounts {
         self.cache_read_tokens += usage.cache_read_input_tokens;
     }
 
-    pub(crate) fn add_extra_total_tokens(&mut self, tokens: u64) {
-        self.extra_total_tokens += tokens;
-    }
-
     pub(crate) fn total(&self) -> u64 {
         self.input_tokens
             + self.output_tokens
@@ -81,7 +77,6 @@ pub(crate) struct ModelBreakdown {
     pub(crate) output_tokens: u64,
     pub(crate) cache_creation_tokens: u64,
     pub(crate) cache_read_tokens: u64,
-    pub(crate) extra_total_tokens: u64,
     pub(crate) cost: f64,
 }
 
@@ -94,10 +89,10 @@ pub(crate) struct LoadedEntry {
     pub(crate) session_id: Arc<str>,
     pub(crate) project_path: Arc<str>,
     pub(crate) cost: f64,
+    pub(crate) extra_total_tokens: u64,
     pub(crate) credits: Option<f64>,
     pub(crate) model: Option<String>,
     pub(crate) usage_limit_reset_time: Option<TimestampMs>,
-    pub(crate) extra_total_tokens: u64,
 }
 
 #[derive(Debug)]
@@ -169,6 +164,7 @@ pub(crate) struct UsageSummary {
     pub(crate) output_tokens: u64,
     pub(crate) cache_creation_tokens: u64,
     pub(crate) cache_read_tokens: u64,
+    #[serde(skip_serializing)]
     pub(crate) extra_total_tokens: u64,
     pub(crate) total_cost: f64,
     pub(crate) credits: Option<f64>,

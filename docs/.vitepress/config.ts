@@ -74,6 +74,8 @@ export default defineConfig({
 						{ text: 'Amp', link: '/guide/amp/' },
 						{ text: 'pi-agent', link: '/guide/pi/' },
 						{ text: 'Goose', link: '/guide/goose/' },
+						{ text: 'GitHub Copilot CLI', link: '/guide/copilot/' },
+						{ text: 'Gemini CLI', link: '/guide/gemini/' },
 					],
 				},
 				{
