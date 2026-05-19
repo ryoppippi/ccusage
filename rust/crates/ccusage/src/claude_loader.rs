@@ -933,7 +933,11 @@ pub(crate) fn usage_files(paths: &[PathBuf], project_filter: Option<&str>) -> Ve
 }
 
 fn is_project_path_segment(value: &str) -> bool {
-    !value.is_empty() && !value.contains('/') && !value.contains('\\')
+    !value.is_empty()
+        && value != "."
+        && value != ".."
+        && !value.contains('/')
+        && !value.contains('\\')
 }
 
 pub(crate) fn collect_usage_files(dir: &Path, files: &mut Vec<PathBuf>) {
@@ -1040,7 +1044,9 @@ pub(crate) fn extract_session_parts(path: &Path) -> (String, String) {
 mod tests {
     use std::{fs, path::Path};
 
-    use super::{extract_session_parts, has_unsupported_null_field, usage_files};
+    use super::{
+        extract_session_parts, has_unsupported_null_field, is_project_path_segment, usage_files,
+    };
 
     fn temp_claude_dir(name: &str) -> std::path::PathBuf {
         let nanos = std::time::SystemTime::now()
@@ -1083,6 +1089,16 @@ mod tests {
         fs::remove_dir_all(&dir).unwrap();
 
         assert_eq!(files.len(), 2);
+    }
+
+    #[test]
+    fn rejects_dot_segments_as_project_path_segments() {
+        assert!(!is_project_path_segment(""));
+        assert!(!is_project_path_segment("."));
+        assert!(!is_project_path_segment(".."));
+        assert!(!is_project_path_segment("project-a/session-a"));
+        assert!(!is_project_path_segment("project-a\\session-a"));
+        assert!(is_project_path_segment("project-a"));
     }
 
     #[test]
