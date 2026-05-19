@@ -58,7 +58,8 @@ struct FastMultiplierOverrides {
 
 impl FastMultiplierOverrides {
     fn load() -> Self {
-        serde_json::from_str(FAST_MULTIPLIER_OVERRIDES_JSON).unwrap_or_default()
+        serde_json::from_str(FAST_MULTIPLIER_OVERRIDES_JSON)
+            .expect("parse embedded fast-multiplier-overrides.json")
     }
 
     fn multiplier_for(&self, model: &str) -> Option<f64> {
@@ -79,9 +80,10 @@ impl FastMultiplierOverrides {
 impl PricingMap {
     pub(crate) fn load_embedded() -> Self {
         let mut map = Self::default();
-        map.load_json(BUILD_TIME_PRICING_JSON);
-        map.load_json(FALLBACK_PRICING_JSON);
-        map.put_fallback_pricing();
+        let fast_multiplier_overrides = FastMultiplierOverrides::load();
+        map.load_json_with_overrides(BUILD_TIME_PRICING_JSON, &fast_multiplier_overrides);
+        map.load_json_with_overrides(FALLBACK_PRICING_JSON, &fast_multiplier_overrides);
+        map.put_fallback_pricing(&fast_multiplier_overrides);
         map
     }
 
@@ -113,10 +115,18 @@ impl PricingMap {
     }
 
     pub(crate) fn load_json(&mut self, json: &str) -> usize {
+        let fast_multiplier_overrides = FastMultiplierOverrides::load();
+        self.load_json_with_overrides(json, &fast_multiplier_overrides)
+    }
+
+    fn load_json_with_overrides(
+        &mut self,
+        json: &str,
+        fast_multiplier_overrides: &FastMultiplierOverrides,
+    ) -> usize {
         let Ok(raw) = serde_json::from_str::<HashMap<String, LiteLlmPricing>>(json) else {
             return 0;
         };
-        let fast_multiplier_overrides = FastMultiplierOverrides::load();
         let loaded_count = raw.len();
         for (model, pricing) in raw {
             let Some(input) = pricing.input_cost_per_token else {
@@ -186,8 +196,7 @@ impl PricingMap {
         self.entries.len()
     }
 
-    fn put_fallback_pricing(&mut self) {
-        let fast_multiplier_overrides = FastMultiplierOverrides::load();
+    fn put_fallback_pricing(&mut self, fast_multiplier_overrides: &FastMultiplierOverrides) {
         self.entries.insert(
             "claude-opus-4-5".to_string(),
             Pricing {
