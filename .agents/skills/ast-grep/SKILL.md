@@ -1,6 +1,6 @@
 ---
 name: ast-grep
-description: Guides ccusage structural code searches with ast-grep. Use when finding syntax patterns, validating migrations, or writing AST-based search commands.
+description: Guides ccusage structural code searches with ast-grep. Use when finding Rust or TypeScript syntax patterns, validating migrations, or writing AST-based search commands.
 ---
 
 # ast-grep
@@ -12,12 +12,14 @@ Use ast-grep when a search needs syntax structure rather than plain text. Prefer
 This repo provides `ast-grep` through `flake.nix`. Run commands from the Nix dev shell, or use `direnv exec .` when the shell is not already active:
 
 ```sh
+direnv exec . ast-grep run --lang rust --pattern 'println!($$$ARGS)' rust
 direnv exec . ast-grep run --lang ts --pattern '/$P/' --json=stream apps packages
 ```
 
 If `direnv` is unavailable and this is a one-off search, use comma as a fallback:
 
 ```sh
+, ast-grep run --lang rust --pattern 'println!($$$ARGS)' rust
 , ast-grep run --lang ts --pattern '/$P/' --json=stream apps packages
 ```
 
@@ -33,12 +35,14 @@ If `direnv` is unavailable and this is a one-off search, use comma as a fallback
 For quick pattern searches:
 
 ```sh
+ast-grep run --lang rust --pattern 'pub fn $NAME($$$ARGS) -> $RET { $$$BODY }' rust
 ast-grep run --lang ts --pattern 'console.log($ARG)' apps packages
 ```
 
 For JSON output that scripts can consume:
 
 ```sh
+ast-grep run --lang rust --pattern 'String::from($ARG)' --json=stream rust
 ast-grep run --lang ts --pattern '/$P/' --json=stream apps packages
 ```
 

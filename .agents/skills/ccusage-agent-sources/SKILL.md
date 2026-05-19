@@ -1,11 +1,12 @@
 ---
 name: ccusage-agent-sources
-description: Guides ccusage agent source work for Claude Code, Codex, OpenCode, Amp, and pi-agent parsers, log paths, token mappings, costs, and reports.
+description: Guides ccusage agent source work for Rust CLI parsers, log paths, token mappings, costs, reports, and adapter command behavior.
 ---
 
 # ccusage Agent Sources
 
-Use this skill when touching data loading, token normalization, cost calculation, or commands for any ccusage app.
+Use this skill when touching data loading, token normalization, cost calculation,
+or commands for any ccusage agent adapter.
 
 ## Shared Report Concepts
 
@@ -44,44 +45,60 @@ Read only the relevant reference before changing parser behavior, token mappings
 ## Implementation Notes
 
 - Treat Codex, OpenCode, Amp, and pi-agent as agent subcommands under the unified `ccusage` CLI.
-- Reuse shared packages such as `@ccusage/terminal`, `@ccusage/internal`, pricing helpers, and logging where appropriate.
+- Reuse shared Rust modules for rendering, table layout, logging, date formatting,
+  progress, pricing, file walking, and aggregation where appropriate.
 - Keep command names and flag semantics aligned unless the source data forces a difference.
 - Internal workspace runtime libraries for bundled/private packages belong in `devDependencies`.
 
 ## Adapter Layout
 
-New or migrated agent implementations belong under `apps/ccusage/src/adapter/<agent>/`.
-Keep agent-specific code there. Split files by responsibility when the implementation grows:
+New or migrated runtime agent implementations belong under
+`rust/crates/ccusage/src/adapter/<agent>/`. Keep agent-specific code there. Split
+files by responsibility when the implementation grows:
 
-- `index.ts` - thin public adapter surface: `detect<Agent>()`, `load<Agent>Rows()`, and high-level wiring.
-- `paths.ts` - environment variables, default directories, and path discovery.
-- `parser.ts` or `loader.ts` - raw log file discovery and parsing.
-- `schema.ts` - validation schemas and small normalization helpers.
-- `pricing.ts` or `pricing-macro.ts` - agent-specific pricing candidates, bundled pricing, or provider filters.
-- `types.ts` - source-local types when they are not shared outside the adapter.
+- `mod.rs` - public adapter surface and command wiring.
+- `paths.rs` - environment variables, default directories, and path discovery.
+- `parser.rs` - raw record parsing and token/model mapping.
+- `loader.rs` - file walking, SQLite reads, dedupe, and date filtering entry points.
+- `report.rs` - JSON/table row shaping when agent-specific.
+- `types.rs` - source-local types when they are not shared outside the adapter.
 
-For Rust work, use the `ccusage-rust` skill and mirror the same responsibility boundaries under `rust/crates/ccusage/src/adapter/<agent>/` where practical: `mod.rs`, `paths.rs`, `parser.rs`, `loader.rs`, and `report.rs`.
+Use `apps/ccusage/src` only for the remaining npm launcher, package scripts,
+schema artifacts, and benchmarks. Do not add new TypeScript runtime adapter
+logic unless the user explicitly scopes work to the package layer.
 
-When moving an existing loader into an adapter, update internal imports to the adapter path instead of adding compatibility re-export shims. Keep old root-level modules only when they are part of the package's declared public exports or are dedicated bundled worker entries. In `apps/ccusage`, `src/data-loader.ts` is a worker/build entry for the optimized Claude `data-loader` chunk from PR #984; do not put new source logic there.
+When moving an existing loader into an adapter, update internal imports to the
+adapter path instead of adding compatibility re-export shims. Keep old root-level
+modules only when they are part of the package's declared public exports or are
+dedicated packaging entries.
 
-Use shared ccusage foundation for rendering, table layout, logging, date formatting, progress, pricing fetcher lifecycle, JSONL walking, worker gating, worker spawn/result ordering, and aggregation wherever the source data permits. Agent adapters should mainly own source-specific log discovery, parsing, token mapping, model mapping, and source-specific metadata.
+Use shared ccusage foundation for rendering, table layout, logging, date
+formatting, progress, pricing fetcher lifecycle, JSONL walking, SQLite loading,
+dedupe, and aggregation wherever the source data permits. Agent adapters should
+mainly own source-specific log discovery, parsing, token mapping, model mapping,
+and source-specific metadata.
 
-Treat "same foundation as Claude" as more than shared file walking. JSONL adapters should use the shared byte marker scanner (`processJSONLFileByMarkers()`) when stable row markers exist, and high-volume worker paths should avoid returning large object arrays when typed-array transfer payloads or worker-side aggregation can preserve the same output.
+Treat "same foundation as Claude" as more than shared file walking. JSONL
+adapters should use shared scanning helpers when stable row markers exist, and
+high-volume paths should avoid returning large intermediate object vectors when
+worker-side aggregation or typed transfer payloads can preserve the same output.
 
-When several adapters expose the same raw-log shape, prefer a small helper such as `defineAgentLogLoader()` over duplicating period/session aggregation. Keep highly specialized loaders such as Codex worker parsing separate when their file format or pricing semantics require it.
-
-Before adding or changing an adapter, read `apps/ccusage/src/adapter/ARCHITECTURE.md` and keep the implementation aligned with its detect, load, parse, aggregate, and parent-return layers.
+When several adapters expose the same raw-log shape, prefer a small shared Rust
+helper over duplicating period/session aggregation. Keep highly specialized
+loaders such as Codex parsing separate when their file format or pricing
+semantics require it.
 
 ## Adapter Migration Checklist
 
 For each migrated or new agent:
 
-- Put all source-specific runtime logic under `apps/ccusage/src/adapter/<agent>/`.
-- Keep agent-specific package logic under `apps/ccusage/src/adapter/<agent>/`.
+- Put all source-specific runtime logic under `rust/crates/ccusage/src/adapter/<agent>/`.
 - Implement fast detection that short-circuits once a usable source file is found.
-- Use shared file walking, JSONL byte marker scanning where applicable, worker gating, logging, pricing fetcher lifecycle, date formatting, table rendering, and all-agent aggregation.
+- Use shared file walking, JSONL scanning where applicable, SQLite loading,
+  logging, pricing fetcher lifecycle, date formatting, table rendering, and
+  all-agent aggregation.
 - Keep adapter code responsible for source paths, raw parsing, token mapping, model mapping, source metadata, and agent-specific pricing.
-- Add fixture-backed tests for path discovery, parser behavior, aggregation totals, and important legacy compatibility.
+- Add Rust fixture-backed tests for path discovery, parser behavior, aggregation totals, and important legacy compatibility.
 - Add skipped local-data smoke tests when real user log directories are useful for catching schema drift.
 - Add or update CLI JSON assertions and table snapshots for affected report modes.
 - Audit every user-facing entrypoint that lists supported agents, commands, options, report modes, or examples. Update the root `README.md`, `apps/ccusage/README.md`, `docs/guide/`, and VitePress navigation when the adapter changes what users can run or discover. Use the `ccusage-docs` skill for docs conventions.

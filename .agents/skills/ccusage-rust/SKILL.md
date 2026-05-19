@@ -1,6 +1,6 @@
 ---
 name: ccusage-rust
-description: Guides ccusage Rust implementation work. Use when editing rust/crates, native packaging, Rust performance, parser/module layout, pricing embedding, or Rust/TypeScript parity.
+description: Guides ccusage Rust implementation work. Use when editing rust/crates, native packaging, parser/module layout, pricing embedding, or Rust/TypeScript parity.
 paths:
   - 'rust/**/*.rs'
   - 'rust/**/*.toml'
@@ -14,20 +14,26 @@ Use this skill for the native Rust CLI under `rust/crates/ccusage` and `rust/cra
 
 ## Source Parity
 
-Rust must match the TypeScript implementation on `origin/main` unless the user explicitly scopes a behavior change. Before implementing or refactoring an agent, inspect the corresponding TypeScript adapter:
+Rust is the production implementation. Preserve existing Rust behavior unless
+the user explicitly scopes a behavior change. Before implementing or refactoring
+an agent, inspect the current Rust adapter and the agent source reference docs:
 
 ```sh
-git ls-tree -r --name-only origin/main apps/ccusage/src/adapter
-git show origin/main:apps/ccusage/src/adapter/<agent>/index.ts
-git show origin/main:apps/ccusage/src/adapter/<agent>/parser.ts
-git show origin/main:apps/ccusage/src/adapter/<agent>/paths.ts
+fd . rust/crates/ccusage/src/adapter/<agent>
+sed -n '1,220p' .agents/skills/ccusage-agent-sources/references/<agent>.md
 ```
+
+When porting behavior from the historical TypeScript implementation, first find
+the relevant commit or tag that still contains `apps/ccusage/src/adapter`, then
+compare against that source. Do not assume `origin/main` still contains the
+TypeScript adapter.
 
 Preserve report semantics, JSON fields, table columns, progress/spinner text, agent grouping, date filtering, `--offline`, `CLAUDE_CONFIG_DIR`, and source-specific environment variables.
 
 ## Module Layout
 
-Do not keep growing `main.rs` or single large adapter files. Mirror the TypeScript responsibility boundaries where practical:
+Do not keep growing `main.rs` or single large adapter files. Use these
+responsibility boundaries where practical:
 
 - `adapter/<agent>/mod.rs` - public adapter surface and command wiring.
 - `adapter/<agent>/paths.rs` - environment variables, defaults, and path discovery.
@@ -51,28 +57,10 @@ When changing pricing:
 - Load the generated build-time snapshot first, then fallback pricing, then runtime fetch when not `--offline`.
 - Add tests for embedded/offline pricing and context limits.
 
-## Performance
-
-Read the local Rust Performance Book clone before non-trivial optimization:
-
-```text
-/Users/ryoppippi/ghq/github.com/nnethercote/perf-book/src/profiling.md
-/Users/ryoppippi/ghq/github.com/nnethercote/perf-book/src/io.md
-/Users/ryoppippi/ghq/github.com/nnethercote/perf-book/src/heap-allocations.md
-/Users/ryoppippi/ghq/github.com/nnethercote/perf-book/src/parallelism.md
-/Users/ryoppippi/ghq/github.com/nnethercote/perf-book/src/type-sizes.md
-```
-
-Profile before committing an optimization. Validate with end-to-end `hyperfine` and JSON/table parity, not only microbenchmarks.
-
-For ccusage workloads, check:
-
-- I/O count and buffering before CPU-only tweaks.
-- Avoid unnecessary `String` allocation and cloning on hot paths; prefer borrowed `&str`, `Arc<str>`, or typed summaries where ownership is needed.
-- Avoid returning large intermediate object vectors when worker-side aggregation or typed transfer payloads can preserve output.
-- Use parallelism only when it improves end-to-end command time on real fixture shapes.
-- Keep binary size visible when adding dependencies or enabling features.
-
 ## Validation
 
-Use the `ccusage-testing` skill for Rust test commands. For perf or parity work, compare against `origin/main` TypeScript output for a stable fixture window before changing behavior.
+Use the `ccusage-testing` skill for Rust test commands. Use
+`ccusage-rust-profile` for performance work and branch-vs-main comparisons. For
+parity work, compare against the current main branch, a previous release, or a
+pinned historical TypeScript commit for a stable fixture window before changing
+behavior.

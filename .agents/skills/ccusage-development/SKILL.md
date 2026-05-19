@@ -12,6 +12,10 @@ This is a monorepo. Check the nearest package-specific `CLAUDE.md` before editin
 - `apps/ccusage/CLAUDE.md` - main Claude Code usage CLI and library
 - `docs/CLAUDE.md` - VitePress documentation site
 
+The production CLI implementation is Rust-first under `rust/crates/ccusage`.
+The `apps/ccusage` package now mainly provides npm metadata, a TypeScript bin
+launcher, generated schema artifacts, benchmarks, and release packaging.
+
 The canonical user-facing command is `ccusage` with agent subcommands:
 
 ```sh
@@ -24,7 +28,10 @@ ccusage pi daily
 
 Standalone agent wrapper packages have been removed. Prefer `ccusage <agent> ...` in docs, tests, examples, and new behavior, and do not reintroduce wrapper commands such as `ccusage-codex`, `ccusage-opencode`, `ccusage-amp`, or `ccusage-pi`.
 
-Agent implementations live inside the bundled `ccusage` package. Treat runtime libraries as bundled assets: add dependencies to each package's `devDependencies` unless the user explicitly asks otherwise.
+Agent implementations live in the Rust CLI unless the work is specifically about
+the remaining TypeScript package surface. Treat package runtime libraries as
+bundled assets: add dependencies to each package's `devDependencies` unless the
+user explicitly asks otherwise.
 
 ## Common Commands
 
@@ -46,14 +53,15 @@ Tools are managed by `flake.nix` and `package.json`. Use `comma` or `nix run` fo
 
 ## Code Style
 
-- Use TypeScript strict-mode patterns already present in the package.
-- Prefer `satisfies` and `as const satisfies` over unsafe `as` assertions; use the `typescript-style` skill for details.
-- Use the `ccusage-rust` skill before editing `rust/crates/**`, native packaging behavior, Rust pricing embedding, or Rust performance work.
-- Use `.ts` extensions for local imports.
-- Use Node path utilities for file paths.
-- Use `logger.ts` instead of `console.log`.
-- Prefer `@praha/byethrow` Result patterns for functional error handling; use the `byethrow` skill for details.
-- Use Gunshi for CLI commands; use the `use-gunshi-cli` skill for details.
+- For Rust CLI work, use the `ccusage-rust` skill before editing `rust/crates/**`,
+  native packaging behavior, or Rust pricing embedding. Use
+  `ccusage-rust-profile` for Rust performance work.
+- Keep Rust modules small and responsibility-focused. Prefer `pub(crate)` over
+  broader visibility, avoid unnecessary `String` cloning in hot paths, and put
+  unit tests beside the module they exercise.
+- For TypeScript package/tooling code, use the `ccusage-typescript` skill and
+  `typescript-style` before editing. Keep `satisfies` and `as const satisfies`
+  guidance there instead of mixing TypeScript details into Rust workflow rules.
 - Only export constants, functions, and types used by other modules.
 - Keep internal-only files and helpers private where possible.
 - Dependency additions go in `devDependencies` for bundled/private packages.
@@ -77,7 +85,9 @@ For package-local work, run the narrower package scripts during iteration when t
 
 ## Performance and CLI Output
 
-Use the `bun-cpu-profile` skill for performance optimization, Bun CPU profiles, hyperfine A/B comparisons, and branch-vs-main profiling.
+Use `ccusage-rust-profile` for native CLI performance optimization, Rust
+profiling, hyperfine A/B comparisons, and branch-vs-main profiling. Use
+`bun-cpu-profile` for TypeScript launcher, benchmark, or packaging scripts.
 
 Use the `cmux-debug` skill when validating terminal rendering, responsive tables, long-running CLI output, or output that depends on real terminal geometry.
 

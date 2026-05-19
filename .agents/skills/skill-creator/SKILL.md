@@ -57,7 +57,7 @@ For this repo, prefer one or two short sentences, usually around 20-35 words. Do
 Good pattern:
 
 ```yaml
-description: Guides ccusage tests. Use when adding or fixing in-source Vitest, fs-fixture data, CLI snapshots, Claude model pricing, or LiteLLM compatibility.
+description: Guides ccusage Rust tests. Use when adding or fixing cargo tests, CLI snapshots, Claude model pricing, LiteLLM compatibility, or Rust fixture-backed parser and loader tests.
 ```
 
 Weak pattern:
