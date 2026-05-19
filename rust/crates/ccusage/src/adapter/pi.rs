@@ -225,11 +225,11 @@ pub(crate) fn read_session_file(
             session_id: Arc::from(session_id.as_str()),
             project_path: Arc::from(project.as_str()),
             cost,
+            extra_total_tokens: 0,
             credits: None,
             model,
             data,
             usage_limit_reset_time: None,
-            extra_total_tokens: 0,
         });
     }
     Ok(entries)

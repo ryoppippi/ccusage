@@ -74,6 +74,8 @@ export default defineConfig({
 						{ text: 'Amp', link: '/guide/amp/' },
 						{ text: 'pi-agent', link: '/guide/pi/' },
 						{ text: 'Qwen', link: '/guide/qwen/' },
+						{ text: 'GitHub Copilot CLI', link: '/guide/copilot/' },
+						{ text: 'Gemini CLI', link: '/guide/gemini/' },
 					],
 				},
 				{

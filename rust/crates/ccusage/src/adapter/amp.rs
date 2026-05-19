@@ -224,10 +224,10 @@ pub(crate) fn read_thread_file(
             session_id: Arc::from(thread_id.as_str()),
             project_path: Arc::from("Amp"),
             cost,
+            extra_total_tokens: 0,
             credits: json_value_f64(event.get("credits")),
             model: Some(model),
             usage_limit_reset_time: None,
-            extra_total_tokens: 0,
             data,
         });
     }

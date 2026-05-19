@@ -3,7 +3,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use serde_json::{json, Value};
 
 use crate::{
-    adapter::{amp, codex, opencode, pi, qwen},
+    adapter::{amp, codex, copilot, gemini, opencode, pi, qwen},
     cli::{AgentCommandArgs, AgentReportKind, CodexSpeed, SharedArgs, SortOrder, WeekDay},
     color, filter_loaded_entries_by_date, format_currency, format_models_multiline, format_number,
     json_float, print_box_title, print_json_or_jq, summarize_by_key, summarize_summaries_by_bucket,
@@ -48,6 +48,25 @@ pub(crate) fn run(args: AgentCommandArgs) -> Result<()> {
 }
 
 fn load_rows(kind: AgentReportKind, shared: &SharedArgs) -> Result<AllLoadResult> {
+    let mut progress = crate::progress::UsageLoadProgress::new(
+        crate::log_level() != Some(0)
+            && crate::progress::should_show_usage_load_progress(
+                shared.json,
+                crate::progress::usage_load_output_is_tty(),
+            ),
+    );
+    for agent in [
+        crate::progress::UsageLoadAgent::Amp,
+        crate::progress::UsageLoadAgent::Claude,
+        crate::progress::UsageLoadAgent::Codex,
+        crate::progress::UsageLoadAgent::OpenCode,
+        crate::progress::UsageLoadAgent::Pi,
+        crate::progress::UsageLoadAgent::Qwen,
+        crate::progress::UsageLoadAgent::Copilot,
+        crate::progress::UsageLoadAgent::Gemini,
+    ] {
+        progress.start(agent);
+    }
     let pricing = PricingMap::load(shared.offline, crate::log_level() != Some(0));
     let mut detected_agents = Vec::new();
     if kind == AgentReportKind::Session {
@@ -87,6 +106,18 @@ fn load_rows(kind: AgentReportKind, shared: &SharedArgs) -> Result<AllLoadResult
             &mut detected_agents,
             "qwen",
             load_qwen_rows(AgentReportKind::Session, shared)?,
+        );
+        append_agent_rows(
+            &mut rows,
+            &mut detected_agents,
+            "copilot",
+            load_copilot_rows(AgentReportKind::Session, shared, &pricing)?,
+        );
+        append_agent_rows(
+            &mut rows,
+            &mut detected_agents,
+            "gemini",
+            load_gemini_rows(AgentReportKind::Session, shared, &pricing)?,
         );
         for row in &mut rows {
             row.metadata_agents = None;
@@ -134,6 +165,18 @@ fn load_rows(kind: AgentReportKind, shared: &SharedArgs) -> Result<AllLoadResult
         &mut detected_agents,
         "qwen",
         load_qwen_rows(AgentReportKind::Daily, shared)?,
+    );
+    append_agent_rows(
+        &mut rows,
+        &mut detected_agents,
+        "copilot",
+        load_copilot_rows(AgentReportKind::Daily, shared, &pricing)?,
+    );
+    append_agent_rows(
+        &mut rows,
+        &mut detected_agents,
+        "gemini",
+        load_gemini_rows(AgentReportKind::Daily, shared, &pricing)?,
     );
 
     let mut aggregated = aggregate_rows(rows, kind);
@@ -186,7 +229,7 @@ fn load_codex_rows(
     Ok(AgentRows {
         rows: groups
             .iter()
-            .map(|(period, group)| codex_group_row(period, group, &pricing, speed))
+            .map(|(period, group)| codex_group_row(period, group, pricing, speed))
             .collect(),
         detected,
     })
@@ -235,6 +278,21 @@ fn load_pi_rows(kind: AgentReportKind, shared: &SharedArgs) -> Result<AgentRows>
     })
 }
 
+fn load_copilot_rows(
+    kind: AgentReportKind,
+    shared: &SharedArgs,
+    pricing: &PricingMap,
+) -> Result<AgentRows> {
+    let mut entries = copilot::load_entries(shared, pricing)?;
+    let detected = !entries.is_empty();
+    filter_loaded_entries_by_date(&mut entries, shared);
+    let summaries = copilot::summarize_entries(&entries, kind)?;
+    Ok(AgentRows {
+        rows: summary_rows("copilot", summaries),
+        detected,
+    })
+}
+
 fn load_qwen_rows(kind: AgentReportKind, shared: &SharedArgs) -> Result<AgentRows> {
     let mut entries = qwen::load_entries(shared)?;
     let detected = !entries.is_empty() || qwen::has_data();
@@ -248,6 +306,21 @@ fn load_qwen_rows(kind: AgentReportKind, shared: &SharedArgs) -> Result<AgentRow
     };
     Ok(AgentRows {
         rows: summary_rows("qwen", summaries),
+        detected,
+    })
+}
+
+fn load_gemini_rows(
+    kind: AgentReportKind,
+    shared: &SharedArgs,
+    pricing: &PricingMap,
+) -> Result<AgentRows> {
+    let mut entries = gemini::load_entries(shared, pricing)?;
+    let detected = !entries.is_empty();
+    filter_loaded_entries_by_date(&mut entries, shared);
+    let summaries = gemini::summarize_entries(&entries, kind)?;
+    Ok(AgentRows {
+        rows: summary_rows("gemini", summaries),
         detected,
     })
 }
@@ -535,13 +608,13 @@ fn print_table(
     shared: &SharedArgs,
     detected_agents: &[&'static str],
 ) {
+    print_box_title(&all_report_title(kind, rows, detected_agents), shared);
     if rows.is_empty() {
         eprintln!("No usage data found.");
         return;
     }
     let terminal_width = crate::terminal_width();
     let compact = shared.compact || terminal_width < crate::USAGE_COMPACT_WIDTH_THRESHOLD;
-    print_box_title(&all_report_title(kind, rows, detected_agents), shared);
     let (headers, aligns) = all_table_columns(kind, compact);
     let mut table = SimpleTable::new(headers, aligns, shared)
         .with_terminal_width(terminal_width)
@@ -798,6 +871,8 @@ fn agent_label(agent: &str) -> &str {
         "amp" => "Amp",
         "pi" => "pi-agent",
         "qwen" => "Qwen",
+        "copilot" => "GitHub Copilot CLI",
+        "gemini" => "Gemini CLI",
         _ => agent,
     }
 }
