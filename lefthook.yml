@@ -65,3 +65,10 @@ pre-push:
     - name: vitest related
       glob: '*.{ts,tsx,js,jsx,mjs,cjs}'
       run: pnpm vitest related --run {push_files}
+
+    - name: cargo test
+      glob:
+        - 'rust/**/*.rs'
+        - 'rust/**/Cargo.toml'
+        - 'rust/Cargo.lock'
+      run: cargo test --manifest-path rust/Cargo.toml --workspace
