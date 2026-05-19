@@ -1,4 +1,4 @@
-# Hermes Agent Data Source (Beta)
+# Hermes Agent Data Source (Experimental)
 
 > Hermes Agent support is experimental. Expect changes while both ccusage and [Hermes Agent](https://github.com/NousResearch/hermes-agent) continue to evolve.
 
@@ -66,5 +66,5 @@ Ensure the database exists at `$HERMES_HOME/state.db` or `~/.hermes/state.db`. I
 :::
 
 ::: details Costs showing as $0.00
-If Hermes has no recorded cost and a model is not in LiteLLM's database, the calculated cost will be $0.00.
+If Hermes has no recorded cost and a model is not in LiteLLM or ccusage's bundled fallback pricing, the calculated cost will be $0.00.
 :::

@@ -28,6 +28,8 @@ pub(crate) struct CcusageConfig {
     pub(crate) hermes: Option<HermesConfig>,
     /// pi-agent configuration.
     pub(crate) pi: Option<PiConfig>,
+    /// Kilo configuration.
+    pub(crate) kilo: Option<KiloConfig>,
     /// GitHub Copilot CLI configuration.
     pub(crate) copilot: Option<CopilotConfig>,
     /// Gemini CLI configuration.
@@ -137,6 +139,21 @@ pub(crate) struct PiCommandsConfig {
     pub(crate) daily: Option<PiOptions>,
     pub(crate) monthly: Option<PiOptions>,
     pub(crate) session: Option<PiOptions>,
+}
+
+#[derive(Debug, Default, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct KiloConfig {
+    pub(crate) defaults: Option<SharedOptions>,
+    pub(crate) commands: Option<KiloCommandsConfig>,
+}
+
+#[derive(Debug, Default, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct KiloCommandsConfig {
+    pub(crate) daily: Option<SharedOptions>,
+    pub(crate) monthly: Option<SharedOptions>,
+    pub(crate) session: Option<SharedOptions>,
 }
 
 #[derive(Debug, Default, Deserialize, JsonSchema)]
@@ -781,12 +798,12 @@ mod tests {
             Some("#/definitions/SharedOptions")
         );
         assert_eq!(
-            property_ref(&schema, "HermesConfig", "defaults"),
-            Some("#/definitions/SharedOptions")
-        );
-        assert_eq!(
             property_ref(&schema, "PiConfig", "defaults"),
             Some("#/definitions/PiOptions")
+        );
+        assert_eq!(
+            property_ref(&schema, "KiloConfig", "defaults"),
+            Some("#/definitions/SharedOptions")
         );
         assert_eq!(
             property_ref(&schema, "GeminiConfig", "defaults"),
@@ -816,7 +833,7 @@ mod tests {
             "ccusage-config",
             &[
                 "$schema", "amp", "claude", "codex", "commands", "copilot", "defaults", "gemini",
-                "hermes", "opencode", "pi",
+                "hermes", "kilo", "opencode", "pi",
             ],
         );
     }
@@ -878,6 +895,13 @@ mod tests {
                     }
                 }
             },
+            "pi": {
+                "commands": {
+                    "daily": {
+                        "piPath": "/tmp/pi-sessions"
+                    }
+                }
+            },
             "hermes": {
                 "commands": {
                     "daily": {
@@ -885,10 +909,10 @@ mod tests {
                     }
                 }
             },
-            "pi": {
+            "kilo": {
                 "commands": {
                     "daily": {
-                        "piPath": "/tmp/pi-sessions"
+                        "json": true
                     }
                 }
             },
