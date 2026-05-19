@@ -50,6 +50,7 @@ ccusage daily --mode display --timezone UTC
 
 ```bash
 export CODEX_HOME="$HOME/.codex"
+export GEMINI_DATA_DIR="$HOME/.gemini/tmp"
 export OPENCODE_DATA_DIR="$HOME/.local/share/opencode"
 export AMP_DATA_DIR="$HOME/.local/share/amp"
 export PI_AGENT_DIR="$HOME/.pi/agent/sessions"
@@ -60,6 +61,7 @@ Use comma-separated directories when you want reports to combine multiple profil
 
 ```bash
 export CODEX_HOME="$HOME/.codex,$HOME/.codex-work"
+export GEMINI_DATA_DIR="$HOME/.gemini/tmp,/backup/gemini/tmp"
 export OPENCODE_DATA_DIR="$HOME/.local/share/opencode,/archive/opencode"
 ```
 
@@ -105,7 +107,7 @@ For individual developers working on multiple projects:
 
 ### Multiple Sources
 
-Configure Claude Code, Codex, OpenCode, Amp, pi-agent, and GitHub Copilot CLI separately with data source namespaces:
+Configure Claude Code, Codex, OpenCode, Amp, pi-agent, GitHub Copilot CLI, and Gemini CLI separately with data source namespaces:
 
 ```json
 // ~/.config/claude/ccusage.json

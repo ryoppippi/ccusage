@@ -585,9 +585,9 @@ mod tests {
             },
         );
 
-        assert!(lines.iter().any(|line| line.contains(
-            "Coding (Agent) CLI Usage Report - Daily"
-        )));
+        assert!(lines
+            .iter()
+            .any(|line| line.contains("Coding (Agent) CLI Usage Report - Daily")));
         assert!(lines
             .iter()
             .any(|line| line.contains("Detected: Claude, Codex")));

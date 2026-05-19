@@ -28,9 +28,7 @@ pub(crate) use claude_loader::{
     chunk_file_indexes_by_size, collect_files_with_extension, collect_usage_files,
     filter_loaded_entries_by_date, load_daily_summaries, load_entries,
 };
-pub(crate) use codex_loader::{
-    codex_usage_paths, load_codex_events, visit_codex_session_file,
-};
+pub(crate) use codex_loader::{codex_usage_paths, load_codex_events, visit_codex_session_file};
 pub(crate) use cost::{calculate_cost, calculate_cost_for_usage};
 pub(crate) use date_utils::*;
 pub(crate) use logger::{debug_log, log_level};
@@ -47,7 +45,7 @@ pub(crate) use summary::{
 pub(crate) use types::*;
 pub(crate) use utils::{json_value_u64, non_empty_json_string, total_usage_tokens};
 
-use ccusage_terminal::{TerminalStyle, terminal_width};
+use ccusage_terminal::{terminal_width, TerminalStyle};
 pub(crate) use ccusage_terminal::{Align, Color, SimpleTable};
 use cli::{AgentCommandArgs, AgentReportKind, Cli, Command};
 use pricing::PricingMap;
@@ -135,6 +133,7 @@ fn main() -> Result<()> {
         Some(Command::Amp(args)) => adapter::amp::run(args),
         Some(Command::Pi(args)) => adapter::pi::run(args),
         Some(Command::Copilot(args)) => adapter::copilot::run(args),
+        Some(Command::Gemini(args)) => adapter::gemini::run(args),
         None => {
             let args = AgentCommandArgs {
                 shared: cli.shared,
@@ -455,10 +454,7 @@ mod tests {
         .unwrap();
         assert_eq!(
             daily.iter().map(summary_json).collect::<Vec<_>>(),
-            expected_daily
-                .iter()
-                .map(summary_json)
-                .collect::<Vec<_>>()
+            expected_daily.iter().map(summary_json).collect::<Vec<_>>()
         );
 
         let expected_grouped_daily = summarize_by_key(
@@ -735,9 +731,7 @@ mod tests {
         )
         .unwrap();
 
-        assert!(
-            (standard["daily"][0]["costUSD"].as_f64().unwrap() - 0.00031).abs() < f64::EPSILON
-        );
+        assert!((standard["daily"][0]["costUSD"].as_f64().unwrap() - 0.00031).abs() < f64::EPSILON);
         assert!((fast["daily"][0]["costUSD"].as_f64().unwrap() - 0.00062).abs() < f64::EPSILON);
     }
 

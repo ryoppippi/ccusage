@@ -276,7 +276,8 @@ fn add_codex_exec_event(
     }
     visit(CodexTokenUsageEvent {
         session_id: codex_session_id(sessions_dir, path),
-        timestamp: codex_timestamp_from_result(value).unwrap_or_else(|| fallback_timestamp.to_string()),
+        timestamp: codex_timestamp_from_result(value)
+            .unwrap_or_else(|| fallback_timestamp.to_string()),
         model,
         input_tokens: raw_usage.input_tokens,
         cached_input_tokens: raw_usage.cached_input_tokens.min(raw_usage.input_tokens),
@@ -333,7 +334,11 @@ fn usage_from_result(value: &Value) -> Option<&Value> {
         .get("usage")
         .or_else(|| value.get("data").and_then(|data| data.get("usage")))
         .or_else(|| value.get("result").and_then(|result| result.get("usage")))
-        .or_else(|| value.get("response").and_then(|response| response.get("usage")))
+        .or_else(|| {
+            value
+                .get("response")
+                .and_then(|response| response.get("usage"))
+        })
 }
 
 fn codex_timestamp_from_result(value: &Value) -> Option<String> {
@@ -502,8 +507,7 @@ fn dedupe_codex_events(events: &mut Vec<CodexTokenUsageEvent>) {
 mod tests {
     use super::*;
     use std::{
-        env,
-        fs,
+        env, fs,
         path::PathBuf,
         time::{SystemTime, UNIX_EPOCH},
     };

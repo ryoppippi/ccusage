@@ -14,6 +14,7 @@ ccusage detects supported data source files from conventional locations by defau
 | `AMP_DATA_DIR`                    | Amp         | `~/.local/share/amp`               |
 | `PI_AGENT_DIR`                    | pi-agent    | `~/.pi/agent/sessions`             |
 | `COPILOT_OTEL_FILE_EXPORTER_PATH` | Copilot CLI | Explicit `.jsonl` file             |
+| `GEMINI_DATA_DIR`                 | Gemini CLI  | `~/.gemini/tmp`                    |
 
 Example:
 
@@ -23,6 +24,7 @@ export OPENCODE_DATA_DIR="/path/to/opencode,/archive/opencode"
 export AMP_DATA_DIR="/path/to/amp,/archive/amp"
 export PI_AGENT_DIR="/path/to/pi/sessions,/archive/pi/sessions"
 export COPILOT_OTEL_FILE_EXPORTER_PATH="/path/to/copilot-otel.jsonl"
+export GEMINI_DATA_DIR="/path/to/gemini/tmp,/archive/gemini/tmp"
 ccusage daily
 ```
 
@@ -192,7 +194,7 @@ To see which environment variables are being used:
 
 ```bash
 # Show all environment variables
-env | grep -E "CLAUDE|CODEX|OPENCODE|AMP|PI_AGENT|COPILOT|CCUSAGE|LOG_LEVEL"
+env | grep -E "CLAUDE|CODEX|OPENCODE|AMP|PI_AGENT|COPILOT|GEMINI|CCUSAGE|LOG_LEVEL"
 
 # Debug mode shows environment variable usage
 LOG_LEVEL=4 ccusage daily --debug
