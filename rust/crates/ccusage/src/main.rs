@@ -668,11 +668,16 @@ mod tests {
         .unwrap();
 
         assert_eq!(report["daily"][0]["date"], "2026-01-02");
-        assert_eq!(report["daily"][0]["inputTokens"], 100);
+        assert_eq!(report["daily"][0]["inputTokens"], 90);
         assert_eq!(report["daily"][0]["cachedInputTokens"], 10);
         assert_eq!(report["daily"][0]["outputTokens"], 50);
         assert_eq!(report["daily"][0]["reasoningOutputTokens"], 0);
         assert_eq!(report["daily"][0]["totalTokens"], 150);
+        assert_eq!(report["daily"][0]["models"]["gpt-5"]["inputTokens"], 90);
+        assert_eq!(
+            report["daily"][0]["models"]["gpt-5"]["cachedInputTokens"],
+            10
+        );
         assert_eq!(report["daily"][0]["costUSD"], json!(0.00061375));
         assert_eq!(report["totals"]["costUSD"], json!(0.00061375));
     }

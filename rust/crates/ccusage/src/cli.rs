@@ -1463,43 +1463,17 @@ fn root_help_text() -> String {
         "  session                    Show all detected coding (agent) CLI usage grouped by session",
         "  blocks                     Show usage report grouped by session billing blocks",
         "  statusline                 Display compact status line for Claude Code hooks with hybrid time+file caching (Beta)",
-        "  claude daily               Show usage report grouped by date",
-        "  claude monthly             Show usage report grouped by month",
-        "  claude weekly              Show usage report grouped by week",
-        "  claude session             Show usage report grouped by conversation session",
-        "  claude blocks              Show usage report grouped by session billing blocks",
-        "  claude statusline          Display compact status line for Claude Code hooks with hybrid time+file caching (Beta)",
-        "  codex daily                Show Codex token usage grouped by day",
-        "  codex monthly              Show Codex token usage grouped by month",
-        "  codex session              Show Codex token usage grouped by session",
-        "  opencode daily             Show OpenCode token usage grouped by day",
-        "  opencode weekly            Show OpenCode token usage grouped by week",
-        "  opencode monthly           Show OpenCode token usage grouped by month",
-        "  opencode session           Show OpenCode token usage grouped by session",
-        "  amp daily                  Show Amp token usage grouped by day",
-        "  amp monthly                Show Amp token usage grouped by month",
-        "  amp session                Show Amp token usage grouped by session",
-        "  hermes daily               Show Hermes usage grouped by date",
-        "  hermes monthly             Show Hermes usage grouped by month",
-        "  hermes session             Show Hermes usage grouped by session",
-        "  pi daily                   Show pi-agent usage grouped by date",
-        "  pi monthly                 Show pi-agent usage grouped by month",
-        "  pi session                 Show pi-agent usage grouped by session",
-        "  goose daily                Show Goose usage grouped by date",
-        "  goose monthly              Show Goose usage grouped by month",
-        "  goose session              Show Goose usage grouped by session",
-        "  kilo daily                 Show Kilo usage grouped by date",
-        "  kilo monthly               Show Kilo usage grouped by month",
-        "  kilo session               Show Kilo usage grouped by session",
-        "  copilot daily              Show GitHub Copilot CLI usage grouped by date",
-        "  copilot monthly            Show GitHub Copilot CLI usage grouped by month",
-        "  copilot session            Show GitHub Copilot CLI usage grouped by session",
-        "  gemini daily               Show Gemini CLI usage grouped by date",
-        "  gemini monthly             Show Gemini CLI usage grouped by month",
-        "  gemini session             Show Gemini CLI usage grouped by session",
-        "  openclaw daily             Show OpenClaw usage grouped by date",
-        "  openclaw monthly           Show OpenClaw usage grouped by month",
-        "  openclaw session           Show OpenClaw usage grouped by session",
+        "  claude                     Show Claude Code usage commands",
+        "  codex                      Show Codex token usage commands",
+        "  opencode                   Show OpenCode token usage commands",
+        "  amp                        Show Amp token usage commands",
+        "  hermes                     Show Hermes usage commands",
+        "  pi                         Show pi-agent usage commands",
+        "  goose                      Show Goose usage commands",
+        "  kilo                       Show Kilo usage commands",
+        "  copilot                    Show GitHub Copilot CLI usage commands",
+        "  gemini                     Show Gemini CLI usage commands",
+        "  openclaw                   Show OpenClaw usage commands",
         "",
         "For more info, run any command with the `--help` flag:",
         "  ccusage daily --help",
@@ -1508,43 +1482,17 @@ fn root_help_text() -> String {
         "  ccusage session --help",
         "  ccusage blocks --help",
         "  ccusage statusline --help",
-        "  ccusage claude daily --help",
-        "  ccusage claude monthly --help",
-        "  ccusage claude weekly --help",
-        "  ccusage claude session --help",
-        "  ccusage claude blocks --help",
-        "  ccusage claude statusline --help",
-        "  ccusage codex daily --help",
-        "  ccusage codex monthly --help",
-        "  ccusage codex session --help",
-        "  ccusage opencode daily --help",
-        "  ccusage opencode weekly --help",
-        "  ccusage opencode monthly --help",
-        "  ccusage opencode session --help",
-        "  ccusage amp daily --help",
-        "  ccusage amp monthly --help",
-        "  ccusage amp session --help",
-        "  ccusage hermes daily --help",
-        "  ccusage hermes monthly --help",
-        "  ccusage hermes session --help",
-        "  ccusage pi daily --help",
-        "  ccusage pi monthly --help",
-        "  ccusage pi session --help",
-        "  ccusage goose daily --help",
-        "  ccusage goose monthly --help",
-        "  ccusage goose session --help",
-        "  ccusage kilo daily --help",
-        "  ccusage kilo monthly --help",
-        "  ccusage kilo session --help",
-        "  ccusage copilot daily --help",
-        "  ccusage copilot monthly --help",
-        "  ccusage copilot session --help",
-        "  ccusage gemini daily --help",
-        "  ccusage gemini monthly --help",
-        "  ccusage gemini session --help",
-        "  ccusage openclaw daily --help",
-        "  ccusage openclaw monthly --help",
-        "  ccusage openclaw session --help",
+        "  ccusage claude --help",
+        "  ccusage codex --help",
+        "  ccusage opencode --help",
+        "  ccusage amp --help",
+        "  ccusage hermes --help",
+        "  ccusage pi --help",
+        "  ccusage goose --help",
+        "  ccusage kilo --help",
+        "  ccusage copilot --help",
+        "  ccusage gemini --help",
+        "  ccusage openclaw --help",
         "",
     ]
     .map(str::to_string)
@@ -1986,25 +1934,27 @@ mod tests {
     }
 
     #[test]
-    fn help_lists_agent_namespace_commands() {
+    fn root_help_lists_agent_namespaces_without_nested_commands() {
         let help = help_text();
-        assert!(help.contains("\n  claude daily"));
-        assert!(help.contains("\n  codex daily"));
-        assert!(help.contains("\n  opencode daily"));
-        assert!(help.contains("\n  amp daily"));
-        assert!(help.contains("\n  pi daily"));
-        assert!(help.contains("\n  copilot daily"));
-        assert!(help.contains("\n  gemini daily"));
-        assert!(help.contains("\n  openclaw daily"));
+        let agents = [
+            "claude", "codex", "opencode", "amp", "hermes", "pi", "goose", "kilo", "copilot",
+            "gemini", "openclaw",
+        ];
+
+        for agent in agents {
+            assert!(help.contains(&format!("\n  {agent} ")));
+            assert!(!help.contains(&format!("\n  {agent} daily")));
+        }
     }
 
     #[test]
     fn root_help_lists_command_descriptions_and_follow_up_help_commands() {
         let help = help_text();
 
-        assert!(help.contains("codex daily                Show Codex token usage grouped by day"));
+        assert!(help.contains("codex                      Show Codex token usage commands"));
         assert!(help.contains("For more info, run any command with the `--help` flag:"));
-        assert!(help.contains("ccusage codex daily --help"));
+        assert!(help.contains("ccusage codex --help"));
+        assert!(!help.contains("ccusage codex daily --help"));
     }
 
     #[test]
