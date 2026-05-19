@@ -3,7 +3,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use serde_json::{json, Value};
 
 use crate::{
-    adapter::{amp, codex, copilot, gemini, kilo, opencode, pi},
+    adapter::{amp, codex, copilot, gemini, hermes, kilo, opencode, pi},
     cli::{AgentCommandArgs, AgentReportKind, CodexSpeed, SharedArgs, SortOrder, WeekDay},
     color, filter_loaded_entries_by_date, format_currency, format_models_multiline, format_number,
     json_float, print_box_title, print_json_or_jq, summarize_by_key, summarize_summaries_by_bucket,
@@ -60,6 +60,7 @@ fn load_rows(kind: AgentReportKind, shared: &SharedArgs) -> Result<AllLoadResult
         crate::progress::UsageLoadAgent::Claude,
         crate::progress::UsageLoadAgent::Codex,
         crate::progress::UsageLoadAgent::OpenCode,
+        crate::progress::UsageLoadAgent::Hermes,
         crate::progress::UsageLoadAgent::Pi,
         crate::progress::UsageLoadAgent::Kilo,
         crate::progress::UsageLoadAgent::Copilot,
@@ -94,6 +95,12 @@ fn load_rows(kind: AgentReportKind, shared: &SharedArgs) -> Result<AllLoadResult
             &mut detected_agents,
             "amp",
             load_amp_rows(AgentReportKind::Session, shared, &pricing)?,
+        );
+        append_agent_rows(
+            &mut rows,
+            &mut detected_agents,
+            "hermes",
+            load_hermes_rows(AgentReportKind::Session, shared, &pricing)?,
         );
         append_agent_rows(
             &mut rows,
@@ -153,6 +160,12 @@ fn load_rows(kind: AgentReportKind, shared: &SharedArgs) -> Result<AllLoadResult
         &mut detected_agents,
         "amp",
         load_amp_rows(AgentReportKind::Daily, shared, &pricing)?,
+    );
+    append_agent_rows(
+        &mut rows,
+        &mut detected_agents,
+        "hermes",
+        load_hermes_rows(AgentReportKind::Daily, shared, &pricing)?,
     );
     append_agent_rows(
         &mut rows,
@@ -257,6 +270,21 @@ fn load_amp_rows(
     let summaries = amp::summarize_entries(&entries, kind)?;
     Ok(AgentRows {
         rows: summary_rows("amp", summaries),
+        detected,
+    })
+}
+
+fn load_hermes_rows(
+    kind: AgentReportKind,
+    shared: &SharedArgs,
+    pricing: &PricingMap,
+) -> Result<AgentRows> {
+    let mut entries = hermes::load_entries(shared, pricing)?;
+    let detected = !entries.is_empty();
+    filter_loaded_entries_by_date(&mut entries, shared);
+    let summaries = hermes::summarize_entries(&entries, kind)?;
+    Ok(AgentRows {
+        rows: summary_rows("hermes", summaries),
         detected,
     })
 }
@@ -867,6 +895,7 @@ fn agent_label(agent: &str) -> &str {
         "codex" => "Codex",
         "opencode" => "OpenCode",
         "amp" => "Amp",
+        "hermes" => "Hermes",
         "pi" => "pi-agent",
         "kilo" => "Kilo",
         "copilot" => "GitHub Copilot CLI",

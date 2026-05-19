@@ -406,6 +406,21 @@ impl PricingMap {
                     .unwrap_or(1.0),
             },
         );
+        self.entries.insert(
+            "grok-4.3".to_string(),
+            Pricing {
+                input: 1.25e-6,
+                output: 2.5e-6,
+                cache_create: 1.25e-6,
+                cache_read: 0.125e-6,
+                cache_read_explicit: false,
+                input_above_200k: None,
+                output_above_200k: None,
+                cache_create_above_200k: None,
+                cache_read_above_200k: None,
+                fast_multiplier: 1.0,
+            },
+        );
         let gpt_5_1_pricing = Pricing {
             input: 1.25e-6,
             output: 10e-6,
@@ -494,6 +509,8 @@ impl PricingMap {
             },
         );
         self.context_limits.insert("gpt-5.5".to_string(), 1_050_000);
+        self.context_limits
+            .insert("grok-4.3".to_string(), 1_000_000);
         self.context_limits.insert("gpt-5.4".to_string(), 1_050_000);
 
         for model in [
@@ -569,6 +586,15 @@ mod tests {
             pricing.context_limit("anthropic.claude-3-5-sonnet-20240620-v1:0"),
             Some(1_000_000)
         );
+    }
+
+    #[test]
+    fn embedded_pricing_includes_hermes_frontier_models() {
+        let pricing = PricingMap::load_embedded();
+
+        assert!(pricing.find("gpt-5.5").is_some());
+        assert!(pricing.find("grok-4.3").is_some());
+        assert_eq!(pricing.context_limit("grok-4.3"), Some(1_000_000));
     }
 
     #[test]
