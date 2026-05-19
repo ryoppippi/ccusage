@@ -715,6 +715,33 @@
 			},
 			"type": "object"
 		},
+		"KiloCommandsConfig": {
+			"additionalProperties": false,
+			"properties": {
+				"daily": {
+					"$ref": "#/definitions/SharedOptions"
+				},
+				"monthly": {
+					"$ref": "#/definitions/SharedOptions"
+				},
+				"session": {
+					"$ref": "#/definitions/SharedOptions"
+				}
+			},
+			"type": "object"
+		},
+		"KiloConfig": {
+			"additionalProperties": false,
+			"properties": {
+				"commands": {
+					"$ref": "#/definitions/KiloCommandsConfig"
+				},
+				"defaults": {
+					"$ref": "#/definitions/SharedOptions"
+				}
+			},
+			"type": "object"
+		},
 		"OpenCodeCommandsConfig": {
 			"additionalProperties": false,
 			"properties": {
@@ -1279,6 +1306,15 @@
 					],
 					"description": "Gemini CLI configuration.",
 					"markdownDescription": "Gemini CLI configuration."
+				},
+				"kilo": {
+					"allOf": [
+						{
+							"$ref": "#/definitions/KiloConfig"
+						}
+					],
+					"description": "Kilo configuration.",
+					"markdownDescription": "Kilo configuration."
 				},
 				"opencode": {
 					"allOf": [

@@ -232,7 +232,7 @@ fn option_takes_value(arg: &str) -> bool {
 fn is_agent_command(command: &str) -> bool {
     matches!(
         command,
-        "claude" | "codex" | "opencode" | "amp" | "pi" | "copilot" | "gemini"
+        "claude" | "codex" | "opencode" | "amp" | "pi" | "kilo" | "copilot" | "gemini"
     )
 }
 

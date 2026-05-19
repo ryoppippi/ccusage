@@ -132,6 +132,7 @@ fn main() -> Result<()> {
         Some(Command::OpenCode(args)) => adapter::opencode::run(args),
         Some(Command::Amp(args)) => adapter::amp::run(args),
         Some(Command::Pi(args)) => adapter::pi::run(args),
+        Some(Command::Kilo(args)) => adapter::kilo::run(args),
         Some(Command::Copilot(args)) => adapter::copilot::run(args),
         Some(Command::Gemini(args)) => adapter::gemini::run(args),
         None => {
