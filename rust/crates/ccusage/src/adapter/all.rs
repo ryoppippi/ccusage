@@ -210,7 +210,7 @@ fn load_codex_rows(
     Ok(AgentRows {
         rows: groups
             .iter()
-            .map(|(period, group)| codex_group_row(period, group, &pricing, speed))
+            .map(|(period, group)| codex_group_row(period, group, pricing, speed))
             .collect(),
         detected,
     })

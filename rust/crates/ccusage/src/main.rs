@@ -261,7 +261,7 @@ mod tests {
         fs::write(&subagent_file, "").unwrap();
         fs::write(&parent_file, "").unwrap();
 
-        let files = claude_loader::usage_files(&[dir.clone()]);
+        let files = claude_loader::usage_files(&[dir.clone()], None);
         fs::remove_dir_all(dir).unwrap();
 
         assert_eq!(files, vec![parent_file, subagent_file]);
@@ -526,7 +526,53 @@ mod tests {
                 "claude-opus-4-6",
             ]
         );
-        assert_eq!(daily[0].total_cost, 0.12);
+        assert_eq!(daily[0].total_cost, 0.18);
+    }
+
+    #[test]
+    fn uses_direct_subagent_cost_for_duplicate_daily_agent_progress() {
+        let _guard = CLAUDE_CONFIG_DIR_LOCK.lock().unwrap();
+        let claude_dir = temp_claude_dir("daily-agent-progress-cost");
+        let session_dir = claude_dir.join("projects/project-a/session-a");
+        let subagent_dir = session_dir.join("subagents");
+        fs::create_dir_all(&subagent_dir).unwrap();
+        fs::write(
+            claude_dir.join("projects/project-a/session-a.jsonl"),
+            r#"{"sessionId":"session-a","version":"1.2.3","type":"progress","data":{"message":{"type":"assistant","timestamp":"2026-03-10T06:00:01.000Z","message":{"model":"claude-haiku-4-5-20251001","id":"msg_haiku","type":"message","role":"assistant","content":[],"usage":{"input_tokens":20,"output_tokens":2,"cache_creation_input_tokens":0,"cache_read_input_tokens":0}},"requestId":"req_haiku","uuid":"nested"}},"timestamp":"2026-03-10T06:00:01.001Z"}"#,
+        )
+        .unwrap();
+        fs::write(
+            subagent_dir.join("agent-a.jsonl"),
+            r#"{"timestamp":"2026-03-10T06:00:01.000Z","version":"1.2.3","sessionId":"session-a","message":{"id":"msg_haiku","model":"claude-haiku-4-5-20251001","role":"assistant","usage":{"input_tokens":20,"output_tokens":2,"cache_creation_input_tokens":0,"cache_read_input_tokens":0}},"requestId":"req_haiku","costUSD":0.06}"#,
+        )
+        .unwrap();
+
+        let previous = env::var("CLAUDE_CONFIG_DIR").ok();
+        env::set_var("CLAUDE_CONFIG_DIR", &claude_dir);
+        let shared = SharedArgs {
+            mode: CostMode::Display,
+            timezone: Some("UTC".to_string()),
+            ..SharedArgs::default()
+        };
+        let entries = load_entries(&shared, None).unwrap();
+        let daily = load_daily_summaries(&shared, None, false).unwrap();
+        if let Some(previous) = previous {
+            env::set_var("CLAUDE_CONFIG_DIR", previous);
+        } else {
+            env::remove_var("CLAUDE_CONFIG_DIR");
+        }
+        fs::remove_dir_all(&claude_dir).unwrap();
+
+        let expected_daily = summarize_by_key(
+            &entries,
+            |entry| entry.date.clone(),
+            |key| (key.to_string(), None),
+        )
+        .unwrap();
+        assert_eq!(
+            daily.iter().map(summary_json).collect::<Vec<_>>(),
+            expected_daily.iter().map(summary_json).collect::<Vec<_>>()
+        );
     }
 
     #[test]
