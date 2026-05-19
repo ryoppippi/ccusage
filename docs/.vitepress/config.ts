@@ -93,7 +93,7 @@ export default defineConfig({
 				{
 					text: 'Community',
 					items: [
-						{ text: 'Related Projects', link: '/guide/related-projects' },
+						{ text: 'Community Projects', link: '/guide/community-projects' },
 						{ text: 'Sponsors', link: '/guide/sponsors' },
 					],
 				},
@@ -146,6 +146,7 @@ export default defineConfig({
 					{ from: '/sponsor', to: 'https://github.com/sponsors/ryoppippi', status: 302 },
 					{ from: '/guide/custom-paths', to: '/guide/claude/', status: 301 },
 					{ from: '/guide/directory-detection', to: '/guide/claude/', status: 301 },
+					{ from: '/guide/related-projects', to: '/guide/community-projects', status: 301 },
 				],
 			}) as any,
 			groupIconVitePlugin(),

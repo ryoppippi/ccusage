@@ -1,6 +1,6 @@
 ---
 name: ccusage-docs
-description: Edit the ccusage VitePress documentation with screenshot placement, accessibility, schema-copy build behavior, markdown linting, and guide organization conventions. Use when working under docs/ or adding user-facing documentation.
+description: Guides ccusage VitePress documentation work. Use when editing docs, screenshots, accessibility, schema-copy behavior, markdown linting, or user-facing guides.
 ---
 
 # ccusage Docs
@@ -21,12 +21,14 @@ The docs build copies `apps/ccusage/config-schema.json` to `docs/public/config-s
 
 ## Structure
 
+- `README.md` and `apps/ccusage/README.md` - package entrypoints for supported sources, common commands, features, and installation examples
 - `docs/guide/` - user guides and tutorials
 - `docs/public/` - screenshots, static assets, and generated config schema
 - `docs/.vitepress/` - VitePress configuration and theme customization
 
 ## Content Rules
 
+- When adding or changing a user-facing agent, command, option, report mode, or example, audit and update the root `README.md`, `apps/ccusage/README.md`, relevant `docs/guide/` pages, related cross-links, and VitePress navigation before finishing.
 - Prefer the unified command form in new or edited docs: `ccusage codex ...`, `ccusage opencode ...`, `ccusage amp ...`, and `ccusage pi ...`.
 - Standalone wrapper commands such as `ccusage-codex`, `ccusage-opencode`, `ccusage-amp`, and `ccusage-pi` have been removed. Do not promote or reintroduce them in docs.
 - Place screenshots immediately after the page H1 when a guide has a primary screenshot.
