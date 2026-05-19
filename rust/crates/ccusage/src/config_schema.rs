@@ -51,7 +51,7 @@ pub(crate) struct CcusageConfig {
 #[derive(Debug, Default, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct RootCommandsConfig {
-    pub(crate) daily: Option<SharedOptions>,
+    pub(crate) daily: Option<DailyOptions>,
     pub(crate) weekly: Option<WeeklyOptions>,
     pub(crate) monthly: Option<SharedOptions>,
     pub(crate) session: Option<SharedOptions>,
@@ -665,6 +665,7 @@ pub(crate) fn generate_config_schema_json() -> String {
     }
     enrich_schema(&mut schema);
     add_schema_defaults(&mut schema);
+    inline_schema_references(&mut schema);
     wrap_root_schema(&mut schema);
     let mut json = tab_indent_json(&serde_json::to_string_pretty(&schema).unwrap());
     json.push('\n');
@@ -800,17 +801,92 @@ fn set_definition_defaults(schema: &mut Value, definition: &str, defaults: &[(&s
     }
 }
 
+fn inline_schema_references(schema: &mut Value) {
+    let definitions = schema
+        .get("definitions")
+        .and_then(Value::as_object)
+        .cloned()
+        .unwrap_or_default();
+    inline_schema_value(schema, &definitions);
+}
+
+fn inline_schema_value(value: &mut Value, definitions: &Map<String, Value>) {
+    match value {
+        Value::Object(map) => {
+            inline_ref(map, definitions);
+            inline_all_of(map, definitions);
+            for child in map.values_mut() {
+                inline_schema_value(child, definitions);
+            }
+        }
+        Value::Array(values) => {
+            for child in values {
+                inline_schema_value(child, definitions);
+            }
+        }
+        _ => {}
+    }
+}
+
+fn inline_ref(map: &mut Map<String, Value>, definitions: &Map<String, Value>) {
+    let Some(reference) = map.remove("$ref") else {
+        return;
+    };
+    let Some(reference) = reference.as_str() else {
+        return;
+    };
+    let Some(definition_name) = reference.strip_prefix("#/definitions/") else {
+        return;
+    };
+    let Some(Value::Object(definition)) = definitions.get(definition_name).cloned() else {
+        return;
+    };
+
+    let existing = std::mem::take(map);
+    for (key, value) in definition {
+        map.insert(key, value);
+    }
+    for (key, value) in existing {
+        map.insert(key, value);
+    }
+}
+
+fn inline_all_of(map: &mut Map<String, Value>, definitions: &Map<String, Value>) {
+    let Some(Value::Array(items)) = map.remove("allOf") else {
+        return;
+    };
+    for mut item in items {
+        inline_schema_value(&mut item, definitions);
+        let Value::Object(item) = item else {
+            continue;
+        };
+        merge_schema_object(map, item);
+    }
+}
+
+fn merge_schema_object(target: &mut Map<String, Value>, source: Map<String, Value>) {
+    for (key, value) in source {
+        if key == "properties" {
+            let target_properties = target
+                .entry(key)
+                .or_insert_with(|| Value::Object(Map::new()));
+            if let (Some(target), Value::Object(source)) =
+                (target_properties.as_object_mut(), value)
+            {
+                target.extend(source);
+            }
+            continue;
+        }
+        target.entry(key).or_insert(value);
+    }
+}
+
 fn wrap_root_schema(schema: &mut Value) {
     let Value::Object(root) = schema else {
         return;
     };
-    let mut definitions = root
-        .remove("definitions")
-        .and_then(|definitions| match definitions {
-            Value::Object(definitions) => Some(definitions),
-            _ => None,
-        })
-        .unwrap_or_default();
+    root.remove("definitions");
+    let mut definitions = Map::new();
     let mut root_definition = Map::new();
     for key in [
         "additionalProperties",
@@ -840,7 +916,7 @@ mod tests {
     use super::generate_config_schema_json;
 
     #[test]
-    fn schema_option_definitions_expose_expected_keys() {
+    fn schema_option_sets_expose_expected_keys() {
         let schema = generated_schema();
         let shared = [
             "all",
@@ -862,28 +938,28 @@ mod tests {
             "until",
         ];
 
-        assert_properties(&schema, "SharedOptions", &shared);
-        assert_properties(
+        assert_schema_properties(&schema, &["defaults"], &shared);
+        assert_schema_properties(
             &schema,
-            "DailyOptions",
+            &["commands", "daily"],
             &with_keys(&shared, &["instances", "project", "projectAliases"]),
         );
-        assert_properties(
+        assert_schema_properties(
             &schema,
-            "WeeklyOptions",
+            &["commands", "weekly"],
             &with_keys(&shared, &["startOfWeek"]),
         );
-        assert_properties(
+        assert_schema_properties(
             &schema,
-            "BlocksOptions",
+            &["commands", "blocks"],
             &with_keys(
                 &shared,
                 &["active", "recent", "sessionLength", "tokenLimit"],
             ),
         );
-        assert_properties(
+        assert_schema_properties(
             &schema,
-            "StatuslineOptions",
+            &["commands", "statusline"],
             &[
                 "cache",
                 "contextLowThreshold",
@@ -897,67 +973,39 @@ mod tests {
                 "visualBurnRate",
             ],
         );
-        assert_properties(&schema, "CodexOptions", &with_keys(&shared, &["speed"]));
-        assert_properties(&schema, "PiOptions", &with_keys(&shared, &["piPath"]));
-        assert_properties(
+        assert_schema_properties(
             &schema,
-            "OpenClawOptions",
+            &["codex", "defaults"],
+            &with_keys(&shared, &["speed"]),
+        );
+        assert_schema_properties(
+            &schema,
+            &["pi", "defaults"],
+            &with_keys(&shared, &["piPath"]),
+        );
+        assert_schema_properties(
+            &schema,
+            &["openclaw", "defaults"],
             &with_keys(&shared, &["openClawPath"]),
         );
     }
 
     #[test]
-    fn agent_configs_reference_only_supported_option_sets() {
+    fn agent_configs_expose_only_supported_option_sets() {
         let schema = generated_schema();
 
-        assert_eq!(
-            property_ref(&schema, "CodexConfig", "defaults"),
-            Some("#/definitions/CodexOptions")
-        );
-        assert_eq!(
-            property_ref(&schema, "OpenCodeConfig", "defaults"),
-            Some("#/definitions/SharedOptions")
-        );
-        assert_eq!(
-            property_ref(&schema, "AmpConfig", "defaults"),
-            Some("#/definitions/SharedOptions")
-        );
-        assert_eq!(
-            property_ref(&schema, "DroidConfig", "defaults"),
-            Some("#/definitions/SharedOptions")
-        );
-        assert_eq!(
-            property_ref(&schema, "CodebuffConfig", "defaults"),
-            Some("#/definitions/SharedOptions")
-        );
-        assert_eq!(
-            property_ref(&schema, "PiConfig", "defaults"),
-            Some("#/definitions/PiOptions")
-        );
-        assert_eq!(
-            property_ref(&schema, "GooseConfig", "defaults"),
-            Some("#/definitions/SharedOptions")
-        );
-        assert_eq!(
-            property_ref(&schema, "OpenClawConfig", "defaults"),
-            Some("#/definitions/OpenClawOptions")
-        );
-        assert_eq!(
-            property_ref(&schema, "KiloConfig", "defaults"),
-            Some("#/definitions/SharedOptions")
-        );
-        assert_eq!(
-            property_ref(&schema, "GeminiConfig", "defaults"),
-            Some("#/definitions/SharedOptions")
-        );
-        assert_eq!(
-            property_ref(&schema, "KimiConfig", "defaults"),
-            Some("#/definitions/SharedOptions")
-        );
-        assert_eq!(
-            property_ref(&schema, "QwenConfig", "defaults"),
-            Some("#/definitions/SharedOptions")
-        );
+        assert!(schema_property(&schema, &["codex", "defaults", "speed"]).is_some());
+        assert!(schema_property(&schema, &["opencode", "defaults", "speed"]).is_none());
+        assert!(schema_property(&schema, &["amp", "defaults", "speed"]).is_none());
+        assert!(schema_property(&schema, &["droid", "defaults", "speed"]).is_none());
+        assert!(schema_property(&schema, &["codebuff", "defaults", "speed"]).is_none());
+        assert!(schema_property(&schema, &["pi", "defaults", "piPath"]).is_some());
+        assert!(schema_property(&schema, &["goose", "defaults", "piPath"]).is_none());
+        assert!(schema_property(&schema, &["openclaw", "defaults", "openClawPath"]).is_some());
+        assert!(schema_property(&schema, &["kilo", "defaults", "openClawPath"]).is_none());
+        assert!(schema_property(&schema, &["gemini", "defaults", "openClawPath"]).is_none());
+        assert!(schema_property(&schema, &["kimi", "defaults", "openClawPath"]).is_none());
+        assert!(schema_property(&schema, &["qwen", "defaults", "openClawPath"]).is_none());
     }
 
     #[test]
@@ -977,6 +1025,15 @@ mod tests {
             schema["$ref"].as_str(),
             Some("#/definitions/ccusage-config")
         );
+        assert_eq!(
+            schema["definitions"]
+                .as_object()
+                .unwrap()
+                .keys()
+                .map(String::as_str)
+                .collect::<Vec<_>>(),
+            vec!["ccusage-config"]
+        );
         assert_properties(
             &schema,
             "ccusage-config",
@@ -985,6 +1042,10 @@ mod tests {
                 "gemini", "goose", "hermes", "kilo", "kimi", "opencode", "openclaw", "pi", "qwen",
                 "droid",
             ],
+        );
+        assert!(
+            schema["definitions"]["ccusage-config"]["properties"]["defaults"]["properties"]
+                .is_object()
         );
     }
 
@@ -1128,47 +1189,57 @@ mod tests {
     }
 
     #[test]
+    fn schema_allows_repository_example_config() {
+        let schema = generated_schema();
+        let config =
+            serde_json::from_str::<Value>(include_str!("../../../../ccusage.example.json"))
+                .unwrap();
+
+        assert_value_keys_allowed_by_schema(&config, &schema, &schema);
+    }
+
+    #[test]
     fn generated_schema_exposes_cli_defaults() {
         let schema = generated_schema();
 
         assert_eq!(
-            property_default(&schema, "SharedOptions", "json"),
+            property_default(&schema, &["defaults", "json"]),
             Some(&json!(false))
         );
         assert_eq!(
-            property_default(&schema, "SharedOptions", "mode"),
+            property_default(&schema, &["defaults", "mode"]),
             Some(&json!("auto"))
         );
         assert_eq!(
-            property_default(&schema, "SharedOptions", "debugSamples"),
+            property_default(&schema, &["defaults", "debugSamples"]),
             Some(&json!(5))
         );
         assert_eq!(
-            property_default(&schema, "SharedOptions", "order"),
+            property_default(&schema, &["defaults", "order"]),
             Some(&json!("asc"))
         );
         assert_eq!(
-            property_default(&schema, "WeeklyOptions", "startOfWeek"),
+            property_default(&schema, &["commands", "weekly", "startOfWeek"]),
             Some(&json!("sunday"))
         );
         assert_eq!(
-            property_default(&schema, "BlocksOptions", "sessionLength"),
+            property_default(&schema, &["commands", "blocks", "sessionLength"]),
             Some(&json!(5.0))
         );
         assert_eq!(
-            property_default(&schema, "StatuslineOptions", "offline"),
+            property_default(&schema, &["commands", "statusline", "offline"]),
             Some(&json!(true))
         );
         assert_eq!(
-            property_default(&schema, "StatuslineOptions", "visualBurnRate"),
+            property_default(&schema, &["commands", "statusline", "visualBurnRate"]),
             Some(&json!("off"))
         );
         assert_eq!(
-            property_default(&schema, "StatuslineOptions", "refreshInterval"),
+            property_default(&schema, &["commands", "statusline", "refreshInterval"]),
             Some(&json!(1))
         );
         assert_eq!(
-            property_default(&schema, "CodexOptions", "speed"),
+            property_default(&schema, &["codex", "defaults", "speed"]),
             Some(&json!("auto"))
         );
     }
@@ -1194,16 +1265,38 @@ mod tests {
             .collect()
     }
 
-    fn property_ref<'a>(schema: &'a Value, definition: &str, property: &str) -> Option<&'a str> {
-        schema["definitions"][definition]["properties"][property]["$ref"].as_str()
+    fn assert_schema_properties(schema: &Value, path: &[&str], expected: &[&str]) {
+        assert_eq!(
+            schema_properties(schema, path),
+            expected.iter().copied().collect::<BTreeSet<_>>(),
+            "{path:?} properties did not match"
+        );
     }
 
-    fn property_default<'a>(
-        schema: &'a Value,
-        definition: &str,
-        property: &str,
-    ) -> Option<&'a Value> {
-        schema["definitions"][definition]["properties"][property].get("default")
+    fn schema_properties<'a>(schema: &'a Value, path: &[&str]) -> BTreeSet<&'a str> {
+        schema_node(schema, path)["properties"]
+            .as_object()
+            .unwrap()
+            .keys()
+            .map(String::as_str)
+            .collect()
+    }
+
+    fn property_default<'a>(schema: &'a Value, path: &[&str]) -> Option<&'a Value> {
+        schema_property(schema, path).and_then(|property| property.get("default"))
+    }
+
+    fn schema_property<'a>(schema: &'a Value, path: &[&str]) -> Option<&'a Value> {
+        let (property, parent_path) = path.split_last().unwrap();
+        schema_node(schema, parent_path)["properties"].get(*property)
+    }
+
+    fn schema_node<'a>(schema: &'a Value, path: &[&str]) -> &'a Value {
+        let mut node = &schema["definitions"]["ccusage-config"];
+        for segment in path {
+            node = &node["properties"][*segment];
+        }
+        node
     }
 
     fn with_keys<'a>(base: &[&'a str], extra: &[&'a str]) -> Vec<&'a str> {
