@@ -104,14 +104,16 @@ fn rows_key(kind: AgentReportKind) -> &'static str {
 
 fn filter_session_summaries(rows: &mut Vec<crate::UsageSummary>, shared: &SharedArgs) {
     if shared.since.is_some() || shared.until.is_some() {
+        let since = shared.since.as_deref().map(|value| value.replace('-', ""));
+        let until = shared.until.as_deref().map(|value| value.replace('-', ""));
         rows.retain(|row| {
             let date = row
                 .last_activity
                 .as_deref()
                 .unwrap_or_default()
                 .replace('-', "");
-            shared.since.as_ref().is_none_or(|since| &date >= since)
-                && shared.until.as_ref().is_none_or(|until| &date <= until)
+            since.as_ref().is_none_or(|bound| &date >= bound)
+                && until.as_ref().is_none_or(|bound| &date <= bound)
         });
     }
 }
@@ -134,6 +136,7 @@ mod tests {
 
     use super::*;
     use crate::cli::{CostMode, SharedArgs};
+    use crate::UsageSummary;
 
     static QWEN_DATA_DIR_LOCK: Mutex<()> = Mutex::new(());
 
@@ -236,5 +239,47 @@ mod tests {
             report["daily"][0]["modelsUsed"],
             json!(["qwen3-coder-plus"])
         );
+    }
+
+    #[test]
+    fn filters_session_summaries_with_iso_date_bounds() {
+        let mut rows = vec![
+            usage_summary("before", "2026-02-22"),
+            usage_summary("inside", "2026-02-23"),
+            usage_summary("after", "2026-02-24"),
+        ];
+        let shared = SharedArgs {
+            since: Some("2026-02-23".to_string()),
+            until: Some("2026-02-23".to_string()),
+            ..SharedArgs::default()
+        };
+
+        filter_session_summaries(&mut rows, &shared);
+
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].session_id.as_deref(), Some("inside"));
+    }
+
+    fn usage_summary(session_id: &str, last_activity: &str) -> UsageSummary {
+        UsageSummary {
+            date: None,
+            month: None,
+            week: None,
+            session_id: Some(session_id.to_string()),
+            project_path: None,
+            last_activity: Some(last_activity.to_string()),
+            input_tokens: 0,
+            output_tokens: 0,
+            cache_creation_tokens: 0,
+            cache_read_tokens: 0,
+            extra_total_tokens: 0,
+            total_cost: 0.0,
+            credits: None,
+            message_count: None,
+            models_used: Vec::new(),
+            model_breakdowns: Vec::new(),
+            project: None,
+            versions: None,
+        }
     }
 }
