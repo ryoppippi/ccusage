@@ -1,6 +1,6 @@
 ---
 name: pr-ai-review-workflow
-description: 'Manage pull request AI review loops with GitHub CLI: request generic AI/code reviewers, wait for bot or human review, inspect comments, reply to inline review comments, apply fixes, push follow-up commits, and request re-review.'
+description: Manages PR AI review loops with gh. Use after opening or updating a PR to request review, inspect comments, reply, fix, and re-request review.
 ---
 
 # PR AI Review Workflow
@@ -18,6 +18,29 @@ Use amend only when the user explicitly asks, when fixing the immediately previo
 After creating a PR or pushing a meaningful follow-up commit, check whether reviewers are already running. If not, add a PR conversation comment that mentions the configured reviewers.
 
 Prefer repository-local conventions when they exist. If the repo has changed reviewers, use the current reviewer mentions from recent PRs or project docs instead of the examples above.
+
+## PR Bodies and Comments
+
+When creating or editing multi-line PR bodies, use `--body-file -` and pass the Markdown through stdin. Do not embed `\n` escape sequences inside a quoted `--body` argument; fish and shell quoting can preserve them literally and break the rendered PR body.
+
+Good:
+
+```sh
+printf "%s\n" \
+	"Summary paragraph." \
+	"" \
+	"Testing:" \
+	"- pnpm run format" \
+	"- pnpm typecheck" \
+	"- pnpm run test" \
+	| gh pr edit <pr-number> --body-file -
+```
+
+Bad:
+
+```sh
+gh pr edit <pr-number> --body "Summary\n\nTesting:\n- pnpm run test"
+```
 
 ## Wait and Inspect
 

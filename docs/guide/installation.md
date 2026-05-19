@@ -2,14 +2,13 @@
 
 ccusage can be installed and used in several ways depending on your preferences and use case.
 
-## Why No Installation Needed?
+## Why Direct Execution Works Well
 
-Thanks to ccusage's incredibly small bundle size, you don't need to install it globally. Unlike other CLI tools, we pay extreme attention to bundle size optimization, achieving an impressively small footprint even without minification. This means:
+You do not need to install ccusage globally before trying it. Direct package runners work well for ad hoc usage:
 
-- ✅ Near-instant startup times
-- ✅ Minimal download overhead
-- ✅ Always use the latest version
-- ✅ No global pollution of your system
+- ✅ No global package to manage
+- ✅ Easy access to the latest published version
+- ✅ Cached package downloads after the first run
 
 ## Quick Start (Recommended)
 
@@ -29,27 +28,31 @@ pnpm dlx ccusage
 npx ccusage@latest
 ```
 
+```bash [pkg.pr.new preview]
+bunx -p https://pkg.pr.new/ryoppippi/ccusage@<pr-number> ccusage --offline
+```
+
 :::
 
 ::: tip Speed Recommendation
-We recommend `bunx` for everyday use. ccusage can run on Node.js 22+, but Bun generally starts faster and avoids the slower cold-start path common with `npx`.
+We recommend `bunx` for everyday use. ccusage can run on Node.js 22.11+, but Bun generally starts faster and avoids the slower cold-start path common with `npx`.
 
-Because the published CLI shebang targets Node.js, package runners can start ccusage under Node.js even when launched through `bunx`. When ccusage finds `bun` in `PATH`, it automatically re-runs the bundled entrypoint with Bun for better warm runtime performance. Set `CCUSAGE_BUN_AUTO_RUN=0` to force the Node.js runtime.
+The npm package installs a small JavaScript launcher and the matching native binary package for your platform. Package runners such as `bunx` cache the downloaded package, so repeated runs reuse the cached native binary; the first run can still include network fetch time.
 :::
 
 ### Performance Comparison
 
 Here's why runtime choice matters:
 
-| Runtime  | First Run | Subsequent Runs | Notes                         |
-| -------- | --------- | --------------- | ----------------------------- |
-| bunx     | Fast      | **Instant**     | Recommended for everyday use  |
-| pnpm dlx | Fast      | Fast            | Good alternative              |
-| npx      | Slow      | Moderate        | Widely available, Node.js 22+ |
+| Runtime  | First Run | Subsequent Runs | Notes                            |
+| -------- | --------- | --------------- | -------------------------------- |
+| bunx     | Fast      | **Instant**     | Recommended for everyday use     |
+| pnpm dlx | Fast      | Fast            | Good alternative                 |
+| npx      | Slow      | Moderate        | Widely available, Node.js 22.11+ |
 
 ## Global Installation (Optional)
 
-While not necessary due to our small bundle size, you can still install ccusage globally if you prefer:
+You can install ccusage globally if you prefer a persistent command:
 
 ::: code-group
 
@@ -116,7 +119,7 @@ pnpm run format
 
 ### Node.js
 
-- **Minimum**: Node.js 22.x for the published package
+- **Minimum**: Node.js 22.11 for the published package
 - **Recommended**: Use Bun for command execution when available
 - `npx`, npm global installs, pnpm, and yarn all use the Node.js runtime unless ccusage re-runs through Bun
 

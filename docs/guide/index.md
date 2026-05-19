@@ -36,9 +36,9 @@ ccusage reads the local usage files that coding CLIs already generate and provid
 
 ## Key Features
 
-### 🚀 Ultra-Small Bundle Size
+### 🚀 Direct Execution
 
-Unlike many CLI tools, ccusage pays close attention to bundle size. You can run it directly without a global install using `bunx ccusage` (recommended), `pnpm dlx ccusage`, or `npx ccusage@latest`.
+You can run ccusage without a global install using `bunx ccusage` (recommended), `pnpm dlx ccusage`, or `npx ccusage@latest`.
 
 ### 📊 Usage Views
 

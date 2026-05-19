@@ -1,2416 +1,1297 @@
 {
 	"$ref": "#/definitions/ccusage-config",
+	"$schema": "https://json-schema.org/draft-07/schema#",
 	"definitions": {
-		"ccusage-config": {
-			"type": "object",
+		"AmpCommandsConfig": {
+			"additionalProperties": false,
 			"properties": {
-				"$schema": {
-					"type": "string",
-					"description": "JSON Schema URL for validation and autocomplete",
-					"markdownDescription": "JSON Schema URL for validation and autocomplete"
+				"daily": {
+					"$ref": "#/definitions/SharedOptions"
 				},
-				"defaults": {
-					"type": "object",
-					"properties": {
-						"debug": {
-							"type": "boolean",
-							"description": "Show pricing mismatch information for debugging",
-							"markdownDescription": "Show pricing mismatch information for debugging",
-							"default": false
-						},
-						"offline": {
-							"type": "boolean",
-							"description": "Use cached pricing data where supported",
-							"markdownDescription": "Use cached pricing data where supported",
-							"default": false
-						},
-						"json": {
-							"type": "boolean",
-							"description": "Output in JSON format",
-							"markdownDescription": "Output in JSON format",
-							"default": false
-						},
-						"since": {
-							"type": "string",
-							"description": "Filter from date (YYYY-MM-DD or YYYYMMDD)",
-							"markdownDescription": "Filter from date (YYYY-MM-DD or YYYYMMDD)"
-						},
-						"until": {
-							"type": "string",
-							"description": "Filter until date (inclusive)",
-							"markdownDescription": "Filter until date (inclusive)"
-						},
-						"timezone": {
-							"type": "string",
-							"description": "Timezone for date grouping (IANA)",
-							"markdownDescription": "Timezone for date grouping (IANA)"
-						},
-						"all": {
-							"type": "boolean",
-							"description": "Accepted for compatibility; all detected supported agents are included by default",
-							"markdownDescription": "Accepted for compatibility; all detected supported agents are included by default",
-							"default": false
-						},
-						"compact": {
-							"type": "boolean",
-							"description": "Force compact table layout for narrow terminals",
-							"markdownDescription": "Force compact table layout for narrow terminals",
-							"default": false
-						}
-					},
-					"additionalProperties": false,
-					"description": "Default values for all-agent reports and legacy Claude commands",
-					"markdownDescription": "Default values for all-agent reports and legacy Claude commands"
+				"monthly": {
+					"$ref": "#/definitions/SharedOptions"
 				},
-				"commands": {
-					"type": "object",
-					"properties": {
-						"daily": {
-							"type": "object",
-							"properties": {
-								"since": {
-									"type": "string",
-									"description": "Filter from date (YYYY-MM-DD or YYYYMMDD)",
-									"markdownDescription": "Filter from date (YYYY-MM-DD or YYYYMMDD)"
-								},
-								"until": {
-									"type": "string",
-									"description": "Filter until date (inclusive)",
-									"markdownDescription": "Filter until date (inclusive)"
-								},
-								"json": {
-									"type": "boolean",
-									"description": "Output in JSON format",
-									"markdownDescription": "Output in JSON format",
-									"default": false
-								},
-								"mode": {
-									"type": "string",
-									"enum": ["auto", "calculate", "display"],
-									"description": "Cost calculation mode: auto (use costUSD if exists, otherwise calculate), calculate (always calculate), display (always use costUSD)",
-									"markdownDescription": "Cost calculation mode: auto (use costUSD if exists, otherwise calculate), calculate (always calculate), display (always use costUSD)",
-									"default": "auto"
-								},
-								"debug": {
-									"type": "boolean",
-									"description": "Show pricing mismatch information for debugging",
-									"markdownDescription": "Show pricing mismatch information for debugging",
-									"default": false
-								},
-								"debugSamples": {
-									"type": "number",
-									"description": "Number of sample discrepancies to show in debug output (default: 5)",
-									"markdownDescription": "Number of sample discrepancies to show in debug output (default: 5)",
-									"default": 5
-								},
-								"order": {
-									"type": "string",
-									"enum": ["desc", "asc"],
-									"description": "Sort order: desc (newest first) or asc (oldest first)",
-									"markdownDescription": "Sort order: desc (newest first) or asc (oldest first)",
-									"default": "asc"
-								},
-								"breakdown": {
-									"type": "boolean",
-									"description": "Show per-model cost breakdown",
-									"markdownDescription": "Show per-model cost breakdown",
-									"default": false
-								},
-								"offline": {
-									"type": "boolean",
-									"description": "Use cached pricing data where supported",
-									"markdownDescription": "Use cached pricing data where supported",
-									"default": false
-								},
-								"singleThread": {
-									"type": "boolean",
-									"description": "Disable parallel JSONL file loading",
-									"markdownDescription": "Disable parallel JSONL file loading",
-									"default": false
-								},
-								"color": {
-									"type": "boolean",
-									"description": "Enable colored output (default: auto). FORCE_COLOR=1 has the same effect.",
-									"markdownDescription": "Enable colored output (default: auto). FORCE_COLOR=1 has the same effect."
-								},
-								"noColor": {
-									"type": "boolean",
-									"description": "Disable colored output (default: auto). NO_COLOR=1 has the same effect.",
-									"markdownDescription": "Disable colored output (default: auto). NO_COLOR=1 has the same effect."
-								},
-								"timezone": {
-									"type": "string",
-									"description": "Timezone for date grouping (IANA)",
-									"markdownDescription": "Timezone for date grouping (IANA)"
-								},
-								"compact": {
-									"type": "boolean",
-									"description": "Force compact table layout for narrow terminals",
-									"markdownDescription": "Force compact table layout for narrow terminals",
-									"default": false
-								},
-								"instances": {
-									"type": "boolean",
-									"description": "Show usage breakdown by project/instance",
-									"markdownDescription": "Show usage breakdown by project/instance",
-									"default": false
-								},
-								"project": {
-									"type": "string",
-									"description": "Filter to specific project name",
-									"markdownDescription": "Filter to specific project name"
-								},
-								"projectAliases": {
-									"type": "string",
-									"description": "Comma-separated project aliases (e.g., 'ccusage=Usage Tracker,myproject=My Project')",
-									"markdownDescription": "Comma-separated project aliases (e.g., 'ccusage=Usage Tracker,myproject=My Project')"
-								},
-								"all": {
-									"type": "boolean",
-									"description": "Accepted for compatibility; all detected supported agents are included by default",
-									"markdownDescription": "Accepted for compatibility; all detected supported agents are included by default",
-									"default": false
-								}
-							},
-							"additionalProperties": false
-						},
-						"monthly": {
-							"type": "object",
-							"properties": {
-								"since": {
-									"type": "string",
-									"description": "Filter from date (YYYY-MM-DD or YYYYMMDD)",
-									"markdownDescription": "Filter from date (YYYY-MM-DD or YYYYMMDD)"
-								},
-								"until": {
-									"type": "string",
-									"description": "Filter until date (inclusive)",
-									"markdownDescription": "Filter until date (inclusive)"
-								},
-								"json": {
-									"type": "boolean",
-									"description": "Output in JSON format",
-									"markdownDescription": "Output in JSON format",
-									"default": false
-								},
-								"mode": {
-									"type": "string",
-									"enum": ["auto", "calculate", "display"],
-									"description": "Cost calculation mode: auto (use costUSD if exists, otherwise calculate), calculate (always calculate), display (always use costUSD)",
-									"markdownDescription": "Cost calculation mode: auto (use costUSD if exists, otherwise calculate), calculate (always calculate), display (always use costUSD)",
-									"default": "auto"
-								},
-								"debug": {
-									"type": "boolean",
-									"description": "Show pricing mismatch information for debugging",
-									"markdownDescription": "Show pricing mismatch information for debugging",
-									"default": false
-								},
-								"debugSamples": {
-									"type": "number",
-									"description": "Number of sample discrepancies to show in debug output (default: 5)",
-									"markdownDescription": "Number of sample discrepancies to show in debug output (default: 5)",
-									"default": 5
-								},
-								"order": {
-									"type": "string",
-									"enum": ["desc", "asc"],
-									"description": "Sort order: desc (newest first) or asc (oldest first)",
-									"markdownDescription": "Sort order: desc (newest first) or asc (oldest first)",
-									"default": "asc"
-								},
-								"breakdown": {
-									"type": "boolean",
-									"description": "Show per-model cost breakdown",
-									"markdownDescription": "Show per-model cost breakdown",
-									"default": false
-								},
-								"offline": {
-									"type": "boolean",
-									"description": "Use cached pricing data where supported",
-									"markdownDescription": "Use cached pricing data where supported",
-									"default": false
-								},
-								"singleThread": {
-									"type": "boolean",
-									"description": "Disable parallel JSONL file loading",
-									"markdownDescription": "Disable parallel JSONL file loading",
-									"default": false
-								},
-								"color": {
-									"type": "boolean",
-									"description": "Enable colored output (default: auto). FORCE_COLOR=1 has the same effect.",
-									"markdownDescription": "Enable colored output (default: auto). FORCE_COLOR=1 has the same effect."
-								},
-								"noColor": {
-									"type": "boolean",
-									"description": "Disable colored output (default: auto). NO_COLOR=1 has the same effect.",
-									"markdownDescription": "Disable colored output (default: auto). NO_COLOR=1 has the same effect."
-								},
-								"timezone": {
-									"type": "string",
-									"description": "Timezone for date grouping (IANA)",
-									"markdownDescription": "Timezone for date grouping (IANA)"
-								},
-								"compact": {
-									"type": "boolean",
-									"description": "Force compact table layout for narrow terminals",
-									"markdownDescription": "Force compact table layout for narrow terminals",
-									"default": false
-								},
-								"all": {
-									"type": "boolean",
-									"description": "Accepted for compatibility; all detected supported agents are included by default",
-									"markdownDescription": "Accepted for compatibility; all detected supported agents are included by default",
-									"default": false
-								}
-							},
-							"additionalProperties": false
-						},
-						"weekly": {
-							"type": "object",
-							"properties": {
-								"since": {
-									"type": "string",
-									"description": "Filter from date (YYYY-MM-DD or YYYYMMDD)",
-									"markdownDescription": "Filter from date (YYYY-MM-DD or YYYYMMDD)"
-								},
-								"until": {
-									"type": "string",
-									"description": "Filter until date (inclusive)",
-									"markdownDescription": "Filter until date (inclusive)"
-								},
-								"json": {
-									"type": "boolean",
-									"description": "Output in JSON format",
-									"markdownDescription": "Output in JSON format",
-									"default": false
-								},
-								"mode": {
-									"type": "string",
-									"enum": ["auto", "calculate", "display"],
-									"description": "Cost calculation mode: auto (use costUSD if exists, otherwise calculate), calculate (always calculate), display (always use costUSD)",
-									"markdownDescription": "Cost calculation mode: auto (use costUSD if exists, otherwise calculate), calculate (always calculate), display (always use costUSD)",
-									"default": "auto"
-								},
-								"debug": {
-									"type": "boolean",
-									"description": "Show pricing mismatch information for debugging",
-									"markdownDescription": "Show pricing mismatch information for debugging",
-									"default": false
-								},
-								"debugSamples": {
-									"type": "number",
-									"description": "Number of sample discrepancies to show in debug output (default: 5)",
-									"markdownDescription": "Number of sample discrepancies to show in debug output (default: 5)",
-									"default": 5
-								},
-								"order": {
-									"type": "string",
-									"enum": ["desc", "asc"],
-									"description": "Sort order: desc (newest first) or asc (oldest first)",
-									"markdownDescription": "Sort order: desc (newest first) or asc (oldest first)",
-									"default": "asc"
-								},
-								"breakdown": {
-									"type": "boolean",
-									"description": "Show per-model cost breakdown",
-									"markdownDescription": "Show per-model cost breakdown",
-									"default": false
-								},
-								"offline": {
-									"type": "boolean",
-									"description": "Use cached pricing data where supported",
-									"markdownDescription": "Use cached pricing data where supported",
-									"default": false
-								},
-								"singleThread": {
-									"type": "boolean",
-									"description": "Disable parallel JSONL file loading",
-									"markdownDescription": "Disable parallel JSONL file loading",
-									"default": false
-								},
-								"color": {
-									"type": "boolean",
-									"description": "Enable colored output (default: auto). FORCE_COLOR=1 has the same effect.",
-									"markdownDescription": "Enable colored output (default: auto). FORCE_COLOR=1 has the same effect."
-								},
-								"noColor": {
-									"type": "boolean",
-									"description": "Disable colored output (default: auto). NO_COLOR=1 has the same effect.",
-									"markdownDescription": "Disable colored output (default: auto). NO_COLOR=1 has the same effect."
-								},
-								"timezone": {
-									"type": "string",
-									"description": "Timezone for date grouping (IANA)",
-									"markdownDescription": "Timezone for date grouping (IANA)"
-								},
-								"compact": {
-									"type": "boolean",
-									"description": "Force compact table layout for narrow terminals",
-									"markdownDescription": "Force compact table layout for narrow terminals",
-									"default": false
-								},
-								"startOfWeek": {
-									"type": "string",
-									"enum": [
-										"sunday",
-										"monday",
-										"tuesday",
-										"wednesday",
-										"thursday",
-										"friday",
-										"saturday"
-									],
-									"description": "Day to start the week on",
-									"markdownDescription": "Day to start the week on",
-									"default": "sunday"
-								},
-								"all": {
-									"type": "boolean",
-									"description": "Accepted for compatibility; all detected supported agents are included by default",
-									"markdownDescription": "Accepted for compatibility; all detected supported agents are included by default",
-									"default": false
-								}
-							},
-							"additionalProperties": false
-						},
-						"session": {
-							"type": "object",
-							"properties": {
-								"since": {
-									"type": "string",
-									"description": "Filter from date (YYYY-MM-DD or YYYYMMDD)",
-									"markdownDescription": "Filter from date (YYYY-MM-DD or YYYYMMDD)"
-								},
-								"until": {
-									"type": "string",
-									"description": "Filter until date (inclusive)",
-									"markdownDescription": "Filter until date (inclusive)"
-								},
-								"json": {
-									"type": "boolean",
-									"description": "Output in JSON format",
-									"markdownDescription": "Output in JSON format",
-									"default": false
-								},
-								"mode": {
-									"type": "string",
-									"enum": ["auto", "calculate", "display"],
-									"description": "Cost calculation mode: auto (use costUSD if exists, otherwise calculate), calculate (always calculate), display (always use costUSD)",
-									"markdownDescription": "Cost calculation mode: auto (use costUSD if exists, otherwise calculate), calculate (always calculate), display (always use costUSD)",
-									"default": "auto"
-								},
-								"debug": {
-									"type": "boolean",
-									"description": "Show pricing mismatch information for debugging",
-									"markdownDescription": "Show pricing mismatch information for debugging",
-									"default": false
-								},
-								"debugSamples": {
-									"type": "number",
-									"description": "Number of sample discrepancies to show in debug output (default: 5)",
-									"markdownDescription": "Number of sample discrepancies to show in debug output (default: 5)",
-									"default": 5
-								},
-								"breakdown": {
-									"type": "boolean",
-									"description": "Show per-model cost breakdown",
-									"markdownDescription": "Show per-model cost breakdown",
-									"default": false
-								},
-								"offline": {
-									"type": "boolean",
-									"description": "Use cached pricing data where supported",
-									"markdownDescription": "Use cached pricing data where supported",
-									"default": false
-								},
-								"singleThread": {
-									"type": "boolean",
-									"description": "Disable parallel JSONL file loading",
-									"markdownDescription": "Disable parallel JSONL file loading",
-									"default": false
-								},
-								"color": {
-									"type": "boolean",
-									"description": "Enable colored output (default: auto). FORCE_COLOR=1 has the same effect.",
-									"markdownDescription": "Enable colored output (default: auto). FORCE_COLOR=1 has the same effect."
-								},
-								"noColor": {
-									"type": "boolean",
-									"description": "Disable colored output (default: auto). NO_COLOR=1 has the same effect.",
-									"markdownDescription": "Disable colored output (default: auto). NO_COLOR=1 has the same effect."
-								},
-								"timezone": {
-									"type": "string",
-									"description": "Timezone for date grouping (IANA)",
-									"markdownDescription": "Timezone for date grouping (IANA)"
-								},
-								"compact": {
-									"type": "boolean",
-									"description": "Force compact table layout for narrow terminals",
-									"markdownDescription": "Force compact table layout for narrow terminals",
-									"default": false
-								},
-								"id": {
-									"type": "string",
-									"description": "Load usage data for a specific session ID",
-									"markdownDescription": "Load usage data for a specific session ID"
-								},
-								"all": {
-									"type": "boolean",
-									"description": "Accepted for compatibility; all detected supported agents are included by default",
-									"markdownDescription": "Accepted for compatibility; all detected supported agents are included by default",
-									"default": false
-								}
-							},
-							"additionalProperties": false
-						},
-						"blocks": {
-							"type": "object",
-							"properties": {
-								"since": {
-									"type": "string",
-									"description": "Filter from date (YYYYMMDD format)",
-									"markdownDescription": "Filter from date (YYYYMMDD format)"
-								},
-								"until": {
-									"type": "string",
-									"description": "Filter until date (YYYYMMDD format)",
-									"markdownDescription": "Filter until date (YYYYMMDD format)"
-								},
-								"json": {
-									"type": "boolean",
-									"description": "Output in JSON format",
-									"markdownDescription": "Output in JSON format",
-									"default": false
-								},
-								"mode": {
-									"type": "string",
-									"enum": ["auto", "calculate", "display"],
-									"description": "Cost calculation mode: auto (use costUSD if exists, otherwise calculate), calculate (always calculate), display (always use costUSD)",
-									"markdownDescription": "Cost calculation mode: auto (use costUSD if exists, otherwise calculate), calculate (always calculate), display (always use costUSD)",
-									"default": "auto"
-								},
-								"debug": {
-									"type": "boolean",
-									"description": "Show pricing mismatch information for debugging",
-									"markdownDescription": "Show pricing mismatch information for debugging",
-									"default": false
-								},
-								"debugSamples": {
-									"type": "number",
-									"description": "Number of sample discrepancies to show in debug output (default: 5)",
-									"markdownDescription": "Number of sample discrepancies to show in debug output (default: 5)",
-									"default": 5
-								},
-								"order": {
-									"type": "string",
-									"enum": ["desc", "asc"],
-									"description": "Sort order: desc (newest first) or asc (oldest first)",
-									"markdownDescription": "Sort order: desc (newest first) or asc (oldest first)",
-									"default": "asc"
-								},
-								"breakdown": {
-									"type": "boolean",
-									"description": "Show per-model cost breakdown",
-									"markdownDescription": "Show per-model cost breakdown",
-									"default": false
-								},
-								"offline": {
-									"type": "boolean",
-									"description": "Use cached pricing data for Claude models instead of fetching from API",
-									"markdownDescription": "Use cached pricing data for Claude models instead of fetching from API",
-									"default": false
-								},
-								"singleThread": {
-									"type": "boolean",
-									"description": "Disable parallel JSONL file loading",
-									"markdownDescription": "Disable parallel JSONL file loading",
-									"default": false
-								},
-								"color": {
-									"type": "boolean",
-									"description": "Enable colored output (default: auto). FORCE_COLOR=1 has the same effect.",
-									"markdownDescription": "Enable colored output (default: auto). FORCE_COLOR=1 has the same effect."
-								},
-								"noColor": {
-									"type": "boolean",
-									"description": "Disable colored output (default: auto). NO_COLOR=1 has the same effect.",
-									"markdownDescription": "Disable colored output (default: auto). NO_COLOR=1 has the same effect."
-								},
-								"timezone": {
-									"type": "string",
-									"description": "Timezone for date grouping (e.g., UTC, America/New_York, Asia/Tokyo). Default: system timezone",
-									"markdownDescription": "Timezone for date grouping (e.g., UTC, America/New_York, Asia/Tokyo). Default: system timezone"
-								},
-								"compact": {
-									"type": "boolean",
-									"description": "Force compact mode for narrow displays (better for screenshots)",
-									"markdownDescription": "Force compact mode for narrow displays (better for screenshots)",
-									"default": false
-								},
-								"active": {
-									"type": "boolean",
-									"description": "Show only active block with projections",
-									"markdownDescription": "Show only active block with projections",
-									"default": false
-								},
-								"recent": {
-									"type": "boolean",
-									"description": "Show blocks from last 3 days (including active)",
-									"markdownDescription": "Show blocks from last 3 days (including active)",
-									"default": false
-								},
-								"tokenLimit": {
-									"type": "string",
-									"description": "Token limit for quota warnings (e.g., 500000 or \"max\")",
-									"markdownDescription": "Token limit for quota warnings (e.g., 500000 or \"max\")"
-								},
-								"sessionLength": {
-									"type": "number",
-									"description": "Session block duration in hours (default: 5)",
-									"markdownDescription": "Session block duration in hours (default: 5)",
-									"default": 5
-								}
-							},
-							"additionalProperties": false
-						},
-						"statusline": {
-							"type": "object",
-							"properties": {
-								"offline": {
-									"type": "boolean",
-									"description": "Use cached pricing data for Claude models instead of fetching from API",
-									"markdownDescription": "Use cached pricing data for Claude models instead of fetching from API",
-									"default": true
-								},
-								"visualBurnRate": {
-									"type": "string",
-									"enum": ["off", "emoji", "text", "emoji-text"],
-									"description": "Controls the visualization of the burn rate status",
-									"markdownDescription": "Controls the visualization of the burn rate status",
-									"default": "off"
-								},
-								"costSource": {
-									"type": "string",
-									"enum": ["auto", "ccusage", "cc", "both"],
-									"description": "Session cost source: auto (prefer CC then ccusage), ccusage (always calculate), cc (always use Claude Code cost), both (show both costs)",
-									"markdownDescription": "Session cost source: auto (prefer CC then ccusage), ccusage (always calculate), cc (always use Claude Code cost), both (show both costs)",
-									"default": "auto"
-								},
-								"cache": {
-									"type": "boolean",
-									"description": "Enable cache for status line output (default: true)",
-									"markdownDescription": "Enable cache for status line output (default: true)",
-									"default": true
-								},
-								"refreshInterval": {
-									"type": "number",
-									"description": "Refresh interval in seconds for cache expiry (default: 1)",
-									"markdownDescription": "Refresh interval in seconds for cache expiry (default: 1)",
-									"default": 1
-								},
-								"contextLowThreshold": {
-									"type": "number",
-									"description": "Context usage percentage below which status is shown in green (0-100)",
-									"markdownDescription": "Context usage percentage below which status is shown in green (0-100)",
-									"default": 50
-								},
-								"contextMediumThreshold": {
-									"type": "number",
-									"description": "Context usage percentage below which status is shown in yellow (0-100)",
-									"markdownDescription": "Context usage percentage below which status is shown in yellow (0-100)",
-									"default": 80
-								},
-								"debug": {
-									"type": "boolean",
-									"description": "Show pricing mismatch information for debugging",
-									"markdownDescription": "Show pricing mismatch information for debugging",
-									"default": false
-								}
-							},
-							"additionalProperties": false
-						}
-					},
-					"additionalProperties": false,
-					"description": "Command-specific configuration overrides for all-agent reports",
-					"markdownDescription": "Command-specific configuration overrides for all-agent reports"
-				},
-				"claude": {
-					"type": "object",
-					"properties": {
-						"defaults": {
-							"type": "object",
-							"properties": {
-								"debug": {
-									"type": "boolean",
-									"description": "Show pricing mismatch information for debugging",
-									"markdownDescription": "Show pricing mismatch information for debugging",
-									"default": false
-								},
-								"offline": {
-									"type": "boolean",
-									"description": "Use cached pricing data for Claude models instead of fetching from API",
-									"markdownDescription": "Use cached pricing data for Claude models instead of fetching from API",
-									"default": false
-								}
-							},
-							"additionalProperties": false,
-							"description": "Default values for claude commands",
-							"markdownDescription": "Default values for claude commands"
-						},
-						"commands": {
-							"type": "object",
-							"properties": {
-								"daily": {
-									"type": "object",
-									"properties": {
-										"since": {
-											"type": "string",
-											"description": "Filter from date (YYYYMMDD format)",
-											"markdownDescription": "Filter from date (YYYYMMDD format)"
-										},
-										"until": {
-											"type": "string",
-											"description": "Filter until date (YYYYMMDD format)",
-											"markdownDescription": "Filter until date (YYYYMMDD format)"
-										},
-										"json": {
-											"type": "boolean",
-											"description": "Output in JSON format",
-											"markdownDescription": "Output in JSON format",
-											"default": false
-										},
-										"mode": {
-											"type": "string",
-											"enum": ["auto", "calculate", "display"],
-											"description": "Cost calculation mode: auto (use costUSD if exists, otherwise calculate), calculate (always calculate), display (always use costUSD)",
-											"markdownDescription": "Cost calculation mode: auto (use costUSD if exists, otherwise calculate), calculate (always calculate), display (always use costUSD)",
-											"default": "auto"
-										},
-										"debug": {
-											"type": "boolean",
-											"description": "Show pricing mismatch information for debugging",
-											"markdownDescription": "Show pricing mismatch information for debugging",
-											"default": false
-										},
-										"debugSamples": {
-											"type": "number",
-											"description": "Number of sample discrepancies to show in debug output (default: 5)",
-											"markdownDescription": "Number of sample discrepancies to show in debug output (default: 5)",
-											"default": 5
-										},
-										"order": {
-											"type": "string",
-											"enum": ["desc", "asc"],
-											"description": "Sort order: desc (newest first) or asc (oldest first)",
-											"markdownDescription": "Sort order: desc (newest first) or asc (oldest first)",
-											"default": "asc"
-										},
-										"breakdown": {
-											"type": "boolean",
-											"description": "Show per-model cost breakdown",
-											"markdownDescription": "Show per-model cost breakdown",
-											"default": false
-										},
-										"offline": {
-											"type": "boolean",
-											"description": "Use cached pricing data for Claude models instead of fetching from API",
-											"markdownDescription": "Use cached pricing data for Claude models instead of fetching from API",
-											"default": false
-										},
-										"singleThread": {
-											"type": "boolean",
-											"description": "Disable parallel JSONL file loading",
-											"markdownDescription": "Disable parallel JSONL file loading",
-											"default": false
-										},
-										"color": {
-											"type": "boolean",
-											"description": "Enable colored output (default: auto). FORCE_COLOR=1 has the same effect.",
-											"markdownDescription": "Enable colored output (default: auto). FORCE_COLOR=1 has the same effect."
-										},
-										"noColor": {
-											"type": "boolean",
-											"description": "Disable colored output (default: auto). NO_COLOR=1 has the same effect.",
-											"markdownDescription": "Disable colored output (default: auto). NO_COLOR=1 has the same effect."
-										},
-										"timezone": {
-											"type": "string",
-											"description": "Timezone for date grouping (e.g., UTC, America/New_York, Asia/Tokyo). Default: system timezone",
-											"markdownDescription": "Timezone for date grouping (e.g., UTC, America/New_York, Asia/Tokyo). Default: system timezone"
-										},
-										"compact": {
-											"type": "boolean",
-											"description": "Force compact mode for narrow displays (better for screenshots)",
-											"markdownDescription": "Force compact mode for narrow displays (better for screenshots)",
-											"default": false
-										},
-										"instances": {
-											"type": "boolean",
-											"description": "Show usage breakdown by project/instance",
-											"markdownDescription": "Show usage breakdown by project/instance",
-											"default": false
-										},
-										"project": {
-											"type": "string",
-											"description": "Filter to specific project name",
-											"markdownDescription": "Filter to specific project name"
-										},
-										"projectAliases": {
-											"type": "string",
-											"description": "Comma-separated project aliases (e.g., 'ccusage=Usage Tracker,myproject=My Project')",
-											"markdownDescription": "Comma-separated project aliases (e.g., 'ccusage=Usage Tracker,myproject=My Project')"
-										}
-									},
-									"additionalProperties": false
-								},
-								"monthly": {
-									"type": "object",
-									"properties": {
-										"since": {
-											"type": "string",
-											"description": "Filter from date (YYYYMMDD format)",
-											"markdownDescription": "Filter from date (YYYYMMDD format)"
-										},
-										"until": {
-											"type": "string",
-											"description": "Filter until date (YYYYMMDD format)",
-											"markdownDescription": "Filter until date (YYYYMMDD format)"
-										},
-										"json": {
-											"type": "boolean",
-											"description": "Output in JSON format",
-											"markdownDescription": "Output in JSON format",
-											"default": false
-										},
-										"mode": {
-											"type": "string",
-											"enum": ["auto", "calculate", "display"],
-											"description": "Cost calculation mode: auto (use costUSD if exists, otherwise calculate), calculate (always calculate), display (always use costUSD)",
-											"markdownDescription": "Cost calculation mode: auto (use costUSD if exists, otherwise calculate), calculate (always calculate), display (always use costUSD)",
-											"default": "auto"
-										},
-										"debug": {
-											"type": "boolean",
-											"description": "Show pricing mismatch information for debugging",
-											"markdownDescription": "Show pricing mismatch information for debugging",
-											"default": false
-										},
-										"debugSamples": {
-											"type": "number",
-											"description": "Number of sample discrepancies to show in debug output (default: 5)",
-											"markdownDescription": "Number of sample discrepancies to show in debug output (default: 5)",
-											"default": 5
-										},
-										"order": {
-											"type": "string",
-											"enum": ["desc", "asc"],
-											"description": "Sort order: desc (newest first) or asc (oldest first)",
-											"markdownDescription": "Sort order: desc (newest first) or asc (oldest first)",
-											"default": "asc"
-										},
-										"breakdown": {
-											"type": "boolean",
-											"description": "Show per-model cost breakdown",
-											"markdownDescription": "Show per-model cost breakdown",
-											"default": false
-										},
-										"offline": {
-											"type": "boolean",
-											"description": "Use cached pricing data for Claude models instead of fetching from API",
-											"markdownDescription": "Use cached pricing data for Claude models instead of fetching from API",
-											"default": false
-										},
-										"singleThread": {
-											"type": "boolean",
-											"description": "Disable parallel JSONL file loading",
-											"markdownDescription": "Disable parallel JSONL file loading",
-											"default": false
-										},
-										"color": {
-											"type": "boolean",
-											"description": "Enable colored output (default: auto). FORCE_COLOR=1 has the same effect.",
-											"markdownDescription": "Enable colored output (default: auto). FORCE_COLOR=1 has the same effect."
-										},
-										"noColor": {
-											"type": "boolean",
-											"description": "Disable colored output (default: auto). NO_COLOR=1 has the same effect.",
-											"markdownDescription": "Disable colored output (default: auto). NO_COLOR=1 has the same effect."
-										},
-										"timezone": {
-											"type": "string",
-											"description": "Timezone for date grouping (e.g., UTC, America/New_York, Asia/Tokyo). Default: system timezone",
-											"markdownDescription": "Timezone for date grouping (e.g., UTC, America/New_York, Asia/Tokyo). Default: system timezone"
-										},
-										"compact": {
-											"type": "boolean",
-											"description": "Force compact mode for narrow displays (better for screenshots)",
-											"markdownDescription": "Force compact mode for narrow displays (better for screenshots)",
-											"default": false
-										}
-									},
-									"additionalProperties": false
-								},
-								"weekly": {
-									"type": "object",
-									"properties": {
-										"since": {
-											"type": "string",
-											"description": "Filter from date (YYYYMMDD format)",
-											"markdownDescription": "Filter from date (YYYYMMDD format)"
-										},
-										"until": {
-											"type": "string",
-											"description": "Filter until date (YYYYMMDD format)",
-											"markdownDescription": "Filter until date (YYYYMMDD format)"
-										},
-										"json": {
-											"type": "boolean",
-											"description": "Output in JSON format",
-											"markdownDescription": "Output in JSON format",
-											"default": false
-										},
-										"mode": {
-											"type": "string",
-											"enum": ["auto", "calculate", "display"],
-											"description": "Cost calculation mode: auto (use costUSD if exists, otherwise calculate), calculate (always calculate), display (always use costUSD)",
-											"markdownDescription": "Cost calculation mode: auto (use costUSD if exists, otherwise calculate), calculate (always calculate), display (always use costUSD)",
-											"default": "auto"
-										},
-										"debug": {
-											"type": "boolean",
-											"description": "Show pricing mismatch information for debugging",
-											"markdownDescription": "Show pricing mismatch information for debugging",
-											"default": false
-										},
-										"debugSamples": {
-											"type": "number",
-											"description": "Number of sample discrepancies to show in debug output (default: 5)",
-											"markdownDescription": "Number of sample discrepancies to show in debug output (default: 5)",
-											"default": 5
-										},
-										"order": {
-											"type": "string",
-											"enum": ["desc", "asc"],
-											"description": "Sort order: desc (newest first) or asc (oldest first)",
-											"markdownDescription": "Sort order: desc (newest first) or asc (oldest first)",
-											"default": "asc"
-										},
-										"breakdown": {
-											"type": "boolean",
-											"description": "Show per-model cost breakdown",
-											"markdownDescription": "Show per-model cost breakdown",
-											"default": false
-										},
-										"offline": {
-											"type": "boolean",
-											"description": "Use cached pricing data for Claude models instead of fetching from API",
-											"markdownDescription": "Use cached pricing data for Claude models instead of fetching from API",
-											"default": false
-										},
-										"singleThread": {
-											"type": "boolean",
-											"description": "Disable parallel JSONL file loading",
-											"markdownDescription": "Disable parallel JSONL file loading",
-											"default": false
-										},
-										"color": {
-											"type": "boolean",
-											"description": "Enable colored output (default: auto). FORCE_COLOR=1 has the same effect.",
-											"markdownDescription": "Enable colored output (default: auto). FORCE_COLOR=1 has the same effect."
-										},
-										"noColor": {
-											"type": "boolean",
-											"description": "Disable colored output (default: auto). NO_COLOR=1 has the same effect.",
-											"markdownDescription": "Disable colored output (default: auto). NO_COLOR=1 has the same effect."
-										},
-										"timezone": {
-											"type": "string",
-											"description": "Timezone for date grouping (e.g., UTC, America/New_York, Asia/Tokyo). Default: system timezone",
-											"markdownDescription": "Timezone for date grouping (e.g., UTC, America/New_York, Asia/Tokyo). Default: system timezone"
-										},
-										"compact": {
-											"type": "boolean",
-											"description": "Force compact mode for narrow displays (better for screenshots)",
-											"markdownDescription": "Force compact mode for narrow displays (better for screenshots)",
-											"default": false
-										},
-										"startOfWeek": {
-											"type": "string",
-											"enum": [
-												"sunday",
-												"monday",
-												"tuesday",
-												"wednesday",
-												"thursday",
-												"friday",
-												"saturday"
-											],
-											"description": "Day to start the week on",
-											"markdownDescription": "Day to start the week on",
-											"default": "sunday"
-										}
-									},
-									"additionalProperties": false
-								},
-								"session": {
-									"type": "object",
-									"properties": {
-										"since": {
-											"type": "string",
-											"description": "Filter from date (YYYYMMDD format)",
-											"markdownDescription": "Filter from date (YYYYMMDD format)"
-										},
-										"until": {
-											"type": "string",
-											"description": "Filter until date (YYYYMMDD format)",
-											"markdownDescription": "Filter until date (YYYYMMDD format)"
-										},
-										"json": {
-											"type": "boolean",
-											"description": "Output in JSON format",
-											"markdownDescription": "Output in JSON format",
-											"default": false
-										},
-										"mode": {
-											"type": "string",
-											"enum": ["auto", "calculate", "display"],
-											"description": "Cost calculation mode: auto (use costUSD if exists, otherwise calculate), calculate (always calculate), display (always use costUSD)",
-											"markdownDescription": "Cost calculation mode: auto (use costUSD if exists, otherwise calculate), calculate (always calculate), display (always use costUSD)",
-											"default": "auto"
-										},
-										"debug": {
-											"type": "boolean",
-											"description": "Show pricing mismatch information for debugging",
-											"markdownDescription": "Show pricing mismatch information for debugging",
-											"default": false
-										},
-										"debugSamples": {
-											"type": "number",
-											"description": "Number of sample discrepancies to show in debug output (default: 5)",
-											"markdownDescription": "Number of sample discrepancies to show in debug output (default: 5)",
-											"default": 5
-										},
-										"breakdown": {
-											"type": "boolean",
-											"description": "Show per-model cost breakdown",
-											"markdownDescription": "Show per-model cost breakdown",
-											"default": false
-										},
-										"offline": {
-											"type": "boolean",
-											"description": "Use cached pricing data for Claude models instead of fetching from API",
-											"markdownDescription": "Use cached pricing data for Claude models instead of fetching from API",
-											"default": false
-										},
-										"singleThread": {
-											"type": "boolean",
-											"description": "Disable parallel JSONL file loading",
-											"markdownDescription": "Disable parallel JSONL file loading",
-											"default": false
-										},
-										"color": {
-											"type": "boolean",
-											"description": "Enable colored output (default: auto). FORCE_COLOR=1 has the same effect.",
-											"markdownDescription": "Enable colored output (default: auto). FORCE_COLOR=1 has the same effect."
-										},
-										"noColor": {
-											"type": "boolean",
-											"description": "Disable colored output (default: auto). NO_COLOR=1 has the same effect.",
-											"markdownDescription": "Disable colored output (default: auto). NO_COLOR=1 has the same effect."
-										},
-										"timezone": {
-											"type": "string",
-											"description": "Timezone for date grouping (e.g., UTC, America/New_York, Asia/Tokyo). Default: system timezone",
-											"markdownDescription": "Timezone for date grouping (e.g., UTC, America/New_York, Asia/Tokyo). Default: system timezone"
-										},
-										"compact": {
-											"type": "boolean",
-											"description": "Force compact mode for narrow displays (better for screenshots)",
-											"markdownDescription": "Force compact mode for narrow displays (better for screenshots)",
-											"default": false
-										},
-										"id": {
-											"type": "string",
-											"description": "Load usage data for a specific session ID",
-											"markdownDescription": "Load usage data for a specific session ID"
-										}
-									},
-									"additionalProperties": false
-								},
-								"blocks": {
-									"type": "object",
-									"properties": {
-										"since": {
-											"type": "string",
-											"description": "Filter from date (YYYYMMDD format)",
-											"markdownDescription": "Filter from date (YYYYMMDD format)"
-										},
-										"until": {
-											"type": "string",
-											"description": "Filter until date (YYYYMMDD format)",
-											"markdownDescription": "Filter until date (YYYYMMDD format)"
-										},
-										"json": {
-											"type": "boolean",
-											"description": "Output in JSON format",
-											"markdownDescription": "Output in JSON format",
-											"default": false
-										},
-										"mode": {
-											"type": "string",
-											"enum": ["auto", "calculate", "display"],
-											"description": "Cost calculation mode: auto (use costUSD if exists, otherwise calculate), calculate (always calculate), display (always use costUSD)",
-											"markdownDescription": "Cost calculation mode: auto (use costUSD if exists, otherwise calculate), calculate (always calculate), display (always use costUSD)",
-											"default": "auto"
-										},
-										"debug": {
-											"type": "boolean",
-											"description": "Show pricing mismatch information for debugging",
-											"markdownDescription": "Show pricing mismatch information for debugging",
-											"default": false
-										},
-										"debugSamples": {
-											"type": "number",
-											"description": "Number of sample discrepancies to show in debug output (default: 5)",
-											"markdownDescription": "Number of sample discrepancies to show in debug output (default: 5)",
-											"default": 5
-										},
-										"order": {
-											"type": "string",
-											"enum": ["desc", "asc"],
-											"description": "Sort order: desc (newest first) or asc (oldest first)",
-											"markdownDescription": "Sort order: desc (newest first) or asc (oldest first)",
-											"default": "asc"
-										},
-										"breakdown": {
-											"type": "boolean",
-											"description": "Show per-model cost breakdown",
-											"markdownDescription": "Show per-model cost breakdown",
-											"default": false
-										},
-										"offline": {
-											"type": "boolean",
-											"description": "Use cached pricing data for Claude models instead of fetching from API",
-											"markdownDescription": "Use cached pricing data for Claude models instead of fetching from API",
-											"default": false
-										},
-										"singleThread": {
-											"type": "boolean",
-											"description": "Disable parallel JSONL file loading",
-											"markdownDescription": "Disable parallel JSONL file loading",
-											"default": false
-										},
-										"color": {
-											"type": "boolean",
-											"description": "Enable colored output (default: auto). FORCE_COLOR=1 has the same effect.",
-											"markdownDescription": "Enable colored output (default: auto). FORCE_COLOR=1 has the same effect."
-										},
-										"noColor": {
-											"type": "boolean",
-											"description": "Disable colored output (default: auto). NO_COLOR=1 has the same effect.",
-											"markdownDescription": "Disable colored output (default: auto). NO_COLOR=1 has the same effect."
-										},
-										"timezone": {
-											"type": "string",
-											"description": "Timezone for date grouping (e.g., UTC, America/New_York, Asia/Tokyo). Default: system timezone",
-											"markdownDescription": "Timezone for date grouping (e.g., UTC, America/New_York, Asia/Tokyo). Default: system timezone"
-										},
-										"compact": {
-											"type": "boolean",
-											"description": "Force compact mode for narrow displays (better for screenshots)",
-											"markdownDescription": "Force compact mode for narrow displays (better for screenshots)",
-											"default": false
-										},
-										"active": {
-											"type": "boolean",
-											"description": "Show only active block with projections",
-											"markdownDescription": "Show only active block with projections",
-											"default": false
-										},
-										"recent": {
-											"type": "boolean",
-											"description": "Show blocks from last 3 days (including active)",
-											"markdownDescription": "Show blocks from last 3 days (including active)",
-											"default": false
-										},
-										"tokenLimit": {
-											"type": "string",
-											"description": "Token limit for quota warnings (e.g., 500000 or \"max\")",
-											"markdownDescription": "Token limit for quota warnings (e.g., 500000 or \"max\")"
-										},
-										"sessionLength": {
-											"type": "number",
-											"description": "Session block duration in hours (default: 5)",
-											"markdownDescription": "Session block duration in hours (default: 5)",
-											"default": 5
-										}
-									},
-									"additionalProperties": false
-								},
-								"statusline": {
-									"type": "object",
-									"properties": {
-										"offline": {
-											"type": "boolean",
-											"description": "Use cached pricing data for Claude models instead of fetching from API",
-											"markdownDescription": "Use cached pricing data for Claude models instead of fetching from API",
-											"default": true
-										},
-										"visualBurnRate": {
-											"type": "string",
-											"enum": ["off", "emoji", "text", "emoji-text"],
-											"description": "Controls the visualization of the burn rate status",
-											"markdownDescription": "Controls the visualization of the burn rate status",
-											"default": "off"
-										},
-										"costSource": {
-											"type": "string",
-											"enum": ["auto", "ccusage", "cc", "both"],
-											"description": "Session cost source: auto (prefer CC then ccusage), ccusage (always calculate), cc (always use Claude Code cost), both (show both costs)",
-											"markdownDescription": "Session cost source: auto (prefer CC then ccusage), ccusage (always calculate), cc (always use Claude Code cost), both (show both costs)",
-											"default": "auto"
-										},
-										"cache": {
-											"type": "boolean",
-											"description": "Enable cache for status line output (default: true)",
-											"markdownDescription": "Enable cache for status line output (default: true)",
-											"default": true
-										},
-										"refreshInterval": {
-											"type": "number",
-											"description": "Refresh interval in seconds for cache expiry (default: 1)",
-											"markdownDescription": "Refresh interval in seconds for cache expiry (default: 1)",
-											"default": 1
-										},
-										"contextLowThreshold": {
-											"type": "number",
-											"description": "Context usage percentage below which status is shown in green (0-100)",
-											"markdownDescription": "Context usage percentage below which status is shown in green (0-100)",
-											"default": 50
-										},
-										"contextMediumThreshold": {
-											"type": "number",
-											"description": "Context usage percentage below which status is shown in yellow (0-100)",
-											"markdownDescription": "Context usage percentage below which status is shown in yellow (0-100)",
-											"default": 80
-										},
-										"debug": {
-											"type": "boolean",
-											"description": "Show pricing mismatch information for debugging",
-											"markdownDescription": "Show pricing mismatch information for debugging",
-											"default": false
-										}
-									},
-									"additionalProperties": false
-								}
-							},
-							"additionalProperties": false,
-							"description": "Command-specific configuration overrides for claude",
-							"markdownDescription": "Command-specific configuration overrides for claude"
-						}
-					},
-					"additionalProperties": false,
-					"description": "claude command configuration",
-					"markdownDescription": "claude command configuration"
-				},
-				"codex": {
-					"type": "object",
-					"properties": {
-						"defaults": {
-							"type": "object",
-							"properties": {
-								"json": {
-									"type": "boolean",
-									"description": "Output report as JSON",
-									"markdownDescription": "Output report as JSON",
-									"default": false
-								},
-								"since": {
-									"type": "string",
-									"description": "Filter from date (YYYY-MM-DD or YYYYMMDD)",
-									"markdownDescription": "Filter from date (YYYY-MM-DD or YYYYMMDD)"
-								},
-								"until": {
-									"type": "string",
-									"description": "Filter until date (inclusive)",
-									"markdownDescription": "Filter until date (inclusive)"
-								},
-								"timezone": {
-									"type": "string",
-									"description": "Timezone for date grouping (IANA)",
-									"markdownDescription": "Timezone for date grouping (IANA)"
-								},
-								"offline": {
-									"type": "boolean",
-									"description": "Use cached pricing data instead of fetching from LiteLLM",
-									"markdownDescription": "Use cached pricing data instead of fetching from LiteLLM",
-									"default": false
-								},
-								"speed": {
-									"type": "string",
-									"description": "Cost speed tier: auto reads Codex config.toml service_tier; use standard or fast to override",
-									"markdownDescription": "Cost speed tier: auto reads Codex config.toml service_tier; use standard or fast to override",
-									"default": "auto"
-								},
-								"compact": {
-									"type": "boolean",
-									"description": "Force compact table layout for narrow terminals",
-									"markdownDescription": "Force compact table layout for narrow terminals",
-									"default": false
-								},
-								"color": {
-									"type": "boolean",
-									"description": "Enable colored output (default: auto). FORCE_COLOR=1 has the same effect.",
-									"markdownDescription": "Enable colored output (default: auto). FORCE_COLOR=1 has the same effect."
-								},
-								"noColor": {
-									"type": "boolean",
-									"description": "Disable colored output (default: auto). NO_COLOR=1 has the same effect.",
-									"markdownDescription": "Disable colored output (default: auto). NO_COLOR=1 has the same effect."
-								}
-							},
-							"additionalProperties": false,
-							"description": "Default values for codex commands",
-							"markdownDescription": "Default values for codex commands"
-						},
-						"commands": {
-							"type": "object",
-							"properties": {
-								"daily": {
-									"type": "object",
-									"properties": {
-										"json": {
-											"type": "boolean",
-											"description": "Output report as JSON",
-											"markdownDescription": "Output report as JSON",
-											"default": false
-										},
-										"since": {
-											"type": "string",
-											"description": "Filter from date (YYYY-MM-DD or YYYYMMDD)",
-											"markdownDescription": "Filter from date (YYYY-MM-DD or YYYYMMDD)"
-										},
-										"until": {
-											"type": "string",
-											"description": "Filter until date (inclusive)",
-											"markdownDescription": "Filter until date (inclusive)"
-										},
-										"timezone": {
-											"type": "string",
-											"description": "Timezone for date grouping (IANA)",
-											"markdownDescription": "Timezone for date grouping (IANA)"
-										},
-										"offline": {
-											"type": "boolean",
-											"description": "Use cached pricing data instead of fetching from LiteLLM",
-											"markdownDescription": "Use cached pricing data instead of fetching from LiteLLM",
-											"default": false
-										},
-										"speed": {
-											"type": "string",
-											"description": "Cost speed tier: auto reads Codex config.toml service_tier; use standard or fast to override",
-											"markdownDescription": "Cost speed tier: auto reads Codex config.toml service_tier; use standard or fast to override",
-											"default": "auto"
-										},
-										"compact": {
-											"type": "boolean",
-											"description": "Force compact table layout for narrow terminals",
-											"markdownDescription": "Force compact table layout for narrow terminals",
-											"default": false
-										},
-										"color": {
-											"type": "boolean",
-											"description": "Enable colored output (default: auto). FORCE_COLOR=1 has the same effect.",
-											"markdownDescription": "Enable colored output (default: auto). FORCE_COLOR=1 has the same effect."
-										},
-										"noColor": {
-											"type": "boolean",
-											"description": "Disable colored output (default: auto). NO_COLOR=1 has the same effect.",
-											"markdownDescription": "Disable colored output (default: auto). NO_COLOR=1 has the same effect."
-										}
-									},
-									"additionalProperties": false
-								},
-								"monthly": {
-									"type": "object",
-									"properties": {
-										"json": {
-											"type": "boolean",
-											"description": "Output report as JSON",
-											"markdownDescription": "Output report as JSON",
-											"default": false
-										},
-										"since": {
-											"type": "string",
-											"description": "Filter from date (YYYY-MM-DD or YYYYMMDD)",
-											"markdownDescription": "Filter from date (YYYY-MM-DD or YYYYMMDD)"
-										},
-										"until": {
-											"type": "string",
-											"description": "Filter until date (inclusive)",
-											"markdownDescription": "Filter until date (inclusive)"
-										},
-										"timezone": {
-											"type": "string",
-											"description": "Timezone for date grouping (IANA)",
-											"markdownDescription": "Timezone for date grouping (IANA)"
-										},
-										"offline": {
-											"type": "boolean",
-											"description": "Use cached pricing data instead of fetching from LiteLLM",
-											"markdownDescription": "Use cached pricing data instead of fetching from LiteLLM",
-											"default": false
-										},
-										"speed": {
-											"type": "string",
-											"description": "Cost speed tier: auto reads Codex config.toml service_tier; use standard or fast to override",
-											"markdownDescription": "Cost speed tier: auto reads Codex config.toml service_tier; use standard or fast to override",
-											"default": "auto"
-										},
-										"compact": {
-											"type": "boolean",
-											"description": "Force compact table layout for narrow terminals",
-											"markdownDescription": "Force compact table layout for narrow terminals",
-											"default": false
-										},
-										"color": {
-											"type": "boolean",
-											"description": "Enable colored output (default: auto). FORCE_COLOR=1 has the same effect.",
-											"markdownDescription": "Enable colored output (default: auto). FORCE_COLOR=1 has the same effect."
-										},
-										"noColor": {
-											"type": "boolean",
-											"description": "Disable colored output (default: auto). NO_COLOR=1 has the same effect.",
-											"markdownDescription": "Disable colored output (default: auto). NO_COLOR=1 has the same effect."
-										}
-									},
-									"additionalProperties": false
-								},
-								"session": {
-									"type": "object",
-									"properties": {
-										"json": {
-											"type": "boolean",
-											"description": "Output report as JSON",
-											"markdownDescription": "Output report as JSON",
-											"default": false
-										},
-										"since": {
-											"type": "string",
-											"description": "Filter from date (YYYY-MM-DD or YYYYMMDD)",
-											"markdownDescription": "Filter from date (YYYY-MM-DD or YYYYMMDD)"
-										},
-										"until": {
-											"type": "string",
-											"description": "Filter until date (inclusive)",
-											"markdownDescription": "Filter until date (inclusive)"
-										},
-										"timezone": {
-											"type": "string",
-											"description": "Timezone for date grouping (IANA)",
-											"markdownDescription": "Timezone for date grouping (IANA)"
-										},
-										"offline": {
-											"type": "boolean",
-											"description": "Use cached pricing data instead of fetching from LiteLLM",
-											"markdownDescription": "Use cached pricing data instead of fetching from LiteLLM",
-											"default": false
-										},
-										"speed": {
-											"type": "string",
-											"description": "Cost speed tier: auto reads Codex config.toml service_tier; use standard or fast to override",
-											"markdownDescription": "Cost speed tier: auto reads Codex config.toml service_tier; use standard or fast to override",
-											"default": "auto"
-										},
-										"compact": {
-											"type": "boolean",
-											"description": "Force compact table layout for narrow terminals",
-											"markdownDescription": "Force compact table layout for narrow terminals",
-											"default": false
-										},
-										"color": {
-											"type": "boolean",
-											"description": "Enable colored output (default: auto). FORCE_COLOR=1 has the same effect.",
-											"markdownDescription": "Enable colored output (default: auto). FORCE_COLOR=1 has the same effect."
-										},
-										"noColor": {
-											"type": "boolean",
-											"description": "Disable colored output (default: auto). NO_COLOR=1 has the same effect.",
-											"markdownDescription": "Disable colored output (default: auto). NO_COLOR=1 has the same effect."
-										}
-									},
-									"additionalProperties": false
-								}
-							},
-							"additionalProperties": false,
-							"description": "Command-specific configuration overrides for codex",
-							"markdownDescription": "Command-specific configuration overrides for codex"
-						}
-					},
-					"additionalProperties": false,
-					"description": "codex command configuration",
-					"markdownDescription": "codex command configuration"
-				},
-				"opencode": {
-					"type": "object",
-					"properties": {
-						"defaults": {
-							"type": "object",
-							"properties": {
-								"json": {
-									"type": "boolean",
-									"description": "Output in JSON format",
-									"markdownDescription": "Output in JSON format",
-									"default": false
-								},
-								"since": {
-									"type": "string",
-									"description": "Filter from date (YYYY-MM-DD or YYYYMMDD)",
-									"markdownDescription": "Filter from date (YYYY-MM-DD or YYYYMMDD)"
-								},
-								"until": {
-									"type": "string",
-									"description": "Filter until date (inclusive)",
-									"markdownDescription": "Filter until date (inclusive)"
-								},
-								"timezone": {
-									"type": "string",
-									"description": "Timezone for date grouping (IANA)",
-									"markdownDescription": "Timezone for date grouping (IANA)"
-								},
-								"offline": {
-									"type": "boolean",
-									"description": "Use cached pricing data instead of fetching from LiteLLM",
-									"markdownDescription": "Use cached pricing data instead of fetching from LiteLLM",
-									"default": false
-								},
-								"compact": {
-									"type": "boolean",
-									"description": "Force compact table layout for narrow terminals",
-									"markdownDescription": "Force compact table layout for narrow terminals",
-									"default": false
-								},
-								"color": {
-									"type": "boolean",
-									"description": "Enable colored output (default: auto). FORCE_COLOR=1 has the same effect.",
-									"markdownDescription": "Enable colored output (default: auto). FORCE_COLOR=1 has the same effect."
-								},
-								"noColor": {
-									"type": "boolean",
-									"description": "Disable colored output (default: auto). NO_COLOR=1 has the same effect.",
-									"markdownDescription": "Disable colored output (default: auto). NO_COLOR=1 has the same effect."
-								}
-							},
-							"additionalProperties": false,
-							"description": "Default values for opencode commands",
-							"markdownDescription": "Default values for opencode commands"
-						},
-						"commands": {
-							"type": "object",
-							"properties": {
-								"daily": {
-									"type": "object",
-									"properties": {
-										"json": {
-											"type": "boolean",
-											"description": "Output in JSON format",
-											"markdownDescription": "Output in JSON format",
-											"default": false
-										},
-										"since": {
-											"type": "string",
-											"description": "Filter from date (YYYY-MM-DD or YYYYMMDD)",
-											"markdownDescription": "Filter from date (YYYY-MM-DD or YYYYMMDD)"
-										},
-										"until": {
-											"type": "string",
-											"description": "Filter until date (inclusive)",
-											"markdownDescription": "Filter until date (inclusive)"
-										},
-										"timezone": {
-											"type": "string",
-											"description": "Timezone for date grouping (IANA)",
-											"markdownDescription": "Timezone for date grouping (IANA)"
-										},
-										"offline": {
-											"type": "boolean",
-											"description": "Use cached pricing data instead of fetching from LiteLLM",
-											"markdownDescription": "Use cached pricing data instead of fetching from LiteLLM",
-											"default": false
-										},
-										"compact": {
-											"type": "boolean",
-											"description": "Force compact table layout for narrow terminals",
-											"markdownDescription": "Force compact table layout for narrow terminals",
-											"default": false
-										},
-										"color": {
-											"type": "boolean",
-											"description": "Enable colored output (default: auto). FORCE_COLOR=1 has the same effect.",
-											"markdownDescription": "Enable colored output (default: auto). FORCE_COLOR=1 has the same effect."
-										},
-										"noColor": {
-											"type": "boolean",
-											"description": "Disable colored output (default: auto). NO_COLOR=1 has the same effect.",
-											"markdownDescription": "Disable colored output (default: auto). NO_COLOR=1 has the same effect."
-										}
-									},
-									"additionalProperties": false
-								},
-								"weekly": {
-									"type": "object",
-									"properties": {
-										"json": {
-											"type": "boolean",
-											"description": "Output in JSON format",
-											"markdownDescription": "Output in JSON format",
-											"default": false
-										},
-										"since": {
-											"type": "string",
-											"description": "Filter from date (YYYY-MM-DD or YYYYMMDD)",
-											"markdownDescription": "Filter from date (YYYY-MM-DD or YYYYMMDD)"
-										},
-										"until": {
-											"type": "string",
-											"description": "Filter until date (inclusive)",
-											"markdownDescription": "Filter until date (inclusive)"
-										},
-										"timezone": {
-											"type": "string",
-											"description": "Timezone for date grouping (IANA)",
-											"markdownDescription": "Timezone for date grouping (IANA)"
-										},
-										"offline": {
-											"type": "boolean",
-											"description": "Use cached pricing data instead of fetching from LiteLLM",
-											"markdownDescription": "Use cached pricing data instead of fetching from LiteLLM",
-											"default": false
-										},
-										"compact": {
-											"type": "boolean",
-											"description": "Force compact table layout for narrow terminals",
-											"markdownDescription": "Force compact table layout for narrow terminals",
-											"default": false
-										},
-										"color": {
-											"type": "boolean",
-											"description": "Enable colored output (default: auto). FORCE_COLOR=1 has the same effect.",
-											"markdownDescription": "Enable colored output (default: auto). FORCE_COLOR=1 has the same effect."
-										},
-										"noColor": {
-											"type": "boolean",
-											"description": "Disable colored output (default: auto). NO_COLOR=1 has the same effect.",
-											"markdownDescription": "Disable colored output (default: auto). NO_COLOR=1 has the same effect."
-										}
-									},
-									"additionalProperties": false
-								},
-								"monthly": {
-									"type": "object",
-									"properties": {
-										"json": {
-											"type": "boolean",
-											"description": "Output in JSON format",
-											"markdownDescription": "Output in JSON format",
-											"default": false
-										},
-										"since": {
-											"type": "string",
-											"description": "Filter from date (YYYY-MM-DD or YYYYMMDD)",
-											"markdownDescription": "Filter from date (YYYY-MM-DD or YYYYMMDD)"
-										},
-										"until": {
-											"type": "string",
-											"description": "Filter until date (inclusive)",
-											"markdownDescription": "Filter until date (inclusive)"
-										},
-										"timezone": {
-											"type": "string",
-											"description": "Timezone for date grouping (IANA)",
-											"markdownDescription": "Timezone for date grouping (IANA)"
-										},
-										"offline": {
-											"type": "boolean",
-											"description": "Use cached pricing data instead of fetching from LiteLLM",
-											"markdownDescription": "Use cached pricing data instead of fetching from LiteLLM",
-											"default": false
-										},
-										"compact": {
-											"type": "boolean",
-											"description": "Force compact table layout for narrow terminals",
-											"markdownDescription": "Force compact table layout for narrow terminals",
-											"default": false
-										},
-										"color": {
-											"type": "boolean",
-											"description": "Enable colored output (default: auto). FORCE_COLOR=1 has the same effect.",
-											"markdownDescription": "Enable colored output (default: auto). FORCE_COLOR=1 has the same effect."
-										},
-										"noColor": {
-											"type": "boolean",
-											"description": "Disable colored output (default: auto). NO_COLOR=1 has the same effect.",
-											"markdownDescription": "Disable colored output (default: auto). NO_COLOR=1 has the same effect."
-										}
-									},
-									"additionalProperties": false
-								},
-								"session": {
-									"type": "object",
-									"properties": {
-										"json": {
-											"type": "boolean",
-											"description": "Output in JSON format",
-											"markdownDescription": "Output in JSON format",
-											"default": false
-										},
-										"since": {
-											"type": "string",
-											"description": "Filter from date (YYYY-MM-DD or YYYYMMDD)",
-											"markdownDescription": "Filter from date (YYYY-MM-DD or YYYYMMDD)"
-										},
-										"until": {
-											"type": "string",
-											"description": "Filter until date (inclusive)",
-											"markdownDescription": "Filter until date (inclusive)"
-										},
-										"timezone": {
-											"type": "string",
-											"description": "Timezone for date grouping (IANA)",
-											"markdownDescription": "Timezone for date grouping (IANA)"
-										},
-										"offline": {
-											"type": "boolean",
-											"description": "Use cached pricing data instead of fetching from LiteLLM",
-											"markdownDescription": "Use cached pricing data instead of fetching from LiteLLM",
-											"default": false
-										},
-										"compact": {
-											"type": "boolean",
-											"description": "Force compact table layout for narrow terminals",
-											"markdownDescription": "Force compact table layout for narrow terminals",
-											"default": false
-										},
-										"color": {
-											"type": "boolean",
-											"description": "Enable colored output (default: auto). FORCE_COLOR=1 has the same effect.",
-											"markdownDescription": "Enable colored output (default: auto). FORCE_COLOR=1 has the same effect."
-										},
-										"noColor": {
-											"type": "boolean",
-											"description": "Disable colored output (default: auto). NO_COLOR=1 has the same effect.",
-											"markdownDescription": "Disable colored output (default: auto). NO_COLOR=1 has the same effect."
-										}
-									},
-									"additionalProperties": false
-								}
-							},
-							"additionalProperties": false,
-							"description": "Command-specific configuration overrides for opencode",
-							"markdownDescription": "Command-specific configuration overrides for opencode"
-						}
-					},
-					"additionalProperties": false,
-					"description": "opencode command configuration",
-					"markdownDescription": "opencode command configuration"
-				},
-				"amp": {
-					"type": "object",
-					"properties": {
-						"defaults": {
-							"type": "object",
-							"properties": {
-								"json": {
-									"type": "boolean",
-									"description": "Output in JSON format",
-									"markdownDescription": "Output in JSON format",
-									"default": false
-								},
-								"since": {
-									"type": "string",
-									"description": "Filter from date (YYYY-MM-DD or YYYYMMDD)",
-									"markdownDescription": "Filter from date (YYYY-MM-DD or YYYYMMDD)"
-								},
-								"until": {
-									"type": "string",
-									"description": "Filter until date (inclusive)",
-									"markdownDescription": "Filter until date (inclusive)"
-								},
-								"timezone": {
-									"type": "string",
-									"description": "Timezone for date grouping (IANA)",
-									"markdownDescription": "Timezone for date grouping (IANA)"
-								},
-								"offline": {
-									"type": "boolean",
-									"description": "Use cached pricing data instead of fetching from LiteLLM",
-									"markdownDescription": "Use cached pricing data instead of fetching from LiteLLM",
-									"default": false
-								},
-								"compact": {
-									"type": "boolean",
-									"description": "Force compact table layout for narrow terminals",
-									"markdownDescription": "Force compact table layout for narrow terminals",
-									"default": false
-								},
-								"color": {
-									"type": "boolean",
-									"description": "Enable colored output (default: auto). FORCE_COLOR=1 has the same effect.",
-									"markdownDescription": "Enable colored output (default: auto). FORCE_COLOR=1 has the same effect."
-								},
-								"noColor": {
-									"type": "boolean",
-									"description": "Disable colored output (default: auto). NO_COLOR=1 has the same effect.",
-									"markdownDescription": "Disable colored output (default: auto). NO_COLOR=1 has the same effect."
-								}
-							},
-							"additionalProperties": false,
-							"description": "Default values for amp commands",
-							"markdownDescription": "Default values for amp commands"
-						},
-						"commands": {
-							"type": "object",
-							"properties": {
-								"daily": {
-									"type": "object",
-									"properties": {
-										"json": {
-											"type": "boolean",
-											"description": "Output in JSON format",
-											"markdownDescription": "Output in JSON format",
-											"default": false
-										},
-										"since": {
-											"type": "string",
-											"description": "Filter from date (YYYY-MM-DD or YYYYMMDD)",
-											"markdownDescription": "Filter from date (YYYY-MM-DD or YYYYMMDD)"
-										},
-										"until": {
-											"type": "string",
-											"description": "Filter until date (inclusive)",
-											"markdownDescription": "Filter until date (inclusive)"
-										},
-										"timezone": {
-											"type": "string",
-											"description": "Timezone for date grouping (IANA)",
-											"markdownDescription": "Timezone for date grouping (IANA)"
-										},
-										"offline": {
-											"type": "boolean",
-											"description": "Use cached pricing data instead of fetching from LiteLLM",
-											"markdownDescription": "Use cached pricing data instead of fetching from LiteLLM",
-											"default": false
-										},
-										"compact": {
-											"type": "boolean",
-											"description": "Force compact table layout for narrow terminals",
-											"markdownDescription": "Force compact table layout for narrow terminals",
-											"default": false
-										},
-										"color": {
-											"type": "boolean",
-											"description": "Enable colored output (default: auto). FORCE_COLOR=1 has the same effect.",
-											"markdownDescription": "Enable colored output (default: auto). FORCE_COLOR=1 has the same effect."
-										},
-										"noColor": {
-											"type": "boolean",
-											"description": "Disable colored output (default: auto). NO_COLOR=1 has the same effect.",
-											"markdownDescription": "Disable colored output (default: auto). NO_COLOR=1 has the same effect."
-										}
-									},
-									"additionalProperties": false
-								},
-								"monthly": {
-									"type": "object",
-									"properties": {
-										"json": {
-											"type": "boolean",
-											"description": "Output in JSON format",
-											"markdownDescription": "Output in JSON format",
-											"default": false
-										},
-										"since": {
-											"type": "string",
-											"description": "Filter from date (YYYY-MM-DD or YYYYMMDD)",
-											"markdownDescription": "Filter from date (YYYY-MM-DD or YYYYMMDD)"
-										},
-										"until": {
-											"type": "string",
-											"description": "Filter until date (inclusive)",
-											"markdownDescription": "Filter until date (inclusive)"
-										},
-										"timezone": {
-											"type": "string",
-											"description": "Timezone for date grouping (IANA)",
-											"markdownDescription": "Timezone for date grouping (IANA)"
-										},
-										"offline": {
-											"type": "boolean",
-											"description": "Use cached pricing data instead of fetching from LiteLLM",
-											"markdownDescription": "Use cached pricing data instead of fetching from LiteLLM",
-											"default": false
-										},
-										"compact": {
-											"type": "boolean",
-											"description": "Force compact table layout for narrow terminals",
-											"markdownDescription": "Force compact table layout for narrow terminals",
-											"default": false
-										},
-										"color": {
-											"type": "boolean",
-											"description": "Enable colored output (default: auto). FORCE_COLOR=1 has the same effect.",
-											"markdownDescription": "Enable colored output (default: auto). FORCE_COLOR=1 has the same effect."
-										},
-										"noColor": {
-											"type": "boolean",
-											"description": "Disable colored output (default: auto). NO_COLOR=1 has the same effect.",
-											"markdownDescription": "Disable colored output (default: auto). NO_COLOR=1 has the same effect."
-										}
-									},
-									"additionalProperties": false
-								},
-								"session": {
-									"type": "object",
-									"properties": {
-										"json": {
-											"type": "boolean",
-											"description": "Output in JSON format",
-											"markdownDescription": "Output in JSON format",
-											"default": false
-										},
-										"since": {
-											"type": "string",
-											"description": "Filter from date (YYYY-MM-DD or YYYYMMDD)",
-											"markdownDescription": "Filter from date (YYYY-MM-DD or YYYYMMDD)"
-										},
-										"until": {
-											"type": "string",
-											"description": "Filter until date (inclusive)",
-											"markdownDescription": "Filter until date (inclusive)"
-										},
-										"timezone": {
-											"type": "string",
-											"description": "Timezone for date grouping (IANA)",
-											"markdownDescription": "Timezone for date grouping (IANA)"
-										},
-										"offline": {
-											"type": "boolean",
-											"description": "Use cached pricing data instead of fetching from LiteLLM",
-											"markdownDescription": "Use cached pricing data instead of fetching from LiteLLM",
-											"default": false
-										},
-										"compact": {
-											"type": "boolean",
-											"description": "Force compact table layout for narrow terminals",
-											"markdownDescription": "Force compact table layout for narrow terminals",
-											"default": false
-										},
-										"color": {
-											"type": "boolean",
-											"description": "Enable colored output (default: auto). FORCE_COLOR=1 has the same effect.",
-											"markdownDescription": "Enable colored output (default: auto). FORCE_COLOR=1 has the same effect."
-										},
-										"noColor": {
-											"type": "boolean",
-											"description": "Disable colored output (default: auto). NO_COLOR=1 has the same effect.",
-											"markdownDescription": "Disable colored output (default: auto). NO_COLOR=1 has the same effect."
-										}
-									},
-									"additionalProperties": false
-								}
-							},
-							"additionalProperties": false,
-							"description": "Command-specific configuration overrides for amp",
-							"markdownDescription": "Command-specific configuration overrides for amp"
-						}
-					},
-					"additionalProperties": false,
-					"description": "amp command configuration",
-					"markdownDescription": "amp command configuration"
-				},
-				"pi": {
-					"type": "object",
-					"properties": {
-						"defaults": {
-							"type": "object",
-							"properties": {
-								"json": {
-									"type": "boolean",
-									"description": "Output in JSON format",
-									"markdownDescription": "Output in JSON format",
-									"default": false
-								},
-								"since": {
-									"type": "string",
-									"description": "Filter from date (YYYY-MM-DD or YYYYMMDD)",
-									"markdownDescription": "Filter from date (YYYY-MM-DD or YYYYMMDD)"
-								},
-								"until": {
-									"type": "string",
-									"description": "Filter until date (inclusive)",
-									"markdownDescription": "Filter until date (inclusive)"
-								},
-								"timezone": {
-									"type": "string",
-									"description": "Timezone for date grouping (IANA)",
-									"markdownDescription": "Timezone for date grouping (IANA)"
-								},
-								"offline": {
-									"type": "boolean",
-									"description": "Use cached pricing data instead of fetching from LiteLLM",
-									"markdownDescription": "Use cached pricing data instead of fetching from LiteLLM",
-									"default": false
-								},
-								"compact": {
-									"type": "boolean",
-									"description": "Force compact table layout for narrow terminals",
-									"markdownDescription": "Force compact table layout for narrow terminals",
-									"default": false
-								},
-								"color": {
-									"type": "boolean",
-									"description": "Enable colored output (default: auto). FORCE_COLOR=1 has the same effect.",
-									"markdownDescription": "Enable colored output (default: auto). FORCE_COLOR=1 has the same effect."
-								},
-								"noColor": {
-									"type": "boolean",
-									"description": "Disable colored output (default: auto). NO_COLOR=1 has the same effect.",
-									"markdownDescription": "Disable colored output (default: auto). NO_COLOR=1 has the same effect."
-								},
-								"piPath": {
-									"type": "string",
-									"description": "Path or comma-separated paths to pi-agent sessions directories",
-									"markdownDescription": "Path or comma-separated paths to pi-agent sessions directories"
-								}
-							},
-							"additionalProperties": false,
-							"description": "Default values for pi-agent commands",
-							"markdownDescription": "Default values for pi-agent commands"
-						},
-						"commands": {
-							"type": "object",
-							"properties": {
-								"daily": {
-									"type": "object",
-									"properties": {
-										"json": {
-											"type": "boolean",
-											"description": "Output in JSON format",
-											"markdownDescription": "Output in JSON format",
-											"default": false
-										},
-										"since": {
-											"type": "string",
-											"description": "Filter from date (YYYY-MM-DD or YYYYMMDD)",
-											"markdownDescription": "Filter from date (YYYY-MM-DD or YYYYMMDD)"
-										},
-										"until": {
-											"type": "string",
-											"description": "Filter until date (inclusive)",
-											"markdownDescription": "Filter until date (inclusive)"
-										},
-										"timezone": {
-											"type": "string",
-											"description": "Timezone for date grouping (IANA)",
-											"markdownDescription": "Timezone for date grouping (IANA)"
-										},
-										"offline": {
-											"type": "boolean",
-											"description": "Use cached pricing data instead of fetching from LiteLLM",
-											"markdownDescription": "Use cached pricing data instead of fetching from LiteLLM",
-											"default": false
-										},
-										"compact": {
-											"type": "boolean",
-											"description": "Force compact table layout for narrow terminals",
-											"markdownDescription": "Force compact table layout for narrow terminals",
-											"default": false
-										},
-										"color": {
-											"type": "boolean",
-											"description": "Enable colored output (default: auto). FORCE_COLOR=1 has the same effect.",
-											"markdownDescription": "Enable colored output (default: auto). FORCE_COLOR=1 has the same effect."
-										},
-										"noColor": {
-											"type": "boolean",
-											"description": "Disable colored output (default: auto). NO_COLOR=1 has the same effect.",
-											"markdownDescription": "Disable colored output (default: auto). NO_COLOR=1 has the same effect."
-										},
-										"piPath": {
-											"type": "string",
-											"description": "Path or comma-separated paths to pi-agent sessions directories",
-											"markdownDescription": "Path or comma-separated paths to pi-agent sessions directories"
-										}
-									},
-									"additionalProperties": false
-								},
-								"monthly": {
-									"type": "object",
-									"properties": {
-										"json": {
-											"type": "boolean",
-											"description": "Output in JSON format",
-											"markdownDescription": "Output in JSON format",
-											"default": false
-										},
-										"since": {
-											"type": "string",
-											"description": "Filter from date (YYYY-MM-DD or YYYYMMDD)",
-											"markdownDescription": "Filter from date (YYYY-MM-DD or YYYYMMDD)"
-										},
-										"until": {
-											"type": "string",
-											"description": "Filter until date (inclusive)",
-											"markdownDescription": "Filter until date (inclusive)"
-										},
-										"timezone": {
-											"type": "string",
-											"description": "Timezone for date grouping (IANA)",
-											"markdownDescription": "Timezone for date grouping (IANA)"
-										},
-										"offline": {
-											"type": "boolean",
-											"description": "Use cached pricing data instead of fetching from LiteLLM",
-											"markdownDescription": "Use cached pricing data instead of fetching from LiteLLM",
-											"default": false
-										},
-										"compact": {
-											"type": "boolean",
-											"description": "Force compact table layout for narrow terminals",
-											"markdownDescription": "Force compact table layout for narrow terminals",
-											"default": false
-										},
-										"color": {
-											"type": "boolean",
-											"description": "Enable colored output (default: auto). FORCE_COLOR=1 has the same effect.",
-											"markdownDescription": "Enable colored output (default: auto). FORCE_COLOR=1 has the same effect."
-										},
-										"noColor": {
-											"type": "boolean",
-											"description": "Disable colored output (default: auto). NO_COLOR=1 has the same effect.",
-											"markdownDescription": "Disable colored output (default: auto). NO_COLOR=1 has the same effect."
-										},
-										"piPath": {
-											"type": "string",
-											"description": "Path or comma-separated paths to pi-agent sessions directories",
-											"markdownDescription": "Path or comma-separated paths to pi-agent sessions directories"
-										}
-									},
-									"additionalProperties": false
-								},
-								"session": {
-									"type": "object",
-									"properties": {
-										"json": {
-											"type": "boolean",
-											"description": "Output in JSON format",
-											"markdownDescription": "Output in JSON format",
-											"default": false
-										},
-										"since": {
-											"type": "string",
-											"description": "Filter from date (YYYY-MM-DD or YYYYMMDD)",
-											"markdownDescription": "Filter from date (YYYY-MM-DD or YYYYMMDD)"
-										},
-										"until": {
-											"type": "string",
-											"description": "Filter until date (inclusive)",
-											"markdownDescription": "Filter until date (inclusive)"
-										},
-										"timezone": {
-											"type": "string",
-											"description": "Timezone for date grouping (IANA)",
-											"markdownDescription": "Timezone for date grouping (IANA)"
-										},
-										"offline": {
-											"type": "boolean",
-											"description": "Use cached pricing data instead of fetching from LiteLLM",
-											"markdownDescription": "Use cached pricing data instead of fetching from LiteLLM",
-											"default": false
-										},
-										"compact": {
-											"type": "boolean",
-											"description": "Force compact table layout for narrow terminals",
-											"markdownDescription": "Force compact table layout for narrow terminals",
-											"default": false
-										},
-										"color": {
-											"type": "boolean",
-											"description": "Enable colored output (default: auto). FORCE_COLOR=1 has the same effect.",
-											"markdownDescription": "Enable colored output (default: auto). FORCE_COLOR=1 has the same effect."
-										},
-										"noColor": {
-											"type": "boolean",
-											"description": "Disable colored output (default: auto). NO_COLOR=1 has the same effect.",
-											"markdownDescription": "Disable colored output (default: auto). NO_COLOR=1 has the same effect."
-										},
-										"piPath": {
-											"type": "string",
-											"description": "Path or comma-separated paths to pi-agent sessions directories",
-											"markdownDescription": "Path or comma-separated paths to pi-agent sessions directories"
-										}
-									},
-									"additionalProperties": false
-								}
-							},
-							"additionalProperties": false,
-							"description": "Command-specific configuration overrides for pi-agent",
-							"markdownDescription": "Command-specific configuration overrides for pi-agent"
-						}
-					},
-					"additionalProperties": false,
-					"description": "pi-agent command configuration",
-					"markdownDescription": "pi-agent command configuration"
-				},
-				"droid": {
-					"type": "object",
-					"properties": {
-						"defaults": {
-							"type": "object",
-							"properties": {
-								"json": {
-									"type": "boolean",
-									"description": "Output in JSON format",
-									"markdownDescription": "Output in JSON format",
-									"default": false
-								},
-								"since": {
-									"type": "string",
-									"description": "Filter from date (YYYY-MM-DD or YYYYMMDD)",
-									"markdownDescription": "Filter from date (YYYY-MM-DD or YYYYMMDD)"
-								},
-								"until": {
-									"type": "string",
-									"description": "Filter until date (inclusive)",
-									"markdownDescription": "Filter until date (inclusive)"
-								},
-								"timezone": {
-									"type": "string",
-									"description": "Timezone for date grouping (IANA)",
-									"markdownDescription": "Timezone for date grouping (IANA)"
-								},
-								"offline": {
-									"type": "boolean",
-									"description": "Use cached pricing data instead of fetching from LiteLLM",
-									"markdownDescription": "Use cached pricing data instead of fetching from LiteLLM",
-									"default": false
-								},
-								"compact": {
-									"type": "boolean",
-									"description": "Force compact table layout for narrow terminals",
-									"markdownDescription": "Force compact table layout for narrow terminals",
-									"default": false
-								},
-								"color": {
-									"type": "boolean",
-									"description": "Enable colored output (default: auto). FORCE_COLOR=1 has the same effect.",
-									"markdownDescription": "Enable colored output (default: auto). FORCE_COLOR=1 has the same effect."
-								},
-								"noColor": {
-									"type": "boolean",
-									"description": "Disable colored output (default: auto). NO_COLOR=1 has the same effect.",
-									"markdownDescription": "Disable colored output (default: auto). NO_COLOR=1 has the same effect."
-								}
-							},
-							"additionalProperties": false,
-							"description": "Default values for droid commands",
-							"markdownDescription": "Default values for droid commands"
-						},
-						"commands": {
-							"type": "object",
-							"properties": {
-								"daily": {
-									"type": "object",
-									"properties": {
-										"json": {
-											"type": "boolean",
-											"description": "Output in JSON format",
-											"markdownDescription": "Output in JSON format",
-											"default": false
-										},
-										"since": {
-											"type": "string",
-											"description": "Filter from date (YYYY-MM-DD or YYYYMMDD)",
-											"markdownDescription": "Filter from date (YYYY-MM-DD or YYYYMMDD)"
-										},
-										"until": {
-											"type": "string",
-											"description": "Filter until date (inclusive)",
-											"markdownDescription": "Filter until date (inclusive)"
-										},
-										"timezone": {
-											"type": "string",
-											"description": "Timezone for date grouping (IANA)",
-											"markdownDescription": "Timezone for date grouping (IANA)"
-										},
-										"offline": {
-											"type": "boolean",
-											"description": "Use cached pricing data instead of fetching from LiteLLM",
-											"markdownDescription": "Use cached pricing data instead of fetching from LiteLLM",
-											"default": false
-										},
-										"compact": {
-											"type": "boolean",
-											"description": "Force compact table layout for narrow terminals",
-											"markdownDescription": "Force compact table layout for narrow terminals",
-											"default": false
-										},
-										"color": {
-											"type": "boolean",
-											"description": "Enable colored output (default: auto). FORCE_COLOR=1 has the same effect.",
-											"markdownDescription": "Enable colored output (default: auto). FORCE_COLOR=1 has the same effect."
-										},
-										"noColor": {
-											"type": "boolean",
-											"description": "Disable colored output (default: auto). NO_COLOR=1 has the same effect.",
-											"markdownDescription": "Disable colored output (default: auto). NO_COLOR=1 has the same effect."
-										}
-									},
-									"additionalProperties": false
-								},
-								"monthly": {
-									"type": "object",
-									"properties": {
-										"json": {
-											"type": "boolean",
-											"description": "Output in JSON format",
-											"markdownDescription": "Output in JSON format",
-											"default": false
-										},
-										"since": {
-											"type": "string",
-											"description": "Filter from date (YYYY-MM-DD or YYYYMMDD)",
-											"markdownDescription": "Filter from date (YYYY-MM-DD or YYYYMMDD)"
-										},
-										"until": {
-											"type": "string",
-											"description": "Filter until date (inclusive)",
-											"markdownDescription": "Filter until date (inclusive)"
-										},
-										"timezone": {
-											"type": "string",
-											"description": "Timezone for date grouping (IANA)",
-											"markdownDescription": "Timezone for date grouping (IANA)"
-										},
-										"offline": {
-											"type": "boolean",
-											"description": "Use cached pricing data instead of fetching from LiteLLM",
-											"markdownDescription": "Use cached pricing data instead of fetching from LiteLLM",
-											"default": false
-										},
-										"compact": {
-											"type": "boolean",
-											"description": "Force compact table layout for narrow terminals",
-											"markdownDescription": "Force compact table layout for narrow terminals",
-											"default": false
-										},
-										"color": {
-											"type": "boolean",
-											"description": "Enable colored output (default: auto). FORCE_COLOR=1 has the same effect.",
-											"markdownDescription": "Enable colored output (default: auto). FORCE_COLOR=1 has the same effect."
-										},
-										"noColor": {
-											"type": "boolean",
-											"description": "Disable colored output (default: auto). NO_COLOR=1 has the same effect.",
-											"markdownDescription": "Disable colored output (default: auto). NO_COLOR=1 has the same effect."
-										}
-									},
-									"additionalProperties": false
-								},
-								"session": {
-									"type": "object",
-									"properties": {
-										"json": {
-											"type": "boolean",
-											"description": "Output in JSON format",
-											"markdownDescription": "Output in JSON format",
-											"default": false
-										},
-										"since": {
-											"type": "string",
-											"description": "Filter from date (YYYY-MM-DD or YYYYMMDD)",
-											"markdownDescription": "Filter from date (YYYY-MM-DD or YYYYMMDD)"
-										},
-										"until": {
-											"type": "string",
-											"description": "Filter until date (inclusive)",
-											"markdownDescription": "Filter until date (inclusive)"
-										},
-										"timezone": {
-											"type": "string",
-											"description": "Timezone for date grouping (IANA)",
-											"markdownDescription": "Timezone for date grouping (IANA)"
-										},
-										"offline": {
-											"type": "boolean",
-											"description": "Use cached pricing data instead of fetching from LiteLLM",
-											"markdownDescription": "Use cached pricing data instead of fetching from LiteLLM",
-											"default": false
-										},
-										"compact": {
-											"type": "boolean",
-											"description": "Force compact table layout for narrow terminals",
-											"markdownDescription": "Force compact table layout for narrow terminals",
-											"default": false
-										},
-										"color": {
-											"type": "boolean",
-											"description": "Enable colored output (default: auto). FORCE_COLOR=1 has the same effect.",
-											"markdownDescription": "Enable colored output (default: auto). FORCE_COLOR=1 has the same effect."
-										},
-										"noColor": {
-											"type": "boolean",
-											"description": "Disable colored output (default: auto). NO_COLOR=1 has the same effect.",
-											"markdownDescription": "Disable colored output (default: auto). NO_COLOR=1 has the same effect."
-										}
-									},
-									"additionalProperties": false
-								}
-							},
-							"additionalProperties": false,
-							"description": "Command-specific configuration overrides for droid",
-							"markdownDescription": "Command-specific configuration overrides for droid"
-						}
-					},
-					"additionalProperties": false,
-					"description": "droid command configuration",
-					"markdownDescription": "droid command configuration"
+				"session": {
+					"$ref": "#/definitions/SharedOptions"
 				}
 			},
-			"additionalProperties": false
+			"type": "object"
+		},
+		"AmpConfig": {
+			"additionalProperties": false,
+			"properties": {
+				"commands": {
+					"$ref": "#/definitions/AmpCommandsConfig"
+				},
+				"defaults": {
+					"$ref": "#/definitions/SharedOptions"
+				}
+			},
+			"type": "object"
+		},
+		"BlocksOptions": {
+			"additionalProperties": false,
+			"properties": {
+				"active": {
+					"description": "Show the active session block.",
+					"markdownDescription": "Show the active session block.",
+					"type": "boolean"
+				},
+				"all": {
+					"description": "Accepted for compatibility; all detected supported agents are included by default.",
+					"markdownDescription": "Accepted for compatibility; all detected supported agents are included by default.",
+					"type": "boolean"
+				},
+				"breakdown": {
+					"description": "Show per-model cost breakdown.",
+					"markdownDescription": "Show per-model cost breakdown.",
+					"type": "boolean"
+				},
+				"color": {
+					"description": "Enable colored output.",
+					"markdownDescription": "Enable colored output.",
+					"type": "boolean"
+				},
+				"compact": {
+					"description": "Force compact table layout for narrow terminals.",
+					"markdownDescription": "Force compact table layout for narrow terminals.",
+					"type": "boolean"
+				},
+				"debug": {
+					"description": "Show pricing mismatch information for debugging.",
+					"markdownDescription": "Show pricing mismatch information for debugging.",
+					"type": "boolean"
+				},
+				"debugSamples": {
+					"description": "Number of sample discrepancies to show in debug output.",
+					"format": "uint",
+					"markdownDescription": "Number of sample discrepancies to show in debug output.",
+					"minimum": 0.0,
+					"type": "integer"
+				},
+				"jq": {
+					"description": "jq filter to apply to JSON output.",
+					"markdownDescription": "jq filter to apply to JSON output.",
+					"type": "string"
+				},
+				"json": {
+					"description": "Output in JSON format.",
+					"markdownDescription": "Output in JSON format.",
+					"type": "boolean"
+				},
+				"mode": {
+					"allOf": [
+						{
+							"$ref": "#/definitions/ConfigCostMode"
+						}
+					],
+					"description": "Cost calculation mode.",
+					"markdownDescription": "Cost calculation mode."
+				},
+				"noColor": {
+					"description": "Disable colored output.",
+					"markdownDescription": "Disable colored output.",
+					"type": "boolean"
+				},
+				"noOffline": {
+					"description": "Disable cached pricing data where supported.",
+					"markdownDescription": "Disable cached pricing data where supported.",
+					"type": "boolean"
+				},
+				"offline": {
+					"description": "Use cached pricing data where supported.",
+					"markdownDescription": "Use cached pricing data where supported.",
+					"type": "boolean"
+				},
+				"order": {
+					"allOf": [
+						{
+							"$ref": "#/definitions/ConfigSortOrder"
+						}
+					],
+					"description": "Sort order.",
+					"markdownDescription": "Sort order."
+				},
+				"recent": {
+					"description": "Show recent session blocks.",
+					"markdownDescription": "Show recent session blocks.",
+					"type": "boolean"
+				},
+				"sessionLength": {
+					"default": 5.0,
+					"description": "Session block duration in hours.",
+					"format": "double",
+					"markdownDescription": "Session block duration in hours.",
+					"type": "number"
+				},
+				"since": {
+					"description": "Filter from date (YYYY-MM-DD or YYYYMMDD).",
+					"markdownDescription": "Filter from date (YYYY-MM-DD or YYYYMMDD).",
+					"type": "string"
+				},
+				"singleThread": {
+					"description": "Disable parallel file processing.",
+					"markdownDescription": "Disable parallel file processing.",
+					"type": "boolean"
+				},
+				"timezone": {
+					"description": "Timezone for date grouping (IANA).",
+					"markdownDescription": "Timezone for date grouping (IANA).",
+					"type": "string"
+				},
+				"tokenLimit": {
+					"description": "Token limit for session block calculations.",
+					"markdownDescription": "Token limit for session block calculations.",
+					"type": "string"
+				},
+				"until": {
+					"description": "Filter until date (inclusive).",
+					"markdownDescription": "Filter until date (inclusive).",
+					"type": "string"
+				}
+			},
+			"type": "object"
+		},
+		"ClaudeCommandsConfig": {
+			"additionalProperties": false,
+			"properties": {
+				"blocks": {
+					"$ref": "#/definitions/BlocksOptions"
+				},
+				"daily": {
+					"$ref": "#/definitions/DailyOptions"
+				},
+				"monthly": {
+					"$ref": "#/definitions/SharedOptions"
+				},
+				"session": {
+					"$ref": "#/definitions/SharedOptions"
+				},
+				"statusline": {
+					"$ref": "#/definitions/StatuslineOptions"
+				},
+				"weekly": {
+					"$ref": "#/definitions/WeeklyOptions"
+				}
+			},
+			"type": "object"
+		},
+		"ClaudeConfig": {
+			"additionalProperties": false,
+			"properties": {
+				"commands": {
+					"$ref": "#/definitions/ClaudeCommandsConfig"
+				},
+				"defaults": {
+					"$ref": "#/definitions/ClaudeOptions"
+				}
+			},
+			"type": "object"
+		},
+		"ClaudeOptions": {
+			"additionalProperties": false,
+			"properties": {
+				"active": {
+					"description": "Show the active session block.",
+					"markdownDescription": "Show the active session block.",
+					"type": "boolean"
+				},
+				"all": {
+					"description": "Accepted for compatibility; all detected supported agents are included by default.",
+					"markdownDescription": "Accepted for compatibility; all detected supported agents are included by default.",
+					"type": "boolean"
+				},
+				"breakdown": {
+					"description": "Show per-model cost breakdown.",
+					"markdownDescription": "Show per-model cost breakdown.",
+					"type": "boolean"
+				},
+				"cache": {
+					"description": "Enable statusline cache.",
+					"markdownDescription": "Enable statusline cache.",
+					"type": "boolean"
+				},
+				"color": {
+					"description": "Enable colored output.",
+					"markdownDescription": "Enable colored output.",
+					"type": "boolean"
+				},
+				"compact": {
+					"description": "Force compact table layout for narrow terminals.",
+					"markdownDescription": "Force compact table layout for narrow terminals.",
+					"type": "boolean"
+				},
+				"contextLowThreshold": {
+					"description": "Percentage threshold for low context warning.",
+					"format": "uint64",
+					"markdownDescription": "Percentage threshold for low context warning.",
+					"minimum": 0.0,
+					"type": "integer"
+				},
+				"contextMediumThreshold": {
+					"description": "Percentage threshold for medium context warning.",
+					"format": "uint64",
+					"markdownDescription": "Percentage threshold for medium context warning.",
+					"minimum": 0.0,
+					"type": "integer"
+				},
+				"costSource": {
+					"allOf": [
+						{
+							"$ref": "#/definitions/ConfigCostSource"
+						}
+					],
+					"description": "Source for statusline cost calculation.",
+					"markdownDescription": "Source for statusline cost calculation."
+				},
+				"debug": {
+					"description": "Show statusline debug information.",
+					"markdownDescription": "Show statusline debug information.",
+					"type": "boolean"
+				},
+				"debugSamples": {
+					"description": "Number of sample discrepancies to show in debug output.",
+					"format": "uint",
+					"markdownDescription": "Number of sample discrepancies to show in debug output.",
+					"minimum": 0.0,
+					"type": "integer"
+				},
+				"instances": {
+					"description": "Show per-session project instances.",
+					"markdownDescription": "Show per-session project instances.",
+					"type": "boolean"
+				},
+				"jq": {
+					"description": "jq filter to apply to JSON output.",
+					"markdownDescription": "jq filter to apply to JSON output.",
+					"type": "string"
+				},
+				"json": {
+					"description": "Output in JSON format.",
+					"markdownDescription": "Output in JSON format.",
+					"type": "boolean"
+				},
+				"mode": {
+					"allOf": [
+						{
+							"$ref": "#/definitions/ConfigCostMode"
+						}
+					],
+					"description": "Cost calculation mode.",
+					"markdownDescription": "Cost calculation mode."
+				},
+				"noCache": {
+					"description": "Disable statusline cache.",
+					"markdownDescription": "Disable statusline cache.",
+					"type": "boolean"
+				},
+				"noColor": {
+					"description": "Disable colored output.",
+					"markdownDescription": "Disable colored output.",
+					"type": "boolean"
+				},
+				"noOffline": {
+					"description": "Disable cached pricing data where supported.",
+					"markdownDescription": "Disable cached pricing data where supported.",
+					"type": "boolean"
+				},
+				"offline": {
+					"description": "Use cached pricing data where supported.",
+					"markdownDescription": "Use cached pricing data where supported.",
+					"type": "boolean"
+				},
+				"order": {
+					"allOf": [
+						{
+							"$ref": "#/definitions/ConfigSortOrder"
+						}
+					],
+					"description": "Sort order.",
+					"markdownDescription": "Sort order."
+				},
+				"project": {
+					"description": "Filter to a project name or path.",
+					"markdownDescription": "Filter to a project name or path.",
+					"type": "string"
+				},
+				"projectAliases": {
+					"description": "JSON object or path mapping project paths to display aliases.",
+					"markdownDescription": "JSON object or path mapping project paths to display aliases.",
+					"type": "string"
+				},
+				"recent": {
+					"description": "Show recent session blocks.",
+					"markdownDescription": "Show recent session blocks.",
+					"type": "boolean"
+				},
+				"refreshInterval": {
+					"description": "Statusline refresh interval in seconds.",
+					"format": "uint64",
+					"markdownDescription": "Statusline refresh interval in seconds.",
+					"minimum": 0.0,
+					"type": "integer"
+				},
+				"sessionLength": {
+					"description": "Session block duration in hours.",
+					"format": "double",
+					"markdownDescription": "Session block duration in hours.",
+					"type": "number"
+				},
+				"since": {
+					"description": "Filter from date (YYYY-MM-DD or YYYYMMDD).",
+					"markdownDescription": "Filter from date (YYYY-MM-DD or YYYYMMDD).",
+					"type": "string"
+				},
+				"singleThread": {
+					"description": "Disable parallel file processing.",
+					"markdownDescription": "Disable parallel file processing.",
+					"type": "boolean"
+				},
+				"startOfWeek": {
+					"allOf": [
+						{
+							"$ref": "#/definitions/ConfigWeekDay"
+						}
+					],
+					"description": "First day of week for weekly grouping.",
+					"markdownDescription": "First day of week for weekly grouping."
+				},
+				"timezone": {
+					"description": "Timezone for date grouping (IANA).",
+					"markdownDescription": "Timezone for date grouping (IANA).",
+					"type": "string"
+				},
+				"tokenLimit": {
+					"description": "Token limit for session block calculations.",
+					"markdownDescription": "Token limit for session block calculations.",
+					"type": "string"
+				},
+				"until": {
+					"description": "Filter until date (inclusive).",
+					"markdownDescription": "Filter until date (inclusive).",
+					"type": "string"
+				},
+				"visualBurnRate": {
+					"allOf": [
+						{
+							"$ref": "#/definitions/ConfigVisualBurnRate"
+						}
+					],
+					"description": "Visual burn-rate display mode.",
+					"markdownDescription": "Visual burn-rate display mode."
+				}
+			},
+			"type": "object"
+		},
+		"CodexCommandsConfig": {
+			"additionalProperties": false,
+			"properties": {
+				"daily": {
+					"$ref": "#/definitions/CodexOptions"
+				},
+				"monthly": {
+					"$ref": "#/definitions/CodexOptions"
+				},
+				"session": {
+					"$ref": "#/definitions/CodexOptions"
+				}
+			},
+			"type": "object"
+		},
+		"CodexConfig": {
+			"additionalProperties": false,
+			"properties": {
+				"commands": {
+					"$ref": "#/definitions/CodexCommandsConfig"
+				},
+				"defaults": {
+					"$ref": "#/definitions/CodexOptions"
+				}
+			},
+			"type": "object"
+		},
+		"CodexOptions": {
+			"additionalProperties": false,
+			"properties": {
+				"all": {
+					"description": "Accepted for compatibility; all detected supported agents are included by default.",
+					"markdownDescription": "Accepted for compatibility; all detected supported agents are included by default.",
+					"type": "boolean"
+				},
+				"breakdown": {
+					"description": "Show per-model cost breakdown.",
+					"markdownDescription": "Show per-model cost breakdown.",
+					"type": "boolean"
+				},
+				"color": {
+					"description": "Enable colored output.",
+					"markdownDescription": "Enable colored output.",
+					"type": "boolean"
+				},
+				"compact": {
+					"description": "Force compact table layout for narrow terminals.",
+					"markdownDescription": "Force compact table layout for narrow terminals.",
+					"type": "boolean"
+				},
+				"debug": {
+					"description": "Show pricing mismatch information for debugging.",
+					"markdownDescription": "Show pricing mismatch information for debugging.",
+					"type": "boolean"
+				},
+				"debugSamples": {
+					"description": "Number of sample discrepancies to show in debug output.",
+					"format": "uint",
+					"markdownDescription": "Number of sample discrepancies to show in debug output.",
+					"minimum": 0.0,
+					"type": "integer"
+				},
+				"jq": {
+					"description": "jq filter to apply to JSON output.",
+					"markdownDescription": "jq filter to apply to JSON output.",
+					"type": "string"
+				},
+				"json": {
+					"description": "Output in JSON format.",
+					"markdownDescription": "Output in JSON format.",
+					"type": "boolean"
+				},
+				"mode": {
+					"allOf": [
+						{
+							"$ref": "#/definitions/ConfigCostMode"
+						}
+					],
+					"description": "Cost calculation mode.",
+					"markdownDescription": "Cost calculation mode."
+				},
+				"noColor": {
+					"description": "Disable colored output.",
+					"markdownDescription": "Disable colored output.",
+					"type": "boolean"
+				},
+				"noOffline": {
+					"description": "Disable cached pricing data where supported.",
+					"markdownDescription": "Disable cached pricing data where supported.",
+					"type": "boolean"
+				},
+				"offline": {
+					"description": "Use cached pricing data where supported.",
+					"markdownDescription": "Use cached pricing data where supported.",
+					"type": "boolean"
+				},
+				"order": {
+					"allOf": [
+						{
+							"$ref": "#/definitions/ConfigSortOrder"
+						}
+					],
+					"description": "Sort order.",
+					"markdownDescription": "Sort order."
+				},
+				"since": {
+					"description": "Filter from date (YYYY-MM-DD or YYYYMMDD).",
+					"markdownDescription": "Filter from date (YYYY-MM-DD or YYYYMMDD).",
+					"type": "string"
+				},
+				"singleThread": {
+					"description": "Disable parallel file processing.",
+					"markdownDescription": "Disable parallel file processing.",
+					"type": "boolean"
+				},
+				"speed": {
+					"allOf": [
+						{
+							"$ref": "#/definitions/ConfigCodexSpeed"
+						}
+					],
+					"default": "auto",
+					"description": "Codex speed normalization strategy.",
+					"markdownDescription": "Codex speed normalization strategy."
+				},
+				"timezone": {
+					"description": "Timezone for date grouping (IANA).",
+					"markdownDescription": "Timezone for date grouping (IANA).",
+					"type": "string"
+				},
+				"until": {
+					"description": "Filter until date (inclusive).",
+					"markdownDescription": "Filter until date (inclusive).",
+					"type": "string"
+				}
+			},
+			"type": "object"
+		},
+		"ConfigCodexSpeed": {
+			"enum": ["auto", "standard", "fast"],
+			"type": "string"
+		},
+		"ConfigCostMode": {
+			"enum": ["auto", "calculate", "display"],
+			"type": "string"
+		},
+		"ConfigCostSource": {
+			"enum": ["auto", "ccusage", "cc", "both"],
+			"type": "string"
+		},
+		"ConfigSortOrder": {
+			"enum": ["desc", "asc"],
+			"type": "string"
+		},
+		"ConfigVisualBurnRate": {
+			"enum": ["off", "emoji", "text", "emoji-text"],
+			"type": "string"
+		},
+		"ConfigWeekDay": {
+			"enum": ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"],
+			"type": "string"
+		},
+		"DailyOptions": {
+			"additionalProperties": false,
+			"properties": {
+				"all": {
+					"description": "Accepted for compatibility; all detected supported agents are included by default.",
+					"markdownDescription": "Accepted for compatibility; all detected supported agents are included by default.",
+					"type": "boolean"
+				},
+				"breakdown": {
+					"description": "Show per-model cost breakdown.",
+					"markdownDescription": "Show per-model cost breakdown.",
+					"type": "boolean"
+				},
+				"color": {
+					"description": "Enable colored output.",
+					"markdownDescription": "Enable colored output.",
+					"type": "boolean"
+				},
+				"compact": {
+					"description": "Force compact table layout for narrow terminals.",
+					"markdownDescription": "Force compact table layout for narrow terminals.",
+					"type": "boolean"
+				},
+				"debug": {
+					"description": "Show pricing mismatch information for debugging.",
+					"markdownDescription": "Show pricing mismatch information for debugging.",
+					"type": "boolean"
+				},
+				"debugSamples": {
+					"description": "Number of sample discrepancies to show in debug output.",
+					"format": "uint",
+					"markdownDescription": "Number of sample discrepancies to show in debug output.",
+					"minimum": 0.0,
+					"type": "integer"
+				},
+				"instances": {
+					"description": "Show per-session project instances.",
+					"markdownDescription": "Show per-session project instances.",
+					"type": "boolean"
+				},
+				"jq": {
+					"description": "jq filter to apply to JSON output.",
+					"markdownDescription": "jq filter to apply to JSON output.",
+					"type": "string"
+				},
+				"json": {
+					"description": "Output in JSON format.",
+					"markdownDescription": "Output in JSON format.",
+					"type": "boolean"
+				},
+				"mode": {
+					"allOf": [
+						{
+							"$ref": "#/definitions/ConfigCostMode"
+						}
+					],
+					"description": "Cost calculation mode.",
+					"markdownDescription": "Cost calculation mode."
+				},
+				"noColor": {
+					"description": "Disable colored output.",
+					"markdownDescription": "Disable colored output.",
+					"type": "boolean"
+				},
+				"noOffline": {
+					"description": "Disable cached pricing data where supported.",
+					"markdownDescription": "Disable cached pricing data where supported.",
+					"type": "boolean"
+				},
+				"offline": {
+					"description": "Use cached pricing data where supported.",
+					"markdownDescription": "Use cached pricing data where supported.",
+					"type": "boolean"
+				},
+				"order": {
+					"allOf": [
+						{
+							"$ref": "#/definitions/ConfigSortOrder"
+						}
+					],
+					"description": "Sort order.",
+					"markdownDescription": "Sort order."
+				},
+				"project": {
+					"description": "Filter to a project name or path.",
+					"markdownDescription": "Filter to a project name or path.",
+					"type": "string"
+				},
+				"projectAliases": {
+					"description": "JSON object or path mapping project paths to display aliases.",
+					"markdownDescription": "JSON object or path mapping project paths to display aliases.",
+					"type": "string"
+				},
+				"since": {
+					"description": "Filter from date (YYYY-MM-DD or YYYYMMDD).",
+					"markdownDescription": "Filter from date (YYYY-MM-DD or YYYYMMDD).",
+					"type": "string"
+				},
+				"singleThread": {
+					"description": "Disable parallel file processing.",
+					"markdownDescription": "Disable parallel file processing.",
+					"type": "boolean"
+				},
+				"timezone": {
+					"description": "Timezone for date grouping (IANA).",
+					"markdownDescription": "Timezone for date grouping (IANA).",
+					"type": "string"
+				},
+				"until": {
+					"description": "Filter until date (inclusive).",
+					"markdownDescription": "Filter until date (inclusive).",
+					"type": "string"
+				}
+			},
+			"type": "object"
+		},
+		"DroidCommandsConfig": {
+			"additionalProperties": false,
+			"properties": {
+				"daily": {
+					"$ref": "#/definitions/SharedOptions"
+				},
+				"monthly": {
+					"$ref": "#/definitions/SharedOptions"
+				},
+				"session": {
+					"$ref": "#/definitions/SharedOptions"
+				}
+			},
+			"type": "object"
+		},
+		"DroidConfig": {
+			"additionalProperties": false,
+			"properties": {
+				"commands": {
+					"$ref": "#/definitions/DroidCommandsConfig"
+				},
+				"defaults": {
+					"$ref": "#/definitions/SharedOptions"
+				}
+			},
+			"type": "object"
+		},
+		"OpenCodeCommandsConfig": {
+			"additionalProperties": false,
+			"properties": {
+				"daily": {
+					"$ref": "#/definitions/SharedOptions"
+				},
+				"monthly": {
+					"$ref": "#/definitions/SharedOptions"
+				},
+				"session": {
+					"$ref": "#/definitions/SharedOptions"
+				},
+				"weekly": {
+					"$ref": "#/definitions/SharedOptions"
+				}
+			},
+			"type": "object"
+		},
+		"OpenCodeConfig": {
+			"additionalProperties": false,
+			"properties": {
+				"commands": {
+					"$ref": "#/definitions/OpenCodeCommandsConfig"
+				},
+				"defaults": {
+					"$ref": "#/definitions/SharedOptions"
+				}
+			},
+			"type": "object"
+		},
+		"PiCommandsConfig": {
+			"additionalProperties": false,
+			"properties": {
+				"daily": {
+					"$ref": "#/definitions/PiOptions"
+				},
+				"monthly": {
+					"$ref": "#/definitions/PiOptions"
+				},
+				"session": {
+					"$ref": "#/definitions/PiOptions"
+				}
+			},
+			"type": "object"
+		},
+		"PiConfig": {
+			"additionalProperties": false,
+			"properties": {
+				"commands": {
+					"$ref": "#/definitions/PiCommandsConfig"
+				},
+				"defaults": {
+					"$ref": "#/definitions/PiOptions"
+				}
+			},
+			"type": "object"
+		},
+		"PiOptions": {
+			"additionalProperties": false,
+			"properties": {
+				"all": {
+					"description": "Accepted for compatibility; all detected supported agents are included by default.",
+					"markdownDescription": "Accepted for compatibility; all detected supported agents are included by default.",
+					"type": "boolean"
+				},
+				"breakdown": {
+					"description": "Show per-model cost breakdown.",
+					"markdownDescription": "Show per-model cost breakdown.",
+					"type": "boolean"
+				},
+				"color": {
+					"description": "Enable colored output.",
+					"markdownDescription": "Enable colored output.",
+					"type": "boolean"
+				},
+				"compact": {
+					"description": "Force compact table layout for narrow terminals.",
+					"markdownDescription": "Force compact table layout for narrow terminals.",
+					"type": "boolean"
+				},
+				"debug": {
+					"description": "Show pricing mismatch information for debugging.",
+					"markdownDescription": "Show pricing mismatch information for debugging.",
+					"type": "boolean"
+				},
+				"debugSamples": {
+					"description": "Number of sample discrepancies to show in debug output.",
+					"format": "uint",
+					"markdownDescription": "Number of sample discrepancies to show in debug output.",
+					"minimum": 0.0,
+					"type": "integer"
+				},
+				"jq": {
+					"description": "jq filter to apply to JSON output.",
+					"markdownDescription": "jq filter to apply to JSON output.",
+					"type": "string"
+				},
+				"json": {
+					"description": "Output in JSON format.",
+					"markdownDescription": "Output in JSON format.",
+					"type": "boolean"
+				},
+				"mode": {
+					"allOf": [
+						{
+							"$ref": "#/definitions/ConfigCostMode"
+						}
+					],
+					"description": "Cost calculation mode.",
+					"markdownDescription": "Cost calculation mode."
+				},
+				"noColor": {
+					"description": "Disable colored output.",
+					"markdownDescription": "Disable colored output.",
+					"type": "boolean"
+				},
+				"noOffline": {
+					"description": "Disable cached pricing data where supported.",
+					"markdownDescription": "Disable cached pricing data where supported.",
+					"type": "boolean"
+				},
+				"offline": {
+					"description": "Use cached pricing data where supported.",
+					"markdownDescription": "Use cached pricing data where supported.",
+					"type": "boolean"
+				},
+				"order": {
+					"allOf": [
+						{
+							"$ref": "#/definitions/ConfigSortOrder"
+						}
+					],
+					"description": "Sort order.",
+					"markdownDescription": "Sort order."
+				},
+				"piPath": {
+					"description": "Path or comma-separated paths to pi-agent sessions directories.",
+					"markdownDescription": "Path or comma-separated paths to pi-agent sessions directories.",
+					"type": "string"
+				},
+				"since": {
+					"description": "Filter from date (YYYY-MM-DD or YYYYMMDD).",
+					"markdownDescription": "Filter from date (YYYY-MM-DD or YYYYMMDD).",
+					"type": "string"
+				},
+				"singleThread": {
+					"description": "Disable parallel file processing.",
+					"markdownDescription": "Disable parallel file processing.",
+					"type": "boolean"
+				},
+				"timezone": {
+					"description": "Timezone for date grouping (IANA).",
+					"markdownDescription": "Timezone for date grouping (IANA).",
+					"type": "string"
+				},
+				"until": {
+					"description": "Filter until date (inclusive).",
+					"markdownDescription": "Filter until date (inclusive).",
+					"type": "string"
+				}
+			},
+			"type": "object"
+		},
+		"RootCommandsConfig": {
+			"additionalProperties": false,
+			"properties": {
+				"blocks": {
+					"$ref": "#/definitions/BlocksOptions"
+				},
+				"daily": {
+					"$ref": "#/definitions/SharedOptions"
+				},
+				"monthly": {
+					"$ref": "#/definitions/SharedOptions"
+				},
+				"session": {
+					"$ref": "#/definitions/SharedOptions"
+				},
+				"statusline": {
+					"$ref": "#/definitions/StatuslineOptions"
+				},
+				"weekly": {
+					"$ref": "#/definitions/WeeklyOptions"
+				}
+			},
+			"type": "object"
+		},
+		"SharedOptions": {
+			"additionalProperties": false,
+			"properties": {
+				"all": {
+					"default": false,
+					"description": "Accepted for compatibility; all detected supported agents are included by default.",
+					"markdownDescription": "Accepted for compatibility; all detected supported agents are included by default.",
+					"type": "boolean"
+				},
+				"breakdown": {
+					"default": false,
+					"description": "Show per-model cost breakdown.",
+					"markdownDescription": "Show per-model cost breakdown.",
+					"type": "boolean"
+				},
+				"color": {
+					"default": false,
+					"description": "Enable colored output.",
+					"markdownDescription": "Enable colored output.",
+					"type": "boolean"
+				},
+				"compact": {
+					"default": false,
+					"description": "Force compact table layout for narrow terminals.",
+					"markdownDescription": "Force compact table layout for narrow terminals.",
+					"type": "boolean"
+				},
+				"debug": {
+					"default": false,
+					"description": "Show pricing mismatch information for debugging.",
+					"markdownDescription": "Show pricing mismatch information for debugging.",
+					"type": "boolean"
+				},
+				"debugSamples": {
+					"default": 5,
+					"description": "Number of sample discrepancies to show in debug output.",
+					"format": "uint",
+					"markdownDescription": "Number of sample discrepancies to show in debug output.",
+					"minimum": 0.0,
+					"type": "integer"
+				},
+				"jq": {
+					"description": "jq filter to apply to JSON output.",
+					"markdownDescription": "jq filter to apply to JSON output.",
+					"type": "string"
+				},
+				"json": {
+					"default": false,
+					"description": "Output in JSON format.",
+					"markdownDescription": "Output in JSON format.",
+					"type": "boolean"
+				},
+				"mode": {
+					"allOf": [
+						{
+							"$ref": "#/definitions/ConfigCostMode"
+						}
+					],
+					"default": "auto",
+					"description": "Cost calculation mode.",
+					"markdownDescription": "Cost calculation mode."
+				},
+				"noColor": {
+					"default": false,
+					"description": "Disable colored output.",
+					"markdownDescription": "Disable colored output.",
+					"type": "boolean"
+				},
+				"noOffline": {
+					"default": false,
+					"description": "Disable cached pricing data where supported.",
+					"markdownDescription": "Disable cached pricing data where supported.",
+					"type": "boolean"
+				},
+				"offline": {
+					"default": false,
+					"description": "Use cached pricing data where supported.",
+					"markdownDescription": "Use cached pricing data where supported.",
+					"type": "boolean"
+				},
+				"order": {
+					"allOf": [
+						{
+							"$ref": "#/definitions/ConfigSortOrder"
+						}
+					],
+					"default": "asc",
+					"description": "Sort order.",
+					"markdownDescription": "Sort order."
+				},
+				"since": {
+					"description": "Filter from date (YYYY-MM-DD or YYYYMMDD).",
+					"markdownDescription": "Filter from date (YYYY-MM-DD or YYYYMMDD).",
+					"type": "string"
+				},
+				"singleThread": {
+					"default": false,
+					"description": "Disable parallel file processing.",
+					"markdownDescription": "Disable parallel file processing.",
+					"type": "boolean"
+				},
+				"timezone": {
+					"description": "Timezone for date grouping (IANA).",
+					"markdownDescription": "Timezone for date grouping (IANA).",
+					"type": "string"
+				},
+				"until": {
+					"description": "Filter until date (inclusive).",
+					"markdownDescription": "Filter until date (inclusive).",
+					"type": "string"
+				}
+			},
+			"type": "object"
+		},
+		"StatuslineOptions": {
+			"additionalProperties": false,
+			"properties": {
+				"cache": {
+					"default": true,
+					"description": "Enable statusline cache.",
+					"markdownDescription": "Enable statusline cache.",
+					"type": "boolean"
+				},
+				"contextLowThreshold": {
+					"default": 50,
+					"description": "Percentage threshold for low context warning.",
+					"format": "uint64",
+					"markdownDescription": "Percentage threshold for low context warning.",
+					"minimum": 0.0,
+					"type": "integer"
+				},
+				"contextMediumThreshold": {
+					"default": 80,
+					"description": "Percentage threshold for medium context warning.",
+					"format": "uint64",
+					"markdownDescription": "Percentage threshold for medium context warning.",
+					"minimum": 0.0,
+					"type": "integer"
+				},
+				"costSource": {
+					"allOf": [
+						{
+							"$ref": "#/definitions/ConfigCostSource"
+						}
+					],
+					"default": "auto",
+					"description": "Source for statusline cost calculation.",
+					"markdownDescription": "Source for statusline cost calculation."
+				},
+				"debug": {
+					"default": false,
+					"description": "Show statusline debug information.",
+					"markdownDescription": "Show statusline debug information.",
+					"type": "boolean"
+				},
+				"noCache": {
+					"default": false,
+					"description": "Disable statusline cache.",
+					"markdownDescription": "Disable statusline cache.",
+					"type": "boolean"
+				},
+				"noOffline": {
+					"default": false,
+					"description": "Disable cached pricing data where supported.",
+					"markdownDescription": "Disable cached pricing data where supported.",
+					"type": "boolean"
+				},
+				"offline": {
+					"default": true,
+					"description": "Use cached pricing data where supported.",
+					"markdownDescription": "Use cached pricing data where supported.",
+					"type": "boolean"
+				},
+				"refreshInterval": {
+					"default": 1,
+					"description": "Statusline refresh interval in seconds.",
+					"format": "uint64",
+					"markdownDescription": "Statusline refresh interval in seconds.",
+					"minimum": 0.0,
+					"type": "integer"
+				},
+				"visualBurnRate": {
+					"allOf": [
+						{
+							"$ref": "#/definitions/ConfigVisualBurnRate"
+						}
+					],
+					"default": "off",
+					"description": "Visual burn-rate display mode.",
+					"markdownDescription": "Visual burn-rate display mode."
+				}
+			},
+			"type": "object"
+		},
+		"WeeklyOptions": {
+			"additionalProperties": false,
+			"properties": {
+				"all": {
+					"description": "Accepted for compatibility; all detected supported agents are included by default.",
+					"markdownDescription": "Accepted for compatibility; all detected supported agents are included by default.",
+					"type": "boolean"
+				},
+				"breakdown": {
+					"description": "Show per-model cost breakdown.",
+					"markdownDescription": "Show per-model cost breakdown.",
+					"type": "boolean"
+				},
+				"color": {
+					"description": "Enable colored output.",
+					"markdownDescription": "Enable colored output.",
+					"type": "boolean"
+				},
+				"compact": {
+					"description": "Force compact table layout for narrow terminals.",
+					"markdownDescription": "Force compact table layout for narrow terminals.",
+					"type": "boolean"
+				},
+				"debug": {
+					"description": "Show pricing mismatch information for debugging.",
+					"markdownDescription": "Show pricing mismatch information for debugging.",
+					"type": "boolean"
+				},
+				"debugSamples": {
+					"description": "Number of sample discrepancies to show in debug output.",
+					"format": "uint",
+					"markdownDescription": "Number of sample discrepancies to show in debug output.",
+					"minimum": 0.0,
+					"type": "integer"
+				},
+				"jq": {
+					"description": "jq filter to apply to JSON output.",
+					"markdownDescription": "jq filter to apply to JSON output.",
+					"type": "string"
+				},
+				"json": {
+					"description": "Output in JSON format.",
+					"markdownDescription": "Output in JSON format.",
+					"type": "boolean"
+				},
+				"mode": {
+					"allOf": [
+						{
+							"$ref": "#/definitions/ConfigCostMode"
+						}
+					],
+					"description": "Cost calculation mode.",
+					"markdownDescription": "Cost calculation mode."
+				},
+				"noColor": {
+					"description": "Disable colored output.",
+					"markdownDescription": "Disable colored output.",
+					"type": "boolean"
+				},
+				"noOffline": {
+					"description": "Disable cached pricing data where supported.",
+					"markdownDescription": "Disable cached pricing data where supported.",
+					"type": "boolean"
+				},
+				"offline": {
+					"description": "Use cached pricing data where supported.",
+					"markdownDescription": "Use cached pricing data where supported.",
+					"type": "boolean"
+				},
+				"order": {
+					"allOf": [
+						{
+							"$ref": "#/definitions/ConfigSortOrder"
+						}
+					],
+					"description": "Sort order.",
+					"markdownDescription": "Sort order."
+				},
+				"since": {
+					"description": "Filter from date (YYYY-MM-DD or YYYYMMDD).",
+					"markdownDescription": "Filter from date (YYYY-MM-DD or YYYYMMDD).",
+					"type": "string"
+				},
+				"singleThread": {
+					"description": "Disable parallel file processing.",
+					"markdownDescription": "Disable parallel file processing.",
+					"type": "boolean"
+				},
+				"startOfWeek": {
+					"allOf": [
+						{
+							"$ref": "#/definitions/ConfigWeekDay"
+						}
+					],
+					"default": "sunday",
+					"description": "First day of week for weekly grouping.",
+					"markdownDescription": "First day of week for weekly grouping."
+				},
+				"timezone": {
+					"description": "Timezone for date grouping (IANA).",
+					"markdownDescription": "Timezone for date grouping (IANA).",
+					"type": "string"
+				},
+				"until": {
+					"description": "Filter until date (inclusive).",
+					"markdownDescription": "Filter until date (inclusive).",
+					"type": "string"
+				}
+			},
+			"type": "object"
+		},
+		"ccusage-config": {
+			"additionalProperties": false,
+			"description": "Configuration file for ccusage",
+			"markdownDescription": "Configuration file for ccusage",
+			"properties": {
+				"$schema": {
+					"description": "JSON Schema URL for validation and autocomplete.",
+					"markdownDescription": "JSON Schema URL for validation and autocomplete.",
+					"type": "string"
+				},
+				"amp": {
+					"allOf": [
+						{
+							"$ref": "#/definitions/AmpConfig"
+						}
+					],
+					"description": "Amp configuration.",
+					"markdownDescription": "Amp configuration."
+				},
+				"claude": {
+					"allOf": [
+						{
+							"$ref": "#/definitions/ClaudeConfig"
+						}
+					],
+					"description": "Claude Code configuration.",
+					"markdownDescription": "Claude Code configuration."
+				},
+				"codex": {
+					"allOf": [
+						{
+							"$ref": "#/definitions/CodexConfig"
+						}
+					],
+					"description": "Codex configuration.",
+					"markdownDescription": "Codex configuration."
+				},
+				"commands": {
+					"allOf": [
+						{
+							"$ref": "#/definitions/RootCommandsConfig"
+						}
+					],
+					"description": "Command-specific configuration for all-agent reports.",
+					"markdownDescription": "Command-specific configuration for all-agent reports."
+				},
+				"defaults": {
+					"allOf": [
+						{
+							"$ref": "#/definitions/SharedOptions"
+						}
+					],
+					"description": "Default values for all-agent reports and legacy Claude commands.",
+					"markdownDescription": "Default values for all-agent reports and legacy Claude commands."
+				},
+				"droid": {
+					"allOf": [
+						{
+							"$ref": "#/definitions/DroidConfig"
+						}
+					],
+					"description": "Droid configuration.",
+					"markdownDescription": "Droid configuration."
+				},
+				"opencode": {
+					"allOf": [
+						{
+							"$ref": "#/definitions/OpenCodeConfig"
+						}
+					],
+					"description": "OpenCode configuration.",
+					"markdownDescription": "OpenCode configuration."
+				},
+				"pi": {
+					"allOf": [
+						{
+							"$ref": "#/definitions/PiConfig"
+						}
+					],
+					"description": "pi-agent configuration.",
+					"markdownDescription": "pi-agent configuration."
+				}
+			},
+			"type": "object"
 		}
 	},
-	"$schema": "https://json-schema.org/draft-07/schema#",
-	"title": "ccusage Configuration",
-	"description": "Configuration file for ccusage - Claude Code usage analysis tool",
 	"examples": [
 		{
 			"$schema": "https://ccusage.com/config-schema.json",
-			"defaults": {
-				"json": false,
-				"timezone": "Asia/Tokyo"
-			},
 			"claude": {
-				"defaults": {
-					"mode": "auto"
-				},
 				"commands": {
-					"daily": {
-						"instances": true
-					},
 					"blocks": {
 						"tokenLimit": "500000"
+					},
+					"daily": {
+						"instances": true
 					}
+				},
+				"defaults": {
+					"mode": "auto"
 				}
 			},
 			"codex": {
 				"defaults": {
 					"speed": "auto"
 				}
+			},
+			"defaults": {
+				"json": false,
+				"timezone": "Asia/Tokyo"
 			}
 		}
-	]
+	],
+	"title": "ccusage Configuration"
 }
