@@ -33,6 +33,7 @@ pub(crate) enum Command {
     Copilot(AgentCommandArgs),
     Gemini(AgentCommandArgs),
     Kimi(AgentCommandArgs),
+    OpenClaw(AgentCommandArgs),
 }
 
 #[derive(Clone, Default)]
@@ -116,6 +117,7 @@ pub(crate) struct AgentCommandArgs {
     pub(crate) shared: SharedArgs,
     pub(crate) kind: AgentReportKind,
     pub(crate) pi_path: Option<String>,
+    pub(crate) open_claw_path: Option<String>,
     pub(crate) codex_speed: CodexSpeed,
 }
 
@@ -359,6 +361,7 @@ fn parse_command(
         "copilot" => parse_copilot_command(parser, shared, config),
         "gemini" => parse_gemini_command(parser, shared, config),
         "kimi" => parse_kimi_command(parser, shared, config),
+        "openclaw" => parse_openclaw_command(parser, shared, config),
         _ => Err(format!("Unknown command '{command}'")),
     }
 }
@@ -380,6 +383,7 @@ fn parse_all_command(
         shared,
         kind,
         pi_path: None,
+        open_claw_path: None,
         codex_speed: CodexSpeed::Auto,
     }))
 }
@@ -515,7 +519,7 @@ fn parse_codex_command(
         _ => AgentReportKind::Daily,
     };
     let mut codex_speed = CodexSpeed::Auto;
-    apply_config_to_agent_args(&mut codex_speed, None, config);
+    apply_config_to_agent_args(&mut codex_speed, None, None, config);
     while parser.peek().is_some() {
         if parse_shared_arg_for_command(parser, &mut shared)? {
             continue;
@@ -529,6 +533,7 @@ fn parse_codex_command(
         shared,
         kind,
         pi_path: None,
+        open_claw_path: None,
         codex_speed,
     }))
 }
@@ -567,6 +572,7 @@ fn parse_opencode_command(
         shared,
         kind,
         pi_path: None,
+        open_claw_path: None,
         codex_speed: CodexSpeed::Auto,
     }))
 }
@@ -601,6 +607,7 @@ fn parse_amp_command(
         shared,
         kind,
         pi_path: None,
+        open_claw_path: None,
         codex_speed: CodexSpeed::Auto,
     }))
 }
@@ -635,6 +642,7 @@ fn parse_droid_command(
         shared,
         kind,
         pi_path: None,
+        open_claw_path: None,
         codex_speed: CodexSpeed::Auto,
     }))
 }
@@ -669,6 +677,7 @@ fn parse_hermes_command(
         shared,
         kind,
         pi_path: None,
+        open_claw_path: None,
         codex_speed: CodexSpeed::Auto,
     }))
 }
@@ -698,7 +707,7 @@ fn parse_pi_command(
     };
     let mut pi_path = None;
     let mut codex_speed = CodexSpeed::Auto;
-    apply_config_to_agent_args(&mut codex_speed, Some(&mut pi_path), config);
+    apply_config_to_agent_args(&mut codex_speed, Some(&mut pi_path), None, config);
     while parser.peek().is_some() {
         if parse_shared_arg_for_command(parser, &mut shared)? {
             continue;
@@ -712,6 +721,7 @@ fn parse_pi_command(
         shared,
         kind,
         pi_path,
+        open_claw_path: None,
         codex_speed,
     }))
 }
@@ -746,7 +756,52 @@ fn parse_goose_command(
         shared,
         kind,
         pi_path: None,
+        open_claw_path: None,
         codex_speed: CodexSpeed::Auto,
+    }))
+}
+
+fn parse_openclaw_command(
+    parser: &mut ArgParser,
+    mut shared: SharedArgs,
+    config: &ConfigContext,
+) -> Result<Command, String> {
+    let kind = match parser.peek() {
+        Some("daily") => {
+            parser.next();
+            AgentReportKind::Daily
+        }
+        Some("monthly") => {
+            parser.next();
+            AgentReportKind::Monthly
+        }
+        Some("session") => {
+            parser.next();
+            AgentReportKind::Session
+        }
+        Some(command) if !command.starts_with('-') => {
+            return Err(format!("Unknown openclaw command '{command}'"));
+        }
+        _ => AgentReportKind::Daily,
+    };
+    let mut open_claw_path = None;
+    let mut codex_speed = CodexSpeed::Auto;
+    apply_config_to_agent_args(&mut codex_speed, None, Some(&mut open_claw_path), config);
+    while parser.peek().is_some() {
+        if parse_shared_arg_for_command(parser, &mut shared)? {
+            continue;
+        }
+        match parser.next_flag()?.as_str() {
+            "--open-claw-path" => open_claw_path = Some(parser.value_for("--open-claw-path")?),
+            flag => return Err(format!("Unknown openclaw option '{flag}'")),
+        }
+    }
+    Ok(Command::OpenClaw(AgentCommandArgs {
+        shared,
+        kind,
+        pi_path: None,
+        open_claw_path,
+        codex_speed,
     }))
 }
 
@@ -780,6 +835,7 @@ fn parse_copilot_command(
         shared,
         kind,
         pi_path: None,
+        open_claw_path: None,
         codex_speed: CodexSpeed::Auto,
     }))
 }
@@ -814,6 +870,7 @@ fn parse_kilo_command(
         shared,
         kind,
         pi_path: None,
+        open_claw_path: None,
         codex_speed: CodexSpeed::Auto,
     }))
 }
@@ -848,6 +905,7 @@ fn parse_gemini_command(
         shared,
         kind,
         pi_path: None,
+        open_claw_path: None,
         codex_speed: CodexSpeed::Auto,
     }))
 }
@@ -882,6 +940,7 @@ fn parse_kimi_command(
         shared,
         kind,
         pi_path: None,
+        open_claw_path: None,
         codex_speed: CodexSpeed::Auto,
     }))
 }
@@ -946,6 +1005,7 @@ fn is_command(arg: &str) -> bool {
             | "hermes"
             | "pi"
             | "goose"
+            | "openclaw"
             | "kilo"
             | "copilot"
             | "gemini"
@@ -1073,6 +1133,7 @@ fn option_takes_value(arg: &str) -> bool {
             | "--context-medium-threshold"
             | "--speed"
             | "--pi-path"
+            | "--open-claw-path"
     )
 }
 
@@ -1091,6 +1152,7 @@ fn is_agent_command(command: &str) -> bool {
             | "copilot"
             | "gemini"
             | "kimi"
+            | "openclaw"
     )
 }
 
@@ -1102,7 +1164,8 @@ fn agent_report_supported(agent: &str, report: &str) -> bool {
         ),
         "codex" => matches!(report, "daily" | "monthly" | "session"),
         "opencode" => matches!(report, "daily" | "weekly" | "monthly" | "session"),
-        "amp" | "droid" | "hermes" | "pi" | "goose" | "kilo" | "copilot" | "gemini" | "kimi" => {
+        "amp" | "droid" | "hermes" | "pi" | "goose" | "kilo" | "copilot" | "gemini" | "kimi"
+        | "openclaw" => {
             matches!(report, "daily" | "monthly" | "session")
         }
         _ => false,
@@ -1123,6 +1186,7 @@ fn agent_display_name(agent: &str) -> &'static str {
         "copilot" => "GitHub Copilot CLI",
         "gemini" => "Gemini CLI",
         "kimi" => "Kimi",
+        "openclaw" => "OpenClaw",
         _ => unreachable!("agent is prevalidated"),
     }
 }
@@ -1431,6 +1495,14 @@ fn help_text_for_tokens(tokens: &[String]) -> String {
                     ("session", "Show Kimi usage grouped by session"),
                 ],
             ),
+            "openclaw" => agent_help(
+                "openclaw",
+                &[
+                    ("daily", "Show OpenClaw usage grouped by date"),
+                    ("monthly", "Show OpenClaw usage grouped by month"),
+                    ("session", "Show OpenClaw usage grouped by session"),
+                ],
+            ),
             _ => root_help_text(),
         },
         [agent, report, ..] => match agent.as_str() {
@@ -1451,6 +1523,7 @@ fn help_text_for_tokens(tokens: &[String]) -> String {
             "copilot" => copilot_report_help(report),
             "gemini" => gemini_report_help(report),
             "kimi" => kimi_report_help(report),
+            "openclaw" => openclaw_report_help(report),
             _ => root_help_text(),
         },
     }
@@ -1501,6 +1574,7 @@ fn root_help_text() -> String {
         "  copilot                    Show GitHub Copilot CLI usage commands",
         "  gemini                     Show Gemini CLI usage commands",
         "  kimi                       Show Kimi usage commands",
+        "  openclaw                   Show OpenClaw usage commands",
         "",
         "For more info, run any command with the `--help` flag:",
         "  ccusage daily --help",
@@ -1521,6 +1595,7 @@ fn root_help_text() -> String {
         "  ccusage copilot --help",
         "  ccusage gemini --help",
         "  ccusage kimi --help",
+        "  ccusage openclaw --help",
         "",
     ]
     .map(str::to_string)
@@ -1726,6 +1801,20 @@ fn kimi_report_help(report: &str) -> String {
     )
 }
 
+fn openclaw_report_help(report: &str) -> String {
+    let description = match report {
+        "daily" => "Show OpenClaw usage grouped by date",
+        "monthly" => "Show OpenClaw usage grouped by month",
+        "session" => "Show OpenClaw usage grouped by session",
+        _ => return root_help_text(),
+    };
+    command_help(
+        description,
+        &format!("ccusage openclaw {report} <OPTIONS>"),
+        &command_options(&[agent_options(), openclaw_options()]),
+    )
+}
+
 fn blocks_help(usage: &str) -> String {
     command_help(
         "Show usage report grouped by session billing blocks",
@@ -1925,6 +2014,13 @@ mod tests {
                             "piPath": "/tmp/pi-sessions"
                         }
                     }
+                },
+                "openclaw": {
+                    "commands": {
+                        "daily": {
+                            "openClawPath": "/tmp/openclaw"
+                        }
+                    }
                 }
             }"#,
         )
@@ -1960,6 +2056,12 @@ mod tests {
             panic!("expected pi command");
         };
         assert_eq!(args.pi_path.as_deref(), Some("/tmp/pi-sessions"));
+
+        let cli = parse(&["ccusage", "openclaw", "daily", "--config", path.as_str()]);
+        let Some(Command::OpenClaw(args)) = cli.command else {
+            panic!("expected openclaw command");
+        };
+        assert_eq!(args.open_claw_path.as_deref(), Some("/tmp/openclaw"));
     }
 
     #[test]
@@ -1967,7 +2069,7 @@ mod tests {
         let help = help_text();
         let agents = [
             "claude", "codex", "opencode", "amp", "droid", "hermes", "pi", "goose", "kilo",
-            "copilot", "gemini",
+            "copilot", "gemini", "kimi", "openclaw",
         ];
 
         for agent in agents {
@@ -2276,5 +2378,23 @@ mod tests {
         };
         assert_eq!(args.kind, AgentReportKind::Session);
         assert!(args.shared.json);
+    }
+
+    #[test]
+    fn parses_openclaw_session_options() {
+        let cli = parse(&[
+            "ccusage",
+            "openclaw",
+            "session",
+            "--json",
+            "--open-claw-path",
+            "/tmp/openclaw",
+        ]);
+        let Some(Command::OpenClaw(args)) = cli.command else {
+            panic!("expected openclaw command");
+        };
+        assert_eq!(args.kind, AgentReportKind::Session);
+        assert!(args.shared.json);
+        assert_eq!(args.open_claw_path.as_deref(), Some("/tmp/openclaw"));
     }
 }

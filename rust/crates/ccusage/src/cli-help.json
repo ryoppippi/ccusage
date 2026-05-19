@@ -220,6 +220,12 @@
 			"description": "Path or comma-separated paths to pi-agent sessions directories"
 		}
 	],
+	"openclaw_options": [
+		{
+			"flags": "--open-claw-path <open-claw-path>",
+			"description": "Path or comma-separated paths to OpenClaw data directories (default: ~/.openclaw, ~/.clawdbot, ~/.moltbot, ~/.moldbot)"
+		}
+	],
 	"session_options": [
 		{
 			"flags": "-i, --id <id>",
