@@ -11,7 +11,7 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - uses: ./.github/actions/setup-nix
-      - run: nix develop --command pnpm lint
+      - run: nix flake check --print-build-logs
       - run: nix develop --command pnpm typecheck
 
   test:
@@ -165,13 +165,6 @@ jobs:
           pnpm --config.block-exotic-subdeps=false dlx "$env:CCUSAGE_PNPM_DLX_URL" --version
           pnpm --config.block-exotic-subdeps=false dlx "$env:CCUSAGE_PNPM_DLX_URL" daily --offline --json | node -e "JSON.parse(require('fs').readFileSync(0, 'utf8'))"
           pnpm --config.block-exotic-subdeps=false dlx "$env:CCUSAGE_PNPM_DLX_URL" daily --offline
-
-  spell-check:
-    runs-on: ubuntu-24.04-arm
-    steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-      - uses: ./.github/actions/setup-nix
-      - run: nix develop --command typos --config ./typos.toml
 
   schema-check:
     runs-on: ubuntu-24.04-arm

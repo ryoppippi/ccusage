@@ -38,8 +38,8 @@
 		"build": "pnpm run generate:schema && tsdown && pnpm run build:rust",
 		"build:rust": "cargo build --manifest-path ../../rust/Cargo.toml --release --bin ccusage",
 		"format": "pnpm run lint --fix",
-		"generate:schema": "cargo run --quiet --manifest-path ../../rust/Cargo.toml --bin generate-config-schema -- config-schema.json && pnpm exec oxfmt --write config-schema.json && cp config-schema.json ../../docs/public/config-schema.json",
-		"lint": "eslint --cache .",
+		"generate:schema": "cargo run --quiet --manifest-path ../../rust/Cargo.toml --bin generate-config-schema -- config-schema.json && oxfmt --write config-schema.json && cp config-schema.json ../../docs/public/config-schema.json",
+		"lint": "oxlint .",
 		"prepack": "pnpm run build && clean-pkg-json",
 		"prerelease": "pnpm run lint && pnpm run typecheck && pnpm run build",
 		"stage:native-package": "node scripts/stage-native-package.mjs",
@@ -65,12 +65,9 @@
 		"@ccusage/ccusage-win32-x64": "workspace:*"
 	},
 	"devDependencies": {
-		"@ryoppippi/eslint-config": "catalog:lint",
 		"@types/bun": "catalog:types",
 		"@typescript/native-preview": "catalog:types",
 		"clean-pkg-json": "catalog:release",
-		"eslint": "catalog:lint",
-		"eslint-plugin-format": "catalog:lint",
 		"fs-fixture": "catalog:testing",
 		"gunshi": "catalog:runtime",
 		"mitata": "catalog:testing",

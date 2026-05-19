@@ -1,0 +1,6 @@
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Global allowlist"
+paths = ['''pnpm-lock\.yaml$''']

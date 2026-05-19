@@ -18,10 +18,6 @@ catalogs:
     vitepress-plugin-llms: ^1.12.0
     wrangler: 4.91.0
   lint:
-    '@ryoppippi/eslint-config': ^0.4.0
-    eslint: ^9.33.0
-    eslint-plugin-format: ^2.0.1
-    oxfmt: ^0.45.0
     publint: ^0.3.12
   llm-docs:
     '@gunshi/docs': ^0.31.0
@@ -30,7 +26,6 @@ catalogs:
     bumpp: ^10.2.3
     changelogithub: ^13.16.1
     clean-pkg-json: ^1.3.0
-    lefthook: ^2.1.6
     pkg-pr-new: ^0.0.60
   runtime:
     '@antfu/utils': ^9.2.1
@@ -72,7 +67,6 @@ trustPolicy: no-downgrade
 # (replaces onlyBuiltDependencies)
 allowBuilds:
   esbuild: true
-  lefthook: true
   sharp: true
   sqlite3: true
   workerd: true

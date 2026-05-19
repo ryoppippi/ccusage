@@ -55,6 +55,17 @@
               || pkgs.lib.hasSuffix "/fast-multiplier-overrides.json" path
               || pkgs.lib.hasSuffix "/litellm-pricing-fallback.json" path;
           };
+          repoSrc = pkgs.lib.cleanSourceWith {
+            src = ./.;
+            filter = path: type:
+              let
+                rel = pkgs.lib.removePrefix "${toString ./.}/" (toString path);
+              in
+                !(pkgs.lib.hasPrefix "node_modules/" rel)
+                && !(pkgs.lib.hasPrefix "target/" rel)
+                && !(pkgs.lib.hasPrefix "dist/" rel)
+                && !(pkgs.lib.hasPrefix "coverage/" rel);
+          };
           commonArgs = {
             pname = "ccusage";
             inherit version;
@@ -81,6 +92,21 @@
               mainProgram = "ccusage";
             };
           });
+          ccusage-clippy = craneLib.cargoClippy (commonArgs // {
+            src = repoSrc;
+            sourceRoot = "source/rust";
+            cargoLock = ./rust/Cargo.lock;
+            inherit cargoArtifacts;
+            cargoExtraArgs = "--workspace";
+            cargoClippyExtraArgs = "--all-targets -- -D warnings";
+          });
+          ccusage-fmt = craneLib.cargoFmt {
+            pname = "ccusage-rust";
+            inherit version;
+            src = repoSrc;
+            sourceRoot = "source/rust";
+            cargoExtraArgs = "--all";
+          };
           staticCcusage = pkgs.lib.optionalAttrs pkgs.stdenv.isLinux (
             let
               linuxStaticTarget =
@@ -136,13 +162,51 @@
           '';
         in {
           default = ccusage;
-          inherit ccusage pricing-fallback-sync update-pricing-fallback;
+          inherit ccusage ccusage-clippy ccusage-fmt pricing-fallback-sync update-pricing-fallback;
         } // staticCcusage);
 
-      checks = forAllSystems (system: pkgs: {
-        inherit (self.packages.${system}) ccusage;
-        inherit (self.packages.${system}) pricing-fallback-sync;
-      });
+      checks = forAllSystems (system: pkgs:
+        let
+          repoSrc = pkgs.lib.cleanSourceWith {
+            src = ./.;
+            filter = path: type:
+              let
+                rel = pkgs.lib.removePrefix "${toString ./.}/" (toString path);
+              in
+                !(pkgs.lib.hasPrefix "node_modules/" rel)
+                && !(pkgs.lib.hasPrefix "target/" rel)
+                && !(pkgs.lib.hasPrefix "dist/" rel)
+                && !(pkgs.lib.hasPrefix "coverage/" rel);
+          };
+          mkRepoCheck = name: nativeBuildInputs: command:
+            pkgs.runCommand name {
+              src = repoSrc;
+              inherit nativeBuildInputs;
+            } ''
+              cp -R "$src" source
+              chmod -R u+w source
+              cd source
+              ${command}
+              touch "$out"
+            '';
+        in {
+          inherit (self.packages.${system}) ccusage;
+          inherit (self.packages.${system}) ccusage-clippy;
+          inherit (self.packages.${system}) ccusage-fmt;
+          inherit (self.packages.${system}) pricing-fallback-sync;
+          oxfmt = mkRepoCheck "oxfmt-check" [ pkgs.oxfmt ] ''
+            oxfmt --check .
+          '';
+          oxlint = mkRepoCheck "oxlint-check" [ pkgs.oxlint ] ''
+            oxlint .
+          '';
+          typos = mkRepoCheck "typos-check" [ pkgs.typos ] ''
+            typos --config ./typos.toml
+          '';
+          gitleaks = mkRepoCheck "gitleaks-check" [ pkgs.gitleaks ] ''
+            gitleaks detect --source . --config .gitleaks.toml --no-git
+          '';
+        });
 
       devShells = forAllSystems (_system: pkgs: {
         default =
@@ -160,6 +224,10 @@
             openssl
             typos
             typos-lsp
+            oxfmt
+            oxlint
+            lefthook
+            gitleaks
             jq
             git
             gh
@@ -181,6 +249,7 @@
               echo "📦 Installing dependencies..."
               pnpm install --frozen-lockfile
             fi
+            lefthook install
           '';
         };
       });
