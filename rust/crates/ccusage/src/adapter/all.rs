@@ -13,9 +13,9 @@ use crate::{
     },
     cli::{AgentCommandArgs, AgentReportKind, CodexSpeed, SharedArgs, SortOrder, WeekDay},
     color, filter_loaded_entries_by_date, format_currency, format_models_multiline, format_number,
-    json_float, print_box_title, print_json_or_jq, summarize_by_key, summarize_summaries_by_bucket,
-    wants_json, Align, BucketKind, CodexGroup, Color, LoadedEntry, PricingMap, Result,
-    SessionAccumulator, SimpleTable, UsageSummary,
+    json_float, print_box_title, print_json_or_jq, short_model_name, summarize_by_key,
+    summarize_summaries_by_bucket, wants_json, Align, BucketKind, CodexGroup, Color, LoadedEntry,
+    ModelBreakdown, PricingMap, Result, SessionAccumulator, SimpleTable, UsageSummary,
 };
 
 #[derive(Debug, Clone)]
@@ -32,6 +32,7 @@ struct AllRow {
     metadata: Option<Value>,
     metadata_agents: Option<Vec<&'static str>>,
     agent_breakdowns: Option<Vec<AllRow>>,
+    model_breakdowns: Vec<ModelBreakdown>,
 }
 
 struct AllLoadResult {
@@ -614,6 +615,7 @@ fn summary_rows(agent: &'static str, summaries: Vec<UsageSummary>) -> Vec<AllRow
                 metadata,
                 metadata_agents: Some(vec![agent]),
                 agent_breakdowns: None,
+                model_breakdowns: summary.model_breakdowns,
             })
         })
         .collect()
@@ -647,6 +649,24 @@ fn codex_group_row(
     pricing: &PricingMap,
     speed: CodexSpeed,
 ) -> AllRow {
+    let mut model_breakdowns: Vec<ModelBreakdown> = group
+        .models
+        .iter()
+        .map(|(model, usage)| {
+            let input =
+                codex::non_cached_input_tokens(usage.input_tokens, usage.cached_input_tokens);
+            ModelBreakdown {
+                model_name: model.clone(),
+                input_tokens: input,
+                output_tokens: usage.output_tokens,
+                cache_creation_tokens: 0,
+                cache_read_tokens: usage.cached_input_tokens,
+                extra_total_tokens: 0,
+                cost: codex::calculate_codex_model_cost(model, usage, pricing, speed),
+            }
+        })
+        .collect();
+    model_breakdowns.sort_by(|a, b| b.cost.total_cmp(&a.cost));
     AllRow {
         period: period.to_string(),
         agent: "codex",
@@ -663,6 +683,7 @@ fn codex_group_row(
         })),
         metadata_agents: Some(vec!["codex"]),
         agent_breakdowns: None,
+        model_breakdowns,
     }
 }
 
@@ -725,6 +746,8 @@ impl AllAccumulator {
     fn into_row(self, period: String) -> AllRow {
         let mut agent_breakdowns = self.agent_breakdowns;
         agent_breakdowns.sort_by(|a, b| a.agent.cmp(b.agent));
+        let mut model_breakdowns = aggregate_model_breakdowns(&agent_breakdowns);
+        model_breakdowns.sort_by(|a, b| b.cost.total_cmp(&a.cost));
         AllRow {
             period,
             agent: "all",
@@ -738,8 +761,35 @@ impl AllAccumulator {
             metadata: None,
             metadata_agents: Some(self.agents.into_iter().collect()),
             agent_breakdowns: Some(agent_breakdowns),
+            model_breakdowns,
         }
     }
+}
+
+fn aggregate_model_breakdowns(rows: &[AllRow]) -> Vec<ModelBreakdown> {
+    use std::collections::HashMap;
+    let mut indexes: HashMap<String, usize> = HashMap::new();
+    let mut breakdowns: Vec<ModelBreakdown> = Vec::new();
+    for row in rows {
+        for item in &row.model_breakdowns {
+            let index = *indexes.entry(item.model_name.clone()).or_insert_with(|| {
+                let i = breakdowns.len();
+                breakdowns.push(ModelBreakdown {
+                    model_name: item.model_name.clone(),
+                    ..ModelBreakdown::default()
+                });
+                i
+            });
+            let b = &mut breakdowns[index];
+            b.input_tokens += item.input_tokens;
+            b.output_tokens += item.output_tokens;
+            b.cache_creation_tokens += item.cache_creation_tokens;
+            b.cache_read_tokens += item.cache_read_tokens;
+            b.extra_total_tokens += item.extra_total_tokens;
+            b.cost += item.cost;
+        }
+    }
+    breakdowns
 }
 
 fn report_json(rows: &[AllRow], kind: AgentReportKind) -> Value {
@@ -760,6 +810,7 @@ fn row_json(row: &AllRow) -> Value {
         "cacheReadTokens": row.cache_read_tokens,
         "totalTokens": row.total_tokens,
         "totalCost": json_float(row.total_cost),
+        "modelBreakdowns": row.model_breakdowns,
     });
     if let (Some(obj), Some(agents)) = (value.as_object_mut(), row.metadata_agents.as_ref()) {
         obj.insert(
@@ -814,10 +865,20 @@ fn print_table(
 
     for row in rows {
         table.push(all_table_row(row, compact, false));
-        if let Some(breakdowns) = row.agent_breakdowns.as_ref() {
-            for breakdown in breakdowns {
+        if let Some(agent_breakdowns) = row.agent_breakdowns.as_ref() {
+            for breakdown in agent_breakdowns {
                 table.push(all_table_row(breakdown, compact, true));
+                if shared.breakdown && !breakdown.model_breakdowns.is_empty() {
+                    push_model_breakdown_rows(
+                        &mut table,
+                        &breakdown.model_breakdowns,
+                        compact,
+                        shared,
+                    );
+                }
             }
+        } else if shared.breakdown && !row.model_breakdowns.is_empty() {
+            push_model_breakdown_rows(&mut table, &row.model_breakdowns, compact, shared);
         }
     }
     table.separator();
@@ -987,6 +1048,45 @@ fn table_total_tokens(row: &AllRow) -> u64 {
         .saturating_add(row.cache_read_tokens)
 }
 
+fn push_model_breakdown_rows(
+    table: &mut SimpleTable,
+    breakdowns: &[ModelBreakdown],
+    compact: bool,
+    shared: &SharedArgs,
+) {
+    for b in breakdowns {
+        let total =
+            b.input_tokens + b.output_tokens + b.cache_creation_tokens + b.cache_read_tokens;
+        let model = color(
+            shared,
+            format!("- {}", short_model_name(&b.model_name)),
+            Color::Grey,
+        );
+        if compact {
+            table.push(vec![
+                String::new(),
+                String::new(),
+                model,
+                color(shared, format_number(b.input_tokens), Color::Grey),
+                color(shared, format_number(b.output_tokens), Color::Grey),
+                color(shared, format_currency(b.cost), Color::Grey),
+            ]);
+        } else {
+            table.push(vec![
+                String::new(),
+                String::new(),
+                model,
+                color(shared, format_number(b.input_tokens), Color::Grey),
+                color(shared, format_number(b.output_tokens), Color::Grey),
+                color(shared, format_number(b.cache_creation_tokens), Color::Grey),
+                color(shared, format_number(b.cache_read_tokens), Color::Grey),
+                color(shared, format_number(total), Color::Grey),
+                color(shared, format_currency(b.cost), Color::Grey),
+            ]);
+        }
+    }
+}
+
 fn all_table_columns(kind: AgentReportKind, compact: bool) -> (Vec<&'static str>, Vec<Align>) {
     if compact {
         return (
@@ -1104,6 +1204,7 @@ mod tests {
                 metadata: None,
                 metadata_agents: Some(vec![agent]),
                 agent_breakdowns: None,
+                model_breakdowns: Vec::new(),
             }],
             detected: true,
         }
@@ -1164,6 +1265,7 @@ mod tests {
                     metadata: None,
                     metadata_agents: Some(vec!["codex"]),
                     agent_breakdowns: None,
+                    model_breakdowns: Vec::new(),
                 },
                 AllRow {
                     period: "2026-01-02".to_string(),
@@ -1178,6 +1280,7 @@ mod tests {
                     metadata: None,
                     metadata_agents: Some(vec!["claude"]),
                     agent_breakdowns: None,
+                    model_breakdowns: Vec::new(),
                 },
             ],
             AgentReportKind::Daily,
@@ -1217,6 +1320,7 @@ mod tests {
             metadata: None,
             metadata_agents: Some(vec!["codex"]),
             agent_breakdowns: None,
+            model_breakdowns: Vec::new(),
         }];
 
         let report = report_json(&rows, AgentReportKind::Daily);
@@ -1273,6 +1377,7 @@ mod tests {
             metadata: None,
             metadata_agents: Some(vec!["codex"]),
             agent_breakdowns: None,
+            model_breakdowns: Vec::new(),
         };
 
         let cells = all_table_row(&row, false, false);
@@ -1295,6 +1400,7 @@ mod tests {
             metadata: None,
             metadata_agents: Some(vec!["codex"]),
             agent_breakdowns: None,
+            model_breakdowns: Vec::new(),
         }];
 
         let title = all_report_title(
@@ -1336,7 +1442,9 @@ mod tests {
                 metadata: None,
                 metadata_agents: Some(vec!["codex"]),
                 agent_breakdowns: None,
+                model_breakdowns: Vec::new(),
             }]),
+            model_breakdowns: Vec::new(),
         };
 
         assert_eq!(
@@ -1368,6 +1476,7 @@ mod tests {
             metadata: None,
             metadata_agents: Some(vec!["claude", "codex"]),
             agent_breakdowns: None,
+            model_breakdowns: Vec::new(),
         };
 
         assert_eq!(

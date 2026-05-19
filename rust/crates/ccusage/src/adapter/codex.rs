@@ -381,7 +381,7 @@ pub(crate) fn calculate_group_cost(
     group
         .models
         .iter()
-        .map(|(model, usage)| calculate_model_cost(model, usage, pricing, speed))
+        .map(|(model, usage)| calculate_codex_model_cost(model, usage, pricing, speed))
         .sum()
 }
 
@@ -504,7 +504,7 @@ fn totals_json<'a>(
     })
 }
 
-fn calculate_model_cost(
+pub(crate) fn calculate_codex_model_cost(
     model: &str,
     usage: &CodexModelUsage,
     pricing: &PricingMap,
@@ -747,7 +747,7 @@ mod tests {
             is_fallback: false,
         };
 
-        let cost = calculate_model_cost("gpt-test", &usage, &pricing, CodexSpeed::Standard);
+        let cost = calculate_codex_model_cost("gpt-test", &usage, &pricing, CodexSpeed::Standard);
 
         assert!((cost - 0.00015).abs() < f64::EPSILON);
     }
@@ -774,8 +774,8 @@ mod tests {
         };
 
         let standard =
-            calculate_model_cost("gpt-5.3-codex", &usage, &pricing, CodexSpeed::Standard);
-        let fast = calculate_model_cost("gpt-5.3-codex", &usage, &pricing, CodexSpeed::Fast);
+            calculate_codex_model_cost("gpt-5.3-codex", &usage, &pricing, CodexSpeed::Standard);
+        let fast = calculate_codex_model_cost("gpt-5.3-codex", &usage, &pricing, CodexSpeed::Fast);
 
         assert!((fast - (standard * 2.0)).abs() < f64::EPSILON);
     }
