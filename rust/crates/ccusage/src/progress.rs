@@ -184,9 +184,9 @@ mod tests {
         assert_eq!(
             format_usage_load_progress_text(
                 &states,
-                Some("Fetching latest model pricing from LiteLLM...")
+                Some("Refreshing model pricing from LiteLLM...")
             ),
-            "Fetching latest model pricing from LiteLLM... :: Loading usage logs (0/2) :: Claude, Codex"
+            "Refreshing model pricing from LiteLLM... :: Loading usage logs (0/2) :: Claude, Codex"
         );
     }
 

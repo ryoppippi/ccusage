@@ -93,14 +93,13 @@ impl PricingMap {
             return map;
         }
 
-        if log {
-            eprintln!("WARN  Fetching latest model pricing from LiteLLM...");
-        }
         match fetch_pricing_json() {
             Ok(json) => {
                 let loaded_count = map.load_json(&json);
-                if log {
-                    eprintln!("INFO  Loaded pricing for {loaded_count} models");
+                if loaded_count == 0 && log {
+                    eprintln!(
+                        "WARN  Failed to parse LiteLLM pricing; using embedded pricing."
+                    );
                 }
             }
             Err(error) => {
