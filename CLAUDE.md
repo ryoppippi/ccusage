@@ -12,9 +12,8 @@ Use these skills before working in this repository:
 - `ccusage-agent-sources` - Claude Code, Codex, OpenCode, Amp, and pi-agent log locations, token mappings, cost rules, and CLI behavior.
 - `ccusage-docs` - VitePress docs structure, screenshot placement, accessibility, and markdown linting conventions.
 - `skill-creator` - repo-local skill creation, SKILL.md frontmatter, description trigger quality, and reference layout.
-- `typescript-style` - TypeScript typing with `satisfies`, `as const satisfies`, and safer type suppressions.
-- `byethrow` - `@praha/byethrow` Result-based error handling.
-- `use-gunshi-cli` - Gunshi command definitions and CLI conventions.
+- `typescript-style` - required before reading or editing `.ts`, `.tsx`, `.js`, or `.jsx`; covers typing, `satisfies`, safe suppressions, and library-specific guidance for arkregex, byethrow, and Gunshi.
+- `ast-grep` - structural code searches and AST-based migration verification with the dev-shell `ast-grep` CLI.
 - `bun-api-reference` - local Bun runtime API docs and type references under `node_modules/bun-types`.
 - `tdd` - Red-Green-Refactor workflow for logic changes.
 - `bun-cpu-profile` - Bun CPU profiling and branch-vs-main performance comparisons.
@@ -35,7 +34,7 @@ Check the nearest package-specific `CLAUDE.md` before editing package code:
 - The canonical user-facing CLI is `ccusage` with agent subcommands such as `ccusage amp`, `ccusage codex`, `ccusage opencode`, and `ccusage pi`.
 - Standalone agent wrapper packages have been removed. Do not add docs, tests, or features that promote `ccusage-amp`, `ccusage-codex`, `ccusage-opencode`, or `ccusage-pi`.
 - Runtime libraries for bundled packages belong in `devDependencies` unless explicitly requested otherwise.
-- Prefer tools provided by the Nix dev shell before falling back to ad hoc installs: `rg`, `fd`, `fzf`, `delta`, `dust`, `jq`, `gh`, `hyperfine`, `similarity`, `typos`, and `typos-lsp`. When a missing tool would be useful for repeated agent work in this repository, add it to `flake.nix`.
+- Prefer tools provided by the Nix dev shell before falling back to ad hoc installs: `rg`, `fd`, `fzf`, `delta`, `dust`, `jq`, `gh`, `hyperfine`, `similarity`, `ast-grep`, `typos`, and `typos-lsp`. When a missing tool would be useful for repeated agent work in this repository, add it to `flake.nix`.
 - Use `logger.ts` instead of `console.log`.
 - Use `.ts` extensions for local imports.
 - Do not use dynamic imports anywhere, especially in Vitest blocks.

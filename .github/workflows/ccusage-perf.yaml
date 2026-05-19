@@ -15,27 +15,22 @@ permissions:
 jobs:
   compare:
     runs-on: ubuntu-24.04-arm
-    timeout-minutes: 15
+    timeout-minutes: 30
 
     steps:
       - name: Checkout PR
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-
-      - name: Checkout base
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
-          ref: ${{ github.event.pull_request.base.sha }}
-          path: base
+          ref: ${{ github.event.pull_request.head.sha }}
 
       - name: Setup Nix
         uses: ./.github/actions/setup-nix
 
-      - name: Build base ccusage
-        run: nix develop --command pnpm --filter ccusage run build
-        working-directory: base
-
       - name: Build PR ccusage
         run: nix develop --command pnpm --filter ccusage run build
+
+      - name: Stage PR native package
+        run: nix develop --command pnpm --filter ccusage run stage:native-package
 
       - name: Generate large ccusage fixture
         run: |
@@ -47,8 +42,10 @@ jobs:
       - name: Compare fixture performance
         run: |
           nix develop --command pnpm exec bun apps/ccusage/scripts/compare-pr-performance.ts \
-            --base-dir base \
+            --base-package-url "https://pkg.pr.new/${{ github.repository }}/ccusage@${{ github.event.pull_request.base.sha }}" \
+            --base-sha "${{ github.event.pull_request.base.sha }}" \
             --head-dir . \
+            --head-package-url "https://pkg.pr.new/${{ github.repository }}/ccusage@${{ github.event.pull_request.head.sha }}" \
             --fixture-dir apps/ccusage/test/fixtures/claude \
             --codex-fixture-dir apps/ccusage/test/fixtures/codex \
             --warmup 2 \
@@ -57,15 +54,17 @@ jobs:
             --large-codex-fixture-dir "$RUNNER_TEMP/ccusage-large-codex-fixture" \
             --large-warmup 0 \
             --large-runs 1 \
+            --package-runner-timeout-ms 600000 \
             --output "$RUNNER_TEMP/ccusage-perf-comment.md"
 
       - name: Write job summary
         run: cat "$RUNNER_TEMP/ccusage-perf-comment.md" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upsert PR comment
+        if: ${{ !github.event.pull_request.head.repo.fork }}
         env:
           COMMENT_FILE: ${{ runner.temp }}/ccusage-perf-comment.md
-          COMMENT_MARKER: <!-- ccusage-perf-comment -->
+          COMMENT_MARKER: <!-- ccusage-perf-comment:${{ github.event.pull_request.head.sha }} -->
           GITHUB_TOKEN: ${{ github.token }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
