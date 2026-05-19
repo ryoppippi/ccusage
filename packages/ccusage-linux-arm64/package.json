@@ -1,5 +1,6 @@
 {
 	"name": "@ccusage/ccusage-linux-arm64",
+	"type": "commonjs",
 	"version": "19.0.3",
 	"description": "Static native ccusage binary for Linux arm64",
 	"license": "MIT",
@@ -21,6 +22,10 @@
 		"access": "public"
 	},
 	"scripts": {
-		"prepack": "node ../../apps/ccusage/scripts/verify-native-package.mjs"
+		"prepack": "node ../../apps/ccusage/scripts/verify-native-package.mjs && clean-pkg-json && publint"
+	},
+	"devDependencies": {
+		"clean-pkg-json": "catalog:release",
+		"publint": "catalog:lint"
 	}
 }

@@ -171,17 +171,59 @@ importers:
         specifier: catalog:docs
         version: 4.91.0
 
-  packages/ccusage-darwin-arm64: {}
+  packages/ccusage-darwin-arm64:
+    devDependencies:
+      clean-pkg-json:
+        specifier: catalog:release
+        version: 1.3.0
+      publint:
+        specifier: catalog:lint
+        version: 0.3.12
 
-  packages/ccusage-darwin-x64: {}
+  packages/ccusage-darwin-x64:
+    devDependencies:
+      clean-pkg-json:
+        specifier: catalog:release
+        version: 1.3.0
+      publint:
+        specifier: catalog:lint
+        version: 0.3.12
 
-  packages/ccusage-linux-arm64: {}
+  packages/ccusage-linux-arm64:
+    devDependencies:
+      clean-pkg-json:
+        specifier: catalog:release
+        version: 1.3.0
+      publint:
+        specifier: catalog:lint
+        version: 0.3.12
 
-  packages/ccusage-linux-x64: {}
+  packages/ccusage-linux-x64:
+    devDependencies:
+      clean-pkg-json:
+        specifier: catalog:release
+        version: 1.3.0
+      publint:
+        specifier: catalog:lint
+        version: 0.3.12
 
-  packages/ccusage-win32-arm64: {}
+  packages/ccusage-win32-arm64:
+    devDependencies:
+      clean-pkg-json:
+        specifier: catalog:release
+        version: 1.3.0
+      publint:
+        specifier: catalog:lint
+        version: 0.3.12
 
-  packages/ccusage-win32-x64: {}
+  packages/ccusage-win32-x64:
+    devDependencies:
+      clean-pkg-json:
+        specifier: catalog:release
+        version: 1.3.0
+      publint:
+        specifier: catalog:lint
+        version: 0.3.12
 
 packages:
 
