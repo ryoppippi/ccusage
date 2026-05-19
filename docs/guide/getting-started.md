@@ -164,6 +164,7 @@ If ccusage shows no data, check:
    - Codex: `${CODEX_HOME:-~/.codex}`
    - OpenCode: `${OPENCODE_DATA_DIR:-~/.local/share/opencode}`
    - Amp: `${AMP_DATA_DIR:-~/.local/share/amp}`
+   - Hermes Agent: `${HERMES_HOME:-~/.hermes}/state.db`
    - pi-agent: `${PI_AGENT_DIR:-~/.pi/agent/sessions}`
    - GitHub Copilot CLI: `~/.copilot/otel/*.jsonl` or `COPILOT_OTEL_FILE_EXPORTER_PATH`
    - Kilo: `${KILO_DATA_DIR:-~/.local/share/kilo}`

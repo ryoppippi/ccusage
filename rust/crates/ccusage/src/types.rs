@@ -77,6 +77,8 @@ pub(crate) struct ModelBreakdown {
     pub(crate) output_tokens: u64,
     pub(crate) cache_creation_tokens: u64,
     pub(crate) cache_read_tokens: u64,
+    #[serde(skip_serializing)]
+    pub(crate) extra_total_tokens: u64,
     pub(crate) cost: f64,
 }
 
@@ -91,6 +93,7 @@ pub(crate) struct LoadedEntry {
     pub(crate) cost: f64,
     pub(crate) extra_total_tokens: u64,
     pub(crate) credits: Option<f64>,
+    pub(crate) message_count: Option<u64>,
     pub(crate) model: Option<String>,
     pub(crate) usage_limit_reset_time: Option<TimestampMs>,
 }
@@ -168,6 +171,8 @@ pub(crate) struct UsageSummary {
     pub(crate) extra_total_tokens: u64,
     pub(crate) total_cost: f64,
     pub(crate) credits: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) message_count: Option<u64>,
     pub(crate) models_used: Vec<String>,
     pub(crate) model_breakdowns: Vec<ModelBreakdown>,
     #[serde(skip_serializing_if = "Option::is_none")]

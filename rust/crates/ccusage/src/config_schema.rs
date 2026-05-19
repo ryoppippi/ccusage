@@ -24,6 +24,8 @@ pub(crate) struct CcusageConfig {
     pub(crate) opencode: Option<OpenCodeConfig>,
     /// Amp configuration.
     pub(crate) amp: Option<AmpConfig>,
+    /// Hermes Agent configuration.
+    pub(crate) hermes: Option<HermesConfig>,
     /// pi-agent configuration.
     pub(crate) pi: Option<PiConfig>,
     /// Kilo configuration.
@@ -104,6 +106,21 @@ pub(crate) struct AmpConfig {
 #[derive(Debug, Default, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct AmpCommandsConfig {
+    pub(crate) daily: Option<SharedOptions>,
+    pub(crate) monthly: Option<SharedOptions>,
+    pub(crate) session: Option<SharedOptions>,
+}
+
+#[derive(Debug, Default, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct HermesConfig {
+    pub(crate) defaults: Option<SharedOptions>,
+    pub(crate) commands: Option<HermesCommandsConfig>,
+}
+
+#[derive(Debug, Default, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct HermesCommandsConfig {
     pub(crate) daily: Option<SharedOptions>,
     pub(crate) monthly: Option<SharedOptions>,
     pub(crate) session: Option<SharedOptions>,
@@ -816,7 +833,7 @@ mod tests {
             "ccusage-config",
             &[
                 "$schema", "amp", "claude", "codex", "commands", "copilot", "defaults", "gemini",
-                "kilo", "opencode", "pi",
+                "hermes", "kilo", "opencode", "pi",
             ],
         );
     }
@@ -882,6 +899,13 @@ mod tests {
                 "commands": {
                     "daily": {
                         "piPath": "/tmp/pi-sessions"
+                    }
+                }
+            },
+            "hermes": {
+                "commands": {
+                    "daily": {
+                        "json": true
                     }
                 }
             },

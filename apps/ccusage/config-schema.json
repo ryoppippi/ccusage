@@ -715,6 +715,33 @@
 			},
 			"type": "object"
 		},
+		"HermesCommandsConfig": {
+			"additionalProperties": false,
+			"properties": {
+				"daily": {
+					"$ref": "#/definitions/SharedOptions"
+				},
+				"monthly": {
+					"$ref": "#/definitions/SharedOptions"
+				},
+				"session": {
+					"$ref": "#/definitions/SharedOptions"
+				}
+			},
+			"type": "object"
+		},
+		"HermesConfig": {
+			"additionalProperties": false,
+			"properties": {
+				"commands": {
+					"$ref": "#/definitions/HermesCommandsConfig"
+				},
+				"defaults": {
+					"$ref": "#/definitions/SharedOptions"
+				}
+			},
+			"type": "object"
+		},
 		"KiloCommandsConfig": {
 			"additionalProperties": false,
 			"properties": {
@@ -1306,6 +1333,15 @@
 					],
 					"description": "Gemini CLI configuration.",
 					"markdownDescription": "Gemini CLI configuration."
+				},
+				"hermes": {
+					"allOf": [
+						{
+							"$ref": "#/definitions/HermesConfig"
+						}
+					],
+					"description": "Hermes Agent configuration.",
+					"markdownDescription": "Hermes Agent configuration."
 				},
 				"kilo": {
 					"allOf": [
