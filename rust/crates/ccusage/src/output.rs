@@ -74,13 +74,13 @@ pub(crate) fn totals_json(rows: &[UsageSummary]) -> Value {
         .map(|row| row.cache_creation_tokens)
         .sum::<u64>();
     let cache_read = rows.iter().map(|row| row.cache_read_tokens).sum::<u64>();
-    let extra_total = rows.iter().map(|row| row.extra_total_tokens).sum::<u64>();
+    let extra = rows.iter().map(|row| row.extra_total_tokens).sum::<u64>();
     let mut value = json!({
         "inputTokens": input,
         "outputTokens": output,
         "cacheCreationTokens": cache_create,
         "cacheReadTokens": cache_read,
-        "totalTokens": input + output + cache_create + cache_read + extra_total,
+        "totalTokens": input + output + cache_create + cache_read + extra,
         "totalCost": rows.iter().map(|row| row.total_cost).sum::<f64>(),
     });
     let credits = rows.iter().filter_map(|row| row.credits).sum::<f64>();
@@ -331,7 +331,10 @@ fn push_breakdown_rows(
     shared: &SharedArgs,
 ) {
     for breakdown in &row.model_breakdowns {
-        let total = breakdown.total_tokens();
+        let total = breakdown.input_tokens
+            + breakdown.output_tokens
+            + breakdown.cache_creation_tokens
+            + breakdown.cache_read_tokens;
         let mut values = if compact {
             vec![
                 color(

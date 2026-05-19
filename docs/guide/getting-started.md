@@ -163,8 +163,9 @@ If ccusage shows no data, check:
    - Codex: `${CODEX_HOME:-~/.codex}`
    - OpenCode: `${OPENCODE_DATA_DIR:-~/.local/share/opencode}`
    - Amp: `${AMP_DATA_DIR:-~/.local/share/amp}`
-   - pi-agent: `${PI_AGENT_DIR:-~/.pi/agent/sessions}`
    - Droid: `${DROID_SESSIONS_DIR:-~/.factory/sessions}`
+   - pi-agent: `${PI_AGENT_DIR:-~/.pi/agent/sessions}`
+   - GitHub Copilot CLI: `~/.copilot/otel/*.jsonl` or `COPILOT_OTEL_FILE_EXPORTER_PATH`
 
 ### Custom Data Directory
 
@@ -175,18 +176,19 @@ export CLAUDE_CONFIG_DIR="/path/to/your/claude/data"
 export CODEX_HOME="/path/to/codex"
 export OPENCODE_DATA_DIR="/path/to/opencode"
 export AMP_DATA_DIR="/path/to/amp"
-export PI_AGENT_DIR="/path/to/pi/sessions"
 export DROID_SESSIONS_DIR="/path/to/factory/sessions"
+export PI_AGENT_DIR="/path/to/pi/sessions"
+export COPILOT_OTEL_FILE_EXPORTER_PATH="/path/to/copilot-otel.jsonl"
 ```
 
 Each source-specific path variable can also contain comma-separated directories:
 
 ```bash
-export CODEX_HOME="/path/to/codex,/archive/codex"
+export CODEX_HOME="/path/to/codex,/archive/codex,/path/to/codex-exec-jsonl"
 export OPENCODE_DATA_DIR="/path/to/opencode,/archive/opencode"
 export AMP_DATA_DIR="/path/to/amp,/archive/amp"
-export PI_AGENT_DIR="/path/to/pi/sessions,/archive/pi/sessions"
 export DROID_SESSIONS_DIR="/path/to/factory/sessions,/archive/factory/sessions"
+export PI_AGENT_DIR="/path/to/pi/sessions,/archive/pi/sessions"
 ```
 
 ## Getting Help

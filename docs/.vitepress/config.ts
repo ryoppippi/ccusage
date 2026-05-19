@@ -72,8 +72,10 @@ export default defineConfig({
 						{ text: 'Codex', link: '/guide/codex/' },
 						{ text: 'OpenCode', link: '/guide/opencode/' },
 						{ text: 'Amp', link: '/guide/amp/' },
-						{ text: 'pi-agent', link: '/guide/pi/' },
 						{ text: 'Droid', link: '/guide/droid/' },
+						{ text: 'pi-agent', link: '/guide/pi/' },
+						{ text: 'GitHub Copilot CLI', link: '/guide/copilot/' },
+						{ text: 'Gemini CLI', link: '/guide/gemini/' },
 					],
 				},
 				{

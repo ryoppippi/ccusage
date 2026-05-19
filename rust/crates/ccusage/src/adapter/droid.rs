@@ -46,7 +46,11 @@ pub(crate) fn run(args: AgentCommandArgs) -> Result<()> {
     let mut entries = load_entries(&shared, &pricing)?;
     filter_loaded_entries_by_date(&mut entries, &shared);
     let mut rows = summarize_entries(&entries, args.kind)?;
-    sort_summaries(&mut rows, &shared.order, crate::adapter::opencode::summary_period);
+    sort_summaries(
+        &mut rows,
+        &shared.order,
+        crate::adapter::opencode::summary_period,
+    );
     if wants_json(&shared) {
         return print_json_or_jq(report_from_rows(&rows, args.kind), shared.jq.as_deref());
     }
@@ -249,7 +253,7 @@ fn parse_token_usage(value: Option<&Value>) -> Option<DroidTokenUsage> {
         + tokens.cache_read_tokens
         + tokens.thinking_tokens
         > 0)
-        .then_some(tokens)
+    .then_some(tokens)
 }
 
 fn settings_timestamp(
@@ -339,7 +343,10 @@ fn droid_model_candidates(entry: &DroidEntry) -> Vec<String> {
 
 fn provider_prefixes(provider: &str) -> Vec<String> {
     match provider {
-        "anthropic" => vec!["anthropic/".to_string(), "openrouter/anthropic/".to_string()],
+        "anthropic" => vec![
+            "anthropic/".to_string(),
+            "openrouter/anthropic/".to_string(),
+        ],
         "openai" => vec!["openai/".to_string(), "openrouter/openai/".to_string()],
         "google" => vec![
             "google/".to_string(),
@@ -369,7 +376,10 @@ pub(crate) fn normalize_droid_model_name(model: &str) -> String {
             _ => {}
         }
     }
-    let lower = without_brackets.trim().trim_end_matches('-').to_ascii_lowercase();
+    let lower = without_brackets
+        .trim()
+        .trim_end_matches('-')
+        .to_ascii_lowercase();
     let mut normalized = String::new();
     let mut previous_dash = false;
     for ch in lower.chars() {
@@ -416,11 +426,7 @@ fn infer_droid_provider_from_model(model: &str) -> &'static str {
     } else if model.starts_with("gpt-")
         || model.contains("-gpt-")
         || model.contains("chatgpt")
-        || model.starts_with('o')
-            && model
-                .as_bytes()
-                .get(1)
-                .is_some_and(u8::is_ascii_digit)
+        || model.starts_with('o') && model.as_bytes().get(1).is_some_and(u8::is_ascii_digit)
     {
         "openai"
     } else if model.contains("gemini") {
@@ -551,7 +557,10 @@ mod tests {
         assert_eq!(entries[0].model.as_deref(), Some("claude-sonnet-4"));
         assert_eq!(entries[0].data.message.usage.input_tokens, 100);
         assert_eq!(entries[0].data.message.usage.output_tokens, 50);
-        assert_eq!(entries[0].data.message.usage.cache_creation_input_tokens, 20);
+        assert_eq!(
+            entries[0].data.message.usage.cache_creation_input_tokens,
+            20
+        );
         assert_eq!(entries[0].data.message.usage.cache_read_input_tokens, 10);
         assert_eq!(entries[0].extra_total_tokens, 5);
     }

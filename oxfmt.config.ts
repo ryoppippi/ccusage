@@ -5,9 +5,11 @@ export default defineConfig({
 	singleQuote: true,
 	ignorePatterns: [
 		'dist',
+		'target',
 		'node_modules',
 		'coverage',
 		'.git',
+		'**/package.json',
 		'**/pnpm-lock.yaml',
 		'rust/crates/ccusage/src/litellm-pricing-fallback.json',
 	],
