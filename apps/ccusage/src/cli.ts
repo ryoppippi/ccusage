@@ -27,17 +27,6 @@ type NativeSpawnResult = {
 
 type NativeSpawner = (command: string, args: string[]) => Promise<NativeSpawnResult>;
 
-type BunLike = {
-	spawn?: (
-		command: string[],
-		options: { stderr: 'inherit'; stdout: 'inherit' },
-	) => {
-		exited: PromiseLike<number>;
-		exitCode: number | null;
-		signalCode?: NodeJS.Signals | null;
-	};
-};
-
 function getNativePackageName(
 	platform: string = process.platform,
 	arch: string = process.arch,
@@ -153,22 +142,7 @@ function ensureNativeBinaryExecutable({
 	}
 }
 
-function createNativeSpawner(
-	bun: BunLike | undefined = (globalThis as typeof globalThis & { Bun?: BunLike }).Bun,
-): NativeSpawner {
-	if (bun?.spawn != null) {
-		return async (command, args) => {
-			const result = bun.spawn!([command, ...args], {
-				stderr: 'inherit',
-				stdout: 'inherit',
-			});
-			await result.exited;
-			return {
-				signal: result.signalCode ?? null,
-				status: result.exitCode,
-			};
-		};
-	}
+function createNativeSpawner(): NativeSpawner {
 	return async (command, args) =>
 		new Promise((resolve) => {
 			const child = spawn(command, args, { stdio: 'inherit' });
@@ -316,25 +290,6 @@ if (import.meta.vitest != null) {
 				}),
 			).toBeUndefined();
 			expect(chmodPath).not.toHaveBeenCalled();
-		});
-	});
-
-	describe('createNativeSpawner', () => {
-		it('uses Bun.spawn when running under Bun', async () => {
-			const spawnMock = vi.fn(() => ({
-				exited: Promise.resolve(0),
-				exitCode: 0,
-			}));
-			const spawnNative = createNativeSpawner({ spawn: spawnMock });
-
-			await expect(spawnNative('/native/bin/ccusage', ['claude', '--offline'])).resolves.toEqual({
-				signal: null,
-				status: 0,
-			});
-			expect(spawnMock).toHaveBeenCalledWith(['/native/bin/ccusage', 'claude', '--offline'], {
-				stderr: 'inherit',
-				stdout: 'inherit',
-			});
 		});
 	});
 }
