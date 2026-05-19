@@ -4,6 +4,7 @@ use serde::Deserialize;
 
 const BUILD_TIME_PRICING_JSON: &str =
     include_str!(concat!(env!("OUT_DIR"), "/litellm-pricing.json"));
+const FAST_MULTIPLIER_OVERRIDES_JSON: &str = include_str!("fast-multiplier-overrides.json");
 const FALLBACK_PRICING_JSON: &str = include_str!("litellm-pricing-fallback.json");
 const LITELLM_PRICING_URL: &str =
     "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json";
@@ -49,12 +50,40 @@ struct ProviderSpecificEntry {
     fast: Option<f64>,
 }
 
+#[derive(Debug, Default, Deserialize)]
+struct FastMultiplierOverrides {
+    exact: HashMap<String, f64>,
+    normalized_prefix: HashMap<String, f64>,
+}
+
+impl FastMultiplierOverrides {
+    fn load() -> Self {
+        serde_json::from_str(FAST_MULTIPLIER_OVERRIDES_JSON)
+            .expect("parse embedded fast-multiplier-overrides.json")
+    }
+
+    fn multiplier_for(&self, model: &str) -> Option<f64> {
+        if let Some(multiplier) = self.exact.get(model) {
+            return Some(*multiplier);
+        }
+        let normalized = model.replace(['.', '@'], "-");
+        normalized.split(['/', ':']).find_map(|part| {
+            self.normalized_prefix
+                .iter()
+                .find_map(|(base, multiplier)| {
+                    matches_model_suffix(part, base).then_some(*multiplier)
+                })
+        })
+    }
+}
+
 impl PricingMap {
     pub(crate) fn load_embedded() -> Self {
         let mut map = Self::default();
-        map.load_json(BUILD_TIME_PRICING_JSON);
-        map.load_json(FALLBACK_PRICING_JSON);
-        map.put_fallback_pricing();
+        let fast_multiplier_overrides = FastMultiplierOverrides::load();
+        map.load_json_with_overrides(BUILD_TIME_PRICING_JSON, &fast_multiplier_overrides);
+        map.load_json_with_overrides(FALLBACK_PRICING_JSON, &fast_multiplier_overrides);
+        map.put_fallback_pricing(&fast_multiplier_overrides);
         map
     }
 
@@ -64,18 +93,21 @@ impl PricingMap {
             return map;
         }
 
-        if log {
-            eprintln!("WARN  Fetching latest model pricing from LiteLLM...");
-        }
-        match fetch_pricing_json() {
+        let fetch_result = crate::progress::track_status(
+            log && crate::progress::usage_load_output_is_tty(),
+            "Refreshing model pricing from LiteLLM...",
+            fetch_pricing_json,
+        );
+
+        match fetch_result {
             Ok(json) => {
                 let loaded_count = map.load_json(&json);
-                if log {
-                    eprintln!("INFO  Loaded pricing for {loaded_count} models");
+                if loaded_count == 0 && should_log_pricing_refresh_details() {
+                    eprintln!("WARN  Failed to parse LiteLLM pricing; using embedded pricing.");
                 }
             }
             Err(error) => {
-                if log {
+                if should_log_pricing_refresh_details() {
                     eprintln!(
                         "WARN  Failed to fetch LiteLLM pricing ({error}); using embedded pricing."
                     );
@@ -86,6 +118,15 @@ impl PricingMap {
     }
 
     pub(crate) fn load_json(&mut self, json: &str) -> usize {
+        let fast_multiplier_overrides = FastMultiplierOverrides::load();
+        self.load_json_with_overrides(json, &fast_multiplier_overrides)
+    }
+
+    fn load_json_with_overrides(
+        &mut self,
+        json: &str,
+        fast_multiplier_overrides: &FastMultiplierOverrides,
+    ) -> usize {
         let Ok(raw) = serde_json::from_str::<HashMap<String, serde_json::Value>>(json) else {
             return 0;
         };
@@ -102,6 +143,11 @@ impl PricingMap {
             };
             let context_limit = pricing.max_input_tokens;
             let cache_read_explicit = pricing.cache_read_input_token_cost.is_some();
+            let fast_multiplier = pricing
+                .provider_specific_entry
+                .and_then(|entry| entry.fast)
+                .or_else(|| fast_multiplier_overrides.multiplier_for(&model))
+                .unwrap_or(1.0);
             self.entries.insert(
                 model.clone(),
                 Pricing {
@@ -117,10 +163,7 @@ impl PricingMap {
                     cache_create_above_200k: pricing
                         .cache_creation_input_token_cost_above_200k_tokens,
                     cache_read_above_200k: pricing.cache_read_input_token_cost_above_200k_tokens,
-                    fast_multiplier: pricing
-                        .provider_specific_entry
-                        .and_then(|entry| entry.fast)
-                        .unwrap_or(1.0),
+                    fast_multiplier,
                 },
             );
             if let Some(context_limit) = context_limit {
@@ -160,7 +203,7 @@ impl PricingMap {
         self.entries.len()
     }
 
-    fn put_fallback_pricing(&mut self) {
+    fn put_fallback_pricing(&mut self, fast_multiplier_overrides: &FastMultiplierOverrides) {
         self.entries.insert(
             "claude-opus-4-5".to_string(),
             Pricing {
@@ -188,7 +231,9 @@ impl PricingMap {
                 output_above_200k: None,
                 cache_create_above_200k: None,
                 cache_read_above_200k: None,
-                fast_multiplier: 6.0,
+                fast_multiplier: fast_multiplier_overrides
+                    .multiplier_for("claude-opus-4-6")
+                    .unwrap_or(1.0),
             },
         );
         self.entries.insert(
@@ -203,7 +248,9 @@ impl PricingMap {
                 output_above_200k: None,
                 cache_create_above_200k: None,
                 cache_read_above_200k: None,
-                fast_multiplier: 6.0,
+                fast_multiplier: fast_multiplier_overrides
+                    .multiplier_for("claude-opus-4-7")
+                    .unwrap_or(1.0),
             },
         );
         self.entries.insert(
@@ -354,7 +401,9 @@ impl PricingMap {
                 output_above_200k: None,
                 cache_create_above_200k: None,
                 cache_read_above_200k: None,
-                fast_multiplier: 1.0,
+                fast_multiplier: fast_multiplier_overrides
+                    .multiplier_for("gpt-5.5")
+                    .unwrap_or(1.0),
             },
         );
         let gpt_5_1_pricing = Pricing {
@@ -386,8 +435,15 @@ impl PricingMap {
         };
         self.entries
             .insert("gpt-5.2-codex".to_string(), gpt_5_codex_pricing);
-        self.entries
-            .insert("gpt-5.3-codex".to_string(), gpt_5_codex_pricing);
+        self.entries.insert(
+            "gpt-5.3-codex".to_string(),
+            Pricing {
+                fast_multiplier: fast_multiplier_overrides
+                    .multiplier_for("gpt-5.3-codex")
+                    .unwrap_or(1.0),
+                ..gpt_5_codex_pricing
+            },
+        );
         self.entries
             .insert("gpt-5.2".to_string(), gpt_5_codex_pricing);
         self.entries.insert(
@@ -402,7 +458,9 @@ impl PricingMap {
                 output_above_200k: None,
                 cache_create_above_200k: None,
                 cache_read_above_200k: None,
-                fast_multiplier: 1.0,
+                fast_multiplier: fast_multiplier_overrides
+                    .multiplier_for("gpt-5.4")
+                    .unwrap_or(1.0),
             },
         );
         self.entries.insert(
@@ -455,6 +513,18 @@ impl PricingMap {
             self.context_limits.insert(model.to_string(), 200_000);
         }
     }
+}
+
+fn matches_model_suffix(part: &str, base: &str) -> bool {
+    let Some(index) = part.rfind(base) else {
+        return false;
+    };
+    let suffix = &part[index..];
+    suffix == base || suffix.starts_with(&format!("{base}-"))
+}
+
+fn should_log_pricing_refresh_details() -> bool {
+    crate::log_level().is_some_and(|level| level >= 4)
 }
 
 fn fetch_pricing_json() -> std::io::Result<String> {
@@ -584,7 +654,122 @@ mod tests {
         assert_eq!(gpt_55.output, 30e-6);
         assert_eq!(gpt_55.cache_read, 0.5e-6);
         assert!(gpt_55.cache_read_explicit);
+        assert_eq!(gpt_55.fast_multiplier, 2.5);
         assert_eq!(pricing.context_limit("gpt-5.5"), Some(1_050_000));
+    }
+
+    #[test]
+    fn embedded_pricing_includes_codex_priority_multiplier() {
+        let pricing = PricingMap::load_embedded();
+
+        assert_eq!(pricing.find("gpt-5.5").unwrap().fast_multiplier, 2.5);
+        assert_eq!(pricing.find("gpt-5.4").unwrap().fast_multiplier, 2.0);
+        assert_eq!(pricing.find("gpt-5.3-codex").unwrap().fast_multiplier, 2.0);
+    }
+
+    #[test]
+    fn embedded_pricing_includes_claude_fast_multiplier_for_provider_models() {
+        let pricing = PricingMap::load_embedded();
+
+        assert_eq!(
+            pricing
+                .find("anthropic.claude-opus-4-6-v1")
+                .unwrap()
+                .fast_multiplier,
+            6.0
+        );
+        assert_eq!(
+            pricing
+                .find("anthropic.claude-opus-4-7")
+                .unwrap()
+                .fast_multiplier,
+            6.0
+        );
+    }
+
+    #[test]
+    fn fills_codex_fast_multiplier_when_litellm_pricing_omits_it() {
+        let mut pricing = PricingMap::default();
+        pricing.load_json(
+            r#"{
+                "gpt-5.5": {
+                    "input_cost_per_token": 0.000005,
+                    "output_cost_per_token": 0.000030,
+                    "cache_read_input_token_cost": 0.0000005
+                },
+                "gpt-5.4": {
+                    "input_cost_per_token": 0.0000025,
+                    "output_cost_per_token": 0.000015,
+                    "cache_read_input_token_cost": 0.00000025
+                },
+                "gpt-5.3-codex": {
+                    "input_cost_per_token": 0.00000175,
+                    "output_cost_per_token": 0.000014,
+                    "cache_read_input_token_cost": 0.000000175
+                },
+                "gpt-5.2-codex": {
+                    "input_cost_per_token": 0.00000175,
+                    "output_cost_per_token": 0.000014,
+                    "cache_read_input_token_cost": 0.000000175
+                }
+            }"#,
+        );
+
+        assert_eq!(pricing.find("gpt-5.5").unwrap().fast_multiplier, 2.5);
+        assert_eq!(pricing.find("gpt-5.4").unwrap().fast_multiplier, 2.0);
+        assert_eq!(pricing.find("gpt-5.3-codex").unwrap().fast_multiplier, 2.0);
+        assert_eq!(pricing.find("gpt-5.2-codex").unwrap().fast_multiplier, 1.0);
+    }
+
+    #[test]
+    fn fills_claude_fast_multiplier_when_litellm_pricing_omits_it() {
+        let mut pricing = PricingMap::default();
+        pricing.load_json(
+            r#"{
+                "vertex_ai/claude-opus-4-7@default": {
+                    "input_cost_per_token": 0.000005,
+                    "output_cost_per_token": 0.000025
+                },
+                "openrouter/anthropic/claude-opus-4.7": {
+                    "input_cost_per_token": 0.000005,
+                    "output_cost_per_token": 0.000025
+                },
+                "claude-opus-4.7-20260416": {
+                    "input_cost_per_token": 0.000005,
+                    "output_cost_per_token": 0.000025
+                },
+                "claude-opus-4-70": {
+                    "input_cost_per_token": 0.000005,
+                    "output_cost_per_token": 0.000025
+                }
+            }"#,
+        );
+
+        assert_eq!(
+            pricing
+                .find("vertex_ai/claude-opus-4-7@default")
+                .unwrap()
+                .fast_multiplier,
+            6.0
+        );
+        assert_eq!(
+            pricing
+                .find("openrouter/anthropic/claude-opus-4.7")
+                .unwrap()
+                .fast_multiplier,
+            6.0
+        );
+        assert_eq!(
+            pricing
+                .find("claude-opus-4.7-20260416")
+                .unwrap()
+                .fast_multiplier,
+            6.0
+        );
+        assert_eq!(
+            pricing.find("claude-opus-4-70").unwrap().fast_multiplier,
+            1.0
+        );
     }
 
     #[test]

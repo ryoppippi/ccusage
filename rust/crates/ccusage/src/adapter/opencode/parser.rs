@@ -4,8 +4,8 @@ use jiff::tz::TimeZone as JiffTimeZone;
 use serde_json::Value;
 
 use crate::{
-    calculate_cost_for_usage, cli::CostMode, format_date_tz, json_value_u64,
-    non_empty_json_string, LoadedEntry, PricingMap, TokenUsageRaw, UsageEntry, UsageMessage,
+    calculate_cost_for_usage, cli::CostMode, format_date_tz, json_value_u64, non_empty_json_string,
+    LoadedEntry, PricingMap, TokenUsageRaw, UsageEntry, UsageMessage,
 };
 
 pub(crate) fn message_value_to_entry(
@@ -59,14 +59,7 @@ pub(crate) fn message_value_to_entry(
         request_id: None,
         is_api_error_message: None,
     };
-    let cost = calculate_open_code_cost(
-        &model,
-        &provider,
-        usage,
-        data.cost_usd,
-        mode,
-        pricing,
-    );
+    let cost = calculate_open_code_cost(&model, &provider, usage, data.cost_usd, mode, pricing);
     let loaded_session_id = data
         .session_id
         .clone()
@@ -98,13 +91,8 @@ fn calculate_open_code_cost(
         return cost;
     }
     for candidate in open_code_model_candidates(model, provider) {
-        let cost = calculate_cost_for_usage(
-            Some(&candidate),
-            usage,
-            None,
-            CostMode::Calculate,
-            pricing,
-        );
+        let cost =
+            calculate_cost_for_usage(Some(&candidate), usage, None, CostMode::Calculate, pricing);
         if cost > 0.0 {
             return cost;
         }

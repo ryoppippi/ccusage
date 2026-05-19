@@ -695,4 +695,32 @@ mod tests {
 
         assert!((cost - 0.00015).abs() < f64::EPSILON);
     }
+
+    #[test]
+    fn applies_speed_option_to_codex_cost() {
+        let mut pricing = PricingMap::default();
+        pricing.load_json(
+            r#"{
+                "gpt-5.3-codex": {
+                    "input_cost_per_token": 0.00000175,
+                    "output_cost_per_token": 0.000014,
+                    "cache_read_input_token_cost": 0.000000175
+                }
+            }"#,
+        );
+        let usage = CodexModelUsage {
+            input_tokens: 100,
+            cached_input_tokens: 40,
+            output_tokens: 5,
+            reasoning_output_tokens: 0,
+            total_tokens: 105,
+            is_fallback: false,
+        };
+
+        let standard =
+            calculate_model_cost("gpt-5.3-codex", &usage, &pricing, CodexSpeed::Standard);
+        let fast = calculate_model_cost("gpt-5.3-codex", &usage, &pricing, CodexSpeed::Fast);
+
+        assert!((fast - (standard * 2.0)).abs() < f64::EPSILON);
+    }
 }
