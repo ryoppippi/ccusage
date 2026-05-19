@@ -1,6 +1,8 @@
-# Related Projects
+# Community Projects
 
-Projects that use ccusage internally or extend its functionality:
+Community projects built around ccusage, Claude Code usage tracking, or related workflows.
+
+These projects are maintained independently and are not affiliated with the ccusage project or ryoppippi.
 
 ## Desktop Applications
 
@@ -14,8 +16,13 @@ Projects that use ccusage internally or extend its functionality:
 - [ccusage Raycast Extension](https://www.raycast.com/nyatinte/ccusage) - Raycast integration for quick usage checks
 - [ccusage.nvim](https://github.com/S1M0N38/ccusage.nvim) - Track Claude Code usage in Neovim
 
+## CLI Utilities
+
+- [scx](https://github.com/yamamuteki/scx) - Convert ccusage USD output from stdin into a local currency
+
 ## Web Applications
 
+- [Straude](https://straude.com) - Strava-style Claude Code telemetry for logging usage, tracking spend, and comparing pace
 - [viberank](https://viberank.app) - A community-driven leaderboard for Claude Code usage. ([GitHub](https://github.com/sculptdotfun/viberank))
 
 ## Contributing
