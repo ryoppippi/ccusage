@@ -138,6 +138,7 @@ fn parse_line(
         cost,
         credits: None,
         model: Some(model),
+        message_count: None,
         usage_limit_reset_time: None,
         extra_total_tokens: reasoning_tokens,
     })

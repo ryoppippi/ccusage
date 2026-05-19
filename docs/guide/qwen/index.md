@@ -1,4 +1,4 @@
-# Qwen Data Source (Beta)
+# Qwen Data Source (Experimental)
 
 > Qwen support is experimental. Expect breaking changes while both ccusage and [Qwen Code](https://github.com/QwenLM/qwen-code) continue to evolve.
 

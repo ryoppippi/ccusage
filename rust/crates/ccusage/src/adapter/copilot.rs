@@ -241,6 +241,7 @@ fn usage_entry_to_loaded(
         cost,
         extra_total_tokens: entry.reasoning_output_tokens,
         credits: None,
+        message_count: None,
         model: Some(entry.model),
         data,
         usage_limit_reset_time: None,

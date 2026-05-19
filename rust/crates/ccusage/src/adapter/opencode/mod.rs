@@ -73,6 +73,9 @@ pub(crate) fn agent_summary_json(
     if let (Some(obj), Some(credits)) = (value.as_object_mut(), row.credits) {
         obj.insert("credits".to_string(), json!(credits));
     }
+    if let (Some(obj), Some(message_count)) = (value.as_object_mut(), row.message_count) {
+        obj.insert("messageCount".to_string(), json!(message_count));
+    }
     if include_session_metadata {
         if let Some(obj) = value.as_object_mut() {
             obj.insert(
