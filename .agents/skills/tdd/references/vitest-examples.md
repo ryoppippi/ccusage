@@ -155,7 +155,7 @@ it('renders daily totals', () => {
 
 Tests do not need to be DRY. Prefer repeated, explicit setup over shared variables or helpers when duplication makes each test easier to read. Helpers are fine when they create noisy data or fixtures. Keep the assertion in the test unless the helper's name is more explicit than the assertion it hides.
 
-Avoid hoisting one-off values out of tests. Keep literals and setup values close to the behaviour they exercise.
+Avoid hoisting one-off values out of tests. Keep literals and setup values close to the behavior they exercise.
 
 Bad:
 
