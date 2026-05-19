@@ -46,9 +46,9 @@ Vitest remains relevant for the TypeScript package launcher, schema artifacts,
 benchmark scripts, and docs/package tooling. Prefer Rust tests for production CLI
 runtime behavior.
 
-Read `../tdd/references/vitest-examples.md` for Vitest globals, in-source test
-blocks, `fs-fixture`, environment stubbing, failure assertions, and test
-readability examples.
+Read `references/vitest.md` for ccusage-specific Vitest patterns. Read
+`../tdd/references/vitest-examples.md` for broader TDD examples and Vitest test
+modifiers.
 
 ## Bun And Package Scripts
 
