@@ -92,6 +92,8 @@ ccusage reads from local coding CLI data directories:
 The tool automatically detects available data and aggregates all supported coding CLIs by default.
 Each source-specific environment variable can also contain comma-separated directories, which lets unified reports combine current profiles and archives.
 
+Some coding agents have been investigated but are not supported because their local files do not contain reliable token usage. See [Source Support Q&A](/guide/source-support-qa) for the current notes on Antigravity CLI, Grok CLI, and Devin CLI.
+
 ## Report Shape
 
 Run ccusage without a source name to aggregate all detected sources:
