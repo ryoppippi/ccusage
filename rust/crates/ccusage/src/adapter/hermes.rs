@@ -396,10 +396,11 @@ fn calculate_hermes_cost(entry: &HermesEntry, pricing: &PricingMap) -> f64 {
 }
 
 fn model_candidates(entry: &HermesEntry) -> Vec<String> {
-    let mut candidates = vec![entry.model.clone()];
+    let mut candidates = Vec::new();
     if entry.provider != "hermes" {
         candidates.push(format!("{}/{}", entry.provider, entry.model));
     }
+    candidates.push(entry.model.clone());
     let mut seen = HashSet::new();
     candidates
         .into_iter()
@@ -578,5 +579,25 @@ mod tests {
                 "{model} should resolve to embedded pricing"
             );
         }
+    }
+
+    #[test]
+    fn tries_provider_qualified_model_candidate_first() {
+        let entry = HermesEntry {
+            timestamp: crate::parse_ts_timestamp("2026-05-19T00:00:00.000Z").unwrap(),
+            timestamp_text: "2026-05-19T00:00:00.000Z".to_string(),
+            session_id: "session-provider".to_string(),
+            model: "gpt-5.5".to_string(),
+            provider: "openai".to_string(),
+            usage: TokenUsageRaw::default(),
+            reasoning_tokens: 0,
+            message_count: 1,
+            cost_usd: None,
+        };
+
+        assert_eq!(
+            model_candidates(&entry),
+            vec!["openai/gpt-5.5".to_string(), "gpt-5.5".to_string()]
+        );
     }
 }
