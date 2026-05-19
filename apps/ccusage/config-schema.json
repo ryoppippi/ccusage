@@ -715,6 +715,33 @@
 			},
 			"type": "object"
 		},
+		"DroidCommandsConfig": {
+			"additionalProperties": false,
+			"properties": {
+				"daily": {
+					"$ref": "#/definitions/SharedOptions"
+				},
+				"monthly": {
+					"$ref": "#/definitions/SharedOptions"
+				},
+				"session": {
+					"$ref": "#/definitions/SharedOptions"
+				}
+			},
+			"type": "object"
+		},
+		"DroidConfig": {
+			"additionalProperties": false,
+			"properties": {
+				"commands": {
+					"$ref": "#/definitions/DroidCommandsConfig"
+				},
+				"defaults": {
+					"$ref": "#/definitions/SharedOptions"
+				}
+			},
+			"type": "object"
+		},
 		"GeminiCommandsConfig": {
 			"additionalProperties": false,
 			"properties": {
@@ -1547,6 +1574,15 @@
 					],
 					"description": "Default values for all-agent reports and legacy Claude commands.",
 					"markdownDescription": "Default values for all-agent reports and legacy Claude commands."
+				},
+				"droid": {
+					"allOf": [
+						{
+							"$ref": "#/definitions/DroidConfig"
+						}
+					],
+					"description": "Droid configuration.",
+					"markdownDescription": "Droid configuration."
 				},
 				"gemini": {
 					"allOf": [

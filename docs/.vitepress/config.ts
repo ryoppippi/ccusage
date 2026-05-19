@@ -72,6 +72,7 @@ export default defineConfig({
 						{ text: 'Codex', link: '/guide/codex/' },
 						{ text: 'OpenCode', link: '/guide/opencode/' },
 						{ text: 'Amp', link: '/guide/amp/' },
+						{ text: 'Droid', link: '/guide/droid/' },
 						{ text: 'Codebuff', link: '/guide/codebuff/' },
 						{ text: 'Hermes Agent', link: '/guide/hermes/' },
 						{ text: 'pi-agent', link: '/guide/pi/' },

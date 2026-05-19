@@ -3,6 +3,7 @@ pub(crate) mod amp;
 pub(crate) mod codebuff;
 pub(crate) mod codex;
 pub(crate) mod copilot;
+pub(crate) mod droid;
 pub(crate) mod gemini;
 pub(crate) mod goose;
 pub(crate) mod hermes;

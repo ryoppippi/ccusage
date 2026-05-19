@@ -259,6 +259,10 @@ pub(crate) fn print_usage_table(
         .get("cacheReadTokens")
         .and_then(Value::as_u64)
         .unwrap_or_default();
+    let total_tokens = totals
+        .get("totalTokens")
+        .and_then(Value::as_u64)
+        .unwrap_or_default();
     let total_cost = totals
         .get("totalCost")
         .and_then(Value::as_f64)
@@ -280,11 +284,7 @@ pub(crate) fn print_usage_table(
             color(shared, format_number(output), Color::Yellow),
             color(shared, format_number(cache_create), Color::Yellow),
             color(shared, format_number(cache_read), Color::Yellow),
-            color(
-                shared,
-                format_number(input + output + cache_create + cache_read),
-                Color::Yellow,
-            ),
+            color(shared, format_number(total_tokens), Color::Yellow),
             color(shared, format_currency(total_cost), Color::Yellow),
         ]
     };
@@ -415,5 +415,31 @@ mod tests {
     #[test]
     fn empty_usage_table_message_is_provider_agnostic() {
         assert_eq!(empty_usage_table_message(), "No usage data found.");
+    }
+
+    #[test]
+    fn totals_json_includes_extra_tokens_in_total() {
+        let totals = totals_json(&[UsageSummary {
+            date: Some("2026-01-02".to_string()),
+            month: None,
+            week: None,
+            session_id: None,
+            project_path: None,
+            last_activity: None,
+            input_tokens: 100,
+            output_tokens: 50,
+            cache_creation_tokens: 10,
+            cache_read_tokens: 5,
+            extra_total_tokens: 7,
+            total_cost: 0.25,
+            credits: None,
+            message_count: None,
+            models_used: vec!["gpt-5".to_string()],
+            model_breakdowns: Vec::new(),
+            project: None,
+            versions: None,
+        }]);
+
+        assert_eq!(totals["totalTokens"], 172);
     }
 }
