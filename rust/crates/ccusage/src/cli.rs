@@ -1837,20 +1837,15 @@ mod tests {
     #[test]
     fn root_help_lists_agent_namespaces_without_nested_commands() {
         let help = help_text();
-        assert!(help.contains("\n  claude"));
-        assert!(help.contains("\n  codex"));
-        assert!(help.contains("\n  opencode"));
-        assert!(help.contains("\n  amp"));
-        assert!(help.contains("\n  pi"));
-        assert!(help.contains("\n  copilot"));
-        assert!(help.contains("\n  gemini"));
-        assert!(!help.contains("\n  claude daily"));
-        assert!(!help.contains("\n  codex daily"));
-        assert!(!help.contains("\n  opencode daily"));
-        assert!(!help.contains("\n  amp daily"));
-        assert!(!help.contains("\n  pi daily"));
-        assert!(!help.contains("\n  copilot daily"));
-        assert!(!help.contains("\n  gemini daily"));
+        let agents = [
+            "claude", "codex", "opencode", "amp", "hermes", "pi", "goose", "kilo", "copilot",
+            "gemini",
+        ];
+
+        for agent in agents {
+            assert!(help.contains(&format!("\n  {agent} ")));
+            assert!(!help.contains(&format!("\n  {agent} daily")));
+        }
     }
 
     #[test]
