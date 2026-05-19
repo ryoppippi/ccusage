@@ -126,8 +126,7 @@ pub(crate) struct CodexTokenUsageEvent {
     pub(crate) is_fallback_model: bool,
 }
 
-#[derive(Debug, Clone, Default, Serialize)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, Clone, Default)]
 pub(crate) struct CodexModelUsage {
     pub(crate) input_tokens: u64,
     pub(crate) cached_input_tokens: u64,

@@ -461,7 +461,7 @@ fn group_json(
 }
 
 pub(crate) fn non_cached_input_tokens(input_tokens: u64, cached_input_tokens: u64) -> u64 {
-    input_tokens.saturating_sub(cached_input_tokens.min(input_tokens))
+    input_tokens.saturating_sub(cached_input_tokens)
 }
 
 fn model_usage_json(usage: &CodexModelUsage) -> Value {
@@ -717,6 +717,9 @@ mod tests {
         assert_eq!(report["daily"][0]["inputTokens"], 10);
         assert_eq!(report["daily"][0]["cachedInputTokens"], 90);
         assert_eq!(report["daily"][0]["totalTokens"], 105);
+        assert_eq!(report["totals"]["inputTokens"], 10);
+        assert_eq!(report["totals"]["cachedInputTokens"], 90);
+        assert_eq!(report["totals"]["totalTokens"], 105);
         assert_eq!(report["daily"][0]["models"]["gpt-5"]["inputTokens"], 10);
         assert_eq!(
             report["daily"][0]["models"]["gpt-5"]["cachedInputTokens"],
