@@ -261,7 +261,7 @@ mod tests {
         fs::write(&subagent_file, "").unwrap();
         fs::write(&parent_file, "").unwrap();
 
-        let files = claude_loader::usage_files(&[dir.clone()]);
+        let files = claude_loader::usage_files(&[dir.clone()], None);
         fs::remove_dir_all(dir).unwrap();
 
         assert_eq!(files, vec![parent_file, subagent_file]);
