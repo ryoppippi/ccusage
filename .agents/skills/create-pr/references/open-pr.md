@@ -30,7 +30,7 @@ Include "Testing" only for validation that was actually run. Skip it for documen
 
 Create the PR with `gh pr create`.
 
-Pass multi-line PR bodies through stdin with `--body-file -`. Do not embed `\n` escape sequences inside a quoted `--body` argument because fish and shell quoting can preserve them literally.
+Pass multi-line PR bodies through stdin with `--body-file -`. Do not embed `\n` escape sequences inside a quoted `--body` argument because shell quoting can preserve them literally.
 
 Good:
 
@@ -41,6 +41,17 @@ Adds a repo-local create-pr skill and documents the PR review loop.
 Testing:
 - pnpm run format
 EOF
+```
+
+For fish, prefer piping `printf` into `--body-file -` instead of using a heredoc:
+
+```fish
+printf "%s\n" \
+	"Adds a repo-local create-pr skill and documents the PR review loop." \
+	"" \
+	"Testing:" \
+	"- pnpm run format" \
+	| gh pr create --title "docs(skills): add create-pr workflow" --body-file -
 ```
 
 Bad:

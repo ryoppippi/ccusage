@@ -28,7 +28,7 @@ Use this skill when the user asks to create or open a PR, push changes for revie
 
 - Never push directly to `main` without explicit permission.
 - Use English for commit messages, PR titles, PR bodies, review replies, and bot-directed comments.
-- Prefer `fish -c '<command>'` for shell commands in this repository.
+- Use shell syntax that matches the active environment; this may be zsh, bash, fish, or a non-interactive command runner.
 - Use high-performance local tools such as `git`, `gh`, `rg`, and `fd`.
 - Keep commits atomic and independently revertible; use the `commit` skill.
 - Do not omit reviewer bot mentions when asking bots to review or replying to bot threads.
