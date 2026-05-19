@@ -38,6 +38,8 @@ pub(crate) struct CcusageConfig {
     pub(crate) copilot: Option<CopilotConfig>,
     /// Gemini CLI configuration.
     pub(crate) gemini: Option<GeminiConfig>,
+    /// Kimi configuration.
+    pub(crate) kimi: Option<KimiConfig>,
 }
 
 #[derive(Debug, Default, Deserialize, JsonSchema)]
@@ -215,6 +217,21 @@ pub(crate) struct GeminiConfig {
 #[derive(Debug, Default, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct GeminiCommandsConfig {
+    pub(crate) daily: Option<SharedOptions>,
+    pub(crate) monthly: Option<SharedOptions>,
+    pub(crate) session: Option<SharedOptions>,
+}
+
+#[derive(Debug, Default, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct KimiConfig {
+    pub(crate) defaults: Option<SharedOptions>,
+    pub(crate) commands: Option<KimiCommandsConfig>,
+}
+
+#[derive(Debug, Default, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct KimiCommandsConfig {
     pub(crate) daily: Option<SharedOptions>,
     pub(crate) monthly: Option<SharedOptions>,
     pub(crate) session: Option<SharedOptions>,
@@ -851,6 +868,10 @@ mod tests {
             property_ref(&schema, "GeminiConfig", "defaults"),
             Some("#/definitions/SharedOptions")
         );
+        assert_eq!(
+            property_ref(&schema, "KimiConfig", "defaults"),
+            Some("#/definitions/SharedOptions")
+        );
     }
 
     #[test]
@@ -875,7 +896,7 @@ mod tests {
             "ccusage-config",
             &[
                 "$schema", "amp", "claude", "codebuff", "codex", "commands", "copilot", "defaults",
-                "gemini", "goose", "hermes", "kilo", "opencode", "pi",
+                "gemini", "goose", "hermes", "kilo", "kimi", "opencode", "pi",
             ],
         );
     }
@@ -980,6 +1001,13 @@ mod tests {
                 }
             },
             "gemini": {
+                "commands": {
+                    "session": {
+                        "json": true
+                    }
+                }
+            },
+            "kimi": {
                 "commands": {
                     "session": {
                         "json": true

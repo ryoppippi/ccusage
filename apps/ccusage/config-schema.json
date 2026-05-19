@@ -823,6 +823,33 @@
 			},
 			"type": "object"
 		},
+		"KimiCommandsConfig": {
+			"additionalProperties": false,
+			"properties": {
+				"daily": {
+					"$ref": "#/definitions/SharedOptions"
+				},
+				"monthly": {
+					"$ref": "#/definitions/SharedOptions"
+				},
+				"session": {
+					"$ref": "#/definitions/SharedOptions"
+				}
+			},
+			"type": "object"
+		},
+		"KimiConfig": {
+			"additionalProperties": false,
+			"properties": {
+				"commands": {
+					"$ref": "#/definitions/KimiCommandsConfig"
+				},
+				"defaults": {
+					"$ref": "#/definitions/SharedOptions"
+				}
+			},
+			"type": "object"
+		},
 		"OpenCodeCommandsConfig": {
 			"additionalProperties": false,
 			"properties": {
@@ -1423,6 +1450,15 @@
 					],
 					"description": "Kilo configuration.",
 					"markdownDescription": "Kilo configuration."
+				},
+				"kimi": {
+					"allOf": [
+						{
+							"$ref": "#/definitions/KimiConfig"
+						}
+					],
+					"description": "Kimi configuration.",
+					"markdownDescription": "Kimi configuration."
 				},
 				"opencode": {
 					"allOf": [

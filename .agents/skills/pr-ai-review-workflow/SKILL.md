@@ -21,6 +21,8 @@ Prefer repository-local conventions when they exist. If the repo has changed rev
 
 ## PR Bodies and Comments
 
+Write all repository-facing GitHub communication in US English, including PR descriptions, issue comments, triage notes, review replies, and bot-directed replies.
+
 When creating or editing multi-line PR bodies, use `--body-file -` and pass the Markdown through stdin. Do not embed `\n` escape sequences inside a quoted `--body` argument; fish and shell quoting can preserve them literally and break the rendered PR body.
 
 Good:

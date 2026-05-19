@@ -109,7 +109,7 @@ For individual developers working on multiple projects:
 
 ### Multiple Sources
 
-Configure Claude Code, Codex, OpenCode, Amp, Codebuff, Hermes Agent, pi-agent, Goose, Kilo, GitHub Copilot CLI, and Gemini CLI separately with data source namespaces:
+Configure Claude Code, Codex, OpenCode, Amp, Codebuff, Hermes Agent, pi-agent, Goose, Kilo, Kimi, GitHub Copilot CLI, and Gemini CLI separately with data source namespaces:
 
 ```json
 // ~/.config/claude/ccusage.json
