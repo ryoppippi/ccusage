@@ -3,7 +3,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use serde_json::{json, Value};
 
 use crate::{
-    adapter::{amp, codex, opencode, pi},
+    adapter::{amp, codex, copilot, opencode, pi},
     cli::{AgentCommandArgs, AgentReportKind, CodexSpeed, SharedArgs, SortOrder, WeekDay},
     color, filter_loaded_entries_by_date, format_currency, format_models_multiline, format_number,
     json_float, print_box_title, print_json_or_jq, summarize_by_key, summarize_summaries_by_bucket,
@@ -82,6 +82,12 @@ fn load_rows(kind: AgentReportKind, shared: &SharedArgs) -> Result<AllLoadResult
             "pi",
             load_pi_rows(AgentReportKind::Session, shared)?,
         );
+        append_agent_rows(
+            &mut rows,
+            &mut detected_agents,
+            "copilot",
+            load_copilot_rows(AgentReportKind::Session, shared, &pricing)?,
+        );
         for row in &mut rows {
             row.metadata_agents = None;
         }
@@ -122,6 +128,12 @@ fn load_rows(kind: AgentReportKind, shared: &SharedArgs) -> Result<AllLoadResult
         &mut detected_agents,
         "pi",
         load_pi_rows(AgentReportKind::Daily, shared)?,
+    );
+    append_agent_rows(
+        &mut rows,
+        &mut detected_agents,
+        "copilot",
+        load_copilot_rows(AgentReportKind::Daily, shared, &pricing)?,
     );
 
     let mut aggregated = aggregate_rows(rows, kind);
@@ -223,6 +235,21 @@ fn load_pi_rows(kind: AgentReportKind, shared: &SharedArgs) -> Result<AgentRows>
     })
 }
 
+fn load_copilot_rows(
+    kind: AgentReportKind,
+    shared: &SharedArgs,
+    pricing: &PricingMap,
+) -> Result<AgentRows> {
+    let mut entries = copilot::load_entries(shared, pricing)?;
+    let detected = !entries.is_empty();
+    filter_loaded_entries_by_date(&mut entries, shared);
+    let summaries = copilot::summarize_entries(&entries, kind)?;
+    Ok(AgentRows {
+        rows: summary_rows("copilot", summaries),
+        detected,
+    })
+}
+
 fn summarize_entries(entries: &[LoadedEntry], kind: AgentReportKind) -> Result<Vec<UsageSummary>> {
     match kind {
         AgentReportKind::Daily => summarize_by_key(
@@ -302,10 +329,7 @@ fn summary_rows(agent: &'static str, summaries: Vec<UsageSummary>) -> Vec<AllRow
                 .or(summary.month.as_ref())
                 .or(summary.session_id.as_ref())?
                 .clone();
-            let total_tokens = summary.input_tokens
-                + summary.output_tokens
-                + summary.cache_creation_tokens
-                + summary.cache_read_tokens;
+            let total_tokens = summary.total_tokens();
             if total_tokens == 0 {
                 return None;
             }

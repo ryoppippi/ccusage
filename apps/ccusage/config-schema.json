@@ -545,6 +545,33 @@
 			"enum": ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"],
 			"type": "string"
 		},
+		"CopilotCommandsConfig": {
+			"additionalProperties": false,
+			"properties": {
+				"daily": {
+					"$ref": "#/definitions/SharedOptions"
+				},
+				"monthly": {
+					"$ref": "#/definitions/SharedOptions"
+				},
+				"session": {
+					"$ref": "#/definitions/SharedOptions"
+				}
+			},
+			"type": "object"
+		},
+		"CopilotConfig": {
+			"additionalProperties": false,
+			"properties": {
+				"commands": {
+					"$ref": "#/definitions/CopilotCommandsConfig"
+				},
+				"defaults": {
+					"$ref": "#/definitions/SharedOptions"
+				}
+			},
+			"type": "object"
+		},
 		"DailyOptions": {
 			"additionalProperties": false,
 			"properties": {
@@ -1198,6 +1225,15 @@
 					],
 					"description": "Command-specific configuration for all-agent reports.",
 					"markdownDescription": "Command-specific configuration for all-agent reports."
+				},
+				"copilot": {
+					"allOf": [
+						{
+							"$ref": "#/definitions/CopilotConfig"
+						}
+					],
+					"description": "GitHub Copilot CLI configuration.",
+					"markdownDescription": "GitHub Copilot CLI configuration."
 				},
 				"defaults": {
 					"allOf": [

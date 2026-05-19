@@ -26,6 +26,8 @@ pub(crate) struct CcusageConfig {
     pub(crate) amp: Option<AmpConfig>,
     /// pi-agent configuration.
     pub(crate) pi: Option<PiConfig>,
+    /// GitHub Copilot CLI configuration.
+    pub(crate) copilot: Option<CopilotConfig>,
 }
 
 #[derive(Debug, Default, Deserialize, JsonSchema)]
@@ -116,6 +118,21 @@ pub(crate) struct PiCommandsConfig {
     pub(crate) daily: Option<PiOptions>,
     pub(crate) monthly: Option<PiOptions>,
     pub(crate) session: Option<PiOptions>,
+}
+
+#[derive(Debug, Default, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct CopilotConfig {
+    pub(crate) defaults: Option<SharedOptions>,
+    pub(crate) commands: Option<CopilotCommandsConfig>,
+}
+
+#[derive(Debug, Default, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct CopilotCommandsConfig {
+    pub(crate) daily: Option<SharedOptions>,
+    pub(crate) monthly: Option<SharedOptions>,
+    pub(crate) session: Option<SharedOptions>,
 }
 
 #[derive(Debug, Default, Deserialize, JsonSchema)]
@@ -750,7 +767,10 @@ mod tests {
         assert_properties(
             &schema,
             "ccusage-config",
-            &["$schema", "amp", "claude", "codex", "commands", "defaults", "opencode", "pi"],
+            &[
+                "$schema", "amp", "claude", "codex", "commands", "copilot", "defaults",
+                "opencode", "pi",
+            ],
         );
     }
 
@@ -815,6 +835,13 @@ mod tests {
                 "commands": {
                     "daily": {
                         "piPath": "/tmp/pi-sessions"
+                    }
+                }
+            },
+            "copilot": {
+                "commands": {
+                    "session": {
+                        "json": true
                     }
                 }
             }

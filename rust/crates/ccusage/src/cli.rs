@@ -26,6 +26,7 @@ pub(crate) enum Command {
     OpenCode(AgentCommandArgs),
     Amp(AgentCommandArgs),
     Pi(AgentCommandArgs),
+    Copilot(AgentCommandArgs),
 }
 
 #[derive(Clone, Default)]
@@ -334,6 +335,7 @@ fn parse_command(
         "opencode" => parse_opencode_command(parser, shared, config),
         "amp" => parse_amp_command(parser, shared, config),
         "pi" => parse_pi_command(parser, shared, config),
+        "copilot" => parse_copilot_command(parser, shared, config),
         _ => Err(format!("Unknown command '{command}'")),
     }
 }
@@ -623,6 +625,40 @@ fn parse_pi_command(
     }))
 }
 
+fn parse_copilot_command(
+    parser: &mut ArgParser,
+    mut shared: SharedArgs,
+    _config: &ConfigContext,
+) -> Result<Command, String> {
+    let kind = match parser.peek() {
+        Some("daily") => {
+            parser.next();
+            AgentReportKind::Daily
+        }
+        Some("monthly") => {
+            parser.next();
+            AgentReportKind::Monthly
+        }
+        Some("session") => {
+            parser.next();
+            AgentReportKind::Session
+        }
+        Some(command) if !command.starts_with('-') => {
+            return Err(format!("Unknown copilot command '{command}'"));
+        }
+        _ => AgentReportKind::Daily,
+    };
+    while parser.peek().is_some() {
+        parse_shared_arg(parser, &mut shared)?;
+    }
+    Ok(Command::Copilot(AgentCommandArgs {
+        shared,
+        kind,
+        pi_path: None,
+        codex_speed: CodexSpeed::Auto,
+    }))
+}
+
 fn parse_shared_arg_for_command(
     parser: &mut ArgParser,
     shared: &mut SharedArgs,
@@ -680,6 +716,7 @@ fn is_command(arg: &str) -> bool {
             | "opencode"
             | "amp"
             | "pi"
+            | "copilot"
     )
 }
 
@@ -808,7 +845,10 @@ fn option_takes_value(arg: &str) -> bool {
 }
 
 fn is_agent_command(command: &str) -> bool {
-    matches!(command, "claude" | "codex" | "opencode" | "amp" | "pi")
+    matches!(
+        command,
+        "claude" | "codex" | "opencode" | "amp" | "pi" | "copilot"
+    )
 }
 
 fn agent_report_supported(agent: &str, report: &str) -> bool {
@@ -819,7 +859,7 @@ fn agent_report_supported(agent: &str, report: &str) -> bool {
         ),
         "codex" => matches!(report, "daily" | "monthly" | "session"),
         "opencode" => matches!(report, "daily" | "weekly" | "monthly" | "session"),
-        "amp" | "pi" => matches!(report, "daily" | "monthly" | "session"),
+        "amp" | "pi" | "copilot" => matches!(report, "daily" | "monthly" | "session"),
         _ => false,
     }
 }
@@ -831,6 +871,7 @@ fn agent_display_name(agent: &str) -> &'static str {
         "opencode" => "OpenCode",
         "amp" => "Amp",
         "pi" => "pi-agent",
+        "copilot" => "GitHub Copilot CLI",
         _ => unreachable!("agent is prevalidated"),
     }
 }
@@ -1010,7 +1051,7 @@ fn print_help_or_version_arg(arg: &str) -> ! {
 }
 
 fn help_text() -> &'static str {
-    "Usage: ccusage [OPTIONS] [COMMAND]\n\nCommands:\n  daily\n  monthly\n  weekly\n  session\n  blocks\n  statusline\n  claude\n  codex\n  opencode\n  amp\n  pi\n\nOptions:\n  -s, --since <YYYYMMDD>\n  -u, --until <YYYYMMDD>\n  -j, --json\n  -m, --mode <auto|calculate|display>\n  -d, --debug\n      --debug-samples <N>\n  -o, --order <asc|desc>\n  -b, --breakdown\n  -O, --offline\n      --no-offline\n      --color\n      --no-color\n  -z, --timezone <TZ>\n  -q, --jq <QUERY>\n      --config <PATH>\n      --compact\n      --single-thread\n  -h, --help\n  -V, --version"
+    "Usage: ccusage [OPTIONS] [COMMAND]\n\nCommands:\n  daily\n  monthly\n  weekly\n  session\n  blocks\n  statusline\n  claude\n  codex\n  opencode\n  amp\n  pi\n  copilot\n\nOptions:\n  -s, --since <YYYYMMDD>\n  -u, --until <YYYYMMDD>\n  -j, --json\n  -m, --mode <auto|calculate|display>\n  -d, --debug\n      --debug-samples <N>\n  -o, --order <asc|desc>\n  -b, --breakdown\n  -O, --offline\n      --no-offline\n      --color\n      --no-color\n  -z, --timezone <TZ>\n  -q, --jq <QUERY>\n      --config <PATH>\n      --compact\n      --single-thread\n  -h, --help\n  -V, --version"
 }
 
 #[cfg(test)]
@@ -1215,6 +1256,7 @@ mod tests {
         assert!(help.contains("\n  opencode\n"));
         assert!(help.contains("\n  amp\n"));
         assert!(help.contains("\n  pi\n"));
+        assert!(help.contains("\n  copilot\n"));
     }
 
     #[test]
@@ -1405,5 +1447,15 @@ mod tests {
         assert_eq!(args.kind, AgentReportKind::Session);
         assert!(args.shared.json);
         assert_eq!(args.pi_path.as_deref(), Some("/tmp/pi-sessions"));
+    }
+
+    #[test]
+    fn parses_copilot_session_options() {
+        let cli = parse(&["ccusage", "copilot", "session", "--json"]);
+        let Some(Command::Copilot(args)) = cli.command else {
+            panic!("expected copilot command");
+        };
+        assert_eq!(args.kind, AgentReportKind::Session);
+        assert!(args.shared.json);
     }
 }
