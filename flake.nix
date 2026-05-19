@@ -81,10 +81,20 @@
           });
           staticCcusage = pkgs.lib.optionalAttrs pkgs.stdenv.isLinux (
             let
-              staticPkgs = pkgs.pkgsStatic;
+              linuxStaticTarget =
+                if system == "x86_64-linux"
+                then "x86_64-unknown-linux-musl"
+                else "aarch64-unknown-linux-musl";
+              staticPkgs =
+                if system == "x86_64-linux"
+                then pkgs.pkgsCross.musl64
+                else pkgs.pkgsCross.aarch64-multiplatform-musl;
               staticCraneLib = (crane.mkLib staticPkgs).overrideToolchain
-                (p: p.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml);
+                (p: (p.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml).override {
+                  targets = [ linuxStaticTarget ];
+                });
               staticCommonArgs = commonArgs // {
+                cargoExtraArgs = "-p ccusage --bin ccusage --target ${linuxStaticTarget}";
                 nativeBuildInputs = with staticPkgs; [
                   pkg-config
                 ];
