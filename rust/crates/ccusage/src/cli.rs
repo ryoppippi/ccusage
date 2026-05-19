@@ -1047,11 +1047,53 @@ fn help_text_for_tokens(tokens: &[String]) -> String {
             "daily" | "monthly" | "weekly" | "session" => all_report_help(command),
             "blocks" => blocks_help("ccusage blocks"),
             "statusline" => statusline_help("ccusage statusline"),
-            "claude" => claude_report_help("daily"),
-            "codex" => codex_report_help("daily"),
-            "opencode" => opencode_report_help("daily"),
-            "amp" => amp_report_help("daily"),
-            "pi" => pi_report_help("daily"),
+            "claude" => agent_help(
+                "claude",
+                &[
+                    ("daily", "Show usage report grouped by date"),
+                    ("monthly", "Show usage report grouped by month"),
+                    ("weekly", "Show usage report grouped by week"),
+                    ("session", "Show usage report grouped by conversation session"),
+                    ("blocks", "Show usage report grouped by session billing blocks"),
+                    (
+                        "statusline",
+                        "Display compact status line for Claude Code hooks with hybrid time+file caching (Beta)",
+                    ),
+                ],
+            ),
+            "codex" => agent_help(
+                "codex",
+                &[
+                    ("daily", "Show Codex token usage grouped by day"),
+                    ("monthly", "Show Codex token usage grouped by month"),
+                    ("session", "Show Codex token usage grouped by session"),
+                ],
+            ),
+            "opencode" => agent_help(
+                "opencode",
+                &[
+                    ("daily", "Show OpenCode token usage grouped by day"),
+                    ("weekly", "Show OpenCode token usage grouped by week"),
+                    ("monthly", "Show OpenCode token usage grouped by month"),
+                    ("session", "Show OpenCode token usage grouped by session"),
+                ],
+            ),
+            "amp" => agent_help(
+                "amp",
+                &[
+                    ("daily", "Show Amp token usage grouped by day"),
+                    ("monthly", "Show Amp token usage grouped by month"),
+                    ("session", "Show Amp token usage grouped by session"),
+                ],
+            ),
+            "pi" => agent_help(
+                "pi",
+                &[
+                    ("daily", "Show pi-agent usage grouped by date"),
+                    ("monthly", "Show pi-agent usage grouped by month"),
+                    ("session", "Show pi-agent usage grouped by session"),
+                ],
+            ),
             _ => root_help_text(),
         },
         [agent, report, ..] => match agent.as_str() {
@@ -1068,6 +1110,26 @@ fn help_text_for_tokens(tokens: &[String]) -> String {
             _ => root_help_text(),
         },
     }
+}
+
+fn agent_help(agent: &str, commands: &[(&str, &str)]) -> String {
+    let mut lines = vec![
+        format!("Usage reports for {agent}."),
+        String::new(),
+        "USAGE:".to_string(),
+        format!("  ccusage {agent} <COMMANDS>"),
+        String::new(),
+        "COMMANDS:".to_string(),
+    ];
+    for (command, description) in commands {
+        lines.push(format!("  {command:<11} {description}"));
+    }
+    lines.push(String::new());
+    lines.push("For more info, run any command with the `--help` flag:".to_string());
+    for (command, _) in commands {
+        lines.push(format!("  ccusage {agent} {command} --help"));
+    }
+    lines.join("\n")
 }
 
 fn root_help_text() -> String {
@@ -1263,6 +1325,9 @@ fn command_help(description: &str, usage: &str, options: &str) -> String {
 }
 
 fn command_options(parts: &[&str]) -> String {
+    for part in parts {
+        debug_assert!(part.starts_with("OPTIONS:\n"));
+    }
     let option_lines = parts
         .iter()
         .flat_map(|part| part.lines().skip(1))
@@ -1272,7 +1337,7 @@ fn command_options(parts: &[&str]) -> String {
 }
 
 fn all_agent_options() -> &'static str {
-    "OPTIONS:\n  -j, --json                         Output in JSON format (default: false)\n  -s, --since <since>                Filter from date (YYYY-MM-DD or YYYYMMDD)\n  -u, --until <until>                Filter until date (inclusive)\n  -z, --timezone <timezone>          Timezone for date grouping (IANA)\n  --all                              Accepted for compatibility; all detected supported agents are included by default (default: false)\n  --compact                          Force compact table layout for narrow terminals (default: false)\n  -O, --offline                      Use cached pricing data where supported (default: false)\n  --no-offline                       Negatable of -O, --offline\n  --config <config>                  Path to configuration file (default: auto-discovery)\n  -h, --help                         Display this help message\n  -v, --version                      Display this version"
+    "OPTIONS:\n  -j, --json                         Output in JSON format (default: false)\n  -s, --since <since>                Filter from date (YYYY-MM-DD or YYYYMMDD)\n  -u, --until <until>                Filter until date (inclusive)\n  -z, --timezone <timezone>          Timezone for date grouping (IANA)\n  --all                              Accepted for compatibility; all detected supported agents are included by default (default: false)\n  --compact                          Force compact table layout for narrow terminals (default: false)\n  -O, --offline                      Use cached pricing data where supported (default: false)\n  --no-offline                       Negatable of -O, --offline\n  --color                            Enable colored output (default: auto). FORCE_COLOR=1 has the same effect.\n  --no-color                         Disable colored output (default: auto). NO_COLOR=1 has the same effect.\n  --config <config>                  Path to configuration file (default: auto-discovery)\n  -h, --help                         Display this help message\n  -v, --version                      Display this version"
 }
 
 fn shared_claude_options() -> &'static str {
@@ -1536,6 +1601,25 @@ mod tests {
         assert!(help.contains("Show Codex token usage grouped by day"));
         assert!(help.contains("USAGE:\n  ccusage codex daily <OPTIONS>"));
         assert!(help.contains("choices: auto | standard | fast"));
+    }
+
+    #[test]
+    fn contextual_agent_help_lists_agent_subcommands() {
+        let help = help_text_for_args(&["ccusage".to_string(), "claude".to_string()]);
+
+        assert!(help.contains("USAGE:\n  ccusage claude <COMMANDS>"));
+        assert!(help.contains("daily       Show usage report grouped by date"));
+        assert!(help.contains("statusline  Display compact status line for Claude Code hooks"));
+        assert!(help.contains("ccusage claude statusline --help"));
+        assert!(!help.contains("ccusage claude daily <OPTIONS>"));
+    }
+
+    #[test]
+    fn contextual_all_agent_help_lists_color_options() {
+        let help = help_text_for_args(&["ccusage".to_string(), "daily".to_string()]);
+
+        assert!(help.contains("--color"));
+        assert!(help.contains("--no-color"));
     }
 
     #[test]

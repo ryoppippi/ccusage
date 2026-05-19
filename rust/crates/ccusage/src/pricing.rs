@@ -351,7 +351,7 @@ impl PricingMap {
                 output_above_200k: None,
                 cache_create_above_200k: None,
                 cache_read_above_200k: None,
-                fast_multiplier: 2.5,
+                fast_multiplier: fast_multiplier_fallback("gpt-5.5"),
             },
         );
         let gpt_5_1_pricing = Pricing {
@@ -386,7 +386,7 @@ impl PricingMap {
         self.entries.insert(
             "gpt-5.3-codex".to_string(),
             Pricing {
-                fast_multiplier: 2.0,
+                fast_multiplier: fast_multiplier_fallback("gpt-5.3-codex"),
                 ..gpt_5_codex_pricing
             },
         );
@@ -404,7 +404,7 @@ impl PricingMap {
                 output_above_200k: None,
                 cache_create_above_200k: None,
                 cache_read_above_200k: None,
-                fast_multiplier: 2.0,
+                fast_multiplier: fast_multiplier_fallback("gpt-5.4"),
             },
         );
         self.entries.insert(
@@ -473,16 +473,20 @@ fn fast_multiplier_fallback(model: &str) -> f64 {
 }
 
 fn is_claude_fast_model(model: &str) -> bool {
-    model.split(['.', '/', ':']).any(|part| {
-        matches!(
-            part,
-            "claude-opus-4-6"
-                | "claude-opus-4-6-20260205"
-                | "claude-opus-4-6-v1"
-                | "claude-opus-4-7"
-                | "claude-opus-4-7-20260416"
-        )
+    let normalized = model.replace(['.', '@'], "-");
+    normalized.split(['/', ':']).any(|part| {
+        ["claude-opus-4-6", "claude-opus-4-7"]
+            .iter()
+            .any(|base| matches_model_suffix(part, base))
     })
+}
+
+fn matches_model_suffix(part: &str, base: &str) -> bool {
+    let Some(index) = part.rfind(base) else {
+        return false;
+    };
+    let suffix = &part[index..];
+    suffix == base || suffix.starts_with(&format!("{base}-"))
 }
 
 fn fetch_pricing_json() -> std::io::Result<String> {
@@ -599,6 +603,8 @@ mod tests {
     fn embedded_pricing_includes_codex_priority_multiplier() {
         let pricing = PricingMap::load_embedded();
 
+        assert_eq!(pricing.find("gpt-5.5").unwrap().fast_multiplier, 2.5);
+        assert_eq!(pricing.find("gpt-5.4").unwrap().fast_multiplier, 2.0);
         assert_eq!(pricing.find("gpt-5.3-codex").unwrap().fast_multiplier, 2.0);
     }
 
@@ -654,6 +660,57 @@ mod tests {
         assert_eq!(pricing.find("gpt-5.4").unwrap().fast_multiplier, 2.0);
         assert_eq!(pricing.find("gpt-5.3-codex").unwrap().fast_multiplier, 2.0);
         assert_eq!(pricing.find("gpt-5.2-codex").unwrap().fast_multiplier, 1.0);
+    }
+
+    #[test]
+    fn fills_claude_fast_multiplier_when_litellm_pricing_omits_it() {
+        let mut pricing = PricingMap::default();
+        pricing.load_json(
+            r#"{
+                "vertex_ai/claude-opus-4-7@default": {
+                    "input_cost_per_token": 0.000005,
+                    "output_cost_per_token": 0.000025
+                },
+                "openrouter/anthropic/claude-opus-4.7": {
+                    "input_cost_per_token": 0.000005,
+                    "output_cost_per_token": 0.000025
+                },
+                "claude-opus-4.7-20260416": {
+                    "input_cost_per_token": 0.000005,
+                    "output_cost_per_token": 0.000025
+                },
+                "claude-opus-4-70": {
+                    "input_cost_per_token": 0.000005,
+                    "output_cost_per_token": 0.000025
+                }
+            }"#,
+        );
+
+        assert_eq!(
+            pricing
+                .find("vertex_ai/claude-opus-4-7@default")
+                .unwrap()
+                .fast_multiplier,
+            6.0
+        );
+        assert_eq!(
+            pricing
+                .find("openrouter/anthropic/claude-opus-4.7")
+                .unwrap()
+                .fast_multiplier,
+            6.0
+        );
+        assert_eq!(
+            pricing
+                .find("claude-opus-4.7-20260416")
+                .unwrap()
+                .fast_multiplier,
+            6.0
+        );
+        assert_eq!(
+            pricing.find("claude-opus-4-70").unwrap().fast_multiplier,
+            1.0
+        );
     }
 
     #[test]
