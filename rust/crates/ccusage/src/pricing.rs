@@ -102,7 +102,7 @@ impl PricingMap {
             let fast_multiplier = pricing
                 .provider_specific_entry
                 .and_then(|entry| entry.fast)
-                .unwrap_or_else(|| codex_fast_multiplier(&model));
+                .unwrap_or_else(|| fast_multiplier_fallback(&model));
             self.entries.insert(
                 model.clone(),
                 Pricing {
@@ -459,14 +459,30 @@ impl PricingMap {
     }
 }
 
-fn codex_fast_multiplier(model: &str) -> f64 {
+fn fast_multiplier_fallback(model: &str) -> f64 {
     if model == "gpt-5.5" {
         return 2.5;
     }
     if matches!(model, "gpt-5.4" | "gpt-5.3-codex") {
         return 2.0;
     }
+    if is_claude_fast_model(model) {
+        return 6.0;
+    }
     1.0
+}
+
+fn is_claude_fast_model(model: &str) -> bool {
+    model.split(['.', '/', ':']).any(|part| {
+        matches!(
+            part,
+            "claude-opus-4-6"
+                | "claude-opus-4-6-20260205"
+                | "claude-opus-4-6-v1"
+                | "claude-opus-4-7"
+                | "claude-opus-4-7-20260416"
+        )
+    })
 }
 
 fn fetch_pricing_json() -> std::io::Result<String> {
@@ -584,6 +600,26 @@ mod tests {
         let pricing = PricingMap::load_embedded();
 
         assert_eq!(pricing.find("gpt-5.3-codex").unwrap().fast_multiplier, 2.0);
+    }
+
+    #[test]
+    fn embedded_pricing_includes_claude_fast_multiplier_for_provider_models() {
+        let pricing = PricingMap::load_embedded();
+
+        assert_eq!(
+            pricing
+                .find("anthropic.claude-opus-4-6-v1")
+                .unwrap()
+                .fast_multiplier,
+            6.0
+        );
+        assert_eq!(
+            pricing
+                .find("anthropic.claude-opus-4-7")
+                .unwrap()
+                .fast_multiplier,
+            6.0
+        );
     }
 
     #[test]
