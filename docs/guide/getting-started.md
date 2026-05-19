@@ -166,6 +166,7 @@ If ccusage shows no data, check:
    - OpenCode: `${OPENCODE_DATA_DIR:-~/.local/share/opencode}`
    - Amp: `${AMP_DATA_DIR:-~/.local/share/amp}`
    - Droid: `${DROID_SESSIONS_DIR:-~/.factory/sessions}`
+   - Codebuff: `${CODEBUFF_DATA_DIR:-~/.config/manicode}`
    - Hermes Agent: `${HERMES_HOME:-~/.hermes}/state.db`
    - pi-agent: `${PI_AGENT_DIR:-~/.pi/agent/sessions}`
    - Goose: standard Goose data roots or `GOOSE_PATH_ROOT`
@@ -184,6 +185,7 @@ export CODEX_HOME="/path/to/codex"
 export OPENCODE_DATA_DIR="/path/to/opencode"
 export AMP_DATA_DIR="/path/to/amp"
 export DROID_SESSIONS_DIR="/path/to/factory/sessions"
+export CODEBUFF_DATA_DIR="/path/to/manicode"
 export HERMES_HOME="/path/to/hermes"
 export PI_AGENT_DIR="/path/to/pi/sessions"
 export GOOSE_PATH_ROOT="/path/to/goose"
@@ -200,6 +202,7 @@ export CODEX_HOME="/path/to/codex,/archive/codex,/path/to/codex-exec-jsonl"
 export OPENCODE_DATA_DIR="/path/to/opencode,/archive/opencode"
 export AMP_DATA_DIR="/path/to/amp,/archive/amp"
 export DROID_SESSIONS_DIR="/path/to/factory/sessions,/archive/factory/sessions"
+export CODEBUFF_DATA_DIR="/path/to/manicode,/archive/manicode"
 export HERMES_HOME="/path/to/hermes,/archive/hermes"
 export PI_AGENT_DIR="/path/to/pi/sessions,/archive/pi/sessions"
 export GOOSE_PATH_ROOT="/path/to/goose,/archive/goose"

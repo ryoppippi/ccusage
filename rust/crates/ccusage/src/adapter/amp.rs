@@ -268,14 +268,26 @@ pub(crate) fn print_table(
     rows: &[crate::UsageSummary],
     shared: &crate::cli::SharedArgs,
 ) {
+    print_table_for_agent("Amp", kind, rows, shared);
+}
+
+pub(crate) fn print_table_for_agent(
+    agent_name: &str,
+    kind: AgentReportKind,
+    rows: &[crate::UsageSummary],
+    shared: &crate::cli::SharedArgs,
+) {
     if rows.is_empty() {
-        eprintln!("No Amp usage data found.");
+        eprintln!("No {agent_name} usage data found.");
         return;
     }
     let terminal_width = crate::terminal_width();
     let compact = shared.compact || terminal_width < crate::USAGE_COMPACT_WIDTH_THRESHOLD;
     print_box_title(
-        &format!("Amp Token Usage Report - {}", agent_report_label(kind)),
+        &format!(
+            "{agent_name} Token Usage Report - {}",
+            agent_report_label(kind)
+        ),
         shared,
     );
     let first_column = opencode::first_column(kind);

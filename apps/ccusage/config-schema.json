@@ -383,6 +383,33 @@
 			},
 			"type": "object"
 		},
+		"CodebuffCommandsConfig": {
+			"additionalProperties": false,
+			"properties": {
+				"daily": {
+					"$ref": "#/definitions/SharedOptions"
+				},
+				"monthly": {
+					"$ref": "#/definitions/SharedOptions"
+				},
+				"session": {
+					"$ref": "#/definitions/SharedOptions"
+				}
+			},
+			"type": "object"
+		},
+		"CodebuffConfig": {
+			"additionalProperties": false,
+			"properties": {
+				"commands": {
+					"$ref": "#/definitions/CodebuffCommandsConfig"
+				},
+				"defaults": {
+					"$ref": "#/definitions/SharedOptions"
+				}
+			},
+			"type": "object"
+		},
 		"CodexCommandsConfig": {
 			"additionalProperties": false,
 			"properties": {
@@ -1502,6 +1529,15 @@
 					],
 					"description": "Claude Code configuration.",
 					"markdownDescription": "Claude Code configuration."
+				},
+				"codebuff": {
+					"allOf": [
+						{
+							"$ref": "#/definitions/CodebuffConfig"
+						}
+					],
+					"description": "Codebuff configuration.",
+					"markdownDescription": "Codebuff configuration."
 				},
 				"codex": {
 					"allOf": [

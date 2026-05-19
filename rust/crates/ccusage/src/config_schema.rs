@@ -26,6 +26,8 @@ pub(crate) struct CcusageConfig {
     pub(crate) amp: Option<AmpConfig>,
     /// Droid configuration.
     pub(crate) droid: Option<DroidConfig>,
+    /// Codebuff configuration.
+    pub(crate) codebuff: Option<CodebuffConfig>,
     /// Hermes Agent configuration.
     pub(crate) hermes: Option<HermesConfig>,
     /// pi-agent configuration.
@@ -129,6 +131,21 @@ pub(crate) struct DroidConfig {
 #[derive(Debug, Default, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct DroidCommandsConfig {
+    pub(crate) daily: Option<SharedOptions>,
+    pub(crate) monthly: Option<SharedOptions>,
+    pub(crate) session: Option<SharedOptions>,
+}
+
+#[derive(Debug, Default, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct CodebuffConfig {
+    pub(crate) defaults: Option<SharedOptions>,
+    pub(crate) commands: Option<CodebuffCommandsConfig>,
+}
+
+#[derive(Debug, Default, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct CodebuffCommandsConfig {
     pub(crate) daily: Option<SharedOptions>,
     pub(crate) monthly: Option<SharedOptions>,
     pub(crate) session: Option<SharedOptions>,
@@ -893,6 +910,10 @@ mod tests {
             Some("#/definitions/SharedOptions")
         );
         assert_eq!(
+            property_ref(&schema, "CodebuffConfig", "defaults"),
+            Some("#/definitions/SharedOptions")
+        );
+        assert_eq!(
             property_ref(&schema, "PiConfig", "defaults"),
             Some("#/definitions/PiOptions")
         );
@@ -939,8 +960,8 @@ mod tests {
             &schema,
             "ccusage-config",
             &[
-                "$schema", "amp", "claude", "codex", "commands", "copilot", "defaults", "gemini",
-                "goose", "hermes", "kilo", "kimi", "opencode", "openclaw", "pi", "droid",
+                "$schema", "amp", "claude", "codebuff", "codex", "commands", "copilot", "defaults",
+                "gemini", "goose", "hermes", "kilo", "kimi", "opencode", "openclaw", "pi", "droid",
             ],
         );
     }
@@ -1003,6 +1024,13 @@ mod tests {
                 }
             },
             "droid": {
+                "commands": {
+                    "daily": {
+                        "json": true
+                    }
+                }
+            },
+            "codebuff": {
                 "commands": {
                     "daily": {
                         "json": true
