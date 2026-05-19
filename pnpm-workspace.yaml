@@ -33,7 +33,7 @@ catalogs:
     lefthook: ^2.1.6
     pkg-pr-new: ^0.0.60
   runtime:
-    '@antfu/utils': ^9.2.1
+    '@antfu/utils': ^9.3.0
     '@praha/byethrow': ^0.11.2
     ansi-escapes: ^7.0.0
     arkregex: ^0.0.5
