@@ -472,6 +472,7 @@ pub(crate) fn generate_config_schema_json() -> String {
     }
     enrich_schema(&mut schema);
     add_schema_defaults(&mut schema);
+    wrap_root_schema(&mut schema);
     let mut json = tab_indent_json(&serde_json::to_string_pretty(&schema).unwrap());
     json.push('\n');
     json
@@ -606,6 +607,37 @@ fn set_definition_defaults(schema: &mut Value, definition: &str, defaults: &[(&s
     }
 }
 
+fn wrap_root_schema(schema: &mut Value) {
+    let Value::Object(root) = schema else {
+        return;
+    };
+    let mut definitions = root
+        .remove("definitions")
+        .and_then(|definitions| match definitions {
+            Value::Object(definitions) => Some(definitions),
+            _ => None,
+        })
+        .unwrap_or_default();
+    let mut root_definition = Map::new();
+    for key in [
+        "additionalProperties",
+        "description",
+        "markdownDescription",
+        "properties",
+        "type",
+    ] {
+        if let Some(value) = root.remove(key) {
+            root_definition.insert(key.to_string(), value);
+        }
+    }
+    definitions.insert("ccusage-config".to_string(), Value::Object(root_definition));
+    root.insert(
+        "$ref".to_string(),
+        Value::String("#/definitions/ccusage-config".to_string()),
+    );
+    root.insert("definitions".to_string(), Value::Object(definitions));
+}
+
 #[cfg(test)]
 mod tests {
     use std::collections::BTreeSet;
@@ -705,6 +737,21 @@ mod tests {
 
         assert!(!schema.contains("\"null\""));
         assert!(!contains_key(&value, "anyOf"));
+    }
+
+    #[test]
+    fn generated_schema_keeps_legacy_root_definition_shape() {
+        let schema = generated_schema();
+
+        assert_eq!(
+            schema["$ref"].as_str(),
+            Some("#/definitions/ccusage-config")
+        );
+        assert_properties(
+            &schema,
+            "ccusage-config",
+            &["$schema", "amp", "claude", "codex", "commands", "defaults", "opencode", "pi"],
+        );
     }
 
     #[test]

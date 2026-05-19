@@ -1,6 +1,6 @@
 {
+	"$ref": "#/definitions/ccusage-config",
 	"$schema": "https://json-schema.org/draft-07/schema#",
-	"additionalProperties": false,
 	"definitions": {
 		"AmpCommandsConfig": {
 			"additionalProperties": false,
@@ -1152,9 +1152,84 @@
 				}
 			},
 			"type": "object"
+		},
+		"ccusage-config": {
+			"additionalProperties": false,
+			"description": "Configuration file for ccusage",
+			"markdownDescription": "Configuration file for ccusage",
+			"properties": {
+				"$schema": {
+					"description": "JSON Schema URL for validation and autocomplete.",
+					"markdownDescription": "JSON Schema URL for validation and autocomplete.",
+					"type": "string"
+				},
+				"amp": {
+					"allOf": [
+						{
+							"$ref": "#/definitions/AmpConfig"
+						}
+					],
+					"description": "Amp configuration.",
+					"markdownDescription": "Amp configuration."
+				},
+				"claude": {
+					"allOf": [
+						{
+							"$ref": "#/definitions/ClaudeConfig"
+						}
+					],
+					"description": "Claude Code configuration.",
+					"markdownDescription": "Claude Code configuration."
+				},
+				"codex": {
+					"allOf": [
+						{
+							"$ref": "#/definitions/CodexConfig"
+						}
+					],
+					"description": "Codex configuration.",
+					"markdownDescription": "Codex configuration."
+				},
+				"commands": {
+					"allOf": [
+						{
+							"$ref": "#/definitions/RootCommandsConfig"
+						}
+					],
+					"description": "Command-specific configuration for all-agent reports.",
+					"markdownDescription": "Command-specific configuration for all-agent reports."
+				},
+				"defaults": {
+					"allOf": [
+						{
+							"$ref": "#/definitions/SharedOptions"
+						}
+					],
+					"description": "Default values for all-agent reports and legacy Claude commands.",
+					"markdownDescription": "Default values for all-agent reports and legacy Claude commands."
+				},
+				"opencode": {
+					"allOf": [
+						{
+							"$ref": "#/definitions/OpenCodeConfig"
+						}
+					],
+					"description": "OpenCode configuration.",
+					"markdownDescription": "OpenCode configuration."
+				},
+				"pi": {
+					"allOf": [
+						{
+							"$ref": "#/definitions/PiConfig"
+						}
+					],
+					"description": "pi-agent configuration.",
+					"markdownDescription": "pi-agent configuration."
+				}
+			},
+			"type": "object"
 		}
 	},
-	"description": "Configuration file for ccusage",
 	"examples": [
 		{
 			"$schema": "https://ccusage.com/config-schema.json",
@@ -1182,77 +1257,5 @@
 			}
 		}
 	],
-	"markdownDescription": "Configuration file for ccusage",
-	"properties": {
-		"$schema": {
-			"description": "JSON Schema URL for validation and autocomplete.",
-			"markdownDescription": "JSON Schema URL for validation and autocomplete.",
-			"type": "string"
-		},
-		"amp": {
-			"allOf": [
-				{
-					"$ref": "#/definitions/AmpConfig"
-				}
-			],
-			"description": "Amp configuration.",
-			"markdownDescription": "Amp configuration."
-		},
-		"claude": {
-			"allOf": [
-				{
-					"$ref": "#/definitions/ClaudeConfig"
-				}
-			],
-			"description": "Claude Code configuration.",
-			"markdownDescription": "Claude Code configuration."
-		},
-		"codex": {
-			"allOf": [
-				{
-					"$ref": "#/definitions/CodexConfig"
-				}
-			],
-			"description": "Codex configuration.",
-			"markdownDescription": "Codex configuration."
-		},
-		"commands": {
-			"allOf": [
-				{
-					"$ref": "#/definitions/RootCommandsConfig"
-				}
-			],
-			"description": "Command-specific configuration for all-agent reports.",
-			"markdownDescription": "Command-specific configuration for all-agent reports."
-		},
-		"defaults": {
-			"allOf": [
-				{
-					"$ref": "#/definitions/SharedOptions"
-				}
-			],
-			"description": "Default values for all-agent reports and legacy Claude commands.",
-			"markdownDescription": "Default values for all-agent reports and legacy Claude commands."
-		},
-		"opencode": {
-			"allOf": [
-				{
-					"$ref": "#/definitions/OpenCodeConfig"
-				}
-			],
-			"description": "OpenCode configuration.",
-			"markdownDescription": "OpenCode configuration."
-		},
-		"pi": {
-			"allOf": [
-				{
-					"$ref": "#/definitions/PiConfig"
-				}
-			],
-			"description": "pi-agent configuration.",
-			"markdownDescription": "pi-agent configuration."
-		}
-	},
-	"title": "ccusage Configuration",
-	"type": "object"
+	"title": "ccusage Configuration"
 }
