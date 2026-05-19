@@ -9,6 +9,7 @@ ccusage monthly
 ccusage codex monthly
 ccusage amp monthly
 ccusage pi monthly
+ccusage qwen monthly
 ```
 
 ## Example Output

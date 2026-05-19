@@ -18,6 +18,7 @@ ccusage codex daily
 ccusage opencode daily
 ccusage amp daily
 ccusage pi daily
+ccusage qwen daily
 ```
 
 The daily command is the default, so you can omit it when running ccusage.

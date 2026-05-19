@@ -44,6 +44,8 @@ pub(crate) struct CcusageConfig {
     pub(crate) gemini: Option<GeminiConfig>,
     /// Kimi configuration.
     pub(crate) kimi: Option<KimiConfig>,
+    /// Qwen configuration.
+    pub(crate) qwen: Option<QwenConfig>,
 }
 
 #[derive(Debug, Default, Deserialize, JsonSchema)]
@@ -266,6 +268,21 @@ pub(crate) struct KimiConfig {
 #[derive(Debug, Default, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct KimiCommandsConfig {
+    pub(crate) daily: Option<SharedOptions>,
+    pub(crate) monthly: Option<SharedOptions>,
+    pub(crate) session: Option<SharedOptions>,
+}
+
+#[derive(Debug, Default, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct QwenConfig {
+    pub(crate) defaults: Option<SharedOptions>,
+    pub(crate) commands: Option<QwenCommandsConfig>,
+}
+
+#[derive(Debug, Default, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct QwenCommandsConfig {
     pub(crate) daily: Option<SharedOptions>,
     pub(crate) monthly: Option<SharedOptions>,
     pub(crate) session: Option<SharedOptions>,
@@ -937,6 +954,10 @@ mod tests {
             property_ref(&schema, "KimiConfig", "defaults"),
             Some("#/definitions/SharedOptions")
         );
+        assert_eq!(
+            property_ref(&schema, "QwenConfig", "defaults"),
+            Some("#/definitions/SharedOptions")
+        );
     }
 
     #[test]
@@ -961,7 +982,8 @@ mod tests {
             "ccusage-config",
             &[
                 "$schema", "amp", "claude", "codebuff", "codex", "commands", "copilot", "defaults",
-                "gemini", "goose", "hermes", "kilo", "kimi", "opencode", "openclaw", "pi", "droid",
+                "gemini", "goose", "hermes", "kilo", "kimi", "opencode", "openclaw", "pi", "qwen",
+                "droid",
             ],
         );
     }
@@ -1087,6 +1109,13 @@ mod tests {
                 }
             },
             "kimi": {
+                "commands": {
+                    "session": {
+                        "json": true
+                    }
+                }
+            },
+            "qwen": {
                 "commands": {
                     "session": {
                         "json": true

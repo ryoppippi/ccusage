@@ -1173,6 +1173,33 @@
 			},
 			"type": "object"
 		},
+		"QwenCommandsConfig": {
+			"additionalProperties": false,
+			"properties": {
+				"daily": {
+					"$ref": "#/definitions/SharedOptions"
+				},
+				"monthly": {
+					"$ref": "#/definitions/SharedOptions"
+				},
+				"session": {
+					"$ref": "#/definitions/SharedOptions"
+				}
+			},
+			"type": "object"
+		},
+		"QwenConfig": {
+			"additionalProperties": false,
+			"properties": {
+				"commands": {
+					"$ref": "#/definitions/QwenCommandsConfig"
+				},
+				"defaults": {
+					"$ref": "#/definitions/SharedOptions"
+				}
+			},
+			"type": "object"
+		},
 		"RootCommandsConfig": {
 			"additionalProperties": false,
 			"properties": {
@@ -1655,6 +1682,15 @@
 					],
 					"description": "pi-agent configuration.",
 					"markdownDescription": "pi-agent configuration."
+				},
+				"qwen": {
+					"allOf": [
+						{
+							"$ref": "#/definitions/QwenConfig"
+						}
+					],
+					"description": "Qwen configuration.",
+					"markdownDescription": "Qwen configuration."
 				}
 			},
 			"type": "object"

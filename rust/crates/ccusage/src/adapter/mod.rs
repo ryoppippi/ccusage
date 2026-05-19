@@ -12,3 +12,4 @@ pub(crate) mod kimi;
 pub(crate) mod openclaw;
 pub(crate) mod opencode;
 pub(crate) mod pi;
+pub(crate) mod qwen;

@@ -78,6 +78,7 @@ export default defineConfig({
 						{ text: 'pi-agent', link: '/guide/pi/' },
 						{ text: 'Goose', link: '/guide/goose/' },
 						{ text: 'Kilo', link: '/guide/kilo/' },
+						{ text: 'Qwen', link: '/guide/qwen/' },
 						{ text: 'GitHub Copilot CLI', link: '/guide/copilot/' },
 						{ text: 'Gemini CLI', link: '/guide/gemini/' },
 						{ text: 'Kimi', link: '/guide/kimi/' },

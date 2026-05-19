@@ -259,14 +259,14 @@ pub(crate) fn print_usage_table(
         .get("cacheReadTokens")
         .and_then(Value::as_u64)
         .unwrap_or_default();
-    let total_tokens = totals
-        .get("totalTokens")
-        .and_then(Value::as_u64)
-        .unwrap_or_default();
     let total_cost = totals
         .get("totalCost")
         .and_then(Value::as_f64)
         .unwrap_or_default();
+    let total_tokens = totals
+        .get("totalTokens")
+        .and_then(Value::as_u64)
+        .unwrap_or(input + output + cache_create + cache_read);
     table.separator();
     let mut total_row = if compact {
         vec![

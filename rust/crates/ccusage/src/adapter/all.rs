@@ -9,7 +9,7 @@ use serde_json::{json, Value};
 use crate::{
     adapter::{
         amp, codebuff, codex, copilot, droid, gemini, goose, hermes, kilo, kimi, openclaw,
-        opencode, pi,
+        opencode, pi, qwen,
     },
     cli::{AgentCommandArgs, AgentReportKind, CodexSpeed, SharedArgs, SortOrder, WeekDay},
     color, filter_loaded_entries_by_date, format_currency, format_models_multiline, format_number,
@@ -167,6 +167,12 @@ fn load_rows(kind: AgentReportKind, shared: &SharedArgs) -> Result<AllLoadResult
                 agent: "kimi",
                 progress_agent: crate::progress::UsageLoadAgent::Kimi,
                 load: Box::new(|| load_kimi_rows(load_kind, shared, &pricing)),
+            },
+            AgentLoadSpec {
+                index: 14,
+                agent: "qwen",
+                progress_agent: crate::progress::UsageLoadAgent::Qwen,
+                load: Box::new(|| load_qwen_rows(load_kind, shared)),
             },
         ],
         &mut progress,
@@ -478,6 +484,25 @@ fn load_kimi_rows(
     let summaries = kimi::summarize_entries(&entries, kind)?;
     Ok(AgentRows {
         rows: summary_rows("kimi", summaries),
+        detected,
+    })
+}
+
+fn load_qwen_rows(kind: AgentReportKind, shared: &SharedArgs) -> Result<AgentRows> {
+    let mut entries = qwen::load_entries(shared)?;
+    let detected = !entries.is_empty() || qwen::has_data();
+    if kind == AgentReportKind::Session {
+        let mut summaries = qwen::summarize_entries(&entries, kind)?;
+        filter_session_summaries(&mut summaries, shared);
+        return Ok(AgentRows {
+            rows: summary_rows("qwen", summaries),
+            detected,
+        });
+    }
+    filter_loaded_entries_by_date(&mut entries, shared);
+    let summaries = qwen::summarize_entries(&entries, kind)?;
+    Ok(AgentRows {
+        rows: summary_rows("qwen", summaries),
         detected,
     })
 }
@@ -1036,6 +1061,7 @@ fn agent_label(agent: &str) -> &str {
         "copilot" => "GitHub Copilot CLI",
         "gemini" => "Gemini CLI",
         "kimi" => "Kimi",
+        "qwen" => "Qwen",
         _ => agent,
     }
 }

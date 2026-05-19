@@ -34,6 +34,7 @@ pub(crate) enum Command {
     Copilot(AgentCommandArgs),
     Gemini(AgentCommandArgs),
     Kimi(AgentCommandArgs),
+    Qwen(AgentCommandArgs),
     OpenClaw(AgentCommandArgs),
 }
 
@@ -363,6 +364,7 @@ fn parse_command(
         "copilot" => parse_copilot_command(parser, shared, config),
         "gemini" => parse_gemini_command(parser, shared, config),
         "kimi" => parse_kimi_command(parser, shared, config),
+        "qwen" => parse_qwen_command(parser, shared, config),
         "openclaw" => parse_openclaw_command(parser, shared, config),
         _ => Err(format!("Unknown command '{command}'")),
     }
@@ -1048,6 +1050,7 @@ fn is_command(arg: &str) -> bool {
             | "copilot"
             | "gemini"
             | "kimi"
+            | "qwen"
     )
 }
 
@@ -1191,6 +1194,7 @@ fn is_agent_command(command: &str) -> bool {
             | "copilot"
             | "gemini"
             | "kimi"
+            | "qwen"
             | "openclaw"
     )
 }
@@ -1204,7 +1208,7 @@ fn agent_report_supported(agent: &str, report: &str) -> bool {
         "codex" => matches!(report, "daily" | "monthly" | "session"),
         "opencode" => matches!(report, "daily" | "weekly" | "monthly" | "session"),
         "amp" | "droid" | "codebuff" | "hermes" | "pi" | "goose" | "kilo" | "copilot"
-        | "gemini" | "kimi" | "openclaw" => {
+        | "gemini" | "kimi" | "qwen" | "openclaw" => {
             matches!(report, "daily" | "monthly" | "session")
         }
         _ => false,
@@ -1226,6 +1230,7 @@ fn agent_display_name(agent: &str) -> &'static str {
         "copilot" => "GitHub Copilot CLI",
         "gemini" => "Gemini CLI",
         "kimi" => "Kimi",
+        "qwen" => "Qwen",
         "openclaw" => "OpenClaw",
         _ => unreachable!("agent is prevalidated"),
     }
@@ -1543,6 +1548,14 @@ fn help_text_for_tokens(tokens: &[String]) -> String {
                     ("session", "Show Kimi usage grouped by session"),
                 ],
             ),
+            "qwen" => agent_help(
+                "qwen",
+                &[
+                    ("daily", "Show Qwen usage grouped by date"),
+                    ("monthly", "Show Qwen usage grouped by month"),
+                    ("session", "Show Qwen usage grouped by session"),
+                ],
+            ),
             "openclaw" => agent_help(
                 "openclaw",
                 &[
@@ -1572,6 +1585,7 @@ fn help_text_for_tokens(tokens: &[String]) -> String {
             "copilot" => copilot_report_help(report),
             "gemini" => gemini_report_help(report),
             "kimi" => kimi_report_help(report),
+            "qwen" => qwen_report_help(report),
             "openclaw" => openclaw_report_help(report),
             _ => root_help_text(),
         },
@@ -1624,6 +1638,7 @@ fn root_help_text() -> String {
         "  copilot                    Show GitHub Copilot CLI usage commands",
         "  gemini                     Show Gemini CLI usage commands",
         "  kimi                       Show Kimi usage commands",
+        "  qwen                       Show Qwen usage commands",
         "  openclaw                   Show OpenClaw usage commands",
         "",
         "For more info, run any command with the `--help` flag:",
@@ -1646,6 +1661,7 @@ fn root_help_text() -> String {
         "  ccusage copilot --help",
         "  ccusage gemini --help",
         "  ccusage kimi --help",
+        "  ccusage qwen --help",
         "  ccusage openclaw --help",
         "",
     ]
@@ -1764,6 +1780,55 @@ fn codebuff_report_help(report: &str) -> String {
     command_help(
         description,
         &format!("ccusage codebuff {report} <OPTIONS>"),
+        agent_options(),
+    )
+}
+
+fn parse_qwen_command(
+    parser: &mut ArgParser,
+    mut shared: SharedArgs,
+    _config: &ConfigContext,
+) -> Result<Command, String> {
+    let kind = match parser.peek() {
+        Some("daily") => {
+            parser.next();
+            AgentReportKind::Daily
+        }
+        Some("monthly") => {
+            parser.next();
+            AgentReportKind::Monthly
+        }
+        Some("session") => {
+            parser.next();
+            AgentReportKind::Session
+        }
+        Some(command) if !command.starts_with('-') => {
+            return Err(format!("Unknown qwen command '{command}'"));
+        }
+        _ => AgentReportKind::Daily,
+    };
+    while parser.peek().is_some() {
+        parse_shared_arg(parser, &mut shared)?;
+    }
+    Ok(Command::Qwen(AgentCommandArgs {
+        shared,
+        kind,
+        pi_path: None,
+        open_claw_path: None,
+        codex_speed: CodexSpeed::Auto,
+    }))
+}
+
+fn qwen_report_help(report: &str) -> String {
+    let description = match report {
+        "daily" => "Show Qwen usage grouped by date",
+        "monthly" => "Show Qwen usage grouped by month",
+        "session" => "Show Qwen usage grouped by session",
+        _ => return root_help_text(),
+    };
+    command_help(
+        description,
+        &format!("ccusage qwen {report} <OPTIONS>"),
         agent_options(),
     )
 }
@@ -2134,7 +2199,7 @@ mod tests {
         let help = help_text();
         let agents = [
             "claude", "codex", "opencode", "amp", "droid", "codebuff", "hermes", "pi", "goose",
-            "kilo", "copilot", "gemini", "kimi", "openclaw",
+            "kilo", "copilot", "gemini", "kimi", "qwen", "openclaw",
         ];
 
         for agent in agents {
@@ -2382,6 +2447,16 @@ mod tests {
         let cli = parse(&["ccusage", "codebuff", "session", "--json"]);
         let Some(Command::Codebuff(args)) = cli.command else {
             panic!("expected codebuff command");
+        };
+        assert_eq!(args.kind, AgentReportKind::Session);
+        assert!(args.shared.json);
+    }
+
+    #[test]
+    fn parses_qwen_session_options() {
+        let cli = parse(&["ccusage", "qwen", "session", "--json"]);
+        let Some(Command::Qwen(args)) = cli.command else {
+            panic!("expected qwen command");
         };
         assert_eq!(args.kind, AgentReportKind::Session);
         assert!(args.shared.json);

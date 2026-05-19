@@ -137,6 +137,7 @@ fn main() -> Result<()> {
         Some(Command::Pi(args)) => adapter::pi::run(args),
         Some(Command::Goose(args)) => adapter::goose::run(args),
         Some(Command::Kilo(args)) => adapter::kilo::run(args),
+        Some(Command::Qwen(args)) => adapter::qwen::run(args),
         Some(Command::Copilot(args)) => adapter::copilot::run(args),
         Some(Command::Gemini(args)) => adapter::gemini::run(args),
         Some(Command::Kimi(args)) => adapter::kimi::run(args),
