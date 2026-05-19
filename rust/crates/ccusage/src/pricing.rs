@@ -99,6 +99,10 @@ impl PricingMap {
             };
             let context_limit = pricing.max_input_tokens;
             let cache_read_explicit = pricing.cache_read_input_token_cost.is_some();
+            let fast_multiplier = pricing
+                .provider_specific_entry
+                .and_then(|entry| entry.fast)
+                .unwrap_or_else(|| codex_fast_multiplier(&model));
             self.entries.insert(
                 model.clone(),
                 Pricing {
@@ -114,10 +118,7 @@ impl PricingMap {
                     cache_create_above_200k: pricing
                         .cache_creation_input_token_cost_above_200k_tokens,
                     cache_read_above_200k: pricing.cache_read_input_token_cost_above_200k_tokens,
-                    fast_multiplier: pricing
-                        .provider_specific_entry
-                        .and_then(|entry| entry.fast)
-                        .unwrap_or(1.0),
+                    fast_multiplier,
                 },
             );
             if let Some(context_limit) = context_limit {
@@ -276,10 +277,8 @@ impl PricingMap {
         };
         self.entries
             .insert("claude-3-5-haiku".to_string(), claude_3_5_haiku);
-        self.entries.insert(
-            "claude-3-5-haiku-20241022".to_string(),
-            claude_3_5_haiku,
-        );
+        self.entries
+            .insert("claude-3-5-haiku-20241022".to_string(), claude_3_5_haiku);
         self.entries.insert(
             "claude-3-opus".to_string(),
             Pricing {
@@ -352,7 +351,7 @@ impl PricingMap {
                 output_above_200k: None,
                 cache_create_above_200k: None,
                 cache_read_above_200k: None,
-                fast_multiplier: 1.0,
+                fast_multiplier: 2.5,
             },
         );
         let gpt_5_1_pricing = Pricing {
@@ -384,8 +383,13 @@ impl PricingMap {
         };
         self.entries
             .insert("gpt-5.2-codex".to_string(), gpt_5_codex_pricing);
-        self.entries
-            .insert("gpt-5.3-codex".to_string(), gpt_5_codex_pricing);
+        self.entries.insert(
+            "gpt-5.3-codex".to_string(),
+            Pricing {
+                fast_multiplier: 2.0,
+                ..gpt_5_codex_pricing
+            },
+        );
         self.entries
             .insert("gpt-5.2".to_string(), gpt_5_codex_pricing);
         self.entries.insert(
@@ -400,7 +404,7 @@ impl PricingMap {
                 output_above_200k: None,
                 cache_create_above_200k: None,
                 cache_read_above_200k: None,
-                fast_multiplier: 1.0,
+                fast_multiplier: 2.0,
             },
         );
         self.entries.insert(
@@ -453,6 +457,16 @@ impl PricingMap {
             self.context_limits.insert(model.to_string(), 200_000);
         }
     }
+}
+
+fn codex_fast_multiplier(model: &str) -> f64 {
+    if model == "gpt-5.5" {
+        return 2.5;
+    }
+    if matches!(model, "gpt-5.4" | "gpt-5.3-codex") {
+        return 2.0;
+    }
+    1.0
 }
 
 fn fetch_pricing_json() -> std::io::Result<String> {
@@ -561,7 +575,49 @@ mod tests {
         assert_eq!(gpt_55.output, 30e-6);
         assert_eq!(gpt_55.cache_read, 0.5e-6);
         assert!(gpt_55.cache_read_explicit);
+        assert_eq!(gpt_55.fast_multiplier, 2.5);
         assert_eq!(pricing.context_limit("gpt-5.5"), Some(1_050_000));
+    }
+
+    #[test]
+    fn embedded_pricing_includes_codex_priority_multiplier() {
+        let pricing = PricingMap::load_embedded();
+
+        assert_eq!(pricing.find("gpt-5.3-codex").unwrap().fast_multiplier, 2.0);
+    }
+
+    #[test]
+    fn fills_codex_fast_multiplier_when_litellm_pricing_omits_it() {
+        let mut pricing = PricingMap::default();
+        pricing.load_json(
+            r#"{
+                "gpt-5.5": {
+                    "input_cost_per_token": 0.000005,
+                    "output_cost_per_token": 0.000030,
+                    "cache_read_input_token_cost": 0.0000005
+                },
+                "gpt-5.4": {
+                    "input_cost_per_token": 0.0000025,
+                    "output_cost_per_token": 0.000015,
+                    "cache_read_input_token_cost": 0.00000025
+                },
+                "gpt-5.3-codex": {
+                    "input_cost_per_token": 0.00000175,
+                    "output_cost_per_token": 0.000014,
+                    "cache_read_input_token_cost": 0.000000175
+                },
+                "gpt-5.2-codex": {
+                    "input_cost_per_token": 0.00000175,
+                    "output_cost_per_token": 0.000014,
+                    "cache_read_input_token_cost": 0.000000175
+                }
+            }"#,
+        );
+
+        assert_eq!(pricing.find("gpt-5.5").unwrap().fast_multiplier, 2.5);
+        assert_eq!(pricing.find("gpt-5.4").unwrap().fast_multiplier, 2.0);
+        assert_eq!(pricing.find("gpt-5.3-codex").unwrap().fast_multiplier, 2.0);
+        assert_eq!(pricing.find("gpt-5.2-codex").unwrap().fast_multiplier, 1.0);
     }
 
     #[test]
