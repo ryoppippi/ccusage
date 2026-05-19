@@ -1,4 +1,8 @@
-use std::collections::{BTreeMap, BTreeSet};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    sync::mpsc,
+    thread,
+};
 
 use serde_json::{json, Value};
 
@@ -37,6 +41,19 @@ struct AgentRows {
     detected: bool,
 }
 
+struct AgentLoadSpec<'scope> {
+    index: usize,
+    agent: &'static str,
+    progress_agent: crate::progress::UsageLoadAgent,
+    load: Box<dyn FnOnce() -> Result<AgentRows> + Send + 'scope>,
+}
+
+struct LoadedAgentRows {
+    index: usize,
+    agent: &'static str,
+    agent_rows: AgentRows,
+}
+
 pub(crate) fn run(args: AgentCommandArgs) -> Result<()> {
     let shared = args.shared;
     let result = load_rows(args.kind, &shared)?;
@@ -55,84 +72,89 @@ fn load_rows(kind: AgentReportKind, shared: &SharedArgs) -> Result<AllLoadResult
                 crate::progress::usage_load_output_is_tty(),
             ),
     );
-    for agent in [
-        crate::progress::UsageLoadAgent::Amp,
-        crate::progress::UsageLoadAgent::Claude,
-        crate::progress::UsageLoadAgent::Codex,
-        crate::progress::UsageLoadAgent::OpenCode,
-        crate::progress::UsageLoadAgent::Hermes,
-        crate::progress::UsageLoadAgent::Pi,
-        crate::progress::UsageLoadAgent::Goose,
-        crate::progress::UsageLoadAgent::Kilo,
-        crate::progress::UsageLoadAgent::Copilot,
-        crate::progress::UsageLoadAgent::Gemini,
-    ] {
-        progress.start(agent);
-    }
     let pricing = PricingMap::load(shared.offline, crate::log_level() != Some(0));
+    let load_kind = match kind {
+        AgentReportKind::Session => AgentReportKind::Session,
+        AgentReportKind::Daily | AgentReportKind::Weekly | AgentReportKind::Monthly => {
+            AgentReportKind::Daily
+        }
+    };
+    let loaded = load_agent_rows_parallel(
+        vec![
+            AgentLoadSpec {
+                index: 0,
+                agent: "claude",
+                progress_agent: crate::progress::UsageLoadAgent::Claude,
+                load: Box::new(|| load_claude_rows(load_kind, shared)),
+            },
+            AgentLoadSpec {
+                index: 1,
+                agent: "codex",
+                progress_agent: crate::progress::UsageLoadAgent::Codex,
+                load: Box::new(|| load_codex_rows(load_kind, shared, &pricing)),
+            },
+            AgentLoadSpec {
+                index: 2,
+                agent: "opencode",
+                progress_agent: crate::progress::UsageLoadAgent::OpenCode,
+                load: Box::new(|| load_opencode_rows(load_kind, shared)),
+            },
+            AgentLoadSpec {
+                index: 3,
+                agent: "amp",
+                progress_agent: crate::progress::UsageLoadAgent::Amp,
+                load: Box::new(|| load_amp_rows(load_kind, shared, &pricing)),
+            },
+            AgentLoadSpec {
+                index: 4,
+                agent: "hermes",
+                progress_agent: crate::progress::UsageLoadAgent::Hermes,
+                load: Box::new(|| load_hermes_rows(load_kind, shared, &pricing)),
+            },
+            AgentLoadSpec {
+                index: 5,
+                agent: "pi",
+                progress_agent: crate::progress::UsageLoadAgent::Pi,
+                load: Box::new(|| load_pi_rows(load_kind, shared)),
+            },
+            AgentLoadSpec {
+                index: 6,
+                agent: "goose",
+                progress_agent: crate::progress::UsageLoadAgent::Goose,
+                load: Box::new(|| load_goose_rows(load_kind, shared, &pricing)),
+            },
+            AgentLoadSpec {
+                index: 7,
+                agent: "kilo",
+                progress_agent: crate::progress::UsageLoadAgent::Kilo,
+                load: Box::new(|| load_kilo_rows(load_kind, shared, &pricing)),
+            },
+            AgentLoadSpec {
+                index: 8,
+                agent: "copilot",
+                progress_agent: crate::progress::UsageLoadAgent::Copilot,
+                load: Box::new(|| load_copilot_rows(load_kind, shared, &pricing)),
+            },
+            AgentLoadSpec {
+                index: 9,
+                agent: "gemini",
+                progress_agent: crate::progress::UsageLoadAgent::Gemini,
+                load: Box::new(|| load_gemini_rows(load_kind, shared, &pricing)),
+            },
+        ],
+        &mut progress,
+    )?;
     let mut detected_agents = Vec::new();
+    let mut rows = Vec::new();
+    for loaded in loaded {
+        append_agent_rows(
+            &mut rows,
+            &mut detected_agents,
+            loaded.agent,
+            loaded.agent_rows,
+        );
+    }
     if kind == AgentReportKind::Session {
-        let mut rows = Vec::new();
-        append_agent_rows(
-            &mut rows,
-            &mut detected_agents,
-            "claude",
-            load_claude_rows(AgentReportKind::Session, shared)?,
-        );
-        append_agent_rows(
-            &mut rows,
-            &mut detected_agents,
-            "codex",
-            load_codex_rows(AgentReportKind::Session, shared, &pricing)?,
-        );
-        append_agent_rows(
-            &mut rows,
-            &mut detected_agents,
-            "opencode",
-            load_opencode_rows(AgentReportKind::Session, shared)?,
-        );
-        append_agent_rows(
-            &mut rows,
-            &mut detected_agents,
-            "amp",
-            load_amp_rows(AgentReportKind::Session, shared, &pricing)?,
-        );
-        append_agent_rows(
-            &mut rows,
-            &mut detected_agents,
-            "hermes",
-            load_hermes_rows(AgentReportKind::Session, shared, &pricing)?,
-        );
-        append_agent_rows(
-            &mut rows,
-            &mut detected_agents,
-            "pi",
-            load_pi_rows(AgentReportKind::Session, shared)?,
-        );
-        append_agent_rows(
-            &mut rows,
-            &mut detected_agents,
-            "goose",
-            load_goose_rows(AgentReportKind::Session, shared, &pricing)?,
-        );
-        append_agent_rows(
-            &mut rows,
-            &mut detected_agents,
-            "kilo",
-            load_kilo_rows(AgentReportKind::Session, shared, &pricing)?,
-        );
-        append_agent_rows(
-            &mut rows,
-            &mut detected_agents,
-            "copilot",
-            load_copilot_rows(AgentReportKind::Session, shared, &pricing)?,
-        );
-        append_agent_rows(
-            &mut rows,
-            &mut detected_agents,
-            "gemini",
-            load_gemini_rows(AgentReportKind::Session, shared, &pricing)?,
-        );
         for row in &mut rows {
             row.metadata_agents = None;
         }
@@ -143,73 +165,71 @@ fn load_rows(kind: AgentReportKind, shared: &SharedArgs) -> Result<AllLoadResult
         });
     }
 
-    let mut rows = Vec::new();
-    append_agent_rows(
-        &mut rows,
-        &mut detected_agents,
-        "claude",
-        load_claude_rows(AgentReportKind::Daily, shared)?,
-    );
-    append_agent_rows(
-        &mut rows,
-        &mut detected_agents,
-        "codex",
-        load_codex_rows(AgentReportKind::Daily, shared, &pricing)?,
-    );
-    append_agent_rows(
-        &mut rows,
-        &mut detected_agents,
-        "opencode",
-        load_opencode_rows(AgentReportKind::Daily, shared)?,
-    );
-    append_agent_rows(
-        &mut rows,
-        &mut detected_agents,
-        "amp",
-        load_amp_rows(AgentReportKind::Daily, shared, &pricing)?,
-    );
-    append_agent_rows(
-        &mut rows,
-        &mut detected_agents,
-        "hermes",
-        load_hermes_rows(AgentReportKind::Daily, shared, &pricing)?,
-    );
-    append_agent_rows(
-        &mut rows,
-        &mut detected_agents,
-        "pi",
-        load_pi_rows(AgentReportKind::Daily, shared)?,
-    );
-    append_agent_rows(
-        &mut rows,
-        &mut detected_agents,
-        "goose",
-        load_goose_rows(AgentReportKind::Daily, shared, &pricing)?,
-    );
-    append_agent_rows(
-        &mut rows,
-        &mut detected_agents,
-        "kilo",
-        load_kilo_rows(AgentReportKind::Daily, shared, &pricing)?,
-    );
-    append_agent_rows(
-        &mut rows,
-        &mut detected_agents,
-        "copilot",
-        load_copilot_rows(AgentReportKind::Daily, shared, &pricing)?,
-    );
-    append_agent_rows(
-        &mut rows,
-        &mut detected_agents,
-        "gemini",
-        load_gemini_rows(AgentReportKind::Daily, shared, &pricing)?,
-    );
-
     let mut aggregated = aggregate_rows(rows, kind);
     sort_rows(&mut aggregated, &shared.order);
     Ok(AllLoadResult {
         rows: aggregated,
         detected_agents,
+    })
+}
+
+fn load_agent_rows_parallel(
+    specs: Vec<AgentLoadSpec<'_>>,
+    progress: &mut crate::progress::UsageLoadProgress,
+) -> Result<Vec<LoadedAgentRows>> {
+    for spec in &specs {
+        progress.start(spec.progress_agent);
+    }
+
+    thread::scope(|scope| {
+        let (sender, receiver) = mpsc::channel();
+        let mut handles = Vec::with_capacity(specs.len());
+        for spec in specs {
+            let sender = sender.clone();
+            handles.push((
+                spec.index,
+                spec.progress_agent,
+                scope.spawn(move || {
+                    let result = (spec.load)();
+                    let _ = sender.send((spec.index, spec.agent, spec.progress_agent, result));
+                }),
+            ));
+        }
+        drop(sender);
+
+        let mut loaded = Vec::with_capacity(handles.len());
+        let mut errors = Vec::new();
+        for (index, agent, progress_agent, result) in receiver {
+            match result {
+                Ok(agent_rows) => {
+                    progress.succeed(progress_agent);
+                    loaded.push(LoadedAgentRows {
+                        index,
+                        agent,
+                        agent_rows,
+                    });
+                }
+                Err(error) => {
+                    progress.fail(progress_agent);
+                    errors.push((index, error));
+                }
+            }
+        }
+
+        for (index, progress_agent, handle) in handles {
+            if handle.join().is_err() {
+                progress.fail(progress_agent);
+                errors.push((index, crate::cli_error("agent loader panicked")));
+            }
+        }
+
+        errors.sort_by_key(|(index, _)| *index);
+        if let Some((_, error)) = errors.into_iter().next() {
+            return Err(error);
+        }
+
+        loaded.sort_by_key(|loaded| loaded.index);
+        Ok(loaded)
     })
 }
 
@@ -936,6 +956,72 @@ fn agent_label(agent: &str) -> &str {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::{
+        sync::{
+            atomic::{AtomicUsize, Ordering},
+            Arc,
+        },
+        thread,
+        time::{Duration, Instant},
+    };
+
+    fn test_agent_rows(agent: &'static str) -> AgentRows {
+        AgentRows {
+            rows: vec![AllRow {
+                period: "2026-01-02".to_string(),
+                agent,
+                models_used: Vec::new(),
+                input_tokens: 1,
+                output_tokens: 0,
+                cache_creation_tokens: 0,
+                cache_read_tokens: 0,
+                total_tokens: 1,
+                total_cost: 0.0,
+                metadata: None,
+                metadata_agents: Some(vec![agent]),
+                agent_breakdowns: None,
+            }],
+            detected: true,
+        }
+    }
+
+    #[test]
+    fn loads_agent_rows_concurrently() {
+        let active_loaders = Arc::new(AtomicUsize::new(0));
+        let specs = [
+            ("claude", crate::progress::UsageLoadAgent::Claude),
+            ("codex", crate::progress::UsageLoadAgent::Codex),
+        ]
+        .into_iter()
+        .enumerate()
+        .map(|(index, (agent, progress_agent))| {
+            let active_loaders = Arc::clone(&active_loaders);
+            AgentLoadSpec {
+                index,
+                agent,
+                progress_agent,
+                load: Box::new(move || {
+                    active_loaders.fetch_add(1, Ordering::AcqRel);
+                    let started = Instant::now();
+                    while active_loaders.load(Ordering::Acquire) < 2 {
+                        if started.elapsed() > Duration::from_secs(1) {
+                            return Err(crate::cli_error("agent loaders did not overlap"));
+                        }
+                        thread::sleep(Duration::from_millis(5));
+                    }
+                    Ok(test_agent_rows(agent))
+                }),
+            }
+        })
+        .collect();
+        let mut progress = crate::progress::UsageLoadProgress::new(false);
+
+        let loaded = load_agent_rows_parallel(specs, &mut progress).unwrap();
+
+        assert_eq!(loaded.len(), 2);
+        assert_eq!(loaded[0].agent, "claude");
+        assert_eq!(loaded[1].agent, "codex");
+    }
 
     #[test]
     fn aggregates_daily_agent_rows_by_period() {
