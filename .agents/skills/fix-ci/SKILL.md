@@ -29,9 +29,9 @@ Use this when a PR check fails or the user asks to fix CI. This skill is repo-lo
 
 5. Validate locally with the narrowest command that reproduces the failure, then run the relevant broader checks. Let git hooks run normally.
 
-6. Commit the fix as a small independently revertable commit using the `commit` skill. If the fix requires a manifest or lockfile update, include both in the same commit.
+6. Commit the fix as a small independently revertible commit using the `commit` skill. If the fix requires a manifest or lockfile update, include both in the same commit.
 
-7. Push normally and use `pr-ai-review-workflow` to comment or request another review pass when appropriate.
+7. Push normally and use `create-pr` to comment or request another review pass when appropriate.
 
 ## Notes
 

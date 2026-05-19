@@ -23,7 +23,6 @@ Use these skills before working in this repository:
 - `reduce-similarities` - AST-based duplicate Rust code detection with similarity-rs; TypeScript duplication checks use `ccusage-typescript` and `ast-grep`.
 - `cmux-debug` - terminal UI and responsive table verification in cmux.
 - `create-pr` - single entry point for PR work, from branch creation through AI review requests, review-thread replies, and passing CI.
-- `pr-ai-review-workflow` - helper workflow used by `create-pr` for review-loop mechanics; do not route full PR creation or update work directly to it.
 - `fix-ci` - diagnose and fix failing GitHub Actions checks with `gh`, then push small follow-up commits.
 
 ## Monorepo Packages

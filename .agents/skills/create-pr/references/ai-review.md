@@ -69,6 +69,8 @@ query($owner: String!, $repo: String!, $number: Int!) {
 }'
 ```
 
+Read `gh-review-commands.md` for concrete `gh` commands to request review, list comments, reply to inline review comments, add top-level PR comments, update your own comments, and query review threads.
+
 ## Respond
 
 Classify each bot review item as actionable, a question, a false positive, or informational. Do not silently ignore actionable feedback.
