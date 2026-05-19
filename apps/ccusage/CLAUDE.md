@@ -12,7 +12,6 @@ This is the published `ccusage` npm package. The CLI implementation lives in Rus
 ## Package Notes
 
 - Published bin launcher: `src/cli.ts`
-- Empty library export: `src/index.ts`
 - Rust CLI implementation: `../../rust/crates/ccusage`
 - PR benchmark scripts: `scripts/compare-pr-performance.ts` and `scripts/generate-large-fixture.ts`
 

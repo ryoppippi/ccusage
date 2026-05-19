@@ -16,11 +16,8 @@
 		"url": "https://github.com/ryoppippi/ccusage/issues"
 	},
 	"exports": {
-		".": "./src/index.ts",
 		"./package.json": "./package.json"
 	},
-	"main": "./dist/index.js",
-	"module": "./dist/index.js",
 	"bin": {
 		"ccusage": "./src/cli.ts"
 	},
@@ -33,12 +30,8 @@
 			"ccusage": "./dist/cli.js"
 		},
 		"exports": {
-			".": "./dist/index.js",
 			"./package.json": "./package.json"
 		}
-	},
-	"engines": {
-		"node": ">=22.11.0"
 	},
 	"scripts": {
 		"bench": "node scripts/bench.mjs",
