@@ -127,31 +127,43 @@ bunx ccusage monthly --compact  # Compact monthly report
 
 Full documentation is available at **[ccusage.com](https://ccusage.com/)**
 
-## Development Setup
+## Development
 
-### Using Nix (Recommended for Contributors)
+<details>
+<summary>Nix-based contributor setup</summary>
 
-For contributors and developers working on ccusage, we provide a Nix flake-based development environment:
+Development assumes the Nix flake environment. Install [Nix](https://nixos.org/) with flakes enabled and use [nix-direnv](https://github.com/nix-community/nix-direnv) so the repository dev shell loads automatically when you enter the directory:
 
-```bash
+```sh
 # Clone the repository
 git clone https://github.com/ryoppippi/ccusage.git
 cd ccusage
 
-# Allow direnv (automatically loads Nix environment)
+# Allow direnv to load the Nix dev shell
 direnv allow
+```
 
-# Or manually enter the development shell
+The dev shell provides the pinned `pnpm`, Rust toolchain, GitHub CLI, and project utilities from `flake.nix`. It also installs package dependencies from `pnpm-lock.yaml` when needed.
+
+If you do not use direnv, enter the shell manually:
+
+```sh
 nix develop
 ```
 
-This ensures consistent tooling versions across all contributors and CI systems. The development environment is defined in `flake.nix` and automatically activated via direnv when entering the project directory.
+Run the usual checks from inside the Nix environment:
+
+```sh
+pnpm run format
+pnpm typecheck
+pnpm run test
+```
 
 ### Nix Package
 
 The flake exposes `ccusage` as the default package and app:
 
-```bash
+```sh
 nix run github:ryoppippi/ccusage
 nix run github:ryoppippi/ccusage -- codex daily --offline
 nix build github:ryoppippi/ccusage
@@ -166,6 +178,8 @@ nix flake check
 ```
 
 The scheduled `update pricing` workflow runs the same commands and opens a PR when the locked input changes.
+
+</details>
 
 ## Sponsors
 
