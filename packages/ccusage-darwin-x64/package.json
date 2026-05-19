@@ -1,6 +1,5 @@
 {
 	"name": "@ccusage/ccusage-darwin-x64",
-	"type": "commonjs",
 	"version": "19.0.3",
 	"description": "Native ccusage binary for macOS x64",
 	"license": "MIT",
@@ -18,6 +17,7 @@
 	"cpu": [
 		"x64"
 	],
+	"type": "commonjs",
 	"publishConfig": {
 		"access": "public"
 	},

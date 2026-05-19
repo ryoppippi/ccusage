@@ -1,6 +1,5 @@
 {
 	"name": "@ccusage/ccusage-win32-x64",
-	"type": "commonjs",
 	"version": "19.0.3",
 	"description": "Native ccusage binary for Windows x64",
 	"license": "MIT",
@@ -18,6 +17,7 @@
 	"cpu": [
 		"x64"
 	],
+	"type": "commonjs",
 	"publishConfig": {
 		"access": "public"
 	},
