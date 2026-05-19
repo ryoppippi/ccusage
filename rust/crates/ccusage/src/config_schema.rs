@@ -28,6 +28,8 @@ pub(crate) struct CcusageConfig {
     pub(crate) pi: Option<PiConfig>,
     /// GitHub Copilot CLI configuration.
     pub(crate) copilot: Option<CopilotConfig>,
+    /// Gemini CLI configuration.
+    pub(crate) gemini: Option<GeminiConfig>,
     /// OpenClaw configuration.
     pub(crate) openclaw: Option<OpenClawConfig>,
 }
@@ -132,6 +134,21 @@ pub(crate) struct CopilotConfig {
 #[derive(Debug, Default, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct CopilotCommandsConfig {
+    pub(crate) daily: Option<SharedOptions>,
+    pub(crate) monthly: Option<SharedOptions>,
+    pub(crate) session: Option<SharedOptions>,
+}
+
+#[derive(Debug, Default, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct GeminiConfig {
+    pub(crate) defaults: Option<SharedOptions>,
+    pub(crate) commands: Option<GeminiCommandsConfig>,
+}
+
+#[derive(Debug, Default, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct GeminiCommandsConfig {
     pub(crate) daily: Option<SharedOptions>,
     pub(crate) monthly: Option<SharedOptions>,
     pub(crate) session: Option<SharedOptions>,
@@ -518,6 +535,11 @@ pub(crate) fn generate_config_schema_json() -> String {
                             "speed": "auto"
                         }
                     },
+                    "gemini": {
+                        "defaults": {
+                            "offline": true
+                        }
+                    },
                     "openclaw": {
                         "defaults": {
                             "openClawPath": "/path/to/.openclaw"
@@ -791,6 +813,10 @@ mod tests {
             Some("#/definitions/PiOptions")
         );
         assert_eq!(
+            property_ref(&schema, "GeminiConfig", "defaults"),
+            Some("#/definitions/SharedOptions")
+        );
+        assert_eq!(
             property_ref(&schema, "OpenClawConfig", "defaults"),
             Some("#/definitions/OpenClawOptions")
         );
@@ -817,8 +843,8 @@ mod tests {
             &schema,
             "ccusage-config",
             &[
-                "$schema", "amp", "claude", "codex", "commands", "copilot", "defaults", "opencode",
-                "openclaw", "pi",
+                "$schema", "amp", "claude", "codex", "commands", "copilot", "defaults", "gemini",
+                "opencode", "openclaw", "pi",
             ],
         );
     }
@@ -888,6 +914,13 @@ mod tests {
                 }
             },
             "copilot": {
+                "commands": {
+                    "session": {
+                        "json": true
+                    }
+                }
+            },
+            "gemini": {
                 "commands": {
                     "session": {
                         "json": true

@@ -688,6 +688,33 @@
 			},
 			"type": "object"
 		},
+		"GeminiCommandsConfig": {
+			"additionalProperties": false,
+			"properties": {
+				"daily": {
+					"$ref": "#/definitions/SharedOptions"
+				},
+				"monthly": {
+					"$ref": "#/definitions/SharedOptions"
+				},
+				"session": {
+					"$ref": "#/definitions/SharedOptions"
+				}
+			},
+			"type": "object"
+		},
+		"GeminiConfig": {
+			"additionalProperties": false,
+			"properties": {
+				"commands": {
+					"$ref": "#/definitions/GeminiCommandsConfig"
+				},
+				"defaults": {
+					"$ref": "#/definitions/SharedOptions"
+				}
+			},
+			"type": "object"
+		},
 		"OpenClawCommandsConfig": {
 			"additionalProperties": false,
 			"properties": {
@@ -1377,6 +1404,15 @@
 					"description": "Default values for all-agent reports and legacy Claude commands.",
 					"markdownDescription": "Default values for all-agent reports and legacy Claude commands."
 				},
+				"gemini": {
+					"allOf": [
+						{
+							"$ref": "#/definitions/GeminiConfig"
+						}
+					],
+					"description": "Gemini CLI configuration.",
+					"markdownDescription": "Gemini CLI configuration."
+				},
 				"openclaw": {
 					"allOf": [
 						{
@@ -1432,6 +1468,11 @@
 			"defaults": {
 				"json": false,
 				"timezone": "Asia/Tokyo"
+			},
+			"gemini": {
+				"defaults": {
+					"offline": true
+				}
 			},
 			"openclaw": {
 				"defaults": {

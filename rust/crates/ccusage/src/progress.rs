@@ -8,6 +8,7 @@ pub(crate) enum UsageLoadAgent {
     Amp,
     Pi,
     Copilot,
+    Gemini,
     OpenClaw,
 }
 
@@ -30,6 +31,7 @@ fn agent_label(agent: UsageLoadAgent) -> &'static str {
         UsageLoadAgent::Amp => "Amp",
         UsageLoadAgent::Pi => "pi-agent",
         UsageLoadAgent::Copilot => "GitHub Copilot CLI",
+        UsageLoadAgent::Gemini => "Gemini CLI",
         UsageLoadAgent::OpenClaw => "OpenClaw",
     }
 }

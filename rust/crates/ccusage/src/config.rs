@@ -13,8 +13,7 @@ use crate::{
     config_schema::{
         BlocksSpecificOptions, CodexOptions, ConfigCodexSpeed, ConfigCostMode, ConfigCostSource,
         ConfigSortOrder, ConfigVisualBurnRate, ConfigWeekDay, DailySpecificOptions,
-        OpenClawOptions, PiOptions, SharedOptions, StatuslineSpecificOptions,
-        WeeklySpecificOptions,
+        OpenClawOptions, PiOptions, SharedOptions, StatuslineSpecificOptions, WeeklySpecificOptions,
     },
 };
 
@@ -234,7 +233,7 @@ fn option_takes_value(arg: &str) -> bool {
 fn is_agent_command(command: &str) -> bool {
     matches!(
         command,
-        "claude" | "codex" | "opencode" | "amp" | "pi" | "copilot" | "openclaw"
+        "claude" | "codex" | "opencode" | "amp" | "pi" | "copilot" | "gemini" | "openclaw"
     )
 }
 

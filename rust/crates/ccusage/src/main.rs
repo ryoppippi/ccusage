@@ -133,6 +133,7 @@ fn main() -> Result<()> {
         Some(Command::Amp(args)) => adapter::amp::run(args),
         Some(Command::Pi(args)) => adapter::pi::run(args),
         Some(Command::Copilot(args)) => adapter::copilot::run(args),
+        Some(Command::Gemini(args)) => adapter::gemini::run(args),
         Some(Command::OpenClaw(args)) => adapter::openclaw::run(args),
         None => {
             let args = AgentCommandArgs {
