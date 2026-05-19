@@ -137,7 +137,7 @@ fn load_entries_inner(shared: &SharedArgs, pricing: &PricingMap) -> Result<Vec<L
     parsed.sort_by_key(|entry| entry.timestamp);
     let mut seen_sessions = HashSet::new();
     let mut entries = Vec::new();
-    for entry in parsed {
+    for entry in parsed.into_iter().rev() {
         if !seen_sessions.insert(entry.session_id.clone()) {
             continue;
         }
@@ -597,6 +597,45 @@ mod tests {
             entries[0].data.message.model.as_deref(),
             Some("claude-opus-4-5-thinking")
         );
+    }
+
+    #[test]
+    fn keeps_latest_snapshot_for_duplicate_session_ids() {
+        let _guard = ENV_LOCK.lock().unwrap();
+        let dir = temp_dir("dedupe-latest");
+        let archive_dir = dir.join("archive");
+        fs::create_dir_all(&archive_dir).unwrap();
+        fs::write(
+            archive_dir.join("session-c.settings.json"),
+            r#"{
+                "model": "gpt-5",
+                "providerLock": "openai",
+                "providerLockTimestamp": "2026-05-01T01:02:03.000Z",
+                "tokenUsage": {"inputTokens": 10, "outputTokens": 20}
+            }"#,
+        )
+        .unwrap();
+        fs::write(
+            dir.join("session-c.settings.json"),
+            r#"{
+                "model": "gpt-5",
+                "providerLock": "openai",
+                "providerLockTimestamp": "2026-05-02T01:02:03.000Z",
+                "tokenUsage": {"inputTokens": 100, "outputTokens": 200}
+            }"#,
+        )
+        .unwrap();
+        env::set_var(DROID_SESSIONS_DIR_ENV, &dir);
+
+        let pricing = PricingMap::load_embedded();
+        let entries = load_entries(&SharedArgs::default(), &pricing).unwrap();
+        env::remove_var(DROID_SESSIONS_DIR_ENV);
+        fs::remove_dir_all(&dir).unwrap();
+
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].session_id.as_ref(), "session-c");
+        assert_eq!(entries[0].data.message.usage.input_tokens, 100);
+        assert_eq!(entries[0].data.message.usage.output_tokens, 200);
     }
 
     #[test]
