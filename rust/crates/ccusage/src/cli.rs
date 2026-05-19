@@ -1102,6 +1102,112 @@ mod tests {
     }
 
     #[test]
+    fn applies_config_file_passed_after_agent_command() {
+        let path = temp_config_path("codex-postfix");
+        fs::write(
+            &path,
+            r#"{
+                "$schema": "https://ccusage.com/config-schema.json",
+                "defaults": {
+                    "json": true,
+                    "timezone": "Asia/Tokyo"
+                },
+                "codex": {
+                    "commands": {
+                        "monthly": {
+                            "speed": "standard",
+                            "since": "20260101"
+                        }
+                    }
+                }
+            }"#,
+        )
+        .unwrap();
+        let path = path.to_string_lossy().to_string();
+
+        let cli = parse(&["ccusage", "codex", "monthly", "--config", path.as_str()]);
+        let Some(Command::Codex(args)) = cli.command else {
+            panic!("expected codex command");
+        };
+        assert_eq!(args.kind, AgentReportKind::Monthly);
+        assert!(args.shared.json);
+        assert_eq!(args.shared.timezone.as_deref(), Some("Asia/Tokyo"));
+        assert_eq!(args.shared.since.as_deref(), Some("20260101"));
+        assert_eq!(args.codex_speed, CodexSpeed::Standard);
+    }
+
+    #[test]
+    fn applies_schema_documented_config_file_options() {
+        let path = temp_config_path("schema-documented");
+        fs::write(
+            &path,
+            r#"{
+                "$schema": "https://ccusage.com/config-schema.json",
+                "defaults": {
+                    "json": true,
+                    "compact": true
+                },
+                "claude": {
+                    "commands": {
+                        "weekly": {
+                            "startOfWeek": "monday"
+                        },
+                        "blocks": {
+                            "active": true,
+                            "tokenLimit": "500000",
+                            "sessionLength": 6
+                        },
+                        "statusline": {
+                            "visualBurnRate": "emoji-text",
+                            "costSource": "both",
+                            "refreshInterval": 3
+                        }
+                    }
+                },
+                "pi": {
+                    "commands": {
+                        "daily": {
+                            "piPath": "/tmp/pi-sessions"
+                        }
+                    }
+                }
+            }"#,
+        )
+        .unwrap();
+        let path = path.to_string_lossy().to_string();
+
+        let cli = parse(&["ccusage", "claude", "weekly", "--config", path.as_str()]);
+        let Some(Command::Weekly(args)) = cli.command else {
+            panic!("expected weekly command");
+        };
+        assert!(args.shared.json);
+        assert!(args.shared.compact);
+        assert_eq!(args.start_of_week, WeekDay::Monday);
+
+        let cli = parse(&["ccusage", "claude", "blocks", "--config", path.as_str()]);
+        let Some(Command::Blocks(args)) = cli.command else {
+            panic!("expected blocks command");
+        };
+        assert!(args.active);
+        assert_eq!(args.token_limit.as_deref(), Some("500000"));
+        assert_eq!(args.session_length, 6.0);
+
+        let cli = parse(&["ccusage", "claude", "statusline", "--config", path.as_str()]);
+        let Some(Command::Statusline(args)) = cli.command else {
+            panic!("expected statusline command");
+        };
+        assert_eq!(args.visual_burn_rate, VisualBurnRate::EmojiText);
+        assert_eq!(args.cost_source, CostSource::Both);
+        assert_eq!(args.refresh_interval, 3);
+
+        let cli = parse(&["ccusage", "pi", "daily", "--config", path.as_str()]);
+        let Some(Command::Pi(args)) = cli.command else {
+            panic!("expected pi command");
+        };
+        assert_eq!(args.pi_path.as_deref(), Some("/tmp/pi-sessions"));
+    }
+
+    #[test]
     fn help_lists_agent_namespace_commands() {
         let help = help_text();
         assert!(help.contains("\n  claude\n"));

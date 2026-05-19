@@ -7,6 +7,7 @@ mod cli;
 mod codex_loader;
 mod commands;
 mod config;
+mod config_schema;
 mod cost;
 mod date_utils;
 mod home;
