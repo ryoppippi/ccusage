@@ -46,7 +46,7 @@ fn load_daily_summaries_inner(
     group_by_project: bool,
 ) -> Result<Vec<UsageSummary>> {
     let paths = claude_paths()?;
-    let files = usage_files(&paths);
+    let files = usage_files(&paths, project_filter);
     if files.is_empty() {
         return Ok(Vec::new());
     }
@@ -118,7 +118,7 @@ fn load_entries_inner(
                 .join(", ")
         ),
     );
-    let files = usage_files(&paths);
+    let files = usage_files(&paths, project_filter);
     debug_log(shared, format!("Found {} JSONL usage files", files.len()));
     if files.is_empty() {
         return Ok(Vec::new());
@@ -905,13 +905,28 @@ fn expand_home_path(raw: &str) -> PathBuf {
     PathBuf::from(raw)
 }
 
-pub(crate) fn usage_files(paths: &[PathBuf]) -> Vec<PathBuf> {
+pub(crate) fn usage_files(paths: &[PathBuf], project_filter: Option<&str>) -> Vec<PathBuf> {
     let mut files = Vec::new();
     for path in paths {
-        collect_usage_files(&path.join("projects"), &mut files);
+        let projects_dir = path.join("projects");
+        if let Some(project_filter) =
+            project_filter.filter(|filter| is_project_path_segment(filter))
+        {
+            collect_usage_files(&projects_dir.join(project_filter), &mut files);
+        } else {
+            collect_usage_files(&projects_dir, &mut files);
+        }
     }
     files.sort_by_cached_key(|path| path.to_string_lossy().into_owned());
     files
+}
+
+fn is_project_path_segment(value: &str) -> bool {
+    !value.is_empty()
+        && value != "."
+        && value != ".."
+        && !value.contains('/')
+        && !value.contains('\\')
 }
 
 pub(crate) fn collect_usage_files(dir: &Path, files: &mut Vec<PathBuf>) {
@@ -1016,9 +1031,64 @@ pub(crate) fn extract_session_parts(path: &Path) -> (String, String) {
 
 #[cfg(test)]
 mod tests {
-    use std::path::Path;
+    use std::{fs, path::Path};
 
-    use super::{extract_session_parts, has_unsupported_null_field};
+    use super::{
+        extract_session_parts, has_unsupported_null_field, is_project_path_segment, usage_files,
+    };
+
+    fn temp_claude_dir(name: &str) -> std::path::PathBuf {
+        let nanos = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let dir = std::env::temp_dir().join(format!("ccusage-claude-loader-{name}-{nanos}"));
+        fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    #[test]
+    fn limits_usage_file_discovery_to_requested_project() {
+        let dir = temp_claude_dir("project-filter");
+        let project_a = dir.join("projects/project-a/session-a");
+        let project_b = dir.join("projects/project-b/session-b");
+        fs::create_dir_all(&project_a).unwrap();
+        fs::create_dir_all(&project_b).unwrap();
+        fs::write(project_a.join("a.jsonl"), "{}").unwrap();
+        fs::write(project_b.join("b.jsonl"), "{}").unwrap();
+
+        let files = usage_files(std::slice::from_ref(&dir), Some("project-a"));
+        fs::remove_dir_all(&dir).unwrap();
+
+        assert_eq!(files.len(), 1);
+        assert!(files[0].to_string_lossy().contains("project-a"));
+    }
+
+    #[test]
+    fn falls_back_to_full_discovery_for_non_segment_project_filter() {
+        let dir = temp_claude_dir("project-filter-fallback");
+        let project_a = dir.join("projects/project-a/session-a");
+        let project_b = dir.join("projects/project-b/session-b");
+        fs::create_dir_all(&project_a).unwrap();
+        fs::create_dir_all(&project_b).unwrap();
+        fs::write(project_a.join("a.jsonl"), "{}").unwrap();
+        fs::write(project_b.join("b.jsonl"), "{}").unwrap();
+
+        let files = usage_files(std::slice::from_ref(&dir), Some("project-a/session-a"));
+        fs::remove_dir_all(&dir).unwrap();
+
+        assert_eq!(files.len(), 2);
+    }
+
+    #[test]
+    fn rejects_dot_segments_as_project_path_segments() {
+        assert!(!is_project_path_segment(""));
+        assert!(!is_project_path_segment("."));
+        assert!(!is_project_path_segment(".."));
+        assert!(!is_project_path_segment("project-a/session-a"));
+        assert!(!is_project_path_segment("project-a\\session-a"));
+        assert!(is_project_path_segment("project-a"));
+    }
 
     #[test]
     fn extracts_file_session_from_modern_claude_project_path() {
