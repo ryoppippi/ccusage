@@ -305,6 +305,7 @@ fn to_loaded_entry(
         extra_total_tokens: entry.reasoning_tokens,
         model: Some(entry.model),
         usage_limit_reset_time: None,
+        message_count: None,
         data,
     }
 }
@@ -630,6 +631,7 @@ mod tests {
             extra_total_tokens: 5,
             model: Some("claude-sonnet-4".to_string()),
             usage_limit_reset_time: None,
+            message_count: None,
         };
         let rows = summarize_entries(&[entry], AgentReportKind::Daily).unwrap();
         let report = report_from_rows(&rows, AgentReportKind::Daily);

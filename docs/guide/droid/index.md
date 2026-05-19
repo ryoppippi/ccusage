@@ -1,4 +1,4 @@
-# Droid Data Source (Beta)
+# Droid Data Source (Experimental)
 
 > Droid support is experimental. Expect breaking changes while both ccusage and Droid continue to evolve.
 
