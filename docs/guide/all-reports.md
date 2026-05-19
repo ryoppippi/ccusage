@@ -81,3 +81,4 @@ ccusage gemini session --json
 - [Monthly Usage](/guide/monthly-reports) - Longer-term usage trends
 - [Session Usage](/guide/session-reports) - Per-conversation usage
 - [Data Sources](/guide/#data-sources) - Supported local data formats
+- [Source Support Q&A](/guide/source-support-qa) - Why some investigated CLIs are not supported
