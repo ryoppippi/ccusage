@@ -46,7 +46,7 @@ fn load_daily_summaries_inner(
     group_by_project: bool,
 ) -> Result<Vec<UsageSummary>> {
     let paths = claude_paths()?;
-    let files = usage_files(&paths);
+    let files = usage_files(&paths, project_filter);
     if files.is_empty() {
         return Ok(Vec::new());
     }
@@ -118,7 +118,7 @@ fn load_entries_inner(
                 .join(", ")
         ),
     );
-    let files = usage_files(&paths);
+    let files = usage_files(&paths, project_filter);
     debug_log(shared, format!("Found {} JSONL usage files", files.len()));
     if files.is_empty() {
         return Ok(Vec::new());
@@ -575,6 +575,8 @@ fn push_deduped_daily_entry(
         let existing_total = daily_usage_token_total(&deduped[index]);
         let should_replace = if candidate_total != existing_total {
             candidate_total > existing_total
+        } else if entry.cost != deduped[index].cost {
+            entry.cost > deduped[index].cost
         } else {
             entry.usage.speed.is_some() && deduped[index].usage.speed.is_none()
         };
@@ -661,6 +663,7 @@ impl DailyAccumulator {
             extra_total_tokens: 0,
             total_cost: self.cost,
             credits: None,
+            message_count: None,
             models_used: self.models,
             model_breakdowns: self.breakdowns,
             project: None,
@@ -728,6 +731,7 @@ fn read_usage_file(
             cost,
             extra_total_tokens: 0,
             credits: None,
+            message_count: None,
             model,
             usage_limit_reset_time,
         });
@@ -905,13 +909,28 @@ fn expand_home_path(raw: &str) -> PathBuf {
     PathBuf::from(raw)
 }
 
-pub(crate) fn usage_files(paths: &[PathBuf]) -> Vec<PathBuf> {
+pub(crate) fn usage_files(paths: &[PathBuf], project_filter: Option<&str>) -> Vec<PathBuf> {
     let mut files = Vec::new();
     for path in paths {
-        collect_usage_files(&path.join("projects"), &mut files);
+        let projects_dir = path.join("projects");
+        if let Some(project_filter) =
+            project_filter.filter(|filter| is_project_path_segment(filter))
+        {
+            collect_usage_files(&projects_dir.join(project_filter), &mut files);
+        } else {
+            collect_usage_files(&projects_dir, &mut files);
+        }
     }
     files.sort_by_cached_key(|path| path.to_string_lossy().into_owned());
     files
+}
+
+fn is_project_path_segment(value: &str) -> bool {
+    !value.is_empty()
+        && value != "."
+        && value != ".."
+        && !value.contains('/')
+        && !value.contains('\\')
 }
 
 pub(crate) fn collect_usage_files(dir: &Path, files: &mut Vec<PathBuf>) {
@@ -1015,10 +1034,100 @@ pub(crate) fn extract_session_parts(path: &Path) -> (String, String) {
 }
 
 #[cfg(test)]
-mod tests {
-    use std::path::Path;
+pub(crate) fn usage_limit_reset_time_from_line(
+    line: &str,
+    is_api_error_message: Option<bool>,
+) -> Option<TimestampMs> {
+    usage_limit_reset_time_from_line_bytes(line.as_bytes(), is_api_error_message)
+}
 
-    use super::{extract_session_parts, has_unsupported_null_field};
+fn usage_limit_reset_time_from_line_bytes(
+    line: &[u8],
+    is_api_error_message: Option<bool>,
+) -> Option<TimestampMs> {
+    if is_api_error_message != Some(true) {
+        return None;
+    }
+    let marker = b"Claude AI usage limit reached";
+    let marker_start = memmem::find(line, marker)?;
+    let timestamp_start = memchr::memchr(b'|', &line[marker_start..])? + marker_start + 1;
+    let timestamp_end = line[timestamp_start..]
+        .iter()
+        .position(|byte| !byte.is_ascii_digit())
+        .map_or(line.len(), |offset| timestamp_start + offset);
+    if timestamp_start == timestamp_end {
+        return None;
+    }
+    let timestamp = std::str::from_utf8(&line[timestamp_start..timestamp_end])
+        .ok()?
+        .parse::<i64>()
+        .ok()?;
+    if timestamp <= 0 {
+        return None;
+    }
+    TimestampMs::from_unix_seconds(timestamp)
+}
+
+#[cfg(test)]
+mod tests {
+    use std::{fs, path::Path};
+
+    use super::{
+        extract_session_parts, has_unsupported_null_field, is_project_path_segment, usage_files,
+    };
+
+    fn temp_claude_dir(name: &str) -> std::path::PathBuf {
+        let nanos = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let dir = std::env::temp_dir().join(format!("ccusage-claude-loader-{name}-{nanos}"));
+        fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    #[test]
+    fn limits_usage_file_discovery_to_requested_project() {
+        let dir = temp_claude_dir("project-filter");
+        let project_a = dir.join("projects/project-a/session-a");
+        let project_b = dir.join("projects/project-b/session-b");
+        fs::create_dir_all(&project_a).unwrap();
+        fs::create_dir_all(&project_b).unwrap();
+        fs::write(project_a.join("a.jsonl"), "{}").unwrap();
+        fs::write(project_b.join("b.jsonl"), "{}").unwrap();
+
+        let files = usage_files(std::slice::from_ref(&dir), Some("project-a"));
+        fs::remove_dir_all(&dir).unwrap();
+
+        assert_eq!(files.len(), 1);
+        assert!(files[0].to_string_lossy().contains("project-a"));
+    }
+
+    #[test]
+    fn falls_back_to_full_discovery_for_non_segment_project_filter() {
+        let dir = temp_claude_dir("project-filter-fallback");
+        let project_a = dir.join("projects/project-a/session-a");
+        let project_b = dir.join("projects/project-b/session-b");
+        fs::create_dir_all(&project_a).unwrap();
+        fs::create_dir_all(&project_b).unwrap();
+        fs::write(project_a.join("a.jsonl"), "{}").unwrap();
+        fs::write(project_b.join("b.jsonl"), "{}").unwrap();
+
+        let files = usage_files(std::slice::from_ref(&dir), Some("project-a/session-a"));
+        fs::remove_dir_all(&dir).unwrap();
+
+        assert_eq!(files.len(), 2);
+    }
+
+    #[test]
+    fn rejects_dot_segments_as_project_path_segments() {
+        assert!(!is_project_path_segment(""));
+        assert!(!is_project_path_segment("."));
+        assert!(!is_project_path_segment(".."));
+        assert!(!is_project_path_segment("project-a/session-a"));
+        assert!(!is_project_path_segment("project-a\\session-a"));
+        assert!(is_project_path_segment("project-a"));
+    }
 
     #[test]
     fn extracts_file_session_from_modern_claude_project_path() {
@@ -1069,39 +1178,4 @@ mod tests {
             br#"{"message":{"content":null,"usage":{"input_tokens":0}}}"#
         ));
     }
-}
-
-#[cfg(test)]
-pub(crate) fn usage_limit_reset_time_from_line(
-    line: &str,
-    is_api_error_message: Option<bool>,
-) -> Option<TimestampMs> {
-    usage_limit_reset_time_from_line_bytes(line.as_bytes(), is_api_error_message)
-}
-
-fn usage_limit_reset_time_from_line_bytes(
-    line: &[u8],
-    is_api_error_message: Option<bool>,
-) -> Option<TimestampMs> {
-    if is_api_error_message != Some(true) {
-        return None;
-    }
-    let marker = b"Claude AI usage limit reached";
-    let marker_start = memmem::find(line, marker)?;
-    let timestamp_start = memchr::memchr(b'|', &line[marker_start..])? + marker_start + 1;
-    let timestamp_end = line[timestamp_start..]
-        .iter()
-        .position(|byte| !byte.is_ascii_digit())
-        .map_or(line.len(), |offset| timestamp_start + offset);
-    if timestamp_start == timestamp_end {
-        return None;
-    }
-    let timestamp = std::str::from_utf8(&line[timestamp_start..timestamp_end])
-        .ok()?
-        .parse::<i64>()
-        .ok()?;
-    if timestamp <= 0 {
-        return None;
-    }
-    TimestampMs::from_unix_seconds(timestamp)
 }

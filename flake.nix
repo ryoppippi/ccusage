@@ -51,6 +51,8 @@
             src = ./rust;
             filter = path: type:
               (craneLib.filterCargoSources path type)
+              || pkgs.lib.hasSuffix "/cli-help.json" path
+              || pkgs.lib.hasSuffix "/fast-multiplier-overrides.json" path
               || pkgs.lib.hasSuffix "/litellm-pricing-fallback.json" path;
           };
           commonArgs = {

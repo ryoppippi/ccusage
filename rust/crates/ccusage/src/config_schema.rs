@@ -24,8 +24,12 @@ pub(crate) struct CcusageConfig {
     pub(crate) opencode: Option<OpenCodeConfig>,
     /// Amp configuration.
     pub(crate) amp: Option<AmpConfig>,
+    /// Hermes Agent configuration.
+    pub(crate) hermes: Option<HermesConfig>,
     /// pi-agent configuration.
     pub(crate) pi: Option<PiConfig>,
+    /// Kilo configuration.
+    pub(crate) kilo: Option<KiloConfig>,
     /// GitHub Copilot CLI configuration.
     pub(crate) copilot: Option<CopilotConfig>,
     /// Gemini CLI configuration.
@@ -111,6 +115,21 @@ pub(crate) struct AmpCommandsConfig {
 
 #[derive(Debug, Default, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
+pub(crate) struct HermesConfig {
+    pub(crate) defaults: Option<SharedOptions>,
+    pub(crate) commands: Option<HermesCommandsConfig>,
+}
+
+#[derive(Debug, Default, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct HermesCommandsConfig {
+    pub(crate) daily: Option<SharedOptions>,
+    pub(crate) monthly: Option<SharedOptions>,
+    pub(crate) session: Option<SharedOptions>,
+}
+
+#[derive(Debug, Default, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
 pub(crate) struct PiConfig {
     pub(crate) defaults: Option<PiOptions>,
     pub(crate) commands: Option<PiCommandsConfig>,
@@ -122,6 +141,21 @@ pub(crate) struct PiCommandsConfig {
     pub(crate) daily: Option<PiOptions>,
     pub(crate) monthly: Option<PiOptions>,
     pub(crate) session: Option<PiOptions>,
+}
+
+#[derive(Debug, Default, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct KiloConfig {
+    pub(crate) defaults: Option<SharedOptions>,
+    pub(crate) commands: Option<KiloCommandsConfig>,
+}
+
+#[derive(Debug, Default, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct KiloCommandsConfig {
+    pub(crate) daily: Option<SharedOptions>,
+    pub(crate) monthly: Option<SharedOptions>,
+    pub(crate) session: Option<SharedOptions>,
 }
 
 #[derive(Debug, Default, Deserialize, JsonSchema)]
@@ -336,7 +370,7 @@ pub(crate) struct PiOptions {
 pub(crate) struct OpenClawOptions {
     #[serde(flatten)]
     pub(crate) shared: SharedOptions,
-    /// Path or comma-separated paths to OpenClaw root directories.
+    /// Path or comma-separated paths to OpenClaw data directories.
     pub(crate) open_claw_path: Option<String>,
 }
 
@@ -538,11 +572,6 @@ pub(crate) fn generate_config_schema_json() -> String {
                     "gemini": {
                         "defaults": {
                             "offline": true
-                        }
-                    },
-                    "openclaw": {
-                        "defaults": {
-                            "openClawPath": "/path/to/.openclaw"
                         }
                     }
                 }
@@ -813,6 +842,10 @@ mod tests {
             Some("#/definitions/PiOptions")
         );
         assert_eq!(
+            property_ref(&schema, "KiloConfig", "defaults"),
+            Some("#/definitions/SharedOptions")
+        );
+        assert_eq!(
             property_ref(&schema, "GeminiConfig", "defaults"),
             Some("#/definitions/SharedOptions")
         );
@@ -844,7 +877,7 @@ mod tests {
             "ccusage-config",
             &[
                 "$schema", "amp", "claude", "codex", "commands", "copilot", "defaults", "gemini",
-                "opencode", "openclaw", "pi",
+                "hermes", "kilo", "opencode", "openclaw", "pi",
             ],
         );
     }
@@ -913,6 +946,20 @@ mod tests {
                     }
                 }
             },
+            "hermes": {
+                "commands": {
+                    "daily": {
+                        "json": true
+                    }
+                }
+            },
+            "kilo": {
+                "commands": {
+                    "daily": {
+                        "json": true
+                    }
+                }
+            },
             "copilot": {
                 "commands": {
                     "session": {
@@ -924,13 +971,6 @@ mod tests {
                 "commands": {
                     "session": {
                         "json": true
-                    }
-                }
-            },
-            "openclaw": {
-                "commands": {
-                    "daily": {
-                        "openClawPath": "/tmp/openclaw"
                     }
                 }
             }

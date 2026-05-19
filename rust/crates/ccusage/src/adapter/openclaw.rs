@@ -363,6 +363,7 @@ fn openclaw_entry_to_loaded(entry: OpenClawEntry, tz: Option<&JiffTimeZone>) -> 
                 + entry.cache_read_tokens,
         ),
         credits: None,
+        message_count: None,
         model: Some(entry.model),
         data,
         usage_limit_reset_time: None,

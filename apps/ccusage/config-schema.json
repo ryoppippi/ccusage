@@ -522,27 +522,56 @@
 			"type": "object"
 		},
 		"ConfigCodexSpeed": {
-			"enum": ["auto", "standard", "fast"],
+			"enum": [
+				"auto",
+				"standard",
+				"fast"
+			],
 			"type": "string"
 		},
 		"ConfigCostMode": {
-			"enum": ["auto", "calculate", "display"],
+			"enum": [
+				"auto",
+				"calculate",
+				"display"
+			],
 			"type": "string"
 		},
 		"ConfigCostSource": {
-			"enum": ["auto", "ccusage", "cc", "both"],
+			"enum": [
+				"auto",
+				"ccusage",
+				"cc",
+				"both"
+			],
 			"type": "string"
 		},
 		"ConfigSortOrder": {
-			"enum": ["desc", "asc"],
+			"enum": [
+				"desc",
+				"asc"
+			],
 			"type": "string"
 		},
 		"ConfigVisualBurnRate": {
-			"enum": ["off", "emoji", "text", "emoji-text"],
+			"enum": [
+				"off",
+				"emoji",
+				"text",
+				"emoji-text"
+			],
 			"type": "string"
 		},
 		"ConfigWeekDay": {
-			"enum": ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"],
+			"enum": [
+				"sunday",
+				"monday",
+				"tuesday",
+				"wednesday",
+				"thursday",
+				"friday",
+				"saturday"
+			],
 			"type": "string"
 		},
 		"CopilotCommandsConfig": {
@@ -715,6 +744,60 @@
 			},
 			"type": "object"
 		},
+		"HermesCommandsConfig": {
+			"additionalProperties": false,
+			"properties": {
+				"daily": {
+					"$ref": "#/definitions/SharedOptions"
+				},
+				"monthly": {
+					"$ref": "#/definitions/SharedOptions"
+				},
+				"session": {
+					"$ref": "#/definitions/SharedOptions"
+				}
+			},
+			"type": "object"
+		},
+		"HermesConfig": {
+			"additionalProperties": false,
+			"properties": {
+				"commands": {
+					"$ref": "#/definitions/HermesCommandsConfig"
+				},
+				"defaults": {
+					"$ref": "#/definitions/SharedOptions"
+				}
+			},
+			"type": "object"
+		},
+		"KiloCommandsConfig": {
+			"additionalProperties": false,
+			"properties": {
+				"daily": {
+					"$ref": "#/definitions/SharedOptions"
+				},
+				"monthly": {
+					"$ref": "#/definitions/SharedOptions"
+				},
+				"session": {
+					"$ref": "#/definitions/SharedOptions"
+				}
+			},
+			"type": "object"
+		},
+		"KiloConfig": {
+			"additionalProperties": false,
+			"properties": {
+				"commands": {
+					"$ref": "#/definitions/KiloCommandsConfig"
+				},
+				"defaults": {
+					"$ref": "#/definitions/SharedOptions"
+				}
+			},
+			"type": "object"
+		},
 		"OpenClawCommandsConfig": {
 			"additionalProperties": false,
 			"properties": {
@@ -812,8 +895,8 @@
 					"type": "boolean"
 				},
 				"openClawPath": {
-					"description": "Path or comma-separated paths to OpenClaw root directories.",
-					"markdownDescription": "Path or comma-separated paths to OpenClaw root directories.",
+					"description": "Path or comma-separated paths to OpenClaw data directories.",
+					"markdownDescription": "Path or comma-separated paths to OpenClaw data directories.",
 					"type": "string"
 				},
 				"order": {
@@ -1413,6 +1496,24 @@
 					"description": "Gemini CLI configuration.",
 					"markdownDescription": "Gemini CLI configuration."
 				},
+				"hermes": {
+					"allOf": [
+						{
+							"$ref": "#/definitions/HermesConfig"
+						}
+					],
+					"description": "Hermes Agent configuration.",
+					"markdownDescription": "Hermes Agent configuration."
+				},
+				"kilo": {
+					"allOf": [
+						{
+							"$ref": "#/definitions/KiloConfig"
+						}
+					],
+					"description": "Kilo configuration.",
+					"markdownDescription": "Kilo configuration."
+				},
 				"openclaw": {
 					"allOf": [
 						{
@@ -1472,11 +1573,6 @@
 			"gemini": {
 				"defaults": {
 					"offline": true
-				}
-			},
-			"openclaw": {
-				"defaults": {
-					"openClawPath": "/path/to/.openclaw"
 				}
 			}
 		}

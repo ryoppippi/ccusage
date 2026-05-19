@@ -1,6 +1,6 @@
-# OpenClaw Data Source (Beta)
+# OpenClaw Data Source (Experimental)
 
-ccusage can read OpenClaw session data as one of its supported local data sources. OpenClaw is a multi-provider coding agent that stores per-message token usage and embedded cost data in JSONL session files.
+ccusage can experimentally read OpenClaw session data as one of its supported local data sources. OpenClaw is a multi-provider coding agent that stores per-message token usage and embedded cost data in JSONL session files.
 
 ## What is OpenClaw?
 
