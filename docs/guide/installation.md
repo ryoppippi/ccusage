@@ -2,14 +2,14 @@
 
 ccusage can be installed and used in several ways depending on your preferences and use case.
 
-## Why No Installation Needed?
+## Why Direct Execution Works Well
 
-Thanks to ccusage's incredibly small bundle size, you don't need to install it globally. Unlike other CLI tools, we pay extreme attention to bundle size optimization, achieving an impressively small footprint even without minification. This means:
+You do not need to install ccusage globally before trying it. Direct package runners and Nix both work well for ad hoc usage:
 
-- ✅ Near-instant startup times
-- ✅ Minimal download overhead
-- ✅ Always use the latest version
-- ✅ No global pollution of your system
+- ✅ No global package to manage
+- ✅ Easy access to the latest published version
+- ✅ Cached package downloads after the first run
+- ✅ Reproducible Nix builds when using the flake
 
 ## Quick Start (Recommended)
 
@@ -19,6 +19,10 @@ The fastest way to use ccusage is to run it directly:
 
 ```bash [bunx (Recommended)]
 bunx ccusage
+```
+
+```bash [Nix]
+nix run github:ryoppippi/ccusage -- daily
 ```
 
 ```bash [pnpm]
@@ -53,7 +57,7 @@ Here's why runtime choice matters:
 
 ## Global Installation (Optional)
 
-While not necessary due to our small bundle size, you can still install ccusage globally if you prefer:
+You can install ccusage globally if you prefer a persistent command:
 
 ::: code-group
 
@@ -99,6 +103,26 @@ pnpm install
 pnpm --filter ccusage start daily
 pnpm --filter ccusage start monthly --json
 ```
+
+## Nix Flake
+
+The repository exposes `ccusage` as the default Nix package and app:
+
+```bash
+nix run github:ryoppippi/ccusage
+nix run github:ryoppippi/ccusage -- codex daily --offline
+nix build github:ryoppippi/ccusage
+```
+
+The Nix package embeds LiteLLM pricing from the locked `litellm-pricing` flake input instead of fetching it during sandboxed builds. Maintainers can update that locked input and the non-Nix Cargo fallback JSON with:
+
+```bash
+nix flake update litellm-pricing
+nix run .#update-pricing-fallback
+nix flake check
+```
+
+The scheduled `update pricing` workflow runs the same commands and opens a PR when the locked input changes.
 
 ### Development Scripts
 

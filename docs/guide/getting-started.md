@@ -17,6 +17,10 @@ The fastest way to try ccusage is to run it directly without installation:
 bunx ccusage
 ```
 
+```bash [Nix]
+nix run github:ryoppippi/ccusage -- daily
+```
+
 ```bash [npx]
 npx ccusage@latest
 ```
