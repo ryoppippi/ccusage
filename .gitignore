@@ -5,6 +5,7 @@ node_modules
 out
 dist
 *.tgz
+packages/ccusage-*/bin/
 
 # code coverage
 coverage
