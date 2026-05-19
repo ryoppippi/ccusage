@@ -1133,7 +1133,7 @@ fn agent_help(agent: &str, commands: &[(&str, &str)]) -> String {
 }
 
 fn root_help_text() -> String {
-    [
+    let mut lines = [
         "USAGE:",
         "  ccusage [daily] <OPTIONS>",
         "  ccusage <COMMANDS>",
@@ -1192,9 +1192,11 @@ fn root_help_text() -> String {
         "  ccusage pi monthly --help",
         "  ccusage pi session --help",
         "",
-        all_agent_options(),
     ]
-    .join("\n")
+    .map(str::to_string)
+    .to_vec();
+    lines.push(all_agent_options().to_string());
+    lines.join("\n")
 }
 
 fn all_report_help(report: &str) -> String {
@@ -1336,45 +1338,7 @@ fn command_options(parts: &[&str]) -> String {
     format!("OPTIONS:\n{option_lines}")
 }
 
-fn all_agent_options() -> &'static str {
-    "OPTIONS:\n  -j, --json                         Output in JSON format (default: false)\n  -s, --since <since>                Filter from date (YYYY-MM-DD or YYYYMMDD)\n  -u, --until <until>                Filter until date (inclusive)\n  -z, --timezone <timezone>          Timezone for date grouping (IANA)\n  --all                              Accepted for compatibility; all detected supported agents are included by default (default: false)\n  --compact                          Force compact table layout for narrow terminals (default: false)\n  -O, --offline                      Use cached pricing data where supported (default: false)\n  --no-offline                       Negatable of -O, --offline\n  --color                            Enable colored output (default: auto). FORCE_COLOR=1 has the same effect.\n  --no-color                         Disable colored output (default: auto). NO_COLOR=1 has the same effect.\n  --config <config>                  Path to configuration file (default: auto-discovery)\n  -h, --help                         Display this help message\n  -v, --version                      Display this version"
-}
-
-fn shared_claude_options() -> &'static str {
-    "OPTIONS:\n  -s, --since <since>                          Filter from date (YYYYMMDD format)\n  -u, --until <until>                          Filter until date (YYYYMMDD format)\n  -j, --json                                   Output in JSON format (default: false)\n  -m, --mode [mode]                            Cost calculation mode: auto (use costUSD if exists, otherwise calculate), calculate (always calculate), display (always use costUSD) (default: auto, choices: auto | calculate | display)\n  -d, --debug                                  Show pricing mismatch information for debugging (default: false)\n  --debug-samples [debug-samples]              Number of sample discrepancies to show in debug output (default: 5)\n  -o, --order [order]                          Sort order: desc (newest first) or asc (oldest first) (default: asc, choices: desc | asc)\n  -b, --breakdown                              Show per-model cost breakdown (default: false)\n  -O, --offline                                Use cached pricing data for Claude models instead of fetching from API (default: false)\n  --no-offline                                 Negatable of -O, --offline\n  --single-thread                              Disable parallel JSONL file loading (default: false)\n  --color                                      Enable colored output (default: auto). FORCE_COLOR=1 has the same effect.\n  --no-color                                   Disable colored output (default: auto). NO_COLOR=1 has the same effect.\n  -z, --timezone <timezone>                    Timezone for date grouping (e.g., UTC, America/New_York, Asia/Tokyo). Default: system timezone\n  --config <config>                            Path to configuration file (default: auto-discovery)\n  --compact                                    Force compact mode for narrow displays (better for screenshots) (default: false)\n  -h, --help                                   Display this help message\n  -v, --version                                Display this version"
-}
-
-fn agent_options() -> &'static str {
-    "OPTIONS:\n  -j, --json                         Output in JSON format (default: false)\n  -s, --since <since>                Filter from date (YYYY-MM-DD or YYYYMMDD)\n  -u, --until <until>                Filter until date (inclusive)\n  -z, --timezone <timezone>          Timezone for date grouping (IANA)\n  -O, --offline                      Use cached pricing data instead of fetching from LiteLLM (default: false)\n  --no-offline                       Negatable of -O, --offline\n  --compact                          Force compact table layout for narrow terminals (default: false)\n  --color                            Enable colored output (default: auto). FORCE_COLOR=1 has the same effect.\n  --no-color                         Disable colored output (default: auto). NO_COLOR=1 has the same effect.\n  --config <config>                  Path to configuration file (default: auto-discovery)\n  -h, --help                         Display this help message\n  -v, --version                      Display this version"
-}
-
-fn codex_options() -> &'static str {
-    "OPTIONS:\n  -j, --json                         Output report as JSON (default: false)\n  -s, --since <since>                Filter from date (YYYY-MM-DD or YYYYMMDD)\n  -u, --until <until>                Filter until date (inclusive)\n  -z, --timezone <timezone>          Timezone for date grouping (IANA)\n  -O, --offline                      Use cached pricing data instead of fetching from LiteLLM (default: false)\n  --no-offline                       Negatable of -O, --offline\n  --speed [speed]                    Cost speed tier: auto reads Codex config.toml service_tier; use standard or fast to override (default: auto, choices: auto | standard | fast)\n  --compact                          Force compact table layout for narrow terminals (default: false)\n  --color                            Enable colored output (default: auto). FORCE_COLOR=1 has the same effect.\n  --no-color                         Disable colored output (default: auto). NO_COLOR=1 has the same effect.\n  --config <config>                  Path to configuration file (default: auto-discovery)\n  -h, --help                         Display this help message\n  -v, --version                      Display this version"
-}
-
-fn pi_options() -> &'static str {
-    "OPTIONS:\n  --pi-path <pi-path>                Path or comma-separated paths to pi-agent sessions directories"
-}
-
-fn daily_options() -> &'static str {
-    "OPTIONS:\n  -i, --instances                              Show usage breakdown by project/instance (default: false)\n  -p, --project <project>                      Filter to specific project name\n  --project-aliases <project-aliases>          Comma-separated project aliases (e.g., 'ccusage=Usage Tracker,myproject=My Project')"
-}
-
-fn weekly_options() -> &'static str {
-    "OPTIONS:\n  -w, --start-of-week [start-of-week]          Start day of the week (default: sunday, choices: sunday | monday | tuesday | wednesday | thursday | friday | saturday)"
-}
-
-fn session_options() -> &'static str {
-    "OPTIONS:\n  -i, --id <id>                                Filter to specific session ID"
-}
-
-fn blocks_options() -> &'static str {
-    "OPTIONS:\n  -a, --active                                 Show only active block with projections (default: false)\n  -r, --recent                                 Show blocks from last 3 days (including active) (default: false)\n  -t, --token-limit <token-limit>              Token limit for quota warnings (e.g., 500000 or \"max\")\n  -n, --session-length [session-length]        Session block duration in hours (default: 5)"
-}
-
-fn statusline_options() -> &'static str {
-    "OPTIONS:\n  -O, --offline                                                  Use cached pricing data for Claude models instead of fetching from API (default: true)\n  --no-offline                                                   Negatable of -O, --offline\n  -B, --visual-burn-rate [visual-burn-rate]                      Controls the visualization of the burn rate status (default: off, choices: off | emoji | text | emoji-text)\n  --cost-source [cost-source]                                    Session cost source: auto (prefer CC then ccusage), ccusage (always calculate), cc (always use Claude Code cost), both (show both costs) (default: auto, choices: auto | ccusage | cc | both)\n  --cache                                                        Enable cache for status line output (default: true)\n  --no-cache                                                     Negatable of --cache\n  --refresh-interval [refresh-interval]                          Refresh interval in seconds for cache expiry (default: 1)\n  --context-low-threshold [context-low-threshold]                Context usage percentage below which status is shown in green (0-100) (default: 50)\n  --context-medium-threshold [context-medium-threshold]          Context usage percentage below which status is shown in yellow (0-100) (default: 80)\n  --config <config>                                              Path to configuration file (default: auto-discovery)\n  -d, --debug                                                    Show pricing mismatch information for debugging (default: false)\n  -h, --help                                                     Display this help message\n  -v, --version                                                  Display this version"
-}
+include!(concat!(env!("OUT_DIR"), "/cli-help.rs"));
 
 #[cfg(test)]
 mod tests {

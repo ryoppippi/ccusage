@@ -4,6 +4,7 @@ use serde::Deserialize;
 
 const BUILD_TIME_PRICING_JSON: &str =
     include_str!(concat!(env!("OUT_DIR"), "/litellm-pricing.json"));
+const FAST_MULTIPLIER_OVERRIDES_JSON: &str = include_str!("fast-multiplier-overrides.json");
 const FALLBACK_PRICING_JSON: &str = include_str!("litellm-pricing-fallback.json");
 const LITELLM_PRICING_URL: &str =
     "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json";
@@ -49,6 +50,32 @@ struct ProviderSpecificEntry {
     fast: Option<f64>,
 }
 
+#[derive(Debug, Default, Deserialize)]
+struct FastMultiplierOverrides {
+    exact: HashMap<String, f64>,
+    normalized_prefix: HashMap<String, f64>,
+}
+
+impl FastMultiplierOverrides {
+    fn load() -> Self {
+        serde_json::from_str(FAST_MULTIPLIER_OVERRIDES_JSON).unwrap_or_default()
+    }
+
+    fn multiplier_for(&self, model: &str) -> Option<f64> {
+        if let Some(multiplier) = self.exact.get(model) {
+            return Some(*multiplier);
+        }
+        let normalized = model.replace(['.', '@'], "-");
+        normalized.split(['/', ':']).find_map(|part| {
+            self.normalized_prefix
+                .iter()
+                .find_map(|(base, multiplier)| {
+                    matches_model_suffix(part, base).then_some(*multiplier)
+                })
+        })
+    }
+}
+
 impl PricingMap {
     pub(crate) fn load_embedded() -> Self {
         let mut map = Self::default();
@@ -89,6 +116,7 @@ impl PricingMap {
         let Ok(raw) = serde_json::from_str::<HashMap<String, LiteLlmPricing>>(json) else {
             return 0;
         };
+        let fast_multiplier_overrides = FastMultiplierOverrides::load();
         let loaded_count = raw.len();
         for (model, pricing) in raw {
             let Some(input) = pricing.input_cost_per_token else {
@@ -102,7 +130,8 @@ impl PricingMap {
             let fast_multiplier = pricing
                 .provider_specific_entry
                 .and_then(|entry| entry.fast)
-                .unwrap_or_else(|| fast_multiplier_fallback(&model));
+                .or_else(|| fast_multiplier_overrides.multiplier_for(&model))
+                .unwrap_or(1.0);
             self.entries.insert(
                 model.clone(),
                 Pricing {
@@ -158,6 +187,7 @@ impl PricingMap {
     }
 
     fn put_fallback_pricing(&mut self) {
+        let fast_multiplier_overrides = FastMultiplierOverrides::load();
         self.entries.insert(
             "claude-opus-4-5".to_string(),
             Pricing {
@@ -185,7 +215,9 @@ impl PricingMap {
                 output_above_200k: None,
                 cache_create_above_200k: None,
                 cache_read_above_200k: None,
-                fast_multiplier: fast_multiplier_fallback("claude-opus-4-6"),
+                fast_multiplier: fast_multiplier_overrides
+                    .multiplier_for("claude-opus-4-6")
+                    .unwrap_or(1.0),
             },
         );
         self.entries.insert(
@@ -200,7 +232,9 @@ impl PricingMap {
                 output_above_200k: None,
                 cache_create_above_200k: None,
                 cache_read_above_200k: None,
-                fast_multiplier: fast_multiplier_fallback("claude-opus-4-7"),
+                fast_multiplier: fast_multiplier_overrides
+                    .multiplier_for("claude-opus-4-7")
+                    .unwrap_or(1.0),
             },
         );
         self.entries.insert(
@@ -351,7 +385,9 @@ impl PricingMap {
                 output_above_200k: None,
                 cache_create_above_200k: None,
                 cache_read_above_200k: None,
-                fast_multiplier: fast_multiplier_fallback("gpt-5.5"),
+                fast_multiplier: fast_multiplier_overrides
+                    .multiplier_for("gpt-5.5")
+                    .unwrap_or(1.0),
             },
         );
         let gpt_5_1_pricing = Pricing {
@@ -386,7 +422,9 @@ impl PricingMap {
         self.entries.insert(
             "gpt-5.3-codex".to_string(),
             Pricing {
-                fast_multiplier: fast_multiplier_fallback("gpt-5.3-codex"),
+                fast_multiplier: fast_multiplier_overrides
+                    .multiplier_for("gpt-5.3-codex")
+                    .unwrap_or(1.0),
                 ..gpt_5_codex_pricing
             },
         );
@@ -404,7 +442,9 @@ impl PricingMap {
                 output_above_200k: None,
                 cache_create_above_200k: None,
                 cache_read_above_200k: None,
-                fast_multiplier: fast_multiplier_fallback("gpt-5.4"),
+                fast_multiplier: fast_multiplier_overrides
+                    .multiplier_for("gpt-5.4")
+                    .unwrap_or(1.0),
             },
         );
         self.entries.insert(
@@ -457,28 +497,6 @@ impl PricingMap {
             self.context_limits.insert(model.to_string(), 200_000);
         }
     }
-}
-
-fn fast_multiplier_fallback(model: &str) -> f64 {
-    if model == "gpt-5.5" {
-        return 2.5;
-    }
-    if matches!(model, "gpt-5.4" | "gpt-5.3-codex") {
-        return 2.0;
-    }
-    if is_claude_fast_model(model) {
-        return 6.0;
-    }
-    1.0
-}
-
-fn is_claude_fast_model(model: &str) -> bool {
-    let normalized = model.replace(['.', '@'], "-");
-    normalized.split(['/', ':']).any(|part| {
-        ["claude-opus-4-6", "claude-opus-4-7"]
-            .iter()
-            .any(|base| matches_model_suffix(part, base))
-    })
 }
 
 fn matches_model_suffix(part: &str, base: &str) -> bool {
