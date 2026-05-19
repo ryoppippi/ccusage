@@ -24,7 +24,7 @@
 
 ## Supported Sources
 
-The main CLI tool for analyzing Claude Code, Codex, OpenCode, Amp, Codebuff, Hermes Agent, pi-agent, Goose, Kilo, Kimi, GitHub Copilot CLI, and Gemini CLI usage from local data. Track daily, weekly, monthly, and session-based usage with beautiful tables.
+The main CLI tool for analyzing Claude Code, Codex, OpenCode, Amp, Codebuff, Hermes Agent, pi-agent, Goose, OpenClaw, Kilo, Kimi, GitHub Copilot CLI, and Gemini CLI usage from local data. Track daily, weekly, monthly, and session-based usage with beautiful tables.
 
 ## Installation
 
@@ -71,6 +71,7 @@ bunx ccusage amp session
 bunx ccusage codebuff daily
 bunx ccusage hermes daily
 bunx ccusage goose daily
+bunx ccusage openclaw daily
 bunx ccusage kilo daily
 bunx ccusage kimi daily
 bunx ccusage copilot daily
@@ -101,7 +102,7 @@ bunx ccusage monthly --compact  # Compact monthly report
 - 📊 **Daily Report**: View token usage and costs aggregated by date
 - 📅 **Monthly Report**: View token usage and costs aggregated by month
 - 💬 **Session Report**: View usage grouped by conversation sessions
-- 🤖 **Unified CLI Reports**: View Claude Code, Codex, OpenCode, Amp, Codebuff, Hermes Agent, pi-agent, Goose, Kilo, Kimi, GitHub Copilot CLI, and Gemini CLI usage from one CLI
+- 🤖 **Unified CLI Reports**: View Claude Code, Codex, OpenCode, Amp, Codebuff, Hermes Agent, pi-agent, Goose, OpenClaw, Kilo, Kimi, GitHub Copilot CLI, and Gemini CLI usage from one CLI
 - ⏰ **5-Hour Blocks Report**: Track usage within Claude's billing windows with active block monitoring
 - 🚀 **Statusline Integration**: Compact usage display for Claude Code status bar hooks (Beta)
 - 🤖 **Model Tracking**: See which models are used across supported sources
