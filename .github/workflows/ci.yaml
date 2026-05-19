@@ -4,6 +4,8 @@ on:
   push:
   pull_request:
 
+permissions: read-all
+
 jobs:
   changes:
     name: Detect code changes
@@ -46,6 +48,9 @@ jobs:
   build-native-packages:
     needs: changes
     if: needs.changes.outputs.code-changed == 'true'
+    permissions:
+      artifact-metadata: write
+      contents: read
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     strategy:
@@ -127,6 +132,10 @@ jobs:
       - changes
       - build-native-packages
     if: needs.changes.outputs.code-changed == 'true'
+    permissions:
+      actions: read
+      artifact-metadata: read
+      contents: read
     runs-on: ubuntu-24.04-arm
     outputs:
       urls: ${{ steps.publish.outputs.urls }}
