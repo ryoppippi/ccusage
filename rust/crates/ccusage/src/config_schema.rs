@@ -30,6 +30,8 @@ pub(crate) struct CcusageConfig {
     pub(crate) pi: Option<PiConfig>,
     /// Goose configuration.
     pub(crate) goose: Option<GooseConfig>,
+    /// OpenClaw configuration.
+    pub(crate) openclaw: Option<OpenClawConfig>,
     /// Kilo configuration.
     pub(crate) kilo: Option<KiloConfig>,
     /// Qwen configuration.
@@ -160,6 +162,21 @@ pub(crate) struct GooseCommandsConfig {
     pub(crate) daily: Option<SharedOptions>,
     pub(crate) monthly: Option<SharedOptions>,
     pub(crate) session: Option<SharedOptions>,
+}
+
+#[derive(Debug, Default, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct OpenClawConfig {
+    pub(crate) defaults: Option<OpenClawOptions>,
+    pub(crate) commands: Option<OpenClawCommandsConfig>,
+}
+
+#[derive(Debug, Default, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct OpenClawCommandsConfig {
+    pub(crate) daily: Option<OpenClawOptions>,
+    pub(crate) monthly: Option<OpenClawOptions>,
+    pub(crate) session: Option<OpenClawOptions>,
 }
 
 #[derive(Debug, Default, Deserialize, JsonSchema)]
@@ -399,6 +416,15 @@ pub(crate) struct PiOptions {
     pub(crate) pi_path: Option<String>,
 }
 
+#[derive(Debug, Default, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct OpenClawOptions {
+    #[serde(flatten)]
+    pub(crate) shared: SharedOptions,
+    /// Path or comma-separated paths to OpenClaw data directories.
+    pub(crate) open_claw_path: Option<String>,
+}
+
 #[derive(Clone, Copy, Debug, Deserialize, JsonSchema)]
 #[serde(rename_all = "lowercase")]
 pub(crate) enum ConfigCostMode {
@@ -536,6 +562,15 @@ impl PiOptions {
         Self {
             shared: SharedOptions::from_map(map),
             pi_path: string_option(map, "piPath"),
+        }
+    }
+}
+
+impl OpenClawOptions {
+    pub(crate) fn from_map(map: &Map<String, Value>) -> Self {
+        Self {
+            shared: SharedOptions::from_map(map),
+            open_claw_path: string_option(map, "openClawPath"),
         }
     }
 }
@@ -830,6 +865,11 @@ mod tests {
         );
         assert_properties(&schema, "CodexOptions", &with_keys(&shared, &["speed"]));
         assert_properties(&schema, "PiOptions", &with_keys(&shared, &["piPath"]));
+        assert_properties(
+            &schema,
+            "OpenClawOptions",
+            &with_keys(&shared, &["openClawPath"]),
+        );
     }
 
     #[test]
@@ -855,6 +895,10 @@ mod tests {
         assert_eq!(
             property_ref(&schema, "GooseConfig", "defaults"),
             Some("#/definitions/SharedOptions")
+        );
+        assert_eq!(
+            property_ref(&schema, "OpenClawConfig", "defaults"),
+            Some("#/definitions/OpenClawOptions")
         );
         assert_eq!(
             property_ref(&schema, "KiloConfig", "defaults"),
@@ -896,7 +940,7 @@ mod tests {
             "ccusage-config",
             &[
                 "$schema", "amp", "claude", "codex", "commands", "copilot", "defaults", "gemini",
-                "goose", "hermes", "kilo", "kimi", "opencode", "pi", "qwen",
+                "goose", "hermes", "kilo", "kimi", "opencode", "openclaw", "pi", "qwen",
             ],
         );
     }
@@ -969,6 +1013,13 @@ mod tests {
                 "commands": {
                     "daily": {
                         "json": true
+                    }
+                }
+            },
+            "openclaw": {
+                "commands": {
+                    "daily": {
+                        "openClawPath": "/tmp/openclaw"
                     }
                 }
             },

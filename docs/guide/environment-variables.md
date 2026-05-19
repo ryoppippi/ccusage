@@ -15,6 +15,7 @@ ccusage detects supported data source files from conventional locations by defau
 | `HERMES_HOME`                     | Hermes Agent | `~/.hermes`                        |
 | `PI_AGENT_DIR`                    | pi-agent     | `~/.pi/agent/sessions`             |
 | `GOOSE_PATH_ROOT`                 | Goose        | Standard Goose data roots          |
+| `OPENCLAW_DIR`                    | OpenClaw     | `~/.openclaw`                      |
 | `KILO_DATA_DIR`                   | Kilo         | `~/.local/share/kilo`              |
 | `KIMI_DATA_DIR`                   | Kimi         | `~/.kimi`                          |
 | `QWEN_DATA_DIR`                   | Qwen         | `~/.qwen`                          |
@@ -30,6 +31,7 @@ export AMP_DATA_DIR="/path/to/amp,/archive/amp"
 export HERMES_HOME="/path/to/hermes,/archive/hermes"
 export PI_AGENT_DIR="/path/to/pi/sessions,/archive/pi/sessions"
 export GOOSE_PATH_ROOT="/path/to/goose,/archive/goose"
+export OPENCLAW_DIR="/path/to/openclaw,/archive/openclaw"
 export KILO_DATA_DIR="/path/to/kilo,/archive/kilo"
 export KIMI_DATA_DIR="/path/to/kimi,/archive/kimi"
 export QWEN_DATA_DIR="/path/to/qwen,/archive/qwen"

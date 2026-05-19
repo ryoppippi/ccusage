@@ -7,7 +7,9 @@ use std::{
 use serde_json::{json, Value};
 
 use crate::{
-    adapter::{amp, codex, copilot, gemini, goose, hermes, kilo, kimi, opencode, pi, qwen},
+    adapter::{
+        amp, codex, copilot, gemini, goose, hermes, kilo, kimi, openclaw, opencode, pi, qwen,
+    },
     cli::{AgentCommandArgs, AgentReportKind, CodexSpeed, SharedArgs, SortOrder, WeekDay},
     color, filter_loaded_entries_by_date, format_currency, format_models_multiline, format_number,
     json_float, print_box_title, print_json_or_jq, summarize_by_key, summarize_summaries_by_bucket,
@@ -125,30 +127,36 @@ fn load_rows(kind: AgentReportKind, shared: &SharedArgs) -> Result<AllLoadResult
             },
             AgentLoadSpec {
                 index: 7,
+                agent: "openclaw",
+                progress_agent: crate::progress::UsageLoadAgent::OpenClaw,
+                load: Box::new(|| load_openclaw_rows(load_kind, shared)),
+            },
+            AgentLoadSpec {
+                index: 8,
                 agent: "kilo",
                 progress_agent: crate::progress::UsageLoadAgent::Kilo,
                 load: Box::new(|| load_kilo_rows(load_kind, shared, &pricing)),
             },
             AgentLoadSpec {
-                index: 8,
+                index: 9,
                 agent: "qwen",
                 progress_agent: crate::progress::UsageLoadAgent::Qwen,
                 load: Box::new(|| load_qwen_rows(load_kind, shared)),
             },
             AgentLoadSpec {
-                index: 9,
+                index: 10,
                 agent: "copilot",
                 progress_agent: crate::progress::UsageLoadAgent::Copilot,
                 load: Box::new(|| load_copilot_rows(load_kind, shared, &pricing)),
             },
             AgentLoadSpec {
-                index: 10,
+                index: 11,
                 agent: "gemini",
                 progress_agent: crate::progress::UsageLoadAgent::Gemini,
                 load: Box::new(|| load_gemini_rows(load_kind, shared, &pricing)),
             },
             AgentLoadSpec {
-                index: 10,
+                index: 12,
                 agent: "kimi",
                 progress_agent: crate::progress::UsageLoadAgent::Kimi,
                 load: Box::new(|| load_kimi_rows(load_kind, shared, &pricing)),
@@ -362,6 +370,17 @@ fn load_goose_rows(
     let summaries = goose::summarize_entries(&entries, kind)?;
     Ok(AgentRows {
         rows: summary_rows("goose", summaries),
+        detected,
+    })
+}
+
+fn load_openclaw_rows(kind: AgentReportKind, shared: &SharedArgs) -> Result<AgentRows> {
+    let mut entries = openclaw::load_entries(shared, None)?;
+    let detected = !entries.is_empty();
+    filter_loaded_entries_by_date(&mut entries, shared);
+    let summaries = openclaw::summarize_entries(&entries, kind)?;
+    Ok(AgentRows {
+        rows: summary_rows("openclaw", summaries),
         detected,
     })
 }
@@ -990,6 +1009,7 @@ fn agent_label(agent: &str) -> &str {
         "hermes" => "Hermes",
         "pi" => "pi-agent",
         "goose" => "Goose",
+        "openclaw" => "OpenClaw",
         "kilo" => "Kilo",
         "qwen" => "Qwen",
         "copilot" => "GitHub Copilot CLI",
