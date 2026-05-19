@@ -64,6 +64,17 @@ jobs:
         if: matrix.platform != 'win32'
         with:
           cachix-auth-token: ${{ secrets.CACHIX_AUTH_TOKEN }}
+      - name: Cache Windows Cargo build
+        if: matrix.platform == 'win32'
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            rust/target
+          key: cargo-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('rust/Cargo.lock', 'rust-toolchain.toml') }}
+          restore-keys: |
+            cargo-${{ runner.os }}-${{ runner.arch }}-
       - name: Build Linux static binary
         if: matrix.platform == 'linux'
         run: nix build .#ccusage-static
