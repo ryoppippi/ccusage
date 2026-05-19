@@ -894,7 +894,10 @@ mod tests {
         assert_properties(
             &schema,
             "ccusage-config",
-            &["goose", "hermes", "kilo", "kimi", "opencode", "pi", "qwen"],
+            &[
+                "$schema", "amp", "claude", "codex", "commands", "copilot", "defaults", "gemini",
+                "goose", "hermes", "kilo", "kimi", "opencode", "pi", "qwen",
+            ],
         );
     }
 
