@@ -1116,7 +1116,8 @@ function subtractTokenFieldsFromSummaryAccumulator(
 		existing.inputTokens === 0 &&
 		existing.outputTokens === 0 &&
 		existing.cacheCreationTokens === 0 &&
-		existing.cacheReadTokens === 0
+		existing.cacheReadTokens === 0 &&
+		existing.cost === 0
 	) {
 		delete accumulator.modelAggregates[modelName];
 		delete accumulator.modelSeen[modelName];
@@ -1133,6 +1134,49 @@ function finalizeUsageSummary(accumulator: UsageSummaryAccumulator): UsageSummar
 		modelsUsed: accumulator.modelsUsed as ModelName[],
 		modelBreakdowns: createModelBreakdowns(accumulator.modelAggregates),
 	};
+}
+
+function addSummaryToSummaryAccumulator(
+	accumulator: UsageSummaryAccumulator,
+	summary: Pick<
+		UsageSummary,
+		| 'inputTokens'
+		| 'outputTokens'
+		| 'cacheCreationTokens'
+		| 'cacheReadTokens'
+		| 'totalCost'
+		| 'modelsUsed'
+		| 'modelBreakdowns'
+	>,
+): void {
+	accumulator.totals.inputTokens += summary.inputTokens;
+	accumulator.totals.outputTokens += summary.outputTokens;
+	accumulator.totals.cacheCreationTokens += summary.cacheCreationTokens;
+	accumulator.totals.cacheReadTokens += summary.cacheReadTokens;
+	accumulator.totals.cost += summary.totalCost;
+	accumulator.totals.totalCost += summary.totalCost;
+
+	for (const model of summary.modelsUsed) {
+		if (model !== '<synthetic>') {
+			addModelUsed(accumulator, model);
+		}
+	}
+
+	for (const breakdown of summary.modelBreakdowns) {
+		if (breakdown.modelName === '<synthetic>') {
+			continue;
+		}
+		let aggregate = accumulator.modelAggregates[breakdown.modelName];
+		if (aggregate == null) {
+			aggregate = createEmptyTokenStats();
+			accumulator.modelAggregates[breakdown.modelName] = aggregate;
+		}
+		aggregate.inputTokens += breakdown.inputTokens;
+		aggregate.outputTokens += breakdown.outputTokens;
+		aggregate.cacheCreationTokens += breakdown.cacheCreationTokens;
+		aggregate.cacheReadTokens += breakdown.cacheReadTokens;
+		aggregate.cost += breakdown.cost;
+	}
 }
 
 function summarizeUsageEntries<T>(
@@ -1428,12 +1472,21 @@ async function createCostCalculator(
 		}
 
 		const lower = modelName.toLowerCase();
+		let bestMatch: { value: LiteLLMModelPricing; lengthDiff: number } | null = null;
 		for (const [key, value] of pricing) {
 			const comparison = key.toLowerCase();
-			if (comparison.includes(lower) || lower.includes(comparison)) {
-				modelPricingCache.set(modelName, value);
-				return value;
+			if (!comparison.includes(lower) && !lower.includes(comparison)) {
+				continue;
 			}
+			const lengthDiff = Math.abs(comparison.length - lower.length);
+			if (bestMatch == null || lengthDiff < bestMatch.lengthDiff) {
+				bestMatch = { value, lengthDiff };
+			}
+		}
+
+		if (bestMatch != null) {
+			modelPricingCache.set(modelName, bestMatch.value);
+			return bestMatch.value;
 		}
 
 		modelPricingCache.set(modelName, null);
@@ -2407,7 +2460,8 @@ export async function loadDailyUsageData(options?: LoadOptions): Promise<DailyUs
 			group.summary.totals.inputTokens === 0 &&
 			group.summary.totals.outputTokens === 0 &&
 			group.summary.totals.cacheCreationTokens === 0 &&
-			group.summary.totals.cacheReadTokens === 0
+			group.summary.totals.cacheReadTokens === 0 &&
+			group.summary.totals.totalCost === 0
 		) {
 			groupedData.delete(groupKeyForEntry(entry));
 		}
@@ -2712,13 +2766,9 @@ export async function loadSessionUsageById(
 	const entries: Array<UsageData | undefined> = [];
 	let totalCost = 0;
 
-	await processJSONLFileByLine(file, (line) => {
+	await processJSONLUsageFileByLine(file, (line, usageMarkerIndex) => {
 		try {
-			if (!line.includes(USAGE_LINE_MARKER)) {
-				return;
-			}
-
-			const data = parseUsageDataLine(line);
+			const data = parseUsageDataLine(line, { usageMarkerIndex });
 			if (data == null) {
 				return;
 			}
@@ -2767,34 +2817,7 @@ export async function loadBucketUsageData(
 			grouped.set(groupKey, group);
 		}
 
-		group.summary.totals.inputTokens += daily.inputTokens;
-		group.summary.totals.outputTokens += daily.outputTokens;
-		group.summary.totals.cacheCreationTokens += daily.cacheCreationTokens;
-		group.summary.totals.cacheReadTokens += daily.cacheReadTokens;
-		group.summary.totals.cost += daily.totalCost;
-		group.summary.totals.totalCost += daily.totalCost;
-
-		for (const model of daily.modelsUsed) {
-			if (model !== '<synthetic>') {
-				addModelUsed(group.summary, model);
-			}
-		}
-
-		for (const breakdown of daily.modelBreakdowns) {
-			if (breakdown.modelName === '<synthetic>') {
-				continue;
-			}
-			let aggregate = group.summary.modelAggregates[breakdown.modelName];
-			if (aggregate == null) {
-				aggregate = createEmptyTokenStats();
-				group.summary.modelAggregates[breakdown.modelName] = aggregate;
-			}
-			aggregate.inputTokens += breakdown.inputTokens;
-			aggregate.outputTokens += breakdown.outputTokens;
-			aggregate.cacheCreationTokens += breakdown.cacheCreationTokens;
-			aggregate.cacheReadTokens += breakdown.cacheReadTokens;
-			aggregate.cost += breakdown.cost;
-		}
+		addSummaryToSummaryAccumulator(group.summary, daily);
 	}
 
 	const buckets = Array.from(grouped.values(), (group): BucketUsage => {
@@ -5542,6 +5565,42 @@ invalid json line
 				const result = await calculateCostForEntry(testData, 'calculate', fetcher);
 
 				expect(result).toBeGreaterThan(0);
+			});
+
+			it('uses the closest fuzzy pricing match for worker cost calculation', async () => {
+				const calculateCost = await createCostCalculator(
+					'calculate',
+					null,
+					new Map([
+						[
+							'gpt-5',
+							{
+								input_cost_per_token: 1.25e-6,
+								output_cost_per_token: 1e-5,
+							},
+						],
+						[
+							'gpt-5.4',
+							{
+								input_cost_per_token: 2.5e-6,
+								output_cost_per_token: 1.5e-5,
+							},
+						],
+					]),
+				);
+
+				const result = calculateCost({
+					timestamp: createISOTimestamp('2024-01-01T10:00:00Z'),
+					message: {
+						usage: {
+							input_tokens: 1000,
+							output_tokens: 500,
+						},
+						model: createModelName('gpt-5.4-mini'),
+					},
+				});
+
+				expect(result).toBeCloseTo(0.01);
 			});
 
 			it('should ignore costUSD in calculate mode', async () => {

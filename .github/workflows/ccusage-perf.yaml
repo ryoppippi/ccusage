@@ -31,7 +31,11 @@ jobs:
         uses: ./.github/actions/setup-nix
 
       - name: Build base ccusage
-        run: nix develop --command pnpm --filter ccusage run build
+        run: |
+          nix develop --command pnpm --filter ccusage run build
+          if [ -f apps/ccusage/scripts/stage-native-package.mjs ]; then
+            nix develop --command pnpm --filter ccusage run stage:native-package
+          fi
         working-directory: base
 
       - name: Build PR ccusage
