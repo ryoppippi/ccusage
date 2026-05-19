@@ -259,10 +259,6 @@ pub(crate) fn print_usage_table(
         .get("cacheReadTokens")
         .and_then(Value::as_u64)
         .unwrap_or_default();
-    let total_tokens = totals
-        .get("totalTokens")
-        .and_then(Value::as_u64)
-        .unwrap_or_default();
     let total_cost = totals
         .get("totalCost")
         .and_then(Value::as_f64)
