@@ -1,0 +1,43 @@
+name: Detect code changes
+description: Detect whether changed files require full code validation
+outputs:
+  code-changed:
+    description: Whether any changed file is outside documentation-only paths
+    value: ${{ steps.detect.outputs.code-changed }}
+runs:
+  using: composite
+  steps:
+    - id: detect
+      shell: bash
+      env:
+        BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+        HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+      run: |
+        set -euo pipefail
+
+        base_sha="$BASE_SHA"
+        head_sha="$HEAD_SHA"
+
+        if [[ -z "$base_sha" || "$base_sha" =~ ^0+$ ]]; then
+          base_sha="$(git rev-list --max-parents=0 "$head_sha")"
+        fi
+
+        if ! git cat-file -e "$base_sha^{commit}" || ! git cat-file -e "$head_sha^{commit}"; then
+          echo "code-changed=true" >> "$GITHUB_OUTPUT"
+          exit 0
+        fi
+
+        changed_files="$(mktemp)"
+        git diff --name-only "$base_sha" "$head_sha" > "$changed_files"
+
+        code_changed=false
+        while IFS= read -r path; do
+          [[ -z "$path" ]] && continue
+
+          case "$path" in
+            docs/*|*.md|*.mdx) ;;
+            *) code_changed=true; break ;;
+          esac
+        done < "$changed_files"
+
+        echo "code-changed=$code_changed" >> "$GITHUB_OUTPUT"
