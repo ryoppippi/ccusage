@@ -32,7 +32,7 @@ pre-commit:
         parallel: true
         jobs:
           - name: root
-            glob: '*.{ts,tsx,js,jsx,mjs,cjs}'
+            glob: '**/*.{ts,tsx,js,jsx,mjs,cjs}'
             exclude:
               - 'apps/**'
               - 'packages/**'
@@ -41,12 +41,12 @@ pre-commit:
             stage_fixed: true
           - name: ccusage
             root: apps/ccusage/
-            glob: '*.{ts,tsx,js,jsx,mjs,cjs}'
+            glob: '**/*.{ts,tsx,js,jsx,mjs,cjs}'
             run: pnpm exec eslint --cache --fix --no-warn-ignored {staged_files}
             stage_fixed: true
           - name: docs
             root: docs/
-            glob: '*.{ts,tsx,js,jsx,mjs,cjs}'
+            glob: '**/*.{ts,tsx,js,jsx,mjs,cjs}'
             run: pnpm exec eslint --cache --fix --no-warn-ignored {staged_files}
             stage_fixed: true
 
@@ -61,7 +61,7 @@ pre-push:
             glob: '**/*'
             run: pnpm exec oxfmt --check .
           - name: eslint root
-            glob: '*.{ts,tsx,js,jsx,mjs,cjs}'
+            glob: '**/*.{ts,tsx,js,jsx,mjs,cjs}'
             exclude:
               - 'apps/**'
               - 'packages/**'
@@ -69,11 +69,11 @@ pre-push:
             run: pnpm exec eslint --cache eslint.config.js .
           - name: eslint ccusage
             root: apps/ccusage/
-            glob: '*.{ts,tsx,js,jsx,mjs,cjs}'
+            glob: '**/*.{ts,tsx,js,jsx,mjs,cjs}'
             run: pnpm exec eslint --cache .
           - name: eslint docs
             root: docs/
-            glob: '*.{ts,tsx,js,jsx,mjs,cjs}'
+            glob: '**/*.{ts,tsx,js,jsx,mjs,cjs}'
             run: pnpm exec eslint --cache .
           - name: clippy
             glob: 'rust/**/*.rs'
