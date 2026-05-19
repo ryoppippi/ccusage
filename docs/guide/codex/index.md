@@ -23,13 +23,10 @@ Most users can start with unified reports such as `ccusage daily`. Add the `code
 
 ## Data Source
 
-The CLI reads Codex session JSONL files located under `CODEX_HOME` (defaults to `~/.codex`). `CODEX_HOME` can be one directory or a comma-separated list of directories. Each file represents a single Codex CLI session and contains running token totals that the tool converts into per-day or per-month deltas.
-
-Saved `codex exec --json` output can also be read from `CODEX_EXEC_LOG_DIR`. Point it at one directory or a comma-separated list of directories containing `.jsonl` files captured from `codex exec --json`.
+The CLI reads Codex session JSONL files located under `CODEX_HOME` (defaults to `~/.codex`). `CODEX_HOME` can be one directory or a comma-separated list of directories. Entries with a `sessions/` directory are treated as Codex homes; entries without `sessions/` are read directly as JSONL directories, which lets saved `codex exec --json` output live beside normal Codex homes.
 
 ```bash
-CODEX_HOME="$HOME/.codex,$HOME/.codex-work" ccusage codex daily
-CODEX_EXEC_LOG_DIR="$HOME/codex-exec-logs" ccusage codex daily
+CODEX_HOME="$HOME/.codex,$HOME/.codex-work,$HOME/codex-exec-logs" ccusage codex daily
 ```
 
 ## Report Views
@@ -58,11 +55,10 @@ These views support `--json`, `--compact`, `--offline`, and `--speed auto|standa
 
 ## Environment Variables
 
-| Variable             | Description                                                                                        |
-| -------------------- | -------------------------------------------------------------------------------------------------- |
-| `CODEX_HOME`         | Override the root directory, or comma-separated root directories, containing Codex session folders |
-| `CODEX_EXEC_LOG_DIR` | Override one or more directories containing saved `codex exec --json` JSONL output files           |
-| `LOG_LEVEL`          | Adjust log verbosity (0 silent … 5 trace)                                                          |
+| Variable     | Description                                                                                                                  |
+| ------------ | ---------------------------------------------------------------------------------------------------------------------------- |
+| `CODEX_HOME` | Override the root directory, or comma-separated directories, containing Codex homes or saved `codex exec --json` JSONL files |
+| `LOG_LEVEL`  | Adjust log verbosity (0 silent … 5 trace)                                                                                    |
 
 When Codex emits a model alias (for example `gpt-5.5`), the CLI automatically resolves it through the LiteLLM pricing data when possible. No manual override is needed.
 

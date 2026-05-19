@@ -72,13 +72,13 @@ Each data source page covers the details that only apply to that source, includi
 
 ccusage reads from local coding CLI data directories:
 
-| Agent       | ID         | Default data location                            |
-| ----------- | ---------- | ------------------------------------------------ |
-| Claude Code | `claude`   | `~/.config/claude/projects/`, `~/.claude/`       |
-| Codex       | `codex`    | `${CODEX_HOME:-~/.codex}` + `CODEX_EXEC_LOG_DIR` |
-| OpenCode    | `opencode` | `${OPENCODE_DATA_DIR:-~/.local/share/opencode}`  |
-| Amp         | `amp`      | `${AMP_DATA_DIR:-~/.local/share/amp}`            |
-| pi-agent    | `pi`       | `${PI_AGENT_DIR:-~/.pi/agent/sessions}`          |
+| Agent       | ID         | Default data location                           |
+| ----------- | ---------- | ----------------------------------------------- |
+| Claude Code | `claude`   | `~/.config/claude/projects/`, `~/.claude/`      |
+| Codex       | `codex`    | `${CODEX_HOME:-~/.codex}`                       |
+| OpenCode    | `opencode` | `${OPENCODE_DATA_DIR:-~/.local/share/opencode}` |
+| Amp         | `amp`      | `${AMP_DATA_DIR:-~/.local/share/amp}`           |
+| pi-agent    | `pi`       | `${PI_AGENT_DIR:-~/.pi/agent/sessions}`         |
 
 The tool automatically detects available data and aggregates all supported coding CLIs by default.
 Each source-specific environment variable can also contain comma-separated directories, which lets unified reports combine current profiles and archives.

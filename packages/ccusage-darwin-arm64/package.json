@@ -1,0 +1,26 @@
+{
+	"name": "@ccusage/ccusage-darwin-arm64",
+	"version": "19.0.3",
+	"description": "Native ccusage binary for macOS arm64",
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/ryoppippi/ccusage.git",
+		"directory": "packages/ccusage-darwin-arm64"
+	},
+	"files": [
+		"bin/ccusage"
+	],
+	"os": [
+		"darwin"
+	],
+	"cpu": [
+		"arm64"
+	],
+	"publishConfig": {
+		"access": "public"
+	},
+	"scripts": {
+		"prepack": "node ../../apps/ccusage/scripts/verify-native-package.mjs"
+	}
+}

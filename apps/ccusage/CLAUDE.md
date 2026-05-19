@@ -1,22 +1,18 @@
 # CLAUDE.md - ccusage Package
 
-This is the main `ccusage` CLI package for Claude Code usage analysis.
+This is the published `ccusage` npm package. The CLI implementation lives in Rust under `../../rust/crates/ccusage`; this package provides the npm metadata, package runner launcher, schema artifact, and benchmark scripts.
 
 ## Skills
 
 - Use `ccusage-development` for commands, bundled CLI dependency policy, style, exports, and validation.
 - Use `ccusage-testing` for in-source Vitest, snapshots, fixtures, Claude models, and LiteLLM pricing tests.
 - Use `ccusage-agent-sources` for Claude Code data directories, JSONL structure, session naming, cost modes, and report behavior.
-- Use `byethrow` for Result-based error handling.
-- Use `use-gunshi-cli` when changing command definitions.
+- Use `typescript-style` before reading or editing TypeScript or JavaScript package code.
 
 ## Package Notes
 
-- Entry point: `src/index.ts`
-- Claude data loading: `src/adapter/claude/data-loader.ts`
-- Worker build entry: `src/data-loader.ts` re-exports the Claude loader for the bundled data-loader chunk
-- Cost aggregation: `src/calculate-cost.ts`
-- Commands: `src/commands/`
-- Logger: `src/logger.ts`
+- Published bin launcher: `src/cli.ts`
+- Rust CLI implementation: `../../rust/crates/ccusage`
+- PR benchmark scripts: `scripts/compare-pr-performance.ts` and `scripts/generate-large-fixture.ts`
 
-The package is distributed as the canonical bundled CLI. Keep the public surface centered on `ccusage`, agent subcommands such as `ccusage amp`, and stable `--json` output instead of library-style TypeScript exports.
+The package is distributed as the canonical native CLI. Keep the public surface centered on `ccusage`, agent subcommands such as `ccusage amp`, and stable `--json` output instead of library-style TypeScript exports.

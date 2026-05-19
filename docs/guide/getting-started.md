@@ -5,7 +5,7 @@ Welcome to ccusage! This guide will help you get up and running with analyzing y
 ## Prerequisites
 
 - At least one supported coding CLI installed and used
-- Bun 1.3+ recommended, or Node.js 22+
+- Bun 1.3+ recommended, or Node.js 22.11+
 
 ## Quick Start
 
@@ -25,12 +25,16 @@ npx ccusage@latest
 pnpm dlx ccusage
 ```
 
+```bash [pkg.pr.new preview]
+bunx -p https://pkg.pr.new/ryoppippi/ccusage@<pr-number> ccusage --offline
+```
+
 :::
 
 This will show your daily usage report for all detected supported coding CLIs by default.
 
 ::: tip Runtime
-`bunx ccusage` is recommended for everyday use. ccusage can run on Node.js 22+, and because the published CLI shebang targets Node.js, package runners can start ccusage under Node.js even when launched through `bunx`. When ccusage finds `bun` in `PATH`, it automatically re-runs the bundled entrypoint with Bun for better warm runtime performance. Set `CCUSAGE_BUN_AUTO_RUN=0` to force Node.js.
+`bunx ccusage` is recommended for everyday use. The npm package installs a small JavaScript launcher and the matching native binary package for your platform. Package runners such as `bunx` cache the downloaded package, so repeated runs reuse the cached native binary; the first run can still include network fetch time.
 :::
 
 Use a data source namespace when you want the same report focused on one source:
@@ -152,7 +156,7 @@ If ccusage shows no data, check:
 1. **A supported coding CLI is installed and used** - ccusage reads from local usage files
 2. **Data directory exists** - Common locations:
    - Claude Code: `~/.config/claude/projects/` or `~/.claude/projects/`
-   - Codex: `${CODEX_HOME:-~/.codex}` and optional `CODEX_EXEC_LOG_DIR`
+   - Codex: `${CODEX_HOME:-~/.codex}`
    - OpenCode: `${OPENCODE_DATA_DIR:-~/.local/share/opencode}`
    - Amp: `${AMP_DATA_DIR:-~/.local/share/amp}`
    - pi-agent: `${PI_AGENT_DIR:-~/.pi/agent/sessions}`
@@ -164,7 +168,6 @@ If your agent data is in a custom location, set the matching environment variabl
 ```bash
 export CLAUDE_CONFIG_DIR="/path/to/your/claude/data"
 export CODEX_HOME="/path/to/codex"
-export CODEX_EXEC_LOG_DIR="/path/to/codex-exec-jsonl"
 export OPENCODE_DATA_DIR="/path/to/opencode"
 export AMP_DATA_DIR="/path/to/amp"
 export PI_AGENT_DIR="/path/to/pi/sessions"
@@ -173,8 +176,7 @@ export PI_AGENT_DIR="/path/to/pi/sessions"
 Each source-specific path variable can also contain comma-separated directories:
 
 ```bash
-export CODEX_HOME="/path/to/codex,/archive/codex"
-export CODEX_EXEC_LOG_DIR="/path/to/codex-exec-jsonl,/archive/codex-exec-jsonl"
+export CODEX_HOME="/path/to/codex,/archive/codex,/path/to/codex-exec-jsonl"
 export OPENCODE_DATA_DIR="/path/to/opencode,/archive/opencode"
 export AMP_DATA_DIR="/path/to/amp,/archive/amp"
 export PI_AGENT_DIR="/path/to/pi/sessions,/archive/pi/sessions"
