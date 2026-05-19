@@ -73,10 +73,11 @@ fn load_rows(kind: AgentReportKind, shared: &SharedArgs) -> Result<AllLoadResult
             ),
     );
     let pricing = PricingMap::load(shared.offline, crate::log_level() != Some(0));
-    let load_kind = if kind == AgentReportKind::Session {
-        AgentReportKind::Session
-    } else {
-        AgentReportKind::Daily
+    let load_kind = match kind {
+        AgentReportKind::Session => AgentReportKind::Session,
+        AgentReportKind::Daily | AgentReportKind::Weekly | AgentReportKind::Monthly => {
+            AgentReportKind::Daily
+        }
     };
     let loaded = load_agent_rows_parallel(
         vec![
@@ -168,6 +169,7 @@ fn load_agent_rows_parallel(
         for spec in specs {
             let sender = sender.clone();
             handles.push((
+                spec.index,
                 spec.progress_agent,
                 scope.spawn(move || {
                     let result = (spec.load)();
@@ -178,7 +180,7 @@ fn load_agent_rows_parallel(
         drop(sender);
 
         let mut loaded = Vec::with_capacity(handles.len());
-        let mut first_error = None;
+        let mut errors = Vec::new();
         for (index, agent, progress_agent, result) in receiver {
             match result {
                 Ok(agent_rows) => {
@@ -191,23 +193,20 @@ fn load_agent_rows_parallel(
                 }
                 Err(error) => {
                     progress.fail(progress_agent);
-                    if first_error.is_none() {
-                        first_error = Some(error);
-                    }
+                    errors.push((index, error));
                 }
             }
         }
 
-        for (progress_agent, handle) in handles {
+        for (index, progress_agent, handle) in handles {
             if handle.join().is_err() {
                 progress.fail(progress_agent);
-                if first_error.is_none() {
-                    first_error = Some(crate::cli_error("agent loader panicked"));
-                }
+                errors.push((index, crate::cli_error("agent loader panicked")));
             }
         }
 
-        if let Some(error) = first_error {
+        errors.sort_by_key(|(index, _)| *index);
+        if let Some((_, error)) = errors.into_iter().next() {
             return Err(error);
         }
 
@@ -923,29 +922,32 @@ mod tests {
     #[test]
     fn loads_agent_rows_concurrently() {
         let active_loaders = Arc::new(AtomicUsize::new(0));
-        let specs = ["claude", "codex"]
-            .into_iter()
-            .enumerate()
-            .map(|(index, agent)| {
-                let active_loaders = Arc::clone(&active_loaders);
-                AgentLoadSpec {
-                    index,
-                    agent,
-                    progress_agent: crate::progress::UsageLoadAgent::Claude,
-                    load: Box::new(move || {
-                        active_loaders.fetch_add(1, Ordering::AcqRel);
-                        let started = Instant::now();
-                        while active_loaders.load(Ordering::Acquire) < 2 {
-                            if started.elapsed() > Duration::from_secs(1) {
-                                return Err(crate::cli_error("agent loaders did not overlap"));
-                            }
-                            thread::sleep(Duration::from_millis(5));
+        let specs = [
+            ("claude", crate::progress::UsageLoadAgent::Claude),
+            ("codex", crate::progress::UsageLoadAgent::Codex),
+        ]
+        .into_iter()
+        .enumerate()
+        .map(|(index, (agent, progress_agent))| {
+            let active_loaders = Arc::clone(&active_loaders);
+            AgentLoadSpec {
+                index,
+                agent,
+                progress_agent,
+                load: Box::new(move || {
+                    active_loaders.fetch_add(1, Ordering::AcqRel);
+                    let started = Instant::now();
+                    while active_loaders.load(Ordering::Acquire) < 2 {
+                        if started.elapsed() > Duration::from_secs(1) {
+                            return Err(crate::cli_error("agent loaders did not overlap"));
                         }
-                        Ok(test_agent_rows(agent))
-                    }),
-                }
-            })
-            .collect();
+                        thread::sleep(Duration::from_millis(5));
+                    }
+                    Ok(test_agent_rows(agent))
+                }),
+            }
+        })
+        .collect();
         let mut progress = crate::progress::UsageLoadProgress::new(false);
 
         let loaded = load_agent_rows_parallel(specs, &mut progress).unwrap();
