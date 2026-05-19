@@ -7,6 +7,7 @@ export default defineConfig({
 			'src/cli.ts',
 			'scripts/compare-pr-performance.ts',
 			'scripts/generate-large-fixture.ts',
+			'scripts/sync-rust-version.ts',
 		],
 		globals: true,
 	},
