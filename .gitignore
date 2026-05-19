@@ -5,6 +5,8 @@ node_modules
 out
 dist
 target/
+result
+result-*
 *.tgz
 packages/ccusage-*/bin/
 
