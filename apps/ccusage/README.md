@@ -68,8 +68,7 @@ npx ccusage@latest
 bunx -p https://pkg.pr.new/ryoppippi/ccusage@<pr-number> ccusage --offline
 ```
 
-> 💡 **Runtime**: `bunx ccusage` is recommended for everyday use. If you use `npx`, include `@latest` and use Node.js 22.11+.
-> The npm package installs a small JavaScript launcher and the matching native binary package for your platform. Package runners such as `bunx` cache the downloaded package, so repeated runs reuse the cached native binary; the first run can still include network fetch time.
+> `bunx` caches the downloaded package, so repeated runs are faster after the first launch.
 
 ## Usage
 
