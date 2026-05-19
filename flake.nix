@@ -66,14 +66,12 @@
             ];
             buildInputs = pkgs.lib.optionals pkgs.stdenv.isDarwin [
               pkgs.apple-sdk_15
+              pkgs.libiconv
             ];
           };
           cargoArtifacts = craneLib.buildDepsOnly commonArgs;
           ccusage = craneLib.buildPackage (commonArgs // {
             inherit cargoArtifacts;
-            postInstall = pkgs.lib.optionalString pkgs.stdenv.isDarwin ''
-              install_name_tool -change "${pkgs.libiconv}/lib/libiconv.2.dylib" "/usr/lib/libiconv.2.dylib" "$out/bin/ccusage"
-            '';
             meta = {
               description = "Analyze coding agent CLI token usage and costs from local data";
               homepage = "https://github.com/ryoppippi/ccusage";
