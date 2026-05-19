@@ -48,6 +48,24 @@ pub(crate) fn run(args: AgentCommandArgs) -> Result<()> {
 }
 
 fn load_rows(kind: AgentReportKind, shared: &SharedArgs) -> Result<AllLoadResult> {
+    let mut progress = crate::progress::UsageLoadProgress::new(
+        crate::log_level() != Some(0)
+            && crate::progress::should_show_usage_load_progress(
+                shared.json,
+                crate::progress::usage_load_output_is_tty(),
+            ),
+    );
+    for agent in [
+        crate::progress::UsageLoadAgent::Amp,
+        crate::progress::UsageLoadAgent::Claude,
+        crate::progress::UsageLoadAgent::Codex,
+        crate::progress::UsageLoadAgent::OpenCode,
+        crate::progress::UsageLoadAgent::Pi,
+        crate::progress::UsageLoadAgent::Copilot,
+        crate::progress::UsageLoadAgent::Gemini,
+    ] {
+        progress.start(agent);
+    }
     let pricing = PricingMap::load(shared.offline, crate::log_level() != Some(0));
     let mut detected_agents = Vec::new();
     if kind == AgentReportKind::Session {
@@ -587,13 +605,13 @@ fn print_table(
     shared: &SharedArgs,
     detected_agents: &[&'static str],
 ) {
+    print_box_title(&all_report_title(kind, rows, detected_agents), shared);
     if rows.is_empty() {
         eprintln!("No usage data found.");
         return;
     }
     let terminal_width = crate::terminal_width();
     let compact = shared.compact || terminal_width < crate::USAGE_COMPACT_WIDTH_THRESHOLD;
-    print_box_title(&all_report_title(kind, rows, detected_agents), shared);
     let (headers, aligns) = all_table_columns(kind, compact);
     let mut table = SimpleTable::new(headers, aligns, shared)
         .with_terminal_width(terminal_width)

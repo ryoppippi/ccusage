@@ -550,4 +550,33 @@ mod tests {
         assert_eq!(report["daily"][0]["messageCount"], json!(42));
         assert_eq!(report["totals"]["totalTokens"], json!(1580));
     }
+
+    #[test]
+    fn calculates_cost_for_hermes_frontier_models_from_embedded_pricing() {
+        let pricing = PricingMap::load_embedded();
+        for model in ["gpt-5.5", "grok-4.3"] {
+            let entry = HermesEntry {
+                timestamp: crate::parse_ts_timestamp("2026-05-19T00:00:00.000Z").unwrap(),
+                timestamp_text: "2026-05-19T00:00:00.000Z".to_string(),
+                session_id: format!("session-{model}"),
+                model: model.to_string(),
+                provider: "hermes".to_string(),
+                usage: TokenUsageRaw {
+                    input_tokens: 1_000,
+                    output_tokens: 100,
+                    cache_creation_input_tokens: 0,
+                    cache_read_input_tokens: 0,
+                    speed: None,
+                },
+                reasoning_tokens: 50,
+                message_count: 1,
+                cost_usd: None,
+            };
+
+            assert!(
+                calculate_hermes_cost(&entry, &pricing) > 0.0,
+                "{model} should resolve to embedded pricing"
+            );
+        }
+    }
 }

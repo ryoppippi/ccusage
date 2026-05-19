@@ -215,14 +215,19 @@ impl Cli {
         if let Some(message) = unsupported_agent_report_error(&parser.args) {
             return Err(message);
         }
-        if has_help_flag(&parser.args) {
-            if let Some(help) = help_for_args(&parser.args) {
-                println!("{help}");
-                process::exit(0);
-            }
+        if parser
+            .args
+            .iter()
+            .any(|arg| matches!(arg.as_str(), "-v" | "-V" | "--version"))
+        {
+            print_version_and_exit();
         }
-        if parser.peek_help_or_version() {
-            parser.print_help_or_version();
+        if parser
+            .args
+            .iter()
+            .any(|arg| matches!(arg.as_str(), "-h" | "--help"))
+        {
+            print_help_and_exit(&parser.args);
         }
 
         let mut shared = SharedArgs::with_defaults();
@@ -592,40 +597,6 @@ fn parse_amp_command(
     }))
 }
 
-fn parse_hermes_command(
-    parser: &mut ArgParser,
-    mut shared: SharedArgs,
-    _config: &ConfigContext,
-) -> Result<Command, String> {
-    let kind = match parser.peek() {
-        Some("daily") => {
-            parser.next();
-            AgentReportKind::Daily
-        }
-        Some("monthly") => {
-            parser.next();
-            AgentReportKind::Monthly
-        }
-        Some("session") => {
-            parser.next();
-            AgentReportKind::Session
-        }
-        Some(command) if !command.starts_with('-') => {
-            return Err(format!("Unknown hermes command '{command}'"));
-        }
-        _ => AgentReportKind::Daily,
-    };
-    while parser.peek().is_some() {
-        parse_shared_arg(parser, &mut shared)?;
-    }
-    Ok(Command::Hermes(AgentCommandArgs {
-        shared,
-        kind,
-        pi_path: None,
-        codex_speed: CodexSpeed::Auto,
-    }))
-}
-
 fn parse_pi_command(
     parser: &mut ArgParser,
     mut shared: SharedArgs,
@@ -696,6 +667,40 @@ fn parse_copilot_command(
         parse_shared_arg(parser, &mut shared)?;
     }
     Ok(Command::Copilot(AgentCommandArgs {
+        shared,
+        kind,
+        pi_path: None,
+        codex_speed: CodexSpeed::Auto,
+    }))
+}
+
+fn parse_hermes_command(
+    parser: &mut ArgParser,
+    mut shared: SharedArgs,
+    _config: &ConfigContext,
+) -> Result<Command, String> {
+    let kind = match parser.peek() {
+        Some("daily") => {
+            parser.next();
+            AgentReportKind::Daily
+        }
+        Some("monthly") => {
+            parser.next();
+            AgentReportKind::Monthly
+        }
+        Some("session") => {
+            parser.next();
+            AgentReportKind::Session
+        }
+        Some(command) if !command.starts_with('-') => {
+            return Err(format!("Unknown hermes command '{command}'"));
+        }
+        _ => AgentReportKind::Daily,
+    };
+    while parser.peek().is_some() {
+        parse_shared_arg(parser, &mut shared)?;
+    }
+    Ok(Command::Hermes(AgentCommandArgs {
         shared,
         kind,
         pi_path: None,
@@ -1086,6 +1091,9 @@ impl ArgParser {
         let arg = self
             .next()
             .ok_or_else(|| "Expected option but reached end of arguments".to_string())?;
+        if matches!(arg.as_str(), "-h" | "--help" | "-v" | "-V" | "--version") {
+            print_help_or_version_arg(&arg);
+        }
         if let Some((flag, value)) = arg.split_once('=') {
             self.pending_value = Some(value.to_string());
             return Ok(flag.to_string());
@@ -1112,119 +1120,430 @@ impl ArgParser {
         }
         Ok(value)
     }
-
-    fn peek_help_or_version(&self) -> bool {
-        matches!(self.peek(), Some("-h" | "--help" | "-V" | "--version"))
-    }
-
-    fn print_help_or_version(&mut self) -> ! {
-        print_help_or_version_arg(self.next().as_deref().unwrap_or("--help"))
-    }
 }
 
 fn print_help_or_version_arg(arg: &str) -> ! {
     match arg {
-        "-V" | "--version" => println!("ccusage {}", env!("CARGO_PKG_VERSION")),
+        "-v" | "-V" | "--version" => print_version_and_exit(),
         _ => println!("{}", help_text()),
     }
     process::exit(0);
 }
 
-fn has_help_flag(args: &[String]) -> bool {
-    args.iter()
-        .any(|arg| matches!(flag_name(arg), "-h" | "--help"))
+fn print_version_and_exit() -> ! {
+    println!("ccusage {}", env!("CARGO_PKG_VERSION"));
+    process::exit(0);
 }
 
-fn flag_name(arg: &str) -> &str {
-    arg.split_once('=').map_or(arg, |(name, _)| name)
+fn print_help_and_exit(args: &[String]) -> ! {
+    println!("{}", help_text_for_args(args));
+    process::exit(0);
 }
 
-fn help_for_args(args: &[String]) -> Option<&'static str> {
+fn help_text() -> String {
+    root_help_text()
+}
+
+fn help_text_for_args(args: &[String]) -> String {
+    let args = strip_program_name(args);
     let tokens = command_tokens(args);
-    match tokens.as_slice() {
-        [] => Some(help_text()),
-        [command] => match command.as_str() {
-            "daily" | "weekly" | "monthly" | "session" => Some(unified_report_help()),
-            "blocks" => Some(claude_blocks_help()),
-            "statusline" => Some(claude_statusline_help()),
-            "claude" => Some(claude_help()),
-            "codex" => Some(codex_help()),
-            "opencode" => Some(opencode_help()),
-            "amp" => Some(amp_help()),
-            "hermes" => Some(hermes_help()),
-            "pi" => Some(pi_help()),
-            "copilot" => Some(copilot_help()),
-            "gemini" => Some(gemini_help()),
-            _ => None,
-        },
-        [agent, report] if is_agent_command(agent) && agent_report_supported(agent, report) => {
-            match agent.as_str() {
-                "claude" => match report.as_str() {
-                    "blocks" => Some(claude_blocks_help()),
-                    "statusline" => Some(claude_statusline_help()),
-                    _ => Some(claude_help()),
-                },
-                "codex" => Some(codex_help()),
-                "opencode" => Some(opencode_help()),
-                "amp" => Some(amp_help()),
-                "hermes" => Some(hermes_help()),
-                "pi" => Some(pi_help()),
-                "copilot" => Some(copilot_help()),
-                "gemini" => Some(gemini_help()),
-                _ => None,
-            }
-        }
-        _ => None,
+    help_text_for_tokens(&tokens)
+}
+
+fn strip_program_name(args: &[String]) -> &[String] {
+    if args.first().is_some_and(|arg| arg == "ccusage") {
+        &args[1..]
+    } else {
+        args
     }
 }
 
-fn help_text() -> &'static str {
-    "Usage: ccusage [OPTIONS] [COMMAND]\n\nUnified reports:\n  daily       All detected sources by day\n  weekly      All detected sources by week\n  monthly     All detected sources by month\n  session     All detected sources by session\n\nClaude Code reports:\n  claude      Claude Code reports (daily, weekly, monthly, session, blocks, statusline)\n  blocks      Claude Code billing block report\n  statusline  Claude Code status line hook output\n\nSource reports:\n  codex       Codex reports (daily, monthly, session)\n  opencode    OpenCode reports (daily, weekly, monthly, session)\n  amp         Amp reports (daily, monthly, session)\n  hermes      Hermes reports (daily, monthly, session)\n  pi          pi-agent reports (daily, monthly, session)\n  copilot     GitHub Copilot CLI reports (daily, monthly, session)\n  gemini      Gemini CLI reports (daily, monthly, session)\n\nOptions:\n  -s, --since <YYYYMMDD>\n  -u, --until <YYYYMMDD>\n  -j, --json\n  -m, --mode <auto|calculate|display>\n  -d, --debug\n      --debug-samples <N>\n  -o, --order <asc|desc>\n  -b, --breakdown\n  -O, --offline\n      --no-offline\n      --color\n      --no-color\n  -z, --timezone <TZ>\n  -q, --jq <QUERY>\n      --config <PATH>\n      --compact\n      --single-thread\n  -h, --help\n  -V, --version"
+fn help_text_for_tokens(tokens: &[String]) -> String {
+    match tokens {
+        [] => root_help_text(),
+        [command] => match command.as_str() {
+            "daily" | "monthly" | "weekly" | "session" => all_report_help(command),
+            "blocks" => blocks_help("ccusage blocks"),
+            "statusline" => statusline_help("ccusage statusline"),
+            "claude" => agent_help(
+                "claude",
+                &[
+                    ("daily", "Show usage report grouped by date"),
+                    ("monthly", "Show usage report grouped by month"),
+                    ("weekly", "Show usage report grouped by week"),
+                    ("session", "Show usage report grouped by conversation session"),
+                    ("blocks", "Show usage report grouped by session billing blocks"),
+                    (
+                        "statusline",
+                        "Display compact status line for Claude Code hooks with hybrid time+file caching (Beta)",
+                    ),
+                ],
+            ),
+            "codex" => agent_help(
+                "codex",
+                &[
+                    ("daily", "Show Codex token usage grouped by day"),
+                    ("monthly", "Show Codex token usage grouped by month"),
+                    ("session", "Show Codex token usage grouped by session"),
+                ],
+            ),
+            "opencode" => agent_help(
+                "opencode",
+                &[
+                    ("daily", "Show OpenCode token usage grouped by day"),
+                    ("weekly", "Show OpenCode token usage grouped by week"),
+                    ("monthly", "Show OpenCode token usage grouped by month"),
+                    ("session", "Show OpenCode token usage grouped by session"),
+                ],
+            ),
+            "amp" => agent_help(
+                "amp",
+                &[
+                    ("daily", "Show Amp token usage grouped by day"),
+                    ("monthly", "Show Amp token usage grouped by month"),
+                    ("session", "Show Amp token usage grouped by session"),
+                ],
+            ),
+            "hermes" => agent_help(
+                "hermes",
+                &[
+                    ("daily", "Show Hermes usage grouped by date"),
+                    ("monthly", "Show Hermes usage grouped by month"),
+                    ("session", "Show Hermes usage grouped by session"),
+                ],
+            ),
+            "pi" => agent_help(
+                "pi",
+                &[
+                    ("daily", "Show pi-agent usage grouped by date"),
+                    ("monthly", "Show pi-agent usage grouped by month"),
+                    ("session", "Show pi-agent usage grouped by session"),
+                ],
+            ),
+            "copilot" => agent_help(
+                "copilot",
+                &[
+                    ("daily", "Show GitHub Copilot CLI usage grouped by date"),
+                    ("monthly", "Show GitHub Copilot CLI usage grouped by month"),
+                    ("session", "Show GitHub Copilot CLI usage grouped by session"),
+                ],
+            ),
+            "gemini" => agent_help(
+                "gemini",
+                &[
+                    ("daily", "Show Gemini CLI usage grouped by date"),
+                    ("monthly", "Show Gemini CLI usage grouped by month"),
+                    ("session", "Show Gemini CLI usage grouped by session"),
+                ],
+            ),
+            _ => root_help_text(),
+        },
+        [agent, report, ..] => match agent.as_str() {
+            "claude" => match report.as_str() {
+                "daily" | "monthly" | "weekly" | "session" => claude_report_help(report),
+                "blocks" => blocks_help("ccusage claude blocks"),
+                "statusline" => statusline_help("ccusage claude statusline"),
+                _ => root_help_text(),
+            },
+            "codex" => codex_report_help(report),
+            "opencode" => opencode_report_help(report),
+            "amp" => amp_report_help(report),
+            "hermes" => hermes_report_help(report),
+            "pi" => pi_report_help(report),
+            "copilot" => copilot_report_help(report),
+            "gemini" => gemini_report_help(report),
+            _ => root_help_text(),
+        },
+    }
 }
 
-fn unified_report_help() -> &'static str {
-    "Usage: ccusage [OPTIONS] <daily|weekly|monthly|session>\n\nUnified reports aggregate every detected source. Use a source command such as \"ccusage codex daily\" to focus on one source."
+fn agent_help(agent: &str, commands: &[(&str, &str)]) -> String {
+    let mut lines = vec![
+        format!("Usage reports for {agent}."),
+        String::new(),
+        "USAGE:".to_string(),
+        format!("  ccusage {agent} <COMMANDS>"),
+        String::new(),
+        "COMMANDS:".to_string(),
+    ];
+    for (command, description) in commands {
+        lines.push(format!("  {command:<11} {description}"));
+    }
+    lines.push(String::new());
+    lines.push("For more info, run any command with the `--help` flag:".to_string());
+    for (command, _) in commands {
+        lines.push(format!("  ccusage {agent} {command} --help"));
+    }
+    lines.join("\n")
 }
 
-fn claude_help() -> &'static str {
-    "Usage: ccusage claude [OPTIONS] [daily|weekly|monthly|session|blocks|statusline]\n\nClaude Code reports include the Claude-only blocks and statusline commands."
+fn root_help_text() -> String {
+    let mut lines = [
+        "USAGE:",
+        "  ccusage [daily] <OPTIONS>",
+        "  ccusage <COMMANDS>",
+        "",
+        "COMMANDS:",
+        "  daily                      Show all detected coding (agent) CLI usage grouped by date",
+        "  monthly                    Show all detected coding (agent) CLI usage grouped by month",
+        "  weekly                     Show all detected coding (agent) CLI usage grouped by week",
+        "  session                    Show all detected coding (agent) CLI usage grouped by session",
+        "  blocks                     Show usage report grouped by session billing blocks",
+        "  statusline                 Display compact status line for Claude Code hooks with hybrid time+file caching (Beta)",
+        "  claude daily               Show usage report grouped by date",
+        "  claude monthly             Show usage report grouped by month",
+        "  claude weekly              Show usage report grouped by week",
+        "  claude session             Show usage report grouped by conversation session",
+        "  claude blocks              Show usage report grouped by session billing blocks",
+        "  claude statusline          Display compact status line for Claude Code hooks with hybrid time+file caching (Beta)",
+        "  codex daily                Show Codex token usage grouped by day",
+        "  codex monthly              Show Codex token usage grouped by month",
+        "  codex session              Show Codex token usage grouped by session",
+        "  opencode daily             Show OpenCode token usage grouped by day",
+        "  opencode weekly            Show OpenCode token usage grouped by week",
+        "  opencode monthly           Show OpenCode token usage grouped by month",
+        "  opencode session           Show OpenCode token usage grouped by session",
+        "  amp daily                  Show Amp token usage grouped by day",
+        "  amp monthly                Show Amp token usage grouped by month",
+        "  amp session                Show Amp token usage grouped by session",
+        "  hermes daily               Show Hermes usage grouped by date",
+        "  hermes monthly             Show Hermes usage grouped by month",
+        "  hermes session             Show Hermes usage grouped by session",
+        "  pi daily                   Show pi-agent usage grouped by date",
+        "  pi monthly                 Show pi-agent usage grouped by month",
+        "  pi session                 Show pi-agent usage grouped by session",
+        "  copilot daily              Show GitHub Copilot CLI usage grouped by date",
+        "  copilot monthly            Show GitHub Copilot CLI usage grouped by month",
+        "  copilot session            Show GitHub Copilot CLI usage grouped by session",
+        "  gemini daily               Show Gemini CLI usage grouped by date",
+        "  gemini monthly             Show Gemini CLI usage grouped by month",
+        "  gemini session             Show Gemini CLI usage grouped by session",
+        "",
+        "For more info, run any command with the `--help` flag:",
+        "  ccusage daily --help",
+        "  ccusage monthly --help",
+        "  ccusage weekly --help",
+        "  ccusage session --help",
+        "  ccusage blocks --help",
+        "  ccusage statusline --help",
+        "  ccusage claude daily --help",
+        "  ccusage claude monthly --help",
+        "  ccusage claude weekly --help",
+        "  ccusage claude session --help",
+        "  ccusage claude blocks --help",
+        "  ccusage claude statusline --help",
+        "  ccusage codex daily --help",
+        "  ccusage codex monthly --help",
+        "  ccusage codex session --help",
+        "  ccusage opencode daily --help",
+        "  ccusage opencode weekly --help",
+        "  ccusage opencode monthly --help",
+        "  ccusage opencode session --help",
+        "  ccusage amp daily --help",
+        "  ccusage amp monthly --help",
+        "  ccusage amp session --help",
+        "  ccusage hermes daily --help",
+        "  ccusage hermes monthly --help",
+        "  ccusage hermes session --help",
+        "  ccusage pi daily --help",
+        "  ccusage pi monthly --help",
+        "  ccusage pi session --help",
+        "  ccusage copilot daily --help",
+        "  ccusage copilot monthly --help",
+        "  ccusage copilot session --help",
+        "  ccusage gemini daily --help",
+        "  ccusage gemini monthly --help",
+        "  ccusage gemini session --help",
+        "",
+    ]
+    .map(str::to_string)
+    .to_vec();
+    lines.push(all_agent_options().to_string());
+    lines.join("\n")
 }
 
-fn claude_blocks_help() -> &'static str {
-    "Usage: ccusage claude blocks [OPTIONS]\n       ccusage blocks [OPTIONS]\n\nShows Claude Code billing block usage."
+fn all_report_help(report: &str) -> String {
+    let description = match report {
+        "daily" => "Show all detected coding (agent) CLI usage grouped by date",
+        "monthly" => "Show all detected coding (agent) CLI usage grouped by month",
+        "weekly" => "Show all detected coding (agent) CLI usage grouped by week",
+        "session" => "Show all detected coding (agent) CLI usage grouped by session",
+        _ => unreachable!("all-agent report is prevalidated"),
+    };
+    command_help(
+        description,
+        &format!("ccusage {report} <OPTIONS>"),
+        all_agent_options(),
+    )
 }
 
-fn claude_statusline_help() -> &'static str {
-    "Usage: ccusage claude statusline [OPTIONS]\n       ccusage statusline [OPTIONS]\n\nRenders Claude Code status line hook output."
+fn claude_report_help(report: &str) -> String {
+    let (description, options) = match report {
+        "daily" => (
+            "Show usage report grouped by date",
+            command_options(&[shared_claude_options(), daily_options()]),
+        ),
+        "monthly" => (
+            "Show usage report grouped by month",
+            shared_claude_options().to_string(),
+        ),
+        "weekly" => (
+            "Show usage report grouped by week",
+            command_options(&[shared_claude_options(), weekly_options()]),
+        ),
+        "session" => (
+            "Show usage report grouped by conversation session",
+            command_options(&[shared_claude_options(), session_options()]),
+        ),
+        _ => unreachable!("Claude report is prevalidated"),
+    };
+    command_help(
+        description,
+        &format!("ccusage claude {report} <OPTIONS>"),
+        &options,
+    )
 }
 
-fn codex_help() -> &'static str {
-    "Usage: ccusage codex [OPTIONS] [daily|monthly|session]\n\nOptions:\n      --speed <auto|standard|fast>"
+fn codex_report_help(report: &str) -> String {
+    let description = match report {
+        "daily" => "Show Codex token usage grouped by day",
+        "monthly" => "Show Codex token usage grouped by month",
+        "session" => "Show Codex token usage grouped by session",
+        _ => return root_help_text(),
+    };
+    command_help(
+        description,
+        &format!("ccusage codex {report} <OPTIONS>"),
+        codex_options(),
+    )
 }
 
-fn opencode_help() -> &'static str {
-    "Usage: ccusage opencode [OPTIONS] [daily|weekly|monthly|session]"
+fn opencode_report_help(report: &str) -> String {
+    let description = match report {
+        "daily" => "Show OpenCode token usage grouped by day",
+        "weekly" => "Show OpenCode token usage grouped by week",
+        "monthly" => "Show OpenCode token usage grouped by month",
+        "session" => "Show OpenCode token usage grouped by session",
+        _ => return root_help_text(),
+    };
+    command_help(
+        description,
+        &format!("ccusage opencode {report} <OPTIONS>"),
+        agent_options(),
+    )
 }
 
-fn amp_help() -> &'static str {
-    "Usage: ccusage amp [OPTIONS] [daily|monthly|session]"
+fn amp_report_help(report: &str) -> String {
+    let description = match report {
+        "daily" => "Show Amp token usage grouped by day",
+        "monthly" => "Show Amp token usage grouped by month",
+        "session" => "Show Amp token usage grouped by session",
+        _ => return root_help_text(),
+    };
+    command_help(
+        description,
+        &format!("ccusage amp {report} <OPTIONS>"),
+        agent_options(),
+    )
 }
 
-fn hermes_help() -> &'static str {
-    "Usage: ccusage hermes [OPTIONS] [daily|monthly|session]"
+fn hermes_report_help(report: &str) -> String {
+    let description = match report {
+        "daily" => "Show Hermes usage grouped by date",
+        "monthly" => "Show Hermes usage grouped by month",
+        "session" => "Show Hermes usage grouped by session",
+        _ => return root_help_text(),
+    };
+    command_help(
+        description,
+        &format!("ccusage hermes {report} <OPTIONS>"),
+        agent_options(),
+    )
 }
 
-fn pi_help() -> &'static str {
-    "Usage: ccusage pi [OPTIONS] [daily|monthly|session]\n\nOptions:\n      --pi-path <PATHS>"
+fn pi_report_help(report: &str) -> String {
+    let description = match report {
+        "daily" => "Show pi-agent usage grouped by date",
+        "monthly" => "Show pi-agent usage grouped by month",
+        "session" => "Show pi-agent usage grouped by session",
+        _ => return root_help_text(),
+    };
+    command_help(
+        description,
+        &format!("ccusage pi {report} <OPTIONS>"),
+        &command_options(&[agent_options(), pi_options()]),
+    )
 }
 
-fn copilot_help() -> &'static str {
-    "Usage: ccusage copilot [OPTIONS] [daily|monthly|session]"
+fn copilot_report_help(report: &str) -> String {
+    let description = match report {
+        "daily" => "Show GitHub Copilot CLI usage grouped by date",
+        "monthly" => "Show GitHub Copilot CLI usage grouped by month",
+        "session" => "Show GitHub Copilot CLI usage grouped by session",
+        _ => return root_help_text(),
+    };
+    command_help(
+        description,
+        &format!("ccusage copilot {report} <OPTIONS>"),
+        agent_options(),
+    )
 }
 
-fn gemini_help() -> &'static str {
-    "Usage: ccusage gemini [OPTIONS] [daily|monthly|session]"
+fn gemini_report_help(report: &str) -> String {
+    let description = match report {
+        "daily" => "Show Gemini CLI usage grouped by date",
+        "monthly" => "Show Gemini CLI usage grouped by month",
+        "session" => "Show Gemini CLI usage grouped by session",
+        _ => return root_help_text(),
+    };
+    command_help(
+        description,
+        &format!("ccusage gemini {report} <OPTIONS>"),
+        agent_options(),
+    )
 }
+
+fn blocks_help(usage: &str) -> String {
+    command_help(
+        "Show usage report grouped by session billing blocks",
+        &format!("{usage} <OPTIONS>"),
+        &command_options(&[shared_claude_options(), blocks_options()]),
+    )
+}
+
+fn statusline_help(usage: &str) -> String {
+    command_help(
+        "Display compact status line for Claude Code hooks with hybrid time+file caching (Beta)",
+        &format!("{usage} <OPTIONS>"),
+        statusline_options(),
+    )
+}
+
+fn command_help(description: &str, usage: &str, options: &str) -> String {
+    [
+        description,
+        "",
+        "USAGE:",
+        &format!("  {usage}"),
+        "",
+        options,
+    ]
+    .join("\n")
+}
+
+fn command_options(parts: &[&str]) -> String {
+    for part in parts {
+        debug_assert!(part.starts_with("OPTIONS:\n"));
+    }
+    let option_lines = parts
+        .iter()
+        .flat_map(|part| part.lines().skip(1))
+        .collect::<Vec<_>>()
+        .join("\n");
+    format!("OPTIONS:\n{option_lines}")
+}
+
+include!(concat!(env!("OUT_DIR"), "/cli-help.rs"));
 
 #[cfg(test)]
 mod tests {
@@ -1423,57 +1742,63 @@ mod tests {
     #[test]
     fn help_lists_agent_namespace_commands() {
         let help = help_text();
-        assert!(help.contains("\nClaude Code reports:\n"));
-        assert!(help.contains("\n  claude      Claude Code reports"));
-        assert!(help.contains("\n  statusline  Claude Code status line hook output"));
-        assert!(help.contains("\nSource reports:\n"));
-        assert!(help.contains("\n  codex       Codex reports"));
-        assert!(help.contains("\n  opencode    OpenCode reports"));
-        assert!(help.contains("\n  amp         Amp reports"));
-        assert!(help.contains("\n  hermes      Hermes reports"));
-        assert!(help.contains("\n  pi          pi-agent reports"));
-        assert!(help.contains("\n  copilot     GitHub Copilot CLI reports"));
-        assert!(help.contains("\n  gemini      Gemini CLI reports"));
+        assert!(help.contains("\n  claude daily"));
+        assert!(help.contains("\n  codex daily"));
+        assert!(help.contains("\n  opencode daily"));
+        assert!(help.contains("\n  amp daily"));
+        assert!(help.contains("\n  pi daily"));
+        assert!(help.contains("\n  copilot daily"));
+        assert!(help.contains("\n  gemini daily"));
     }
 
     #[test]
-    fn help_for_valid_subcommands_is_contextual() {
-        assert_eq!(
-            help_for_args(&[
-                "codex".to_string(),
-                "daily".to_string(),
-                "--help".to_string()
-            ]),
-            Some(codex_help())
-        );
-        assert_eq!(
-            help_for_args(&[
-                "claude".to_string(),
-                "statusline".to_string(),
-                "--help".to_string()
-            ]),
-            Some(claude_statusline_help())
-        );
-        assert_eq!(
-            help_for_args(&[
-                "hermes".to_string(),
-                "daily".to_string(),
-                "--help".to_string()
-            ]),
-            Some(hermes_help())
-        );
+    fn root_help_lists_command_descriptions_and_follow_up_help_commands() {
+        let help = help_text();
+
+        assert!(help.contains("codex daily                Show Codex token usage grouped by day"));
+        assert!(help.contains("For more info, run any command with the `--help` flag:"));
+        assert!(help.contains("ccusage codex daily --help"));
     }
 
     #[test]
-    fn help_for_unknown_commands_falls_back_to_parse_error() {
-        assert_eq!(
-            help_for_args(&[
-                "unknown".to_string(),
-                "daily".to_string(),
-                "--help".to_string()
-            ]),
-            None
-        );
+    fn contextual_codex_help_lists_speed_choices() {
+        let help = help_text_for_args(&[
+            "ccusage".to_string(),
+            "codex".to_string(),
+            "daily".to_string(),
+            "--help".to_string(),
+        ]);
+
+        assert!(help.contains("Show Codex token usage grouped by day"));
+        assert!(help.contains("USAGE:\n  ccusage codex daily <OPTIONS>"));
+        assert!(help.contains("choices: auto | standard | fast"));
+    }
+
+    #[test]
+    fn contextual_agent_help_lists_agent_subcommands() {
+        let help = help_text_for_args(&["ccusage".to_string(), "claude".to_string()]);
+
+        assert!(help.contains("USAGE:\n  ccusage claude <COMMANDS>"));
+        assert!(help.contains("daily       Show usage report grouped by date"));
+        assert!(help.contains("statusline  Display compact status line for Claude Code hooks"));
+        assert!(help.contains("ccusage claude statusline --help"));
+        assert!(!help.contains("ccusage claude daily <OPTIONS>"));
+    }
+
+    #[test]
+    fn contextual_all_agent_help_lists_color_options() {
+        let help = help_text_for_args(&["ccusage".to_string(), "daily".to_string()]);
+
+        assert!(help.contains("--color"));
+        assert!(help.contains("--no-color"));
+    }
+
+    #[test]
+    fn contextual_statusline_help_lists_choice_options() {
+        let help = help_text_for_args(&["ccusage".to_string(), "statusline".to_string()]);
+
+        assert!(help.contains("choices: off | emoji | text | emoji-text"));
+        assert!(help.contains("choices: auto | ccusage | cc | both"));
     }
 
     #[test]
@@ -1668,6 +1993,16 @@ mod tests {
     }
 
     #[test]
+    fn parses_hermes_session_options() {
+        let cli = parse(&["ccusage", "hermes", "session", "--json"]);
+        let Some(Command::Hermes(args)) = cli.command else {
+            panic!("expected hermes command");
+        };
+        assert_eq!(args.kind, AgentReportKind::Session);
+        assert!(args.shared.json);
+    }
+
+    #[test]
     fn parses_copilot_session_options() {
         let cli = parse(&["ccusage", "copilot", "session", "--json"]);
         let Some(Command::Copilot(args)) = cli.command else {
@@ -1682,16 +2017,6 @@ mod tests {
         let cli = parse(&["ccusage", "gemini", "session", "--json"]);
         let Some(Command::Gemini(args)) = cli.command else {
             panic!("expected gemini command");
-        };
-        assert_eq!(args.kind, AgentReportKind::Session);
-        assert!(args.shared.json);
-    }
-
-    #[test]
-    fn parses_hermes_session_options() {
-        let cli = parse(&["ccusage", "hermes", "session", "--json"]);
-        let Some(Command::Hermes(args)) = cli.command else {
-            panic!("expected hermes command");
         };
         assert_eq!(args.kind, AgentReportKind::Session);
         assert!(args.shared.json);
