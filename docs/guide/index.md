@@ -2,9 +2,9 @@
 
 ![ccusage daily report showing token usage and costs by date](/screenshot.png)
 
-**ccusage** is a local CLI for understanding coding (agent) CLI token usage and estimated costs across Claude Code, Codex, OpenCode, Amp, pi-agent, and OpenClaw.
+**ccusage** is a local CLI for understanding coding (agent) CLI token usage and estimated costs across Claude Code, Codex, OpenCode, Amp, pi-agent, GitHub Copilot CLI, and OpenClaw.
 
-The original **“cc”** came from **C**laude **C**ode usage and now also fits **C**odex **C**LI usage. As OpenCode, Amp, pi-agent, OpenClaw, and other coding (agent) CLIs became part of the same workflow, ccusage expanded into a general name for local coding CLI usage analysis.
+The original **“cc”** came from **C**laude **C**ode usage and now also fits **C**odex **C**LI usage. As OpenCode, Amp, pi-agent, and other coding (agent) CLIs became part of the same workflow, ccusage expanded into a general name for local coding CLI usage analysis.
 
 ## The Problem
 
@@ -19,7 +19,7 @@ Modern coding (agent) CLI usage is split across several local data formats. That
 
 ccusage reads the local usage files that coding CLIs already generate and provides:
 
-- **All Sources by Default** - Claude Code, Codex, OpenCode, Amp, pi-agent, and OpenClaw in one CLI
+- **All Sources by Default** - Claude Code, Codex, OpenCode, Amp, pi-agent, GitHub Copilot CLI, and OpenClaw in one CLI
 - **Usage Views** - Daily, weekly, monthly, and session-based breakdowns
 - **Cost Analysis** - Estimated costs based on token usage and model pricing
 - **Focused Data Source Views** - Start with all detected sources, then narrow the same usage views to one source when needed
@@ -36,9 +36,9 @@ ccusage reads the local usage files that coding CLIs already generate and provid
 
 ## Key Features
 
-### 🚀 Ultra-Small Bundle Size
+### 🚀 Direct Execution
 
-Unlike many CLI tools, ccusage pays close attention to bundle size. You can run it directly without a global install using `bunx ccusage` (recommended), `pnpm dlx ccusage`, or `npx ccusage@latest`.
+You can run ccusage without a global install using `bunx ccusage` (recommended), `pnpm dlx ccusage`, or `npx ccusage@latest`.
 
 ### 📊 Usage Views
 
@@ -72,14 +72,15 @@ Each data source page covers the details that only apply to that source, includi
 
 ccusage reads from local coding CLI data directories:
 
-| Agent       | ID         | Default data location                                                           |
-| ----------- | ---------- | ------------------------------------------------------------------------------- |
-| Claude Code | `claude`   | `~/.config/claude/projects/`, `~/.claude/`                                      |
-| Codex       | `codex`    | `${CODEX_HOME:-~/.codex}`                                                       |
-| OpenCode    | `opencode` | `${OPENCODE_DATA_DIR:-~/.local/share/opencode}`                                 |
-| Amp         | `amp`      | `${AMP_DATA_DIR:-~/.local/share/amp}`                                           |
-| pi-agent    | `pi`       | `${PI_AGENT_DIR:-~/.pi/agent/sessions}`                                         |
-| OpenClaw    | `openclaw` | `${OPENCLAW_DIR:-~/.openclaw}` (also `~/.clawdbot`, `~/.moltbot`, `~/.moldbot`) |
+| Agent       | ID         | Default data location                           |
+| ----------- | ---------- | ----------------------------------------------- |
+| Claude Code | `claude`   | `~/.config/claude/projects/`, `~/.claude/`      |
+| Codex       | `codex`    | `${CODEX_HOME:-~/.codex}`                       |
+| OpenCode    | `opencode` | `${OPENCODE_DATA_DIR:-~/.local/share/opencode}` |
+| Amp         | `amp`      | `${AMP_DATA_DIR:-~/.local/share/amp}`           |
+| pi-agent    | `pi`       | `${PI_AGENT_DIR:-~/.pi/agent/sessions}`         |
+| Copilot CLI | `copilot`  | `~/.copilot/otel/*.jsonl`                       |
+| OpenClaw    | `openclaw` | `${OPENCLAW_DIR:-~/.openclaw}`                  |
 
 The tool automatically detects available data and aggregates all supported coding CLIs by default.
 Each source-specific environment variable can also contain comma-separated directories, which lets unified reports combine current profiles and archives.
@@ -103,6 +104,7 @@ ccusage codex daily --speed fast
 ccusage opencode weekly
 ccusage amp session
 ccusage pi monthly
+ccusage copilot daily
 ccusage openclaw daily
 ```
 
