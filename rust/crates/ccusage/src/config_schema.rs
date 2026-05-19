@@ -24,6 +24,10 @@ pub(crate) struct CcusageConfig {
     pub(crate) opencode: Option<OpenCodeConfig>,
     /// Amp configuration.
     pub(crate) amp: Option<AmpConfig>,
+    /// Droid configuration.
+    pub(crate) droid: Option<DroidConfig>,
+    /// Codebuff configuration.
+    pub(crate) codebuff: Option<CodebuffConfig>,
     /// Hermes Agent configuration.
     pub(crate) hermes: Option<HermesConfig>,
     /// pi-agent configuration.
@@ -34,14 +38,14 @@ pub(crate) struct CcusageConfig {
     pub(crate) openclaw: Option<OpenClawConfig>,
     /// Kilo configuration.
     pub(crate) kilo: Option<KiloConfig>,
-    /// Qwen configuration.
-    pub(crate) qwen: Option<QwenConfig>,
     /// GitHub Copilot CLI configuration.
     pub(crate) copilot: Option<CopilotConfig>,
     /// Gemini CLI configuration.
     pub(crate) gemini: Option<GeminiConfig>,
     /// Kimi configuration.
     pub(crate) kimi: Option<KimiConfig>,
+    /// Qwen configuration.
+    pub(crate) qwen: Option<QwenConfig>,
 }
 
 #[derive(Debug, Default, Deserialize, JsonSchema)]
@@ -114,6 +118,36 @@ pub(crate) struct AmpConfig {
 #[derive(Debug, Default, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct AmpCommandsConfig {
+    pub(crate) daily: Option<SharedOptions>,
+    pub(crate) monthly: Option<SharedOptions>,
+    pub(crate) session: Option<SharedOptions>,
+}
+
+#[derive(Debug, Default, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct DroidConfig {
+    pub(crate) defaults: Option<SharedOptions>,
+    pub(crate) commands: Option<DroidCommandsConfig>,
+}
+
+#[derive(Debug, Default, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct DroidCommandsConfig {
+    pub(crate) daily: Option<SharedOptions>,
+    pub(crate) monthly: Option<SharedOptions>,
+    pub(crate) session: Option<SharedOptions>,
+}
+
+#[derive(Debug, Default, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct CodebuffConfig {
+    pub(crate) defaults: Option<SharedOptions>,
+    pub(crate) commands: Option<CodebuffCommandsConfig>,
+}
+
+#[derive(Debug, Default, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct CodebuffCommandsConfig {
     pub(crate) daily: Option<SharedOptions>,
     pub(crate) monthly: Option<SharedOptions>,
     pub(crate) session: Option<SharedOptions>,
@@ -196,21 +230,6 @@ pub(crate) struct KiloCommandsConfig {
 
 #[derive(Debug, Default, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
-pub(crate) struct QwenConfig {
-    pub(crate) defaults: Option<SharedOptions>,
-    pub(crate) commands: Option<QwenCommandsConfig>,
-}
-
-#[derive(Debug, Default, Deserialize, JsonSchema)]
-#[serde(rename_all = "camelCase")]
-pub(crate) struct QwenCommandsConfig {
-    pub(crate) daily: Option<SharedOptions>,
-    pub(crate) monthly: Option<SharedOptions>,
-    pub(crate) session: Option<SharedOptions>,
-}
-
-#[derive(Debug, Default, Deserialize, JsonSchema)]
-#[serde(rename_all = "camelCase")]
 pub(crate) struct CopilotConfig {
     pub(crate) defaults: Option<SharedOptions>,
     pub(crate) commands: Option<CopilotCommandsConfig>,
@@ -249,6 +268,21 @@ pub(crate) struct KimiConfig {
 #[derive(Debug, Default, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct KimiCommandsConfig {
+    pub(crate) daily: Option<SharedOptions>,
+    pub(crate) monthly: Option<SharedOptions>,
+    pub(crate) session: Option<SharedOptions>,
+}
+
+#[derive(Debug, Default, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct QwenConfig {
+    pub(crate) defaults: Option<SharedOptions>,
+    pub(crate) commands: Option<QwenCommandsConfig>,
+}
+
+#[derive(Debug, Default, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct QwenCommandsConfig {
     pub(crate) daily: Option<SharedOptions>,
     pub(crate) monthly: Option<SharedOptions>,
     pub(crate) session: Option<SharedOptions>,
@@ -889,6 +923,14 @@ mod tests {
             Some("#/definitions/SharedOptions")
         );
         assert_eq!(
+            property_ref(&schema, "DroidConfig", "defaults"),
+            Some("#/definitions/SharedOptions")
+        );
+        assert_eq!(
+            property_ref(&schema, "CodebuffConfig", "defaults"),
+            Some("#/definitions/SharedOptions")
+        );
+        assert_eq!(
             property_ref(&schema, "PiConfig", "defaults"),
             Some("#/definitions/PiOptions")
         );
@@ -905,15 +947,15 @@ mod tests {
             Some("#/definitions/SharedOptions")
         );
         assert_eq!(
-            property_ref(&schema, "QwenConfig", "defaults"),
-            Some("#/definitions/SharedOptions")
-        );
-        assert_eq!(
             property_ref(&schema, "GeminiConfig", "defaults"),
             Some("#/definitions/SharedOptions")
         );
         assert_eq!(
             property_ref(&schema, "KimiConfig", "defaults"),
+            Some("#/definitions/SharedOptions")
+        );
+        assert_eq!(
+            property_ref(&schema, "QwenConfig", "defaults"),
             Some("#/definitions/SharedOptions")
         );
     }
@@ -939,8 +981,9 @@ mod tests {
             &schema,
             "ccusage-config",
             &[
-                "$schema", "amp", "claude", "codex", "commands", "copilot", "defaults", "gemini",
-                "goose", "hermes", "kilo", "kimi", "opencode", "openclaw", "pi", "qwen",
+                "$schema", "amp", "claude", "codebuff", "codex", "commands", "copilot", "defaults",
+                "gemini", "goose", "hermes", "kilo", "kimi", "opencode", "openclaw", "pi", "qwen",
+                "droid",
             ],
         );
     }
@@ -1002,6 +1045,20 @@ mod tests {
                     }
                 }
             },
+            "droid": {
+                "commands": {
+                    "daily": {
+                        "json": true
+                    }
+                }
+            },
+            "codebuff": {
+                "commands": {
+                    "daily": {
+                        "json": true
+                    }
+                }
+            },
             "pi": {
                 "commands": {
                     "daily": {
@@ -1037,13 +1094,6 @@ mod tests {
                     }
                 }
             },
-            "qwen": {
-                "commands": {
-                    "daily": {
-                        "json": true
-                    }
-                }
-            },
             "copilot": {
                 "commands": {
                     "session": {
@@ -1059,6 +1109,13 @@ mod tests {
                 }
             },
             "kimi": {
+                "commands": {
+                    "session": {
+                        "json": true
+                    }
+                }
+            },
+            "qwen": {
                 "commands": {
                     "session": {
                         "json": true

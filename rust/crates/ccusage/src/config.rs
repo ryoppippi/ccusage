@@ -237,6 +237,8 @@ fn is_agent_command(command: &str) -> bool {
             | "codex"
             | "opencode"
             | "amp"
+            | "droid"
+            | "codebuff"
             | "hermes"
             | "pi"
             | "goose"

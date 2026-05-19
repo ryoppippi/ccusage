@@ -112,7 +112,7 @@ fn parse_line(
         speed: None,
     };
     let billable_usage = TokenUsageRaw {
-        output_tokens: output_tokens + reasoning_tokens,
+        output_tokens: output_tokens.saturating_add(reasoning_tokens),
         ..display_usage
     };
     let cost = calculate_qwen_cost(&model, billable_usage, mode, pricing);

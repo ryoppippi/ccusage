@@ -12,6 +12,8 @@ ccusage detects supported data source files from conventional locations by defau
 | `CODEX_HOME`                      | Codex        | `~/.codex`                         |
 | `OPENCODE_DATA_DIR`               | OpenCode     | `~/.local/share/opencode`          |
 | `AMP_DATA_DIR`                    | Amp          | `~/.local/share/amp`               |
+| `DROID_SESSIONS_DIR`              | Droid        | `~/.factory/sessions`              |
+| `CODEBUFF_DATA_DIR`               | Codebuff     | `~/.config/manicode`               |
 | `HERMES_HOME`                     | Hermes Agent | `~/.hermes`                        |
 | `PI_AGENT_DIR`                    | pi-agent     | `~/.pi/agent/sessions`             |
 | `GOOSE_PATH_ROOT`                 | Goose        | Standard Goose data roots          |
@@ -28,6 +30,8 @@ Example:
 export CODEX_HOME="/path/to/codex,/archive/codex,/path/to/codex-exec-jsonl"
 export OPENCODE_DATA_DIR="/path/to/opencode,/archive/opencode"
 export AMP_DATA_DIR="/path/to/amp,/archive/amp"
+export DROID_SESSIONS_DIR="/path/to/factory/sessions,/archive/factory/sessions"
+export CODEBUFF_DATA_DIR="/path/to/manicode,/archive/manicode"
 export HERMES_HOME="/path/to/hermes,/archive/hermes"
 export PI_AGENT_DIR="/path/to/pi/sessions,/archive/pi/sessions"
 export GOOSE_PATH_ROOT="/path/to/goose,/archive/goose"
@@ -206,7 +210,7 @@ To see which environment variables are being used:
 
 ```bash
 # Show all environment variables
-env | grep -E "CLAUDE|CODEX|OPENCODE|AMP|HERMES|PI_AGENT|GOOSE|KILO|KIMI|QWEN|COPILOT|GEMINI|CCUSAGE|LOG_LEVEL"
+env | grep -E "CLAUDE|CODEX|OPENCODE|AMP|DROID|CODEBUFF|HERMES|PI_AGENT|GOOSE|OPENCLAW|KILO|KIMI|QWEN|COPILOT|GEMINI|CCUSAGE|LOG_LEVEL"
 
 # Debug mode shows environment variable usage
 LOG_LEVEL=4 ccusage daily --debug

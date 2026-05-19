@@ -383,6 +383,33 @@
 			},
 			"type": "object"
 		},
+		"CodebuffCommandsConfig": {
+			"additionalProperties": false,
+			"properties": {
+				"daily": {
+					"$ref": "#/definitions/SharedOptions"
+				},
+				"monthly": {
+					"$ref": "#/definitions/SharedOptions"
+				},
+				"session": {
+					"$ref": "#/definitions/SharedOptions"
+				}
+			},
+			"type": "object"
+		},
+		"CodebuffConfig": {
+			"additionalProperties": false,
+			"properties": {
+				"commands": {
+					"$ref": "#/definitions/CodebuffCommandsConfig"
+				},
+				"defaults": {
+					"$ref": "#/definitions/SharedOptions"
+				}
+			},
+			"type": "object"
+		},
 		"CodexCommandsConfig": {
 			"additionalProperties": false,
 			"properties": {
@@ -684,6 +711,33 @@
 					"description": "Filter until date (inclusive).",
 					"markdownDescription": "Filter until date (inclusive).",
 					"type": "string"
+				}
+			},
+			"type": "object"
+		},
+		"DroidCommandsConfig": {
+			"additionalProperties": false,
+			"properties": {
+				"daily": {
+					"$ref": "#/definitions/SharedOptions"
+				},
+				"monthly": {
+					"$ref": "#/definitions/SharedOptions"
+				},
+				"session": {
+					"$ref": "#/definitions/SharedOptions"
+				}
+			},
+			"type": "object"
+		},
+		"DroidConfig": {
+			"additionalProperties": false,
+			"properties": {
+				"commands": {
+					"$ref": "#/definitions/DroidCommandsConfig"
+				},
+				"defaults": {
+					"$ref": "#/definitions/SharedOptions"
 				}
 			},
 			"type": "object"
@@ -1503,6 +1557,15 @@
 					"description": "Claude Code configuration.",
 					"markdownDescription": "Claude Code configuration."
 				},
+				"codebuff": {
+					"allOf": [
+						{
+							"$ref": "#/definitions/CodebuffConfig"
+						}
+					],
+					"description": "Codebuff configuration.",
+					"markdownDescription": "Codebuff configuration."
+				},
 				"codex": {
 					"allOf": [
 						{
@@ -1538,6 +1601,15 @@
 					],
 					"description": "Default values for all-agent reports and legacy Claude commands.",
 					"markdownDescription": "Default values for all-agent reports and legacy Claude commands."
+				},
+				"droid": {
+					"allOf": [
+						{
+							"$ref": "#/definitions/DroidConfig"
+						}
+					],
+					"description": "Droid configuration.",
+					"markdownDescription": "Droid configuration."
 				},
 				"gemini": {
 					"allOf": [

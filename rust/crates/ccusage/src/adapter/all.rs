@@ -8,7 +8,8 @@ use serde_json::{json, Value};
 
 use crate::{
     adapter::{
-        amp, codex, copilot, gemini, goose, hermes, kilo, kimi, openclaw, opencode, pi, qwen,
+        amp, codebuff, codex, copilot, droid, gemini, goose, hermes, kilo, kimi, openclaw,
+        opencode, pi, qwen,
     },
     cli::{AgentCommandArgs, AgentReportKind, CodexSpeed, SharedArgs, SortOrder, WeekDay},
     color, filter_loaded_entries_by_date, format_currency, format_models_multiline, format_number,
@@ -109,57 +110,69 @@ fn load_rows(kind: AgentReportKind, shared: &SharedArgs) -> Result<AllLoadResult
             },
             AgentLoadSpec {
                 index: 4,
+                agent: "droid",
+                progress_agent: crate::progress::UsageLoadAgent::Droid,
+                load: Box::new(|| load_droid_rows(load_kind, shared, &pricing)),
+            },
+            AgentLoadSpec {
+                index: 5,
+                agent: "codebuff",
+                progress_agent: crate::progress::UsageLoadAgent::Codebuff,
+                load: Box::new(|| load_codebuff_rows(load_kind, shared, &pricing)),
+            },
+            AgentLoadSpec {
+                index: 6,
                 agent: "hermes",
                 progress_agent: crate::progress::UsageLoadAgent::Hermes,
                 load: Box::new(|| load_hermes_rows(load_kind, shared, &pricing)),
             },
             AgentLoadSpec {
-                index: 5,
+                index: 7,
                 agent: "pi",
                 progress_agent: crate::progress::UsageLoadAgent::Pi,
                 load: Box::new(|| load_pi_rows(load_kind, shared)),
             },
             AgentLoadSpec {
-                index: 6,
+                index: 8,
                 agent: "goose",
                 progress_agent: crate::progress::UsageLoadAgent::Goose,
                 load: Box::new(|| load_goose_rows(load_kind, shared, &pricing)),
             },
             AgentLoadSpec {
-                index: 7,
+                index: 9,
                 agent: "openclaw",
                 progress_agent: crate::progress::UsageLoadAgent::OpenClaw,
                 load: Box::new(|| load_openclaw_rows(load_kind, shared)),
             },
             AgentLoadSpec {
-                index: 8,
+                index: 10,
                 agent: "kilo",
                 progress_agent: crate::progress::UsageLoadAgent::Kilo,
                 load: Box::new(|| load_kilo_rows(load_kind, shared, &pricing)),
             },
             AgentLoadSpec {
-                index: 9,
-                agent: "qwen",
-                progress_agent: crate::progress::UsageLoadAgent::Qwen,
-                load: Box::new(|| load_qwen_rows(load_kind, shared)),
-            },
-            AgentLoadSpec {
-                index: 10,
+                index: 11,
                 agent: "copilot",
                 progress_agent: crate::progress::UsageLoadAgent::Copilot,
                 load: Box::new(|| load_copilot_rows(load_kind, shared, &pricing)),
             },
             AgentLoadSpec {
-                index: 11,
+                index: 12,
                 agent: "gemini",
                 progress_agent: crate::progress::UsageLoadAgent::Gemini,
                 load: Box::new(|| load_gemini_rows(load_kind, shared, &pricing)),
             },
             AgentLoadSpec {
-                index: 12,
+                index: 13,
                 agent: "kimi",
                 progress_agent: crate::progress::UsageLoadAgent::Kimi,
                 load: Box::new(|| load_kimi_rows(load_kind, shared, &pricing)),
+            },
+            AgentLoadSpec {
+                index: 14,
+                agent: "qwen",
+                progress_agent: crate::progress::UsageLoadAgent::Qwen,
+                load: Box::new(|| load_qwen_rows(load_kind, shared)),
             },
         ],
         &mut progress,
@@ -327,6 +340,36 @@ fn load_amp_rows(
     })
 }
 
+fn load_droid_rows(
+    kind: AgentReportKind,
+    shared: &SharedArgs,
+    pricing: &PricingMap,
+) -> Result<AgentRows> {
+    let mut entries = droid::load_entries(shared, pricing)?;
+    let detected = !entries.is_empty();
+    filter_loaded_entries_by_date(&mut entries, shared);
+    let summaries = droid::summarize_entries(&entries, kind)?;
+    Ok(AgentRows {
+        rows: summary_rows("droid", summaries),
+        detected,
+    })
+}
+
+fn load_codebuff_rows(
+    kind: AgentReportKind,
+    shared: &SharedArgs,
+    pricing: &PricingMap,
+) -> Result<AgentRows> {
+    let mut entries = codebuff::load_entries(shared, pricing)?;
+    let detected = !entries.is_empty();
+    filter_loaded_entries_by_date(&mut entries, shared);
+    let summaries = codebuff::summarize_entries(&entries, kind)?;
+    Ok(AgentRows {
+        rows: summary_rows("codebuff", summaries),
+        detected,
+    })
+}
+
 fn load_hermes_rows(
     kind: AgentReportKind,
     shared: &SharedArgs,
@@ -415,23 +458,6 @@ fn load_kilo_rows(
     })
 }
 
-fn load_qwen_rows(kind: AgentReportKind, shared: &SharedArgs) -> Result<AgentRows> {
-    let mut entries = qwen::load_entries(shared)?;
-    let detected = !entries.is_empty() || qwen::has_data();
-    let summaries = if kind == AgentReportKind::Session {
-        let mut summaries = summarize_entry_sessions(&entries, shared.timezone.as_deref())?;
-        filter_session_summaries(&mut summaries, shared);
-        summaries
-    } else {
-        filter_loaded_entries_by_date(&mut entries, shared);
-        qwen::summarize_entries(&entries, kind)?
-    };
-    Ok(AgentRows {
-        rows: summary_rows("qwen", summaries),
-        detected,
-    })
-}
-
 fn load_gemini_rows(
     kind: AgentReportKind,
     shared: &SharedArgs,
@@ -458,6 +484,25 @@ fn load_kimi_rows(
     let summaries = kimi::summarize_entries(&entries, kind)?;
     Ok(AgentRows {
         rows: summary_rows("kimi", summaries),
+        detected,
+    })
+}
+
+fn load_qwen_rows(kind: AgentReportKind, shared: &SharedArgs) -> Result<AgentRows> {
+    let mut entries = qwen::load_entries(shared)?;
+    let detected = !entries.is_empty() || qwen::has_data();
+    if kind == AgentReportKind::Session {
+        let mut summaries = qwen::summarize_entries(&entries, kind)?;
+        filter_session_summaries(&mut summaries, shared);
+        return Ok(AgentRows {
+            rows: summary_rows("qwen", summaries),
+            detected,
+        });
+    }
+    filter_loaded_entries_by_date(&mut entries, shared);
+    let summaries = qwen::summarize_entries(&entries, kind)?;
+    Ok(AgentRows {
+        rows: summary_rows("qwen", summaries),
         detected,
     })
 }
@@ -1006,15 +1051,17 @@ fn agent_label(agent: &str) -> &str {
         "codex" => "Codex",
         "opencode" => "OpenCode",
         "amp" => "Amp",
+        "droid" => "Droid",
+        "codebuff" => "Codebuff",
         "hermes" => "Hermes",
         "pi" => "pi-agent",
         "goose" => "Goose",
         "openclaw" => "OpenClaw",
         "kilo" => "Kilo",
-        "qwen" => "Qwen",
         "copilot" => "GitHub Copilot CLI",
         "gemini" => "Gemini CLI",
         "kimi" => "Kimi",
+        "qwen" => "Qwen",
         _ => agent,
     }
 }
