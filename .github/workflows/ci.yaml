@@ -26,84 +26,7 @@ jobs:
           mkdir -p "$HOME/.config/claude/projects"
       - run: nix develop --command pnpm run test
 
-  build-native-packages:
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 30
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: ubuntu-24.04-arm
-            platform: linux
-            arch: arm64
-            rust_target: aarch64-unknown-linux-musl
-            binary: rust/target/aarch64-unknown-linux-musl/release/ccusage
-          - os: ubuntu-24.04
-            platform: linux
-            arch: x64
-            rust_target: x86_64-unknown-linux-musl
-            binary: rust/target/x86_64-unknown-linux-musl/release/ccusage
-          - os: macos-latest
-            platform: darwin
-            arch: arm64
-            binary: rust/target/release/ccusage
-          - os: macos-15-intel
-            platform: darwin
-            arch: x64
-            binary: rust/target/release/ccusage
-          - os: windows-11-arm
-            platform: win32
-            arch: arm64
-            binary: rust/target/release/ccusage.exe
-          - os: windows-latest
-            platform: win32
-            arch: x64
-            binary: rust/target/release/ccusage.exe
-
-    steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-      - name: Install Linux musl toolchain
-        if: matrix.platform == 'linux'
-        run: |
-          rustup target add "${{ matrix.rust_target }}"
-          sudo apt-get update
-          sudo apt-get install -y musl-tools
-      - name: Build Linux static binary
-        if: matrix.platform == 'linux'
-        env:
-          CC_aarch64_unknown_linux_musl: musl-gcc
-          CC_x86_64_unknown_linux_musl: musl-gcc
-          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_LINKER: musl-gcc
-          CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_LINKER: musl-gcc
-        run: cargo build --manifest-path rust/Cargo.toml --release --bin ccusage --target "${{ matrix.rust_target }}"
-      - name: Verify Linux binary is static
-        if: matrix.platform == 'linux'
-        shell: bash
-        run: |
-          file "${{ matrix.binary }}"
-          if ldd "${{ matrix.binary }}" > "$RUNNER_TEMP/ldd.txt" 2>&1; then
-            cat "$RUNNER_TEMP/ldd.txt"
-            grep -Eiq 'not a dynamic executable|statically linked' "$RUNNER_TEMP/ldd.txt"
-          else
-            cat "$RUNNER_TEMP/ldd.txt"
-            grep -Eiq 'not a dynamic executable|statically linked' "$RUNNER_TEMP/ldd.txt"
-          fi
-      - name: Build native binary
-        if: matrix.platform != 'linux'
-        run: cargo build --manifest-path rust/Cargo.toml --release --bin ccusage
-      - run: node apps/ccusage/scripts/stage-native-package.mjs --platform "${{ matrix.platform }}" --arch "${{ matrix.arch }}" --binary "${{ matrix.binary }}"
-      - name: Archive native package binary
-        shell: bash
-        run: tar -cf "ccusage-native-${{ matrix.platform }}-${{ matrix.arch }}.tar" "packages/ccusage-${{ matrix.platform }}-${{ matrix.arch }}/bin"
-      - uses: actions/upload-artifact@v4
-        with:
-          name: ccusage-native-${{ matrix.platform }}-${{ matrix.arch }}
-          path: ccusage-native-${{ matrix.platform }}-${{ matrix.arch }}.tar
-          if-no-files-found: error
-
   npm-publish-dry-run-and-upload-pkg-pr-now:
-    needs:
-      - build-native-packages
     runs-on: ubuntu-24.04-arm
     outputs:
       urls: ${{ steps.publish.outputs.urls }}
@@ -111,18 +34,8 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - uses: ./.github/actions/setup-nix
-      - uses: actions/download-artifact@v4
-        with:
-          pattern: ccusage-native-*
-          path: ${{ runner.temp }}/native-packages
-          merge-multiple: true
-      - name: Restore native package binaries
-        run: |
-          for archive in "$RUNNER_TEMP"/native-packages/*.tar; do
-            tar -xf "$archive"
-          done
       - id: publish
-        run: nix develop --command pnpm pkg-pr-new publish --pnpm --bin './apps/ccusage' './packages/ccusage-*'
+        run: nix develop --command pnpm pkg-pr-new publish --pnpm --bin './apps/*'
 
   ccusage-preview-e2e:
     if: github.event_name == 'pull_request'
@@ -135,7 +48,6 @@ jobs:
         os:
           - ubuntu-slim
           - macos-latest
-          - windows-11-arm
           - windows-latest
 
     steps:
@@ -148,21 +60,20 @@ jobs:
           PKG_PR_NEW_URLS: ${{ needs.npm-publish-dry-run-and-upload-pkg-pr-now.outputs.urls }}
         run: node .github/scripts/e2e-setup.mjs
       - name: Run preview package E2E with Node
+        env:
+          CCUSAGE_BUN_AUTO_RUN: 0
         shell: pwsh
         run: |
           npx --yes "$env:CCUSAGE_PREVIEW_URL" --version
-          npx --yes "$env:CCUSAGE_PREVIEW_URL" daily --offline --json | node -e "JSON.parse(require('fs').readFileSync(0, 'utf8'))"
+          npx --yes "$env:CCUSAGE_PREVIEW_URL" daily --offline --json | jq -e .
           npx --yes "$env:CCUSAGE_PREVIEW_URL" daily --offline
-      - name: Enable pnpm
-        if: runner.os != 'Windows'
-        run: corepack enable pnpm
-      - name: Run preview package E2E with pnpm dlx
-        if: runner.os != 'Windows'
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+      - name: Run preview package E2E with Bun
         shell: pwsh
         run: |
-          pnpm --config.block-exotic-subdeps=false dlx "$env:CCUSAGE_PNPM_DLX_URL" --version
-          pnpm --config.block-exotic-subdeps=false dlx "$env:CCUSAGE_PNPM_DLX_URL" daily --offline --json | node -e "JSON.parse(require('fs').readFileSync(0, 'utf8'))"
-          pnpm --config.block-exotic-subdeps=false dlx "$env:CCUSAGE_PNPM_DLX_URL" daily --offline
+          npx --yes "$env:CCUSAGE_PREVIEW_URL" --version
+          npx --yes "$env:CCUSAGE_PREVIEW_URL" daily --offline --json | jq -e .
+          npx --yes "$env:CCUSAGE_PREVIEW_URL" daily --offline
 
   spell-check:
     runs-on: ubuntu-24.04-arm

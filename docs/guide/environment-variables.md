@@ -102,6 +102,14 @@ export CCUSAGE_OFFLINE=1
 ccusage daily  # Runs in offline mode
 ```
 
+### CCUSAGE_BUN_AUTO_RUN
+
+When the published CLI starts under Node.js and finds `bun` in `PATH`, it automatically re-runs the bundled entrypoint with Bun. Disable this if you need to force Node.js:
+
+```bash
+CCUSAGE_BUN_AUTO_RUN=0 ccusage daily
+```
+
 ### NO_COLOR
 
 Disable colored output (standard CLI convention):

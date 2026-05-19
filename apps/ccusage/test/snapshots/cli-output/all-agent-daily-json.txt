@@ -1,0 +1,37 @@
+{
+  "daily": [
+    {
+      "period": "2026-01-02",
+      "agent": "all",
+      "modelsUsed": [
+        "[pi] claude-opus-4-20250514",
+        "claude-haiku-4-5-20251001",
+        "claude-sonnet-4-20250514",
+        "gpt-5"
+      ],
+      "inputTokens": 500,
+      "outputTokens": 250,
+      "cacheCreationTokens": 80,
+      "cacheReadTokens": 50,
+      "totalTokens": 870,
+      "totalCost": 0.25098975,
+      "metadata": {
+        "agents": [
+          "amp",
+          "claude",
+          "codex",
+          "opencode",
+          "pi"
+        ]
+      }
+    }
+  ],
+  "totals": {
+    "inputTokens": 500,
+    "outputTokens": 250,
+    "cacheCreationTokens": 80,
+    "cacheReadTokens": 50,
+    "totalTokens": 870,
+    "totalCost": 0.25098975
+  }
+}

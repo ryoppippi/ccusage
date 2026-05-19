@@ -1,84 +1,77 @@
 ---
 name: reduce-similarities
-description: Detect duplicate Rust code using AST-based similarity analysis. Use when working with .rs files and looking for code duplication or refactoring opportunities.
+description: Detects duplicate JavaScript and TypeScript code with similarity-ts. Use when checking .js, .jsx, .ts, or .tsx files for refactoring opportunities.
 argument-hint: '[path] [--threshold 0.85] [--print]'
-allowed-tools: Bash(similarity-rs *) Read Grep Glob
-paths: '**/*.rs'
+allowed-tools: Bash(similarity-ts *) Read Grep Glob
+paths: '**/*.ts,**/*.tsx,**/*.js,**/*.jsx'
 ---
 
-# Rust Code Similarity Detection
+# TypeScript/JavaScript Code Similarity Detection
 
 ## What to do
 
-Run `similarity-rs` on the target Rust project to detect duplicate functions, struct/enum definitions, and impl methods, then analyze results and propose refactoring.
+Run `similarity-ts` on the target project to detect duplicate functions and types, then analyze results and propose refactoring.
 
-If `similarity-rs` is not installed:
-
-```bash
-similarity-rs
-
-# or
-
-direnv exec . similarity-rs
-```
+similarity-ts is installed via nix. check out flake.nix for details.
 
 ## Step 1: Run similarity analysis
 
 ```bash
-similarity-rs $ARGUMENTS
+similarity-ts $ARGUMENTS
 ```
 
 If no arguments given:
 
 ```bash
-similarity-rs . --threshold 0.85 --min-lines 5
+similarity-ts . --threshold 0.85 --min-tokens 25
 ```
 
-For struct/enum similarity:
+For type-level duplicates (interfaces, type aliases):
 
 ```bash
-similarity-rs . --threshold 0.85 --experimental-types
+similarity-ts . --threshold 0.85 --experimental-types
 ```
 
 ## Step 2: Analyze results
 
 ### High-priority
 
-- **100% similarity**: Exact duplicates -> extract shared function or use generics
-- **95-100%**: Same algorithm on different types -> generic function with trait bounds
-- **Duplicate impl methods**: Same logic across types -> trait with default implementation
+- **100% similarity**: Extract shared function
+- **95-100%**: Parameterize the small difference
+- **Duplicate types/interfaces**: Consolidate into a single definition and re-export
 
 ### Medium-priority
 
-- **85-95%**: Similar match arms or error handling -> macro or shared helper
-- **Parallel struct definitions**: Identical fields -> shared base or generic struct
+- **85-95%**: Extract common pattern, especially for API handlers and data processing
+- **Similar type literals**: Shared interface with optional fields
 
 ### Acceptable
 
-- **Short `new()` constructors** with field initialization
-- **Simple `From`/`Into` implementations**
-- **Derive-equivalent implementations**
+- **Short utility functions** (< 5 lines) that naturally share structure
+- **Overloaded variants** that differ by type parameter
 
 ## Step 3: Propose refactoring
 
-For each high-priority pair, show before/after code with Rust idioms.
+For each high-priority pair, show before/after code with concrete implementation.
 
 ## Key Options
 
-| Option                     | Description                                      |
-| -------------------------- | ------------------------------------------------ |
-| `--threshold <0-1>`        | Similarity threshold (default: 0.85)             |
-| `--min-lines <n>`          | Skip functions shorter than n lines (default: 3) |
-| `--min-tokens <n>`         | Skip functions with fewer AST nodes              |
-| `--print`                  | Show actual code snippets                        |
-| `--experimental-types`     | Enable struct/enum similarity detection          |
-| `--filter-function <name>` | Filter by function name                          |
-| `--fail-on-duplicates`     | Exit code 1 if duplicates found                  |
+| Option                          | Description                                              |
+| ------------------------------- | -------------------------------------------------------- |
+| `--threshold <0-1>`             | Similarity threshold (default: 0.85)                     |
+| `--min-tokens <n>`              | Skip functions with fewer AST nodes (recommended: 20-30) |
+| `--print`                       | Show actual code snippets                                |
+| `--experimental-types`          | Enable type/interface similarity detection               |
+| `--experimental-overlap`        | Enable partial overlap detection                         |
+| `--extensions <ext>`            | File extensions to check (comma-separated)               |
+| `--filter-function <name>`      | Filter by function name                                  |
+| `--filter-function-body <text>` | Filter by function body content                          |
+| `--fail-on-duplicates`          | Exit code 1 if duplicates found                          |
 
-## Common Rust refactoring patterns
+## Common TS/JS refactoring patterns
 
-- **Type-specific functions** -> generic `fn<T: Trait>` with trait bounds
-- **Duplicate impl blocks** across types -> trait with default methods
-- **Repeated match patterns** -> macro_rules! or helper function
-- **Parallel X/Y/Z functions** -> enum parameter or tuple-based abstraction
-- **Similar error handling** -> shared Result combinator or `?` chain
+- **Data processing loops** with different field names -> generic mapper
+- **API handlers** with similar request/response logic -> shared middleware
+- **Validation functions** -> schema-based validation
+- **Duplicate interfaces** -> shared base interface with extensions
+- **Similar type literals** -> extract named type

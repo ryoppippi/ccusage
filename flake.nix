@@ -2,36 +2,19 @@
   description = "Usage analysis tool for Claude Code";
 
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
-  inputs.rust-overlay = {
-    url = "github:oxalica/rust-overlay";
-    inputs.nixpkgs.follows = "nixpkgs";
-  };
 
-  outputs = { nixpkgs, rust-overlay, ... }:
+  outputs = { nixpkgs, ... }:
     let
       systems = [ "x86_64-linux" "aarch64-linux" "x86_64-darwin" "aarch64-darwin" ];
-      forAllSystems = f:
-        nixpkgs.lib.genAttrs systems (system:
-          let
-            pkgs = import nixpkgs {
-              inherit system;
-              overlays = [ rust-overlay.overlays.default ];
-            };
-          in f pkgs);
+      forAllSystems = f: nixpkgs.lib.genAttrs systems (system: f nixpkgs.legacyPackages.${system});
     in {
       devShells = forAllSystems (pkgs: {
-        default =
-        let
-          rustToolchain = pkgs.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml;
-        in pkgs.mkShell {
+        default = pkgs.mkShellNoCC {
           buildInputs = with pkgs; [
             # Package manager
             pnpm_11
 
             # Development tools
-            rustToolchain
-            pkg-config
-            openssl
             typos
             typos-lsp
             jq
@@ -45,8 +28,6 @@
             fzf
             delta
             dust
-          ] ++ pkgs.lib.optionals pkgs.stdenv.isDarwin [
-            apple-sdk_15
           ];
 
           shellHook = ''

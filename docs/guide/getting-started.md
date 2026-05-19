@@ -25,16 +25,12 @@ npx ccusage@latest
 pnpm dlx ccusage
 ```
 
-```bash [pkg.pr.new preview]
-bunx -p https://pkg.pr.new/ryoppippi/ccusage@<pr-number> ccusage --offline
-```
-
 :::
 
 This will show your daily usage report for all detected supported coding CLIs by default.
 
 ::: tip Runtime
-`bunx ccusage` is recommended for everyday use. The npm package installs a small JavaScript launcher and the matching native binary package for your platform. Package runners such as `bunx` cache the downloaded package, so repeated runs reuse the cached native binary; the first run can still include network fetch time.
+`bunx ccusage` is recommended for everyday use. ccusage can run on Node.js 22.11+, and because the published CLI shebang targets Node.js, package runners can start ccusage under Node.js even when launched through `bunx`. When ccusage finds `bun` in `PATH`, it automatically re-runs the bundled entrypoint with Bun for better warm runtime performance. Set `CCUSAGE_BUN_AUTO_RUN=0` to force Node.js.
 :::
 
 Use a data source namespace when you want the same report focused on one source:

@@ -38,6 +38,16 @@ pre-commit:
             glob: '**/*'
             run: pnpm exec eslint --cache --fix --no-warn-ignored {staged_files}
             stage_fixed: true
+          - name: internal
+            root: packages/internal/
+            glob: '**/*'
+            run: pnpm exec eslint --cache --fix --no-warn-ignored {staged_files}
+            stage_fixed: true
+          - name: terminal
+            root: packages/terminal/
+            glob: '**/*'
+            run: pnpm exec eslint --cache --fix --no-warn-ignored {staged_files}
+            stage_fixed: true
           - name: docs
             root: docs/
             glob: '**/*'
