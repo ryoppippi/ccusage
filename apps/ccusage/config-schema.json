@@ -715,6 +715,33 @@
 			},
 			"type": "object"
 		},
+		"GooseCommandsConfig": {
+			"additionalProperties": false,
+			"properties": {
+				"daily": {
+					"$ref": "#/definitions/SharedOptions"
+				},
+				"monthly": {
+					"$ref": "#/definitions/SharedOptions"
+				},
+				"session": {
+					"$ref": "#/definitions/SharedOptions"
+				}
+			},
+			"type": "object"
+		},
+		"GooseConfig": {
+			"additionalProperties": false,
+			"properties": {
+				"commands": {
+					"$ref": "#/definitions/GooseCommandsConfig"
+				},
+				"defaults": {
+					"$ref": "#/definitions/SharedOptions"
+				}
+			},
+			"type": "object"
+		},
 		"HermesCommandsConfig": {
 			"additionalProperties": false,
 			"properties": {
@@ -1466,6 +1493,15 @@
 					],
 					"description": "Gemini CLI configuration.",
 					"markdownDescription": "Gemini CLI configuration."
+				},
+				"goose": {
+					"allOf": [
+						{
+							"$ref": "#/definitions/GooseConfig"
+						}
+					],
+					"description": "Goose configuration.",
+					"markdownDescription": "Goose configuration."
 				},
 				"hermes": {
 					"allOf": [

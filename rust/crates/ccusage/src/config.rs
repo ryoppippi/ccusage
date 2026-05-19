@@ -239,6 +239,7 @@ fn is_agent_command(command: &str) -> bool {
             | "amp"
             | "hermes"
             | "pi"
+            | "goose"
             | "kilo"
             | "copilot"
             | "gemini"
