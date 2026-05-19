@@ -1,0 +1,51 @@
+name: update pricing
+
+on:
+  schedule:
+    - cron: '0 3 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update-pricing:
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: ./.github/actions/setup-nix
+      - name: Update LiteLLM pricing input
+        run: |
+          nix flake update litellm-pricing
+          nix run .#update-pricing-fallback
+          nix flake check
+      - name: Create pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if git diff --quiet; then
+            echo "Pricing snapshot is already up to date."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          branch="automation/litellm-pricing"
+          git checkout -B "$branch"
+          git add flake.lock rust/crates/ccusage/src/litellm-pricing-fallback.json
+          git commit -m "chore(pricing): update LiteLLM snapshot"
+          git push --force-with-lease origin "$branch"
+
+          body="$(printf '%s\n' \
+            'Updates the locked LiteLLM pricing input and refreshes the non-Nix Cargo fallback pricing JSON.' \
+            '' \
+            'Validation:' \
+            '- nix flake check')"
+
+          if gh pr view "$branch" >/dev/null 2>&1; then
+            printf '%s\n' "$body" | gh pr edit "$branch" --title "chore(pricing): update LiteLLM snapshot" --body-file -
+          else
+            printf '%s\n' "$body" | gh pr create --base main --head "$branch" --title "chore(pricing): update LiteLLM snapshot" --body-file -
+          fi

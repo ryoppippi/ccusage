@@ -10,6 +10,13 @@ if (previewUrl == null) {
 	throw new Error(`ccusage preview URL not found in: ${urls.join(', ')}`);
 }
 
+const nativePackageName = `@ccusage/ccusage-${process.platform}-${process.arch}`;
+const nativePreviewUrl = urls.find((url) => url.includes(`/${nativePackageName}@`));
+
+if (nativePreviewUrl == null) {
+	throw new Error(`${nativePackageName} preview URL not found in: ${urls.join(', ')}`);
+}
+
 for (const dir of ['.claude/projects', '.config/claude/projects']) {
 	mkdirSync(join(homedir(), dir), { recursive: true });
 }
@@ -38,6 +45,7 @@ appendFileSync(
 	githubEnv,
 	[
 		`CCUSAGE_PREVIEW_URL=${previewUrl}`,
+		`CCUSAGE_PNPM_DLX_URL=${previewUrl}`,
 		`CLAUDE_CONFIG_DIR=${claudeConfigDir}`,
 		'LOG_LEVEL=0',
 		'',

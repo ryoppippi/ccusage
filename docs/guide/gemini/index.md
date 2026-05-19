@@ -2,7 +2,7 @@
 
 > Gemini CLI support is experimental while the Gemini CLI log format continues to evolve.
 
-ccusage can read Gemini CLI chat logs as one of its supported local data sources. Gemini uses the same unified and focused report model as Claude Code, Codex, OpenCode, Amp, and pi-agent.
+ccusage can read Gemini CLI chat logs as one of its supported local data sources. Gemini uses the same unified and focused report model as Claude Code, Codex, OpenCode, Amp, pi-agent, and GitHub Copilot CLI.
 
 ## Focused Views
 
@@ -50,7 +50,7 @@ These views support `--json`, `--compact`, and `--offline`.
 - **Token usage** - Gemini token records provide input, output, cached, thought, tool, and total token counts when available.
 - **Cache tokens** - Gemini `input` values can include cached prompt tokens. ccusage separates those cached tokens into cache read so input and cache read are not double-counted.
 - **Reasoning tokens** - Gemini `thoughts` tokens are included in total tokens and exposed as `reasoningTokens` in JSON output. They are priced with output tokens.
-- **Pricing** - Costs are calculated from LiteLLM pricing data for Gemini, Google, Vertex AI, and OpenRouter Gemini model names. Gemini 128k input and output pricing tiers are handled when the pricing dataset provides them.
+- **Pricing** - Costs are calculated from LiteLLM pricing data for Gemini, Google, Vertex AI, and OpenRouter Gemini model names.
 
 ## Environment Variables
 
