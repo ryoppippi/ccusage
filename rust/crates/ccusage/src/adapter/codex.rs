@@ -261,7 +261,7 @@ fn add_event_to_groups(
         AgentReportKind::Monthly => date[..7].to_string(),
         AgentReportKind::Session => event.session_id.clone(),
     };
-    let group = groups.entry(period).or_insert_with(CodexGroup::default);
+    let group = groups.entry(period).or_default();
     accumulate_codex_event_into_group(group, event, model);
     Ok(())
 }

@@ -103,9 +103,7 @@ impl PricingMap {
             Ok(json) => {
                 let loaded_count = map.load_json(&json);
                 if loaded_count == 0 && should_log_pricing_refresh_details() {
-                    eprintln!(
-                        "WARN  Failed to parse LiteLLM pricing; using embedded pricing."
-                    );
+                    eprintln!("WARN  Failed to parse LiteLLM pricing; using embedded pricing.");
                 }
             }
             Err(error) => {
@@ -129,11 +127,14 @@ impl PricingMap {
         json: &str,
         fast_multiplier_overrides: &FastMultiplierOverrides,
     ) -> usize {
-        let Ok(raw) = serde_json::from_str::<HashMap<String, LiteLlmPricing>>(json) else {
+        let Ok(raw) = serde_json::from_str::<HashMap<String, serde_json::Value>>(json) else {
             return 0;
         };
-        let loaded_count = raw.len();
-        for (model, pricing) in raw {
+        let mut loaded_count = 0;
+        for (model, value) in raw {
+            let Ok(pricing) = serde_json::from_value::<LiteLlmPricing>(value) else {
+                continue;
+            };
             let Some(input) = pricing.input_cost_per_token else {
                 continue;
             };
@@ -168,6 +169,7 @@ impl PricingMap {
             if let Some(context_limit) = context_limit {
                 self.context_limits.insert(model, context_limit);
             }
+            loaded_count += 1;
         }
         loaded_count
     }
@@ -593,6 +595,27 @@ mod tests {
                 .unwrap()
                 .cache_read_explicit
         );
+    }
+
+    #[test]
+    fn skips_invalid_litellm_entries_without_discarding_valid_pricing() {
+        let mut pricing = PricingMap::default();
+        let loaded = pricing.load_json(
+            r#"{
+                "sample_spec": {
+                    "max_input_tokens": "max input tokens, if the provider specifies it"
+                },
+                "gpt-valid": {
+                    "input_cost_per_token": 0.000001,
+                    "output_cost_per_token": 0.000010,
+                    "max_input_tokens": 123
+                }
+            }"#,
+        );
+
+        assert_eq!(loaded, 1);
+        assert!(pricing.find("gpt-valid").is_some());
+        assert_eq!(pricing.context_limit("gpt-valid"), Some(123));
     }
 
     #[test]
