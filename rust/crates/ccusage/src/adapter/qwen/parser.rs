@@ -4,7 +4,7 @@ use std::{
     io::{BufRead, BufReader},
     path::Path,
     sync::Arc,
-    time::UNIX_EPOCH,
+    time::{SystemTime, UNIX_EPOCH},
 };
 
 use jiff::tz::TimeZone as JiffTimeZone;
@@ -34,7 +34,7 @@ pub(super) fn load_entries(shared: &SharedArgs) -> Result<Vec<LoadedEntry>> {
     let mut entries = Vec::new();
     let mut seen = HashSet::new();
     for file in paths::discover_chat_files()? {
-        for entry in read_chat_file(&file, tz.as_ref(), shared.mode, pricing.as_ref())? {
+        for entry in read_chat_file(&file, tz.as_ref(), shared.mode, pricing.as_ref(), shared)? {
             if seen.insert(entry_id(&entry)) {
                 entries.push(entry);
             }
@@ -49,8 +49,9 @@ fn read_chat_file(
     tz: Option<&JiffTimeZone>,
     mode: CostMode,
     pricing: Option<&PricingMap>,
+    shared: &SharedArgs,
 ) -> Result<Vec<LoadedEntry>> {
-    let fallback = file_timestamp(file);
+    let fallback = file_timestamp(file, shared);
     let input = File::open(file)?;
     let reader = BufReader::new(input);
     let mut entries = Vec::new();
@@ -155,33 +156,134 @@ fn calculate_qwen_cost(
         format!("qwen/{model}"),
         format!("alibaba/{model}"),
     ] {
-        let cost = calculate_cost_for_usage(Some(&candidate), usage, None, mode, pricing);
-        if cost > 0.0 {
-            return cost;
+        if mode == CostMode::Display
+            || pricing.is_some_and(|pricing| pricing.find(&candidate).is_some())
+        {
+            return calculate_cost_for_usage(Some(&candidate), usage, None, mode, pricing);
         }
     }
     0.0
 }
 
-fn file_timestamp(file: &Path) -> TimestampMs {
-    fs::metadata(file)
+fn file_timestamp(file: &Path, shared: &SharedArgs) -> TimestampMs {
+    match fs::metadata(file)
         .and_then(|metadata| metadata.modified())
-        .ok()
-        .and_then(|modified| modified.duration_since(UNIX_EPOCH).ok())
-        .map(|duration| TimestampMs::from_millis(duration.as_millis().min(i64::MAX as u128) as i64))
-        .unwrap_or(TimestampMs::UNIX_EPOCH)
+        .and_then(|modified| {
+            modified
+                .duration_since(UNIX_EPOCH)
+                .map_err(std::io::Error::other)
+        }) {
+        Ok(duration) => TimestampMs::from_millis(duration.as_millis().min(i64::MAX as u128) as i64),
+        Err(error) => {
+            crate::debug_log(
+                shared,
+                format!(
+                    "Failed to read Qwen chat file timestamp for {}: {error}",
+                    file.display()
+                ),
+            );
+            system_time_timestamp(SystemTime::now())
+        }
+    }
+}
+
+fn system_time_timestamp(time: SystemTime) -> TimestampMs {
+    time.duration_since(UNIX_EPOCH).map_or_else(
+        |_| TimestampMs::UNIX_EPOCH,
+        |duration| TimestampMs::from_millis(duration.as_millis().min(i64::MAX as u128) as i64),
+    )
 }
 
 fn entry_id(entry: &LoadedEntry) -> String {
     let usage = entry.data.message.usage;
-    format!(
-        "{}:{}:{}:{}:{}:{}:{}",
-        entry.session_id,
-        entry.data.timestamp,
+    serde_json::json!([
+        entry.session_id.as_ref(),
+        entry.data.timestamp.as_str(),
         entry.model.as_deref().unwrap_or_default(),
         usage.input_tokens,
         usage.output_tokens,
         usage.cache_read_input_tokens,
         entry.extra_total_tokens
-    )
+    ])
+    .to_string()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn calculate_qwen_cost_returns_explicit_zero_price() {
+        let mut pricing = PricingMap::default();
+        pricing.load_json(
+            r#"{
+                "free-model": {
+                    "input_cost_per_token": 0,
+                    "output_cost_per_token": 0,
+                    "cache_creation_input_token_cost": 0,
+                    "cache_read_input_token_cost": 0
+                },
+                "qwen/free-model": {
+                    "input_cost_per_token": 1,
+                    "output_cost_per_token": 1
+                }
+            }"#,
+        );
+
+        let cost = calculate_qwen_cost(
+            "free-model",
+            TokenUsageRaw {
+                input_tokens: 100,
+                output_tokens: 50,
+                cache_creation_input_tokens: 0,
+                cache_read_input_tokens: 0,
+                speed: None,
+            },
+            CostMode::Calculate,
+            Some(&pricing),
+        );
+
+        assert_eq!(cost, 0.0);
+    }
+
+    #[test]
+    fn entry_id_is_unambiguous_for_colon_fields() {
+        let entry = LoadedEntry {
+            data: UsageEntry {
+                session_id: Some("session:1".to_string()),
+                timestamp: "2026-01-02T00:00:00.000Z".to_string(),
+                version: None,
+                message: UsageMessage {
+                    usage: TokenUsageRaw {
+                        input_tokens: 1,
+                        output_tokens: 2,
+                        cache_creation_input_tokens: 0,
+                        cache_read_input_tokens: 3,
+                        speed: None,
+                    },
+                    model: Some("model:1".to_string()),
+                    id: None,
+                },
+                cost_usd: None,
+                request_id: None,
+                is_api_error_message: None,
+            },
+            timestamp: TimestampMs::UNIX_EPOCH,
+            date: "2026-01-02".to_string(),
+            project: Arc::from("qwen"),
+            session_id: Arc::from("session:1"),
+            project_path: Arc::from("project"),
+            cost: 0.0,
+            extra_total_tokens: 4,
+            credits: None,
+            message_count: None,
+            model: Some("model:1".to_string()),
+            usage_limit_reset_time: None,
+        };
+
+        assert_eq!(
+            entry_id(&entry),
+            r#"["session:1","2026-01-02T00:00:00.000Z","model:1",1,2,3,4]"#
+        );
+    }
 }

@@ -12,8 +12,15 @@ use crate::{
 
 pub(crate) fn run(args: AgentCommandArgs) -> Result<()> {
     let mut entries = load_entries(&args.shared)?;
-    filter_loaded_entries_by_date(&mut entries, &args.shared);
-    let mut rows = summarize_entries(&entries, args.kind)?;
+    let mut rows = if args.kind == AgentReportKind::Session {
+        summarize_entries(&entries, args.kind)?
+    } else {
+        filter_loaded_entries_by_date(&mut entries, &args.shared);
+        summarize_entries(&entries, args.kind)?
+    };
+    if args.kind == AgentReportKind::Session {
+        filter_session_summaries(&mut rows, &args.shared);
+    }
     sort_summaries(&mut rows, &args.shared.order, |row| {
         super::opencode::summary_period(row)
     });
@@ -95,18 +102,62 @@ fn rows_key(kind: AgentReportKind) -> &'static str {
     }
 }
 
+fn filter_session_summaries(rows: &mut Vec<crate::UsageSummary>, shared: &SharedArgs) {
+    if shared.since.is_some() || shared.until.is_some() {
+        rows.retain(|row| {
+            let date = row
+                .last_activity
+                .as_deref()
+                .unwrap_or_default()
+                .replace('-', "");
+            shared.since.as_ref().is_none_or(|since| &date >= since)
+                && shared.until.as_ref().is_none_or(|until| &date <= until)
+        });
+    }
+}
+
 pub(crate) fn has_data() -> bool {
     paths::discover_chat_files().is_ok_and(|files| !files.is_empty())
 }
 
 #[cfg(test)]
 mod tests {
-    use std::{env, fs, path::PathBuf};
+    use std::{
+        env,
+        ffi::OsString,
+        fs,
+        path::{Path, PathBuf},
+        sync::Mutex,
+    };
 
     use serde_json::json;
 
     use super::*;
     use crate::cli::{CostMode, SharedArgs};
+
+    static QWEN_DATA_DIR_LOCK: Mutex<()> = Mutex::new(());
+
+    struct QwenDataDirGuard {
+        previous: Option<OsString>,
+    }
+
+    impl QwenDataDirGuard {
+        fn set(path: &Path) -> Self {
+            let previous = env::var_os("QWEN_DATA_DIR");
+            env::set_var("QWEN_DATA_DIR", path);
+            Self { previous }
+        }
+    }
+
+    impl Drop for QwenDataDirGuard {
+        fn drop(&mut self) {
+            if let Some(previous) = self.previous.take() {
+                env::set_var("QWEN_DATA_DIR", previous);
+            } else {
+                env::remove_var("QWEN_DATA_DIR");
+            }
+        }
+    }
 
     fn temp_qwen_dir(name: &str) -> PathBuf {
         let mut path = env::temp_dir();
@@ -132,15 +183,15 @@ mod tests {
             .join("\n"),
         )
         .unwrap();
-        env::set_var("QWEN_DATA_DIR", &qwen_dir);
 
         let shared = SharedArgs {
             mode: CostMode::Display,
             timezone: Some("UTC".to_string()),
             ..SharedArgs::default()
         };
+        let _lock = QWEN_DATA_DIR_LOCK.lock().unwrap();
+        let _guard = QwenDataDirGuard::set(&qwen_dir);
         let entries = load_entries(&shared).unwrap();
-        env::remove_var("QWEN_DATA_DIR");
         fs::remove_dir_all(&qwen_dir).unwrap();
 
         assert_eq!(entries.len(), 1);
@@ -164,17 +215,17 @@ mod tests {
             r#"{"type":"assistant","model":"qwen3-coder-plus","timestamp":"2026-02-23T14:24:56.857Z","sessionId":"session-json","usageMetadata":{"promptTokenCount":100,"candidatesTokenCount":50,"thoughtsTokenCount":10,"cachedContentTokenCount":5}}"#,
         )
         .unwrap();
-        env::set_var("QWEN_DATA_DIR", &qwen_dir);
 
         let shared = SharedArgs {
             mode: CostMode::Display,
             timezone: Some("UTC".to_string()),
             ..SharedArgs::default()
         };
+        let _lock = QWEN_DATA_DIR_LOCK.lock().unwrap();
+        let _guard = QwenDataDirGuard::set(&qwen_dir);
         let entries = load_entries(&shared).unwrap();
         let rows = summarize_entries(&entries, AgentReportKind::Daily).unwrap();
         let report = report_from_rows(&rows, AgentReportKind::Daily);
-        env::remove_var("QWEN_DATA_DIR");
         fs::remove_dir_all(&qwen_dir).unwrap();
 
         assert_eq!(report["daily"][0]["date"], "2026-02-23");
