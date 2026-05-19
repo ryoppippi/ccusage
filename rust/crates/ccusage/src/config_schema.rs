@@ -26,8 +26,14 @@ pub(crate) struct CcusageConfig {
     pub(crate) amp: Option<AmpConfig>,
     /// Codebuff configuration.
     pub(crate) codebuff: Option<CodebuffConfig>,
+    /// Hermes Agent configuration.
+    pub(crate) hermes: Option<HermesConfig>,
     /// pi-agent configuration.
     pub(crate) pi: Option<PiConfig>,
+    /// Goose configuration.
+    pub(crate) goose: Option<GooseConfig>,
+    /// Kilo configuration.
+    pub(crate) kilo: Option<KiloConfig>,
     /// GitHub Copilot CLI configuration.
     pub(crate) copilot: Option<CopilotConfig>,
     /// Gemini CLI configuration.
@@ -126,6 +132,21 @@ pub(crate) struct CodebuffCommandsConfig {
 
 #[derive(Debug, Default, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
+pub(crate) struct HermesConfig {
+    pub(crate) defaults: Option<SharedOptions>,
+    pub(crate) commands: Option<HermesCommandsConfig>,
+}
+
+#[derive(Debug, Default, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct HermesCommandsConfig {
+    pub(crate) daily: Option<SharedOptions>,
+    pub(crate) monthly: Option<SharedOptions>,
+    pub(crate) session: Option<SharedOptions>,
+}
+
+#[derive(Debug, Default, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
 pub(crate) struct PiConfig {
     pub(crate) defaults: Option<PiOptions>,
     pub(crate) commands: Option<PiCommandsConfig>,
@@ -137,6 +158,36 @@ pub(crate) struct PiCommandsConfig {
     pub(crate) daily: Option<PiOptions>,
     pub(crate) monthly: Option<PiOptions>,
     pub(crate) session: Option<PiOptions>,
+}
+
+#[derive(Debug, Default, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct GooseConfig {
+    pub(crate) defaults: Option<SharedOptions>,
+    pub(crate) commands: Option<GooseCommandsConfig>,
+}
+
+#[derive(Debug, Default, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct GooseCommandsConfig {
+    pub(crate) daily: Option<SharedOptions>,
+    pub(crate) monthly: Option<SharedOptions>,
+    pub(crate) session: Option<SharedOptions>,
+}
+
+#[derive(Debug, Default, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct KiloConfig {
+    pub(crate) defaults: Option<SharedOptions>,
+    pub(crate) commands: Option<KiloCommandsConfig>,
+}
+
+#[derive(Debug, Default, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct KiloCommandsConfig {
+    pub(crate) daily: Option<SharedOptions>,
+    pub(crate) monthly: Option<SharedOptions>,
+    pub(crate) session: Option<SharedOptions>,
 }
 
 #[derive(Debug, Default, Deserialize, JsonSchema)]
@@ -789,6 +840,14 @@ mod tests {
             Some("#/definitions/PiOptions")
         );
         assert_eq!(
+            property_ref(&schema, "GooseConfig", "defaults"),
+            Some("#/definitions/SharedOptions")
+        );
+        assert_eq!(
+            property_ref(&schema, "KiloConfig", "defaults"),
+            Some("#/definitions/SharedOptions")
+        );
+        assert_eq!(
             property_ref(&schema, "GeminiConfig", "defaults"),
             Some("#/definitions/SharedOptions")
         );
@@ -816,7 +875,7 @@ mod tests {
             "ccusage-config",
             &[
                 "$schema", "amp", "claude", "codebuff", "codex", "commands", "copilot", "defaults",
-                "gemini", "opencode", "pi",
+                "gemini", "goose", "hermes", "kilo", "opencode", "pi",
             ],
         );
     }
@@ -880,7 +939,7 @@ mod tests {
             },
             "codebuff": {
                 "commands": {
-                    "session": {
+                    "daily": {
                         "json": true
                     }
                 }
@@ -889,6 +948,27 @@ mod tests {
                 "commands": {
                     "daily": {
                         "piPath": "/tmp/pi-sessions"
+                    }
+                }
+            },
+            "goose": {
+                "commands": {
+                    "daily": {
+                        "json": true
+                    }
+                }
+            },
+            "hermes": {
+                "commands": {
+                    "daily": {
+                        "json": true
+                    }
+                }
+            },
+            "kilo": {
+                "commands": {
+                    "daily": {
+                        "json": true
                     }
                 }
             },

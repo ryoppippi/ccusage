@@ -742,6 +742,87 @@
 			},
 			"type": "object"
 		},
+		"GooseCommandsConfig": {
+			"additionalProperties": false,
+			"properties": {
+				"daily": {
+					"$ref": "#/definitions/SharedOptions"
+				},
+				"monthly": {
+					"$ref": "#/definitions/SharedOptions"
+				},
+				"session": {
+					"$ref": "#/definitions/SharedOptions"
+				}
+			},
+			"type": "object"
+		},
+		"GooseConfig": {
+			"additionalProperties": false,
+			"properties": {
+				"commands": {
+					"$ref": "#/definitions/GooseCommandsConfig"
+				},
+				"defaults": {
+					"$ref": "#/definitions/SharedOptions"
+				}
+			},
+			"type": "object"
+		},
+		"HermesCommandsConfig": {
+			"additionalProperties": false,
+			"properties": {
+				"daily": {
+					"$ref": "#/definitions/SharedOptions"
+				},
+				"monthly": {
+					"$ref": "#/definitions/SharedOptions"
+				},
+				"session": {
+					"$ref": "#/definitions/SharedOptions"
+				}
+			},
+			"type": "object"
+		},
+		"HermesConfig": {
+			"additionalProperties": false,
+			"properties": {
+				"commands": {
+					"$ref": "#/definitions/HermesCommandsConfig"
+				},
+				"defaults": {
+					"$ref": "#/definitions/SharedOptions"
+				}
+			},
+			"type": "object"
+		},
+		"KiloCommandsConfig": {
+			"additionalProperties": false,
+			"properties": {
+				"daily": {
+					"$ref": "#/definitions/SharedOptions"
+				},
+				"monthly": {
+					"$ref": "#/definitions/SharedOptions"
+				},
+				"session": {
+					"$ref": "#/definitions/SharedOptions"
+				}
+			},
+			"type": "object"
+		},
+		"KiloConfig": {
+			"additionalProperties": false,
+			"properties": {
+				"commands": {
+					"$ref": "#/definitions/KiloCommandsConfig"
+				},
+				"defaults": {
+					"$ref": "#/definitions/SharedOptions"
+				}
+			},
+			"type": "object"
+		},
 		"OpenCodeCommandsConfig": {
 			"additionalProperties": false,
 			"properties": {
@@ -1315,6 +1396,33 @@
 					],
 					"description": "Gemini CLI configuration.",
 					"markdownDescription": "Gemini CLI configuration."
+				},
+				"goose": {
+					"allOf": [
+						{
+							"$ref": "#/definitions/GooseConfig"
+						}
+					],
+					"description": "Goose configuration.",
+					"markdownDescription": "Goose configuration."
+				},
+				"hermes": {
+					"allOf": [
+						{
+							"$ref": "#/definitions/HermesConfig"
+						}
+					],
+					"description": "Hermes Agent configuration.",
+					"markdownDescription": "Hermes Agent configuration."
+				},
+				"kilo": {
+					"allOf": [
+						{
+							"$ref": "#/definitions/KiloConfig"
+						}
+					],
+					"description": "Kilo configuration.",
+					"markdownDescription": "Kilo configuration."
 				},
 				"opencode": {
 					"allOf": [

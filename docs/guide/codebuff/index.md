@@ -1,4 +1,4 @@
-# Codebuff Data Source (Beta)
+# Codebuff Data Source (Experimental)
 
 > Codebuff support is experimental. Expect adjustments while the local data format continues to evolve.
 

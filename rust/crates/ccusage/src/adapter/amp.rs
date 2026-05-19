@@ -226,6 +226,7 @@ pub(crate) fn read_thread_file(
             cost,
             extra_total_tokens: 0,
             credits: json_value_f64(event.get("credits")),
+            message_count: None,
             model: Some(model),
             usage_limit_reset_time: None,
             data,

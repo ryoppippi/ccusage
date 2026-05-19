@@ -2,9 +2,9 @@
 
 ![ccusage daily report showing token usage and costs by date](/screenshot.png)
 
-**ccusage** is a local CLI for understanding coding (agent) CLI token usage and estimated costs across Claude Code, Codex, OpenCode, Amp, Codebuff, pi-agent, GitHub Copilot CLI, and Gemini CLI.
+**ccusage** is a local CLI for understanding coding (agent) CLI token usage and estimated costs across Claude Code, Codex, OpenCode, Amp, Codebuff, Hermes Agent, pi-agent, Goose, Kilo, GitHub Copilot CLI, and Gemini CLI.
 
-The original **“cc”** came from **C**laude **C**ode usage and now also fits **C**odex **C**LI usage. As OpenCode, Amp, Codebuff, pi-agent, Gemini CLI, and other coding (agent) CLIs became part of the same workflow, ccusage expanded into a general name for local coding CLI usage analysis.
+The original **“cc”** came from **C**laude **C**ode usage and now also fits **C**odex **C**LI usage. As OpenCode, Amp, Codebuff, Hermes Agent, pi-agent, Goose, Kilo, Gemini CLI, and other coding (agent) CLIs became part of the same workflow, ccusage expanded into a general name for local coding CLI usage analysis.
 
 ## The Problem
 
@@ -19,7 +19,7 @@ Modern coding (agent) CLI usage is split across several local data formats. That
 
 ccusage reads the local usage files that coding CLIs already generate and provides:
 
-- **All Sources by Default** - Claude Code, Codex, OpenCode, Amp, Codebuff, pi-agent, GitHub Copilot CLI, and Gemini CLI in one CLI
+- **All Sources by Default** - Claude Code, Codex, OpenCode, Amp, Codebuff, Hermes Agent, pi-agent, Goose, Kilo, GitHub Copilot CLI, and Gemini CLI in one CLI
 - **Usage Views** - Daily, weekly, monthly, and session-based breakdowns
 - **Cost Analysis** - Estimated costs based on token usage and model pricing
 - **Focused Data Source Views** - Start with all detected sources, then narrow the same usage views to one source when needed
@@ -72,16 +72,19 @@ Each data source page covers the details that only apply to that source, includi
 
 ccusage reads from local coding CLI data directories:
 
-| Agent       | ID         | Default data location                           |
-| ----------- | ---------- | ----------------------------------------------- |
-| Claude Code | `claude`   | `~/.config/claude/projects/`, `~/.claude/`      |
-| Codex       | `codex`    | `${CODEX_HOME:-~/.codex}`                       |
-| OpenCode    | `opencode` | `${OPENCODE_DATA_DIR:-~/.local/share/opencode}` |
-| Amp         | `amp`      | `${AMP_DATA_DIR:-~/.local/share/amp}`           |
-| Codebuff    | `codebuff` | `${CODEBUFF_DATA_DIR:-~/.config/manicode}`      |
-| pi-agent    | `pi`       | `${PI_AGENT_DIR:-~/.pi/agent/sessions}`         |
-| Copilot CLI | `copilot`  | `~/.copilot/otel/*.jsonl`                       |
-| Gemini CLI  | `gemini`   | `${GEMINI_DATA_DIR:-~/.gemini/tmp}`             |
+| Agent        | ID         | Default data location                           |
+| ------------ | ---------- | ----------------------------------------------- |
+| Claude Code  | `claude`   | `~/.config/claude/projects/`, `~/.claude/`      |
+| Codex        | `codex`    | `${CODEX_HOME:-~/.codex}`                       |
+| OpenCode     | `opencode` | `${OPENCODE_DATA_DIR:-~/.local/share/opencode}` |
+| Amp          | `amp`      | `${AMP_DATA_DIR:-~/.local/share/amp}`           |
+| Codebuff     | `codebuff` | `${CODEBUFF_DATA_DIR:-~/.config/manicode}`      |
+| Hermes Agent | `hermes`   | `${HERMES_HOME:-~/.hermes}/state.db`            |
+| pi-agent     | `pi`       | `${PI_AGENT_DIR:-~/.pi/agent/sessions}`         |
+| Goose        | `goose`    | Standard Goose data roots or `GOOSE_PATH_ROOT`  |
+| Kilo         | `kilo`     | `${KILO_DATA_DIR:-~/.local/share/kilo}`         |
+| Copilot CLI  | `copilot`  | `~/.copilot/otel/*.jsonl`                       |
+| Gemini CLI   | `gemini`   | `${GEMINI_DATA_DIR:-~/.gemini/tmp}`             |
 
 The tool automatically detects available data and aggregates all supported coding CLIs by default.
 Each source-specific environment variable can also contain comma-separated directories, which lets unified reports combine current profiles and archives.
@@ -105,7 +108,10 @@ ccusage codex daily --speed fast
 ccusage opencode weekly
 ccusage amp session
 ccusage codebuff daily
+ccusage hermes daily
 ccusage pi monthly
+ccusage goose daily
+ccusage kilo daily
 ccusage copilot daily
 ccusage gemini daily
 ```

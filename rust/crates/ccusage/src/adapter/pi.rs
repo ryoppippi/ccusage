@@ -227,6 +227,7 @@ pub(crate) fn read_session_file(
             cost,
             extra_total_tokens: 0,
             credits: None,
+            message_count: None,
             model,
             data,
             usage_limit_reset_time: None,

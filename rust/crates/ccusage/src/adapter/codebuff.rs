@@ -281,6 +281,7 @@ fn to_loaded_entry(
         credits: (entry.credits > 0.0).then_some(entry.credits),
         model: Some(entry.model),
         usage_limit_reset_time: None,
+        message_count: None,
         data,
     }
 }
@@ -736,6 +737,7 @@ mod tests {
             credits: Some(1.25),
             model: Some("claude-sonnet-4-20250514".to_string()),
             usage_limit_reset_time: None,
+            message_count: None,
         };
         let rows = summarize_entries(&[entry], AgentReportKind::Daily).unwrap();
         let report = report_from_rows(&rows, AgentReportKind::Daily);

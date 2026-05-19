@@ -132,7 +132,10 @@ fn main() -> Result<()> {
         Some(Command::OpenCode(args)) => adapter::opencode::run(args),
         Some(Command::Amp(args)) => adapter::amp::run(args),
         Some(Command::Codebuff(args)) => adapter::codebuff::run(args),
+        Some(Command::Hermes(args)) => adapter::hermes::run(args),
         Some(Command::Pi(args)) => adapter::pi::run(args),
+        Some(Command::Goose(args)) => adapter::goose::run(args),
+        Some(Command::Kilo(args)) => adapter::kilo::run(args),
         Some(Command::Copilot(args)) => adapter::copilot::run(args),
         Some(Command::Gemini(args)) => adapter::gemini::run(args),
         None => {
@@ -664,11 +667,16 @@ mod tests {
         .unwrap();
 
         assert_eq!(report["daily"][0]["date"], "2026-01-02");
-        assert_eq!(report["daily"][0]["inputTokens"], 100);
+        assert_eq!(report["daily"][0]["inputTokens"], 90);
         assert_eq!(report["daily"][0]["cachedInputTokens"], 10);
         assert_eq!(report["daily"][0]["outputTokens"], 50);
         assert_eq!(report["daily"][0]["reasoningOutputTokens"], 0);
         assert_eq!(report["daily"][0]["totalTokens"], 150);
+        assert_eq!(report["daily"][0]["models"]["gpt-5"]["inputTokens"], 90);
+        assert_eq!(
+            report["daily"][0]["models"]["gpt-5"]["cachedInputTokens"],
+            10
+        );
         assert_eq!(report["daily"][0]["costUSD"], json!(0.00061375));
         assert_eq!(report["totals"]["costUSD"], json!(0.00061375));
     }
@@ -849,6 +857,7 @@ mod tests {
             cost: 0.02,
             extra_total_tokens: 0,
             credits: Some(1.25),
+            message_count: None,
             model: Some("claude-sonnet-4-20250514".to_string()),
             usage_limit_reset_time: None,
         };
@@ -934,6 +943,7 @@ mod tests {
             cost: 0.05,
             extra_total_tokens: 0,
             credits: None,
+            message_count: None,
             model: Some("[pi] gpt-5.4".to_string()),
             usage_limit_reset_time: None,
         };
@@ -981,6 +991,7 @@ mod tests {
             cost: 0.02,
             extra_total_tokens: 0,
             credits: None,
+            message_count: None,
             model: Some("claude-sonnet-4-20250514".to_string()),
             usage_limit_reset_time: None,
         };

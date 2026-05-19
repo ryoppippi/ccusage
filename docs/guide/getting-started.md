@@ -49,6 +49,7 @@ ccusage codex daily
 ccusage opencode weekly
 ccusage amp session
 ccusage pi monthly
+ccusage kilo daily
 ```
 
 ## Your First Report
@@ -164,8 +165,11 @@ If ccusage shows no data, check:
    - OpenCode: `${OPENCODE_DATA_DIR:-~/.local/share/opencode}`
    - Amp: `${AMP_DATA_DIR:-~/.local/share/amp}`
    - Codebuff: `${CODEBUFF_DATA_DIR:-~/.config/manicode}`
+   - Hermes Agent: `${HERMES_HOME:-~/.hermes}/state.db`
    - pi-agent: `${PI_AGENT_DIR:-~/.pi/agent/sessions}`
+   - Goose: standard Goose data roots or `GOOSE_PATH_ROOT`
    - GitHub Copilot CLI: `~/.copilot/otel/*.jsonl` or `COPILOT_OTEL_FILE_EXPORTER_PATH`
+   - Kilo: `${KILO_DATA_DIR:-~/.local/share/kilo}`
 
 ### Custom Data Directory
 
@@ -177,8 +181,11 @@ export CODEX_HOME="/path/to/codex"
 export OPENCODE_DATA_DIR="/path/to/opencode"
 export AMP_DATA_DIR="/path/to/amp"
 export CODEBUFF_DATA_DIR="/path/to/codebuff"
+export HERMES_HOME="/path/to/hermes"
 export PI_AGENT_DIR="/path/to/pi/sessions"
+export GOOSE_PATH_ROOT="/path/to/goose"
 export COPILOT_OTEL_FILE_EXPORTER_PATH="/path/to/copilot-otel.jsonl"
+export KILO_DATA_DIR="/path/to/kilo"
 ```
 
 Each source-specific path variable can also contain comma-separated directories:
@@ -188,7 +195,10 @@ export CODEX_HOME="/path/to/codex,/archive/codex,/path/to/codex-exec-jsonl"
 export OPENCODE_DATA_DIR="/path/to/opencode,/archive/opencode"
 export AMP_DATA_DIR="/path/to/amp,/archive/amp"
 export CODEBUFF_DATA_DIR="/path/to/codebuff,/archive/codebuff"
+export HERMES_HOME="/path/to/hermes,/archive/hermes"
 export PI_AGENT_DIR="/path/to/pi/sessions,/archive/pi/sessions"
+export GOOSE_PATH_ROOT="/path/to/goose,/archive/goose"
+export KILO_DATA_DIR="/path/to/kilo,/archive/kilo"
 ```
 
 ## Getting Help

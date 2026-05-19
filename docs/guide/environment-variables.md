@@ -6,16 +6,19 @@ ccusage supports several environment variables for configuration and customizati
 
 ccusage detects supported data source files from conventional locations by default. Set these variables when your data lives somewhere else. Directory variables can be one directory or a comma-separated list of directories; the Copilot variable points at one explicit JSONL export file:
 
-| Variable                          | Agent       | Default                            |
-| --------------------------------- | ----------- | ---------------------------------- |
-| `CLAUDE_CONFIG_DIR`               | Claude Code | `~/.config/claude` and `~/.claude` |
-| `CODEX_HOME`                      | Codex       | `~/.codex`                         |
-| `OPENCODE_DATA_DIR`               | OpenCode    | `~/.local/share/opencode`          |
-| `AMP_DATA_DIR`                    | Amp         | `~/.local/share/amp`               |
-| `CODEBUFF_DATA_DIR`               | Codebuff    | `~/.config/manicode`               |
-| `PI_AGENT_DIR`                    | pi-agent    | `~/.pi/agent/sessions`             |
-| `COPILOT_OTEL_FILE_EXPORTER_PATH` | Copilot CLI | Explicit `.jsonl` file             |
-| `GEMINI_DATA_DIR`                 | Gemini CLI  | `~/.gemini/tmp`                    |
+| Variable                          | Agent        | Default                            |
+| --------------------------------- | ------------ | ---------------------------------- |
+| `CLAUDE_CONFIG_DIR`               | Claude Code  | `~/.config/claude` and `~/.claude` |
+| `CODEX_HOME`                      | Codex        | `~/.codex`                         |
+| `OPENCODE_DATA_DIR`               | OpenCode     | `~/.local/share/opencode`          |
+| `AMP_DATA_DIR`                    | Amp          | `~/.local/share/amp`               |
+| `CODEBUFF_DATA_DIR`               | Codebuff     | `~/.config/manicode`               |
+| `HERMES_HOME`                     | Hermes Agent | `~/.hermes`                        |
+| `PI_AGENT_DIR`                    | pi-agent     | `~/.pi/agent/sessions`             |
+| `GOOSE_PATH_ROOT`                 | Goose        | Standard Goose data roots          |
+| `KILO_DATA_DIR`                   | Kilo         | `~/.local/share/kilo`              |
+| `COPILOT_OTEL_FILE_EXPORTER_PATH` | Copilot CLI  | Explicit `.jsonl` file             |
+| `GEMINI_DATA_DIR`                 | Gemini CLI   | `~/.gemini/tmp`                    |
 
 Example:
 
@@ -24,7 +27,10 @@ export CODEX_HOME="/path/to/codex,/archive/codex,/path/to/codex-exec-jsonl"
 export OPENCODE_DATA_DIR="/path/to/opencode,/archive/opencode"
 export AMP_DATA_DIR="/path/to/amp,/archive/amp"
 export CODEBUFF_DATA_DIR="/path/to/codebuff,/archive/codebuff"
+export HERMES_HOME="/path/to/hermes,/archive/hermes"
 export PI_AGENT_DIR="/path/to/pi/sessions,/archive/pi/sessions"
+export GOOSE_PATH_ROOT="/path/to/goose,/archive/goose"
+export KILO_DATA_DIR="/path/to/kilo,/archive/kilo"
 export COPILOT_OTEL_FILE_EXPORTER_PATH="/path/to/copilot-otel.jsonl"
 export GEMINI_DATA_DIR="/path/to/gemini/tmp,/archive/gemini/tmp"
 ccusage daily
@@ -196,7 +202,7 @@ To see which environment variables are being used:
 
 ```bash
 # Show all environment variables
-env | grep -E "CLAUDE|CODEX|OPENCODE|AMP|CODEBUFF|PI_AGENT|COPILOT|GEMINI|CCUSAGE|LOG_LEVEL"
+env | grep -E "CLAUDE|CODEX|OPENCODE|AMP|HERMES|PI_AGENT|GOOSE|KILO|COPILOT|GEMINI|CCUSAGE|LOG_LEVEL"
 
 # Debug mode shows environment variable usage
 LOG_LEVEL=4 ccusage daily --debug

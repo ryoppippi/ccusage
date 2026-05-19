@@ -514,6 +514,7 @@ fn event_to_loaded(
         cost,
         extra_total_tokens,
         credits: None,
+        message_count: None,
         model: Some(event.model),
         usage_limit_reset_time: None,
         data,
