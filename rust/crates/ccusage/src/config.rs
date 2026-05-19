@@ -12,8 +12,9 @@ use crate::{
     },
     config_schema::{
         BlocksSpecificOptions, CodexOptions, ConfigCodexSpeed, ConfigCostMode, ConfigCostSource,
-        ConfigSortOrder, ConfigVisualBurnRate, ConfigWeekDay, DailySpecificOptions, PiOptions,
-        SharedOptions, StatuslineSpecificOptions, WeeklySpecificOptions,
+        ConfigSortOrder, ConfigVisualBurnRate, ConfigWeekDay, DailySpecificOptions,
+        OpenClawOptions, PiOptions, SharedOptions, StatuslineSpecificOptions,
+        WeeklySpecificOptions,
     },
 };
 
@@ -243,6 +244,7 @@ fn is_agent_command(command: &str) -> bool {
             | "copilot"
             | "gemini"
             | "kimi"
+            | "openclaw"
     )
 }
 
@@ -345,6 +347,7 @@ pub(crate) fn apply_config_to_statusline_args(args: &mut StatuslineArgs, config:
 pub(crate) fn apply_config_to_agent_args(
     codex_speed: &mut CodexSpeed,
     mut pi_path: Option<&mut Option<String>>,
+    mut open_claw_path: Option<&mut Option<String>>,
     config: &ConfigContext,
 ) {
     for options in config.option_maps() {
@@ -355,6 +358,11 @@ pub(crate) fn apply_config_to_agent_args(
         if let Some(pi_path) = pi_path.as_deref_mut() {
             if let Some(path) = PiOptions::from_map(options).pi_path {
                 *pi_path = Some(path);
+            }
+        }
+        if let Some(open_claw_path) = open_claw_path.as_deref_mut() {
+            if let Some(path) = OpenClawOptions::from_map(options).open_claw_path {
+                *open_claw_path = Some(path);
             }
         }
     }
@@ -647,6 +655,7 @@ mod tests {
         apply_config_to_agent_args(
             &mut speed,
             None,
+            None,
             &context(
                 json!({
                     "codex": {
@@ -668,6 +677,7 @@ mod tests {
         apply_config_to_agent_args(
             &mut speed,
             Some(&mut pi_path),
+            None,
             &context(
                 json!({
                     "pi": {
@@ -683,6 +693,28 @@ mod tests {
         );
 
         assert_eq!(pi_path.as_deref(), Some("/tmp/pi-sessions"));
+
+        let mut speed = CodexSpeed::Auto;
+        let mut open_claw_path = None;
+        apply_config_to_agent_args(
+            &mut speed,
+            None,
+            Some(&mut open_claw_path),
+            &context(
+                json!({
+                    "openclaw": {
+                        "defaults": {
+                            "openClawPath": "/tmp/openclaw"
+                        }
+                    }
+                }),
+                "openclaw daily",
+                Some("openclaw"),
+                "daily",
+            ),
+        );
+
+        assert_eq!(open_claw_path.as_deref(), Some("/tmp/openclaw"));
     }
 
     fn context(value: Value, raw: &str, agent: Option<&str>, report: &str) -> ConfigContext {

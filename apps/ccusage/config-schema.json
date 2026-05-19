@@ -823,6 +823,139 @@
 			},
 			"type": "object"
 		},
+		"OpenClawCommandsConfig": {
+			"additionalProperties": false,
+			"properties": {
+				"daily": {
+					"$ref": "#/definitions/OpenClawOptions"
+				},
+				"monthly": {
+					"$ref": "#/definitions/OpenClawOptions"
+				},
+				"session": {
+					"$ref": "#/definitions/OpenClawOptions"
+				}
+			},
+			"type": "object"
+		},
+		"OpenClawConfig": {
+			"additionalProperties": false,
+			"properties": {
+				"commands": {
+					"$ref": "#/definitions/OpenClawCommandsConfig"
+				},
+				"defaults": {
+					"$ref": "#/definitions/OpenClawOptions"
+				}
+			},
+			"type": "object"
+		},
+		"OpenClawOptions": {
+			"additionalProperties": false,
+			"properties": {
+				"all": {
+					"description": "Accepted for compatibility; all detected supported agents are included by default.",
+					"markdownDescription": "Accepted for compatibility; all detected supported agents are included by default.",
+					"type": "boolean"
+				},
+				"breakdown": {
+					"description": "Show per-model cost breakdown.",
+					"markdownDescription": "Show per-model cost breakdown.",
+					"type": "boolean"
+				},
+				"color": {
+					"description": "Enable colored output.",
+					"markdownDescription": "Enable colored output.",
+					"type": "boolean"
+				},
+				"compact": {
+					"description": "Force compact table layout for narrow terminals.",
+					"markdownDescription": "Force compact table layout for narrow terminals.",
+					"type": "boolean"
+				},
+				"debug": {
+					"description": "Show pricing mismatch information for debugging.",
+					"markdownDescription": "Show pricing mismatch information for debugging.",
+					"type": "boolean"
+				},
+				"debugSamples": {
+					"description": "Number of sample discrepancies to show in debug output.",
+					"format": "uint",
+					"markdownDescription": "Number of sample discrepancies to show in debug output.",
+					"minimum": 0.0,
+					"type": "integer"
+				},
+				"jq": {
+					"description": "jq filter to apply to JSON output.",
+					"markdownDescription": "jq filter to apply to JSON output.",
+					"type": "string"
+				},
+				"json": {
+					"description": "Output in JSON format.",
+					"markdownDescription": "Output in JSON format.",
+					"type": "boolean"
+				},
+				"mode": {
+					"allOf": [
+						{
+							"$ref": "#/definitions/ConfigCostMode"
+						}
+					],
+					"description": "Cost calculation mode.",
+					"markdownDescription": "Cost calculation mode."
+				},
+				"noColor": {
+					"description": "Disable colored output.",
+					"markdownDescription": "Disable colored output.",
+					"type": "boolean"
+				},
+				"noOffline": {
+					"description": "Disable cached pricing data where supported.",
+					"markdownDescription": "Disable cached pricing data where supported.",
+					"type": "boolean"
+				},
+				"offline": {
+					"description": "Use cached pricing data where supported.",
+					"markdownDescription": "Use cached pricing data where supported.",
+					"type": "boolean"
+				},
+				"openClawPath": {
+					"description": "Path or comma-separated paths to OpenClaw data directories.",
+					"markdownDescription": "Path or comma-separated paths to OpenClaw data directories.",
+					"type": "string"
+				},
+				"order": {
+					"allOf": [
+						{
+							"$ref": "#/definitions/ConfigSortOrder"
+						}
+					],
+					"description": "Sort order.",
+					"markdownDescription": "Sort order."
+				},
+				"since": {
+					"description": "Filter from date (YYYY-MM-DD or YYYYMMDD).",
+					"markdownDescription": "Filter from date (YYYY-MM-DD or YYYYMMDD).",
+					"type": "string"
+				},
+				"singleThread": {
+					"description": "Disable parallel file processing.",
+					"markdownDescription": "Disable parallel file processing.",
+					"type": "boolean"
+				},
+				"timezone": {
+					"description": "Timezone for date grouping (IANA).",
+					"markdownDescription": "Timezone for date grouping (IANA).",
+					"type": "string"
+				},
+				"until": {
+					"description": "Filter until date (inclusive).",
+					"markdownDescription": "Filter until date (inclusive).",
+					"type": "string"
+				}
+			},
+			"type": "object"
+		},
 		"OpenCodeCommandsConfig": {
 			"additionalProperties": false,
 			"properties": {
@@ -1423,6 +1556,15 @@
 					],
 					"description": "Kimi configuration.",
 					"markdownDescription": "Kimi configuration."
+				},
+				"openclaw": {
+					"allOf": [
+						{
+							"$ref": "#/definitions/OpenClawConfig"
+						}
+					],
+					"description": "OpenClaw configuration.",
+					"markdownDescription": "OpenClaw configuration."
 				},
 				"opencode": {
 					"allOf": [

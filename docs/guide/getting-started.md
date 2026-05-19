@@ -170,6 +170,7 @@ If ccusage shows no data, check:
    - Goose: standard Goose data roots or `GOOSE_PATH_ROOT`
    - Kilo: `${KILO_DATA_DIR:-~/.local/share/kilo}`
    - Kimi: `${KIMI_DATA_DIR:-~/.kimi}`
+   - OpenClaw: `${OPENCLAW_DIR:-~/.openclaw}` (also scans `~/.clawdbot`, `~/.moltbot`, `~/.moldbot`)
    - GitHub Copilot CLI: `~/.copilot/otel/*.jsonl` or `COPILOT_OTEL_FILE_EXPORTER_PATH`
 
 ### Custom Data Directory
@@ -184,6 +185,7 @@ export AMP_DATA_DIR="/path/to/amp"
 export HERMES_HOME="/path/to/hermes"
 export PI_AGENT_DIR="/path/to/pi/sessions"
 export GOOSE_PATH_ROOT="/path/to/goose"
+export OPENCLAW_DIR="/path/to/openclaw"
 export KILO_DATA_DIR="/path/to/kilo"
 export KIMI_DATA_DIR="/path/to/kimi"
 export COPILOT_OTEL_FILE_EXPORTER_PATH="/path/to/copilot-otel.jsonl"
@@ -198,6 +200,7 @@ export AMP_DATA_DIR="/path/to/amp,/archive/amp"
 export HERMES_HOME="/path/to/hermes,/archive/hermes"
 export PI_AGENT_DIR="/path/to/pi/sessions,/archive/pi/sessions"
 export GOOSE_PATH_ROOT="/path/to/goose,/archive/goose"
+export OPENCLAW_DIR="/path/to/openclaw,/archive/openclaw"
 export KILO_DATA_DIR="/path/to/kilo,/archive/kilo"
 export KIMI_DATA_DIR="/path/to/kimi,/archive/kimi"
 ```
