@@ -13,7 +13,22 @@ permissions:
   issues: write
 
 jobs:
+  changes:
+    name: Detect code changes
+    runs-on: ubuntu-slim
+    outputs:
+      code-changed: ${{ steps.detect.outputs.code-changed }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - id: detect
+        uses: ./.github/actions/detect-code-changes
+
   compare:
+    needs: changes
+    if: needs.changes.outputs.code-changed == 'true'
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 30
 
