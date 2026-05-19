@@ -18,7 +18,7 @@ ccusage detects supported data source files from conventional locations by defau
 Example:
 
 ```bash
-export CODEX_HOME="/path/to/codex,/archive/codex"
+export CODEX_HOME="/path/to/codex,/archive/codex,/path/to/codex-exec-jsonl"
 export OPENCODE_DATA_DIR="/path/to/opencode,/archive/opencode"
 export AMP_DATA_DIR="/path/to/amp,/archive/amp"
 export PI_AGENT_DIR="/path/to/pi/sessions,/archive/pi/sessions"
