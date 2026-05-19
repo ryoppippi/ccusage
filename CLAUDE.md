@@ -41,4 +41,5 @@ Check the nearest package-specific `CLAUDE.md` before editing package code:
 - Vitest globals are enabled; use `describe`, `it`, `expect`, and `vi` without importing them.
 - After code changes, run `pnpm run format`, `pnpm typecheck`, and `pnpm run test`.
 - PR branches are squash-merged by default; prefer stacked, small, revertable follow-up commits over `git commit --amend` unless explicitly requested.
+- Use US English for repository-facing GitHub communication, including issue comments, PR descriptions, review replies, triage notes, and bot-directed replies.
 - Do what has been asked, nothing more. Do not proactively create documentation files unless explicitly requested.
