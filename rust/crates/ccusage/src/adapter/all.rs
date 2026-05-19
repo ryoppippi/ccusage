@@ -282,6 +282,23 @@ fn append_agent_rows(
     rows.extend(agent_rows.rows);
 }
 
+fn load_summary_agent_rows(
+    agent: &'static str,
+    kind: AgentReportKind,
+    shared: &SharedArgs,
+    load_entries: impl FnOnce() -> Result<Vec<LoadedEntry>>,
+    summarize_entries: impl FnOnce(&[LoadedEntry], AgentReportKind) -> Result<Vec<UsageSummary>>,
+) -> Result<AgentRows> {
+    let mut entries = load_entries()?;
+    let detected = !entries.is_empty();
+    filter_loaded_entries_by_date(&mut entries, shared);
+    let summaries = summarize_entries(&entries, kind)?;
+    Ok(AgentRows {
+        rows: summary_rows(agent, summaries),
+        detected,
+    })
+}
+
 fn load_claude_rows(kind: AgentReportKind, shared: &SharedArgs) -> Result<AgentRows> {
     let mut entries = crate::load_entries(shared, None)?;
     let detected = !entries.is_empty();
@@ -319,14 +336,13 @@ fn load_codex_rows(
 }
 
 fn load_opencode_rows(kind: AgentReportKind, shared: &SharedArgs) -> Result<AgentRows> {
-    let mut entries = opencode::loader::load_entries(shared)?;
-    let detected = !entries.is_empty();
-    filter_loaded_entries_by_date(&mut entries, shared);
-    let summaries = opencode::summarize_entries(&entries, kind)?;
-    Ok(AgentRows {
-        rows: summary_rows("opencode", summaries),
-        detected,
-    })
+    load_summary_agent_rows(
+        "opencode",
+        kind,
+        shared,
+        || opencode::loader::load_entries(shared),
+        opencode::summarize_entries,
+    )
 }
 
 fn load_amp_rows(
@@ -334,14 +350,13 @@ fn load_amp_rows(
     shared: &SharedArgs,
     pricing: &PricingMap,
 ) -> Result<AgentRows> {
-    let mut entries = amp::load_entries(shared, pricing)?;
-    let detected = !entries.is_empty();
-    filter_loaded_entries_by_date(&mut entries, shared);
-    let summaries = amp::summarize_entries(&entries, kind)?;
-    Ok(AgentRows {
-        rows: summary_rows("amp", summaries),
-        detected,
-    })
+    load_summary_agent_rows(
+        "amp",
+        kind,
+        shared,
+        || amp::load_entries(shared, pricing),
+        amp::summarize_entries,
+    )
 }
 
 fn load_droid_rows(
@@ -349,14 +364,13 @@ fn load_droid_rows(
     shared: &SharedArgs,
     pricing: &PricingMap,
 ) -> Result<AgentRows> {
-    let mut entries = droid::load_entries(shared, pricing)?;
-    let detected = !entries.is_empty();
-    filter_loaded_entries_by_date(&mut entries, shared);
-    let summaries = droid::summarize_entries(&entries, kind)?;
-    Ok(AgentRows {
-        rows: summary_rows("droid", summaries),
-        detected,
-    })
+    load_summary_agent_rows(
+        "droid",
+        kind,
+        shared,
+        || droid::load_entries(shared, pricing),
+        droid::summarize_entries,
+    )
 }
 
 fn load_codebuff_rows(
@@ -364,14 +378,13 @@ fn load_codebuff_rows(
     shared: &SharedArgs,
     pricing: &PricingMap,
 ) -> Result<AgentRows> {
-    let mut entries = codebuff::load_entries(shared, pricing)?;
-    let detected = !entries.is_empty();
-    filter_loaded_entries_by_date(&mut entries, shared);
-    let summaries = codebuff::summarize_entries(&entries, kind)?;
-    Ok(AgentRows {
-        rows: summary_rows("codebuff", summaries),
-        detected,
-    })
+    load_summary_agent_rows(
+        "codebuff",
+        kind,
+        shared,
+        || codebuff::load_entries(shared, pricing),
+        codebuff::summarize_entries,
+    )
 }
 
 fn load_hermes_rows(
@@ -379,14 +392,13 @@ fn load_hermes_rows(
     shared: &SharedArgs,
     pricing: &PricingMap,
 ) -> Result<AgentRows> {
-    let mut entries = hermes::load_entries(shared, pricing)?;
-    let detected = !entries.is_empty();
-    filter_loaded_entries_by_date(&mut entries, shared);
-    let summaries = hermes::summarize_entries(&entries, kind)?;
-    Ok(AgentRows {
-        rows: summary_rows("hermes", summaries),
-        detected,
-    })
+    load_summary_agent_rows(
+        "hermes",
+        kind,
+        shared,
+        || hermes::load_entries(shared, pricing),
+        hermes::summarize_entries,
+    )
 }
 
 fn load_pi_rows(kind: AgentReportKind, shared: &SharedArgs) -> Result<AgentRows> {
@@ -411,25 +423,23 @@ fn load_goose_rows(
     shared: &SharedArgs,
     pricing: &PricingMap,
 ) -> Result<AgentRows> {
-    let mut entries = goose::load_entries(shared, pricing)?;
-    let detected = !entries.is_empty();
-    filter_loaded_entries_by_date(&mut entries, shared);
-    let summaries = goose::summarize_entries(&entries, kind)?;
-    Ok(AgentRows {
-        rows: summary_rows("goose", summaries),
-        detected,
-    })
+    load_summary_agent_rows(
+        "goose",
+        kind,
+        shared,
+        || goose::load_entries(shared, pricing),
+        goose::summarize_entries,
+    )
 }
 
 fn load_openclaw_rows(kind: AgentReportKind, shared: &SharedArgs) -> Result<AgentRows> {
-    let mut entries = openclaw::load_entries(shared, None)?;
-    let detected = !entries.is_empty();
-    filter_loaded_entries_by_date(&mut entries, shared);
-    let summaries = openclaw::summarize_entries(&entries, kind)?;
-    Ok(AgentRows {
-        rows: summary_rows("openclaw", summaries),
-        detected,
-    })
+    load_summary_agent_rows(
+        "openclaw",
+        kind,
+        shared,
+        || openclaw::load_entries(shared, None),
+        openclaw::summarize_entries,
+    )
 }
 
 fn load_copilot_rows(
@@ -437,14 +447,13 @@ fn load_copilot_rows(
     shared: &SharedArgs,
     pricing: &PricingMap,
 ) -> Result<AgentRows> {
-    let mut entries = copilot::load_entries(shared, pricing)?;
-    let detected = !entries.is_empty();
-    filter_loaded_entries_by_date(&mut entries, shared);
-    let summaries = copilot::summarize_entries(&entries, kind)?;
-    Ok(AgentRows {
-        rows: summary_rows("copilot", summaries),
-        detected,
-    })
+    load_summary_agent_rows(
+        "copilot",
+        kind,
+        shared,
+        || copilot::load_entries(shared, pricing),
+        copilot::summarize_entries,
+    )
 }
 
 fn load_kilo_rows(
@@ -452,14 +461,13 @@ fn load_kilo_rows(
     shared: &SharedArgs,
     pricing: &PricingMap,
 ) -> Result<AgentRows> {
-    let mut entries = kilo::load_entries(shared, pricing)?;
-    let detected = !entries.is_empty();
-    filter_loaded_entries_by_date(&mut entries, shared);
-    let summaries = kilo::summarize_entries(&entries, kind)?;
-    Ok(AgentRows {
-        rows: summary_rows("kilo", summaries),
-        detected,
-    })
+    load_summary_agent_rows(
+        "kilo",
+        kind,
+        shared,
+        || kilo::load_entries(shared, pricing),
+        kilo::summarize_entries,
+    )
 }
 
 fn load_gemini_rows(
@@ -467,14 +475,13 @@ fn load_gemini_rows(
     shared: &SharedArgs,
     pricing: &PricingMap,
 ) -> Result<AgentRows> {
-    let mut entries = gemini::load_entries(shared, pricing)?;
-    let detected = !entries.is_empty();
-    filter_loaded_entries_by_date(&mut entries, shared);
-    let summaries = gemini::summarize_entries(&entries, kind)?;
-    Ok(AgentRows {
-        rows: summary_rows("gemini", summaries),
-        detected,
-    })
+    load_summary_agent_rows(
+        "gemini",
+        kind,
+        shared,
+        || gemini::load_entries(shared, pricing),
+        gemini::summarize_entries,
+    )
 }
 
 fn load_kimi_rows(
@@ -482,14 +489,13 @@ fn load_kimi_rows(
     shared: &SharedArgs,
     pricing: &PricingMap,
 ) -> Result<AgentRows> {
-    let mut entries = kimi::load_entries(shared, pricing)?;
-    let detected = !entries.is_empty();
-    filter_loaded_entries_by_date(&mut entries, shared);
-    let summaries = kimi::summarize_entries(&entries, kind)?;
-    Ok(AgentRows {
-        rows: summary_rows("kimi", summaries),
-        detected,
-    })
+    load_summary_agent_rows(
+        "kimi",
+        kind,
+        shared,
+        || kimi::load_entries(shared, pricing),
+        kimi::summarize_entries,
+    )
 }
 
 fn load_qwen_rows(kind: AgentReportKind, shared: &SharedArgs) -> Result<AgentRows> {

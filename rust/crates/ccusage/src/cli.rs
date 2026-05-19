@@ -131,6 +131,19 @@ pub(crate) enum AgentReportKind {
     Session,
 }
 
+const STANDARD_AGENT_REPORTS: &[(&str, AgentReportKind)] = &[
+    ("daily", AgentReportKind::Daily),
+    ("monthly", AgentReportKind::Monthly),
+    ("session", AgentReportKind::Session),
+];
+
+const OPENCODE_AGENT_REPORTS: &[(&str, AgentReportKind)] = &[
+    ("daily", AgentReportKind::Daily),
+    ("weekly", AgentReportKind::Weekly),
+    ("monthly", AgentReportKind::Monthly),
+    ("session", AgentReportKind::Session),
+];
+
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub(crate) enum CodexSpeed {
     #[default]
@@ -353,18 +366,80 @@ fn parse_command(
         }
         "claude" => parse_claude_command(parser, shared, config),
         "codex" => parse_codex_command(parser, shared, config),
-        "opencode" => parse_opencode_command(parser, shared, config),
-        "amp" => parse_amp_command(parser, shared, config),
-        "droid" => parse_droid_command(parser, shared, config),
-        "codebuff" => parse_codebuff_command(parser, shared, config),
-        "hermes" => parse_hermes_command(parser, shared, config),
+        "opencode" => parse_basic_agent_command(
+            parser,
+            shared,
+            "opencode",
+            OPENCODE_AGENT_REPORTS,
+            Command::OpenCode,
+        ),
+        "amp" => {
+            parse_basic_agent_command(parser, shared, "amp", STANDARD_AGENT_REPORTS, Command::Amp)
+        }
+        "droid" => parse_basic_agent_command(
+            parser,
+            shared,
+            "droid",
+            STANDARD_AGENT_REPORTS,
+            Command::Droid,
+        ),
+        "codebuff" => parse_basic_agent_command(
+            parser,
+            shared,
+            "codebuff",
+            STANDARD_AGENT_REPORTS,
+            Command::Codebuff,
+        ),
+        "hermes" => parse_basic_agent_command(
+            parser,
+            shared,
+            "hermes",
+            STANDARD_AGENT_REPORTS,
+            Command::Hermes,
+        ),
         "pi" => parse_pi_command(parser, shared, config),
-        "goose" => parse_goose_command(parser, shared, config),
-        "kilo" => parse_kilo_command(parser, shared, config),
-        "copilot" => parse_copilot_command(parser, shared, config),
-        "gemini" => parse_gemini_command(parser, shared, config),
-        "kimi" => parse_kimi_command(parser, shared, config),
-        "qwen" => parse_qwen_command(parser, shared, config),
+        "goose" => parse_basic_agent_command(
+            parser,
+            shared,
+            "goose",
+            STANDARD_AGENT_REPORTS,
+            Command::Goose,
+        ),
+        "kilo" => parse_basic_agent_command(
+            parser,
+            shared,
+            "kilo",
+            STANDARD_AGENT_REPORTS,
+            Command::Kilo,
+        ),
+        "copilot" => parse_basic_agent_command(
+            parser,
+            shared,
+            "copilot",
+            STANDARD_AGENT_REPORTS,
+            Command::Copilot,
+        ),
+        "gemini" => parse_basic_agent_command(
+            parser,
+            shared,
+            "gemini",
+            STANDARD_AGENT_REPORTS,
+            Command::Gemini,
+        ),
+        "kimi" => parse_basic_agent_command(
+            parser,
+            shared,
+            "kimi",
+            STANDARD_AGENT_REPORTS,
+            Command::Kimi,
+        ),
+        "qwen" => parse_basic_agent_command(
+            parser,
+            shared,
+            "qwen",
+            STANDARD_AGENT_REPORTS,
+            Command::Qwen,
+        ),
         "openclaw" => parse_openclaw_command(parser, shared, config),
         _ => Err(format!("Unknown command '{command}'")),
     }
@@ -499,29 +574,26 @@ fn parse_claude_command(
     }
 }
 
+fn parse_basic_agent_command(
+    parser: &mut ArgParser,
+    mut shared: SharedArgs,
+    agent: &str,
+    reports: &[(&str, AgentReportKind)],
+    command: fn(AgentCommandArgs) -> Command,
+) -> Result<Command, String> {
+    let kind = parse_agent_report_kind(parser, agent, reports)?;
+    while parser.peek().is_some() {
+        parse_shared_arg(parser, &mut shared)?;
+    }
+    Ok(command(agent_command_args(shared, kind)))
+}
+
 fn parse_codex_command(
     parser: &mut ArgParser,
     mut shared: SharedArgs,
     config: &ConfigContext,
 ) -> Result<Command, String> {
-    let kind = match parser.peek() {
-        Some("daily") => {
-            parser.next();
-            AgentReportKind::Daily
-        }
-        Some("monthly") => {
-            parser.next();
-            AgentReportKind::Monthly
-        }
-        Some("session") => {
-            parser.next();
-            AgentReportKind::Session
-        }
-        Some(command) if !command.starts_with('-') => {
-            return Err(format!("Unknown codex command '{command}'"));
-        }
-        _ => AgentReportKind::Daily,
-    };
+    let kind = parse_agent_report_kind(parser, "codex", STANDARD_AGENT_REPORTS)?;
     let mut codex_speed = CodexSpeed::Auto;
     apply_config_to_agent_args(&mut codex_speed, None, None, config);
     while parser.peek().is_some() {
@@ -542,208 +614,12 @@ fn parse_codex_command(
     }))
 }
 
-fn parse_opencode_command(
-    parser: &mut ArgParser,
-    mut shared: SharedArgs,
-    _config: &ConfigContext,
-) -> Result<Command, String> {
-    let kind = match parser.peek() {
-        Some("daily") => {
-            parser.next();
-            AgentReportKind::Daily
-        }
-        Some("weekly") => {
-            parser.next();
-            AgentReportKind::Weekly
-        }
-        Some("monthly") => {
-            parser.next();
-            AgentReportKind::Monthly
-        }
-        Some("session") => {
-            parser.next();
-            AgentReportKind::Session
-        }
-        Some(command) if !command.starts_with('-') => {
-            return Err(format!("Unknown opencode command '{command}'"));
-        }
-        _ => AgentReportKind::Daily,
-    };
-    while parser.peek().is_some() {
-        parse_shared_arg(parser, &mut shared)?;
-    }
-    Ok(Command::OpenCode(AgentCommandArgs {
-        shared,
-        kind,
-        pi_path: None,
-        open_claw_path: None,
-        codex_speed: CodexSpeed::Auto,
-    }))
-}
-
-fn parse_amp_command(
-    parser: &mut ArgParser,
-    mut shared: SharedArgs,
-    _config: &ConfigContext,
-) -> Result<Command, String> {
-    let kind = match parser.peek() {
-        Some("daily") => {
-            parser.next();
-            AgentReportKind::Daily
-        }
-        Some("monthly") => {
-            parser.next();
-            AgentReportKind::Monthly
-        }
-        Some("session") => {
-            parser.next();
-            AgentReportKind::Session
-        }
-        Some(command) if !command.starts_with('-') => {
-            return Err(format!("Unknown amp command '{command}'"));
-        }
-        _ => AgentReportKind::Daily,
-    };
-    while parser.peek().is_some() {
-        parse_shared_arg(parser, &mut shared)?;
-    }
-    Ok(Command::Amp(AgentCommandArgs {
-        shared,
-        kind,
-        pi_path: None,
-        open_claw_path: None,
-        codex_speed: CodexSpeed::Auto,
-    }))
-}
-
-fn parse_droid_command(
-    parser: &mut ArgParser,
-    mut shared: SharedArgs,
-    _config: &ConfigContext,
-) -> Result<Command, String> {
-    let kind = match parser.peek() {
-        Some("daily") => {
-            parser.next();
-            AgentReportKind::Daily
-        }
-        Some("monthly") => {
-            parser.next();
-            AgentReportKind::Monthly
-        }
-        Some("session") => {
-            parser.next();
-            AgentReportKind::Session
-        }
-        Some(command) if !command.starts_with('-') => {
-            return Err(format!("Unknown droid command '{command}'"));
-        }
-        _ => AgentReportKind::Daily,
-    };
-    while parser.peek().is_some() {
-        parse_shared_arg(parser, &mut shared)?;
-    }
-    Ok(Command::Droid(AgentCommandArgs {
-        shared,
-        kind,
-        pi_path: None,
-        open_claw_path: None,
-        codex_speed: CodexSpeed::Auto,
-    }))
-}
-
-fn parse_codebuff_command(
-    parser: &mut ArgParser,
-    mut shared: SharedArgs,
-    _config: &ConfigContext,
-) -> Result<Command, String> {
-    let kind = match parser.peek() {
-        Some("daily") => {
-            parser.next();
-            AgentReportKind::Daily
-        }
-        Some("monthly") => {
-            parser.next();
-            AgentReportKind::Monthly
-        }
-        Some("session") => {
-            parser.next();
-            AgentReportKind::Session
-        }
-        Some(command) if !command.starts_with('-') => {
-            return Err(format!("Unknown codebuff command '{command}'"));
-        }
-        _ => AgentReportKind::Daily,
-    };
-    while parser.peek().is_some() {
-        parse_shared_arg(parser, &mut shared)?;
-    }
-    Ok(Command::Codebuff(AgentCommandArgs {
-        shared,
-        kind,
-        pi_path: None,
-        open_claw_path: None,
-        codex_speed: CodexSpeed::Auto,
-    }))
-}
-
-fn parse_hermes_command(
-    parser: &mut ArgParser,
-    mut shared: SharedArgs,
-    _config: &ConfigContext,
-) -> Result<Command, String> {
-    let kind = match parser.peek() {
-        Some("daily") => {
-            parser.next();
-            AgentReportKind::Daily
-        }
-        Some("monthly") => {
-            parser.next();
-            AgentReportKind::Monthly
-        }
-        Some("session") => {
-            parser.next();
-            AgentReportKind::Session
-        }
-        Some(command) if !command.starts_with('-') => {
-            return Err(format!("Unknown hermes command '{command}'"));
-        }
-        _ => AgentReportKind::Daily,
-    };
-    while parser.peek().is_some() {
-        parse_shared_arg(parser, &mut shared)?;
-    }
-    Ok(Command::Hermes(AgentCommandArgs {
-        shared,
-        kind,
-        pi_path: None,
-        open_claw_path: None,
-        codex_speed: CodexSpeed::Auto,
-    }))
-}
-
 fn parse_pi_command(
     parser: &mut ArgParser,
     mut shared: SharedArgs,
     config: &ConfigContext,
 ) -> Result<Command, String> {
-    let kind = match parser.peek() {
-        Some("daily") => {
-            parser.next();
-            AgentReportKind::Daily
-        }
-        Some("monthly") => {
-            parser.next();
-            AgentReportKind::Monthly
-        }
-        Some("session") => {
-            parser.next();
-            AgentReportKind::Session
-        }
-        Some(command) if !command.starts_with('-') => {
-            return Err(format!("Unknown pi command '{command}'"));
-        }
-        _ => AgentReportKind::Daily,
-    };
+    let kind = parse_agent_report_kind(parser, "pi", STANDARD_AGENT_REPORTS)?;
     let mut pi_path = None;
     let mut codex_speed = CodexSpeed::Auto;
     apply_config_to_agent_args(&mut codex_speed, Some(&mut pi_path), None, config);
@@ -765,64 +641,12 @@ fn parse_pi_command(
     }))
 }
 
-fn parse_goose_command(
-    parser: &mut ArgParser,
-    mut shared: SharedArgs,
-    _config: &ConfigContext,
-) -> Result<Command, String> {
-    let kind = match parser.peek() {
-        Some("daily") => {
-            parser.next();
-            AgentReportKind::Daily
-        }
-        Some("monthly") => {
-            parser.next();
-            AgentReportKind::Monthly
-        }
-        Some("session") => {
-            parser.next();
-            AgentReportKind::Session
-        }
-        Some(command) if !command.starts_with('-') => {
-            return Err(format!("Unknown goose command '{command}'"));
-        }
-        _ => AgentReportKind::Daily,
-    };
-    while parser.peek().is_some() {
-        parse_shared_arg(parser, &mut shared)?;
-    }
-    Ok(Command::Goose(AgentCommandArgs {
-        shared,
-        kind,
-        pi_path: None,
-        open_claw_path: None,
-        codex_speed: CodexSpeed::Auto,
-    }))
-}
-
 fn parse_openclaw_command(
     parser: &mut ArgParser,
     mut shared: SharedArgs,
     config: &ConfigContext,
 ) -> Result<Command, String> {
-    let kind = match parser.peek() {
-        Some("daily") => {
-            parser.next();
-            AgentReportKind::Daily
-        }
-        Some("monthly") => {
-            parser.next();
-            AgentReportKind::Monthly
-        }
-        Some("session") => {
-            parser.next();
-            AgentReportKind::Session
-        }
-        Some(command) if !command.starts_with('-') => {
-            return Err(format!("Unknown openclaw command '{command}'"));
-        }
-        _ => AgentReportKind::Daily,
-    };
+    let kind = parse_agent_report_kind(parser, "openclaw", STANDARD_AGENT_REPORTS)?;
     let mut open_claw_path = None;
     let mut codex_speed = CodexSpeed::Auto;
     apply_config_to_agent_args(&mut codex_speed, None, Some(&mut open_claw_path), config);
@@ -844,144 +668,32 @@ fn parse_openclaw_command(
     }))
 }
 
-fn parse_copilot_command(
+fn parse_agent_report_kind(
     parser: &mut ArgParser,
-    mut shared: SharedArgs,
-    _config: &ConfigContext,
-) -> Result<Command, String> {
-    let kind = match parser.peek() {
-        Some("daily") => {
-            parser.next();
-            AgentReportKind::Daily
-        }
-        Some("monthly") => {
-            parser.next();
-            AgentReportKind::Monthly
-        }
-        Some("session") => {
-            parser.next();
-            AgentReportKind::Session
-        }
-        Some(command) if !command.starts_with('-') => {
-            return Err(format!("Unknown copilot command '{command}'"));
-        }
-        _ => AgentReportKind::Daily,
+    agent: &str,
+    reports: &[(&str, AgentReportKind)],
+) -> Result<AgentReportKind, String> {
+    let Some(command) = parser.peek() else {
+        return Ok(AgentReportKind::Daily);
     };
-    while parser.peek().is_some() {
-        parse_shared_arg(parser, &mut shared)?;
+    if let Some((_, kind)) = reports.iter().find(|(report, _)| *report == command) {
+        parser.next();
+        return Ok(*kind);
     }
-    Ok(Command::Copilot(AgentCommandArgs {
-        shared,
-        kind,
-        pi_path: None,
-        open_claw_path: None,
-        codex_speed: CodexSpeed::Auto,
-    }))
+    if !command.starts_with('-') {
+        return Err(format!("Unknown {agent} command '{command}'"));
+    }
+    Ok(AgentReportKind::Daily)
 }
 
-fn parse_kilo_command(
-    parser: &mut ArgParser,
-    mut shared: SharedArgs,
-    _config: &ConfigContext,
-) -> Result<Command, String> {
-    let kind = match parser.peek() {
-        Some("daily") => {
-            parser.next();
-            AgentReportKind::Daily
-        }
-        Some("monthly") => {
-            parser.next();
-            AgentReportKind::Monthly
-        }
-        Some("session") => {
-            parser.next();
-            AgentReportKind::Session
-        }
-        Some(command) if !command.starts_with('-') => {
-            return Err(format!("Unknown kilo command '{command}'"));
-        }
-        _ => AgentReportKind::Daily,
-    };
-    while parser.peek().is_some() {
-        parse_shared_arg(parser, &mut shared)?;
-    }
-    Ok(Command::Kilo(AgentCommandArgs {
+fn agent_command_args(shared: SharedArgs, kind: AgentReportKind) -> AgentCommandArgs {
+    AgentCommandArgs {
         shared,
         kind,
         pi_path: None,
         open_claw_path: None,
         codex_speed: CodexSpeed::Auto,
-    }))
-}
-
-fn parse_gemini_command(
-    parser: &mut ArgParser,
-    mut shared: SharedArgs,
-    _config: &ConfigContext,
-) -> Result<Command, String> {
-    let kind = match parser.peek() {
-        Some("daily") => {
-            parser.next();
-            AgentReportKind::Daily
-        }
-        Some("monthly") => {
-            parser.next();
-            AgentReportKind::Monthly
-        }
-        Some("session") => {
-            parser.next();
-            AgentReportKind::Session
-        }
-        Some(command) if !command.starts_with('-') => {
-            return Err(format!("Unknown gemini command '{command}'"));
-        }
-        _ => AgentReportKind::Daily,
-    };
-    while parser.peek().is_some() {
-        parse_shared_arg(parser, &mut shared)?;
     }
-    Ok(Command::Gemini(AgentCommandArgs {
-        shared,
-        kind,
-        pi_path: None,
-        open_claw_path: None,
-        codex_speed: CodexSpeed::Auto,
-    }))
-}
-
-fn parse_kimi_command(
-    parser: &mut ArgParser,
-    mut shared: SharedArgs,
-    _config: &ConfigContext,
-) -> Result<Command, String> {
-    let kind = match parser.peek() {
-        Some("daily") => {
-            parser.next();
-            AgentReportKind::Daily
-        }
-        Some("monthly") => {
-            parser.next();
-            AgentReportKind::Monthly
-        }
-        Some("session") => {
-            parser.next();
-            AgentReportKind::Session
-        }
-        Some(command) if !command.starts_with('-') => {
-            return Err(format!("Unknown kimi command '{command}'"));
-        }
-        _ => AgentReportKind::Daily,
-    };
-    while parser.peek().is_some() {
-        parse_shared_arg(parser, &mut shared)?;
-    }
-    Ok(Command::Kimi(AgentCommandArgs {
-        shared,
-        kind,
-        pi_path: None,
-        open_claw_path: None,
-        codex_speed: CodexSpeed::Auto,
-    }))
 }
 
 fn parse_shared_arg_for_command(
@@ -1782,41 +1494,6 @@ fn codebuff_report_help(report: &str) -> String {
         &format!("ccusage codebuff {report} <OPTIONS>"),
         agent_options(),
     )
-}
-
-fn parse_qwen_command(
-    parser: &mut ArgParser,
-    mut shared: SharedArgs,
-    _config: &ConfigContext,
-) -> Result<Command, String> {
-    let kind = match parser.peek() {
-        Some("daily") => {
-            parser.next();
-            AgentReportKind::Daily
-        }
-        Some("monthly") => {
-            parser.next();
-            AgentReportKind::Monthly
-        }
-        Some("session") => {
-            parser.next();
-            AgentReportKind::Session
-        }
-        Some(command) if !command.starts_with('-') => {
-            return Err(format!("Unknown qwen command '{command}'"));
-        }
-        _ => AgentReportKind::Daily,
-    };
-    while parser.peek().is_some() {
-        parse_shared_arg(parser, &mut shared)?;
-    }
-    Ok(Command::Qwen(AgentCommandArgs {
-        shared,
-        kind,
-        pi_path: None,
-        open_claw_path: None,
-        codex_speed: CodexSpeed::Auto,
-    }))
 }
 
 fn qwen_report_help(report: &str) -> String {
