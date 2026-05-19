@@ -30,6 +30,6 @@ Use this skill when the user asks to create or open a PR, push changes for revie
 - Use English for commit messages, PR titles, PR bodies, review replies, and bot-directed comments.
 - Prefer `fish -c '<command>'` for shell commands in this repository.
 - Use high-performance local tools such as `git`, `gh`, `rg`, and `fd`.
-- Keep commits atomic and independently revertable; use the `commit` skill.
+- Keep commits atomic and independently revertible; use the `commit` skill.
 - Do not omit reviewer bot mentions when asking bots to review or replying to bot threads.
 - Do not claim the PR is ready until reviewer bots have no unresolved actionable feedback and CI is passing.

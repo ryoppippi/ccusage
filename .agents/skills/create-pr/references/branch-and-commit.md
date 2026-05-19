@@ -14,7 +14,7 @@ If already on a suitable feature branch, continue there after checking `git stat
 
 ## Commit
 
-Use the `commit` skill to create atomic, revertable Conventional Commits.
+Use the `commit` skill to create atomic, revertible Conventional Commits.
 
 Before committing:
 
