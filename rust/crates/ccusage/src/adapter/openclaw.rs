@@ -1,6 +1,7 @@
 use std::{
     collections::HashSet,
     env, fs,
+    io::{BufRead, BufReader},
     path::{Path, PathBuf},
     sync::Arc,
 };
@@ -215,18 +216,19 @@ fn is_openclaw_session_file(name: &str) -> bool {
 fn parse_session_file(path: &Path, tz: Option<&JiffTimeZone>) -> Result<Vec<LoadedEntry>> {
     let session_id = extract_session_id(path);
     let fallback_timestamp = file_modified_timestamp(path);
-    let content = fs::read_to_string(path)?;
+    let input = fs::File::open(path)?;
+    let reader = BufReader::new(input);
     let mut current_model = None::<String>;
     let mut current_provider = None::<String>;
     let mut entries = Vec::new();
-    for line in content.lines() {
+    for line in reader.lines().map_while(std::result::Result::ok) {
         if !line.contains("\"model_change\"")
             && !line.contains("\"model-snapshot\"")
             && !line.contains("\"usage\"")
         {
             continue;
         }
-        let Ok(value) = serde_json::from_str::<Value>(line) else {
+        let Ok(value) = serde_json::from_str::<Value>(&line) else {
             continue;
         };
         let Some(record) = value.as_object() else {
