@@ -166,6 +166,9 @@ impl UsageLoadProgress {
                 let Ok(guard) = lock.lock() else {
                     break;
                 };
+                if !*guard {
+                    break;
+                }
                 let Ok((guard, _)) = cvar.wait_timeout(guard, SPINNER_INTERVAL) else {
                     break;
                 };
