@@ -28,6 +28,7 @@ pub(crate) enum UsageLoadAgent {
     Kilo,
     Copilot,
     Gemini,
+    Kimi,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -53,6 +54,7 @@ fn agent_label(agent: UsageLoadAgent) -> &'static str {
         UsageLoadAgent::Kilo => "Kilo",
         UsageLoadAgent::Copilot => "GitHub Copilot CLI",
         UsageLoadAgent::Gemini => "Gemini CLI",
+        UsageLoadAgent::Kimi => "Kimi",
     }
 }
 

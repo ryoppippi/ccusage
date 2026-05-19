@@ -242,6 +242,7 @@ fn is_agent_command(command: &str) -> bool {
             | "kilo"
             | "copilot"
             | "gemini"
+            | "kimi"
     )
 }
 

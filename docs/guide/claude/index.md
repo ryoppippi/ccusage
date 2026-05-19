@@ -1,6 +1,6 @@
 # Claude Code Data Source
 
-ccusage can read Claude Code usage data as one of its supported local data sources. Claude Code is no longer treated as the only ccusage target; it uses the same unified and focused report model as Codex, OpenCode, Amp, pi-agent, Kilo, GitHub Copilot CLI, and Gemini CLI.
+ccusage can read Claude Code usage data as one of its supported local data sources. Claude Code is no longer treated as the only ccusage target; it uses the same unified and focused report model as Codex, OpenCode, Amp, pi-agent, Kilo, Kimi, GitHub Copilot CLI, and Gemini CLI.
 
 ## Focused Views
 
@@ -75,7 +75,7 @@ export CLAUDE_CONFIG_DIR="~/.config/claude,/backup/claude-archive"
 ccusage claude monthly
 ```
 
-For Codex, OpenCode, Amp, pi-agent, Kilo, GitHub Copilot CLI, and Gemini CLI data locations, use the source-specific environment variables listed in [Environment Variables](/guide/environment-variables).
+For Codex, OpenCode, Amp, pi-agent, Kilo, Kimi, GitHub Copilot CLI, and Gemini CLI data locations, use the source-specific environment variables listed in [Environment Variables](/guide/environment-variables).
 
 ### Directory Detection
 
