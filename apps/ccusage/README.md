@@ -132,7 +132,7 @@ Full documentation is available at **[ccusage.com](https://ccusage.com/)**
 <details>
 <summary>Nix-based contributor setup</summary>
 
-Development assumes the Nix flake environment. Install [Nix](https://nixos.org/) with flakes enabled and use [nix-direnv](https://github.com/nix-community/nix-direnv) so the repository dev shell loads automatically when you enter the directory:
+Use the Nix flake development environment. Install [Nix](https://nixos.org/) with the `nix-command` and `flakes` experimental features enabled, then use [nix-direnv](https://github.com/nix-community/nix-direnv) so the repository dev shell loads automatically when you enter the directory:
 
 ```sh
 # Clone the repository
