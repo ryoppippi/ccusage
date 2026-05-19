@@ -1,6 +1,6 @@
 ---
 name: ccusage-agent-sources
-description: Implement or debug ccusage parsers and reports for Claude Code, Codex, OpenCode, Amp, and pi-agent usage data, including log locations, token field mappings, pricing rules, CLI flags, and package-specific behavior.
+description: Guides ccusage agent source work for Claude Code, Codex, OpenCode, Amp, and pi-agent parsers, log paths, token mappings, costs, and reports.
 ---
 
 # ccusage Agent Sources
@@ -60,6 +60,8 @@ Keep agent-specific code there. Split files by responsibility when the implement
 - `pricing.ts` or `pricing-macro.ts` - agent-specific pricing candidates, bundled pricing, or provider filters.
 - `types.ts` - source-local types when they are not shared outside the adapter.
 
+For Rust work, use the `ccusage-rust` skill and mirror the same responsibility boundaries under `rust/crates/ccusage/src/adapter/<agent>/` where practical: `mod.rs`, `paths.rs`, `parser.rs`, `loader.rs`, and `report.rs`.
+
 When moving an existing loader into an adapter, update internal imports to the adapter path instead of adding compatibility re-export shims. Keep old root-level modules only when they are part of the package's declared public exports or are dedicated bundled worker entries. In `apps/ccusage`, `src/data-loader.ts` is a worker/build entry for the optimized Claude `data-loader` chunk from PR #984; do not put new source logic there.
 
 Use shared ccusage foundation for rendering, table layout, logging, date formatting, progress, pricing fetcher lifecycle, JSONL walking, worker gating, worker spawn/result ordering, and aggregation wherever the source data permits. Agent adapters should mainly own source-specific log discovery, parsing, token mapping, model mapping, and source-specific metadata.
@@ -82,6 +84,7 @@ For each migrated or new agent:
 - Add fixture-backed tests for path discovery, parser behavior, aggregation totals, and important legacy compatibility.
 - Add skipped local-data smoke tests when real user log directories are useful for catching schema drift.
 - Add or update CLI JSON assertions and table snapshots for affected report modes.
-- Add or update user-facing docs under `docs/guide/`, including VitePress navigation when a new agent guide is introduced. Use the `ccusage-docs` skill for docs conventions.
+- Audit every user-facing entrypoint that lists supported agents, commands, options, report modes, or examples. Update the root `README.md`, `apps/ccusage/README.md`, `docs/guide/`, and VitePress navigation when the adapter changes what users can run or discover. Use the `ccusage-docs` skill for docs conventions.
+- When adding a new agent guide, include README usage examples, docs guide content, related guide links, and VitePress navigation in the same change unless the user explicitly scopes documentation out.
 - Validate terminal output with `cmux-debug` when changing table layout, progress, spinners, or responsive behavior.
 - Benchmark affected agents against main or the previous tag, and record whether JSON output still matches for the comparison window.

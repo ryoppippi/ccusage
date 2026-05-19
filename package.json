@@ -1,11 +1,12 @@
 {
 	"name": "ccusage-monorepo",
 	"type": "module",
-	"version": "19.0.2",
+	"version": "19.0.3",
 	"private": true,
 	"workspaces": [
 		"apps/*",
-		"docs"
+		"docs",
+		"packages/*"
 	],
 	"packageManager": "pnpm@11.1.1",
 	"engines": {
@@ -41,7 +42,11 @@
 		"postrelease": "git checkout ./**/package.json package.json",
 		"sync:skills": "bun scripts/sync-skills.ts",
 		"sync:skills:check": "bun scripts/sync-skills.ts --check",
-		"test": "TZ=UTC vitest run",
+		"test": "pnpm --parallel --aggregate-output /^test:parallel:/",
+		"test:parallel:rust": "pnpm run test:rust",
+		"test:parallel:vitest": "pnpm run test:vitest",
+		"test:rust": "cargo test --manifest-path rust/Cargo.toml --workspace",
+		"test:vitest": "TZ=UTC vitest run",
 		"typecheck": "pnpm run --filter '*' typecheck"
 	},
 	"dependencies": {},

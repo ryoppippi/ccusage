@@ -1,6 +1,6 @@
 ---
 name: tdd
-description: t-wada style TDD workflow — Red-Green-Refactor cycle for all logic changes. Use when implementing features, fixing bugs, or refactoring code with strict test-driven development (e.g., "implement with TDD", "fix this bug TDD style", "/tdd").
+description: Guides t-wada Red-Green-Refactor TDD. Use when implementing features, fixing bugs, or refactoring logic with strict test-first development.
 ---
 
 <!--
@@ -58,7 +58,7 @@ Prefer running only the tests affected by your changes during the Red-Green-Refa
 **Runner-specific guidance** — Read the relevant example file alongside this skill for detailed test modifiers, idioms, and runner-specific tips:
 
 - **Vitest**: See `references/vitest-examples.md` — test modifiers (`it.todo`, `it.skip`, `it.fails`, etc.), `--changed` flag
-- **Rust (cargo test)**: Use focused runs like `cargo test <name>` and `cargo test -- --ignored`
+- **Rust (cargo test)**: See `references/rust-examples.md` — `#[ignore]`, `#[should_panic]`, filtering, doc tests
 - **Zig (zig test)**: Use `zig test <file> --test-filter <name>` for focused runs
 
 For other runners, adapt the general patterns:

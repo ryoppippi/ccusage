@@ -3,7 +3,7 @@ import { ryoppippi } from '@ryoppippi/eslint-config';
 /** @type {import('eslint').Linter.FlatConfig[]} */
 const config = ryoppippi(
 	{
-		type: 'lib',
+		type: 'app',
 		stylistic: false,
 	},
 	{
