@@ -358,6 +358,7 @@ fn kimi_entry_to_loaded(
         cost,
         extra_total_tokens: 0,
         credits: None,
+        message_count: None,
         model: Some(entry.model),
         usage_limit_reset_time: None,
         data,

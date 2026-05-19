@@ -1,4 +1,4 @@
-# Kimi Data Source (Beta)
+# Kimi Data Source (Experimental)
 
 > Kimi support is experimental. Expect breaking changes while both ccusage and [Kimi CLI](https://github.com/MoonshotAI/kimi-cli) continue to evolve.
 

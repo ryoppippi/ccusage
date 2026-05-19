@@ -522,27 +522,56 @@
 			"type": "object"
 		},
 		"ConfigCodexSpeed": {
-			"enum": ["auto", "standard", "fast"],
+			"enum": [
+				"auto",
+				"standard",
+				"fast"
+			],
 			"type": "string"
 		},
 		"ConfigCostMode": {
-			"enum": ["auto", "calculate", "display"],
+			"enum": [
+				"auto",
+				"calculate",
+				"display"
+			],
 			"type": "string"
 		},
 		"ConfigCostSource": {
-			"enum": ["auto", "ccusage", "cc", "both"],
+			"enum": [
+				"auto",
+				"ccusage",
+				"cc",
+				"both"
+			],
 			"type": "string"
 		},
 		"ConfigSortOrder": {
-			"enum": ["desc", "asc"],
+			"enum": [
+				"desc",
+				"asc"
+			],
 			"type": "string"
 		},
 		"ConfigVisualBurnRate": {
-			"enum": ["off", "emoji", "text", "emoji-text"],
+			"enum": [
+				"off",
+				"emoji",
+				"text",
+				"emoji-text"
+			],
 			"type": "string"
 		},
 		"ConfigWeekDay": {
-			"enum": ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"],
+			"enum": [
+				"sunday",
+				"monday",
+				"tuesday",
+				"wednesday",
+				"thursday",
+				"friday",
+				"saturday"
+			],
 			"type": "string"
 		},
 		"CopilotCommandsConfig": {
@@ -708,6 +737,87 @@
 			"properties": {
 				"commands": {
 					"$ref": "#/definitions/GeminiCommandsConfig"
+				},
+				"defaults": {
+					"$ref": "#/definitions/SharedOptions"
+				}
+			},
+			"type": "object"
+		},
+		"GooseCommandsConfig": {
+			"additionalProperties": false,
+			"properties": {
+				"daily": {
+					"$ref": "#/definitions/SharedOptions"
+				},
+				"monthly": {
+					"$ref": "#/definitions/SharedOptions"
+				},
+				"session": {
+					"$ref": "#/definitions/SharedOptions"
+				}
+			},
+			"type": "object"
+		},
+		"GooseConfig": {
+			"additionalProperties": false,
+			"properties": {
+				"commands": {
+					"$ref": "#/definitions/GooseCommandsConfig"
+				},
+				"defaults": {
+					"$ref": "#/definitions/SharedOptions"
+				}
+			},
+			"type": "object"
+		},
+		"HermesCommandsConfig": {
+			"additionalProperties": false,
+			"properties": {
+				"daily": {
+					"$ref": "#/definitions/SharedOptions"
+				},
+				"monthly": {
+					"$ref": "#/definitions/SharedOptions"
+				},
+				"session": {
+					"$ref": "#/definitions/SharedOptions"
+				}
+			},
+			"type": "object"
+		},
+		"HermesConfig": {
+			"additionalProperties": false,
+			"properties": {
+				"commands": {
+					"$ref": "#/definitions/HermesCommandsConfig"
+				},
+				"defaults": {
+					"$ref": "#/definitions/SharedOptions"
+				}
+			},
+			"type": "object"
+		},
+		"KiloCommandsConfig": {
+			"additionalProperties": false,
+			"properties": {
+				"daily": {
+					"$ref": "#/definitions/SharedOptions"
+				},
+				"monthly": {
+					"$ref": "#/definitions/SharedOptions"
+				},
+				"session": {
+					"$ref": "#/definitions/SharedOptions"
+				}
+			},
+			"type": "object"
+		},
+		"KiloConfig": {
+			"additionalProperties": false,
+			"properties": {
+				"commands": {
+					"$ref": "#/definitions/KiloCommandsConfig"
 				},
 				"defaults": {
 					"$ref": "#/definitions/SharedOptions"
@@ -1306,6 +1416,33 @@
 					],
 					"description": "Gemini CLI configuration.",
 					"markdownDescription": "Gemini CLI configuration."
+				},
+				"goose": {
+					"allOf": [
+						{
+							"$ref": "#/definitions/GooseConfig"
+						}
+					],
+					"description": "Goose configuration.",
+					"markdownDescription": "Goose configuration."
+				},
+				"hermes": {
+					"allOf": [
+						{
+							"$ref": "#/definitions/HermesConfig"
+						}
+					],
+					"description": "Hermes Agent configuration.",
+					"markdownDescription": "Hermes Agent configuration."
+				},
+				"kilo": {
+					"allOf": [
+						{
+							"$ref": "#/definitions/KiloConfig"
+						}
+					],
+					"description": "Kilo configuration.",
+					"markdownDescription": "Kilo configuration."
 				},
 				"kimi": {
 					"allOf": [

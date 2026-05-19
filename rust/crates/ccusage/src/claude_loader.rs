@@ -663,6 +663,7 @@ impl DailyAccumulator {
             extra_total_tokens: 0,
             total_cost: self.cost,
             credits: None,
+            message_count: None,
             models_used: self.models,
             model_breakdowns: self.breakdowns,
             project: None,
@@ -730,6 +731,7 @@ fn read_usage_file(
             cost,
             extra_total_tokens: 0,
             credits: None,
+            message_count: None,
             model,
             usage_limit_reset_time,
         });
