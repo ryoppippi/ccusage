@@ -24,7 +24,27 @@
 
 ## Supported Sources
 
-The main CLI tool for analyzing Claude Code, Codex, OpenCode, Amp, Droid, Codebuff, Hermes Agent, pi-agent, Goose, OpenClaw, Kilo, Kimi, Qwen, GitHub Copilot CLI, and Gemini CLI usage from local data. Track daily, weekly, monthly, and session-based usage with beautiful tables.
+ccusage reads local usage data from coding agent CLIs and turns it into daily, weekly, monthly, and session reports.
+
+| Source             | Focused command example  |
+| ------------------ | ------------------------ |
+| Claude Code        | `ccusage claude daily`   |
+| Codex              | `ccusage codex daily`    |
+| OpenCode           | `ccusage opencode daily` |
+| Amp                | `ccusage amp daily`      |
+| Droid              | `ccusage droid daily`    |
+| Codebuff           | `ccusage codebuff daily` |
+| Hermes Agent       | `ccusage hermes daily`   |
+| pi-agent           | `ccusage pi daily`       |
+| Goose              | `ccusage goose daily`    |
+| OpenClaw           | `ccusage openclaw daily` |
+| Kilo               | `ccusage kilo daily`     |
+| Kimi               | `ccusage kimi daily`     |
+| Qwen               | `ccusage qwen daily`     |
+| GitHub Copilot CLI | `ccusage copilot daily`  |
+| Gemini CLI         | `ccusage gemini daily`   |
+
+Use `ccusage daily`, `ccusage weekly`, `ccusage monthly`, or `ccusage session` to include every detected source in one report.
 
 ## Installation
 
@@ -48,8 +68,7 @@ npx ccusage@latest
 bunx -p https://pkg.pr.new/ryoppippi/ccusage@<pr-number> ccusage --offline
 ```
 
-> 💡 **Runtime**: `bunx ccusage` is recommended for everyday use. If you use `npx`, include `@latest` and use Node.js 22.11+.
-> The npm package installs a small JavaScript launcher and the matching native binary package for your platform. Package runners such as `bunx` cache the downloaded package, so repeated runs reuse the cached native binary; the first run can still include network fetch time.
+> [bunx](https://bun.com/docs/pm/bunx) caches the downloaded package, so repeated runs are faster after the first launch.
 
 ## Usage
 

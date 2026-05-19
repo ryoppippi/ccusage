@@ -35,20 +35,18 @@ bunx -p https://pkg.pr.new/ryoppippi/ccusage@<pr-number> ccusage --offline
 :::
 
 ::: tip Speed Recommendation
-We recommend `bunx` for everyday use. ccusage can run on Node.js 22.11+, but Bun generally starts faster and avoids the slower cold-start path common with `npx`.
-
-The npm package installs a small JavaScript launcher and the matching native binary package for your platform. Package runners such as `bunx` cache the downloaded package, so repeated runs reuse the cached native binary; the first run can still include network fetch time.
+We recommend [bunx](https://bun.com/docs/pm/bunx) for everyday use. It caches the downloaded package, so repeated runs are faster after the first launch.
 :::
 
 ### Performance Comparison
 
 Here's why runtime choice matters:
 
-| Runtime  | First Run | Subsequent Runs | Notes                            |
-| -------- | --------- | --------------- | -------------------------------- |
-| bunx     | Fast      | **Instant**     | Recommended for everyday use     |
-| pnpm dlx | Fast      | Fast            | Good alternative                 |
-| npx      | Slow      | Moderate        | Widely available, Node.js 22.11+ |
+| Runtime  | First Run | Subsequent Runs | Notes                        |
+| -------- | --------- | --------------- | ---------------------------- |
+| bunx     | Fast      | **Instant**     | Recommended for everyday use |
+| pnpm dlx | Fast      | Fast            | Good alternative             |
+| npx      | Slow      | Moderate        | Widely available             |
 
 ## Global Installation (Optional)
 
@@ -119,9 +117,8 @@ pnpm run format
 
 ### Node.js
 
-- **Minimum**: Node.js 22.11 for the published package
-- **Recommended**: Use Bun for command execution when available
-- `npx`, npm global installs, pnpm, and yarn all use the Node.js runtime unless ccusage re-runs through Bun
+- Needed when using Node-based package runners or npm-style global installs
+- Use Bun for direct execution when available
 
 ### Bun
 
