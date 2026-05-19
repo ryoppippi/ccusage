@@ -10,6 +10,7 @@ use jiff::tz::TimeZone as JiffTimeZone;
 use serde_json::{json, Map, Value};
 
 use crate::{
+    apply_total_token_fallback,
     cli::{AgentCommandArgs, AgentReportKind, WeekDay},
     filter_loaded_entries_by_date, format_date_tz, json_value_u64, non_empty_json_string, parse_tz,
     print_json_or_jq, print_usage_table, sort_summaries, summarize_by_key,
@@ -289,19 +290,19 @@ fn parse_message_entry(
     let output_tokens = json_value_u64(usage.get("output"));
     let cache_read_tokens = json_value_u64(usage.get("cacheRead"));
     let cache_creation_tokens = json_value_u64(usage.get("cacheWrite"));
-    if input_tokens == 0
-        && output_tokens == 0
-        && cache_read_tokens == 0
-        && cache_creation_tokens == 0
-    {
+    let total_tokens = json_value_u64(usage.get("totalTokens"));
+    let raw_usage = TokenUsageRaw {
+        input_tokens,
+        output_tokens,
+        cache_creation_input_tokens: cache_creation_tokens,
+        cache_read_input_tokens: cache_read_tokens,
+        speed: None,
+    };
+    let (raw_usage, extra_total_tokens) = apply_total_token_fallback(raw_usage, 0, total_tokens);
+    if crate::total_usage_tokens(raw_usage) + extra_total_tokens == 0 {
         return None;
     }
-    let total_tokens = json_value_u64(usage.get("totalTokens"));
-    let total_tokens = if total_tokens == 0 {
-        input_tokens + output_tokens + cache_read_tokens + cache_creation_tokens
-    } else {
-        total_tokens
-    };
+    let total_tokens = total_tokens.max(crate::total_usage_tokens(raw_usage) + extra_total_tokens);
     let timestamp =
         timestamp_from_value(message.get("timestamp").or_else(|| record.get("timestamp")))
             .unwrap_or(fallback_timestamp);
@@ -317,10 +318,10 @@ fn parse_message_entry(
         session_id: session_id.to_string(),
         model: format!("[openclaw] {model}"),
         provider,
-        input_tokens,
-        output_tokens,
-        cache_creation_tokens,
-        cache_read_tokens,
+        input_tokens: raw_usage.input_tokens,
+        output_tokens: raw_usage.output_tokens,
+        cache_creation_tokens: raw_usage.cache_creation_input_tokens,
+        cache_read_tokens: raw_usage.cache_read_input_tokens,
         total_tokens,
         cost: usage
             .get("cost")
@@ -505,5 +506,30 @@ mod tests {
         fs::remove_dir_all(&dir).unwrap();
 
         assert_eq!(entries.len(), 1);
+    }
+
+    #[test]
+    fn falls_back_to_total_tokens_when_openclaw_parts_are_missing() {
+        let record = serde_json::json!({
+            "type": "message",
+            "message": {
+                "role": "assistant",
+                "model": "gpt-5.2",
+                "usage": {
+                    "totalTokens": 222
+                }
+            }
+        });
+        let entry = parse_message_entry(
+            record.as_object().unwrap(),
+            "session-a",
+            None,
+            None,
+            TimestampMs::UNIX_EPOCH,
+        )
+        .unwrap();
+
+        assert_eq!(entry.output_tokens, 222);
+        assert_eq!(entry.total_tokens, 222);
     }
 }

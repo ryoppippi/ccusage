@@ -4,8 +4,9 @@ use jiff::tz::TimeZone as JiffTimeZone;
 use serde_json::Value;
 
 use crate::{
-    calculate_cost_for_usage, cli::CostMode, format_date_tz, json_value_u64, non_empty_json_string,
-    LoadedEntry, PricingMap, TokenUsageRaw, UsageEntry, UsageMessage,
+    apply_total_token_fallback, calculate_cost_for_usage, cli::CostMode, format_date_tz,
+    json_value_u64, non_empty_json_string, LoadedEntry, PricingMap, TokenUsageRaw, UsageEntry,
+    UsageMessage,
 };
 
 pub(crate) fn message_value_to_entry(
@@ -28,10 +29,13 @@ pub(crate) fn message_value_to_entry(
             .map_or(0, |cache| json_value_u64(cache.get("read"))),
         speed: None,
     };
+    let total_tokens = json_value_u64(tokens.get("total"));
+    let (usage, extra_total_tokens) = apply_total_token_fallback(usage, 0, total_tokens);
     if usage.input_tokens == 0
         && usage.output_tokens == 0
         && usage.cache_creation_input_tokens == 0
         && usage.cache_read_input_tokens == 0
+        && extra_total_tokens == 0
     {
         return None;
     }
@@ -59,7 +63,12 @@ pub(crate) fn message_value_to_entry(
         request_id: None,
         is_api_error_message: None,
     };
-    let cost = calculate_open_code_cost(&model, &provider, usage, data.cost_usd, mode, pricing);
+    let cost_usage = TokenUsageRaw {
+        output_tokens: usage.output_tokens.saturating_add(extra_total_tokens),
+        ..usage
+    };
+    let cost =
+        calculate_open_code_cost(&model, &provider, cost_usage, data.cost_usd, mode, pricing);
     let loaded_session_id = data
         .session_id
         .clone()
@@ -71,7 +80,7 @@ pub(crate) fn message_value_to_entry(
         session_id: Arc::from(loaded_session_id),
         project_path: Arc::from("OpenCode"),
         cost,
-        extra_total_tokens: 0,
+        extra_total_tokens,
         credits: None,
         message_count: None,
         model: Some(model),
@@ -215,6 +224,31 @@ mod tests {
         .unwrap();
 
         assert_eq!(entry.cost, 0.02);
+    }
+
+    #[test]
+    fn falls_back_to_total_tokens_when_opencode_token_parts_are_missing() {
+        let entry = message_value_to_entry(
+            &json!({
+                "id": "message-a",
+                "sessionID": "session-a",
+                "providerID": "openai",
+                "modelID": "gpt-test",
+                "time": { "created": 0 },
+                "tokens": {
+                    "total": 123
+                }
+            }),
+            None,
+            None,
+            None,
+            CostMode::Auto,
+            None,
+        )
+        .unwrap();
+
+        assert_eq!(entry.data.message.usage.output_tokens, 123);
+        assert_eq!(entry.extra_total_tokens, 0);
     }
 
     #[test]

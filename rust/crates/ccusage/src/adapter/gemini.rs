@@ -10,7 +10,7 @@ use serde_json::{json, Map, Value};
 
 use crate::{
     adapter::opencode,
-    calculate_cost_for_usage,
+    apply_total_token_fallback, calculate_cost_for_usage,
     cli::{AgentCommandArgs, AgentReportKind, CostMode, WeekDay},
     collect_files_with_extension, filter_loaded_entries_by_date, format_date_tz,
     non_empty_json_string, parse_tz, print_json_or_jq, print_usage_table, sort_summaries,
@@ -373,7 +373,20 @@ fn build_event(
     let total_tokens = tokens
         .total
         .unwrap_or(input_tokens + tokens.output + cache_read_tokens + tokens.thoughts);
-    if input_tokens == 0 && tokens.output == 0 && cache_read_tokens == 0 && tokens.thoughts == 0 {
+    let display_usage = TokenUsageRaw {
+        input_tokens,
+        output_tokens: tokens.output,
+        cache_creation_input_tokens: 0,
+        cache_read_input_tokens: cache_read_tokens,
+        speed: None,
+    };
+    let (display_usage, extra_total_tokens) =
+        apply_total_token_fallback(display_usage, tokens.thoughts, total_tokens);
+    if display_usage.input_tokens == 0
+        && display_usage.output_tokens == 0
+        && display_usage.cache_read_input_tokens == 0
+        && extra_total_tokens == 0
+    {
         return None;
     }
     Some(GeminiUsageEvent {
@@ -381,10 +394,10 @@ fn build_event(
         timestamp_text: crate::format_rfc3339_millis(timestamp),
         session_id: session_id.to_string(),
         model: model.to_string(),
-        input_tokens,
-        output_tokens: tokens.output,
-        cache_read_tokens,
-        reasoning_tokens: tokens.thoughts,
+        input_tokens: display_usage.input_tokens,
+        output_tokens: display_usage.output_tokens,
+        cache_read_tokens: display_usage.cache_read_input_tokens,
+        reasoning_tokens: extra_total_tokens,
         total_tokens,
         message_id,
     })
@@ -412,7 +425,7 @@ fn parse_tokens(value: Option<&Value>) -> Option<GeminiTokens> {
             ],
         ),
         tool: token_number(record, &["tool", "tool_tokens"]),
-        total: value_u64(record.get("total")),
+        total: value_u64(record.get("total").or_else(|| record.get("total_tokens"))),
     })
 }
 
@@ -632,5 +645,24 @@ mod tests {
             11_526
         );
         assert_eq!(entries[0].extra_total_tokens, 919);
+    }
+
+    #[test]
+    fn falls_back_to_total_tokens_when_gemini_parts_are_missing() {
+        let event = build_event(
+            Some("gemini-test"),
+            "session-a",
+            TimestampMs::UNIX_EPOCH,
+            GeminiTokens {
+                total: Some(654),
+                ..GeminiTokens::default()
+            },
+            normalize_session_input,
+            None,
+        )
+        .unwrap();
+
+        assert_eq!(event.output_tokens, 654);
+        assert_eq!(event.reasoning_tokens, 0);
     }
 }

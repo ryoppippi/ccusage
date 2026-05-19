@@ -10,7 +10,7 @@ use serde_json::{json, Value};
 
 use crate::{
     adapter::opencode,
-    calculate_cost_for_usage,
+    apply_total_token_fallback, calculate_cost_for_usage,
     cli::{AgentCommandArgs, AgentReportKind, CostMode, WeekDay},
     debug_log, filter_loaded_entries_by_date, format_date_tz, json_value_u64,
     non_empty_json_string, parse_tz, print_json_or_jq, print_usage_table, sort_summaries,
@@ -249,11 +249,14 @@ fn message_value_to_entry(
         speed: None,
     };
     let reasoning_tokens = json_value_u64(tokens.get("reasoning"));
+    let total_tokens = json_value_u64(tokens.get("total"));
+    let (usage, extra_total_tokens) =
+        apply_total_token_fallback(usage, reasoning_tokens, total_tokens);
     if usage.input_tokens == 0
         && usage.output_tokens == 0
         && usage.cache_creation_input_tokens == 0
         && usage.cache_read_input_tokens == 0
-        && reasoning_tokens == 0
+        && extra_total_tokens == 0
     {
         return None;
     }
@@ -283,7 +286,21 @@ fn message_value_to_entry(
         is_api_error_message: None,
     };
     let provider = non_empty_json_string(value.get("providerID"));
-    let cost = calculate_kilo_cost(&data, provider.as_deref(), mode, pricing);
+    let cost_data = UsageEntry {
+        message: UsageMessage {
+            usage: TokenUsageRaw {
+                output_tokens: data
+                    .message
+                    .usage
+                    .output_tokens
+                    .saturating_add(extra_total_tokens),
+                ..data.message.usage
+            },
+            ..data.message.clone()
+        },
+        ..data.clone()
+    };
+    let cost = calculate_kilo_cost(&cost_data, provider.as_deref(), mode, pricing);
     Some(LoadedEntry {
         date: format_date_tz(timestamp, tz),
         timestamp,
@@ -291,7 +308,7 @@ fn message_value_to_entry(
         session_id: Arc::from(session_id),
         project_path: Arc::from("Kilo"),
         cost,
-        extra_total_tokens: reasoning_tokens,
+        extra_total_tokens,
         credits: None,
         model: Some(model),
         usage_limit_reset_time: None,
@@ -458,6 +475,31 @@ mod tests {
         fs::remove_dir_all(&kilo_dir).unwrap();
 
         assert!(entries.is_empty());
+    }
+
+    #[test]
+    fn falls_back_to_total_tokens_when_kilo_parts_are_missing() {
+        let value = serde_json::json!({
+            "id": "msg-1",
+            "role": "assistant",
+            "providerID": "openai",
+            "modelID": "gpt-5",
+            "time": { "created": 1767312000000_i64 },
+            "tokens": { "total": 234 }
+        });
+        let entry = message_value_to_entry(
+            &value,
+            "row-1",
+            "session-a",
+            Path::new("/tmp/kilo.db"),
+            None,
+            CostMode::Auto,
+            &PricingMap::load_embedded(),
+        )
+        .unwrap();
+
+        assert_eq!(entry.data.message.usage.output_tokens, 234);
+        assert_eq!(entry.extra_total_tokens, 0);
     }
 
     #[test]

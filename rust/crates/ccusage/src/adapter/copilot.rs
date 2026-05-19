@@ -9,7 +9,7 @@ use jiff::tz::TimeZone as JiffTimeZone;
 use serde_json::{Map, Value};
 
 use crate::{
-    calculate_cost_for_usage,
+    apply_total_token_fallback, calculate_cost_for_usage,
     cli::{AgentCommandArgs, AgentReportKind, CostMode, WeekDay},
     collect_files_with_extension, filter_loaded_entries_by_date, format_date_tz, parse_tz,
     print_usage_table, summarize_by_key, summarize_summaries_by_bucket, LoadedEntry, Result,
@@ -344,7 +344,22 @@ fn to_candidate(
             "gen_ai.usage.reasoning_tokens",
         ],
     );
-    if input + output + cache_read + cache_creation + reasoning == 0 {
+    let total = attr_number_first(
+        attributes,
+        &[
+            "gen_ai.usage.total_tokens",
+            "gen_ai.usage.total.token_count",
+        ],
+    );
+    let usage = TokenUsageRaw {
+        input_tokens: input.saturating_sub(input.min(cache_read)),
+        output_tokens: output,
+        cache_creation_input_tokens: cache_creation,
+        cache_read_input_tokens: cache_read,
+        speed: None,
+    };
+    let (usage, reasoning) = apply_total_token_fallback(usage, reasoning, total);
+    if crate::total_usage_tokens(usage) + reasoning == 0 {
         return None;
     }
     let trace_id = trace_id_from_record(record);
@@ -359,7 +374,6 @@ fn to_candidate(
         .or_else(|| trace_id.clone())
         .unwrap_or_else(|| "unknown-session".to_string());
     let timestamp = timestamp_from_record(record).unwrap_or(fallback_timestamp);
-    let input_tokens = input.saturating_sub(input.min(cache_read));
     let dedup_key = dedup_key_for_record(
         source,
         record,
@@ -376,10 +390,10 @@ fn to_candidate(
         model,
         session_id,
         timestamp,
-        input_tokens,
-        output_tokens: output,
-        cache_creation_tokens: cache_creation,
-        cache_read_tokens: cache_read,
+        input_tokens: usage.input_tokens,
+        output_tokens: usage.output_tokens,
+        cache_creation_tokens: usage.cache_creation_input_tokens,
+        cache_read_tokens: usage.cache_read_input_tokens,
         reasoning_output_tokens: reasoning,
         dedup_key,
     })
@@ -847,5 +861,38 @@ mod tests {
         assert_eq!(report["daily"][0]["totalCost"], 300.0);
 
         fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn falls_back_to_total_tokens_when_copilot_parts_are_missing() {
+        let dir = temp_dir("total");
+        let file = dir.join("copilot.jsonl");
+        fs::write(
+            &file,
+            format!(
+                "{}\n",
+                json!({
+                    "type": "span",
+                    "traceId": "trace-1",
+                    "spanId": "span-1",
+                    "name": "chat test-model",
+                    "endTime": [1_775_934_264_u64, 0_u64],
+                    "attributes": {
+                        "gen_ai.operation.name": "chat",
+                        "gen_ai.response.model": "test-model",
+                        "gen_ai.conversation.id": "conv-1",
+                        "gen_ai.usage.total_tokens": 567,
+                    },
+                })
+            ),
+        )
+        .unwrap();
+
+        let entries = parse_otel_file(&file).unwrap();
+        fs::remove_dir_all(dir).unwrap();
+
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].output_tokens, 567);
+        assert_eq!(entries[0].reasoning_output_tokens, 0);
     }
 }

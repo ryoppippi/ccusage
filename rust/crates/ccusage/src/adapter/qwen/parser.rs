@@ -12,7 +12,7 @@ use serde_json::Value;
 
 use super::paths;
 use crate::{
-    calculate_cost_for_usage,
+    apply_total_token_fallback, calculate_cost_for_usage,
     cli::{CostMode, SharedArgs},
     format_date_tz, format_rfc3339_millis, json_value_u64, non_empty_json_string,
     parse_ts_timestamp, parse_tz, LoadedEntry, PricingMap, Result, TimestampMs, TokenUsageRaw,
@@ -86,7 +86,21 @@ fn parse_line(
     let output_tokens = json_value_u64(usage.get("candidatesTokenCount"));
     let reasoning_tokens = json_value_u64(usage.get("thoughtsTokenCount"));
     let cache_read_tokens = json_value_u64(usage.get("cachedContentTokenCount"));
-    if input_tokens == 0 && output_tokens == 0 && reasoning_tokens == 0 && cache_read_tokens == 0 {
+    let total_tokens = json_value_u64(usage.get("totalTokenCount"));
+    let display_usage = TokenUsageRaw {
+        input_tokens,
+        output_tokens,
+        cache_creation_input_tokens: 0,
+        cache_read_input_tokens: cache_read_tokens,
+        speed: None,
+    };
+    let (display_usage, extra_total_tokens) =
+        apply_total_token_fallback(display_usage, reasoning_tokens, total_tokens);
+    if display_usage.input_tokens == 0
+        && display_usage.output_tokens == 0
+        && display_usage.cache_read_input_tokens == 0
+        && extra_total_tokens == 0
+    {
         return None;
     }
 
@@ -104,15 +118,10 @@ fn parse_line(
     });
     let model = non_empty_json_string(record.get("model"))
         .unwrap_or_else(|| DEFAULT_QWEN_MODEL.to_string());
-    let display_usage = TokenUsageRaw {
-        input_tokens,
-        output_tokens,
-        cache_creation_input_tokens: 0,
-        cache_read_input_tokens: cache_read_tokens,
-        speed: None,
-    };
     let billable_usage = TokenUsageRaw {
-        output_tokens: output_tokens.saturating_add(reasoning_tokens),
+        output_tokens: display_usage
+            .output_tokens
+            .saturating_add(extra_total_tokens),
         ..display_usage
     };
     let cost = calculate_qwen_cost(&model, billable_usage, mode, pricing);
@@ -141,7 +150,7 @@ fn parse_line(
         model: Some(model),
         message_count: None,
         usage_limit_reset_time: None,
-        extra_total_tokens: reasoning_tokens,
+        extra_total_tokens,
     })
 }
 
@@ -244,6 +253,30 @@ mod tests {
         );
 
         assert_eq!(cost, 0.0);
+    }
+
+    #[test]
+    fn falls_back_to_total_token_count_when_qwen_parts_are_missing() {
+        let entry = parse_line(
+            Path::new("/tmp/project/chat.jsonl"),
+            TimestampMs::UNIX_EPOCH,
+            &serde_json::json!({
+                "type": "assistant",
+                "timestamp": "2026-01-02T00:00:00.000Z",
+                "sessionId": "session-a",
+                "model": "qwen3-coder",
+                "usageMetadata": {
+                    "totalTokenCount": 321
+                }
+            }),
+            None,
+            CostMode::Auto,
+            None,
+        )
+        .unwrap();
+
+        assert_eq!(entry.data.message.usage.output_tokens, 321);
+        assert_eq!(entry.extra_total_tokens, 0);
     }
 
     #[test]

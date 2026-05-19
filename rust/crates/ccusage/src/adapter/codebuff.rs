@@ -9,7 +9,7 @@ use jiff::tz::TimeZone as JiffTimeZone;
 use serde_json::Value;
 
 use crate::{
-    calculate_cost_for_usage,
+    apply_total_token_fallback, calculate_cost_for_usage,
     cli::{AgentCommandArgs, AgentReportKind, CostMode, SharedArgs, WeekDay},
     collect_files_with_extension, filter_loaded_entries_by_date, format_date_tz,
     format_rfc3339_millis, parse_ts_timestamp, parse_tz, print_json_or_jq, sort_summaries,
@@ -29,6 +29,7 @@ struct AssistantUsage {
     output_tokens: u64,
     cache_creation_input_tokens: u64,
     cache_read_input_tokens: u64,
+    extra_total_tokens: u64,
 }
 
 struct CodebuffEntry {
@@ -39,6 +40,7 @@ struct CodebuffEntry {
     provider: String,
     credits: f64,
     usage: TokenUsageRaw,
+    extra_total_tokens: u64,
     dedup_key: String,
 }
 
@@ -245,6 +247,7 @@ fn load_chat_file(path: &Path) -> Result<Vec<CodebuffEntry>> {
                 cache_read_input_tokens: usage.cache_read_input_tokens,
                 speed: None,
             },
+            extra_total_tokens: usage.extra_total_tokens,
             dedup_key,
         });
     }
@@ -277,7 +280,7 @@ fn to_loaded_entry(
         session_id: Arc::from(entry.session_id.as_str()),
         project_path: Arc::from("Codebuff"),
         cost,
-        extra_total_tokens: 0,
+        extra_total_tokens: entry.extra_total_tokens,
         credits: (entry.credits > 0.0).then_some(entry.credits),
         model: Some(entry.model),
         usage_limit_reset_time: None,
@@ -434,6 +437,21 @@ fn parse_usage_object(value: Option<&Value>) -> AssistantUsage {
             "cached_tokens_created",
         ],
     );
+    let total_tokens = pick_u64(record, &["totalTokens", "total_tokens", "total"]);
+    let raw_usage = TokenUsageRaw {
+        input_tokens: usage.input_tokens,
+        output_tokens: usage.output_tokens,
+        cache_creation_input_tokens: usage.cache_creation_input_tokens,
+        cache_read_input_tokens: usage.cache_read_input_tokens,
+        speed: None,
+    };
+    let (raw_usage, extra_total_tokens) =
+        apply_total_token_fallback(raw_usage, usage.extra_total_tokens, total_tokens);
+    usage.input_tokens = raw_usage.input_tokens;
+    usage.output_tokens = raw_usage.output_tokens;
+    usage.cache_creation_input_tokens = raw_usage.cache_creation_input_tokens;
+    usage.cache_read_input_tokens = raw_usage.cache_read_input_tokens;
+    usage.extra_total_tokens = extra_total_tokens;
     usage.credits = number_field(record, "credits");
     usage.model = string_field(record, "model");
     usage
@@ -452,6 +470,9 @@ fn merge_fallback(target: &mut AssistantUsage, fallback: AssistantUsage) {
     if target.cache_read_input_tokens == 0 {
         target.cache_read_input_tokens = fallback.cache_read_input_tokens;
     }
+    if target.extra_total_tokens == 0 {
+        target.extra_total_tokens = fallback.extra_total_tokens;
+    }
     if target.credits <= 0.0 {
         target.credits = fallback.credits;
     }
@@ -465,6 +486,7 @@ fn has_signal(usage: &AssistantUsage) -> bool {
         || usage.output_tokens > 0
         || usage.cache_creation_input_tokens > 0
         || usage.cache_read_input_tokens > 0
+        || usage.extra_total_tokens > 0
         || usage.credits > 0.0
 }
 
@@ -526,12 +548,13 @@ fn dedup_key(
         return format!("codebuff:{session_id}:{id}");
     }
     format!(
-        "codebuff:{session_id}:{}:{model}:{ordinal}:{}:{}:{}:{}",
+        "codebuff:{session_id}:{}:{model}:{ordinal}:{}:{}:{}:{}:{}",
         format_rfc3339_millis(timestamp),
         usage.input_tokens,
         usage.output_tokens,
         usage.cache_read_input_tokens,
-        usage.cache_creation_input_tokens
+        usage.cache_creation_input_tokens,
+        usage.extra_total_tokens
     )
 }
 
@@ -561,9 +584,16 @@ fn infer_provider(model: &str) -> &'static str {
 }
 
 fn calculate_codebuff_cost(entry: &CodebuffEntry, pricing: &PricingMap) -> f64 {
+    let usage = TokenUsageRaw {
+        output_tokens: entry
+            .usage
+            .output_tokens
+            .saturating_add(entry.extra_total_tokens),
+        ..entry.usage
+    };
     let raw = calculate_cost_for_usage(
         Some(&entry.model),
-        entry.usage,
+        usage,
         None,
         CostMode::Calculate,
         Some(pricing),
@@ -576,7 +606,7 @@ fn calculate_codebuff_cost(entry: &CodebuffEntry, pricing: &PricingMap) -> f64 {
     }
     calculate_cost_for_usage(
         Some(&format!("{}/{}", entry.provider, entry.model)),
-        entry.usage,
+        usage,
         None,
         CostMode::Calculate,
         Some(pricing),
@@ -703,6 +733,16 @@ mod tests {
         assert_eq!(entries[0].data.message.usage.input_tokens, 100);
         assert_eq!(entries[0].data.message.usage.output_tokens, 50);
         assert_eq!(entries[0].data.message.usage.cache_read_input_tokens, 10);
+    }
+
+    #[test]
+    fn falls_back_to_total_tokens_when_codebuff_parts_are_missing() {
+        let usage = parse_usage_object(Some(&serde_json::json!({
+            "totalTokens": 789
+        })));
+
+        assert_eq!(usage.output_tokens, 789);
+        assert_eq!(usage.extra_total_tokens, 0);
     }
 
     #[test]
