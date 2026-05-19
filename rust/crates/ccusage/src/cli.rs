@@ -775,12 +775,11 @@ fn legacy_agent_report_supported(agent: &str, report: &str) -> bool {
 }
 
 fn report_flag_alias_error(args: &[String]) -> Option<String> {
-    let flag = args.iter().find_map(|arg| {
+    let flag = args.iter().find(|arg| {
         matches!(
             arg.as_str(),
             "--daily" | "--weekly" | "--monthly" | "--session" | "--blocks" | "--statusline"
         )
-        .then_some(arg)
     })?;
     Some(format!(
         "Report flags like {flag} are not supported. Use \"ccusage {}\" instead.",

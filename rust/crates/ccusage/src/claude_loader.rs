@@ -1032,6 +1032,41 @@ pub(crate) fn extract_session_parts(path: &Path) -> (String, String) {
 }
 
 #[cfg(test)]
+pub(crate) fn usage_limit_reset_time_from_line(
+    line: &str,
+    is_api_error_message: Option<bool>,
+) -> Option<TimestampMs> {
+    usage_limit_reset_time_from_line_bytes(line.as_bytes(), is_api_error_message)
+}
+
+fn usage_limit_reset_time_from_line_bytes(
+    line: &[u8],
+    is_api_error_message: Option<bool>,
+) -> Option<TimestampMs> {
+    if is_api_error_message != Some(true) {
+        return None;
+    }
+    let marker = b"Claude AI usage limit reached";
+    let marker_start = memmem::find(line, marker)?;
+    let timestamp_start = memchr::memchr(b'|', &line[marker_start..])? + marker_start + 1;
+    let timestamp_end = line[timestamp_start..]
+        .iter()
+        .position(|byte| !byte.is_ascii_digit())
+        .map_or(line.len(), |offset| timestamp_start + offset);
+    if timestamp_start == timestamp_end {
+        return None;
+    }
+    let timestamp = std::str::from_utf8(&line[timestamp_start..timestamp_end])
+        .ok()?
+        .parse::<i64>()
+        .ok()?;
+    if timestamp <= 0 {
+        return None;
+    }
+    TimestampMs::from_unix_seconds(timestamp)
+}
+
+#[cfg(test)]
 mod tests {
     use std::{fs, path::Path};
 
@@ -1141,39 +1176,4 @@ mod tests {
             br#"{"message":{"content":null,"usage":{"input_tokens":0}}}"#
         ));
     }
-}
-
-#[cfg(test)]
-pub(crate) fn usage_limit_reset_time_from_line(
-    line: &str,
-    is_api_error_message: Option<bool>,
-) -> Option<TimestampMs> {
-    usage_limit_reset_time_from_line_bytes(line.as_bytes(), is_api_error_message)
-}
-
-fn usage_limit_reset_time_from_line_bytes(
-    line: &[u8],
-    is_api_error_message: Option<bool>,
-) -> Option<TimestampMs> {
-    if is_api_error_message != Some(true) {
-        return None;
-    }
-    let marker = b"Claude AI usage limit reached";
-    let marker_start = memmem::find(line, marker)?;
-    let timestamp_start = memchr::memchr(b'|', &line[marker_start..])? + marker_start + 1;
-    let timestamp_end = line[timestamp_start..]
-        .iter()
-        .position(|byte| !byte.is_ascii_digit())
-        .map_or(line.len(), |offset| timestamp_start + offset);
-    if timestamp_start == timestamp_end {
-        return None;
-    }
-    let timestamp = std::str::from_utf8(&line[timestamp_start..timestamp_end])
-        .ok()?
-        .parse::<i64>()
-        .ok()?;
-    if timestamp <= 0 {
-        return None;
-    }
-    TimestampMs::from_unix_seconds(timestamp)
 }

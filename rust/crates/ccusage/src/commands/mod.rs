@@ -391,17 +391,17 @@ fn render_statusline(
 ) -> Result<String> {
     let session_cost = match args.cost_source {
         CostSource::Cc => hook.cost.as_ref().map(|cost| cost.total_cost_usd),
-        CostSource::Ccusage => calculate_session_cost(&hook.session_id, &shared).ok(),
+        CostSource::Ccusage => calculate_session_cost(&hook.session_id, shared).ok(),
         CostSource::Auto => hook
             .cost
             .as_ref()
             .map(|cost| cost.total_cost_usd)
-            .or_else(|| calculate_session_cost(&hook.session_id, &shared).ok()),
+            .or_else(|| calculate_session_cost(&hook.session_id, shared).ok()),
         CostSource::Both => None,
     };
 
     let ccusage_cost = if args.cost_source == CostSource::Both {
-        calculate_session_cost(&hook.session_id, &shared).ok()
+        calculate_session_cost(&hook.session_id, shared).ok()
     } else {
         None
     };
@@ -430,7 +430,7 @@ fn render_statusline(
         })
         .unwrap_or(0.0);
 
-    let blocks = load_entries(&shared, None)
+    let blocks = load_entries(shared, None)
         .map(|entries| identify_session_blocks(entries, DEFAULT_SESSION_DURATION_HOURS))
         .unwrap_or_default();
     let active_block = blocks.iter().find(|block| block.is_active && !block.is_gap);
