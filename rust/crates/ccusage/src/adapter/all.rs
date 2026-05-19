@@ -7,8 +7,8 @@ use crate::{
     cli::{AgentCommandArgs, AgentReportKind, CodexSpeed, SharedArgs, SortOrder, WeekDay},
     color, filter_loaded_entries_by_date, format_currency, format_models_multiline, format_number,
     json_float, print_box_title, print_json_or_jq, summarize_by_key, summarize_summaries_by_bucket,
-    wants_json, Align, BucketKind, CodexGroup, Color, LoadedEntry, PricingMap, Result, SimpleTable,
-    SessionAccumulator, UsageSummary,
+    wants_json, Align, BucketKind, CodexGroup, Color, LoadedEntry, PricingMap, Result,
+    SessionAccumulator, SimpleTable, UsageSummary,
 };
 
 #[derive(Debug, Clone)]
@@ -186,7 +186,7 @@ fn load_codex_rows(
     Ok(AgentRows {
         rows: groups
             .iter()
-            .map(|(period, group)| codex_group_row(period, group, &pricing, speed))
+            .map(|(period, group)| codex_group_row(period, group, pricing, speed))
             .collect(),
         detected,
     })
@@ -607,11 +607,7 @@ fn print_table(
                 format_number(crate::json_value_u64(totals.get("cacheReadTokens"))),
                 Color::Yellow,
             ),
-            color(
-                shared,
-                format_number(table_total_tokens),
-                Color::Yellow,
-            ),
+            color(shared, format_number(table_total_tokens), Color::Yellow),
             color(
                 shared,
                 format_currency(
@@ -667,7 +663,11 @@ fn detected_agent_labels(rows: &[AllRow], detected_agents: &[&'static str]) -> S
     if agents.is_empty() {
         return "None".to_string();
     }
-    agents.into_iter().map(agent_label).collect::<Vec<_>>().join(", ")
+    agents
+        .into_iter()
+        .map(agent_label)
+        .collect::<Vec<_>>()
+        .join(", ")
 }
 
 fn all_table_row(row: &AllRow, compact: bool, breakdown: bool) -> Vec<String> {
@@ -969,7 +969,11 @@ mod tests {
             vec!["2026-01-02", "All", "", "100", "20", "$0.01"]
         );
         assert_eq!(
-            all_table_row(row.agent_breakdowns.as_ref().unwrap().first().unwrap(), true, true),
+            all_table_row(
+                row.agent_breakdowns.as_ref().unwrap().first().unwrap(),
+                true,
+                true
+            ),
             vec!["", "- Codex", "- gpt-5", "100", "20", "$0.01"]
         );
     }

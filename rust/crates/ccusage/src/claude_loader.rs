@@ -1,6 +1,6 @@
 use std::{
-    collections::BTreeMap,
     collections::hash_map::DefaultHasher,
+    collections::BTreeMap,
     collections::{HashMap, HashSet},
     env, fs,
     hash::{Hash, Hasher},
@@ -528,21 +528,16 @@ fn push_deduped_entry(
     deduped_indexes: &mut HashMap<u64, Vec<usize>>,
     deduped: &mut Vec<LoadedEntry>,
 ) {
-    let dedupe_lookup = entry
-        .data
-        .message
-        .id
-        .as_deref()
-        .map(|message_id| {
-            let request_id = entry.data.request_id.as_deref();
-            let hash = usage_dedupe_hash(message_id, request_id);
-            let existing_index = deduped_indexes.get(&hash).and_then(|indexes| {
-                indexes.iter().copied().find(|&index| {
-                    loaded_entry_matches_dedupe_key(&deduped[index], message_id, request_id)
-                })
-            });
-            (hash, existing_index)
+    let dedupe_lookup = entry.data.message.id.as_deref().map(|message_id| {
+        let request_id = entry.data.request_id.as_deref();
+        let hash = usage_dedupe_hash(message_id, request_id);
+        let existing_index = deduped_indexes.get(&hash).and_then(|indexes| {
+            indexes.iter().copied().find(|&index| {
+                loaded_entry_matches_dedupe_key(&deduped[index], message_id, request_id)
+            })
         });
+        (hash, existing_index)
+    });
 
     if let Some((_, Some(index))) = dedupe_lookup {
         if should_replace_deduped_entry(&entry.data, &deduped[index].data) {
@@ -563,20 +558,17 @@ fn push_deduped_daily_entry(
     deduped_indexes: &mut HashMap<u64, Vec<usize>>,
     deduped: &mut Vec<DailyLoadedEntry>,
 ) {
-    let dedupe_lookup = entry
-        .message_id
-        .as_deref()
-        .map(|message_id| {
-            let request_id = entry.request_id.as_deref();
-            let hash = usage_dedupe_hash(message_id, request_id);
-            let existing_index = deduped_indexes.get(&hash).and_then(|indexes| {
-                indexes.iter().copied().find(|&index| {
-                    deduped[index].message_id.as_deref() == Some(message_id)
-                        && deduped[index].request_id.as_deref() == request_id
-                })
-            });
-            (hash, existing_index)
+    let dedupe_lookup = entry.message_id.as_deref().map(|message_id| {
+        let request_id = entry.request_id.as_deref();
+        let hash = usage_dedupe_hash(message_id, request_id);
+        let existing_index = deduped_indexes.get(&hash).and_then(|indexes| {
+            indexes.iter().copied().find(|&index| {
+                deduped[index].message_id.as_deref() == Some(message_id)
+                    && deduped[index].request_id.as_deref() == request_id
+            })
         });
+        (hash, existing_index)
+    });
 
     if let Some((_, Some(index))) = dedupe_lookup {
         let candidate_total = daily_usage_token_total(&entry);
@@ -894,10 +886,7 @@ pub(crate) fn claude_paths() -> Result<Vec<PathBuf>> {
 fn normalize_claude_config_path(raw: &str) -> PathBuf {
     let path = expand_home_path(raw);
     if path.file_name().is_some_and(|name| name == "projects") && path.is_dir() {
-        return path
-            .parent()
-            .map(Path::to_path_buf)
-            .unwrap_or(path);
+        return path.parent().map(Path::to_path_buf).unwrap_or(path);
     }
     path
 }
@@ -1026,6 +1015,41 @@ pub(crate) fn extract_session_parts(path: &Path) -> (String, String) {
 }
 
 #[cfg(test)]
+pub(crate) fn usage_limit_reset_time_from_line(
+    line: &str,
+    is_api_error_message: Option<bool>,
+) -> Option<TimestampMs> {
+    usage_limit_reset_time_from_line_bytes(line.as_bytes(), is_api_error_message)
+}
+
+fn usage_limit_reset_time_from_line_bytes(
+    line: &[u8],
+    is_api_error_message: Option<bool>,
+) -> Option<TimestampMs> {
+    if is_api_error_message != Some(true) {
+        return None;
+    }
+    let marker = b"Claude AI usage limit reached";
+    let marker_start = memmem::find(line, marker)?;
+    let timestamp_start = memchr::memchr(b'|', &line[marker_start..])? + marker_start + 1;
+    let timestamp_end = line[timestamp_start..]
+        .iter()
+        .position(|byte| !byte.is_ascii_digit())
+        .map_or(line.len(), |offset| timestamp_start + offset);
+    if timestamp_start == timestamp_end {
+        return None;
+    }
+    let timestamp = std::str::from_utf8(&line[timestamp_start..timestamp_end])
+        .ok()?
+        .parse::<i64>()
+        .ok()?;
+    if timestamp <= 0 {
+        return None;
+    }
+    TimestampMs::from_unix_seconds(timestamp)
+}
+
+#[cfg(test)]
 mod tests {
     use std::path::Path;
 
@@ -1033,8 +1057,9 @@ mod tests {
 
     #[test]
     fn extracts_file_session_from_modern_claude_project_path() {
-        let (session_id, project_path) =
-            extract_session_parts(Path::new("/home/me/.claude/projects/project-a/session-a.jsonl"));
+        let (session_id, project_path) = extract_session_parts(Path::new(
+            "/home/me/.claude/projects/project-a/session-a.jsonl",
+        ));
 
         assert_eq!(session_id, "session-a");
         assert_eq!(project_path, "project-a");
@@ -1079,39 +1104,4 @@ mod tests {
             br#"{"message":{"content":null,"usage":{"input_tokens":0}}}"#
         ));
     }
-}
-
-#[cfg(test)]
-pub(crate) fn usage_limit_reset_time_from_line(
-    line: &str,
-    is_api_error_message: Option<bool>,
-) -> Option<TimestampMs> {
-    usage_limit_reset_time_from_line_bytes(line.as_bytes(), is_api_error_message)
-}
-
-fn usage_limit_reset_time_from_line_bytes(
-    line: &[u8],
-    is_api_error_message: Option<bool>,
-) -> Option<TimestampMs> {
-    if is_api_error_message != Some(true) {
-        return None;
-    }
-    let marker = b"Claude AI usage limit reached";
-    let marker_start = memmem::find(line, marker)?;
-    let timestamp_start = memchr::memchr(b'|', &line[marker_start..])? + marker_start + 1;
-    let timestamp_end = line[timestamp_start..]
-        .iter()
-        .position(|byte| !byte.is_ascii_digit())
-        .map_or(line.len(), |offset| timestamp_start + offset);
-    if timestamp_start == timestamp_end {
-        return None;
-    }
-    let timestamp = std::str::from_utf8(&line[timestamp_start..timestamp_end])
-        .ok()?
-        .parse::<i64>()
-        .ok()?;
-    if timestamp <= 0 {
-        return None;
-    }
-    TimestampMs::from_unix_seconds(timestamp)
 }

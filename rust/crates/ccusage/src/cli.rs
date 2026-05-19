@@ -738,12 +738,11 @@ fn legacy_agent_report_supported(agent: &str, report: &str) -> bool {
 }
 
 fn report_flag_alias_error(args: &[String]) -> Option<String> {
-    let flag = args.iter().find_map(|arg| {
+    let flag = args.iter().find(|arg| {
         matches!(
             arg.as_str(),
             "--daily" | "--weekly" | "--monthly" | "--session" | "--blocks" | "--statusline"
         )
-        .then_some(arg)
     })?;
     Some(format!(
         "Report flags like {flag} are not supported. Use \"ccusage {}\" instead.",
@@ -1261,9 +1260,10 @@ mod tests {
 
     #[test]
     fn cargo_version_matches_npm_package_version() {
-        let package_json =
-            serde_json::from_str::<serde_json::Value>(include_str!("../../../../apps/ccusage/package.json"))
-                .unwrap();
+        let package_json = serde_json::from_str::<serde_json::Value>(include_str!(
+            "../../../../apps/ccusage/package.json"
+        ))
+        .unwrap();
 
         assert_eq!(
             env!("CARGO_PKG_VERSION"),

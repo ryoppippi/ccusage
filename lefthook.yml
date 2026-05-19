@@ -22,12 +22,17 @@ pre-commit:
       run: pnpm exec oxfmt --no-error-on-unmatched-pattern {staged_files}
       stage_fixed: true
 
+    - name: rustfmt
+      glob: 'rust/**/*.rs'
+      run: rustfmt {staged_files}
+      stage_fixed: true
+
     - name: eslint
       group:
         parallel: true
         jobs:
           - name: root
-            glob: '**/*'
+            glob: '*.{ts,tsx,js,jsx,mjs,cjs}'
             exclude:
               - 'apps/**'
               - 'packages/**'
@@ -36,17 +41,44 @@ pre-commit:
             stage_fixed: true
           - name: ccusage
             root: apps/ccusage/
-            glob: '**/*'
+            glob: '*.{ts,tsx,js,jsx,mjs,cjs}'
             run: pnpm exec eslint --cache --fix --no-warn-ignored {staged_files}
             stage_fixed: true
           - name: docs
             root: docs/
-            glob: '**/*'
+            glob: '*.{ts,tsx,js,jsx,mjs,cjs}'
             run: pnpm exec eslint --cache --fix --no-warn-ignored {staged_files}
             stage_fixed: true
 
 pre-push:
+  parallel: true
   jobs:
-    - name: test
+    - name: lint
+      group:
+        parallel: true
+        jobs:
+          - name: oxfmt
+            glob: '**/*'
+            run: pnpm exec oxfmt --check .
+          - name: eslint root
+            glob: '*.{ts,tsx,js,jsx,mjs,cjs}'
+            exclude:
+              - 'apps/**'
+              - 'packages/**'
+              - 'docs/**'
+            run: pnpm exec eslint --cache eslint.config.js .
+          - name: eslint ccusage
+            root: apps/ccusage/
+            glob: '*.{ts,tsx,js,jsx,mjs,cjs}'
+            run: pnpm exec eslint --cache .
+          - name: eslint docs
+            root: docs/
+            glob: '*.{ts,tsx,js,jsx,mjs,cjs}'
+            run: pnpm exec eslint --cache .
+          - name: clippy
+            glob: 'rust/**/*.rs'
+            run: cargo clippy --manifest-path rust/Cargo.toml --workspace --all-targets -- -D warnings
+
+    - name: vitest related
       glob: '*.{ts,tsx,js,jsx,mjs,cjs}'
       run: pnpm vitest related --run {push_files}
