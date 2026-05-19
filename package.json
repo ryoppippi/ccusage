@@ -42,8 +42,11 @@
 		"postrelease": "git checkout ./**/package.json package.json",
 		"sync:skills": "bun scripts/sync-skills.ts",
 		"sync:skills:check": "bun scripts/sync-skills.ts --check",
-		"test": "TZ=UTC vitest run && pnpm run test:rust",
+		"test": "pnpm --parallel --aggregate-output /^test:parallel:/",
+		"test:parallel:rust": "pnpm run test:rust",
+		"test:parallel:vitest": "pnpm run test:vitest",
 		"test:rust": "cargo test --manifest-path rust/Cargo.toml --workspace",
+		"test:vitest": "TZ=UTC vitest run",
 		"typecheck": "pnpm run --filter '*' typecheck"
 	},
 	"dependencies": {},
