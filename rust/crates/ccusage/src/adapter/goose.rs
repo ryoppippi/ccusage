@@ -1,6 +1,6 @@
 use std::{
     collections::HashSet,
-    env, fs,
+    env,
     path::{Path, PathBuf},
     sync::Arc,
 };
@@ -398,7 +398,10 @@ fn debug_log(shared: &SharedArgs, message: String) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::time::{SystemTime, UNIX_EPOCH};
+    use std::{
+        fs,
+        time::{SystemTime, UNIX_EPOCH},
+    };
 
     fn temp_dir(name: &str) -> PathBuf {
         let nanos = SystemTime::now()
@@ -429,16 +432,17 @@ CREATE TABLE sessions (
         .unwrap();
     }
 
-    fn insert_session(
-        path: &Path,
-        id: &str,
-        model_config: &str,
-        provider: Option<&str>,
-        created_at: &str,
+    struct SessionFixture<'a> {
+        id: &'a str,
+        model_config: &'a str,
+        provider: Option<&'a str>,
+        created_at: &'a str,
         total: i64,
         input: i64,
         output: i64,
-    ) {
+    }
+
+    fn insert_session(path: &Path, fixture: SessionFixture<'_>) {
         let db = sqlite::open(path).unwrap();
         let mut statement = db
             .prepare(
@@ -455,13 +459,13 @@ INSERT INTO sessions (
 "#,
             )
             .unwrap();
-        statement.bind((1, id)).unwrap();
-        statement.bind((2, model_config)).unwrap();
-        statement.bind((3, provider)).unwrap();
-        statement.bind((4, created_at)).unwrap();
-        statement.bind((5, total)).unwrap();
-        statement.bind((6, input)).unwrap();
-        statement.bind((7, output)).unwrap();
+        statement.bind((1, fixture.id)).unwrap();
+        statement.bind((2, fixture.model_config)).unwrap();
+        statement.bind((3, fixture.provider)).unwrap();
+        statement.bind((4, fixture.created_at)).unwrap();
+        statement.bind((5, fixture.total)).unwrap();
+        statement.bind((6, fixture.input)).unwrap();
+        statement.bind((7, fixture.output)).unwrap();
         statement.next().unwrap();
     }
 
@@ -473,13 +477,15 @@ INSERT INTO sessions (
         create_goose_db(&db_path);
         insert_session(
             &db_path,
-            "session-a",
-            r#"{"model_name":"claude-sonnet-4-20250514"}"#,
-            Some("anthropic"),
-            "2026-05-01 01:02:03",
-            180,
-            100,
-            50,
+            SessionFixture {
+                id: "session-a",
+                model_config: r#"{"model_name":"claude-sonnet-4-20250514"}"#,
+                provider: Some("anthropic"),
+                created_at: "2026-05-01 01:02:03",
+                total: 180,
+                input: 100,
+                output: 50,
+            },
         );
 
         let pricing = PricingMap::load_embedded();
