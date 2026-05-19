@@ -435,15 +435,21 @@ fn group_json(
     speed: CodexSpeed,
 ) -> Value {
     let cost = calculate_group_cost(group, pricing, speed);
+    let input_tokens = non_cached_input_tokens(group.input_tokens, group.cached_input_tokens);
+    let models = group
+        .models
+        .iter()
+        .map(|(model, usage)| (model.clone(), model_usage_json(usage)))
+        .collect::<BTreeMap<_, _>>();
     let mut row = json!({
         period_key(kind): period,
-        "inputTokens": group.input_tokens,
+        "inputTokens": input_tokens,
         "cachedInputTokens": group.cached_input_tokens,
         "outputTokens": group.output_tokens,
         "reasoningOutputTokens": group.reasoning_output_tokens,
         "totalTokens": group.total_tokens,
         "costUSD": json_float(cost),
-        "models": group.models,
+        "models": models,
     });
     if kind == AgentReportKind::Session {
         row["lastActivity"] = json!(group.last_activity);
@@ -452,6 +458,21 @@ fn group_json(
         row["directory"] = json!(separator.map_or("", |index| &period[..index]));
     }
     row
+}
+
+pub(crate) fn non_cached_input_tokens(input_tokens: u64, cached_input_tokens: u64) -> u64 {
+    input_tokens.saturating_sub(cached_input_tokens.min(input_tokens))
+}
+
+fn model_usage_json(usage: &CodexModelUsage) -> Value {
+    json!({
+        "inputTokens": non_cached_input_tokens(usage.input_tokens, usage.cached_input_tokens),
+        "cachedInputTokens": usage.cached_input_tokens,
+        "outputTokens": usage.output_tokens,
+        "reasoningOutputTokens": usage.reasoning_output_tokens,
+        "totalTokens": usage.total_tokens,
+        "isFallback": usage.is_fallback,
+    })
 }
 
 fn totals_json<'a>(
@@ -466,7 +487,7 @@ fn totals_json<'a>(
     let mut total = 0;
     let mut cost = 0.0;
     for group in groups {
-        input += group.input_tokens;
+        input += non_cached_input_tokens(group.input_tokens, group.cached_input_tokens);
         cached += group.cached_input_tokens;
         output += group.output_tokens;
         reasoning += group.reasoning_output_tokens;
@@ -669,6 +690,38 @@ mod tests {
         assert_eq!(group.output_tokens, 75);
         assert_eq!(group.reasoning_output_tokens, 5);
         assert_eq!(group.total_tokens, 280);
+    }
+
+    #[test]
+    fn reports_non_cached_codex_input_separately_from_cached_input() {
+        let pricing = PricingMap::default();
+        let report = report_json(
+            &[CodexTokenUsageEvent {
+                session_id: "session-1".to_string(),
+                timestamp: "2026-01-02T00:00:00.000Z".to_string(),
+                model: Some("gpt-5".to_string()),
+                input_tokens: 100,
+                cached_input_tokens: 90,
+                output_tokens: 5,
+                reasoning_output_tokens: 0,
+                total_tokens: 105,
+                is_fallback_model: false,
+            }],
+            AgentReportKind::Daily,
+            Some("UTC"),
+            &pricing,
+            CodexSpeed::Standard,
+        )
+        .unwrap();
+
+        assert_eq!(report["daily"][0]["inputTokens"], 10);
+        assert_eq!(report["daily"][0]["cachedInputTokens"], 90);
+        assert_eq!(report["daily"][0]["totalTokens"], 105);
+        assert_eq!(report["daily"][0]["models"]["gpt-5"]["inputTokens"], 10);
+        assert_eq!(
+            report["daily"][0]["models"]["gpt-5"]["cachedInputTokens"],
+            90
+        );
     }
 
     #[test]
