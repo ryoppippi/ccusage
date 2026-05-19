@@ -19,36 +19,25 @@ pre-commit:
 
     - name: oxfmt
       glob: '**/*'
-      run: pnpm exec oxfmt --no-error-on-unmatched-pattern {staged_files}
+      run: oxfmt --no-error-on-unmatched-pattern {staged_files}
       stage_fixed: true
+
+    - name: typos
+      glob: '**/*'
+      run: typos --config ./typos.toml --force-exclude {staged_files}
+
+    - name: gitleaks
+      run: gitleaks protect --staged --config .gitleaks.toml
 
     - name: rustfmt
       glob: 'rust/**/*.rs'
       run: rustfmt {staged_files}
       stage_fixed: true
 
-    - name: eslint
-      group:
-        parallel: true
-        jobs:
-          - name: root
-            glob: '**/*.{ts,tsx,js,jsx,mjs,cjs}'
-            exclude:
-              - 'apps/**'
-              - 'packages/**'
-              - 'docs/**'
-            run: pnpm exec eslint --cache --fix --no-warn-ignored {staged_files}
-            stage_fixed: true
-          - name: ccusage
-            root: apps/ccusage/
-            glob: '**/*.{ts,tsx,js,jsx,mjs,cjs}'
-            run: pnpm exec eslint --cache --fix --no-warn-ignored {staged_files}
-            stage_fixed: true
-          - name: docs
-            root: docs/
-            glob: '**/*.{ts,tsx,js,jsx,mjs,cjs}'
-            run: pnpm exec eslint --cache --fix --no-warn-ignored {staged_files}
-            stage_fixed: true
+    - name: oxlint
+      glob: '**/*.{ts,tsx,js,jsx,mjs,cjs}'
+      run: oxlint --fix {staged_files}
+      stage_fixed: true
 
 pre-push:
   parallel: true
@@ -59,22 +48,16 @@ pre-push:
         jobs:
           - name: oxfmt
             glob: '**/*'
-            run: pnpm exec oxfmt --check .
-          - name: eslint root
+            run: oxfmt --check .
+          - name: typos
+            glob: '**/*'
+            run: typos --config ./typos.toml
+          - name: gitleaks
+            glob: '**/*'
+            run: gitleaks detect --config .gitleaks.toml
+          - name: oxlint
             glob: '**/*.{ts,tsx,js,jsx,mjs,cjs}'
-            exclude:
-              - 'apps/**'
-              - 'packages/**'
-              - 'docs/**'
-            run: pnpm exec eslint --cache eslint.config.js .
-          - name: eslint ccusage
-            root: apps/ccusage/
-            glob: '**/*.{ts,tsx,js,jsx,mjs,cjs}'
-            run: pnpm exec eslint --cache .
-          - name: eslint docs
-            root: docs/
-            glob: '**/*.{ts,tsx,js,jsx,mjs,cjs}'
-            run: pnpm exec eslint --cache .
+            run: oxlint .
           - name: clippy
             glob: 'rust/**/*.rs'
             run: cargo clippy --manifest-path rust/Cargo.toml --workspace --all-targets -- -D warnings

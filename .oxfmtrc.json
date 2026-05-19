@@ -1,0 +1,5 @@
+{
+	"useTabs": true,
+	"singleQuote": true,
+	"ignorePatterns": ["dist", "target", "node_modules", "coverage", ".git"]
+}

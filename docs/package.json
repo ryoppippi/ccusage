@@ -1,32 +1,28 @@
 {
 	"name": "@ccusage/docs",
-	"type": "module",
 	"version": "19.0.3",
 	"private": true,
 	"description": "Documentation for coding (agent) CLI usage analysis with ccusage",
-	"engines": {
-		"node": ">=22.11.0"
-	},
+	"type": "module",
 	"scripts": {
 		"build": "cp ../apps/ccusage/config-schema.json public/config-schema.json && vitepress build",
 		"deploy": "wrangler deploy",
 		"dev": "cp ../apps/ccusage/config-schema.json public/config-schema.json && vitepress dev",
-		"format": "pnpm run lint --fix",
-		"lint": "eslint --cache .",
+		"format": "oxfmt --write .",
+		"lint": "oxlint .",
 		"preview": "vitepress preview",
 		"typecheck": "tsgo --noEmit"
 	},
 	"devDependencies": {
-		"@ryoppippi/eslint-config": "catalog:lint",
 		"@ryoppippi/vite-plugin-cloudflare-redirect": "catalog:docs",
 		"@types/bun": "catalog:types",
 		"@types/react": "catalog:types",
-		"@typescript/native-preview": "catalog:types",
-		"eslint": "catalog:lint",
-		"eslint-plugin-format": "catalog:lint",
 		"vitepress": "catalog:docs",
 		"vitepress-plugin-group-icons": "catalog:docs",
 		"vitepress-plugin-llms": "catalog:docs",
 		"wrangler": "catalog:docs"
+	},
+	"engines": {
+		"node": ">=22.11.0"
 	}
 }

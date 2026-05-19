@@ -1,23 +1,19 @@
 {
 	"name": "ccusage",
-	"type": "module",
 	"version": "19.0.3",
 	"description": "Analyze coding (agent) CLI token usage and costs from local data",
-	"author": "ryoppippi",
-	"license": "MIT",
-	"funding": "https://github.com/ryoppippi/ccusage?sponsor=1",
 	"homepage": "https://github.com/ryoppippi/ccusage#readme",
+	"bugs": {
+		"url": "https://github.com/ryoppippi/ccusage/issues"
+	},
+	"license": "MIT",
+	"author": "ryoppippi",
 	"repository": {
 		"type": "git",
 		"url": "git+https://github.com/ryoppippi/ccusage.git",
 		"directory": "apps/ccusage"
 	},
-	"bugs": {
-		"url": "https://github.com/ryoppippi/ccusage/issues"
-	},
-	"exports": {
-		"./package.json": "./package.json"
-	},
+	"funding": "https://github.com/ryoppippi/ccusage?sponsor=1",
 	"bin": {
 		"ccusage": "./src/cli.ts"
 	},
@@ -25,21 +21,19 @@
 		"config-schema.json",
 		"dist/**/*.js"
 	],
+	"type": "module",
 	"publishConfig": {
 		"bin": {
 			"ccusage": "./dist/cli.js"
-		},
-		"exports": {
-			"./package.json": "./package.json"
 		}
 	},
 	"scripts": {
 		"bench": "node scripts/bench.mjs",
 		"build": "pnpm run generate:schema && tsdown && pnpm run build:rust",
 		"build:rust": "cargo build --manifest-path ../../rust/Cargo.toml --release --bin ccusage",
-		"format": "pnpm run lint --fix",
-		"generate:schema": "cargo run --quiet --manifest-path ../../rust/Cargo.toml --bin generate-config-schema -- config-schema.json && pnpm exec oxfmt --write config-schema.json && cp config-schema.json ../../docs/public/config-schema.json",
-		"lint": "eslint --cache .",
+		"format": "oxfmt --write .",
+		"generate:schema": "cargo run --quiet --manifest-path ../../rust/Cargo.toml --bin generate-config-schema -- config-schema.json && oxfmt --write config-schema.json && cp config-schema.json ../../docs/public/config-schema.json",
+		"lint": "oxlint .",
 		"prepack": "pnpm run build && clean-pkg-json",
 		"prerelease": "pnpm run lint && pnpm run typecheck && pnpm run build",
 		"stage:native-package": "node scripts/stage-native-package.mjs",
@@ -56,6 +50,16 @@
 		"test:statusline:sonnet41": "cat test/statusline-test-sonnet41.json | cargo run --manifest-path ../../rust/Cargo.toml --bin ccusage -- statusline --offline",
 		"typecheck": "tsgo --noEmit"
 	},
+	"devDependencies": {
+		"@types/bun": "catalog:types",
+		"clean-pkg-json": "catalog:release",
+		"fs-fixture": "catalog:testing",
+		"gunshi": "catalog:runtime",
+		"mitata": "catalog:testing",
+		"publint": "catalog:lint",
+		"tsdown": "catalog:build",
+		"vitest": "catalog:testing"
+	},
 	"optionalDependencies": {
 		"@ccusage/ccusage-darwin-arm64": "workspace:*",
 		"@ccusage/ccusage-darwin-x64": "workspace:*",
@@ -63,19 +67,5 @@
 		"@ccusage/ccusage-linux-x64": "workspace:*",
 		"@ccusage/ccusage-win32-arm64": "workspace:*",
 		"@ccusage/ccusage-win32-x64": "workspace:*"
-	},
-	"devDependencies": {
-		"@ryoppippi/eslint-config": "catalog:lint",
-		"@types/bun": "catalog:types",
-		"@typescript/native-preview": "catalog:types",
-		"clean-pkg-json": "catalog:release",
-		"eslint": "catalog:lint",
-		"eslint-plugin-format": "catalog:lint",
-		"fs-fixture": "catalog:testing",
-		"gunshi": "catalog:runtime",
-		"mitata": "catalog:testing",
-		"publint": "catalog:lint",
-		"tsdown": "catalog:build",
-		"vitest": "catalog:testing"
 	}
 }

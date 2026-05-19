@@ -1,0 +1,10 @@
+{
+	"ignorePatterns": [
+		"dist",
+		"target",
+		"node_modules",
+		"coverage",
+		".git",
+		".claude/settings.local.json"
+	]
+}
