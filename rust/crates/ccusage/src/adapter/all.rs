@@ -533,7 +533,7 @@ fn codex_group_row(
         period: period.to_string(),
         agent: "codex",
         models_used: group.models.keys().cloned().collect(),
-        input_tokens: group.input_tokens,
+        input_tokens: codex::non_cached_input_tokens(group.input_tokens, group.cached_input_tokens),
         output_tokens: group.output_tokens,
         cache_creation_tokens: 0,
         cache_read_tokens: group.cached_input_tokens,
@@ -956,6 +956,7 @@ fn agent_label(agent: &str) -> &str {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::CodexModelUsage;
     use std::{
         sync::{
             atomic::{AtomicUsize, Ordering},
@@ -1101,6 +1102,37 @@ mod tests {
         assert_eq!(report["daily"][0]["agent"], "all");
         assert_eq!(report["daily"][0]["metadata"]["agents"], json!(["codex"]));
         assert_eq!(report["totals"]["totalTokens"], 130);
+    }
+
+    #[test]
+    fn uses_non_cached_codex_input_tokens_in_all_rows() {
+        let mut group = CodexGroup {
+            input_tokens: 100,
+            cached_input_tokens: 90,
+            output_tokens: 5,
+            total_tokens: 105,
+            ..CodexGroup::default()
+        };
+        group.models.insert(
+            "gpt-5".to_string(),
+            CodexModelUsage {
+                input_tokens: 100,
+                cached_input_tokens: 90,
+                output_tokens: 5,
+                total_tokens: 105,
+                ..CodexModelUsage::default()
+            },
+        );
+        let row = codex_group_row(
+            "2026-01-02",
+            &group,
+            &PricingMap::default(),
+            CodexSpeed::Standard,
+        );
+
+        assert_eq!(row.input_tokens, 10);
+        assert_eq!(row.cache_read_tokens, 90);
+        assert_eq!(row.total_tokens, 105);
     }
 
     #[test]
