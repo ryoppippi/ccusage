@@ -82,97 +82,101 @@ fn load_rows(kind: AgentReportKind, shared: &SharedArgs) -> Result<AllLoadResult
             AgentReportKind::Daily
         }
     };
+    let loader_shared = SharedArgs {
+        json: true,
+        ..shared.clone()
+    };
     let loaded = load_agent_rows_parallel(
         vec![
             AgentLoadSpec {
                 index: 0,
                 agent: "claude",
                 progress_agent: crate::progress::UsageLoadAgent::Claude,
-                load: Box::new(|| load_claude_rows(load_kind, shared)),
+                load: Box::new(|| load_claude_rows(load_kind, &loader_shared)),
             },
             AgentLoadSpec {
                 index: 1,
                 agent: "codex",
                 progress_agent: crate::progress::UsageLoadAgent::Codex,
-                load: Box::new(|| load_codex_rows(load_kind, shared, &pricing)),
+                load: Box::new(|| load_codex_rows(load_kind, &loader_shared, &pricing)),
             },
             AgentLoadSpec {
                 index: 2,
                 agent: "opencode",
                 progress_agent: crate::progress::UsageLoadAgent::OpenCode,
-                load: Box::new(|| load_opencode_rows(load_kind, shared)),
+                load: Box::new(|| load_opencode_rows(load_kind, &loader_shared)),
             },
             AgentLoadSpec {
                 index: 3,
                 agent: "amp",
                 progress_agent: crate::progress::UsageLoadAgent::Amp,
-                load: Box::new(|| load_amp_rows(load_kind, shared, &pricing)),
+                load: Box::new(|| load_amp_rows(load_kind, &loader_shared, &pricing)),
             },
             AgentLoadSpec {
                 index: 4,
                 agent: "droid",
                 progress_agent: crate::progress::UsageLoadAgent::Droid,
-                load: Box::new(|| load_droid_rows(load_kind, shared, &pricing)),
+                load: Box::new(|| load_droid_rows(load_kind, &loader_shared, &pricing)),
             },
             AgentLoadSpec {
                 index: 5,
                 agent: "codebuff",
                 progress_agent: crate::progress::UsageLoadAgent::Codebuff,
-                load: Box::new(|| load_codebuff_rows(load_kind, shared, &pricing)),
+                load: Box::new(|| load_codebuff_rows(load_kind, &loader_shared, &pricing)),
             },
             AgentLoadSpec {
                 index: 6,
                 agent: "hermes",
                 progress_agent: crate::progress::UsageLoadAgent::Hermes,
-                load: Box::new(|| load_hermes_rows(load_kind, shared, &pricing)),
+                load: Box::new(|| load_hermes_rows(load_kind, &loader_shared, &pricing)),
             },
             AgentLoadSpec {
                 index: 7,
                 agent: "pi",
                 progress_agent: crate::progress::UsageLoadAgent::Pi,
-                load: Box::new(|| load_pi_rows(load_kind, shared)),
+                load: Box::new(|| load_pi_rows(load_kind, &loader_shared)),
             },
             AgentLoadSpec {
                 index: 8,
                 agent: "goose",
                 progress_agent: crate::progress::UsageLoadAgent::Goose,
-                load: Box::new(|| load_goose_rows(load_kind, shared, &pricing)),
+                load: Box::new(|| load_goose_rows(load_kind, &loader_shared, &pricing)),
             },
             AgentLoadSpec {
                 index: 9,
                 agent: "openclaw",
                 progress_agent: crate::progress::UsageLoadAgent::OpenClaw,
-                load: Box::new(|| load_openclaw_rows(load_kind, shared)),
+                load: Box::new(|| load_openclaw_rows(load_kind, &loader_shared)),
             },
             AgentLoadSpec {
                 index: 10,
                 agent: "kilo",
                 progress_agent: crate::progress::UsageLoadAgent::Kilo,
-                load: Box::new(|| load_kilo_rows(load_kind, shared, &pricing)),
+                load: Box::new(|| load_kilo_rows(load_kind, &loader_shared, &pricing)),
             },
             AgentLoadSpec {
                 index: 11,
                 agent: "copilot",
                 progress_agent: crate::progress::UsageLoadAgent::Copilot,
-                load: Box::new(|| load_copilot_rows(load_kind, shared, &pricing)),
+                load: Box::new(|| load_copilot_rows(load_kind, &loader_shared, &pricing)),
             },
             AgentLoadSpec {
                 index: 12,
                 agent: "gemini",
                 progress_agent: crate::progress::UsageLoadAgent::Gemini,
-                load: Box::new(|| load_gemini_rows(load_kind, shared, &pricing)),
+                load: Box::new(|| load_gemini_rows(load_kind, &loader_shared, &pricing)),
             },
             AgentLoadSpec {
                 index: 13,
                 agent: "kimi",
                 progress_agent: crate::progress::UsageLoadAgent::Kimi,
-                load: Box::new(|| load_kimi_rows(load_kind, shared, &pricing)),
+                load: Box::new(|| load_kimi_rows(load_kind, &loader_shared, &pricing)),
             },
             AgentLoadSpec {
                 index: 14,
                 agent: "qwen",
                 progress_agent: crate::progress::UsageLoadAgent::Qwen,
-                load: Box::new(|| load_qwen_rows(load_kind, shared)),
+                load: Box::new(|| load_qwen_rows(load_kind, &loader_shared)),
             },
         ],
         &mut progress,
