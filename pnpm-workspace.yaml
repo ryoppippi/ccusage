@@ -31,7 +31,7 @@ catalogs:
     changelogithub: ^13.16.1
     clean-pkg-json: ^1.3.0
     lefthook: ^2.1.6
-    pkg-pr-new: ^0.0.60
+    pkg-pr-new: ^0.0.73
   runtime:
     '@antfu/utils': ^9.2.1
     '@praha/byethrow': ^0.11.2
