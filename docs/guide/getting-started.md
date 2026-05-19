@@ -50,6 +50,7 @@ ccusage opencode weekly
 ccusage amp session
 ccusage pi monthly
 ccusage kilo daily
+ccusage kimi daily
 ```
 
 ## Your First Report
@@ -167,9 +168,10 @@ If ccusage shows no data, check:
    - Hermes Agent: `${HERMES_HOME:-~/.hermes}/state.db`
    - pi-agent: `${PI_AGENT_DIR:-~/.pi/agent/sessions}`
    - Goose: standard Goose data roots or `GOOSE_PATH_ROOT`
-   - GitHub Copilot CLI: `~/.copilot/otel/*.jsonl` or `COPILOT_OTEL_FILE_EXPORTER_PATH`
    - Kilo: `${KILO_DATA_DIR:-~/.local/share/kilo}`
+   - Kimi: `${KIMI_DATA_DIR:-~/.kimi}`
    - OpenClaw: `${OPENCLAW_DIR:-~/.openclaw}` (also scans `~/.clawdbot`, `~/.moltbot`, `~/.moldbot`)
+   - GitHub Copilot CLI: `~/.copilot/otel/*.jsonl` or `COPILOT_OTEL_FILE_EXPORTER_PATH`
 
 ### Custom Data Directory
 
@@ -184,8 +186,9 @@ export HERMES_HOME="/path/to/hermes"
 export PI_AGENT_DIR="/path/to/pi/sessions"
 export GOOSE_PATH_ROOT="/path/to/goose"
 export OPENCLAW_DIR="/path/to/openclaw"
-export COPILOT_OTEL_FILE_EXPORTER_PATH="/path/to/copilot-otel.jsonl"
 export KILO_DATA_DIR="/path/to/kilo"
+export KIMI_DATA_DIR="/path/to/kimi"
+export COPILOT_OTEL_FILE_EXPORTER_PATH="/path/to/copilot-otel.jsonl"
 ```
 
 Each source-specific path variable can also contain comma-separated directories:
@@ -199,6 +202,7 @@ export PI_AGENT_DIR="/path/to/pi/sessions,/archive/pi/sessions"
 export GOOSE_PATH_ROOT="/path/to/goose,/archive/goose"
 export OPENCLAW_DIR="/path/to/openclaw,/archive/openclaw"
 export KILO_DATA_DIR="/path/to/kilo,/archive/kilo"
+export KIMI_DATA_DIR="/path/to/kimi,/archive/kimi"
 ```
 
 ## Getting Help
